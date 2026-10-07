@@ -210,3 +210,5 @@ Windows 对已核对命令签名的受管 PID 先执行非强制 `taskkill /T`�
 Doctor 以安全固定字段投影平台能力；available 只描述实现，不认证真机结果。Windows 文档与 Docker ACL、非 Mac 沙箱的边界见 [支持矩阵](../../research-web-platform-support.md)，不改变 Web/DSH 两服务结构。
 
 镜像内 DSH 发布资产保留生产依赖的运行时目录（包括 YAML dist/doc）；筛选只剔除包根开发资料和明确元数据，不新增服务或改变单容器结构。
+
+Docker Desktop 初始化在固定 bind 私有叶的原完整 guard 内，用 O_DIRECTORY/O_NOFOLLOW 固定描述符对父根执行不跟随链接的相对属性同步；前后 dev/inode/mode/uid/gid 和父别名/叶替换仍完整复核。同步不 chmod/chown、不读取秘密、不增加 owner 例外；自定义目录仍使用原严格边界。

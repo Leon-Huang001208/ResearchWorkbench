@@ -699,6 +699,106 @@ def test_supervisor_and_health_defaults_share_private_state_leaf(monkeypatch):
     assert checks[0][0] == configs[0].state_root
 
 
+@pytest.mark.parametrize("existing", [False, True])
+def test_docker_fixed_bind_parent_pinned_stat_prevents_later_owner_drift(
+    tmp_path, monkeypatch, existing
+):
+    from app.research_web.runtime_state import runtime_state_directory
+    from docker import supervisor
+
+    mount = tmp_path.resolve() / "mount"
+    mount.mkdir(mode=0o700)
+    leaf = mount / "runtime"
+    if existing:
+        leaf.mkdir(mode=0o700)
+    monkeypatch.setattr(supervisor, "_DOCKER_PRIVATE_LEAVES", {leaf})
+    real_stat, real_fstat = os.stat, os.fstat
+    inode = mount.stat().st_ino
+    synchronized = []
+    node_stat = []
+
+    def project(info):
+        if info.st_ino == inode and node_stat and not synchronized:
+            values = list(info)
+            values[4:6] = [os.getuid() + 9876, os.getgid() + 9876]
+            return os.stat_result(values)
+        return info
+
+    def stat_call(path, *args, **kwargs):
+        info = real_stat(path, *args, **kwargs)
+        if str(path) == "." and kwargs.get("dir_fd") is not None and info.st_ino == inode:
+            assert kwargs.get("follow_symlinks") is False
+            synchronized.append(True)
+        return project(info)
+
+    monkeypatch.setattr(os, "stat", stat_call)
+    monkeypatch.setattr(os, "fstat", lambda fd: project(real_fstat(fd)))
+    supervisor._prepare_private_leaf(leaf)
+    # Model the independently reproduced Node stat attribute-cache transition.
+    with runtime_state_directory(leaf):
+        node_stat.append(True)
+    assert synchronized
+    assert leaf.is_dir()
+
+
+@pytest.mark.parametrize("bad", ["uid", "gid", "mode", "inode", "parent_alias", "leaf_replace"])
+def test_docker_bind_parent_sync_rejects_changed_identity(tmp_path, monkeypatch, bad):
+    from app.research_web.runtime_state import RuntimeStateError
+    from docker import supervisor
+
+    mount = tmp_path.resolve() / "mount"
+    mount.mkdir(mode=0o700)
+    leaf = mount / "runtime"
+    leaf.mkdir(mode=0o700)
+    monkeypatch.setattr(supervisor, "_DOCKER_PRIVATE_LEAVES", {leaf})
+    real_stat = os.stat
+    synchronized = []
+
+    def stat_call(path, *args, **kwargs):
+        info = real_stat(path, *args, **kwargs)
+        if str(path) == "." and kwargs.get("dir_fd") is not None:
+            synchronized.append(True)
+            if bad == "parent_alias":
+                old = mount.with_name("old")
+                mount.rename(old)
+                mount.symlink_to(old, target_is_directory=True)
+            elif bad == "leaf_replace":
+                leaf.rename(mount / "old-leaf")
+                leaf.mkdir(mode=0o700)
+            else:
+                values = list(info)
+                if bad == "uid":
+                    values[4] += 9876
+                elif bad == "gid":
+                    values[5] += 9876
+                elif bad == "mode":
+                    values[0] |= 0o055
+                elif bad == "inode":
+                    values[1] += 9876
+                return os.stat_result(values)
+        return info
+
+    monkeypatch.setattr(os, "stat", stat_call)
+    with pytest.raises((RuntimeStateError, OSError)):
+        supervisor._prepare_private_leaf(leaf)
+    assert synchronized
+
+
+def test_custom_private_root_never_uses_bind_parent_sync(tmp_path, monkeypatch):
+    from docker import supervisor
+
+    leaf = tmp_path.resolve() / "runtime"
+    real_stat = os.stat
+
+    def stat_call(path, *args, **kwargs):
+        assert str(path) != "." or kwargs.get("dir_fd") is None
+        return real_stat(path, *args, **kwargs)
+
+    monkeypatch.setattr(os, "stat", stat_call)
+    supervisor._prepare_private_leaf(leaf)
+    supervisor._prepare_private_leaf(leaf)
+
+
 @pytest.mark.parametrize("name", ["runtime", "private", "logs"])
 @pytest.mark.parametrize(
     "transition", ["mapped", "foreign_uid", "foreign_gid", "mode", "inode", "custom"]

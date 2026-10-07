@@ -227,3 +227,5 @@ PID 与命令签名归属核对的进程可进入该路径，强制失败仍返�
 研究脚本仍要求严格沙箱，当前仅 macOS Native 有实现。非 Mac/Docker 明确 unsupported；平台能力声明与任务验收分开，不用健康检查推导研究任务可执行。
 
 生产包图 staging 必须可实际加载已发布 runtime；文件 manifest 自洽不证明依赖完整。YAML dist/doc 属于代码载荷，必须由 Node 导入回归与真实 DSH 启动验证。
+
+Docker Desktop 初始化在固定 bind 私有叶的原完整 guard 内，用 O_DIRECTORY/O_NOFOLLOW 固定描述符对父根执行不跟随链接的相对属性同步；前后 dev/inode/mode/uid/gid 和父别名/叶替换仍完整复核。同步不 chmod/chown、不读取秘密、不增加 owner 例外；自定义目录仍使用原严格边界。
