@@ -34,9 +34,19 @@ def isolated_keyring(monkeypatch):
     import keyring
 
     values = {}
-    monkeypatch.setattr(keyring, "get_password", lambda service, account: values.get((service, account)))
-    monkeypatch.setattr(keyring, "set_password", lambda service, account, value: values.__setitem__((service, account), value))
-    monkeypatch.setattr(keyring, "delete_password", lambda service, account: values.pop((service, account), None))
+    monkeypatch.setattr(
+        keyring, "get_password", lambda service, account: values.get((service, account))
+    )
+    monkeypatch.setattr(
+        keyring,
+        "set_password",
+        lambda service, account, value: values.__setitem__((service, account), value),
+    )
+    monkeypatch.setattr(
+        keyring, "delete_password", lambda service, account: values.pop((service, account), None)
+    )
+
+
 from app.research_web.store import Store
 
 
@@ -817,6 +827,86 @@ def test_verification_failure_outcomes_are_safely_mapped(
     assert str(tmp_path) not in json.dumps(result, ensure_ascii=False)
 
 
+@pytest.mark.parametrize(
+    "invalid_field",
+    [None, "artifact_name", "last_completed_step", "function_outcome", "cleanup_outcome"],
+)
+def test_office_verification_preserves_safe_run_and_cleanup_diagnostics(tmp_path, invalid_field):
+    env = environment(tmp_path)
+    (env.application_roots[0] / "Microsoft Word.app").mkdir()
+    diagnostics = {
+        "run_id": "a" * 32,
+        "artifact_name": f"research-workbench-{'a' * 32}.docx",
+        "last_completed_step": "saved",
+        "function_outcome": "timeout",
+        "cleanup_outcome": "unverified",
+        "private_path": str(tmp_path / "private-user-document"),
+    }
+    if invalid_field:
+        diagnostics[invalid_field] = []
+    manager = LocalIntegrationManager(
+        tmp_path / "state",
+        environment=env,
+        verifier=lambda _target: {"outcome": "timeout", "diagnostics": diagnostics},
+    )
+
+    async def run():
+        started = manager.start_verification("word", "diagnostics-test")
+        await manager.verification_tasks[started["id"]]
+        return manager.verification(started["id"])
+
+    result = asyncio.run(run())
+    if invalid_field:
+        assert result["outcome"] == "timeout"
+        assert "diagnostics" not in result
+        restored = LocalIntegrationManager(tmp_path / "state", environment=env)
+        assert restored.verification_results["word"]["outcome"] == "timeout"
+        return
+    assert result["diagnostics"]["run_id"] == "a" * 32
+    assert result["diagnostics"]["verification_id"] == result["id"]
+    assert result["diagnostics"]["cleanup_outcome"] == "unverified"
+    assert str(tmp_path) not in json.dumps(result)
+    restored = LocalIntegrationManager(tmp_path / "state", environment=env)
+    assert restored.verification_results["word"]["diagnostics"] == result["diagnostics"]
+    assert restored.verification(result["id"])["status"] == "completed"
+    assert item(restored.snapshot(persist=False), "word_app")["callable"] is False
+
+
+def test_office_interrupted_run_registration_survives_restart_without_reexecution(tmp_path):
+    env = environment(tmp_path)
+    manager = LocalIntegrationManager(tmp_path / "state", environment=env)
+    snapshot = manager.snapshot()
+    run_id = "a" * 32
+    verification_id = "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa"
+    manager.verifications[verification_id] = {
+        "id": verification_id,
+        "target": "word",
+        "status": "checking",
+        "created_at": "2026-10-07T00:00:00Z",
+        "completed_at": None,
+        "diagnostics": {
+            "run_id": run_id,
+            "artifact_name": f"research-workbench-{run_id}.docx",
+            "last_completed_step": "saved",
+            "function_outcome": "not_run",
+            "cleanup_outcome": "unverified",
+            "verification_id": verification_id,
+        },
+    }
+    manager._persist(snapshot)
+    restored = LocalIntegrationManager(tmp_path / "state", environment=env)
+    result = restored.verification(verification_id)
+    assert result["status"] == "interrupted"
+    assert result["diagnostics"]["run_id"] == run_id
+    assert not restored.verification_tasks
+    restored.snapshot()
+    persisted = json.loads(restored.state_path.read_text())
+    assert (
+        persisted["verification_runs"][verification_id]["diagnostics"]["artifact_name"]
+        == f"research-workbench-{run_id}.docx"
+    )
+
+
 def test_verification_api_rejects_unknown_targets_and_requires_idempotency(tmp_path):
     service = ResearchService(NativeFixture(), Store(tmp_path / "store"))
     service.local_integrations = LocalIntegrationManager(
@@ -919,7 +1009,11 @@ def test_macos_excel_verifier_uses_sandbox_file_and_owned_app(tmp_path, monkeypa
 
     result = verifiers._verify_excel_macos(run_root)
 
-    assert result == {"outcome": "available", "code": None}
+    assert result["outcome"] == "available"
+    assert result["code"] is None
+    assert result["diagnostics"]["last_completed_step"] == "document_closed"
+    assert result["diagnostics"]["function_outcome"] == "available"
+    assert result["diagnostics"]["cleanup_outcome"] == "confirmed"
     assert events == ["appscript-compat"]
     assert app.quit_called is True
     assert len(app.books.paths) == 2
@@ -938,8 +1032,8 @@ def test_macos_wind_verifier_uses_isolated_wind_client(tmp_path, monkeypatch):
     events = []
 
     class FakeWindClient:
-        def __init__(self, *, visible, timeout, isolated_workbook):
-            events.append(("init", visible, timeout, isolated_workbook))
+        def __init__(self, *, visible, timeout, isolated_workbook, isolated_app=False):
+            events.append(("init", visible, timeout, isolated_workbook, isolated_app))
             self._app = SimpleNamespace(pid=54321)
             self._owns_app = False
 
@@ -978,8 +1072,7 @@ def test_macos_wind_verifier_uses_isolated_wind_client(tmp_path, monkeypatch):
     assert reported == []
     assert events == [
         "appscript-compat",
-        "launch-excel",
-        ("init", False, 10.0, True),
+        ("init", False, 10.0, True, True),
         "connect",
         "heartbeat",
         "close",
@@ -1081,7 +1174,10 @@ def test_macos_excel_cleanup_failure_is_not_available(tmp_path, monkeypatch):
 
     result = verifiers._verify_excel_macos(run_root)
 
-    assert result == {"outcome": "failed", "code": "cleanup_failed"}
+    assert result["outcome"] == "failed"
+    assert result["code"] == "cleanup_failed"
+    assert result["diagnostics"]["function_outcome"] == "available"
+    assert result["diagnostics"]["cleanup_outcome"] == "failed"
     artifact.unlink()
 
 
@@ -1106,6 +1202,7 @@ def test_macos_document_verifiers_use_office_sandbox(
         observed["target_name"] = arguments[1]
         observed["script"] = _script
         observed["artifact"].write_bytes(b"office")
+        Path(arguments[2]).write_text("document_closed")
         return {"outcome": "available", "code": None}
 
     monkeypatch.setattr(verifiers, "_office_documents_root", lambda _target: documents)
@@ -1120,13 +1217,22 @@ def test_macos_document_verifiers_use_office_sandbox(
 
         monkeypatch.setattr(builtins, "__import__", reject_undeclared_pptx)
 
-    assert verifier(run_root) == {"outcome": "available", "code": None}
+    result = verifier(run_root)
+    assert result["outcome"] == "available"
+    assert result["code"] is None
+    assert result["diagnostics"]["cleanup_outcome"] == "confirmed"
     artifact = observed["artifact"]
     assert artifact.parent == documents
     assert artifact.name == f"research-workbench-{'e' * 32}{suffix}"
     assert observed["target_name"] == artifact.name
     assert "active document" not in observed["script"]
     assert "active presentation" not in observed["script"]
+    if target == "word":
+        assert "make new document" in observed["script"]
+        assert 'my recordStep("saved"' in observed["script"]
+        saved = observed["script"].index("save as smokeDocument")
+        rebound = observed["script"].index("set smokeDocument to document targetName", saved)
+        assert rebound < observed["script"].index("close smokeDocument", saved)
     if target == "powerpoint":
         script = observed["script"]
         assert (
@@ -1412,7 +1518,10 @@ def test_posix_timeout_cleanup_terminates_the_worker_process_group(monkeypatch):
     assert ("killpg", 24680, signal.SIGKILL) in events
 
 
-def test_verify_target_timeout_uses_process_tree_cleanup_and_closes_queue(tmp_path, monkeypatch):
+@pytest.mark.parametrize("target", ["excel", "word"])
+def test_verify_target_timeout_uses_process_tree_cleanup_and_closes_queue(
+    tmp_path, monkeypatch, target
+):
     from app.research_web.report_workflows import workbook as workbook_module
 
     events = []
@@ -1420,7 +1529,8 @@ def test_verify_target_timeout_uses_process_tree_cleanup_and_closes_queue(tmp_pa
     documents.mkdir()
     run_root = tmp_path / "state" / "verification-runs" / ("b" * 32)
     run_root.mkdir(parents=True)
-    artifact = documents / f"research-workbench-{'b' * 32}.xlsx"
+    suffix = ".docx" if target == "word" else ".xlsx"
+    artifact = documents / f"research-workbench-{'b' * 32}{suffix}"
     unrelated = documents / "existing-user-workbook.xlsx"
     artifact.write_bytes(b"verification")
     unrelated.write_bytes(b"user")
@@ -1461,7 +1571,7 @@ def test_verify_target_timeout_uses_process_tree_cleanup_and_closes_queue(tmp_pa
             return ResultQueue()
 
         def Process(self, **kwargs):
-            assert kwargs["name"] == "local-verification-excel"
+            assert kwargs["name"] == f"local-verification-{target}"
             return Process()
 
     monkeypatch.setattr(verifiers.sys, "platform", "darwin")
@@ -1481,17 +1591,59 @@ def test_verify_target_timeout_uses_process_tree_cleanup_and_closes_queue(tmp_pa
         lambda identities: events.append(("excel-cleanup", identities)) or True,
     )
 
-    result = verifiers.verify_target("excel", tmp_path / "state")
+    result = verifiers.verify_target(target, tmp_path / "state")
 
-    assert result == {"outcome": "timeout", "code": "verification_timed_out"}
+    assert result["outcome"] == "timeout"
+    assert result["code"] == "verification_timed_out"
+    assert result["diagnostics"]["run_id"] == "b" * 32
+    assert result["diagnostics"]["cleanup_outcome"] == "unverified"
+    assert artifact.exists()
+    assert run_root.exists()
     assert ("tree-cleanup", 13579) in events
     assert (
         "excel-cleanup",
         [{"pid": 54321, "token": "a" * 64}],
     ) in events
     assert events[-2:] == ["queue-close", "queue-join"]
-    assert not artifact.exists()
     assert unrelated.read_bytes() == b"user"
+
+
+@pytest.mark.parametrize(
+    "target,suffix", [("word", ".docx"), ("excel", ".xlsx"), ("powerpoint", ".pptx")]
+)
+def test_office_existing_unowned_artifact_is_not_deleted(tmp_path, monkeypatch, target, suffix):
+    documents = tmp_path / "Documents"
+    documents.mkdir()
+    run = tmp_path / ("c" * 32)
+    run.mkdir()
+    existing = documents / f"research-workbench-{run.name}{suffix}"
+    existing.write_bytes(b"not created by this verification")
+    monkeypatch.setattr(verifiers, "_office_documents_root", lambda _target: documents)
+    method = {
+        "word": verifiers._verify_word,
+        "excel": verifiers._verify_excel_macos,
+        "powerpoint": verifiers._verify_powerpoint,
+    }[target]
+    result = method(run)
+    assert result["outcome"] == "failed"
+    assert result["code"] == "verification_storage_unsafe"
+    assert result["diagnostics"]["cleanup_outcome"] == "not_created"
+    assert existing.read_bytes() == b"not created by this verification"
+
+
+def test_verification_retention_preserves_unresolved_word_identity(tmp_path):
+    state = tmp_path / "state"
+    pending = state / "verification-runs" / ("d" * 32)
+    pending.mkdir(parents=True)
+    progress = pending / "word-step.txt"
+    progress.write_text("saved")
+    old = time.time() - verifiers.VERIFICATION_RUN_RETENTION_SECONDS - 100
+    os.utime(pending, (old, old))
+
+    next_run, error = verifiers._prepare_run_directory(state)
+
+    assert error is None and next_run is not None
+    assert progress.read_text() == "saved"
 
 
 def test_excel_artifact_cleanup_rejects_symlink(tmp_path, monkeypatch):
@@ -1510,7 +1662,7 @@ def test_excel_artifact_cleanup_rejects_symlink(tmp_path, monkeypatch):
     assert outside.read_bytes() == b"keep"
 
 
-def test_wind_verification_prepares_run_inside_excel_sandbox(tmp_path, monkeypatch):
+def test_wind_verification_metadata_uses_private_state_not_office_documents(tmp_path, monkeypatch):
     state_root = tmp_path / "state"
     excel_documents = tmp_path / "Excel Documents"
     excel_documents.mkdir()
@@ -1532,7 +1684,7 @@ def test_wind_verification_prepares_run_inside_excel_sandbox(tmp_path, monkeypat
         "outcome": "failed",
         "code": "verification_storage_unsafe",
     }
-    assert observed == [excel_documents]
+    assert observed == [state_root]
 
 
 def test_verification_run_storage_rejects_symlink(tmp_path):

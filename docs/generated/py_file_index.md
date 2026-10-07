@@ -4726,9 +4726,11 @@ Classes:
   - methods: current
 - `LocalIntegrationManager`
   - Build and persist safe local facts; probes never launch detected software.
-  - methods: __init__, state_path, _load_verification_results, snapshot, _detect_snapshot, _publish_snapshot, _commit_verification, _apply_verification_results, _verification_result_is_current, _wind_session_is_ready, _path_fingerprint, _wind_addin_fingerprint, _verification_context_fingerprint, _detect, _office_items, _wind_terminal_item, _application_item, _bridge_item, _ifind_terminal_item, _unsupported_office_items, _browser_items, _validate_snapshot, _persist, start_probe, _run_probe, start_verification, _run_verification, verification, _public_verification, _prune_probes, _prune_verifications, probe, run_probe, _public_probe, close
+  - methods: __init__, state_path, _load_verification_runs, _load_verification_results, snapshot, _detect_snapshot, _publish_snapshot, _commit_verification, _apply_verification_results, _verification_result_is_current, _wind_session_is_ready, _path_fingerprint, _wind_addin_fingerprint, _verification_context_fingerprint, _detect, _office_items, _wind_terminal_item, _application_item, _bridge_item, _ifind_terminal_item, _unsupported_office_items, _browser_items, _validate_snapshot, _persist, start_probe, _run_probe, start_verification, _run_verification, verification, _public_verification, _prune_probes, _prune_verifications, probe, run_probe, _public_probe, close
 
 Functions:
+- `_safe_verification_diagnostics`
+  - Keep only synthetic resource identity and finite verification facts.
 - `_default_module_available`
 - `_default_registry_app_exists`
 - `_utc_now`
@@ -4798,6 +4800,7 @@ Functions:
 - `_remove_office_artifact`
 - `_verify_excel_macos`
 - `_verify_excel`
+- `_office_diagnostics`
 - `_verify_word`
 - `_verify_powerpoint`
 - `_verify_wind_formula`

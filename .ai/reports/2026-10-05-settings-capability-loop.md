@@ -1,23 +1,25 @@
 # 设置与真实能力闭环：累计任务报告
 
-## 当前状态（2026-10-07：macOS Word 有界收口）
+## 当前状态（2026-10-07：macOS Office 与金融插件闭环推进）
 
 | 项目 | 当前结论与适用范围 |
 |---|---|
 | 原模型与公开研究 | 已有真实生成、受控公开净值工具、快照与最终回复证据；只覆盖声明的 NAV 范围。T6 已通过；B 供应商归因用户已豁免，归因事实仍未验证。 |
 | 兼容文本 | 独立 Ollama/Qwen2.5 无Key文本生成、普通research-web会话与Host/DSH冷重启已验证；不认证工具、多模态、带Key商业服务或研究质量。 |
-| 商业数据 | 所属账户与具体dataset权限缺失，真实验收未执行；不影响已验证公开能力，不要求购买。 |
-| Word功能 | 验证aabce313-3f97-43c7-a797-0e6283d42c40已结束但outcome=timeout；真实创建/保存/重开读回均没有成功证据，具体卡点与根因未知。 |
-| Word清理 | UNVERIFIED。用户在指定Documents目录的ls输出列出两项`~$search-workbench-…docx`候选名称，未列出对应正文文件；候选类型、旧任务归属及是否被用户接管均未确认，不能认定删除或全盘不存在。新实机验证NOT_RUN，未创建新资源。 |
-| hostAcceptance | PASS属于源码候选93bc351c及其匹配Mac/通用CI；本轮离线诊断不冒充Word实机通过，报告提交不冒称已被CI测试。 |
+| 商业数据 | 用户已明确Wind/iFinD均有可用账户；接口权限和现成iFinD HTTP token仍待确认，不再笼统记“无账户”。Wind插件心跳通过，但一次封闭业务查询deadline/0行；不影响原公开NAV。 |
+| Word功能 | 旧aabce313仍timeout且具体根因未知。新212f1d02已真实创建/写入/保存，保存后的文档引用关闭失败；重新按登记名称绑定关闭成功，但同一文件重开15秒未返回，读回仍未通过。 |
+| Excel/PowerPoint | Excel283d2d51在文件准备前timeout；PowerPoint13a4c00a已创建/写入，保存timeout。两项均不能记为应用完整可用，不连续重试。 |
+| Word清理 | 旧两项用户提供的候选归属仍UNVERIFIED且未操作。新212f对象路径、固定合成正文与saved属性已核对匹配，原关闭维护成功，随后重开timeout，因此文件清理仍UNVERIFIED。其余新资源也按各自登记保留未确认状态。 |
+| hostAcceptance | PASS仅属于冻结93bc源码及匹配CI；本轮Office代码已有新修改，相关本地/新候选CI须另闭合，不能继承旧head通过或冒充Office实机成功。 |
 | aggregateAcceptance | NOT_READY；mergeReady=false/releaseReady=false。Windows/Linux/Docker由所属任务留未验证，本轮不执行、不改全局平台规则。 |
 
-本轮仅处理macOS Native Word超时与遗留资源。原首轮范围为阶段0与1A，后续各轮授权、结果及失败历史完整保留；旧段落的当时状态不覆盖本节与最新收口记录。附件为范围参考，用户当轮授权优先。机器验收plan/receipt及脱敏证据置于 `logs/settings-model-loop/`，不另建总报告；本轮不更新生产、不合并或发布，模型/商业数据请求均为0。
+本轮用户扩大授权为macOS Native Office三件套与Wind/iFinD金融接口。Outlook/OneNote/Teams安装事实不冒称产品适配完成，不触发邮件发送或会议操作。原各轮结果和失败历史完整保留；旧段落的当时状态不覆盖本节与最新记录。机器验收plan/receipt及脱敏证据仍在 `logs/settings-model-loop/`，不另建总报告；不更新生产、不合并或发布，本轮模型请求0。金融调用由用户最新授权执行，心跳与实际数据查询分别报告，不把HTTP200当数据成功。
 
 <!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"模型配置与显式测试复用现有Host/DSH会话路径；增加最小测试路由但没有新增执行器、组件节点或信任边界，API及运行文档已同步。","diagrams":[]} -->
 <!-- architecture-review {"group":"runtime","structure":"changed","reason":"产品overlay通过固定DSH扩展点挂载模型provider，增加限定用途私有进程桥接和独立macOS Keychain边界；认证record保留原固定实现及独立文件。","diagrams":["01-deployment"]} -->
 <!-- architecture-review {"group":"ui","structure":"unchanged","reason":"模型页收窄Provider并区分保存/应用/凭据/真实生成，继续使用现有设置、同源API及会话状态投影。","diagrams":[]} -->
 <!-- architecture-review {"group":"automations","structure":"unchanged","reason":"Automation仍复用相同ResearchService创建和提交原生会话；模型变更只应用新会话并在任务活跃时拒绝凭据变化，没有新增调度器、任务注册或图节点。","diagrams":[]} -->
+<!-- architecture-review {"group":"local-integrations","structure":"unchanged","reason":"Office验证仍由现有Host本机管理器、独立验证进程与原生Office应用执行；仅在原私有状态中增加有界run登记、步骤及清理诊断和冷恢复，不新增服务、Vault、HTTP执行器或信任边界。Wind继续复用既有独立Excel客户端与Broker，实际接口/清理证据单列。","diagrams":[]} -->
 
 ## 基线与复用
 
@@ -929,3 +931,44 @@ Python累计闭包21258最终exit0：162 PASS/2既有显式opt-in skip，434.05�
 用户未提供接管/明确保留或允许删除某个确切对象的反馈，因此不记录为“用户接管”，不记录为“已删除”。两项候选保留，旧清理继续UNVERIFIED；不再扫描该目录或其他位置，不重复要求确认同一核对结果，不关闭用户文档或退出Word。人工目录核对已完成，与旧资源归属及清理确认未完成是不同状态。
 
 本轮没有源码修改、对象访问/删除/关闭、系统权限变更或新测试资源。Word原timeout及未知根因不变。未来再次实机验证前，仍必须沿原入口补齐验证ID与文件run UUID/目标路径映射、最后完成步骤、功能结果与清理结果；这些新增诊断只能记录新调用，不能反推旧文件身份或补造旧成功。本轮不实施新诊断或实机重验，不更新生产、不push/合并/发布；模型和商业数据请求0。原模型、公开NAV、兼容文本、Keychain及93bc候选匹配Mac CI均按原适用范围保留。
+
+## 新授权：Office三件套与金融插件（2026-10-07）
+
+用户随后明确要求打通本机Office及金融插件并授权必要操作，又确认Wind和iFinD均有可用账户。本轮重新进入原e13d6e09e工作树（开始干净），不回退、不合并历史分支、不改全局平台范围。当前实现/验收对象为产品目录已有的Excel、Word、PowerPoint、Wind Excel及iFinD数据接口；Outlook/OneNote/Teams安装不等于适配，不自动发送邮件、操作会议或个人笔记。沿feature-loop、最小失败证据和原验收规划器推进，唯一报告不另建。
+
+### 最小产品修复及RED/GREEN
+
+先证明现有API丢弃run/清理诊断（KeyError）、Word未原生创建、超时父进程仍尝试受保护Office文件I/O；保留office-diagnostics-red.log和word-native-diagnostics-red.log。修复仅manager/verifiers及相邻测试：预注册服务验证ID→32位run UUID→合成文件名，在原私有状态保留有界run记录，API只返回白名单非秘密字段；工作进程记录有限完成步骤、功能结果、清理结果。冷启动将queued/checking恢复为interrupted，不重新执行；完成结果与磁盘run状态原子写入，避免“完成但磁盘仍checking”。复审指出不可哈希诊断值以及冷恢复缺口，分别以失败测试修复并保留负例。
+
+Word改为真实make new document，不再用python-docx种子假冒原生创建；save-as后重新按登记名称绑定对象。原错误码没有保留，不能把这次所有失败都确定归因为重命名；明确修正的是代码中缺少保存后绑定的引用风险，名称绑定的同资源关闭已取得实际成功证据。Excel仍沿原有合成种子→实际Excel计算/保存/重开值验证，功能与清理分别记录；PowerPoint沿原生演示文稿/幻灯片流程记录步骤。初始路径已存在时三目标均拒绝且不删除该未知文件。超时后只处理已登记工作进程/Excel PID，不重复Office受保护目录读写；未确认资源的私有进度目录不自动按年龄移除。
+
+Wind验证器原先为不写文件的内存工作簿验证准备Excel Documents目录。Excel实机已出现文件准备阶段超时，因此先以失败合同证明这条额外受保护目录依赖，再改为现有任务私有状态目录；使用客户端已有isolated_app和isolated_workbook，不启动/选取用户现有Excel实例，不创建第二种验证器或Vault，不改依赖锁或固定DSH。
+
+### 实际macOS产品入口与结果（失败完整保留）
+
+使用真实既有安装证明与正常WebServiceManager：data home `/private/tmp/rwb-dsh-upgrade-fixture-20261007/admission-web`，Host19089/DSH14181，固定48504f07，产品.venv与受管Node24.19.0。每次源码加载需重启时只停止所属Host/DSH，Doctor安装门保持真实，不复制生产配置或Key。通过正式POST `/api/research/local-integrations/verifications`与GET结果，Office身份在调用前落盘；原生脚本osacompile成功仅作为语法检查，不计实机成功。
+
+| 实际run ID | 最后完成步骤/实际结果 | 功能验收 | 清理 |
+|---|---|---|---|
+| Word212f1d02-c008-49d9-86ac-83ab10bfe4e6 | created/written/saved，约4.7秒后failed；不是190秒timeout | 创建、写入、保存有新证据；完整重开读回未通过 | UNVERIFIED |
+| Excel283d2d51-859b-49c8-8fbe-febb5aa2a8cc | none，190秒timeout，未到准备完成或真实计算 | 未通过；只定位到文件准备前，具体OS/文件系统原因未知 | UNVERIFIED |
+| PowerPoint13a4c00a-9b24-4eee-8e92-e8498ce98bbc | created/written，190秒timeout，保存未完成 | 未通过；未猜定为许可、保存弹窗或应用故障 | UNVERIFIED |
+| Wind2cfe8b4b-29f4-444c-b0ed-c6d046e45339 | 独立应用心跳约31秒，outcome=available | 插件此次会话验证通过，不能代替数据集查询 | 验证器所属实例按既有客户端/登记PID清理合同结束，另核验实际停止 |
+
+仅对本次明确登记Word212f文件做受控核对：完整路径与Word full name一致、正文在进程内精确匹配合成字符串、saved=true；不打印文档内容。首次元数据检查脚本和简化exists脚本有工具侧syntax error(-2741)，保留失败，不冒称Word故障。正确的名称查找返回open，严格归属比较返回owned_saved_unchanged；用同名重新绑定的文档引用关闭成功。随后仅重开这一个既有文件（未创建/改写新文档）在15秒超时，未继续关闭/删除，不把该维护当完整验证或清理成功。word-registered-close-reproduction.json与word-registered-continuation.json分别记成功/timeout；原Word作业failed仍保留。旧ac1…/全f两项用户候选没有访问或操作。
+
+所有Office超时/失败不连续重试，未killall或退出共享Word/PowerPoint。用户需要确认Word是否出现文件访问/转换/激活提示；只请求提示类型，不要文档或秘密。未知资源不删除，本轮新Office计划文件名为research-workbench-<上述去连字符run ID>的对应.docx/.xlsx/.pptx，是否实际存在由步骤证据限定，不能从计划名称直接断言创建。
+
+### Wind真实业务与iFinD协议事实
+
+插件心跳通过后，经产品保存非秘密preferred_adapter=excel，创建一个不发送模型提示的正常fingpt会话e6c47116-21af-41aa-a92e-cc36c4e2bf1b，通过本实例既有私有认证通道发起一次market_bars查询：wind、000001.SZ、2026-09-30单日、1d、none、allow_fallback=false。HTTP200但数据status=failed、row_count=0、limitations=deadline；dataset3c135a65-d6f2-4882-9cce-a77e20ee46e0和失败快照保留，不自动重跑、不拿公开源替换，不宣称行情可用。模型请求0；Wind心跳与业务请求各一次显式顶层调用，客户端既有有限加载/心跳重试不伪称只有一次底层供应商请求。
+
+iFinD当前目录本来是legacy/未完成DataHub查询边界，HTTPClient实际使用自定义网关/login、/health、Bearer协议。官方同花顺示例则为refresh_token请求https://quantapi.51ifind.com/api/v1/get_access_token，再用access_token调用业务服务；不能将终端用户名/密码直接发到猜测的官方/login地址。已有本地设置页19089已核验，但当前仍是旧表单，明确告知用户暂不录入，未读取密码字段、个人工具配置或生产凭据。已询问“是否有数据接口权限和现成HTTP refresh token”，仅要状态，不要Token；不自行重置Token或影响既有账户。资料：[官方HTTP示例](https://quantapi.10jqka.com.cn/gwstatic/static/ds_web/quantapi-web/example.html)、[权限与Token规则](https://quantapi.10jqka.com.cn/gwstatic/static/ds_web/quantapi-web/help-center/faq.html)。真实iFinD调用NOT_RUN，不能将账户存在当接口已通。
+
+### 当前代码检查与未完成状态
+
+Office本地合同最终56 PASS/1既有skip；4项文档/架构/额度/跨平台源码治理JS104 PASS，非其他平台产品证明。Word/PPT脚本真实编译exit0但没有替代应用验收。Black首次只读发现格式并按目标文件修正；isort/Ruff目标文件检查，不全仓格式化。mypy当前两个修改模块及传递图16诊断，与e13冻结源码同解释器/配置16诊断逐项相同、新增0/删除0；旧37/58不同边界保留，不增加ignore或改policy。Python索引已按新增私有函数重建，API atlas check通过。77路径完整PR规划L4，全部原外部门保留；约束初次缺local-integrations结构决策exit1，补真实“原节点内诊断/持久化扩展、结构不变”记录后exit0，不改规则求绿。其余实际闭包/新候选CI尚须完成，不把旧93bc CI认证当前修改。
+
+当前只已修复诊断、归属及清理保护并取得上述部分真实步骤；所有Office/金融软件未全通。Word/Excel/PPT具体卡点、对应资源清理、Wind数据deadline、iFinD官方接口权限/Token仍各自单列。已通过的模型/公开NAV仍有效；不重做B归因/T6/Keychain/DSH升级，不改生产，不合并或发布。总mergeReady/releaseReady继续false，下一步仅补受影响工程闭包及匹配新候选CI，并在人工/接口条件真的改变后处理相应实机部分，不无限重复失败操作。
+
+Office修复送检前，本机集成+协议+API累计相关回归实际129 PASS/1既有skip，307.79秒，office-local-regression-closure.log；治理JS104 PASS。最终目标Black/isort/Ruff及diff检查通过，文档治理violations=[]、Python索引check通过，mypy最终与冻结e13同边界16旧诊断逐项一致。Python只读复审确认两项P2闭合且未发现新增重要问题，未代替任何实机证据。当前仓库API为public，PR81 OPEN/draft/MERGEABLE、远端head仍93bc/base205d；只沿普通同任务分支送检，不合并、不提高预算、不dispatch他平台、不把Goal虚假标完成换权限。
