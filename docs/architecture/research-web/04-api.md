@@ -6,6 +6,22 @@
 
 macOS Native 模型 bridge 失败时，Runtime GET 保留成功的 Host `connected/health_check_passed`，仅将 `credential_configured` 设为 null、`credential_storage` 设为 unknown、`credential_code` 设为稳定 `model_credential_backend_unavailable`。不回显 Keychain 异常、不把未知当作可用；保存/请求仍沿既有失败关闭与 uncertain 处理。
 
+公开 Native installer auto-start 在同次持锁创建根后完成安装门并启动，不新增 CLI 参数
+或 HTTP 字段。check-only/Docker/no-start 不重执行 Native auto-start；已有根未知写者仍拒绝。
+
+公开启动入口在运行账本缺失且监听归属未知时返回 `runtime_ownership_unknown`；Docker
+origin commit 失败进入与健康失败相同的归属核验和恢复顺序。
+
+缺运行账本/端点时，显式 --web-port/--runtime-port 也须核验旧默认端口写者；其他 checkout
+的 Web/DSH 数据根未知时仍返回 runtime_ownership_unknown，不把换端口作为新的写者权限。
+
+本次启动原错误（例如 web_health_timeout）在失败恢复未获证明时仍为主错误；附加诊断进入
+受控日志/异常 recovery_issues，不把恢复失败伪装为新的可重试 bind 错误或新增 HTTP 字段。
+
+内部控制 JSON/URL parser 提取与独立端点/origin helper 不增加 HTTP 路由或响应字段；
+DataHub/MCP 原 reader 错误与权限合同保持。公开启动路径现消费端点/origin事务；CLI新增
+`--web-port` 和 Native-only `--runtime-port`，HTTP路由、研究协议、业务响应字段不因此增加。
+
 Native/Docker 模式选择、Docker 镜像接受摘要与健康等待均在公开 CLI/安装边界；本轮不增加
 HTTP 路由或响应字段。Native `rwb web status --json` 是稳定的安全状态投影，不返回日志路径；
 Doctor 仍独立校验 DSH 的 ready、build_verified、commit 和 host_applicable。Docker 的

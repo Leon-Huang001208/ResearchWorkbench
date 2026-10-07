@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import argparse
 import os
 import re
 import selectors
@@ -36,30 +37,49 @@ from docker.healthcheck import ContainerHealth
 log = get_logger(__name__)
 ROLE_ENVIRONMENT_KEY = "RWB_SUPERVISOR_ROLE"
 MAX_ROLE_ENVIRONMENT_BYTES = 64 * 1024
-_DOCKER_PRIVATE_LEAVES = frozenset(
-    {
-        Path("/state/runtime"),
-        Path("/run/rwb-secrets/private"),
-        Path("/data/research-web/logs"),
-    }
-)
+_DOCKER_PRIVATE_LEAVES = frozenset({
+    Path("/run/rwb-secrets/private"), Path("/data/research-web/logs"),
+})
+
+
+def prepare_controls(data_root: Path, previous_origin: str) -> None:
+    """Use normal guest creators before consumers, preserving every existing token."""
+    from app.research_web.control_origin import _checked_origin, _decode
+    from app.research_web.datahub.security import load_control
+    from app.research_web.mcp_runtime.control import load_control as load_mcp_control
+    from research_workbench_entrypoint.runtime_mode import _read_bytes
+
+    try:
+        origin = _checked_origin(previous_origin)
+        for name in ("datahub.json", "mcp-runtime.json"):
+            try:
+                raw, _ = _read_bytes(data_root / ".control" / name)
+            except FileNotFoundError:
+                continue
+            _decode(name, raw, origin)
+        load_control(data_root, origin)
+        load_mcp_control(data_root, origin)
+        log.info("container_controls_prepared")
+    except Exception as exc:
+        log.warning("container_controls_prepare_failed")
+        raise RuntimeError("control_origin_prepare_failed") from exc
 
 
 def _prepare_private_leaf(path: Path) -> None:
     """Create only fixed Docker bind children, then apply the unchanged strict guard.
 
-    Desktop can change a bind root's displayed owner on its first mkdir. Keep
+    Desktop can change a bind root's displayed owner on its first write. Keep
     creation separate from runtime access: no auth/credential reads occur here.
     """
     if os.name != "posix" or path not in _DOCKER_PRIVATE_LEAVES:
         with runtime_state_directory(path, create=True):
             return
+    existing = None
     try:
-        path.lstat()
+        existing = path.lstat()
     except FileNotFoundError:
         pass
     else:
-        # Existing leaves never receive the first-creation mapping exception.
         with runtime_state_directory(path):
             return
     with ExitStack() as stack:
@@ -81,12 +101,15 @@ def _prepare_private_leaf(path: Path) -> None:
             records.append((component, descriptor, parent, name, before))
             parent = descriptor
         # mkdirat refuses an existing racing leaf; openat never follows aliases.
-        os.mkdir(path.name, mode=0o700, dir_fd=parent)
+        if existing is None:
+            os.mkdir(path.name, mode=0o700, dir_fd=parent)
         leaf = os.open(path.name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=parent)
         stack.callback(os.close, leaf)
         created = os.fstat(leaf)
         _validate_directory(created, leaf=True, platform_name=os.name)
         if stat.S_IMODE(created.st_mode) != 0o700:
+            raise RuntimeStateError("runtime_state_unsafe")
+        if existing is not None and _identity(created) != _identity(existing):
             raise RuntimeStateError("runtime_state_unsafe")
 
         def verify_parents(*, creation_mapping=False):
@@ -96,29 +119,28 @@ def _prepare_private_leaf(path: Path) -> None:
                 named = os.stat(name, dir_fd=ancestor, follow_symlinks=False)
                 _validate_directory(after, leaf=False, platform_name=os.name)
                 expected = _identity(before)
-                if (
-                    creation_mapping
-                    and component == path.parent
-                    and (before.st_uid, before.st_gid) == (0, 0)
-                    and (after.st_uid, after.st_gid) == (os.getuid(), os.getgid())
-                ):
+                if (creation_mapping and (os.getuid(), os.getgid()) != (0, 0)
+                        and component == path.parent
+                        and (before.st_uid, before.st_gid) == (0, 0)
+                        and (after.st_uid, after.st_gid) == (os.getuid(), os.getgid())):
                     expected = (*expected[:3], os.getuid(), os.getgid())
                 if _identity(after) != expected or _identity(named) != expected:
                     raise RuntimeStateError("runtime_state_unsafe")
                 updated.append((component, descriptor, ancestor, name, after))
             return updated
 
-        records = verify_parents(creation_mapping=True)
+        def verify_leaf():
+            if (_identity(path.lstat()) != _identity(created)
+                    or _identity(os.fstat(leaf)) != _identity(created)
+                    or _identity(os.stat(path.name, dir_fd=parent, follow_symlinks=False)) != _identity(created)):
+                raise RuntimeStateError("runtime_state_unsafe")
+
+        records = verify_parents(creation_mapping=existing is None)
+        verify_leaf()
         # Re-pin with the original complete validator after the creation phase;
         # the fresh leaf must still be the object held by our retained fd.
         with runtime_state_directory(path):
-            if (
-                _identity(path.lstat()) != _identity(created)
-                or _identity(os.fstat(leaf)) != _identity(created)
-                or _identity(os.stat(path.name, dir_fd=parent, follow_symlinks=False))
-                != _identity(created)
-            ):
-                raise RuntimeStateError("runtime_state_unsafe")
+            verify_leaf()
         verify_parents()
     log.info("container_private_leaf_prepared")
 
@@ -309,6 +331,7 @@ _FAILURE_STAGES = frozenset(
         "private_directories",
         "logging_setup",
         "config_validation",
+        "control_preparation",
         "ownership_init",
         "auth_reset",
         "process_specs",
@@ -617,6 +640,8 @@ def run(config: SupervisorConfig, *, probe: HealthProbe = real_probe) -> int:
         stage = "config_validation"
         if config.startup_timeout <= 0 or config.shutdown_timeout <= 0:
             raise ValueError("invalid timeout")
+        stage = "control_preparation"
+        prepare_controls(config.data_root, f"http://127.0.0.1:{config.web_port}")
         stage = "ownership_init"
         ownership = _OwnedProcesses()
         stage = "auth_reset"
@@ -753,26 +778,30 @@ def run(config: SupervisorConfig, *, probe: HealthProbe = real_probe) -> int:
     return status
 
 
-def main():
+def main(argv=()):
     data = Path(os.environ.get("RWB_DATA_ROOT", "/data/research-web"))
     try:
-        return run(
-            SupervisorConfig(
-                data_root=data,
-                state_root=Path(os.environ.get("RWB_RUNTIME_STATE", "/state/runtime")),
-                credential_root=Path(
-                    os.environ.get("RESEARCH_CREDENTIAL_HOME", "/run/rwb-secrets/private")
-                ),
-                project_root=Path("/opt/rwb"),
-                runtime_source=Path("/opt/dsh"),
-                python=sys.executable,
-                node="/usr/local/bin/node",
-            )
-        )
+        parser = argparse.ArgumentParser()
+        parser.add_argument("--prepare-controls-only", action="store_true")
+        parser.add_argument("--previous-origin")
+        arguments = parser.parse_args(argv)
+        if arguments.prepare_controls_only:
+            if not arguments.previous_origin:
+                raise ValueError("missing origin")
+            prepare_controls(data, arguments.previous_origin)
+            return 0
+        if arguments.previous_origin is not None:
+            raise ValueError("unexpected origin")
+        return run(SupervisorConfig(
+            data_root=data, state_root=Path(os.environ.get("RWB_RUNTIME_STATE", "/state/runtime")),
+            credential_root=Path(os.environ.get("RESEARCH_CREDENTIAL_HOME", "/run/rwb-secrets/private")),
+            project_root=Path("/opt/rwb"), runtime_source=Path("/opt/dsh"),
+            python=sys.executable, node="/usr/local/bin/node",
+        ))
     except (OSError, ValueError, RuntimeError):
         _event("stack", "failed", "supervisor_configuration_failed")
         return 1
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(main(sys.argv[1:]))

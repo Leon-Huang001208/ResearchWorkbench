@@ -53,6 +53,193 @@ class RecordingRunner:
         return subprocess.CompletedProcess(argv, 0, output, "")
 
 
+@pytest.mark.parametrize("returncode", [0, 7])
+def test_fixed_build_large_public_popen_stream_retains_tail(runtime, monkeypatch, returncode):
+    import io
+    from research_workbench_entrypoint.docker_runtime import ControlError, run_bounded
+    controller, _runner, _record = runtime
+    controller.runner = run_bounded
+    payload = b"progress line\n" * 10000 + b"compiler final error detail\n"
+    output = io.StringIO()
+    monkeypatch.setattr(sys, "stdout", output)
+    calls = []
+    def popen(argv, **kwargs):
+        calls.append((argv, kwargs))
+        return SimpleNamespace(pid=999999, stdout=io.BufferedReader(io.BytesIO(payload)),
+            stderr=io.BufferedReader(io.BytesIO()), returncode=returncode,
+            poll=lambda: returncode, wait=lambda **kwargs: returncode)
+    monkeypatch.setattr(subprocess, "Popen", popen)
+    argv = [*controller.compose_prefix, "build", "research-web"]
+    if returncode:
+        with pytest.raises(ControlError, match="docker_build_failed"):
+            controller._call(argv, "docker_build_failed")
+    else:
+        completed = controller._call(argv, "docker_build_failed")
+        assert completed.stdout.endswith("compiler final error detail\n")
+    assert output.getvalue().endswith("compiler final error detail\n")
+    assert calls[0][0] == argv
+
+
+def test_build_budget_is_exact_argv_and_same_post_capture_guard(runtime):
+    from research_workbench_entrypoint.docker_runtime import ControlError, MAX_OUTPUT
+    controller, runner, _ = runtime
+    captured = []
+    def large(argv, **kwargs):
+        captured.append(kwargs)
+        return subprocess.CompletedProcess(argv, 0, "x" * 100000, "")
+    controller.runner = large
+    result = controller._call([*controller.compose_prefix, "build", "research-web"], "docker_build_failed")
+    assert len(result.stdout) == 100000
+    assert captured[-1]["max_output"] == 2 * 1024 * 1024 and captured[-1]["stream"] is True
+    for argv in (["docker", "image", "inspect", "build"], [*controller.compose_prefix, "build", "other"]):
+        with pytest.raises(ControlError, match="runtime_output_limit"):
+            controller._call(argv, "metadata_failed")
+        assert captured[-1]["max_output"] == MAX_OUTPUT
+
+
+def test_build_stream_omits_transport_url_without_dropping_error_detail(tmp_path, monkeypatch):
+    import io
+    from research_workbench_entrypoint.docker_runtime import run_bounded
+    output = io.StringIO()
+    monkeypatch.setattr(sys, "stdout", output)
+    script = "import sys,time;sys.stdout.write('proxy error socks5');sys.stdout.flush();time.sleep(.03);print('h://host.docker.internal:29757 failed');print('compiler final error detail')"
+    run_bounded([sys.executable, "-c", script], cwd=tmp_path, env={"PATH": os.defpath}, timeout=2, stream=True)
+    assert "host.docker.internal" not in output.getvalue()
+    assert "compiler final error detail" in output.getvalue()
+
+
+def test_build_log_redaction_preserves_public_download_url_and_error_text():
+    from research_workbench_entrypoint.docker_runtime import safe_log_text
+    public = "download error https://nodejs.org/dist/v24.19.0/node-v24.19.0-headers.tar.gz failed\n"
+    assert safe_log_text(public) == public
+    redacted = safe_log_text("proxy connection refused http://localhost:29758\nfetch failed https://user:fixture@remote.invalid/resource\n")
+    assert "localhost" not in redacted and "fixture" not in redacted
+    assert "connection refused" in redacted and "fetch failed" in redacted
+
+
+def test_large_nonzero_build_never_accepts_candidate(runtime):
+    controller, runner, _ = runtime
+    calls = []
+    before = (controller.home / "install/docker-manifest.json").read_bytes()
+    def failed(argv, **kwargs):
+        calls.append((argv, kwargs))
+        if "build" in argv:
+            return subprocess.CompletedProcess(argv, 19, "progress\n" * 20000, "compiler final error detail")
+        return runner(argv, **kwargs)
+    controller.runner = failed
+    assert controller.install()["issues"] == ["docker_build_failed"]
+    assert (controller.home / "install/docker-manifest.json").read_bytes() == before
+    assert not any(argv[1:3] == ["image", "inspect"] for argv, kwargs in calls)
+
+
+def test_two_mib_build_cap_kills_owned_descendant_not_unrelated(tmp_path):
+    from research_workbench_entrypoint.docker_runtime import BUILD_MAX_OUTPUT, ControlError, run_bounded, port_busy
+    ready = tmp_path / "owned.json"
+    child = ("import os,socket,time,json;from pathlib import Path;s=socket.socket();"
+             "s.bind(('127.0.0.1',0));s.listen();"
+             f"Path({str(ready)!r}).write_text(json.dumps([os.getpid(),s.getsockname()[1]]));time.sleep(30)")
+    script = ("import subprocess,sys,time;from pathlib import Path;"
+              f"subprocess.Popen([sys.executable,'-c',{child!r}]);ready=Path({str(ready)!r})\n"
+              "while not ready.exists():time.sleep(.01)\n"
+              f"print('x'*{BUILD_MAX_OUTPUT + 10000},flush=True);time.sleep(30)")
+    unrelated = subprocess.Popen([sys.executable, "-c", "import time;time.sleep(30)"])
+    try:
+        with pytest.raises(ControlError, match="runtime_output_limit"):
+            run_bounded([sys.executable, "-c", script], cwd=tmp_path, env={"PATH": os.defpath},
+                        timeout=5, max_output=BUILD_MAX_OUTPUT)
+        _pid, port = json.loads(ready.read_text())
+        assert not port_busy(port)
+        assert unrelated.poll() is None
+    finally:
+        unrelated.terminate()
+        unrelated.wait(timeout=5)
+
+
+def test_docker_proxy_public_popen_and_shared_native_environment(runtime, monkeypatch):
+    import io
+    from research_workbench_entrypoint.docker_runtime import minimal_environment, run_bounded
+    controller, _runner, _record = runtime
+    controller.runner = run_bounded
+    monkeypatch.setenv("HTTP_PROXY", "http://127.0.0.1:29758")
+    monkeypatch.setenv("HTTPS_PROXY", "https://[::1]:29759")
+    monkeypatch.setenv("NO_PROXY", "example.com,10.0.0.0/8")
+    for key in ("http_proxy", "https_proxy", "no_proxy"):
+        monkeypatch.delenv(key, raising=False)
+    monkeypatch.setenv("API_KEY", "fixture-secret")
+    monkeypatch.setenv("ALL_PROXY", "socks5h://127.0.0.1:29757")
+    monkeypatch.setenv("DOCKER_HOST", "tcp://foreign:2375")
+    captured = []
+    def popen(argv, **kwargs):
+        captured.append((argv, kwargs))
+        return SimpleNamespace(pid=999999, stdout=io.BufferedReader(io.BytesIO(b"ok")),
+            stderr=io.BufferedReader(io.BytesIO()), returncode=0, poll=lambda: 0, wait=lambda **kwargs: 0)
+    monkeypatch.setattr(subprocess, "Popen", popen)
+    controller._call(["docker", "--version"], "docker_cli_missing")
+    argv, options = captured[0]
+    assert argv == ["docker", "--version"]
+    assert options["env"]["HTTP_PROXY"] == "http://127.0.0.1:29758"
+    assert options["env"]["HTTPS_PROXY"] == "https://[::1]:29759"
+    assert "127.0.0.1" in options["env"]["NO_PROXY"]
+    assert not {"API_KEY", "ALL_PROXY", "DOCKER_HOST"} & options["env"].keys()
+    assert not {"HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY"} & minimal_environment().keys()
+
+
+@pytest.mark.parametrize("value", ["http://user:secret@127.0.0.1:80", "socks5h://127.0.0.1:80",
+    "http://foreign:80", "http://127.0.0.1:0", "http://127.0.0.1:80/", "http://127.0.0.1:80?",
+    "http://127.0.0.1:80#", "http://127.0.0.1:80\n", "x" * 1025], ids=["userinfo", "scheme", "foreign", "zero", "path", "query", "fragment", "control", "oversized"])
+def test_unsafe_docker_proxy_does_not_block_owned_status_stop_but_blocks_build(runtime, monkeypatch, value):
+    controller, runner, _record = runtime
+    owned(controller, runner)
+    monkeypatch.setenv("HTTP_PROXY", value)
+    monkeypatch.delenv("http_proxy", raising=False)
+    assert controller.status()["ok"]
+    assert controller.stop(wait_timeout=0)["ok"]
+    assert not any("HTTP_PROXY" in kwargs["env"] for argv, kwargs in runner.calls)
+    report = controller.install()
+    assert report["issues"][0] == "docker_proxy_configuration_invalid"
+    assert value not in json.dumps(report)
+    assert not any("build" in argv for argv, kwargs in runner.calls)
+
+
+@pytest.mark.parametrize("upper,lower,valid", [(None, "http://localhost:80", True),
+    ("", "", True), ("", "http://localhost:80", False),
+    ("HTTP://LOCALHOST:080", "http://localhost:80", True),
+    ("http://127.0.0.1:80", "http://127.0.0.1:81", False)])
+def test_docker_proxy_case_and_empty_contract(runtime, monkeypatch, upper, lower, valid):
+    from research_workbench_entrypoint.docker_runtime import _docker_cli_proxies
+    for key in ("HTTP_PROXY", "http_proxy", "HTTPS_PROXY", "https_proxy", "NO_PROXY", "no_proxy"):
+        monkeypatch.delenv(key, raising=False)
+    if upper is not None:
+        monkeypatch.setenv("HTTP_PROXY", upper)
+    monkeypatch.setenv("http_proxy", lower)
+    env, issues = _docker_cli_proxies()
+    assert (not issues) is valid
+    if valid and lower:
+        assert env["HTTP_PROXY"] == env["http_proxy"]
+    else:
+        assert "HTTP_PROXY" not in env
+
+
+@pytest.mark.parametrize("value,valid", [("localhost,.example.com,*.example.net,127.0.0.1,::1,10.0.0.0/8,*", True),
+    ("https://host", False), ("user@host", False), ("host:80", False), ("host\n", False),
+    ("a," * 65, False), ("a" * 2049, False), ("10.0.0.0/99", False)])
+def test_docker_bypass_validation_and_doctor_safe_projection(runtime, monkeypatch, value, valid):
+    from research_workbench_entrypoint.docker_runtime import _docker_cli_proxies
+    controller, runner, _ = runtime
+    owned(controller, runner)
+    for directory in (controller.data_dir, controller.state_dir, controller.credential_dir):
+        directory.mkdir(parents=True, mode=0o700)
+    for key in ("HTTP_PROXY", "http_proxy", "HTTPS_PROXY", "https_proxy", "NO_PROXY", "no_proxy"):
+        monkeypatch.delenv(key, raising=False)
+    monkeypatch.setenv("NO_PROXY", value)
+    env, issues = _docker_cli_proxies()
+    assert (not issues) is valid
+    report = controller.doctor()
+    assert report["ok"]
+    assert report["proxy"]["state"] == ("configured" if valid else "unsafe")
+    assert value not in json.dumps(report)
+
+
 @pytest.fixture
 def available_ports():
     with socket.socket() as web, socket.socket() as runtime:
@@ -95,12 +282,280 @@ def owned(controller, runner):
         "ports": {"8088/tcp": [{"HostIp": "127.0.0.1", "HostPort": str(controller.ports[0])}]},
         "mounts": [
             {"Type": "bind", "Source": str(controller.data_dir), "Destination": "/data/research-web"},
-            {"Type": "bind", "Source": str(controller.state_dir), "Destination": "/state"},
+            {"Type": "bind", "Source": str(controller.state_dir / "logs"), "Destination": "/state/logs"},
             {"Type": "bind", "Source": str(controller.credential_dir), "Destination": "/run/rwb-secrets"},
             {"Type": "tmpfs", "Source": "", "Destination": "/tmp"},
             {"Type": "tmpfs", "Source": "", "Destination": "/home/rwb"},
+            {"Type": "tmpfs", "Source": "", "Destination": "/state"},
         ],
+        "tmpfs": {"/state": "rw,nosuid,nodev,noexec,uid=10001,gid=10001,mode=700,size=1m",
+                  "/tmp": "rw,nosuid,nodev,mode=1777",
+                  "/home/rwb": "rw,nosuid,nodev,uid=10001,gid=10001,mode=700"},
     }
+    for mount in runner.container["mounts"]:
+        mount["RW"] = True
+
+
+@pytest.mark.parametrize("change", ["missing_state", "missing_tmp", "missing_home", "duplicate",
+    "wrong_type", "wrong_source", "legacy_bind", "readonly", "missing_rw", "rw_string",
+    "missing_config", "config_list", "extra_config", "uid", "gid", "mode", "size",
+    "noexec", "unknown", "duplicate_option", "contradiction"])
+def test_private_state_mount_contract_rejects_nearest_invalid_layout(runtime, change):
+    controller, runner, _ = runtime
+    owned(controller, runner)
+    mounts = runner.container["mounts"]
+    state = mounts[-1]
+    if change.startswith("missing_") and change in {"missing_state", "missing_tmp", "missing_home"}:
+        destination = {"missing_state": "/state", "missing_tmp": "/tmp", "missing_home": "/home/rwb"}[change]
+        mounts[:] = [item for item in mounts if item["Destination"] != destination]
+        runner.container["tmpfs"].pop(destination)
+    elif change == "duplicate":
+        mounts.append(dict(state))
+    elif change == "wrong_type":
+        state["Type"] = "volume"
+    elif change == "wrong_source":
+        mounts[1]["Source"] = str(controller.state_dir)
+    elif change == "legacy_bind":
+        state.update(Type="bind", Source=str(controller.state_dir))
+    elif change in {"readonly", "missing_rw", "rw_string"}:
+        for item in mounts:
+            if change == "missing_rw":
+                item.pop("RW")
+            else:
+                item["RW"] = False if change == "readonly" else "true"
+    elif change == "missing_config":
+        runner.container.pop("tmpfs")
+    elif change == "config_list":
+        runner.container["tmpfs"] = list(runner.container["tmpfs"])
+    elif change == "extra_config":
+        runner.container["tmpfs"]["/extra"] = "rw"
+    else:
+        options = runner.container["tmpfs"]["/state"]
+        replacements = {"uid": ("uid=10001", "uid=0"), "gid": ("gid=10001", "gid=0"),
+            "mode": ("mode=700", "mode=755"), "size": ("size=1m", "size=2m"),
+            "noexec": (",noexec", "")}
+        if change in replacements:
+            options = options.replace(*replacements[change])
+        else:
+            options += {"unknown": ",silent", "duplicate_option": ",uid=10001", "contradiction": ",ro"}[change]
+        runner.container["tmpfs"]["/state"] = options
+    assert controller.status()["issues"] == ["docker_ownership_mismatch"]
+
+
+def test_private_state_tmpfs_options_are_semantic_and_binds_writable(runtime):
+    controller, runner, _ = runtime
+    owned(controller, runner)
+    runner.container["tmpfs"]["/state"] = "size=1048576,mode=0700,gid=10001,uid=10001,noexec,nodev,nosuid,rw"
+    assert controller.status()["ok"]
+    runner.container["mounts"][1]["RW"] = False
+    assert controller.status()["issues"] == ["docker_ownership_mismatch"]
+
+
+@pytest.mark.parametrize("explicit", [[], ["/state"], ["/tmp", "/home/rwb"]])
+def test_hostconfig_requires_all_tmpfs_when_engine_omits_mount_entries(runtime, explicit):
+    # Docker 29 Engine exposes --tmpfs in HostConfig, without duplicate Mounts entries.
+    controller, runner, _ = runtime
+    owned(controller, runner)
+    runner.container["mounts"][:] = [item for item in runner.container["mounts"]
+        if item["Type"] == "bind" or item["Destination"] in explicit]
+    assert controller.status()["ok"]
+    runner.container["tmpfs"].pop("/state")
+    assert controller.status()["issues"] == ["docker_ownership_mismatch"]
+
+
+@pytest.mark.parametrize("existing", [False, True])
+def test_fix1_origin_commit_failure_cleans_exact_attempt(runtime, monkeypatch, existing):
+    from app.research_web.control_origin import ControlOriginError, ControlOriginTransaction
+    from app.research_web.datahub.security import load_control
+    from app.research_web.mcp_runtime.control import load_control as load_mcp
+    from research_workbench_entrypoint.bootstrap import NativeRuntime
+    controller, runner, _ = runtime
+    controller.data_dir.mkdir(mode=0o700)
+    origin = "http://127.0.0.1:48271"
+    controller.endpoint_store.publish("native", 48271, 48272, expected=None)
+    load_control(controller.data_dir, origin)
+    load_mcp(controller.data_dir, origin)
+    original = [(controller.data_dir / ".control" / name).read_bytes()
+                for name in ("datahub.json", "mcp-runtime.json")]
+    if existing:
+        owned(controller, runner)
+        runner.container.update(running=False, state="exited", launch="existing-launch")
+    monkeypatch.setattr(NativeRuntime, "status", lambda self: Native().status())
+    def launch(argv, **kwargs):
+        if "up" in argv:
+            if existing:
+                runner.container.update(running=True, state="running")
+            else:
+                owned(controller, runner)
+        return runner(argv, **kwargs)
+    controller.runner = launch
+    def refuse(self):
+        raise ControlOriginError("control_origin_changed")
+    monkeypatch.setattr(ControlOriginTransaction, "commit", refuse)
+    report = controller.start(open_browser=False)
+    assert report["issues"] == ["control_origin_changed"], report
+    if existing:
+        assert runner.container and not runner.container["running"]
+        assert not any(argv[1] == "rm" for argv, _ in runner.calls)
+    else:
+        assert runner.container is None
+    assert controller.endpoint_store.read("docker") is None
+    assert [(controller.data_dir / ".control" / name).read_bytes()
+            for name in ("datahub.json", "mcp-runtime.json")] == original
+
+
+def test_fix1_manifest_same_bytes_replacement_is_not_rollback_owned(runtime, monkeypatch):
+    from scripts import setup_web
+    controller, runner, current = runtime
+    installer = setup_web.DockerRuntime(controller.project_root, controller.home, runner=runner)
+    path = controller.home / "install/docker-manifest.json"
+    manifest = setup_web._docker_manifest(controller.project_root, "sha256:" + "b" * 64)
+    replacement = path.with_name("replacement.json")
+    def replace_then_fail():
+        replacement.write_bytes(path.read_bytes())
+        replacement.chmod(0o600)
+        replacement.replace(path)
+        retained.append(path.stat().st_ino)
+        raise RuntimeError("fixture_commit_failure")
+    retained = []
+    monkeypatch.setattr(installer, "_commit_candidate", replace_then_fail)
+    with pytest.raises(RuntimeError, match="docker_install_summary_recovery_unverified"):
+        installer._publish_selection(installer.store, current, manifest)
+    assert path.stat().st_ino == retained[0]
+
+
+@pytest.mark.parametrize("evidence", ["unknown", "same-root", "pid-reused"])
+def test_fix1_native_bridge_missing_environment_and_ledger_refuses_existing_root_listener(runtime, monkeypatch, evidence):
+    from research_workbench_entrypoint import bootstrap
+    from research_workbench_entrypoint.web_contract import ProcessFact
+    from research_workbench_entrypoint.bootstrap import NativeRuntime
+    controller, _runner, _record = runtime
+    controller.data_dir.mkdir(mode=0o700)
+    calls = []
+    def facts(pid):
+        calls.append(pid)
+        argv = None if evidence == "unknown" else ("node", str(controller.data_dir) if evidence == "same-root" else "/foreign/data")
+        return ProcessFact("alive", None, None, argv, float(len(calls)) if evidence == "pid-reused" else 1.0)
+    monkeypatch.setattr(bootstrap, "probe_process", facts)
+    with socket.socket() as listener:
+        listener.bind(("127.0.0.1", controller.ports[0]))
+        listener.listen()
+        report = NativeRuntime(controller.project_root, controller.home, ports=controller.ports).status()
+        assert report["issues"] == ["runtime_ownership_unknown"], report
+
+
+def test_fix2_docker_only_healthy_start_reuses_verified_container_with_real_listener(runtime):
+    from research_workbench_entrypoint.web_contract import listener_pids
+    controller, runner, _ = runtime
+    controller.data_dir.mkdir(mode=0o700)
+    # A valid prior Native endpoint fixture isolates this genuine generic
+    # listener from unrelated host product writers whose roots are unknown.
+    controller.endpoint_store.publish("native", controller.ports[0], controller.ports[1], expected=None)
+    owned(controller, runner)
+    identity = runner.container["id"]
+    listener = socket.socket()
+    port = controller.ports[0]
+    before = listener_pids(port)
+    try:
+        if before.state == "closed":
+            listener.bind(("127.0.0.1", port))
+            listener.listen()
+        observed = listener_pids(port)
+        assert observed.state == "listening" and observed.pids
+        report = controller.start(open_browser=False)
+        assert report["ok"], report
+        assert runner.container["id"] == identity
+        assert not any("up" in argv or argv[1] in ("stop", "rm") for argv, _ in runner.calls)
+        assert listener_pids(port) == observed
+    finally:
+        listener.close()
+
+
+def test_fix2_docker_only_start_keeps_real_host3081_and_refuses_unknown_product(runtime):
+    from research_workbench_entrypoint.web_contract import listener_pids, probe_process
+    controller, runner, _ = runtime
+    controller.data_dir.mkdir(mode=0o700)
+    listener = socket.socket()
+    before = listener_pids(3081)
+    def launch(argv, **kwargs):
+        if "up" in argv:
+            owned(controller, runner)
+        return runner(argv, **kwargs)
+    controller.runner = launch
+    try:
+        if before.state == "closed":
+            listener.bind(("127.0.0.1", 3081))
+            listener.listen()
+        observed = listener_pids(3081)
+        assert observed.state == "listening" and observed.pids
+        facts = [probe_process(pid) for port in (8088, 3081) for pid in listener_pids(port).pids]
+        product_writer = any(fact.argv and any("app.research_web.main" in arg or "/apps/cli/lib/bin.js" in arg
+                                               for arg in fact.argv) for fact in facts)
+        report = controller.start(open_browser=False)
+        if product_writer:
+            assert report["issues"] == ["runtime_ownership_unknown"], report
+            assert runner.container is None
+        else:
+            assert report["ok"], report
+            assert runner.container and runner.container["running"]
+        assert listener_pids(3081) == observed
+        assert not any(argv[1] in ("stop", "rm") for argv, _ in runner.calls)
+    finally:
+        listener.close()
+
+
+def test_fix2_managed_docker_mapping_mismatch_cannot_be_adopted(runtime):
+    controller, runner, _ = runtime
+    controller.data_dir.mkdir(mode=0o700)
+    controller.endpoint_store.publish("native", controller.ports[0], controller.ports[1], expected=None)
+    owned(controller, runner)
+    runner.container["ports"]["8088/tcp"][0]["HostPort"] = str(controller.ports[0] + 1)
+    report = controller.start(open_browser=False)
+    assert report["issues"] == ["docker_ports_mismatch"], report
+    assert not any("up" in argv or argv[1] in ("stop", "rm") for argv, _ in runner.calls)
+    assert runner.container["running"]
+
+
+@pytest.mark.parametrize("default_only", [False, True])
+def test_fix3_missing_environment_other_checkout_can_share_env_data_root(runtime, monkeypatch, default_only):
+    from research_workbench_entrypoint import bootstrap
+    from research_workbench_entrypoint.web_contract import ListenerFact, ProcessFact
+    controller, _runner, _record = runtime
+    controller.data_dir.mkdir(mode=0o700)
+    monkeypatch.setenv("RESEARCH_DATA_HOME", str(controller.data_dir))
+    argv = ("python", "-m", "uvicorn", "app.research_web.main:app", "--app-dir", "/other/checkout")
+    monkeypatch.setattr(bootstrap, "listener_pids", lambda port:
+                        ListenerFact("listening", (456,), None) if not default_only or port == 8088 else ListenerFact("closed", (), None))
+    monkeypatch.setattr(bootstrap, "probe_process", lambda pid: ProcessFact("alive", None, None, argv, 123.0))
+    report = bootstrap.NativeRuntime(controller.project_root, controller.home, ports=controller.ports).status()
+    assert report["issues"] == ["runtime_ownership_unknown"], report
+
+
+@pytest.mark.parametrize("replacement", ["launch", "image", "installation", "mount"])
+def test_fix1_started_existing_cleanup_refuses_replaced_identity(runtime, monkeypatch, replacement):
+    from research_workbench_entrypoint.bootstrap import NativeRuntime
+    from research_workbench_entrypoint.docker_runtime import ControlError
+    controller, runner, _ = runtime
+    controller.data_dir.mkdir(mode=0o700)
+    owned(controller, runner)
+    runner.container.update(running=False, state="exited", launch="old-launch")
+    monkeypatch.setattr(NativeRuntime, "status", lambda self: Native().status())
+    def launch(argv, **kwargs):
+        if "up" in argv:
+            runner.container.update(running=True, state="running")
+        return runner(argv, **kwargs)
+    def fail_ready(*args, **kwargs):
+        if replacement == "mount":
+            runner.container["mounts"][0]["Source"] = "/foreign"
+        else:
+            runner.container[replacement] = "foreign"
+        raise ControlError("docker_services_unhealthy")
+    controller.runner = launch
+    monkeypatch.setattr(controller, "_wait_ready", fail_ready)
+    report = controller.start(open_browser=False)
+    assert "docker_rollback_unverified" in report["issues"], report
+    assert runner.container["running"]
+    assert not any(argv[1] in ("stop", "rm") for argv, _ in runner.calls)
 
 
 def test_compose_identity_and_minimal_environment(runtime, monkeypatch):
@@ -152,6 +607,8 @@ def test_docker_doctor_allowlisted_health_and_capabilities(runtime):
                                        ("starting", "docker_ready_timeout")])
 def test_start_existing_unhealthy_fails_without_removing(runtime, health, code):
     controller, runner, _ = runtime
+    controller.data_dir.mkdir(mode=0o700)
+    controller.endpoint_store.publish("native", *controller.ports, expected=None)
     owned(controller, runner)
     runner.container["health"] = health
     report = controller.start(open_browser=False, wait_timeout=0)
@@ -255,6 +712,8 @@ def test_accepted_manifest_fails_closed(runtime, mutation, code):
 
 def test_overwritten_mutable_tag_cannot_change_accepted_image(runtime):
     controller, runner, _ = runtime
+    controller.data_dir.mkdir(mode=0o700)
+    controller.endpoint_store.publish("native", *controller.ports, expected=None)
     owned(controller, runner)
 
     def retagged(argv, **kwargs):
@@ -296,6 +755,7 @@ def test_explicit_repair_disposes_only_stopped_owned_container_and_keeps_fallbac
     from scripts import setup_web
     from research_workbench_entrypoint.bootstrap import NativeRuntime
     controller, runner, _ = runtime
+    controller.data_dir.mkdir(mode=0o700)
     owned(controller, runner)
     runner.container.update(running=False, state="exited")
     path = controller.home / "install/docker-manifest.json"
@@ -379,6 +839,7 @@ def test_up_created_then_failed_recovers_only_this_launch(runtime, monkeypatch, 
     monkeypatch.setattr(NativeRuntime, "status", lambda self: Native().status())
     monkeypatch.setattr(controller, "_ports_free", lambda: None)
     if after == "existing":
+        controller.data_dir.mkdir(mode=0o700)
         owned(controller, runner)
         runner.container.update(running=False, state="exited")
     failed = []
@@ -459,6 +920,21 @@ def test_docker_doctor_stopped_and_missing_data_not_ready(runtime):
     assert not report["ok"]
     assert "docker_container_absent" in report["issues"]
     assert "docker_data_unavailable" in report["issues"]
+
+
+@pytest.mark.parametrize("ownership", ["absent", "verified", "invalid"])
+def test_doctor_volume_types_follow_private_state_contract_without_creating_paths(runtime, ownership):
+    controller, runner, _ = runtime
+    if ownership != "absent":
+        owned(controller, runner)
+    if ownership == "invalid":
+        runner.container["tmpfs"]["/state"] = "rw,mode=755"
+    report = controller.doctor()
+    assert report["schema_version"] == 1
+    assert report["volumes"] == {"verified": ownership == "verified", "data": "bind",
+        "state": "tmpfs", "logs": "bind", "credentials": "bind"}
+    assert not (controller.state_dir / "logs").exists()
+    assert not any("up" in argv or argv[1] in ("start", "stop", "rm") for argv, _ in runner.calls)
 
 
 def test_windows_credential_mount_fails_closed_before_creation(runtime, monkeypatch):
@@ -567,7 +1043,7 @@ def test_unsupported_architecture(runtime):
     assert controller.preflight()["issues"] == ["docker_architecture_unsupported"]
 
 
-@pytest.mark.parametrize("port_index,code", [(0, "docker_port_8088_occupied"), (1, "docker_port_3081_conflict")])
+@pytest.mark.parametrize("port_index,code", [(0, "endpoint_port_in_use")])
 def test_real_loopback_conflicts(runtime, port_index, code):
     controller, _, _ = runtime
     with socket.socket() as listener:
@@ -576,6 +1052,7 @@ def test_real_loopback_conflicts(runtime, port_index, code):
         ports = list(controller.ports)
         ports[port_index] = listener.getsockname()[1]
         controller.ports = tuple(ports)
+        controller.requested_web_port = ports[0]
         assert controller.start()["issues"] == [code]
 
 
@@ -653,7 +1130,7 @@ def test_switch_preflights_before_stop_and_never_autostarts(runtime):
     assert not any("up" in argv for argv, _ in runner.calls)
 
 
-def test_switch_waits_both_real_ports_and_keeps_mode_on_timeout(runtime):
+def test_switch_ignores_foreign_host_runtime_port_after_owned_native_stop(runtime):
     from research_workbench_entrypoint.bootstrap import switch_runtime
 
     controller, _, _ = runtime
@@ -664,13 +1141,12 @@ def test_switch_waits_both_real_ports_and_keeps_mode_on_timeout(runtime):
         listener.listen()
         controller.ports = (controller.ports[0], listener.getsockname()[1])
         result = switch_runtime(store, "docker", controller, Native(True), stop_current=True, wait_timeout=0.05)
-        assert result["issues"] == ["runtime_ports_not_released"]
-        assert store.read().mode == "native"
-        native = Native(True, listener.close)
-        assert switch_runtime(store, "docker", controller, native, stop_current=True, wait_timeout=0.1)["ok"]
+        assert result["ok"]
+        assert store.read().mode == "docker"
+        assert listener.getsockname()[1] == controller.ports[1]
 
 
-def test_switch_refuses_unknown_port_even_with_stop_flag(runtime):
+def test_switch_does_not_stop_foreign_web_listener_for_isolated_root(runtime):
     from research_workbench_entrypoint.bootstrap import switch_runtime
 
     controller, _, _ = runtime
@@ -682,9 +1158,10 @@ def test_switch_refuses_unknown_port_even_with_stop_flag(runtime):
         controller.ports = (listener.getsockname()[1], controller.ports[1])
         native = Native()
         result = switch_runtime(store, "docker", controller, native, stop_current=True)
-        assert result["issues"] == ["runtime_ownership_unknown"]
+        assert result["ok"]
         assert "stop" not in native.events
-        assert store.read().mode == "native"
+        assert store.read().mode == "docker"
+        assert listener.getsockname()[1] == controller.ports[0]
 
 
 def test_bounded_runner_enforces_limits_and_timeout(tmp_path):
@@ -777,8 +1254,12 @@ def test_logs_preserve_owned_process_exit_code(runtime):
 def test_native_probe_preserves_stale_state_and_refuses_foreign_before_stop(tmp_path, monkeypatch, available_ports):
     from research_workbench_entrypoint.bootstrap import _native_probe
     from app.research_web.service_manager import WebServiceManager
+    from app.research_web import service_manager as manager_module
+    from research_workbench_entrypoint.web_contract import ListenerFact
+    monkeypatch.setattr(manager_module, "listener_pids", lambda port: ListenerFact("closed", (), None))
 
     home = tmp_path / "home"
+    home.mkdir(mode=0o700)
     run = home / "run"
     run.mkdir(parents=True, mode=0o700)
     manager = WebServiceManager(project_root=tmp_path, data_root=home / "research-web", web_port=available_ports[0], runtime_port=available_ports[1])
@@ -801,11 +1282,19 @@ def test_native_probe_preserves_stale_state_and_refuses_foreign_before_stop(tmp_
 
 def test_native_bridge_subprocess_with_temporary_home_does_not_write(tmp_path, available_ports):
     from research_workbench_entrypoint.bootstrap import NativeRuntime
+    from research_workbench_entrypoint.web_contract import listener_pids, probe_process
 
     root = Path(__file__).resolve().parents[2]
     home = tmp_path / "absent"
     controller = NativeRuntime(root, home, ports=available_ports)
-    assert controller.status()["ok"]
+    facts = [probe_process(pid) for port in (8088, 3081) for pid in listener_pids(port).pids]
+    product_writer = any(fact.argv and any("app.research_web.main" in arg or "apps/cli/lib/bin.js" in arg
+                                           for arg in fact.argv) for fact in facts)
+    report = controller.status()
+    if product_writer:
+        assert report["issues"] == ["runtime_ownership_unknown"], report
+    else:
+        assert report["ok"], report
     assert not home.exists()
 
 
@@ -835,6 +1324,7 @@ def test_install_and_start_use_only_named_service_without_autostart(runtime):
     assert up[-7:] == ["up", "--detach", "--no-build", "--pull", "never", "--no-recreate", "research-web"]
     assert controller.data_dir.is_dir()
     assert controller.state_dir.is_dir()
+    assert (controller.state_dir / "logs").stat().st_mode & 0o777 == 0o700
     assert controller.credential_dir.is_dir()
 
 
@@ -845,8 +1335,61 @@ def test_malformed_inspect_mounts_return_safe_error(runtime):
     assert controller.status()["issues"] == ["docker_ownership_mismatch"]
 
 
+@pytest.mark.parametrize("kind", ["alias", "mode", "foreign"])
+def test_private_host_logs_refuse_unsafe_existing_child(runtime, monkeypatch, kind):
+    from research_workbench_entrypoint.bootstrap import NativeRuntime
+    controller, runner, _ = runtime
+    monkeypatch.setattr(NativeRuntime, "status", lambda self: Native().status())
+    (controller.home / "run").mkdir(mode=0o700)
+    controller.state_dir.mkdir(parents=True, mode=0o700)
+    logs = controller.state_dir / "logs"
+    if kind == "alias":
+        logs.symlink_to(controller.state_dir, target_is_directory=True)
+    else:
+        logs.mkdir(mode=0o700)
+        if kind == "mode":
+            logs.chmod(0o755)
+        else:
+            original = Path.lstat
+            def foreign(path):
+                info = original(path)
+                if path == logs:
+                    values = list(info)
+                    values[4] += 9876
+                    return os.stat_result(values)
+                return info
+            monkeypatch.setattr(Path, "lstat", foreign)
+    assert controller.start(open_browser=False)["issues"] == ["docker_data_home_unsafe"]
+    assert not any("up" in argv for argv, _ in runner.calls)
+
+
+def test_private_host_logs_creation_preserves_legacy_runtime(runtime, monkeypatch):
+    from research_workbench_entrypoint.bootstrap import NativeRuntime
+    controller, runner, _ = runtime
+    monkeypatch.setattr(NativeRuntime, "status", lambda self: Native().status())
+    (controller.home / "run").mkdir(mode=0o700)
+    controller.state_dir.mkdir(parents=True, mode=0o700)
+    legacy = controller.state_dir / "runtime"
+    legacy.mkdir(parents=True, mode=0o700)
+    record = legacy / "auth.json"
+    record.write_bytes(b"legacy-auth-retained")
+    record.chmod(0o600)
+    before = record.stat()
+    def on_up(argv, **kwargs):
+        if "up" in argv:
+            owned(controller, runner)
+        return runner(argv, **kwargs)
+    controller.runner = on_up
+    assert controller.start(open_browser=False)["ok"]
+    assert record.read_bytes() == b"legacy-auth-retained"
+    assert record.stat().st_ino == before.st_ino
+    assert (controller.state_dir / "logs").stat().st_mode & 0o777 == 0o700
+
+
 def test_start_opens_only_verified_runtime_url(runtime, monkeypatch):
     controller, runner, _ = runtime
+    controller.data_dir.mkdir(mode=0o700)
+    controller.endpoint_store.publish("native", *controller.ports, expected=None)
     owned(controller, runner)
     opened = []
     monkeypatch.setattr("webbrowser.open", lambda url: opened.append(url) or True)
@@ -993,6 +1536,363 @@ def test_bounded_runner_cleanup_error_is_visible_with_original_interrupt(tmp_pat
                             cwd=tmp_path, env=dict(os.environ), timeout=30)
     assert "runtime_process_tree_cleanup_failed" in " ".join(caught.value.__notes__)
     assert "runtime_process_tree_cleanup_failed" in caplog.text
+
+
+def test_docker_free_port_check_ignores_host_runtime_listener(runtime):
+    controller, _runner, _record = runtime
+    with socket.socket() as foreign:
+        foreign.bind(("127.0.0.1", controller.ports[1]))
+        foreign.listen()
+        controller._ports_free()
+
+
+def test_docker_status_restores_persisted_web_endpoint(runtime):
+    from research_workbench_entrypoint.runtime_endpoints import EndpointStore
+    from research_workbench_entrypoint.docker_runtime import DockerRuntime
+
+    controller, runner, _record = runtime
+    store = EndpointStore(controller.home)
+    store.publish("docker", 48213, expected=None)
+    before = store.path.read_bytes()
+    restored = DockerRuntime(controller.project_root, controller.home, runner=runner)
+    report = restored.status()
+    assert report["url"] == "http://127.0.0.1:48213/#/fingpt"
+    assert report["services"]["runtime"]["port"] == 3081
+    assert store.path.read_bytes() == before
+
+
+@pytest.mark.parametrize("operation", ["start", "stop"])
+def test_docker_mutations_excluded_by_native_lifecycle_lock(runtime, operation):
+    from app.research_web.lifecycle_lock import LifecycleLock
+    controller, runner, _ = runtime
+    owned(controller, runner)
+    with LifecycleLock(controller.home / "run/lifecycle.lock", lambda pid: True,
+                       trusted_root=controller.home):
+        report = getattr(controller, operation)()
+        assert report["issues"] == ["lifecycle_busy"]
+    assert not any("stop" in argv or "up" in argv for argv, _ in runner.calls)
+
+
+def test_docker_status_rejects_actual_mapping_mismatch(runtime):
+    controller, runner, _ = runtime
+    owned(controller, runner)
+    runner.container["ports"] = {"8088/tcp": [{"HostIp": "127.0.0.1", "HostPort": "1"}]}
+    assert controller.status()["issues"] == ["docker_ports_mismatch"]
+
+
+def test_docker_start_allocates_busy_preferred_and_publishes_only_ready(runtime, monkeypatch):
+    from research_workbench_entrypoint.bootstrap import NativeRuntime
+    from research_workbench_entrypoint.runtime_endpoints import EndpointStore
+    controller, runner, _ = runtime
+    monkeypatch.setattr(NativeRuntime, "status", lambda self: Native().status())
+    with socket.socket() as foreign:
+        foreign.bind(("127.0.0.1", 0))
+        foreign.listen()
+        preferred = foreign.getsockname()[1]
+        controller.ports = preferred, 3081
+        def launch(argv, **kwargs):
+            if "up" in argv:
+                assert EndpointStore(controller.home).read("docker") is None
+                owned(controller, runner)
+            return runner(argv, **kwargs)
+        controller.runner = launch
+        report = controller.start(open_browser=False)
+        assert report["ok"], report
+        saved = EndpointStore(controller.home).read("docker")
+        assert saved.web_port != preferred
+        assert report["services"]["web"]["port"] == saved.web_port
+        assert foreign.getsockname()[1] == preferred
+
+
+@pytest.mark.parametrize("publish_failure", [False, True])
+def test_docker_origin_transaction_preserves_tokens_and_rolls_back(runtime, monkeypatch, publish_failure):
+    from app.research_web.datahub.security import load_control
+    from app.research_web.mcp_runtime.control import load_control as load_mcp
+    from research_workbench_entrypoint.bootstrap import NativeRuntime
+    from research_workbench_entrypoint.runtime_endpoints import EndpointError, EndpointStore
+    controller, runner, _ = runtime
+    controller.data_dir.mkdir(mode=0o700)
+    old_origin = "http://127.0.0.1:48220"
+    EndpointStore(controller.home).publish("native", 48220, 48221, expected=None)
+    originals = [load_control(controller.data_dir, old_origin), load_mcp(controller.data_dir, old_origin)]
+    before = [(controller.data_dir / ".control" / name).read_bytes()
+              for name in ("datahub.json", "mcp-runtime.json")]
+    monkeypatch.setattr(NativeRuntime, "status", lambda self: Native().status())
+    def launch(argv, **kwargs):
+        if "up" in argv:
+            assert load_control(controller.data_dir, "http://127.0.0.1:8088")["token"] == originals[0]["token"]
+            assert load_mcp(controller.data_dir, "http://127.0.0.1:8088")["token"] == originals[1]["token"]
+            owned(controller, runner)
+        return runner(argv, **kwargs)
+    controller.runner = launch
+    if publish_failure:
+        def refuse(*args, **kwargs):
+            raise EndpointError("endpoint_io")
+        monkeypatch.setattr(controller.endpoint_store, "publish", refuse)
+    report = controller.start(open_browser=False)
+    assert report["ok"] is (not publish_failure), report
+    if publish_failure:
+        assert report["issues"] == ["endpoint_io"]
+        assert runner.container is None
+        assert [(controller.data_dir / ".control" / name).read_bytes()
+                for name in ("datahub.json", "mcp-runtime.json")] == before
+    else:
+        assert load_mcp(controller.data_dir, "http://127.0.0.1:8088")["token"] == originals[1]["token"]
+
+
+def test_mode_switch_final_selection_uses_shared_lifecycle_lock(runtime):
+    from app.research_web.lifecycle_lock import LifecycleLock
+    from research_workbench_entrypoint.bootstrap import switch_runtime
+    controller, runner, _ = runtime
+    with LifecycleLock(controller.home / "run/lifecycle.lock", lambda pid: True,
+                       trusted_root=controller.home):
+        report = switch_runtime(controller.store, "native", controller, Native())
+        assert report["issues"] == ["lifecycle_busy"]
+    assert controller.store.read().mode == "docker"
+
+
+@pytest.mark.parametrize("failure", [None, "timeout", "replacement", "tmpfs_missing", "tmpfs_type",
+    "uid", "gid", "mode", "unknown", "duplicate_option", "readonly", "extra", "shadow",
+    "bind_source", "duplicate_mount", "missing_rw"])
+@pytest.mark.parametrize("explicit_tmpfs", [False, True])
+def test_partial_controls_use_owned_no_port_guest_preparation(runtime, monkeypatch, failure, explicit_tmpfs):
+    from app.research_web.datahub.security import load_control
+    from research_workbench_entrypoint.bootstrap import NativeRuntime
+    from research_workbench_entrypoint.runtime_endpoints import EndpointStore
+    from research_workbench_entrypoint.docker_runtime import ControlError
+    from docker.supervisor import prepare_controls
+    controller, runner, _ = runtime
+    controller.data_dir.mkdir(mode=0o700)
+    origin = "http://127.0.0.1:48241"
+    original = load_control(controller.data_dir, origin)
+    EndpointStore(controller.home).publish("native", 48241, 48242, expected=None)
+    monkeypatch.setattr(NativeRuntime, "status", lambda self: Native().status())
+    guest = {}
+    calls = []
+    def preparation_runner(argv, **kwargs):
+        calls.append(argv)
+        if argv[1] == "create":
+            labels = dict(argv[i + 1].split("=", 1) for i, arg in enumerate(argv[:-1]) if arg == "--label")
+            assert not any(arg in ("-p", "--publish", "--publish-all") for arg in argv)
+            assert str(controller.credential_dir) not in " ".join(argv)
+            guest.update(id="d" * 64, image="sha256:" + "b" * 64,
+                installation=controller.installation_id, launch=labels["io.research-workbench.launch"],
+                runtime="control-preparer", running=False, state="created", exit_code=0,
+                ports={}, entrypoint=["/opt/rwb/venv/bin/python"],
+                command=["/opt/rwb/docker/supervisor.py", "--prepare-controls-only", "--previous-origin", origin],
+                mounts=[{"Type": "bind", "Source": str(controller.data_dir), "Destination": "/data/research-web", "RW": True}]
+                       + ([{"Type": "tmpfs", "Source": "", "Destination": name, "RW": True}
+                          for name in ("/state", "/run/rwb-secrets", "/tmp", "/home/rwb")] if explicit_tmpfs else []),
+                tmpfs={name: "rw,nosuid,nodev,uid=10001,gid=10001,mode=700"
+                       for name in ("/state", "/run/rwb-secrets", "/tmp", "/home/rwb")})
+            if failure == "tmpfs_missing":
+                guest["tmpfs"].pop("/state")
+            elif failure == "tmpfs_type":
+                guest["tmpfs"] = list(guest["tmpfs"])
+            elif failure in {"uid", "gid", "mode"}:
+                old, new = {"uid": ("uid=10001", "uid=0"), "gid": ("gid=10001", "gid=0"),
+                            "mode": ("mode=700", "mode=755")}[failure]
+                guest["tmpfs"]["/state"] = guest["tmpfs"]["/state"].replace(old, new)
+            elif failure in {"unknown", "duplicate_option"}:
+                guest["tmpfs"]["/state"] += ",silent" if failure == "unknown" else ",uid=10001"
+            elif failure == "extra":
+                guest["tmpfs"]["/extra"] = guest["tmpfs"]["/state"]
+            elif failure == "readonly":
+                guest["mounts"][0]["RW"] = False
+            elif failure == "missing_rw":
+                guest["mounts"][0].pop("RW")
+            elif failure == "bind_source":
+                guest["mounts"][0]["Source"] = "/foreign"
+            elif failure == "duplicate_mount":
+                guest["mounts"].append(dict(guest["mounts"][0]))
+            elif failure == "shadow":
+                guest["mounts"].append({"Type": "volume", "Source": "", "Destination": "/state", "RW": True})
+            return subprocess.CompletedProcess(argv, 0, guest["id"], "")
+        if argv[1:3] == ["container", "inspect"] and argv[-1] == "d" * 64:
+            return subprocess.CompletedProcess(argv, 0, json.dumps(guest), "")
+        if argv[1] == "start":
+            prepare_controls(controller.data_dir, origin)
+            guest.update(state="exited")
+            if failure == "timeout":
+                raise ControlError("runtime_command_timeout")
+            if failure == "replacement":
+                guest["launch"] = "foreign"
+            return subprocess.CompletedProcess(argv, 0, "", "")
+        if argv[1] == "rm" and argv[-1] == "d" * 64:
+            guest.clear()
+            return subprocess.CompletedProcess(argv, 0, "", "")
+        if "up" in argv:
+            assert not guest
+            owned(controller, runner)
+        return runner(argv, **kwargs)
+    controller.runner = preparation_runner
+    report = controller.start(open_browser=False)
+    assert report["ok"] is (failure is None), report
+    expected_origin = "http://127.0.0.1:8088" if failure is None else origin
+    assert load_control(controller.data_dir, expected_origin)["token"] == original["token"]
+    if failure not in {None, "timeout"}:
+        assert guest and not any(argv[1] == "rm" for argv in calls)
+        assert "docker_prepare_cleanup_unverified" in report["issues"]
+    else:
+        assert not guest
+    if failure == "timeout":
+        assert report["issues"] == ["runtime_command_timeout"]
+
+
+def test_docker_bind_race_retries_owned_attempt_with_three_attempt_budget(runtime, monkeypatch):
+    from research_workbench_entrypoint.bootstrap import NativeRuntime
+    controller, runner, _ = runtime
+    controller.data_dir.mkdir(mode=0o700)
+    monkeypatch.setattr(NativeRuntime, "status", lambda self: Native().status())
+    listeners = []
+    attempts = []
+    def racing(argv, **kwargs):
+        if "up" in argv:
+            attempts.append(controller.ports[0])
+            listener = socket.socket()
+            listener.bind(("127.0.0.1", controller.ports[0]))
+            listener.listen()
+            listeners.append(listener)
+            return subprocess.CompletedProcess(argv, 1, "", "Ports are not available: bind: address already in use")
+        return runner(argv, **kwargs)
+    controller.runner = racing
+    try:
+        report = controller.start(open_browser=False)
+        assert report["issues"] == ["docker_bind_race"], report
+        assert len(attempts) == len(set(attempts)) == 3
+        assert not controller.endpoint_store.path.exists()
+    finally:
+        for listener in listeners:
+            listener.close()
+
+
+def test_docker_stop_uses_container_exit_not_foreign_host_listener(runtime):
+    controller, runner, _ = runtime
+    owned(controller, runner)
+    with socket.socket() as foreign:
+        foreign.bind(("127.0.0.1", controller.ports[0]))
+        foreign.listen()
+        report = controller.stop(wait_timeout=0)
+        assert report["ok"], report
+        assert not report["services"]["web"]["running"]
+        assert foreign.getsockname()[1] == controller.ports[0]
+
+
+def test_docker_legacy_nondefault_mapping_is_restored_readonly(runtime):
+    from research_workbench_entrypoint.docker_runtime import DockerRuntime
+    controller, runner, _ = runtime
+    owned(controller, runner)
+    runner.container["ports"] = {"8088/tcp": [{"HostIp": "127.0.0.1", "HostPort": "48269"}]}
+    restored = DockerRuntime(controller.project_root, controller.home, runner=runner)
+    report = restored.status()
+    assert report["ok"], report
+    assert report["url"] == "http://127.0.0.1:48269/#/fingpt"
+    assert not restored.endpoint_store.path.exists()
+
+
+def test_installer_summary_failure_restores_pending_origin_and_endpoints(runtime, monkeypatch):
+    from scripts import setup_web
+    from app.research_web.datahub.security import load_control
+    from app.research_web.mcp_runtime.control import load_control as load_mcp
+    from research_workbench_entrypoint.bootstrap import NativeRuntime
+    from research_workbench_entrypoint.runtime_endpoints import EndpointStore
+    controller, runner, _ = runtime
+    controller.data_dir.mkdir(mode=0o700)
+    origin = "http://127.0.0.1:48271"
+    EndpointStore(controller.home).publish("native", 48271, 48272, expected=None)
+    original = [load_control(controller.data_dir, origin), load_mcp(controller.data_dir, origin)]
+    manifest_path = controller.home / "install/docker-manifest.json"
+    manifest_before = manifest_path.read_bytes()
+    monkeypatch.setattr(NativeRuntime, "status", lambda self: Native().status())
+    def launch(argv, **kwargs):
+        if "up" in argv:
+            owned(installer, runner)
+        return runner(argv, **kwargs)
+    installer = setup_web.DockerRuntime(controller.project_root, controller.home,
+                                        runner=launch, ports=controller.ports)
+    def refuse(*args):
+        raise RuntimeError("fixture_summary_failure")
+    monkeypatch.setattr(setup_web, "_write_docker_manifest", refuse)
+    with pytest.raises(RuntimeError, match="fixture_summary_failure"):
+        installer.install()
+    assert runner.container is None
+    assert manifest_path.read_bytes() == manifest_before
+    assert EndpointStore(controller.home).read("docker") is None
+    assert load_control(controller.data_dir, origin)["token"] == original[0]["token"]
+    assert load_mcp(controller.data_dir, origin)["token"] == original[1]["token"]
+
+
+def test_native_docker_native_control_roundtrip_preserves_both_tokens(runtime, monkeypatch):
+    from app.research_web import service_manager as manager_module
+    from research_workbench_entrypoint.web_contract import ListenerFact
+    monkeypatch.setattr(manager_module, "listener_pids", lambda port: ListenerFact("closed", (), None))
+    from app.research_web.service_manager import WebServiceManager
+    from app.research_web.datahub.security import load_control
+    from app.research_web.mcp_runtime.control import load_control as load_mcp
+    from research_workbench_entrypoint.bootstrap import NativeRuntime
+    controller, runner, _ = runtime
+    native_ports = controller.ports
+    controller.data_dir.mkdir(mode=0o700)
+    originals = [load_control(controller.data_dir, "http://127.0.0.1:8088"),
+                 load_mcp(controller.data_dir, "http://127.0.0.1:8088")]
+    monkeypatch.setattr(NativeRuntime, "status", lambda self: Native().status())
+    def start_native():
+        controller.store.write("native")
+        manager = WebServiceManager(project_root=controller.project_root, data_root=controller.data_dir,
+                                    web_port=native_ports[0], runtime_port=native_ports[1])
+        monkeypatch.setattr(manager, "_other_runtime_quiescent", lambda: not (runner.container and runner.container["running"]))
+        monkeypatch.setattr(manager, "_require_installation_ready", lambda: {"ok": True})
+        monkeypatch.setattr(manager, "_start_locked", lambda **kwargs: {"product_ready": True})
+        manager.start(open_browser=False)
+        origin = f"http://127.0.0.1:{manager.web_port}"
+        assert load_control(controller.data_dir, origin)["token"] == originals[0]["token"]
+        assert load_mcp(controller.data_dir, origin)["token"] == originals[1]["token"]
+        return manager
+    first = start_native()
+    first.stop()
+    controller.store.write("docker")
+    def launch(argv, **kwargs):
+        if "up" in argv:
+            owned(controller, runner)
+        return runner(argv, **kwargs)
+    controller.runner = launch
+    assert controller.start(open_browser=False)["ok"]
+    assert load_control(controller.data_dir, "http://127.0.0.1:8088")["token"] == originals[0]["token"]
+    assert controller.stop()["ok"]
+    last = start_native()
+    assert last.endpoint_store.read("docker").web_port == controller.ports[0]
+
+
+def test_new_docker_attempt_never_adopts_wrong_actual_mapping_as_legacy(runtime, monkeypatch):
+    from research_workbench_entrypoint.docker_runtime import DockerRuntime
+    from research_workbench_entrypoint.bootstrap import NativeRuntime
+    previous, runner, _ = runtime
+    controller = DockerRuntime(previous.project_root, previous.home, runner=runner)
+    monkeypatch.setattr(NativeRuntime, "status", lambda self: Native().status())
+    def launch(argv, **kwargs):
+        if "up" in argv:
+            owned(controller, runner)
+            runner.container["ports"] = {"8088/tcp": [{"HostIp": "127.0.0.1", "HostPort": "1"}]}
+        return runner(argv, **kwargs)
+    controller.runner = launch
+    report = controller.start(open_browser=False)
+    assert report["issues"] == ["docker_ports_mismatch"]
+    assert runner.container is None
+    assert controller.endpoint_store.read("docker") is None
+
+
+def test_docker_malformed_control_origin_reports_stable_issue(runtime):
+    from research_workbench_entrypoint.docker_runtime import ControlError
+    controller, _, _ = runtime
+    folder = controller.data_dir / ".control"
+    folder.mkdir(parents=True, mode=0o700)
+    controller.data_dir.chmod(0o700)
+    for name in ("datahub.json", "mcp-runtime.json"):
+        path = folder / name
+        path.write_text(json.dumps({"url": {}, "token": "x" * 43, "version": 1}))
+        path.chmod(0o600)
+    with pytest.raises(ControlError, match="control_origin_"):
+        controller._prepare_control_origin("sha256:" + "b" * 64)
 
 
 def test_bounded_runner_cleanup_error_preserves_timeout_code(tmp_path, monkeypatch, caplog):

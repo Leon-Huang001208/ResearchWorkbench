@@ -11,6 +11,7 @@ import sys
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
+from .runtime_endpoints import EndpointError, EndpointStore
 
 from .web_contract import (
     CONTROL_JSON_MAX_BYTES,
@@ -116,31 +117,33 @@ def _expected_signature(
     command: list[str],
     project_root: Path,
     data_home: Path,
+    *, port: int | None = None, web_port: int = WEB_PORT,
 ) -> list[str] | None:
+    selected_port = port if port is not None else (RUNTIME_PORT if role == "runtime" else WEB_PORT)
     if role == "runtime":
         source = _argument(command, "--source")
         if (
             source is None
             or _argument(command, "--data") != str(data_home)
-            or _argument(command, "--port") != str(RUNTIME_PORT)
-            or _argument(command, "--datahub-url") != f"http://127.0.0.1:{WEB_PORT}"
+            or _argument(command, "--port") != str(selected_port)
+            or _argument(command, "--datahub-url") != f"http://127.0.0.1:{web_port}"
             or "app.research_web.launch_runtime" not in command
         ):
             return None
         return [
             str(Path(source) / "apps/cli/lib/bin.js"),
             str((data_home / "runtime/overlay.yml").resolve()),
-            str(RUNTIME_PORT),
+            str(selected_port),
         ]
     if (
         _argument(command, "--app-dir") != str(project_root)
         or _argument(command, "--host") != "127.0.0.1"
-        or _argument(command, "--port") != str(WEB_PORT)
+        or _argument(command, "--port") != str(selected_port)
         or "uvicorn" not in command
         or "app.research_web.main:app" not in command
     ):
         return None
-    return ["app.research_web.main:app", str(project_root), str(WEB_PORT)]
+    return ["app.research_web.main:app", str(project_root), str(selected_port)]
 
 
 def _valid_state(
@@ -150,6 +153,7 @@ def _valid_state(
     port: int,
     project_root: Path,
     data_home: Path,
+    web_port: int = WEB_PORT,
 ) -> dict[str, Any] | None:
     if type(value) is not dict or set(value) != {
         "version",
@@ -172,7 +176,7 @@ def _valid_state(
     stored_data_root = _bounded_string(value.get("data_root"))
     fingerprint = _bounded_string(value.get("fingerprint"), limit=64)
     expected_signature = (
-        _expected_signature(role, command, project_root, data_home) if command else None
+        _expected_signature(role, command, project_root, data_home, port=port, web_port=web_port) if command else None
     )
     valid = (
         type(value.get("version")) is int
@@ -203,6 +207,7 @@ def _read_state(
     project_root: Path,
     data_home: Path,
     platform_name: str | None = None,
+    web_port: int = WEB_PORT,
 ) -> tuple[str, dict[str, Any] | None]:
     fact = read_private_json(
         path,
@@ -219,6 +224,7 @@ def _read_state(
             port=port,
             project_root=project_root,
             data_home=data_home,
+            web_port=web_port,
         )
     except (TypeError, ValueError, OverflowError, RecursionError):
         return "invalid", None
@@ -231,14 +237,23 @@ def _service_fact(
     port: int,
     project_root: Path,
     data_home: Path,
+    web_port: int = WEB_PORT,
+    raw_fact=None,
 ) -> dict[str, Any]:
-    state_status, state = _read_state(
-        data_home.parent / "run" / f"{role}.json",
-        role=role,
-        port=port,
-        project_root=project_root,
-        data_home=data_home,
-    )
+    if raw_fact is None:
+        state_status, state = _read_state(
+            data_home.parent / "run" / f"{role}.json", role=role, port=port,
+            project_root=project_root, data_home=data_home, web_port=web_port)
+    else:
+        state_status, state = raw_fact.state, None
+        if state_status == "valid":
+            try:
+                state = _valid_state(raw_fact.value, role=role, port=port,
+                                     project_root=project_root, data_home=data_home, web_port=web_port)
+            except (TypeError, ValueError, OverflowError, RecursionError):
+                state = None
+            if state is None:
+                state_status = "invalid"
     listener = listener_pids(port)
     process_status = "missing" if state_status == "missing" else "inaccessible"
     ownership = "unknown"
@@ -301,20 +316,70 @@ def bootstrap_service_facts(
     selected_data_home = (
         _absolute(Path(data_home)) if data_home is not None else _data_home(os.environ)
     )
+    read_facts = {}
+    web_port, runtime_port = native_endpoint_ports(root, selected_data_home, read_facts=read_facts)
     return {
         "runtime": _service_fact(
             role="runtime",
-            port=RUNTIME_PORT,
+            port=runtime_port,
             project_root=root,
             data_home=selected_data_home,
+            web_port=web_port,
+            raw_fact=read_facts.get("runtime"),
         ),
         "web": _service_fact(
             role="web",
-            port=WEB_PORT,
+            port=web_port,
             project_root=root,
             data_home=selected_data_home,
+            raw_fact=read_facts.get("web"),
         ),
     }
+
+
+def native_endpoint_ports(project_root: Path, data_home: Path, *, read_facts=None) -> tuple[int, int]:
+    """Read saved ports or mutually consistent private legacy state, without writes."""
+    store = EndpointStore(data_home.parent)
+    try:
+        store.path.lstat()
+    except FileNotFoundError:
+        saved = None  # Legacy state retains its own private read/identity validation.
+    else:
+        saved = store.read("native")
+    if saved:
+        return saved.web_port, saved.runtime_port
+    values = {}
+    ports = {"web": WEB_PORT, "runtime": RUNTIME_PORT}
+    for role in ("web", "runtime"):
+        fact = read_private_json(data_home.parent / "run" / f"{role}.json",
+                                 trusted_root=data_home.parent, max_bytes=STATE_LIMIT_BYTES)
+        if read_facts is not None:
+            read_facts[role] = fact
+        if fact.state == "missing":
+            continue
+        if fact.state != "valid" or type(fact.value) is not dict:
+            return WEB_PORT, RUNTIME_PORT  # Individual state probes retain the refusal.
+        port = fact.value.get("port")
+        if type(port) is not int or not 1 <= port <= 65535:
+            return WEB_PORT, RUNTIME_PORT
+        ports[role] = port
+        values[role] = fact.value
+    if "runtime" in values and "web" not in values:
+        from urllib.parse import urlsplit
+        command = _safe_string_list(values["runtime"].get("command"), limit=64)
+        try:
+            origin = urlsplit(_argument(command, "--datahub-url") or "") if command else None
+            if origin is not None and origin.scheme == "http" and origin.hostname == "127.0.0.1" and origin.port:
+                ports["web"] = origin.port
+        except ValueError:
+            return WEB_PORT, RUNTIME_PORT
+    if ports["web"] == ports["runtime"] or any(
+        _valid_state(value, role=role, port=ports[role], project_root=project_root,
+                     data_home=data_home, web_port=ports["web"]) is None
+        for role, value in values.items()
+    ):
+        return WEB_PORT, RUNTIME_PORT
+    return ports["web"], ports["runtime"]
 
 
 def _python_issue(project_root: Path, environment: Mapping[str, str]) -> str:

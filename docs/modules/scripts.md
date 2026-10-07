@@ -21,6 +21,25 @@
 
 ### `scripts/setup_web.py`
 
+Native public auto-start reexecutes the same script/arguments in the exact marked checkout venv before
+creating the product root. The actual manager creates the root under its real lifecycle lease, completes
+DSH/build-lock/manifest, and starts through the verified same-lease entry. Outer-home UID/0700 preparation
+reuses the existing boundary; Native no-start/check-only do not gain Native creation authority. Old roots/replacements
+and observer/lease changes remain refused; no global package or public flag is added.
+
+Docker no-start selection may retain only a missing-product-root observation under the controller's own
+outer real lifecycle lease with a pinned private parent, absent Native records/endpoints and no containers.
+It publishes the original image/mode metadata without product-root, controls, PID or endpoint creation;
+the observation ends with the call and cannot authorize a later start. Standard first start independently
+rechecks absence, performs real private mkdir and pins its root inode/descriptor in that same transaction.
+Allocation authority expires before up; existing roots/containers never gain the fresh exception. Exact
+attempt recovery under the original lease/root/parent/listener/CAS facts retains the initial error with
+stable recovery diagnostics, never deletes user data or serializes a witness.
+
+Docker selection publication retains the manifest writer's held-FD identity. A later failure restores
+the previous receipt only while both the published bytes and inode still match; same-content inode
+replacement fails closed with `docker_install_summary_recovery_unverified` and is not overwritten.
+
 Purpose:
 
 - Implements the shared macOS/Windows Web bootstrap used by `setup-web.sh` and `setup-web.cmd`; `--runtime` defaults
@@ -40,8 +59,13 @@ Purpose:
 - On Docker, builds an independent candidate tag and checks its immutable image ID and lock/Compose/runtime contract
   before publishing the private accepted-image manifest. Default start waits for both DSH and Web health; `--no-start`
   records only an accepted build. A different old container image requires explicit `--repair`, which rechecks stopped
-  ownership and free ports before a non-force removal; failed candidates preserve the prior accepted image and data.
+  ownership before a non-force removal; failed candidates preserve the prior accepted image and data.
   Windows Docker fails closed while credential-directory ACL preparation cannot be proved.
+- macOS public setup accepts `--web-port`, and Native additionally `--runtime-port`; explicit occupied ports fail.
+  `--no-start` does not allocate ports or alter control origins. A starting Docker candidate keeps its origin
+  transaction under the shared lifecycle lease until manifest/mode publication; exact cleanup and endpoint CAS
+  restoration preserve the previous accepted installation on failure. Trusted portless temporary guests may
+  fill missing controls with the existing creators, but do not mount credentials or change existing tokens.
 - Passes application secrets to neither pip nor Node/Git build commands. Git may retain the host's proxy settings;
   pip and Corepack/Node keep only HTTP(S) proxy protocols across upper- and lower-case variables. Filtering records
   only a bounded count, never a proxy value, and does not mutate the host environment. macOS discovers libc++ headers through `xcrun`, and Windows
