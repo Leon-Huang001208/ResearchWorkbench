@@ -28,5 +28,6 @@ test('schema and credentials references reject arbitrary SQL, URLs and paths', (
   assert.throws(() => parseConfig({ database: { secretRef: '/tmp/password' } }));
   assert.throws(() => parseConfig({ database: { host: 'postgres://name:secret@server/db' } }));
   assert.throws(() => parseConfig({ worker: { concurrency: 999 } }));
+  assert.throws(() => parseConfig({database:{user:'same',controllerUser:'same'}}),/hot_database_roles_overlap/);
   assert.throws(() => parseConfig({ timezone: 'not-a-timezone' }));
 });

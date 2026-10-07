@@ -4,7 +4,8 @@ import { isIP } from 'node:net';
 
 export interface DatabaseConfig {
   mode: 'managed' | 'external'; host: string; port: number; name: string;
-  schema: string; user: string; secretRef: string; tls: 'disable' | 'verify-full'; poolMax: number;
+  schema: string; user: string; secretRef: string; controllerUser: string; controllerSecretRef: string;
+  tls: 'disable' | 'verify-full'; poolMax: number;
 }
 export interface HotConfig {
   version: 1; enabled: boolean; timezone: string; database: DatabaseConfig;
@@ -50,7 +51,7 @@ export function parseConfig(input: unknown): HotConfig {
   if (row.version !== undefined && row.version !== 1) throw Error('hot_config_version_invalid');
   const timezone = word(row.timezone, 'Asia/Shanghai', /^[A-Za-z_]+(?:\/[A-Za-z0-9_+\-]+)*$/);
   try { new Intl.DateTimeFormat('en', { timeZone: timezone }); } catch { throw Error('hot_timezone_invalid'); }
-  const db = object(row.database ?? {}, ['mode','host','port','name','schema','user','secretRef','tls','poolMax']);
+  const db = object(row.database ?? {}, ['mode','host','port','name','schema','user','secretRef','controllerUser','controllerSecretRef','tls','poolMax']);
   const mode = word(db.mode, 'managed', /^(managed|external)$/) as DatabaseConfig['mode'];
   const tls = word(db.tls, mode === 'managed' ? 'disable' : 'verify-full', /^(disable|verify-full)$/) as DatabaseConfig['tls'];
   const host = hostName(db.host);
@@ -62,12 +63,16 @@ export function parseConfig(input: unknown): HotConfig {
   const budget = object(row.budget ?? {}, ['maxCallsPerDay','maxTokensPerDay','maxCostPerDay']);
   const retention = object(row.retention ?? {}, ['days','backupDirectory']);
   const backupDirectory = word(retention.backupDirectory, 'hot/backups', /^[a-zA-Z0-9_\-]+(?:\/[a-zA-Z0-9_\-]+)*$/);
+  if((db.user??'rwb_hot_worker')===(db.controllerUser??'rwb_hot_controller'))throw Error('hot_database_roles_overlap');
   return { version: 1, enabled: row.enabled === true, timezone,
     database: { mode, host,
       port: bounded(db.port, 55432, 1, 65535), name: word(db.name, 'rwb_hot', /^[a-zA-Z][a-zA-Z0-9_]{0,62}$/),
       schema: schemaName(word(db.schema, 'hot', /^[a-z][a-z0-9_]{0,47}$/)),
       user: word(db.user, 'rwb_hot_worker', /^[a-zA-Z][a-zA-Z0-9_]{0,62}$/),
-      secretRef: word(db.secretRef, 'hot-database', /^[a-z][a-z0-9_\-]{0,63}$/), tls, poolMax: bounded(db.poolMax, 4, 1, 16) },
+      secretRef: word(db.secretRef, 'hot-database', /^[a-z][a-z0-9_\-]{0,63}$/),
+      controllerUser: word(db.controllerUser, 'rwb_hot_controller', /^[a-zA-Z][a-zA-Z0-9_]{0,62}$/),
+      controllerSecretRef: word(db.controllerSecretRef, 'hot-controller-database', /^[a-z][a-z0-9_\-]{0,63}$/),
+      tls, poolMax: bounded(db.poolMax, 4, 1, 16) },
     collection: { frequencySeconds: bounded(collection.frequencySeconds, 600, 60, 86400), maxItems: bounded(collection.maxItems, 200, 1, 2000), backfillDays: bounded(collection.backfillDays, 30, 0, 3650) },
     worker: { concurrency: bounded(worker.concurrency, 2, 1, 8), leaseSeconds: bounded(worker.leaseSeconds, 120, 10, 1800), maxRetries: bounded(worker.maxRetries, 3, 0, 10) },
     budget: { maxCallsPerDay: bounded(budget.maxCallsPerDay, 0, 0, 10000), maxTokensPerDay: bounded(budget.maxTokensPerDay, 0, 0, 10_000_000), maxCostPerDay: bounded(budget.maxCostPerDay, 0, 0, 10000, false) },

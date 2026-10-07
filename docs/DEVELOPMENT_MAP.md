@@ -4,10 +4,11 @@
 
 ## 当前 Research Web
 
-Hot 的阶段一入口位于 `research_workbench_entrypoint/hot.py`（非秘密配置与只读诊断）和
+Hot 的阶段一入口位于 `research_workbench_entrypoint/hot.py`（配置、诊断与 Native 生命周期），
+`hot_manager.py`（签名进程管理）、`hot_postgres.py`（实例归属与受管 PG）和
 `services/hot/`（PostgreSQL、私有签名回环协议与独立 Node 服务）。对应文档为
-`services/hot/README.md` 与安装指南 Hot 小节；测试为 `test_hot_entrypoint.py` 及
-`services/hot/tests/`。当前尚未接入产品启停、Settings、采集和研究链路，不把基础测试
+`services/hot/README.md` 与安装指南 Hot 小节；测试为 `test_hot_entrypoint.py`、`test_hot_manager.py` 及
+`services/hot/tests/`。当前尚未接入 Web 生命周期、Settings、采集和研究链路，不把基础测试
 写成完整功能验收。新增入口属于 dual-runtime 清单；它不创建第二个研究引擎。
 
 | 双运行时源码区域 | 职责 | 权威文档 | 主要测试 | 文档更新触发 |

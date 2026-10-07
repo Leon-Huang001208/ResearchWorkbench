@@ -1,6 +1,7 @@
 # 研究协议、执行状态与恢复
 
-Hot 内部控制/读取服务与研究执行分离：其启动、只读查询和 `rwb hot configure/status/doctor`
+Hot 内部控制/读取服务与研究执行分离：`rwb hot setup/start/stop/restart` 管理独立进程和指定库，
+其启动、只读查询和 `rwb hot configure/status/doctor`
 不创建研究会话或调用模型。当前研究交接和实际模型处理尚未接入，不能从私有服务的
 `initialized` 推导研究可用。后续交接必须沿本页原有会话归属、幂等受理和原生回执规则实施。
 

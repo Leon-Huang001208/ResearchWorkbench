@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import getpass
 import json
 import logging
 import os
@@ -160,16 +161,57 @@ def dispatch(argv: list[str], project: Path) -> int:
     parser = SafeParser(prog="rwb hot", description="Hot configuration and diagnostics; lifecycle integration is in progress.")
     parser.add_argument("--data-home", type=Path, default=Path(os.environ.get("RESEARCH_DATA_HOME", str(Path.home() / ".research-workbench/research-web"))))
     sub = parser.add_subparsers(dest="command", required=True)
-    for command in ("status", "doctor"):
+    for command in ("status", "doctor", "start", "stop", "restart"):
         sub.add_parser(command).add_argument("--json", action="store_true")
+    setup = sub.add_parser("setup")
+    setup.add_argument("--migration-user", default="postgres")
+    setup.add_argument("--migration-account", default="hot-migration-database")
+    setup.add_argument("--json", action="store_true")
     configure = sub.add_parser("configure")
     configure.add_argument("--file", type=Path, required=True)
     configure.add_argument("--json", action="store_true")
+    credential = sub.add_parser("credential")
+    credential.add_argument("kind", choices=("worker", "controller", "migration", "rpc-controller", "rpc-reader"))
     args = parser.parse_args(argv)
     home = args.data_home.absolute()
     try:
         if args.command == "configure":
             value = save_settings(project, home, _read(args.file.absolute()))
+        elif args.command in ("setup", "start", "stop", "restart", "credential") or (
+            args.command in ("status", "doctor") and (home / "hot" / "process.json").exists()
+        ):
+            from .bootstrap import native_python, native_environment
+
+            python = native_python(project)
+            if not python.is_file():
+                raise HotError("hot_native_environment_missing")
+            if Path(os.path.abspath(os.sys.executable)) != Path(os.path.abspath(python)):
+                os.chdir(project)
+                os.execve(str(python), [str(python), "-m", "research_workbench_entrypoint", "hot", "--data-home", str(home), *argv[argv.index(args.command):]], native_environment(project))
+            from app.research_web.credential_backend import SystemKeyringBackend
+            from .hot_manager import HotManager
+
+            manager = HotManager(project, home, SystemKeyringBackend())
+            if args.command == "credential":
+                if not os.isatty(0) or not os.isatty(2):
+                    raise HotError("hot_credential_requires_terminal")
+                config = manager._config()
+                account = {"worker": config["database"]["secretRef"], "controller": config["database"]["controllerSecretRef"],
+                           "migration": "hot-migration-database"}.get(args.kind, args.kind)
+                secret = getpass.getpass("Hot credential (stored in system credential store): ")
+                try:
+                    manager.credentials.set_password(manager.service, account, secret)
+                except Exception:
+                    raise HotError("hot_credentials_unavailable") from None
+                value = {"state": "credential_saved"}
+            elif args.command == "setup":
+                value = manager.setup(args.migration_user, args.migration_account)
+            elif args.command == "doctor":
+                value = manager.status()
+                value["checks"] = {"service": "PASS" if value["state"] == "initialized" else "NOT_RUN",
+                                   "model": "NOT_RUN", "research": "NOT_RUN"}
+            else:
+                value = getattr(manager, args.command)()
         else:
             value = status(project, home)
             if args.command == "doctor":
@@ -180,4 +222,8 @@ def dispatch(argv: list[str], project: Path) -> int:
     except HotError as error:
         log.warning("hot_operation_failed code=%s", str(error))
         print(json.dumps({"state": "unavailable", "code": str(error)}))
+        return 1
+    except (OSError, ValueError, KeyError, subprocess.SubprocessError):
+        log.warning("hot_operation_failed code=hot_lifecycle_unavailable")
+        print(json.dumps({"state": "unavailable", "code": "hot_lifecycle_unavailable"}))
         return 1

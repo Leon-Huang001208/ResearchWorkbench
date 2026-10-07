@@ -21,7 +21,13 @@ See `THIRD_PARTY_NOTICES.md` for upstream commit, license and modification scope
 `config.example.json` is a non-secret example for `parseConfig`. `rwb hot configure
 --file services/hot/config.example.json` now saves the normalized non-secret
 configuration. `rwb hot status/doctor` are read-only and do not start services.
-Settings and full lifecycle CLI wiring remain unfinished.
+Native `rwb hot setup/start/stop/restart` now own the standalone service process.
+Setup installs locked project Node dependencies and provisions the selected schema.
+Managed PostgreSQL uses the pinned digest, an instance-labelled data volume and
+loopback-only binding; cold startup checks ownership before starting the container.
+Secrets live in the system credential backend, with a private 0600 password-file
+export for the owned PG container. External roles remain administrator-provided.
+Settings, backup/restore CLI and Docker product lifecycle remain unfinished.
 Disabled Hot performs no credential lookup or DB connection. Secrets are passed
 only by an authorized Host resolver; the JSON schema rejects passwords and DSNs.
 Managed connections are restricted to loopback or the fixed private service
@@ -51,8 +57,8 @@ AbortSignal is passed to each handler and waiting is bounded even if a handler
 ignores it. A late returned commit callback is never executed. This does not
 forcibly stop arbitrary network side effects already started inside a handler;
 future adapters must implement cancellation and their receipt contracts. The
-product manager's owned-process termination and actual Native/Docker switching
-still require integration and real acceptance.
+Native manager verifies PID start identity and a launch nonce before signalling
+its process. Actual Native/Docker switching still requires integration and acceptance.
 
 After `npm run proof`, `npm run test:postgres` executes the real PostgreSQL
 schema, restricted-role, runtime-generation, queue transaction/crash and worker
@@ -74,5 +80,7 @@ wire limits, absolute deadlines and bounded connection/in-flight counts, passes
 cancellation to handlers and checks decoded values for credential reflection.
 No Unix socket pathname is created or removed. This avoids libuv's automatic
 path unlink on pipe close ([upstream source](https://github.com/libuv/libuv/blob/v1.x/src/unix/pipe.c)).
-Actual Docker service management, signed process-state ownership and product
-manager termination remain pending; these tests do not certify the whole product.
+Native manager start/status/restart/stop and PG cold recovery have real local
+process/database evidence using an isolated credential backend. Actual Keychain
+persistence and Docker product service management remain pending; these tests do
+not certify the whole product.

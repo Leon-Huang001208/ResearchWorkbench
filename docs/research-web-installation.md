@@ -8,8 +8,8 @@
 ### Hot 实施中的入口
 
 本轮增加可选 Hot 的独立 PostgreSQL/Node 组件；基础 Web 仍不要求数据库。
-当前 `rwb hot` 已提供非秘密配置与只读诊断，完整启动/停止、受管 PG、Docker、Settings
-和研究交接尚在实施，不能作为成品安装说明。Hot Node 组件要求 Node 24.11+ 的 24 系列。
+当前 `rwb hot` 已提供非秘密配置、Native 独立服务生命周期与受管 PG 配置；Docker 产品装配、
+Settings、采集 worker 和研究交接尚在实施，不能作为成品安装说明。Hot Node 组件要求 Node 24.11+ 的 24 系列。
 
 ```bash
 ./rwb hot --help
@@ -20,9 +20,27 @@
 
 配置保存于产品数据根的 `hot/settings.json`；示例默认关闭、预算为零，不接收密码或 DSN。
 `--data-home` 可指定隔离验证数据根，必须使用无 alias 的规范路径。状态/Doctor 不创建目录、
-不查询凭据、不触发采集或模型；数据库和模型未验证时保留 `NOT_RUN`。上述命令不会启动
-独立服务，完整 lifecycle 集成仍待完成。独立进程的实际启动、SIGTERM 和重启已在隔离
-PostgreSQL 测试资源验证，详细状态以 Hot 任务报告为准。
+不触发采集或模型；未启动时不查询凭据，已启动时通过系统凭据库和签名协议查询实时状态。
+数据库和模型未验证时保留 `NOT_RUN`。示例默认关闭，启用前在配置文件设置 `enabled: true`。
+基础 Native 安装完成后，可在终端执行下列命令；`setup` 按锁文件安装项目内 Node 依赖，
+受管模式拉取固定 PG 17 镜像、创建独立卷和受限角色，生成凭据保存于系统凭据库。
+
+```bash
+./rwb hot setup --json
+./rwb hot start --json
+./rwb hot status --json
+./rwb hot restart --json
+./rwb hot stop --json
+```
+
+`stop` 只停止经身份核对的 Hot Node 进程，不删除卷，也不停止数据库。受管数据库停止后，
+`start` 会核对镜像、实例标签、数据卷和回环绑定，再恢复它。控制日志在 `logs/hot/`。
+外部模式先由数据库管理员准备不同的 worker/controller/migration 角色，再在交互终端
+分别执行 `./rwb hot credential worker`、`./rwb hot credential controller` 和
+`./rwb hot credential migration`。默认迁移秘密引用为 `hot-migration-database`，
+用 `setup --migration-user <角色>` 指定迁移账号。外部数据库只处理明确指定 schema；
+备份、恢复命令和完整安装 CI 仍待完成。当前进程与 PG 验证使用隔离凭据 backend；
+系统 Keychain 持久化尚未实测，详见任务报告。
 
 内部服务使用仅绑定 `127.0.0.1` 的签名协议，校验实例、模式、代次和操作权限，消息不携带
 原始控制 key，响应也验证签名。它不暴露 SQL、路径或凭据管理给浏览器或模型。

@@ -1,9 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile,mkdtemp,realpath,chmod } from 'node:fs/promises';
+import { readFile,mkdtemp,realpath,chmod,mkdir,writeFile } from 'node:fs/promises';
 import { join,resolve } from 'node:path';
 import { randomUUID,randomBytes } from 'node:crypto';
-import { spawn } from 'node:child_process';
+import { spawn,execFileSync } from 'node:child_process';
 import { once } from 'node:events';
 import postgres from 'postgres';
 import { migrate,ingestPage } from '../src/database.ts';
@@ -64,6 +64,18 @@ test('real owned service process stops and restarts without deleting material or
       assert.equal((await db`select paused from ${db(schema)}.runtime_identity where singleton`)[0].paused,true);
       assert.equal((await db`select count(*)::int n from ${db(schema)}.materials where id=${stored.materialIds[0]}`)[0].n,1);
     }
+    // The public manager uses the same production module; only the credential backend is isolated.
+    const home=join(path,'manager-home');await mkdir(join(home,'hot'),{recursive:true,mode:0o700});
+    const project=resolve(import.meta.dirname,'../../..');
+    const config={enabled:true,database:{mode:'external',tls:'disable',port:receipt.port,name:'hot_probe',schema,user:worker,controllerUser:controller}};
+    await writeFile(join(home,'hot','settings.json'),JSON.stringify({schemaVersion:1,projectRoot:project,config}),{mode:0o600});
+    await writeFile(join(home,'hot','identity.json'),JSON.stringify({projectRoot:project,instanceId:instance}),{mode:0o600});
+    const probe=`import json,sys\nfrom pathlib import Path\nfrom research_workbench_entrypoint.hot_manager import HotManager\np=json.load(sys.stdin)\nclass Credentials:\n def get_password(self,service,account): return p['secrets'].get(account)\nm=HotManager(Path(p['project']),Path(p['home']),Credentials())\ntry:\n a=m.start()\n b=m.status()\n c=m.restart()\n d=m.stop()\n print(json.dumps({'first':a['state'],'status':b['state'],'restart':c['state'],'stopped':d['state']}))\nfinally:\n m.stop()\n`;
+    const result=execFileSync('/opt/homebrew/bin/python3.12',['-c',probe],{cwd:project,
+      env:{...process.env,RESEARCH_NODE_BINARY:process.execPath},timeout:20000,encoding:'utf8',
+      input:JSON.stringify({project,home,secrets:{'hot-database':workerPassword,'hot-controller-database':controllerPassword,'rpc-controller':controllerToken,'rpc-reader':readerToken}})});
+    assert.deepEqual(JSON.parse(result),{first:'initialized',status:'initialized',restart:'initialized',stopped:'stopped'});
+    assert.equal((await db`select count(*)::int n from ${db(schema)}.materials where id=${stored.materialIds[0]}`)[0].n,1);
   } finally {
     if(child) {child.kill('SIGKILL');await once(child,'exit');}
     await db.end({timeout:5});

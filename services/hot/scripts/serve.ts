@@ -3,6 +3,8 @@ import { startService,type ServiceBootstrap } from '../src/service.ts';
 
 let service: Awaited<ReturnType<typeof startService>> | undefined;
 try {
+  const launchId=process.argv[2]??null;
+  if(launchId!==null&&!/^[0-9a-f]{32}$/.test(launchId))throw Error('hot_launch_identity_invalid');
   const chunks: Buffer[] = [];
   let size = 0;
   for await (const chunk of process.stdin) {
@@ -12,7 +14,7 @@ try {
   }
   const input = JSON.parse(Buffer.concat(chunks).toString('utf8')) as ServiceBootstrap;
   service = await startService(input);
-  process.stdout.write(JSON.stringify({ protocol:'rwb-hot/v1',state:'initialized',pid:process.pid,port:service.port,owner:service.owner })+'\n');
+  process.stdout.write(JSON.stringify({ protocol:'rwb-hot/v1',state:'initialized',pid:process.pid,port:service.port,owner:service.owner,launchId })+'\n');
   const stop = async () => {
     try { await service!.close(); process.exitCode=0; }
     catch { process.exitCode=1; }
