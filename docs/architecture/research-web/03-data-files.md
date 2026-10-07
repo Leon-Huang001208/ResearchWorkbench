@@ -58,6 +58,7 @@ creator 初始化，单缺失由受管 prepare-only guest 先补齐。host 保�
 它不含凭据或用户内容，不写入接受摘要；持久化数据与秘密不参与失败容器回滚删除。
 
 Docker 凭据记录继续位于独立凭据 bind 的 `private/` 子目录，重建后验证并复用；
+Docker Doctor schema 1 的 `volumes` 安全类型投影为 data=bind、state=tmpfs、logs=bind、credentials=bind；新增 logs 为固定非秘密类型字段。`verified` 仍只由实际容器 inspect 归属/挂载核验成功决定，缺失或不安全容器为 false；只读查询不创建日志目录。
 运行状态为临时 tmpfs 的 `runtime/` 子目录，每次正常重建认证。旧宿主 runtime 不再挂载，
 不迁移或删除，不复制 Native Keychain，也不改变 canonical data-root。
 

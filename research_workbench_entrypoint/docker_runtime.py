@@ -869,7 +869,7 @@ class DockerRuntime:
             "container": {"state": "unknown", "ownership_id": None},
             "image": {"ready": False, "id": None},
             "ports": {"web": self.ports[0], "runtime": self.ports[1], "verified": False},
-            "volumes": {"verified": False, "data": "bind", "state": "bind", "credentials": "bind"},
+            "volumes": {"verified": False, "data": "bind", "state": "tmpfs", "logs": "bind", "credentials": "bind"},
             "data": {"ready": False},
             "python": {"applicable": False}, "node": {"applicable": False},
             "cjpy": {"applicable": False},

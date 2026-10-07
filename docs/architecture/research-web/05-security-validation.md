@@ -1,5 +1,7 @@
 # 安全边界与验证方法
 
+Docker Doctor schema 1 的 volumes 只投影固定类型：data/logs/credentials=bind、state=tmpfs；logs 为新增非秘密字段，不暴露路径，verified 仍须实际 inspect 成功，失败或缺容器为 false，查询不写目录。
+
 `runtime_state_directory_rejected` 的私有日志在原拒绝分支记录固定原因
 `invalid_type/reparse_point/unsafe_owner/unsafe_mode/identity_changed`，阶段限定
 `enter/open_fd/pre_yield/post_yield`，范围仅 `ancestor/leaf`。身份变化仅列

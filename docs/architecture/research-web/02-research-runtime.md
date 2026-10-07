@@ -1,5 +1,7 @@
 # 研究协议、执行状态与恢复
 
+Docker Doctor schema 1 的 volumes.state 显示 tmpfs，新增固定 volumes.logs=bind；只读投影不创建日志目录、不改变认证或生命周期，verified 仍取决于实际 inspect 的完整归属核验。
+
 运行状态目录原 guard 的拒绝日志区分进入、打开FD、yield前后阶段，身份变化仅列字段名。
 认证写入、健康探测、原校验顺序、异常类型/错误码和生命周期不变；取证不授权自动重试。
 额外方向分类来自同一次已拒绝的before/current所有权对，不能据日志推断Cookie writer层或修复权限。

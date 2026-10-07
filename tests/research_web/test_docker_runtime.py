@@ -915,6 +915,21 @@ def test_docker_doctor_stopped_and_missing_data_not_ready(runtime):
     assert "docker_data_unavailable" in report["issues"]
 
 
+@pytest.mark.parametrize("ownership", ["absent", "verified", "invalid"])
+def test_doctor_volume_types_follow_private_state_contract_without_creating_paths(runtime, ownership):
+    controller, runner, _ = runtime
+    if ownership != "absent":
+        owned(controller, runner)
+    if ownership == "invalid":
+        runner.container["tmpfs"]["/state"] = "rw,mode=755"
+    report = controller.doctor()
+    assert report["schema_version"] == 1
+    assert report["volumes"] == {"verified": ownership == "verified", "data": "bind",
+        "state": "tmpfs", "logs": "bind", "credentials": "bind"}
+    assert not (controller.state_dir / "logs").exists()
+    assert not any("up" in argv or argv[1] in ("start", "stop", "rm") for argv, _ in runner.calls)
+
+
 def test_windows_credential_mount_fails_closed_before_creation(runtime, monkeypatch):
     import research_workbench_entrypoint.docker_runtime as module
     from research_workbench_entrypoint.bootstrap import NativeRuntime

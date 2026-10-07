@@ -1,5 +1,7 @@
 # 部署与模块职责
 
+Docker Doctor 的只读 volumes 类型投影与既有挂载一致：data/独立 logs/credentials 为 bind，state 为 tmpfs；schema 1 增加固定 logs 类型字段，verified 仍消费实际 inspect，不增加部署节点。
+
 既有 `runtime_state.py` 仅增加私有拒绝证据日志，由同一 logger 输出固定原因、阶段和
 ancestor/leaf；不增加部署节点、probe或公开启动字段，详见安全边界文档。
 身份变化取证补充相对叶的 parent/other_ancestor/leaf 与精确所有权对变化分类，不识别Docker业务路径。

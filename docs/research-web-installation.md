@@ -1,5 +1,7 @@
 # Research Web Native / Docker 安装与运行
 
+Docker Doctor schema 1 的 volumes 类型为 data=bind、state=tmpfs、logs=bind、credentials=bind；logs 是新增的固定非秘密字段，verified 仍要求实际 inspect 成功，不改变安装或生命周期。
+
 私有状态目录拒绝时，既有日志现在记录固定原因、检查阶段与变化字段名；不输出目录名、
 路径或身份数值。该诊断不修复权限或重试启动，不改变依赖与一键安装流程。
 源码测试不能代替新镜像的真实启动与 macOS 干净安装CI证据。
