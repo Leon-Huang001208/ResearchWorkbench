@@ -1,5 +1,9 @@
 # 安全边界与验证方法
 
+安全拒绝与完整清理边界保留必要的宽异常捕获，逐处说明单行 lint 例外；不会为消除
+BLE001 而记录异常正文或缩窄到可能遗漏失败的类型。日志 handler 失败仍返回原拒绝路径，
+可选身份分类失败仍记录 `other`；验证脚本的 `check=False` 明示既有退出码断言责任。
+
 Docker fresh-root 权限不能由 mode、manifest、venv、bool/tuple、只读状态或外来 lease 推导。缺失观察限同一 controller 外层真实 `_locked_guard` 的私有父 FD/lease/元数据与稳定 OS 事实；真实 mkdir 后首次 open/fstat 捕获并 pin 当前根身份，up 前失去分配权限。捕获后的 parent/root 身份、lease、mode 记录值、PID/端点/监听或容器变化拒绝；已有根不授予该例外。另一个 controller 不能转移 witness；外层 abort 仅在本次容器已精确退出且原 lease/根/父/监听与 CAS 一致时恢复，本次恢复不授权重试。所有 witness 在 finally 清除，原通用目录/生命周期 guard 与认证实现不放宽。
 
 mkdir 到首次身份捕获非原子，沿用 Native/Supervisor 创建模型，不承诺抵御同 UID、可写 HOME 且不遵守 lease 的任意捕获前替换。mode 比较沿用 RuntimeModeRecord 值和逻辑 CAS，不跨读取保留 mode 文件 inode；合法同内容换 inode 不单独使 witness 失效。该边界不改变私有读取的 alias/owner/mode/no-follow 校验，也不改变安装摘要发布时独立的字节/FD 身份恢复检查。

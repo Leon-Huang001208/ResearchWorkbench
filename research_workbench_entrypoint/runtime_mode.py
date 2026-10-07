@@ -255,9 +255,7 @@ def _private_posix_parent(path: Path, *, strict_parent: bool = False) -> Iterato
         yield install_descriptor
 
         current_home = os.stat(home.name, dir_fd=home_parent, follow_symlinks=False)
-        current_install = os.stat(
-            path.parent.name, dir_fd=home_descriptor, follow_symlinks=False
-        )
+        current_install = os.stat(path.parent.name, dir_fd=home_descriptor, follow_symlinks=False)
         if (
             _node_identity(current_home) != _node_identity(home_identity)
             or current_home.st_uid != os.getuid()
@@ -292,10 +290,9 @@ def _read_bytes(path: Path) -> tuple[bytes, os.stat_result]:
             raw = stream.read(MAX_RUNTIME_MODE_BYTES + 1)
         if len(raw) > MAX_RUNTIME_MODE_BYTES:
             _fail("too_large")
-        if (
-            _identity(os.fstat(descriptor)) != _identity(before)
-            or _identity(_path_identity(path)) != _identity(before)
-        ):
+        if _identity(os.fstat(descriptor)) != _identity(before) or _identity(
+            _path_identity(path)
+        ) != _identity(before):
             _fail("changed")
     return raw, before
 
@@ -327,7 +324,8 @@ def _validate(payload: object) -> RuntimeModeRecord:
     if _UPDATED_AT.fullmatch(value["updated_at"]) is None:
         _fail("value")
     try:
-        datetime.strptime(value["updated_at"], "%Y-%m-%dT%H:%M:%S.%fZ")
+        # Validate UTC wire syntax only; the resulting naive datetime never escapes.
+        datetime.strptime(value["updated_at"], "%Y-%m-%dT%H:%M:%S.%fZ")  # noqa: DTZ007
     except ValueError:
         _fail("value")
     return RuntimeModeRecord(
@@ -482,9 +480,7 @@ class RuntimeModeStore:
         try:
             self.path.lstat()
         except FileNotFoundError:
-            _validate_existing_prefix(
-                self.path, allow_private_repair=allow_missing_private_repair
-            )
+            _validate_existing_prefix(self.path, allow_private_repair=allow_missing_private_repair)
             return RuntimeModeRecord(_SCHEMA_VERSION, "native", "", None), None
         raw, identity = _read_bytes(self.path)
         record = _decode(raw)
@@ -523,7 +519,9 @@ class RuntimeModeStore:
                 # OPEN_ALWAYS, FILE_FLAG_OPEN_REPARSE_POINT.
                 handle = _winapi.CreateFile(str(lock_path), 0xC0000000, 3, 0, 4, 0x00200000, 0)
                 try:
-                    descriptor = msvcrt.open_osfhandle(handle, os.O_RDWR | getattr(os, "O_BINARY", 0))
+                    descriptor = msvcrt.open_osfhandle(
+                        handle, os.O_RDWR | getattr(os, "O_BINARY", 0)
+                    )
                 except BaseException:
                     _winapi.CloseHandle(handle)
                     raise
@@ -539,14 +537,16 @@ class RuntimeModeStore:
 
                 def entry() -> os.stat_result:
                     return _path_identity(lock_path)
+
             else:
                 import fcntl
 
                 parent = stack.enter_context(
                     _private_posix_parent(self.path, strict_parent=strict_parent)
                 )
-                descriptor = os.open(lock_path.name, os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW,
-                                     0o600, dir_fd=parent)
+                descriptor = os.open(
+                    lock_path.name, os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600, dir_fd=parent
+                )
                 stack.callback(os.close, descriptor)
 
                 def acquire() -> None:
@@ -564,9 +564,12 @@ class RuntimeModeStore:
             def verify() -> None:
                 opened = os.fstat(descriptor)
                 current = entry()
-                if (not stat.S_ISREG(opened.st_mode) or opened.st_nlink != 1
-                        or opened.st_size not in (0, 1)
-                        or _node_identity(opened) != _node_identity(current)):
+                if (
+                    not stat.S_ISREG(opened.st_mode)
+                    or opened.st_nlink != 1
+                    or opened.st_size not in (0, 1)
+                    or _node_identity(opened) != _node_identity(current)
+                ):
                     _fail("unsafe_path")
                 if os.name == "posix":
                     _validate_posix_private_file(opened)
@@ -579,6 +582,7 @@ class RuntimeModeStore:
                     break
                 except OSError as error:
                     import errno
+
                     if error.errno not in (errno.EACCES, errno.EAGAIN, errno.EDEADLK):
                         raise
                     if time.monotonic() >= deadline:

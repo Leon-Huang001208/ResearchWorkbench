@@ -42,9 +42,9 @@ def _log_rejection(
                 position = "leaf" if leaf else "parent" if parent else "other_ancestor"
                 args += (ownership_transition, position)
             log.warning(message, *args)
-    except Exception:
+    except Exception:  # noqa: BLE001 - A broken logger must not replace the security rejection.
         # A failing diagnostic handler must never replace the security rejection.
-        pass
+        return
 
 
 def _log_identity_change(
@@ -72,9 +72,9 @@ def _log_identity_change(
                 transition = "root_pair_to_runtime_pair"
             elif before_pair == runtime_pair and current_pair == (0, 0):
                 transition = "reverse"
-    except Exception:
+    except Exception:  # noqa: BLE001 - Optional classification cannot interrupt rejection.
         # Optional ownership classification must not interfere with rejection.
-        pass
+        transition = "other"
     _log_rejection(
         "identity_changed",
         phase=phase,

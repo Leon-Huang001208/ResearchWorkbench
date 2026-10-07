@@ -95,12 +95,17 @@ class EndpointStore:
             value = json.loads(raw, object_pairs_hook=private._unique_object)
         except (ValueError, RecursionError):
             _fail("endpoint_schema")
-        if (type(value) is not dict or set(value) != {"schema_version", "records"}
-                or type(value["schema_version"]) is not int or value["schema_version"] != 1
-                or type(value["records"]) is not dict):
+        if (
+            type(value) is not dict
+            or set(value) != {"schema_version", "records"}
+            or type(value["schema_version"]) is not int
+            or value["schema_version"] != 1
+            or type(value["records"]) is not dict
+        ):
             _fail("endpoint_schema")
-        records = {_mode(mode): _record(_mode(mode), record)
-                   for mode, record in value["records"].items()}
+        records = {
+            _mode(mode): _record(_mode(mode), record) for mode, record in value["records"].items()
+        }
         return records, identity
 
     def read(self, mode: str) -> EndpointSnapshot | None:
@@ -113,8 +118,14 @@ class EndpointStore:
         except (OSError, ValueError, TypeError):
             _fail("endpoint_io")
 
-    def publish(self, mode: str, web_port: int, runtime_port: int | None = None,
-                *, expected: EndpointSnapshot | None) -> EndpointSnapshot:
+    def publish(
+        self,
+        mode: str,
+        web_port: int,
+        runtime_port: int | None = None,
+        *,
+        expected: EndpointSnapshot | None,
+    ) -> EndpointSnapshot:
         try:
             _mode(mode)
             _port(web_port)
@@ -137,7 +148,9 @@ class EndpointStore:
                     if key == "native":
                         values[key]["runtime_port"] = record.runtime_port
                 raw = json.dumps({"schema_version": 1, "records": values}).encode()
-                published = private._atomic_write_posix(self.path, raw, identity, strict_parent=True)
+                published = private._atomic_write_posix(
+                    self.path, raw, identity, strict_parent=True
+                )
                 checked, after = self._load()
                 if not private._same_identity(published, after) or checked != records:
                     _fail("endpoint_changed")
@@ -157,8 +170,9 @@ class EndpointStore:
         if record is None or (record.web_port, record.runtime_port) != (web_port, runtime_port):
             _fail("endpoint_facts_mismatch")
 
-    def restore(self, mode: str, previous: EndpointSnapshot | None,
-                *, expected: EndpointSnapshot) -> EndpointSnapshot | None:
+    def restore(
+        self, mode: str, previous: EndpointSnapshot | None, *, expected: EndpointSnapshot
+    ) -> EndpointSnapshot | None:
         """Restore logical ports only while this exact publication is still current.
 
         Restoration gets a fresh revision, so rollback cannot revive an obsolete
@@ -178,11 +192,18 @@ class EndpointStore:
                 if records.get(mode) != expected:
                     _fail("endpoint_conflict")
                 del records[mode]
-                values = {key: {"web_port": item.web_port, "revision": item.revision,
-                                **({"runtime_port": item.runtime_port} if key == "native" else {})}
-                          for key, item in records.items()}
+                values = {
+                    key: {
+                        "web_port": item.web_port,
+                        "revision": item.revision,
+                        **({"runtime_port": item.runtime_port} if key == "native" else {}),
+                    }
+                    for key, item in records.items()
+                }
                 raw = json.dumps({"schema_version": 1, "records": values}).encode()
-                published = private._atomic_write_posix(self.path, raw, identity, strict_parent=True)
+                published = private._atomic_write_posix(
+                    self.path, raw, identity, strict_parent=True
+                )
                 checked, after = self._load()
                 if not private._same_identity(published, after) or checked != records:
                     _fail("endpoint_changed")
@@ -194,9 +215,7 @@ class EndpointStore:
             _fail("endpoint_io")
 
 
-def select_port(
-    preferred: int, *, explicit: bool = False, excluded: Iterable[int] = ()
-) -> int:
+def select_port(preferred: int, *, explicit: bool = False, excluded: Iterable[int] = ()) -> int:
     """Try preferred, then bounded OS loopback candidates; caller must bind/retry."""
     _port(preferred)
     excluded = tuple(_port(port) for port in excluded)

@@ -2838,8 +2838,11 @@ Imports:
 - `pathlib`
 - `sys`
 - `types`
+- `typing`
 
 Classes:
+- `_WebPortOptions`
+  - Only explicitly supplied ports are forwarded to the service manager.
 - `LazyCommandGroup`
   - Expose legacy commands without importing their runtime until selected.
   - methods: list_commands, get_command, format_commands
@@ -18877,6 +18880,7 @@ Imports:
 - `stat`
 - `subprocess`
 - `sys`
+- `typing`
 - `urllib.parse`
 - `uuid`
 - `zipfile`
@@ -18888,6 +18892,8 @@ Classes:
 - `DockerRuntime`
   - Public installer adapter around the stdlib Docker lifecycle controller.
   - methods: _verify_selection_safe, install, _publish_selection
+- `_NativePortOptions`
+  - Only explicitly supplied ports are forwarded to the Native installer.
 
 Functions:
 - `_command_version`

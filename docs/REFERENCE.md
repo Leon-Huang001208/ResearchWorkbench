@@ -1,5 +1,8 @@
 # Research Workbench 参考入口
 
+Web CLI 与安装器的内部端口类型说明见 [CLI 模块](modules/app_cli.md) 与
+[脚本模块](modules/scripts.md)；公开命令和运行时安全合同不因 Python 质量整理而改变。
+
 本页是现役参考资料的导航，不复制完整 CLI、路由、Python 符号或目录树。旧版 2982 行手册保存在 [历史参考手册](archive/legacy/reference-manual.md)，只能用于维护兼容平台。
 
 ## 当前 CLI

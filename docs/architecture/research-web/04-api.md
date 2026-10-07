@@ -1,5 +1,8 @@
 # Research Web 接口清单
 
+内部端口 TypedDict 与显式默认值整理不改变公开参数、返回字段或错误类型；
+省略 Web/Runtime 端口仍沿原选择合同，控制与回滚错误码保持。
+
 1A收口：`ModelConfig.api_key`拒绝明显掩码、redacted/hidden占位及空白，错误响应仍固定invalid_request且不回显输入。普通新消息在受理收据/Native prompt之前检查凭据，configured严格为true才继续；缺失为model_credentials_missing，未确认形状为model_credential_state_unavailable。Runtime credential_storage来自受控source映射，未知不猜测为Keychain。
 
 模型页新增 `POST /api/research/runtime/model/test`：用户显式最小生成，通过现有 DSH 会话与最终事件验收，返回 `status`、`selection`、`checked_at`、可选 `session_id/code`；不返回密钥或推理正文。`PUT /runtime/model` 增加互斥的 `clear_api_key`，返回 `configured/applied_to/inference_verified`，保存不代表推理通过。Runtime GET 分开展示已保存、新会话应用、凭据配置、后端类型、提交结果未知及最近测试。

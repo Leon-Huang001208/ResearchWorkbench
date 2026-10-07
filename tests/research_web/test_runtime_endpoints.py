@@ -47,8 +47,9 @@ def test_endpoint_store_rejects_invalid_port(tmp_path, value):
     assert store.read("docker") is None
 
 
-@pytest.mark.parametrize("mode,runtime", [("native", None), ("native", 18088),
-                                           ("docker", 13081), ("other", None)])
+@pytest.mark.parametrize(
+    "mode,runtime", [("native", None), ("native", 18088), ("docker", 13081), ("other", None)]
+)
 def test_invalid_mode_pair(store, mode, runtime):
     with pytest.raises(EndpointError):
         store.publish(mode, web_port=18088, runtime_port=runtime, expected=None)

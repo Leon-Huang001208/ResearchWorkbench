@@ -14,7 +14,7 @@ import os
 import re
 from collections.abc import Callable
 from pathlib import Path
-from typing import NoReturn
+from typing import NoReturn, cast
 from urllib.parse import urlsplit
 
 from research_workbench_entrypoint import runtime_mode as private
@@ -48,10 +48,16 @@ def checked_control_url(value) -> str:
         raise ControlRecordError("url_type")
     try:
         parsed = urlsplit(value)
-        if (parsed.scheme != "http" or parsed.hostname not in {"127.0.0.1", "::1"}
-                or parsed.username is not None or parsed.password is not None
-                or "?" in value or "#" in value or parsed.path not in {"", "/"}
-                or not parsed.port):
+        if (
+            parsed.scheme != "http"
+            or parsed.hostname not in {"127.0.0.1", "::1"}
+            or parsed.username is not None
+            or parsed.password is not None
+            or "?" in value
+            or "#" in value
+            or parsed.path not in {"", "/"}
+            or not parsed.port
+        ):
             raise ValueError("not loopback")
         return value.rstrip("/")
     except (ValueError, TypeError):
@@ -62,8 +68,11 @@ def parse_datahub_control(raw: bytes, url: str | None) -> dict:
     """Original reader schema, including its additional valid JSON fields."""
     try:
         config = json.loads(raw)
-        if (not isinstance(config, dict) or not isinstance(config.get("token"), str)
-                or not re.fullmatch(r"[A-Za-z0-9_-]{43,128}", config["token"])):
+        if (
+            not isinstance(config, dict)
+            or not isinstance(config.get("token"), str)
+            or not re.fullmatch(r"[A-Za-z0-9_-]{43,128}", config["token"])
+        ):
             raise ValueError("invalid token")
         checked_control_url(config["url"])
         if url is not None and config["url"] != url:
@@ -79,10 +88,13 @@ def parse_mcp_control(raw: bytes, expected_url: str) -> dict:
     """Original MCP reader predicate; transaction adds its own strictness."""
     try:
         value = json.loads(raw)
-        if (not isinstance(value, dict) or value.get("version") != 1
-                or not isinstance(value.get("token"), str)
-                or re.fullmatch(r"[A-Za-z0-9_-]{43,128}", value["token"]) is None
-                or value.get("url") != expected_url):
+        if (
+            not isinstance(value, dict)
+            or value.get("version") != 1
+            or not isinstance(value.get("token"), str)
+            or re.fullmatch(r"[A-Za-z0-9_-]{43,128}", value["token"]) is None
+            or value.get("url") != expected_url
+        ):
             raise ValueError("invalid MCP control")
         checked_control_url(value["url"])
         return value
@@ -105,8 +117,9 @@ def _decode(name: str, raw: bytes, origin: str) -> dict:
     if len(raw) > 4096:
         _fail("schema")
     try:
-        value = json.loads(raw, object_pairs_hook=private._unique_object,
-                           parse_constant=lambda _: _fail("schema"))
+        value = json.loads(
+            raw, object_pairs_hook=private._unique_object, parse_constant=lambda _: _fail("schema")
+        )
         if type(value) is not dict:
             _fail("schema")
         if name == "mcp-runtime.json":
@@ -144,7 +157,8 @@ class ControlOriginTransaction:
     def _quiet(self) -> None:
         try:
             result = self.quiescent()
-        except Exception:
+        except Exception:  # noqa: BLE001
+            # Callback failures must deny quiescence without exposing their text.
             _fail("not_quiescent")
         if result is not True:
             _fail("not_quiescent")
@@ -170,9 +184,7 @@ class ControlOriginTransaction:
 
     def _write(self, name: str, raw: bytes, expected):
         self._guard()
-        result = private._atomic_write_posix(
-            self.folder / name, raw, expected, strict_parent=True
-        )
+        result = private._atomic_write_posix(self.folder / name, raw, expected, strict_parent=True)
         self._guard()
         return result
 
@@ -180,14 +192,23 @@ class ControlOriginTransaction:
         facts = {}
         for name, original in self._before.items():
             current = self._written.get(name, original)
-            facts[name] = None if current is None else {
-                "identity": list(private._identity(current[1])),
-                "sha256": hashlib.sha256(current[0]).hexdigest(),
+            facts[name] = (
+                None
+                if current is None
+                else {
+                    "identity": list(private._identity(current[1])),
+                    "sha256": hashlib.sha256(current[0]).hexdigest(),
+                }
+            )
+        raw = _json_bytes(
+            {
+                "version": 1,
+                "previous_origin": self.previous,
+                "next_origin": self.next,
+                "phase": phase,
+                "files": facts,
             }
-        raw = _json_bytes({
-            "version": 1, "previous_origin": self.previous, "next_origin": self.next,
-            "phase": phase, "files": facts,
-        })
+        )
         self._journal_identity = self._write(_JOURNAL, raw, self._journal_identity)
 
     def _verify_owned(self) -> None:
@@ -198,8 +219,11 @@ class ControlOriginTransaction:
             if expected is None:
                 if current is not None:
                     _fail("recovery_unverified")
-            elif (current is None or current[0] != expected[0]
-                  or not private._same_identity(current[1], expected[1])):
+            elif (
+                current is None
+                or current[0] != expected[0]
+                or not private._same_identity(current[1], expected[1])
+            ):
                 _fail("recovery_unverified")
         journal = self._read(_JOURNAL)
         if self._journal_identity is None:
@@ -260,7 +284,9 @@ class ControlOriginTransaction:
                 for name, raw in targets.items():
                     self._quiet()
                     self._verify_owned()
-                    identity = self._write(name, raw, self._before[name][1])
+                    # targets contains only records validated as present above.
+                    original = cast(tuple[bytes, os.stat_result], self._before[name])
+                    identity = self._write(name, raw, original[1])
                     self._written[name] = (raw, identity)
                     self._journal("preparing")
                 self._verify_owned()

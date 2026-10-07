@@ -33,6 +33,8 @@ Update this section when:
 
 Research Web commands:
 
+- Internal `_WebPortOptions` describes the existing optional Web/Runtime keyword pair;
+  omitted values remain omitted and public CLI flags, defaults and errors are unchanged.
 - `rwb web start|stop|restart|status` — manage the owned loopback Web/DSH processes.
 - macOS `start/restart --web-port N` selects an explicit Web endpoint; Native also accepts
   `--runtime-port N`. Explicit conflicts fail. Omitted ports prefer the saved healthy endpoint,

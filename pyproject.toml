@@ -93,6 +93,7 @@ pythonpath = [ ".",]
 asyncio_mode = "auto"
 
 [tool.ruff]
+line-length = 100
 extend-exclude = ["backups", "build", "dist"]
 
 [tool.ruff.lint.per-file-ignores]

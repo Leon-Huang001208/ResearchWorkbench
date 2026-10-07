@@ -114,6 +114,10 @@ Docker 控制测试使用临时端口，真实端口冲突断言继续执行，�
 
 ## 最小验证
 
+双运行时 Python 质量检查限定于当前 changed set。格式化先核对非导入 AST 与导入集合；
+内部端口 TypedDict、已验证记录的类型说明和显式 `check=False` 不改变参数省略、拒绝或返回码合同。
+Ruff/Black/isort 与 mypy 使用的实际版本、参数和同版本基线必须记录，历史 PASS 不替代当前诊断。
+
 ```bash
 node scripts/plan_verification.mjs --project . --changed-file <path>
 node scripts/validate_verification_receipt.mjs --project . --plan <plan-json> --receipt <receipt-json>

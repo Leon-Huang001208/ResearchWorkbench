@@ -21,6 +21,9 @@
 
 ### `scripts/setup_web.py`
 
+Internal `_NativePortOptions` describes only the existing explicit port keywords. Type casts reuse
+validated facts; they do not create defaults, broaden accepted input, or change installer errors.
+
 Native public auto-start reexecutes the same script/arguments in the exact marked checkout venv before
 creating the product root. The actual manager creates the root under its real lifecycle lease, completes
 DSH/build-lock/manifest, and starts through the verified same-lease entry. Outer-home UID/0700 preparation

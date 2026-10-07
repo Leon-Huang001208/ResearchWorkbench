@@ -1,5 +1,8 @@
 # Research Web Tabbit 集成
 
+Python 质量整理保持 Tabbit 的延迟加载与授权边界；同步回调显式绑定不读取浏览器内容，
+格式/类型检查不构成 Tabbit 可调用性证明。
+
 Host认证bootstrap在任何Tabbit配置加载前核对规范化RWB_RUNTIME_STATE及其auth.json精确绑定；失败时拒绝该认证交接，不读取浏览器秘密，也不改变Tabbit的claim、一次性token或审批合同。
 
 模型设置与Tabbit配置仍分别保存。模型默认更新只作用于新会话，活动任务阻止共享模型凭据更新；最小模型生成测试使用无浏览器工具的框架解释preset，不读取标签页或申请Tabbit授权。研究工具子进程测试注入修复不改变Tabbit的实例选择、只读声明、claim、token或原生审批。

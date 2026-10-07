@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import json
 import argparse
+import json
 import os
 import re
 import selectors
@@ -37,9 +37,12 @@ from docker.healthcheck import ContainerHealth
 log = get_logger(__name__)
 ROLE_ENVIRONMENT_KEY = "RWB_SUPERVISOR_ROLE"
 MAX_ROLE_ENVIRONMENT_BYTES = 64 * 1024
-_DOCKER_PRIVATE_LEAVES = frozenset({
-    Path("/run/rwb-secrets/private"), Path("/data/research-web/logs"),
-})
+_DOCKER_PRIVATE_LEAVES = frozenset(
+    {
+        Path("/run/rwb-secrets/private"),
+        Path("/data/research-web/logs"),
+    }
+)
 
 
 def prepare_controls(data_root: Path, previous_origin: str) -> None:
@@ -119,10 +122,13 @@ def _prepare_private_leaf(path: Path) -> None:
                 named = os.stat(name, dir_fd=ancestor, follow_symlinks=False)
                 _validate_directory(after, leaf=False, platform_name=os.name)
                 expected = _identity(before)
-                if (creation_mapping and (os.getuid(), os.getgid()) != (0, 0)
-                        and component == path.parent
-                        and (before.st_uid, before.st_gid) == (0, 0)
-                        and (after.st_uid, after.st_gid) == (os.getuid(), os.getgid())):
+                if (
+                    creation_mapping
+                    and (os.getuid(), os.getgid()) != (0, 0)
+                    and component == path.parent
+                    and (before.st_uid, before.st_gid) == (0, 0)
+                    and (after.st_uid, after.st_gid) == (os.getuid(), os.getgid())
+                ):
                     expected = (*expected[:3], os.getuid(), os.getgid())
                 if _identity(after) != expected or _identity(named) != expected:
                     raise RuntimeStateError("runtime_state_unsafe")
@@ -130,9 +136,12 @@ def _prepare_private_leaf(path: Path) -> None:
             return updated
 
         def verify_leaf():
-            if (_identity(path.lstat()) != _identity(created)
-                    or _identity(os.fstat(leaf)) != _identity(created)
-                    or _identity(os.stat(path.name, dir_fd=parent, follow_symlinks=False)) != _identity(created)):
+            if (
+                _identity(path.lstat()) != _identity(created)
+                or _identity(os.fstat(leaf)) != _identity(created)
+                or _identity(os.stat(path.name, dir_fd=parent, follow_symlinks=False))
+                != _identity(created)
+            ):
                 raise RuntimeStateError("runtime_state_unsafe")
 
         records = verify_parents(creation_mapping=existing is None)
@@ -200,7 +209,7 @@ class ChildOutput:
         self.secrets = [
             value
             for key, value in os.environ.items()
-            if value and re.search(r"SECRET|PASSWORD|TOKEN|COOKIE|AUTH|API_KEY", key, re.I)
+            if value and re.search(r"SECRET|PASSWORD|TOKEN|COOKIE|AUTH|API_KEY", key, re.IGNORECASE)
         ]
 
     def remember_secret(self, value):
@@ -267,10 +276,10 @@ class ChildOutput:
             r"[\"']?\s*[=:]\s*"
             r"[\"']?([^\s;\"',}]+)",
             line,
-            re.I,
+            re.IGNORECASE,
         ):
             self.remember_secret(field[1])
-        cookie_header = re.search(r"(?:set-cookie|cookie)[\"']?\s*:\s*(.+)", line, re.I)
+        cookie_header = re.search(r"(?:set-cookie|cookie)[\"']?\s*:\s*(.+)", line, re.IGNORECASE)
         if cookie_header:
             self.remember_secret(cookie_header[1].strip().strip("\"'"))
             for item in cookie_header[1].split(";"):
@@ -502,12 +511,15 @@ class _OwnedProcesses:
                 roles[child.pid] = role
         if self.adopts:
             for pid, info in snapshot.items():
-                if info.parent == os.getpid() and (pid, info.birth) not in self.baseline:
-                    if pid not in roles:
-                        roles[pid] = _adopted_role(pid, info)
-                        if roles[pid] == "unknown":
-                            self.unknown_roles_seen = True
-                            _event("unknown", "unclassified", "unknown_owned_role")
+                if (
+                    info.parent == os.getpid()
+                    and (pid, info.birth) not in self.baseline
+                    and pid not in roles
+                ):
+                    roles[pid] = _adopted_role(pid, info)
+                    if roles[pid] == "unknown":
+                        self.unknown_roles_seen = True
+                        _event("unknown", "unclassified", "unknown_owned_role")
         # Resolve ancestry to closure even when children appear before parents.
         while True:
             additions = {
@@ -553,9 +565,8 @@ class _OwnedProcesses:
             if descriptor is not None:
                 os.close(descriptor)
         self.owned.clear()
-        if self.was_subreaper is not None:
-            if self.libc.prctl(36, self.was_subreaper, 0, 0, 0) != 0:
-                raise RuntimeError("subreaper_restore_failed")
+        if self.was_subreaper is not None and self.libc.prctl(36, self.was_subreaper, 0, 0, 0) != 0:
+            raise RuntimeError("subreaper_restore_failed")
 
 
 def _reap_children(children):
@@ -792,12 +803,19 @@ def main(argv=()):
             return 0
         if arguments.previous_origin is not None:
             raise ValueError("unexpected origin")
-        return run(SupervisorConfig(
-            data_root=data, state_root=Path(os.environ.get("RWB_RUNTIME_STATE", "/state/runtime")),
-            credential_root=Path(os.environ.get("RESEARCH_CREDENTIAL_HOME", "/run/rwb-secrets/private")),
-            project_root=Path("/opt/rwb"), runtime_source=Path("/opt/dsh"),
-            python=sys.executable, node="/usr/local/bin/node",
-        ))
+        return run(
+            SupervisorConfig(
+                data_root=data,
+                state_root=Path(os.environ.get("RWB_RUNTIME_STATE", "/state/runtime")),
+                credential_root=Path(
+                    os.environ.get("RESEARCH_CREDENTIAL_HOME", "/run/rwb-secrets/private")
+                ),
+                project_root=Path("/opt/rwb"),
+                runtime_source=Path("/opt/dsh"),
+                python=sys.executable,
+                node="/usr/local/bin/node",
+            )
+        )
     except (OSError, ValueError, RuntimeError):
         _event("stack", "failed", "supervisor_configuration_failed")
         return 1

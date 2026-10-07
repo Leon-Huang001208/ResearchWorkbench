@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import json
 import hashlib
+import json
 import logging
 import os
 import shutil
@@ -29,79 +29,112 @@ from scripts.setup_web import DSH_COMMIT, DSH_REMOTE, SetupWebInstaller
 def no_live_docker_process_in_setup_tests(monkeypatch):
     """An incomplete subprocess fixture must fail before touching the real Engine."""
     popen = subprocess.Popen
+
     def guarded(argv, *args, **kwargs):
         if isinstance(argv, (list, tuple)) and argv and Path(argv[0]).name == "docker":
             raise AssertionError("setup tests require an explicit Docker subprocess fixture")
         return popen(argv, *args, **kwargs)
+
     monkeypatch.setattr(subprocess, "Popen", guarded)
 
 
 @pytest.fixture
 def fresh_docker_owned_bridge(tmp_path, monkeypatch):
     """Validated owned-classification fixture, real Native bridge and OS facts."""
-    from research_workbench_entrypoint import bootstrap
     from test_docker_runtime import RecordingRunner, owned
+
+    from research_workbench_entrypoint import bootstrap
 
     owner = tmp_path / "native-owner"
     python = owner / ".venv/bin/python"
     python.parent.mkdir(parents=True)
     python.write_text(f'#!/bin/sh\nexec "{sys.executable}" "$@"\n')
     python.chmod(0o755)
-    (owner / ".venv/.rwb-web-environment.json").write_text(json.dumps({
-        "schema_version": 1, "owner": "research-workbench-web-installer",
-        "project_root_sha256": hashlib.sha256(str(owner.resolve()).encode()).hexdigest(),
-        "python": "Python 3.12.13", "created_at": "2026-10-07T00:00:00+00:00",
-    }))
+    (owner / ".venv/.rwb-web-environment.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "owner": "research-workbench-web-installer",
+                "project_root_sha256": hashlib.sha256(str(owner.resolve()).encode()).hexdigest(),
+                "python": "Python 3.12.13",
+                "created_at": "2026-10-07T00:00:00+00:00",
+            }
+        )
+    )
     assert classify_python_environment(owner).issue is None
     monkeypatch.setattr(bootstrap, "native_python", lambda root: python)
-    child = subprocess.Popen([sys.executable, "-c",
-        "import socket,sys; s=socket.socket(); s.bind(('127.0.0.1',0)); s.listen(); "
-        "print(s.getsockname()[1],flush=True); sys.stdin.readline()",
-        "app.research_web.main", "/foreign/checkout"],
-        stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    child = subprocess.Popen(
+        [
+            sys.executable,
+            "-c",
+            (
+                "import socket,sys; s=socket.socket(); s.bind(('127.0.0.1',0)); s.listen(); "
+                "print(s.getsockname()[1],flush=True); sys.stdin.readline()"
+            ),
+            "app.research_web.main",
+            "/foreign/checkout",
+        ],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
     try:
         port = int(child.stdout.readline())
         fact = bootstrap.listener_pids(port)
         assert fact.state == "listening" and child.pid in fact.pids
         assert "app.research_web.main" in bootstrap.probe_process(child.pid).argv
         original_init = bootstrap.NativeRuntime.__init__
+
         def native_init(self, *args, **kwargs):
             kwargs.setdefault("ports", (port, 3081))
             original_init(self, *args, **kwargs)
+
         monkeypatch.setattr(bootstrap.NativeRuntime, "__init__", native_init)
         project = Path(__file__).resolve().parents[2]
         home = tmp_path / "private-home"
         home.mkdir(mode=0o700)
         runner = RecordingRunner()
         from scripts.setup_web import DockerRuntime
+
         controller = DockerRuntime(project, home, runner=runner)
+
         def docker_runner(argv, **kwargs):
             if "up" in argv:
                 owned(controller, runner)
             return runner(argv, **kwargs)
+
         controller.runner = docker_runner
         yield controller, runner, child, port
     finally:
         child.communicate(input="\n", timeout=5)
 
 
-def test_fresh_docker_no_start_owned_native_bridge_does_not_create_product_root(fresh_docker_owned_bridge):
+def test_fresh_docker_no_start_owned_native_bridge_does_not_create_product_root(
+    fresh_docker_owned_bridge,
+):
     from research_workbench_entrypoint.bootstrap import NativeRuntime
-    controller, runner, child, port = fresh_docker_owned_bridge
-    assert NativeRuntime(controller.project_root, controller.home).status()["issues"] == ["runtime_ownership_unknown"]
+
+    controller, runner, child, _port = fresh_docker_owned_bridge
+    assert NativeRuntime(controller.project_root, controller.home).status()["issues"] == [
+        "runtime_ownership_unknown"
+    ]
     assert controller.install(start=False)["status"] == "installed"
     assert not controller.data_dir.exists()
     assert not (controller.home / "install/endpoints.json").exists()
     assert not controller.state_dir.exists() and not controller.credential_dir.exists()
-    assert all(not (controller.home / "run" / (role + ".json")).exists()
-               for role in ("web", "runtime"))
+    assert all(
+        not (controller.home / "run" / (role + ".json")).exists() for role in ("web", "runtime")
+    )
     assert not any("up" in argv or argv[1] in ("start", "stop", "rm") for argv, _ in runner.calls)
     assert child.poll() is None
     assert controller.store.read().mode == "docker"
 
 
-def test_fresh_docker_standard_start_reacquires_actual_creation_after_no_start(fresh_docker_owned_bridge):
-    controller, runner, child, port = fresh_docker_owned_bridge
+def test_fresh_docker_standard_start_reacquires_actual_creation_after_no_start(
+    fresh_docker_owned_bridge,
+):
+    controller, runner, child, _port = fresh_docker_owned_bridge
     controller.install(start=False)
     assert not controller.data_dir.exists()
     assert controller.start(open_browser=False)["ok"]
@@ -110,13 +143,32 @@ def test_fresh_docker_standard_start_reacquires_actual_creation_after_no_start(f
     assert any("up" in argv for argv, _ in runner.calls)
 
 
-@pytest.mark.parametrize("change", ["existing-root", "root-alias", "parent-mode", "pid", "endpoints",
-    "container", "late-root", "late-pid", "late-container", "late-mode", "lease-substitution",
-    "parent-replacement", "forged-proof", "late-listener"])
-def test_fresh_docker_selection_refuses_unsafe_or_late_facts(fresh_docker_owned_bridge, monkeypatch, change):
+@pytest.mark.parametrize(
+    "change",
+    [
+        "existing-root",
+        "root-alias",
+        "parent-mode",
+        "pid",
+        "endpoints",
+        "container",
+        "late-root",
+        "late-pid",
+        "late-container",
+        "late-mode",
+        "lease-substitution",
+        "parent-replacement",
+        "forged-proof",
+        "late-listener",
+    ],
+)
+def test_fresh_docker_selection_refuses_unsafe_or_late_facts(
+    fresh_docker_owned_bridge, monkeypatch, change
+):
     from test_docker_runtime import owned
-    from research_workbench_entrypoint.runtime_mode import RuntimeModeStore
-    controller, runner, child, port = fresh_docker_owned_bridge
+
+    controller, runner, child, _port = fresh_docker_owned_bridge
+
     def mutate():
         if change.endswith("root"):
             controller.data_dir.mkdir(mode=0o700)
@@ -144,8 +196,9 @@ def test_fresh_docker_selection_refuses_unsafe_or_late_facts(fresh_docker_owned_
         elif change == "late-mode":
             controller.store.write("docker")
         elif change == "lease-substitution":
-            controller._lifecycle_lease = SimpleNamespace(path=controller.home / "run/lifecycle.lock",
-                                                        assert_held=lambda: None)
+            controller._lifecycle_lease = SimpleNamespace(
+                path=controller.home / "run/lifecycle.lock", assert_held=lambda: None
+            )
         elif change == "parent-replacement":
             controller.home.rename(controller.home.with_name("old-home"))
             controller.home.mkdir(mode=0o700)
@@ -153,11 +206,18 @@ def test_fresh_docker_selection_refuses_unsafe_or_late_facts(fresh_docker_owned_
             controller._fresh_root = True
         elif change == "late-listener":
             monkeypatch.setattr(controller, "_fresh_listener_fact", lambda port: None)
-    if change.startswith("late-") or change in {"lease-substitution", "parent-replacement", "forged-proof"}:
+
+    if change.startswith("late-") or change in {
+        "lease-substitution",
+        "parent-replacement",
+        "forged-proof",
+    }:
         original = controller._verify_selection_safe
+
         def verify(*args, **kwargs):
             original(*args, **kwargs)
             mutate()
+
         monkeypatch.setattr(controller, "_verify_selection_safe", verify)
     else:
         mutate()
@@ -173,16 +233,19 @@ def test_fresh_docker_selection_refuses_unsafe_or_late_facts(fresh_docker_owned_
 def test_fresh_docker_nested_candidate_publication_failure_keeps_root_and_restores_metadata(
     fresh_docker_owned_bridge, monkeypatch, change
 ):
-    controller, runner, child, port = fresh_docker_owned_bridge
+    controller, runner, child, _port = fresh_docker_owned_bridge
     stages = []
     call = controller._call
+
     def observed(argv, *args, **kwargs):
         if "up" in argv:
             assert controller._fresh_root["root"] is not None
             assert controller._fresh_root["allocating"] is False
             stages.append("up")
         return call(argv, *args, **kwargs)
+
     monkeypatch.setattr(controller, "_call", observed)
+
     def fail_commit():
         assert controller._pending_start is not None
         assert controller._lifecycle_lease is not None
@@ -192,8 +255,9 @@ def test_fresh_docker_nested_candidate_publication_failure_keeps_root_and_restor
             controller.data_dir.rename(controller.home / "old-product-root")
             controller.data_dir.mkdir(mode=0o700)
         elif change == "lease":
-            controller._lifecycle_lease = SimpleNamespace(path=controller.home / "run/lifecycle.lock",
-                                                        assert_held=lambda: None)
+            controller._lifecycle_lease = SimpleNamespace(
+                path=controller.home / "run/lifecycle.lock", assert_held=lambda: None
+            )
         elif change == "pid":
             path = controller.home / "run/web.json"
             path.write_text("{}")
@@ -212,6 +276,7 @@ def test_fresh_docker_nested_candidate_publication_failure_keeps_root_and_restor
         elif change == "container":
             runner.container["launch"] = "foreign-launch"
         raise RuntimeError("fixture_late_publication_failure")
+
     monkeypatch.setattr(controller, "_commit_candidate", fail_commit)
     with pytest.raises(RuntimeError, match="fixture_late_publication_failure") as raised:
         controller.install(start=True)
@@ -230,10 +295,14 @@ def test_fresh_docker_nested_candidate_publication_failure_keeps_root_and_restor
     assert child.poll() is None
 
 
-def test_fresh_docker_late_control_record_refuses_before_spawn(fresh_docker_owned_bridge, monkeypatch):
+def test_fresh_docker_late_control_record_refuses_before_spawn(
+    fresh_docker_owned_bridge, monkeypatch
+):
     import research_workbench_entrypoint.docker_runtime as module
-    controller, runner, child, port = fresh_docker_owned_bridge
+
+    controller, runner, child, _port = fresh_docker_owned_bridge
     select = module.select_port
+
     def introduce(*args, **kwargs):
         controls = controller.data_dir / ".control"
         controls.mkdir(mode=0o700)
@@ -241,6 +310,7 @@ def test_fresh_docker_late_control_record_refuses_before_spawn(fresh_docker_owne
         path.write_text("{}")
         path.chmod(0o600)
         return select(*args, **kwargs)
+
     monkeypatch.setattr(module, "select_port", introduce)
     controller.install(start=False)
     assert not controller.start(open_browser=False)["ok"]
@@ -249,10 +319,14 @@ def test_fresh_docker_late_control_record_refuses_before_spawn(fresh_docker_owne
     assert child.poll() is None
 
 
-def test_fresh_docker_witness_cannot_transfer_to_another_controller(fresh_docker_owned_bridge, monkeypatch):
+def test_fresh_docker_witness_cannot_transfer_to_another_controller(
+    fresh_docker_owned_bridge, monkeypatch
+):
     from scripts.setup_web import DockerRuntime
-    controller, runner, child, port = fresh_docker_owned_bridge
+
+    controller, _runner, _child, _port = fresh_docker_owned_bridge
     verify = controller._verify_selection_safe
+
     def inspect(*args, **kwargs):
         verify(*args, **kwargs)
         other = DockerRuntime(controller.project_root, controller.home, runner=controller.runner)
@@ -263,25 +337,32 @@ def test_fresh_docker_witness_cannot_transfer_to_another_controller(fresh_docker
         other._fresh_root = controller._fresh_root
         assert not other._fresh_root_proven(missing=True)
         assert controller._fresh_root_proven(missing=True)
+
     monkeypatch.setattr(controller, "_verify_selection_safe", inspect)
     assert controller.install(start=False)["status"] == "installed"
     assert not controller.data_dir.exists()
 
 
-def test_missing_root_status_or_external_real_lease_is_not_fresh_authority(fresh_docker_owned_bridge):
+def test_missing_root_status_or_external_real_lease_is_not_fresh_authority(
+    fresh_docker_owned_bridge,
+):
     from app.research_web.lifecycle_lock import LifecycleLock
     from research_workbench_entrypoint.bootstrap import NativeRuntime
-    controller, runner, child, port = fresh_docker_owned_bridge
+
+    controller, _runner, _child, _port = fresh_docker_owned_bridge
     native = NativeRuntime(controller.project_root, controller.home)
     report = native.status()
     assert report["issues"] == ["runtime_ownership_unknown"]
     assert not controller._native_selection_safe(native, report, create=True)
-    with LifecycleLock(controller.home / "run/lifecycle.lock", controller._pid_exists,
-                       trusted_root=controller.home) as lease:
+    with LifecycleLock(
+        controller.home / "run/lifecycle.lock", controller._pid_exists, trusted_root=controller.home
+    ) as lease:
         controller._lifecycle_lease = lease
         try:
-            result = controller._locked_guard("selection", lambda:
-                {"ok": controller._native_selection_safe(native, report, create=True)})
+            result = controller._locked_guard(
+                "selection",
+                lambda: {"ok": controller._native_selection_safe(native, report, create=True)},
+            )
             assert result["ok"] is False
         finally:
             controller._lifecycle_lease = None
@@ -291,15 +372,18 @@ def test_missing_root_status_or_external_real_lease_is_not_fresh_authority(fresh
 def test_setup_public_explicit_port_options():
     from scripts.setup_web import build_parser
 
-    options = build_parser().parse_args(["--web-port", "48001", "--runtime-port", "48002",
-                                         "--no-start"])
+    options = build_parser().parse_args(
+        ["--web-port", "48001", "--runtime-port", "48002", "--no-start"]
+    )
     assert (options.web_port, options.runtime_port) == (48001, 48002)
     assert options.no_start is True
 
 
 def test_public_docker_setup_preserves_safe_cli_proxy_at_real_popen_boundary(tmp_path, monkeypatch):
     import io
+
     from scripts import setup_web
+
     project = tmp_path / "project"
     (project / "requirements").mkdir(parents=True)
     (project / "requirements/web.lock").write_text("locked")
@@ -314,6 +398,7 @@ def test_public_docker_setup_preserves_safe_cli_proxy_at_real_popen_boundary(tmp
     monkeypatch.setenv("API_KEY", "fixture-secret")
     real_popen = subprocess.Popen
     captured = []
+
     def popen(argv, **kwargs):
         if argv[0] != "docker":
             return real_popen(argv, **kwargs)
@@ -323,38 +408,58 @@ def test_public_docker_setup_preserves_safe_cli_proxy_at_real_popen_boundary(tmp
             output = b'"aarch64"'
         if argv[1:3] == ["image", "inspect"]:
             output = json.dumps({"id": "sha256:" + "b" * 64, "runtime": "docker"}).encode()
-        return SimpleNamespace(pid=999999, stdout=io.BufferedReader(io.BytesIO(output)),
-            stderr=io.BufferedReader(io.BytesIO()), returncode=0, poll=lambda: 0, wait=lambda **kwargs: 0)
+        return SimpleNamespace(
+            pid=999999,
+            stdout=io.BufferedReader(io.BytesIO(output)),
+            stderr=io.BufferedReader(io.BytesIO()),
+            returncode=0,
+            poll=lambda: 0,
+            wait=lambda **kwargs: 0,
+        )
+
     monkeypatch.setattr(subprocess, "Popen", popen)
     args = setup_web.build_parser().parse_args(["--runtime", "docker", "--no-start"])
     manifest = setup_web.install_selected_runtime(args, project_root=project)
     assert manifest["status"] == "installed"
     assert any("build" in argv for argv, kwargs in captured)
     assert all(kwargs["env"]["HTTP_PROXY"] == "http://127.0.0.1:29758" for argv, kwargs in captured)
-    assert all("API_KEY" not in kwargs["env"] and kwargs["env"]["COMPOSE_DISABLE_ENV_FILE"] == "1" for argv, kwargs in captured)
-    assert not any(arg in ("--build-arg", "--env", "-e") for argv, kwargs in captured for arg in argv)
+    assert all(
+        "API_KEY" not in kwargs["env"] and kwargs["env"]["COMPOSE_DISABLE_ENV_FILE"] == "1"
+        for argv, kwargs in captured
+    )
+    assert not any(
+        arg in ("--build-arg", "--env", "-e") for argv, kwargs in captured for arg in argv
+    )
 
 
 def test_docker_check_only_rejects_runtime_port_before_external_probe(tmp_path, monkeypatch):
     from scripts import setup_web
+
     monkeypatch.setenv("HOME", str(tmp_path))
-    monkeypatch.setattr(setup_web.DockerRuntime, "preflight",
-                        lambda *args, **kwargs: pytest.fail("unsupported flag must fail before Docker probe"))
+    monkeypatch.setattr(
+        setup_web.DockerRuntime,
+        "preflight",
+        lambda *args, **kwargs: pytest.fail("unsupported flag must fail before Docker probe"),
+    )
     errors = StringIO()
     with redirect_stderr(errors):
-        assert setup_web.main(["--runtime", "docker", "--runtime-port", "13081", "--check-only"]) == 1
+        assert (
+            setup_web.main(["--runtime", "docker", "--runtime-port", "13081", "--check-only"]) == 1
+        )
     assert "docker_runtime_port_unsupported" in errors.getvalue()
 
 
 def _allow_idle_runtime_selection(monkeypatch: pytest.MonkeyPatch) -> None:
-    from scripts import setup_web
     from research_workbench_entrypoint.bootstrap import NativeRuntime
+    from scripts import setup_web
 
     idle = {
         "ok": True,
         "services": {"web": {"running": False}, "runtime": {"running": False}},
     }
-    monkeypatch.setattr(setup_web._DockerRuntimeController, "preflight", lambda _self, **_kwargs: idle)
+    monkeypatch.setattr(
+        setup_web._DockerRuntimeController, "preflight", lambda _self, **_kwargs: idle
+    )
     monkeypatch.setattr(setup_web._DockerRuntimeController, "status", lambda _self: idle)
     monkeypatch.setattr(setup_web._DockerRuntimeController, "_containers", lambda _self: [])
     monkeypatch.setattr(NativeRuntime, "status", lambda _self: idle)
@@ -375,8 +480,8 @@ def test_runtime_parser_defaults_to_native_and_accepts_explicit_selection() -> N
 def test_docker_install_writes_summary_and_mode_only_after_verified_build(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from scripts import setup_web
     from research_workbench_entrypoint.runtime_mode import RuntimeModeStore
+    from scripts import setup_web
 
     home = tmp_path / "home"
     home.mkdir(mode=0o700)
@@ -428,8 +533,8 @@ def test_docker_install_writes_summary_and_mode_only_after_verified_build(
 def test_docker_failed_build_preserves_native_mode_and_previous_summary(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from scripts import setup_web
     from research_workbench_entrypoint.runtime_mode import RuntimeModeStore
+    from scripts import setup_web
 
     home = tmp_path / "home"
     home.mkdir(mode=0o700)
@@ -496,9 +601,9 @@ def test_docker_check_only_is_read_only_and_outputs_safe_json(
 def test_docker_no_start_rejects_live_native_but_does_not_allocate_host_ports(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, native_running: bool
 ) -> None:
-    from scripts import setup_web
     from research_workbench_entrypoint.bootstrap import NativeRuntime
     from research_workbench_entrypoint.runtime_mode import RuntimeModeStore
+    from scripts import setup_web
 
     project = tmp_path / "checkout"
     (project / "requirements").mkdir(parents=True)
@@ -536,7 +641,9 @@ def test_docker_no_start_rejects_live_native_but_does_not_allocate_host_ports(
         listener.bind(("127.0.0.1", 0))
         listener.listen()
         controller = setup_web.DockerRuntime(
-            project, home, runner=recording_runner,
+            project,
+            home,
+            runner=recording_runner,
             ports=(listener.getsockname()[1], 13081),
         )
         if native_running:
@@ -601,8 +708,8 @@ def test_docker_check_only_keeps_stable_codes_and_strips_unsafe_fields(
 def test_docker_start_failure_preserves_native_selection(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from scripts import setup_web
     from research_workbench_entrypoint.runtime_mode import RuntimeModeStore
+    from scripts import setup_web
 
     home = tmp_path / "home"
     home.mkdir(mode=0o700)
@@ -682,7 +789,9 @@ def test_explicit_native_selection_keeps_legacy_dispatch(
     monkeypatch.setattr(setup_web, "SetupWebInstaller", RecordingNative)
     for flags in ([], ["--runtime", "native"], ["--runtime", "native", "--repair", "--no-start"]):
         arguments = setup_web.build_parser().parse_args(flags)
-        assert setup_web.install_selected_runtime(arguments, project_root=tmp_path) == {"status": "installed"}
+        assert setup_web.install_selected_runtime(arguments, project_root=tmp_path) == {
+            "status": "installed"
+        }
     assert calls == [(False, True), (False, True), (True, False)]
 
 
@@ -757,8 +866,8 @@ def test_docker_success_main_prints_only_public_summary(
 
 @pytest.mark.parametrize("failure", ["publish", "mode", "unhealthy", "old_container"])
 def test_candidate_install_failure_preserves_accepted_image(tmp_path, monkeypatch, failure):
-    from scripts import setup_web
     from research_workbench_entrypoint.runtime_mode import RuntimeModeStore
+    from scripts import setup_web
 
     project = tmp_path / "checkout"
     (project / "requirements").mkdir(parents=True)
@@ -774,13 +883,24 @@ def test_candidate_install_failure_preserves_accepted_image(tmp_path, monkeypatc
     controller = setup_web.DockerRuntime(project, home)
     _allow_idle_runtime_selection(monkeypatch)
     if failure == "old_container":
-        monkeypatch.setattr(setup_web._DockerRuntimeController, "preflight",
-                            lambda self, **kwargs: {"ok": True, "container_image_id": old["image_id"]})
-    monkeypatch.setattr(setup_web._DockerRuntimeController, "install",
-                        lambda self: {"ok": True, "image_id": "sha256:" + "b" * 64})
-    monkeypatch.setattr(controller, "_start_candidate", lambda manifest: {
-        "ok": True, "services": {role: {"healthy": failure != "unhealthy"}
-                                 for role in ("web", "runtime")}})
+        monkeypatch.setattr(
+            setup_web._DockerRuntimeController,
+            "preflight",
+            lambda self, **kwargs: {"ok": True, "container_image_id": old["image_id"]},
+        )
+    monkeypatch.setattr(
+        setup_web._DockerRuntimeController,
+        "install",
+        lambda self: {"ok": True, "image_id": "sha256:" + "b" * 64},
+    )
+    monkeypatch.setattr(
+        controller,
+        "_start_candidate",
+        lambda manifest: {
+            "ok": True,
+            "services": {role: {"healthy": failure != "unhealthy"} for role in ("web", "runtime")},
+        },
+    )
     rolled_back = []
     monkeypatch.setattr(controller, "_rollback_created", lambda: rolled_back.append(True))
 
@@ -791,7 +911,10 @@ def test_candidate_install_failure_preserves_accepted_image(tmp_path, monkeypatc
         monkeypatch.setattr(setup_web, "_write_docker_manifest", fail)
     elif failure == "mode":
         monkeypatch.setattr(RuntimeModeStore, "_write_locked", fail)
-    with pytest.raises(RuntimeError, match="injected_publish_failure|docker_services_unhealthy|docker_upgrade_requires_container_disposition"):
+    with pytest.raises(
+        RuntimeError,
+        match="injected_publish_failure|docker_services_unhealthy|docker_upgrade_requires_container_disposition",
+    ):
         controller.install(start=failure != "old_container")
     assert path.read_bytes() == previous
     assert store.read() == current
@@ -800,8 +923,8 @@ def test_candidate_install_failure_preserves_accepted_image(tmp_path, monkeypatc
 
 
 def test_candidate_start_refuses_existing_corrupt_manifest(tmp_path, monkeypatch):
-    from scripts import setup_web
     from research_workbench_entrypoint.runtime_mode import RuntimeModeStore
+    from scripts import setup_web
 
     home = tmp_path / "home"
     RuntimeModeStore(home).write("native")
@@ -809,7 +932,9 @@ def test_candidate_start_refuses_existing_corrupt_manifest(tmp_path, monkeypatch
     path.write_text("{corrupt")
     path.chmod(0o600)
     controller = setup_web.DockerRuntime(tmp_path, home)
-    monkeypatch.setattr(controller, "_start_image", lambda *args, **kwargs: pytest.fail("must reject before launch"))
+    monkeypatch.setattr(
+        controller, "_start_image", lambda *args, **kwargs: pytest.fail("must reject before launch")
+    )
     with pytest.raises(setup_web.ControlError, match="docker_manifest_invalid"):
         controller._start_candidate({"image_id": "sha256:" + "a" * 64})
 
@@ -832,6 +957,7 @@ def test_runtime_constants_share_the_machine_contract() -> None:
     assert not SetupWebInstaller._node_supported("v22.18.0")
     assert not SetupWebInstaller._node_supported("v25.0.0")
 
+
 def _installer_for_check(project_root: Path, data_home: Path) -> SetupWebInstaller:
     return SetupWebInstaller(
         project_root=project_root,
@@ -847,7 +973,9 @@ def _installer_for_check(project_root: Path, data_home: Path) -> SetupWebInstall
 @pytest.mark.parametrize("mode", ["host", "owned", "unowned", "check-only", "docker", "no-start"])
 def test_fix5_public_entry_reexecs_only_exact_owned_native_environment(tmp_path, monkeypatch, mode):
     import hashlib
+
     from scripts import setup_web
+
     project = tmp_path / "checkout"
     (project / "scripts").mkdir(parents=True)
     script = project / "scripts/setup_web.py"
@@ -857,10 +985,16 @@ def test_fix5_public_entry_reexecs_only_exact_owned_native_environment(tmp_path,
     python = environment / "bin/python"
     python.touch()
     python.chmod(0o700)
-    marker = {"schema_version": 1, "owner": "research-workbench-web-installer",
-              "project_root_sha256": hashlib.sha256(str(project.resolve()).encode()).hexdigest(),
-              "python": "3.12.13", "created_at": "2026-10-07"}
-    (environment / setup_web.ENVIRONMENT_MARKER).write_text(json.dumps(marker if mode != "unowned" else {}))
+    marker = {
+        "schema_version": 1,
+        "owner": "research-workbench-web-installer",
+        "project_root_sha256": hashlib.sha256(str(project.resolve()).encode()).hexdigest(),
+        "python": "3.12.13",
+        "created_at": "2026-10-07",
+    }
+    (environment / setup_web.ENVIRONMENT_MARKER).write_text(
+        json.dumps(marker if mode != "unowned" else {})
+    )
     (environment / setup_web.ENVIRONMENT_MARKER).chmod(0o600)
     home = tmp_path / "approved-home"
     monkeypatch.setenv("HOME", str(home))
@@ -868,21 +1002,49 @@ def test_fix5_public_entry_reexecs_only_exact_owned_native_environment(tmp_path,
     monkeypatch.setenv("RESEARCH_WEB_CREDENTIAL_ROOT", str(tmp_path / "fixture-credentials"))
     monkeypatch.setattr(setup_web, "__file__", str(script))
     monkeypatch.setattr(setup_web, "_configure_logging", lambda root: None)
-    monkeypatch.setattr(setup_web.sys, "prefix", str(environment if mode == "owned" else tmp_path / "system-python"))
-    monkeypatch.setattr(SetupWebInstaller, "check", lambda self: {"ok": mode != "unowned", "issues": ["unowned_virtual_environment"] if mode == "unowned" else []})
+    monkeypatch.setattr(
+        setup_web.sys, "prefix", str(environment if mode == "owned" else tmp_path / "system-python")
+    )
+    monkeypatch.setattr(
+        SetupWebInstaller,
+        "check",
+        lambda self: {
+            "ok": mode != "unowned",
+            "issues": ["unowned_virtual_environment"] if mode == "unowned" else [],
+        },
+    )
     prepared = []
+
     def prepare(self, **kwargs):
         prepared.append(kwargs["repair"])
         return python
+
     monkeypatch.setattr(SetupWebInstaller, "prepare_environment", prepare)
     calls = []
+
     def execute(argv, **kwargs):
         calls.append((argv, kwargs))
         return subprocess.CompletedProcess(argv, 17)
+
     monkeypatch.setattr(setup_web.subprocess, "run", execute)
-    monkeypatch.setattr(setup_web, "install_selected_runtime", lambda *args, **kwargs:
-        {"status": "installed", "code_commit": "a" * 40, "cjpy_version": "0.5.2", "dsh_commit": DSH_COMMIT, "image_id": "sha256:" + "b" * 64})
-    args = ["--runtime", "docker" if mode == "docker" else "native", "--repair", "--web-port", "48077"]
+    monkeypatch.setattr(
+        setup_web,
+        "install_selected_runtime",
+        lambda *args, **kwargs: {
+            "status": "installed",
+            "code_commit": "a" * 40,
+            "cjpy_version": "0.5.2",
+            "dsh_commit": DSH_COMMIT,
+            "image_id": "sha256:" + "b" * 64,
+        },
+    )
+    args = [
+        "--runtime",
+        "docker" if mode == "docker" else "native",
+        "--repair",
+        "--web-port",
+        "48077",
+    ]
     if mode in {"check-only", "no-start"}:
         args.append("--" + mode)
     if mode == "docker":
@@ -895,18 +1057,23 @@ def test_fix5_public_entry_reexecs_only_exact_owned_native_environment(tmp_path,
         assert calls[0][1]["cwd"] == Path.cwd()
         assert calls[0][1]["env"]["HOME"] == str(home)
         assert calls[0][1]["env"]["RESEARCH_NODE_BINARY"] == "/approved/node"
-        assert calls[0][1]["env"]["RESEARCH_WEB_CREDENTIAL_ROOT"] == str(tmp_path / "fixture-credentials")
+        assert calls[0][1]["env"]["RESEARCH_WEB_CREDENTIAL_ROOT"] == str(
+            tmp_path / "fixture-credentials"
+        )
     else:
         assert code == (1 if mode == "unowned" else 0)
         assert not prepared and not calls
     assert not (home / ".research-workbench/research-web").exists()
 
 
-@pytest.mark.parametrize("change", [None, "no-start", "existing", "old-native", "root", "listener", "lease", "health"])
+@pytest.mark.parametrize(
+    "change", [None, "no-start", "existing", "old-native", "root", "listener", "lease", "health"]
+)
 def test_fix5_public_native_install_retains_real_creation_scope(tmp_path, monkeypatch, change):
-    from scripts.setup_web import DSH_CLOSURE_FILES
     from app.research_web import service_manager as sm
     from research_workbench_entrypoint.web_contract import ListenerFact, ProcessFact
+    from scripts.setup_web import DSH_CLOSURE_FILES
+
     installer = _installer_for_check(tmp_path / "checkout", tmp_path / "data")
     installer.project_root.mkdir(mode=0o700)
     (installer.project_root / "requirements").mkdir()
@@ -918,14 +1085,18 @@ def test_fix5_public_native_install_retains_real_creation_scope(tmp_path, monkey
     provisioned = []
     mutable = {"changed": False}
     original_prepare = sm.WebServiceManager._prepare_private_directories
+
     def prepare(self, **kwargs):
         original_prepare(self, **kwargs)
         if self not in managers:
             managers.append(self)
+
     def provision(**kwargs):
         provisioned.append(True)
         if change != "no-start":
-            assert managers, "manager must create the root under its actual lease before DSH/buildlock"
+            assert (
+                managers
+            ), "manager must create the root under its actual lease before DSH/buildlock"
             manager = managers[0]
             assert manager._lifecycle_lease is not None
             manager._lifecycle_lease.assert_held()
@@ -936,40 +1107,89 @@ def test_fix5_public_native_install_retains_real_creation_scope(tmp_path, monkey
             if change == "listener":
                 mutable["changed"] = True
         installer.dsh_source.mkdir(parents=True, mode=0o700)
-        return {"closure_sha256": "b" * 64, "closure_files": DSH_CLOSURE_FILES, "commit": DSH_COMMIT}
+        return {
+            "closure_sha256": "b" * 64,
+            "closure_files": DSH_CLOSURE_FILES,
+            "commit": DSH_COMMIT,
+        }
+
     def gate(self):
         assert (self.runtime_state_root / "build-lock.json").is_file()
         return {"ok": True}
+
     def healthy(self, **kwargs):
         if change == "health":
             raise sm.ServiceManagerError("web_health_timeout", code="web_health_timeout")
         return {"product_ready": True}
+
     monkeypatch.setattr(installer, "check", lambda: {"ok": True, "issues": []})
     monkeypatch.setattr(installer, "prepare_environment", lambda **kwargs: Path(sys.executable))
-    monkeypatch.setattr(installer, "install_python_dependencies", lambda python: {"lock_sha256": "lock", "cjpy_sha256": "wheel", "cjpy_version": "0.5.2"})
+    monkeypatch.setattr(
+        installer,
+        "install_python_dependencies",
+        lambda python: {"lock_sha256": "lock", "cjpy_sha256": "wheel", "cjpy_version": "0.5.2"},
+    )
     monkeypatch.setattr(installer, "verify_web_import", lambda python: None)
     monkeypatch.setattr(installer, "provision_dsh", provision)
     monkeypatch.setattr(sm.WebServiceManager, "_prepare_private_directories", prepare)
     monkeypatch.setattr(sm.WebServiceManager, "_require_installation_ready", gate)
     monkeypatch.setattr(sm.WebServiceManager, "_start_locked", healthy)
     monkeypatch.setattr(sm.webbrowser, "open", lambda url: True)
-    monkeypatch.setattr(sm, "listener_pids", lambda port: ListenerFact("listening", (789 if mutable["changed"] else 456,), None) if port == 8088 else ListenerFact("closed", (), None))
-    monkeypatch.setattr(sm, "probe_process", lambda pid: ProcessFact("alive", None, None, ("python", "-m", "uvicorn", "app.research_web.main:app", "--app-dir", "/other/checkout"), 123.0))
+    monkeypatch.setattr(
+        sm,
+        "listener_pids",
+        lambda port: (
+            ListenerFact("listening", (789 if mutable["changed"] else 456,), None)
+            if port == 8088
+            else ListenerFact("closed", (), None)
+        ),
+    )
+    monkeypatch.setattr(
+        sm,
+        "probe_process",
+        lambda pid: ProcessFact(
+            "alive",
+            None,
+            None,
+            (
+                "python",
+                "-m",
+                "uvicorn",
+                "app.research_web.main:app",
+                "--app-dir",
+                "/other/checkout",
+            ),
+            123.0,
+        ),
+    )
     if change == "old-native":
         from app.research_web.service_diagnostics import ServiceProbe
-        monkeypatch.setattr(sm.WebServiceManager, "_service_probes", lambda self: tuple(
-            ServiceProbe(role, port, "valid", "alive", "owned", "listening", "ready", True, 999888, ())
-            for role, port in (("web", self.web_port), ("runtime", self.runtime_port))))
+
+        monkeypatch.setattr(
+            sm.WebServiceManager,
+            "_service_probes",
+            lambda self: tuple(
+                ServiceProbe(
+                    role, port, "valid", "alive", "owned", "listening", "ready", True, 999888, ()
+                )
+                for role, port in (("web", self.web_port), ("runtime", self.runtime_port))
+            ),
+        )
     if change == "lease":
+
         def write_manifest(**kwargs):
             managers[0]._lifecycle_lease = None
             return {"status": "installed"}
+
         monkeypatch.setattr(installer, "write_install_manifest", write_manifest)
     if change in {"existing", "root", "listener", "lease", "health"}:
         with pytest.raises(sm.ServiceManagerError) as caught:
             installer.install()
-        expected = ("lifecycle_lock_ownership_lost" if change == "lease" else
-                    "web_health_timeout" if change == "health" else "runtime_ownership_unknown")
+        expected = (
+            "lifecycle_lock_ownership_lost"
+            if change == "lease"
+            else "web_health_timeout" if change == "health" else "runtime_ownership_unknown"
+        )
         assert caught.value.code == expected
         if change == "existing":
             assert not provisioned
@@ -977,7 +1197,10 @@ def test_fix5_public_native_install_retains_real_creation_scope(tmp_path, monkey
             assert not (data_root / "runtime/build-lock.json").exists()
         if change == "health":
             assert not (data_root / ".control/origin-transaction.json").exists()
-            assert json.loads((data_root / ".control/datahub.json").read_text())["url"] == "http://127.0.0.1:8088"
+            assert (
+                json.loads((data_root / ".control/datahub.json").read_text())["url"]
+                == "http://127.0.0.1:8088"
+            )
     else:
         assert installer.install(start=change != "no-start")["status"] == "installed"
     if managers:
@@ -986,7 +1209,9 @@ def test_fix5_public_native_install_retains_real_creation_scope(tmp_path, monkey
     if change == "no-start":
         assert not managers
         with pytest.raises(sm.ServiceManagerError, match="runtime_ownership_unknown"):
-            sm.WebServiceManager(project_root=installer.project_root, data_root=data_root).start(open_browser=False)
+            sm.WebServiceManager(project_root=installer.project_root, data_root=data_root).start(
+                open_browser=False
+            )
 
 
 def test_installer_prefers_configured_node_over_path(
@@ -1597,9 +1822,7 @@ def test_python_dependency_install_drops_proxy_protocols_pip_cannot_bootstrap(
     installer.install_python_dependencies(project_root / ".venv" / "bin" / "python")
 
     git_environment = installer._subprocess_environment()
-    git_socks = [
-        value for key, value in git_environment.items() if key.lower() == "all_proxy"
-    ]
+    git_socks = [value for key, value in git_environment.items() if key.lower() == "all_proxy"]
     assert git_socks
     assert all(value.startswith(("socks5:", "socks5h:")) for value in git_socks)
     assert environments

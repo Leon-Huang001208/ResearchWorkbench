@@ -17,9 +17,10 @@ SECRET = "fixture-private-secret-value"
 
 @pytest.mark.parametrize("existing", ["datahub", "mcp"])
 def test_guest_prepare_controls_fills_missing_without_rotating_token(tmp_path, existing):
-    from docker import supervisor
     from app.research_web.datahub.security import load_control
     from app.research_web.mcp_runtime.control import load_control as load_mcp
+    from docker import supervisor
+
     root = tmp_path / "data"
     root.mkdir(mode=0o700)
     origin = "http://127.0.0.1:48240"
@@ -33,8 +34,9 @@ def test_guest_prepare_controls_fills_missing_without_rotating_token(tmp_path, e
 
 
 def test_guest_prepare_controls_rejects_existing_origin_mismatch(tmp_path):
-    from docker import supervisor
     from app.research_web.datahub.security import load_control
+    from docker import supervisor
+
     root = tmp_path / "data"
     root.mkdir(mode=0o700)
     load_control(root, "http://127.0.0.1:48240")
@@ -43,6 +45,7 @@ def test_guest_prepare_controls_rejects_existing_origin_mismatch(tmp_path):
     with pytest.raises(RuntimeError):
         prepare(root, "http://127.0.0.1:8088")
     assert not (root / ".control/mcp-runtime.json").exists()
+
 
 CHILD = r"""
 import http.server, json, os, signal, sys, time
@@ -415,7 +418,7 @@ def test_adopted_role_uses_only_one_exact_bounded_marker(monkeypatch, raw, expec
     monkeypatch.setattr(supervisor, "_read_role_environment", lambda pid: raw)
     monkeypatch.setattr(supervisor, "_process_snapshot", lambda: {42: identity})
     assert supervisor._adopted_role(42, identity) == expected
-    monkeypatch.setattr(supervisor, "_process_snapshot", lambda: {})
+    monkeypatch.setattr(supervisor, "_process_snapshot", dict)
     assert supervisor._adopted_role(42, identity) == "unknown"
 
 
@@ -730,8 +733,12 @@ def test_supervisor_and_health_defaults_share_private_state_leaf(monkeypatch):
 
 
 @pytest.mark.parametrize("name", ["private", "logs"])
-@pytest.mark.parametrize("transition", ["mapped", "foreign_uid", "foreign_gid", "mode", "inode", "custom"])
-def test_docker_first_mkdir_owner_mapping_then_strict_repin(tmp_path, monkeypatch, name, transition):
+@pytest.mark.parametrize(
+    "transition", ["mapped", "foreign_uid", "foreign_gid", "mode", "inode", "custom"]
+)
+def test_docker_first_mkdir_owner_mapping_then_strict_repin(
+    tmp_path, monkeypatch, name, transition
+):
     from app.research_web.runtime_state import RuntimeStateError, runtime_state_directory
     from docker import supervisor
 
@@ -768,9 +775,8 @@ def test_docker_first_mkdir_owner_mapping_then_strict_repin(tmp_path, monkeypatc
     monkeypatch.setattr(os, "fstat", lambda descriptor: project(real_fstat(descriptor)))
     monkeypatch.setattr(os, "mkdir", mkdir)
     # Preserve a direct reproducer of why creation inside the strict guard fails.
-    with pytest.raises(RuntimeStateError):
-        with runtime_state_directory(leaf, create=True):
-            pass
+    with pytest.raises(RuntimeStateError), runtime_state_directory(leaf, create=True):
+        pass
     leaf.rmdir()
     mapped.clear()
     monkeypatch.setattr(
@@ -988,8 +994,11 @@ def test_real_supervisor_exchanges_private_handoff_after_stdout_redaction(launch
     assert "?token=" not in output
     assert "container_bootstrap_auth_loaded" in output
 
+
 @pytest.mark.parametrize("existing", [False, True])
-def test_private_state_uses_strict_guard_without_mapping_or_file_prewrite(tmp_path, monkeypatch, existing):
+def test_private_state_uses_strict_guard_without_mapping_or_file_prewrite(
+    tmp_path, monkeypatch, existing
+):
     from docker import supervisor
 
     leaf = tmp_path.resolve() / "state" / "runtime"
@@ -1011,8 +1020,8 @@ def test_private_state_uses_strict_guard_without_mapping_or_file_prewrite(tmp_pa
 
 def test_fixed_state_is_excluded_from_bind_mapping_exception():
     from docker import supervisor
-    assert Path("/state/runtime") not in supervisor._DOCKER_PRIVATE_LEAVES
 
+    assert Path("/state/runtime") not in supervisor._DOCKER_PRIVATE_LEAVES
 
 
 def test_readonly_probe_and_prepare_only_never_initialize(tmp_path, monkeypatch):
@@ -1021,10 +1030,16 @@ def test_readonly_probe_and_prepare_only_never_initialize(tmp_path, monkeypatch)
     leaf = tmp_path.resolve() / "runtime"
     leaf.mkdir(mode=0o700)
     config = supervisor.SupervisorConfig(
-        data_root=tmp_path, state_root=leaf, project_root=ROOT, runtime_source=tmp_path,
-        python=sys.executable, node="unused",
+        data_root=tmp_path,
+        state_root=leaf,
+        project_root=ROOT,
+        runtime_source=tmp_path,
+        python=sys.executable,
+        node="unused",
     )
-    monkeypatch.setattr(supervisor, "_prepare_private_leaf", lambda *args, **kwargs: pytest.fail("initialized"))
+    monkeypatch.setattr(
+        supervisor, "_prepare_private_leaf", lambda *args, **kwargs: pytest.fail("initialized")
+    )
     real_open = os.open
 
     def no_create(name, flags, mode=0o777, *, dir_fd=None):
@@ -1045,5 +1060,8 @@ def test_readonly_probe_and_prepare_only_never_initialize(tmp_path, monkeypatch)
     assert supervisor.real_probe(config, "runtime", 1)
     assert supervisor.real_probe(config, "web", 1)
     monkeypatch.setattr(supervisor, "prepare_controls", lambda *args: None)
-    assert supervisor.main(["--prepare-controls-only", "--previous-origin", "http://127.0.0.1:8088"]) == 0
+    assert (
+        supervisor.main(["--prepare-controls-only", "--previous-origin", "http://127.0.0.1:8088"])
+        == 0
+    )
     assert list(leaf.iterdir()) == []

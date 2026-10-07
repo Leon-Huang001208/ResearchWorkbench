@@ -16,24 +16,41 @@ if __package__ in {None, ""}:
 from app.research_web.staged_runtime import verify_staged_runtime, write_staged_manifest
 
 log = logging.getLogger(__name__)
-EXCLUDED = frozenset({
-    ".git", ".github", "tests", "test", "__tests__", "fixtures", "__fixtures__",
-    "benchmarks", "benchmark", "bench", "website", "examples",
-    "coverage", ".cache", "__pycache__",
-})
+EXCLUDED = frozenset(
+    {
+        ".git",
+        ".github",
+        "tests",
+        "test",
+        "__tests__",
+        "fixtures",
+        "__fixtures__",
+        "benchmarks",
+        "benchmark",
+        "bench",
+        "website",
+        "examples",
+        "coverage",
+        ".cache",
+        "__pycache__",
+    }
+)
 
 
 def _excluded(relative: Path, published_roots: tuple[Path, ...] = ()) -> bool:
-    document_parts = [index for index, part in enumerate(relative.parts) if part.lower() in {"doc", "docs"}]
+    document_parts = [
+        index for index, part in enumerate(relative.parts) if part.lower() in {"doc", "docs"}
+    ]
     published_document = bool(document_parts) and any(
         relative.is_relative_to(root) and len(root.parts) <= min(document_parts)
         for root in published_roots
     )
-    return any(part.lower() in EXCLUDED for part in relative.parts) or (
-        bool(document_parts) and not published_document
-    ) or any(
-        token in relative.name.lower() for token in (".spec.", ".test.", ".bench.")
-    ) or relative.name.lower().startswith(("readme", "changelog", "contributing"))
+    return (
+        any(part.lower() in EXCLUDED for part in relative.parts)
+        or (bool(document_parts) and not published_document)
+        or any(token in relative.name.lower() for token in (".spec.", ".test.", ".bench."))
+        or relative.name.lower().startswith(("readme", "changelog", "contributing"))
+    )
 
 
 def _package_assets(package: Path, *, workspace: bool):
@@ -44,14 +61,17 @@ def _package_assets(package: Path, *, workspace: bool):
     # does not use third-party `files` to reselect its installed tarball payload.
     published_roots = ()
     if isinstance(declared, list) and all(
-        isinstance(rule, str) and rule and not rule.startswith("!")
+        isinstance(rule, str)
+        and rule
+        and not rule.startswith("!")
         and not any(token in rule for token in ("*", "?", "[", "\\"))
-        and Path(rule).parts and not Path(rule).is_absolute() and ".." not in Path(rule).parts
+        and Path(rule).parts
+        and not Path(rule).is_absolute()
+        and ".." not in Path(rule).parts
         for rule in declared
     ):
         published_roots = tuple(
-            Path(rule) for rule in declared
-            if Path(rule).parts and (package / rule).is_dir()
+            Path(rule) for rule in declared if Path(rule).parts and (package / rule).is_dir()
         )
     # Workspace package `files` fields are the upstream publish contract. Installed
     # third-party production packages already are published tarballs; keep their
@@ -70,23 +90,25 @@ def _package_assets(package: Path, *, workspace: bool):
                 chosen.update(item.rglob("*") if item.is_dir() else [item])
         negatives = [rule[1:] for rule in rules if rule.startswith("!")]
         chosen = {
-            path for path in chosen
+            path
+            for path in chosen
             if not any(
-                fnmatch.fnmatch(path.relative_to(package).as_posix(), rule)
-                for rule in negatives
+                fnmatch.fnmatch(path.relative_to(package).as_posix(), rule) for rule in negatives
             )
         }
     else:
         for directory, folders, files in os.walk(package, followlinks=False):
             folders[:] = [
-                name for name in folders
+                name
+                for name in folders
                 if name != "node_modules"
                 and not _excluded((Path(directory) / name).relative_to(package), published_roots)
             ]
             chosen.update(Path(directory) / name for name in files)
     chosen.update(path for path in package.glob("LICENSE*") if path.is_file())
     return metadata, sorted(
-        path for path in chosen
+        path
+        for path in chosen
         if not _excluded(path.relative_to(package), published_roots)
         and "node_modules" not in path.relative_to(package).parts
         and (path.is_file() or path.is_symlink())
@@ -184,9 +206,13 @@ def stage_assets(source: Path, output: Path, verified: dict) -> None:
                     raise ValueError("hoist alias changed")
                 target = output / alias.relative_to(source)
                 target.parent.mkdir(parents=True, exist_ok=True)
-                relative_target = os.path.relpath(output / resolved.relative_to(source), target.parent)
+                relative_target = os.path.relpath(
+                    output / resolved.relative_to(source), target.parent
+                )
                 if os.path.lexists(target):
-                    if not target.is_symlink() or target.resolve(strict=True) != output / resolved.relative_to(source):
+                    if not target.is_symlink() or target.resolve(
+                        strict=True
+                    ) != output / resolved.relative_to(source):
                         raise ValueError("conflicting hoist alias")
                 else:
                     target.symlink_to(relative_target)

@@ -383,14 +383,18 @@ def test_runtime_state_boundary_checks_owner_mode_and_identity(tmp_path, monkeyp
         return identity
 
     monkeypatch.setattr(Path, "lstat", wrong_owner)
-    with pytest.raises(runtime_state.RuntimeStateError):
-        with runtime_state.runtime_state_directory(state):
-            pytest.fail("wrong owner accepted")
+    with (
+        pytest.raises(runtime_state.RuntimeStateError),
+        runtime_state.runtime_state_directory(state),
+    ):
+        pytest.fail("wrong owner accepted")
     monkeypatch.setattr(Path, "lstat", original_lstat)
-    with pytest.raises(runtime_state.RuntimeStateError):
-        with runtime_state.runtime_state_directory(state):
-            state.rename(tmp_path / "old-state")
-            state.mkdir(mode=0o700)
+    with (
+        pytest.raises(runtime_state.RuntimeStateError),
+        runtime_state.runtime_state_directory(state),
+    ):
+        state.rename(tmp_path / "old-state")
+        state.mkdir(mode=0o700)
 
 
 def test_runtime_state_windows_rejects_reparse_without_using_posix_mode_as_acl():
@@ -422,18 +426,22 @@ def test_runtime_state_disappearance_during_open_is_rejected_before_body(tmp_pat
         return original_lstat(path)
 
     monkeypatch.setattr(Path, "lstat", disappear)
-    with pytest.raises(runtime_state.RuntimeStateError, match="runtime_state_unsafe"):
-        with runtime_state.runtime_state_directory(state):
-            pytest.fail("changed directory accepted")
+    with (
+        pytest.raises(runtime_state.RuntimeStateError, match="runtime_state_unsafe"),
+        runtime_state.runtime_state_directory(state),
+    ):
+        pytest.fail("changed directory accepted")
 
 
 def test_runtime_state_boundary_preserves_caller_errors(tmp_path):
     from app.research_web.runtime_state import runtime_state_directory
 
     failure = ValueError("caller validation failed")
-    with pytest.raises(ValueError) as raised:
-        with runtime_state_directory(tmp_path / "state", create=True):
-            raise failure
+    with (
+        pytest.raises(ValueError) as raised,
+        runtime_state_directory(tmp_path / "state", create=True),
+    ):
+        raise failure
     assert raised.value is failure
 
 
@@ -495,9 +503,11 @@ def test_runtime_state_identity_rejection_evidence(
         return current
 
     monkeypatch.setattr(Path, "lstat", change)
-    with pytest.raises(runtime_state.RuntimeStateError, match="^runtime_state_unsafe$"):
-        with runtime_state.runtime_state_directory(state):
-            pass
+    with (
+        pytest.raises(runtime_state.RuntimeStateError, match="^runtime_state_unsafe$"),
+        runtime_state.runtime_state_directory(state),
+    ):
+        pass
     assert f"phase={phase} scope=leaf" in caplog.text
     if field == "uid" and phase != "enter":
         assert "reason=unsafe_owner" in caplog.text
@@ -564,9 +574,11 @@ def test_runtime_state_fd_identity_evidence(tmp_path, monkeypatch, caplog, phase
         return current
 
     monkeypatch.setattr(runtime_state.os, "fstat", changed_fd)
-    with pytest.raises(runtime_state.RuntimeStateError, match="^runtime_state_unsafe$"):
-        with runtime_state.runtime_state_directory(state):
-            pass
+    with (
+        pytest.raises(runtime_state.RuntimeStateError, match="^runtime_state_unsafe$"),
+        runtime_state.runtime_state_directory(state),
+    ):
+        pass
     assert (
         f"reason=identity_changed phase={phase} scope={'leaf' if leaf else 'ancestor'} changed=uid"
         in caplog.text
@@ -575,9 +587,7 @@ def test_runtime_state_fd_identity_evidence(tmp_path, monkeypatch, caplog, phase
 
 
 @pytest.mark.skipif(launch_runtime.os.name == "nt", reason="POSIX ownership fixture")
-def test_runtime_state_same_inode_allowed_owner_change_still_rejects(
-    tmp_path, monkeypatch, caplog
-):
+def test_runtime_state_same_inode_allowed_owner_change_still_rejects(tmp_path, monkeypatch, caplog):
     import os
 
     from app.research_web import runtime_state
@@ -599,9 +609,11 @@ def test_runtime_state_same_inode_allowed_owner_change_still_rejects(
         return current
 
     monkeypatch.setattr(Path, "lstat", changed_owner)
-    with pytest.raises(runtime_state.RuntimeStateError, match="^runtime_state_unsafe$"):
-        with runtime_state.runtime_state_directory(state):
-            pytest.fail("same-inode ownership change accepted")
+    with (
+        pytest.raises(runtime_state.RuntimeStateError, match="^runtime_state_unsafe$"),
+        runtime_state.runtime_state_directory(state),
+    ):
+        pytest.fail("same-inode ownership change accepted")
     assert "reason=identity_changed phase=pre_yield scope=ancestor changed=uid" in caplog.text
 
 
@@ -610,17 +622,20 @@ def test_runtime_state_same_inode_allowed_owner_change_still_rejects(
     "leaf,parent,position",
     [(True, False, "leaf"), (False, True, "parent"), (False, False, "other_ancestor")],
 )
-@pytest.mark.parametrize("before_pair,current_pair,transition", [
-    ((0, 0), (7654321, 8765432), "root_pair_to_runtime_pair"),
-    ((7654321, 8765432), (0, 0), "reverse"),
-    ((0, 8765432), (7654321, 8765432), "other"),
-    ((7654321, 8765432), (0, 8765432), "other"),
-    ((0, 0), (7654321, 9876543), "other"),
-    ((7654321, 9876543), (0, 0), "other"),
-    ((0, 9876543), (7654321, 8765432), "other"),
-    ((7654321, 8765432), (7654321, 9876543), "other"),
-    ((0, 0), (0, 0), "other"),
-])
+@pytest.mark.parametrize(
+    "before_pair,current_pair,transition",
+    [
+        ((0, 0), (7654321, 8765432), "root_pair_to_runtime_pair"),
+        ((7654321, 8765432), (0, 0), "reverse"),
+        ((0, 8765432), (7654321, 8765432), "other"),
+        ((7654321, 8765432), (0, 8765432), "other"),
+        ((0, 0), (7654321, 9876543), "other"),
+        ((7654321, 9876543), (0, 0), "other"),
+        ((0, 9876543), (7654321, 8765432), "other"),
+        ((7654321, 8765432), (7654321, 9876543), "other"),
+        ((0, 0), (0, 0), "other"),
+    ],
+)
 def test_runtime_state_private_ownership_classification(
     monkeypatch, caplog, leaf, parent, position, before_pair, current_pair, transition
 ):
@@ -631,18 +646,32 @@ def test_runtime_state_private_ownership_classification(
 
     def identity(pair):
         return SimpleNamespace(
-            st_dev=6543210, st_ino=5432109, st_mode=0o40700,
-            st_uid=pair[0], st_gid=pair[1],
+            st_dev=6543210,
+            st_ino=5432109,
+            st_mode=0o40700,
+            st_uid=pair[0],
+            st_gid=pair[1],
         )
 
     runtime_state._log_identity_change(
-        identity(before_pair), identity(current_pair), phase="post_yield", leaf=leaf,
+        identity(before_pair),
+        identity(current_pair),
+        phase="post_yield",
+        leaf=leaf,
         parent=parent,
     )
     assert f"ownership_transition={transition} position={position}" in caplog.text
-    assert all(value not in caplog.text for value in (
-        "7654321", "8765432", "9876543", "6543210", "5432109", "40700",
-    ))
+    assert all(
+        value not in caplog.text
+        for value in (
+            "7654321",
+            "8765432",
+            "9876543",
+            "6543210",
+            "5432109",
+            "40700",
+        )
+    )
 
 
 @pytest.mark.skipif(launch_runtime.os.name == "nt", reason="POSIX ownership fixture")
@@ -684,9 +713,11 @@ def test_runtime_state_ownership_classification_keeps_rejecting(
 
     monkeypatch.setattr(Path, "lstat", named)
     monkeypatch.setattr(runtime_state.os, "fstat", opened)
-    with pytest.raises(runtime_state.RuntimeStateError, match="^runtime_state_unsafe$"):
-        with runtime_state.runtime_state_directory(state):
-            active = True
+    with (
+        pytest.raises(runtime_state.RuntimeStateError, match="^runtime_state_unsafe$"),
+        runtime_state.runtime_state_directory(state),
+    ):
+        active = True
     transition = "other" if position == "leaf" else "root_pair_to_runtime_pair"
     assert f"ownership_transition={transition} position={position}" in caplog.text
     assert "phase=post_yield" in caplog.text

@@ -63,6 +63,8 @@ Research Web FastAPI Host（8088）
 
 ## 文档与验证
 
+- 双运行时 Python 质量整理只涉及现有文件的格式、导入顺序、显式默认值与内部类型说明。
+  进程、目录、认证、控制事务和回滚的原有边界不因此改变；类型检查债务与实际生命周期证据分开记录。
 - [Development Map](DEVELOPMENT_MAP.md) 映射源码区域、权威文档和测试。
 - [文档门禁](research-web-documentation.md) 校验文档分类、权威唯一性、链接、退役命令、生成索引和 Research Web 架构清单。
 - `.ai/reports/` 保存每次任务的真实命令、结果和架构影响；`CHANGELOG.md` 只保留用户可见变化。

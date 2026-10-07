@@ -1,5 +1,8 @@
 # 研究框架
 
+双运行时 Python 质量整理不改变框架目录、采集、评分或 Bot 协议；其格式/类型检查结果
+仅为源码证据，不能替代框架消费者的实际运行验收。
+
 研究框架为 Gold / Dollar 提供领域定义、真实采集、版本快照、确定性评分和绑定快照的 Bot。它是解释层，执行仍复用唯一 DSH，不创建独立研究引擎。
 
 从[分层阅读入口](../../../outputs/research-web-architecture/index.html#module-frameworks)进入总图、流程、API、源码和测试。

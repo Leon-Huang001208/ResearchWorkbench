@@ -146,6 +146,7 @@ def test_doctor_honors_safe_launcher_probe_failure_override(tmp_path: Path) -> N
 def test_bootstrap_readonly_uses_saved_nondefault_endpoints(tmp_path):
     from research_workbench_entrypoint.runtime_endpoints import EndpointStore
     from research_workbench_entrypoint.web_bootstrap import bootstrap_service_facts
+
     home = tmp_path / "home"
     home.mkdir(mode=0o700)
     store = EndpointStore(home)
@@ -206,7 +207,12 @@ def test_bootstrap_help_requires_no_installation_or_service_probe(
 
 @pytest.mark.parametrize(
     "argv",
-    [["web", "status"], ["web", "status", "--json"], ["web", "doctor"], ["web", "doctor", "--json"]],
+    [
+        ["web", "status"],
+        ["web", "status", "--json"],
+        ["web", "doctor"],
+        ["web", "doctor", "--json"],
+    ],
 )
 def test_bootstrap_allowlist_commands_are_read_only_and_exit_zero_with_issues(
     tmp_path: Path,
@@ -974,8 +980,16 @@ def _temporary_launcher_checkout(tmp_path: Path) -> tuple[Path, dict[str, str]]:
     package = checkout / "research_workbench_entrypoint"
     package.mkdir(parents=True)
     shutil.copy2(source_root / "rwb", checkout / "rwb")
-    for name in ("__init__.py", "__main__.py", "web_contract.py", "web_bootstrap.py",
-                 "bootstrap.py", "runtime_mode.py", "runtime_endpoints.py", "docker_runtime.py"):
+    for name in (
+        "__init__.py",
+        "__main__.py",
+        "web_contract.py",
+        "web_bootstrap.py",
+        "bootstrap.py",
+        "runtime_mode.py",
+        "runtime_endpoints.py",
+        "docker_runtime.py",
+    ):
         shutil.copy2(source_root / "research_workbench_entrypoint" / name, package / name)
     binary_root = tmp_path / "bin"
     binary_root.mkdir()
@@ -1015,9 +1029,10 @@ def _write_owned_interpreter(owner_root: Path, *, valid_marker: bool) -> Path:
         f'#!/bin/sh\nexec "{sys.executable}" -c '
         "'import runpy,sys; sys.executable=sys.argv.pop(1); "
         "args=sys.argv[1:]; "
-        "exec(args[1]) if args[0] == \"-c\" else "
-        "runpy.run_module(args[1], run_name=\"__main__\", alter_sys=True)' "
-        '"$0" "$@"\n', encoding="utf-8"
+        'exec(args[1]) if args[0] == "-c" else '
+        'runpy.run_module(args[1], run_name="__main__", alter_sys=True)\' '
+        '"$0" "$@"\n',
+        encoding="utf-8",
     )
     interpreter.chmod(0o755)
     marker = _environment_marker(owner_root)
@@ -1097,7 +1112,10 @@ def _configure_common_checkout(tmp_path: Path, checkout: Path, environment: dict
     common_root = tmp_path / "common-checkout"
     common_root.mkdir()
     git = tmp_path / "bin" / "git"
-    git.write_text('#!/bin/sh\nprintf "%s\\n" ' + shlex.quote(str(common_root / ".git")) + '\n', encoding="utf-8")
+    git.write_text(
+        '#!/bin/sh\nprintf "%s\\n" ' + shlex.quote(str(common_root / ".git")) + "\n",
+        encoding="utf-8",
+    )
     git.chmod(0o755)
     environment["COMMON_GIT_DIR"] = str(common_root / ".git")
     _write_minimal_normal_cli(checkout)

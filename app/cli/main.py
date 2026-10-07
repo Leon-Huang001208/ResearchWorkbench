@@ -8,6 +8,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager, redirect_stdout
 from pathlib import Path
 from types import SimpleNamespace
+from typing import TypedDict, cast
 
 import click
 
@@ -25,6 +26,14 @@ from app.research_web.service_manager import (
     format_tabbit_status,
 )
 from app.research_web.store import Store
+
+
+class _WebPortOptions(TypedDict, total=False):
+    """Only explicitly supplied ports are forwarded to the service manager."""
+
+    web_port: int
+    runtime_port: int
+
 
 LEGACY_RESEARCH_DATA_DIR = ".alpha" + "foundry"
 archive_legacy_source = archive_source
@@ -145,11 +154,23 @@ def web() -> None:
     """管理 Web 与专属 DSH 后台服务。"""
 
 
-def _run_web_action(action: str, *, force: bool = False, open_browser: bool = True,
-                    web_port: int | None = None, runtime_port: int | None = None) -> None:
+def _run_web_action(
+    action: str,
+    *,
+    force: bool = False,
+    open_browser: bool = True,
+    web_port: int | None = None,
+    runtime_port: int | None = None,
+) -> None:
     try:
-        options = {key: value for key, value in (("web_port", web_port),
-                   ("runtime_port", runtime_port)) if value is not None}
+        options = cast(
+            _WebPortOptions,
+            {
+                key: value
+                for key, value in (("web_port", web_port), ("runtime_port", runtime_port))
+                if value is not None
+            },
+        )
         manager = WebServiceManager(**options)
         if action == "start":
             status = manager.start(open_browser=open_browser)
@@ -183,19 +204,52 @@ def web_status(json_output: bool = False) -> None:
     try:
         with _machine_output_logging(True):
             status = WebServiceManager().status()
-        report = {"schema_version": 2, "ok": True, "issues": status.get("issues", []), "mode": "native",
-                  "services": {role: {key: service.get(key) for key in
-                                      ("running", "healthy", "pid", "port", "state", "process",
-                                       "ownership", "port_state", "protocol", "ready", "issues")}
-                               for role, service in status["services"].items()
-                               if role in ("web", "runtime")}}
+        report = {
+            "schema_version": 2,
+            "ok": True,
+            "issues": status.get("issues", []),
+            "mode": "native",
+            "services": {
+                role: {
+                    key: service.get(key)
+                    for key in (
+                        "running",
+                        "healthy",
+                        "pid",
+                        "port",
+                        "state",
+                        "process",
+                        "ownership",
+                        "port_state",
+                        "protocol",
+                        "ready",
+                        "issues",
+                    )
+                }
+                for role, service in status["services"].items()
+                if role in ("web", "runtime")
+            },
+        }
         port = report["services"].get("web", {}).get("port")
-        report["url"] = f"http://127.0.0.1:{port}/#/fingpt" if type(port) is int and 1 <= port <= 65535 else None
+        report["url"] = (
+            f"http://127.0.0.1:{port}/#/fingpt"
+            if type(port) is int and 1 <= port <= 65535
+            else None
+        )
         click.echo(json.dumps(report, ensure_ascii=False, indent=2))
     except ServiceManagerError as exc:
         logging.getLogger(__name__).warning("native_status_failed")
-        click.echo(json.dumps({"schema_version": 1, "ok": False, "issues": ["native_status_failed"],
-                               "mode": "native", "services": {}}))
+        click.echo(
+            json.dumps(
+                {
+                    "schema_version": 1,
+                    "ok": False,
+                    "issues": ["native_status_failed"],
+                    "mode": "native",
+                    "services": {},
+                }
+            )
+        )
         raise click.exceptions.Exit(1) from exc
 
 
@@ -252,8 +306,13 @@ def web_logs(tail: int, follow: bool) -> None:
 @click.option("--runtime-port", type=click.IntRange(1, 65535), default=None)
 def web_restart(force: bool, no_open: bool, web_port: int | None, runtime_port: int | None) -> None:
     """在无活动研究时重启项目服务。"""
-    _run_web_action("restart", force=force, open_browser=not no_open,
-                    web_port=web_port, runtime_port=runtime_port)
+    _run_web_action(
+        "restart",
+        force=force,
+        open_browser=not no_open,
+        web_port=web_port,
+        runtime_port=runtime_port,
+    )
 
 
 @cli.command("migrate-research-data")

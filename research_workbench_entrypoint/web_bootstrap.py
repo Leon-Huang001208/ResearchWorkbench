@@ -10,12 +10,13 @@ import os
 import sys
 from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import Any
-from .runtime_endpoints import EndpointError, EndpointStore
+from typing import Any, cast
 
+from .runtime_endpoints import EndpointStore
 from .web_contract import (
     CONTROL_JSON_MAX_BYTES,
     PROCESS_START_TOLERANCE_SECONDS,
+    PrivateJsonFact,
     ProcessFact,
     classify_python_environment,
     listener_pids,
@@ -117,7 +118,9 @@ def _expected_signature(
     command: list[str],
     project_root: Path,
     data_home: Path,
-    *, port: int | None = None, web_port: int = WEB_PORT,
+    *,
+    port: int | None = None,
+    web_port: int = WEB_PORT,
 ) -> list[str] | None:
     selected_port = port if port is not None else (RUNTIME_PORT if role == "runtime" else WEB_PORT)
     if role == "runtime":
@@ -176,7 +179,9 @@ def _valid_state(
     stored_data_root = _bounded_string(value.get("data_root"))
     fingerprint = _bounded_string(value.get("fingerprint"), limit=64)
     expected_signature = (
-        _expected_signature(role, command, project_root, data_home, port=port, web_port=web_port) if command else None
+        _expected_signature(role, command, project_root, data_home, port=port, web_port=web_port)
+        if command
+        else None
     )
     valid = (
         type(value.get("version")) is int
@@ -242,14 +247,25 @@ def _service_fact(
 ) -> dict[str, Any]:
     if raw_fact is None:
         state_status, state = _read_state(
-            data_home.parent / "run" / f"{role}.json", role=role, port=port,
-            project_root=project_root, data_home=data_home, web_port=web_port)
+            data_home.parent / "run" / f"{role}.json",
+            role=role,
+            port=port,
+            project_root=project_root,
+            data_home=data_home,
+            web_port=web_port,
+        )
     else:
         state_status, state = raw_fact.state, None
         if state_status == "valid":
             try:
-                state = _valid_state(raw_fact.value, role=role, port=port,
-                                     project_root=project_root, data_home=data_home, web_port=web_port)
+                state = _valid_state(
+                    raw_fact.value,
+                    role=role,
+                    port=port,
+                    project_root=project_root,
+                    data_home=data_home,
+                    web_port=web_port,
+                )
             except (TypeError, ValueError, OverflowError, RecursionError):
                 state = None
             if state is None:
@@ -316,7 +332,7 @@ def bootstrap_service_facts(
     selected_data_home = (
         _absolute(Path(data_home)) if data_home is not None else _data_home(os.environ)
     )
-    read_facts = {}
+    read_facts: dict[str, PrivateJsonFact] = {}
     web_port, runtime_port = native_endpoint_ports(root, selected_data_home, read_facts=read_facts)
     return {
         "runtime": _service_fact(
@@ -337,7 +353,9 @@ def bootstrap_service_facts(
     }
 
 
-def native_endpoint_ports(project_root: Path, data_home: Path, *, read_facts=None) -> tuple[int, int]:
+def native_endpoint_ports(
+    project_root: Path, data_home: Path, *, read_facts=None
+) -> tuple[int, int]:
     """Read saved ports or mutually consistent private legacy state, without writes."""
     store = EndpointStore(data_home.parent)
     try:
@@ -347,12 +365,16 @@ def native_endpoint_ports(project_root: Path, data_home: Path, *, read_facts=Non
     else:
         saved = store.read("native")
     if saved:
-        return saved.web_port, saved.runtime_port
+        # EndpointStore validates that native records always contain both ports.
+        return saved.web_port, cast(int, saved.runtime_port)
     values = {}
     ports = {"web": WEB_PORT, "runtime": RUNTIME_PORT}
     for role in ("web", "runtime"):
-        fact = read_private_json(data_home.parent / "run" / f"{role}.json",
-                                 trusted_root=data_home.parent, max_bytes=STATE_LIMIT_BYTES)
+        fact = read_private_json(
+            data_home.parent / "run" / f"{role}.json",
+            trusted_root=data_home.parent,
+            max_bytes=STATE_LIMIT_BYTES,
+        )
         if read_facts is not None:
             read_facts[role] = fact
         if fact.state == "missing":
@@ -366,16 +388,29 @@ def native_endpoint_ports(project_root: Path, data_home: Path, *, read_facts=Non
         values[role] = fact.value
     if "runtime" in values and "web" not in values:
         from urllib.parse import urlsplit
+
         command = _safe_string_list(values["runtime"].get("command"), limit=64)
         try:
             origin = urlsplit(_argument(command, "--datahub-url") or "") if command else None
-            if origin is not None and origin.scheme == "http" and origin.hostname == "127.0.0.1" and origin.port:
+            if (
+                origin is not None
+                and origin.scheme == "http"
+                and origin.hostname == "127.0.0.1"
+                and origin.port
+            ):
                 ports["web"] = origin.port
         except ValueError:
             return WEB_PORT, RUNTIME_PORT
     if ports["web"] == ports["runtime"] or any(
-        _valid_state(value, role=role, port=ports[role], project_root=project_root,
-                     data_home=data_home, web_port=ports["web"]) is None
+        _valid_state(
+            value,
+            role=role,
+            port=ports[role],
+            project_root=project_root,
+            data_home=data_home,
+            web_port=ports["web"],
+        )
+        is None
         for role, value in values.items()
     ):
         return WEB_PORT, RUNTIME_PORT

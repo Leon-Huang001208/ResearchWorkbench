@@ -24,8 +24,9 @@ def root(tmp_path):
     data.mkdir(mode=0o700)
     folder = data / ".control"
     folder.mkdir(mode=0o700)
-    for name, value in zip(NAMES, ({"token": "x" * 43, "url": OLD},
-                                  {"version": 1, "token": "y" * 43, "url": OLD})):
+    for name, value in zip(
+        NAMES, ({"token": "x" * 43, "url": OLD}, {"version": 1, "token": "y" * 43, "url": OLD})
+    ):
         path = folder / name
         path.write_text(json.dumps(value))
         path.chmod(0o600)
@@ -93,8 +94,9 @@ def test_missing_control_directory_not_created(tmp_path):
 
 
 @pytest.mark.parametrize("name", NAMES)
-@pytest.mark.parametrize("kind", ["token", "schema", "wrong_origin", "duplicate", "unsafe_mode",
-                                  "symlink", "hardlink"])
+@pytest.mark.parametrize(
+    "kind", ["token", "schema", "wrong_origin", "duplicate", "unsafe_mode", "symlink", "hardlink"]
+)
 def test_invalid_record_validates_pair_before_writes(root, name, kind):
     path = root / ".control" / name
     if kind in {"token", "schema", "wrong_origin", "duplicate"}:
@@ -159,6 +161,7 @@ def test_commit_after_target_starts_does_not_rebind(root):
 
 def test_second_write_failure_rolls_back_first(root, monkeypatch):
     from research_workbench_entrypoint import runtime_mode
+
     original = runtime_mode._atomic_write_posix
     before = snapshots(root)
 
@@ -277,11 +280,22 @@ def test_existing_valid_extra_fields_preserved(root):
 def test_helpers_import_without_site_packages():
     checkout = Path(__file__).resolve().parents[2]
     result = subprocess.run(
-        [sys.executable, "-I", "-S", "-c",
-         "import sys; sys.path.insert(0, sys.argv[1]); "
-         "import research_workbench_entrypoint.runtime_endpoints; "
-         "import app.research_web.control_origin", str(checkout)],
-        capture_output=True, text=True, timeout=15, check=False,
+        [
+            sys.executable,
+            "-I",
+            "-S",
+            "-c",
+            (
+                "import sys; sys.path.insert(0, sys.argv[1]); "
+                "import research_workbench_entrypoint.runtime_endpoints; "
+                "import app.research_web.control_origin"
+            ),
+            str(checkout),
+        ],
+        capture_output=True,
+        text=True,
+        timeout=15,
+        check=False,
     )
     assert result.returncode == 0, result.stderr
 

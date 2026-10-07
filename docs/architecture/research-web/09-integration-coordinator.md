@@ -1,5 +1,8 @@
 # 统一集成协调器
 
+启动器内部类型与格式整理不改变来源登记、授权、探测或可调用性投影；
+质量检查与集成的实际能力验收继续分开记录。
+
 统一集成协调器聚合 DataHub 与本机能力的登记、配置/授权、探测、适配和当前可调用事实。它复用已有 Provider、本机验证器、Tabbit 和 MCP Host，不创建新的数据引擎或守护进程。
 
 从[分层阅读入口](../../../outputs/research-web-architecture/index.html#module-integrations)进入总图、说明、API、源码和测试。
