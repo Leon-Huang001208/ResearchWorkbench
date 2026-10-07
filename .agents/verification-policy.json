@@ -401,6 +401,26 @@
           "real-machine-required"
         ],
         "value": "docs/desktop_packaging.md#windows-real-machine-smoke"
+      },
+      "macos-native-research-web": {
+        "level": "L4",
+        "lane": "real-machine",
+        "gate": "release",
+        "platforms": [
+          "macos",
+          "real-machine-required"
+        ],
+        "value": "docs/research-web-platform-support.md#macos-native-task-smoke"
+      },
+      "macos-docker-desktop": {
+        "level": "L4",
+        "lane": "real-machine",
+        "gate": "release",
+        "platforms": [
+          "macos",
+          "real-machine-required"
+        ],
+        "value": "docs/research-web-platform-support.md#macos-docker-desktop-task-smoke"
       }
     }
   },

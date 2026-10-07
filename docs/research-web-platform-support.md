@@ -35,3 +35,11 @@
 - Docker Desktop 不挂载宿主 Keychain、Office/Wind 凭据或 GUI/CLI；文件可见不证明本机集成可用。
 
 Windows/Linux 设备任务从 GitHub 主线取得源码，确认目标 OS/版本/架构、实际 `git rev-parse HEAD`，先本机安装与关键路径，再对 exact SHA dispatch 自身平台 workflow。每项回执包含候选、实际 checkout、runner/machine 平台、运行方式和缺口；不得复制其他平台虚拟环境或原生二进制。缺设备时继续交接 NOT_RUN；其他平台独立完成不受阻，本产品跨平台发布仍 NOT_READY。
+
+## macOS Native task smoke
+
+显式平台任务通过 `supplementalGateIds` 选择 `macos-native-research-web`，不是无条件扩大每个 Web 小改的门禁。使用本任务独立目录与端口完成锁定依赖安装、固定 DSH 构建、start/Doctor 双服务 owned/ready、restart/stop/端口释放、研究沙箱实际执行与会话外写入拒绝、非秘密文件保留和 Settings 架构阅读。模型调用、厂商授权与跨模式迁移未执行时单列 NOT_RUN，不从上述结果推导通过。机器证据记录 macos 与实际源码快照。
+
+## macOS Docker Desktop task smoke
+
+显式选择 `macos-docker-desktop`，使用唯一任务镜像、安装身份、Compose 项目、私有 data/state/credentials 和独立回环端口。验证锁定镜像实际 Linux 架构、认证 DSH/Web 健康、Docker Doctor 能力边界、restart、down/up 后非秘密数据保留、最终停止和端口释放。该门属于 macOS 宿主 Docker Desktop，不能替代 Linux 原生设备或 Linux Docker CI，也不证明模型系统存储、研究沙箱或 Office/Wind/Tabbit。
