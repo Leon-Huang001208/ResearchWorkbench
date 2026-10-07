@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "updated",
-  "summary": "Task14 最终集成复核 README 的 Native/Docker 入口、架构分层阅读和 macOS 模型 Keychain，同时保留动态宿主端点、私有状态及 fresh-root 生命周期边界。",
-  "reason": "当前远端主线架构阅读入口与已审双运行时 feature 合并；真实 source/document 哈希由本任务报告保存，既有四字段 schema 保持，不新增视觉或平台验收声明。"
+  "disposition": "unchanged",
+  "summary": "README 已在前一合并复核；本次仅把既有阅读链接精确绑定已存在的 source snapshot a186633bb6b7b3e23d2be275e18542924ba0849f，README 内容保持。",
+  "reason": "已核对当前 405 个 source 与 21 份 module documents 的真实字节及快照归属；source 聚合 SHA-256 94fe1f9b7b50ad421c2a35dcc46b2a9ecef9c57bd8086348bc490ac0ea7f13c2，document 聚合 430d7bb86ebb1c7d7ce773c2a173c5a6f54b906b2ea95a04e0c3746ed9b688cb。只使用既有 map/review/generator 机制，不修改 metadata policy 或图形视觉证据；GitHub 可达性待授权发布后验证。"
 }
