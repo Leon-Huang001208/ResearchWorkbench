@@ -225,3 +225,5 @@ PID 与命令签名归属核对的进程可进入该路径，强制失败仍返�
 模型启动preload的认证文件绑定已验证的RWB_RUNTIME_STATE，与data/runtime/home分离；authority、cwd、固定源码commit和所属Runtime PID共同绑定临时bootstrap。stdout/stderr保持脱敏，所属supervisor只在启动阶段读取私有handoff，独立healthcheck不交换Cookie、不写控制文件。
 
 研究脚本仍要求严格沙箱，当前仅 macOS Native 有实现。非 Mac/Docker 明确 unsupported；平台能力声明与任务验收分开，不用健康检查推导研究任务可执行。
+
+生产包图 staging 必须可实际加载已发布 runtime；文件 manifest 自洽不证明依赖完整。YAML dist/doc 属于代码载荷，必须由 Node 导入回归与真实 DSH 启动验证。

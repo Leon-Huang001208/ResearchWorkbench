@@ -172,3 +172,5 @@ generation、逐资源 settled 和 latest-request-wins 都是内存请求账本�
 failure 会投影为可见 connecting/offline，且不会写入新的缓存或文件。数据文件关系和相关架构图保持不变。
 
 Docker 持久数据与私有凭据挂载保持既有归属检查；Windows DACL 未验证继续阻断。Office/Wind/Tabbit 宿主能力不会因挂载可见而开放，跨模式不隐式迁移秘密。
+
+staging 修复只作用于镜像只读发布资产，不删除或迁移产品数据、凭据及 Native 目录。包根开发目录与深层运行时代码区分，文件内容和 manifest 哈希继续逐项绑定。

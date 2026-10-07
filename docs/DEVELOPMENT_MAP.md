@@ -111,3 +111,5 @@ node .agents/project-constraints.mjs --project . --changed-file <path>
 平台任务由 Git 绑定模式自动发现完整变更；task 固定候选/base、目标与本宿主范围，并只能补选已登记的 `supplementalGateIds`。本宿主 PASS 不提升其他平台状态，也不推导总体验收 READY；说明源码、图源/生成物、候选、CI 实际 checkout 与报告所属提交分开记录。受管内核只由正式 source→preview/apply/verify 更新，不手工维护副本或 manifest。
 
 已知组件可以在策略中映射不同等级的候选验证：低等级只选择局部项，耦合或 signal 升级后才纳入依赖/smoke/full 项。未登记测试仍按 `unknown_path` 升级 L4/`full-delivery`，不得仅凭位于 `tests/` 目录推断低风险。
+
+Docker staging 的包发布载荷与过滤合同归 docker/stage_dsh.py、test_staged_runtime.py；改目录筛选须同时验证真实 Node 导入及容器 DSH 健康，不能仅靠镜像构建或资产哈希。

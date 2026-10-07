@@ -1,0 +1,212 @@
+{
+  "schemaVersion": 1,
+  "objective": "Stage 2 platform evidence protocol and macOS Native slice of task-20261007-ffa331322bc9",
+  "acceptanceScope": "Full changed-set mechanical verification and macOS Native installation, lifecycle, strict sandbox and architecture reading. Model calls and vendor authorization remain NOT_RUN. macOS Docker lifecycle remains incomplete in linked task task-20261007-bda2aa87e13e; this Native task does not certify that separate scope. Windows/Linux native and Linux Docker are NOT_RUN handoffs. No product runtime update.",
+  "hostPlatform": "macos",
+  "taskKind": "feature-development",
+  "candidateCommit": "205d2a170d9ece9c2751e014b63abe326510ab9c",
+  "candidateBaseCommit": "c24a8a161674678d572bf9ac35fab30489b40605",
+  "changedFiles": [
+    ".agents/research-web-stage.json",
+    ".agents/runtime/leon-engineering/lib/verification/index.mjs",
+    ".agents/runtime/leon-engineering/lib/verification/planner.mjs",
+    ".agents/runtime/leon-engineering/lib/verification/platform-task.mjs",
+    ".agents/runtime/leon-engineering/lib/verification/receipt.mjs",
+    ".agents/runtime/leon-engineering/manifest.json",
+    ".agents/runtime/leon-engineering/schemas/verification-plan-v4.schema.json",
+    ".agents/runtime/leon-engineering/schemas/verification-receipt-v3.schema.json",
+    ".agents/verification-policy.json",
+    ".ai/reports/2026-10-06-architecture-reading-stage1.md",
+    ".ai/reports/2026-10-07-architecture-reading-stage1-delivery.json",
+    ".ai/reports/2026-10-07-platform-evidence-and-support.md",
+    ".github/workflows/research-web-bootstrap.yml",
+    "AGENTS.md",
+    "app/research_web/documentation.py",
+    "app/research_web/service_manager.py",
+    "Dockerfile",
+    "docs/actions-budget.md",
+    "docs/AGENT_WORKFLOW.md",
+    "docs/architecture/research-web/01-system.md",
+    "docs/architecture/research-web/02-research-runtime.md",
+    "docs/architecture/research-web/03-data-files.md",
+    "docs/architecture/research-web/04-api.md",
+    "docs/architecture/research-web/05-security-validation.md",
+    "docs/architecture/research-web/06-documentation-contract.md",
+    "docs/architecture/research-web/architecture-map.json",
+    "docs/architecture/research-web/readme-review.json",
+    "docs/architecture/research-web/README.md",
+    "docs/DEVELOPMENT_MAP.md",
+    "docs/generated/py_file_index.md",
+    "docs/README.md",
+    "docs/research-web-documentation.md",
+    "docs/research-web-installation.md",
+    "docs/research-web-platform-support.md",
+    "outputs/research-web-architecture/api-atlas.html",
+    "outputs/research-web-architecture/index.html",
+    "README.md",
+    "research_workbench_entrypoint/docker_runtime.py",
+    "research_workbench_entrypoint/platform_capabilities.py",
+    "research_workbench_entrypoint/web_bootstrap.py",
+    "scripts/build_research_web_api_atlas.mjs",
+    "scripts/plan_verification.mjs",
+    "scripts/summarize_verification_delivery.mjs",
+    "tests/e2e/research_web_documentation.mjs",
+    "tests/javascript/actions_quota_governance.test.mjs",
+    "tests/javascript/docker_runtime_contract.test.mjs",
+    "tests/javascript/research_web_architecture.test.mjs",
+    "tests/javascript/verification_delivery_summary.test.mjs",
+    "tests/javascript/verification_platform_task_entry.test.mjs",
+    "tests/javascript/verification_policy.test.mjs",
+    "tests/research_web/test_docker_runtime.py",
+    "tests/research_web/test_documentation.py",
+    "tests/research_web/test_platform_capabilities.py",
+    "tests/research_web/test_service_manager.py",
+    "tests/research_web/test_web_bootstrap.py"
+  ],
+  "result": "PASS",
+  "hostAcceptance": "PASS",
+  "platformHandoffs": [
+    {
+      "platform": "linux",
+      "status": "BLOCKED",
+      "gateIds": [
+        "project-constraints",
+        "research-web-checks",
+        "research-web-docker"
+      ]
+    },
+    {
+      "platform": "windows",
+      "status": "NOT_RUN",
+      "gateIds": [
+        "research-web-windows-verify"
+      ]
+    }
+  ],
+  "aggregateAcceptance": "NOT_READY",
+  "mergeReady": false,
+  "releaseReady": false,
+  "branch": "codex/integrate-task-20261007-ffa331322bc9-r1",
+  "pr": "https://github.com/Leon-Huang001208/ResearchWorkbench/pull/83",
+  "mergeCommit": "205d2a170d9ece9c2751e014b63abe326510ab9c",
+  "runtimeUpdated": false,
+  "sourceRevision": "3dfdefeeacec2d3cbebb8a19ec9c6cf45bad1b10",
+  "reportCommit": "205d2a170d9ece9c2751e014b63abe326510ab9c",
+  "diagramIdentities": [
+    {
+      "id": "00-system-overview",
+      "specificationSha256": "2832448734f14e723fabcf8fa77bc98d244c37076782af759552bbf2a6067c7c",
+      "artifactSha256": "1ecf68923143ddaf296b44b2711ff01bce7383f7d694b785cb365b527061abb2"
+    },
+    {
+      "id": "02-module-dependencies",
+      "specificationSha256": "fd63c80fc915d319f60b6804ec81048eb01e87af9005ac40862c6a51df4a9534",
+      "artifactSha256": "01aed4e526e3876396e5b3575f4836623f5c57a74e005c3974e52b734ccff803"
+    },
+    {
+      "id": "01-deployment",
+      "specificationSha256": "25f9f2cacfdb9e6dddc553841de1135d9f724f53bf64dd1d3f203dd18f92ee64",
+      "artifactSha256": "959f560983c02c1d54272c04afdf81a6aee1f6863395a1f895d23d0a497682f6"
+    },
+    {
+      "id": "03-research-sequence",
+      "specificationSha256": "3435e854ab1c8a3619c96493968b6d427b7271a747c74bddb8921df1efbf3a72",
+      "artifactSha256": "fba864aad78ed725ea0f5dee90b37ac3626a73cf22bc1c3e1d347f023fa40a91"
+    },
+    {
+      "id": "04-data-file-flow",
+      "specificationSha256": "e22d8ef6e49a8bee9f7176e0293a2657db53bd47ce20d536187d9cf433f1f205",
+      "artifactSha256": "a018697374b7bd2968dfede5b1575d7cc3677622be16747d32bdba89953842d5"
+    },
+    {
+      "id": "05-capability-flow",
+      "specificationSha256": "1f19790e4a68a12825af9cf1cea95472504d68e78d2f8a2ca3e08ec7533c192c",
+      "artifactSha256": "c67787db5aa11de415903ab82d882cb2b9254f0221a98e1ce3ee9774a22adce5"
+    },
+    {
+      "id": "06-run-state",
+      "specificationSha256": "9fb37a9d06c87643d5afd8357610da69a803292d54c7f4ea35b5b0e812691e60",
+      "artifactSha256": "12db8cb4ba6e704a23b6e0705d58d3733f76512670b21c4b1f3a572bfc511c8b"
+    },
+    {
+      "id": "09-report-workflow-sequence",
+      "specificationSha256": "a25b612acc8b2b6b1b4d09a716cc4f17b8b55d36164d7f4036397b3807fa378a",
+      "artifactSha256": "af6724121a415da77b7095f02181269812de2d4a17775dae8542fab27dc89427"
+    },
+    {
+      "id": "10-excel-report-dataflow",
+      "specificationSha256": "dfc2820bd15d395029977cff84d3990995da0ca33331e4cb6fecb73188f2b642",
+      "artifactSha256": "3ec5148d6b85b6bb849449d4a94f7aab36a2d8bf48db57d99f5f9b628be13d61"
+    },
+    {
+      "id": "07-delivery-state",
+      "specificationSha256": "d0970e68d57a64df0f6a3f8f6a78157ab881421414d9391cf10b0566e41aee7c",
+      "artifactSha256": "07eec3a6c7dee2527b4b30acba604144fefa06cca5fff21c29a3bec5a149bbe5"
+    },
+    {
+      "id": "08-iteration-docs",
+      "specificationSha256": "eb7fbcc5f6a7f6218954a8e24e9617ea9ccb883a9b0c09197a37322b165fc234",
+      "artifactSha256": "675cc55e53e7ad1eef1b0bdc587d620bbe673b6112bc6c55534222d698824ce9"
+    }
+  ],
+  "ciCheckouts": [
+    {
+      "id": "project-constraints",
+      "status": "PASS",
+      "source": "ci",
+      "evidence": "logs/stage2/evidence/ci-project-constraints.json",
+      "runnerPlatform": "linux",
+      "runId": "37587972944",
+      "workflow": ".github/workflows/project-constraints.yml",
+      "candidateCommit": "205d2a170d9ece9c2751e014b63abe326510ab9c",
+      "checkoutCommit": "4bd5a6d8660ba7072da37878ce73396b8370fbab",
+      "expectedCheckoutCommit": "4bd5a6d8660ba7072da37878ce73396b8370fbab",
+      "checkoutKind": "merge-preview",
+      "headCommit": "205d2a170d9ece9c2751e014b63abe326510ab9c",
+      "baseCommit": "c24a8a161674678d572bf9ac35fab30489b40605"
+    },
+    {
+      "id": "research-web-checks",
+      "status": "PASS",
+      "source": "ci",
+      "evidence": "logs/stage2/evidence/ci-research-web-checks.json",
+      "runnerPlatform": "linux",
+      "runId": "37587972950",
+      "workflow": ".github/workflows/research-web-checks.yml",
+      "candidateCommit": "205d2a170d9ece9c2751e014b63abe326510ab9c",
+      "checkoutCommit": "4bd5a6d8660ba7072da37878ce73396b8370fbab",
+      "expectedCheckoutCommit": "4bd5a6d8660ba7072da37878ce73396b8370fbab",
+      "checkoutKind": "merge-preview",
+      "headCommit": "205d2a170d9ece9c2751e014b63abe326510ab9c",
+      "baseCommit": "c24a8a161674678d572bf9ac35fab30489b40605"
+    },
+    {
+      "id": "research-web-bootstrap",
+      "status": "PASS",
+      "source": "ci",
+      "evidence": "logs/stage2/evidence/ci-research-web-bootstrap.json",
+      "runnerPlatform": "macos",
+      "runId": "37587972966",
+      "workflow": ".github/workflows/research-web-bootstrap.yml#macos-14",
+      "candidateCommit": "205d2a170d9ece9c2751e014b63abe326510ab9c",
+      "checkoutCommit": "4bd5a6d8660ba7072da37878ce73396b8370fbab",
+      "expectedCheckoutCommit": "4bd5a6d8660ba7072da37878ce73396b8370fbab",
+      "checkoutKind": "merge-preview",
+      "headCommit": "205d2a170d9ece9c2751e014b63abe326510ab9c",
+      "baseCommit": "c24a8a161674678d572bf9ac35fab30489b40605"
+    },
+    {
+      "id": "research-web-windows-verify",
+      "status": "NOT_RUN",
+      "source": "ci",
+      "evidence": "logs/stage2/evidence/handoffs.json"
+    },
+    {
+      "id": "research-web-docker",
+      "status": "NOT_RUN",
+      "source": "ci",
+      "evidence": "logs/stage2/evidence/handoffs.json"
+    }
+  ],
+  "deliveryMetadataVerified": false
+}
