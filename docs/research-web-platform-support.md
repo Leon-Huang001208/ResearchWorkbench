@@ -43,3 +43,10 @@ Windows/Linux 设备任务从 GitHub 主线取得源码，确认目标 OS/版本
 ## macOS Docker Desktop task smoke
 
 显式选择 `macos-docker-desktop`，使用唯一任务镜像、安装身份、Compose 项目、私有 data/state/credentials 和独立回环端口。验证锁定镜像实际 Linux 架构、认证 DSH/Web 健康、Docker Doctor 能力边界、restart、down/up 后非秘密数据保留、最终停止和端口释放。该门属于 macOS 宿主 Docker Desktop，不能替代 Linux 原生设备或 Linux Docker CI，也不证明模型系统存储、研究沙箱或 Office/Wind/Tabbit。
+
+
+## 单一兼容文本/流式模型连接的证据范围
+
+settings-model-loop在macOS Native正常受管fixed DSH中验证新增LlmAdapter、私有非秘密配置通道及两个系统凭据ref。产品API保存、合成生成和真正Host/DSH冷重启恢复，以及真实Mac Keychain合成隔离/清理通过；合成模型端点不代表真实新增供应商、工具/图片或其他平台通过。无Key模式不使用系统库，API Key模式仍要求本平台已获准系统后端且无环境/旧文件回退。
+
+本聊天模型连接任务仅macOS Native；项目其他平台任务与整体支持矩阵继续保留，不从此任务授权自动执行Docker/Windows/Linux。Docker内localhost是容器，不能套用本机模型地址；未验的寻址、模型后端、ACL、严格沙箱和本机能力仍未验证/不支持。Linux Docker与Windows exact-SHA手动CI由对应设备任务执行，本任务不dispatch、不迁移生产。

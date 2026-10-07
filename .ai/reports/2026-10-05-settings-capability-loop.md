@@ -814,3 +814,6 @@ Python累计闭包21258最终exit0：162 PASS/2既有显式opt-in skip，434.05�
 固定205d2a17整合的冲突按三方内容解决：模块文档保留当前平台支持/安全投影及本任务兼容模型/数据准入说明；架构map保留目标reading/source snapshot与新增platform源码，补回相对共同基线真实新增API/测试；README回执由Codex实际复核，index/atlas及Python索引按新生成器重建，不采用整仓ours/theirs。机器全局阶段随master保留已重开平台的项目事实，本聊天任务上下文仍严格macOS Native；不据项目文档的他任务授权推断可执行Windows/Linux/Docker验收，不改全局phase/config缩门。
 
 整合后architecture/documentation检查exit0，目标新版验收按platform task与完整影响分别记hostAcceptance/platformHandoffs/aggregateAcceptance；使用正常merge commit并保持候选与报告身份分开，不把旧schema回执改字涂绿。新增source_manager只有capabilities投影，模型/系统桥接/协议源码无整合修改，已有受管合成冷启动与系统库证据可复用，目标直接platform/documentation/manager/bootstrap回归另实际执行。
+
+
+整合候选d3f850e917fb8257adaf3543bb6bc02eaecb6e65已普通push。完整原任务256路径约束exit0，但PR对205d目标73路径发现dual-runtime新增权威docs/research-web-platform-support.md未更新（exit1）；执行脚本没有将这一FAIL作为后续push阻断，首轮送检已发出，不认定通过。保留失败证据，集中补写本兼容模型真实Mac Native/合成/他平台证据边界，复查完整Task/PR后正常补提交；不删门或伪造矩阵。后续用新候选CI，不继承d3f尚未完结的状态。
