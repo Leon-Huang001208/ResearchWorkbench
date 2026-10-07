@@ -106,6 +106,9 @@ export function apply(ctx, config, spawnProcess = spawn) {
   const timeoutSeconds = config.timeoutSeconds ?? 15;
   const queueWaitSeconds = config.queueWaitSeconds ?? 60;
   const maxOutputBytes = config.maxOutputBytes ?? 65536;
+  // Cordis service getters reject undeclared services. Only own data overrides are safe.
+  const spawnOverride = Object.getOwnPropertyDescriptor(ctx, 'spawnProcess');
+  if (spawnProcess === spawn && typeof spawnOverride?.value === 'function') spawnProcess = spawnOverride.value;
   if (!Number.isFinite(timeoutSeconds) || timeoutSeconds <= 0 || timeoutSeconds > 60 || !Number.isFinite(queueWaitSeconds) || queueWaitSeconds <= 0 || queueWaitSeconds > 60 || !Number.isSafeInteger(maxOutputBytes) || maxOutputBytes < 1 || maxOutputBytes > 1048576) {
     throw new Error('research-tools execution limits are invalid');
   }

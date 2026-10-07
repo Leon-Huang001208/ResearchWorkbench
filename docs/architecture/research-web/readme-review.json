@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "updated",
-  "summary": "Codex实际复核合并后README：保留Native/Docker入口和平台分工，同时保留macOS模型Keychain及真实支持限制。",
-  "reason": "当前仅推进macOS Native，其他实现/未来验收保留；模型系统存储与Host认证record分开，不泛化Docker模型支持，不代表人工评审或发布。"
+  "summary": "Task14 本地集成保留 Native/Docker 部署、macOS 模型 Keychain、私有认证交接，并同步动态宿主端口和 state tmpfs / logs bind。",
+  "reason": "README 双模式入口已核对；模型能力、Docker 服务健康与其他平台未验证事实分别记录，不代表物理重验、CI 或发布。"
 }

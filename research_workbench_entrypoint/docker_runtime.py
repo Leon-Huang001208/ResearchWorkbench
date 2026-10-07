@@ -7,6 +7,7 @@ or unrestricted inspect output is ever included in a diagnostic report.
 from __future__ import annotations
 
 import hashlib
+import ipaddress
 import json
 import logging
 import os
@@ -24,11 +25,14 @@ from uuid import uuid4
 from contextlib import ExitStack
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
-from .runtime_mode import RuntimeModeError, RuntimeModeStore, _read_bytes, _unique_object
+from .runtime_mode import RuntimeModeError, RuntimeModeStore, _read_bytes, _unique_object, _same_identity
+from .runtime_endpoints import EndpointError, EndpointStore, select_port
 
 log = logging.getLogger(__name__)
 MAX_OUTPUT = 65536
+BUILD_MAX_OUTPUT = 2 * 1024 * 1024
 IMAGE = "research-workbench:local"
 _ID = re.compile(r"[a-f0-9]{64}")
 _IMAGE_ID = re.compile(r"sha256:[a-f0-9]{64}")
@@ -49,7 +53,21 @@ _CONTAINER_FORMAT = (
     '"ports":{{json .NetworkSettings.Ports}},'
     '"mounts":[{{range $i,$m := .Mounts}}{{if $i}},{{end}}'
     '{"Source":{{json $m.Source}},"Destination":{{json $m.Destination}},'
-    '"Type":{{json $m.Type}}}{{end}}]}'
+    '"Type":{{json $m.Type}},"RW":{{json $m.RW}}}{{end}}],'
+    '"tmpfs":{{json .HostConfig.Tmpfs}}}'
+)
+_PREPARER_FORMAT = (
+    '{"id":{{json .Id}},"image":{{json .Image}},'
+    '"installation":{{json (index .Config.Labels "io.research-workbench.installation")}},'
+    '"runtime":{{json (index .Config.Labels "io.research-workbench.runtime")}},'
+    '"launch":{{json (index .Config.Labels "io.research-workbench.launch")}},'
+    '"running":{{json .State.Running}},"state":{{json .State.Status}},'
+    '"exit_code":{{json .State.ExitCode}},"ports":{{json .NetworkSettings.Ports}},'
+    '"entrypoint":{{json .Config.Entrypoint}},"command":{{json .Config.Cmd}},'
+    '"mounts":[{{range $i,$m := .Mounts}}{{if $i}},{{end}}'
+    '{"Source":{{json $m.Source}},"Destination":{{json $m.Destination}},'
+    '"Type":{{json $m.Type}},"RW":{{json $m.RW}}}{{end}}],'
+    '"tmpfs":{{json .HostConfig.Tmpfs}}}'
 )
 
 
@@ -60,6 +78,31 @@ class ControlError(RuntimeError):
         self.code = code
         self.related = related
         super().__init__(code)
+
+
+def _tmpfs_options(value: Any) -> dict[str, str | int]:
+    """Compare explicit mount semantics; reject unknown and repeated options."""
+    if not isinstance(value, str):
+        raise ControlError("docker_ownership_mismatch")
+    parsed: dict[str, str | int] = {}
+    for option in value.split(","):
+        key, separator, raw = option.partition("=")
+        if key in parsed:
+            raise ControlError("docker_ownership_mismatch")
+        if key in {"rw", "nosuid", "nodev", "noexec"} and not separator:
+            parsed[key] = "enabled"
+        elif key in {"uid", "gid", "mode", "size"} and separator:
+            pattern = r"[0-7]+" if key == "mode" else r"[0-9]+"
+            multiplier = 1
+            if key == "size" and raw[-1:].lower() in {"k", "m", "g"}:
+                multiplier = {"k": 1024, "m": 1024 ** 2, "g": 1024 ** 3}[raw[-1].lower()]
+                raw = raw[:-1]
+            if len(raw) > 20 or not re.fullmatch(pattern, raw):
+                raise ControlError("docker_ownership_mismatch")
+            parsed[key] = int(raw, 8 if key == "mode" else 10) * multiplier
+        else:
+            raise ControlError("docker_ownership_mismatch")
+    return parsed
 
 
 def result(*issues: str, **facts: Any) -> dict[str, Any]:
@@ -77,7 +120,21 @@ def safe_log_text(value: str) -> str:
         ):
             output.append("[sensitive or oversized log line omitted]\n")
         else:
-            output.append(line + "\n")
+            def redact_url(match):
+                raw = match.group(0)
+                try:
+                    parsed = urlsplit(raw)
+                    host = parsed.hostname or ""
+                    local = host in {"localhost", "host.docker.internal"}
+                    try:
+                        local = local or ipaddress.ip_address(host).is_loopback
+                    except ValueError:
+                        pass
+                    sensitive = parsed.scheme.startswith("socks") or "@" in raw or local or "proxy" in line.lower()
+                except ValueError:
+                    sensitive = True
+                return "[transport URL omitted]" if sensitive else raw
+            output.append(re.sub(r"\b(?:https?|socks[45]h?)://\S+", redact_url, line, flags=re.IGNORECASE) + "\n")
     return "".join(output)
 
 
@@ -353,6 +410,73 @@ def minimal_environment() -> dict[str, str]:
     return {**{key: os.environ[key] for key in keys if key in os.environ}, "LC_ALL": "C"}
 
 
+def _checked_cli_proxy(value):
+    if not isinstance(value, str) or not 1 <= len(value) <= 1024 or any(ord(c) < 33 or ord(c) > 126 for c in value):
+        raise ValueError("proxy")
+    parsed = urlsplit(value)
+    if not re.fullmatch(r"https?://(?:[A-Za-z0-9.]+|\[[0-9A-Fa-f:.]+\]):[0-9]{1,5}", value, re.IGNORECASE):
+        raise ValueError("proxy")
+    if (parsed.scheme not in {"http", "https"} or parsed.username is not None
+            or parsed.password is not None or parsed.path or "?" in value or "#" in value
+            or "\\" in value or "%" in value or not parsed.hostname or parsed.port is None
+            or not 1 <= parsed.port <= 65535):
+        raise ValueError("proxy")
+    host = parsed.hostname
+    if host != "localhost":
+        address = ipaddress.ip_address(host)
+        if not address.is_loopback:
+            raise ValueError("proxy")
+        host = str(address)
+    authority = f"[{host}]" if ":" in host else host
+    canonical = f"{parsed.scheme}://{authority}:{parsed.port}"
+    return canonical
+
+
+def _checked_no_proxy(value):
+    if not isinstance(value, str) or not 1 <= len(value) <= 2048 or any(ord(c) < 32 or ord(c) > 126 for c in value):
+        raise ValueError("bypass")
+    tokens = [token.strip() for token in value.split(",")]
+    if len(tokens) > 64 or any(not token or len(token) > 253 for token in tokens):
+        raise ValueError("bypass")
+    for token in tokens:
+        if token == "*":
+            continue
+        try:
+            if "/" in token:
+                ipaddress.ip_network(token, strict=False)
+            else:
+                ipaddress.ip_address(token)
+            continue
+        except ValueError:
+            if "/" in token:
+                raise ValueError("bypass") from None
+        domain = token[2:] if token.startswith("*.") else token[1:] if token.startswith(".") else token
+        if not domain or any(not re.fullmatch(r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?", label)
+                             for label in domain.split(".")):
+            raise ValueError("bypass")
+    return ",".join(tokens)
+
+
+def _docker_cli_proxies():
+    """Docker-only validated transport settings; never log supplied values."""
+    environment, issues = {}, []
+    for upper, checker in (("HTTP_PROXY", _checked_cli_proxy), ("HTTPS_PROXY", _checked_cli_proxy), ("NO_PROXY", _checked_no_proxy)):
+        values = [os.environ[key] for key in (upper, upper.lower()) if key in os.environ]
+        if not values or all(value == "" for value in values):
+            continue
+        try:
+            checked = [checker(value) for value in values]
+            if len(set(checked)) != 1:
+                raise ValueError("conflict")
+            environment[upper] = environment[upper.lower()] = checked[0]
+        except (ValueError, TypeError, OverflowError):
+            issues.append("docker_no_proxy_invalid" if upper == "NO_PROXY" else "docker_proxy_invalid")
+    if any(key in environment for key in ("HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY")):
+        bypass = list(dict.fromkeys([*environment.get("NO_PROXY", "").split(","), "localhost", "127.0.0.1", "::1"]))
+        environment["NO_PROXY"] = environment["no_proxy"] = ",".join(token for token in bypass if token)
+    return environment, list(dict.fromkeys(issues))
+
+
 def port_busy(port: int) -> bool:
     # Bind also detects non-listening reservations; connect-only checks miss them.
     for family, address in ((socket.AF_INET, "127.0.0.1"), (socket.AF_INET6, "::1")):
@@ -371,13 +495,24 @@ class DockerRuntime:
     """Only an installation's exact owned containers may be stopped or logged."""
 
     def __init__(self, project_root: Path, home: Path, *, runner=run_bounded,
-                 ports: tuple[int, int] = (8088, 3081)):
+                 ports: tuple[int, int] | None = None):
         self.project_root = Path(project_root).resolve()
         self.home = Path(home).absolute()
         self.runner = runner
-        self.ports = ports
+        self.requested_web_port = None
+        self._legacy_ports_explicit = ports is not None
+        self._allocating = False
+        self.endpoint_store = EndpointStore(self.home)
+        try:
+            self.endpoint_snapshot = self.endpoint_store.read("docker")
+        except EndpointError as error:
+            raise ControlError(error.code) from error
+        self.ports = ((self.endpoint_snapshot.web_port, 3081) if self.endpoint_snapshot
+                      else ports or (8088, 3081))
         self.store = RuntimeModeStore(self.home)
         self._created_container = None
+        self._lifecycle_lease = None
+        self._pending_start = None
 
     @property
     def installation_id(self) -> str:
@@ -408,9 +543,17 @@ class DockerRuntime:
     def credential_dir(self) -> Path:
         return self.home / "secrets" / "docker" / self.installation_id
 
-    def _environment(self, image: str = IMAGE) -> dict[str, str]:
+    def _environment(self, image: str = IMAGE, *, strict_proxy=False) -> dict[str, str]:
+        proxies, issues = _docker_cli_proxies()
+        if strict_proxy and issues:
+            raise ControlError("docker_proxy_configuration_invalid", *issues)
+        warned = getattr(self, "_proxy_warning_codes", set())
+        for issue in issues:
+            if issue not in warned:
+                log.warning("docker_runtime code=%s", issue)
+        self._proxy_warning_codes = warned | set(issues)
         return {
-            **minimal_environment(), "RWB_DATA_DIR": str(self.data_dir),
+            **minimal_environment(), **proxies, "RWB_DATA_DIR": str(self.data_dir),
             "RWB_STATE_DIR": str(self.state_dir),
             "RWB_CREDENTIAL_DIR": str(self.credential_dir),
             "RWB_INSTALLATION_ID": self.installation_id,
@@ -422,18 +565,27 @@ class DockerRuntime:
         }
 
     def _call(self, argv, code, *, timeout=20, stream=False, check=True, image=IMAGE):
+        build = (tuple(argv[:2]) == ("docker", "compose")
+                 and tuple(argv[-2:]) == ("build", "research-web")
+                 and tuple(argv) == (*self.compose_prefix, "build", "research-web"))
+        budget = BUILD_MAX_OUTPUT if build else MAX_OUTPUT
         try:
             completed = self.runner(
-                list(argv), cwd=self.project_root, env=self._environment(image),
-                timeout=timeout, max_output=MAX_OUTPUT, stream=stream,
+                list(argv), cwd=self.project_root, env=self._environment(image, strict_proxy=build),
+                timeout=timeout, max_output=budget, stream=stream or build,
             )
         except FileNotFoundError:
             raise ControlError("docker_cli_missing") from None
         except (OSError, subprocess.SubprocessError):
             raise ControlError(code) from None
-        if len(completed.stdout.encode()) > MAX_OUTPUT or len(completed.stderr.encode()) > MAX_OUTPUT:
+        if len(completed.stdout.encode()) > budget or len(completed.stderr.encode()) > budget:
             raise ControlError("runtime_output_limit")
         if check and completed.returncode:
+            if code == "docker_start_failed" and "up" in argv:
+                diagnostic = completed.stderr.lower()
+                if ("port is already allocated" in diagnostic
+                        or ("bind" in diagnostic and "address already in use" in diagnostic)):
+                    raise ControlError("docker_bind_race")
             raise ControlError(code)
         return completed
 
@@ -447,7 +599,7 @@ class DockerRuntime:
         # Existing components must not alias another installation or allow
         # another user to replace state. Missing components stay missing on reads.
         self.store.read()
-        for path in (self.home, self.data_dir, self.state_dir, self.credential_dir):
+        for path in (self.home, self.data_dir, self.state_dir, self.state_dir / "logs", self.credential_dir):
             for component in (*reversed(path.parents), path):
                 try:
                     identity = component.lstat()
@@ -576,12 +728,13 @@ class DockerRuntime:
             raise ControlError("docker_ownership_mismatch")
         mounts = value.get("mounts")
         expected_mounts = {
-            "/data/research-web": str(self.data_dir), "/state": str(self.state_dir),
+            "/data/research-web": str(self.data_dir), "/state/logs": str(self.state_dir / "logs"),
             "/run/rwb-secrets": str(self.credential_dir),
         }
         if not isinstance(mounts, list) or any(
             not isinstance(item, dict)
             or any(not isinstance(item.get(key), str) for key in ("Source", "Destination", "Type"))
+            or item.get("RW") is not True
             for item in mounts
         ):
             raise ControlError("docker_ownership_mismatch")
@@ -590,8 +743,22 @@ class DockerRuntime:
         actual = {item.get("Destination"): item.get("Source") for item in binds}
         if len(binds) != len(expected_mounts) or actual != expected_mounts:
             raise ControlError("docker_ownership_mismatch")
-        if any(item.get("Type") != "tmpfs" or item.get("Destination") not in ("/tmp", "/home/rwb")
-               for item in ephemeral) or len({item.get("Destination") for item in ephemeral}) != len(ephemeral):
+        expected_tmpfs = {
+            "/state": "rw,nosuid,nodev,noexec,uid=10001,gid=10001,mode=700,size=1m",
+            "/tmp": "rw,nosuid,nodev,mode=1777",
+            "/home/rwb": "rw,nosuid,nodev,uid=10001,gid=10001,mode=700",
+        }
+        # --tmpfs is authoritatively represented in HostConfig.Tmpfs. Some
+        # Engines omit its duplicate Mounts entries; validate any present ones
+        # without permitting a bind/volume to shadow a required destination.
+        if (len({item.get("Destination") for item in ephemeral}) != len(ephemeral)
+                or any(item.get("Type") != "tmpfs" or item.get("Source") != ""
+                       or item.get("Destination") not in expected_tmpfs for item in ephemeral)):
+            raise ControlError("docker_ownership_mismatch")
+        tmpfs = value.get("tmpfs")
+        if (not isinstance(tmpfs, dict) or set(tmpfs) != set(expected_tmpfs)
+                or any(_tmpfs_options(tmpfs[name]) != _tmpfs_options(options)
+                       for name, options in expected_tmpfs.items())):
             raise ControlError("docker_ownership_mismatch")
         image = value.get("image")
         if not isinstance(image, str) or not _IMAGE_ID.fullmatch(image) or self._image(image)["id"] != image:
@@ -603,13 +770,44 @@ class DockerRuntime:
             value = function()
             log.info("docker_runtime operation=%s code=ok", operation)
             return value
-        except (ControlError, RuntimeModeError) as error:
-            code = error.code if isinstance(error, ControlError) else "docker_data_home_unsafe"
+        except (ControlError, RuntimeModeError, EndpointError) as error:
+            code = "docker_data_home_unsafe" if isinstance(error, RuntimeModeError) else error.code
             log.warning("docker_runtime operation=%s code=%s", operation, code)
             return result(code, *getattr(error, "related", ()), mode="docker")
         except OSError:
             log.warning("docker_runtime operation=%s code=docker_io", operation)
             return result("docker_io", mode="docker")
+
+    @staticmethod
+    def _pid_exists(pid):
+        try:
+            os.kill(pid, 0)
+        except ProcessLookupError:
+            return False
+        except PermissionError:
+            return True
+        return True
+
+    def _locked_guard(self, operation, function):
+        from app.research_web.lifecycle_lock import LifecycleLock, LifecycleLockError
+        from app.research_web.control_origin import ControlOriginError
+        def locked():
+            try:
+                if self._lifecycle_lease is not None:
+                    self._lifecycle_lease.assert_held()
+                    if self._lifecycle_lease.path != self.home / "run/lifecycle.lock":
+                        raise ControlError("lifecycle_lock_ownership_lost")
+                    return function()
+                with LifecycleLock(self.home / "run/lifecycle.lock", self._pid_exists,
+                                   trusted_root=self.home) as lease:
+                    self._lifecycle_lease = lease
+                    try:
+                        return function()
+                    finally:
+                        self._lifecycle_lease = None
+            except (LifecycleLockError, ControlOriginError) as error:
+                raise ControlError(error.code) from error
+        return self._guard(operation, locked)
 
     def preflight(self, *, require_image=True) -> dict:
         def check():
@@ -624,6 +822,27 @@ class DockerRuntime:
         return self._guard("preflight", check)
 
     def _status(self, containers) -> dict:
+        for container in containers:
+            ports = container.get("ports")
+            bindings = {key: value for key, value in ports.items() if value} if isinstance(ports, dict) else None
+            if (self.endpoint_snapshot is None and not self._legacy_ports_explicit
+                    and not self._allocating and bindings):
+                web_bindings = bindings.get("8088/tcp")
+                if (set(bindings) != {"8088/tcp"} or not isinstance(web_bindings, list)
+                        or len(web_bindings) != 1 or not isinstance(web_bindings[0], dict)
+                        or set(web_bindings[0]) != {"HostIp", "HostPort"}
+                        or web_bindings[0]["HostIp"] != "127.0.0.1"):
+                    raise ControlError("docker_ports_mismatch")
+                raw_port = web_bindings[0]["HostPort"]
+                if not isinstance(raw_port, str) or not raw_port.isascii() or not raw_port.isdecimal():
+                    raise ControlError("docker_ports_mismatch")
+                actual_port = int(raw_port)
+                if not 1 <= actual_port <= 65535 or str(actual_port) != raw_port:
+                    raise ControlError("docker_ports_mismatch")
+                self.ports = actual_port, 3081
+            expected = {"8088/tcp": [{"HostIp": "127.0.0.1", "HostPort": str(self.ports[0])}]}
+            if (container["running"] or bindings) and bindings != expected:
+                raise ControlError("docker_ports_mismatch")
         running = bool(containers and containers[0]["running"])
         healthy = bool(running and containers[0]["state"] == "running"
                        and containers[0]["health"] == "healthy")
@@ -640,13 +859,17 @@ class DockerRuntime:
         return self._guard("status", inspect)
 
     def doctor(self) -> dict:
+        proxies, proxy_issues = _docker_cli_proxies()
         facts = {
             "runtime_mode": "docker", "mode": "docker",
+            "proxy": {"state": "unsafe" if proxy_issues else "configured" if proxies else "unset",
+                      "configured": bool(proxies), "local_bypass": "NO_PROXY" in proxies, "issues": proxy_issues},
+            "warnings": proxy_issues,
             "engine": {"ready": False}, "compose": {"ready": False},
             "container": {"state": "unknown", "ownership_id": None},
             "image": {"ready": False, "id": None},
             "ports": {"web": self.ports[0], "runtime": self.ports[1], "verified": False},
-            "volumes": {"verified": False, "data": "bind", "state": "bind", "credentials": "bind"},
+            "volumes": {"verified": False, "data": "bind", "state": "tmpfs", "logs": "bind", "credentials": "bind"},
             "data": {"ready": False},
             "python": {"applicable": False}, "node": {"applicable": False},
             "cjpy": {"applicable": False},
@@ -667,6 +890,7 @@ class DockerRuntime:
             containers = self._containers()
             self._match_image(containers, image["id"])
             status = self._status(containers)
+            facts["ports"].update(web=self.ports[0], runtime=3081)
             facts["services"] = status["services"]
             facts["dsh"] = {"ready": status["services"]["runtime"]["healthy"],
                             "build_verified": True, "commit": self._manifest()["dsh_commit"],
@@ -708,12 +932,14 @@ class DockerRuntime:
             raise ControlError("docker_credentials_acl_unverified")
 
     def _ports_free(self):
-        for port, code in zip(self.ports, ("docker_port_8088_occupied", "docker_port_3081_conflict")):
-            if port_busy(port):
-                raise ControlError(code)
+        if port_busy(self.ports[0]):
+            raise ControlError("docker_port_8088_occupied")
 
     def install(self) -> dict:
         def build():
+            _proxies, issues = _docker_cli_proxies()
+            if issues:
+                raise ControlError("docker_proxy_configuration_invalid", *issues)
             self._availability()
             self._manifest(allow_missing=True, check_contract=False)
             self._containers()
@@ -741,27 +967,52 @@ class DockerRuntime:
                 raise ControlError("docker_ready_timeout")
             time.sleep(0.25)
 
-    def _start_image(self, image_id, *, open_browser=True, wait_timeout=120) -> dict:
+    def _start_image(self, image_id, *, open_browser=True, wait_timeout=120, candidate=False) -> dict:
+        from app.research_web.control_origin import ControlOriginError
         self._created_container = None
+        self._started_container = None
+        self._allocating = False
+        transaction = None
+        committed = False
+        endpoint_before = self.endpoint_snapshot
+        endpoint_published = None
+        initial_ports = self.ports
+        mode_snapshot = self.store.read()
         def start_owned():
+            nonlocal transaction, committed, endpoint_published
+            if self.store.read() != mode_snapshot:
+                raise ControlError("runtime_mode_changed")
+            if not candidate and mode_snapshot.mode != "docker":
+                raise ControlError("runtime_other_selected")
             self._credential_mount_boundary()
             self._availability()
             if self._image(image_id)["id"] != image_id:
                 raise ControlError("docker_image_mismatch")
             containers = self._containers()
             self._match_image(containers, image_id)
-            if containers and containers[0]["running"]:
-                return self._wait_ready(image_id, wait_timeout=wait_timeout)
-            self._ports_free()
             from .bootstrap import NativeRuntime, _running
-            native = NativeRuntime(self.project_root, self.home, ports=self.ports).status()
+            native = NativeRuntime(self.project_root, self.home).status()
             if not native.get("ok"):
                 raise ControlError("runtime_ownership_unknown")
             if _running(native):
                 raise ControlError("runtime_other_running")
+            if containers and containers[0]["running"]:
+                self._status(containers)
+                if self.requested_web_port is not None and self.requested_web_port != self.ports[0]:
+                    raise ControlError("endpoint_running_conflict")
+                return self._wait_ready(image_id, wait_timeout=wait_timeout)
+            if self.endpoint_store.read("docker") != self.endpoint_snapshot:
+                raise ControlError("endpoint_conflict")
+            selected = select_port(self.requested_web_port or self.ports[0],
+                                   explicit=self.requested_web_port is not None)
+            if containers and selected != self.ports[0]:
+                raise ControlError("docker_stopped_port_conflict")
+            self.ports = selected, 3081
+            self._allocating = True
+            self._ports_free()
             if not self.installation_id:
                 raise ControlError("docker_installation_missing")
-            for path in (self.data_dir, self.state_dir, self.credential_dir):
+            for path in (self.data_dir, self.state_dir, self.state_dir / "logs", self.credential_dir):
                 # Mount setup is explicit; readonly queries never create paths.
                 from app.research_web.runtime_state import RuntimeStateError, runtime_state_directory
                 try:
@@ -770,8 +1021,13 @@ class DockerRuntime:
                 except RuntimeStateError:
                     raise ControlError("docker_data_home_unsafe") from None
             self._safe_home()
+            transaction = self._prepare_control_origin(image_id)
             before = self._containers()
             self._match_image(before, image_id)
+            if before:
+                if before[0]["running"]:
+                    raise ControlError("docker_ownership_mismatch")
+                self._started_container = (before[0]["id"], image_id, before[0].get("launch"))
             launch = uuid4().hex if not before else None
             with ExitStack() as cleanup:
                 command = list(self.compose_prefix)
@@ -786,9 +1042,18 @@ class DockerRuntime:
                     self._call([*command, "up", "--detach", "--no-build", "--pull", "never", "--no-recreate", "research-web"], "docker_start_failed", timeout=60, image=image_id)
                     if not before:
                         self._record_created(image_id, launch)
-                    return self._wait_ready(image_id, wait_timeout=wait_timeout)
-                except (ControlError, OSError) as error:
-                    original = error.code if isinstance(error, ControlError) else "docker_io"
+                    ready = self._wait_ready(image_id, wait_timeout=wait_timeout)
+                    self.endpoint_snapshot = self.endpoint_store.publish("docker", self.ports[0],
+                                                                         expected=self.endpoint_snapshot)
+                    endpoint_published = self.endpoint_snapshot
+                    if candidate:
+                        self._pending_start = (transaction, endpoint_before, endpoint_published, initial_ports)
+                    elif transaction is not None:
+                        transaction.commit()
+                    committed = True
+                    return ready
+                except (ControlError, EndpointError, ControlOriginError, OSError) as error:
+                    original = error.code if isinstance(error, (ControlError, EndpointError, ControlOriginError)) else "docker_io"
                     log.warning("docker_runtime code=%s", original)
                     if not before and self._created_container is None:
                         # up may create before returning nonzero or timing out.
@@ -804,8 +1069,37 @@ class DockerRuntime:
                             self._rollback_created()
                         except (ControlError, OSError):
                             raise ControlError(original, "docker_rollback_failed") from error
+                    if self._started_container is not None:
+                        try:
+                            self._rollback_started()
+                        except (ControlError, OSError):
+                            raise ControlError(original, "docker_rollback_unverified") from error
                     raise
-        report = self._guard("start", start_owned)
+        def transactional_start():
+            nonlocal transaction, committed
+            for attempt in range(3):
+                transaction, committed = None, False
+                try:
+                    return start_owned()
+                except Exception as error:
+                    if endpoint_published is not None and not committed:
+                        if not self._control_quiescent():
+                            raise ControlError("control_origin_recovery_unverified") from error
+                        self.endpoint_snapshot = self.endpoint_store.restore("docker", endpoint_before,
+                                                                            expected=endpoint_published)
+                    if transaction is not None and not committed:
+                        # _start_image's existing exact-ID cleanup runs first.
+                        transaction.rollback()
+                    retry = (isinstance(error, ControlError) and not error.related
+                             and error.code in {"docker_bind_race", "docker_port_8088_occupied"})
+                    if retry and self.requested_web_port is not None:
+                        raise ControlError("endpoint_port_in_use") from error
+                    if not retry or attempt == 2 or not self._control_quiescent() or self._containers():
+                        raise
+                    log.warning("docker_runtime code=docker_bind_retry")
+        report = self._locked_guard("start", transactional_start)
+        if not report["ok"]:
+            self.ports = initial_ports
         if report["ok"] and open_browser:
             try:
                 if not webbrowser.open(report["url"]):
@@ -813,6 +1107,165 @@ class DockerRuntime:
             except (OSError, webbrowser.Error):
                 log.warning("docker_runtime code=browser_unavailable")
         return report
+
+    def _control_quiescent(self):
+        from .bootstrap import NativeRuntime, _running
+        native = NativeRuntime(self.project_root, self.home).status()
+        return (native.get("ok") is True and not _running(native)
+                and not any(item["running"] for item in self._containers()))
+
+    def _commit_candidate(self):
+        if self._pending_start is not None:
+            transaction, _previous, _published, _ports = self._pending_start
+            if transaction is not None:
+                transaction.commit()
+            self._pending_start = None
+
+    def _abort_candidate(self):
+        self._rollback_created()
+        self._rollback_started()
+        if self._pending_start is not None:
+            transaction, previous, published, ports = self._pending_start
+            if not self._control_quiescent():
+                raise ControlError("control_origin_recovery_unverified")
+            self.endpoint_snapshot = self.endpoint_store.restore("docker", previous, expected=published)
+            if transaction is not None:
+                transaction.rollback()
+            self._pending_start = None
+            self.ports = ports
+
+    def _prepare_control_origin(self, image_id):
+        """Only existing paired host records are eligible for host rebinding."""
+        from app.research_web.control_origin import ControlOriginTransaction
+        raws = []
+        identities = []
+        for name in ("datahub.json", "mcp-runtime.json"):
+            try:
+                raw, identity = _read_bytes(self.data_dir / ".control" / name)
+                raws.append(raw)
+                identities.append(identity)
+            except FileNotFoundError:
+                raws.append(None)
+                identities.append(None)
+        if raws == [None, None]:
+            # First creation belongs to the trusted guest creator, not the host.
+            return None
+        try:
+            previous = json.loads(next(raw for raw in raws if raw is not None),
+                                  object_pairs_hook=_unique_object)["url"]
+        except (ValueError, KeyError, TypeError, RecursionError):
+            raise ControlError("control_origin_schema") from None
+        native = self.endpoint_store.read("native")
+        allowed = {"http://127.0.0.1:8088"}
+        if native is not None:
+            allowed.add(f"http://127.0.0.1:{native.web_port}")
+        if not isinstance(previous, str) or previous not in allowed:
+            raise ControlError("control_origin_unverified")
+        if any(raw is None for raw in raws):
+            self._prepare_missing_controls(image_id, previous)
+            for name, original, identity in zip(("datahub.json", "mcp-runtime.json"), raws, identities):
+                current, after = _read_bytes(self.data_dir / ".control" / name)
+                if original is not None and (current != original or not _same_identity(identity, after)):
+                    raise ControlError("control_origin_recovery_unverified")
+        transaction = ControlOriginTransaction(self.data_dir, previous, "http://127.0.0.1:8088",
+                                                quiescent=self._control_quiescent)
+        transaction.prepare()
+        return transaction
+
+    def _inspect_preparer(self, identity, image_id, launch, origin):
+        value = self._json(["docker", "container", "inspect", "--format", _PREPARER_FORMAT, identity],
+                           "docker_prepare_ownership_unknown")
+        expected = {"id": identity, "image": image_id, "installation": self.installation_id,
+                    "launch": launch, "runtime": "control-preparer",
+                    "entrypoint": ["/opt/rwb/venv/bin/python"],
+                    "command": ["/opt/rwb/docker/supervisor.py", "--prepare-controls-only",
+                                "--previous-origin", origin]}
+        if (not isinstance(value, dict) or any(value.get(key) != item for key, item in expected.items())
+                or type(value.get("running")) is not bool
+                or type(value.get("exit_code")) is not int
+                or value.get("state") not in {"created", "running", "exited", "dead"}
+                or value.get("ports") not in ({}, None)):
+            raise ControlError("docker_prepare_ownership_unknown")
+        mounts = value.get("mounts")
+        if not isinstance(mounts, list) or not all(isinstance(item, dict) and all(
+            isinstance(item.get(key), str) for key in ("Source", "Destination", "Type"))
+            and item.get("RW") is True for item in mounts):
+            raise ControlError("docker_prepare_ownership_unknown")
+        paths = ("/state", "/run/rwb-secrets", "/tmp", "/home/rwb")
+        expected_bind = (str(self.data_dir), "/data/research-web", "bind")
+        expected_mounts = {expected_bind, *(("", name, "tmpfs") for name in paths)}
+        actual = {(item.get("Source"), item.get("Destination"), item.get("Type")) for item in mounts}
+        if (len(mounts) != len(actual) or expected_bind not in actual
+                or not actual.issubset(expected_mounts)):
+            raise ControlError("docker_prepare_ownership_unknown")
+        tmpfs = value.get("tmpfs")
+        if not isinstance(tmpfs, dict) or set(tmpfs) != set(paths):
+            raise ControlError("docker_prepare_ownership_unknown")
+        try:
+            expected_options = _tmpfs_options("rw,nosuid,nodev,uid=10001,gid=10001,mode=700")
+            if any(_tmpfs_options(tmpfs[name]) != expected_options for name in paths):
+                raise ControlError("docker_prepare_ownership_unknown")
+        except ControlError:
+            raise ControlError("docker_prepare_ownership_unknown") from None
+        return value
+
+    def _prepare_missing_controls(self, image_id, origin):
+        """Run fixed creators in an owned, portless guest; never mount credentials."""
+        if not self._control_quiescent():
+            raise ControlError("control_origin_not_quiescent")
+        launch = uuid4().hex
+        identity = None
+        command = ["docker", "create", "--read-only", "--user", "10001:10001",
+            "--network", "none", "--cap-drop", "ALL", "--security-opt", "no-new-privileges:true",
+            "--label", "io.research-workbench.installation=" + self.installation_id,
+            "--label", "io.research-workbench.runtime=control-preparer",
+            "--label", "io.research-workbench.launch=" + launch,
+            "--mount", f"type=bind,source={self.data_dir},target=/data/research-web"]
+        for path in ("/state", "/run/rwb-secrets", "/tmp", "/home/rwb"):
+            command.extend(("--tmpfs", path + ":rw,nosuid,nodev,uid=10001,gid=10001,mode=700"))
+        command.extend(("--entrypoint", "/opt/rwb/venv/bin/python", image_id,
+                        "/opt/rwb/docker/supervisor.py", "--prepare-controls-only", "--previous-origin", origin))
+
+        def cleanup():
+            checked = self._inspect_preparer(identity, image_id, launch, origin)
+            if checked["running"]:
+                self._call(["docker", "stop", "--time", "5", identity], "docker_prepare_stop_failed", timeout=10)
+                checked = self._inspect_preparer(identity, image_id, launch, origin)
+            if checked["running"]:
+                raise ControlError("docker_prepare_cleanup_unverified")
+            self._call(["docker", "rm", identity], "docker_prepare_cleanup_failed")
+            remaining = self._call(["docker", "ps", "--all", "--no-trunc", "--filter",
+                "label=io.research-workbench.launch=" + launch, "--format", "{{.ID}}"],
+                "docker_prepare_cleanup_unverified").stdout.strip()
+            if remaining:
+                raise ControlError("docker_prepare_cleanup_unverified")
+
+        try:
+            raw = self._call(command, "docker_prepare_create_failed", image=image_id).stdout.strip()
+            if not _ID.fullmatch(raw):
+                raise ControlError("docker_prepare_ownership_unknown")
+            identity = raw
+            self._inspect_preparer(identity, image_id, launch, origin)
+            self._call(["docker", "start", "--attach", identity], "control_origin_prepare_failed", timeout=60)
+            checked = self._inspect_preparer(identity, image_id, launch, origin)
+            if checked["running"] or checked["state"] != "exited" or checked["exit_code"] != 0:
+                raise ControlError("control_origin_prepare_failed")
+        except (ControlError, OSError) as error:
+            original = error.code if isinstance(error, ControlError) else "docker_io"
+            try:
+                if identity is None:
+                    found = self._call(["docker", "ps", "--all", "--no-trunc", "--filter",
+                        "label=io.research-workbench.launch=" + launch, "--format", "{{.ID}}"],
+                        "docker_prepare_cleanup_unverified").stdout.splitlines()
+                    if len(found) > 1 or any(not _ID.fullmatch(item) for item in found):
+                        raise ControlError("docker_prepare_cleanup_unverified")
+                    identity = found[0] if found else None
+                if identity is not None:
+                    cleanup()
+            except (ControlError, OSError):
+                raise ControlError(original, "docker_prepare_cleanup_unverified") from error
+            raise
+        cleanup()
 
     def start(self, *, open_browser=True, wait_timeout=120) -> dict:
         def accepted_start():
@@ -838,6 +1291,25 @@ class DockerRuntime:
             log.warning("docker_runtime code=docker_rollback_failed")
             raise ControlError("docker_rollback_failed") from None
 
+    def _rollback_started(self):
+        """Restore only the exact stopped instance started by this attempt."""
+        attempt = getattr(self, "_started_container", None)
+        if attempt is None:
+            return
+        self._started_container = None
+        identity, image_id, launch = attempt
+        current = self._inspect(identity)
+        self._match_image([current], image_id)
+        if current.get("launch") != launch:
+            raise ControlError("docker_rollback_unverified")
+        if current["running"]:
+            self._call(["docker", "stop", "--time", "35", identity], "docker_rollback_failed", timeout=45)
+        current = self._inspect(identity)
+        self._match_image([current], image_id)
+        if current.get("launch") != launch or current["running"]:
+            raise ControlError("docker_rollback_unverified")
+        log.info("docker_runtime operation=rollback_started code=ok")
+
     def _record_created(self, image_id, launch):
         containers = self._containers()
         self._match_image(containers, image_id)
@@ -851,7 +1323,7 @@ class DockerRuntime:
         # accepted receipt and cannot inherit this candidate selection.
         self._manifest(allow_missing=True, check_contract=False)
         self._validate_manifest(manifest)
-        return self._start_image(manifest["image_id"], open_browser=False)
+        return self._start_image(manifest["image_id"], open_browser=False, candidate=True)
 
     def _dispose_stopped_for_repair(self, current) -> None:
         """Explicit repair may remove an owned stopped container, never its image/data."""
@@ -879,15 +1351,16 @@ class DockerRuntime:
                     self._inspect(container["id"])
                     self._call(["docker", "stop", "--time", "35", container["id"]], "docker_stop_failed", timeout=45)
             deadline = time.monotonic() + wait_timeout
-            while any(port_busy(port) for port in self.ports):
+            remaining = self._containers()
+            while any(container["running"] for container in remaining):
                 if time.monotonic() >= deadline:
                     raise ControlError("runtime_ports_not_released")
                 time.sleep(0.05)
-            remaining = self._containers()
+                remaining = self._containers()
             if any(container["running"] for container in remaining):
                 raise ControlError("docker_stop_failed")
             return self._status(remaining)
-        return self._guard("stop", stop_owned)
+        return self._locked_guard("stop", stop_owned)
 
     def restart(self, *, force=False, open_browser=True) -> dict:
         checked = self.preflight()

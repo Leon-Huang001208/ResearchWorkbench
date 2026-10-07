@@ -62,7 +62,18 @@ Windows 请将 `./rwb` 替换为 `rwb.cmd`。
 
 ## 启动与管理服务
 
-Research Web 对两种模式使用同一 `rwb web` 命令。Native 管理 DSH（3081）和 Web（8088）两个宿主进程；Docker 在单容器内运行两者，仅向宿主回环发布 8088。先查看当前选择：
+Research Web 对两种模式使用同一 `rwb web` 命令。Native 管理 DSH 和 Web 两个宿主进程，默认分别为 3081 和 8088；Docker 在单容器内运行两者，默认仅向宿主回环发布 Web 8088。
+
+macOS 启动优先复用已成功记录的端口，否则优先 Web 8088／Native DSH 3081；确认本安装已停止后，
+未显式指定的占用端口可自动避让。以 `web status --json` 的实际地址为准。安装器和
+`web start/restart` 接受 `--web-port 18088`，Native 另接受 `--runtime-port 13081`；
+显式端口被占用会失败。Docker 内部仍固定 8088／3081，不发布 DSH，宿主 3081 无关监听不阻塞 Docker。
+已有停止 Docker 容器需要更换绑定时仍返回 `docker_stopped_port_conflict`，不会隐式重建；
+这项限制与真实 macOS Docker 验收尚未闭合，不能据单元测试宣称完整端口迭代已交付。
+
+已有数据根缺运行账本时，其他 checkout 的 Web/DSH 仍可能共享该根；未知数据根写者会
+拒绝启动，显式新端口也不能绕过。正常 Native 安装 auto-start 可在同次真实生命周期锁下
+承接实际创建证明；已结束的 `--no-start` 或既有目录不继承 fresh，详见安装指南。
 
 ```bash
 ./rwb runtime status --json
@@ -134,9 +145,9 @@ Docker相关通用业务凭据隔离实现保留；本阶段不交付Docker模�
 Research Web 使用用户私有目录保存运行状态与数据：
 
 - `~/.research-workbench/research-web/`：两种模式顺序使用的同一研究会话、附件、数据集、产物和其他产品数据；切换前必须停止当前运行时。
-- `~/.research-workbench/run/`：Native 受管进程的 PID 与命令归属状态；Docker 使用独立容器状态目录和归属标签，不复用 Native 认证/PID 文件。
+- `~/.research-workbench/run/`：Native 受管进程的 PID 与命令归属状态；Docker 认证状态位于容器私有 tmpfs `/state/runtime`，每次启动/重启正常重建，不复用 Native 认证/PID 文件。
 - `~/.research-workbench/logs/`：受管运行时与 Web 服务日志。
-- `~/.research-workbench/install/runtime.json`：当前选择与安装身份；Docker 的私有状态位于 `run/docker/<installation-id>/`，凭据位于 `secrets/docker/<installation-id>/`，均不等同于产品数据目录。
+- `~/.research-workbench/install/runtime.json`：当前选择与安装身份；Docker 宿主 `run/docker/<installation-id>/logs` 单独持久绑定，旧 `run/docker/<installation-id>/runtime` 内容保留、不迁移；凭据仍位于 `secrets/docker/<installation-id>/`，均不等同于产品数据目录。
 - `~/.research-workbench/runtime/dsh/<commit>/`：固定提交的项目私有 DSH 源码与构建来源。
 - `~/.research-workbench/install/manifest.json`：安装摘要与诊断状态。
 - `logs/setup-web.log`：仓库内的一键安装日志。

@@ -21,6 +21,15 @@ from research_workbench_entrypoint import web_bootstrap
 from research_workbench_entrypoint.web_contract import ListenerFact, ProcessFact
 
 
+@pytest.fixture(autouse=True)
+def isolated_bootstrap_environment(tmp_path, monkeypatch):
+    """Diagnostics must never read the developer's real run/control tree."""
+    home = tmp_path / "bootstrap-home"
+    home.mkdir(mode=0o700)
+    monkeypatch.setenv("RESEARCH_DATA_HOME", str(home / "research-web"))
+    monkeypatch.delenv("RWB_BOOTSTRAP_PYTHON_ISSUE", raising=False)
+
+
 def _run_capture(argv: list[str], project_root: Path) -> tuple[int, str, str]:
     stdout = io.StringIO()
     stderr = io.StringIO()
@@ -132,6 +141,21 @@ def test_doctor_honors_safe_launcher_probe_failure_override(tmp_path: Path) -> N
     )
 
     assert report["issues"][0] == "python_environment_unusable"
+
+
+def test_bootstrap_readonly_uses_saved_nondefault_endpoints(tmp_path):
+    from research_workbench_entrypoint.runtime_endpoints import EndpointStore
+    from research_workbench_entrypoint.web_bootstrap import bootstrap_service_facts
+    home = tmp_path / "home"
+    home.mkdir(mode=0o700)
+    store = EndpointStore(home)
+    store.publish("native", 48215, 48216, expected=None)
+    before = store.path.read_bytes()
+    facts = bootstrap_service_facts(tmp_path, home / "research-web")
+    assert facts["web"]["port"] == 48215
+    assert facts["runtime"]["port"] == 48216
+    assert store.path.read_bytes() == before
+    assert not (home / "research-web").exists()
 
 
 @pytest.mark.parametrize(
@@ -951,7 +975,7 @@ def _temporary_launcher_checkout(tmp_path: Path) -> tuple[Path, dict[str, str]]:
     package.mkdir(parents=True)
     shutil.copy2(source_root / "rwb", checkout / "rwb")
     for name in ("__init__.py", "__main__.py", "web_contract.py", "web_bootstrap.py",
-                 "bootstrap.py", "runtime_mode.py", "docker_runtime.py"):
+                 "bootstrap.py", "runtime_mode.py", "runtime_endpoints.py", "docker_runtime.py"):
         shutil.copy2(source_root / "research_workbench_entrypoint" / name, package / name)
     binary_root = tmp_path / "bin"
     binary_root.mkdir()

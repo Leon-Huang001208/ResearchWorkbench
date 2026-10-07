@@ -24,6 +24,64 @@ from research_workbench_entrypoint.web_contract import (
 from scripts.setup_web import DSH_COMMIT, DSH_REMOTE, SetupWebInstaller
 
 
+def test_setup_public_explicit_port_options():
+    from scripts.setup_web import build_parser
+
+    options = build_parser().parse_args(["--web-port", "48001", "--runtime-port", "48002",
+                                         "--no-start"])
+    assert (options.web_port, options.runtime_port) == (48001, 48002)
+    assert options.no_start is True
+
+
+def test_public_docker_setup_preserves_safe_cli_proxy_at_real_popen_boundary(tmp_path, monkeypatch):
+    import io
+    from scripts import setup_web
+    project = tmp_path / "project"
+    (project / "requirements").mkdir(parents=True)
+    (project / "requirements/web.lock").write_text("locked")
+    (project / "compose.yaml").write_text("services: {}")
+    home = tmp_path / "approved-home"
+    home.mkdir(mode=0o700)
+    monkeypatch.setenv("HOME", str(home))
+    for key in ("http_proxy", "https_proxy", "NO_PROXY", "no_proxy"):
+        monkeypatch.delenv(key, raising=False)
+    monkeypatch.setenv("HTTP_PROXY", "http://127.0.0.1:29758")
+    monkeypatch.setenv("HTTPS_PROXY", "http://localhost:29758")
+    monkeypatch.setenv("API_KEY", "fixture-secret")
+    real_popen = subprocess.Popen
+    captured = []
+    def popen(argv, **kwargs):
+        if argv[0] != "docker":
+            return real_popen(argv, **kwargs)
+        captured.append((argv, kwargs))
+        output = b""
+        if "info" in argv:
+            output = b'"aarch64"'
+        if argv[1:3] == ["image", "inspect"]:
+            output = json.dumps({"id": "sha256:" + "b" * 64, "runtime": "docker"}).encode()
+        return SimpleNamespace(pid=999999, stdout=io.BufferedReader(io.BytesIO(output)),
+            stderr=io.BufferedReader(io.BytesIO()), returncode=0, poll=lambda: 0, wait=lambda **kwargs: 0)
+    monkeypatch.setattr(subprocess, "Popen", popen)
+    args = setup_web.build_parser().parse_args(["--runtime", "docker", "--no-start"])
+    manifest = setup_web.install_selected_runtime(args, project_root=project)
+    assert manifest["status"] == "installed"
+    assert any("build" in argv for argv, kwargs in captured)
+    assert all(kwargs["env"]["HTTP_PROXY"] == "http://127.0.0.1:29758" for argv, kwargs in captured)
+    assert all("API_KEY" not in kwargs["env"] and kwargs["env"]["COMPOSE_DISABLE_ENV_FILE"] == "1" for argv, kwargs in captured)
+    assert not any(arg in ("--build-arg", "--env", "-e") for argv, kwargs in captured for arg in argv)
+
+
+def test_docker_check_only_rejects_runtime_port_before_external_probe(tmp_path, monkeypatch):
+    from scripts import setup_web
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setattr(setup_web.DockerRuntime, "preflight",
+                        lambda *args, **kwargs: pytest.fail("unsupported flag must fail before Docker probe"))
+    errors = StringIO()
+    with redirect_stderr(errors):
+        assert setup_web.main(["--runtime", "docker", "--runtime-port", "13081", "--check-only"]) == 1
+    assert "docker_runtime_port_unsupported" in errors.getvalue()
+
+
 def _allow_idle_runtime_selection(monkeypatch: pytest.MonkeyPatch) -> None:
     from scripts import setup_web
     from research_workbench_entrypoint.bootstrap import NativeRuntime
@@ -170,7 +228,7 @@ def test_docker_check_only_is_read_only_and_outputs_safe_json(
 
 
 @pytest.mark.parametrize("native_running", [False, True])
-def test_docker_no_start_rejects_live_native_or_occupied_port_before_publishing(
+def test_docker_no_start_rejects_live_native_but_does_not_allocate_host_ports(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, native_running: bool
 ) -> None:
     from scripts import setup_web
@@ -216,13 +274,22 @@ def test_docker_no_start_rejects_live_native_or_occupied_port_before_publishing(
             project, home, runner=recording_runner,
             ports=(listener.getsockname()[1], 13081),
         )
-        with pytest.raises(RuntimeError, match="^runtime_stop_current_required$"):
+        if native_running:
+            with pytest.raises(RuntimeError, match="^runtime_stop_current_required$"):
+                controller.install(start=False)
+        else:
             controller.install(start=False)
+            assert listener.getsockname()[1] == controller.ports[0]
 
     assert any("build" in call for call in calls)
     assert not any("up" in call or "stop" in call for call in calls)
-    assert store.read() == before
-    assert json.loads(manifest_path.read_text(encoding="utf-8")) == previous
+    if native_running:
+        assert store.read() == before
+        assert json.loads(manifest_path.read_text(encoding="utf-8")) == previous
+    else:
+        assert store.read().mode == "docker"
+        assert not (home / "install/endpoints.json").exists()
+        assert not (home / "research-web/.control").exists()
     assert not (project / ".venv").exists()
 
 
@@ -363,6 +430,7 @@ def test_no_argument_main_keeps_native_json_shape(
     (project / "scripts").mkdir(parents=True)
     monkeypatch.setattr(setup_web, "__file__", str(project / "scripts/setup_web.py"))
     monkeypatch.setattr(setup_web, "_configure_logging", lambda _root: None)
+    monkeypatch.setattr(setup_web, "_maybe_reexec_native", lambda *args: None, raising=False)
 
     class RecordingNative:
         def __init__(self, *, project_root: Path) -> None:
@@ -509,6 +577,151 @@ def _installer_for_check(project_root: Path, data_home: Path) -> SetupWebInstall
         version_reader=lambda _path: "3.12.9",
         node_version_reader=lambda _path: "v24.8.0",
     )
+
+
+@pytest.mark.parametrize("mode", ["host", "owned", "unowned", "check-only", "docker", "no-start"])
+def test_fix5_public_entry_reexecs_only_exact_owned_native_environment(tmp_path, monkeypatch, mode):
+    import hashlib
+    from scripts import setup_web
+    project = tmp_path / "checkout"
+    (project / "scripts").mkdir(parents=True)
+    script = project / "scripts/setup_web.py"
+    script.write_text("# fixture")
+    environment = project / ".venv"
+    (environment / "bin").mkdir(parents=True)
+    python = environment / "bin/python"
+    python.touch()
+    python.chmod(0o700)
+    marker = {"schema_version": 1, "owner": "research-workbench-web-installer",
+              "project_root_sha256": hashlib.sha256(str(project.resolve()).encode()).hexdigest(),
+              "python": "3.12.13", "created_at": "2026-10-07"}
+    (environment / setup_web.ENVIRONMENT_MARKER).write_text(json.dumps(marker if mode != "unowned" else {}))
+    (environment / setup_web.ENVIRONMENT_MARKER).chmod(0o600)
+    home = tmp_path / "approved-home"
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("RESEARCH_NODE_BINARY", "/approved/node")
+    monkeypatch.setenv("RESEARCH_WEB_CREDENTIAL_ROOT", str(tmp_path / "fixture-credentials"))
+    monkeypatch.setattr(setup_web, "__file__", str(script))
+    monkeypatch.setattr(setup_web, "_configure_logging", lambda root: None)
+    monkeypatch.setattr(setup_web.sys, "prefix", str(environment if mode == "owned" else tmp_path / "system-python"))
+    monkeypatch.setattr(SetupWebInstaller, "check", lambda self: {"ok": mode != "unowned", "issues": ["unowned_virtual_environment"] if mode == "unowned" else []})
+    prepared = []
+    def prepare(self, **kwargs):
+        prepared.append(kwargs["repair"])
+        return python
+    monkeypatch.setattr(SetupWebInstaller, "prepare_environment", prepare)
+    calls = []
+    def execute(argv, **kwargs):
+        calls.append((argv, kwargs))
+        return subprocess.CompletedProcess(argv, 17)
+    monkeypatch.setattr(setup_web.subprocess, "run", execute)
+    monkeypatch.setattr(setup_web, "install_selected_runtime", lambda *args, **kwargs:
+        {"status": "installed", "code_commit": "a" * 40, "cjpy_version": "0.5.2", "dsh_commit": DSH_COMMIT, "image_id": "sha256:" + "b" * 64})
+    args = ["--runtime", "docker" if mode == "docker" else "native", "--repair", "--web-port", "48077"]
+    if mode in {"check-only", "no-start"}:
+        args.append("--" + mode)
+    if mode == "docker":
+        args.append("--no-start")
+    code = setup_web.main(args)
+    if mode == "host":
+        assert code == 17
+        assert prepared == [True]
+        assert calls[0][0] == [str(python), "-I", str(script), *args]
+        assert calls[0][1]["cwd"] == Path.cwd()
+        assert calls[0][1]["env"]["HOME"] == str(home)
+        assert calls[0][1]["env"]["RESEARCH_NODE_BINARY"] == "/approved/node"
+        assert calls[0][1]["env"]["RESEARCH_WEB_CREDENTIAL_ROOT"] == str(tmp_path / "fixture-credentials")
+    else:
+        assert code == (1 if mode == "unowned" else 0)
+        assert not prepared and not calls
+    assert not (home / ".research-workbench/research-web").exists()
+
+
+@pytest.mark.parametrize("change", [None, "no-start", "existing", "old-native", "root", "listener", "lease", "health"])
+def test_fix5_public_native_install_retains_real_creation_scope(tmp_path, monkeypatch, change):
+    from scripts.setup_web import DSH_CLOSURE_FILES
+    from app.research_web import service_manager as sm
+    from research_workbench_entrypoint.web_contract import ListenerFact, ProcessFact
+    installer = _installer_for_check(tmp_path / "checkout", tmp_path / "data")
+    installer.project_root.mkdir(mode=0o700)
+    (installer.project_root / "requirements").mkdir()
+    (installer.project_root / "requirements/web.lock").write_text("locked")
+    data_root = installer.data_home / "research-web"
+    if change in {"existing", "old-native"}:
+        data_root.mkdir(parents=True, mode=0o700)
+    managers = []
+    provisioned = []
+    mutable = {"changed": False}
+    original_prepare = sm.WebServiceManager._prepare_private_directories
+    def prepare(self, **kwargs):
+        original_prepare(self, **kwargs)
+        if self not in managers:
+            managers.append(self)
+    def provision(**kwargs):
+        provisioned.append(True)
+        if change != "no-start":
+            assert managers, "manager must create the root under its actual lease before DSH/buildlock"
+            manager = managers[0]
+            assert manager._lifecycle_lease is not None
+            manager._lifecycle_lease.assert_held()
+            assert manager._fresh_root_proven() is (change not in {"existing", "old-native"})
+            if change == "root":
+                data_root.rename(data_root.with_name("retained-root"))
+                data_root.mkdir(mode=0o700)
+            if change == "listener":
+                mutable["changed"] = True
+        installer.dsh_source.mkdir(parents=True, mode=0o700)
+        return {"closure_sha256": "b" * 64, "closure_files": DSH_CLOSURE_FILES, "commit": DSH_COMMIT}
+    def gate(self):
+        assert (self.runtime_state_root / "build-lock.json").is_file()
+        return {"ok": True}
+    def healthy(self, **kwargs):
+        if change == "health":
+            raise sm.ServiceManagerError("web_health_timeout", code="web_health_timeout")
+        return {"product_ready": True}
+    monkeypatch.setattr(installer, "check", lambda: {"ok": True, "issues": []})
+    monkeypatch.setattr(installer, "prepare_environment", lambda **kwargs: Path(sys.executable))
+    monkeypatch.setattr(installer, "install_python_dependencies", lambda python: {"lock_sha256": "lock", "cjpy_sha256": "wheel", "cjpy_version": "0.5.2"})
+    monkeypatch.setattr(installer, "verify_web_import", lambda python: None)
+    monkeypatch.setattr(installer, "provision_dsh", provision)
+    monkeypatch.setattr(sm.WebServiceManager, "_prepare_private_directories", prepare)
+    monkeypatch.setattr(sm.WebServiceManager, "_require_installation_ready", gate)
+    monkeypatch.setattr(sm.WebServiceManager, "_start_locked", healthy)
+    monkeypatch.setattr(sm.webbrowser, "open", lambda url: True)
+    monkeypatch.setattr(sm, "listener_pids", lambda port: ListenerFact("listening", (789 if mutable["changed"] else 456,), None) if port == 8088 else ListenerFact("closed", (), None))
+    monkeypatch.setattr(sm, "probe_process", lambda pid: ProcessFact("alive", None, None, ("python", "-m", "uvicorn", "app.research_web.main:app", "--app-dir", "/other/checkout"), 123.0))
+    if change == "old-native":
+        from app.research_web.service_diagnostics import ServiceProbe
+        monkeypatch.setattr(sm.WebServiceManager, "_service_probes", lambda self: tuple(
+            ServiceProbe(role, port, "valid", "alive", "owned", "listening", "ready", True, 999888, ())
+            for role, port in (("web", self.web_port), ("runtime", self.runtime_port))))
+    if change == "lease":
+        def write_manifest(**kwargs):
+            managers[0]._lifecycle_lease = None
+            return {"status": "installed"}
+        monkeypatch.setattr(installer, "write_install_manifest", write_manifest)
+    if change in {"existing", "root", "listener", "lease", "health"}:
+        with pytest.raises(sm.ServiceManagerError) as caught:
+            installer.install()
+        expected = ("lifecycle_lock_ownership_lost" if change == "lease" else
+                    "web_health_timeout" if change == "health" else "runtime_ownership_unknown")
+        assert caught.value.code == expected
+        if change == "existing":
+            assert not provisioned
+        if change in {"root", "listener"}:
+            assert not (data_root / "runtime/build-lock.json").exists()
+        if change == "health":
+            assert not (data_root / ".control/origin-transaction.json").exists()
+            assert json.loads((data_root / ".control/datahub.json").read_text())["url"] == "http://127.0.0.1:8088"
+    else:
+        assert installer.install(start=change != "no-start")["status"] == "installed"
+    if managers:
+        assert managers[0]._lifecycle_lease is None
+        assert managers[0]._fresh_root_identity is None
+    if change == "no-start":
+        assert not managers
+        with pytest.raises(sm.ServiceManagerError, match="runtime_ownership_unknown"):
+            sm.WebServiceManager(project_root=installer.project_root, data_root=data_root).start(open_browser=False)
 
 
 def test_installer_prefers_configured_node_over_path(

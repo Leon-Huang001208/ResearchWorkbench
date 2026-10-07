@@ -34,8 +34,15 @@ Update this section when:
 Research Web commands:
 
 - `rwb web start|stop|restart|status` — manage the owned loopback Web/DSH processes.
+- macOS `start/restart --web-port N` selects an explicit Web endpoint; Native also accepts
+  `--runtime-port N`. Explicit conflicts fail. Omitted ports prefer the saved healthy endpoint,
+  then defaults, with bounded allocation only after writer quiescence. Docker never overrides internal 3081.
+- Missing run/endpoint records on an existing root require legacy-default listener checks even with explicit
+  new ports. A different-checkout Web/DSH may share RESEARCH_DATA_HOME/configuration; unproven data-root
+  isolation returns runtime_ownership_unknown. Fresh proof belongs only to this locked start's mkdir identity.
 - `rwb web status --json` — emit the Native safe service projection with schema version,
-  mode, issues and health facts; omit local log paths. The ordinary status output is unchanged.
+  mode, issues, health facts and the actual loopback URL derived from the Web port; omit local log paths.
+  The ordinary status output is unchanged.
 - `rwb web doctor [--json]` — verify the project-owned Python lock, CJPY 0.5.2,
   Node, pinned DSH closure, private data root and 3081/8088 health without exposing paths or secrets.
 - `rwb web tabbit-status` — read-only Tabbit health and pending-restart summary. It deliberately omits paths, cookies, tab titles, URLs and page content; installation and upgrades remain manual.

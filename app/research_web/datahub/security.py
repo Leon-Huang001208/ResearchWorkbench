@@ -2,16 +2,15 @@
 
 import json
 import os
-import re
 import secrets
 import stat
 from contextlib import contextmanager
 from pathlib import Path
-from urllib.parse import urlsplit
 from uuid import uuid4
 
 from core.observability import get_logger
 
+from ..control_origin import ControlRecordError, checked_control_url, parse_datahub_control
 from ..store import StoreError
 
 log = get_logger(__name__)
@@ -153,18 +152,14 @@ def _windows_atomic_json(folder: Path, name: str, value) -> None:
 
 def _parse_control(raw: bytes, url: str | None) -> dict:
     try:
-        config = json.loads(raw)
-        if (
-            not isinstance(config, dict)
-            or not isinstance(config.get("token"), str)
-            or not re.fullmatch(r"[A-Za-z0-9_-]{43,128}", config["token"])
-        ):
-            raise ValueError("invalid token")
-        checked_url(config["url"])
-        if url is not None and config["url"] != url:
+        return parse_datahub_control(raw, url)
+    except ControlRecordError as exc:
+        if str(exc) == "origin_mismatch":
             raise StoreError("DataHub 回环地址与已有可信配置不符；未覆盖")
-        return config
-    except (ValueError, KeyError, TypeError) as exc:
+        if str(exc) == "url_type":
+            raise StoreError("DataHub 地址必须为字符串") from exc
+        if str(exc) == "invalid_url":
+            raise StoreError("DataHub 只接受可信回环服务地址") from exc
         raise StoreError("DataHub 私有配置无效") from exc
 
 
@@ -408,24 +403,12 @@ def json_bytes(value):
 
 
 def checked_url(value):
-    if not isinstance(value, str):
-        raise StoreError("DataHub 地址必须为字符串")
     try:
-        parsed = urlsplit(value)
-        if (
-            parsed.scheme != "http"
-            or parsed.hostname not in {"127.0.0.1", "::1"}
-            or parsed.username is not None
-            or parsed.password is not None
-            or "?" in value
-            or "#" in value
-            or parsed.path not in {"", "/"}
-            or not parsed.port
-        ):
-            raise ValueError("not a loopback origin")
-    except (TypeError, ValueError) as exc:
+        return checked_control_url(value)
+    except ControlRecordError as exc:
+        if str(exc) == "url_type":
+            raise StoreError("DataHub 地址必须为字符串") from exc
         raise StoreError("DataHub 只接受可信回环服务地址") from exc
-    return value.rstrip("/")
 
 
 def load_control(root: Path, url: str | None = None):

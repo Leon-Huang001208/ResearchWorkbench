@@ -4,6 +4,24 @@ Host认证bootstrap在任何Tabbit配置加载前核对规范化RWB_RUNTIME_STAT
 
 模型设置与Tabbit配置仍分别保存。模型默认更新只作用于新会话，活动任务阻止共享模型凭据更新；最小模型生成测试使用无浏览器工具的框架解释preset，不读取标签页或申请Tabbit授权。研究工具子进程测试注入修复不改变Tabbit的实例选择、只读声明、claim、token或原生审批。
 
+research-tools 的未声明 Cordis getter 修复仅限执行器选择，不增加注入或更改 preset；不读取
+Tabbit 会话、claim 或模型密钥。实际插件加载和新 session 成功仍须真实 Runtime 证据。
+
+Native installer 进入 owned venv 后同次持锁创建并启动，不继承 Tabbit 会话/claim；
+no-start/跨调用不持久化 fresh 或浏览器授权，实际浏览器能力仍须独立证明。
+
+Native 缺失账本的监听核验不申请 Tabbit claim 或读取浏览器内容；未知或同数据根的
+监听者使生命周期失败关闭，只有已验证的端点才进入后续浏览器集成。
+
+产品监听的不同 checkout 不构成不同研究数据根证明；未知根的 Web/DSH 仍阻止启动，
+不读取浏览器会话、进程环境或秘密来绕过，也不把独立 fresh-root 验收称为 canonical 往返。
+
+fresh 失败恢复仅核验本次对象退出与原 OS 监听身份，不读取 Tabbit 会话或授权；恢复证明
+只用于 controls/endpoint 回滚，不能当作浏览器能力或下一次启动权限。
+
+macOS实际端点与控制origin事务不改变Tabbit授权、claim和浏览器归属；Native使用本次已验证的
+回环Web/Runtime端点，Docker动态宿主Web端口不会将宿主Tabbit能力带入容器。
+
 Docker 部署不会把宿主 Tabbit 的 launcher、已登录浏览器实例、会话或页面 claim 带进容器；
 容器健康仅证明 Web/DSH 服务就绪。Native 原有供应归档、授权、只读声明、一次性正文 token
 和写操作审批合同继续适用。模式切换不复制 Tabbit 授权，也不把浏览器能力标为可调用；

@@ -14,12 +14,32 @@
 
 以下原有表继续映射产品模块；上表只添加部署与运行边界，不创建第二套 Web/DSH 引擎。
 
+端点基础 helper 为 `research_workbench_entrypoint/runtime_endpoints.py`，成对内部 origin
+事务为 `app/research_web/control_origin.py`；对应 `test_runtime_endpoints.py` 与
+`test_control_origin.py`。前者保存私有端点 CAS 快照并生成回环候选，后者保留控制 token、只重绑
+既有 URL；二者由公开启动器消费，只有真实健康后发布端点。`EndpointStore.restore` 用本次发布
+快照 CAS 恢复旧端口并生成新 revision，避免恢复旧 CAS 代际。复用 `runtime_mode.py` 的私有读写/锁，修改该边界须保留
+`test_runtime_mode.py`、`test_runtime_auth.py`、`test_datahub.py`、`test_mcp_authorization.py`
+负面测试；接口合同见运行时与安全模块文档。
+
+生命周期集成由 service_manager、bootstrap、docker_runtime、setup_web、web_bootstrap
+共同覆盖；`lifecycle_lock.py` 改用 stdlib logging，`assert_held` 验证本进程实际持有的锁对象，
+用于安装候选内部调用而不增加 skip-lock 开关。`docker/supervisor.py` 的 prepare-only 入口
+只用原 creator 补齐缺失控制文件；controller 通过无发布端口/无凭据挂载的固定镜像临时 guest
+执行，精确核对一次性归属并确认清理。新增用例在原有 service_manager/runtime_endpoints/
+runtime_mode/docker_runtime/setup_web/cli_lazy/web_bootstrap/container_supervisor 测试模块内。
+
 Docker bind 根与私有叶布局由 Dockerfile/Compose 配置、entrypoint 父目录检查、supervisor
 严格创建与 healthcheck 只读消费共同维护；测试闭包为 `test_container_supervisor.py`、
 `test_credential_backend.py`、`test_runtime_launch.py`、`test_docker_packaging.py` 与
 `docker_runtime_contract.test.mjs`。不得通过放宽 owner、mode 或 no-follow 来适配 bind 映射。
-固定bind缺失叶的两阶段首建在supervisor内实现；其确定性测试模拟root→当前UID/GID并覆盖
+固定凭据与产品日志 bind 缺失叶的两阶段首建在supervisor内实现；其确定性测试模拟root→当前UID/GID并覆盖
 foreign owner/group、mode/inode变化、alias/替换与自定义路径不豁免，原validator不修改。
+Docker `/state` 为私有 tmpfs，状态叶不采用 bind 映射例外或写初始化；宿主 state/logs 在受管
+生命周期私有创建后单独绑定。controller 测试覆盖必需 tmpfs、实际 RW、严格选项语义及
+旧 host runtime 原样保留；CI 直接 Compose fixture 同步准备 logs，平台门范围不扩展。
+同一 Engine HostConfig.Tmpfs 投影由正常与临时 control-preparer inspect 共用；后者仍只挂载
+唯一产品 data bind 与原四个私有 tmpfs，测试同时覆盖省略重复 Mounts、严格选项与未知替换不清理。
 
 `test_docker_runtime.py` 还覆盖Compose创建后返回非零/超时的恢复：本次launch标签识别、
 精确容器清理、未知实例保留、既有停止容器保护，以及离线repair失败后旧接受image重建。
