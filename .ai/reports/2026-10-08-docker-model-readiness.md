@@ -410,6 +410,43 @@ launch_runtime冻结SHA df9575ef6e21d94d57141a5b9c25646efac3e63d7f983c87335663ea
 三文件主线文档集成另经SPEC/QUALITY批准，真实merge8461bb838f402592ad11b19596ad7a71a382b965，
 managed prepare已记录prepared；后续新修补必须再同步该真实集成，不将旧prepared当新源码门PASS。
 
+## 最新主线集成与精确模型合同（2026-10-09）
+
+主线随后前进至7d9d5a5cb9e95cdce88b5b9723ef48fbfc900a18，包含兼容模型设置及固定DSH
+48504f07f217f9fd45a4f6d8fca4b1ed35c2d4b0。本任务在同一隔离integration保留双方源码和历史；
+Native两固定账号/通用连接、Docker官方MODEL_REF-only及显式source/私有CLI/未知提交状态均保留。
+真实merge源码checkpoint为1f47bd27f1e22566540ff1d22b45f849136df913；图册随后绑定此真实提交，
+导航收尾为a90afa79195c20803d816bcfa40df58dc7d188b3，不把源码快照当未来/发布提交。
+
+SPEC揭示新目录deepseek-flash与旧budget/Guard v4 ID不匹配；真实生成默认值到guard的RED
+拒绝dispatch。修补只将budget单一模型与guard同步canonical，并使用独立policy ID
+deepseek-flash-canonical-20261008；不同时准许旧模型、不改费率/expiry/3次/512/零重试。
+旧policy、旧model及完整旧tuple经init/describe/read_optional/reserve拒绝，不写账本。
+旧实际control/IId/Key均未变；新的真实验收安装与预算窗口另向用户请求，不凭旧控制授权新tuple。
+实际SDK485尚无可用本地构建，旧c919被真实pin检查拒绝；不mock/放宽该安全门。
+
+合并与canonical修补经独立SPEC复验4Python/1JS PASS，PythonQUALITY三模块291PASS/3SKIP，
+JSQUALITY五模块88PASS；格式检查PASS。API冷恢复仅修正旧会话应保持的新主线默认模型期望，
+独立单例1PASS，秘密/旧会话/恢复/clear断言不削弱。先前宽组合3FAIL/180PASS/2SKIP保留原身份。
+父任务随后以当前源码重跑API/protocol/model_credentials/model_connections：183PASS/2SKIP，
+546.61秒、1个既有Starlette/AnyIO warning；Node完整14模块353PASS/19.61秒。
+另以现有工具的单命令PYTHONPATH复用已安装Pydantic执行mypy（未安装/改全局）：整体59FAIL/21files，
+四个检查源码自身0条；该结果不宣称所有导入类型干净或债务与旧基线完全相同。
+
+484a1dc0镜像首次构建在固定DSH git fetch遇到TLS截断，APT已完成；一次针对性复测成功，
+新image42a4ea20536a991cf560116d51774becaf6e883461da661085c2c0d8b39e19b2。
+此旧SDK镜像实际预算模式健康启动：settings/七Tabbit项disabled、512、retry0、budgetBridge
+均由实际overlay只读投影核验；Key状态配置仍在，不读Key。旧预算describe验证有效、ledger
+只读观察tickets/input/output/microUSD均0。正常stop成功，60514实际bind释放；证据
+tabbit-fix-physical-activation-20261009.json。只属484/c919，不能认证最终canonical/485镜像。
+旧预算已于2026-10-08T19:08:02Z到期，未延期/重置/收费；旧安装、数据、Key和账本保留。
+
+完整当前主线基线计划选55路径/L4（README补齐后），22本地门/外部门按原机制保留。
+一次README updated但文件未改的约束FAIL真实保留；已补最小准确能力说明后完整55路径0违规，
+文档治理587files/90current0违规、索引检查PASS。运行时组合仍在执行，不提前记PASS。
+managed controller旧prepared身份保留；远端前进使replace-prepared拒绝，未改其receipt冒充完成。
+尚未push/PR/dispatch/merge远端，未执行release/tag/cleanup，未修改全局Hook/插件/信任/配置。
+
 <!-- architecture-review {"group":"dual-runtime","structure":"unchanged","reason":"在既有私有credentials bind内增加模型叶和非秘密安装身份/参数绑定；Native overlay不变，无新mount、Host服务或部署节点。旧实例空ID投影保留原完整生命周期守卫但无模型能力，新精确绑定只在实际完整inspect后派生，不改变DSH唯一引擎或数据根，实际镜像和真实研究另行验收。","diagrams":[]} -->
 
 <!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"当前JS私有pipe已经接入稳定安装ID/source绑定，继续委派原Host浏览器record；Native默认overlay不变，模型秘密只落在既有Docker私有credentials信任区或Native Keychain，无新部署组件、公开取密API、宿主bridge或第二执行循环。当前按实现合同记录，实际镜像及真实模型状态未验收且不借静态图推导通过。","diagrams":[]} -->
