@@ -11,6 +11,7 @@ import {runWorker} from './worker.ts';
 import {collectionHandlers,scheduleCollection} from './collection.ts';
 import {configureSource} from './source-control.ts';
 import {scheduleProcessing,processingHandler,type GroupingModel} from './processing.ts';
+import {evaluateChannelRules} from './channel-rules.ts';
 
 export interface ServiceBootstrap {
   config: unknown; port?: number; instanceId: string; mode: 'native' | 'docker';
@@ -113,6 +114,7 @@ export async function startService(input: ServiceBootstrap,capabilities:{groupin
         await heartbeatRuntime(controller,config.database.schema,current,input.controllerToken);
         await scheduleCollection(db,queue,config.database.schema,current,config);
         await scheduleProcessing(db,queue,config.database.schema,current,Boolean(capabilities.groupingModel));
+        await evaluateChannelRules(db,config.database.schema,current);
       }}).catch(()=>{
         workerState='failed';logEvent('worker_stopped');
         queueMicrotask(()=>{void close().catch(()=>logEvent('worker_stopped'));});

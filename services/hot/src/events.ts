@@ -11,7 +11,8 @@ export interface EventLink {id:string;relation:'direct_followup'|'related'|'pend
 export interface EventProposal {title:string;materials:MaterialRef[];links:EventLink[]}
 export interface EventSnapshot extends EventProposal {state:'active'|'merged';canonicalId:string|null;occurredAt:null;effectiveAt:null;
   manual:{title:boolean;protected:MaterialRef[];excluded:string[];channels:string[]|null}}
-export interface ChannelConfig {name:string;topics:string[];sourceIds:string[];importanceRules:string[]}
+export interface ChannelRule {id:string;keywords:string[];requireOfficial?:boolean;relevance:number;importance:number}
+export interface ChannelConfig {name:string;topics:string[];sourceIds:string[];importanceRules:string[];rules?:ChannelRule[]}
 function uuid(value:string){if(!/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(value))throw Error('hot_event_identity_invalid');}
 function revision(value:number){if(!Number.isSafeInteger(value)||value<0||value>1000000)throw Error('hot_event_revision_invalid');}
 function text(value:string,max=500){if(typeof value!=='string'||!value.trim()||value.length>max)throw Error('hot_event_text_invalid');}
@@ -90,7 +91,19 @@ export async function saveAutomaticEventTransaction(tx:Tx,schema:string,id:strin
 }
 export async function configureChannel(db:Sql,schema:string,owner:RuntimeOwner,id:string,expected:number,config:ChannelConfig){
   if(!/^[a-z][a-z0-9_-]{0,47}$/.test(id))throw Error('hot_channel_invalid');revision(expected);text(config.name,100);
+  if(Object.keys(config).some(key=>!['name','topics','sourceIds','importanceRules','rules'].includes(key)))throw Error('hot_channel_invalid');
   for(const array of [config.topics,config.sourceIds,config.importanceRules]){if(!Array.isArray(array)||array.length>50)throw Error('hot_channel_invalid');array.forEach(value=>text(value,500));}
+  if(config.rules!==undefined){
+    if(!Array.isArray(config.rules)||config.rules.length>30)throw Error('hot_channel_rule_invalid');
+    const seen=new Set<string>();
+    for(const rule of config.rules){
+      if(!rule||Object.keys(rule).some(key=>!['id','keywords','requireOfficial','relevance','importance'].includes(key))||
+        !/^[a-z][a-z0-9_-]{0,47}$/.test(rule.id)||seen.has(rule.id)||!Array.isArray(rule.keywords)||rule.keywords.length<1||rule.keywords.length>20||
+        (rule.requireOfficial!==undefined&&typeof rule.requireOfficial!=='boolean'))throw Error('hot_channel_rule_invalid');
+      seen.add(rule.id);rule.keywords.forEach(value=>text(value,80));
+      for(const score of [rule.relevance,rule.importance])if(!Number.isInteger(score)||score<0||score>100)throw Error('hot_channel_rule_invalid');
+    }
+  }
   return withOwnerTransaction(db,schema,owner,async tx=>{
     await tx`insert into ${tx(schema)}.channels(id) values(${id}) on conflict do nothing`;
     const [row]=await tx`select current_version from ${tx(schema)}.channels where id=${id} for update`;
@@ -186,15 +199,19 @@ export async function eventAt(db:Sql,schema:string,id:string,cutoff:Date):Promis
 }
 export interface ChannelJudgment {relevance:number;importance:number;informationIncrement:number;heat:number;
   evidence:'single_official'|'corroborated'|'unverified'|'contradicted';reason:string;limitations:string[]}
-export async function saveChannelJudgment(db:Sql,schema:string,owner:RuntimeOwner,input:{eventId:string;eventRevision:number;channelId:string;channelVersion:number;inputHash:string;
-  authority:'rule'|'model'|'human';judgment:ChannelJudgment}){
+export interface ChannelJudgmentInput {eventId:string;eventRevision:number;channelId:string;channelVersion:number;inputHash:string;
+  authority:'rule'|'model'|'human';judgment:ChannelJudgment}
+export async function saveChannelJudgment(db:Sql,schema:string,owner:RuntimeOwner,input:ChannelJudgmentInput){
+  return withOwnerTransaction(db,schema,owner,tx=>saveChannelJudgmentTransaction(tx,schema,input));
+}
+/** Internal helper; caller holds the authenticated owner/claim transaction fence. */
+export async function saveChannelJudgmentTransaction(tx:Tx,schema:string,input:ChannelJudgmentInput){
   uuid(input.eventId);revision(input.eventRevision);revision(input.channelVersion);
   input={...input,eventId:input.eventId.toLowerCase()};
   if(!/^[a-f0-9]{64}$/.test(input.inputHash)||!['rule','model','human'].includes(input.authority))throw Error('hot_channel_judgment_invalid');
   const j=input.judgment;text(j.reason,2000);
   for(const score of [j.relevance,j.importance,j.informationIncrement,j.heat])if(!Number.isFinite(score)||score<0||score>100)throw Error('hot_channel_judgment_invalid');
   if(!['single_official','corroborated','unverified','contradicted'].includes(j.evidence)||!Array.isArray(j.limitations)||j.limitations.length>30)throw Error('hot_channel_judgment_invalid');j.limitations.forEach(value=>text(value,500));
-  return withOwnerTransaction(db,schema,owner,async tx=>{
     if(input.authority==='human'){
       const [permission]=await tx`select has_table_privilege(current_user,${schema+'.event_corrections'},'INSERT') allowed`;
       if(!permission.allowed)throw Error('hot_event_control_denied');
@@ -219,28 +236,24 @@ export async function saveChannelJudgment(db:Sql,schema:string,owner:RuntimeOwne
     }
     const [prior]=await tx`select id,authority,judgment from ${tx(schema)}.channel_judgments where event_id=${input.eventId} and event_revision=${input.eventRevision}
       and channel_id=${input.channelId} and channel_version=${input.channelVersion} and input_hash=${input.inputHash}`;
-    if(prior){if(prior.authority!==input.authority)throw Error('hot_channel_judgment_conflict');if(JSON.stringify(prior.judgment)!==JSON.stringify(JSON.parse(JSON.stringify(j)))){
-      // PostgreSQL JSONB ordering differs; compare semantic object fields below.
-      if(['relevance','importance','informationIncrement','heat','evidence','reason'].some(key=>prior.judgment[key]!==j[key as keyof ChannelJudgment])||JSON.stringify(prior.judgment.limitations)!==JSON.stringify(j.limitations))throw Error('hot_channel_judgment_conflict');
-    }return prior.id;}
+    if(prior){if(prior.authority!==input.authority||canonical(prior.judgment)!==canonical(j))throw Error('hot_channel_judgment_conflict');return prior.id;}
     const id=randomUUID();await tx`insert into ${tx(schema)}.channel_judgments(id,event_id,event_revision,channel_id,channel_version,input_hash,authority,judgment,model_attempt_id)
       values(${id},${input.eventId},${input.eventRevision},${input.channelId},${input.channelVersion},${input.inputHash},${input.authority},${tx.json(JSON.parse(JSON.stringify(j)))},${modelAttemptId})`;
     return id;
-  });
 }
-export interface JudgmentProjection {judgment:ChannelJudgment;authority:'rule'|'model'|'human';event_revision:number;channel_version:number;created_at:Date;
+export interface JudgmentProjection {id:string;judgment:ChannelJudgment;authority:'rule'|'model'|'human';event_revision:number;channel_version:number;created_at:Date;
   inherited:boolean;applied_event_revision:number;applied_channel_version:number}
 export async function judgmentAt(db:Sql,schema:string,eventId:string,channelId:string,cutoff:Date):Promise<JudgmentProjection|null>{
   const event=await eventAt(db,schema,eventId,cutoff);if(!event)return null;
   if(event.snapshot.manual.channels!==null&&!event.snapshot.manual.channels.includes(channelId))return null;
   const [channel]=await db`select version from ${db(schema)}.channel_versions where channel_id=${channelId} and created_at<=${cutoff} order by version desc limit 1`;
   if(!channel)return null;
-  const [human]=await db<Omit<JudgmentProjection,'inherited'|'applied_event_revision'|'applied_channel_version'>[]>`select judgment,authority,event_revision,channel_version,created_at from ${db(schema)}.channel_judgments
+  const [human]=await db<Omit<JudgmentProjection,'inherited'|'applied_event_revision'|'applied_channel_version'>[]>`select id,judgment,authority,event_revision,channel_version,created_at from ${db(schema)}.channel_judgments
     where event_id=${event.id} and channel_id=${channelId} and authority='human' and created_at<=${cutoff}
     order by created_at desc,id desc limit 1`;
   if(human)return {...human,inherited:human.event_revision!==event.revision||human.channel_version!==channel.version,
     applied_event_revision:event.revision,applied_channel_version:channel.version};
-  const [row]=await db<Omit<JudgmentProjection,'inherited'|'applied_event_revision'|'applied_channel_version'>[]>`select judgment,authority,event_revision,channel_version,created_at from ${db(schema)}.channel_judgments
+  const [row]=await db<Omit<JudgmentProjection,'inherited'|'applied_event_revision'|'applied_channel_version'>[]>`select id,judgment,authority,event_revision,channel_version,created_at from ${db(schema)}.channel_judgments
     where event_id=${event.id} and channel_id=${channelId} and event_revision=${event.revision} and channel_version=${channel.version}
     and created_at<=${cutoff} order by case when authority='human' then 0 else 1 end,created_at desc limit 1`;
   return row?{...row,inherited:false,applied_event_revision:event.revision,applied_channel_version:channel.version}:null;

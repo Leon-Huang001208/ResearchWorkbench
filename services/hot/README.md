@@ -69,6 +69,44 @@ uses the production worker handler. It never creates a fresh quota. Its outputs
 report origin/target versions and evidence hashes; regular product activation and
 channel rules remain separate pending work.
 
+## Versioned domain rules
+
+`channels.example.json` configures AI, macro and Gold without changing the engine.
+Each optional structured rule contains a stable id, literal keywords, an official
+source requirement, and independent relevance/importance weights (0–100).
+Keywords match titles and bounded excerpts; Latin words respect boundaries.
+Legacy topics provide a relevance-70/importance-40 baseline. `importanceRules`
+holds explanatory notes; only structured `rules` execute scoring. Scores are
+transparent ordering heuristics, not calibrated probabilities or investment advice.
+
+`src/channel-rules.ts` runs on the existing worker heartbeat, evaluating at most
+20 event/channel pairs with a persistent round-robin cursor. It uses the current
+event/config versions and an hourly observation fingerprint; refreshing or
+reading a page does not evaluate or call a model. Migration 12 stores immutable
+rule evidence: matched clauses/material IDs, original version hashes/times/URLs,
+report/source/independent-operator counts, source enabled/error/coverage state,
+publication range and parsed count, scoring algorithm and observation time.
+
+Known publication within the hourly 24-hour window contributes heat; acquisition
+time, old imports and unknown publication never supply freshness. Content hash
+differences from the previous observation supply information increment, explicitly
+not independently verified new facts. Reposts with equal content do not add that
+increment, and aliases of one operator do not become independent operators.
+Official provenance requires catalog id/operator and original URL host agreement.
+The evidence state does not claim automatic independent corroboration. Human
+overrides and channel exclusions remain effective; historical reads never use a
+later configuration or score. Changes in source configuration, errors, coverage
+range/count/gaps mark heat trends as not directly comparable.
+
+`channel-rules.test.ts` and real PG integration verify these rules, immutable
+evidence, history, scoped worker grants, repeat reuse and human priority. Fixtures
+are synthetic. `scripts/channel-live-proof.ts` instead reads the two genuinely
+grouped frozen AI/macro events in the fixed acceptance schema, loads the same JSON
+channel configuration and records six real-event judgments. It starts no model,
+checks cumulative budget unchanged and preserves existing different configs.
+Gold's bank-stability example is explicitly indirect (40/35); it does not claim
+direct Gold-price evidence. Public CLI/Settings channel editing is still pending.
+
 ## Continuous public collection
 
 Migration 5 adds collection attempts and a durable material inbox. DataHub owns
