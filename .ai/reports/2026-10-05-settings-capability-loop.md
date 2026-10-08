@@ -992,3 +992,21 @@ Office修复送检前，本机集成+协议+API累计相关回归实际129 PASS/
 仍未闭合的实机条件分别为Word同文件重开超时、Excel文件准备超时、PowerPoint保存超时、Wind业务deadline，以及iFinD接口权限/接入。没有确定Office系统级根因；不能仅调大超时、连续重试或绕过受保护目录。已提出的Word提示类型反馈尚未取得，不重复询问同一问题。独立工程工作已完成，实机功能目标仍未全部完成。后续只有相应应用响应/权限条件改变或直接缺陷得到失败证据后才恢复受影响实机步骤。原模型、公开NAV、T6和B豁免不重新打开。
 
 本节之后的本地提交仅更新报告，源码候选仍冻结0c5、CI对应4ef，不能说CI测试过报告新HEAD；不为报告追加反复推送/安装CI。最终报告增量按L0检查，完整交付范围和冻结验收证据保持不变。此次模型请求0，生产未更新、不合并、不发布。
+
+### Office插件机制调研与确定性路径修正（2026-10-08）
+
+用户将当前重点收窄为Office修复，并要求调研Claude/Codex插件机制。宿主macOS，任务为功能修复与只读方案调研，不推进金融插件，不改变其他平台规则。基线fe7df77de，开始工作区干净。已读取现行AGENTS、架构/开发地图及相关模块文档，沿bugfix-evidence与现有最小规划器，不安装依赖。
+
+官方证据区分四层：Claude for Microsoft365是Office内的加载项，支持Excel/PowerPoint/Word等；Claude Plugin可打包Skills及本地/远端MCP，打包本身不增加Office对象权限；Codex公开文档明确当前ChatGPT for Excel直接工作簿控制只承诺Excel；文件生成Skill可产出DOCX/PPTX/XLSX，不能据此说调用了本机Office。微软Office Add-ins由manifest和Web应用构成，通过Office.js操作当前文档，可在Mac运行。厂商具体内部传输、实现源码及第三方可直接接管其账户通道未获得证据，不猜为通用可复用MCP。
+
+来源：[Claude Microsoft365](https://claude.com/claude-for-microsoft-365)、[Claude插件/连接器](https://support.claude.com/en/articles/11725091-when-to-use-desktop-and-web-connectors)、[Codex Excel加载项](https://help.openai.com/en/articles/20001063-chatgpt-for-excel-and-google-sheets)、[微软Office Add-ins架构](https://learn.microsoft.com/en-us/office/dev/add-ins/overview/office-add-ins)。这些公开资料不证明用户实际使用的每条工具路径。当前Codex文档会话查询一次网络transport失败，未重复请求；Plugin目录查询只返回SharePoint/Outlook/Teams等，没有得到可直接供本项目使用的三件套原生桥接证据，不安装无关插件。
+
+本项目实际是Host→私有Python验证进程→AppleScript/xlwings→原生Office，与绑定当前文档的加载项机制不同。已有脚本replace_huaan_word_charts_office.py会处理Grant File Access提示；不运行其点击授权逻辑、不访问业务文档、不复制此行为来绕过用户权限。本次Word AX显示在启动/最近文档页，没有当前文件访问提示，已登记212f测试文件在最近列表；不点击或重开、不认定文件存在/清理完成，不保留无关最近文件名。该观察不是此前卡点权限根因的证明。
+
+发现确定性代码缺陷：PowerPoint sandbox映射为com.microsoft.PowerPoint，但本机/Applications/Microsoft PowerPoint.app/Contents/Info.plist实际CFBundleIdentifier为com.microsoft.Powerpoint（Office16.113.3）；微软官方sandbox文档同样如此。新增路径合同实际RED，修正一行后相关测试4 PASS/54 deselected，0.69秒，Black/isort只读通过。原产品.venv没有pytest的环境错误已记录；复用既有Native/Docker worktree测试解释器，不安装、不修改该环境。受保护目录未扫描，未知文件未操作。大小写不敏感卷可能将两路径解析为同对象，此修正不能证明旧PowerPoint保存timeout已解决，也不涉及Word/Excel卡点。
+
+建议借鉴的方向为：在Office内部绑定当前文档与会话，按应用实际支持的API登记能力；Host沿现有认证/工具边界发送有限结构化操作并读回结果。优先使用微软OfficeDev公开样例与Office.js，而非复制Claude/OpenAI私有插件或给模型任意JS执行。MCP只是暴露此桥接的可选协议，不能修复底层未工作的驱动。打开/保存/关闭、权限与文件系统清理仍须分别验证，Office.js并非无条件替代应用生命周期和Wind加载项。此为调研建议，尚未新建加载项、桥接或MCP框架，不将方案写成已交付。
+
+路径修正的新源码尚无匹配CI，旧0c5/4ef仅认证旧候选。本轮真实Office新验证0、供应商0、生产未更新。整体Office目标仍未完成；完整PR差异继续按当前规划器记录，不能只用这一条路径测试冒称全部验收。
+
+本次增量工程证据补充：架构JS76 PASS，完整差异Project Constraints violations=[]，文档治理、Python索引、diff检查exit0；Python只读复审Approve，未发现新增重要风险。工具尝试错误保留：产品.venv缺pytest，旧task context绑定0c5与本次HEAD不匹配（后改用真实fe7及工作区摘要生成独立plan，未改策略），猜测check_project_constraints.mjs不存在（后按plan实际命令.agents/project-constraints.mjs执行完整changed set）。不将这些环境/工具错误称为产品缺陷。新源码未完成当前CI/实机，权威冻结0c5回执仍只描述旧候选；本次仅本地检查点，无push、无新Office资源。新功能机制只调研，不将Office.js建议实施成另一套框架。

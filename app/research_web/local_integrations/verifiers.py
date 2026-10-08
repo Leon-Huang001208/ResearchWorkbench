@@ -159,7 +159,7 @@ def _office_documents_root(target: str) -> Path:
     bundle = {
         "excel": "com.microsoft.Excel",
         "word": "com.microsoft.Word",
-        "powerpoint": "com.microsoft.PowerPoint",
+        "powerpoint": "com.microsoft.Powerpoint",
     }[target]
     return Path.home() / "Library/Containers" / bundle / "Data/Documents"
 

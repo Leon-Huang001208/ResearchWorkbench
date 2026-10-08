@@ -1745,3 +1745,10 @@ def test_verification_run_storage_rejects_nested_symlink(tmp_path):
     assert run_root is None
     assert error == "verification_storage_unsafe"
     assert outside.read_text(encoding="utf-8") == "keep"
+
+
+def test_powerpoint_verification_uses_vendor_bundle_identifier(monkeypatch, tmp_path):
+    monkeypatch.setattr(verifiers.Path, "home", lambda: tmp_path)
+    assert verifiers._office_documents_root("powerpoint") == (
+        tmp_path / "Library/Containers/com.microsoft.Powerpoint/Data/Documents"
+    )

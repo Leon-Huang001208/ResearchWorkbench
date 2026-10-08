@@ -117,6 +117,8 @@ AKShare 财务摘要的布尔缺失哨兵规范化只发生在 Provider 结果�
 
 ## macOS Office 显式验证诊断
 
+PowerPoint sandbox根使用厂商实际bundle identifier `com.microsoft.Powerpoint`，与应用显示名Microsoft PowerPoint分开；不得由显示名推导容器标识。路径合同修正并不证明此前保存超时已经解决。
+
 Office 验证在调用前将服务端验证ID绑定到本次32位run UUID与合成文件名；完整位置仍由既有Office sandbox根和固定后缀推导，普通API不接受任意路径。现有私有状态文件保留有界的验证run登记，冷启动将未完成任务标为interrupted，不重新执行Office，也不把工作进程退出解释为功能或文件清理成功。
 
 验证结果分别记录last_completed_step、function_outcome、cleanup_outcome。只接收有限步骤/结果和合成文件名，不回传文档正文、账户秘密或任意本机路径。Word使用原生创建、保存、关闭/重开读回，并在save-as后按登记文件名重新绑定文档引用；Excel记录真实应用计算/保存/读回阶段；PowerPoint记录原生演示文稿/幻灯片阶段。库文件生成或编译成功均不是应用真实可用证据。
