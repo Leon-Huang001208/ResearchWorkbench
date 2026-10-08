@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "unchanged",
-  "summary": "Task14 c1 将既有端点事务与当前 master 的 Docker 运行合同集成；README 产品入口及平台边界仍准确。",
-  "reason": "动态端点、私有 tmpfs/持久日志、已发布 DSH 载荷及仅宿主 Web 映射的停止等待沿用既有产品拓扑。reading revision 暂保留已存在历史源码 a1e2c90f84a32309d84b762507628abb2c508386，当前 c1 freeze 后另以真实提交重绑定；未认证新镜像、GitHub 链接或 CI/真机结果。"
+  "summary": "Docker文本研究Task A Python基础片段增加专用模型后端；公开README入口和已验证双运行时边界暂不变。",
+  "reason": "模型后端尚待JS/owned启动器接入和新镜像实测，当前不能推荐为已验证文本研究路径；因此保留README既有能力声明。后续真机/真实调用与能力文档阶段再更新，不借旧c1或基础单测宣布Docker模型可用。"
 }

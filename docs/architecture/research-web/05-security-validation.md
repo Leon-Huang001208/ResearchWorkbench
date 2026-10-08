@@ -54,6 +54,15 @@ mkdir 到首次身份捕获非原子，沿用 Native/Supervisor 创建模型，�
 
 macOS Native 的固定模型 ref 通过 owned overlay 挂载产品 provider，私有 stdio 桥接只允许 resolve/describe/set/unset 与所属规范化 data home。桥接使用受管产品 Python，直接选择 macOS Keyring；其他平台、未知后端、拒绝访问或进程失败均失败关闭。秘密只存在系统库和受控进程内存/管道，不进入 argv、环境、URL、普通日志或报告；只散列公开 data home 路径生成命名空间，不散列秘密。不新增通用取密 HTTP API、不复制生产 Key。合成值 Keychain 验证与真实供应商生命周期分开。
 
+新增模型专用Python适配层只接受明确的 `docker-private-file` 绑定：Linux、32位小写十六进制
+稳定安装ID与固定 `/run/rwb-secrets/private/models/<id>`。Native默认不增加文件回退；
+JS/owned启动器尚未接入时，不能据此称Docker模型链可用。记录在原私有凭据挂载的专用叶，
+不读DataHub秘密或复用其命名空间，Key与浏览器认证record分离。复用pin/no-follow/锁/reader，
+models父目录先验私有再创建安装叶；alias、foreign owner、unsafe mode、硬链接、超界与变化拒绝。
+replace/unlink尝试后的失败保持 `model_credential_commit_uncertain`，不删除已发布目的、不猜测回滚；
+私有CLI连lazy import的日志也转到被drain的stderr，stdout只给一份JSON，异常文本不回显。
+文件权限不是Keychain或加密保险库，不能抵御容器内同UID任意代码或Docker管理者。
+
 模型配置保持同源、回环与专属 Runtime 所有权检查。不回退环境、`.credentials.yaml`、项目 `.env` 或 DSH_HOME `.env`，不复制 Keychain 值到旧文件。浏览器认证的 client-connection/browser-session 与 readRecord/modifyRecord 仍使用固定 DSH 原有受控实现及独立 `.browser-credentials.yaml`；模型未配置、清除、桥接失败不使 record 接口失效。配置保存不读取旧秘密制作备份。活动父/子任务阻止凭据更新；凭据提交结果未知时拒绝新请求，不能假定旧秘密未变。最小生成是用户显式操作，不由列表、刷新、Doctor 或保存自动触发。
 
 Docker Doctor schema 1 的 volumes 只投影固定类型：data/logs/credentials=bind、state=tmpfs；logs 为新增非秘密字段，不暴露路径，verified 仍须实际 inspect 成功，失败或缺容器为 false，查询不写目录。

@@ -5622,15 +5622,17 @@ Functions:
 ## `app/research_web/model_credentials.py`
 
 Module docstring:
-> Fixed-purpose private stdio bridge for the Native macOS model Keychain.
+> Fixed-purpose private stdio bridge for explicit Native/Docker model stores.
 
 Imports:
 - `argparse`
+- `contextlib`
 - `ctypes`
 - `hashlib`
 - `json`
 - `logging`
 - `pathlib`
+- `re`
 - `sys`
 
 Classes:
@@ -5643,9 +5645,45 @@ Functions:
   - Replace atomically; only an absent item may be added. Never delete first.
 - `system_backend`
   - Select the approved backend directly, bypassing keyring configuration.
+- `docker_backend`
+  - Lazy trusted-product import; accepts temporary POSIX roots for unit tests.
+- `select_backend`
+  - Explicit private CLI selection, never an ambient file/env fallback.
 - `execute`
   - Operate only on this canonical data home's fixed model account.
+- `_log_bridge_failure`
 - `main`
+
+
+## `app/research_web/model_file_store.py`
+
+Module docstring:
+> Fixed model-only Docker store; private files are not encrypted.
+
+Imports:
+- `__future__`
+- `credential_backend`
+- `json`
+- `logging`
+- `os`
+- `pathlib`
+- `re`
+- `runtime_state`
+- `secrets`
+- `stat`
+- `typing`
+
+Classes:
+- `ModelStoreError`
+  - Stable model-only error, without secret or filesystem details.
+- `DockerModelStore`
+  - One installation, one model ref, no generic credential fallback.
+  - methods: __init__, _verify_root, _verify_model_parents, _verify_private_directory, _record_name, _encode_model, _decode_model, _read, _reject, get_password, _clean_temporary, set_password, delete_password
+
+Functions:
+- `_log_stage`
+- `validate_installation_id`
+  - Only the stable installation identity, never a container ID or path hash.
 
 
 ## `app/research_web/operations.py`
