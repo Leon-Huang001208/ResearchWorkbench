@@ -4640,6 +4640,7 @@ Module docstring:
 Imports:
 - `argparse`
 - `capabilities.catalog`
+- `collections.abc`
 - `core.observability`
 - `datahub.contracts`
 - `datahub.security`
@@ -4657,6 +4658,7 @@ Imports:
 - `sys`
 - `tarfile`
 - `tempfile`
+- `typing`
 
 Functions:
 - `validate_research_python`
@@ -4683,6 +4685,10 @@ Functions:
   - Keep all stable tools registered; the Broker decides availability per call.
 - `prepare_runtime_module_fallback`
   - Heal DSH profile module links and reject dependencies outside the pinned tree.
+- `read_acceptance_budget`
+  - Read existing authorization only; missing state never grants admission.
+- `read_optional_acceptance_budget`
+  - Discover explicitly initialized installation authorization without writes.
 - `live_acceptance_control`
   - Bind optional, non-secret acceptance limits to one non-production instance.
 - `prepare`
@@ -4723,6 +4729,57 @@ Classes:
 Functions:
 - `_fsync_directory`
   - Persist a directory entry where directory fsync is supported.
+
+
+## `app/research_web/live_acceptance_budget.py`
+
+Module docstring:
+> Explicit, dated Docker text acceptance authorization and nonrefundable tickets.
+
+Imports:
+- `__future__`
+- `argparse`
+- `collections.abc`
+- `contextlib`
+- `datetime`
+- `hashlib`
+- `json`
+- `logging`
+- `os`
+- `pathlib`
+- `re`
+- `secrets`
+- `sys`
+- `time`
+- `typing`
+
+Classes:
+- `PolicyFields`
+- `Authorization`
+- `Ledger`
+- `Reservation`
+- `InitRequest`
+- `DescribeRequest`
+- `ReserveRequest`
+- `BudgetError`
+  - Fixed public error code; no request, credential or path details.
+- `BudgetStore`
+  - Pinned private leaf, existing permanent lock, fixed control and ledger.
+  - methods: __init__, _control, _directory, _read, _publish, _failure, initialize, describe, read_optional, reserve
+
+Functions:
+- `_utcnow`
+- `_date`
+- `_number`
+- `request_cost`
+  - Integral micro-USD, independently ceiling each worst-case component.
+- `authorization`
+  - Build the exact reviewable nonsecret control; does not authorize/write.
+- `_encode`
+- `_mapping`
+- `_decode`
+- `_request`
+- `main`
 
 
 ## `app/research_web/local_integrations/__init__.py`
@@ -5656,15 +5713,18 @@ Functions:
 ## `app/research_web/model_credentials.py`
 
 Module docstring:
-> Fixed-purpose private stdio bridge for the Native macOS model Keychain.
+> Fixed-purpose private stdio bridge for explicit Native/Docker model stores.
 
 Imports:
 - `argparse`
+- `contextlib`
 - `ctypes`
 - `hashlib`
 - `json`
 - `logging`
+- `os`
 - `pathlib`
+- `re`
 - `sys`
 
 Classes:
@@ -5677,9 +5737,45 @@ Functions:
   - Replace atomically; only an absent item may be added. Never delete first.
 - `system_backend`
   - Select the approved backend directly, bypassing keyring configuration.
+- `docker_backend`
+  - Lazy trusted-product import; accepts temporary POSIX roots for unit tests.
+- `select_backend`
+  - Explicit private CLI selection, never an ambient file/env fallback.
 - `execute`
   - Operate only on this canonical data home's two fixed model accounts.
+- `_log_bridge_failure`
 - `main`
+
+
+## `app/research_web/model_file_store.py`
+
+Module docstring:
+> Fixed model-only Docker store; private files are not encrypted.
+
+Imports:
+- `__future__`
+- `credential_backend`
+- `json`
+- `logging`
+- `os`
+- `pathlib`
+- `re`
+- `runtime_state`
+- `secrets`
+- `stat`
+- `typing`
+
+Classes:
+- `ModelStoreError`
+  - Stable model-only error, without secret or filesystem details.
+- `DockerModelStore`
+  - One installation, one model ref, no generic credential fallback.
+  - methods: __init__, _verify_root, _verify_model_parents, _verify_private_directory, _record_name, _encode_model, _decode_model, _read, _reject, get_password, _clean_temporary, set_password, delete_password
+
+Functions:
+- `_log_stage`
+- `validate_installation_id`
+  - Only the stable installation identity, never a container ID or path hash.
 
 
 ## `app/research_web/operations.py`

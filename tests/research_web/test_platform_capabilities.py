@@ -30,6 +30,20 @@ def test_model_system_storage_is_only_a_macos_native_implementation(mode, platfo
     assert storage["validated"] is False
 
 
+@pytest.mark.parametrize("mode", ["native", "docker"])
+def test_docker_model_private_file_is_an_implementation_fact_only(mode):
+    capabilities = boundaries.platform_capabilities(mode, platform_name="darwin")
+    private = capabilities["model_private_file_storage"]
+    assert private["status"] == ("available" if mode == "docker" else "unsupported")
+    assert private["validated"] is False
+    assert private["required"] is False
+    assert "configured" not in private
+    assert "callable" not in private
+    if mode == "docker":
+        assert private["reason_code"] == "docker_model_private_file_implementation"
+        assert capabilities["model_system_storage"]["status"] == "unsupported"
+
+
 @pytest.mark.parametrize("platform", ["darwin", "linux", "win32"])
 def test_docker_projection_preserves_legacy_status_and_acl_boundary(platform):
     capabilities = boundaries.platform_capabilities("docker", platform_name=platform)

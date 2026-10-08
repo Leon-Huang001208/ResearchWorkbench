@@ -115,6 +115,15 @@ node scripts/summarize_verification_delivery.mjs --project . \
 Research Web Checks 使用同一测试边界。这样本机 `.env`、根 `tests/conftest.py` 的兼容平台数据库
 fixture 和旧平台依赖不会污染 Research Web 验收；根 conftest 与非 Research Web 测试本身保持不变。
 
+模型凭据 Python/JS 的独立 catalog 由现有策略精确选择，安全边界仍走 L4；不另建验收框架。
+普通 Checks 必须实际执行模型/后端及受管 runtime 闭包，不能仅在 path trigger 列出测试路径。
+当前明确模块、Node 参数及扩展前五次耗时见 [Actions 额度治理](actions-budget.md)；命令删除、
+替换和 confcutdir 漂移由既有合同测试拒绝。代码合同 PASS 不证明镜像、凭据真机或付费文本闭环。
+
+任务专属 live-acceptance 控制与私有预算 helper 使用精确安全/L4 路由；聚焦 Python 复用
+container-runtime catalog，JS 复用现有 guard 测试文件的 catalog，不建立第二账本验收框架。
+普通 CI 的声明环境须与真实测试读取的解释器变量一致，不能让系统 Python 冒充锁定测试环境。
+
 ### L0-L4 分层
 
 | 等级 | 最小验收语义 | 典型证据 |

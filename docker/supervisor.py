@@ -154,6 +154,52 @@ def _prepare_private_leaf(path: Path) -> None:
     log.info("container_private_leaf_prepared")
 
 
+def _prepare_model_leaf(root: Path, installation_id: str) -> Path:
+    """Pin the dedicated model hierarchy; never repair existing permissions."""
+    if (
+        not isinstance(installation_id, str)
+        or re.fullmatch(r"[a-f0-9]{32}", installation_id) is None
+    ):
+        raise RuntimeStateError("runtime_state_unsafe")
+    models = root / "models"
+    leaf = models / installation_id
+    with ExitStack() as stack:
+        for path in (root, models, leaf):
+            stack.enter_context(runtime_state_directory(path, create=path != root))
+            value = path.lstat()
+            if stat.S_IMODE(value.st_mode) != 0o700 or (value.st_uid, value.st_gid) != (
+                os.getuid(),
+                os.getgid(),
+            ):
+                raise RuntimeStateError("runtime_state_unsafe")
+    log.info("container_model_leaf_prepared")
+    return leaf
+
+
+def _model_launch_arguments(config: SupervisorConfig) -> tuple[str, ...]:
+    """Select only the owned fixed mount, with unavailable selection explicit."""
+    arguments = ("--model-backend", "docker-private-file")
+    if (
+        config.credential_root != Path("/run/rwb-secrets/private")
+        or not isinstance(config.installation_id, str)
+        or re.fullmatch(r"[a-f0-9]{32}", config.installation_id) is None
+    ):
+        log.warning("model_credential_backend_unavailable")
+        return arguments
+    try:
+        leaf = _prepare_model_leaf(config.credential_root, config.installation_id)
+    except (OSError, ValueError, RuntimeError):
+        log.warning("model_credential_backend_unavailable")
+        return arguments
+    return (
+        *arguments,
+        "--model-credential-root",
+        str(leaf),
+        "--model-installation-id",
+        config.installation_id,
+    )
+
+
 @dataclass(frozen=True, slots=True)
 class SupervisorConfig:
     data_root: Path
@@ -167,6 +213,7 @@ class SupervisorConfig:
     startup_timeout: float = 35.0
     shutdown_timeout: float = 8.0
     credential_root: Path | None = None
+    installation_id: str | None = None
 
 
 class HealthProbe(Protocol):
@@ -670,6 +717,7 @@ def run(config: SupervisorConfig, *, probe: HealthProbe = real_probe) -> int:
             web_port=config.web_port,
             runtime_port=config.runtime_port,
         )
+        model_arguments = _model_launch_arguments(config)
         environment = {
             **os.environ,
             "RESEARCH_DATA_HOME": str(config.data_root),
@@ -694,7 +742,7 @@ def run(config: SupervisorConfig, *, probe: HealthProbe = real_probe) -> int:
                     child_environment["RWB_DSH_STAGED"] = "1"
                 output.remember_secret(f"{ROLE_ENVIRONMENT_KEY}={spec.role}")
                 child = subprocess.Popen(
-                    spec.command,
+                    spec.command + (model_arguments if spec.role == "runtime" else ()),
                     cwd=config.project_root,
                     env=child_environment,
                     stdin=subprocess.DEVNULL,
@@ -819,6 +867,7 @@ def main(argv=()):
                 runtime_source=Path("/opt/dsh"),
                 python=sys.executable,
                 node="/usr/local/bin/node",
+                installation_id=os.environ.get("RWB_INSTALLATION_ID"),
             )
         )
     except (OSError, ValueError, RuntimeError):

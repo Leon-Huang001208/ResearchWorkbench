@@ -121,7 +121,7 @@ test('Compose requires explicit canonical mounts and includes only non-secret co
     { type: 'bind', source: '${RWB_STATE_DIR:?Set RWB_STATE_DIR}/logs', target: '/state/logs', bind: { create_host_path: false } },
     { type: 'bind', source: '${RWB_CREDENTIAL_DIR:?Set RWB_CREDENTIAL_DIR}', target: '/run/rwb-secrets', bind: { create_host_path: false } },
   ]);
-  assert.deepEqual(service.environment, { RWB_DATA_ROOT: '/data/research-web', RWB_RUNTIME_STATE: '/state/runtime', RESEARCH_CREDENTIAL_HOME: '/run/rwb-secrets/private', LOG_DIR: '/state/logs' });
+  assert.deepEqual(service.environment, { RWB_INSTALLATION_ID: '${RWB_INSTALLATION_ID:?Set RWB_INSTALLATION_ID}', RWB_DATA_ROOT: '/data/research-web', RWB_RUNTIME_STATE: '/state/runtime', RESEARCH_CREDENTIAL_HOME: '/run/rwb-secrets/private', LOG_DIR: '/state/logs' });
   assert.match(read('Dockerfile'), /RWB_RUNTIME_STATE=\/state\/runtime/);
   assert.match(read('Dockerfile'), /RESEARCH_CREDENTIAL_HOME=\/run\/rwb-secrets\/private/);
   assert.deepEqual(service.labels, {
