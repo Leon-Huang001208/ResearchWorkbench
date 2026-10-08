@@ -1,5 +1,10 @@
 # Research Web Native / Docker 安装与运行
 
+Docker模型专用文件后端的Python/JS/owned启动源码已同步，使用既有私有凭据挂载内的
+models/稳定安装ID；Native仍Keychain且不自动复制Key。文件权限不是加密保险库，Docker
+管理者/容器内同UID代码不在隔离边界内。当前新镜像、设置页完整投影及真实文本/重启续问
+仍待本轮独立验收，不因容器健康或源码测试推荐为已验证模型路径。宿主Python要求不变。
+
 阶段二、三及跨平台范围已由用户明确重新开启；每个平台仍由对应宿主完成验收。当前实现边界、OS/运行模式、证据提交和未验证项见 [能力支持矩阵](research-web-platform-support.md)。安装路径存在不等于该平台能力已验收。
 
 Python 质量整理保持公开安装参数及 coded RuntimeError 合同。内部端口 TypedDict 只描述

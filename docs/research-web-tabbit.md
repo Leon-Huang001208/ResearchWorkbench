@@ -1,8 +1,8 @@
 # Research Web Tabbit 集成
 
 模型专用Python文件后端的基础实现不读取Tabbit会话或授权，也不把Host集成带入Docker。
-模型记录、浏览器认证record和control token用途分离；当前仅Python片段通过源码回归，
-JS/启动器绑定及Docker真实文本研究仍待独立验收，不改变本页的claim/正文token/写入审批。
+模型记录、浏览器认证record和control token用途分离；Python/JS/启动器绑定已有源码回归，
+Docker真实文本研究仍待独立验收，不改变本页的claim/正文token/写入审批。
 
 macOS 异根 Native 记录认证仅复核启动者的标准产品根、PID 与 listener；不会访问浏览器
 标签、URL、Cookie、正文或 Tabbit claim。调用内 lease/FD 证明不成为浏览器授权；原会话

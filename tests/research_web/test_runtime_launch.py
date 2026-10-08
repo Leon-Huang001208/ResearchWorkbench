@@ -157,6 +157,114 @@ def test_runtime_binds_model_system_store_and_separate_host_records(tmp_path, mo
     assert "RESEARCH_DSH_API_KEY" not in env
 
 
+def test_staged_runtime_binds_only_explicit_model_selectors(tmp_path, monkeypatch):
+    source = make_source(tmp_path)
+    data = tmp_path / "data"
+    monkeypatch.setattr(
+        launch_runtime.subprocess, "check_output", lambda *a, **kw: launch_runtime.PINNED_COMMIT
+    )
+    monkeypatch.setattr(
+        launch_runtime,
+        "verify_staged_runtime",
+        lambda *a, **kw: {"closure_sha256": "a" * 64, "closure_files": 1},
+    )
+    monkeypatch.setenv("RWB_DSH_STAGED", "1")
+    identity = "a" * 32
+    launch_runtime.prepare(
+        source,
+        data,
+        "/node",
+        3081,
+        model_backend="docker-private-file",
+        model_credential_root=Path("/run/rwb-secrets/private/models") / identity,
+        model_installation_id=identity,
+    )
+    overlay = (data / "runtime/overlay.yml").read_text()
+    assert 'source: "docker-private-file"' in overlay
+    assert f'installationId: "{identity}"' in overlay
+    assert f'credentialRoot: "/run/rwb-secrets/private/models/{identity}"' in overlay
+
+
+def test_staged_runtime_missing_model_binding_keeps_core_and_denies_native_fallback(
+    tmp_path, monkeypatch
+):
+    source = make_source(tmp_path)
+    data = tmp_path / "data"
+    monkeypatch.setattr(
+        launch_runtime.subprocess, "check_output", lambda *a, **kw: launch_runtime.PINNED_COMMIT
+    )
+    monkeypatch.setattr(
+        launch_runtime,
+        "verify_staged_runtime",
+        lambda *a, **kw: {"closure_sha256": "a" * 64, "closure_files": 1},
+    )
+    monkeypatch.setenv("RWB_DSH_STAGED", "1")
+    launch_runtime.prepare(source, data, "/node", 3081)
+    overlay = (data / "runtime/overlay.yml").read_text()
+    assert 'source: "docker-private-file"' in overlay
+    assert "credentialRoot:" not in overlay
+
+
+def test_native_ignores_ambient_docker_model_selector(tmp_path, monkeypatch):
+    source = make_source(tmp_path)
+    data = tmp_path / "data"
+    monkeypatch.setattr(
+        launch_runtime.subprocess, "check_output", lambda *a, **kw: launch_runtime.PINNED_COMMIT
+    )
+    launch_runtime.prepare(source, data, "/node", 3081)
+    before = (data / "runtime/overlay.yml").read_bytes()
+    monkeypatch.setenv("RWB_INSTALLATION_ID", "a" * 32)
+    monkeypatch.setenv("RESEARCH_CREDENTIAL_HOME", "/run/rwb-secrets/private")
+    monkeypatch.setenv("RWB_MODEL_BACKEND", "docker-private-file")
+    launch_runtime.prepare(source, data, "/node", 3081)
+    assert (data / "runtime/overlay.yml").read_bytes() == before
+
+
+@pytest.mark.parametrize(
+    "backend,identity,root",
+    [
+        ("system-keychain", "a" * 32, "/run/rwb-secrets/private/models/" + "a" * 32),
+        ("unknown", "a" * 32, "/run/rwb-secrets/private/models/" + "a" * 32),
+        ("docker-private-file", "A" * 32, "/run/rwb-secrets/private/models/" + "A" * 32),
+        ("docker-private-file", "a" * 32, "/tmp/models"),
+    ],
+)
+def test_invalid_staged_model_binding_is_explicitly_unavailable(
+    tmp_path, monkeypatch, backend, identity, root
+):
+    source = make_source(tmp_path)
+    data = tmp_path / "data"
+    monkeypatch.setattr(
+        launch_runtime.subprocess, "check_output", lambda *a, **kw: launch_runtime.PINNED_COMMIT
+    )
+    monkeypatch.setattr(
+        launch_runtime,
+        "verify_staged_runtime",
+        lambda *a, **kw: {"closure_sha256": "a" * 64, "closure_files": 1},
+    )
+    monkeypatch.setenv("RWB_DSH_STAGED", "1")
+    launch_runtime.prepare(
+        source,
+        data,
+        "/node",
+        3081,
+        model_backend=backend,
+        model_installation_id=identity,
+        model_credential_root=Path(root),
+    )
+    overlay = (data / "runtime/overlay.yml").read_text()
+    assert 'source: "docker-private-file"' in overlay
+    assert "credentialRoot:" not in overlay and "installationId:" not in overlay
+
+
+def test_native_explicit_docker_selection_is_denied_before_overlay(tmp_path, monkeypatch):
+    source = make_source(tmp_path)
+    data = tmp_path / "data"
+    with pytest.raises(RuntimeError, match="model_credential_backend_unavailable"):
+        launch_runtime.prepare(source, data, "/node", 3081, model_backend="docker-private-file")
+    assert not (data / "runtime/overlay.yml").exists()
+
+
 @pytest.mark.parametrize("marker", ["runtime", "web", "invalid", "runtime\nweb", ""])
 def test_clean_runtime_exec_environment_retains_only_exact_runtime_role(
     tmp_path, monkeypatch, marker

@@ -54,6 +54,9 @@ _CONTAINER_FORMAT = (
     '"project":{{json (index .Config.Labels "com.docker.compose.project")}},'
     '"service":{{json (index .Config.Labels "com.docker.compose.service")}},'
     '"installation":{{json (index .Config.Labels "io.research-workbench.installation")}},'
+    '"installation_environment":[{{$comma := ""}}{{range .Config.Env}}'
+    '{{if eq (index (split . "=") 0) "RWB_INSTALLATION_ID"}}{{$comma}}'
+    '{{json (join (slice (split . "=") 1) "=")}}{{$comma = ","}}{{end}}{{end}}],'
     '"runtime":{{json (index .Config.Labels "io.research-workbench.runtime")}},'
     '"launch":{{json (index .Config.Labels "io.research-workbench.launch")}},'
     '"working_dir":{{json (index .Config.Labels "com.docker.compose.project.working_dir")}},'
@@ -943,6 +946,12 @@ class DockerRuntime:
             value.get(key) != item for key, item in expected.items()
         ):
             raise ControlError("docker_ownership_mismatch")
+        installation_environment = value.get("installation_environment")
+        if not isinstance(installation_environment, list) or installation_environment not in (
+            [],
+            [self.installation_id],
+        ):
+            raise ControlError("docker_ownership_mismatch")
         if (
             type(value.get("running")) is not bool
             or value.get("state")
@@ -1004,6 +1013,9 @@ class DockerRuntime:
             or self._image(image)["id"] != image
         ):
             raise ControlError("docker_ownership_mismatch")
+        # Legacy containers remain controllable under the unchanged ownership
+        # guards, but an absent guest binding never proves model availability.
+        value["model_binding_verified"] = installation_environment == [self.installation_id]
         return value
 
     def _guard(self, operation, function):

@@ -50,3 +50,25 @@ inventory，生成索引与完整约束复核随后执行。Python基础与JS/la
 同平台安装、镜像、真实model及远端门尚无本轮结果；本片段可以本地checkpoint，不能发布为整体PASS。
 
 <!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"模型专用Python适配层复用既有私有凭据mount和描述符锁；新增模块列入inventory，但当前未由owned JS启动链选择，不新增部署节点、公共API、Host集成或第二DSH循环。图中既有Native模型平面与Docker未验证边界仍保持，真实Docker模型与生命周期留待后续独立验收。","diagrams":[]} -->
+
+## Task A 跨语言/受管绑定片段
+
+源码绑定已贯通Compose非秘密安装ID、normal supervisor参数、staged overlay和私有JS桥接。
+首次SPEC发现新增env要求使旧正确owned实例不能status/stop：保留真实初轮596 Python/24 JS。
+最小兼容修复后，合法空ID投影只授予原完整归属守卫下的生命周期控制，derived flag为false；
+缺字段/非list/错误/重复ID仍拒绝，精确ID必须全部inspect通过才true，输入伪造值被覆盖。
+缺绑定时四种模型操作拒绝而Hostrecords保留；旗标不证明目录安全/Key配置/模型调用。
+修复RED3Fail、focus17PASS后完整Python609PASS/188.26秒、JS25PASS；SPEC和独立Python/JS
+QUALITY均APPROVE。mypy59条诊断与actualHEAD shadow基线精确normalized多重集一致，整体FAIL。
+Ruff/Black/isort/diffchecks PASS；真实Docker Go-template、新镜像、Key、请求/CI未执行。
+
+当前完整27路径计划经原Git-bound planner为L4，12本地门及5外部门保留。
+相同冻结输入的609三模块覆盖container-runtime及Docker半边；另实际执行service-manager、
+local-integrations、protocol、runtime-mode、platform-capabilities，523 PASS/1 Windows实机SKIP，
+1个既有Starlette/AnyIO弃用warning保留，30.70秒。不是把fixture记作实机PASS。
+四模块JS相关完整验证再次实际104 PASS（含architecture），全部27路径Project Constraints
+0 violation，architecture/governance/index复核PASS。真实镜像与外部门没有因local checkpoint变PASS。
+
+<!-- architecture-review {"group":"dual-runtime","structure":"unchanged","reason":"在既有私有credentials bind内增加模型叶和非秘密安装身份/参数绑定；Native overlay不变，无新mount、Host服务或部署节点。旧实例空ID投影保留原完整生命周期守卫但无模型能力，新精确绑定只在实际完整inspect后派生，不改变DSH唯一引擎或数据根，实际镜像和真实研究另行验收。","diagrams":[]} -->
+
+<!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"当前JS私有pipe已经接入稳定安装ID/source绑定，继续委派原Host浏览器record；Native默认overlay不变，模型秘密只落在既有Docker私有credentials信任区或Native Keychain，无新部署组件、公开取密API、宿主bridge或第二执行循环。当前按实现合同记录，实际镜像及真实模型状态未验收且不借静态图推导通过。","diagrams":[]} -->

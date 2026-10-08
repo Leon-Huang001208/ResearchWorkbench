@@ -519,6 +519,9 @@ def prepare(
     datahub_url: str | None = None,
     *,
     state_root: Path | None = None,
+    model_backend: str | None = None,
+    model_credential_root: Path | None = None,
+    model_installation_id: str | None = None,
 ) -> tuple[list[str], dict, Path]:
     staged_source = None
     if os.environ.get("RWB_DSH_STAGED") == "1":
@@ -537,6 +540,9 @@ def prepare(
             datahub_url,
             state_root=state,
             staged_source=staged_source,
+            model_backend=model_backend,
+            model_credential_root=model_credential_root,
+            model_installation_id=model_installation_id,
         )
 
 
@@ -551,8 +557,36 @@ def _prepare_runtime(
     *,
     state_root: Path,
     staged_source: dict | None = None,
+    model_backend: str | None = None,
+    model_credential_root: Path | None = None,
+    model_installation_id: str | None = None,
 ) -> tuple[list[str], dict, Path]:
     source, data = source.resolve(), data.resolve()
+    model_binding: list[str] = []
+    if staged_source is None:
+        if any(
+            value is not None
+            for value in (model_backend, model_credential_root, model_installation_id)
+        ):
+            log.warning("model_credential_binding_denied")
+            raise RuntimeError("model_credential_backend_unavailable")
+    else:
+        # A staged guest never falls back to the Native backend. Missing binding
+        # leaves model operations unavailable without disabling Host records.
+        model_binding = ['        source: "docker-private-file"']
+        if (
+            model_backend == "docker-private-file"
+            and isinstance(model_installation_id, str)
+            and re.fullmatch(r"[a-f0-9]{32}", model_installation_id)
+            and model_credential_root
+            == Path("/run/rwb-secrets/private/models") / model_installation_id
+        ):
+            model_binding += [
+                f"        credentialRoot: {json.dumps(str(model_credential_root))}",
+                f"        installationId: {json.dumps(model_installation_id)}",
+            ]
+        else:
+            log.warning("model_credential_backend_unavailable")
     acceptance = live_acceptance_control(data, port)
     tabbit_config = load_tabbit_config(data)
     commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=source, text=True).strip()
@@ -656,6 +690,7 @@ def _prepare_runtime(
                 f"        python: {json.dumps(sys.executable)}",
                 f"        bridge: {json.dumps(str(package.parent / 'model_credentials.py'))}",
                 f"        dataHome: {json.dumps(str(data))}",
+                *model_binding,
                 f"        recordsPath: {json.dumps(str(home / '.browser-credentials.yaml'))}",
                 f"        localProvider: {json.dumps(str(source / 'packages/credentials/credentials-local/lib/index.js'))}",
                 "- id: llm-deepseek",
@@ -790,6 +825,9 @@ def main():
     )
     parser.add_argument("--node", default="/usr/local/bin/node")
     parser.add_argument("--port", type=int, default=3081)
+    parser.add_argument("--model-backend", default=None)
+    parser.add_argument("--model-credential-root", type=Path, default=None)
+    parser.add_argument("--model-installation-id", default=None)
     parser.add_argument(
         "--datahub-url",
         default=None,
@@ -820,6 +858,9 @@ def main():
             args.research_tools,
             args.datahub_url,
             state_root=args.state if args.state is not None else args.data.resolve() / "runtime",
+            model_backend=args.model_backend,
+            model_credential_root=args.model_credential_root,
+            model_installation_id=args.model_installation_id,
         )
         stage = "launcher_modules"
         module_count = prepare_runtime_module_fallback(

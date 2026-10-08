@@ -56,12 +56,17 @@ macOS Native 的固定模型 ref 通过 owned overlay 挂载产品 provider，�
 
 新增模型专用Python适配层只接受明确的 `docker-private-file` 绑定：Linux、32位小写十六进制
 稳定安装ID与固定 `/run/rwb-secrets/private/models/<id>`。Native默认不增加文件回退；
-JS/owned启动器尚未接入时，不能据此称Docker模型链可用。记录在原私有凭据挂载的专用叶，
+JS/owned启动器已经同步绑定源码合同，但新镜像与真实模型尚未验收。记录在原私有凭据挂载的专用叶，
 不读DataHub秘密或复用其命名空间，Key与浏览器认证record分离。复用pin/no-follow/锁/reader，
 models父目录先验私有再创建安装叶；alias、foreign owner、unsafe mode、硬链接、超界与变化拒绝。
 replace/unlink尝试后的失败保持 `model_credential_commit_uncertain`，不删除已发布目的、不猜测回滚；
 私有CLI连lazy import的日志也转到被drain的stderr，stdout只给一份JSON，异常文本不回显。
 文件权限不是Keychain或加密保险库，不能抵御容器内同UID任意代码或Docker管理者。
+
+Container inspect只以Go模板投影RWB_INSTALLATION_ID，不输出全部环境或其他值。
+合法空数组只维持旧实例原生命周期权限；完整归属通过的精确ID才派生模型绑定标记，
+输入伪造标记被覆盖，不是模型目录权限/配置/调用证明。模型能力缺失不能借此获取Native回退；
+临时control-preparer无credentials挂载，仍不读取、创建或迁移模型记录。
 
 模型配置保持同源、回环与专属 Runtime 所有权检查。不回退环境、`.credentials.yaml`、项目 `.env` 或 DSH_HOME `.env`，不复制 Keychain 值到旧文件。浏览器认证的 client-connection/browser-session 与 readRecord/modifyRecord 仍使用固定 DSH 原有受控实现及独立 `.browser-credentials.yaml`；模型未配置、清除、桥接失败不使 record 接口失效。配置保存不读取旧秘密制作备份。活动父/子任务阻止凭据更新；凭据提交结果未知时拒绝新请求，不能假定旧秘密未变。最小生成是用户显式操作，不由列表、刷新、Doctor 或保存自动触发。
 

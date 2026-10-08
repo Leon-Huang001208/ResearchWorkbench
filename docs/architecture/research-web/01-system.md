@@ -2,8 +2,12 @@
 
 模型专用 `model_file_store.py` 复用原私有目录、描述符与锁原语，使用稳定安装ID隔离记录；
 Python私有桥接仅在显式Linux/固定model叶绑定时提供 `docker-private-file`，Native仍直接
-Keychain。该Python基础片段尚未由JS/owned启动器接入，不能把源码测试称作Docker模型已可用；
+Keychain。JS/owned启动器已有对应源码绑定，但尚无新镜像或真实研究验收，不能把源码测试称作Docker模型已验收；
 其存储位于原凭据挂载内，不新增进程、宿主代理、mount或第二研究引擎。
+
+正常supervisor只在原私有挂载内准备models/安装ID并向runtime命令附加非秘密显式selector；
+已验证staged source才生成Docker模型overlay。模型绑定缺失/不安全只使模型操作拒绝，
+Host record与核心设置页链保持；prepare-controls临时guest不访问凭据挂载或创建模型叶。
 
 Native→Docker 顺序切换在公开 Native stop 成功后，沿原 stdlib bootstrap 有界等待
 原 Native 端口释放，再取得既有 switch_select lease；不新增组件或停止权限。

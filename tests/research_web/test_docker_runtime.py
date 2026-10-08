@@ -387,6 +387,7 @@ def owned(controller, runner):
         "project": controller.project_name,
         "service": "research-web",
         "installation": controller.installation_id,
+        "installation_environment": [controller.installation_id],
         "runtime": "docker",
         "working_dir": str(controller.project_root),
         "running": True,
@@ -704,6 +705,68 @@ def test_fix2_docker_only_start_keeps_real_host3081_and_refuses_unknown_product(
         assert not any(argv[1] in ("stop", "rm") for argv, _ in runner.calls)
     finally:
         listener.close()
+
+
+@pytest.mark.parametrize("binding", [None, "", {}, ["b" * 32], ["a" * 32, "a" * 32]])
+def test_container_installation_environment_must_match_owned_label(runtime, binding):
+    from research_workbench_entrypoint.docker_runtime import ControlError
+
+    controller, runner, _ = runtime
+    owned(controller, runner)
+    runner.container["installation_environment"] = binding
+    with pytest.raises(ControlError, match="docker_ownership_mismatch"):
+        controller._inspect(runner.container["id"])
+
+
+def test_missing_installation_environment_projection_remains_structurally_invalid(runtime):
+    from research_workbench_entrypoint.docker_runtime import ControlError
+
+    controller, runner, _ = runtime
+    owned(controller, runner)
+    del runner.container["installation_environment"]
+    with pytest.raises(ControlError, match="docker_ownership_mismatch"):
+        controller._inspect(runner.container["id"])
+
+
+@pytest.mark.parametrize("bound", [False, True])
+def test_model_binding_is_derived_only_after_full_owned_inspect(runtime, bound):
+    controller, runner, _ = runtime
+    owned(controller, runner)
+    runner.container["installation_environment"] = [controller.installation_id] if bound else []
+    # A forged input projection is never its own evidence.
+    runner.container["model_binding_verified"] = not bound
+    inspected = controller._inspect(runner.container["id"])
+    assert inspected["model_binding_verified"] is bound
+
+
+def test_legacy_container_without_installation_environment_can_status_and_stop(runtime):
+    controller, runner, _ = runtime
+    owned(controller, runner)
+    runner.container["installation_environment"] = []
+    status = controller.status()
+    assert status["ok"], status
+    assert status["services"]["web"]["running"]
+    assert controller._inspect(runner.container["id"])["model_binding_verified"] is False
+    stopped = controller.stop(wait_timeout=0)
+    assert stopped["ok"], stopped
+    assert not runner.container["running"]
+    assert [argv for argv, _ in runner.calls if argv[1] == "stop"] == [
+        ["docker", "stop", "--time", "35", "c" * 64]
+    ]
+
+
+@pytest.mark.parametrize(
+    "field",
+    ["project", "service", "installation", "runtime", "working_dir", "mounts", "ports", "image"],
+)
+def test_legacy_empty_model_binding_never_weakens_lifecycle_ownership(runtime, field):
+    controller, runner, _ = runtime
+    owned(controller, runner)
+    runner.container["installation_environment"] = []
+    runner.container[field] = [] if field == "mounts" else {} if field == "ports" else "foreign"
+    stopped = controller.stop(wait_timeout=0)
+    assert not stopped["ok"], stopped
+    assert not any(argv[1] == "stop" for argv, _ in runner.calls)
 
 
 def test_fix2_managed_docker_mapping_mismatch_cannot_be_adopted(runtime):

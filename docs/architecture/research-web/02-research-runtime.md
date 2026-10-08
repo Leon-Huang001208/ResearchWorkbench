@@ -19,6 +19,14 @@ Docker fresh-root 首装接受与启动为两个独立 lifecycle 调用：no-sta
 
 ## 模型配置与显式验收
 
+源码中的Docker模型链以稳定RWB_INSTALLATION_ID绑定Compose、正常supervisor显式参数、
+已验证staged launcher和私有provider；Native默认overlay不变，普通环境变量不能改选文件后端。
+Node仅接受system-keychain/docker-private-file及匹配的describe来源，Key仅通过原private stdin；
+Python仍-I/-B、环境白名单、有界输出和stderr drain。仅Docker固定commit_uncertain码保持，
+其他后端异常仍收敛为稳定失败；模型不可用不影响Host readRecord/modifyRecord。
+旧受管容器的新ID投影为合法空数组时仍按全部原归属守卫允许status/stop，但无模型绑定证明；
+省略、非数组、错误/重复ID拒绝。内部派生标记不证明模型目录、Key或真实请求可用。
+
 受管启动在固定 CLI 加载前安装产品 `auth-bootstrap.mjs`：启动认证输出按完整行截获（包含跨chunk情况），仅向现有私有 `runtime/auth.json` 写入临时bootstrap_token及实例绑定。管理器从该受控文件完成原Cookie交换，原子替换为正常认证记录，不再从runtime.log解析token；普通日志只出现固定脱敏标记。没有新HTTP接口、daemon或模型凭据后端。解析/绑定/私有文件校验失败则认证失败关闭，不回退旧日志。
 
 模型 Provider 固定为 `deepseek-official`，模型 ID 由固定 DSH 的真实目录校验。保存与显式测试共用串行边界；保存共享凭据前拒绝活动父/子任务。已有会话保留模型，新会话在创建时应用默认值；凭据由Runtime共享，替换后用于所有后续模型请求。凭据变更前先持久化旧模型与 `model_configuration_uncertain`，成功后才提交新默认值并清标记。写入前只读拒绝不改旧状态；RPC开始后的拒绝、取消、进程退出、传输或最终保存失败均保留未知标记，冷恢复也阻断后续模型请求。固定DSH的credential/rejected也可能代表提交后的observer失败，不能当作回滚收据。不会读取秘密来制作回滚副本。

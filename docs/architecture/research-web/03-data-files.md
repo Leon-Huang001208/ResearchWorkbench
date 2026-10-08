@@ -24,6 +24,12 @@ Docker missing/new-root witness 仅为调用内 RAM：保留真实 lease/control
 
 模型默认值、清除/回执未知标记及最近显式生成结果只保存于既有非秘密产品索引，不保存Key。macOS Native固定DSH模型秘密仅在系统Keychain；权限受限私有文件仅用于Host认证record；不进入DataHub快照、Automation索引、模型上下文或导出。提交前的未知标记支持取消/崩溃后的冷恢复失败关闭。
 
+显式绑定的Docker模型使用既有凭据bind内 `/run/rwb-secrets/private/models/<installation-id>`，
+稳定ID而非container ID或固定data-path散列隔离；model records与DataHub、浏览器认证record
+及control token不同用途。models/安装叶0700，规范单链接记录0600；目录与锁每次pin/复核，
+不会chmod不安全既有节点。replace/unlink尝试后失败保留不确定状态，不删除新目的或假报回滚。
+相同挂载重启/重建的源码合同已覆盖，但本轮实际容器与真实模型持久化仍待验收，不自动跨模式迁移Key。
+
 运行状态 guard 的拒绝取证仅进入既有私有日志：固定枚举与身份变化字段名不包含路径、
 数值身份、文件内容、Cookie或token。不新增状态文件、marker、认证预写或数据迁移。
 身份变化日志只增加精确root/runtime对方向与相对位置枚举；仍不记录具体祖先目录或真实UID/GID。
