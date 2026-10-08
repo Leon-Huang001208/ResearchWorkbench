@@ -17,6 +17,8 @@ Hot 私有归档包含 `hot.dump` 和认证清单，原文 bytea 随库保存；
 Hot model_budgets 保存累计授权与收费预留，model_attempts 保存发送状态和令牌 hash；
 model_receipts/model_results 不可变并按输入/模型参数 hash 复用。未知发送不退款，
 迟到回执可保留，但不能绕过业务任务的代次/租约提交门。
+固定 DSH 成功流不提供 HTTP request ID，provider_request_id 可为 NULL；不能伪造本地 UUID。
+记录请求模型名与报价 hash，不把旧模型别名冒充为已验证后端版本或账单费用。
 
 模型默认值、清除/回执未知标记及最近显式生成结果只保存于既有非秘密产品索引，不保存Key。macOS Native固定DSH模型秘密仅在系统Keychain；权限受限私有文件仅用于Host认证record；不进入DataHub快照、Automation索引、模型上下文或导出。提交前的未知标记支持取消/崩溃后的冷恢复失败关闭。
 

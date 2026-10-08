@@ -24,6 +24,8 @@ Hot 持久采集位于 `services/hot/src/collection.ts`，共享源目录为
 模型累计预算核心为 `services/hot/src/model-budget.ts` 与 migration 7，测试为
 `model-budget.integration.ts`。它不发出模型请求；定价/用量边界、Hot/DSH 同 scope 接入
 与未知尝试操作入口仍待实现。
+模型接入契约为 `services/hot/src/dsh-text.ts`，使用固定 DSH prepared-call API，
+对应 `dsh-text.test.ts` / `dsh-receipt.test.ts`；它尚未装配为公开或受控生成入口。
 
 | 双运行时源码区域 | 职责 | 权威文档 | 主要测试 | 文档更新触发 |
 | --- | --- | --- | --- | --- |

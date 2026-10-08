@@ -77,6 +77,28 @@ reconciliation/termination and provider/research integration remain pending.
 Tests use synthetic model output on real PG, not real model acceptance.
 The authorized task cap is 20 calls / 20,000 tokens / US$1 cumulative; used 0.
 
+## Prepared DSH text adapter
+
+`src/dsh-text.ts` binds the pinned prepareCall/stream vocabulary to an explicit
+ledger port. It sends text only, with no tools/session, requires zero retries,
+reserves before dispatch, and saves usage before returning business output.
+Token totals include the disjoint input/cache-read/cache-write/output counters;
+reasoning is already a subset of output. Pricing uses integer micro-USD rates
+and BigInt ceiling arithmetic. The local input byte+2048 floor is conservative
+for the fixed text projection, not an independent tokenizer verification.
+Caller safety filtering is synchronous; rejected/truncated complete replies
+still keep billing facts. Late complete usage survives cancellation, while
+business return is denied. Missing usage remains outcome_unknown. The successful
+pinned stream omits HTTP request id, so migration 8 allows NULL rather than a
+fabricated id; requestedModel also does not claim the undisclosed backend version.
+
+Native read-only probes confirm system-keychain configured and the installed
+DSH model catalog/prepared off-reasoning, no-retry call. They did not generate.
+`pricing.deepseek.2026-10-08.json` records the official legacy-name mapping and
+peak-rate ceiling, not an invoice or automatic activation. Before real sending,
+owned-runtime transport, shared Hot/DSH task scope and daily admission must be
+wired; credential safety and tokenizer/pricing bounds still need actual acceptance.
+
 Node 24.11+ in the 24 series is required. Install the exact dependencies with
 `npm ci` in this directory after the project-isolated infrastructure authorization.
 Run `npm test`; `npm run proof` is the bounded stage-zero integration check.

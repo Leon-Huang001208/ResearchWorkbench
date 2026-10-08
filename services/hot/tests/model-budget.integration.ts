@@ -65,7 +65,8 @@ test('cumulative reservations serialize, unknown sends remain charged and late r
     const fourth=await reserveModel(db,schema,next,'overrun_scope',{...spec,resultKey:sha256('input pending overrun'),maxCostMicros:100});
     if(fourth.state!=='reserved')throw Error('hot_fixture_ticket_failed');
     await markModelDispatch(db,schema,next,third.ticket);
-    assert.equal((await saveModelReceipt(db,schema,third.ticket,{}, {tokens:110,costMicros:101,providerRequestId:'synthetic-overrun'})).overrun,true);
+    assert.equal((await saveModelReceipt(db,schema,third.ticket,{}, {tokens:110,costMicros:101,providerRequestId:null})).overrun,true);
+    assert.equal((await db`select provider_request_id from ${db(schema)}.model_receipts where attempt_id=${third.ticket.id}`)[0].provider_request_id,null);
     const [paused]=await db`select paused,charged_tokens from ${db(schema)}.model_budgets where scope_id='overrun_scope'`;
     assert.equal(paused.paused,true);assert.equal(Number(paused.charged_tokens),210);
     await assert.rejects(markModelDispatch(db,schema,next,fourth.ticket),/budget_exhausted/);

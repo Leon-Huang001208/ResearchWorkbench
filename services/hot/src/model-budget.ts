@@ -79,9 +79,9 @@ export async function cancelUnsentModel(db:Sql,schema:string,owner:RuntimeOwner,
     await tx`update ${tx(schema)}.model_budgets set charged_calls=charged_calls-1,charged_tokens=charged_tokens-${row.max_tokens},charged_cost_micros=charged_cost_micros-${row.max_cost_micros} where scope_id=${row.scope_id}`;
   });
 }
-export async function saveModelReceipt(db:Sql,schema:string,value:ModelTicket,response:postgres.JSONValue,usage:{tokens:number;costMicros:number;providerRequestId:string}):Promise<{overrun:boolean}>{
+export async function saveModelReceipt(db:Sql,schema:string,value:ModelTicket,response:postgres.JSONValue,usage:{tokens:number;costMicros:number;providerRequestId:string|null}):Promise<{overrun:boolean}>{
   schemaName(schema);ticket(value);amount(usage.tokens,10000000);amount(usage.costMicros);
-  if(typeof usage.providerRequestId!=='string'||usage.providerRequestId.length<1||usage.providerRequestId.length>256||Buffer.byteLength(JSON.stringify(response))>1048576)throw Error('hot_model_receipt_invalid');
+  if((usage.providerRequestId!==null&&(typeof usage.providerRequestId!=='string'||usage.providerRequestId.length<1||usage.providerRequestId.length>256))||Buffer.byteLength(JSON.stringify(response))>1048576)throw Error('hot_model_receipt_invalid');
   return db.begin(async tx=>{
     // Share reservation's serialization fence without requiring the old runtime
     // generation to remain active. A cache miss cannot race a receipt becoming visible.
