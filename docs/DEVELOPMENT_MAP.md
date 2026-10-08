@@ -44,6 +44,10 @@ DSH 服务与现有 Keychain bridge。migration 9 做每日准入/跨日重验�
 `channel-rules.test.ts` / `.integration.ts` 覆盖旧文/未知时间不增热、官方低热度重要政策、
 来源变更/旧历史及人工评分优先。真实样本入口 `scripts/channel-live-proof.ts` 不调用模型；
 公开频道配置、读写 RPC/CLI/UI 和真正的研究交接仍待装配。
+内部签名事件/频道 RPC 在 `services/hot/src/projections.ts`、`channel-control.ts` 与
+`service.ts`，migration 13 保存频道条件配置审计。`event-rpc.integration.ts` 通过真实
+service/PG/scoped roles 验证历史投影、固定 cutoff 分页、字面筛选、继承评分、权限和UUID重放。
+这些读取不调度或调用模型；Python CLI/Host/UI 入口、会话跟踪与研究交接仍待实现。
 
 | 双运行时源码区域 | 职责 | 权威文档 | 主要测试 | 文档更新触发 |
 | --- | --- | --- | --- | --- |

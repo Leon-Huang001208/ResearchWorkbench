@@ -52,6 +52,6 @@ export async function grantController(db: Sql, schema: string, role: string): Pr
   await db`grant update(monitor_backoff_on) on ${db(schema)}.version to ${db(role)}`;
   await db`grant update(enabled,frequency_seconds,config_revision) on ${db(schema)}.sources to ${db(role)}`;
   await db`grant insert on ${db(schema)}.source_control_requests to ${db(role)}`;
-  await db`grant insert on ${db(schema)}.channels,${db(schema)}.channel_versions,${db(schema)}.event_corrections to ${db(role)}`;
+  await db`grant insert on ${db(schema)}.channels,${db(schema)}.channel_versions,${db(schema)}.event_corrections,${db(schema)}.channel_control_requests to ${db(role)}`;
   await db`grant update(current_version) on ${db(schema)}.channels to ${db(role)}`;
 }

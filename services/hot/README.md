@@ -3,6 +3,45 @@
 This package is under implementation. It is not yet a supported product entry.
 The authoritative stage record is `.ai/reports/2026-10-07-hot-events-PROGRESS.md`.
 
+## Authenticated event/channel API
+
+The existing signed `rwb-hot/v1` loopback transport now exposes these internal
+operations to the authorized Host. Instance/mode/generation, deadline, request UUID
+and read/control keys remain mandatory. Browsers do not receive these keys.
+
+| Operation | Permission | Parameters |
+| --- | --- | --- |
+| `channels` | read | optional cutoff |
+| `events.list` | read | channelId, cutoff, q/topic/institution/asset, from/to, sort, limit/offset, minRelevance |
+| `event.detail` | read | eventId, cutoff, reportLimit/reportOffset |
+| `channel.configure` | control | channelId, expectedVersion, config |
+| `event.correct` | control | reason, change (existing title/merge/split/reassign/channels contract) |
+
+Lists are bounded to 50 entries, details to 50 material versions per page and 20
+history entries. First responses return a fixed cutoff; pagination beyond offset
+zero must reuse it. Publication ranges use trusted publication times, not event
+acquisition/update times. Topic/institution/asset/keyword filters are literal text
+matching against the event title and frozen reports; they do not claim structured
+entity tags. Percent/underscore are literal, never wildcard or SQL instructions.
+Sorting supports recent observation, heat, importance, increment or relevance.
+Channel lists default to relevance >=1; zero/pending scores remain inspectable with
+minRelevance=0 or the all-event list. Manual membership can include an event by
+default, but never overrides a user-specified relevance threshold.
+
+Reads use only evidence/configuration/judgments available at the cutoff, resolve
+merged IDs to their historical canonical event and return explicit origin score
+versions for inherited human decisions. Detail contains immutable material id,
+revision/hash, original URL, publication/acquisition/source-update times and
+declared partial excerpts. It never fetches, schedules or generates. Web/CLI
+mounting and richer full-history navigation remain pending.
+
+Migration 13 adds immutable channel-control audit. Only the controller can make
+conditional changes or replay its UUID; identical canonical parameters return the
+original response, conflicting reuse rejects. Corrections reuse the same protected
+event audit. After transport timeout/untrusted response/late owner guard failure,
+the Host must preserve the UUID and retry identical parameters rather than invent
+a new request. Python CLI handling is the next implementation step.
+
 ## Shared events and versioned channels
 
 Migration 10 and `src/events.ts` persist shared event identities, immutable

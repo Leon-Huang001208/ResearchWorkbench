@@ -1,0 +1,83 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+import {resolve,join} from 'node:path';
+import {randomBytes,randomUUID} from 'node:crypto';
+import postgres from 'postgres';
+import {migrate,ingestPage} from '../src/database.ts';
+import {initializeIdentity,activateRuntime,pauseRuntime} from '../src/control.ts';
+import {openQueue} from '../src/queue.ts';
+import {grantWorker,grantController} from '../src/provision.ts';
+import {saveAutomaticEvent,configureChannel,saveChannelJudgment} from '../src/events.ts';
+import {parseFeed} from '../src/feed.ts';
+import {startService} from '../src/service.ts';
+import {rpc} from '../src/transport.ts';
+import {sha256} from '../src/material.ts';
+
+test('signed event/channel projections are bounded, historical and read-only; controller mutations replay once',{timeout:15000},async()=>{
+  const dir=resolve(import.meta.dirname,'../../../logs/hot-stage-zero'),baseline=JSON.parse(await readFile(join(dir,'receipt.json'),'utf8'));
+  const password=await readFile(join(dir,'password'),'utf8');
+  const db=postgres({host:'127.0.0.1',port:baseline.port,database:'hot_probe',username:'postgres',password,onnotice:()=>{}});
+  const schema='hot_event_rpc_'+randomBytes(5).toString('hex'),worker='hot_erw_'+randomBytes(5).toString('hex'),controller='hot_erc_'+randomBytes(5).toString('hex');
+  const workerPassword=randomBytes(32).toString('hex'),controllerPassword=randomBytes(32).toString('hex');
+  const instanceId=randomUUID(),controllerToken=randomBytes(32).toString('hex'),readerToken=randomBytes(32).toString('hex');
+  let service:Awaited<ReturnType<typeof startService>>|undefined;
+  try{
+    await migrate(db,schema);await initializeIdentity(db,schema,instanceId,controllerToken);
+    const boss=await openQueue(db,schema,true);await boss.stop();
+    await db.unsafe(`create role "${worker}" login nosuperuser nocreatedb nocreaterole password '${workerPassword}'`);
+    await db.unsafe(`create role "${controller}" login nosuperuser nocreatedb nocreaterole password '${controllerPassword}'`);
+    await grantWorker(db,schema,worker);await grantController(db,schema,controller);
+    await db`insert into ${db(schema)}.sources(id,operator,config) values('fed','Federal Reserve','{}'::jsonb)`;
+    const raw=await readFile(join(dir,'fed.xml'),'utf8'),now=new Date();
+    const items=parseFeed(raw,'https://www.federalreserve.gov/feeds/press_all.xml',now).slice(0,2).map((item,index)=>({...item,title:index?'Policy 100 percent known':'Policy 100% known',excerpt:'Synthetic read projection fixture'}));
+    const stored=await ingestPage(db,{source:'fed',raw,acquiredAt:now,materials:items,cursor:{}},schema);
+    const initial=await activateRuntime(db,schema,instanceId,controllerToken,'native');
+    const a=randomUUID(),b=randomUUID();
+    for(const [i,id] of [a,b].entries())await saveAutomaticEvent(db,schema,initial,id,0,{title:i?'Beta event':'Alpha event',materials:[{id:stored.materialIds[i],revision:1,relation:'same_occurrence'}],links:[]});
+    await configureChannel(db,schema,initial,'macro',0,{name:'Macro',topics:['policy'],sourceIds:['fed'],importanceRules:[]});
+    await saveChannelJudgment(db,schema,initial,{eventId:a,eventRevision:1,channelId:'macro',channelVersion:1,inputHash:sha256('human'),authority:'human',
+      judgment:{relevance:99,importance:99,heat:1,informationIncrement:1,evidence:'single_official',reason:'Synthetic review',limitations:[]}});
+    await saveChannelJudgment(db,schema,initial,{eventId:b,eventRevision:1,channelId:'macro',channelVersion:1,inputHash:sha256('human second'),authority:'human',
+      judgment:{relevance:50,importance:50,heat:1,informationIncrement:1,evidence:'unverified',reason:'Synthetic second review',limitations:[]}});
+    await pauseRuntime(db,schema,initial,controllerToken);
+    service=await startService({config:{enabled:true,database:{mode:'external',tls:'disable',port:baseline.port,name:'hot_probe',schema,user:worker}},
+      instanceId,mode:'native',workerPassword,controllerUser:controller,controllerPassword,controllerToken,readerToken});
+    const read=(op:string,params:any={})=>rpc(service!.port,service!.owner,readerToken,op,params) as Promise<any>;
+    const control=(op:string,params:any,id=randomUUID())=>rpc(service!.port,service!.owner,controllerToken,op,params,id) as Promise<any>;
+    const list=await read('events.list',{channelId:'macro',sort:'importance',limit:1});
+    assert.equal(list.items[0].id,a);assert.equal(list.hasMore,true);
+    const next=await read('events.list',{channelId:'macro',sort:'importance',limit:1,offset:1,cutoff:list.cutoff});assert.equal(next.items[0].id,b);
+    const special=await read('events.list',{q:'100%'});assert.equal(special.items.length,1);
+    const channelRequest=randomUUID(),config={name:'Gold',topics:['gold'],sourceIds:['fed'],importanceRules:[]};
+    const args={channelId:'gold',expectedVersion:0,config};
+    await assert.rejects(read('channel.configure',args),/denied/);
+    const created=await control('channel.configure',args,channelRequest);
+    assert.deepEqual(await control('channel.configure',{config,expectedVersion:0,channelId:'gold'},channelRequest),created);
+    await assert.rejects(control('channel.configure',{...args,config:{...config,name:'Changed'}},channelRequest),/request_conflict/);
+    assert.equal((await read('channels',{cutoff:list.cutoff})).items.length,1);
+    assert.equal((await read('channels')).items.length,2);
+    const correctionRequest=randomUUID(),change={type:'title',id:a,expected:1,title:'Human Alpha'};
+    await assert.rejects(read('event.correct',{reason:'Operator title fix',change}),/denied/);
+    const corrected=await control('event.correct',{reason:'Operator title fix',change},correctionRequest);
+    assert.deepEqual(await control('event.correct',{reason:'Operator title fix',change},correctionRequest),corrected);
+    assert.equal((await read('event.detail',{eventId:a,cutoff:list.cutoff})).title,'Alpha event');
+    const current=await read('event.detail',{eventId:a,reportLimit:1});assert.equal(current.title,'Human Alpha');
+    assert.equal(current.judgments.find((j:any)=>j.channelId==='macro').inherited,true);
+    assert.equal(current.reports.length,1);assert.equal(current.reports[0].contentHash.length,64);
+    await assert.rejects(read('events.list',{limit:51}),/params_invalid/);
+    await assert.rejects(read('events.list',{cutoff:'2026-02-31T00:00:00Z'}),/cutoff_invalid/);
+    await assert.rejects(read('events.list',{cutoff:new Date(Date.now()+3600000).toISOString()}),/cutoff_invalid/);
+    await assert.rejects(read('events.list',{sql:'select *'}),/params_invalid/);
+    await assert.rejects(read('events.list',{offset:1}),/cutoff_required/);
+    assert.equal((await read('events.list',{channelId:'gold'})).items.length,0);
+    assert.equal((await read('events.list',{channelId:'gold',minRelevance:0})).items.length,2);
+    assert.equal((await db`select count(*)::int n from ${db(schema)}.channel_control_requests`)[0].n,1);
+    assert.equal((await db`select count(*)::int n from ${db(schema)}.event_corrections`)[0].n,1);
+    assert.equal((await db`select count(*)::int n from ${db(schema)}.model_attempts`)[0].n,0);
+    assert.equal((await db`select count(*)::int n from ${db(schema)}.raw_pages`)[0].n,1);
+    await control('event.correct',{reason:'Explicit channel membership fixture',change:{type:'channels',id:b,expected:1,channelIds:['macro']}});
+    assert.equal((await read('events.list',{channelId:'macro'})).items.length,2);
+    assert.equal((await read('events.list',{channelId:'macro',minRelevance:80})).items.length,1,'manual membership cannot bypass an explicit score filter');
+  }finally{if(service)await service.close();await db.end({timeout:5});}
+});

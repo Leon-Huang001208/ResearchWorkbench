@@ -20,6 +20,9 @@ DSH 模型适配仍无研究会话/工具；事件发布和队列确认共用原
 领域规则现已接入同一 Hot worker 的 heartbeat，以持久游标有界评价已存在的事件/频道，
 不新建调度器或研究会话。评分与不可变依据在原 owner 事务中保存，未知/旧发布时间不增热。
 三个频道由非秘密 JSON 配置；公开配置入口与产品页面仍待集成。
+内部签名桥现提供有界事件/频道历史读取、频道配置和既有人工纠错，分别使用read/control权限。
+读取截止时间与原文/配置/判断版本固定，分页需保留cutoff；入口不采集、不调度、不调用模型。
+频道变更保存UUID条件重放审计。Web Host、CLI及浏览器页面的挂载仍待完成。
 
 Native私有认证bootstrap使用规范化的RWB_RUNTIME_STATE，并要求RESEARCH_RUNTIME_AUTH精确等于该目录内auth.json；拒绝目录别名或另一个认证文件。该绑定只保护所属Host/DSH交接，模型Keychain仍走独立provider。
 

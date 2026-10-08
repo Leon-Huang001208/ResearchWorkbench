@@ -90,6 +90,10 @@ export async function saveAutomaticEventTransaction(tx:Tx,schema:string,id:strin
     const result=await append(tx,schema,id,expected,snapshot);logEvent('event_saved');return result;
 }
 export async function configureChannel(db:Sql,schema:string,owner:RuntimeOwner,id:string,expected:number,config:ChannelConfig){
+  return withOwnerTransaction(db,schema,owner,tx=>configureChannelTransaction(tx,schema,id,expected,config));
+}
+/** Internal helper; caller holds the owner fence and controller permissions. */
+export async function configureChannelTransaction(tx:Tx,schema:string,id:string,expected:number,config:ChannelConfig){
   if(!/^[a-z][a-z0-9_-]{0,47}$/.test(id))throw Error('hot_channel_invalid');revision(expected);text(config.name,100);
   if(Object.keys(config).some(key=>!['name','topics','sourceIds','importanceRules','rules'].includes(key)))throw Error('hot_channel_invalid');
   for(const array of [config.topics,config.sourceIds,config.importanceRules]){if(!Array.isArray(array)||array.length>50)throw Error('hot_channel_invalid');array.forEach(value=>text(value,500));}
@@ -104,7 +108,6 @@ export async function configureChannel(db:Sql,schema:string,owner:RuntimeOwner,i
       for(const score of [rule.relevance,rule.importance])if(!Number.isInteger(score)||score<0||score>100)throw Error('hot_channel_rule_invalid');
     }
   }
-  return withOwnerTransaction(db,schema,owner,async tx=>{
     await tx`insert into ${tx(schema)}.channels(id) values(${id}) on conflict do nothing`;
     const [row]=await tx`select current_version from ${tx(schema)}.channels where id=${id} for update`;
     if(row.current_version!==expected)throw Error('hot_channel_revision_conflict');
@@ -112,7 +115,6 @@ export async function configureChannel(db:Sql,schema:string,owner:RuntimeOwner,i
     await tx`insert into ${tx(schema)}.channel_versions(channel_id,version,config) values(${id},${expected+1},${tx.json(JSON.parse(JSON.stringify(config)))})`;
     await tx`update ${tx(schema)}.channels set current_version=${expected+1} where id=${id}`;
     logEvent('channel_configured');return {id,version:expected+1};
-  });
 }
 export type Correction={type:'title';id:string;expected:number;title:string}|{type:'merge';id:string;expected:number;target:string;targetExpected:number}|{type:'split';id:string;expected:number;materialIds:string[];title:string}|{type:'reassign';id:string;expected:number;target:string;targetExpected:number;materialIds:string[]}|{type:'channels';id:string;expected:number;channelIds:string[]};
 function canonical(value:unknown):string {

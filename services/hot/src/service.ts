@@ -12,6 +12,9 @@ import {collectionHandlers,scheduleCollection} from './collection.ts';
 import {configureSource} from './source-control.ts';
 import {scheduleProcessing,processingHandler,type GroupingModel} from './processing.ts';
 import {evaluateChannelRules} from './channel-rules.ts';
+import {channelsAt,eventsList,eventDetail} from './projections.ts';
+import {configureChannelRequest} from './channel-control.ts';
+import {correctEvent,type Correction} from './events.ts';
 
 export interface ServiceBootstrap {
   config: unknown; port?: number; instanceId: string; mode: 'native' | 'docker';
@@ -89,6 +92,16 @@ export async function startService(input: ServiceBootstrap,capabilities:{groupin
         const [source]=await controller`select enabled from ${controller(config.database.schema)}.sources where id=${String(params.sourceId)}`;
         if(source&&!source.enabled)sourceControllers.get(String(params.sourceId))?.abort();
         return result;
+      }}],
+      ['channels',{permission:'read',run:params=>channelsAt(reader,config.database.schema,params)}],
+      ['events.list',{permission:'read',run:params=>eventsList(reader,config.database.schema,params)}],
+      ['event.detail',{permission:'read',run:(params,_id,signal)=>eventDetail(reader,config.database.schema,params,signal)}],
+      ['channel.configure',{permission:'control',run:async(params,id,signal)=>{
+        signal.throwIfAborted();return configureChannelRequest(controller,config.database.schema,current,id,params);
+      }}],
+      ['event.correct',{permission:'control',run:async(params,id,signal)=>{
+        if(Object.keys(params).some(k=>!['reason','change'].includes(k))||typeof params.reason!=='string'||!params.change||typeof params.change!=='object'||Array.isArray(params.change))throw Error('hot_event_correction_invalid');
+        signal.throwIfAborted();return correctEvent(controller,config.database.schema,current,id,params.reason,params.change as unknown as Correction) as Promise<postgres.JSONValue>;
       }}],
       ['tasks',{permission:'read',run:async params=>{
         noParams(params);
