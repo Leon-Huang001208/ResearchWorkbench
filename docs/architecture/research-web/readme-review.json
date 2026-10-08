@@ -2,5 +2,5 @@
   "schemaVersion": 1,
   "disposition": "updated",
   "summary": "保留 master 的 DSH 升级、macOS Keychain、Office 与兼容模型说明，并集成 Docker 模型后端、设置/Doctor 和私有预算源码；不提升未验收能力。",
-  "reason": "本轮 Docker 生产模型、冷恢复、浏览器和 macOS 安装 CI 仍须验证。架构源码链接保留既有真实源码提交；合并候选尚未提交，新增 master 路径的该版本导航未验证，后续须绑定实际合并源码提交。历史证据保留原候选归属。"
+  "reason": "本轮最终 Docker 生产模型、冷恢复、浏览器和 macOS 安装 CI 仍须验证。架构源码链接绑定真实合并源码提交 1f47bd27f1e22566540ff1d22b45f849136df913，包含新增模型/预算及主线兼容模型模块；源码快照不是后续文档收尾提交，也不证明远端已发布。历史证据保留原候选归属。"
 }
