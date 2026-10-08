@@ -8,7 +8,7 @@ Hot 的阶段一入口位于 `research_workbench_entrypoint/hot.py`（配置、�
 `hot_manager.py`（签名进程管理）、`hot_postgres.py`（实例归属与受管 PG）和
 `services/hot/`（PostgreSQL、私有签名回环协议与独立 Node 服务）。对应文档为
 `services/hot/README.md` 与安装指南 Hot 小节；测试为 `test_hot_entrypoint.py`、`test_hot_manager.py` 及
-`services/hot/tests/`。当前尚未接入 Web 生命周期、Settings、采集和研究链路，不把基础测试
+`services/hot/tests/`。当前尚未接入 Web 生命周期、Settings 和研究链路，不把基础测试
 写成完整功能验收。新增入口属于 dual-runtime 清单；它不创建第二个研究引擎。
 
 归档核心为 `services/hot/src/archive.ts`，受控命令为 `scripts/archive.ts`；对应真实测试
@@ -18,6 +18,9 @@ Hot 持久采集位于 `services/hot/src/collection.ts`，共享源目录为
 `app/research_web/datahub/hot_public_sources.json`。migration 5 的原文/inbox/水位提交、
 分批解析、限定来源调度、重领与取消由 `collection.integration.ts` 验证；
 `scripts/collection-proof.ts` 对四个官方来源做真实双轮后台验证。
+来源控制在 `src/source-control.ts`、migration 6、`rwb hot source-configure`；配置版本、
+不可变审计、签名权限、重复请求、取消窗口与暂停 inbox 恢复由 source-control/source-cancel
+及真实 service integration 测试负责。
 
 | 双运行时源码区域 | 职责 | 权威文档 | 主要测试 | 文档更新触发 |
 | --- | --- | --- | --- | --- |

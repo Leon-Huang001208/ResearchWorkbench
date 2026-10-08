@@ -43,4 +43,6 @@ export async function grantController(db: Sql, schema: string, role: string): Pr
   await db`grant update(mode,generation,paused,owner_until) on ${db(schema)}.runtime_identity to ${db(role)}`;
   await db`grant delete on ${db(schema)}.job_dependency to ${db(role)}`;
   await db`grant update(monitor_backoff_on) on ${db(schema)}.version to ${db(role)}`;
+  await db`grant update(enabled,frequency_seconds,config_revision) on ${db(schema)}.sources to ${db(role)}`;
+  await db`grant insert on ${db(schema)}.source_control_requests to ${db(role)}`;
 }

@@ -63,7 +63,7 @@ test('durable inbox drains bounded batches, reuses versions and retains invalid 
     await processOne(boss,workDb,schema,owner,'hot.collect',handlers['hot.collect']);
     const [after]=await db`select last_success_at,cursor,last_error_code from ${db(schema)}.sources where id='fed'`;
     assert.equal(after.last_success_at.toISOString(),before.last_success_at.toISOString());assert.deepEqual(after.cursor,before.cursor);
-    assert.equal(after.last_error_code,'hot_source_parse_or_network_failed');
+    assert.equal(after.last_error_code,'hot_source_parse_failed');
     assert.equal((await db`select coverage,body from ${db(schema)}.raw_pages order by acquired_at desc limit 1`)[0].coverage,'unknown');
     // An exception after publication rolls back the original and all pending records together.
     response=raw;

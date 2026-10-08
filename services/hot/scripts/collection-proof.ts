@@ -25,7 +25,7 @@ const workerPassword=randomBytes(32).toString('hex'),controllerPassword=randomBy
 const instanceId=randomUUID(),controllerToken=randomBytes(32).toString('hex'),readerToken=randomBytes(32).toString('hex');
 let service:Awaited<ReturnType<typeof startService>>|undefined;
 const outcome:Record<string,unknown>={state:'FAIL',scope:'macos_native_worker_public_http',schema,model:'NOT_RUN',research:'NOT_RUN'};
-outcome.codeHashes=Object.fromEntries(await Promise.all(['src/collection.ts','src/queue.ts','src/service.ts','src/database.ts','src/provision.ts','migrations/0005-collection-inbox.sql']
+outcome.codeHashes=Object.fromEntries(await Promise.all(['src/collection.ts','src/queue.ts','src/service.ts','src/database.ts','src/provision.ts','src/source-control.ts','migrations/0005-collection-inbox.sql','migrations/0006-source-control.sql']
   .map(async file=>[file,sha256(await readFile(resolve(import.meta.dirname,'..',file)))])));
 try{
   await migrate(db,schema);await initializeIdentity(db,schema,instanceId,controllerToken);

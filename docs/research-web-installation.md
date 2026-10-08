@@ -14,6 +14,18 @@ Native 启动后由受限 worker 持续采集已登记的四个官方 feed；`./
 查询来源成功时间、错误、待解析条目和覆盖区间。来源仅提供最新快照，当前不支持历史分页/
 `backfillDays`；状态明确返回 `backfill: not_supported`。启用 Hot 不触发付费模型或研究。
 
+来源配置无需修改代码。先用 `sources --json` 取得当前 `config_revision`，然后执行：
+
+```bash
+./rwb hot source-configure fed --expected-revision 0 --disable --json
+./rwb hot source-configure fed --expected-revision 1 --enable --frequency-seconds 600 --json
+```
+
+上面的 revision 仅为示例，应使用实际列表值。频率允许 60–86400 秒；0 恢复全局默认值。
+修改立即写入 PG 的不可变审计并保存新版本，服务重启保留配置；暂停不会删除原文或待解析材料。
+读取密钥不能执行修改。若返回 `outcome_unknown`，保留返回的 `requestId`，
+用 `--request-id <同一个ID>` 和完全相同参数重试；不同参数会拒绝复用。版本冲突时先刷新来源。
+
 ```bash
 ./rwb hot --help
 ./rwb hot status --json

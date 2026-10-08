@@ -9,6 +9,7 @@ Store。`rwb hot` 已接入独立 Native 启停与受管 PG；Web 生命周期�
 Native 归档入口复用这个独立组件及 PG 工具；恢复只进入不同目标库的不存在 schema。
 独立服务现已运行持久 feed scheduler 与受限 worker；它只读 DataHub 的共享公开目录，
 不为采集启动 Web、DSH 或旧 Store。Web 生命周期和 Docker 产品装配仍待集成。
+来源控制复用当前 Host 签名桥接；只有控制 key 可以在同一运行代次内提交条件配置与审计。
 
 Native私有认证bootstrap使用规范化的RWB_RUNTIME_STATE，并要求RESEARCH_RUNTIME_AUTH精确等于该目录内auth.json；拒绝目录别名或另一个认证文件。该绑定只保护所属Host/DSH交接，模型Keychain仍走独立provider。
 

@@ -30,6 +30,31 @@ collected 1389 stable materials/versions and 8 originals, with zero pending item
 its receipt includes implementation hashes. This does not certify model/research,
 Mac Docker product deployment, continuous uptime or complete source history.
 
+## Source configuration
+
+`rwb hot sources --json` returns source config_revision and frequency_seconds.
+`rwb hot source-configure fed --expected-revision <current> --disable --json`
+pauses a source; `--enable` resumes it and `--frequency-seconds 60` sets a bounded
+60–86400 second override. Zero clears the override and inherits collection.frequencySeconds.
+These operations use the controller key, never the reader key. Migration 6 stores
+immutable before/after audit records with actor local_host and a request UUID.
+The source update, conditional revision and audit commit in the active owner fence.
+Replay with the same request ID and unchanged parameters returns the original
+receipt; changed parameters fail. A stale revision requires reading the current
+source state before creating a new change. Transport timeout, untrusted response
+or incomplete receipt returns outcome_unknown plus the requestId and nonzero CLI
+exit status. Retry the same request with --request-id and identical parameters.
+Pause cancels registered acquisition, blocks subsequent parse commits and retains
+the inbox for resume. The cancellation registration exists before preflight;
+the in-flight test deliberately simulates slow HTTP on a real service/PG instance,
+and does not replace live-source acceptance. Web Settings wiring is still pending.
+
+Same-content duplicate feed listings are coalesced into one material. Contradictory
+timestamp declarations remain in the raw response and as a sorted JSON array in
+the version's raw-time field; parsed time is unknown, never chosen arbitrarily.
+The page metadata and gap projection record the ambiguity. Different-content
+duplicates still quarantine the response instead of silently merging material.
+
 Node 24.11+ in the 24 series is required. Install the exact dependencies with
 `npm ci` in this directory after the project-isolated infrastructure authorization.
 Run `npm test`; `npm run proof` is the bounded stage-zero integration check.

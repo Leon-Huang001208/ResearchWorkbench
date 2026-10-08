@@ -9,7 +9,7 @@ import { schemaName } from './config.ts';
 
 type Sql = ReturnType<typeof postgres>;
 type Tx = postgres.TransactionSql;
-export const SCHEMA_VERSION = 5;
+export const SCHEMA_VERSION = 6;
 type Page = { source: string; raw: string; acquiredAt: Date; materials: FeedMaterial[];
   cursor: Record<string, postgres.JSONValue>; metadata?: Record<string, postgres.JSONValue>; existingPageId?: string };
 
@@ -36,7 +36,7 @@ export async function migrate(db: Sql, schema = 'hot'): Promise<void> {
       (select nspowner=(select oid from pg_roles where rolname=current_user) from pg_namespace where nspname=${schema}) as owned`;
     if (!existing.migration_table && (!existing.owned || existing.relation_count > 0 || existing.function_count > 0)) throw Error('hot_schema_not_empty');
     await tx`create table if not exists ${tx(schema)}.migrations (version integer primary key, checksum text not null, applied_at timestamptz not null default now())`;
-    for (const [version, file] of [[1, '0001-materials.sql'], [2, '0002-acquisition-watermark.sql'], [3, '0003-runtime-fences.sql'], [4, '0004-queue-binding.sql'], [5,'0005-collection-inbox.sql']] as const) {
+    for (const [version, file] of [[1, '0001-materials.sql'], [2, '0002-acquisition-watermark.sql'], [3, '0003-runtime-fences.sql'], [4, '0004-queue-binding.sql'], [5,'0005-collection-inbox.sql'],[6,'0006-source-control.sql']] as const) {
     const raw = await readFile(new URL(`../migrations/${file}`, import.meta.url), 'utf8');
     const checksum = sha256(raw);
     const rows = await tx`select checksum from ${tx(schema)}.migrations where version=${version}`;

@@ -2,7 +2,7 @@
 
 Hot 阶段一内部服务使用仅回环可达的签名消息：请求/响应均以 HMAC 验证，key 不进入消息；
 校验当前实例、模式、代次和操作权限，并在真实数据库代次变化后拒绝旧端点。响应在编码前
-检查凭据反射，限制绝对时限、帧大小、连接与在途数量。当前只暴露状态/来源/任务投影，
+检查凭据反射，限制绝对时限、帧大小、连接与在途数量。读取入口暴露状态/来源/任务投影，
 不暴露 SQL 或凭据管理。配置入口拒绝 alias、FIFO 和非私有存储；未知参数不回显输入。
 Native 管理器在发信号前核对 PID 启动身份与 launch nonce；受管 PG 恢复前核对标签、卷、
 固定镜像和回环端口。角色不得重叠，已有 schema 所有权先于迁移检查。Keychain 持久化、
@@ -14,6 +14,9 @@ HTTP 采集限固定 DataHub catalog 来源、禁止重定向、限制时限与�
 pg-boss 监督仅由控制角色执行，增加 job_dependency DELETE 与 version.monitor_backoff_on
 列更新权限，并在启动前检查。普通 worker 不能修改版本编号、迁移或运行身份。
 Native stop 识别 zombie，TERM 后 argv 暂变只观察，最终再核对身份，拒绝对变更 PID 升级信号。
+新增 `source.configure` 仅允许控制 key，拒绝读取 key；校验请求 UUID、配置版本和固定参数。
+普通 worker 无 enabled/frequency/config_revision 更新和 source audit 插入权限；审计不能覆盖。
+客户端不能认证或完整解析操作回执时显示 outcome_unknown 并保留原 ID，禁止伪报成功。
 
 启动认证链接不得进入普通日志。产品Node preload在固定DSH CLI之前截获stdout/stderr认证行，临时启动token只进入既有0600认证控制文件；管理器验证authority/cwd/source_commit后交换Cookie并移除临时token字段。输出拆分、错误端口、过长无换行输出均不转发认证链接；控制写入拒绝别名、硬链接、非私有或非当前用户文件。模型Key与该Host认证平面保持分离；用户录入阶段不采集DOM、HAR、截图或请求体。
 

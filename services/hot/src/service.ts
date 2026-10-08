@@ -9,6 +9,7 @@ import { startTransport,type RpcHandler } from './transport.ts';
 import { logEvent } from './log.ts';
 import {runWorker} from './worker.ts';
 import {collectionHandlers,scheduleCollection} from './collection.ts';
+import {configureSource} from './source-control.ts';
 
 export interface ServiceBootstrap {
   config: unknown; port?: number; instanceId: string; mode: 'native' | 'docker';
@@ -29,6 +30,7 @@ export async function startService(input: ServiceBootstrap) {
   let transport: Awaited<ReturnType<typeof startTransport>> | undefined;
   let owner: Awaited<ReturnType<typeof activateRuntime>> | undefined;
   const workerStop=new AbortController();
+  const sourceControllers=new Map<string,AbortController>();
   let workerTask:Promise<void>|undefined;
   let workerState='starting';
   let closed = false;
@@ -53,6 +55,11 @@ export async function startService(input: ServiceBootstrap) {
     const [supervision]=await controller`select has_table_privilege(current_user,${`${config.database.schema}.job_dependency`},'DELETE')
       and has_column_privilege(current_user,${`${config.database.schema}.version`},'monitor_backoff_on','UPDATE') as allowed`;
     if(!supervision.allowed)throw Error('hot_controller_supervision_permission_missing');
+    const [sourceAccess]=await controller`select has_column_privilege(current_user,${`${config.database.schema}.sources`},'enabled','UPDATE')
+      and has_column_privilege(current_user,${`${config.database.schema}.sources`},'frequency_seconds','UPDATE')
+      and has_column_privilege(current_user,${`${config.database.schema}.sources`},'config_revision','UPDATE')
+      and has_table_privilege(current_user,${`${config.database.schema}.source_control_requests`},'INSERT') as allowed`;
+    if(!sourceAccess.allowed)throw Error('hot_controller_source_permission_missing');
     boss = await openQueue(db,config.database.schema);
     owner = await activateRuntime(controller,config.database.schema,input.instanceId,input.controllerToken,input.mode,300,true);
     const current = owner;
@@ -66,12 +73,19 @@ export async function startService(input: ServiceBootstrap) {
       }}],
       ['sources',{permission:'read',run:async params=>{
         noParams(params);
-        const rows = await reader`select s.id,s.operator,s.enabled,s.last_success_at,s.last_error_code,s.next_due_at,s.consecutive_failures,
+        const rows = await reader`select s.id,s.operator,s.enabled,s.frequency_seconds,s.config_revision::text,s.last_success_at,s.last_error_code,s.next_due_at,s.consecutive_failures,
           (select count(*)::int from ${reader(config.database.schema)}.material_inbox i join ${reader(config.database.schema)}.raw_pages p on p.id=i.page_id where p.source_id=s.id and not i.processed) as pending_items,
           (select json_build_object('coverage',p.coverage,'oldestPublishedAt',p.oldest_published_at,'newestPublishedAt',p.newest_published_at,'acquiredAt',p.acquired_at,'gap',p.gap)
             from ${reader(config.database.schema)}.raw_pages p where p.source_id=s.id order by p.acquired_at desc limit 1) as latest_snapshot
           from ${reader(config.database.schema)}.sources s order by s.id limit 100`;
         return JSON.parse(JSON.stringify([...rows])) as postgres.JSONValue;
+      }}],
+      ['source.configure',{permission:'control',run:async(params,id,signal)=>{
+        signal.throwIfAborted();
+        const result=await configureSource(controller,config.database.schema,current,id,params,config.collection.frequencySeconds);
+        const [source]=await controller`select enabled from ${controller(config.database.schema)}.sources where id=${String(params.sourceId)}`;
+        if(source&&!source.enabled)sourceControllers.get(String(params.sourceId))?.abort();
+        return result;
       }}],
       ['tasks',{permission:'read',run:async params=>{
         noParams(params);
@@ -91,7 +105,7 @@ export async function startService(input: ServiceBootstrap) {
     workerState='running';
     const queue=boss;
     workerTask=runWorker({db,controllerDb:controller,boss:queue,schema:config.database.schema,owner:current,config,
-      handlers:collectionHandlers(db,queue,config.database.schema,current,config),signal:workerStop.signal,
+      handlers:collectionHandlers(db,queue,config.database.schema,current,config,fetch,sourceControllers),signal:workerStop.signal,
       heartbeat:async()=>{
         await heartbeatRuntime(controller,config.database.schema,current,input.controllerToken);
         await scheduleCollection(db,queue,config.database.schema,current,config);

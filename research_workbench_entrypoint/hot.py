@@ -163,6 +163,15 @@ def dispatch(argv: list[str], project: Path) -> int:
     sub = parser.add_subparsers(dest="command", required=True)
     for command in ("status", "doctor", "start", "stop", "restart", "sources"):
         sub.add_parser(command).add_argument("--json", action="store_true")
+    source = sub.add_parser("source-configure")
+    source.add_argument("source")
+    source.add_argument("--expected-revision", required=True)
+    toggles = source.add_mutually_exclusive_group()
+    toggles.add_argument("--enable", dest="enabled", action="store_const", const=True)
+    toggles.add_argument("--disable", dest="enabled", action="store_const", const=False)
+    source.add_argument("--frequency-seconds", type=int)
+    source.add_argument("--request-id")
+    source.add_argument("--json", action="store_true")
     setup = sub.add_parser("setup")
     setup.add_argument("--migration-user", default="postgres")
     setup.add_argument("--migration-account", default="hot-migration-database")
@@ -185,7 +194,7 @@ def dispatch(argv: list[str], project: Path) -> int:
     try:
         if args.command == "configure":
             value = save_settings(project, home, _read(args.file.absolute()))
-        elif args.command in ("setup", "start", "stop", "restart", "credential", "backup", "restore", "sources") or (
+        elif args.command in ("setup", "start", "stop", "restart", "credential", "backup", "restore", "sources", "source-configure") or (
             args.command in ("status", "doctor") and (home / "hot" / "process.json").exists()
         ):
             from .bootstrap import native_python, native_environment
@@ -214,6 +223,9 @@ def dispatch(argv: list[str], project: Path) -> int:
                 value = {"state": "credential_saved"}
             elif args.command == "setup":
                 value = manager.setup(args.migration_user, args.migration_account)
+            elif args.command == "source-configure":
+                value = manager.configure_source(args.source, args.expected_revision, args.enabled,
+                                                 args.frequency_seconds, args.request_id)
             elif args.command in ("backup", "restore"):
                 directory = args.archive_directory.absolute() if args.command == "restore" else None
                 value = manager.archive(args.command, directory, getattr(args, "target_database", None),
@@ -230,7 +242,7 @@ def dispatch(argv: list[str], project: Path) -> int:
                 value["checks"] = {"configuration": "configured" if value["enabled"] else "disabled",
                                    "service": "NOT_RUN", "database": "NOT_RUN", "model": "NOT_RUN"}
         print(json.dumps(value, ensure_ascii=False))
-        return 1 if isinstance(value, dict) and value.get("logging") == "unavailable" else 0
+        return 1 if isinstance(value, dict) and (value.get("logging") == "unavailable" or value.get("state") == "outcome_unknown") else 0
     except HotError as error:
         log.warning("hot_operation_failed code=%s", str(error))
         print(json.dumps({"state": "unavailable", "code": str(error)}))

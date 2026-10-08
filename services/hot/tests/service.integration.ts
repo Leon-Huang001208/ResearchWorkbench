@@ -59,6 +59,14 @@ test('real owned service process stops and restarts without deleting material or
       const status=await rpc(result.port,result.owner,readerToken,'status',{}) as any;
       assert.equal(status.sourceCount,1);
       assert.equal(status.worker,'running');
+      const change={sourceId:'fed',expectedRevision:String(restart*2),enabled:false,frequencySeconds:120};
+      const requestId=randomUUID();
+      await assert.rejects(rpc(result.port,result.owner,readerToken,'source.configure',change,requestId),/denied/);
+      const changed=await rpc(result.port,result.owner,controllerToken,'source.configure',change,requestId) as any;
+      assert.equal(changed.enabled,false);assert.equal(changed.revision,String(restart*2+1));
+      assert.deepEqual(await rpc(result.port,result.owner,controllerToken,'source.configure',change,requestId),changed);
+      await assert.rejects(rpc(result.port,result.owner,controllerToken,'source.configure',{...change,enabled:true},requestId),/request_conflict/);
+      await rpc(result.port,result.owner,controllerToken,'source.configure',{sourceId:'fed',expectedRevision:changed.revision,enabled:true,frequencySeconds:null});
       const exited=once(child,'exit'); child.kill('SIGTERM');
       const [code]=await exited; assert.equal(code,0); child=undefined;
       assert.equal((await db`select paused from ${db(schema)}.runtime_identity where singleton`)[0].paused,true);
@@ -70,11 +78,11 @@ test('real owned service process stops and restarts without deleting material or
     const config={enabled:true,database:{mode:'external',tls:'disable',port:receipt.port,name:'hot_probe',schema,user:worker,controllerUser:controller}};
     await writeFile(join(home,'hot','settings.json'),JSON.stringify({schemaVersion:1,projectRoot:project,config}),{mode:0o600});
     await writeFile(join(home,'hot','identity.json'),JSON.stringify({projectRoot:project,instanceId:instance}),{mode:0o600});
-    const probe=`import json,sys\nfrom pathlib import Path\nfrom research_workbench_entrypoint.hot_manager import HotManager\np=json.load(sys.stdin)\nclass Credentials:\n def get_password(self,service,account): return p['secrets'].get(account)\nm=HotManager(Path(p['project']),Path(p['home']),Credentials())\ntry:\n a=m.start()\n b=m.status()\n c=m.restart()\n d=m.stop()\n print(json.dumps({'first':a['state'],'status':b['state'],'restart':c['state'],'stopped':d['state']}))\nfinally:\n m.stop()\n`;
+    const probe=`import json,sys\nfrom pathlib import Path\nfrom research_workbench_entrypoint.hot_manager import HotManager\np=json.load(sys.stdin)\nclass Credentials:\n def get_password(self,service,account): return p['secrets'].get(account)\nm=HotManager(Path(p['project']),Path(p['home']),Credentials())\ntry:\n a=m.start()\n b=m.status()\n e=m.configure_source('fed','4',False,120)\n f=m.sources()\n c=m.restart()\n g=m.sources()\n d=m.stop()\n print(json.dumps({'first':a['state'],'status':b['state'],'restart':c['state'],'stopped':d['state'],'sourceRevision':e['revision'],'sourceEnabled':f[0]['enabled'],'persistedEnabled':g[0]['enabled']}))\nfinally:\n m.stop()\n`;
     const result=execFileSync('/opt/homebrew/bin/python3.12',['-c',probe],{cwd:project,
       env:{...process.env,RESEARCH_NODE_BINARY:process.execPath},timeout:20000,encoding:'utf8',
       input:JSON.stringify({project,home,secrets:{'hot-database':workerPassword,'hot-controller-database':controllerPassword,'rpc-controller':controllerToken,'rpc-reader':readerToken}})});
-    assert.deepEqual(JSON.parse(result),{first:'initialized',status:'initialized',restart:'initialized',stopped:'stopped'});
+    assert.deepEqual(JSON.parse(result),{first:'initialized',status:'initialized',restart:'initialized',stopped:'stopped',sourceRevision:'5',sourceEnabled:false,persistedEnabled:false});
     assert.equal((await db`select count(*)::int n from ${db(schema)}.materials where id=${stored.materialIds[0]}`)[0].n,1);
   } finally {
     if(child) {child.kill('SIGKILL');await once(child,'exit');}

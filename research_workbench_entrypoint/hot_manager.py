@@ -23,36 +23,49 @@ except ImportError:
 import shutil
 from contextlib import contextmanager
 from pathlib import Path
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from .hot import HotError, _node, _no_alias, _read, normalize, save_settings
 
 log = logging.getLogger(__name__)
 
 
-def rpc(port: int, owner: dict, key: str, operation: str) -> dict | list:
-    request_id = str(uuid4())
-    body = {"protocol": "rwb-hot/v1", "id": request_id, **owner, "op": operation, "params": {}, "sentAt": int(time.time() * 1000)}
+def rpc(port: int, owner: dict, key: str, operation: str, params: dict | None = None,
+        request_id: str | None = None) -> dict | list:
+    request_id = request_id or str(uuid4())
+    body = {"protocol": "rwb-hot/v1", "id": request_id, **owner, "op": operation, "params": params or {}, "sentAt": int(time.time() * 1000)}
     data = base64.urlsafe_b64encode(json.dumps(body, ensure_ascii=False, separators=(",", ":")).encode()).decode().rstrip("=")
     proof = hmac.new(key.encode(), data.encode(), hashlib.sha256).hexdigest()
     try:
+        deadline = time.monotonic() + 5
         with socket.create_connection(("127.0.0.1", port), timeout=5) as peer:
             peer.sendall(json.dumps({"data": data, "proof": proof}).encode() + b"\n")
             received = b""
             while b"\n" not in received:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise HotError("hot_rpc_timeout")
+                peer.settimeout(remaining)
                 chunk = peer.recv(65536)
                 if not chunk or len(received) + len(chunk) > 1048576:
                     raise HotError("hot_rpc_incomplete")
                 received += chunk
         frame = json.loads(received.split(b"\n")[0])
+        if not isinstance(frame, dict) or not isinstance(frame.get("data"), str) or not isinstance(frame.get("proof"), str):
+            raise HotError("hot_rpc_response_untrusted")
         expected = hmac.new(key.encode(), frame["data"].encode(), hashlib.sha256).hexdigest()
         if not hmac.compare_digest(expected, frame["proof"]):
-            raise HotError("hot_rpc_denied")
+            raise HotError("hot_rpc_response_untrusted")
         result = json.loads(base64.urlsafe_b64decode(frame["data"] + "=" * (-len(frame["data"]) % 4)))
+        if not isinstance(result, dict) or type(result.get("ok")) is not bool:
+            raise HotError("hot_rpc_response_untrusted")
         if result.get("id") != request_id or result.get("protocol") != "rwb-hot/v1":
-            raise HotError("hot_rpc_invalid")
+            raise HotError("hot_rpc_response_untrusted")
         if not result.get("ok"):
-            raise HotError("hot_rpc_unavailable")
+            code = result.get("code")
+            known = ("hot_source_config_invalid", "hot_source_request_invalid", "hot_source_revision_conflict",
+                     "hot_source_request_conflict", "hot_source_unknown", "hot_owner_stale", "hot_rpc_denied")
+            raise HotError(code if code in known else "hot_rpc_unavailable")
         return result["result"]
     except HotError:
         raise
@@ -223,6 +236,45 @@ class HotManager:
         if not isinstance(value, list):
             raise HotError("hot_rpc_invalid")
         return value
+
+    def configure_source(self, source: str, revision: str, enabled: bool | None = None,
+                         frequency: int | None = None, request_id: str | None = None) -> dict:
+        """Conditional source control; the reader key never authorizes this operation."""
+        with self._lock():
+            state = self._state()
+            if state is None:
+                raise HotError("hot_service_stopped")
+            if not re.fullmatch(r"[a-z][a-z0-9_-]{0,47}", source) or not re.fullmatch(r"[0-9]{1,18}", revision):
+                raise HotError("hot_source_config_invalid")
+            if enabled is not None and type(enabled) is not bool:
+                raise HotError("hot_source_config_invalid")
+            if frequency is not None and (type(frequency) is not int or frequency != 0 and not 60 <= frequency <= 86400):
+                raise HotError("hot_source_config_invalid")
+            if request_id is not None and not re.fullmatch(r"[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}", request_id):
+                raise HotError("hot_source_request_invalid")
+            params = {"sourceId": source, "expectedRevision": revision}
+            if enabled is not None:
+                params["enabled"] = enabled
+            if frequency is not None:
+                params["frequencySeconds"] = None if frequency == 0 else frequency
+            if len(params) == 2:
+                raise HotError("hot_source_config_invalid")
+            request_id = request_id or str(uuid4())
+            request_id = str(UUID(request_id))
+            try:
+                value = rpc(state["port"], state["owner"], self._secret("rpc-controller"), "source.configure", params, request_id)
+            except HotError as error:
+                if str(error) not in ("hot_rpc_unavailable", "hot_rpc_timeout", "hot_rpc_incomplete", "hot_rpc_response_untrusted", "hot_owner_stale"):
+                    raise
+                log.warning("hot_source_control_outcome_unknown")
+                return {"state": "outcome_unknown", "code": "hot_source_control_outcome_unknown",
+                        "sourceId": source, "requestId": request_id}
+            if not isinstance(value, dict) or value.get("sourceId") != source or value.get("requestId") != request_id or type(value.get("enabled")) is not bool or value.get("revision") != str(int(revision) + 1) or "frequencySeconds" not in value or (value["frequencySeconds"] is not None and (type(value["frequencySeconds"]) is not int or not 60 <= value["frequencySeconds"] <= 86400)):
+                log.warning("hot_source_control_outcome_unknown")
+                return {"state": "outcome_unknown", "code": "hot_source_control_outcome_unknown",
+                        "sourceId": source, "requestId": request_id}
+            log.info("hot_source_configuration_saved")
+            return value
 
     @contextmanager
     def _lock(self):

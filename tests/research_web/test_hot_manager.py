@@ -40,6 +40,60 @@ class HotManagerTests(unittest.TestCase):
         with self.assertRaisesRegex(HotError, "hot_service_stopped"):
             self.manager.sources()
 
+    def test_source_control_uses_controller_key_and_preserves_request_id(self):
+        self.manager.directory.mkdir(mode=0o700)
+        request = "11111111-1111-4111-8111-111111111111"
+        with patch.object(self.manager, "_state", return_value={"port": 1234, "owner": {}}):
+            with patch.object(self.manager, "_secret", return_value="test-controller") as secret:
+                with patch("research_workbench_entrypoint.hot_manager.rpc", return_value={"sourceId": "fed", "revision": "3", "enabled": False, "requestId": request, "frequencySeconds": None}) as call:
+                    self.manager.configure_source("fed", "2", False, 0, request)
+                    secret.assert_called_once_with("rpc-controller")
+                    self.assertEqual(call.call_args.args[3], "source.configure")
+                    self.assertEqual(call.call_args.args[4], {"sourceId": "fed", "expectedRevision": "2", "enabled": False, "frequencySeconds": None})
+                    self.assertEqual(call.call_args.args[5], request)
+
+    def test_unknown_source_control_returns_id_for_safe_replay(self):
+        self.manager.directory.mkdir(mode=0o700)
+        request = "11111111-1111-4111-8111-111111111111"
+        with patch.object(self.manager, "_state", return_value={"port": 1234, "owner": {}}):
+            for code in ("hot_rpc_timeout", "hot_rpc_response_untrusted", "hot_owner_stale"):
+                with patch("research_workbench_entrypoint.hot_manager.rpc", side_effect=HotError(code)):
+                    value = self.manager.configure_source("fed", "0", False, request_id=request)
+                    self.assertEqual(value["state"], "outcome_unknown")
+                    self.assertEqual(value["requestId"], request)
+            with patch("research_workbench_entrypoint.hot_manager.rpc", return_value={}):
+                value = self.manager.configure_source("fed", "0", False, request_id=request)
+                self.assertEqual(value["state"], "outcome_unknown")
+                self.assertEqual(value["requestId"], request)
+
+    def test_bad_source_frequency_does_not_resolve_credentials(self):
+        self.manager.directory.mkdir(mode=0o700)
+        with patch.object(self.manager, "_state", return_value={"port": 1234, "owner": {}}):
+            with patch.object(self.manager, "_secret") as secret:
+                with self.assertRaisesRegex(HotError, "hot_source_config_invalid"):
+                    self.manager.configure_source("fed", "0", frequency=5)
+                secret.assert_not_called()
+
+    def test_malformed_rpc_frame_keeps_mutation_request_id(self):
+        self.manager.directory.mkdir(mode=0o700)
+        request = "11111111-1111-4111-8111-111111111111"
+        class Peer:
+            def __enter__(self):
+                return self
+            def __exit__(self, *args):
+                return None
+            def sendall(self, data):
+                return None
+            def settimeout(self, seconds):
+                return None
+            def recv(self, size):
+                return b'{"data":1,"proof":"x"}\n'
+        with patch.object(self.manager, "_state", return_value={"port": 1234, "owner": {}}):
+            with patch("socket.create_connection", return_value=Peer()):
+                value = self.manager.configure_source("fed", "0", False, request_id=request)
+                self.assertEqual(value["state"], "outcome_unknown")
+                self.assertEqual(value["requestId"], request)
+
     def test_zombie_fingerprint_is_stopped(self):
         with patch("subprocess.run", return_value=SimpleNamespace(returncode=0, stdout="Z Wed Oct 7 12:00:00 2026 node <defunct>")):
             self.assertIsNone(self.manager._fingerprint(123))

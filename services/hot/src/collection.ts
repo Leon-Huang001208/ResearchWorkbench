@@ -30,7 +30,32 @@ export async function seedPublicSources(db:Sql,schema:string):Promise<void>{
   for(const source of await publicSources())await db`insert into ${db(schema)}.sources(id,operator,config)
     values(${source.id},${source.operator},${db.json({adapter:'public_feed',catalogId:source.id})}) on conflict(id) do nothing`;
 }
-interface Acquisition {raw:Buffer|null;acquiredAt:Date;items:FeedMaterial[];code:string|null;retrySeconds:number}
+interface Acquisition {raw:Buffer|null;acquiredAt:Date;items:FeedMaterial[];code:string|null;retrySeconds:number;feedEntries?:number;timeConflicts?:number}
+function combineFeedEntries(entries:FeedMaterial[]){
+  const groups=new Map<string,FeedMaterial[]>();let timeConflicts=0;
+  for(const item of entries){const identity=identityKeyForUrl(item.url)!;const group=groups.get(identity)??[];group.push(item);groups.set(identity,group);}
+  const items=[...groups.values()].map(group=>{
+    if(new Set(group.map(contentHash)).size!==1)throw Error('hot_source_identity_conflict');
+    // A duplicate listing is one material, not independent corroboration. Keep all
+    // raw timestamp declarations; never choose between contradictory instants.
+    const sorted=[...group].sort((a,b)=>{
+      const left=JSON.stringify(a),right=JSON.stringify(b);return left<right?-1:left>right?1:0;
+    });
+    const result={...sorted[0]};
+    for(const [rawKey,timeKey]of [['publishedRaw','publishedAt'],['updatedRaw','sourceUpdatedAt']] as const){
+      const raws=[...new Set(group.map(item=>item[rawKey]))].sort();
+      const instants=[...new Set(group.map(item=>item[timeKey]?.toISOString()??null))];
+      if(raws.length>1){
+        result[rawKey]=JSON.stringify(raws);
+        result[timeKey]=instants.length===1&&instants[0]!==null?new Date(instants[0]):null;
+        if(instants.length!==1||instants[0]===null)timeConflicts++;
+      }
+    }
+    if(new Set(group.map(item=>item.upstreamId)).size>1)result.upstreamId=null;
+    return result;
+  });
+  return {items,timeConflicts};
+}
 export async function acquireFeed(source:PublicSource,signal:AbortSignal,fetcher:typeof fetch=fetch):Promise<Acquisition>{
   let raw:Buffer|null=null;let acquiredAt=new Date();
   try{
@@ -49,15 +74,14 @@ export async function acquireFeed(source:PublicSource,signal:AbortSignal,fetcher
     finally{reader.releaseLock();}
     raw=Buffer.concat(chunks);acquiredAt=new Date();
     const text=new TextDecoder('utf-8',{fatal:true}).decode(raw);
-    const items=parseFeed(text,source.url,acquiredAt);
-    const identities=new Map<string,string>();
-    for(const item of items){
-      const id=identityKeyForUrl(item.url)!;const version=sha256(JSON.stringify([contentHash(item),item.publishedRaw,item.updatedRaw,item.publishedAt,item.sourceUpdatedAt]));
-      if(identities.has(id)&&identities.get(id)!==version)throw Error('hot_source_identity_conflict');identities.set(id,version);
-    }
-    return {raw,acquiredAt,items,code:null,retrySeconds:0};
+    const parsed=parseFeed(text,source.url,acquiredAt),combined=combineFeedEntries(parsed);
+    return {raw,acquiredAt,...combined,feedEntries:parsed.length,code:null,retrySeconds:0};
   }catch(error){
-    const code=signal.aborted?'hot_source_cancelled':error instanceof Error&&/^hot_source_[a-z_]+$/.test(error.message)?error.message:'hot_source_parse_or_network_failed';
+    const cause=error instanceof Error&&error.cause&&typeof error.cause==='object'&&'code'in error.cause?String(error.cause.code):'';
+    const network:Record<string,string>={ENOTFOUND:'hot_source_dns_failed',EAI_AGAIN:'hot_source_dns_failed',ECONNREFUSED:'hot_source_connection_refused',
+      ECONNRESET:'hot_source_connection_reset',UND_ERR_SOCKET:'hot_source_connection_reset',UND_ERR_CONNECT_TIMEOUT:'hot_source_connect_timeout'};
+    const code=signal.aborted?'hot_source_cancelled':error instanceof Error&&/^hot_source_[a-z_]+$/.test(error.message)?error.message:
+      error instanceof Error&&error.name==='TimeoutError'?'hot_source_timeout':network[cause]??(raw!==null?'hot_source_parse_failed':'hot_source_network_failed');
     return {raw,acquiredAt,items:[],code,retrySeconds:60};
   }
 }
@@ -68,7 +92,7 @@ function payload(value:postgres.JSONValue,key:string,allowed=[key]):string{
   return row[key];
 }
 export function collectionHandlers(db:Sql,boss:PgBoss,schema:string,owner:RuntimeOwner,config:HotConfig,
-  fetcher:typeof fetch=fetch){
+  fetcher:typeof fetch=fetch,sourceControllers:Map<string,AbortController>=new Map()){
   schemaName(schema);
   return {
     'hot.collect':async(value:postgres.JSONValue,signal:AbortSignal,granted:Claim):Promise<JobOutput>=>{
@@ -81,8 +105,14 @@ export function collectionHandlers(db:Sql,boss:PgBoss,schema:string,owner:Runtim
       if(!source)throw Error('hot_source_unknown');
       if(granted.inputKey!==inputKey||granted.owner.generation!==owner.generation)throw Error('hot_claim_stale');
       const runId=randomUUID();
+      const sourceController=new AbortController();
+      if(sourceControllers.has(sourceId))throw Error('hot_source_busy');
+      sourceControllers.set(sourceId,sourceController);
+      const combined=AbortSignal.any([signal,sourceController.signal]);
+      let acquired:Acquisition;
+      try{
       await withOwnerTransaction(db,schema,owner,async tx=>{
-        signal.throwIfAborted();
+        combined.throwIfAborted();
         const [row]=await tx`select enabled,config from ${tx(schema)}.sources where id=${sourceId}`;
         if(!row?.enabled||row.config.adapter!=='public_feed'||row.config.catalogId!==sourceId)throw Error('hot_source_paused');
         const [claim]=await tx`select attempt,lease_token from ${tx(schema)}.job_claims where input_key=${inputKey} and state='running'
@@ -91,20 +121,25 @@ export function collectionHandlers(db:Sql,boss:PgBoss,schema:string,owner:Runtim
         if(!claim)throw Error('hot_claim_stale');
         await tx`insert into ${tx(schema)}.collection_runs(id,source_id,generation,input_key,attempt,lease_token,state)
           values(${runId},${sourceId},${owner.generation},${inputKey},${claim.attempt},${claim.lease_token},'running')`;
-        signal.throwIfAborted();
+        combined.throwIfAborted();
       });
-      const acquired=await acquireFeed(source,signal,fetcher);
-      if(signal.aborted)throw Error('hot_source_cancelled');
+      combined.throwIfAborted();
+      acquired=await acquireFeed(source,combined,fetcher);
+      if(combined.aborted)throw Error('hot_source_cancelled');
+      }
+      finally{if(sourceControllers.get(sourceId)===sourceController)sourceControllers.delete(sourceId);}
       const pageId=randomUUID();
       return {result:{sourceId,runId,state:acquired.code?'failed':'acquired',itemCount:acquired.items.length},commit:async tx=>{
         const [sourceState]=await tx`select last_success_at from ${tx(schema)}.sources where id=${sourceId} for update`;
+        const [enabled]=await tx`select enabled from ${tx(schema)}.sources where id=${sourceId}`;
+        if(!enabled.enabled)throw Error('hot_source_paused');
         if(sourceState.last_success_at&&sourceState.last_success_at>acquired.acquiredAt)throw Error('hot_page_obsolete');
         if(acquired.raw!==null){
           const times=acquired.items.flatMap(item=>item.publishedAt?[item.publishedAt]:[]).sort((a,b)=>a.getTime()-b.getTime());
           await tx`insert into ${tx(schema)}.raw_pages(id,source_id,body,body_hash,acquired_at,metadata,coverage,oldest_published_at,newest_published_at,parsed_count,gap)
               values(${pageId},${sourceId},${acquired.raw},${sha256(acquired.raw)},${acquired.acquiredAt},
-              ${tx.json({runId})},${acquired.code?'unknown':'latest_snapshot'},${times[0]??null},${times.at(-1)??null},${acquired.items.length},
-              ${acquired.code?tx.json({code:acquired.code}):null})`;
+              ${tx.json({runId,feedEntries:acquired.feedEntries??0,timeConflicts:acquired.timeConflicts??0})},${acquired.code?'unknown':'latest_snapshot'},${times[0]??null},${times.at(-1)??null},${acquired.items.length},
+              ${acquired.code?tx.json({code:acquired.code}):acquired.timeConflicts?tx.json({code:'hot_source_time_conflict',fields:acquired.timeConflicts}):null})`;
         }
         await tx`update ${tx(schema)}.collection_runs set finished_at=clock_timestamp(),state=${acquired.code?'failed':'acquired'},error_code=${acquired.code},
           raw_page_id=${acquired.raw!==null?pageId:null},item_count=${acquired.items.length} where id=${runId}`;
@@ -131,6 +166,8 @@ export function collectionHandlers(db:Sql,boss:PgBoss,schema:string,owner:Runtim
         sourceUpdatedAt:row.payload.sourceUpdatedAt?new Date(row.payload.sourceUpdatedAt):null})) as FeedMaterial[];
       if(signal.aborted)throw Error('hot_source_cancelled');
       return {result:{pageId,processed:items.length},commit:async tx=>{
+        const [enabled]=await tx`select enabled from ${tx(schema)}.sources where id=${page.source_id} for update`;
+        if(!enabled?.enabled)throw Error('hot_source_paused');
         await ingestPage(tx,{source:page.source_id,raw:page.body.toString('utf8'),acquiredAt:page.acquired_at,
           materials:items,cursor:{pageId,stage:'parsing'},existingPageId:pageId},schema);
         for(const row of entries)await tx`update ${tx(schema)}.material_inbox set processed=true where page_id=${pageId} and ordinal=${row.ordinal}`;
@@ -160,7 +197,7 @@ export async function scheduleCollection(db:Sql,boss:PgBoss,schema:string,owner:
     for(const row of sources){
       await enqueueTransaction(boss,tx,'hot.collect',row.id+':'+row.schedule_sequence,{sourceId:row.id,sequence:String(row.schedule_sequence)});
       await tx`update ${tx(schema)}.sources set schedule_sequence=schedule_sequence+1,
-        next_due_at=clock_timestamp()+${config.collection.frequencySeconds}*interval '1 second' where id=${row.id}`;
+        next_due_at=clock_timestamp()+coalesce(frequency_seconds,${config.collection.frequencySeconds})*interval '1 second' where id=${row.id}`;
     }
     return sources.length;
   });
