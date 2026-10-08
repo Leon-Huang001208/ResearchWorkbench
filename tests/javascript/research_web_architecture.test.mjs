@@ -244,8 +244,8 @@ test('API Atlas distinguishes unique operations from overlapping source declarat
   const result=spawnSync(process.execPath,[atlasURL.pathname,f.root],{encoding:'utf8'});
   assert.equal(result.status,0,result.stderr);
   const html=fs.readFileSync(path.join(f.root,'outputs/research-web-architecture/api-atlas.html'),'utf8');
-  assert.match(html,/<span>唯一接口<\/span><b>1<\/b>/);
-  assert.match(html,/<span>源码声明<\/span><b>2<\/b>/);
+  assert.match(html,/<span><b>1<\/b>唯一接口<\/span>/);
+  assert.match(html,/<span><b>2<\/b>源码声明<\/span>/);
 });
 
 test('generated pages detect API set drift, regenerate deterministically, and check without writes', t => {
@@ -572,4 +572,35 @@ test('actual CI shell preserves NUL-delimited filenames as single arguments',t=>
   const filename='app/research_web/space and\nnewline.mjs';f.write(filename,'export const value = 1;');git('add','.');git('-c','user.name=Fixture','-c','user.email=fixture@example.invalid','commit','-qm','change');
   const result=runCI(f,base,'HEAD');assert.equal(result.status,0,result.stderr);
   assert.deepEqual(JSON.parse(result.stdout),['--project',f.root,'--changed-file',filename]);
+});
+
+
+test('API directory preserves declaration rows and exposes accessible lookup controls', t => {
+  const f=fixture(t), html=fs.readFileSync(path.join(f.root,'outputs/research-web-architecture/api-atlas.html'),'utf8');
+  for(const id of ['search','category','method','theme','density','clear','result-count'])assert.match(html,new RegExp(`id="${id}"`));
+  assert.match(html,/aria-label="API 领域目录"/);
+  assert.match(html,/class="endpoint api"/);
+  assert.match(html,/data-method="GET"/);
+  assert.match(html,/没有匹配的接口。/);
+  assert.match(html,/prefers-reduced-motion/);
+  assert.doesNotMatch(html,/localStorage|scrollIntoView|Tweaks|data-layout|<iframe|fetch\(/);
+});
+
+test('API filters combine domain, method and search while counting duplicate declarations', t => {
+  const f=fixture(t),html=fs.readFileSync(path.join(f.root,'outputs/research-web-architecture/api-atlas.html'),'utf8');
+  const script=html.match(/<script>([\s\S]*?)<\/script>/)[1], events=new Map();
+  const controls=Object.fromEntries(['search','category','method','theme','density','clear','result-domain','result-count','empty','atlas-error'].map(id=>[id,{value:'',hidden:true,addEventListener(type,fn){events.set(id+':'+type,fn);},focus(){this.focused=true;}}]));
+  controls.theme.value='auto';controls.density.value='comfortable';controls.category.options=[{value:''},{value:'研究框架'}];
+  const rows=[['GET','/frameworks','研究框架'],['GET','/frameworks','研究框架'],['POST','/frameworks','研究框架'],['GET','/runtime','Runtime']].map(([method,route,category])=>({dataset:{method,category,search:(method+' '+route+' main.py '+category).toLowerCase()},querySelector(){return {textContent:route};}}));
+  const buttons=['','研究框架'].map(domain=>({dataset:{domain},classList:{toggle(){}},setAttribute(){},addEventListener(type,fn){events.set(domain+':'+type,fn);}}));
+  const root={dataset:{}},media={matches:true,addEventListener(type,fn){events.set('media:'+type,fn);}};
+  const document={documentElement:root,getElementById(id){return controls[id];},querySelectorAll(selector){return selector==='[data-domain]'?buttons:rows;},addEventListener(type,fn){events.set('doc:'+type,fn);}};
+  runInNewContext(script,{document,matchMedia:()=>media,location:{search:'?category='+encodeURIComponent('研究框架')},URLSearchParams,console});
+  assert.equal(root.dataset.theme,'dark');assert.equal(controls['result-count'].textContent,'2 个唯一接口 / 3 条声明');
+  controls.method.value='GET';events.get('method:change')();assert.equal(controls['result-count'].textContent,'1 个唯一接口 / 2 条声明');
+  controls.search.value='MAIN.PY';events.get('search:input')();assert.equal(rows[0].hidden,false);assert.equal(rows[2].hidden,true);
+  controls.search.value='absent';events.get('search:input')();assert.equal(controls.empty.hidden,false);
+  events.get('clear:click')();assert.equal(controls['result-count'].textContent,'3 个唯一接口 / 4 条声明');assert.equal(controls.search.focused,true);
+  controls.density.value='compact';events.get('density:change')();assert.equal(root.dataset.density,'compact');
+  controls.theme.value='light';events.get('theme:change')();assert.equal(root.dataset.theme,'light');
 });

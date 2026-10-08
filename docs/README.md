@@ -67,3 +67,5 @@ Research Web 当前安装说明区分 Native 与 Docker：两者复用产品数�
 4. 用户可见变化才进入 `CHANGELOG.md`；实现过程、任务状态和评审流水不进入现役说明。
 
 平台与运行方式的能力边界及真实证据见 [Research Web 支持矩阵](research-web-platform-support.md)；任务机器验收和交付摘要见 [Agent 工作流](AGENT_WORKFLOW.md)。
+
+API Atlas 采用领域目录与单列表查阅，领域、Method 和关键词联合筛选；筛选统计分别计算唯一 Method + Path 与源码声明，重复声明保留独立行。主题和密度仅为页内状态，源码完整路径保留在链接的可访问名称与提示中，窄屏使用领域选择器；分类 URL 参数及原搜索/分类 DOM 合同保留。无外部资源、接口调试请求或存储依赖。
