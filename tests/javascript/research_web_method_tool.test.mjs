@@ -6,6 +6,17 @@ import { join } from 'node:path';
 
 import { apply } from '../../app/research_web/runtime/research-tools.mjs';
 
+test('document business tool rejects host paths and unadmitted execution', async () => {
+  const tools = new Map();
+  const ctx = { tools: { register: tool => tools.set(tool.name, tool) }, logger: { info() {}, warn() {}, error() {} } };
+  apply(ctx, { python: '/usr/bin/python3', runnerPath: '/tmp/runner.py', researchRoot: '/tmp/research' }, undefined, async () => ({ admitted: false }));
+  const tool = tools.get('research_document_operation');
+  assert.ok(tool);
+  const exec = { signal: new AbortController().signal };
+  await assert.rejects(() => tool.execute({ format: 'docx', mode: 'file', operation: 'read', path: '/etc/passwd' }, exec), /document_arguments_invalid/);
+  await assert.rejects(() => tool.execute({ format: 'docx', mode: 'file', operation: 'read', file_id: 'a'.repeat(24) }, exec), /document_scope_unverified/);
+});
+
 test('Cordis undeclared service getter is never read during research tool registration', () => {
   const tools = new Map();
   let undeclaredReads = 0;

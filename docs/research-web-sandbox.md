@@ -94,3 +94,7 @@ node --check app/research_web/runtime/research-tools.mjs
 ```
 
 这些测试证明列出的本机行为，不代替全局 guard 集成审核或真实 DSH 模型工具调用验收。默认先用禁工具聊天确认专用实例和凭据；只有白名单及当前构建边界验证完成后，才能开启此工具。
+
+## 中文与空格路径
+
+Seatbelt 的受控路径 literal/subpath 保留 UTF-8，继续以 JSON 转义引号和反斜杠。SBPL 不按 JSON 解码 `\u` 序列，默认 ASCII 转义会让中文会话目录的已声明读写权限无法匹配。编码修正不增加允许根、执行文件或网络、fork、Mach 权限；原生内核回归覆盖中文、空格、引号目录，验证会话输入可读、输出可写且越界文件仍被拒绝。

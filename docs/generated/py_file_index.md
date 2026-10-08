@@ -3185,7 +3185,7 @@ Imports:
 
 Classes:
 - `CapabilityCatalog`
-  - methods: __init__, _replace_script_tool, _contains_legacy_tool, _workflow_bindings_stale, _migrate_legacy_tool_ids, _record_script_digest, _migrate_stage2_builtins, _migrate_stage3_builtins, _migrate_known_builtins, _withdraw_native_projections, _audit_enabled_receipt_gates, save, _receipt_key, _sha256_file, _comparison_path, _strict_sha256, _verified_result_digest, _comparison_registrar_key, _verify_registrar_signature, _comparison_results_equal, _verify_comparison_evidence, _validate_comparison_receipt, record_comparison_receipt, comparison_receipt, _require_comparison_receipt, row, assert_consistent, version_path, summary, list, detail, _unique, _draft, _create, create, edit, copy, import_bytes, validate, check, _compile, publish, _write_bundle, _activate, transition, selection, snapshot, versions, version_detail, prepare_native_root, snapshot_catalog, export
+  - methods: __init__, _replace_script_tool, _contains_legacy_tool, _workflow_bindings_stale, _migrate_legacy_tool_ids, _migrate_data_scope_builtins, _record_script_digest, _migrate_stage2_builtins, _migrate_stage3_builtins, _migrate_known_builtins, _withdraw_native_projections, _audit_enabled_receipt_gates, save, _receipt_key, _sha256_file, _comparison_path, _strict_sha256, _verified_result_digest, _comparison_registrar_key, _verify_registrar_signature, _comparison_results_equal, _verify_comparison_evidence, _validate_comparison_receipt, record_comparison_receipt, comparison_receipt, _require_comparison_receipt, row, assert_consistent, version_path, summary, list, data_readiness, detail, _unique, _draft, _create, create, edit, copy, import_bytes, validate, check, _compile, publish, _write_bundle, _activate, transition, selection, snapshot, versions, version_detail, prepare_native_root, snapshot_catalog, export
 
 Functions:
 - `_is_host_process_entry`
@@ -3221,6 +3221,7 @@ Module docstring:
 > Editable package contracts; validation issues are retained with drafts.
 
 Imports:
+- `core.observability`
 - `pydantic`
 - `re`
 - `store`
@@ -3232,6 +3233,9 @@ Classes:
 - `InputField`
 - `MethodPolicy`
   - methods: validate_sets
+- `DataRequirement`
+  - Declared business scope; unknown provider semantics cannot satisfy it.
+  - methods: declared_scope
 - `Metadata`
 - `Step`
 - `DraftInput`
@@ -3241,6 +3245,8 @@ Classes:
 - `ArtifactInput`
 
 Functions:
+- `data_preflight`
+  - Read fresh authoritative facts without querying vendors or inferring by name.
 - `issue`
 
 
@@ -3529,7 +3535,7 @@ Imports:
 
 Classes:
 - `DataHub`
-  - methods: __init__, authenticate, _latest_probes, catalog, connection_center, source_configuration_digest, catalog_capability, catalog_source, start_probe, _probe, _mark_probe_terminal, _prune_probes, probe, run_probe, restore_probe_statuses, detail, summaries, copy_for_upgrade, copy_selected, list, rows, short, query, _query, cancel, close
+  - methods: __init__, authenticate, _latest_probes, catalog, connection_center, source_configuration_digest, catalog_capability, catalog_source, start_probe, _probe, _mark_probe_terminal, _prune_probes, probe, run_probe, restore_probe_statuses, detail, summaries, copy_for_upgrade, copy_selected, list, rows, short, _authorize_query, query, _query, cancel, close
 
 
 ## `app/research_web/datahub/broker.py`
@@ -3570,6 +3576,8 @@ Imports:
 Classes:
 - `SourceReadiness`
 - `DataSourceDescriptor`
+- `DatasetSemantics`
+  - Reviewed adapter scope, not account entitlement or data completeness.
 - `ProviderBinding`
 - `DataCapability`
 
@@ -3610,6 +3618,7 @@ Imports:
 - `core.observability`
 - `credential_backend`
 - `functools`
+- `hashlib`
 - `json`
 - `os`
 - `pathlib`
@@ -3642,7 +3651,7 @@ Classes:
 - `WindConfiguration`
 - `MySQLConnectionStore`
   - Local profiles; compatibility methods continue to target MySQL.
-  - methods: __init__, _path, _read_profile, configuration, source_configuration, _secret, _set_secret_account, _delete_secret_account, _account_name, credentials, read_source_secret, status, _status, source_status, statuses, _write_profile, _write_configuration, _delete_profile, _delete_configuration, _set_secret, _delete_secret, _restore_secret_values, save, _models_for_update, _profile_secret_accounts, save_source, delete, delete_source, _env_values, migration_preview, _parse_accounts, _migration_payload, _write_env, _restore_env, apply_migration
+  - methods: __init__, configuration_revision, _path, _read_profile, configuration, source_configuration, _secret, _set_secret_account, _delete_secret_account, _account_name, credentials, read_source_secret, status, _status, source_status, statuses, _write_profile, _write_configuration, _delete_profile, _delete_configuration, _set_secret, _delete_secret, _restore_secret_values, save, _models_for_update, _profile_secret_accounts, save_source, delete, delete_source, _env_values, migration_preview, _parse_accounts, _migration_payload, _write_env, _restore_env, apply_migration
 
 Functions:
 - `_serialized`
@@ -3932,6 +3941,7 @@ Imports:
 Classes:
 - `MySQLConfigurationUpdate`
 - `MigrationRequest`
+- `SkillAdmissionRequest`
 
 Functions:
 - `_credential_error`
@@ -3951,7 +3961,10 @@ Functions:
 - `rows`
 - `download`
 - `business_query`
+- `skill_preflight`
 - `cancel`
+- `model_connection`
+  - Instance-private public facts; credentials never cross this HTTP channel.
 
 
 ## `app/research_web/datahub/security.py`
@@ -4739,6 +4752,7 @@ Imports:
 - `importlib.metadata`
 - `importlib.util`
 - `json`
+- `math`
 - `os`
 - `pathlib`
 - `platform`
@@ -4756,9 +4770,11 @@ Classes:
   - methods: current
 - `LocalIntegrationManager`
   - Build and persist safe local facts; probes never launch detected software.
-  - methods: __init__, state_path, _load_verification_results, snapshot, _detect_snapshot, _publish_snapshot, _commit_verification, _apply_verification_results, _verification_result_is_current, _wind_session_is_ready, _path_fingerprint, _wind_addin_fingerprint, _verification_context_fingerprint, _detect, _office_items, _wind_terminal_item, _application_item, _bridge_item, _ifind_terminal_item, _unsupported_office_items, _browser_items, _validate_snapshot, _persist, start_probe, _run_probe, start_verification, _run_verification, verification, _public_verification, _prune_probes, _prune_verifications, probe, run_probe, _public_probe, close
+  - methods: __init__, state_path, _load_verification_runs, _load_verification_results, snapshot, _detect_snapshot, _publish_snapshot, _commit_verification, _apply_verification_results, _verification_result_is_current, _wind_session_is_ready, _path_fingerprint, _wind_addin_fingerprint, _verification_context_fingerprint, _detect, _office_items, _wind_terminal_item, _application_item, _bridge_item, _ifind_terminal_item, _unsupported_office_items, _browser_items, _validate_snapshot, _persist, start_probe, _run_probe, start_verification, run_document, _run_verification, verification, _public_verification, _prune_probes, _prune_verifications, probe, run_probe, _public_probe, close
 
 Functions:
+- `_safe_verification_diagnostics`
+  - Keep only synthetic resource identity and finite verification facts.
 - `_default_module_available`
 - `_default_registry_app_exists`
 - `_utc_now`
@@ -4802,6 +4818,8 @@ Imports:
 - `collections.abc`
 - `core.observability`
 - `hashlib`
+- `json`
+- `math`
 - `multiprocessing`
 - `os`
 - `pathlib`
@@ -4817,7 +4835,13 @@ Imports:
 - `uuid`
 
 Functions:
+- `_record_office_phase`
+- `_read_office_phases`
+- `_office_phase_timeout`
+- `_instrument_office_script`
+  - Add finite metadata to reviewed static scripts; never record content.
 - `_sha256`
+- `_office_error_number`
 - `_permission_outcome`
 - `_remove_run_directory`
 - `_run_directory_size`
@@ -4828,6 +4852,7 @@ Functions:
 - `_remove_office_artifact`
 - `_verify_excel_macos`
 - `_verify_excel`
+- `_office_diagnostics`
 - `_verify_word`
 - `_verify_powerpoint`
 - `_verify_wind_formula`
@@ -4837,6 +4862,15 @@ Functions:
 - `_wind_security_verification_required`
   - Detect Wind's visible Excel authorization prompt without reading its content.
 - `_verify_wind`
+- `_excel_process_baseline`
+- `_launch_excel_document_pid`
+  - Delegate one owned file to a new Excel instance through Launch Services.
+- `_native_excel_document`
+  - Use the existing xlwings provider on a private input copy, without refresh.
+- `_native_word_document`
+  - Create/read/edit a bounded plain Word document through the installed app.
+- `_native_powerpoint_document`
+  - Edit bounded text shapes in a private copy through the installed app.
 - `_child`
 - `_terminate_process_tree`
   - Terminate the worker and descendants without leaking vendor processes.
@@ -4893,7 +4927,7 @@ Classes:
 - `AnswerItem`
 - `Answers`
 - `ModelConfig`
-  - methods: reject_masked_key
+  - methods: declared_connection, reject_masked_key
 
 Functions:
 - `create_app`
@@ -5644,7 +5678,7 @@ Functions:
 - `system_backend`
   - Select the approved backend directly, bypassing keyring configuration.
 - `execute`
-  - Operate only on this canonical data home's fixed model account.
+  - Operate only on this canonical data home's two fixed model accounts.
 - `main`
 
 
@@ -5752,6 +5786,8 @@ Functions:
 - `replace_pptx_paragraph`
 - `replace_pptx_placeholders`
 - `render_pptx`
+- `document_operation`
+  - Finite document operations inside the existing filesystem sandbox.
 
 
 ## `app/research_web/report_rendering.py`
@@ -5763,11 +5799,18 @@ Imports:
 - `__future__`
 - `asyncio`
 - `core.observability`
+- `hashlib`
 - `json`
+- `os`
 - `pathlib`
+- `re`
+- `stat`
 - `store`
+- `uuid`
 
 Functions:
+- `execute_document_operation`
+  - Use owned file identities and the existing reviewed renderer sandbox.
 - `render_report_payload`
   - Project a model-authored payload into reviewed, deterministic file formats.
 
@@ -5785,6 +5828,8 @@ Imports:
 - `typing`
 
 Classes:
+- `DocumentOperation`
+- `InternalDocumentOperation`
 - `ProjectCreate`
 - `ProjectPatch`
 - `VersionCreate`
@@ -5792,6 +5837,8 @@ Classes:
 - `ScheduleInput`
 
 Functions:
+- `document_operation`
+- `internal_document_operation`
 - `projects`
 - `create_project`
 - `project`
@@ -6335,6 +6382,7 @@ Imports:
 - `math`
 - `os`
 - `pathlib`
+- `re`
 - `selectors`
 - `signal`
 - `subprocess`
@@ -6390,6 +6438,8 @@ Imports:
 - `core.observability`
 - `credential_backend`
 - `datahub`
+- `datahub.broker`
+- `datahub.contracts`
 - `datetime`
 - `delivery`
 - `frameworks`
@@ -6401,16 +6451,14 @@ Imports:
 - `mcp_runtime.authorization`
 - `mcp_runtime.control`
 - `mcp_runtime.credentials`
-- `mcp_runtime.installation_store`
-- `mcp_runtime.oauth`
-- ... 17 more
+- ... 20 more
 
 Classes:
 - `_SessionOwnedMCPRuntime`
   - Enforce Research Store ownership before any session-scoped MCP operation.
   - methods: __init__, __getattr__, start, close, _owned, authorize_session, register_automation_session, read_resource, get_prompt, call_tool, approvals, decide_approval
 - `ResearchService`
-  - methods: __init__, _build_mcp_runtime, ensure_owned, start, close, _retention_loop, notify, _connect, _consume, _interaction_owner, runtime, configure_model, test_model, create, summary, list_sessions, soft_delete_session, restore_session, permanent_delete_session, purge_expired_sessions, detail, _cancel_observation, send, skill_catalog, _capability_idle, _mcp_idle_gate, _restart_mcp_runtime, change_capability, create_capability_session, capability_from_artifact, approve, cancel, _cancel, answer
+  - methods: __init__, _build_mcp_runtime, ensure_owned, start, close, _retention_loop, notify, _connect, _consume, _interaction_owner, _model_plane, compatible_connection, _require_model_credentials, runtime, configure_model, test_model, create, summary, list_sessions, soft_delete_session, restore_session, permanent_delete_session, purge_expired_sessions, _model_tools_verified, _task_capabilities, _effective_records, native_admission, _data_query_admission, capability_readiness, detail, _cancel_observation, send, skill_catalog, _capability_idle, _mcp_idle_gate, _restart_mcp_runtime, change_capability, create_capability_session, capability_from_artifact, approve, cancel, _cancel, answer
 
 Functions:
 - `_mcp_internal_url`

@@ -160,7 +160,7 @@ single 相对同场景 baseline 必须质量提高，平均 token 与延迟均�
 
 原生 FileSystemSkillProvider 仅观察产品专属目录，关闭默认宿主 roots 与链接跟随。使用原生发现/加载，不虚构安装 RPC。首版不删除历史版本或用户源包。
 
-固定 DSH 源码提交 `c919b2a460753859665db3f60143d525fb9140cf` 的会话记录保存 preset ID，而非整份 Skill root 配置快照；能力目录与 Runtime 启动校验使用同一提交标识。冷恢复按 preset ID 重新组合当前配置，已挂载 Agent 则保留现有 generation。因此更新需先确认无活动任务，不能在研究中替换 preset 后假定已生效。Web 提交前实际核对 `skills/list` 中的原生名称；未发现时明确拒绝，不伪装调用成功。2026-09-03 已验证专属服务空闲后更新、旧会话冷恢复发现六个原生能力、恢复八条历史并成功继续第五轮；这不替代自建能力发布调用验收。
+固定 DSH 源码提交 `48504f07f217f9fd45a4f6d8fca4b1ed35c2d4b0` 的会话记录保存 preset ID，而非整份 Skill root 配置快照；能力目录与 Runtime 启动校验使用同一提交标识。冷恢复按 preset ID 重新组合当前配置，已挂载 Agent 则保留现有 generation。因此更新需先确认无活动任务，不能在研究中替换 preset 后假定已生效。Web 提交前实际核对 `skills/list` 中的原生名称；未发现时明确拒绝，不伪装调用成功。2026-09-03 已验证专属服务空闲后更新、旧会话冷恢复发现六个原生能力、恢复八条历史并成功继续第五轮；这不替代自建能力发布调用验收。
 
 ## 研究请求与版本证据
 
@@ -244,3 +244,7 @@ Claw 首页和能力中心 Workflow 页从 `GET /api/research/report-workflows` 
 当前真实迁移结果为：创业板50周报 v1、华安ETF周报 v1、华安ETF投资风向标 v1，以及待补全的 AI 周报。迁移后的文件存放在产品数据根 `report-workflows/`；旧 `report-projects/` 在验证和最终清理门禁前保留，不作为运行时的平行执行器。
 
 MCP 市场、MCP Runtime 与 Automation 默认启用后仍是 Tool/Workflow 内的独立二级入口，不与 Skill、Tool、Workflow、数据四类卡片混排。默认启用不会自动安装、授权、迁移旧日程或发送研究。
+
+## 设置闭环阶段3：当前能力范围
+
+Metadata增加严格data_requirements：能力/dataset、硬/可选、频率、复权、历史时点、单位/币种及省略章节。仅fund-evaluation（公开NAV有限评价）、industry-research（公开快讯+可选财务）、chanlun（Wind前复权日线+独立比较回执）声明本轮合同；精确原始builtin才发布继任版本，保留历史/自定义草稿，chanlun新版本仍disabled待独立证据。旧数据依赖声明不足保留unverified，不推断注册工具代表专业数据可用。

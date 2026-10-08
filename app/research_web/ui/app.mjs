@@ -1,6 +1,6 @@
 import { createAPI, createController, parseRoute, legacyRouteTarget, isRunning, safeLog, collectQuestionAnswers, reconcileSessionSummary, waitForDataProbe, waitForIntegrationBatch, waitForLocalIntegrationProbe, waitForLocalIntegrationVerification } from './core.mjs';
 import { escapeHTML as e } from './markdown.mjs';
-import { badge, empty, renderConversation, renderDeleteConfirm, renderHistory, renderPurgeConfirm, renderRename } from './views.mjs';
+import { badge, empty, renderConversation, renderDeleteConfirm, renderHistory, renderPurgeConfirm, renderRename, renderDocumentEditor, documentTargets, documentEditValue, documentCreationPayload } from './views.mjs';
 import { icon } from './icons.mjs';
 import { renderComposer, renderQuickSkills, removeTabbitMentionQuery, slashKey, skillMatches, tabbitKey, tabbitMentionQuery } from './composer.mjs';
 import { renderResearchAttention, renderClawWorkspaceCanvas, renderContextPanel, renderPrimaryRail, renderSidebar, renderTopbar } from './shell.mjs';
@@ -16,7 +16,7 @@ import { readAssetObservation } from './asset-workspace.mjs';
 import { renderOperations } from './operations.mjs';
 import { renderReportWorkflowDetail, renderReportWorkflowShelf } from './report-workflows.mjs';
 import { buildConfigurationPayload, confirmAutoProbeConsent, createLocalIntegrationPollingGuard, mergeIntegrationStatuses } from './connections.mjs';
-import { renderSettingsPage, resolveSettingsSection, settingsConnectionId, settingsRefreshCatalogs } from './settings.mjs';
+import { modelConfigurationPayload, syncModelForm, renderSettingsPage, resolveSettingsSection, settingsConnectionId, settingsRefreshCatalogs } from './settings.mjs';
 import { renderFrameworks } from './frameworks.mjs';
 
 const api = createAPI();
@@ -327,10 +327,13 @@ function contextPanel() {
   return renderContextPanel({ detail: state.detail, selectedTab: contextTab, mobileOpen: contextOpen, selectedPreview, busy: state.busy, workflow: state.detail?.capability ? workflowVersions.get(`${state.detail.capability.id}:${state.detail.capability.version}`) : null });
 }
 
+let documentEditor = null;
+
 function render() {
   // Keep the user's own dirty DOM form through unrelated catalog renders.
   // Secrets never enter application state or a server-provided refill.
   const modelForm = root.querySelector('#settings-form[data-dirty]');
+  const documentForm = root.querySelector('#document-edit-form');
   const active = document.activeElement; const focusId = active?.id;
   const selection = active && ['TEXTAREA', 'INPUT'].includes(active.tagName) && active.type !== 'password' ? { start: active.selectionStart, end: active.selectionEnd } : null;
   const mainScroll = document.querySelector('#main')?.scrollTop || 0;
@@ -341,8 +344,10 @@ function render() {
   const visibleErrors = Object.entries(catalog.errors).filter(([name]) => (
     name !== 'artifacts' || (state.route.page === 'workbench' && state.route.section !== 'assets')
   ));
-  root.innerHTML = `<div class="app-shell ${hasContext ? '' : 'wide-page'} ${hasSecondary ? 'has-secondary' : ''} ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${sidebarOpen ? 'navigation-open' : ''} ${hasContext ? 'context-open' : ''}">${renderTopbar({ page: state.route.page, section: state.route.section, frameworkSlug: state.route.frameworkSlug, settingsSection: state.route.page === 'settings' ? currentSettingsSection() : '', detail: state.detail, runtimeLabel: runtimeLabel(), runtime: catalog.runtime, models: catalog.models, busy: state.busy, search: globalSearch, sessions: catalog.sessions, skills: searchableCapabilities, searchOpen })}${primaryRail()}${sidebar()}<main id="main" tabindex="-1"><div class="page-content">${notice(state.error)}${visibleErrors.map(([name, error]) => notice(`${({ runtime: '运行时', models: '模型目录', workspaces: '工作空间', sessions: '会话历史', deletedSessions: '已删除会话', capabilities: '能力目录', tools: '工具目录', reportWorkflows: '报告 Workflow', automations: '运行计划', automationRuns: 'Automation 运行', deliveryChannels: '交付渠道', dataCatalog: '数据目录', connections: '连接中心', localIntegrations: '本机集成诊断', connectionConfiguration: '来源配置', migration: '旧配置迁移' })[name] || name}：${error}`)).join('')}${notice(success, 'success')}${mainPage()}</div></main>${hasContext || contextOpen ? contextPanel() : ''}</div>${sidebarOpen || contextOpen ? '<button class="mobile-backdrop" data-close-drawers aria-label="关闭面板"></button>' : ''}${sessionActionsLayer()}`;
+  root.innerHTML = `<div class="app-shell ${hasContext ? '' : 'wide-page'} ${hasSecondary ? 'has-secondary' : ''} ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${sidebarOpen ? 'navigation-open' : ''} ${hasContext ? 'context-open' : ''}">${renderTopbar({ page: state.route.page, section: state.route.section, frameworkSlug: state.route.frameworkSlug, settingsSection: state.route.page === 'settings' ? currentSettingsSection() : '', detail: state.detail, runtimeLabel: runtimeLabel(), runtime: catalog.runtime, models: catalog.models, busy: state.busy, search: globalSearch, sessions: catalog.sessions, skills: searchableCapabilities, searchOpen })}${primaryRail()}${sidebar()}<main id="main" tabindex="-1"><div class="page-content">${notice(state.error)}${visibleErrors.map(([name, error]) => notice(`${({ runtime: '运行时', models: '模型目录', workspaces: '工作空间', sessions: '会话历史', deletedSessions: '已删除会话', capabilities: '能力目录', tools: '工具目录', reportWorkflows: '报告 Workflow', automations: '运行计划', automationRuns: 'Automation 运行', deliveryChannels: '交付渠道', dataCatalog: '数据目录', connections: '连接中心', localIntegrations: '本机集成诊断', connectionConfiguration: '来源配置', migration: '旧配置迁移' })[name] || name}：${error}`)).join('')}${notice(success, 'success')}${mainPage()}</div></main>${hasContext || contextOpen ? contextPanel() : ''}</div>${sidebarOpen || contextOpen ? '<button class="mobile-backdrop" data-close-drawers aria-label="关闭面板"></button>' : ''}${sessionActionsLayer()}${documentEditor?.sessionId === state.detail?.id ? renderDocumentEditor(documentEditor) : ""}`;
   window.ResearchWebTheme?.syncControls();
+  const freshDocumentForm = root.querySelector('#document-edit-form');
+  if (documentForm && freshDocumentForm && documentForm.dataset.documentBusy !== "true" && !documentEditor?.busy && documentForm.dataset.documentRevision === freshDocumentForm.dataset.documentRevision) freshDocumentForm.replaceWith(documentForm);
   const freshModelForm = root.querySelector('#settings-form');
   if (modelForm && freshModelForm) {
     const disabled = freshModelForm.querySelector('button[type="submit"]').disabled;
@@ -353,7 +358,12 @@ function render() {
     select.innerHTML = freshSelect.innerHTML;
     select.disabled = freshSelect.disabled;
     if ([...select.options].some(option => option.value === selected)) select.value = selected;
+    const provider = modelForm.querySelector('#provider');
+    const selectedProvider = provider.value;
+    provider.innerHTML = freshModelForm.querySelector('#provider').innerHTML;
+    if ([...provider.options].some(option => option.value === selectedProvider)) provider.value = selectedProvider;
     freshModelForm.replaceWith(modelForm);
+    syncModelForm(modelForm, { busy: state.busy });
   }
   document.querySelector('#main').scrollTop = mainScroll;
   if (focusId) {
@@ -1106,6 +1116,17 @@ function selectTabbit(tabId) {
 }
 
 root.addEventListener('input', (event) => {
+  const documentForm = event.target.closest?.('#document-edit-form');
+  if (documentForm && documentEditor) {
+    const fields = new FormData(documentForm);
+    documentEditor.draft = { target: Number(fields.get('target')), value: String(fields.get('value') || ''), mode: String(fields.get('mode')), value_type: String(fields.get('value_type') || 'string') };
+    return;
+  }
+  const creationForm = event.target.closest?.('#document-create-form');
+  if (creationForm && documentEditor?.creating && !documentEditor.busy) {
+    documentEditor.draft = Object.fromEntries(new FormData(creationForm));
+    return;
+  }
   const modelForm = event.target.closest?.('#settings-form');
   if (modelForm) modelForm.dataset.dirty = 'true';
   if (event.target.id === 'framework-bot-input') frameworkBot.draft = event.target.value;
@@ -1248,6 +1269,17 @@ root.addEventListener('keydown', (event) => {
 
 root.addEventListener('change', async (event) => {
   const target = event.target;
+  if (target.matches?.('[data-document-target]') && documentEditor) {
+    const selected = documentTargets(documentEditor.result)[Number(target.value)];
+    const input = target.closest('form')?.querySelector('textarea[name=value]');
+    if (selected && input) {
+      input.value = String(selected.value);
+      const type = target.closest('form')?.querySelector('select[name=value_type]');
+      if (type) type.value = typeof selected.value === 'number' ? 'number' : typeof selected.value === 'boolean' ? 'boolean' : 'string';
+      documentEditor.draft = null;
+    }
+    return;
+  }
   if ('connectionStatus' in (target.dataset || {})) applyConnectionWorkspaceFilters(target.closest('[data-connection-workbench]'));
   if (target.id === 'workspace-select') selectedWorkspace = target.value;
   if ('quickCategory' in target.dataset) { quickCategory = target.value; render(); }
@@ -1295,8 +1327,9 @@ root.addEventListener('change', async (event) => {
     controller.setFormats(selected); render();
     root.querySelector('.format-picker')?.setAttribute('open', '');
   }
+  if (target.id === 'provider' || target.name === 'credential_mode') { syncModelForm(target.closest('form'), { clearKey: true }); target.closest('form').dataset.dirty = 'true'; }
   if (target.id === 'settings-model' && target.value) {
-    try { const selected = JSON.parse(target.value); document.querySelector('#provider').value = selected.provider; document.querySelector('#model-id').value = selected.model; target.closest('form').dataset.dirty = 'true'; }
+    try { const selected = JSON.parse(target.value); document.querySelector('#provider').value = selected.provider; document.querySelector('#model-id').value = selected.model; syncModelForm(target.closest('form'), { clearKey: true }); target.closest('form').dataset.dirty = 'true'; }
     catch { safeLog('invalid_model_selection'); }
   }
   if (target.id === 'model-select' && target.value) {
@@ -1340,6 +1373,60 @@ root.addEventListener('paste', (event) => {
 
 root.addEventListener('submit', async (event) => {
   event.preventDefault();
+  safeLog('document_form_dispatch', { status: event.target.id === 'document-edit-form' ? 'document' : 'other' });
+  if (event.target.id === 'document-create-form') {
+    const editor = documentEditor; if (!editor || editor.busy || editor.sessionId !== state.detail?.id) return;
+    editor.draft = Object.fromEntries(new FormData(event.target));
+    let body; try { body = documentCreationPayload({ ...editor.draft, format: editor.creating }); }
+    catch (error) { editor.error = error.message; render(); return; }
+    editor.busy = true; editor.error = ''; render();
+    try {
+      const result = await api.documentOperation(editor.sessionId, body);
+      if (documentEditor !== editor || editor.sessionId !== state.detail?.id) return;
+      editor.lastResult = result;
+      if (result.status !== 'completed' || !result.output) { editor.error = '生成未完成：' + (result.code || result.status); return; }
+      const read = await api.documentOperation(editor.sessionId, { format: body.format, operation: 'read', mode: 'file', file_id: result.output.id });
+      if (documentEditor !== editor || editor.sessionId !== state.detail?.id) return;
+      if (read.status !== 'completed') { editor.error = '文件已生成，但读回未完成；可刷新文件列表下载。'; return; }
+      editor.creating = null; editor.file = result.output; editor.result = { ...read, output: result.output }; editor.draft = null;
+      await showRoute();
+    } catch (error) { if (documentEditor === editor) editor.error = error.message; }
+    finally { editor.busy = false; render(); }
+    return;
+  }
+  if (event.target.id === 'document-edit-form') {
+    const editor = documentEditor;
+    if (!editor || editor.busy || editor.sessionId !== state.detail?.id) { safeLog('document_form_rejected', { status: !editor ? 'missing_editor' : editor.busy ? 'busy' : 'session_changed' }); return; }
+    const values = new FormData(event.target);
+    const target = documentTargets(editor.result)[Number(values.get('target'))];
+    if (!target) { safeLog('document_form_rejected', { status: 'target_missing' }); return; }
+    const value = String(values.get('value') ?? '');
+    const change = { ...target.change };
+    if (change.kind === 'cell') {
+      try { change.value = documentEditValue(value, String(values.get("value_type") || "string")); }
+      catch (error) { editor.error = error.message; render(); return; }
+    }
+    else change.text = value;
+    editor.draft = { target: Number(values.get('target')), value, mode: String(values.get('mode')), value_type: String(values.get('value_type') || 'string') };
+    editor.busy = true; editor.error = ''; render();
+    try {
+      const result = await api.documentOperation(editor.sessionId, {
+        format: editor.result.format, operation: 'modify', mode: String(values.get('mode')),
+        file_id: editor.file.id, expected_sha256: editor.result.sha256, changes: [change],
+      });
+      if (documentEditor !== editor || state.detail?.id !== editor.sessionId) return;
+      editor.lastResult = result;
+      if (result.status === 'completed' && result.output) {
+        const read = await api.documentOperation(editor.sessionId, { format: result.format, operation: 'read', mode: 'file', file_id: result.output.id });
+        if (documentEditor !== editor || state.detail?.id !== editor.sessionId) return;
+        if (read.status !== "completed") { editor.error = "新文件已生成，但读回未完成；原编辑内容仍保留。"; return; }
+        editor.file = result.output; editor.result = { ...read, output: result.output }; editor.draft = null;
+        await showRoute();
+      } else editor.error = `未完成修改：${result.code || result.status}`;
+    } catch (error) { if (documentEditor === editor) editor.error = error.message; }
+    finally { editor.busy = false; render(); }
+    return;
+  }
   if (event.target.matches('[data-framework-bot-form]')) { await sendFrameworkQuestion(frameworkBot.draft); return; }
   if (event.target.matches('[data-mcp-search]')) { await loadMCPMarketplace(); return; }
   if (event.target.matches('[data-delivery-channel-form]')) {
@@ -1585,14 +1672,17 @@ root.addEventListener('submit', async (event) => {
     return;
   }
   if (event.target.id === 'settings-form') {
-    const values = new FormData(event.target); const key = String(values.get('api_key') || '').trim();
-    const payload = { provider: String(values.get('provider')).trim(), model: String(values.get('model')).trim(), ...(key ? { api_key: key } : {}) };
-    // Capture once, clear immediately; never copy secrets into application state or logs.
+    const values = new FormData(event.target);
+    // Every submit clears the password, including payload-validation failures.
     document.querySelector('#api-key').value = '';
-    delete event.target.dataset.dirty;
-    const result = await controller.action(() => api.configure(payload), { refreshAfter: false });
-    delete payload.api_key;
-    if (result?.configured) { success = '配置已保存，新会话使用此模型；真实推理待测试。API Key 不会回填。'; await loadCatalog(['runtime', 'models']); }
+    let payload;
+    try { payload = modelConfigurationPayload(values); }
+    catch (error) { values.delete('api_key'); state.error = error.message; render(); return; }
+    values.delete('api_key');
+    const result = await controller.action(() => {
+      const pending = api.configure(payload); delete payload.api_key; return pending;
+    }, { refreshAfter: false });
+    if (result?.configured) { delete root.querySelector('#settings-form')?.dataset.dirty; success = '配置已保存，新会话使用此模型；真实推理待测试。API Key 不会回填。'; await loadCatalog(['runtime', 'models']); }
   }
   if (event.target.matches('[data-connection-config]')) {
     const sourceId = event.target.dataset.connectionConfig;
@@ -1628,7 +1718,13 @@ root.addEventListener('click', async (event) => {
   if (modelAction && 'modelClear' in modelAction) {
     if (!catalog.runtime?.model) { state.error = '当前模型未知，请先刷新 Runtime 状态。'; render(); return; }
     if (!window.confirm('清除专属模型凭据？后续模型请求将不可用，已有会话仍保留。')) return;
-    const result = await controller.action(() => api.configure({ provider: 'deepseek-official', model: catalog.runtime.model, clear_api_key: true }), { refreshAfter: false });
+    const form = root.querySelector('#settings-form');
+    const values = new FormData(form); form.querySelector('#api-key').value = '';
+    values.delete('api_key');
+    let payload;
+    try { payload = modelConfigurationPayload(values, { clear: true }); }
+    catch (error) { state.error = error.message; render(); return; }
+    const result = await controller.action(() => api.configure(payload), { refreshAfter: false });
     if (result?.configured) { success = '模型凭据已清除。'; await loadCatalog(['runtime']); }
     return;
   }
@@ -1985,6 +2081,22 @@ root.addEventListener('click', async (event) => {
   if ('slashSearch' in data) { slashOpen = !slashOpen; tabbitOpen = false; tabbitCandidates = []; tabbitRequest += 1; slashIndex = 0; render(); document.querySelector('#prompt')?.focus(); }
   if ('removeAttachment' in data) controller.removeAttachment(data.removeAttachment);
   if ('noFormats' in data) { controller.setFormats([]); render(); }
+  if ('documentCreate' in data && ['docx', 'xlsx', 'pptx'].includes(data.documentCreate) && state.detail?.id) {
+    documentEditor = { creating: data.documentCreate, file: { name: '新文件' }, sessionId: state.detail.id, busy: false, error: '', draft: null }; render(); return;
+  }
+  if ('documentClose' in data) { documentEditor = null; render(); }
+  if ('documentOpen' in data) {
+    const file = state.detail?.files?.find(item => item.id === data.documentOpen);
+    const format = file?.name?.split('.').pop()?.toLowerCase();
+    if (!file || !['docx', 'xlsx', 'pptx'].includes(format)) return;
+    const editor = { file, sessionId: state.detail.id, busy: true, result: null, error: '' };
+    documentEditor = editor; render();
+    try {
+      const result = await api.documentOperation(editor.sessionId, { format, operation: 'read', mode: 'file', file_id: file.id });
+      if (documentEditor === editor && state.detail?.id === editor.sessionId) editor.result = result;
+    } catch (error) { if (documentEditor === editor) editor.error = error.message; }
+    finally { editor.busy = false; render(); }
+  }
   if ('preview' in data) { selectedPreview = data.preview; render(); }
   if ('closePreview' in data) { selectedPreview = null; render(); }
   if ('closeSkillDetail' in data) { capabilityController.close(); render(); }

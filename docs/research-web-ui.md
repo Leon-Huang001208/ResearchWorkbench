@@ -1,5 +1,7 @@
 # Research Web 前端
 
+固定 DSH 0.2.1 的空实例模型默认值为 `deepseek-flash`；设置页仍展示实际目录，并保留已保存旧 ID，不按名称推断工具能力。保存、凭据、Runtime 应用与显式推理分别显示；本次不改变页面路由、dirty 表单保护或秘密不回填规则。框架和 Automation 继续沿相同原生会话路径执行。
+
 Native/Docker 仍提供同一 8088 Web 页面、路由、API 与研究交互；模式在安装器和 CLI 选择，
 不新增前端入口。设置页显示的来源/本机能力必须以当前模式的配置、探测与可调用事实为准；
 Docker 服务健康不能使宿主 Office/Wind/Tabbit 自动变为可用。模型与连接秘密不进入页面状态、
@@ -10,6 +12,8 @@ Docker 服务健康不能使宿主 Office/Wind/Tabbit 自动变为可用。模�
 见 [Research Web 一键本地安装](research-web-installation.md)。
 
 ## 范围与入口
+
+研究输入附件支持 `.docx`、`.xlsx`、`.pptx`，复用同一会话上传、文件身份及下载权限；添加附件不启动本机Office，也不认证文件已解析或完成原生编辑。复杂修订、嵌入对象及宏不因附件格式被接受而获得无损处理承诺。
 
 `app/research_web/ui/` 是独立的 Research Web 正式应用源码，由 Research Web FastAPI 服务提供 `/` 和 `/static/`。不加载原 `app/web` 管线或原型脚本，不依赖前端构建工具，不新增第三方包。2026-09-02 的真实模型与浏览器旅程已移入[历史验收](archive/acceptance/research-web-acceptance-2026-09-02.md)，只证明当时环境。
 
@@ -189,3 +193,12 @@ settled 后独立渲染，旧 generation 的迟到响应不能覆盖最新请求
 UI、Composer 和 submit 投影为用户可见的 `connecting`，也只有 settled runtime failure 会投影为
 `offline`；其他目录的 pending/failure 保留各自资源级 loading/error 语义。该修正不改变 Hash 路由、
 目录来源、会话/Automation 关系或 API 公共契约；本地测试不冒充 Task 6 的真实浏览器验收。
+
+## 设置闭环阶段3：当前能力范围
+
+能力详情增加数据准入范围和省略章节说明，使用服务端readiness；它独立于凭据、健康和真实推理。按钮只准备草稿，不授予范围，后端每次提交/原生调用仍重检。
+
+
+## 单一兼容模型连接
+
+模型页新增单一兼容连接的 Provider/base URL/认证方式。切服务清空密码，所有提交（包括校验失败）立即清空；busy期间锁定字段，dirty表单更新Provider可用选项并保留用户值。无Key明确显示无需凭据，任何模型的保存成功不等于推理成功；仅实际挂载的适配器允许手填模型ID。

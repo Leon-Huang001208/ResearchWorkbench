@@ -5,7 +5,7 @@ DataHub 内部控制 reader 复用 `control_origin.py` 的纯 JSON/回环 URL pa
 保留既有 token，不迁移供应商凭据。Docker临时准备guest仅用原creator补齐缺失控制文件。
 
 Native 和 Docker 复用 15 项业务能力、22 个来源、Broker 动态选源和会话快照合同。连接秘密沿用
-`ResearchWorkbench.DataHub` 服务命名空间：Native 默认存于宿主 keyring，Docker 仅存于
+`ResearchWorkbench.DataHub.<canonical-data-home-sha256>` 实例服务命名空间：Native 默认存于宿主 keyring，Docker 仅存于
 显式配置的受检私有凭据目录；模式切换不迁移秘密。容器内缺少宿主 Wind/Office 驱动、GUI 或
 已登录会话时，不能把 Native 的旧探测结果当作 Docker 当前可调用证明。
 
@@ -71,7 +71,7 @@ Wind 的日线、资金流与融资融券入口在 adapter 初始化前验证 IS
 
 ### 用户 MySQL 边界
 
-- 非秘密字段 `label`、`host`、`port`、`user`、`charset`、`tls_mode` 原子写入 `<RESEARCH_DATA_HOME>/connections/mysql.json`。密码固定使用凭据服务 `ResearchWorkbench.DataHub`、账户 `mysql:default:password`；API 只返回 `secret_configured`，不回填密码。
+- 非秘密字段 `label`、`host`、`port`、`user`、`charset`、`tls_mode` 原子写入 `<RESEARCH_DATA_HOME>/connections/mysql.json`。密码使用按规范化 data home 隔离的凭据服务 `ResearchWorkbench.DataHub.<canonical-data-home-sha256>`、稳定账户 `mysql:default:password`；API 只返回 `secret_configured`，不回填密码。
 - 凭据库不可用、锁定或写入失败返回 `credential_store_unavailable`，不降级到环境变量或明文。保存与删除使用补偿流程；删除连接不级联删除既有会话快照。
 - `required_no_verify` 使用显式 SSLContext 强制 TLS、关闭证书验证，不允许明文降级。来源详情和每份快照均含 `tls_certificate_unverified`。
 - 每次探测与查询先执行 `SHOW GRANTS`；仅允许 `USAGE`、`SELECT`、`SHOW VIEW`，检测到写入、DDL、管理、`ALL PRIVILEGES` 或 `GRANT OPTION` 即以 `unsafe_privileges` 阻断。
@@ -228,3 +228,16 @@ Windows 原生本机集成专项已覆盖 DataHub 私有回环控制文件的服
 首次模型产物曾有回撤百分比放大和无效公式，经真实会话修订后才作为final文件交付；格式检查不是自动语义正确性保证，也不代表任意基金评价已验证。
 详细会话、修订、下载和边界证据见[本批真实验收](../.ai/reports/2026-09-02-datahub-acceptance.md)。本批仅更新专属3081/8088；没有修改3080、固定DSH、模型、原生额度或Seatbelt权限。
 单Web worker、本机macOS；未验证Linux/Windows、多租户、磁盘总配额或大规模快照目录性能。
+
+## 实例凭据隔离与旧配置
+
+凭据服务后缀只对公开的规范化 data home 路径取 SHA-256，不散列秘密；同一目录重启恢复同一服务，不同目录互不读取、覆盖或删除。所有已适配来源沿现有连接模块复用这一命名空间，不建立第二个 Vault。旧未分实例服务中的记录不会自动读取、迁移或删除；升级后旧非秘密配置保留但凭据显示缺失，用户须在所属实例设置页重新录入。重新录入失败沿现有补偿恢复该实例之前的配置，旧全局秘密不受影响；回滚旧版本仍保留其原记录。既有显式 `.env` 迁移仅针对用户确认的来源，写入当前实例服务，不成为运行时回退。
+
+## 设置闭环阶段3：当前能力范围
+
+ProviderBinding按dataset发布已审阅的语义；未知频率/单位/历史时点不等价于支持。来源健康使用既有healthy状态并绑定配置身份。每次business query在缓存和回执返回之前重检授权，配置/Key替换改变非秘密文件版本，旧缓存不因同样configured=true继承新账户权限。历史下载保留审计用途，不自动成为新的研究授权。
+
+
+## 单一兼容模型连接
+
+私有GET model-connection只供同一Native模型适配读取非秘密连接字段；鉴权、路径与大小限制复用现有DataHub通道。它不增加业务来源、取密接口、查询权限或缓存授权；模型工具未验证仍由能力准入拒绝，15项数据工具不因文本生成成功而获授权。

@@ -125,7 +125,10 @@ function renderLocalIntegrationRow(item, verificationTarget = '') {
     : '';
   const callable = item?.status === '不适用' ? '不适用' : item?.callable === true ? '是' : '否';
   const tone = localStatusTone[item?.status] || 'danger';
-  return `<article class="local-integration-row" data-local-integration="${e(item?.id || '')}"><div class="local-integration-identity"><div><strong>${e(item?.label || '未命名集成')}</strong><span class="local-status ${e(tone)}"><span aria-hidden="true"></span>${e(item?.status || '异常')}</span></div><p>${e(item?.message || '服务未提供状态说明。')}</p>${item?.detail ? `<small>${e(item.detail)}</small>` : ''}${checked}${actions || verifyAction ? `<div class="button-row">${actions}${verifyAction}</div>` : ''}</div><div class="local-integration-truths" aria-label="${e(item?.label || '')} 状态">${localTruth('发现', item?.discovery || '异常')}${localTruth('授权', item?.authorization || '异常')}${localTruth('验证', item?.verification || '异常')}${localTruth('可调用', callable)}</div></article>`;
+  const office = ['word_app', 'excel_app', 'powerpoint_app'].includes(item?.id);
+  const fileCapability = item?.capabilities?.includes('document_file_available') ? '可用（有限文件业务）' : item?.capabilities?.includes('document_file_unavailable') ? '缺少文件处理依赖' : '未验证';
+  const officeTruths = office ? `${localTruth('文件处理', fileCapability)}${localTruth('本机操作', item?.callable === true ? '可用' : item?.status || '未验证')}` : '';
+  return `<article class="local-integration-row" data-local-integration="${e(item?.id || '')}"><div class="local-integration-identity"><div><strong>${e(item?.label || '未命名集成')}</strong><span class="local-status ${e(tone)}"><span aria-hidden="true"></span>${e(item?.status || '异常')}</span></div><p>${e(item?.message || '服务未提供状态说明。')}</p>${item?.detail ? `<small>${e(item.detail)}</small>` : ''}${checked}${actions || verifyAction ? `<div class="button-row">${actions}${verifyAction}</div>` : ''}</div><div class="local-integration-truths${office ? ' office-document-truths' : ''}" aria-label="${e(item?.label || '')} 状态">${officeTruths}${localTruth('发现', item?.discovery || '异常')}${localTruth('授权', item?.authorization || '异常')}${localTruth('验证', item?.verification || '异常')}${localTruth('可调用', callable)}</div></article>`;
 }
 
 export function renderLocalIntegrationConsole(model = {}, { busy = false, verificationTarget = '', integrationSummary = null } = {}) {

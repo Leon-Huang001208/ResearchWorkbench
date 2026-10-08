@@ -1098,6 +1098,7 @@ body { line-height: 1.5; }
 .local-integration-truths { display: grid; grid-template-columns: repeat(4, minmax(80px, 1fr)); gap: 12px; }
 .local-integration-truths > span { display: grid; gap: 4px; justify-items: center; text-align: center; }
 .local-integration-truths small { display: none; color: var(--muted); font-size: 10px; }
+.office-document-truths small { display: block; }
 .local-integration-truths strong { font-size: 11px; font-weight: 620; }
 .local-category-empty { margin: 0; padding: 18px 16px; color: var(--muted); font-size: 12px; }
 .local-report-automation { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 20px 22px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }

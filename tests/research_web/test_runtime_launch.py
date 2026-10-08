@@ -22,6 +22,9 @@ def test_runtime_constants_share_the_machine_contract():
     assert PINNED_DSH_COMMIT == contract.dsh_commit
     assert launch_runtime.PINNED_COMMIT == contract.dsh_commit
     assert launch_runtime.RUNTIME_CONTRACT == contract
+    from app.research_web.capabilities.tools import PIN
+
+    assert PIN == contract.dsh_commit
 
 
 def make_source(tmp_path: Path) -> Path:
@@ -42,7 +45,7 @@ def test_runtime_module_fallback_is_healed_inside_private_source(tmp_path, monke
 
     def run(*args, **kwargs):
         assert "loadProfile('dsh', 'web', anchor, home)" in args[0][3]
-        assert "healProfilesModuleFallback({ installAnchor: anchor, profile })" in args[0][3]
+        assert "createRuntimeResolution({ installAnchor: anchor, profile, home })" in args[0][3]
         profile = home / "profiles/web"
         profile.mkdir(parents=True)
         (profile / "package.json").write_text(
@@ -66,7 +69,7 @@ def test_runtime_module_fallback_is_healed_inside_private_source(tmp_path, monke
         modules = home / "profiles/node_modules/@deepseek-ai"
         modules.mkdir(parents=True)
         (modules / "dsh-example").symlink_to(target)
-        return SimpleNamespace(returncode=0)
+        return SimpleNamespace(returncode=0, stdout=json.dumps([str(target)]))
 
     monkeypatch.setattr(launch_runtime.subprocess, "run", run)
     assert launch_runtime.prepare_runtime_module_fallback(source, home, "/node") == 1
@@ -83,7 +86,7 @@ def test_runtime_module_fallback_rejects_external_target(tmp_path, monkeypatch):
         modules = home / "profiles/node_modules"
         modules.mkdir(parents=True)
         (modules / "external").symlink_to(external)
-        return SimpleNamespace(returncode=0)
+        return SimpleNamespace(returncode=0, stdout=json.dumps([str(external)]))
 
     monkeypatch.setattr(launch_runtime.subprocess, "run", run)
     with pytest.raises(RuntimeError, match="越出项目私有源码目录"):
@@ -103,7 +106,7 @@ def test_runtime_module_fallback_accepts_windows_junctions_inside_private_source
     def run(*_args, **_kwargs):
         link.parent.mkdir(parents=True)
         link.symlink_to(target, target_is_directory=True)
-        return SimpleNamespace(returncode=0)
+        return SimpleNamespace(returncode=0, stdout=json.dumps([str(link)]))
 
     monkeypatch.setattr(launch_runtime.subprocess, "run", run)
     monkeypatch.setattr(
@@ -153,6 +156,11 @@ def test_runtime_binds_model_system_store_and_separate_host_records(tmp_path, mo
     assert "model_credentials.py" in overlay
     assert ".browser-credentials.yaml" in overlay
     assert "default: research-web" in overlay
+    assert "- id: agent-preset-registry" in overlay
+    for name in ("research-web", "framework-explain", "framework-verify"):
+        assert f"id: rwb-preset-{name}" in overlay
+    assert "@deepseek-ai/dsh-agent-preset" in overlay
+    assert "plugins:" in overlay
     assert "synthetic-ambient" not in overlay
     assert "RESEARCH_DSH_API_KEY" not in env
 

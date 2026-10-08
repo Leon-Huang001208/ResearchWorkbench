@@ -6,6 +6,7 @@ import hashlib
 import importlib.metadata
 import importlib.util
 import json
+import math
 import os
 import platform
 import re
@@ -104,6 +105,93 @@ VERIFICATION_MESSAGES = {
     "formula_error": ("待验证", "待验证", "未通过", "工作簿已运行，但公式或必需单元格验证未通过。"),
     "failed": ("异常", "待验证", "异常", "真实验证失败，请查看本地安全日志后重试。"),
 }
+
+
+def _safe_verification_diagnostics(value: object) -> dict | None:
+    """Keep only synthetic resource identity and finite verification facts."""
+    if not isinstance(value, dict):
+        return None
+    run_id = value.get("run_id")
+    artifact = value.get("artifact_name")
+    step = value.get("last_completed_step")
+    function = value.get("function_outcome")
+    cleanup = value.get("cleanup_outcome")
+    if (
+        not isinstance(run_id, str)
+        or re.fullmatch(r"[0-9a-f]{32}", run_id) is None
+        or any(not isinstance(field, str) for field in (artifact, step, function, cleanup))
+        or artifact
+        not in {f"research-workbench-{run_id}{suffix}" for suffix in (".docx", ".xlsx", ".pptx")}
+        or step
+        not in {
+            "none",
+            "prepared",
+            "created",
+            "written",
+            "saved",
+            "closed",
+            "reopened",
+            "read_back",
+            "document_closed",
+        }
+        or function not in {*VERIFICATION_MESSAGES, "not_run"}
+        or cleanup not in {"confirmed", "unverified", "failed", "not_created"}
+    ):
+        log.warning("local_verification_diagnostics_rejected")
+        return None
+    result: dict[str, str | int | list[dict]] = {
+        "run_id": run_id,
+        "artifact_name": artifact,
+        "last_completed_step": step,
+        "function_outcome": function,
+        "cleanup_outcome": cleanup,
+    }
+    number = value.get("native_error_number")
+    if type(number) is int and -32768 <= number <= 32767:
+        result["native_error_number"] = number
+    from .verifiers import OFFICE_PHASES
+
+    phases = value.get("phases")
+    if isinstance(phases, list) and len(phases) <= 32:
+        safe_phases = []
+        for phase in phases:
+            if not isinstance(phase, dict) or set(phase) != {
+                "stage",
+                "status",
+                "started_at",
+                "completed_at",
+                "elapsed_seconds",
+            }:
+                break
+            if (
+                not isinstance(phase["stage"], str)
+                or phase["stage"] not in OFFICE_PHASES
+                or not isinstance(phase["status"], str)
+                or phase["status"] not in {"started", "completed"}
+            ):
+                break
+            if any(
+                number is not None
+                and (
+                    type(number) not in {int, float}
+                    or not 0 <= number <= 1_000_000_000_000
+                    or not math.isfinite(number)
+                )
+                for number in (phase["started_at"], phase["completed_at"], phase["elapsed_seconds"])
+            ):
+                break
+            safe_phases.append(dict(phase))
+        else:
+            result["phases"] = safe_phases
+    timed_out_stage = value.get("timed_out_stage")
+    if isinstance(timed_out_stage, str) and timed_out_stage in OFFICE_PHASES:
+        result["timed_out_stage"] = timed_out_stage
+    verification_id = value.get("verification_id")
+    if isinstance(verification_id, str) and re.fullmatch(
+        r"[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}", verification_id
+    ):
+        result["verification_id"] = verification_id
+    return result
 
 
 class LocalIntegrationError(Exception):
@@ -296,11 +384,71 @@ class LocalIntegrationManager:
         self.verification_tasks: dict[str, asyncio.Task] = {}
         self._state_lock = threading.RLock()
         self.verification_results: dict[str, dict] = self._load_verification_results()
+        self.verifications = self._load_verification_runs()
         self._latest: dict | None = None
 
     @property
     def state_path(self) -> Path:
         return self.state_root / "local-integrations.json"
+
+    def _load_verification_runs(self) -> dict[str, dict]:
+        try:
+            path = self.state_path
+            metadata = path.lstat()
+            if not stat.S_ISREG(metadata.st_mode) or metadata.st_size > 1024 * 1024:
+                raise OSError("unsafe local verification records")
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            values = payload.get("verification_runs", {})
+            if not isinstance(values, dict) or len(values) > MAX_VERIFICATION_RECORDS:
+                return {}
+            restored = {}
+            for key, value in values.items():
+                if (
+                    not isinstance(value, dict)
+                    or value.get("id") != key
+                    or not isinstance(value.get("target"), str)
+                    or value["target"] not in VERIFICATION_TARGETS
+                ):
+                    continue
+                diagnostics = _safe_verification_diagnostics(value.get("diagnostics"))
+                if diagnostics is None or diagnostics.get("verification_id") != key:
+                    continue
+                created = value.get("created_at")
+                status = value.get("status")
+                if (
+                    not isinstance(created, str)
+                    or len(created) > 64
+                    or not isinstance(status, str)
+                    or status
+                    not in {"queued", "checking", "completed", "failed", "cancelled", "interrupted"}
+                ):
+                    continue
+                record = {
+                    "id": key,
+                    "target": value["target"],
+                    "status": status,
+                    "created_at": created,
+                    "diagnostics": diagnostics,
+                }
+                if status in {"queued", "checking"}:
+                    record["status"] = "interrupted"
+                    diagnostics["function_outcome"] = "not_run"
+                    diagnostics["cleanup_outcome"] = "unverified"
+                elif (
+                    isinstance(value.get("outcome"), str)
+                    and value["outcome"] in VERIFICATION_MESSAGES
+                ):
+                    record["outcome"] = value["outcome"]
+                completed = value.get("completed_at")
+                if completed is None or isinstance(completed, str) and len(completed) <= 64:
+                    record["completed_at"] = completed
+                restored[key] = record
+            return restored
+        except FileNotFoundError:
+            return {}
+        except (OSError, ValueError, TypeError) as exc:
+            log.warning("local_verification_records_restore_failed", error_type=type(exc).__name__)
+            return {}
 
     def _load_verification_results(self) -> dict[str, dict]:
         path = self.state_root / "local-integrations.json"
@@ -323,6 +471,11 @@ class LocalIntegrationManager:
                     "outcome": value["outcome"],
                     "completed_at": value["completed_at"],
                     "context_fingerprint": value["context_fingerprint"],
+                    **(
+                        {"diagnostics": _safe_verification_diagnostics(value["diagnostics"])}
+                        if _safe_verification_diagnostics(value.get("diagnostics")) is not None
+                        else {}
+                    ),
                 }
                 for target, value in values.items()
                 if target in VERIFICATION_TARGETS
@@ -367,6 +520,7 @@ class LocalIntegrationManager:
         outcome: str,
         completed_at: str,
         detected: dict,
+        diagnostics: dict | None = None,
     ) -> dict:
         with self._state_lock:
             staged_results = copy.deepcopy(self.verification_results)
@@ -375,6 +529,8 @@ class LocalIntegrationManager:
                 "completed_at": completed_at,
                 "context_fingerprint": self._verification_context_fingerprint(target),
             }
+            if diagnostics is not None:
+                staged_results[target]["diagnostics"] = copy.deepcopy(diagnostics)
             snapshot = self._apply_verification_results(copy.deepcopy(detected), staged_results)
             self._validate_snapshot(snapshot)
             self._persist(snapshot, verification_results=staged_results)
@@ -391,6 +547,15 @@ class LocalIntegrationManager:
         items = {item["id"]: item for item in snapshot.get("items", [])}
         for target, result in results.items():
             if not self._verification_result_is_current(target, result):
+                for item_id in VERIFICATION_ITEMS[target]:
+                    item = items.get(item_id)
+                    if (
+                        target != "wind_excel"
+                        and item is not None
+                        and item.get("discovery") == "已发现"
+                    ):
+                        item["last_verified_at"] = result.get("completed_at")
+                        item["detail"] += " 最近验证已失效（时间或实例状态变化）；请重新显式验证。"
                 continue
             outcome = result.get("outcome", "failed")
             status, authorization, verification, message = VERIFICATION_MESSAGES.get(
@@ -418,6 +583,31 @@ class LocalIntegrationManager:
                     ),
                     last_verified_at=checked_at,
                 )
+                diagnostics = (
+                    _safe_verification_diagnostics(result.get("diagnostics"))
+                    if target != "wind_excel"
+                    else None
+                )
+                if diagnostics is not None:
+                    cleanup_label = {
+                        "confirmed": "已清理",
+                        "unverified": "未确认",
+                        "failed": "失败",
+                        "not_created": "未创建",
+                    }[diagnostics["cleanup_outcome"]]
+                    item["detail"] += (
+                        f" 最后阶段：{diagnostics['last_completed_step']}；"
+                        f"功能结果：{diagnostics['function_outcome']}；清理：{cleanup_label}。"
+                    )
+                    error_label = {
+                        -1743: "自动化权限被系统明确拒绝",
+                        -54: "文件访问被拒绝",
+                        -61: "文件访问被拒绝",
+                    }.get(diagnostics.get("native_error_number"))
+                    if snapshot.get("platform") == "macos" and error_label is not None:
+                        item["detail"] += f" {error_label}；请检查本任务对应的访问授权后重验。"
+                    if outcome == "authorization_required":
+                        item["detail"] += " 等待用户操作：按真实提示处理对应应用授权后再显式验证。"
         snapshot["summary"] = {
             "available": sum(item["status"] == "可用" for item in snapshot["items"]),
             "needs_attention": sum(
@@ -725,7 +915,7 @@ class LocalIntegrationManager:
             return self._unsupported_office_items(checked_at)
 
         xlwings = self.environment.module_available("xlwings")
-        return [
+        items = [
             self._application_item(
                 "excel_app",
                 "Microsoft Excel 应用",
@@ -762,6 +952,32 @@ class LocalIntegrationManager:
             ),
             self._ifind_terminal_item(platform_id, checked_at),
         ]
+        # File prerequisites are independent of Office discovery and native permission.
+        prerequisites = {
+            "word_app": "docx",
+            "excel_app": "openpyxl",
+            "powerpoint_app": None,
+        }
+        for item in items:
+            if item["id"] not in prerequisites:
+                continue
+            dependency = prerequisites[item["id"]]
+            try:
+                available = (
+                    self.environment.module_available(dependency)
+                    if dependency is not None
+                    else Path(__file__).parents[1].joinpath("office-template.pptx").is_file()
+                )
+                capability = (
+                    ("document_file_available" if available else "document_file_unavailable")
+                    if platform_id == "macos"
+                    else "document_file_unverified"
+                )
+            except (OSError, ImportError, ValueError):
+                log.warning("office_file_prerequisites_unverified", format=item["id"])
+                capability = "document_file_unverified"
+            item["capabilities"].append(capability)
+        return items
 
     def _wind_terminal_item(self, found: bool, checked_at: str) -> dict:
         actions = (
@@ -1153,6 +1369,21 @@ class LocalIntegrationManager:
             with suppress(OSError):
                 self.state_root.chmod(0o700)
             temporary = self.state_path.with_suffix(f".{uuid4().hex}.tmp")
+            runs = {
+                key: self._public_verification(record) for key, record in self.verifications.items()
+            }
+            # Stage the completed disk record with its outcome in the same atomic write,
+            # while the live API remains checking until persistence succeeds.
+            if verification_results is not None:
+                for result in verification_results.values():
+                    diagnostics = result.get("diagnostics", {})
+                    key = diagnostics.get("verification_id")
+                    if key in runs and runs[key]["status"] == "checking":
+                        runs[key].update(
+                            status="completed",
+                            outcome=result["outcome"],
+                            completed_at=result["completed_at"],
+                        )
             payload = json.dumps(
                 {
                     "snapshot": snapshot,
@@ -1161,6 +1392,7 @@ class LocalIntegrationManager:
                         if verification_results is None
                         else verification_results
                     ),
+                    "verification_runs": runs,
                 },
                 ensure_ascii=False,
                 sort_keys=True,
@@ -1245,7 +1477,9 @@ class LocalIntegrationManager:
         finally:
             self.probe_tasks.pop(probe_id, None)
 
-    def start_verification(self, target: str, idempotency_key: str) -> dict:
+    def start_verification(
+        self, target: str, idempotency_key: str, *, document: dict | None = None
+    ) -> dict:
         if target not in VERIFICATION_TARGETS:
             raise LocalIntegrationError("本机验证目标无效", "verification_target_invalid", 422)
         key = f"{target}:{idempotency_key}"
@@ -1272,14 +1506,50 @@ class LocalIntegrationManager:
             "completed_at": None,
         }
         self.verifications[verification_id] = record
+        if self.verifier is None and target in {"word", "excel", "powerpoint"}:
+            run_id = verification_id.replace("-", "")
+            record["diagnostics"] = {
+                "verification_id": verification_id,
+                "run_id": run_id,
+                "artifact_name": f"research-workbench-{run_id}"
+                + {"word": ".docx", "excel": ".xlsx", "powerpoint": ".pptx"}[target],
+                "last_completed_step": "none",
+                "function_outcome": "not_run",
+                "cleanup_outcome": "unverified",
+            }
+            # Register resource identity before any Office or protected-file operation.
+            self._persist(self._latest if self._latest is not None else self._detect())
         self.verification_keys[key] = (target, verification_id)
         self.verification_tasks[verification_id] = asyncio.create_task(
-            self._run_verification(verification_id), name=f"local-verification-{target}"
+            self._run_verification(verification_id, document=document),
+            name=f"local-verification-{target}",
         )
         log.info("local_integration_verification_started", target=target)
         return self._public_verification(record)
 
-    async def _run_verification(self, verification_id: str) -> None:
+    async def run_document(self, session_id: str, document: dict) -> dict:
+        # Only non-secret identity/outcome/diagnostics enter the existing ledger.
+        kind = document.get("format")
+        target = (
+            {"docx": "word", "xlsx": "excel", "pptx": "powerpoint"}.get(kind)
+            if isinstance(kind, str)
+            else None
+        )
+        if target is None:
+            return {"outcome": "failed", "code": "native_document_target_invalid"}
+        accepted = self.start_verification(target, f"document-{uuid4().hex}", document=document)
+        identifier = accepted["id"]
+        record = self.verifications[identifier]
+        record.update(kind="document", session_id=session_id)
+        task = self.verification_tasks[identifier]
+        outcome = await task
+        if not isinstance(outcome, dict):
+            return {"outcome": "failed", "code": "native_document_failed"}
+        return {**outcome, "verification_id": identifier}
+
+    async def _run_verification(
+        self, verification_id: str, *, document: dict | None = None
+    ) -> dict | None:
         record = self.verifications[verification_id]
         record["status"] = "checking"
         cancellation_event: threading.Event | None = None
@@ -1297,12 +1567,24 @@ class LocalIntegrationManager:
                         record["target"],
                         self.state_root,
                         cancellation_event=cancellation_event,
+                        document=document,
+                        run_id=(
+                            verification_id.replace("-", "")
+                            if record["target"] in {"word", "excel", "powerpoint"}
+                            else None
+                        ),
                     )
                 )
                 outcome = await asyncio.shield(worker)
             normalized = outcome.get("outcome") if isinstance(outcome, dict) else None
             if normalized not in VERIFICATION_MESSAGES:
                 normalized = "failed"
+            diagnostics = _safe_verification_diagnostics(
+                outcome.get("diagnostics") if isinstance(outcome, dict) else None
+            )
+            if diagnostics is not None:
+                diagnostics["verification_id"] = verification_id
+                record["diagnostics"] = diagnostics
             completed_at = _utc_now()
             detected = self._detect()
             await asyncio.to_thread(
@@ -1311,6 +1593,7 @@ class LocalIntegrationManager:
                 normalized,
                 completed_at,
                 detected,
+                diagnostics,
             )
             record.update(status="completed", outcome=normalized, completed_at=completed_at)
             log.info(
@@ -1318,6 +1601,7 @@ class LocalIntegrationManager:
                 target=record["target"],
                 outcome=normalized,
             )
+            return outcome
         except asyncio.CancelledError:
             if cancellation_event is not None:
                 cancellation_event.set()
@@ -1338,6 +1622,7 @@ class LocalIntegrationManager:
             log.warning("local_integration_verification_failed", error_type=type(exc).__name__)
         finally:
             self.verification_tasks.pop(verification_id, None)
+        return None
 
     def verification(self, verification_id: str) -> dict:
         record = self.verifications.get(verification_id)
@@ -1349,7 +1634,16 @@ class LocalIntegrationManager:
     def _public_verification(record: dict) -> dict:
         return {
             key: record[key]
-            for key in ("id", "target", "status", "outcome", "created_at", "completed_at", "error")
+            for key in (
+                "id",
+                "target",
+                "status",
+                "outcome",
+                "created_at",
+                "completed_at",
+                "error",
+                "diagnostics",
+            )
             if key in record
         }
 

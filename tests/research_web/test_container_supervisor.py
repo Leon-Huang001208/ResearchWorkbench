@@ -136,7 +136,7 @@ if role == "runtime":
         target.write_text(json.dumps({
             "authority": "127.0.0.1:" + port,
             "cwd": str((Path(os.environ["RESEARCH_DATA_HOME"]) / "runtime/work").resolve()),
-            "source_commit": "c919b2a460753859665db3f60143d525fb9140cf",
+            "source_commit": "48504f07f217f9fd45a4f6d8fca4b1ed35c2d4b0",
             "pid": os.getpid(), "version": "fixture", "bootstrap_token": "x" * 43,
         }))
         target.chmod(0o600)
@@ -821,7 +821,10 @@ def test_supervisor_and_health_defaults_share_private_state_leaf(monkeypatch):
 def test_docker_first_mkdir_owner_mapping_then_strict_repin(
     tmp_path, monkeypatch, name, transition
 ):
-    from app.research_web.runtime_state import RuntimeStateError, runtime_state_directory
+    from app.research_web.runtime_state import (
+        RuntimeStateError,
+        runtime_state_directory,
+    )
     from docker import supervisor
 
     mount = tmp_path.resolve() / "mount"

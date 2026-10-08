@@ -99,7 +99,12 @@ export async function trustedDirectory(ctx, exec, config) {
 }
 
 /** Register a bounded, kernel-confined native tool without widening host tools. */
-export function apply(ctx, config, spawnProcess = spawn) {
+async function defaultAdmission(ctx, exec, config) {
+  const { nativeAdmission } = await import('./public-data.mjs');
+  return nativeAdmission(ctx, exec, config);
+}
+
+export function apply(ctx, config, spawnProcess = spawn, admissionClient = defaultAdmission) {
   for (const key of ['python', 'runnerPath', 'researchRoot']) {
     if (typeof config?.[key] !== 'string' || !isAbsolute(config[key])) throw new Error(`research-tools requires absolute ${key}`);
   }
@@ -112,6 +117,31 @@ export function apply(ctx, config, spawnProcess = spawn) {
   if (!Number.isFinite(timeoutSeconds) || timeoutSeconds <= 0 || timeoutSeconds > 60 || !Number.isFinite(queueWaitSeconds) || queueWaitSeconds <= 0 || queueWaitSeconds > 60 || !Number.isSafeInteger(maxOutputBytes) || maxOutputBytes < 1 || maxOutputBytes > 1048576) {
     throw new Error('research-tools execution limits are invalid');
   }
+  ctx.tools.register({
+    name: 'research_document_operation',
+    description: 'Read, generate or precisely modify owned DOCX/XLSX/PPTX files. Use file_id, never host paths. Writes create a new version; modifications require expected_sha256 from read. File Excel preserves formulas but does not recalculate. PPT generation requires an owned template. Native mode never silently falls back.',
+    parameters: { type: 'object', properties: {
+      format: { type: 'string', enum: ['docx', 'xlsx', 'pptx'] },
+      operation: { type: 'string', enum: ['read', 'generate', 'modify'] },
+      mode: { type: 'string', enum: ['file', 'native'] },
+      file_id: { type: 'string' }, expected_sha256: { type: 'string' }, output_name: { type: 'string' },
+      content: { type: 'object', description: 'DOCX title/paragraphs/tables; XLSX sheets with name/rows; PPT uses registered template and shape_text changes.' },
+      changes: { type: 'array', maxItems: 100, items: { type: 'object' }, description: 'paragraph index/text; table_cell table/row/column/text; cell sheet/cell/value; shape_text slide (1-based)/shape_id/text.' },
+    }, required: ['format', 'operation', 'mode'], additionalProperties: false },
+    output: { schema: { type: 'object', properties: { result_json: { type: 'string' } }, required: ['result_json'], additionalProperties: false }, render(_args, value) { return [{ type: 'text', text: value.result_json }]; } },
+    async execute(args, exec) {
+      const allowed = new Set(['format', 'operation', 'mode', 'file_id', 'expected_sha256', 'output_name', 'content', 'changes']);
+      if (!args || typeof args !== 'object' || Array.isArray(args) || Object.keys(args).some(key => !allowed.has(key)) || Buffer.byteLength(JSON.stringify(args)) > 48000) throw Error('document_arguments_invalid');
+      exec.signal.throwIfAborted();
+      const scope = await admissionClient(ctx, { ...exec, name: 'research_document_operation' }, config);
+      if (!scope.admitted) throw Error('document_scope_unverified');
+      const { executeDocumentTool } = await import('./public-data.mjs');
+      ctx.logger.info('document_operation_run outcome=started');
+      const result = await executeDocumentTool(ctx, exec, config, args);
+      ctx.logger.info('document_operation_run outcome=returned');
+      return { result_json: JSON.stringify(result) };
+    },
+  });
   ctx.tools.register({
     name: 'research_run_script',
     description: 'Run Python in this research session. Read inputs/resources; write outputs/tmp. Network, host files, and subprocesses are unavailable.',
@@ -129,6 +159,9 @@ export function apply(ctx, config, spawnProcess = spawn) {
       try {
         const cwd = await trustedDirectory(ctx, exec, config);
         exec.signal.throwIfAborted();
+        const scope = await admissionClient(ctx, { ...exec, name: 'research_run_script' }, config);
+        if (!scope.admitted || !Array.isArray(scope.read_paths) || scope.read_paths.length > 320 ||
+            !scope.read_paths.every(path => typeof path === 'string' && /^(resources\/capabilities\/[a-z0-9_-]+\/[1-9][0-9]*|inputs\/datasets\/[0-9a-f-]{36})$/.test(path))) throw Error('research_script_scope_unverified');
         ctx.logger.info('research_script_run outcome=started');
         return await new Promise((resolveResult, reject) => {
         const child = spawnProcess(config.python, ['-I', '-S', '-B', config.runnerPath, '--research-root', config.researchRoot, '--python', config.python, '--session', cwd, '--timeout', String(timeoutSeconds), '--max-output', String(maxOutputBytes)], {
@@ -192,7 +225,7 @@ export function apply(ctx, config, spawnProcess = spawn) {
             resolveResult(result);
           } catch { ctx.logger.error('research_script_protocol_failed'); reject(new Error('research supervisor returned an invalid response')); }
         });
-        child.stdin.end(JSON.stringify({ code: args.code }));
+        child.stdin.end(JSON.stringify({ code: args.code, read_paths: scope.read_paths }));
         if (exec.signal.aborted) onAbort();
         });
       } finally {

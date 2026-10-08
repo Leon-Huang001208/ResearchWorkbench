@@ -352,6 +352,17 @@ PID 与命令签名归属核对的进程可进入该路径，强制失败仍返�
 
 模型启动preload的认证文件绑定已验证的RWB_RUNTIME_STATE，与data/runtime/home分离；authority、cwd、固定源码commit和所属Runtime PID共同绑定临时bootstrap。stdout/stderr保持脱敏，所属supervisor只在启动阶段读取私有handoff，独立healthcheck不交换Cookie、不写控制文件。
 
+认证bootstrap的source_commit与能力目录从同一runtimes/research_web.json读取，避免旧标识残留。新版Profile解析由固定DSH原生解析表提供，不再调用已移除的healProfilesModuleFallback；表为空、非法或路径越界时拒绝启动。
+
+## 设置闭环阶段3：当前能力范围
+
+声明式data_requirements在提交前、Skill模型工具加载、/skill用户注入、子任务和后续查询中复用当前范围。预检不登记载入；只有最终成功载入或已校验的原生注入才登记固定版本，失败/未知登记阻断后续执行。硬依赖不满足拒绝；可选依赖缺失返回省略章节。
+
+
+## 单一兼容模型连接
+
+兼容模型沿既有create/send及同一DSH loop。正常owned overlay挂载文本/流式LlmAdapter，连接/凭据绑定公共revision，读取前后及发出请求前检查；无Key不访问秘密，停止/冷启动后从本实例已保存连接恢复。既有会话保留选模，地址/协议/认证方式改变时下一提交拒绝改投；活动父/子研究阻止设置修改。
+
 研究脚本仍要求严格沙箱，当前仅 macOS Native 有实现。非 Mac/Docker 明确 unsupported；平台能力声明与任务验收分开，不用健康检查推导研究任务可执行。
 
 生产包图 staging 必须可实际加载已发布 runtime；文件 manifest 自洽不证明依赖完整。YAML dist/doc 属于代码载荷，必须由 Node 导入回归与真实 DSH 启动验证。

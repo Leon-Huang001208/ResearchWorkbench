@@ -339,7 +339,7 @@ ready。Node 22.19+（22 系列）或 24.x 由安装器与 Doctor 使用同一�
   闭包。仓库属性禁止 Git 在 Windows checkout 改写这两个制品目录的字节，确保同一清单摘要可在
   macOS 与 Windows 验证。
 - DSH 只从 `Leon-Huang001208/deepseek-harness` 获取提交
-  `c919b2a460753859665db3f60143d525fb9140cf`，使用 `pnpm@11.7.0` 和 frozen lockfile 构建。
+  `48504f07f217f9fd45a4f6d8fca4b1ed35c2d4b0`，使用 `pnpm@11.7.0` 和 frozen lockfile 构建。
   Git clone、固定提交 checkout 与后续干净工作树校验都使用同一组命令级配置：
   `core.longpaths=true`、`core.autocrlf=false` 和 `core.eol=lf`，因此 Windows 不依赖机器级 Git
   长路径或换行配置。固定提交包含 Git symlink；Windows 额外统一使用 `core.symlinks=false`，接受 Git
@@ -396,6 +396,17 @@ uv pip compile requirements/web.in \
 ```
 
 提交前必须从干净 checkout 运行一键安装；不能以开发机已有 `.venv` 或全局模块作为交付证据。
+
+固定DSH为0.2.1-alpha.1兼容候选，闭包16097项。构建需要所选Node发行版附带include/node开发头文件；缺失时保留构建错误，不能复用旧安装成功标记。
+
+## 设置闭环阶段3：当前能力范围
+
+能力准入和脚本精确读取范围使用受管产品Python/Node及现有私有数据通道，不新增依赖或修改固定DSH。升级时保留旧会话材料，旧资源全集不是新执行许可；部署仍需本平台干净安装CI，不由本机已安装环境替代。
+
+
+## 单一兼容模型连接
+
+一键安装包含产品兼容文本/流式适配，固定DSH、Python/Node依赖锁不变，不安装本地模型服务或下载权重。用户另行配置自己实际可用的HTTPS兼容服务或本机loopback端点；localhost指Native后端设备。无Key不是旧文件/环境回退，Doctor/服务健康不发起隐式模型请求，真实模型与工具验收仍需独立证据。
 
 Docker 两个 APT 安装阶段使用 Debian HTTPS 源，保留 archive keyring 签名校验、原有包与锁定基础镜像；网络代理仅按宿主/构建环境配置，不禁用证书或包认证。HTTPS 源切换不证明 Linux/Windows 真机或 CI 已通过。
 

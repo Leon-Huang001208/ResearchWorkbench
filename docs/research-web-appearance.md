@@ -1,5 +1,7 @@
 # Research Web 外观与主题
 
+DSH 0.2.1 升级只更新空实例模型默认值 `deepseek-flash`，保留旧保存值。沿用既有模型状态和失败提示，不增加卡片、主题 token、断点或视觉组件；preset 与子任务协议兼容属于后端执行边界，不改变研究画布布局。
+
 模型服务页继续使用现有设置卡片、详情列表、按钮和警示样式，分开展示保存、应用、凭据与最近真实推理；读取缺失显示未知。异步目录刷新保留用户正在编辑的表单节点，不将密码复制到状态或从服务端回填。本轮不改变主题token、字体、导航或断点。
 
 2026-09-16 的 Web 一键安装与 CJPY 状态细分没有改变布局、主题 token、响应式断点或交互尺寸；
@@ -194,3 +196,12 @@ Lieflat 图表只保留数据编码所需线、格、刻度与数值标签：价
 更新，latest request wins。只有 runtime pending 复用可见 `connecting` token，只有 settled runtime
 failure 复用 `offline` token；能力、会话等其他目录的 pending/failure 不提升为这两个全局状态。
 没有新增布局、主题变量、响应式断点或交互组件，信息架构、Automation 入口和既有 Light/Dark 关系不变。
+
+## 设置闭环阶段3：当前能力范围
+
+能力详情的数据范围复用现有section、notice和muted样式；不改变主题token、导航、断点或布局体系，未将静态检查绿灯作为真实数据能力。
+
+
+## 单一兼容模型连接
+
+单一兼容模型连接仍复用设置卡片、form-grid、notice与现有主题。新增连接字段及无需Key说明；不新增主题token、布局断点或导航。异步Provider选项和busy/dirty属于交互状态，不改变架构图拓扑。

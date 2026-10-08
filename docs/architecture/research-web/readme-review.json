@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "unchanged",
-  "summary": "Task14 c1 将既有端点事务与当前 master 的 Docker 运行合同集成；README 产品入口及平台边界仍准确。",
-  "reason": "动态端点、私有 tmpfs/持久日志、已发布 DSH 载荷及仅宿主 Web 映射的停止等待沿用既有产品拓扑。reading revision 暂保留已存在历史源码 a1e2c90f84a32309d84b762507628abb2c508386，当前 c1 freeze 后另以真实提交重绑定；未认证新镜像、GitHub 链接或 CI/真机结果。"
+  "disposition": "updated",
+  "summary": "Codex实际复核整合后的README：保留DSH升级、macOS Keychain与Office有限业务说明，以及当前端点/双runtime治理入口。",
+  "reason": "只整合文档和已有运行合同，未认证新Docker/Windows/Linux功能或新架构视觉；历史证据保持原候选归属。"
 }

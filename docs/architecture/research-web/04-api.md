@@ -1,5 +1,6 @@
 # Research Web 接口清单
 
+DSH 0.2.1 升级保持公开 HTTP 合同。内部 `subagent.list` 适配已移除的上游方法：读取权威父会话 `subagentCatalog` 投影，并与实时 `session/list` 的子会话归属、模式和 running 状态交叉核对；输出映射为既有 `kind=child` 与 `activity=running/inactive`，供详情、归属、取消及空闲保护共同消费；缺失或未知状态返回协议失败，不用空列表解除活动保护。空实例默认 `deepseek-flash`，已保存旧模型值继续保留。保存、应用、真实推理仍分别返回事实，不因默认值更新自动调用模型。
 macOS 异根私有 Native pair 认证只修复公开 CLI 的后续生命周期准入：已有根的完整不同根
 pair 可继续 start/force restart，未知/变化/同根写者仍返回 `runtime_ownership_unknown`。
 桥内 hint 不序列化到 CLI/HTTP 响应，不新增参数、配置开关、HTTP 路由或字段；force 不绕过
@@ -145,7 +146,9 @@ MCP staging、安装 payload、清单与确认令牌目录的 Windows mode 修�
 | POST | `/api/research/sessions/{sid}/questions/{qid}` | `app/research_web/main.py` |
 | POST | `/api/research/sessions/{sid}/upgrade` | `app/research_web/main.py` |
 | GET | `/api/research/sessions/{sid}/events` | `app/research_web/main.py` |
-| POST | `/api/research/sessions/{sid}/uploads` | `app/research_web/main.py` |
+| POST | `/api/research/sessions/{sid}/uploads` | `app/research_web/main.py`；Office附件含docx/xlsx/pptx，保留原会话归属与30MB限制，上传不执行Office |
+| POST | `/api/research/sessions/{session_id}/document-operations` | `app/research_web/report_routes.py`；显式format/operation/mode，输入file_id、修改expected_sha256，文件执行复用报告sandbox；原生业务尚未接通时返回unavailable，禁止静默回退 |
+| POST | `/api/research/internal/data/document-operation` | `app/research_web/report_routes.py`；Runtime有限文档工具，沿既有实例私有鉴权，可信会话绑定，不接收宿主路径 |
 | GET | `/api/research/sessions/{sid}/files` | `app/research_web/main.py` |
 | GET | `/api/research/sessions/{sid}/files/{fid}/{action}` | `app/research_web/main.py` |
 | GET | `/api/research/skills` | `app/research_web/main.py` |
@@ -308,5 +311,22 @@ API 或 Automation 契约。
 
 本轮未新增或修改 HTTP 路由、请求/响应字段或错误码。变化仅在 `rwb web stop` 的 Windows 受管进程
 实现：非强制终止失败后允许进入既有强制升级；归属不明或强制失败仍返回 CLI 错误。
+
+## 设置闭环阶段3：当前能力范围
+
+新增内部POST /api/research/internal/data/skill-preflight，复用X-Research-Data-Key、专属Runtime及所属会话边界，body仅含session_id、可选native_name/tool_name和确认加载标记loaded；响应仅为范围，不返回凭据。capabilities列表/详情附readiness；会话详情与受理回执附capability_readiness。预检只读，确认加载才记录固定版本。
+
+
+## 单一兼容模型连接请求合同（1B实施中）
+
+ModelConfig 对原 deepseek-official 固定端点保持限制。新增的 openai-compatible 请求合同只识别 openai-completions、显式 base_url/model 和 credential_mode；URL 拒绝 userinfo、query、fragment、非HTTP协议及控制字符。HTTP和无Key模式仅接受本机loopback，无Key模式拒绝任何Key输入/清除请求，有Key模式留空表示保留。
+
+这是请求验证，不证明Runtime已安装适配器或能推理。服务和页面现已接通单一兼容连接；固定DSH扩展与独立系统ref已完成合成合同；页面/API保存与合成冷重启恢复已验证，还须真实新增模型和当前代码CI后才完整验收，禁止只宽松Provider字符串求成功。
+
+
+内部GET model-connection复用现有实例私有DataHub鉴权，只返回五项已验证非秘密连接事实及可选公共revision；拒绝凭据字段和含认证信息URL，未知事务拒绝投影，绝不返回秘密。元数据查询不持有 mutation lock，避免本机模型查找回调死锁。适配器对连接/系统ref读取前后比对公共配置版本，并在真正发送前重检，配置变更不会把新Key发送到旧地址。
+
+
+兼容连接PUT沿原串行事务和活动父/子任务门，专用系统ref及uncertain/cleared状态独立于官方服务。任意配置/凭据保存或清除更新公共revision；换地址不继承旧Key，旧会话绑定地址/协议/认证方式，变化后下一提交拒绝改投。无Key模式credential_required=false、credential_configured=null、storage=not_required，不冒充已存Key或已生成。Runtime应用还绑定当前connection revision与Runtime实例。
 
 Doctor 的 capability 字段表示安全实现边界，validated=false 不替代平台回执；缺安全读取 primitive 的架构路由返回 501 documentation_platform_unsupported，不开放其他文件路径。

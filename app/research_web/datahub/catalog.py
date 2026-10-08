@@ -51,6 +51,18 @@ class DataSourceDescriptor(BaseModel):
     readiness: SourceReadiness
 
 
+class DatasetSemantics(BaseModel):
+    """Reviewed adapter scope, not account entitlement or data completeness."""
+
+    model_config = ConfigDict(extra="forbid", strict=True)
+    frequencies: list[str] | None = None
+    adjustments: list[str] | None = None
+    historical_point_in_time: bool | None = None
+    units: dict[str, str] | None = None
+    currency: str | None = None
+    query_defaults: dict[str, str] = Field(default_factory=dict)
+
+
 class ProviderBinding(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -62,6 +74,7 @@ class ProviderBinding(BaseModel):
     assets: list[str] = Field(default_factory=list)
     coverage: str
     implemented: bool
+    semantics: dict[str, DatasetSemantics] = Field(default_factory=dict)
 
 
 class DataCapability(BaseModel):
@@ -614,6 +627,33 @@ BINDING_ASSETS = {
     ("wind", "market_snapshot"): ["股票"],
 }
 
+# Dataset-specific facts match the reviewed adapters. Unlisted facts stay unknown.
+BINDING_SEMANTICS = {
+    ("eastmoney_fund", "fund_data"): {
+        "fund_nav": {
+            "frequencies": ["daily"],
+            "query_defaults": {"frequency": "daily", "adjustment": "none"},
+            "adjustments": ["none"],
+            "historical_point_in_time": False,
+            "units": {"unit_nav": "currency/share", "cumulative_nav": "currency/share"},
+        },
+    },
+    ("wind", "market_bars"): {
+        "daily_quotes": {
+            "frequencies": ["daily"],
+            "query_defaults": {"frequency": "daily", "adjustment": "none"},
+            "adjustments": ["none", "qfq", "hfq"],
+            "historical_point_in_time": False,
+            "currency": "CNY",
+            "units": {
+                "open": "currency_per_share",
+                "close": "currency_per_share",
+                "volume": "share",
+            },
+        },
+    },
+}
+
 
 def _configured(auth: str, keys: list[str], environ: dict[str, str]) -> bool:
     if auth in {"none", "local"}:
@@ -756,6 +796,7 @@ def build_catalog(
                     assets=BINDING_ASSETS.get((source_id, capability_id), []),
                     coverage=source["description"],
                     implemented=implemented,
+                    semantics=BINDING_SEMANTICS.get((source_id, capability_id), {}),
                 ).model_dump(mode="json")
             )
     capabilities = []

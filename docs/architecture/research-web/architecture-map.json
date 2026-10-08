@@ -139,7 +139,8 @@
         "tests/research_web/test_web_contract.py",
         "tests/research_web/test_web_bootstrap.py",
         "tests/research_web/test_setup_web.py",
-        "tests/research_web/test_cli_lazy.py"
+        "tests/research_web/test_cli_lazy.py",
+        "tests/research_web/test_model_connections.py"
       ]
     },
     {
@@ -311,7 +312,8 @@
         "tests/javascript/research_web_method_tool.test.mjs",
         "tests/javascript/research_web_guard.test.mjs",
         "tests/javascript/research_web_tabbit_adapter.test.mjs",
-        "tests/javascript/research_web_tabbit_ui.test.mjs"
+        "tests/javascript/research_web_tabbit_ui.test.mjs",
+        "tests/javascript/research_web_compatible_model.test.mjs"
       ]
     },
     {
@@ -342,6 +344,7 @@
         "app/research_web/report_workflow_routes.py",
         "app/research_web/report_render_script.py",
         "app/research_web/report_rendering.py",
+        "app/research_web/office-template.pptx",
         "app/research_web/report_routes.py",
         "app/research_web/report_studio.py",
         "app/research_web/ui/report-workflows.mjs"
@@ -2499,6 +2502,20 @@
     },
     {
       "method": "POST",
+      "path": "/api/research/sessions/{session_id}/document-operations",
+      "source": "app/research_web/report_routes.py",
+      "declaredPath": "/sessions/{session_id}/document-operations",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/internal/data/document-operation",
+      "source": "app/research_web/report_routes.py",
+      "declaredPath": "/internal/data/document-operation",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "POST",
       "path": "/api/research/report-projects",
       "source": "app/research_web/report_routes.py",
       "declaredPath": "/report-projects",
@@ -2782,6 +2799,20 @@
       "path": "/api/research/report-runs/{run_id}/delivery",
       "source": "app/research_web/report_workflow_routes.py",
       "declaredPath": "/report-runs/{run_id}/delivery",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/internal/data/skill-preflight",
+      "source": "app/research_web/datahub/routes.py",
+      "declaredPath": "/internal/data/skill-preflight",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/internal/data/model-connection",
+      "source": "app/research_web/datahub/routes.py",
+      "declaredPath": "/internal/data/model-connection",
       "prefix": "/api/research"
     }
   ],
