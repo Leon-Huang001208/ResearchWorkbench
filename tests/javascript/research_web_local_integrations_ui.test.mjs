@@ -45,6 +45,13 @@ const localIntegrations = {
   ],
 };
 
+test('Office rows distinguish file capability from unavailable native automation', () => {
+  const model = { ...localIntegrations, categories: [{id: 'office', label: 'Office', item_ids: ['word_app']}], items: [makeItem('word_app', 'office', 'Microsoft Word', '未发现', { capabilities: ['document_file_available'] })] };
+  const html = renderLocalIntegrationConsole(model);
+  assert.match(html, /文件处理<[^]*可用（有限文件业务）/);
+  assert.match(html, /本机操作<[^]*未发现/);
+});
+
 test('local console shows only service and per-item truths without an overall callable verdict', () => {
   const html = renderLocalIntegrationConsole(localIntegrations);
   assert.match(html, /本机服务在线/);

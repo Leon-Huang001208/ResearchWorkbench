@@ -712,6 +712,9 @@ def test_runtime_constants_share_the_machine_contract():
     assert PINNED_DSH_COMMIT == contract.dsh_commit
     assert launch_runtime.PINNED_COMMIT == contract.dsh_commit
     assert launch_runtime.RUNTIME_CONTRACT == contract
+    from app.research_web.capabilities.tools import PIN
+
+    assert PIN == contract.dsh_commit
 
 
 def make_source(tmp_path: Path) -> Path:
@@ -732,7 +735,7 @@ def test_runtime_module_fallback_is_healed_inside_private_source(tmp_path, monke
 
     def run(*args, **kwargs):
         assert "loadProfile('dsh', 'web', anchor, home)" in args[0][3]
-        assert "healProfilesModuleFallback({ installAnchor: anchor, profile })" in args[0][3]
+        assert "createRuntimeResolution({ installAnchor: anchor, profile, home })" in args[0][3]
         profile = home / "profiles/web"
         profile.mkdir(parents=True)
         (profile / "package.json").write_text(
@@ -756,7 +759,7 @@ def test_runtime_module_fallback_is_healed_inside_private_source(tmp_path, monke
         modules = home / "profiles/node_modules/@deepseek-ai"
         modules.mkdir(parents=True)
         (modules / "dsh-example").symlink_to(target)
-        return SimpleNamespace(returncode=0)
+        return SimpleNamespace(returncode=0, stdout=json.dumps([str(target)]))
 
     monkeypatch.setattr(launch_runtime.subprocess, "run", run)
     assert launch_runtime.prepare_runtime_module_fallback(source, home, "/node") == 1
@@ -773,7 +776,7 @@ def test_runtime_module_fallback_rejects_external_target(tmp_path, monkeypatch):
         modules = home / "profiles/node_modules"
         modules.mkdir(parents=True)
         (modules / "external").symlink_to(external)
-        return SimpleNamespace(returncode=0)
+        return SimpleNamespace(returncode=0, stdout=json.dumps([str(external)]))
 
     monkeypatch.setattr(launch_runtime.subprocess, "run", run)
     with pytest.raises(RuntimeError, match="越出项目私有源码目录"):
@@ -793,7 +796,7 @@ def test_runtime_module_fallback_accepts_windows_junctions_inside_private_source
     def run(*_args, **_kwargs):
         link.parent.mkdir(parents=True)
         link.symlink_to(target, target_is_directory=True)
-        return SimpleNamespace(returncode=0)
+        return SimpleNamespace(returncode=0, stdout=json.dumps([str(link)]))
 
     monkeypatch.setattr(launch_runtime.subprocess, "run", run)
     monkeypatch.setattr(
@@ -843,6 +846,11 @@ def test_runtime_binds_model_system_store_and_separate_host_records(tmp_path, mo
     assert "model_credentials.py" in overlay
     assert ".browser-credentials.yaml" in overlay
     assert "default: research-web" in overlay
+    assert "- id: agent-preset-registry" in overlay
+    for name in ("research-web", "framework-explain", "framework-verify"):
+        assert f"id: rwb-preset-{name}" in overlay
+    assert "@deepseek-ai/dsh-agent-preset" in overlay
+    assert "plugins:" in overlay
     assert "synthetic-ambient" not in overlay
     assert "RESEARCH_DSH_API_KEY" not in env
 
@@ -1993,6 +2001,130 @@ def test_docker_text_generated_overlay_activates_actual_fixed_sdk(tmp_path, monk
         proof = json.loads(safe[0].split(":", 1)[1])
         assert proof["result"] == "PASS" and proof["networkCalls"] == 0
         assert settings.read_bytes() == before
+
+
+def test_docker_text_generated_default_passes_current_guard(tmp_path, monkeypatch):
+    import os
+
+    import yaml
+
+    source = make_source(tmp_path)
+    data = tmp_path / "isolated-data"
+    identity = "b" * 32
+    monkeypatch.setenv("RWB_DSH_STAGED", "1")
+    monkeypatch.setenv(
+        "RESEARCH_ACCEPTANCE_CONTROL",
+        json.dumps(
+            {
+                "dataHome": str(data.resolve()),
+                "profile": "docker-text",
+                "installationId": identity,
+                "modelCalls": 3,
+                "maxOutputTokens": 512,
+            }
+        ),
+    )
+    monkeypatch.setattr(
+        launch_runtime,
+        "verify_staged_runtime",
+        lambda *a, **kw: {"closure_sha256": "a" * 64, "closure_files": 1},
+    )
+    monkeypatch.setattr(
+        launch_runtime,
+        "read_acceptance_budget",
+        lambda _: {"modelCalls": 3, "maxOutputTokens": 512},
+    )
+    monkeypatch.setattr(
+        launch_runtime.subprocess, "check_output", lambda *a, **kw: launch_runtime.PINNED_COMMIT
+    )
+    launch_runtime.prepare(
+        source,
+        data,
+        "/node",
+        3081,
+        model_backend="docker-private-file",
+        model_credential_root=Path("/run/rwb-secrets/private/models") / identity,
+        model_installation_id=identity,
+    )
+    rows = yaml.safe_load((data / "runtime/overlay.yml").read_text())
+    default = next(row["config"] for row in rows if row.get("id") == "agent-default-model")
+    guard = next(
+        item["config"]
+        for row in rows
+        for item in row.get("insert", [])
+        if item["id"] == "research-tool-guard"
+    )
+    assert default == {"provider": "deepseek-official", "model": "deepseek-flash"}
+    bridge = tmp_path / "fixture-reservation.py"
+    bridge.write_text(
+        "import json,sys\nassert json.load(sys.stdin)=={'op':'reserve','outputTokens':512}\nprint(json.dumps({'ok':True,'ticket':1,'remainingMillis':30000}))\n"
+    )
+    guard["acceptance"]["budgetBridge"] = {"python": sys.executable, "bridge": str(bridge)}
+    module = Path(launch_runtime.__file__).with_name("runtime") / "guard.mjs"
+    script = """
+import { pathToFileURL } from 'node:url';
+const { apply } = await import(pathToFileURL(process.argv[1]).href);
+const input = JSON.parse(process.argv[2]);
+const listeners = new Map(); let dispatched = 0;
+const ctx = { tools: { guard() {} }, on(name, fn) { listeners.set(name, fn); }, logger: { warn() {}, info() {} } };
+apply(ctx, input.guard);
+for await (const value of listeners.get('llm/stream')(Object.freeze({ ...input.default, messages: [], tools: [], maxTokens: 512 }), async function* () { dispatched++; yield 'synthetic'; })) {}
+if (dispatched !== 1) throw Error('canonical_default_not_admitted');
+console.log(JSON.stringify({ dispatched, networkCalls: 0 }));
+"""
+    node = os.environ.get("RWB_TEST_NODE") or shutil.which("node")
+    assert node, "existing Node is required; do not install dependencies"
+    result = subprocess.run(
+        [
+            node,
+            "--input-type=module",
+            "-e",
+            script,
+            str(module),
+            json.dumps({"guard": guard, "default": default}),
+        ],
+        text=True,
+        capture_output=True,
+        timeout=15,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    assert json.loads(result.stdout) == {"dispatched": 1, "networkCalls": 0}
+
+
+@pytest.mark.parametrize(
+    "legacy",
+    [
+        {"model": "deepseek-v4-flash"},
+        {"policyId": "deepseek-flash-20261008"},
+        {"model": "deepseek-v4-flash", "policyId": "deepseek-flash-20261008"},
+    ],
+)
+def test_canonical_budget_rejects_old_controls_without_writes(tmp_path, monkeypatch, legacy):
+    from datetime import UTC, datetime
+
+    from app.research_web import live_acceptance_budget as budget
+
+    now = datetime(2026, 10, 8, 11, tzinfo=UTC)
+    parent = tmp_path / "private"
+    parent.mkdir(mode=0o700)
+    root = parent / ("b" * 32)
+    assert budget.POLICY["model"] == "deepseek-flash"
+    assert budget.POLICY["policyId"] == "deepseek-flash-canonical-20261008"
+    with monkeypatch.context() as old_policy:
+        old_policy.setattr(budget, "POLICY", {**budget.POLICY, **legacy})
+        control = budget.authorization(3, 512, "2026-10-08T11:30:00Z")
+        budget.BudgetStore.initialize(root, "b" * 32, control, clock=lambda: now)
+    before = {path.name: path.read_bytes() for path in root.iterdir()}
+    store = budget.BudgetStore(root, "b" * 32, clock=lambda: now)
+    for operation in [store.describe, store.read_optional, lambda: store.reserve(512)]:
+        with pytest.raises(budget.BudgetError, match="acceptance_budget_invalid"):
+            operation()
+        assert {path.name: path.read_bytes() for path in root.iterdir()} == before
+    candidate = parent / ("c" * 32)
+    with pytest.raises(budget.BudgetError, match="acceptance_budget_invalid"):
+        budget.BudgetStore.initialize(candidate, "c" * 32, control, clock=lambda: now)
+    assert not candidate.exists()
 
 
 @pytest.mark.parametrize("bad_cap", [True, 0, -1, 4097, 512.0, "512"])

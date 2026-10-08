@@ -107,12 +107,12 @@ PrivateRecord: TypeAlias = tuple[bytes, os.stat_result]
 Clock: TypeAlias = Callable[[], datetime]
 
 POLICY: PolicyFields = {
-    "policyId": "deepseek-flash-20261008",
+    "policyId": "deepseek-flash-canonical-20261008",
     "quoteDate": "2026-10-08",
     "policyExpires": "2026-10-09T00:00:00Z",
     "endpoint": "https://api.deepseek.com",
     "provider": "deepseek-official",
-    "model": "deepseek-v4-flash",
+    "model": "deepseek-flash",
     "inputMicroUsdPerMillion": 300000,
     "outputMicroUsdPerMillion": 1200000,
     "inputReservation": INPUT_TOKENS,

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "unchanged",
-  "summary": "Docker模型后端、JS/owned启动器、设置/Doctor与私有持久预算源码已集成，本地合同和固定SDK fixture已验证；公开README已验证能力边界暂不提升。",
-  "reason": "当前仍缺本轮真实Docker镜像/生产CLI、真实模型文本与冷恢复、浏览器及macOS安装CI证据，不能推荐为已验收模型路径。架构reading pin已绑定含新增模块的本地真实源码提交80ebd728c，尚未推送，远端链接可访问性未认证；不借旧双运行时或fixture宣布整体完成。"
+  "disposition": "updated",
+  "summary": "保留 master 的 DSH 升级、macOS Keychain、Office 与兼容模型说明，并集成 Docker 模型后端、设置/Doctor 和私有预算源码；不提升未验收能力。",
+  "reason": "本轮 Docker 生产模型、冷恢复、浏览器和 macOS 安装 CI 仍须验证。架构源码链接保留既有真实源码提交；合并候选尚未提交，新增 master 路径的该版本导航未验证，后续须绑定实际合并源码提交。历史证据保留原候选归属。"
 }

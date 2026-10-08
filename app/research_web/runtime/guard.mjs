@@ -1,6 +1,9 @@
 /** Host-global final veto; MCP tools require an exact activation allowlist. */
 import { spawn } from 'node:child_process';
-export const inject = ['tools', 'llm'];
+import { isAbsolute } from 'node:path';
+import { nativeAdmission } from './public-data.mjs';
+
+export const inject = ['tools', 'llm', 'sessions'];
 
 const budgetErrors = new Set(['acceptance_budget_unverified', 'acceptance_budget_invalid', 'acceptance_budget_expired',
   'acceptance_budget_exhausted', 'acceptance_budget_unavailable', 'acceptance_budget_commit_uncertain']);
@@ -44,6 +47,7 @@ function reserveBudget(acceptance, outputTokens) {
 
 export const RESEARCH_TOOLS = new Set([
   'research_run_script',
+  'research_document_operation',
   'rwb_record_method_use',
   'datahub_search_assets', 'datahub_get_trading_calendar', 'datahub_get_market_bars',
   'datahub_get_market_snapshot', 'datahub_get_index_data', 'datahub_get_financials',
@@ -54,6 +58,84 @@ export const RESEARCH_TOOLS = new Set([
 ]);
 
 export function apply(ctx, config = {}) {
+  if (config.researchRoot !== undefined) {
+    if (typeof config.researchRoot !== 'string' || !isAbsolute(config.researchRoot)) throw Error('skill_admission_root_invalid');
+    const pending = new Map();
+    const registrations = new Map();
+    const uncertain = new Set();
+    const scopeKey = agent => { const cwd = agent?.session?.header?.cwd; if (typeof cwd !== "string" || !isAbsolute(cwd)) throw Error("skill_scope_identity_invalid"); return cwd; };
+    const pendingFor = agent => { agent = scopeKey(agent); let value = pending.get(agent); if (!value) { value = new Set(); pending.set(agent, value); } return value; };
+    const waitRegistrations = async agent => { await Promise.all(registrations.get(scopeKey(agent)) || []); };
+    ctx.on('tools/pre-execute', async (exec, next) => {
+      const skill = config.enabled && exec.agent && exec.name === 'skill';
+      if (skill) pendingFor(exec.agent).add(exec.callId);
+      const decision = await next();
+      if (!config.enabled || !exec.agent || ['deny','cancel'].includes(decision.kind)) {
+        if (skill) pendingFor(exec.agent).delete(exec.callId);
+        return decision;
+      }
+      try {
+        await waitRegistrations(exec.agent);
+        if (uncertain.has(scopeKey(exec.agent)) || (!skill && pendingFor(exec.agent).size)) return { kind: 'deny', reason: 'capability_scope_unverified' };
+        const scope = await nativeAdmission(ctx, exec, config);
+        if (!scope.admitted || (!skill && pendingFor(exec.agent).size)) {
+          ctx.logger.warn('research_native_capability_admission_denied');
+          if (skill) pendingFor(exec.agent).delete(exec.callId);
+          return { kind: 'deny', reason: 'capability_scope_unavailable' };
+        }
+        return decision;
+      } catch {
+        if (skill) pendingFor(exec.agent).delete(exec.callId);
+        ctx.logger.warn('research_native_capability_admission_unavailable');
+        return { kind: 'deny', reason: 'capability_scope_unverified' };
+      }
+    }, { global: true, prepend: true });
+    // Observe the final frozen result, after approval, guards, output validation
+    // and cancellation. An unconfirmed registration blocks subsequent execution.
+    ctx.on('tools/result', (exec, result) => {
+      if (!config.enabled || !exec.agent || exec.name !== 'skill') return;
+      if (result.isError !== false || exec.signal.aborted) { pendingFor(exec.agent).delete(exec.callId); return; }
+      let queue = registrations.get(scopeKey(exec.agent));
+      if (!queue) { queue = new Set(); registrations.set(scopeKey(exec.agent), queue); }
+      const registration = (async () => {
+        try {
+          const scope = await nativeAdmission(ctx, exec, config, true);
+          if (!scope.admitted) throw Error('skill_scope_registration_unconfirmed');
+        } catch {
+          uncertain.add(scopeKey(exec.agent));
+          ctx.logger.warn('research_native_capability_registration_unconfirmed');
+        } finally { pendingFor(exec.agent).delete(exec.callId); }
+      })();
+      queue.add(registration);
+      void registration.finally(() => queue.delete(registration));
+    }, { global: true });
+    // Upstream /skill-name user gestures inject instructions before any tool
+    // invocation. Inspect the authoritative injected source, not user prose.
+    ctx.on('agent/pre-step', async (options, next) => {
+      const decision = await next();
+      if (!config.enabled || decision.kind === 'reject') return decision;
+      try {
+        await waitRegistrations(options.agent);
+        if (uncertain.has(scopeKey(options.agent)) || pendingFor(options.agent).size || !Array.isArray(decision.messages)) return { kind: 'reject' };
+        const exec = { name: 'agent_step', agent: options.agent, signal: options.signal };
+        if (!(await nativeAdmission(ctx, exec, config)).admitted) return { kind: 'reject' };
+        const priorMessages = new Set(options.messages || []);
+        const names = new Set(decision.messages.filter(message => !priorMessages.has(message) && message.source?.kind === 'skill-invocation' && message.source.form === 'instructions').map(message => message.source.name));
+        for (const name of names) {
+          const invocation = { ...exec, nativeSkillName: name };
+          if (!(await nativeAdmission(ctx, invocation, config)).admitted) return { kind: 'reject' };
+        }
+        for (const name of names) {
+          const invocation = { ...exec, nativeSkillName: name };
+          if (!(await nativeAdmission(ctx, invocation, config, true)).admitted) return { kind: 'reject' };
+        }
+        return decision;
+      } catch {
+        ctx.logger.warn('research_native_skill_injection_denied');
+        return { kind: 'reject' };
+      }
+    }, { global: true, prepend: true });
+  }
   // Optional instance-wide acceptance caps; the owned launcher supplies them.
   const acceptance = config.acceptance;
   const dockerText = acceptance?.profile === 'docker-text';
@@ -93,7 +175,7 @@ export function apply(ctx, config = {}) {
           ctx.logger.warn('research_acceptance_budget_unverified');
           throw Error('acceptance_budget_unverified');
         }
-        if (options.provider !== 'deepseek-official' || options.model !== 'deepseek-v4-flash') {
+        if (options.provider !== 'deepseek-official' || options.model !== 'deepseek-flash') {
           ctx.logger.warn('research_acceptance_provider_denied');
           throw Error('acceptance_provider_denied');
         }

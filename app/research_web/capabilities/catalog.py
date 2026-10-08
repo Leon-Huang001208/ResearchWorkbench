@@ -26,9 +26,10 @@ from pydantic import ValidationError
 from core.observability import get_logger
 
 from .methods import ReasoningMethodSpec
-from .models import CapabilityError, Metadata, Step, issue
+from .models import CapabilityError, Metadata, Step, data_preflight, issue
 from .packages import decode_file, frontmatter, import_package, normalize_files
 from .seeds import (
+    LEGACY_DATA_SCOPE_DRAFTS,
     LEGACY_STAGE2_SCRIPT_SHA256,
     LEGACY_STAGE3_SCRIPT_SHA256,
     RECEIPT_GATED_SKILLS,
@@ -146,6 +147,7 @@ class CapabilityCatalog:
             self._migrate_legacy_tool_ids(dict(seed_packages()))
             self._migrate_stage2_builtins(dict(seed_packages()))
             self._migrate_stage3_builtins(dict(seed_packages()))
+            self._migrate_data_scope_builtins(dict(seed_packages()))
             self._audit_enabled_receipt_gates()
         except (OSError, ValueError, KeyError, TypeError) as exc:
             log.error("capability_catalog_unreadable", error_type=type(exc).__name__)
@@ -241,6 +243,34 @@ class CapabilityCatalog:
                     capability_id=row["id"],
                     error_type=type(exc).__name__,
                 )
+
+    def _migrate_data_scope_builtins(self, builtins):
+        """Only exact untouched shipped instructions receive a reviewed successor."""
+        if self.data.get("pending"):
+            return
+        for cid, digest in LEGACY_DATA_SCOPE_DRAFTS.items():
+            row = self.data["items"].get(cid)
+            if not row or row["source"] != "builtin" or row["has_draft"] or not row["version"]:
+                continue
+            active = row["versions"][str(row["version"])]
+            if (
+                active["metadata"].get("data_requirements")
+                or hashlib.sha256(
+                    json.dumps(
+                        self._draft(active),
+                        sort_keys=True,
+                        separators=(",", ":"),
+                        ensure_ascii=True,
+                    ).encode()
+                ).hexdigest()
+                != digest
+            ):
+                continue
+            row["draft"] = self._draft(copy.deepcopy(builtins[cid]))
+            row.update(has_draft=True, checks=None, updated_at=time.time())
+            status = "disabled" if cid in RECEIPT_GATED_SKILLS else row["status"]
+            self.publish(cid, _allow_builtin_migration=True, _status=status)
+            log.info("capability_data_scope_migrated", capability_id=cid, version=row["version"])
 
     @staticmethod
     def _record_script_digest(record):
@@ -763,6 +793,52 @@ class CapabilityCatalog:
                 if kind is None or row["kind"] == kind
             ],
             "publication_uncertain": bool(self.data.get("pending")),
+        }
+
+    def data_readiness(self, cid: str, data_catalog: dict) -> dict:
+        """Same current data gate for explicit selection and native discovery."""
+        row = self.row(cid)
+        if row["status"] != "enabled":
+            return {
+                "status": "unavailable",
+                "admitted": False,
+                "missing": [{"code": "capability_disabled"}],
+                "omitted_sections": [],
+            }
+        record = row["versions"][str(row["version"])]
+        scopes = [data_preflight(record["metadata"], data_catalog)]
+        for binding in record["bindings"]:
+            child = self.row(binding["id"])
+            if child["version"] != binding["version"] or child["status"] != "enabled":
+                return {
+                    "status": "unavailable",
+                    "admitted": False,
+                    "missing": [{"code": "linked_version_conflict"}],
+                    "omitted_sections": [],
+                }
+            linked = child["versions"][str(binding["version"])]
+            scopes.append(data_preflight(linked["metadata"], data_catalog))
+        blocked = [scope for scope in scopes if not scope["admitted"]]
+        status = (
+            "unavailable"
+            if any(scope["status"] == "unavailable" for scope in blocked)
+            else (
+                "unverified"
+                if blocked
+                else (
+                    "limited"
+                    if any(scope["status"] == "limited" for scope in scopes)
+                    else "available"
+                )
+            )
+        )
+        return {
+            "status": status,
+            "admitted": not blocked,
+            "missing": [item for scope in scopes for item in scope["missing"]],
+            "omitted_sections": list(
+                dict.fromkeys(section for scope in scopes for section in scope["omitted_sections"])
+            ),
         }
 
     def detail(self, cid):

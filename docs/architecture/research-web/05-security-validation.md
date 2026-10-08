@@ -1,5 +1,10 @@
 # 安全边界与验证方法
 
+Docker 文本验收仅接受当前规范 `deepseek-flash` 与独立政策
+`deepseek-flash-canonical-20261008`；不同时允许旧 `deepseek-v4-flash`。旧授权和旧政策 ID
+读取/预扣失败关闭且不写账本，不迁移旧控制。2026-10-08 报价、2026-10-09T00:00:00Z 政策到期、
+既有费率及 3 次 / 512 输出 / 零重试不变；新测试实例和实际预算控制须另获授权，当前修复不发付费请求。
+
 Docker 文本验收的准入配置只接受已验证 staged runtime、精确模型私有根与稳定安装ID；
 普通内部3081实例不因环境开关获得验收授权。该受限profile限制输出、拒绝附件/工具并禁重试；
 没有显式初始化的私有控制时，派发前固定拒绝 `acceptance_budget_unverified`。
@@ -17,6 +22,8 @@ POSIX父目录初始比较与退出比较使用同一边界：共享祖先的内
 !node_only即时私有父目录仍比较完整元数据。FD、no-follow、目录类型、inode/mode、owner与
 record/lock验证不变，初始inode/mode/symlink替换仍拒绝；构造场景误拒绝修复不证明旧controller失败归因。
 
+
+新版原生模块解析使用 `createRuntimeResolution`，每个 packageDir 必须属于固定源码或两项既有受管供应包；解析成功不扩大模块白名单。认证 bootstrap 的 source_commit 从共享 runtime 合同读取，仍验证所属进程、cwd、端口与私有控制文件。preset 注册迁移不改变固定模型 ref 的 Keychain 私有桥接，也不让模型 ref 委托回旧环境/文件解析器。父子活动状态未知时配置和提交失败关闭。
 Docker DSH builder 的[下载参数](../../research-web-installation.md)仅将现有 pnpm install 并发设为 8、
 单请求期限设为 120 秒；frozen lockfile、默认重试、registry、TLS、签名和最低发布时间校验保持。
 
@@ -358,6 +365,29 @@ Windows 停止仍先验证产品状态文件、PID 存活与命令签名，绝�
 会话或本机软件权限。
 
 启动handoff不能以DSH_HOME父目录推断独立state位置。Node preload接受launcher明确的state绑定；消费方验证私有目录/文件、authority、cwd、固定commit及PID，秘密只进入脱敏集合和受控Cookie交换，独立健康检查保持只读。
+
+## 公网部署预留决策（阶段6，仅设计）
+
+当前 owner 是单用户本地实例及其 canonical data home；它不是 tenant 身份。连接、秘密、缓存、快照、任务的归属须由后端受管目录和会话绑定确定，不能由浏览器提交的 owner 标识授权。DataHub 连接服务按实例路径后缀隔离；旧全局秘密不自动读取或复制。
+
+未来公网任务必须先引入经服务端认证的 user/tenant 归属，并逐次校验连接、任务及缓存权限。公开可访问数据不等于可再分发；项目获准共享与用户商业私有数据须分别记录许可，私有及派生结果不得进入跨用户共享缓存或模型上下文。向所选模型服务外发商业数据须有独立数据外发授权。
+
+远端服务 API Key 与用户电脑的 Wind/Office 登录会话是不同授权主体。公网后端不扫描或控制浏览器所在电脑；远程本机能力须另立身份验证、限定白名单、超时、撤销和设备所有权的桥接任务。
+
+新增公网端点配置前必须确定 TLS、鉴权、DNS/重定向及 SSRF 规则，对环回、内网和跨用户目标失败关闭；审计只记录非秘密归属与操作结果。当前继续保持 loopback/same-origin/TrustedHost，不能通过绑定0.0.0.0宣称公网已支持。
+
+独立未来任务依次为：身份与授权归属合同；数据共享/外发许可和缓存隔离；模型端点SSRF与TLS；受限远程设备桥接。当前不实施注册、计费、多租户平台或公网监听。
+
+## 设置闭环阶段3：当前能力范围
+
+数据准入必须覆盖DSH tools/pre-execute及agent/pre-step产生的真实skill-invocation来源；不能仅依赖前端或提示词。最终tools/result成功后登记，未确认登记不继续执行。当前声明数据任务禁止借web_fetch、一般网页或MCP绕过；实际查询参数与dataset-specific频率/复权/单位及历史时点合同匹配。Seatbelt取消整resources/受限datasets读取，仅放行通用资源及受信响应生成的精确目录，模型不得指定授权路径。
+
+
+## 兼容模型的有界传输（1B实施中）
+
+新增一项固定系统ref RESEARCH_COMPAT_API_KEY，与原RESEARCH_DSH_API_KEY共享实例归属规则、使用不同系统账户；resolve/describe/set/unset不进入环境或文件，两ref也拒绝委托Host record路径。Host browser-session记录原行为保留。明确无Key模式不查询任何模型凭据，不填假Key或降级为ambient来源。
+
+新文本/流式适配复用固定DSH的LlmAdapter与同一Agent loop；请求禁止重定向、最多一次HTTP发送、90秒取消/超时、输入/输出有界，HTTP200与残缺流均不能产生成功finish。连接/凭据绑定相同公共revision，实际发送前检测变更；版本不读取或散列Key。工具、图像及其它能力未认证，不能因模型ID推导支持。保存/应用及合成生成已沿产品API接通，合成链路不冒充供应商验收。
 
 平台能力投影不降低安全门：Windows 安全文档 reader 不支持时返回 501；非 Mac 研究脚本保留严格沙箱阻断，Windows Docker 保留 ACL 未验证。能力 available 不等于 validated，真实验收在支持矩阵与任务回执中记录。
 

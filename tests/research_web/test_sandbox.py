@@ -36,6 +36,30 @@ def test_runner_contract_exists():
     assert callable(load_runner().run_script)
 
 
+@pytest.mark.skipif(sys.platform != "darwin", reason="native macOS Seatbelt evidence only")
+@pytest.mark.parametrize("name", ["ASCII spaces", "中文 空格", '中文 "引用" 空格'])
+def test_owned_unicode_paths_preserve_kernel_permissions(tmp_path, name):
+    module = load_runner()
+    root = tmp_path / name
+    session = make_session(root)
+    (session / "inputs" / "source.txt").write_text("owned input")
+    forbidden = tmp_path / "private.txt"
+    forbidden.write_text("outside")
+    config = module.SandboxConfig(research_root=root, python=PYTHON)
+    code = (
+        "from pathlib import Path\n"
+        "assert Path('inputs/source.txt').read_text() == 'owned input'\n"
+        "Path('outputs/result.txt').write_text('owned output')\n"
+        f"try:\n    Path({str(forbidden)!r}).read_text()\n"
+        "except PermissionError:\n    print('outside denied')\n"
+        "else:\n    raise AssertionError('outside read was allowed')\n"
+    )
+    result = module.run_script(config, session, code)
+    assert result.status == "completed", result
+    assert result.stdout == "outside denied\n"
+    assert (session / "outputs" / "result.txt").read_text() == "owned output"
+
+
 @pytest.fixture
 def prepared(tmp_path):
     if sys.platform != "darwin":
@@ -90,6 +114,7 @@ for action in [lambda: (dataset / 'rows.json').write_text('changed'),
     else: raise AssertionError('dataset/control boundary escaped')
 print('dataset-boundary-passed')
 """,
+        read_paths=[f"inputs/datasets/{dataset.name}"],
     )
     assert result.status == "completed", result
     assert result.stdout == "dataset-boundary-passed\n"
@@ -262,7 +287,7 @@ def test_native_tool_contract_and_trusted_cwd(tmp_path):
         f"import {{ apply }} from {json.dumps(plugin.as_uri())};\nconst config = {config_json};"
         + """
 const tools = new Map();
-apply({ tools: {register(t) {tools.set(t.name,t);}}, logger: {info(){},warn(){},error(){}}}, config);
+apply({ tools: {register(t) {tools.set(t.name,t);}}, logger: {info(){},warn(){},error(){}}}, config,undefined,async()=>({admitted:true,read_paths:[]}));
 const tool = tools.get('research_run_script');
 if(tool.name!=='research_run_script') throw Error('missing native tool');
 for(const code of ['', '中'.repeat(30000)]) {
@@ -300,7 +325,7 @@ def test_native_tool_schemas_match_pinned_dsh_converter(tmp_path):
         "import { assertSupportedJsonSchema, validateJsonSchemaValue, jsonSchemaToTs, jsonSchemaToPy } "
         f"from {json.dumps(converter.as_uri())};\nconst config = {config_json};" + """
 const tools = new Map();
-apply({tools:{register(t){tools.set(t.name,t);}},logger:{info(){},warn(){},error(){}}},config);
+apply({tools:{register(t){tools.set(t.name,t);}},logger:{info(){},warn(){},error(){}}},config,undefined,async()=>({admitted:true,read_paths:[]}));
 const tool = tools.get('research_run_script');
 // Use the same implementation ToolRuntime.register invokes, not a local mock.
 assertSupportedJsonSchema(tool.output.schema);
@@ -349,7 +374,7 @@ const tools = new Map();
 const parent = {header:{id:'parent',cwd}};
 const child = {header:{id:'child',cwd,parentSession:'parent'}};
 const ctx = {tools:{register(t){tools.set(t.name,t);}},sessions:{get(id){return id==='parent'?parent:undefined;}},logger:{info(){},warn(){},error(){}}};
-apply(ctx,config);
+apply(ctx,config,undefined,async()=>({admitted:true,read_paths:[]}));
 const tool = tools.get('research_run_script');
 const result = await tool.execute({code:"print('原生工具-success')"},{agent:{session:child},signal:new AbortController().signal});
 if(result.status!=='completed'||result.stdout!=='原生工具-success\\n') throw Error(JSON.stringify(result));
@@ -392,7 +417,7 @@ def test_cancel_reaps_script_after_it_closes_output_streams(prepared):
         "import { setTimeout as pause } from 'node:timers/promises';\n"
         f"const config = {config_json}; const cwd = {json.dumps(str(session))};" + """
 const tools = new Map();
-apply({tools:{register(t){tools.set(t.name,t);}},logger:{info(){},warn(){},error(){}}},config);
+apply({tools:{register(t){tools.set(t.name,t);}},logger:{info(){},warn(){},error(){}}},config,undefined,async()=>({admitted:true,read_paths:[]}));
 const tool = tools.get('research_run_script');
 const controller = new AbortController();
 const execution = tool.execute({code:"import os,time; from pathlib import Path; Path('outputs/started').write_text(str(os.getpid())); os.close(1); os.close(2); time.sleep(4); Path('outputs/after-cancel').write_text('bad')"},{agent:{session:{header:{id:'root',cwd}}},signal:controller.signal});
@@ -441,7 +466,7 @@ def test_native_tool_serializes_four_calls_fifo_and_logs_queue_outcomes(prepared
         "import { readFileSync } from 'node:fs';\n"
         f"const config={config_json}; const cwd={json.dumps(str(session))};" + """
 let tool; const logs=[];
-apply({tools:{register(t){if(t.name==='research_run_script')tool=t;}},logger:{info(...v){logs.push(v.join(' '));},warn(){},error(){}}},config);
+apply({tools:{register(t){if(t.name==='research_run_script')tool=t;}},logger:{info(...v){logs.push(v.join(' '));},warn(){},error(){}}},config,undefined,async()=>({admitted:true,read_paths:[]}));
 const execution=[0,1,2,3].map(i=>tool.execute({code:`from pathlib import Path
 import time
 p=Path('outputs/order.log')
@@ -485,7 +510,7 @@ def test_native_tool_removes_cancelled_waiter_and_times_out_busy_waiter(prepared
         "import { setTimeout as pause } from 'node:timers/promises';\n"
         f"const config={config_json}; const cwd={json.dumps(str(session))};" + """
 let tool;
-apply({tools:{register(t){if(t.name==='research_run_script')tool=t;}},logger:{info(){},warn(){},error(){}}},config);
+apply({tools:{register(t){if(t.name==='research_run_script')tool=t;}},logger:{info(){},warn(){},error(){}}},config,undefined,async()=>({admitted:true,read_paths:[]}));
 const first=tool.execute({code:"from pathlib import Path; import time; Path('outputs/active').write_text('yes'); time.sleep(0.35)"},{agent:{session:{header:{id:'first',cwd}}},signal:new AbortController().signal});
 const started=Date.now()+3000;
 while(!existsSync(cwd+'/outputs/active')) { if(Date.now()>started) throw Error('first call did not start'); await pause(10); }
@@ -539,7 +564,7 @@ function spawnProcess(){
   if(children.length>1) setTimeout(()=>{child.stdout.end(JSON.stringify({status:'completed',stdout:'ok',stderr:'',exit_code:0,error:null}));child.emit('close',0);},5);
   return child;
 }
-apply({tools:{register(t){if(t.name==='research_run_script')tool=t;}},logger:{info(){},warn(){},error(){}}},config,spawnProcess);
+apply({tools:{register(t){if(t.name==='research_run_script')tool=t;}},logger:{info(){},warn(){},error(){}}},config,spawnProcess,async()=>({admitted:true,read_paths:[]}));
 const controller=new AbortController();
 const first=tool.execute({code:'print(1)'},{agent:{session:{header:{id:'first',cwd}}},signal:controller.signal}).then(value=>({value}),error=>({error}));
 await pause(5); controller.abort();
@@ -592,7 +617,7 @@ function spawnProcess(){
   children.push(child);
   return child;
 }
-apply({tools:{register(t){if(t.name==='research_run_script')tool=t;}},logger:{info(){},warn(){},error(){}}},config,spawnProcess);
+apply({tools:{register(t){if(t.name==='research_run_script')tool=t;}},logger:{info(){},warn(){},error(){}}},config,spawnProcess,async()=>({admitted:true,read_paths:[]}));
 const controller=new AbortController();
 const first=tool.execute({code:'print(1)'},{agent:{session:{header:{id:'first',cwd}}},signal:controller.signal}).then(value=>({value}),error=>({error}));
 await pause(5); controller.abort();
@@ -613,3 +638,65 @@ console.log('fifo-error-poison-passed');
     )
     assert result.returncode == 0, result.stderr
     assert result.stdout == "fifo-error-poison-passed\n"
+
+
+def test_kernel_denies_legacy_unadmitted_package_and_dataset_but_allows_explicit_scope(prepared):
+    module, _root, session, config = prepared
+    legacy = session / "resources/skills/disabled/scripts"
+    legacy.mkdir(parents=True)
+    (legacy / "calculate.py").write_text('print("synthetic")')
+    package = session / "resources/capabilities/reviewed/1"
+    package.mkdir(parents=True)
+    (package / "calculate.py").write_text('print("reviewed")')
+    did = str(uuid4())
+    dataset = session / "inputs/datasets" / did
+    dataset.mkdir(parents=True)
+    (dataset / "rows.json").write_text("[42]")
+    code = """
+from pathlib import Path
+for path in ['resources/skills/disabled/scripts/calculate.py', 'resources/capabilities/reviewed/1/calculate.py', 'inputs/datasets/REPLACE/rows.json']:
+    try:
+        Path(path).read_text()
+    except PermissionError:
+        pass
+    else:
+        raise AssertionError('unadmitted bytes became readable')
+print('blocked')
+""".replace("REPLACE", did)
+    denied = module.run_script(config, session, code)
+    assert denied.status == "completed" and denied.stdout == "blocked\n", denied
+    allowed = module.run_script(
+        config,
+        session,
+        f"from pathlib import Path; assert Path('resources/capabilities/reviewed/1/calculate.py').read_text(); assert Path('inputs/datasets/{did}/rows.json').read_text(); print('allowed')",
+        read_paths=["resources/capabilities/reviewed/1", f"inputs/datasets/{did}"],
+    )
+    assert allowed.status == "completed" and allowed.stdout == "allowed\n", allowed
+
+
+def test_unadmitted_read_cannot_escape_through_output_link_aliases(prepared):
+    module, _root, session, config = prepared
+    private = session / "resources/capabilities/private/1"
+    private.mkdir(parents=True)
+    (private / "protected.txt").write_text("synthetic protected bytes")
+    result = module.run_script(
+        config,
+        session,
+        f"""
+import os
+from pathlib import Path
+for name, link in [('hard', os.link), ('sym', os.symlink)]:
+    source = str(Path('resources/capabilities/private/1/protected.txt'))
+    if name == 'sym': source = {str(session / 'resources/capabilities/private/1/protected.txt')!r}
+    target = 'outputs/' + name
+    try:
+        link(source, target)
+        Path(target).read_text()
+    except (PermissionError, FileNotFoundError):
+        pass
+    else:
+        raise AssertionError('resource scope escaped via alias')
+print('alias-blocked')
+""",
+    )
+    assert result.status == "completed" and result.stdout == "alias-blocked\n", result

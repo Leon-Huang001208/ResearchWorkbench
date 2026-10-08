@@ -11,9 +11,11 @@ const state = process.env.RWB_RUNTIME_STATE || resolve(home || '/', '..');
 const port = Number(process.env.RESEARCH_RUNTIME_PORT);
 if (!authFile || !home || !source || !Number.isInteger(port) || port < 1 || port > 65535 ||
     state !== resolve(state) || authFile !== resolve(state, 'auth.json')) throw Error('runtime_auth_handoff_binding_invalid');
+const contract = JSON.parse(readFileSync(new URL('../../../runtimes/research_web.json', import.meta.url), 'utf8'));
+if (!/^[a-f0-9]{40}$/.test(contract?.dsh?.commit)) throw Error('runtime_auth_contract_invalid');
 const metadata = {
   authority: `127.0.0.1:${port}`, cwd: process.cwd(), pid: process.pid,
-  source_commit: 'c919b2a460753859665db3f60143d525fb9140cf',
+  source_commit: contract.dsh.commit,
   version: JSON.parse(readFileSync(join(source, 'package.json'), 'utf8')).version,
 };
 for (const stream of [process.stdout, process.stderr]) {

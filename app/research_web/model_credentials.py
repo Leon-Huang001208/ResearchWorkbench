@@ -16,6 +16,8 @@ from contextlib import redirect_stdout
 from pathlib import Path
 
 MODEL_REF = "RESEARCH_DSH_API_KEY"
+COMPATIBLE_REF = "RESEARCH_COMPAT_API_KEY"
+MODEL_REFS = frozenset({MODEL_REF, COMPATIBLE_REF})
 MAX_REQUEST = 8192
 log = logging.getLogger(__name__)
 
@@ -161,15 +163,17 @@ def select_backend(backend, root=None, installation_id=None):
 
 
 def execute(data_home: Path, request: object, backend=None) -> dict:
-    """Operate only on this canonical data home's fixed model account."""
+    """Operate only on this canonical data home's two fixed model accounts."""
     if (
         not isinstance(request, dict)
-        or request.get("ref") != MODEL_REF
+        or not isinstance(request.get("ref"), str)
+        or request.get("ref") not in MODEL_REFS
         or request.get("op") not in ("resolve", "describe", "set", "unset")
         or set(request) - {"op", "ref", "value"}
     ):
         raise ValueError("model_credential_request_invalid")
     op = request["op"]
+    account = request["ref"]
     if op == "set":
         value = request.get("value")
         if not isinstance(value, str) or not value or len(value) > 1024:
@@ -184,13 +188,13 @@ def execute(data_home: Path, request: object, backend=None) -> dict:
     store = backend if backend is not None else system_backend()
     namespace = getattr(store, "namespace", namespace)
     if op == "set":
-        store.set_password(namespace, MODEL_REF, request["value"])
+        store.set_password(namespace, account, request["value"])
         return {}
     if op == "unset":
-        if store.get_password(namespace, MODEL_REF) is not None:
-            store.delete_password(namespace, MODEL_REF)
+        if store.get_password(namespace, account) is not None:
+            store.delete_password(namespace, account)
         return {}
-    value = store.get_password(namespace, MODEL_REF)
+    value = store.get_password(namespace, account)
     if op == "describe":
         return {
             "configured": bool(value),

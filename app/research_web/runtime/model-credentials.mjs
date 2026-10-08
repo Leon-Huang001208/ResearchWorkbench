@@ -3,6 +3,8 @@ import { spawn } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 
 export const MODEL_REF = 'RESEARCH_DSH_API_KEY';
+export const COMPATIBLE_REF = 'RESEARCH_COMPAT_API_KEY';
+const MODEL_REFS = new Set([MODEL_REF, COMPATIBLE_REF]);
 
 const sources = new Set(['system-keychain', 'docker-private-file']);
 function bridgeArguments(config) {
@@ -21,7 +23,9 @@ function bridgeArguments(config) {
   return args;
 }
 
-export function processBridge(config, op, value) {
+export function processBridge(config, op, value, ref = MODEL_REF) {
+  if (!MODEL_REFS.has(ref)) return Promise.reject(Error('model_credential_ref_denied'));
+  if (config.source === 'docker-private-file' && ref !== MODEL_REF) return Promise.reject(Error('model_credential_ref_denied'));
   return new Promise((resolve, reject) => {
     let args;
     try { args = bridgeArguments(config); }
@@ -53,7 +57,7 @@ export function processBridge(config, op, value) {
         resolve(result);
       } catch { reject(Error('model_credential_bridge_failed')); }
     });
-    child.stdin.end(JSON.stringify({ op, ref: MODEL_REF, ...(op === 'set' ? { value } : {}) }));
+    child.stdin.end(JSON.stringify({ op, ref, ...(op === 'set' ? { value } : {}) }));
   });
 }
 
@@ -65,10 +69,18 @@ export function createProvider(LocalProvider, bridge, source = 'system-keychain'
       // Distinct file, used only for the existing Host authentication records.
       super(ctx, { path: config.recordsPath, watch: true });
     }
+    readRecord(key) {
+      if (MODEL_REFS.has(key)) throw Error('model_credential_record_denied');
+      return super.readRecord(key);
+    }
+    modifyRecord(key, mutate) {
+      if (MODEL_REFS.has(key)) throw Error('model_credential_record_denied');
+      return super.modifyRecord(key, mutate);
+    }
     async modelCall(ref, op, value) {
-      if (ref !== MODEL_REF) throw Error('model_credential_ref_denied');
+      if (!MODEL_REFS.has(ref) || (source === 'docker-private-file' && ref !== MODEL_REF)) throw Error('model_credential_ref_denied');
       if (!sources.has(source)) throw Error('model_credential_bridge_failed');
-      try { return await bridge(op, value); }
+      try { return await bridge(op, value, ref); }
       catch (error) {
         if (source === 'docker-private-file' && error?.message === 'model_credential_commit_uncertain') {
           this.ctx.logger.warn('model_credential_commit_uncertain');
@@ -109,5 +121,5 @@ export function createProvider(LocalProvider, bridge, source = 'system-keychain'
 export async function apply(ctx, config) {
   // This path is bound exclusively by the owned launcher to the pinned build.
   const { default: LocalProvider } = await import(pathToFileURL(config.localProvider).href);
-  await ctx.plugin(createProvider(LocalProvider, (op, value) => processBridge(config, op, value), config.source), config);
+  await ctx.plugin(createProvider(LocalProvider, (op, value, ref) => processBridge(config, op, value, ref), config.source), config);
 }

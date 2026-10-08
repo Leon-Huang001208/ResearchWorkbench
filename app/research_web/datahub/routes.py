@@ -31,6 +31,20 @@ class MigrationRequest(BaseModel):
     confirm: Literal[True]
 
 
+class SkillAdmissionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    session_id: str = Field(
+        pattern=r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    )
+    native_name: str | None = Field(
+        default=None, min_length=1, max_length=160, pattern=r"^[a-z0-9][a-z0-9_-]*$"
+    )
+    loaded: bool = False
+    tool_name: str | None = Field(
+        default=None, min_length=1, max_length=300, pattern=r"^[A-Za-z][A-Za-z0-9_.:-]*$"
+    )
+
+
 def _credential_error(exc: CredentialStoreError):
     code = str(exc)
     if code == "credential_store_unavailable":
@@ -192,6 +206,26 @@ async def business_query(body: InternalBusinessQuery, request: Request):
         return JSONResponse({"status": "cancelled"}, status_code=409)
 
 
+@router.post("/internal/data/skill-preflight")
+async def skill_preflight(body: SkillAdmissionRequest, request: Request):
+    service = request.app.state.research
+    await service.ensure_owned()
+    async with service.lock:
+        return service.native_admission(
+            body.session_id, body.native_name, body.tool_name, loaded=body.loaded
+        )
+
+
 @router.post("/internal/data/cancel")
 async def cancel(body: InternalCancel, request: Request):
     return await request.app.state.research.datahub.cancel(body.session_id, body.call_id)
+
+
+@router.get("/internal/data/model-connection")
+async def model_connection(request: Request):
+    """Instance-private public facts; credentials never cross this HTTP channel."""
+    service = request.app.state.research
+    await service.ensure_owned()
+    # The detached synchronous projection must not hold the mutation lock:
+    # its owner can be waiting for a native metadata callback through this API.
+    return {"connection": service.compatible_connection()}

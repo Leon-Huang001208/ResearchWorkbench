@@ -12,6 +12,52 @@ const modules = await Promise.all(['markdown.mjs', 'core.mjs', 'views.mjs'].map(
 const [markdown, core, views] = modules;
 const dataCatalog = await import(new URL('data-catalog.mjs', root));
 const settings = await import(new URL('settings.mjs', root));
+
+test('research attachment picker accepts all three Office document formats', async () => {
+  const { renderComposer } = await import(new URL('composer.mjs', root));
+  const html = renderComposer({ page: 'fingpt' });
+  const accept = html.match(/id="file-input"[^>]*accept="([^"]+)"/)[1].split(',');
+  for (const suffix of ['.docx', '.xlsx', '.pptx']) assert.ok(accept.includes(suffix));
+});
+
+test('Office file actions and precise editor preserve escaped content and calculation limits', () => {
+  const file = { id: 'a'.repeat(24), name: '验收.xlsx', size: 100, url: '/api/research/sessions/s/files/f/download' };
+  assert.match(views.renderFiles([file]), /data-document-open/);
+  const result = { status: 'completed', format: 'xlsx', mode: 'file', sha256: 'b'.repeat(64),
+    document: { calculation: 'not_recalculated', sheets: [{ name: 'Inputs', rows: [['<img src=x>'], [2]] }] } };
+  const targets = views.documentTargets(result);
+  assert.deepEqual(targets[1].change, { kind: 'cell', sheet: 'Inputs', cell: 'A2' });
+  const html = views.renderDocumentEditor({ file, result });
+  assert.match(html, /公式未重算/);
+  assert.match(html, /保存新版本/);
+  assert.match(html, /&lt;img src=x&gt;/);
+  assert.doesNotMatch(html, /<img src=x>/);
+  assert.match(html, /data-document-revision/);
+  assert.equal(views.documentEditValue('000001', 'string'), '000001');
+  assert.equal(views.documentEditValue('true', 'boolean'), true);
+  assert.equal(views.documentEditValue('7', 'number'), 7);
+  assert.throws(() => views.documentEditValue('not a number', 'number'));
+  const retained = views.renderDocumentEditor({ file, result, busy: true, error: '原生未就绪', draft: {
+    target: 1, value: '000001', value_type: 'string', mode: 'native',
+  } });
+  assert.match(retained, /000001<\/textarea>/);
+  assert.match(retained, /value="1" selected/);
+  assert.match(retained, /value="native" selected/);
+});
+
+test('Office generation uses structured fields and preserves textual identifiers', () => {
+  const word = views.documentCreationPayload({ format: 'docx', title: 'Word 验收报告',
+    paragraphs: '这段内容保持不变。\n报告版本 A。', table: '项目\t数值\n样本\t2' });
+  assert.deepEqual(word.content.tables, [[['项目', '数值'], ['样本', '2']]]);
+  const excel = views.documentCreationPayload({ format: 'xlsx', sheet1_name: 'Inputs', sheet1_rows: '数值\n2\n3',
+    sheet2_name: 'Summary', sheet2_rows: '合计\t=SUM(Inputs!A2:A3)\n000001\t7' });
+  assert.equal(excel.content.sheets[0].rows[1][0], 2);
+  assert.equal(excel.content.sheets[1].rows[1][0], '000001');
+  assert.equal(excel.content.sheets[1].rows[0][1], '=SUM(Inputs!A2:A3)');
+  assert.match(views.renderDocumentEditor({ creating: 'docx', file: { name: '新建 Word' } }), /document-create-form/);
+  assert.equal(views.documentCreationPayload({ format: 'docx', mode: 'native', title: 'Word 验收报告' }).mode, 'native');
+  assert.match(views.renderDocumentEditor({ creating: 'docx', file: { name: '新建 Word' }, draft: { mode: 'native' } }), /value="native" selected/);
+});
 const session = (id = 's1', extra = {}) => ({ id, title: '真实会话', mode: 'fingpt', status: 'idle', messages: [], activities: [], subagents: [], files: [], approvals: [], questions: [], ...extra });
 
 test('model settings separates actual storage, saved configuration and model generation', () => {
@@ -386,4 +432,15 @@ test('dataset downloads only use the current session, safe dataset id and three 
   ]) assert.equal(value, null);
   const unsafe = views.renderDatasets('session-1', [{ id: '../dataset', name: '坏资料', source_url: 'javascript:alert(1)', files: [{ name: 'rows.csv', url: 'https://evil.test/download' }] }]);
   assert.doesNotMatch(unsafe, /evil\.test|javascript:|href="\/api\/research\/sessions/);
+});
+
+ test('native document UI keeps output visible while reporting uncertain cleanup', () => {
+  const html = views.renderDocumentEditor({file: {name: 'owned.docx'}, result: {
+    format: 'docx', mode: 'native', status: 'completed',
+    diagnostics: {cleanup_outcome: 'unverified', function_outcome: 'available', last_completed_step: 'read_back'},
+    output: {name: 'owned.docx', url: '/api/research/sessions/s/files/f/download'},
+  }});
+  assert.match(html, /清理：未确认/);
+  assert.match(html, /read_back/);
+  assert.match(html, /下载新版本/);
 });

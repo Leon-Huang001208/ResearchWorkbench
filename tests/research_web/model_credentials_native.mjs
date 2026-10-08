@@ -78,7 +78,7 @@ async function freeSdkBudgetProof(python) {
         throw Error('fixture_network_refused');
       }
       const body = JSON.parse(options.body);
-      assert.equal(body.model, 'deepseek-v4-flash');
+      assert.equal(body.model, 'deepseek-flash');
       assert.equal(body.max_tokens, 512);
       assert.equal(options.headers.authorization, 'Bearer task-owned-synthetic-free');
       calls += 1;
@@ -142,9 +142,9 @@ async function freeSdkBudgetProof(python) {
     ctx.get('llm').adapters.get('deepseek-official').adapter.config.resolveApiKey = async () => 'task-owned-synthetic-free';
     const sessionId = 'session-task4b-sdk-budget';
     await controller.create({ sessionId, cwd: process.cwd(), agentPreset: 'research-web' });
-    await controller.selectModel({ sessionId, provider: 'deepseek-official', model: 'deepseek-v4-flash' });
+    await controller.selectModel({ sessionId, provider: 'deepseek-official', model: 'deepseek-flash' });
     ctx.on('llm/stream', async function* (options, next) {
-      observed = { providerAllowed: options.provider === 'deepseek-official', modelAllowed: options.model === 'deepseek-v4-flash', maxTokens: options.maxTokens, toolsCount: Array.isArray(options.tools) ? options.tools.length : null };
+      observed = { providerAllowed: options.provider === 'deepseek-official', modelAllowed: options.model === 'deepseek-flash', maxTokens: options.maxTokens, toolsCount: Array.isArray(options.tools) ? options.tools.length : null };
       yield* next();
     }, { global: true, prepend: true });
     stage = 'normal-loop-prompt';

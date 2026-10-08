@@ -256,3 +256,12 @@ failure 会在 UI/Composer/submit 显示 connecting/offline；Tabbit 自身既�
 
 Windows 受管服务的非强制停止失败现在可升级到既有强制进程树终止；该变化不修改 Tabbit Profile、
 浏览器实例选择、页面授权、claim、一次性正文 token、写审批或真实浏览器验收边界。
+
+新版DSH原生Profile解析仍只接受固定源码与受管Tabbit/适配器目录，不改变供应归档、浏览器授权、claim或正文token边界；不能把Runtime启动当成Tabbit实际可调用。
+
+## 设置闭环阶段3：当前能力范围
+
+已声明数据任务不能通过Tabbit网页入口补齐被省略的专业数据；通用任务仍沿既有只读/审批/claim限制。本轮没有浏览器安装、Token读取或Tabbit发现验收扩展。
+
+
+兼容模型1B文本/流式适配仍由同一受管Runtime执行，不改变Tabbit保存/实际应用或浏览器选择合同；新连接的工具能力未验证，不能由文本生成、服务可达或连接名称提升为Tabbit可调用。

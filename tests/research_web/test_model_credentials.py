@@ -850,3 +850,20 @@ def test_owned_overlay_fixed_dsh_consumer_and_cold_recovery(tmp_path):
             timeout=30,
             check=True,
         )
+
+
+def test_compatible_reference_is_independent_and_has_no_legacy_fallback(tmp_path, monkeypatch):
+    bridge = load_bridge()
+    backend = MemoryBackend()
+    compatible_ref = "RESEARCH_COMPAT_API_KEY"
+    monkeypatch.setenv(compatible_ref, "synthetic-ambient")
+    (tmp_path / ".credentials.yaml").write_text("RESEARCH_COMPAT_API_KEY: synthetic-file")
+    call = lambda ref, op, **kw: bridge.execute(tmp_path, {"op": op, "ref": ref, **kw}, backend)
+    call(bridge.MODEL_REF, "set", value="synthetic-original")
+    assert call(compatible_ref, "resolve") == {"value": None}
+    call(compatible_ref, "set", value="synthetic-compatible")
+    assert call(bridge.MODEL_REF, "resolve")["value"] == "synthetic-original"
+    assert call(compatible_ref, "resolve")["value"] == "synthetic-compatible"
+    call(compatible_ref, "unset")
+    assert call(compatible_ref, "resolve") == {"value": None}
+    assert call(bridge.MODEL_REF, "resolve")["value"] == "synthetic-original"
