@@ -36,6 +36,30 @@ def test_runner_contract_exists():
     assert callable(load_runner().run_script)
 
 
+@pytest.mark.skipif(sys.platform != "darwin", reason="native macOS Seatbelt evidence only")
+@pytest.mark.parametrize("name", ["ASCII spaces", "中文 空格", '中文 "引用" 空格'])
+def test_owned_unicode_paths_preserve_kernel_permissions(tmp_path, name):
+    module = load_runner()
+    root = tmp_path / name
+    session = make_session(root)
+    (session / "inputs" / "source.txt").write_text("owned input")
+    forbidden = tmp_path / "private.txt"
+    forbidden.write_text("outside")
+    config = module.SandboxConfig(research_root=root, python=PYTHON)
+    code = (
+        "from pathlib import Path\n"
+        "assert Path('inputs/source.txt').read_text() == 'owned input'\n"
+        "Path('outputs/result.txt').write_text('owned output')\n"
+        f"try:\n    Path({str(forbidden)!r}).read_text()\n"
+        "except PermissionError:\n    print('outside denied')\n"
+        "else:\n    raise AssertionError('outside read was allowed')\n"
+    )
+    result = module.run_script(config, session, code)
+    assert result.status == "completed", result
+    assert result.stdout == "outside denied\n"
+    assert (session / "outputs" / "result.txt").read_text() == "owned output"
+
+
 @pytest.fixture
 def prepared(tmp_path):
     if sys.platform != "darwin":

@@ -174,10 +174,21 @@ def seatbelt_profile(
                 read_paths.append(str(entry))
             elif entry.is_file():
                 literals.append(str(entry))
-    file_filters = " ".join(f"(literal {json.dumps(path)})" for path in [*read_files, *literals])
-    read_filters = " ".join(f"(subpath {json.dumps(path)})" for path in read_paths)
-    writes = " ".join(f"(subpath {json.dumps(str(session / name))})" for name in ("outputs", "tmp"))
-    exec_filters = " ".join(f"(literal {json.dumps(path)})" for path in executables)
+    # SBPL strings do not decode JSON's ASCII \u escapes; retain UTF-8 paths
+    # while preserving JSON's quote/backslash escaping and the same exact grants.
+    file_filters = " ".join(
+        f"(literal {json.dumps(path, ensure_ascii=False)})" for path in [*read_files, *literals]
+    )
+    read_filters = " ".join(
+        f"(subpath {json.dumps(path, ensure_ascii=False)})" for path in read_paths
+    )
+    writes = " ".join(
+        f"(subpath {json.dumps(str(session / name), ensure_ascii=False)})"
+        for name in ("outputs", "tmp")
+    )
+    exec_filters = " ".join(
+        f"(literal {json.dumps(path, ensure_ascii=False)})" for path in executables
+    )
     return (
         "(version 1)(allow default)"
         "(deny file-read-data)"

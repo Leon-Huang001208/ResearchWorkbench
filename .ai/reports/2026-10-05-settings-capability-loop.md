@@ -1385,3 +1385,11 @@ Black/isort PASS；mypy目标manager无诊断，16条既有4文件错误继续�
 另试既有follow-imports=skip边界时出现manager原dataclass构造器7条诊断；在原HEAD源码上同命令同7条，属于既有边界/工具行为，不冒称新增缺陷或PASS。正常导入检查仍16条边界外4文件诊断、manager无诊断；两种命令真实退出1均保留，不新增ignore、Any或改政策。完整91路径计划L4及约束/文档/index已通过；原基线203路径另存，不缩小交付。
 
 新展示代码通过现有受管入口启动独立无Key实例（Host31681/DSH31057）。设置页实际呈现三Office文件/本机能力、最近时间、最后阶段与清理；没有点真实验证、模型、供应商或业务按钮。截图office-state-settings-fixed.png与初次隐藏标签的office-state-settings-page.png分别留存。当前源码相对52b3仅状态投影/UI、测试和直接文档，不改变原生执行器、报告sandbox/文件处理、供应商协议、凭据、启动/安装锁，故此前六项真机与模型工具证据按模块差异复用，CI须新候选匹配。
+
+### 中文/空格路径必要验收：真实缺陷与最小修复
+
+Goal任务7必须覆盖中文/空格路径。普通根119PASS不能替代该条件；为现有同套测试新建本任务独占中文/空格basetemp（office-unicode-scope.json），没有删除未知目录、启动Office或模型。实际9FAIL/110PASS/1skip，office-unicode-path-regression.log，主要文件业务/投影返回document_operation_failed。
+
+最小内核测试3case：ASCII spaces PASS、中文和中文含引号2FAIL，读取已许可inputs/source.txt返回errno1。Seatbelt literal/subpath使用默认json.dumps，中文变成SBPL不解码的\u序列；不是授权拒绝，也不是库缺失。只对四类受控路径的json.dumps加ensure_ascii=False，保留引号/反斜杠转义，允许根/执行文件、默认拒绝及network/fork/Mach/写入规则全不变。无新框架、不关闭沙箱、不扩权限。Python只读复审Approve不算内核验证。
+
+修复后整个test_sandbox模块24PASS/1既有skip（office-unicode-kernel-green.log），正例会话读写成功、反例越界仍PermissionError。新的中文/空格basetemp重放原119相关测试，119PASS/1skip/31.39秒，office-unicode-path-fixed.log，9项原失败均解除。Black/isort/Ruff通过；sandbox模块mypy仅runtime_contract既有1条诊断，目标无诊断，不改ignore或policy。模型/Office实际请求0，不重演已完成真机或Keychain。此新增源码须再次绑定候选及必要自动CI；279e三个通过仍只属于其源码，当前Goal暂不标完成。
