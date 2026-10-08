@@ -10,7 +10,7 @@ export const WORKER_UPDATES: Record<string, string[]> = {
   job_claims: ['job_id','attempt','lease_token','worker_id','generation','lease_until','state','result','completed_at'],
   job_attempts: ['finished_at','outcome']
   ,material_inbox:['processed'],collection_runs:['finished_at','state','error_code','raw_page_id','item_count'],
-  model_budgets:['charged_calls','charged_tokens','charged_cost_micros','paused'],model_attempts:['state','dispatched_at','finished_at']
+  model_budgets:['charged_calls','charged_tokens','charged_cost_micros','paused'],model_attempts:['state','dispatched_at','finished_at','day_key']
 };
 export async function grantWorker(db: Sql, schema: string, role: string): Promise<void> {
   schemaName(schema);
@@ -31,7 +31,7 @@ export async function grantWorker(db: Sql, schema: string, role: string): Promis
     await tx`grant update(processed) on ${tx(schema)}.material_inbox to ${tx(role)}`;
     await tx`grant update(finished_at,state,error_code,raw_page_id,item_count) on ${tx(schema)}.collection_runs to ${tx(role)}`;
     await tx`grant update(charged_calls,charged_tokens,charged_cost_micros,paused) on ${tx(schema)}.model_budgets to ${tx(role)}`;
-    await tx`grant update(state,dispatched_at,finished_at) on ${tx(schema)}.model_attempts to ${tx(role)}`;
+    await tx`grant update(state,dispatched_at,finished_at,day_key) on ${tx(schema)}.model_attempts to ${tx(role)}`;
     await tx`grant update on ${tx(schema)}.job_claims,${tx(schema)}.job_attempts to ${tx(role)}`;
     const queueSchema = schema;
     await tx`grant usage on schema ${tx(queueSchema)} to ${tx(role)}`;

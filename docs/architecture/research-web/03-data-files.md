@@ -19,6 +19,9 @@ model_receipts/model_results 不可变并按输入/模型参数 hash 复用。�
 迟到回执可保留，但不能绕过业务任务的代次/租约提交门。
 固定 DSH 成功流不提供 HTTP request ID，provider_request_id 可为 NULL；不能伪造本地 UUID。
 记录请求模型名与报价 hash，不把旧模型别名冒充为已验证后端版本或账单费用。
+day_key 属于发送/预留所在日，派发跨日必须重验；未知尝试继续占额。cost_basis 明确计费来源。
+验收控制身份位于私有 hot/acceptance/model-identity.json，控制/worker 秘密只存系统凭据库。
+真实模型回执与缓存留在持久 hot_acceptance_model schema，不能因重跑验收丢弃账本。
 
 模型默认值、清除/回执未知标记及最近显式生成结果只保存于既有非秘密产品索引，不保存Key。macOS Native固定DSH模型秘密仅在系统Keychain；权限受限私有文件仅用于Host认证record；不进入DataHub快照、Automation索引、模型上下文或导出。提交前的未知标记支持取消/崩溃后的冷恢复失败关闭。
 

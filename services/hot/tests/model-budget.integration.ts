@@ -71,5 +71,19 @@ test('cumulative reservations serialize, unknown sends remain charged and late r
     assert.equal(paused.paused,true);assert.equal(Number(paused.charged_tokens),210);
     await assert.rejects(markModelDispatch(db,schema,next,fourth.ticket),/budget_exhausted/);
     await cancelUnsentModel(db,schema,next,fourth.ticket.id);
+    await provisionModelBudget(db,schema,{scopeId:'daily_scope',authorizationHash:sha256('daily test'),maxCalls:3,maxTokens:300,maxCostMicros:300,
+      daily:{maxCalls:1,maxTokens:100,maxCostMicros:100,timezone:'Asia/Shanghai'}});
+    const daySpec={...spec,maxCostMicros:100,resultKey:sha256('daily A')};
+    const dayA=await reserveModel(db,schema,next,'daily_scope',daySpec);
+    if(dayA.state!=='reserved')throw Error('hot_fixture_ticket_failed');
+    await assert.rejects(reserveModel(db,schema,next,'daily_scope',{...daySpec,resultKey:sha256('daily B')}),/daily_budget_exhausted/);
+    await db`update ${db(schema)}.model_attempts set day_key=day_key-1 where id=${dayA.ticket.id}`;
+    const dayB=await reserveModel(db,schema,next,'daily_scope',{...daySpec,resultKey:sha256('daily B')});
+    if(dayB.state!=='reserved')throw Error('hot_fixture_ticket_failed');
+    await assert.rejects(markModelDispatch(db,schema,next,dayA.ticket),/daily_budget_exhausted/);
+    await cancelUnsentModel(db,schema,next,dayB.ticket.id);
+    await markModelDispatch(db,schema,next,dayA.ticket);
+    await markModelUnknown(db,schema,dayA.ticket);
+    await assert.rejects(reserveModel(db,schema,next,'daily_scope',{...daySpec,resultKey:sha256('daily C')}),/daily_budget_exhausted/);
   }finally{if(worker)await worker.end({timeout:5});await db.end({timeout:5});}
 });

@@ -14,7 +14,7 @@ export interface TextLedger {
   reserve(spec:ModelSpec):Promise<{state:'reserved';ticket:ModelTicket}|{state:'busy';attemptId:string}|{state:'reused';response:postgres.JSONValue}>;
   dispatch(ticket:ModelTicket):Promise<void>;
   unknown(ticket:ModelTicket):Promise<void>;
-  save(ticket:ModelTicket,response:postgres.JSONValue,usage:{tokens:number;costMicros:number;providerRequestId:string|null}):Promise<{overrun:boolean}>;
+  save(ticket:ModelTicket,response:postgres.JSONValue,usage:{tokens:number;costMicros:number;providerRequestId:string|null;costBasis:'tariff-ceiling'}):Promise<{overrun:boolean}>;
   cancelUnsent(ticket:ModelTicket):Promise<void>;
 }
 export interface TextTariff {
@@ -95,7 +95,7 @@ export async function runDshText(runtime:DshRuntime,ledger:TextLedger,request:Te
     let valid=false;try{valid=!unsupported&&finishKind==='stop'&&output.length>0&&usage.outputTokens>0&&safeOutput(output)===true;}catch{valid=false;}
     const response:postgres.JSONValue=valid?{provider:request.provider,requestedModel:request.model,text:output,usage:{...usage}}:
       {provider:request.provider,requestedModel:request.model,rejected:true,code:'hot_dsh_output_rejected',finishKind,usage:{...usage}};
-    const result=await ledger.save(admitted.ticket,response,{tokens:usage.totalTokens,costMicros:cost(tariff,usage.inputTokens,usage.cacheReadTokens,usage.cacheWriteTokens,usage.outputTokens),providerRequestId:null});
+    const result=await ledger.save(admitted.ticket,response,{tokens:usage.totalTokens,costMicros:cost(tariff,usage.inputTokens,usage.cacheReadTokens,usage.cacheWriteTokens,usage.outputTokens),providerRequestId:null,costBasis:'tariff-ceiling'});
     saved=true;
     if(result.overrun)throw Error('hot_dsh_budget_overrun');
     if(signal.aborted)throw Error('hot_dsh_call_cancelled');

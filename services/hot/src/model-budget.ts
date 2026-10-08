@@ -6,7 +6,8 @@ import {schemaName} from './config.ts';
 import {sha256} from './material.ts';
 import {logEvent} from './log.ts';
 type Sql=ReturnType<typeof postgres>;
-export interface BudgetPolicy {scopeId:string;authorizationHash:string;maxCalls:number;maxTokens:number;maxCostMicros:number}
+export interface BudgetPolicy {scopeId:string;authorizationHash:string;maxCalls:number;maxTokens:number;maxCostMicros:number;
+  daily?:{maxCalls:number;maxTokens:number;maxCostMicros:number;timezone:string}}
 export interface ModelSpec {resultKey:string;specHash:string;maxTokens:number;maxCostMicros:number}
 export interface ModelTicket {id:string;token:string}
 function amount(value:number,maximum=10000000000){if(!Number.isSafeInteger(value)||value<0||value>maximum)throw Error('hot_model_budget_invalid');}
@@ -22,13 +23,17 @@ function responseText(value:postgres.JSONValue):string{
 export async function provisionModelBudget(db:Sql,schema:string,policy:BudgetPolicy):Promise<void>{
   schemaName(schema);scope(policy.scopeId);hash(policy.authorizationHash);
   amount(policy.maxCalls,10000);amount(policy.maxTokens,10000000);amount(policy.maxCostMicros);
+  const daily=policy.daily??{maxCalls:policy.maxCalls,maxTokens:policy.maxTokens,maxCostMicros:policy.maxCostMicros,timezone:'Asia/Shanghai'};
+  amount(daily.maxCalls,10000);amount(daily.maxTokens,10000000);amount(daily.maxCostMicros);
+  try{new Intl.DateTimeFormat('en',{timeZone:daily.timezone});}catch{throw Error('hot_model_budget_invalid');}
   await db.begin(async tx=>{
     const [permission]=await tx`select has_schema_privilege(current_user,${schema},'CREATE') allowed`;
     if(!permission.allowed)throw Error('hot_model_authorization_denied');
-    await tx`insert into ${tx(schema)}.model_budgets(scope_id,authorization_hash,max_calls,max_tokens,max_cost_micros)
-      values(${policy.scopeId},${policy.authorizationHash},${policy.maxCalls},${policy.maxTokens},${policy.maxCostMicros}) on conflict do nothing`;
+    await tx`insert into ${tx(schema)}.model_budgets(scope_id,authorization_hash,max_calls,max_tokens,max_cost_micros,daily_max_calls,daily_max_tokens,daily_max_cost_micros,quota_timezone)
+      values(${policy.scopeId},${policy.authorizationHash},${policy.maxCalls},${policy.maxTokens},${policy.maxCostMicros},${daily.maxCalls},${daily.maxTokens},${daily.maxCostMicros},${daily.timezone}) on conflict do nothing`;
     const [row]=await tx`select * from ${tx(schema)}.model_budgets where scope_id=${policy.scopeId}`;
     if(row.authorization_hash!==policy.authorizationHash||row.max_calls!==policy.maxCalls||Number(row.max_tokens)!==policy.maxTokens||Number(row.max_cost_micros)!==policy.maxCostMicros)throw Error('hot_model_authorization_conflict');
+    if(row.daily_max_calls!==daily.maxCalls||Number(row.daily_max_tokens)!==daily.maxTokens||Number(row.daily_max_cost_micros)!==daily.maxCostMicros||row.quota_timezone!==daily.timezone)throw Error('hot_model_authorization_conflict');
   });
 }
 export async function reserveModel(db:Sql,schema:string,owner:RuntimeOwner,scopeId:string,spec:ModelSpec):Promise<
@@ -40,26 +45,36 @@ export async function reserveModel(db:Sql,schema:string,owner:RuntimeOwner,scope
     if(cached){if(cached.spec_hash!==spec.specHash)throw Error('hot_model_spec_conflict');return {state:'reused' as const,response:cached.response};}
     const [pending]=await tx`select id,spec_hash from ${tx(schema)}.model_attempts where result_key=${spec.resultKey} and state in ('reserved','dispatching','outcome_unknown')`;
     if(pending){if(pending.spec_hash!==spec.specHash)throw Error('hot_model_spec_conflict');return {state:'busy' as const,attemptId:pending.id};}
+    const [policy]=await tx`select *,((clock_timestamp() at time zone quota_timezone)::date)::text as today from ${tx(schema)}.model_budgets where scope_id=${scopeId} for update`;
+    if(!policy)throw Error('hot_model_budget_exhausted');
+    const [used]=await tx`select count(*)::int calls,coalesce(sum(coalesce(r.tokens,a.max_tokens)),0)::text tokens,
+      coalesce(sum(coalesce(r.cost_micros,a.max_cost_micros)),0)::text cost from ${tx(schema)}.model_attempts a
+      left join ${tx(schema)}.model_receipts r on r.attempt_id=a.id where a.scope_id=${scopeId} and a.day_key=${policy.today} and a.state<>'cancelled'`;
+    if(used.calls+1>policy.daily_max_calls||Number(used.tokens)+spec.maxTokens>Number(policy.daily_max_tokens)||Number(used.cost)+spec.maxCostMicros>Number(policy.daily_max_cost_micros))throw Error('hot_model_daily_budget_exhausted');
     const [budget]=await tx`update ${tx(schema)}.model_budgets set charged_calls=charged_calls+1,charged_tokens=charged_tokens+${spec.maxTokens},charged_cost_micros=charged_cost_micros+${spec.maxCostMicros}
       where scope_id=${scopeId} and not paused and charged_calls+1<=max_calls and charged_tokens+${spec.maxTokens}<=max_tokens
       and charged_cost_micros+${spec.maxCostMicros}<=max_cost_micros returning scope_id`;
     if(!budget)throw Error('hot_model_budget_exhausted');
     const id=randomUUID(),token=randomBytes(32).toString('hex');
-    await tx`insert into ${tx(schema)}.model_attempts(id,scope_id,result_key,spec_hash,dispatch_token_hash,generation,max_tokens,max_cost_micros,state)
-      values(${id},${scopeId},${spec.resultKey},${spec.specHash},${sha256(token)},${owner.generation},${spec.maxTokens},${spec.maxCostMicros},'reserved')`;
+    await tx`insert into ${tx(schema)}.model_attempts(id,scope_id,result_key,spec_hash,dispatch_token_hash,generation,max_tokens,max_cost_micros,state,day_key)
+      values(${id},${scopeId},${spec.resultKey},${spec.specHash},${sha256(token)},${owner.generation},${spec.maxTokens},${spec.maxCostMicros},'reserved',${policy.today})`;
     logEvent('model_reserved');return {state:'reserved' as const,ticket:{id,token}};
   });
 }
 export async function markModelDispatch(db:Sql,schema:string,owner:RuntimeOwner,value:ModelTicket):Promise<void>{
   ticket(value);
   await withOwnerTransaction(db,schema,owner,async tx=>{
-    const [attempt]=await tx`select scope_id from ${tx(schema)}.model_attempts where id=${value.id}
+    const [attempt]=await tx`select scope_id,max_tokens,max_cost_micros from ${tx(schema)}.model_attempts where id=${value.id}
       and dispatch_token_hash=${sha256(value.token)} and generation=${owner.generation} and state='reserved'`;
     if(!attempt)throw Error('hot_model_dispatch_denied');
     // This row lock serializes dispatch admission with late provider accounting.
-    const [budget]=await tx`select * from ${tx(schema)}.model_budgets where scope_id=${attempt.scope_id} for update`;
+    const [budget]=await tx`select *,((clock_timestamp() at time zone quota_timezone)::date)::text as today from ${tx(schema)}.model_budgets where scope_id=${attempt.scope_id} for update`;
     if(!budget||budget.paused||budget.charged_calls>budget.max_calls||Number(budget.charged_tokens)>Number(budget.max_tokens)||Number(budget.charged_cost_micros)>Number(budget.max_cost_micros))throw Error('hot_model_budget_exhausted');
-    const rows=await tx`update ${tx(schema)}.model_attempts set state='dispatching',dispatched_at=clock_timestamp()
+    const [used]=await tx`select count(*)::int calls,coalesce(sum(coalesce(r.tokens,a.max_tokens)),0)::text tokens,
+      coalesce(sum(coalesce(r.cost_micros,a.max_cost_micros)),0)::text cost from ${tx(schema)}.model_attempts a left join ${tx(schema)}.model_receipts r on r.attempt_id=a.id
+      where a.scope_id=${attempt.scope_id} and a.day_key=${budget.today} and a.state<>'cancelled' and a.id<>${value.id}`;
+    if(used.calls+1>budget.daily_max_calls||Number(used.tokens)+Number(attempt.max_tokens)>Number(budget.daily_max_tokens)||Number(used.cost)+Number(attempt.max_cost_micros)>Number(budget.daily_max_cost_micros))throw Error('hot_model_daily_budget_exhausted');
+    const rows=await tx`update ${tx(schema)}.model_attempts set state='dispatching',dispatched_at=clock_timestamp(),day_key=${budget.today}
       where id=${value.id} and dispatch_token_hash=${sha256(value.token)} and generation=${owner.generation} and state='reserved' returning id`;
     if(rows.length!==1)throw Error('hot_model_dispatch_denied');
   });
@@ -79,8 +94,9 @@ export async function cancelUnsentModel(db:Sql,schema:string,owner:RuntimeOwner,
     await tx`update ${tx(schema)}.model_budgets set charged_calls=charged_calls-1,charged_tokens=charged_tokens-${row.max_tokens},charged_cost_micros=charged_cost_micros-${row.max_cost_micros} where scope_id=${row.scope_id}`;
   });
 }
-export async function saveModelReceipt(db:Sql,schema:string,value:ModelTicket,response:postgres.JSONValue,usage:{tokens:number;costMicros:number;providerRequestId:string|null}):Promise<{overrun:boolean}>{
+export async function saveModelReceipt(db:Sql,schema:string,value:ModelTicket,response:postgres.JSONValue,usage:{tokens:number;costMicros:number;providerRequestId:string|null;costBasis?:'provider'|'tariff-ceiling'|'synthetic'}):Promise<{overrun:boolean}>{
   schemaName(schema);ticket(value);amount(usage.tokens,10000000);amount(usage.costMicros);
+  const basis=usage.costBasis??'provider';if(!['provider','tariff-ceiling','synthetic'].includes(basis))throw Error('hot_model_receipt_invalid');
   if((usage.providerRequestId!==null&&(typeof usage.providerRequestId!=='string'||usage.providerRequestId.length<1||usage.providerRequestId.length>256))||Buffer.byteLength(JSON.stringify(response))>1048576)throw Error('hot_model_receipt_invalid');
   return db.begin(async tx=>{
     // Share reservation's serialization fence without requiring the old runtime
@@ -93,13 +109,13 @@ export async function saveModelReceipt(db:Sql,schema:string,value:ModelTicket,re
     const digest=sha256(responseText(response));
     const [saved]=await tx`select * from ${tx(schema)}.model_receipts where attempt_id=${value.id}`;
     if(saved){
-      if(saved.response_hash!==digest||Number(saved.tokens)!==usage.tokens||Number(saved.cost_micros)!==usage.costMicros||saved.provider_request_id!==usage.providerRequestId)throw Error('hot_model_receipt_conflict');
+      if(saved.response_hash!==digest||Number(saved.tokens)!==usage.tokens||Number(saved.cost_micros)!==usage.costMicros||saved.provider_request_id!==usage.providerRequestId||saved.cost_basis!==basis)throw Error('hot_model_receipt_conflict');
       return {overrun:usage.tokens>Number(attempt.max_tokens)||usage.costMicros>Number(attempt.max_cost_micros)};
     }
     if(!['dispatching','outcome_unknown'].includes(attempt.state))throw Error('hot_model_attempt_state_conflict');
     const overrun=usage.tokens>Number(attempt.max_tokens)||usage.costMicros>Number(attempt.max_cost_micros);
-    await tx`insert into ${tx(schema)}.model_receipts(attempt_id,response,response_hash,tokens,cost_micros,provider_request_id)
-      values(${value.id},${tx.json(response)},${digest},${usage.tokens},${usage.costMicros},${usage.providerRequestId})`;
+    await tx`insert into ${tx(schema)}.model_receipts(attempt_id,response,response_hash,tokens,cost_micros,provider_request_id,cost_basis)
+      values(${value.id},${tx.json(response)},${digest},${usage.tokens},${usage.costMicros},${usage.providerRequestId},${basis})`;
     await tx`update ${tx(schema)}.model_budgets set charged_tokens=charged_tokens-${attempt.max_tokens}+${usage.tokens},
       charged_cost_micros=charged_cost_micros-${attempt.max_cost_micros}+${usage.costMicros},paused=paused or ${overrun} where scope_id=${attempt.scope_id}`;
     await tx`update ${tx(schema)}.model_attempts set state='received',finished_at=clock_timestamp() where id=${value.id}`;

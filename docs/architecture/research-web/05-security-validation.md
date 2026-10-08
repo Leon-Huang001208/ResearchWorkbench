@@ -20,7 +20,9 @@ Native stop 识别 zombie，TERM 后 argv 暂变只观察，最终再核对身�
 累计模型额度由迁移所有者显式授权；worker 只更新计费字段/尝试状态，无授权插入或额度改写权限。
 预算、发送和回执已做真实 PG 竞争验证；实际 provider 上限、秘密反射防护及真实费用未验收。
 DSH text adapter 必须使用零重试 prepared call，并在保存前做同步秘密安全过滤。
-其运行入口、每日准入与 Hot/DSH 共用额度仍未装配；现有只读 Keychain/catalog 验证不等于已付费生成。
+固定验收入口已装配每日准入与任务累计额度；正式 Web/worker/研究装配仍未完成。
+Native credential 服务只允许固定模型 ref，拒绝写入/记录操作与环境回退；解析后 JSON 字符串和键也检查反射。
+验收先核对原 PG 容器/卷/实例身份，再迁移，不能接管同名的外部 schema。
 
 启动认证链接不得进入普通日志。产品Node preload在固定DSH CLI之前截获stdout/stderr认证行，临时启动token只进入既有0600认证控制文件；管理器验证authority/cwd/source_commit后交换Cookie并移除临时token字段。输出拆分、错误端口、过长无换行输出均不转发认证链接；控制写入拒绝别名、硬链接、非私有或非当前用户文件。模型Key与该Host认证平面保持分离；用户录入阶段不采集DOM、HAR、截图或请求体。
 

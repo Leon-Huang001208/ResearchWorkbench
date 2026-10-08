@@ -70,12 +70,13 @@ Late receipts survive the old runtime lease but share the reservation fence;
 business publication still requires current task claim/generation. Unexpected
 actual overrun is recorded honestly and pauses the scope.
 
-No provider route is active. The gateway still must bind one task scope across
-Hot/DSH, verify pricing and input/output bounds, apply daily configuration,
-reject credential reflection and validate provider usage. Unknown-attempt
-reconciliation/termination and provider/research integration remain pending.
-Tests use synthetic model output on real PG, not real model acceptance.
-The authorized task cap is 20 calls / 20,000 tokens / US$1 cumulative; used 0.
+A fixed Native acceptance runner now uses the existing DSH model service and
+Keychain resolver. The persistent acceptance scope is hot_events_goal_01a11684
+in hot_acceptance_model; do not create fresh scopes to reset the task allowance.
+Normal product worker generation and formal research integration remain pending.
+The authorized cumulative cap is 20 calls / 20,000 tokens / US$1. Two real calls
+used 386 tokens and 222 micro-USD conservative tariff ceiling (not an invoice).
+The cache replay kept all counters unchanged. Synthetic tests remain separate.
 
 ## Prepared DSH text adapter
 
@@ -95,9 +96,16 @@ fabricated id; requestedModel also does not claim the undisclosed backend versio
 Native read-only probes confirm system-keychain configured and the installed
 DSH model catalog/prepared off-reasoning, no-retry call. They did not generate.
 `pricing.deepseek.2026-10-08.json` records the official legacy-name mapping and
-peak-rate ceiling, not an invoice or automatic activation. Before real sending,
-owned-runtime transport, shared Hot/DSH task scope and daily admission must be
-wired; credential safety and tokenizer/pricing bounds still need actual acceptance.
+peak-rate ceiling, not an invoice or automatic activation. Migration 9 adds daily
+admission by explicit timezone; reservations count unknown sends and dispatch
+rechecks/rebuckets across midnight. Cumulative limits never reset. Older scopes
+migrate daily limits to zero, failing closed until explicitly provisioned.
+Receipt cost_basis distinguishes provider, synthetic and tariff-ceiling amounts.
+The Native context uses pinned libraries and a fixed-ref, read-only credential
+service; no .env or inherited-key fallback. Raw and decoded JSON keys/strings are
+checked for credential reflection. The two real extraction calls use public
+AI/macro material/version/hash, with declared excerpt truncation; they are not
+event grouping, domain importance evaluation or completed DSH research.
 
 Node 24.11+ in the 24 series is required. Install the exact dependencies with
 `npm ci` in this directory after the project-isolated infrastructure authorization.
