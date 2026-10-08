@@ -370,3 +370,5 @@ Docker Engine 可只在 `HostConfig.Tmpfs` 中表示 tmpfs，不将它们列入 
 macOS Docker 停止后回环端口的非监听绑定保留可能延迟释放；默认最多等待120秒，其余宿主默认10秒，显式等待参数保持。仍必须实际释放IPv4/IPv6绑定，超时失败关闭；不使用SO_REUSEADDR或只做连接探测来绕过占用。具体内核延迟原因未独立证实。
 
 Hot 模型默认关闭；现有 Native 启动桥可按 model.enabled/scopeId 装配固定 DSH 文本能力，只有指定 schema 的既有预算授权、每日限额、当日定价和受控凭据都就绪才激活。配置并不授予付费额度。缺条件时模型 blocked_model，公开来源和读取继续可用。创建新授权范围及当日定价刷新的一键流程、授权 worker 的干净安装验收仍待补齐；现有 Web Node22 CI 不能替代 Hot Node24 安装验证。
+
+应用升级到包含迁移14的版本后，先停止 Hot 并运行 rwb hot setup，再用 model-authorize 明确付费授权；配置本身不创建额度。model-attempts 可用普通角色读取额度/尝试，model-terminate 保留未知预留，未确认的操作阻止启动。受管冷库仅由明确管理操作验证后恢复；只读查询不启动数据库。定价刷新入口和授权 worker 干净安装仍待验收。

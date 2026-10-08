@@ -202,6 +202,22 @@ def dispatch(argv: list[str], project: Path) -> int:
     event_correct.add_argument("--reason", required=True)
     event_correct.add_argument("--request-id")
     event_correct.add_argument("--json", action="store_true")
+    model_attempts = sub.add_parser("model-attempts")
+    model_attempts.add_argument("--scope")
+    model_attempts.add_argument("--limit", type=int, default=50)
+    model_attempts.add_argument("--offset", type=int, default=0)
+    model_attempts.add_argument("--json", action="store_true")
+    model_authorize = sub.add_parser("model-authorize")
+    model_authorize.add_argument("--file", type=Path, required=True)
+    model_authorize.add_argument("--authorize-paid", action="store_true")
+    model_terminate = sub.add_parser("model-terminate")
+    model_terminate.add_argument("--attempt", required=True)
+    for model_control in (model_authorize, model_terminate):
+        model_control.add_argument("--reason", required=True)
+        model_control.add_argument("--request-id")
+        model_control.add_argument("--migration-user", default="postgres")
+        model_control.add_argument("--migration-account", default="hot-migration-database")
+        model_control.add_argument("--json", action="store_true")
     setup = sub.add_parser("setup")
     setup.add_argument("--migration-user", default="postgres")
     setup.add_argument("--migration-account", default="hot-migration-database")
@@ -224,7 +240,7 @@ def dispatch(argv: list[str], project: Path) -> int:
     try:
         if args.command == "configure":
             value = save_settings(project, home, _read(args.file.absolute()))
-        elif args.command in ("setup", "start", "stop", "restart", "credential", "backup", "restore", "sources", "source-configure", "channels", "events", "event", "channel-configure", "event-correct") or (
+        elif args.command in ("setup", "start", "stop", "restart", "credential", "backup", "restore", "sources", "source-configure", "channels", "events", "event", "channel-configure", "event-correct", "model-attempts", "model-authorize", "model-terminate") or (
             args.command in ("status", "doctor") and (home / "hot" / "process.json").exists()
         ):
             from .bootstrap import native_python, native_environment
@@ -253,6 +269,16 @@ def dispatch(argv: list[str], project: Path) -> int:
                 value = {"state": "credential_saved"}
             elif args.command == "setup":
                 value = manager.setup(args.migration_user, args.migration_account)
+            elif args.command == "model-attempts":
+                filters = {"limit": args.limit, "offset": args.offset}
+                if args.scope is not None:
+                    filters["scopeId"] = args.scope
+                value = manager.model_operation("attempts", filters)
+            elif args.command in ("model-authorize", "model-terminate"):
+                operation = "authorize" if args.command == "model-authorize" else "terminate"
+                parameters = {"policy": _read(args.file.absolute()), "authorizePaid": args.authorize_paid} if operation == "authorize" else {"attemptId": args.attempt}
+                value = manager.model_operation(operation, parameters, reason=args.reason, request_id=args.request_id,
+                                                migration_user=args.migration_user, migration_account=args.migration_account)
             elif args.command == "source-configure":
                 value = manager.configure_source(args.source, args.expected_revision, args.enabled,
                                                  args.frequency_seconds, args.request_id)
@@ -290,7 +316,7 @@ def dispatch(argv: list[str], project: Path) -> int:
                 value["checks"] = {"configuration": "configured" if value["enabled"] else "disabled",
                                    "service": "NOT_RUN", "database": "NOT_RUN", "model": "NOT_RUN"}
         print(json.dumps(value, ensure_ascii=False))
-        return 1 if isinstance(value, dict) and (value.get("logging") == "unavailable" or value.get("state") == "outcome_unknown") else 0
+        return 1 if isinstance(value, dict) and (value.get("logging") == "unavailable" or value.get("persistence") == "unavailable" or value.get("state") in ("outcome_unknown","rejected")) else 0
     except HotError as error:
         log.warning("hot_operation_failed code=%s", str(error))
         print(json.dumps({"state": "unavailable", "code": str(error)}))

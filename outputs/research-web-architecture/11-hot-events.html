@@ -4918,6 +4918,7 @@
         <path data-edge-from="publicFeeds" data-edge-to="hotWorker" data-edge-label="有界取得 / 水位" data-edge-key="3" data-edge-id="hotFetch" data-composition-points="875,283;875,133" d="M 875 283 L 875 133" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
         <path data-edge-from="modelAcceptance" data-edge-to="hotWorker" data-edge-label="回执先于业务" data-edge-key="4" data-edge-id="hotModel" data-composition-points="1135,322;1057.5,322;1057.5,101;980,101" d="M 1135 322 L 1065.5 322 Q 1057.5 322 1057.5 314 L 1057.5 109 Q 1057.5 101 1049.5 101 L 980 101" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
         <path data-edge-from="hotHost" data-edge-to="futureResearch" data-edge-label="后续冻结交接" data-edge-key="5" data-edge-id="hotHandoffPending" data-composition-points="405,101;327.5,101;327.5,550;250,550" d="M 405 101 L 335.5 101 Q 327.5 101 327.5 109 L 327.5 542 Q 327.5 550 319.5 550 L 250 550" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
+        <path data-edge-from="modelAdmin" data-edge-to="hotDatabase" data-edge-label="私有 bootstrap / 迁移权限" data-edge-key="6" data-edge-id="modelAdminDb" data-composition-points="40,322;15,322;15,15;1375,15;1375,94;1345,94" d="M 40 322 L 23 322 Q 15 322 15 314 L 15 23 Q 15 15 23 15 L 1367 15 Q 1375 15 1375 23 L 1375 86 Q 1375 94 1367 94 L 1345 94" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
 
         <!-- Components -->
         <g id="node-hotUi" data-node-id="hotUi" data-node-label="研究台 / Hot 设置" tabindex="0" role="button" aria-label="Focus 研究台 / Hot 设置, 事件 · 来源 · 频道 · 纠错, Architecture component" aria-pressed="false" data-node-kind="frontend" data-node-sublabel="事件 · 来源 · 频道 · 纠错" data-node-context="Architecture component">
@@ -5003,6 +5004,17 @@
         <text data-detail="context" x="145" y="564" class="t-muted" font-size="9" text-anchor="middle">冻结交接 / 简报 / 研究尚待实现</text>
         </g>
 
+        <g id="node-modelAdmin" data-node-id="modelAdmin" data-node-label="rwb hot 模型管理" tabindex="0" role="button" aria-label="Focus rwb hot 模型管理, 停机授权 · 终止 / 查询, Architecture component" aria-pressed="false" data-node-kind="backend" data-node-sublabel="停机授权 · 终止 / 查询" data-node-context="Architecture component">
+          <title>rwb hot 模型管理 · 停机授权 · 终止 / 查询 · Architecture component</title>
+          <rect x="40" y="283" width="210" height="78" rx="6" class="c-mask"/>
+          <rect x="40" y="283" width="210" height="78" rx="6" class="c-backend" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(46 289) scale(0.6875)">
+            <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
+          </g>
+          <text data-detail-anchor x="145" y="320" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">rwb hot 模型管理</text>
+        <text data-detail="context" x="145" y="336" class="t-muted" font-size="9" text-anchor="middle">停机授权 · 终止 / 查询</text>
+        </g>
+
         <!-- Connection labels -->
         <g data-detail="context" data-edge-from="hotUi" data-edge-to="hotHost" data-edge-label="明确用户动作 / 只读查询" data-edge-key="0" data-edge-id="hotHttp">
           <rect x="267.3" y="67" width="120.39999999999999" height="14" rx="3" class="c-mask"/>
@@ -5027,6 +5039,10 @@
         <g data-detail="context" data-edge-from="hotHost" data-edge-to="futureResearch" data-edge-label="后续冻结交接" data-edge-key="5" data-edge-id="hotHandoffPending">
           <rect x="293.7" y="305.5" width="67.6" height="14" rx="3" class="c-mask"/>
           <text x="327.5" y="315.5" class="t-messagebus" font-size="8" text-anchor="middle">后续冻结交接</text>
+        </g>
+        <g data-detail="context" data-edge-from="modelAdmin" data-edge-to="hotDatabase" data-edge-label="私有 bootstrap / 迁移权限" data-edge-key="6" data-edge-id="modelAdminDb">
+          <rect x="625" y="5" width="130" height="14" rx="3" class="c-mask"/>
+          <text x="690" y="15" class="t-muted" font-size="8" text-anchor="middle">私有 bootstrap / 迁移权限</text>
         </g>
 
         <!-- Legend -->
@@ -5240,6 +5256,7 @@
         <ul>
           <li>&bull; 独立数据与唯一 PG 队列；源和材料跨频道共享。</li>
           <li>&bull; 已有预算下装配 Native 模型；安装级 worker 验收待完成。</li>
+          <li>&bull; 停机预算控制与未知终止；迟到回执仍入账。</li>
         </ul>
       </div>
 

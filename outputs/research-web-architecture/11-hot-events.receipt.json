@@ -6,12 +6,12 @@
   "input": "/Users/leon/.codex/worktrees/hot-events-system/ResearchWorkbench/docs/architecture/research-web/diagrams/11-hot-events.json",
   "output": "/Users/leon/.codex/worktrees/hot-events-system/ResearchWorkbench/outputs/research-web-architecture/11-hot-events.html",
   "specification": {
-    "sha256": "f7271352ae9e44c43ca5119da9d911e087f75d4c18b52afdcc3fb389f9a2dcb2",
-    "bytes": 3458
+    "sha256": "89df9965c42661300269a04460b34c1b69c5abe4ea6c3d58f1e870f46a19f5a7",
+    "bytes": 4234
   },
   "artifact": {
-    "sha256": "b17ab756ded7d91e5c194ef7ca64b027d3e2476335876f341b11bebf8229dce0",
-    "bytes": 633113
+    "sha256": "8d30fc317601e5533767407cd2e352d4712497642c44806a9955436306b0b390",
+    "bytes": 635189
   },
   "validation": {
     "checksPassed": 9,

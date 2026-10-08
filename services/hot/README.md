@@ -423,7 +423,8 @@ not certify the whole product.
 authorization in the explicitly selected schema. Settings do not create, enlarge
 or reset authorization. Existing daily policy must fit the configured budget and
 timezone. A missing/paused policy or credential yields `blocked_model`; collection
-and projections stay available. New-scope authorization CLI remains to be completed.
+and projections stay available. Explicit offline authorization/query/termination CLI
+is described below; daily pricing refresh and installed-worker acceptance remain pending.
 
 The Native Host passes the existing managed interpreter, fixed credential bridge,
 actual data home and pinned DSH source on private stdin. DSH text context uses the
@@ -437,6 +438,49 @@ input-v2 cache identity uses input/prompt/model parameters independently of tari
 The two pre-mount tariff identities remain compatible: cache/unknown lookup and new
 admission share the receipt fence, and a reused result retains its original key.
 The daily pricing refresh configuration/CLI is not yet a completed user workflow.
+
+## Explicit model budget and uncertain attempts
+
+After stopping Hot, run setup to apply migration 14. A model scope is a cumulative
+authorization, shared by Hot and any formal research using it; changing channels,
+dates or runtime modes never creates a new authorization. Copy the zero-cap
+`model-budget.example.json` to a private configuration file and explicitly choose
+the cumulative/daily limits. `maxCostMicros` uses USD micro-units; 1,000,000 is US$1.
+The example authorizes no requests. The configured model scope/timezone/daily limits
+must match this authorization before activation.
+
+```sh
+./rwb hot stop --json
+./rwb hot setup --json
+./rwb hot model-authorize --file budget.json --authorize-paid --reason "Explicit budget approval" --json
+./rwb hot model-attempts --scope hot --limit 50 --json
+./rwb hot model-terminate --attempt <attempt-UUID> --reason "Stop uncertain work; retain charges" --json
+```
+
+Authorization and termination use the existing migration credential reference plus
+the installation control identity, require stopped/expired database ownership and
+write immutable UUID audits. They are separate private-stdin management processes,
+not worker or Agent RPC capabilities. The managed database is verified and can be
+cold-started for explicit controls; external databases are not started. Attempt reads
+use the ordinary scoped role and never start PG, daemon or model. Credentials remain
+in the configured backend; list responses omit dispatch-token hashes and model text.
+
+An identical authorization cannot reset counters, enlarge immutable limits or clear
+a paused budget. Reusing a UUID with different parameters rejects. Unknown/timeout
+responses retain their original UUID and return nonzero; repeat that exact request
+after verification rather than generating another ID. An uncertain local journal
+blocks daemon start until replay confirms it. Post-dispatch journal/log errors preserve
+the confirmed/uncertain UUID receipt and report persistence/logging unavailable.
+
+Termination marks an already possibly sent attempt `abandoned`, retaining its maximum
+reservation and blocking automatic resubmission. Ordinary workers cannot revert that
+state or refund it. A genuine late receipt may still arrive, settle actual usage and
+remain cached; transition to received requires that receipt. Reads report current
+attempt status, original reservation, budget caps/counters and cost basis separately.
+Synthetic tests and tariff ceilings are not provider invoices. Receipt import and
+explicit controlled retry workflows remain pending; termination does not pretend a
+missing response was never sent. Migration holds the same fence and refuses a live
+owner, keeping management writes out of an active worker transaction.
 
 `native-model-readiness-proof.ts` exercises the normal factory with actual configured
 macOS credentials and reads two real grouping packets under a read-only DB session.

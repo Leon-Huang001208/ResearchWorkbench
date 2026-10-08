@@ -159,8 +159,8 @@
     },
     {
       "id": "11-hot-events",
-      "artifactSha256": "b17ab756ded7d91e5c194ef7ca64b027d3e2476335876f341b11bebf8229dce0",
-      "specificationSha256": "f7271352ae9e44c43ca5119da9d911e087f75d4c18b52afdcc3fb389f9a2dcb2",
+      "artifactSha256": "8d30fc317601e5533767407cd2e352d4712497642c44806a9955436306b0b390",
+      "specificationSha256": "89df9965c42661300269a04460b34c1b69c5abe4ea6c3d58f1e870f46a19f5a7",
       "status": "reviewed",
       "reviewer": "codex-controller",
       "date": "2026-10-09",
@@ -169,7 +169,7 @@
         "11-hot-events.visual-check.2048x1320.dark.png"
       ],
       "findings": [],
-      "notes": "Codex主控制器实际检查最新小视口浅色与大视口深色截图，模型实线装配/冻结交接虚线、节点与标签可读，无遮挡裁剪；四视口containment回执单独记录。此视觉复核不代表真实worker/模型/研究/平台验收。"
+      "notes": "主控制器实际查看最终小视口浅色/大视口深色截图，独立模型管理到PG边界标签完全可读，管理路径与worker/未来研究路径分开；初次左边界裁切已修复，四视口containment另有回执。此视觉复核不证明模型、安装、研究或平台验收。"
     }
   ]
 }

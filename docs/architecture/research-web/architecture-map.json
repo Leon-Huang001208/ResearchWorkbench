@@ -1519,7 +1519,7 @@
       "receipt": "outputs/research-web-architecture/11-hot-events.receipt.json",
       "visualReceipt": "outputs/research-web-architecture/11-hot-events.visual-check.json",
       "level": "subsystems",
-      "summary": "Hot共享原文、唯一PG队列、签名Host桥与仍待实现的研究交接。",
+      "summary": "Hot共享原文与唯一PG队列、签名Host桥、独立停机模型管理及待实现研究交接。",
       "evidence": [
         {
           "subjects": [
@@ -1560,7 +1560,7 @@
             "modelAcceptance",
             "hotModel"
           ],
-          "source": "services/hot/scripts/model-live-proof.ts"
+          "source": "services/hot/src/native-model.ts"
         },
         {
           "subjects": [
@@ -1568,6 +1568,18 @@
             "hotHandoffPending"
           ],
           "source": ".ai/reports/2026-10-07-hot-events-PLAN.md"
+        },
+        {
+          "subjects": [
+            "modelAdmin"
+          ],
+          "source": "research_workbench_entrypoint/hot_model_controls.py"
+        },
+        {
+          "subjects": [
+            "modelAdminDb"
+          ],
+          "source": "services/hot/scripts/model-control.ts"
         }
       ]
     }

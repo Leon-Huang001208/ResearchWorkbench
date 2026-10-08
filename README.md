@@ -4,7 +4,7 @@ Research Workbench 当前交付的是本地优先的 **Research Web**：一个�
 
 当前 Web 入口为 `app.research_web.main:app`。Research Web 通过 FastAPI 轻量适配层连接专属 DSH；**DSH 是唯一的研究引擎**，负责研究执行循环、会话历史、Skill 与子 Agent。基础 Research Web 不启动旧 API 生命周期，也不要求 PostgreSQL、pgvector 或桌面预览。
 
-可选的「热点与事件」入口位于研究台与设置页，连接独立 Hot Node 服务及指定 PostgreSQL，提供事件、来源覆盖、频道和人工纠错。未配置时显示真实状态，页面读取不启动服务或模型。Native 模型工厂现支持已有授权预算下的受控装配与原回执复用；模型默认关闭，配置不能创建付费授权。当前实现与配置命令见 [Hot 组件说明](services/hot/README.md)；新授权与定价刷新入口、安装级 worker、简报、继续研究及干净安装仍在验收中，完整 Hot 产品尚未交付。
+可选的「热点与事件」入口位于研究台与设置页，连接独立 Hot Node 服务及指定 PostgreSQL，提供事件、来源覆盖、频道和人工纠错。未配置时显示真实状态，页面读取不启动服务或模型。Native 模型工厂支持已有预算下的受控装配与原回执复用；模型默认关闭，配置不能创建付费授权。预算授权、尝试查询及未知尝试终止通过独立 CLI 明确操作，终止不退款。当前实现与配置命令见 [Hot 组件说明](services/hot/README.md)；定价刷新入口、安装级 worker、简报、继续研究及干净安装仍在验收中，完整 Hot 产品尚未交付。
 
 > 当前产品阶段为 **Web-only**。桌面打包历史仍被保留，但桌面 sidecar、Tauri、安装包和原生桌面 CI 不属于普通 Research Web 的安装或验收前提。
 

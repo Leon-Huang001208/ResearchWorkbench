@@ -75,7 +75,7 @@ async function lookupUnlocked(db:Sql|postgres.TransactionSql,schema:string,spec:
     join ${db(schema)}.model_receipts c on c.attempt_id=r.attempt_id where r.result_key=${spec.resultKey}`;
   if(saved){if(saved.spec_hash!==spec.specHash)throw Error('hot_model_spec_conflict');return {state:'reused',response:saved.response,resultKey:spec.resultKey};}
   const [pending]=await db`select id,spec_hash from ${db(schema)}.model_attempts where result_key=${spec.resultKey}
-    and state in ('reserved','dispatching','outcome_unknown')`;
+    and state in ('reserved','dispatching','outcome_unknown','abandoned')`;
   if(pending){if(pending.spec_hash!==spec.specHash)throw Error('hot_model_spec_conflict');return {state:'busy',attemptId:pending.id};}
   return null;
 }
@@ -137,7 +137,7 @@ export async function saveModelReceipt(db:Sql,schema:string,value:ModelTicket,re
       if(saved.response_hash!==digest||Number(saved.tokens)!==usage.tokens||Number(saved.cost_micros)!==usage.costMicros||saved.provider_request_id!==usage.providerRequestId||saved.cost_basis!==basis)throw Error('hot_model_receipt_conflict');
       return {overrun:usage.tokens>Number(attempt.max_tokens)||usage.costMicros>Number(attempt.max_cost_micros)};
     }
-    if(!['dispatching','outcome_unknown'].includes(attempt.state))throw Error('hot_model_attempt_state_conflict');
+    if(!['dispatching','outcome_unknown','abandoned'].includes(attempt.state))throw Error('hot_model_attempt_state_conflict');
     const overrun=usage.tokens>Number(attempt.max_tokens)||usage.costMicros>Number(attempt.max_cost_micros);
     await tx`insert into ${tx(schema)}.model_receipts(attempt_id,response,response_hash,tokens,cost_micros,provider_request_id,cost_basis)
       values(${value.id},${tx.json(response)},${digest},${usage.tokens},${usage.costMicros},${usage.providerRequestId},${basis})`;

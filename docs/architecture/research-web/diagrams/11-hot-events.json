@@ -101,6 +101,18 @@
         210,
         78
       ]
+    },
+    {
+      "id": "modelAdmin",
+      "type": "backend",
+      "label": "rwb hot 模型管理",
+      "sublabel": "停机授权 · 终止 / 查询",
+      "row": 1,
+      "col": 0,
+      "size": [
+        210,
+        78
+      ]
     }
   ],
   "connections": [
@@ -140,6 +152,36 @@
       "to": "futureResearch",
       "label": "后续冻结交接",
       "variant": "dashed"
+    },
+    {
+      "id": "modelAdminDb",
+      "from": "modelAdmin",
+      "to": "hotDatabase",
+      "label": "私有 bootstrap / 迁移权限",
+      "fromSide": "left",
+      "toSide": "right",
+      "via": [
+        [
+          15,
+          322
+        ],
+        [
+          15,
+          15
+        ],
+        [
+          1375,
+          15
+        ],
+        [
+          1375,
+          94
+        ]
+      ],
+      "labelAt": [
+        690,
+        15
+      ]
     }
   ],
   "cards": [
@@ -148,7 +190,8 @@
       "title": "现有实现",
       "items": [
         "独立数据与唯一 PG 队列；源和材料跨频道共享。",
-        "已有预算下装配 Native 模型；安装级 worker 验收待完成。"
+        "已有预算下装配 Native 模型；安装级 worker 验收待完成。",
+        "停机预算控制与未知终止；迟到回执仍入账。"
       ]
     },
     {

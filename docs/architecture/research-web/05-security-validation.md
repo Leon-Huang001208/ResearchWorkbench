@@ -209,3 +209,5 @@ Windows 停止仍先验证产品状态文件、PID 存活与命令签名，绝�
 Docker Desktop 初始化在固定 bind 私有叶的原完整 guard 内，用 O_DIRECTORY/O_NOFOLLOW 固定描述符对父根执行不跟随链接的相对属性同步；前后 dev/inode/mode/uid/gid 和父别名/叶替换仍完整复核。同步不 chmod/chown、不读取秘密、不增加 owner 例外；自定义目录仍使用原严格边界。
 
 Native Hot 模型加载只引用已有持久授权范围；配置本身不能建额或重置。初始化前通过现有受控凭据桥检查 configured，缺失时不注册付费 handler。跨日定价检查在运行、预留和派发前重复执行；旧价格回执/未知尝试的兼容查询和新预留与迟到回执持同一 schema 栅栏，避免读 miss 导致重复收费。正常研究 handoff 与用户授权/价格刷新 CLI 仍待完成。
+
+模型管理不开放 worker/Agent RPC：迁移身份、实例控制 hash、停机/过期归属与同 schema 栅栏共同准入。普通 worker 不能授权或终止，也不能把 abandoned/unknown 退回 reserved/cancelled 来退款；收到 receipt 后的 received 转换和派发后的 day_key 受数据库状态门保护。

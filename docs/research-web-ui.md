@@ -201,3 +201,5 @@ settled 后独立渲染，旧 generation 的迟到响应不能覆盖最新请求
 UI、Composer 和 submit 投影为用户可见的 `connecting`，也只有 settled runtime failure 会投影为
 `offline`；其他目录的 pending/failure 保留各自资源级 loading/error 语义。该修正不改变 Hash 路由、
 目录来源、会话/Automation 关系或 API 公共契约；本地测试不冒充 Task 6 的真实浏览器验收。
+
+预算授权、尝试查询和未知终止目前在 rwb hot CLI，而非 Web 自动动作。设置页修改 model.scopeId 只引用已有授权，不新增额度；管理结果未知或本地记录失败时，CLI 保留请求 UUID 并非零返回。浏览器真实事件、跟踪、简报及研究闭环仍待验收。

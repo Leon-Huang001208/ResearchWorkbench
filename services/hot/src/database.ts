@@ -9,7 +9,7 @@ import { schemaName } from './config.ts';
 
 type Sql = ReturnType<typeof postgres>;
 type Tx = postgres.TransactionSql;
-export const SCHEMA_VERSION = 13;
+export const SCHEMA_VERSION = 14;
 type Page = { source: string; raw: string; acquiredAt: Date; materials: FeedMaterial[];
   cursor: Record<string, postgres.JSONValue>; metadata?: Record<string, postgres.JSONValue>; existingPageId?: string };
 
@@ -29,14 +29,20 @@ export async function migrate(db: Sql, schema = 'hot'): Promise<void> {
   await db.begin(async tx => {
     // Same schema migration lock across connections and execution modes.
     await tx`select pg_advisory_xact_lock(714278901)`;
+    await tx`select pg_advisory_xact_lock(hashtextextended(${schema},231501))`;
     await tx`create schema if not exists ${tx(schema)}`;
     const [existing] = await tx`select to_regclass(${`${schema}.migrations`}) as migration_table,
       (select count(*)::int from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname=${schema}) as relation_count,
       (select count(*)::int from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname=${schema}) as function_count,
       (select nspowner=(select oid from pg_roles where rolname=current_user) from pg_namespace where nspname=${schema}) as owned`;
     if (!existing.migration_table && (!existing.owned || existing.relation_count > 0 || existing.function_count > 0)) throw Error('hot_schema_not_empty');
+    const [runtimeTable]=await tx`select to_regclass(${`${schema}.runtime_identity`}) as name`;
+    if(runtimeTable.name){
+      const [live]=await tx`select not paused and owner_until>clock_timestamp() as active from ${tx(schema)}.runtime_identity where singleton`;
+      if(live?.active)throw Error('hot_migration_requires_stopped');
+    }
     await tx`create table if not exists ${tx(schema)}.migrations (version integer primary key, checksum text not null, applied_at timestamptz not null default now())`;
-    for (const [version, file] of [[1, '0001-materials.sql'], [2, '0002-acquisition-watermark.sql'], [3, '0003-runtime-fences.sql'], [4, '0004-queue-binding.sql'], [5,'0005-collection-inbox.sql'],[6,'0006-source-control.sql'],[7,'0007-model-budget.sql'],[8,'0008-provider-receipt-id.sql'],[9,'0009-model-daily-admission.sql'],[10,'0010-events-channels.sql'],[11,'0011-material-processing.sql'],[12,'0012-channel-rule-evidence.sql'],[13,'0013-channel-control.sql']] as const) {
+    for (const [version, file] of [[1, '0001-materials.sql'], [2, '0002-acquisition-watermark.sql'], [3, '0003-runtime-fences.sql'], [4, '0004-queue-binding.sql'], [5,'0005-collection-inbox.sql'],[6,'0006-source-control.sql'],[7,'0007-model-budget.sql'],[8,'0008-provider-receipt-id.sql'],[9,'0009-model-daily-admission.sql'],[10,'0010-events-channels.sql'],[11,'0011-material-processing.sql'],[12,'0012-channel-rule-evidence.sql'],[13,'0013-channel-control.sql'],[14,'0014-model-controls.sql']] as const) {
     const raw = await readFile(new URL(`../migrations/${file}`, import.meta.url), 'utf8');
     const checksum = sha256(raw);
     const rows = await tx`select checksum from ${tx(schema)}.migrations where version=${version}`;

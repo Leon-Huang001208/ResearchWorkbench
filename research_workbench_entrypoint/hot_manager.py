@@ -483,6 +483,11 @@ class HotManager:
         with self._lock():
             return self._start()
 
+    def model_operation(self, operation: str, parameters: dict, **options) -> dict:
+        from .hot_model_controls import run_model_operation
+
+        return run_model_operation(self, operation, parameters, **options)
+
     def archive(self, operation: str, directory: Path | None = None, target_database: str | None = None,
                 migration_user: str = "postgres", migration_account: str = "hot-migration-database") -> dict:
         """Backup a stopped installation; restore only into another database's absent schema."""
@@ -591,6 +596,13 @@ class HotManager:
     def _start(self) -> dict:
         if os.name != "posix":
             raise HotError("hot_platform_not_verified")
+        model_journal = self.directory / "model-operation.json"
+        if model_journal.exists():
+            model_record = _read(model_journal, private=True)
+            if model_record.get("projectRoot") != str(self.project):
+                raise HotError("hot_process_foreign")
+            if model_record.get("state") in ("running", "outcome_unknown"):
+                raise HotError("hot_model_previous_outcome_unknown")
         if self._state() is not None:
             return self.status()
         config = self._config()

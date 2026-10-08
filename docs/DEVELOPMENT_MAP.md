@@ -170,3 +170,5 @@ node .agents/project-constraints.mjs --project . --changed-file <path>
 Docker staging 的包发布载荷与过滤合同归 docker/stage_dsh.py、test_staged_runtime.py；改目录筛选须同时验证真实 Node 导入及容器 DSH 健康，不能仅靠镜像构建或资产哈希。
 
 Hot 正常 Native 模型装配：services/hot/src/native-model.ts 由 service.ts owner 建立后加载，读取已有预算和当日定价并复用 native-dsh.mjs。默认停用、缺凭据/权限、跨日 guard 及跨价格缓存兼容分别在 native-model.test.ts、dsh-cache-compat.test.ts 与 model-budget.integration.ts 验证；实际 readiness/cache 脚本为 native-model-readiness-proof.ts。
+
+Hot 模型管理由 hot_model_controls.py / scripts/model-control.ts 连接 model-control.ts；0014-model-controls.sql 添加不可变审计和状态保护。model-control.integration.ts 覆盖普通角色拒绝、活动归属拒绝迁移、迟到回执和真实三条 CLI；test_hot_model_controls.py 覆盖 pre-key、UUID、记录失败与冷库恢复。
