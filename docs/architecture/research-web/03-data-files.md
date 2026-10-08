@@ -202,3 +202,5 @@ failure 会投影为可见 connecting/offline，且不会写入新的缓存或�
 Docker 持久数据与私有凭据挂载保持既有归属检查；Windows DACL 未验证继续阻断。Office/Wind/Tabbit 宿主能力不会因挂载可见而开放，跨模式不隐式迁移秘密。
 
 staging 修复只作用于镜像只读发布资产，不删除或迁移产品数据、凭据及 Native 目录。包根开发目录与深层运行时代码区分，文件内容和 manifest 哈希继续逐项绑定。
+
+正常 Hot Native 模型使用配置指定的已有 model_budgets scope，累计额度不会随重启/日期改变。input-v2 缓存身份仅绑定模型参数、输入和提示版本；旧价格身份的回执和未知尝试在同一 schema 栅栏查询，预留前原子复查。历史回执 resultKey 和原费用记录保持原值，不转写或退款。当前联合研究快照备份仍未完成。

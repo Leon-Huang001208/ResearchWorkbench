@@ -67,3 +67,5 @@ Windows/Linux 设备任务从 GitHub 主线取得源码，确认目标 OS/版本
 独立回环端口18092/13086完成实际install、双服务认证ready、Doctor、root/static/index/Atlas HTTP200；最新host restart16.773秒、stop1.953秒，精确down/up后容器生成的非秘密文件SHA保持；真实Chrome架构入口/分类/图返回及文档、源码、测试固定链接均200。最终stop2.962秒、owned容器移除、两family端口释放；保留测试数据/凭据，未更新日常实例或操作foreign容器。构建使用本机既有无凭据代理作为运输条件，锁、CA与签名保持。CI与机器回执归档在阶段三报告，报告提交与验证候选身份分开。
 
 模型付费生成、厂商数据授权、真实产品升级、双已安装模式迁移、真实凭据存取仍NOT_RUN；非Mac严格脚本沙箱与宿主Office/Wind/Tabbit等保持明确不支持。Windows/Linux真机及其产品CI继续NOT_RUN，总体跨平台发布NOT_READY。
+
+Hot Native 模型工厂已在 macOS 经实际受控凭据/固定DSH目录、两个旧真实输入的只读缓存恢复验证；独立Node/PG确认缺授权时采集读取不受阻。此证据不代表完整安装或持续付费worker验收；Docker模型、完整模式切换与Windows/Linux Native仍保留各自待验状态。

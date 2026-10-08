@@ -16,6 +16,8 @@ export async function createNativeDsh(config){
   const git=promisify(execFile);
   const {stdout}=await git('git',['rev-parse','HEAD'],{cwd:source,timeout:5000});
   if(stdout.trim()!==PIN)throw Error('hot_dsh_build_binding_invalid');
+  const credential=await processBridge(config.credentials,'describe');
+  if(credential.configured!==true)throw Error('hot_dsh_model_unconfigured');
   const llmPath=join(source,'packages/llm/llm/lib/index.js'),require=createRequire(pathToFileURL(llmPath));
   const {Context}=await import(pathToFileURL(require.resolve('@deepseek-ai/cordis')));
   const {default:LlmRuntime}=await import(pathToFileURL(llmPath));

@@ -16,5 +16,6 @@
   "collection": { "frequencySeconds": 600, "maxItems": 200, "backfillDays": 30 },
   "worker": { "concurrency": 2, "leaseSeconds": 120, "maxRetries": 3 },
   "budget": { "maxCallsPerDay": 0, "maxTokensPerDay": 0, "maxCostPerDay": 0 },
+  "model": { "enabled": false, "scopeId": "hot" },
   "retention": { "days": 365, "backupDirectory": "hot/backups" }
 }

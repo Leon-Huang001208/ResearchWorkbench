@@ -168,3 +168,5 @@ node .agents/project-constraints.mjs --project . --changed-file <path>
 已知组件可以在策略中映射不同等级的候选验证：低等级只选择局部项，耦合或 signal 升级后才纳入依赖/smoke/full 项。未登记测试仍按 `unknown_path` 升级 L4/`full-delivery`，不得仅凭位于 `tests/` 目录推断低风险。
 
 Docker staging 的包发布载荷与过滤合同归 docker/stage_dsh.py、test_staged_runtime.py；改目录筛选须同时验证真实 Node 导入及容器 DSH 健康，不能仅靠镜像构建或资产哈希。
+
+Hot 正常 Native 模型装配：services/hot/src/native-model.ts 由 service.ts owner 建立后加载，读取已有预算和当日定价并复用 native-dsh.mjs。默认停用、缺凭据/权限、跨日 guard 及跨价格缓存兼容分别在 native-model.test.ts、dsh-cache-compat.test.ts 与 model-budget.integration.ts 验证；实际 readiness/cache 脚本为 native-model-readiness-proof.ts。

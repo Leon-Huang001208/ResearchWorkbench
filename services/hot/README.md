@@ -26,7 +26,8 @@ Host/renderer tests and an actual browser disabled-settings journey are recorded
 That journey intentionally uses an offline research-runtime fixture because its
 isolated data root has no DSH auth installation; it proves Hot-unconfigured UI
 availability, not a clean installation, real event browsing or research. Native
-model activation, follows, briefs and frozen research handoff remain pending.
+model readiness/cache replay now uses the normal worker factory; follows, briefs,
+frozen research handoff and installed authorized-worker acceptance remain pending.
 
 ## Authenticated event/channel API
 
@@ -58,7 +59,7 @@ merged IDs to their historical canonical event and return explicit origin score
 versions for inherited human decisions. Detail contains immutable material id,
 revision/hash, original URL, publication/acquisition/source-update times and
 declared partial excerpts. It never fetches, schedules or generates. Web/CLI
-mounting and richer full-history navigation remain pending.
+mounting is implemented; real event browser acceptance and richer full-history navigation remain pending.
 
 Migration 13 adds immutable channel-control audit. Only the controller can make
 conditional changes or replay its UUID; identical canonical parameters return the
@@ -130,8 +131,8 @@ and matching result fingerprint/output, verified by both API and database trigge
 The positive receipt-binding test uses a SYNTHETIC response, not a paid call.
 `tests/events.integration.ts` exercises real PostgreSQL, scoped roles, corrections,
 historical cutoffs, a layered diamond graph and configuration of a third channel.
-Scores in this test are fixtures, not research quality evidence. Normal Native
-model activation and Web Host/UI mounting are still pending; grouping follows below.
+Scores in this test are fixtures, not research quality evidence. Native model
+factory and Web Host/UI mounting are implemented; grouping follows below.
 
 ## Durable grouping worker
 
@@ -400,7 +401,8 @@ tests. `npm test` is the offline unit suite; `npm run typecheck` checks both.
 `scripts/serve.ts` accepts one bounded private stdin bootstrap supplied by the
 owned Host. No passwords are placed in argv/environment or returned on stdout.
 The initialized control/read service exposes status, sources and task projections;
-it reports the actual worker state and `model:not_integrated`. Real child-process startup, SIGTERM,
+it reports the actual worker state and `model:ready|blocked_model` with a stable
+`modelCode`. Real child-process startup, SIGTERM,
 restart and database/material retention are covered by `service.integration.ts`.
 
 The only formal internal transport is a `127.0.0.1` single-frame protocol with
@@ -414,3 +416,31 @@ Native manager start/status/restart/stop and PG cold recovery have real local
 process/database evidence using an isolated credential backend. Actual Keychain
 persistence and Docker product service management remain pending; these tests do
 not certify the whole product.
+
+## Native model configuration and recovery
+
+`model.enabled` defaults to false; `model.scopeId` selects an existing persisted
+authorization in the explicitly selected schema. Settings do not create, enlarge
+or reset authorization. Existing daily policy must fit the configured budget and
+timezone. A missing/paused policy or credential yields `blocked_model`; collection
+and projections stay available. New-scope authorization CLI remains to be completed.
+
+The Native Host passes the existing managed interpreter, fixed credential bridge,
+actual data home and pinned DSH source on private stdin. DSH text context uses the
+fixed provider/model catalog, no sessions/tools/retry. Shutdown drains worker then
+closes context. Docker remains blocked until a supported credential path exists.
+
+Official conservative tariff files are immutable dated records. Mount requires the
+current local day; run, reserve and dispatch recheck that day. Missing/new-day pricing
+blocks model work without stopping collection. After an official refresh and restart,
+input-v2 cache identity uses input/prompt/model parameters independently of tariff.
+The two pre-mount tariff identities remain compatible: cache/unknown lookup and new
+admission share the receipt fence, and a reused result retains its original key.
+The daily pricing refresh configuration/CLI is not yet a completed user workflow.
+
+`native-model-readiness-proof.ts` exercises the normal factory with actual configured
+macOS credentials and reads two real grouping packets under a read-only DB session.
+A cache miss cannot dispatch a paid request; exact legacy result keys and unchanged
+cumulative counters are required. Separate missing-credential proof uses an isolated
+empty data home. These prove readiness and unpaid recovery, not a full installed
+authorized worker run, fresh event grouping, browser journey or formal research.

@@ -15,11 +15,13 @@ import {evaluateChannelRules} from './channel-rules.ts';
 import {channelsAt,eventsList,eventDetail} from './projections.ts';
 import {configureChannelRequest} from './channel-control.ts';
 import {correctEvent,type Correction} from './events.ts';
+import {loadNativeModel,type NativeModelBootstrap,type ModelCapability} from './native-model.ts';
 
 export interface ServiceBootstrap {
   config: unknown; port?: number; instanceId: string; mode: 'native' | 'docker';
   workerPassword: string; controllerUser: string; controllerPassword: string;
   controllerToken: string; readerToken: string;
+  nativeModel?:NativeModelBootstrap;
 }
 export async function startService(input: ServiceBootstrap,capabilities:{groupingModel?:GroupingModel}={}) {
   assertNodeRuntime();
@@ -38,6 +40,8 @@ export async function startService(input: ServiceBootstrap,capabilities:{groupin
   const sourceControllers=new Map<string,AbortController>();
   let workerTask:Promise<void>|undefined;
   let workerState='starting';
+  let modelCapability:ModelCapability|undefined;
+  let groupingModel=capabilities.groupingModel;
   let closed = false;
   const close = async () => {
     if(closed) return;
@@ -46,6 +50,7 @@ export async function startService(input: ServiceBootstrap,capabilities:{groupin
     let failed = false;
     if(transport) { try { await transport.close(); } catch { failed=true; } }
     if(workerTask){try{await workerTask;}catch{failed=true;}}
+    if(modelCapability){try{await modelCapability.close();}catch{failed=true;}}
     if(owner) {
       try { await pauseRuntime(controller,config.database.schema,owner,input.controllerToken); }
       catch { logEvent('control_rejected'); }
@@ -68,13 +73,17 @@ export async function startService(input: ServiceBootstrap,capabilities:{groupin
     boss = await openQueue(db,config.database.schema);
     owner = await activateRuntime(controller,config.database.schema,input.instanceId,input.controllerToken,input.mode,300,true);
     const current = owner;
+    if(!groupingModel){
+      modelCapability=await loadNativeModel(db,config.database.schema,current,config,input.nativeModel);
+      groupingModel=modelCapability.groupingModel;
+    }
     const noParams = (params: Record<string,postgres.JSONValue>) => { if(Object.keys(params).length) throw Error('hot_rpc_params_invalid'); };
     const handlers = new Map<string,RpcHandler>([
       ['status',{permission:'read',run:async params=>{
         noParams(params);
         const [counts] = await reader`select count(*)::int n from ${reader(config.database.schema)}.sources`;
         const pending=await reader`select state,count(*)::int count from ${reader(config.database.schema)}.processing_items where state<>'applied' group by state`;
-        return { state:'initialized',worker:workerState,model:capabilities.groupingModel?'ready':'blocked_model',processing:JSON.parse(JSON.stringify([...pending])),schemaVersion:SCHEMA_VERSION,
+        return { state:'initialized',worker:workerState,model:modelCapability?.state??(groupingModel?'ready':'blocked_model'),modelCode:modelCapability?.code??null,processing:JSON.parse(JSON.stringify([...pending])),schemaVersion:SCHEMA_VERSION,
           mode:current.mode,generation:current.generation,sourceCount:counts.n,collectionMode:'latest_snapshot',backfill:'not_supported' };
       }}],
       ['sources',{permission:'read',run:async params=>{
@@ -122,11 +131,11 @@ export async function startService(input: ServiceBootstrap,capabilities:{groupin
     const queue=boss;
     workerTask=runWorker({db,controllerDb:controller,boss:queue,schema:config.database.schema,owner:current,config,
       handlers:{...collectionHandlers(db,queue,config.database.schema,current,config,fetch,sourceControllers),
-        ...(capabilities.groupingModel?{'hot.process':processingHandler(db,config.database.schema,current,capabilities.groupingModel)}:{})},signal:workerStop.signal,
+        ...(groupingModel?{'hot.process':processingHandler(db,config.database.schema,current,groupingModel)}:{})},signal:workerStop.signal,
       heartbeat:async()=>{
         await heartbeatRuntime(controller,config.database.schema,current,input.controllerToken);
         await scheduleCollection(db,queue,config.database.schema,current,config);
-        await scheduleProcessing(db,queue,config.database.schema,current,Boolean(capabilities.groupingModel));
+        await scheduleProcessing(db,queue,config.database.schema,current,Boolean(groupingModel)&&modelCapability?.state!=='blocked_model');
         await evaluateChannelRules(db,config.database.schema,current);
       }}).catch(()=>{
         workerState='failed';logEvent('worker_stopped');

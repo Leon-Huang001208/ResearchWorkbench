@@ -11,7 +11,8 @@ export interface DshRuntime {
   prepareCall(config:CallConfig,signal:AbortSignal):Promise<{config:CallConfig;retryPolicy:{mode:string;maxRetries?:number};stream(options:CallOptions):AsyncIterable<Record<string,unknown>>}>;
 }
 export interface TextLedger {
-  reserve(spec:ModelSpec):Promise<{state:'reserved';ticket:ModelTicket}|{state:'busy';attemptId:string}|{state:'reused';response:postgres.JSONValue}>;
+  lookup?:(spec:{resultKey:string;specHash:string})=>Promise<{state:'reused';response:postgres.JSONValue}|{state:'busy';attemptId:string}|null>;
+  reserve(spec:ModelSpec):Promise<{state:'reserved';ticket:ModelTicket}|{state:'busy';attemptId:string}|{state:'reused';response:postgres.JSONValue;resultKey?:string}>;
   dispatch(ticket:ModelTicket):Promise<void>;
   unknown(ticket:ModelTicket):Promise<void>;
   save(ticket:ModelTicket,response:postgres.JSONValue,usage:{tokens:number;costMicros:number;providerRequestId:string|null;costBasis:'tariff-ceiling'}):Promise<{overrun:boolean}>;
@@ -22,7 +23,8 @@ export interface TextTariff {
   inputMicrosPerMillion:number;cacheReadMicrosPerMillion:number;cacheWriteMicrosPerMillion:number;outputMicrosPerMillion:number;
 }
 export interface TextUsage {inputTokens:number;outputTokens:number;cacheReadTokens:number;cacheWriteTokens:number;totalTokens:number}
-export interface TextRequest {provider:string;model:string;promptVersion:string;system:string;text:string;maxOutputTokens:number;inputTokenBound:number}
+export interface TextRequest {provider:string;model:string;promptVersion:string;system:string;text:string;maxOutputTokens:number;inputTokenBound:number;
+  cacheIdentity?:'input-v2';legacyTariffHashes?:string[]}
 function cost(tariff:TextTariff,input:number,read:number,write:number,output:number):number{
   const numerator=BigInt(input)*BigInt(tariff.inputMicrosPerMillion)+BigInt(read)*BigInt(tariff.cacheReadMicrosPerMillion)+
     BigInt(write)*BigInt(tariff.cacheWriteMicrosPerMillion)+BigInt(output)*BigInt(tariff.outputMicrosPerMillion);
@@ -59,11 +61,28 @@ export async function runDshText(runtime:DshRuntime,ledger:TextLedger,request:Te
   const prepared=await runtime.prepareCall(config,signal);
   if(prepared.retryPolicy.mode!=='normal'||prepared.retryPolicy.maxRetries!==0)throw Error('hot_dsh_retry_denied');
   if(prepared.config.provider!==config.provider||prepared.config.model!==config.model||prepared.config.maxTokens!==config.maxTokens||prepared.config.temperature!==0)throw Error('hot_dsh_prepared_config_invalid');
-  const specHash=sha256(JSON.stringify({config:prepared.config,promptVersion:request.promptVersion,tariff:tariff.versionHash,
-    inputHash:sha256(JSON.stringify([request.system,request.text]))}));
+  const inputHash=sha256(JSON.stringify([request.system,request.text]));
+  if(request.cacheIdentity!==undefined&&request.cacheIdentity!=='input-v2')throw Error('hot_dsh_request_invalid');
+  const legacyHashes=request.legacyTariffHashes??[];
+  if(!Array.isArray(legacyHashes)||legacyHashes.length>8||legacyHashes.some(h=>typeof h!=='string'||!/^[a-f0-9]{64}$/.test(h)))throw Error('hot_dsh_request_invalid');
+  const legacyKey=(priceHash:string)=>sha256(JSON.stringify({config:prepared.config,promptVersion:request.promptVersion,tariff:priceHash,inputHash}));
+  const specHash=request.cacheIdentity==='input-v2'?sha256(JSON.stringify({cacheIdentity:'input-v2',config:prepared.config,promptVersion:request.promptVersion,inputHash})):legacyKey(tariff.versionHash);
+  const compatibleKeys=[...new Set([tariff.versionHash,...legacyHashes].map(legacyKey))];
+  if(request.cacheIdentity==='input-v2'){
+    if(!ledger.lookup)throw Error('hot_dsh_cache_lookup_required');
+    for(const key of [...new Set([specHash,...compatibleKeys])]){
+      const cached=await ledger.lookup({resultKey:key,specHash:key});
+      if(cached?.state==='busy')throw Error('hot_dsh_attempt_pending');
+      if(cached?.state==='reused'){
+        if(cached.response&&typeof cached.response==='object'&&'rejected'in cached.response&&cached.response.rejected===true)throw Error('hot_dsh_output_rejected');
+        return cached.response;
+      }
+    }
+  }
   const maximumRate=Math.max(tariff.inputMicrosPerMillion,tariff.cacheReadMicrosPerMillion,tariff.cacheWriteMicrosPerMillion);
   const maxCostMicros=cost({...tariff,inputMicrosPerMillion:maximumRate},request.inputTokenBound,0,0,request.maxOutputTokens);
-  const admitted=await ledger.reserve({resultKey:specHash,specHash,maxTokens:request.inputTokenBound+request.maxOutputTokens,maxCostMicros});
+  const admitted=await ledger.reserve({resultKey:specHash,specHash,maxTokens:request.inputTokenBound+request.maxOutputTokens,maxCostMicros,
+    ...(request.cacheIdentity==='input-v2'?{legacySpecs:compatibleKeys.map(key=>({resultKey:key,specHash:key}))}:{})});
   if(admitted.state==='reused'){
     if(admitted.response&&typeof admitted.response==='object'&&'rejected'in admitted.response&&admitted.response.rejected===true)throw Error('hot_dsh_output_rejected');
     return admitted.response;

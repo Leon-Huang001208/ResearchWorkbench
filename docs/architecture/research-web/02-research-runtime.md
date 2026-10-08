@@ -1,8 +1,9 @@
 # 研究协议、执行状态与恢复
 
 Hot 内部控制/读取服务与研究执行分离：`rwb hot setup/start/stop/restart` 管理独立进程和指定库，
-其启动、只读查询和 `rwb hot configure/status/doctor`
-不创建研究会话或调用模型。当前研究交接和实际模型处理尚未接入，不能从私有服务的
+未启用模型时，启动、只读查询和 `rwb hot configure/status/doctor`
+不调用模型；所有 Hot 模型步骤都不创建研究会话。Native worker 现按显式 model 配置装配
+受控 DSH 文本上下文，仅绑定已有持久预算；研究交接仍未接入，不能从私有服务的
 `initialized` 推导研究可用。后续交接必须沿本页原有会话归属、幂等受理和原生回执规则实施。
 Hot 备份导出持有运行代次 fence 的一致快照，恢复默认暂停；当前不包含研究会话快照。
 采集与分批解析任务由同一 PG 后端持有；准确 claim 进入 handler，旧 attempt 不得认领新租约。

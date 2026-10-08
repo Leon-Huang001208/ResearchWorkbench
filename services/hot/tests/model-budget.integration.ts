@@ -9,7 +9,7 @@ import {initializeIdentity,activateRuntime} from '../src/control.ts';
 import {sha256} from '../src/material.ts';
 import {openQueue} from '../src/queue.ts';
 import {grantWorker} from '../src/provision.ts';
-import {provisionModelBudget,reserveModel,markModelDispatch,markModelUnknown,cancelUnsentModel,saveModelReceipt} from '../src/model-budget.ts';
+import {provisionModelBudget,reserveModel,markModelDispatch,markModelUnknown,cancelUnsentModel,saveModelReceipt,lookupModel} from '../src/model-budget.ts';
 
 test('cumulative reservations serialize, unknown sends remain charged and late receipts reuse safely',{timeout:10000},async()=>{
   const dir=resolve(import.meta.dirname,'../../../logs/hot-stage-zero');
@@ -50,8 +50,30 @@ test('cumulative reservations serialize, unknown sends remain charged and late r
     await assert.rejects(markModelDispatch(db,schema,owner,second.ticket),/owner_stale/);
     const response={answer:'synthetic output',metadata:{a:1,b:2}};
     const usage={tokens:40,costMicros:200,providerRequestId:'synthetic-request'};
-    const [settled,racing]=await Promise.all([saveModelReceipt(worker,schema,first.ticket,response,usage),reserveModel(worker,schema,next,policy.scopeId,spec)]);
-    assert.equal(settled.overrun,false);assert.ok(racing.state==='busy'||racing.state==='reused');
+    let readMiss!:()=>void,continueRead!:()=>void;
+    const missed=new Promise<void>(resolve=>{readMiss=resolve;}),proceed=new Promise<void>(resolve=>{continueRead=resolve;});
+    const instrumented=new Proxy(worker,{get(target,key,receiver){
+      if(key!=='begin')return Reflect.get(target,key,receiver);
+      return (fn:any)=>target.begin(async tx=>fn(new Proxy(tx,{apply(sql,thisArg,args){
+        const query=Reflect.apply(sql,thisArg,args);
+        if(Array.isArray(args[0])&&args[0].join('').includes('.model_results'))return Promise.resolve(query).then(async rows=>{
+          if(!rows.length){readMiss();await proceed;}return rows;
+        });
+        return query;
+      }})));
+    }});
+    const heldLookup=lookupModel(instrumented,schema,spec);await missed;
+    const settlement=saveModelReceipt(worker,schema,first.ticket,response,usage);
+    let waits=false;
+    for(let i=0;i<20;i++){
+      const [active]=await db`select count(*)::int n from pg_stat_activity where usename=${role} and wait_event='advisory'`;
+      if(active.n){waits=true;break;}await new Promise(resolve=>setTimeout(resolve,10));
+    }
+    continueRead();assert.equal(waits,true,'late receipt waits on cache lookup fence');
+    assert.equal((await heldLookup)?.state,'busy');assert.equal((await settlement).overrun,false);
+    const normalized={...spec,resultKey:sha256('input-v2 identity'),specHash:sha256('input-v2 identity'),legacySpecs:[{resultKey:spec.resultKey,specHash:spec.specHash}]};
+    const racing=await reserveModel(worker,schema,next,policy.scopeId,normalized);
+    assert.equal(racing.state,'reused');if(racing.state==='reused')assert.equal(racing.resultKey,spec.resultKey);
     await saveModelReceipt(db,schema,first.ticket,{metadata:{b:2,a:1},answer:'synthetic output'},usage);
     const reused=await reserveModel(db,schema,next,policy.scopeId,spec);
     assert.equal(reused.state,'reused');

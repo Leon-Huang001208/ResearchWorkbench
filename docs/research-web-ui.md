@@ -11,6 +11,10 @@ Docker 服务健康不能使宿主 Office/Wind/Tabbit 自动变为可用。模�
 
 ## 范围与入口
 
+Hot 运行配置增加 model.enabled（默认关闭）及 model.scopeId（已有持久授权范围）。保存配置不创建
+付费授权，重启后按既有预算、受控凭据和当日定价检查装配；缺条件显示 blocked_model，列表读取
+仍不触发模型。创建新授权范围、价格刷新的一键入口和正式研究仍待完成。
+
 Hot 工作区为 `#/workbench/hot?view=events|sources|channels`，运行配置为 `#/settings/hot`。
 它调用既有Host中的惰性签名桥，不向浏览器提供控制key。页面导航和刷新只读取，不启动Hot、
 模型、研究或安装。事件显示独立相关性/重要性/热度/增量、原文版本和截止时点，来源显示快照/

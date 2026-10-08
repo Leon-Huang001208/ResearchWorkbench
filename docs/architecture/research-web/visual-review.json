@@ -159,17 +159,17 @@
     },
     {
       "id": "11-hot-events",
-      "artifactSha256": "67a7b7a8a55a1422fa165962ba80b42f62827c23a994abb5bb52234976b0450b",
-      "specificationSha256": "79e5d2601828add2b066195503720747f2fa3ebac4dfaca5d6136d5995f90645",
+      "artifactSha256": "b17ab756ded7d91e5c194ef7ca64b027d3e2476335876f341b11bebf8229dce0",
+      "specificationSha256": "f7271352ae9e44c43ca5119da9d911e087f75d4c18b52afdcc3fb389f9a2dcb2",
       "status": "reviewed",
       "reviewer": "codex-controller",
-      "date": "2026-10-08",
+      "date": "2026-10-09",
       "captures": [
         "11-hot-events.visual-check.1440x900.light.png",
         "11-hot-events.visual-check.2048x1320.dark.png"
       ],
       "findings": [],
-      "notes": "Codex主控制器实际查看最终小视口浅色/大视口深色截图：节点、角色边界、关系标签和待实现交接可读，未见遮挡/穿线/裁剪；自动四视口containment另有回执。该视觉复核不是独立人工金标准或功能/安装验收。"
+      "notes": "Codex主控制器实际检查最新小视口浅色与大视口深色截图，模型实线装配/冻结交接虚线、节点与标签可读，无遮挡裁剪；四视口containment回执单独记录。此视觉复核不代表真实worker/模型/研究/平台验收。"
     }
   ]
 }

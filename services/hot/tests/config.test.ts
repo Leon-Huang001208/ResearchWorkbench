@@ -8,6 +8,12 @@ test('non-secret configuration has bounded defaults and explicit TLS policy', ()
   assert.equal(settings.database.mode, 'managed');
   assert.equal(settings.database.tls, 'disable');
   assert.equal(settings.budget.maxCallsPerDay, 0);
+  assert.deepEqual(settings.model, {enabled:false,scopeId:'hot'});
+  assert.deepEqual(parseConfig({model:{enabled:true,scopeId:'hot_events_goal_01a11684'}}).model,
+    {enabled:true,scopeId:'hot_events_goal_01a11684'});
+  assert.throws(()=>parseConfig({model:{enabled:'true'}}));
+  assert.throws(()=>parseConfig({model:{scopeId:'../other'}}));
+  assert.throws(()=>parseConfig({model:{provider:'arbitrary'}}));
   assert.throws(() => parseConfig({ password: 'secret' }), /hot_config_unknown_field/);
   assert.throws(() => parseConfig({ database: { mode: 'external', host: 'db.example', tls: 'disable' } }), /hot_external_tls_required/);
   const external = parseConfig({ database: { mode: 'external', host: 'db.example', tls: 'verify-full' } });

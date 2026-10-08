@@ -612,6 +612,16 @@ class HotManager:
                    "controllerUser": config["database"]["controllerUser"],
                    "controllerPassword": self._secret(config["database"]["controllerSecretRef"]),
                    "controllerToken": self._secret("rpc-controller"), "readerToken": self._secret("rpc-reader")}
+        if config.get("model", {}).get("enabled"):
+            from .bootstrap import native_python
+            from app.research_web import PINNED_DSH_COMMIT
+
+            source = Path(os.environ.get("RESEARCH_DSH_SOURCE", str(self.home.parent / "runtime" / "dsh" / PINNED_DSH_COMMIT))).expanduser().resolve()
+            payload["nativeModel"] = {"source": str(source), "credentials": {
+                "python": str(native_python(self.project)),
+                "bridge": str(self.project / "app/research_web/model_credentials.py"),
+                "dataHome": str(self.home),
+            }}
         launch_id = uuid4().hex
         path = self.project / "logs" / "hot" / "runtime.log"
         _no_alias(path)

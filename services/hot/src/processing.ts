@@ -117,7 +117,7 @@ export function processingHandler(db:Sql,schema:string,owner:RuntimeOwner,model:
     }
     catch(error){
       const code=error instanceof Error&&/^hot_[a-z_]+$/.test(error.message)?error.message:'hot_grouping_outcome_unknown';
-      const state=code.includes('budget')?'blocked_budget':['output','candidate','receipt','manual'].some(s=>code.includes(s))?'rejected':'outcome_unknown';
+      const state=code==='hot_dsh_pricing_refresh_required'?'ready':code.includes('budget')?'blocked_budget':['output','candidate','receipt','manual'].some(s=>code.includes(s))?'rejected':'outcome_unknown';
       await withOwnerTransaction(db,schema,owner,async tx=>{await assertClaim(tx,schema,claim);
         await tx`update ${tx(schema)}.processing_items set state=${state},error_code=${code} where material_id=${input.materialId} and material_revision=${input.revision} and prompt_version=${GROUP_PROMPT_VERSION}`;});
       logEvent('processing_failed');throw Error(code);

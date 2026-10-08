@@ -96,6 +96,14 @@ test('durable material processing blocks without model and atomically applies sa
     assert.equal((await db`select current_revision from ${db(schema)}.events where id=${sameTarget}`)[0].current_revision,3);
     assert.equal((await db`select count(*)::int n from ${db(schema)}.processing_results where material_id=${rejected.materialIds[0]}`)[0].n,0);
     assert.equal(await scheduleProcessing(db,boss,schema,owner,true),0,'deterministic rejected publication never auto-requeues');
+    const priceHeld=await ingestPage(db,{source:'fed',raw,acquiredAt:new Date(),materials:[{...fixture,url:'https://example.com/stale-price-'+randomUUID()}],cursor:{}},schema);
+    await db.begin(tx=>registerProcessing(tx,schema,priceHeld.materialIds));await scheduleProcessing(db,boss,schema,owner,true);
+    const [attemptsBefore]=await db`select count(*)::int n from ${db(schema)}.model_attempts`;
+    assert.equal(await processOne(boss,db,schema,owner,'hot.process',processingHandler(db,schema,owner,
+      {run:async()=>{throw Error('hot_dsh_pricing_refresh_required');}})),'failed');
+    assert.equal((await db`select state from ${db(schema)}.processing_items where material_id=${priceHeld.materialIds[0]}`)[0].state,'ready','known unpaid pricing block is retained, never outcome_unknown');
+    assert.equal((await db`select count(*)::int n from ${db(schema)}.model_attempts`)[0].n,attemptsBefore.n);
+    assert.equal(await scheduleProcessing(db,boss,schema,owner,false),0,'blocked model never schedules a paid retry');
     assert.equal((await appliedGroupingResult(db,schema,stored.materialIds[0],1))!.material_revision,1);
     const originalItem=items.find(item=>item.url===firstMaterial.original_url)!;
     await ingestPage(db,{source:'fed',raw,acquiredAt:new Date(),materials:[{...originalItem,title:originalItem.title+' corrected fixture'}],cursor:{}},schema);

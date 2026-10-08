@@ -81,7 +81,7 @@
     {
       "id": "modelAcceptance",
       "type": "external",
-      "label": "受控模型验收入口",
+      "label": "Native 模型能力装配",
       "sublabel": "共用累计预算 · 无研究会话",
       "row": 1,
       "col": 3,
@@ -132,8 +132,7 @@
       "id": "hotModel",
       "from": "modelAcceptance",
       "to": "hotWorker",
-      "label": "回执先于业务",
-      "variant": "dashed"
+      "label": "回执先于业务"
     },
     {
       "id": "hotHandoffPending",
@@ -149,7 +148,7 @@
       "title": "现有实现",
       "items": [
         "独立数据与唯一 PG 队列；源和材料跨频道共享。",
-        "模型真实验收已运行；正常持续模型激活尚待接入。"
+        "已有预算下装配 Native 模型；安装级 worker 验收待完成。"
       ]
     },
     {

@@ -8,7 +8,8 @@ import {logEvent} from './log.ts';
 type Sql=ReturnType<typeof postgres>;
 export interface BudgetPolicy {scopeId:string;authorizationHash:string;maxCalls:number;maxTokens:number;maxCostMicros:number;
   daily?:{maxCalls:number;maxTokens:number;maxCostMicros:number;timezone:string}}
-export interface ModelSpec {resultKey:string;specHash:string;maxTokens:number;maxCostMicros:number}
+export interface ModelSpec {resultKey:string;specHash:string;maxTokens:number;maxCostMicros:number;
+  legacySpecs?:Array<{resultKey:string;specHash:string}>}
 export interface ModelTicket {id:string;token:string}
 function amount(value:number,maximum=10000000000){if(!Number.isSafeInteger(value)||value<0||value>maximum)throw Error('hot_model_budget_invalid');}
 function hash(value:string){if(!/^[a-f0-9]{64}$/.test(value))throw Error('hot_model_spec_invalid');}
@@ -37,14 +38,19 @@ export async function provisionModelBudget(db:Sql,schema:string,policy:BudgetPol
   });
 }
 export async function reserveModel(db:Sql,schema:string,owner:RuntimeOwner,scopeId:string,spec:ModelSpec):Promise<
-  {state:'reserved';ticket:ModelTicket}|{state:'busy';attemptId:string}|{state:'reused';response:postgres.JSONValue}>{
+  {state:'reserved';ticket:ModelTicket}|{state:'busy';attemptId:string}|{state:'reused';response:postgres.JSONValue;resultKey?:string}>{
   schemaName(schema);scope(scopeId);hash(spec.resultKey);hash(spec.specHash);amount(spec.maxTokens,10000000);amount(spec.maxCostMicros);
+  const legacy=spec.legacySpecs??[];
+  if(!Array.isArray(legacy)||legacy.length>9)throw Error('hot_model_spec_invalid');
+  for(const item of legacy){hash(item.resultKey);hash(item.specHash);}
   if(spec.maxTokens===0)throw Error('hot_model_budget_invalid');
   return withOwnerTransaction(db,schema,owner,async tx=>{
-    const [cached]=await tx`select r.spec_hash,c.response from ${tx(schema)}.model_results r join ${tx(schema)}.model_receipts c on c.attempt_id=r.attempt_id where r.result_key=${spec.resultKey}`;
-    if(cached){if(cached.spec_hash!==spec.specHash)throw Error('hot_model_spec_conflict');return {state:'reused' as const,response:cached.response};}
-    const [pending]=await tx`select id,spec_hash from ${tx(schema)}.model_attempts where result_key=${spec.resultKey} and state in ('reserved','dispatching','outcome_unknown')`;
-    if(pending){if(pending.spec_hash!==spec.specHash)throw Error('hot_model_spec_conflict');return {state:'busy' as const,attemptId:pending.id};}
+    // Alias checks and fresh admission share saveModelReceipt's schema fence.
+    // A late legacy receipt cannot land between cache miss and reservation.
+    for(const compatible of [{resultKey:spec.resultKey,specHash:spec.specHash},...legacy]){
+      const saved=await lookupUnlocked(tx,schema,compatible);
+      if(saved)return saved;
+    }
     const [policy]=await tx`select *,((clock_timestamp() at time zone quota_timezone)::date)::text as today from ${tx(schema)}.model_budgets where scope_id=${scopeId} for update`;
     if(!policy)throw Error('hot_model_budget_exhausted');
     const [used]=await tx`select count(*)::int calls,coalesce(sum(coalesce(r.tokens,a.max_tokens)),0)::text tokens,
@@ -59,6 +65,25 @@ export async function reserveModel(db:Sql,schema:string,owner:RuntimeOwner,scope
     await tx`insert into ${tx(schema)}.model_attempts(id,scope_id,result_key,spec_hash,dispatch_token_hash,generation,max_tokens,max_cost_micros,state,day_key)
       values(${id},${scopeId},${spec.resultKey},${spec.specHash},${sha256(token)},${owner.generation},${spec.maxTokens},${spec.maxCostMicros},'reserved',${policy.today})`;
     logEvent('model_reserved');return {state:'reserved' as const,ticket:{id,token}};
+  });
+}
+/** Compatibility reads never create an attempt or mutate a quota. */
+async function lookupUnlocked(db:Sql|postgres.TransactionSql,schema:string,spec:{resultKey:string;specHash:string}):Promise<
+  {state:'reused';response:postgres.JSONValue;resultKey?:string}|{state:'busy';attemptId:string}|null>{
+  schemaName(schema);hash(spec.resultKey);hash(spec.specHash);
+  const [saved]=await db`select r.spec_hash,c.response from ${db(schema)}.model_results r
+    join ${db(schema)}.model_receipts c on c.attempt_id=r.attempt_id where r.result_key=${spec.resultKey}`;
+  if(saved){if(saved.spec_hash!==spec.specHash)throw Error('hot_model_spec_conflict');return {state:'reused',response:saved.response,resultKey:spec.resultKey};}
+  const [pending]=await db`select id,spec_hash from ${db(schema)}.model_attempts where result_key=${spec.resultKey}
+    and state in ('reserved','dispatching','outcome_unknown')`;
+  if(pending){if(pending.spec_hash!==spec.specHash)throw Error('hot_model_spec_conflict');return {state:'busy',attemptId:pending.id};}
+  return null;
+}
+export async function lookupModel(db:Sql,schema:string,spec:{resultKey:string;specHash:string}){
+  schemaName(schema);hash(spec.resultKey);hash(spec.specHash);
+  return db.begin(async tx=>{
+    await tx`select pg_advisory_xact_lock(hashtextextended(${schema},231501))`;
+    return lookupUnlocked(tx,schema,spec);
   });
 }
 export async function markModelDispatch(db:Sql,schema:string,owner:RuntimeOwner,value:ModelTicket):Promise<void>{

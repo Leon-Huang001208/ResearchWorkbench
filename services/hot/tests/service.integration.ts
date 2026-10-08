@@ -50,7 +50,8 @@ test('real owned service process stops and restarts without deleting material or
         child!.on('error',()=>reject(Error('hot_fixture_process_failed')));
         child!.on('exit',()=>{if(!buffer.includes('\n')) reject(Error('hot_fixture_process_exited'));});
       });
-      child.stdin!.end(JSON.stringify({config:{enabled:true,database:{mode:'external',tls:'disable',port:receipt.port,name:'hot_probe',schema,user:worker}},
+      child.stdin!.end(JSON.stringify({config:{enabled:true,model:{enabled:restart===1,scopeId:'unapproved'},database:{mode:'external',tls:'disable',port:receipt.port,name:'hot_probe',schema,user:worker}},
+        nativeModel:{source:'/absent-dsh',credentials:{python:'/absent-python',bridge:'/absent-bridge',dataHome:'/absent-home'}},
         instanceId:instance,mode:'native',workerPassword,controllerUser:controller,controllerPassword,controllerToken,readerToken}));
       const result=await ready;
       assert.equal(result.state,'initialized');
@@ -59,6 +60,8 @@ test('real owned service process stops and restarts without deleting material or
       const status=await rpc(result.port,result.owner,readerToken,'status',{}) as any;
       assert.equal(status.sourceCount,1);
       assert.equal(status.worker,'running');
+      assert.equal(status.model,'blocked_model');
+      assert.equal(status.modelCode,restart===1?'hot_model_authorization_missing':'hot_model_disabled');
       const change={sourceId:'fed',expectedRevision:String(restart*2),enabled:false,frequencySeconds:120};
       const requestId=randomUUID();
       await assert.rejects(rpc(result.port,result.owner,readerToken,'source.configure',change,requestId),/denied/);
