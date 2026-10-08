@@ -37,6 +37,9 @@ Docker dsh-builder 的 Node binary 与完整 /usr/local/include/node 来自同�
 24.19.0 stage；仅 builder 设置 npm_config_nodedir=/usr/local，让原生扩展使用该版本本地 headers。
 最终 runtime 不复制开发 headers 或继承该 ENV，原非 root/staged-image 边界保持。
 
+同一 DSH builder 的 pnpm install 命令局部限制并发为 8、单请求期限为 120 秒，
+不增加部署节点或 runtime 环境；参数及真实构建验收边界见[安装指南](../../research-web-installation.md)。
+
 research-tools 保持 tools/sessions 注入；生产执行器来自已导入的 child_process.spawn，ctx 自有
 data descriptor 只保留原测试替身，避免读取未声明 Cordis 服务 getter，不新增插件或部署节点。
 

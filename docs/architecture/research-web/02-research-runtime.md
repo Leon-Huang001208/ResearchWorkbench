@@ -56,6 +56,9 @@ Docker staging 补齐固定 DSH 虚拟 Profile 锚点所需的根 `node_modules`
 固定 Docker DSH 构建的原生 fs-ext 使用同 node-runtime stage 的完整本地 headers；builder
 npm_config_nodedir=/usr/local 只影响编译，最终 runtime/协议/生命周期不继承该目录或 ENV。
 
+DSH builder 的 pnpm 下载并发 8、单请求期限 120 秒只作用于现有 install 命令，
+不改变默认重试、运行协议或生命周期，详见[安装指南](../../research-web-installation.md)。
+
 research-tools 注册时不读取 ctx.spawnProcess getter；仅自有 data descriptor.value 为函数时
 使用测试覆盖，否则用原 imported spawn。队列、终止、close 后释放和 poison 恢复合同保留；
 这项注册回归不等同真实 fixed Cordis preset 加载或成功 session 创建，后者须独立实测。

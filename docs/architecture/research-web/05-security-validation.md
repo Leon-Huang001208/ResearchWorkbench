@@ -1,5 +1,8 @@
 # 安全边界与验证方法
 
+Docker DSH builder 的[下载参数](../../research-web-installation.md)仅将现有 pnpm install 并发设为 8、
+单请求期限设为 120 秒；frozen lockfile、默认重试、registry、TLS、签名和最低发布时间校验保持。
+
 停止端口等待不授予所有权：只在实际 NativeRuntime 的初始状态已确认运行、显式
 stop-current 与公开 stop 成功后执行；原 Native 端口在停止前冻结。预算在停止前
 拒绝 bool、数值子类、非有限、负数与超过45秒的值；巨大整数先比较界限。

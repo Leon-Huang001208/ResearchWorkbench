@@ -44,6 +44,16 @@ test('builders reuse the hashed Web lock, vendored CJPY and pinned DSH verifier'
   assert.doesNotMatch(file, /requirements\/docker|git clone .*main|git clone .*master/);
 });
 
+test('DSH builder bounds locked downloads only on its existing pnpm install command', () => {
+  const lines = instructions();
+  const builder = lines.slice(lines.indexOf('FROM python-builder AS dsh-builder') + 1,
+    lines.indexOf('FROM ${PYTHON_IMAGE} AS runtime'));
+  assert.deepEqual(builder.filter(line => line.startsWith('RUN corepack pnpm@'))
+    .map(line => line.replace(/\s+/g, ' ').trim()), [
+    'RUN corepack pnpm@11.7.0 install --frozen-lockfile --network-concurrency=8 --fetch-timeout=120000 && corepack pnpm@11.7.0 run build',
+  ]);
+});
+
 test('DSH builder uses headers from the exact Node binary stage without runtime nodedir', () => {
   const lines = instructions();
   const builder = lines.slice(lines.indexOf('FROM python-builder AS dsh-builder') + 1,

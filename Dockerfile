@@ -64,7 +64,7 @@ SetupWebInstaller(project_root=Path.cwd(), data_home=Path('/tmp/rwb-build')).ver
 logging.info('docker_dsh_source_verified')
 PY
 WORKDIR /opt/rwb/dsh
-RUN corepack pnpm@11.7.0 install --frozen-lockfile \
+RUN corepack pnpm@11.7.0 install --frozen-lockfile --network-concurrency=8 --fetch-timeout=120000 \
     && corepack pnpm@11.7.0 run build
 WORKDIR /opt/rwb
 RUN python docker/stage_dsh.py

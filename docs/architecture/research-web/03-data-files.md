@@ -45,6 +45,9 @@ staged manifest。它们属于只读代码资产，不迁移用户 Profile、日
 Docker builder 的 Node headers 是固定基础镜像资产，和 binary 同源，不是用户数据或新依赖锁。
 完整目录覆盖 config.gypi/common.gypi；只在 dsh-builder 使用，不进入最终 runtime 或研究根。
 
+Docker pnpm 下载并发 8、单请求期限 120 秒是[构建命令局部参数](../../research-web-installation.md)，
+不新增缓存或持久字段，也不改变研究数据、认证状态或凭据路径。
+
 Docker CLI代理只来自本次host环境校验，不写研究数据、manifest、Compose或镜像；provider
 秘密和Docker endpoint/TLS覆盖项不继承。Doctor.proxy只投影state/configured/local_bypass/issues，
 没有代理URL、认证或NO_PROXY原列表。

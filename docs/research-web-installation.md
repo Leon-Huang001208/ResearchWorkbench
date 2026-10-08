@@ -193,6 +193,12 @@ launch label，只有启动前不存在、label/安装归属/候选image全部�
 
 Docker `--repair` 重复有界构建和镜像身份验证，不删除产品数据、未知容器或 Native 环境。Docker 安装可能因远端镜像、APT、npm/pnpm 或 GitHub 网络失败；不得把 `--check-only` 成功或本机源码测试当作完整构建成功。
 
+Docker DSH builder 的固定 `pnpm@11.7.0 install --frozen-lockfile` 命令局部设置
+`--network-concurrency=8 --fetch-timeout=120000`，将下载并发限制为 8、单请求期限设为
+120 秒，默认重试仍为 2 次。这不是整个构建步骤的总期限；Native、最终 runtime 环境、
+registry、TLS、签名和最低发布时间策略保持不变。参数调整不证明网络故障根因或锁定
+tarball 下载已经修复，仍须以公开安装入口的真实新镜像构建和健康检查验收。
+
 容器启动时，Web 每轮完整页面就绪探测共用最多 3 秒（Runtime API、首页与主静态模块），
 并裁剪到剩余启动期限；DSH 每轮仍为 0.25 秒，各角色启动期限仍为 35 秒。
 这只修正完整页面探测的预算，真实镜像安装与生命周期验收须另行取得证据。
