@@ -10,7 +10,7 @@
 | 三项FILE | Word、Excel、PowerPoint固定样例均已从正常Web页面生成、读取、修改、下载并独立检查；Excel文件模式明确未重算。详见最新分项证据，不冒充原生通过。 |
 | 三项NATIVE | Excel6b4a5a33真实5→10→保存重开10及清理PASS；PPT8b79b55d保存重开读回与用户视觉确认PASS；Word20124实际原生新建A、736389修改B、7f8014修改3，均正式Web入口保存/关闭/重开/完整读回/清理PASS，下载9项独立核对PASS。旧超时及失败记录保留。 |
 | Word清理 | 用户已关闭其确认的旧测试报告且不保存；3f单文件访问允许后实际保存A，精确HFS/saved/读回核对并关闭，文件作为恢复证据保留。20124/736389/7f8014三个成功任务文稿关闭、临时目录删除已独立确认。历史归属不明对象仍UNVERIFIED，不补造旧文件身份或删除记录。 |
-| hostAcceptance | 已冻结bd05的Mac工程回执PASS（Bootstrap37760339730/Web Checks37760324407）；本次新增Word修复尚待冻结送检，不把旧CI用于新源码。六项功能现已通过固定样例；Project Constraints远端/PR整合缺项及本轮完整工程收口仍保留。 |
+| hostAcceptance | PASS，冻结源码候选2d2630ec94e3e7063dcf800b4f99c9dd9b7bd492：当前Mac Bootstrap37793989953通过；通用Web Checks37793973081通过（Ubuntu，不冒充Mac原生证据）。六项固定样例功能通过。远端Project Constraints/PR冲突及模型自动选择Office工具缺项仍保留，不能称整个Goal完成。 |
 | aggregateAcceptance | NOT_READY；mergeReady=false/releaseReady=false。Windows/Linux/Docker由所属任务留未验证，本轮不执行、不改全局平台规则。 |
 
 当前Goal仅Word/Excel/PowerPoint、macOS Native+Web，不扩展金融插件或其他Office应用；旧商业接口记录保留事实但不重启其验收。原各轮结果和失败历史完整保留；旧段落当时状态不覆盖本节与最新记录。plan/receipt及脱敏证据仍在 `logs/settings-model-loop/`，不另建总报告；不更新生产、不合并或发布，本轮供应商模型请求0，意外未隔离测试的背景请求UNKNOWN另行保留，不将其伪写为绝对0。
@@ -1323,3 +1323,15 @@ Bootstrap37760339730最终success，attempt1/workflow_dispatch/job113254941458/m
 本轮实际最小回归：专用测试解释器执行python -m pytest --confcutdir=tests/research_web tests/research_web/test_local_integrations.py tests/research_web/test_report_rendering.py -q，113 PASS/1既有skip，23.58秒，office-word-complete-regression.log。Black/isort/Ruff本次两个Python文件exit0；mypy --python-executable本任务产品.venv app/research_web/local_integrations/verifiers.py命令exit1，16条既有4文件诊断，目标verifiers无新诊断；与先前17条对比new diagnostics空，不自行豁免。Python只读复审逐项确认路径/权限/真实创建/格式/范围/索引边界，未将静态Approve计实机PASS。
 
 当前六项固定Office功能均有真实证据；新Word源码仍需完整changed-set规划与匹配工程门。本轮Office操作模型请求0、商业数据请求0；旧模型/T6/Keychain/Excel/PPT未重验，B归因豁免仍保持。当前旧bd05 CI仅认证旧代码，PR/master分叉、外部门与新代码送检状态须另行收口，不宣称已合并、发布或更新生产。
+
+### Word收口：当前源码CI与冻结回执
+
+冻结并已普通push源码候选 `2d2630ec94e3e7063dcf800b4f99c9dd9b7bd492`，完整交付差异88路径；本次实现提交4文件。之后只追加本报告，不改变产品源码，不能宣称CI检出了后续报告提交。
+
+- Research Web Checks：run37793973081，attempt1，workflow_dispatch，checks成功，Ubuntu runner；checkout日志实际SHA为2d2630ec94e3e7063dcf800b4f99c9dd9b7bd492。
+- macOS Bootstrap：run37793989953，attempt1，workflow_dispatch，Clean Web install (macos-14)成功；实际checkout同2d，干净安装与启动/Doctor步骤完成。本机Word实机证据独立于CI，不声称CI安装Office。
+- 原PR #81保持草稿，head2d，API base205d2a170d9ece9c2751e014b63abe326510ab9c，mergeable=false/dirty。没有merge-ref验收；目标master漂移与69提交/137路径整合未执行。Project Constraints远端NOT_RUN，不以本地成功代替。
+
+实际执行gh run view --json、gh api actions/runs、gh run view --log，成功回执及实际checkout保存在office-word-complete-{checks,bootstrap}-ci.{json,log}。完整计划office-goal-full-plan.json与receipt.json在干净冻结2d验证exit0：hostAcceptance=PASS、aggregateAcceptance=NOT_READY、mergeReady=false、releaseReady=false。中间一次回执Linux状态未随新增PASS调整导致校验失败，已依政策改为BLOCKED重新验证成功；未修改schema/政策。
+
+两个受控诊断副本已先确认Word未打开，再保留失败/成功样本证据并精确删除原登记文件及空目录；office-word-probe-cleanup.json独立确认。3f历史恢复文件作为明确诊断证据保留，不写成删除；未知旧对象UNVERIFIED。本轮Word功能问题已解决，Word/Excel/PPT的FILE/NATIVE固定样例六项均PASS；模型自动选择Office工具未执行、商业接口与其他平台独立缺项保留。生产8088/3081未修改、PR未合并、未发布。
