@@ -382,6 +382,34 @@ validUntil=2026-10-08T19:08:02Z（北京时间10月9日03:08:02），不重置�
 Chrome备用创建调用及随后的状态核对均在工具连接阶段超时，不证明已打开页面，未重复创建；
 未修改插件/签名或关闭任何标签。应用open_in_codex设置页请求queued，不伪称页面已呈现。
 
+用户随后确认已从Settings保存Key；仅公共runtime投影验证configured=true/storageDocker/
+connected及health=true，不读取Key。首次restart无force被既有runtime_force_required拒绝，
+服务仍健康；核对public sessions为空后普通stop成功、container exited0。观察到Codex客户端
+CLOSE_WAIT连接但最终停止成功，不认定该状态为故障根因或自动关闭标签。
+随后正常start启用预算失败：container exited1/unhealthy，supervisor runtime_wait/
+RuntimeError/runtime_returncode1，尚未启动Web或请求供应商。固定DSH Loader明确报
+dsh-tabbit pending waiting settings，以及permissions/tool-browser/mentions/research-tabbit-adapter
+waiting tabbit；这是docker-text禁用settings后未同步处理可选插件依赖的真实缺陷。
+新失败记录`budget-activation-failure-20261009.json`独立保留；不重置/延期预算、不改Key或放宽guard。
+仅目标内受限overlay依赖修补进行中，旧镜像核心/凭据PASS不当作预算模式启动PASS。
+
+受管prepare已创建同任务integration worktree，最新master与本分支仅三个文档生成物冲突。
+单实现者已保留主线新图册设计、合并模型/预算inventory并固定真实b193源码snapshot，
+90项最近合同和生成/约束门通过；仍需独立审查和真实merge提交，未push/PR/dispatch。
+
+纯文本预算overlay最小修补17行，只在docker-text末尾禁用真实profile中的7个可选Tabbit行；
+settings仍disabled，Native/普通Docker输出不变，原预算/endpoint/model/输出/重试/工具/附件guard不改。
+SPEC独立190PASS8.73秒；PythonQUALITY先189PASS1opt-inSKIP，随后实际SDK目标1PASS7.12秒；
+JSQUALITY语法与异步/唯一回执/fetch/cleanup审查批准。两次fresh SDK进程激活及settings字节不变
+证明仅属fixture，tracked fetch0不等于全OS网络封闭。最终fixture替换基线确实RED，但
+Loader提前exit使safe诊断为空，不能由该回执宣称RED零网络计数；物理失败插件依赖另有证据。
+父任务实际组合container_supervisor/runtime_launch 287PASS46.65秒，保存新XML/log；
+Black/isort/Ruff及文档治理/索引/diff通过。mypy工具缺pydantic插件依赖，本轮未执行成功，不装包。
+launch_runtime冻结SHA df9575ef6e21d94d57141a5b9c25646efac3e63d7f983c87335663ea153397e6。
+修补后真实镜像/请求仍须另验收，旧c28预算启动FAIL保留。
+三文件主线文档集成另经SPEC/QUALITY批准，真实merge8461bb838f402592ad11b19596ad7a71a382b965，
+managed prepare已记录prepared；后续新修补必须再同步该真实集成，不将旧prepared当新源码门PASS。
+
 <!-- architecture-review {"group":"dual-runtime","structure":"unchanged","reason":"在既有私有credentials bind内增加模型叶和非秘密安装身份/参数绑定；Native overlay不变，无新mount、Host服务或部署节点。旧实例空ID投影保留原完整生命周期守卫但无模型能力，新精确绑定只在实际完整inspect后派生，不改变DSH唯一引擎或数据根，实际镜像和真实研究另行验收。","diagrams":[]} -->
 
 <!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"当前JS私有pipe已经接入稳定安装ID/source绑定，继续委派原Host浏览器record；Native默认overlay不变，模型秘密只落在既有Docker私有credentials信任区或Native Keychain，无新部署组件、公开取密API、宿主bridge或第二执行循环。当前按实现合同记录，实际镜像及真实模型状态未验收且不借静态图推导通过。","diagrams":[]} -->

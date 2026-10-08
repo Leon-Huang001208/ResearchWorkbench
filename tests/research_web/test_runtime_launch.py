@@ -1878,8 +1878,121 @@ def test_docker_text_acceptance_requires_exact_staged_model_binding(tmp_path, mo
     assert "baseURL: https://api.deepseek.com" in overlay
     assert "- id: settings\n  disabled: true" in overlay
     assert "budgetBridge:" in overlay
+    import yaml
+
+    rows = {row["id"]: row for row in yaml.safe_load(overlay) if "id" in row}
+    for plugin in (
+        "tabbit-browser",
+        "tabbit-permissions",
+        "tabbit-tool-browser",
+        "tabbit-web-fetch",
+        "tabbit-mentions",
+        "tabbit-installer",
+        "research-tabbit-adapter",
+    ):
+        assert rows[plugin]["disabled"] is True
     assert "tool: datahub_get_fund_data" not in overlay
     assert "RESEARCH_ACCEPTANCE_CONTROL" not in env
+
+
+def test_docker_text_generated_overlay_activates_actual_fixed_sdk(tmp_path, monkeypatch):
+    import os
+    import socket
+
+    source_name = os.environ.get("RWB_TEST_FIXED_DSH_SOURCE")
+    node = os.environ.get("RWB_TEST_NODE")
+    if not source_name or not node:
+        pytest.skip("explicit existing fixed SDK and Node required; no dependency installation")
+    source = Path(source_name)
+    data = tmp_path / "isolated-data"
+    identity = "b" * 32
+    monkeypatch.setenv("RWB_DSH_STAGED", "1")
+    monkeypatch.setenv(
+        "RESEARCH_ACCEPTANCE_CONTROL",
+        json.dumps(
+            {
+                "dataHome": str(data.resolve()),
+                "profile": "docker-text",
+                "installationId": identity,
+                "modelCalls": 3,
+                "maxOutputTokens": 512,
+            }
+        ),
+    )
+    monkeypatch.setattr(
+        launch_runtime,
+        "verify_staged_runtime",
+        lambda *a, **kw: {
+            "closure_sha256": "a" * 64,
+            "closure_files": 1,
+        },
+    )
+    monkeypatch.setattr(
+        launch_runtime,
+        "read_acceptance_budget",
+        lambda _: {
+            "modelCalls": 3,
+            "maxOutputTokens": 512,
+        },
+    )
+    _, _, work = launch_runtime.prepare(
+        source,
+        data,
+        node,
+        3081,
+        model_backend="docker-private-file",
+        model_credential_root=Path("/run/rwb-secrets/private/models") / identity,
+        model_installation_id=identity,
+    )
+    home = data / "runtime/home"
+    launch_runtime.prepare_runtime_module_fallback(source, home, node)
+    vendor = Path(launch_runtime.__file__).parents[2] / "vendor/dsh-tabbit/0.3.4"
+    launch_runtime.stage_tabbit_package(vendor, home)
+    launch_runtime.stage_tabbit_adapter(
+        Path(launch_runtime.__file__).with_name("runtime") / "tabbit-adapter.mjs", home
+    )
+    launch_runtime.prepare_runtime_module_fallback(source, home, node)
+    settings = home / "settings.yaml"
+    settings.write_text(
+        "llm-deepseek:\n  baseURL: https://invalid.example.test\n", encoding="utf-8"
+    )
+    before = settings.read_bytes()
+    for _ in range(2):
+        with socket.socket() as listener:
+            listener.bind(("127.0.0.1", 0))
+            port = str(listener.getsockname()[1])
+        result = subprocess.run(
+            [
+                node,
+                str(Path(__file__).with_name("model_credentials_native.mjs")),
+                str(source),
+                str(data),
+                "sdk-docker-text-activation",
+                port,
+            ],
+            cwd=work,
+            env={
+                "PATH": "/usr/bin:/bin",
+                "LANG": "en_US.UTF-8",
+                "HOME": str(home),
+                "DSH_HOME": str(home),
+                "DSH_TELEMETRY_DISABLED": "1",
+            },
+            text=True,
+            capture_output=True,
+            timeout=30,
+            check=False,
+        )
+        safe = [
+            line
+            for line in result.stdout.splitlines()
+            if line.startswith("DOCKER_TEXT_ACTIVATION:")
+        ]
+        assert result.returncode == 0, safe
+        assert len(safe) == 1
+        proof = json.loads(safe[0].split(":", 1)[1])
+        assert proof["result"] == "PASS" and proof["networkCalls"] == 0
+        assert settings.read_bytes() == before
 
 
 @pytest.mark.parametrize("bad_cap", [True, 0, -1, 4097, 512.0, "512"])
