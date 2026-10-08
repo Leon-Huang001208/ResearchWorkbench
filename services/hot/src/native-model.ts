@@ -11,6 +11,7 @@ import type {GroupingModel} from './processing.ts';
 import type {createNativeDsh} from './native-dsh.mjs';
 import {sha256} from './material.ts';
 import {logEvent} from './log.ts';
+import {validatePricing,readPrivatePrice,priceExists} from './pricing.ts';
 
 export type NativeModelBootstrap=Parameters<typeof createNativeDsh>[0];
 type Context=Awaited<ReturnType<typeof createNativeDsh>>;
@@ -39,27 +40,36 @@ export async function loadNativeModel(db:postgres.Sql,schema:string,owner:Runtim
       throw Error('hot_model_budget_settings_conflict');
     const verifiedDay=day();
     if(!/^\d{4}-\d{2}-\d{2}$/.test(verifiedDay))throw Error('hot_model_pricing_refresh_required');
-    let bytes:Buffer;
-    try{bytes=await readFile(resolve(import.meta.dirname,`../pricing.deepseek.${verifiedDay}.json`));}
-    catch{throw Error('hot_model_pricing_refresh_required');}
-    const pricing=JSON.parse(bytes.toString('utf8'));
-    if(pricing.verifiedOn!==day()||pricing.provider!=='deepseek-official'||pricing.requestedModel!=='deepseek-v4-flash'||
-      pricing.currency!=='USD')throw Error('hot_model_pricing_refresh_required');
+    const privatePath=resolve(bootstrap.credentials.dataHome,'hot/pricing',`${verifiedDay}.json`);
+    let pricing:Record<string,any>,versionHash:string,privateFingerprint:string|undefined;
+    if(priceExists(privatePath)){
+      const loaded=readPrivatePrice(privatePath,owner.instanceId,verifiedDay);pricing=loaded.pricing;versionHash=privateFingerprint=loaded.fingerprint;
+    }else{
+      let bytes:Buffer;try{bytes=await readFile(resolve(import.meta.dirname,`../pricing.deepseek.${verifiedDay}.json`));}
+      catch{throw Error('hot_model_pricing_refresh_required');}
+      pricing=validatePricing(JSON.parse(bytes.toString('utf8')),verifiedDay);versionHash=sha256(bytes);
+    }
     context=await createContext(bootstrap);
     const models=await context.runtime.listModels(pricing.provider);
     if(!models.some(model=>model.id===pricing.requestedModel))throw Error('hot_model_catalog_missing');
-    const pricingGuard=()=>{if(day()!==pricing.verifiedOn)throw Error('hot_dsh_pricing_refresh_required');};
+    const pricingCurrent=()=>{
+      if(day()!==pricing.verifiedOn)return false;
+      try{return privateFingerprint?readPrivatePrice(privatePath,owner.instanceId,day()).fingerprint===privateFingerprint:!priceExists(privatePath);}
+      catch{return false;}
+    };
+    const pricingGuard=()=>{if(!pricingCurrent())throw Error('hot_dsh_pricing_refresh_required');};
     const legacyTariffHashes=await Promise.all(['2026-10-08','2026-10-09'].map(async date=>sha256(await readFile(resolve(import.meta.dirname,`../pricing.deepseek.${date}.json`)))));
     const ledger:TextLedger={lookup:spec=>lookupModel(db,schema,spec),reserve:spec=>{pricingGuard();return reserveModel(db,schema,owner,config.model.scopeId,spec);},
       dispatch:t=>{pricingGuard();return markModelDispatch(db,schema,owner,t);},unknown:t=>markModelUnknown(db,schema,t),
       save:(t,r,u)=>saveModelReceipt(db,schema,t,r,u),cancelUnsent:t=>cancelUnsentModel(db,schema,owner,t.id)};
-    const tariff:TextTariff={...pricing,versionHash:sha256(bytes)};
+    const tariff:TextTariff={versionHash,inputMicrosPerMillion:pricing.inputMicrosPerMillion,cacheReadMicrosPerMillion:pricing.cacheReadMicrosPerMillion,
+      cacheWriteMicrosPerMillion:pricing.cacheWriteMicrosPerMillion,outputMicrosPerMillion:pricing.outputMicrosPerMillion};
     const active=context;
     const grouping=createDshGrouping(active.runtime,ledger,tariff,active.safeOutput,
       {provider:pricing.provider,model:pricing.requestedModel,cacheIdentity:'input-v2',legacyTariffHashes});
     logEvent('model_ready');
-    return {get state(){return day()===pricing.verifiedOn?'ready':'blocked_model';},
-      get code(){return day()===pricing.verifiedOn?null:'hot_model_pricing_refresh_required';},
+    return {get state(){return pricingCurrent()?'ready':'blocked_model';},
+      get code(){return pricingCurrent()?null:'hot_model_pricing_refresh_required';},
       groupingModel:{run(packet,signal){pricingGuard();return grouping.run(packet,signal);}},close:()=>active.close()};
   }catch(error){
     if(context){try{await context.close();}catch{logEvent('model_blocked');}}

@@ -424,7 +424,7 @@ authorization in the explicitly selected schema. Settings do not create, enlarge
 or reset authorization. Existing daily policy must fit the configured budget and
 timezone. A missing/paused policy or credential yields `blocked_model`; collection
 and projections stay available. Explicit offline authorization/query/termination CLI
-is described below; daily pricing refresh and installed-worker acceptance remain pending.
+is described below; manual pricing import is available; installed-worker acceptance remains pending.
 
 The Native Host passes the existing managed interpreter, fixed credential bridge,
 actual data home and pinned DSH source on private stdin. DSH text context uses the
@@ -437,7 +437,7 @@ blocks model work without stopping collection. After an official refresh and res
 input-v2 cache identity uses input/prompt/model parameters independently of tariff.
 The two pre-mount tariff identities remain compatible: cache/unknown lookup and new
 admission share the receipt fence, and a reused result retains its original key.
-The daily pricing refresh configuration/CLI is not yet a completed user workflow.
+The manual daily pricing import workflow is described below; automatic refresh remains pending.
 
 ## Explicit model budget and uncertain attempts
 
@@ -488,3 +488,11 @@ A cache miss cannot dispatch a paid request; exact legacy result keys and unchan
 cumulative counters are required. Separate missing-credential proof uses an isolated
 empty data home. These prove readiness and unpaid recovery, not a full installed
 authorized worker run, fresh event grouping, browser journey or formal research.
+
+## User price catalog
+
+Stop Hot, review the official provider page and update a non-secret dated record matching the packaged pricing JSON format. Then run `./rwb hot model-pricing-import --file pricing.json --verify-official-pricing --reason "Reviewed official peak rates" --json` and restart. The command uses the current configured timezone, accepts only the fixed official provider/model/currency and rates at least as conservative as the bundled known peak floor. It does not fetch/verify the source automatically, resolve credentials, create quota, connect to PG or invoke a model. The explicit flag records operator attestation, not independently validated billing.
+
+Private `hot/pricing/YYYY-MM-DD.json` is the current catalog, with immutable content-hash objects beside it. UID/0700 directory, UID/0600 regular single-link files, instance/project/date and operator metadata are checked. Same input reuses the prior object and rechecks durability. Complete fsynced objects are atomically published under the manager lock; post-publication directory-fsync failure returns the visible hash with durability unavailable and nonzero exit. Retry repairs the durability acknowledgement. Existing objects are retained across price revisions.
+
+Normal Native loading prefers a valid private catalog; invalid or dangling-symlink records block instead of falling back. Bundled current-day pricing remains a bootstrap fallback only when no private record exists. Each run, reserve and dispatch checks the loaded date and fingerprint, so changed/imported catalog requires restart and never changes input-v2 result identity or accumulated budget. Price controls are CLI only; automatic refresh, vendor invoice verification and pricing/data-directory backup policy remain pending.

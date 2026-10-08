@@ -71,3 +71,5 @@ Windows/Linux 设备任务从 GitHub 主线取得源码，确认目标 OS/版本
 Hot Native 模型工厂已在 macOS 经实际受控凭据/固定DSH目录、两个旧真实输入的只读缓存恢复验证；独立Node/PG确认缺授权时采集读取不受阻。此证据不代表完整安装或持续付费worker验收；Docker模型、完整模式切换与Windows/Linux Native仍保留各自待验状态。
 
 macOS 模型管理三条 CLI 已经现有解释器/配置桥、独立 Node 与真实 PG 验证，凭据和 interpreter 选择在测试中隔离。它不证明真实 SystemKeychain 管理完整生命周期、安装级授权 worker、Mac 干净 CI 或其他平台支持。
+
+macOS 定价 CLI 的真实校验/文件发布、重放及故障注入已本地验证；无模型/PG调用，测试不证明完整安装、SystemKeychain、事件浏览或其他平台支持。

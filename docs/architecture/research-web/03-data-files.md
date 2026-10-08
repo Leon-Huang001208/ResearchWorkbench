@@ -206,3 +206,5 @@ staging 修复只作用于镜像只读发布资产，不删除或迁移产品数
 正常 Hot Native 模型使用配置指定的已有 model_budgets scope，累计额度不会随重启/日期改变。input-v2 缓存身份仅绑定模型参数、输入和提示版本；旧价格身份的回执和未知尝试在同一 schema 栅栏查询，预留前原子复查。历史回执 resultKey 和原费用记录保持原值，不转写或退款。当前联合研究快照备份仍未完成。
 
 迁移14新增不可变 model_control_requests，保存 UUID、操作者、理由、输入 hash、前后状态与响应。模型尝试增加 abandoned；保留费用和唯一输入阻断，只有已有 receipt 才可进入 received。累计预算不因重复授权而重置。定价配置、研究快照联合恢复及恢复后的预算核对仍待完成。
+
+用户定价保存 hot/pricing/YYYY-MM-DD.json 与内容hash归档；原记录保留，当前指针原子发布。目录/文件 private 属性及实例/项目绑定校验；已可见但目录fsync失败的回执带hash和durability unavailable，重放补验。其备份/恢复整合仍待完成。

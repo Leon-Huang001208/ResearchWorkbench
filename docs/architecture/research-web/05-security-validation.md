@@ -211,3 +211,5 @@ Docker Desktop 初始化在固定 bind 私有叶的原完整 guard 内，用 O_D
 Native Hot 模型加载只引用已有持久授权范围；配置本身不能建额或重置。初始化前通过现有受控凭据桥检查 configured，缺失时不注册付费 handler。跨日定价检查在运行、预留和派发前重复执行；旧价格回执/未知尝试的兼容查询和新预留与迟到回执持同一 schema 栅栏，避免读 miss 导致重复收费。正常研究 handoff 与用户授权/价格刷新 CLI 仍待完成。
 
 模型管理不开放 worker/Agent RPC：迁移身份、实例控制 hash、停机/过期归属与同 schema 栅栏共同准入。普通 worker 不能授权或终止，也不能把 abandoned/unknown 退回 reserved/cancelled 来退款；收到 receipt 后的 received 转换和派发后的 day_key 受数据库状态门保护。
+
+model-pricing-import 要求显式官方核对标记和停机；不读取凭据或授予额度。只接受固定官方模型/币种及已知保守费率下限，私有定价加载不允许symlink、多链接、外部实例或坏记录回退；运行指纹阻断旧费用派发。核对标记是操作者声明，不是厂商账单认证。

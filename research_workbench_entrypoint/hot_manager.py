@@ -488,6 +488,11 @@ class HotManager:
 
         return run_model_operation(self, operation, parameters, **options)
 
+    def import_pricing(self, pricing: dict, *, verified: bool, reason: str) -> dict:
+        from .hot_pricing import import_pricing
+
+        return import_pricing(self, pricing, verified=verified, reason=reason)
+
     def archive(self, operation: str, directory: Path | None = None, target_database: str | None = None,
                 migration_user: str = "postgres", migration_account: str = "hot-migration-database") -> dict:
         """Backup a stopped installation; restore only into another database's absent schema."""

@@ -207,6 +207,11 @@ def dispatch(argv: list[str], project: Path) -> int:
     model_attempts.add_argument("--limit", type=int, default=50)
     model_attempts.add_argument("--offset", type=int, default=0)
     model_attempts.add_argument("--json", action="store_true")
+    pricing = sub.add_parser("model-pricing-import")
+    pricing.add_argument("--file", type=Path, required=True)
+    pricing.add_argument("--verify-official-pricing", action="store_true")
+    pricing.add_argument("--reason", required=True)
+    pricing.add_argument("--json", action="store_true")
     model_authorize = sub.add_parser("model-authorize")
     model_authorize.add_argument("--file", type=Path, required=True)
     model_authorize.add_argument("--authorize-paid", action="store_true")
@@ -240,7 +245,7 @@ def dispatch(argv: list[str], project: Path) -> int:
     try:
         if args.command == "configure":
             value = save_settings(project, home, _read(args.file.absolute()))
-        elif args.command in ("setup", "start", "stop", "restart", "credential", "backup", "restore", "sources", "source-configure", "channels", "events", "event", "channel-configure", "event-correct", "model-attempts", "model-authorize", "model-terminate") or (
+        elif args.command in ("setup", "start", "stop", "restart", "credential", "backup", "restore", "sources", "source-configure", "channels", "events", "event", "channel-configure", "event-correct", "model-attempts", "model-authorize", "model-terminate", "model-pricing-import") or (
             args.command in ("status", "doctor") and (home / "hot" / "process.json").exists()
         ):
             from .bootstrap import native_python, native_environment
@@ -274,6 +279,8 @@ def dispatch(argv: list[str], project: Path) -> int:
                 if args.scope is not None:
                     filters["scopeId"] = args.scope
                 value = manager.model_operation("attempts", filters)
+            elif args.command == "model-pricing-import":
+                value = manager.import_pricing(_read(args.file.absolute()), verified=args.verify_official_pricing, reason=args.reason)
             elif args.command in ("model-authorize", "model-terminate"):
                 operation = "authorize" if args.command == "model-authorize" else "terminate"
                 parameters = {"policy": _read(args.file.absolute()), "authorizePaid": args.authorize_paid} if operation == "authorize" else {"attemptId": args.attempt}
@@ -316,7 +323,7 @@ def dispatch(argv: list[str], project: Path) -> int:
                 value["checks"] = {"configuration": "configured" if value["enabled"] else "disabled",
                                    "service": "NOT_RUN", "database": "NOT_RUN", "model": "NOT_RUN"}
         print(json.dumps(value, ensure_ascii=False))
-        return 1 if isinstance(value, dict) and (value.get("logging") == "unavailable" or value.get("persistence") == "unavailable" or value.get("state") in ("outcome_unknown","rejected")) else 0
+        return 1 if isinstance(value, dict) and (value.get("logging") == "unavailable" or value.get("persistence") == "unavailable" or value.get("durability") == "unavailable" or value.get("state") in ("outcome_unknown","rejected")) else 0
     except HotError as error:
         log.warning("hot_operation_failed code=%s", str(error))
         print(json.dumps({"state": "unavailable", "code": str(error)}))

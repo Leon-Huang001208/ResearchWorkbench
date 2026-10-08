@@ -257,3 +257,5 @@ Docker Engine 可只在 `HostConfig.Tmpfs` 中表示 tmpfs，不将它们列入 
 macOS Docker 停止后回环端口的非监听绑定保留可能延迟释放；默认最多等待120秒，其余宿主默认10秒，显式等待参数保持。仍必须实际释放IPv4/IPv6绑定，超时失败关闭；不使用SO_REUSEADDR或只做连接探测来绕过占用。具体内核延迟原因未独立证实。
 
 model-authorize/model-attempts/model-terminate 已接入 CLI；未知控制回执保留 UUID、阻止启动并允许同参数重放。终止可能已发送的尝试只标记 abandoned，不退款；迟到回执可 settled/received，业务结果仍受原有 owner/claim 条件保护。记录/日志失败不丢原 UUID。
+
+Native 定价加载支持私有当日记录；坏记录不回退包内文件。日期/指纹在处理、预留和派发前重查，变更后 blocked_model，重启加载新值。缓存身份和累计授权不随价格改变。
