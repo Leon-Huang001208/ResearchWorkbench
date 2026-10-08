@@ -7,6 +7,8 @@
 1. 独立 DSH 实例使用独立 `DSH_HOME`、专用端口和干净启动环境；不要继承模型密钥或数据库环境变量。模型凭据由该实例 Web 表单另行配置。
 2. 在 DSH host 根作用域安装单调的 `ctx.tools.guard` 白名单。只启用经过审核的 `research_run_script` 及必要的原生子 Agent/消息工具；不得挂载裸 `fs-local`、shell、文件读写、搜索或其他宿主执行工具。仅仅隐藏工具描述或使用 `restrict` 不是安全边界。
 3. 将 `app/research_web/runtime/research-tools.mjs` 作为原生 Cordis 插件注册到所需 agent preset。插件 `inject = ['tools', 'sessions']`，调用 `ctx.tools.register`；无额外 DSH 包导入或 MCP 进程。
+   生产 supervisor 使用已导入的 child_process.spawn，不读取未声明的 ctx.spawnProcess 服务。
+   测试替身只从 ctx 自有 data descriptor.value 取函数；accessor/继承属性不作为覆盖，不触发 getter。
 4. 插件配置由服务控制，不允许模型参数覆盖：
 
    ```yaml

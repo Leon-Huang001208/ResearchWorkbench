@@ -1,12 +1,35 @@
 # Research Web 接口清单
 
 DSH 0.2.1 升级保持公开 HTTP 合同。内部 `subagent.list` 适配已移除的上游方法：读取权威父会话 `subagentCatalog` 投影，并与实时 `session/list` 的子会话归属、模式和 running 状态交叉核对；输出映射为既有 `kind=child` 与 `activity=running/inactive`，供详情、归属、取消及空闲保护共同消费；缺失或未知状态返回协议失败，不用空列表解除活动保护。空实例默认 `deepseek-flash`，已保存旧模型值继续保留。保存、应用、真实推理仍分别返回事实，不因默认值更新自动调用模型。
+macOS 异根私有 Native pair 认证只修复公开 CLI 的后续生命周期准入：已有根的完整不同根
+pair 可继续 start/force restart，未知/变化/同根写者仍返回 `runtime_ownership_unknown`。
+桥内 hint 不序列化到 CLI/HTTP 响应，不新增参数、配置开关、HTTP 路由或字段；force 不绕过
+重检，安装未就绪的首次 Native 切换仍在停止健康 Docker 前拒绝。
+
+内部端口 TypedDict 与显式默认值整理不改变公开参数、返回字段或错误类型；
+省略 Web/Runtime 端口仍沿原选择合同，控制与回滚错误码保持。
 
 1A收口：`ModelConfig.api_key`拒绝明显掩码、redacted/hidden占位及空白，错误响应仍固定invalid_request且不回显输入。普通新消息在受理收据/Native prompt之前检查凭据，configured严格为true才继续；缺失为model_credentials_missing，未确认形状为model_credential_state_unavailable。Runtime credential_storage来自受控source映射，未知不猜测为Keychain。
 
 模型页新增 `POST /api/research/runtime/model/test`：用户显式最小生成，通过现有 DSH 会话与最终事件验收，返回 `status`、`selection`、`checked_at`、可选 `session_id/code`；不返回密钥或推理正文。`PUT /runtime/model` 增加互斥的 `clear_api_key`，返回 `configured/applied_to/inference_verified`，保存不代表推理通过。Runtime GET 分开展示已保存、新会话应用、凭据配置、后端类型、提交结果未知及最近测试。
 
 macOS Native 模型 bridge 失败时，Runtime GET 保留成功的 Host `connected/health_check_passed`，仅将 `credential_configured` 设为 null、`credential_storage` 设为 unknown、`credential_code` 设为稳定 `model_credential_backend_unavailable`。不回显 Keychain 异常、不把未知当作可用；保存/请求仍沿既有失败关闭与 uncertain 处理。
+
+公开 Native installer auto-start 在同次持锁创建根后完成安装门并启动，不新增 CLI 参数
+或 HTTP 字段。check-only/Docker/no-start 不重执行 Native auto-start；已有根未知写者仍拒绝。
+
+公开启动入口在运行账本缺失且监听归属未知时返回 `runtime_ownership_unknown`；Docker
+origin commit 失败进入与健康失败相同的归属核验和恢复顺序。
+
+缺运行账本/端点时，显式 --web-port/--runtime-port 也须核验旧默认端口写者；其他 checkout
+的 Web/DSH 数据根未知时仍返回 runtime_ownership_unknown，不把换端口作为新的写者权限。
+
+本次启动原错误（例如 web_health_timeout）在失败恢复未获证明时仍为主错误；附加诊断进入
+受控日志/异常 recovery_issues，不把恢复失败伪装为新的可重试 bind 错误或新增 HTTP 字段。
+
+内部控制 JSON/URL parser 提取与独立端点/origin helper 不增加 HTTP 路由或响应字段；
+DataHub/MCP 原 reader 错误与权限合同保持。公开启动路径现消费端点/origin事务；CLI新增
+`--web-port` 和 Native-only `--runtime-port`，HTTP路由、研究协议、业务响应字段不因此增加。
 
 Native/Docker 模式选择、Docker 镜像接受摘要与健康等待均在公开 CLI/安装边界；本轮不增加
 HTTP 路由或响应字段。Native `rwb web status --json` 是稳定的安全状态投影，不返回日志路径；

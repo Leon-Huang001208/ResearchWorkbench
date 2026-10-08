@@ -1335,3 +1335,15 @@ Bootstrap37760339730最终success，attempt1/workflow_dispatch/job113254941458/m
 实际执行gh run view --json、gh api actions/runs、gh run view --log，成功回执及实际checkout保存在office-word-complete-{checks,bootstrap}-ci.{json,log}。完整计划office-goal-full-plan.json与receipt.json在干净冻结2d验证exit0：hostAcceptance=PASS、aggregateAcceptance=NOT_READY、mergeReady=false、releaseReady=false。中间一次回执Linux状态未随新增PASS调整导致校验失败，已依政策改为BLOCKED重新验证成功；未修改schema/政策。
 
 两个受控诊断副本已先确认Word未打开，再保留失败/成功样本证据并精确删除原登记文件及空目录；office-word-probe-cleanup.json独立确认。3f历史恢复文件作为明确诊断证据保留，不写成删除；未知旧对象UNVERIFIED。本轮Word功能问题已解决，Word/Excel/PPT的FILE/NATIVE固定样例六项均PASS；模型自动选择Office工具未执行、商业接口与其他平台独立缺项保留。生产8088/3081未修改、PR未合并、未发布。
+
+### 2026-10-09：按用户“解决问题”续接PR整合与模型工具缺项
+
+宿主macOS，功能收口任务，不执行其他平台产品验收、不更新生产、不合并PR。起点c4581293376aa74713d6319744fa03722084f129干净；一次fetch固定master4a5e7523d7407525d108757727c64f10783203f4，远端任务head2d2630ec。正常merge进入原任务分支，保留本地报告和Word修复，不rebase/reset/force。实际11个冲突文件：五份模块说明、平台支持说明、README评审回执、两份生成HTML、工具与安装测试。文档合并双方适用事实；测试同时保留Office准入拒绝与Cordis getter合同、主线受控Docker fixture；生成HTML复用当前builder重新生成，不拼接旧生成页面。
+
+当前原任务base205d2a到合并工作树完整差异200路径；相对固定master候选差异88路径，二者分别保留。完整计划L4及200路径Project Constraints本地exit0；runtime manifest文件hash全部匹配。文档/架构/index检查exit0，工具注册与架构86项通过。产品.venv没有pytest属检查环境错误，未安装包或改产品依赖；改用既有独立检查解释器执行本轮回归。
+
+模型Office实机缺项：19089独立实例状态正常、已保存provider=openai-compatible/model=qwen2.5:0.5b/credential_required=false。既有compatible-model.mjs明确text-only：不发送工具定义、拒绝tool_calls。因此当前模型无法验证自动选择Office；不发无意义请求、不把文本输出/fixture或旧NAV T6冒称Office模型验收。真正解除需本实例通过设置页配置已有受支持且具工具能力的模型及可用凭据，秘密不得进对话；当前Office文件/原生六项功能PASS不受此条件影响。没有扩展兼容适配器或使用个人开发工具凭据。
+
+整合回归补充：86项工具/架构、230项治理/UI合同PASS；启动/安装/Service Manager/Office组691 PASS/1既有skip。邻接组666 PASS/1 FAIL：test_staged_flag_is_exact_and_reaches_only_runtime_child[0]清理runtime返回cleanup_failed；单项独立复现随后1 PASS/2.75秒，首次失败不删除、不概括全绿。Supervisor产品源码与固定master相同，fixture差异主要绑定已升级DSH源码；未证明该瞬态由本轮整合引入，根因仍未知，不扩展Docker产品验收或放宽断言。
+
+实际管理入口正常停止原Host49479/DSH49323；立即start在19089无listener但bind errno48时拒绝endpoint_port_in_use，记录真实失败。端口释放后唯一后续start成功：Host88512/DSH86982、19089/14181双ready，root HTML200。未杀其他进程、绕过安装/归属或更新生产。用户确认有DeepSeek测试Key并将仅在核验的19089设置页录入；尚未收到保存反馈，不推断已录入，不读取表单/凭据。

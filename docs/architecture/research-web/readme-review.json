@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "updated",
-  "summary": "Codex实际复核整合README的平台真实能力与单一兼容模型边界，保留目标支持矩阵及原模型安全链路。",
-  "reason": "兼容文本/流式与合成冷重启不代表工具、供应商账户或跨平台验证；本任务仅Mac Native，不根据其他任务规则变更扩大设备操作。"
+  "summary": "Codex实际复核整合后的README：保留DSH升级、macOS Keychain与Office有限业务说明，以及当前端点/双runtime治理入口。",
+  "reason": "只整合文档和已有运行合同，未认证新Docker/Windows/Linux功能或新架构视觉；历史证据保持原候选归属。"
 }

@@ -117,6 +117,14 @@ Git 失败立即停止，不让 process substitution 的退出状态丢失后继
 `Sec-Fetch-User: ?1`。跨站 fetch、iframe、非 GET、未知路径和研究 API 仍拒绝；不开放 CORS。
 no-store、no-referrer、nosniff 仍由现有中间件执行。
 
+## 架构阅读工作台
+
+首页沿用主产品的真实品牌图案、系统/PingFang字体、白/暖灰与暖炭黑主题。桌面侧栏固定显示既有阅读层次，窄屏改为可展开目录；所有层次、`#top`、`#module-*`、图页与API分类链接保持稳定。
+
+搜索只过滤当前HTML已生成的图和模块；范围包含标题、职责、源码/测试/说明路径及API领域，不联网、不读取仓库文件或触发模型。结果数量、空状态和清除按钮跟随可见条目。模块先显示职责、图、权威说明与API，源码与测试在原生details中按需展开；短文件名的可访问名称和title仍保留完整仓库路径。
+
+主题可跟随系统或在此页切换浅/深色，密度可选舒适/紧凑。opaque sandbox中不使用localStorage、cookie或外部持久化；设置不改动产品主题或用户配置。图案嵌入原PNG字节的data URI，受固定路径、别名拒绝、128KiB和PNG签名约束；不放宽CSP或增加资源路由。JavaScript未运行时显示明确说明，控件初始禁用，静态目录和所有链接继续可用；初始化失败保持静态阅读并显示告警。
+
 ## 测试与日志
 
 首页与 API Atlas 由 `scripts/build_research_web_api_atlas.mjs` 从同一清单离线生成；`--check` 比较完整内容，缺失或过期时列出文件并非零退出，且不写页面、日志或工作区。唯一接口按 Method + Path 去重，源码声明保留不同声明位置；领域筛选不改变收录范围。研究框架、集成协调器与自动化分别分类。模块卡片复用 groups，固定源码版本的仓库链接连接说明、源码和测试，不提供本地 Markdown/源码浏览服务。只包含 Method、路径、领域和仓库相对源码，不访问运行服务或外网。`/mcp/` 路由单独归类为 `MCP Registry`，避免把只读 Registry 同步、目录浏览和 Publisher 外部交接混入普通能力目录。
@@ -141,3 +149,5 @@ no-store、no-referrer、nosniff 仍由现有中间件执行。
 生成路径逐级 lstat，悬空符号链接也拒绝；所有输出及日志在生成写入前统一检查。门禁另比较 Python 静态 HTML 允许列表与入口、Atlas 和全部登记视图的集合，新增图不得遗漏服务路由或多开私有文件入口。
 
 Windows Native 尚无已验证的安全文档 reader：缺少 POSIX no-follow/dir_fd primitive 时返回 501 documentation_platform_unsupported，Doctor 说明同一边界。Mac/Linux 的允许列表、单硬链接、大小上限与 opaque CSP 保持。
+
+API Atlas 采用领域目录与单列表查阅，领域、Method 和关键词联合筛选；筛选统计分别计算唯一 Method + Path 与源码声明，重复声明保留独立行。主题和密度仅为页内状态，源码完整路径保留在链接的可访问名称与提示中，窄屏使用领域选择器；分类 URL 参数及原搜索/分类 DOM 合同保留。无外部资源、接口调试请求或存储依赖。

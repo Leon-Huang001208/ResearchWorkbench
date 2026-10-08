@@ -1,0 +1,608 @@
+{
+  "schemaVersion": 3,
+  "binding": {
+    "source": "git",
+    "baseCommit": "205d2a170d9ece9c2751e014b63abe326510ab9c",
+    "headCommit": "fb9ec4fb978d04caf6e6fca03ba90f49decdd64e",
+    "changeSetSha256": "a69cfb0779d53144c838a679f194e9d87cc3d2c3b2c7e46d35da4f1f61118fa8",
+    "policySha256": "bb3a31a83745d9260ca961d614e924f054dfedcbaae8fb4833a0e3f243b0d530",
+    "frameworkVersion": "0.19.3",
+    "frameworkCommit": "f853b1b268a1b39c537136d867ddf5a570f9730e",
+    "frameworkSha256": "c7f09bb5bf68a4795dc70a53a903db03bc1fd683ca72ce71ff0690eadcbe28a0",
+    "planSha256": "b621a3218dd6d7dda7ebb3065765cf520f1726ae2b01401c91b5a35146a00c16"
+  },
+  "changeSummary": {
+    "fileCount": 33,
+    "ruleIds": [
+      "documentation",
+      "research-web-docker-packaging",
+      "fallback",
+      "research-web-runtime-router"
+    ],
+    "impactIds": [
+      "documentation",
+      "docker-runtime",
+      "web-installation",
+      "unknown-boundary",
+      "runtime-router"
+    ]
+  },
+  "changedFiles": [
+    ".ai/reports/2026-10-07-macos-docker-desktop-acceptance.md",
+    ".ai/reports/2026-10-07-platform-evidence-and-support.md",
+    ".ai/reports/2026-10-07-platform-evidence-native-assurance.json",
+    ".ai/reports/2026-10-07-platform-evidence-native-delivery-summary.json",
+    ".ai/reports/2026-10-07-platform-evidence-native-plan-v4.json",
+    ".ai/reports/2026-10-07-platform-evidence-native-receipt-v3.json",
+    "compose.yaml",
+    "docker/stage_dsh.py",
+    "docker/supervisor.py",
+    "docs/ARCHITECTURE.md",
+    "docs/architecture/research-web/01-system.md",
+    "docs/architecture/research-web/02-research-runtime.md",
+    "docs/architecture/research-web/03-data-files.md",
+    "docs/architecture/research-web/05-security-validation.md",
+    "docs/architecture/research-web/readme-review.json",
+    "docs/DEVELOPMENT_MAP.md",
+    "docs/research-web-installation.md",
+    "docs/research-web-platform-support.md",
+    "outputs/research-web-ui-acceptance/platform-evidence-ffa331322bc9/documentation/00-system-overview.png",
+    "outputs/research-web-ui-acceptance/platform-evidence-ffa331322bc9/documentation/01-deployment.png",
+    "outputs/research-web-ui-acceptance/platform-evidence-ffa331322bc9/documentation/08-iteration-docs.png",
+    "outputs/research-web-ui-acceptance/platform-evidence-ffa331322bc9/documentation/framework-api.png",
+    "outputs/research-web-ui-acceptance/platform-evidence-ffa331322bc9/documentation/index.png",
+    "outputs/research-web-ui-acceptance/platform-evidence-ffa331322bc9/documentation/receipt.json",
+    "outputs/research-web-ui-acceptance/platform-evidence-ffa331322bc9/documentation/repository-documentation.png",
+    "outputs/research-web-ui-acceptance/platform-evidence-ffa331322bc9/documentation/repository-source.png",
+    "outputs/research-web-ui-acceptance/platform-evidence-ffa331322bc9/documentation/repository-test.png",
+    "outputs/research-web-ui-acceptance/platform-evidence-ffa331322bc9/documentation/settings-documentation.png",
+    "README.md",
+    "research_workbench_entrypoint/docker_runtime.py",
+    "tests/javascript/docker_runtime_contract.test.mjs",
+    "tests/research_web/test_docker_runtime.py",
+    "tests/research_web/test_staged_runtime.py"
+  ],
+  "plannedLevel": "L4",
+  "actualLevel": "L4",
+  "components": [
+    "documentation",
+    "docker-runtime",
+    "web-installation",
+    "unknown-boundary",
+    "runtime-router"
+  ],
+  "platforms": [
+    "generic",
+    "linux",
+    "macos",
+    "windows",
+    "cross-platform",
+    "real-machine-required"
+  ],
+  "impact": [
+    {
+      "path": ".ai/reports/2026-10-07-macos-docker-desktop-acceptance.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/2026-10-07-platform-evidence-and-support.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/2026-10-07-platform-evidence-native-assurance.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/2026-10-07-platform-evidence-native-delivery-summary.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/2026-10-07-platform-evidence-native-plan-v4.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/2026-10-07-platform-evidence-native-receipt-v3.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "compose.yaml",
+      "rule": "research-web-docker-packaging",
+      "reason": "research_web_docker_packaging_change",
+      "modules": [
+        "docker-runtime",
+        "web-installation"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": "docker/stage_dsh.py",
+      "rule": "research-web-docker-packaging",
+      "reason": "research_web_docker_packaging_change",
+      "modules": [
+        "docker-runtime",
+        "web-installation"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": "docker/supervisor.py",
+      "rule": "research-web-docker-packaging",
+      "reason": "research_web_docker_packaging_change",
+      "modules": [
+        "docker-runtime",
+        "web-installation"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": "docs/ARCHITECTURE.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/01-system.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/02-research-runtime.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/03-data-files.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/05-security-validation.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/readme-review.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/DEVELOPMENT_MAP.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/research-web-installation.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/research-web-platform-support.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "outputs/research-web-ui-acceptance/platform-evidence-ffa331322bc9/documentation/00-system-overview.png",
+      "rule": "fallback",
+      "reason": "unknown_path",
+      "modules": [
+        "unknown-boundary"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": "outputs/research-web-ui-acceptance/platform-evidence-ffa331322bc9/documentation/01-deployment.png",
+      "rule": "fallback",
+      "reason": "unknown_path",
+      "modules": [
+        "unknown-boundary"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": "outputs/research-web-ui-acceptance/platform-evidence-ffa331322bc9/documentation/08-iteration-docs.png",
+      "rule": "fallback",
+      "reason": "unknown_path",
+      "modules": [
+        "unknown-boundary"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": "outputs/research-web-ui-acceptance/platform-evidence-ffa331322bc9/documentation/framework-api.png",
+      "rule": "fallback",
+      "reason": "unknown_path",
+      "modules": [
+        "unknown-boundary"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": "outputs/research-web-ui-acceptance/platform-evidence-ffa331322bc9/documentation/index.png",
+      "rule": "fallback",
+      "reason": "unknown_path",
+      "modules": [
+        "unknown-boundary"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": "outputs/research-web-ui-acceptance/platform-evidence-ffa331322bc9/documentation/receipt.json",
+      "rule": "fallback",
+      "reason": "unknown_path",
+      "modules": [
+        "unknown-boundary"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": "outputs/research-web-ui-acceptance/platform-evidence-ffa331322bc9/documentation/repository-documentation.png",
+      "rule": "fallback",
+      "reason": "unknown_path",
+      "modules": [
+        "unknown-boundary"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": "outputs/research-web-ui-acceptance/platform-evidence-ffa331322bc9/documentation/repository-source.png",
+      "rule": "fallback",
+      "reason": "unknown_path",
+      "modules": [
+        "unknown-boundary"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": "outputs/research-web-ui-acceptance/platform-evidence-ffa331322bc9/documentation/repository-test.png",
+      "rule": "fallback",
+      "reason": "unknown_path",
+      "modules": [
+        "unknown-boundary"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": "outputs/research-web-ui-acceptance/platform-evidence-ffa331322bc9/documentation/settings-documentation.png",
+      "rule": "fallback",
+      "reason": "unknown_path",
+      "modules": [
+        "unknown-boundary"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": "README.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "research_workbench_entrypoint/docker_runtime.py",
+      "rule": "research-web-runtime-router",
+      "reason": "research_web_runtime_router_change",
+      "modules": [
+        "runtime-router",
+        "web-installation"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": "tests/javascript/docker_runtime_contract.test.mjs",
+      "rule": "research-web-docker-packaging",
+      "reason": "research_web_docker_packaging_change",
+      "modules": [
+        "docker-runtime",
+        "web-installation"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": "tests/research_web/test_docker_runtime.py",
+      "rule": "research-web-runtime-router",
+      "reason": "research_web_runtime_router_change",
+      "modules": [
+        "runtime-router",
+        "web-installation"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": "tests/research_web/test_staged_runtime.py",
+      "rule": "fallback",
+      "reason": "unknown_path",
+      "modules": [
+        "unknown-boundary"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    }
+  ],
+  "executed": [
+    {
+      "id": "research-web-docker-contract",
+      "status": "PASS",
+      "source": "runner",
+      "evidence": "logs/stage3/tmpfs-integration-node.log",
+      "level": "L2",
+      "durationSeconds": 6.121229916,
+      "runnerPlatform": "macos"
+    },
+    {
+      "id": "research-web-container-runtime",
+      "status": "PASS",
+      "source": "runner",
+      "evidence": "logs/stage3/research-web-container-runtime.log",
+      "level": "L2",
+      "durationSeconds": 21.95674525,
+      "runnerPlatform": "macos"
+    },
+    {
+      "id": "research-web-architecture",
+      "status": "PASS",
+      "source": "runner",
+      "evidence": "logs/stage3/research-web-architecture-fb9.log",
+      "level": "L1",
+      "durationSeconds": 7.022981624999999,
+      "runnerPlatform": "macos"
+    },
+    {
+      "id": "project-constraints-local",
+      "status": "PASS",
+      "source": "runner",
+      "evidence": "logs/stage3/project-constraints-local-fb9.log",
+      "level": "L2",
+      "durationSeconds": 0.17504449999999996,
+      "runnerPlatform": "macos"
+    },
+    {
+      "id": "research-web-verification-full",
+      "status": "PASS",
+      "source": "runner",
+      "evidence": "logs/stage3/research-web-verification-full-fb9.log",
+      "level": "L4",
+      "durationSeconds": 6.066127457999999,
+      "runnerPlatform": "macos"
+    },
+    {
+      "id": "research-web-runtime-mode",
+      "status": "PASS",
+      "source": "runner",
+      "evidence": "logs/stage3/research-web-runtime-mode-fb9.log",
+      "level": "L1",
+      "durationSeconds": 17.401182333999998,
+      "runnerPlatform": "macos"
+    },
+    {
+      "id": "research-web-critical-smoke",
+      "status": "PASS",
+      "source": "runner",
+      "evidence": "logs/stage3/research-web-critical-smoke.log",
+      "level": "L3",
+      "durationSeconds": 0.49372691699999993,
+      "runnerPlatform": "macos"
+    },
+    {
+      "id": "research-web-platform-capabilities",
+      "status": "PASS",
+      "source": "runner",
+      "evidence": "logs/stage3/research-web-platform-capabilities.log",
+      "level": "L1",
+      "durationSeconds": 0.2845656250000011,
+      "runnerPlatform": "macos"
+    },
+    {
+      "id": "documentation-governance",
+      "status": "PASS",
+      "source": "runner",
+      "evidence": "logs/stage3/documentation-governance-fb9.log",
+      "level": "L0",
+      "durationSeconds": 0.144189125,
+      "runnerPlatform": "macos"
+    },
+    {
+      "id": "python-file-index",
+      "status": "PASS",
+      "source": "runner",
+      "evidence": "logs/stage3/python-file-index.log",
+      "level": "L0",
+      "durationSeconds": 0.9317601659999999,
+      "runnerPlatform": "macos"
+    }
+  ],
+  "external": [
+    {
+      "id": "project-constraints",
+      "status": "NOT_RUN",
+      "source": "ci",
+      "evidence": "logs/stage3/pending-evidence.log"
+    },
+    {
+      "id": "research-web-checks",
+      "status": "NOT_RUN",
+      "source": "ci",
+      "evidence": "logs/stage3/pending-evidence.log"
+    },
+    {
+      "id": "research-web-docker",
+      "status": "NOT_RUN",
+      "source": "ci",
+      "evidence": "logs/stage3/pending-evidence.log"
+    },
+    {
+      "id": "research-web-bootstrap",
+      "status": "PASS",
+      "source": "ci",
+      "evidence": "logs/stage3/mac-bootstrap-ci-evidence-fb9.json",
+      "runnerPlatform": "macos",
+      "runId": "37644483224",
+      "workflow": ".github/workflows/research-web-bootstrap.yml#macos-14",
+      "candidateCommit": "fb9ec4fb978d04caf6e6fca03ba90f49decdd64e",
+      "checkoutCommit": "47f310b648e9d5d9f84cb1bdecd128789f1935b9",
+      "expectedCheckoutCommit": "47f310b648e9d5d9f84cb1bdecd128789f1935b9",
+      "checkoutKind": "merge-preview",
+      "headCommit": "fb9ec4fb978d04caf6e6fca03ba90f49decdd64e",
+      "baseCommit": "205d2a170d9ece9c2751e014b63abe326510ab9c"
+    },
+    {
+      "id": "research-web-windows-verify",
+      "status": "NOT_RUN",
+      "source": "ci",
+      "evidence": "logs/stage3/pending-evidence.log"
+    }
+  ],
+  "realMachine": [
+    {
+      "id": "macos-docker-desktop",
+      "status": "PASS",
+      "source": "manual",
+      "evidence": "logs/stage3/evidence/macos-docker-desktop-final.json",
+      "machinePlatform": "macos"
+    }
+  ],
+  "result": "PASS",
+  "mergeReady": false,
+  "releaseReady": false,
+  "uncoveredRisks": [
+    "unknown_impact_boundary",
+    "external_gate_not_run:project-constraints",
+    "external_gate_not_run:research-web-checks",
+    "external_gate_not_run:research-web-docker",
+    "external_gate_not_run:research-web-windows-verify"
+  ],
+  "escalation": {
+    "required": false,
+    "targetLevel": null,
+    "reasons": []
+  },
+  "task": {
+    "hostPlatform": "macos",
+    "taskKind": "platform-adaptation",
+    "objective": "验证 macOS Docker Desktop 运行时 tmpfs 私有状态适配",
+    "acceptanceScope": "本机 macOS Docker Desktop 真实运行及适用 macOS 本地检查与 GitHub macOS CI；其他平台保留交接",
+    "candidateCommit": "fb9ec4fb978d04caf6e6fca03ba90f49decdd64e",
+    "candidateBaseCommit": "205d2a170d9ece9c2751e014b63abe326510ab9c",
+    "supplementalGateIds": [
+      "macos-docker-desktop"
+    ]
+  },
+  "hostAcceptance": "PASS",
+  "platformHandoffs": [
+    {
+      "platform": "linux",
+      "status": "NOT_RUN",
+      "gateIds": [
+        "project-constraints",
+        "research-web-checks",
+        "research-web-docker"
+      ]
+    },
+    {
+      "platform": "windows",
+      "status": "NOT_RUN",
+      "gateIds": [
+        "research-web-windows-verify"
+      ]
+    }
+  ],
+  "aggregateAcceptance": "NOT_READY"
+}

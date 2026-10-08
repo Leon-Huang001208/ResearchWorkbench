@@ -1,5 +1,8 @@
 # 能力包、版本与原生调用
 
+MCP 控制 JSON/URL 的纯 parser 现供原 reader 与独立 origin helper 共享；原 reader 的
+额外字段、版本与异常语义保持，不改变 MCP 授权、审批、能力版本或秘密存储边界。
+
 Native/Docker 共用能力目录、不可变版本、工具风险等级与 Automation 锁定快照；模式选择不授予
 新的 MCP、DataHub 或投递权限。MCP Registry、MCP Runtime 安装完整性密钥和 Delivery 的
 既有服务名由共享凭据后端存取：Native 默认系统 keyring，Docker 仅用显式配置的私有文件目录。

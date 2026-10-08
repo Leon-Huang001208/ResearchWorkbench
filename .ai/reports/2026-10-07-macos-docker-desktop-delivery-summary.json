@@ -1,0 +1,116 @@
+{
+  "schemaVersion": 1,
+  "objective": "验证 macOS Docker Desktop 运行时 tmpfs 私有状态适配",
+  "acceptanceScope": "本机 macOS Docker Desktop 真实运行及适用 macOS 本地检查与 GitHub macOS CI；其他平台保留交接",
+  "hostPlatform": "macos",
+  "taskKind": "platform-adaptation",
+  "candidateCommit": "fb9ec4fb978d04caf6e6fca03ba90f49decdd64e",
+  "candidateBaseCommit": "205d2a170d9ece9c2751e014b63abe326510ab9c",
+  "changedFiles": [
+    ".ai/reports/2026-10-07-macos-docker-desktop-acceptance.md",
+    ".ai/reports/2026-10-07-platform-evidence-and-support.md",
+    ".ai/reports/2026-10-07-platform-evidence-native-assurance.json",
+    ".ai/reports/2026-10-07-platform-evidence-native-delivery-summary.json",
+    ".ai/reports/2026-10-07-platform-evidence-native-plan-v4.json",
+    ".ai/reports/2026-10-07-platform-evidence-native-receipt-v3.json",
+    "compose.yaml",
+    "docker/stage_dsh.py",
+    "docker/supervisor.py",
+    "docs/ARCHITECTURE.md",
+    "docs/architecture/research-web/01-system.md",
+    "docs/architecture/research-web/02-research-runtime.md",
+    "docs/architecture/research-web/03-data-files.md",
+    "docs/architecture/research-web/05-security-validation.md",
+    "docs/architecture/research-web/readme-review.json",
+    "docs/DEVELOPMENT_MAP.md",
+    "docs/research-web-installation.md",
+    "docs/research-web-platform-support.md",
+    "outputs/research-web-ui-acceptance/platform-evidence-ffa331322bc9/documentation/00-system-overview.png",
+    "outputs/research-web-ui-acceptance/platform-evidence-ffa331322bc9/documentation/01-deployment.png",
+    "outputs/research-web-ui-acceptance/platform-evidence-ffa331322bc9/documentation/08-iteration-docs.png",
+    "outputs/research-web-ui-acceptance/platform-evidence-ffa331322bc9/documentation/framework-api.png",
+    "outputs/research-web-ui-acceptance/platform-evidence-ffa331322bc9/documentation/index.png",
+    "outputs/research-web-ui-acceptance/platform-evidence-ffa331322bc9/documentation/receipt.json",
+    "outputs/research-web-ui-acceptance/platform-evidence-ffa331322bc9/documentation/repository-documentation.png",
+    "outputs/research-web-ui-acceptance/platform-evidence-ffa331322bc9/documentation/repository-source.png",
+    "outputs/research-web-ui-acceptance/platform-evidence-ffa331322bc9/documentation/repository-test.png",
+    "outputs/research-web-ui-acceptance/platform-evidence-ffa331322bc9/documentation/settings-documentation.png",
+    "README.md",
+    "research_workbench_entrypoint/docker_runtime.py",
+    "tests/javascript/docker_runtime_contract.test.mjs",
+    "tests/research_web/test_docker_runtime.py",
+    "tests/research_web/test_staged_runtime.py"
+  ],
+  "result": "PASS",
+  "hostAcceptance": "PASS",
+  "platformHandoffs": [
+    {
+      "platform": "linux",
+      "status": "NOT_RUN",
+      "gateIds": [
+        "project-constraints",
+        "research-web-checks",
+        "research-web-docker"
+      ]
+    },
+    {
+      "platform": "windows",
+      "status": "NOT_RUN",
+      "gateIds": [
+        "research-web-windows-verify"
+      ]
+    }
+  ],
+  "aggregateAcceptance": "NOT_READY",
+  "mergeReady": false,
+  "releaseReady": false,
+  "branch": "codex/integrate-task-20261007-bda2aa87e13e",
+  "pr": "https://github.com/Leon-Huang001208/ResearchWorkbench/pull/84",
+  "mergeCommit": null,
+  "runtimeUpdated": false,
+  "sourceRevision": "3dfdefeeacec2d3cbebb8a19ec9c6cf45bad1b10",
+  "reportCommit": null,
+  "diagramIdentities": [],
+  "ciCheckouts": [
+    {
+      "id": "project-constraints",
+      "status": "NOT_RUN",
+      "source": "ci",
+      "evidence": "logs/stage3/pending-evidence.log"
+    },
+    {
+      "id": "research-web-checks",
+      "status": "NOT_RUN",
+      "source": "ci",
+      "evidence": "logs/stage3/pending-evidence.log"
+    },
+    {
+      "id": "research-web-docker",
+      "status": "NOT_RUN",
+      "source": "ci",
+      "evidence": "logs/stage3/pending-evidence.log"
+    },
+    {
+      "id": "research-web-bootstrap",
+      "status": "PASS",
+      "source": "ci",
+      "evidence": "logs/stage3/mac-bootstrap-ci-evidence-fb9.json",
+      "runnerPlatform": "macos",
+      "runId": "37644483224",
+      "workflow": ".github/workflows/research-web-bootstrap.yml#macos-14",
+      "candidateCommit": "fb9ec4fb978d04caf6e6fca03ba90f49decdd64e",
+      "checkoutCommit": "47f310b648e9d5d9f84cb1bdecd128789f1935b9",
+      "expectedCheckoutCommit": "47f310b648e9d5d9f84cb1bdecd128789f1935b9",
+      "checkoutKind": "merge-preview",
+      "headCommit": "fb9ec4fb978d04caf6e6fca03ba90f49decdd64e",
+      "baseCommit": "205d2a170d9ece9c2751e014b63abe326510ab9c"
+    },
+    {
+      "id": "research-web-windows-verify",
+      "status": "NOT_RUN",
+      "source": "ci",
+      "evidence": "logs/stage3/pending-evidence.log"
+    }
+  ],
+  "deliveryMetadataVerified": false
+}

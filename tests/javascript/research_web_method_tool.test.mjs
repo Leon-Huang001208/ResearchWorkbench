@@ -17,6 +17,31 @@ test('document business tool rejects host paths and unadmitted execution', async
   await assert.rejects(() => tool.execute({ format: 'docx', mode: 'file', operation: 'read', file_id: 'a'.repeat(24) }, exec), /document_scope_unverified/);
 });
 
+test('Cordis undeclared service getter is never read during research tool registration', () => {
+  const tools = new Map();
+  let undeclaredReads = 0;
+  const target = { tools: { register: tool => tools.set(tool.name, tool) },
+    sessions: { get() {} }, logger: { info() {}, warn() {}, error() {} } };
+  const ctx = new Proxy(target, { get(object, key, receiver) {
+    if (key === 'spawnProcess') {
+      undeclaredReads += 1;
+      throw new Error('cannot get property spawnProcess without inject');
+    }
+    return Reflect.get(object, key, receiver);
+  } });
+  assert.doesNotThrow(() => apply(ctx, { python: '/usr/bin/python3', runnerPath: '/tmp/runner.py', researchRoot: '/tmp/research' }));
+  assert.equal(undeclaredReads, 0);
+  assert.ok(tools.has('research_run_script'));
+});
+
+test('accessor test hooks are not invoked as spawn overrides', () => {
+  const tools = new Map();
+  const ctx = { tools: { register: tool => tools.set(tool.name, tool) }, logger: {} };
+  Object.defineProperty(ctx, 'spawnProcess', { get() { throw new Error('accessor must not execute'); } });
+  assert.doesNotThrow(() => apply(ctx, { python: '/usr/bin/python3', runnerPath: '/tmp/runner.py', researchRoot: '/tmp/research' }));
+  assert.ok(tools.has('research_run_script'));
+});
+
 test('rwb_record_method_use writes only bounded method identity in the current session', async () => {
   const root = await realpath(await mkdtemp(join(tmpdir(), 'rwb-method-')));
   const sid = '01234567-89ab-4cde-8fab-0123456789ab';

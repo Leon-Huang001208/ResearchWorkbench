@@ -1,0 +1,130 @@
+{
+  "status": "passed",
+  "steps": [
+    "isolated_native_runtime_connected",
+    "settings_popup_registered_diagrams",
+    "api_atlas_counts_and_search",
+    "sandbox_navigation_00-system-overview.html",
+    "sandbox_navigation_01-deployment.html",
+    "viewer_theme_and_node_details",
+    "sandbox_navigation_08-iteration-docs.html",
+    "frameworks_filtered_api",
+    "integrations_filtered_api",
+    "local-integrations_filtered_api",
+    "repository_link_identity"
+  ],
+  "requests": [
+    {
+      "path": "/api/research/documentation/index.html",
+      "status": 200
+    },
+    {
+      "path": "/api/research/documentation/api-atlas.html",
+      "status": 200
+    },
+    {
+      "path": "/api/research/documentation/index.html",
+      "status": 200
+    },
+    {
+      "path": "/api/research/documentation/index.html",
+      "status": 200
+    },
+    {
+      "path": "/api/research/documentation/00-system-overview.html",
+      "status": 200
+    },
+    {
+      "path": "/api/research/documentation/index.html",
+      "status": 200
+    },
+    {
+      "path": "/api/research/documentation/index.html",
+      "status": 200
+    },
+    {
+      "path": "/api/research/documentation/01-deployment.html",
+      "status": 200
+    },
+    {
+      "path": "/api/research/documentation/index.html",
+      "status": 200
+    },
+    {
+      "path": "/api/research/documentation/index.html",
+      "status": 200
+    },
+    {
+      "path": "/api/research/documentation/08-iteration-docs.html",
+      "status": 200
+    },
+    {
+      "path": "/api/research/documentation/index.html",
+      "status": 200
+    },
+    {
+      "path": "/api/research/documentation/api-atlas.html",
+      "status": 200
+    },
+    {
+      "path": "/api/research/documentation/index.html",
+      "status": 200
+    },
+    {
+      "path": "/api/research/documentation/api-atlas.html",
+      "status": 200
+    },
+    {
+      "path": "/api/research/documentation/index.html",
+      "status": 200
+    },
+    {
+      "path": "/api/research/documentation/api-atlas.html",
+      "status": 200
+    },
+    {
+      "path": "/api/research/documentation/index.html",
+      "status": 200
+    },
+    {
+      "path": "/api/research/documentation/index.html",
+      "status": 200
+    },
+    {
+      "path": "/api/research/documentation/index.html",
+      "status": 200
+    }
+  ],
+  "repositoryNavigation": [
+    {
+      "kind": "documentation",
+      "url": "https://github.com/Leon-Huang001208/ResearchWorkbench/blob/3dfdefeeacec2d3cbebb8a19ec9c6cf45bad1b10/docs/architecture/research-web/08-research-frameworks.md",
+      "status": "PASS",
+      "httpStatus": 200,
+      "finalURL": "https://github.com/Leon-Huang001208/ResearchWorkbench/blob/3dfdefeeacec2d3cbebb8a19ec9c6cf45bad1b10/docs/architecture/research-web/08-research-frameworks.md",
+      "title": "ResearchWorkbench/docs/architecture/research-web/08-research-frameworks.md at 3dfdefeeacec2d3cbebb8a19ec9c6cf45bad1b10 · Leon-Huang001208/ResearchWorkbench · GitHub"
+    },
+    {
+      "kind": "source",
+      "url": "https://github.com/Leon-Huang001208/ResearchWorkbench/blob/3dfdefeeacec2d3cbebb8a19ec9c6cf45bad1b10/app/research_web/frameworks/routes.py",
+      "status": "PASS",
+      "httpStatus": 200,
+      "finalURL": "https://github.com/Leon-Huang001208/ResearchWorkbench/blob/3dfdefeeacec2d3cbebb8a19ec9c6cf45bad1b10/app/research_web/frameworks/routes.py",
+      "title": "ResearchWorkbench/app/research_web/frameworks/routes.py at 3dfdefeeacec2d3cbebb8a19ec9c6cf45bad1b10 · Leon-Huang001208/ResearchWorkbench · GitHub"
+    },
+    {
+      "kind": "test",
+      "url": "https://github.com/Leon-Huang001208/ResearchWorkbench/blob/3dfdefeeacec2d3cbebb8a19ec9c6cf45bad1b10/tests/research_web/test_frameworks.py",
+      "status": "PASS",
+      "httpStatus": 200,
+      "finalURL": "https://github.com/Leon-Huang001208/ResearchWorkbench/blob/3dfdefeeacec2d3cbebb8a19ec9c6cf45bad1b10/tests/research_web/test_frameworks.py",
+      "title": "ResearchWorkbench/tests/research_web/test_frameworks.py at 3dfdefeeacec2d3cbebb8a19ec9c6cf45bad1b10 · Leon-Huang001208/ResearchWorkbench · GitHub"
+    }
+  ],
+  "inputs": {
+    "scriptSha256": "82165b3bd4ca16a6c137ed93307687dcd0c41c59cab2185de6f2eafa72891f08",
+    "mapSha256": "fc52906893012dd8fb9f1b06ba835e2116eb59f450f44c262d00e1614f1007b7",
+    "describedRevision": "3dfdefeeacec2d3cbebb8a19ec9c6cf45bad1b10",
+    "serverMode": "isolated Native service; Runtime connected probe required; lifecycle evidence recorded separately"
+  }
+}

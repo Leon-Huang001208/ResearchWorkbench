@@ -6,6 +6,12 @@
 
 设置中的模型服务只展示固定DSH实际支持目录，保存与显式生成分别验收。配置和测试共用ResearchService串行边界；既有Automation仍通过相同create/send执行，新会话采用新默认值，活动任务阻止共享凭据变化。macOS Native 的固定模型 ref 由产品 provider/私有进程桥接存入系统 Keychain；Host 认证 record 保留固定 DSH 的独立文件实现。没有新增执行器、调度器或凭据中心。
 
+内部控制 parser 提取为标准库基础接口，DataHub/MCP 原 wrappers 保持读写、异常与权限合同；
+macOS实际端点/origin事务现接入公开CLI启动链；同一产品部署和业务调用图保持，HTTP API不变。
+停止Docker容器换绑定与真实平台验收的未完成项见安装文档及本轮任务报告。
+
+这是当前研究产品的唯一架构主入口。现役源码覆盖 `app/research_web/`、`research_workbench_entrypoint/`、`docker/` 与共用运行合同；旧 `app/api`、量化业务和 merged-platform 图文属于历史，不是此入口的依赖。Native 双宿主进程与 Docker 单容器是同一 Research Web/DSH 产品的互斥运行方式，顺序共享产品数据，不创建第二个研究引擎。
+
 研究布局、能力中心与架构更新检查已实施。当前 Web 包含研究台按需数据入口、独立资产观察、Claw 具体报告 Workflow、会话快照交接、实际产物及只读“运行与用量”聚合；DataHub 同时迁入天软 CJPY 的四项已实现能力，并加入只复用现有 WindAdapter 封闭方法的受限 Wind binding，缺少本机依赖、登录或等价字段口径时仍失败关闭。东方财富基金和财联社是当前无需专业配置即可真实调用的来源。研究脚本由宿主 FIFO 串行、Python 3.12 readiness 和 `cpu_bounded_v1` 公共预算约定共同约束；不依赖 GPU，Seatbelt 仍仅支持 macOS。Phase 2A 提供只读 MCP Registry；Phase 2B 增加不可变安装、官方 SDK Host、OAuth、工具分级、会话授权、人工审批和 DSH 原子激活回滚；Phase 2C 增加锁定版本的通用 Automation、独立 Claw Run 与研究/投递双状态。当前限制见 [架构状态](status.md)，逐任务证据进入 `.ai/reports/`。图形通过不替代产品、数据覆盖或真实连接审查。
 
 ## 阅读顺序
@@ -45,7 +51,7 @@
 ./rwb web stop
 ```
 
-模型仅在产品设置中授权。Native 专属运行时使用宿主回环 3081，Web 使用 8088；Docker 只向宿主回环发布 8088，DSH 3081 留在容器内。用户原 3080 不被更改。后台状态、凭据和日志按运行模式隔离；研究数据位于共用 `~/.research-workbench/research-web/`。切换前需安全停止旧模式，不在两个模式下并发访问数据。
+模型仅在产品设置中授权。Native 专属运行时与 Web 的默认宿主回环端口为 3081/8088；macOS 自动启动可选择空闲端口，并在真实健康后写入私有端点账本。Docker 内部 Web/DSH 固定为 8088/3081，只发布宿主回环 Web 端口。用户原 3080 不被更改。后台状态、凭据和日志按运行模式隔离；研究数据位于共用 `~/.research-workbench/research-web/`。切换前需安全停止旧模式，不在两个模式下并发访问数据。
 
 旧研究目录先用 `rwb migrate-research-data --dry-run` 查看迁移摘要，再执行复制。凭据不会迁移；新实例需在设置页重新填写。Web 恢复验证通过后可使用 `--archive-source` 将旧目录改为只读迁移备份。
 
