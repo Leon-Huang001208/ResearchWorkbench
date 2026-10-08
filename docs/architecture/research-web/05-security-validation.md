@@ -79,6 +79,10 @@ models父目录先验私有再创建安装叶；alias、foreign owner、unsafe m
 replace/unlink尝试后的失败保持 `model_credential_commit_uncertain`，不删除已发布目的、不猜测回滚；
 私有CLI连lazy import的日志也转到被drain的stderr，stdout只给一份JSON，异常文本不回显。
 文件权限不是Keychain或加密保险库，不能抵御容器内同UID任意代码或Docker管理者。
+standalone Docker模型/预算私有CLI导入前绑定web-prod及四个旧目录键到已有受管产品根，
+移除显式.env选择；只处理该子进程，不读取用户Key、不继承目录/PYTHONPATH或修改全局配置。
+Native及库导入不执行此bootstrap。它防止旧settings.ensure_dirs在只读镜像写新目录，
+不是给镜像增加写权限或放宽privateRoot/owner/alias/实例校验。
 
 Container inspect只以Go模板投影RWB_INSTALLATION_ID，不输出全部环境或其他值。
 合法空数组只维持旧实例原生命周期权限；完整归属通过的精确ID才派生模型绑定标记，

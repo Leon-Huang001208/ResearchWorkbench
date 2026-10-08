@@ -20,6 +20,92 @@ def load_bridge():
     return module
 
 
+@pytest.mark.parametrize("ambient", [False, True])
+def test_private_docker_cli_imports_on_readonly_root(tmp_path, ambient):
+    product = BRIDGE.parents[2]
+    canary = tmp_path / "untrusted.env"
+    canary.write_text("LOG_DIR=/untrusted-import-canary\n")
+    script = """
+import builtins, errno, os, runpy, sys, sysconfig
+from pathlib import Path
+sysconfig.get_config_vars()  # Host stdlib configuration precedes the Linux selector simulation.
+product = Path(sys.argv[1]).resolve().parents[2]
+original_mkdir, original_import = os.mkdir, builtins.__import__
+def readonly_mkdir(path, *args, **kwargs):
+    if Path(path) != product:
+        raise OSError(errno.EROFS, 'readonly-import-canary')
+    return original_mkdir(path, *args, **kwargs)
+os.mkdir = readonly_mkdir
+def guarded_import(name, *args, **kwargs):
+    imported = original_import(name, *args, **kwargs)
+    if name == 'app.research_web' and 'model_file_store' in (args[2] if len(args) > 2 else ()):
+        from core.settings.config import settings, RUNTIME_CONTEXT
+        assert RUNTIME_CONTEXT.mode == 'web-prod' and RUNTIME_CONTEXT.env_path is None
+        assert all(getattr(settings, key) == product for key in
+            ('LOG_DIR', 'OBJECT_STORAGE_PATH', 'PDF_MARKDOWN_DIR', 'PDF_RAW_TEXT_DIR'))
+        class Store:
+            source = 'docker-private-file'
+            def __init__(self, root, installation):
+                assert root == '/run/rwb-secrets/private/models/' + installation
+                print('private-import-canary')
+            def get_password(self, *args):
+                return None
+        imported.model_file_store.DockerModelStore = Store
+    return imported
+builtins.__import__ = guarded_import
+sys.platform = 'linux'
+sys.argv = [sys.argv[1], '--data-home', sys.argv[2], '--backend', 'docker-private-file',
+    '--credential-root', '/run/rwb-secrets/private/models/' + sys.argv[3],
+    '--installation-id', sys.argv[3]]
+runpy.run_path(sys.argv[0], run_name='__main__')
+"""
+    env = {"PATH": "/usr/bin:/bin", "LANG": "en_US.UTF-8"}
+    if ambient:
+        env.update(
+            RESEARCH_RUN_MODE="web-dev",
+            RESEARCH_CONFIG_FILE=str(canary),
+            PYTHONPATH=str(tmp_path),
+            **{
+                key: "/untrusted-import-canary"
+                for key in (
+                    "LOG_DIR",
+                    "OBJECT_STORAGE_PATH",
+                    "PDF_MARKDOWN_DIR",
+                    "PDF_RAW_TEXT_DIR",
+                )
+            },
+        )
+    completed = subprocess.run(
+        [sys.executable, "-I", "-B", "-c", script, str(BRIDGE), str(tmp_path), INSTALLATION],
+        input=json.dumps({"op": "describe", "ref": "RESEARCH_DSH_API_KEY"}),
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=15,
+        env=env,
+        cwd="/",
+    )
+    assert completed.returncode == 0, completed.stderr
+    assert json.loads(completed.stdout) == {
+        "ok": True,
+        "configured": False,
+        "source": "docker-private-file",
+        "writable": True,
+    }
+    assert "private-import-canary" in completed.stderr
+    assert list(tmp_path.iterdir()) == [canary]
+    assert product.is_dir()
+
+
+def test_native_model_library_import_preserves_environment(monkeypatch):
+    monkeypatch.setenv("RESEARCH_RUN_MODE", "web-dev")
+    monkeypatch.setenv("LOG_DIR", "/untrusted-import-canary")
+    before = dict(os.environ)
+    bridge = load_bridge()
+    assert bridge.select_backend("system-keychain") is None
+    assert dict(os.environ) == before
+
+
 def test_explicit_docker_model_backend_factory_exists():
     assert callable(getattr(load_bridge(), "docker_backend", None))
 

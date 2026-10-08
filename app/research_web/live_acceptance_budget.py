@@ -23,7 +23,15 @@ from typing import Literal, NoReturn, TypeAlias, TypedDict
 
 # Isolated script execution imports only its fixed product root.
 if __package__ in (None, ""):
-    sys.path.insert(0, str(Path(__file__).resolve(strict=True).parents[2]))
+    product_root = str(Path(__file__).resolve(strict=True).parents[2])
+    if __name__ == "__main__":
+        # Legacy logger imports ensure directories even for read-only commands.
+        # Only this private process binds them to the existing managed root.
+        os.environ["RESEARCH_RUN_MODE"] = "web-prod"
+        os.environ.pop("RESEARCH_CONFIG_FILE", None)
+        for key in ("LOG_DIR", "OBJECT_STORAGE_PATH", "PDF_MARKDOWN_DIR", "PDF_RAW_TEXT_DIR"):
+            os.environ[key] = product_root
+    sys.path.insert(0, product_root)
 
 with redirect_stdout(sys.stderr):
     from app.research_web.credential_backend import (

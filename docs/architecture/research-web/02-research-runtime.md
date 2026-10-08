@@ -27,6 +27,10 @@ Docker fresh-root 首装接受与启动为两个独立 lifecycle 调用：no-sta
 Node仅接受system-keychain/docker-private-file及匹配的describe来源，Key仅通过原private stdin；
 Python仍-I/-B、环境白名单、有界输出和stderr drain。仅Docker固定commit_uncertain码保持，
 其他后端异常仍收敛为稳定失败；模型不可用不影响Host readRecord/modifyRecord。
+Docker模型私有CLI与预算CLI在standalone入口受控导入前强制web-prod、移除显式.env选择，
+并将四个旧settings目录键绑定到已存在的受管产品根，防止最小环境/cwd /下的legacy ensure_dirs
+尝试写只读镜像。Native与库导入不改变调用方环境，JS仍仅PATH/LANG，不继承用户目录或秘密。
+这只消除导入副作用，不放宽文件/实例/权限校验；修补镜像仍须重新实际验收。
 旧受管容器的新ID投影为合法空数组时仍按全部原归属守卫允许status/stop，但无模型绑定证明；
 省略、非数组、错误/重复ID拒绝。内部派生标记不证明模型目录、Key或真实请求可用。
 

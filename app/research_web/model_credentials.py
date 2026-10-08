@@ -9,6 +9,7 @@ import ctypes
 import hashlib
 import json
 import logging
+import os
 import re
 import sys
 from contextlib import redirect_stdout
@@ -147,6 +148,15 @@ def select_backend(backend, root=None, installation_id=None):
         or root != "/run/rwb-secrets/private/models/" + installation_id
     ):
         raise ValueError("model_credential_binding_invalid")
+    if __name__ == "__main__" and __package__ in (None, ""):
+        # The private child has a stripped environment and a read-only image.
+        # Legacy logger imports still ensure four directories unconditionally;
+        # bind them to the existing managed root, never caller paths or .env.
+        product_root = str(Path(__file__).resolve(strict=True).parents[2])
+        os.environ["RESEARCH_RUN_MODE"] = "web-prod"
+        os.environ.pop("RESEARCH_CONFIG_FILE", None)
+        for key in ("LOG_DIR", "OBJECT_STORAGE_PATH", "PDF_MARKDOWN_DIR", "PDF_RAW_TEXT_DIR"):
+            os.environ[key] = product_root
     return docker_backend(root, installation_id)
 
 

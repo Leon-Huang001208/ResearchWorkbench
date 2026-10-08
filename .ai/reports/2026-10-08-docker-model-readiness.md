@@ -286,6 +286,41 @@ local-integrations、protocol、runtime-mode、platform-capabilities，523 PASS/
 四模块JS相关完整验证再次实际104 PASS（含architecture），全部27路径Project Constraints
 0 violation，architecture/governance/index复核PASS。真实镜像与外部门没有因local checkpoint变PASS。
 
+## 2026-10-09 macOS Docker Desktop 首轮实测
+
+用户独立批准任务测试目录锁定安装/镜像构建。新private根
+`/private/tmp/rwb-docker-model-20261009.TWurhY`，detached clean checkout固定72faad0ac，
+独立HOME/安装ID31514074b0f849d1bfb81d4a735f9db2，不读日常Key、无付费/远端授权。
+首preflight因隔离HOME缺Compose发现失败；只在该HOME登记现有Docker.app cliPluginsExtraDirs。
+第二轮frontend匿名auth.docker.io直连io_timeout，未进入APT；只读现有系统HTTP代理127.0.0.1:29758，
+同一匿名请求经代理HTTP200，于本次命令显式传递validatedproxy，不改daemon/TLS/源。
+完整固定Python/CJPY/DSH构建、镜像importsmoke通过后选择guard失败；原因包含task PATH漏/usr/sbin/lsof，
+补标准OS目录后原公开安装器成功，不停日常服务、不放宽guard。所有attempt日志分别保留。
+
+公开安装接受image sha256:082b77822fdc34b69a08cc42fdb08464d1f55cec4a37b98411c7692eb5f75c9c，
+linux/arm64 guest；正常rwb web start --no-open verified/healthy，自动hostWeb60514，容器内部DSH3081。
+首页/static均HTTP200，Doctor核心ok。无模型生成，无Key配置。正常stop已验证exited0、只作用本安装。
+
+真实边界发现：Python CLI继承容器环境describePASS，而JS同样-I/-B/PATH+LANG/cwd/最小环境FAIL；
+纯import复现OSError errno30，trace固定到credential_backend→core.observability.logger→
+core.settings.config.ensure_dirs。Web runtime连接正常但模型backend不可用，不能宣称模型闭环。
+仅web-prod不够；再绑定四legacy目录设置到已有可信/opt/rwb，同CLI describePASS。
+据此修private CLI导入bootstrap，不改Core/settings全局行为、readonly挂载、JS选择/私有根或Native回退。
+候选72镜像已通过build/install/corehealth，但模型链FAIL；修补后必须另构建对应源码镜像，旧成功不重标。
+数据/credentials/镜像/新checkout保留；真实Key/付费、预算激活、文本恢复、浏览器与MacCI仍NOT_RUN。
+
+最小修补仅standalone私有CLI的受控导入bootstrap：明确web-prod、移除显式RESEARCH_CONFIG_FILE，
+四legacy目录强制既有受管产品根；不改Core/settings、JS最小spawn环境或Native/library环境。
+两个源码/两个最近测试冻结，纠正后的真实RED4FAIL1PASS→focused5PASS，完整267PASS2opt-inSKIP。
+初始Mac sysconfig平台模拟失败不是有效缺陷RED，另保存；canonical两源码/actualHEAD影子基线
+同57条导入旧债整体FAIL、自身0；格式/语法/diff通过。SPEC独立复验5PASS批准，QUALITY随后进行。
+本任务端口60514普通bind已成功，stop/释放事实不代表model链修复或供应商调用通过。
+
+独立QUALITY复验全模块267PASS2SKIP、近处5PASS、Ruff/Black/isort通过，批准此冻结补丁；
+canonical依赖57FAIL、自身0仍按真实状态保留。完整Git-bound重新规划54paths/L4，约束0违规；
+一次错误手填单文件集合被INCOMPLETE_CHANGE_SET拒绝，未据此缩减验收，随后用完整发现集成功。
+将提交修补并重建其精确源码镜像，真实model链验收结果只能归属新image/source身份。
+
 <!-- architecture-review {"group":"dual-runtime","structure":"unchanged","reason":"在既有私有credentials bind内增加模型叶和非秘密安装身份/参数绑定；Native overlay不变，无新mount、Host服务或部署节点。旧实例空ID投影保留原完整生命周期守卫但无模型能力，新精确绑定只在实际完整inspect后派生，不改变DSH唯一引擎或数据根，实际镜像和真实研究另行验收。","diagrams":[]} -->
 
 <!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"当前JS私有pipe已经接入稳定安装ID/source绑定，继续委派原Host浏览器record；Native默认overlay不变，模型秘密只落在既有Docker私有credentials信任区或Native Keychain，无新部署组件、公开取密API、宿主bridge或第二执行循环。当前按实现合同记录，实际镜像及真实模型状态未验收且不借静态图推导通过。","diagrams":[]} -->

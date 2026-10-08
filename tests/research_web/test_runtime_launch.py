@@ -550,6 +550,70 @@ def test_acceptance_budget_cli_import_stdout_is_private_even_before_request_deco
     assert "private-import-canary" in completed.stderr
 
 
+@pytest.mark.parametrize("ambient", [False, True])
+def test_acceptance_budget_private_cli_readonly_import_and_missing_read(tmp_path, ambient):
+    helper = Path(launch_runtime.__file__).with_name("live_acceptance_budget.py")
+    canary = tmp_path / "untrusted.env"
+    canary.write_text("LOG_DIR=/untrusted-import-canary\n")
+    script = """
+import builtins, errno, os, runpy, sys, sysconfig
+from pathlib import Path
+sysconfig.get_config_vars()  # Host stdlib configuration precedes the Linux selector simulation.
+product = Path(sys.argv[1]).resolve().parents[2]
+original_mkdir, original_import = os.mkdir, builtins.__import__
+def readonly_mkdir(path, *args, **kwargs):
+    if Path(path) != product:
+        raise OSError(errno.EROFS, 'readonly-import-canary')
+    return original_mkdir(path, *args, **kwargs)
+os.mkdir = readonly_mkdir
+def guarded_import(name, *args, **kwargs):
+    imported = original_import(name, *args, **kwargs)
+    if name == 'app.research_web.credential_backend':
+        from core.settings.config import settings, RUNTIME_CONTEXT
+        assert RUNTIME_CONTEXT.mode == 'web-prod' and RUNTIME_CONTEXT.env_path is None
+        assert all(getattr(settings, key) == product for key in
+            ('LOG_DIR', 'OBJECT_STORAGE_PATH', 'PDF_MARKDOWN_DIR', 'PDF_RAW_TEXT_DIR'))
+        print('private-import-canary')
+    return imported
+builtins.__import__ = guarded_import
+sys.platform = 'linux'
+sys.argv = [sys.argv[1], '--installation-id', 'b' * 32]
+runpy.run_path(sys.argv[0], run_name='__main__')
+"""
+    env = {"PATH": "/usr/bin:/bin", "LANG": "en_US.UTF-8"}
+    if ambient:
+        env.update(
+            RESEARCH_RUN_MODE="web-dev",
+            RESEARCH_CONFIG_FILE=str(canary),
+            PYTHONPATH=str(tmp_path),
+            **{
+                key: "/untrusted-import-canary"
+                for key in (
+                    "LOG_DIR",
+                    "OBJECT_STORAGE_PATH",
+                    "PDF_MARKDOWN_DIR",
+                    "PDF_RAW_TEXT_DIR",
+                )
+            },
+        )
+    completed = subprocess.run(
+        [sys.executable, "-I", "-B", "-c", script, str(helper)],
+        input='{"op":"describe"}',
+        capture_output=True,
+        text=True,
+        timeout=15,
+        check=False,
+        env=env,
+        cwd="/",
+    )
+    assert completed.returncode == 1
+    assert completed.stdout, completed.stderr
+    assert json.loads(completed.stdout) == {"ok": False, "error": "acceptance_budget_unavailable"}
+    assert "private-import-canary" in completed.stderr
+    assert "readonly-import-canary" not in completed.stderr
+    assert list(tmp_path.iterdir()) == [canary]
+
+
 def test_acceptance_budget_expiry_during_commit_keeps_ticket_and_denies_dispatch(tmp_path):
     from datetime import timedelta
 
