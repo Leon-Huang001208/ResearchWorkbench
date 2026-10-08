@@ -447,6 +447,37 @@ tabbit-fix-physical-activation-20261009.json。只属484/c919，不能认证最�
 managed controller旧prepared身份保留；远端前进使replace-prepared拒绝，未改其receipt冒充完成。
 尚未push/PR/dispatch/merge远端，未执行release/tag/cleanup，未修改全局Hook/插件/信任/配置。
 
+## PR88 与本机/远端证据收束
+
+22个本地代码门均有当前集成源码的实际XML/log证据：Node353PASS、API/protocol/models
+183PASS2SKIP、runtime/controller/service等1325PASS2SKIP；共用 invocation 时间不重复求和。
+原校验器使用平台plan4/receipt3验证VALID，整体BLOCKED/mergeReadyfalse/releaseReadyfalse；
+schema/路径输入准备失败亦未被视为测试通过，改用规范项目内归档后验证，六份归档与原件hash相同。
+
+受管publication预检查使用真实22-local-PASS记录且禁用push回调，正确返回remote_moved，无外部写入。
+将中间ignored证据归档到Git common task目录后正常prepare，保留f428源码/文档全部提交及旧分支；
+只移除干净中间checkout，原feature/testHOME/Key/control/ledger不动。新r1 df30c4ba358d1c470ad80fad2228d17f2eb2971b
+与已验证f428树相同，复用证据有明确source/tree关系，未伪称全部新HEAD重跑。
+授权范围内正常push r1并创建Draft PR88，autoMerge=null；未直推master、未开启自动合并。
+受管receipt仍prepared，PR实际身份另有透明任务metadata，不修改框架/receipt伪造published。
+
+实际PR preview34e77f4b0ef1a6ced43f0b5bc8908b18f56d5c49父为7d9d5a5cb与df30c4ba，tree等于candidate。
+Project Constraints run37833044008 PASS。macOS Bootstrap37833044002 PASS，实际checkout该preview，
+macos-14 job728秒，固定SDK48504f源码构建、安装、DSH3081/Web8088认证健康/Doctor、stop及minimal
+artifact真实通过；doctor/root/app/connections已下载留存。此NativeCI不是Docker实际文本证据。
+
+ordinaryChecks37833043917 FAIL：1137PASS3SKIP，唯一wheel合同因CI测试venv无hatchling失败。
+pyproject已有build-system.requires=hatchling，editable dev安装只在隔离build环境使用，不装入测试venv。
+最小CI修补仅在既有pipinstall追加该已声明后端，并补同venv/实际wheel模块参数及负例治理契约。
+真实RED23测试22PASS1FAIL→GREEN98PASS；独立SPEC/JSQUALITY各复验23PASS批准。
+现有本地环境不安装包而执行真正wheel合同1PASS8.26秒，证实产品wheel可构建/加载。
+CI临时环境安装仍单独等待用户确认，修补未推送/未rerun，不跳过测试，不改产品锁或矩阵。
+
+新SDK默认/目录为canonical deepseek-flash，旧授权tuple和已初始化ledger不适用；旧窗口已过期且
+0tickets/0cost。新的任务内隔离验收安装与最长1h预算另请求用户确认，全任务仍3请求/512输出/
+1USD；未创建新安装/启用新控制/复制真实Key。最终SDK485 Docker及真实文本/冷恢复/续问/同镜像
+重建仍NOT_RUN，浏览器实际stream仍NOT_RUN，goal保持PARTIAL。旧安装/Key/账本与全部证据保留。
+
 <!-- architecture-review {"group":"dual-runtime","structure":"unchanged","reason":"在既有私有credentials bind内增加模型叶和非秘密安装身份/参数绑定；Native overlay不变，无新mount、Host服务或部署节点。旧实例空ID投影保留原完整生命周期守卫但无模型能力，新精确绑定只在实际完整inspect后派生，不改变DSH唯一引擎或数据根，实际镜像和真实研究另行验收。","diagrams":[]} -->
 
 <!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"当前JS私有pipe已经接入稳定安装ID/source绑定，继续委派原Host浏览器record；Native默认overlay不变，模型秘密只落在既有Docker私有credentials信任区或Native Keychain，无新部署组件、公开取密API、宿主bridge或第二执行循环。当前按实现合同记录，实际镜像及真实模型状态未验收且不借静态图推导通过。","diagrams":[]} -->

@@ -44,6 +44,34 @@ function assertBoundedPythonContracts(source) {
   ], 'ordinary CI must execute the bounded model/backend/runtime contracts');
 }
 
+function assertWheelTestEnvironment(source) {
+  assertBoundedPythonContracts(source);
+  const install = source.match(/      - name: Install declared test dependencies\n([\s\S]*?)(?=\n      - name:|$)/);
+  assert.ok(install, 'declared test dependency installation step must exist');
+  assert.match(install[1], /        run: \|\n          python -m venv \.venv\n          \.venv\/bin\/python -m pip install -e "\.\[dev\]" hatchling\s*$/,
+    'the wheel contract needs the declared build backend in the same venv as pytest');
+  assert.ok(install.index < source.indexOf('      - name: Run Research Web Python contracts'),
+    'the backend must be installed before the wheel contract executes');
+}
+
+test('ordinary CI installs the declared wheel backend in the runtime contract test venv', () => {
+  const project = fs.readFileSync(new URL('../../pyproject.toml', import.meta.url), 'utf8');
+  const buildSystem = project.match(/\[build-system\]\n([\s\S]*?)(?=\n\[|$)/);
+  assert.ok(buildSystem, 'the package must declare its build system');
+  assert.match(buildSystem[1], /^requires = \[ "hatchling",\]$/m);
+  assert.match(buildSystem[1], /^build-backend = "hatchling\.build"$/m);
+  assertWheelTestEnvironment(workflows.checks);
+});
+
+test('wheel environment contract rejects missing backend, foreign interpreter and omitted module', () => {
+  assert.throws(() => assertWheelTestEnvironment(workflows.checks.replace('".[dev]" hatchling', '".[dev]"')));
+  assert.throws(() => assertWheelTestEnvironment(workflows.checks.replace(
+    '.venv/bin/python -m pip install', 'python -m pip install',
+  )));
+  assert.throws(() => assertWheelTestEnvironment(workflows.checks.split('\n')
+    .filter(line => line.trim() !== 'tests/research_web/test_runtime_contract.py \\').join('\n')));
+});
+
 test('ordinary CI executes bounded model and runtime contracts without native opt-ins', () => {
   assertBoundedPythonContracts(workflows.checks);
   assert.doesNotMatch(workflows.checks, /RWB_C1_(?:KEYCHAIN|RUNTIME)_TEST\s*[:=]/);

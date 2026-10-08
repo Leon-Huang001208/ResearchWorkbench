@@ -82,7 +82,7 @@ jobs:
       - name: Install declared test dependencies
         run: |
           python -m venv .venv
-          .venv/bin/python -m pip install -e ".[dev]"
+          .venv/bin/python -m pip install -e ".[dev]" hatchling
 
       - name: Run Research Web Python contracts
         run: |
