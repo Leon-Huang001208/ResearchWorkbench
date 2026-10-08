@@ -64,6 +64,8 @@ Project Constraints 还运行 Actions 额度路由契约：docs-only 只进入 U
 
 01–10 必需基线图必须保留；新增视图按唯一安全 ID 登记，规范产物名由 ID 推导。每个登记视图都接受同一哈希、视觉、关联来源和真实审阅检查，不允许缺失产物、证据或通过空清单绕过。产品总图是 overview 层的必需入口。新增报告 Workflow 运行序列与 Excel 数据流也必须经过同一哈希、视觉和人工审阅门禁。首页与 API Atlas 从清单生成，唯一接口按 Method + Path、声明按源码位置计数，均收录完整 inventory。MCP、自动化、研究框架和集成协调器独立分类。`node scripts/build_research_web_api_atlas.mjs --check` 只读检查完整内容；相同数量但条目集合不同仍失败，不会覆盖生成物或写日志。分类脚本改动同样需要文档组标记与重新生成。
 
+派生首页采用固定阅读目录、当前清单搜索及渐进模块详情。`#top`、各reading.level.id、`#modules`与`#module-<id>`仍是稳定入口；源码展开区使用`#module-<id>-code`。主题和密度只有页内状态，不依赖opaque origin禁止的存储能力。导航、条目、统计、搜索文本与链接均从同一清单派生；品牌PNG复用已批准真实资产，不引入外部字体、CDN、API或图源变化。
+
 ## 更新检查规则
 
 源码变更先匹配模块组。Python、JS/MJS、CSS、HTML、Skill 文档/模板/脚本和 Runtime 配置都必须被覆盖。相关模块说明与本次 `.ai/reports/*.md` 任务报告需要更新。检查器只读取 changed-file 集里的报告；结构未改变时说明“不改图的原因”，不强制为了凑 diff 改图坐标。
