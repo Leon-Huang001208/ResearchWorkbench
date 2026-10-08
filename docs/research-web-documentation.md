@@ -149,3 +149,5 @@ no-store、no-referrer、nosniff 仍由现有中间件执行。
 生成路径逐级 lstat，悬空符号链接也拒绝；所有输出及日志在生成写入前统一检查。门禁另比较 Python 静态 HTML 允许列表与入口、Atlas 和全部登记视图的集合，新增图不得遗漏服务路由或多开私有文件入口。
 
 Windows Native 尚无已验证的安全文档 reader：缺少 POSIX no-follow/dir_fd primitive 时返回 501 documentation_platform_unsupported，Doctor 说明同一边界。Mac/Linux 的允许列表、单硬链接、大小上限与 opaque CSP 保持。
+
+API Atlas 采用领域目录与单列表查阅，领域、Method 和关键词联合筛选；筛选统计分别计算唯一 Method + Path 与源码声明，重复声明保留独立行。主题和密度仅为页内状态，源码完整路径保留在链接的可访问名称与提示中，窄屏使用领域选择器；分类 URL 参数及原搜索/分类 DOM 合同保留。无外部资源、接口调试请求或存储依赖。
