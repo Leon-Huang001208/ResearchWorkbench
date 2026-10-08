@@ -668,6 +668,35 @@ textarea { resize: vertical; }
   .page-content { padding-left: 12px; padding-right: 12px; }
   .runtime-details { grid-template-columns: 1fr; }
 }
+
+/* Hot uses the existing canvas, forms and accessible button vocabulary. */
+.hot-status, .hot-tabs, .hot-lifecycle { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin: 14px 0; }
+.hot-status { padding: 12px 0; border-bottom: 1px solid var(--line); }
+.hot-tabs a { padding: 9px 12px; text-decoration: none; color: var(--muted); border-bottom: 2px solid transparent; }
+.hot-tabs a.active { color: var(--text); border-color: currentColor; }
+.hot-filters { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 20px 0; }
+[data-hot-workspace] label { display: grid; gap: 7px; margin: 10px 0; font-size: 13px; }
+[data-hot-workspace] input, [data-hot-workspace] select, [data-hot-workspace] textarea { width: 100%; min-width: 0; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: inherit; padding: 9px 10px; font: inherit; }
+[data-hot-workspace] input[type=checkbox] { width: auto; }
+[data-hot-workspace] textarea { resize: vertical; }
+.hot-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 22px; align-items: start; }
+.hot-layout:has(.hot-detail) { grid-template-columns: minmax(0, 1fr) minmax(320px, .8fr); }
+.hot-card, .hot-detail { border: 1px solid var(--line); border-radius: 12px; padding: 20px; background: var(--surface); margin-bottom: 14px; overflow-wrap: anywhere; }
+.hot-card h2, .hot-detail h2 { margin-top: 0; font-size: 18px; }
+.hot-event-title { border: 0; padding: 0; background: transparent; color: inherit; text-align: left; font: inherit; font-size: 17px; font-weight: 600; cursor: pointer; }
+.hot-event-title:hover { text-decoration: underline; }
+.hot-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 16px 0; }
+.hot-metrics dt { color: var(--muted); font-size: 11px; }
+.hot-metrics dd { font-size: 19px; margin: 3px 0 0; font-variant-numeric: tabular-nums; }
+.hot-source-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.hot-report { padding: 16px 0; border-bottom: 1px solid var(--line); }
+.hot-report h3 { font-size: 15px; }
+.hot-report code { display: block; word-break: break-all; font-size: 11px; }
+.hot-detail header { display: flex; align-items: start; justify-content: space-between; gap: 10px; }
+.hot-detail section { padding: 12px 0; border-bottom: 1px solid var(--line); }
+.hot-correction { margin-top: 20px; }
+@media (max-width: 1000px) { .hot-layout:has(.hot-detail) { grid-template-columns: 1fr; } .hot-filters { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media (max-width: 600px) { .hot-source-grid, .hot-filters { grid-template-columns: 1fr; } .hot-card, .hot-detail { padding: 15px; } .hot-metrics { grid-template-columns: repeat(2,minmax(0,1fr)); } }
 @media (max-width: 380px) {
   .brand > span { font-size: 12px; }
   .topbar-right select { width: 95px; }

@@ -15,7 +15,7 @@
     "cellW": 205,
     "cellH": 78,
     "gapX": 105,
-    "gapY": 95
+    "gapY": 35
   },
   "components": [
     {
@@ -125,6 +125,30 @@
         205,
         78
       ]
+    },
+    {
+      "id": "hotNode",
+      "type": "backend",
+      "label": "可选 Hot Node / Worker",
+      "sublabel": "Native 签名接口 · 模型激活待接入",
+      "row": 4,
+      "col": 1,
+      "size": [
+        205,
+        78
+      ]
+    },
+    {
+      "id": "hotPg",
+      "type": "database",
+      "label": "独立 Hot PostgreSQL",
+      "sublabel": "原文 · 版本 · 唯一持久队列",
+      "row": 4,
+      "col": 2,
+      "size": [
+        205,
+        78
+      ]
     }
   ],
   "connections": [
@@ -195,6 +219,18 @@
       "to": "modelKeychain",
       "label": "模型私有桥接",
       "variant": "security"
+    },
+    {
+      "id": "hotSigned",
+      "from": "nativeWeb",
+      "to": "hotNode",
+      "label": "按需签名请求"
+    },
+    {
+      "id": "hotPersistence",
+      "from": "hotNode",
+      "to": "hotPg",
+      "label": "指定 schema"
     }
   ],
   "cards": [

@@ -10,6 +10,7 @@ const escapeHTML = value => String(value).replace(/[&<>"']/g, character => ({'&'
 
 export function category(api) {
   const route = api.path;
+  if(route.startsWith('/api/research/hot/'))return '热点与事件';
   if (route.includes('/local-integrations')) return '本机集成';
   if (route.includes('/frameworks')) return '研究框架';
   if (route.includes('/integrations')) return '集成协调器';

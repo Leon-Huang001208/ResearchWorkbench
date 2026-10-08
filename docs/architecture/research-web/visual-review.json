@@ -17,22 +17,6 @@
       "notes": "已人工查看更新后 1440 浅色与 2048 浅色/深色最终截图；固定十图、源码/API/文档/测试映射、CI 和只读入口关系可读，未见穿线、遮挡或裁剪。作者更新图文与自动一致性检查分开，检查不代替语义或产品验收。"
     },
     {
-      "id": "02-module-dependencies",
-      "artifactSha256": "01aed4e526e3876396e5b3575f4836623f5c57a74e005c3974e52b734ccff803",
-      "specificationSha256": "fd63c80fc915d319f60b6804ec81048eb01e87af9005ac40862c6a51df4a9534",
-      "status": "reviewed",
-      "reviewer": "controller",
-      "date": "2026-09-11",
-      "captures": [
-        "02-module-dependencies.visual-check.1440x900.light.png",
-        "02-module-dependencies.visual-check.1440x900.dark.png",
-        "02-module-dependencies.visual-check.2048x1320.light.png",
-        "02-module-dependencies.visual-check.2048x1320.dark.png"
-      ],
-      "findings": [],
-      "notes": "已人工查看同一最终哈希的 1440 浅色与 2048 深色截图，并以自动回执确认 1440/1600/1920/2048 包含性及最小/最大明暗截图生成；MCP Registry + Host、Automation、原子任务事实/系统凭据库、专属 DSH、报告 Workflow 与外部投递关系可读，未见遮挡、裁剪或节点穿线。图只证明结构表达，不证明 Registry、MCP Server、投递渠道、Tabbit 或 Provider 在线。"
-    },
-    {
       "id": "05-capability-flow",
       "artifactSha256": "c67787db5aa11de415903ab82d882cb2b9254f0221a98e1ce3ee9774a22adce5",
       "specificationSha256": "1f19790e4a68a12825af9cf1cea95472504d68e78d2f8a2ca3e08ec7533c192c",
@@ -131,22 +115,6 @@
       "notes": "已人工查看 1440 浅色/深色与 2048 浅色最终截图；Workflow 母版只读、Run 副本刷新、Provider 校验、快照复用及产物发布边界清楚，主路径平衡且无明显空带、遮挡、穿线或裁剪。"
     },
     {
-      "id": "01-deployment",
-      "artifactSha256": "959f560983c02c1d54272c04afdf81a6aee1f6863395a1f895d23d0a497682f6",
-      "specificationSha256": "25f9f2cacfdb9e6dddc553841de1135d9f724f53bf64dd1d3f203dd18f92ee64",
-      "status": "reviewed",
-      "reviewer": "user",
-      "date": "2026-10-06",
-      "captures": [
-        "01-deployment.visual-check.1440x900.light.png",
-        "01-deployment.visual-check.1440x900.dark.png",
-        "01-deployment.visual-check.2048x1320.light.png",
-        "01-deployment.visual-check.2048x1320.dark.png"
-      ],
-      "findings": [],
-      "notes": "用户在本轮结构化回复明确表示已查看四张截图并确认无问题；对应当前同哈希产物。Codex先前图像检查另存，未伪造人工；不证明Docker运行或B归因。"
-    },
-    {
       "id": "00-system-overview",
       "status": "reviewed",
       "reviewer": "用户（本会话明确确认）",
@@ -160,6 +128,48 @@
         "00-system-overview.visual-check.1440x900.light.png",
         "00-system-overview.visual-check.2048x1320.dark.png"
       ]
+    },
+    {
+      "id": "01-deployment",
+      "artifactSha256": "894ef9cd0399761c34acb8e32227a0aa3e2f7d924834fa764035971a1ad01ddf",
+      "specificationSha256": "d45ad401fd451da1c47995461a13c43cda6ec429674104030303df87287488ce",
+      "status": "reviewed",
+      "reviewer": "codex-controller",
+      "date": "2026-10-08",
+      "captures": [
+        "01-deployment.visual-check.1440x900.light.png",
+        "01-deployment.visual-check.2048x1320.dark.png"
+      ],
+      "findings": [],
+      "notes": "Codex主控制器实际查看最终小视口浅色/大视口深色截图：节点、角色边界、关系标签和待实现交接可读，未见遮挡/穿线/裁剪；自动四视口containment另有回执。该视觉复核不是独立人工金标准或功能/安装验收。"
+    },
+    {
+      "id": "02-module-dependencies",
+      "artifactSha256": "81873afbfde0a2e8ebe6a767ca61faf4ea5c1078ccebb0eec13c4cf9b4eb3d57",
+      "specificationSha256": "bd909bcb087c37bf200c1b277ae313050542c4907d63a6a2504ef4d669957321",
+      "status": "reviewed",
+      "reviewer": "codex-controller",
+      "date": "2026-10-08",
+      "captures": [
+        "02-module-dependencies.visual-check.1440x900.light.png",
+        "02-module-dependencies.visual-check.2048x1320.dark.png"
+      ],
+      "findings": [],
+      "notes": "Codex主控制器实际查看最终小视口浅色/大视口深色截图：节点、角色边界、关系标签和待实现交接可读，未见遮挡/穿线/裁剪；自动四视口containment另有回执。该视觉复核不是独立人工金标准或功能/安装验收。"
+    },
+    {
+      "id": "11-hot-events",
+      "artifactSha256": "67a7b7a8a55a1422fa165962ba80b42f62827c23a994abb5bb52234976b0450b",
+      "specificationSha256": "79e5d2601828add2b066195503720747f2fa3ebac4dfaca5d6136d5995f90645",
+      "status": "reviewed",
+      "reviewer": "codex-controller",
+      "date": "2026-10-08",
+      "captures": [
+        "11-hot-events.visual-check.1440x900.light.png",
+        "11-hot-events.visual-check.2048x1320.dark.png"
+      ],
+      "findings": [],
+      "notes": "Codex主控制器实际查看最终小视口浅色/大视口深色截图：节点、角色边界、关系标签和待实现交接可读，未见遮挡/穿线/裁剪；自动四视口containment另有回执。该视觉复核不是独立人工金标准或功能/安装验收。"
     }
   ]
 }

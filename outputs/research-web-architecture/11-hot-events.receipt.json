@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "deliver",
+  "type": "architecture",
+  "input": "/Users/leon/.codex/worktrees/hot-events-system/ResearchWorkbench/docs/architecture/research-web/diagrams/11-hot-events.json",
+  "output": "/Users/leon/.codex/worktrees/hot-events-system/ResearchWorkbench/outputs/research-web-architecture/11-hot-events.html",
+  "specification": {
+    "sha256": "79e5d2601828add2b066195503720747f2fa3ebac4dfaca5d6136d5995f90645",
+    "bytes": 3480
+  },
+  "artifact": {
+    "sha256": "67a7b7a8a55a1422fa165962ba80b42f62827c23a994abb5bb52234976b0450b",
+    "bytes": 633116
+  },
+  "validation": {
+    "checksPassed": 9,
+    "checkCount": 9,
+    "compositionProfile": "showcase",
+    "compositionStatus": "pass",
+    "errors": 0,
+    "warnings": 0
+  }
+}

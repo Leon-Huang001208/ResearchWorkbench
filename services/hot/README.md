@@ -3,6 +3,31 @@
 This package is under implementation. It is not yet a supported product entry.
 The authoritative stage record is `.ai/reports/2026-10-07-hot-events-PROGRESS.md`.
 
+## Web Host and workspace checkpoint
+
+`app/research_web/hot_service.py` lazily bridges Host calls to the owned manager,
+with four admitted threads and a bounded deadline. Timeout/cancellation retains
+capacity until the actual thread finishes; closing refuses waiting admissions.
+No Hot daemon/database/model is started by Web lifespan or GET. Existing Host
+same-origin controls apply; explicit writes also require X-Research-User-Action,
+JSON <=64 KiB, typed operation fields and a UUID for conditional writes. Keys and
+database passwords stay in the Host's current-mode credential backend.
+
+The same UI now provides #/workbench/hot (events/sources/channels) and
+#/settings/hot (non-secret config and explicit lifecycle). It escapes publisher
+text, validates external URLs, separates scores, shows unknown dates/timezone,
+origin revisions and coverage, and offers existing correction types. Material
+selection persists across report pages by canonical id/revision; detail pages
+reuse their own cutoff. Unknown writes keep the exact body/UUID for explicit
+retry; page changes, filters and late details cannot replace newer results.
+Config edits remain advanced JSON; initial setup still uses the documented CLI.
+
+Host/renderer tests and an actual browser disabled-settings journey are recorded.
+That journey intentionally uses an offline research-runtime fixture because its
+isolated data root has no DSH auth installation; it proves Hot-unconfigured UI
+availability, not a clean installation, real event browsing or research. Native
+model activation, follows, briefs and frozen research handoff remain pending.
+
 ## Authenticated event/channel API
 
 The existing signed `rwb-hot/v1` loopback transport now exposes these internal

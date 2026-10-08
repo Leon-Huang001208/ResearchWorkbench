@@ -4933,6 +4933,7 @@
         <path data-edge-from="automationService" data-edge-to="automationState" data-edge-label="锁定版本与运行状态" data-edge-key="17" data-edge-id="automationFacts" data-composition-points="750,794;705,794" d="M 750 794 L 705 794" class="a-security" stroke-width="1.5" marker-end="url(#arrowhead-security)"/>
         <path data-edge-from="automationService" data-edge-to="dsh" data-edge-label="独立 Claw 会话" data-edge-key="18" data-edge-id="automationClaw" data-composition-points="852.5,755;852.5,735;1510,735;1510,340;852.5,340;852.5,380" d="M 852.5 755 L 852.5 743 Q 852.5 735 860.5 735 L 1502 735 Q 1510 735 1510 727 L 1510 348 Q 1510 340 1502 340 L 860.5 340 Q 852.5 340 852.5 348 L 852.5 380" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
         <path data-edge-from="automationService" data-edge-to="deliveryTargets" data-edge-label="完成后独立重试 ×3" data-edge-key="19" data-edge-id="automationDelivery" data-composition-points="955,794;1015,794" d="M 955 794 L 1015 794" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
+        <path data-edge-from="api" data-edge-to="hotSubsystem" data-edge-label="有界签名桥" data-edge-key="20" data-edge-id="hotBridge" data-composition-points="275,419;262.5,419;262.5,794;250,794" d="M 275 419 L 268.75 419 Q 262.5 419 262.5 425.25 L 262.5 787.75 Q 262.5 794 256.25 794 L 250 794" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
 
         <!-- Components -->
         <g id="node-browser" data-node-id="browser" data-node-label="Research Web" tabindex="0" role="button" aria-label="Focus Research Web, FinGPT · Claw · 资产观察 · MCP 市场, Architecture component" aria-pressed="false" data-node-kind="frontend" data-node-sublabel="FinGPT · Claw · 资产观察 · MCP 市场" data-node-context="Architecture component">
@@ -5145,6 +5146,17 @@
         <text data-detail="context" x="1132.5" y="808" class="t-muted" font-size="9" text-anchor="middle">SMTP · HMAC · 飞书 / 企微 / 钉钉</text>
         </g>
 
+        <g id="node-hotSubsystem" data-node-id="hotSubsystem" data-node-label="可选 Hot 事件子系统" tabindex="0" role="button" aria-label="Focus 可选 Hot 事件子系统, 独立 Node / PG · 同一任务后端, Architecture component" aria-pressed="false" data-node-kind="backend" data-node-sublabel="独立 Node / PG · 同一任务后端" data-node-context="Architecture component">
+          <title>可选 Hot 事件子系统 · 独立 Node / PG · 同一任务后端 · Architecture component</title>
+          <rect x="40" y="755" width="210" height="78" rx="6" class="c-mask"/>
+          <rect x="40" y="755" width="210" height="78" rx="6" class="c-backend" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(46 761) scale(0.6875)">
+            <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
+          </g>
+          <text data-detail-anchor x="145" y="792" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">可选 Hot 事件子系统</text>
+        <text data-detail="context" x="145" y="808" class="t-muted" font-size="9" text-anchor="middle">独立 Node / PG · 同一任务后端</text>
+        </g>
+
         <!-- Connection labels -->
         <g data-detail="context" data-edge-from="browser" data-edge-to="api" data-edge-label="同源 HTTP / SSE" data-edge-key="0" data-edge-id="webApi">
           <rect x="209" y="366" width="82" height="14" rx="3" class="c-mask"/>
@@ -5225,6 +5237,10 @@
         <g data-detail="context" data-edge-from="automationService" data-edge-to="deliveryTargets" data-edge-label="完成后独立重试 ×3" data-edge-key="19" data-edge-id="automationDelivery">
           <rect x="939.2" y="837" width="91.6" height="14" rx="3" class="c-mask"/>
           <text x="985" y="847" class="t-messagebus" font-size="8" text-anchor="middle">完成后独立重试 ×3</text>
+        </g>
+        <g data-detail="context" data-edge-from="api" data-edge-to="hotSubsystem" data-edge-label="有界签名桥" data-edge-key="20" data-edge-id="hotBridge">
+          <rect x="233.5" y="586.5" width="58" height="14" rx="3" class="c-mask"/>
+          <text x="262.5" y="596.5" class="t-muted" font-size="8" text-anchor="middle">有界签名桥</text>
         </g>
 
         <!-- Legend -->

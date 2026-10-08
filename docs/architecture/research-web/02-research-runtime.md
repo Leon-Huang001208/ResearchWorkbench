@@ -18,6 +18,8 @@ Hot text adapter 复用 DSH prepareCall/stream，调用不创建 session 或 too
 Native Hot CLI 已增加事件/频道读取和条件配置/纠错；读取不创建研究任务或调用模型。
 控制回执验证请求的具体结果，不确定时保留原 UUID 和非零退出码，重启后用同一参数重放。
 Node/PG 往返与父 Python 退出后的独立 Manager.stop 已验证；凭据 backend/解释器选择为隔离fixture。
+Web Hot桥最多四个在途线程，超时/取消后容量直到实际线程完成才释放。关闭后待容量的请求
+不能继续获准执行。条件写入Host超时保留原UUID；普通导航/读取没有模型或研究调用。
 
 ## 模型配置与显式验收
 

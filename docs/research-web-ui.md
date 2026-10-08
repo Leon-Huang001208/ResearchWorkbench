@@ -11,6 +11,14 @@ Docker 服务健康不能使宿主 Office/Wind/Tabbit 自动变为可用。模�
 
 ## 范围与入口
 
+Hot 工作区为 `#/workbench/hot?view=events|sources|channels`，运行配置为 `#/settings/hot`。
+它调用既有Host中的惰性签名桥，不向浏览器提供控制key。页面导航和刷新只读取，不启动Hot、
+模型、研究或安装。事件显示独立相关性/重要性/热度/增量、原文版本和截止时点，来源显示快照/
+暂停/错误/缺口。字面筛选不冒充结构化机构/资产标签；未知时间保持未知，默认Asia/Shanghai。
+纠错的材料选择按canonical id/revision保存，跨页不丢；详情分页固定详情cutoff。条件写入先保存
+UUID与原body，未知回执只允许明确原参数重试。未提交DOM表单在无关重渲染中保留，不自动提取秘密。
+首期Hot配置为高级非秘密JSON，首次setup仍走CLI；普通模型激活、关注、简报与研究交接尚待完成。
+
 `app/research_web/ui/` 是独立的 Research Web 正式应用源码，由 Research Web FastAPI 服务提供 `/` 和 `/static/`。不加载原 `app/web` 管线或原型脚本，不依赖前端构建工具，不新增第三方包。2026-09-02 的真实模型与浏览器旅程已移入[历史验收](archive/acceptance/research-web-acceptance-2026-09-02.md)，只证明当时环境。
 
 页面使用 hash 路由：`#/fingpt`、`#/claw`、`#/workbench`、`#/workbench/assets`、`#/frameworks`、`#/frameworks/gold`、`#/frameworks/dollar`、`#/history`、`#/skills`、`#/operations` 与设置子路由。黄金和美元流动性详情各是一张带七个语义锚点的连续画布；旧 `?tab=` 地址继续定位相应锚点。框架间切换时，renderer 只接受与目标 slug 一致的快照；旧快照被丢弃并显示目标框架加载态。Dollar 的 SOFR−IORB 图显示最近 30 期，完整 60 期仍保留在快照用于研究状态。能力中心的规范入口使用 `#/skills?kind=skill|tool|workflow|data`，并以 `view=library|mine|plans|connections|market` 表示类型内二级视图；`market` 仅对 Tool 有效，规范地址为 `#/skills?kind=tool&view=market`，无 kind 的 market 也归一到 Tool。无 kind 的旧 plans/connections 链接分别归一到 Workflow/Tool。设置的规范地址是 `#/settings/general`、`#/settings/model`、`#/settings/data`、`#/settings/local`、`#/settings/docs`；`#/settings` 和非法子页回退至通用，旧 `#/settings?connection=<id>` 链接继续按来源进入数据源或本机集成。资产观察是主导航中的独立入口；研究台其余页面支持 `#/workbench/<section>` 与 `#/workbench?section=<section>`。会话地址形如 `#/fingpt?session=<encoded-id>`，刷新页面会重新读取该会话。

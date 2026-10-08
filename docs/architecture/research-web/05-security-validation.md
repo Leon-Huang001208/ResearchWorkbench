@@ -28,6 +28,9 @@ JSON非有限数/编码/大小校验先于控制凭据查询；Node仍负责版�
 回执须确认标题锁、频道集合、合并canonical目标、移动材料移出/移入和保护，不能只凭revision
 宣称成功。不可信、不完整或迟到响应保留UUID为outcome_unknown；已知版本冲突明确拒绝。
 测试父Python退出后通过独立身份核验的Manager.stop回收Node；不是系统Keychain或跨平台证据。
+Hot Web复用本地Origin边界；控制正文必须有明确动作标记且先过字节/类型门。桥接不开放任意
+操作/SQL/路径，凭据按当前模式选择。超时线程保持容量，关闭后二次检查拒绝等待中的写入。
+UI转义原文并限制外链协议/无userinfo，持久选择与详情cutoff防跨页混合；未知写入原参数重放。
 
 启动认证链接不得进入普通日志。产品Node preload在固定DSH CLI之前截获stdout/stderr认证行，临时启动token只进入既有0600认证控制文件；管理器验证authority/cwd/source_commit后交换Cookie并移除临时token字段。输出拆分、错误端口、过长无换行输出均不转发认证链接；控制写入拒绝别名、硬链接、非私有或非当前用户文件。模型Key与该Host认证平面保持分离；用户录入阶段不采集DOM、HAR、截图或请求体。
 

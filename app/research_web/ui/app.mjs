@@ -18,6 +18,7 @@ import { renderReportWorkflowDetail, renderReportWorkflowShelf } from './report-
 import { buildConfigurationPayload, confirmAutoProbeConsent, createLocalIntegrationPollingGuard, mergeIntegrationStatuses } from './connections.mjs';
 import { renderSettingsPage, resolveSettingsSection, settingsConnectionId, settingsRefreshCatalogs } from './settings.mjs';
 import { renderFrameworks } from './frameworks.mjs';
+import { createHotController, renderHotWorkspace } from './hot-workspace.mjs';
 
 const api = createAPI();
 const root = document.querySelector('#app');
@@ -75,6 +76,7 @@ let mcpMarketplaceState = { registries: [], installations: [], approvals: [], ap
 const questionDrafts = new Map();
 const controller = createController({ api, onNavigate: (hash) => { history.pushState(null, '', hash); } });
 const state = controller.state;
+const hotController = createHotController({api,onChange:()=>render(),isActive:()=>state.route.page==='workbench'&&state.route.section==='hot'||state.route.page==='settings'&&state.route.settingsSection==='hot'});
 const capabilityController = createCapabilityController({ api, onChange: () => render(), onCatalogChange: () => loadCatalog(['capabilities']) });
 const capabilityState = capabilityController.state;
 const localIntegrationPollingGuard = createLocalIntegrationPollingGuard(
@@ -237,6 +239,7 @@ function settingsPage() {
     migrationOpen,
     connectionDetailOpen,
     hash: location.hash,
+    hotHTML: renderHotWorkspace(hotController.state,{settings:true}),
   });
 }
 
@@ -268,6 +271,7 @@ function mainPage() {
 }
 
 function workbenchPage() {
+  if(state.route.section==='hot')return renderHotWorkspace(hotController.state);
   return renderWorkbench({ section: state.route.section || 'market', catalog: catalog.dataCatalog, queries: workbenchQueries, artifacts: catalog.artifacts, busy: workbenchBusy, assetState });
 }
 
@@ -331,6 +335,7 @@ function render() {
   // Keep the user's own dirty DOM form through unrelated catalog renders.
   // Secrets never enter application state or a server-provided refill.
   const modelForm = root.querySelector('#settings-form[data-dirty]');
+  const dirtyHotForms=[...root.querySelectorAll('[data-hot-form][data-hot-dirty]')];
   const active = document.activeElement; const focusId = active?.id;
   const selection = active && ['TEXTAREA', 'INPUT'].includes(active.tagName) && active.type !== 'password' ? { start: active.selectionStart, end: active.selectionEnd } : null;
   const mainScroll = document.querySelector('#main')?.scrollTop || 0;
@@ -355,13 +360,17 @@ function render() {
     if ([...select.options].some(option => option.value === selected)) select.value = selected;
     freshModelForm.replaceWith(modelForm);
   }
+  for(const form of dirtyHotForms){
+    const fresh=[...root.querySelectorAll('[data-hot-form]')].find(item=>item.dataset.hotFormKey===form.dataset.hotFormKey);
+    if(fresh){const blocked=form.dataset.hotForm==='filters'?hotController.state.loading:hotController.state.busy||hotController.state.pending;form.querySelectorAll('button').forEach(button=>{button.disabled=Boolean(blocked);});fresh.replaceWith(form);}
+  }
   document.querySelector('#main').scrollTop = mainScroll;
   if (focusId) {
     const replacement = document.getElementById(focusId);
     if (replacement && !replacement.disabled) { replacement.focus({ preventScroll: true }); if (selection && selection.start !== null) replacement.setSelectionRange?.(selection.start, selection.end); }
   }
   if (state.busy) root.querySelectorAll('[data-approval], [data-upload], .question-form button, #rename-form button').forEach((button) => { button.disabled = true; });
-  document.title = `${state.detail?.title || (state.route.page === 'workbench' && state.route.section === 'assets' ? '资产观察' : ({ fingpt: 'FinGPT', claw: 'Claw', workbench: '研究台', frameworks: '研究框架', history: '研究历史', skills: '能力中心', operations: '运行与用量', settings: '设置' })[state.route.page])} · Research Workbench`;
+  document.title = `${state.detail?.title || (state.route.page === 'workbench' && state.route.section === 'hot' ? '热点与事件' : state.route.page === 'workbench' && state.route.section === 'assets' ? '资产观察' : ({ fingpt: 'FinGPT', claw: 'Claw', workbench: '研究台', frameworks: '研究框架', history: '研究历史', skills: '能力中心', operations: '运行与用量', settings: '设置' })[state.route.page])} · Research Workbench`;
 }
 
 async function loadCatalog(names = defaultCatalogNames) {
@@ -898,6 +907,7 @@ async function loadOperations() {
 
 async function loadWorkbench() {
   const section = state.route.section || 'market';
+  if(section==='hot'){await hotController.activate(state.route);return;}
   if (section === 'assets') {
     delete catalog.errors.artifacts;
     await Promise.all([loadCatalog(['dataCatalog']), loadAssetWorkspace()]);
@@ -981,6 +991,7 @@ async function showRoute() {
   }
   quickCategory = '';
   const requestedRoute = parseRoute(location.hash);
+  if(!(requestedRoute.page==='workbench'&&requestedRoute.section==='hot'||requestedRoute.page==='settings'&&requestedRoute.settingsSection==='hot'))hotController.deactivate();
   if (requestedRoute.page !== 'frameworks' || requestedRoute.frameworkSlug !== state.route.frameworkSlug) {
     closeFrameworkStream(); closeFrameworkStream = () => {};
     frameworkBot = { open: false, mode: 'explain', sessionId: '', detail: null, draft: '', busy: false, error: '', errorCode: '' };
@@ -1013,6 +1024,7 @@ async function showRoute() {
       const selectedId = currentSettingsConnectionId();
       if (selectedId) await loadConnectionConfiguration(selectedId);
     }
+    if(section==='hot')await hotController.activate(state.route);
   }
   if (state.route.page === 'skills') {
     const previousKind = capabilityState.kindFilter;
@@ -1106,6 +1118,8 @@ function selectTabbit(tabId) {
 }
 
 root.addEventListener('input', (event) => {
+  const hotForm=event.target.closest?.('[data-hot-form]');
+  if(hotForm)hotForm.dataset.hotDirty='true';
   const modelForm = event.target.closest?.('#settings-form');
   if (modelForm) modelForm.dataset.dirty = 'true';
   if (event.target.id === 'framework-bot-input') frameworkBot.draft = event.target.value;
@@ -1248,6 +1262,7 @@ root.addEventListener('keydown', (event) => {
 
 root.addEventListener('change', async (event) => {
   const target = event.target;
+  if('hotMaterial' in (target.dataset||{})){hotController.selectMaterial(target.value,target.checked);return;}
   if ('connectionStatus' in (target.dataset || {})) applyConnectionWorkspaceFilters(target.closest('[data-connection-workbench]'));
   if (target.id === 'workspace-select') selectedWorkspace = target.value;
   if ('quickCategory' in target.dataset) { quickCategory = target.value; render(); }
@@ -1340,6 +1355,7 @@ root.addEventListener('paste', (event) => {
 
 root.addEventListener('submit', async (event) => {
   event.preventDefault();
+  if(event.target.matches('[data-hot-form]')){await hotController.submit(event.target);return;}
   if (event.target.matches('[data-framework-bot-form]')) { await sendFrameworkQuestion(frameworkBot.draft); return; }
   if (event.target.matches('[data-mcp-search]')) { await loadMCPMarketplace(); return; }
   if (event.target.matches('[data-delivery-channel-form]')) {
@@ -1624,6 +1640,8 @@ root.addEventListener('submit', async (event) => {
 
 root.addEventListener('click', async (event) => {
   const clickTarget = event.target;
+  const hotAction=clickTarget?.closest?.('[data-hot-action]');
+  if(hotAction?.dataset?.hotAction){await hotController.action(hotAction);return;}
   const modelAction = clickTarget?.closest?.('[data-model-clear], [data-model-test]')?.dataset;
   if (modelAction && 'modelClear' in modelAction) {
     if (!catalog.runtime?.model) { state.error = '当前模型未知，请先刷新 Runtime 状态。'; render(); return; }

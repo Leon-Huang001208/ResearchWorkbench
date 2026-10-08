@@ -1,8 +1,8 @@
 const API_ROOT = '/api/research';
 const segment = (value) => encodeURIComponent(value);
 const pages = new Set(['fingpt', 'claw', 'workbench', 'frameworks', 'skills', 'history', 'operations', 'settings']);
-const workbenchSections = new Set(['market', 'assets', 'funds', 'industry', 'documents']);
-const settingsSections = new Set(['general', 'model', 'data', 'local', 'docs']);
+const workbenchSections = new Set(['market', 'assets', 'funds', 'industry', 'documents', 'hot']);
+const settingsSections = new Set(['general', 'model', 'data', 'local', 'docs', 'hot']);
 const capabilityViews = new Set(['library', 'mine', 'plans', 'connections', 'market']);
 const capabilityKinds = new Set(['skill', 'method', 'tool', 'workflow', 'data']);
 const frameworkTabs = new Set(['overview', 'drivers', 'supply', 'cycle', 'positioning', 'allocation', 'quantity', 'price', 'fiscal', 'plumbing', 'cross-border', 'evidence']);
@@ -44,6 +44,10 @@ export function parseRoute(hash = '') {
   if (page === 'workbench') {
     const requestedSection = sectionSegment || params.get('section');
     route.section = workbenchSections.has(requestedSection) ? requestedSection : 'market';
+    if (route.section === 'hot') {
+      route.hotView = ['events', 'sources', 'channels'].includes(params.get('view')) ? params.get('view') : 'events';
+      route.hotEventId = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(params.get('event') || '') ? params.get('event') : null;
+    }
   }
   if (page === 'frameworks') {
     route.frameworkSlug = !extraSegments.length && /^[a-z0-9-]+$/.test(sectionSegment || '') ? sectionSegment : null;
@@ -131,7 +135,19 @@ export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSo
   const sessionPath = (id) => `/sessions/${segment(id)}`;
   const capabilityPath = (id) => `/capabilities/${segment(id)}`;
   const mcpRegistryPath = (id) => `/mcp/registries/${segment(id)}`;
+  const hotQuery = (params = {}) => {
+    const query = new URLSearchParams(Object.entries(params).filter(([, value]) => value !== undefined && value !== null && value !== '').map(([key, value]) => [key, String(value)]));
+    return query.size ? `?${query}` : '';
+  };
   return {
+    hotStatus: () => request('/hot/status'), hotConfiguration: () => request('/hot/configuration'),
+    hotConfigure: (body) => request('/hot/configuration', { method: 'PUT', body, userAction: true }),
+    hotLifecycle: (action) => request('/hot/lifecycle', { method: 'POST', body: { action }, userAction: true }),
+    hotChannels: (params) => request(`/hot/channels${hotQuery(params)}`), hotEvents: (params) => request(`/hot/events${hotQuery(params)}`),
+    hotEvent: (id, params) => request(`/hot/events/${segment(id)}${hotQuery(params)}`), hotSources: () => request('/hot/sources'),
+    hotChannelConfigure: (body) => request('/hot/channels/configure', { method: 'POST', body, userAction: true }),
+    hotCorrect: (body) => request('/hot/events/correct', { method: 'POST', body, userAction: true }),
+    hotSourceConfigure: (body) => request('/hot/sources/configure', { method: 'POST', body, userAction: true }),
     runtime: () => request('/runtime'), models: () => request('/models'), workspaces: () => request('/workspaces'),
     sessions: (view = 'active') => request(`/sessions?view=${segment(view)}`), skills: () => request('/skills'),
     capabilities: () => request('/capabilities'), tools: () => request('/tools'),

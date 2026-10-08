@@ -2,7 +2,9 @@
 
 Research Workbench 当前交付的是本地优先的 **Research Web**：一个由 FinGPT、Claw、数据能力和研究框架组成的研究工作台。
 
-当前 Web 入口为 `app.research_web.main:app`。Research Web 通过 FastAPI 轻量适配层连接专属 DSH；**DSH 是唯一的研究引擎**，负责研究执行循环、会话历史、Skill 与子 Agent。Research Web 不启动旧 API 生命周期，也不要求 PostgreSQL、pgvector 或桌面预览。
+当前 Web 入口为 `app.research_web.main:app`。Research Web 通过 FastAPI 轻量适配层连接专属 DSH；**DSH 是唯一的研究引擎**，负责研究执行循环、会话历史、Skill 与子 Agent。基础 Research Web 不启动旧 API 生命周期，也不要求 PostgreSQL、pgvector 或桌面预览。
+
+可选的「热点与事件」入口位于研究台与设置页，连接独立 Hot Node 服务及指定 PostgreSQL，提供事件、来源覆盖、频道和人工纠错。未配置时显示真实状态，页面读取不启动服务或模型。当前实现与配置命令见 [Hot 组件说明](services/hot/README.md)；正常模型激活、简报、继续研究及干净安装仍在验收中，不能将此入口视为完整 Hot 产品已交付。
 
 > 当前产品阶段为 **Web-only**。桌面打包历史仍被保留，但桌面 sidecar、Tauri、安装包和原生桌面 CI 不属于普通 Research Web 的安装或验收前提。
 

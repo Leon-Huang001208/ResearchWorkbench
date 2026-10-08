@@ -23,6 +23,8 @@ day_key 属于发送/预留所在日，派发跨日必须重验；未知尝试�
 频道条件配置保存在 channel_versions 与 channel_control_requests，纠错保存在 event_versions/
 event_corrections；CLI不写旧Store或改动原文。配置/纠错输入为有界、无alias的JSON普通文件，
 不接收凭据字段。频道集合可按ID选择；控制结果未知时，调用方须保存UUID和原参数用于重放。
+Web输入为有界JSON正文而非本机路径；配置只在当前项目绑定的数据根保存。浏览器只保留
+非秘密视图、已选材料ID和待确认控制参数，不复制原文或凭据，也不把Hot数据写回旧Store。
 验收控制身份位于私有 hot/acceptance/model-identity.json，控制/worker 秘密只存系统凭据库。
 真实模型回执与缓存留在持久 hot_acceptance_model schema，不能因重跑验收丢弃账本。
 

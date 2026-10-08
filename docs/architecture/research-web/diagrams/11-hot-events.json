@@ -1,0 +1,164 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Hot 当前实现与待交接边界",
+    "quality_profile": "showcase"
+  },
+  "layout": {
+    "mode": "grid",
+    "cols": 4,
+    "origin": [
+      40,
+      55
+    ],
+    "cellW": 210,
+    "cellH": 78,
+    "gapX": 155,
+    "gapY": 150
+  },
+  "components": [
+    {
+      "id": "hotUi",
+      "type": "frontend",
+      "label": "研究台 / Hot 设置",
+      "sublabel": "事件 · 来源 · 频道 · 纠错",
+      "row": 0,
+      "col": 0,
+      "size": [
+        210,
+        78
+      ]
+    },
+    {
+      "id": "hotHost",
+      "type": "backend",
+      "label": "Web Host 有界桥",
+      "sublabel": "同源入口 · 线程容量 / 超时",
+      "row": 0,
+      "col": 1,
+      "size": [
+        210,
+        78
+      ]
+    },
+    {
+      "id": "hotWorker",
+      "type": "backend",
+      "label": "独立 Hot Node Worker",
+      "sublabel": "采集 · 归组 · 规则 · 回执",
+      "row": 0,
+      "col": 2,
+      "size": [
+        210,
+        78
+      ]
+    },
+    {
+      "id": "hotDatabase",
+      "type": "database",
+      "label": "指定 PostgreSQL schema",
+      "sublabel": "原文 / 版本 / 队列 / 审计",
+      "row": 0,
+      "col": 3,
+      "size": [
+        210,
+        78
+      ]
+    },
+    {
+      "id": "publicFeeds",
+      "type": "external",
+      "label": "DataHub 官方 feed 目录",
+      "sublabel": "公开 HTTP · 最新快照",
+      "row": 1,
+      "col": 2,
+      "size": [
+        210,
+        78
+      ]
+    },
+    {
+      "id": "modelAcceptance",
+      "type": "external",
+      "label": "受控模型验收入口",
+      "sublabel": "共用累计预算 · 无研究会话",
+      "row": 1,
+      "col": 3,
+      "size": [
+        210,
+        78
+      ]
+    },
+    {
+      "id": "futureResearch",
+      "type": "backend",
+      "label": "现有 ResearchService / DSH",
+      "sublabel": "冻结交接 / 简报 / 研究尚待实现",
+      "row": 2,
+      "col": 0,
+      "size": [
+        210,
+        78
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "hotHttp",
+      "from": "hotUi",
+      "to": "hotHost",
+      "label": "明确用户动作 / 只读查询"
+    },
+    {
+      "id": "hotPrivate",
+      "from": "hotHost",
+      "to": "hotWorker",
+      "label": "HMAC / 实例 / 模式 / 代次"
+    },
+    {
+      "id": "hotSql",
+      "from": "hotWorker",
+      "to": "hotDatabase",
+      "label": "角色权限 / 事务栅栏"
+    },
+    {
+      "id": "hotFetch",
+      "from": "publicFeeds",
+      "to": "hotWorker",
+      "label": "有界取得 / 水位"
+    },
+    {
+      "id": "hotModel",
+      "from": "modelAcceptance",
+      "to": "hotWorker",
+      "label": "回执先于业务",
+      "variant": "dashed"
+    },
+    {
+      "id": "hotHandoffPending",
+      "from": "hotHost",
+      "to": "futureResearch",
+      "label": "后续冻结交接",
+      "variant": "dashed"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "现有实现",
+      "items": [
+        "独立数据与唯一 PG 队列；源和材料跨频道共享。",
+        "模型真实验收已运行；正常持续模型激活尚待接入。"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "当前边界",
+      "items": [
+        "UI 未配置路径已浏览器验证；真实事件浏览仍待完整验收。",
+        "简报、研究快照、联合恢复与模式切换不能由本图推导通过。"
+      ]
+    }
+  ]
+}

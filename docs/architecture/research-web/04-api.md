@@ -1,5 +1,11 @@
 # Research Web 接口清单
 
+Hot接口统一在 `/api/research/hot`：status/configuration/channels/events/events/{id}/sources只读，
+PUT configuration及POST lifecycle/channels/configure/events/correct/sources/configure为明确操作。
+后者要求同源、X-Research-User-Action、JSON <=64KiB；条件配置/纠错有规范UUID。查询字段沿用
+受控投影合同，未知字段拒绝。版本/参数冲突409、未授权403、格式400、过大413、服务故障503。
+Host桥有界，业务写入未知时返回原UUID；声明来自实际源码清单，不能推导研究交接已实现。
+
 1A收口：`ModelConfig.api_key`拒绝明显掩码、redacted/hidden占位及空白，错误响应仍固定invalid_request且不回显输入。普通新消息在受理收据/Native prompt之前检查凭据，configured严格为true才继续；缺失为model_credentials_missing，未确认形状为model_credential_state_unavailable。Runtime credential_storage来自受控source映射，未知不猜测为Keychain。
 
 模型页新增 `POST /api/research/runtime/model/test`：用户显式最小生成，通过现有 DSH 会话与最终事件验收，返回 `status`、`selection`、`checked_at`、可选 `session_id/code`；不返回密钥或推理正文。`PUT /runtime/model` 增加互斥的 `clear_api_key`，返回 `configured/applied_to/inference_verified`，保存不代表推理通过。Runtime GET 分开展示已保存、新会话应用、凭据配置、后端类型、提交结果未知及最近测试。

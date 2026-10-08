@@ -1,0 +1,140 @@
+"""Same-origin Hot projections and explicit controls; credentials remain Host-owned."""
+
+from __future__ import annotations
+
+import json
+from typing import Literal
+from uuid import UUID
+
+from fastapi import APIRouter, Request
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
+
+from .hot_service import HotWebError
+
+router = APIRouter(prefix="/api/research/hot")
+UUID_PATTERN = r"^[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$"
+
+
+class ChannelRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    channelId: str = Field(pattern=r"^[a-z][a-z0-9_-]{0,47}$")
+    expectedVersion: int = Field(ge=0, le=1000000, strict=True)
+    config: dict
+    requestId: str = Field(pattern=UUID_PATTERN)
+
+
+class CorrectionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    reason: str = Field(min_length=1, max_length=2000)
+    change: dict
+    requestId: str = Field(pattern=UUID_PATTERN)
+
+
+class LifecycleRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    action: Literal["start", "stop", "restart"]
+
+
+class SourceRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    sourceId: str = Field(pattern=r"^[a-z][a-z0-9_-]{0,47}$")
+    expectedRevision: str = Field(pattern=r"^\d{1,18}$")
+    enabled: bool | None = Field(default=None, strict=True)
+    frequencySeconds: int | None = Field(default=None, ge=0, le=86400, strict=True)
+    requestId: str = Field(pattern=UUID_PATTERN)
+
+
+async def body(request: Request, model=None):
+    if request.headers.get("X-Research-User-Action") != "?1":
+        raise HotWebError("hot_user_action_required", "请通过明确的用户操作提交。", 403)
+    if request.headers.get("content-type", "").split(";", 1)[0].strip().lower() != "application/json":
+        raise HotWebError("hot_json_required", "请求需要 JSON。", 415)
+    chunks = bytearray()
+    async for chunk in request.stream():
+        if len(chunks) + len(chunk) > 65536:
+            raise HotWebError("hot_request_limit", "请求过大。", 413)
+        chunks.extend(chunk)
+    try:
+        value = json.loads(chunks)
+        if not isinstance(value, dict):
+            raise ValueError()
+        return model.model_validate(value) if model else value
+    except (ValueError, ValidationError):
+        raise HotWebError("hot_request_invalid", "请求格式不正确。", 400) from None
+
+
+def query(request: Request, allowed: set[str], integer_fields: set[str] = frozenset()):
+    values = dict(request.query_params)
+    if set(values) - allowed or any(len(value) > 200 for value in values.values()):
+        raise HotWebError("hot_query_invalid", "查询参数不正确。", 400)
+    for field in integer_fields & values.keys():
+        if not values[field].isascii() or not values[field].isdigit():
+            raise HotWebError("hot_query_invalid", "查询范围不正确。", 400)
+        values[field] = int(values[field])
+    return values
+
+
+@router.get("/status")
+async def status(request: Request):
+    return await request.app.state.hot.call("status")
+
+
+@router.get("/configuration")
+async def configuration(request: Request):
+    return await request.app.state.hot.call("configuration")
+
+
+@router.put("/configuration")
+async def configure(request: Request):
+    return await request.app.state.hot.call("configure", await body(request))
+
+
+@router.post("/lifecycle")
+async def lifecycle(request: Request):
+    value = await body(request, LifecycleRequest)
+    return await request.app.state.hot.call(value.action)
+
+
+@router.get("/channels")
+async def channels(request: Request):
+    params = query(request, {"cutoff"})
+    return await request.app.state.hot.call("channels", params.get("cutoff"))
+
+
+@router.get("/events")
+async def events(request: Request):
+    params = query(request, {"cutoff", "channelId", "q", "topic", "institution", "asset", "from", "to", "sort", "limit", "offset", "minRelevance"}, {"limit", "offset", "minRelevance"})
+    return await request.app.state.hot.call("events", params)
+
+
+@router.get("/events/{event_id}")
+async def detail(event_id: str, request: Request):
+    params = query(request, {"cutoff", "reportOffset", "reportLimit"}, {"reportOffset", "reportLimit"})
+    return await request.app.state.hot.call("event_detail", event_id, params.get("cutoff"), params.get("reportOffset", 0), params.get("reportLimit", 20))
+
+
+@router.get("/sources")
+async def sources(request: Request):
+    query(request, set())
+    return {"items": await request.app.state.hot.call("sources")}
+
+
+@router.post("/channels/configure")
+async def configure_channel(request: Request):
+    value = await body(request, ChannelRequest)
+    request_id = str(UUID(value.requestId))
+    return await request.app.state.hot.call("configure_channel", value.channelId, value.expectedVersion, value.config, request_id, request_id=request_id)
+
+
+@router.post("/events/correct")
+async def correct(request: Request):
+    value = await body(request, CorrectionRequest)
+    request_id = str(UUID(value.requestId))
+    return await request.app.state.hot.call("correct_event", value.change, value.reason, request_id, request_id=request_id)
+
+
+@router.post("/sources/configure")
+async def configure_source(request: Request):
+    value = await body(request, SourceRequest)
+    request_id = str(UUID(value.requestId))
+    return await request.app.state.hot.call("configure_source", value.sourceId, value.expectedRevision, value.enabled, value.frequencySeconds, request_id, request_id=request_id)

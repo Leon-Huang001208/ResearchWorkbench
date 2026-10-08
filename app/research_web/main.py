@@ -32,6 +32,8 @@ from .documentation import DOCUMENT_NAMES
 from .documentation import router as documentation_router
 from .frameworks.base import FrameworkError
 from .frameworks.routes import router as frameworks_router
+from .hot_routes import router as hot_router
+from .hot_service import HotWebError, HotWebService
 from .integrations.routes import router as integrations_router
 from .local_integrations import LocalIntegrationError
 from .local_integrations.routes import router as local_integrations_router
@@ -142,12 +144,16 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
             auto_probe_on_start=True,
         )
         app.state.research = active
+        app.state.hot = HotWebService(Path(__file__).resolve().parents[2], active.store.root)
         await active.start()
         log.info("research_web_started", engine="dsh", legacy_services=False)
         try:
             yield
         finally:
-            await active.close()
+            try:
+                await app.state.hot.close()
+            finally:
+                await active.close()
 
     app = FastAPI(title="Research Workbench Research Web", lifespan=lifespan)
     app.include_router(datahub_router)
@@ -155,6 +161,7 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
     app.include_router(capabilities_router)
     app.include_router(documentation_router)
     app.include_router(frameworks_router)
+    app.include_router(hot_router)
     app.include_router(local_integrations_router)
     app.include_router(integrations_router)
     app.include_router(mcp_registry_router)
@@ -227,6 +234,11 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
         return JSONResponse(
             {"error": {"code": exc.code, "message": str(exc)}}, status_code=exc.status
         )
+
+    @app.exception_handler(HotWebError)
+    async def hot_error(request, exc):
+        log.warning("hot_web_request_rejected", code=exc.code)
+        return JSONResponse({"error": {"code": exc.code, "message": str(exc)}}, status_code=exc.status)
 
     @app.exception_handler(FrameworkError)
     async def framework_error(request, exc):

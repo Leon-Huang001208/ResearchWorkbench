@@ -42,6 +42,10 @@ version 0，已有频道使用实际返回的版本。纠错文件含操作 type
 分页应保留第一次返回的 cutoff，再传 --offset 或 --report-offset。读取不启动模型/采集；
 修改只用控制凭据并保存审计。超时/不可信或不完整回执返回 outcome_unknown、原 UUID 与
 非零退出码，使用 --request-id 和原参数重放。Web Settings/页面挂载仍待实现。
+Hot页面现提供 `#/workbench/hot` 和 `#/settings/hot`，后者编辑非秘密配置并显式启停已有服务。
+首次依赖/数据库准备仍走上述CLI；浏览器读写不安装依赖、不接收数据库密码。Host有界惰性
+桥不会在Web启动时启动Hot或查询其秘密。当前浏览器只验证未配置状态/设置可访问；真实事件
+浏览、正常模型激活、完整研究、干净安装与同提交Mac CI仍须单独验证。
 
 ```bash
 ./rwb hot --help

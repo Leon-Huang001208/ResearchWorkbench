@@ -53,6 +53,11 @@ channel-configure/event-correct；Python stdlib 测试验证参数映射、读�
 与outcome_unknown UUID保留。event-rpc integration 中真实 Python dispatch/owned Node/PG
 往返隔离凭据backend和解释器选择，并验证父进程消失后的独立回收；不是系统Keychain证明。
 Web Host/UI、正式模型激活与研究快照交接仍待实现。
+Hot Host为 `app/research_web/hot_service.py` / `hot_routes.py`，前端为 `ui/hot-workspace.mjs`；
+main挂载惰性有界桥，core/app/shell/settings保留既有路由并新增工作区/设置。对应std测试
+`test_hot_web.py`与`research_web_hot.test.mjs`验证关闭竞态、超时容量、明确动作、UUID重试、
+安全文本/链接及跨页材料选择/cutoff。实际浏览器未配置旅程使用离线研究runtime fixture，
+不等于真实事件/研究或干净安装。Hot图与API清单为同一文档事实源。
 
 | 双运行时源码区域 | 职责 | 权威文档 | 主要测试 | 文档更新触发 |
 | --- | --- | --- | --- | --- |

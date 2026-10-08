@@ -4490,6 +4490,65 @@ Functions:
   - Reject any existing symlink before resolving or opening a framework path.
 
 
+## `app/research_web/hot_routes.py`
+
+Module docstring:
+> Same-origin Hot projections and explicit controls; credentials remain Host-owned.
+
+Imports:
+- `__future__`
+- `fastapi`
+- `hot_service`
+- `json`
+- `pydantic`
+- `typing`
+- `uuid`
+
+Classes:
+- `ChannelRequest`
+- `CorrectionRequest`
+- `LifecycleRequest`
+- `SourceRequest`
+
+Functions:
+- `body`
+- `query`
+- `status`
+- `configuration`
+- `configure`
+- `lifecycle`
+- `channels`
+- `events`
+- `detail`
+- `sources`
+- `configure_channel`
+- `correct`
+- `configure_source`
+
+
+## `app/research_web/hot_service.py`
+
+Module docstring:
+> Bounded lazy Host bridge; Hot faults never own base research startup.
+
+Imports:
+- `__future__`
+- `asyncio`
+- `core.observability`
+- `credential_backend`
+- `pathlib`
+- `research_workbench_entrypoint.hot`
+- `research_workbench_entrypoint.hot_manager`
+- `threading`
+
+Classes:
+- `HotWebError`
+  - Stable, content-free HTTP error.
+  - methods: __init__
+- `HotWebService`
+  - methods: __init__, _manager, _perform, call, close
+
+
 ## `app/research_web/integrations/__init__.py`
 
 Module docstring:
@@ -4824,6 +4883,8 @@ Imports:
 - `fastapi.staticfiles`
 - `frameworks.base`
 - `frameworks.routes`
+- `hot_routes`
+- `hot_service`
 - `integrations.routes`
 - `json`
 - `local_integrations`
@@ -4835,9 +4896,7 @@ Imports:
 - `operations`
 - `os`
 - `pathlib`
-- `pydantic`
-- `re`
-- ... 13 more
+- ... 15 more
 
 Classes:
 - `NewSession`
