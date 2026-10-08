@@ -588,6 +588,52 @@ def test_upload_ownership_and_preview_sandbox(api):
     assert client.get(file["url"].replace(sid, other)).status_code == 400
 
 
+def test_document_business_api_generates_download_and_reads_owned_word(api, monkeypatch):
+    from io import BytesIO
+
+    from docx import Document
+
+    client, _, service = api
+
+    async def unavailable_native(_session_id, _document):
+        return {"outcome": "failed", "code": "native_document_executor_not_ready"}
+
+    monkeypatch.setattr(service.local_integrations, "run_document", unavailable_native)
+    sid = client.post("/api/research/sessions", json={}).json()["id"]
+    endpoint = f"/api/research/sessions/{sid}/document-operations"
+    body = {
+        "format": "docx",
+        "mode": "file",
+        "operation": "generate",
+        "content": {
+            "title": "Word 验收报告",
+            "paragraphs": ["这段内容保持不变。", "报告版本 A。"],
+            "tables": [[["项目", "数值"], ["样本", "2"]]],
+        },
+    }
+    response = client.post(endpoint, json=body)
+    assert response.status_code == 200, response.text
+    result = response.json()
+    assert result["status"] == "completed", result
+    downloaded = client.get(result["output"]["url"])
+    assert Document(BytesIO(downloaded.content)).paragraphs[2].text == "报告版本 A。"
+    read = client.post(
+        endpoint,
+        json={
+            "format": "docx",
+            "mode": "file",
+            "operation": "read",
+            "file_id": result["output"]["id"],
+        },
+    ).json()
+    assert read["document"]["tables"][0][1][1] == "2"
+    unavailable = client.post(endpoint, json={**body, "mode": "native"}).json()
+    assert unavailable["status"] == "failed"
+    assert unavailable["code"] == "native_document_executor_not_ready"
+    assert unavailable["mode"] == "native"
+    assert client.post(endpoint, json={**body, "path": "/etc/passwd"}).status_code == 422
+
+
 def test_cross_origin_and_invalid_credentials_do_not_leak_input(api):
     client, _, _ = api
     assert (

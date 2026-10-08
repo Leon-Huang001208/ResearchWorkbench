@@ -6,6 +6,7 @@ import hashlib
 import importlib.metadata
 import importlib.util
 import json
+import math
 import os
 import platform
 import re
@@ -138,13 +139,53 @@ def _safe_verification_diagnostics(value: object) -> dict | None:
     ):
         log.warning("local_verification_diagnostics_rejected")
         return None
-    result = {
+    result: dict[str, str | int | list[dict]] = {
         "run_id": run_id,
         "artifact_name": artifact,
         "last_completed_step": step,
         "function_outcome": function,
         "cleanup_outcome": cleanup,
     }
+    number = value.get("native_error_number")
+    if type(number) is int and -32768 <= number <= 32767:
+        result["native_error_number"] = number
+    from .verifiers import OFFICE_PHASES
+
+    phases = value.get("phases")
+    if isinstance(phases, list) and len(phases) <= 32:
+        safe_phases = []
+        for phase in phases:
+            if not isinstance(phase, dict) or set(phase) != {
+                "stage",
+                "status",
+                "started_at",
+                "completed_at",
+                "elapsed_seconds",
+            }:
+                break
+            if (
+                not isinstance(phase["stage"], str)
+                or phase["stage"] not in OFFICE_PHASES
+                or not isinstance(phase["status"], str)
+                or phase["status"] not in {"started", "completed"}
+            ):
+                break
+            if any(
+                number is not None
+                and (
+                    type(number) not in {int, float}
+                    or not 0 <= number <= 1_000_000_000_000
+                    or not math.isfinite(number)
+                )
+                for number in (phase["started_at"], phase["completed_at"], phase["elapsed_seconds"])
+            ):
+                break
+            safe_phases.append(dict(phase))
+        else:
+            result["phases"] = safe_phases
+    timed_out_stage = value.get("timed_out_stage")
+    if isinstance(timed_out_stage, str) and timed_out_stage in OFFICE_PHASES:
+        result["timed_out_stage"] = timed_out_stage
     verification_id = value.get("verification_id")
     if isinstance(verification_id, str) and re.fullmatch(
         r"[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}", verification_id
@@ -1376,7 +1417,9 @@ class LocalIntegrationManager:
         finally:
             self.probe_tasks.pop(probe_id, None)
 
-    def start_verification(self, target: str, idempotency_key: str) -> dict:
+    def start_verification(
+        self, target: str, idempotency_key: str, *, document: dict | None = None
+    ) -> dict:
         if target not in VERIFICATION_TARGETS:
             raise LocalIntegrationError("本机验证目标无效", "verification_target_invalid", 422)
         key = f"{target}:{idempotency_key}"
@@ -1418,12 +1461,35 @@ class LocalIntegrationManager:
             self._persist(self._latest if self._latest is not None else self._detect())
         self.verification_keys[key] = (target, verification_id)
         self.verification_tasks[verification_id] = asyncio.create_task(
-            self._run_verification(verification_id), name=f"local-verification-{target}"
+            self._run_verification(verification_id, document=document),
+            name=f"local-verification-{target}",
         )
         log.info("local_integration_verification_started", target=target)
         return self._public_verification(record)
 
-    async def _run_verification(self, verification_id: str) -> None:
+    async def run_document(self, session_id: str, document: dict) -> dict:
+        # Only non-secret identity/outcome/diagnostics enter the existing ledger.
+        kind = document.get("format")
+        target = (
+            {"docx": "word", "xlsx": "excel", "pptx": "powerpoint"}.get(kind)
+            if isinstance(kind, str)
+            else None
+        )
+        if target is None:
+            return {"outcome": "failed", "code": "native_document_target_invalid"}
+        accepted = self.start_verification(target, f"document-{uuid4().hex}", document=document)
+        identifier = accepted["id"]
+        record = self.verifications[identifier]
+        record.update(kind="document", session_id=session_id)
+        task = self.verification_tasks[identifier]
+        outcome = await task
+        if not isinstance(outcome, dict):
+            return {"outcome": "failed", "code": "native_document_failed"}
+        return {**outcome, "verification_id": identifier}
+
+    async def _run_verification(
+        self, verification_id: str, *, document: dict | None = None
+    ) -> dict | None:
         record = self.verifications[verification_id]
         record["status"] = "checking"
         cancellation_event: threading.Event | None = None
@@ -1441,10 +1507,11 @@ class LocalIntegrationManager:
                         record["target"],
                         self.state_root,
                         cancellation_event=cancellation_event,
-                        **(
-                            {"run_id": verification_id.replace("-", "")}
+                        document=document,
+                        run_id=(
+                            verification_id.replace("-", "")
                             if record["target"] in {"word", "excel", "powerpoint"}
-                            else {}
+                            else None
                         ),
                     )
                 )
@@ -1474,6 +1541,7 @@ class LocalIntegrationManager:
                 target=record["target"],
                 outcome=normalized,
             )
+            return outcome
         except asyncio.CancelledError:
             if cancellation_event is not None:
                 cancellation_event.set()
@@ -1494,6 +1562,7 @@ class LocalIntegrationManager:
             log.warning("local_integration_verification_failed", error_type=type(exc).__name__)
         finally:
             self.verification_tasks.pop(verification_id, None)
+        return None
 
     def verification(self, verification_id: str) -> dict:
         record = self.verifications.get(verification_id)

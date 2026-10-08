@@ -125,6 +125,20 @@ export async function readModelConnection(root, signal) {
   } finally { try { await reader.cancel(); } catch { throw Error('compatible_configuration_unavailable'); } }
 }
 
+/** Finite Office operations use the existing private loopback authentication. */
+export async function executeDocumentTool(ctx, exec, config, args) {
+  const cwd = await trustedDirectory(ctx, exec, config);
+  exec.signal.throwIfAborted();
+  const control = await privateControl(config.researchRoot);
+  const signal = AbortSignal.any([exec.signal, AbortSignal.timeout(35000)]);
+  const response = await fetch(control.url + '/api/research/internal/data/document-operation', {
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Research-Data-Key': control.token },
+    body: JSON.stringify({ ...args, session_id: basename(cwd) }),
+    redirect: 'error', credentials: 'omit', signal,
+  });
+  return boundedJson(response, signal);
+}
+
 async function boundedJson(response, signal) {
   if (!response.ok || response.redirected) {await response.body?.cancel();throw Error(`DataHub request failed (HTTP ${response.status})`);}
   if (!response.headers.get('content-type')?.includes('application/json') || !response.body || Number(response.headers.get('content-length')) > MAX_BYTES) {await response.body?.cancel();throw Error('DataHub response type or size is invalid');}

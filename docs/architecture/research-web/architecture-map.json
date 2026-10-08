@@ -337,6 +337,7 @@
         "app/research_web/report_workflow_routes.py",
         "app/research_web/report_render_script.py",
         "app/research_web/report_rendering.py",
+        "app/research_web/office-template.pptx",
         "app/research_web/report_routes.py",
         "app/research_web/report_studio.py",
         "app/research_web/ui/report-workflows.mjs"
@@ -2490,6 +2491,20 @@
       "path": "/api/research/report-projects",
       "source": "app/research_web/report_routes.py",
       "declaredPath": "/report-projects",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/sessions/{session_id}/document-operations",
+      "source": "app/research_web/report_routes.py",
+      "declaredPath": "/sessions/{session_id}/document-operations",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/internal/data/document-operation",
+      "source": "app/research_web/report_routes.py",
+      "declaredPath": "/internal/data/document-operation",
       "prefix": "/api/research"
     },
     {

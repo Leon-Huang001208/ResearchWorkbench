@@ -1752,3 +1752,578 @@ def test_powerpoint_verification_uses_vendor_bundle_identifier(monkeypatch, tmp_
     assert verifiers._office_documents_root("powerpoint") == (
         tmp_path / "Library/Containers/com.microsoft.Powerpoint/Data/Documents"
     )
+
+
+@pytest.mark.parametrize(
+    "message,outcome,code",
+    [
+        (
+            "Not authorized to send Apple events (-1743)",
+            "authorization_required",
+            "automation_permission_required",
+        ),
+        ("File permission denied (-54)", "failed", "office_file_access_denied"),
+        ("AppleEvent timed out (-1712)", "timeout", "office_event_timed_out"),
+        ("Application isn't running (-600)", "failed", "office_application_not_running"),
+        ("User canceled (-128)", "failed", "office_user_cancelled"),
+        ("unknown permission-related failure", "failed", "office_verification_failed"),
+    ],
+)
+def test_office_error_classification_requires_specific_evidence(message, outcome, code):
+    result = verifiers._permission_outcome(message)
+    assert result["outcome"] == outcome
+    assert result["code"] == code
+
+
+@pytest.mark.parametrize("target", ["word", "powerpoint"])
+def test_office_failed_step_preserves_error_number_and_reason(tmp_path, monkeypatch, target):
+    documents = tmp_path / "Documents"
+    documents.mkdir()
+    run = tmp_path / ("d" * 32)
+    run.mkdir()
+    monkeypatch.setattr(verifiers, "_office_documents_root", lambda _target: documents)
+    monkeypatch.setattr(
+        verifiers,
+        "_run_osascript",
+        lambda *args: {
+            "outcome": "timeout",
+            "code": "office_event_timed_out",
+            "native_error_number": -1712,
+        },
+    )
+    result = (verifiers._verify_word if target == "word" else verifiers._verify_powerpoint)(run)
+    assert result["outcome"] == "timeout"
+    assert result["code"] == "office_event_timed_out"
+    assert result["diagnostics"]["native_error_number"] == -1712
+    assert result["diagnostics"]["cleanup_outcome"] == "unverified"
+
+
+def test_office_phase_preparation_and_operation_have_distinct_deadlines(tmp_path, monkeypatch):
+    run = tmp_path / ("e" * 32)
+    run.mkdir()
+    clock = [100.0]
+    monkeypatch.setattr(verifiers.time, "time", lambda: clock[0])
+    verifiers._record_office_phase("word", run, "prepared", "started")
+    clock[0] = 111.0
+    assert verifiers._office_phase_timeout("word", run, 100.0) == "prepared"
+    verifiers._record_office_phase("word", run, "prepared", "completed")
+    verifiers._record_office_phase("word", run, "saved", "started")
+    clock[0] = 140.0
+    assert verifiers._office_phase_timeout("word", run, 100.0) is None
+    clock[0] = 142.0
+    assert verifiers._office_phase_timeout("word", run, 100.0) == "saved"
+    phases = verifiers._read_office_phases("word", run)
+    assert phases[0]["elapsed_seconds"] == 11.0
+    assert phases[1]["status"] == "started"
+
+
+def test_office_phase_metadata_rejects_unknown_stage_and_symlink(tmp_path):
+    run = tmp_path / ("e" * 32)
+    run.mkdir()
+    outside = tmp_path / "outside"
+    outside.write_text('{"stage":"private-text","phase":"started","at":1}\n')
+    (run / "word-phases.jsonl").symlink_to(outside)
+    assert verifiers._read_office_phases("word", run) == []
+
+
+@pytest.mark.skipif(os.name != "posix", reason="FIFO is a POSIX boundary")
+def test_office_phase_fifo_cannot_block_parent_supervision(tmp_path):
+    import subprocess
+
+    run = tmp_path / ("f" * 32)
+    run.mkdir()
+    os.mkfifo(run / "word-phases.jsonl")
+    code = (
+        "import sys; from pathlib import Path; "
+        "from app.research_web.local_integrations.verifiers import _read_office_phases; "
+        "print(_read_office_phases('word', Path(sys.argv[1])))"
+    )
+    result = subprocess.run(
+        [sys.executable, "-c", code, str(run)],
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=2,
+    )
+    assert result.stdout.strip() == "[]"
+
+
+@pytest.mark.parametrize(
+    "formula",
+    [
+        '=WEBSERVICE("https://example.invalid")',
+        '=IMAGE("https://example.invalid")',
+        '=WSET("a","b")',
+    ],
+)
+def test_native_excel_document_refuses_external_formula_before_app_launch(tmp_path, formula):
+    from io import BytesIO
+
+    from openpyxl import Workbook
+
+    stream = BytesIO()
+    book = Workbook()
+    book.active["A1"] = formula
+    book.save(stream)
+    run = tmp_path / ("1" * 32)
+    run.mkdir()
+
+    class NeverLaunch:
+        def __init__(self):
+            raise AssertionError("external workbook reached app launch boundary")
+
+    result = verifiers._native_excel_document(
+        run,
+        {"source": stream.getvalue(), "operation": "read", "changes": []},
+        lambda _identity: None,
+        provider_factory=NeverLaunch,
+    )
+    assert result["outcome"] == "failed"
+    assert result["code"] == "native_workbook_external_content_unsupported"
+    assert result["diagnostics"]["cleanup_outcome"] == "not_created"
+
+
+@pytest.mark.parametrize("special", ["array", "local_name"])
+def test_native_excel_document_rejects_indirect_external_formula_without_driver(tmp_path, special):
+    from io import BytesIO
+
+    from openpyxl import Workbook
+    from openpyxl.workbook.defined_name import DefinedName
+    from openpyxl.worksheet.formula import ArrayFormula
+
+    source = BytesIO()
+    book = Workbook()
+    if special == "array":
+        book.active["A1"] = ArrayFormula(ref="A1", text='=IMAGE("https://example.invalid")')
+    else:
+        book.defined_names.add(
+            DefinedName(
+                "LocalExternal", attr_text='IMAGE("https://example.invalid")', localSheetId=0
+            )
+        )
+        book.active["A1"] = "=LocalExternal"
+    book.save(source)
+
+    class NeverLaunch:
+        def __init__(self):
+            raise AssertionError("unsafe formula reached app boundary")
+
+    run = tmp_path / ("3" * 32)
+    run.mkdir()
+    result = verifiers._native_excel_document(
+        run,
+        {"source": source.getvalue(), "operation": "read", "changes": []},
+        lambda _identity: None,
+        provider_factory=NeverLaunch,
+    )
+    assert result["outcome"] == "failed"
+    assert result["code"] == "native_workbook_external_content_unsupported"
+
+
+@pytest.mark.parametrize("target", ["missing_sheet", "read_column", "change_sheet"])
+def test_native_excel_document_rejects_invalid_targets_before_driver(tmp_path, target):
+    from io import BytesIO
+
+    from openpyxl import Workbook
+
+    source = BytesIO()
+    Workbook().save(source)
+    document = {
+        "source": source.getvalue(),
+        "operation": "read",
+        "changes": [],
+        "read_cells": ["Sheet!A1"],
+    }
+    if target == "missing_sheet":
+        document["read_cells"] = ["Absent!A1"]
+    elif target == "read_column":
+        document["read_cells"] = ["Sheet!ZZZ1"]
+    else:
+        document["changes"] = [{"kind": "cell", "sheet": "Absent", "cell": "A1", "value": 7}]
+
+    class NeverLaunch:
+        def __init__(self):
+            raise AssertionError("invalid target reached application boundary")
+
+    run = tmp_path / ("4" * 32)
+    run.mkdir()
+    result = verifiers._native_excel_document(
+        run, document, lambda _identity: None, provider_factory=NeverLaunch
+    )
+    assert result["code"] == "native_document_target_invalid"
+    assert result["diagnostics"]["cleanup_outcome"] == "not_created"
+
+
+def test_native_powerpoint_document_uses_owned_payload_and_closes_only_its_document(
+    tmp_path, monkeypatch
+):
+    source = Path(verifiers.__file__).parent.parent / "office-template.pptx"
+    run = tmp_path / ("5" * 32)
+    run.mkdir()
+    captured = []
+
+    def command(script, *arguments):
+        captured.append((script, arguments))
+        payload = json.loads(Path(arguments[3]).read_text())
+        assert payload["targets"][2]["value"] == "结论版本 B"
+        assert payload["targets"][0]["value"] == "研究概览"
+        assert "结论版本 B" not in script
+        Path(arguments[1]).write_text("document_closed")
+        return {"outcome": "available", "code": None}
+
+    monkeypatch.setattr(verifiers, "_run_osascript", command)
+    result = verifiers._native_powerpoint_document(
+        run,
+        {
+            "source": source.read_bytes(),
+            "operation": "modify",
+            "changes": [{"kind": "shape_text", "slide": 2, "shape_id": 2, "text": "结论版本 B"}],
+        },
+    )
+    assert result["outcome"] == "available"
+    assert result["diagnostics"]["cleanup_outcome"] == "confirmed"
+    assert result["native_readback"]["targets_verified"] == 4
+    assert result["document"]["slides"][1]["objects"][0]["text"] == "结论版本 B"
+    assert (
+        'on error errorMessage number errorNumber\nif ownedPresentation is not missing value then\nmy phase("document_closed", "started", stepFile)'
+        in captured[0][0]
+    )
+    assert "quit" not in captured[0][0]
+    assert "/usr/bin/open -b com.microsoft.Powerpoint " in captured[0][0]
+    assert "save ownedPresentation\n" in captured[0][0]
+    assert "save ownedPresentation in" not in captured[0][0]
+    assert "repeat until saved of ownedPresentation is true" in captured[0][0]
+    assert "open (POSIX file targetPath)" not in captured[0][0]
+    if sys.platform == "darwin":
+        import subprocess
+
+        # Exercise the actual Foundation bridge, never the Office tell block.
+        fragment = captured[0][0].split("with timeout of 30 seconds", 1)[0]
+        fragment += """set verifiedCount to 0
+repeat with recordIndex from 0 to ((targetRecords's |count|()) - 1)
+set targetRecord to targetRecords's objectAtIndex:recordIndex
+set shapeName to (targetRecord's objectForKey:"shape_name") as text
+if shapeName is "" then error "missing shape identity"
+set verifiedCount to verifiedCount + 1
+end repeat
+return verifiedCount
+end run"""
+        completed = subprocess.run(
+            ["/usr/bin/osascript", "-e", fragment, *captured[0][1]],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+        )
+        assert completed.returncode == 0, completed.stderr
+        assert completed.stdout.strip() == "4"
+
+
+def test_native_powerpoint_rejects_cross_type_shape_name_collision_before_app(
+    tmp_path, monkeypatch
+):
+    import zipfile
+    from io import BytesIO
+
+    from lxml import etree
+
+    source = Path(verifiers.__file__).parent.parent / "office-template.pptx"
+    ns = {"p": "http://schemas.openxmlformats.org/presentationml/2006/main"}
+    output = BytesIO()
+    with zipfile.ZipFile(source) as package, zipfile.ZipFile(output, "w") as changed:
+        for entry in package.infolist():
+            raw = package.read(entry.filename)
+            if entry.filename == "ppt/slides/slide1.xml":
+                root = etree.fromstring(raw)
+                tree = root.find("p:cSld/p:spTree", ns)
+                name = tree.find("p:sp/p:nvSpPr/p:cNvPr", ns).get("name")
+                picture = etree.SubElement(tree, "{" + ns["p"] + "}pic")
+                identity = etree.SubElement(
+                    etree.SubElement(picture, "{" + ns["p"] + "}nvPicPr"), "{" + ns["p"] + "}cNvPr"
+                )
+                identity.set("id", "99")
+                identity.set("name", name)
+                raw = etree.tostring(root)
+            changed.writestr(entry, raw)
+
+    def forbidden(*_args):
+        pytest.fail("ambiguous shape reached application boundary")
+
+    monkeypatch.setattr(verifiers, "_run_osascript", forbidden)
+    run = tmp_path / ("7" * 32)
+    run.mkdir()
+    result = verifiers._native_powerpoint_document(
+        run, {"source": output.getvalue(), "operation": "read", "changes": []}
+    )
+    assert result["outcome"] == "failed"
+    assert result["diagnostics"]["cleanup_outcome"] == "not_created"
+
+
+def test_native_word_generation_uses_app_creation_and_private_payload(tmp_path, monkeypatch):
+    from docx import Document
+
+    run = tmp_path / ("8" * 32)
+    run.mkdir()
+    captured = []
+
+    def command(script, *arguments):
+        captured.append(script)
+        payload = json.loads(Path(arguments[3]).read_text())
+        assert payload["paragraphs"] == ["Word 验收报告", "这段内容保持不变。", "报告版本 A"]
+        assert payload["tables"] == [[["项目", "数值"], ["样本", "2"]]]
+        assert "Word 验收报告" not in script
+        fixture = Document()
+        fixture.add_heading(payload["paragraphs"][0], 0)
+        fixture.save(arguments[0])
+        Path(arguments[1]).write_text("document_closed")
+        return {"outcome": "available", "code": None}
+
+    monkeypatch.setattr(verifiers, "_run_osascript", command)
+    result = verifiers._native_word_document(
+        run,
+        {
+            "operation": "generate",
+            "content": {
+                "title": "Word 验收报告",
+                "paragraphs": ["这段内容保持不变。", "报告版本 A"],
+                "tables": [[["项目", "数值"], ["样本", "2"]]],
+            },
+            "changes": [],
+        },
+    )
+    assert result["outcome"] == "available"
+    assert result["diagnostics"]["cleanup_outcome"] == "confirmed"
+    assert "make new document" in captured[0]
+    assert "set rowCount to (rowValues's |count|()) as integer" in captured[0]
+    assert "make new table" in captured[0]
+    assert "convert to table tableRange" not in captured[0]
+    assert "save ownedDocument in (POSIX file targetPath)" in captured[0]
+    assert "save as ownedDocument" not in captured[0]
+    assert "quit" not in captured[0]
+
+
+@pytest.mark.parametrize("mixed_target", [False, True])
+def test_native_word_only_writes_requested_targets_and_rejects_mixed_target(
+    tmp_path, monkeypatch, mixed_target
+):
+    from io import BytesIO
+
+    from docx import Document
+
+    seed = Document()
+    heading = seed.add_heading("标题", 0)
+    heading.runs[0].bold = True
+    mixed = seed.add_paragraph()
+    mixed.add_run("保留粗体").bold = True
+    mixed.add_run("保留斜体").italic = True
+    seed.add_table(rows=2, cols=2).cell(1, 1).text = "2"
+    data = BytesIO()
+    seed.save(data)
+    captured = []
+
+    def command(script, *arguments):
+        assert not mixed_target, "mixed target reached Office boundary"
+        payload = json.loads(Path(arguments[3]).read_text())
+        assert payload["writes"] == [
+            {"kind": "cell", "table": 1, "row": 2, "column": 2, "text": "3"}
+        ]
+        assert 'set writeRecords to payload\'s objectForKey:"writes"' in script
+        captured.append(script)
+        Path(arguments[1]).write_text("document_closed")
+        return {"outcome": "available", "code": None}
+
+    monkeypatch.setattr(verifiers, "_run_osascript", command)
+    run = tmp_path / ("a" * 32)
+    run.mkdir()
+    change = (
+        {"kind": "paragraph", "index": 1, "text": "修改"}
+        if mixed_target
+        else {"kind": "table_cell", "table": 0, "row": 1, "column": 1, "text": "3"}
+    )
+    result = verifiers._native_word_document(
+        run, {"operation": "modify", "source": data.getvalue(), "changes": [change]}
+    )
+    assert result["outcome"] == ("failed" if mixed_target else "available")
+    if mixed_target:
+        assert not captured and result["diagnostics"]["cleanup_outcome"] == "not_created"
+
+
+@pytest.mark.parametrize("ambiguous", [False, True])
+def test_excel_single_file_launch_uses_new_instance_and_rejects_ambiguous_pid(
+    tmp_path, monkeypatch, ambiguous
+):
+    root = tmp_path / ("e" * 32)
+    root.mkdir()
+    path = root / f"research-workbench-{root.name}.xlsx"
+    path.write_bytes(b"fixture")
+    observed = []
+
+    def launch(args, **kwargs):
+        observed.append(args)
+        assert kwargs["timeout"] == 10
+        return SimpleNamespace(returncode=0)
+
+    monkeypatch.setattr(verifiers.subprocess, "run", launch)
+    monkeypatch.setattr(
+        verifiers, "_excel_process_baseline", lambda: {100, 777, 888} if ambiguous else {100, 777}
+    )
+    if ambiguous:
+        with pytest.raises(ValueError, match="native_excel_isolation_unverified"):
+            verifiers._launch_excel_document_pid(path, {100})
+    else:
+        assert verifiers._launch_excel_document_pid(path, {100}) == 777
+    assert observed == [["/usr/bin/open", "-n", "-b", "com.microsoft.Excel", str(path)]]
+
+
+@pytest.mark.parametrize("reused_instance", [False, True])
+@pytest.mark.parametrize("has_owned_file", [False, True])
+@pytest.mark.parametrize("delayed_sdk", [False, True])
+def test_native_excel_document_calculates_saves_and_reopens_owned_copy(
+    tmp_path, monkeypatch, reused_instance, has_owned_file, delayed_sdk
+):
+    from io import BytesIO
+
+    from openpyxl import Workbook, load_workbook
+
+    from app.research_web.report_workflows import workbook
+
+    source = BytesIO()
+    seed = Workbook()
+    seed.active.title = "Inputs"
+    for value in ["数值", 2, 3]:
+        seed.active.append([value])
+    seed.create_sheet("Summary")["B1"] = "=SUM(Inputs!A2:A3)"
+    seed.save(source)
+    state = {"a": 2, "cache": None, "saved": None}
+    events = []
+
+    class Cell:
+        def __init__(self, sheet):
+            self.sheet = sheet
+
+        @property
+        def value(self):
+            return state["cache"] if self.sheet == "Summary" else state["a"]
+
+        @value.setter
+        def value(self, value):
+            state["a"] = value
+            events.append("write")
+
+        @property
+        def formula(self):
+            return "=SUM(Inputs!A2:A3)" if self.sheet == "Summary" else state["a"]
+
+    class Book:
+        @property
+        def fullname(self):
+            return str(run / f"research-workbench-{run.name}.xlsx")
+
+        def __init__(self):
+            self.sheets = {
+                "Inputs": SimpleNamespace(range=lambda _address: Cell("Inputs")),
+                "Summary": SimpleNamespace(range=lambda _address: Cell("Summary")),
+            }
+
+        def close(self):
+            events.append("close")
+
+    class App:
+        pid = 777
+
+        def __init__(self):
+            class Books:
+                def __len__(self):
+                    return 1
+
+                def __getitem__(self, name):
+                    if not has_owned_file:
+                        raise ValueError("no task workbook")
+                    assert name == f"research-workbench-{run.name}.xlsx"
+                    events.append("open")
+                    return Book()
+
+                def open(_self, *args, **kwargs):
+                    return self.open(*args, **kwargs)
+
+            self.books = Books()
+
+        def open(self, *_args, **kwargs):
+            events.append("reopen" if kwargs.get("read_only") else "open")
+            if kwargs.get("read_only"):
+                state["cache"] = state["saved"]
+            return Book()
+
+        def quit(self):
+            events.append("quit")
+
+    class Provider:
+        class Apps:
+            def __init__(self):
+                self.pending = delayed_sdk
+
+            def __getitem__(self, pid):
+                assert pid == 777
+                if self.pending:
+                    self.pending = False
+                    raise KeyError(pid)
+                return App()
+
+        _xlwings = SimpleNamespace(apps=Apps())
+
+        def readiness(self):
+            return {"ready": True}
+
+        def calculate_full(self, _handle):
+            state["cache"] = state["a"] + 3
+            events.append("calculate")
+
+        def read_cells(self, _handle, refs):
+            return {ref: state["a"] if ref == "Inputs!A2" else state["cache"] for ref in refs}
+
+        def save(self, _handle):
+            events.append("save")
+            state["saved"] = state["cache"]
+            path = run / f"research-workbench-{run.name}.xlsx"
+            book = load_workbook(path)
+            book["Inputs"]["A2"] = state["a"]
+            book.save(path)
+            book.close()
+
+    monkeypatch.setattr(
+        verifiers, "_excel_process_baseline", lambda: {100, 777} if reused_instance else {100}
+    )
+    monkeypatch.setattr(verifiers, "_launch_excel_document_pid", lambda _path, _baseline: 777)
+    monkeypatch.setattr(
+        workbook, "_capture_excel_process_identity", lambda pid: {"pid": pid, "token": "f" * 64}
+    )
+    run = tmp_path / ("2" * 32)
+    run.mkdir()
+    reported = []
+    result = verifiers._native_excel_document(
+        run,
+        {
+            "source": source.getvalue(),
+            "operation": "modify",
+            "read_cells": ["Summary!B1", "Inputs!A2"],
+            "changes": [{"kind": "cell", "sheet": "Inputs", "cell": "A2", "value": 7}],
+        },
+        reported.append,
+        provider_factory=Provider,
+    )
+    if reused_instance or not has_owned_file:
+        assert result["outcome"] == "failed"
+        assert result["code"] == "native_excel_isolation_unverified"
+        assert events == [] and reported == []
+        return
+    assert result["outcome"] == "available", result
+    assert result["native_readback"]["before"]["Summary!B1"] == 5
+    assert (
+        result["native_readback"]["after"]["Summary!B1"]
+        == result["native_readback"]["reopened"]["Summary!B1"]
+        == 10
+    )
+    assert events.count("calculate") == 2 and events.index("save") < events.index("reopen")
+    assert events.count("close") == 2 and events.index("close") < events.index("reopen")
+    assert events[-1] == "quit" and len(reported) == 1
+    assert result["diagnostics"]["cleanup_outcome"] == "confirmed"

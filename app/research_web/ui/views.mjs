@@ -114,11 +114,80 @@ export function renderFiles(files = [], selected = null) {
   const current = files.find((file) => file.id === selected);
   const rows = files.map((file) => {
     const url = fileURL(file.url); const preview = fileURL(file.preview_url);
-    return `<div class="file-card"><div class="file-icon" aria-hidden="true">▤</div><div class="file-info"><strong>${e(file.name)}</strong><small>${e(formatSize(file.size))}</small><div class="file-actions">${preview ? `<button data-preview="${e(file.id)}" class="text-button">预览</button>` : ''}${url ? `<a href="${e(url)}" download="${e(file.name)}" class="text-button">下载</a>` : '<span class="muted small">文件链接不可用</span>'}</div></div></div>`;
+    const office = /\.(docx|xlsx|pptx)$/i.test(file.name) && /^[0-9a-f]{24}$/.test(file.id || '');
+    return `<div class="file-card"><div class="file-icon" aria-hidden="true">▤</div><div class="file-info"><strong>${e(file.name)}</strong><small>${e(formatSize(file.size))}</small><div class="file-actions">${preview ? `<button data-preview="${e(file.id)}" class="text-button">预览</button>` : ''}${office ? `<button data-document-open="${e(file.id)}" class="text-button">读取与修改</button>` : ''}${url ? `<a href="${e(url)}" download="${e(file.name)}" class="text-button">下载</a>` : '<span class="muted small">文件链接不可用</span>'}</div></div></div>`;
   }).join('');
   const previewURL = current && fileURL(current.preview_url);
   const preview = previewURL ? `<section class="preview-panel"><div class="section-heading"><strong>${e(current.name)}</strong><button class="icon-button" data-close-preview aria-label="关闭文件预览">×</button></div><iframe title="${e(current.name)} 文件预览" src="${e(previewURL)}" sandbox="" referrerpolicy="no-referrer" loading="lazy"></iframe><p class="muted small">隔离预览：脚本、表单与外部导航已禁用。</p></section>` : '';
-  return `${rows || '<p class="muted small">尚无文件。上传附件或让 DSH 生成报告后，真实文件将显示于此。</p>'}${preview}`;
+  return `<div class="button-row"><button type="button" data-document-create="docx" class="button small">新建 Word 文件</button><button type="button" data-document-create="xlsx" class="button small">新建 Excel 文件</button><button type="button" data-document-create="pptx" class="button small">新建 PowerPoint 文件</button></div>${rows || '<p class="muted small">尚无文件。上传附件或生成文档后，真实文件将显示于此。</p>'}${preview}`;
+}
+
+export function documentTargets(result) {
+  const doc = result?.document || {}; const targets = [];
+  if (result?.format === 'docx') {
+    (doc.paragraphs || []).forEach((p, index) => targets.push({ label: `段落 ${index + 1} · ${p.style || ''}`, value: p.text, change: { kind: 'paragraph', index } }));
+    (doc.tables || []).forEach((rows, table) => rows.forEach((row, r) => row.forEach((value, column) => targets.push({ label: `表格 ${table + 1} · 行 ${r + 1} 列 ${column + 1}`, value, change: { kind: 'table_cell', table, row: r, column } }))));
+  } else if (result?.format === 'xlsx') {
+    (doc.sheets || []).forEach(sheet => sheet.rows.forEach((row, r) => row.forEach((value, c) => {
+      let number = c + 1, column = ''; while (number) { number--; column = String.fromCharCode(65 + number % 26) + column; number = Math.floor(number / 26); }
+      targets.push({ label: `${sheet.name}!${column}${r + 1}`, value: value ?? '', change: { kind: 'cell', sheet: sheet.name, cell: `${column}${r + 1}` } });
+    })));
+  } else if (result?.format === 'pptx') {
+    (doc.slides || []).forEach(slide => slide.objects.forEach(object => targets.push({ label: `第 ${slide.number} 页 · 对象 ${object.id}`, value: object.text, change: { kind: 'shape_text', slide: slide.number, shape_id: object.id } })));
+  }
+  return targets.slice(0, 200);
+}
+
+export function documentEditValue(value, type) {
+  if (type === 'number') {
+    if (!/^-?(?:\d+\.?\d*|\.\d+)$/.test(value) || !Number.isFinite(Number(value))) throw new Error('请输入有效数字');
+    return Number(value);
+  }
+  if (type === 'boolean') {
+    if (!['true', 'false'].includes(value)) throw new Error('布尔值请输入 true 或 false');
+    return value === 'true';
+  }
+  return value;
+}
+
+export function documentCreationPayload(fields) {
+  const lines = value => String(value || '').split(/\r?\n/).filter(line => line.length);
+  if (fields.format === 'docx') {
+    if (fields.mode && !['file', 'native'].includes(fields.mode)) throw new Error('执行方式不支持');
+    const table = lines(fields.table).map(line => line.split('\t'));
+    if (table.length && table.some(row => row.length !== table[0].length)) throw new Error('表格各行的列数必须一致');
+    return { format: 'docx', operation: 'generate', mode: fields.mode || 'file', content: {
+      title: String(fields.title || ''), paragraphs: lines(fields.paragraphs), tables: table.length ? [table] : [],
+    } };
+  }
+  if (fields.format === 'pptx') return { format: 'pptx', operation: 'generate', mode: 'file', content: { slides: [1, 2].map(i => ({ title: String(fields[`slide${i}_title`] || ''), body: String(fields[`slide${i}_body`] || '') })) } };
+  if (fields.format !== 'xlsx') throw new Error('生成格式不支持');
+  const sheets = [1, 2].filter(i => String(fields[`sheet${i}_name`] || '').trim()).map(i => ({
+    name: String(fields[`sheet${i}_name`]).trim(), rows: lines(fields[`sheet${i}_rows`]).map(line => line.split('\t').map(value =>
+      /^-?(?:0|[1-9]\d*)(?:\.\d+)?$/.test(value) && Number.isFinite(Number(value)) ? Number(value) : value)),
+  }));
+  if (!sheets.length || new Set(sheets.map(sheet => sheet.name)).size !== sheets.length) throw new Error('请填写不同的工作表名称');
+  return { format: 'xlsx', operation: 'generate', mode: 'file', content: { sheets } };
+}
+
+function renderDocumentCreation(editor) {
+  const word = editor.creating === 'docx'; const ppt = editor.creating === 'pptx';
+  const draft = editor.draft || (ppt ? { slide1_title: '研究概览', slide1_body: '本页保持不变', slide2_title: '结论版本 A', slide2_body: '样本数为 2' } : word ? { title: 'Word 验收报告', paragraphs: '这段内容保持不变。\n报告版本 A。', table: '项目\t数值\n样本\t2' } : {
+    sheet1_name: 'Inputs', sheet1_rows: '数值\n2\n3', sheet2_name: 'Summary', sheet2_rows: '合计\t=SUM(Inputs!A2:A3)',
+  });
+  const field = (name, label, multiline = false) => `<label>${e(label)}${multiline ? `<textarea name="${name}" rows="4">${e(draft[name] || '')}</textarea>` : `<input name="${name}" value="${e(draft[name] || '')}">`}</label>`;
+  const mode = word ? `<label>执行方式<select name="mode"><option value="file" ${draft.mode !== 'native' ? 'selected' : ''}>文件处理</option><option value="native" ${draft.mode === 'native' ? 'selected' : ''}>本机 Word 操作</option></select></label><p>本机操作会创建、保存并重新打开本任务文稿；Office 可能要求单文件访问授权。</p>` : '';
+  return `<div class="dialog-backdrop"><section class="session-dialog" role="dialog" aria-modal="true" aria-label="生成 Office 文件"><div class="section-heading"><strong>新建 ${word ? 'Word' : ppt ? 'PowerPoint' : 'Excel'} 文件</strong><button type="button" data-document-close ${editor.busy ? 'disabled' : ''} aria-label="关闭文档操作">×</button></div>${word ? '' : '<p>文件生成；不会启动本机 Office。</p>'}${editor.error ? `<p role="alert">${e(editor.error)}</p>` : ''}<form id="document-create-form"><fieldset ${editor.busy ? 'disabled' : ''}>${ppt ? field('slide1_title', '第 1 页标题') + field('slide1_body', '第 1 页正文', true) + field('slide2_title', '第 2 页标题') + field('slide2_body', '第 2 页正文', true) : word ? field('title', '标题') + field('paragraphs', '段落（每行一段）', true) + field('table', '表格（制表符分列，每行一行）', true) : field('sheet1_name', '工作表 1 名称') + field('sheet1_rows', '工作表 1 内容（制表符分列）', true) + field('sheet2_name', '工作表 2 名称（可留空）') + field('sheet2_rows', '工作表 2 内容（制表符分列）', true)}${mode}${word || ppt ? '' : '<p>公式将保留但未重算；真实计算需另用 Excel。</p>'}<button type="submit" class="button primary">${editor.busy ? '正在生成…' : '生成文件'}</button></fieldset></form></section></div>`;
+}
+
+export function renderDocumentEditor(editor) {
+  if (!editor) return '';
+  if (editor.creating) return renderDocumentCreation(editor);
+  const targets = documentTargets(editor.result);
+  const facts = editor.lastResult || editor.result;
+  const output = editor.lastResult?.output || editor.result?.output; const url = output && fileURL(output.url);
+  const draft = editor.draft || { target: 0, value: targets[0]?.value ?? '', mode: 'file', value_type: typeof targets[0]?.value === 'number' ? 'number' : typeof targets[0]?.value === 'boolean' ? 'boolean' : 'string' };
+  return `<div class="dialog-backdrop" data-document-backdrop><section class="session-dialog" role="dialog" aria-modal="true" aria-label="Office 文档操作"><div class="section-heading"><strong>${e(editor.file.name)}</strong><button type="button" data-document-close ${editor.busy ? "disabled" : ""} class="icon-button" aria-label="关闭文档操作">×</button></div>${editor.busy ? '<p role="status">正在执行文档操作…</p>' : ''}${editor.error ? `<p role="alert">${e(editor.error)}</p>` : ''}${facts ? `<p>${e(facts.status)} · ${e(facts.mode === "native" ? "本机操作" : "文件处理")} · ${e(facts.last_completed_step || facts.code || "")}</p>` : ""}${facts?.calculation_engine ? `<p>已由 ${e(facts.calculation_engine)} 实际计算，并完成保存后重开读回。</p>` : editor.result?.document?.calculation === 'not_recalculated' ? '<p>文件模式：公式未重算，结果须由 Excel 验证。</p>' : ''}${targets.length ? `<form id="document-edit-form" data-document-revision="${e(editor.result?.sha256 || '')}" data-document-busy="${editor.busy ? "true" : "false"}"><fieldset ${editor.busy ? "disabled" : ""}><label>修改位置<select name="target" data-document-target>${targets.map((t, i) => `<option value="${i}" ${Number(draft.target) === i ? "selected" : ""}>${e(t.label)}</option>`).join('')}</select></label><label>新内容<textarea name="value" rows="4">${e(draft.value)}</textarea></label>${editor.result?.format === "xlsx" ? `<label>值类型<select name="value_type">${["string", "number", "boolean"].map(type => `<option value="${type}" ${draft.value_type === type ? "selected" : ""}>${({string:"文本",number:"数字",boolean:"布尔值"})[type]}</option>`).join("")}</select></label>` : ""}<label>执行方式<select name="mode"><option value="file" ${draft.mode === "file" ? "selected" : ""}>文件处理</option><option value="native" ${draft.mode === "native" ? "selected" : ""}>本机 Office 操作</option></select></label><p>原件保持不变；修改会生成新文件。复杂修订和嵌入对象可能无法处理。</p><button type="submit" class="button primary" ${editor.busy ? 'disabled' : ''}>保存新版本</button></fieldset></form>` : ''}${url ? `<a class="button" href="${e(url)}" download="${e(output.name)}">下载新版本</a>` : ''}</section></div>`;
 }
 
 export function renderHistory(sessions, filter = '', mode = null, view = 'active') {

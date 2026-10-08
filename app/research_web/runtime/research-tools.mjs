@@ -115,6 +115,31 @@ export function apply(ctx, config, spawnProcess = spawn, admissionClient = defau
     throw new Error('research-tools execution limits are invalid');
   }
   ctx.tools.register({
+    name: 'research_document_operation',
+    description: 'Read, generate or precisely modify owned DOCX/XLSX/PPTX files. Use file_id, never host paths. Writes create a new version; modifications require expected_sha256 from read. File Excel preserves formulas but does not recalculate. PPT generation requires an owned template. Native mode never silently falls back.',
+    parameters: { type: 'object', properties: {
+      format: { type: 'string', enum: ['docx', 'xlsx', 'pptx'] },
+      operation: { type: 'string', enum: ['read', 'generate', 'modify'] },
+      mode: { type: 'string', enum: ['file', 'native'] },
+      file_id: { type: 'string' }, expected_sha256: { type: 'string' }, output_name: { type: 'string' },
+      content: { type: 'object', description: 'DOCX title/paragraphs/tables; XLSX sheets with name/rows; PPT uses registered template and shape_text changes.' },
+      changes: { type: 'array', maxItems: 100, items: { type: 'object' }, description: 'paragraph index/text; table_cell table/row/column/text; cell sheet/cell/value; shape_text slide (1-based)/shape_id/text.' },
+    }, required: ['format', 'operation', 'mode'], additionalProperties: false },
+    output: { schema: { type: 'object', properties: { result_json: { type: 'string' } }, required: ['result_json'], additionalProperties: false }, render(_args, value) { return [{ type: 'text', text: value.result_json }]; } },
+    async execute(args, exec) {
+      const allowed = new Set(['format', 'operation', 'mode', 'file_id', 'expected_sha256', 'output_name', 'content', 'changes']);
+      if (!args || typeof args !== 'object' || Array.isArray(args) || Object.keys(args).some(key => !allowed.has(key)) || Buffer.byteLength(JSON.stringify(args)) > 48000) throw Error('document_arguments_invalid');
+      exec.signal.throwIfAborted();
+      const scope = await admissionClient(ctx, { ...exec, name: 'research_document_operation' }, config);
+      if (!scope.admitted) throw Error('document_scope_unverified');
+      const { executeDocumentTool } = await import('./public-data.mjs');
+      ctx.logger.info('document_operation_run outcome=started');
+      const result = await executeDocumentTool(ctx, exec, config, args);
+      ctx.logger.info('document_operation_run outcome=returned');
+      return { result_json: JSON.stringify(result) };
+    },
+  });
+  ctx.tools.register({
     name: 'research_run_script',
     description: 'Run Python in this research session. Read inputs/resources; write outputs/tmp. Network, host files, and subprocesses are unavailable.',
     parameters: { type: 'object', properties: { code: { type: 'string', description: 'Nonempty Python source, at most 65536 UTF-8 bytes; enforced before execution.' } }, required: ['code'], additionalProperties: false },

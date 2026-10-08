@@ -124,6 +124,8 @@ MCP staging、安装 payload、清单与确认令牌目录的 Windows mode 修�
 | POST | `/api/research/sessions/{sid}/upgrade` | `app/research_web/main.py` |
 | GET | `/api/research/sessions/{sid}/events` | `app/research_web/main.py` |
 | POST | `/api/research/sessions/{sid}/uploads` | `app/research_web/main.py`；Office附件含docx/xlsx/pptx，保留原会话归属与30MB限制，上传不执行Office |
+| POST | `/api/research/sessions/{session_id}/document-operations` | `app/research_web/report_routes.py`；显式format/operation/mode，输入file_id、修改expected_sha256，文件执行复用报告sandbox；原生业务尚未接通时返回unavailable，禁止静默回退 |
+| POST | `/api/research/internal/data/document-operation` | `app/research_web/report_routes.py`；Runtime有限文档工具，沿既有实例私有鉴权，可信会话绑定，不接收宿主路径 |
 | GET | `/api/research/sessions/{sid}/files` | `app/research_web/main.py` |
 | GET | `/api/research/sessions/{sid}/files/{fid}/{action}` | `app/research_web/main.py` |
 | GET | `/api/research/skills` | `app/research_web/main.py` |

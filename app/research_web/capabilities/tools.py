@@ -16,6 +16,22 @@ from .models import CapabilityError
 
 PIN = RUNTIME_CONTRACT.dsh_commit
 DECLARATIONS = {
+    "research_document_operation": (
+        "Office 文档操作",
+        "runtime/research-tools.mjs",
+        {
+            "format": "string",
+            "operation": "string",
+            "mode": "string",
+            "file_id": "string",
+            "expected_sha256": "string",
+            "output_name": "string",
+            "content": "object",
+            "changes": "array",
+        },
+        ["format", "operation", "mode"],
+        "会话文件身份与受约束报告执行器；修改生成新版本，原生不可用不回退",
+    ),
     "rwb_record_method_use": (
         "记录推理方法采用",
         "runtime/research-tools.mjs",
@@ -73,7 +89,12 @@ DECLARATIONS = {
         "原生父子归属；内部控制",
     ),
 }
-SELECTABLE = {"research_run_script", "web_search", *BUSINESS_TOOLS.values()}
+SELECTABLE = {
+    "research_run_script",
+    "research_document_operation",
+    "web_search",
+    *BUSINESS_TOOLS.values(),
+}
 
 DATA_PROPERTIES = {
     "search_assets": (
@@ -241,7 +262,7 @@ def tool_catalog(data_root: Path | None = None):
                 "kind": "tool",
                 "description": condition,
                 "selectable": name in SELECTABLE,
-                "read_only": True,
+                "read_only": name != "research_document_operation",
                 "parameters": parameters,
                 "source": source,
                 "source_commit": PIN if source.startswith("packages/") else None,

@@ -134,6 +134,7 @@ export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSo
   return {
     runtime: () => request('/runtime'), models: () => request('/models'), workspaces: () => request('/workspaces'),
     sessions: (view = 'active') => request(`/sessions?view=${segment(view)}`), skills: () => request('/skills'),
+    documentOperation: (id, body) => request(`${sessionPath(id)}/document-operations`, { method: 'POST', body }),
     capabilities: () => request('/capabilities'), tools: () => request('/tools'),
     mcpRegistries: () => request('/mcp/registries'),
     mcpRegistry: (id) => request(mcpRegistryPath(id)),

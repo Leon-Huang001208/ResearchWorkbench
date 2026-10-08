@@ -4709,6 +4709,7 @@ Imports:
 - `importlib.metadata`
 - `importlib.util`
 - `json`
+- `math`
 - `os`
 - `pathlib`
 - `platform`
@@ -4726,7 +4727,7 @@ Classes:
   - methods: current
 - `LocalIntegrationManager`
   - Build and persist safe local facts; probes never launch detected software.
-  - methods: __init__, state_path, _load_verification_runs, _load_verification_results, snapshot, _detect_snapshot, _publish_snapshot, _commit_verification, _apply_verification_results, _verification_result_is_current, _wind_session_is_ready, _path_fingerprint, _wind_addin_fingerprint, _verification_context_fingerprint, _detect, _office_items, _wind_terminal_item, _application_item, _bridge_item, _ifind_terminal_item, _unsupported_office_items, _browser_items, _validate_snapshot, _persist, start_probe, _run_probe, start_verification, _run_verification, verification, _public_verification, _prune_probes, _prune_verifications, probe, run_probe, _public_probe, close
+  - methods: __init__, state_path, _load_verification_runs, _load_verification_results, snapshot, _detect_snapshot, _publish_snapshot, _commit_verification, _apply_verification_results, _verification_result_is_current, _wind_session_is_ready, _path_fingerprint, _wind_addin_fingerprint, _verification_context_fingerprint, _detect, _office_items, _wind_terminal_item, _application_item, _bridge_item, _ifind_terminal_item, _unsupported_office_items, _browser_items, _validate_snapshot, _persist, start_probe, _run_probe, start_verification, run_document, _run_verification, verification, _public_verification, _prune_probes, _prune_verifications, probe, run_probe, _public_probe, close
 
 Functions:
 - `_safe_verification_diagnostics`
@@ -4774,6 +4775,8 @@ Imports:
 - `collections.abc`
 - `core.observability`
 - `hashlib`
+- `json`
+- `math`
 - `multiprocessing`
 - `os`
 - `pathlib`
@@ -4789,7 +4792,13 @@ Imports:
 - `uuid`
 
 Functions:
+- `_record_office_phase`
+- `_read_office_phases`
+- `_office_phase_timeout`
+- `_instrument_office_script`
+  - Add finite metadata to reviewed static scripts; never record content.
 - `_sha256`
+- `_office_error_number`
 - `_permission_outcome`
 - `_remove_run_directory`
 - `_run_directory_size`
@@ -4810,6 +4819,15 @@ Functions:
 - `_wind_security_verification_required`
   - Detect Wind's visible Excel authorization prompt without reading its content.
 - `_verify_wind`
+- `_excel_process_baseline`
+- `_launch_excel_document_pid`
+  - Delegate one owned file to a new Excel instance through Launch Services.
+- `_native_excel_document`
+  - Use the existing xlwings provider on a private input copy, without refresh.
+- `_native_word_document`
+  - Create/read/edit a bounded plain Word document through the installed app.
+- `_native_powerpoint_document`
+  - Edit bounded text shapes in a private copy through the installed app.
 - `_child`
 - `_terminate_process_tree`
   - Terminate the worker and descendants without leaking vendor processes.
@@ -5725,6 +5743,8 @@ Functions:
 - `replace_pptx_paragraph`
 - `replace_pptx_placeholders`
 - `render_pptx`
+- `document_operation`
+  - Finite document operations inside the existing filesystem sandbox.
 
 
 ## `app/research_web/report_rendering.py`
@@ -5736,11 +5756,18 @@ Imports:
 - `__future__`
 - `asyncio`
 - `core.observability`
+- `hashlib`
 - `json`
+- `os`
 - `pathlib`
+- `re`
+- `stat`
 - `store`
+- `uuid`
 
 Functions:
+- `execute_document_operation`
+  - Use owned file identities and the existing reviewed renderer sandbox.
 - `render_report_payload`
   - Project a model-authored payload into reviewed, deterministic file formats.
 
@@ -5758,6 +5785,8 @@ Imports:
 - `typing`
 
 Classes:
+- `DocumentOperation`
+- `InternalDocumentOperation`
 - `ProjectCreate`
 - `ProjectPatch`
 - `VersionCreate`
@@ -5765,6 +5794,8 @@ Classes:
 - `ScheduleInput`
 
 Functions:
+- `document_operation`
+- `internal_document_operation`
 - `projects`
 - `create_project`
 - `project`

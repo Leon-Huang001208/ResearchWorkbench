@@ -178,6 +178,7 @@ def test_offline_seed_catalog_tools_and_workflows_without_session(api, monkeypat
     tools = client.get("/api/research/tools").json()["items"]
     assert {t["id"] for t in tools if t["selectable"]} == {
         "research_run_script",
+        "research_document_operation",
         "datahub_get_fund_data",
         "datahub_search_news",
         "datahub_search_assets",
@@ -187,7 +188,9 @@ def test_offline_seed_catalog_tools_and_workflows_without_session(api, monkeypat
         "datahub_get_market_activity",
         "web_search",
     }
-    assert len(tools) == 30
+    assert len(tools) == 31
+    document_tool = next(tool for tool in tools if tool["id"] == "research_document_operation")
+    assert document_tool["read_only"] is False
     workflow_tools = {t["id"] for t in tools if t.get("execution_surface") == "workflow_backend"}
     assert workflow_tools == {
         "report_workbook_refresh",

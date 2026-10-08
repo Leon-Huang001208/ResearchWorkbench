@@ -57,6 +57,27 @@ test('only the fifteen brand-neutral business tools are registered',async()=>{
   assert.ok(f.tools.has('datahub_query_table'));
 });
 
+test('Office bridge binds the trusted session and uses only the existing private loopback endpoint', async () => {
+  const f = await fixture();
+  const { executeDocumentTool } = await import(moduleURL);
+  const original = globalThis.fetch;
+  let observed;
+  globalThis.fetch = async (url, options) => {
+    observed = { url, body: JSON.parse(options.body), credentials: options.credentials, redirect: options.redirect };
+    return reply({ status: 'completed', mode: 'file', files: [] });
+  };
+  try {
+    const result = await executeDocumentTool(f.ctx, f.exec, { researchRoot: f.root }, {
+      format: 'docx', operation: 'read', mode: 'file', file_id: 'a'.repeat(24), session_id: randomUUID(),
+    });
+    assert.equal(result.status, 'completed');
+    assert.equal(observed.body.session_id, f.sid);
+    assert.equal(observed.url, 'http://127.0.0.1:18088/api/research/internal/data/document-operation');
+    assert.equal(observed.credentials, 'omit');
+    assert.equal(observed.redirect, 'error');
+  } finally { globalThis.fetch = original; }
+});
+
 test('mysql table tool validates nested filters and ordering before HTTP',async()=>{
   const f=await fixture();let calls=0;const original=globalThis.fetch;
   globalThis.fetch=async()=>{calls++;return reply({...dataset,source:'mysql'});};

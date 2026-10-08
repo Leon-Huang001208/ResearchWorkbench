@@ -1,19 +1,19 @@
 # 设置与真实能力闭环：累计任务报告
 
-## 当前状态（2026-10-07：macOS Office 与金融插件闭环推进）
+## 当前状态（2026-10-08：Word/Excel/PowerPoint 六项闭环推进）
 
 | 项目 | 当前结论与适用范围 |
 |---|---|
 | 原模型与公开研究 | 已有真实生成、受控公开净值工具、快照与最终回复证据；只覆盖声明的 NAV 范围。T6 已通过；B 供应商归因用户已豁免，归因事实仍未验证。 |
 | 兼容文本 | 独立 Ollama/Qwen2.5 无Key文本生成、普通research-web会话与Host/DSH冷重启已验证；不认证工具、多模态、带Key商业服务或研究质量。 |
 | 商业数据 | 用户确认Wind/iFinD有可用账户；最新反馈为iFinD只有终端账户、接口权限不确定，未提供接口Token。Wind插件心跳通过，但一次封闭业务查询deadline/0行；不影响原公开NAV。 |
-| Word功能 | 旧aabce313仍timeout且具体根因未知。新212f1d02已真实创建/写入/保存，保存后的文档引用关闭失败；重新按登记名称绑定关闭成功，但同一文件重开15秒未返回，读回仍未通过。 |
-| Excel/PowerPoint | Excel283d2d51在文件准备前timeout；PowerPoint13a4c00a已创建/写入，保存timeout。两项均不能记为应用完整可用，不连续重试。 |
+| 三项FILE | Word、Excel、PowerPoint固定样例均已从正常Web页面生成、读取、修改、下载并独立检查；Excel文件模式明确未重算。详见最新分项证据，不冒充原生通过。 |
+| 三项NATIVE | Excel6b4a5a33真实5→10→保存关闭重开10、公式保持及下载缓存检查通过，临时清理确认；PPT8b79b55d真实修改/保存关闭重开/4文本读回及产物独立检查通过，视觉仍待补。Word9796完成创建/正文/原生表格/样式，保存等待超时，原一次人工界面问题待反馈，清理未确认。旧失败仍完整保留。 |
 | Word清理 | 旧两项用户提供的候选归属仍UNVERIFIED且未操作。新212f对象路径、固定合成正文与saved属性已核对匹配，原关闭维护成功，随后重开timeout，因此文件清理仍UNVERIFIED。其余新资源也按各自登记保留未确认状态。 |
-| hostAcceptance | 当前Office源码候选0c5c967258e29ce35e9bdb28cbe218abfc073f46工程验收PASS：相关本地闭包及匹配的新macOS安装CI通过。它不认证上述Office实机功能成功。 |
+| hostAcceptance | 历史候选0c5c967258e29ce35e9bdb28cbe218abfc073f46的工程验收PASS保留；当前HEAD0ddcf7d58加未提交Office差异尚未冻结送检，当前工程闭包未完成，旧CI不认证新代码。 |
 | aggregateAcceptance | NOT_READY；mergeReady=false/releaseReady=false。Windows/Linux/Docker由所属任务留未验证，本轮不执行、不改全局平台规则。 |
 
-本轮用户扩大授权为macOS Native Office三件套与Wind/iFinD金融接口。Outlook/OneNote/Teams安装事实不冒称产品适配完成，不触发邮件发送或会议操作。原各轮结果和失败历史完整保留；旧段落的当时状态不覆盖本节与最新记录。机器验收plan/receipt及脱敏证据仍在 `logs/settings-model-loop/`，不另建总报告；不更新生产、不合并或发布，本轮模型请求0。金融调用由用户最新授权执行，心跳与实际数据查询分别报告，不把HTTP200当数据成功。
+当前Goal仅Word/Excel/PowerPoint、macOS Native+Web，不扩展金融插件或其他Office应用；旧商业接口记录保留事实但不重启其验收。原各轮结果和失败历史完整保留；旧段落当时状态不覆盖本节与最新记录。plan/receipt及脱敏证据仍在 `logs/settings-model-loop/`，不另建总报告；不更新生产、不合并或发布，本轮供应商模型请求0，意外未隔离测试的背景请求UNKNOWN另行保留，不将其伪写为绝对0。
 
 <!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"模型配置与显式测试复用现有Host/DSH会话路径；增加最小测试路由但没有新增执行器、组件节点或信任边界，API及运行文档已同步。","diagrams":[]} -->
 <!-- architecture-review {"group":"runtime","structure":"changed","reason":"产品overlay通过固定DSH扩展点挂载模型provider，增加限定用途私有进程桥接和独立macOS Keychain边界；认证record保留原固定实现及独立文件。","diagrams":["01-deployment"]} -->
@@ -1024,3 +1024,196 @@ Office修复送检前，本机集成+协议+API累计相关回归实际129 PASS/
 上传连线实际命令与结果：既有隔离测试解释器 `python -m pytest tests/research_web/test_api.py --confcutdir=tests/research_web -q -k 'office_document_upload or upload_ownership'`最终exit0、3 PASS/49 deselected、19.56秒；`node --test tests/javascript/research_web_ui.test.mjs` exit0、32 PASS。Black目标文件check、isort check-only、文档治理、Python索引与diff check均exit0。证据office-upload-green-final.log、office-upload-ui-green.log及office-goal-upload-{docs,index}.log，初始失败不删除。复审未发现上传实现安全/归属问题，指出的未锁定pptx测试依赖已移除；JS复审无发现。完整PR影响面使用Git-bound v4 office-goal-full-plan.json保留，当前增量为上传连线，不认证原生或六项业务完成。
 
 后续实施定位保持明确：文件操作逻辑扩展现有report_render_script.py，Host侧受审查调用及结果投影扩展report_rendering.py，沿现有session文件身份和报告入口接入；原生执行扩展现有local_integrations，而非模型任意脚本。不修改sandbox权限或添加通用宿主路径。读取、生成、局部修改、输入指纹/输出冲突仍未实施，分阶段监督、固定三样例以及UI诚实能力呈现也仍待完成，不能通过本次上传检查缩减最终目标。
+
+### Office文档操作执行器在途实现（2026-10-08）
+
+在0ddcf7d58后扩展现有report_rendering.py/report_render_script.py和report_routes.py，没有新Office框架/依赖/文件执行系统。新增严格document-operations API：format、read/generate/modify、file/native、会话file_id、expected_sha256；任意path/script请求被拒绝。文件模式用已有sandbox，Word固定样例生成/读取/段落和表格修改，Excel独立表/数值/公式并明确未重算，PPT基于已登记模板读和改文本对象。默认新产物保留原件；原生暂返回unavailable，不能冒充已实现。Runtime工具注册、普通Web页面操作入口、完整PPT有效模板和真实三样例、原生分阶段执行尚待接通，六项验收保持未完成。
+
+最初Word业务测试因函数缺失RED；实现后真实macOS sandbox执行器原报告+文档回归初次8 PASS，再补复杂Word对象拒绝、坏回执不发布、PPT真实展示关系页序/保留原始未改页/命名空间合同，当前11 PASS。这些ZIP夹具仅文件结构合同，不认证PowerPoint原生或有效可编辑产物。正常产品API测试通过：创建会话→生成Word→按原下载URL读取并用Document独立解析→再经API读取表格；native请求明确unavailable、path额外字段422，1 PASS/52 deselected。证据office-document-{red,regression-reviewed,api}.log。未发真实模型请求，未启动Office或生产。
+
+只读复审指出3P1/1P2，均保留事实：Word嵌入对象可能被run.text删除、PPT页序错误、PPT命名空间损坏、失败产物提前可见。已分别加复杂目标拒绝/范围检查、presentation关系顺序、安全lxml保留命名空间且只改目标页、父进程独占暂存身份校验后不覆盖发布。新负例验证修正后的行为；不伪称四个复审问题都曾先运行失败测试，初次来源为静态确证。还需复审当前代码及补齐并发/取消/输出冲突等闭包。既有冷启动状态不得被同步文件操作替代；完整原生生命周期还未开始。
+
+### Office业务继续推进与真实页面断点（2026-10-08）
+
+继续原0ddcf7d58工作区。PR81当前API核实OPEN/draft，head0c5/base205d不变；没有远端整合/推送，保留完整交付范围。任务仍active，未完成六项功能。
+
+复审3P1已关闭，新增失败分支分别处理：登记Store.files/StoreError失败先有registration_failure RED，修正为按published inode撤回自有输出；外部替换不删除。输入暂存也按inode清理。取消以shield等待原30秒受管worker终止后再清暂存，不发布，取消合同PASS。暂存硬链接须在登记前移除并确认输出nlink=1，避免Store拒绝下载而仍宣称成功。新回归14 PASS，office-document-reviewed-closure.log；完整capabilities/renderer首次32 PASS/1 FAIL，仅精确目录期望缺新增research_document_operation，更新明确目录31项与write标记后定点1 PASS，原失败保留不跳过。Runtime/UI/guard/method四项JS62 PASS/1既有skip，非真实模型工具调用证明。
+
+research_document_operation沿现有能力注册及guard有限名单，Host内部/data/document-operation沿现有X-Research-Data-Key私有回环middleware，trustedDirectory派生会话，不接受模型path或session参数。POST公开document-operations仍复用会话文件身份。Runtime测试证明越界参数/未准入拒绝及session绑定；没有增加任意宿主文件/脚本权限。模型请求0，尚未用模型实测选择该工具。
+
+UI在原文件列表增加读取与修改；按现有结构列出目标，保留原件生成新文件；Excel显式值类型保留文本编号000001和布尔，不能自动按文本转数值。失败/原生未就绪保留原读回结构及草稿，只在成功写入和再读回后换文件身份；执行中禁用编辑。复审指出的草稿丢失和类型转换问题已修正，相关渲染/type合同PASS，还需复核事件链路。
+
+原独立实例正常受管启动exit0，Host84415/19089、DSH84117/14181、product_ready=true，未改生产。使用正常API创建会话7f0f58b6-fba9-4bf5-bc4c-aaad9c1c154a（未发模型提示），生成Word初稿8aaaa8e9a0cb0ccff57dd43a。真实浏览器初次能读结构，但保存点击没有POST/新产物：移动“活动与文件”遮罩覆盖了追加在shell之外的编辑区域，实际点击关闭遮罩。增加有限提交日志并据可见DOM/CSS定位，改为既有dialog-backdrop/session-dialog层后再次操作产生新版本；未把初次点击记为成功。保存完成后又观察到保留旧busy表单使按钮仍disabled，增加busy标记并避免复用busy DOM，修复后再次表格修改成功。未创建任何Office原生文档或处理旧对象。
+
+通过正常Web文件页实际将第二段改为报告版本B，再在该新版本将表格值改3；最终下载id4ef803567c8de90f22b5c3b1，文件 `/Users/leon/Downloads/document-a428bbb2fb9145838aefc5c5f49f9cda.docx`。独立python-docx解析确认8项：页面下载与API同一字节、标题Title/加粗、未改段落、B段落、2×2结构、数值3、原输入指纹未变。证据office-goal-word-{api-live,download-check}.json。生成来自正常API、读取/两次修改/下载来自正常页面，尚缺页面生成操作和原生项，不把它合并为完整Word_FILE/Word_NATIVE通过。
+
+独立实例继续运行供断点续接，浏览器验收tab标handoff，只有上述所属Host/DSH可管理；生产未更新。原生业务目前明确unavailable，三款原生本轮NOT_RUN。Excel/PPT页面固定样例、生成UI、原生分阶段诊断与业务执行、冷恢复和匹配CI仍需继续。新代码未提交，真实身份为0ddcf7d58加当前完整diff，不用旧0c5 CI证明新源码。
+
+代码/实例证据精度：本轮Host启动早于最后的登记/单链接防护修正；已运行的Word正常成功路径证明页面业务连线，不将其冒称验证了所有最后新增失败分支。最终需正常受管重启加载冻结候选，再取得匹配的完整实机/CI闭包；当前失败分支证据来自受控回归。静态与地图/atlas增量尚须阶段末闭合，报告不能代替该门。
+
+PPT固定中性模板资源计划：新增 `app/research_web/office-template.pptx`，仅两页固定可编辑标题/正文，作为现有报告模板处理器的缺省输入；现有源码模块不能承载二进制模板，因此单独保存资源，不新增执行框架。一次性构建使用Codex已捆绑python-pptx1.0.2，不安装依赖、不把它加入产品解释器或锁文件、不使产品桥接依赖开发者环境。产品复制此受管常量模板到任务私有输入后，仍用现有受约束处理器读/改/生成。真实PowerPoint打开、布局与编辑性仍需后续实机，不由静态模板有效性代替。
+
+### 页面生成与两款文件样例（2026-10-08）
+
+中断后核对HEAD仍0ddcf7d58及未提交完整diff，没有丢失或重做已有Word读回。Office generation测试初次RED为documentCreationPayload缺失；随后在现有文件面板加入Word/Excel生成表单，结构化字段不接收脚本/宿主路径；表格按制表符分列，Excel数值转换保留000001等文本编号，公式显示未重算。UI34 PASS，office-generation-ui-final.log。复审提出busy字段竞态时，当前新代码已用disabled fieldset包裹全部编辑字段，真实DOM随后确认字段全部disabled；不为重复发现改写保护。
+
+Excel通过正常页面生成Inputs/ Summary、读取、A2改数字7、新版本保存及下载，输出8081b90177350d1c1d4e4d5f，`/Users/leon/Downloads/document-15cf753b078c461386b68756456da695.xlsx`。独立openpyxl检查8项均true：同下载字节、两工作表、A2数值/类型、A3保留、B1公式/类型、格式保留、原始样例内容仍2/3/公式、计算缓存为空。页面明确未重算，不能声称得到了Excel实际结果10。证据office-goal-excel-file-check.json；不伪称保存前后已采集Excel原始完整字节哈希，只认证实际原样例内容及版本合同。
+
+Word也补齐了此前缺少的正常页面生成：标题/两段/2×2表格→读取→第二段精确改为“报告版本 B”→表格数值3→下载。最终5b9fdcd2102ec442df7eddac，`/Users/leon/Downloads/document-6cef609c05bb40dd94eafd68c248b480.docx`；7项独立读回检查均true，原始样例仍A和2。证据office-goal-word-all-page-check.json。这两款文件业务固定样例观察已通过，但源码仍待阶段末冻结与工程门，本轮Word_NATIVE/Excel_NATIVE均NOT_RUN。
+
+原生错误分类另以6用例RED修正：只将标准错误号-1743映射自动化拒绝，-54/-61为文件访问拒绝、-1712为AppleEvent超时、-600为应用未运行（不冒充未安装）、-128为用户取消；单纯permission文字保持未知失败。可脱敏错误号仅整数白名单，日志不保留stderr内容，原管理器诊断保留有限错误号。又用2项RED证明未完成步骤会把原错误覆盖成verification_trace_incomplete，修正仅在“命令声称成功但缺步骤”时使用该码；实际失败理由保留。相关10 PASS，office-error-reason-green.log。Word/PPT命令设置AppleScript每个外部应用命令30秒等待，原总监督时限不增加；文件准备10秒、每阶段开始/结束/耗时和正式原生业务执行仍未完成，因此不运行新的Office实机操作。依据Apple公开with-timeout语义，未绕过TCC或权限，不推定旧卡点根因。
+
+PPT模板已按计划生成office-template.pptx，29250字节、两页、每页可编辑文本对象ID2/3；产品默认生成复制受管常量资源到私有输入，源模板不改，结构化slides按有限对象映射。一次性构建的捆绑pptx1.0.2未进入运行依赖。模板生成/修改/第一页面原始字节/原输入保留合同通过，相关15 PASS；正常PowerPoint页面生成及真实应用打开仍待验证，不能以ZIP合同或生成库替代。UI已加入新建PowerPoint，Host当前进程先前加载版本缺此默认模板路径，须沿受管入口重新加载当前代码后再做实际页面验证，不借旧进程响应假称新版本已验。
+
+### 三款文件业务样例已观察通过，原生仍未完成
+
+为加载最新默认PPT模板和失败防护，正常受管停止Host84415/DSH84117（exit0，确认pid清空），再启动Host62020/19089与DSH61846/14181，product_ready=true。最新加载源码身份为0ddcf7d58加13个app源码/资源文件哈希，office-goal-loaded-source.json；不把HEAD当作未提交源码身份，不修改生产。正常页面从新建PowerPoint生成A稿，读取标题/正文对象，再将第二页标题B和正文3保存为新版本并下载。
+
+最终PPT输出e6d2f8b7833f0fe199739ecd，原输入cec7f8264f5233b213d094a8，下载 `/Users/leon/Downloads/document-a5536d766fca4e429487e82f41b4c94f.pptx`。独立捆绑pptx解析/ZIP检查9项均true：同下载字节、两页、第一页标题/正文、第二页B/3、真实文本对象、第一页原始XML字节保持、原A稿仍存在。检查限定任务专用会话已登记的三个PPT版本，不扫描用户目录或Office容器。office-goal-ppt-file-check.json；该库只用于独立检查，不成为产品依赖。原生PowerPoint打开、视觉版式及编辑性仍须实机，所以这些结果只认证PowerPoint_FILE。
+
+当前六项功能观察状态：Word_FILE、Excel_FILE、PowerPoint_FILE固定小样例通过正常Web页面并独立读回；Word_NATIVE、Excel_NATIVE、PowerPoint_NATIVE本Goal均NOT_RUN。Excel_FILE特意未重算，没有5/10真实计算证据；原生清理也未新执行，不反推旧资源清理。当前产品工程就绪还须完整changed set静态/本地闭包和匹配Mac CI，不能把文件项通过等同整个Goal或merge/releaseReady。PPT15项相关Python回归、生成UI34项JS、架构检查通过；待完成原生阶段监督及正式业务执行后，统一冻结送检，避免每个小改反复bootstrap。
+
+本轮阶段末仍未提交/推送，所需完整静态及工程闭包正在累计，不用文件业务的通过替代Mac CI。Goal继续active，未出现须用户补授权的外部阻塞；下一项为完成文件准备/命令开始结束耗时监督和正式原生业务入口。已有独立Host62020/DSH61846继续运行供续接，不退出共享Office或扫描旧资源。三份最终文件分别保留于Downloads及所属会话outputs，不删除历史任务未知文件。
+
+### 原生阶段监督在途实现（2026-10-08）
+
+续接原0ddcf7d58加完整未提交diff，目标文件重新读取，未重新执行已通过文件样例。旧验证仅有最后完成step且总190秒等待；新增有限阶段JSONL存于原任务run目录，记录prepared/application_response/created/opened/read/written/saved/closed/reopened/read_back/document_closed/cleanup的started/completed及时间。Python与AppleScript同用整秒Unix时间，耗时精度1秒，不伪称毫秒精度。元数据不含文档内容/路径、Key、认证链接或stderr，仅白名单名称/时间；32观察/64事件/16KiB约束，FD拒绝symlink、非普通文件、非owner、多链接及过大文件，浮点/超大整数拒绝。
+
+监督沿原spawn进程/进程组/登记Excel身份清理，准备默认10秒、其他活跃阶段30秒，原总限额不增加；真正phase超时返回office_phase_timed_out和timed_out_stage。Word/PPT现有静态脚本添加响应、创建、写入、保存、关闭、重开、读回和错误后本任务关闭的有限记录，既有recordStep接口保留；Excel记录实际既有调用及清理。阶段元数据经过原manager白名单进入诊断，保留冷恢复和未知资源保护，不新增Vault/Harness/预算系统或自动恢复编辑。
+
+先有office_phase两项RED，后准备10/命令30边界与symlink拒绝GREEN；第一次邻接检查有1失败因为不必要替换recordStep名称，已保持原接口并扩展记录，未削弱原断言。完整本机集成67 PASS/1既有skip（office-phase-full-regression.log，25.80秒）；随后清理阶段补充和复审仅重跑邻接。Word/PPT受控捕获的静态脚本osacompile各exit0，office-phase-script-syntax.json；该操作不执行脚本、不打开/创建Office文档，不记作Native成功。
+
+复审发现真实FIFO可让父监督器阻塞式open等待，继而所有deadline无效；用独立测试Python子进程2秒超时取得RED，修为O_NONBLOCK并保持FD类型/身份校验，7项邻接GREEN（office-phase-fifo-green.log，1.27秒）。同样保护progress读取与阶段写入，不能通过更换工具访问受保护目录。没有新的供应商/模型请求，也没有本轮新的Office原生任务；日常生产未更新。
+
+此轮仍只补诊断与监督，正式业务native分支仍明确unavailable，不冒充已接通。下一步必须复用此监督接入受管业务Worker、当前会话文件身份及原manager记录，再串行取得Excel初始5→7后10→保存重开仍10、Word实际创建/表格/读回、PPT实际打开/修改/保存重开及各自清理证据。文件处理三项已有证据保留；原生三项仍NOT_RUN，Goal active，当前Mac工程门及完整changed set静态/匹配CI尚待统一闭合。
+
+### Native Excel正式入口在途与测试隔离事故（2026-10-08）
+
+本轮沿原manager.start_verification/_run_verification、verify_target spawn监督和XlwingsExcelProvider接Native XLSX read/modify：输入来自会话file_id/原件指纹的内存副本，工作文件位于本任务私有runRoot（不再依赖Office受保护Documents准备）；先重算读值、写指定cell、再重算保存、关本工作簿、同文件只读重开、比较值和原公式、关闭本任务新实例。原件不改，不执行refresh_all。进程基线和精确Excel身份通过才登记/quit，复用已有实例拒绝且不quit；归属未知保留unverified。父监督FD读保存文件、再清runRoot；文件bytes与readback仅在调用内存，不写现有状态账本。manager记录/冷中断继续复用，不增加新Vault或事务框架。Word/PPT及原生生成仍未接通，不能冒称完整native能力。
+
+先有external formula缺函数RED；mock计算5→10/保存重开/公式保持/已有实例保护合同通过。复审随后指出拒绝黑名单不完整及普通cell.formula返回常量的误判。为新增IMAGE/WSET负例时，测试最初遗漏driver隔离，真实启动Excel45826；这次不是正式产品路径验收，不能记Native PASS，也不能继续写本轮绝对无外部请求。我们没有主动发商业数据接口请求，但未隔离测试可能触发Excel/插件后台或公式相关请求，实际次数未验证、保留UNKNOWN；不删除原事故记录。无供应商Key或账户修改。
+
+立即对归属明确pytest45812先SIGINT再因SDK未及时返回而SIGTERM，未killall任何应用。对新Excel45826只查询该PID工作簿数量，确认0；再次核对启动时间Thu Oct8 12:43:29与精确程序路径后正常quit请求，随后因进程仍在沿既有精确身份清理函数停止该测试PID。最终独立ps确认45826不存在，原92919仍存在。没有关闭用户文档或其他Office实例；测试临时文件身份未取得完整目录证据，清理不扩大到其他位置，不宣称全部临时文件已删除。证据office-unintended-{excel-resource,excel-cleanup,excel-final-cleanup,excel-process-final}.json及原red日志，事故不作供应商/Office验收成功。
+
+已把所有外部拒绝负例强制注入NeverLaunch，禁止触及真实driver；增加本地函数允许范围检查、外部OOXML关系/宏ContentType和定义名称入口拒绝；不支持的native高级公式明确失败，不静默file回退。只对原始以=开头的真公式保留检查，常量通过重开值比较。当前5项Native合同PASS，office-native-external-green.log，均mock/拒绝合同，非真实App通过。原文件业务15相关回归仍通过，UI34项通过；import只读发现两文件排序，沿目标文件最小修正，不改依赖锁。
+
+Native返回明确mode/实际计算引擎/读回结果/verification_id/安全诊断，成功输出走同独占暂存/指纹复核/不覆盖发布。UI后续文件读结构不应把已实际计算的native结果显示成“未重算”，已用lastResult区分；尚待正式产品重启加载与真实验证。当前正式Excel_NATIVE仍NOT_RUN，事故单列；Word/PPT_NATIVE仍NOT_RUN，Goal active。Mac CI/完整静态/原生清理门仍未闭合，不用旧CI或fixture代替。不修改生产、不合并、不发布。
+
+### 续接：Excel真实卡点与PPT受控业务路径（2026-10-08）
+
+数组公式/局部定义名称两项RED确认旧准入将外部函数带至驱动边界；负例均强制NeverLaunch。现在拒绝非字符串公式对象，并检查workbook.xml全部definedName（包含localSheetId及保留名称）。另外3项目标RED确认不存在工作表/越界列会过晚失败；读取和修改均在启动前校验，缺省读取来自实际公式或首工作表A1，不再硬编码Summary。相关10项PASS：office-native-targets-green.log。
+
+正常受管停止Host62020/DSH61846并启动Host74377/19089、DSH74177/14181，product_ready=true；office-native-loaded-{stop,start}.json实际退出码0。此启动加载公式防护版本，其后目标及PPT增量仍未加载。正式页面选择原件56675318a74b6b8caf8e85dc、Inputs!A2数字7、native保存，只执行一次。验证2fba53b5-dc1f-4d09-ade9-2d8c48711d5c：prepared完成；application_response耗时3秒；opened阶段30秒超时。页面明确office_phase_timed_out，没有产物或5→10证据。office-native-excel-first-live.json保留原账本诊断（页面码不冒充账本code字段），office-native-excel-first-resources.json独立核对登记资源。
+
+只访问登记run目录：副本5378字节、普通文件0600、uid501仍存在，cleanup=UNVERIFIED，不强删。监督停止所属工作进程与独立Excel，ps仅保留原Excel92919。CUA返回noWindowsAvailable，没有可观察权限弹窗或错误号，不能猜为TCC。没有重复实机失败或扫描旧对象，根因未知。
+
+PPT最小业务路径复用manager/监督/产物发布：OOXML ID映射同页唯一对象名称（安装SDEF没有shape ID属性），只支持有限简单shape_text，拒绝外部关系/宏/嵌入与复杂文本修改。固定AppleScript读取私有0600 JSON，不将内容嵌入命令行；只处理本任务副本，保存/关闭/重开并在App核对全部有限文本，绝不quit共享应用。缺执行器/产品路由unavailable的RED后，12项合同PASS（office-native-ppt-route-green.log）；osacompile退出0（office-native-ppt-syntax.json）。PPT仍未真实执行，编译/fixture不能记Native PASS。Word业务待补齐，Goal active，当前工程/匹配Mac CI未闭合，mergeReady/releaseReady仍false。
+
+
+### 文件授权与原生业务增量（2026-10-08）
+
+新PPT正式API验证527a482c-80fc-4e89-a12a-fe31af57be75完成prepared/application_response，但opened阶段超时；office-native-ppt-first-live.json保留原失败。用户随后明确确认该测试文稿的文件访问提示，人工允许后文稿实际打开。这是本次打开阻塞的直接外部条件证据，不将原失败改为PASS，不反推Excel必为同因。
+
+自动界面读取仍超时，改以精确登记名称读取该文稿的name/full name/saved元数据，无文档内容或目录扫描。首次关闭的严格路径guard返回cleanup_identity_unverified；实际App给出/tmp路径，登记为/private/tmp。独立核对同设备/inode后，只允许这两个指向同一任务文件的路径且saved=true，关闭此文稿并确认不再exists，退出0、closed_confirmed；文件保留，不退出共享PPT。证据office-native-ppt-{app-identity,owned-close-confirmed,first-resources}.json。文稿关闭已确认，文件未删除，工作run保留；其他旧对象仍不操作。
+
+Foundation桥接另有独立无Office复现：NSArray as list会转换为AppleScript records，objectForKey调用失败-1708。修为直接保留NSArray、objectAtIndex取NSDictionary；真实Foundation-only绿色回执及自动回归office-native-json-{contract-product-green,regression}.json/log，不把它视为App成功。PPT源通过正常/usr/bin/open -b受控单文件入口交接，再沿既有App读取/修改/保存/重开验证；不同于关闭沙箱或授权全盘。是否解除新文件提示仍须实机证明，当前不宣称通过。参考Apple官方Accessing files from the macOS App Sandbox / NSWorkspace（系统交互及隐式安全作用域；Launch Services方案效果为待实测推断）：https://developer.apple.com/documentation/security/accessing-files-from-the-macos-app-sandbox 、https://developer.apple.com/documentation/appkit/nsworkspace 。
+
+Word增加原生generate/read/modify的私有结构化路径；公开API与生成表单file/native选择已连通，固定脚本按安装SDEF编译。缺执行器/路由/页面mode均有RED，相关绿色合同分别office-native-word-business-green.log、office-native-word-route-green.log、office-native-word-ui-green.log。脚本表格direct-parameter语法先-1723，修正targetTable变量后编译0。复审发现modify重写未选中内容P1；两个混合格式/单cell目标RED后，只写writes指定对象，目标混合run/复杂cell/合并拒绝，未选中内容只读回；不强行改变已有标题bold。3项preservation合同通过。当前Word未真实执行，此增量不标Native PASS。
+
+目标Ruff已通过；mypy新诊断修复至本次三个模块零诊断，命令仍exit1、16条既有跨模块诊断（office-native-word-mypy-final.log），既有37条大范围诊断也继续保留，不自行豁免或扩仓整改。相邻完整回归曾96 PASS/1既有skip，后续Word/PPT增量按相关合同补验，最终闭包仍待冻结候选。完整changed set88路径已重规划L4，不缩小为本次局部测试范围；office-native-code-identity.json记录HEAD0ddcf7d58加脏工作树文件哈希，不拿旧HEAD/旧CI代表新实现。无提交、push、PR变更、生产变更、合并或发布。供应商模型主动请求0；事故外部请求UNKNOWN记录保留。
+
+
+### 正常单文件打开后的真实PPT结果
+
+受管实例以Host66948/DSH66792加载单文件OS打开与Foundation修正。正式API验证1348aae6-596d-4419-a997-fc54b8a4f3dd：opened约1秒成功，read/written/saved/closed/reopened均完成，read_back失败；document_closed与cleanup confirmed，不交付不正确输出。office-native-ppt-handoff-live.json保留原结果。该进展实测解除此前打开卡点，但不能标PPT_NATIVE通过。
+
+补充仅含长度/布尔比较的诊断后，99683f9b-0e1d-45e2-b6cc-28662a7e6a15同样到达read_back；slide2实际/期望长度均6，trimmed_equal=false，错误-2700，明确native_document_readback_failed。这排除“仅尾随换行”的假设，未记录正文。清理仍confirmed。office-ppt-comparison-live.json。现增加写后立即校验及保存状态布尔值，用于区分写入与保存恢复；尚待一次带此诊断的观察，不以猜测放宽比较或吞失败。
+
+Word/PPT脚本当前编译均0（office-native-current-scripts-syntax.json），19项native相关合同PASS/1既有skip（office-native-handoff-regression.log）；Word真实业务尚未执行，Excel打开超时仍待单独修复。三项FILE此前通过不受影响，三项NATIVE仍未完成，Goal active；本次诊断与工程门尚未冻结、未提交或送检，mergeReady/releaseReady=false。
+
+
+保存诊断c1c568f8-95d4-445e-bfff-380d460cf531：修改后立即读回检查通过，但saved_before_close=false，重开后长度相同、文本不匹配；office-ppt-save-diagnostic-live.json，任务文稿关闭/临时清理confirmed。已证实保存命令返回不能证明写盘。安装SDEF/CocoaStandard定义提供save的as格式参数及Open XML枚举；最小修正为明确Open XML格式，并在原saved阶段30秒监督内等待saved=true，不设置saved标志来伪造成功、不加总时限。缺保存格式/同步合同RED已记录，绿色合同在office-ppt-save-contract-green.log；此修正尚待实际写盘验证。Word/Excel原生项仍未完成，Goal active，当前代码未冻结送检，不宣称完整1A或Office Goal完成。
+
+
+### 续接保存调用根因（2026-10-08）
+
+本轮核对branch/HEAD仍codex/settings-model-loop、0ddcf7d58加完整未提交diff；没有回退。上轮为实际进展，不是无进展等待。明确Open XML Save As修正经正式API仍在saved阶段30秒timeout：ac5756d7-13cb-4dc4-9ffd-007a597b296c，office-ppt-save-fix-live.json；故不认证该修正成功。精准App元数据确认该本任务文稿仍saved=false，源文件保留，没有退出共享应用。
+
+在相同登记文稿上、完整/tmp路径与同inode任务文件核对后，将带路径Save As改为原地save诊断：退出0、saved=true（office-ppt-save-in-place-probe.json）。随后同文件关闭→正常OS打开→App核对4个目标文本（包含第一页保留及第二页B/3）→只关闭该文稿，退出0（office-ppt-save-in-place-reopen.json），文件保留。这是调用根因诊断，不冒充正式业务API验收。
+
+实际产品最小修正为原地save加saved=true同步等待；原saved阶段30秒和总190秒监督不提高。新保存合同先RED后GREEN（office-ppt-inplace-contract-{red,green}.log），保留此前错误Save As尝试与绿色合同而不删失败历史。接下来沿正式产品API验证并独立核对产物，尚未标完整PPT_NATIVE/Goal通过。
+
+
+### 正式产品PPT保存闭环通过，Word继续定位
+
+8b79b55d-db16-4b12-9fac-200c48813cdb由正常公开文档业务API执行，真实Microsoft PowerPoint opened/read/written/saved/closed/reopened/read_back/document_closed均完成、cleanup confirmed；正确新版本235a8bbdc98b890e38faa771登记到原会话outputs。office-ppt-inplace-live.json记录完整阶段。第一页保留、第二页精确“结论版本 B”“样本数为 3”，App读回4目标；服务下载同产物33609字节，SHA256 a1a664b783a3365538ff239495d29d9a8f2774d8bee79c9dcdc58c5c970ecb19。独立已有捆绑pptx库检查5项均true（两页、第一页、新文本、可编辑文本对象、对象边界），不增加产品依赖；office-ppt-native-independent.json/final-native-powerpoint.pptx。视觉仍NOT_RUN，不能仅边界计算冒称实际无遮挡。
+
+Word正常API原生生成1c069545-9dcb-45df-b408-9aa14f328bc8已真实created约2秒、read完成，written失败；只关闭本任务文稿、cleanup confirmed，无产物。office-word-native-generate-live.json。所属Host日志仅提取稳定错误号-1708（local_office_command_failed），不是TCC拒绝；本轮新Word写入卡点与旧保存/重开问题分开，尚需定位具体写入命令。没有重复同一Word失败。Excel仍保留打开超时。三项FILE证据复用，PPT_NATIVE保存重开读回通过但视觉仍待补；Word_NATIVE/Excel_NATIVE未完成。
+
+Ruff目标检查exit0；Black只读先发现verifiers格式差异，已仅格式化该文件；源行为证据按同语义复用。完整88路径范围及工程/CI门仍保留，当前dirty代码无匹配新CI，不宣称mergeReady/releaseReady或Goal完成。独立实例运行，生产8088/3081未更新；无推送、PR合并、发布或供应商模型请求。
+
+
+### Word表格命令断点
+
+96d4e2ee-c2fa-4db6-a9a7-82e8a9954556正式API增加不含正文的write-step诊断：content与range已完成，convert-to-table失败-1708；document_closed/cleanup confirmed。office-word-write-diagnostic-live.json。不同于Word旧重开卡点，本次准确断在表格转换。不猜TCC/激活。
+
+最小参数修正将Foundation数组count先明确coerce为AppleScript integer，再传Word声明为integer的number-of-rows/columns；对应contract RED/GREEN保留office-word-table-args-{red,green}.log。它是待实测的interop假设，尚未宣布修复成功；采用原30秒阶段/190秒总监督，无新权限或依赖。继续正式API验证，保留完整六项Goal与88路径交付范围。
+
+
+### Word原生表格创建已推进至保存
+
+ffecbaca-6577-4458-8fcf-336f2e4af7fe显示整数参数转换并未修复convert-to-table，仍range后-1708；排除该interop假设，不标其Native通过。改用安装SDEF已有table对象创建并逐格写入结构化值（不以docx库输出替代App），保留目标尺寸/内容后续核验。contract先RED后GREEN，脚本编译exit0。
+
+57fd69f5-ea80-456f-a2cd-c204183f8d1e正式API实测created/read/written及table/style子步骤完成，saved开始后-1708；document_closed/cleanup confirmed，未交付错误产物。office-word-table-create-live.json。失败现在准确落在Word save-as命令，旧失败完整保留。最小标准文档save调用修正有office-word-save-{red,green}.log，实际保存/重开仍待验证，不扩大超时、权限或安装依赖。Word_NATIVE/Excel_NATIVE仍未完成，PPT已验保存重开但视觉缺项保持，Goal active。
+
+
+### Word标准保存等待的当前断点
+
+9796ac13-2a88-4103-bfba-92b659fe7849正式API已真实完成created/read/written（正文、原生2×2表格、样式），标准保存开始后超时，清理未确认；office-word-save-live.json。不把它写成保存通过或旧资源已清理。已一次询问用户当前是否为该9796目标文稿的保存/文件访问提示；不关闭未知/其他文档，不退出Word、不扩大授权或TCC。此前save-as -1708及convert-to-table -1708仍保留；原生对象make-table已通过实际written步骤，目标正文和表格未以库导出冒充App生成。
+
+代码HEAD仍0ddcf7d58加未提交改动，Word生成合同及表格创建编译通过只作离线证据；三项FILE复用，PPT保存重开读回已通过但视觉待补，Word/Excel_NATIVE继续未完成。当前hostAcceptance新代码工程闭包/匹配CI未完成，mergeReady/releaseReady=false。Goal active，未push、合并、发布或改生产，供应商模型请求0。
+
+
+### Excel单文件交接与进程归属修正
+
+续接原worktree/HEAD0ddcf7d58，Word9796保存提示的单次人工状态问题仍待反馈，没有重跑该Word失败。独立推进Excel：只对已准入的私有run/精确xlsx单链接文件，正常/usr/bin/open -n -b com.microsoft.Excel交接到新实例，保留旧PID baseline、program/birth校验与既有xlwings执行器，不借共享生产或用户当前Excel。
+
+最初唯一新增PID方案被只读复审判P1：并发用户新进程可误认归属。补“唯一新增但无任务工作簿”RED，旧实现错误地available；现在只读candidate实例中已由系统打开的精确任务book、要求仅1book且fullname命中任务路径/已知/tmp别名，之后才owned/登记PID；绝不books.open制造归属证据。未知不quit/kill、不登记且保留任务副本。14项相关合同PASS（office-excel-owned-book-green.log），复审确认原P1关闭。正常/歧义新增/旧PID/无任务book、5→10计算保存重开均为fixture合同，不算实机。
+
+Ruff只读发现本次重抛异常处无效noqa，已删除；不改规则。mypy目标未增加诊断，原16跨模块错误仍exit1保留，不自行豁免。完整88路径与当前代码工程/CI缺口保留，未提交或push。下一项为归属严格绑定后的真实Excel验收；Word人工条件只阻断对应部分。Goal active，生产、供应商账号和凭据未改。
+
+
+### Excel真实SDK就绪断点
+
+26d06836-e062-4cca-ba40-3e83d8dc9594正式业务API因KeyError在SDK绑定阶段失败、cleanup unverified，未执行计算，不标Native通过。所属Host日志只记录error_type，不回显文档或请求体。独立只读元数据稍后确认新增PID17953、精确/tmp任务book、book_count=1；原92919未命中该任务book。这证明SDK注册存在启动时间窗。随后full-path/同inode别名/仅1book/program-birth身份守卫下只关闭任务26book、空实例正常quit，文件保留；office-excel-scoped-open-owned-cleanup.json。该维护不冒称业务API成功。
+
+新增SDK首查KeyError后就绪的失败测试，旧代码2例RED；最多10秒只读等待，仍需精确book身份才owned/report，未知不制造book或quit/kill。office-excel-sdk-ready-green.log保留合成回归，不代替实机。等待不提高App30秒或总190秒监督。Word界面问题仍只保留原一次请求，不推断许可或重跑Word；Goal active、六项未全完成、当前CI/工程缺口继续保留，生产未改。
+
+
+### Excel正式原生计算闭环通过
+
+6b4a5a33-4dbb-4e43-b79c-a5742e58aad4正常公开文档API真实执行Microsoft Excel：初始Summary!B1=5、Inputs!A2=2；修改后10/7；保存关闭重开后仍10/7、formula_preserved=true，document_closed/cleanup confirmed。office-excel-sdk-ready-live.json保留阶段及实际引擎。输出1ccf71dac4d0a02425759f5c由Store登记，服务下载同产物9374字节、SHA256 761b9427213f372dde8d433cf94176e4448a13ea59f1f871b74f32b377c8b367。独立openpyxl的工作表、数值/类型、SUM公式、缓存10六项检查均true：office-excel-native-independent.json/final-native-excel.xlsx。没有手工写10或仅凭旧缓存认证计算，真实前后/重开值来自Excel。独立ps仅余原用户Excel92919，本任务实例已退出；不退出用户现有Excel。
+
+此前未知任务26经精确任务book/path/仅1book/program-birth守卫只关闭该book和空新实例，文件保留，原失败不改为PASS。SDK就绪负例与真实时间窗修复使本次正式业务闭环通过。最新Ruff目标exit0；mypy仍16条既有跨模块diagnostics、命令exit1，不豁免；本Goal阶段末完整工程/匹配CI仍未完成。
+
+当前六项功能观察：三项FILE已通过固定样例；Excel_NATIVE计算/保存重开/清理通过；PPT_NATIVE文本/保存重开/清理通过但视觉仍待补；Word_NATIVE已真实创建及写入，保存9796人工界面条件与清理缺项仍未确认，原单次问题待反馈，不重跑该失败。没有完成Goal/merge/release声明、push、合并或生产更新，供应商模型请求0。Goal继续active。
+
+
+<!-- architecture-review {"group":"report-workflows","structure":"unchanged","reason":"有限Office文档路由与Runtime工具复用既有ResearchService、Store文件身份、报告执行器与Seatbelt文件投影；原生分支委托现有LocalIntegrationManager/受监督工作进程及已存在的Office应用边界，不新增服务、进程类型、通用脚本权限或存储边界。API、数据文件文档及source inventory已同步，现有部署组件与边界图不变；实际功能与清理独立验收，不把文件模式提升为原生成功。","diagrams":[]} -->
+
+### 本地工程闭包的实际结果与修正
+
+完整88路径L4规划保留。首次必要Python闭包815 PASS/1既有skip/1 FAIL（599.90秒），唯一失败为新增document API测试仍假定Native Word未实现；测试遗漏Office隔离，意外进入一次Word调用并-1708，cleanup记录未确认，不计正式实机成功、不删除原记录，也不扫描未知Office对象。现显式注入无Office的受控失败native回执，继续验证mode/code/禁止任意path，定点绿色office-api-native-fixture-green.log；不是将实机失败改成PASS。
+
+首次JS闭包187 PASS/1 skip/2 FAIL；Office额外独立change/input监听器破坏了既有事件测试入口。已合并进原监听器而不改fixture规则，两条实际事件回归及Office邻接70 PASS（office-ui-event-integration-green.log），其余架构/治理/费用/跨平台静态合同104 PASS（office-goal-local-js-remaining.log）。这些合同不执行Docker/Windows/Linux产品或真机验收。docs治理与索引check退出0；Project Constraints首次review_invalid，缺report-workflows结构决定。补上基于实际代码/部署的评审记录与直接模块文档，不改policy/schema/required门或截图证据。Goal仍未完成，Word保存人工问题与PPT视觉缺项继续保留。
+
+
+### 工程检查续接结果
+
+本轮实际进展：Office监听器整合后70 UI/能力测试PASS，经只读JS复审确认；104架构/治理静态合同PASS；Python首次815 PASS/1 skip/1 FAIL的唯一API fixture缺陷已显式隔离Office，完整API套件53 PASS（371.10秒）及报告渲染17 PASS。不重跑其他已通过763项，不将fixture回执计为Office真机证据。保持意外未隔离Word调用的原失败与清理未知记录。
+
+Black/isort只读发现测试API格式和render-script imports，仅修正该两处；随后Ruff查出本轮注入全局OFFICE_REQUEST静态未定义，改为显式读取globals变量，未新增ignore/Any/skip；对应渲染17项再次通过。Black/isort/Ruff本轮变更范围已通过；完整mypy检查6源码无本次目标模块错误，但17条既有跨模块错误（runtime_state、runtime_contract、tracer/metrics、Wind）导致exit1，office-goal-mypy-final.log。不自豁免，不扩仓整改，既有37条大范围诊断保留。
+
+完整88路径L4已按validation_failure重新规划；Project Constraints缺report-workflows结构决定已依据既有Host/Store/报告sandbox/本机管理器实际边界补评审，复验exit0；docs治理、API atlas、Python index check均exit0。没有重做架构多视口截图或改平台规则。当前GitHub API确认PUBLIC、PR81仍OPEN/draft、head0c5c9672/base205d2a17；它的旧CI不覆盖本Goal脏代码，未push/dispatch/merge。
+
+视觉工具只读清单请求20秒超时并重置会话，未重复失败调用；安装PPT脚本字典仅提供单shape save-as-picture、未证明整页导出，故不以其他库渲染/对象边界冒称Native视觉完成。Word9796的保存/访问界面问题原一次请求仍待用户实际反馈，本轮未重跑Word或操作未确认文稿。六项Goal、正式入口、必要清理和当前Mac CI仍未全部闭合，Goal active、mergeReady/releaseReady=false，生产未更新。
