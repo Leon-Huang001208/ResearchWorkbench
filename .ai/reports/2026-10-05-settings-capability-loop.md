@@ -10,7 +10,7 @@
 | 三项FILE | Word、Excel、PowerPoint固定样例均已从正常Web页面生成、读取、修改、下载并独立检查；Excel文件模式明确未重算。详见最新分项证据，不冒充原生通过。 |
 | 三项NATIVE | Excel6b4a5a33真实5→10→保存重开10及清理PASS；PPT8b79b55d保存重开读回与用户视觉确认PASS；Word20124实际原生新建A、736389修改B、7f8014修改3，均正式Web入口保存/关闭/重开/完整读回/清理PASS，下载9项独立核对PASS。旧超时及失败记录保留。 |
 | Word清理 | 用户已关闭其确认的旧测试报告且不保存；3f单文件访问允许后实际保存A，精确HFS/saved/读回核对并关闭，文件作为恢复证据保留。20124/736389/7f8014三个成功任务文稿关闭、临时目录删除已独立确认。历史归属不明对象仍UNVERIFIED，不补造旧文件身份或删除记录。 |
-| hostAcceptance | PASS，冻结源码候选2d2630ec94e3e7063dcf800b4f99c9dd9b7bd492：当前Mac Bootstrap37793989953通过；通用Web Checks37793973081通过（Ubuntu，不冒充Mac原生证据）。六项固定样例功能通过。远端Project Constraints/PR冲突及模型自动选择Office工具缺项仍保留，不能称整个Goal完成。 |
+| hostAcceptance | 当前冻结候选52b3b01788f0af2fe7f60c60b98003c3679836eb：本地闭包通过所列范围，Project Constraints37808948653与Web Checks37808948533已通过；Mac Bootstrap37808948541运行中，故当前回执BLOCKED，不能沿用旧2d的Mac CI宣称新候选通过。Office六项固定样例PASS；模型工具实机待用户在独立设置页保存测试Key。 |
 | aggregateAcceptance | NOT_READY；mergeReady=false/releaseReady=false。Windows/Linux/Docker由所属任务留未验证，本轮不执行、不改全局平台规则。 |
 
 当前Goal仅Word/Excel/PowerPoint、macOS Native+Web，不扩展金融插件或其他Office应用；旧商业接口记录保留事实但不重启其验收。原各轮结果和失败历史完整保留；旧段落当时状态不覆盖本节与最新记录。plan/receipt及脱敏证据仍在 `logs/settings-model-loop/`，不另建总报告；不更新生产、不合并或发布，本轮供应商模型请求0，意外未隔离测试的背景请求UNKNOWN另行保留，不将其伪写为绝对0。
@@ -1347,3 +1347,11 @@ Bootstrap37760339730最终success，attempt1/workflow_dispatch/job113254941458/m
 整合回归补充：86项工具/架构、230项治理/UI合同PASS；启动/安装/Service Manager/Office组691 PASS/1既有skip。邻接组666 PASS/1 FAIL：test_staged_flag_is_exact_and_reaches_only_runtime_child[0]清理runtime返回cleanup_failed；单项独立复现随后1 PASS/2.75秒，首次失败不删除、不概括全绿。Supervisor产品源码与固定master相同，fixture差异主要绑定已升级DSH源码；未证明该瞬态由本轮整合引入，根因仍未知，不扩展Docker产品验收或放宽断言。
 
 实际管理入口正常停止原Host49479/DSH49323；立即start在19089无listener但bind errno48时拒绝endpoint_port_in_use，记录真实失败。端口释放后唯一后续start成功：Host88512/DSH86982、19089/14181双ready，root HTML200。未杀其他进程、绕过安装/归属或更新生产。用户确认有DeepSeek测试Key并将仅在核验的19089设置页录入；尚未收到保存反馈，不推断已录入，不读取表单/凭据。
+
+当前收口候选与远端：正常merge提交52b3b01788f0af2fe7f60c60b98003c3679836eb已普通push；PR #81草稿，head52b3，base4a5e，GitHub MERGEABLE，冲突已解除。本轮原完整交付200路径与整合增量138路径均保留；绑定当前PR差异88路径的office-sync-bound-plan.json已生成并校验，未固定沿用历史路径数。以原base205d与task base4a混用时规划器真实拒绝candidate mismatch，纠正为固定PR base4a，不修改规则。
+
+当前自动CI（未dispatch）：Project Constraints37808948653 PASS，Research Web Checks37808948533 PASS，均attempt1/pull_request/Ubuntu，实际checkout77f53da6c277bf8ee2826a91d088c4a2859e9ed0，父提交实核4a5e7523d7407525d108757727c64f10783203f4与52b3b01788f0af2fe7f60c60b98003c3679836eb。macOS Bootstrap37808948541仍in_progress/安装步骤，不能写PASS。元数据/checkout日志统一office-sync-*-ci.{json,log}，没有Windows/Docker产品dispatch或付费预算变化。
+
+API53 PASS/408.96秒，691组214.10秒、邻接666PASS/1首次FAIL/231.28秒及Supervisor确认88PASS/38.32秒均保留。本地200路径约束/文档/index补录实测耗时，不凭估计填回执。office-sync-receipt.json在干净52b3验证exit0，当前hostAcceptance=BLOCKED、aggregateAcceptance=NOT_READY、mergeReady=false/releaseReady=false；回执合法不等于Goal完成。
+
+用户已确认有可用DeepSeek测试Key，核验后的独立录入入口http://127.0.0.1:19089/#/settings/model，等待“已保存”事实后才请求模型。当前不读取密码框、剪贴板或个人配置；本次模型请求0、Office新增业务0。完整验收不由当前纯文本兼容路径代替。后续报告提交仅记录冻结候选的证据，不触发“报告→Bootstrap→再报告”循环；生产不变、PR未合并、未发布。
