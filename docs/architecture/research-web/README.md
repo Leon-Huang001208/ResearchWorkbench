@@ -1,5 +1,8 @@
 # Research Workbench Research Web 当前架构
 
+模型实现、绑定、actualdescribe、Key配置、真实生成/恢复分别取证；API/设置/Doctor复用状态，
+不付费检查。Automation/MCP调度授权未改，临时替身不认证镜像、真机或真实模型。
+
 这是当前研究产品的唯一架构主入口。Research Web 组织研究页面、框架、能力与文件，专属 DSH 是唯一研究执行循环。当前任务按 macOS Native / Mac Docker Desktop 与 Windows/Linux 对应设备分工验收；源码同时保留 `app/research_web/`、`research_workbench_entrypoint/`、`docker/` 与共用运行合同，Docker 实现按运行宿主与镜像架构分别验收；未验证项见 [支持矩阵](../../research-web-platform-support.md)。Native 双宿主进程与 Docker 单容器是互斥运行方式，顺序共享产品数据。旧 `app/api`、量化业务和 merged-platform 图文保持历史身份，不作为本入口依赖。
 
 设置中的模型服务只展示固定DSH实际支持目录，保存与显式生成分别验收。配置和测试共用ResearchService串行边界；既有Automation仍通过相同create/send执行，新会话采用新默认值，活动任务阻止共享凭据变化。macOS Native 的固定模型 ref 由产品 provider/私有进程桥接存入系统 Keychain；Host 认证 record 保留固定 DSH 的独立文件实现。没有新增执行器、调度器或凭据中心。

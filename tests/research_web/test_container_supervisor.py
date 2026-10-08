@@ -15,6 +15,111 @@ ROOT = Path(__file__).resolve().parents[2]
 SECRET = "fixture-private-secret-value"
 
 
+def test_model_leaf_preparation_pins_private_parent_without_permission_repair(tmp_path):
+    from docker import supervisor
+
+    root = tmp_path.resolve() / "private"
+    root.mkdir(mode=0o700)
+    leaf = supervisor._prepare_model_leaf(root, "a" * 32)
+    assert leaf == root / "models" / ("a" * 32)
+    inode = leaf.stat().st_ino
+    assert supervisor._prepare_model_leaf(root, "a" * 32).stat().st_ino == inode
+    leaf.chmod(0o755)
+    with pytest.raises(ValueError):
+        supervisor._prepare_model_leaf(root, "a" * 32)
+    assert leaf.stat().st_mode & 0o777 == 0o755
+
+
+def test_model_parent_alias_and_unsafe_mode_are_never_repaired(tmp_path):
+    from docker import supervisor
+
+    root = tmp_path.resolve() / "private"
+    root.mkdir(mode=0o700)
+    models = root / "models"
+    models.mkdir(mode=0o755)
+    with pytest.raises(ValueError):
+        supervisor._prepare_model_leaf(root, "a" * 32)
+    assert not (models / ("a" * 32)).exists()
+    models.rmdir()
+    target = tmp_path / "target"
+    target.mkdir(mode=0o700)
+    models.symlink_to(target, target_is_directory=True)
+    with pytest.raises(ValueError):
+        supervisor._prepare_model_leaf(root, "a" * 32)
+    assert not list(target.iterdir())
+
+
+def test_prepare_controls_only_never_accesses_model_mount(tmp_path, monkeypatch):
+    from docker import supervisor
+
+    monkeypatch.setenv("RWB_DATA_ROOT", str(tmp_path.resolve()))
+    monkeypatch.setattr(
+        supervisor,
+        "_prepare_model_leaf",
+        lambda *a: pytest.fail("model mount accessed"),
+        raising=False,
+    )
+    assert (
+        supervisor.main(["--prepare-controls-only", "--previous-origin", "http://127.0.0.1:8088"])
+        == 0
+    )
+
+
+@pytest.mark.parametrize("identity", [None, "", "A" * 32, "a" * 31, "a" * 33])
+def test_invalid_model_installation_never_prepares_store(tmp_path, monkeypatch, identity):
+    from docker import supervisor
+
+    config = supervisor.SupervisorConfig(
+        tmp_path,
+        tmp_path,
+        ROOT,
+        tmp_path,
+        sys.executable,
+        "unused",
+        credential_root=Path("/run/rwb-secrets/private"),
+        installation_id=identity,
+    )
+    monkeypatch.setattr(
+        supervisor, "_prepare_model_leaf", lambda *a: pytest.fail("model mount accessed")
+    )
+    assert supervisor._model_launch_arguments(config) == ("--model-backend", "docker-private-file")
+
+
+def test_owned_model_binding_retains_stable_id_across_recreation(tmp_path, monkeypatch):
+    from docker import supervisor
+
+    root = Path("/run/rwb-secrets/private")
+    identity = "a" * 32
+    observed = []
+
+    def prepare(bound_root, bound_id):
+        observed.append((bound_root, bound_id))
+        return bound_root / "models" / bound_id
+
+    monkeypatch.setattr(supervisor, "_prepare_model_leaf", prepare)
+    config = supervisor.SupervisorConfig(
+        tmp_path,
+        tmp_path,
+        ROOT,
+        tmp_path,
+        sys.executable,
+        "unused",
+        credential_root=root,
+        installation_id=identity,
+    )
+    arguments = supervisor._model_launch_arguments(config)
+    assert arguments == (
+        "--model-backend",
+        "docker-private-file",
+        "--model-credential-root",
+        str(root / "models" / identity),
+        "--model-installation-id",
+        identity,
+    )
+    assert supervisor._model_launch_arguments(config) == arguments
+    assert observed == [(root, identity), (root, identity)]
+
+
 @pytest.mark.parametrize("existing", ["datahub", "mcp"])
 def test_guest_prepare_controls_fills_missing_without_rotating_token(tmp_path, existing):
     from app.research_web.datahub.security import load_control
@@ -50,7 +155,7 @@ def test_guest_prepare_controls_rejects_existing_origin_mismatch(tmp_path):
 CHILD = r"""
 import http.server, json, os, signal, sys, time
 from pathlib import Path
-role, port, events, mode = sys.argv[1:]
+role, port, events, mode = sys.argv[1:5]
 def record(event):
     with open(events, "a") as f:
         f.write(json.dumps([role, event, time.monotonic(), os.getpid()]) + "\n")

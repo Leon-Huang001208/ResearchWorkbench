@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "unchanged",
-  "summary": "Task14 c1 将既有端点事务与当前 master 的 Docker 运行合同集成；README 产品入口及平台边界仍准确。",
-  "reason": "动态端点、私有 tmpfs/持久日志、已发布 DSH 载荷及仅宿主 Web 映射的停止等待沿用既有产品拓扑。reading revision 暂保留已存在历史源码 a1e2c90f84a32309d84b762507628abb2c508386，当前 c1 freeze 后另以真实提交重绑定；未认证新镜像、GitHub 链接或 CI/真机结果。"
+  "summary": "Docker模型后端、JS/owned启动器、设置/Doctor与私有持久预算源码已集成，本地合同和固定SDK fixture已验证；公开README已验证能力边界暂不提升。",
+  "reason": "当前仍缺本轮真实Docker镜像/生产CLI、真实模型文本与冷恢复、浏览器及macOS安装CI证据，不能推荐为已验收模型路径。架构reading pin已绑定含新增模块的本地真实源码提交80ebd728c，尚未推送，远端链接可访问性未认证；不借旧双运行时或fixture宣布整体完成。"
 }

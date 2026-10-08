@@ -1,5 +1,8 @@
 # Research Web 前端
 
+模型详情新增actual credential_storage：Native Keychain、Docker私有文件或未知，自身属性检查
+防伪来源且不回填Key。权限保护不是加密；服务可达/配置/真实生成分开。源码renderer不替代浏览器。
+
 Native/Docker 仍提供同一 8088 Web 页面、路由、API 与研究交互；模式在安装器和 CLI 选择，
 不新增前端入口。设置页显示的来源/本机能力必须以当前模式的配置、探测与可调用事实为准；
 Docker 服务健康不能使宿主 Office/Wind/Tabbit 自动变为可用。模型与连接秘密不进入页面状态、

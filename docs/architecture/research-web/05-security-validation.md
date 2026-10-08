@@ -1,5 +1,22 @@
 # 安全边界与验证方法
 
+Docker 文本验收的准入配置只接受已验证 staged runtime、精确模型私有根与稳定安装ID；
+普通内部3081实例不因环境开关获得验收授权。该受限profile限制输出、拒绝附件/工具并禁重试；
+没有显式初始化的私有控制时，派发前固定拒绝 `acceptance_budget_unverified`。
+取消仅返回 `acceptance_request_aborted`，不读取或透传自定义reason；旧基金验收取消语义保持。
+`live_acceptance_budget.py` 只允许显式init创建固定安装叶和永久锁；startup只读，reserve持锁
+预扣并原子发布，最多三票，取消/失败/重启/重建均不退款或重置。未提交失败留旧账本，提交不确定
+拒绝派发，不删除已接受目的或猜测回滚；所有权、0700/0600、单链接、无别名和有界解析仍必需。
+控制与账本不是DataHub或模型秘密记录，不持有Key/Prompt/usage；私有Python管道只接收固定操作和数字。
+输入按已核实模型的最坏完整上下文预留，整数费用按有日期的费率计算，不把字符估算当token硬界。
+validUntil只约束新准入，不承诺已准入请求的远端发送/结束/计费均在截止前；固定政策到期拒绝，
+没有自动续期、迁移或重置。控制存在不独立证明人类授权，真实init须另获预算批准并复核官方费率。
+代码/fixture合同不是生产Linux CLI、真实模型、Docker绑定或容器验收通过的声明。
+
+POSIX父目录初始比较与退出比较使用同一边界：共享祖先的内容元数据变化不改变已pin节点身份；
+!node_only即时私有父目录仍比较完整元数据。FD、no-follow、目录类型、inode/mode、owner与
+record/lock验证不变，初始inode/mode/symlink替换仍拒绝；构造场景误拒绝修复不证明旧controller失败归因。
+
 Docker DSH builder 的[下载参数](../../research-web-installation.md)仅将现有 pnpm install 并发设为 8、
 单请求期限设为 120 秒；frozen lockfile、默认重试、registry、TLS、签名和最低发布时间校验保持。
 
@@ -53,6 +70,24 @@ mkdir 到首次身份捕获非原子，沿用 Native/Supervisor 创建模型，�
 启动认证链接不得进入普通日志。产品Node preload在固定DSH CLI之前截获stdout/stderr认证行，临时启动token只进入既有0600认证控制文件；管理器验证authority/cwd/source_commit后交换Cookie并移除临时token字段。输出拆分、错误端口、过长无换行输出均不转发认证链接；控制写入拒绝别名、硬链接、非私有或非当前用户文件。模型Key与该Host认证平面保持分离；用户录入阶段不采集DOM、HAR、截图或请求体。
 
 macOS Native 的固定模型 ref 通过 owned overlay 挂载产品 provider，私有 stdio 桥接只允许 resolve/describe/set/unset 与所属规范化 data home。桥接使用受管产品 Python，直接选择 macOS Keyring；其他平台、未知后端、拒绝访问或进程失败均失败关闭。秘密只存在系统库和受控进程内存/管道，不进入 argv、环境、URL、普通日志或报告；只散列公开 data home 路径生成命名空间，不散列秘密。不新增通用取密 HTTP API、不复制生产 Key。合成值 Keychain 验证与真实供应商生命周期分开。
+
+新增模型专用Python适配层只接受明确的 `docker-private-file` 绑定：Linux、32位小写十六进制
+稳定安装ID与固定 `/run/rwb-secrets/private/models/<id>`。Native默认不增加文件回退；
+JS/owned启动器已经同步绑定源码合同，但新镜像与真实模型尚未验收。记录在原私有凭据挂载的专用叶，
+不读DataHub秘密或复用其命名空间，Key与浏览器认证record分离。复用pin/no-follow/锁/reader，
+models父目录先验私有再创建安装叶；alias、foreign owner、unsafe mode、硬链接、超界与变化拒绝。
+replace/unlink尝试后的失败保持 `model_credential_commit_uncertain`，不删除已发布目的、不猜测回滚；
+私有CLI连lazy import的日志也转到被drain的stderr，stdout只给一份JSON，异常文本不回显。
+文件权限不是Keychain或加密保险库，不能抵御容器内同UID任意代码或Docker管理者。
+standalone Docker模型/预算私有CLI导入前绑定web-prod及四个旧目录键到已有受管产品根，
+移除显式.env选择；只处理该子进程，不读取用户Key、不继承目录/PYTHONPATH或修改全局配置。
+Native及库导入不执行此bootstrap。它防止旧settings.ensure_dirs在只读镜像写新目录，
+不是给镜像增加写权限或放宽privateRoot/owner/alias/实例校验。
+
+Container inspect只以Go模板投影RWB_INSTALLATION_ID，不输出全部环境或其他值。
+合法空数组只维持旧实例原生命周期权限；完整归属通过的精确ID才派生模型绑定标记，
+输入伪造标记被覆盖，不是模型目录权限/配置/调用证明。模型能力缺失不能借此获取Native回退；
+临时control-preparer无credentials挂载，仍不读取、创建或迁移模型记录。
 
 模型配置保持同源、回环与专属 Runtime 所有权检查。不回退环境、`.credentials.yaml`、项目 `.env` 或 DSH_HOME `.env`，不复制 Keychain 值到旧文件。浏览器认证的 client-connection/browser-session 与 readRecord/modifyRecord 仍使用固定 DSH 原有受控实现及独立 `.browser-credentials.yaml`；模型未配置、清除、桥接失败不使 record 接口失效。配置保存不读取旧秘密制作备份。活动父/子任务阻止凭据更新；凭据提交结果未知时拒绝新请求，不能假定旧秘密未变。最小生成是用户显式操作，不由列表、刷新、Doctor 或保存自动触发。
 

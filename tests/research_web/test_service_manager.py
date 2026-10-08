@@ -5072,7 +5072,11 @@ def test_doctor_maps_json_response_failures_to_model_catalog_warning(manager, mo
     elif failure in {"missing-content-type", "wrong-content-type"}:
         content_type = None if failure == "missing-content-type" else "text/plain"
         catalog_connection = _FakeHttpConnection(
-            _FakeHttpResponse(200, content_type, b'{"groups":[],"failures":[]}')
+            _FakeHttpResponse(
+                200,
+                content_type,
+                b'{"groups":[],"failures":[],"rejected":"rwb-rejected-payload-canary"}',
+            )
         )
     elif failure == "invalid-utf8":
         catalog_connection = _FakeHttpConnection(
@@ -5108,7 +5112,15 @@ def test_doctor_maps_json_response_failures_to_model_catalog_warning(manager, mo
     assert report["product_ready"] is True
     assert report["model_ready"] is False
     assert report["warnings"] == ["model_catalog_unavailable"]
-    assert "private" not in json.dumps(report)
+    serialized = json.dumps(report)
+    for rejected_payload in (
+        "private-trailing-data",
+        "private-utf8",
+        "private-json",
+        "private-close-secret",
+        "rwb-rejected-payload-canary",
+    ):
+        assert rejected_payload not in serialized
 
 
 @pytest.mark.parametrize("environment", [{"HTTP_PROXY": "secret"}, {"https_proxy": "secret"}])

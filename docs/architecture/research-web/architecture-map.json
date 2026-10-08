@@ -285,6 +285,8 @@
       "sources": [
         "app/research_web/launch_runtime.py",
         "app/research_web/model_credentials.py",
+        "app/research_web/model_file_store.py",
+        "app/research_web/live_acceptance_budget.py",
         "app/research_web/runtime/",
         "vendor/dsh-tabbit/0.3.4/",
         "app/research_web/sandbox.py",
@@ -2789,7 +2791,7 @@
   "reading": {
     "repository": {
       "url": "https://github.com/Leon-Huang001208/ResearchWorkbench",
-      "revision": "0dc88ef3437b2d0be0c2675bdb5efee021ad3a40"
+      "revision": "b1934bce27d83ffb0f628cf6a6fb60061470fd02"
     },
     "levels": [
       {

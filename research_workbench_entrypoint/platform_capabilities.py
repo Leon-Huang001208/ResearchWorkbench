@@ -51,6 +51,14 @@ def platform_capabilities(
                 else "model_credential_backend_unavailable"
             ),
         ),
+        "model_private_file_storage": _capability(
+            "available" if runtime_mode == "docker" else "unsupported",
+            (
+                "docker_model_private_file_implementation"
+                if runtime_mode == "docker"
+                else "model_private_file_not_selected"
+            ),
+        ),
         "research_script_sandbox": _capability(
             "available" if sandbox_available else "unsupported",
             "macos_sandbox_implementation" if sandbox_available else "research_sandbox_unsupported",

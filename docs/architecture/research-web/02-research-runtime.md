@@ -1,5 +1,8 @@
 # 研究协议、执行状态与恢复
 
+Doctor绑定事实与actual backend/configured独立：完整owned/绑定/真实回环映射/healthy后GET原API，
+无代理/重定向，3秒header/body、16KiB及严格JSON/framing。失败unknown/warning，不改变core ok或付费调用。
+
 已验证运行中的实际 NativeRuntime 仅在显式 `--stop-current` 且公开 stop 成功后，
 等待停止前捕获的 Native 两端口可由原 `port_busy` 判定释放。内部预算默认45秒，
 只接受有限的精确 int/float、0至45秒；bool与数值子类在停止前拒绝。
@@ -18,6 +21,18 @@ Python 内部端口选项以 TypedDict 标明允许的键，仍只转发显式�
 Docker fresh-root 首装接受与启动为两个独立 lifecycle 调用：no-start 不创建产品根或 controls/端点；普通 start 重新验证缺失状态后实际 mkdir 并 pin。只读 Native 状态未知并不被改写为 idle；只有该调用的真实 lease、根/父身份、缺失 Native 元数据、无容器和稳定 PID/argv/start 观察齐备时可处理原默认监听。up 前撤销分配权限；本次失败不重新获取 fresh 或重试分配，普通已有根的原 bind-race 重试保留。外层候选发布/abort 在同一真实 lease 内复核恢复，未知状态保留原错误与稳定恢复诊断，不改变认证交换。
 
 ## 模型配置与显式验收
+
+源码中的Docker模型链以稳定RWB_INSTALLATION_ID绑定Compose、正常supervisor显式参数、
+已验证staged launcher和私有provider；Native默认overlay不变，普通环境变量不能改选文件后端。
+Node仅接受system-keychain/docker-private-file及匹配的describe来源，Key仅通过原private stdin；
+Python仍-I/-B、环境白名单、有界输出和stderr drain。仅Docker固定commit_uncertain码保持，
+其他后端异常仍收敛为稳定失败；模型不可用不影响Host readRecord/modifyRecord。
+Docker模型私有CLI与预算CLI在standalone入口受控导入前强制web-prod、移除显式.env选择，
+并将四个旧settings目录键绑定到已存在的受管产品根，防止最小环境/cwd /下的legacy ensure_dirs
+尝试写只读镜像。Native与库导入不改变调用方环境，JS仍仅PATH/LANG，不继承用户目录或秘密。
+这只消除导入副作用，不放宽文件/实例/权限校验；修补镜像仍须重新实际验收。
+旧受管容器的新ID投影为合法空数组时仍按全部原归属守卫允许status/stop，但无模型绑定证明；
+省略、非数组、错误/重复ID拒绝。内部派生标记不证明模型目录、Key或真实请求可用。
 
 受管启动在固定 CLI 加载前安装产品 `auth-bootstrap.mjs`：启动认证输出按完整行截获（包含跨chunk情况），仅向现有私有 `runtime/auth.json` 写入临时bootstrap_token及实例绑定。管理器从该受控文件完成原Cookie交换，原子替换为正常认证记录，不再从runtime.log解析token；普通日志只出现固定脱敏标记。没有新HTTP接口、daemon或模型凭据后端。解析/绑定/私有文件校验失败则认证失败关闭，不回退旧日志。
 
@@ -343,6 +358,15 @@ PID 与命令签名归属核对的进程可进入该路径，强制失败仍返�
 协议均未改变。
 
 ## 独立真实验收的最小调用控制
+
+以下基金工具模式为既有非3081入口。本轮新增 `profile: docker-text` 的准入片段，精确字段为
+`dataHome`、`profile`、`installationId`、`modelCalls`（1—3）与 `maxOutputTokens`（1—4096）；
+只有受管 staged/runtime 与模型根/安装身份绑定已验证时可解析内部3081配置。
+该profile的现有guard通过私有Python管道预扣安装绑定账本；无授权控制时拒绝
+`acceptance_budget_unverified`，有控制也须符合固定政策/期限/输出/模型/工具边界。
+最多三票不可退还，失败、取消、进程重启和同安装重建不能补额度；startup不会创建控制或锁。
+当前有真实SDK＋账本fixture证明，生产Docker CLI/镜像/供应商仍需独立实测。
+Dockertext取消固定拒绝码，不透传reason；普通入口与旧模式不变。
 
 本机受管启动器可接收非秘密 `RESEARCH_ACCEPTANCE_CONTROL` JSON，仅在其中 `dataHome` 与当前规范化目录精确相同且 DSH 端口不是生产默认3081时启用。字段仅为 `dataHome`、`modelCalls`（1—6整数）及固定公开工具 `datahub_get_fund_data`（eastmoney_fund/nav/000001/limit1，禁止其他源、回退或刷新）；错误配置失败关闭，不打印参数内容。该模式沿原产品overlay和正式research-web preset工作，不替换固定DSH。
 

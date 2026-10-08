@@ -1,4 +1,4 @@
-"""Fixed-purpose private stdio bridge for the Native macOS model Keychain.
+"""Fixed-purpose private stdio bridge for explicit Native/Docker model stores.
 
 Launched with the managed product Python in isolated mode. No fallback, arbitrary
 namespace, record access, or secret-bearing diagnostics are supported.
@@ -9,7 +9,10 @@ import ctypes
 import hashlib
 import json
 import logging
+import os
+import re
 import sys
+from contextlib import redirect_stdout
 from pathlib import Path
 
 MODEL_REF = "RESEARCH_DSH_API_KEY"
@@ -97,12 +100,72 @@ def system_backend():
     return MacSystemStore(backend, api)
 
 
+def docker_backend(root, installation_id):
+    """Lazy trusted-product import; accepts temporary POSIX roots for unit tests.
+
+    The private CLI separately requires Linux and the exact managed leaf. The
+    product root comes from this managed script, never PYTHONPATH or data home.
+    Native uses no project imports and retains its standalone lazy behavior.
+    """
+    if (
+        not isinstance(installation_id, str)
+        or re.fullmatch(r"[0-9a-f]{32}", installation_id) is None
+    ):
+        raise RuntimeError("model_credential_binding_invalid")
+    product_root = Path(__file__).resolve(strict=True).parents[2]
+    sys.path.insert(0, str(product_root))
+    try:
+        from app.research_web import model_file_store
+
+        if (
+            Path(model_file_store.__file__).resolve()
+            != product_root / "app/research_web/model_file_store.py"
+        ):
+            raise RuntimeError("model_credential_backend_unavailable")
+        return model_file_store.DockerModelStore(root, installation_id)
+    except Exception as error:
+        if (
+            type(error).__module__ == "app.research_web.model_file_store"
+            and type(error).__name__ == "ModelStoreError"
+        ):
+            raise error from None
+        raise RuntimeError("model_credential_backend_unavailable") from None
+    finally:
+        sys.path.remove(str(product_root))
+
+
+def select_backend(backend, root=None, installation_id=None):
+    """Explicit private CLI selection, never an ambient file/env fallback."""
+    if backend == "system-keychain":
+        if root is not None or installation_id is not None:
+            raise ValueError("model_credential_binding_invalid")
+        return None
+    if (
+        backend != "docker-private-file"
+        or sys.platform != "linux"
+        or not isinstance(installation_id, str)
+        or re.fullmatch(r"[0-9a-f]{32}", installation_id) is None
+        or root != "/run/rwb-secrets/private/models/" + installation_id
+    ):
+        raise ValueError("model_credential_binding_invalid")
+    if __name__ == "__main__" and __package__ in (None, ""):
+        # The private child has a stripped environment and a read-only image.
+        # Legacy logger imports still ensure four directories unconditionally;
+        # bind them to the existing managed root, never caller paths or .env.
+        product_root = str(Path(__file__).resolve(strict=True).parents[2])
+        os.environ["RESEARCH_RUN_MODE"] = "web-prod"
+        os.environ.pop("RESEARCH_CONFIG_FILE", None)
+        for key in ("LOG_DIR", "OBJECT_STORAGE_PATH", "PDF_MARKDOWN_DIR", "PDF_RAW_TEXT_DIR"):
+            os.environ[key] = product_root
+    return docker_backend(root, installation_id)
+
+
 def execute(data_home: Path, request: object, backend=None) -> dict:
     """Operate only on this canonical data home's fixed model account."""
     if (
         not isinstance(request, dict)
         or request.get("ref") != MODEL_REF
-        or request.get("op") not in {"resolve", "describe", "set", "unset"}
+        or request.get("op") not in ("resolve", "describe", "set", "unset")
         or set(request) - {"op", "ref", "value"}
     ):
         raise ValueError("model_credential_request_invalid")
@@ -119,6 +182,7 @@ def execute(data_home: Path, request: object, backend=None) -> dict:
     # This is a public path identity, never a hash of secret material.
     namespace = "org.research-workbench.model." + hashlib.sha256(str(root).encode()).hexdigest()
     store = backend if backend is not None else system_backend()
+    namespace = getattr(store, "namespace", namespace)
     if op == "set":
         store.set_password(namespace, MODEL_REF, request["value"])
         return {}
@@ -128,26 +192,59 @@ def execute(data_home: Path, request: object, backend=None) -> dict:
         return {}
     value = store.get_password(namespace, MODEL_REF)
     if op == "describe":
-        return {"configured": bool(value), "source": "system-keychain", "writable": True}
+        return {
+            "configured": bool(value),
+            "source": getattr(store, "source", "system-keychain"),
+            "writable": True,
+        }
     return {"value": value if value else None}
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser(description="Private model credential bridge")
-    parser.add_argument("--data-home", type=Path, required=True)
-    args = parser.parse_args()
+def _log_bridge_failure() -> None:
     try:
-        raw = sys.stdin.buffer.read(MAX_REQUEST + 1)
-        if len(raw) > MAX_REQUEST:
-            raise ValueError("model_credential_request_invalid")
-        result = execute(args.data_home, json.loads(raw))
+        log.warning("model_credential_bridge_failed")
+    except Exception:  # noqa: BLE001 - Diagnostics cannot hide an uncertain commit.
+        return
+
+
+def main() -> int:
+    class PrivateParser(argparse.ArgumentParser):
+        def error(self, message):
+            raise ValueError("model_credential_binding_invalid")
+
+    parser = PrivateParser(description="Private model credential bridge")
+    parser.add_argument("--data-home", type=Path, required=True)
+    parser.add_argument("--backend", default="system-keychain")
+    parser.add_argument("--credential-root")
+    parser.add_argument("--installation-id")
+    try:
+        args = parser.parse_args()
+        # Third-party/shared lazy-import loggers may default to stdout. Include
+        # imports, operations and final lock/ancestor verification in this
+        # private scope; the parent only receives one JSON stdout response.
+        with redirect_stdout(sys.stderr):
+            backend = select_backend(args.backend, args.credential_root, args.installation_id)
+            raw = sys.stdin.buffer.read(MAX_REQUEST + 1)
+            if len(raw) > MAX_REQUEST:
+                raise ValueError("model_credential_request_invalid")
+            result = execute(args.data_home, json.loads(raw), backend)
         # stdout is exclusively the private parent pipe, never a log sink.
         sys.stdout.write(json.dumps({"ok": True, **result}))
         return 0
-    except Exception:
+    except Exception as error:  # noqa: BLE001 - The private pipe exposes only stable errors.
         # Never expose backend exceptions, request contents, or a secret hash.
-        log.exception("model_credential_bridge_failed", exc_info=False)
-        sys.stdout.write('{"ok":false,"error":"model_credential_bridge_failed"}')
+        _log_bridge_failure()
+        code = (
+            str(error)
+            if type(error) is ValueError and str(error) == "model_credential_binding_invalid"
+            else "model_credential_bridge_failed"
+        )
+        if (
+            type(error).__name__ == "ModelStoreError"
+            and str(error) == "model_credential_commit_uncertain"
+        ):
+            code = "model_credential_commit_uncertain"
+        sys.stdout.write(json.dumps({"ok": False, "error": code}))
         return 1
 
 

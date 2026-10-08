@@ -183,7 +183,10 @@ def _pin_posix_parents(path: Path, *, node_only: bool = False) -> Iterator[int]:
             before = os.stat(name, dir_fd=parent, follow_symlinks=False)
             descriptor = os.open(name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=parent)
             stack.callback(os.close, descriptor)
-            if not stat.S_ISDIR(before.st_mode) or _identity(os.fstat(descriptor)) != _identity(
+            # Match the exit check: shared ancestors may change entries while
+            # the immediate private reader parent retains full metadata checks.
+            comparison = _identity if not node_only and component == path.parent else _node_identity
+            if not stat.S_ISDIR(before.st_mode) or comparison(os.fstat(descriptor)) != comparison(
                 before
             ):
                 _fail("changed")

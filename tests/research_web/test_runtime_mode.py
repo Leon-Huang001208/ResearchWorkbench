@@ -155,19 +155,136 @@ def test_first_write_is_private_and_generates_one_persistent_id(tmp_path: Path) 
     assert RuntimeModeStore(home).read() == second
 
 
-def test_unrelated_ancestor_entry_change_does_not_invalidate_read(tmp_path, monkeypatch):
+@pytest.mark.skipif(os.name != "posix", reason="POSIX retained directory contract")
+@pytest.mark.parametrize("stage", ["file_open", "initial_directory_open"])
+def test_unrelated_ancestor_entry_change_does_not_invalidate_read(tmp_path, monkeypatch, stage):
+    tmp_path = tmp_path.resolve(strict=True)
+    tmp_path.chmod(0o700)
     home = tmp_path / "home"
     store = RuntimeModeStore(home)
     expected = store.write("native")
     original = os.open
+    before = tmp_path.stat()
+    injected = False
 
     def concurrent_sibling(candidate, flags, *args, **kwargs):
-        if Path(candidate).name == "runtime.json":
-            (tmp_path / "unrelated").mkdir()
+        nonlocal injected
+        selected = "runtime.json" if stage == "file_open" else tmp_path.name
+        if not injected and candidate == selected:
+            injected = True
+            (tmp_path / "unrelated").mkdir(mode=0o700)
         return original(candidate, flags, *args, **kwargs)
 
     monkeypatch.setattr(os, "open", concurrent_sibling)
     assert store.read() == expected
+    after = tmp_path.stat()
+    assert injected
+    assert (before.st_dev, before.st_ino, before.st_mode, before.st_uid) == (
+        after.st_dev,
+        after.st_ino,
+        after.st_mode,
+        after.st_uid,
+    )
+    assert before.st_nlink != after.st_nlink
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX retained directory contract")
+@pytest.mark.parametrize("node_only", [False, True])
+@pytest.mark.parametrize("immediate", [False, True])
+def test_initial_parent_metadata_change_preserves_private_parent_boundary(
+    tmp_path, monkeypatch, node_only, immediate
+):
+    tmp_path = tmp_path.resolve(strict=True)
+    tmp_path.chmod(0o700)
+    shared = tmp_path / "shared"
+    private = shared / "private"
+    shared.mkdir(mode=0o700)
+    private.mkdir(mode=0o700)
+    selected = private if immediate else shared
+    ancestor = selected.parent.stat()
+    original = os.open
+    injected = False
+    yielded = False
+
+    def concurrent_sibling(candidate, flags, *args, **kwargs):
+        nonlocal injected
+        parent = kwargs.get("dir_fd")
+        if (
+            not injected
+            and candidate == selected.name
+            and parent is not None
+            and os.fstat(parent).st_ino == ancestor.st_ino
+            and os.fstat(parent).st_dev == ancestor.st_dev
+        ):
+            injected = True
+            (selected / "unrelated").mkdir(mode=0o700)
+        return original(candidate, flags, *args, **kwargs)
+
+    monkeypatch.setattr(os, "open", concurrent_sibling)
+    if immediate and not node_only:
+        with (
+            pytest.raises(RuntimeModeError, match="^runtime_mode_changed$"),
+            runtime_mode._pin_posix_parents(private / "record.json", node_only=node_only),
+        ):
+            yielded = True
+        assert not yielded
+    else:
+        with runtime_mode._pin_posix_parents(private / "record.json", node_only=node_only):
+            yielded = True
+        assert yielded
+    assert injected
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX retained directory contract")
+@pytest.mark.parametrize("node_only", [False, True])
+@pytest.mark.parametrize("immediate", [False, True])
+@pytest.mark.parametrize("attack", ["inode", "mode", "symlink"])
+def test_initial_parent_open_rejects_node_or_mode_replacement(
+    tmp_path, monkeypatch, node_only, immediate, attack
+):
+    tmp_path = tmp_path.resolve(strict=True)
+    tmp_path.chmod(0o700)
+    shared = tmp_path / "shared"
+    private = shared / "private"
+    shared.mkdir(mode=0o700)
+    private.mkdir(mode=0o700)
+    selected = private if immediate else shared
+    ancestor = selected.parent.stat()
+    moved = selected.with_name("moved")
+    original = os.open
+    injected = False
+    yielded = False
+
+    def replace_before_open(candidate, flags, *args, **kwargs):
+        nonlocal injected
+        parent = kwargs.get("dir_fd")
+        if (
+            not injected
+            and candidate == selected.name
+            and parent is not None
+            and os.fstat(parent).st_ino == ancestor.st_ino
+            and os.fstat(parent).st_dev == ancestor.st_dev
+        ):
+            injected = True
+            if attack == "mode":
+                selected.chmod(0o755)
+            else:
+                selected.rename(moved)
+                if attack == "symlink":
+                    selected.symlink_to(moved, target_is_directory=True)
+                else:
+                    selected.mkdir(mode=0o700)
+        return original(candidate, flags, *args, **kwargs)
+
+    monkeypatch.setattr(os, "open", replace_before_open)
+    with (
+        pytest.raises(OSError if attack == "symlink" else RuntimeModeError) as caught,
+        runtime_mode._pin_posix_parents(private / "record.json", node_only=node_only),
+    ):
+        yielded = True
+    if attack != "symlink":
+        assert caught.value.code == "runtime_mode_changed"
+    assert injected and not yielded
 
 
 def test_same_mode_switch_is_read_only(tmp_path):

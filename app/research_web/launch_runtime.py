@@ -10,7 +10,9 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+from collections.abc import Mapping
 from pathlib import Path, PurePosixPath
+from typing import cast
 
 from core.observability import get_logger, setup_logging
 
@@ -483,19 +485,92 @@ await runtime.healProfilesModuleFallback({ installAnchor: anchor, profile });
     return len(links)
 
 
-def live_acceptance_control(data: Path, port: int) -> dict[str, object] | None:
+def read_acceptance_budget(installation_id: str) -> Mapping[str, object]:
+    """Read existing authorization only; missing state never grants admission."""
+    from .live_acceptance_budget import BudgetError, BudgetStore
+
+    try:
+        return BudgetStore(
+            Path("/run/rwb-secrets/private/live-acceptance") / installation_id,
+            installation_id,
+        ).describe()
+    except BudgetError as error:
+        raise RuntimeError(str(error)) from None
+
+
+def read_optional_acceptance_budget(installation_id: str) -> Mapping[str, object] | None:
+    """Discover explicitly initialized installation authorization without writes."""
+    from .live_acceptance_budget import BudgetError, BudgetStore
+
+    try:
+        return BudgetStore(
+            Path("/run/rwb-secrets/private/live-acceptance") / installation_id,
+            installation_id,
+        ).read_optional()
+    except BudgetError as error:
+        raise RuntimeError(str(error)) from None
+
+
+def live_acceptance_control(
+    data: Path,
+    port: int,
+    *,
+    staged: bool = False,
+    model_backend: str | None = None,
+    model_credential_root: Path | None = None,
+    model_installation_id: str | None = None,
+) -> dict[str, object] | None:
     """Bind optional, non-secret acceptance limits to one non-production instance."""
     raw = os.environ.get("RESEARCH_ACCEPTANCE_CONTROL")
+    owned_docker = (
+        staged is True
+        and model_backend == "docker-private-file"
+        and isinstance(model_installation_id, str)
+        and re.fullmatch(r"[a-f0-9]{32}", model_installation_id) is not None
+        and model_credential_root == Path("/run/rwb-secrets/private/models") / model_installation_id
+    )
     if raw is None:
-        return None
+        if not owned_docker:
+            return None
+        authorized = read_optional_acceptance_budget(str(model_installation_id))
+        if authorized is None:
+            return None
+        log.info("research_acceptance_control_enabled", model_calls=authorized["modelCalls"])
+        return {
+            "profile": "docker-text",
+            "installationId": model_installation_id,
+            "modelCalls": authorized["modelCalls"],
+            "maxOutputTokens": authorized["maxOutputTokens"],
+            "budgetBridge": {
+                "python": sys.executable,
+                "bridge": str(Path(__file__).with_name("live_acceptance_budget.py")),
+            },
+        }
     try:
         if len(raw) > 4096:
             raise ValueError()
         value = json.loads(raw)
-        if (
-            not isinstance(value, dict)
-            or set(value) != {"dataHome", "modelCalls", "tool"}
-            or value["dataHome"] != str(data.resolve())
+        if not isinstance(value, dict) or value.get("dataHome") != str(data.resolve()):
+            raise ValueError()
+        docker_text = value.get("profile") == "docker-text"
+        if docker_text:
+            identity = value.get("installationId")
+            if (
+                set(value)
+                != {"dataHome", "profile", "installationId", "modelCalls", "maxOutputTokens"}
+                or not owned_docker
+                or not isinstance(identity, str)
+                or re.fullmatch(r"[a-f0-9]{32}", identity) is None
+                or identity != model_installation_id
+                or model_credential_root != Path("/run/rwb-secrets/private/models") / identity
+                or type(value["modelCalls"]) is not int
+                or not 1 <= value["modelCalls"] <= 3
+                or type(value["maxOutputTokens"]) is not int
+                or not 1 <= value["maxOutputTokens"] <= 4096
+            ):
+                raise ValueError()
+        elif (
+            set(value) != {"dataHome", "modelCalls", "tool"}
             or port == 3081
             or type(value["modelCalls"]) is not int
             or not 1 <= value["modelCalls"] <= 6
@@ -506,6 +581,23 @@ def live_acceptance_control(data: Path, port: int) -> dict[str, object] | None:
         log.warning("research_acceptance_control_invalid")
         raise RuntimeError("acceptance_control_invalid") from None
     log.info("research_acceptance_control_enabled", model_calls=value["modelCalls"])
+    if docker_text:
+        authorized = read_acceptance_budget(str(identity))
+        if any(authorized[key] != value[key] for key in ("modelCalls", "maxOutputTokens")):
+            log.warning("research_acceptance_control_invalid")
+            raise RuntimeError("acceptance_control_invalid")
+        return {
+            **{key: item for key, item in value.items() if key != "dataHome"},
+            "budgetBridge": {
+                "python": sys.executable,
+                "bridge": str(Path(__file__).with_name("live_acceptance_budget.py")),
+            },
+        }
+    if owned_docker:
+        authorized = read_optional_acceptance_budget(str(model_installation_id))
+        if authorized is not None:
+            log.warning("research_acceptance_control_invalid")
+            raise RuntimeError("acceptance_control_invalid")
     return {"modelCalls": value["modelCalls"], "tool": value["tool"]}
 
 
@@ -519,6 +611,9 @@ def prepare(
     datahub_url: str | None = None,
     *,
     state_root: Path | None = None,
+    model_backend: str | None = None,
+    model_credential_root: Path | None = None,
+    model_installation_id: str | None = None,
 ) -> tuple[list[str], dict, Path]:
     staged_source = None
     if os.environ.get("RWB_DSH_STAGED") == "1":
@@ -537,6 +632,9 @@ def prepare(
             datahub_url,
             state_root=state,
             staged_source=staged_source,
+            model_backend=model_backend,
+            model_credential_root=model_credential_root,
+            model_installation_id=model_installation_id,
         )
 
 
@@ -551,9 +649,44 @@ def _prepare_runtime(
     *,
     state_root: Path,
     staged_source: dict | None = None,
+    model_backend: str | None = None,
+    model_credential_root: Path | None = None,
+    model_installation_id: str | None = None,
 ) -> tuple[list[str], dict, Path]:
     source, data = source.resolve(), data.resolve()
-    acceptance = live_acceptance_control(data, port)
+    model_binding: list[str] = []
+    if staged_source is None:
+        if any(
+            value is not None
+            for value in (model_backend, model_credential_root, model_installation_id)
+        ):
+            log.warning("model_credential_binding_denied")
+            raise RuntimeError("model_credential_backend_unavailable")
+    else:
+        # A staged guest never falls back to the Native backend. Missing binding
+        # leaves model operations unavailable without disabling Host records.
+        model_binding = ['        source: "docker-private-file"']
+        if (
+            model_backend == "docker-private-file"
+            and isinstance(model_installation_id, str)
+            and re.fullmatch(r"[a-f0-9]{32}", model_installation_id)
+            and model_credential_root
+            == Path("/run/rwb-secrets/private/models") / model_installation_id
+        ):
+            model_binding += [
+                f"        credentialRoot: {json.dumps(str(model_credential_root))}",
+                f"        installationId: {json.dumps(model_installation_id)}",
+            ]
+        else:
+            log.warning("model_credential_backend_unavailable")
+    acceptance = live_acceptance_control(
+        data,
+        port,
+        staged=staged_source is not None,
+        model_backend=model_backend,
+        model_credential_root=model_credential_root,
+        model_installation_id=model_installation_id,
+    )
     tabbit_config = load_tabbit_config(data)
     commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=source, text=True).strip()
     if commit != PINNED_COMMIT:
@@ -647,6 +780,11 @@ def _prepare_runtime(
     overlay.write_text(
         "\n".join(
             [
+                *(
+                    ["- id: settings", "  disabled: true"]
+                    if acceptance and acceptance.get("profile") == "docker-text"
+                    else []
+                ),
                 "- id: credentials",
                 "  disabled: true",
                 "- insert:",
@@ -656,13 +794,19 @@ def _prepare_runtime(
                 f"        python: {json.dumps(sys.executable)}",
                 f"        bridge: {json.dumps(str(package.parent / 'model_credentials.py'))}",
                 f"        dataHome: {json.dumps(str(data))}",
+                *model_binding,
                 f"        recordsPath: {json.dumps(str(home / '.browser-credentials.yaml'))}",
                 f"        localProvider: {json.dumps(str(source / 'packages/credentials/credentials-local/lib/index.js'))}",
                 "- id: llm-deepseek",
                 "  config:",
                 "    apiKeyEnv: RESEARCH_DSH_API_KEY",
                 "    thinking: disabled",
-                "    maxTokens: 4096",
+                *(
+                    ["    baseURL: https://api.deepseek.com"]
+                    if acceptance and acceptance.get("profile") == "docker-text"
+                    else []
+                ),
+                f"    maxTokens: {acceptance.get('maxOutputTokens', 4096) if acceptance else 4096}",
                 *(
                     ["    retryPolicy:", "      mode: normal", "      maxRetries: 0"]
                     if acceptance
@@ -693,7 +837,18 @@ def _prepare_runtime(
                     [
                         "        acceptance:",
                         f"          modelCalls: {acceptance['modelCalls']}",
-                        "          tool: datahub_get_fund_data",
+                        *(
+                            [
+                                "          profile: docker-text",
+                                f"          installationId: {json.dumps(acceptance['installationId'])}",
+                                f"          maxOutputTokens: {acceptance['maxOutputTokens']}",
+                                "          budgetBridge:",
+                                f"            python: {json.dumps(cast(dict[str, str], acceptance['budgetBridge'])['python'])}",
+                                f"            bridge: {json.dumps(cast(dict[str, str], acceptance['budgetBridge'])['bridge'])}",
+                            ]
+                            if acceptance.get("profile") == "docker-text"
+                            else ["          tool: datahub_get_fund_data"]
+                        ),
                     ]
                     if acceptance
                     else []
@@ -790,6 +945,9 @@ def main():
     )
     parser.add_argument("--node", default="/usr/local/bin/node")
     parser.add_argument("--port", type=int, default=3081)
+    parser.add_argument("--model-backend", default=None)
+    parser.add_argument("--model-credential-root", type=Path, default=None)
+    parser.add_argument("--model-installation-id", default=None)
     parser.add_argument(
         "--datahub-url",
         default=None,
@@ -820,6 +978,9 @@ def main():
             args.research_tools,
             args.datahub_url,
             state_root=args.state if args.state is not None else args.data.resolve() / "runtime",
+            model_backend=args.model_backend,
+            model_credential_root=args.model_credential_root,
+            model_installation_id=args.model_installation_id,
         )
         stage = "launcher_modules"
         module_count = prepare_runtime_module_fallback(
