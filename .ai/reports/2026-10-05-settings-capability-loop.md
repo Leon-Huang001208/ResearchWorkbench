@@ -1229,3 +1229,13 @@ Black/isort只读发现测试API格式和render-script imports，仅修正该两
 仅补充未被自动触发覆盖的既有必要workflow_dispatch：Research Web Checks37756610557、Research Web Bootstrap37756622020。两项attempt1、event=workflow_dispatch、head/实际checkout均为b66f9627d795131dad057d2dfa06fe6e6cc53408，结论success；前者checks/ubuntu-latest归Linux通用CI，后者Clean Web install/macOS-14归Mac安装CI，不能混用平台。office-current-{checks,bootstrap}-{run,jobs}.json及对应ci.log保留源码、runner和步骤证据。Bootstrap安装记录code_commit亦为b66；未使用开发机已有环境替代干净安装，没有供应商凭据配置到CI。
 
 现有receipt按同一绑定更新两项真实外部门PASS，validate_verification_receipt实际exit0；hostAcceptance=PASS只指规划的Mac工程门，aggregateAcceptance=NOT_READY，mergeReady=false/releaseReady=false，Linux交接BLOCKED、Windows NOT_RUN。Word9796仍保存超时/清理UNVERIFIED、原单次界面反馈待答；PPT视觉仍缺实际证据，mypy17条既有跨模块诊断继续保留，三项FILE/Excel原生/PPT文本读回不会因这些缺项被抹去。没有重新执行真实模型、Keychain、历史生命周期或其他平台产品验收，未更新生产8088/3081、未合并或发布。
+
+### Runtime原生文档等待边界的最小修复
+
+续接7c7b627bdcb2551974c32a980131d50248f73489（仅报告提交，源码仍匹配b66 CI）。发现Runtime私有文档调用对file/native统一35秒，而Host监督器verifiers.py为既有180秒+10秒协调；因此合法较长原生流程可能在Host最终结果之前被运输层中断。先新增有界合同测试，截获真实executeDocumentTool使用的AbortSignal.timeout而不启动Office、网络或模型：RED实际[35000,35000]，期望[35000,195000]，exit1；office-runtime-deadline-red.log。
+
+仅将原生运输等待改195秒，覆盖既有Host190秒加5秒结果交付；file仍35秒。Host准备/单步/总限、exec取消信号、安全认证、私有端点、输出大小、无重试行为不变。不以此声称Word保存问题已修复。整文件合同14 PASS/1既有skip/0 FAIL，office-runtime-deadline-green.log；没有缩小原合同范围或新增skip。初次邻接命令误写不存在测试文件，exit1，office-runtime-deadline-neighbors.log保留；按实际文件名改用既有method-tool和capabilities-ui套件，不把工具定位错误记产品缺陷。文档治理exit0，office-runtime-deadline-docs.log。
+
+本补丁源码不在b66 CI中，不复用该CI声称最新源码已过；既有plan/receipt继续明确绑定冻结候选b66。当前补丁另按完整交付差异规划、直接回归及只读复审后留本地检查点；不因为一个本地修复重复整个Office真机生命周期、Keychain或bootstrap。下一次最终源码送检再统一绑定，Word及PPT外部缺项保持原状。
+
+实际邻接method-tool/capabilities-ui 38 PASS，office-runtime-deadline-neighbors-green.log；架构/文档治理套件、完整88路径Project Constraints、docs治理与git diff --check退出0。原规划首次拒绝旧task候选b66与当前7c HEAD不一致（PLAN_ERROR），按真实HEAD建立本增量任务上下文后完整规划成功，L4范围不缩小；office-runtime-deadline-full-plan.json记录提交加未提交树身份，旧冻结候选plan/receipt不覆盖。只读JS复审无问题。未受影响的Python/Office行为证据仍限原源码及已验证范围，未再调用Office/模型；当前增量需后续最终候选CI，不能写PASS。

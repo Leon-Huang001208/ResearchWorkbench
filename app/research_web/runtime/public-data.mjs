@@ -130,7 +130,10 @@ export async function executeDocumentTool(ctx, exec, config, args) {
   const cwd = await trustedDirectory(ctx, exec, config);
   exec.signal.throwIfAborted();
   const control = await privateControl(config.researchRoot);
-  const signal = AbortSignal.any([exec.signal, AbortSignal.timeout(35000)]);
+  // Native supervisor: 180s operation + 10s coordination, then response delivery.
+  // This does not change Host phase deadlines or execution cancellation.
+  const waitMilliseconds = args.mode === 'native' ? 195000 : 35000;
+  const signal = AbortSignal.any([exec.signal, AbortSignal.timeout(waitMilliseconds)]);
   const response = await fetch(control.url + '/api/research/internal/data/document-operation', {
     method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Research-Data-Key': control.token },
     body: JSON.stringify({ ...args, session_id: basename(cwd) }),

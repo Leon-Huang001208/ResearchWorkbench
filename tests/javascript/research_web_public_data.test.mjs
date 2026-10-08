@@ -78,6 +78,30 @@ test('Office bridge binds the trusted session and uses only the existing private
   } finally { globalThis.fetch = original; }
 });
 
+test('Office transport waits for the existing native supervisor without extending file operations', async () => {
+  const f = await fixture();
+  const { executeDocumentTool } = await import(moduleURL);
+  const originalFetch = globalThis.fetch;
+  const originalTimeout = AbortSignal.timeout;
+  const timeouts = [];
+  AbortSignal.timeout = ms => { timeouts.push(ms); return originalTimeout(ms); };
+  globalThis.fetch = async (_url, options) => {
+    assert.equal(options.signal.aborted, false);
+    return reply({ status: 'completed', files: [] });
+  };
+  try {
+    for (const mode of ['file', 'native']) {
+      await executeDocumentTool(f.ctx, f.exec, { researchRoot: f.root }, {
+        format: 'xlsx', operation: 'modify', mode, file_id: 'a'.repeat(24), changes: [],
+      });
+    }
+    assert.deepEqual(timeouts, [35000, 195000]);
+  } finally {
+    globalThis.fetch = originalFetch;
+    AbortSignal.timeout = originalTimeout;
+  }
+});
+
 test('mysql table tool validates nested filters and ordering before HTTP',async()=>{
   const f=await fixture();let calls=0;const original=globalThis.fetch;
   globalThis.fetch=async()=>{calls++;return reply({...dataset,source:'mysql'});};
