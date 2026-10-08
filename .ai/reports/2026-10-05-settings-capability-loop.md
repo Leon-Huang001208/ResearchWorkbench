@@ -8,9 +8,9 @@
 | 兼容文本 | 独立 Ollama/Qwen2.5 无Key文本生成、普通research-web会话与Host/DSH冷重启已验证；不认证工具、多模态、带Key商业服务或研究质量。 |
 | 商业数据 | 用户确认Wind/iFinD有可用账户；最新反馈为iFinD只有终端账户、接口权限不确定，未提供接口Token。Wind插件心跳通过，但一次封闭业务查询deadline/0行；不影响原公开NAV。 |
 | 三项FILE | Word、Excel、PowerPoint固定样例均已从正常Web页面生成、读取、修改、下载并独立检查；Excel文件模式明确未重算。详见最新分项证据，不冒充原生通过。 |
-| 三项NATIVE | Excel6b4a5a33真实5→10→保存关闭重开10、公式保持及下载缓存检查通过，临时清理确认；PPT8b79b55d真实修改/保存关闭重开/4文本读回及产物独立检查通过，用户已确认最终两页视觉无问题，PowerPoint_NATIVE PASS。Word9796完成创建/正文/原生表格/样式，保存等待超时，人工界面状态待反馈，清理未确认。旧失败仍完整保留。 |
-| Word清理 | 旧两项用户提供的候选归属仍UNVERIFIED且未操作。新212f对象路径、固定合成正文与saved属性已核对匹配，原关闭维护成功，随后重开timeout，因此文件清理仍UNVERIFIED。其余新资源也按各自登记保留未确认状态。 |
-| hostAcceptance | 最新冻结候选bd05b79c086cd0a957be616cdfc47d44ff2797af的Mac工程回执PASS：macos-14 Bootstrap37760339730与Ubuntu通用Web Checks37760324407均success且日志确认checkout bd05。Word原生未完成；Project Constraints远端仍NOT_RUN。工程PASS不等于六项功能Goal完成。 |
+| 三项NATIVE | Excel6b4a5a33真实5→10→保存重开10及清理PASS；PPT8b79b55d保存重开读回与用户视觉确认PASS；Word20124实际原生新建A、736389修改B、7f8014修改3，均正式Web入口保存/关闭/重开/完整读回/清理PASS，下载9项独立核对PASS。旧超时及失败记录保留。 |
+| Word清理 | 用户已关闭其确认的旧测试报告且不保存；3f单文件访问允许后实际保存A，精确HFS/saved/读回核对并关闭，文件作为恢复证据保留。20124/736389/7f8014三个成功任务文稿关闭、临时目录删除已独立确认。历史归属不明对象仍UNVERIFIED，不补造旧文件身份或删除记录。 |
+| hostAcceptance | 已冻结bd05的Mac工程回执PASS（Bootstrap37760339730/Web Checks37760324407）；本次新增Word修复尚待冻结送检，不把旧CI用于新源码。六项功能现已通过固定样例；Project Constraints远端/PR整合缺项及本轮完整工程收口仍保留。 |
 | aggregateAcceptance | NOT_READY；mergeReady=false/releaseReady=false。Windows/Linux/Docker由所属任务留未验证，本轮不执行、不改全局平台规则。 |
 
 当前Goal仅Word/Excel/PowerPoint、macOS Native+Web，不扩展金融插件或其他Office应用；旧商业接口记录保留事实但不重启其验收。原各轮结果和失败历史完整保留；旧段落当时状态不覆盖本节与最新记录。plan/receipt及脱敏证据仍在 `logs/settings-model-loop/`，不另建总报告；不更新生产、不合并或发布，本轮供应商模型请求0，意外未隔离测试的背景请求UNKNOWN另行保留，不将其伪写为绝对0。
@@ -1262,7 +1262,7 @@ Bootstrap37760339730最终success，attempt1/workflow_dispatch/job113254941458/m
 
 | 应用 | 文件业务闭环 | Mac原生闭环 | 原生重开读回 | 本轮临时资源清理 |
 |---|---|---|---|---|
-| Word | PASS，正常页面生成/读改/下载及7项独立核对 | BLOCKED，9796最后written、saved超时 | NOT_RUN，该原生任务未完成保存 | UNVERIFIED，原单次人工反馈待答，不操作未知文稿 |
+| Word | PASS，正常页面生成/读改/下载及原7项核对 | PASS，新20124原生创建及736389/7f8014原生修改B/3 | PASS，三个成功任务均真实Word读回 | PASS，新成功任务文稿及私有目录已清理；历史未知对象另列 |
 | Excel | PASS，8项核对，文件模式未重算 | PASS，真实5→10及公式保留 | PASS，Microsoft Excel重开10，下载缓存10 | PASS，仅所属新实例及工作簿关闭，用户实例保留 |
 | PowerPoint | PASS，正常页面生成/读改/下载及9项核对 | PASS，真实文本编辑/保存与用户最终视觉确认 | PASS，4目标真实App读回 | PASS，登记任务文稿关闭，交付文件保留 |
 
@@ -1285,3 +1285,41 @@ Bootstrap37760339730最终success，attempt1/workflow_dispatch/job113254941458/m
 2026-10-08 19:08（Asia/Shanghai记录时刻），用户针对已提供的final-native-powerpoint.pptx及“两页文字无裁剪、重叠”检查回复“PowerPoint 确认”。按当前明确上下文记人工视觉PASS，证据来源为用户实际确认，不伪造截图或自动视觉结果。文件SHA256仍须匹配a1a664b783a3365538ff239495d29d9a8f2774d8bee79c9dcdc58c5c970ecb19，对应正式原生8b79b55d任务产物；office-ppt-user-visual-confirmation.json保存该有限证据。结合已有真实保存/关闭/重开/4文本读回、可编辑对象核对及精确清理，PowerPoint_NATIVE现在PASS，早期视觉NOT_RUN记录保留历史，不能覆盖本条后续确认。
 
 当前六项为Word_FILE/Excel_FILE/PowerPoint_FILE/Excel_NATIVE/PowerPoint_NATIVE通过，Word_NATIVE仍BLOCKED。未重跑Office、模型或CI，未创建新文稿、修改生产或合并PR。唯一现行工程回执中的PPT视觉风险可据此移除，Word保存/清理、PR整合/Project Constraints及真实Office模型工具选择缺证据仍分别保留，mergeReady/releaseReady仍false。
+
+### Word无提示与旧测试文稿处理续接
+
+用户实际反馈Word“正常没有提示”，继而确认当前可见文稿确为本任务Word验收报告，并明确允许只关闭该文稿且不保存。这是应用状态与资源归属的新证据，不再按先前“提示类型未知”等待；不等于保存或原生闭环已通过。
+
+只检查9796登记私有目录及精确目标：目录存在、owner/mode0700正常，预定research-workbench-9796ac132a884103bfba92b659fe7849.docx当前不存在，office-word-9796-exact-resource-now.json。未查受保护Office目录，也不将当前不存在说成从未创建。新的只读CUA窗口清单请求20秒超时并重置；未重复同调用。通过Word原生AppleEvent做有限元数据诊断，不读其他文稿正文。第一次应用count返回missing value造成诊断解析ValueError；改为进程内列表计数曾得到1项/登记名称0匹配，但后续元数据求值也返回-1708，因此不能据此认证当前文稿数量。office-word-readonly-document-count.json及office-word-name-metadata-validity.json保留这一证据强度限制。
+
+用户确认归属后，尝试只关闭其确认的测试报告；先在受控进程内验证已知合成段落，未打印正文，不退出共享Word。实际返回-1708、未取得closed_confirmed，office-word-user-owned-close.json；不能把处理授权改写成已经清理。已明确纠正先前“1份打开文稿”的过强解读，停止自动关闭重试。现需要用户仅手工关闭刚确认的测试报告，出现保存询问时选择不保存，并反馈实际结果；这不是再次请求授权。旧文稿处理未确认前不创建新的Office实机资源、不从当前未知应用状态猜定保存超时根因。模型/其他已通过Office/CI未重跑，生产未变。
+
+### Word实际修复与正式B／3闭环（2026-10-08）
+
+用户随后明确反馈已关闭其确认的旧测试文稿并选择不保存。此确认仅认证该可见测试对象的人工关闭，不补造旧UUID映射或全盘删除。只读get version实际返回16.113.3，Word可响应。开始代码身份为ce191f948d6d2e784b290224c189f058ee83cb6a加本轮Word源码差异；生产未变。
+
+修复均由失败合同/真实最小复现驱动：
+
+1. 专用DOCX保存及HFS路径。原通用save-in没有明确格式；路径转换放Word.tell内真实返回空值，放外返回正确HFS。先RED/再GREEN，改为在Word上下文之前转换、save-as显式format document；未延长10秒准备/30秒操作/190秒监督。初次2f0d saved -1708、cleanup confirmed；移出转换后3f525b6c saved timeout，用户确认其确有单文件访问提示。
+2. 用户仅允许3f测试文件后，文件实际落盘13743字节、7项检查通过；精确fullname/saved/内容核对与关闭成功，office-word-3f52-owned-recovery.json。原timeout不改PASS。文件保留为recovered-native-word-A.docx等恢复证据，不能据此假称原同步业务已完成。
+3. 单文件访问交接。复用PPT的正常LaunchServices模式，只打开私有受控文件；完整HFS/saved守卫通过才赋owned引用。生成的空DOCX只作交接、不含请求内容，先关闭它，再由Word make new document真正原生创建。read/modify及重开复用同一有限helper。没有通用取文件/执行接口、全局daemon或权限扩张。新增合同明确空交接不能冒充新建；初次GREEN因测试原预期单参helper、实际采用路径/名称/HFS三参而失败，补足身份参数合同后通过，原失败记录保留。
+4. 标题读回。4f93真实完成创建/写入/保存/关闭/重开，在read_back -1728，cleanup confirmed。精确旧读回块在保留3f文稿只读复现，定位到style；range getter返回以paragraph为父的样式引用，无法正确比较。直接paragraph getter可与本文件内置Title的name local比较，另验证built-in=true。case-sensitive比较移到Word.tell外helper，避免Word.case属性与AppleScript consideration冲突；一次compile -2741保留，最终compile0、精确完整只读块PASS，bold/正文/表格校验不删除。
+5. 多run预检。真实原生A版本段落被Word拆成2个rPr完全相同的run，原any-rPr规则误拒绝。新规则只允许C14N字节完全一致，不忽略字体/语言/其他属性；真正混合仍拒绝。段落/单元格uniform与mixed四例先RED后GREEN，复杂/合并/嵌套/宏/外链限制不变。
+6. 段落位置。2cc及9fdd已写/保存/关闭/重开但read_back -2700。源A XML布局3p+2x2表+2empty p，原映射[1,2,3,8,9]。真实只读证明Word p8为末格值2，表后段落在10/11：每表格行末也占Word段落。映射现计数w:p与w:tr，共用于写入/读回；表格后段落目标10的合同先RED后GREEN。
+7. 写入范围。受控A副本的旧整段范围替换连同结束标记改变结构，B出现在非顶层段落；saved=true不能证明目标内容正确。专用save-as与对象求值试验亦保留未通过结果，不能将问题仅归因通用save。另一新受控副本只替换start..end-1正文范围后，B实际落盘、表格2×2与未改段落均true；生产写入改为保留段落结束标记，end≤start拒绝。相关合同先RED后GREEN、复审通过。
+
+每次实机复验均对应明确代码修复/权限变化，未在条件不变时反复创建；后续定位尽量用同一已登记3f文件只读探针，不改用户文稿或退出共享Word。Word实际产物、恢复副本及有限非秘密元数据作为本任务诊断证据保留；历史未知对象不扫描、不删除。此前误写ledger verifications而非verification_runs导致IndexError，以及一次apply_patch上下文不匹配未写入文件，均为诊断/编辑工具错误，不记产品PASS。
+
+正式页面最终成功：
+
+| 操作 | 真实验证ID | 结果 |
+|---|---|---|
+| Word真正新建A/2 | 20124fc2-7841-489e-8eca-ea1091cad04a | created/written/saved/closed/reopened/read_back/document_closed全部完成，cleanup confirmed，约3秒 |
+| 原生段落A→B | 7363897e-7544-47e4-bc28-55fbd730f083 | 正常页面原生修改/保存/重开完整读回及清理通过 |
+| 原生单元格2→3 | 7f8014ae-df7d-4a7a-963e-e42631bffa14 | 正常页面原生修改/保存/重开完整读回及清理通过 |
+
+最终文件ID6d618e79355ce7dcb74adeb7、document-4341ce0777ee4b60be77fe2601544178.docx，13897字节、SHA256 d7da88574464e9c057c1804b35bb3860fc87361500657d30a92d32ed05102689。正常页面点击下载到/Users/leon/Downloads同名文件，和Store安全句柄读取字节一致；9项独立检查均true：标题、Title样式、加粗、未改段落、B、2×2、3、下载相同、原NativeA SHA70284b56…未改。三个成功run的私有目录均已独立确认不存在。office-word-final-independent.json及final-native-word.docx；office-word-final-page.png为正常产品页面脱敏证据，不冒充Word应用截图。
+
+本轮实际最小回归：专用测试解释器执行python -m pytest --confcutdir=tests/research_web tests/research_web/test_local_integrations.py tests/research_web/test_report_rendering.py -q，113 PASS/1既有skip，23.58秒，office-word-complete-regression.log。Black/isort/Ruff本次两个Python文件exit0；mypy --python-executable本任务产品.venv app/research_web/local_integrations/verifiers.py命令exit1，16条既有4文件诊断，目标verifiers无新诊断；与先前17条对比new diagnostics空，不自行豁免。Python只读复审逐项确认路径/权限/真实创建/格式/范围/索引边界，未将静态Approve计实机PASS。
+
+当前六项固定Office功能均有真实证据；新Word源码仍需完整changed-set规划与匹配工程门。本轮Office操作模型请求0、商业数据请求0；旧模型/T6/Keychain/Excel/PPT未重验，B归因豁免仍保持。当前旧bd05 CI仅认证旧代码，PR/master分叉、外部门与新代码送检状态须另行收口，不宣称已合并、发布或更新生产。

@@ -1397,7 +1397,8 @@ def _native_word_document(run_root: Path, document: dict) -> dict:
                     positions.append(paragraph_number)
                     paragraph_number += 1
                 elif node.tag == qn("w:tbl"):
-                    paragraph_number += sum(n.tag == qn("w:p") for n in node.iter())
+                    # Word's paragraph collection also includes each table row end.
+                    paragraph_number += sum(n.tag in {qn("w:p"), qn("w:tr")} for n in node.iter())
         if not 1 <= len(paragraphs) <= 100 or not isinstance(tables, list) or len(tables) > 1:
             raise ValueError("document bounds unsupported")
         for table in tables:
@@ -1422,7 +1423,11 @@ def _native_word_document(run_root: Path, document: dict) -> dict:
                     raise ValueError("paragraph invalid")
                 if operation != "generate":
                     runs = seed.paragraphs[index].runs
-                    if len(runs) > 1 and any(run._r.rPr is not None for run in runs):
+                    formats = {
+                        etree.tostring(run._r.rPr, method="c14n") if run._r.rPr is not None else b""
+                        for run in runs
+                    }
+                    if len(formats) > 1:
                         raise ValueError("mixed target unsupported")
                 writes.append(
                     {"kind": "paragraph", "position": positions[index], "text": change["text"]}
@@ -1453,7 +1458,11 @@ def _native_word_document(run_root: Path, document: dict) -> dict:
                     ):
                         raise ValueError("complex cell target unsupported")
                     runs = cell.paragraphs[0].runs
-                    if len(runs) > 1 and any(run._r.rPr is not None for run in runs):
+                    formats = {
+                        etree.tostring(run._r.rPr, method="c14n") if run._r.rPr is not None else b""
+                        for run in runs
+                    }
+                    if len(formats) > 1:
                         raise ValueError("mixed cell target unsupported")
                 writes.append(
                     {
@@ -1496,6 +1505,12 @@ def _native_word_document(run_root: Path, document: dict) -> dict:
             with path.open("xb") as stream:
                 os.chmod(path, 0o600)
                 stream.write(source)
+        else:
+            # Empty transport only: Word closes it before making the real new document.
+            # The normal file-open handoff delegates access to this one owned destination.
+            with path.open("xb") as stream:
+                os.chmod(path, 0o600)
+                Document().save(stream)
         for owned, raw in (
             (payload_path, json.dumps(payload, ensure_ascii=False).encode()),
             (progress, b"prepared"),
@@ -1519,6 +1534,8 @@ set paragraphValues to payload's objectForKey:"paragraphs"
 set paragraphPositions to payload's objectForKey:"positions"
 set tableValues to payload's objectForKey:"tables"
 set writeRecords to payload's objectForKey:"writes"
+set targetHFSPath to (POSIX file targetPath) as text
+set taskName to item 5 of argv
 set ownedDocument to missing value
 with timeout of 30 seconds
 tell application "Microsoft Word"
@@ -1526,15 +1543,15 @@ try
 my phase("application_response", "started", stepFile)
 get version
 my phase("application_response", "completed", stepFile)
+my phase("opened", "started", stepFile)
+set ownedDocument to my openWordTask(targetPath, taskName, targetHFSPath)
+my phase("opened", "completed", stepFile)
 if operationName is "generate" then
+close ownedDocument saving no
+set ownedDocument to missing value
 my phase("created", "started", stepFile)
 set ownedDocument to make new document
 my phase("created", "completed", stepFile)
-else
-my phase("opened", "started", stepFile)
-open (POSIX file targetPath)
-set ownedDocument to document (item 5 of argv)
-my phase("opened", "completed", stepFile)
 end if
 my phase("read", "started", stepFile)
 get content of text object of ownedDocument
@@ -1570,7 +1587,12 @@ set writeRecord to writeRecords's objectAtIndex:writeIndex
 set expectedText to (writeRecord's objectForKey:"text") as text
 if ((writeRecord's objectForKey:"kind") as text) is "paragraph" then
 set paragraphNumber to (writeRecord's objectForKey:"position") as integer
-set content of text object of paragraph paragraphNumber of ownedDocument to expectedText & return
+set paragraphRange to text object of paragraph paragraphNumber of ownedDocument
+set startPosition to get start of content of paragraphRange
+set endPosition to get end of content of paragraphRange
+if endPosition is not greater than startPosition then error "native_document_range_invalid" number -2700
+set replacementRange to create range ownedDocument start startPosition end (endPosition - 1)
+set content of replacementRange to expectedText
 else
 set tableNumber to (writeRecord's objectForKey:"table") as integer
 set rowNumber to (writeRecord's objectForKey:"row") as integer
@@ -1589,19 +1611,18 @@ end if
 my phase("written", "completed", stepFile)
 my phase("saved", "started", stepFile)
 if operationName is "generate" then
-save ownedDocument in (POSIX file targetPath)
+save as ownedDocument file name targetHFSPath file format format document
 else if operationName is "modify" then
 save ownedDocument
 end if
-set ownedDocument to document (item 5 of argv)
+set ownedDocument to document taskName
 my phase("saved", "completed", stepFile)
 my phase("closed", "started", stepFile)
 close ownedDocument saving no
 set ownedDocument to missing value
 my phase("closed", "completed", stepFile)
 my phase("reopened", "started", stepFile)
-open (POSIX file targetPath)
-set ownedDocument to document (item 5 of argv)
+set ownedDocument to my openWordTask(targetPath, taskName, targetHFSPath)
 my phase("reopened", "completed", stepFile)
 my phase("read_back", "started", stepFile)
 repeat with indexNumber from 0 to ((paragraphValues's |count|()) - 1)
@@ -1622,7 +1643,12 @@ if actualText is not ((columnValues's objectAtIndex:columnIndex) as text) then e
 end repeat
 end repeat
 end repeat
-if style of text object of paragraph 1 of ownedDocument is not style title then error "native_document_style_failed" number -2700
+set actualTitleStyle to get style of paragraph 1 of ownedDocument
+set expectedTitleStyle to get Word style style title of ownedDocument
+set actualTitleName to get name local of actualTitleStyle
+set expectedTitleName to get name local of expectedTitleStyle
+set actualTitleBuiltIn to get built in of actualTitleStyle
+if not (my titleStyleMatches(actualTitleName, expectedTitleName, actualTitleBuiltIn)) then error "native_document_style_failed" number -2700
 if (payload's objectForKey:"verify_title_bold") as boolean then
 set expectedBold to (payload's objectForKey:"title_bold") as boolean
 if bold of text object of paragraph 1 of ownedDocument is not expectedBold then error "native_document_style_failed" number -2700
@@ -1644,6 +1670,32 @@ end try
 end tell
 end timeout
 end run
+on titleStyleMatches(actualTitleName, expectedTitleName, actualTitleBuiltIn)
+considering case
+if actualTitleName is not expectedTitleName or actualTitleBuiltIn is not true then return false
+return true
+end considering
+end titleStyleMatches
+on openWordTask(targetPath, taskName, expectedHFS)
+do shell script "/usr/bin/open -b com.microsoft.Word " & quoted form of targetPath
+repeat
+try
+tell application "Microsoft Word"
+set candidateDocument to document taskName
+set candidateFullName to get full name of candidateDocument
+set candidateSaved to get saved of candidateDocument
+end tell
+exit repeat
+on error errorMessage number errorNumber
+if errorNumber is not -1728 and errorNumber is not -1708 then error "native_document_open_failed" number errorNumber
+delay 0.25
+end try
+end repeat
+considering case
+if candidateFullName is not expectedHFS or candidateSaved is not true then error "native_document_identity_mismatch" number -2700
+end considering
+return candidateDocument
+end openWordTask
 on plainText(rawText)
 repeat while (length of rawText) > 0
 if character -1 of rawText is not return and character -1 of rawText is not (ASCII character 7) then exit repeat

@@ -2072,6 +2072,10 @@ def test_native_word_generation_uses_app_creation_and_private_payload(tmp_path, 
         assert payload["paragraphs"] == ["Word 验收报告", "这段内容保持不变。", "报告版本 A"]
         assert payload["tables"] == [[["项目", "数值"], ["样本", "2"]]]
         assert "Word 验收报告" not in script
+        # The handoff contains no requested content; the final document must be made by Word.
+        transport = Document(arguments[0])
+        assert not any(paragraph.text for paragraph in transport.paragraphs)
+        assert not transport.tables
         fixture = Document()
         fixture.add_heading(payload["paragraphs"][0], 0)
         fixture.save(arguments[0])
@@ -2094,11 +2098,29 @@ def test_native_word_generation_uses_app_creation_and_private_payload(tmp_path, 
     assert result["outcome"] == "available"
     assert result["diagnostics"]["cleanup_outcome"] == "confirmed"
     assert "make new document" in captured[0]
+    assert "my openWordTask(targetPath, taskName, targetHFSPath)" in captured[0]
+    assert "candidateFullName is not expectedHFS" in captured[0]
+    assert "candidateSaved is not true" in captured[0]
+    assert "set actualTitleStyle to get style of paragraph 1 of ownedDocument" in captured[0]
+    assert "get name local of expectedTitleStyle" in captured[0]
+    assert "actualTitleBuiltIn is not true" in captured[0]
+    assert "if style of text object of paragraph 1" not in captured[0]
+    assert captured[0].index("close ownedDocument saving no") < captured[0].index(
+        "make new document"
+    )
     assert "set rowCount to (rowValues's |count|()) as integer" in captured[0]
     assert "make new table" in captured[0]
     assert "convert to table tableRange" not in captured[0]
-    assert "save ownedDocument in (POSIX file targetPath)" in captured[0]
-    assert "save as ownedDocument" not in captured[0]
+    # Word's save-as dictionary accepts a text path; DOCX must not follow user defaults.
+    assert "set targetHFSPath to (POSIX file targetPath) as text" in captured[0]
+    assert captured[0].index("set targetHFSPath to (POSIX file targetPath) as text") < captured[
+        0
+    ].index('tell application "Microsoft Word"')
+    assert (
+        "save as ownedDocument file name targetHFSPath file format format document" in captured[0]
+    )
+    assert "file format format document default" not in captured[0]
+    assert "save ownedDocument in (POSIX file targetPath)" not in captured[0]
     assert "quit" not in captured[0]
 
 
@@ -2128,6 +2150,9 @@ def test_native_word_only_writes_requested_targets_and_rejects_mixed_target(
             {"kind": "cell", "table": 1, "row": 2, "column": 2, "text": "3"}
         ]
         assert 'set writeRecords to payload\'s objectForKey:"writes"' in script
+        assert "set content of replacementRange to expectedText" in script
+        assert "end (endPosition - 1)" in script
+        assert "set content of text object of paragraph paragraphNumber" not in script
         captured.append(script)
         Path(arguments[1]).write_text("document_closed")
         return {"outcome": "available", "code": None}
@@ -2146,6 +2171,91 @@ def test_native_word_only_writes_requested_targets_and_rejects_mixed_target(
     assert result["outcome"] == ("failed" if mixed_target else "available")
     if mixed_target:
         assert not captured and result["diagnostics"]["cleanup_outcome"] == "not_created"
+
+
+@pytest.mark.parametrize("target", ["paragraph", "table_cell"])
+@pytest.mark.parametrize("different_format", [False, True])
+def test_native_word_uniform_runs_are_editable_but_mixed_runs_remain_rejected(
+    tmp_path, monkeypatch, target, different_format
+):
+    from io import BytesIO
+
+    from docx import Document
+    from docx.oxml import OxmlElement
+    from docx.oxml.ns import qn
+
+    seed = Document()
+    seed.add_heading("标题", 0).runs[0].bold = True
+    paragraph = seed.add_paragraph()
+    cell = seed.add_table(rows=2, cols=2).cell(1, 1)
+    holder = paragraph if target == "paragraph" else cell.paragraphs[0]
+    for index, text in enumerate(["旧", "值"]):
+        run = holder.add_run(text)
+        fonts = OxmlElement("w:rFonts")
+        fonts.set(qn("w:hint"), "eastAsia")
+        run._r.get_or_add_rPr().append(fonts)
+        if different_format and index == 1:
+            run.bold = True
+    raw = BytesIO()
+    seed.save(raw)
+    calls = []
+
+    def command(script, *arguments):
+        assert not different_format, "mixed formatting reached the Office boundary"
+        calls.append(script)
+        Path(arguments[1]).write_text("document_closed")
+        return {"outcome": "available", "code": None}
+
+    monkeypatch.setattr(verifiers, "_run_osascript", command)
+    root = tmp_path / ("b" * 32)
+    root.mkdir()
+    change = (
+        {"kind": "paragraph", "index": 1, "text": "新值"}
+        if target == "paragraph"
+        else {"kind": "table_cell", "table": 0, "row": 1, "column": 1, "text": "3"}
+    )
+    result = verifiers._native_word_document(
+        root, {"operation": "modify", "source": raw.getvalue(), "changes": [change]}
+    )
+    assert result["outcome"] == ("failed" if different_format else "available")
+    assert len(calls) == (0 if different_format else 1)
+
+
+def test_native_word_positions_include_table_row_end_paragraphs(tmp_path, monkeypatch):
+    from io import BytesIO
+
+    from docx import Document
+
+    seed = Document()
+    seed.add_heading("标题", 0).runs[0].bold = True
+    seed.add_paragraph("保留")
+    seed.add_paragraph("版本 A")
+    seed.add_table(rows=2, cols=2)
+    seed.add_paragraph("表格后")
+    raw = BytesIO()
+    seed.save(raw)
+    captured = []
+
+    def command(script, *arguments):
+        payload = json.loads(Path(arguments[3]).read_text())
+        captured.append(payload)
+        assert payload["positions"] == [1, 2, 3, 10]
+        assert payload["writes"] == [{"kind": "paragraph", "position": 10, "text": "新尾段"}]
+        Path(arguments[1]).write_text("document_closed")
+        return {"outcome": "available", "code": None}
+
+    monkeypatch.setattr(verifiers, "_run_osascript", command)
+    root = tmp_path / ("c" * 32)
+    root.mkdir()
+    result = verifiers._native_word_document(
+        root,
+        {
+            "operation": "modify",
+            "source": raw.getvalue(),
+            "changes": [{"kind": "paragraph", "index": 3, "text": "新尾段"}],
+        },
+    )
+    assert result["outcome"] == "available" and len(captured) == 1
 
 
 @pytest.mark.parametrize("ambiguous", [False, True])
