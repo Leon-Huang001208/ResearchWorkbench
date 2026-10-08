@@ -10,7 +10,7 @@
 | 三项FILE | Word、Excel、PowerPoint固定样例均已从正常Web页面生成、读取、修改、下载并独立检查；Excel文件模式明确未重算。详见最新分项证据，不冒充原生通过。 |
 | 三项NATIVE | Excel6b4a5a33真实5→10→保存关闭重开10、公式保持及下载缓存检查通过，临时清理确认；PPT8b79b55d真实修改/保存关闭重开/4文本读回及产物独立检查通过，视觉仍待补。Word9796完成创建/正文/原生表格/样式，保存等待超时，原一次人工界面问题待反馈，清理未确认。旧失败仍完整保留。 |
 | Word清理 | 旧两项用户提供的候选归属仍UNVERIFIED且未操作。新212f对象路径、固定合成正文与saved属性已核对匹配，原关闭维护成功，随后重开timeout，因此文件清理仍UNVERIFIED。其余新资源也按各自登记保留未确认状态。 |
-| hostAcceptance | 当前冻结候选b66f9627d795131dad057d2dfa06fe6e6cc53408的本平台工程回执PASS；macos-14干净安装37756622020、Ubuntu通用Web Checks37756610557均实际checkout该SHA并success。此工程结论不认证未完成的Word原生或PPT视觉；Project Constraints远端仍NOT_RUN。 |
+| hostAcceptance | 最新冻结候选bd05b79c086cd0a957be616cdfc47d44ff2797af的Mac工程回执PASS：macos-14 Bootstrap37760339730与Ubuntu通用Web Checks37760324407均success且日志确认checkout bd05。Word原生与PPT视觉未完成；Project Constraints远端仍NOT_RUN。工程PASS不等于六项功能Goal完成。 |
 | aggregateAcceptance | NOT_READY；mergeReady=false/releaseReady=false。Windows/Linux/Docker由所属任务留未验证，本轮不执行、不改全局平台规则。 |
 
 当前Goal仅Word/Excel/PowerPoint、macOS Native+Web，不扩展金融插件或其他Office应用；旧商业接口记录保留事实但不重启其验收。原各轮结果和失败历史完整保留；旧段落当时状态不覆盖本节与最新记录。plan/receipt及脱敏证据仍在 `logs/settings-model-loop/`，不另建总报告；不更新生产、不合并或发布，本轮供应商模型请求0，意外未隔离测试的背景请求UNKNOWN另行保留，不将其伪写为绝对0。
@@ -1239,3 +1239,35 @@ Black/isort只读发现测试API格式和render-script imports，仅修正该两
 本补丁源码不在b66 CI中，不复用该CI声称最新源码已过；既有plan/receipt继续明确绑定冻结候选b66。当前补丁另按完整交付差异规划、直接回归及只读复审后留本地检查点；不因为一个本地修复重复整个Office真机生命周期、Keychain或bootstrap。下一次最终源码送检再统一绑定，Word及PPT外部缺项保持原状。
 
 实际邻接method-tool/capabilities-ui 38 PASS，office-runtime-deadline-neighbors-green.log；架构/文档治理套件、完整88路径Project Constraints、docs治理与git diff --check退出0。原规划首次拒绝旧task候选b66与当前7c HEAD不一致（PLAN_ERROR），按真实HEAD建立本增量任务上下文后完整规划成功，L4范围不缩小；office-runtime-deadline-full-plan.json记录提交加未提交树身份，旧冻结候选plan/receipt不覆盖。只读JS复审无问题。未受影响的Python/Office行为证据仍限原源码及已验证范围，未再调用Office/模型；当前增量需后续最终候选CI，不能写PASS。
+
+### 最新候选送检中
+
+2026-10-08普通push bd05b79c086cd0a957be616cdfc47d44ff2797af成功（office-deadline-candidate-push.log），PR81仍draft，head为bd05、base205d；远端分支预检仍b66，无并发覆盖。GitHub当前仍dirty且自动运行为空，补充两项既有必要dispatch：Research Web Checks37760324407/queued、macOS Bootstrap37760339730/in_progress，均event workflow_dispatch、headSHA为bd05。这些是已确认运行身份，不记录PASS，不重复dispatch。当前仓库PUBLIC、标准runner、费用政策无变更；不运行Windows/Docker、不配置供应商Key。
+
+唯一现行office-goal-full-plan.json、office-goal-task.json及receipt已绑定bd05完整88路径，验证器exit0、hostAcceptance=BLOCKED、mergeReady/releaseReady=false；旧b66成功plan/receipt分别归档office-b66-full-plan.json/office-b66-ci-receipt.json，旧CI对应旧代码不被抹除或挪作新HEAD。本节报告修改不属于冻结送检源码，后续报告提交亦须单独标识。Word与PPT缺项没有因运输等待修复或送检自动变为PASS。
+
+一次有界实时目标核对补充：ls-remote master实际d6f15c66d2d06d871fc59cc710af01eaacbd2f38，与PR API返回的base205d不同。GitHub compare bd05...d6为diverged，目标方向69提交/137路径、候选方向28提交，共同基线205d，office-live-master-drift.json。此前“固定205d为候选祖先”的证据仍正确，但不能据此断言相对实时master无冲突，也不能把PR dirty仅判定为服务器错误。保留固定候选与范围，不自动合入69提交或扩仓整合。最新有界运行快照两项均in_progress；不写PASS、不重发dispatch、不等待无归属后台任务。
+
+本轮续接有界读取37760324407/37760339730：Web Checks37760324407已success，attempt1、workflow_dispatch、checks/ubuntu-latest；完整日志Checkout明确bd05b79c086cd0a957be616cdfc47d44ff2797af，office-deadline-checks-{run,jobs}.json及ci.log。该通用Linux CI不替代Mac实机。Bootstrap仍in_progress，实际job113254941458已完成checkout/setup，安装步骤在运行。未重发任何dispatch。回执第一次更新时因未提交报告使旧树绑定不匹配返回PLAN_ERROR，保留错误事实；重新规划当前完整88路径并绑定唯一报告的工作区身份，CI依然只声明推送的bd05候选、不声明未提交报告已被CI执行。
+
+最终PowerPoint产物33609字节及SHA256再次精确匹配原原生业务输出；已一次提供该已交付文件供用户在PowerPoint人工视觉核对，未创建新的Office验证对象、未写入或自动退出应用；反馈未到前视觉仍NOT_RUN。Word9796原人工反馈仍待答，未重复询问同一问题或重跑未知资源。已确认活跃CI句柄支持继续等待，其余人工条件缺失不被推断为通过。
+
+校验器随后明确拒绝“CI认证未提交候选”（RECEIPT_ERROR），不能只重绑含报告工作区后把CI标PASS。改在专用临时detached bd05 checkout校验冻结代码；未安装依赖、未启动产品、未改原工作树源码，只复制回执明确引用的既有脱敏证据。路径登记office-frozen-ci-checkout.json，完整88路径冻结plan及receipt验证exit0，office-bd05-frozen-receipt-validation.log；当前唯一plan/receipt采用这一冻结候选结果，报告工作区规划另存office-report-working-tree-plan.json。回执BLOCKED/aggregate NOT_READY/mergeReady=false/releaseReady=false，与Bootstrap尚未完成一致。初次临时规划使用绝对task-context路径触发PATH_ERROR，改为现有相对路径合同后通过，没有修改validator或schema。原报告未提交内容不计入冻结CI身份，也不据此再触发bootstrap。
+
+### 当前候选CI完成与有界阻塞审计
+
+Bootstrap37760339730最终success，attempt1/workflow_dispatch/job113254941458/macOS-14；完整日志Checkout为bd05b79c086cd0a957be616cdfc47d44ff2797af，office-deadline-bootstrap-ci.log及run/jobs记录。冻结bd05回执更新两项CI PASS后在其只读checkout实际校验exit0，hostAcceptance=PASS；aggregate NOT_READY、mergeReady/releaseReady=false继续由现有政策计算，Project Constraints远端未执行、实时master分叉与其他平台缺证据保留。没有用回执合法代替OfficeGoal完成，也没有为报告更新重复dispatch。
+
+完成条件逐项核对仍不成立：
+
+| 应用 | 文件业务闭环 | Mac原生闭环 | 原生重开读回 | 本轮临时资源清理 |
+|---|---|---|---|---|
+| Word | PASS，正常页面生成/读改/下载及7项独立核对 | BLOCKED，9796最后written、saved超时 | NOT_RUN，该原生任务未完成保存 | UNVERIFIED，原单次人工反馈待答，不操作未知文稿 |
+| Excel | PASS，8项核对，文件模式未重算 | PASS，真实5→10及公式保留 | PASS，Microsoft Excel重开10，下载缓存10 | PASS，仅所属新实例及工作簿关闭，用户实例保留 |
+| PowerPoint | PASS，正常页面生成/读改/下载及9项核对 | BLOCKED，文本编辑/保存成功，但最终视觉未验证 | PASS，4目标真实App读回 | PASS，登记任务文稿关闭，交付文件保留 |
+
+任务1正式UI及公开业务API、任务2步骤/错误/清理诊断已具证据，任务3Word原生仍缺保存后闭环，任务4Excel通过所列固定样例，任务5PPT仍缺视觉，任务6文件入口已验证、真实模型选工具本Goal未执行（不使用旧T6或fixture充当新Office模型证据），任务7本地相关闭包与匹配Mac CI通过所列范围、mypy既有错误及PR外部门缺项不豁免。已交付Word_FILE、Excel_NATIVE和PowerPoint_NATIVE最终合成产物，但不能用其中Word文件模式代替Word原生交付。
+
+再次核对PPT文件精确文本时发现早期摘要“样本数为3缺空格”不准确：当前正常页面读取及已下载document-a5536d766fca4e429487e82f41b4c94f.pptx实际XML均为“样本数为 3”，因此未修改或另存该文件，没有新增Office资源。Browser插件初始化被classic-level原生库签名错误阻止；未改系统签名/插件依赖，既有CUA浏览器入口一次成功恢复原19089任务页，读取验证无模型请求。该浏览器恢复不能证明native AX恢复；仅对已运行Word96765做一次只读getApp，工具实际120秒超时，无法确认保存提示，未继续重试或关闭文稿。现有Word界面问题及PPT视觉反馈仍待用户实际回答，不能从用户对527旧PPT访问授权推断Word许可或最终视觉通过。
+
+相同Word实机界面/保存与资源归属阻塞已连续多轮保留；本地修复、独立文件业务、Excel/PPT读回及当前候选CI均已尽可独立推进。此时无归属确认不能安全重启Word实机，原生视觉不能由库解析替代，目标分支69提交/137路径不能在固定范围内盲目整合。Goal须保持未完成并按阻塞审计停止自动重复；解除Word/视觉条件后从断点续接，不重跑已完成模型、Keychain、文件业务或整套CI。生产8088/3081仍未更新、PR未合并、未发布。
