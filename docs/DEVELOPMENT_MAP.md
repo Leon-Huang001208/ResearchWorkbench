@@ -174,3 +174,5 @@ Hot 正常 Native 模型装配：services/hot/src/native-model.ts 由 service.ts
 Hot 模型管理由 hot_model_controls.py / scripts/model-control.ts 连接 model-control.ts；0014-model-controls.sql 添加不可变审计和状态保护。model-control.integration.ts 覆盖普通角色拒绝、活动归属拒绝迁移、迟到回执和真实三条 CLI；test_hot_model_controls.py 覆盖 pre-key、UUID、记录失败与冷库恢复。
 
 Hot 用户定价：hot_pricing.py 经 check-pricing.ts/ pricing.ts 校验并保存私有日期记录；native-model.ts 在 run/reserve/dispatch 验证日期与指纹。pricing.test.ts/test_hot_pricing.py 覆盖新模拟日期、变化阻断、私有文件、真实CLI及fsync故障。
+
+browser-dataset-proof.ts 是有界真实事件读取验收准备/恢复脚本：固定原授权schema/ledger、验证probe与identity、临时暂停来源并新建隔离控制角色；不调用模型，恢复时保留原quota。Web浏览器读取截图和失败/独立清理证据在任务报告。

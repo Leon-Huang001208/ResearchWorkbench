@@ -259,3 +259,5 @@ macOS Docker 停止后回环端口的非监听绑定保留可能延迟释放；�
 model-authorize/model-attempts/model-terminate 已接入 CLI；未知控制回执保留 UUID、阻止启动并允许同参数重放。终止可能已发送的尝试只标记 abandoned，不退款；迟到回执可 settled/received，业务结果仍受原有 owner/claim 条件保护。记录/日志失败不丢原 UUID。
 
 Native 定价加载支持私有当日记录；坏记录不回退包内文件。日期/指纹在处理、预留和派发前重查，变更后 blocked_model，重启加载新值。缓存身份和累计授权不随价格改变。
+
+真实两事件Host/Node/PG浏览器读取已由隔离凭据和离线研究客户端验收；未运行正式DSH研究。原任务额度仍4/1417/659，独立Node经自身Manager归属检查停止，來源开关恢复；Host退出不等于Hot进程退出。
