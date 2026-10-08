@@ -1,6 +1,6 @@
 # 设置与真实能力闭环：累计任务报告
 
-## 当前状态（2026-10-08：Word/Excel/PowerPoint 六项闭环推进）
+## 当前状态（2026-10-09：Mac Native＋Web Office Goal 完成）
 
 | 项目 | 当前结论与适用范围 |
 |---|---|
@@ -10,7 +10,7 @@
 | 三项FILE | Word、Excel、PowerPoint固定样例均已从正常Web页面生成、读取、修改、下载并独立检查；Excel文件模式明确未重算。详见最新分项证据，不冒充原生通过。 |
 | 三项NATIVE | Excel6b4a5a33真实5→10→保存重开10及清理PASS；PPT8b79b55d保存重开读回与用户视觉确认PASS；Word20124实际原生新建A、736389修改B、7f8014修改3，均正式Web入口保存/关闭/重开/完整读回/清理PASS，下载9项独立核对PASS。旧超时及失败记录保留。 |
 | Word清理 | 用户已关闭其确认的旧测试报告且不保存；3f单文件访问允许后实际保存A，精确HFS/saved/读回核对并关闭，文件作为恢复证据保留。20124/736389/7f8014三个成功任务文稿关闭、临时目录删除已独立确认。历史归属不明对象仍UNVERIFIED，不补造旧文件身份或删除记录。 |
-| hostAcceptance | 当前冻结候选52b3b01788f0af2fe7f60c60b98003c3679836eb：本地闭包通过所列范围，Project Constraints37808948653与Web Checks37808948533已通过；Mac Bootstrap37808948541运行中，故当前回执BLOCKED，不能沿用旧2d的Mac CI宣称新候选通过。Office六项固定样例PASS；DeepSeek实际选择Office工具、生成与交付已PASS，测试Key已清除，独立实例已停止。 |
+| hostAcceptance | PASS。冻结候选5b74550a54f15f4aba12073e226f73a2c80b4af6：Project Constraints37818546005、Web Checks37818546049与macOS Bootstrap37818546023均通过，实际checkout为877556c6152d0b892bf4fa71b9cc06468ffb03df合并预览。六项固定文档功能、正式UI与真实模型工具交付、必要清理及中文路径/沙箱回归完成；本次Mac Office Goal完成，不推导全项目或跨平台完成。 |
 | aggregateAcceptance | NOT_READY；mergeReady=false/releaseReady=false。Windows/Linux/Docker由所属任务留未验证，本轮不执行、不改全局平台规则。 |
 
 当前Goal仅Word/Excel/PowerPoint、macOS Native+Web，不扩展金融插件或其他Office应用；旧商业接口记录保留事实但不重启其验收。原各轮结果和失败历史完整保留；旧段落当时状态不覆盖本节与最新记录。plan/receipt及脱敏证据仍在 `logs/settings-model-loop/`，不另建总报告；不更新生产、不合并或发布，本轮供应商模型请求0，意外未隔离测试的背景请求UNKNOWN另行保留，不将其伪写为绝对0。
@@ -1393,3 +1393,23 @@ Goal任务7必须覆盖中文/空格路径。普通根119PASS不能替代该条�
 最小内核测试3case：ASCII spaces PASS、中文和中文含引号2FAIL，读取已许可inputs/source.txt返回errno1。Seatbelt literal/subpath使用默认json.dumps，中文变成SBPL不解码的\u序列；不是授权拒绝，也不是库缺失。只对四类受控路径的json.dumps加ensure_ascii=False，保留引号/反斜杠转义，允许根/执行文件、默认拒绝及network/fork/Mach/写入规则全不变。无新框架、不关闭沙箱、不扩权限。Python只读复审Approve不算内核验证。
 
 修复后整个test_sandbox模块24PASS/1既有skip（office-unicode-kernel-green.log），正例会话读写成功、反例越界仍PermissionError。新的中文/空格basetemp重放原119相关测试，119PASS/1skip/31.39秒，office-unicode-path-fixed.log，9项原失败均解除。Black/isort/Ruff通过；sandbox模块mypy仅runtime_contract既有1条诊断，目标无诊断，不改ignore或policy。模型/Office实际请求0，不重演已完成真机或Keychain。此新增源码须再次绑定候选及必要自动CI；279e三个通过仍只属于其源码，当前Goal暂不标完成。
+
+### Office Goal 最终收口（2026-10-09）
+
+完整原目标依据goal-objective.md逐项审计，没有把目标缩成“仅修Word”或“仅通过CI”。Task1正常Web/API的三格式读取/生成/修改/版本与交付；Task2阶段、错误号、归属、取消/冷恢复/精确清理；Task3–5六项文件/原生业务；Task6独立能力、失效、已观察权限原因、清理与真实模型工具路径；Task7中文空格/引号路径、版本/输出冲突、边界、真实Excel计算及必要本地/同平台CI均有对应当前证据。office-goal-completion-audit.json保存14组映射与断言，三份最终产物SHA再次核验。
+
+| 应用 | 文件业务闭环 | Mac原生闭环 | 原生重开读回 | 本轮临时资源清理 |
+|---|---|---|---|---|
+| Word | PASS | PASS，Word实际新建及B/3修改 | PASS | PASS |
+| Excel | PASS，明确未重算 | PASS，实际5→10 | PASS，10及公式保留 | PASS |
+| PowerPoint | PASS，可编辑两页对象 | PASS，原生打开/修改 | PASS，4目标与人工视觉确认 | PASS |
+
+冻结完整源码候选5b74550a54f15f4aba12073e226f73a2c80b4af6；PR #81草稿/MERGEABLE，固定base4a5e7523d7407525d108757727c64f10783203f4。最终PR完整差异92路径，原任务基线203路径分别保留于office-final-scopes.json；没有只规划本次4文件。三个自动run均attempt1/pull_request/head5b745，实际checkout877556c6152d0b892bf4fa71b9cc06468ffb03df，两父4a5e与5b745经git核对。Project Constraints37818546005和Web Checks37818546049为Ubuntu通用证据；Bootstrap37818546023的macos-14干净安装、固定DSH构建、服务启动/健康与Doctor成功才是Mac CI。没有重复dispatch，没有Windows/Docker产品dispatch。office-unicode-{constraints,checks,bootstrap}-ci.{json,log}保留实际证据。
+
+ASCII路径的旧/新seatbelt_profile权限文本逐字节一致（office-final-profile-reuse.json）；中文/引号新kernel正反例及119中文路径回归证明修复且未扩权限。Word/Excel/PPT实际执行器、版本化发布和Runtime工具代码核对未变，旧实机/模型证据按明确差异复用；不以fake、文件存在或软件发现替代真机。此前9失败、Supervisor一次清理失败、类型基准仍保留，不假称所有历史诊断为绿。必要静态检查已实际执行，未新增ignore或删门。
+
+正常产品清理本轮新增模型工具会话a107a3e2-6872-4cd7-9045-1782ed7373bb：DELETE为可恢复软删除，独立GET active/deleted分别确认无/有该ID，office-final-session-cleanup.json；没有永久删除或更动既有7f0f会话。模型测试Key已经产品清除，冷启动后再次只读确认credential_configured=false；最终仅停止本次清理实例Host15968/DSH15806，状态均pid=null/ready=false，office-final-test-process-stop.json。未调用模型或Office。三份最终文件、模型生成文件及明确诊断产物保留；未知历史对象仍未验证，不补造删除记录。
+
+最终office-final-plan.json/office-final-receipt.json及现有office-goal-full-plan.json、receipt.json在干净冻结5b745校验exit0：result=PASS/hostAcceptance=PASS，aggregateAcceptance=NOT_READY，mergeReady=false/releaseReady=false。跨平台设备/CI由所属任务保留，不能据Mac完成改为PASS；已有商业账户接口缺项、B归因豁免事实均非本Office Goal新增完成证明。PR未合并、未发布，生产8088/3081未更新。后续只补本报告的本地提交，与冻结源码/实际CI区分，不制造报告→Bootstrap循环。
+
+使用入口：候选工作目录/Users/leon/.codex/worktrees/settings-model-loop/ResearchWorkbench；研究会话文件面板可生成/读取/编辑三格式，选择文件或已支持的本机操作后下载；设置→本机集成查看独立文件/原生状态、最近阶段及清理。独立验收根/private/tmp/rwb-dsh-upgrade-fixture-20261007/admission-web当前已停止；本轮已实际使用的受管管理入口为本工作树.venv/bin/python /private/tmp/rwb-ollama-1b-20261007/product_acceptance.py start/status/stop，启动成功时设置页为http://127.0.0.1:19089/#/settings/local。它属于本轮隔离验收实例，不代表生产升级。现有有限Word/Excel/PPT内容限制仍适用，复杂修订/对象、宏、厂商插件不由本Goal认证。
