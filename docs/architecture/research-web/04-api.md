@@ -123,7 +123,7 @@ MCP staging、安装 payload、清单与确认令牌目录的 Windows mode 修�
 | POST | `/api/research/sessions/{sid}/questions/{qid}` | `app/research_web/main.py` |
 | POST | `/api/research/sessions/{sid}/upgrade` | `app/research_web/main.py` |
 | GET | `/api/research/sessions/{sid}/events` | `app/research_web/main.py` |
-| POST | `/api/research/sessions/{sid}/uploads` | `app/research_web/main.py` |
+| POST | `/api/research/sessions/{sid}/uploads` | `app/research_web/main.py`；Office附件含docx/xlsx/pptx，保留原会话归属与30MB限制，上传不执行Office |
 | GET | `/api/research/sessions/{sid}/files` | `app/research_web/main.py` |
 | GET | `/api/research/sessions/{sid}/files/{fid}/{action}` | `app/research_web/main.py` |
 | GET | `/api/research/skills` | `app/research_web/main.py` |

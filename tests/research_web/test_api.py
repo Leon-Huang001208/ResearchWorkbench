@@ -531,6 +531,46 @@ def test_unknown_admission_not_retried(api):
     assert len([call for call in native.calls if call[0] == "session.prompt"]) == 1
 
 
+@pytest.mark.parametrize("extension", ["docx", "pptx"])
+def test_office_document_upload_preserves_bytes_and_session_ownership(api, extension):
+    from io import BytesIO
+
+    stream = BytesIO()
+    if extension == "docx":
+        from docx import Document
+
+        document = Document()
+        document.add_heading("Word 验收报告", level=0)
+        document.add_paragraph("这段内容保持不变。")
+        document.save(stream)
+    else:
+        import zipfile
+
+        # Upload is byte transport, not an Office renderer. Reuse the minimal
+        # slide-package fixture shape used by test_report_rendering; this does
+        # not certify that PowerPoint opened or edited the fixture.
+        with zipfile.ZipFile(stream, "w") as package:
+            package.writestr(
+                "ppt/slides/slide1.xml",
+                '<p:sld xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" '
+                'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">'
+                "<p:cSld><p:spTree><p:sp><p:txBody><a:p><a:r><a:t>研究概览</a:t>"
+                "</a:r></a:p></p:txBody></p:sp></p:spTree></p:cSld></p:sld>",
+            )
+    body = stream.getvalue()
+    client, _, _ = api
+    sid = client.post("/api/research/sessions", json={}).json()["id"]
+    response = client.post(
+        f"/api/research/sessions/{sid}/uploads",
+        files=[("files", (f"中文 验收.{extension}", body, "application/octet-stream"))],
+    )
+    assert response.status_code == 200, response.text
+    item = response.json()["items"][0]
+    assert client.get(item["url"]).content == body
+    other = client.post("/api/research/sessions", json={}).json()["id"]
+    assert client.get(item["url"].replace(sid, other)).status_code == 400
+
+
 def test_upload_ownership_and_preview_sandbox(api):
     client, _, _ = api
     sid = client.post("/api/research/sessions", json={}).json()["id"]

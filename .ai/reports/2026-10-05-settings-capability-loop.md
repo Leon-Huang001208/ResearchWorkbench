@@ -1010,3 +1010,17 @@ Office修复送检前，本机集成+协议+API累计相关回归实际129 PASS/
 路径修正的新源码尚无匹配CI，旧0c5/4ef仅认证旧候选。本轮真实Office新验证0、供应商0、生产未更新。整体Office目标仍未完成；完整PR差异继续按当前规划器记录，不能只用这一条路径测试冒称全部验收。
 
 本次增量工程证据补充：架构JS76 PASS，完整差异Project Constraints violations=[]，文档治理、Python索引、diff检查exit0；Python只读复审Approve，未发现新增重要风险。工具尝试错误保留：产品.venv缺pytest，旧task context绑定0c5与本次HEAD不匹配（后改用真实fe7及工作区摘要生成独立plan，未改策略），猜测check_project_constraints.mjs不存在（后按plan实际命令.agents/project-constraints.mjs执行完整changed set）。不将这些环境/工具错误称为产品缺陷。新源码未完成当前CI/实机，权威冻结0c5回执仍只描述旧候选；本次仅本地检查点，无push、无新Office资源。新功能机制只调研，不将Office.js建议实施成另一套框架。
+
+## 当前有界Office Goal续接（2026-10-08）
+
+已读取目标附件goal-objective.md及用户随后提供的RWB-Word-Excel-PowerPoint-Codex-Goal.md。最终范围为现有Mac Native+Web三件套文件业务和原生业务六项，六项均须实际闭合；不建设Office.js/Graph/MCP/新Harness，不扩展金融插件。固定本轮起点1653e304d029829d03213ea404cf19c819317733，不回退附件参考候选，不追赶主线漂移。此前PowerPoint路径合同修正及官方机制调研为进展，不能替代本Goal。当前Goal active、未完成。
+
+现有链路定位：report_rendering.py通过原sandbox执行report_render_script.py；会话Store已允许docx/xlsx/pptx产物并提供身份绑定下载；report_workflows/runtime.py会在报告交付阶段调用渲染器。原普通研究上传接口和composer仅接受xlsx，docx/pptx输入被拒绝。渲染器支持模板投影，但没有三格式统一的精确读取/局部修改业务合同；本机验证入口仅为设置验证，不能当作正式文档业务交付。后续以现有会话文件身份和受约束报告执行器补结构化操作，再接现有Host原生执行边界，不复制第二套报告系统。
+
+先修上传连线：main.py既有上传白名单增加docx/pptx，composer附件picker同步。不改脚本权限、认证、30MB/20文件限制、文件归属、下载sandbox或依赖锁。API新增会话创建→上传→下载字节一致→跨会话拒绝合同；中文/空格文件名按既有安全规则规范化，不泄露任意宿主路径。DOCX用已锁定python-docx生成合成输入；PPTX上传测试使用既有报告测试形态的标准库slide-package fixture，仅验证字节交付，不声称PowerPoint可编辑/打开成功。初版测试导入未锁定python-pptx导致环境失败，复审定位后移除该开发环境依赖，没有安装包或改变产品锁。API RED记录保留，其中DOCX实际不支持格式，初版PPTX环境缺模块不误记为产品拒绝；UI RED证明PPTX/DOCX均未出现在accept。
+
+本轮真实Office操作0、模型请求0、供应商0；未知旧对象未访问、删除或反推清理成功。新文件业务和原生固定样例六项仍NOT_RUN，上传修复不记为Word_FILE或PowerPoint_FILE通过。当前代码新改动没有匹配CI，旧0c5/4ef只认证旧源码；完整交付计划与阶段末门禁继续保留，不因这一小步缩小原Goal。
+
+上传连线实际命令与结果：既有隔离测试解释器 `python -m pytest tests/research_web/test_api.py --confcutdir=tests/research_web -q -k 'office_document_upload or upload_ownership'`最终exit0、3 PASS/49 deselected、19.56秒；`node --test tests/javascript/research_web_ui.test.mjs` exit0、32 PASS。Black目标文件check、isort check-only、文档治理、Python索引与diff check均exit0。证据office-upload-green-final.log、office-upload-ui-green.log及office-goal-upload-{docs,index}.log，初始失败不删除。复审未发现上传实现安全/归属问题，指出的未锁定pptx测试依赖已移除；JS复审无发现。完整PR影响面使用Git-bound v4 office-goal-full-plan.json保留，当前增量为上传连线，不认证原生或六项业务完成。
+
+后续实施定位保持明确：文件操作逻辑扩展现有report_render_script.py，Host侧受审查调用及结果投影扩展report_rendering.py，沿现有session文件身份和报告入口接入；原生执行扩展现有local_integrations，而非模型任意脚本。不修改sandbox权限或添加通用宿主路径。读取、生成、局部修改、输入指纹/输出冲突仍未实施，分阶段监督、固定三样例以及UI诚实能力呈现也仍待完成，不能通过本次上传检查缩减最终目标。

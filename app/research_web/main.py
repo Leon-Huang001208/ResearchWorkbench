@@ -53,7 +53,19 @@ UI = Path(__file__).parent / "ui"
 ROOT = Path(
     os.environ.get("RESEARCH_DATA_HOME", str(Path.home() / ".research-workbench" / "research-web"))
 )
-UPLOAD_EXTENSIONS = {".pdf", ".png", ".jpg", ".jpeg", ".webp", ".gif", ".md", ".csv", ".xlsx"}
+UPLOAD_EXTENSIONS = {
+    ".pdf",
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".webp",
+    ".gif",
+    ".md",
+    ".csv",
+    ".xlsx",
+    ".docx",
+    ".pptx",
+}
 
 
 class NewSession(BaseModel):

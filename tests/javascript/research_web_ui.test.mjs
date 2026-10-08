@@ -11,6 +11,13 @@ const modules = await Promise.all(['markdown.mjs', 'core.mjs', 'views.mjs'].map(
 }));
 const [markdown, core, views] = modules;
 const dataCatalog = await import(new URL('data-catalog.mjs', root));
+
+test('research attachment picker accepts all three Office document formats', async () => {
+  const { renderComposer } = await import(new URL('composer.mjs', root));
+  const html = renderComposer({ page: 'fingpt' });
+  const accept = html.match(/id="file-input"[^>]*accept="([^"]+)"/)[1].split(',');
+  for (const suffix of ['.docx', '.xlsx', '.pptx']) assert.ok(accept.includes(suffix));
+});
 const session = (id = 's1', extra = {}) => ({ id, title: '真实会话', mode: 'fingpt', status: 'idle', messages: [], activities: [], subagents: [], files: [], approvals: [], questions: [], ...extra });
 
 test('Markdown renders real headings, paragraphs, code, lists, tables and source links', () => {
