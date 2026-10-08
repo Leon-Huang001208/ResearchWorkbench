@@ -11,6 +11,7 @@ import {enqueueTransaction,type JobOutput} from './queue.ts';
 import type {HotConfig} from './config.ts';
 import {schemaName} from './config.ts';
 import {logEvent} from './log.ts';
+import {registerProcessing} from './processing.ts';
 
 type Sql=ReturnType<typeof postgres>;
 export interface PublicSource {id:string;operator:string;channelHint:string;official:boolean;url:string}
@@ -168,8 +169,9 @@ export function collectionHandlers(db:Sql,boss:PgBoss,schema:string,owner:Runtim
       return {result:{pageId,processed:items.length},commit:async tx=>{
         const [enabled]=await tx`select enabled from ${tx(schema)}.sources where id=${page.source_id} for update`;
         if(!enabled?.enabled)throw Error('hot_source_paused');
-        await ingestPage(tx,{source:page.source_id,raw:page.body.toString('utf8'),acquiredAt:page.acquired_at,
+        const stored=await ingestPage(tx,{source:page.source_id,raw:page.body.toString('utf8'),acquiredAt:page.acquired_at,
           materials:items,cursor:{pageId,stage:'parsing'},existingPageId:pageId},schema);
+        await registerProcessing(tx,schema,stored.materialIds);
         for(const row of entries)await tx`update ${tx(schema)}.material_inbox set processed=true where page_id=${pageId} and ordinal=${row.ordinal}`;
         const remaining=await tx`select ordinal from ${tx(schema)}.material_inbox where page_id=${pageId} and not processed order by ordinal limit 1`;
         if(remaining.length)await enqueueTransaction(boss,tx,'hot.parse',pageId+':'+remaining[0].ordinal,{pageId});

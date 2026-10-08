@@ -10,13 +10,14 @@ import { logEvent } from './log.ts';
 import {runWorker} from './worker.ts';
 import {collectionHandlers,scheduleCollection} from './collection.ts';
 import {configureSource} from './source-control.ts';
+import {scheduleProcessing,processingHandler,type GroupingModel} from './processing.ts';
 
 export interface ServiceBootstrap {
   config: unknown; port?: number; instanceId: string; mode: 'native' | 'docker';
   workerPassword: string; controllerUser: string; controllerPassword: string;
   controllerToken: string; readerToken: string;
 }
-export async function startService(input: ServiceBootstrap) {
+export async function startService(input: ServiceBootstrap,capabilities:{groupingModel?:GroupingModel}={}) {
   assertNodeRuntime();
   const config = parseConfig(input.config);
   if (!config.enabled) throw Error('hot_disabled');
@@ -68,7 +69,8 @@ export async function startService(input: ServiceBootstrap) {
       ['status',{permission:'read',run:async params=>{
         noParams(params);
         const [counts] = await reader`select count(*)::int n from ${reader(config.database.schema)}.sources`;
-        return { state:'initialized',worker:workerState,model:'not_integrated',schemaVersion:SCHEMA_VERSION,
+        const pending=await reader`select state,count(*)::int count from ${reader(config.database.schema)}.processing_items where state<>'applied' group by state`;
+        return { state:'initialized',worker:workerState,model:capabilities.groupingModel?'ready':'blocked_model',processing:JSON.parse(JSON.stringify([...pending])),schemaVersion:SCHEMA_VERSION,
           mode:current.mode,generation:current.generation,sourceCount:counts.n,collectionMode:'latest_snapshot',backfill:'not_supported' };
       }}],
       ['sources',{permission:'read',run:async params=>{
@@ -105,10 +107,12 @@ export async function startService(input: ServiceBootstrap) {
     workerState='running';
     const queue=boss;
     workerTask=runWorker({db,controllerDb:controller,boss:queue,schema:config.database.schema,owner:current,config,
-      handlers:collectionHandlers(db,queue,config.database.schema,current,config,fetch,sourceControllers),signal:workerStop.signal,
+      handlers:{...collectionHandlers(db,queue,config.database.schema,current,config,fetch,sourceControllers),
+        ...(capabilities.groupingModel?{'hot.process':processingHandler(db,config.database.schema,current,capabilities.groupingModel)}:{})},signal:workerStop.signal,
       heartbeat:async()=>{
         await heartbeatRuntime(controller,config.database.schema,current,input.controllerToken);
         await scheduleCollection(db,queue,config.database.schema,current,config);
+        await scheduleProcessing(db,queue,config.database.schema,current,Boolean(capabilities.groupingModel));
       }}).catch(()=>{
         workerState='failed';logEvent('worker_stopped');
         queueMicrotask(()=>{void close().catch(()=>logEvent('worker_stopped'));});

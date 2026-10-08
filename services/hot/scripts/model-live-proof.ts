@@ -2,18 +2,21 @@
 import {readFile,writeFile} from 'node:fs/promises';
 import {resolve,join} from 'node:path';
 import postgres from 'postgres';
-import {migrate} from '../src/database.ts';
+import {migrate,ingestPage} from '../src/database.ts';
 import {initializeIdentity,activateRuntime,pauseRuntime} from '../src/control.ts';
 import {provisionModelBudget,reserveModel,markModelDispatch,markModelUnknown,saveModelReceipt,cancelUnsentModel} from '../src/model-budget.ts';
 import {runDshText,type TextLedger,type TextTariff} from '../src/dsh-text.ts';
 import {sha256} from '../src/material.ts';
 import {createNativeDsh} from '../src/native-dsh.mjs';
 import {assertNodeRuntime} from '../src/config.ts';
-import {openQueue} from '../src/queue.ts';
+import {openQueue,processOne} from '../src/queue.ts';
+import {registerProcessing,scheduleProcessing,processingHandler,appliedGroupingResult} from '../src/processing.ts';
+import {createDshGrouping} from '../src/dsh-grouping.ts';
 import {grantWorker} from '../src/provision.ts';
 import {execFileSync} from 'node:child_process';
 
 assertNodeRuntime();const chunks:Buffer[]=[];let size=0;
+const stage=process.argv[2]??'extract';if(!['extract','group'].includes(stage))throw Error('hot_model_acceptance_stage_invalid');
 for await(const chunk of process.stdin){size+=chunk.length;if(size>65536)throw Error('hot_model_bootstrap_limit');chunks.push(Buffer.from(chunk));}
 const input=JSON.parse(Buffer.concat(chunks).toString('utf8'));
 const dir=resolve(import.meta.dirname,'../../../logs/hot-stage-zero'),schema='hot_acceptance_model',scopeId='hot_events_goal_01a11684';
@@ -30,7 +33,7 @@ if(pricing.verifiedOn!==today||pricing.provider!=='deepseek-official'||pricing.r
 const db=postgres({host:'127.0.0.1',port:baseline.port,database:'hot_probe',username:'postgres',password:input.databasePassword,onnotice:()=>{}});
 let runtime:Awaited<ReturnType<typeof createNativeDsh>>|undefined,owner:Awaited<ReturnType<typeof activateRuntime>>|undefined;
 let worker:ReturnType<typeof postgres>|undefined;
-const outcome:any={state:'FAIL',scopeId,schema,paidCalls:'NOT_RUN',research:'NOT_RUN',sourceCoverage:'latest_snapshot',outputs:[]};
+const outcome:any={state:'FAIL',stage,scopeId,schema,paidCalls:'NOT_RUN',research:'NOT_RUN',sourceCoverage:stage==='group'?'frozen_subset':'latest_snapshot',outputs:[]};
 try{
   const [existing]=await db`select to_regclass(${schema+'.runtime_identity'}) as name`;
   if(existing.name){const rows=await db`select instance_id,controller_token_hash from ${db(schema)}.runtime_identity where singleton`;
@@ -53,10 +56,33 @@ try{
     unknown:t=>markModelUnknown(worker!,schema,t),save:(t,r,u)=>saveModelReceipt(worker!,schema,t,r,u),cancelUnsent:t=>cancelUnsentModel(worker!,schema,owner!,t.id)};
   const tariff:TextTariff={...pricing,versionHash:sha256(pricingBytes)};
   for(const source of ['openai','fed']){
-    const [material]=await db`select m.id,m.original_url,v.revision,v.title,v.excerpt,v.published_at,v.acquired_at,v.content_hash
+    const [material]=await db`select m.id,m.original_url,v.*,p.body,p.body_hash,s.operator
       from ${db(data.schema)}.material_versions v join ${db(data.schema)}.materials m on m.id=v.material_id
-      join ${db(data.schema)}.raw_pages p on p.id=v.raw_page_id where p.source_id=${source} order by v.acquired_at desc,v.title limit 1`;
+      join ${db(data.schema)}.raw_pages p on p.id=v.raw_page_id join ${db(data.schema)}.sources s on s.id=p.source_id where p.source_id=${source} order by v.acquired_at desc,v.title limit 1`;
     if(!material)throw Error('hot_model_material_missing');
+    if(stage==='group'){
+      await db`insert into ${db(schema)}.sources(id,operator,config) values(${source},${material.operator},${db.json({adapter:'frozen_acceptance_subset'})}) on conflict do nothing`;
+      const [existingPage]=await db`select id from ${db(schema)}.raw_pages where source_id=${source} and body_hash=${material.body_hash} and acquired_at=${material.acquired_at} limit 1`;
+      const stored=await ingestPage(db,{source,raw:material.body.toString('utf8'),acquiredAt:material.acquired_at,
+        materials:[{url:material.original_url,title:material.title,excerpt:material.excerpt,publishedRaw:material.published_raw,publishedAt:material.published_at,
+          updatedRaw:material.source_updated_raw,sourceUpdatedAt:material.source_updated_at,upstreamId:null}],cursor:{subset:true},
+        metadata:{subset:true,originSchema:data.schema,originMaterialId:material.material_id,originRevision:material.revision},existingPageId:existingPage?.id},schema);
+      await db.begin(tx=>registerProcessing(tx,schema,stored.materialIds));
+      const [target]=await db`select m.current_revision,v.content_hash from ${db(schema)}.materials m join ${db(schema)}.material_versions v
+        on v.material_id=m.id and v.revision=m.current_revision where m.id=${stored.materialIds[0]}`;
+      if(!target||target.content_hash!==material.content_hash)throw Error('hot_model_grouping_input_mismatch');
+      const processQueue=await openQueue(worker!,schema);
+      try{
+        await scheduleProcessing(worker!,processQueue,schema,owner,true);
+        const handler=processingHandler(worker!,schema,owner,createDshGrouping(runtime.runtime,ledger,tariff,runtime.safeOutput,{provider:'deepseek-official',model:'deepseek-v4-flash'}));
+        for(let count=0;count<2;count++){const state=await processOne(processQueue,worker!,schema,owner,'hot.process',handler);if(state==='idle')break;if(!['completed','reused'].includes(state))throw Error('hot_model_grouping_failed');}
+        const result=await appliedGroupingResult(db,schema,stored.materialIds[0],target.current_revision);
+        if(!result)throw Error('hot_model_grouping_not_applied');
+        outcome.outputs.push({source,originMaterialId:material.material_id,originRevision:material.revision,materialId:stored.materialIds[0],contentHash:material.content_hash,
+          targetRevision:target.current_revision,resultKey:result.result_key,decision:result.decision,eventIds:result.event_ids});
+      }finally{await processQueue.stop();}
+      continue;
+    }
     const excerpt=material.excerpt.slice(0,1000);
     const text=JSON.stringify({domain:source==='openai'?'AI technology':'macro policy',title:material.title,url:material.original_url,
       publishedAt:material.published_at?.toISOString()??null,excerpt,excerptIsPartial:excerpt.length<material.excerpt.length});
@@ -75,6 +101,6 @@ finally{
   outcome.budget=budget??null;outcome.costBasis='conservative_tariff_ceiling_not_invoice';
   if(outcome.state!=='PASS'&&budget?.charged_calls>0)outcome.paidCalls='ATTEMPTED_RESULT_UNKNOWN_OR_REJECTED';
   if(runtime)await runtime.close();if(owner)await pauseRuntime(db,schema,owner,input.controllerToken);if(worker)await worker.end({timeout:5});await db.end({timeout:5});
-  await writeFile(join(dir,'model-live-receipt.json'),JSON.stringify(outcome,null,2),{mode:0o600});
+  await writeFile(join(dir,stage==='group'?'grouping-live-receipt.json':'model-live-receipt.json'),JSON.stringify(outcome,null,2),{mode:0o600});
   console.log(JSON.stringify({state:outcome.state,code:outcome.code,budget:outcome.budget,outputs:outcome.outputs.length,research:outcome.research}));
 }

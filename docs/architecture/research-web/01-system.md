@@ -12,7 +12,11 @@ Native 归档入口复用这个独立组件及 PG 工具；恢复只进入不同
 来源控制复用当前 Host 签名桥接；只有控制 key 可以在同一运行代次内提交条件配置与审计。
 Hot 的共享事件、版本化频道和人工修正现已作为同一 PG schema 的内部业务持久层实现，
 不是新的研究引擎或第二套队列。事件/评分历史按截止时间读取；人工评分升版继承保留原出处。
-第三频道仅验证配置机制，普通产品 worker/界面与真实归组尚待装配。
+第三频道仅验证配置机制，公开模型激活、界面和领域判断尚待装配。
+正常 Hot worker 现有可选归组能力端口，parse 事务登记处理项，模型就绪才向同一
+`hot.process` 队列调度。未装配时状态为 `blocked_model`，采集与读取继续，待处理项保留。
+DSH 模型适配仍无研究会话/工具；事件发布和队列确认共用原 claim 事务，已知拒绝保留回执。
+公开 Native bootstrap/Settings 模型激活和正式领域评分仍待装配。
 
 Native私有认证bootstrap使用规范化的RWB_RUNTIME_STATE，并要求RESEARCH_RUNTIME_AUTH精确等于该目录内auth.json；拒绝目录别名或另一个认证文件。该绑定只保护所属Host/DSH交接，模型Keychain仍走独立provider。
 

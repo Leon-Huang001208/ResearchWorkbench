@@ -69,10 +69,13 @@ async function append(tx:Tx,schema:string,id:string,expected:number,snapshot:Eve
 }
 function fresh(value:EventProposal):EventSnapshot{return {title:value.title,materials:value.materials,links:value.links,state:'active',canonicalId:null,occurredAt:null,effectiveAt:null,manual:{title:false,protected:[],excluded:[],channels:null}};}
 export async function saveAutomaticEvent(db:Sql,schema:string,owner:RuntimeOwner,id:string,expected:number,value:EventProposal){
+  return withOwnerTransaction(db,schema,owner,tx=>saveAutomaticEventTransaction(tx,schema,id,expected,value));
+}
+/** Internal commit helper; caller must already hold the owner/claim transaction fence. */
+export async function saveAutomaticEventTransaction(tx:Tx,schema:string,id:string,expected:number,value:EventProposal){
   schemaName(schema);uuid(id);revision(expected);proposal(value);
   if(Object.keys(value).some(key=>!['title','materials','links'].includes(key)))throw Error('hot_event_proposal_invalid');
   id=id.toLowerCase();value={title:value.title,materials:value.materials.map(ref=>({...ref,id:ref.id.toLowerCase()})),links:value.links.map(link=>({...link,id:link.id.toLowerCase()}))};proposal(value);
-  return withOwnerTransaction(db,schema,owner,async tx=>{
     let snapshot=fresh(value);
     if(expected===0)await tx`insert into ${tx(schema)}.events(id) values(${id}) on conflict do nothing`;
     else{
@@ -84,7 +87,6 @@ export async function saveAutomaticEvent(db:Sql,schema:string,owner:RuntimeOwner
       snapshot={...snapshot,manual:locks};
     }
     const result=await append(tx,schema,id,expected,snapshot);logEvent('event_saved');return result;
-  });
 }
 export async function configureChannel(db:Sql,schema:string,owner:RuntimeOwner,id:string,expected:number,config:ChannelConfig){
   if(!/^[a-z][a-z0-9_-]{0,47}$/.test(id))throw Error('hot_channel_invalid');revision(expected);text(config.name,100);

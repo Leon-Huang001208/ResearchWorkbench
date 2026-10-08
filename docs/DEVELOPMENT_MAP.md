@@ -34,6 +34,11 @@ DSH 服务与现有 Keychain bridge。migration 9 做每日准入/跨日重验�
 合并/拆分/重新归属/标题/频道人工纠错、历史投影和人工判断继承在此验证。
 模型评分须绑定已有回执；正向测试为 synthetic，不等于真实归组/规则质量验收。
 普通 worker、签名产品 RPC、Web 页面和正式研究接入仍待装配。
+材料归组工作流为 `services/hot/src/processing.ts` / `dsh-grouping.ts` 与 migration 11；
+采集 parse 事务注册不可变版本的处理项，可选模型能力接入同一 worker 的 `hot.process`。
+`processing.integration.ts` / `dsh-grouping.test.ts` 验证冻结输入、跨语言候选、回执复用、
+迟到/拒绝/预算终态和精确版本投影。`model-live-proof.ts group` 沿用固定验收 scope，
+不增加新额度。公开 Native bootstrap/Settings 激活、领域规则和产品读取仍待实现。
 
 | 双运行时源码区域 | 职责 | 权威文档 | 主要测试 | 文档更新触发 |
 | --- | --- | --- | --- | --- |

@@ -29,8 +29,45 @@ and matching result fingerprint/output, verified by both API and database trigge
 The positive receipt-binding test uses a SYNTHETIC response, not a paid call.
 `tests/events.integration.ts` exercises real PostgreSQL, scoped roles, corrections,
 historical cutoffs, a layered diamond graph and configuration of a third channel.
-Scores in this test are fixtures, not research quality evidence. Normal product
-worker processing, public event RPC/UI, real grouping and domain rules are still pending.
+Scores in this test are fixtures, not research quality evidence. Public model
+configuration, event RPC/UI and domain rules are still pending; grouping follows below.
+
+## Durable grouping worker
+
+Migration 11 registers one processing item per immutable material revision and
+group prompt version in the same parse transaction. `src/processing.ts` schedules
+the existing `hot.process` queue only when a grouping capability is available.
+The service accepts that capability internally; public Native bootstrap/Settings
+wiring is still pending. Without it, status reports `blocked_model`, collection
+continues and pending materials remain visible. Budget-blocked, unknown, rejected
+and stale inputs are retained and never automatically requeued.
+
+The exact granted claim freezes a packet before model dispatch. Candidate lookup
+is bounded to 20 events across all history, searching both event titles and the
+original associated reports (including English reports behind Chinese event
+titles). This is bounded retrieval, not exhaustive chain recall. Partial material
+excerpts and three representative reports are declared. DSH input serialization
+is canonical across JSONB reload, so receipt reuse survives process/generation
+replacement. `src/dsh-grouping.ts` uses the existing prepared-call ledger and
+credential-safe output filter; it never starts research sessions or tools.
+
+Model decisions distinguish same occurrence, direct followup, separate event and
+uncertain relationship, with multiple parts for composite material. Publication
+verifies the saved receipt, current material/candidate revisions and manual locks.
+Event updates, immutable processing result and queue acknowledgement share the
+claim transaction. A savepoint rolls back every event change on a deterministic
+publication rejection; the retained receipt and terminal state prevent retry
+loops. Late/candidate-changed results are accurately reported as stale.
+
+`tests/processing.integration.ts` uses synthetic responses with real PG/pg-boss,
+including receipt-before-crash recovery, unchanged counters, cross-language
+candidates, human changes during dispatch, budget pause, publication rollback and
+exact-revision result lookup. These tests do not prove live model grouping quality.
+The controlled `model-live-proof.ts group` acceptance shares the earlier fixed
+human-authorized scope, copies two frozen source records into that schema, and
+uses the production worker handler. It never creates a fresh quota. Its outputs
+report origin/target versions and evidence hashes; regular product activation and
+channel rules remain separate pending work.
 
 ## Continuous public collection
 
