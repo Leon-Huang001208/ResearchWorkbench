@@ -1,10 +1,60 @@
 # 研究框架
 
+异根 Native pair 的私有记录认证在框架消费者启动前复核单写者边界；不同根的完整已认证
+日常实例可继续运行，同根或未知 writer 仍拒绝。框架定义、快照/评分/Bot 合同不变；该源码
+fixture 不替代安装后实际框架生命周期或 Native/Docker 同根数据往返验收。
+
+双运行时 Python 质量整理不改变框架目录、采集、评分或 Bot 协议；其格式/类型检查结果
+仅为源码证据，不能替代框架消费者的实际运行验收。
+
 研究框架为 Gold / Dollar 提供领域定义、真实采集、版本快照、确定性评分和绑定快照的 Bot。它是解释层，执行仍复用唯一 DSH，不创建独立研究引擎。
 
 从[分层阅读入口](../../../outputs/research-web-architecture/index.html#module-frameworks)进入总图、流程、API、源码和测试。
 
 Native / Docker 复用同一框架合同；模型配置影响新建 Bot 的默认模型，已有会话保留选模。采集失败保留最后成功值和缺口，集成状态或服务健康不替代框架快照证据。
+
+模型设置更新只影响新建Bot会话的默认模型，已有Gold/Dollar会话保留选模；活动父/子任务阻止共享凭据变化。模型生成测试复用无研究工具的框架解释preset，但不绑定业务快照、不改变确定性评分或框架采集。测试通过只证明指定模型生成，不证明框架数据能力。
+
+Native 正常安装 auto-start 连接真实创建证明与就绪后才启动框架消费者；no-start/已有根
+不能借 marker 取得 fresh。新 HOME 的真实框架/Runtime 生命周期仍须对应平台验收留证。
+
+启动失败恢复和缺失账本监听检查在研究框架启动前保护同数据根的单写者边界；恢复完成后
+才可再次启动既有框架消费者，不能以换端口绕过活动研究归属。
+
+其他 checkout 的 Web/DSH 数据根未经证明时，缺账本启动不会另起框架消费者；已创建的
+安装数据根不因测试用途而成为 fresh，框架真实生命周期与 canonical 同根往返仍需各自验收。
+
+fresh 启动失败后，回滚须先证明本次消费者全部退出及原外来监听身份未变；恢复证明不
+授权另起框架消费者。无法证明时保留原错误与事务标记，供所属安装明确恢复。
+
+macOS生命周期现在可记录非默认端口并重绑内部控制origin；框架仍使用同一已配置Runtime连接，
+不硬编码由本次CLI选定的宿主端口，不修改框架定义、快照、评分或研究语义。
+
+Native 和 Docker 复用 Gold/Dollar 的定义、快照 revision、评分、renderer 和 Bot 请求合同。
+模式只改变同一 3081/8088 服务的部署位置；Docker 单容器健康检查同时要求两项服务 ready，
+但框架采集是否取得真实外部数据仍由各自来源与缺口规则判断。Docker 健康通过不证明宿主
+Office/Wind 等可选集成可用，也不构成 Windows Docker 验收。
+
+2026-09-29 启动稳定性变更只调整 Research Web/DSH 的进程归属、恢复与页面 ready 判定。
+Gold/Dollar 仍由同一 3081 Runtime 和 8088 Host 执行；定义、采集器、调度、快照 schema/revision、
+评分、renderer、Bot 会话绑定和框架图源均未改变。模型未配置时 Web 设置页可访问，不代表框架
+解释或深度验证已经可调用；该能力继续由真实 Runtime、模型及快照状态决定。
+未安装环境的顶层 `rwb --help` 只输出静态诊断指引，不加载 Gold/Dollar 定义、采集器、快照
+或 Bot；本轮 CI 修复不改变框架版本和页面合同。
+
+Web 一键安装只统一运行依赖和固定 DSH 构建；Gold/Dollar 的定义、采集、快照 schema、评分、
+renderer 与 Bot 会话绑定均未变化。框架仍由同一 3081 Runtime 和 8088 Host 执行。
+启动前 Doctor 门只阻止未完成安装的 checkout 创建共享 Runtime；通过后仍沿用同一框架注册表、
+调度器和快照协议，不增加框架进程或改变评分、renderer 与 Bot 会话绑定。
+Runtime build lock 只绑定同一已验证 DSH 闭包；锁修复不修改 Gold/Dollar 定义、快照 revision 或调度频率。
+全新 DSH `web` Profile 初始化、Windows junction containment 和 PowerShell PID 探针只保证这条唯一 Runtime 可启动/停止，不改变
+Gold、Dollar 的注册、采集、评分、快照或页面协议。
+Office/Wind 验证 timeout 的跨平台浮点上界修正只作用于本机集成验证器，不进入框架采集、评分、
+renderer 或 Bot 会话。
+`rwb web status` 不再因服务管理器导入而加载 Runtime Capability/MCP 功能图；这只缩短停止态诊断
+路径，不改变 Gold/Dollar 注册、调度、快照、评分、renderer 或 Bot 预设。
+安装阶段的 Web import readiness 可以加载框架定义以证明入口完整，但不进入 FastAPI lifespan，
+因此不会启动采集调度、读取外部来源、写快照或创建 Bot 会话。
 
 ## 产品边界
 

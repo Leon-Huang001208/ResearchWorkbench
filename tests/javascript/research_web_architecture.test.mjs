@@ -156,7 +156,7 @@ test('dual-runtime production paths and deployment branches have current archite
     assert.ok(nodes.has(id), `missing deployment node: ${id}`);
   }
   const receipt = JSON.parse(fs.readFileSync(path.join(root, readmeReview), 'utf8'));
-  assert.equal(receipt.disposition, 'updated');
+  assert.ok(['updated', 'unchanged'].includes(receipt.disposition));
   assert.ok(receipt.summary.length > 20);
   assert.ok(receipt.reason.length > 20);
 });

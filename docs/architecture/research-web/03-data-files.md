@@ -1,6 +1,82 @@
 # DataHub、研究资料与实际文件
 
+Native 停止端口等待只在 RAM 保留停止前端口元组与最多45秒单调期限；
+不保存观察基线或新状态，超时不写模式记录，产品数据、认证与凭据沿原路径。
+
+模式切换 finalize 诊断仅使用既有 stderr logger，不创建报告快照、marker、持久 proof 或日志目录。
+Native status 阶段诊断同样仅写固定 stderr 字段，不保存子进程报告或新增状态文件。
+
+容器 Web 单轮就绪预算调整只影响现有内存中的探测期限；不新增持久字段、目录、
+认证预写或数据迁移。失败仍清理本次精确子进程，研究数据与凭据保留原有路径。
+
+异根 Native 认证只读取两份既有私有 launch ledger；调用内比较 hint、目录/record FD 和
+进程事实均只在 RAM。不会新增 marker、持久 proof、Native 端点或认证文件，不读取环境/秘密，
+研究会话、附件、控制 token/有效额外字段与凭据仍沿原路径；作用域退出关闭 FD 并清观察。
+
+同 scope 的 Native own state 从原 mkstemp writer FD 保留 dup 到发布/就绪/停止结束，
+只在 RAM 记录实际 Popen、记录元数据与完整进程/listener 基线。记录同内容替换不能继承
+该观察；失败按精确 child 收尾，未知持久记录保留，不新增 auth、marker 或 proof 文件。
+
+内部类型说明和格式整理不新增文件格式或持久字段；控制记录仍保留原 token/额外字段，
+私有诊断仍不写入异常正文。类型检查日志与产品数据分开，不能充当运行时归属证明。
+
+Docker missing/new-root witness 仅为调用内 RAM：保留真实 lease/controller、私有父/根 FD、inode/owner/mode 与已有 OS 监听身份，不写 marker、PID、认证、controls 或元数据备份。no-start 只发布原安装摘要与模式，产品根保持缺失；实际 start 创建私有根并在 up 前失去分配权限。失败后只按原精确容器归属清理本次对象，未知替换保留；根和用户数据不删除，不把已创建根清掉来假造下一次 fresh。旧状态、凭据与研究数据不迁移。
+
 模型默认值、清除/回执未知标记及最近显式生成结果只保存于既有非秘密产品索引，不保存Key。macOS Native固定DSH模型秘密仅在系统Keychain；权限受限私有文件仅用于Host认证record；不进入DataHub快照、Automation索引、模型上下文或导出。提交前的未知标记支持取消/崩溃后的冷恢复失败关闭。
+
+运行状态 guard 的拒绝取证仅进入既有私有日志：固定枚举与身份变化字段名不包含路径、
+数值身份、文件内容、Cookie或token。不新增状态文件、marker、认证预写或数据迁移。
+身份变化日志只增加精确root/runtime对方向与相对位置枚举；仍不记录具体祖先目录或真实UID/GID。
+
+Docker `/state/runtime` 位于 1 MiB 的私有 `/state` tmpfs；认证通过每次启动/重启的原链重建，
+容器停止丢弃状态，不做文件预写、marker、权限修复或旧认证迁移。
+宿主 state/logs 单独 bind `/state/logs`，产品日志继续保存在 data-root/logs；
+旧 host state/runtime 原样保留，数据与凭据持续使用原绑定。Docker VM tmpfs 可能进入 swap，
+见 [Docker 文档](https://docs.docker.com/engine/storage/tmpfs/)，不能宣称秘密永不落盘。
+
+包明确发布子树中的 `doc/docs` 代码和配套运行资源属于镜像资产，继续进入既有 staged manifest。
+用户资料与包顶层文档不因此进入运行资产；未选开发包、测试、fixture、缓存不复制。
+
+Docker 派生资产的根模块相对别名只指向镜像内已选生产包，和私有 pnpm hoist 一同进入已有
+staged manifest。它们属于只读代码资产，不迁移用户 Profile、日志、缓存或研究资料。
+
+构建stream复用调用方私有任务stdout日志；仅脱敏内容外流，不新增持久数据格式或研究文件。原始捕获每路≤2MiB、合计≤4MiB，不上传日志。
+
+Docker builder 的 Node headers 是固定基础镜像资产，和 binary 同源，不是用户数据或新依赖锁。
+完整目录覆盖 config.gypi/common.gypi；只在 dsh-builder 使用，不进入最终 runtime 或研究根。
+
+Docker pnpm 下载并发 8、单请求期限 120 秒是[构建命令局部参数](../../research-web-installation.md)，
+不新增缓存或持久字段，也不改变研究数据、认证状态或凭据路径。
+
+Docker CLI代理只来自本次host环境校验，不写研究数据、manifest、Compose或镜像；provider
+秘密和Docker endpoint/TLS覆盖项不继承。Doctor.proxy只投影state/configured/local_bypass/issues，
+没有代理URL、认证或NO_PROXY原列表。
+
+正常 Native installer auto-start 凭同次 manager 在真实持锁 scope 实际创建根并保留身份至
+build-lock 就绪，不能从已有文件认领；no-start/跨调用没有该证明。环境 marker 仅证明
+checkout-owned Python，不承载数据根 witness、lease 或控制 token。
+
+Native 补齐任一缺失控制文件前先只读验证全部既有控制记录；MCP-only 动态 origin 成为
+正常 DataHub creator 的输入，畸形 MCP 不会留下新建 DataHub 文件。
+
+Native 环境和运行账本缺失的只读桥核验监听事实，不创建账本或控制文件；外来实例的
+已证明监听不会被当作本研究数据根的写者，未知或同根进程仍保留原文件并拒绝生命周期。
+
+Web 的 RESEARCH_DATA_HOME 与 DSH 配置均可使其他 checkout 使用相同数据根；仅 argv 路径
+不同不足以证明隔离。fresh 创建身份仅在本次启动内存中持有，已有 setup runtime/build-lock
+目录不取得该证明；拒绝时不删除、移动数据根或改写账本以制造全新状态。
+
+fresh 失败恢复的外来监听身份仅存在于本次内存记录，不写入 ledger/journal/日志。持续根与
+lease 身份、全部本次对象退出和原监听事实一致时才恢复原 controls 字节；未知或替换保留 intent。
+
+独立端点 helper 的 `install/endpoints.json` 是运行时元数据，不是第二份依赖或研究事实。
+启动链的 origin helper 对两份 `.control` 记录保留 token/其他有效字段并改 URL，
+不迁移数据或凭据；原始回滚字节只留在内存，持久中断标记没有 token 备份。
+
+Native 在可信正常 creator 补齐缺失记录后开始事务；Docker 首次两份都缺失由正常 guest
+creator 初始化，单缺失由受管 prepare-only guest 先补齐。host 保留已有文件身份并在guest
+退出后复核未被替换，再对两份可信文件建立事务基线；不认领外来替换。
+端点CAS恢复生成新revision，不覆盖并发发布或另一模式记录。
 
 固定Docker bind中的私有叶首建不读取认证或凭据；创建阶段允许的父owner映射只限root到
 当前进程UID/GID，随后重新完整验证节点。已有文件、叶目录和canonical数据根均不chmod/chown。
@@ -8,16 +84,17 @@
 新建Compose调用的launch label通过私有临时目录内的最小配置overlay提供，退出后清除。
 它不含凭据或用户内容，不写入接受摘要；持久化数据与秘密不参与失败容器回滚删除。
 
-Docker 临时运行状态位于私有 tmpfs 的 `/state/runtime`，凭据记录位于独立凭据 bind 的
-`private/` 子目录；两者由容器用户创建，避免将 Desktop 映射为 root 的挂载根误作私有叶。
-容器重建后重新创建运行状态，并继续验证和复用持久凭据叶，不迁移或复制 Native Keychain，也不改变 canonical data-root。
+Docker 凭据记录继续位于独立凭据 bind 的 `private/` 子目录，重建后验证并复用；
+Docker Doctor schema 1 的 `volumes` 安全类型投影为 data=bind、state=tmpfs、logs=bind、credentials=bind；新增 logs 为固定非秘密类型字段。`verified` 仍只由实际容器 inspect 归属/挂载核验成功决定，缺失或不安全容器为 false；只读查询不创建日志目录。
+运行状态为临时 tmpfs 的 `runtime/` 子目录，每次正常重建认证。旧宿主 runtime 不再挂载，
+不迁移或删除，不复制 Native Keychain，也不改变 canonical data-root。
 
 Docker 接受摘要 `install/docker-manifest.json` 是私有、限长、禁止 alias 的部署状态，绑定
 image ID 与构建合同，不能充当研究数据。候选健康失败或发布失败只回滚本次已确认归属的
 容器；共享研究数据、独立凭据与旧接受镜像保留。模式提交失败恢复旧接受摘要字节。
 显式离线 repair 只可非 force 移除已证明停止且归属正确的旧容器，不删除其镜像或挂载数据。
 
-双运行时不复制或分叉研究事实：Native 与 Docker 依次 bind/读取同一 `~/.research-workbench/research-web/`，会话、附件、DataHub 快照和产物仍使用下述相同文件合同。模式切换先停止并确认旧模式退出，禁止并发写。进程/认证/build lock 不放在产品数据中：Native 保留自身 `run/` 状态，Docker 宿主管理状态使用 `run/docker/<installation-id>/`，容器认证与 build lock 使用 `/state` tmpfs；Docker 凭据单独存入 `secrets/docker/<installation-id>/` 并 mount 到容器，Native 系统 keyring 不自动迁入。安装摘要分别记录 Native 与 Docker 事实，不能互相证明健康。卸载默认保留数据和秘密，任何清理需独立授权及备份。
+双运行时不复制或分叉研究事实：Native 与 Docker 依次 bind/读取同一 `~/.research-workbench/research-web/`，会话、附件、DataHub 快照和产物仍使用下述相同文件合同。模式切换先停止并确认旧模式退出，禁止并发写。Native PID 账本保留自身 `run/` 路径，认证与构建锁沿用既有产品 `runtime/` 目录；Docker 运行状态、认证及启动器生成的 `build-lock.json` 位于容器 `/state/runtime` 私有 tmpfs，每次正常启动重建。宿主 `run/docker/<installation-id>/logs` 仅用于持久日志 bind，旧宿主 `runtime/` 内容原样保留、不迁移；Docker 凭据仍单独存入 `secrets/docker/<installation-id>/` 并 mount 到容器，Native 系统 keyring 不自动迁入。安装摘要分别记录 Native 与 Docker 事实，不能互相证明健康。卸载默认保留数据和秘密，任何清理需独立授权及备份。
 
 Web 安装清单位于 Research Workbench 私有数据根的 `install/manifest.json`，只保存代码/依赖版本与
 摘要；CJPY wheel、Web 锁和 DSH 闭包均以哈希核对。清单和安装日志不保存 `CJ_KEY`、模型密钥、
