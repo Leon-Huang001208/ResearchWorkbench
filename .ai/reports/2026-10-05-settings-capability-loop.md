@@ -1271,3 +1271,11 @@ Bootstrap37760339730最终success，attempt1/workflow_dispatch/job113254941458/m
 再次核对PPT文件精确文本时发现早期摘要“样本数为3缺空格”不准确：当前正常页面读取及已下载document-a5536d766fca4e429487e82f41b4c94f.pptx实际XML均为“样本数为 3”，因此未修改或另存该文件，没有新增Office资源。Browser插件初始化被classic-level原生库签名错误阻止；未改系统签名/插件依赖，既有CUA浏览器入口一次成功恢复原19089任务页，读取验证无模型请求。该浏览器恢复不能证明native AX恢复；仅对已运行Word96765做一次只读getApp，工具实际120秒超时，无法确认保存提示，未继续重试或关闭文稿。现有Word界面问题及PPT视觉反馈仍待用户实际回答，不能从用户对527旧PPT访问授权推断Word许可或最终视觉通过。
 
 相同Word实机界面/保存与资源归属阻塞已连续多轮保留；本地修复、独立文件业务、Excel/PPT读回及当前候选CI均已尽可独立推进。此时无归属确认不能安全重启Word实机，原生视觉不能由库解析替代，目标分支69提交/137路径不能在固定范围内盲目整合。Goal须保持未完成并按阻塞审计停止自动重复；解除Word/视觉条件后从断点续接，不重跑已完成模型、Keychain、文件业务或整套CI。生产8088/3081仍未更新、PR未合并、未发布。
+
+### 用户续接Word剩余问题与PPT查看入口
+
+用户要求说明PowerPoint视觉入口并继续解决Word，当前HEAD90008ce0a8c70b3707b12eb7b0fd9859b84f41f8、工作区开始干净。提供已核对SHA的final-native-powerpoint.pptx由真实PowerPoint打开观察两页，不要求重新生成或另存。Word9796正式回执仍为saved阶段超时、last_completed_step written、cleanup unverified，未假定其已解除。
+
+只读查看当前安装Word.sdef：提供save as命令，其file name参数为text、file format为WdSaveFormat；存在format document与format document default。此前save-as -1708及标准save等待超时均保留，字典存在命令不能证明调用成功，因此不凭猜测再换保存语句。最初检索测试data home的范围过宽并产生大量非相关会话索引输出，已停止该方式，后续仅定位已登记9796回执和实现；未复制凭据/索引到报告或执行新模型请求。
+
+为寻求精确文稿控制，调用现有Codex Document Control只读list_document_sessions(surface=word)，实际返回executors空列表/No connected sessions。没有执行文档命令、安装插件、改变权限或扩为新的产品集成路径。当前仍无法确认Word前台是否为保存/访问对话框；用户本次仅要求解决问题，尚未提供Word实际状态。已给出一次当前步人工观察问题（只看、不保存/关闭，确认提示类型及任务身份），不重复整个任务授权、不重跑同一失败或创建Office资源；原native AX超时没有再次尝试。后续从这一反馈断点处理，不将外部条件未知写成代码已修复。
