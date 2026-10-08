@@ -8,9 +8,9 @@
 | 兼容文本 | 独立 Ollama/Qwen2.5 无Key文本生成、普通research-web会话与Host/DSH冷重启已验证；不认证工具、多模态、带Key商业服务或研究质量。 |
 | 商业数据 | 用户确认Wind/iFinD有可用账户；最新反馈为iFinD只有终端账户、接口权限不确定，未提供接口Token。Wind插件心跳通过，但一次封闭业务查询deadline/0行；不影响原公开NAV。 |
 | 三项FILE | Word、Excel、PowerPoint固定样例均已从正常Web页面生成、读取、修改、下载并独立检查；Excel文件模式明确未重算。详见最新分项证据，不冒充原生通过。 |
-| 三项NATIVE | Excel6b4a5a33真实5→10→保存关闭重开10、公式保持及下载缓存检查通过，临时清理确认；PPT8b79b55d真实修改/保存关闭重开/4文本读回及产物独立检查通过，视觉仍待补。Word9796完成创建/正文/原生表格/样式，保存等待超时，原一次人工界面问题待反馈，清理未确认。旧失败仍完整保留。 |
+| 三项NATIVE | Excel6b4a5a33真实5→10→保存关闭重开10、公式保持及下载缓存检查通过，临时清理确认；PPT8b79b55d真实修改/保存关闭重开/4文本读回及产物独立检查通过，用户已确认最终两页视觉无问题，PowerPoint_NATIVE PASS。Word9796完成创建/正文/原生表格/样式，保存等待超时，人工界面状态待反馈，清理未确认。旧失败仍完整保留。 |
 | Word清理 | 旧两项用户提供的候选归属仍UNVERIFIED且未操作。新212f对象路径、固定合成正文与saved属性已核对匹配，原关闭维护成功，随后重开timeout，因此文件清理仍UNVERIFIED。其余新资源也按各自登记保留未确认状态。 |
-| hostAcceptance | 最新冻结候选bd05b79c086cd0a957be616cdfc47d44ff2797af的Mac工程回执PASS：macos-14 Bootstrap37760339730与Ubuntu通用Web Checks37760324407均success且日志确认checkout bd05。Word原生与PPT视觉未完成；Project Constraints远端仍NOT_RUN。工程PASS不等于六项功能Goal完成。 |
+| hostAcceptance | 最新冻结候选bd05b79c086cd0a957be616cdfc47d44ff2797af的Mac工程回执PASS：macos-14 Bootstrap37760339730与Ubuntu通用Web Checks37760324407均success且日志确认checkout bd05。Word原生未完成；Project Constraints远端仍NOT_RUN。工程PASS不等于六项功能Goal完成。 |
 | aggregateAcceptance | NOT_READY；mergeReady=false/releaseReady=false。Windows/Linux/Docker由所属任务留未验证，本轮不执行、不改全局平台规则。 |
 
 当前Goal仅Word/Excel/PowerPoint、macOS Native+Web，不扩展金融插件或其他Office应用；旧商业接口记录保留事实但不重启其验收。原各轮结果和失败历史完整保留；旧段落当时状态不覆盖本节与最新记录。plan/receipt及脱敏证据仍在 `logs/settings-model-loop/`，不另建总报告；不更新生产、不合并或发布，本轮供应商模型请求0，意外未隔离测试的背景请求UNKNOWN另行保留，不将其伪写为绝对0。
@@ -1264,7 +1264,7 @@ Bootstrap37760339730最终success，attempt1/workflow_dispatch/job113254941458/m
 |---|---|---|---|---|
 | Word | PASS，正常页面生成/读改/下载及7项独立核对 | BLOCKED，9796最后written、saved超时 | NOT_RUN，该原生任务未完成保存 | UNVERIFIED，原单次人工反馈待答，不操作未知文稿 |
 | Excel | PASS，8项核对，文件模式未重算 | PASS，真实5→10及公式保留 | PASS，Microsoft Excel重开10，下载缓存10 | PASS，仅所属新实例及工作簿关闭，用户实例保留 |
-| PowerPoint | PASS，正常页面生成/读改/下载及9项核对 | BLOCKED，文本编辑/保存成功，但最终视觉未验证 | PASS，4目标真实App读回 | PASS，登记任务文稿关闭，交付文件保留 |
+| PowerPoint | PASS，正常页面生成/读改/下载及9项核对 | PASS，真实文本编辑/保存与用户最终视觉确认 | PASS，4目标真实App读回 | PASS，登记任务文稿关闭，交付文件保留 |
 
 任务1正式UI及公开业务API、任务2步骤/错误/清理诊断已具证据，任务3Word原生仍缺保存后闭环，任务4Excel通过所列固定样例，任务5PPT仍缺视觉，任务6文件入口已验证、真实模型选工具本Goal未执行（不使用旧T6或fixture充当新Office模型证据），任务7本地相关闭包与匹配Mac CI通过所列范围、mypy既有错误及PR外部门缺项不豁免。已交付Word_FILE、Excel_NATIVE和PowerPoint_NATIVE最终合成产物，但不能用其中Word文件模式代替Word原生交付。
 
@@ -1279,3 +1279,9 @@ Bootstrap37760339730最终success，attempt1/workflow_dispatch/job113254941458/m
 只读查看当前安装Word.sdef：提供save as命令，其file name参数为text、file format为WdSaveFormat；存在format document与format document default。此前save-as -1708及标准save等待超时均保留，字典存在命令不能证明调用成功，因此不凭猜测再换保存语句。最初检索测试data home的范围过宽并产生大量非相关会话索引输出，已停止该方式，后续仅定位已登记9796回执和实现；未复制凭据/索引到报告或执行新模型请求。
 
 为寻求精确文稿控制，调用现有Codex Document Control只读list_document_sessions(surface=word)，实际返回executors空列表/No connected sessions。没有执行文档命令、安装插件、改变权限或扩为新的产品集成路径。当前仍无法确认Word前台是否为保存/访问对话框；用户本次仅要求解决问题，尚未提供Word实际状态。已给出一次当前步人工观察问题（只看、不保存/关闭，确认提示类型及任务身份），不重复整个任务授权、不重跑同一失败或创建Office资源；原native AX超时没有再次尝试。后续从这一反馈断点处理，不将外部条件未知写成代码已修复。
+
+### PowerPoint最终人工视觉确认
+
+2026-10-08 19:08（Asia/Shanghai记录时刻），用户针对已提供的final-native-powerpoint.pptx及“两页文字无裁剪、重叠”检查回复“PowerPoint 确认”。按当前明确上下文记人工视觉PASS，证据来源为用户实际确认，不伪造截图或自动视觉结果。文件SHA256仍须匹配a1a664b783a3365538ff239495d29d9a8f2774d8bee79c9dcdc58c5c970ecb19，对应正式原生8b79b55d任务产物；office-ppt-user-visual-confirmation.json保存该有限证据。结合已有真实保存/关闭/重开/4文本读回、可编辑对象核对及精确清理，PowerPoint_NATIVE现在PASS，早期视觉NOT_RUN记录保留历史，不能覆盖本条后续确认。
+
+当前六项为Word_FILE/Excel_FILE/PowerPoint_FILE/Excel_NATIVE/PowerPoint_NATIVE通过，Word_NATIVE仍BLOCKED。未重跑Office、模型或CI，未创建新文稿、修改生产或合并PR。唯一现行工程回执中的PPT视觉风险可据此移除，Word保存/清理、PR整合/Project Constraints及真实Office模型工具选择缺证据仍分别保留，mergeReady/releaseReady仍false。
