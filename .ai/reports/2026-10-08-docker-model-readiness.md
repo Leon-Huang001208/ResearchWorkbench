@@ -321,6 +321,67 @@ canonical依赖57FAIL、自身0仍按真实状态保留。完整Git-bound重新�
 一次错误手填单文件集合被INCOMPLETE_CHANGE_SET拒绝，未据此缩减验收，随后用完整发现集成功。
 将提交修补并重建其精确源码镜像，真实model链验收结果只能归属新image/source身份。
 
+## 2026-10-09 修补镜像实测与剩余授权
+
+宿主macOS/arm64，任务类型为Web功能开发及macOS Docker Desktop实测；不认证其他平台。
+修补提交为fa81e46ae74393e97b3d910c263e7840f1e5b704，提交后工作树干净。
+只将任务专属干净detached checkout切至该提交，沿用独立HOME及安装身份；公开入口
+`./setup-web.sh --runtime docker --repair --no-start`锁定安装成功，新镜像为
+`sha256:c28ae75326786cefd821ff46158440357e3ccf9c62fd14c2f76035095ab3df55`。
+`physical-install-readonly-fix-20261009.log`保存实际构建结果。未改宿主全局配置、TLS或软件源。
+
+正常`./rwb web start --no-open --json`验证owned/healthy，自动Web端口60514，内部DSH3081。
+实际JS最小环境私有CLI已可describe；公共runtime及Doctor模型backend_available/binding_verified
+均为true，storage为docker_private_file，无Key时configured=false，核心健康与缺Key警告分开。
+参见`physical-doctor-repaired-20261009.json`，旧72镜像模型FAIL证据未改写。
+
+无秘密样例通过公共模型设置API完成set/blank retain/replace/clear，私有resolve比较只在内存进行，
+公共结果无canary。`physical-canary-20261009.json`记录实际PASS，未触发供应商请求。
+再次设置持久化canary后，正常stop/start同容器冷读匹配；随后正常stop，在现有controller
+`_locked_guard("repair_disposition", ...)`内调用既有`_dispose_stopped_for_repair`，只移除已停止、
+已验证归属的旧容器，不删除卷/数据/credentials/image，再由公开start创建新容器。
+此处明确为既有内部受保护disposition方法，不伪称存在公开recreate命令。
+新容器9e1d3852262e保持同image及安装身份，私有冷读匹配；最后公共clear使configured=false。
+参见`physical-cold-canary-resolve-20261009.json`、`physical-same-image-disposition-20261009.json`、
+`physical-same-image-recreate-20261009.json`、`physical-recreate-canary-resolve-20261009.json`及
+`physical-clear-after-recreate-20261009.json`。凭据持久化不是研究文本/会话恢复证据。
+
+Browser技能规定的初始化仅执行一次，原生classic-level模块报code signature invalid，
+在创建tab前失败；未改插件缓存/签名、未启动其他控制路径、未关闭浏览器。
+open-idle场景NOT_RUN，actual-stream场景NOT_RUN；no-open正常停止有真实证据。
+最终公开stop成功owned verified，Docker inspect exited/0，宿主60514实际bind可用；
+`physical-final-stop-20261009.json`保存此阶段结果。任务镜像、数据、凭据目录和checkout保留。
+
+证据复用边界：此前72源码的22门正式回执保持原身份和BLOCKED，不伪称fa81重跑；
+fa81新增私有CLI导入修补另有267PASS/2 opt-in SKIP、132项Node/治理PASS及独立SPEC/QUALITY
+批准，完整54路径/L4计划与约束0违规。此次真实镜像和API证据归属fa81，不替代必要macOS CI。
+当前报告新增阶段尚需重新生成完整changed-set计划/回执收尾，不覆盖旧证据。
+
+剩余必要门：真实Key由用户在隔离Settings录入；独立最多请求数/token/费用授权、预算初始化及
+真实文本/冷读/同会话续问/同image重建文本恢复仍NOT_RUN；浏览器空闲场景受工具签名阻断，
+实际stream需真实研究；新任务远端push/PR/macOS CI/merge/release/cleanup仍未获独立授权。
+本地免费实测阶段完成，不表示整个goal或发布完成；无付费调用、无远端写入。
+
+随后按目标A–E/Done逐项复核，当前缺门独立列于
+`logs/model-readiness/physical-phase-remaining-doors-20261009.md`，旧缺门/正式receipt不改写。
+完整base→HEAD加工作树报告共54文件，Git-bound plan仍L4；本轮实际文档治理585文件/90current
+零违规、Python文件索引--check及diffcheck均exit0，a1d2087/eeb530c仍为HEAD祖先。
+无新付费/远端授权，不把被停止的测试容器当作待轮询运行任务；真实研究及交付门仍未满足。
+
+## 2026-10-09 后续独立授权与启动预算
+
+用户随后明确授权剩余付费、浏览器验收及推送/PR/macOS CI三项；不扩大到全局配置、
+插件签名绕过、其他平台dispatch、merge/tag/release或破坏性清理。
+GitHub API当前仓库PUBLIC，标准runner最近Bootstrap成功记录可读；远端master已前进至
+4a5e7523d7407525d108757727c64f10783203f4，后续必须以实际集成结果复验，不能直接发布旧基线。
+官方DeepSeek价格复核仍为Flash峰值input0.3/output1.2美元每百万tokens，旧v4-flash别名仍被接受。
+本次明确额度3请求、512输出tokens/次、费用不超过1美元，保守预留945564 microUSD。
+只在本安装31514074b0f849d1bfb81d4a735f9db2私有固定预算叶初始化一次，CLI exit0/oktrue；
+validUntil=2026-10-08T19:08:02Z（北京时间10月9日03:08:02），不重置或延长过期授权。
+初始化不代表请求发生；正在正常restart启用guard，真实Key仍须用户从正常隔离Settings输入。
+Chrome备用创建调用及随后的状态核对均在工具连接阶段超时，不证明已打开页面，未重复创建；
+未修改插件/签名或关闭任何标签。应用open_in_codex设置页请求queued，不伪称页面已呈现。
+
 <!-- architecture-review {"group":"dual-runtime","structure":"unchanged","reason":"在既有私有credentials bind内增加模型叶和非秘密安装身份/参数绑定；Native overlay不变，无新mount、Host服务或部署节点。旧实例空ID投影保留原完整生命周期守卫但无模型能力，新精确绑定只在实际完整inspect后派生，不改变DSH唯一引擎或数据根，实际镜像和真实研究另行验收。","diagrams":[]} -->
 
 <!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"当前JS私有pipe已经接入稳定安装ID/source绑定，继续委派原Host浏览器record；Native默认overlay不变，模型秘密只落在既有Docker私有credentials信任区或Native Keychain，无新部署组件、公开取密API、宿主bridge或第二执行循环。当前按实现合同记录，实际镜像及真实模型状态未验收且不借静态图推导通过。","diagrams":[]} -->
