@@ -1,5 +1,22 @@
 # 安全边界与验证方法
 
+Docker 文本验收的准入配置只接受已验证 staged runtime、精确模型私有根与稳定安装ID；
+普通内部3081实例不因环境开关获得验收授权。该受限profile限制输出、拒绝附件/工具并禁重试；
+没有显式初始化的私有控制时，派发前固定拒绝 `acceptance_budget_unverified`。
+取消仅返回 `acceptance_request_aborted`，不读取或透传自定义reason；旧基金验收取消语义保持。
+`live_acceptance_budget.py` 只允许显式init创建固定安装叶和永久锁；startup只读，reserve持锁
+预扣并原子发布，最多三票，取消/失败/重启/重建均不退款或重置。未提交失败留旧账本，提交不确定
+拒绝派发，不删除已接受目的或猜测回滚；所有权、0700/0600、单链接、无别名和有界解析仍必需。
+控制与账本不是DataHub或模型秘密记录，不持有Key/Prompt/usage；私有Python管道只接收固定操作和数字。
+输入按已核实模型的最坏完整上下文预留，整数费用按有日期的费率计算，不把字符估算当token硬界。
+validUntil只约束新准入，不承诺已准入请求的远端发送/结束/计费均在截止前；固定政策到期拒绝，
+没有自动续期、迁移或重置。控制存在不独立证明人类授权，真实init须另获预算批准并复核官方费率。
+代码/fixture合同不是生产Linux CLI、真实模型、Docker绑定或容器验收通过的声明。
+
+POSIX父目录初始比较与退出比较使用同一边界：共享祖先的内容元数据变化不改变已pin节点身份；
+!node_only即时私有父目录仍比较完整元数据。FD、no-follow、目录类型、inode/mode、owner与
+record/lock验证不变，初始inode/mode/symlink替换仍拒绝；构造场景误拒绝修复不证明旧controller失败归因。
+
 Docker DSH builder 的[下载参数](../../research-web-installation.md)仅将现有 pnpm install 并发设为 8、
 单请求期限设为 120 秒；frozen lockfile、默认重试、registry、TLS、签名和最低发布时间校验保持。
 

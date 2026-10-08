@@ -116,6 +116,8 @@ Docker 控制测试使用临时端口，真实端口冲突断言继续执行，�
 - `tests/javascript/repository_cross_platform_contract.test.mjs`：Git 换行、vendor 字节稳定和本机状态忽略合同。
 - `.agents/runtime/leon-engineering/manifest.json`：共享验收内核固定版本、source commit、协议和受管文件哈希；不拥有项目策略。
 - `.agents/skills/incremental-validation/`：Codex/Claude 共用的项目增量验收流程；只引用策略和脚本，不复制路由表。
+- 模型凭据 Python/JS catalog：精确模型与后端路径选择，安全/high-coupling L4；普通 Checks 执行十二个明确 Python 模块和原 Node glob 加 Docker contract。`verification_policy.test.mjs`、`actions_quota_governance.test.mjs` 验证真实命令及删除/替换负例，不以触发路径替代执行。范围与扩展前实际耗时见 `docs/actions-budget.md`；完整目录、平台矩阵及真实模型不隐式纳入。
+- `live_acceptance_budget.py`、`launch_runtime.py`、`runtime/guard.mjs` 及最近测试：精确 live-acceptance 安全/L4 路由，复用 container-runtime Python 闭包与 `research_web_guard.test.mjs`，保留原平台/外部门。私有预算 fixture 和实际固定 SDK stub 不证明生产 Linux CLI、Docker image 或供应商计费。
 - `docs/actions-budget.md`：GitHub Actions 免费额度、冻结状态、平台路由与保留策略。
 - `.ai/reports/`：每个实现任务的真实证据及 `architecture-review` 标记。
 - 源码结构或导入发生变化时运行 `python scripts/generate_py_file_index.py --check`；需要更新时先生成再复核。

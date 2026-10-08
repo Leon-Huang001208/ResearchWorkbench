@@ -286,6 +286,7 @@
         "app/research_web/launch_runtime.py",
         "app/research_web/model_credentials.py",
         "app/research_web/model_file_store.py",
+        "app/research_web/live_acceptance_budget.py",
         "app/research_web/runtime/",
         "vendor/dsh-tabbit/0.3.4/",
         "app/research_web/sandbox.py",

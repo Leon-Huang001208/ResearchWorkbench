@@ -771,7 +771,7 @@ test("every focused Research Web Python catalog isolates the repository root con
     && item.value.startsWith("python -m pytest tests/research_web/")
   ));
 
-  assert.equal(catalogs.length, 17);
+  assert.equal(catalogs.length, 18);
   for (const [id, item] of catalogs) {
     assert.match(
       item.value,
@@ -862,6 +862,66 @@ test("dual-runtime catalogs and Docker external gate keep their exact contracts"
     ".github/workflows/research-web-docker.yml#docker-runtime",
     "ci", "merge", ["linux"],
   ));
+});
+
+test('model private boundary selects exact Python and JavaScript credential gates at L4', () => {
+  const actual = JSON.parse(fs.readFileSync(path.join(repositoryRoot, '.agents/verification-policy.json'), 'utf8'));
+  assert.deepEqual(actual.catalogs.tests['research-web-model-credentials-python'], catalog(
+    'L2', 'python -m pytest tests/research_web/test_model_credentials.py --confcutdir=tests/research_web',
+  ));
+  assert.deepEqual(actual.catalogs.tests['research-web-model-credentials-js'], catalog(
+    'L1', 'node --test tests/javascript/research_web_model_credentials.test.mjs',
+  ));
+  const modelRule = actual.rules.find(item => item.id === 'research-web-model-credentials');
+  assert.ok(modelRule);
+  assert.equal(modelRule.coupling, 'high');
+  assert.ok(modelRule.impact.includes('security-boundary'));
+  assert.deepEqual(modelRule.match.prefixes, []);
+  assert.deepEqual(modelRule.match.segments, []);
+  assert.deepEqual(modelRule.match.suffixes, []);
+  for (const file of [
+    'app/research_web/model_credentials.py', 'app/research_web/model_file_store.py',
+    'app/research_web/runtime/model-credentials.mjs', 'tests/research_web/test_model_credentials.py',
+    'tests/javascript/research_web_model_credentials.test.mjs',
+    'app/research_web/credential_backend.py', 'tests/research_web/test_credential_backend.py',
+  ]) {
+    assert.ok(modelRule.match.files.includes(file), file);
+    const plan = success(run(repositoryRoot, [file]));
+    assert.equal(plan.risk, 'full-delivery', file);
+    assert.equal(plan.requiredLevel, 'L4', file);
+    for (const id of ['research-web-model-credentials-python', 'research-web-model-credentials-js', 'research-web-credential-backend']) {
+      assert.ok(plan.tests.some(item => item.id === id), `${file}: ${id}`);
+    }
+    assert.ok(plan.ci.some(item => item.id === 'research-web-checks'), file);
+    assert.equal(plan.reasons.some(item => item.code === 'unknown_path'), false, file);
+  }
+  for (const file of ['app/research_web/ui/app.mjs', 'docs/README.md', 'future/platform/new_adapter.py']) {
+    const plan = success(run(repositoryRoot, [file]));
+    assert.equal(plan.tests.some(item => item.id === 'research-web-model-credentials-python'), false, file);
+  }
+});
+
+test("live acceptance budget sources retain security L4 and actual focused commands", () => {
+  const actual = JSON.parse(fs.readFileSync(path.join(repositoryRoot, ".agents/verification-policy.json"), "utf8"));
+  assert.deepEqual(actual.catalogs.tests["research-web-research-guard"], catalog(
+    "L2", "node --test tests/javascript/research_web_guard.test.mjs"));
+  for (const file of [
+    "app/research_web/live_acceptance_budget.py", "app/research_web/launch_runtime.py",
+    "app/research_web/runtime/guard.mjs", "tests/research_web/test_runtime_launch.py",
+    "tests/javascript/research_web_guard.test.mjs",
+  ]) {
+    const plan = success(run(repositoryRoot, [file]));
+    assert.equal(plan.risk, "full-delivery", file);
+    assert.equal(plan.requiredLevel, "L4", file);
+    assert.ok(plan.impact.some(item => item.modules.includes("security-boundary")), file);
+    for (const id of ["research-web-container-runtime", "research-web-research-guard"]) {
+      assert.ok(plan.tests.some(item => item.id === id), `${file}: ${id}`);
+    }
+    assert.ok(plan.ci.some(item => item.id === "research-web-checks"), file);
+  }
+  const unknown = success(run(repositoryRoot, ["future/private/new_budget.py"]));
+  assert.equal(unknown.requiredLevel, "L4");
+  assert.equal(unknown.reasons.some(item => item.code === "unknown_path"), true);
 });
 
 test("Docker packaging routes to L4 Docker acceptance without desktop gates", () => {

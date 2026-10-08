@@ -9,6 +9,15 @@ on:
       - "research_workbench_entrypoint/**"
       - "tests/research_web/**"
       - "tests/javascript/research_web*.test.mjs"
+      - "tests/javascript/docker_runtime_contract.test.mjs"
+      - "Dockerfile"
+      - "compose.yaml"
+      - ".dockerignore"
+      - "docker/entrypoint.sh"
+      - "docker/supervisor.py"
+      - "docker/healthcheck.py"
+      - "docker/stage_dsh.py"
+      - "runtimes/research_web.json"
       - "requirements/web.in"
       - "requirements/web.lock"
       - "pyproject.toml"
@@ -25,6 +34,15 @@ on:
       - "research_workbench_entrypoint/**"
       - "tests/research_web/**"
       - "tests/javascript/research_web*.test.mjs"
+      - "tests/javascript/docker_runtime_contract.test.mjs"
+      - "Dockerfile"
+      - "compose.yaml"
+      - ".dockerignore"
+      - "docker/entrypoint.sh"
+      - "docker/supervisor.py"
+      - "docker/healthcheck.py"
+      - "docker/stage_dsh.py"
+      - "runtimes/research_web.json"
       - "requirements/web.in"
       - "requirements/web.lock"
       - "pyproject.toml"
@@ -74,8 +92,15 @@ jobs:
             tests/research_web/test_documentation.py \
             tests/research_web/test_doc_sync.py \
             tests/research_web/test_cli_lazy.py \
+            tests/research_web/test_model_credentials.py \
+            tests/research_web/test_credential_backend.py \
+            tests/research_web/test_runtime_contract.py \
+            tests/research_web/test_runtime_mode.py \
+            tests/research_web/test_docker_runtime.py \
+            tests/research_web/test_runtime_launch.py \
+            tests/research_web/test_container_supervisor.py \
             --confcutdir=tests/research_web -q
 
       - name: Run Research Web JavaScript contracts
         shell: bash
-        run: RWB_TEST_PYTHON="$PWD/.venv/bin/python" node --test tests/javascript/research_web*.test.mjs
+        run: RWB_TEST_PYTHON="$PWD/.venv/bin/python" node --test tests/javascript/research_web*.test.mjs tests/javascript/docker_runtime_contract.test.mjs

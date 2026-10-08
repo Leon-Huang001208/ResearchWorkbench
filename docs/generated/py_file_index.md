@@ -4627,6 +4627,7 @@ Module docstring:
 Imports:
 - `argparse`
 - `capabilities.catalog`
+- `collections.abc`
 - `core.observability`
 - `datahub.contracts`
 - `datahub.security`
@@ -4644,6 +4645,7 @@ Imports:
 - `sys`
 - `tarfile`
 - `tempfile`
+- `typing`
 
 Functions:
 - `validate_research_python`
@@ -4670,6 +4672,10 @@ Functions:
   - Keep all stable tools registered; the Broker decides availability per call.
 - `prepare_runtime_module_fallback`
   - Heal DSH profile module links and reject dependencies outside the pinned tree.
+- `read_acceptance_budget`
+  - Read existing authorization only; missing state never grants admission.
+- `read_optional_acceptance_budget`
+  - Discover explicitly initialized installation authorization without writes.
 - `live_acceptance_control`
   - Bind optional, non-secret acceptance limits to one non-production instance.
 - `prepare`
@@ -4710,6 +4716,57 @@ Classes:
 Functions:
 - `_fsync_directory`
   - Persist a directory entry where directory fsync is supported.
+
+
+## `app/research_web/live_acceptance_budget.py`
+
+Module docstring:
+> Explicit, dated Docker text acceptance authorization and nonrefundable tickets.
+
+Imports:
+- `__future__`
+- `argparse`
+- `collections.abc`
+- `contextlib`
+- `datetime`
+- `hashlib`
+- `json`
+- `logging`
+- `os`
+- `pathlib`
+- `re`
+- `secrets`
+- `sys`
+- `time`
+- `typing`
+
+Classes:
+- `PolicyFields`
+- `Authorization`
+- `Ledger`
+- `Reservation`
+- `InitRequest`
+- `DescribeRequest`
+- `ReserveRequest`
+- `BudgetError`
+  - Fixed public error code; no request, credential or path details.
+- `BudgetStore`
+  - Pinned private leaf, existing permanent lock, fixed control and ledger.
+  - methods: __init__, _control, _directory, _read, _publish, _failure, initialize, describe, read_optional, reserve
+
+Functions:
+- `_utcnow`
+- `_date`
+- `_number`
+- `request_cost`
+  - Integral micro-USD, independently ceiling each worst-case component.
+- `authorization`
+  - Build the exact reviewable nonsecret control; does not authorize/write.
+- `_encode`
+- `_mapping`
+- `_decode`
+- `_request`
+- `main`
 
 
 ## `app/research_web/local_integrations/__init__.py`

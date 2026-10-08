@@ -1,5 +1,8 @@
 # Research Web 能力包与版本
 
+model_private_file_storage仅implementation且validated=false，不证明Key/调用；Docker Keychain、
+沙箱、Office/Wind/Tabbit、Windows ACL边界保持，模型状态不改变Automation/MCP授权或运行锁。
+
 能力目录、安装与授权不会因模型页保存或生成测试成功而提升为可调用。Automation继续复用原生研究create/send；新增默认模型只用于新会话，旧会话保留选模，凭据清除或提交未知时拒绝新的模型消息。最小生成使用无研究工具preset，工具能力必须通过单独的受控研究证据确认，不据模型名称推断。
 
 MCP 内部控制 reader 的纯 parser 由 stdlib helper 共享，原版本/额外字段与错误语义保持；

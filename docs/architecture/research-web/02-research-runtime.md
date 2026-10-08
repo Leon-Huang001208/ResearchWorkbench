@@ -1,5 +1,8 @@
 # 研究协议、执行状态与恢复
 
+Doctor绑定事实与actual backend/configured独立：完整owned/绑定/真实回环映射/healthy后GET原API，
+无代理/重定向，3秒header/body、16KiB及严格JSON/framing。失败unknown/warning，不改变core ok或付费调用。
+
 已验证运行中的实际 NativeRuntime 仅在显式 `--stop-current` 且公开 stop 成功后，
 等待停止前捕获的 Native 两端口可由原 `port_busy` 判定释放。内部预算默认45秒，
 只接受有限的精确 int/float、0至45秒；bool与数值子类在停止前拒绝。
@@ -351,6 +354,15 @@ PID 与命令签名归属核对的进程可进入该路径，强制失败仍返�
 协议均未改变。
 
 ## 独立真实验收的最小调用控制
+
+以下基金工具模式为既有非3081入口。本轮新增 `profile: docker-text` 的准入片段，精确字段为
+`dataHome`、`profile`、`installationId`、`modelCalls`（1—3）与 `maxOutputTokens`（1—4096）；
+只有受管 staged/runtime 与模型根/安装身份绑定已验证时可解析内部3081配置。
+该profile的现有guard通过私有Python管道预扣安装绑定账本；无授权控制时拒绝
+`acceptance_budget_unverified`，有控制也须符合固定政策/期限/输出/模型/工具边界。
+最多三票不可退还，失败、取消、进程重启和同安装重建不能补额度；startup不会创建控制或锁。
+当前有真实SDK＋账本fixture证明，生产Docker CLI/镜像/供应商仍需独立实测。
+Dockertext取消固定拒绝码，不透传reason；普通入口与旧模式不变。
 
 本机受管启动器可接收非秘密 `RESEARCH_ACCEPTANCE_CONTROL` JSON，仅在其中 `dataHome` 与当前规范化目录精确相同且 DSH 端口不是生产默认3081时启用。字段仅为 `dataHome`、`modelCalls`（1—6整数）及固定公开工具 `datahub_get_fund_data`（eastmoney_fund/nav/000001/limit1，禁止其他源、回退或刷新）；错误配置失败关闭，不打印参数内容。该模式沿原产品overlay和正式research-web preset工作，不替换固定DSH。
 

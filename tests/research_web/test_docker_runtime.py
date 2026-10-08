@@ -8,6 +8,7 @@ import subprocess
 import sys
 import threading
 import time
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -422,6 +423,230 @@ def owned(controller, runner):
     }
     for mount in runner.container["mounts"]:
         mount["RW"] = True
+
+
+@pytest.fixture
+def model_http_server():
+    """One actual loopback server per Doctor test; never contact a model or Docker."""
+    config = {
+        "status": 200,
+        "media": "application/json; charset=utf-8",
+        "body": json.dumps(
+            {
+                "connected": True,
+                "health_check_passed": True,
+                "credential_configured": True,
+                "credential_storage": "docker_private_file",
+                "credential_code": None,
+                "configuration_uncertain": False,
+                "api_key": "doctor-secret-sentinel",
+                "root": "/private-secret-root",
+            }
+        ).encode(),
+        "requests": [],
+        "slow": False,
+    }
+
+    class Handler(BaseHTTPRequestHandler):
+        def log_message(self, *_args):
+            pass
+
+        def do_GET(self):
+            config["requests"].append(self.path)
+            if config.get("slow_headers"):
+                try:
+                    for byte in b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n":
+                        self.connection.sendall(bytes([byte]))
+                        time.sleep(0.4)
+                except OSError:
+                    pass
+                return
+            self.send_response(config["status"])
+            self.send_header("Content-Type", config["media"])
+            self.send_header("Content-Length", str(config.get("length", len(config["body"]))))
+            if config["status"] == 302:
+                self.send_header("Location", "/secret-redirect")
+            self.end_headers()
+            try:
+                if config["slow"]:
+                    for byte in config["body"]:
+                        self.wfile.write(bytes([byte]))
+                        self.wfile.flush()
+                        time.sleep(0.4)
+                else:
+                    self.wfile.write(config["body"])
+            except OSError:
+                pass
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        yield server.server_port, config
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=2)
+
+
+def prepare_model_doctor(runtime, model_http_server):
+    controller, runner, _record = runtime
+    port, config = model_http_server
+    controller.ports = port, 3081
+    owned(controller, runner)
+    for directory in (controller.data_dir, controller.state_dir, controller.credential_dir):
+        directory.mkdir(parents=True, mode=0o700)
+    return controller, runner, config
+
+
+@pytest.mark.parametrize("configured", [True, False, None])
+def test_model_doctor_reads_actual_bound_runtime_without_generation(
+    runtime, model_http_server, configured, monkeypatch
+):
+    controller, _runner, config = prepare_model_doctor(runtime, model_http_server)
+    payload = json.loads(config["body"])
+    payload["credential_configured"] = configured
+    config["body"] = json.dumps(payload).encode()
+    # Direct HTTPConnection must ignore both standard and all-proxy ambient settings.
+    for name in (
+        "HTTP_PROXY",
+        "HTTPS_PROXY",
+        "ALL_PROXY",
+        "http_proxy",
+        "https_proxy",
+        "all_proxy",
+    ):
+        monkeypatch.setenv(name, "http://127.0.0.1:1")
+    report = controller.doctor()
+    assert report["ok"] is True
+    assert report["model"]["binding_verified"] is True
+    assert report["model"]["backend_available"] is True
+    assert report["model"]["credential_configured"] is configured
+    assert report["model"]["credential_storage"] == "docker_private_file"
+    assert report["model"]["connected"] is True
+    assert report["model"]["health_check_passed"] is True
+    assert config["requests"] == ["/api/research/runtime"]
+    assert "generation" not in report["model"]
+    encoded = json.dumps(report)
+    assert "doctor-secret-sentinel" not in encoded
+    assert "/private-secret-root" not in encoded
+    assert "api_key" not in encoded
+    if configured is False:
+        assert "model_credentials_missing" in report["warnings"]
+    elif configured is None:
+        assert "model_credential_state_unavailable" in report["warnings"]
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        "source",
+        "unknown-source",
+        "code",
+        "unknown-code",
+        "uncertain",
+        "malformed",
+        "array",
+        "bool",
+        "connected-type",
+        "health-type",
+        "missing-field",
+        "duplicate",
+        "deep-json",
+        "media",
+        "oversize",
+        "truncated",
+        "redirect",
+        "status",
+    ],
+)
+def test_model_doctor_rejects_untrusted_response_as_noncore_warning(
+    runtime, model_http_server, case, caplog
+):
+    controller, _runner, config = prepare_model_doctor(runtime, model_http_server)
+    payload = json.loads(config["body"])
+    if case == "source":
+        payload["credential_storage"] = "system_keychain"
+    elif case == "unknown-source":
+        payload["credential_storage"] = "doctor-secret-sentinel"
+    elif case == "code":
+        payload["credential_code"] = "model_credential_backend_unavailable"
+    elif case == "unknown-code":
+        payload["credential_code"] = "doctor-secret-sentinel"
+    elif case == "uncertain":
+        payload["configuration_uncertain"] = True
+    elif case == "bool":
+        payload["credential_configured"] = 1
+    elif case == "connected-type":
+        payload["connected"] = 1
+    elif case == "health-type":
+        payload["health_check_passed"] = "doctor-secret-sentinel"
+    elif case == "missing-field":
+        del payload["credential_configured"]
+    config["body"] = json.dumps(payload).encode()
+    if case == "malformed":
+        config["body"] = b"not-json doctor-secret-sentinel"
+    elif case == "array":
+        config["body"] = b"[]"
+    elif case == "duplicate":
+        config["body"] = b'{"credential_configured":true,"credential_configured":false}'
+    elif case == "deep-json":
+        config["body"] = b"[" * 5000 + b"0" + b"]" * 5000
+    elif case == "media":
+        config["media"] = "text/html"
+    elif case == "oversize":
+        config["body"] = b"x" * 16385
+    elif case == "truncated":
+        config["length"] = len(config["body"]) + 10
+    elif case == "redirect":
+        config["status"] = 302
+    elif case == "status":
+        config["status"] = 503
+    report = controller.doctor()
+    assert report["ok"] is True
+    assert report["issues"] == []
+    assert report["model"]["binding_verified"] is True
+    assert report["model"]["backend_available"] is None
+    assert report["model"]["credential_configured"] is None
+    assert report["warnings"]
+    assert "doctor-secret-sentinel" not in json.dumps(report)
+    assert "/private-secret-root" not in json.dumps(report)
+    assert "doctor-secret-sentinel" not in caplog.text
+    assert "/private-secret-root" not in caplog.text
+    assert config["requests"] == ["/api/research/runtime"]
+
+
+@pytest.mark.parametrize("phase", ["headers", "body"])
+def test_model_doctor_total_budget_bounds_slow_drip(runtime, model_http_server, phase):
+    controller, _runner, config = prepare_model_doctor(runtime, model_http_server)
+    config["slow_headers" if phase == "headers" else "slow"] = True
+    begin = time.monotonic()
+    report = controller.doctor()
+    assert time.monotonic() - begin < 3.6
+    assert report["ok"] is True
+    assert report["model"]["backend_available"] is None
+    assert "docker_model_runtime_timeout" in report["warnings"]
+
+
+@pytest.mark.parametrize("case", ["legacy", "unhealthy", "ownership", "port"])
+def test_model_doctor_never_probes_without_binding_and_full_core_guards(
+    runtime, model_http_server, case
+):
+    controller, runner, config = prepare_model_doctor(runtime, model_http_server)
+    if case == "legacy":
+        runner.container["installation_environment"] = []
+    elif case == "unhealthy":
+        runner.container["health"] = "unhealthy"
+    elif case == "ownership":
+        runner.container["installation"] = "foreign"
+    else:
+        runner.container["ports"]["8088/tcp"][0]["HostIp"] = "0.0.0.0"
+    report = controller.doctor()
+    assert config["requests"] == []
+    assert report["model"]["backend_available"] is None
+    assert report["model"]["credential_configured"] is None
+    assert report["model"]["binding_verified"] is (case == "unhealthy")
+    assert report["ok"] is (case == "legacy")
 
 
 @pytest.mark.parametrize(

@@ -1,5 +1,9 @@
 # Research Web 接口清单
 
+原runtime API新增actualdescribe来源docker_private_file，不返回Key、路径或安装ID。
+后端失败保留核心Host/设置页及unknown配置，active/uncertainty沿原语义；Doctor定向GET同一
+接口投影binding/backend/configured，warnings非核心hardgate，不新增取密路由或生成调用。
+
 macOS 异根私有 Native pair 认证只修复公开 CLI 的后续生命周期准入：已有根的完整不同根
 pair 可继续 start/force restart，未知/变化/同根写者仍返回 `runtime_ownership_unknown`。
 桥内 hint 不序列化到 CLI/HTTP 响应，不新增参数、配置开关、HTTP 路由或字段；force 不绕过
