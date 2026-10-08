@@ -25,9 +25,10 @@ and configured backfillDays are not supported by this first adapter; status
 explicitly returns backfill:not_supported. Event/channel inference and DataHub
 Broker/UI registration are still pending; channelHint is catalog metadata only.
 `node scripts/collection-proof.ts` tests two real scheduled cycles through the
-production worker on an isolated schema and scoped roles. The latest proof
+production worker on an isolated schema and scoped roles. An earlier proof
 collected 1389 stable materials/versions and 8 originals, with zero pending items;
-its receipt includes implementation hashes. This does not certify model/research,
+the latest current-code proof is FAIL due to connect timeouts. Receipts include
+implementation hashes; older PASS does not certify the current revision. This does not certify model/research,
 Mac Docker product deployment, continuous uptime or complete source history.
 
 ## Source configuration
@@ -54,6 +55,27 @@ timestamp declarations remain in the raw response and as a sorted JSON array in
 the version's raw-time field; parsed time is unknown, never chosen arbitrarily.
 The page metadata and gap projection record the ambiguity. Different-content
 duplicates still quarantine the response instead of silently merging material.
+
+## Cumulative model authorization substrate
+
+Migration 7 and `src/model-budget.ts` persist explicitly authorized scope limits,
+reservations, dispatch state, immutable provider receipts and reusable responses.
+Calls/tokens/USD micro-units are cumulative, with no calendar reset. Provisioning
+requires migration-owner privileges; worker cannot create authorization or edit limits.
+Reservations charge conservative upper bounds before dispatch. Duplicate pending
+inputs return busy; cached inputs reuse. Dispatch rechecks the locked budget,
+including pause after provider overrun. Unknown sends remain charged and never
+automatically retry. Only reserved unsent attempts can be cancelled/refunded.
+Late receipts survive the old runtime lease but share the reservation fence;
+business publication still requires current task claim/generation. Unexpected
+actual overrun is recorded honestly and pauses the scope.
+
+No provider route is active. The gateway still must bind one task scope across
+Hot/DSH, verify pricing and input/output bounds, apply daily configuration,
+reject credential reflection and validate provider usage. Unknown-attempt
+reconciliation/termination and provider/research integration remain pending.
+Tests use synthetic model output on real PG, not real model acceptance.
+The authorized task cap is 20 calls / 20,000 tokens / US$1 cumulative; used 0.
 
 Node 24.11+ in the 24 series is required. Install the exact dependencies with
 `npm ci` in this directory after the project-isolated infrastructure authorization.

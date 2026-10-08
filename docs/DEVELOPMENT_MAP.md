@@ -21,6 +21,9 @@ Hot 持久采集位于 `services/hot/src/collection.ts`，共享源目录为
 来源控制在 `src/source-control.ts`、migration 6、`rwb hot source-configure`；配置版本、
 不可变审计、签名权限、重复请求、取消窗口与暂停 inbox 恢复由 source-control/source-cancel
 及真实 service integration 测试负责。
+模型累计预算核心为 `services/hot/src/model-budget.ts` 与 migration 7，测试为
+`model-budget.integration.ts`。它不发出模型请求；定价/用量边界、Hot/DSH 同 scope 接入
+与未知尝试操作入口仍待实现。
 
 | 双运行时源码区域 | 职责 | 权威文档 | 主要测试 | 文档更新触发 |
 | --- | --- | --- | --- | --- |

@@ -17,6 +17,8 @@ Native stop 识别 zombie，TERM 后 argv 暂变只观察，最终再核对身�
 新增 `source.configure` 仅允许控制 key，拒绝读取 key；校验请求 UUID、配置版本和固定参数。
 普通 worker 无 enabled/frequency/config_revision 更新和 source audit 插入权限；审计不能覆盖。
 客户端不能认证或完整解析操作回执时显示 outcome_unknown 并保留原 ID，禁止伪报成功。
+累计模型额度由迁移所有者显式授权；worker 只更新计费字段/尝试状态，无授权插入或额度改写权限。
+预算、发送和回执已做真实 PG 竞争验证；实际 provider 上限、秘密反射防护及真实费用未验收。
 
 启动认证链接不得进入普通日志。产品Node preload在固定DSH CLI之前截获stdout/stderr认证行，临时启动token只进入既有0600认证控制文件；管理器验证authority/cwd/source_commit后交换Cookie并移除临时token字段。输出拆分、错误端口、过长无换行输出均不转发认证链接；控制写入拒绝别名、硬链接、非私有或非当前用户文件。模型Key与该Host认证平面保持分离；用户录入阶段不采集DOM、HAR、截图或请求体。
 
