@@ -40,6 +40,81 @@ class HotManagerTests(unittest.TestCase):
         with self.assertRaisesRegex(HotError, "hot_service_stopped"):
             self.manager.sources()
 
+    def test_event_projections_use_reader_and_keep_filter_cutoff(self):
+        with patch.object(self.manager, "_state", return_value={"port": 1234, "owner": {}}):
+            with patch.object(self.manager, "_secret", return_value="reader") as secret:
+                with patch("research_workbench_entrypoint.hot_manager.rpc", return_value={"cutoff": "2026-10-08T00:00:00Z", "items": []}) as call:
+                    self.manager.events({"channelId": "gold", "cutoff": "2026-10-08T00:00:00Z", "offset": 20})
+                    secret.assert_called_once_with("rpc-reader")
+                    self.assertEqual(call.call_args.args[3], "events.list")
+                    self.assertEqual(call.call_args.args[4]["offset"], 20)
+
+    def test_channel_control_unknown_keeps_uuid_and_uses_controller(self):
+        self.manager.directory.mkdir(mode=0o700)
+        request = "11111111-1111-4111-8111-111111111111"
+        config = {"name": "Gold", "topics": [], "sourceIds": [], "importanceRules": []}
+        with patch.object(self.manager, "_state", return_value={"port": 1234, "owner": {}}):
+            for code in ("hot_rpc_timeout", "hot_rpc_response_untrusted", "hot_owner_stale"):
+                with patch.object(self.manager, "_secret", return_value="controller") as secret:
+                    with patch("research_workbench_entrypoint.hot_manager.rpc", side_effect=HotError(code)):
+                        result = self.manager.configure_channel("gold", 0, config, request)
+                        self.assertEqual(result["state"], "outcome_unknown")
+                        self.assertEqual(result["requestId"], request)
+                        secret.assert_called_once_with("rpc-controller")
+            with patch("research_workbench_entrypoint.hot_manager.rpc", return_value={"channelId": "gold", "version": 1, "requestId": request, "config": config}):
+                self.assertEqual(self.manager.configure_channel("gold", 0, config, request)["version"], 1)
+            with patch("research_workbench_entrypoint.hot_manager.rpc", return_value={}):
+                self.assertEqual(self.manager.configure_channel("gold", 0, config, request)["requestId"], request)
+            with patch("research_workbench_entrypoint.hot_manager.rpc", side_effect=HotError("hot_channel_revision_conflict")):
+                with self.assertRaisesRegex(HotError, "hot_channel_revision_conflict"):
+                    self.manager.configure_channel("gold", 0, config, request)
+
+    def test_event_control_validates_receipt_and_retains_unknown_request(self):
+        self.manager.directory.mkdir(mode=0o700)
+        request = "11111111-1111-4111-8111-111111111111"
+        event = "22222222-2222-4222-8222-222222222222"
+        change = {"type": "title", "id": event, "expected": 1, "title": "Human title"}
+        with patch.object(self.manager, "_state", return_value={"port": 1234, "owner": {}}):
+            with patch("research_workbench_entrypoint.hot_manager.rpc", return_value={"source": {"id": event, "revision": 2, "snapshot": {"state": "active", "title": "Human title", "manual": {"title": True}}}}):
+                self.assertEqual(self.manager.correct_event(change, "Reviewed", request)["requestId"], request)
+            with patch("research_workbench_entrypoint.hot_manager.rpc", return_value={"source": {"id": event, "revision": 999, "snapshot": {}}}):
+                self.assertEqual(self.manager.correct_event(change, "Reviewed", request)["state"], "outcome_unknown")
+            with patch.object(self.manager, "_secret") as secret:
+                with self.assertRaisesRegex(HotError, "hot_event_correction_invalid"):
+                    self.manager.correct_event({**change, "expected": True}, "Reviewed", request)
+                secret.assert_not_called()
+
+    def test_incomplete_operation_specific_receipts_keep_uuid(self):
+        self.manager.directory.mkdir(mode=0o700)
+        request = "11111111-1111-4111-8111-111111111111"
+        event = "22222222-2222-4222-8222-222222222222"
+        target = "33333333-3333-4333-8333-333333333333"
+        cases = [
+            ({"type": "channels", "id": event, "expected": 1, "channelIds": ["gold"]}, {"state": "active", "manual": {"channels": []}}),
+            ({"type": "merge", "id": event, "expected": 1, "target": target, "targetExpected": 1}, {"state": "merged", "canonicalId": event, "materials": []}),
+            ({"type": "split", "id": event, "expected": 1, "materialIds": [target], "title": "Split"}, {"state": "active", "materials": [], "manual": {"excluded": [target]}}),
+        ]
+        with patch.object(self.manager, "_state", return_value={"port": 1234, "owner": {}}):
+            for change, snapshot in cases:
+                response = {"source": {"id": event, "revision": 2, "snapshot": snapshot}, "target": {"id": target, "revision": 2, "snapshot": {"state": "active", "title": "Wrong", "materials": [], "manual": {"protected": []}}}}
+                with patch("research_workbench_entrypoint.hot_manager.rpc", return_value=response):
+                    value = self.manager.correct_event(change, "Reviewed", request)
+                    self.assertEqual(value["state"], "outcome_unknown")
+                    self.assertEqual(value["requestId"], request)
+
+    def test_invalid_control_structure_never_resolves_key(self):
+        event = "22222222-2222-4222-8222-222222222222"
+        cases = [{"type": "title", "id": event, "expected": 1, "title": []},
+                 {"type": "split", "id": event, "expected": 1, "materialIds": [], "title": "Split"},
+                 {"type": "channels", "id": event, "expected": 1, "channelIds": ["gold", "gold"]}]
+        with patch.object(self.manager, "_secret") as secret:
+            for change in cases:
+                with self.assertRaisesRegex(HotError, "hot_event_correction_invalid"):
+                    self.manager.correct_event(change, "Reviewed")
+            with self.assertRaisesRegex(HotError, "hot_channel_request_invalid"):
+                self.manager.configure_channel("gold", 0, {"name": "Gold", "topics": True})
+            secret.assert_not_called()
+
     def test_source_control_uses_controller_key_and_preserves_request_id(self):
         self.manager.directory.mkdir(mode=0o700)
         request = "11111111-1111-4111-8111-111111111111"

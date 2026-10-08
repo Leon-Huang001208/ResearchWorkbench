@@ -34,12 +34,18 @@ def rpc(port: int, owner: dict, key: str, operation: str, params: dict | None = 
         request_id: str | None = None) -> dict | list:
     request_id = request_id or str(uuid4())
     body = {"protocol": "rwb-hot/v1", "id": request_id, **owner, "op": operation, "params": params or {}, "sentAt": int(time.time() * 1000)}
-    data = base64.urlsafe_b64encode(json.dumps(body, ensure_ascii=False, separators=(",", ":")).encode()).decode().rstrip("=")
+    try:
+        data = base64.urlsafe_b64encode(json.dumps(body, ensure_ascii=False, separators=(",", ":"), allow_nan=False).encode()).decode().rstrip("=")
+    except (ValueError, TypeError):
+        raise HotError("hot_rpc_request_invalid") from None
     proof = hmac.new(key.encode(), data.encode(), hashlib.sha256).hexdigest()
+    payload = json.dumps({"data": data, "proof": proof}).encode() + b"\n"
+    if len(payload) > 65536:
+        raise HotError("hot_rpc_request_limit")
     try:
         deadline = time.monotonic() + 5
         with socket.create_connection(("127.0.0.1", port), timeout=5) as peer:
-            peer.sendall(json.dumps({"data": data, "proof": proof}).encode() + b"\n")
+            peer.sendall(payload)
             received = b""
             while b"\n" not in received:
                 remaining = deadline - time.monotonic()
@@ -64,7 +70,16 @@ def rpc(port: int, owner: dict, key: str, operation: str, params: dict | None = 
         if not result.get("ok"):
             code = result.get("code")
             known = ("hot_source_config_invalid", "hot_source_request_invalid", "hot_source_revision_conflict",
-                     "hot_source_request_conflict", "hot_source_unknown", "hot_owner_stale", "hot_rpc_denied")
+                     "hot_source_request_conflict", "hot_source_unknown", "hot_owner_stale", "hot_rpc_denied",
+                     "hot_channel_request_invalid", "hot_channel_request_conflict", "hot_channel_revision_conflict", "hot_channel_control_denied",
+                     "hot_channel_invalid", "hot_channel_rule_invalid", "hot_channel_source_unknown", "hot_channel_unknown",
+                     "hot_event_identity_invalid", "hot_event_revision_invalid", "hot_event_revision_conflict", "hot_event_unknown",
+                     "hot_event_correction_invalid", "hot_event_request_conflict", "hot_event_control_denied", "hot_event_text_invalid",
+                     "hot_event_split_invalid", "hot_event_merge_invalid", "hot_event_reassign_invalid", "hot_event_manual_conflict",
+                     "hot_event_link_cycle", "hot_event_link_depth", "hot_event_graph_limit", "hot_event_alias_requires_canonical",
+                     "hot_projection_params_invalid", "hot_projection_cutoff_invalid", "hot_projection_cutoff_required",
+                     "hot_projection_sort_invalid", "hot_projection_channel_invalid", "hot_projection_channel_unknown",
+                     "hot_projection_event_invalid", "hot_projection_event_unknown")
             raise HotError(code if code in known else "hot_rpc_unavailable")
         return result["result"]
     except HotError:
@@ -236,6 +251,170 @@ class HotManager:
         if not isinstance(value, list):
             raise HotError("hot_rpc_invalid")
         return value
+
+    def _read_projection(self, operation: str, params: dict) -> dict:
+        if operation not in ("channels", "events.list", "event.detail"):
+            raise HotError("hot_projection_operation_invalid")
+        state = self._state()
+        if state is None:
+            raise HotError("hot_service_stopped")
+        value = rpc(state["port"], state["owner"], self._secret("rpc-reader"), operation, params)
+        list_key = "reports" if operation == "event.detail" else "items"
+        if not isinstance(value, dict) or not isinstance(value.get("cutoff"), str) or not isinstance(value.get(list_key), list):
+            raise HotError("hot_rpc_invalid")
+        log.info("hot_projection_read")
+        return value
+
+    def channels(self, cutoff: str | None = None) -> dict:
+        return self._read_projection("channels", {"cutoff": cutoff} if cutoff else {})
+
+    def events(self, filters: dict | None = None) -> dict:
+        return self._read_projection("events.list", filters or {})
+
+    def event_detail(self, event_id: str, cutoff: str | None = None, report_offset: int = 0, report_limit: int = 20) -> dict:
+        params = {"eventId": event_id, "reportOffset": report_offset, "reportLimit": report_limit}
+        if cutoff:
+            params["cutoff"] = cutoff
+        return self._read_projection("event.detail", params)
+
+    def _control_projection(self, operation: str, params: dict, request_id: str | None, valid_receipt) -> dict:
+        if operation not in ("channel.configure", "event.correct"):
+            raise HotError("hot_control_operation_invalid")
+        if request_id is not None and (not isinstance(request_id, str) or not re.fullmatch(r"[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}", request_id)):
+            raise HotError("hot_control_request_invalid")
+        try:
+            if len(json.dumps(params, ensure_ascii=False, allow_nan=False).encode()) > 48000:
+                raise HotError("hot_control_request_limit")
+        except (ValueError, TypeError):
+            raise HotError("hot_control_request_invalid") from None
+        request_id = str(UUID(request_id)) if request_id else str(uuid4())
+        if self._state() is None:
+            raise HotError("hot_service_stopped")
+        with self._lock():
+            state = self._state()
+            if state is None:
+                raise HotError("hot_service_stopped")
+            try:
+                value = rpc(state["port"], state["owner"], self._secret("rpc-controller"), operation, params, request_id)
+                valid = valid_receipt(value, request_id)
+            except HotError as error:
+                if str(error) not in ("hot_rpc_unavailable", "hot_rpc_timeout", "hot_rpc_incomplete", "hot_rpc_response_untrusted", "hot_owner_stale"):
+                    raise
+                valid = False
+            except (KeyError, TypeError, ValueError):
+                valid = False
+            if not valid:
+                log.warning("hot_control_outcome_unknown")
+                return {"state": "outcome_unknown", "code": "hot_control_outcome_unknown", "operation": operation, "requestId": request_id}
+            log.info("hot_control_saved")
+            return {**value, "requestId": request_id}
+
+    def configure_channel(self, channel_id: str, expected_version: int, config: dict, request_id: str | None = None) -> dict:
+        if not isinstance(channel_id, str) or not re.fullmatch(r"[a-z][a-z0-9_-]{0,47}", channel_id) or type(expected_version) is not int or not 0 <= expected_version <= 1000000 or not isinstance(config, dict):
+            raise HotError("hot_channel_request_invalid")
+        def text(value, maximum):
+            return isinstance(value, str) and bool(value.strip()) and len(value) <= maximum
+        if set(config) - {"name", "topics", "sourceIds", "importanceRules", "rules"} or not text(config.get("name"), 100):
+            raise HotError("hot_channel_request_invalid")
+        for field in ("topics", "sourceIds", "importanceRules"):
+            if not isinstance(config.get(field), list) or len(config[field]) > 50 or any(not text(item, 500) for item in config[field]):
+                raise HotError("hot_channel_request_invalid")
+        if "rules" in config:
+            if not isinstance(config["rules"], list) or len(config["rules"]) > 30:
+                raise HotError("hot_channel_request_invalid")
+            seen = set()
+            for rule in config["rules"]:
+                if not isinstance(rule, dict) or set(rule) - {"id", "keywords", "requireOfficial", "relevance", "importance"} or not isinstance(rule.get("id"), str) or not re.fullmatch(r"[a-z][a-z0-9_-]{0,47}", rule["id"]) or rule["id"] in seen:
+                    raise HotError("hot_channel_request_invalid")
+                seen.add(rule["id"])
+                if not isinstance(rule.get("keywords"), list) or not 1 <= len(rule["keywords"]) <= 20 or any(not text(item, 80) for item in rule["keywords"]) or ("requireOfficial" in rule and type(rule["requireOfficial"]) is not bool):
+                    raise HotError("hot_channel_request_invalid")
+                if any(type(rule.get(field)) is not int or not 0 <= rule[field] <= 100 for field in ("relevance", "importance")):
+                    raise HotError("hot_channel_request_invalid")
+        def receipt(value, request):
+            return (isinstance(value, dict) and value.get("channelId") == channel_id and type(value.get("version")) is int
+                    and value["version"] == expected_version + 1 and value.get("requestId") == request and value.get("config") == config)
+        return self._control_projection("channel.configure", {"channelId": channel_id, "expectedVersion": expected_version, "config": config}, request_id, receipt)
+
+    def correct_event(self, change: dict, reason: str, request_id: str | None = None) -> dict:
+        fields = {"title": {"title"}, "merge": {"target", "targetExpected"}, "split": {"materialIds", "title"},
+                  "reassign": {"target", "targetExpected", "materialIds"}, "channels": {"channelIds"}}
+        def uuid_value(value):
+            if not isinstance(value, str) or not re.fullmatch(r"[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}", value):
+                raise HotError("hot_event_correction_invalid")
+            return str(UUID(value))
+        if not isinstance(change, dict) or not isinstance(change.get("type"), str) or change["type"] not in fields or set(change) != fields[change["type"]] | {"id", "expected", "type"} or not isinstance(reason, str) or not reason.strip() or len(reason) > 2000:
+            raise HotError("hot_event_correction_invalid")
+        change = dict(change)
+        change["id"] = uuid_value(change["id"])
+        if type(change["expected"]) is not int or not 0 <= change["expected"] <= 1000000:
+            raise HotError("hot_event_correction_invalid")
+        if "target" in change:
+            change["target"] = uuid_value(change["target"])
+            if type(change["targetExpected"]) is not int or not 0 <= change["targetExpected"] <= 1000000:
+                raise HotError("hot_event_correction_invalid")
+            if change["target"] == change["id"]:
+                raise HotError("hot_event_correction_invalid")
+        if "title" in change and (not isinstance(change["title"], str) or not change["title"].strip() or len(change["title"]) > 500):
+            raise HotError("hot_event_correction_invalid")
+        if "materialIds" in change:
+            if not isinstance(change["materialIds"], list) or not 1 <= len(change["materialIds"]) <= 200:
+                raise HotError("hot_event_correction_invalid")
+            change["materialIds"] = sorted(uuid_value(item) for item in change["materialIds"])
+            if len(set(change["materialIds"])) != len(change["materialIds"]):
+                raise HotError("hot_event_correction_invalid")
+        if "channelIds" in change:
+            if not isinstance(change["channelIds"], list) or len(change["channelIds"]) > 50 or any(not isinstance(item, str) or not re.fullmatch(r"[a-z][a-z0-9_-]{0,47}", item) for item in change["channelIds"]) or len(set(change["channelIds"])) != len(change["channelIds"]):
+                raise HotError("hot_event_correction_invalid")
+            change["channelIds"] = sorted(change["channelIds"])
+        def material_refs(value):
+            if not isinstance(value, list):
+                return None
+            refs = set()
+            for item in value:
+                if not isinstance(item, dict) or not isinstance(item.get("id"), str) or not re.fullmatch(r"[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}", item["id"]) or type(item.get("revision")) is not int or item["revision"] < 1 or item.get("relation") not in ("same_occurrence", "composite"):
+                    return None
+                refs.add((item["id"], item["revision"], item["relation"]))
+            return refs
+        def receipt(value, _request):
+            if not isinstance(value, dict) or not isinstance(value.get("source"), dict):
+                return False
+            source = value["source"]
+            if source.get("id") != change["id"] or type(source.get("revision")) is not int or source["revision"] != change["expected"] + 1 or not isinstance(source.get("snapshot"), dict):
+                return False
+            snapshot = source["snapshot"]
+            if snapshot.get("state") != ("merged" if change["type"] == "merge" else "active"):
+                return False
+            manual = snapshot.get("manual")
+            if change["type"] == "title":
+                return snapshot.get("title") == change["title"] and isinstance(manual, dict) and manual.get("title") is True
+            if change["type"] == "channels":
+                return isinstance(manual, dict) and manual.get("channels") == change["channelIds"]
+            if change["type"] in ("merge", "reassign", "split"):
+                target = value.get("target")
+                if not isinstance(target, dict) or not isinstance(target.get("snapshot"), dict) or target["snapshot"].get("state") != "active":
+                    return False
+                target_snapshot = target["snapshot"]
+                target_manual = target_snapshot.get("manual")
+                source_refs, target_refs = material_refs(snapshot.get("materials")), material_refs(target_snapshot.get("materials"))
+                protected = material_refs(target_manual.get("protected")) if isinstance(target_manual, dict) else None
+                if source_refs is None or target_refs is None or protected is None:
+                    return False
+                if change["type"] == "merge":
+                    if snapshot.get("canonicalId") != change["target"] or not source_refs <= target_refs or not source_refs <= protected:
+                        return False
+                else:
+                    moved = set(change["materialIds"])
+                    target_moved = {ref for ref in target_refs if ref[0] in moved}
+                    if any(ref[0] in moved for ref in source_refs) or {ref[0] for ref in target_moved} != moved or not target_moved <= protected or not isinstance(manual, dict) or not isinstance(manual.get("excluded"), list) or not moved <= set(manual["excluded"]):
+                        return False
+                if change["type"] == "split":
+                    target_id = target.get("id")
+                    return (isinstance(target_id, str) and re.fullmatch(r"[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}", target_id) is not None
+                            and type(target.get("revision")) is int and target["revision"] == 1 and target_snapshot.get("title") == change["title"] and target_manual.get("title") is True)
+                return target.get("id") == change["target"] and type(target.get("revision")) is int and target["revision"] == change["targetExpected"] + 1
+            return True
+        return self._control_projection("event.correct", {"change": change, "reason": reason}, request_id, receipt)
 
     def configure_source(self, source: str, revision: str, enabled: bool | None = None,
                          frequency: int | None = None, request_id: str | None = None) -> dict:

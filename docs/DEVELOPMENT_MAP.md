@@ -48,6 +48,11 @@ DSH 服务与现有 Keychain bridge。migration 9 做每日准入/跨日重验�
 `service.ts`，migration 13 保存频道条件配置审计。`event-rpc.integration.ts` 通过真实
 service/PG/scoped roles 验证历史投影、固定 cutoff 分页、字面筛选、继承评分、权限和UUID重放。
 这些读取不调度或调用模型；Python CLI/Host/UI 入口、会话跟踪与研究交接仍待实现。
+Native CLI projections/control 在 `hot.py` / `hot_manager.py`，新命令为 channels/events/event/
+channel-configure/event-correct；Python stdlib 测试验证参数映射、读写key分离、回执/输入门
+与outcome_unknown UUID保留。event-rpc integration 中真实 Python dispatch/owned Node/PG
+往返隔离凭据backend和解释器选择，并验证父进程消失后的独立回收；不是系统Keychain证明。
+Web Host/UI、正式模型激活与研究快照交接仍待实现。
 
 | 双运行时源码区域 | 职责 | 权威文档 | 主要测试 | 文档更新触发 |
 | --- | --- | --- | --- | --- |

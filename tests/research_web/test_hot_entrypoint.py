@@ -5,7 +5,9 @@ import tempfile
 import unittest
 import os
 import io
-from contextlib import redirect_stderr
+from contextlib import redirect_stderr, redirect_stdout
+from types import SimpleNamespace
+from unittest.mock import MagicMock
 from pathlib import Path
 from unittest.mock import patch
 
@@ -25,6 +27,29 @@ class HotEntrypointTests(unittest.TestCase):
         result = hot.status(Path("/project"), home)
         self.assertEqual(result["state"], "disabled")
         self.assertFalse(home.exists())
+
+    def test_new_cli_commands_dispatch_filters_and_unknown_mutation_exit(self):
+        manager = MagicMock()
+        manager.events.return_value = {"cutoff": "2026-10-08T00:00:00Z", "items": []}
+        manager.configure_channel.return_value = {"channelId": "gold", "version": 1}
+        request = "11111111-1111-4111-8111-111111111111"
+        manager.correct_event.return_value = {"state": "outcome_unknown", "requestId": request}
+        config = {"name": "Gold", "topics": [], "sourceIds": [], "importanceRules": []}
+        config_file = self.home / "channels.json"
+        config_file.write_text(json.dumps({"version": 1, "channels": {"gold": config}}))
+        change = {"type": "title", "id": request, "expected": 1, "title": "Human"}
+        correction_file = self.home / "correction.json"
+        correction_file.write_text(json.dumps(change))
+        with patch("research_workbench_entrypoint.bootstrap.native_python", return_value=Path(os.sys.executable)):
+            with patch.dict("sys.modules", {"app.research_web.credential_backend": SimpleNamespace(SystemKeyringBackend=lambda: object())}):
+                with patch("research_workbench_entrypoint.hot_manager.HotManager", return_value=manager):
+                    with redirect_stdout(io.StringIO()):
+                        self.assertEqual(hot.dispatch(["events", "--channel", "gold", "--query", "bank", "--sort", "importance", "--limit", "5"], self.home), 0)
+                        self.assertEqual(hot.dispatch(["channel-configure", "gold", "--expected-version", "0", "--file", str(config_file), "--request-id", request], self.home), 0)
+                        self.assertEqual(hot.dispatch(["event-correct", "--file", str(correction_file), "--reason", "Reviewed", "--request-id", request], self.home), 1)
+        manager.events.assert_called_once_with({"channelId": "gold", "q": "bank", "sort": "importance", "limit": 5, "offset": 0})
+        manager.configure_channel.assert_called_once_with("gold", 0, config, request)
+        manager.correct_event.assert_called_once_with(change, "Reviewed", request)
 
 
     def test_secret_config_is_rejected_before_writing(self):

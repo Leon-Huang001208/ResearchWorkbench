@@ -172,6 +172,36 @@ def dispatch(argv: list[str], project: Path) -> int:
     source.add_argument("--frequency-seconds", type=int)
     source.add_argument("--request-id")
     source.add_argument("--json", action="store_true")
+    channels = sub.add_parser("channels")
+    channels.add_argument("--cutoff")
+    channels.add_argument("--json", action="store_true")
+    events = sub.add_parser("events")
+    for option in ("channel", "cutoff", "query", "topic", "institution", "asset"):
+        events.add_argument("--" + option)
+    events.add_argument("--from", dest="from_time")
+    events.add_argument("--to", dest="to_time")
+    events.add_argument("--sort", choices=("recent", "importance", "heat", "increment", "relevance"), default="recent")
+    events.add_argument("--limit", type=int, default=20)
+    events.add_argument("--offset", type=int, default=0)
+    events.add_argument("--min-relevance", type=int)
+    events.add_argument("--json", action="store_true")
+    event = sub.add_parser("event")
+    event.add_argument("event_id")
+    event.add_argument("--cutoff")
+    event.add_argument("--report-limit", type=int, default=20)
+    event.add_argument("--report-offset", type=int, default=0)
+    event.add_argument("--json", action="store_true")
+    channel_configure = sub.add_parser("channel-configure")
+    channel_configure.add_argument("channel")
+    channel_configure.add_argument("--expected-version", type=int, required=True)
+    channel_configure.add_argument("--file", type=Path, required=True)
+    channel_configure.add_argument("--request-id")
+    channel_configure.add_argument("--json", action="store_true")
+    event_correct = sub.add_parser("event-correct")
+    event_correct.add_argument("--file", type=Path, required=True)
+    event_correct.add_argument("--reason", required=True)
+    event_correct.add_argument("--request-id")
+    event_correct.add_argument("--json", action="store_true")
     setup = sub.add_parser("setup")
     setup.add_argument("--migration-user", default="postgres")
     setup.add_argument("--migration-account", default="hot-migration-database")
@@ -194,7 +224,7 @@ def dispatch(argv: list[str], project: Path) -> int:
     try:
         if args.command == "configure":
             value = save_settings(project, home, _read(args.file.absolute()))
-        elif args.command in ("setup", "start", "stop", "restart", "credential", "backup", "restore", "sources", "source-configure") or (
+        elif args.command in ("setup", "start", "stop", "restart", "credential", "backup", "restore", "sources", "source-configure", "channels", "events", "event", "channel-configure", "event-correct") or (
             args.command in ("status", "doctor") and (home / "hot" / "process.json").exists()
         ):
             from .bootstrap import native_python, native_environment
@@ -226,6 +256,24 @@ def dispatch(argv: list[str], project: Path) -> int:
             elif args.command == "source-configure":
                 value = manager.configure_source(args.source, args.expected_revision, args.enabled,
                                                  args.frequency_seconds, args.request_id)
+            elif args.command == "channels":
+                value = manager.channels(args.cutoff)
+            elif args.command == "events":
+                filters = {"channelId": args.channel, "cutoff": args.cutoff, "q": args.query, "topic": args.topic,
+                           "institution": args.institution, "asset": args.asset, "from": args.from_time, "to": args.to_time,
+                           "sort": args.sort, "limit": args.limit, "offset": args.offset, "minRelevance": args.min_relevance}
+                value = manager.events({key: item for key, item in filters.items() if item is not None})
+            elif args.command == "event":
+                value = manager.event_detail(args.event_id, args.cutoff, args.report_offset, args.report_limit)
+            elif args.command == "channel-configure":
+                config = _read(args.file.absolute())
+                if "channels" in config:
+                    if set(config) != {"version", "channels"} or type(config["version"]) is not int or config["version"] != 1 or not isinstance(config["channels"], dict) or not isinstance(config["channels"].get(args.channel), dict):
+                        raise HotError("hot_channel_request_invalid")
+                    config = config["channels"][args.channel]
+                value = manager.configure_channel(args.channel, args.expected_version, config, args.request_id)
+            elif args.command == "event-correct":
+                value = manager.correct_event(_read(args.file.absolute()), args.reason, args.request_id)
             elif args.command in ("backup", "restore"):
                 directory = args.archive_directory.absolute() if args.command == "restore" else None
                 value = manager.archive(args.command, directory, getattr(args, "target_database", None),

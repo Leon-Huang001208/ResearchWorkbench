@@ -15,6 +15,9 @@ Hot text adapter 复用 DSH prepareCall/stream，调用不创建 session 或 too
 完整截断/拒绝回复仍先保存计费事实；取消只禁止业务返回，不丢已取得的完整用量。
 模型 scope 同时保存累计/每日上限；日限额按数据库时钟和显式时区计算，跨日派发重新准入。
 固定 Native 验收与后续 DSH 研究使用同一个任务 scope；研究流程尚未接入，不能另开 scope 重置额度。
+Native Hot CLI 已增加事件/频道读取和条件配置/纠错；读取不创建研究任务或调用模型。
+控制回执验证请求的具体结果，不确定时保留原 UUID 和非零退出码，重启后用同一参数重放。
+Node/PG 往返与父 Python 退出后的独立 Manager.stop 已验证；凭据 backend/解释器选择为隔离fixture。
 
 ## 模型配置与显式验收
 

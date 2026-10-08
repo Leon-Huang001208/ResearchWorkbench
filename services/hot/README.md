@@ -39,8 +39,45 @@ Migration 13 adds immutable channel-control audit. Only the controller can make
 conditional changes or replay its UUID; identical canonical parameters return the
 original response, conflicting reuse rejects. Corrections reuse the same protected
 event audit. After transport timeout/untrusted response/late owner guard failure,
-the Host must preserve the UUID and retry identical parameters rather than invent
-a new request. Python CLI handling is the next implementation step.
+the Host preserves the UUID and retries identical parameters rather than inventing
+a new request.
+
+## Native CLI projections and corrections
+
+After Hot setup/start, the public entry supports:
+
+```sh
+./rwb hot channels --json
+./rwb hot events --channel macro --sort importance --json
+./rwb hot event <event-id> --json
+./rwb hot channel-configure gold --expected-version 0 --file services/hot/channels.example.json --json
+./rwb hot event-correct --file correction.json --reason "Operator review" --json
+```
+
+Use actual versions from the read response; version zero is only for a new channel.
+The channel file may be a direct configuration object or the version-1 channels
+bundle; the command selects its named channel. Correction files use the existing
+title/merge/split/reassign/channels contract, including source expected revision
+and target expected revision when applicable. Files are bounded, regular and
+alias-free, read locally, and contain no credential fields. For example a title
+file is `{"type":"title","id":"<event UUID>","expected":1,"title":"Reviewed title"}`.
+
+Events accept --query/--topic/--institution/--asset, publication --from/--to,
+--cutoff, --limit/--offset and --min-relevance; material pages use --report-limit
+and --report-offset. Preserve the returned cutoff on later pages. Queries only
+use reader credentials. Conditional changes use the controller and validate cheap
+structure/size before credential lookup; Node remains the authority for source
+existence, revisions, manual locks and graph integrity. Successful receipts check
+the requested operation's known effects, including title locks, channel membership,
+merge canonical target and moved material protection/exclusion.
+
+Timeout, unauthenticated/malformed reply, incomplete receipt or late owner guard
+returns outcome_unknown with requestId and nonzero CLI exit. Retry with
+--request-id and exactly the original parameters. Known version/request conflicts
+remain explicit rejections, not unknown writes. Runtime/model faults do not cause
+an automatic paid retry. Stdlib tests and the real PG/Node manager/dispatch fixture
+verify the flow; the latter isolates the credential backend and interpreter
+selector, and does not certify actual Keychain lifecycle or clean installation.
 
 ## Shared events and versioned channels
 
@@ -68,8 +105,8 @@ and matching result fingerprint/output, verified by both API and database trigge
 The positive receipt-binding test uses a SYNTHETIC response, not a paid call.
 `tests/events.integration.ts` exercises real PostgreSQL, scoped roles, corrections,
 historical cutoffs, a layered diamond graph and configuration of a third channel.
-Scores in this test are fixtures, not research quality evidence. Public model
-configuration, event RPC/UI and domain rules are still pending; grouping follows below.
+Scores in this test are fixtures, not research quality evidence. Normal Native
+model activation and Web Host/UI mounting are still pending; grouping follows below.
 
 ## Durable grouping worker
 

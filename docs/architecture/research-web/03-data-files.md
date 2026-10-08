@@ -20,6 +20,9 @@ model_receipts/model_results 不可变并按输入/模型参数 hash 复用。�
 固定 DSH 成功流不提供 HTTP request ID，provider_request_id 可为 NULL；不能伪造本地 UUID。
 记录请求模型名与报价 hash，不把旧模型别名冒充为已验证后端版本或账单费用。
 day_key 属于发送/预留所在日，派发跨日必须重验；未知尝试继续占额。cost_basis 明确计费来源。
+频道条件配置保存在 channel_versions 与 channel_control_requests，纠错保存在 event_versions/
+event_corrections；CLI不写旧Store或改动原文。配置/纠错输入为有界、无alias的JSON普通文件，
+不接收凭据字段。频道集合可按ID选择；控制结果未知时，调用方须保存UUID和原参数用于重放。
 验收控制身份位于私有 hot/acceptance/model-identity.json，控制/worker 秘密只存系统凭据库。
 真实模型回执与缓存留在持久 hot_acceptance_model schema，不能因重跑验收丢弃账本。
 

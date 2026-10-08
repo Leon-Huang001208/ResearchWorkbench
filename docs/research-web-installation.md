@@ -26,6 +26,23 @@ Native 启动后由受限 worker 持续采集已登记的四个官方 feed；`./
 读取密钥不能执行修改。若返回 `outcome_unknown`，保留返回的 `requestId`，
 用 `--request-id <同一个ID>` 和完全相同参数重试；不同参数会拒绝复用。版本冲突时先刷新来源。
 
+事件与频道也有 Native CLI 入口（Hot 服务须已启动）：
+
+```bash
+./rwb hot channels --json
+./rwb hot events --channel macro --sort importance --json
+./rwb hot event <事件ID> --json
+./rwb hot channel-configure gold --expected-version 0 --file services/hot/channels.example.json --json
+./rwb hot event-correct --file correction.json --reason "核对原文后修正" --json
+```
+
+频道文件支持单个配置对象或示例中的 version-1 频道集合；命令选择对应频道。新增频道使用
+version 0，已有频道使用实际返回的版本。纠错文件含操作 type、事件 id、expected revision，
+合并/重新归属还含目标版本；完整合同见 `services/hot/README.md`。它们不接收秘密。
+分页应保留第一次返回的 cutoff，再传 --offset 或 --report-offset。读取不启动模型/采集；
+修改只用控制凭据并保存审计。超时/不可信或不完整回执返回 outcome_unknown、原 UUID 与
+非零退出码，使用 --request-id 和原参数重放。Web Settings/页面挂载仍待实现。
+
 ```bash
 ./rwb hot --help
 ./rwb hot status --json

@@ -10,6 +10,11 @@ Hot 本轮状态单独记录：macOS 已执行核心、签名回环服务和真�
 待解析为零，覆盖标为 latest_snapshot；历史分页、事件频道、模型/研究和 Web UI 仍未验收。
 Native 来源控制有真实签名服务/PG 验证：读取权限拒绝写入、配置跨进程重启保留、暂停 inbox
 恢复，以及用模拟慢 HTTP 验证在途取消。该模拟验证不作为真实来源或模型的验收证据。
+最新 Hot 状态：Native 已有两条冻结真实 AI/宏观材料的模型抽取/归组及三个配置频道的六条
+规则判断；它不认证开放新闻准确率或完整研究。当前代码持续采集复验仍有连接超时 FAIL，
+不能用此前双轮 PASS 替代。事件/频道CLI已通过macOS真实Node/PG往返，但凭据backend与
+解释器选择为fixture；真实SystemKeychain生命周期、Web界面、正式研究、同SHA安装CI仍待验。
+Windows/Linux及Mac Docker产品切换保持各自NOT_RUN，不借用Native或容器化PG证明。
 
 支持按能力、系统和运行方式声明。Doctor 的 `available` 表示代码具有当前实现，`unsupported` 表示明确边界，`not_verified` 表示必要安全证明缺失；`validated=false` 不会随操作系统推导为通过。实际验收由任务回执和下表的证据决定。
 

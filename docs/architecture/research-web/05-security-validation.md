@@ -23,6 +23,11 @@ DSH text adapter 必须使用零重试 prepared call，并在保存前做同步�
 固定验收入口已装配每日准入与任务累计额度；正式 Web/worker/研究装配仍未完成。
 Native credential 服务只允许固定模型 ref，拒绝写入/记录操作与环境回退；解析后 JSON 字符串和键也检查反射。
 验收先核对原 PG 容器/卷/实例身份，再迁移，不能接管同名的外部 schema。
+Native CLI事件查询只用reader key，配置/纠错只用controller key。廉价结构、字段范围、UUID与
+JSON非有限数/编码/大小校验先于控制凭据查询；Node仍负责版本、归属、来源和图完整性。
+回执须确认标题锁、频道集合、合并canonical目标、移动材料移出/移入和保护，不能只凭revision
+宣称成功。不可信、不完整或迟到响应保留UUID为outcome_unknown；已知版本冲突明确拒绝。
+测试父Python退出后通过独立身份核验的Manager.stop回收Node；不是系统Keychain或跨平台证据。
 
 启动认证链接不得进入普通日志。产品Node preload在固定DSH CLI之前截获stdout/stderr认证行，临时启动token只进入既有0600认证控制文件；管理器验证authority/cwd/source_commit后交换Cookie并移除临时token字段。输出拆分、错误端口、过长无换行输出均不转发认证链接；控制写入拒绝别名、硬链接、非私有或非当前用户文件。模型Key与该Host认证平面保持分离；用户录入阶段不采集DOM、HAR、截图或请求体。
 

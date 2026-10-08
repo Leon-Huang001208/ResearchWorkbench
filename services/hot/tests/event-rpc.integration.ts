@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {readFile} from 'node:fs/promises';
+import {readFile,mkdtemp,realpath,mkdir,writeFile} from 'node:fs/promises';
 import {resolve,join} from 'node:path';
 import {randomBytes,randomUUID} from 'node:crypto';
 import postgres from 'postgres';
@@ -13,8 +13,9 @@ import {parseFeed} from '../src/feed.ts';
 import {startService} from '../src/service.ts';
 import {rpc} from '../src/transport.ts';
 import {sha256} from '../src/material.ts';
+import {execFileSync} from 'node:child_process';
 
-test('signed event/channel projections are bounded, historical and read-only; controller mutations replay once',{timeout:15000},async()=>{
+test('signed event/channel projections are bounded, historical and read-only; controller mutations replay once',{timeout:105000},async()=>{
   const dir=resolve(import.meta.dirname,'../../../logs/hot-stage-zero'),baseline=JSON.parse(await readFile(join(dir,'receipt.json'),'utf8'));
   const password=await readFile(join(dir,'password'),'utf8');
   const db=postgres({host:'127.0.0.1',port:baseline.port,database:'hot_probe',username:'postgres',password,onnotice:()=>{}});
@@ -22,6 +23,7 @@ test('signed event/channel projections are bounded, historical and read-only; co
   const workerPassword=randomBytes(32).toString('hex'),controllerPassword=randomBytes(32).toString('hex');
   const instanceId=randomUUID(),controllerToken=randomBytes(32).toString('hex'),readerToken=randomBytes(32).toString('hex');
   let service:Awaited<ReturnType<typeof startService>>|undefined;
+  let managerCleanup:(()=>void)|undefined;
   try{
     await migrate(db,schema);await initializeIdentity(db,schema,instanceId,controllerToken);
     const boss=await openQueue(db,schema,true);await boss.stop();
@@ -79,5 +81,28 @@ test('signed event/channel projections are bounded, historical and read-only; co
     await control('event.correct',{reason:'Explicit channel membership fixture',change:{type:'channels',id:b,expected:1,channelIds:['macro']}});
     assert.equal((await read('events.list',{channelId:'macro'})).items.length,2);
     assert.equal((await read('events.list',{channelId:'macro',minRelevance:80})).items.length,1,'manual membership cannot bypass an explicit score filter');
-  }finally{if(service)await service.close();await db.end({timeout:5});}
+    await service.close();service=undefined;
+    const home=await realpath(await mkdtemp('/tmp/rwb-hot-projection-cli-'));await mkdir(join(home,'hot'),{mode:0o700});
+    const project=resolve(import.meta.dirname,'../../..');
+    const nativeConfig={enabled:true,database:{mode:'external',tls:'disable',port:baseline.port,name:'hot_probe',schema,user:worker,controllerUser:controller}};
+    await writeFile(join(home,'hot','settings.json'),JSON.stringify({schemaVersion:1,projectRoot:project,config:nativeConfig}),{mode:0o600});
+    await writeFile(join(home,'hot','identity.json'),JSON.stringify({projectRoot:project,instanceId}),{mode:0o600});
+    const probe=`import io,json,sys\nfrom pathlib import Path\nfrom contextlib import redirect_stdout\nfrom types import SimpleNamespace\nfrom unittest.mock import patch\nfrom research_workbench_entrypoint.hot_manager import HotManager\nfrom research_workbench_entrypoint.hot import dispatch\np=json.load(sys.stdin)\nclass Credentials:\n def get_password(self,service,account): return p['secrets'].get(account)\nm=HotManager(Path(p['project']),Path(p['home']),Credentials())\ndef cli(args):\n stream=io.StringIO()\n with patch('research_workbench_entrypoint.bootstrap.native_python',return_value=Path(sys.executable)),patch.dict('sys.modules',{'app.research_web.credential_backend':SimpleNamespace(SystemKeyringBackend=Credentials)}),patch('research_workbench_entrypoint.hot_manager.HotManager',return_value=m),redirect_stdout(stream):\n  code=dispatch(['--data-home',p['home'],*args],Path(p['project']))\n if code: raise RuntimeError('cli fixture failed')\n return json.loads(stream.getvalue())\ntry:\n m.start()\n channels=cli(['channels','--json'])\n events=cli(['events','--query','100%','--json'])\n detail=cli(['event',p['event'],'--json'])\n cfg=Path(p['home'])/'channel.json';cfg.write_text(json.dumps({'name':'Gold CLI','topics':['gold'],'sourceIds':['fed'],'importanceRules':[]}))\n configured=cli(['channel-configure','gold','--expected-version','1','--file',str(cfg),'--request-id','44444444-4444-4444-8444-444444444444','--json'])\n change_file=Path(p['home'])/'change.json';change_file.write_text(json.dumps({'type':'title','id':p['event'],'expected':2,'title':'CLI title'}));corrected=cli(['event-correct','--file',str(change_file),'--reason','CLI integration','--request-id','55555555-5555-4555-8555-555555555555','--json'])\n correctedAgain=cli(['event-correct','--file',str(change_file),'--reason','CLI integration','--request-id','55555555-5555-4555-8555-555555555555','--json'])\n print(json.dumps({'channels':len(channels['items']),'literalRows':len(events['items']),'title':detail['title'],'version':configured['version'],'revision':corrected['source']['revision'],'sameCorrection':corrected==correctedAgain}))\nfinally:\n m.stop()\n`;
+    const bootstrap=JSON.stringify({project,home,event:a,secrets:{'hot-database':workerPassword,'hot-controller-database':controllerPassword,'rpc-controller':controllerToken,'rpc-reader':readerToken}});
+    const cleanupProbe=`import json,sys\nfrom pathlib import Path\nfrom research_workbench_entrypoint.hot_manager import HotManager\np=json.load(sys.stdin)\nclass Credentials:\n def get_password(self,service,account): return p['secrets'].get(account)\nm=HotManager(Path(p['project']),Path(p['home']),Credentials())\nprint(json.dumps(m.stop()))\n`;
+    managerCleanup=()=>{
+      const cleaned=execFileSync('/opt/homebrew/bin/python3.12',['-c',cleanupProbe],{cwd:project,env:{...process.env,RESEARCH_NODE_BINARY:process.execPath},timeout:15000,encoding:'utf8',input:bootstrap});
+      assert.equal(JSON.parse(cleaned).state,'stopped');
+    };
+    const proof=execFileSync('/opt/homebrew/bin/python3.12',['-c',probe],{cwd:project,env:{...process.env,RESEARCH_NODE_BINARY:process.execPath},timeout:60000,encoding:'utf8',input:bootstrap});
+    assert.deepEqual(JSON.parse(proof),{channels:2,literalRows:1,title:'Human Alpha',version:2,revision:3,sameCorrection:true});
+    // A disappeared Python parent does not run its finally; the independent cleanup must still stop its owned Node.
+    const orphanProbe=`import json,sys\nfrom pathlib import Path\nfrom research_workbench_entrypoint.hot_manager import HotManager\np=json.load(sys.stdin)\nclass Credentials:\n def get_password(self,service,account): return p['secrets'].get(account)\nm=HotManager(Path(p['project']),Path(p['home']),Credentials())\nm.start()\nsys.exit(98)\n`;
+    assert.throws(()=>execFileSync('/opt/homebrew/bin/python3.12',['-c',orphanProbe],{cwd:project,env:{...process.env,RESEARCH_NODE_BINARY:process.execPath},timeout:20000,encoding:'utf8',input:bootstrap}),
+      (error:any)=>error.status===98);
+    managerCleanup();
+  }finally{
+    const cleanup=await Promise.allSettled([(async()=>{if(service)await service.close();})(),(async()=>{if(managerCleanup)managerCleanup();})(),db.end({timeout:5})]);
+    if(cleanup.some(result=>result.status==='rejected'))throw Error('hot_event_rpc_fixture_cleanup_failed');
+  }
 });
