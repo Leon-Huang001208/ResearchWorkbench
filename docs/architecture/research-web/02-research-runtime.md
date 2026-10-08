@@ -31,6 +31,10 @@ Docker模型私有CLI与预算CLI在standalone入口受控导入前强制web-pro
 并将四个旧settings目录键绑定到已存在的受管产品根，防止最小环境/cwd /下的legacy ensure_dirs
 尝试写只读镜像。Native与库导入不改变调用方环境，JS仍仅PATH/LANG，不继承用户目录或秘密。
 这只消除导入副作用，不放宽文件/实例/权限校验；修补镜像仍须重新实际验收。
+Docker纯文本预算验收保持DSH settings禁用，同时仅在该overlay关闭Tabbit浏览器、权限、
+browser/web-fetch工具、mentions、installer及Research适配器，避免它们继续依赖已禁用的
+settings服务而阻止固定DSH启动。Native和普通Docker的原插件组合不变；预算、模型来源、
+输出限制、零重试及工具/附件拒绝仍保留。实际固定SDK激活回归不替代修补镜像或真实请求验收。
 旧受管容器的新ID投影为合法空数组时仍按全部原归属守卫允许status/stop，但无模型绑定证明；
 省略、非数组、错误/重复ID拒绝。内部派生标记不证明模型目录、Key或真实请求可用。
 

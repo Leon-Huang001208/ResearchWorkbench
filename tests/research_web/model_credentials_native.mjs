@@ -7,6 +7,44 @@ import { spawnSync } from 'node:child_process';
 
 const [source, dataHome, phase, port] = process.argv.slice(2);
 const pinned = async path => import(pathToFileURL(`${source}/${path}`).href);
+if (phase === 'sdk-docker-text-activation') {
+  const output = process.stdout.write.bind(process.stdout);
+  process.stdout.write = () => true;
+  process.stderr.write = () => true;
+  let ctx;
+  let result = 'FAIL';
+  let networkCalls = 0;
+  let diagnostic;
+  globalThis.fetch = async () => { networkCalls += 1; throw Error('fixture_network_refused'); };
+  const timer = setTimeout(() => {
+    output(`DOCKER_TEXT_ACTIVATION:${JSON.stringify({ result: 'FAIL', code: 'fixture_timeout', networkCalls })}\n`);
+    process.exit(1);
+  }, 20000);
+  try {
+    const { runProfile } = await pinned('apps/cli/lib/profile-boot-CMEGRIuU.js');
+    const { loadLayeredEnv } = await pinned('packages/boot/app-boot/lib/index.js');
+    ({ ctx } = await runProfile({ environment: loadLayeredEnv('dsh'), profile: 'web', patchFiles: [`${dataHome}/runtime/overlay.yml`], args: ['--host', '127.0.0.1', '--port', port, '--no-open'] }));
+    assert.equal(ctx.get('settings'), undefined);
+    assert.equal(ctx.get('tabbit'), undefined);
+    assert.ok(ctx.get('credentialsController'));
+    assert.ok(ctx.get('sessionController'));
+    assert.ok((await ctx.get('sessionController').modelCatalog()).groups.some(group => group.id === 'deepseek-official'));
+    assert.equal(networkCalls, 0);
+    result = 'PASS';
+  } catch (error) {
+    const message = String(error?.message ?? '');
+    diagnostic = {
+      type: ['Error', 'TypeError', 'AssertionError'].includes(error?.name) ? error.name : 'Error',
+      waiting: ['dsh-tabbit', 'settings', 'tabbit-permissions', 'tabbit-tool-browser', 'tabbit-mentions', 'research-tabbit-adapter'].filter(id => message.includes(id)),
+    };
+    process.exitCode = 1;
+  } finally {
+    try { await ctx?.fiber.dispose(); } catch { result = 'FAIL'; process.exitCode = 1; }
+    clearTimeout(timer);
+    output(`DOCKER_TEXT_ACTIVATION:${JSON.stringify({ result, networkCalls, diagnostic, scope: 'actual-fixed-sdk-generated-overlay', paid: false })}\n`);
+  }
+  process.exit(process.exitCode || 0);
+}
 if (['sdk-free-budget-first', 'sdk-free-budget-resume', 'sdk-free-budget-exhaustion'].includes(phase)) {
   await freeSdkBudgetProof(process.argv[6]);
   process.exit(process.exitCode || 0);

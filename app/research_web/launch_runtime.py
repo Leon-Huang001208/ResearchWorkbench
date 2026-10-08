@@ -860,6 +860,23 @@ def _prepare_runtime(
             ]
         )
         + tabbit_overlay(tabbit_config, adapter)
+        + (
+            "\n"
+            + "\n".join(
+                f"- id: {plugin}\n  disabled: true"
+                for plugin in (
+                    "tabbit-browser",
+                    "tabbit-permissions",
+                    "tabbit-tool-browser",
+                    "tabbit-web-fetch",
+                    "tabbit-mentions",
+                    "tabbit-installer",
+                    "research-tabbit-adapter",
+                )
+            )
+            if acceptance and acceptance.get("profile") == "docker-text"
+            else ""
+        )
         + "\n",
         encoding="utf-8",
     )
