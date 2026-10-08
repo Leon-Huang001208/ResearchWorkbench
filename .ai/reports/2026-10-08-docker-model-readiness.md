@@ -258,6 +258,16 @@ v5普通Supervisor/prepare command链为合成staged/model叶/Gitprobe，明确�
 readme-review旧“JS尚待接入”事实已修；历史reading pin确实不含新增模块，尚未认证当前导航ready。
 将先以本地真实源码checkpoint固化代码，再用该真实提交重绑定图册链接，保留两阶段身份，不造未来SHA。
 
+本地源码checkpoint已正常提交80ebd728c410cbf3eedab13b868f6d9a92c500db，工作树提交后干净。
+随后reading pin绑定此真实源码提交；它包含新增两个模块，不是未来/假SHA。图册和报告收尾
+将另提交，源码身份与收尾身份分开。未推送，因此远端blob链接可访问性仍未验证，不能称发布ready。
+
+reading pin重绑定后，原四模块治理108PASS6.32秒；完整分支a1d2087/eeb530c仍为祖先，
+primary/旧worktree/数据/旧回执未重置或清理。当前阶段只完成本地源码合同及审查，不完成整个goal。
+现行缺门：新任务隔离公开安装与current-image build/生产Linux CLI、真实Key与付费文本/重启续问/
+同image重建持久化、三浏览器场景及macOS Bootstrap均NOT_RUN；其他设备职责保持交接，不伪称支持。
+任何push/PR/CI/merge/tag/release/cleanup均未在本goal执行；等待分别明确授权，预算到期不得绕过。
+
 <!-- architecture-review {"group":"verification-workflow","structure":"unchanged","reason":"只在既有verification policy/catalog和普通Checks命令补齐模型及受管runtime测试，复用原planner/receipt、单Ubuntu job、权限与20分钟上限；无新验证框架、宿主、部署组件、平台矩阵或自动Docker触发，原完整未知/安全/外部门不降级。测试执行合同与真实镜像、模型和macOS CI证据分开。","diagrams":[]} -->
 
 源码绑定已贯通Compose非秘密安装ID、normal supervisor参数、staged overlay和私有JS桥接。
