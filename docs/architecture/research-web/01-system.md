@@ -10,6 +10,9 @@ Native 归档入口复用这个独立组件及 PG 工具；恢复只进入不同
 独立服务现已运行持久 feed scheduler 与受限 worker；它只读 DataHub 的共享公开目录，
 不为采集启动 Web、DSH 或旧 Store。Web 生命周期和 Docker 产品装配仍待集成。
 来源控制复用当前 Host 签名桥接；只有控制 key 可以在同一运行代次内提交条件配置与审计。
+Hot 的共享事件、版本化频道和人工修正现已作为同一 PG schema 的内部业务持久层实现，
+不是新的研究引擎或第二套队列。事件/评分历史按截止时间读取；人工评分升版继承保留原出处。
+第三频道仅验证配置机制，普通产品 worker/界面与真实归组尚待装配。
 
 Native私有认证bootstrap使用规范化的RWB_RUNTIME_STATE，并要求RESEARCH_RUNTIME_AUTH精确等于该目录内auth.json；拒绝目录别名或另一个认证文件。该绑定只保护所属Host/DSH交接，模型Keychain仍走独立provider。
 

@@ -29,6 +29,11 @@ Hot 持久采集位于 `services/hot/src/collection.ts`，共享源目录为
 固定 Native 验收入口为 `scripts/model-live-proof.ts`，其 `src/native-dsh.mjs` 复用固定
 DSH 服务与现有 Keychain bridge。migration 9 做每日准入/跨日重验，credential-safety
 测试覆盖转义后的秘密反射。正式 Web/worker/研究装配仍待完成。
+事件与频道持久层为 `services/hot/src/events.ts` 与 migration 10，测试为
+`events.integration.ts`。共享身份、不可变材料关联、直接后续图、第三频道配置、
+合并/拆分/重新归属/标题/频道人工纠错、历史投影和人工判断继承在此验证。
+模型评分须绑定已有回执；正向测试为 synthetic，不等于真实归组/规则质量验收。
+普通 worker、签名产品 RPC、Web 页面和正式研究接入仍待装配。
 
 | 双运行时源码区域 | 职责 | 权威文档 | 主要测试 | 文档更新触发 |
 | --- | --- | --- | --- | --- |

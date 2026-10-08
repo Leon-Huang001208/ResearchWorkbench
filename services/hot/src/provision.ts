@@ -3,14 +3,14 @@ import type postgres from 'postgres';
 import { schemaName } from './config.ts';
 
 type Sql = ReturnType<typeof postgres>;
-export const WORKER_TABLES = ['raw_pages','materials','material_versions','discoveries','job_claims','job_attempts','material_inbox','collection_runs','model_attempts','model_receipts','model_results'] as const;
+export const WORKER_TABLES = ['raw_pages','materials','material_versions','discoveries','job_claims','job_attempts','material_inbox','collection_runs','model_attempts','model_receipts','model_results','events','event_versions','event_materials','event_links','channel_judgments'] as const;
 export const SOURCE_WRITE_COLUMNS = ['cursor','last_success_at','last_error_code','next_due_at','schedule_sequence','consecutive_failures'] as const;
 export const WORKER_UPDATES: Record<string, string[]> = {
   materials: ['current_revision','last_acquired_at'],
   job_claims: ['job_id','attempt','lease_token','worker_id','generation','lease_until','state','result','completed_at'],
   job_attempts: ['finished_at','outcome']
   ,material_inbox:['processed'],collection_runs:['finished_at','state','error_code','raw_page_id','item_count'],
-  model_budgets:['charged_calls','charged_tokens','charged_cost_micros','paused'],model_attempts:['state','dispatched_at','finished_at','day_key']
+  model_budgets:['charged_calls','charged_tokens','charged_cost_micros','paused'],model_attempts:['state','dispatched_at','finished_at','day_key'],events:['current_revision']
 };
 export async function grantWorker(db: Sql, schema: string, role: string): Promise<void> {
   schemaName(schema);
@@ -32,6 +32,7 @@ export async function grantWorker(db: Sql, schema: string, role: string): Promis
     await tx`grant update(finished_at,state,error_code,raw_page_id,item_count) on ${tx(schema)}.collection_runs to ${tx(role)}`;
     await tx`grant update(charged_calls,charged_tokens,charged_cost_micros,paused) on ${tx(schema)}.model_budgets to ${tx(role)}`;
     await tx`grant update(state,dispatched_at,finished_at,day_key) on ${tx(schema)}.model_attempts to ${tx(role)}`;
+    await tx`grant update(current_revision) on ${tx(schema)}.events to ${tx(role)}`;
     await tx`grant update on ${tx(schema)}.job_claims,${tx(schema)}.job_attempts to ${tx(role)}`;
     const queueSchema = schema;
     await tx`grant usage on schema ${tx(queueSchema)} to ${tx(role)}`;
@@ -48,4 +49,6 @@ export async function grantController(db: Sql, schema: string, role: string): Pr
   await db`grant update(monitor_backoff_on) on ${db(schema)}.version to ${db(role)}`;
   await db`grant update(enabled,frequency_seconds,config_revision) on ${db(schema)}.sources to ${db(role)}`;
   await db`grant insert on ${db(schema)}.source_control_requests to ${db(role)}`;
+  await db`grant insert on ${db(schema)}.channels,${db(schema)}.channel_versions,${db(schema)}.event_corrections to ${db(role)}`;
+  await db`grant update(current_version) on ${db(schema)}.channels to ${db(role)}`;
 }

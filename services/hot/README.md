@@ -3,6 +3,35 @@
 This package is under implementation. It is not yet a supported product entry.
 The authoritative stage record is `.ai/reports/2026-10-07-hot-events-PROGRESS.md`.
 
+## Shared events and versioned channels
+
+Migration 10 and `src/events.ts` persist shared event identities, immutable
+snapshots/material associations, direct followups, related/pending-review links,
+channel configuration versions and independent relevance/importance/increment/heat
+judgments. Composite material may support multiple events without duplicating the
+original. Occurrence/effective times currently remain unknown; publication and
+acquisition times are not substituted. Similar text never triggers an automatic merge.
+Direct-followup cycle checks use a distinct-node breadth-first traversal bounded
+to 100 layers/1000 vertices; oversized graphs fail visibly rather than expand paths.
+
+Controller-only corrections support title, channel membership, merge, split and
+material reassignment to an existing event. Expected revisions, canonical request
+hashes and immutable before/after audit make identical UUID retries reusable.
+Merged IDs resolve to the canonical event at the requested cutoff. Moved/protected
+materials and human titles survive automatic reruns. Historical queries exclude
+later versions/configuration/judgments. Human judgments remain effective after an
+event/channel upgrade, with `inherited`, original versions and applied versions
+explicitly returned; an explicit channel exclusion takes precedence.
+
+Ordinary workers cannot configure channels, correct events or insert human scores,
+including through direct SQL. Model judgments require an immutable model receipt
+and matching result fingerprint/output, verified by both API and database trigger.
+The positive receipt-binding test uses a SYNTHETIC response, not a paid call.
+`tests/events.integration.ts` exercises real PostgreSQL, scoped roles, corrections,
+historical cutoffs, a layered diamond graph and configuration of a third channel.
+Scores in this test are fixtures, not research quality evidence. Normal product
+worker processing, public event RPC/UI, real grouping and domain rules are still pending.
+
 ## Continuous public collection
 
 Migration 5 adds collection attempts and a durable material inbox. DataHub owns
