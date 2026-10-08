@@ -409,3 +409,14 @@ test('dataset downloads only use the current session, safe dataset id and three 
   const unsafe = views.renderDatasets('session-1', [{ id: '../dataset', name: '坏资料', source_url: 'javascript:alert(1)', files: [{ name: 'rows.csv', url: 'https://evil.test/download' }] }]);
   assert.doesNotMatch(unsafe, /evil\.test|javascript:|href="\/api\/research\/sessions/);
 });
+
+ test('native document UI keeps output visible while reporting uncertain cleanup', () => {
+  const html = views.renderDocumentEditor({file: {name: 'owned.docx'}, result: {
+    format: 'docx', mode: 'native', status: 'completed',
+    diagnostics: {cleanup_outcome: 'unverified', function_outcome: 'available', last_completed_step: 'read_back'},
+    output: {name: 'owned.docx', url: '/api/research/sessions/s/files/f/download'},
+  }});
+  assert.match(html, /清理：未确认/);
+  assert.match(html, /read_back/);
+  assert.match(html, /下载新版本/);
+});

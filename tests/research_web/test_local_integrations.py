@@ -50,6 +50,87 @@ def isolated_keyring(monkeypatch):
 from app.research_web.store import Store
 
 
+def test_office_snapshot_separates_file_prerequisites_and_native_discovery(tmp_path):
+    env = environment(tmp_path, modules={"docx", "openpyxl"})
+    manager = LocalIntegrationManager(tmp_path / "state", environment=env)
+    snapshot = manager.snapshot(persist=False)
+    for name in ("word_app", "excel_app", "powerpoint_app"):
+        row = item(snapshot, name)
+        assert "document_file_available" in row["capabilities"]
+        assert row["callable"] is False
+
+
+def test_office_snapshot_projects_cleanup_and_expired_history_without_authorization(tmp_path):
+    from datetime import UTC, datetime
+
+    env = environment(tmp_path)
+    (env.application_roots[0] / "Microsoft Word.app").mkdir()
+    manager = LocalIntegrationManager(
+        tmp_path / "state", environment=env, context_fingerprint=lambda _target: "owned"
+    )
+    manager.verification_results["word"] = {
+        "outcome": "timeout",
+        "completed_at": datetime.now(UTC).isoformat(),
+        "context_fingerprint": manager._verification_context_fingerprint("word"),
+        "diagnostics": {
+            "run_id": "a" * 32,
+            "artifact_name": "research-workbench-" + "a" * 32 + ".docx",
+            "last_completed_step": "saved",
+            "function_outcome": "timeout",
+            "cleanup_outcome": "unverified",
+        },
+    }
+    current = item(manager.snapshot(persist=False), "word_app")
+    assert "清理：未确认" in current["detail"]
+    assert "最后阶段：saved" in current["detail"]
+    manager.verification_ttl_seconds = 0
+    expired = item(manager.snapshot(persist=False), "word_app")
+    assert "验证已失效" in expired["detail"]
+    assert expired["last_verified_at"] is not None
+    assert expired["authorization"] != "待授权"
+    assert expired["callable"] is False
+
+
+@pytest.mark.parametrize(
+    "number,outcome,label",
+    [
+        (-1743, "authorization_required", "自动化权限被系统明确拒绝"),
+        (-54, "failed", "文件访问被拒绝"),
+        (-61, "failed", "文件访问被拒绝"),
+        (-1712, "timeout", None),
+    ],
+)
+def test_office_snapshot_only_labels_observed_permission_error_numbers(
+    tmp_path, number, outcome, label
+):
+    from datetime import UTC, datetime
+
+    env = environment(tmp_path)
+    (env.application_roots[0] / "Microsoft Word.app").mkdir()
+    manager = LocalIntegrationManager(tmp_path / "state", environment=env)
+    manager.verification_results["word"] = {
+        "outcome": outcome,
+        "completed_at": datetime.now(UTC).isoformat(),
+        "context_fingerprint": manager._verification_context_fingerprint("word"),
+        "diagnostics": {
+            "run_id": "b" * 32,
+            "artifact_name": "research-workbench-" + "b" * 32 + ".docx",
+            "last_completed_step": "saved",
+            "function_outcome": outcome,
+            "cleanup_outcome": "unverified",
+            "native_error_number": number,
+        },
+    }
+    row = item(manager.snapshot(persist=False), "word_app")
+    if label is None:
+        assert "拒绝" not in row["detail"]
+        assert "等待用户操作" not in row["detail"]
+    else:
+        assert label in row["detail"]
+    assert ("等待用户操作" in row["detail"]) == (outcome == "authorization_required")
+    assert row["callable"] is False
+
+
 class NativeFixture:
     async def rpc(self, method, payload):
         if method == "host.describe":

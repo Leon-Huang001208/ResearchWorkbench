@@ -547,6 +547,15 @@ class LocalIntegrationManager:
         items = {item["id"]: item for item in snapshot.get("items", [])}
         for target, result in results.items():
             if not self._verification_result_is_current(target, result):
+                for item_id in VERIFICATION_ITEMS[target]:
+                    item = items.get(item_id)
+                    if (
+                        target != "wind_excel"
+                        and item is not None
+                        and item.get("discovery") == "已发现"
+                    ):
+                        item["last_verified_at"] = result.get("completed_at")
+                        item["detail"] += " 最近验证已失效（时间或实例状态变化）；请重新显式验证。"
                 continue
             outcome = result.get("outcome", "failed")
             status, authorization, verification, message = VERIFICATION_MESSAGES.get(
@@ -574,6 +583,31 @@ class LocalIntegrationManager:
                     ),
                     last_verified_at=checked_at,
                 )
+                diagnostics = (
+                    _safe_verification_diagnostics(result.get("diagnostics"))
+                    if target != "wind_excel"
+                    else None
+                )
+                if diagnostics is not None:
+                    cleanup_label = {
+                        "confirmed": "已清理",
+                        "unverified": "未确认",
+                        "failed": "失败",
+                        "not_created": "未创建",
+                    }[diagnostics["cleanup_outcome"]]
+                    item["detail"] += (
+                        f" 最后阶段：{diagnostics['last_completed_step']}；"
+                        f"功能结果：{diagnostics['function_outcome']}；清理：{cleanup_label}。"
+                    )
+                    error_label = {
+                        -1743: "自动化权限被系统明确拒绝",
+                        -54: "文件访问被拒绝",
+                        -61: "文件访问被拒绝",
+                    }.get(diagnostics.get("native_error_number"))
+                    if snapshot.get("platform") == "macos" and error_label is not None:
+                        item["detail"] += f" {error_label}；请检查本任务对应的访问授权后重验。"
+                    if outcome == "authorization_required":
+                        item["detail"] += " 等待用户操作：按真实提示处理对应应用授权后再显式验证。"
         snapshot["summary"] = {
             "available": sum(item["status"] == "可用" for item in snapshot["items"]),
             "needs_attention": sum(
@@ -881,7 +915,7 @@ class LocalIntegrationManager:
             return self._unsupported_office_items(checked_at)
 
         xlwings = self.environment.module_available("xlwings")
-        return [
+        items = [
             self._application_item(
                 "excel_app",
                 "Microsoft Excel 应用",
@@ -918,6 +952,32 @@ class LocalIntegrationManager:
             ),
             self._ifind_terminal_item(platform_id, checked_at),
         ]
+        # File prerequisites are independent of Office discovery and native permission.
+        prerequisites = {
+            "word_app": "docx",
+            "excel_app": "openpyxl",
+            "powerpoint_app": None,
+        }
+        for item in items:
+            if item["id"] not in prerequisites:
+                continue
+            dependency = prerequisites[item["id"]]
+            try:
+                available = (
+                    self.environment.module_available(dependency)
+                    if dependency is not None
+                    else Path(__file__).parents[1].joinpath("office-template.pptx").is_file()
+                )
+                capability = (
+                    ("document_file_available" if available else "document_file_unavailable")
+                    if platform_id == "macos"
+                    else "document_file_unverified"
+                )
+            except (OSError, ImportError, ValueError):
+                log.warning("office_file_prerequisites_unverified", format=item["id"])
+                capability = "document_file_unverified"
+            item["capabilities"].append(capability)
+        return items
 
     def _wind_terminal_item(self, found: bool, checked_at: str) -> dict:
         actions = (

@@ -1367,3 +1367,21 @@ API53 PASS/408.96秒，691组214.10秒、邻接666PASS/1首次FAIL/231.28秒及S
 结束经现有产品PUT model clear_api_key=true清除测试Key，HTTP200并独立runtime非秘密状态credential_configured=false/system_keychain，office-sync-test-key-cleared.json。仅正常stop所属Host88512/DSH86982，正式状态均ready=false/pid=null，office-sync-final-stop.json；交付文件保留，不关闭用户Office文稿、退出共享Office或清理未知对象。生产8088/3081未操作。
 
 此次三个原缺项：PR #81文本冲突已解除；当前候选Project Constraints自动PASS；真实模型选择Office工具并交付PASS。仍运行中的Mac Bootstrap37808948541（macos-14安装步骤）作为有界CI交接保留，不无限轮询、不重复dispatch。完整Mac工程结果暂仍BLOCKED，mergeReady/releaseReady继续false；Windows/Linux/Docker缺项由对应任务保留，不扩张本轮。冻结源码52b3、真实执行工作树产品源码一致；后续仅报告提交不能冒称被旧CI检出。
+
+### 2026-10-09 原Goal逐项审计发现的任务6展示遗漏
+
+自动续接读取原goal-objective.md后，确认52b3三个自动门已全部PASS，Mac Bootstrap37808948541实际checkout77f53da6合并预览，不宣称检出了后续报告75216e9。原六项文件/原生证据与真实模型Office工具证据复核有效；但设置页未分别显示三Office文件处理与本机操作，未呈现最近安全步骤/清理，业务结果缺少清理标签，故未先标Goal完成。
+
+最小新增补丁：既有capabilities中仅增加固定文件前置条件标记，无新schema/依赖锁；现有detail显示有效Office安全诊断和过期说明，Wind行为不变；Office行标签与业务清理状态分别呈现，产物仍可下载。Mac文件依赖就绪不代替逐文档业务成功，其他平台仍未验证。
+
+RED/GREEN证据office-state-python-corrected-red.log、office-state-ui-corrected-red.log、office-cleanup-ui-red.log。初次测试分类fixture没有登记Word、fingerprint错误地填原值，已明确修正；仅把本轮自有实现暂存并恢复原HEAD源码，正确fixture在原实现失败后重新应用补丁，未reset或覆盖其他改动。最新115PASS/1既有skip，47UI合同PASS。真实设置页确认三App分别显示文件/本机、最近时间、最后阶段及已清理；首次页面截图暴露旧CSS隐藏label，局部Office CSS修复后的office-state-settings-fixed.png标签可见。
+
+Black/isort PASS；mypy目标manager无诊断，16条既有4文件错误继续保留，不新增ignore。现有检查与产品环境均无Ruff，离线uvx也无缓存，工具环境错误独立记录。按本会话依赖安装授权，仅在/private/tmp/rwb-c1-checks-20261006补Ruff0.16.10，实际uv pip记录office-state-ruff-install.log；Ruff检查PASS，未改系统Python、产品环境或产品锁。浏览器插件因原生库签名失败，未修系统签名；备用CUA首次在已停止服务打开产生连接拒绝/错误页策略阻断，受管启动后新的正确回环页面验证成功，未绕过安全页面。
+
+本次新增只影响状态投影/渲染，复用匹配的Office真实读回、清理与真实模型工具交付；不再调用供应商、Office、Keychain生命周期或架构多视口。新候选须重新绑定完整计划并等待自动CI，不拿52b3通过冒称新增源码通过。
+
+状态补丁最终补证：复审指出安全native_error_number尚未解释，新增四case先3FAIL/1PASS，再仅投影macOS白名单-1743自动化明确拒绝、-54/-61文件访问拒绝；-1712超时不推断权限。明确authorization_required回执提示等待用户操作、处理真实提示后再显式验证，不宣称Office仍在执行。Wind投影保持原行为。Python/JS复审Approve只算静态审查。最终119PASS/1既有skip/28.47秒，47UI合同PASS，90文档/架构合同PASS；Black/isort/Ruff0.16.10 PASS。
+
+另试既有follow-imports=skip边界时出现manager原dataclass构造器7条诊断；在原HEAD源码上同命令同7条，属于既有边界/工具行为，不冒称新增缺陷或PASS。正常导入检查仍16条边界外4文件诊断、manager无诊断；两种命令真实退出1均保留，不新增ignore、Any或改政策。完整91路径计划L4及约束/文档/index已通过；原基线203路径另存，不缩小交付。
+
+新展示代码通过现有受管入口启动独立无Key实例（Host31681/DSH31057）。设置页实际呈现三Office文件/本机能力、最近时间、最后阶段与清理；没有点真实验证、模型、供应商或业务按钮。截图office-state-settings-fixed.png与初次隐藏标签的office-state-settings-page.png分别留存。当前源码相对52b3仅状态投影/UI、测试和直接文档，不改变原生执行器、报告sandbox/文件处理、供应商协议、凭据、启动/安装锁，故此前六项真机与模型工具证据按模块差异复用，CI须新候选匹配。
