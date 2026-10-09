@@ -1,0 +1,291 @@
+2026-10-09 01:13:49 [info     ] automation_created             automation_id_digest=237289d5c25986df status=disabled
+2026-10-09 01:13:49 [info     ] automation_native_reference_saved run_id_digest=9dc0a3907ed1499d
+F2026-10-09 01:13:49 [info     ] automation_created             automation_id_digest=998de8db29114823 status=disabled
+2026-10-09 01:13:49 [info     ] automation_native_reference_saved run_id_digest=36b94ce4401ebb5d
+F2026-10-09 01:13:49 [info     ] automation_created             automation_id_digest=939814a17611b1ab status=disabled
+2026-10-09 01:13:49 [error    ] automation_run_failed          automation_id_digest=939814a17611b1ab error_type=AutomationError
+F2026-10-09 01:13:49 [info     ] automation_created             automation_id_digest=c91386f7abed2d29 status=disabled
+2026-10-09 01:13:49 [error    ] automation_run_failed          automation_id_digest=c91386f7abed2d29 error_type=AutomationError
+F2026-10-09 01:13:49 [info     ] automation_created             automation_id_digest=3d3c0323acd234bb status=disabled
+2026-10-09 01:13:49 [error    ] automation_run_failed          automation_id_digest=3d3c0323acd234bb error_type=AutomationError
+.2026-10-09 01:13:49 [info     ] automation_created             automation_id_digest=f4e55a1a1f374209 status=disabled
+2026-10-09 01:13:49 [error    ] automation_run_failed          automation_id_digest=f4e55a1a1f374209 error_type=AutomationError
+F                                                                   [100%]
+=================================== FAILURES ===================================
+_ test_missing_native_identity_never_submits_or_cancels_unknown_work[None-skill] _
+
+tmp_path = PosixPath('/private/var/folders/rz/f7lsl4nn2bl0lpsfqyylp1jh0000gn/T/pytest-of-leon/pytest-1184/test_missing_native_identity_n0')
+kind = 'skill', reference = None
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("kind", ["skill", "report_workflow"])
+    @pytest.mark.parametrize("reference", [None, "", 3])
+    async def test_missing_native_identity_never_submits_or_cancels_unknown_work(tmp_path, kind, reference):
+        calls = []
+    
+        class Runtime:
+            async def start_run(self, *_args, **_kwargs):
+                calls.append("report_start")
+                return {"id": reference, "session_id": None}
+    
+            def _run(self, run_id):
+                calls.append("report_monitor")
+                return {"id": run_id, "workflow_id": "company-research", "version": 2,
+                        "status": "completed", "session_id": None, "artifacts": []}
+    
+            async def cancel(self, _run_id):
+                calls.append("cancel")
+    
+        class Research:
+            report_workflows = SimpleNamespace(runtime=Runtime())
+    
+            async def create(self, *_args):
+                calls.append("create")
+                return {"id": reference}
+    
+            async def send(self, *_args, **_kwargs):
+                calls.append("send")
+                return {"accepted": True}
+    
+            async def detail(self, *_args):
+                calls.append("detail")
+                return {"status": "completed"}
+    
+        service = AutomationService(
+            Store(tmp_path), research=Research(), scheduler=False,
+            target_resolver=lambda *_args: {"version": 2, "sha256": "a" * 64},
+        )
+        automation = service.create(automation_body(target_kind=kind))
+        await service.run(automation["id"])
+        await service.wait_for_idle()
+>       assert calls == ["report_start" if kind == "report_workflow" else "create"]
+E       AssertionError: assert ['create', 'send', 'detail'] == ['create']
+E         
+E         Left contains 2 more items, first extra item: 'send'
+E         Use -v to get more diff
+
+tests/research_web/test_automation_service.py:698: AssertionError
+_ test_missing_native_identity_never_submits_or_cancels_unknown_work[None-report_workflow] _
+
+tmp_path = PosixPath('/private/var/folders/rz/f7lsl4nn2bl0lpsfqyylp1jh0000gn/T/pytest-of-leon/pytest-1184/test_missing_native_identity_n1')
+kind = 'report_workflow', reference = None
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("kind", ["skill", "report_workflow"])
+    @pytest.mark.parametrize("reference", [None, "", 3])
+    async def test_missing_native_identity_never_submits_or_cancels_unknown_work(tmp_path, kind, reference):
+        calls = []
+    
+        class Runtime:
+            async def start_run(self, *_args, **_kwargs):
+                calls.append("report_start")
+                return {"id": reference, "session_id": None}
+    
+            def _run(self, run_id):
+                calls.append("report_monitor")
+                return {"id": run_id, "workflow_id": "company-research", "version": 2,
+                        "status": "completed", "session_id": None, "artifacts": []}
+    
+            async def cancel(self, _run_id):
+                calls.append("cancel")
+    
+        class Research:
+            report_workflows = SimpleNamespace(runtime=Runtime())
+    
+            async def create(self, *_args):
+                calls.append("create")
+                return {"id": reference}
+    
+            async def send(self, *_args, **_kwargs):
+                calls.append("send")
+                return {"accepted": True}
+    
+            async def detail(self, *_args):
+                calls.append("detail")
+                return {"status": "completed"}
+    
+        service = AutomationService(
+            Store(tmp_path), research=Research(), scheduler=False,
+            target_resolver=lambda *_args: {"version": 2, "sha256": "a" * 64},
+        )
+        automation = service.create(automation_body(target_kind=kind))
+        await service.run(automation["id"])
+        await service.wait_for_idle()
+>       assert calls == ["report_start" if kind == "report_workflow" else "create"]
+E       AssertionError: assert ['report_star...port_monitor'] == ['report_start']
+E         
+E         Left contains one more item: 'report_monitor'
+E         Use -v to get more diff
+
+tests/research_web/test_automation_service.py:698: AssertionError
+__ test_missing_native_identity_never_submits_or_cancels_unknown_work[-skill] __
+
+tmp_path = PosixPath('/private/var/folders/rz/f7lsl4nn2bl0lpsfqyylp1jh0000gn/T/pytest-of-leon/pytest-1184/test_missing_native_identity_n2')
+kind = 'skill', reference = ''
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("kind", ["skill", "report_workflow"])
+    @pytest.mark.parametrize("reference", [None, "", 3])
+    async def test_missing_native_identity_never_submits_or_cancels_unknown_work(tmp_path, kind, reference):
+        calls = []
+    
+        class Runtime:
+            async def start_run(self, *_args, **_kwargs):
+                calls.append("report_start")
+                return {"id": reference, "session_id": None}
+    
+            def _run(self, run_id):
+                calls.append("report_monitor")
+                return {"id": run_id, "workflow_id": "company-research", "version": 2,
+                        "status": "completed", "session_id": None, "artifacts": []}
+    
+            async def cancel(self, _run_id):
+                calls.append("cancel")
+    
+        class Research:
+            report_workflows = SimpleNamespace(runtime=Runtime())
+    
+            async def create(self, *_args):
+                calls.append("create")
+                return {"id": reference}
+    
+            async def send(self, *_args, **_kwargs):
+                calls.append("send")
+                return {"accepted": True}
+    
+            async def detail(self, *_args):
+                calls.append("detail")
+                return {"status": "completed"}
+    
+        service = AutomationService(
+            Store(tmp_path), research=Research(), scheduler=False,
+            target_resolver=lambda *_args: {"version": 2, "sha256": "a" * 64},
+        )
+        automation = service.create(automation_body(target_kind=kind))
+        await service.run(automation["id"])
+        await service.wait_for_idle()
+        assert calls == ["report_start" if kind == "report_workflow" else "create"]
+        run = service.list_runs()["items"][0]
+        assert run["research_status"] == "failed"
+>       assert run["failure_code"] == "automation_reference_invalid"
+E       AssertionError: assert 'automation_r...ence_conflict' == 'automation_reference_invalid'
+E         
+E         - automation_reference_invalid
+E         ?                      ^ ^^  ^
+E         + automation_reference_conflict
+E         ?                      ^^ ^  ^^
+
+tests/research_web/test_automation_service.py:701: AssertionError
+_ test_missing_native_identity_never_submits_or_cancels_unknown_work[-report_workflow] _
+
+tmp_path = PosixPath('/private/var/folders/rz/f7lsl4nn2bl0lpsfqyylp1jh0000gn/T/pytest-of-leon/pytest-1184/test_missing_native_identity_n3')
+kind = 'report_workflow', reference = ''
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("kind", ["skill", "report_workflow"])
+    @pytest.mark.parametrize("reference", [None, "", 3])
+    async def test_missing_native_identity_never_submits_or_cancels_unknown_work(tmp_path, kind, reference):
+        calls = []
+    
+        class Runtime:
+            async def start_run(self, *_args, **_kwargs):
+                calls.append("report_start")
+                return {"id": reference, "session_id": None}
+    
+            def _run(self, run_id):
+                calls.append("report_monitor")
+                return {"id": run_id, "workflow_id": "company-research", "version": 2,
+                        "status": "completed", "session_id": None, "artifacts": []}
+    
+            async def cancel(self, _run_id):
+                calls.append("cancel")
+    
+        class Research:
+            report_workflows = SimpleNamespace(runtime=Runtime())
+    
+            async def create(self, *_args):
+                calls.append("create")
+                return {"id": reference}
+    
+            async def send(self, *_args, **_kwargs):
+                calls.append("send")
+                return {"accepted": True}
+    
+            async def detail(self, *_args):
+                calls.append("detail")
+                return {"status": "completed"}
+    
+        service = AutomationService(
+            Store(tmp_path), research=Research(), scheduler=False,
+            target_resolver=lambda *_args: {"version": 2, "sha256": "a" * 64},
+        )
+        automation = service.create(automation_body(target_kind=kind))
+        await service.run(automation["id"])
+        await service.wait_for_idle()
+>       assert calls == ["report_start" if kind == "report_workflow" else "create"]
+E       AssertionError: assert ['report_start', 'cancel'] == ['report_start']
+E         
+E         Left contains one more item: 'cancel'
+E         Use -v to get more diff
+
+tests/research_web/test_automation_service.py:698: AssertionError
+_ test_missing_native_identity_never_submits_or_cancels_unknown_work[3-report_workflow] _
+
+tmp_path = PosixPath('/private/var/folders/rz/f7lsl4nn2bl0lpsfqyylp1jh0000gn/T/pytest-of-leon/pytest-1184/test_missing_native_identity_n5')
+kind = 'report_workflow', reference = 3
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("kind", ["skill", "report_workflow"])
+    @pytest.mark.parametrize("reference", [None, "", 3])
+    async def test_missing_native_identity_never_submits_or_cancels_unknown_work(tmp_path, kind, reference):
+        calls = []
+    
+        class Runtime:
+            async def start_run(self, *_args, **_kwargs):
+                calls.append("report_start")
+                return {"id": reference, "session_id": None}
+    
+            def _run(self, run_id):
+                calls.append("report_monitor")
+                return {"id": run_id, "workflow_id": "company-research", "version": 2,
+                        "status": "completed", "session_id": None, "artifacts": []}
+    
+            async def cancel(self, _run_id):
+                calls.append("cancel")
+    
+        class Research:
+            report_workflows = SimpleNamespace(runtime=Runtime())
+    
+            async def create(self, *_args):
+                calls.append("create")
+                return {"id": reference}
+    
+            async def send(self, *_args, **_kwargs):
+                calls.append("send")
+                return {"accepted": True}
+    
+            async def detail(self, *_args):
+                calls.append("detail")
+                return {"status": "completed"}
+    
+        service = AutomationService(
+            Store(tmp_path), research=Research(), scheduler=False,
+            target_resolver=lambda *_args: {"version": 2, "sha256": "a" * 64},
+        )
+        automation = service.create(automation_body(target_kind=kind))
+        await service.run(automation["id"])
+        await service.wait_for_idle()
+>       assert calls == ["report_start" if kind == "report_workflow" else "create"]
+E       AssertionError: assert ['report_start', 'cancel'] == ['report_start']
+E         
+E         Left contains one more item: 'cancel'
+E         Use -v to get more diff
+
+tests/research_web/test_automation_service.py:698: AssertionError
+=========================== short test summary info ============================
+FAILED tests/research_web/test_automation_service.py::test_missing_native_identity_never_submits_or_cancels_unknown_work[None-skill]
+FAILED tests/research_web/test_automation_service.py::test_missing_native_identity_never_submits_or_cancels_unknown_work[None-report_workflow]
+FAILED tests/research_web/test_automation_service.py::test_missing_native_identity_never_submits_or_cancels_unknown_work[-skill]
+FAILED tests/research_web/test_automation_service.py::test_missing_native_identity_never_submits_or_cancels_unknown_work[-report_workflow]
+FAILED tests/research_web/test_automation_service.py::test_missing_native_identity_never_submits_or_cancels_unknown_work[3-report_workflow]
+5 failed, 1 passed, 25 deselected in 0.27s

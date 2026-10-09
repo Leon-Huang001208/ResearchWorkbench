@@ -1,6 +1,9 @@
 # DataHub、研究资料与实际文件
 
 DSH 0.2.1 的 preset 注册改为 owned overlay 中的声明式插件行；原 `.agent-presets/<id>/agent.cordis.yml` 仍是产品生成源，不再依赖旧版文件目录自动发现。空实例默认模型为 `deepseek-flash`；已有保存的模型 ID、历史会话和快照不自动重写。安装清单绑定新的固定源码及实际构建闭包，模型秘密仍仅存于 Native Keychain，不随 preset、安装摘要或快照复制。
+
+Automation 沿用 automation_runs 的 session_id、report_run_id、updated_at 和 failure_code 字段，不新增索引或迁移。已知关联通过现有原子 Store.save 写入；失败回滚内存关联，不以未落盘引用继续提交。报告晚到的会话 ID 同样保存；未知、陈旧和异目标引用保留失败原因与原记录，恢复不删除或重建原数据/产物。
+
 Native 停止端口等待只在 RAM 保留停止前端口元组与最多45秒单调期限；
 不保存观察基线或新状态，超时不写模式记录，产品数据、认证与凭据沿原路径。
 

@@ -1,0 +1,86 @@
+2026-10-09 01:06:00 [info     ] automation_created             automation_id_digest=8208657aaf97be5e status=disabled
+2026-10-09 01:06:00 [info     ] automation_native_reference_saved run_id_digest=e87ebc020faa6de3
+F2026-10-09 01:06:00 [info     ] automation_created             automation_id_digest=6f7087d4aa28498f status=disabled
+2026-10-09 01:06:00 [info     ] automation_native_reference_saved run_id_digest=b569525f8aa6a832
+F                                                                       [100%]
+=================================== FAILURES ===================================
+____ test_unconfirmed_native_admission_does_not_enter_success_monitor[None] ____
+
+tmp_path = PosixPath('/private/var/folders/rz/f7lsl4nn2bl0lpsfqyylp1jh0000gn/T/pytest-of-leon/pytest-1180/test_unconfirmed_native_admiss0')
+reply = None
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("reply", [None, {"accepted": False}])
+    async def test_unconfirmed_native_admission_does_not_enter_success_monitor(tmp_path, reply):
+        calls = []
+    
+        class Research:
+            async def create(self, *_args):
+                calls.append("create")
+                return {"id": "unconfirmed-native"}
+    
+            async def send(self, *_args, **_kwargs):
+                calls.append("send")
+                return reply
+    
+            async def detail(self, *_args):
+                calls.append("detail")
+                return {"status": "completed"}
+    
+        service = AutomationService(
+            Store(tmp_path), research=Research(), scheduler=False,
+            target_resolver=lambda *_args: {"version": 2, "sha256": "a" * 64},
+        )
+        automation = service.create(automation_body())
+        await service.run(automation["id"])
+        await service.wait_for_idle()
+        run = service.list_runs()["items"][0]
+>       assert calls == ["create", "send"]
+E       AssertionError: assert ['create', 'send', 'detail'] == ['create', 'send']
+E         
+E         Left contains one more item: 'detail'
+E         Use -v to get more diff
+
+tests/research_web/test_automation_service.py:652: AssertionError
+___ test_unconfirmed_native_admission_does_not_enter_success_monitor[reply1] ___
+
+tmp_path = PosixPath('/private/var/folders/rz/f7lsl4nn2bl0lpsfqyylp1jh0000gn/T/pytest-of-leon/pytest-1180/test_unconfirmed_native_admiss1')
+reply = {'accepted': False}
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("reply", [None, {"accepted": False}])
+    async def test_unconfirmed_native_admission_does_not_enter_success_monitor(tmp_path, reply):
+        calls = []
+    
+        class Research:
+            async def create(self, *_args):
+                calls.append("create")
+                return {"id": "unconfirmed-native"}
+    
+            async def send(self, *_args, **_kwargs):
+                calls.append("send")
+                return reply
+    
+            async def detail(self, *_args):
+                calls.append("detail")
+                return {"status": "completed"}
+    
+        service = AutomationService(
+            Store(tmp_path), research=Research(), scheduler=False,
+            target_resolver=lambda *_args: {"version": 2, "sha256": "a" * 64},
+        )
+        automation = service.create(automation_body())
+        await service.run(automation["id"])
+        await service.wait_for_idle()
+        run = service.list_runs()["items"][0]
+>       assert calls == ["create", "send"]
+E       AssertionError: assert ['create', 'send', 'detail'] == ['create', 'send']
+E         
+E         Left contains one more item: 'detail'
+E         Use -v to get more diff
+
+tests/research_web/test_automation_service.py:652: AssertionError
+=========================== short test summary info ============================
+FAILED tests/research_web/test_automation_service.py::test_unconfirmed_native_admission_does_not_enter_success_monitor[None]
+FAILED tests/research_web/test_automation_service.py::test_unconfirmed_native_admission_does_not_enter_success_monitor[reply1]
+2 failed, 23 deselected in 0.42s
