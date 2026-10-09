@@ -4571,6 +4571,7 @@ Imports:
 - `datetime`
 - `hashlib`
 - `json`
+- `local_integrations.manager`
 - `models`
 - `os`
 - `pathlib`
@@ -4586,7 +4587,7 @@ Classes:
   - Raised when unsafe persisted state cannot be atomically sanitized.
 - `IntegrationCoordinator`
   - Coordinate bounded probes while retaining only safe status evidence.
-  - methods: __init__, load, start, start_batch, _scopes_overlap, wait_batch, batch, _public_batch, _prune_batches, _register_idempotency_key, _run_batch, _probe_data, _probe_local, set_auto_probe_consent, status, _data_sources, _data_fingerprint, _local_fingerprint, _needs_consent, _data_failure_ownership, _data_statuses, _local_statuses, _persist, _persist_sync, _safe_tabbit_snapshot, _project_tabbit_snapshot, close
+  - methods: __init__, load, _restore_data_probe_statuses, start, start_batch, _scopes_overlap, wait_batch, batch, _public_batch, _prune_batches, _register_idempotency_key, _run_batch, _probe_data, _probe_local, _verify_consented_office, set_auto_probe_consent, status, _data_sources, _data_fingerprint, _local_fingerprint, _needs_consent, _data_failure_ownership, _data_statuses, _local_statuses, _persist, _persist_sync, _safe_tabbit_snapshot, _project_tabbit_snapshot, close
 
 Functions:
 - `_now`
@@ -4618,6 +4619,7 @@ Imports:
 - `fastapi.responses`
 - `pydantic`
 - `typing`
+- `uuid`
 
 Classes:
 - `ProbeBatchRequest`
@@ -4770,7 +4772,7 @@ Classes:
   - methods: current
 - `LocalIntegrationManager`
   - Build and persist safe local facts; probes never launch detected software.
-  - methods: __init__, state_path, _load_verification_runs, _load_verification_results, snapshot, _detect_snapshot, _publish_snapshot, _commit_verification, _apply_verification_results, _verification_result_is_current, _wind_session_is_ready, _path_fingerprint, _wind_addin_fingerprint, _verification_context_fingerprint, _detect, _office_items, _wind_terminal_item, _application_item, _bridge_item, _ifind_terminal_item, _unsupported_office_items, _browser_items, _validate_snapshot, _persist, start_probe, _run_probe, start_verification, run_document, _run_verification, verification, _public_verification, _prune_probes, _prune_verifications, probe, run_probe, _public_probe, close
+  - methods: __init__, state_path, _load_verification_runs, _load_verification_results, snapshot, automatic_verification_state, _detect_snapshot, _publish_snapshot, _commit_verification, _apply_verification_results, _verification_result_is_current, _wind_session_is_ready, _path_fingerprint, _wind_addin_fingerprint, _verification_context_fingerprint, _detect, _office_items, _wind_terminal_item, _application_item, _bridge_item, _ifind_terminal_item, _unsupported_office_items, _browser_items, _validate_snapshot, _persist, start_probe, _run_probe, start_verification, run_document, _run_verification, verification, _public_verification, _prune_probes, _prune_verifications, probe, run_probe, _public_probe, close
 
 Functions:
 - `_safe_verification_diagnostics`
@@ -4816,6 +4818,7 @@ Module docstring:
 Imports:
 - `__future__`
 - `collections.abc`
+- `contextlib`
 - `core.observability`
 - `hashlib`
 - `json`

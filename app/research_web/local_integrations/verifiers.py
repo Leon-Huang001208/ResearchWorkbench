@@ -15,6 +15,7 @@ import subprocess
 import sys
 import time
 from collections.abc import Callable
+from contextlib import ExitStack
 from pathlib import Path
 from threading import Event
 from typing import Any
@@ -366,7 +367,74 @@ def _remove_office_artifact(target: str, run_root: Path) -> bool:
         if path.is_symlink() or not stat.S_ISREG(metadata.st_mode):
             log.warning("local_office_verification_cleanup_refused", target=target)
             return False
+        root_metadata = run_root.lstat()
+        if (
+            run_root.is_symlink()
+            or not stat.S_ISDIR(root_metadata.st_mode)
+            or root_metadata.st_uid != os.getuid()
+            or metadata.st_uid != os.getuid()
+            or metadata.st_nlink != 1
+            or metadata.st_size > 30 * 1024 * 1024
+        ):
+            raise OSError("unsafe registered Office artifact")
+        # Preserve only the closed, registered synthetic document in the existing
+        # private run store before cleaning its sandbox copy.
+        with ExitStack() as stack:
+            root_fd = os.open(run_root, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+            stack.callback(os.close, root_fd)
+            opened_root = os.fstat(root_fd)
+            if (opened_root.st_dev, opened_root.st_ino) != (
+                root_metadata.st_dev,
+                root_metadata.st_ino,
+            ):
+                raise OSError("archive directory changed before open")
+            source = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+            with os.fdopen(source, "rb") as reader:
+                identity = os.fstat(reader.fileno())
+                if (identity.st_dev, identity.st_ino) != (metadata.st_dev, metadata.st_ino):
+                    raise OSError("Office artifact changed before archive")
+                destination = os.open(
+                    path.name,
+                    os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+                    0o600,
+                    dir_fd=root_fd,
+                )
+                with os.fdopen(destination, "wb") as writer:
+                    remaining = metadata.st_size
+                    while remaining:
+                        chunk = reader.read(min(remaining, 1024 * 1024))
+                        if not chunk:
+                            raise OSError("Office artifact truncated during archive")
+                        writer.write(chunk)
+                        remaining -= len(chunk)
+                    writer.flush()
+                    os.fsync(writer.fileno())
+                    saved = os.fstat(writer.fileno())
+                    visible = os.stat(path.name, dir_fd=root_fd, follow_symlinks=False)
+                    if (
+                        not stat.S_ISREG(saved.st_mode)
+                        or saved.st_uid != os.getuid()
+                        or saved.st_nlink != 1
+                        or saved.st_size != metadata.st_size
+                        or (saved.st_dev, saved.st_ino) != (visible.st_dev, visible.st_ino)
+                    ):
+                        raise OSError("archive identity unavailable")
+                current = path.lstat()
+                if (current.st_dev, current.st_ino, current.st_size, current.st_mtime_ns) != (
+                    metadata.st_dev,
+                    metadata.st_ino,
+                    metadata.st_size,
+                    metadata.st_mtime_ns,
+                ):
+                    raise OSError("Office artifact changed during archive")
+            visible_root = run_root.lstat()
+            if run_root.is_symlink() or (visible_root.st_dev, visible_root.st_ino) != (
+                root_metadata.st_dev,
+                root_metadata.st_ino,
+            ):
+                raise OSError("archive directory changed before source cleanup")
         path.unlink()
+        log.info("local_office_verification_artifact_archived", target=target)
         return True
     except OSError as exc:
         log.warning(
@@ -2302,7 +2370,19 @@ def verify_target(
                 outcome["diagnostics"]["timed_out_stage"] = outcome["timed_out_stage"]
             if type(previous.get("native_error_number")) is int:
                 outcome["diagnostics"]["native_error_number"] = previous["native_error_number"]
-            if cleanup in {"confirmed", "not_created"}:
+            if cleanup == "confirmed" and outcome["outcome"] == "available" and document is None:
+                # Successful smoke outputs use the existing bounded run retention.
+                # Drop the completed marker so normal capacity/TTL pruning applies.
+                marker = run_root / f"{target}-step.txt"
+                try:
+                    if marker.is_symlink():
+                        raise OSError("unsafe completed verification marker")
+                    marker.unlink(missing_ok=True)
+                    log.info("local_office_verification_run_retained", target=target)
+                except OSError:
+                    outcome["diagnostics"]["cleanup_outcome"] = "failed"
+                    outcome.update(outcome="failed", code="cleanup_failed")
+            elif cleanup in {"confirmed", "not_created"}:
                 if not _remove_run_directory(run_root):
                     outcome["diagnostics"]["cleanup_outcome"] = "failed"
                     outcome.update(outcome="failed", code="cleanup_failed")

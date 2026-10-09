@@ -23,7 +23,17 @@ class IntegrationItemStatus(BaseModel):
     probe_state: str = Field(min_length=1, max_length=64)
     runtime_callable: bool
     stages: dict[Literal["registration", "authorization", "probe", "adaptation", "runtime"], str]
-    bucket: Literal["available", "checking", "user_action", "system_fault", "not_delivered"]
+    bucket: Literal[
+        "available",
+        "checking",
+        "user_action",
+        "system_fault",
+        "not_delivered",
+        "unverified",
+        "stale",
+        "not_detected",
+        "not_applicable",
+    ]
     responsibility: Literal["user", "system", "vendor", "developer"]
     capabilities: list[str] = Field(default_factory=list, max_length=64)
     last_attempt_at: str | None = Field(default=None, max_length=64)
