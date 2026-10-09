@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "updated",
-  "summary": "Codex实际复核整合后的README：保留DSH升级、macOS Keychain与Office有限业务说明，以及当前端点/双runtime治理入口。",
-  "reason": "只整合文档和已有运行合同，未认证新Docker/Windows/Linux功能或新架构视觉；历史证据保持原候选归属。"
+  "disposition": "unchanged",
+  "summary": "复核最新 master 的 README：保留 DSH 0.2.1 升级、macOS Keychain、Office 有限业务说明及端点/双 runtime 入口；Claw 关联落盘与异常恢复仅更新既有 Automation 模块说明。",
+  "reason": "本轮未修改根 README；唯一 DSH、原生报告 Runtime、安装依赖、HTTP 路由和原有 Run 字段均未改变。恢复与失败关闭细节在模块文档说明，未新增架构节点或 schema；保留上游安装与支持限制，不把 macOS 私有进程/受控 loopback 测试解释为真实模型、厂商、CI 或其他平台证据，历史证据保留原候选归属。"
 }

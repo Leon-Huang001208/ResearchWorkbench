@@ -1,5 +1,7 @@
 # 研究协议、执行状态与恢复
 
+Automation 异常退出恢复只监控原会话/报告 Run，不重建或重发。普通会话须有原生执行或终止状态证据，idle/created/未知响应为 native_submission_unconfirmed；未确认 send 也不进入成功监控。报告恢复以报告 Run 为优先事实源，持续核对 workflow/version，等待其 validating/completed 与真实产物；显式停止保持原有 interrupted 语义，不冒充自动恢复。
+
 已验证运行中的实际 NativeRuntime 仅在显式 `--stop-current` 且公开 stop 成功后，
 等待停止前捕获的 Native 两端口可由原 `port_busy` 判定释放。内部预算默认45秒，
 只接受有限的精确 int/float、0至45秒；bool与数值子类在停止前拒绝。
