@@ -30,5 +30,7 @@
       "case": "bad_protocol_event_error_visible",
       "pass": true
     }
-  ]
+  ],
+  "nativeLogSource": "integration-valid-state/native-final-events.json (native SDK complete-log read PASS)",
+  "nextTurnRevalidatedAfterFixtureRepair": true
 }

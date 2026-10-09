@@ -55,3 +55,24 @@
 - 读取docs/actions-budget.md；实时GitHub API为PUBLIC；当前标准macos-14成功作业可启动，最近五次成功实际602/386/588/412/728秒，均值543.2秒，保守权重约99.6分钟/次（非public标准runner收费量）。证据actions-budget.json。Git fetch/ls-remote确认远端master仍f8adae05，exit0。
 - 使用iteration-delivery的基线/隔离/验证原则；其控制器start只创建新功能worktree，没有采用当前worktree的入口；publish会默认尝试主线推送并调用auto-merge，不能在本次明确“不含merge”授权下调用。保留当前已验证codex工作树，按GitHub分支push+PR流程发布真实候选，不伪造控制器receipt，不执行主线发布/cleanup。
 - 发布原始工具日志仅保留本地；提交可审阅源码、文档、必要结构/计划/集成/浏览器摘要和合成数据证据，未发现模式扫描命中的密钥/私钥。PR说明已写pr-body.md，待提交/push/PR与自动CI证据绑定。
+
+## 已发布候选与实际CI
+- 发布前候选55路径；一次错误地只传六个源文件给Project Constraints导致exit1，随后完整55路径重跑exit0/0违反（logs/precommit-constraints.log）。不是产品失败、不修改策略或断言。
+- `git commit -m "feat(web): restore and display native research Todo plans"` exit0；候选`c10cb6bf58fa36889d5647bc6eb99e53ccf27340`，父提交f8adae05。提交后app/docs/outputs/tests二进制diff SHA仍0ac19587…，已测产品字节没有变化。
+- `git push -u origin codex/fingpt-native-plan-v1-20261009` exit0；`gh pr create --repo Leon-Huang001208/ResearchWorkbench --base master --head codex/fingpt-native-plan-v1-20261009 --title ... --body-file .ai/reports/fingpt-native-plan-v1/pr-body.md` exit0，PR https://github.com/Leon-Huang001208/ResearchWorkbench/pull/90 已attach当前聊天。
+- live GitHub PR：OPEN、head=c10cb6bf、base=f8adae05、autoMergeRequest=null；merge_preview=778959523ee5be7401bab01253e43f5ce79f198a（不是已合并）。未主线push、未merge、未auto-merge。
+- 当前真实自动run：Project Constraints 37888849149已success；Research Web Checks 37888849128和Mac Bootstrap 37888849125在运行。run的headSha均c10cb6bf。未dispatch/rerun其他平台。
+- publication.json记录来源、源候选与本地后续报告的分离；后续证据暂不push，避免报告提交触发重复Mac CI，不能拿未发布的本地报告字节当CI候选源码。
+
+## CI等待期间的作用域补查
+- 核对固定DSH的dsh-base包确实依赖tool-todo与session-projection；补查原生agent-preset registry的作用域装配，而不将已通过的宿主级真实Loader/工具执行等同完整preset。
+- 新增报告专属探针native-preset-integration.mjs；前三次exit1均未改产品源码：两次CLI直接锚点缺少group模块，读取真实依赖声明后确定group由app-boot锚点提供、preset-registry由agent-preset锚点提供；第三次进入实际registry后，探针setup回调错误返回mount结果，触发TypeError(commit不是函数)。与固定源码测试harness的void setup签名对照，根因明确。
+- 连败3次后停止直接重试，先完成独立Mac CI/Doctor/checkout取证。Mac Bootstrap37888849125已success，doctor schema2/installation_ok=true/product_ready=true，runtime/web均ready=true；服务已按workflow正常stop。checkout日志为真实merge预览7789595，父提交本地Git对象核对为f8adae05+c10cb6bf。没有rerun或dispatch。
+
+## 集成证据纠正（原始工具执行真实；旧最后回合收据失效）
+- 依据原生fixture签名修正setup的void返回后，作用域探针进入耐久读取，原生校验器拒绝`turn/start`：手工下一回合前缺少`turn/end`。这是报告专属测试夹具错误，不是产品代码或DSH版本缺陷。
+- 对原integration-state与integration-state-node24完整日志实际执行原生SDK open/read，均明确SessionPersistenceCorruptionError；此前只读有效前三条前缀、随后未重读最终日志，不能据此认证下一回合耐久恢复。日志与原收据保留；两个旧receipt现标FAIL/earlierObservedStatus=PASS及替代证据路径，日志/native-old-log-read-validation.log记录实际拒绝。
+- 原native-integration.mjs新增合法turn/end→turn/start，以及最后整个日志的SDK重新读取；保留失败root，不改写其原生日志，在独立integration-valid-state取得exit0/PASS/finalDurableLogValidated=true。
+- 原生preset作用域探针在preset-integration-valid-state取得exit0/PASS：真实AgentPresetRegistry/Loader挂载生产Todo段、宿主根无Todo、no-plan作用域无Todo、两个真实Agent分别工具执行与耐久日志隔离、只清空当前新回合；模型调用0。dsh-base受管依赖含Todo/sessionProjections，source/lib哈希见该receipt。未mock被测插件/guard/投影。
+- Python把上述两会话的SDK完整读取事件实际project：新回合plan=None，另一会话保留原Todo；logs/native-valid-projection.log exit0。browser-fixtures改为合法完整原生日志；实际浏览器重新验证下一回合无旧计划，更新browser-next-turn.png与browser-receipt；进程PID67826/端口59338/session41859按认证句柄停止exit0，不留运行服务。
+- 此纠正会更新PR证据候选并触发其自动Mac CI；产品app/docs/outputs/tests字节未改变，先前CI仍属于c10cb6bf，不能将其冒充新候选CI。报告后续文件不靠原来的CI认定。

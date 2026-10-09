@@ -72,12 +72,18 @@ try {
   assert.deepEqual(stored.events.findLast(event => event.type === 'todo/write').data.todos, completed);
   const bytes = JSON.stringify(stored.events.map(event => ({ event })), null, 2);
   await writeFile(join(root, 'native-events.json'), bytes, { mode: 0o600 });
+  agent.session.append('turn/end', { turn: 1, reason: { kind: 'completed' } });
   agent.session.append('turn/start', { turn: 2 });
   assert.equal((await ctx.sessionProjections.snapshot(agent.session)).values.todos, null);
   await ctx.sessions.flush(agent.session);
+  const finalHandle = await ctx.sessionPersistence.open(agent.id, 'read');
+  const finalStored = await finalHandle.read();
+  await finalHandle.close();
+  assert.equal(finalStored.events.findLast(event => event.type === 'turn/start').data.turn, 2);
+  await writeFile(join(root, 'native-final-events.json'), JSON.stringify(finalStored.events.map(event => ({ event })), null, 2), { mode: 0o600 });
   await writeFile(join(root, 'receipt.json'), JSON.stringify({ status: 'PASS', pin,
     modelCalls: 0, productionRuntimeTouched: false, transport: 'in-process real native registries',
-    todoWrites: 2, durableRead: true, nextTurnCleared: true,
+    todoWrites: 2, durableRead: true, nextTurnCleared: true, finalDurableLogValidated: true,
     eventsSHA256: createHash('sha256').update(bytes).digest('hex') }, null, 2), { mode: 0o600 });
   console.log('PASS: real todo tool, loader injection, guard, durable native log and next-turn reset; model calls=0');
 } catch (error) {

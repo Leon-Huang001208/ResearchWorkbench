@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "changeSummary": {
-    "fileCount": 55,
+    "fileCount": 74,
     "ruleIds": [
       "documentation",
       "dependency",
@@ -35,6 +35,7 @@
     ".ai/reports/fingpt-native-plan-v1/browser-receipt.json",
     ".ai/reports/fingpt-native-plan-v1/browser-server.json",
     ".ai/reports/fingpt-native-plan-v1/changed-files.json",
+    ".ai/reports/fingpt-native-plan-v1/evidence-repair.json",
     ".ai/reports/fingpt-native-plan-v1/final-validation.mjs",
     ".ai/reports/fingpt-native-plan-v1/integration-state-node24/dataHome/_no-cwd/native-plan-isolated/session.lock",
     ".ai/reports/fingpt-native-plan-v1/integration-state-node24/dataHome/_no-cwd/native-plan-isolated/session.v4.jsonl",
@@ -46,8 +47,26 @@
     ".ai/reports/fingpt-native-plan-v1/integration-state/native-events.json",
     ".ai/reports/fingpt-native-plan-v1/integration-state/receipt.json",
     ".ai/reports/fingpt-native-plan-v1/integration-state/todo.cordis.yml",
+    ".ai/reports/fingpt-native-plan-v1/integration-valid-state/dataHome/_no-cwd/native-plan-isolated/session.lock",
+    ".ai/reports/fingpt-native-plan-v1/integration-valid-state/dataHome/_no-cwd/native-plan-isolated/session.v4.jsonl",
+    ".ai/reports/fingpt-native-plan-v1/integration-valid-state/native-events.json",
+    ".ai/reports/fingpt-native-plan-v1/integration-valid-state/native-final-events.json",
+    ".ai/reports/fingpt-native-plan-v1/integration-valid-state/receipt.json",
+    ".ai/reports/fingpt-native-plan-v1/integration-valid-state/todo.cordis.yml",
     ".ai/reports/fingpt-native-plan-v1/native-integration.mjs",
+    ".ai/reports/fingpt-native-plan-v1/native-preset-integration.mjs",
     ".ai/reports/fingpt-native-plan-v1/pr-body.md",
+    ".ai/reports/fingpt-native-plan-v1/preset-integration-state/dataHome/_no-cwd/preset-first/session.lock",
+    ".ai/reports/fingpt-native-plan-v1/preset-integration-state/dataHome/_no-cwd/preset-first/session.v4.jsonl",
+    ".ai/reports/fingpt-native-plan-v1/preset-integration-state/dataHome/_no-cwd/preset-second/session.lock",
+    ".ai/reports/fingpt-native-plan-v1/preset-integration-state/dataHome/_no-cwd/preset-second/session.v4.jsonl",
+    ".ai/reports/fingpt-native-plan-v1/preset-integration-valid-state/dataHome/_no-cwd/preset-first/session.lock",
+    ".ai/reports/fingpt-native-plan-v1/preset-integration-valid-state/dataHome/_no-cwd/preset-first/session.v4.jsonl",
+    ".ai/reports/fingpt-native-plan-v1/preset-integration-valid-state/dataHome/_no-cwd/preset-second/session.lock",
+    ".ai/reports/fingpt-native-plan-v1/preset-integration-valid-state/dataHome/_no-cwd/preset-second/session.v4.jsonl",
+    ".ai/reports/fingpt-native-plan-v1/preset-integration-valid-state/native-events.json",
+    ".ai/reports/fingpt-native-plan-v1/preset-integration-valid-state/receipt.json",
+    ".ai/reports/fingpt-native-plan-v1/publication.json",
     ".ai/reports/fingpt-native-plan-v1/validation-results.json",
     ".ai/reports/fingpt-native-plan-v1/verification-plan.json",
     ".ai/reports/fingpt-native-plan-v1/verification-receipt.json",
@@ -245,6 +264,16 @@
       "minimumLevel": "L0"
     },
     {
+      "path": ".ai/reports/fingpt-native-plan-v1/evidence-repair.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
       "path": ".ai/reports/fingpt-native-plan-v1/final-validation.mjs",
       "rule": "documentation",
       "reason": "documentation_only",
@@ -375,6 +404,76 @@
       "minimumLevel": "L0"
     },
     {
+      "path": ".ai/reports/fingpt-native-plan-v1/integration-valid-state/dataHome/_no-cwd/native-plan-isolated/session.lock",
+      "rule": "dependency",
+      "reason": "dependency_change",
+      "modules": [
+        "dependency-graph"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/integration-valid-state/dataHome/_no-cwd/native-plan-isolated/session.lock",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/integration-valid-state/dataHome/_no-cwd/native-plan-isolated/session.v4.jsonl",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/integration-valid-state/native-events.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/integration-valid-state/native-final-events.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/integration-valid-state/receipt.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/integration-valid-state/todo.cordis.yml",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
       "path": ".ai/reports/fingpt-native-plan-v1/native-integration.mjs",
       "rule": "documentation",
       "reason": "documentation_only",
@@ -385,7 +484,167 @@
       "minimumLevel": "L0"
     },
     {
+      "path": ".ai/reports/fingpt-native-plan-v1/native-preset-integration.mjs",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
       "path": ".ai/reports/fingpt-native-plan-v1/pr-body.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/preset-integration-state/dataHome/_no-cwd/preset-first/session.lock",
+      "rule": "dependency",
+      "reason": "dependency_change",
+      "modules": [
+        "dependency-graph"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/preset-integration-state/dataHome/_no-cwd/preset-first/session.lock",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/preset-integration-state/dataHome/_no-cwd/preset-first/session.v4.jsonl",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/preset-integration-state/dataHome/_no-cwd/preset-second/session.lock",
+      "rule": "dependency",
+      "reason": "dependency_change",
+      "modules": [
+        "dependency-graph"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/preset-integration-state/dataHome/_no-cwd/preset-second/session.lock",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/preset-integration-state/dataHome/_no-cwd/preset-second/session.v4.jsonl",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/preset-integration-valid-state/dataHome/_no-cwd/preset-first/session.lock",
+      "rule": "dependency",
+      "reason": "dependency_change",
+      "modules": [
+        "dependency-graph"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/preset-integration-valid-state/dataHome/_no-cwd/preset-first/session.lock",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/preset-integration-valid-state/dataHome/_no-cwd/preset-first/session.v4.jsonl",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/preset-integration-valid-state/dataHome/_no-cwd/preset-second/session.lock",
+      "rule": "dependency",
+      "reason": "dependency_change",
+      "modules": [
+        "dependency-graph"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/preset-integration-valid-state/dataHome/_no-cwd/preset-second/session.lock",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/preset-integration-valid-state/dataHome/_no-cwd/preset-second/session.v4.jsonl",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/preset-integration-valid-state/native-events.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/preset-integration-valid-state/receipt.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/publication.json",
       "rule": "documentation",
       "reason": "documentation_only",
       "modules": [

@@ -10,6 +10,9 @@ Mac CI、完整产品浏览器研究流程、干净安装、模型live分别未�
 固定基线、逐项命令与RED/GREEN见 PROGRESS.md；剩余门见 BLOCKED.md。
 最终聚焦Python180通过/0skip，Node24 JS69通过/0skip/0todo；固定原生插件集成与真实落盘日志
 恢复通过，L4的9个本地gate全部PASS。机器回执valid=true但result=BLOCKED；不是已上线。
+当前原生恢复证据以 `integration-valid-state/receipt.json` 与
+`preset-integration-valid-state/receipt.json` 为准：旧无模型夹具下一turn前漏写turn/end，
+最终日志被原生SDK拒绝，旧两个receipt已标FAIL并保留原日志；不是可接受的最终恢复证据。
 
 ## 行为
 全量原生Todo快照、原生回合/seq写入版本，无稳定item身份。新回合清空，日志缺口后的回合

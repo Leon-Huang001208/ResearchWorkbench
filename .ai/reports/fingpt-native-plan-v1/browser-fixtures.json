@@ -53,7 +53,8 @@
       "messages": [],
       "activities": [],
       "status": "running",
-      "usage": {}
+      "usage": {},
+      "duration_ms": 27
     }
   },
   "bad": {
