@@ -50,7 +50,7 @@ with redirect_stdout(sys.stderr):
 
 log = logging.getLogger(__name__)
 INPUT_TOKENS = 1048576
-POLICY_EXPIRY = datetime(2026, 10, 9, tzinfo=UTC)
+POLICY_EXPIRY = datetime(2026, 10, 10, tzinfo=UTC)
 
 
 class PolicyFields(TypedDict):
@@ -107,9 +107,9 @@ PrivateRecord: TypeAlias = tuple[bytes, os.stat_result]
 Clock: TypeAlias = Callable[[], datetime]
 
 POLICY: PolicyFields = {
-    "policyId": "deepseek-flash-canonical-20261008",
-    "quoteDate": "2026-10-08",
-    "policyExpires": "2026-10-09T00:00:00Z",
+    "policyId": "deepseek-flash-canonical-20261009",
+    "quoteDate": "2026-10-09",
+    "policyExpires": "2026-10-10T00:00:00Z",
     "endpoint": "https://api.deepseek.com",
     "provider": "deepseek-official",
     "model": "deepseek-flash",

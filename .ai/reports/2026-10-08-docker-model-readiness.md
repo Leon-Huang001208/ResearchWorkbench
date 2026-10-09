@@ -473,6 +473,15 @@ pyproject已有build-system.requires=hatchling，editable dev安装只在隔离b
 现有本地环境不安装包而执行真正wheel合同1PASS8.26秒，证实产品wheel可构建/加载。
 CI临时环境安装仍单独等待用户确认，修补未推送/未rerun，不跳过测试，不改产品锁或矩阵。
 
+2026-10-09 用户随后“确认”，批准上述CI临时venv安装既有hatchling及新隔离canonical安装/预算窗口。
+当前UTC已过旧policy到期，重新读取官方pricing确认峰值输入0.3/输出1.2美元每百万tokens不变。
+新代码quoteDate2026-10-09、独立policyId deepseek-flash-canonical-20261009、policyExpires
+2026-10-10T00:00:00Z，UTC常量同步。仅更新报价metadata，不改旧控制/账本/IId/Key、不改费率或
+3次/512/1h/严格比较/不可退款逻辑。增加前一天canonical政策拒绝，完整launcher194PASS1SDKskip，
+SPEC/独立PythonQUALITY各4PASS批准，格式检查PASS。预算仍待新环境就绪后才真实init。
+新任务fixture /private/tmp/rwb-docker-canonical-20261009.P7jHDO，独立HOME与detached checkout；
+私有Docker配置只发现现有Docker.app插件，不复制认证或全局配置；不改日常实例。
+
 新SDK默认/目录为canonical deepseek-flash，旧授权tuple和已初始化ledger不适用；旧窗口已过期且
 0tickets/0cost。新的任务内隔离验收安装与最长1h预算另请求用户确认，全任务仍3请求/512输出/
 1USD；未创建新安装/启用新控制/复制真实Key。最终SDK485 Docker及真实文本/冷恢复/续问/同镜像

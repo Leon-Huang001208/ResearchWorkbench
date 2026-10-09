@@ -2097,6 +2097,7 @@ console.log(JSON.stringify({ dispatched, networkCalls: 0 }));
     [
         {"model": "deepseek-v4-flash"},
         {"policyId": "deepseek-flash-20261008"},
+        {"policyId": "deepseek-flash-canonical-20261008"},
         {"model": "deepseek-v4-flash", "policyId": "deepseek-flash-20261008"},
     ],
 )
@@ -2110,7 +2111,7 @@ def test_canonical_budget_rejects_old_controls_without_writes(tmp_path, monkeypa
     parent.mkdir(mode=0o700)
     root = parent / ("b" * 32)
     assert budget.POLICY["model"] == "deepseek-flash"
-    assert budget.POLICY["policyId"] == "deepseek-flash-canonical-20261008"
+    assert budget.POLICY["policyId"] == "deepseek-flash-canonical-20261009"
     with monkeypatch.context() as old_policy:
         old_policy.setattr(budget, "POLICY", {**budget.POLICY, **legacy})
         control = budget.authorization(3, 512, "2026-10-08T11:30:00Z")
