@@ -14,7 +14,10 @@ class LocalVerificationRequest(BaseModel):
 
 @router.get("/local-integrations")
 def local_integrations(request: Request):
-    return request.app.state.research.local_integrations.snapshot()
+    research = request.app.state.research
+    status = research.integrations.status("local")
+    snapshot = status["local_snapshot"]
+    return {**snapshot, "integration_status": status}
 
 
 @router.post("/local-integrations/probes", status_code=202)

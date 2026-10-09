@@ -18,6 +18,20 @@ from app.research_web.integrations import coordinator as coordinator_module
 from app.research_web.integrations.routes import router
 
 
+def office_success(target):
+    suffix = {"excel": ".xlsx", "word": ".docx", "powerpoint": ".pptx"}[target]
+    return {
+        "outcome": "available",
+        "diagnostics": {
+            "run_id": "a" * 32,
+            "artifact_name": "research-workbench-" + "a" * 32 + suffix,
+            "last_completed_step": "document_closed",
+            "function_outcome": "available",
+            "cleanup_outcome": "confirmed",
+        },
+    }
+
+
 def data_source(
     source_id: str,
     *,
@@ -244,6 +258,70 @@ class ToggleLocalIntegrations(FakeLocalIntegrations):
                 "error": {"code": "probe_timeout", "message": "本机能力检测超时"},
             }
         return await super().run_probe(idempotency_key)
+
+
+def test_local_unknowns_are_not_faults_and_bridge_is_not_double_counted(tmp_path):
+    coordinator = IntegrationCoordinator(
+        tmp_path, FakeDataHub([]), FakeLocalIntegrations(), FakeTabbit()
+    )
+    rows = []
+    for identifier, status, discovery, verification in [
+        ("excel_app", "可用", "已发现", "已验证"),
+        ("excel_automation_bridge", "可用", "已发现", "已验证"),
+        ("word_app", "待验证", "已发现", "待验证"),
+        ("powerpoint_app", "异常", "已发现", "异常"),
+        ("wind_terminal", "待验证", "已发现", "待验证"),
+        ("ifind_terminal", "不适用", "不适用", "不适用"),
+        ("chrome_app", "待验证", "已发现", "待验证"),
+        ("edge_app", "未发现", "未发现", "不适用"),
+    ]:
+        rows.append(
+            {
+                "id": identifier,
+                "status": status,
+                "discovery": discovery,
+                "verification": verification,
+                "authorization": "无需授权",
+                "callable": status == "可用",
+                "category": "office",
+            }
+        )
+    coordinator.local_snapshot = {"items": rows}
+    result = coordinator.status("local")
+    buckets = {item["id"]: item["bucket"] for item in result["items"]}
+    assert buckets["local:wind_terminal"] == "unverified"
+    assert buckets["local:ifind_terminal"] == "not_applicable"
+    assert buckets["local:edge_app"] == "not_detected"
+    assert buckets["local:powerpoint_app"] == "system_fault"
+    assert result["summary"]["available"] == 1
+    assert result["summary"]["total"] == 7
+
+
+def test_local_status_reads_current_manager_evidence_instead_of_cached_success(tmp_path):
+    local = FakeLocalIntegrations()
+    current = {
+        "items": [
+            {
+                "id": "word_app",
+                "category": "office",
+                "label": "Word",
+                "status": "待验证",
+                "discovery": "已发现",
+                "authorization": "无需授权",
+                "verification": "待验证",
+                "callable": False,
+                "last_verified_at": "2026-09-15T00:00:00Z",
+            }
+        ],
+        "last_checked_at": "2026-10-09T03:00:00Z",
+    }
+    local.snapshot = lambda: deepcopy(current)
+    coordinator = IntegrationCoordinator(tmp_path, FakeDataHub([]), local, FakeTabbit())
+    coordinator.local_snapshot = {"items": [{**current["items"][0], "callable": True}]}
+    result = coordinator.status("local")
+    assert result["items"][0]["runtime_callable"] is False
+    assert result["items"][0]["bucket"] == "stale"
+    assert result["local_snapshot"]["last_checked_at"] == current["last_checked_at"]
 
 
 class FakeTabbit:
@@ -566,6 +644,10 @@ async def test_unified_status_classifies_unimplemented_local_items_as_developer_
         "user_action": 0,
         "system_fault": 0,
         "not_delivered": 1,
+        "unverified": 0,
+        "stale": 0,
+        "not_detected": 0,
+        "not_applicable": 0,
         "total": 4,
     }
     assert by_id["local:folder_sync"]["responsibility"] == "developer"
@@ -914,3 +996,286 @@ def test_integration_api_exposes_status_batches_and_consent(tmp_path):
         assert consent.json()["consent"] is True
 
     asyncio.run(coordinator.close())
+
+
+@pytest.mark.asyncio
+async def test_office_auto_real_manager_serial_dedup_refresh_restart_and_owner(tmp_path):
+    from app.research_web.local_integrations import DetectionEnvironment, LocalIntegrationManager
+
+    apps = tmp_path / "Applications"
+    apps.mkdir()
+    for name in ("Excel", "Word", "PowerPoint"):
+        (apps / f"Microsoft {name}.app").mkdir()
+    env = DetectionEnvironment(
+        system="Darwin",
+        home=tmp_path,
+        application_roots=(apps,),
+        office_addin_roots=(),
+        module_available=lambda _name: True,
+        registry_app_exists=lambda _name: False,
+        environment_variables={},
+    )
+    calls = []
+    active = 0
+    maximum = 0
+
+    def verifier(target):
+        nonlocal active, maximum
+        active += 1
+        maximum = max(maximum, active)
+        calls.append(target)
+        active -= 1
+        return {"outcome": "failed"} if target == "word" else office_success(target)
+
+    manager = LocalIntegrationManager(
+        tmp_path / "local",
+        environment=env,
+        verifier=verifier,
+        context_fingerprint=lambda target: target,
+    )
+    hub = FakeDataHub([])
+    coordinator = IntegrationCoordinator(tmp_path / "integrations", hub, manager, FakeTabbit())
+    first = coordinator.start_batch(scope="local", trigger="startup", idempotency_key="disabled")
+    await coordinator.wait_batch(first["id"])
+    assert calls == []
+    for identifier in coordinator_module.OFFICE_AUTO_TARGETS:
+        coordinator.set_auto_probe_consent(identifier, True)
+    batch = coordinator.start_batch(
+        scope="local", trigger="office_consent", idempotency_key="enable"
+    )
+    await coordinator.wait_batch(batch["id"])
+    assert calls == ["excel", "word", "powerpoint"]
+    assert maximum == 1
+    for index in range(3):
+        coordinator.status("local")
+        refresh = coordinator.start_batch(
+            scope="local", trigger="manual", idempotency_key=f"refresh-{index}"
+        )
+        await coordinator.wait_batch(refresh["id"])
+    assert calls == ["excel", "word", "powerpoint"]
+    assert hub.calls == []
+    await coordinator.close()
+    await manager.close()
+    restored_manager = LocalIntegrationManager(
+        tmp_path / "local",
+        environment=env,
+        verifier=verifier,
+        context_fingerprint=lambda target: target,
+    )
+    restored = IntegrationCoordinator(
+        tmp_path / "integrations", hub, restored_manager, FakeTabbit()
+    )
+    startup = restored.start()
+    await restored.wait_batch(startup["id"])
+    assert calls == ["excel", "word", "powerpoint"]
+    assert restored.consents["local:word_app"] is True
+    for identifier in coordinator_module.OFFICE_AUTO_TARGETS:
+        restored.set_auto_probe_consent(identifier, False)
+    startup = restored.start_batch(scope="local", trigger="startup", idempotency_key="off")
+    await restored.wait_batch(startup["id"])
+    assert calls == ["excel", "word", "powerpoint"]
+    copied = tmp_path / "other" / "status.json"
+    copied.parent.mkdir()
+    copied.write_bytes(restored.state_path.read_bytes())
+    foreign = IntegrationCoordinator(copied.parent, hub, restored_manager, FakeTabbit())
+    foreign.load()
+    assert not any(key.startswith("local:") for key in foreign.consents)
+    await restored.close()
+    await restored_manager.close()
+
+
+@pytest.mark.asyncio
+async def test_office_auto_close_cancels_only_owned_task_and_does_not_launch_next(tmp_path):
+    from app.research_web.local_integrations import DetectionEnvironment, LocalIntegrationManager
+
+    apps = tmp_path / "Applications"
+    apps.mkdir()
+    for name in ("Excel", "Word", "PowerPoint"):
+        (apps / f"Microsoft {name}.app").mkdir()
+    env = DetectionEnvironment(
+        system="Darwin",
+        home=tmp_path,
+        application_roots=(apps,),
+        office_addin_roots=(),
+        module_available=lambda _name: True,
+        registry_app_exists=lambda _name: False,
+        environment_variables={},
+    )
+    entered, release = threading.Event(), threading.Event()
+    calls = []
+
+    def verifier(target):
+        calls.append(target)
+        entered.set()
+        release.wait(2)
+        return office_success(target)
+
+    manager = LocalIntegrationManager(
+        tmp_path / "local",
+        environment=env,
+        verifier=verifier,
+        context_fingerprint=lambda target: target,
+    )
+    coordinator = IntegrationCoordinator(
+        tmp_path / "integrations", FakeDataHub([]), manager, FakeTabbit()
+    )
+    for identifier in coordinator_module.OFFICE_AUTO_TARGETS:
+        coordinator.set_auto_probe_consent(identifier, True)
+    batch = coordinator.start_batch(
+        scope="local", trigger="office_consent", idempotency_key="close"
+    )
+    assert await asyncio.to_thread(entered.wait, 2)
+    for identifier in coordinator_module.OFFICE_AUTO_TARGETS:
+        coordinator.set_auto_probe_consent(identifier, False)
+    release.set()
+    await coordinator.wait_batch(batch["id"])
+    assert calls == ["excel"]
+    await coordinator.close()
+    await manager.close()
+
+
+def test_office_failed_enable_persistence_rolls_back_permission(tmp_path, monkeypatch):
+    coordinator = IntegrationCoordinator(
+        tmp_path, FakeDataHub([]), FakeLocalIntegrations(), FakeTabbit()
+    )
+    coordinator.load()
+
+    def fail():
+        raise OSError("storage unavailable")
+
+    monkeypatch.setattr(coordinator, "_persist_sync", fail)
+    with pytest.raises(OSError):
+        coordinator.set_auto_probe_consent("local:word_app", True)
+    assert coordinator.consents.get("local:word_app") is not True
+    for identifier in (
+        "local:wind_terminal",
+        "local:wind_excel_addin",
+        "local:excel_automation_bridge",
+        "local:anything",
+    ):
+        with pytest.raises(ValueError):
+            coordinator.set_auto_probe_consent(identifier, True)
+
+
+@pytest.mark.asyncio
+async def test_office_waits_again_when_another_task_starts_and_finishes_batch_item(tmp_path):
+    class BusyLocal:
+        state_root = tmp_path / "local"
+
+        def __init__(self):
+            self.verification_tasks = {}
+            self.calls = []
+            first = asyncio.create_task(asyncio.sleep(0))
+            self.verification_tasks["first"] = first
+
+            def replace(_task):
+                self.verification_tasks["second"] = asyncio.create_task(asyncio.sleep(0.01))
+
+            first.add_done_callback(replace)
+
+        def automatic_verification_state(self, _target):
+            return {
+                "eligible": True,
+                "fingerprint": "same",
+                "evidence_current": False,
+                "busy": any(not task.done() for task in self.verification_tasks.values()),
+            }
+
+        def start_verification(self, target, _key):
+            assert not any(not task.done() for task in self.verification_tasks.values())
+            self.calls.append(target)
+            self.verification_tasks["own"] = asyncio.create_task(asyncio.sleep(0))
+            return {"id": "own"}
+
+        def verification(self, _identifier):
+            return {"status": "completed", "outcome": "available"}
+
+        def snapshot(self):
+            return {"items": []}
+
+    local = BusyLocal()
+    coordinator = IntegrationCoordinator(
+        tmp_path / "integrations", FakeDataHub([]), local, FakeTabbit()
+    )
+    coordinator.set_auto_probe_consent("local:word_app", True)
+    batch = {"id": "busy-chain", "items": {}}
+    await coordinator._verify_consented_office(batch)
+    assert local.calls == ["word"]
+    assert batch["items"]["local:word_app"]["status"] == "completed"
+
+
+@pytest.mark.asyncio
+async def test_office_enable_after_local_stage_consumes_in_the_existing_all_batch(tmp_path):
+    from app.research_web.local_integrations import DetectionEnvironment, LocalIntegrationManager
+
+    apps = tmp_path / "Applications"
+    apps.mkdir()
+    (apps / "Microsoft Word.app").mkdir()
+    env = DetectionEnvironment(
+        system="Darwin",
+        home=tmp_path,
+        application_roots=(apps,),
+        office_addin_roots=(),
+        module_available=lambda _name: True,
+        registry_app_exists=lambda _name: False,
+        environment_variables={},
+    )
+    calls = []
+
+    def verifier(target):
+        calls.append(target)
+        return office_success(target)
+
+    manager = LocalIntegrationManager(
+        tmp_path / "local",
+        environment=env,
+        verifier=verifier,
+        context_fingerprint=lambda target: target,
+    )
+    coordinator = IntegrationCoordinator(
+        tmp_path / "integrations",
+        FakeDataHub([data_source("cls")], delay=0.2),
+        manager,
+        FakeTabbit(),
+    )
+    existing = coordinator.start_batch(scope="all", trigger="manual", idempotency_key="slow-all")
+    for _ in range(100):
+        if manager._latest is not None:
+            break
+        await asyncio.sleep(0.001)
+    assert manager._latest is not None
+    assert coordinator.batch(existing["id"])["status"] == "checking"
+    coordinator.set_auto_probe_consent("local:word_app", True)
+    accepted = coordinator.start_batch(
+        scope="local", trigger="office_consent", idempotency_key="late-enable"
+    )
+    assert accepted["id"] == existing["id"]
+    await coordinator.wait_batch(existing["id"])
+    assert calls == ["word"]
+    await coordinator.close()
+    await manager.close()
+
+
+def test_local_only_restore_never_reads_data_catalog_or_credentials(tmp_path):
+    calls = []
+
+    class SensitiveHub(FakeDataHub):
+        def catalog(self):
+            calls.append("catalog")
+            raise ValueError("data discovery not allowed here")
+
+        def connection_center(self):
+            calls.append("credentials")
+            raise ValueError("credential metadata not allowed here")
+
+    initial = IntegrationCoordinator(
+        tmp_path, FakeDataHub([]), FakeLocalIntegrations(), FakeTabbit()
+    )
+    initial._persist_sync()
+    restored = IntegrationCoordinator(
+        tmp_path, SensitiveHub([]), FakeLocalIntegrations(), FakeTabbit()
+    )
+    restored.status("local")
+    assert calls == []
+    restored.set_auto_probe_consent("local:word_app", True)
+    assert calls == []

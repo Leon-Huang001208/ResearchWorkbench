@@ -260,7 +260,11 @@ test('connection probe feedback uses health and shared ZhiQiu removal discloses 
   assert.match(app, /current\.health === 'healthy'/);
   assert.match(app, /知丘研报、公众号与纪要共享/);
   assert.match(settings, /class="settings-card model-settings"/);
-  assert.doesNotMatch(settings, /<details/);
+  const { renderSettingsPage } = await import('../../app/research_web/ui/settings.mjs');
+  const modelPage = renderSettingsPage({ route: {page: 'settings', settingsSection: 'model'}, hash: '#/settings/model', models: [], runtime: {}, modelFailures: [], connections: {sources: []}, busy: false });
+  assert.doesNotMatch(modelPage, /<details/);
+  const localPage = renderSettingsPage({ route: {page: 'settings', settingsSection: 'local'}, hash: '#/settings/local', models: [], runtime: {}, modelFailures: [], connections: {sources: []}, busy: false });
+  assert.match(localPage, /<details class="local-tabbit-details">/);
   assert.doesNotMatch(app, /current\.status === 'healthy'/);
 });
 

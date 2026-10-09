@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "unchanged",
-  "summary": "复核最新 master 的 README：保留 DSH 0.2.1 升级、macOS Keychain、Office 有限业务说明及端点/双 runtime 入口；Claw 关联落盘与异常恢复仅更新既有 Automation 模块说明。",
-  "reason": "本轮未修改根 README；唯一 DSH、原生报告 Runtime、安装依赖、HTTP 路由和原有 Run 字段均未改变。恢复与失败关闭细节在模块文档说明，未新增架构节点或 schema；保留上游安装与支持限制，不把 macOS 私有进程/受控 loopback 测试解释为真实模型、厂商、CI 或其他平台证据，历史证据保留原候选归属。"
+  "summary": "复核最新master的Claw发布与本机集成候选：公开Web入口、已有运行与部署边界保持；本轮新增Office受控验证与可信状态由专项文档说明。",
+  "reason": "保留最新master已经交付的Claw运行链接持久化；本轮不回退其说明，也不改安装、启动或支持矩阵。本机Office能力仍可选，状态/授权/归档细节由当前UI与协调器文档承载。"
 }

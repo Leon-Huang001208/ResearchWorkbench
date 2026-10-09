@@ -333,3 +333,7 @@ ModelConfig 对原 deepseek-official 固定端点保持限制。新增的 openai
 兼容连接PUT沿原串行事务和活动父/子任务门，专用系统ref及uncertain/cleared状态独立于官方服务。任意配置/凭据保存或清除更新公共revision；换地址不继承旧Key，旧会话绑定地址/协议/认证方式，变化后下一提交拒绝改投。无Key模式credential_required=false、credential_configured=null、storage=not_required，不冒充已存Key或已生成。Runtime应用还绑定当前connection revision与Runtime实例。
 
 Doctor 的 capability 字段表示安全实现边界，validated=false 不替代平台回执；缺安全读取 primitive 的架构路由返回 501 documentation_platform_unsupported，不开放其他文件路径。
+
+## 本机状态及Office自动验证
+
+GET `/api/research/local-integrations`附带`integration_status`，其中`scope=local`、`generated_at`、`local_revision`与本次明细同快照；GET或POST发现probe不触发真实操作。协调器新增unverified/stale/not_detected/not_applicable分类，Excel桥保留事实但不重复计数。现有auto-probe-consent接口仅扩展`local:excel_app`、`local:word_app`、`local:powerpoint_app`，写入仍要求精确同源与用户动作头。Office开启请求在既有批次消费，厂商不包含在内；API与证据期限细节见[协调器](09-integration-coordinator.md)。
