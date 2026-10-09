@@ -575,4 +575,12 @@ HTTP-to-Manager-to-owned Node/PG fixtures use an installed Web Python selected b
 RWB_HOT_TEST_PYTHON, defaulting to checkout .venv/bin/python on this macOS task.
 They use isolated in-memory credentials and synthetic event bodies, not real
 Keychain/model or browser acceptance. No new dependency, research session, scheduled
-brief or external delivery is created. DOCX/real browser acceptance remain pending.
+brief or external delivery is created. Real AI/macro browser creation, preview, fixed-version download and reload now passed against the original real acceptance schema15; model and research were disabled and Hot credentials used a fixture backend. DOCX/full research and clean installation remain pending.
+
+Browser fixture preparation supports an optional safe proofId namespace; each
+proof baseline is write-once, so prior evidence is retained. Existing baselines
+reject before migration/role changes. Restore binds instance and role before
+effects; role NOLOGIN cleanup runs independently of source/budget audit, and the
+final receipt separates restoration status from role cleanup. A failed audit
+never returns a successful cleanup receipt. Real browser/cleanup and injected
+baseline-budget failure evidence remain private under logs/hot-stage-zero.

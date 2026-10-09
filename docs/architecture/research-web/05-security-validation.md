@@ -221,3 +221,5 @@ Hot简报冻结核心使用只读repeatable-read事务与精确版本引用；�
 持久简报写仅controller可用；request与version不可变，输入严格字段白名单，发布时间窗口和资料校验在冻结核心执行。发布保留owner/代次检查，读取复验hash；350000字节输入限制为现有1MiB签名帧留余量。公开Host导出与研究受理边界尚未实现。
 
 Hot简报Host输入在读key前验证身份、严格版本和选材边界，Node仍是窗口/归组/预算权威。预览转义发布者文本并限定HTTP(S)无userinfo外链；下载只返回经固定版本分块与最终SHA256验证的Markdown附件，无缓存。块offset/大小/总长/哈希/identity一致才接收；Unicode字节边界和后续version0拒绝有回归。
+
+浏览器fixture在迁移/创建role前拒绝已有基线，恢复先绑定实例/role再产生效果。NOLOGIN独立于来源恢复与预算核对，即使注入审计失败也运行；收尾后的receipt保留FAIL与实际权限清理状态。实际浏览器使用临时Hot凭据backend和offline研究，不能证明完整系统凭据生命周期。

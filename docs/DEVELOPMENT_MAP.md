@@ -185,3 +185,5 @@ DOCX、原文研究副本与调度映射仍待实现。合同见 `services/hot/R
 持久简报为 `services/hot/src/brief-control.ts` / migration15，service签名接口brief.create/get/list；controller条件版本发布与UUID重放，读取复验冻结哈希。`event-rpc.integration.ts`真实Node/PG验证旧版保持、重启重放、权限与不可变性。公开Host/UI/CLI、DOCX及调度研究映射仍待接入。
 
 Hot简报Host为hot_routes/hot_service与HotManager，网页core/hot-workspace新增briefs视图和详情显式生成；brief.export按32KiB UTF8分块，Host固定版本并校验完整哈希。相关test_hot_manager/test_hot_web、research_web_hot与event-rpc integration覆盖只读权限、未知UUID、晚到预览和真实HTTP→Node/PG。完整浏览器旅程与DOCX仍待验收。
+
+浏览器简报验收使用原hot_acceptance_model schema15，保存真实AI/宏观两份version1简报并从浏览器下载；browser-dataset-proof.ts使用独立proofId写一次基线，恢复失败也独立禁用已绑定临时角色，失败/权限清理状态分开记录。真实Keychain生命周期、DOCX与研究仍待验收。

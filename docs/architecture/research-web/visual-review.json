@@ -159,8 +159,8 @@
     },
     {
       "id": "11-hot-events",
-      "artifactSha256": "41f95fd9e29af42c5e603a7f958ec95017604d9734abbd06e83b897e64d817e1",
-      "specificationSha256": "5dcd47323e77a5c64d59776d71ff0751fac0da3568c3515a5a30d80aa9c6b2c8",
+      "artifactSha256": "c5462635be720e5830a017ae91a9f138fe3d445d00c1ae37d2ff12c523099d50",
+      "specificationSha256": "68857ed747120aa8486253ca2028fe8331e10b06b2e955b162bc058ae5cfb273",
       "status": "reviewed",
       "reviewer": "Codex image inspection",
       "date": "2026-10-09",
@@ -169,7 +169,7 @@
         "11-hot-events.visual-check.2048x1320.dark.png"
       ],
       "findings": [],
-      "notes": "实际查看当前哈希的1440浅色和2048深色截图：Hot简报/数据边界标签可读，无新增遮挡或裁剪。四视口包含检查与9项结构检查分别通过；本次仅图形视觉检查，不证明产品简报浏览器、模型、DOCX或研究验收。"
+      "notes": "实际查看当前哈希1440浅色/2048深色截图：真实简报读取证据与待研究/DOCX边界文字可读，无新增遮挡或裁剪。四视口测量和9/9结构检查通过；图形检查不替代产品与其他平台验收。"
     }
   ]
 }

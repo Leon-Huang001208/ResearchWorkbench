@@ -218,3 +218,5 @@ staging 修复只作用于镜像只读发布资产，不删除或迁移产品数
 Migration15增加briefs head、不可变brief_versions与brief_requests。版本保存冻结输入/哈希，UUID参数hash与版本映射同事务发布；既有材料/原文/模型账本不变。内部signed读取复验完整性，后续仍需研究原文副本与联合恢复。
 
 简报网页预览只读取保存的payload。Markdown文本哈希不同于冻结payload哈希；Node分块读取精确正版本，Host有界组装/核验后才发送完整附件，失败不发送部分文件。导出不写Store、不生成研究会话、不改Hot原文，未知创建仍重放原UUID。
+
+原验收库现保存浏览器生成的两份真实简报version1，内容hash与实际下载字节分别核对，刷新不会新建版本。测试基线按proofId隔离且写一次；失败恢复保留FAIL与独立角色收尾状态，实际预算账本不因故障注入或重跑重置。
