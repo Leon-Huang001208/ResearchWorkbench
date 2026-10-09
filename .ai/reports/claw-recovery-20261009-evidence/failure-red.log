@@ -1,0 +1,686 @@
+2026-10-09 00:57:00 [info     ] automation_created             automation_id_digest=54f925d6f7db0e0e status=disabled
+F2026-10-09 00:57:00 [info     ] automation_created             automation_id_digest=eb1ec0e8ef8f2e8d status=disabled
+F2026-10-09 00:57:00 [info     ] automation_created             automation_id_digest=eaed60da15d6a3da status=disabled
+F2026-10-09 00:57:00 [info     ] automation_created             automation_id_digest=171b823259dfbcd6 status=disabled
+F2026-10-09 00:57:00 [info     ] automation_created             automation_id_digest=ac6777bdfef9713b status=disabled
+F                                                                    [100%]
+=================================== FAILURES ===================================
+_ test_reference_save_failure_prevents_native_submission_and_rolls_back_memory _
+
+    def reject_reference_save():
+        if any(row.get("session_id") for row in store.data["automation_runs"].values()):
+>           raise StoreError("controlled reference write failure")
+E           app.research_web.store.StoreError: controlled reference write failure
+
+tests/research_web/test_automation_service.py:500: StoreError
+
+During handling of the above exception, another exception occurred:
+
+tmp_path = PosixPath('/private/var/folders/rz/f7lsl4nn2bl0lpsfqyylp1jh0000gn/T/pytest-of-leon/pytest-1168/test_reference_save_failure_pr0')
+
+    @pytest.mark.asyncio
+    async def test_reference_save_failure_prevents_native_submission_and_rolls_back_memory(tmp_path):
+        calls = []
+        store = Store(tmp_path)
+    
+        class Research:
+            async def create(self, *_args):
+                calls.append("create")
+                return {"id": "claw-created"}
+    
+            async def send(self, *_args, **_kwargs):
+                calls.append("send")
+                return {"accepted": True}
+    
+            async def detail(self, *_args):
+                return {"status": "completed"}
+    
+        service = AutomationService(
+            store, research=Research(), scheduler=False,
+            target_resolver=lambda *_args: {"version": 2, "sha256": "a" * 64},
+        )
+        automation = service.create(automation_body())
+        original_save = store.save
+    
+        def reject_reference_save():
+            if any(row.get("session_id") for row in store.data["automation_runs"].values()):
+                raise StoreError("controlled reference write failure")
+            original_save()
+    
+        store.save = reject_reference_save
+        run = await service.run(automation["id"])
+>       await service.wait_for_idle()
+
+tests/research_web/test_automation_service.py:505: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/research_web/automation/service.py:451: in wait_for_idle
+    await asyncio.gather(*tasks)
+app/research_web/automation/service.py:395: in _execute
+    self.store.save()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def reject_reference_save():
+        if any(row.get("session_id") for row in store.data["automation_runs"].values()):
+>           raise StoreError("controlled reference write failure")
+E           app.research_web.store.StoreError: controlled reference write failure
+
+tests/research_web/test_automation_service.py:500: StoreError
+_______ test_resume_without_native_execution_evidence_fails_closed[idle] _______
+
+fut = <coroutine object AutomationService.wait_for_idle at 0x10771f920>
+timeout = 0.2
+
+    async def wait_for(fut, timeout):
+        """Wait for the single Future or coroutine to complete, with timeout.
+    
+        Coroutine will be wrapped in Task.
+    
+        Returns result of the Future or coroutine.  When a timeout occurs,
+        it cancels the task and raises TimeoutError.  To avoid the task
+        cancellation, wrap it in shield().
+    
+        If the wait is cancelled, the task is also cancelled.
+    
+        If the task suppresses the cancellation and returns a value instead,
+        that value is returned.
+    
+        This function is a coroutine.
+        """
+        # The special case for timeout <= 0 is for the following case:
+        #
+        # async def test_waitfor():
+        #     func_started = False
+        #
+        #     async def func():
+        #         nonlocal func_started
+        #         func_started = True
+        #
+        #     try:
+        #         await asyncio.wait_for(func(), 0)
+        #     except asyncio.TimeoutError:
+        #         assert not func_started
+        #     else:
+        #         assert False
+        #
+        # asyncio.run(test_waitfor())
+    
+    
+        if timeout is not None and timeout <= 0:
+            fut = ensure_future(fut)
+    
+            if fut.done():
+                return fut.result()
+    
+            await _cancel_and_wait(fut)
+            try:
+                return fut.result()
+            except exceptions.CancelledError as exc:
+                raise TimeoutError from exc
+    
+        async with timeouts.timeout(timeout):
+>           return await fut
+                   ^^^^^^^^^
+
+/opt/homebrew/Cellar/python@3.12/3.12.13_4/Frameworks/Python.framework/Versions/3.12/lib/python3.12/asyncio/tasks.py:520: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/research_web/automation/service.py:451: in wait_for_idle
+    await asyncio.gather(*tasks)
+app/research_web/automation/service.py:699: in _resume
+    result = await self._monitor_session(row["session_id"])
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/research_web/automation/service.py:787: in _monitor_session
+    await self.sleep(1)
+/opt/homebrew/Cellar/python@3.12/3.12.13_4/Frameworks/Python.framework/Versions/3.12/lib/python3.12/asyncio/tasks.py:656: in sleep
+    await __sleep0()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    @types.coroutine
+    def __sleep0():
+        """Skip one event loop run cycle.
+    
+        This is a private helper for 'asyncio.sleep()', used
+        when the 'delay' is set to 0.  It uses a bare 'yield'
+        expression (which Task.__step knows how to handle)
+        instead of creating a Future object.
+        """
+>       yield
+E       asyncio.exceptions.CancelledError
+
+/opt/homebrew/Cellar/python@3.12/3.12.13_4/Frameworks/Python.framework/Versions/3.12/lib/python3.12/asyncio/tasks.py:650: CancelledError
+
+The above exception was the direct cause of the following exception:
+
+tmp_path = PosixPath('/private/var/folders/rz/f7lsl4nn2bl0lpsfqyylp1jh0000gn/T/pytest-of-leon/pytest-1168/test_resume_without_native_exe0')
+native_status = 'idle'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("native_status", ["idle", "created", None, "unknown"])
+    async def test_resume_without_native_execution_evidence_fails_closed(tmp_path, native_status):
+        calls = []
+    
+        class Research:
+            async def detail(self, _session_id):
+                calls.append("detail")
+                return {"status": native_status}
+    
+            async def create(self, *_args):
+                pytest.fail("recovery must not create another native session")
+    
+            async def send(self, *_args, **_kwargs):
+                pytest.fail("recovery must not resubmit an unconfirmed prompt")
+    
+        store = Store(tmp_path)
+        service = AutomationService(
+            store, research=Research(), scheduler=False, sleep=lambda _delay: asyncio.sleep(0),
+            target_resolver=lambda *_args: {"version": 2, "sha256": "a" * 64},
+        )
+        automation = service.create(automation_body())
+        run = service._new_run(
+            automation["id"], trigger="manual", scheduled_for=None,
+            retry_of=None, status="running",
+        )
+        run["session_id"] = "created-but-unconfirmed"
+        store.save()
+        try:
+            await service.start()
+>           await asyncio.wait_for(service.wait_for_idle(), .2)
+
+tests/research_web/test_automation_service.py:544: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/opt/homebrew/Cellar/python@3.12/3.12.13_4/Frameworks/Python.framework/Versions/3.12/lib/python3.12/asyncio/tasks.py:519: in wait_for
+    async with timeouts.timeout(timeout):
+               ^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <Timeout [expired]>
+exc_type = <class 'asyncio.exceptions.CancelledError'>
+exc_val = CancelledError(), exc_tb = <traceback object at 0x1077b3d80>
+
+    async def __aexit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> Optional[bool]:
+        assert self._state in (_State.ENTERED, _State.EXPIRING)
+    
+        if self._timeout_handler is not None:
+            self._timeout_handler.cancel()
+            self._timeout_handler = None
+    
+        if self._state is _State.EXPIRING:
+            self._state = _State.EXPIRED
+    
+            if self._task.uncancel() <= self._cancelling and exc_type is exceptions.CancelledError:
+                # Since there are no new cancel requests, we're
+                # handling this.
+>               raise TimeoutError from exc_val
+E               TimeoutError
+
+/opt/homebrew/Cellar/python@3.12/3.12.13_4/Frameworks/Python.framework/Versions/3.12/lib/python3.12/asyncio/timeouts.py:115: TimeoutError
+_____ test_resume_without_native_execution_evidence_fails_closed[created] ______
+
+fut = <coroutine object AutomationService.wait_for_idle at 0x1102cacf0>
+timeout = 0.2
+
+    async def wait_for(fut, timeout):
+        """Wait for the single Future or coroutine to complete, with timeout.
+    
+        Coroutine will be wrapped in Task.
+    
+        Returns result of the Future or coroutine.  When a timeout occurs,
+        it cancels the task and raises TimeoutError.  To avoid the task
+        cancellation, wrap it in shield().
+    
+        If the wait is cancelled, the task is also cancelled.
+    
+        If the task suppresses the cancellation and returns a value instead,
+        that value is returned.
+    
+        This function is a coroutine.
+        """
+        # The special case for timeout <= 0 is for the following case:
+        #
+        # async def test_waitfor():
+        #     func_started = False
+        #
+        #     async def func():
+        #         nonlocal func_started
+        #         func_started = True
+        #
+        #     try:
+        #         await asyncio.wait_for(func(), 0)
+        #     except asyncio.TimeoutError:
+        #         assert not func_started
+        #     else:
+        #         assert False
+        #
+        # asyncio.run(test_waitfor())
+    
+    
+        if timeout is not None and timeout <= 0:
+            fut = ensure_future(fut)
+    
+            if fut.done():
+                return fut.result()
+    
+            await _cancel_and_wait(fut)
+            try:
+                return fut.result()
+            except exceptions.CancelledError as exc:
+                raise TimeoutError from exc
+    
+        async with timeouts.timeout(timeout):
+>           return await fut
+                   ^^^^^^^^^
+
+/opt/homebrew/Cellar/python@3.12/3.12.13_4/Frameworks/Python.framework/Versions/3.12/lib/python3.12/asyncio/tasks.py:520: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/research_web/automation/service.py:451: in wait_for_idle
+    await asyncio.gather(*tasks)
+app/research_web/automation/service.py:699: in _resume
+    result = await self._monitor_session(row["session_id"])
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/research_web/automation/service.py:787: in _monitor_session
+    await self.sleep(1)
+/opt/homebrew/Cellar/python@3.12/3.12.13_4/Frameworks/Python.framework/Versions/3.12/lib/python3.12/asyncio/tasks.py:656: in sleep
+    await __sleep0()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    @types.coroutine
+    def __sleep0():
+        """Skip one event loop run cycle.
+    
+        This is a private helper for 'asyncio.sleep()', used
+        when the 'delay' is set to 0.  It uses a bare 'yield'
+        expression (which Task.__step knows how to handle)
+        instead of creating a Future object.
+        """
+>       yield
+E       asyncio.exceptions.CancelledError
+
+/opt/homebrew/Cellar/python@3.12/3.12.13_4/Frameworks/Python.framework/Versions/3.12/lib/python3.12/asyncio/tasks.py:650: CancelledError
+
+The above exception was the direct cause of the following exception:
+
+tmp_path = PosixPath('/private/var/folders/rz/f7lsl4nn2bl0lpsfqyylp1jh0000gn/T/pytest-of-leon/pytest-1168/test_resume_without_native_exe1')
+native_status = 'created'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("native_status", ["idle", "created", None, "unknown"])
+    async def test_resume_without_native_execution_evidence_fails_closed(tmp_path, native_status):
+        calls = []
+    
+        class Research:
+            async def detail(self, _session_id):
+                calls.append("detail")
+                return {"status": native_status}
+    
+            async def create(self, *_args):
+                pytest.fail("recovery must not create another native session")
+    
+            async def send(self, *_args, **_kwargs):
+                pytest.fail("recovery must not resubmit an unconfirmed prompt")
+    
+        store = Store(tmp_path)
+        service = AutomationService(
+            store, research=Research(), scheduler=False, sleep=lambda _delay: asyncio.sleep(0),
+            target_resolver=lambda *_args: {"version": 2, "sha256": "a" * 64},
+        )
+        automation = service.create(automation_body())
+        run = service._new_run(
+            automation["id"], trigger="manual", scheduled_for=None,
+            retry_of=None, status="running",
+        )
+        run["session_id"] = "created-but-unconfirmed"
+        store.save()
+        try:
+            await service.start()
+>           await asyncio.wait_for(service.wait_for_idle(), .2)
+
+tests/research_web/test_automation_service.py:544: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/opt/homebrew/Cellar/python@3.12/3.12.13_4/Frameworks/Python.framework/Versions/3.12/lib/python3.12/asyncio/tasks.py:519: in wait_for
+    async with timeouts.timeout(timeout):
+               ^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <Timeout [expired]>
+exc_type = <class 'asyncio.exceptions.CancelledError'>
+exc_val = CancelledError(), exc_tb = <traceback object at 0x1102d2e00>
+
+    async def __aexit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> Optional[bool]:
+        assert self._state in (_State.ENTERED, _State.EXPIRING)
+    
+        if self._timeout_handler is not None:
+            self._timeout_handler.cancel()
+            self._timeout_handler = None
+    
+        if self._state is _State.EXPIRING:
+            self._state = _State.EXPIRED
+    
+            if self._task.uncancel() <= self._cancelling and exc_type is exceptions.CancelledError:
+                # Since there are no new cancel requests, we're
+                # handling this.
+>               raise TimeoutError from exc_val
+E               TimeoutError
+
+/opt/homebrew/Cellar/python@3.12/3.12.13_4/Frameworks/Python.framework/Versions/3.12/lib/python3.12/asyncio/timeouts.py:115: TimeoutError
+_______ test_resume_without_native_execution_evidence_fails_closed[None] _______
+
+fut = <coroutine object AutomationService.wait_for_idle at 0x10771e0c0>
+timeout = 0.2
+
+    async def wait_for(fut, timeout):
+        """Wait for the single Future or coroutine to complete, with timeout.
+    
+        Coroutine will be wrapped in Task.
+    
+        Returns result of the Future or coroutine.  When a timeout occurs,
+        it cancels the task and raises TimeoutError.  To avoid the task
+        cancellation, wrap it in shield().
+    
+        If the wait is cancelled, the task is also cancelled.
+    
+        If the task suppresses the cancellation and returns a value instead,
+        that value is returned.
+    
+        This function is a coroutine.
+        """
+        # The special case for timeout <= 0 is for the following case:
+        #
+        # async def test_waitfor():
+        #     func_started = False
+        #
+        #     async def func():
+        #         nonlocal func_started
+        #         func_started = True
+        #
+        #     try:
+        #         await asyncio.wait_for(func(), 0)
+        #     except asyncio.TimeoutError:
+        #         assert not func_started
+        #     else:
+        #         assert False
+        #
+        # asyncio.run(test_waitfor())
+    
+    
+        if timeout is not None and timeout <= 0:
+            fut = ensure_future(fut)
+    
+            if fut.done():
+                return fut.result()
+    
+            await _cancel_and_wait(fut)
+            try:
+                return fut.result()
+            except exceptions.CancelledError as exc:
+                raise TimeoutError from exc
+    
+        async with timeouts.timeout(timeout):
+>           return await fut
+                   ^^^^^^^^^
+
+/opt/homebrew/Cellar/python@3.12/3.12.13_4/Frameworks/Python.framework/Versions/3.12/lib/python3.12/asyncio/tasks.py:520: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/research_web/automation/service.py:451: in wait_for_idle
+    await asyncio.gather(*tasks)
+app/research_web/automation/service.py:699: in _resume
+    result = await self._monitor_session(row["session_id"])
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/research_web/automation/service.py:787: in _monitor_session
+    await self.sleep(1)
+/opt/homebrew/Cellar/python@3.12/3.12.13_4/Frameworks/Python.framework/Versions/3.12/lib/python3.12/asyncio/tasks.py:656: in sleep
+    await __sleep0()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    @types.coroutine
+    def __sleep0():
+        """Skip one event loop run cycle.
+    
+        This is a private helper for 'asyncio.sleep()', used
+        when the 'delay' is set to 0.  It uses a bare 'yield'
+        expression (which Task.__step knows how to handle)
+        instead of creating a Future object.
+        """
+>       yield
+E       asyncio.exceptions.CancelledError
+
+/opt/homebrew/Cellar/python@3.12/3.12.13_4/Frameworks/Python.framework/Versions/3.12/lib/python3.12/asyncio/tasks.py:650: CancelledError
+
+The above exception was the direct cause of the following exception:
+
+tmp_path = PosixPath('/private/var/folders/rz/f7lsl4nn2bl0lpsfqyylp1jh0000gn/T/pytest-of-leon/pytest-1168/test_resume_without_native_exe2')
+native_status = None
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("native_status", ["idle", "created", None, "unknown"])
+    async def test_resume_without_native_execution_evidence_fails_closed(tmp_path, native_status):
+        calls = []
+    
+        class Research:
+            async def detail(self, _session_id):
+                calls.append("detail")
+                return {"status": native_status}
+    
+            async def create(self, *_args):
+                pytest.fail("recovery must not create another native session")
+    
+            async def send(self, *_args, **_kwargs):
+                pytest.fail("recovery must not resubmit an unconfirmed prompt")
+    
+        store = Store(tmp_path)
+        service = AutomationService(
+            store, research=Research(), scheduler=False, sleep=lambda _delay: asyncio.sleep(0),
+            target_resolver=lambda *_args: {"version": 2, "sha256": "a" * 64},
+        )
+        automation = service.create(automation_body())
+        run = service._new_run(
+            automation["id"], trigger="manual", scheduled_for=None,
+            retry_of=None, status="running",
+        )
+        run["session_id"] = "created-but-unconfirmed"
+        store.save()
+        try:
+            await service.start()
+>           await asyncio.wait_for(service.wait_for_idle(), .2)
+
+tests/research_web/test_automation_service.py:544: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/opt/homebrew/Cellar/python@3.12/3.12.13_4/Frameworks/Python.framework/Versions/3.12/lib/python3.12/asyncio/tasks.py:519: in wait_for
+    async with timeouts.timeout(timeout):
+               ^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <Timeout [expired]>
+exc_type = <class 'asyncio.exceptions.CancelledError'>
+exc_val = CancelledError(), exc_tb = <traceback object at 0x10775ebc0>
+
+    async def __aexit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> Optional[bool]:
+        assert self._state in (_State.ENTERED, _State.EXPIRING)
+    
+        if self._timeout_handler is not None:
+            self._timeout_handler.cancel()
+            self._timeout_handler = None
+    
+        if self._state is _State.EXPIRING:
+            self._state = _State.EXPIRED
+    
+            if self._task.uncancel() <= self._cancelling and exc_type is exceptions.CancelledError:
+                # Since there are no new cancel requests, we're
+                # handling this.
+>               raise TimeoutError from exc_val
+E               TimeoutError
+
+/opt/homebrew/Cellar/python@3.12/3.12.13_4/Frameworks/Python.framework/Versions/3.12/lib/python3.12/asyncio/timeouts.py:115: TimeoutError
+_____ test_resume_without_native_execution_evidence_fails_closed[unknown] ______
+
+fut = <coroutine object AutomationService.wait_for_idle at 0x1102cbac0>
+timeout = 0.2
+
+    async def wait_for(fut, timeout):
+        """Wait for the single Future or coroutine to complete, with timeout.
+    
+        Coroutine will be wrapped in Task.
+    
+        Returns result of the Future or coroutine.  When a timeout occurs,
+        it cancels the task and raises TimeoutError.  To avoid the task
+        cancellation, wrap it in shield().
+    
+        If the wait is cancelled, the task is also cancelled.
+    
+        If the task suppresses the cancellation and returns a value instead,
+        that value is returned.
+    
+        This function is a coroutine.
+        """
+        # The special case for timeout <= 0 is for the following case:
+        #
+        # async def test_waitfor():
+        #     func_started = False
+        #
+        #     async def func():
+        #         nonlocal func_started
+        #         func_started = True
+        #
+        #     try:
+        #         await asyncio.wait_for(func(), 0)
+        #     except asyncio.TimeoutError:
+        #         assert not func_started
+        #     else:
+        #         assert False
+        #
+        # asyncio.run(test_waitfor())
+    
+    
+        if timeout is not None and timeout <= 0:
+            fut = ensure_future(fut)
+    
+            if fut.done():
+                return fut.result()
+    
+            await _cancel_and_wait(fut)
+            try:
+                return fut.result()
+            except exceptions.CancelledError as exc:
+                raise TimeoutError from exc
+    
+        async with timeouts.timeout(timeout):
+>           return await fut
+                   ^^^^^^^^^
+
+/opt/homebrew/Cellar/python@3.12/3.12.13_4/Frameworks/Python.framework/Versions/3.12/lib/python3.12/asyncio/tasks.py:520: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/research_web/automation/service.py:451: in wait_for_idle
+    await asyncio.gather(*tasks)
+app/research_web/automation/service.py:699: in _resume
+    result = await self._monitor_session(row["session_id"])
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/research_web/automation/service.py:787: in _monitor_session
+    await self.sleep(1)
+/opt/homebrew/Cellar/python@3.12/3.12.13_4/Frameworks/Python.framework/Versions/3.12/lib/python3.12/asyncio/tasks.py:656: in sleep
+    await __sleep0()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    @types.coroutine
+    def __sleep0():
+        """Skip one event loop run cycle.
+    
+        This is a private helper for 'asyncio.sleep()', used
+        when the 'delay' is set to 0.  It uses a bare 'yield'
+        expression (which Task.__step knows how to handle)
+        instead of creating a Future object.
+        """
+>       yield
+E       asyncio.exceptions.CancelledError
+
+/opt/homebrew/Cellar/python@3.12/3.12.13_4/Frameworks/Python.framework/Versions/3.12/lib/python3.12/asyncio/tasks.py:650: CancelledError
+
+The above exception was the direct cause of the following exception:
+
+tmp_path = PosixPath('/private/var/folders/rz/f7lsl4nn2bl0lpsfqyylp1jh0000gn/T/pytest-of-leon/pytest-1168/test_resume_without_native_exe3')
+native_status = 'unknown'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("native_status", ["idle", "created", None, "unknown"])
+    async def test_resume_without_native_execution_evidence_fails_closed(tmp_path, native_status):
+        calls = []
+    
+        class Research:
+            async def detail(self, _session_id):
+                calls.append("detail")
+                return {"status": native_status}
+    
+            async def create(self, *_args):
+                pytest.fail("recovery must not create another native session")
+    
+            async def send(self, *_args, **_kwargs):
+                pytest.fail("recovery must not resubmit an unconfirmed prompt")
+    
+        store = Store(tmp_path)
+        service = AutomationService(
+            store, research=Research(), scheduler=False, sleep=lambda _delay: asyncio.sleep(0),
+            target_resolver=lambda *_args: {"version": 2, "sha256": "a" * 64},
+        )
+        automation = service.create(automation_body())
+        run = service._new_run(
+            automation["id"], trigger="manual", scheduled_for=None,
+            retry_of=None, status="running",
+        )
+        run["session_id"] = "created-but-unconfirmed"
+        store.save()
+        try:
+            await service.start()
+>           await asyncio.wait_for(service.wait_for_idle(), .2)
+
+tests/research_web/test_automation_service.py:544: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/opt/homebrew/Cellar/python@3.12/3.12.13_4/Frameworks/Python.framework/Versions/3.12/lib/python3.12/asyncio/tasks.py:519: in wait_for
+    async with timeouts.timeout(timeout):
+               ^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <Timeout [expired]>
+exc_type = <class 'asyncio.exceptions.CancelledError'>
+exc_val = CancelledError(), exc_tb = <traceback object at 0x110142a80>
+
+    async def __aexit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> Optional[bool]:
+        assert self._state in (_State.ENTERED, _State.EXPIRING)
+    
+        if self._timeout_handler is not None:
+            self._timeout_handler.cancel()
+            self._timeout_handler = None
+    
+        if self._state is _State.EXPIRING:
+            self._state = _State.EXPIRED
+    
+            if self._task.uncancel() <= self._cancelling and exc_type is exceptions.CancelledError:
+                # Since there are no new cancel requests, we're
+                # handling this.
+>               raise TimeoutError from exc_val
+E               TimeoutError
+
+/opt/homebrew/Cellar/python@3.12/3.12.13_4/Frameworks/Python.framework/Versions/3.12/lib/python3.12/asyncio/timeouts.py:115: TimeoutError
+=========================== short test summary info ============================
+FAILED tests/research_web/test_automation_service.py::test_reference_save_failure_prevents_native_submission_and_rolls_back_memory
+FAILED tests/research_web/test_automation_service.py::test_resume_without_native_execution_evidence_fails_closed[idle]
+FAILED tests/research_web/test_automation_service.py::test_resume_without_native_execution_evidence_fails_closed[created]
+FAILED tests/research_web/test_automation_service.py::test_resume_without_native_execution_evidence_fails_closed[None]
+FAILED tests/research_web/test_automation_service.py::test_resume_without_native_execution_evidence_fails_closed[unknown]
+5 failed, 16 deselected in 1.22s

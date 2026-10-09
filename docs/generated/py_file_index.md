@@ -3111,7 +3111,7 @@ Imports:
 Classes:
 - `AutomationService`
   - Keep Automation/Run JSON as the fact source and schedule only next fires.
-  - methods: __init__, _row, _run_row, _public, list, get, list_runs, create, update, delete, enable, disable, _validate_lock, _active_run, _validate_delivery, _new_run, run, retry, _execute, _deliver, wait_for_idle, tick, start, close, _arm, _remove_job, _scheduled_fire, _next_iso, _resolve_target, _legacy_schedule, preview_report_schedule_migrations, apply_report_schedule_migrations, _resume, _resume_delivery, _session_summary, _monitor_session, _monitor_report_run, _bind_mcp, _execute_native
+  - methods: __init__, _row, _run_row, _persist_native_reference, _checkpoint_report_reference, _public, list, get, list_runs, create, update, delete, enable, disable, _validate_lock, _active_run, _validate_delivery, _new_run, run, retry, _execute, _deliver, wait_for_idle, tick, start, close, _arm, _remove_job, _scheduled_fire, _next_iso, _resolve_target, _legacy_schedule, preview_report_schedule_migrations, apply_report_schedule_migrations, _resume, _resume_delivery, _session_summary, _monitor_session, _monitor_report_run, _bind_mcp, _execute_native
 
 Functions:
 - `automation_feature_enabled`

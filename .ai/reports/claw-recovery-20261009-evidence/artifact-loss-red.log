@@ -1,0 +1,4 @@
+2026-10-09 03:14:15 [info     ] controlled_backend_pre_crash_artifact_ready kind=skill
+2026-10-09 03:14:17 [info     ] controlled_backend_pre_crash_artifact_ready kind=workflow
+2026-10-09 03:14:19 [info     ] controlled_backend_pre_crash_artifact_ready kind=report_workflow
+{"evidence": "real macOS child process SIGKILL and controlled loopback backend", "realDSHModel": "NOT_RUN", "artifactLossInjected": true, "probeSHA256": "64905b27d1aee48a310ba097838d1fbf162eb66f68897200946d5f96926c34f6", "sourceSHA256": "560c877b82d86db505ab8910407de877a43de753b0fc5463d5c641a4db7be913", "cases": [{"kind": "skill", "status": "FAIL", "error": "pre-crash artifact bytes changed after recovery"}, {"kind": "workflow", "status": "FAIL", "error": "pre-crash artifact bytes changed after recovery"}, {"kind": "report_workflow", "status": "FAIL", "error": "pre-crash artifact bytes changed after recovery"}]}

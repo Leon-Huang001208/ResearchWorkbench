@@ -1,5 +1,7 @@
 # 部署与模块职责
 
+Automation 原生关联检查点复用同一 Host 的 Store.save 原子索引，普通会话创建后先落盘再提交；报告已知的主关联及随后出现的 Claw 会话关联也在监控前落盘。恢复重用已证明原生任务，报告须保持自身校验链；组件、部署、唯一 DSH 与调度拓扑未变。
+
 Native→Docker 顺序切换在公开 Native stop 成功后，沿原 stdlib bootstrap 有界等待
 原 Native 端口释放，再取得既有 switch_select lease；不新增组件或停止权限。
 

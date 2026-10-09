@@ -1,6 +1,9 @@
 # 安全边界与验证方法
 
 新版原生模块解析使用 `createRuntimeResolution`，每个 packageDir 必须属于固定源码或两项既有受管供应包；解析成功不扩大模块白名单。认证 bootstrap 的 source_commit 从共享 runtime 合同读取，仍验证所属进程、cwd、端口与私有控制文件。preset 注册迁移不改变固定模型 ref 的 Keychain 私有桥接，也不让模型 ref 委托回旧环境/文件解析器。父子活动状态未知时配置和提交失败关闭。
+
+Automation 恢复不重发研究；缺 ID、未知提交和 workflow/version 冲突失败关闭。初始报告保存失败时，只有已验证 Runtime 事实源且本次确实新建的活动 Run 才允许停止；陈旧/错误引用及恢复期间保存失败不能取消既有任务。日志只记录固定事件、类型和 Run ID 摘要，不含 Prompt、文件内容或凭据。受控 macOS 进程探针只处理自建进程/临时私有根，不证明真实 DSH/model 或其他平台。
+
 Docker DSH builder 的[下载参数](../../research-web-installation.md)仅将现有 pnpm install 并发设为 8、
 单请求期限设为 120 秒；frozen lockfile、默认重试、registry、TLS、签名和最低发布时间校验保持。
 
