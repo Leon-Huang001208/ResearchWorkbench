@@ -54,4 +54,6 @@ export async function grantController(db: Sql, schema: string, role: string): Pr
   await db`grant insert on ${db(schema)}.source_control_requests to ${db(role)}`;
   await db`grant insert on ${db(schema)}.channels,${db(schema)}.channel_versions,${db(schema)}.event_corrections,${db(schema)}.channel_control_requests to ${db(role)}`;
   await db`grant update(current_version) on ${db(schema)}.channels to ${db(role)}`;
+  await db`grant insert on ${db(schema)}.briefs,${db(schema)}.brief_versions,${db(schema)}.brief_requests to ${db(role)}`;
+  await db`grant update(current_version) on ${db(schema)}.briefs to ${db(role)}`;
 }

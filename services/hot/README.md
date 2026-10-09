@@ -42,6 +42,9 @@ and read/control keys remain mandatory. Browsers do not receive these keys.
 | `event.detail` | read | eventId, cutoff, reportLimit/reportOffset |
 | `channel.configure` | control | channelId, expectedVersion, config |
 | `event.correct` | control | reason, change (existing title/merge/split/reassign/channels contract) |
+| `brief.create` | control | briefId, expectedVersion, eventIds, channelId, cutoff, optional from/to/timezone |
+| `brief.get` | read | briefId, optional version (latest when omitted) |
+| `brief.list` | read | optional cutoff/limit/offset |
 
 Lists are bounded to 50 entries, details to 50 material versions per page and 20
 history entries. First responses return a fixed cutoff; pagination beyond offset
@@ -515,10 +518,35 @@ judgments, labels partial excerpts and unknown times, and uses the selected time
 (default Asia/Shanghai). Publisher HTML/Markdown is escaped and unsafe links omitted.
 A publication window qualifies selected events by at least one trusted report;
 other reports of those events are retained as context with their own dates.
-No fetch, model call, task or research session is created. The core currently has
-no durable brief record, public CLI/Host route, DOCX or formal research snapshot.
+No fetch, model call, task or research session is created. The core now has
+controller-created durable brief versions; public CLI/Host routes, DOCX and formal
+research snapshots remain pending.
 Those are subsequent implementation steps, not implied by this checkpoint.
 `briefs.test.ts` and `briefs.integration.ts` verify export integrity and historical
 material/config/event isolation against actual PG using synthetic content. A
 read-only acceptance export from the original real two-event dataset is retained
 in private logs; it does not prove scheduled or persisted briefs.
+
+## Durable brief checkpoint (migration15)
+
+Stop Hot and run its existing setup before starting this version. Migration15
+adds briefs, immutable brief_versions and immutable brief_requests; migrations1–14
+are unchanged. Only the controller receives INSERT and current-version UPDATE.
+Ordinary workers/readers cannot publish briefs. Existing paid scopes and counters
+are untouched. A control request names a brief UUID, expectedVersion (zero for a
+new brief), explicit event IDs, channel and cutoff. Identical UUID/parameters
+replay the original receipt and version even after service restart. Reusing UUID
+with different parameters or writing a stale version rejects. Each committed
+version contains the frozen input and its canonical hash, independent of later
+event/material/channel changes; reads recheck that hash.
+
+Snapshot preparation happens before the owner-fenced publication transaction,
+which rechecks the request cache and expected version and atomically appends the
+version/audit and updates its head. Freeze failures/cancellation/stale owners do
+not publish partial records. Stored input is limited to350000 serialized bytes
+(and512KiB by database check) to leave room in the existing1MiB signed response
+frame. Larger selections reject explicitly; the standalone frozen core still
+allows4MiB. Lists expose at most50 metadata entries with a fixed cutoff; later
+pages require that cutoff and use the latest brief version available then.
+This is an internal signed API checkpoint. No new queue, paid request, scheduled
+brief, research execution or public UI/CLI is implied.

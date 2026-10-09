@@ -181,3 +181,5 @@ Hot简报冻结核心为 `services/hot/src/briefs.ts`，验收为 `briefs.test.t
 `briefs.integration.ts`；同一只读事务冻结全部关联版本、频道配置、原判断与覆盖依据，
 校验规范JSON哈希并导出安全Markdown。当前不创建持久简报记录或研究会话；公开入口、
 DOCX、原文研究副本与调度映射仍待实现。合同见 `services/hot/README.md` 简报小节。
+
+持久简报为 `services/hot/src/brief-control.ts` / migration15，service签名接口brief.create/get/list；controller条件版本发布与UUID重放，读取复验冻结哈希。`event-rpc.integration.ts`真实Node/PG验证旧版保持、重启重放、权限与不可变性。公开Host/UI/CLI、DOCX及调度研究映射仍待接入。

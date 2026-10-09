@@ -51,6 +51,14 @@ test('signed event/channel projections are bounded, historical and read-only; co
     assert.equal(list.items[0].id,a);assert.equal(list.hasMore,true);
     const next=await read('events.list',{channelId:'macro',sort:'importance',limit:1,offset:1,cutoff:list.cutoff});assert.equal(next.items[0].id,b);
     const special=await read('events.list',{q:'100%'});assert.equal(special.items.length,1);
+    const briefRequest=randomUUID(),briefId=randomUUID(),briefArgs={briefId,expectedVersion:0,eventIds:[a,b],channelId:'macro',cutoff:list.cutoff};
+    await assert.rejects(read('brief.create',briefArgs),/denied/);
+    const brief=await control('brief.create',briefArgs,briefRequest);
+    assert.equal(brief.version,1);assert.deepEqual(await control('brief.create',briefArgs,briefRequest),brief);
+    await assert.rejects(control('brief.create',{...briefArgs,eventIds:[a]},briefRequest),/request_conflict/);
+    const savedBrief=await read('brief.get',{briefId,version:1});assert.equal(savedBrief.contentHash,brief.contentHash);
+    assert.equal(savedBrief.payload.events.length,2);const listedBriefs=await read('brief.list');assert.equal(listedBriefs.items[0].briefId,briefId);
+    await assert.rejects(db`update ${db(schema)}.brief_versions set content_hash=${'0'.repeat(64)} where brief_id=${briefId}`);
     const channelRequest=randomUUID(),config={name:'Gold',topics:['gold'],sourceIds:['fed'],importanceRules:[]};
     const args={channelId:'gold',expectedVersion:0,config};
     await assert.rejects(read('channel.configure',args),/denied/);
@@ -58,6 +66,9 @@ test('signed event/channel projections are bounded, historical and read-only; co
     assert.deepEqual(await control('channel.configure',{config,expectedVersion:0,channelId:'gold'},channelRequest),created);
     await assert.rejects(control('channel.configure',{...args,config:{...config,name:'Changed'}},channelRequest),/request_conflict/);
     assert.equal((await read('channels',{cutoff:list.cutoff})).items.length,1);
+    // PostgreSQL versions retain microseconds; a JS millisecond cutoff in the same
+    // tick legitimately precedes the just-committed version. Advance this test clock.
+    await new Promise(resolve=>setTimeout(resolve,5));
     assert.equal((await read('channels')).items.length,2);
     const correctionRequest=randomUUID(),change={type:'title',id:a,expected:1,title:'Human Alpha'};
     await assert.rejects(read('event.correct',{reason:'Operator title fix',change}),/denied/);
@@ -66,6 +77,16 @@ test('signed event/channel projections are bounded, historical and read-only; co
     assert.equal((await read('event.detail',{eventId:a,cutoff:list.cutoff})).title,'Alpha event');
     const current=await read('event.detail',{eventId:a,reportLimit:1});assert.equal(current.title,'Human Alpha');
     assert.equal(current.judgments.find((j:any)=>j.channelId==='macro').inherited,true);
+    const secondBriefRequest=randomUUID(),secondBriefArgs={...briefArgs,expectedVersion:1,cutoff:current.cutoff};
+    const secondBrief=await control('brief.create',secondBriefArgs,secondBriefRequest);assert.equal(secondBrief.version,2);
+    assert.deepEqual(await read('brief.get',{briefId,version:1}),savedBrief);
+    assert.equal((await read('brief.list',{cutoff:listedBriefs.cutoff})).items[0].version,1);
+    await assert.rejects(read('brief.list',{offset:1}),/cutoff_required/);
+    assert.equal((await read('brief.get',{briefId})).payload.events[0].title,'Human Alpha');
+    await assert.rejects(control('brief.create',briefArgs),/version_conflict/);
+    const [briefPrivileges]=await db`select has_table_privilege(${worker},${schema+'.brief_versions'},'INSERT') can_insert,
+      has_column_privilege(${worker},${schema+'.briefs'},'current_version','UPDATE') can_update`;
+    assert.equal(briefPrivileges.can_insert,false);assert.equal(briefPrivileges.can_update,false);
     assert.equal(current.reports.length,1);assert.equal(current.reports[0].contentHash.length,64);
     await assert.rejects(read('events.list',{limit:51}),/params_invalid/);
     await assert.rejects(read('events.list',{cutoff:'2026-02-31T00:00:00Z'}),/cutoff_invalid/);
@@ -81,6 +102,12 @@ test('signed event/channel projections are bounded, historical and read-only; co
     await control('event.correct',{reason:'Explicit channel membership fixture',change:{type:'channels',id:b,expected:1,channelIds:['macro']}});
     assert.equal((await read('events.list',{channelId:'macro'})).items.length,2);
     assert.equal((await read('events.list',{channelId:'macro',minRelevance:80})).items.length,1,'manual membership cannot bypass an explicit score filter');
+    await service.close();service=undefined;
+    service=await startService({config:{enabled:true,database:{mode:'external',tls:'disable',port:baseline.port,name:'hot_probe',schema,user:worker}},
+      instanceId,mode:'native',workerPassword,controllerUser:controller,controllerPassword,controllerToken,readerToken});
+    assert.deepEqual(await read('brief.get',{briefId,version:1}),savedBrief);
+    assert.deepEqual(await control('brief.create',secondBriefArgs,secondBriefRequest),secondBrief,'restart and lost response replay cannot produce version3');
+    assert.equal((await db`select count(*)::int n from ${db(schema)}.brief_versions`)[0].n,2);
     await service.close();service=undefined;
     const home=await realpath(await mkdtemp('/tmp/rwb-hot-projection-cli-'));await mkdir(join(home,'hot'),{mode:0o700});
     const project=resolve(import.meta.dirname,'../../..');

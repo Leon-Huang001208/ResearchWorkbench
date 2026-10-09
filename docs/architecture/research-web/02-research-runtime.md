@@ -261,3 +261,5 @@ model-authorize/model-attempts/model-terminate 已接入 CLI；未知控制回�
 Native 定价加载支持私有当日记录；坏记录不回退包内文件。日期/指纹在处理、预留和派发前重查，变更后 blocked_model，重启加载新值。缓存身份和累计授权不随价格改变。
 
 真实两事件Host/Node/PG浏览器读取已由隔离凭据和离线研究客户端验收；未运行正式DSH研究。原任务额度仍4/1417/659，独立Node经自身Manager归属检查停止，來源开关恢复；Host退出不等于Hot进程退出。
+
+Hot内部持久简报使用现有签名传输与controller owner fence；准备资料只读，发布事务复验UUID缓存和expectedVersion，重启重放不多生成版本。迁移15要求先停Hot/setup，普通worker不获简报写权限；不新建调度器或研究执行。

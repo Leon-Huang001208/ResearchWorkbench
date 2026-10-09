@@ -214,3 +214,5 @@ staging 修复只作用于镜像只读发布资产，不删除或迁移产品数
 用户定价保存 hot/pricing/YYYY-MM-DD.json 与内容hash归档；原记录保留，当前指针原子发布。目录/文件 private 属性及实例/项目绑定校验；已可见但目录fsync失败的回执带hash和durability unavailable，重放补验。其备份/恢复整合仍待完成。
 
 浏览器旅程读取原PG不可变版本而非复制数据，展示发布时间与取得时间分离、未知发生/生效时间、原文hash与频道判断。准备/恢复保存非秘密来源基线、预算快照和清理回执；不把临时框架采集输出计为Hot原文或研究快照。
+
+Migration15增加briefs head、不可变brief_versions与brief_requests。版本保存冻结输入/哈希，UUID参数hash与版本映射同事务发布；既有材料/原文/模型账本不变。内部signed读取复验完整性，后续仍需研究原文副本与联合恢复。
