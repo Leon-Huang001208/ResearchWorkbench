@@ -1,0 +1,34 @@
+{
+  "status": "PASS",
+  "scope": "real browser rendering of native durable-log projections and labelled protocol samples; not full product live research",
+  "modelCalls": 0,
+  "productionRuntimeTouched": false,
+  "cases": [
+    {
+      "case": "completed_native",
+      "pass": true
+    },
+    {
+      "case": "refresh_same_native_plan",
+      "pass": true
+    },
+    {
+      "case": "long_protocol_sample",
+      "pass": true,
+      "images": 0,
+      "overflow": false
+    },
+    {
+      "case": "two_native_in_progress",
+      "pass": true
+    },
+    {
+      "case": "next_native_turn_cleared",
+      "pass": true
+    },
+    {
+      "case": "bad_protocol_event_error_visible",
+      "pass": true
+    }
+  ]
+}

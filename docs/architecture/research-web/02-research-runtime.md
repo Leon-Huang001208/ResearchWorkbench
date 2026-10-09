@@ -1,5 +1,18 @@
 # 研究协议、执行状态与恢复
 
+研究 preset 装配固定 DSH 已有 `@deepseek-ai/dsh-tool-todo`，显式配置
+`allowParallelInProgress: true`，依赖原生 `tools` 与 `sessionProjections` 服务。
+guard 仅新增精确 `todo_write`，仍要求研究已启用及当前 Agent，沿用每回合48工具/4子任务
+预算。此配置不承诺实际并行执行，不新增编排器、DSH pin 或依赖。
+
+Web 从同会话原生日志投影 Todo。`todo/write.data.todos` 是完整替换列表，项仅有
+`content` 与 pending/in_progress/completed；`turn/start` 清空，turn/end 保留最后快照。
+`plan.version` 是 `<turn>:<seq>` 写入版本，不是跨版本 item 身份。无 Todo 的会话没有计划；
+缺失所属回合不猜测，序列间断或历史起点缺失提示不完整，坏快照/冲突重复不保留绿色计划。
+相同重复事件可重读。错误日志仅记录安全事件计数，不记录计划正文。失败与取消使用研究终态，
+Todo 完成不参与独立文件交付判定。分页仍沿现有100页硬上限失败关闭，不能截断冒充完整。
+
+
 Automation 异常退出恢复只监控原会话/报告 Run，不重建或重发。普通会话须有原生执行或终止状态证据，idle/created/未知响应为 native_submission_unconfirmed；未确认 send 也不进入成功监控。报告恢复以报告 Run 为优先事实源，持续核对 workflow/version，等待其 validating/completed 与真实产物；显式停止保持原有 interrupted 语义，不冒充自动恢复。
 
 已验证运行中的实际 NativeRuntime 仅在显式 `--stop-current` 且公开 stop 成功后，

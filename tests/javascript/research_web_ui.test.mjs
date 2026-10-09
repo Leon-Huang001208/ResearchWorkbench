@@ -12,6 +12,24 @@ const modules = await Promise.all(['markdown.mjs', 'core.mjs', 'views.mjs'].map(
 const [markdown, core, views] = modules;
 const dataCatalog = await import(new URL('data-catalog.mjs', root));
 
+test('native research plan stays separate from delivery and escapes original content', () => {
+  const detail = { status: 'cancelled', plan: { turn: 3, seq: 9, version: '3:9', todos: [
+    { content: '<img src=x>', status: 'completed' }, { content: 'B', status: 'in_progress' },
+  ] } };
+  const html = views.renderResearchPlan(detail);
+  assert.match(html, /原生研究计划/);
+  assert.match(html, /&lt;img src=x&gt;/);
+  assert.match(html, /已取消/);
+  assert.match(html, /不代表文件交付完成/);
+  assert.match(html, /不证明并行执行/);
+  assert.doesNotMatch(html, /<img src=x>/);
+  assert.equal(views.renderResearchPlan({}), '');
+  assert.equal(views.renderResearchPlan({ plan: null }), '');
+  assert.match(views.renderResearchPlan({ plan_history_incomplete: true }), /历史不完整/);
+  assert.match(views.renderResearchPlan({ plan_error: 'bad', plan: detail.plan }), /role="alert"/);
+  assert.doesNotMatch(views.renderResearchPlan({ plan_error: 'bad', plan: detail.plan }), /&lt;img/);
+});
+
 test('research attachment picker accepts all three Office document formats', async () => {
   const { renderComposer } = await import(new URL('composer.mjs', root));
   const html = renderComposer({ page: 'fingpt' });

@@ -1,0 +1,1480 @@
+{
+  "schemaVersion": 3,
+  "risk": "full-delivery",
+  "requiredLevel": "L4",
+  "components": [
+    "documentation",
+    "dependency-graph",
+    "research-web",
+    "research-web-runtime",
+    "unknown-boundary",
+    "research-web-ui"
+  ],
+  "platforms": [
+    "generic",
+    "linux",
+    "macos",
+    "windows",
+    "cross-platform"
+  ],
+  "changeSummary": {
+    "fileCount": 55,
+    "ruleIds": [
+      "documentation",
+      "dependency",
+      "research-web",
+      "research-web-runtime-platform",
+      "fallback",
+      "research-web-ui-core"
+    ],
+    "impactIds": [
+      "documentation",
+      "dependency-graph",
+      "research-web",
+      "research-web-runtime",
+      "unknown-boundary",
+      "research-web-ui"
+    ]
+  },
+  "changedFiles": [
+    ".ai/reports/fingpt-native-plan-v1/BLOCKED.md",
+    ".ai/reports/fingpt-native-plan-v1/PROGRESS.md",
+    ".ai/reports/fingpt-native-plan-v1/REPORT.md",
+    ".ai/reports/fingpt-native-plan-v1/actions-budget.json",
+    ".ai/reports/fingpt-native-plan-v1/boundary-receipt.json",
+    ".ai/reports/fingpt-native-plan-v1/browser-bad-event.png",
+    ".ai/reports/fingpt-native-plan-v1/browser-completed.png",
+    ".ai/reports/fingpt-native-plan-v1/browser-fixtures.json",
+    ".ai/reports/fingpt-native-plan-v1/browser-long.png",
+    ".ai/reports/fingpt-native-plan-v1/browser-next-turn.png",
+    ".ai/reports/fingpt-native-plan-v1/browser-preview-server.py",
+    ".ai/reports/fingpt-native-plan-v1/browser-preview.html",
+    ".ai/reports/fingpt-native-plan-v1/browser-receipt.json",
+    ".ai/reports/fingpt-native-plan-v1/browser-server.json",
+    ".ai/reports/fingpt-native-plan-v1/changed-files.json",
+    ".ai/reports/fingpt-native-plan-v1/final-validation.mjs",
+    ".ai/reports/fingpt-native-plan-v1/integration-state-node24/dataHome/_no-cwd/native-plan-isolated/session.lock",
+    ".ai/reports/fingpt-native-plan-v1/integration-state-node24/dataHome/_no-cwd/native-plan-isolated/session.v4.jsonl",
+    ".ai/reports/fingpt-native-plan-v1/integration-state-node24/native-events.json",
+    ".ai/reports/fingpt-native-plan-v1/integration-state-node24/receipt.json",
+    ".ai/reports/fingpt-native-plan-v1/integration-state-node24/todo.cordis.yml",
+    ".ai/reports/fingpt-native-plan-v1/integration-state/dataHome/_no-cwd/native-plan-isolated/session.lock",
+    ".ai/reports/fingpt-native-plan-v1/integration-state/dataHome/_no-cwd/native-plan-isolated/session.v4.jsonl",
+    ".ai/reports/fingpt-native-plan-v1/integration-state/native-events.json",
+    ".ai/reports/fingpt-native-plan-v1/integration-state/receipt.json",
+    ".ai/reports/fingpt-native-plan-v1/integration-state/todo.cordis.yml",
+    ".ai/reports/fingpt-native-plan-v1/native-integration.mjs",
+    ".ai/reports/fingpt-native-plan-v1/pr-body.md",
+    ".ai/reports/fingpt-native-plan-v1/validation-results.json",
+    ".ai/reports/fingpt-native-plan-v1/verification-plan.json",
+    ".ai/reports/fingpt-native-plan-v1/verification-receipt.json",
+    "app/research_web/projection.py",
+    "app/research_web/runtime/guard.mjs",
+    "app/research_web/runtime/research.cordis.yml",
+    "app/research_web/ui/shell.mjs",
+    "app/research_web/ui/styles.css",
+    "app/research_web/ui/views.mjs",
+    "docs/DEVELOPMENT_MAP.md",
+    "docs/architecture/research-web/01-system.md",
+    "docs/architecture/research-web/02-research-runtime.md",
+    "docs/architecture/research-web/04-api.md",
+    "docs/architecture/research-web/05-security-validation.md",
+    "docs/architecture/research-web/08-research-frameworks.md",
+    "docs/architecture/research-web/architecture-map.json",
+    "docs/architecture/research-web/readme-review.json",
+    "docs/generated/py_file_index.md",
+    "docs/research-web-appearance.md",
+    "docs/research-web-tabbit.md",
+    "docs/research-web-ui.md",
+    "outputs/research-web-architecture/index.html",
+    "tests/javascript/research_web_guard.test.mjs",
+    "tests/javascript/research_web_ui.test.mjs",
+    "tests/research_web/test_event_recovery.py",
+    "tests/research_web/test_protocol.py",
+    "tests/research_web/test_runtime_launch.py"
+  ],
+  "impact": [
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/BLOCKED.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/PROGRESS.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/REPORT.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/actions-budget.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/boundary-receipt.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/browser-bad-event.png",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/browser-completed.png",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/browser-fixtures.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/browser-long.png",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/browser-next-turn.png",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/browser-preview-server.py",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/browser-preview.html",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/browser-receipt.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/browser-server.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/changed-files.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/final-validation.mjs",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/integration-state-node24/dataHome/_no-cwd/native-plan-isolated/session.lock",
+      "rule": "dependency",
+      "reason": "dependency_change",
+      "modules": [
+        "dependency-graph"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/integration-state-node24/dataHome/_no-cwd/native-plan-isolated/session.lock",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/integration-state-node24/dataHome/_no-cwd/native-plan-isolated/session.v4.jsonl",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/integration-state-node24/native-events.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/integration-state-node24/receipt.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/integration-state-node24/todo.cordis.yml",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/integration-state/dataHome/_no-cwd/native-plan-isolated/session.lock",
+      "rule": "dependency",
+      "reason": "dependency_change",
+      "modules": [
+        "dependency-graph"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/integration-state/dataHome/_no-cwd/native-plan-isolated/session.lock",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/integration-state/dataHome/_no-cwd/native-plan-isolated/session.v4.jsonl",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/integration-state/native-events.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/integration-state/receipt.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/integration-state/todo.cordis.yml",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/native-integration.mjs",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/pr-body.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/validation-results.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/verification-plan.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/verification-receipt.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "app/research_web/projection.py",
+      "rule": "research-web",
+      "reason": "research_web_change",
+      "modules": [
+        "research-web"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/runtime/guard.mjs",
+      "rule": "research-web",
+      "reason": "research_web_change",
+      "modules": [
+        "research-web"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/runtime/guard.mjs",
+      "rule": "research-web-runtime-platform",
+      "reason": "research_web_runtime_platform_change",
+      "modules": [
+        "research-web-runtime"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": "app/research_web/runtime/research.cordis.yml",
+      "rule": "research-web",
+      "reason": "research_web_change",
+      "modules": [
+        "research-web"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/runtime/research.cordis.yml",
+      "rule": "research-web-runtime-platform",
+      "reason": "research_web_runtime_platform_change",
+      "modules": [
+        "research-web-runtime"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": "app/research_web/ui/shell.mjs",
+      "rule": "research-web",
+      "reason": "research_web_change",
+      "modules": [
+        "research-web"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/ui/styles.css",
+      "rule": "research-web",
+      "reason": "research_web_change",
+      "modules": [
+        "research-web"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "app/research_web/ui/views.mjs",
+      "rule": "research-web",
+      "reason": "research_web_change",
+      "modules": [
+        "research-web"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "docs/DEVELOPMENT_MAP.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/01-system.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/02-research-runtime.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/04-api.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/05-security-validation.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/08-research-frameworks.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/architecture-map.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/readme-review.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/generated/py_file_index.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/research-web-appearance.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/research-web-tabbit.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/research-web-ui.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "outputs/research-web-architecture/index.html",
+      "rule": "fallback",
+      "reason": "unknown_path",
+      "modules": [
+        "unknown-boundary"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": "tests/javascript/research_web_guard.test.mjs",
+      "rule": "fallback",
+      "reason": "unknown_path",
+      "modules": [
+        "unknown-boundary"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": "tests/javascript/research_web_ui.test.mjs",
+      "rule": "research-web-ui-core",
+      "reason": "research_web_ui_change",
+      "modules": [
+        "research-web-ui"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "tests/research_web/test_event_recovery.py",
+      "rule": "fallback",
+      "reason": "unknown_path",
+      "modules": [
+        "unknown-boundary"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": "tests/research_web/test_protocol.py",
+      "rule": "fallback",
+      "reason": "unknown_path",
+      "modules": [
+        "unknown-boundary"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    },
+    {
+      "path": "tests/research_web/test_runtime_launch.py",
+      "rule": "fallback",
+      "reason": "unknown_path",
+      "modules": [
+        "unknown-boundary"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    }
+  ],
+  "reasons": [
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/BLOCKED.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/PROGRESS.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/REPORT.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/actions-budget.json",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/boundary-receipt.json",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/browser-bad-event.png",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/browser-completed.png",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/browser-fixtures.json",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/browser-long.png",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/browser-next-turn.png",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/browser-preview-server.py",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/browser-preview.html",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/browser-receipt.json",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/browser-server.json",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/changed-files.json",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/final-validation.mjs",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/integration-state-node24/dataHome/_no-cwd/native-plan-isolated/session.lock",
+      "rule": "dependency",
+      "code": "dependency_change"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/integration-state-node24/dataHome/_no-cwd/native-plan-isolated/session.lock",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/integration-state-node24/dataHome/_no-cwd/native-plan-isolated/session.v4.jsonl",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/integration-state-node24/native-events.json",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/integration-state-node24/receipt.json",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/integration-state-node24/todo.cordis.yml",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/integration-state/dataHome/_no-cwd/native-plan-isolated/session.lock",
+      "rule": "dependency",
+      "code": "dependency_change"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/integration-state/dataHome/_no-cwd/native-plan-isolated/session.lock",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/integration-state/dataHome/_no-cwd/native-plan-isolated/session.v4.jsonl",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/integration-state/native-events.json",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/integration-state/receipt.json",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/integration-state/todo.cordis.yml",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/native-integration.mjs",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/pr-body.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/validation-results.json",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/verification-plan.json",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": ".ai/reports/fingpt-native-plan-v1/verification-receipt.json",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "app/research_web/projection.py",
+      "rule": "research-web",
+      "code": "research_web_change"
+    },
+    {
+      "path": "app/research_web/runtime/guard.mjs",
+      "rule": "research-web",
+      "code": "research_web_change"
+    },
+    {
+      "path": "app/research_web/runtime/guard.mjs",
+      "rule": "research-web-runtime-platform",
+      "code": "research_web_runtime_platform_change"
+    },
+    {
+      "path": "app/research_web/runtime/research.cordis.yml",
+      "rule": "research-web",
+      "code": "research_web_change"
+    },
+    {
+      "path": "app/research_web/runtime/research.cordis.yml",
+      "rule": "research-web-runtime-platform",
+      "code": "research_web_runtime_platform_change"
+    },
+    {
+      "path": "app/research_web/ui/shell.mjs",
+      "rule": "research-web",
+      "code": "research_web_change"
+    },
+    {
+      "path": "app/research_web/ui/styles.css",
+      "rule": "research-web",
+      "code": "research_web_change"
+    },
+    {
+      "path": "app/research_web/ui/views.mjs",
+      "rule": "research-web",
+      "code": "research_web_change"
+    },
+    {
+      "path": "docs/DEVELOPMENT_MAP.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/architecture/research-web/01-system.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/architecture/research-web/02-research-runtime.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/architecture/research-web/04-api.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/architecture/research-web/05-security-validation.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/architecture/research-web/08-research-frameworks.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/architecture/research-web/architecture-map.json",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/architecture/research-web/readme-review.json",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/generated/py_file_index.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/research-web-appearance.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/research-web-tabbit.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "docs/research-web-ui.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": "outputs/research-web-architecture/index.html",
+      "rule": "fallback",
+      "code": "unknown_path"
+    },
+    {
+      "path": "tests/javascript/research_web_guard.test.mjs",
+      "rule": "fallback",
+      "code": "unknown_path"
+    },
+    {
+      "path": "tests/javascript/research_web_ui.test.mjs",
+      "rule": "research-web-ui-core",
+      "code": "research_web_ui_change"
+    },
+    {
+      "path": "tests/research_web/test_event_recovery.py",
+      "rule": "fallback",
+      "code": "unknown_path"
+    },
+    {
+      "path": "tests/research_web/test_protocol.py",
+      "rule": "fallback",
+      "code": "unknown_path"
+    },
+    {
+      "path": "tests/research_web/test_runtime_launch.py",
+      "rule": "fallback",
+      "code": "unknown_path"
+    }
+  ],
+  "escalations": [
+    {
+      "code": "validation_failure",
+      "fromLevel": "L4",
+      "toLevel": "L4",
+      "impacts": []
+    }
+  ],
+  "uncoveredRisks": [
+    "unknown_impact_boundary"
+  ],
+  "validationsByLevel": {
+    "L0": [
+      {
+        "id": "documentation-governance",
+        "level": "L0",
+        "lane": "local",
+        "gate": "merge",
+        "platforms": [
+          "generic"
+        ],
+        "category": "documentation",
+        "value": "node scripts/check_documentation_governance.mjs --project ."
+      },
+      {
+        "id": "python-file-index",
+        "level": "L0",
+        "lane": "local",
+        "gate": "merge",
+        "platforms": [
+          "generic"
+        ],
+        "category": "documentation",
+        "value": "python scripts/generate_py_file_index.py --check"
+      }
+    ],
+    "L1": [
+      {
+        "id": "research-web-architecture",
+        "level": "L1",
+        "lane": "local",
+        "gate": "merge",
+        "platforms": [
+          "generic"
+        ],
+        "category": "tests",
+        "value": "node --test tests/javascript/research_web_architecture.test.mjs"
+      },
+      {
+        "id": "research-web-service-manager",
+        "level": "L1",
+        "lane": "local",
+        "gate": "merge",
+        "platforms": [
+          "generic"
+        ],
+        "category": "tests",
+        "value": "python -m pytest tests/research_web/test_service_manager.py --confcutdir=tests/research_web"
+      },
+      {
+        "id": "research-web-local-integrations",
+        "level": "L1",
+        "lane": "local",
+        "gate": "merge",
+        "platforms": [
+          "generic"
+        ],
+        "category": "tests",
+        "value": "python -m pytest tests/research_web/test_local_integrations.py --confcutdir=tests/research_web"
+      },
+      {
+        "id": "research-web-ui",
+        "level": "L1",
+        "lane": "local",
+        "gate": "merge",
+        "platforms": [
+          "generic"
+        ],
+        "category": "tests",
+        "value": "node --test tests/javascript/research_web_ui.test.mjs tests/javascript/research_web_capabilities_ui.test.mjs"
+      }
+    ],
+    "L2": [
+      {
+        "id": "project-constraints-local",
+        "level": "L2",
+        "lane": "local",
+        "gate": "merge",
+        "platforms": [
+          "generic"
+        ],
+        "category": "tests",
+        "value": "node .agents/project-constraints.mjs --project . --changed-file <repeat-for-complete-changed-set>"
+      }
+    ],
+    "L3": [
+      {
+        "id": "research-web-critical-smoke",
+        "level": "L3",
+        "lane": "local",
+        "gate": "merge",
+        "platforms": [
+          "generic"
+        ],
+        "category": "tests",
+        "value": "python -m pytest tests/research_web/test_protocol.py --confcutdir=tests/research_web"
+      }
+    ],
+    "L4": [
+      {
+        "id": "research-web-verification-full",
+        "level": "L4",
+        "lane": "local",
+        "gate": "merge",
+        "platforms": [
+          "generic"
+        ],
+        "category": "tests",
+        "value": "node --test tests/javascript/research_web_architecture.test.mjs tests/javascript/documentation_governance.test.mjs tests/javascript/actions_quota_governance.test.mjs tests/javascript/repository_cross_platform_contract.test.mjs"
+      },
+      {
+        "id": "project-constraints",
+        "level": "L4",
+        "lane": "ci",
+        "gate": "merge",
+        "platforms": [
+          "linux"
+        ],
+        "category": "ci",
+        "value": ".github/workflows/project-constraints.yml"
+      },
+      {
+        "id": "research-web-checks",
+        "level": "L4",
+        "lane": "ci",
+        "gate": "merge",
+        "platforms": [
+          "linux"
+        ],
+        "category": "ci",
+        "value": ".github/workflows/research-web-checks.yml"
+      },
+      {
+        "id": "research-web-bootstrap",
+        "level": "L4",
+        "lane": "ci",
+        "gate": "merge",
+        "platforms": [
+          "macos"
+        ],
+        "category": "ci",
+        "value": ".github/workflows/research-web-bootstrap.yml#macos-14"
+      },
+      {
+        "id": "research-web-windows-verify",
+        "level": "L4",
+        "lane": "ci",
+        "gate": "merge",
+        "platforms": [
+          "windows"
+        ],
+        "category": "ci",
+        "value": ".github/workflows/research-web-windows-verify.yml#windows-2022"
+      }
+    ]
+  },
+  "tests": [
+    {
+      "id": "research-web-verification-full",
+      "level": "L4",
+      "lane": "local",
+      "gate": "merge",
+      "platforms": [
+        "generic"
+      ],
+      "category": "tests",
+      "value": "node --test tests/javascript/research_web_architecture.test.mjs tests/javascript/documentation_governance.test.mjs tests/javascript/actions_quota_governance.test.mjs tests/javascript/repository_cross_platform_contract.test.mjs"
+    },
+    {
+      "id": "research-web-architecture",
+      "level": "L1",
+      "lane": "local",
+      "gate": "merge",
+      "platforms": [
+        "generic"
+      ],
+      "category": "tests",
+      "value": "node --test tests/javascript/research_web_architecture.test.mjs"
+    },
+    {
+      "id": "project-constraints-local",
+      "level": "L2",
+      "lane": "local",
+      "gate": "merge",
+      "platforms": [
+        "generic"
+      ],
+      "category": "tests",
+      "value": "node .agents/project-constraints.mjs --project . --changed-file <repeat-for-complete-changed-set>"
+    },
+    {
+      "id": "research-web-service-manager",
+      "level": "L1",
+      "lane": "local",
+      "gate": "merge",
+      "platforms": [
+        "generic"
+      ],
+      "category": "tests",
+      "value": "python -m pytest tests/research_web/test_service_manager.py --confcutdir=tests/research_web"
+    },
+    {
+      "id": "research-web-local-integrations",
+      "level": "L1",
+      "lane": "local",
+      "gate": "merge",
+      "platforms": [
+        "generic"
+      ],
+      "category": "tests",
+      "value": "python -m pytest tests/research_web/test_local_integrations.py --confcutdir=tests/research_web"
+    },
+    {
+      "id": "research-web-critical-smoke",
+      "level": "L3",
+      "lane": "local",
+      "gate": "merge",
+      "platforms": [
+        "generic"
+      ],
+      "category": "tests",
+      "value": "python -m pytest tests/research_web/test_protocol.py --confcutdir=tests/research_web"
+    },
+    {
+      "id": "research-web-ui",
+      "level": "L1",
+      "lane": "local",
+      "gate": "merge",
+      "platforms": [
+        "generic"
+      ],
+      "category": "tests",
+      "value": "node --test tests/javascript/research_web_ui.test.mjs tests/javascript/research_web_capabilities_ui.test.mjs"
+    }
+  ],
+  "documentation": [
+    {
+      "id": "documentation-governance",
+      "level": "L0",
+      "lane": "local",
+      "gate": "merge",
+      "platforms": [
+        "generic"
+      ],
+      "category": "documentation",
+      "value": "node scripts/check_documentation_governance.mjs --project ."
+    },
+    {
+      "id": "python-file-index",
+      "level": "L0",
+      "lane": "local",
+      "gate": "merge",
+      "platforms": [
+        "generic"
+      ],
+      "category": "documentation",
+      "value": "python scripts/generate_py_file_index.py --check"
+    }
+  ],
+  "ci": [
+    {
+      "id": "project-constraints",
+      "level": "L4",
+      "lane": "ci",
+      "gate": "merge",
+      "platforms": [
+        "linux"
+      ],
+      "category": "ci",
+      "value": ".github/workflows/project-constraints.yml"
+    },
+    {
+      "id": "research-web-checks",
+      "level": "L4",
+      "lane": "ci",
+      "gate": "merge",
+      "platforms": [
+        "linux"
+      ],
+      "category": "ci",
+      "value": ".github/workflows/research-web-checks.yml"
+    },
+    {
+      "id": "research-web-bootstrap",
+      "level": "L4",
+      "lane": "ci",
+      "gate": "merge",
+      "platforms": [
+        "macos"
+      ],
+      "category": "ci",
+      "value": ".github/workflows/research-web-bootstrap.yml#macos-14"
+    },
+    {
+      "id": "research-web-windows-verify",
+      "level": "L4",
+      "lane": "ci",
+      "gate": "merge",
+      "platforms": [
+        "windows"
+      ],
+      "category": "ci",
+      "value": ".github/workflows/research-web-windows-verify.yml#windows-2022"
+    }
+  ],
+  "local": [
+    {
+      "id": "research-web-verification-full",
+      "level": "L4",
+      "lane": "local",
+      "gate": "merge",
+      "platforms": [
+        "generic"
+      ],
+      "category": "tests",
+      "value": "node --test tests/javascript/research_web_architecture.test.mjs tests/javascript/documentation_governance.test.mjs tests/javascript/actions_quota_governance.test.mjs tests/javascript/repository_cross_platform_contract.test.mjs"
+    },
+    {
+      "id": "research-web-architecture",
+      "level": "L1",
+      "lane": "local",
+      "gate": "merge",
+      "platforms": [
+        "generic"
+      ],
+      "category": "tests",
+      "value": "node --test tests/javascript/research_web_architecture.test.mjs"
+    },
+    {
+      "id": "project-constraints-local",
+      "level": "L2",
+      "lane": "local",
+      "gate": "merge",
+      "platforms": [
+        "generic"
+      ],
+      "category": "tests",
+      "value": "node .agents/project-constraints.mjs --project . --changed-file <repeat-for-complete-changed-set>"
+    },
+    {
+      "id": "research-web-service-manager",
+      "level": "L1",
+      "lane": "local",
+      "gate": "merge",
+      "platforms": [
+        "generic"
+      ],
+      "category": "tests",
+      "value": "python -m pytest tests/research_web/test_service_manager.py --confcutdir=tests/research_web"
+    },
+    {
+      "id": "research-web-local-integrations",
+      "level": "L1",
+      "lane": "local",
+      "gate": "merge",
+      "platforms": [
+        "generic"
+      ],
+      "category": "tests",
+      "value": "python -m pytest tests/research_web/test_local_integrations.py --confcutdir=tests/research_web"
+    },
+    {
+      "id": "research-web-critical-smoke",
+      "level": "L3",
+      "lane": "local",
+      "gate": "merge",
+      "platforms": [
+        "generic"
+      ],
+      "category": "tests",
+      "value": "python -m pytest tests/research_web/test_protocol.py --confcutdir=tests/research_web"
+    },
+    {
+      "id": "research-web-ui",
+      "level": "L1",
+      "lane": "local",
+      "gate": "merge",
+      "platforms": [
+        "generic"
+      ],
+      "category": "tests",
+      "value": "node --test tests/javascript/research_web_ui.test.mjs tests/javascript/research_web_capabilities_ui.test.mjs"
+    },
+    {
+      "id": "documentation-governance",
+      "level": "L0",
+      "lane": "local",
+      "gate": "merge",
+      "platforms": [
+        "generic"
+      ],
+      "category": "documentation",
+      "value": "node scripts/check_documentation_governance.mjs --project ."
+    },
+    {
+      "id": "python-file-index",
+      "level": "L0",
+      "lane": "local",
+      "gate": "merge",
+      "platforms": [
+        "generic"
+      ],
+      "category": "documentation",
+      "value": "python scripts/generate_py_file_index.py --check"
+    }
+  ],
+  "realMachine": [],
+  "receiptTemplate": {
+    "plannedLevel": "L4",
+    "changedFiles": [
+      ".ai/reports/fingpt-native-plan-v1/BLOCKED.md",
+      ".ai/reports/fingpt-native-plan-v1/PROGRESS.md",
+      ".ai/reports/fingpt-native-plan-v1/REPORT.md",
+      ".ai/reports/fingpt-native-plan-v1/actions-budget.json",
+      ".ai/reports/fingpt-native-plan-v1/boundary-receipt.json",
+      ".ai/reports/fingpt-native-plan-v1/browser-bad-event.png",
+      ".ai/reports/fingpt-native-plan-v1/browser-completed.png",
+      ".ai/reports/fingpt-native-plan-v1/browser-fixtures.json",
+      ".ai/reports/fingpt-native-plan-v1/browser-long.png",
+      ".ai/reports/fingpt-native-plan-v1/browser-next-turn.png",
+      ".ai/reports/fingpt-native-plan-v1/browser-preview-server.py",
+      ".ai/reports/fingpt-native-plan-v1/browser-preview.html",
+      ".ai/reports/fingpt-native-plan-v1/browser-receipt.json",
+      ".ai/reports/fingpt-native-plan-v1/browser-server.json",
+      ".ai/reports/fingpt-native-plan-v1/changed-files.json",
+      ".ai/reports/fingpt-native-plan-v1/final-validation.mjs",
+      ".ai/reports/fingpt-native-plan-v1/integration-state-node24/dataHome/_no-cwd/native-plan-isolated/session.lock",
+      ".ai/reports/fingpt-native-plan-v1/integration-state-node24/dataHome/_no-cwd/native-plan-isolated/session.v4.jsonl",
+      ".ai/reports/fingpt-native-plan-v1/integration-state-node24/native-events.json",
+      ".ai/reports/fingpt-native-plan-v1/integration-state-node24/receipt.json",
+      ".ai/reports/fingpt-native-plan-v1/integration-state-node24/todo.cordis.yml",
+      ".ai/reports/fingpt-native-plan-v1/integration-state/dataHome/_no-cwd/native-plan-isolated/session.lock",
+      ".ai/reports/fingpt-native-plan-v1/integration-state/dataHome/_no-cwd/native-plan-isolated/session.v4.jsonl",
+      ".ai/reports/fingpt-native-plan-v1/integration-state/native-events.json",
+      ".ai/reports/fingpt-native-plan-v1/integration-state/receipt.json",
+      ".ai/reports/fingpt-native-plan-v1/integration-state/todo.cordis.yml",
+      ".ai/reports/fingpt-native-plan-v1/native-integration.mjs",
+      ".ai/reports/fingpt-native-plan-v1/pr-body.md",
+      ".ai/reports/fingpt-native-plan-v1/validation-results.json",
+      ".ai/reports/fingpt-native-plan-v1/verification-plan.json",
+      ".ai/reports/fingpt-native-plan-v1/verification-receipt.json",
+      "app/research_web/projection.py",
+      "app/research_web/runtime/guard.mjs",
+      "app/research_web/runtime/research.cordis.yml",
+      "app/research_web/ui/shell.mjs",
+      "app/research_web/ui/styles.css",
+      "app/research_web/ui/views.mjs",
+      "docs/DEVELOPMENT_MAP.md",
+      "docs/architecture/research-web/01-system.md",
+      "docs/architecture/research-web/02-research-runtime.md",
+      "docs/architecture/research-web/04-api.md",
+      "docs/architecture/research-web/05-security-validation.md",
+      "docs/architecture/research-web/08-research-frameworks.md",
+      "docs/architecture/research-web/architecture-map.json",
+      "docs/architecture/research-web/readme-review.json",
+      "docs/generated/py_file_index.md",
+      "docs/research-web-appearance.md",
+      "docs/research-web-tabbit.md",
+      "docs/research-web-ui.md",
+      "outputs/research-web-architecture/index.html",
+      "tests/javascript/research_web_guard.test.mjs",
+      "tests/javascript/research_web_ui.test.mjs",
+      "tests/research_web/test_event_recovery.py",
+      "tests/research_web/test_protocol.py",
+      "tests/research_web/test_runtime_launch.py"
+    ],
+    "requiredValidationIds": [
+      "research-web-verification-full",
+      "research-web-architecture",
+      "project-constraints-local",
+      "research-web-service-manager",
+      "research-web-local-integrations",
+      "research-web-critical-smoke",
+      "research-web-ui",
+      "documentation-governance",
+      "python-file-index"
+    ],
+    "externalGateIds": [
+      "project-constraints",
+      "research-web-checks",
+      "research-web-bootstrap",
+      "research-web-windows-verify"
+    ],
+    "releaseGateIds": []
+  }
+}

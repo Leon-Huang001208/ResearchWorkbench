@@ -1,0 +1,5 @@
+{"type":"session","version":4,"id":"native-plan-isolated","createdAt":1791521397820,"isSeeded":false,"delegationDepth":0}
+{"type":"turn/start","seq":0,"time":1791521397823,"data":{"turn":1}}
+{"type":"todo/write","seq":1,"time":1791521397824,"data":{"todos":[{"content":"Read evidence","status":"in_progress"},{"content":"Check state","status":"in_progress"}]}}
+{"type":"todo/write","seq":2,"time":1791521397826,"data":{"todos":[{"content":"Check state","status":"completed"}]}}
+{"type":"turn/start","seq":3,"time":1791521397987,"data":{"turn":2}}

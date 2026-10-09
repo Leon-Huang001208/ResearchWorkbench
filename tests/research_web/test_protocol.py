@@ -13,6 +13,124 @@ from app.research_web.client import DSHClient, RuntimeFailure
 from app.research_web.projection import project
 
 
+@pytest.mark.parametrize(
+    "broken",
+    [
+        None,
+        {},
+        {"event": None},
+        {"event": {"seq": 2, "data": {}}},
+        {"event": {"seq": True, "type": "todo/write", "data": {"todos": []}}},
+        {"event": {"seq": "bad", "type": "todo/write", "data": {"todos": []}}},
+    ],
+)
+def test_corrupt_native_record_hides_plan_without_crashing(broken):
+    view = project(
+        [
+            event(0, "turn/start", {"turn": 1}),
+            event(
+                1,
+                "todo/write",
+                {"todos": [{"content": "must not stay green", "status": "completed"}]},
+            ),
+            broken,
+        ]
+    )
+    assert view["plan"] is None
+    assert view["plan_error"]
+    assert view["plan_history_incomplete"] is True
+
+
+def test_native_todo_replacement_replay_and_new_turn():
+    rows = [
+        event(0, "turn/start", {"turn": 1}),
+        event(1, "todo/write", {"todos": [{"content": "A", "status": "pending"}]}),
+        event(
+            2,
+            "todo/write",
+            {
+                "todos": [
+                    {"content": "B", "status": "in_progress"},
+                    {"content": "C", "status": "in_progress"},
+                ]
+            },
+        ),
+    ]
+    view = project(rows)
+    assert view["plan"] == {
+        "turn": 1,
+        "seq": 2,
+        "version": "1:2",
+        "todos": rows[2]["event"]["data"]["todos"],
+    }
+    assert project([rows[2], *rows, rows[1]])["plan"] == view["plan"]
+    assert view["plan_history_incomplete"] is False
+    assert "plan_error" not in view
+    assert project([*rows, event(3, "turn/start", {"turn": 2})])["plan"] is None
+    assert project([])["plan"] is None
+    assert project([event(0, "turn/start", {"turn": 8})])["plan"] is None
+    assert project(rows)["plan"]["turn"] == 1  # another session fold never leaks its turn
+
+
+@pytest.mark.parametrize("reason,status", [("aborted", "cancelled"), ("error", "failed")])
+def test_todo_completion_does_not_override_cancel_or_failure(reason, status):
+    view = project(
+        [
+            event(0, "turn/start", {"turn": 1}),
+            event(1, "todo/write", {"todos": [{"content": "A", "status": "completed"}]}),
+            event(2, "turn/end", {"turn": 1, "reason": {"kind": reason}}),
+        ]
+    )
+    assert view["status"] == status
+    assert view["plan"]["todos"][0]["status"] == "completed"
+    assert "delivery" not in view
+
+
+@pytest.mark.parametrize(
+    "todos",
+    [
+        None,
+        "bad",
+        [{}],
+        [{"content": "A", "status": "blocked"}],
+        [{"content": " ", "status": "completed"}],
+        [{"content": "A", "status": "completed", "id": "invented"}],
+        [{"content": "A", "status": "pending"}, {"content": "A", "status": "completed"}],
+    ],
+)
+def test_bad_native_todo_never_keeps_green_plan(todos):
+    view = project(
+        [
+            event(0, "turn/start", {"turn": 1}),
+            event(1, "todo/write", {"todos": [{"content": "A", "status": "completed"}]}),
+            event(2, "todo/write", {"todos": todos}),
+        ]
+    )
+    assert view["plan"] is None
+    assert view["plan_error"] == "原生计划事件无效；当前计划无法确认。"
+
+
+def test_native_todo_missing_history_and_conflicting_duplicate_are_visible():
+    write = event(5, "todo/write", {"todos": [{"content": "A", "status": "pending"}]})
+    view = project([write])
+    assert view["plan_history_incomplete"] is True
+    assert view["plan"] is None  # cannot invent a missing owning turn
+    view = project([event(0, "turn/start", {"turn": 1}), write])
+    assert view["plan_history_incomplete"] is True
+    assert view["plan"] is None  # a missing turn/start in the gap cannot be ruled out
+    recovered = project(
+        [write, event(6, "turn/start", {"turn": 2}), event(7, "todo/write", {"todos": []})]
+    )
+    assert recovered["plan"]["turn"] == 2
+    assert recovered["plan"]["todos"] == []
+    assert recovered["plan_history_incomplete"] is True
+    corrupt = event(5, "todo/write", {"todos": []})
+    assert project([write, corrupt])["plan_error"]
+    assert project([event(0, "turn/start", {"turn": 1}), event(1, "todo/write", None)])[
+        "plan_error"
+    ]
+
+
 @pytest.mark.asyncio
 async def test_native_credential_clear_uses_unset_without_secret_payload():
     def reply(request):

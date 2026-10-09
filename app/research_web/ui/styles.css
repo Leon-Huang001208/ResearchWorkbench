@@ -1,3 +1,7 @@
+.native-todo-list { list-style: none; padding: 0; display: grid; gap: 10px; }
+.native-todo-list li { display: grid; grid-template-columns: 5em minmax(0, 1fr); gap: 10px; overflow-wrap: anywhere; }
+.native-todo-status { color: var(--muted); font-size: .85em; }
+.research-plan .count { overflow-wrap: anywhere; }
 :root {
   --navy: #061b2e;
   --navy-light: #16334d;

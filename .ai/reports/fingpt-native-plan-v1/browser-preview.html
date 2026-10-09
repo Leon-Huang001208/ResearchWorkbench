@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>原生计划只读验收</title><link rel="stylesheet" href="/ui/styles.css">
+<body><main style="max-width:390px;margin:24px auto;padding:16px">
+<h1>原生计划只读验收</h1><p>真实插件日志投影的浏览器预览；不调用模型或提交研究。</p>
+<nav aria-label="验收场景"><button data-case="active">原生进行中</button><button data-case="completed">原生完成清单</button>
+<button data-case="next">原生下一回合</button><button data-case="bad">坏事件协议样例</button><button data-case="long">长文本协议样例</button></nav>
+<p id="case-label" role="status"></p><div id="plan"></div><p id="preview-error" role="alert" hidden></p>
+</main><script type="module">
+import { renderResearchPlan } from '/ui/views.mjs';
+try {
+  const response = await fetch('/fixtures');
+  if (!response.ok) throw Error('fixture_unavailable');
+  const cases = await response.json();
+  const show = key => {
+    const value = cases[key];
+    if (!value) throw Error('case_unavailable');
+    document.querySelector('#case-label').textContent = value.source;
+    document.querySelector('#plan').innerHTML = renderResearchPlan(value.detail);
+  };
+  for (const button of document.querySelectorAll('button[data-case]')) button.addEventListener('click', () => show(button.dataset.case));
+  show('completed');
+} catch (error) {
+  console.error('native_plan_preview_failed', error.name);
+  const box = document.querySelector('#preview-error');
+  box.hidden = false; box.textContent = '预览加载失败，不能认证浏览器验收。';
+}
+</script></body></html>

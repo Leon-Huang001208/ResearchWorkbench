@@ -1,6 +1,6 @@
 import { escapeHTML as e } from './markdown.mjs';
 import { sessionHash, isRunning } from './core.mjs';
-import { renderActivities, renderDatasets, renderDelivery, renderFiles } from './views.mjs';
+import { renderActivities, renderDatasets, renderDelivery, renderFiles, renderResearchPlan } from './views.mjs';
 import { icon } from './icons.mjs';
 import { renderWorkflowPlan } from './capabilities.mjs';
 
@@ -111,7 +111,7 @@ export function renderSidebar({ page, sessionId, sessions = [], workspaces = [],
 export function renderContextPanel({ detail, selectedTab = 'activity', mobileOpen = false, selectedPreview = null, busy = false, workflow = null } = {}) {
   if (!detail) return '';
   const tabs = [['activity', '活动'], ['datasets', '资料'], ['files', '文件']];
-  const panel = selectedTab === 'datasets' ? renderDatasets(detail?.id, detail?.datasets) || '<p class="muted small context-empty">本会话暂无研究资料。</p>' : selectedTab === 'files' ? `<section class="context-section"><div class="section-heading"><h3>文件</h3>${detail ? `<button class="text-button" data-refresh-files ${busy ? 'disabled' : ''}>刷新</button>` : ''}</div>${renderFiles(detail?.files || [], selectedPreview)}</section>` : `${renderLockedWorkflowSummary(detail)}${renderDelivery(detail?.delivery)}${renderWorkflowPlan(workflow || detail.capability)}${renderActivities(detail)}`;
+  const panel = selectedTab === 'datasets' ? renderDatasets(detail?.id, detail?.datasets) || '<p class="muted small context-empty">本会话暂无研究资料。</p>' : selectedTab === 'files' ? `<section class="context-section"><div class="section-heading"><h3>文件</h3>${detail ? `<button class="text-button" data-refresh-files ${busy ? 'disabled' : ''}>刷新</button>` : ''}</div>${renderFiles(detail?.files || [], selectedPreview)}</section>` : `${renderLockedWorkflowSummary(detail)}${renderDelivery(detail?.delivery)}${renderResearchPlan(detail)}${renderWorkflowPlan(workflow || detail.capability)}${renderActivities(detail)}`;
   return `<aside class="context-panel ${mobileOpen ? 'mobile-open' : ''}" aria-label="研究活动、资料与文件"><header class="context-header"><div><h2>研究空间</h2><span class="badge">${detail?.mode === 'claw' ? 'CLAW' : 'FINGPT'}</span></div><button class="icon-button context-close" data-toggle-context aria-label="关闭研究空间">×</button></header><div class="context-tabs" role="tablist">${tabs.map(([id, label]) => `<button type="button" role="tab" class="context-tab ${selectedTab === id ? 'active' : ''}" aria-selected="${selectedTab === id}" data-context-tab="${id}">${label}</button>`).join('')}</div><div class="context-tab-panel">${panel}</div></aside>`;
 }
 

@@ -1,5 +1,10 @@
 # Research Web Tabbit 集成
 
+研究 preset 新增原生 Todo 只放行 `todo_write`；Tabbit browser/web_fetch 的独立开关、
+审批和安装拒绝保持原样。计划投影不调用浏览器、不抓取标签页，也不从 Todo 内容推断网页
+已读取或来源已验证；原生计划集成通过不能替代 Tabbit 真实浏览器验收。
+
+
 macOS 异根 Native 记录认证仅复核启动者的标准产品根、PID 与 listener；不会访问浏览器
 标签、URL、Cookie、正文或 Tabbit claim。调用内 lease/FD 证明不成为浏览器授权；原会话
 审批与一次性 token 保持，容器健康仍不证明宿主 Tabbit 可调用。

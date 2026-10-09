@@ -1,0 +1,68 @@
+{
+  "visibility": "PUBLIC",
+  "state": "public-standard",
+  "standardRunner": "macos-14",
+  "includedUsage": "N/A for public standard runners",
+  "source": "live gh repo view + actions/runs/<id>/jobs",
+  "recentSuccessJobs": [
+    {
+      "completed_at": "2026-10-09T04:31:03Z",
+      "conclusion": "success",
+      "labels": [
+        "macos-14"
+      ],
+      "name": "Clean Web install (macos-14)",
+      "run_id": 37883442523,
+      "started_at": "2026-10-09T04:21:01Z",
+      "durationSeconds": 602
+    },
+    {
+      "completed_at": "2026-10-09T03:21:08Z",
+      "conclusion": "success",
+      "labels": [
+        "macos-14"
+      ],
+      "name": "Clean Web install (macos-14)",
+      "run_id": 37878365675,
+      "started_at": "2026-10-09T03:14:42Z",
+      "durationSeconds": 386
+    },
+    {
+      "completed_at": "2026-10-09T02:59:51Z",
+      "conclusion": "success",
+      "labels": [
+        "macos-14"
+      ],
+      "name": "Clean Web install (macos-14)",
+      "run_id": 37876420141,
+      "started_at": "2026-10-09T02:50:03Z",
+      "durationSeconds": 588
+    },
+    {
+      "completed_at": "2026-10-09T01:48:39Z",
+      "conclusion": "success",
+      "labels": [
+        "macos-14"
+      ],
+      "name": "Clean Web install (macos-14)",
+      "run_id": 37871009368,
+      "started_at": "2026-10-09T01:41:47Z",
+      "durationSeconds": 412
+    },
+    {
+      "completed_at": "2026-10-08T19:47:23Z",
+      "conclusion": "success",
+      "labels": [
+        "macos-14"
+      ],
+      "name": "Clean Web install (macos-14)",
+      "run_id": 37833044002,
+      "started_at": "2026-10-08T19:35:15Z",
+      "durationSeconds": 728
+    }
+  ],
+  "meanSeconds": 543.2,
+  "weightedMinutesPerRun": 99.58666666666667,
+  "allowed": "feature branch push + PR + automatic generic/macOS CI only",
+  "forbidden": "merge/auto-merge, Windows/Linux dispatch, package installation, paid model"
+}

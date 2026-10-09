@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "unchanged",
-  "summary": "复核最新 master 的 README：保留 DSH 0.2.1 升级、macOS Keychain、Office 有限业务说明及端点/双 runtime 入口；Claw 关联落盘与异常恢复仅更新既有 Automation 模块说明。",
-  "reason": "本轮未修改根 README；唯一 DSH、原生报告 Runtime、安装依赖、HTTP 路由和原有 Run 字段均未改变。恢复与失败关闭细节在模块文档说明，未新增架构节点或 schema；保留上游安装与支持限制，不把 macOS 私有进程/受控 loopback 测试解释为真实模型、厂商、CI 或其他平台证据，历史证据保留原候选归属。"
+  "summary": "复核最新 master 的 README：原生 Todo 与研究计划投影沿用唯一 DSH 及研究空间，具体快照、回合清空和交付边界在研究协议/API/UI模块文档说明。",
+  "reason": "根 README 的安装、固定 DSH、部署入口与平台支持仍适用，不需改正文。新增只读计划响应字段不新增路由、正文库、持久schema或编排器；保留当前pin及依赖，插件进程内真实集成不等同模型live、浏览器、干净安装或Mac CI。"
 }
