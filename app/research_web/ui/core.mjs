@@ -1,6 +1,6 @@
 const API_ROOT = '/api/research';
 const segment = (value) => encodeURIComponent(value);
-const pages = new Set(['fingpt', 'claw', 'workbench', 'frameworks', 'skills', 'history', 'operations', 'settings']);
+const pages = new Set(['fingpt', 'claw', 'workbench', 'frameworks', 'skills', 'history', 'operations', 'settings', 'intel']);
 const workbenchSections = new Set(['market', 'assets', 'funds', 'industry', 'documents']);
 const settingsSections = new Set(['general', 'model', 'data', 'local', 'docs']);
 const capabilityViews = new Set(['library', 'mine', 'plans', 'connections', 'market']);
@@ -16,6 +16,10 @@ export function parseRoute(hash = '') {
     page,
     sessionId: ['fingpt', 'claw'].includes(page) ? params.get('session') : null,
   };
+  if (page === 'intel') {
+    const tabs = new Set(['overview', 'research-reports', 'investment-news', 'wsc', 'social', 'news', 'filings', 'events']);
+    route.intelTab = !extraSegments.length && tabs.has(sectionSegment) ? sectionSegment : 'overview';
+  }
   if (page === 'history') {
     route.historyMode = ['fingpt', 'claw'].includes(params.get('mode')) ? params.get('mode') : null;
     route.historyView = params.get('view') === 'deleted' ? 'deleted' : 'active';

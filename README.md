@@ -171,6 +171,7 @@ Research Web 使用用户私有目录保存运行状态与数据：
 - **Asset Observation（资产观察）**：按需查看资产相关数据。
 - **Research Workbench（研究台）**：市场、资产、基金、行业与文档的工作台入口。
 - **Capability Center（能力中心）**：Skill、Method、Tool、Workflow 与数据能力目录。
+- **资讯雷达**：事件、研报、赛道资讯、快讯与社交内容的原生只读页面；使用 Golddata 现成接口，支持原文阅读与 A 股代码查询。
 - **Research Frameworks（研究框架）**：独立的研究框架与快照驱动分析。
 - **Operations and Usage（运行与用量）**：只读聚合模型用量、Agent、工具、DataHub、服务健康与存储情况。
 - **Settings（设置）**：通用、模型服务、数据源、本机集成与架构文档。

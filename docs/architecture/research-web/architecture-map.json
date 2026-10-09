@@ -99,7 +99,8 @@
         "tests/javascript/research_web_frameworks_ui.test.mjs",
         "tests/e2e/research_web_goldar_v0.mjs",
         "tests/e2e/research_web_mcp_marketplace.mjs",
-        "tests/e2e/research_web_mcp_runtime.mjs"
+        "tests/e2e/research_web_mcp_runtime.mjs",
+        "tests/javascript/research_web_intel.test.mjs"
       ]
     },
     {
@@ -115,7 +116,8 @@
         "research_workbench_entrypoint/web_bootstrap.py",
         "app/research_web/runtime_auth.py",
         "app/research_web/client.py",
-        "app/research_web/projection.py"
+        "app/research_web/projection.py",
+        "app/research_web/intel_routes.py"
       ],
       "documents": [
         "docs/architecture/research-web/01-system.md",
@@ -140,7 +142,8 @@
         "tests/research_web/test_web_bootstrap.py",
         "tests/research_web/test_setup_web.py",
         "tests/research_web/test_cli_lazy.py",
-        "tests/research_web/test_model_connections.py"
+        "tests/research_web/test_model_connections.py",
+        "tests/research_web/test_intel.py"
       ]
     },
     {
@@ -2814,6 +2817,83 @@
       "source": "app/research_web/datahub/routes.py",
       "declaredPath": "/internal/data/model-connection",
       "prefix": "/api/research"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/intel/overview",
+      "source": "app/research_web/intel_routes.py",
+      "declaredPath": "/overview",
+      "prefix": "/api/research/intel"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/intel/story-focus",
+      "source": "app/research_web/intel_routes.py",
+      "declaredPath": "/story-focus",
+      "prefix": "/api/research/intel"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/intel/breakfast-focus",
+      "source": "app/research_web/intel_routes.py",
+      "declaredPath": "/breakfast-focus",
+      "prefix": "/api/research/intel"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/intel/events/{event_id}",
+      "source": "app/research_web/intel_routes.py",
+      "declaredPath": "/events/{event_id}",
+      "prefix": "/api/research/intel"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/intel/reports",
+      "source": "app/research_web/intel_routes.py",
+      "declaredPath": "/reports",
+      "prefix": "/api/research/intel"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/intel/reports/{report_id}",
+      "source": "app/research_web/intel_routes.py",
+      "declaredPath": "/reports/{report_id}",
+      "prefix": "/api/research/intel"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/intel/radar",
+      "source": "app/research_web/intel_routes.py",
+      "declaredPath": "/radar",
+      "prefix": "/api/research/intel"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/intel/wsc",
+      "source": "app/research_web/intel_routes.py",
+      "declaredPath": "/wsc",
+      "prefix": "/api/research/intel"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/intel/social",
+      "source": "app/research_web/intel_routes.py",
+      "declaredPath": "/social",
+      "prefix": "/api/research/intel"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/intel/news",
+      "source": "app/research_web/intel_routes.py",
+      "declaredPath": "/news",
+      "prefix": "/api/research/intel"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/intel/announcements",
+      "source": "app/research_web/intel_routes.py",
+      "declaredPath": "/announcements",
+      "prefix": "/api/research/intel"
     }
   ],
   "visualReview": "docs/architecture/research-web/visual-review.json",
