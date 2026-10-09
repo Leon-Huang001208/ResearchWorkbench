@@ -498,3 +498,27 @@ Private `hot/pricing/YYYY-MM-DD.json` is the current catalog, with immutable con
 Normal Native loading prefers a valid private catalog; invalid or dangling-symlink records block instead of falling back. Bundled current-day pricing remains a bootstrap fallback only when no private record exists. Each run, reserve and dispatch checks the loaded date and fingerprint, so changed/imported catalog requires restart and never changes input-v2 result identity or accumulated budget. Price controls are CLI only; automatic refresh, vendor invoice verification and pricing/data-directory backup policy remain pending.
 
 Browser acceptance now includes two actual stored model events through real Host/Node/PG with isolated Hot credentials and an offline research client. AI/macro/gold share identity and distinguish importance from zero historical heat; original versions/times and partial source coverage are visible. It proves reads, not new model/research, installed credential lifecycle, continuous collection or production readiness. Fixture source pauses were restored and original budget unchanged.
+
+## Frozen brief input checkpoint
+
+`src/briefs.ts` freezes an explicit selection of at most20 events in one read-only
+repeatable-read transaction. Every detail page shares the same cutoff; incomplete
+material references, duplicate canonical aliases, invalid windows and unknown
+channels reject the entire selection. Each event includes all its referenced
+material versions (up to200), saved channel judgments and their original coverage
+basis. Channel configuration is also frozen at that cutoff. Inputs are bounded to
+4MiB, canonically hashed and rechecked before Markdown rendering. This hash detects
+content changes; it is not an authentication signature.
+
+Markdown separates grouping summaries, publisher excerpts and rule/model/human
+judgments, labels partial excerpts and unknown times, and uses the selected timezone
+(default Asia/Shanghai). Publisher HTML/Markdown is escaped and unsafe links omitted.
+A publication window qualifies selected events by at least one trusted report;
+other reports of those events are retained as context with their own dates.
+No fetch, model call, task or research session is created. The core currently has
+no durable brief record, public CLI/Host route, DOCX or formal research snapshot.
+Those are subsequent implementation steps, not implied by this checkpoint.
+`briefs.test.ts` and `briefs.integration.ts` verify export integrity and historical
+material/config/event isolation against actual PG using synthetic content. A
+read-only acceptance export from the original real two-event dataset is retained
+in private logs; it does not prove scheduled or persisted briefs.

@@ -176,3 +176,8 @@ Hot 模型管理由 hot_model_controls.py / scripts/model-control.ts 连接 mode
 Hot 用户定价：hot_pricing.py 经 check-pricing.ts/ pricing.ts 校验并保存私有日期记录；native-model.ts 在 run/reserve/dispatch 验证日期与指纹。pricing.test.ts/test_hot_pricing.py 覆盖新模拟日期、变化阻断、私有文件、真实CLI及fsync故障。
 
 browser-dataset-proof.ts 是有界真实事件读取验收准备/恢复脚本：固定原授权schema/ledger、验证probe与identity、临时暂停来源并新建隔离控制角色；不调用模型，恢复时保留原quota。Web浏览器读取截图和失败/独立清理证据在任务报告。
+
+Hot简报冻结核心为 `services/hot/src/briefs.ts`，验收为 `briefs.test.ts` 和
+`briefs.integration.ts`；同一只读事务冻结全部关联版本、频道配置、原判断与覆盖依据，
+校验规范JSON哈希并导出安全Markdown。当前不创建持久简报记录或研究会话；公开入口、
+DOCX、原文研究副本与调度映射仍待实现。合同见 `services/hot/README.md` 简报小节。

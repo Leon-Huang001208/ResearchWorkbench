@@ -376,3 +376,5 @@ Hot 模型默认关闭；现有 Native 启动桥可按 model.enabled/scopeId 装
 当日费率可通过 model-pricing-import --file pricing.json --verify-official-pricing --reason "已核对官方峰值费率" 配置，无须改源码；停止Hot、用户核对官方页面后导入并重启。默认不自动下载或确认价格；同值重放补验耐久性，非零 durability unavailable 不代表当前文件未可见。
 
 实际两事件浏览器验收通过已有开发环境和隔离凭据/离线研究客户端，不能代替干净安装或系统凭据完整链路；所有安装/正式模型/研究门仍以支持矩阵和任务证据为准。
+
+Hot简报冻结核心不引入新依赖或schema迁移；只读取得截止时点版本并内部导出Markdown。当前没有公开简报命令或DOCX安装能力，干净安装及定时/研究链路仍按原验收计划保持待验证。
