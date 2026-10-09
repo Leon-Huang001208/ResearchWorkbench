@@ -1,5 +1,8 @@
 # Research Web 前端
 
+模型详情新增actual credential_storage：Native Keychain、Docker私有文件或未知，自身属性检查
+防伪来源且不回填Key。权限保护不是加密；服务可达/配置/真实生成分开。源码renderer不替代浏览器。
+
 固定 DSH 0.2.1 的空实例模型默认值为 `deepseek-flash`；设置页仍展示实际目录，并保留已保存旧 ID，不按名称推断工具能力。保存、凭据、Runtime 应用与显式推理分别显示；本次不改变页面路由、dirty 表单保护或秘密不回填规则。框架和 Automation 继续沿相同原生会话路径执行。
 
 Native/Docker 仍提供同一 8088 Web 页面、路由、API 与研究交互；模式在安装器和 CLI 选择，

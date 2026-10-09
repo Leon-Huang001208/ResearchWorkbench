@@ -22,6 +22,7 @@ import threading
 import time
 import webbrowser
 from contextlib import ExitStack
+from http.client import HTTPConnection, HTTPException
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
@@ -54,6 +55,9 @@ _CONTAINER_FORMAT = (
     '"project":{{json (index .Config.Labels "com.docker.compose.project")}},'
     '"service":{{json (index .Config.Labels "com.docker.compose.service")}},'
     '"installation":{{json (index .Config.Labels "io.research-workbench.installation")}},'
+    '"installation_environment":[{{$comma := ""}}{{range .Config.Env}}'
+    '{{if eq (index (split . "=") 0) "RWB_INSTALLATION_ID"}}{{$comma}}'
+    '{{json (join (slice (split . "=") 1) "=")}}{{$comma = ","}}{{end}}{{end}}],'
     '"runtime":{{json (index .Config.Labels "io.research-workbench.runtime")}},'
     '"launch":{{json (index .Config.Labels "io.research-workbench.launch")}},'
     '"working_dir":{{json (index .Config.Labels "com.docker.compose.project.working_dir")}},'
@@ -943,6 +947,12 @@ class DockerRuntime:
             value.get(key) != item for key, item in expected.items()
         ):
             raise ControlError("docker_ownership_mismatch")
+        installation_environment = value.get("installation_environment")
+        if not isinstance(installation_environment, list) or installation_environment not in (
+            [],
+            [self.installation_id],
+        ):
+            raise ControlError("docker_ownership_mismatch")
         if (
             type(value.get("running")) is not bool
             or value.get("state")
@@ -1004,6 +1014,9 @@ class DockerRuntime:
             or self._image(image)["id"] != image
         ):
             raise ControlError("docker_ownership_mismatch")
+        # Legacy containers remain controllable under the unchanged ownership
+        # guards, but an absent guest binding never proves model availability.
+        value["model_binding_verified"] = installation_environment == [self.installation_id]
         return value
 
     def _guard(self, operation, function):
@@ -1418,6 +1431,110 @@ class DockerRuntime:
 
         return self._guard("status", inspect)
 
+    def _model_runtime_facts(self) -> dict:
+        """Read one verified loopback endpoint; never resolve secrets or generate text."""
+        deadline = time.monotonic() + 3.0
+        connection = HTTPConnection("127.0.0.1", self.ports[0], timeout=3.0)
+        transport = None
+        expired = threading.Event()
+
+        def expire():
+            # Interrupt this probe's socket even when HTTP headers/body drip
+            # often enough to defeat a per-read socket timeout.
+            expired.set()
+            if transport is not None:
+                try:
+                    transport.shutdown(socket.SHUT_RDWR)
+                except OSError:
+                    pass
+
+        timer = threading.Timer(3.0, expire)
+        timer.daemon = True
+        timer.start()
+        try:
+            # HTTPConnection uses a direct socket and has no redirect or
+            # ambient proxy handling. The caller already verified this mapping.
+            connection.connect()
+            transport = connection.sock
+            if expired.is_set() or time.monotonic() >= deadline:
+                raise ControlError("docker_model_runtime_timeout")
+            connection.request(
+                "GET", "/api/research/runtime", headers={"Accept": "application/json"}
+            )
+            response = connection.getresponse()
+            if response.status != 200:
+                raise ControlError("docker_model_runtime_response_invalid")
+            if (
+                len(response.headers.get_all("Content-Type", [])) != 1
+                or response.headers.get_content_type() != "application/json"
+            ):
+                raise ControlError("docker_model_runtime_response_invalid")
+            lengths = response.headers.get_all("Content-Length", [])
+            if lengths and (len(lengths) != 1 or re.fullmatch(r"[0-9]{1,10}", lengths[0]) is None):
+                raise ControlError("docker_model_runtime_response_invalid")
+            if lengths and int(lengths[0]) > 16384:
+                raise ControlError("docker_model_runtime_output_limit")
+            raw = response.read(16385)
+            if expired.is_set() or time.monotonic() >= deadline:
+                raise ControlError("docker_model_runtime_timeout")
+            if len(raw) > 16384:
+                raise ControlError("docker_model_runtime_output_limit")
+            if lengths and len(raw) != int(lengths[0]):
+                raise ControlError("docker_model_runtime_response_invalid")
+            payload = json.loads(raw.decode("utf-8"), object_pairs_hook=_unique_object)
+            if (
+                not isinstance(payload, dict)
+                or type(payload.get("connected")) is not bool
+                or type(payload.get("health_check_passed")) is not bool
+                or "credential_configured" not in payload
+                or (
+                    payload["credential_configured"] is not None
+                    and type(payload["credential_configured"]) is not bool
+                )
+                or type(payload.get("configuration_uncertain")) is not bool
+                or payload.get("credential_storage")
+                not in {
+                    "docker_private_file",
+                    "system_keychain",
+                    "dsh_private_file",
+                    "environment",
+                    "project_dotenv",
+                    "runtime_home_dotenv",
+                    "unknown",
+                }
+                or payload.get("credential_code")
+                not in {
+                    None,
+                    "model_credential_backend_unavailable",
+                }
+            ):
+                raise ControlError("docker_model_runtime_response_invalid")
+            if expired.is_set() or time.monotonic() >= deadline:
+                raise ControlError("docker_model_runtime_timeout")
+            return {
+                key: payload.get(key)
+                for key in (
+                    "connected",
+                    "health_check_passed",
+                    "credential_configured",
+                    "credential_storage",
+                    "credential_code",
+                    "configuration_uncertain",
+                )
+            }
+        except (OSError, HTTPException) as error:
+            code = (
+                "docker_model_runtime_timeout"
+                if expired.is_set() or isinstance(error, TimeoutError)
+                else "docker_model_runtime_unavailable"
+            )
+            raise ControlError(code) from None
+        except (ValueError, TypeError, RecursionError, RuntimeModeError):
+            raise ControlError("docker_model_runtime_response_invalid") from None
+        finally:
+            timer.cancel()
+            connection.close()
+
     def doctor(self) -> dict:
         proxies, proxy_issues = _docker_cli_proxies()
         facts = {
@@ -1457,6 +1574,16 @@ class DockerRuntime:
                 for role, port in (("web", self.ports[0]), ("runtime", self.ports[1]))
             },
             "capabilities": platform_capabilities("docker"),
+            "model": {
+                "binding_verified": False,
+                "backend_available": None,
+                "credential_configured": None,
+                "credential_storage": "unknown",
+                "credential_code": None,
+                "configuration_uncertain": None,
+                "connected": None,
+                "health_check_passed": None,
+            },
         }
 
         def diagnose():
@@ -1510,6 +1637,45 @@ class DockerRuntime:
             if not facts["data"]["ready"]:
                 issues.append("docker_data_unavailable")
             self._credential_mount_boundary()
+            facts["model"]["binding_verified"] = bool(
+                containers and containers[0].get("model_binding_verified") is True
+            )
+            if facts["model"]["binding_verified"] and not issues:
+                try:
+                    model = self._model_runtime_facts()
+                    facts["model"].update(
+                        {
+                            key: model[key]
+                            for key in (
+                                "connected",
+                                "health_check_passed",
+                                "configuration_uncertain",
+                            )
+                        }
+                    )
+                    if model["credential_code"]:
+                        raise ControlError(model["credential_code"])
+                    if model["configuration_uncertain"]:
+                        raise ControlError("model_configuration_uncertain")
+                    if model["credential_storage"] != "docker_private_file":
+                        raise ControlError("docker_model_backend_mismatch")
+                    facts["model"].update(
+                        backend_available=True,
+                        credential_storage="docker_private_file",
+                        credential_configured=model["credential_configured"],
+                    )
+                    if model["credential_configured"] is not True:
+                        facts["warnings"].append(
+                            "model_credentials_missing"
+                            if model["credential_configured"] is False
+                            else "model_credential_state_unavailable"
+                        )
+                except ControlError as error:
+                    facts["model"]["credential_code"] = error.code
+                    facts["warnings"].append(error.code)
+                    log.warning("docker_model_doctor_warning code=%s", error.code)
+            elif not facts["model"]["binding_verified"]:
+                facts["warnings"].append("docker_model_binding_unverified")
             return result(*issues)
 
         report = self._guard("doctor", diagnose)

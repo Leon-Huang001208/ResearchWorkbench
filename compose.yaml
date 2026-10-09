@@ -11,6 +11,7 @@
       "stop_grace_period": "35s",
       "ports": ["127.0.0.1:${RWB_WEB_PORT:-8088}:8088"],
       "environment": {
+        "RWB_INSTALLATION_ID": "${RWB_INSTALLATION_ID:?Set RWB_INSTALLATION_ID}",
         "RWB_DATA_ROOT": "/data/research-web",
         "RWB_RUNTIME_STATE": "/state/runtime",
         "RESEARCH_CREDENTIAL_HOME": "/run/rwb-secrets/private",

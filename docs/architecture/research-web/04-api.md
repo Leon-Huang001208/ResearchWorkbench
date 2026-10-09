@@ -1,5 +1,10 @@
 # Research Web 接口清单
 
+原runtime API新增actualdescribe来源docker_private_file，不返回Key、路径或安装ID。
+后端失败保留核心Host/设置页及unknown配置，active/uncertainty沿原语义；Doctor定向GET同一
+接口投影binding/backend/configured，warnings非核心hardgate，不新增取密路由或生成调用。
+
+
 DSH 0.2.1 升级保持公开 HTTP 合同。内部 `subagent.list` 适配已移除的上游方法：读取权威父会话 `subagentCatalog` 投影，并与实时 `session/list` 的子会话归属、模式和 running 状态交叉核对；输出映射为既有 `kind=child` 与 `activity=running/inactive`，供详情、归属、取消及空闲保护共同消费；缺失或未知状态返回协议失败，不用空列表解除活动保护。空实例默认 `deepseek-flash`，已保存旧模型值继续保留。保存、应用、真实推理仍分别返回事实，不因默认值更新自动调用模型。
 macOS 异根私有 Native pair 认证只修复公开 CLI 的后续生命周期准入：已有根的完整不同根
 pair 可继续 start/force restart，未知/变化/同根写者仍返回 `runtime_ownership_unknown`。

@@ -6,7 +6,7 @@ Research Workbench 当前交付的是本地优先的 **Research Web**：一个�
 
 > 当前产品阶段为 **Web-only**。桌面打包历史仍被保留，但桌面 sidecar、Tauri、安装包和原生桌面 CI 不属于普通 Research Web 的安装或验收前提。
 
-当前交付优先 macOS Native；Windows/Linux 和 Docker 保留实现、暂缓产品验收。固定 DSH 已更新为 0.2.1-alpha.1 的 Fork 提交 `48504f07f217f9fd45a4f6d8fca4b1ed35c2d4b0`，安装版本由 `runtimes/research_web.json` 决定。空实例默认 `deepseek-flash`，已有模型 ID 和会话保留，不自动重写或更新已运行的生产实例。
+当前交付优先 macOS Native；macOS Docker Desktop 的模型凭据与最小文本路径正在专项验收，Windows/Linux 保留实现及独立交接。固定 DSH 已更新为 0.2.1-alpha.1 的 Fork 提交 `48504f07f217f9fd45a4f6d8fca4b1ed35c2d4b0`，安装版本由 `runtimes/research_web.json` 决定。空实例默认 `deepseek-flash`，已有模型 ID 和会话保留，不自动重写或更新已运行的生产实例。
 
 架构阅读从 Settings →「架构文档」或[交互图册](outputs/research-web-architecture/index.html)开始，按产品总览、部署、子系统、关键流程和 API 逐层展开；模块入口关联权威说明、源码与测试。
 
@@ -16,14 +16,14 @@ Research Workbench 当前交付的是本地优先的 **Research Web**：一个�
 
 ### 前置条件
 
-- Docker 模式（实现保留，本阶段暂缓验收）：宿主 Python 3.12 解释器用于公开安装入口和统一 `rwb` CLI，另需 Docker Desktop、可用的 Engine 与 Compose v2；无需宿主 Node，也无需全局第三方 Python 包，镜像内使用锁定的 Python 3.12、Node 24 和固定 DSH。当前 Windows Docker 凭据目录 ACL 无法由实现证明时会以 `docker_credentials_acl_unverified` 失败关闭，不能据此宣称 Windows 已验收。
+- Docker 模式（macOS 文本路径专项验收中）：宿主 Python 3.12 解释器用于公开安装入口和统一 `rwb` CLI，另需 Docker Desktop、可用的 Engine 与 Compose v2；无需宿主 Node，也无需全局第三方 Python 包，镜像内使用锁定的 Python 3.12、Node 24 和固定 DSH。当前 Windows Docker 凭据目录 ACL 无法由实现证明时会以 `docker_credentials_acl_unverified` 失败关闭，不能据此宣称 Windows 已验收。
 - Native 模式：宿主 Python 3.12、Node.js 22.19+（22 系列）或 24.x、Git；Windows 另需 Visual Studio 2022 Build Tools 的 “Desktop development with C++” 工作负载。
 
 Wind、iFinD、Office 等本机或厂商能力均为可选项；缺少它们不会阻止 Research Web 启动。
 
 ### 安装
 
-当前 macOS 阶段使用下述 Native 入口；以下 Docker 命令保留供未来恢复验收时使用：
+macOS 默认仍使用 Native；以下 Docker 入口用于受管容器和本轮独立验收，不表示真实文本研究或全部功能已验证：
 
 ```bash
 ./setup-web.sh --runtime docker
@@ -128,7 +128,7 @@ Native 可在确认没有活动研究时普通重启；Docker 运行中无法认
 
 macOS Native 的模型凭据由产品 overlay 挂载的固定用途桥接存入系统 Keychain，按规范化 data home 隔离；不回退环境、旧凭据 YAML 或 `.env`，也不把 Keychain 值复制到文件。不迁移旧模型 Key，需在该实例设置页重新录入。Host 浏览器认证 record 保留固定 DSH 的受控文件实现，和模型 Key 分开。其他平台或 Keychain 不可用时模型失败关闭，设置页与 Host 认证仍可使用；其他平台系统模型存储尚未验证。
 
-Docker相关通用业务凭据隔离实现保留；本阶段不交付Docker模型凭据后端，不把Native系统存储保证泛化到容器。
+受管 Docker 以稳定安装身份使用模型专用私有文件后端，设置页与 Doctor 显示 `docker_private_file`；仅接受官方模型固定引用，不复制 Native Keychain 的 Key，也不复用 DataHub 或浏览器认证记录。权限保护不等于加密保险库，不能抵御容器内同权限代码或 Docker 管理者。凭据/启动合同及旧 SDK 镜像已实测，但当前固定 SDK 的真实文本、重启续问和结果恢复仍待专项验收，暂不据此推荐该研究路径。兼容连接的专用 Key 不增加 Docker 文件回退。
 
 DataHub 连接凭据按规范化 data home 隔离系统凭据服务；不同实例互不读取、覆盖或清除。旧全局记录不自动迁移或回退，已有非秘密配置保留，升级后请在所属实例设置页重新录入数据源凭据；旧记录不会被删除。
 

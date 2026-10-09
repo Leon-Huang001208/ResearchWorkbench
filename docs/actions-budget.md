@@ -44,7 +44,9 @@ GitHub Free 的私有仓库每个计费周期共享 2,000 分钟；这不是当�
 
 Project Constraints 保持所有 PR 和 `master` push 自动执行；自动 workflow 必须设置 concurrency、`cancel-in-progress: true` 和明确超时。Research Web Bootstrap 只运行 `macos-14`。Windows Web workflow 只保留 `workflow_dispatch`：policy 对 platform-sensitive changed set 选择 Windows gate 后，Windows 真机 checkout 待验 ref，以该机 `git rev-parse HEAD` 得到的 exact SHA 发起 `windows-2022`。Mac PR/push 不触发 Windows workflow。普通 UI、文档、纯 framework/DataHub 业务代码不选择 Windows gate。Windows workflow 未选择时是 `NOT_REQUIRED`，已选择但未从 Windows 真机执行时是 `NOT_RUN`，均不得写成 `PASS`；Windows GitHub CI 也不能替代同一或另一 Windows 真机上的安装、升级、真实用户目录或 Office/Wind 验证。这一 Web 路由边界不改变 Desktop Verify 的独立原生双平台规则。
 Windows job 在 clean checkout 上执行公开 `setup-web.cmd --no-start`、`rwb.cmd` start/doctor/stop、setup contracts、local-integration contracts 和 loopback smoke；路径触发本身不能替代这些真实 job steps。
-Research Web Checks 的 Python 部分固定为协议、集成协调、文档服务、文档同步与 CLI 懒加载合同，JavaScript 部分运行 `research_web*.test.mjs`。完整 `tests/research_web/` 仍在本地交付或高风险变更中按影响面运行，不能偷偷扩进日常 workflow；需要扩大自动测试时先以最近 5 次成功耗时重新评估额度。
+Research Web Checks 的 Python 部分执行协议、集成协调、文档服务、文档同步与 CLI 懒加载，以及模型凭据、共享凭据后端、runtime contract、runtime mode、Docker controller、runtime launcher、container supervisor，共十二个明确模块；保留 `--confcutdir=tests/research_web`。JavaScript 执行 `research_web*.test.mjs` 并显式执行 `docker_runtime_contract.test.mjs`。这些是无真实 Key 的代码/配置合同，不证明真实镜像、模型调用或目标平台安装。完整 `tests/research_web/` 不进入日常 workflow；继续按影响面选择本地验收，扩大自动测试前仍须以最近 5 次成功耗时评估。
+
+2026-10-08 本轮扩展前只读核对 public 仓库及最近五次成功 Checks 的实际 job 时长：run `37762753067` 224 秒、`37762153143` 225 秒、`37760324407` 222 秒、`37756610557` 220 秒、`37747045448` 221 秒，均值 222.4 秒（Linux 权重 1）。新增闭包已有本地三模块 188.26 秒、模型/后端 4.2 秒等分项证据；这不是远端耗时预测或完整 job 上界。保留单一 Ubuntu job、20 分钟超时、原依赖安装、并发取消和路径路由，不扩大 Bootstrap 或平台矩阵。候选首次真实运行后记录完整 job 时长；尚未执行，不能宣称新十二模块 job 已通过或已证实额度开销。
 
 验证策略、只读规划器、薄兼容入口及其治理文档属于项目治理变更，只进入 Project Constraints。规划器输出的是待执行计划，不会自行触发 Actions；`full-delivery` 只声明交付强度，实际远端动作仍由受管交付控制器和本页状态门决定。
 

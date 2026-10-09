@@ -580,6 +580,7 @@ class ResearchService:
                     "project-env": "project_dotenv",
                     "user-env": "runtime_home_dotenv",
                     "system-keychain": "system_keychain",
+                    "docker-private-file": "docker_private_file",
                     "not-required": "not_required",
                 }.get(credential_source, "unknown"),
                 "configuration_saved": "model" in self.store.data,

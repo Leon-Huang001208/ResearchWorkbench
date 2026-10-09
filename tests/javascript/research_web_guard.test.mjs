@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, realpath, writeFile, rm } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile, readFile, rm, realpath } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
+import { execFileSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { apply } from '../../app/research_web/runtime/guard.mjs';
 
@@ -81,6 +82,146 @@ function acceptanceContext() {
 }
 const acceptance = { modelCalls: 6, tool: 'datahub_get_fund_data' };
 const publicNav = { source: 'eastmoney_fund', dataset: 'nav', code: '000001', limit: 1, allow_fallback: false };
+const dockerTextAcceptance = { profile: 'docker-text', installationId: 'b'.repeat(32), modelCalls: 3, maxOutputTokens: 512 };
+
+test('Docker text acceptance blocks dispatch across reapply and concurrency while budget authority is unverified', async () => {
+  let dispatched = 0;
+  const next = async function* () { dispatched++; };
+  for (let restart = 0; restart < 2; restart++) {
+    const c = acceptanceContext();
+    apply(c.ctx, { enabled: true, acceptance: dockerTextAcceptance });
+    assert.equal(dispatched, 0);
+    const consume = async () => {
+      for await (const _ of c.listeners.get('llm/stream')(Object.freeze({ messages: [], maxTokens: 512 }), next)) {}
+    };
+    const results = await Promise.allSettled(Array.from({ length: 8 }, consume));
+    assert.ok(results.every(result => result.status === 'rejected' && result.reason.message === 'acceptance_budget_unverified'));
+    assert.equal(dispatched, 0);
+    assert.ok(c.guard({ name: 'datahub_get_fund_data', arguments: publicNav, agent: makeAgent() }));
+  }
+});
+
+test('Docker text accepted budget binding denies unexpected provider before any bridge dispatch', async () => {
+  const c = acceptanceContext();
+  apply(c.ctx, { acceptance: { ...dockerTextAcceptance, budgetBridge: {
+    python: '/controlled/python', bridge: '/controlled/live_acceptance_budget.py',
+  } } });
+  await assert.rejects(async () => {
+    for await (const _ of c.listeners.get('llm/stream')({ messages: [], maxTokens: 512, provider: 'other', model: 'deepseek-flash' }, async function* () { assert.fail('dispatch forbidden'); })) {}
+  }, { message: 'acceptance_provider_denied' });
+});
+
+test('Docker text bridge reserves real persistent tickets across concurrency and cold guard restore', async () => {
+  const python = process.env.RWB_TEST_PYTHON || execFileSync('python3', ['-c', 'import sys;print(sys.executable)'], { encoding: 'utf8' }).trim();
+  const temporary = await mkdtemp(join(await realpath(tmpdir()), 'task4b-budget-'));
+  const parent = join(temporary, 'private');
+  const root = join(parent, 'b'.repeat(32));
+  const bridge = join(temporary, 'fixture-bridge.py');
+  const source = resolve(new URL('../../', import.meta.url).pathname);
+  const prelude = `import sys,json\nfrom datetime import UTC,datetime\nsys.path.insert(0,${JSON.stringify(source)})\nfrom app.research_web.live_acceptance_budget import BudgetStore,BudgetError,authorization\nclock=lambda:datetime(2026,10,8,11,tzinfo=UTC)\nroot=${JSON.stringify(root)}\n`;
+  try {
+    await mkdir(parent, { mode: 0o700 });
+    execFileSync(python, ['-I', '-B', '-c', prelude + "BudgetStore.initialize(root,'b'*32,authorization(3,512,'2026-10-08T11:30:00Z'),clock=clock)"], { stdio: 'pipe' });
+    await writeFile(bridge, prelude + [
+      "request=json.loads(sys.stdin.buffer.read(8193))",
+      "assert set(request)=={'op','outputTokens'} and request['op']=='reserve'",
+      "assert type(request['outputTokens']) is int",
+      "try:",
+      " result=BudgetStore(root,'b'*32,clock=clock).reserve(request['outputTokens'])",
+      " print(json.dumps({'ok':True,**result}))",
+      "except BudgetError as error:",
+      " print(json.dumps({'ok':False,'error':str(error)}));sys.exit(1)",
+    ].join('\n'), { mode: 0o600 });
+    const control = { ...dockerTextAcceptance, budgetBridge: { python, bridge } };
+    let dispatched = 0;
+    const options = Object.freeze({ messages: [{ content: 'private fixture prompt' }], apiKey: 'private fixture key',
+      maxTokens: 512, provider: 'deepseek-official', model: 'deepseek-flash', tools: [] });
+    const c = acceptanceContext();
+    apply(c.ctx, { acceptance: control });
+    const beforeLegacy = await readFile(join(root, 'ledger.json'), 'utf8');
+    await assert.rejects(async () => {
+      for await (const _ of c.listeners.get('llm/stream')({ ...options, model: 'deepseek-v4-flash' }, async function* () { dispatched++; })) {}
+    }, { message: 'acceptance_provider_denied' });
+    assert.equal(dispatched, 0);
+    assert.equal(await readFile(join(root, 'ledger.json'), 'utf8'), beforeLegacy);
+    let reads = 0;
+    const lateAbort = { get aborted() { reads++; return reads > 1; } };
+    await assert.rejects(async () => {
+      for await (const _ of c.listeners.get('llm/stream')({ ...options, signal: lateAbort }, async function* () { assert.fail('late abort dispatched'); })) {}
+    }, { message: 'acceptance_request_aborted' });
+    assert.equal(JSON.parse(await readFile(join(root, 'ledger.json'), 'utf8')).tickets, 1);
+    const consume = async ctx => {
+      for await (const _ of ctx.listeners.get('llm/stream')(options, async function* () { dispatched++; throw Error('test transport failure'); })) {}
+    };
+    const outcomes = await Promise.allSettled(Array.from({ length: 8 }, () => consume(c)));
+    assert.equal(dispatched, 2);
+    assert.equal(outcomes.filter(result => result.reason?.message === 'acceptance_budget_exhausted').length, 6);
+    assert.equal(JSON.parse(await readFile(join(root, 'ledger.json'), 'utf8')).tickets, 3);
+    const cold = acceptanceContext();
+    apply(cold.ctx, { acceptance: control });
+    await assert.rejects(consume(cold), { message: 'acceptance_budget_exhausted' });
+    assert.equal(dispatched, 2);
+  } finally { await rm(temporary, { recursive: true, force: true }); }
+});
+
+test('Docker text acceptance validates frozen output bounds and recursive attachments before dispatch', async () => {
+  const c = acceptanceContext();
+  apply(c.ctx, { enabled: true, acceptance: dockerTextAcceptance });
+  let dispatched = 0;
+  const consume = async options => {
+    for await (const _ of c.listeners.get('llm/stream')(Object.freeze(options), async function* () { dispatched++; })) {}
+  };
+  for (const maxTokens of [undefined, null, true, 0, -1, 513, 0.5, NaN, Infinity, Number.MAX_SAFE_INTEGER + 1]) {
+    await assert.rejects(consume({ messages: [], maxTokens }), /acceptance_output_limit/);
+  }
+  for (const type of ['image', 'file', 'audio']) {
+    await assert.rejects(consume({ maxTokens: 512, messages: [{ content: [{ nested: { type } }] }] }), /acceptance_text_only/);
+  }
+  assert.equal(dispatched, 0);
+});
+
+test('Docker text acceptance denies unknown fields and invalid identity', () => {
+  const c = acceptanceContext();
+  for (const changes of [{ installationId: 'wrong' }, { maxOutputTokens: 4097 }, { maxOutputTokens: true }, { modelCalls: 4 }, { budgetVerified: true }]) {
+    assert.throws(() => apply(c.ctx, { acceptance: { ...dockerTextAcceptance, ...changes } }), /acceptance_control_invalid/);
+  }
+});
+
+test('Docker text acceptance errors and logs omit request secrets and reject an already aborted signal', async () => {
+  const c = acceptanceContext();
+  const logged = [];
+  c.ctx.logger = { warn(...args) { logged.push(args); }, info(...args) { logged.push(args); } };
+  apply(c.ctx, { acceptance: dockerTextAcceptance });
+  const consume = async options => {
+    for await (const _ of c.listeners.get('llm/stream')(options, async function* () { assert.fail('dispatch forbidden'); })) {}
+  };
+  await assert.rejects(consume({ maxTokens: 512, messages: [{ content: 'fixture-sensitive-request' }], apiKey: 'fixture-sensitive-key' }), { message: 'acceptance_budget_unverified' });
+  await assert.rejects(consume({ maxTokens: 512, messages: [], signal: AbortSignal.abort() }), { message: 'acceptance_request_aborted' });
+  assert.deepEqual(logged, [['research_acceptance_budget_unverified']]);
+});
+
+test('Docker text acceptance redacts a private abort reason while legacy profile preserves cancellation semantics', async () => {
+  const privateReason = new Error('fixture-sensitive-request-and-key');
+  let dispatched = 0;
+  const errors = [];
+  const logged = [];
+  for (const profile of [dockerTextAcceptance, acceptance]) {
+    const c = acceptanceContext();
+    c.ctx.logger = { warn(...args) { logged.push(args); }, info(...args) { logged.push(args); } };
+    apply(c.ctx, { acceptance: profile });
+    try {
+      for await (const _ of c.listeners.get('llm/stream')({
+        messages: [], maxTokens: 512, signal: AbortSignal.abort(privateReason),
+      }, async function* () { dispatched++; })) {}
+      assert.fail('aborted request must reject');
+    } catch (error) { errors.push(error); }
+  }
+  assert.equal(errors[0].message, 'acceptance_request_aborted');
+  assert.notEqual(errors[0], privateReason);
+  assert.equal(errors[1], privateReason);
+  assert.deepEqual(logged, []);
+  assert.equal(dispatched, 0);
+});
 
 test('live acceptance reserves all model calls before dispatch, including concurrent and later turns', async () => {
   const c = acceptanceContext();

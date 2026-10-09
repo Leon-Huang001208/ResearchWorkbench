@@ -11,6 +11,7 @@ const modules = await Promise.all(['markdown.mjs', 'core.mjs', 'views.mjs'].map(
 }));
 const [markdown, core, views] = modules;
 const dataCatalog = await import(new URL('data-catalog.mjs', root));
+const settings = await import(new URL('settings.mjs', root));
 
 test('research attachment picker accepts all three Office document formats', async () => {
   const { renderComposer } = await import(new URL('composer.mjs', root));
@@ -58,6 +59,29 @@ test('Office generation uses structured fields and preserves textual identifiers
   assert.match(views.renderDocumentEditor({ creating: 'docx', file: { name: '新建 Word' }, draft: { mode: 'native' } }), /value="native" selected/);
 });
 const session = (id = 's1', extra = {}) => ({ id, title: '真实会话', mode: 'fingpt', status: 'idle', messages: [], activities: [], subagents: [], files: [], approvals: [], questions: [], ...extra });
+
+test('model settings separates actual storage, saved configuration and model generation', () => {
+  const render = (storage) => settings.renderSettingsPage({
+    route: { settingsSection: 'model' }, models: [], modelFailures: [], runtimeLabel: 'DSH 已连接',
+    runtime: { connected: true, owned_runtime: true, health_check_passed: true,
+      configuration_saved: true, runtime_applied: false, credential_configured: true,
+      credential_storage: storage, last_model_test: null, api_key: 'must-never-prefill',
+    },
+  });
+  const docker = render('docker_private_file');
+  assert.match(docker, /<dt>凭据存储<\/dt><dd>Docker 私有文件<\/dd>/);
+  assert.match(docker, /权限保护非加密保险库/);
+  assert.match(docker, /最近真实推理<\/dt><dd>尚未测试/);
+  assert.match(docker, /配置已保存<\/dt><dd>是/);
+  assert.match(docker, /id="api-key"[^>]*autocomplete="new-password"/);
+  assert.doesNotMatch(docker, /must-never-prefill|id="api-key"[^>]*value=/);
+  assert.match(render('system_keychain'), /<dt>凭据存储<\/dt><dd>Native 系统 Keychain<\/dd>/);
+  for (const storage of ['unknown', undefined, 'unrecognized', '__proto__', 'toString']) {
+    const unknown = render(storage);
+    assert.match(unknown, /<dt>凭据存储<\/dt><dd>未知，请刷新状态<\/dd>/);
+    assert.doesNotMatch(unknown, /Native 系统 Keychain|Docker 私有文件|权限保护非加密保险库/);
+  }
+});
 
 test('Markdown renders real headings, paragraphs, code, lists, tables and source links', () => {
   assert.equal(typeof markdown.renderMarkdown, 'function');

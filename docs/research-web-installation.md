@@ -1,5 +1,14 @@
 # Research Web Native / Docker 安装与运行
 
+Docker 获取固定 DSH 源码时仅该 Git fetch 使用命令级 `http.version=HTTP/1.1`，保留
+HTTPS 默认校验、固定提交、源码验证和原有超时，不写宿主/仓库 Git 或 Docker daemon 配置。
+这是针对已观察 TLS pack 截断的有界传输假设，不代表已证明 HTTP/2 根因；失败仍明确报告。
+
+Docker模型专用文件后端的Python/JS/owned启动源码已同步，使用既有私有凭据挂载内的
+models/稳定安装ID；Native仍Keychain且不自动复制Key。文件权限不是加密保险库，Docker
+管理者/容器内同UID代码不在隔离边界内。当前新镜像、设置页完整投影及真实文本/重启续问
+仍待本轮独立验收，不因容器健康或源码测试推荐为已验证模型路径。宿主Python要求不变。
+
 阶段二、三及跨平台范围已由用户明确重新开启；每个平台仍由对应宿主完成验收。当前实现边界、OS/运行模式、证据提交和未验证项见 [能力支持矩阵](research-web-platform-support.md)。安装路径存在不等于该平台能力已验收。
 
 Python 质量整理保持公开安装参数及 coded RuntimeError 合同。内部端口 TypedDict 只描述
@@ -126,9 +135,23 @@ MacBook Pro 负责项目功能开发、macOS 本地验收及远端 GitHub macOS 
 
 macOS Native 模型凭据使用已有 Web 依赖 `keyring==25.7.0` 的 macOS Keychain 后端；owned overlay 使用产品受管 Python 的私有 stdio 桥接，固定 DSH 版本和构建闭包不变。命名空间由规范化 data home 派生，重启从同一系统账户恢复；不读取开发者 Codex/Claude 配置，不导入环境、旧 YAML 或任何 `.env`。旧模型 Key 不自动迁移，需在本实例设置页重新录入。Host 认证 record 独立存于 Runtime home 的 `.browser-credentials.yaml`，保留固定 DSH 锁和更新语义，不持有模型 Key。Keychain 拒绝/不可用及非 macOS 后端均明确失败，不采用文件回退。产品锁、安装器与 workflow 未变，仍须当前代码的 macOS 干净安装 CI 证明兼容。
 
+任务专属 Docker 文本验收不是日常配额功能。获得独立预算批准并复核有日期的官方费率后，
+才可在已确认归属的隔离容器内显式初始化预算；生产脚本为
+`/opt/rwb/app/research_web/live_acceptance_budget.py --installation-id <安装ID>`，只由私有stdin
+接收非秘密授权JSON，不接收Key或Prompt。固定叶为
+`/run/rwb-secrets/private/live-acceptance/<安装ID>`，startup绝不创建或重置它。
+无授权层级保持普通profile；已有叶残缺、不安全或过期时拒绝，不能回退无预算模式。
+初始化只在下一次正常启动生效，不能宣称已运行的普通DSH立即受限。
+验收顺序为：独立安装/无Key健康检查→canary保存/替换/清除→独立预算批准与显式init→
+受控stop/restart并核对受限profile已生效→用户在本实例设置页录入真实Key→按预算研究/恢复。
+该profile仅保留固定文本模型，禁用DSH settings/global-default写入、工具/附件及重试；
+BFF模型配置入口仍保留。最多三张不可退款票按完整上下文和配置输出上界预扣，重启/重建不补额度。
+到期只禁止新准入，不承诺已准入请求的发送/结束/计费均在validUntil前。此流程的真实镜像与
+供应商验收目前仍待执行；SDK/私有文件fixture不替代生产Docker CLI或真实调用。
+
 macOS：
 
-macOS Docker 入口（本任务已执行隔离安装与生命周期验收，证据见支持矩阵）：
+macOS Docker 入口（既有双运行时基础生命周期证据见支持矩阵；本轮模型/预算源码的新镜像尚待验收）：
 
 ```bash
 ./setup-web.sh --runtime docker

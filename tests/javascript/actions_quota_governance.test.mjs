@@ -20,6 +20,104 @@ const verificationPolicy = JSON.parse(fs.readFileSync(
   'utf8',
 ));
 
+const boundedPythonContracts = [
+  'test_protocol.py', 'test_integration_coordinator.py', 'test_documentation.py',
+  'test_doc_sync.py', 'test_cli_lazy.py', 'test_model_credentials.py',
+  'test_credential_backend.py', 'test_runtime_contract.py', 'test_runtime_mode.py',
+  'test_docker_runtime.py', 'test_runtime_launch.py', 'test_container_supervisor.py',
+].map(name => `tests/research_web/${name}`);
+
+function pythonContractArguments(source) {
+  const step = source.match(/      - name: Run Research Web Python contracts\n([\s\S]*?)(?=\n      - name:|$)/);
+  assert.ok(step, 'Python contracts step must exist');
+  const run = step[1].match(/        run: \|\n((?:          .*\n?)+)/);
+  assert.ok(run, 'Python contracts must have an executable multiline run block');
+  const command = run[1].replace(/\\\r?\n\s*/g, ' ').trim();
+  assert.match(command, /^\.venv\/bin\/python -m pytest\s+[^\n]+$/,
+    'selected paths must be arguments to the declared venv pytest executable');
+  return command.split(/\s+/).slice(3);
+}
+
+function assertBoundedPythonContracts(source) {
+  assert.deepEqual(pythonContractArguments(source), [
+    ...boundedPythonContracts, '--confcutdir=tests/research_web', '-q',
+  ], 'ordinary CI must execute the bounded model/backend/runtime contracts');
+}
+
+function assertWheelTestEnvironment(source) {
+  assertBoundedPythonContracts(source);
+  const install = source.match(/      - name: Install declared test dependencies\n([\s\S]*?)(?=\n      - name:|$)/);
+  assert.ok(install, 'declared test dependency installation step must exist');
+  assert.match(install[1], /        run: \|\n          python -m venv \.venv\n          \.venv\/bin\/python -m pip install -e "\.\[dev\]" hatchling\s*$/,
+    'the wheel contract needs the declared build backend in the same venv as pytest');
+  assert.ok(install.index < source.indexOf('      - name: Run Research Web Python contracts'),
+    'the backend must be installed before the wheel contract executes');
+}
+
+test('ordinary CI installs the declared wheel backend in the runtime contract test venv', () => {
+  const project = fs.readFileSync(new URL('../../pyproject.toml', import.meta.url), 'utf8');
+  const buildSystem = project.match(/\[build-system\]\n([\s\S]*?)(?=\n\[|$)/);
+  assert.ok(buildSystem, 'the package must declare its build system');
+  assert.match(buildSystem[1], /^requires = \[ "hatchling",\]$/m);
+  assert.match(buildSystem[1], /^build-backend = "hatchling\.build"$/m);
+  assertWheelTestEnvironment(workflows.checks);
+});
+
+test('wheel environment contract rejects missing backend, foreign interpreter and omitted module', () => {
+  assert.throws(() => assertWheelTestEnvironment(workflows.checks.replace('".[dev]" hatchling', '".[dev]"')));
+  assert.throws(() => assertWheelTestEnvironment(workflows.checks.replace(
+    '.venv/bin/python -m pip install', 'python -m pip install',
+  )));
+  assert.throws(() => assertWheelTestEnvironment(workflows.checks.split('\n')
+    .filter(line => line.trim() !== 'tests/research_web/test_runtime_contract.py \\').join('\n')));
+});
+
+test('ordinary CI executes bounded model and runtime contracts without native opt-ins', () => {
+  assertBoundedPythonContracts(workflows.checks);
+  assert.doesNotMatch(workflows.checks, /RWB_C1_(?:KEYCHAIN|RUNTIME)_TEST\s*[:=]/);
+  assert.match(workflows.checks,
+    /run: RWB_TEST_PYTHON="\$PWD\/\.venv\/bin\/python" node --test tests\/javascript\/research_web\*\.test\.mjs tests\/javascript\/docker_runtime_contract\.test\.mjs\s*$/);
+});
+
+test('Python execution contract rejects removed modules and non-pytest commands', () => {
+  for (const file of boundedPythonContracts) {
+    const missing = workflows.checks.split('\n').filter(line => line.trim() !== `${file} \\`).join('\n');
+    assert.throws(() => assertBoundedPythonContracts(missing), undefined, file);
+  }
+  assert.throws(() => assertBoundedPythonContracts(
+    workflows.checks.replace('.venv/bin/python -m pytest', 'printf'),
+  ));
+  assert.throws(() => assertBoundedPythonContracts(
+    workflows.checks.replace('--confcutdir=tests/research_web', '--confcutdir=tests'),
+  ));
+});
+
+test('JavaScript execution contract rejects Docker paths present only in trigger filters', () => {
+  const command = workflows.checks.match(/        run: (RWB_TEST_PYTHON=[^\n]+)/)?.[1];
+  assert.ok(command);
+  const expected = /^RWB_TEST_PYTHON="\$PWD\/\.venv\/bin\/python" node --test tests\/javascript\/research_web\*\.test\.mjs tests\/javascript\/docker_runtime_contract\.test\.mjs$/;
+  assert.match(command, expected);
+  assert.doesNotMatch(command.replace(' tests/javascript/docker_runtime_contract.test.mjs', ''), expected);
+});
+
+test('bounded runtime and model sources trigger ordinary checks without automatic product dispatch', () => {
+  for (const file of [
+    'app/research_web/model_credentials.py', 'app/research_web/model_file_store.py',
+    'app/research_web/runtime/model-credentials.mjs', 'app/research_web/credential_backend.py',
+    'runtimes/research_web.json', 'docker/supervisor.py', 'docker/healthcheck.py',
+    'Dockerfile', 'compose.yaml', '.dockerignore', 'docker/entrypoint.sh', 'docker/stage_dsh.py',
+    'tests/javascript/docker_runtime_contract.test.mjs',
+    'research_workbench_entrypoint/runtime_mode.py', 'research_workbench_entrypoint/docker_runtime.py',
+    'tests/research_web/test_model_credentials.py', 'tests/javascript/research_web_model_credentials.test.mjs',
+  ]) {
+    for (const event of ['pull_request', 'push']) {
+      assert.equal(triggersForPath(workflows.checks, event, file), true, `${event}: ${file}`);
+      assert.equal(triggersForPath(workflows.windows, event, file), false, `${event}: ${file}`);
+      assert.equal(triggersForPath(readWorkflow('research-web-docker.yml'), event, file), false, `${event}: ${file}`);
+    }
+  }
+});
+
 function workflowTriggers(source) {
   const lines = source.split(/\r?\n/);
   const start = lines.findIndex((line) => line === 'on:');

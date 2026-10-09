@@ -224,6 +224,31 @@
         ],
         "value": "python -m pytest tests/research_web/test_credential_backend.py --confcutdir=tests/research_web"
       },
+      "research-web-model-credentials-python": {
+        "level": "L2",
+        "lane": "local",
+        "gate": "merge",
+        "platforms": [
+          "generic"
+        ],
+        "value": "python -m pytest tests/research_web/test_model_credentials.py --confcutdir=tests/research_web"
+      },
+      "research-web-model-credentials-js": {
+        "level": "L1",
+        "lane": "local",
+        "gate": "merge",
+        "platforms": [
+          "generic"
+        ],
+        "value": "node --test tests/javascript/research_web_model_credentials.test.mjs"
+      },
+      "research-web-research-guard": {
+        "level": "L2",
+        "lane": "local",
+        "gate": "merge",
+        "platforms": ["generic"],
+        "value": "node --test tests/javascript/research_web_guard.test.mjs"
+      },
       "research-web-local-integrations": {
         "level": "L1",
         "lane": "local",
@@ -1096,6 +1121,82 @@
         "research-web-docker",
         "research-web-windows-verify"
       ]
+    },
+    {
+      "id": "research-web-model-credentials",
+      "platforms": [
+        "generic"
+      ],
+      "realMachine": [],
+      "risk": "full-delivery",
+      "minimumLevel": "L4",
+      "reason": "research_web_model_credentials_change",
+      "impact": [
+        "model-credentials",
+        "security-boundary"
+      ],
+      "coupling": "high",
+      "match": {
+        "files": [
+          "app/research_web/model_credentials.py",
+          "app/research_web/model_file_store.py",
+          "app/research_web/runtime/model-credentials.mjs",
+          "tests/research_web/test_model_credentials.py",
+          "tests/javascript/research_web_model_credentials.test.mjs",
+          "app/research_web/credential_backend.py",
+          "tests/research_web/test_credential_backend.py"
+        ],
+        "prefixes": [],
+        "segments": [],
+        "suffixes": []
+      },
+      "tests": [
+        "research-web-model-credentials-python",
+        "research-web-model-credentials-js",
+        "research-web-credential-backend",
+        "research-web-architecture",
+        "project-constraints-local",
+        "research-web-verification-full"
+      ],
+      "documentation": [
+        "documentation-governance",
+        "python-file-index"
+      ],
+      "ci": [
+        "project-constraints",
+        "research-web-checks"
+      ]
+    },
+    {
+      "id": "research-web-live-acceptance",
+      "platforms": ["generic"],
+      "realMachine": [],
+      "risk": "full-delivery",
+      "minimumLevel": "L4",
+      "reason": "research_web_live_acceptance_change",
+      "impact": ["live-acceptance", "security-boundary"],
+      "coupling": "high",
+      "match": {
+        "files": [
+          "app/research_web/live_acceptance_budget.py",
+          "app/research_web/launch_runtime.py",
+          "app/research_web/runtime/guard.mjs",
+          "tests/research_web/test_runtime_launch.py",
+          "tests/javascript/research_web_guard.test.mjs"
+        ],
+        "prefixes": [],
+        "segments": [],
+        "suffixes": []
+      },
+      "tests": [
+        "research-web-container-runtime",
+        "research-web-research-guard",
+        "research-web-architecture",
+        "project-constraints-local",
+        "research-web-verification-full"
+      ],
+      "documentation": ["documentation-governance", "python-file-index"],
+      "ci": ["project-constraints", "research-web-checks", "research-web-docker"]
     },
     {
       "id": "research-web-credential-backend",

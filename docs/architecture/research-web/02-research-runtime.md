@@ -1,5 +1,8 @@
 # 研究协议、执行状态与恢复
 
+Doctor绑定事实与actual backend/configured独立：完整owned/绑定/真实回环映射/healthy后GET原API，
+无代理/重定向，3秒header/body、16KiB及严格JSON/framing。失败unknown/warning，不改变core ok或付费调用。
+
 已验证运行中的实际 NativeRuntime 仅在显式 `--stop-current` 且公开 stop 成功后，
 等待停止前捕获的 Native 两端口可由原 `port_busy` 判定释放。内部预算默认45秒，
 只接受有限的精确 int/float、0至45秒；bool与数值子类在停止前拒绝。
@@ -19,9 +22,31 @@ Docker fresh-root 首装接受与启动为两个独立 lifecycle 调用：no-sta
 
 ## 模型配置与显式验收
 
+当前固定 DSH 目录的规范模型 ID 为 `deepseek-flash`；Docker 文本验收的精确 tuple 同步为
+`deepseek-official` / `deepseek-flash` / `https://api.deepseek.com`。政策 ID 为
+`deepseek-flash-canonical-20261008`，日期、到期、费率和最多 3 次 / 每次 512 输出 / 零重试
+保持原有上限。旧 v4 控制与旧政策 ID 在读取、预扣及初始化前拒绝，不迁移、退款或重置；
+新实例与新控制的真实初始化仍需单独明确预算授权。源码及单元桥接通过不认证真实固定 SDK 激活。
+
+源码中的Docker模型链以稳定RWB_INSTALLATION_ID绑定Compose、正常supervisor显式参数、
+已验证staged launcher和私有provider；Native默认overlay不变，普通环境变量不能改选文件后端。
+Node仅接受system-keychain/docker-private-file及匹配的describe来源，Key仅通过原private stdin；
+Python仍-I/-B、环境白名单、有界输出和stderr drain。仅Docker固定commit_uncertain码保持，
+其他后端异常仍收敛为稳定失败；模型不可用不影响Host readRecord/modifyRecord。
+Docker模型私有CLI与预算CLI在standalone入口受控导入前强制web-prod、移除显式.env选择，
+并将四个旧settings目录键绑定到已存在的受管产品根，防止最小环境/cwd /下的legacy ensure_dirs
+尝试写只读镜像。Native与库导入不改变调用方环境，JS仍仅PATH/LANG，不继承用户目录或秘密。
+这只消除导入副作用，不放宽文件/实例/权限校验；修补镜像仍须重新实际验收。
+Docker纯文本预算验收保持DSH settings禁用，同时仅在该overlay关闭Tabbit浏览器、权限、
+browser/web-fetch工具、mentions、installer及Research适配器，避免它们继续依赖已禁用的
+settings服务而阻止固定DSH启动。Native和普通Docker的原插件组合不变；预算、模型来源、
+输出限制、零重试及工具/附件拒绝仍保留。实际固定SDK激活回归不替代修补镜像或真实请求验收。
+旧受管容器的新ID投影为合法空数组时仍按全部原归属守卫允许status/stop，但无模型绑定证明；
+省略、非数组、错误/重复ID拒绝。内部派生标记不证明模型目录、Key或真实请求可用。
+
 受管启动在固定 CLI 加载前安装产品 `auth-bootstrap.mjs`：启动认证输出按完整行截获（包含跨chunk情况），仅向现有私有 `runtime/auth.json` 写入临时bootstrap_token及实例绑定。管理器从该受控文件完成原Cookie交换，原子替换为正常认证记录，不再从runtime.log解析token；普通日志只出现固定脱敏标记。没有新HTTP接口、daemon或模型凭据后端。解析/绑定/私有文件校验失败则认证失败关闭，不回退旧日志。
 
-模型 Provider 固定为 `deepseek-official`，模型 ID 由固定 DSH 的真实目录校验。保存与显式测试共用串行边界；保存共享凭据前拒绝活动父/子任务。已有会话保留模型，新会话在创建时应用默认值；凭据由Runtime共享，替换后用于所有后续模型请求。凭据变更前先持久化旧模型与 `model_configuration_uncertain`，成功后才提交新默认值并清标记。写入前只读拒绝不改旧状态；RPC开始后的拒绝、取消、进程退出、传输或最终保存失败均保留未知标记，冷恢复也阻断后续模型请求。固定DSH的credential/rejected也可能代表提交后的observer失败，不能当作回滚收据。不会读取秘密来制作回滚副本。
+普通模型配置保留固定 DSH 目录内的 `deepseek-official` 和既有 `openai-compatible` 文本/流式入口；兼容服务的地址、认证方式和模型 ID 沿现有连接校验。Native Keychain 仅允许两个固定模型账号；Docker 私有模型文件只允许 `RESEARCH_DSH_API_KEY`，兼容账号操作明确拒绝，不回退 Keychain、环境或其他文件。显式 `docker-text` 验收仍只允许已批准的 DeepSeek 模型、端点、512 输出上限及零重试，普通 provider 配置不扩展这份授权。保存与显式测试共用串行边界；保存共享凭据前拒绝活动父/子任务。已有会话保留模型，新会话在创建时应用默认值；凭据由Runtime共享，替换后用于所有后续模型请求。凭据变更前先持久化旧模型与对应 provider 的配置不确定标记，成功后才提交新默认值并清标记。写入前只读拒绝不改旧状态；RPC开始后的拒绝、取消、进程退出、传输或最终保存失败均保留未知标记，冷恢复也阻断后续模型请求。固定DSH的credential/rejected也可能代表提交后的observer失败，不能当作回滚收据。不会读取秘密来制作回滚副本。
 
 留空保留凭据，非空替换，`clear_api_key` 独立清除，两个动作不得同时提交。清除后的新消息被阻断；普通配置及最近测试不含密钥。macOS Native 的 `credentials` 服务通过产品 `runtime/model-credentials.mjs` 与 `model_credentials.py` 仅在系统 Keychain 解析固定模型 ref；不读取 Codex、Claude 或其他工程配置补齐。Host record 接口继续继承固定 DSH 文件 provider，使用独立 `.browser-credentials.yaml`。
 
@@ -343,6 +368,15 @@ PID 与命令签名归属核对的进程可进入该路径，强制失败仍返�
 协议均未改变。
 
 ## 独立真实验收的最小调用控制
+
+以下基金工具模式为既有非3081入口。本轮新增 `profile: docker-text` 的准入片段，精确字段为
+`dataHome`、`profile`、`installationId`、`modelCalls`（1—3）与 `maxOutputTokens`（1—4096）；
+只有受管 staged/runtime 与模型根/安装身份绑定已验证时可解析内部3081配置。
+该profile的现有guard通过私有Python管道预扣安装绑定账本；无授权控制时拒绝
+`acceptance_budget_unverified`，有控制也须符合固定政策/期限/输出/模型/工具边界。
+最多三票不可退还，失败、取消、进程重启和同安装重建不能补额度；startup不会创建控制或锁。
+当前有真实SDK＋账本fixture证明，生产Docker CLI/镜像/供应商仍需独立实测。
+Dockertext取消固定拒绝码，不透传reason；普通入口与旧模式不变。
 
 本机受管启动器可接收非秘密 `RESEARCH_ACCEPTANCE_CONTROL` JSON，仅在其中 `dataHome` 与当前规范化目录精确相同且 DSH 端口不是生产默认3081时启用。字段仅为 `dataHome`、`modelCalls`（1—6整数）及固定公开工具 `datahub_get_fund_data`（eastmoney_fund/nav/000001/limit1，禁止其他源、回退或刷新）；错误配置失败关闭，不打印参数内容。该模式沿原产品overlay和正式research-web preset工作，不替换固定DSH。
 

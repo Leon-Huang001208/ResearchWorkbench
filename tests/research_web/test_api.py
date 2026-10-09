@@ -1,6 +1,7 @@
 """BFF acceptance tests: native transport is replaced only for deterministic regressions."""
 
 import asyncio
+import json
 import time
 
 import pytest
@@ -8,6 +9,8 @@ from fastapi.testclient import TestClient
 
 from app.research_web.client import RuntimeFailure
 from app.research_web.main import create_app
+from app.research_web.model_credentials import MODEL_REF, docker_backend, execute
+from app.research_web.model_file_store import ModelStoreError
 from app.research_web.service import ResearchService
 from app.research_web.store import Store
 
@@ -121,6 +124,275 @@ class NativeFixture:
     async def frames(self, channel):
         yield {"type": "connected", "channel": channel}
         await asyncio.Event().wait()
+
+
+class DockerModelFixture(NativeFixture):
+    """Real temporary model bridge/store; only native transport/generation is fake."""
+
+    def __init__(self, root, installation_id="a" * 32):
+        super().__init__()
+        self.root = root
+        self.root.mkdir(parents=True, mode=0o700, exist_ok=True)
+        self.backend = docker_backend(root / "models" / installation_id, installation_id)
+        self.backend_failure = False
+        self.write_uncertain = False
+        self.outcome = "completed"
+
+    async def rpc(self, method, payload):
+        if method.startswith("credentials."):
+            if self.backend_failure:
+                raise RuntimeFailure("private fixture detail", "credential/rejected")
+            op = method.removeprefix("credentials.")
+            request = {"op": op, "ref": MODEL_REF}
+            if op == "set":
+                request["value"] = payload["value"]
+            try:
+                response = execute(self.root, request, self.backend)
+            except ModelStoreError:
+                raise RuntimeFailure("凭据操作失败", "credential/rejected") from None
+            if op in {"set", "unset"} and self.write_uncertain:
+                raise RuntimeFailure("model_credential_commit_uncertain", "credential/rejected")
+            if op == "describe":
+                return {"credentials": {MODEL_REF: response}}
+            return response
+        response = await super().rpc(method, payload)
+        if method == "session.prompt":
+            sid = payload["sessionId"]
+            events = [
+                {"event": {"seq": 1, "type": "user/message", "data": {"content": "临时研究问题"}}},
+            ]
+            if self.outcome == "completed":
+                events.append(
+                    {
+                        "event": {
+                            "seq": 2,
+                            "type": "assistant/message",
+                            "data": {
+                                "turn": 1,
+                                "step": 1,
+                                "message": {
+                                    "content": [{"type": "text", "text": "确定性研究结果"}]
+                                },
+                            },
+                        }
+                    }
+                )
+            reason = {"kind": self.outcome}
+            if self.outcome == "failed":
+                reason = {"kind": "error", "error": {"message": self.failure_message}}
+            if self.outcome == "running":
+                self.running.add(sid)
+                events.append({"event": {"seq": 2, "type": "turn/start", "data": {}}})
+            else:
+                events.append({"event": {"seq": 3, "type": "turn/end", "data": {"reason": reason}}})
+            (self.root / f"history-{sid}.json").write_text(json.dumps(events), encoding="utf-8")
+        elif method == "session.cancel":
+            sid = payload["sessionId"]
+            events = await self.history(sid)
+            events.append(
+                {"event": {"seq": 3, "type": "turn/end", "data": {"reason": {"kind": "aborted"}}}}
+            )
+            (self.root / f"history-{sid}.json").write_text(json.dumps(events), encoding="utf-8")
+            self.running.discard(sid)
+        return response
+
+    async def history(self, sid):
+        path = self.root / f"history-{sid}.json"
+        return json.loads(path.read_text(encoding="utf-8")) if path.exists() else []
+
+
+def test_docker_model_public_settings_keep_blank_replace_and_clear_separate(tmp_path):
+    native = DockerModelFixture(tmp_path / "private")
+    service = ResearchService(native, Store(tmp_path / "data"))
+    with TestClient(create_app(service)) as client:
+        service.connected = {"mux", "host"}
+        endpoint = "/api/research/runtime/model"
+        # The existing browser omits a blank input, rather than submitting an empty new Key.
+        for key in ("synthetic-first", None, "synthetic-replacement"):
+            response = client.put(
+                endpoint,
+                json={"model": "new-model", **({"api_key": key} if key is not None else {})},
+            )
+            assert response.status_code == 200
+            assert key is None or key not in response.text
+            expected = key or "synthetic-first"
+            assert (
+                execute(native.root, {"op": "resolve", "ref": MODEL_REF}, native.backend)["value"]
+                == expected
+            )
+        native.backend_failure = True
+        response = client.get("/api/research/runtime")
+        assert response.status_code == 200
+        assert response.json()["health_check_passed"] is True
+        assert response.json()["credential_configured"] is None
+        assert client.get("/").status_code == 200
+        native.backend_failure = False
+        response = client.put(endpoint, json={"model": "new-model", "clear_api_key": True})
+        assert response.status_code == 200
+        assert client.get("/api/research/runtime").json()["credential_configured"] is False
+
+
+@pytest.mark.asyncio
+async def test_docker_model_bridge_runtime_and_cold_research_recovery(tmp_path):
+    native = DockerModelFixture(tmp_path / "private")
+    service = ResearchService(native, Store(tmp_path / "data"))
+    service.connected = {"mux", "host"}
+    status = await service.runtime()
+    assert status["health_check_passed"] is True
+    assert status["credential_storage"] == "docker_private_file"
+    assert status["credential_configured"] is False
+    old = await service.create()
+    with pytest.raises(RuntimeFailure) as missing:
+        await service.send(old["id"], "问题", "docker-missing-1")
+    assert missing.value.code == "model_credentials_missing"
+    await service.configure_model("deepseek-official", "new-model", "temporary-synthetic-secret")
+    await service.configure_model("deepseek-official", "new-model")
+    assert (
+        execute(native.root, {"op": "resolve", "ref": MODEL_REF}, native.backend)["value"]
+        == "temporary-synthetic-secret"
+    )
+    assert service.store.session(old["id"])["model"] == "deepseek-flash"
+    row = await service.create()
+    assert row["model"] == "new-model"
+    for _ in range(2):
+        await service.send(row["id"], "问题", "docker-research-1")
+    assert sum(method == "session.prompt" for method, _ in native.calls) == 1
+    cold_native = DockerModelFixture(native.root)
+    cold = ResearchService(cold_native, Store(tmp_path / "data"))
+    cold.connected = {"mux", "host"}
+    restored = await cold.detail(row["id"])
+    assert restored["messages"][-1]["text"] == "确定性研究结果"
+    assert restored["status"] == "completed"
+    status = await cold.runtime()
+    assert status["credential_configured"] is True
+    assert status["last_model_test"] is None
+    assert "temporary-synthetic-secret" not in json.dumps(status)
+    assert str(native.root) not in json.dumps(status)
+    other = DockerModelFixture(native.root, "b" * 32)
+    assert (await ResearchService(other, Store(tmp_path / "other-data")).runtime())[
+        "credential_configured"
+    ] is False
+    await cold.configure_model("deepseek-official", "new-model", clear_api_key=True)
+    assert (
+        execute(native.root, {"op": "describe", "ref": MODEL_REF}, native.backend)["configured"]
+        is False
+    )
+
+
+@pytest.mark.asyncio
+async def test_docker_model_backend_and_postcommit_uncertainty_remain_fail_closed(tmp_path):
+    native = DockerModelFixture(tmp_path / "private")
+    service = ResearchService(native, Store(tmp_path / "data"))
+    service.connected = {"mux", "host"}
+    await service.configure_model("deepseek-official", "new-model", "synthetic-old")
+    native.backend_failure = True
+    status = await service.runtime()
+    assert status["connected"] is True and status["health_check_passed"] is True
+    assert status["credential_configured"] is None
+    assert status["credential_storage"] == "unknown"
+    assert "private fixture detail" not in json.dumps(status)
+    native.backend_failure = False
+    native.write_uncertain = True
+    with pytest.raises(RuntimeFailure) as uncertain:
+        await service.configure_model("deepseek-official", "new-model", "synthetic-new")
+    assert uncertain.value.code == "model_configuration_uncertain"
+    assert (
+        execute(native.root, {"op": "resolve", "ref": MODEL_REF}, native.backend)["value"]
+        == "synthetic-new"
+    )
+    cold = ResearchService(DockerModelFixture(native.root), Store(tmp_path / "data"))
+    cold.connected = {"mux", "host"}
+    assert (await cold.runtime())["configuration_uncertain"] is True
+    row = await cold.create()
+    with pytest.raises(RuntimeFailure) as rejected:
+        await cold.send(row["id"], "问题", "docker-uncertain-1")
+    assert rejected.value.code == "model_configuration_uncertain"
+    assert not any(method == "session.prompt" for method, _ in cold.client.calls)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "message,code",
+    [("401 authentication", "model_auth_failed"), ("network timed out", "model_network_timeout")],
+)
+async def test_docker_model_generation_failures_are_not_health_failures(tmp_path, message, code):
+    native = DockerModelFixture(tmp_path / "private")
+    native.outcome = "failed"
+    native.failure_message = message
+    service = ResearchService(native, Store(tmp_path / "data"))
+    service.connected = {"mux", "host"}
+    await service.configure_model("deepseek-official", "new-model", "synthetic-key")
+    result = await service.test_model()
+    assert result["status"] == "failed" and result["code"] == code
+    assert (await service.runtime())["health_check_passed"] is True
+
+
+@pytest.mark.asyncio
+async def test_docker_model_cancelled_commit_is_durable_and_clear_recovers(tmp_path):
+    native = DockerModelFixture(tmp_path / "private")
+    service = ResearchService(native, Store(tmp_path / "data"))
+    original = native.rpc
+
+    async def cancelled(method, payload):
+        result = await original(method, payload)
+        if method == "credentials.set":
+            raise asyncio.CancelledError
+        return result
+
+    native.rpc = cancelled
+    with pytest.raises(asyncio.CancelledError):
+        await service.configure_model("deepseek-official", "new-model", "synthetic-committed")
+    cold = ResearchService(DockerModelFixture(native.root), Store(tmp_path / "data"))
+    assert cold.store.data["model_configuration_uncertain"] is True
+    assert (
+        execute(native.root, {"op": "resolve", "ref": MODEL_REF}, native.backend)["value"]
+        == "synthetic-committed"
+    )
+    await cold.configure_model("deepseek-official", "new-model", clear_api_key=True)
+    assert not cold.store.data.get("model_configuration_uncertain")
+    assert (await cold.runtime())["credential_configured"] is False
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("active_child", [False, True])
+async def test_docker_model_active_parent_or_child_refuses_key_changes(tmp_path, active_child):
+    native = DockerModelFixture(tmp_path / "private")
+    service = ResearchService(native, Store(tmp_path / "data"))
+    row = await service.create()
+    original = native.rpc
+    if active_child:
+
+        async def child(method, payload):
+            if method == "subagent.list":
+                return {"entries": [{"activity": "running"}]}
+            return await original(method, payload)
+
+        native.rpc = child
+    else:
+        native.running.add(row["id"])
+    with pytest.raises(RuntimeFailure) as busy:
+        await service.configure_model("deepseek-official", "new-model", "synthetic-key")
+    assert busy.value.code == "model_change_busy"
+    assert (
+        execute(native.root, {"op": "describe", "ref": MODEL_REF}, native.backend)["configured"]
+        is False
+    )
+
+
+@pytest.mark.asyncio
+async def test_docker_model_cancelled_research_history_survives_fresh_service(tmp_path):
+    native = DockerModelFixture(tmp_path / "private")
+    native.outcome = "running"
+    service = ResearchService(native, Store(tmp_path / "data"))
+    service.connected = {"mux", "host"}
+    await service.configure_model("deepseek-official", "new-model", "synthetic-key")
+    row = await service.create()
+    await service.send(row["id"], "问题", "docker-cancel-1")
+    assert (await service.cancel(row["id"]))["accepted"] is True
+    cold = ResearchService(DockerModelFixture(native.root), Store(tmp_path / "data"))
+    cold.connected = {"mux", "host"}
+    assert (await cold.detail(row["id"]))["status"] == "cancelled"
+    assert not any(method == "session.prompt" for method, _ in cold.client.calls)
 
 
 @pytest.fixture
