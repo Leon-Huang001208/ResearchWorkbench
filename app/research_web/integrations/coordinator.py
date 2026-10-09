@@ -13,20 +13,36 @@ import time
 from collections.abc import Callable
 from contextlib import suppress
 from copy import deepcopy
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Literal
 from uuid import uuid4
 
 from core.observability import get_logger
 
+from ..local_integrations.manager import LocalIntegrationError
 from .models import IntegrationItemStatus
 
 log = get_logger(__name__)
 Scope = Literal["all", "data", "local"]
 TERMINAL_BATCH_STATES = {"completed", "completed_with_failures", "cancelled", "failed"}
 PLANNED_LOCAL_ITEMS = {"folder_sync", "browser_extension", "local_mcp"}
-SUMMARY_KEYS = ("available", "checking", "user_action", "system_fault", "not_delivered")
+OFFICE_AUTO_TARGETS = {
+    "local:excel_app": "excel",
+    "local:word_app": "word",
+    "local:powerpoint_app": "powerpoint",
+}
+SUMMARY_KEYS = (
+    "available",
+    "checking",
+    "user_action",
+    "system_fault",
+    "not_delivered",
+    "unverified",
+    "stale",
+    "not_detected",
+    "not_applicable",
+)
 SAFE_TABBIT_STATUSES = {
     "ready",
     "disabled",
@@ -103,13 +119,25 @@ class IntegrationCoordinator:
         self.tabbit_snapshot: dict | None = None
         self.closed = False
         self._loaded = False
+        self._data_restored = False
         self._state_lock = threading.RLock()
+        self._office_owner = _fingerprint(
+            {
+                "coordinator": str(self.state_root.resolve()),
+                "manager": str(
+                    getattr(local_integrations, "state_root", self.state_root).resolve()
+                ),
+            }
+        )
+        self._office_tasks: dict[str, str] = {}
 
-    def load(self) -> None:
+    def load(self, *, restore_data: bool = True) -> None:
         """Restore safe evidence; changed configuration makes that evidence stale."""
 
         with self._state_lock:
             if self._loaded:
+                if restore_data and not self._data_restored:
+                    self._restore_data_probe_statuses()
                 return
             self._loaded = True
             try:
@@ -130,7 +158,15 @@ class IntegrationCoordinator:
                 self.consents = {
                     key: value
                     for key, value in consents.items()
-                    if isinstance(key, str) and isinstance(value, bool)
+                    if isinstance(key, str)
+                    and isinstance(value, bool)
+                    and (
+                        key.startswith("data:")
+                        or (
+                            key in OFFICE_AUTO_TARGETS
+                            and payload.get("office_owner") == self._office_owner
+                        )
+                    )
                 }
                 local_snapshot = payload.get("local_snapshot")
                 tabbit_snapshot = payload.get("tabbit_snapshot")
@@ -156,33 +192,39 @@ class IntegrationCoordinator:
                             "unable to sanitize persisted integration status"
                         ) from exc
                     log.info("integration_tabbit_snapshot_sanitized")
-                restored: dict[str, dict] = {}
-                for source in self._data_sources():
-                    item_id = f"data:{source['id']}"
-                    record = self.records.get(item_id)
-                    if not record:
-                        continue
-                    current = self._data_fingerprint(source)
-                    if record.get("fingerprint") != current:
-                        record["stale"] = True
-                        continue
-                    if record.get("probe_health") in {"healthy", "degraded", "unavailable"}:
-                        restored[source["id"]] = {
-                            "source_id": source["id"],
-                            "status": "completed",
-                            "health": record["probe_health"],
-                            "failure_code": record.get("error_code"),
-                            "duration_ms": record.get("duration_ms"),
-                            "last_checked_at": record.get("last_attempt_at"),
-                            "completed_at": record.get("last_attempt_at"),
-                        }
-                if restored:
-                    self.datahub.restore_probe_statuses(restored)
+                if restore_data:
+                    self._restore_data_probe_statuses()
                 log.info("integration_status_restored", item_count=len(self.records))
             except (OSError, ValueError, TypeError, json.JSONDecodeError) as exc:
                 self.records = {}
                 self.consents = {}
                 log.warning("integration_status_restore_failed", error_type=type(exc).__name__)
+
+    def _restore_data_probe_statuses(self) -> None:
+        """Restore DataHub evidence only on a data-scoped operation."""
+        restored: dict[str, dict] = {}
+        for source in self._data_sources():
+            item_id = f"data:{source['id']}"
+            record = self.records.get(item_id)
+            if not record:
+                continue
+            current = self._data_fingerprint(source)
+            if record.get("fingerprint") != current:
+                record["stale"] = True
+                continue
+            if record.get("probe_health") in {"healthy", "degraded", "unavailable"}:
+                restored[source["id"]] = {
+                    "source_id": source["id"],
+                    "status": "completed",
+                    "health": record["probe_health"],
+                    "failure_code": record.get("error_code"),
+                    "duration_ms": record.get("duration_ms"),
+                    "last_checked_at": record.get("last_attempt_at"),
+                    "completed_at": record.get("last_attempt_at"),
+                }
+        if restored:
+            self.datahub.restore_probe_statuses(restored)
+        self._data_restored = True
 
     def start(self) -> dict:
         self.load()
@@ -194,7 +236,7 @@ class IntegrationCoordinator:
         self,
         *,
         scope: Scope,
-        trigger: Literal["startup", "manual"],
+        trigger: Literal["startup", "manual", "office_consent"],
         idempotency_key: str,
     ) -> dict:
         if scope not in {"all", "data", "local"}:
@@ -202,7 +244,7 @@ class IntegrationCoordinator:
         with self._state_lock:
             if self.closed:
                 raise RuntimeError("integration coordinator is closed")
-            self.load()
+            self.load(restore_data=scope != "local")
             self._prune_batches()
             replay_id = self._idempotency_index.get((scope, idempotency_key))
             if replay_id is not None and replay_id in self.batches:
@@ -211,6 +253,9 @@ class IntegrationCoordinator:
                 if batch["status"] not in TERMINAL_BATCH_STATES and self._scopes_overlap(
                     scope, batch["scope"]
                 ):
+                    if trigger == "office_consent":
+                        batch["office_auto_requested"] = True
+                        batch["office_auto_generation"] = batch.get("office_auto_generation", 0) + 1
                     self._register_idempotency_key(scope, idempotency_key, batch["id"])
                     return self._public_batch(batch)
             batch_id = str(uuid4())
@@ -218,6 +263,8 @@ class IntegrationCoordinator:
                 "id": batch_id,
                 "scope": scope,
                 "trigger": trigger,
+                "office_auto_requested": trigger == "office_consent",
+                "office_auto_generation": 1 if trigger in {"office_consent", "startup"} else 0,
                 "idempotency_key": idempotency_key,
                 "status": "queued",
                 "error_code": None,
@@ -316,6 +363,11 @@ class IntegrationCoordinator:
             if batch["scope"] in {"all", "local"}:
                 jobs.append(self._probe_local(batch))
             await asyncio.gather(*jobs)
+            generation = 0
+            while generation < batch.get("office_auto_generation", 0):
+                generation = batch["office_auto_generation"]
+                if batch.get("local_discovery_ready"):
+                    await self._verify_consented_office(batch)
             with self._state_lock:
                 batch["status"] = (
                     "completed_with_failures"
@@ -462,6 +514,7 @@ class IntegrationCoordinator:
             log.warning("integration_local_probe_failed", error_type=type(exc).__name__)
         snapshot = local_result.get("snapshot")
         if local_result.get("status") == "completed" and isinstance(snapshot, dict):
+            batch["local_discovery_ready"] = True
             with self._state_lock:
                 self.local_snapshot = deepcopy(snapshot)
                 for item in snapshot.get("items", []):
@@ -469,6 +522,10 @@ class IntegrationCoordinator:
                         continue
                     item_id = f"local:{item['id']}"
                     success = bool(item.get("callable"))
+                    observed_failure = item.get("status") == "异常" or item.get("verification") in {
+                        "异常",
+                        "未通过",
+                    }
                     record = self.records.setdefault(item_id, {})
                     checked = (
                         item.get("last_checked_at") or snapshot.get("last_checked_at") or _now()
@@ -476,8 +533,12 @@ class IntegrationCoordinator:
                     record.update(
                         fingerprint=self._local_fingerprint(item),
                         last_attempt_at=checked,
-                        probe_health="healthy" if success else "unavailable",
-                        error_code=None if success else "local_integration_unavailable",
+                        probe_health=(
+                            "healthy"
+                            if success
+                            else "unavailable" if observed_failure else "unverified"
+                        ),
+                        error_code="local_integration_unavailable" if observed_failure else None,
                         stale=False,
                     )
                     if success:
@@ -497,7 +558,12 @@ class IntegrationCoordinator:
                         if not isinstance(item, dict) or not isinstance(item.get("id"), str):
                             continue
                         item["callable"] = False
-                        item["status"] = "不可用"
+                        item["status"] = (
+                            "异常" if item["id"] == "research_web_service" else "待验证"
+                        )
+                        item["verification"] = (
+                            "异常" if item["id"] == "research_web_service" else "待验证"
+                        )
                         item["message"] = "最新检测失败，旧状态不可继续作为可用证据"
                         item_id = f"local:{item['id']}"
                         record = self.records.setdefault(item_id, {})
@@ -550,19 +616,137 @@ class IntegrationCoordinator:
                 }
             log.warning("integration_tabbit_probe_failed", error_type=type(exc).__name__)
 
+    async def _verify_consented_office(self, batch: dict) -> None:
+        """Use the existing batch and single-flight verifier; never replay attempts."""
+        for item_id, target in OFFICE_AUTO_TARGETS.items():
+            try:
+                task = None
+                while task is None:
+                    with self._state_lock:
+                        if self.closed or not self.consents.get(item_id, False):
+                            batch["items"][item_id] = {
+                                "status": "skipped",
+                                "error_code": "office_consent_disabled",
+                            }
+                            break
+                        state = self.local_integrations.automatic_verification_state(target)
+                        record = self.records.setdefault(item_id, {})
+                        attempt = record.get("office_auto_attempt", {})
+                        if (
+                            not state["eligible"]
+                            or state["evidence_current"]
+                            or attempt.get("fingerprint") == state["fingerprint"]
+                        ):
+                            batch["items"][item_id] = {
+                                "status": "skipped",
+                                "error_code": "office_evidence_reused_or_stopped",
+                            }
+                            break
+                        active_tasks = [
+                            value
+                            for value in self.local_integrations.verification_tasks.values()
+                            if not value.done()
+                        ]
+                        if not active_tasks:
+                            # Persist before launching; interruption remains a stop marker.
+                            record["office_auto_attempt"] = {
+                                "fingerprint": state["fingerprint"],
+                                "outcome": "interrupted",
+                                "owner": self._office_owner,
+                            }
+                            self._persist_sync()
+                            accepted = self.local_integrations.start_verification(
+                                target, f"office-auto-{batch['id']}-{target}"
+                            )
+                            verification_id = accepted["id"]
+                            self._office_tasks[item_id] = verification_id
+                            task = self.local_integrations.verification_tasks[verification_id]
+                            break
+                        batch["items"][item_id] = {
+                            "status": "checking",
+                            "error_code": "office_waiting_for_task",
+                        }
+                    await asyncio.shield(asyncio.gather(*active_tasks, return_exceptions=True))
+                if task is None:
+                    continue
+                await asyncio.shield(task)
+                result = self.local_integrations.verification(verification_id)
+                with self._state_lock:
+                    record["office_auto_attempt"]["outcome"] = result.get(
+                        "outcome", result["status"]
+                    )
+                    self.local_snapshot = self.local_integrations.snapshot()
+                    self._persist_sync()
+                batch["items"][item_id] = {
+                    "status": "completed" if result.get("outcome") == "available" else "failed",
+                    "error_code": (
+                        None if result.get("outcome") == "available" else "office_auto_stopped"
+                    ),
+                }
+            except asyncio.CancelledError:
+                identifier = self._office_tasks.get(item_id)
+                task = self.local_integrations.verification_tasks.get(identifier)
+                if task is not None:
+                    task.cancel()
+                    await asyncio.gather(task, return_exceptions=True)
+                current_task = asyncio.current_task()
+                if self.closed or (current_task is not None and current_task.cancelling()):
+                    raise
+                batch["items"][item_id] = {
+                    "status": "cancelled",
+                    "error_code": "office_auto_cancelled",
+                }
+                log.info("integration_office_auto_cancelled", item_id=item_id)
+            except (
+                LocalIntegrationError,
+                OSError,
+                RuntimeError,
+                ValueError,
+                TypeError,
+                KeyError,
+            ) as exc:
+                batch["items"][item_id] = {"status": "failed", "error_code": "office_auto_stopped"}
+                log.warning(
+                    "integration_office_auto_stopped",
+                    item_id=item_id,
+                    error_type=type(exc).__name__,
+                )
+            finally:
+                self._office_tasks.pop(item_id, None)
+
     def set_auto_probe_consent(self, item_id: str, consent: bool) -> dict:
-        if not item_id.startswith("data:"):
+        office = item_id in OFFICE_AUTO_TARGETS
+        if not office and not item_id.startswith("data:"):
             raise ValueError("auto probe consent is only available for data sources")
         source_id = item_id.removeprefix("data:")
-        if all(source["id"] != source_id for source in self._data_sources()):
+        if not office and all(source["id"] != source_id for source in self._data_sources()):
             raise KeyError("integration item not found")
         with self._state_lock:
+            self.load(restore_data=not office)
+            old_consents = deepcopy(self.consents)
+            old_records = deepcopy(self.records)
+            was_enabled = self.consents.get(item_id, False)
             self.consents[item_id] = consent
             record = self.records.setdefault(item_id, {})
-            if not consent:
+            if office and consent and not was_enabled:
+                record.pop("office_auto_attempt", None)
+            if not consent and not office:
                 record["stale"] = bool(record.get("last_success_at"))
                 record["error_code"] = "auto_probe_consent_required"
-            self._persist_sync()
+            if office and not consent:
+                identifier = self._office_tasks.get(item_id)
+                task = self.local_integrations.verification_tasks.get(identifier)
+                if task is not None:
+                    task.cancel()
+            try:
+                self._persist_sync()
+            except Exception:
+                self.records = old_records
+                self.consents = old_consents
+                if office and not consent:
+                    self.consents[item_id] = False
+                    log.warning("integration_office_revocation_not_saved", item_id=item_id)
+                raise
         log.info("integration_auto_probe_consent_updated", item_id=item_id, consent=consent)
         return {"id": item_id, "consent": consent}
 
@@ -570,8 +754,19 @@ class IntegrationCoordinator:
         if scope not in {"all", "data", "local"}:
             raise ValueError("invalid integration scope")
         with self._state_lock:
-            self.load()
+            self.load(restore_data=scope != "local")
             self._prune_batches()
+            if scope in {"all", "local"}:
+                try:
+                    if hasattr(self.local_integrations, "snapshot"):
+                        self.local_snapshot = self.local_integrations.snapshot()
+                except Exception as exc:
+                    log.warning(
+                        "integration_local_status_refresh_failed", error_type=type(exc).__name__
+                    )
+                    # A failed fresh read must never retain a green cached verdict.
+                    self.local_snapshot = None
+                    raise
             items = []
             if scope in {"all", "data"}:
                 items.extend(self._data_statuses())
@@ -585,8 +780,9 @@ class IntegrationCoordinator:
             ]
             summary = {key: 0 for key in SUMMARY_KEYS}
             for item in items:
-                summary[item["bucket"]] += 1
-            summary["total"] = len(items)
+                if item["id"] != "local:excel_automation_bridge":
+                    summary[item["bucket"]] += 1
+            summary["total"] = sum(summary.values())
             latest = max(self.batches.values(), key=lambda item: item["created_at"], default=None)
             return {
                 "schema_version": 1,
@@ -595,6 +791,19 @@ class IntegrationCoordinator:
                 "summary": summary,
                 "items": items,
                 "latest_batch": self._public_batch(latest) if latest is not None else None,
+                **(
+                    {
+                        "local_snapshot": deepcopy(self.local_snapshot),
+                        "local_revision": _fingerprint(
+                            {
+                                "snapshot": self.local_snapshot,
+                                "items": [item for item in items if item["scope"] == "local"],
+                            }
+                        ),
+                    }
+                    if scope in {"all", "local"}
+                    else {}
+                ),
             }
 
     def _data_sources(self) -> list[dict]:
@@ -725,6 +934,8 @@ class IntegrationCoordinator:
                 bucket, responsibility = "user_action", "user"
             elif not dependency_ready:
                 bucket, responsibility = "system_fault", "system"
+            elif checking:
+                bucket, responsibility = "checking", "system"
             elif runtime_callable:
                 bucket, responsibility = "available", "system"
             else:
@@ -773,16 +984,48 @@ class IntegrationCoordinator:
                 continue
             item_id = f"local:{item['id']}"
             record = self.records.get(item_id, {})
+            expires_at = None
+            if item.get("last_verified_at"):
+                try:
+                    ttl = getattr(self.local_integrations, "verification_ttl_seconds", 86400)
+                    if item["id"] in {"wind_terminal", "wind_excel_addin"}:
+                        ttl = min(ttl, 300)
+                    verified_at = datetime.fromisoformat(item["last_verified_at"])
+                    if verified_at.tzinfo is not None:
+                        expires_at = (verified_at + timedelta(seconds=ttl)).isoformat()
+                except (ValueError, TypeError, OverflowError):
+                    log.warning("integration_local_evidence_time_invalid", item_id=item_id)
             implemented = item["id"] not in PLANNED_LOCAL_ITEMS
-            runtime_callable = implemented and bool(item.get("callable"))
+            target = OFFICE_AUTO_TARGETS.get(item_id)
+            if item["id"] == "excel_automation_bridge":
+                target = "excel"
+            tasks = getattr(self.local_integrations, "verification_tasks", {})
+            runs = getattr(self.local_integrations, "verifications", {})
+            checking = target is not None and any(
+                not task.done() and runs.get(identifier, {}).get("target") == target
+                for identifier, task in tasks.items()
+            )
+            runtime_callable = implemented and bool(item.get("callable")) and not checking
             if not implemented:
                 bucket, responsibility = "not_delivered", "developer"
+            elif checking:
+                bucket, responsibility = "checking", "system"
             elif runtime_callable:
                 bucket, responsibility = "available", "system"
             elif item.get("authorization") in {"待授权", "未登录"}:
                 bucket, responsibility = "user_action", "user"
-            else:
+            elif item.get("status") == "不适用":
+                bucket, responsibility = "not_applicable", "system"
+            elif item.get("status") == "未发现":
+                bucket, responsibility = "not_detected", "user"
+            elif item.get("status") == "异常" or item.get("verification") in {"异常", "未通过"}:
                 bucket, responsibility = "system_fault", "system"
+            elif item.get("last_verified_at") and item.get("verification") != "已验证":
+                bucket, responsibility = "stale", "user"
+            elif item.get("status") in {"待配置", "受限"}:
+                bucket, responsibility = "user_action", "user"
+            else:
+                bucket, responsibility = "unverified", "user"
             values.append(
                 {
                     "id": item_id,
@@ -793,24 +1036,40 @@ class IntegrationCoordinator:
                     "implementation_state": "implemented" if implemented else "not_delivered",
                     "configured": item.get("discovery") in {"已发现", "不适用"},
                     "authorized": item.get("authorization") in {"无需授权", "已授权", "不适用"},
-                    "probe_state": record.get("probe_health", "untested"),
+                    "probe_state": item.get("verification", "待验证"),
                     "runtime_callable": runtime_callable,
                     "stages": {
                         "registration": "complete",
                         "authorization": item.get("authorization", "待授权"),
-                        "probe": record.get("probe_health", "untested"),
+                        "probe": item.get("verification", "待验证"),
                         "adaptation": "complete" if implemented else "not_delivered",
                         "runtime": "complete" if runtime_callable else "pending",
                     },
                     "bucket": bucket,
                     "responsibility": responsibility,
                     "capabilities": item.get("capabilities", []),
-                    "last_attempt_at": record.get("last_attempt_at") or item.get("last_checked_at"),
-                    "last_success_at": record.get("last_success_at")
-                    or item.get("last_verified_at"),
-                    "stale": bool(record.get("stale")),
-                    "error_code": record.get("error_code"),
-                    "details": {"message": item.get("message"), "detail": item.get("detail")},
+                    "last_attempt_at": item.get("last_verified_at") or item.get("last_checked_at"),
+                    "last_success_at": (
+                        item.get("last_verified_at")
+                        if item.get("callable") and item.get("verification") == "已验证"
+                        else record.get("last_success_at")
+                    ),
+                    "stale": bucket == "stale"
+                    or (bucket == "system_fault" and bool(record.get("stale"))),
+                    "error_code": record.get("error_code") if bucket == "system_fault" else None,
+                    "details": {
+                        "message": item.get("message"),
+                        "detail": item.get("detail"),
+                        "evidence_expires_at": expires_at,
+                        "auto_probe_consent": self.consents.get(item_id, False),
+                        "auto_verification_supported": item_id in OFFICE_AUTO_TARGETS,
+                        "auto_verification_attempt": record.get("office_auto_attempt", {}).get(
+                            "outcome"
+                        ),
+                        "component_of": (
+                            "local:excel_app" if item["id"] == "excel_automation_bridge" else None
+                        ),
+                    },
                 }
             )
         if self.tabbit_snapshot is not None:
@@ -872,6 +1131,7 @@ class IntegrationCoordinator:
                 "schema_version": 1,
                 "updated_at": _now(),
                 "consents": deepcopy(self.consents),
+                "office_owner": self._office_owner,
                 "items": deepcopy(self.records),
                 "local_snapshot": deepcopy(self.local_snapshot),
                 "tabbit_snapshot": self._safe_tabbit_snapshot(),

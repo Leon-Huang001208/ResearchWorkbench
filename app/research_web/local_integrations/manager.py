@@ -104,6 +104,12 @@ VERIFICATION_MESSAGES = {
     "timeout": ("异常", "待验证", "异常", "真实验证超时；验证任务已停止，请确认应用状态后重试。"),
     "formula_error": ("待验证", "待验证", "未通过", "工作簿已运行，但公式或必需单元格验证未通过。"),
     "failed": ("异常", "待验证", "异常", "真实验证失败，请查看本地安全日志后重试。"),
+    "cleanup_unverified": (
+        "受限",
+        "已授权",
+        "受限",
+        "功能已验证，但测试文稿清理未确认；请人工处理后显式重验。",
+    ),
 }
 
 
@@ -500,6 +506,32 @@ class LocalIntegrationManager:
             log.warning("local_integration_snapshot_failed", error_type=type(exc).__name__)
             raise LocalIntegrationError("本机能力检测失败，请查看本地日志") from exc
 
+    def automatic_verification_state(self, target: str) -> dict:
+        """Read eligibility for the three Office targets without running software."""
+        if target not in {"excel", "word", "powerpoint"}:
+            raise LocalIntegrationError("自动验证仅支持 Office", "verification_target_invalid", 422)
+        with self._state_lock:
+            result = self.verification_results.get(target)
+            rows = (self._latest or {}).get("items", [])
+            app: dict = next(
+                (row for row in rows if row["id"] == VERIFICATION_ITEMS[target][0]), {}
+            )
+            return {
+                "eligible": self.environment.system == "Darwin"
+                and app.get("discovery") == "已发现",
+                "fingerprint": self._verification_context_fingerprint(target),
+                "evidence_current": (
+                    result is not None
+                    and result.get("outcome") == "available"
+                    and (_safe_verification_diagnostics(result.get("diagnostics")) or {}).get(
+                        "cleanup_outcome"
+                    )
+                    == "confirmed"
+                    and self._verification_result_is_current(target, result)
+                ),
+                "busy": any(not task.done() for task in self.verification_tasks.values()),
+            }
+
     def _detect_snapshot(self) -> dict:
         value = self.detector() if self.detector is not None else self._detect()
         return copy.deepcopy(value)
@@ -558,6 +590,13 @@ class LocalIntegrationManager:
                         item["detail"] += " 最近验证已失效（时间或实例状态变化）；请重新显式验证。"
                 continue
             outcome = result.get("outcome", "failed")
+            cleanup = _safe_verification_diagnostics(result.get("diagnostics"))
+            if (
+                target != "wind_excel"
+                and outcome == "available"
+                and (cleanup is None or cleanup["cleanup_outcome"] != "confirmed")
+            ):
+                outcome = "cleanup_unverified"
             status, authorization, verification, message = VERIFICATION_MESSAGES.get(
                 outcome, VERIFICATION_MESSAGES["failed"]
             )
@@ -1582,6 +1621,12 @@ class LocalIntegrationManager:
             diagnostics = _safe_verification_diagnostics(
                 outcome.get("diagnostics") if isinstance(outcome, dict) else None
             )
+            if (
+                record["target"] != "wind_excel"
+                and normalized == "available"
+                and (diagnostics is None or diagnostics["cleanup_outcome"] != "confirmed")
+            ):
+                normalized = "cleanup_unverified"
             if diagnostics is not None:
                 diagnostics["verification_id"] = verification_id
                 record["diagnostics"] = diagnostics

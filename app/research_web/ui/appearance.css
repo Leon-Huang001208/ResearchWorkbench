@@ -1065,10 +1065,11 @@ body { line-height: 1.5; }
 .local-capability-link:hover { color: var(--text); }
 .local-capability-link:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .local-integration-console { display: grid; gap: 20px; width: 100%; max-width: 1120px; }
-.local-integration-summary { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 24px; align-items: center; padding: 20px 22px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.local-integration-summary { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: center; padding: 16px 20px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
 .local-integration-summary p { margin: 6px 0 0; color: var(--muted); font-size: 12px; }
-.local-integration-summary dl { display: flex; gap: 24px; margin: 0; }
-.local-integration-summary dl div { min-width: 82px; padding-left: 16px; border-left: 1px solid var(--line); }
+.local-integration-summary dl { grid-column: 1 / -1; grid-row: 2; display: grid; grid-template-columns: repeat(auto-fit, minmax(88px, 1fr)); gap: 12px 0; margin: 0; }
+.local-integration-summary dl div { min-width: 0; padding-left: 12px; border-left: 1px solid var(--line); }
+.local-integration-summary .local-integrations-probe { grid-column: 2; grid-row: 1; }
 .local-integration-summary dt { color: var(--muted); font-size: 11px; }
 .local-integration-summary dt strong { display: block; margin-bottom: 2px; color: var(--text); font-family: var(--font-mono); font-size: 21px; font-weight: 650; }
 .local-service-indicator { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 650; }
@@ -1086,21 +1087,40 @@ body { line-height: 1.5; }
 .local-integration-category > header span { color: var(--muted); font-family: var(--font-mono); font-size: 11px; }
 .local-integration-column-head { display: grid; grid-template-columns: minmax(280px, 1.8fr) repeat(4, minmax(80px, .55fr)); gap: 12px; min-height: 34px; align-items: center; padding: 7px 16px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 10px; font-weight: 650; letter-spacing: .05em; }
 .local-integration-column-head span:not(:first-child) { text-align: center; }
-.local-integration-row { display: grid; grid-template-columns: minmax(280px, 1.8fr) minmax(356px, 2.2fr); gap: 12px; min-height: 92px; align-items: center; padding: 14px 16px; }
+.local-integration-row { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; min-height: 64px; align-items: center; padding: 10px 16px; }
 .local-integration-row + .local-integration-row { border-top: 1px solid var(--line); }
+.local-integration-row { position: relative; }
+.local-integration-identity > div:first-child { padding-right: 90px; }
+.local-integration-details > summary { position: absolute; top: 8px; right: 16px; }
+.local-integration-details:not([open]) { height: 0; }
+.local-integration-details[open] { padding-top: 8px; border-top: 1px solid var(--line); }
 .local-integration-identity > div { display: flex; align-items: center; gap: 12px; }
+.local-integration-identity > div { flex-wrap: wrap; }
 .local-integration-identity > div > strong { font-size: 13px; font-weight: 650; }
 .local-integration-identity p { margin: 6px 0 0; color: var(--text); font-size: 12px; line-height: 1.5; }
 .local-integration-identity > small { display: block; margin-top: 3px; color: var(--muted); font-size: 11px; line-height: 1.5; }
 .local-integration-identity > time { display: block; margin-top: 5px; color: var(--muted); font-family: var(--font-mono); font-size: 10px; }
-.local-integration-identity .button-row { margin-top: 10px; }
+.local-integration-identity .button-row { margin-top: 6px; }
 .local-integration-verify { min-height: 44px; }
 .local-integration-truths { display: grid; grid-template-columns: repeat(4, minmax(80px, 1fr)); gap: 12px; }
 .local-integration-truths > span { display: grid; gap: 4px; justify-items: center; text-align: center; }
-.local-integration-truths small { display: none; color: var(--muted); font-size: 10px; }
+.local-integration-truths small { display: block; color: var(--muted); font-size: 10px; }
 .office-document-truths small { display: block; }
 .local-integration-truths strong { font-size: 11px; font-weight: 620; }
 .local-category-empty { margin: 0; padding: 18px 16px; color: var(--muted); font-size: 12px; }
+.local-category-nav button[aria-pressed="true"] { background: var(--hover); color: var(--text); }
+.local-integration-details { color: var(--muted); font-size: 12px; }
+.local-integration-details > summary, .local-deferred-items > summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; }
+.local-integration-details > summary:focus-visible, .local-deferred-items > summary:focus-visible { outline: 2px solid var(--focus); }
+.local-integration-details .local-integration-truths { padding: 12px 0; }
+.local-deferred-items > summary { padding: 0 16px; color: var(--muted); font-size: 12px; }
+.local-component-detail { border-top: 1px solid var(--line); padding-top: 12px; }
+.local-component-detail > span { display: inline-grid; gap: 4px; margin: 8px 16px 8px 0; }
+.local-office-auto { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 12px 16px; border: 1px solid var(--line); border-radius: 10px; }
+.local-office-auto p { max-width: 720px; margin: 6px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.local-tabbit-details { margin-top: 20px; border: 1px solid var(--line); border-radius: 10px; }
+.local-tabbit-details > summary { display: flex; align-items: center; min-height: 44px; padding: 10px 16px; font-size: 13px; cursor: pointer; }
+.local-tabbit-details > summary:focus-visible { outline: 2px solid var(--focus); }
 .local-report-automation { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 20px 22px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
 .local-report-automation h2 { margin: 4px 0 6px; font-size: 17px; }
 .local-report-automation p:not(.eyebrow) { max-width: 720px; margin: 0; color: var(--muted); font-size: 12px; line-height: 1.6; }

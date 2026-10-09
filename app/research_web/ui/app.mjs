@@ -15,7 +15,7 @@ import { readWorkbenchQuery, renderWorkbench } from './workbench.mjs';
 import { readAssetObservation } from './asset-workspace.mjs';
 import { renderOperations } from './operations.mjs';
 import { renderReportWorkflowDetail, renderReportWorkflowShelf } from './report-workflows.mjs';
-import { buildConfigurationPayload, confirmAutoProbeConsent, createLocalIntegrationPollingGuard, mergeIntegrationStatuses } from './connections.mjs';
+import { buildConfigurationPayload, confirmAutoProbeConsent, createLocalIntegrationPollingGuard, createOfficeConsentQueue, invalidateLocalIntegrationSnapshot, nextLocalStatusExpiry, mergeIntegrationStatuses } from './connections.mjs';
 import { modelConfigurationPayload, syncModelForm, renderSettingsPage, resolveSettingsSection, settingsConnectionId, settingsRefreshCatalogs } from './settings.mjs';
 import { renderFrameworks } from './frameworks.mjs';
 
@@ -59,7 +59,7 @@ let operationsRange = '7d';
 let operationsData = { usage: null, tools: null, datahub: null, services: null, storage: null };
 let reportWorkflowDetail = null; let reportWorkflowBusy = false;
 let automationFormOpen = false; let automationBusy = false;
-let selectedConnectionConfiguration = null; let migrationOpen = false; let connectionDetailOpen = true; let connectionProbeBusy = false; let localIntegrationProbeBusy = false; let localVerificationTarget = '';
+let selectedConnectionConfiguration = null; let migrationOpen = false; let connectionDetailOpen = true; let connectionProbeBusy = false; let localIntegrationProbeBusy = false; let localVerificationTarget = ''; let localCategory = 'all'; let officeConsentConfirmation = ''; let localStatusExpiryTimer = null;
 let frameworkState = { status: 'idle', catalog: null, data: null, slug: '', error: '' };
 let frameworkBot = { open: false, mode: 'explain', sessionId: '', detail: null, draft: '', busy: false, error: '', errorCode: '' };
 let closeFrameworkStream = () => {};
@@ -80,6 +80,11 @@ const capabilityState = capabilityController.state;
 const localIntegrationPollingGuard = createLocalIntegrationPollingGuard(
   () => state.route.page === 'settings' && currentSettingsSection() === 'local',
 );
+
+const officeAutoPollingGuard = createLocalIntegrationPollingGuard(
+  () => state.route.page === 'settings' && currentSettingsSection() === 'local',
+);
+const officeConsentQueue = createOfficeConsentQueue((id, consent) => api.setIntegrationConsent(id, consent));
 
 function runtimeLabel() {
   if (catalog.pending.has('runtime')) return 'DSH 连接中';
@@ -233,6 +238,8 @@ function settingsPage() {
     localIntegrations: catalog.localIntegrations,
     integrations: catalog.integrations,
     localVerificationTarget,
+    localCategory,
+    officeConsentConfirmation,
     selectedConfiguration: selectedConnectionConfiguration,
     migrationOpen,
     connectionDetailOpen,
@@ -379,7 +386,7 @@ async function loadCatalog(names = defaultCatalogNames) {
   render();
   await Promise.all(requests.map(async ({ name, generation }) => {
     try {
-      const data = name === 'deletedSessions' ? await api.sessions('deleted') : name === 'tabbit' ? await api.tabbitStatus() : await api[name]();
+      const data = name === 'deletedSessions' ? await api.sessions('deleted') : name === 'tabbit' ? await api.tabbitStatus() : name === 'integrations' ? await api.integrations(state.route.page === 'settings' && currentSettingsSection() === 'data' ? 'data' : 'all') : await api[name]();
       if (!isLatestCatalogRequest(name, generation)) return;
       if (name === 'runtime') catalog.runtime = data;
       else if (name === 'tabbit') catalog.tabbit = data;
@@ -403,6 +410,13 @@ async function loadCatalog(names = defaultCatalogNames) {
         categories: Array.isArray(data?.categories) ? data.categories : [],
         items: Array.isArray(data?.items) ? data.items : [],
         last_checked_at: data?.last_checked_at || null,
+        integration_status: data?.integration_status ? {
+          ...data.integration_status,
+          items: (data.integration_status.items || []).map((item) => {
+            const desired = officeConsentQueue.desired(item.id);
+            return desired === undefined ? item : { ...item, details: { ...item.details, auto_probe_consent: desired } };
+          }),
+        } : null,
       };
       else if (name === 'integrations') catalog.integrations = {
         summary: data?.summary || {},
@@ -412,10 +426,12 @@ async function loadCatalog(names = defaultCatalogNames) {
       else if (name === 'artifacts') catalog.artifacts = data.items || [];
       else catalog[name] = data.items || [];
       delete catalog.errors[name];
+      if (name === 'localIntegrations') scheduleLocalStatusRefresh();
     } catch (error) {
       if (!isLatestCatalogRequest(name, generation)) return;
       catalog.errors[name] = error.message;
       if (name === 'runtime') catalog.runtime = null;
+      if (name === 'localIntegrations') { catalog.localIntegrations = invalidateLocalIntegrationSnapshot(catalog.localIntegrations); scheduleLocalStatusRefresh(); }
     }
     finally {
       finishCatalogRequest(name);
@@ -426,6 +442,18 @@ async function loadCatalog(names = defaultCatalogNames) {
     catalog.connections = mergeIntegrationStatuses(catalog.connections, catalog.integrations);
   }
   render();
+}
+
+function scheduleLocalStatusRefresh() {
+  clearTimeout(localStatusExpiryTimer);
+  localStatusExpiryTimer = null;
+  if (state.route.page !== 'settings' || currentSettingsSection() !== 'local') return;
+  const delay = nextLocalStatusExpiry(catalog.localIntegrations);
+  if (delay === null) return;
+  localStatusExpiryTimer = setTimeout(() => {
+    if (document.hidden || state.route.page !== 'settings' || currentSettingsSection() !== 'local') return;
+    void loadCatalog(['localIntegrations']);
+  }, Math.min(delay + 1, 2147483647));
 }
 
 function attachFrameworkStream(sessionId) {
@@ -982,7 +1010,7 @@ async function loadAssetWorkspace() {
 }
 
 async function showRoute() {
-  localIntegrationPollingGuard.invalidate();
+  localIntegrationPollingGuard.invalidate(); officeAutoPollingGuard.invalidate(); officeConsentConfirmation = '';
   localVerificationTarget = '';
   const legacyTarget = legacyRouteTarget(location.hash);
   if (legacyTarget) {
@@ -1787,17 +1815,73 @@ root.addEventListener('click', async (event) => {
   if ('mcpApprovalDeny' in data) { await decideMCPApproval(data.mcpApprovalDeny, false); return; }
   if ('mcpPublisherAction' in data) { await runMCPPublisherAction(data.mcpPublisherAction); return; }
   if ('localCategoryTarget' in data) {
-    const target = document.getElementById(data.localCategoryTarget);
-    const main = document.querySelector('#main');
-    const scroller = main?.scrollHeight > main?.clientHeight ? main : document.scrollingElement;
-    if (target && scroller) {
-      target.focus({ preventScroll: true });
-      const scrollerTop = scroller === document.scrollingElement ? 0 : scroller.getBoundingClientRect().top;
-      const currentTop = scroller === document.scrollingElement ? window.scrollY : scroller.scrollTop;
-      const top = currentTop + target.getBoundingClientRect().top - scrollerTop - 60;
-      const behavior = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
-      scroller.scrollTo({ top: Math.max(0, top), behavior });
+    localCategory = data.localCategoryTarget === 'all' ? 'all' : data.localCategoryTarget.replace(/^local-category-/, '');
+    render();
+    document.querySelector(`[data-local-category-target="${CSS.escape(data.localCategoryTarget)}"]`)?.focus();
+    return;
+  }
+  if ('officeAutoCancel' in data) {
+    const target = officeConsentConfirmation;
+    officeConsentConfirmation = ''; render();
+    document.querySelector(`[data-office-auto-consent="${CSS.escape(target)}"]`)?.focus();
+    return;
+  }
+  if ('officeAutoConsent' in data) {
+    const allowed = ['local:excel_app', 'local:word_app', 'local:powerpoint_app'];
+    const ids = data.officeAutoConsent === 'all' ? allowed : allowed.filter((id) => id === data.officeAutoConsent);
+    if (!ids.length) return;
+    const enabled = data.consentEnabled === 'true';
+    if (!enabled && (data.officeAutoConfirmed !== 'true' || officeConsentConfirmation !== data.officeAutoConsent)) {
+      officeConsentConfirmation = data.officeAutoConsent;
+      render();
+      document.querySelector('[data-office-auto-confirmed]')?.focus();
+      return;
     }
+    officeConsentConfirmation = '';
+    const ticket = officeAutoPollingGuard.begin();
+    for (const item of catalog.localIntegrations.integration_status?.items || []) {
+      if (ids.includes(item.id)) item.details = { ...item.details, auto_probe_consent: !enabled };
+    }
+    render();
+    try {
+      const settled = await Promise.allSettled(ids.map((id) => officeConsentQueue.set(id, !enabled)));
+      if (!officeAutoPollingGuard.isCurrent(ticket)) return;
+      const rejected = settled.find((result) => result.status === 'rejected');
+      if (rejected) throw rejected.reason;
+      const results = settled.map((result) => result.value);
+      await loadCatalog(['localIntegrations']);
+      if (!officeAutoPollingGuard.isCurrent(ticket)) return;
+      if (enabled) { success = '已关闭对应 Office 自动验证。'; render(); }
+      const latest = catalog.localIntegrations.integration_status?.latest_batch;
+      const batches = [...new Set(results.map((result) => result.batch?.id).filter(Boolean))];
+      if (latest?.id && ['queued', 'checking'].includes(latest.status)) batches.push(latest.id);
+      if (batches.length) {
+        for (const id of batches) {
+          let previousProgress = '';
+          await waitForIntegrationBatch(async (batchId) => {
+            if (!officeAutoPollingGuard.isCurrent(ticket)) return { status: 'cancelled' };
+            const batch = await api.integrationProbeBatch(batchId);
+            if (!officeAutoPollingGuard.isCurrent(ticket)) return { status: 'cancelled' };
+            const progress = JSON.stringify(batch.items || {});
+            if (progress !== previousProgress) {
+              previousProgress = progress;
+              await loadCatalog(['localIntegrations']);
+            }
+            return batch;
+          }, id);
+        }
+        if (!officeAutoPollingGuard.isCurrent(ticket)) return;
+        await loadCatalog(['localIntegrations']);
+      }
+      if (!officeAutoPollingGuard.isCurrent(ticket)) return;
+      success = enabled ? '已关闭对应 Office 自动验证。' : 'Office 自动验证已处理；请查看每项结果。';
+    } catch (error) {
+      if (!officeAutoPollingGuard.isCurrent(ticket)) return;
+      state.error = error?.message || 'Office 自动验证设置失败。';
+      safeLog('office_auto_consent_failed', { status: error?.code || error?.name || 'unknown' });
+      await loadCatalog(['localIntegrations']);
+    }
+    if (officeAutoPollingGuard.isCurrent(ticket)) render();
     return;
   }
   if ('connectionGroup' in data) {
@@ -1883,7 +1967,7 @@ root.addEventListener('click', async (event) => {
       if (typeof accepted?.id !== 'string' || !accepted.id) throw new Error('服务未返回有效的探测任务，请刷新后重试。');
       const current = await waitForLocalIntegrationProbe((probeId) => api.localIntegrationProbe(probeId), accepted.id);
       if (current.status !== 'completed' || !current.snapshot) throw new Error(current?.error?.message || '本机能力检测未完成。');
-      catalog.localIntegrations = current.snapshot;
+      await loadCatalog(['localIntegrations']);
       success = '本机能力状态已更新。';
     } catch (error) {
       state.error = error?.message || '本机能力检测失败，请重试。';
@@ -1897,6 +1981,7 @@ root.addEventListener('click', async (event) => {
     const target = data.localIntegrationVerify;
     const labels = { excel: 'Excel', word: 'Word', powerpoint: 'PowerPoint', wind_excel: 'Wind Excel' };
     if (!(target in labels)) return;
+    if (target === 'wind_excel' && globalThis.confirm?.('单独确认 Wind Excel 真实厂商验证？会使用已登录厂商会话，在登记的独占测试工作簿中运行最小公式，可能出现厂商安全验证提示。Office 自动验证开关不包含此调用。') !== true) return;
     const verificationTicket = localIntegrationPollingGuard.begin();
     state.error = ''; success = ''; localVerificationTarget = target; render();
     try {
@@ -2000,7 +2085,7 @@ root.addEventListener('click', async (event) => {
     else if (state.route.page === 'settings') {
       const section = currentSettingsSection();
       if (section === 'local') {
-        localIntegrationPollingGuard.invalidate();
+        localIntegrationPollingGuard.invalidate(); officeAutoPollingGuard.invalidate(); officeConsentConfirmation = '';
         localVerificationTarget = '';
       }
       if (section === 'data') selectedConnectionConfiguration = null;
@@ -2403,7 +2488,10 @@ async function handleCapabilityClick(data) {
 }
 
 controller.subscribe(() => { catalog.sessions = reconcileSessionSummary(catalog.sessions, state.detail); render(); void loadWorkflowVersion(); });
-window.addEventListener('hashchange', () => { void showRoute(); });
+window.addEventListener('hashchange', () => { clearTimeout(localStatusExpiryTimer); void showRoute(); });
+window.addEventListener('visibilitychange', () => {
+  if (!document.hidden && state.route.page === 'settings' && currentSettingsSection() === 'local') void loadCatalog(['localIntegrations']);
+}, true);
 window.addEventListener('resize', () => { if (sessionMenu) { sessionMenu = null; render(); } });
 window.addEventListener('scroll', () => { if (sessionMenu) { sessionMenu = null; render(); } }, true);
 document.querySelector('.skip-link').addEventListener('click', (event) => { event.preventDefault(); document.querySelector('#main')?.focus(); });

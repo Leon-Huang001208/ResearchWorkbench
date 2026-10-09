@@ -113,7 +113,48 @@ export function createLocalIntegrationPollingGuard(isActive = () => true) {
   };
 }
 
-function renderLocalIntegrationRow(item, verificationTarget = '') {
+export function createOfficeConsentQueue(updateConsent) {
+  const pending = new Map();
+  const desired = new Map();
+  return {
+    desired(id) { return desired.get(id); },
+    set(id, consent) {
+      desired.set(id, consent);
+      const run = () => updateConsent(id, consent);
+      const previous = pending.get(id) || Promise.resolve();
+      const operation = previous.then(run, run);
+      pending.set(id, operation);
+      const clear = () => { if (pending.get(id) === operation) { pending.delete(id); desired.delete(id); } };
+      operation.then(clear, clear);
+      return operation;
+    },
+  };
+}
+
+export function invalidateLocalIntegrationSnapshot(model = {}) {
+  return {
+    ...model, read_failed: true, integration_status: null,
+    service: { online: null, label: '本机状态未知' },
+    summary: { available: 0, needs_attention: 0 },
+    items: (model.items || []).map((item) => ({
+      ...item, callable: false,
+      status: item.status === '不适用' ? '不适用' : '待验证',
+      verification: item.status === '不适用' ? '不适用' : '待验证',
+      message: '本次状态读取未成功，当前可调用结论未知。',
+      detail: `上次状态：${item.status || '未知'}。${item.detail || ''}`,
+    })),
+  };
+}
+
+export function nextLocalStatusExpiry(model = {}, now = Date.now()) {
+  const deadlines = (model.integration_status?.items || [])
+    .filter((item) => item.runtime_callable === true)
+    .map((item) => Date.parse(item.details?.evidence_expires_at || ''))
+    .filter((value) => Number.isFinite(value));
+  return deadlines.length ? Math.max(0, Math.min(...deadlines) - now) : null;
+}
+
+function renderLocalIntegrationRow(item, verificationTarget = '', component = null, unified = null, readFailed = false) {
   const actions = Array.isArray(item?.actions) ? item.actions.map(safeLocalAction).join('') : '';
   const target = localVerificationTargets[item?.id];
   const verifying = target && verificationTarget === target;
@@ -123,38 +164,65 @@ function renderLocalIntegrationRow(item, verificationTarget = '') {
   const checked = target && item?.last_verified_at
     ? `<time datetime="${e(item.last_verified_at)}">最近验证：${e(item.last_verified_at)}</time>`
     : '';
-  const callable = item?.status === '不适用' ? '不适用' : item?.callable === true ? '是' : '否';
-  const tone = localStatusTone[item?.status] || 'danger';
+  const currentCallable = unified ? unified.runtime_callable === true : item?.callable === true;
+  const callable = item?.status === '不适用' ? '不适用' : currentCallable ? '是' : '否';
+  const tone = unified?.bucket === 'checking' || unified?.bucket === 'stale' ? 'pending' : localStatusTone[item?.status] || 'pending';
   const office = ['word_app', 'excel_app', 'powerpoint_app'].includes(item?.id);
   const fileCapability = item?.capabilities?.includes('document_file_available') ? '可用（有限文件业务）' : item?.capabilities?.includes('document_file_unavailable') ? '缺少文件处理依赖' : '未验证';
-  const officeTruths = office ? `${localTruth('文件处理', fileCapability)}${localTruth('本机操作', item?.callable === true ? '可用' : item?.status || '未验证')}` : '';
-  return `<article class="local-integration-row" data-local-integration="${e(item?.id || '')}"><div class="local-integration-identity"><div><strong>${e(item?.label || '未命名集成')}</strong><span class="local-status ${e(tone)}"><span aria-hidden="true"></span>${e(item?.status || '异常')}</span></div><p>${e(item?.message || '服务未提供状态说明。')}</p>${item?.detail ? `<small>${e(item.detail)}</small>` : ''}${checked}${actions || verifyAction ? `<div class="button-row">${actions}${verifyAction}</div>` : ''}</div><div class="local-integration-truths${office ? ' office-document-truths' : ''}" aria-label="${e(item?.label || '')} 状态">${officeTruths}${localTruth('发现', item?.discovery || '异常')}${localTruth('授权', item?.authorization || '异常')}${localTruth('验证', item?.verification || '异常')}${localTruth('可调用', callable)}</div></article>`;
+  const officeTruths = office ? `${localTruth('文件处理', fileCapability)}${localTruth('本机操作', currentCallable ? '可用' : unified?.bucket === 'checking' ? '验证中' : item?.status || '未验证')}` : '';
+  const planned = ['folder_sync', 'browser_extension', 'local_mcp'].includes(item?.id);
+  const state = unified?.bucket === 'checking' ? '验证中' : planned || unified?.bucket === 'not_delivered' ? '尚未实现' : unified?.bucket === 'stale' ? '验证已失效' : verifying ? '验证中' : item?.status || '待验证';
+  const next = state === '验证中' ? '等待当前验证结束' : state === '尚未实现' ? '等待后续交付' : state === '不适用' ? '当前平台无需处理' : currentCallable ? '可按任务使用' : state === '未发现' ? '按需安装可选组件' : target ? '按提示处理后真实验证' : '查看详情与接入条件';
+  const consent = readFailed || unified?.details?.auto_probe_consent === true;
+  const auto = office ? `<button class="button small" type="button" data-office-auto-consent="local:${e(item.id)}" data-consent-enabled="${consent}">${consent ? '关闭自动验证' : '开启自动验证'}</button>` : '';
+  const bridge = component ? `<section class="local-component-detail" data-local-integration="${e(component.id)}"><strong>${e(component.label)}</strong><p>${e(component.status)} · ${e(component.message)}</p>${localTruth('发现', component.discovery)}${localTruth('授权', component.authorization)}${localTruth('验证', component.verification)}${localTruth('可调用', component.callable ? '是' : '否')}</section>` : '';
+  return `<article class="local-integration-row" data-local-integration="${e(item?.id || '')}"><div class="local-integration-identity"><div><strong>${e(item?.label || '未命名集成')}</strong><span class="local-status ${e(tone)}"><span aria-hidden="true"></span>${e(state)}</span></div><p>${e(item?.message || '尚无状态证据。')}</p>${office ? `<p class="small muted">文件处理：${e(fileCapability)} · 本机操作：${e(currentCallable ? '可用' : state)}</p>` : ''}<p class="local-next-action">${e(next)}</p>${actions || verifyAction || auto ? `<div class="button-row">${actions}${verifyAction}${auto}</div>` : ''}</div><details class="local-integration-details"><summary>查看详情</summary><div class="local-integration-truths${office ? ' office-document-truths' : ''}" aria-label="${e(item?.label || '')} 状态">${officeTruths}${localTruth('发现', item?.discovery || '未知')}${localTruth('授权', item?.authorization || '未知')}${localTruth('验证', item?.verification || '待验证')}${localTruth('可调用', callable)}</div><p>${e(item?.detail || '')}</p>${checked}<time datetime="${e(item?.last_checked_at || '')}">发现更新：${e(item?.last_checked_at || '未知')}</time>${unified?.error_code ? `<p>错误码：${e(unified.error_code)}</p>` : ''}${unified?.details?.auto_verification_attempt ? `<p>自动验证：${e(unified.details.auto_verification_attempt)}</p>` : ''}${bridge}</details></article>`;
 }
 
-export function renderLocalIntegrationConsole(model = {}, { busy = false, verificationTarget = '', integrationSummary = null } = {}) {
+export function renderLocalIntegrationConsole(model = {}, { busy = false, verificationTarget = '', integrationSummary = null, category = 'all', officeConsentConfirmation = '' } = {}) {
   const categories = Array.isArray(model?.categories) ? model.categories : [];
   const items = Array.isArray(model?.items) ? model.items : [];
   const byId = new Map(items.map((item) => [item.id, item]));
+  const unifiedById = new Map((model?.integration_status?.items || []).map((item) => [item.id, item]));
+  integrationSummary = model?.integration_status?.summary || integrationSummary;
+  if (!categories.some((row) => row.id === category)) category = 'all';
   const summary = model?.summary || {};
-  const serviceLabel = model?.service?.online ? (model.service.label || '本机服务在线') : '本机服务异常';
-  const nav = `<nav class="local-category-nav" aria-label="本机集成分类">${categories.map((category) => `<button type="button" data-local-category-target="local-category-${e(category.id)}" aria-controls="local-category-${e(category.id)}">${e(category.label || category.id)}</button>`).join('')}</nav>`;
-  const groups = categories.map((category) => {
+  const serviceLabel = model?.service?.online === true ? (model.service.label || '本机服务在线') : model?.service?.online === false ? '本机服务异常' : '本机状态未知';
+  const nav = `<nav class="local-category-nav" aria-label="本机集成分类">${[{ id: 'all', label: '全部' }, ...categories].map((row) => `<button type="button" data-local-category-target="${row.id === 'all' ? 'all' : `local-category-${e(row.id)}`}" aria-pressed="${category === row.id}">${e(row.label || row.id)}</button>`).join('')}</nav>`;
+  const groups = categories.filter((row) => category === 'all' || row.id === category).map((category) => {
     const categoryItems = Array.isArray(category.item_ids)
       ? category.item_ids.map((id) => byId.get(id)).filter(Boolean)
       : items.filter((item) => item.category === category.id);
-    const rows = categoryItems.length ? categoryItems.map((item) => renderLocalIntegrationRow(item, verificationTarget)).join('') : '<p class="local-category-empty">当前没有已登记项目。</p>';
-    return `<section class="local-integration-category" id="local-category-${e(category.id)}" tabindex="-1" aria-labelledby="local-category-title-${e(category.id)}"><header><h2 id="local-category-title-${e(category.id)}">${e(category.label || category.id)}</h2><span>${categoryItems.length} 项</span></header><div class="local-integration-column-head" aria-hidden="true"><span>集成</span><span>发现</span><span>授权</span><span>验证</span><span>可调用</span></div>${rows}</section>`;
+    const renderRow = (item) => {
+      const component = item.id === 'excel_app' ? byId.get('excel_automation_bridge') : null;
+      const componentState = unifiedById.get('local:excel_automation_bridge');
+      const currentComponent = component && componentState ? {
+        ...component, callable: componentState.runtime_callable === true,
+        status: componentState.bucket === 'checking' ? '验证中' : component.status,
+      } : component;
+      return renderLocalIntegrationRow(item, verificationTarget, currentComponent, unifiedById.get(`local:${item.id}`), model.read_failed === true);
+    };
+    const visible = categoryItems.filter((item) => item.id !== 'excel_automation_bridge');
+    const folded = visible.filter((item) => item.status === '不适用' || ['folder_sync', 'browser_extension', 'local_mcp'].includes(item.id));
+    const normal = visible.filter((item) => !folded.includes(item));
+    const rows = normal.map(renderRow).join('') + (folded.length ? `<details class="local-deferred-items"><summary>尚未实现或不适用（${folded.length}）</summary>${folded.map(renderRow).join('')}</details>` : '') || '<p class="local-category-empty">当前没有已登记项目。</p>';
+    return `<section class="local-integration-category" id="local-category-${e(category.id)}" tabindex="-1" aria-labelledby="local-category-title-${e(category.id)}"><header><h2 id="local-category-title-${e(category.id)}">${e(category.label || category.id)}</h2><span>${visible.length} 项</span></header>${rows}</section>`;
   }).join('');
+  const officeEnabled = ['excel_app', 'word_app', 'powerpoint_app'].every((id) => unifiedById.get(`local:${id}`)?.details?.auto_probe_consent === true);
+  const officeAnyEnabled = ['excel_app', 'word_app', 'powerpoint_app'].some((id) => unifiedById.get(`local:${id}`)?.details?.auto_probe_consent === true);
+  const officeControl = `<section class="local-office-auto"><div><strong>Office 自动验证 · ${model.read_failed ? '状态未知' : officeEnabled ? '已开启' : officeAnyEnabled ? '部分开启' : '未开启'}</strong><p>仅所属实例的 Word、Excel、PowerPoint；创建并清理登记的测试文稿，保留合成文稿副本及诊断记录。系统提示需人工处理，失败停止。厂商调用仍需单独确认。</p></div><button type="button" class="button" data-office-auto-consent="all" data-consent-enabled="${officeAnyEnabled || model.read_failed === true}">${officeAnyEnabled || model.read_failed ? '关闭 Office 自动验证' : '开启 Office 自动验证'}</button></section>`;
+  const consentConfirmation = officeConsentConfirmation
+    ? `<section class="notice warning" role="region" aria-label="Office 自动验证确认"><strong>确认开启 Office 自动验证</strong><p>仅允许所属实例的${officeConsentConfirmation === 'all' ? ' Word、Excel、PowerPoint' : ` ${localVerificationLabels[localVerificationTargets[officeConsentConfirmation.replace('local:', '')]] || 'Office'}`}。会创建、保存、重开并关闭登记测试文稿，将副本保留在私有验证目录后清理沙箱文件；系统权限提示需要人工处理。有效证据复用，失败停止，厂商调用不在此范围。</p><div class="button-row"><button type="button" class="button primary" data-office-auto-consent="${e(officeConsentConfirmation)}" data-consent-enabled="false" data-office-auto-confirmed="true">确认开启</button><button type="button" class="button" data-office-auto-cancel>取消</button></div></section>` : '';
   const verificationLabel = localVerificationLabels[verificationTarget];
   const announcement = verificationLabel
     ? `正在验证 ${verificationLabel}，完成后将自动更新状态。`
     : busy
       ? '正在检测本机集成状态，请稍候。'
-      : `${serviceLabel}，${summary.available ?? 0} 项可用，${summary.needs_attention ?? 0} 项需处理。`;
+      : `${serviceLabel}，${integrationSummary?.available ?? summary.available ?? 0} 项可用，${integrationSummary?.user_action ?? summary.needs_attention ?? 0} 项需处理。`;
   const unified = integrationSummary && typeof integrationSummary === 'object'
-    ? [['可用', integrationSummary.available], ['检测中', integrationSummary.checking], ['待你处理', integrationSummary.user_action], ['系统故障', integrationSummary.system_fault], ['尚未交付', integrationSummary.not_delivered]]
+    ? [['可用', integrationSummary.available], ['检测中', integrationSummary.checking], ['待验证', integrationSummary.unverified], ['验证失效', integrationSummary.stale], ['未发现', integrationSummary.not_detected], ['不适用', integrationSummary.not_applicable], ['待你处理', integrationSummary.user_action], ['系统故障', integrationSummary.system_fault], ['尚未交付', integrationSummary.not_delivered]]
     : [['可用', summary.available], ['需处理', summary.needs_attention]];
-  return `<section class="local-integration-console" data-local-integrations-console><p class="sr-only" role="status" aria-live="polite" aria-atomic="true">${e(announcement)}</p><section class="local-integration-summary" aria-label="本机集成概览"><div><span class="local-service-indicator ${model?.service?.online ? 'ready' : 'danger'}"><span aria-hidden="true"></span>${e(serviceLabel)}</span><p>诊断分别保留发现、授权、验证和可调用事实。</p></div><dl>${unified.map(([label, value]) => `<div><dt><strong>${e(value ?? 0)}</strong> 项${e(label)}</dt></div>`).join('')}</dl><button class="button primary local-integrations-probe" type="button" data-local-integrations-probe ${busy ? 'disabled aria-busy="true"' : ''}>${busy ? '检测中…' : '重新检测'}</button></section>${nav}${groups}<section class="local-report-automation"><div><p class="eyebrow">WORKFLOW</p><h2>报告自动化</h2><p>报告工作流消费 Excel、Word、PowerPoint、Wind/iFinD 数据能力生成报告，并根据自身资源与依赖单独判断能否运行。</p></div><a class="button" href="#/skills?kind=workflow">查看报告 Workflow</a></section></section>`;
+  return `<section class="local-integration-console" data-local-integrations-console><p class="sr-only" role="status" aria-live="polite" aria-atomic="true">${e(announcement)}</p><section class="local-integration-summary" aria-label="本机集成概览"><div><span class="local-service-indicator ${model?.service?.online === true ? 'ready' : model?.service?.online === false ? 'danger' : 'pending'}"><span aria-hidden="true"></span>${e(serviceLabel)}</span><p>诊断分别保留发现、授权、验证和可调用事实。</p></div><dl>${unified.map(([label, value]) => `<div><dt><strong>${e(value ?? 0)}</strong> 项${e(label)}</dt></div>`).join('')}</dl><button class="button primary local-integrations-probe" type="button" data-local-integrations-probe ${busy ? 'disabled aria-busy="true"' : ''}>${busy ? '检测中…' : '重新检测'}</button></section>${officeControl}${consentConfirmation}${nav}${groups}<section class="local-report-automation"><div><p class="eyebrow">WORKFLOW</p><h2>报告自动化</h2><p>报告工作流消费 Excel、Word、PowerPoint、Wind/iFinD 数据能力生成报告，并根据自身资源与依赖单独判断能否运行。</p></div><a class="button" href="#/skills?kind=workflow">查看报告 Workflow</a></section></section>`;
 }
 
 function get(values, key) {

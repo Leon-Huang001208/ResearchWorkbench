@@ -175,6 +175,41 @@ def environment(
     )
 
 
+def confirmed_office_result(target):
+    run_id = "a" * 32
+    suffix = {"excel": ".xlsx", "word": ".docx", "powerpoint": ".pptx"}[target]
+    return {
+        "outcome": "available",
+        "code": None,
+        "diagnostics": {
+            "run_id": run_id,
+            "artifact_name": f"research-workbench-{run_id}{suffix}",
+            "last_completed_step": "document_closed",
+            "function_outcome": "available",
+            "cleanup_outcome": "confirmed",
+        },
+    }
+
+
+def test_smoke_cleanup_archives_only_registered_artifact_before_removing_sandbox_copy(
+    tmp_path, monkeypatch
+):
+    documents = tmp_path / "Documents"
+    documents.mkdir()
+    run = tmp_path / ("b" * 32)
+    run.mkdir(mode=0o700)
+    name = f"research-workbench-{run.name}.docx"
+    artifact = documents / name
+    artifact.write_bytes(b"synthetic Office result")
+    unrelated = documents / "user.docx"
+    unrelated.write_bytes(b"leave alone")
+    monkeypatch.setattr(verifiers, "_office_documents_root", lambda _target: documents)
+    assert verifiers._remove_office_artifact("word", run)
+    assert not artifact.exists()
+    assert (run / name).read_bytes() == b"synthetic Office result"
+    assert unrelated.read_bytes() == b"leave alone"
+
+
 def item(snapshot: dict, item_id: str) -> dict:
     return next(value for value in snapshot["items"] if value["id"] == item_id)
 
@@ -545,7 +580,7 @@ def test_verification_is_idempotent_and_success_updates_only_target_items(tmp_pa
 
     def verifier(target):
         calls.append(target)
-        return {"outcome": "available", "code": None}
+        return confirmed_office_result(target)
 
     manager = LocalIntegrationManager(tmp_path / "state", environment=env, verifier=verifier)
 
@@ -580,7 +615,7 @@ def test_verification_evidence_expires_or_changes_context(tmp_path):
     manager = LocalIntegrationManager(
         tmp_path / "state",
         environment=env,
-        verifier=lambda _target: {"outcome": "available"},
+        verifier=confirmed_office_result,
         context_fingerprint=lambda _target: context["value"],
     )
 
@@ -618,6 +653,7 @@ def test_verification_rejects_future_timestamp_and_stale_wind_session(tmp_path):
             "outcome": "available",
             "completed_at": "2999-01-01T00:00:00Z",
             "context_fingerprint": manager._verification_context_fingerprint("excel"),
+            "diagnostics": confirmed_office_result("excel")["diagnostics"],
         },
         "wind_excel": {
             "outcome": "available",
@@ -653,6 +689,7 @@ def test_wind_vendor_session_error_does_not_fail_snapshot(tmp_path, monkeypatch)
             "outcome": "available",
             "completed_at": checked_at,
             "context_fingerprint": manager._verification_context_fingerprint("excel"),
+            "diagnostics": confirmed_office_result("excel")["diagnostics"],
         },
         "wind_excel": {
             "outcome": "available",
@@ -779,7 +816,7 @@ def test_verification_persistence_failure_does_not_publish_callable(tmp_path, mo
     manager = LocalIntegrationManager(
         tmp_path / "state",
         environment=env,
-        verifier=lambda _target: {"outcome": "available"},
+        verifier=confirmed_office_result,
         context_fingerprint=lambda _target: "office-v1",
     )
     monkeypatch.setattr(
@@ -805,7 +842,7 @@ def test_probe_publish_cannot_overwrite_newer_verification_evidence(tmp_path, mo
     manager = LocalIntegrationManager(
         tmp_path / "state",
         environment=env,
-        verifier=lambda _target: {"outcome": "available"},
+        verifier=confirmed_office_result,
         context_fingerprint=lambda _target: "office-v1",
     )
     stale_persist_entered = threading.Event()
@@ -993,7 +1030,7 @@ def test_verification_api_rejects_unknown_targets_and_requires_idempotency(tmp_p
     service.local_integrations = LocalIntegrationManager(
         tmp_path / "local-state",
         environment=environment(tmp_path),
-        verifier=lambda target: {"outcome": "available", "code": None},
+        verifier=confirmed_office_result,
     )
 
     with TestClient(create_app(service)) as client:
@@ -2518,3 +2555,76 @@ def test_native_excel_document_calculates_saves_and_reopens_owned_copy(
     assert events.count("close") == 2 and events.index("close") < events.index("reopen")
     assert events[-1] == "quit" and len(reported) == 1
     assert result["diagnostics"]["cleanup_outcome"] == "confirmed"
+
+
+@pytest.mark.asyncio
+async def test_office_cleanup_unknown_closes_callable_and_automatic_evidence(tmp_path):
+    env = environment(tmp_path)
+    (env.application_roots[0] / "Microsoft Word.app").mkdir()
+    manager = LocalIntegrationManager(
+        tmp_path / "state",
+        environment=env,
+        context_fingerprint=lambda _target: "owned",
+        verifier=lambda _target: {
+            "outcome": "available",
+            "diagnostics": {
+                "run_id": "a" * 32,
+                "artifact_name": "research-workbench-" + "a" * 32 + ".docx",
+                "last_completed_step": "read_back",
+                "function_outcome": "available",
+                "cleanup_outcome": "unverified",
+            },
+        },
+    )
+    accepted = manager.start_verification("word", "unknown-cleanup")
+    task = manager.verification_tasks[accepted["id"]]
+    await task
+    row = item(manager.snapshot(), "word_app")
+    assert row["callable"] is False
+    assert row["status"] == "受限"
+    assert manager.automatic_verification_state("word")["evidence_current"] is False
+    assert manager.verification(accepted["id"])["outcome"] == "cleanup_unverified"
+    await manager.close()
+
+
+def test_office_legacy_success_without_cleanup_is_unknown_not_callable(tmp_path):
+    env = environment(tmp_path)
+    (env.application_roots[0] / "Microsoft Word.app").mkdir()
+    manager = LocalIntegrationManager(
+        tmp_path / "state", environment=env, context_fingerprint=lambda _target: "owned"
+    )
+    snapshot = manager.snapshot(persist=False)
+    manager.verification_results["word"] = {
+        "outcome": "available",
+        "completed_at": snapshot["last_checked_at"],
+        "context_fingerprint": manager._verification_context_fingerprint("word"),
+    }
+    row = item(manager.snapshot(persist=False), "word_app")
+    assert row["callable"] is False
+    assert row["status"] == "受限"
+    assert manager.automatic_verification_state("word")["evidence_current"] is False
+
+
+def test_archive_directory_replacement_keeps_sandbox_source(tmp_path, monkeypatch):
+    documents, foreign = tmp_path / "Documents", tmp_path / "foreign"
+    documents.mkdir()
+    foreign.mkdir()
+    run = tmp_path / ("c" * 32)
+    run.mkdir(mode=0o700)
+    name = f"research-workbench-{run.name}.docx"
+    source = documents / name
+    source.write_bytes(b"owned evidence")
+    moved = tmp_path / "moved"
+    original_open = verifiers.os.open
+
+    def replace_at_destination(path, flags, *args, **kwargs):
+        if path == name and flags & os.O_CREAT:
+            run.rename(moved)
+            run.symlink_to(foreign, target_is_directory=True)
+        return original_open(path, flags, *args, **kwargs)
+
+    monkeypatch.setattr(verifiers, "_office_documents_root", lambda _target: documents)
+    monkeypatch.setattr(verifiers.os, "open", replace_at_destination)
+    assert verifiers._remove_office_artifact("word", run) is False
+    assert source.read_bytes() == b"owned evidence"
+    assert not (foreign / name).exists()

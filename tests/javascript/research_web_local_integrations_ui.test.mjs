@@ -3,7 +3,7 @@ import test from 'node:test';
 import { readFile } from 'node:fs/promises';
 
 import { createAPI, waitForLocalIntegrationProbe } from '../../app/research_web/ui/core.mjs';
-import { createLocalIntegrationPollingGuard, renderLocalIntegrationConsole } from '../../app/research_web/ui/connections.mjs';
+import { createLocalIntegrationPollingGuard, createOfficeConsentQueue, invalidateLocalIntegrationSnapshot, nextLocalStatusExpiry, renderLocalIntegrationConsole } from '../../app/research_web/ui/connections.mjs';
 import { parseRoute } from '../../app/research_web/ui/core.mjs';
 import { renderSettingsPage, settingsRefreshCatalogs } from '../../app/research_web/ui/settings.mjs';
 
@@ -44,6 +44,54 @@ const localIntegrations = {
     makeItem('local_mcp', 'mcp', '本地 MCP', '待授权', { authorization: '待授权' }),
   ],
 };
+
+test('category filter removes other groups and keeps an all switch', () => {
+  const html = renderLocalIntegrationConsole(localIntegrations, { category: 'office' });
+  assert.match(html, /data-local-category-target="all"/);
+  assert.match(html, /Microsoft Excel/);
+  assert.doesNotMatch(html, /data-local-integration="folder_sync"/);
+  assert.match(html, /<details[^>]*local-integration-details/);
+  assert.doesNotMatch(html, /local-integration-column-head/);
+});
+
+test('Office consent serializes enable then revoke, and latest intent survives stale reads', async () => {
+  const calls = [];
+  let release;
+  const queue = createOfficeConsentQueue(async (id, consent) => {
+    calls.push([id, consent]);
+    if (consent) await new Promise((resolve) => { release = resolve; });
+    return { consent };
+  });
+  const enable = queue.set('local:word_app', true);
+  await Promise.resolve();
+  const revoke = queue.set('local:word_app', false);
+  assert.equal(queue.desired('local:word_app'), false);
+  assert.deepEqual(calls, [['local:word_app', true]]);
+  release();
+  await Promise.all([enable, revoke]);
+  assert.deepEqual(calls, [['local:word_app', true], ['local:word_app', false]]);
+  assert.equal(queue.desired('local:word_app'), undefined);
+});
+
+test('local live summary uses the same bridge-free count as its visual summary', () => {
+  const html = renderLocalIntegrationConsole({ ...localIntegrations, summary: {available: 2}, integration_status: {summary: {available: 1, user_action: 0}, items: []} });
+  assert.match(html, /本机服务在线，1 项可用，0 项需处理/);
+  assert.doesNotMatch(html, /本机服务在线，2 项可用/);
+});
+
+test('local page uses its own snapshot summary rather than a stale integrations cache', () => {
+  const html = renderSettingsPage({
+    route: parseRoute('#/settings/local'), hash: '#/settings/local', busy: false,
+    localIntegrations: { ...localIntegrations, integration_status: {
+      scope: 'local', local_revision: 'fresh', summary: { available: 3, system_fault: 0 },
+      items: [],
+    } },
+    integrations: { items: [{ scope: 'local', bucket: 'system_fault' }] },
+    connections: { sources: [] }, models: [], modelFailures: [],
+  });
+  assert.match(html, /<strong>3<\/strong> 项可用/);
+  assert.match(html, /<strong>0<\/strong> 项系统故障/);
+});
 
 test('Office rows distinguish file capability from unavailable native automation', () => {
   const model = { ...localIntegrations, categories: [{id: 'office', label: 'Office', item_ids: ['word_app']}], items: [makeItem('word_app', 'office', 'Microsoft Word', '未发现', { capabilities: ['document_file_available'] })] };
@@ -138,7 +186,7 @@ test('local verification polling guard invalidates stale page and refresh work',
 
 test('settings local section loads the dedicated model while data keeps DataHub connections', () => {
   assert.deepEqual(settingsRefreshCatalogs('data'), ['connections', 'integrations']);
-  assert.deepEqual(settingsRefreshCatalogs('local'), ['localIntegrations', 'tabbit', 'integrations']);
+  assert.deepEqual(settingsRefreshCatalogs('local'), ['localIntegrations', 'tabbit']);
   const html = renderSettingsPage({
     route: parseRoute('#/settings/local'),
     hash: '#/settings/local',
@@ -245,4 +293,54 @@ test('application controller no longer loads DataHub connections for the local p
   assert.match(app, /全量检测已完成，但部分项目失败/);
   assert.doesNotMatch(app, /scrollIntoView/);
   assert.doesNotMatch(app, /sourceId === 'local_cache'/);
+});
+
+
+test('failed local read clears a cached green verdict while preserving historical detail', () => {
+  const stale = invalidateLocalIntegrationSnapshot(localIntegrations);
+  assert.equal(stale.items[0].callable, false);
+  assert.equal(stale.integration_status, null);
+  assert.match(stale.items[0].detail, /上次状态：可用/);
+  const html = renderLocalIntegrationConsole(stale);
+  assert.match(html, /本机状态未知/);
+  assert.doesNotMatch(html, /本机服务异常/);
+});
+
+
+test('unknown read preserves a revoke action without claiming the Office switch is off', () => {
+  const html = renderLocalIntegrationConsole(invalidateLocalIntegrationSnapshot(localIntegrations));
+  assert.match(html, /Office 自动验证 · 状态未知/);
+  assert.match(html, /data-office-auto-consent="all" data-consent-enabled="true"[^>]*>关闭 Office 自动验证/);
+  assert.doesNotMatch(html, /Office 自动验证 · 未开启/);
+});
+
+
+test('expiry refresh uses the nearest valid evidence deadline and never schedules stale items', () => {
+  const now = Date.parse('2026-10-09T04:00:00Z');
+  const items = [
+    {runtime_callable: true, details: {evidence_expires_at: '2026-10-09T04:05:00Z'}},
+    {runtime_callable: true, details: {evidence_expires_at: '2026-10-10T04:00:00Z'}},
+    {runtime_callable: false, details: {evidence_expires_at: '2026-10-09T04:01:00Z'}},
+  ];
+  assert.equal(nextLocalStatusExpiry({integration_status: {items}}, now), 300000);
+  assert.equal(nextLocalStatusExpiry({integration_status: {items}}, now + 86400000), 0);
+  assert.equal(nextLocalStatusExpiry({integration_status: {items: items.map((item) => ({...item, runtime_callable: false}))}}, now), null);
+});
+
+
+test('a running Office task uses the same non-callable verdict in row and summary', () => {
+  const model = {...localIntegrations, categories: [{id: 'office', label: 'Office', item_ids: ['word_app']}], items: [makeItem('word_app', 'office', 'Word', '可用')], integration_status: {summary: {available: 0, checking: 1}, items: [{id: 'local:word_app', bucket: 'checking', runtime_callable: false, details: {}}]}};
+  const html = renderLocalIntegrationConsole(model);
+  assert.match(html, /等待当前验证结束/);
+  assert.match(html, /本机操作：验证中/);
+  assert.doesNotMatch(html, /可按任务使用/);
+});
+
+
+test('Office enable uses a page confirmation with explicit scope and cancellable action', () => {
+  const html = renderLocalIntegrationConsole(localIntegrations, {officeConsentConfirmation: 'all'});
+  assert.match(html, /aria-label="Office 自动验证确认"/);
+  assert.match(html, /data-office-auto-confirmed="true"/);
+  assert.match(html, /data-office-auto-cancel/);
+  assert.match(html, /副本保留在私有验证目录/);
 });

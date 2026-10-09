@@ -261,3 +261,7 @@ Windows 受管服务的非强制停止失败现在可升级到既有强制进程
 
 
 兼容模型1B文本/流式适配仍由同一受管Runtime执行，不改变Tabbit保存/实际应用或浏览器选择合同；新连接的工具能力未验证，不能由文本生成、服务可达或连接名称提升为Tabbit可调用。
+
+## 本机页的分类与详情
+
+Tabbit设置与诊断保留在本机页的默认折叠详情，仅在全部/浏览器分类显示；Office分类不展示浏览器配置。Office自动验证同意不覆盖Tabbit浏览器调用，原Tabbit配置、审批和Runtime应用边界保持不变。未开启、缺可选组件与已观察异常仍分别显示，由[协调器](architecture/research-web/09-integration-coordinator.md)归因。
