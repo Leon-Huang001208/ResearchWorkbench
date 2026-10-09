@@ -1,5 +1,9 @@
 # Research Web Native / Docker 安装与运行
 
+Docker 获取固定 DSH 源码时仅该 Git fetch 使用命令级 `http.version=HTTP/1.1`，保留
+HTTPS 默认校验、固定提交、源码验证和原有超时，不写宿主/仓库 Git 或 Docker daemon 配置。
+这是针对已观察 TLS pack 截断的有界传输假设，不代表已证明 HTTP/2 根因；失败仍明确报告。
+
 Docker模型专用文件后端的Python/JS/owned启动源码已同步，使用既有私有凭据挂载内的
 models/稳定安装ID；Native仍Keychain且不自动复制Key。文件权限不是加密保险库，Docker
 管理者/容器内同UID代码不在隔离边界内。当前新镜像、设置页完整投影及真实文本/重启续问

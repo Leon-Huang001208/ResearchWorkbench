@@ -56,7 +56,7 @@ source.mkdir()
 for args in (
     ['git', 'init', str(source)],
     ['git', '-C', str(source), 'remote', 'add', 'origin', DSH_REMOTE],
-    ['git', '-C', str(source), 'fetch', '--depth=1', 'origin', DSH_COMMIT],
+    ['git', '-c', 'http.version=HTTP/1.1', '-C', str(source), 'fetch', '--depth=1', 'origin', DSH_COMMIT],
     ['git', '-C', str(source), 'checkout', '--detach', 'FETCH_HEAD'],
 ):
     subprocess.run(args, check=True, timeout=600)

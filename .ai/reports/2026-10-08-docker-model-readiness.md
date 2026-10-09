@@ -482,6 +482,15 @@ SPEC/独立PythonQUALITY各4PASS批准，格式检查PASS。预算仍待新环�
 新任务fixture /private/tmp/rwb-docker-canonical-20261009.P7jHDO，独立HOME与detached checkout；
 私有Docker配置只发现现有Docker.app插件，不复制认证或全局配置；不改日常实例。
 
+814151f34正常推送后的ProjectConstraints/Checks/macOSBootstrap三门已实际PASS，既有hatchling
+CI问题通过新提交实际执行解除，不把旧失败run改成成功。新隔离公开Docker安装仍在SDK485 git
+fetch重现GnuTLS-9/curl56/TLS截断/earlyEOF；APT完成，错误不是包名/版本证据。
+据此只做命令级HTTP/1.1传输假设：一次fetch增加-c http.version=HTTP/1.1，其余init/remote/
+checkout、600秒、check=True和verifier不变，不增加retry、不写配置、不覆盖TLS/proxy。
+新增源码contract真实RED1FAIL→GREEN17PASS；独立SPEC/JSQUALITY批准并复验17PASS。
+默认TLS验证未添加覆盖，不宣称实际运行时配置显式true或HTTP/2已证根因。下一次真实构建
+为唯一目标内协议复测；同因失败即停止该路径。新预算尚未初始化，真实Key未进入新安装。
+
 新SDK默认/目录为canonical deepseek-flash，旧授权tuple和已初始化ledger不适用；旧窗口已过期且
 0tickets/0cost。新的任务内隔离验收安装与最长1h预算另请求用户确认，全任务仍3请求/512输出/
 1USD；未创建新安装/启用新控制/复制真实Key。最终SDK485 Docker及真实文本/冷恢复/续问/同镜像

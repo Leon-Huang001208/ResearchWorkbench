@@ -54,6 +54,23 @@ test('DSH builder bounds locked downloads only on its existing pnpm install comm
   ]);
 });
 
+test('DSH fetch selects HTTP/1.1 for one invocation with pinned source and TLS verification', () => {
+  const file = read('Dockerfile');
+  const builder = file.split('FROM python-builder AS dsh-builder\n')[1]
+    .split('FROM ${PYTHON_IMAGE} AS runtime\n')[0];
+  const gitCommands = [...builder.matchAll(/^    (\['git', .*\]),$/gm)]
+    .map(match => match[1]);
+  assert.deepEqual(gitCommands, [
+    "['git', 'init', str(source)]",
+    "['git', '-C', str(source), 'remote', 'add', 'origin', DSH_REMOTE]",
+    "['git', '-c', 'http.version=HTTP/1.1', '-C', str(source), 'fetch', '--depth=1', 'origin', DSH_COMMIT]",
+    "['git', '-C', str(source), 'checkout', '--detach', 'FETCH_HEAD']",
+  ]);
+  assert.match(builder, /subprocess\.run\(args, check=True, timeout=600\)\nSetupWebInstaller[^\n]*\.verify_dsh_source\(source, require_build=False\)/);
+  assert.equal(file.match(/http\.version/g)?.length, 1);
+  assert.doesNotMatch(file, /git\s+config|['"]config['"]|GIT_CONFIG|GIT_SSL_NO_VERIFY|http\.sslVerify|http\.sslVersion|http\.proxy|https?\.proxy|sslBackend/);
+});
+
 test('DSH builder uses headers from the exact Node binary stage without runtime nodedir', () => {
   const lines = instructions();
   const builder = lines.slice(lines.indexOf('FROM python-builder AS dsh-builder') + 1,
