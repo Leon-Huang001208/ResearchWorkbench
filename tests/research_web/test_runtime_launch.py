@@ -1948,6 +1948,7 @@ def test_docker_text_generated_overlay_activates_actual_fixed_sdk(tmp_path, monk
         data,
         node,
         3081,
+        research_tools=True,
         model_backend="docker-private-file",
         model_credential_root=Path("/run/rwb-secrets/private/models") / identity,
         model_installation_id=identity,
@@ -2003,7 +2004,73 @@ def test_docker_text_generated_overlay_activates_actual_fixed_sdk(tmp_path, monk
         assert settings.read_bytes() == before
 
 
-def test_docker_text_generated_default_passes_current_guard(tmp_path, monkeypatch):
+@pytest.mark.parametrize("staged", [False, True], ids=["native", "ordinary-docker"])
+def test_ordinary_runtime_preserves_requested_research_tools(tmp_path, monkeypatch, staged):
+    import yaml
+
+    source = make_source(tmp_path)
+    data = tmp_path / "isolated-data"
+    monkeypatch.delenv("RESEARCH_ACCEPTANCE_CONTROL", raising=False)
+    monkeypatch.delenv("RWB_DSH_STAGED", raising=False)
+    if staged:
+        monkeypatch.setenv("RWB_DSH_STAGED", "1")
+        monkeypatch.setattr(
+            launch_runtime,
+            "verify_staged_runtime",
+            lambda *a, **kw: {"closure_sha256": "a" * 64, "closure_files": 1},
+        )
+    monkeypatch.setattr(
+        launch_runtime.subprocess, "check_output", lambda *a, **kw: launch_runtime.PINNED_COMMIT
+    )
+    prepared = []
+    monkeypatch.setattr(
+        launch_runtime, "validate_research_python", lambda *args: prepared.append("python")
+    )
+    monkeypatch.setattr(launch_runtime, "load_control", lambda *args: prepared.append("control"))
+    monkeypatch.setattr(
+        launch_runtime,
+        "enabled_datahub_tools",
+        lambda *args: prepared.append("datahub") or ["datahub_get_fund_data"],
+    )
+    monkeypatch.setattr(
+        launch_runtime, "load_mcp_runtime_bindings", lambda *args: prepared.append("mcp") or []
+    )
+    monkeypatch.setattr(
+        launch_runtime,
+        "CapabilityCatalog",
+        lambda *args: SimpleNamespace(
+            prepare_native_root=lambda: prepared.append("skills") or data / "fixture-skills"
+        ),
+    )
+    launch_runtime.prepare(source, data, "/node", 3081, research_tools=True)
+    assert prepared == ["python", "control", "datahub", "mcp", "skills", "skills"]
+    plugins = yaml.safe_load(
+        (data / "runtime/home/.agent-presets/research-web/agent.cordis.yml").read_text()
+    )
+    assert {plugin["id"] for plugin in plugins} >= {
+        "research-tools",
+        "public-data",
+        "mcp-tools",
+        "skill-filesystem",
+        "tool-skill",
+        "tool-web",
+        "tool-subagent",
+        "tool-subagent-control",
+        "tool-subagent-list-agents",
+    }
+    rows = yaml.safe_load((data / "runtime/overlay.yml").read_text())
+    guard = next(
+        item["config"]
+        for row in rows
+        for item in row.get("insert", [])
+        if item["id"] == "research-tool-guard"
+    )
+    assert guard["enabled"] is True
+    assert "acceptance" not in guard
+
+
+@pytest.mark.parametrize("control_source", ["explicit", "persistent"])
+def test_docker_text_generated_default_passes_current_guard(tmp_path, monkeypatch, control_source):
     import os
 
     import yaml
@@ -2034,19 +2101,53 @@ def test_docker_text_generated_default_passes_current_guard(tmp_path, monkeypatc
         "read_acceptance_budget",
         lambda _: {"modelCalls": 3, "maxOutputTokens": 512},
     )
+    if control_source == "persistent":
+        monkeypatch.delenv("RESEARCH_ACCEPTANCE_CONTROL")
+        monkeypatch.setattr(
+            launch_runtime,
+            "read_optional_acceptance_budget",
+            lambda _: {"modelCalls": 3, "maxOutputTokens": 512},
+        )
     monkeypatch.setattr(
         launch_runtime.subprocess, "check_output", lambda *a, **kw: launch_runtime.PINNED_COMMIT
+    )
+
+    def reject_research_preparation(*args, **kwargs):
+        pytest.fail("docker-text must not prepare research tools")
+
+    for name in (
+        "validate_research_python",
+        "load_control",
+        "enabled_datahub_tools",
+        "load_mcp_runtime_bindings",
+    ):
+        monkeypatch.setattr(launch_runtime, name, reject_research_preparation)
+    monkeypatch.setattr(
+        launch_runtime.CapabilityCatalog, "prepare_native_root", reject_research_preparation
     )
     launch_runtime.prepare(
         source,
         data,
         "/node",
         3081,
+        research_tools=True,
         model_backend="docker-private-file",
         model_credential_root=Path("/run/rwb-secrets/private/models") / identity,
         model_installation_id=identity,
     )
     rows = yaml.safe_load((data / "runtime/overlay.yml").read_text())
+    for identity in ("research-web", "framework-verify"):
+        plugins = yaml.safe_load(
+            (data / "runtime/home/.agent-presets" / identity / "agent.cordis.yml").read_text()
+        )
+        assert {plugin["id"] for plugin in plugins} == {"persona", "tool-presentation"}
+        declared = next(
+            item["config"]["plugins"]
+            for row in rows
+            for item in row.get("insert", [])
+            if item["id"] == f"rwb-preset-{identity}"
+        )
+        assert declared == plugins
     default = next(row["config"] for row in rows if row.get("id") == "agent-default-model")
     guard = next(
         item["config"]
@@ -2054,6 +2155,8 @@ def test_docker_text_generated_default_passes_current_guard(tmp_path, monkeypatc
         for item in row.get("insert", [])
         if item["id"] == "research-tool-guard"
     )
+    assert guard["enabled"] is False
+    assert guard["mcpTools"] == []
     assert default == {"provider": "deepseek-official", "model": "deepseek-flash"}
     bridge = tmp_path / "fixture-reservation.py"
     bridge.write_text(

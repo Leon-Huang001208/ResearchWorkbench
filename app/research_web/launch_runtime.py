@@ -687,6 +687,9 @@ def _prepare_runtime(
         model_credential_root=model_credential_root,
         model_installation_id=model_installation_id,
     )
+    if acceptance and acceptance.get("profile") == "docker-text":
+        research_tools = False
+        log.info("research_acceptance_text_preset_selected")
     tabbit_config = load_tabbit_config(data)
     commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=source, text=True).strip()
     if commit != PINNED_COMMIT:

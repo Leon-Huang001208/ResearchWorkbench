@@ -29,6 +29,10 @@ if (phase === 'sdk-docker-text-activation') {
     assert.ok(ctx.get('credentialsController'));
     assert.ok(ctx.get('sessionController'));
     assert.ok((await ctx.get('sessionController').modelCatalog()).groups.some(group => group.id === 'deepseek-official'));
+    assert.equal((await ctx.get('agentPresets').resolve('research-web')).id, 'research-web');
+    const sessionId = `session-docker-text-activation-${port}`;
+    await ctx.get('sessionController').create({ sessionId, cwd: process.cwd(), agentPreset: 'research-web' });
+    assert.equal(ctx.get('sessions').get(sessionId).header.agentPreset, 'research-web');
     assert.equal(networkCalls, 0);
     result = 'PASS';
   } catch (error) {

@@ -491,6 +491,19 @@ checkout、600秒、check=True和verifier不变，不增加retry、不写配置�
 默认TLS验证未添加覆盖，不宣称实际运行时配置显式true或HTTP/2已证根因。下一次真实构建
 为唯一目标内协议复测；同因失败即停止该路径。新预算尚未初始化，真实Key未进入新安装。
 
+随后唯一HTTP1复测实际成功，67989622b新image0a27ad2e2b74d11cedd2238ce414d390eb4c1f3138018388c65514ff88dc1992
+已接受；宿主Mac/arm64、SDK48504、IId634c50ed9d9c4612a793fddaf78e5133，自动Web65247。
+公开start/Doctor/首页/static及模型绑定健康通过，初始configuredfalse/0sessions，未串用旧Key。
+新预算只init一次，canonical20261009，validUntil2026-10-09T04:13:14Z，3次/512/945564microUSD。
+普通stop/start后实际overlay预算/模型/512/noRetry/settingsdisabled/7Tabbitdisabled通过。
+用户在正常新设置页确认保存，公有configuredtrue、不读Key。首次样例研究提交HTTP202后
+实际失败acceptance_tool_limit，0tickets/0费用预扣/0assistant消息；原拒绝证据保留，未自动重试。
+SDK与真实生成preset证明supervisor的research_tools=True仍加载研究/Skill/MCP/子Agent目录，
+即使用户tool_ids空，冻结请求仍广告工具。仅在已验证docker-text后局部置research_tools=False
+并固定日志；不放宽guard、不改options/预算/普通模式。真实RED后197PASS1SDKskip，SPEC及
+Python/JSQUALITY批准；helper只resolve真实preset+create，不证明agent空tools，仍须新镜像。
+正常停止该失败且无活动任务安装，再构建修补；不改Key/IId/control/ledger或04:13截止。
+
 新SDK默认/目录为canonical deepseek-flash，旧授权tuple和已初始化ledger不适用；旧窗口已过期且
 0tickets/0cost。新的任务内隔离验收安装与最长1h预算另请求用户确认，全任务仍3请求/512输出/
 1USD；未创建新安装/启用新控制/复制真实Key。最终SDK485 Docker及真实文本/冷恢复/续问/同镜像

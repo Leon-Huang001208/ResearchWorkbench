@@ -1,5 +1,9 @@
 # 研究协议、执行状态与恢复
 
+显式批准的Docker纯文本预算profile在生成preset前强制局部research_tools=False，即使
+supervisor请求研究工具；不注册Skill、DataHub、MCP、脚本或子Agent目录。普通Native/Docker
+仍按原请求生成，最终冻结LLM tools检查、全工具/附件拒绝与永久预算预扣均保持，不改写options。
+
 Doctor绑定事实与actual backend/configured独立：完整owned/绑定/真实回环映射/healthy后GET原API，
 无代理/重定向，3秒header/body、16KiB及严格JSON/framing。失败unknown/warning，不改变core ok或付费调用。
 
