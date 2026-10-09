@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import json
-from typing import Literal
+from typing import Annotated, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Request
+from fastapi.responses import Response
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from .hot_service import HotWebError
@@ -41,6 +42,19 @@ class SourceRequest(BaseModel):
     expectedRevision: str = Field(pattern=r"^\d{1,18}$")
     enabled: bool | None = Field(default=None, strict=True)
     frequencySeconds: int | None = Field(default=None, ge=0, le=86400, strict=True)
+    requestId: str = Field(pattern=UUID_PATTERN)
+
+
+class BriefRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    briefId: str = Field(pattern=UUID_PATTERN)
+    expectedVersion: int = Field(ge=0, lt=1000000, strict=True)
+    eventIds: list[Annotated[str, Field(pattern=UUID_PATTERN, strict=True)]] = Field(min_length=1, max_length=20)
+    channelId: str = Field(pattern=r"^[a-z][a-z0-9_-]{0,47}$")
+    cutoff: str = Field(min_length=1, max_length=100)
+    timezone: str | None = Field(default=None, min_length=1, max_length=100)
+    from_: str | None = Field(default=None, alias="from", min_length=1, max_length=100)
+    to: str | None = Field(default=None, min_length=1, max_length=100)
     requestId: str = Field(pattern=UUID_PATTERN)
 
 
@@ -117,6 +131,35 @@ async def detail(event_id: str, request: Request):
 async def sources(request: Request):
     query(request, set())
     return {"items": await request.app.state.hot.call("sources")}
+
+
+@router.get("/briefs")
+async def briefs(request: Request):
+    return await request.app.state.hot.call("briefs", query(request, {"cutoff", "limit", "offset"}, {"limit", "offset"}))
+
+
+@router.post("/briefs")
+async def create_brief(request: Request):
+    value = await body(request, BriefRequest)
+    request_id = str(UUID(value.requestId))
+    params = value.model_dump(by_alias=True, exclude_none=True, exclude={"requestId"})
+    return await request.app.state.hot.call("create_brief", params, request_id, request_id=request_id)
+
+
+@router.get("/briefs/{brief_id}")
+async def brief_detail(brief_id: str, request: Request):
+    params = query(request, {"version"}, {"version"})
+    return await request.app.state.hot.call("brief_detail", brief_id, params.get("version"))
+
+
+@router.get("/briefs/{brief_id}/markdown")
+async def brief_markdown(brief_id: str, request: Request):
+    params = query(request, {"version"}, {"version"})
+    result = await request.app.state.hot.call("brief_export", brief_id, params.get("version"))
+    return Response(result["text"], media_type="text/markdown", headers={
+        "Content-Disposition": f'attachment; filename="hot-brief-{result["briefId"]}-v{result["version"]}.md"',
+        "Cache-Control": "no-store", "X-Hot-Content-Hash": result["contentHash"],
+    })
 
 
 @router.post("/channels/configure")

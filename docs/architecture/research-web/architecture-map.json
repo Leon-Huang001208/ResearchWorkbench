@@ -2959,6 +2959,34 @@
     },
     {
       "source": "app/research_web/hot_routes.py",
+      "method": "GET",
+      "path": "/api/research/hot/briefs",
+      "declaredPath": "/briefs",
+      "prefix": "/api/research/hot"
+    },
+    {
+      "source": "app/research_web/hot_routes.py",
+      "method": "POST",
+      "path": "/api/research/hot/briefs",
+      "declaredPath": "/briefs",
+      "prefix": "/api/research/hot"
+    },
+    {
+      "source": "app/research_web/hot_routes.py",
+      "method": "GET",
+      "path": "/api/research/hot/briefs/{brief_id}",
+      "declaredPath": "/briefs/{brief_id}",
+      "prefix": "/api/research/hot"
+    },
+    {
+      "source": "app/research_web/hot_routes.py",
+      "method": "GET",
+      "path": "/api/research/hot/briefs/{brief_id}/markdown",
+      "declaredPath": "/briefs/{brief_id}/markdown",
+      "prefix": "/api/research/hot"
+    },
+    {
+      "source": "app/research_web/hot_routes.py",
       "method": "POST",
       "path": "/api/research/hot/channels/configure",
       "declaredPath": "/channels/configure",

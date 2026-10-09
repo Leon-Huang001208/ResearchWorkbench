@@ -198,3 +198,5 @@ Lieflat 图表只保留数据编码所需线、格、刻度与数值标签：价
 更新，latest request wins。只有 runtime pending 复用可见 `connecting` token，只有 settled runtime
 failure 复用 `offline` token；能力、会话等其他目录的 pending/failure 不提升为这两个全局状态。
 没有新增布局、主题变量、响应式断点或交互组件，信息架构、Automation 入口和既有 Light/Dark 关系不变。
+
+Hot简报列表和冻结详情复用hot-card/hot-detail/既有主题，来源文本转义；只读简报移除材料纠错选择框，未知时间/原判断版本保持清晰。固定版本Markdown使用原生附件下载，不改变字体、全局断点或框架画布。当前只有renderer/竞态测试证据，新浏览器视口旅程待验收。

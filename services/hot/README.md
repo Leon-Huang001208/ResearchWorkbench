@@ -550,3 +550,29 @@ allows4MiB. Lists expose at most50 metadata entries with a fixed cutoff; later
 pages require that cutoff and use the latest brief version available then.
 This is an internal signed API checkpoint. No new queue, paid request, scheduled
 brief, research execution or public UI/CLI is implied.
+
+## Web brief checkpoint
+
+Host now provides GET/POST `/api/research/hot/briefs`, GET `/briefs/{id}` and
+GET `/briefs/{id}/markdown` (under that prefix). POST requires the existing
+Origin boundary, explicit action header, bounded JSON/typed fields and request UUID.
+Manager validates cheap fields before key lookup, writes with controller credentials
+and reads/exports with the reader. Unknown creation keeps its exact UUID/body.
+The workspace briefs tab lists saved versions; event detail explicitly creates a
+brief using its own cutoff, selected channel, current publication window and timezone.
+Web preview separates frozen grouping summaries, publisher excerpts and channel
+judgments; corrections are not offered on readonly brief reports. The Markdown
+link always selects the displayed saved version, never a mutable latest head.
+
+Signed brief.export serves <=32768 UTF8 bytes per page, aligned at character
+boundaries. Later pages require a positive fixed version. Host retains initial
+version/owner/hash, verifies each offset/size/identity, bounds assembly to4MiB and
+checks complete Markdown SHA256 before returning an attachment with no-store.
+Saved payload hash and exported text hash are distinct. This supports publisher
+text whose Markdown escaping would exceed a single1MiB signed frame.
+
+HTTP-to-Manager-to-owned Node/PG fixtures use an installed Web Python selected by
+RWB_HOT_TEST_PYTHON, defaulting to checkout .venv/bin/python on this macOS task.
+They use isolated in-memory credentials and synthetic event bodies, not real
+Keychain/model or browser acceptance. No new dependency, research session, scheduled
+brief or external delivery is created. DOCX/real browser acceptance remain pending.

@@ -1,6 +1,6 @@
 /** Controller-only immutable brief versions; request UUID replay never resamples evidence. */
 import type postgres from 'postgres';
-import {freezeBrief,sealBrief,type FrozenBrief,type BriefPayload} from './briefs.ts';
+import {freezeBrief,sealBrief,briefMarkdown,type FrozenBrief,type BriefPayload} from './briefs.ts';
 import {withOwnerTransaction,type RuntimeOwner} from './control.ts';
 import {schemaName} from './config.ts';
 import {canonicalGroupingInput} from './processing.ts';
@@ -22,6 +22,19 @@ export async function briefGet(db:Sql,schema:string,params:Params){
   const brief:FrozenBrief={payload:row.payload as BriefPayload,contentHash:row.content_hash};
   if(sealBrief(brief.payload).contentHash!==brief.contentHash)throw Error('hot_brief_integrity_invalid');
   return json({...metadata(row),payload:brief.payload});
+}
+export async function briefExport(db:Sql,schema:string,params:Params){
+  only(params,['briefId','version','offset']);const offset=integer(params.offset,0,0,4000000);
+  if(offset>0&&params.version===undefined)throw Error('hot_brief_cutoff_required');
+  if(offset>0)integer(params.version,0,1,1000000);
+  const saved=await briefGet(db,schema,{briefId:params.briefId,...(params.version===undefined?{}:{version:params.version})}) as unknown as {briefId:string;version:number;contentHash:string;payload:BriefPayload};
+  const bytes=Buffer.from(briefMarkdown({payload:saved.payload,contentHash:saved.contentHash}));
+  if(bytes.length>4000000)throw Error('hot_brief_limit');
+  if(offset>bytes.length||(offset<bytes.length&&(bytes[offset]&0xc0)===0x80))throw Error('hot_brief_params_invalid');
+  let end=Math.min(offset+32768,bytes.length);
+  while(end<bytes.length&&(bytes[end]&0xc0)===0x80)end--;
+  return json({briefId:saved.briefId,version:saved.version,contentHash:saved.contentHash,format:'markdown',
+    text:bytes.subarray(offset,end).toString('utf8'),offset,nextOffset:end<bytes.length?end:null,totalBytes:bytes.length,textHash:sha256(bytes)});
 }
 export async function briefList(db:Sql,schema:string,params:Params){
   schemaName(schema);only(params,['limit','offset','cutoff']);const limit=integer(params.limit,20,1,50),offset=integer(params.offset,0,0,10000);

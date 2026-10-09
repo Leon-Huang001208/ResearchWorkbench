@@ -335,7 +335,7 @@
       "id": "hotSubsystem",
       "type": "backend",
       "label": "可选 Hot 事件子系统",
-      "sublabel": "独立 Node / PG · 同一任务后端",
+      "sublabel": "共享证据 · 不可变简报 · 同一队列",
       "pos": [
         40,
         755

@@ -6,12 +6,12 @@
   "input": "/Users/leon/.codex/worktrees/hot-events-system/ResearchWorkbench/docs/architecture/research-web/diagrams/02-module-dependencies-final.json",
   "output": "/Users/leon/.codex/worktrees/hot-events-system/ResearchWorkbench/outputs/research-web-architecture/02-module-dependencies.html",
   "specification": {
-    "sha256": "bd909bcb087c37bf200c1b277ae313050542c4907d63a6a2504ef4d669957321",
-    "bytes": 14046
+    "sha256": "0afdf59f36b6b45e2d0d9ac7a9c4c25ba625bc7f8142b524efc1b2690895ef3f",
+    "bytes": 14055
   },
   "artifact": {
-    "sha256": "81873afbfde0a2e8ebe6a767ca61faf4ea5c1078ccebb0eec13c4cf9b4eb3d57",
-    "bytes": 659253
+    "sha256": "14312c6a90944b4efe0ce0a063df699a4c1229869d7a1cd668fba24ab5b21fef",
+    "bytes": 659289
   },
   "validation": {
     "checksPassed": 9,

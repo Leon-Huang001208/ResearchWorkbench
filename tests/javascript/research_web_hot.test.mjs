@@ -1,10 +1,11 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {createAPI,parseRoute} from '../../app/research_web/ui/core.mjs';
-import {createHotController,renderHotWorkspace,hotURL,hotTime} from '../../app/research_web/ui/hot-workspace.mjs';
+import {createHotController,renderHotWorkspace,renderHotBrief,hotURL,hotTime} from '../../app/research_web/ui/hot-workspace.mjs';
 
 test('Hot routes preserve existing app routes and explicit action API boundaries',async()=>{
   assert.equal(parseRoute('#/workbench/hot?view=sources').hotView,'sources');
+  assert.equal(parseRoute('#/workbench/hot?view=briefs').hotView,'briefs');
   assert.equal(parseRoute('#/settings/hot').settingsSection,'hot');
   const calls=[];
   const api=createAPI({logger:()=>{},fetcher:async(url,options)=>{calls.push({url,options});return {ok:true,status:200,json:async()=>({items:[]})};}});
@@ -12,6 +13,28 @@ test('Hot routes preserve existing app routes and explicit action API boundaries
   await api.hotCorrect({requestId:'opaque',reason:'review',change:{}});
   assert.match(calls[0].url,/q=100%25/);assert.equal(calls[0].options.method,'GET');
   assert.equal(calls[1].options.headers['X-Research-User-Action'],'?1');
+});
+test('brief creation freezes detail cutoff and unknown replay keeps the same brief and request UUID',async()=>{
+  const original=globalThis.FormData,bodies=[];let count=0,n=0;
+  globalThis.FormData=class {get(){return 'macro';}};
+  try{
+    const c=createHotController({uuid:()=>`id-${++n}`,api:{hotBriefCreate:async body=>{bodies.push(JSON.stringify(body));return ++count===1?{state:'outcome_unknown',requestId:body.requestId}:{briefId:body.briefId,version:1,requestId:body.requestId};},hotBrief:async()=>({payload:null})}});
+    c.state.detail={canonicalId:'event',revision:1,cutoff:'2026-10-08T00:00:00Z'};
+    c.state.cutoff='2026-10-09T00:00:00Z';c.state.filters.from='2026-01-01T00:00:00Z';
+    await c.submit({dataset:{hotForm:'brief'}});assert.ok(c.state.pending);
+    assert.equal(c.state.pending.body.cutoff,'2026-10-08T00:00:00Z');assert.equal(c.state.pending.body.from,'2026-01-01T00:00:00Z');
+    await c.action({dataset:{hotAction:'retry'}});assert.equal(c.state.pending,null);assert.equal(bodies[0],bodies[1]);assert.equal(n,2);
+  }finally{globalThis.FormData=original;}
+});
+test('late brief selection cannot replace a newer selection and readonly brief has no correction checkboxes',async()=>{
+  let first;
+  const c=createHotController({api:{hotBrief:async id=>id==='first'?new Promise(resolve=>{first=resolve;}):{briefId:id}}});
+  const pending=c.action({dataset:{hotAction:'open-brief',brief:'first',version:'1'}});
+  await c.action({dataset:{hotAction:'open-brief',brief:'second',version:'1'}});first({briefId:'first'});await pending;
+  assert.equal(c.state.brief.briefId,'second');
+  const html=renderHotBrief({briefId:'id',version:2,contentHash:'a'.repeat(64),payload:{timezone:'Asia/Shanghai',cutoff:null,channel:{channel_id:'macro',version:1},window:{from:null,to:null},limitations:[],events:[{title:'<script>bad</script>',canonicalId:'event',revision:1,judgments:[],reports:[{title:'source',excerpt:'<img src=x>',url:'javascript:bad',materialId:'material',revision:1,sources:[]}]}]}});
+  assert.ok(!html.includes('<script>bad'));assert.ok(!html.includes('<img'));assert.ok(!html.includes('javascript:'));assert.ok(!html.includes('data-hot-material'));
+  assert.ok(html.includes('markdown?version=2'));assert.ok(html.includes('来源摘录（发布者陈述）'));
 });
 
 test('rendering escapes news, permits safe external links and preserves unknown time',()=>{

@@ -6,12 +6,12 @@
   "input": "/Users/leon/.codex/worktrees/hot-events-system/ResearchWorkbench/docs/architecture/research-web/diagrams/01-deployment.json",
   "output": "/Users/leon/.codex/worktrees/hot-events-system/ResearchWorkbench/outputs/research-web-architecture/01-deployment.html",
   "specification": {
-    "sha256": "d45ad401fd451da1c47995461a13c43cda6ec429674104030303df87287488ce",
-    "bytes": 5406
+    "sha256": "19002b72441433528ee2d20176453c17e9af1dbd6595cfdbbff726333903e8b8",
+    "bytes": 5394
   },
   "artifact": {
-    "sha256": "894ef9cd0399761c34acb8e32227a0aa3e2f7d924834fa764035971a1ad01ddf",
-    "bytes": 641581
+    "sha256": "81a168d77e6326ca026536cf019cbba4907805209bd10697342e0b0c03be6caf",
+    "bytes": 641533
   },
   "validation": {
     "checksPassed": 9,

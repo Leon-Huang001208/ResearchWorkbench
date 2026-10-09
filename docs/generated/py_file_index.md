@@ -4498,6 +4498,7 @@ Module docstring:
 Imports:
 - `__future__`
 - `fastapi`
+- `fastapi.responses`
 - `hot_service`
 - `json`
 - `pydantic`
@@ -4509,6 +4510,7 @@ Classes:
 - `CorrectionRequest`
 - `LifecycleRequest`
 - `SourceRequest`
+- `BriefRequest`
 
 Functions:
 - `body`
@@ -4521,6 +4523,10 @@ Functions:
 - `events`
 - `detail`
 - `sources`
+- `briefs`
+- `create_brief`
+- `brief_detail`
+- `brief_markdown`
 - `configure_channel`
 - `correct`
 - `configure_source`

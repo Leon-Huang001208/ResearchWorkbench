@@ -86,6 +86,40 @@ class BridgeTests(unittest.IsolatedAsyncioTestCase):
 
 
 class RouteTests(unittest.TestCase):
+    def test_brief_post_requires_action_and_markdown_only_reads_saved_version(self):
+        seen = []
+        brief = "22222222-2222-4222-8222-222222222222"
+        request_id = "11111111-1111-4111-8111-111111111111"
+        class Bridge:
+            async def call(self, operation, *args, **kwargs):
+                seen.append((operation, args, kwargs))
+                if operation == "brief_export":
+                    return {"briefId": brief, "version": 2, "contentHash": "a" * 64, "text": "# Frozen brief\n"}
+                return {"requestId": request_id, "version": 1}
+        app = FastAPI()
+        app.include_router(router)
+        app.state.hot = Bridge()
+        @app.exception_handler(HotWebError)
+        async def error(request, exc):
+            return JSONResponse({"error": {"code": exc.code}}, status_code=exc.status)
+        params = {"briefId": brief, "eventIds": [brief], "expectedVersion": 0, "channelId": "macro", "cutoff": "2026-10-08T00:00:00Z", "requestId": request_id}
+        with TestClient(app) as client:
+            self.assertEqual(client.post("/api/research/hot/briefs", json=params).status_code, 403)
+            self.assertEqual(seen, [])
+            headers = {"X-Research-User-Action": "?1"}
+            self.assertEqual(client.post("/api/research/hot/briefs", json={**params, "expectedVersion": True}, headers=headers).status_code, 400)
+            self.assertEqual(client.post("/api/research/hot/briefs", json=params, headers=headers).status_code, 200)
+            self.assertEqual(seen[-1][2]["request_id"], request_id)
+            self.assertNotIn("requestId", seen[-1][1][0])
+            response = client.get(f"/api/research/hot/briefs/{brief}/markdown?version=2")
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.text, "# Frozen brief\n")
+            self.assertEqual(response.headers["cache-control"], "no-store")
+            self.assertIn("-v2.md", response.headers["content-disposition"])
+            self.assertEqual(seen[-1][0], "brief_export")
+            self.assertEqual(seen[-1][1], (brief, 2))
+            self.assertEqual(client.get(f"/api/research/hot/briefs/{brief}/markdown?sql=bad").status_code, 400)
+
     def test_read_projection_and_explicit_control_body_are_bounded(self):
         seen = []
         class Bridge:

@@ -49,6 +49,50 @@ class HotManagerTests(unittest.TestCase):
                     self.assertEqual(call.call_args.args[3], "events.list")
                     self.assertEqual(call.call_args.args[4]["offset"], 20)
 
+    def test_brief_reads_and_export_use_reader_and_validate_identity(self):
+        brief = "22222222-2222-4222-8222-222222222222"
+        reply = {"briefId": brief, "version": 1, "contentHash": "a" * 64, "payload": {"schemaVersion": 1}}
+        with patch.object(self.manager, "_state", return_value={"port": 1234, "owner": {}}), patch.object(self.manager, "_secret", return_value="reader") as secret:
+            with patch("research_workbench_entrypoint.hot_manager.rpc", return_value=reply) as call:
+                self.assertEqual(self.manager.brief_detail(brief, 1), reply)
+                self.assertEqual(call.call_args.args[3], "brief.get")
+                secret.assert_called_once_with("rpc-reader")
+            with patch("research_workbench_entrypoint.hot_manager.rpc", return_value={**reply, "briefId": "foreign"}):
+                with self.assertRaisesRegex(HotError, "hot_rpc_invalid"):
+                    self.manager.brief_detail(brief, 1)
+        with patch.object(self.manager, "_secret") as secret:
+            with self.assertRaisesRegex(HotError, "hot_brief_identity_invalid"):
+                self.manager.brief_detail("../foreign", 1)
+            secret.assert_not_called()
+
+    def test_brief_creation_keeps_unknown_uuid_and_rejects_input_before_keys(self):
+        self.manager.directory.mkdir(mode=0o700)
+        request = "11111111-1111-4111-8111-111111111111"
+        params = {"briefId": request, "expectedVersion": 0, "eventIds": [request], "channelId": "macro", "cutoff": "2026-10-08T00:00:00Z"}
+        with patch.object(self.manager, "_state", return_value={"port": 1234, "owner": {}}), patch("research_workbench_entrypoint.hot_manager.rpc", side_effect=HotError("hot_rpc_timeout")):
+            result = self.manager.create_brief(params, request)
+            self.assertEqual(result["state"], "outcome_unknown")
+            self.assertEqual(result["requestId"], request)
+        with patch.object(self.manager, "_secret") as secret:
+            with self.assertRaisesRegex(HotError, "hot_brief_params_invalid"):
+                self.manager.create_brief({**params, "expectedVersion": True}, request)
+            secret.assert_not_called()
+
+    def test_brief_export_assembles_fixed_version_chunks_and_rejects_hash_mismatch(self):
+        import hashlib
+        brief = "22222222-2222-4222-8222-222222222222"
+        text = "&" * 32768 + "中文🙂"
+        encoded = text.encode()
+        base = {"briefId": brief, "version": 2, "contentHash": "a" * 64, "format": "markdown", "totalBytes": len(encoded), "textHash": hashlib.sha256(encoded).hexdigest()}
+        chunks = [{**base, "offset": 0, "nextOffset": 32768, "text": "&" * 32768}, {**base, "offset": 32768, "nextOffset": None, "text": "中文🙂"}]
+        with patch.object(self.manager, "_state", return_value={"port": 1234, "owner": {}}), patch.object(self.manager, "_secret", return_value="reader"):
+            with patch("research_workbench_entrypoint.hot_manager.rpc", side_effect=chunks) as call:
+                self.assertEqual(self.manager.brief_export(brief)["text"], text)
+                self.assertEqual(call.call_args.args[4], {"briefId": brief, "version": 2, "offset": 32768})
+            with patch("research_workbench_entrypoint.hot_manager.rpc", side_effect=[chunks[0], {**chunks[1], "text": "changed"}]):
+                with self.assertRaisesRegex(HotError, "hot_rpc_invalid"):
+                    self.manager.brief_export(brief, 2)
+
     def test_channel_control_unknown_keeps_uuid_and_uses_controller(self):
         self.manager.directory.mkdir(mode=0o700)
         request = "11111111-1111-4111-8111-111111111111"

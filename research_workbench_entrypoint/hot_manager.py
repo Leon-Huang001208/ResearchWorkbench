@@ -79,7 +79,12 @@ def rpc(port: int, owner: dict, key: str, operation: str, params: dict | None = 
                      "hot_event_link_cycle", "hot_event_link_depth", "hot_event_graph_limit", "hot_event_alias_requires_canonical",
                      "hot_projection_params_invalid", "hot_projection_cutoff_invalid", "hot_projection_cutoff_required",
                      "hot_projection_sort_invalid", "hot_projection_channel_invalid", "hot_projection_channel_unknown",
-                     "hot_projection_event_invalid", "hot_projection_event_unknown")
+                     "hot_projection_event_invalid", "hot_projection_event_unknown",
+                     "hot_brief_identity_invalid", "hot_brief_params_invalid", "hot_brief_limit", "hot_brief_persist_limit",
+                     "hot_brief_window_invalid", "hot_brief_timezone_invalid", "hot_brief_unknown", "hot_brief_channel_unknown",
+                     "hot_brief_selection_invalid", "hot_brief_selection_alias_duplicate", "hot_brief_selection_outside_window",
+                     "hot_brief_evidence_missing", "hot_brief_integrity_invalid", "hot_brief_request_conflict", "hot_brief_version_conflict",
+                     "hot_brief_control_denied", "hot_brief_cutoff_required", "hot_brief_cutoff_invalid", "hot_brief_cancelled")
             raise HotError(code if code in known else "hot_rpc_unavailable")
         return result["result"]
     except HotError:
@@ -253,7 +258,7 @@ class HotManager:
         return value
 
     def _read_projection(self, operation: str, params: dict) -> dict:
-        if operation not in ("channels", "events.list", "event.detail"):
+        if operation not in ("channels", "events.list", "event.detail", "brief.list"):
             raise HotError("hot_projection_operation_invalid")
         state = self._state()
         if state is None:
@@ -277,8 +282,93 @@ class HotManager:
             params["cutoff"] = cutoff
         return self._read_projection("event.detail", params)
 
+    @staticmethod
+    def _brief_id(value):
+        if not isinstance(value, str) or not re.fullmatch(r"[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}", value):
+            raise HotError("hot_brief_identity_invalid")
+        return str(UUID(value))
+
+    def briefs(self, filters: dict | None = None) -> dict:
+        return self._read_projection("brief.list", filters or {})
+
+    def _brief_read(self, brief_id: str, version: int | None, export: bool = False) -> dict:
+        brief_id = self._brief_id(brief_id)
+        if version is not None and (type(version) is not int or not 1 <= version <= 1000000):
+            raise HotError("hot_brief_params_invalid")
+        state = self._state()
+        if state is None:
+            raise HotError("hot_service_stopped")
+        params = {"briefId": brief_id, **({"version": version} if version is not None else {})}
+        reader = self._secret("rpc-reader")
+        value = rpc(state["port"], state["owner"], reader, "brief.export" if export else "brief.get", params)
+        if (not isinstance(value, dict) or value.get("briefId") != brief_id or type(value.get("version")) is not int
+                or not 1 <= value["version"] <= 1000000 or (version is not None and value["version"] != version)
+                or not isinstance(value.get("contentHash"), str) or not re.fullmatch(r"[a-f0-9]{64}", value["contentHash"])):
+            raise HotError("hot_rpc_invalid")
+        if export:
+            first = value
+            if (type(first.get("totalBytes")) is not int or not 0 <= first["totalBytes"] <= 4000000
+                    or not isinstance(first.get("textHash"), str) or not re.fullmatch(r"[a-f0-9]{64}", first["textHash"])):
+                raise HotError("hot_rpc_invalid")
+            params["version"] = first["version"]
+            data, offset = bytearray(), 0
+            for _ in range(128):
+                if (not isinstance(value, dict) or value.get("briefId") != brief_id or value.get("version") != first["version"]
+                        or value.get("contentHash") != first["contentHash"] or value.get("textHash") != first["textHash"]
+                        or value.get("totalBytes") != first["totalBytes"] or value.get("offset") != offset
+                        or value.get("format") != "markdown" or not isinstance(value.get("text"), str)):
+                    raise HotError("hot_rpc_invalid")
+                chunk = value["text"].encode()
+                if len(chunk) > 32768 or (not chunk and offset < first["totalBytes"]):
+                    raise HotError("hot_rpc_invalid")
+                data.extend(chunk)
+                offset += len(chunk)
+                if offset > first["totalBytes"]:
+                    raise HotError("hot_rpc_invalid")
+                if offset == first["totalBytes"]:
+                    if value.get("nextOffset") is not None or hashlib.sha256(data).hexdigest() != first["textHash"]:
+                        raise HotError("hot_rpc_invalid")
+                    value = {**first, "text": data.decode(), "nextOffset": None}
+                    break
+                if type(value.get("nextOffset")) is not int or value["nextOffset"] != offset:
+                    raise HotError("hot_rpc_invalid")
+                value = rpc(state["port"], state["owner"], reader, "brief.export", {**params, "offset": offset})
+            else:
+                raise HotError("hot_rpc_invalid")
+        elif not isinstance(value.get("payload"), dict) or value["payload"].get("schemaVersion") != 1:
+            raise HotError("hot_rpc_invalid")
+        log.info("hot_brief_read")
+        return value
+
+    def brief_detail(self, brief_id: str, version: int | None = None) -> dict:
+        return self._brief_read(brief_id, version)
+
+    def brief_export(self, brief_id: str, version: int | None = None) -> dict:
+        return self._brief_read(brief_id, version, True)
+
+    def create_brief(self, params: dict, request_id: str | None = None) -> dict:
+        required = {"briefId", "expectedVersion", "eventIds", "channelId", "cutoff"}
+        if not isinstance(params, dict) or not required <= params.keys() or set(params) - required - {"from", "to", "timezone"}:
+            raise HotError("hot_brief_params_invalid")
+        params = dict(params)
+        params["briefId"] = self._brief_id(params["briefId"])
+        if (type(params["expectedVersion"]) is not int or not 0 <= params["expectedVersion"] < 1000000
+                or not isinstance(params["eventIds"], list) or not 1 <= len(params["eventIds"]) <= 20
+                or not isinstance(params["channelId"], str) or not re.fullmatch(r"[a-z][a-z0-9_-]{0,47}", params["channelId"])
+                or any(not isinstance(params[key], str) or not params[key] or len(params[key]) > 100 for key in {"cutoff", "from", "to", "timezone"} & params.keys())):
+            raise HotError("hot_brief_params_invalid")
+        params["eventIds"] = [self._brief_id(value) for value in params["eventIds"]]
+        if len(set(params["eventIds"])) != len(params["eventIds"]):
+            raise HotError("hot_brief_params_invalid")
+        def receipt(value, request):
+            return (isinstance(value, dict) and value.get("briefId") == params["briefId"] and type(value.get("version")) is int
+                    and value["version"] == params["expectedVersion"] + 1 and value.get("requestId") == request
+                    and isinstance(value.get("contentHash"), str) and re.fullmatch(r"[a-f0-9]{64}", value["contentHash"])
+                    and isinstance(value.get("createdAt"), str))
+        return self._control_projection("brief.create", params, request_id, receipt)
+
     def _control_projection(self, operation: str, params: dict, request_id: str | None, valid_receipt) -> dict:
-        if operation not in ("channel.configure", "event.correct"):
+        if operation not in ("channel.configure", "event.correct", "brief.create"):
             raise HotError("hot_control_operation_invalid")
         if request_id is not None and (not isinstance(request_id, str) or not re.fullmatch(r"[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}", request_id)):
             raise HotError("hot_control_request_invalid")

@@ -219,3 +219,5 @@ model-pricing-import 要求显式官方核对标记和停机；不读取凭据�
 Hot简报冻结核心使用只读repeatable-read事务与精确版本引用；有界规范JSON摘要只用于完整性检查，不充当身份认证。Markdown转义发布者HTML与块级标记，外链仅允许无userinfo的HTTP(S)，原始判断与继承后应用版本分别呈现。日志只记固定事件类别/数量，不写原文；当前不开放浏览器导出或研究创建路由。
 
 持久简报写仅controller可用；request与version不可变，输入严格字段白名单，发布时间窗口和资料校验在冻结核心执行。发布保留owner/代次检查，读取复验hash；350000字节输入限制为现有1MiB签名帧留余量。公开Host导出与研究受理边界尚未实现。
+
+Hot简报Host输入在读key前验证身份、严格版本和选材边界，Node仍是窗口/归组/预算权威。预览转义发布者文本并限定HTTP(S)无userinfo外链；下载只返回经固定版本分块与最终SHA256验证的Markdown附件，无缓存。块offset/大小/总长/哈希/identity一致才接收；Unicode字节边界和后续version0拒绝有回归。

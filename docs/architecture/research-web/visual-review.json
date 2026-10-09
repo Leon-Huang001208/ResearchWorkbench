@@ -131,45 +131,45 @@
     },
     {
       "id": "01-deployment",
-      "artifactSha256": "894ef9cd0399761c34acb8e32227a0aa3e2f7d924834fa764035971a1ad01ddf",
-      "specificationSha256": "d45ad401fd451da1c47995461a13c43cda6ec429674104030303df87287488ce",
+      "artifactSha256": "81a168d77e6326ca026536cf019cbba4907805209bd10697342e0b0c03be6caf",
+      "specificationSha256": "19002b72441433528ee2d20176453c17e9af1dbd6595cfdbbff726333903e8b8",
       "status": "reviewed",
-      "reviewer": "codex-controller",
-      "date": "2026-10-08",
+      "reviewer": "Codex image inspection",
+      "date": "2026-10-09",
       "captures": [
         "01-deployment.visual-check.1440x900.light.png",
         "01-deployment.visual-check.2048x1320.dark.png"
       ],
       "findings": [],
-      "notes": "Codex主控制器实际查看最终小视口浅色/大视口深色截图：节点、角色边界、关系标签和待实现交接可读，未见遮挡/穿线/裁剪；自动四视口containment另有回执。该视觉复核不是独立人工金标准或功能/安装验收。"
+      "notes": "实际查看当前哈希的1440浅色和2048深色截图：Hot简报/数据边界标签可读，无新增遮挡或裁剪。四视口包含检查与9项结构检查分别通过；本次仅图形视觉检查，不证明产品简报浏览器、模型、DOCX或研究验收。"
     },
     {
       "id": "02-module-dependencies",
-      "artifactSha256": "81873afbfde0a2e8ebe6a767ca61faf4ea5c1078ccebb0eec13c4cf9b4eb3d57",
-      "specificationSha256": "bd909bcb087c37bf200c1b277ae313050542c4907d63a6a2504ef4d669957321",
+      "artifactSha256": "14312c6a90944b4efe0ce0a063df699a4c1229869d7a1cd668fba24ab5b21fef",
+      "specificationSha256": "0afdf59f36b6b45e2d0d9ac7a9c4c25ba625bc7f8142b524efc1b2690895ef3f",
       "status": "reviewed",
-      "reviewer": "codex-controller",
-      "date": "2026-10-08",
+      "reviewer": "Codex image inspection",
+      "date": "2026-10-09",
       "captures": [
         "02-module-dependencies.visual-check.1440x900.light.png",
         "02-module-dependencies.visual-check.2048x1320.dark.png"
       ],
       "findings": [],
-      "notes": "Codex主控制器实际查看最终小视口浅色/大视口深色截图：节点、角色边界、关系标签和待实现交接可读，未见遮挡/穿线/裁剪；自动四视口containment另有回执。该视觉复核不是独立人工金标准或功能/安装验收。"
+      "notes": "实际查看当前哈希的1440浅色和2048深色截图：Hot简报/数据边界标签可读，无新增遮挡或裁剪。四视口包含检查与9项结构检查分别通过；本次仅图形视觉检查，不证明产品简报浏览器、模型、DOCX或研究验收。"
     },
     {
       "id": "11-hot-events",
-      "artifactSha256": "8d30fc317601e5533767407cd2e352d4712497642c44806a9955436306b0b390",
-      "specificationSha256": "89df9965c42661300269a04460b34c1b69c5abe4ea6c3d58f1e870f46a19f5a7",
+      "artifactSha256": "41f95fd9e29af42c5e603a7f958ec95017604d9734abbd06e83b897e64d817e1",
+      "specificationSha256": "5dcd47323e77a5c64d59776d71ff0751fac0da3568c3515a5a30d80aa9c6b2c8",
       "status": "reviewed",
-      "reviewer": "codex-controller",
+      "reviewer": "Codex image inspection",
       "date": "2026-10-09",
       "captures": [
         "11-hot-events.visual-check.1440x900.light.png",
         "11-hot-events.visual-check.2048x1320.dark.png"
       ],
       "findings": [],
-      "notes": "主控制器实际查看最终小视口浅色/大视口深色截图，独立模型管理到PG边界标签完全可读，管理路径与worker/未来研究路径分开；初次左边界裁切已修复，四视口containment另有回执。此视觉复核不证明模型、安装、研究或平台验收。"
+      "notes": "实际查看当前哈希的1440浅色和2048深色截图：Hot简报/数据边界标签可读，无新增遮挡或裁剪。四视口包含检查与9项结构检查分别通过；本次仅图形视觉检查，不证明产品简报浏览器、模型、DOCX或研究验收。"
     }
   ]
 }

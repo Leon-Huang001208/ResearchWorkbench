@@ -69,3 +69,5 @@ Research Workbench Method 层不改变 Gold／Dollar 的领域定义、版本、
 
 资产观察对 AKShare 财务缺失哨兵的规范化不进入 Gold／Dollar 专用 collector、快照 schema、评分或
 Bot 上下文；框架数据缺口仍只由各自严格契约判断。
+
+Hot简报继续绑定Hot自身事件/材料/频道版本，来源陈述、规则/模型/人工判断独立展示；不借用或伪造Gold/Dollar框架快照、研究方法revision或Bot会话归属。共享UIcore只增加Hot简报子路由，正式框架handoff仍待接入现有ResearchService。

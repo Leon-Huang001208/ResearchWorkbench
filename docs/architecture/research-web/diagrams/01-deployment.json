@@ -130,7 +130,7 @@
       "id": "hotNode",
       "type": "backend",
       "label": "可选 Hot Node / Worker",
-      "sublabel": "Native 签名接口 · 模型激活待接入",
+      "sublabel": "签名接口 · 冻结简报",
       "row": 4,
       "col": 1,
       "size": [
@@ -142,7 +142,7 @@
       "id": "hotPg",
       "type": "database",
       "label": "独立 Hot PostgreSQL",
-      "sublabel": "原文 · 版本 · 唯一持久队列",
+      "sublabel": "原文 · 事件 · 简报 · 唯一队列",
       "row": 4,
       "col": 2,
       "size": [

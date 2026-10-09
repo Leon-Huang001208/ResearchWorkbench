@@ -73,3 +73,5 @@ Hot Native 模型工厂已在 macOS 经实际受控凭据/固定DSH目录、两�
 macOS 模型管理三条 CLI 已经现有解释器/配置桥、独立 Node 与真实 PG 验证，凭据和 interpreter 选择在测试中隔离。它不证明真实 SystemKeychain 管理完整生命周期、安装级授权 worker、Mac 干净 CI 或其他平台支持。
 
 macOS 定价 CLI 的真实校验/文件发布、重放及故障注入已本地验证；无模型/PG调用，测试不证明完整安装、SystemKeychain、事件浏览或其他平台支持。
+
+Hot本轮新增网页冻结简报和Markdown；macOS本地真实HTTP→Manager→Node/PG使用隔离凭据/合成内容验证，大文本文字转义导致的>1MiB导出通过分块解决。真实浏览器、原验收库迁移15、DOCX、Docker模式及同提交Mac安装CI仍待验收；不提升Windows/Linux支持声明。
