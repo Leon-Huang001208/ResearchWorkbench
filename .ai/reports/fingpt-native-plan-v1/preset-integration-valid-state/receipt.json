@@ -1,0 +1,14 @@
+{
+  "status": "PASS",
+  "pin": "48504f07f217f9fd45a4f6d8fca4b1ed35c2d4b0",
+  "modelCalls": 0,
+  "scope": "real agent-preset registry mounts the production Todo YAML row; other research plugins are outside this focused probe",
+  "baseBundleIncludesRequiredPackages": true,
+  "scopeOnlyToolRegistration": true,
+  "twoSessionsIsolated": true,
+  "nextTurnCleared": true,
+  "durableTodoWrites": 2,
+  "sourceModuleSHA256": "74eed074d1b056cc0a029f9b8343bc9337c14f04696c528daaedcbebe9842a17",
+  "loadedModuleSHA256": "6baad8bf8e53647319b408cbab0c8c13c0693f65d20b779484c4436f47a6a11b",
+  "eventsSHA256": "41b78d9bef2f2af2322d47b9a228d50da89085ee4fb23a59da784b454a9f101d"
+}

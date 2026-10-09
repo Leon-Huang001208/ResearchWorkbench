@@ -1,5 +1,11 @@
 # 部署与模块职责
 
+原生研究计划沿用 DSH 唯一执行与日志源：研究 preset 注册已有 Todo，Web projection
+读取同会话日志并向既有详情/SSE snapshot 添加计划字段，研究空间只读显示。
+新增快照字段不创建调度器、正文库或持久 schema；Native/Docker 部署和生命周期不变。
+固定插件无模型进程内集成不代替完整服务启动、干净安装或同平台 GitHub CI。
+
+
 Automation 原生关联检查点复用同一 Host 的 Store.save 原子索引，普通会话创建后先落盘再提交；报告已知的主关联及随后出现的 Claw 会话关联也在监控前落盘。恢复重用已证明原生任务，报告须保持自身校验链；组件、部署、唯一 DSH 与调度拓扑未变。
 
 Native→Docker 顺序切换在公开 Native stop 成功后，沿原 stdlib bootstrap 有界等待

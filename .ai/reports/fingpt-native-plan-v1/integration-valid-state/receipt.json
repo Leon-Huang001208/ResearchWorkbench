@@ -1,0 +1,12 @@
+{
+  "status": "PASS",
+  "pin": "48504f07f217f9fd45a4f6d8fca4b1ed35c2d4b0",
+  "modelCalls": 0,
+  "productionRuntimeTouched": false,
+  "transport": "in-process real native registries",
+  "todoWrites": 2,
+  "durableRead": true,
+  "nextTurnCleared": true,
+  "finalDurableLogValidated": true,
+  "eventsSHA256": "a38ef1c9233db8b0c130449327c1fbd7606fa7d02c256bcec170f86a5b598640"
+}

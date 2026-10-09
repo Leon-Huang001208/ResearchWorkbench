@@ -1,5 +1,10 @@
 # 研究框架
 
+原生 Todo 仅进入研究 preset 与现有研究空间；Gold/Dollar 的采集、评分、Bot 快照和
+framework-explain/framework-verify preset 不增加 Todo 或改变契约。研究空间的原生计划
+来自会话日志，与框架步骤及 Workflow 版本说明分别呈现，不推断阶段归属。
+
+
 异根 Native pair 的私有记录认证在框架消费者启动前复核单写者边界；不同根的完整已认证
 日常实例可继续运行，同根或未知 writer 仍拒绝。框架定义、快照/评分/Bot 合同不变；该源码
 fixture 不替代安装后实际框架生命周期或 Native/Docker 同根数据往返验收。

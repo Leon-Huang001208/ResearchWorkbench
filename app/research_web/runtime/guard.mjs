@@ -5,6 +5,7 @@ import { nativeAdmission } from './public-data.mjs';
 export const inject = ['tools', 'llm', 'sessions'];
 
 export const RESEARCH_TOOLS = new Set([
+  'todo_write',
   'research_run_script',
   'research_document_operation',
   'rwb_record_method_use',

@@ -1,5 +1,12 @@
 # Research Web 接口清单
 
+会话详情与 SSE snapshot 新增只读计划投影字段：`plan` 为 null 或
+`{turn, seq, version, todos:[{content,status}]}`；`plan_history_incomplete` 标记原生日志
+缺失/间断，`plan_error` 仅在无法确认计划时存在。`version` 绑定原生回合及日志写入序列，
+不提供稳定 item ID。新回合、无 Todo、错误 Todo 不复用旧快照；原生空列表与无计划不同。
+计划状态不修改会话终态或 `delivery`，不新增路由、提交操作或正文存储。
+
+
 DSH 0.2.1 升级保持公开 HTTP 合同。内部 `subagent.list` 适配已移除的上游方法：读取权威父会话 `subagentCatalog` 投影，并与实时 `session/list` 的子会话归属、模式和 running 状态交叉核对；输出映射为既有 `kind=child` 与 `activity=running/inactive`，供详情、归属、取消及空闲保护共同消费；缺失或未知状态返回协议失败，不用空列表解除活动保护。空实例默认 `deepseek-flash`，已保存旧模型值继续保留。保存、应用、真实推理仍分别返回事实，不因默认值更新自动调用模型。
 
 Automation 本轮没有新增 HTTP 路由、请求字段或响应 schema。现有运行记录在执行中可返回已保存原生关联；failure_code 可报告 automation_reference_invalid、automation_reference_conflict、automation_reference_persistence_failed 或 native_submission_unconfirmed。关联错误不触发自动研究重试，报告成功仍取原报告校验/产物事实。

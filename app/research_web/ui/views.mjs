@@ -91,6 +91,17 @@ export function renderDatasets(sessionID, datasets = []) {
   return `<section class="context-section datasets-panel" aria-label="研究资料"><div class="section-heading"><h3>研究资料</h3><span class="count">${datasets.length}</span></div><p class="muted small">资料输入独立于生成文件和交付状态。</p>${cards}</section>`;
 }
 
+export function renderResearchPlan(detail) {
+  const plan = detail?.plan;
+  const error = detail?.plan_error;
+  const incomplete = detail?.plan_history_incomplete === true;
+  if (!plan && !error && !incomplete) return '';
+  const labels = { pending: '待开始', in_progress: '进行中', completed: '已完成' };
+  const items = !error && Array.isArray(plan?.todos) ? plan.todos : [];
+  const terminal = ['failed', 'cancelled', 'interrupted', 'blocked', 'incomplete'].includes(detail?.status);
+  return `<section class="context-section research-plan" aria-label="原生研究计划"><div class="section-heading"><h3>原生研究计划</h3>${plan && !error ? `<span class="count">回合 ${e(plan.turn)} · 版本 ${e(plan.version)}</span>` : ''}</div>${error ? `<p class="notice error" role="alert">${e(error)}</p>` : ''}${incomplete ? '<p class="notice" role="status">计划历史不完整；仅显示已读取原生日志能确认的快照。</p>' : ''}${terminal ? `<p class="small">研究${e(statusText(detail.status))}；计划项保留最后一次原生状态。</p>` : ''}${items.length ? `<ol class="native-todo-list">${items.map(item => `<li><span class="native-todo-status">${e(labels[item.status] || '状态未知')}</span><span>${e(item.content)}</span></li>`).join('')}</ol>` : plan && !error ? '<p class="muted small">本回合的原生计划为空。</p>' : ''}<p class="muted small">计划状态不证明并行执行；计划项完成不代表文件交付完成。</p></section>`;
+}
+
 export function renderActivities(detail) {
   const activities = detail?.activities || []; const agents = detail?.subagents || [];
   const duration = (value) => Number.isFinite(value) && value >= 0 ? ` · ${(value / 1000).toFixed(1)} 秒` : '';

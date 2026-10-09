@@ -1,0 +1,93 @@
+{
+  "active": {
+    "source": "真实原生日志：第一次todo_write",
+    "detail": {
+      "plan": {
+        "turn": 1,
+        "seq": 1,
+        "version": "1:1",
+        "todos": [
+          {
+            "content": "Read evidence",
+            "status": "in_progress"
+          },
+          {
+            "content": "Check state",
+            "status": "in_progress"
+          }
+        ]
+      },
+      "plan_history_incomplete": false,
+      "messages": [],
+      "activities": [],
+      "status": "running",
+      "usage": {}
+    }
+  },
+  "completed": {
+    "source": "真实原生日志：全量替换后的完成清单",
+    "detail": {
+      "plan": {
+        "turn": 1,
+        "seq": 2,
+        "version": "1:2",
+        "todos": [
+          {
+            "content": "Check state",
+            "status": "completed"
+          }
+        ]
+      },
+      "plan_history_incomplete": false,
+      "messages": [],
+      "activities": [],
+      "status": "running",
+      "usage": {}
+    }
+  },
+  "next": {
+    "source": "真实原生耐久日志：下一回合清空",
+    "detail": {
+      "plan": null,
+      "plan_history_incomplete": false,
+      "messages": [],
+      "activities": [],
+      "status": "running",
+      "usage": {},
+      "duration_ms": 27
+    }
+  },
+  "bad": {
+    "source": "协议负向样例：模拟坏事件，不是live模型",
+    "detail": {
+      "plan": null,
+      "plan_history_incomplete": false,
+      "plan_error": "原生计划事件无效；当前计划无法确认。",
+      "messages": [],
+      "activities": [],
+      "status": "running",
+      "usage": {}
+    }
+  },
+  "long": {
+    "source": "协议样例：长文本与HTML转义，不是live模型",
+    "detail": {
+      "plan": {
+        "turn": 1,
+        "seq": 1,
+        "version": "1:1",
+        "todos": [
+          {
+            "content": "<img src=x>very-long-native-contentvery-long-native-contentvery-long-native-contentvery-long-native-contentvery-long-native-contentvery-long-native-contentvery-long-native-contentvery-long-native-contentvery-long-native-contentvery-long-native-content",
+            "status": "pending"
+          }
+        ]
+      },
+      "plan_history_incomplete": false,
+      "messages": [],
+      "activities": [],
+      "status": "running",
+      "usage": {}
+    }
+  }
+}

@@ -4,6 +4,14 @@
 
 ## 当前 Research Web
 
+原生计划：`runtime/research.cordis.yml` / `runtime/guard.mjs` 仅装配固定 Todo 与精确授权；
+`projection.py` 恢复同会话回合/写入版本，`ui/views.mjs` / `shell.mjs` 在研究空间呈现。
+合同见 `architecture/research-web/02-research-runtime.md`、`04-api.md` 和 `research-web-ui.md`；
+验证为 `test_protocol.py`、`test_event_recovery.py`、`test_runtime_launch.py`、
+`research_web_guard.test.mjs`、`research_web_ui.test.mjs`。原生插件集成证据独立于模型 live、
+浏览器、干净安装和 macOS CI；文件交付与 Todo 完成分别判定。
+
+
 异根 Native 私有 pair 认证共享 `web_bootstrap.py` 的现有 bounded reader；OS 用户标准根
 发现、调用内根/父/record FD 与真实 lease 复查由 Docker 和 Native manager 同路径消费。
 `test_docker_runtime.py` 覆盖重复 start、restart 预拒绝、stop/start、正常 Native bridge、

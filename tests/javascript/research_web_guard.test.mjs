@@ -11,6 +11,23 @@ const makeAgent = () => {
   return { session: { snapshotEvents: () => events }, events };
 };
 
+test('native todo_write is exact, agent-owned, enabled and shares the original budget', () => {
+  let guard;
+  const ctx = { tools: { guard: fn => { guard = fn; } }, logger: { warn() {} } };
+  apply(ctx, { enabled: false });
+  assert.ok(guard({ name: 'todo_write', agent: makeAgent() }));
+  apply(ctx, { enabled: true });
+  for (const name of ['todo_write_shadow', 'todo', 'bash', 'read_file', 'exec', 'write_file']) {
+    assert.ok(guard({ name, agent: makeAgent() }));
+  }
+  assert.ok(guard({ name: 'todo_write' }));
+  const agent = makeAgent();
+  for (let i = 0; i < 48; i++) assert.equal(guard({ name: 'todo_write', agent }), undefined);
+  assert.ok(guard({ name: 'todo_write', agent }));
+  agent.events.push({ type: 'turn/start', data: { turn: 2 } });
+  assert.equal(guard({ name: 'todo_write', agent }), undefined);
+});
+
 test('research guard fails closed and cannot expose arbitrary shell or host files', () => {
   let guard;
   const ctx = { tools: { guard: (fn) => { guard = fn; } }, logger: { warn() {} } };

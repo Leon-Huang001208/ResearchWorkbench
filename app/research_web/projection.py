@@ -1,6 +1,90 @@
 """Pure projection of native DSH events; no parallel research execution model."""
 
 import json
+from itertools import pairwise
+
+from core.observability import get_logger
+
+log = get_logger(__name__)
+
+
+def _project_plan(entries: list[dict]) -> dict:
+    """Fold whole native snapshots; version identifies a write, never an item."""
+    rows: dict[int, dict] = {}
+    conflicts: set[int] = set()
+    incomplete, corrupt = False, False
+    for row in entries:
+        event = row.get("event") if isinstance(row, dict) else None
+        if not isinstance(event, dict):
+            incomplete, corrupt = True, True
+            continue
+        seq = event.get("seq")
+        if not isinstance(event.get("type"), str) or (
+            not isinstance(event.get("data"), dict) and event.get("type") != "todo/write"
+        ):
+            incomplete, corrupt = True, True
+            continue
+        if not isinstance(seq, int) or isinstance(seq, bool) or seq < 0:
+            incomplete, corrupt = True, True
+            continue
+        if seq in rows and rows[seq] != event:
+            conflicts.add(seq)
+        rows[seq] = event
+    keys = sorted(rows)
+    incomplete |= bool(keys and (keys[0] > 0 or any(b != a + 1 for a, b in pairwise(keys))))
+    turn, plan, error = None, None, False
+    previous = None
+    for seq in keys:
+        if previous is not None and seq != previous + 1:
+            turn, plan = None, None  # the missing records may contain a new turn/start
+        previous = seq
+        event = rows[seq]
+        kind, data = event.get("type"), event.get("data")
+        if kind == "turn/start":
+            turn = data.get("turn") if isinstance(data, dict) else None
+            if not isinstance(turn, int) or isinstance(turn, bool) or turn < 0:
+                turn = None
+            plan, error = None, turn is None
+        if seq in conflicts:
+            plan, error, incomplete = None, True, True
+        if kind != "todo/write":
+            continue
+        todos = data.get("todos") if isinstance(data, dict) else None
+        valid = isinstance(todos, list)
+        seen = set()
+        if isinstance(todos, list):
+            for item in todos:
+                if (
+                    not isinstance(item, dict)
+                    or set(item) != {"content", "status"}
+                    or not isinstance(item["content"], str)
+                    or not item["content"].strip()
+                    or item["content"] != item["content"].strip()
+                    or item["content"] in seen
+                    or item["status"] not in ("pending", "in_progress", "completed")
+                ):
+                    valid = False
+                    break
+                seen.add(item["content"])
+        if not valid or seq in conflicts:
+            plan, error = None, True
+        elif turn is None:
+            plan, incomplete = None, True
+        elif not error:
+            assert isinstance(todos, list)
+            plan = {
+                "turn": turn,
+                "seq": seq,
+                "version": f"{turn}:{seq}",
+                "todos": [dict(item) for item in todos],
+            }
+    if corrupt:
+        plan, error = None, True
+    result = {"plan": plan, "plan_history_incomplete": incomplete}
+    if error:
+        result["plan_error"] = "原生计划事件无效；当前计划无法确认。"
+        log.warning("research_plan_invalid", event_count=len(rows))
+    return result
 
 
 def content_text(content) -> str:
@@ -16,6 +100,7 @@ def content_text(content) -> str:
 
 
 def project(entries: list[dict]) -> dict:
+    plan_projection = _project_plan(entries)
     messages: dict = {}
     activities: dict = {}
     partials: dict = {}
@@ -24,9 +109,21 @@ def project(entries: list[dict]) -> dict:
     status, error, tokens = "idle", None, 0
     input_tokens, output_tokens, usage_observed = 0, 0, False
     title = None
-    for entry in sorted(entries, key=lambda row: row["event"]["seq"]):
+    readable = [
+        row
+        for row in entries
+        if isinstance(row, dict)
+        and isinstance(row.get("event"), dict)
+        and type(row["event"].get("seq")) is int
+        and row["event"]["seq"] >= 0
+        and isinstance(row["event"].get("type"), str)
+        and (isinstance(row["event"].get("data"), dict) or row["event"]["type"] == "todo/write")
+    ]
+    for entry in sorted(readable, key=lambda row: row["event"]["seq"]):
         event = entry["event"]
         data, kind, seq = event["data"], event["type"], event["seq"]
+        if kind == "todo/write":
+            continue  # validated by the independent native plan fold above
         timestamp = event.get("time")
         if not isinstance(timestamp, (int, float)) or isinstance(timestamp, bool):
             timestamp = None
@@ -153,6 +250,7 @@ def project(entries: list[dict]) -> dict:
             "seq": partial["seq"],
         }
     result = {
+        **plan_projection,
         "messages": sorted(
             (message for message in messages.values() if message["text"]),
             key=lambda row: row["seq"],

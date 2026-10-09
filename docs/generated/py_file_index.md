@@ -5753,9 +5753,13 @@ Module docstring:
 > Pure projection of native DSH events; no parallel research execution model.
 
 Imports:
+- `core.observability`
+- `itertools`
 - `json`
 
 Functions:
+- `_project_plan`
+  - Fold whole native snapshots; version identifies a write, never an item.
 - `content_text`
 - `project`
 

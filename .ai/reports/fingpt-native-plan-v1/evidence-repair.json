@@ -1,0 +1,15 @@
+{
+  "repairOfCommit": "c10cb6bf58fa36889d5647bc6eb99e53ccf27340",
+  "productSourceChanged": false,
+  "productDiffSHA256": "0ac19587e73cdb0a36d62010c1f5088920fe5d1d03c59fd06b76fa3db41b65df",
+  "issue": "initial no-model fixture opened the next turn without closing the previous turn; final SDK read rejects the resulting log",
+  "invalidatedReceipts": ["integration-state/receipt.json", "integration-state-node24/receipt.json"],
+  "originalFailureEvidence": "logs/native-old-log-read-validation.log",
+  "currentNativeToolReceipt": "integration-valid-state/receipt.json",
+  "currentPresetReceipt": "preset-integration-valid-state/receipt.json",
+  "webProjectionEvidence": "logs/native-valid-projection.log",
+  "browserReceipt": "browser-receipt.json",
+  "candidateStatus": "pending evidence-only repair commit and its own automatic CI",
+  "modelCalls": 0,
+  "productionRuntimeTouched": false
+}
