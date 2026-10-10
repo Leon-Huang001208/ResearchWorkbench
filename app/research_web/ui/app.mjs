@@ -14,6 +14,7 @@ import { renderCapabilityEditor, renderCreationForm, renderCopyForm, readEditor,
 import { readWorkbenchQuery, renderWorkbench } from './workbench.mjs';
 import { readAssetObservation } from './asset-workspace.mjs';
 import { renderOperations } from './operations.mjs';
+import { createIntelController, renderIntel } from './intel.mjs';
 import { renderReportWorkflowDetail, renderReportWorkflowShelf } from './report-workflows.mjs';
 import { buildConfigurationPayload, confirmAutoProbeConsent, createLocalIntegrationPollingGuard, createOfficeConsentQueue, invalidateLocalIntegrationSnapshot, nextLocalStatusExpiry, mergeIntegrationStatuses } from './connections.mjs';
 import { modelConfigurationPayload, syncModelForm, renderSettingsPage, resolveSettingsSection, settingsConnectionId, settingsRefreshCatalogs } from './settings.mjs';
@@ -75,6 +76,7 @@ let mcpMarketplaceState = { registries: [], installations: [], approvals: [], ap
 const questionDrafts = new Map();
 const controller = createController({ api, onNavigate: (hash) => { history.pushState(null, '', hash); } });
 const state = controller.state;
+const intelController = createIntelController({ onChange: () => { if (state.route.page === 'intel') render(); } });
 const capabilityController = createCapabilityController({ api, onChange: () => render(), onCatalogChange: () => loadCatalog(['capabilities']) });
 const capabilityState = capabilityController.state;
 const localIntegrationPollingGuard = createLocalIntegrationPollingGuard(
@@ -261,6 +263,7 @@ function mainPage() {
   if (state.route.page === 'workbench') return workbenchPage();
   if (state.route.page === 'frameworks') return renderFrameworks({ slug: state.route.frameworkSlug, anchor: state.route.frameworkTab, catalog: frameworkState.catalog, data: frameworkState.data, status: frameworkState.status, error: frameworkState.error, bot: frameworkBot });
   if (state.route.page === 'operations') return operationsPage();
+  if (state.route.page === 'intel') return renderIntel(intelController.state);
   if (state.route.page === 'history') {
     const mode = state.route.historyMode;
     const view = state.route.historyView || 'active';
@@ -378,7 +381,7 @@ function render() {
     if (replacement && !replacement.disabled) { replacement.focus({ preventScroll: true }); if (selection && selection.start !== null) replacement.setSelectionRange?.(selection.start, selection.end); }
   }
   if (state.busy) root.querySelectorAll('[data-approval], [data-upload], .question-form button, #rename-form button').forEach((button) => { button.disabled = true; });
-  document.title = `${state.detail?.title || (state.route.page === 'workbench' && state.route.section === 'assets' ? '资产观察' : ({ fingpt: 'FinGPT', claw: 'Claw', workbench: '研究台', frameworks: '研究框架', history: '研究历史', skills: '能力中心', operations: '运行与用量', settings: '设置' })[state.route.page])} · Research Workbench`;
+  document.title = `${state.detail?.title || (state.route.page === 'workbench' && state.route.section === 'assets' ? '资产观察' : ({ fingpt: 'FinGPT', claw: 'Claw', workbench: '研究台', frameworks: '研究框架', history: '研究历史', skills: '能力中心', operations: '运行与用量', intel: '资讯雷达', settings: '设置' })[state.route.page])} · Research Workbench`;
 }
 
 async function loadCatalog(names = defaultCatalogNames) {
@@ -1010,6 +1013,7 @@ async function loadAssetWorkspace() {
 }
 
 async function showRoute() {
+  intelController.cancel();
   localIntegrationPollingGuard.invalidate(); officeAutoPollingGuard.invalidate(); officeConsentConfirmation = '';
   localVerificationTarget = '';
   const legacyTarget = legacyRouteTarget(location.hash);
@@ -1076,6 +1080,7 @@ async function showRoute() {
   if (state.route.page === 'claw' && !state.route.sessionId) await loadCatalog(['reportWorkflows']);
   if (state.route.page === 'workbench') await loadWorkbench();
   if (state.route.page === 'operations') await loadOperations();
+  if (state.route.page === 'intel') await intelController.activate(state.route.intelTab);
   if (ticket === pageGeneration && pendingMCPMarketTabFocus) {
     const expected = pendingMCPMarketTabFocus;
     pendingMCPMarketTabFocus = '';
@@ -1144,6 +1149,7 @@ function selectTabbit(tabId) {
 }
 
 root.addEventListener('input', (event) => {
+  if (event.target.matches?.('[data-intel-query], [data-intel-code]')) { void intelController.handle(event); return; }
   const documentForm = event.target.closest?.('#document-edit-form');
   if (documentForm && documentEditor) {
     const fields = new FormData(documentForm);
@@ -1200,6 +1206,7 @@ root.addEventListener('input', (event) => {
 });
 
 root.addEventListener('keydown', (event) => {
+  if (state.route.page === 'intel' && event.key === 'Escape' && intelController.state.detailId) { event.preventDefault(); intelController.closeDetail(); document.querySelector('.intel-tabs [aria-current="page"]')?.focus({ preventScroll: true }); return; }
   if (mcpMarketplaceState.detail && event.key === 'Tab') {
     const dialog = document.querySelector('.mcp-server-dialog');
     const focusable = [...(dialog?.querySelectorAll?.('button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled)') || [])];
@@ -1296,6 +1303,7 @@ root.addEventListener('keydown', (event) => {
 });
 
 root.addEventListener('change', async (event) => {
+  if (event.target.closest?.('.intel-page') && await intelController.handle(event)) return;
   const target = event.target;
   if (target.matches?.('[data-document-target]') && documentEditor) {
     const selected = documentTargets(documentEditor.result)[Number(target.value)];
@@ -1400,6 +1408,7 @@ root.addEventListener('paste', (event) => {
 });
 
 root.addEventListener('submit', async (event) => {
+  if (event.target.closest?.('.intel-page') && await intelController.handle(event)) return;
   event.preventDefault();
   safeLog('document_form_dispatch', { status: event.target.id === 'document-edit-form' ? 'document' : 'other' });
   if (event.target.id === 'document-create-form') {
@@ -1741,6 +1750,14 @@ root.addEventListener('submit', async (event) => {
 });
 
 root.addEventListener('click', async (event) => {
+  if (event.target.closest?.('.intel-page')) {
+    const action = event.target.closest?.('[data-intel-action]')?.dataset.intelAction;
+    if (await intelController.handle(event)) {
+      if (['event', 'report'].includes(action)) document.querySelector('#intel-detail-title')?.focus({ preventScroll: true });
+      if (action === 'close') document.querySelector('.intel-tabs [aria-current="page"]')?.focus({ preventScroll: true });
+      return;
+    }
+  }
   const clickTarget = event.target;
   const modelAction = clickTarget?.closest?.('[data-model-clear], [data-model-test]')?.dataset;
   if (modelAction && 'modelClear' in modelAction) {

@@ -1,0 +1,98 @@
+/* Native intelligence radar: every color follows the shared appearance tokens. */
+.intel-page { min-width: 0; }
+.intel-page-header { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 24px; }
+.intel-page-header h1 { margin: 7px 0 8px; }
+.intel-page-header p { margin-bottom: 0; }
+.intel-page-header > button { flex-shrink: 0; display: inline-flex; align-items: center; gap: 7px; }
+.intel-tabs { display: flex; gap: 3px; flex-wrap: wrap; padding: 5px; background: var(--surface); border: 1px solid var(--line); border-radius: 11px; margin-bottom: 24px; }
+.intel-tabs a { padding: 9px 12px; font-size: 12px; color: var(--muted); border-radius: 7px; white-space: nowrap; }
+.intel-tabs a:hover { background: var(--hover); text-decoration: none; color: var(--text); }
+.intel-tabs a.active { color: var(--blue); background: var(--blue-soft); font-weight: 600; }
+.intel-reading-layout { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; align-items: start; }
+.intel-reading-layout.has-detail { grid-template-columns: minmax(0, 1fr) minmax(320px, .8fr); }
+.intel-main { min-width: 0; }
+.intel-overview-meta { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; color: var(--muted); font-size: 11px; margin: 0 0 22px; }
+.intel-live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
+.intel-section { margin-bottom: 26px; min-width: 0; }
+.intel-section > .section-heading { flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.intel-section h2 { font-size: 15px; margin: 0; }
+.intel-story-grid, .intel-market-grid, .intel-article-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.intel-market-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.intel-story, .intel-market, .intel-article { min-width: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 18px; }
+.intel-story { border-top: 2px solid var(--blue); }
+.intel-story h3, .intel-market h3, .intel-article h3 { line-height: 1.6; margin: 10px 0; font-size: 14px; }
+.intel-story p, .intel-market p, .intel-article p { font-size: 12px; line-height: 1.85; white-space: pre-wrap; overflow-wrap: anywhere; }
+.intel-story p:last-child, .intel-article p:last-child { margin-bottom: 0; }
+.intel-next { border-top: 1px solid var(--line); padding-top: 12px; color: var(--muted); }
+.intel-item-meta { display: flex; flex-wrap: wrap; gap: 7px; align-items: center; color: var(--muted); font-size: 10px; line-height: 1.7; }
+.intel-item-meta time { margin-left: auto; }
+.intel-tag { display: inline-flex; padding: 2px 6px; border-radius: 5px; background: var(--hover); color: var(--muted); font-size: 10px; }
+.intel-two-zones { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.intel-event-list { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.intel-event-row { display: grid; gap: 8px; width: 100%; padding: 17px 18px; background: var(--surface); color: var(--text); border: 0; border-bottom: 1px solid var(--line); text-align: left; }
+.intel-event-row:last-child { border-bottom: 0; }
+.intel-event-row:hover { background: var(--hover); }
+.intel-event-row strong { font-size: 13px; font-weight: 550; line-height: 1.7; overflow-wrap: anywhere; }
+.intel-event-row p { color: var(--muted); font-size: 12px; line-height: 1.75; margin: 0; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.intel-filters { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; margin: 0 0 14px; }
+.intel-filters label, .intel-stock-form label { display: grid; gap: 6px; font-size: 11px; color: var(--muted); min-width: 0; }
+.intel-filters select { max-width: 200px; }
+.intel-search { flex: 1; min-width: 160px !important; }
+.intel-search input { width: 100%; }
+.intel-result-meta { font-size: 11px; color: var(--muted); margin: 0 0 14px; }
+.intel-empty { display: grid; justify-items: center; gap: 12px; padding: 38px 20px; border: 1px dashed var(--line); border-radius: 12px; color: var(--muted); text-align: center; grid-column: 1 / -1; }
+.intel-empty p { font-size: 12px; margin: 0; }
+.intel-more { display: block; margin: 18px auto 0; }
+.intel-feed { display: grid; gap: 12px; }
+.intel-feed .intel-article { padding: 18px 22px; }
+.intel-feed .intel-article p { font-size: 13px; }
+.intel-article-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.intel-source-link { display: inline-flex; gap: 4px; align-items: center; font-size: 11px; margin-top: 8px; }
+.intel-source-link svg { width: 12px; height: 12px; }
+.intel-industry-tabs { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 20px; }
+.intel-industry-tabs button { font-size: 12px; display: inline-flex; align-items: center; gap: 7px; }
+.intel-industry-tabs button span { color: var(--muted); font-size: 10px; }
+.intel-industry-tabs button.active { color: var(--blue); border-color: var(--blue); background: var(--blue-soft); }
+.intel-pagination { display: flex; justify-content: space-between; gap: 12px; margin-top: 16px; }
+.intel-stock-form { display: flex; gap: 12px; align-items: end; margin-bottom: 22px; }
+.intel-stock-form input { width: 210px; }
+.intel-detail { position: sticky; top: 0; max-height: calc(100dvh - 140px); overflow: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; min-width: 0; }
+.intel-detail-header { position: sticky; top: 0; padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; gap: 12px; background: var(--surface); border-bottom: 1px solid var(--line); z-index: 1; }
+.intel-detail-header strong { font-size: 12px; }
+.intel-detail-header button { font-size: 11px; display: inline-flex; align-items: center; gap: 4px; }
+.intel-detail-body { padding: 20px; overflow-wrap: anywhere; }
+.intel-detail-body h2 { font-size: 17px; line-height: 1.7; margin-top: 14px; }
+.intel-detail-body p, .intel-document { font-size: 12px; line-height: 1.9; white-space: pre-wrap; }
+.intel-document { margin-top: 20px; }
+.intel-document h1, .intel-document h2, .intel-document h3 { font-size: 14px; }
+.intel-document pre { overflow: auto; }
+.intel-detail-section { margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--line); }
+.intel-evidence { padding: 15px 0; border-bottom: 1px solid var(--line); }
+.intel-evidence:last-child { border-bottom: 0; }
+.intel-page details > summary { cursor: pointer; font-size: 11px; color: var(--muted); margin-top: 10px; }
+.intel-timeline-step { padding: 10px 0 10px 12px; border-left: 1px solid var(--line); margin-top: 10px; }
+.intel-timeline-step time { display: block; color: var(--muted); font-size: 10px; }
+.intel-loading { font-size: 12px; color: var(--muted); padding: 12px 0; }
+.intel-footer { color: var(--muted); border-top: 1px solid var(--line); padding-top: 20px; margin-top: 30px; font-size: 10px; }
+.intel-page .notice { overflow-wrap: anywhere; }
+.has-detail .intel-story-grid, .has-detail .intel-market-grid, .has-detail .intel-article-grid, .has-detail .intel-two-zones { grid-template-columns: minmax(0, 1fr); }
+@media (max-width: 1000px) {
+  .intel-story-grid, .intel-market-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .intel-reading-layout.has-detail { grid-template-columns: minmax(0, 1fr); }
+  .intel-detail { position: static; max-height: none; grid-row: 1; }
+  .has-detail .intel-main { display: none; }
+}
+@media (max-width: 600px) {
+  .intel-page-header { align-items: start; gap: 10px; }
+  .intel-page-header p { font-size: 12px; }
+  .intel-page-header > button { font-size: 11px; }
+  .intel-tabs { flex-wrap: nowrap; overflow-x: auto; }
+  .intel-tabs a { padding: 9px 10px; }
+  .intel-story-grid, .intel-market-grid, .intel-article-grid, .intel-two-zones { grid-template-columns: minmax(0, 1fr); }
+  .intel-filters label { flex: 1; min-width: 120px; }
+  .intel-filters .intel-search { flex-basis: 100%; }
+  .intel-filters select { max-width: none; width: 100%; }
+  .intel-stock-form input { width: 100%; }
+  .intel-stock-form label { flex: 1; }
+  .intel-item-meta time { margin-left: 0; }
+}
