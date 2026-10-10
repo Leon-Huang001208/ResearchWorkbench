@@ -31,3 +31,7 @@
 未新增产品依赖；复核 requirements/web.in、web.lock、setup_web.py 与 bootstrap workflow 仍消费既有 FastAPI/httpx。
 开发测试工具只安装在工作目录隔离 validation-tools 环境。
 本次不执行 GitHub push/PR/CI；macOS干净安装CI与Windows/Linux验收为 NOT_RUN，不将本地验证宣称为跨平台发布就绪。
+
+## 2026-10-10 展示修正
+
+事件列表/详情明确区分影响力与可信度。按用户确认，行情焦点以证据支持等级换算置信分数（低25/中50/高75）；缺失显示暂无分数，观察依据说明不是统计概率，不复用关注度。新增渲染测试覆盖同等级标签区别、三级分数、缺失与规则。

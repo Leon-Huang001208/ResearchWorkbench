@@ -99,3 +99,20 @@ test('report reader preserves structured existing analysis and original evidence
   for (const label of ['已完成摘要','产业','观点','&lt;原文证据&gt;','不确定性','完整原文','章节原文']) assert.ok(html.includes(label));
   assert.ok(!html.includes('[object Object]'));
 });
+
+ test('event metadata distinguishes influence from credibility in list and detail', async () => {
+  const c = createIntelController({ fetcher: async path => response(path.includes('overview') ? { ...overview, reading: [{ id: 'e1', title: '事件', impact: '高', credibility: '高' }] } : { stories: [] }) });
+  await c.activate('overview');
+  assert.match(renderIntel(c.state), /影响力：高/);
+  assert.match(renderIntel(c.state), /可信度：高/);
+  c.state.detailKind = 'event'; c.state.detailId = 'e1'; c.state.detail = { event: { title: '事件', impact: '高', credibility: '中' } };
+  assert.match(renderIntel(c.state), /可信度：中/);
+});
+
+test('market confidence follows disclosed evidence mapping and preserves missing scores', async () => {
+ const c = createIntelController({ fetcher: async path => response(path.includes('overview') ? { ...overview, trading: [{ name: '高证据', status: '待验证', support_level: '高' }, { name: '低证据', support_level: '低' }, { name: '中证据', support_level: '中' }, { name: '缺失证据', attention: 93 }] } : { stories: [] }) });
+ await c.activate('overview'); const html = renderIntel(c.state);
+ for (const score of [25,50,75]) assert.ok(html.includes(`置信分数：${score}/100`));
+ assert.ok(html.includes('置信分数：暂无分数'));
+ assert.ok(html.includes('不代表统计概率')); assert.ok(!html.includes('置信分数：93')); assert.ok(!html.includes('待验证'));
+});
