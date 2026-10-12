@@ -4634,6 +4634,37 @@ Functions:
 - `update_auto_probe_consent`
 
 
+## `app/research_web/intel_routes.py`
+
+Module docstring:
+> Read-only intelligence radar adapter for the fixed public Golddata service.
+
+Imports:
+- `asyncio`
+- `core.observability`
+- `fastapi`
+- `httpx`
+- `json`
+- `typing`
+- `urllib.parse`
+
+Functions:
+- `_failure`
+- `read_upstream`
+  - Fetch bounded JSON without forwarding local credentials or redirects.
+- `overview`
+- `story_focus`
+- `breakfast_focus`
+- `event_detail`
+- `reports`
+- `report_detail`
+- `radar`
+- `wsc`
+- `social`
+- `news`
+- `announcements`
+
+
 ## `app/research_web/launch_runtime.py`
 
 Module docstring:
@@ -4905,6 +4936,7 @@ Imports:
 - `frameworks.base`
 - `frameworks.routes`
 - `integrations.routes`
+- `intel_routes`
 - `json`
 - `local_integrations`
 - `local_integrations.routes`
@@ -4916,8 +4948,7 @@ Imports:
 - `os`
 - `pathlib`
 - `pydantic`
-- `re`
-- ... 13 more
+- ... 14 more
 
 Classes:
 - `NewSession`

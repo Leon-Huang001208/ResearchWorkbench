@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "unchanged",
-  "summary": "复核最新master的Claw发布与本机集成候选：公开Web入口、已有运行与部署边界保持；本轮新增Office受控验证与可信状态由专项文档说明。",
-  "reason": "保留最新master已经交付的Claw运行链接持久化；本轮不回退其说明，也不改安装、启动或支持矩阵。本机Office能力仍可选，状态/授权/归档细节由当前UI与协调器文档承载。"
+  "disposition": "updated",
+  "summary": "新增原生资讯雷达只读页面及固定公开接口适配器；复核安装入口与Web-only边界保持。",
+  "reason": "本次是现有Host中的页面及GET适配器扩展，已在README导航补充资讯雷达，未更改安装、DSH、凭据、平台支持或公开启动方式；细节由UI和API权威文档承载。"
 }

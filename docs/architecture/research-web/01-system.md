@@ -1,5 +1,9 @@
 # 部署与模块职责
 
+## 资讯雷达 · 2026-10-09
+
+Host 新增固定 Golddata 公开服务的只读资讯适配器：浏览器同源 GET → Host → `http://47.92.168.126/vibe-research/api`。没有新服务、数据库、调度器或第二研究引擎；DSH 会话与执行循环不参与读取。
+
 Automation 原生关联检查点复用同一 Host 的 Store.save 原子索引，普通会话创建后先落盘再提交；报告已知的主关联及随后出现的 Claw 会话关联也在监控前落盘。恢复重用已证明原生任务，报告须保持自身校验链；组件、部署、唯一 DSH 与调度拓扑未变。
 
 Native→Docker 顺序切换在公开 Native stop 成功后，沿原 stdlib bootstrap 有界等待
