@@ -85,3 +85,9 @@
 - 本切片21文件的项目约束、架构、文档治理、生成索引/图册与whitespace PASS。初约束缺README复核回执被拒；先在错误组件cwd定位README导致断言失败（无文件写入），再修正根目录定位并同步真实阶段说明/回执，未降低规则。
 - 原库最终只读预算审计PASS：4/1417/659microUSD及20/20000/$1上限未变，原runtime仍paused，测试research随机角色已全部移除，PG容器/卷保留。证据 `logs/hot-resume/evidence-final-ledger.json`。
 - 当前完整目标仍ACTIVE：冻结输入已可用，但尚未发布到真实研究会话、未持久化hot_run→session/report映射，尚无本轮正式DSH研究/联合恢复/连续采集重验/留出样本/Hot安装与Docker切换/候选CI。不能以本切片通过替代那些门。
+
+### 当前提交及机器回执
+
+原件读取源码候选 `45e012cef65a97b58cd8ca6752881c56c43dc4ba`，继承融合候选503af9edf；分支/worktree不变。当前源码检查点已提交，后续报告提交仅记录状态。
+
+Git绑定plan4/receipt3在 `logs/hot-resume/evidence-candidate-*.json`。最初手写平台回执漏掉cross-platform影响的Windows空门交接，validator拒绝；按正式内核的完整平台推导补齐，未改内核、状态或验收门。Mac Bootstrap作为已登记补充门保留NOT_RUN。最终validator valid=true、hostAcceptance=BLOCKED、aggregateAcceptance=NOT_READY、mergeReady/releaseReady=false。失败回执与输出均保留initial/second副本；未发CI/远端操作。
