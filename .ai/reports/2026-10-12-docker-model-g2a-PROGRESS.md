@@ -23,3 +23,18 @@ stage candidate 停止、登记预留 2GiB；VM 实际 8319238144 bytes，builde
 一次全闭包因 dev /tmp 256MiB 耗尽出现错误，改用本实例 cache 卷放夹具后 102 PASS，
 剩余 9 项 Native 恢复/文档生成失败已在未修改主线的同容器复现（9 FAIL、1 PASS）。
 不修改无关平台守卫或把这些失败写成 PASS；本次相关 bridge 与隔离测试通过不代替 Native 实机。
+
+实际首次构建输入为干净提交 `3262b0ac5`，平台 linux/arm64。固定 DSH 的完整编译执行，
+但 pnpm 的大包下载错误后产生缺失的 libreoffice-kit-wasm 目录，staging 守卫抛出
+`dsh_staging_invalid`，没有新 runtime image。构建器 memory=swap=5368709120、CPU quota=200000、
+PIDs=256 实际核对，失败退出后 builder 已停止，未删包或跳过 staging。
+补了受管 `build --refresh-dsh` 参数（当前未提交/未运行）：显式绕过 dsh-builder 缓存，
+保留完整锁、构建检查、限额和退出停止，不清除其他缓存或实例。
+
+恢复 dev 被外部容器 `rwb-hot-probe-6a5d3231` 阻断：其内存上限为 0，manager 返回
+`unbounded_running_container`。已再次查询该实际容器仍 running；未停止、删除或修改它。
+dev g2a、stage candidate 与 builder 当前均停止；g2a 源码、持久卷和登记名额仍保留。
+新凭据主密钥尚未在候选初始化，真实供应商、重建后生成、隔离 helper 与本轮 CI 仍 NOT_RUN。
+原始本地构建/状态证据在 `~/.local/share/rwb-docker/logs/g2a/`，合成测试/基线对照日志在
+`~/.local/share/rwb-docker/logs/g01/g2a-*.log`。外部夹具结束后，恢复 dev 完成刷新参数测试与提交，
+再 stop dev → build --refresh-dsh → stop/replace-image/enable-model-credentials/credential-probe/up。

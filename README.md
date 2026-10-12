@@ -131,7 +131,8 @@ Native 可在确认没有活动研究时普通重启；Docker 运行中无法认
 
 macOS Native 的模型凭据由产品 overlay 挂载的固定用途桥接存入系统 Keychain，按规范化 data home 隔离；不回退环境、旧凭据 YAML 或 `.env`，也不把 Keychain 值复制到文件。不迁移旧模型 Key，需在该实例设置页重新录入。Host 浏览器认证 record 保留固定 DSH 的受控文件实现，和模型 Key 分开。其他平台或 Keychain 不可用时模型失败关闭，设置页与 Host 认证仍可使用；其他平台系统模型存储尚未验证。
 
-Docker相关通用业务凭据隔离实现保留；本阶段不交付Docker模型凭据后端，不把Native系统存储保证泛化到容器。
+Docker 通用业务凭据与实例加密模型后端分别管理，不把 Native Keychain 保证泛化到容器。
+Docker 模型实际生成和重建验收见本轮回执，不从 configured 或健康推断通过。
 
 DataHub 连接凭据按规范化 data home 隔离系统凭据服务；不同实例互不读取、覆盖或清除。旧全局记录不自动迁移或回退，已有非秘密配置保留，升级后请在所属实例设置页重新录入数据源凭据；旧记录不会被删除。
 

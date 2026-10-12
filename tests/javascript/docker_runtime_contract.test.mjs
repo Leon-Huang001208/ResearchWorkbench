@@ -110,6 +110,13 @@ test('runtime copies a bounded application set and uses the non-root PID1 superv
   assert.ok(runtime.some((line) => line.includes('npm/bin/npm-cli.js /usr/local/bin/npm') && line.includes('npm/bin/npx-cli.js /usr/local/bin/npx')), 'MCP package resolution retains Node npm/npx');
 });
 
+test('managed DSH refresh preserves the bounded builder and refuses unknown build arguments', () => {
+  const entry = read('rwb-docker');
+  assert.match(entry, /1:--refresh-dsh\) set -- --no-cache-filter dsh-builder/);
+  assert.match(entry, /fail build_arguments_invalid/);
+  assert.match(entry, /docker buildx build --builder "\$BUILDER" --platform linux\/arm64 --load "\$@"/);
+});
+
 test('Compose has one isolated service with exactly one loopback Web publication', () => {
   // JSON is a strict, unambiguous YAML 1.2 subset: parse the complete committed document.
   const compose = JSON.parse(read('compose.yaml'));

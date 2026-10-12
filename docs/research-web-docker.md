@@ -115,6 +115,11 @@ Docker Desktop transport与buildx客户端认证网络是两层，daemon pull成
 
 核验实际限额：
 
+若固定 DSH 的大包下载失败后 pnpm 仍返回成功，而 staging 守卫拒绝缺失资产，
+使用 `./rwb-docker build --refresh-dsh` 明确绕过 dsh-builder 阶段缓存重新构建。
+仍沿用 frozen lock、固定源码、完整检查和同一限额 builder；不跳过缺失包或削弱 staging。
+该操作重新下载/编译 DSH，仍需 stage/dev 错峰，不删除已有缓存或其他实例。
+
 ```sh
 docker inspect buildx_buildkit_rwb-dev-builder0 --format '{{.HostConfig.Memory}} {{.HostConfig.MemorySwap}} {{.HostConfig.CpuQuota}} {{.HostConfig.CpuPeriod}} {{.HostConfig.PidsLimit}}'
 ./rwb-docker dev task doctor
