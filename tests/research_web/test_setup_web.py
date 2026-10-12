@@ -901,6 +901,10 @@ def test_candidate_install_failure_preserves_accepted_image(tmp_path, monkeypatc
     setup_web._write_docker_manifest(path, old)
     previous = path.read_bytes()
     controller = setup_web.DockerRuntime(project, home)
+    rollback_path = path.with_name("docker-previous-manifest.json")
+    rollback = setup_web._docker_manifest(project, "sha256:" + "d" * 64)
+    setup_web._write_docker_manifest(rollback_path, rollback)
+    rollback_before = rollback_path.read_bytes()
     _allow_idle_runtime_selection(monkeypatch)
     if failure == "old_container":
         monkeypatch.setattr(
@@ -937,6 +941,7 @@ def test_candidate_install_failure_preserves_accepted_image(tmp_path, monkeypatc
     ):
         controller.install(start=failure != "old_container")
     assert path.read_bytes() == previous
+    assert rollback_path.read_bytes() == rollback_before
     assert store.read() == current
     assert rolled_back == ([] if failure == "old_container" else [True])
     assert controller._manifest()["image_id"] == old["image_id"]

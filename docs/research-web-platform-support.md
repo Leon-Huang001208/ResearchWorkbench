@@ -1,5 +1,9 @@
 # Research Web 能力与平台证据
 
+2026-10-12 Docker 资源治理为本地源码迭代：Mac Docker Desktop 已验证专用辅助资源的成功、失败、
+正常中断收尾及数据卷实际备份恢复比较。该证据不等于新应用镜像完整构建或产品启动验收，
+不替代候选提交的 macOS CI；Windows/Linux 的新资源治理验收仍为 NOT_RUN。
+
 支持按能力、系统和运行方式声明。Doctor 的 `available` 表示代码具有当前实现，`unsupported` 表示明确边界，`not_verified` 表示必要安全证明缺失；`validated=false` 不会随操作系统推导为通过。实际验收由任务回执和下表的证据决定。
 
 ## 当前证据身份
