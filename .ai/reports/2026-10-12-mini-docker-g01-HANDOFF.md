@@ -1,9 +1,9 @@
 # G0/G1 Docker 基座交付与验收
 
-本地基座已实现并实际运行；整任务尚待本轮 GitHub macOS 干净安装 CI。未推送、创建PR、合并、
+本地基座已实现并实际运行；用户已授权推送并创建PR，正在执行本轮 GitHub macOS 干净安装 CI。未合并、
 发布registry镜像或迁移生产。`hostAcceptance=NOT_RUN(CI pending)`，`aggregateAcceptance=NOT_READY`。
 本地源码是从 GitHub master `f32d6993af99652c76e9a77dbc6f44877e39cd1c` 创建的
-`codex/mini-docker-g01` worktree，改动待审查提交。镜像revision标签是该基线，
+`codex/mini-docker-g01` worktree，已有本地提交 `27d5fbac752d31caca5968f4dafd047548afef61`。镜像revision标签是该基线，
 不把含未提交改动的构建说成已发布exact-SHA镜像；G2再完成发布manifest/digest提升。
 
 ## 实现与归属
@@ -102,6 +102,6 @@ G4：邀请制身份、可信入口与跨账号负向测试；固定workspace=re
 G5：私网/HTTPS、公网入口、关机恢复、迁移、一致备份/恢复；目前均未实施/未验。
 G6：30分钟混合负载、构建干扰与容量/RPO/RTO实测。
 
-本轮完成只剩新候选Mac CI证据；按AGENTS.md独立发布授权规则，等待用户批准推送并创建PR。
+本轮完成只剩新候选Mac CI证据；用户已明确批准推送并创建PR，合并仍需单独授权。
 其他平台保持交接NOT_RUN，不作为本Mac任务前置门。仓库visibility已实时核对为public、默认master，
 Actions预算规则已读取；未据此自动获得push/merge授权。
