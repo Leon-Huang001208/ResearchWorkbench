@@ -10,6 +10,10 @@ Mac mini 的 dev/stage/prod 使用同一既有 Web＋DSH 协议，各实例独�
 stage/dev 关闭 Automation；任务排空、全机重研究配额和 Linux 严格沙箱留给G3，
 不能从候选健康推出真实模型/研究已验收。操作见 [Docker 手册](../../research-web-docker.md)。
 
+Docker 资源生命周期由 host 标准库 `docker_resources.py` 提供只读预览、精确清理和离线卷备份恢复校验。
+它复用现有生命周期锁与安装记录锁，不创建另一个产品运行时，不停止正式实例。
+新资源命名、回滚保护、任务收尾及操作入口见[安装指南](../../research-web-installation.md#docker-资源命名与收尾)。
+
 ## 资讯雷达 · 2026-10-09
 
 资讯雷达不执行 DSH prompt、不触发模型生成，也不修改固定 DSH 构建、凭据或会话。外部资讯离线时单独报错，不改变 Runtime 的 connected/health 状态。

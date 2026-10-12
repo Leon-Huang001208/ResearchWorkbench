@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "updated",
-  "summary": "增加受管 Docker 候选的实例加密模型凭据入口，保留 Native Keychain 和现有模型设置。",
-  "reason": "README 链接权威 Docker 操作和最小恢复说明；固定 DSH、Web-only、模型保存与真实生成的证据边界保持，不将合成测试或健康检查写成供应商通过。"
+  "summary": "复核独立 Docker 模型加密凭据与主线新增资源生命周期入口。",
+  "reason": "README 保留资源清理归属边界并新增实例加密模型存储与恢复说明；Native Keychain、固定 DSH 和保存/真实生成分层证据保持，独立 manager 不由 legacy cleanup 接管。"
 }

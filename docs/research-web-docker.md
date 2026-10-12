@@ -127,6 +127,27 @@ docker inspect buildx_buildkit_rwb-dev-builder0 --format '{{.HostConfig.Memory}}
 docker stats --no-stream
 ```
 
+## Legacy 安装与任务资源清理
+
+Legacy 单实例安装与验证任务使用 `research_workbench_entrypoint.docker_resources`：
+默认只预览，`--plan` 保存资源身份、引用和保留/删除理由；`--retired` 接收逐项审计的
+`kind:ID -> reason` JSON。名称、停止状态或年龄不能单独证明废弃。
+
+```sh
+python -m research_workbench_entrypoint.docker_resources --home "$HOME/.research-workbench" --plan work/docker-cleanup-plan.json
+```
+
+实际执行使用 `--apply` 指定已预览的清单，并显式提供 `--archive` 与 `--receipt`。
+执行持有所有相关 legacy 安装锁，逐对象复查身份及引用；顺序为容器、卷、镜像。
+卷先在本机私有目录归档、校验并实际恢复比较，再删除原卷。当前安装和上一接受镜像、
+持久数据及未知归属资源保留；无法隔离归属的构建缓存保留。失败回执列出未完成对象。
+
+新 legacy 应用镜像使用 `research-workbench:dev-短提交号-构建号` 与完整身份标签；
+已有正式容器继续兼容。验证工具用 `ResourceSession` 在成功、失败和正常中断时收尾
+自身临时资源，异常退出残留须显式审计清理。正式容器停止后仍保留供重启。
+此入口读取 legacy 安装记录，不认证 G0/G1 的独立管理账本；G0/G1 四卷与登记镜像
+不得写入 legacy 退休清单，继续按上文受管入口维护。
+
 ## 下一阶段入口与真实缺口
 
 ### G2A 模型凭据（实现与验收进行中）

@@ -380,6 +380,41 @@ def runtime(tmp_path, available_ports):
     return controller, runner, record
 
 
+def test_readable_project_name_and_verified_legacy_reuse(runtime):
+    controller, runner, record = runtime
+    assert controller.project_name == "rwb-dev-" + record.installation_id[:12]
+    owned(controller, runner)
+    runner.container["project"] = "rwb-" + record.installation_id[:12]
+    assert controller._containers()[0]["project"] == runner.container["project"]
+    assert controller.project_name == runner.container["project"]
+
+
+def test_readable_build_tag_and_full_revision_labels(runtime):
+    controller, runner, _record = runtime
+    report = controller.install()
+    assert report["ok"]
+    build = next(kwargs for argv, kwargs in runner.calls if argv[-2:] == ["build", "research-web"])
+    env = build["env"]
+    assert env["RWB_IMAGE"].startswith("research-workbench:dev-")
+    assert len(env["RWB_BUILD_ID"]) == 32
+    assert env["RWB_CODE_COMMIT"] == "unknown"  # archive checkout without .git
+    assert env["RWB_RESOURCE_LIFETIME"] == "persistent"
+
+
+def test_readable_build_does_not_require_host_git(runtime, monkeypatch):
+    from research_workbench_entrypoint import docker_runtime
+
+    controller, runner, _record = runtime
+
+    def missing_git(*args, **kwargs):
+        raise FileNotFoundError("git unavailable")
+
+    monkeypatch.setattr(docker_runtime.subprocess, "run", missing_git)
+    assert controller.install()["ok"]
+    build = next(kwargs for argv, kwargs in runner.calls if argv[-2:] == ["build", "research-web"])
+    assert build["env"]["RWB_CODE_COMMIT"] == "unknown"
+
+
 def owned(controller, runner):
     runner.container = {
         "id": "c" * 64,
@@ -1699,7 +1734,7 @@ def test_compose_identity_and_minimal_environment(runtime, monkeypatch):
         "docker",
         "compose",
         "--project-name",
-        "rwb-" + record.installation_id[:12],
+        "rwb-dev-" + record.installation_id[:12],
         "--project-directory",
         str(controller.project_root),
         "-f",
@@ -2829,7 +2864,7 @@ def test_install_and_start_use_only_named_service_without_autostart(runtime):
     assert any(argv[-2:] == ["build", "research-web"] for argv, _ in runner.calls)
     assert not any("up" in argv for argv, _ in runner.calls)
     build_env = next(options["env"] for argv, options in runner.calls if "build" in argv)
-    assert build_env["RWB_IMAGE"].startswith("research-workbench:build-")
+    assert build_env["RWB_IMAGE"].startswith("research-workbench:dev-")
 
     def on_up(argv, **kwargs):
         if "up" in argv:

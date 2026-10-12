@@ -9,6 +9,10 @@ dev 挂载对应 worktree；stage/prod 按不可变 image ID 独立运行同一 
 管理员 `rwb-docker` 与独立限额 BuildKit 管理生命周期；业务及开发容器无 Docker socket。
 配置与命令见 [Docker 手册](../../research-web-docker.md)，legacy 单实例入口仍独立保留。
 
+Docker 的 host 管理工具增加资源预览与精确处置职责，仍通过现有 Docker Engine CLI 执行。
+此工具不增加产品服务、端口或后台调度；Web/DSH 单容器部署与 Native 顺序切换保持原拓扑。
+测试辅助容器只在显式验收或卷恢复校验期间存在，任务结束验证释放。
+
 ## 资讯雷达 · 2026-10-09
 
 Host 新增固定 Golddata 公开服务的只读资讯适配器：浏览器同源 GET → Host → `http://47.92.168.126/vibe-research/api`。没有新服务、数据库、调度器或第二研究引擎；DSH 会话与执行循环不参与读取。

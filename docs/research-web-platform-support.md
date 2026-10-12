@@ -11,6 +11,10 @@ G2A 的 Docker 模型加密后端由受管实例身份绑定，Mac Docker Deskto
 Docker VM实际约8GiB，16GiB是建议配置；冷构建错峰5GiB，stage2GiB、dev3GiB限额已inspect。
 真实供应商、多人登录、Linux严格沙箱、公网、生产迁移及Windows/Linux原生仍未验证/后续阶段。
 
+2026-10-12 Docker 资源治理为本地源码迭代：Mac Docker Desktop 已验证专用辅助资源的成功、失败、
+正常中断收尾及数据卷实际备份恢复比较。该证据不等于新应用镜像完整构建或产品启动验收，
+不替代候选提交的 macOS CI；Windows/Linux 的新资源治理验收仍为 NOT_RUN。
+
 支持按能力、系统和运行方式声明。Doctor 的 `available` 表示代码具有当前实现，`unsupported` 表示明确边界，`not_verified` 表示必要安全证明缺失；`validated=false` 不会随操作系统推导为通过。实际验收由任务回执和下表的证据决定。
 
 ## 当前证据身份
