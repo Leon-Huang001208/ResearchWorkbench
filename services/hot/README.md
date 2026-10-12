@@ -654,5 +654,8 @@ Native assembly reads the same `runtimes/research_web.json` pin as Web, rejects 
 different commit, aliased source or modified tracked checkout, and mounts the current
 `llm-deepseek-api-key` route. Catalog/prepared-call integration uses the real installed
 build with describe-only credentials and a synthetic budget, sending zero calls.
+The provider also uses the pinned SDK's `PUBLIC_BASE_URL` for Messages, not the old
+ChatCompletion root. An offline fetch probe verifies the `/anthropic/v1/messages`
+endpoint, synthetic x-api-key and one zero-retry attempt; it never contacts a vendor.
 The 2026-10-12 official price record uses `deepseek-flash`; old records stay immutable,
 and no price record grants or resets authorization.

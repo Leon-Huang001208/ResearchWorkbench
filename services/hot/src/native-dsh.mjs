@@ -27,6 +27,7 @@ export async function createNativeDsh(config){
   const {default:LlmRuntime}=await import(pathToFileURL(llmPath));
   const {default:CredentialProvider}=await import(pathToFileURL(join(source,'packages/credentials/credentials/lib/index.js')));
   const provider=await import(pathToFileURL(join(source,'packages/llm/llm-deepseek-api-key/lib/index.js')));
+  const {PUBLIC_BASE_URL}=await import(pathToFileURL(join(source,'packages/llm/llm-deepseek/lib/index.js')));
   const ctx=new Context(),llm=await ctx.plugin(LlmRuntime),secrets=new Set();let route,credentialsFiber;
   try{
     class NativeCredentials extends CredentialProvider {
@@ -45,7 +46,7 @@ export async function createNativeDsh(config){
     async modifyRecord(){throw Error('hot_dsh_credential_write_denied');}
     }
     credentialsFiber=await ctx.plugin(NativeCredentials);
-    route=await ctx.plugin(provider,{baseURL:'https://api.deepseek.com',apiKeyEnv:MODEL_REF,thinking:'disabled',maxTokens:512,
+    route=await ctx.plugin(provider,{baseURL:PUBLIC_BASE_URL,apiKeyEnv:MODEL_REF,thinking:'disabled',maxTokens:512,
       retryPolicy:{mode:'normal',maxRetries:0},streamIdleTimeoutMs:30000});
     return {runtime:ctx.llm,
       safeOutput:text=>safeModelText(text,secrets),

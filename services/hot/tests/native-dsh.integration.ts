@@ -39,3 +39,30 @@ print(json.dumps({'ok':True,'configured':True,'source':'system-keychain','writab
     assert.equal(active.safeOutput('No private material reflected'),false,'no resolved credential means no output can pass reflection checks');
   }finally{if(active)await active.close();await rm(directory,{recursive:true});}
 });
+
+test('current official Messages request uses the SDK endpoint and never retries the wire probe',async()=>{
+  const source=process.env.RWB_HOT_TEST_DSH_SOURCE,python=process.env.RWB_HOT_TEST_PYTHON;
+  assert.ok(source&&python,'explicit owned installed DSH and Python paths required');
+  const directory=await mkdtemp(join(tmpdir(),'hot-native-wire-')),bridge=join(directory,'bridge.py');
+  await writeFile(bridge,`import json,sys
+p=json.load(sys.stdin)
+assert p['op'] in ['describe','resolve']
+print(json.dumps({'ok':True,'configured':True,'source':'system-keychain','writable':True,**({'value':'synthetic-wire-only-key'} if p['op']=='resolve' else {})}))
+`,{mode:0o600});
+  const originalFetch=globalThis.fetch;let calls=0,seenURL='',auth=false;
+  let active:Awaited<ReturnType<typeof createNativeDsh>>|undefined;
+  globalThis.fetch=async(url,options)=>{
+    calls++;seenURL=String(url);auth=new Headers(options?.headers).get('x-api-key')==='synthetic-wire-only-key';
+    throw Error('synthetic offline wire refusal');
+  };
+  try{
+    active=await createNativeDsh({source,credentials:{python,bridge,dataHome:directory}});
+    const abort=new AbortController(),prepared=await active.runtime.prepareCall({provider:'deepseek-official',model:'deepseek-flash',maxTokens:512,temperature:0},abort.signal);
+    const chunks=[];
+    for await(const chunk of prepared.stream({...prepared.config,system:'Synthetic transport test',messages:[{id:'wire-test',role:'user',source:{kind:'user'},content:[{type:'text',text:'No network call is allowed.'}]}],signal:abort.signal})){chunks.push(chunk);}
+    assert.ok(chunks.some(chunk=>chunk.type==='finish'&&(chunk.reason as {kind?:string})?.kind==='error'),'SDK reports transport failure as a terminal error finish');
+    assert.equal(calls,1);assert.equal(auth,true);
+    assert.equal(seenURL,'https://api.deepseek.com/anthropic/v1/messages');
+    assert.equal(active.safeOutput('synthetic-wire-only-key'),false);
+  }finally{globalThis.fetch=originalFetch;if(active)await active.close();await rm(directory,{recursive:true});}
+});
