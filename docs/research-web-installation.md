@@ -7,6 +7,44 @@
 不探测宿主 Python/Node。Native 无参数入口、Windows cmd 及
 `python scripts/setup_web.py --runtime docker` 的 legacy 合同保留；它们不管理新实例账本。
 
+## Docker 资源命名与收尾
+
+新构建使用 `research-workbench:dev-<短提交号>-<构建号>`，镜像标签保存完整提交号与构建身份。
+源码归档或宿主没有 Git 时明确使用 `unknown` 并记录警告，不新增宿主 Git 依赖或伪造提交号。
+新 Compose 项目使用 `rwb-dev-<安装短ID>`；既有安装继续使用其原 Compose 名称。
+项目、用途、安装或任务身份、`persistent`/`temporary` 属性通过标签记录，名称不充当删除授权。
+安装替换前保存 `install/docker-previous-manifest.json`；发布失败恢复原回滚记录。
+有效安装及上一接受版本均受保护，停止正式容器不删除数据或镜像。
+
+清理入口只使用标准库，默认预览；不执行全局 prune，不推断构建缓存归属。
+所有实际有效的产品 home 必须通过重复 `--home` 指定，省略时只检查当前用户的标准根。
+无法确认已废弃的其他安装或测试资源必须保留。
+
+```bash
+python -m research_workbench_entrypoint.docker_resources --home /absolute/product-home \
+  --retired /absolute/audited-retirement.json --plan /absolute/cleanup-plan.json
+python -m research_workbench_entrypoint.docker_resources --home /absolute/product-home \
+  --apply /absolute/cleanup-plan.json --archive /absolute/private-archive \
+  --helper-image sha256:<existing-local-image-id> --receipt /absolute/cleanup-receipt.json
+```
+
+退休清单是 `{"container:<完整ID>": "已结束任务的证据", "volume:<名称>": "废弃确认依据"}`
+形式的 JSON；镜像使用 `image:sha256:<完整ID>`。仅精确核对的对象进入清单。
+停止或年代久远都不是废弃证明。临时资源只有任务完成标签或显式退休证据才进入清理候选。
+执行持有各 home 的生命周期/安装锁，按容器、卷、镜像顺序再次核对身份与引用。
+卷备份用已有本地辅助镜像的 `sh`/`tar`，无网络、无端口；备份 SHA-256 记录后，
+实际恢复到临时卷并逐文件比较，验证成功后才删除原卷。归档目录须为私有 0700，归档保持 0600。
+回执逐项持久化；失败/中断停止后续处置，保留归档及剩余资源，重复执行允许已删除对象缺席。
+日志仅记录稳定代码和状态，位于 `logs/docker-resources.log`。
+
+开发及验收脚本必须在 `with ResourceSession(driver, purpose)` 中创建临时资源，
+使用其 `volume()`、`run()`、`build()`，将成功、失败和正常中断收尾放在同一 finally 边界。
+测试镜像为 `research-workbench:test-<用途>-<任务短ID>`，容器和卷为
+`rwb-test-<用途>-<实例短ID>` 与对应 `-data`；各资源标记唯一任务身份。
+异常进程退出可能留资源，须按任务证据显式清理；不得把未完成任务的 stopped 资源自动删掉。
+Docker 创建/构建超时可能仍在 Engine 执行；尚未确认创建结果时，收尾明确报告未确认并记录任务身份，
+不把一次查询缺席当作清理成功。须等 Engine 状态明确后按该任务身份再次核对和处置。
+
 阶段二、三及跨平台范围已由用户明确重新开启；每个平台仍由对应宿主完成验收。当前实现边界、OS/运行模式、证据提交和未验证项见 [能力支持矩阵](research-web-platform-support.md)。安装路径存在不等于该平台能力已验收。
 
 Python 质量整理保持公开安装参数及 coded RuntimeError 合同。内部端口 TypedDict 只描述

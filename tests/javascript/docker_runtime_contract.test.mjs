@@ -140,9 +140,14 @@ test('Compose requires explicit canonical mounts and includes only non-secret co
   assert.match(read('Dockerfile'), /RWB_RUNTIME_STATE=\/state\/runtime/);
   assert.match(read('Dockerfile'), /RESEARCH_CREDENTIAL_HOME=\/run\/rwb-secrets\/private/);
   assert.deepEqual(service.labels, {
+    'io.research-workbench.project': '${RWB_RESOURCE_PROJECT:-research-workbench}',
+    'io.research-workbench.purpose': '${RWB_RESOURCE_PURPOSE:-research-web}',
+    'io.research-workbench.lifetime': '${RWB_RESOURCE_LIFETIME:-persistent}',
     'io.research-workbench.runtime': 'docker',
     'io.research-workbench.installation': '${RWB_INSTALLATION_ID:?Set RWB_INSTALLATION_ID}',
   });
+  assert.equal(service.build.labels['org.opencontainers.image.revision'], '${RWB_CODE_COMMIT:-unknown}');
+  assert.equal(service.build.labels['io.research-workbench.build'], '${RWB_BUILD_ID:-unknown}');
   assert.deepEqual(service.tmpfs, ['/tmp:rw,nosuid,nodev,mode=1777', '/home/rwb:rw,nosuid,nodev,uid=10001,gid=10001,mode=700', '/state:rw,nosuid,nodev,noexec,uid=10001,gid=10001,mode=700,size=1m']);
   assert.match(read('.github/workflows/research-web-docker.yml'), /sudo install -d -m 700 -o 10001 -g 10001 "\$root\/data" "\$root\/state" "\$root\/state\/logs" "\$root\/credentials"/);
   assert.match(read('Dockerfile'), /VOLUME \["\/data\/research-web", "\/state", "\/run\/rwb-secrets"\]/);
