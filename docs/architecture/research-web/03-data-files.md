@@ -358,3 +358,12 @@ Migration15增加briefs head、不可变brief_versions与brief_requests。版本
 研究输入先固定简报ID、正版本及所选材料ID。Node在只读一致快照中取得对应不可变材料版本及原始响应，核对版本内容哈希、原URL身份和截止时点，并保存完整存储文本；后续更正不回填旧输入。清单绑定逻辑实例、简报哈希、频道判断和截止时间，每个原件有独立字节数与SHA256。RSS响应不等于链接网页全文，同页其他条目不扩充选材。
 
 私有签名RPC的清单和原件均按32KiB分块。Host保留生产者规范JSON字节，避免Python/JavaScript小数重序列化差异；另核对原简报锚、实例、材料选择、文件名、偏移和最终哈希，整个重建有15秒期限。超限/取消/缺页失败，不发布部分文件。当前产物仍为内部冻结输入，尚未放进DataHub会话目录；接下来必须使用真实目标会话及既有私有快照目录校验，不能虚构来源会话或引用可变库记录。
+
+
+## Hot会话原件副本与运行映射（schema16）
+
+PG research_inputs在任何原生副作用前保存固定输入、规范清单字节/哈希和预留session UUID；research_runs仅按版本CAS推进，research_operations保留请求/前后状态/代次/回执，输入与审计不可改写。唯一迁移/业务写入所有者仍为Node，worker无这些映射写权限。
+
+Host在既有Store保留匹配的hot_origin，再调用现有DSH session.create/selectModel/rename。创建未知时先查固定原生ID；存在且归属一致才确认，未知缺席不自动重发。只有取得原生创建确认的目标会话可发布Hot证据。DataHub以hot_evidence快照种类直接保存固定原件；不伪造Provider查询或来源研究会话。
+
+public inputs完整写入并fsync后，private快照UUID目录才作为目录提交标记。确定性dataset ID、固定准备记录和逐文件哈希支持同请求重放与公开目录已发布/私有未发布的中断恢复；错误/异名内容拒绝，不覆盖既有资料。普通copy_selected/升级也复制这些独立原件，取得时间不改成复制时间。Hot原库不依赖研究会话存活，删除会话不删除Hot原件。

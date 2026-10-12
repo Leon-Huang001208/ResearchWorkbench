@@ -3,15 +3,15 @@
   "ok": true,
   "command": "deliver",
   "type": "architecture",
-  "input": "/Users/leon/.codex/worktrees/hot-events-system/ResearchWorkbench/docs/architecture/research-web/diagrams/11-hot-events.json",
-  "output": "/Users/leon/.codex/worktrees/hot-events-system/ResearchWorkbench/outputs/research-web-architecture/11-hot-events.html",
+  "input": "/Users/leon/.codex/worktrees/hot-intel-continuation/ResearchWorkbench/docs/architecture/research-web/diagrams/11-hot-events.json",
+  "output": "/Users/leon/.codex/worktrees/hot-intel-continuation/ResearchWorkbench/outputs/research-web-architecture/11-hot-events.html",
   "specification": {
-    "sha256": "68857ed747120aa8486253ca2028fe8331e10b06b2e955b162bc058ae5cfb273",
-    "bytes": 4191
+    "sha256": "7aa4c50b31620170b235d10478c08fa419d4fb2ca78b25226178633feff44c6c",
+    "bytes": 4244
   },
   "artifact": {
-    "sha256": "c5462635be720e5830a017ae91a9f138fe3d445d00c1ae37d2ff12c523099d50",
-    "bytes": 635113
+    "sha256": "c0c965515fb0e4ab1f1c610c0faaa197b2e9a0f971a380c47ff9224ed3d97afd",
+    "bytes": 635261
   },
   "validation": {
     "checksPassed": 9,

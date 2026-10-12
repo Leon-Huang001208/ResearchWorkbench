@@ -68,7 +68,7 @@ class HotWebService:
         if operation == "configure":
             return save_settings(self.project, self.home, args[0])
         allowed = {"channels", "events", "event_detail", "sources", "configure_channel", "correct_event", "configure_source", "start", "stop", "restart",
-                   "briefs", "brief_detail", "brief_export", "create_brief"}
+                   "briefs", "brief_detail", "brief_export", "create_brief", "research_run", "research_evidence", "prepare_research_run", "advance_research_run"}
         if operation not in allowed:
             raise HotError("hot_web_operation_invalid")
         return getattr(self._manager(), operation)(*args)

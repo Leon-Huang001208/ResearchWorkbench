@@ -358,3 +358,6 @@ Office自动验证只复用Host内既有集成批次和受管验证器，不增�
 
 
 Hot完整原件读取继续复用独立Node/PostgreSQL与Host reader通道，没有新服务、队列或研究引擎。逻辑数据库实例与材料版本绑定在冻结清单中，切换运行代次不更改历史证据；真实Native/Docker切换仍待验收。
+
+
+研究准备源码链为Hot PG运行映射→Host ResearchService原生会话→DataHub会话原件快照。Hot worker仍不写旧Store，不启动第二研究引擎；既有DSH继续负责研究执行。原生会话故障注入及签名Node/PG→Host→快照组合已验证，真实DSH创建/付费研究与安装仍需实际验收。

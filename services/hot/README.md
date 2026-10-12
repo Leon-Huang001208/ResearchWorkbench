@@ -616,3 +616,21 @@ HTTP/retained-file assertions. This is fixture credentials, not installed Keycha
 or paid DSH acceptance. Two original real AI/macro brief versions have separately
 produced parsed, hash-checked DOCX artifacts; product install/browser DOCX and full
 research acceptance are still pending.
+
+
+## Durable research preparation (migration16)
+
+PostgreSQL owns immutable `research_inputs`, CAS `research_runs`, and immutable
+`research_operations`. Input creation precedes native side effects and reserves
+one session UUID. Controller-only prepare/advance and reader-only run inspection
+use the existing owner fence; workers cannot rewrite mappings or inputs. Exact
+request replay reuses its result. Unknown execution can reconcile to running or
+terminate; it cannot transition back to automatic submission.
+
+Host preparation uses ResearchService native session ownership and DataHub's
+private snapshot catalog, without inventing an intermediate source session. A lost
+creation reply is recovered by querying the reserved native identity. Unknown
+absence remains explicit, not an automatic second create. Imported snapshot copies
+retain original acquisition times, source bytes and their hashes. Prepared context
+is data, not publisher instructions. Current handoff API prepares a draft only;
+paid DSH execution and its budget bridge remain required next work.

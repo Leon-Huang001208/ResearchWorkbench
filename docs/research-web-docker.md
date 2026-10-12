@@ -1,5 +1,10 @@
 # Mac mini Docker 开发与独立部署
 
+Hot 研究交接新增 schema16 的持久运行映射和 DataHub 冻结副本发布。当前本地
+Node/PG/HTTP 组合回归使用模拟 native 会话回执，不是 Docker 产品验收；生产原库
+仍保持 schema15 与暂停状态。Mac Docker 的真实 Hot worker、采集、共享数据库模式
+切换及联合恢复仍需独立完成，不借用开发 PostgreSQL 容器或 Native 结果认证。
+
 G0/G1 的入口是 `rwb-docker`（亦可用 `./rwb docker`）。管理员在 mini 的受控终端执行，
 宿主只使用 POSIX shell 与 Docker CLI/Engine/buildx；Python、Node、Git、编译器及测试工具
 在镜像中。当前仅交付 Mac Docker Desktop arm64 的基座，实际验收见任务报告。

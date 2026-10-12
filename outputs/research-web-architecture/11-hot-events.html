@@ -4917,7 +4917,7 @@
         <path data-edge-from="hotWorker" data-edge-to="hotDatabase" data-edge-label="角色权限 / 事务栅栏" data-edge-key="2" data-edge-id="hotSql" data-composition-points="980,87;1135,87" d="M 980 87 L 1135 87" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
         <path data-edge-from="publicFeeds" data-edge-to="hotWorker" data-edge-label="有界取得 / 水位" data-edge-key="3" data-edge-id="hotFetch" data-composition-points="875,283;875,133" d="M 875 283 L 875 133" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
         <path data-edge-from="modelAcceptance" data-edge-to="hotWorker" data-edge-label="回执先于业务" data-edge-key="4" data-edge-id="hotModel" data-composition-points="1135,322;1057.5,322;1057.5,101;980,101" d="M 1135 322 L 1065.5 322 Q 1057.5 322 1057.5 314 L 1057.5 109 Q 1057.5 101 1049.5 101 L 980 101" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
-        <path data-edge-from="hotHost" data-edge-to="futureResearch" data-edge-label="后续冻结交接" data-edge-key="5" data-edge-id="hotHandoffPending" data-composition-points="405,101;327.5,101;327.5,550;250,550" d="M 405 101 L 335.5 101 Q 327.5 101 327.5 109 L 327.5 542 Q 327.5 550 319.5 550 L 250 550" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
+        <path data-edge-from="hotHost" data-edge-to="futureResearch" data-edge-label="冻结交接 API · 原生研究待验" data-edge-key="5" data-edge-id="hotHandoffPending" data-composition-points="405,101;327.5,101;327.5,550;250,550" d="M 405 101 L 335.5 101 Q 327.5 101 327.5 109 L 327.5 542 Q 327.5 550 319.5 550 L 250 550" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
         <path data-edge-from="modelAdmin" data-edge-to="hotDatabase" data-edge-label="私有 bootstrap / 迁移权限" data-edge-key="6" data-edge-id="modelAdminDb" data-composition-points="40,322;15,322;15,15;1375,15;1375,94;1345,94" d="M 40 322 L 23 322 Q 15 322 15 314 L 15 23 Q 15 15 23 15 L 1367 15 Q 1375 15 1375 23 L 1375 86 Q 1375 94 1367 94 L 1345 94" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
 
         <!-- Components -->
@@ -4957,8 +4957,8 @@
         <text data-detail="context" x="875" y="108" class="t-muted" font-size="9" text-anchor="middle">采集 · 归组 · 规则 · 回执</text>
         </g>
 
-        <g id="node-hotDatabase" data-node-id="hotDatabase" data-node-label="指定 PostgreSQL schema" tabindex="0" role="button" aria-label="Focus 指定 PostgreSQL schema, 原文 / 版本 / 队列 / 审计, Architecture component" aria-pressed="false" data-node-kind="database" data-node-sublabel="原文 / 版本 / 队列 / 审计" data-node-context="Architecture component">
-          <title>指定 PostgreSQL schema · 原文 / 版本 / 队列 / 审计 · Architecture component</title>
+        <g id="node-hotDatabase" data-node-id="hotDatabase" data-node-label="指定 PostgreSQL schema" tabindex="0" role="button" aria-label="Focus 指定 PostgreSQL schema, 原文 / 队列 / 研究映射 / 审计, Architecture component" aria-pressed="false" data-node-kind="database" data-node-sublabel="原文 / 队列 / 研究映射 / 审计" data-node-context="Architecture component">
+          <title>指定 PostgreSQL schema · 原文 / 队列 / 研究映射 / 审计 · Architecture component</title>
           <rect x="1135" y="55" width="210" height="78" rx="6" class="c-mask"/>
           <rect x="1135" y="55" width="210" height="78" rx="6" class="c-database" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="database" class="semantic-sigil s-database" transform="translate(1141 61) scale(0.6875)">
@@ -4966,7 +4966,7 @@
             <path d="M3 4v8c0 1.1 2.2 2 5 2s5-.9 5-2V4M3 8c0 1.1 2.2 2 5 2s5-.9 5-2"/>
           </g>
           <text data-detail-anchor x="1240" y="92" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">指定 PostgreSQL schema</text>
-        <text data-detail="context" x="1240" y="108" class="t-muted" font-size="9" text-anchor="middle">原文 / 版本 / 队列 / 审计</text>
+        <text data-detail="context" x="1240" y="108" class="t-muted" font-size="9" text-anchor="middle">原文 / 队列 / 研究映射 / 审计</text>
         </g>
 
         <g id="node-publicFeeds" data-node-id="publicFeeds" data-node-label="DataHub 官方 feed 目录" tabindex="0" role="button" aria-label="Focus DataHub 官方 feed 目录, 公开 HTTP · 最新快照, Architecture component" aria-pressed="false" data-node-kind="external" data-node-sublabel="公开 HTTP · 最新快照" data-node-context="Architecture component">
@@ -4993,15 +4993,15 @@
         <text data-detail="context" x="1240" y="336" class="t-muted" font-size="9" text-anchor="middle">共用累计预算 · 无研究会话</text>
         </g>
 
-        <g id="node-futureResearch" data-node-id="futureResearch" data-node-label="现有 ResearchService / DSH" tabindex="0" role="button" aria-label="Focus 现有 ResearchService / DSH, 研究交接 / DOCX仍待实现, Architecture component" aria-pressed="false" data-node-kind="backend" data-node-sublabel="研究交接 / DOCX仍待实现" data-node-context="Architecture component">
-          <title>现有 ResearchService / DSH · 研究交接 / DOCX仍待实现 · Architecture component</title>
+        <g id="node-futureResearch" data-node-id="futureResearch" data-node-label="现有 ResearchService / DSH" tabindex="0" role="button" aria-label="Focus 现有 ResearchService / DSH, 会话 / 快照适配 · 真实研究待验, Architecture component" aria-pressed="false" data-node-kind="backend" data-node-sublabel="会话 / 快照适配 · 真实研究待验" data-node-context="Architecture component">
+          <title>现有 ResearchService / DSH · 会话 / 快照适配 · 真实研究待验 · Architecture component</title>
           <rect x="40" y="511" width="210" height="78" rx="6" class="c-mask"/>
           <rect x="40" y="511" width="210" height="78" rx="6" class="c-backend" stroke-width="1.5"/>
           <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(46 517) scale(0.6875)">
             <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
           </g>
           <text data-detail-anchor x="145" y="548" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">现有 ResearchService / DSH</text>
-        <text data-detail="context" x="145" y="564" class="t-muted" font-size="9" text-anchor="middle">研究交接 / DOCX仍待实现</text>
+        <text data-detail="context" x="145" y="564" class="t-muted" font-size="9" text-anchor="middle">会话 / 快照适配 · 真实研究待验</text>
         </g>
 
         <g id="node-modelAdmin" data-node-id="modelAdmin" data-node-label="rwb hot 模型管理" tabindex="0" role="button" aria-label="Focus rwb hot 模型管理, 停机授权 · 终止 / 查询, Architecture component" aria-pressed="false" data-node-kind="backend" data-node-sublabel="停机授权 · 终止 / 查询" data-node-context="Architecture component">
@@ -5036,9 +5036,9 @@
           <rect x="1023.7" y="191.5" width="67.6" height="14" rx="3" class="c-mask"/>
           <text x="1057.5" y="201.5" class="t-muted" font-size="8" text-anchor="middle">回执先于业务</text>
         </g>
-        <g data-detail="context" data-edge-from="hotHost" data-edge-to="futureResearch" data-edge-label="后续冻结交接" data-edge-key="5" data-edge-id="hotHandoffPending">
-          <rect x="293.7" y="305.5" width="67.6" height="14" rx="3" class="c-mask"/>
-          <text x="327.5" y="315.5" class="t-messagebus" font-size="8" text-anchor="middle">后续冻结交接</text>
+        <g data-detail="context" data-edge-from="hotHost" data-edge-to="futureResearch" data-edge-label="冻结交接 API · 原生研究待验" data-edge-key="5" data-edge-id="hotHandoffPending">
+          <rect x="257.7" y="305.5" width="139.6" height="14" rx="3" class="c-mask"/>
+          <text x="327.5" y="315.5" class="t-messagebus" font-size="8" text-anchor="middle">冻结交接 API · 原生研究待验</text>
         </g>
         <g data-detail="context" data-edge-from="modelAdmin" data-edge-to="hotDatabase" data-edge-label="私有 bootstrap / 迁移权限" data-edge-key="6" data-edge-id="modelAdminDb">
           <rect x="625" y="5" width="130" height="14" rx="3" class="c-mask"/>
@@ -5267,7 +5267,7 @@
         </div>
         <ul>
           <li>&bull; 真实事件与简报读取已验证；研究仍待验收。</li>
-          <li>&bull; DOCX、研究快照、联合恢复与模式切换仍待验收。</li>
+          <li>&bull; DOCX与冻结快照已验；正式研究、联合恢复和模式切换待验。</li>
         </ul>
       </div>
     </div>

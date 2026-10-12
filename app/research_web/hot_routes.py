@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from typing import Annotated, Literal
 from uuid import UUID
 
@@ -55,6 +56,16 @@ class BriefRequest(BaseModel):
     timezone: str | None = Field(default=None, min_length=1, max_length=100)
     from_: str | None = Field(default=None, alias="from", min_length=1, max_length=100)
     to: str | None = Field(default=None, min_length=1, max_length=100)
+    requestId: str = Field(pattern=UUID_PATTERN)
+
+
+class ResearchRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    runId: str = Field(pattern=UUID_PATTERN)
+    briefId: str = Field(pattern=UUID_PATTERN)
+    version: int = Field(ge=1, le=1000000, strict=True)
+    materialIds: list[Annotated[str, Field(pattern=UUID_PATTERN, strict=True)]] = Field(min_length=1, max_length=20)
+    targetMode: Literal["fingpt", "claw"]
     requestId: str = Field(pattern=UUID_PATTERN)
 
 
@@ -113,6 +124,22 @@ async def lifecycle(request: Request):
 async def channels(request: Request):
     params = query(request, {"cutoff"})
     return await request.app.state.hot.call("channels", params.get("cutoff"))
+
+
+@router.post("/research/handoffs")
+async def research_handoff(request: Request):
+    from .hot_handoff import prepare_hot_handoff
+    value = await body(request, ResearchRequest)
+    return await prepare_hot_handoff(request.app.state.research, request.app.state.hot,
+                                     value.model_dump(exclude={"requestId"}), value.requestId)
+
+
+@router.get("/research/runs/{run_id}")
+async def research_run(run_id: str, request: Request):
+    if not re.fullmatch(UUID_PATTERN, run_id):
+        raise HotWebError("hot_research_run_invalid", "研究运行标识不正确。", 400)
+    query(request, set())
+    return await request.app.state.hot.call("research_run", str(UUID(run_id)))
 
 
 @router.get("/events")

@@ -145,17 +145,17 @@
     },
     {
       "id": "11-hot-events",
-      "artifactSha256": "c5462635be720e5830a017ae91a9f138fe3d445d00c1ae37d2ff12c523099d50",
-      "specificationSha256": "68857ed747120aa8486253ca2028fe8331e10b06b2e955b162bc058ae5cfb273",
+      "artifactSha256": "c0c965515fb0e4ab1f1c610c0faaa197b2e9a0f971a380c47ff9224ed3d97afd",
+      "specificationSha256": "7aa4c50b31620170b235d10478c08fa419d4fb2ca78b25226178633feff44c6c",
       "status": "reviewed",
       "reviewer": "Codex image inspection",
-      "date": "2026-10-09",
+      "date": "2026-10-12",
       "captures": [
         "11-hot-events.visual-check.1440x900.light.png",
         "11-hot-events.visual-check.2048x1320.dark.png"
       ],
       "findings": [],
-      "notes": "实际查看当前哈希1440浅色/2048深色截图：真实简报读取证据与待研究/DOCX边界文字可读，无新增遮挡或裁剪。四视口测量和9/9结构检查通过；图形检查不替代产品与其他平台验收。"
+      "notes": "实际查看最终1440浅色与2048深色截图：PG研究映射和冻结快照适配可读，无新增遮挡或裁剪；正式研究/联合恢复/模式切换保持待验。9/9结构及四视口检查独立通过，不代替付费研究或安装验收。"
     },
     {
       "id": "01-deployment",

@@ -4,7 +4,7 @@ Research Workbench 当前交付的是本地优先的 **Research Web**：一个�
 
 当前 Web 入口为 `app.research_web.main:app`。Research Web 通过 FastAPI 轻量适配层连接专属 DSH；**DSH 是唯一的研究引擎**，负责研究执行循环、会话历史、Skill 与子 Agent。基础 Research Web 不启动旧 API 生命周期，也不要求 PostgreSQL、pgvector 或桌面预览。
 
-可选的「热点与事件」入口位于研究台与设置页，连接独立 Hot Node 服务及指定 PostgreSQL，提供事件、来源覆盖、频道和人工纠错。未配置时显示真实状态，页面读取不启动服务或模型。Native 模型工厂支持已有预算下的受控装配与原回执复用；模型默认关闭，配置不能创建付费授权。预算授权、尝试查询及未知尝试终止通过独立 CLI 明确操作，终止不退款。当前实现与配置命令见 [Hot 组件说明](services/hot/README.md)；定价记录已支持 CLI 导入；冻结简报已接入网页预览与固定版本 Markdown 下载；安装级 worker、DOCX、继续研究及干净安装仍在验收中，完整 Hot 产品尚未交付。
+统一「研究情报」入口包含本地热点与事件及外部只读资讯，保留资讯雷达的八个栏目。本地部分连接独立 Hot Node 服务及指定 PostgreSQL，提供事件、来源覆盖、频道和人工纠错；Hot 设置仍在设置页。未配置时显示真实状态，页面读取不启动服务或模型。Native 模型工厂支持已有预算下的受控装配与原回执复用；模型默认关闭，配置不能创建付费授权。预算授权、尝试查询及未知尝试终止通过独立 CLI 明确操作，终止不退款。当前实现与配置命令见 [Hot 组件说明](services/hot/README.md)；冻结简报支持固定版本 Markdown/DOCX，继续研究的会话及快照准备已有本地证据。正式付费研究、安装级 worker 与干净安装仍在验收中，完整 Hot 产品尚未交付。
 
 > 当前产品阶段为 **Web-only**。桌面打包历史仍被保留，但桌面 sidecar、Tauri、安装包和原生桌面 CI 不属于普通 Research Web 的安装或验收前提。
 
@@ -206,3 +206,5 @@ MIT License
 设置页支持固定 DeepSeek 官方目录及一种 OpenAI Chat Completions 兼容文本/流式连接。兼容连接显式配置非秘密 base URL 和模型 ID，专用 Key 与官方 Key 隔离；本机无Key模式不读取凭据。模型工具能力未经实测时保持未验证；保存、Runtime应用、真实生成与真实账户验收各自留证，不承诺全品牌支持。
 
 研究情报包含本地热点与事件（`#/intel/hot`，需配置Hot/PostgreSQL）及外部只读资讯；状态、版本和覆盖范围分别展示，已取得材料的完整存储版本/原始响应冻结与DOCX内核已有本地证据；完整Hot研究会话、恢复和安装闭环仍在验收中。
+
+Hot研究交接已具备固定PG运行映射、原生会话恢复与DataHub原件副本的准备接口；当前返回草稿，正式付费研究及其验收仍在实施。

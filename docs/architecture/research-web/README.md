@@ -1,5 +1,9 @@
 # Research Workbench Research Web 当前架构
 
+Hot 的持久研究映射与受控交接准备现在适配同一 ResearchService/DataHub：固定目标身份、
+完整原件副本及目录核验可恢复。它尚不启动付费研究或报告；既有 Automation 调度与
+create/send 路径保持，Hot 周期任务的 Automation 适配仍待实现，见图11和权威进度报告。
+
 Automation 对普通原生会话和报告 Run 的关联现在在已知后立即原子保存；恢复只监控同一已证明任务，不重新 create/send。报告归属、版本与校验状态仍由既有报告 Runtime 决定；提交未知或关联持久化失败保留失败状态。本次不新增执行器、调度器、API 或持久 schema。
 
 这是当前研究产品的唯一架构主入口。Research Web 组织研究页面、框架、能力与文件，专属 DSH 是唯一研究执行循环。当前任务按 macOS Native / Mac Docker Desktop 与 Windows/Linux 对应设备分工验收；源码同时保留 `app/research_web/`、`research_workbench_entrypoint/`、`docker/` 与共用运行合同，Docker 实现按运行宿主与镜像架构分别验收；未验证项见 [支持矩阵](../../research-web-platform-support.md)。Native 双宿主进程与 Docker 单容器是互斥运行方式，顺序共享产品数据。旧 `app/api`、量化业务和 merged-platform 图文保持历史身份，不作为本入口依赖。

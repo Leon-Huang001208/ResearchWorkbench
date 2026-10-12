@@ -90,7 +90,10 @@ def rpc(port: int, owner: dict, key: str, operation: str, params: dict | None = 
                      "hot_research_material_not_selected", "hot_research_original_integrity_invalid", "hot_research_instance_invalid",
                      "hot_research_manifest_limit", "hot_research_manifest_changed", "hot_research_cancelled",
                      "hot_research_object_invalid", "hot_research_object_not_selected", "hot_research_evidence_failed",
-                     "hot_research_original_failed")
+                     "hot_research_original_failed", "hot_research_run_invalid", "hot_research_run_unknown", "hot_research_run_failed",
+                     "hot_research_control_denied", "hot_research_request_conflict", "hot_research_revision_conflict",
+                     "hot_research_transition_invalid", "hot_research_mapping_conflict", "hot_research_snapshot_required",
+                     "hot_research_delivery_required", "hot_research_input_integrity_invalid")
             raise HotError(code if code in known else "hot_rpc_unavailable")
         return result["result"]
     except HotError:
@@ -491,6 +494,56 @@ class HotManager:
             log.warning("hot_research_evidence_invalid")
             raise HotError("hot_research_response_invalid") from None
 
+    def _valid_research_run(self, value, run_id):
+        if (not isinstance(value, dict) or value.get("runId") != run_id
+                or type(value.get("revision")) is not int or value["revision"] < 1
+                or value.get("state") not in {"prepared", "session_creating", "session_outcome_unknown", "session_ready", "snapshot_ready", "execution_starting", "execution_outcome_unknown", "running", "completed", "failed", "abandoned"}
+                or value.get("targetMode") not in {"fingpt", "claw"}
+                or not isinstance(value.get("evidenceManifestHash"), str) or not re.fullmatch(r"[a-f0-9]{64}", value["evidenceManifestHash"])
+                or not isinstance(value.get("materialIds"), list) or not 1 <= len(value["materialIds"]) <= 20
+                or type(value.get("version")) is not int or value["version"] < 1):
+            return False
+        try:
+            for key in ["runId", "sessionId", "instanceId", "briefId", "requestId"]:
+                self._brief_id(value[key])
+            for identity in value["materialIds"]:
+                self._brief_id(identity)
+        except (HotError, KeyError):
+            return False
+        return True
+
+    def research_run(self, run_id: str) -> dict:
+        run_id = self._brief_id(run_id)
+        state = self._state()
+        if state is None:
+            raise HotError("hot_service_stopped")
+        value = rpc(state["port"], state["owner"], self._secret("rpc-reader"), "research.run", {"runId": run_id})
+        if not self._valid_research_run(value, run_id) or value["instanceId"] != state["owner"]["instanceId"]:
+            raise HotError("hot_research_response_invalid")
+        return value
+
+    def prepare_research_run(self, params: dict, request_id: str) -> dict:
+        required = {"runId", "briefId", "version", "materialIds", "targetMode"}
+        if (not isinstance(params, dict) or set(params) != required or params.get("targetMode") not in {"fingpt", "claw"}
+                or type(params.get("version")) is not int or not 1 <= params["version"] <= 1000000
+                or not isinstance(params.get("materialIds"), list) or not 1 <= len(params["materialIds"]) <= 20):
+            raise HotError("hot_research_run_invalid")
+        params = {**params, "runId": self._brief_id(params["runId"]), "briefId": self._brief_id(params["briefId"]),
+                  "materialIds": sorted(self._brief_id(value) for value in params["materialIds"])}
+        if len(set(params["materialIds"])) != len(params["materialIds"]):
+            raise HotError("hot_research_run_invalid")
+        return self._control_projection("research.prepare", params, request_id,
+                                        lambda value, request: self._valid_research_run(value, params["runId"]) and value["requestId"] == request)
+
+    def advance_research_run(self, params: dict, request_id: str) -> dict:
+        if (not isinstance(params, dict) or not {"runId", "expectedRevision", "state"} <= params.keys()
+                or set(params) - {"runId", "expectedRevision", "state", "datasetId", "datasetManifestHash", "deliveryKey", "reportRunId", "errorCode"}
+                or type(params["expectedRevision"]) is not int or params["expectedRevision"] < 1):
+            raise HotError("hot_research_run_invalid")
+        params = {**params, "runId": self._brief_id(params["runId"])}
+        return self._control_projection("research.advance", params, request_id,
+                                        lambda value, request: self._valid_research_run(value, params["runId"]) and value["revision"] == params["expectedRevision"] + 1 and value["state"] == params["state"])
+
     def create_brief(self, params: dict, request_id: str | None = None) -> dict:
         required = {"briefId", "expectedVersion", "eventIds", "channelId", "cutoff"}
         if not isinstance(params, dict) or not required <= params.keys() or set(params) - required - {"from", "to", "timezone"}:
@@ -513,7 +566,7 @@ class HotManager:
         return self._control_projection("brief.create", params, request_id, receipt)
 
     def _control_projection(self, operation: str, params: dict, request_id: str | None, valid_receipt) -> dict:
-        if operation not in ("channel.configure", "event.correct", "brief.create"):
+        if operation not in ("channel.configure", "event.correct", "brief.create", "research.prepare", "research.advance"):
             raise HotError("hot_control_operation_invalid")
         if request_id is not None and (not isinstance(request_id, str) or not re.fullmatch(r"[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}", request_id)):
             raise HotError("hot_control_request_invalid")

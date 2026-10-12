@@ -23,6 +23,11 @@ from unittest.mock import patch
 from research_workbench_entrypoint.hot_manager import HotManager
 from app.research_web.hot_service import HotWebService
 from app.research_web.hot_routes import router
+from app.research_web.service import ResearchService
+from app.research_web.store import Store
+from tests.research_web.test_hot_session_recovery import Native
+from uuid import uuid4
+import keyring
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from docx import Document
@@ -31,10 +36,16 @@ from contextlib import redirect_stdout
 p=json.load(sys.stdin)
 with redirect_stdout(sys.stderr),tempfile.TemporaryDirectory() as temp:
  m=HotManager(Path.cwd(),Path(temp).resolve(),object())
- with patch.object(m,"_state",return_value={"port":p["port"],"owner":p["owner"]}),patch.object(m,"_secret",return_value=p["readerToken"]):
+ with patch.object(m,"_state",return_value={"port":p["port"],"owner":p["owner"]}),patch.object(m,"_secret",side_effect=lambda ref:p["readerToken"] if ref=="rpc-reader" else p["controllerToken"]):
   value=m.research_evidence(p["briefId"],1,p["materialIds"])
   bridge=HotWebService(Path.cwd(),m.home,manager_factory=lambda:m)
-  app=FastAPI();app.include_router(router);app.state.hot=bridge
+  keys={}
+  keyring.get_password=lambda service,account:keys.get((service,account))
+  keyring.set_password=lambda service,account,value:keys.__setitem__((service,account),value)
+  keyring.delete_password=lambda service,account:keys.pop((service,account),None)
+  native=Native();native.lose_reply=False
+  research=ResearchService(native,Store(m.home),owned=True)
+  app=FastAPI();app.include_router(router);app.state.hot=bridge;app.state.research=research
   with TestClient(app) as client:
    response=client.get("/api/research/hot/briefs/"+p["briefId"]+"/docx?version=1")
    assert response.status_code==200
@@ -43,8 +54,20 @@ with redirect_stdout(sys.stderr),tempfile.TemporaryDirectory() as temp:
    files=list((m.home/"hot"/"brief-artifacts").glob("*.docx"))
    assert len(files)==1 and files[0].read_bytes()==response.content
    docx={"status":response.status_code,"bytes":len(response.content),"retained":True,"parsed":True}
+   args={"runId":str(uuid4()),"requestId":str(uuid4()),"briefId":p["briefId"],"version":1,"materialIds":p["materialIds"],"targetMode":"fingpt"}
+   response=client.post("/api/research/hot/research/handoffs",json=args,headers={"X-Research-User-Action":"?1"})
+   assert response.status_code==200,response.text
+   handoff=response.json();assert handoff["state"]=="snapshot_ready" and handoff["executionStarted"] is False
+   replay=client.post("/api/research/hot/research/handoffs",json=args,headers={"X-Research-User-Action":"?1"})
+   assert replay.json()["sessionId"]==handoff["sessionId"] and replay.json()["datasetId"]==handoff["datasetId"]
+   assert native.creations==1
+   dataset=research.datahub.snapshots.detail(handoff["sessionId"],handoff["datasetId"])
+   assert dataset["hot"]["manifestHash"]==value["manifestHash"]
+   for item in value["manifest"]["objects"]:assert research.datahub.snapshots.read(handoff["sessionId"],handoff["datasetId"],item["filename"])==value["objects"][item["key"]]
+   handoff_proof={"state":handoff["state"],"nativeCreations":native.creations,"nativeFixture":True,"snapshotCount":len(research.datahub.snapshots.ids(handoff["sessionId"])),"executionStarted":False}
   asyncio.run(bridge.close())
-print(json.dumps({"manifestHash":value["manifestHash"],"objects":{k:{"bytes":len(v),"hash":hashlib.sha256(v).hexdigest()} for k,v in value["objects"].items()},"docx":docx}))`;
+  asyncio.run(research.close())
+print(json.dumps({"manifestHash":value["manifestHash"],"objects":{k:{"bytes":len(v),"hash":hashlib.sha256(v).hexdigest()} for k,v in value["objects"].items()},"docx":docx,"handoff":handoff_proof}))`;
   return new Promise<any>((resolveResult,reject)=>{
     const child=spawn(python,['-c',script],{cwd:resolve(import.meta.dirname,'../../..'),stdio:['pipe','pipe','pipe']});
     let output='',errors='';const timer=setTimeout(()=>{child.kill('SIGTERM');reject(Error('hot_test_host_timeout'));},25000);
@@ -106,11 +129,35 @@ test('signed PG evidence copies old full originals, rejects foreign objects and 
     const manifestBytes=Buffer.concat(manifestParts);assert.equal(sha256(manifestBytes),manifestHash);
     const signed={manifest:JSON.parse(manifestBytes.toString('utf8')),manifestHash};assert.deepEqual(signed,before);
     await assert.rejects(read('research.evidence',{...selection,offset:1}),/offset_invalid/);
+    const runId=randomUUID(),prepareId=randomUUID(),runParams={runId,...selection,targetMode:'fingpt'};
+    const control=(method:string,params:any,requestId=randomUUID())=>rpc(service!.port,service!.owner,controllerToken,method,params,requestId) as Promise<any>;
+    await assert.rejects(read('research.prepare',runParams),/denied/);
+    let run=await control('research.prepare',runParams,prepareId);
+    assert.equal(run.state,'prepared');assert.equal(run.evidenceManifestHash,signed.manifestHash);
+    assert.match(run.sessionId,/^[a-f0-9-]{36}$/);const reserved=run.sessionId;
+    assert.deepEqual(await control('research.prepare',runParams,prepareId),run);
+    await assert.rejects(control('research.prepare',{...runParams,targetMode:'claw'},prepareId),/request_conflict/);
+    const firstAdvance=randomUUID(),firstArgs={runId,expectedRevision:run.revision,state:'session_creating'};
+    run=await control('research.advance',firstArgs,firstAdvance);
+    assert.deepEqual(await control('research.advance',firstArgs,firstAdvance),run);
+    await assert.rejects(control('research.advance',{...firstArgs,state:'session_ready'},firstAdvance),/request_conflict/);
+    const advance=async(state:string,patch:any={})=>{run=await control('research.advance',{runId,expectedRevision:run.revision,state,...patch});};
+    await advance('session_outcome_unknown');await advance('session_ready');
+    await assert.rejects(control('research.advance',{runId,expectedRevision:run.revision,state:'snapshot_ready'}),/snapshot_required/);
+    await advance('snapshot_ready',{datasetId:randomUUID(),datasetManifestHash:'a'.repeat(64)});
+    await advance('execution_starting',{deliveryKey:'hot-run-'+runId});await advance('execution_outcome_unknown');
+    await assert.rejects(control('research.advance',{runId,expectedRevision:run.revision,state:'execution_starting'}),/transition_invalid/);
+    await advance('running');await advance('completed');
+    assert.equal((await read('research.run',{runId})).sessionId,reserved);
+    const workerDb=postgres({host:'127.0.0.1',port,database:'hot_probe',username:worker,password:workerPassword,onnotice:()=>{}});
+    try{await assert.rejects(workerDb`update ${workerDb(schema)}.research_runs set state='prepared' where id=${runId}`,/permission denied/);}finally{await workerDb.end({timeout:5});}
+    await assert.rejects(db`update ${db(schema)}.research_inputs set session_id=${randomUUID()} where id=${runId}`,/immutable_evidence/);
     if(process.env.RWB_HOT_TEST_PYTHON){
-      const host=await hostRead(process.env.RWB_HOT_TEST_PYTHON,{...selection,port:service.port,owner:service.owner,readerToken});
+      const host=await hostRead(process.env.RWB_HOT_TEST_PYTHON,{...selection,port:service.port,owner:service.owner,readerToken,controllerToken});
       assert.equal(host.manifestHash,signed.manifestHash);
       for(const object of signed.manifest.objects)assert.deepEqual(host.objects[object.key],{bytes:object.bytes,hash:object.contentHash});
       assert.equal(host.docx.status,200);assert.equal(host.docx.retained,true);assert.equal(host.docx.parsed,true);
+      assert.equal(host.handoff.state,'snapshot_ready');assert.equal(host.handoff.nativeCreations,1);assert.equal(host.handoff.snapshotCount,1);assert.equal(host.handoff.executionStarted,false);
     }
     for(const object of signed.manifest.objects){
       let offset=0;const parts:Buffer[]=[];

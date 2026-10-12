@@ -438,3 +438,6 @@ Hot简报Host输入在读key前验证身份、严格版本和选材边界，Node
 `research.evidence` / `research.original`仅在当前签名reader权限、实例/模式/代次和活跃owner fence内读取。请求只能指定已保存简报的正版本及1–20个明确材料ID，不能选择schema、地址、SQL或任意文件。原件必须属于该固定选择；哈希变化、失效代次和未选择原件拒绝。Host不解析原文为代码或指令，不领取任务或调用模型。清单700000字节、单原件8MiB、总量32MiB；每页最多32KiB，校验完整后才交给未来会话发布流程。
 
 本轮真实PG/签名RPC、Host重建及DOCX HTTP是隔离凭据fixture；原两份真实简报的DOCX内核输出已验证。两者不认证实际安装的SystemKeychain、研究受理或生产部署。累计授权账本继续沿用原scope，不因接续worktree或恢复而重置。
+
+
+Hot研究映射prepare/advance为controller-only，所有变更仍受实例/模式/代次与CAS；原件和状态为reader-only。预留session身份先持久化，未知结果不能自动创建另一个会话或重发付费执行。原生ID存在但cwd/本次归属不一致时拒绝采用。DataHub只允许已原生确认的匹配目标会话导入固定bundle，校验原件键/文件名/字节数/SHA与清单、截止时点；不会把材料解释成代码或用户授权。跨会话复制保留独立字节，未知暂存内容与已存在不同快照拒绝覆盖。

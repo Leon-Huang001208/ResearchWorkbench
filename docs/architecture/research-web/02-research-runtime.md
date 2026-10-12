@@ -438,3 +438,6 @@ Office受控自动验证在Host既有批次内串行执行，与DSH研究循环�
 
 
 Hot研究交接的原件读取已进入既有reader签名桥；独立Node不创建DSH会话，Host只重建固定版本证据。正常ResearchService/DSH受理、Hot run→session映射和未知受理恢复尚待接入，当前读取成功不能被显示为研究已经启动。
+
+
+Hot交接准备已接入ResearchService与DataHub：PG先预留session ID，Host保留匹配归属并查询DSH已有会话；创建回执丢失时复用已存在会话，未知缺席保持待恢复。原件快照私有目录提交后CAS绑定dataset/manifest hash。snapshot_ready仅表示研究草稿与证据已准备，不表示session.prompt已受理。execution_starting/execution_outcome_unknown的恢复须查询既有Delivery/原生历史，禁止自动重发；本轮未新增正式付费执行。

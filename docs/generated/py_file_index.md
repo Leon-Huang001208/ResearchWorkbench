@@ -3689,6 +3689,28 @@ Classes:
 - `InternalBusinessQuery`
 
 
+## `app/research_web/datahub/frozen_archive.py`
+
+Module docstring:
+> Validate Hot's exact stored originals before DataHub publishes a target-session copy.
+
+Imports:
+- `contracts`
+- `core.observability`
+- `datetime`
+- `hashlib`
+- `json`
+- `re`
+- `store`
+- `uuid`
+
+Functions:
+- `digest`
+- `validate_bundle`
+- `build_archive`
+  - No provider query is fabricated: this is a stored-evidence snapshot kind.
+
+
 ## `app/research_web/datahub/probes.py`
 
 Module docstring:
@@ -4034,7 +4056,7 @@ Imports:
 
 Classes:
 - `Snapshots`
-  - methods: __init__, _private, _public, receipt, ids, detail, read, publish, copy_for_upgrade, copy_selected
+  - methods: __init__, _private, _public, receipt, ids, detail, read, publish, _publish_files, publish_hot, copy_for_upgrade, copy_selected
 
 Functions:
 - `sha`
@@ -4572,6 +4594,26 @@ Functions:
   - Caller obtains saved input through Manager's signed/hash-verified brief read.
 
 
+## `app/research_web/hot_handoff.py`
+
+Module docstring:
+> Prepare one genuine research session from a PG run; execution remains a separate admission.
+
+Imports:
+- `client`
+- `core.observability`
+- `datahub.security`
+- `hot_service`
+- `json`
+- `store`
+- `uuid`
+
+Functions:
+- `_context`
+- `prepare_hot_handoff`
+  - Only Host writes existing Store; Hot workers never mutate session metadata.
+
+
 ## `app/research_web/hot_routes.py`
 
 Module docstring:
@@ -4584,6 +4626,7 @@ Imports:
 - `hot_service`
 - `json`
 - `pydantic`
+- `re`
 - `typing`
 - `uuid`
 
@@ -4593,6 +4636,7 @@ Classes:
 - `LifecycleRequest`
 - `SourceRequest`
 - `BriefRequest`
+- `ResearchRequest`
 
 Functions:
 - `body`
@@ -4602,6 +4646,8 @@ Functions:
 - `configure`
 - `lifecycle`
 - `channels`
+- `research_handoff`
+- `research_run`
 - `events`
 - `detail`
 - `sources`
@@ -6596,7 +6642,7 @@ Classes:
   - Enforce Research Store ownership before any session-scoped MCP operation.
   - methods: __init__, __getattr__, start, close, _owned, authorize_session, register_automation_session, read_resource, get_prompt, call_tool, approvals, decide_approval
 - `ResearchService`
-  - methods: __init__, _build_mcp_runtime, ensure_owned, start, close, _retention_loop, notify, _connect, _consume, _interaction_owner, _model_plane, compatible_connection, _require_model_credentials, runtime, configure_model, test_model, create, summary, list_sessions, soft_delete_session, restore_session, permanent_delete_session, purge_expired_sessions, _model_tools_verified, _task_capabilities, _effective_records, native_admission, _data_query_admission, capability_readiness, detail, _cancel_observation, send, skill_catalog, _capability_idle, _mcp_idle_gate, _restart_mcp_runtime, change_capability, create_capability_session, capability_from_artifact, approve, cancel, _cancel, answer
+  - methods: __init__, _build_mcp_runtime, ensure_owned, start, close, _retention_loop, notify, _connect, _consume, _interaction_owner, _model_plane, compatible_connection, _require_model_credentials, runtime, configure_model, test_model, create, ensure_hot_session, summary, list_sessions, soft_delete_session, restore_session, permanent_delete_session, purge_expired_sessions, _model_tools_verified, _task_capabilities, _effective_records, native_admission, _data_query_admission, capability_readiness, detail, _cancel_observation, send, skill_catalog, _capability_idle, _mcp_idle_gate, _restart_mcp_runtime, change_capability, create_capability_session, capability_from_artifact, approve, cancel, _cancel, answer
 
 Functions:
 - `_mcp_internal_url`
@@ -7411,7 +7457,7 @@ Classes:
 - `StoreError`
   - methods: __init__
 - `Store`
-  - methods: __init__, save, create, audit, session, soft_delete, restore, mark_native_deleted, _remove_owned_tree, purge, directory, reserve, receipt, files, file_path, open_file
+  - methods: __init__, save, create, reserve_hot_session, audit, session, soft_delete, restore, mark_native_deleted, _remove_owned_tree, purge, directory, reserve, receipt, files, file_path, open_file
 
 Functions:
 - `_is_reparse_point`

@@ -144,7 +144,8 @@
         "01-deployment",
         "02-module-dependencies",
         "03-research-sequence",
-        "06-run-state"
+        "06-run-state",
+        "11-hot-events"
       ],
       "tests": [
         "tests/research_web/test_api.py",
@@ -158,7 +159,8 @@
         "tests/research_web/test_setup_web.py",
         "tests/research_web/test_cli_lazy.py",
         "tests/research_web/test_model_connections.py",
-        "tests/research_web/test_intel.py"
+        "tests/research_web/test_intel.py",
+        "tests/research_web/test_hot_session_recovery.py"
       ]
     },
     {
@@ -199,7 +201,8 @@
       "diagrams": [
         "02-module-dependencies",
         "03-research-sequence",
-        "04-data-file-flow"
+        "04-data-file-flow",
+        "11-hot-events"
       ],
       "tests": [
         "tests/research_web/test_datahub.py",
@@ -209,7 +212,8 @@
         "tests/research_web/test_mysql_configuration.py",
         "tests/research_web/test_mysql_provider.py",
         "tests/javascript/research_web_capabilities_ui.test.mjs",
-        "tests/javascript/research_web_public_data.test.mjs"
+        "tests/javascript/research_web_public_data.test.mjs",
+        "tests/research_web/test_hot_snapshot_publication.py"
       ]
     },
     {
@@ -584,7 +588,8 @@
         "app/research_web/hot_routes.py",
         "app/research_web/hot_service.py",
         "services/hot/",
-        "app/research_web/hot_documents.py"
+        "app/research_web/hot_documents.py",
+        "app/research_web/hot_handoff.py"
       ],
       "documents": [
         "services/hot/README.md",
@@ -604,7 +609,8 @@
         "tests/javascript/research_web_hot.test.mjs",
         "tests/research_web/test_hot_documents.py",
         "services/hot/tests/research-evidence.test.ts",
-        "services/hot/tests/research-evidence.integration.ts"
+        "services/hot/tests/research-evidence.integration.ts",
+        "services/hot/tests/research-run.test.ts"
       ]
     }
   ],
@@ -3161,6 +3167,20 @@
       "method": "GET",
       "path": "/api/research/hot/briefs/{brief_id}/docx",
       "declaredPath": "/briefs/{brief_id}/docx",
+      "prefix": "/api/research/hot"
+    },
+    {
+      "source": "app/research_web/hot_routes.py",
+      "method": "POST",
+      "path": "/api/research/hot/research/handoffs",
+      "declaredPath": "/research/handoffs",
+      "prefix": "/api/research/hot"
+    },
+    {
+      "source": "app/research_web/hot_routes.py",
+      "method": "GET",
+      "path": "/api/research/hot/research/runs/{run_id}",
+      "declaredPath": "/research/runs/{run_id}",
       "prefix": "/api/research/hot"
     }
   ],

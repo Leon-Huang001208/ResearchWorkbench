@@ -16,6 +16,7 @@ import {channelsAt,eventsList,eventDetail} from './projections.ts';
 import {configureChannelRequest} from './channel-control.ts';
 import {createBriefRequest,briefGet,briefList,briefExport} from './brief-control.ts';
 import {researchManifestChunk,researchOriginal} from './research-evidence.ts';
+import {prepareResearchRun,advanceResearchRun,readResearchRun} from './research-run.ts';
 import {correctEvent,type Correction} from './events.ts';
 import {loadNativeModel,type NativeModelBootstrap,type ModelCapability} from './native-model.ts';
 
@@ -109,6 +110,9 @@ export async function startService(input: ServiceBootstrap,capabilities:{groupin
       ['brief.get',{permission:'read',run:params=>briefGet(reader,config.database.schema,params)}],
       ['brief.export',{permission:'read',run:params=>briefExport(reader,config.database.schema,params)}],
       ['brief.create',{permission:'control',run:(params,id,signal)=>createBriefRequest(controller,config.database.schema,current,id,params,signal)}],
+      ['research.prepare',{permission:'control',run:(params,id,signal)=>prepareResearchRun(controller,config.database.schema,current,id,params,signal)}],
+      ['research.advance',{permission:'control',run:(params,id,signal)=>advanceResearchRun(controller,config.database.schema,current,id,params,signal)}],
+      ['research.run',{permission:'read',run:params=>readResearchRun(reader,config.database.schema,params)}],
       ['research.evidence',{permission:'read',run:(params,_id,signal)=>researchManifestChunk(reader,config.database.schema,params,signal)}],
       ['research.original',{permission:'read',run:(params,_id,signal)=>researchOriginal(reader,config.database.schema,params,signal)}],
       ['events.list',{permission:'read',run:params=>eventsList(reader,config.database.schema,params)}],

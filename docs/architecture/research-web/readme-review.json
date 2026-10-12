@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "updated",
-  "summary": "研究情报补齐固定简报版本的完整存储原件读取与DOCX内核证据，保留正式研究/恢复/安装未完成边界。",
-  "reason": "沿既有reader桥扩展内部原件分块和Host完整性校验，README仅同步实际阶段事实，不认证尚未接入的目标会话、run映射、Keychain安装或跨平台能力。"
+  "summary": "Hot研究准备追加运行映射/目标会话恢复/独立证据快照，仍明确正式研究与安装未验。",
+  "reason": "README同步已接入源码与真实验收边界，不把原生故障夹具或PG组合验证当真实DSH付费研究。"
 }

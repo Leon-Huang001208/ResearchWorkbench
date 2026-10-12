@@ -58,7 +58,7 @@
       "id": "hotDatabase",
       "type": "database",
       "label": "指定 PostgreSQL schema",
-      "sublabel": "原文 / 版本 / 队列 / 审计",
+      "sublabel": "原文 / 队列 / 研究映射 / 审计",
       "row": 0,
       "col": 3,
       "size": [
@@ -94,7 +94,7 @@
       "id": "futureResearch",
       "type": "backend",
       "label": "现有 ResearchService / DSH",
-      "sublabel": "研究交接 / DOCX仍待实现",
+      "sublabel": "会话 / 快照适配 · 真实研究待验",
       "row": 2,
       "col": 0,
       "size": [
@@ -150,7 +150,7 @@
       "id": "hotHandoffPending",
       "from": "hotHost",
       "to": "futureResearch",
-      "label": "后续冻结交接",
+      "label": "冻结交接 API · 原生研究待验",
       "variant": "dashed"
     },
     {
@@ -199,7 +199,7 @@
       "title": "当前边界",
       "items": [
         "真实事件与简报读取已验证；研究仍待验收。",
-        "DOCX、研究快照、联合恢复与模式切换仍待验收。"
+        "DOCX与冻结快照已验；正式研究、联合恢复和模式切换待验。"
       ]
     }
   ]

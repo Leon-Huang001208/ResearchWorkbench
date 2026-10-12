@@ -91,3 +91,34 @@
 原件读取源码候选 `45e012cef65a97b58cd8ca6752881c56c43dc4ba`，继承融合候选503af9edf；分支/worktree不变。当前源码检查点已提交，后续报告提交仅记录状态。
 
 Git绑定plan4/receipt3在 `logs/hot-resume/evidence-candidate-*.json`。最初手写平台回执漏掉cross-platform影响的Windows空门交接，validator拒绝；按正式内核的完整平台推导补齐，未改内核、状态或验收门。Mac Bootstrap作为已登记补充门保留NOT_RUN。最终validator valid=true、hostAcceptance=BLOCKED、aggregateAcceptance=NOT_READY、mergeReady/releaseReady=false。失败回执与输出均保留initial/second副本；未发CI/远端操作。
+
+## 阶段四续跑：持久交接与会话快照（macOS 功能开发）
+
+- 新增 migration16：不可变选材与预留 session UUID、CAS revision/state、唯一请求回放和控制者审计。controller 列级写权限、worker 只读；真实随机 PG schema 测试后精确清理，原 schema15 未迁移。执行未知态不能回到重新发送状态，尚未接入实际付费执行。
+- ResearchService 在 native create 前持久化预留身份；丢失回执先 session.list 核对同 ID/同 cwd，缺失或异源目录拒绝。DataHub 发布完整原件字节、来源时间和截止，public 原件先落盘，private UUID 是提交标记；同一交接重放保持一个快照。没有伪造 Provider 查询或重新标记旧资料的新鲜度。
+- POST handoffs / GET research runs 已接入受控 Web 边界，准备态返回 executionStarted=false。UI 付费研究动作与真实研究结果尚未交付，不能把准备成功当成 Goal 完成。
+- 模拟 native 的 Python/Store/API/DataHub 回归分别98及58 PASS；相关集合重叠，不宣称156个独立行为。真实签名 Node/PG→Host→HTTP→DataHub 组合1 PASS，但 native 回复为fixture。保留首轮错误文件路径与隔离解释器依赖失败，不降低沙箱。
+- 按 requesting-code-review 与受限 code-reviewer 模板进行独立只读审查，发现三项：预存冲突暂存目录误删、private commit 后错误回滚、native cwd 缺失仍被接纳。修复后保留冲突/恢复暂存内容与已提交目录，要求明确目录证据；新增反例后10 PASS。审查没有运行测试，不把静态意见当运行证据。
+- 固定 DSH 源码 HTTPS clone 因连接超时失败；沿既有 GitHub SSH wrapper 成功取得并 checkout48504。另发现 PR92 隔离安装已有同固定版本构建，后续只读核对后复用，不重装全局依赖或影响生产3081/8088。
+- 图11更新 PG研究映射与会话/快照适配，真实研究仍标待验。结构9/9及四视口容纳通过，controller 已查看1440浅色与2048深色截图；图文不代替原生产品验收。
+
+下一步：核验固定 DSH 的真实预留 ID/目录回执及冻结副本，再接入同一剩余付费预算的实际研究受理/未知结果恢复。持续来源重验、跟踪/计划简报、留出样本、联合恢复、干净安装、Mac Docker 切换及同候选 Mac CI 仍未完成；Goal ACTIVE，未发布/合并/生产部署。
+
+<!-- architecture-review {"group":"hot","structure":"changed","reason":"新增PG schema16持久研究映射与受控交接准备接口，图11展示已实现适配而保留真实研究待验。","diagrams":["11-hot-events"]} -->
+<!-- architecture-review {"group":"research-api","structure":"changed","reason":"受控Hot交接与状态读取API复用ResearchService，新增关系在图11与API图册记录；不新增研究引擎。","diagrams":["11-hot-events"]} -->
+<!-- architecture-review {"group":"datahub","structure":"changed","reason":"DataHub接收完整冻结Hot原件并在同一会话目录发布不可变快照，图11记录该适配边界。","diagrams":["11-hot-events"]} -->
+<!-- architecture-review {"group":"files","structure":"unchanged","reason":"冻结原件仍使用既有会话inputs/datasets与私有catalog提交边界，新增格式及恢复校验不改变文件所有权拓扑。","diagrams":[]} -->
+<!-- architecture-review {"group":"dual-runtime","structure":"unchanged","reason":"Manager控制投影新增research run操作，复用既有私有签名实例/模式/代次与生命周期；未改变Native/Docker装配。","diagrams":[]} -->
+<!-- architecture-review {"group":"automations","structure":"unchanged","reason":"ResearchService新增Hot会话预留恢复，不修改既有Automation调度/任务或报告执行路径；周期Hot简报适配仍待实现。","diagrams":[]} -->
+
+### 真实 Native 会话证据及本地审查修复
+
+固定 DSH48504 的真实 session.create/list/selectModel/rename 与两份冻结原件副本及重放通过；目标sid/cwd与原件SHA逐项核对，付费发送0，未宣称完整研究或原生产PG run映射。隔离数据在 `logs/hot-resume/native-handoff-home`，回执 `native-handoff-proof.json`。首次读取bootstrap-token记录作为cookie被严格客户端拒绝；沿既有Manager交换并原子写认证记录后通过。运行时Tabbit报告 `ctx.settings.register is not a function`，因此不认证Tabbit/工具或完整安装。复用PR92隔离构建的官方verifier也已PASS：同commit、干净源码、pnpm11.7、16097文件closure，sha cf4867dfb1236d07021afab0181399089ef258694e7326942198c91e94e6d33f；没有重新安装运行依赖。
+
+独立只读复核确认三项发现已解决。TypeScript最终typecheck及真实PG/签名/HTTP/DataHub组合重跑PASS；首重跑遗漏fixture路径被拒后显式复用原fixture及当前端口，错误日志保留。本机black/ruff模块均不存在，检查真实失败/NOT_RUN，没有擅自安装新Python依赖。架构首检查发现跨组图11登记缺失及Automation模块说明遗漏，已补充真实映射和不改变调度的说明，未降低门。
+
+最终针对DataHub/Hot/协议/研究台及新增恢复反例的Python回归101 PASS；Hot TS单元43 PASS，四项治理/策略测试180 PASS。正式Router保持L4，所选完整治理命令及API门另留执行回执；不会把未执行候选CI算PASS。48文件项目约束、文档治理和修正后的架构检查PASS。原预算再次只读核对4calls/1417tokens/659microUSD、20/20000/$1上限未变，原runtime仍暂停，随机研究测试角色为零。
+
+真实Native验证子进程已按明确PID/完整命令身份核验后SIGTERM退出0；生产3081/8088未触碰，冻结资料和PG卷保留。检查工具Ruff/Black/isort的隔离安装申请尚待回复，不自动把此前pytest授权扩展为其他依赖授权。当前工作保持可续跑状态，完整Goal及正式研究/安装/恢复/模式切换/CI门未完成。
+
+Router选取的完整四项治理命令110/110 PASS，最终API门53/53 PASS（163.39s），生成Python索引检查及10个本切片Python文件编译PASS，whitespace PASS。同一旧schema模型账本与本轮随机schema权限测试分别留证。该本地切片可保存源码检查点；工具安装待回复与远端/平台/全Goal门保留真实未完成状态。

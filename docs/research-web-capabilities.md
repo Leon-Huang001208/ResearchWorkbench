@@ -1,5 +1,9 @@
 # Research Web 能力包与版本
 
+Hot 交接准备复用既有 ResearchService 会话与 DataHub 冻结资料，没有新增 Skill、
+执行器或 Automation 调度。当前准备接口不会发送模型消息；Hot 周期简报及正式研究
+仍需独立接入现有运行与预算边界，不据 session 创建成功宣称执行可用。
+
 Automation 原生创建之后先保存会话/报告关联，再提交或监控。报告首次关联须核对 Runtime 事实源、本次新建身份和锁定 workflow/version；陈旧或异目标引用不得进入自动取消。恢复不 create/send，普通会话缺执行证据时为 native_submission_unconfirmed；报告仍通过原报告 Run 等待校验和产物，不因聊天完成就成功。
 
 能力目录、安装与授权不会因模型页保存或生成测试成功而提升为可调用。Automation继续复用原生研究create/send；新增默认模型只用于新会话，旧会话保留选模，凭据清除或提交未知时拒绝新的模型消息。最小生成使用无研究工具preset，工具能力必须通过单独的受控研究证据确认，不据模型名称推断。
