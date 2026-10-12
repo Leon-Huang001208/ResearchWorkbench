@@ -3438,9 +3438,9 @@ Imports:
 - `base64`
 - `collections.abc`
 - `contextlib`
-- `core.observability`
 - `hashlib`
 - `json`
+- `logging`
 - `os`
 - `pathlib`
 - `runtime_state`
@@ -5696,7 +5696,7 @@ Functions:
 ## `app/research_web/model_credentials.py`
 
 Module docstring:
-> Fixed-purpose private stdio bridge for the Native macOS model Keychain.
+> Fixed-purpose stdio bridge for Native Keychain or bound Docker model storage.
 
 Imports:
 - `argparse`
