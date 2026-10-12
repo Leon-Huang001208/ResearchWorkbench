@@ -29,7 +29,8 @@ async def render_report_payload(
     if payload.is_symlink() or not payload.is_file() or payload.stat().st_size > 2_000_000:
         return {"status": "missing_payload", "files": [], "reason": "缺少有效的 report_payload.json"}
     script = Path(__file__).with_name("report_render_script.py").read_text()
-    source = "FORMATS = " + repr(formats) + "\n" + script
+    shared_docx = Path(__file__).with_name("report_documents.py").read_text()
+    source = shared_docx + "\nFORMATS = " + repr(formats) + "\n" + script
     config = sandbox.SandboxConfig(
         store.root,
         Path(python or __import__("sys").executable),

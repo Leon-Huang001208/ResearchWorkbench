@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 from pathlib import Path
 from threading import Lock
 
@@ -41,6 +42,16 @@ class HotWebService:
         return self._manager_instance
 
     def _perform(self, operation: str, args: tuple):
+        if operation == "brief_docx":
+            from .hot_documents import brief_docx, retain_brief_docx
+            saved = self._manager().brief_detail(*args)
+            try:
+                data = brief_docx(saved)
+                retain_brief_docx(self.home, saved, data)
+            except Exception:
+                raise HotError("hot_docx_render_failed") from None
+            return {"briefId": saved["briefId"], "version": saved["version"], "contentHash": saved["contentHash"],
+                    "data": data, "artifactHash": hashlib.sha256(data).hexdigest()}
         if operation == "status":
             basic = status(self.project, self.home)
             if not (self.home / "hot" / "process.json").exists():

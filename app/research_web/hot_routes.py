@@ -162,6 +162,16 @@ async def brief_markdown(brief_id: str, request: Request):
     })
 
 
+@router.get("/briefs/{brief_id}/docx")
+async def brief_docx(brief_id: str, request: Request):
+    params = query(request, {"version"}, {"version"})
+    result = await request.app.state.hot.call("brief_docx", brief_id, params.get("version"))
+    return Response(result["data"], media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document", headers={
+        "Content-Disposition": f'attachment; filename="hot-brief-{result["briefId"]}-v{result["version"]}.docx"',
+        "Cache-Control": "no-store", "X-Hot-Content-Hash": result["contentHash"], "X-Hot-Artifact-Hash": result["artifactHash"],
+    })
+
+
 @router.post("/channels/configure")
 async def configure_channel(request: Request):
     value = await body(request, ChannelRequest)

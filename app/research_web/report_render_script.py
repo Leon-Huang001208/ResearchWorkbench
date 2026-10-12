@@ -204,48 +204,11 @@ def replacements(payload):
     return rows
 
 
-def replace_paragraph(paragraph, values, replaced):
-    text = paragraph.text
-    if "{{" not in text:
-        return
-    updated = text
-    for key, value in values.items():
-        token = "{{" + key + "}}"
-        if token in updated:
-            updated = updated.replace(token, value)
-            replaced.add(key)
-    if updated != text:
-        paragraph.text = updated
-
-
 def render_docx(payload, values):
-    from docx import Document
-
     templates = sorted(Path("inputs/report-workflow/templates").rglob("*.docx"))
     if not templates:
         templates = sorted(Path("inputs/report-project").rglob("*.docx"))
-    document = Document(str(templates[0])) if templates else Document()
-    replaced = set()
-    for paragraph in document.paragraphs:
-        replace_paragraph(paragraph, values, replaced)
-    for table in document.tables:
-        for row in table.rows:
-            for cell in row.cells:
-                for paragraph in cell.paragraphs:
-                    replace_paragraph(paragraph, values, replaced)
-    if not replaced:
-        document.add_heading(payload["title"], level=0)
-        if payload["as_of"]:
-            document.add_paragraph("数据截止时间：" + payload["as_of"])
-        if payload["summary"]:
-            document.add_paragraph(payload["summary"])
-        for item in payload["sections"]:
-            document.add_heading(item["title"], level=1)
-            document.add_paragraph(item["content"])
-    if payload["missing"]:
-        document.add_heading("数据缺失与限制", level=1)
-        for item in payload["missing"]:
-            document.add_paragraph(clean_text(item), style="List Bullet")
+    document = build_docx_document(payload, values, templates[0] if templates else None)
     output = Path("outputs/report.docx")
     document.save(output)
     return output
