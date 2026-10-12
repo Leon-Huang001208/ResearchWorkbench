@@ -6,7 +6,7 @@ Research Workbench 当前交付的是本地优先的 **Research Web**：一个�
 
 > 当前产品阶段为 **Web-only**。桌面打包历史仍被保留，但桌面 sidecar、Tauri、安装包和原生桌面 CI 不属于普通 Research Web 的安装或验收前提。
 
-当前交付优先 macOS Native；Windows/Linux 和 Docker 保留实现、暂缓产品验收。固定 DSH 已更新为 0.2.1-alpha.1 的 Fork 提交 `48504f07f217f9fd45a4f6d8fca4b1ed35c2d4b0`，安装版本由 `runtimes/research_web.json` 决定。空实例默认 `deepseek-flash`，已有模型 ID 和会话保留，不自动重写或更新已运行的生产实例。
+当前主开发与常驻节点为 24GB Mac mini，开发、构建和测试放在 Docker；MacBook Pro 是远程入口。Windows/Linux 原生验收由对应设备负责。固定 DSH 为 0.2.1-alpha.1 的 Fork 提交 `48504f07f217f9fd45a4f6d8fca4b1ed35c2d4b0`，安装版本由 `runtimes/research_web.json` 决定。空实例默认 `deepseek-flash`，已有模型 ID 和会话保留，不自动更新已运行的生产实例。
 
 架构阅读从 Settings →「架构文档」或[交互图册](outputs/research-web-architecture/index.html)开始，按产品总览、部署、子系统、关键流程和 API 逐层展开；模块入口关联权威说明、源码与测试。
 
@@ -16,18 +16,18 @@ Research Workbench 当前交付的是本地优先的 **Research Web**：一个�
 
 ### 前置条件
 
-- Docker 模式（实现保留，本阶段暂缓验收）：宿主 Python 3.12 解释器用于公开安装入口和统一 `rwb` CLI，另需 Docker Desktop、可用的 Engine 与 Compose v2；无需宿主 Node，也无需全局第三方 Python 包，镜像内使用锁定的 Python 3.12、Node 24 和固定 DSH。当前 Windows Docker 凭据目录 ACL 无法由实现证明时会以 `docker_credentials_acl_unverified` 失败关闭，不能据此宣称 Windows 已验收。
+- Docker 新实例路径（macOS）：宿主 shell、Docker Desktop、Docker CLI/Engine 与 buildx，无需宿主 Python/Node；[开发部署手册](docs/research-web-docker.md)提供 dev/stage/prod 实例入口。Windows cmd 与 legacy Python Docker CLI 保留原合同及未验收边界。
 - Native 模式：宿主 Python 3.12、Node.js 22.19+（22 系列）或 24.x、Git；Windows 另需 Visual Studio 2022 Build Tools 的 “Desktop development with C++” 工作负载。
 
 Wind、iFinD、Office 等本机或厂商能力均为可选项；缺少它们不会阻止 Research Web 启动。
 
 ### 安装
 
-当前 macOS 阶段使用下述 Native 入口；以下 Docker 命令保留供未来恢复验收时使用：
+Mac mini 新实例使用以下入口，默认建立回环端口 18088 的独立 stage 实例：
 
 ```bash
 ./setup-web.sh --runtime docker
-./rwb web doctor
+./rwb docker stage local doctor
 ```
 
 当前 Native 入口；`./setup-web.sh` 无参数也默认 Native：

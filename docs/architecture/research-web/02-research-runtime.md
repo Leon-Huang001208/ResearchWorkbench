@@ -1,5 +1,11 @@
 # 研究协议、执行状态与恢复
 
+Mac mini 的 dev/stage/prod 使用同一既有 Web＋DSH 协议，各实例独立 data/runtime 工作目录、
+认证 tmpfs 和身份账本；stage/prod 在固定镜像内执行，不读编辑中的worktree。
+管理员入口只管理容器生命周期，不创建第二套研究任务、调度、恢复或自动重试事实源。
+stage/dev 关闭 Automation；任务排空、全机重研究配额和 Linux 严格沙箱留给G3，
+不能从候选健康推出真实模型/研究已验收。操作见 [Docker 手册](../../research-web-docker.md)。
+
 ## 资讯雷达 · 2026-10-09
 
 资讯雷达不执行 DSH prompt、不触发模型生成，也不修改固定 DSH 构建、凭据或会话。外部资讯离线时单独报错，不改变 Runtime 的 connected/health 状态。

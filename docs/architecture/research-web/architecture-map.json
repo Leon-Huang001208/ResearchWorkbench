@@ -31,6 +31,12 @@
         "docker/stage_dsh.py",
         "docker/supervisor.py",
         "docker/healthcheck.py",
+        "docker/manage.py",
+        "docker/Dockerfile.control",
+        "docker/Dockerfile.dev",
+        "docker/dev-requirements.txt",
+        "docker/buildkitd.toml",
+        "rwb-docker",
         "Dockerfile",
         "compose.yaml",
         ".dockerignore",
@@ -38,6 +44,7 @@
       ],
       "documents": [
         "docs/research-web-installation.md",
+        "docs/research-web-docker.md",
         "docs/architecture/research-web/01-system.md",
         "docs/architecture/research-web/02-research-runtime.md",
         "docs/architecture/research-web/03-data-files.md",
@@ -55,6 +62,7 @@
         "tests/research_web/test_docker_runtime.py",
         "tests/research_web/test_setup_web.py",
         "tests/research_web/test_docker_packaging.py",
+        "tests/research_web/test_docker_manager.py",
         "tests/research_web/test_container_supervisor.py",
         "tests/research_web/test_staged_runtime.py",
         "tests/research_web/test_credential_backend.py",
@@ -847,6 +855,8 @@
       "receipt": "outputs/research-web-architecture/01-deployment.receipt.json",
       "visualReceipt": "outputs/research-web-architecture/01-deployment.visual-check.json",
       "evidence": [
+        {"subjects":["bootstrap","selectDocker","dockerData","dockerCredential","runtimeState","sharedData"],"source":"docker/manage.py"},
+        {"subjects":["bootstrap","contractRoute"],"source":"rwb-docker"},
         {
           "subjects": [
             "modelKeychain",

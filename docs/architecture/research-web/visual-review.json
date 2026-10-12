@@ -132,19 +132,24 @@
     },
     {
       "id": "01-deployment",
-      "artifactSha256": "959f560983c02c1d54272c04afdf81a6aee1f6863395a1f895d23d0a497682f6",
-      "specificationSha256": "25f9f2cacfdb9e6dddc553841de1135d9f724f53bf64dd1d3f203dd18f92ee64",
+      "artifactSha256": "fb102b50ce6ae49d1c3248f967a44576c7f4637c8824dbdf591b71b034b3523f",
+      "specificationSha256": "c67139f565e6e757fd1a163d2373f2596ae2c11b7372ad3a47cc4351cef0eb81",
       "status": "reviewed",
-      "reviewer": "user",
-      "date": "2026-10-06",
+      "reviewer": "Codex Agent (视觉模型，用户未确认)",
+      "date": "2026-10-12",
       "captures": [
         "01-deployment.visual-check.1440x900.light.png",
-        "01-deployment.visual-check.1440x900.dark.png",
-        "01-deployment.visual-check.2048x1320.light.png",
         "01-deployment.visual-check.2048x1320.dark.png"
       ],
       "findings": [],
-      "notes": "用户在本轮结构化回复明确表示已查看四张截图并确认无问题；对应当前同哈希产物。Codex先前图像检查另存，未伪造人工；不证明Docker运行或B归因。"
+      "notes": "Agent实际查看同哈希1440浅色、2048深色截图；图文可读，无交叉遮挡或裁剪，最大视图无空白下带；四viewport自动containment通过。仅Agent图像检查，未声称用户人工确认或CI/供应商通过。",
+      "previousReview": {
+        "reviewer": "user",
+        "date": "2026-10-06",
+        "artifactSha256": "959f560983c02c1d54272c04afdf81a6aee1f6863395a1f895d23d0a497682f6",
+        "specificationSha256": "25f9f2cacfdb9e6dddc553841de1135d9f724f53bf64dd1d3f203dd18f92ee64",
+        "notes": "用户在本轮结构化回复明确表示已查看四张截图并确认无问题；对应当前同哈希产物。Codex先前图像检查另存，未伪造人工；不证明Docker运行或B归因。"
+      }
     },
     {
       "id": "00-system-overview",

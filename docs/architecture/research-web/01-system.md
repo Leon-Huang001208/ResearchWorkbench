@@ -1,5 +1,11 @@
 # 部署与模块职责
 
+24GB Mac mini 是 Docker 主开发与常驻节点，MacBook Pro 是远程入口。
+dev 挂载对应 worktree；stage/prod 按不可变 image ID 独立运行同一 Web＋DSH，
+每实例隔离 data/logs/credentials/cache卷、bridge网络、端口和管理身份。
+管理员 `rwb-docker` 与独立限额 BuildKit 管理生命周期；业务及开发容器无 Docker socket。
+配置与命令见 [Docker 手册](../../research-web-docker.md)，legacy 单实例入口仍独立保留。
+
 ## 资讯雷达 · 2026-10-09
 
 Host 新增固定 Golddata 公开服务的只读资讯适配器：浏览器同源 GET → Host → `http://47.92.168.126/vibe-research/api`。没有新服务、数据库、调度器或第二研究引擎；DSH 会话与执行循环不参与读取。

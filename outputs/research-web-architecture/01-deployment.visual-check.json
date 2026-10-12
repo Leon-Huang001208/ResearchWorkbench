@@ -5,9 +5,9 @@
   "status": "pass",
   "visualReview": "pending",
   "artifact": {
-    "path": "/Users/leon/.codex/worktrees/settings-model-loop/ResearchWorkbench/outputs/research-web-architecture/01-deployment.html",
-    "sha256": "959f560983c02c1d54272c04afdf81a6aee1f6863395a1f895d23d0a497682f6",
-    "bytes": 637686
+    "path": "/Users/leon/.codex/worktrees/mini-docker-g01/ResearchWorkbench/outputs/research-web-architecture/01-deployment.html",
+    "sha256": "fb102b50ce6ae49d1c3248f967a44576c7f4637c8824dbdf591b71b034b3523f",
+    "bytes": 637790
   },
   "state": {
     "detail": "read",

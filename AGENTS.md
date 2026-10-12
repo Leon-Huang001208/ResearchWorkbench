@@ -29,7 +29,7 @@
 
 ## Platform ownership and acceptance (mandatory)
 
-- MacBook Pro（macOS）负责项目功能开发、macOS 适配与真机验收，以及远端 GitHub macOS CI 验收；不承担 Windows/Linux 适配与验收。
+- 24GB Mac mini（macOS）承担主开发、Docker 构建/测试与常驻服务；MacBook Pro 是受控远程操作与浏览器入口，不再承担主要开发计算。Mac mini 负责 macOS/Docker Desktop 真机及适用 GitHub macOS CI，不承担 Windows/Linux 原生验收。
 - Windows 真机只负责既有功能的 Windows 适配、Windows 真机验收及远端 GitHub Windows CI 验收，不承担功能开发。
 - Linux 真机只负责既有功能的 Linux 适配、Linux 真机验收及远端 GitHub Linux CI 验收，不承担功能开发。
 - 每次任务先声明宿主平台、任务类型（功能开发或平台适配）及本平台验收范围。Windows/Linux 适配中发现功能缺陷时，记录复现与证据并交回 Mac 开发任务，不在适配任务中扩展功能。

@@ -1,5 +1,13 @@
 # Research Web 能力与平台证据
 
+2026-10-12 G0/G1 在 Mac mini（Apple M6、24GiB、macOS27.0.1、arm64）完成本地 Docker
+开发与候选基座实测：固定DSH完整构建、容器内回归、实际健康、stop/up、开发重建/退休后
+源码与数据保留，以及固定候选不受开发源码变化影响。具体镜像、命令、哈希与失败重试记录
+见 [.ai/reports/2026-10-12-mini-docker-g01-PROGRESS.md](../.ai/reports/2026-10-12-mini-docker-g01-PROGRESS.md)。
+该条是当前本地证据；本轮新候选GitHub macOS干净安装CI尚NOT_RUN，不能借旧run宣布完整本平台验收。
+Docker VM实际约8GiB，16GiB是建议配置；冷构建错峰5GiB，stage2GiB、dev3GiB限额已inspect。
+真实供应商、多人登录、Linux严格沙箱、公网、生产迁移及Windows/Linux原生仍未验证/后续阶段。
+
 支持按能力、系统和运行方式声明。Doctor 的 `available` 表示代码具有当前实现，`unsupported` 表示明确边界，`not_verified` 表示必要安全证明缺失；`validated=false` 不会随操作系统推导为通过。实际验收由任务回执和下表的证据决定。
 
 ## 当前证据身份

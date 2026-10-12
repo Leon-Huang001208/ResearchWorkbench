@@ -1,5 +1,12 @@
 # Research Web Native / Docker 安装与运行
 
+2026-10-12 起，24GB Mac mini 是 Docker 主开发与常驻节点，MacBook Pro 是远程入口。
+新的纯 Docker 安装和显式实例管理使用 [Docker 开发与部署手册](research-web-docker.md)：
+`./setup-web.sh --runtime docker --environment stage --instance local --web-port 18088`，
+随后 `./rwb docker stage local doctor`。宿主只需 shell、Docker CLI/Engine 和 buildx，
+不探测宿主 Python/Node。Native 无参数入口、Windows cmd 及
+`python scripts/setup_web.py --runtime docker` 的 legacy 合同保留；它们不管理新实例账本。
+
 阶段二、三及跨平台范围已由用户明确重新开启；每个平台仍由对应宿主完成验收。当前实现边界、OS/运行模式、证据提交和未验证项见 [能力支持矩阵](research-web-platform-support.md)。安装路径存在不等于该平台能力已验收。
 
 Python 质量整理保持公开安装参数及 coded RuntimeError 合同。内部端口 TypedDict 只描述
@@ -104,7 +111,7 @@ fixture 证明；Windows/Linux 本轮未验收。
 
 当前是本地 Web 产品，支持 Native 与 Docker 两条安装路径；不安装 Tauri、桌面 sidecar、数据库或桌面安装包。两种模式使用同一源码、`runtimes/research_web.json`、Web 依赖锁、固定 DSH 与顺序共享的产品数据目录。前置条件按模式区分：
 
-- Docker（推荐新安装）：宿主 Python 3.12 解释器用于公开安装入口和统一 `rwb` CLI，另需 Docker Desktop、运行中的 Engine、Compose v2、构建时可访问固定基础镜像及 DSH 依赖的网络；无需宿主 Node，也无需全局第三方 Python 包。容器使用固定 Python 3.12、Node 24 和非 root 用户。Windows 的 Docker 凭据目录 ACL 尚无可证明的安全准备/验证路径，当前以 `docker_credentials_acl_unverified` 失败关闭，不能称为 Windows Docker 已可用或已验收。
+- Docker 新实例入口：shell、Docker Desktop、可用 Engine/buildx，以及访问镜像和固定 DSH 依赖的网络；无需宿主 Python/Node。legacy Python Docker CLI 仍需宿主解释器。镜像使用固定 Python 3.12、Node 24 和非 root 用户。Windows cmd 保留 legacy 路径；凭据 ACL 未证明时以 `docker_credentials_acl_unverified` 失败关闭，不称为 Windows Docker 已验收。
 - Native：Python 3.12、Node.js 22.19+（22 系列）或 24.x、Git；Node 23 和 25+ 不受支持。
 - Windows Native：Visual Studio 2022 Build Tools 的 “Desktop development with C++” 工作负载；固定 DSH 的
   `fs-ext` 原生模块需要本机编译，安装器不会静默安装或修改系统工具链
@@ -114,7 +121,7 @@ Cookie 和账号只在本机设置页录入，不进入代码包、安装清单�
 
 ## 开发与验收责任
 
-MacBook Pro 负责项目功能开发、macOS 本地验收及远端 GitHub macOS CI。Windows 真机负责已有功能的 Windows 适配、本地验收及远端 GitHub Windows CI；Linux 真机负责对应的 Linux 适配、本地验收及远端 GitHub Linux CI。Windows/Linux 不承担功能开发；发现通用功能缺陷时交回 Mac 开发任务。
+24GB Mac mini 负责主开发、Docker 构建/测试、常驻服务、macOS 本地验收及适用 GitHub macOS CI；MacBook Pro 负责远程编辑与操作。Windows/Linux 真机负责既有功能的本平台原生适配、本地及远端同平台 CI 验收；发现通用功能缺陷时交回 Mac 开发任务。
 
 各宿主任务只以本平台验收为完成条件；其他平台保留待验收与交接记录，不阻塞本平台任务，也不因 Mac 验收通过就宣称跨平台支持。Linux 适配职责不表示当前安装器或桌面包已经支持 Linux；支持声明仍须有实际证据。详细任务与总体验收的区分见 [Agent 任务路由指南](AGENT_WORKFLOW.md)。
 
