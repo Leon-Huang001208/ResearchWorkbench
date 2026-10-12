@@ -9,7 +9,7 @@ export function validatePricing(value:unknown,today:string):Record<string,any>{
   if(!value||typeof value!=='object'||Array.isArray(value))throw Error('hot_pricing_invalid');
   const p=value as Record<string,any>;
   if(Object.keys(p).length!==PRICE_KEYS.length||Object.keys(p).some(k=>!PRICE_KEYS.includes(k))||p.version!==1||p.verifiedOn!==today||
-    p.source!=='https://api-docs.deepseek.com/quick_start/pricing/'||p.provider!=='deepseek-official'||p.requestedModel!=='deepseek-v4-flash'||
+    p.source!=='https://api-docs.deepseek.com/quick_start/pricing/'||p.provider!=='deepseek-official'||!['deepseek-v4-flash','deepseek-flash'].includes(p.requestedModel)||
     p.documentedAlias!=='deepseek-flash'||typeof p.documentedBackend!=='string'||p.documentedBackend.length>100||
     p.currency!=='USD'||p.basis!=='conservative_peak_tariff_ceiling_not_invoice'||p.cacheWriteBasis!=='conservative_uncached_input_ceiling'||p.automaticallyActive!==false)
     throw Error('hot_pricing_invalid');

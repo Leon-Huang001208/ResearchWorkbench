@@ -8,7 +8,8 @@ import {parseConfig} from '../src/config.ts';
 test('only current official conservative pricing is accepted',async()=>{
   const sample=JSON.parse(await readFile(new URL('../pricing.deepseek.2026-10-09.json',import.meta.url),'utf8'));
   assert.equal(validatePricing(sample,'2026-10-09').outputMicrosPerMillion,1200000);
-  for(const value of [{...sample,verifiedOn:'2026-10-08'},{...sample,source:'https://evil.example'},{...sample,outputMicrosPerMillion:0},{...sample,secret:'unexpected'}])
+  assert.equal(validatePricing({...sample,requestedModel:'deepseek-flash'},'2026-10-09').requestedModel,'deepseek-flash');
+  for(const value of [{...sample,verifiedOn:'2026-10-08'},{...sample,requestedModel:'deepseek-pro'},{...sample,source:'https://evil.example'},{...sample,outputMicrosPerMillion:0},{...sample,secret:'unexpected'}])
     assert.throws(()=>validatePricing(value,'2026-10-09'),/hot_pricing_invalid/);
 });
 test('private catalog supports a new synthetic day and changed fingerprints block before calls',async()=>{

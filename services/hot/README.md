@@ -1,7 +1,8 @@
 # Hot internal engine
 
 This package is under implementation. It is not yet a supported product entry.
-The authoritative stage record is `.ai/reports/2026-10-07-hot-events-PROGRESS.md`.
+The authoritative continuation record is `.ai/reports/2026-10-12-hot-intel-resume-PROGRESS.md`;
+the original `.ai/reports/2026-10-07-hot-events-PROGRESS.md` preserves earlier evidence.
 
 ## Web Host and workspace checkpoint
 
@@ -13,7 +14,8 @@ same-origin controls apply; explicit writes also require X-Research-User-Action,
 JSON <=64 KiB, typed operation fields and a UUID for conditional writes. Keys and
 database passwords stay in the Host's current-mode credential backend.
 
-The same UI now provides #/workbench/hot (events/sources/channels) and
+The unified Research Intelligence UI provides #/intel/hot (events/sources/channels),
+with #/workbench/hot retained as a query-preserving redirect, and
 #/settings/hot (non-secret config and explicit lifecycle). It escapes publisher
 text, validates external URLs, separates scores, shows unknown dates/timezone,
 origin revisions and coverage, and offers existing correction types. Material
@@ -634,3 +636,23 @@ absence remains explicit, not an automatic second create. Imported snapshot copi
 retain original acquisition times, source bytes and their hashes. Prepared context
 is data, not publisher instructions. Current handoff API prepares a draft only;
 paid DSH execution and its budget bridge remain required next work.
+
+## Shared research-call admission (migration17)
+
+`research-model.ts` binds an immutable call ID, run/session ownership, request
+fingerprint and frozen tariff to the existing `model_attempts` ledger. Reservation,
+attempt and call mapping commit in one owner-fenced transaction; mapping failure
+rolls all three back. Controller alone can insert mappings. Replay returns the
+original busy/result state without another reservation, including received results
+after run completion or a date change. Cancelled attempts cannot be adopted through
+another result-key cache entry. First admission requires an active run, Native mode,
+current verified pricing and the existing authorization. The kernel does not dispatch
+or enforce the actual DSH stream input bound yet; the private Host/LLM bridge and
+actual paid study remain required next work.
+
+Native assembly reads the same `runtimes/research_web.json` pin as Web, rejects a
+different commit, aliased source or modified tracked checkout, and mounts the current
+`llm-deepseek-api-key` route. Catalog/prepared-call integration uses the real installed
+build with describe-only credentials and a synthetic budget, sending zero calls.
+The 2026-10-12 official price record uses `deepseek-flash`; old records stay immutable,
+and no price record grants or resets authorization.

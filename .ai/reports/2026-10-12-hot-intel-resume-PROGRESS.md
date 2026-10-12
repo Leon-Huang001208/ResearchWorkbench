@@ -124,3 +124,23 @@ Git绑定plan4/receipt3在 `logs/hot-resume/evidence-candidate-*.json`。最初�
 Router选取的完整四项治理命令110/110 PASS，最终API门53/53 PASS（163.39s），生成Python索引检查及10个本切片Python文件编译PASS，whitespace PASS。同一旧schema模型账本与本轮随机schema权限测试分别留证。该本地切片可保存源码检查点；工具安装待回复与远端/平台/全Goal门保留真实未完成状态。
 
 源码检查点 `c3a29fdd4b26fd9d0349686e79429c0308835d75`（48文件）已提交。绑定该SHA的plan4/receipt3在 `logs/hot-resume/handoff-candidate-*.json`；首回执缺少逐个未执行外部门的风险条目被validator拒绝，补齐明确NOT_RUN风险后valid=true。hostAcceptance=BLOCKED、aggregateAcceptance=NOT_READY、mergeReady/releaseReady=false；Linux/Windows设备交接保留NOT_RUN，Mac Bootstrap NOT_RUN。修正未改变验证内核或任何门，没有push/PR/CI/merge/部署。下一步仍为实际研究执行预算登记及未知受理查询恢复，而不是重新创建会话或重置累计付费scope。
+
+## 阶段四：共享研究调用预算与当前 Native 适配
+
+前一goal turn分类为PROGRESS：源码/报告已提交，并得到真实Native会话目录及完整资料副本证据。本turn继续完整目标，先复核d97637c21/干净续跑worktree和目标原文；宿主macOS，任务为功能开发，本平台范围保留Native/Mac Docker与同SHA Mac CI。
+
+- 发现Hot native-dsh.mjs仍硬编码旧c919且挂载旧协议模块，正常Manager却已从共用合同选择48504，构成真实装配缺陷。RED新真实构建测试拒绝当前固定源码；修复为读取共用runtime合同、拒绝不同提交/alias/modified tracked checkout并挂载新版llm-deepseek-api-key。真实目录、零重试/512 output prepared call和正常factory就绪1 PASS；凭据/预算为describe-only synthetic，未解析密钥/未发送，不等同真实推理或Keychain验收。
+- 今日官方定价页实际读取，deepseek-flash/DeepSeek-V4.1-Flash及峰值$0.30/$0.006/$1.20每百万uncached/cache-hit/output核对，来源 https://api-docs.deepseek.com/quick_start/pricing/ 。新增非自动授权的2026-10-12价目，旧记录保持；validator支持当前正式名称和旧兼容名称，拒绝其他型号/低价/错误来源。
+- migration17新增不可变research_model_calls。research-model内核把run/session/call UUID、请求哈希、固定价目和attempt关联，与既有model预算预留放在同一owner事务；不复制scope、不新建队列、不发provider请求。新的call须活动run/Native/当前价目/既有授权。worker不能插入映射，原子插入失败回滚预算及attempt。
+- 真实随机PG测试证明普通Hot调用与研究共用2次总额度，重复callId为busy、冲突请求/异session/超额/非control/终态新增调用拒绝；保存synthetic回执后复用，映射不可改，取消旧callId不产生新attempt。该证明不认证实际LLM请求input bound或完整研究费用。
+- 独立TypeScript审查发现已存回执在终态/跨日不能复用，按Goal要求修复：先按不含日期价目的不可变请求身份读取原attempt，再验证新调用。终态/跨日RED→GREEN；取消状态及cache attempt归属明确拒绝。异步callback类型收窄错误被typecheck发现后捕获数值并复制冻结参数，最终typecheck PASS。独立最终静态复核未发现新阻断；其未执行PG/native付费验证。
+- Hot TS单元43/43 PASS，实际随机PG共享预算/旧累计账本竞争及签名HTTP/DataHub组合2/2 PASS。首组合预算fixture未支持本worktree路径被拒，显式fixture/current port接入后通过；失败日志保留，未改原旧端口回执。
+- 审计发现旧model-budget回归夹具不清理其随机schema/role。本turn五次测试遗留资源用17迁移checksum、明确五次日志窗口、synthetic授权、空产品表、唯一role ACL、无活跃连接及外部依赖核对，再按精确列表事务删除并逐个确认。原Hot schema/卷保留，4/1417/659microUSD及paused状态未变。fixture已加入仅本次创建标记与精确清理，实际新回归PASS；历史或未知资源未清理。证据budget-resource-audit/cleanup.json。
+
+下一步仍须把该内核接入私有Host/DSH llm/stream，先登记每次实际发送、实际request input上界、回执与unknown，再沿既有ResearchService/DSH完成真实研究与产物；当前尚未发正式研究。原schema仍15，不以随机schema17替代安装/迁移。原累计授权继续20calls/20000tokens/$1，未重置/扩额。跟踪/定时简报、持续公开来源重验/留出样本、联合恢复、Mac Docker、干净安装及同SHA CI仍未完成，Goal ACTIVE。
+
+<!-- architecture-review {"group":"hot","structure":"unchanged","reason":"同一PG预算/owner事务内增加研究call映射，并修复既有最小Native模型适配以共用固定DSH合同；不增加服务/队列/执行器，流级研究桥尚未装配，图11既有PG审计/研究映射边界保持。","diagrams":[]} -->
+
+### 本切片收束
+
+最终typecheck、43项Hot单元、两项真实PG集成、真实固定DSH目录/prepare1项及Router所选完整治理110项PASS；21文件项目约束、架构/文档治理、Python索引和whitespace检查PASS。旧授权scope与运行暂停态未变，精确测试清理回执已核对。没有发送provider调用、发外部消息、发布远端或迁移原库。其他平台与当前候选Mac安装CI仍NOT_RUN，完整Goal ACTIVE；这份本地进展不等于研究闭环完成。

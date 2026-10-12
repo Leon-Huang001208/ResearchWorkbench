@@ -610,7 +610,10 @@
         "tests/research_web/test_hot_documents.py",
         "services/hot/tests/research-evidence.test.ts",
         "services/hot/tests/research-evidence.integration.ts",
-        "services/hot/tests/research-run.test.ts"
+        "services/hot/tests/research-run.test.ts",
+        "services/hot/tests/native-dsh.integration.ts",
+        "services/hot/tests/model-budget.integration.ts",
+        "services/hot/tests/pricing.test.ts"
       ]
     }
   ],

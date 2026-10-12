@@ -1,7 +1,7 @@
 /** Cumulative authorization and durable paid-attempt receipts. No provider dispatch here. */
 import type postgres from 'postgres';
 import {randomUUID,randomBytes} from 'node:crypto';
-import {withOwnerTransaction,type RuntimeOwner} from './control.ts';
+import {withOwnerTransaction,type RuntimeOwner,type Tx} from './control.ts';
 import {schemaName} from './config.ts';
 import {sha256} from './material.ts';
 import {logEvent} from './log.ts';
@@ -11,6 +11,7 @@ export interface BudgetPolicy {scopeId:string;authorizationHash:string;maxCalls:
 export interface ModelSpec {resultKey:string;specHash:string;maxTokens:number;maxCostMicros:number;
   legacySpecs?:Array<{resultKey:string;specHash:string}>}
 export interface ModelTicket {id:string;token:string}
+export type ModelReservation={state:'reserved';ticket:ModelTicket}|{state:'busy';attemptId:string}|{state:'reused';response:postgres.JSONValue;resultKey?:string};
 function amount(value:number,maximum=10000000000){if(!Number.isSafeInteger(value)||value<0||value>maximum)throw Error('hot_model_budget_invalid');}
 function hash(value:string){if(!/^[a-f0-9]{64}$/.test(value))throw Error('hot_model_spec_invalid');}
 function scope(value:string){if(!/^[a-z][a-z0-9_-]{0,63}$/.test(value))throw Error('hot_model_scope_invalid');}
@@ -37,14 +38,16 @@ export async function provisionModelBudget(db:Sql,schema:string,policy:BudgetPol
     if(row.daily_max_calls!==daily.maxCalls||Number(row.daily_max_tokens)!==daily.maxTokens||Number(row.daily_max_cost_micros)!==daily.maxCostMicros||row.quota_timezone!==daily.timezone)throw Error('hot_model_authorization_conflict');
   });
 }
-export async function reserveModel(db:Sql,schema:string,owner:RuntimeOwner,scopeId:string,spec:ModelSpec):Promise<
-  {state:'reserved';ticket:ModelTicket}|{state:'busy';attemptId:string}|{state:'reused';response:postgres.JSONValue;resultKey?:string}>{
+export async function reserveModel(db:Sql,schema:string,owner:RuntimeOwner,scopeId:string,spec:ModelSpec):Promise<ModelReservation>{
+  return withOwnerTransaction(db,schema,owner,tx=>reserveModelInTransaction(tx,schema,owner,scopeId,spec));
+}
+/** Caller must already hold withOwnerTransaction's identity/generation fence. */
+export async function reserveModelInTransaction(tx:Tx,schema:string,owner:RuntimeOwner,scopeId:string,spec:ModelSpec):Promise<ModelReservation>{
   schemaName(schema);scope(scopeId);hash(spec.resultKey);hash(spec.specHash);amount(spec.maxTokens,10000000);amount(spec.maxCostMicros);
   const legacy=spec.legacySpecs??[];
   if(!Array.isArray(legacy)||legacy.length>9)throw Error('hot_model_spec_invalid');
   for(const item of legacy){hash(item.resultKey);hash(item.specHash);}
   if(spec.maxTokens===0)throw Error('hot_model_budget_invalid');
-  return withOwnerTransaction(db,schema,owner,async tx=>{
     // Alias checks and fresh admission share saveModelReceipt's schema fence.
     // A late legacy receipt cannot land between cache miss and reservation.
     for(const compatible of [{resultKey:spec.resultKey,specHash:spec.specHash},...legacy]){
@@ -65,7 +68,6 @@ export async function reserveModel(db:Sql,schema:string,owner:RuntimeOwner,scope
     await tx`insert into ${tx(schema)}.model_attempts(id,scope_id,result_key,spec_hash,dispatch_token_hash,generation,max_tokens,max_cost_micros,state,day_key)
       values(${id},${scopeId},${spec.resultKey},${spec.specHash},${sha256(token)},${owner.generation},${spec.maxTokens},${spec.maxCostMicros},'reserved',${policy.today})`;
     logEvent('model_reserved');return {state:'reserved' as const,ticket:{id,token}};
-  });
 }
 /** Compatibility reads never create an attempt or mutate a quota. */
 async function lookupUnlocked(db:Sql|postgres.TransactionSql,schema:string,spec:{resultKey:string;specHash:string}):Promise<
@@ -85,6 +87,10 @@ export async function lookupModel(db:Sql,schema:string,spec:{resultKey:string;sp
     await tx`select pg_advisory_xact_lock(hashtextextended(${schema},231501))`;
     return lookupUnlocked(tx,schema,spec);
   });
+}
+/** Read an existing result under a caller-held schema fence; never admits or refunds. */
+export async function lookupModelInTransaction(tx:Tx,schema:string,spec:{resultKey:string;specHash:string}){
+  return lookupUnlocked(tx,schema,spec);
 }
 export async function markModelDispatch(db:Sql,schema:string,owner:RuntimeOwner,value:ModelTicket):Promise<void>{
   ticket(value);

@@ -1,5 +1,10 @@
 # Research Web Native / Docker 安装与运行
 
+Hot Native 模型上下文与 Web 共用 `runtimes/research_web.json` 的固定 DSH，装配新版
+`llm-deepseek-api-key` 官方路由；旧提交与修改过的 tracked checkout 被拒绝。日期价目
+仍须当前有效并绑定已授权累计 scope。migration17 的研究预算/调用映射只在停机迁移
+后启用；当前原验收库仍 schema15/paused，新 schema 的随机测试不认证干净安装或正式研究。
+
 2026-10-12 起，24GB Mac mini 是 Docker 主开发与常驻节点，MacBook Pro 是远程入口。
 新的纯 Docker 安装和显式实例管理使用 [Docker 开发与部署手册](research-web-docker.md)：
 `./setup-web.sh --runtime docker --environment stage --instance local --web-port 18088`，

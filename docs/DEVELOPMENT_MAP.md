@@ -22,12 +22,15 @@ Hot 持久采集位于 `services/hot/src/collection.ts`，共享源目录为
 不可变审计、签名权限、重复请求、取消窗口与暂停 inbox 恢复由 source-control/source-cancel
 及真实 service integration 测试负责。
 模型累计预算核心为 `services/hot/src/model-budget.ts` 与 migration 7，测试为
-`model-budget.integration.ts`。它不发出模型请求；定价/用量边界、Hot/DSH 同 scope 接入
-与未知尝试操作入口仍待实现。
+`model-budget.integration.ts`。migration17 / `research-model.ts` 在相同 owner 事务中预留
+研究预算和不可变 call/attempt 映射，已存结果终态/跨日复用。实际 DSH 流的私有
+预算桥与发送仍待接入，不能把该内核测试当成真实研究验收。
 模型接入契约为 `services/hot/src/dsh-text.ts`，使用固定 DSH prepared-call API，
 对应 `dsh-text.test.ts` / `dsh-receipt.test.ts`；它尚未装配进正常产品 worker 或研究入口。
 固定 Native 验收入口为 `scripts/model-live-proof.ts`，其 `src/native-dsh.mjs` 复用固定
-DSH 服务与现有 Keychain bridge。migration 9 做每日准入/跨日重验，credential-safety
+DSH 服务与现有 Keychain bridge；版本来自共用 runtime 合同，新官方路由为
+`llm-deepseek-api-key`，真实目录/零重试prepared-call见 `native-dsh.integration.ts`。
+migration 9 做每日准入/跨日重验，credential-safety
 测试覆盖转义后的秘密反射。正式 Web/worker/研究装配仍待完成。
 事件与频道持久层为 `services/hot/src/events.ts` 与 migration 10，测试为
 `events.integration.ts`。共享身份、不可变材料关联、直接后续图、第三频道配置、

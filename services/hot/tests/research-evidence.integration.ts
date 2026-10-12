@@ -15,6 +15,8 @@ import {grantWorker,grantController} from '../src/provision.ts';
 import {startService} from '../src/service.ts';
 import {rpc} from '../src/transport.ts';
 import {spawn} from 'node:child_process';
+import {reserveResearchModelCall} from '../src/research-model.ts';
+import {provisionModelBudget,reserveModel,markModelDispatch,saveModelReceipt,cancelUnsentModel} from '../src/model-budget.ts';
 
 async function hostRead(python:string,input:Record<string,unknown>){
   const script=`import sys,json,hashlib
@@ -91,6 +93,7 @@ test('signed PG evidence copies old full originals, rejects foreign objects and 
   const workerPassword=randomBytes(32).toString('hex'),controllerPassword=randomBytes(32).toString('hex');
   const instanceId=randomUUID(),controllerToken=randomBytes(32).toString('hex'),readerToken=randomBytes(32).toString('hex');
   let service:Awaited<ReturnType<typeof startService>>|undefined;
+  let controllerDb:ReturnType<typeof postgres>|undefined;
   try{
     await migrate(db,schema);await initializeIdentity(db,schema,instanceId,controllerToken);
     const queue=await openQueue(db,schema,true);await queue.stop();
@@ -147,9 +150,48 @@ test('signed PG evidence copies old full originals, rejects foreign objects and 
     await advance('snapshot_ready',{datasetId:randomUUID(),datasetManifestHash:'a'.repeat(64)});
     await advance('execution_starting',{deliveryKey:'hot-run-'+runId});await advance('execution_outcome_unknown');
     await assert.rejects(control('research.advance',{runId,expectedRevision:run.revision,state:'execution_starting'}),/transition_invalid/);
-    await advance('running');await advance('completed');
+    await advance('running');
+    const price=JSON.parse(await readFile(new URL('../pricing.deepseek.2026-10-09.json',import.meta.url),'utf8'));
+    const day=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+    price.verifiedOn=day;price.requestedModel='deepseek-flash';
+    await provisionModelBudget(db,schema,{scopeId:'shared_goal',authorizationHash:sha256('synthetic-test-only'),maxCalls:2,maxTokens:2000,maxCostMicros:10000});
+    controllerDb=postgres({host:'127.0.0.1',port,database:'hot_probe',username:controller,password:controllerPassword,onnotice:()=>{}});
+    const call={runId,sessionId:run.sessionId,callId:randomUUID(),requestHash:'c'.repeat(64),provider:'deepseek-official',model:'deepseek-flash',inputTokenBound:400,maxOutputTokens:512};
+    await db.unsafe(`create function "${schema}".fail_model_mapping() returns trigger language plpgsql as $$ begin raise exception 'synthetic insert interruption'; end $$`);
+    await db.unsafe(`create trigger fail_model_mapping before insert on "${schema}".research_model_calls for each row execute function "${schema}".fail_model_mapping()`);
+    await assert.rejects(reserveResearchModelCall(controllerDb,schema,service.owner,'shared_goal',price,day,call),/research_model_failed/);
+    assert.equal((await db`select charged_calls from ${db(schema)}.model_budgets where scope_id='shared_goal'`)[0].charged_calls,0,'link failure rolls back quota and attempt atomically');
+    await db.unsafe(`drop trigger fail_model_mapping on "${schema}".research_model_calls`);
+    const pipeline=await reserveModel(controllerDb,schema,service.owner,'shared_goal',{resultKey:'f'.repeat(64),specHash:'f'.repeat(64),maxTokens:100,maxCostMicros:100});
+    assert.equal(pipeline.state,'reserved');
+    const ticket=await reserveResearchModelCall(controllerDb,schema,service.owner,'shared_goal',price,day,call);
+    assert.equal(ticket.state,'reserved');
+    const repeated=await reserveResearchModelCall(controllerDb!,schema,service.owner,'shared_goal',price,day,call);
+    assert.equal(repeated.state,'busy');
+    await assert.rejects(reserveResearchModelCall(controllerDb!,schema,service.owner,'shared_goal',price,day,{...call,requestHash:'d'.repeat(64)}),/request_conflict/);
+    await assert.rejects(reserveResearchModelCall(controllerDb!,schema,service.owner,'shared_goal',price,day,{...call,callId:randomUUID(),sessionId:randomUUID()}),/session_invalid/);
+    await assert.rejects(reserveResearchModelCall(controllerDb!,schema,service.owner,'shared_goal',price,day,{...call,callId:randomUUID()}),/budget_exhausted/);
+    const [used]=await db`select charged_calls,charged_tokens::text from ${db(schema)}.model_budgets where scope_id='shared_goal'`;
+    assert.equal(used.charged_calls,2);assert.equal(used.charged_tokens,'1012');
+    await assert.rejects(db`update ${db(schema)}.research_model_calls set request_hash=${'d'.repeat(64)}`,/immutable_evidence/);
+    if(ticket.state!=='reserved')throw Error('hot_fixture_ticket_invalid');
+    await markModelDispatch(controllerDb,schema,service.owner,ticket.ticket);
+    await saveModelReceipt(controllerDb,schema,ticket.ticket,{answer:'synthetic research response'},{tokens:50,costMicros:100,providerRequestId:null,costBasis:'synthetic'});
+    assert.equal((await reserveResearchModelCall(controllerDb,schema,service.owner,'shared_goal',price,day,call)).state,'reused');
+    if(pipeline.state!=='reserved')throw Error('hot_fixture_ticket_invalid');
+    await cancelUnsentModel(controllerDb,schema,service.owner,pipeline.ticket.id);
+    const cancelledCall={...call,callId:randomUUID()};
+    const cancelled=await reserveResearchModelCall(controllerDb,schema,service.owner,'shared_goal',price,day,cancelledCall);
+    if(cancelled.state!=='reserved')throw Error('hot_fixture_ticket_invalid');
+    await cancelUnsentModel(controllerDb,schema,service.owner,cancelled.ticket.id);
+    await assert.rejects(reserveResearchModelCall(controllerDb,schema,service.owner,'shared_goal',price,day,cancelledCall),/attempt_changed/);
+    assert.equal((await db`select charged_calls from ${db(schema)}.model_budgets where scope_id='shared_goal'`)[0].charged_calls,1);
+    await advance('completed');
+    assert.equal((await reserveResearchModelCall(controllerDb,schema,service.owner,'shared_goal',undefined,'2026-10-13',call)).state,'reused','saved result replays in terminal run across dates without current pricing or new admission');
+    await assert.rejects(reserveResearchModelCall(controllerDb!,schema,service.owner,'shared_goal',price,day,{...call,callId:randomUUID()}),/execution_not_active/);
     assert.equal((await read('research.run',{runId})).sessionId,reserved);
     const workerDb=postgres({host:'127.0.0.1',port,database:'hot_probe',username:worker,password:workerPassword,onnotice:()=>{}});
+    await assert.rejects(reserveResearchModelCall(workerDb,schema,service.owner,'shared_goal',price,day,{...call,callId:randomUUID()}),/control_denied/);
     try{await assert.rejects(workerDb`update ${workerDb(schema)}.research_runs set state='prepared' where id=${runId}`,/permission denied/);}finally{await workerDb.end({timeout:5});}
     await assert.rejects(db`update ${db(schema)}.research_inputs set session_id=${randomUUID()} where id=${runId}`,/immutable_evidence/);
     if(process.env.RWB_HOT_TEST_PYTHON){
@@ -176,6 +218,7 @@ test('signed PG evidence copies old full originals, rejects foreign objects and 
     await assert.rejects(rpc(service.port,{...service.owner,generation:String(Number(service.owner.generation)+1)},readerToken,'research.evidence',selection),/untrusted|owner_stale|identity|scope/);
     await assert.rejects(db`update ${db(schema)}.raw_pages set body=${Buffer.from('tampered')} where source_id='official'`,/immutable_evidence/);
   }finally{
+    if(controllerDb)await controllerDb.end({timeout:5});
     if(service)await service.close();
     await db.unsafe(`drop schema if exists "${schema}" cascade`);
     for(const role of [worker,controller])await db.unsafe(`drop role if exists "${role}"`);

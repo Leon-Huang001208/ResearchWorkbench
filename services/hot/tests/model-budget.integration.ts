@@ -12,20 +12,23 @@ import {grantWorker} from '../src/provision.ts';
 import {provisionModelBudget,reserveModel,markModelDispatch,markModelUnknown,cancelUnsentModel,saveModelReceipt,lookupModel} from '../src/model-budget.ts';
 
 test('cumulative reservations serialize, unknown sends remain charged and late receipts reuse safely',{timeout:10000},async()=>{
-  const dir=resolve(import.meta.dirname,'../../../logs/hot-stage-zero');
+  const dir=resolve(process.env.RWB_HOT_TEST_FIXTURE_DIR??resolve(import.meta.dirname,'../../../logs/hot-stage-zero'));
   const receipt=JSON.parse(await readFile(join(dir,'receipt.json'),'utf8')),password=await readFile(join(dir,'password'),'utf8');
+  receipt.port=Number(process.env.RWB_HOT_TEST_PG_PORT??receipt.port);
   const db=postgres({host:'127.0.0.1',port:receipt.port,database:'hot_probe',username:'postgres',password,onnotice:()=>{}});
   const schema='hot_budget_'+randomBytes(5).toString('hex');
+  const role='hot_bw_'+randomBytes(5).toString('hex'),secret=randomBytes(32).toString('hex');
+  let schemaCreated=false,roleCreated=false;
   let worker:ReturnType<typeof postgres>|undefined;
   try{
-    await migrate(db,schema);const instance=randomUUID(),key=randomBytes(32).toString('hex');
+    assert.equal((await db`select to_regnamespace(${schema}) existing`)[0].existing,null);
+    await migrate(db,schema);schemaCreated=true;const instance=randomUUID(),key=randomBytes(32).toString('hex');
     await initializeIdentity(db,schema,instance,key);
     const owner=await activateRuntime(db,schema,instance,key,'native');
     const policy={scopeId:'test_scope',authorizationHash:sha256('synthetic authorization'),maxCalls:2,maxTokens:200,maxCostMicros:1000};
     await provisionModelBudget(db,schema,policy);
     const boss=await openQueue(db,schema,true);await boss.stop();
-    const role='hot_bw_'+randomBytes(5).toString('hex'),secret=randomBytes(32).toString('hex');
-    try{await db.unsafe(`create role "${role}" login nosuperuser nocreatedb nocreaterole password '${secret}'`);}catch{throw Error('hot_fixture_role_failed');}
+    try{await db.unsafe(`create role "${role}" login nosuperuser nocreatedb nocreaterole password '${secret}'`);roleCreated=true;}catch{throw Error('hot_fixture_role_failed');}
     await grantWorker(db,schema,role);
     worker=postgres({host:'127.0.0.1',port:receipt.port,database:'hot_probe',username:role,password:secret,onnotice:()=>{}});
     await assert.rejects(provisionModelBudget(worker,schema,{...policy,scopeId:'unapproved'}),/authorization_denied/);
@@ -107,5 +110,11 @@ test('cumulative reservations serialize, unknown sends remain charged and late r
     await markModelDispatch(db,schema,next,dayA.ticket);
     await markModelUnknown(db,schema,dayA.ticket);
     await assert.rejects(reserveModel(db,schema,next,'daily_scope',{...daySpec,resultKey:sha256('daily C')}),/daily_budget_exhausted/);
-  }finally{if(worker)await worker.end({timeout:5});await db.end({timeout:5});}
+  }finally{
+    try{
+      if(worker)await worker.end({timeout:5});
+      if(schemaCreated)await db.unsafe(`drop schema "${schema}" cascade`);
+      if(roleCreated)await db.unsafe(`drop role "${role}"`);
+    }finally{await db.end({timeout:5});}
+  }
 });

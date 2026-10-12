@@ -1,5 +1,9 @@
 # DataHub、研究资料与实际文件
 
+schema17 在同一 Hot PG 增加不可变 research_model_calls，关联现有 model_attempts、
+研究 run/session、请求哈希和固定价目；与预算预留原子提交。它不保存凭据，也不新建
+快照目录或付费队列。归档现有全 schema 清单会包含该表，研究文件联合恢复仍待验。
+
 Hot 非秘密配置位于产品数据根的 `hot/settings.json`，采用 0600 原子替换并绑定当前项目根；
 未启动时诊断不创建目录或查询凭据；实时状态通过系统库解析签名 key。`identity.json` 与
 `process.json` 绑定项目与进程身份；受管 PG 使用独立实例卷和私有密码文件导出，秘密权威仍为系统库。
