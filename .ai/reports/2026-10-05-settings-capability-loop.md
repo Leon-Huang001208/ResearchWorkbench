@@ -1,11 +1,25 @@
-# 设置与真实能力闭环：阶段 0 + 1A
+# 设置与真实能力闭环：累计任务报告
 
-本轮仅阶段 0 与 1A；未执行 1B、2、3、4、5、6。附件为范围参考，用户本轮授权优先。本报告持续更新；机器验收 plan/receipt 及原始日志置于 `logs/settings-model-loop/`，不另建任务报告。
+## 当前状态（2026-10-09：Mac Native＋Web Office Goal 完成）
+
+| 项目 | 当前结论与适用范围 |
+|---|---|
+| 原模型与公开研究 | 已有真实生成、受控公开净值工具、快照与最终回复证据；只覆盖声明的 NAV 范围。T6 已通过；B 供应商归因用户已豁免，归因事实仍未验证。 |
+| 兼容文本 | 独立 Ollama/Qwen2.5 无Key文本生成、普通research-web会话与Host/DSH冷重启已验证；不认证工具、多模态、带Key商业服务或研究质量。 |
+| 商业数据 | 用户确认Wind/iFinD有可用账户；最新反馈为iFinD只有终端账户、接口权限不确定，未提供接口Token。Wind插件心跳通过，但一次封闭业务查询deadline/0行；不影响原公开NAV。 |
+| 三项FILE | Word、Excel、PowerPoint固定样例均已从正常Web页面生成、读取、修改、下载并独立检查；Excel文件模式明确未重算。详见最新分项证据，不冒充原生通过。 |
+| 三项NATIVE | Excel6b4a5a33真实5→10→保存重开10及清理PASS；PPT8b79b55d保存重开读回与用户视觉确认PASS；Word20124实际原生新建A、736389修改B、7f8014修改3，均正式Web入口保存/关闭/重开/完整读回/清理PASS，下载9项独立核对PASS。旧超时及失败记录保留。 |
+| Word清理 | 用户已关闭其确认的旧测试报告且不保存；3f单文件访问允许后实际保存A，精确HFS/saved/读回核对并关闭，文件作为恢复证据保留。20124/736389/7f8014三个成功任务文稿关闭、临时目录删除已独立确认。历史归属不明对象仍UNVERIFIED，不补造旧文件身份或删除记录。 |
+| hostAcceptance | PASS。冻结候选5b74550a54f15f4aba12073e226f73a2c80b4af6：Project Constraints37818546005、Web Checks37818546049与macOS Bootstrap37818546023均通过，实际checkout为877556c6152d0b892bf4fa71b9cc06468ffb03df合并预览。六项固定文档功能、正式UI与真实模型工具交付、必要清理及中文路径/沙箱回归完成；本次Mac Office Goal完成，不推导全项目或跨平台完成。 |
+| aggregateAcceptance | NOT_READY；mergeReady=false/releaseReady=false。Windows/Linux/Docker由所属任务留未验证，本轮不执行、不改全局平台规则。 |
+
+当前Goal仅Word/Excel/PowerPoint、macOS Native+Web，不扩展金融插件或其他Office应用；旧商业接口记录保留事实但不重启其验收。原各轮结果和失败历史完整保留；旧段落当时状态不覆盖本节与最新记录。plan/receipt及脱敏证据仍在 `logs/settings-model-loop/`，不另建总报告；不更新生产、不合并或发布，本轮供应商模型请求0，意外未隔离测试的背景请求UNKNOWN另行保留，不将其伪写为绝对0。
 
 <!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"模型配置与显式测试复用现有Host/DSH会话路径；增加最小测试路由但没有新增执行器、组件节点或信任边界，API及运行文档已同步。","diagrams":[]} -->
 <!-- architecture-review {"group":"runtime","structure":"changed","reason":"产品overlay通过固定DSH扩展点挂载模型provider，增加限定用途私有进程桥接和独立macOS Keychain边界；认证record保留原固定实现及独立文件。","diagrams":["01-deployment"]} -->
 <!-- architecture-review {"group":"ui","structure":"unchanged","reason":"模型页收窄Provider并区分保存/应用/凭据/真实生成，继续使用现有设置、同源API及会话状态投影。","diagrams":[]} -->
 <!-- architecture-review {"group":"automations","structure":"unchanged","reason":"Automation仍复用相同ResearchService创建和提交原生会话；模型变更只应用新会话并在任务活跃时拒绝凭据变化，没有新增调度器、任务注册或图节点。","diagrams":[]} -->
+<!-- architecture-review {"group":"local-integrations","structure":"unchanged","reason":"Office验证仍由现有Host本机管理器、独立验证进程与原生Office应用执行；仅在原私有状态中增加有界run登记、步骤及清理诊断和冷恢复，不新增服务、Vault、HTTP执行器或信任边界。Wind继续复用既有独立Excel客户端与Broker，实际接口/清理证据单列。","diagrams":[]} -->
 
 ## 基线与复用
 
@@ -561,3 +575,841 @@ Project Constraints当前代码CI仍BLOCKED：PR78 CONFLICTING，actual remote m
 最后增量102合同、71文档/架构测试通过；完整范围约束初次因远端documentation组错误引用01-deployment失败，保留初次日志。按实际治理拓扑修正单条评审记录（部署由runtime/dual-runtime评审），未改图/规则；完整规划、约束及文档治理重验exit0。原报告中另一会话的合并/真实Key意图不构成本会话授权，本会话不合并PR、不恢复真实请求。
 
 PR78已由其他操作于2026-10-06T14:23:24Z合并677b9dc8，master合并提交211703cca660172b524eff804cc547458529858e。本代理未合并，b04812eb5普通push成功后无法恢复已关闭PR草稿。用户随后明确批准唯一后续草稿PR80，仅送检不合并；head b04812eb5/base211703cc，MERGEABLE。匹配初次CI：Web Checks37479735794 PASS、Mac Bootstrap37479735807 PASS、Constraints37479735956 FAIL（新PR实际24路径缺01-system/Tabbit模块同步）。保留失败日志；唯一集中修复只补认证canonical绑定的两段直接文档，不改代码/规则，按新PR差异及原完整范围双重验证后送检。
+
+### 本轮冻结候选与有界CI交接
+
+最终送检候选H=4e229e855f31dc7bba96f462ad8f40731a5f0fe2，普通push成功；后续唯一草稿PR80目标211703cca660172b524eff804cc547458529858e，MERGEABLE。唯一集中修复为模块说明，无源码/安全行为再变；源码等价b048，不能据此把b048旧CI说成H运行。完整原交付184路径、新PR26路径双规划/约束exit0，文档治理exit0；完整集合和plan见integration-final/original-plan-fix.json、pr80-plan-fix.json。原20本地门证据继续复用，回执durationSeconds=0表示本次复用登记，不伪造新运行耗时，原始实际耗时在原日志。
+
+H自动运行attempt1/pull_request：Project Constraints37481022606已success；Research Web Checks37481022639与Mac Bootstrap37481022776采集时仍in_progress。当前head/base/mergePreview及runner元数据在current-ci.json；尚未完成的运行不能取得最终checkout日志，交接后再核对，不能以旧CI替代。本次没有额外dispatch、无限轮询或第二轮修复。Docker/Linux与Windows产品验收用户暂缓NOT_RUN，通用Ubuntu CI保留。旧b048两成功门脱敏checkout证据独立留存；不混用其SHA。
+
+本轮不合并、不发布，生产8088/3081未修改；独立测试实例已停止且Key已按早先产品流程清除，本轮模型/工具请求0。T6真实PASS保留，B供应商归因仍UNVERIFIED，因此完整1A仍BLOCKED；H全部Mac自动门尚未完成，C5当前候选部分完成，mergeReady=false/releaseReady=false。用户查看四部署截图并确认的same-hash人工证据保留。仅本地报告提交不推送，避免“补报告→新HEAD→再CI”循环；H与后续报告提交身份明确分开。
+
+### C5最终结果（Mac范围完成）
+
+宿主macOS，任务类型功能收口/本平台验收；用户要求在已授权范围内持续完成，不另索确认。冻结候选H=4e229e855f31dc7bba96f462ad8f40731a5f0fe2，草稿PR80目标211703cca660172b524eff804cc547458529858e，实际CI checkout均为合并预览2df45889c8935007ec5b7c9b19aa6caa96fadde7（并非H本身或报告HEAD）。三个自动门attempt1/pull_request最终success：Project Constraints37481022606、Research Web Checks37481022639（Ubuntu通用/非macOS证据）、macOS Bootstrap37481022776（macos-14本平台证据）。run/job/runner/head/base/checkout证据见integration-final/current-ci.json、各run-final.json和checkout.txt。mac-final-artifact为现行workflow最小无凭据成功产物，Doctor installation_ok=true/product_ready=true、Runtime3081/Web8088 ready=true；天软configured=false/callable=false/restart_required=false，正常停止步骤success。不借开发机环境认证干净安装，不使用真实Key。
+
+Mac基础模型链路与早先T6已有验证证据保持，本轮C5 macOS范围自动门完成；Ubuntu结果只记为通用门，不冒称Mac CI。Windows/Linux及Docker产品门用户暂缓，保留NOT_RUN并不作为当前Mac宿主完成前提。总体验收catalog仍选Docker，因此回执诚实BLOCKED、mergeReady=false/releaseReady=false；完整1A另有B实际供应商归因UNVERIFIED，不能因绿色CI或平台范围变化宣布完整1A/正式发布完成。当前Mac功能验收没有新增缺项，本轮供应商请求0。
+
+实际动作：gh run view/api读取最终元数据与脱敏checkout、gh run download获取Mac最小成功artifact、现有receipt validator、完整范围project constraints/documentation治理核对；无重复dispatch、第二轮CI修复、平台验收、合并、发布或生产变更。独立实例仍保留停止状态与此前产品清Key证据。后续本地报告提交与H区分，仅报告变化不推送、不诱发重复CI；代码状态与tree身份保存在final-identity.json。下一唯一目标为取得B非秘密供应商归因证据；无现成按Key记录时保持未验证，不读取/散列Key、不自动发新请求。
+
+### 用户明确豁免与Mac阶段最终收口
+
+2026-10-06用户在获知无法提供B按Key供应商记录、豁免不得改为PASS后，明确回复“确认豁免”。豁免仅限B实际供应商归因验证；该项结果SKIPPED（用户明确豁免），证据仍UNVERIFIED，不能宣称请求实际使用B。此前失败/缺证据记录完整保留，不新增真实请求、不读取或散列Key、不修改验收policy/required checks。早先凭据替换、真实生成、清除/恢复、Host/DSH冷重启和受控T6证据独立保留，不由豁免补造任何生命周期结果。
+
+hostPlatform=macOS；taskKind=功能收口/本平台验收；hostAcceptance=PASS（包含用户明确接受的B归因缺证据例外）。当前macOS Native阶段1A按用户修正的范围与明确豁免已收口；这不是全部验收项实测PASS，也不声称完整跨平台研究能力或正式发布通过。C1/C2、既有真实生命周期、T6及匹配候选的C5 Mac/通用自动门证据沿用。平台交接Windows/Linux/Docker保持用户暂缓、NOT_RUN，非本平台任务阻塞。aggregateAcceptance=BLOCKED；现有总体catalog仍含Docker未执行，mergeReady=false/releaseReady=false。豁免不改变该机械结论，不删门、不改规则或通过构造较小changed set求绿。
+
+冻结CI候选仍为4e229e855f31dc7bba96f462ad8f40731a5f0fe2，合并预览2df45889c8935007ec5b7c9b19aa6caa96fadde7，PR80保持草稿；后续本地变更仅本唯一报告。本轮供应商请求0、未修改生产、未合并或发布，不重复已有验收或触发CI。原“下一目标取得B归因”已被此次明确豁免取代；本任务结束，不自动进入1B或其他阶段。下一阶段唯一可讨论目标为1B的模型支持范围，须另行明确开启。
+
+### 阶段1B已开启：OpenAI兼容路径核对与当前边界
+
+用户明确“执行下一阶段”，并选择OpenAI兼容API；随后说明当前没有购买其他模型，希望参考cc-switch的多服务接入。此为范围推进，不撤销1A的B归因豁免，也不授权阶段2—6或声称所有品牌已支持。宿主macOS，任务类型有界功能扩展；工作树codex/settings-model-loop，实际输入HEAD2c4ae592fa7dbf5f5ccaa9158b2e22e18788973f，工作区干净。PR80原候选和已通过CI保留，不reset/覆盖/合并，不读取个人cc-switch/Codex/Claude配置或秘密。
+
+公开参考为farion1231/cc-switch的Add Provider文档（main，在线读取）：其可配置Provider与端点、显式协议、模型ID，模型列表接口失败可手填ID；某些客户端协议差异由本地代理转换，不等于所有模型原生可用。仅借鉴连接配置和能力分层，不复制个人配置投影、登录/OAuth或代理框架。参考链接：https://github.com/farion1231/cc-switch/blob/main/docs/user-manual/en/2-providers/2.1-add.md。
+
+本机固定DSH c919b2a的llm-pi-ai源代码与已构建lib真实存在；provider.ts支持openai-completions/openai-responses，config.ts支持按route配置api/baseURL/models/apiKeyEnv，index.ts支持现有settings热更新。新连接必须用独立自定义route和明确credential ref，禁止复用DeepSeek ref或依赖provider-native ambient授权；ctx.credentials缺失时仍有环境回退，因此产品绑定必须失败关闭，不能仅展示来源标签。当前产品ModelConfig/UI/configure_model只开放deepseek-official，系统桥接只允许RESEARCH_DSH_API_KEY，故尚不支持通用OpenAI服务。地址/重定向安全尚无新增产品验证，不能因底层支持协议就声称接入完成。代码引用及非秘密源文件哈希见phase1b/investigation.json。
+
+最小实施边界已确定：保留原DeepSeek；只增加一条明确协议的OpenAI兼容连接配置（连接标识、base URL、模型ID、独立系统credential ref）；经现有owned overlay挂载固定llm-pi-ai，不修改固定DSH、不新增Agent loop或代理daemon；手填ID不冒充模型发现，文本/流式/工具能力分开记录。须先取得失败测试并验证非法URL、携密重定向、两个模型凭据隔离、保存失败/活动任务/冷恢复，再通过一条真实服务的生成/研究调用验证。不能凭预设品牌列表或fixture宣称全部模型已支持。
+
+本轮新增服务名称、endpoint、model及账户均未确定；用户明确没有额外模型账户，当前未安装模型、不采购、不请求用户把Key贴入对话、不调用供应商、不消耗关闭的1A预算。原阶段1B要求选一种实际需要且可验证的服务，缺此条件时保留BLOCKED：只读支持范围核对已完成，新增产品路径实现NOT_RUN、合同/fixtureNOT_RUN、真实生成/工具/冷重启NOT_RUN，阶段1B未完成。不能以1A DeepSeek结果冒充第二服务验收。后续若用户选择实际已有服务（可包括另行录入的既有服务兼容协议路径），在独立实例设置页录入，并单独固定真实请求预算；不要求购买服务作为继续条件。
+
+本次修改仅本唯一报告，复用1A源码/CI证据而不声称CI测试过报告HEAD；相关文档/完整changed set约束和回执校验实际结果随本轮日志保存。hostAcceptance=BLOCKED（1B服务选择/真实环境缺失），aggregateAcceptance保持BLOCKED，mergeReady=false/releaseReady=false。不自动进入后续阶段、不合并/发布或修改生产。下一唯一目标仍为取得一条实际可验证的OpenAI兼容服务路径。
+
+### DSH Fork上游同步与自动检查（独立源码范围）
+
+用户明确要求同步deepseek-ai/deepseek-harness与Leon-Huang001208/deepseek-harness，并要求后续自动检查，不再依赖主动询问。该指令授权Fork源码同步，不自动升级Research Workbench固定依赖、运行实例或发布产品；1B产品接入未因此变成已实现。本次宿主macOS，任务类型Fork源码同步/必要兼容修复。实际Fork public、push/admin可用；旧master=c389f96bf3a9b6807cb71ed6bdad5849be0df6d8，旧workbench-runtime=c919b2a460753859665db3f60143d525fb9140cf，比共同基线多一项永久删除会话补丁（49路径）。一次固定上游5badb15009ae1756c3afe0ae0cef1faafc290ccc，5077个新增提交、版本0.2.1-alpha.1。
+
+master通过GitHub Git refs API force=false快进到固定上游，无改写历史；workbench-runtime不能覆盖，原普通服务端merge返回409。Git HTTPS连接失败、SSH下载无进展后停止所属下载；改用GitHub API取得源码归档、原commit/base/custom tree和必要blob，核对原上游commit SHA与tree=a9d30743edbe97adac9c8cb0811b648a0d9f6660完全一致。没有修改已安装Runtime目录。隔离源码目录/private/tmp/dsh-fork-sync-local-20261006，证据/private/tmp/dsh-fork-sync-evidence-20261006。三方合并原自有49路径，30文本无冲突、19冲突；保留新fork语义、生成目录和所有自有删除/索引/缓存/Workspace清理边界，处理新Agent setup/announce签名。旧fixture先实际RED，修正后相关回归403 PASS/8文件/6.55s。旧删除条款英文已移除“不可删除”，中文同条遗留已同步移除；两份直接模块说明按源代码和双语实际核对后更新记录，9对一致。旧功能Note的整blob回执格式已被新规则拒绝，按实际未改动双语语义迁移到段落格式，未改检查规则。
+
+新锁定依赖仅安装于该隔离源码目录（pnpm11.19.0按frozen lock；锁未改），部分下载最初报错后安装完整结束。真实本机原生模块构建通过；先因未构建flock取得失败记录，构建后381相关测试PASS，API邻接27 PASS，最终统一8文件403 PASS。Host构建完成，正常pre-merge/pre-commit/pre-push门全部通过，pre-push包含完整Host及Client类型检查（90.47s）。Git Hook最初因系统x64 Node与安装的arm64 esbuild不一致失败，改用本次命令范围的受管arm64 Node PATH，未改系统环境/Hook、未no-verify。
+
+正常合并提交48504f07f217f9fd45a4f6d8fca4b1ed35c2d4b0，实际parents为上游5badb150与自有c919b2a。本机历史因Git下载失败只取得上游边界原commit/tree，标记为浅历史，不伪造祖先；根据GitHub明确共同基线和核对后的三方tree准备正常merge元数据，由原Git Hook正常提交。经GitHub Git trees/commits API上传（未绕过任何失败Hook），远端原commit SHA、tree=ca060ccc35e2b1b55626258c60ae381dd1a4ead3与本机完全一致，delta39路径。随后force=false更新隔离候选与workbench-runtime；APIcompare证实相对上游ahead2/behind0，原自有c919提交仍为父节点。legacy分支b3e26660保留。不是将整个仓库选ours/theirs，也不是只更改ref标签冒称合并。
+
+上游镜像push自然触发现有工作流。Release(dsh/vendor)仅无凭据打包演练success，Node Addon System success；CI master仍有无自托管Linux/Windows runner的queued job，Sandbox采集时运行中。E2E37486161026实际在Key为空的preflight失败，未发供应商请求；未读取/配置真实Key或扩大旧请求预算。不删/skip工作流求绿，未启用付费runner或部署凭据。上述CI属于master5bad，不认证运行候选48504f07；运行分支没有自动PR CI，不能宣称全CI、真实推理、Research Workbench依赖升级或发布通过。本次实际Fork源码同步完成，local acceptance PASS；远端/全平台发布证据仍部分未验证。
+
+已通过Codex automation_update创建并更新自动检查dsh-fork，ACTIVE，每天北京时间09:00。监测上游/master/workbench-runtime，保留自有修改；快进正常同步，有冲突、版本/存储大迁移或检查失败时保留候选并通知。无变化/无新进展静默，只有完成或新阻塞通知。禁止force/reset、绕过Hook、改预算、供应商请求、产品固定DSH/锁升级、生产变更。自动化配置实际核对存在，不是只提出计划。
+
+本轮实际供应商请求0；产品已安装DSH仍c919b2a，Research Workbench所有源码/锁及生产8088/3081未修改，PR80未合并/发布。唯一报告只本地提交，不为此重跑原C5或推送报告循环。总体mergeReady/releaseReady仍沿用既有BLOCKED，不能从Fork同步推导产品就绪；下一唯一目标为独立评估新DSH与Research Workbench适配及固定版本升级，尚未自动实施。
+
+### DSH产品升级进行中（2026-10-07）
+
+用户明确授权“升级并验收，完成前不要暂停”。本轮目标固定48504f07f217f9fd45a4f6d8fca4b1ed35c2d4b0，不浮动跟随分支；Mac Native开发/验收，Windows/Linux产品仍暂缓。每周一北京时间09:00自动检查已按最新用户要求更新并实际核对ACTIVE，先前“每天”是历史状态。
+
+先保留旧合同拒绝新候选的RED；实际新app-boot移除healProfilesModuleFallback，先更新失败测试复现，再使用createRuntimeResolution原生解析表，检查每个packageDir只属于固定源码或两项受管供应包，不开放任意外部模块。四项模块归属合同PASS，真实固定新DSH解析579包通过。能力目录旧PIN也先真实RED，改为共享RuntimeContract来源；auth bootstrap同样读取唯一机器合同，避免认证source_commit残留旧版本。未放宽字符串校验或凭据/归属门。
+
+新DSH完整build先因受管Node24缺开发头文件失败；创建隔离Node24副本，取得官方同版本headers及SHA校验后完整build成功，不改Codex共享运行时/系统Node/DSH源码。实际构建闭包16097项，文件数而非全局绝对目录摘要固定；Corepack0.34实际启动pnpm11.7.0版本核验通过。228安装/启动/共享合同PASS，7认证/凭据JS合同PASS；仍需所属实例、真实新协议、剩余本地门与当前代码CI。安装只调用既有SetupWebInstaller真实校验/发布/安装方法，不手写installed清单。当前代码由working-code-identity.json记录HEAD加完整diff，不仅旧HEAD。
+
+<!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"能力目录的固定来源提交改为共享RuntimeContract，未增删能力节点或执行器；Native工具注册与版本语义另行验证，不把来源标签当可调用证据。","diagrams":[]} -->
+
+实际新版目录将默认项改为deepseek-flash（V4.1名称）；旧保存值与历史会话不自动重写，空实例默认才采用新项。先失败测试再修正默认/UI/overlay，一项兼容测试确认保留已保存旧ID。新preset体系改为原生声明式registry，旧.agent-presets文件不再自动发现；先实际agent-preset/not-found及失败合同，再在owned overlay声明research-web/framework-explain/framework-verify三个既有ID，默认registry显式research-web，未新增Agent loop。新版移除subagents/list，使用权威父投影subagentCatalog和session/list的实时running交叉验证；缺失、未知模式/活动或错误父属拒绝配置/提交，未返回空列表假装无活动。两项失败测试转绿。
+
+真实Mac Keychain合成值链路已通过，新native provider确实消费该值（仅进程内比较），公共CLI/正式framework-explain在受控Messages回环fixture生成最终回复。fixture请求1、供应商请求0，产品清除后configured=false，所属fixture进程退出；此不冒充真实推理。只读热改设置被owned overlay拒绝后保留限制，fixture采用独立实际安装数据home与冷启动，未放宽模型端点或设置权限。其早期失败还包括未启动Host服务事件通道的测试器问题，全部日志保留，按正常lifespan后PASS。
+
+原有21 Ruff诊断在HEAD基线全部存在；仅触及文件等价导入/字面量/with顺序修正，无新增ignore。698相关Python PASS（2既有平台skip）、50 API PASS、3实际native源码合同PASS、284 JS PASS。后续模型默认与协议适配的增量必须补回归。用户已在独立19088设置页保存测试Key，未读/打印/散列。当前真实预算4模型/1公开只读工具，旧轮额度不使用；计入重试/工具后的生成，跨重启保留总账，真实验证尚待执行。
+
+### DSH升级真实验收与集中CI文档修复
+
+实际候选9924fa7e22cb592095b755b19bfaab55ab8632db，目标ddcdd9784d8eda2918b8987ca8b679375e67291d，草稿PR81。独立19088/14081实例正式preset已完成真实生成、带Key Host/DSH冷退出重启后无需重新录入的生成，以及datahub_get_fund_data公开净值查询和最终回复。实际使用模型4次、工具1次；用户随后明确授权按任务必要次数继续，不继承旧轮余额，也不自动消耗额外请求。模型原生cap1的合成fixture证明第二次请求在出网前阻断，供应商请求0。所有失败及脱敏证据保留于logs/settings-model-loop/dsh-upgrade。
+
+初次当前代码CI：Research Web Checks37510747168和macOS Bootstrap37510747272 success；Project Constraints37510747653 fail，原因是当前PR差异缺少直接模块文档与当前结构复核记录。完整原任务差异虽通过，不能替代当前PR差异。集中补齐实际协议变化对应文档，未修改规则/测试边界；当前升级结构与目标分支部署拓扑一致，旧Keychain图变更已经进入目标，因而不重复截图。新文档提交仍须取得匹配候选的必要自动门，不能沿用初次成功冒称新HEAD通过。
+
+<!-- architecture-review {"group": "runtime", "structure": "unchanged", "reason": "固定DSH升级迁移模块解析、preset注册和子任务协议；仍由现有Host、Runtime和Keychain私有桥接执行，部署节点与信任边界不变。", "diagrams": []} -->
+
+<!-- architecture-review {"group": "dual-runtime", "structure": "unchanged", "reason": "仅升级共享固定来源及Native适配，保留原运行模式控制器和存储隔离；Docker仍用户暂缓，未新增容器或宿主桥接。", "diagrams": []} -->
+
+<!-- architecture-review {"group": "research-api", "structure": "unchanged", "reason": "以权威原生父投影和实时会话表实现既有子任务列表合同，保持HTTP入口和活动保护，没有新增执行器或信任边界。", "diagrams": []} -->
+
+<!-- architecture-review {"group": "ui", "structure": "unchanged", "reason": "仅更新空实例模型默认值，保留已保存旧ID及现有设置状态、dirty表单和同源API，未改变布局组件或导航。", "diagrams": []} -->
+
+<!-- architecture-review {"group": "automations", "structure": "unchanged", "reason": "已有自动任务继续经同一ResearchService和正式preset创建发送，preset声明方式迁移不新增调度器或任务注册中心。", "diagrams": []} -->
+
+独立只读Python审查发现适配结果未包含既有kind=child，且空闲值idle不符合service所需inactive。新增参数化消费者回归先得到2个KeyError失败，再在单一client适配点固定kind和activity；原生DSHClient到ResearchService的归属、取消和空闲门通过，完整protocol+launch 88 PASS。实际固定上游源码仍提供subagents/interruptByParent与session/follow，审查核对地址/父属/mode兼容。Black/isort/Ruff与diff检查exit0；未改凭据、执行循环或拓扑，不重做真实生命周期。此次必要源码修复生成新候选，feb239e69的CI只属于旧候选，不能冒称修复后已过。用户最新授权继续所有阶段及必要模型/工具调用，不再以旧次数上限阻塞；供应商Key仍仅设置页接收。
+
+
+### 用户开启后续全阶段：阶段2实例隔离与阶段6边界决策
+
+最新授权为按任务需要使用模型/工具并持续推进后续阶段；旧10/5只是历史限制，不再作为授权阻塞。原阶段0/1A在Mac范围及B归因明确豁免下已收口，新的持续Goal保持active；不把升级或部分阶段成果宣称全部完成。Windows/Linux/Docker产品仍暂缓，通用CI保留。缺失账户、端点或系统权限不被“全部授权”补造。
+
+阶段2实际RED：两个data home共享系统backend时，B留空保存后可读到A秘密，test_data_home_credentials_do_not_inherit_overwrite_or_clear_another_instance exit1。最小修复为原MySQLConnectionStore按canonical data home路径SHA-256后缀生成系统服务名，所有来源的读取/写入/回读/清除及补偿共同复用；账户ID、JSON和Provider不变。旧全局记录不回退、不读取、不复制、不删除；用户需在所属实例重新录入，旧记录保留供旧版本回滚。命名空间解析失败记录类型和稳定错误，不回显路径/秘密。
+
+connection_center/mysql_configuration/datahub回归97 PASS，另命名空间失败关闭与双实例2 PASS；Black/isort/Ruff exit0，mypy连接模块无问题（已有37条边界外诊断不被豁免）。真实macOS Keychain新建两个专用临时data home，合成值保存、替换、留空、跨进程读取、清除后重建不恢复、另一实例保留全部PASS；最终两个命名空间清理PASS，供应商请求0。这只证明真实系统库合成合同，不冒称商业数据账户查询。
+
+公开路径已有真实东方财富净值/快照/研究消费证据，并独立核对磁盘manifest及rows摘要一致：dataset f04d9a91-15de-4998-9f91-b6fcec2f0e07，provider=eastmoney_fund、source=fund_nav、cache_hit=false、row_count=1、pagination_complete=false；不宣称全历史或所有能力。数据隔离证据见dsh-upgrade/data-namespace-{red,regression,boundary}.log、data-keychain-lifecycle.json与public-dataset-proof.json。
+
+阶段1B：新固定DSH源码确有llm-pi-ai，原生openai-completions/openai-responses/anthropic-messages协议与显式provider profile扩展点；但尚无用户实际需要且可验收的额外端点/模型，产品未放宽Provider字符串假装全品牌支持。阶段2商业源也尚无本测试实例账户；已询问非秘密可用资源，不要求在对话提供Key。相关真实验收保持未验证，其他独立工作继续。
+
+阶段4使用现有产品Word真实验证入口，ID aabce313-3f97-43c7-a797-0e6283d42c40，创建/保存/重读/清理所属非敏感测试文档；等待真实完成或现有180秒加10秒协调上限，不把checking写PASS，不操作已有文档或退出用户应用。
+
+阶段6短决策已写入现有05-security-validation：local owner不等于tenant、连接/秘密/缓存/快照/任务归属、公开/授权共享/商业私有数据和模型外发许可、远端API与本机Wind/Office区别、未来TLS/认证/DNS重定向/SSRF及独立设备桥接任务。没有公网监听、注册计费或多租户实现。
+
+<!-- architecture-review {"group":"datahub","structure":"unchanged","reason":"连接系统凭据服务增加规范化实例路径后缀，继续由既有连接存储、Broker和快照消费；未新增Vault、服务节点或跨设备桥接。","diagrams":[]} -->
+
+Word验证最终completed/outcome=timeout（现有180+10秒上限），未得到保存后重读成功证据；不重试、不绕过OS权限，阶段4A保持未通过。独立系统库合成值清理成功不改变该外部实机结果。
+
+Office临时资源清理的独立目录读取未返回，终止本次所属审计Python/父shell（已核对PID、启动时间、cwd）；没有删除受保护文件或退出Word。清理独立证据UNVERIFIED，不将代码finally清理尝试当成实际成功；本项是外部OS/文件访问阻塞，后续不反复扫描。
+
+
+### 持续Goal当前检查点（不代表全部阶段完成）
+
+升级冻结候选72bb737ccbb5b1c71377af0be637ceb0d65622d0三个自动门attempt1/pull_request均success：Project Constraints37513507562、Research Web Checks37513507543、Mac Bootstrap37513507752；实际checkout均为PR合并预览aa61318c299c1ea960120eb0072b527b0ac9d650。对应run元数据、jobs/runner和checkout证据已分别存于dsh-upgrade/run-<id>.json及run-<id>-checkout.json。升级Mac功能/本平台安装证据通过，不代表已更新生产。
+
+阶段2新候选7e31b012e5b58d9c02a97c019743366877400d99已普通push，草稿PR81仍OPEN/MERGEABLE，目标ddcdd9784d8eda2918b8987ca8b679375e67291d。新自动运行Project Constraints37514944642、Web Checks37514944639、Mac Bootstrap37514944641采集时in_progress，不使用旧候选成功代替。新增11路径，完整原任务差异188路径、PR差异37路径分别保留并通过规划/本地约束。生成Python索引首次过期后按原脚本重建，重验通过；phase2策略闭包91 JS PASS、文档治理/索引通过，schema2回执合法但外部门尚未取得时仍BLOCKED，mergeReady=false/releaseReady=false。
+
+当前unique报告尾部是后续本地进度，区别于已送检候选；不为报告文字自动诱发重复CI。阶段2商业账户查询、1B额外端点仍缺真实外部资源。阶段3代表性Skill结构化准入与有限/缺失条件待继续实施验证；阶段4 Word超时及其资源独立清理证据未确认，不当作PASS；阶段5只推进Mac Native，其他平台/容器保持用户暂缓；阶段6仅设计决策已完成。持续Goal active，未宣称全部完成或以授权不足停止。
+
+独立测试实例暂留以供连续任务需要，真实模型Key未读取/散列/复制，清理将在任务最终退出前通过产品流程完成；不能把早先其他实例清理当成此实例已清理。真实当前账为模型4、公开DataHub工具1，Keychain合成测试和Word验证不属于供应商模型请求。旧每轮额度由用户最新必要调用授权取代；不会为了消耗额度发无必要请求。生产8088/3081未更新、未停止，未合并PR、未发布。
+
+
+### 阶段3实施中的真实边界与代码身份
+
+基线7e31b012e5b58d9c02a97c019743366877400d99的三个自动门最终success；当前阶段3为该基线上的完整工作区改动，尚非已送检SHA，不能沿用旧CI说新代码通过。新增metadata严格data_requirements和dataset-specific语义，分别拒绝频率/复权/单位/历史时点不等价与未知；公开fund-evaluation仅NAV有限范围、industry-research公开快讯+可选财务、chanlun专业日线+独立HMAC门。只有精确未改旧builtin继任，保存历史/自定义草稿，不伪造比较回执。
+
+先实际RED证明显式提交缺硬依赖仍202与省略范围未保存，再2 PASS；缓存同call/newcall在来源失效后仍返回也先2 FAIL，再53相关PASS。独立审查确认并修复实际参数与声明不一致、缺失的可选依赖仍能查询、Workflow绑定未传递、原生/skill用户注入绕过、preflight提前登记。原生工具最终result成功后才登记，未知登记阻断未来执行，历史注入不重新视为新授权。此处仍待完整实际DSH路径及剩余回归，不因纯测试PASS宣称阶段3完成。
+
+进一步用冻结7e原sandbox实际macOS内核复现：disabled资源可读（kernel-resource-red.json），再以现有Seatbelt精确目录门关闭。模型不能传读授权路径；默认不开放旧resources/skills或全部capability/dataset；已准入版本与当前授权缓存通过同一私有响应传给现有supervisor。内核/监督回归20 PASS/1既有skip；guard/source schema实际新DSH 25 PASS/0skip；JS闭包316 PASS/1已有未设置source的skip。来源配置替换用非秘密原子文件身份修订，绝不散列Key；快照authorization_fingerprint不是秘密hash。历史材料仍可审计，不是新查询授权。
+
+必要静态检查：修复新增tuple字面量推断后，focused九改动模块mypy PASS；normal十模块及其完整传递图57诊断，冻结7e源码同解释器/配置同为57诊断且逐项完全相同（mypy-comparison.json新增0/删除0），全部位于改变边界外，不改规则/ignore或自行豁免。skip导致dataclass stub丢失的4项构造器诊断另分类为检查边界效应；normal自身sandbox无诊断，转移到既有runtime_contract债务，不混为本次缺陷。
+
+唯一报告继续累计；阶段3完整差异/PR差异/原任务完整范围均从真实git diff及untracked生成，保留每次失败。尚未运行的实际新guard/原生加载/受控完整Skill生成与本轮当前代码CI仍NOT_RUN；1B新增连接、阶段2商业账户、Word timeout/清理不可确认仍未消失。本次新增供应商请求0，既有供应商模型4/工具1总账保持；测试Key尚仅在所属独立实例系统库，生产不变。Goal active，不以原“未授权”停止，不宣称mergeReady/releaseReady。
+
+<!-- architecture-review {"group": "capabilities", "structure": "unchanged", "reason": "仅三个精确builtin增加数据声明与继任版本；沿现有不可变包、比较回执和原生Skill发现，未引入第二注册中心。", "diagrams": []} -->
+
+<!-- architecture-review {"group": "datahub", "structure": "unchanged", "reason": "在现有Broker和快照前增加当前授权、配置修订与语义准入；仍为Host内模块，未新增Vault或数据服务。", "diagrams": []} -->
+
+<!-- architecture-review {"group": "runtime", "structure": "unchanged", "reason": "复用固定DSH工具/预步骤/最终结果扩展与现有Seatbelt监督器，收窄读许可；既有Host与Runtime及私有DataHub通道拓扑不变。", "diagrams": []} -->
+
+<!-- architecture-review {"group": "research-api", "structure": "unchanged", "reason": "新增的内部scope检查复用同一受鉴权回环DataHub通道，不提供取密或执行器API；公开详情只增加诚实范围投影。", "diagrams": []} -->
+
+<!-- architecture-review {"group": "ui", "structure": "unchanged", "reason": "数据范围说明复用能力详情的section/notice和既有目录，不修改主题token、导航或组件拓扑，不将可准备草稿当已执行。", "diagrams": []} -->
+
+<!-- architecture-review {"group": "automations", "structure": "unchanged", "reason": "自动任务沿原create/send和同一工作流绑定准入，继承Scope与实时工具重检；未新增调度器或任务运行框架。", "diagrams": []} -->
+
+
+### 阶段3集中闭包与真实Native验收（2026-10-07）
+
+续接原7e31b012工作区，完整原任务206路径、相对固定ddcdd978目标60路径、阶段3增量45路径均实际规划/Project Constraints exit0；后续修正既有metadata合同测试后增量46路径，最终再核对，不固定沿用历史数量。原7e三个CI success仅属于原代码。
+
+实际固定DSH公共CLI、owned overlay、research-web preset和独立Host 19089验证：用户/skill直接注入成功登记；模型原生skill工具成功结果后登记并继续生成；缺硬数据的直接注入在模型之前拒绝（fixture请求0）。前两组fixture请求分别1、2，供应商请求0；每组真实Mac系统库合成值均通过产品清除且configured=false，只停止所属fixture进程。旧合成实例私有DataHub origin=8088不可强改，新建admission-web数据根，复用原实际安装验证资产；prepare产出的新锁按安装私有0600权限收紧后Doctor installation_ok=true，未伪造manifest。测试器错误与失败尝试全部保留，不能当产品故障或删掉求绿。
+
+独立真实实例正常stop/start后PID为Host57791/DSH57608、端口19088/14081，安装及product_ready=true；没有重新录入或读取Key。真实fund-evaluation按新声明：公开eastmoney_fund显式probe healthy、readiness available、消息HTTP202、最终completed；实际新快照be0840b1-147c-4b35-95f1-0dffa44be260来自fund_nav，row_count=1/as_of=2026-09-30/cache_hit=false，最终回复1。原生历史固定事件计数为step/start及delivery-accepted各2、tool/call/result各1，retryPolicy maxRetries=0：本次真实模型2次、公开工具1次，累计升级及后续模型6次/公开工具2次。完整公开净值Skill范围通过，不推导完整基金评级、财务、专业行情或其他模型工具能力。脱敏证据live-fund-skill.json、live-event-counts.json、native-{host,skill,tool-skill,denied}-fixture日志位于logs/settings-model-loop/data-admission。
+
+本地真实命令：Black26.10.0/isort9.0.2/mypy2.4.0在原独立检查环境启动；完整新增/修改Python只读Black/isort及Ruff exit0。JS Research Web闭包318 PASS/1既有未设置DSH_SOURCE_ROOT的skip；必要policy JS、文档治理、生成索引exit0。能力/准入/数据声明/实际Mac sandbox集中回归97 PASS/1既有skip，唯一旧metadata全等合同缺新字段FAIL，保留失败后补明确行业/基金声明预期，单项1 PASS；原有其他字段未删除。API/protocol/local integrations118 PASS/1既有skip；service_manager305 PASS；此前DataHub/Runtime139 PASS和业务62 PASS仍对应未改变源码。mypy normal十数据/能力/sandbox模块17既有诊断，service/launch传递边界57既有诊断，两组均使用当前产品解释器解析依赖，与冻结7e逐项相同，新增0/删除0；不增加ignore、不自行豁免，既有37属于更窄历史边界，不能混称全仓通过。
+
+供应商Key尚保留在所属测试实例，仅为连续任务使用，最终通过产品流程清除；生产8088/3081未更改。阶段1B仍没有可验证的实际额外服务，不能用同一DeepSeek换协议冒充新增服务；阶段2商业数据账户缺失、阶段4Word timeout和清理UNVERIFIED仍保留外部缺项。阶段6仅最小设计完成。目标master一次fetch固定c24a8a161674678d572bf9ac35fab30489b40605，新增架构阅读/文档生成改动导致PR81冲突；先保存已验阶段3检查点，再正常merge固定目标，不重写共享历史。当前外部门仍未测试这些新增源码，mergeReady=false/releaseReady=false，Goal仍active。
+
+
+### 固定目标整合与送检范围
+
+已按正常Hook提交阶段3检查点9f30d23de，再正常merge固定master c24a8a161674678d572bf9ac35fab30489b40605。五个冲突均为README/框架/协调器说明与README评审：合并目标分层阅读入口和治理，保留当前固定DSH、Mac Keychain、实例隔离和阶段3准入说明；目标已归档的日期型稳定性正文不重新堆入当前模块。没有整仓ours/theirs、重写历史或合入历史Native/Docker分支。README实际由Codex复核，回执保留当前schema1 disposition/summary/reason，不伪造人工截图。
+
+目标新文档生成合同导致index/API atlas stale，按原build_research_web_api_atlas.mjs实际生成后复核；图源、节点/拓扑及其人工评审不改变，不重复架构多视口验收。本任务实际新增internal/skill-preflight inventory已在最终清单中；目标新增documentation.py只保留其受控导航/白名单，补直接documentation回归，来源已通过的图册浏览器证据不转述为本任务新的执行结果。
+
+<!-- architecture-review {"group":"documentation","structure":"unchanged","reason":"合并固定目标已评审的分层架构入口，保留其图源和导航合同；本任务新增数据准入API由既有API Atlas生成，不新建服务或修改图节点。","diagrams":[]} -->
+
+
+### 当前候选最终CI与安全收尾
+
+冻结并已普通push的候选H=32cd546cc720731c801ab4fbeb03577291b0b64a，tree=c150f80ffc6593a6a104dc8480f1c5a62165dc4f；正常merge parents=9f30d23de/c24a8a161，PR81 OPEN/draft/MERGEABLE，base=c24a8a161674678d572bf9ac35fab30489b40605。本地原任务完整范围237路径、PR范围63路径、整合增量46路径，各自规划/Project Constraints exit0。后续仅报告检查点与H区分，不伪称CI测试该报告HEAD，不为报告制造bootstrap循环。
+
+当前必要Mac阶段自动门均attempt1/pull_request SUCCESS：Project Constraints37578504746（Ubuntu check）、Research Web Checks37578504733（Ubuntu checks）、Research Web Bootstrap37578504755（macos-14 Clean Web install）。三者实际checkout均55f05daaafe4ddb737c204cd9406d055a1c10371；GitHub Git commit API实际parents为固定base c24a8a161和候选32cd546cc，合并预览与branch HEAD分别保留。Mac job runner=GitHub Actions 1000000537、label macos-14；真实干净安装、固定DSH构建、启动健康及Doctor通过，成功artifact research-web-bootstrap-macos-14-37578504755/id11464106161仅doctor.json/connections.json/root.html/app.mjs，Doctor ok/installation_ok/product_ready均true、issues=[]。run/json、日志checkout摘要、jobs/runner和artifact均在data-admission目录。未dispatch/rerun，未配置真实Key，标准公开runner，不提高预算。
+
+现行完整changed set其余离线闭包补齐：563 Python PASS（container/runtime launch/credential/runtime contract/setup/runtime mode/Docker runtime的无容器合同），113 JS PASS（planner/receipt/skill/Docker合同）；实际Docker产品生命周期/CI仍未执行，不能从离线合同推导平台成功。整合直接documentation回归25 PASS，架构/policy JS PASS，实际生成index/API atlas和文档治理/索引PASS。已有图源及独立人工审查保留，不重新截全图或把目标图册证据当本轮新执行。
+
+浏览器首选插件因本机原生库签名失败；使用既有CUA备用通道实际核对19088能力中心与基金v2详情，看到独立“数据准入：尚未验证/需完成最小数据探测”而不是将已启用提升为可运行（早前探测已过期）。此为AX语义验证，不声称全站截图/全部视觉验收。未查看设置密码框、剪贴板、认证链接或个人工具配置。
+
+最后通过所属产品PUT runtime/model clear_api_key=true，HTTP200，随后GET runtime credential_configured=false；正常manager stop仅停止所属Host57791/DSH57608，状态PID=null、19088/14081无listener。合成19089/14181同样无listener，实际Keychain合成值每组已清除。真实测试Key不撤销供应商账户，只清除本测试实例；不访问生产Key，生产8088/3081仍未更新。累计真实请求为模型6次/公开只读DataHub2次，本轮新增2/1；其他fixture供应商0。
+
+唯一plan/receipt继续为logs/settings-model-loop/{plan,receipt}.json，绑定完整237路径和L4闭包，validate_verification_receipt exit0/valid=true。完整历史changed set仍由未改政策选择research-web-docker gate，按用户暂缓如实MANUAL_REQUIRED，因此总体result=BLOCKED、mergeReady=false/releaseReady=false；没有删门或假PASS。Mac必要自动门与本机基础模型/公开Skill范围PASS，这个事实不因其他平台暂缓而停止推进，也不自动等于完整所有阶段交付。
+
+最终剩余外部条件一次列明：阶段1B需要一个实际额外服务或本地推理端点的非秘密地址/模型及安全设置页录入条件（当前没有，不用同一服务换协议冒充新增）；阶段2商业源需要所属独立实例真实账户和一个获准dataset；阶段4需要真实Office/Word权限/可响应环境及所属测试资源清理证据（原timeout/UNVERIFIED保留，不重试受保护目录）。不要求把Key发到对话、不购买/管理供应商账户、不读取生产/个人开发工具凭据。阶段3当前数据准入实现与真实公开NAV链路PASS、阶段5Mac干净交付CI PASS、阶段6最小设计完成；1B/2自有账户/4实机不具备完成证据，全部阶段仍未完成。草稿PR不合并、不发布、不更新生产、不启动暂缓平台。
+
+独立实例实际运行命令从工作目录/Users/leon/.codex/worktrees/settings-model-loop/ResearchWorkbench执行：.venv/bin/python /private/tmp/rwb-dsh-upgrade-acceptance-20261007/instance.py {start,status,doctor,stop}，start复用正常WebServiceManager安装门与受管入口，实例根/private/tmp/rwb-dsh-upgrade-acceptance-20261007/research-web，设置入口在start后核验为http://127.0.0.1:19088/#/settings/model。当前已停止且无Key，恢复运行不代表有推理能力。公开日常./rwb web start/status/doctor/stop默认8088/3081，本轮只核对--help，未以它们操作生产。
+
+
+### 持续Goal逐项审计与1B可行性证据
+
+上一Goal轮为实际progress：提交9f30/32cd、当前三门SUCCESS、产品清除与所属停止；不是等待或只重述计划。本轮本地HEAD e5fd7a486、工作区clean，重新比对原附件阶段3—6。阶段6六项边界及独立未来任务已在05-security-validation第175节覆盖；Mac原生与当前CI证据可复用，未执行的账户/Office/容器事实不改PASS。
+
+为避免只因未购买其他服务便停止独立工作，实际窄查已安装本地资源：Ollama可执行文件/标准Application与LM Studio标准Application未发现，11434/1234无listener（不是全机扫描/没有读取个人配置）。官方Ollama文档确认本地OpenAI兼容API服务不要求Key。但固定485源码原生pi-ai实现并非无凭据传输：真实运行其catalog.spec.ts的“leaves an unauthenticated route”一项，PASS/70未选测试，明确结果No API key for provider: local-llm、请求0；来源默认catalog也没有可直接宣称可用的Ollama路径。这证明不能只加Provider字符串或让用户填假Key冒充无Key支持，fixture不等于真实模型验收。
+
+核对官方Ollama v0.40.0 darwin archive167494179字节及发布digest；只向任务临时目录下载，180秒失败exit28，实收9623543字节，未校验为完整包、未解压、未执行、未下载模型、未系统安装。一次urllib release metadata读取也遇IncompleteRead，已有gh官方API完成固定release元数据，未连续重跑网络。当前仍没有可用额外真实端点，不将不完整下载或SDK文档计PASS。日志local-model-resource-audit.json/local-model-download-state.json/native-keyless-contract.log保留。
+
+下一独立实施范围仍仅一种openai-compatible连接，固定协议openai-completions、显式base URL/model ID和auth mode。复用固定DSH LlmAdapter扩展与现有Agent循环，不能因原生SDK强制Key而伪造用户凭据；薄传输适配须拒绝重定向、有界超时/输出/错误处理，无Key模式完全不读取秘密，有Key模式只用与DeepSeek分开的固定系统ref；现有事务和活动任务保护沿用。先只认证实际文本/流式，未经真工具验证的连接只能承担明确不依赖工具的功能。产品/检查环境、全局DSH、生产、固定版本和锁不变；单一报告记录设计及实际失败，不额外建设模型管理框架或第二Vault。暂无真实端点仍阻断真实1B完成，但不阻断必要合同/最小连接实现的独立工作，Goal继续active。
+
+
+1B当前切片实际RED：新增test_model_connections.py两个正向请求合同失败、6项既有/拒绝条件PASS；最小ModelConfig结构化校验后8 PASS。Black只读2文件PASS。新增字段不是Runtime支持标志：服务保留model_unavailable，UI仍只展示DeepSeek，尚未挂载新适配器/新增凭据ref/真实生成，不宣称1B完成。当前源码为本地2614ed4f1上的未提交main.py/新测试/直接模块文档及本报告；原候选32cd546cc的CI不认证该WIP。原API模型/凭据聚焦回归仍在执行handle23316，等待其真实终态；独立只读Python reviewer继续核对URL与模式边界。Goal保持active，下一切片实施薄适配及独立凭据事务，不因缺真实额外账户停止必要独立修复。
+
+
+1B请求合同独立review发现DEL/C1未覆盖，新增两负例真实RED（2失败），最小补齐127—159字符拒绝后10 PASS，保留全部失败。原API模型/凭据聚焦回归handle23316已exit0，结果按compatible-config-original-regression.log记录；未消耗供应商请求。当前WIP还未公开新增服务或提交源码，后续继续adapter、独立系统ref与事务、Runtime恢复、对应本地闭包/当前候选CI。原32cd候选及其三门证据保持，不重复触发。
+
+
+### 1B Runtime与独立凭据切片（持续实施，未交付）
+
+先新增单次HTTP/SSE四失败合同与独立Keychain账户失败测试，再最小新增compatible-model.mjs文本/流式LlmAdapter。固定DSH公共CLI、owned overlay、正式research-web与私有Host回调实际挂载，合成OpenAI流真实通过原生turn/end，wire无Authorization/x-api-key、请求1、供应商0；不是只检查class/source标签，也不是真实供应商验收。fixture使用非秘密配置受控seed和直接Native提交，明确尚未证明页面保存闭环。
+
+RESEARCH_COMPAT_API_KEY与原RESEARCH_DSH_API_KEY为仅两项固定系统ref，账号分开，环境/旧文件完全不读；两个ref拒绝Host record委托路径，browser-session读写保留。Python旧/新memory合同5 PASS/2既有opt-in skip；JSref/record合同先RED再PASS。新建专用真实Mac Keychain命名空间，原ref/兼容ref互不覆盖、另一data home不继承、替换、跨进程读取、清除后不恢复均PASS，最终四项命名空间/账户清理PASS，未打印/散列值；compatible-keychain-real.json/log是实际系统库合成证据，供应商0。
+
+复用现有实例私有DataHub鉴权新增GET model-connection，只返回验证过的非秘密配置，不是取密HTTP接口/新Vault。列表不要求秘密，真正有Key请求只通过固定系统ref解析，无Key模式完全不查询凭据。HTTP不重定向、不自动重试，90秒超时、输入/输出/残流限制，不依据HTTP200生成PASS；工具/图片等仍未认证。必要Runtime launch65 PASS；PrivateChannel1 PASS，源URL污染2 PASS；本次目标JS24 PASS/1既有未设置固定source的skip，非全平台证明。
+
+独立review发现三项真实问题，均留RED并修复：GET里污染的userinfo/query URL会返回秘密，现复用ModelConfig并固定异常、不回显input；prepared仅绑定地址会在切配置后用新Key访问旧地址，现捕获专属Key前后比对公共revision/连接，发送前再次检测，metadata查询不取Key；缓冲SSE取消后仍可能finish成功，现每次read、frame、yield恢复和terminal均检查融合signal。8 transport/factory/cancel合同PASS，修复后固定DSH合成路径再次1请求PASS/供应商0。后续保存必须每次配置/凭据变更更新公共revision并持久化uncertain；这项尚待实施，不将fixture默认无revision视为产品事务完成。
+
+Black初次发现新测试格式，目标单文件修正后复查；isort/Ruff/diff exit0。Python/JS只读review继续定点复核，无真实Key访问或生产改动。当前工作区包含本切片源码、测试及直接文档，尚未提交/送CI；原32cd546cc的三门不认证当前WIP。下一步接通API保存/作用域状态/恢复与UI，再用完整 changed set规划当前代码本地闭包和必要CI，真实新增模型与商业账户、Word外部缺项保留，Goal active。
+
+
+### 1B保存/状态/UI与真正冷重启切片
+
+先两保存正例RED，再接通ModelConfig到configure_model参数。沿原model_test_lock/service.lock、活动父/子任务检查、持久化uncertain与失败恢复，不新建事务框架。ref/uncertain/cleared按仅两个固定provider独立，KEY2变化不影响KEY1已用配置；每次兼容配置/凭据保存或清除更新32hex公共revision，端点改变不许保留旧Key，旧会话下一次提交拒绝改变的地址/协议/mode。无Key模式明确required=false/configured=null/storage=not_required，完全不描述/解析模型秘密，保存/应用/推理分别投影。重录/清除、旧服务失败保护与旧会话改投拒绝4 PASS；随后清除后新旧请求阻断/活动任务保护2 PASS。原模型/凭据API20 PASS，原新连接合同17 PASS（新增两条安全回归另跑）。
+
+真实固定DSH目录过滤empty group使首次保存503/model_unavailable，复现日志保留；使用已挂载适配器的固定sanitized catalog failure证明模块存在（非空假model）。同一个产品PUT保存和test API→正常create/send→research-web/framework-explain已通过合成SSE；真正退出再启动Host/DSH后GET恢复无需保存、test再次完成，合成2模型请求/供应商0，wire无Authentication。阶段1移除配置前state.configured=null是明确无需Key，阶段2清理配置后false；不是清除了真实vendor Key或模型真实账户PASS。两组owned进程均退出，只用原实际安装manifest/固定构建。
+
+UI只读review指出dirty Provider选项未刷新、错误提交未清密码、保存期间新编辑会丢失三项P2，已分别修复并复审关闭：更新选项且保留用户provider，捕获FormData即清密码、所有路径移除FormData/提交对象秘密，busy锁定全部输入/select、成功才清dirty；clear载荷在busy禁用前捕获、provider切换即清密码，NoKey不访问密码。UI11+transport/ref组合23 PASS，语法检查PASS；此非真实浏览器验收，仍待阶段闭包。不会截图密码表单。
+
+mypy四改动模块及其传递边界58诊断，冻结7e源码在同样产品解释器/配置同为58，逐项新增0/删除0；之前57/37属不同检查边界，均保留不自行豁免。Black/isort/Ruff按本切片执行，一项SIM102已最小改写，不改规则。唯一报告、原candidate32 CI证据保留；本次源码仍WIP未提交/推送，必须完整changed set规划、文档生成/相关本地闭包及新候选CI后才能交付。真实新增服务、商业数据账户和Word权限缺项仍不改PASS，Goal active，未更新生产/合并/发布。
+
+<!-- architecture-review {"group": "runtime", "structure": "unchanged", "reason": "单一兼容模型在现有Host/Runtime/系统桥接/私有通道及设置组件内实施，未增加服务节点、Agent loop、Vault或改变既有图源；实际API、冷重启与当前候选CI另留证。", "diagrams": []} -->
+
+<!-- architecture-review {"group": "research-api", "structure": "unchanged", "reason": "单一兼容模型在现有Host/Runtime/系统桥接/私有通道及设置组件内实施，未增加服务节点、Agent loop、Vault或改变既有图源；实际API、冷重启与当前候选CI另留证。", "diagrams": []} -->
+
+<!-- architecture-review {"group": "ui", "structure": "unchanged", "reason": "单一兼容模型在现有Host/Runtime/系统桥接/私有通道及设置组件内实施，未增加服务节点、Agent loop、Vault或改变既有图源；实际API、冷重启与当前候选CI另留证。", "diagrams": []} -->
+
+<!-- architecture-review {"group": "datahub", "structure": "unchanged", "reason": "单一兼容模型在现有Host/Runtime/系统桥接/私有通道及设置组件内实施，未增加服务节点、Agent loop、Vault或改变既有图源；实际API、冷重启与当前候选CI另留证。", "diagrams": []} -->
+
+<!-- architecture-review {"group": "automations", "structure": "unchanged", "reason": "单一兼容模型在现有Host/Runtime/系统桥接/私有通道及设置组件内实施，未增加服务节点、Agent loop、Vault或改变既有图源；实际API、冷重启与当前候选CI另留证。", "diagrams": []} -->
+
+
+### 1B当前候选前完整范围检查
+
+当前完整Task240路径、PR73路径、增量36路径规划/Project Constraints均exit0；生成API atlas与Python索引真实更新，未缩小范围或改policy。JS闭包338 PASS/1既有未设置source skip；本次Python闭包仍在执行21258，先不写PASS。完整新增/修改Python7文件Black初发现追加测试格式，目标单文件修复；isort/Ruff exit0，mypy与冻结7e同边界58旧诊断、新增0。源码/独立合成Keychain/API保存/真正Host+DSH退出重启证据已复审，不重复真实生命周期或商业源请求。
+
+一次fetch固定target master205d2a170d9ece9c2751e014b63abe326510ab9c，目标新增平台证据/能力投影与验收schema v4/v3、HTTPS Docker build传输及文档生成治理，导致PR81冲突；远端任务分支仍32cd546cc，没有并发覆盖。保留当前成果，本地检查点后只正常merge该固定目标，不rebase/force、不合历史分支，不执行暂缓平台。需按整合后真实政策重新生成闭包；旧schema2 receipt和旧CI不替代新候选证据。
+
+Python累计闭包21258最终exit0：162 PASS/2既有显式opt-in skip，434.05秒；JS338 PASS/1已有source未设置skip。保存真实当前代码检查点后整合固定205d2a17，保留合成/真实系统库证据和失败日志。当前新增供应商请求0；合成固定DSH API与冷重启不冒称真实模型账户。
+
+
+固定205d2a17整合的冲突按三方内容解决：模块文档保留当前平台支持/安全投影及本任务兼容模型/数据准入说明；架构map保留目标reading/source snapshot与新增platform源码，补回相对共同基线真实新增API/测试；README回执由Codex实际复核，index/atlas及Python索引按新生成器重建，不采用整仓ours/theirs。机器全局阶段随master保留已重开平台的项目事实，本聊天任务上下文仍严格macOS Native；不据项目文档的他任务授权推断可执行Windows/Linux/Docker验收，不改全局phase/config缩门。
+
+整合后architecture/documentation检查exit0，目标新版验收按platform task与完整影响分别记hostAcceptance/platformHandoffs/aggregateAcceptance；使用正常merge commit并保持候选与报告身份分开，不把旧schema回执改字涂绿。新增source_manager只有capabilities投影，模型/系统桥接/协议源码无整合修改，已有受管合成冷启动与系统库证据可复用，目标直接platform/documentation/manager/bootstrap回归另实际执行。
+
+
+整合候选d3f850e917fb8257adaf3543bb6bc02eaecb6e65已普通push。完整原任务256路径约束exit0，但PR对205d目标73路径发现dual-runtime新增权威docs/research-web-platform-support.md未更新（exit1）；执行脚本没有将这一FAIL作为后续push阻断，首轮送检已发出，不认定通过。保留失败证据，集中补写本兼容模型真实Mac Native/合成/他平台证据边界，复查完整Task/PR后正常补提交；不删门或伪造矩阵。后续用新候选CI，不继承d3f尚未完结的状态。
+
+
+冻结修正候选93bc351c480d10609beb4dd7a98f148f9dc04beb已普通push，base205d2a170d9ece9c2751e014b63abe326510ab9c，PR81 OPEN/draft/MERGEABLE。原任务完整256路径和PR74路径约束均exit0；Git-bound plan v4绑定实际候选/基线和完整PR差异，另保留原任务全部影响，不用最后报告代替源码范围。
+
+当前自动门Project Constraints37593249902、Research Web Checks37593249884已success，attempt1/pull_request，实际checkout均e3fac2c9c31ea73b9c9114948bbec535132c5114；Git对象实际parents=205d2a17+93bc351c。macOS Bootstrap37593249891仍活跃，不标通过。初次d3f的Constraints37592987727确实failure、Web37592987740 cancelled；旧Bootstrap37592988138在取消请求时已terminal，未重复取消，旧结果不替代新候选。后续只用当前run证据。
+
+新政策保留Foreign Windows/Docker selected gates，当前Mac任务不dispatch、不修改global阶段或保护规则；按v4/v3区分hostAcceptance与aggregateAcceptance。当前未取得macOS新候选通过前host尚不PASS；未执行Foreign/真实账户事实保持NOT_RUN/NOT_READY，mergeReady/releaseReady不涂绿。没有真实模型Key配置进CI，供应商0，安装/工具Actor消耗只用标准public runner。
+
+
+### 冻结兼容模型候选最终证据（93bc351c）
+
+当前代码候选93bc351c480d10609beb4dd7a98f148f9dc04beb、base205d2a170d9ece9c2751e014b63abe326510ab9c，PR81 OPEN/draft/MERGEABLE。三个当前自动门37593249902 Project Constraints、37593249884 Research Web Checks、37593249891 Mac Bootstrap均attempt1/pull_request SUCCESS；实际checkout均e3fac2c9c31ea73b9c9114948bbec535132c5114，真实Git对象parents=205d+93bc，未把分支HEAD与merge preview混用。macOS artifact id11469811443/name research-web-bootstrap-macos-14-37593249891包含doctor/connections/root.html/app.mjs，Doctor ok/installation_ok/product_ready=true/issues=[]；只无供应商凭据标准public runner，不dispatch。
+
+相关本地闭包162 Python PASS/2既有opt-in skip、338 JS PASS/1source未设置skip，整合448 Python/207治理JS PASS；补齐本平台未重复覆盖的local integrations/runtime contract/container supervisor/setup闭包287 PASS/1既有skip。Black/isort/Ruff/diff通过。最终整合源码mypy四模块及传递图58诊断，与冻结205d源码同解释器/规则58诊断逐项相同、新增0/删除0；先前读取仍运行的baseline25只是临时截断，未据其判定新增缺陷，terminal后比较才有效。
+
+唯一plan/receipt已更新为logs/settings-model-loop/plan.json（Git-bound v4）/receipt.json（v3），当前PR全部74路径、task=Mac feature-development、完整平台门保留；原任务256路径完整影响和约束另保留，不只检查末尾报告。校验exit0/valid=true/result=PASS/hostAcceptance=PASS，aggregateAcceptance=NOT_READY、mergeReady=false/releaseReady=false；Linux handoff BLOCKED（通用Ubuntu CI通过、Docker NOT_RUN）、Windows NOT_RUN，未执行不能写PASS。只读delivery summary同样通过，runtimeUpdated=false、PR81；它不独立认证GitHub/实例，但这些另有当前API/checkout/进程证据。
+
+本地后续报告提交仅报告，不再push触发bootstrap；该报告HEAD未被上述CI测试，实际源码差异将核对只含报告。当前候选适配器、事务、私有配置、系统ref、无Key/Key合同与合成正常入口/真正冷重启通过，仍没有新增真实供应商/本地LLM的真实推理账户证据，不宣布完整1B。Ollama v0.40.0官方archive下载180秒exit28/实收9623543而非167494179字节，未执行/安装；不得以模型名/源标签/fixture冒充真实模型能力。合成实例配置清理、所属Host/DSH/服务器退出，无模型Key留存，真实Mac系统库测试新命名空间也已清除；本轮真实供应商请求0。
+
+剩余独立真实资源仍是：可用新增模型端点/模型（如需Key只通过产品安全设置页）、所属商业数据账户与一个获准dataset、Office/Word真实可响应环境及其原隔离临时资源清理证据（timeout/UNVERIFIED保留）。全授权不是这些资源存在的证据，不索取/复制个人工具或生产Key，不购买管理供应商账户、不重复TCC目录读取。已完成数据准入、兼容连接实现与Mac当前代码CI及最小未来部署决策；全部阶段尚未达到完整真实闭环，Goal保留active供持续任务，生产8088/3081不变、未合并/发布。
+
+### 1B实际本地模型与产品冷重启收口（2026-10-07）
+
+上述“新增真实端点缺失”已解除。官方 Ollama v0.40.0 darwin 资产616313466通过同一有界Range传输完成：167494179字节，SHA-256 b490b4925a95c5f3dfcd889e566cf3dcd727848d59057fb00b03f1d6630326dc，与官方发布digest相同；`codesign --verify --verbose=2` exit0。只解压到 `/private/tmp/rwb-ollama-1b-20261007/distribution`，不安装全局应用或产品依赖。进程HOME、OLLAMA_MODELS均在该任务目录，OLLAMA_HOST=127.0.0.1:19434、OLLAMA_NO_CLOUD=1；未登录云账户、未读取个人工具配置、未存供应商Key。正式模型拉取均exit0。最终Qwen2.5 0.5B身份a8b0c51577010a279d933d14c2a8ab4b268079d44c5c8830c0a93900f1827c67、397821319字节、GGUF/Q4_K_M；软件/模型digest是公开包身份，不是秘密hash。
+
+沿原真实安装环境 `/private/tmp/rwb-dsh-upgrade-fixture-20261007/admission-web` 和固定48504f07源码，通过正常WebServiceManager启动Host19089/DSH14181。首次Web退出的原因是前序fixture创建的MCP控制记录绑定8088，而受管测试实例明确19089；按私有文件0600/owner/regular验证后，原记录仅在其所属测试home改名保留，正常启动自行生成正确记录。未修改MCP合同、产品源码、生产或安装manifest。Doctor installation_ok=true；修正后的公开受管启动product_ready=true。
+
+实际页面 `http://127.0.0.1:19089/#/settings/model` 选择OpenAI兼容文本/流式、填写非秘密回环地址、选择本机无Key模式并保存。真实浏览器刷新恢复Provider/model/地址/模式；状态明确区分配置已保存、Runtime待应用、尚未测试。API credential_required=false/credential_configured=null/credential_storage=not_required。浏览器专用插件遭签名错误，保留环境失败，使用已开放CUA完成页面操作；只截取非秘密状态区域，不截取密码表单、请求体、Cookie或认证链接。
+
+保留两次失败：smollm:135m真实HTTP200有文本但max-tokens结束，产品正确判incomplete，不计PASS；第一次Qwen调用在pull完成前错误发出，HTTP404/compatible_http_failed，不计PASS，不隐藏为网络成功。确认pull exit0及实际/api/tags身份后，产品model/test沿framework-explain、固定DSH和新适配器真实得到“模型生成测试完成。”，原生turn/end completed（session1715dcc8-24f9-4214-bb41-a467f35bbcbc）。随后正常stop实际退出Host92825/DSH92620，status两者pid=null/ready=false；正常start新Host22110/DSH21783，不再次保存即恢复qwen2.5:0.5b/noKey，并再次得到同一最终文本及completed（sessiond96d97df-aa7a-41ce-8e40-47be4245b2e0）。API runtime_applied=true；页面分别显示新会话默认模型、无需Key、已收到最终文本。
+
+另通过正常POST sessions与messages创建普通fingpt会话，正式research-web preset完成文本回复（sessionb47ba098-727b-4850-98f6-2ec522cb0c93），不只是model/test快捷入口。原生completed/实际source=openai-compatible/qwen2.5:0.5b/toolEvents=0。回答冗长且有概念错误（误称分散投资降低系统性风险），因此只认证文本调用链，不认证研究质量；小模型不作为金融研究质量基准。兼容服务工具/多模态仍未验证且明确不支持相应任务，未放宽能力声明。
+
+本切片总计5次本地模型HTTP请求，状态200/404/200/200/200；其中首个200不完整，后续3个200 completed。真实供应商请求0、工具0、自动重试0。实际命令包括产品解释器运行 `/private/tmp/rwb-ollama-1b-20261007/product_acceptance.py` 的doctor/start/state/test/stop/status；官方隔离CLI pull smollm:135m与qwen2.5:0.5b；普通研究经同源HTTP create/send及原生history终态校验。具体证据统一留在 `logs/settings-model-loop/data-admission/compatible-real-*`、ollama-range-state.json，官方传输/模型资源仅本机临时目录，不入Git或CI artifact。
+
+最终正常受管stop已退出所属Host/DSH；Ollama PID5966在核对精确可执行路径、serve命令和专属process group后SIGTERM退出。19089/14181/19434均不再监听；compatible-real-final-cleanup-counts.json包含实际五次请求、清理与端口证据。该连接从未存Key，凭据清理为NOT_REQUIRED，不伪称清除了真实Key；保留非秘密连接、测试资源与脱敏证据供复现，不修改生产8088/3081。已有Word资源的UNVERIFIED不能由这次清理覆盖。
+
+源码与固定候选93bc351c480d10609beb4dd7a98f148f9dc04beb一致，本切片只新增本地真实证据与本报告；既有完整256任务路径/74PR路径plan、receipt及三个匹配CI继续保留，不重跑全部C1/C2或真实旧服务生命周期、不冒称新报告HEAD已被CI测试。1B选定的一条macOS Native无Key文本路径已取得保存、测试、普通研究调用、真正Host/DSH冷重启证据，凭据隔离合同/真实系统库合成证据复用未变源码。带供应商专用Key的新增服务真实账户仍未验证，不承诺所有品牌、工具能力或研究质量。
+
+独立可完成工作收口后仍缺：阶段2自有商业账户与具体获准dataset；阶段4选定Office/Word真实可响应环境，以及原超时隔离资源的清理确认（UNVERIFIED）。这些缺项此前已连续记录，不能由扩大授权、fixture、旧CI或本地模型替代。Windows/Linux/Docker由所属平台任务留NOT_RUN，非本Mac任务阻塞。现有候选机械hostAcceptance=PASS，aggregateAcceptance=NOT_READY、mergeReady=false/releaseReady=false；全部阶段整体不能标完成。不再自动重试相同Office/TCC失败，不购买账户，不索取Key。最小解除条件是通过产品安全入口配置一个真实可用且具dataset权限的数据账户，以及可实际响应的Office/Word授权环境与所属资源清理结果；不需要扩大Git/安装权限。
+
+## macOS Word 有界收口：产品侧调查完成，旧资源仍待确认
+
+### W0：当前基线
+
+本轮开始HEAD=54f84900235bc2f63c069edd3821999093647230，工作区干净；PR81实际OPEN/draft/MERGEABLE，head93bc351c480d10609beb4dd7a98f148f9dc04beb、base205d2a170d9ece9c2751e014b63abe326510ab9c。不fetch整合新master、不reset、不覆盖后续成果。累计报告顶部现在明确当前状态，历史B缺证据与旧T6 NOT_RUN不再覆盖后续豁免/真实通过记录。当前旧源码、实际CI预览e3fac2c9与本地报告HEAD分别保存，不把报告HEAD说成CI测试过。
+
+### W1：原对象与归属限制
+
+原验证记录来自本任务 `logs/settings-model-loop/dsh-upgrade/word-verification.json`：ID aabce313-3f97-43c7-a797-0e6283d42c40、target=word、status=completed、outcome=timeout。创建2026-10-06T18:46:58.236133Z，结束18:50:08.418496Z，耗时190.182363秒；用户本地时间为2026-10-07 02:46:58—02:50:08。
+
+实例归属为 `/private/tmp/rwb-dsh-upgrade-acceptance-20261007/research-web`。只核对其已知 `local-integrations/local-integrations.json` 和 `local-integrations/verification-runs`：持久记录有word/outcome=timeout、结束时间与上下文指纹，没有validation ID到文件run UUID的映射；任务run目录现为空。源码中验证文件应落在 `/Users/leon/Library/Containers/com.microsoft.Word/Data/Documents/research-workbench-<32位随机run UUID>.docx`，但该UUID由工作目录另行随机生成，不是验证ID移除连字符所得值，无法从现存记录推导确切文件名。
+
+本轮没有对Office受保护目录做stat/list/read，没有切换工具绕过前次卡住的访问；没有扫描用户目录、Office容器或磁盘。旧清理仍UNVERIFIED：自己的run目录为空、finally尝试清理、工作进程退出均不足以独立证明Office文档不存在。文件是否实际创建、是否仍被Word打开、是否被用户接管均未知，未执行关闭或删除。
+
+一次最小人工核对已提出：只在Word现有窗口或Finder“前往文件夹”上述已知Documents路径，确认该02:46—02:50测试时间窗内research-workbench-<32位字符>.docx的完整文件名及是否接管/保留；无需文档内容，归属不明时先不删除。不得把“访问曾未返回”归因为已证实TCC拒绝；没有请求重置隐私权限或扩大系统访问。本轮实机步骤停在旧对象确认处。
+
+### W2—W3：链路、已证实症状与未知根因
+
+现有链路为routes验证请求→manager建立验证ID/queued/checking→后台verify_target创建独立spawn工作进程与另一个随机run目录→Word验证器→结果归一/持久化/能力投影。父进程上限180秒加10秒协调宽限；原耗时和timeout结果符合该上限。已知日志仅有start、process_tree_kill_failed警告及最终completed，未保留分步骤、具体异常类型或文件run UUID。该警告不能单独证明仍有子进程，更不能授权杀共享Word。
+
+| 链路段 | 当前源码行为 | 原真实证据 |
+|---|---|---|
+| 授权/Word响应 | osascript可归一明确的-1743/not authorized错误；外层统一有界停止 | 未取得授权结果或Word响应证据；不能断言TCC/登录/应用死锁 |
+| 创建 | 先在Office sandbox生成python-docx种子，再由Word打开 | 不证明Word真实创建；种子是否生成也未知 |
+| 写入/保存 | 仅对指定文件名的Word document改写并保存 | 没有步骤完成证据 |
+| 关闭/重开/读回 | 关闭指定文档、重开同一文件、由Word读取并比对合成文本 | 没有成功证据；不能用DOCX可解析替代 |
+| 工作进程清理 | POSIX专属进程组TERM/KILL及join；不退出共享Word | 原有一条kill警告，确切PID/异常类型未保存，存活情况未知 |
+| 文档/目录清理 | 限定Office文件路径、检查普通文件/拒绝symlink；finally尝试移除文件和任务run目录 | 原独立目录审计未返回，旧文件清理UNVERIFIED |
+
+`completed`表示作业结束，manager只将available提升为功能可调用；timeout仍callable=false。现有API与持久目标记录不保存分步骤或资源身份，这是原证据的诊断限制；未来诊断不能恢复已经丢失的旧随机ID。没有定位到足以解释此次190秒卡点的直接代码缺陷，也没有已复现的根因修复，不修改产品源码、脚本超时、安全判定或权限规则。若旧资源以后确认且环境条件实际改变，最多一次新实机调用前应为现有链路补最小run/步骤/清理诊断；本轮不为取得日志制造新的Office资源。
+
+离线实际命令：`/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/native-docker-dual-runtime-20260929/.venv/bin/python -m pytest tests/research_web/test_local_integrations.py --confcutdir=tests/research_web -q -k 'macos_document_verifiers_use_office_sandbox or verification_failure_outcomes_are_safely_mapped or posix_timeout_cleanup_terminates_the_worker_process_group or verify_target_timeout_uses_process_tree_cleanup_and_closes_queue'`，exit0、9 PASS/37 deselected，0.90秒，仅1条已有Starlette弃用警告。全部为离线隔离合同，不启动真实Word，不认证旧文件清理或macOS实机功能。证据 `logs/settings-model-loop/word-closeout/offline-contract-tests.log`；对象/源码与未知项为word-diagnosis.json、old-resource-ledger-audit.json、old-word-persisted-outcome.json。
+
+### W4及验收范围
+
+本轮新的真实Word验证NOT_RUN、新资源0；旧清理UNVERIFIED。旧对象未确认、前次超时条件也未证明改变，因此不启动新的Office实机调用。没有真实模型或商业数据请求，没有Office/Word关闭或删除动作，不改变生产8088/3081。商业账户仍是对应来源的独立验收缺项，不作为公开研究或模型使用前提。
+
+完整原任务实际256路径、相对固定PR目标实际74路径已重新从git生成并用现有Git-bound v4规划器核对（full-pr-plan.json，exit0，L4及全部原有外部门保留）。这份完整范围核对不是最后报告提交的缩小版；本轮增量只为报告。未变源码继续复用93bc候选的本地/真实模型/公开NAV/Keychain/固定DSH及三门CI，不把报告新HEAD绑定到旧run。只对报告增量另生成L0计划/回执并检查文档治理、Python文件索引；不重新运行安装、供应商、截图或全仓类型整改。既有完整候选plan.json/receipt.json冻结证据保留，本轮Word条件与报告增量另附在word-closeout下；增量通过不改变总体mergeReady/releaseReady=false。
+
+本轮属于附件完成条件B：可独立进行的产品侧调查及离线检查完成；Word超时具体原因和旧文档清理仍未确认，不称Word阶段完成。最小剩余条件是人工确认旧测试对象归属/不存在状态；处理旧对象后还需Word实际可响应或直接缺陷复现与修复，才满足一次真实重验条件。停止本轮，不自动启动商业账户或其他平台任务。
+
+报告增量实际检查：`node scripts/check_documentation_governance.mjs --project .` exit0；`.venv/bin/python scripts/generate_py_file_index.py --check` exit0；`node scripts/validate_verification_receipt.mjs --project . --plan logs/settings-model-loop/word-closeout/report-plan.json --receipt logs/settings-model-loop/word-closeout/report-receipt.json` exit0/valid=true，L0两项PASS。该回执的增量就绪仅表示报告文档通过，不是Word功能/清理或整个候选就绪；整体状态另外记录于closeout-state.json并保持mergeReady=false/releaseReady=false。源码没有变化，未安装依赖、不运行Black/isort/mypy、供应商/Word实机或整套CI；未修改Hook、验收schema、required checks或全局平台规则。
+
+### 旧Word对象人工反馈登记（2026-10-07）
+
+本轮仅登记用户提供的人工核对，不重复上述离线调查、合同测试或CI。证据来源为用户本轮粘贴的终端输出；用户先执行 `cd /Users/leon/Library/Containers/com.microsoft.Word/Data/Documents/`，随后执行 `ls`。反馈提交日期为2026-10-07（Asia/Shanghai）；命令实际执行时间未提供，不以代理当前时间替代。
+
+该次输出的两项完整候选名称为：
+
+| 指定目录中的候选名称 | 本轮能确认的事实 | 不能确认的事实 |
+|---|---|---|
+| `~$search-workbench-ac1f792f764b405e8f8d8253d631b8f7.docx` | 用户该次ls输出列出了此名称 | 文件类型/正文文件存在、与验证aabce313的对应关系、创建步骤是否成功、用户是否接管 |
+| `~$search-workbench-ffffffffffffffffffffffffffffffff.docx` | 用户该次ls输出列出了此名称 | 是否为本任务、其他任务或历史对象；全f标识不能独立证明来源或可删除 |
+
+完整候选位置为上述指定Documents目录加各自名称。`~$`命名只能作为锁/所有者临时文件的候选解释，未经类型及应用状态核验，不宣称已确认文件类别。输出未列出相应 `research-workbench-<run UUID>.docx` 正文名称；这仅是该目录这一次普通ls输出的范围，不证明正文从未创建、已经删除、未在别处或全盘不存在。旧记录未保存文件run UUID，不能凭ac1…前缀、全f名称或时间补出旧验证身份。
+
+用户未提供接管/明确保留或允许删除某个确切对象的反馈，因此不记录为“用户接管”，不记录为“已删除”。两项候选保留，旧清理继续UNVERIFIED；不再扫描该目录或其他位置，不重复要求确认同一核对结果，不关闭用户文档或退出Word。人工目录核对已完成，与旧资源归属及清理确认未完成是不同状态。
+
+本轮没有源码修改、对象访问/删除/关闭、系统权限变更或新测试资源。Word原timeout及未知根因不变。未来再次实机验证前，仍必须沿原入口补齐验证ID与文件run UUID/目标路径映射、最后完成步骤、功能结果与清理结果；这些新增诊断只能记录新调用，不能反推旧文件身份或补造旧成功。本轮不实施新诊断或实机重验，不更新生产、不push/合并/发布；模型和商业数据请求0。原模型、公开NAV、兼容文本、Keychain及93bc候选匹配Mac CI均按原适用范围保留。
+
+## 新授权：Office三件套与金融插件（2026-10-07）
+
+用户随后明确要求打通本机Office及金融插件并授权必要操作，又确认Wind和iFinD均有可用账户。本轮重新进入原e13d6e09e工作树（开始干净），不回退、不合并历史分支、不改全局平台范围。当前实现/验收对象为产品目录已有的Excel、Word、PowerPoint、Wind Excel及iFinD数据接口；Outlook/OneNote/Teams安装不等于适配，不自动发送邮件、操作会议或个人笔记。沿feature-loop、最小失败证据和原验收规划器推进，唯一报告不另建。
+
+### 最小产品修复及RED/GREEN
+
+先证明现有API丢弃run/清理诊断（KeyError）、Word未原生创建、超时父进程仍尝试受保护Office文件I/O；保留office-diagnostics-red.log和word-native-diagnostics-red.log。修复仅manager/verifiers及相邻测试：预注册服务验证ID→32位run UUID→合成文件名，在原私有状态保留有界run记录，API只返回白名单非秘密字段；工作进程记录有限完成步骤、功能结果、清理结果。冷启动将queued/checking恢复为interrupted，不重新执行；完成结果与磁盘run状态原子写入，避免“完成但磁盘仍checking”。复审指出不可哈希诊断值以及冷恢复缺口，分别以失败测试修复并保留负例。
+
+Word改为真实make new document，不再用python-docx种子假冒原生创建；save-as后重新按登记名称绑定对象。原错误码没有保留，不能把这次所有失败都确定归因为重命名；明确修正的是代码中缺少保存后绑定的引用风险，名称绑定的同资源关闭已取得实际成功证据。Excel仍沿原有合成种子→实际Excel计算/保存/重开值验证，功能与清理分别记录；PowerPoint沿原生演示文稿/幻灯片流程记录步骤。初始路径已存在时三目标均拒绝且不删除该未知文件。超时后只处理已登记工作进程/Excel PID，不重复Office受保护目录读写；未确认资源的私有进度目录不自动按年龄移除。
+
+Wind验证器原先为不写文件的内存工作簿验证准备Excel Documents目录。Excel实机已出现文件准备阶段超时，因此先以失败合同证明这条额外受保护目录依赖，再改为现有任务私有状态目录；使用客户端已有isolated_app和isolated_workbook，不启动/选取用户现有Excel实例，不创建第二种验证器或Vault，不改依赖锁或固定DSH。
+
+### 实际macOS产品入口与结果（失败完整保留）
+
+使用真实既有安装证明与正常WebServiceManager：data home `/private/tmp/rwb-dsh-upgrade-fixture-20261007/admission-web`，Host19089/DSH14181，固定48504f07，产品.venv与受管Node24.19.0。每次源码加载需重启时只停止所属Host/DSH，Doctor安装门保持真实，不复制生产配置或Key。通过正式POST `/api/research/local-integrations/verifications`与GET结果，Office身份在调用前落盘；原生脚本osacompile成功仅作为语法检查，不计实机成功。
+
+| 实际run ID | 最后完成步骤/实际结果 | 功能验收 | 清理 |
+|---|---|---|---|
+| Word212f1d02-c008-49d9-86ac-83ab10bfe4e6 | created/written/saved，约4.7秒后failed；不是190秒timeout | 创建、写入、保存有新证据；完整重开读回未通过 | UNVERIFIED |
+| Excel283d2d51-859b-49c8-8fbe-febb5aa2a8cc | none，190秒timeout，未到准备完成或真实计算 | 未通过；只定位到文件准备前，具体OS/文件系统原因未知 | UNVERIFIED |
+| PowerPoint13a4c00a-9b24-4eee-8e92-e8498ce98bbc | created/written，190秒timeout，保存未完成 | 未通过；未猜定为许可、保存弹窗或应用故障 | UNVERIFIED |
+| Wind2cfe8b4b-29f4-444c-b0ed-c6d046e45339 | 独立应用心跳约31秒，outcome=available | 插件此次会话验证通过，不能代替数据集查询 | 验证器所属实例按既有客户端/登记PID清理合同结束，另核验实际停止 |
+
+仅对本次明确登记Word212f文件做受控核对：完整路径与Word full name一致、正文在进程内精确匹配合成字符串、saved=true；不打印文档内容。首次元数据检查脚本和简化exists脚本有工具侧syntax error(-2741)，保留失败，不冒称Word故障。正确的名称查找返回open，严格归属比较返回owned_saved_unchanged；用同名重新绑定的文档引用关闭成功。随后仅重开这一个既有文件（未创建/改写新文档）在15秒超时，未继续关闭/删除，不把该维护当完整验证或清理成功。word-registered-close-reproduction.json与word-registered-continuation.json分别记成功/timeout；原Word作业failed仍保留。旧ac1…/全f两项用户候选没有访问或操作。
+
+所有Office超时/失败不连续重试，未killall或退出共享Word/PowerPoint。用户需要确认Word是否出现文件访问/转换/激活提示；只请求提示类型，不要文档或秘密。未知资源不删除，本轮新Office计划文件名为research-workbench-<上述去连字符run ID>的对应.docx/.xlsx/.pptx，是否实际存在由步骤证据限定，不能从计划名称直接断言创建。
+
+### Wind真实业务与iFinD协议事实
+
+插件心跳通过后，经产品保存非秘密preferred_adapter=excel，创建一个不发送模型提示的正常fingpt会话e6c47116-21af-41aa-a92e-cc36c4e2bf1b，通过本实例既有私有认证通道发起一次market_bars查询：wind、000001.SZ、2026-09-30单日、1d、none、allow_fallback=false。HTTP200但数据status=failed、row_count=0、limitations=deadline；dataset3c135a65-d6f2-4882-9cce-a77e20ee46e0和失败快照保留，不自动重跑、不拿公开源替换，不宣称行情可用。模型请求0；Wind心跳与业务请求各一次显式顶层调用，客户端既有有限加载/心跳重试不伪称只有一次底层供应商请求。
+
+iFinD当前目录本来是legacy/未完成DataHub查询边界，HTTPClient实际使用自定义网关/login、/health、Bearer协议。官方同花顺示例则为refresh_token请求https://quantapi.51ifind.com/api/v1/get_access_token，再用access_token调用业务服务；不能将终端用户名/密码直接发到猜测的官方/login地址。已有本地设置页19089已核验，但当前仍是旧表单，明确告知用户暂不录入，未读取密码字段、个人工具配置或生产凭据。已询问“是否有数据接口权限和现成HTTP refresh token”，仅要状态，不要Token；不自行重置Token或影响既有账户。资料：[官方HTTP示例](https://quantapi.10jqka.com.cn/gwstatic/static/ds_web/quantapi-web/example.html)、[权限与Token规则](https://quantapi.10jqka.com.cn/gwstatic/static/ds_web/quantapi-web/help-center/faq.html)。真实iFinD调用NOT_RUN，不能将账户存在当接口已通。
+
+### 当前代码检查与未完成状态
+
+Office本地合同最终56 PASS/1既有skip；4项文档/架构/额度/跨平台源码治理JS104 PASS，非其他平台产品证明。Word/PPT脚本真实编译exit0但没有替代应用验收。Black首次只读发现格式并按目标文件修正；isort/Ruff目标文件检查，不全仓格式化。mypy当前两个修改模块及传递图16诊断，与e13冻结源码同解释器/配置16诊断逐项相同、新增0/删除0；旧37/58不同边界保留，不增加ignore或改policy。Python索引已按新增私有函数重建，API atlas check通过。77路径完整PR规划L4，全部原外部门保留；约束初次缺local-integrations结构决策exit1，补真实“原节点内诊断/持久化扩展、结构不变”记录后exit0，不改规则求绿。其余实际闭包/新候选CI尚须完成，不把旧93bc CI认证当前修改。
+
+当前只已修复诊断、归属及清理保护并取得上述部分真实步骤；所有Office/金融软件未全通。Word/Excel/PPT具体卡点、对应资源清理、Wind数据deadline、iFinD官方接口权限/Token仍各自单列。已通过的模型/公开NAV仍有效；不重做B归因/T6/Keychain/DSH升级，不改生产，不合并或发布。总mergeReady/releaseReady继续false，下一步仅补受影响工程闭包及匹配新候选CI，并在人工/接口条件真的改变后处理相应实机部分，不无限重复失败操作。
+
+Office修复送检前，本机集成+协议+API累计相关回归实际129 PASS/1既有skip，307.79秒，office-local-regression-closure.log；治理JS104 PASS。最终目标Black/isort/Ruff及diff检查通过，文档治理violations=[]、Python索引check通过，mypy最终与冻结e13同边界16旧诊断逐项一致。Python只读复审确认两项P2闭合且未发现新增重要问题，未代替任何实机证据。当前仓库API为public，PR81 OPEN/draft/MERGEABLE、远端head仍93bc/base205d；只沿普通同任务分支送检，不合并、不提高预算、不dispatch他平台、不把Goal虚假标完成换权限。
+
+### 本轮工程闭包、接口条件与停止状态
+
+固定送检源码为 `0c5c967258e29ce35e9bdb28cbe218abfc073f46`；PR #81目标为 `205d2a170d9ece9c2751e014b63abe326510ab9c`，实际CI检出的合并预览为 `4ef494d0deab00304b80979e1ac4cf1c33eb5990`，父提交对应上述base/head。完整PR范围77路径，原任务范围与本轮增量分开保留。PR继续草稿、仅送检、不合并。
+
+| 当前候选自动门 | Run / attempt / event | 实际结果与平台 |
+|---|---|---|
+| Project Constraints | 37645938961 / 1 / pull_request | success；Ubuntu通用合同，不计macOS实机 |
+| Research Web Checks | 37645938981 / 1 / pull_request | success；Ubuntu通用合同，不计macOS实机 |
+| Research Web Bootstrap | 37645938975 / 1 / pull_request；job112876575295 | success；macos-14标准runner，干净安装、启动与Doctor通过 |
+
+三项metadata的head均为0c5，checkout均为4ef。Mac artifact11495050188的Doctor为ok=true、installation_ok=true、product_ready=true、issues=[]。证据在 `word-closeout/office-ci/`；只留metadata与脱敏checkout行，未上传供应商凭据。未手动dispatch、rerun或修改额度。原 `plan.json/receipt.json` 已对应完整0c5候选，校验valid=true、hostAcceptance=PASS；aggregateAcceptance=NOT_READY、mergeReady=false、releaseReady=false。这仅闭合工程门，真实Office/商业数据缺项保持原结果。未变模型/安装/运行边界的历史证据复用依据记录于office-evidence-reuse.json，并由当前相关API/协议129 PASS及新Mac安装CI补证。
+
+用户最新明确iFinD只有终端账户、接口权限不确定。记录为接口许可/安全Token路径未确认，不等于没有账户，也不推断已经具有官方API权限。当前自定义网关表单不能直接承接官方Token；本轮没有iFinD请求、Token提取/重置或账号权限变更。接口真实验收须先有官方权限事实及匹配安全接入，不能通过终端登录或HTTP200替代。不要要求购买账户或发送秘密。
+
+正常受管stop实际exit0：所属Host70793和DSH70648已停止；随后status exit0，两项pid均null、ready=false。证据office-owned-host-final-stop.json及office-owned-host-final-status.json。未停止生产8088/3081，未退出共享Word/Excel/PowerPoint。应用窗口元数据没有列出与登记ID匹配的授权/保存提示，但不据此断言无模态提示或应用可调用。旧Word候选及本轮未确认资源继续保留UNVERIFIED；停止Host不等于Office资源清理。
+
+仍未闭合的实机条件分别为Word同文件重开超时、Excel文件准备超时、PowerPoint保存超时、Wind业务deadline，以及iFinD接口权限/接入。没有确定Office系统级根因；不能仅调大超时、连续重试或绕过受保护目录。已提出的Word提示类型反馈尚未取得，不重复询问同一问题。独立工程工作已完成，实机功能目标仍未全部完成。后续只有相应应用响应/权限条件改变或直接缺陷得到失败证据后才恢复受影响实机步骤。原模型、公开NAV、T6和B豁免不重新打开。
+
+本节之后的本地提交仅更新报告，源码候选仍冻结0c5、CI对应4ef，不能说CI测试过报告新HEAD；不为报告追加反复推送/安装CI。最终报告增量按L0检查，完整交付范围和冻结验收证据保持不变。此次模型请求0，生产未更新、不合并、不发布。
+
+### Office插件机制调研与确定性路径修正（2026-10-08）
+
+用户将当前重点收窄为Office修复，并要求调研Claude/Codex插件机制。宿主macOS，任务为功能修复与只读方案调研，不推进金融插件，不改变其他平台规则。基线fe7df77de，开始工作区干净。已读取现行AGENTS、架构/开发地图及相关模块文档，沿bugfix-evidence与现有最小规划器，不安装依赖。
+
+官方证据区分四层：Claude for Microsoft365是Office内的加载项，支持Excel/PowerPoint/Word等；Claude Plugin可打包Skills及本地/远端MCP，打包本身不增加Office对象权限；Codex公开文档明确当前ChatGPT for Excel直接工作簿控制只承诺Excel；文件生成Skill可产出DOCX/PPTX/XLSX，不能据此说调用了本机Office。微软Office Add-ins由manifest和Web应用构成，通过Office.js操作当前文档，可在Mac运行。厂商具体内部传输、实现源码及第三方可直接接管其账户通道未获得证据，不猜为通用可复用MCP。
+
+来源：[Claude Microsoft365](https://claude.com/claude-for-microsoft-365)、[Claude插件/连接器](https://support.claude.com/en/articles/11725091-when-to-use-desktop-and-web-connectors)、[Codex Excel加载项](https://help.openai.com/en/articles/20001063-chatgpt-for-excel-and-google-sheets)、[微软Office Add-ins架构](https://learn.microsoft.com/en-us/office/dev/add-ins/overview/office-add-ins)。这些公开资料不证明用户实际使用的每条工具路径。当前Codex文档会话查询一次网络transport失败，未重复请求；Plugin目录查询只返回SharePoint/Outlook/Teams等，没有得到可直接供本项目使用的三件套原生桥接证据，不安装无关插件。
+
+本项目实际是Host→私有Python验证进程→AppleScript/xlwings→原生Office，与绑定当前文档的加载项机制不同。已有脚本replace_huaan_word_charts_office.py会处理Grant File Access提示；不运行其点击授权逻辑、不访问业务文档、不复制此行为来绕过用户权限。本次Word AX显示在启动/最近文档页，没有当前文件访问提示，已登记212f测试文件在最近列表；不点击或重开、不认定文件存在/清理完成，不保留无关最近文件名。该观察不是此前卡点权限根因的证明。
+
+发现确定性代码缺陷：PowerPoint sandbox映射为com.microsoft.PowerPoint，但本机/Applications/Microsoft PowerPoint.app/Contents/Info.plist实际CFBundleIdentifier为com.microsoft.Powerpoint（Office16.113.3）；微软官方sandbox文档同样如此。新增路径合同实际RED，修正一行后相关测试4 PASS/54 deselected，0.69秒，Black/isort只读通过。原产品.venv没有pytest的环境错误已记录；复用既有Native/Docker worktree测试解释器，不安装、不修改该环境。受保护目录未扫描，未知文件未操作。大小写不敏感卷可能将两路径解析为同对象，此修正不能证明旧PowerPoint保存timeout已解决，也不涉及Word/Excel卡点。
+
+建议借鉴的方向为：在Office内部绑定当前文档与会话，按应用实际支持的API登记能力；Host沿现有认证/工具边界发送有限结构化操作并读回结果。优先使用微软OfficeDev公开样例与Office.js，而非复制Claude/OpenAI私有插件或给模型任意JS执行。MCP只是暴露此桥接的可选协议，不能修复底层未工作的驱动。打开/保存/关闭、权限与文件系统清理仍须分别验证，Office.js并非无条件替代应用生命周期和Wind加载项。此为调研建议，尚未新建加载项、桥接或MCP框架，不将方案写成已交付。
+
+路径修正的新源码尚无匹配CI，旧0c5/4ef仅认证旧候选。本轮真实Office新验证0、供应商0、生产未更新。整体Office目标仍未完成；完整PR差异继续按当前规划器记录，不能只用这一条路径测试冒称全部验收。
+
+本次增量工程证据补充：架构JS76 PASS，完整差异Project Constraints violations=[]，文档治理、Python索引、diff检查exit0；Python只读复审Approve，未发现新增重要风险。工具尝试错误保留：产品.venv缺pytest，旧task context绑定0c5与本次HEAD不匹配（后改用真实fe7及工作区摘要生成独立plan，未改策略），猜测check_project_constraints.mjs不存在（后按plan实际命令.agents/project-constraints.mjs执行完整changed set）。不将这些环境/工具错误称为产品缺陷。新源码未完成当前CI/实机，权威冻结0c5回执仍只描述旧候选；本次仅本地检查点，无push、无新Office资源。新功能机制只调研，不将Office.js建议实施成另一套框架。
+
+## 当前有界Office Goal续接（2026-10-08）
+
+已读取目标附件goal-objective.md及用户随后提供的RWB-Word-Excel-PowerPoint-Codex-Goal.md。最终范围为现有Mac Native+Web三件套文件业务和原生业务六项，六项均须实际闭合；不建设Office.js/Graph/MCP/新Harness，不扩展金融插件。固定本轮起点1653e304d029829d03213ea404cf19c819317733，不回退附件参考候选，不追赶主线漂移。此前PowerPoint路径合同修正及官方机制调研为进展，不能替代本Goal。当前Goal active、未完成。
+
+现有链路定位：report_rendering.py通过原sandbox执行report_render_script.py；会话Store已允许docx/xlsx/pptx产物并提供身份绑定下载；report_workflows/runtime.py会在报告交付阶段调用渲染器。原普通研究上传接口和composer仅接受xlsx，docx/pptx输入被拒绝。渲染器支持模板投影，但没有三格式统一的精确读取/局部修改业务合同；本机验证入口仅为设置验证，不能当作正式文档业务交付。后续以现有会话文件身份和受约束报告执行器补结构化操作，再接现有Host原生执行边界，不复制第二套报告系统。
+
+先修上传连线：main.py既有上传白名单增加docx/pptx，composer附件picker同步。不改脚本权限、认证、30MB/20文件限制、文件归属、下载sandbox或依赖锁。API新增会话创建→上传→下载字节一致→跨会话拒绝合同；中文/空格文件名按既有安全规则规范化，不泄露任意宿主路径。DOCX用已锁定python-docx生成合成输入；PPTX上传测试使用既有报告测试形态的标准库slide-package fixture，仅验证字节交付，不声称PowerPoint可编辑/打开成功。初版测试导入未锁定python-pptx导致环境失败，复审定位后移除该开发环境依赖，没有安装包或改变产品锁。API RED记录保留，其中DOCX实际不支持格式，初版PPTX环境缺模块不误记为产品拒绝；UI RED证明PPTX/DOCX均未出现在accept。
+
+本轮真实Office操作0、模型请求0、供应商0；未知旧对象未访问、删除或反推清理成功。新文件业务和原生固定样例六项仍NOT_RUN，上传修复不记为Word_FILE或PowerPoint_FILE通过。当前代码新改动没有匹配CI，旧0c5/4ef只认证旧源码；完整交付计划与阶段末门禁继续保留，不因这一小步缩小原Goal。
+
+上传连线实际命令与结果：既有隔离测试解释器 `python -m pytest tests/research_web/test_api.py --confcutdir=tests/research_web -q -k 'office_document_upload or upload_ownership'`最终exit0、3 PASS/49 deselected、19.56秒；`node --test tests/javascript/research_web_ui.test.mjs` exit0、32 PASS。Black目标文件check、isort check-only、文档治理、Python索引与diff check均exit0。证据office-upload-green-final.log、office-upload-ui-green.log及office-goal-upload-{docs,index}.log，初始失败不删除。复审未发现上传实现安全/归属问题，指出的未锁定pptx测试依赖已移除；JS复审无发现。完整PR影响面使用Git-bound v4 office-goal-full-plan.json保留，当前增量为上传连线，不认证原生或六项业务完成。
+
+后续实施定位保持明确：文件操作逻辑扩展现有report_render_script.py，Host侧受审查调用及结果投影扩展report_rendering.py，沿现有session文件身份和报告入口接入；原生执行扩展现有local_integrations，而非模型任意脚本。不修改sandbox权限或添加通用宿主路径。读取、生成、局部修改、输入指纹/输出冲突仍未实施，分阶段监督、固定三样例以及UI诚实能力呈现也仍待完成，不能通过本次上传检查缩减最终目标。
+
+### Office文档操作执行器在途实现（2026-10-08）
+
+在0ddcf7d58后扩展现有report_rendering.py/report_render_script.py和report_routes.py，没有新Office框架/依赖/文件执行系统。新增严格document-operations API：format、read/generate/modify、file/native、会话file_id、expected_sha256；任意path/script请求被拒绝。文件模式用已有sandbox，Word固定样例生成/读取/段落和表格修改，Excel独立表/数值/公式并明确未重算，PPT基于已登记模板读和改文本对象。默认新产物保留原件；原生暂返回unavailable，不能冒充已实现。Runtime工具注册、普通Web页面操作入口、完整PPT有效模板和真实三样例、原生分阶段执行尚待接通，六项验收保持未完成。
+
+最初Word业务测试因函数缺失RED；实现后真实macOS sandbox执行器原报告+文档回归初次8 PASS，再补复杂Word对象拒绝、坏回执不发布、PPT真实展示关系页序/保留原始未改页/命名空间合同，当前11 PASS。这些ZIP夹具仅文件结构合同，不认证PowerPoint原生或有效可编辑产物。正常产品API测试通过：创建会话→生成Word→按原下载URL读取并用Document独立解析→再经API读取表格；native请求明确unavailable、path额外字段422，1 PASS/52 deselected。证据office-document-{red,regression-reviewed,api}.log。未发真实模型请求，未启动Office或生产。
+
+只读复审指出3P1/1P2，均保留事实：Word嵌入对象可能被run.text删除、PPT页序错误、PPT命名空间损坏、失败产物提前可见。已分别加复杂目标拒绝/范围检查、presentation关系顺序、安全lxml保留命名空间且只改目标页、父进程独占暂存身份校验后不覆盖发布。新负例验证修正后的行为；不伪称四个复审问题都曾先运行失败测试，初次来源为静态确证。还需复审当前代码及补齐并发/取消/输出冲突等闭包。既有冷启动状态不得被同步文件操作替代；完整原生生命周期还未开始。
+
+### Office业务继续推进与真实页面断点（2026-10-08）
+
+继续原0ddcf7d58工作区。PR81当前API核实OPEN/draft，head0c5/base205d不变；没有远端整合/推送，保留完整交付范围。任务仍active，未完成六项功能。
+
+复审3P1已关闭，新增失败分支分别处理：登记Store.files/StoreError失败先有registration_failure RED，修正为按published inode撤回自有输出；外部替换不删除。输入暂存也按inode清理。取消以shield等待原30秒受管worker终止后再清暂存，不发布，取消合同PASS。暂存硬链接须在登记前移除并确认输出nlink=1，避免Store拒绝下载而仍宣称成功。新回归14 PASS，office-document-reviewed-closure.log；完整capabilities/renderer首次32 PASS/1 FAIL，仅精确目录期望缺新增research_document_operation，更新明确目录31项与write标记后定点1 PASS，原失败保留不跳过。Runtime/UI/guard/method四项JS62 PASS/1既有skip，非真实模型工具调用证明。
+
+research_document_operation沿现有能力注册及guard有限名单，Host内部/data/document-operation沿现有X-Research-Data-Key私有回环middleware，trustedDirectory派生会话，不接受模型path或session参数。POST公开document-operations仍复用会话文件身份。Runtime测试证明越界参数/未准入拒绝及session绑定；没有增加任意宿主文件/脚本权限。模型请求0，尚未用模型实测选择该工具。
+
+UI在原文件列表增加读取与修改；按现有结构列出目标，保留原件生成新文件；Excel显式值类型保留文本编号000001和布尔，不能自动按文本转数值。失败/原生未就绪保留原读回结构及草稿，只在成功写入和再读回后换文件身份；执行中禁用编辑。复审指出的草稿丢失和类型转换问题已修正，相关渲染/type合同PASS，还需复核事件链路。
+
+原独立实例正常受管启动exit0，Host84415/19089、DSH84117/14181、product_ready=true，未改生产。使用正常API创建会话7f0f58b6-fba9-4bf5-bc4c-aaad9c1c154a（未发模型提示），生成Word初稿8aaaa8e9a0cb0ccff57dd43a。真实浏览器初次能读结构，但保存点击没有POST/新产物：移动“活动与文件”遮罩覆盖了追加在shell之外的编辑区域，实际点击关闭遮罩。增加有限提交日志并据可见DOM/CSS定位，改为既有dialog-backdrop/session-dialog层后再次操作产生新版本；未把初次点击记为成功。保存完成后又观察到保留旧busy表单使按钮仍disabled，增加busy标记并避免复用busy DOM，修复后再次表格修改成功。未创建任何Office原生文档或处理旧对象。
+
+通过正常Web文件页实际将第二段改为报告版本B，再在该新版本将表格值改3；最终下载id4ef803567c8de90f22b5c3b1，文件 `/Users/leon/Downloads/document-a428bbb2fb9145838aefc5c5f49f9cda.docx`。独立python-docx解析确认8项：页面下载与API同一字节、标题Title/加粗、未改段落、B段落、2×2结构、数值3、原输入指纹未变。证据office-goal-word-{api-live,download-check}.json。生成来自正常API、读取/两次修改/下载来自正常页面，尚缺页面生成操作和原生项，不把它合并为完整Word_FILE/Word_NATIVE通过。
+
+独立实例继续运行供断点续接，浏览器验收tab标handoff，只有上述所属Host/DSH可管理；生产未更新。原生业务目前明确unavailable，三款原生本轮NOT_RUN。Excel/PPT页面固定样例、生成UI、原生分阶段诊断与业务执行、冷恢复和匹配CI仍需继续。新代码未提交，真实身份为0ddcf7d58加当前完整diff，不用旧0c5 CI证明新源码。
+
+代码/实例证据精度：本轮Host启动早于最后的登记/单链接防护修正；已运行的Word正常成功路径证明页面业务连线，不将其冒称验证了所有最后新增失败分支。最终需正常受管重启加载冻结候选，再取得匹配的完整实机/CI闭包；当前失败分支证据来自受控回归。静态与地图/atlas增量尚须阶段末闭合，报告不能代替该门。
+
+PPT固定中性模板资源计划：新增 `app/research_web/office-template.pptx`，仅两页固定可编辑标题/正文，作为现有报告模板处理器的缺省输入；现有源码模块不能承载二进制模板，因此单独保存资源，不新增执行框架。一次性构建使用Codex已捆绑python-pptx1.0.2，不安装依赖、不把它加入产品解释器或锁文件、不使产品桥接依赖开发者环境。产品复制此受管常量模板到任务私有输入后，仍用现有受约束处理器读/改/生成。真实PowerPoint打开、布局与编辑性仍需后续实机，不由静态模板有效性代替。
+
+### 页面生成与两款文件样例（2026-10-08）
+
+中断后核对HEAD仍0ddcf7d58及未提交完整diff，没有丢失或重做已有Word读回。Office generation测试初次RED为documentCreationPayload缺失；随后在现有文件面板加入Word/Excel生成表单，结构化字段不接收脚本/宿主路径；表格按制表符分列，Excel数值转换保留000001等文本编号，公式显示未重算。UI34 PASS，office-generation-ui-final.log。复审提出busy字段竞态时，当前新代码已用disabled fieldset包裹全部编辑字段，真实DOM随后确认字段全部disabled；不为重复发现改写保护。
+
+Excel通过正常页面生成Inputs/ Summary、读取、A2改数字7、新版本保存及下载，输出8081b90177350d1c1d4e4d5f，`/Users/leon/Downloads/document-15cf753b078c461386b68756456da695.xlsx`。独立openpyxl检查8项均true：同下载字节、两工作表、A2数值/类型、A3保留、B1公式/类型、格式保留、原始样例内容仍2/3/公式、计算缓存为空。页面明确未重算，不能声称得到了Excel实际结果10。证据office-goal-excel-file-check.json；不伪称保存前后已采集Excel原始完整字节哈希，只认证实际原样例内容及版本合同。
+
+Word也补齐了此前缺少的正常页面生成：标题/两段/2×2表格→读取→第二段精确改为“报告版本 B”→表格数值3→下载。最终5b9fdcd2102ec442df7eddac，`/Users/leon/Downloads/document-6cef609c05bb40dd94eafd68c248b480.docx`；7项独立读回检查均true，原始样例仍A和2。证据office-goal-word-all-page-check.json。这两款文件业务固定样例观察已通过，但源码仍待阶段末冻结与工程门，本轮Word_NATIVE/Excel_NATIVE均NOT_RUN。
+
+原生错误分类另以6用例RED修正：只将标准错误号-1743映射自动化拒绝，-54/-61为文件访问拒绝、-1712为AppleEvent超时、-600为应用未运行（不冒充未安装）、-128为用户取消；单纯permission文字保持未知失败。可脱敏错误号仅整数白名单，日志不保留stderr内容，原管理器诊断保留有限错误号。又用2项RED证明未完成步骤会把原错误覆盖成verification_trace_incomplete，修正仅在“命令声称成功但缺步骤”时使用该码；实际失败理由保留。相关10 PASS，office-error-reason-green.log。Word/PPT命令设置AppleScript每个外部应用命令30秒等待，原总监督时限不增加；文件准备10秒、每阶段开始/结束/耗时和正式原生业务执行仍未完成，因此不运行新的Office实机操作。依据Apple公开with-timeout语义，未绕过TCC或权限，不推定旧卡点根因。
+
+PPT模板已按计划生成office-template.pptx，29250字节、两页、每页可编辑文本对象ID2/3；产品默认生成复制受管常量资源到私有输入，源模板不改，结构化slides按有限对象映射。一次性构建的捆绑pptx1.0.2未进入运行依赖。模板生成/修改/第一页面原始字节/原输入保留合同通过，相关15 PASS；正常PowerPoint页面生成及真实应用打开仍待验证，不能以ZIP合同或生成库替代。UI已加入新建PowerPoint，Host当前进程先前加载版本缺此默认模板路径，须沿受管入口重新加载当前代码后再做实际页面验证，不借旧进程响应假称新版本已验。
+
+### 三款文件业务样例已观察通过，原生仍未完成
+
+为加载最新默认PPT模板和失败防护，正常受管停止Host84415/DSH84117（exit0，确认pid清空），再启动Host62020/19089与DSH61846/14181，product_ready=true。最新加载源码身份为0ddcf7d58加13个app源码/资源文件哈希，office-goal-loaded-source.json；不把HEAD当作未提交源码身份，不修改生产。正常页面从新建PowerPoint生成A稿，读取标题/正文对象，再将第二页标题B和正文3保存为新版本并下载。
+
+最终PPT输出e6d2f8b7833f0fe199739ecd，原输入cec7f8264f5233b213d094a8，下载 `/Users/leon/Downloads/document-a5536d766fca4e429487e82f41b4c94f.pptx`。独立捆绑pptx解析/ZIP检查9项均true：同下载字节、两页、第一页标题/正文、第二页B/3、真实文本对象、第一页原始XML字节保持、原A稿仍存在。检查限定任务专用会话已登记的三个PPT版本，不扫描用户目录或Office容器。office-goal-ppt-file-check.json；该库只用于独立检查，不成为产品依赖。原生PowerPoint打开、视觉版式及编辑性仍须实机，所以这些结果只认证PowerPoint_FILE。
+
+当前六项功能观察状态：Word_FILE、Excel_FILE、PowerPoint_FILE固定小样例通过正常Web页面并独立读回；Word_NATIVE、Excel_NATIVE、PowerPoint_NATIVE本Goal均NOT_RUN。Excel_FILE特意未重算，没有5/10真实计算证据；原生清理也未新执行，不反推旧资源清理。当前产品工程就绪还须完整changed set静态/本地闭包和匹配Mac CI，不能把文件项通过等同整个Goal或merge/releaseReady。PPT15项相关Python回归、生成UI34项JS、架构检查通过；待完成原生阶段监督及正式业务执行后，统一冻结送检，避免每个小改反复bootstrap。
+
+本轮阶段末仍未提交/推送，所需完整静态及工程闭包正在累计，不用文件业务的通过替代Mac CI。Goal继续active，未出现须用户补授权的外部阻塞；下一项为完成文件准备/命令开始结束耗时监督和正式原生业务入口。已有独立Host62020/DSH61846继续运行供续接，不退出共享Office或扫描旧资源。三份最终文件分别保留于Downloads及所属会话outputs，不删除历史任务未知文件。
+
+### 原生阶段监督在途实现（2026-10-08）
+
+续接原0ddcf7d58加完整未提交diff，目标文件重新读取，未重新执行已通过文件样例。旧验证仅有最后完成step且总190秒等待；新增有限阶段JSONL存于原任务run目录，记录prepared/application_response/created/opened/read/written/saved/closed/reopened/read_back/document_closed/cleanup的started/completed及时间。Python与AppleScript同用整秒Unix时间，耗时精度1秒，不伪称毫秒精度。元数据不含文档内容/路径、Key、认证链接或stderr，仅白名单名称/时间；32观察/64事件/16KiB约束，FD拒绝symlink、非普通文件、非owner、多链接及过大文件，浮点/超大整数拒绝。
+
+监督沿原spawn进程/进程组/登记Excel身份清理，准备默认10秒、其他活跃阶段30秒，原总限额不增加；真正phase超时返回office_phase_timed_out和timed_out_stage。Word/PPT现有静态脚本添加响应、创建、写入、保存、关闭、重开、读回和错误后本任务关闭的有限记录，既有recordStep接口保留；Excel记录实际既有调用及清理。阶段元数据经过原manager白名单进入诊断，保留冷恢复和未知资源保护，不新增Vault/Harness/预算系统或自动恢复编辑。
+
+先有office_phase两项RED，后准备10/命令30边界与symlink拒绝GREEN；第一次邻接检查有1失败因为不必要替换recordStep名称，已保持原接口并扩展记录，未削弱原断言。完整本机集成67 PASS/1既有skip（office-phase-full-regression.log，25.80秒）；随后清理阶段补充和复审仅重跑邻接。Word/PPT受控捕获的静态脚本osacompile各exit0，office-phase-script-syntax.json；该操作不执行脚本、不打开/创建Office文档，不记作Native成功。
+
+复审发现真实FIFO可让父监督器阻塞式open等待，继而所有deadline无效；用独立测试Python子进程2秒超时取得RED，修为O_NONBLOCK并保持FD类型/身份校验，7项邻接GREEN（office-phase-fifo-green.log，1.27秒）。同样保护progress读取与阶段写入，不能通过更换工具访问受保护目录。没有新的供应商/模型请求，也没有本轮新的Office原生任务；日常生产未更新。
+
+此轮仍只补诊断与监督，正式业务native分支仍明确unavailable，不冒充已接通。下一步必须复用此监督接入受管业务Worker、当前会话文件身份及原manager记录，再串行取得Excel初始5→7后10→保存重开仍10、Word实际创建/表格/读回、PPT实际打开/修改/保存重开及各自清理证据。文件处理三项已有证据保留；原生三项仍NOT_RUN，Goal active，当前Mac工程门及完整changed set静态/匹配CI尚待统一闭合。
+
+### Native Excel正式入口在途与测试隔离事故（2026-10-08）
+
+本轮沿原manager.start_verification/_run_verification、verify_target spawn监督和XlwingsExcelProvider接Native XLSX read/modify：输入来自会话file_id/原件指纹的内存副本，工作文件位于本任务私有runRoot（不再依赖Office受保护Documents准备）；先重算读值、写指定cell、再重算保存、关本工作簿、同文件只读重开、比较值和原公式、关闭本任务新实例。原件不改，不执行refresh_all。进程基线和精确Excel身份通过才登记/quit，复用已有实例拒绝且不quit；归属未知保留unverified。父监督FD读保存文件、再清runRoot；文件bytes与readback仅在调用内存，不写现有状态账本。manager记录/冷中断继续复用，不增加新Vault或事务框架。Word/PPT及原生生成仍未接通，不能冒称完整native能力。
+
+先有external formula缺函数RED；mock计算5→10/保存重开/公式保持/已有实例保护合同通过。复审随后指出拒绝黑名单不完整及普通cell.formula返回常量的误判。为新增IMAGE/WSET负例时，测试最初遗漏driver隔离，真实启动Excel45826；这次不是正式产品路径验收，不能记Native PASS，也不能继续写本轮绝对无外部请求。我们没有主动发商业数据接口请求，但未隔离测试可能触发Excel/插件后台或公式相关请求，实际次数未验证、保留UNKNOWN；不删除原事故记录。无供应商Key或账户修改。
+
+立即对归属明确pytest45812先SIGINT再因SDK未及时返回而SIGTERM，未killall任何应用。对新Excel45826只查询该PID工作簿数量，确认0；再次核对启动时间Thu Oct8 12:43:29与精确程序路径后正常quit请求，随后因进程仍在沿既有精确身份清理函数停止该测试PID。最终独立ps确认45826不存在，原92919仍存在。没有关闭用户文档或其他Office实例；测试临时文件身份未取得完整目录证据，清理不扩大到其他位置，不宣称全部临时文件已删除。证据office-unintended-{excel-resource,excel-cleanup,excel-final-cleanup,excel-process-final}.json及原red日志，事故不作供应商/Office验收成功。
+
+已把所有外部拒绝负例强制注入NeverLaunch，禁止触及真实driver；增加本地函数允许范围检查、外部OOXML关系/宏ContentType和定义名称入口拒绝；不支持的native高级公式明确失败，不静默file回退。只对原始以=开头的真公式保留检查，常量通过重开值比较。当前5项Native合同PASS，office-native-external-green.log，均mock/拒绝合同，非真实App通过。原文件业务15相关回归仍通过，UI34项通过；import只读发现两文件排序，沿目标文件最小修正，不改依赖锁。
+
+Native返回明确mode/实际计算引擎/读回结果/verification_id/安全诊断，成功输出走同独占暂存/指纹复核/不覆盖发布。UI后续文件读结构不应把已实际计算的native结果显示成“未重算”，已用lastResult区分；尚待正式产品重启加载与真实验证。当前正式Excel_NATIVE仍NOT_RUN，事故单列；Word/PPT_NATIVE仍NOT_RUN，Goal active。Mac CI/完整静态/原生清理门仍未闭合，不用旧CI或fixture代替。不修改生产、不合并、不发布。
+
+### 续接：Excel真实卡点与PPT受控业务路径（2026-10-08）
+
+数组公式/局部定义名称两项RED确认旧准入将外部函数带至驱动边界；负例均强制NeverLaunch。现在拒绝非字符串公式对象，并检查workbook.xml全部definedName（包含localSheetId及保留名称）。另外3项目标RED确认不存在工作表/越界列会过晚失败；读取和修改均在启动前校验，缺省读取来自实际公式或首工作表A1，不再硬编码Summary。相关10项PASS：office-native-targets-green.log。
+
+正常受管停止Host62020/DSH61846并启动Host74377/19089、DSH74177/14181，product_ready=true；office-native-loaded-{stop,start}.json实际退出码0。此启动加载公式防护版本，其后目标及PPT增量仍未加载。正式页面选择原件56675318a74b6b8caf8e85dc、Inputs!A2数字7、native保存，只执行一次。验证2fba53b5-dc1f-4d09-ade9-2d8c48711d5c：prepared完成；application_response耗时3秒；opened阶段30秒超时。页面明确office_phase_timed_out，没有产物或5→10证据。office-native-excel-first-live.json保留原账本诊断（页面码不冒充账本code字段），office-native-excel-first-resources.json独立核对登记资源。
+
+只访问登记run目录：副本5378字节、普通文件0600、uid501仍存在，cleanup=UNVERIFIED，不强删。监督停止所属工作进程与独立Excel，ps仅保留原Excel92919。CUA返回noWindowsAvailable，没有可观察权限弹窗或错误号，不能猜为TCC。没有重复实机失败或扫描旧对象，根因未知。
+
+PPT最小业务路径复用manager/监督/产物发布：OOXML ID映射同页唯一对象名称（安装SDEF没有shape ID属性），只支持有限简单shape_text，拒绝外部关系/宏/嵌入与复杂文本修改。固定AppleScript读取私有0600 JSON，不将内容嵌入命令行；只处理本任务副本，保存/关闭/重开并在App核对全部有限文本，绝不quit共享应用。缺执行器/产品路由unavailable的RED后，12项合同PASS（office-native-ppt-route-green.log）；osacompile退出0（office-native-ppt-syntax.json）。PPT仍未真实执行，编译/fixture不能记Native PASS。Word业务待补齐，Goal active，当前工程/匹配Mac CI未闭合，mergeReady/releaseReady仍false。
+
+
+### 文件授权与原生业务增量（2026-10-08）
+
+新PPT正式API验证527a482c-80fc-4e89-a12a-fe31af57be75完成prepared/application_response，但opened阶段超时；office-native-ppt-first-live.json保留原失败。用户随后明确确认该测试文稿的文件访问提示，人工允许后文稿实际打开。这是本次打开阻塞的直接外部条件证据，不将原失败改为PASS，不反推Excel必为同因。
+
+自动界面读取仍超时，改以精确登记名称读取该文稿的name/full name/saved元数据，无文档内容或目录扫描。首次关闭的严格路径guard返回cleanup_identity_unverified；实际App给出/tmp路径，登记为/private/tmp。独立核对同设备/inode后，只允许这两个指向同一任务文件的路径且saved=true，关闭此文稿并确认不再exists，退出0、closed_confirmed；文件保留，不退出共享PPT。证据office-native-ppt-{app-identity,owned-close-confirmed,first-resources}.json。文稿关闭已确认，文件未删除，工作run保留；其他旧对象仍不操作。
+
+Foundation桥接另有独立无Office复现：NSArray as list会转换为AppleScript records，objectForKey调用失败-1708。修为直接保留NSArray、objectAtIndex取NSDictionary；真实Foundation-only绿色回执及自动回归office-native-json-{contract-product-green,regression}.json/log，不把它视为App成功。PPT源通过正常/usr/bin/open -b受控单文件入口交接，再沿既有App读取/修改/保存/重开验证；不同于关闭沙箱或授权全盘。是否解除新文件提示仍须实机证明，当前不宣称通过。参考Apple官方Accessing files from the macOS App Sandbox / NSWorkspace（系统交互及隐式安全作用域；Launch Services方案效果为待实测推断）：https://developer.apple.com/documentation/security/accessing-files-from-the-macos-app-sandbox 、https://developer.apple.com/documentation/appkit/nsworkspace 。
+
+Word增加原生generate/read/modify的私有结构化路径；公开API与生成表单file/native选择已连通，固定脚本按安装SDEF编译。缺执行器/路由/页面mode均有RED，相关绿色合同分别office-native-word-business-green.log、office-native-word-route-green.log、office-native-word-ui-green.log。脚本表格direct-parameter语法先-1723，修正targetTable变量后编译0。复审发现modify重写未选中内容P1；两个混合格式/单cell目标RED后，只写writes指定对象，目标混合run/复杂cell/合并拒绝，未选中内容只读回；不强行改变已有标题bold。3项preservation合同通过。当前Word未真实执行，此增量不标Native PASS。
+
+目标Ruff已通过；mypy新诊断修复至本次三个模块零诊断，命令仍exit1、16条既有跨模块诊断（office-native-word-mypy-final.log），既有37条大范围诊断也继续保留，不自行豁免或扩仓整改。相邻完整回归曾96 PASS/1既有skip，后续Word/PPT增量按相关合同补验，最终闭包仍待冻结候选。完整changed set88路径已重规划L4，不缩小为本次局部测试范围；office-native-code-identity.json记录HEAD0ddcf7d58加脏工作树文件哈希，不拿旧HEAD/旧CI代表新实现。无提交、push、PR变更、生产变更、合并或发布。供应商模型主动请求0；事故外部请求UNKNOWN记录保留。
+
+
+### 正常单文件打开后的真实PPT结果
+
+受管实例以Host66948/DSH66792加载单文件OS打开与Foundation修正。正式API验证1348aae6-596d-4419-a997-fc54b8a4f3dd：opened约1秒成功，read/written/saved/closed/reopened均完成，read_back失败；document_closed与cleanup confirmed，不交付不正确输出。office-native-ppt-handoff-live.json保留原结果。该进展实测解除此前打开卡点，但不能标PPT_NATIVE通过。
+
+补充仅含长度/布尔比较的诊断后，99683f9b-0e1d-45e2-b6cc-28662a7e6a15同样到达read_back；slide2实际/期望长度均6，trimmed_equal=false，错误-2700，明确native_document_readback_failed。这排除“仅尾随换行”的假设，未记录正文。清理仍confirmed。office-ppt-comparison-live.json。现增加写后立即校验及保存状态布尔值，用于区分写入与保存恢复；尚待一次带此诊断的观察，不以猜测放宽比较或吞失败。
+
+Word/PPT脚本当前编译均0（office-native-current-scripts-syntax.json），19项native相关合同PASS/1既有skip（office-native-handoff-regression.log）；Word真实业务尚未执行，Excel打开超时仍待单独修复。三项FILE此前通过不受影响，三项NATIVE仍未完成，Goal active；本次诊断与工程门尚未冻结、未提交或送检，mergeReady/releaseReady=false。
+
+
+保存诊断c1c568f8-95d4-445e-bfff-380d460cf531：修改后立即读回检查通过，但saved_before_close=false，重开后长度相同、文本不匹配；office-ppt-save-diagnostic-live.json，任务文稿关闭/临时清理confirmed。已证实保存命令返回不能证明写盘。安装SDEF/CocoaStandard定义提供save的as格式参数及Open XML枚举；最小修正为明确Open XML格式，并在原saved阶段30秒监督内等待saved=true，不设置saved标志来伪造成功、不加总时限。缺保存格式/同步合同RED已记录，绿色合同在office-ppt-save-contract-green.log；此修正尚待实际写盘验证。Word/Excel原生项仍未完成，Goal active，当前代码未冻结送检，不宣称完整1A或Office Goal完成。
+
+
+### 续接保存调用根因（2026-10-08）
+
+本轮核对branch/HEAD仍codex/settings-model-loop、0ddcf7d58加完整未提交diff；没有回退。上轮为实际进展，不是无进展等待。明确Open XML Save As修正经正式API仍在saved阶段30秒timeout：ac5756d7-13cb-4dc4-9ffd-007a597b296c，office-ppt-save-fix-live.json；故不认证该修正成功。精准App元数据确认该本任务文稿仍saved=false，源文件保留，没有退出共享应用。
+
+在相同登记文稿上、完整/tmp路径与同inode任务文件核对后，将带路径Save As改为原地save诊断：退出0、saved=true（office-ppt-save-in-place-probe.json）。随后同文件关闭→正常OS打开→App核对4个目标文本（包含第一页保留及第二页B/3）→只关闭该文稿，退出0（office-ppt-save-in-place-reopen.json），文件保留。这是调用根因诊断，不冒充正式业务API验收。
+
+实际产品最小修正为原地save加saved=true同步等待；原saved阶段30秒和总190秒监督不提高。新保存合同先RED后GREEN（office-ppt-inplace-contract-{red,green}.log），保留此前错误Save As尝试与绿色合同而不删失败历史。接下来沿正式产品API验证并独立核对产物，尚未标完整PPT_NATIVE/Goal通过。
+
+
+### 正式产品PPT保存闭环通过，Word继续定位
+
+8b79b55d-db16-4b12-9fac-200c48813cdb由正常公开文档业务API执行，真实Microsoft PowerPoint opened/read/written/saved/closed/reopened/read_back/document_closed均完成、cleanup confirmed；正确新版本235a8bbdc98b890e38faa771登记到原会话outputs。office-ppt-inplace-live.json记录完整阶段。第一页保留、第二页精确“结论版本 B”“样本数为 3”，App读回4目标；服务下载同产物33609字节，SHA256 a1a664b783a3365538ff239495d29d9a8f2774d8bee79c9dcdc58c5c970ecb19。独立已有捆绑pptx库检查5项均true（两页、第一页、新文本、可编辑文本对象、对象边界），不增加产品依赖；office-ppt-native-independent.json/final-native-powerpoint.pptx。视觉仍NOT_RUN，不能仅边界计算冒称实际无遮挡。
+
+Word正常API原生生成1c069545-9dcb-45df-b408-9aa14f328bc8已真实created约2秒、read完成，written失败；只关闭本任务文稿、cleanup confirmed，无产物。office-word-native-generate-live.json。所属Host日志仅提取稳定错误号-1708（local_office_command_failed），不是TCC拒绝；本轮新Word写入卡点与旧保存/重开问题分开，尚需定位具体写入命令。没有重复同一Word失败。Excel仍保留打开超时。三项FILE证据复用，PPT_NATIVE保存重开读回通过但视觉仍待补；Word_NATIVE/Excel_NATIVE未完成。
+
+Ruff目标检查exit0；Black只读先发现verifiers格式差异，已仅格式化该文件；源行为证据按同语义复用。完整88路径范围及工程/CI门仍保留，当前dirty代码无匹配新CI，不宣称mergeReady/releaseReady或Goal完成。独立实例运行，生产8088/3081未更新；无推送、PR合并、发布或供应商模型请求。
+
+
+### Word表格命令断点
+
+96d4e2ee-c2fa-4db6-a9a7-82e8a9954556正式API增加不含正文的write-step诊断：content与range已完成，convert-to-table失败-1708；document_closed/cleanup confirmed。office-word-write-diagnostic-live.json。不同于Word旧重开卡点，本次准确断在表格转换。不猜TCC/激活。
+
+最小参数修正将Foundation数组count先明确coerce为AppleScript integer，再传Word声明为integer的number-of-rows/columns；对应contract RED/GREEN保留office-word-table-args-{red,green}.log。它是待实测的interop假设，尚未宣布修复成功；采用原30秒阶段/190秒总监督，无新权限或依赖。继续正式API验证，保留完整六项Goal与88路径交付范围。
+
+
+### Word原生表格创建已推进至保存
+
+ffecbaca-6577-4458-8fcf-336f2e4af7fe显示整数参数转换并未修复convert-to-table，仍range后-1708；排除该interop假设，不标其Native通过。改用安装SDEF已有table对象创建并逐格写入结构化值（不以docx库输出替代App），保留目标尺寸/内容后续核验。contract先RED后GREEN，脚本编译exit0。
+
+57fd69f5-ea80-456f-a2cd-c204183f8d1e正式API实测created/read/written及table/style子步骤完成，saved开始后-1708；document_closed/cleanup confirmed，未交付错误产物。office-word-table-create-live.json。失败现在准确落在Word save-as命令，旧失败完整保留。最小标准文档save调用修正有office-word-save-{red,green}.log，实际保存/重开仍待验证，不扩大超时、权限或安装依赖。Word_NATIVE/Excel_NATIVE仍未完成，PPT已验保存重开但视觉缺项保持，Goal active。
+
+
+### Word标准保存等待的当前断点
+
+9796ac13-2a88-4103-bfba-92b659fe7849正式API已真实完成created/read/written（正文、原生2×2表格、样式），标准保存开始后超时，清理未确认；office-word-save-live.json。不把它写成保存通过或旧资源已清理。已一次询问用户当前是否为该9796目标文稿的保存/文件访问提示；不关闭未知/其他文档，不退出Word、不扩大授权或TCC。此前save-as -1708及convert-to-table -1708仍保留；原生对象make-table已通过实际written步骤，目标正文和表格未以库导出冒充App生成。
+
+代码HEAD仍0ddcf7d58加未提交改动，Word生成合同及表格创建编译通过只作离线证据；三项FILE复用，PPT保存重开读回已通过但视觉待补，Word/Excel_NATIVE继续未完成。当前hostAcceptance新代码工程闭包/匹配CI未完成，mergeReady/releaseReady=false。Goal active，未push、合并、发布或改生产，供应商模型请求0。
+
+
+### Excel单文件交接与进程归属修正
+
+续接原worktree/HEAD0ddcf7d58，Word9796保存提示的单次人工状态问题仍待反馈，没有重跑该Word失败。独立推进Excel：只对已准入的私有run/精确xlsx单链接文件，正常/usr/bin/open -n -b com.microsoft.Excel交接到新实例，保留旧PID baseline、program/birth校验与既有xlwings执行器，不借共享生产或用户当前Excel。
+
+最初唯一新增PID方案被只读复审判P1：并发用户新进程可误认归属。补“唯一新增但无任务工作簿”RED，旧实现错误地available；现在只读candidate实例中已由系统打开的精确任务book、要求仅1book且fullname命中任务路径/已知/tmp别名，之后才owned/登记PID；绝不books.open制造归属证据。未知不quit/kill、不登记且保留任务副本。14项相关合同PASS（office-excel-owned-book-green.log），复审确认原P1关闭。正常/歧义新增/旧PID/无任务book、5→10计算保存重开均为fixture合同，不算实机。
+
+Ruff只读发现本次重抛异常处无效noqa，已删除；不改规则。mypy目标未增加诊断，原16跨模块错误仍exit1保留，不自行豁免。完整88路径与当前代码工程/CI缺口保留，未提交或push。下一项为归属严格绑定后的真实Excel验收；Word人工条件只阻断对应部分。Goal active，生产、供应商账号和凭据未改。
+
+
+### Excel真实SDK就绪断点
+
+26d06836-e062-4cca-ba40-3e83d8dc9594正式业务API因KeyError在SDK绑定阶段失败、cleanup unverified，未执行计算，不标Native通过。所属Host日志只记录error_type，不回显文档或请求体。独立只读元数据稍后确认新增PID17953、精确/tmp任务book、book_count=1；原92919未命中该任务book。这证明SDK注册存在启动时间窗。随后full-path/同inode别名/仅1book/program-birth身份守卫下只关闭任务26book、空实例正常quit，文件保留；office-excel-scoped-open-owned-cleanup.json。该维护不冒称业务API成功。
+
+新增SDK首查KeyError后就绪的失败测试，旧代码2例RED；最多10秒只读等待，仍需精确book身份才owned/report，未知不制造book或quit/kill。office-excel-sdk-ready-green.log保留合成回归，不代替实机。等待不提高App30秒或总190秒监督。Word界面问题仍只保留原一次请求，不推断许可或重跑Word；Goal active、六项未全完成、当前CI/工程缺口继续保留，生产未改。
+
+
+### Excel正式原生计算闭环通过
+
+6b4a5a33-4dbb-4e43-b79c-a5742e58aad4正常公开文档API真实执行Microsoft Excel：初始Summary!B1=5、Inputs!A2=2；修改后10/7；保存关闭重开后仍10/7、formula_preserved=true，document_closed/cleanup confirmed。office-excel-sdk-ready-live.json保留阶段及实际引擎。输出1ccf71dac4d0a02425759f5c由Store登记，服务下载同产物9374字节、SHA256 761b9427213f372dde8d433cf94176e4448a13ea59f1f871b74f32b377c8b367。独立openpyxl的工作表、数值/类型、SUM公式、缓存10六项检查均true：office-excel-native-independent.json/final-native-excel.xlsx。没有手工写10或仅凭旧缓存认证计算，真实前后/重开值来自Excel。独立ps仅余原用户Excel92919，本任务实例已退出；不退出用户现有Excel。
+
+此前未知任务26经精确任务book/path/仅1book/program-birth守卫只关闭该book和空新实例，文件保留，原失败不改为PASS。SDK就绪负例与真实时间窗修复使本次正式业务闭环通过。最新Ruff目标exit0；mypy仍16条既有跨模块diagnostics、命令exit1，不豁免；本Goal阶段末完整工程/匹配CI仍未完成。
+
+当前六项功能观察：三项FILE已通过固定样例；Excel_NATIVE计算/保存重开/清理通过；PPT_NATIVE文本/保存重开/清理通过但视觉仍待补；Word_NATIVE已真实创建及写入，保存9796人工界面条件与清理缺项仍未确认，原单次问题待反馈，不重跑该失败。没有完成Goal/merge/release声明、push、合并或生产更新，供应商模型请求0。Goal继续active。
+
+
+<!-- architecture-review {"group":"report-workflows","structure":"unchanged","reason":"有限Office文档路由与Runtime工具复用既有ResearchService、Store文件身份、报告执行器与Seatbelt文件投影；原生分支委托现有LocalIntegrationManager/受监督工作进程及已存在的Office应用边界，不新增服务、进程类型、通用脚本权限或存储边界。API、数据文件文档及source inventory已同步，现有部署组件与边界图不变；实际功能与清理独立验收，不把文件模式提升为原生成功。","diagrams":[]} -->
+
+### 本地工程闭包的实际结果与修正
+
+完整88路径L4规划保留。首次必要Python闭包815 PASS/1既有skip/1 FAIL（599.90秒），唯一失败为新增document API测试仍假定Native Word未实现；测试遗漏Office隔离，意外进入一次Word调用并-1708，cleanup记录未确认，不计正式实机成功、不删除原记录，也不扫描未知Office对象。现显式注入无Office的受控失败native回执，继续验证mode/code/禁止任意path，定点绿色office-api-native-fixture-green.log；不是将实机失败改成PASS。
+
+首次JS闭包187 PASS/1 skip/2 FAIL；Office额外独立change/input监听器破坏了既有事件测试入口。已合并进原监听器而不改fixture规则，两条实际事件回归及Office邻接70 PASS（office-ui-event-integration-green.log），其余架构/治理/费用/跨平台静态合同104 PASS（office-goal-local-js-remaining.log）。这些合同不执行Docker/Windows/Linux产品或真机验收。docs治理与索引check退出0；Project Constraints首次review_invalid，缺report-workflows结构决定。补上基于实际代码/部署的评审记录与直接模块文档，不改policy/schema/required门或截图证据。Goal仍未完成，Word保存人工问题与PPT视觉缺项继续保留。
+
+
+### 工程检查续接结果
+
+本轮实际进展：Office监听器整合后70 UI/能力测试PASS，经只读JS复审确认；104架构/治理静态合同PASS；Python首次815 PASS/1 skip/1 FAIL的唯一API fixture缺陷已显式隔离Office，完整API套件53 PASS（371.10秒）及报告渲染17 PASS。不重跑其他已通过763项，不将fixture回执计为Office真机证据。保持意外未隔离Word调用的原失败与清理未知记录。
+
+Black/isort只读发现测试API格式和render-script imports，仅修正该两处；随后Ruff查出本轮注入全局OFFICE_REQUEST静态未定义，改为显式读取globals变量，未新增ignore/Any/skip；对应渲染17项再次通过。Black/isort/Ruff本轮变更范围已通过；完整mypy检查6源码无本次目标模块错误，但17条既有跨模块错误（runtime_state、runtime_contract、tracer/metrics、Wind）导致exit1，office-goal-mypy-final.log。不自豁免，不扩仓整改，既有37条大范围诊断保留。
+
+完整88路径L4已按validation_failure重新规划；Project Constraints缺report-workflows结构决定已依据既有Host/Store/报告sandbox/本机管理器实际边界补评审，复验exit0；docs治理、API atlas、Python index check均exit0。没有重做架构多视口截图或改平台规则。当前GitHub API确认PUBLIC、PR81仍OPEN/draft、head0c5c9672/base205d2a17；它的旧CI不覆盖本Goal脏代码，未push/dispatch/merge。
+
+视觉工具只读清单请求20秒超时并重置会话，未重复失败调用；安装PPT脚本字典仅提供单shape save-as-picture、未证明整页导出，故不以其他库渲染/对象边界冒称Native视觉完成。Word9796的保存/访问界面问题原一次请求仍待用户实际反馈，本轮未重跑Word或操作未确认文稿。六项Goal、正式入口、必要清理和当前Mac CI仍未全部闭合，Goal active、mergeReady/releaseReady=false，生产未更新。
+
+### 冻结Office候选与当前CI证据（2026-10-08）
+
+正常本地检查点b66f9627d795131dad057d2dfa06fe6e6cc53408已提交28个同任务文件并普通push原分支；完整交付差异仍按固定base205d2a170d9ece9c2751e014b63abe326510ab9c规划88路径，不只检查最新28文件。提交/推送exit0，office-checkpoint-commit.log、office-candidate-push.log；安全预检未发现拟提交秘密材料，临时环境、原始日志、trace及实例data home未提交。后续报告修改与此冻结候选分别标识，不声称旧CI验证过新报告HEAD。
+
+用户本次确认527a482c80fc4e89a12afe31af57be75测试PPT已获文件访问许可并打开。该反馈属于原登记对象，不反推Word权限或其他文件。已有后续精确关闭回执office-native-ppt-owned-close-confirmed.json：/tmp与/private/tmp经设备/inode核对为同对象，仅关闭该已保存文稿，文件保留；不退出共享应用、不重复创建该测试对象。随后正式8b79原生保存/重开/读回证据继续有效，视觉仍NOT_RUN。
+
+当前远端PUBLIC，标准runner；PR81仍草稿。GitHub PR曾报告dirty/mergeable=false，但远端compare为ahead26/behind0、共同基线正是base205d，本地无replace且非shallow；没有据此reset、盲目merge或force-push。Project Constraints没有dispatch入口、自动PR检查尚未出现，保留NOT_RUN。首次gh pr edit因GitHub弃用Projects classic返回exit1；改用普通REST PATCH更新同一PR描述成功，未修改仓库规则或PR状态，显著保留“Goal未完成，仅送检，禁止合并/发布”。
+
+仅补充未被自动触发覆盖的既有必要workflow_dispatch：Research Web Checks37756610557、Research Web Bootstrap37756622020。两项attempt1、event=workflow_dispatch、head/实际checkout均为b66f9627d795131dad057d2dfa06fe6e6cc53408，结论success；前者checks/ubuntu-latest归Linux通用CI，后者Clean Web install/macOS-14归Mac安装CI，不能混用平台。office-current-{checks,bootstrap}-{run,jobs}.json及对应ci.log保留源码、runner和步骤证据。Bootstrap安装记录code_commit亦为b66；未使用开发机已有环境替代干净安装，没有供应商凭据配置到CI。
+
+现有receipt按同一绑定更新两项真实外部门PASS，validate_verification_receipt实际exit0；hostAcceptance=PASS只指规划的Mac工程门，aggregateAcceptance=NOT_READY，mergeReady=false/releaseReady=false，Linux交接BLOCKED、Windows NOT_RUN。Word9796仍保存超时/清理UNVERIFIED、原单次界面反馈待答；PPT视觉仍缺实际证据，mypy17条既有跨模块诊断继续保留，三项FILE/Excel原生/PPT文本读回不会因这些缺项被抹去。没有重新执行真实模型、Keychain、历史生命周期或其他平台产品验收，未更新生产8088/3081、未合并或发布。
+
+### Runtime原生文档等待边界的最小修复
+
+续接7c7b627bdcb2551974c32a980131d50248f73489（仅报告提交，源码仍匹配b66 CI）。发现Runtime私有文档调用对file/native统一35秒，而Host监督器verifiers.py为既有180秒+10秒协调；因此合法较长原生流程可能在Host最终结果之前被运输层中断。先新增有界合同测试，截获真实executeDocumentTool使用的AbortSignal.timeout而不启动Office、网络或模型：RED实际[35000,35000]，期望[35000,195000]，exit1；office-runtime-deadline-red.log。
+
+仅将原生运输等待改195秒，覆盖既有Host190秒加5秒结果交付；file仍35秒。Host准备/单步/总限、exec取消信号、安全认证、私有端点、输出大小、无重试行为不变。不以此声称Word保存问题已修复。整文件合同14 PASS/1既有skip/0 FAIL，office-runtime-deadline-green.log；没有缩小原合同范围或新增skip。初次邻接命令误写不存在测试文件，exit1，office-runtime-deadline-neighbors.log保留；按实际文件名改用既有method-tool和capabilities-ui套件，不把工具定位错误记产品缺陷。文档治理exit0，office-runtime-deadline-docs.log。
+
+本补丁源码不在b66 CI中，不复用该CI声称最新源码已过；既有plan/receipt继续明确绑定冻结候选b66。当前补丁另按完整交付差异规划、直接回归及只读复审后留本地检查点；不因为一个本地修复重复整个Office真机生命周期、Keychain或bootstrap。下一次最终源码送检再统一绑定，Word及PPT外部缺项保持原状。
+
+实际邻接method-tool/capabilities-ui 38 PASS，office-runtime-deadline-neighbors-green.log；架构/文档治理套件、完整88路径Project Constraints、docs治理与git diff --check退出0。原规划首次拒绝旧task候选b66与当前7c HEAD不一致（PLAN_ERROR），按真实HEAD建立本增量任务上下文后完整规划成功，L4范围不缩小；office-runtime-deadline-full-plan.json记录提交加未提交树身份，旧冻结候选plan/receipt不覆盖。只读JS复审无问题。未受影响的Python/Office行为证据仍限原源码及已验证范围，未再调用Office/模型；当前增量需后续最终候选CI，不能写PASS。
+
+### 最新候选送检中
+
+2026-10-08普通push bd05b79c086cd0a957be616cdfc47d44ff2797af成功（office-deadline-candidate-push.log），PR81仍draft，head为bd05、base205d；远端分支预检仍b66，无并发覆盖。GitHub当前仍dirty且自动运行为空，补充两项既有必要dispatch：Research Web Checks37760324407/queued、macOS Bootstrap37760339730/in_progress，均event workflow_dispatch、headSHA为bd05。这些是已确认运行身份，不记录PASS，不重复dispatch。当前仓库PUBLIC、标准runner、费用政策无变更；不运行Windows/Docker、不配置供应商Key。
+
+唯一现行office-goal-full-plan.json、office-goal-task.json及receipt已绑定bd05完整88路径，验证器exit0、hostAcceptance=BLOCKED、mergeReady/releaseReady=false；旧b66成功plan/receipt分别归档office-b66-full-plan.json/office-b66-ci-receipt.json，旧CI对应旧代码不被抹除或挪作新HEAD。本节报告修改不属于冻结送检源码，后续报告提交亦须单独标识。Word与PPT缺项没有因运输等待修复或送检自动变为PASS。
+
+一次有界实时目标核对补充：ls-remote master实际d6f15c66d2d06d871fc59cc710af01eaacbd2f38，与PR API返回的base205d不同。GitHub compare bd05...d6为diverged，目标方向69提交/137路径、候选方向28提交，共同基线205d，office-live-master-drift.json。此前“固定205d为候选祖先”的证据仍正确，但不能据此断言相对实时master无冲突，也不能把PR dirty仅判定为服务器错误。保留固定候选与范围，不自动合入69提交或扩仓整合。最新有界运行快照两项均in_progress；不写PASS、不重发dispatch、不等待无归属后台任务。
+
+本轮续接有界读取37760324407/37760339730：Web Checks37760324407已success，attempt1、workflow_dispatch、checks/ubuntu-latest；完整日志Checkout明确bd05b79c086cd0a957be616cdfc47d44ff2797af，office-deadline-checks-{run,jobs}.json及ci.log。该通用Linux CI不替代Mac实机。Bootstrap仍in_progress，实际job113254941458已完成checkout/setup，安装步骤在运行。未重发任何dispatch。回执第一次更新时因未提交报告使旧树绑定不匹配返回PLAN_ERROR，保留错误事实；重新规划当前完整88路径并绑定唯一报告的工作区身份，CI依然只声明推送的bd05候选、不声明未提交报告已被CI执行。
+
+最终PowerPoint产物33609字节及SHA256再次精确匹配原原生业务输出；已一次提供该已交付文件供用户在PowerPoint人工视觉核对，未创建新的Office验证对象、未写入或自动退出应用；反馈未到前视觉仍NOT_RUN。Word9796原人工反馈仍待答，未重复询问同一问题或重跑未知资源。已确认活跃CI句柄支持继续等待，其余人工条件缺失不被推断为通过。
+
+校验器随后明确拒绝“CI认证未提交候选”（RECEIPT_ERROR），不能只重绑含报告工作区后把CI标PASS。改在专用临时detached bd05 checkout校验冻结代码；未安装依赖、未启动产品、未改原工作树源码，只复制回执明确引用的既有脱敏证据。路径登记office-frozen-ci-checkout.json，完整88路径冻结plan及receipt验证exit0，office-bd05-frozen-receipt-validation.log；当前唯一plan/receipt采用这一冻结候选结果，报告工作区规划另存office-report-working-tree-plan.json。回执BLOCKED/aggregate NOT_READY/mergeReady=false/releaseReady=false，与Bootstrap尚未完成一致。初次临时规划使用绝对task-context路径触发PATH_ERROR，改为现有相对路径合同后通过，没有修改validator或schema。原报告未提交内容不计入冻结CI身份，也不据此再触发bootstrap。
+
+### 当前候选CI完成与有界阻塞审计
+
+Bootstrap37760339730最终success，attempt1/workflow_dispatch/job113254941458/macOS-14；完整日志Checkout为bd05b79c086cd0a957be616cdfc47d44ff2797af，office-deadline-bootstrap-ci.log及run/jobs记录。冻结bd05回执更新两项CI PASS后在其只读checkout实际校验exit0，hostAcceptance=PASS；aggregate NOT_READY、mergeReady/releaseReady=false继续由现有政策计算，Project Constraints远端未执行、实时master分叉与其他平台缺证据保留。没有用回执合法代替OfficeGoal完成，也没有为报告更新重复dispatch。
+
+完成条件逐项核对仍不成立：
+
+| 应用 | 文件业务闭环 | Mac原生闭环 | 原生重开读回 | 本轮临时资源清理 |
+|---|---|---|---|---|
+| Word | PASS，正常页面生成/读改/下载及原7项核对 | PASS，新20124原生创建及736389/7f8014原生修改B/3 | PASS，三个成功任务均真实Word读回 | PASS，新成功任务文稿及私有目录已清理；历史未知对象另列 |
+| Excel | PASS，8项核对，文件模式未重算 | PASS，真实5→10及公式保留 | PASS，Microsoft Excel重开10，下载缓存10 | PASS，仅所属新实例及工作簿关闭，用户实例保留 |
+| PowerPoint | PASS，正常页面生成/读改/下载及9项核对 | PASS，真实文本编辑/保存与用户最终视觉确认 | PASS，4目标真实App读回 | PASS，登记任务文稿关闭，交付文件保留 |
+
+任务1正式UI及公开业务API、任务2步骤/错误/清理诊断已具证据，任务3Word原生仍缺保存后闭环，任务4Excel通过所列固定样例，任务5PPT仍缺视觉，任务6文件入口已验证、真实模型选工具本Goal未执行（不使用旧T6或fixture充当新Office模型证据），任务7本地相关闭包与匹配Mac CI通过所列范围、mypy既有错误及PR外部门缺项不豁免。已交付Word_FILE、Excel_NATIVE和PowerPoint_NATIVE最终合成产物，但不能用其中Word文件模式代替Word原生交付。
+
+再次核对PPT文件精确文本时发现早期摘要“样本数为3缺空格”不准确：当前正常页面读取及已下载document-a5536d766fca4e429487e82f41b4c94f.pptx实际XML均为“样本数为 3”，因此未修改或另存该文件，没有新增Office资源。Browser插件初始化被classic-level原生库签名错误阻止；未改系统签名/插件依赖，既有CUA浏览器入口一次成功恢复原19089任务页，读取验证无模型请求。该浏览器恢复不能证明native AX恢复；仅对已运行Word96765做一次只读getApp，工具实际120秒超时，无法确认保存提示，未继续重试或关闭文稿。现有Word界面问题及PPT视觉反馈仍待用户实际回答，不能从用户对527旧PPT访问授权推断Word许可或最终视觉通过。
+
+相同Word实机界面/保存与资源归属阻塞已连续多轮保留；本地修复、独立文件业务、Excel/PPT读回及当前候选CI均已尽可独立推进。此时无归属确认不能安全重启Word实机，原生视觉不能由库解析替代，目标分支69提交/137路径不能在固定范围内盲目整合。Goal须保持未完成并按阻塞审计停止自动重复；解除Word/视觉条件后从断点续接，不重跑已完成模型、Keychain、文件业务或整套CI。生产8088/3081仍未更新、PR未合并、未发布。
+
+### 用户续接Word剩余问题与PPT查看入口
+
+用户要求说明PowerPoint视觉入口并继续解决Word，当前HEAD90008ce0a8c70b3707b12eb7b0fd9859b84f41f8、工作区开始干净。提供已核对SHA的final-native-powerpoint.pptx由真实PowerPoint打开观察两页，不要求重新生成或另存。Word9796正式回执仍为saved阶段超时、last_completed_step written、cleanup unverified，未假定其已解除。
+
+只读查看当前安装Word.sdef：提供save as命令，其file name参数为text、file format为WdSaveFormat；存在format document与format document default。此前save-as -1708及标准save等待超时均保留，字典存在命令不能证明调用成功，因此不凭猜测再换保存语句。最初检索测试data home的范围过宽并产生大量非相关会话索引输出，已停止该方式，后续仅定位已登记9796回执和实现；未复制凭据/索引到报告或执行新模型请求。
+
+为寻求精确文稿控制，调用现有Codex Document Control只读list_document_sessions(surface=word)，实际返回executors空列表/No connected sessions。没有执行文档命令、安装插件、改变权限或扩为新的产品集成路径。当前仍无法确认Word前台是否为保存/访问对话框；用户本次仅要求解决问题，尚未提供Word实际状态。已给出一次当前步人工观察问题（只看、不保存/关闭，确认提示类型及任务身份），不重复整个任务授权、不重跑同一失败或创建Office资源；原native AX超时没有再次尝试。后续从这一反馈断点处理，不将外部条件未知写成代码已修复。
+
+### PowerPoint最终人工视觉确认
+
+2026-10-08 19:08（Asia/Shanghai记录时刻），用户针对已提供的final-native-powerpoint.pptx及“两页文字无裁剪、重叠”检查回复“PowerPoint 确认”。按当前明确上下文记人工视觉PASS，证据来源为用户实际确认，不伪造截图或自动视觉结果。文件SHA256仍须匹配a1a664b783a3365538ff239495d29d9a8f2774d8bee79c9dcdc58c5c970ecb19，对应正式原生8b79b55d任务产物；office-ppt-user-visual-confirmation.json保存该有限证据。结合已有真实保存/关闭/重开/4文本读回、可编辑对象核对及精确清理，PowerPoint_NATIVE现在PASS，早期视觉NOT_RUN记录保留历史，不能覆盖本条后续确认。
+
+当前六项为Word_FILE/Excel_FILE/PowerPoint_FILE/Excel_NATIVE/PowerPoint_NATIVE通过，Word_NATIVE仍BLOCKED。未重跑Office、模型或CI，未创建新文稿、修改生产或合并PR。唯一现行工程回执中的PPT视觉风险可据此移除，Word保存/清理、PR整合/Project Constraints及真实Office模型工具选择缺证据仍分别保留，mergeReady/releaseReady仍false。
+
+### Word无提示与旧测试文稿处理续接
+
+用户实际反馈Word“正常没有提示”，继而确认当前可见文稿确为本任务Word验收报告，并明确允许只关闭该文稿且不保存。这是应用状态与资源归属的新证据，不再按先前“提示类型未知”等待；不等于保存或原生闭环已通过。
+
+只检查9796登记私有目录及精确目标：目录存在、owner/mode0700正常，预定research-workbench-9796ac132a884103bfba92b659fe7849.docx当前不存在，office-word-9796-exact-resource-now.json。未查受保护Office目录，也不将当前不存在说成从未创建。新的只读CUA窗口清单请求20秒超时并重置；未重复同调用。通过Word原生AppleEvent做有限元数据诊断，不读其他文稿正文。第一次应用count返回missing value造成诊断解析ValueError；改为进程内列表计数曾得到1项/登记名称0匹配，但后续元数据求值也返回-1708，因此不能据此认证当前文稿数量。office-word-readonly-document-count.json及office-word-name-metadata-validity.json保留这一证据强度限制。
+
+用户确认归属后，尝试只关闭其确认的测试报告；先在受控进程内验证已知合成段落，未打印正文，不退出共享Word。实际返回-1708、未取得closed_confirmed，office-word-user-owned-close.json；不能把处理授权改写成已经清理。已明确纠正先前“1份打开文稿”的过强解读，停止自动关闭重试。现需要用户仅手工关闭刚确认的测试报告，出现保存询问时选择不保存，并反馈实际结果；这不是再次请求授权。旧文稿处理未确认前不创建新的Office实机资源、不从当前未知应用状态猜定保存超时根因。模型/其他已通过Office/CI未重跑，生产未变。
+
+### Word实际修复与正式B／3闭环（2026-10-08）
+
+用户随后明确反馈已关闭其确认的旧测试文稿并选择不保存。此确认仅认证该可见测试对象的人工关闭，不补造旧UUID映射或全盘删除。只读get version实际返回16.113.3，Word可响应。开始代码身份为ce191f948d6d2e784b290224c189f058ee83cb6a加本轮Word源码差异；生产未变。
+
+修复均由失败合同/真实最小复现驱动：
+
+1. 专用DOCX保存及HFS路径。原通用save-in没有明确格式；路径转换放Word.tell内真实返回空值，放外返回正确HFS。先RED/再GREEN，改为在Word上下文之前转换、save-as显式format document；未延长10秒准备/30秒操作/190秒监督。初次2f0d saved -1708、cleanup confirmed；移出转换后3f525b6c saved timeout，用户确认其确有单文件访问提示。
+2. 用户仅允许3f测试文件后，文件实际落盘13743字节、7项检查通过；精确fullname/saved/内容核对与关闭成功，office-word-3f52-owned-recovery.json。原timeout不改PASS。文件保留为recovered-native-word-A.docx等恢复证据，不能据此假称原同步业务已完成。
+3. 单文件访问交接。复用PPT的正常LaunchServices模式，只打开私有受控文件；完整HFS/saved守卫通过才赋owned引用。生成的空DOCX只作交接、不含请求内容，先关闭它，再由Word make new document真正原生创建。read/modify及重开复用同一有限helper。没有通用取文件/执行接口、全局daemon或权限扩张。新增合同明确空交接不能冒充新建；初次GREEN因测试原预期单参helper、实际采用路径/名称/HFS三参而失败，补足身份参数合同后通过，原失败记录保留。
+4. 标题读回。4f93真实完成创建/写入/保存/关闭/重开，在read_back -1728，cleanup confirmed。精确旧读回块在保留3f文稿只读复现，定位到style；range getter返回以paragraph为父的样式引用，无法正确比较。直接paragraph getter可与本文件内置Title的name local比较，另验证built-in=true。case-sensitive比较移到Word.tell外helper，避免Word.case属性与AppleScript consideration冲突；一次compile -2741保留，最终compile0、精确完整只读块PASS，bold/正文/表格校验不删除。
+5. 多run预检。真实原生A版本段落被Word拆成2个rPr完全相同的run，原any-rPr规则误拒绝。新规则只允许C14N字节完全一致，不忽略字体/语言/其他属性；真正混合仍拒绝。段落/单元格uniform与mixed四例先RED后GREEN，复杂/合并/嵌套/宏/外链限制不变。
+6. 段落位置。2cc及9fdd已写/保存/关闭/重开但read_back -2700。源A XML布局3p+2x2表+2empty p，原映射[1,2,3,8,9]。真实只读证明Word p8为末格值2，表后段落在10/11：每表格行末也占Word段落。映射现计数w:p与w:tr，共用于写入/读回；表格后段落目标10的合同先RED后GREEN。
+7. 写入范围。受控A副本的旧整段范围替换连同结束标记改变结构，B出现在非顶层段落；saved=true不能证明目标内容正确。专用save-as与对象求值试验亦保留未通过结果，不能将问题仅归因通用save。另一新受控副本只替换start..end-1正文范围后，B实际落盘、表格2×2与未改段落均true；生产写入改为保留段落结束标记，end≤start拒绝。相关合同先RED后GREEN、复审通过。
+
+每次实机复验均对应明确代码修复/权限变化，未在条件不变时反复创建；后续定位尽量用同一已登记3f文件只读探针，不改用户文稿或退出共享Word。Word实际产物、恢复副本及有限非秘密元数据作为本任务诊断证据保留；历史未知对象不扫描、不删除。此前误写ledger verifications而非verification_runs导致IndexError，以及一次apply_patch上下文不匹配未写入文件，均为诊断/编辑工具错误，不记产品PASS。
+
+正式页面最终成功：
+
+| 操作 | 真实验证ID | 结果 |
+|---|---|---|
+| Word真正新建A/2 | 20124fc2-7841-489e-8eca-ea1091cad04a | created/written/saved/closed/reopened/read_back/document_closed全部完成，cleanup confirmed，约3秒 |
+| 原生段落A→B | 7363897e-7544-47e4-bc28-55fbd730f083 | 正常页面原生修改/保存/重开完整读回及清理通过 |
+| 原生单元格2→3 | 7f8014ae-df7d-4a7a-963e-e42631bffa14 | 正常页面原生修改/保存/重开完整读回及清理通过 |
+
+最终文件ID6d618e79355ce7dcb74adeb7、document-4341ce0777ee4b60be77fe2601544178.docx，13897字节、SHA256 d7da88574464e9c057c1804b35bb3860fc87361500657d30a92d32ed05102689。正常页面点击下载到/Users/leon/Downloads同名文件，和Store安全句柄读取字节一致；9项独立检查均true：标题、Title样式、加粗、未改段落、B、2×2、3、下载相同、原NativeA SHA70284b56…未改。三个成功run的私有目录均已独立确认不存在。office-word-final-independent.json及final-native-word.docx；office-word-final-page.png为正常产品页面脱敏证据，不冒充Word应用截图。
+
+本轮实际最小回归：专用测试解释器执行python -m pytest --confcutdir=tests/research_web tests/research_web/test_local_integrations.py tests/research_web/test_report_rendering.py -q，113 PASS/1既有skip，23.58秒，office-word-complete-regression.log。Black/isort/Ruff本次两个Python文件exit0；mypy --python-executable本任务产品.venv app/research_web/local_integrations/verifiers.py命令exit1，16条既有4文件诊断，目标verifiers无新诊断；与先前17条对比new diagnostics空，不自行豁免。Python只读复审逐项确认路径/权限/真实创建/格式/范围/索引边界，未将静态Approve计实机PASS。
+
+当前六项固定Office功能均有真实证据；新Word源码仍需完整changed-set规划与匹配工程门。本轮Office操作模型请求0、商业数据请求0；旧模型/T6/Keychain/Excel/PPT未重验，B归因豁免仍保持。当前旧bd05 CI仅认证旧代码，PR/master分叉、外部门与新代码送检状态须另行收口，不宣称已合并、发布或更新生产。
+
+### Word收口：当前源码CI与冻结回执
+
+冻结并已普通push源码候选 `2d2630ec94e3e7063dcf800b4f99c9dd9b7bd492`，完整交付差异88路径；本次实现提交4文件。之后只追加本报告，不改变产品源码，不能宣称CI检出了后续报告提交。
+
+- Research Web Checks：run37793973081，attempt1，workflow_dispatch，checks成功，Ubuntu runner；checkout日志实际SHA为2d2630ec94e3e7063dcf800b4f99c9dd9b7bd492。
+- macOS Bootstrap：run37793989953，attempt1，workflow_dispatch，Clean Web install (macos-14)成功；实际checkout同2d，干净安装与启动/Doctor步骤完成。本机Word实机证据独立于CI，不声称CI安装Office。
+- 原PR #81保持草稿，head2d，API base205d2a170d9ece9c2751e014b63abe326510ab9c，mergeable=false/dirty。没有merge-ref验收；目标master漂移与69提交/137路径整合未执行。Project Constraints远端NOT_RUN，不以本地成功代替。
+
+实际执行gh run view --json、gh api actions/runs、gh run view --log，成功回执及实际checkout保存在office-word-complete-{checks,bootstrap}-ci.{json,log}。完整计划office-goal-full-plan.json与receipt.json在干净冻结2d验证exit0：hostAcceptance=PASS、aggregateAcceptance=NOT_READY、mergeReady=false、releaseReady=false。中间一次回执Linux状态未随新增PASS调整导致校验失败，已依政策改为BLOCKED重新验证成功；未修改schema/政策。
+
+两个受控诊断副本已先确认Word未打开，再保留失败/成功样本证据并精确删除原登记文件及空目录；office-word-probe-cleanup.json独立确认。3f历史恢复文件作为明确诊断证据保留，不写成删除；未知旧对象UNVERIFIED。本轮Word功能问题已解决，Word/Excel/PPT的FILE/NATIVE固定样例六项均PASS；模型自动选择Office工具未执行、商业接口与其他平台独立缺项保留。生产8088/3081未修改、PR未合并、未发布。
+
+### 2026-10-09：按用户“解决问题”续接PR整合与模型工具缺项
+
+宿主macOS，功能收口任务，不执行其他平台产品验收、不更新生产、不合并PR。起点c4581293376aa74713d6319744fa03722084f129干净；一次fetch固定master4a5e7523d7407525d108757727c64f10783203f4，远端任务head2d2630ec。正常merge进入原任务分支，保留本地报告和Word修复，不rebase/reset/force。实际11个冲突文件：五份模块说明、平台支持说明、README评审回执、两份生成HTML、工具与安装测试。文档合并双方适用事实；测试同时保留Office准入拒绝与Cordis getter合同、主线受控Docker fixture；生成HTML复用当前builder重新生成，不拼接旧生成页面。
+
+当前原任务base205d2a到合并工作树完整差异200路径；相对固定master候选差异88路径，二者分别保留。完整计划L4及200路径Project Constraints本地exit0；runtime manifest文件hash全部匹配。文档/架构/index检查exit0，工具注册与架构86项通过。产品.venv没有pytest属检查环境错误，未安装包或改产品依赖；改用既有独立检查解释器执行本轮回归。
+
+模型Office实机缺项：19089独立实例状态正常、已保存provider=openai-compatible/model=qwen2.5:0.5b/credential_required=false。既有compatible-model.mjs明确text-only：不发送工具定义、拒绝tool_calls。因此当前模型无法验证自动选择Office；不发无意义请求、不把文本输出/fixture或旧NAV T6冒称Office模型验收。真正解除需本实例通过设置页配置已有受支持且具工具能力的模型及可用凭据，秘密不得进对话；当前Office文件/原生六项功能PASS不受此条件影响。没有扩展兼容适配器或使用个人开发工具凭据。
+
+整合回归补充：86项工具/架构、230项治理/UI合同PASS；启动/安装/Service Manager/Office组691 PASS/1既有skip。邻接组666 PASS/1 FAIL：test_staged_flag_is_exact_and_reaches_only_runtime_child[0]清理runtime返回cleanup_failed；单项独立复现随后1 PASS/2.75秒，首次失败不删除、不概括全绿。Supervisor产品源码与固定master相同，fixture差异主要绑定已升级DSH源码；未证明该瞬态由本轮整合引入，根因仍未知，不扩展Docker产品验收或放宽断言。
+
+实际管理入口正常停止原Host49479/DSH49323；立即start在19089无listener但bind errno48时拒绝endpoint_port_in_use，记录真实失败。端口释放后唯一后续start成功：Host88512/DSH86982、19089/14181双ready，root HTML200。未杀其他进程、绕过安装/归属或更新生产。用户确认有DeepSeek测试Key并将仅在核验的19089设置页录入；尚未收到保存反馈，不推断已录入，不读取表单/凭据。
+
+当前收口候选与远端：正常merge提交52b3b01788f0af2fe7f60c60b98003c3679836eb已普通push；PR #81草稿，head52b3，base4a5e，GitHub MERGEABLE，冲突已解除。本轮原完整交付200路径与整合增量138路径均保留；绑定当前PR差异88路径的office-sync-bound-plan.json已生成并校验，未固定沿用历史路径数。以原base205d与task base4a混用时规划器真实拒绝candidate mismatch，纠正为固定PR base4a，不修改规则。
+
+当前自动CI（未dispatch）：Project Constraints37808948653 PASS，Research Web Checks37808948533 PASS，均attempt1/pull_request/Ubuntu，实际checkout77f53da6c277bf8ee2826a91d088c4a2859e9ed0，父提交实核4a5e7523d7407525d108757727c64f10783203f4与52b3b01788f0af2fe7f60c60b98003c3679836eb。macOS Bootstrap37808948541仍in_progress/安装步骤，不能写PASS。元数据/checkout日志统一office-sync-*-ci.{json,log}，没有Windows/Docker产品dispatch或付费预算变化。
+
+API53 PASS/408.96秒，691组214.10秒、邻接666PASS/1首次FAIL/231.28秒及Supervisor确认88PASS/38.32秒均保留。本地200路径约束/文档/index补录实测耗时，不凭估计填回执。office-sync-receipt.json在干净52b3验证exit0，当前hostAcceptance=BLOCKED、aggregateAcceptance=NOT_READY、mergeReady=false/releaseReady=false；回执合法不等于Goal完成。
+
+用户已确认有可用DeepSeek测试Key，核验后的独立录入入口http://127.0.0.1:19089/#/settings/model，等待“已保存”事实后才请求模型。当前不读取密码框、剪贴板或个人配置；本次模型请求0、Office新增业务0。完整验收不由当前纯文本兼容路径代替。后续报告提交仅记录冻结候选的证据，不触发“报告→Bootstrap→再报告”循环；生产不变、PR未合并、未发布。
+
+### 用户保存后的真实Office模型验收与精确清理
+
+用户明确回复“已保存”后，仅读取非秘密状态：deepseek-official/deepseek-flash、credential_configured=true、system_keychain。没有读取秘密、掩码、剪贴板或供应商配置。正常产品API创建独立fingpt会话a107a3e2-6872-4cd7-9045-1782ed7373bb，唯一消息显式选择research_document_operation并要求一次DOCX/file/generate。请求有唯一幂等标识；没有客户端重试，没有重新执行三款原生Office验证。
+
+正式执行已completed：工具活动call_00_aJWoTWnTLYnv0lyMxvuX8062、research_document_operation、completed/410ms；没有其他工具或subagent。两条已完成assistant输出包括调用前说明与最终回执/下载入口，不据此伪称掌握底层HTTP重试总数。工具与最终生成真实完成；usage tokens14531、input6209/output514为原生投影，不换算请求次数。真实供应商已调用，本轮不再宣称0请求。
+
+交付task25519ef905cb2e3d05e528c0完成，无missing_formats；文件1d2430fa37f47e38d6dce9d9/office_tool_acceptance.docx，36755字节。正常download字节独立检查标题、正文、run acfb15a2c12d4c4bb84f6a546703181b全true，SHA256 fa194c643a6ad2d3e55f3eccdce9c272b41ee04c11dea3edda3d1876d0c35501。工具结果和下载均真实，文件核对不冒充新增Word原生自动化；之前三个原生闭环证据继续保持。证据office-sync-model-{submission,result,file-check}.json、office-model-generated.docx。
+
+结束经现有产品PUT model clear_api_key=true清除测试Key，HTTP200并独立runtime非秘密状态credential_configured=false/system_keychain，office-sync-test-key-cleared.json。仅正常stop所属Host88512/DSH86982，正式状态均ready=false/pid=null，office-sync-final-stop.json；交付文件保留，不关闭用户Office文稿、退出共享Office或清理未知对象。生产8088/3081未操作。
+
+此次三个原缺项：PR #81文本冲突已解除；当前候选Project Constraints自动PASS；真实模型选择Office工具并交付PASS。仍运行中的Mac Bootstrap37808948541（macos-14安装步骤）作为有界CI交接保留，不无限轮询、不重复dispatch。完整Mac工程结果暂仍BLOCKED，mergeReady/releaseReady继续false；Windows/Linux/Docker缺项由对应任务保留，不扩张本轮。冻结源码52b3、真实执行工作树产品源码一致；后续仅报告提交不能冒称被旧CI检出。
+
+### 2026-10-09 原Goal逐项审计发现的任务6展示遗漏
+
+自动续接读取原goal-objective.md后，确认52b3三个自动门已全部PASS，Mac Bootstrap37808948541实际checkout77f53da6合并预览，不宣称检出了后续报告75216e9。原六项文件/原生证据与真实模型Office工具证据复核有效；但设置页未分别显示三Office文件处理与本机操作，未呈现最近安全步骤/清理，业务结果缺少清理标签，故未先标Goal完成。
+
+最小新增补丁：既有capabilities中仅增加固定文件前置条件标记，无新schema/依赖锁；现有detail显示有效Office安全诊断和过期说明，Wind行为不变；Office行标签与业务清理状态分别呈现，产物仍可下载。Mac文件依赖就绪不代替逐文档业务成功，其他平台仍未验证。
+
+RED/GREEN证据office-state-python-corrected-red.log、office-state-ui-corrected-red.log、office-cleanup-ui-red.log。初次测试分类fixture没有登记Word、fingerprint错误地填原值，已明确修正；仅把本轮自有实现暂存并恢复原HEAD源码，正确fixture在原实现失败后重新应用补丁，未reset或覆盖其他改动。最新115PASS/1既有skip，47UI合同PASS。真实设置页确认三App分别显示文件/本机、最近时间、最后阶段及已清理；首次页面截图暴露旧CSS隐藏label，局部Office CSS修复后的office-state-settings-fixed.png标签可见。
+
+Black/isort PASS；mypy目标manager无诊断，16条既有4文件错误继续保留，不新增ignore。现有检查与产品环境均无Ruff，离线uvx也无缓存，工具环境错误独立记录。按本会话依赖安装授权，仅在/private/tmp/rwb-c1-checks-20261006补Ruff0.16.10，实际uv pip记录office-state-ruff-install.log；Ruff检查PASS，未改系统Python、产品环境或产品锁。浏览器插件因原生库签名失败，未修系统签名；备用CUA首次在已停止服务打开产生连接拒绝/错误页策略阻断，受管启动后新的正确回环页面验证成功，未绕过安全页面。
+
+本次新增只影响状态投影/渲染，复用匹配的Office真实读回、清理与真实模型工具交付；不再调用供应商、Office、Keychain生命周期或架构多视口。新候选须重新绑定完整计划并等待自动CI，不拿52b3通过冒称新增源码通过。
+
+状态补丁最终补证：复审指出安全native_error_number尚未解释，新增四case先3FAIL/1PASS，再仅投影macOS白名单-1743自动化明确拒绝、-54/-61文件访问拒绝；-1712超时不推断权限。明确authorization_required回执提示等待用户操作、处理真实提示后再显式验证，不宣称Office仍在执行。Wind投影保持原行为。Python/JS复审Approve只算静态审查。最终119PASS/1既有skip/28.47秒，47UI合同PASS，90文档/架构合同PASS；Black/isort/Ruff0.16.10 PASS。
+
+另试既有follow-imports=skip边界时出现manager原dataclass构造器7条诊断；在原HEAD源码上同命令同7条，属于既有边界/工具行为，不冒称新增缺陷或PASS。正常导入检查仍16条边界外4文件诊断、manager无诊断；两种命令真实退出1均保留，不新增ignore、Any或改政策。完整91路径计划L4及约束/文档/index已通过；原基线203路径另存，不缩小交付。
+
+新展示代码通过现有受管入口启动独立无Key实例（Host31681/DSH31057）。设置页实际呈现三Office文件/本机能力、最近时间、最后阶段与清理；没有点真实验证、模型、供应商或业务按钮。截图office-state-settings-fixed.png与初次隐藏标签的office-state-settings-page.png分别留存。当前源码相对52b3仅状态投影/UI、测试和直接文档，不改变原生执行器、报告sandbox/文件处理、供应商协议、凭据、启动/安装锁，故此前六项真机与模型工具证据按模块差异复用，CI须新候选匹配。
+
+### 中文/空格路径必要验收：真实缺陷与最小修复
+
+Goal任务7必须覆盖中文/空格路径。普通根119PASS不能替代该条件；为现有同套测试新建本任务独占中文/空格basetemp（office-unicode-scope.json），没有删除未知目录、启动Office或模型。实际9FAIL/110PASS/1skip，office-unicode-path-regression.log，主要文件业务/投影返回document_operation_failed。
+
+最小内核测试3case：ASCII spaces PASS、中文和中文含引号2FAIL，读取已许可inputs/source.txt返回errno1。Seatbelt literal/subpath使用默认json.dumps，中文变成SBPL不解码的\u序列；不是授权拒绝，也不是库缺失。只对四类受控路径的json.dumps加ensure_ascii=False，保留引号/反斜杠转义，允许根/执行文件、默认拒绝及network/fork/Mach/写入规则全不变。无新框架、不关闭沙箱、不扩权限。Python只读复审Approve不算内核验证。
+
+修复后整个test_sandbox模块24PASS/1既有skip（office-unicode-kernel-green.log），正例会话读写成功、反例越界仍PermissionError。新的中文/空格basetemp重放原119相关测试，119PASS/1skip/31.39秒，office-unicode-path-fixed.log，9项原失败均解除。Black/isort/Ruff通过；sandbox模块mypy仅runtime_contract既有1条诊断，目标无诊断，不改ignore或policy。模型/Office实际请求0，不重演已完成真机或Keychain。此新增源码须再次绑定候选及必要自动CI；279e三个通过仍只属于其源码，当前Goal暂不标完成。
+
+### Office Goal 最终收口（2026-10-09）
+
+完整原目标依据goal-objective.md逐项审计，没有把目标缩成“仅修Word”或“仅通过CI”。Task1正常Web/API的三格式读取/生成/修改/版本与交付；Task2阶段、错误号、归属、取消/冷恢复/精确清理；Task3–5六项文件/原生业务；Task6独立能力、失效、已观察权限原因、清理与真实模型工具路径；Task7中文空格/引号路径、版本/输出冲突、边界、真实Excel计算及必要本地/同平台CI均有对应当前证据。office-goal-completion-audit.json保存14组映射与断言，三份最终产物SHA再次核验。
+
+| 应用 | 文件业务闭环 | Mac原生闭环 | 原生重开读回 | 本轮临时资源清理 |
+|---|---|---|---|---|
+| Word | PASS | PASS，Word实际新建及B/3修改 | PASS | PASS |
+| Excel | PASS，明确未重算 | PASS，实际5→10 | PASS，10及公式保留 | PASS |
+| PowerPoint | PASS，可编辑两页对象 | PASS，原生打开/修改 | PASS，4目标与人工视觉确认 | PASS |
+
+冻结完整源码候选5b74550a54f15f4aba12073e226f73a2c80b4af6；PR #81草稿/MERGEABLE，固定base4a5e7523d7407525d108757727c64f10783203f4。最终PR完整差异92路径，原任务基线203路径分别保留于office-final-scopes.json；没有只规划本次4文件。三个自动run均attempt1/pull_request/head5b745，实际checkout877556c6152d0b892bf4fa71b9cc06468ffb03df，两父4a5e与5b745经git核对。Project Constraints37818546005和Web Checks37818546049为Ubuntu通用证据；Bootstrap37818546023的macos-14干净安装、固定DSH构建、服务启动/健康与Doctor成功才是Mac CI。没有重复dispatch，没有Windows/Docker产品dispatch。office-unicode-{constraints,checks,bootstrap}-ci.{json,log}保留实际证据。
+
+ASCII路径的旧/新seatbelt_profile权限文本逐字节一致（office-final-profile-reuse.json）；中文/引号新kernel正反例及119中文路径回归证明修复且未扩权限。Word/Excel/PPT实际执行器、版本化发布和Runtime工具代码核对未变，旧实机/模型证据按明确差异复用；不以fake、文件存在或软件发现替代真机。此前9失败、Supervisor一次清理失败、类型基准仍保留，不假称所有历史诊断为绿。必要静态检查已实际执行，未新增ignore或删门。
+
+正常产品清理本轮新增模型工具会话a107a3e2-6872-4cd7-9045-1782ed7373bb：DELETE为可恢复软删除，独立GET active/deleted分别确认无/有该ID，office-final-session-cleanup.json；没有永久删除或更动既有7f0f会话。模型测试Key已经产品清除，冷启动后再次只读确认credential_configured=false；最终仅停止本次清理实例Host15968/DSH15806，状态均pid=null/ready=false，office-final-test-process-stop.json。未调用模型或Office。三份最终文件、模型生成文件及明确诊断产物保留；未知历史对象仍未验证，不补造删除记录。
+
+最终office-final-plan.json/office-final-receipt.json及现有office-goal-full-plan.json、receipt.json在干净冻结5b745校验exit0：result=PASS/hostAcceptance=PASS，aggregateAcceptance=NOT_READY，mergeReady=false/releaseReady=false。跨平台设备/CI由所属任务保留，不能据Mac完成改为PASS；已有商业账户接口缺项、B归因豁免事实均非本Office Goal新增完成证明。PR未合并、未发布，生产8088/3081未更新。后续只补本报告的本地提交，与冻结源码/实际CI区分，不制造报告→Bootstrap循环。
+
+使用入口：候选工作目录/Users/leon/.codex/worktrees/settings-model-loop/ResearchWorkbench；研究会话文件面板可生成/读取/编辑三格式，选择文件或已支持的本机操作后下载；设置→本机集成查看独立文件/原生状态、最近阶段及清理。独立验收根/private/tmp/rwb-dsh-upgrade-fixture-20261007/admission-web当前已停止；本轮已实际使用的受管管理入口为本工作树.venv/bin/python /private/tmp/rwb-ollama-1b-20261007/product_acceptance.py start/status/stop，启动成功时设置页为http://127.0.0.1:19089/#/settings/local。它属于本轮隔离验收实例，不代表生产升级。现有有限Word/Excel/PPT内容限制仍适用，复杂修订/对象、宏、厂商插件不由本Goal认证。

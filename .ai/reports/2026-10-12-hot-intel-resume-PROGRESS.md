@@ -33,3 +33,27 @@
 旧记录中的累计付费预算不得重置；本次尚未读取权威预算或验证授权，不发付费调用。后续先核对原授权、账本与有效状态，再使用剩余额度。无外部发送。
 
 下一步：合并最新主线并实现统一导航，保留 Hot 的业务合同和外部雷达只读边界。
+
+<!-- architecture-review {"group":"report-workflows","structure":"unchanged","reason":"恢复的DOCX切片复用既有报告生成器，将纯数据函数抽出供原沙箱内嵌及Hot显式导出调用，不新增执行引擎、队列或会话归属。Hot原件与报告会话分别保留，相关文档和新源码映射同步，产品/恢复验收未冒充通过。","diagrams":[]} -->
+
+## 2026-10-12 本地融合实施
+
+- 主线已合入工作区，全部文本冲突解决，最新模型设置、Office编辑、Mac mini部署基座与Hot代码保留。原 worktree 未变，接续补丁仍在本地日志。
+- 统一入口“研究情报”：本地 `#/intel/hot` + 外部8栏目，共用栏目导航；旧Hot深链接保留查询参数。外部GET不入Hot库、不创建任务/模型执行。
+- RED：新统一路由/导航测试因旧链接无目标失败；GREEN：Hot/Intel 17/17。Research Web JS 385 PASS / 1 SKIPPED / 0 FAIL；治理/策略/Docker静态合同223/223 PASS。
+- 用户允许本worktree隔离测试依赖。`.validation-tools` 安装 pytest9.1.1 / pytest-asyncio1.4.0，仅测试工具，不改变产品锁或全局环境。运行依赖复用当前Mac主项目受管解释器，Node用已有24.19.0；Hot依照原package-lock执行npm ci --ignore-scripts，未改版本。
+- Hot类型检查与40/40 TS单元PASS。Python Hot/Intel/报告等103 PASS，6子用例PASS。首轮隔离解释器沙箱导入失败后改用既有受管解释器加载隔离pytest，不放宽sandbox。
+- 旧定价夹具固定10月9日与严格当日校验冲突；测试的合成价格改用当前日期，增加昨日价格拒绝/不落盘反例，7/7 PASS。生产价表/账本/付费授权未改。
+- 文档治理、完整191文件约束、架构清单/API检查、Python索引和API图册检查PASS；01部署图按实际合并源码重新deliver9/9与四视口容纳PASS，Codex查看1440浅色/2048深色最终截图。02/11沿用原分支完全相同字节的历史review，不冒充新产品验收。
+- 实际浏览器本地18096预览PASS：单一入口、本地未配置状态、真实外部事件页面、旧链接sources参数保留、规划中栏目及无JS错误。截图和固定边界在 `logs/hot-resume/browser-receipt.json`；预览是内存凭据+离线研究，无Hot模型/研究/DB验收。原框架后台仅写独立预览目录，不计Hot来源采集。
+- 内置browser-client因classic-level原生模块加载失败，保留事实；使用已提供的CUA浏览器通道完成浏览验证。首预览fixture不保存临时凭据导致MCP key-race，改为实例内存dict后启动，未读取宿主秘密。
+- 首轮所有失败日志保留在 `logs/hot-resume/`；未发远端push/PR/CI、未部署生产、未改变预算。后续仍需完整Hot链和本平台验收。
+
+下一步：完成本次候选本地运行门并保存合并检查点；随后核对原PG资源/模型授权账本，继续DOCX正式导出、跟踪和冻结原文研究交接。当前Goal ACTIVE，hostAcceptance BLOCKED（候选CI/产品验收未执行），aggregateAcceptance NOT_READY。
+
+## 候选本地门收束
+
+- Router保持L4，失败后使用validation_failure重规划，未降级。运行模式/Docker控制/协议/平台能力/API闭包546/546 PASS（250.74s），与Hot/Intel/报告103项为重叠目录的两个闭包，不相加宣称独立覆盖。
+- 当前改变的20个Python源码/测试编译PASS。新Hot/融合相对origin/master的完整diff whitespace PASS；相对旧Hot HEAD的merge diff会看到主线已跟踪的Claw原始失败日志行尾空白，保留上游真实日志未修改，并且当前变更范围不包含这些日志的新编辑。
+- preview服务通过原TTY session Ctrl-C退出0，独立浏览器tab已关闭；未停生产Web/DSH、未删资料或PG卷。
+- 本地检查点可提交；这不是完整Goal、本平台最终验收或合并/发布就绪。尚无候选GitHubCI、干净Hot安装、真实Hot/DSH研究或Docker切换回执。

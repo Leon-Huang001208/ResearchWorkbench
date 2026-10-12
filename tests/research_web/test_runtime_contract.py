@@ -15,7 +15,10 @@ from types import SimpleNamespace
 
 import pytest
 
-from app.research_web.runtime_contract import RuntimeContractError, load_runtime_contract
+from app.research_web.runtime_contract import (
+    RuntimeContractError,
+    load_runtime_contract,
+)
 
 EXPECTED = {
     "schema_version": 1,
@@ -27,9 +30,9 @@ EXPECTED = {
     },
     "dsh": {
         "remote": "https://github.com/Leon-Huang001208/deepseek-harness.git",
-        "commit": "c919b2a460753859665db3f60143d525fb9140cf",
+        "commit": "48504f07f217f9fd45a4f6d8fca4b1ed35c2d4b0",
         "pnpm": "11.7.0",
-        "closure_files": 11084,
+        "closure_files": 16097,
     },
 }
 
@@ -257,11 +260,13 @@ def test_windows_parent_handles_pin_and_close_on_every_exit(tmp_path, monkeypatc
         SimpleNamespace(CreateFile=create_file, CloseHandle=close_handle),
     )
     if failure != "none":
-        with pytest.raises(RuntimeContractError, match="^runtime_contract_io$") as caught:
-            with runtime_contract._pin_windows_parents(tmp_path / "contract.json"):
-                assert failure != "open", "must fail before yielding"
-                if failure == "body":
-                    raise OSError("sensitive Windows path")
+        with (
+            pytest.raises(RuntimeContractError, match="^runtime_contract_io$") as caught,
+            runtime_contract._pin_windows_parents(tmp_path / "contract.json"),
+        ):
+            assert failure != "open", "must fail before yielding"
+            if failure == "body":
+                raise OSError("sensitive Windows path")
         assert "sensitive Windows path" not in "".join(traceback.format_exception(caught.value))
     else:
         with runtime_contract._pin_windows_parents(tmp_path / "contract.json"):
@@ -276,9 +281,11 @@ def test_windows_missing_api_fails_closed_without_raw_chain(tmp_path, monkeypatc
     from app.research_web import runtime_contract
 
     monkeypatch.setitem(sys.modules, "_winapi", None)
-    with pytest.raises(RuntimeContractError, match="^runtime_contract_io$") as caught:
-        with runtime_contract._pin_windows_parents(tmp_path / "contract.json"):
-            pytest.fail("missing API must not permit a path-only fallback")
+    with (
+        pytest.raises(RuntimeContractError, match="^runtime_contract_io$") as caught,
+        runtime_contract._pin_windows_parents(tmp_path / "contract.json"),
+    ):
+        pytest.fail("missing API must not permit a path-only fallback")
     assert "ModuleNotFoundError" not in "".join(traceback.format_exception(caught.value))
 
 
@@ -374,9 +381,7 @@ def test_service_manager_import_stays_lightweight():
         [
             sys.executable,
             "-c",
-            "import sys; import app.research_web.service_manager; "
-            "assert 'app.research_web.launch_runtime' not in sys.modules; "
-            "assert 'app.research_web.capabilities.catalog' not in sys.modules",
+            "import sys; import app.research_web.service_manager; assert 'app.research_web.launch_runtime' not in sys.modules; assert 'app.research_web.capabilities.catalog' not in sys.modules",
         ],
         capture_output=True,
         text=True,
@@ -406,8 +411,7 @@ def test_built_wheel_contains_and_loads_the_machine_contract(tmp_path):
         [
             sys.executable,
             "-c",
-            "import sys; from hatchling.build import build_wheel; "
-            "print(build_wheel(sys.argv[1]))",
+            "import sys; from hatchling.build import build_wheel; print(build_wheel(sys.argv[1]))",
             str(tmp_path),
         ],
         cwd=project,
@@ -437,12 +441,7 @@ def test_built_wheel_contains_and_loads_the_machine_contract(tmp_path):
             "-I",
             "-S",
             "-c",
-            "import sys; sys.path.insert(0, sys.argv[1]); "
-            "from app.research_web import RUNTIME_CONTRACT; "
-            "from importlib.resources import files; "
-            "import json; "
-            "facts=json.loads(files('runtimes').joinpath('research_web.json').read_text()); "
-            "assert RUNTIME_CONTRACT.dsh_commit == facts['dsh']['commit']",
+            "import sys; sys.path.insert(0, sys.argv[1]); from app.research_web import RUNTIME_CONTRACT; from importlib.resources import files; import json; facts=json.loads(files('runtimes').joinpath('research_web.json').read_text()); assert RUNTIME_CONTRACT.dsh_commit == facts['dsh']['commit']",
             str(extracted),
         ],
         cwd=tmp_path,

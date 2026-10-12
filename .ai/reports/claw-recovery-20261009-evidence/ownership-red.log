@@ -1,0 +1,82 @@
+2026-10-09 01:00:33 [info     ] automation_created             automation_id_digest=fb40e902b713b6cd status=disabled
+F2026-10-09 01:00:33 [info     ] automation_created             automation_id_digest=842295b64b1ae197 status=disabled
+F                                                                       [100%]
+=================================== FAILURES ===================================
+________ test_report_recovery_rejects_unrelated_run_identity[changed0] _________
+
+tmp_path = PosixPath('/private/var/folders/rz/f7lsl4nn2bl0lpsfqyylp1jh0000gn/T/pytest-of-leon/pytest-1170/test_report_recovery_rejects_u0')
+changed = {'workflow_id': 'unrelated'}
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("changed", [{"workflow_id": "unrelated"}, {"version": 3}])
+    async def test_report_recovery_rejects_unrelated_run_identity(tmp_path, changed):
+        class Runtime:
+            def _run(self, run_id):
+                return {
+                    "id": run_id, "workflow_id": "company-research", "version": 2,
+                    "status": "completed", "session_id": None, "artifacts": [], **changed,
+                }
+    
+        store = Store(tmp_path)
+        service = AutomationService(
+            store, research=SimpleNamespace(report_workflows=SimpleNamespace(runtime=Runtime())),
+            scheduler=False, target_resolver=lambda *_args: {"version": 2, "sha256": "a" * 64},
+        )
+        automation = service.create(automation_body(target_kind="report_workflow"))
+        run = service._new_run(
+            automation["id"], trigger="manual", scheduled_for=None,
+            retry_of=None, status="running",
+        )
+        run["report_run_id"] = "referenced-report"
+        store.save()
+        await service.start()
+        await service.wait_for_idle()
+        recovered = service.list_runs()["items"][0]
+>       assert recovered["research_status"] == "interrupted"
+E       AssertionError: assert 'completed' == 'interrupted'
+E         
+E         - interrupted
+E         + completed
+
+tests/research_web/test_automation_service.py:622: AssertionError
+________ test_report_recovery_rejects_unrelated_run_identity[changed1] _________
+
+tmp_path = PosixPath('/private/var/folders/rz/f7lsl4nn2bl0lpsfqyylp1jh0000gn/T/pytest-of-leon/pytest-1170/test_report_recovery_rejects_u1')
+changed = {'version': 3}
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("changed", [{"workflow_id": "unrelated"}, {"version": 3}])
+    async def test_report_recovery_rejects_unrelated_run_identity(tmp_path, changed):
+        class Runtime:
+            def _run(self, run_id):
+                return {
+                    "id": run_id, "workflow_id": "company-research", "version": 2,
+                    "status": "completed", "session_id": None, "artifacts": [], **changed,
+                }
+    
+        store = Store(tmp_path)
+        service = AutomationService(
+            store, research=SimpleNamespace(report_workflows=SimpleNamespace(runtime=Runtime())),
+            scheduler=False, target_resolver=lambda *_args: {"version": 2, "sha256": "a" * 64},
+        )
+        automation = service.create(automation_body(target_kind="report_workflow"))
+        run = service._new_run(
+            automation["id"], trigger="manual", scheduled_for=None,
+            retry_of=None, status="running",
+        )
+        run["report_run_id"] = "referenced-report"
+        store.save()
+        await service.start()
+        await service.wait_for_idle()
+        recovered = service.list_runs()["items"][0]
+>       assert recovered["research_status"] == "interrupted"
+E       AssertionError: assert 'completed' == 'interrupted'
+E         
+E         - interrupted
+E         + completed
+
+tests/research_web/test_automation_service.py:622: AssertionError
+=========================== short test summary info ============================
+FAILED tests/research_web/test_automation_service.py::test_report_recovery_rejects_unrelated_run_identity[changed0]
+FAILED tests/research_web/test_automation_service.py::test_report_recovery_rejects_unrelated_run_identity[changed1]
+2 failed, 21 deselected in 0.57s

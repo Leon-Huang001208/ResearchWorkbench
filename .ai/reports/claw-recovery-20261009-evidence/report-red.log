@@ -1,0 +1,53 @@
+2026-10-09 00:52:51 [info     ] automation_created             automation_id_digest=e3ba308afc9ea6f0 status=disabled
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_________ test_report_recovery_keeps_report_validation_as_fact_source __________
+
+tmp_path = PosixPath('/private/var/folders/rz/f7lsl4nn2bl0lpsfqyylp1jh0000gn/T/pytest-of-leon/pytest-1165/test_report_recovery_keeps_rep0')
+
+    @pytest.mark.asyncio
+    async def test_report_recovery_keeps_report_validation_as_fact_source(tmp_path):
+        report_reads = []
+        session_reads = []
+        store = Store(tmp_path)
+    
+        class ReportRuntime:
+            def _run(self, report_id):
+                report_reads.append(report_id)
+                return {
+                    "id": report_id, "workflow_id": "company-research", "version": 2,
+                    "status": "completed", "session_id": "claw-report-session",
+                    "artifacts": [{"id": "validated-report", "name": "report.docx"}],
+                }
+    
+        class Research:
+            report_workflows = SimpleNamespace(runtime=ReportRuntime())
+    
+            async def detail(self, session_id):
+                session_reads.append(session_id)
+                return {"status": "completed", "files": [], "messages": []}
+    
+        service = AutomationService(
+            store, research=Research(), scheduler=False,
+            target_resolver=lambda *_args: {"version": 2, "sha256": "a" * 64},
+        )
+        automation = service.create(automation_body(target_kind="report_workflow"))
+        run = service._new_run(
+            automation["id"], trigger="manual", scheduled_for=None,
+            retry_of=None, status="running",
+        )
+        run.update(report_run_id="owned-report-run", session_id="claw-report-session")
+        store.save()
+        await service.start()
+        await service.wait_for_idle()
+        recovered = service.list_runs()["items"][0]
+>       assert report_reads == ["owned-report-run"]
+E       AssertionError: assert [] == ['owned-report-run']
+E         
+E         Right contains one more item: 'owned-report-run'
+E         Use -v to get more diff
+
+tests/research_web/test_automation_service.py:508: AssertionError
+=========================== short test summary info ============================
+FAILED tests/research_web/test_automation_service.py::test_report_recovery_keeps_report_validation_as_fact_source
+1 failed, 15 deselected in 0.22s

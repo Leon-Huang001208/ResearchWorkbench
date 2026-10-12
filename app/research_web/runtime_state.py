@@ -22,10 +22,82 @@ def _identity(value: os.stat_result) -> tuple[int, ...]:
     return value.st_dev, value.st_ino, value.st_mode, value.st_uid, value.st_gid
 
 
-def _validate_directory(
-    value: os.stat_result, *, leaf: bool, platform_name: str, legacy_native: bool = False
+def _log_rejection(
+    reason: str | None = None,
+    *,
+    phase: str = "enter",
+    leaf: bool = False,
+    changed: str = "none",
+    parent: bool = False,
+    ownership_transition: str | None = None,
 ) -> None:
+    try:
+        if reason is None:
+            log.warning("runtime_state_directory_rejected")
+        else:
+            message = "runtime_state_directory_rejected reason=%s phase=%s scope=%s changed=%s"
+            args: tuple[str, ...] = (reason, phase, "leaf" if leaf else "ancestor", changed)
+            if ownership_transition is not None:
+                message += " ownership_transition=%s position=%s"
+                position = "leaf" if leaf else "parent" if parent else "other_ancestor"
+                args += (ownership_transition, position)
+            log.warning(message, *args)
+    except Exception:  # noqa: BLE001 - A broken logger must not replace the security rejection.
+        # A failing diagnostic handler must never replace the security rejection.
+        return
+
+
+def _log_identity_change(
+    before: os.stat_result,
+    current: os.stat_result,
+    *,
+    phase: str,
+    leaf: bool,
+    parent: bool = False,
+) -> None:
+    changed = ",".join(
+        name
+        for name, old, new in zip(
+            ("dev", "ino", "mode", "uid", "gid"), _identity(before), _identity(current)
+        )
+        if old != new
+    )
+    transition = "other"
+    try:
+        runtime_pair = (os.getuid(), os.getgid())
+        before_pair = (before.st_uid, before.st_gid)
+        current_pair = (current.st_uid, current.st_gid)
+        if runtime_pair != (0, 0):
+            if before_pair == (0, 0) and current_pair == runtime_pair:
+                transition = "root_pair_to_runtime_pair"
+            elif before_pair == runtime_pair and current_pair == (0, 0):
+                transition = "reverse"
+    except Exception:  # noqa: BLE001 - Optional classification cannot interrupt rejection.
+        # Optional ownership classification must not interfere with rejection.
+        transition = "other"
+    _log_rejection(
+        "identity_changed",
+        phase=phase,
+        leaf=leaf,
+        changed=changed,
+        parent=parent,
+        ownership_transition=transition,
+    )
+
+
+def _validate_directory(
+    value: os.stat_result,
+    *,
+    leaf: bool,
+    platform_name: str,
+    legacy_native: bool = False,
+    phase: str = "enter",
+    scope_leaf: bool | None = None,
+) -> None:
+    scope_leaf = leaf if scope_leaf is None else scope_leaf
     if not stat.S_ISDIR(value.st_mode) or getattr(value, "st_file_attributes", 0) & 0x400:
+        reason = "invalid_type" if not stat.S_ISDIR(value.st_mode) else "reparse_point"
+        _log_rejection(reason, phase=phase, leaf=scope_leaf)
         raise RuntimeStateError("runtime_state_unsafe")
     if platform_name == "nt":
         return
@@ -40,6 +112,10 @@ def _validate_directory(
             bool(value.st_mode & 0o022) and not sticky_system
         )
     if unsafe:
+        unsafe_owner = value.st_uid != owner if leaf else value.st_uid not in {0, owner}
+        _log_rejection(
+            "unsafe_owner" if unsafe_owner else "unsafe_mode", phase=phase, leaf=scope_leaf
+        )
         raise RuntimeStateError("runtime_state_unsafe")
 
 
@@ -90,8 +166,11 @@ def runtime_state_directory(
                     and before.st_mode & 0o077
                 ):
                     # The immediate parent was already checked and pinned.
-                    _validate_directory(records[-1][2], leaf=True, platform_name=os.name)
+                    _validate_directory(
+                        records[-1][2], leaf=True, platform_name=os.name, scope_leaf=False
+                    )
                     if stat.S_IMODE(records[-1][2].st_mode) != 0o700:
+                        _log_rejection("unsafe_mode", phase="enter", leaf=False)
                         raise RuntimeStateError("runtime_state_unsafe")
                     legacy_native = True
                 _validate_directory(
@@ -111,14 +190,30 @@ def runtime_state_directory(
                         name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=parent
                     )
                     stack.callback(os.close, descriptor)
-                    if _identity(os.fstat(descriptor)) != _identity(before):
+                    opened = os.fstat(descriptor)
+                    if _identity(opened) != _identity(before):
+                        _log_identity_change(
+                            before,
+                            opened,
+                            phase="open_fd",
+                            leaf=component == path,
+                            parent=component == path.parent,
+                        )
                         raise RuntimeStateError("runtime_state_unsafe")
-                if _identity(component.lstat()) != _identity(before):
+                named = component.lstat()
+                if _identity(named) != _identity(before):
+                    _log_identity_change(
+                        before,
+                        named,
+                        phase="enter",
+                        leaf=component == path,
+                        parent=component == path.parent,
+                    )
                     raise RuntimeStateError("runtime_state_unsafe")
                 records.append((component, descriptor, before))
                 parent = descriptor
 
-            def verify() -> None:
+            def verify(phase: str) -> None:
                 for component, descriptor, before in records:
                     current = component.lstat()
                     _validate_directory(
@@ -126,28 +221,45 @@ def runtime_state_directory(
                         leaf=component == path or (legacy_native and component == native),
                         platform_name=os.name,
                         legacy_native=legacy_native and component == path,
+                        phase=phase,
+                        scope_leaf=component == path,
                     )
-                    if _identity(current) != _identity(before) or (
-                        descriptor is not None
-                        and _identity(os.fstat(descriptor)) != _identity(before)
-                    ):
+                    if _identity(current) != _identity(before):
+                        _log_identity_change(
+                            before,
+                            current,
+                            phase=phase,
+                            leaf=component == path,
+                            parent=component == path.parent,
+                        )
                         raise RuntimeStateError("runtime_state_unsafe")
+                    if descriptor is not None:
+                        opened = os.fstat(descriptor)
+                        if _identity(opened) != _identity(before):
+                            _log_identity_change(
+                                before,
+                                opened,
+                                phase=phase,
+                                leaf=component == path,
+                                parent=component == path.parent,
+                            )
+                            raise RuntimeStateError("runtime_state_unsafe")
 
-            verify()
+            verify("pre_yield")
             try:
                 yield path
             except BaseException as exc:
                 body_error = exc
                 raise
             finally:
-                verify()
+                verify("post_yield")
     except FileNotFoundError as exc:
         if missing_is_expected or exc is body_error:
             raise
-        log.warning("runtime_state_directory_rejected")
+        _log_rejection()
         raise RuntimeStateError("runtime_state_unsafe") from exc
     except (OSError, ValueError, RuntimeError, ImportError, AttributeError) as exc:
         if exc is body_error:
             raise
-        log.warning("runtime_state_directory_rejected")
+        _log_rejection()
         raise RuntimeStateError("runtime_state_unsafe") from exc

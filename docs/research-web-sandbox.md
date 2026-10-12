@@ -7,6 +7,8 @@
 1. 独立 DSH 实例使用独立 `DSH_HOME`、专用端口和干净启动环境；不要继承模型密钥或数据库环境变量。模型凭据由该实例 Web 表单另行配置。
 2. 在 DSH host 根作用域安装单调的 `ctx.tools.guard` 白名单。只启用经过审核的 `research_run_script` 及必要的原生子 Agent/消息工具；不得挂载裸 `fs-local`、shell、文件读写、搜索或其他宿主执行工具。仅仅隐藏工具描述或使用 `restrict` 不是安全边界。
 3. 将 `app/research_web/runtime/research-tools.mjs` 作为原生 Cordis 插件注册到所需 agent preset。插件 `inject = ['tools', 'sessions']`，调用 `ctx.tools.register`；无额外 DSH 包导入或 MCP 进程。
+   生产 supervisor 使用已导入的 child_process.spawn，不读取未声明的 ctx.spawnProcess 服务。
+   测试替身只从 ctx 自有 data descriptor.value 取函数；accessor/继承属性不作为覆盖，不触发 getter。
 4. 插件配置由服务控制，不允许模型参数覆盖：
 
    ```yaml
@@ -92,3 +94,7 @@ node --check app/research_web/runtime/research-tools.mjs
 ```
 
 这些测试证明列出的本机行为，不代替全局 guard 集成审核或真实 DSH 模型工具调用验收。默认先用禁工具聊天确认专用实例和凭据；只有白名单及当前构建边界验证完成后，才能开启此工具。
+
+## 中文与空格路径
+
+Seatbelt 的受控路径 literal/subpath 保留 UTF-8，继续以 JSON 转义引号和反斜杠。SBPL 不按 JSON 解码 `\u` 序列，默认 ASCII 转义会让中文会话目录的已声明读写权限无法匹配。编码修正不增加允许根、执行文件或网络、fork、Mach 权限；原生内核回归覆盖中文、空格、引号目录，验证会话输入可读、输出可写且越界文件仍被拒绝。

@@ -418,6 +418,34 @@ def signature_matches_argv(signature: tuple[str, ...], argv: tuple[str, ...] | N
     return False
 
 
+def listener_argv_is_foreign(
+    argv: tuple[str, ...] | None, *, data_root: Path, project_root: Path, fresh_root: bool = False
+) -> bool:
+    """A different checkout is not positive proof of a different research root.
+
+    Web can receive its root via environment and DSH through its configuration;
+    this predicate never reads either process environment or configuration.
+    A caller's exact, newly-created root proof applies only before first spawn.
+    """
+    if not argv or any(str(data_root) in argument for argument in argv):
+        return False
+    if fresh_root:
+        return True
+    if any(str(project_root) in argument for argument in argv):
+        return False
+    markers = (
+        "app.research_web.main",
+        "app.research_web.launch_runtime",
+        "research_workbench_entrypoint.web_launch",
+        "app/research_web/main.py",
+        "app/research_web/launch_runtime.py",
+        "research_workbench_entrypoint/web_launch.py",
+        "apps/cli/lib/bin.js",
+        "apps/cli/src/bin.ts",
+    )
+    return not any(marker in argument.replace("\\", "/") for argument in argv for marker in markers)
+
+
 def _read_linux_argv(
     pid: int,
     *,

@@ -178,6 +178,7 @@ def test_offline_seed_catalog_tools_and_workflows_without_session(api, monkeypat
     tools = client.get("/api/research/tools").json()["items"]
     assert {t["id"] for t in tools if t["selectable"]} == {
         "research_run_script",
+        "research_document_operation",
         "datahub_get_fund_data",
         "datahub_search_news",
         "datahub_search_assets",
@@ -187,7 +188,9 @@ def test_offline_seed_catalog_tools_and_workflows_without_session(api, monkeypat
         "datahub_get_market_activity",
         "web_search",
     }
-    assert len(tools) == 30
+    assert len(tools) == 31
+    document_tool = next(tool for tool in tools if tool["id"] == "research_document_operation")
+    assert document_tool["read_only"] is False
     workflow_tools = {t["id"] for t in tools if t.get("execution_surface") == "workflow_backend"}
     assert workflow_tools == {
         "report_workbook_refresh",
@@ -217,6 +220,27 @@ def test_offline_seed_catalog_tools_and_workflows_without_session(api, monkeypat
 def test_specialist_seed_metadata_boundaries_and_existing_contracts(api):
     client, _, _ = api
     rows = {row["id"]: row for row in client.get("/api/research/capabilities").json()["items"]}
+    expected_scopes = {
+        "industry-research": [
+            {"capability": "search_news", "dataset": "telegram"},
+            {
+                "capability": "financials",
+                "dataset": "financials",
+                "required": False,
+                "currency": "CNY",
+                "omit_sections": ["专业财务量化章节"],
+            },
+        ],
+        "fund-evaluation": [
+            {
+                "capability": "fund_data",
+                "dataset": "fund_nav",
+                "frequency": "daily",
+                "adjustment": "none",
+                "units": {"unit_nav": "currency/share"},
+            }
+        ],
+    }
     existing = {
         "document-reading": (
             "资料解读",
@@ -280,6 +304,7 @@ def test_specialist_seed_metadata_boundaries_and_existing_contracts(api):
             "required_tools": tools,
             "dependencies": [],
             "method_policy": {"required": [], "recommended": [], "excluded": []},
+            "data_requirements": expected_scopes.get(slug, []),
         }
 
     workflows = {

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -232,13 +233,32 @@ class MySQLConnectionStore:
 
     def __init__(self, root: Path, *, keyring_backend=None, env_path: Path | None = None):
         self.root = Path(root)
+        # Only the public canonical instance path is hashed, never a secret.
+        try:
+            namespace = hashlib.sha256(os.fsencode(self.root.resolve())).hexdigest()
+        except (OSError, RuntimeError) as exc:
+            log.warning("datahub_credential_namespace_unavailable", error_type=type(exc).__name__)
+            raise CredentialStoreError("credential_namespace_unavailable") from exc
+        self.credential_service = f"{MYSQL_SERVICE}.{namespace}"
         self.directory = self.root / "connections"
         self.path = self.directory / "mysql.json"
         self.env_path = Path(env_path) if env_path is not None else self.root / ".env"
-        self.keyring = (
-            default_credential_backend() if keyring_backend is None else keyring_backend
-        )
+        self.keyring = default_credential_backend() if keyring_backend is None else keyring_backend
         self._lock = RLock()
+
+    def configuration_revision(self, source_id: str) -> list[int] | None:
+        """Non-secret profile identity; never hash a credential."""
+        source = canonical_source_id(source_id)
+        if source not in SUPPORTED_CONFIGURATION_SOURCES:
+            return None
+        try:
+            info = self._path(source).lstat()
+            return [info.st_dev, info.st_ino, info.st_mtime_ns, info.st_size]
+        except FileNotFoundError:
+            return None
+        except OSError as exc:
+            log.warning("datahub_configuration_revision_unavailable", error_type=type(exc).__name__)
+            raise CredentialStoreError("credential_store_unavailable") from exc
 
     def _path(self, source_id: str) -> Path:
         source = canonical_source_id(source_id)
@@ -284,15 +304,15 @@ class MySQLConnectionStore:
 
     def _secret(self, account: str = MYSQL_ACCOUNT) -> str | None:
         try:
-            return self.keyring.get_password(MYSQL_SERVICE, account)
+            return self.keyring.get_password(self.credential_service, account)
         except Exception as exc:
             log.warning("datahub_credential_store_unavailable", error_type=type(exc).__name__)
             raise CredentialStoreError("credential_store_unavailable") from exc
 
     def _set_secret_account(self, account: str, secret: str) -> None:
         try:
-            self.keyring.set_password(MYSQL_SERVICE, account, secret)
-            if self.keyring.get_password(MYSQL_SERVICE, account) != secret:
+            self.keyring.set_password(self.credential_service, account, secret)
+            if self.keyring.get_password(self.credential_service, account) != secret:
                 raise RuntimeError("credential readback mismatch")
         except Exception as exc:
             log.warning("datahub_credential_write_failed", error_type=type(exc).__name__)
@@ -300,8 +320,8 @@ class MySQLConnectionStore:
 
     def _delete_secret_account(self, account: str) -> None:
         try:
-            self.keyring.delete_password(MYSQL_SERVICE, account)
-            if self.keyring.get_password(MYSQL_SERVICE, account):
+            self.keyring.delete_password(self.credential_service, account)
+            if self.keyring.get_password(self.credential_service, account):
                 raise RuntimeError("credential delete readback mismatch")
         except Exception as exc:
             log.warning("datahub_credential_delete_failed", error_type=type(exc).__name__)

@@ -6,11 +6,39 @@ PUT configuration及POST lifecycle/channels/configure/events/correct/sources/con
 受控投影合同，未知字段拒绝。版本/参数冲突409、未授权403、格式400、过大413、服务故障503。
 Host桥有界，业务写入未知时返回原UUID；声明来自实际源码清单，不能推导研究交接已实现。
 
+DSH 0.2.1 升级保持公开 HTTP 合同。内部 `subagent.list` 适配已移除的上游方法：读取权威父会话 `subagentCatalog` 投影，并与实时 `session/list` 的子会话归属、模式和 running 状态交叉核对；输出映射为既有 `kind=child` 与 `activity=running/inactive`，供详情、归属、取消及空闲保护共同消费；缺失或未知状态返回协议失败，不用空列表解除活动保护。空实例默认 `deepseek-flash`，已保存旧模型值继续保留。保存、应用、真实推理仍分别返回事实，不因默认值更新自动调用模型。
+
+Automation 本轮没有新增 HTTP 路由、请求字段或响应 schema。现有运行记录在执行中可返回已保存原生关联；failure_code 可报告 automation_reference_invalid、automation_reference_conflict、automation_reference_persistence_failed 或 native_submission_unconfirmed。关联错误不触发自动研究重试，报告成功仍取原报告校验/产物事实。
+
+macOS 异根私有 Native pair 认证只修复公开 CLI 的后续生命周期准入：已有根的完整不同根
+pair 可继续 start/force restart，未知/变化/同根写者仍返回 `runtime_ownership_unknown`。
+桥内 hint 不序列化到 CLI/HTTP 响应，不新增参数、配置开关、HTTP 路由或字段；force 不绕过
+重检，安装未就绪的首次 Native 切换仍在停止健康 Docker 前拒绝。
+
+内部端口 TypedDict 与显式默认值整理不改变公开参数、返回字段或错误类型；
+省略 Web/Runtime 端口仍沿原选择合同，控制与回滚错误码保持。
+
 1A收口：`ModelConfig.api_key`拒绝明显掩码、redacted/hidden占位及空白，错误响应仍固定invalid_request且不回显输入。普通新消息在受理收据/Native prompt之前检查凭据，configured严格为true才继续；缺失为model_credentials_missing，未确认形状为model_credential_state_unavailable。Runtime credential_storage来自受控source映射，未知不猜测为Keychain。
 
 模型页新增 `POST /api/research/runtime/model/test`：用户显式最小生成，通过现有 DSH 会话与最终事件验收，返回 `status`、`selection`、`checked_at`、可选 `session_id/code`；不返回密钥或推理正文。`PUT /runtime/model` 增加互斥的 `clear_api_key`，返回 `configured/applied_to/inference_verified`，保存不代表推理通过。Runtime GET 分开展示已保存、新会话应用、凭据配置、后端类型、提交结果未知及最近测试。
 
 macOS Native 模型 bridge 失败时，Runtime GET 保留成功的 Host `connected/health_check_passed`，仅将 `credential_configured` 设为 null、`credential_storage` 设为 unknown、`credential_code` 设为稳定 `model_credential_backend_unavailable`。不回显 Keychain 异常、不把未知当作可用；保存/请求仍沿既有失败关闭与 uncertain 处理。
+
+公开 Native installer auto-start 在同次持锁创建根后完成安装门并启动，不新增 CLI 参数
+或 HTTP 字段。check-only/Docker/no-start 不重执行 Native auto-start；已有根未知写者仍拒绝。
+
+公开启动入口在运行账本缺失且监听归属未知时返回 `runtime_ownership_unknown`；Docker
+origin commit 失败进入与健康失败相同的归属核验和恢复顺序。
+
+缺运行账本/端点时，显式 --web-port/--runtime-port 也须核验旧默认端口写者；其他 checkout
+的 Web/DSH 数据根未知时仍返回 runtime_ownership_unknown，不把换端口作为新的写者权限。
+
+本次启动原错误（例如 web_health_timeout）在失败恢复未获证明时仍为主错误；附加诊断进入
+受控日志/异常 recovery_issues，不把恢复失败伪装为新的可重试 bind 错误或新增 HTTP 字段。
+
+内部控制 JSON/URL parser 提取与独立端点/origin helper 不增加 HTTP 路由或响应字段；
+DataHub/MCP 原 reader 错误与权限合同保持。公开启动路径现消费端点/origin事务；CLI新增
+`--web-port` 和 Native-only `--runtime-port`，HTTP路由、研究协议、业务响应字段不因此增加。
 
 Native/Docker 模式选择、Docker 镜像接受摘要与健康等待均在公开 CLI/安装边界；本轮不增加
 HTTP 路由或响应字段。Native `rwb web status --json` 是稳定的安全状态投影，不返回日志路径；
@@ -127,7 +155,9 @@ MCP staging、安装 payload、清单与确认令牌目录的 Windows mode 修�
 | POST | `/api/research/sessions/{sid}/questions/{qid}` | `app/research_web/main.py` |
 | POST | `/api/research/sessions/{sid}/upgrade` | `app/research_web/main.py` |
 | GET | `/api/research/sessions/{sid}/events` | `app/research_web/main.py` |
-| POST | `/api/research/sessions/{sid}/uploads` | `app/research_web/main.py` |
+| POST | `/api/research/sessions/{sid}/uploads` | `app/research_web/main.py`；Office附件含docx/xlsx/pptx，保留原会话归属与30MB限制，上传不执行Office |
+| POST | `/api/research/sessions/{session_id}/document-operations` | `app/research_web/report_routes.py`；显式format/operation/mode，输入file_id、修改expected_sha256，文件执行复用报告sandbox；原生业务尚未接通时返回unavailable，禁止静默回退 |
+| POST | `/api/research/internal/data/document-operation` | `app/research_web/report_routes.py`；Runtime有限文档工具，沿既有实例私有鉴权，可信会话绑定，不接收宿主路径 |
 | GET | `/api/research/sessions/{sid}/files` | `app/research_web/main.py` |
 | GET | `/api/research/sessions/{sid}/files/{fid}/{action}` | `app/research_web/main.py` |
 | GET | `/api/research/skills` | `app/research_web/main.py` |
@@ -291,4 +321,50 @@ API 或 Automation 契约。
 本轮未新增或修改 HTTP 路由、请求/响应字段或错误码。变化仅在 `rwb web stop` 的 Windows 受管进程
 实现：非强制终止失败后允许进入既有强制升级；归属不明或强制失败仍返回 CLI 错误。
 
+## 设置闭环阶段3：当前能力范围
+
+新增内部POST /api/research/internal/data/skill-preflight，复用X-Research-Data-Key、专属Runtime及所属会话边界，body仅含session_id、可选native_name/tool_name和确认加载标记loaded；响应仅为范围，不返回凭据。capabilities列表/详情附readiness；会话详情与受理回执附capability_readiness。预检只读，确认加载才记录固定版本。
+
+
+## 单一兼容模型连接请求合同（1B实施中）
+
+ModelConfig 对原 deepseek-official 固定端点保持限制。新增的 openai-compatible 请求合同只识别 openai-completions、显式 base_url/model 和 credential_mode；URL 拒绝 userinfo、query、fragment、非HTTP协议及控制字符。HTTP和无Key模式仅接受本机loopback，无Key模式拒绝任何Key输入/清除请求，有Key模式留空表示保留。
+
+这是请求验证，不证明Runtime已安装适配器或能推理。服务和页面现已接通单一兼容连接；固定DSH扩展与独立系统ref已完成合成合同；页面/API保存与合成冷重启恢复已验证，还须真实新增模型和当前代码CI后才完整验收，禁止只宽松Provider字符串求成功。
+
+
+内部GET model-connection复用现有实例私有DataHub鉴权，只返回五项已验证非秘密连接事实及可选公共revision；拒绝凭据字段和含认证信息URL，未知事务拒绝投影，绝不返回秘密。元数据查询不持有 mutation lock，避免本机模型查找回调死锁。适配器对连接/系统ref读取前后比对公共配置版本，并在真正发送前重检，配置变更不会把新Key发送到旧地址。
+
+
+兼容连接PUT沿原串行事务和活动父/子任务门，专用系统ref及uncertain/cleared状态独立于官方服务。任意配置/凭据保存或清除更新公共revision；换地址不继承旧Key，旧会话绑定地址/协议/认证方式，变化后下一提交拒绝改投。无Key模式credential_required=false、credential_configured=null、storage=not_required，不冒充已存Key或已生成。Runtime应用还绑定当前connection revision与Runtime实例。
+
 Doctor 的 capability 字段表示安全实现边界，validated=false 不替代平台回执；缺安全读取 primitive 的架构路由返回 501 documentation_platform_unsupported，不开放其他文件路径。
+
+## 本机状态及Office自动验证
+
+GET `/api/research/local-integrations`附带`integration_status`，其中`scope=local`、`generated_at`、`local_revision`与本次明细同快照；GET或POST发现probe不触发真实操作。协调器新增unverified/stale/not_detected/not_applicable分类，Excel桥保留事实但不重复计数。现有auto-probe-consent接口仅扩展`local:excel_app`、`local:word_app`、`local:powerpoint_app`，写入仍要求精确同源与用户动作头。Office开启请求在既有批次消费，厂商不包含在内；API与证据期限细节见[协调器](09-integration-coordinator.md)。
+
+## 资讯雷达只读 API
+
+全部路径前缀为 `/api/research/intel`，仅支持 GET，返回解包后的上游 `data` 对象或列表：
+
+| 本地路径 | 上游路径 | 参数 |
+| --- | --- | --- |
+| `/overview` | `/intelligence` | impact=all/medium_high/high，view 固定 compact |
+| `/story-focus`、`/breakfast-focus` | `/intelligence/story-focus`、`/intelligence/breakfast-focus` | 无 |
+| `/events/{event_id}` | `/intelligence/events/{event_id}` | ID 为 1–160 位字母数字下划线/连字符 |
+| `/reports` | `/report-records` | limit 1–50，默认 20；offset 0–100000 |
+| `/reports/{report_id}` | `/report-records/{report_id}` | 同上 ID 校验 |
+| `/radar` | `/radar` | 无 |
+| `/wsc` | `/wsc/live` | cursor 最多 256 字符 |
+| `/social` | `/social/accounts` | 无 |
+| `/news`、`/announcements` | `/news`、`/announcements` | code 必须为六位数字 |
+
+参数不合法返回 422；上游内容不存在返回 404；连接、状态、格式异常返回 502；超时返回 504。错误响应 `detail` 包含固定 `code/message`，不暴露上游正文。无任意 URL、POST、模型调用或采集触发入口。事件概率不提供数据接口。
+
+
+## 研究情报统一入口 · 2026-10-12
+
+主导航统一为“研究情报”，本地热点与事件在 `#/intel/hot`，现有外部8栏目仍在 `#/intel/*`。旧 `#/workbench/hot` 链接保留视图/事件参数后转入本地页。两类页面共用栏目导航、主题与Host；本地版本证据和Golddata外部只读数据保持身份与覆盖来源区分，外部读取不写Hot、领取任务或调用模型。Hot未启用时，外部栏目与设置继续可用。
+
+恢复的DOCX切片通过 `GET /api/research/hot/briefs/{brief_id}/docx?version=<固定版本>` 从签名/哈希核对的冻结输入生成并保留私有产物，复用报告DOCX生成器；导出不创建会话、不调用模型、不外发。该路径尚需完整产品/恢复验收，局部测试不代表研究闭环完成。

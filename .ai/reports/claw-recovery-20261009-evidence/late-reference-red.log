@@ -1,0 +1,40 @@
+2026-10-09 01:20:30 [info     ] automation_created             automation_id_digest=5acf553fc7590706 status=disabled
+2026-10-09 01:20:30 [info     ] automation_native_reference_saved run_id_digest=406ab5ed05d71111
+F                                                                        [100%]
+=================================== FAILURES ===================================
+________ test_report_session_discovered_during_monitor_is_checkpointed _________
+
+tmp_path = PosixPath('/private/var/folders/rz/f7lsl4nn2bl0lpsfqyylp1jh0000gn/T/pytest-of-leon/pytest-1186/test_report_session_discovered0')
+
+    @pytest.mark.asyncio
+    async def test_report_session_discovered_during_monitor_is_checkpointed(tmp_path):
+        observed = asyncio.Event()
+        blocked = asyncio.Event()
+    
+        class Runtime:
+            async def start_run(self, *_args, **_kwargs):
+                return {"id": "report-late-session", "session_id": None}
+    
+            def _run(self, run_id):
+                observed.set()
+                return {"id": run_id, "workflow_id": "company-research", "version": 2,
+                        "status": "running", "session_id": "discovered-claw-session"}
+    
+        service = AutomationService(
+            Store(tmp_path), scheduler=False, sleep=lambda _delay: blocked.wait(),
+            research=SimpleNamespace(report_workflows=SimpleNamespace(runtime=Runtime())),
+            target_resolver=lambda *_args: {"version": 2, "sha256": "a" * 64},
+        )
+        automation = service.create(automation_body(target_kind="report_workflow"))
+        run = await service.run(automation["id"])
+        try:
+            await asyncio.wait_for(observed.wait(), 2)
+            disk = Store(tmp_path).data["automation_runs"][run["id"]]
+            assert disk["report_run_id"] == "report-late-session"
+>           assert disk["session_id"] == "discovered-claw-session"
+E           AssertionError: assert None == 'discovered-claw-session'
+
+tests/research_web/test_automation_service.py:729: AssertionError
+=========================== short test summary info ============================
+FAILED tests/research_web/test_automation_service.py::test_report_session_discovered_during_monitor_is_checkpointed
+1 failed, 31 deselected in 0.41s

@@ -49,9 +49,8 @@ test('current-product entry explains both Web runtimes without changing the Nati
     assert.match(text, /--stop-current/);
     const dockerPrerequisite = text.match(/^- Docker[^\n]*/m)?.[0];
     assert.ok(dockerPrerequisite, 'Docker prerequisite must be explicit');
-    assert.match(dockerPrerequisite, /宿主 Python 3\.12/);
-    assert.match(dockerPrerequisite, /无需宿主 Node|不要求宿主 Node/);
-    assert.match(dockerPrerequisite, /无需全局第三方 Python 包|不要求全局第三方 Python 包/);
+    assert.match(dockerPrerequisite, /Docker Desktop/);
+    assert.match(dockerPrerequisite, /无需宿主 Python\/Node/);
     assert.doesNotMatch(text, /宿主不需全局 Python\/Node 包/);
     const blocks = [...text.matchAll(/```(?:bash|bat)\n([^]*?)```/g)].map(match => match[1]);
     for (const extension of ['sh', 'cmd']) {

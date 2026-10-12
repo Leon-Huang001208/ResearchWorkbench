@@ -565,3 +565,233 @@ def test_selected_artifact_must_still_belong_to_current_safe_inventory(api, chan
     )
     assert response.status_code == 409 and response.json()["error"]["code"] == "artifact_not_output"
     assert service.store.session(sid)["files"][fid] == "outputs/SKILL.md"
+
+
+def test_declared_hard_data_dependency_blocks_before_native_prompt(api, monkeypatch):
+    client, native, service = api
+    value = candidate()
+    value["metadata"]["required_tools"].append("datahub_get_fund_data")
+    value["metadata"]["data_requirements"] = [{"capability": "fund_data", "dataset": "fund_nav"}]
+    cid = create(client, value)["id"]
+    assert client.post(f"/api/research/capabilities/{cid}/publish").status_code == 200
+    discovery(native, service)
+    sid = client.post("/api/research/sessions", json={}).json()["id"]
+    monkeypatch.setattr(service.datahub, "catalog", lambda: {"sources": [], "bindings": []})
+    response = client.post(
+        f"/api/research/sessions/{sid}/messages",
+        json={"text": "开展声明范围内研究", "capability_id": cid, "expected_formats": []},
+        headers={"Idempotency-Key": "data-hard-block-before-inference"},
+    )
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "capability_data_unavailable"
+    assert not any(method == "session.prompt" for method, _ in native.calls)
+    assert f"{sid}:data-hard-block-before-inference" not in service.store.data["receipts"]
+
+
+def test_declared_optional_data_scope_is_saved_and_unknown_model_tools_block(api, monkeypatch):
+    client, native, service = api
+    value = candidate()
+    value["metadata"]["data_requirements"] = [
+        {
+            "capability": "financials",
+            "required": False,
+            "dataset": "financials",
+            "omit_sections": ["专业财务量化章节"],
+        }
+    ]
+    cid = create(client, value)["id"]
+    assert client.post(f"/api/research/capabilities/{cid}/publish").status_code == 200
+    discovery(native, service)
+    sid = client.post("/api/research/sessions", json={}).json()["id"]
+    monkeypatch.setattr(service.datahub, "catalog", lambda: {"sources": [], "bindings": []})
+    response = client.post(
+        f"/api/research/sessions/{sid}/messages",
+        json={"text": "只做允许的有限研究", "capability_id": cid, "expected_formats": []},
+        headers={"Idempotency-Key": "data-optional-limited"},
+    )
+    assert response.status_code == 202, response.text
+    scope = service.store.receipt(sid, "data-optional-limited")["capability_readiness"]
+    assert scope["status"] == "limited"
+    assert scope["omitted_sections"] == ["专业财务量化章节"]
+    service.default_model = {"provider": "deepseek-official", "model": "fixture-text-only"}
+    other = client.post("/api/research/sessions", json={}).json()["id"]
+    rejected = client.post(
+        f"/api/research/sessions/{other}/messages",
+        json={"text": "需要工具的任务", "capability_id": cid, "expected_formats": []},
+        headers={"Idempotency-Key": "unknown-model-tool-capability"},
+    )
+    assert rejected.status_code == 409
+    assert rejected.json()["error"]["code"] == "model_tool_capability_unverified"
+
+
+def _wind_scope_catalog(health="healthy"):
+    return {
+        "sources": [
+            {
+                "id": "wind",
+                "readiness": {
+                    "integration_completed": True,
+                    "configured": True,
+                    "dependency_ready": True,
+                    "allowed": True,
+                    "callable": True,
+                    "health": health,
+                },
+            }
+        ],
+        "bindings": [
+            {
+                "capability_id": "market_bars",
+                "source_id": "wind",
+                "datasets": ["daily_quotes"],
+                "implemented": True,
+                "semantics": {
+                    "daily_quotes": {
+                        "frequencies": ["daily"],
+                        "adjustments": ["none", "qfq"],
+                        "query_defaults": {"frequency": "daily", "adjustment": "none"},
+                    }
+                },
+            }
+        ],
+    }
+
+
+def test_query_checks_actual_adjustment_and_cannot_execute_missing_optional_scope(api, monkeypatch):
+    from types import SimpleNamespace
+
+    from app.research_web.datahub import BusinessQuery
+
+    client, _native, service = api
+    value = candidate()
+    value["metadata"]["data_requirements"] = [
+        {
+            "capability": "market_bars",
+            "dataset": "daily_quotes",
+            "frequency": "daily",
+            "adjustment": "none",
+            "required": False,
+            "omit_sections": ["专业量化章节"],
+        }
+    ]
+    cid = create(client, value)["id"]
+    client.post(f"/api/research/capabilities/{cid}/publish")
+    sid = client.post("/api/research/sessions", json={}).json()["id"]
+    service.store.reserve(sid, "scope-callback", "a" * 64, {"status": "running"})
+    service.store.receipt(sid, "scope-callback")["capability"] = service.capabilities.selection(cid)
+    current = _wind_scope_catalog()
+    monkeypatch.setattr(service.datahub, "catalog", lambda: current)
+    query = BusinessQuery(
+        capability="market_bars",
+        source="wind",
+        parameters={
+            "asset": "600519.SH",
+            "start_date": "2025-01-01",
+            "end_date": "2025-01-03",
+            "frequency": "daily",
+            "adjustment": "qfq",
+        },
+    )
+    with pytest.raises(CapabilityError, match="口径不等价"):
+        service._data_query_admission(sid, query, SimpleNamespace(provider_id="wind", query=query))
+    current["sources"][0]["readiness"]["health"] = "untested"
+    none = query.model_copy(update={"parameters": {**query.parameters, "adjustment": "none"}})
+    with pytest.raises(CapabilityError, match="可用范围"):
+        service._data_query_admission(sid, none, SimpleNamespace(provider_id="wind", query=none))
+
+
+def test_workflow_bound_skill_blocks_undeclared_data_and_web_bypass(api, monkeypatch):
+    from types import SimpleNamespace
+
+    from app.research_web.datahub import BusinessQuery
+
+    client, _native, service = api
+    child = candidate(name="声明日线", slug="declared-daily-child")
+    child["metadata"]["data_requirements"] = [
+        {"capability": "market_bars", "dataset": "daily_quotes", "frequency": "daily"}
+    ]
+    cid = create(client, child)["id"]
+    client.post(f"/api/research/capabilities/{cid}/publish")
+    workflow = candidate(name="日线绑定流程", slug="declared-daily-workflow")
+    workflow.update(
+        kind="workflow",
+        instructions="",
+        files=[],
+        steps=[{"title": "日线分析", "instruction": "只执行声明范围", "skill_id": cid}],
+    )
+    wid = create(client, workflow)["id"]
+    client.post(f"/api/research/capabilities/{wid}/publish")
+    sid = client.post("/api/research/sessions", json={}).json()["id"]
+    service.store.reserve(sid, "scope-workflow", "b" * 64, {"status": "running"})
+    service.store.receipt(sid, "scope-workflow")["capability"] = service.capabilities.selection(wid)
+    monkeypatch.setattr(service.datahub, "catalog", _wind_scope_catalog)
+    assert service.native_admission(sid, tool_name="web_search")["admitted"] is False
+    query = BusinessQuery(capability="search_news", source="cls", parameters={})
+    with pytest.raises(CapabilityError, match="可用范围"):
+        service._data_query_admission(sid, query, SimpleNamespace(provider_id="cls", query=query))
+
+
+def test_native_preflight_does_not_register_until_confirmed_loading(api):
+    client, _native, service = api
+    cid = create(client)["id"]
+    client.post(f"/api/research/capabilities/{cid}/publish")
+    sid = client.post("/api/research/sessions", json={}).json()["id"]
+    service.store.reserve(sid, "native-confirmed-load", "c" * 64, {"status": "running"})
+    native_name = service.capabilities.selection(cid)["native_name"]
+    headers = {"X-Research-Data-Key": service.datahub.control["token"]}
+    body = {"session_id": sid, "native_name": native_name, "tool_name": "skill"}
+    path = "/api/research/internal/data/skill-preflight"
+    assert client.post(path, json=body).status_code == 403
+    assert client.post(path, json=body, headers=headers).json()["admitted"] is True
+    receipt = service.store.receipt(sid, "native-confirmed-load")
+    assert "native_capabilities" not in receipt
+    assert (
+        client.post(path, json={**body, "loaded": True}, headers=headers).json()["admitted"] is True
+    )
+    assert [ref["id"] for ref in receipt["native_capabilities"]] == [cid]
+
+
+def test_plain_model_step_does_not_require_verified_model_tools(api):
+    client, _native, service = api
+    service.default_model = {"provider": "deepseek-official", "model": "new-model"}
+    sid = client.post("/api/research/sessions", json={}).json()["id"]
+    assert service.native_admission(sid, tool_name="agent_step")["admitted"] is True
+    assert service.native_admission(sid, tool_name="research_run_script")["admitted"] is False
+
+
+@pytest.mark.parametrize("change", ["metadata", "files"])
+def test_data_builtin_migration_preserves_any_published_customization(api, monkeypatch, change):
+    from app.research_web.capabilities import catalog as catalog_module
+    from app.research_web.capabilities.seeds import seed_packages
+
+    _client, _native, service = api
+    row = service.capabilities.row("fund-evaluation")
+    active = row["versions"][str(row["version"])]
+    active["metadata"].pop("data_requirements")
+    expected = hashlib.sha256(
+        json.dumps(
+            service.capabilities._draft(active),
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=True,
+        ).encode()
+    ).hexdigest()
+    monkeypatch.setattr(catalog_module, "LEGACY_DATA_SCOPE_DRAFTS", {"fund-evaluation": expected})
+    if change == "metadata":
+        active["metadata"]["description"] = "已发布的用户自定义描述"
+    else:
+        active["files"].append(
+            {
+                "path": "user.txt",
+                "base64": "dXNlcg==",
+                "size": 4,
+                "sha256": hashlib.sha256(b"user").hexdigest(),
+            }
+        )
+    version = row["version"]
+    service.capabilities._migrate_data_scope_builtins(dict(seed_packages()))
+    assert row["version"] == version
+    if change == "metadata":
+        assert active["metadata"]["description"] == "已发布的用户自定义描述"
+    else:
+        assert any(file["path"] == "user.txt" for file in active["files"])

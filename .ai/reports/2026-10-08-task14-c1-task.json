@@ -1,0 +1,9 @@
+{
+  "hostPlatform": "macos",
+  "taskKind": "feature-development",
+  "objective": "Task14 existing Native/Docker behavior integration with current master; no new architecture",
+  "acceptanceScope": "macOS local source integration; physical and CI evidence belong to root task; Windows/Linux device handoffs retained",
+  "candidateCommit": "b0ed27b75aa915346f6cf1f1db984623dfe25f14",
+  "candidateBaseCommit": "b0ed27b75aa915346f6cf1f1db984623dfe25f14",
+  "supplementalGateIds": []
+}

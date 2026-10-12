@@ -11,6 +11,51 @@ from pydantic import BaseModel, ConfigDict, Field
 router = APIRouter(prefix="/api/research")
 
 
+class DocumentOperation(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    format: Literal["docx", "xlsx", "pptx"]
+    operation: Literal["read", "generate", "modify"]
+    mode: Literal["file", "native"]
+    file_id: str | None = Field(default=None, pattern=r"^[0-9a-f]{24}$")
+    expected_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+    output_name: str | None = Field(default=None, max_length=128)
+    content: dict[str, Any] = Field(default_factory=dict)
+    changes: list[dict[str, Any]] = Field(default_factory=list, max_length=100)
+
+
+@router.post("/sessions/{session_id}/document-operations")
+async def document_operation(session_id: str, body: DocumentOperation, request: Request):
+    from .report_rendering import execute_document_operation
+
+    return await execute_document_operation(
+        request.app.state.research.store,
+        session_id,
+        body.model_dump(exclude_none=True),
+        native_manager=request.app.state.research.local_integrations,
+    )
+
+
+class InternalDocumentOperation(DocumentOperation):
+    session_id: str = Field(pattern=r"^[0-9a-f-]{36}$")
+
+
+@router.post("/internal/data/document-operation")
+async def internal_document_operation(body: InternalDocumentOperation, request: Request):
+    service = request.app.state.research
+    await service.ensure_owned()
+    from .report_rendering import execute_document_operation
+
+    result = await execute_document_operation(
+        service.store,
+        body.session_id,
+        body.model_dump(exclude={"session_id"}, exclude_none=True),
+        native_manager=service.local_integrations,
+    )
+    service.notify()
+    return result
+
+
 class ProjectCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -24,9 +69,7 @@ class ProjectPatch(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     name: str | None = Field(default=None, min_length=1, max_length=120)
-    status: (
-        Literal["draft", "needs_attention", "ready", "enabled", "disabled"] | None
-    ) = None
+    status: Literal["draft", "needs_attention", "ready", "enabled", "disabled"] | None = None
     draft: dict[str, Any] | None = None
 
 
@@ -81,9 +124,7 @@ async def patch_project(project_id: str, body: ProjectPatch, request: Request):
 
 @router.post("/report-projects/{project_id}/versions", status_code=201)
 async def create_version(project_id: str, body: VersionCreate, request: Request):
-    return request.app.state.research.report_studio.create_version(
-        project_id, body.model_dump()
-    )
+    return request.app.state.research.report_studio.create_version(project_id, body.model_dump())
 
 
 @router.post("/report-projects/{project_id}/files", status_code=201)
@@ -101,9 +142,7 @@ async def versions(project_id: str, request: Request):
 
 @router.post("/report-projects/{project_id}/rollback")
 async def rollback(project_id: str, body: ProjectAction, request: Request):
-    return request.app.state.research.report_studio.rollback(
-        project_id, body.version or 1
-    )
+    return request.app.state.research.report_studio.rollback(project_id, body.version or 1)
 
 
 @router.post("/report-projects/{project_id}/runs", status_code=202)
@@ -135,9 +174,7 @@ async def schedule(project_id: str, request: Request):
 
 @router.put("/report-projects/{project_id}/schedule")
 async def put_schedule(project_id: str, body: ScheduleInput, request: Request):
-    return request.app.state.research.report_studio.put_schedule(
-        project_id, body.model_dump()
-    )
+    return request.app.state.research.report_studio.put_schedule(project_id, body.model_dump())
 
 
 @router.get("/report-projects/{project_id}/artifacts")
@@ -157,15 +194,7 @@ async def artifacts(
 
 
 @router.get("/report-projects/{project_id}/artifacts/{artifact_id}")
-async def artifact(
-    project_id: str, artifact_id: str, request: Request, preview: bool = False
-):
-    path = request.app.state.research.report_studio.artifact_path(
-        project_id, artifact_id
-    )
-    disposition = (
-        "inline"
-        if preview and path.suffix.lower() in {".html", ".png"}
-        else "attachment"
-    )
+async def artifact(project_id: str, artifact_id: str, request: Request, preview: bool = False):
+    path = request.app.state.research.report_studio.artifact_path(project_id, artifact_id)
+    disposition = "inline" if preview and path.suffix.lower() in {".html", ".png"} else "attachment"
     return FileResponse(path, filename=path.name, content_disposition_type=disposition)

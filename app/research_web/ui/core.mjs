@@ -1,6 +1,6 @@
 const API_ROOT = '/api/research';
 const segment = (value) => encodeURIComponent(value);
-const pages = new Set(['fingpt', 'claw', 'workbench', 'frameworks', 'skills', 'history', 'operations', 'settings']);
+const pages = new Set(['fingpt', 'claw', 'workbench', 'frameworks', 'skills', 'history', 'operations', 'settings', 'intel']);
 const workbenchSections = new Set(['market', 'assets', 'funds', 'industry', 'documents', 'hot']);
 const settingsSections = new Set(['general', 'model', 'data', 'local', 'docs', 'hot']);
 const capabilityViews = new Set(['library', 'mine', 'plans', 'connections', 'market']);
@@ -16,6 +16,14 @@ export function parseRoute(hash = '') {
     page,
     sessionId: ['fingpt', 'claw'].includes(page) ? params.get('session') : null,
   };
+  if (page === 'intel') {
+    const tabs = new Set(['hot', 'overview', 'research-reports', 'investment-news', 'wsc', 'social', 'news', 'filings', 'events']);
+    route.intelTab = !extraSegments.length && tabs.has(sectionSegment) ? sectionSegment : 'overview';
+    if (route.intelTab === 'hot') {
+      route.hotView = ['events', 'sources', 'channels', 'briefs'].includes(params.get('view')) ? params.get('view') : 'events';
+      route.hotEventId = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(params.get('event') || '') ? params.get('event') : null;
+    }
+  }
   if (page === 'history') {
     route.historyMode = ['fingpt', 'claw'].includes(params.get('mode')) ? params.get('mode') : null;
     route.historyView = params.get('view') === 'deleted' ? 'deleted' : 'active';
@@ -57,6 +65,7 @@ export function parseRoute(hash = '') {
 }
 
 export function legacyRouteTarget(hash = '') {
+  if (/^#\/workbench\/hot(?:\?|$)/.test(String(hash))) return String(hash).replace('#/workbench/hot', '#/intel/hot');
   return /^#\/reports\/?$/.test(String(hash)) ? '#/skills?kind=workflow' : null;
 }
 export const sessionHash = (session) => `#/${session.mode === 'claw' ? 'claw' : 'fingpt'}?session=${segment(session.id)}`;
@@ -153,6 +162,7 @@ export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSo
     hotBriefCreate: (body) => request('/hot/briefs', { method: 'POST', body, userAction: true }),
     runtime: () => request('/runtime'), models: () => request('/models'), workspaces: () => request('/workspaces'),
     sessions: (view = 'active') => request(`/sessions?view=${segment(view)}`), skills: () => request('/skills'),
+    documentOperation: (id, body) => request(`${sessionPath(id)}/document-operations`, { method: 'POST', body }),
     capabilities: () => request('/capabilities'), tools: () => request('/tools'),
     mcpRegistries: () => request('/mcp/registries'),
     mcpRegistry: (id) => request(mcpRegistryPath(id)),

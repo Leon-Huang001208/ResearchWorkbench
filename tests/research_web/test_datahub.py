@@ -848,3 +848,50 @@ async def test_crash_between_snapshot_renames_does_not_poison_catalog_or_retry_p
         for path in (store.directory(sid) / "inputs/datasets").iterdir()
     )
     await restarted.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("call_id", ["first", "second"])
+async def test_business_cache_cannot_bypass_current_source_revocation(
+    hub_module, tmp_path, monkeypatch, call_id
+):
+    calls = []
+
+    def handler(request):
+        calls.append(request)
+        return httpx.Response(200, json=nav_page([nav_row("2025-01-02")], 1))
+
+    hub, _store, sid = make_hub(hub_module, tmp_path, handler)
+    business = hub_module.BusinessQuery(
+        capability="fund_data",
+        source="eastmoney_fund",
+        parameters={"dataset": "nav", "code": "000001", "limit": 1},
+    )
+    first = await hub.query(sid, "first", business)
+    assert first["row_count"] == 1
+    monkeypatch.setattr(
+        hub, "_latest_probes", lambda: {"eastmoney_fund": {"health": "unavailable"}}
+    )
+    with pytest.raises(StoreError):
+        await hub.query(sid, call_id, business)
+    assert len(calls) == 1
+    # Historical material remains auditable; it cannot authorize a new query.
+    assert hub.rows(sid, first["dataset_id"])["total"] == 1
+
+
+def test_secret_replacement_with_same_public_configuration_invalidates_authority(
+    hub_module, tmp_path
+):
+    from test_connection_center import MappingKeyring
+    from test_mysql_configuration import config
+
+    from app.research_web.datahub.connections import MySQLConnectionStore
+
+    hub = hub_module.DataHub(Store(tmp_path))
+    hub.connections = MySQLConnectionStore(tmp_path, keyring_backend=MappingKeyring())
+    hub.connections.save(config(), password="old-synthetic")
+    first = hub.source_configuration_digest("mysql")
+    hub.connections.save(config(), password="new-synthetic")
+    second = hub.source_configuration_digest("mysql")
+    assert first != second
+    assert hub.connections.source_status("mysql")["secret_configured"] is True

@@ -28,13 +28,15 @@ COPY runtimes/__init__.py runtimes/research_web.json runtimes/
 COPY vendor/cjpy vendor/cjpy
 COPY vendor/dsh-tabbit vendor/dsh-tabbit
 COPY scripts/setup_web.py scripts/setup_web.py
-COPY docker docker
+COPY docker/entrypoint.sh docker/supervisor.py docker/healthcheck.py docker/stage_dsh.py docker/
 RUN python -c 'from pathlib import Path; from scripts.setup_web import SetupWebInstaller; SetupWebInstaller(project_root=Path.cwd(), data_home=Path("/tmp/rwb-build")).verify_cjpy_bundle()' \
     && python -m pip install --no-build-isolation --no-deps . \
     && python -m pip install --no-index --no-deps vendor/cjpy/0.5.2/cjpy-0.5.2-py3-none-any.whl
 
 FROM python-builder AS dsh-builder
 COPY --from=node-runtime /usr/local/bin/node /usr/local/bin/node
+COPY --from=node-runtime /usr/local/include/node /usr/local/include/node
+ENV npm_config_nodedir=/usr/local
 COPY --from=node-runtime /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/npm
 RUN sed -i 's@http://deb.debian.org/@https://deb.debian.org/@g' /etc/apt/sources.list.d/debian.sources \
     && apt-get update && apt-get install -y --no-install-recommends git ca-certificates g++ make \
@@ -62,8 +64,8 @@ SetupWebInstaller(project_root=Path.cwd(), data_home=Path('/tmp/rwb-build')).ver
 logging.info('docker_dsh_source_verified')
 PY
 WORKDIR /opt/rwb/dsh
-RUN corepack pnpm@11.7.0 install --frozen-lockfile \
-    && corepack pnpm@11.7.0 run build
+RUN corepack pnpm@11.7.0 install --frozen-lockfile --network-concurrency=8 --fetch-timeout=120000
+RUN corepack pnpm@11.7.0 run build
 WORKDIR /opt/rwb
 RUN python docker/stage_dsh.py
 

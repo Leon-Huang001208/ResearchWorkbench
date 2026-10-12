@@ -5,9 +5,9 @@
   "status": "pass",
   "visualReview": "pending",
   "artifact": {
-    "path": "/Users/leon/.codex/worktrees/hot-events-system/ResearchWorkbench/outputs/research-web-architecture/01-deployment.html",
-    "sha256": "81a168d77e6326ca026536cf019cbba4907805209bd10697342e0b0c03be6caf",
-    "bytes": 641533
+    "path": "/Users/leon/.codex/worktrees/hot-intel-continuation/ResearchWorkbench/outputs/research-web-architecture/01-deployment.html",
+    "sha256": "9e9888bc16924b8c752b064f795f6a4d8056ab5a0be9f5e9f8b6918b5c11369e",
+    "bytes": 641637
   },
   "state": {
     "detail": "read",

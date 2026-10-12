@@ -1,0 +1,23 @@
+{
+  "phase": "applied",
+  "target": "/Users/leon/Desktop/Projects/ResearchWorkbench/.git/leon-engineering/harness/events.jsonl",
+  "identity": {
+    "dev": 16777234,
+    "inode": 199959028
+  },
+  "replacementBytes": 266,
+  "beforeBytes": 6756714,
+  "afterBytes": 6756714,
+  "appendedBytes": 0,
+  "beforeSha256": "4ff3397333968c0754fd5ec20bbd2057d06e2b99850dd58261706018507a4a16",
+  "afterSha256": "8acdc85d5439c29780bd90aa9a2b447a5edefbae1278455c3101707b42d71f43",
+  "otherPreexistingBytesUnchanged": true,
+  "presentEventJsonBytesUnchanged": true,
+  "strictSchemaVerified": true,
+  "strictRecordCount": 47161,
+  "originalBackup": "/Users/leon/Desktop/Projects/ResearchWorkbench/.git/leon-engineering/harness-repair-backups/claw-20261009-NLDXb3/events-before-apply.jsonl",
+  "unknownNulHistoryRecovered": false,
+  "repairScriptSha256": "2cc0901c28e34901e7b7e982c3c7da99bc7fec98fe98fe79adb751a7ff2c85c8",
+  "userAuthorization": "授权：两处各133 NUL替换为等长空格",
+  "durableBackup": "/Users/leon/Desktop/Projects/ResearchWorkbench/.git/leon-engineering/harness-repair-backups/claw-20261009-NLDXb3"
+}

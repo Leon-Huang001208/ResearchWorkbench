@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "updated",
-  "summary": "根说明同步条件创建、冻结简报网页预览与固定版本Markdown下载，并保留正式研究及安装级验收尚未完成的边界。",
-  "reason": "页面显式创建复用持久简报，导出只读取签名分块并核对内容；不将Host/PG与单元测试冒充真实浏览器、DOCX或正式研究验收。"
+  "summary": "接续Hot与最新主线，统一研究情报入口并保留外部只读资讯和本地持久事件边界。",
+  "reason": "README同步入口命名、可选Hot/PostgreSQL与未完成验收；现有安装入口与Web-only平台合同保留。"
 }

@@ -1,0 +1,24 @@
+{
+  "evidence": "real macOS child process SIGKILL and controlled loopback backend",
+  "realDSHModel": "NOT_RUN",
+  "artifactLossInjected": false,
+  "probeSHA256": "64905b27d1aee48a310ba097838d1fbf162eb66f68897200946d5f96926c34f6",
+  "sourceSHA256": "1251ad890f67f42cd116cb4e2c56a691c9b6514411abe9fe1a101671f3f51f04",
+  "cases": [
+    {
+      "kind": "skill",
+      "status": "FAIL",
+      "error": "native reference absent before Web process crash"
+    },
+    {
+      "kind": "workflow",
+      "status": "FAIL",
+      "error": "native reference absent before Web process crash"
+    },
+    {
+      "kind": "report_workflow",
+      "status": "FAIL",
+      "error": "native reference absent before Web process crash"
+    }
+  ]
+}

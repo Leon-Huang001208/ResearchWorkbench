@@ -1,6 +1,11 @@
 # Research Web 能力包与版本
 
+Automation 原生创建之后先保存会话/报告关联，再提交或监控。报告首次关联须核对 Runtime 事实源、本次新建身份和锁定 workflow/version；陈旧或异目标引用不得进入自动取消。恢复不 create/send，普通会话缺执行证据时为 native_submission_unconfirmed；报告仍通过原报告 Run 等待校验和产物，不因聊天完成就成功。
+
 能力目录、安装与授权不会因模型页保存或生成测试成功而提升为可调用。Automation继续复用原生研究create/send；新增默认模型只用于新会话，旧会话保留选模，凭据清除或提交未知时拒绝新的模型消息。最小生成使用无研究工具preset，工具能力必须通过单独的受控研究证据确认，不据模型名称推断。
+
+MCP 内部控制 reader 的纯 parser 由 stdlib helper 共享，原版本/额外字段与错误语义保持；
+显式 origin 事务已接入 macOS 双模式启动链，保留控制 token 和额外字段，不改变工具授权、能力版本或审批。
 
 Native 和 Docker 使用同一能力目录、版本、MCP 风险与 Automation 锁定任务合同。Registry 认证、
 MCP 安装/OAuth/完整性密钥以及投递渠道秘密由同一后端接口存取，但保留各自服务命名空间：
@@ -365,7 +370,7 @@ macOS 移动目录需更新 `..`：native 投影顶层目录为服务自有 0700
 
 ## 原生接线与工具真实性
 
-DSH 固定提交 `c919b2a460753859665db3f60143d525fb9140cf`。
+DSH 固定提交 `48504f07f217f9fd45a4f6d8fca4b1ed35c2d4b0`。
 核对 upstream `packages/skill/skill-filesystem/README.md` 和 FileSystemSkillProvider 源码：
 发现仅一层 bundle，watch 触发 invalidate，每次 get 重读正文，无版本 pin 或 install RPC。
 产品以不可变包 + 带版本的原生名称实现绑定；自建名称为 `rwb-<产品id>-vN`，内置保留原 ID。
@@ -410,3 +415,12 @@ count、generation、逐资源 settled 与 latest-request-wins，不改变能力
 Tool/Workflow/Method 契约、DataHub 动态选源、MCP 授权或 Automation 锁定关系。能力目录 pending
 不会投影为全局 connecting/offline；这两个可见状态仅来自 runtime pending/settled failure。能力目录
 内容与执行权限均未扩大，能力架构图和信息层级保持不变。
+
+## 设置闭环阶段3：当前能力范围
+
+声明范围在现有metadata中表达并随不可变版本保存；UI分别显示声明范围可用/有限可用/不可用/尚未验证，未知专业语义不做品牌推断。当前模型工具证据仅绑定48504f07与deepseek-official/deepseek-flash的实际原生调用；其他选择保留未验证，文本生成不被称为工具成功。具体查询与版本bindings共享门，省略章节的依赖不可作为可选查询放行。
+
+
+## 单一兼容模型连接
+
+新增兼容连接仅认证传输的文本/流式合同；工具功能在真实受控验收前为unverified，不能启动依赖工具的Skill/Workflow。Automation仍经相同create/send执行，继承连接版本、活动保护与当前授权；不按模型名字提升能力。

@@ -14,6 +14,12 @@ QUESTION_INPUT = {
 
 # Metadata is declared here rather than inferred from directories. This keeps the
 # product catalog stable while allowing each Skill to describe a narrow trigger.
+LEGACY_DATA_SCOPE_DRAFTS = {
+    "industry-research": "ce8771d20a9095fad7c82f47a055c23a8e1e8903d1ee22f2ab1c94bc72e6c139",
+    "fund-evaluation": "72db44e495cbaa475f91a44422f27e617e4d6cbdd403b2ddaca61ae866f39cae",
+    "chanlun": "8ac5b037768d5c52e9e60219a7b58af68ff5017c40ae5ac520af966abc0d86e1",
+}
+
 SKILL_SPECS = (
     {
         "slug": "document-reading",
@@ -37,6 +43,16 @@ SKILL_SPECS = (
     },
     {
         "slug": "industry-research",
+        "data_requirements": [
+            {"capability": "search_news", "dataset": "telegram"},
+            {
+                "capability": "financials",
+                "dataset": "financials",
+                "required": False,
+                "currency": "CNY",
+                "omit_sections": ["专业财务量化章节"],
+            },
+        ],
         "name": "行业研究",
         "description": "基于实际材料开展行业研究，保留来源、口径及数据缺失，按需交付真实文件。",
         "category": "行业",
@@ -47,6 +63,15 @@ SKILL_SPECS = (
     },
     {
         "slug": "fund-evaluation",
+        "data_requirements": [
+            {
+                "capability": "fund_data",
+                "dataset": "fund_nav",
+                "frequency": "daily",
+                "adjustment": "none",
+                "units": {"unit_nav": "currency/share"},
+            }
+        ],
         "name": "基金评价",
         "description": "基于实际材料开展基金评价，保留来源、口径及数据缺失，按需交付真实文件。",
         "category": "基金",
@@ -435,6 +460,16 @@ SKILL_SPECS = (
     },
     {
         "slug": "chanlun",
+        "data_requirements": [
+            {
+                "capability": "market_bars",
+                "dataset": "daily_quotes",
+                "frequency": "daily",
+                "adjustment": "qfq",
+                "currency": "CNY",
+                "units": {"close": "currency_per_share"},
+            }
+        ],
         "name": "缠论确认分型与笔研究",
         "description": "对单一标的日线做非递归严格分型和交替笔扫描；仅实现确认分型与笔的受限研究子集。",
         "category": "量化研究",
@@ -565,6 +600,7 @@ def _skill_package(root, spec, protocol):
         "default_formats": list(spec["default_formats"]),
         "required_tools": list(spec["required_tools"]),
         "dependencies": [],
+        "data_requirements": list(spec.get("data_requirements", [])),
         # Default routing stays empty until Research Evals show an observable
         # quality gain without a material latency or cost regression.
         "method_policy": {"required": [], "recommended": [], "excluded": []},

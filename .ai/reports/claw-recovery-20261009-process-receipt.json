@@ -1,0 +1,57 @@
+{
+  "evidence": "real macOS child process SIGKILL and controlled loopback backend",
+  "realDSHModel": "NOT_RUN",
+  "artifactLossInjected": false,
+  "probeSHA256": "64905b27d1aee48a310ba097838d1fbf162eb66f68897200946d5f96926c34f6",
+  "sourceSHA256": "560c877b82d86db505ab8910407de877a43de753b0fc5463d5c641a4db7be913",
+  "cases": [
+    {
+      "kind": "skill",
+      "status": "PASS",
+      "crashExit": -9,
+      "sameRun": true,
+      "sameNativeReference": true,
+      "nativeCalls": {
+        "create": 1,
+        "send": 1,
+        "report_start": 0
+      },
+      "artifactSHA256": "4d7a9755b21b4219691b43e0c5314107750a997f914273ae5fa794abd6a9b219",
+      "preCrashArtifactSHA256": "6c112e1b1be39b1d7676c3cfb79b0e60a8164a72f762f4721c19579ffc1eae39",
+      "postRecoveryArtifactSHA256": "6c112e1b1be39b1d7676c3cfb79b0e60a8164a72f762f4721c19579ffc1eae39",
+      "artifactBytesPreserved": true
+    },
+    {
+      "kind": "workflow",
+      "status": "PASS",
+      "crashExit": -9,
+      "sameRun": true,
+      "sameNativeReference": true,
+      "nativeCalls": {
+        "create": 1,
+        "send": 1,
+        "report_start": 0
+      },
+      "artifactSHA256": "4d7a9755b21b4219691b43e0c5314107750a997f914273ae5fa794abd6a9b219",
+      "preCrashArtifactSHA256": "6c112e1b1be39b1d7676c3cfb79b0e60a8164a72f762f4721c19579ffc1eae39",
+      "postRecoveryArtifactSHA256": "6c112e1b1be39b1d7676c3cfb79b0e60a8164a72f762f4721c19579ffc1eae39",
+      "artifactBytesPreserved": true
+    },
+    {
+      "kind": "report_workflow",
+      "status": "PASS",
+      "crashExit": -9,
+      "sameRun": true,
+      "sameNativeReference": true,
+      "nativeCalls": {
+        "create": 0,
+        "send": 0,
+        "report_start": 1
+      },
+      "artifactSHA256": "4d7a9755b21b4219691b43e0c5314107750a997f914273ae5fa794abd6a9b219",
+      "preCrashArtifactSHA256": "6c112e1b1be39b1d7676c3cfb79b0e60a8164a72f762f4721c19579ffc1eae39",
+      "postRecoveryArtifactSHA256": "6c112e1b1be39b1d7676c3cfb79b0e60a8164a72f762f4721c19579ffc1eae39",
+      "artifactBytesPreserved": true
+    }
+  ]
+}

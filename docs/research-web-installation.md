@@ -1,7 +1,111 @@
 # Research Web Native / Docker 安装与运行
 
+2026-10-12 起，24GB Mac mini 是 Docker 主开发与常驻节点，MacBook Pro 是远程入口。
+新的纯 Docker 安装和显式实例管理使用 [Docker 开发与部署手册](research-web-docker.md)：
+`./setup-web.sh --runtime docker --environment stage --instance local --web-port 18088`，
+随后 `./rwb docker stage local doctor`。宿主只需 shell、Docker CLI/Engine 和 buildx，
+不探测宿主 Python/Node。Native 无参数入口、Windows cmd 及
+`python scripts/setup_web.py --runtime docker` 的 legacy 合同保留；它们不管理新实例账本。
+
 阶段二、三及跨平台范围已由用户明确重新开启；每个平台仍由对应宿主完成验收。当前实现边界、OS/运行模式、证据提交和未验证项见 [能力支持矩阵](research-web-platform-support.md)。安装路径存在不等于该平台能力已验收。
 
+Python 质量整理保持公开安装参数及 coded RuntimeError 合同。内部端口 TypedDict 只描述
+既有显式参数；Ruff 项目行宽与 Black/isort 同为 100，不修改依赖锁或安装行为。
+
+macOS Docker 在全新私有 HOME 下即使 checkout 有可用 Native 环境，也可在真实 lifecycle lease 内接受 `--no-start`：产品根严格缺失、私有父目录 pin、Native PID/端点记录缺失且没有容器时，仅发布安装摘要/模式，不创建产品根、controls、PID 或端点，不分配端口。后续普通 `rwb web start` 必须重新取证并实际创建私有根；只有该调用内的真实创建证明可处理原默认端口上的其他产品监听。已有根/未知 writer 等仍失败关闭，显式端口与原认证/健康合同保持。证明不序列化；不能用旧成功清单或 no-start 调用给后续调用授权。物理首装由本平台独立验收。
+
+创建边界沿用 Native/Supervisor 模型：mkdir 到首次 open/fstat 捕获身份并非原子；目录替换拒绝从首次捕获 inode 后成立，不承诺防御拥有可写 HOME、同 UID 且不遵守 lease 的任意捕获前替换。mode 观察使用 RuntimeModeRecord 值与既有逻辑 CAS；不声称两次合法读取之间的同内容换 inode 本身使该证明失效。
+
+当前交付平台以 [AGENTS.md 的 Current Research Web delivery phase](../AGENTS.md#current-research-web-delivery-phase-authoritative) 为准：Mac 任务覆盖 macOS Native 与 Mac Docker Desktop；Windows/Linux 的原生适配、真机及同平台 CI 由对应设备验收，未执行项保持 NOT_RUN。Ubuntu 通用 CI 不冒充原生 macOS 验收。
+
+Docker Doctor schema 1 的 volumes 类型为 data=bind、state=tmpfs、logs=bind、credentials=bind；logs 是新增的固定非秘密字段，verified 仍要求实际 inspect 成功，不改变安装或生命周期。
+
+私有状态目录拒绝时，既有日志现在记录固定原因、检查阶段与变化字段名；不输出目录名、
+路径或身份数值。该诊断不修复权限或重试启动，不改变依赖与一键安装流程。
+源码测试不能代替新镜像的真实启动与 macOS 干净安装CI证据。
+身份变化日志还区分完整root/runtime所有权对方向及parent/other_ancestor/leaf相对位置；
+混合或未知变化仍拒绝，具体挂载根与认证写入层必须另行取证，不能由此自动修复。
+
+Docker `/state` 改为私有 tmpfs（UID/GID 10001、0700、1 MiB，rw/nosuid/nodev/noexec）。
+`/state/runtime` 由原严格 guard 创建；停止后丢弃，每次启动/重启由原链正常重建认证。
+宿主 `run/docker/<installation-id>/logs` 独立绑定 `/state/logs`，controller 在正常生命周期
+私有创建/验证该子目录，Compose 禁止自动创建宿主路径。supervisor 产品日志仍在 data-root/logs。
+旧 host state/runtime 保留，不迁移认证、不自动删除旧停止容器；不符合新挂载合同的旧实例拒绝。
+[Docker tmpfs](https://docs.docker.com/engine/storage/tmpfs/) 在 Docker VM 中可能进入 swap，
+不能声称秘密绝不落盘。现有 CI 直接 Compose fixture 同步准备 state/logs，不扩展验收平台。
+
+DSH 已发布运行子树内的 `doc/docs` 同名代码目录可保留（例如 yaml 的 `dist/doc`）。
+Workspace 按包 files/negative 声明选择，第三方已安装 tarball 保留发布载荷，不重复套用
+workspace files 声明。包顶层开发目录/文档和任意层级 Git/cache 元数据继续排除；嵌套
+README 属于发布载荷元数据，不是可执行能力。真实镜像启动仍须单独验收。
+
+Docker DSH 资产派生保留根 `node_modules` 与 `.pnpm/node_modules` 中指向已选生产包的相对别名，
+供固定 DSH 从虚拟 Profile 锚点查找 optional peer。不会递归复制 `.pnpm`、引入未选开发包或新增
+TypeScript 依赖；损坏或越界的生产依赖、非规范模块根、别名冲突和资产越界仍失败关闭。
+
+Docker公开构建现在允许stdout/stderr各2MiB并流式保存脱敏进度；普通命令仍64KiB。超限或非零仍明确失败，不接受候选镜像。日志须保留在私有任务目录，不上传；本地合同通过不代表真实镜像或生命周期验收。
+
+Docker dsh-builder 从固定 Node24.19.0 stage 同时复制 binary 和完整 headers，使用
+npm_config_nodedir=/usr/local 供 fs-ext/node-gyp 本地编译，避免额外下载 headers。只在builder
+设置，最终runtime无headers/nodedir ENV；不更改锁、官方APT源、TLS/签名或全局代理。
+这项源码修补为一次真实重建提供新依据；先前失败日志保留，最终镜像/生命周期仍须主任务实测。
+
+Docker CLI 可使用本机已设置的 credentials-free loopback HTTP_PROXY/HTTPS_PROXY（http或https、
+localhost/回环IP、显式有效端口）；不支持SOCKS、认证URL、非回环或path/query/fragment。
+大小写重复须校验后相等；两者空禁用，空/非空冲突拒绝。NO_PROXY只接受有界host/IP/CIDR/
+wildcard列表并补localhost/127.0.0.1/::1；严格边界见安全清单。status/Doctor/安全stop仍可用，
+不安全配置过滤并提示warning；install/build明确返回docker_proxy_configuration_invalid，纠正
+本机pair/冲突后重试，不静默直连。Doctor.proxy只显示安全状态，不返回地址或列表。
+仅Docker host CLI继承；Native诊断环境不放宽、不向Compose/provider/镜像写宿主127代理。
+Docker Desktop Engine/build代理与CLI传输分层，真实combined构建由对应主任务验证；不改TLS、
+签名、软件源、全局配置或用户Dockerconfig。镜像沿用远端已验证的 Debian 官方源 HTTPS 传输，保持原仓库与签名验证；本轮未重新构建镜像。
+
+正常 Native auto-start 公开入口先建立/复用精确 checkout-owned `.venv`，用该 Python -I
+重执行同一 setup_web.py 与原参数；sys.prefix 与已有 marker 防重复，不依赖宿主全局 Web 包。
+check-only、Docker、no-start 保留 host 路径。Web 依赖就绪后，实际 manager 持原 LifecycleLock
+创建 canonical 根，继续 DSH/build-lock/manifest 与正常安装门，再借同一实际 lease 启动。
+证明不序列化；root/lease/原监听变化或未知新增 writer 拒绝。no-start/失败退出后不继承 fresh，
+已有根重装也不认领；直接 rwb start 到不存在 custom 根仍受 build-lock 前置限制，正常
+installer auto-start 是连接创建与就绪的入口。源码 fixture 不替代 main 的新 HOME 完整实测。
+
+失败恢复先清理本次新建容器或停止本次启动的既有停止容器，再恢复端点/origin；既有容器
+保留。安装摘要只在发布 inode 与字节均匹配时回滚，否则报告 recovery_unverified。
+
+Native fresh 启动在失败后另核验本次事务的恢复基线；同一 lease/根 inode、原外来监听
+身份和本次全部子进程退出均可证明时恢复原 origin/端点。否则保留事务标记与原启动错误，
+附加受控恢复诊断，停止重试；该恢复基线不授予新分配权限。
+
+Docker-only 安装缺少 Native 环境时，忙端口须核验监听归属：已证明的其他实例监听与受管
+Docker 服务可继续，未知 Native 写者拒绝；无关宿主 3081 监听不阻塞 Docker 幂等启动。
+
+可识别 Web/DSH 的其他 checkout 也可能通过环境/配置使用同一数据根；稳定 PID 或不同
+源码路径不足以证明数据根不同，未知时返回 runtime_ownership_unknown。缺端点/账本的既有
+根会核验旧默认8088/3081，显式新端口不能绕过。setup --no-start 或 Doctor 已创建 canonical
+research-web/runtime 后，根已存在，不满足本次 start 成功 mkdir 的 fresh 证明；若日常默认
+监听是数据根未知的 Web/DSH，该组合会真实拒绝，而不是自动避让成功。
+macOS 现可复用 OS 当前用户标准产品根中的完整私有 Native pair，认证数据根确实不同后，
+在目标真实 lifecycle lease 下保留并复查调用内目录/记录/进程观察，再允许 Docker 后续 start、
+force restart 或顺序切换；不要求先安装 Native。该候选损坏、缺角色、同根、别名或任何观察变化
+仍拒绝，并保留已有健康容器。Web 的根关联依赖原可信私有 launch ledger，不读取秘密或进程
+环境，不宣称独立环境根证明。普通同根与无法认证的产品写者仍需所属安装的正常 stop；fresh
+证明仍仅限实际首建调用，不因另一次安装或已存在根而重获权限。真实同根双模式往返仍须另验。
+
+macOS 公开安装、start/restart 已接入私有端点记录与成对内部 origin 事务。
+依赖锁保持不变，不移动、复制或轮换控制 token，也不迁移用户数据或凭据。
+
+`--web-port <1..65535>` 可用于安装器和 `rwb web start/restart`；Native 另支持
+`--runtime-port <1..65535>`，两端口必须不同。Docker 使用后者返回
+`docker_runtime_port_unsupported`。显式占用返回 `endpoint_port_in_use`，不改用别的端口。
+无显式参数时优先复用成功端点，再使用默认 Web 8088／Native Runtime 3081；目标运行记录
+已证明静止时可分配其他回环候选。有明确 bind 失败证据、且本次对象退出/清理证明完整时，
+最多执行三次启动尝试；健康/认证失败、未知归属与回滚失败不触发盲重试。
+实际地址由 `web status --json`／Doctor 报告；只读诊断、logs、mode选择和 `--no-start`
+均不分配端口或重绑控制 URL。Docker 容器内 8088／3081 固定，只选择宿主 Web 发布端口。
+停止后出现无关宿主监听不作为停止该监听者的授权。
+
+当前限制：已有停止 Docker 容器需要换 host Web 绑定时返回 `docker_stopped_port_conflict`，
+保留原容器与接受镜像，不隐式 recreate。真实 macOS 双模式往返、镜像及干净安装 CI 未由本地
+fixture 证明；Windows/Linux 本轮未验收。
 
 ## 支持范围
 
@@ -91,7 +195,7 @@ Native 可执行 `./rwb hot stop --json` 后执行 `./rwb hot backup --json`，�
 
 当前是本地 Web 产品，支持 Native 与 Docker 两条安装路径；不安装 Tauri、桌面 sidecar、数据库或桌面安装包。两种模式使用同一源码、`runtimes/research_web.json`、Web 依赖锁、固定 DSH 与顺序共享的产品数据目录。前置条件按模式区分：
 
-- Docker（推荐新安装）：宿主 Python 3.12 解释器用于公开安装入口和统一 `rwb` CLI，另需 Docker Desktop、运行中的 Engine、Compose v2、构建时可访问固定基础镜像及 DSH 依赖的网络；无需宿主 Node，也无需全局第三方 Python 包。容器使用固定 Python 3.12、Node 24 和非 root 用户。Windows 的 Docker 凭据目录 ACL 尚无可证明的安全准备/验证路径，当前以 `docker_credentials_acl_unverified` 失败关闭，不能称为 Windows Docker 已可用或已验收。
+- Docker 新实例入口：shell、Docker Desktop、可用 Engine/buildx，以及访问镜像和固定 DSH 依赖的网络；无需宿主 Python/Node。legacy Python Docker CLI 仍需宿主解释器。镜像使用固定 Python 3.12、Node 24 和非 root 用户。Windows cmd 保留 legacy 路径；凭据 ACL 未证明时以 `docker_credentials_acl_unverified` 失败关闭，不称为 Windows Docker 已验收。
 - Native：Python 3.12、Node.js 22.19+（22 系列）或 24.x、Git；Node 23 和 25+ 不受支持。
 - Windows Native：Visual Studio 2022 Build Tools 的 “Desktop development with C++” 工作负载；固定 DSH 的
   `fs-ext` 原生模块需要本机编译，安装器不会静默安装或修改系统工具链
@@ -101,7 +205,7 @@ Cookie 和账号只在本机设置页录入，不进入代码包、安装清单�
 
 ## 开发与验收责任
 
-MacBook Pro 负责项目功能开发、macOS 本地验收及远端 GitHub macOS CI。Windows 真机负责已有功能的 Windows 适配、本地验收及远端 GitHub Windows CI；Linux 真机负责对应的 Linux 适配、本地验收及远端 GitHub Linux CI。Windows/Linux 不承担功能开发；发现通用功能缺陷时交回 Mac 开发任务。
+24GB Mac mini 负责主开发、Docker 构建/测试、常驻服务、macOS 本地验收及适用 GitHub macOS CI；MacBook Pro 负责远程编辑与操作。Windows/Linux 真机负责既有功能的本平台原生适配、本地及远端同平台 CI 验收；发现通用功能缺陷时交回 Mac 开发任务。
 
 各宿主任务只以本平台验收为完成条件；其他平台保留待验收与交接记录，不阻塞本平台任务，也不因 Mac 验收通过就宣称跨平台支持。Linux 适配职责不表示当前安装器或桌面包已经支持 Linux；支持声明仍须有实际证据。详细任务与总体验收的区分见 [Agent 任务路由指南](AGENT_WORKFLOW.md)。
 
@@ -180,6 +284,16 @@ launch label，只有启动前不存在、label/安装归属/候选image全部�
 
 Docker `--repair` 重复有界构建和镜像身份验证，不删除产品数据、未知容器或 Native 环境。Docker 安装可能因远端镜像、APT、npm/pnpm 或 GitHub 网络失败；不得把 `--check-only` 成功或本机源码测试当作完整构建成功。
 
+Docker DSH builder 的固定 `pnpm@11.7.0 install --frozen-lockfile` 命令局部设置
+`--network-concurrency=8 --fetch-timeout=120000`，将下载并发限制为 8、单请求期限设为
+120 秒，默认重试仍为 2 次。这不是整个构建步骤的总期限；Native、最终 runtime 环境、
+registry、TLS、签名和最低发布时间策略保持不变。参数调整不证明网络故障根因或锁定
+tarball 下载已经修复，仍须以公开安装入口的真实新镜像构建和健康检查验收。
+
+容器启动时，Web 每轮完整页面就绪探测共用最多 3 秒（Runtime API、首页与主静态模块），
+并裁剪到剩余启动期限；DSH 每轮仍为 0.25 秒，各角色启动期限仍为 35 秒。
+这只修正完整页面探测的预算，真实镜像安装与生命周期验收须另行取得证据。
+
 ## 模式、生命周期和目录归属
 
 安装后先查看当前模式；仅需切换时使用 `runtime use`，不要把两个方向当成连续安装步骤：
@@ -207,6 +321,9 @@ Docker `--repair` 重复有界构建和镜像身份验证，不删除产品数�
 
 Docker 在运行中无法认证证明研究空闲；重启必须显式 `--force`，会中断研究：
 
+Docker 停止后只等待已验证的宿主 Web 映射释放，macOS 默认最多 120 秒；内部 DSH 3081
+不属于宿主映射，不等待或停止其他根 Native 监听。持续占用仍返回 `runtime_ports_not_released`。
+
 ```bash
 ./rwb web restart --force --no-open
 ```
@@ -219,18 +336,30 @@ Docker 在运行中无法认证证明研究空闲；重启必须显式 `--force`
 
 Windows 将入口写为 `rwb.cmd runtime status --json`、`rwb.cmd runtime use docker --stop-current`、`rwb.cmd web doctor --json` 等对应命令；这些是接口说明，不表示本轮已在真实 Windows 上跑通 Docker。`runtime use` 默认不停止当前服务；存在运行中的旧模式时必须显式提供 `--stop-current`，且仅在旧进程/容器归属可验证时停止。未知端口占用、无法确认的 PID/容器、活动研究或状态异常均失败关闭；不要手动改模式记录来绕过。运行时选择保存在私有 `install/runtime.json`，无需 `.venv` 即可路由 Docker 命令；Native 命令仍进入 Native 环境。
 
-两种模式依次使用 `~/.research-workbench/research-web/` 中的同一会话、资料、附件和产物，绝不能同时写入。Native 的 PID、认证和运行状态位于 `~/.research-workbench/run/`；Docker 的宿主管理状态位于 `run/docker/<installation-id>/`，容器临时认证与运行状态位于私有 `/state` tmpfs，容器归属由项目、服务、安装身份、镜像、挂载及端口核对，不复用 Native 的状态/认证文件。Docker 凭据存于 `secrets/docker/<installation-id>/` 并单独 bind mount 到容器；Native 仍使用宿主系统凭据库，模式切换不复制或迁移密码/令牌。Compose 只将宿主 `127.0.0.1:8088` 发布给浏览器；DSH 3081 仍留在单容器内部回环。容器以非 root、只读根文件系统、受限能力和显式可写挂载运行。
+已确认运行中的 Native 实例在 `--stop-current` 的公开停止成功后，模式切换最多等待
+45秒让停止前的两个 Native 端口释放；超时仍为 `runtime_stop_failed`，模式保持原值。
+该等待不停止占用者，不等待外来默认端口或 Docker 内部端口；随后仍须通过原归属、
+两模式状态、锁与模式 CAS 复查。未授权、未知归属、已停止或停止失败不进入等待。
 
-Docker 的挂载根与实际私有目录不同：`/state` 是 UID/GID 10001、0700 的容器私有 tmpfs，DSH 状态和认证实际位于
+`runtime use` 最终停止复查仍严格返回 `runtime_stop_failed`。stderr 的
+`runtime_switch phase=finalize` 诊断仅包含固定模式、`report_not_ok` / `still_running`
+以及受控 issue；未知代码映射为 `unknown`，仍运行时为 `none`，不输出原 report、路径或秘密。
+这只补足失败归因，不证明历史切换失败已修复；锁、归属、顺序停止和模式 CAS 保持原合同。
+Native status 原拒绝点另记录固定 `status_precheck` / `status_child` / `status_postcheck`
+阶段；子进程拒绝只记 `report_not_ok`，不回显其 issue 或 stderr，也不新增探测或重试。
+
+两种模式依次使用 `~/.research-workbench/research-web/` 中的同一会话、资料、附件和产物，绝不能同时写入。Native 的 PID、认证和运行状态位于 `~/.research-workbench/run/`；Docker 的临时状态位于容器 `/state/runtime`，持久日志位于宿主 `run/docker/<installation-id>/logs`，容器归属由项目、服务、安装身份、镜像、挂载及端口核对，不复用 Native 的状态/认证文件。Docker 凭据存于 `secrets/docker/<installation-id>/` 并单独 bind mount 到容器；Native 仍使用宿主系统凭据库，模式切换不复制或迁移密码/令牌。Compose 只将宿主 `127.0.0.1:8088` 发布给浏览器；DSH 3081 仍留在单容器内部回环。容器以非 root、只读根文件系统、受限能力和显式可写挂载运行。
+
+Docker 的挂载根与实际私有目录不同：`/state` 是私有 tmpfs，DSH 状态和认证实际位于
 `/state/runtime`；`/run/rwb-secrets` 仍是凭据 bind 根，File backend 显式使用
 `RESEARCH_CREDENTIAL_HOME=/run/rwb-secrets/private`。supervisor 以容器 UID 10001 在首次
-认证、健康探测和子进程启动前创建 0700 私有叶，同一容器启动期间验证并复用；容器重新启动时重新建立临时状态。Docker Desktop 可能把
+认证、健康探测和子进程启动前创建 0700 私有叶，重启时重建状态、验证并复用凭据。Docker Desktop 可能把
 宿主创建的 bind 根呈现为 UID 0；不会因此放宽私有叶 owner/权限/no-follow 检查，也不会
-chmod/chown 挂载根。`LOG_DIR=/state/logs` 独立于私有状态叶，避免导入期日志目录创建
-提前生成权限不正确的状态叶。用户 data-root 与 Native 路径保持；Inspector 要求 `/state` 为 tmpfs，拒绝状态 bind 或额外挂载。
+chmod/chown 挂载根。`LOG_DIR=/state/logs` 单独绑定原宿主日志子目录，避免导入期日志创建
+影响状态叶。用户 data-root 与 Native 路径不变，Inspector 严格执行新的完整挂载合同。
 
 首次 mkdir 还可能使固定 bind 根的可见 UID/GID 从 0:0 变为容器用户。Docker-only 准备器
-仅对缺失的持久 bind 叶 `/run/rwb-secrets/private`、`/data/research-web/logs` 分阶段；tmpfs 中的 `/state/runtime` 使用原严格 guard 创建：
+仅对缺失的 `/run/rwb-secrets/private`、`/data/research-web/logs` 分阶段：
 保留 no-follow 父目录FD安全创建0700叶，固定父节点的dev/inode/mode和路径/FD一致性必须
 保持，创建阶段仅允许可信root→当前UID/GID映射；随后重新进入原完整严格校验，确认新叶
 仍为本次创建对象，才访问认证/凭据或启动进程。已有叶及自定义路径无此创建例外。
@@ -301,7 +430,7 @@ ready。Node 22.19+（22 系列）或 24.x 由安装器与 Doctor 使用同一�
   闭包。仓库属性禁止 Git 在 Windows checkout 改写这两个制品目录的字节，确保同一清单摘要可在
   macOS 与 Windows 验证。
 - DSH 只从 `Leon-Huang001208/deepseek-harness` 获取提交
-  `c919b2a460753859665db3f60143d525fb9140cf`，使用 `pnpm@11.7.0` 和 frozen lockfile 构建。
+  `48504f07f217f9fd45a4f6d8fca4b1ed35c2d4b0`，使用 `pnpm@11.7.0` 和 frozen lockfile 构建。
   Git clone、固定提交 checkout 与后续干净工作树校验都使用同一组命令级配置：
   `core.longpaths=true`、`core.autocrlf=false` 和 `core.eol=lf`，因此 Windows 不依赖机器级 Git
   长路径或换行配置。固定提交包含 Git symlink；Windows 额外统一使用 `core.symlinks=false`，接受 Git
@@ -359,6 +488,17 @@ uv pip compile requirements/web.in \
 
 提交前必须从干净 checkout 运行一键安装；不能以开发机已有 `.venv` 或全局模块作为交付证据。
 
+固定DSH为0.2.1-alpha.1兼容候选，闭包16097项。构建需要所选Node发行版附带include/node开发头文件；缺失时保留构建错误，不能复用旧安装成功标记。
+
+## 设置闭环阶段3：当前能力范围
+
+能力准入和脚本精确读取范围使用受管产品Python/Node及现有私有数据通道，不新增依赖或修改固定DSH。升级时保留旧会话材料，旧资源全集不是新执行许可；部署仍需本平台干净安装CI，不由本机已安装环境替代。
+
+
+## 单一兼容模型连接
+
+一键安装包含产品兼容文本/流式适配，固定DSH、Python/Node依赖锁不变，不安装本地模型服务或下载权重。用户另行配置自己实际可用的HTTPS兼容服务或本机loopback端点；localhost指Native后端设备。无Key不是旧文件/环境回退，Doctor/服务健康不发起隐式模型请求，真实模型与工具验收仍需独立证据。
+
 Docker 两个 APT 安装阶段使用 Debian HTTPS 源，保留 archive keyring 签名校验、原有包与锁定基础镜像；网络代理仅按宿主/构建环境配置，不禁用证书或包认证。HTTPS 源切换不证明 Linux/Windows 真机或 CI 已通过。
 
 Docker DSH staging 按包发布载荷收录运行时代码：开发目录名称只在包根解释，嵌套 dist/doc 等代码目录不能当文档删除；.git 等元数据与 node_modules 独立包图仍受安全过滤。镜像健康还须真实证明 DSH/Web，不能只看构建与 manifest 哈希。
@@ -384,3 +524,11 @@ Hot迁移15增加持久简报版本与请求审计；升级时先停止Hot并执
 迁移15之后可从Web事件详情生成简报，在简报页预览并下载固定版本Markdown。沿既有Web依赖与HotNode，不新增包；RWB_HOT_TEST_PYTHON仅测试夹具选用已安装Web解释器，不是产品配置。当前干净Mac安装、DOCX、真实模型worker及研究联合恢复仍按原计划待验收。
 
 原验收库已由停机fixture迁移至15，实际浏览器完成AI/宏观简报与固定版本Markdown。该夹具保留原实例/预算账本，modeldisabled且研究offline；角色收尾独立于恢复审计。此证据不替代干净安装、正常Keychain生命周期、DOCX或正式研究。
+
+## 可选 Office 自动验证
+
+安装/启动成功不代表 Office 可调用。默认不开启真实验证；在设置 → 本机集成一次开启所属实例的Word、Excel、PowerPoint自动验证，或逐项开启/关闭。会创建、保存、重开并清理登记的测试文稿，保留验证记录（沙箱文件经归档后精确删除，合成副本由私有run目录按原容量/期限保留），可能出现系统提示；提示只能人工处理。有效24小时证据复用，失败不自动重试，关闭后不再启动，冷启动不重放旧任务。Wind最多5分钟，厂商调用不在此开关内。
+
+`rwb web doctor --json`的office_auto_verification仅显示所属实例开关/未知状态、应用范围、人工提示与关闭位置，不发起真实操作，不影响主体安装就绪。未知、未发现、失效及不适用不会提升为可调用或一概归为系统故障。本轮不改安装依赖或一键启动逻辑。
+
+2026-10-09追加授权收口：Office成功且关闭确认后，仅归档登记的合成文稿到既有私有验证run目录，再清理沙箱副本；成功marker移除，仍沿原16项/512MiB/24小时有界保留策略回收，不新增执行器或任意路径接口。Office开启改用页内说明、确认/取消按钮，系统权限弹窗仍由人工处理。

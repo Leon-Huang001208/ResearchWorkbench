@@ -16,11 +16,27 @@ if __package__ in {None, ""}:
 from app.research_web.staged_runtime import verify_staged_runtime, write_staged_manifest
 
 log = logging.getLogger(__name__)
-EXCLUDED = frozenset({
-    ".git", ".github", "tests", "test", "__tests__", "fixtures", "__fixtures__",
-    "docs", "doc", "benchmarks", "benchmark", "bench", "website", "examples",
-    "coverage", ".cache", "__pycache__",
-})
+EXCLUDED = frozenset(
+    {
+        ".git",
+        ".github",
+        "tests",
+        "test",
+        "__tests__",
+        "fixtures",
+        "__fixtures__",
+        "docs",
+        "doc",
+        "benchmarks",
+        "benchmark",
+        "bench",
+        "website",
+        "examples",
+        "coverage",
+        ".cache",
+        "__pycache__",
+    }
+)
 METADATA_EXCLUDED = frozenset({".git", ".github", ".cache", "__pycache__"})
 
 
@@ -59,7 +75,8 @@ def _package_assets(package: Path, *, workspace: bool):
                 chosen.update(item.rglob("*") if item.is_dir() else [item])
         negatives = [rule[1:] for rule in rules if rule.startswith("!")]
         chosen = {
-            path for path in chosen
+            path
+            for path in chosen
             if not any(
                 fnmatch.fnmatch(ancestor.as_posix(), rule.rstrip("/"))
                 for rule in negatives
@@ -70,14 +87,16 @@ def _package_assets(package: Path, *, workspace: bool):
     else:
         for directory, folders, files in os.walk(package, followlinks=False):
             folders[:] = [
-                name for name in folders
+                name
+                for name in folders
                 if name != "node_modules"
-                and not _excluded(Path(directory).relative_to(package) / name)
+                and not _excluded((Path(directory) / name).relative_to(package))
             ]
             chosen.update(Path(directory) / name for name in files)
     chosen.update(path for path in package.glob("LICENSE*") if path.is_file())
     return metadata, sorted(
-        path for path in chosen
+        path
+        for path in chosen
         if not _excluded(path.relative_to(package))
         and "node_modules" not in path.relative_to(package).parts
         and (path.is_file() or path.is_symlink())
@@ -151,11 +170,12 @@ def stage_assets(source: Path, output: Path, verified: dict) -> None:
                         target.symlink_to(relative_target)
                 queue.append(resolved)
         # Native loaders may resolve a selected optional platform package from
-        # another package's anchor, relying on pnpm's shared private hoist tree.
+        # another package's anchor, relying on pnpm's root or private hoist tree.
         # Preserve only aliases to entities already selected by the production
         # graph; never stage an additional development dependency through hoists.
-        hoisted = source / "node_modules/.pnpm/node_modules"
-        if hoisted.exists():
+        for hoisted in (source / "node_modules", source / "node_modules/.pnpm/node_modules"):
+            if not os.path.lexists(hoisted):
+                continue
             if hoisted.resolve(strict=True) != hoisted or not hoisted.is_dir():
                 raise ValueError("unsafe hoist root")
             aliases = []
@@ -174,9 +194,13 @@ def stage_assets(source: Path, output: Path, verified: dict) -> None:
                     raise ValueError("hoist alias changed")
                 target = output / alias.relative_to(source)
                 target.parent.mkdir(parents=True, exist_ok=True)
-                relative_target = os.path.relpath(output / resolved.relative_to(source), target.parent)
+                relative_target = os.path.relpath(
+                    output / resolved.relative_to(source), target.parent
+                )
                 if os.path.lexists(target):
-                    if not target.is_symlink() or target.resolve(strict=True) != output / resolved.relative_to(source):
+                    if not target.is_symlink() or target.resolve(
+                        strict=True
+                    ) != output / resolved.relative_to(source):
                         raise ValueError("conflicting hoist alias")
                 else:
                     target.symlink_to(relative_target)

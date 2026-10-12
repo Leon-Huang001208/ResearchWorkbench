@@ -16,7 +16,11 @@ from . import providers
 from .broker import resolve
 from .catalog import build_catalog, catalog_detail
 from .connection_center import build_connection_center
-from .connections import MySQLConnectionStore
+from .connections import (
+    SUPPORTED_CONFIGURATION_SOURCES,
+    MySQLConnectionStore,
+    canonical_source_id,
+)
 from .contracts import BusinessQuery, Query
 from .probes import probe_source
 from .security import load_control
@@ -38,6 +42,7 @@ class DataHub:
         probe_ttl_seconds=300,
         max_retained_probes=128,
         monotonic_clock=time.monotonic,
+        admission=None,
     ):
         self.store = store
         self.snapshots = Snapshots(store)
@@ -57,6 +62,7 @@ class DataHub:
         self._monotonic = monotonic_clock
         self.cache_hits: dict[tuple[str, str], bool] = {}
         self.closed = False
+        self.admission = admission
 
     def authenticate(self, value):
         return (
@@ -70,6 +76,10 @@ class DataHub:
         latest = {}
         for probe in self.probes.values():
             if probe.get("status") != "completed":
+                continue
+            if probe.get("configuration_digest") != self.source_configuration_digest(
+                probe["source_id"]
+            ):
                 continue
             current = latest.get(probe["source_id"])
             if current is None or probe["completed_at"] > current["completed_at"]:
@@ -87,8 +97,17 @@ class DataHub:
     def source_configuration_digest(self, source_id: str) -> str:
         """Return a canonical digest of safe configuration metadata only."""
 
+        private = canonical_source_id(source_id) in SUPPORTED_CONFIGURATION_SOURCES
         payload = json.dumps(
-            self.connections.source_status(source_id),
+            {
+                "status": (
+                    self.connections.source_status(source_id)
+                    if private
+                    else {"source_id": source_id}
+                ),
+                "revision": self.connections.configuration_revision(source_id),
+                "namespace": self.connections.credential_service,
+            },
             ensure_ascii=True,
             sort_keys=True,
             separators=(",", ":"),
@@ -126,6 +145,7 @@ class DataHub:
         record = {
             "id": probe_id,
             "source_id": source_id,
+            "configuration_digest": self.source_configuration_digest(source_id),
             "status": "checking",
             "health": "checking",
             "failure_code": None,
@@ -377,10 +397,31 @@ class DataHub:
             "cache_hit": cache_hit,
         }
 
+    def _authorize_query(
+        self, sid, query, *, provider=None, cached=False, authorization_fingerprint=None
+    ):
+        if not isinstance(query, BusinessQuery):
+            return None
+        checked = query
+        if cached:
+            if not isinstance(provider, str) or not re.fullmatch(r"[a-z][a-z0-9_]{0,63}", provider):
+                raise StoreError("缓存来源无法确认", "data_cache_source_unknown", 409)
+            checked = query.model_copy(update={"source": provider, "allow_fallback": False})
+            if authorization_fingerprint != self.source_configuration_digest(provider):
+                raise StoreError("缓存授权版本已变化", "data_cache_authorization_changed", 409)
+        resolution = resolve(
+            checked, probes=self._latest_probes(), connection_statuses=self.connections.statuses()
+        )
+        if self.admission is not None:
+            self.admission(sid, checked, resolution)
+        return resolution
+
     async def query(self, sid, call_id, query: Query | BusinessQuery):
         self.store.session(sid)
         if self.closed or not re.fullmatch(r"[a-zA-Z0-9_.:-]{1,256}", call_id):
             raise StoreError("资料服务关闭或调用标识非法")
+        # A receipt/cache is historical evidence, never current authorization.
+        self._authorize_query(sid, query)
         key = (sid, call_id)
         receipt = self.snapshots.receipt(sid, call_id)
         fingerprint = query.fingerprint(include_refresh=True)
@@ -388,9 +429,16 @@ class DataHub:
             if receipt.get("fingerprint") not in (None, fingerprint):
                 raise StoreError("同一资料调用标识不能用于不同参数")
             if receipt["status"] == "completed":
-                return self.short(
-                    sid, self.detail(sid, receipt["dataset_id"]), cache_hit=receipt["cache_hit"]
-                )
+                manifest = self.detail(sid, receipt["dataset_id"])
+                if isinstance(query, BusinessQuery):
+                    self._authorize_query(
+                        sid,
+                        query,
+                        provider=manifest.get("provider"),
+                        cached=True,
+                        authorization_fingerprint=manifest.get("authorization_fingerprint"),
+                    )
+                return self.short(sid, manifest, cache_hit=receipt["cache_hit"])
             if key in self.tasks:
                 return await asyncio.shield(self.tasks[key])
             raise StoreError("资料调用已取消、失败或上次受理状态未知；不自动重发")
@@ -406,6 +454,7 @@ class DataHub:
     async def _query(self, sid, call_id, query):
         fingerprint = query.fingerprint(include_refresh=True)
         try:
+            resolution = self._authorize_query(sid, query)
             if not query.refresh:
                 for candidate in self.list(sid):
                     age = (
@@ -423,6 +472,20 @@ class DataHub:
                             else 900
                         )
                     ):
+                        if isinstance(query, BusinessQuery):
+                            try:
+                                self._authorize_query(
+                                    sid,
+                                    query,
+                                    provider=candidate.get("provider"),
+                                    cached=True,
+                                    authorization_fingerprint=candidate.get(
+                                        "authorization_fingerprint"
+                                    ),
+                                )
+                            except StoreError:
+                                log.warning("datahub_cache_authorization_changed")
+                                continue
                         self.snapshots.receipt(
                             sid,
                             call_id,
@@ -435,19 +498,16 @@ class DataHub:
                         )
                         return self.short(sid, candidate, cache_hit=True)
             request_query = query
-            resolution = None
             if isinstance(query, BusinessQuery):
-                resolution = resolve(
-                    query,
-                    probes=self._latest_probes(),
-                    connection_statuses=self.connections.statuses(),
-                )
                 provider_query = resolution.query
                 source_label = resolution.provider_id
             else:
                 provider_query = query
                 source_label = query.source
             log.info("datahub_query_started", session_id=sid, source=source_label)
+            authorization_fingerprint = (
+                self.source_configuration_digest(source_label) if resolution else None
+            )
             result = await providers.fetch(
                 provider_query, transport=self.transport, connections=self.connections
             )
@@ -476,6 +536,7 @@ class DataHub:
                 provider_query,
                 result,
                 request_query=request_query if resolution else None,
+                authorization_fingerprint=authorization_fingerprint,
             )
             self.snapshots.receipt(
                 sid,

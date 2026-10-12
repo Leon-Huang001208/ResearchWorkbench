@@ -7,9 +7,11 @@ import logging
 import multiprocessing
 import os
 import re
+import socket
 import stat
 import subprocess
 import sys
+import threading
 import traceback
 from dataclasses import FrozenInstanceError
 from pathlib import Path
@@ -17,9 +19,24 @@ from types import SimpleNamespace
 
 import pytest
 
+from research_workbench_entrypoint import runtime_mode
+from research_workbench_entrypoint.runtime_mode import RuntimeModeError, RuntimeModeStore
+
+
+@pytest.fixture(autouse=True)
+def isolated_os_native_candidate(tmp_path, monkeypatch):
+    from research_workbench_entrypoint import web_bootstrap
+
+    monkeypatch.setattr(
+        web_bootstrap,
+        "_standard_native_data_root",
+        lambda: tmp_path / "os-user/.research-workbench/research-web",
+    )
+
 
 def test_native_dispatch_incomplete_environment_uses_safe_diagnostics(tmp_path, monkeypatch):
     import io
+
     from research_workbench_entrypoint import bootstrap
 
     python = tmp_path / ".venv/bin/python"
@@ -42,15 +59,26 @@ def test_native_switch_bridge_rejects_pid_reuse_facts(tmp_path, monkeypatch):
     from app.research_web.service_manager import WebServiceManager
     from research_workbench_entrypoint import bootstrap
 
-    monkeypatch.setattr(WebServiceManager, "_service_probes", lambda _self: (
-        ServiceProbe("runtime", 3081, "valid", "alive", "foreign", "listening",
-                     "not_run", False, None, ("runtime_pid_reused",)),
-    ))
+    monkeypatch.setattr(
+        WebServiceManager,
+        "_service_probes",
+        lambda _self: (
+            ServiceProbe(
+                "runtime",
+                3081,
+                "valid",
+                "alive",
+                "foreign",
+                "listening",
+                "not_run",
+                False,
+                None,
+                ("runtime_pid_reused",),
+            ),
+        ),
+    )
     with pytest.raises(bootstrap.ControlError, match="runtime_ownership_unknown"):
         bootstrap._native_probe("status", tmp_path, tmp_path, (8088, 3081))
-
-from research_workbench_entrypoint import runtime_mode
-from research_workbench_entrypoint.runtime_mode import RuntimeModeError, RuntimeModeStore
 
 
 def _path(home: Path) -> Path:
@@ -148,7 +176,11 @@ def test_same_mode_switch_is_read_only(tmp_path):
     home = tmp_path / "missing"
     store = RuntimeModeStore(home)
     assert switch_runtime(store, "native", None, None) == {
-        "schema_version": 1, "ok": True, "issues": [], "mode": "native", "changed": False,
+        "schema_version": 1,
+        "ok": True,
+        "issues": [],
+        "mode": "native",
+        "changed": False,
     }
     assert not home.exists()
 
@@ -182,7 +214,10 @@ def test_switch_round_trip_preserves_real_data_and_isolates_runtime_state(tmp_pa
         def status(self):
             path = self.root / "owned-state.json"
             running = path.exists() and json.loads(path.read_text())["running"]
-            return {"ok": True, "services": {role: {"running": running} for role in ("web", "runtime")}}
+            return {
+                "ok": True,
+                "services": {role: {"running": running} for role in ("web", "runtime")},
+            }
 
         def stop(self):
             (self.root / "owned-state.json").write_text('{"running":false}')
@@ -193,7 +228,9 @@ def test_switch_round_trip_preserves_real_data_and_isolates_runtime_state(tmp_pa
     monkeypatch.setattr(bootstrap, "port_busy", lambda port: False)
     native.start()
     assert not docker.status()["services"]["web"]["running"]
-    assert bootstrap.switch_runtime(store, "docker", docker, native)["issues"] == ["runtime_stop_current_required"]
+    assert bootstrap.switch_runtime(store, "docker", docker, native)["issues"] == [
+        "runtime_stop_current_required"
+    ]
     assert store.read().mode == "native"
     assert bootstrap.switch_runtime(store, "docker", docker, native, stop_current=True)["ok"]
     docker.start()
@@ -213,6 +250,239 @@ def test_conditional_mode_write_rejects_concurrent_change(tmp_path):
     with pytest.raises(RuntimeModeError, match="runtime_mode_changed"):
         store.write("native", expected=expected)
     assert store.read() == changed
+
+
+@pytest.fixture
+def native_stop_switch(tmp_path, monkeypatch):
+    """Isolate bridge reports; exercise real Native public stop and socket bind checks."""
+    from research_workbench_entrypoint import bootstrap
+
+    store = RuntimeModeStore(tmp_path / "home")
+    before = store.write("native")
+    native = bootstrap.NativeRuntime(tmp_path, store.home, ports=(0, 0))
+    state = {"running": True, "ok": True, "stop_ok": True, "stops": 0, "after_stop": None}
+
+    def probe(operation):
+        if operation == "stop":
+            state["stops"] += 1
+            if not state["stop_ok"]:
+                return bootstrap.result("runtime_stop_failed", mode="native")
+            state["running"] = False
+            if state["after_stop"]:
+                state["after_stop"]()
+        return bootstrap.result(
+            *(() if state["ok"] else ("runtime_ownership_unknown",)),
+            mode="native",
+            services={role: {"running": state["running"]} for role in ("web", "runtime")},
+        )
+
+    monkeypatch.setattr(native, "_probe", probe)
+    docker = SimpleNamespace(
+        preflight=lambda: bootstrap.result(mode="docker"),
+        status=lambda: bootstrap.result(
+            mode="docker", services={role: {"running": False} for role in ("web", "runtime")}
+        ),
+    )
+    return bootstrap, store, before, native, docker, state
+
+
+def test_native_stop_switch_waits_for_real_bound_socket_release(native_stop_switch, caplog):
+    bootstrap, store, _, native, docker, state = native_stop_switch
+    with socket.socket() as bound:
+        bound.bind(("127.0.0.1", 0))  # Bound, deliberately not listening.
+        native.ports = (bound.getsockname()[1], 0)
+        release = threading.Event()
+        worker = threading.Thread(target=lambda: (release.wait(0.15), bound.close()))
+        state["after_stop"] = worker.start
+        with caplog.at_level(logging.INFO, logger=bootstrap.__name__):
+            try:
+                report = bootstrap.switch_runtime(
+                    store, "docker", docker, native, stop_current=True, wait_timeout=1
+                )
+                assert report["ok"] and bound.fileno() == -1
+            finally:
+                release.set()
+                worker.join(timeout=2)
+    assert store.read().mode == "docker"
+    messages = [record.getMessage() for record in caplog.records]
+    assert "runtime_switch phase=native_port_wait code=begin" in messages
+    assert "runtime_switch phase=native_port_wait code=released" in messages
+
+
+def test_native_stop_switch_bound_timeout_keeps_mode(native_stop_switch, caplog):
+    bootstrap, store, before, native, docker, state = native_stop_switch
+    with socket.socket() as bound:
+        bound.bind(("127.0.0.1", 0))
+        native.ports = (bound.getsockname()[1], 0)
+        report = bootstrap.switch_runtime(
+            store, "docker", docker, native, stop_current=True, wait_timeout=0.02
+        )
+        assert not report["ok"] and report["issues"] == ["runtime_stop_failed"]
+        assert bound.fileno() != -1
+    assert store.read() == before and state["stops"] == 1
+    assert "runtime_switch phase=native_port_wait code=timeout" in caplog.messages
+
+
+@pytest.mark.parametrize("budget", [-1, True, False, float("nan"), float("inf"), "1", 46, 10**1000])
+def test_native_stop_switch_rejects_invalid_budget_before_stop(native_stop_switch, budget):
+    bootstrap, store, before, native, docker, state = native_stop_switch
+    report = bootstrap.switch_runtime(
+        store, "docker", docker, native, stop_current=True, wait_timeout=budget
+    )
+    assert not report["ok"] and state["stops"] == 0
+    assert store.read() == before
+
+
+@pytest.mark.parametrize("case", ["failed_stop", "unknown", "unauthorized", "stopped"])
+def test_native_stop_switch_no_wait_without_successful_owned_stop(
+    native_stop_switch, monkeypatch, case
+):
+    bootstrap, store, before, native, docker, state = native_stop_switch
+    state["stop_ok"] = case != "failed_stop"
+    state["ok"] = case != "unknown"
+    state["running"] = case != "stopped"
+    monkeypatch.setattr(bootstrap, "port_busy", lambda _port: pytest.fail("unexpected wait"))
+    report = bootstrap.switch_runtime(
+        store, "docker", docker, native, stop_current=case != "unauthorized"
+    )
+    assert report["ok"] == (case == "stopped")
+    if case != "stopped":
+        assert store.read() == before
+    assert state["stops"] == (1 if case == "failed_stop" else 0)
+
+
+def test_native_stop_switch_rechecks_mode_after_wait(native_stop_switch):
+    bootstrap, store, _, native, docker, state = native_stop_switch
+    with socket.socket() as bound:
+        bound.bind(("127.0.0.1", 0))
+        native.ports = (bound.getsockname()[1], 0)
+
+        def concurrent_change():
+            store.write("docker")
+            bound.close()
+
+        release = threading.Event()
+        worker = threading.Thread(target=lambda: (release.wait(0.15), concurrent_change()))
+        state["after_stop"] = worker.start
+        try:
+            report = bootstrap.switch_runtime(store, "docker", docker, native, stop_current=True)
+        finally:
+            release.set()
+            worker.join(timeout=2)
+    assert report["issues"] == ["runtime_mode_changed"]
+
+
+def test_native_stop_switch_wait_uses_pre_stop_ports_only(native_stop_switch, monkeypatch):
+    bootstrap, store, _, native, docker, state = native_stop_switch
+    native.ports = (18088, 13081)
+    state["after_stop"] = lambda: setattr(native, "ports", (8088, 3081))
+    checked = []
+    monkeypatch.setattr(bootstrap, "port_busy", lambda port: (checked.append(port), False)[1])
+    assert bootstrap.switch_runtime(store, "docker", docker, native, stop_current=True)["ok"]
+    assert checked == [18088, 13081]
+
+
+def test_native_stop_switch_rejects_numeric_subclass(native_stop_switch):
+    bootstrap, store, before, native, docker, state = native_stop_switch
+
+    class Budget(float):
+        pass
+
+    report = bootstrap.switch_runtime(
+        store, "docker", docker, native, stop_current=True, wait_timeout=Budget(1)
+    )
+    assert report["issues"] == ["runtime_stop_failed"]
+    assert state["stops"] == 0 and store.read() == before
+
+
+@pytest.mark.parametrize("budget", [0, 0.0, 45, 45.0])
+def test_native_stop_switch_accepts_bounded_numeric_budget(native_stop_switch, budget):
+    bootstrap, store, _, native, docker, state = native_stop_switch
+    assert bootstrap.switch_runtime(
+        store, "docker", docker, native, stop_current=True, wait_timeout=budget
+    )["ok"]
+    assert state["stops"] == 1
+
+
+def test_native_stop_switch_default_budget_is_45_seconds():
+    import inspect
+
+    from research_workbench_entrypoint.bootstrap import switch_runtime
+
+    assert inspect.signature(switch_runtime).parameters["wait_timeout"].default == 45
+
+
+def test_native_stop_switch_runtime_restart_during_wait_is_rejected(native_stop_switch):
+    bootstrap, store, before, native, docker, state = native_stop_switch
+    with socket.socket() as bound:
+        bound.bind(("127.0.0.1", 0))
+        native.ports = (bound.getsockname()[1], 0)
+
+        def restart():
+            state["running"] = True
+            bound.close()
+
+        release = threading.Event()
+        worker = threading.Thread(target=lambda: (release.wait(0.15), restart()))
+        state["after_stop"] = worker.start
+        try:
+            report = bootstrap.switch_runtime(store, "docker", docker, native, stop_current=True)
+        finally:
+            release.set()
+            worker.join(timeout=2)
+    assert report["issues"] == ["runtime_stop_failed"] and store.read() == before
+
+
+@pytest.mark.parametrize("mode", ["native", "docker"])
+@pytest.mark.parametrize(
+    "failure,issues,reason,issue",
+    [
+        ("report", ["runtime_ownership_unknown"], "report_not_ok", "runtime_ownership_unknown"),
+        ("report", ["native_probe_failed"], "report_not_ok", "native_probe_failed"),
+        ("report", ["SECRET=/private/token?password=hunter2"], "report_not_ok", "unknown"),
+        ("report", [{"secret": "hunter2"}], "report_not_ok", "unknown"),
+        ("report", [], "report_not_ok", "unknown"),
+        ("running", [], "still_running", "none"),
+    ],
+)
+def test_switch_finalize_logs_only_controlled_failure_fields(
+    tmp_path, caplog, mode, failure, issues, reason, issue
+):
+    from research_workbench_entrypoint import bootstrap
+
+    store = RuntimeModeStore(tmp_path / "home")
+    before = store.write("native")
+
+    class Controller:
+        def __init__(self, name):
+            self.name = name
+            self.calls = 0
+
+        def preflight(self):
+            return {"ok": True}
+
+        def status(self):
+            self.calls += 1
+            failing = self.name == mode and self.calls == 2
+            if failing and failure == "report":
+                # Missing services must remain short-circuited by not-ok.
+                return {"ok": False, "issues": issues, "detail": "SECRET=hunter2"}
+            return {
+                "ok": True,
+                "services": {
+                    role: {"running": failing and failure == "running"}
+                    for role in ("web", "runtime")
+                },
+            }
+
+    report = bootstrap.switch_runtime(store, "docker", Controller("docker"), Controller("native"))
+    assert report == {"schema_version": 1, "ok": False, "issues": ["runtime_stop_failed"]}
+    assert store.read() == before
+    messages = [
+        record.getMessage() for record in caplog.records if record.name == bootstrap.__name__
+    ]
+    assert f"runtime_switch phase=finalize mode={mode} reason={reason} issue={issue}" in messages
+    assert all("hunter2" not in message and "SECRET" not in message for message in messages)
 
 
 @pytest.mark.parametrize(
@@ -531,9 +801,11 @@ def test_simulated_windows_parent_handles_reject_replacement(
     )
     monkeypatch.setattr(Path, "lstat", lstat)
 
-    with pytest.raises(RuntimeModeError, match="^runtime_mode_changed$"):
-        with runtime_mode._pin_windows_parents(path):
-            replaced = True
+    with (
+        pytest.raises(RuntimeModeError, match="^runtime_mode_changed$"),
+        runtime_mode._pin_windows_parents(path),
+    ):
+        replaced = True
 
     assert len(opened) == len(path.parents)
     assert closed == list(reversed(opened))
@@ -584,10 +856,16 @@ def test_public_windows_read_write_does_not_treat_mode_bits_as_acl(
         "_winapi",
         SimpleNamespace(CreateFile=create_file, CloseHandle=close_handle),
     )
-    monkeypatch.setitem(sys.modules, "msvcrt", SimpleNamespace(
-        open_osfhandle=transfer_handle, LK_NBLCK=1, LK_UNLCK=0,
-        locking=lambda fd, operation, size: lock_operations.append((operation, size)),
-    ))
+    monkeypatch.setitem(
+        sys.modules,
+        "msvcrt",
+        SimpleNamespace(
+            open_osfhandle=transfer_handle,
+            LK_NBLCK=1,
+            LK_UNLCK=0,
+            locking=lambda fd, operation, size: lock_operations.append((operation, size)),
+        ),
+    )
     monkeypatch.setattr(runtime_mode.os, "name", "nt")
     monkeypatch.setattr(runtime_mode.os, "chmod", lambda *_args, **_kwargs: None)
 
@@ -702,11 +980,13 @@ def test_module_import_is_stdlib_only() -> None:
             sys.executable,
             "-I",
             "-c",
-            "import sys; sys.path.insert(0, '.'); "
-            "import research_workbench_entrypoint.runtime_mode; "
-            "assert 'click' not in sys.modules; "
-            "assert 'fastapi' not in sys.modules; "
-            "assert 'structlog' not in sys.modules",
+            (
+                "import sys; sys.path.insert(0, '.'); "
+                "import research_workbench_entrypoint.runtime_mode; "
+                "assert 'click' not in sys.modules; "
+                "assert 'fastapi' not in sys.modules; "
+                "assert 'structlog' not in sys.modules"
+            ),
         ],
         cwd=Path(__file__).resolve().parents[2],
         capture_output=True,
@@ -761,10 +1041,22 @@ def test_cross_process_writes_are_serialized_through_readback(tmp_path, existing
     started = [context.Event(), context.Event()]
     finished = [context.Event(), context.Event()]
     results = context.Queue()
-    children = [context.Process(target=_interleaved_writer, args=(str(home), initial,
-                entered, release, started[index], finished[index], results,
-                "replace" if index == 0 else "none"))
-                for index in range(2)]
+    children = [
+        context.Process(
+            target=_interleaved_writer,
+            args=(
+                str(home),
+                initial,
+                entered,
+                release,
+                started[index],
+                finished[index],
+                results,
+                "replace" if index == 0 else "none",
+            ),
+        )
+        for index in range(2)
+    ]
     try:
         children[0].start()
         assert entered.wait(10)
@@ -796,9 +1088,22 @@ def test_cross_process_lock_covers_persisted_readback(tmp_path):
     started = [context.Event(), context.Event()]
     finished = [context.Event(), context.Event()]
     results = context.Queue()
-    children = [context.Process(target=_interleaved_writer, args=(str(home), initial,
-                entered, release, started[index], finished[index], results,
-                "readback" if index == 0 else "none")) for index in range(2)]
+    children = [
+        context.Process(
+            target=_interleaved_writer,
+            args=(
+                str(home),
+                initial,
+                entered,
+                release,
+                started[index],
+                finished[index],
+                results,
+                "readback" if index == 0 else "none",
+            ),
+        )
+        for index in range(2)
+    ]
     try:
         children[0].start()
         assert entered.wait(10)
@@ -825,6 +1130,7 @@ def test_higher_ancestor_rename_restore_cannot_redirect_record(tmp_path, monkeyp
     moved = tmp_path / "moved"
     original = os.open
     attacked = []
+
     def swap(candidate, flags, *args, **kwargs):
         if Path(candidate).name != "runtime.json":
             return original(candidate, flags, *args, **kwargs)
@@ -836,6 +1142,7 @@ def test_higher_ancestor_rename_restore_cannot_redirect_record(tmp_path, monkeyp
         finally:
             home.rename(decoy)
             moved.rename(home)
+
     monkeypatch.setattr(os, "open", swap)
     assert RuntimeModeStore(home).read() == expected
     assert expected.installation_id != foreign.installation_id

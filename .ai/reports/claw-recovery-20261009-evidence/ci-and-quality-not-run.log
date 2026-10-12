@@ -1,0 +1,1 @@
+NOT_RUN: selected CI has no local candidate run; user goal forbids push/merge/dispatch. Ruff/Black/isort/mypy absent; explicit temporary-environment installation authorization remains pending. No package installation was attempted. Real DSH/model and other platforms NOT_RUN.

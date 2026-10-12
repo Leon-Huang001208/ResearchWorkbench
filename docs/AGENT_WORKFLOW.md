@@ -52,7 +52,7 @@ master
 
 | 宿主真机 | 允许的工作 | 本任务验收责任 |
 | --- | --- | --- |
-| MacBook Pro / macOS | 项目功能开发与 macOS 适配 | macOS 本地验收 + 适用的 GitHub macOS CI |
+| 24GB Mac mini / macOS | Docker 主开发、构建、测试、常驻服务；MacBook Pro 远程操作 | macOS / Docker Desktop 本地验收 + 适用的 GitHub macOS CI |
 | Windows | 已有功能的 Windows 适配；不承担功能开发 | Windows 本地验收 + 适用的 GitHub Windows CI |
 | Linux | 已有功能的 Linux 适配；不承担功能开发 | Linux 本地验收 + 适用的 GitHub Linux CI |
 

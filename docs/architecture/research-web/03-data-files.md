@@ -32,7 +32,94 @@ Hot内部简报冻结核心在同一只读repeatable-read事务中取得截止�
 来源陈述与规则/模型/人工判断；不把旧判断覆盖写成当前采集健康。当前仅内部返回与验收导出，
 尚无简报表、公开路由、DOCX或研究冻结原文副本，不能据此认证阶段四完成。
 
+新 Docker 目标采用每实例独立 data/logs/credentials/cache 四个命名卷；data 映射
+`/data/research-web`，包含既有 DSH home、会话索引、上传、产物与产品日志。
+管理账本保留数据卷身份；开发重建/退休仅删除精确所属容器，保留四卷与源码，
+不迁移 canonical Native 根、PID、cookie、Keychain或旧Compose bind数据。
+stage/prod不挂载开发源码，各实例网络、端口与运行状态分离。
+通用业务凭据目录与模型系统存储仍是两个合同，Docker 模型后端由G2补齐。
+
+DSH 0.2.1 的 preset 注册改为 owned overlay 中的声明式插件行；原 `.agent-presets/<id>/agent.cordis.yml` 仍是产品生成源，不再依赖旧版文件目录自动发现。空实例默认模型为 `deepseek-flash`；已有保存的模型 ID、历史会话和快照不自动重写。安装清单绑定新的固定源码及实际构建闭包，模型秘密仍仅存于 Native Keychain，不随 preset、安装摘要或快照复制。
+
+Automation 沿用 automation_runs 的 session_id、report_run_id、updated_at 和 failure_code 字段，不新增索引或迁移。已知关联通过现有原子 Store.save 写入；失败回滚内存关联，不以未落盘引用继续提交。报告晚到的会话 ID 同样保存；未知、陈旧和异目标引用保留失败原因与原记录，恢复不删除或重建原数据/产物。
+
+Native 停止端口等待只在 RAM 保留停止前端口元组与最多45秒单调期限；
+不保存观察基线或新状态，超时不写模式记录，产品数据、认证与凭据沿原路径。
+
+模式切换 finalize 诊断仅使用既有 stderr logger，不创建报告快照、marker、持久 proof 或日志目录。
+Native status 阶段诊断同样仅写固定 stderr 字段，不保存子进程报告或新增状态文件。
+
+容器 Web 单轮就绪预算调整只影响现有内存中的探测期限；不新增持久字段、目录、
+认证预写或数据迁移。失败仍清理本次精确子进程，研究数据与凭据保留原有路径。
+
+异根 Native 认证只读取两份既有私有 launch ledger；调用内比较 hint、目录/record FD 和
+进程事实均只在 RAM。不会新增 marker、持久 proof、Native 端点或认证文件，不读取环境/秘密，
+研究会话、附件、控制 token/有效额外字段与凭据仍沿原路径；作用域退出关闭 FD 并清观察。
+
+同 scope 的 Native own state 从原 mkstemp writer FD 保留 dup 到发布/就绪/停止结束，
+只在 RAM 记录实际 Popen、记录元数据与完整进程/listener 基线。记录同内容替换不能继承
+该观察；失败按精确 child 收尾，未知持久记录保留，不新增 auth、marker 或 proof 文件。
+
+内部类型说明和格式整理不新增文件格式或持久字段；控制记录仍保留原 token/额外字段，
+私有诊断仍不写入异常正文。类型检查日志与产品数据分开，不能充当运行时归属证明。
+
+Docker missing/new-root witness 仅为调用内 RAM：保留真实 lease/controller、私有父/根 FD、inode/owner/mode 与已有 OS 监听身份，不写 marker、PID、认证、controls 或元数据备份。no-start 只发布原安装摘要与模式，产品根保持缺失；实际 start 创建私有根并在 up 前失去分配权限。失败后只按原精确容器归属清理本次对象，未知替换保留；根和用户数据不删除，不把已创建根清掉来假造下一次 fresh。旧状态、凭据与研究数据不迁移。
+
 模型默认值、清除/回执未知标记及最近显式生成结果只保存于既有非秘密产品索引，不保存Key。macOS Native固定DSH模型秘密仅在系统Keychain；权限受限私有文件仅用于Host认证record；不进入DataHub快照、Automation索引、模型上下文或导出。提交前的未知标记支持取消/崩溃后的冷恢复失败关闭。
+
+运行状态 guard 的拒绝取证仅进入既有私有日志：固定枚举与身份变化字段名不包含路径、
+数值身份、文件内容、Cookie或token。不新增状态文件、marker、认证预写或数据迁移。
+身份变化日志只增加精确root/runtime对方向与相对位置枚举；仍不记录具体祖先目录或真实UID/GID。
+
+Docker `/state/runtime` 位于 1 MiB 的私有 `/state` tmpfs；认证通过每次启动/重启的原链重建，
+容器停止丢弃状态，不做文件预写、marker、权限修复或旧认证迁移。
+宿主 state/logs 单独 bind `/state/logs`，产品日志继续保存在 data-root/logs；
+旧 host state/runtime 原样保留，数据与凭据持续使用原绑定。Docker VM tmpfs 可能进入 swap，
+见 [Docker 文档](https://docs.docker.com/engine/storage/tmpfs/)，不能宣称秘密永不落盘。
+
+包明确发布子树中的 `doc/docs` 代码和配套运行资源属于镜像资产，继续进入既有 staged manifest。
+用户资料与包顶层文档不因此进入运行资产；未选开发包、测试、fixture、缓存不复制。
+
+Docker 派生资产的根模块相对别名只指向镜像内已选生产包，和私有 pnpm hoist 一同进入已有
+staged manifest。它们属于只读代码资产，不迁移用户 Profile、日志、缓存或研究资料。
+
+构建stream复用调用方私有任务stdout日志；仅脱敏内容外流，不新增持久数据格式或研究文件。原始捕获每路≤2MiB、合计≤4MiB，不上传日志。
+
+Docker builder 的 Node headers 是固定基础镜像资产，和 binary 同源，不是用户数据或新依赖锁。
+完整目录覆盖 config.gypi/common.gypi；只在 dsh-builder 使用，不进入最终 runtime 或研究根。
+
+Docker pnpm 下载并发 8、单请求期限 120 秒是[构建命令局部参数](../../research-web-installation.md)，
+不新增缓存或持久字段，也不改变研究数据、认证状态或凭据路径。
+
+Docker CLI代理只来自本次host环境校验，不写研究数据、manifest、Compose或镜像；provider
+秘密和Docker endpoint/TLS覆盖项不继承。Doctor.proxy只投影state/configured/local_bypass/issues，
+没有代理URL、认证或NO_PROXY原列表。
+
+正常 Native installer auto-start 凭同次 manager 在真实持锁 scope 实际创建根并保留身份至
+build-lock 就绪，不能从已有文件认领；no-start/跨调用没有该证明。环境 marker 仅证明
+checkout-owned Python，不承载数据根 witness、lease 或控制 token。
+
+Native 补齐任一缺失控制文件前先只读验证全部既有控制记录；MCP-only 动态 origin 成为
+正常 DataHub creator 的输入，畸形 MCP 不会留下新建 DataHub 文件。
+
+Native 环境和运行账本缺失的只读桥核验监听事实，不创建账本或控制文件；外来实例的
+已证明监听不会被当作本研究数据根的写者，未知或同根进程仍保留原文件并拒绝生命周期。
+
+Web 的 RESEARCH_DATA_HOME 与 DSH 配置均可使其他 checkout 使用相同数据根；仅 argv 路径
+不同不足以证明隔离。fresh 创建身份仅在本次启动内存中持有，已有 setup runtime/build-lock
+目录不取得该证明；拒绝时不删除、移动数据根或改写账本以制造全新状态。
+
+fresh 失败恢复的外来监听身份仅存在于本次内存记录，不写入 ledger/journal/日志。持续根与
+lease 身份、全部本次对象退出和原监听事实一致时才恢复原 controls 字节；未知或替换保留 intent。
+
+独立端点 helper 的 `install/endpoints.json` 是运行时元数据，不是第二份依赖或研究事实。
+启动链的 origin helper 对两份 `.control` 记录保留 token/其他有效字段并改 URL，
+不迁移数据或凭据；原始回滚字节只留在内存，持久中断标记没有 token 备份。
+
+Native 在可信正常 creator 补齐缺失记录后开始事务；Docker 首次两份都缺失由正常 guest
+creator 初始化，单缺失由受管 prepare-only guest 先补齐。host 保留已有文件身份并在guest
+退出后复核未被替换，再对两份可信文件建立事务基线；不认领外来替换。
+端点CAS恢复生成新revision，不覆盖并发发布或另一模式记录。
 
 固定Docker bind中的私有叶首建不读取认证或凭据；创建阶段允许的父owner映射只限root到
 当前进程UID/GID，随后重新完整验证节点。已有文件、叶目录和canonical数据根均不chmod/chown。
@@ -40,16 +127,17 @@ Hot内部简报冻结核心在同一只读repeatable-read事务中取得截止�
 新建Compose调用的launch label通过私有临时目录内的最小配置overlay提供，退出后清除。
 它不含凭据或用户内容，不写入接受摘要；持久化数据与秘密不参与失败容器回滚删除。
 
-Docker 临时运行状态位于私有 tmpfs 的 `/state/runtime`，凭据记录位于独立凭据 bind 的
-`private/` 子目录；两者由容器用户创建，避免将 Desktop 映射为 root 的挂载根误作私有叶。
-容器重建后重新创建运行状态，并继续验证和复用持久凭据叶，不迁移或复制 Native Keychain，也不改变 canonical data-root。
+Docker 凭据记录继续位于独立凭据 bind 的 `private/` 子目录，重建后验证并复用；
+Docker Doctor schema 1 的 `volumes` 安全类型投影为 data=bind、state=tmpfs、logs=bind、credentials=bind；新增 logs 为固定非秘密类型字段。`verified` 仍只由实际容器 inspect 归属/挂载核验成功决定，缺失或不安全容器为 false；只读查询不创建日志目录。
+运行状态为临时 tmpfs 的 `runtime/` 子目录，每次正常重建认证。旧宿主 runtime 不再挂载，
+不迁移或删除，不复制 Native Keychain，也不改变 canonical data-root。
 
 Docker 接受摘要 `install/docker-manifest.json` 是私有、限长、禁止 alias 的部署状态，绑定
 image ID 与构建合同，不能充当研究数据。候选健康失败或发布失败只回滚本次已确认归属的
 容器；共享研究数据、独立凭据与旧接受镜像保留。模式提交失败恢复旧接受摘要字节。
 显式离线 repair 只可非 force 移除已证明停止且归属正确的旧容器，不删除其镜像或挂载数据。
 
-双运行时不复制或分叉研究事实：Native 与 Docker 依次 bind/读取同一 `~/.research-workbench/research-web/`，会话、附件、DataHub 快照和产物仍使用下述相同文件合同。模式切换先停止并确认旧模式退出，禁止并发写。进程/认证/build lock 不放在产品数据中：Native 保留自身 `run/` 状态，Docker 宿主管理状态使用 `run/docker/<installation-id>/`，容器认证与 build lock 使用 `/state` tmpfs；Docker 凭据单独存入 `secrets/docker/<installation-id>/` 并 mount 到容器，Native 系统 keyring 不自动迁入。安装摘要分别记录 Native 与 Docker 事实，不能互相证明健康。卸载默认保留数据和秘密，任何清理需独立授权及备份。
+双运行时不复制或分叉研究事实：Native 与 Docker 依次 bind/读取同一 `~/.research-workbench/research-web/`，会话、附件、DataHub 快照和产物仍使用下述相同文件合同。模式切换先停止并确认旧模式退出，禁止并发写。Native PID 账本保留自身 `run/` 路径，认证与构建锁沿用既有产品 `runtime/` 目录；Docker 运行状态、认证及启动器生成的 `build-lock.json` 位于容器 `/state/runtime` 私有 tmpfs，每次正常启动重建。宿主 `run/docker/<installation-id>/logs` 仅用于持久日志 bind，旧宿主 `runtime/` 内容原样保留、不迁移；Docker 凭据仍单独存入 `secrets/docker/<installation-id>/` 并 mount 到容器，Native 系统 keyring 不自动迁入。安装摘要分别记录 Native 与 Docker 事实，不能互相证明健康。卸载默认保留数据和秘密，任何清理需独立授权及备份。
 
 Web 安装清单位于 Research Workbench 私有数据根的 `install/manifest.json`，只保存代码/依赖版本与
 摘要；CJPY wheel、Web 锁和 DSH 闭包均以哈希核对。清单和安装日志不保存 `CJ_KEY`、模型密钥、
@@ -86,7 +174,7 @@ URL、SMTP 密码与 Webhook 签名秘密由 `ResearchWorkbench.Delivery` 系统
 
 DataHub 是 FastAPI 进程内的后台“数据总机”，不是用户直接运行的第四种能力，也不是新服务。Web 通过“能力中心 → 数据”浏览 15 项业务数据能力、22 个登记来源及其绑定矩阵；其中 21 项是远程数据源，`local_cache` 是兼容的本机投影。DSH 通过品牌无关的 `datahub_*` 业务 Tool 取数。通用 MySQL 配置与会话文件位于当前设备数据根，密码由系统凭据库隔离；15 个稳定业务 Tool 常驻 Research Runtime，Broker 在每次调用时按最新状态选源，无可调用 Provider 时返回明确错误。
 
-统一连接中心由 `datahub/connection_center.py` 汇总来源声明、非秘密配置、系统凭据存在性、平台能力、最近探测和 Runtime 适配状态；`datahub/connections.py` 仅原子保存 `<RESEARCH_DATA_HOME>/connections/` 下的非秘密 JSON，秘密通过系统凭据库按来源/账号键隔离。`datahub/probes.py` 执行有界诊断：Wind 沿用本机登录会话，iFinD SDK 探测登录后在 `finally` 登出，Excel 与插件只有实际心跳或工作簿探测才能标记可用。保存配置或检测成功都不自动等价为 Provider 可调用。
+统一连接中心由 `datahub/connection_center.py` 汇总来源声明、非秘密配置、系统凭据存在性、平台能力、最近探测和 Runtime 适配状态；`datahub/connections.py` 仅原子保存 `<RESEARCH_DATA_HOME>/connections/` 下的非秘密 JSON，秘密通过系统凭据库按规范化 data home 服务命名空间和来源/账号键隔离。`datahub/probes.py` 执行有界诊断：Wind 沿用本机登录会话，iFinD SDK 探测登录后在 `finally` 登出，Excel 与插件只有实际心跳或工作簿探测才能标记可用。保存配置或检测成功都不自动等价为 Provider 可调用。
 
 旧环境变量迁移先返回只含“是否存在、冲突、目标来源”的预览；执行时要求来源白名单与二次确认，先写入并回读系统凭据库，再原子清理 `.env` 对应项。配置文件、凭据或 `.env` 任一步失败时恢复原始字节、权限和旧凭据；DSH 模型密钥不进入该流程。
 
@@ -203,8 +291,38 @@ Method 的会话证据独立写入 `<session>/.rwb/method-trace.jsonl`，单行�
 generation、逐资源 settled 和 latest-request-wins 都是内存请求账本；只有 runtime 的 pending/settled
 failure 会投影为可见 connecting/offline，且不会写入新的缓存或文件。数据文件关系和相关架构图保持不变。
 
+DataHub 连接凭据以公开 canonical data home 的 SHA-256 后缀隔离系统服务；账户标识与非秘密 JSON 保留。旧全局服务不读取、不复制、不删除，升级后需在所属实例重新录入；旧记录可供旧版回滚，不写秘密备份。
+
+## 设置闭环阶段3：当前能力范围
+
+DataHub快照增加非秘密authorization_fingerprint，来自配置、实例命名空间和原子配置文件身份，不读取或散列秘密值。旧快照留作审计；新查询/回执/缓存重用须重检当前授权与配置版本。脚本只获当前准入版本和已授权dataset目录；旧resources/skills和全集版本快照不可作为执行许可。
+
+
+## 单一兼容模型连接
+
+兼容模型连接只在产品状态中持久化非秘密字段和公共revision；秘密仅存于实例系统账户RESEARCH_COMPAT_API_KEY，与原RESEARCH_DSH_API_KEY分离。地址变化不继承旧Key，文件/环境不作为模型回退。GET model-connection复用私有鉴权通道，不返回秘密；数据快照与商业数据账户合同不变。
+
 Docker 持久数据与私有凭据挂载保持既有归属检查；Windows DACL 未验证继续阻断。Office/Wind/Tabbit 宿主能力不会因挂载可见而开放，跨模式不隐式迁移秘密。
 
+## 结构化Office文件操作
+
+现有报告执行器承接会话document-operations：读取已登记文件，生成新文件或按有限段落、单元格、文本对象目标修改副本。输入来自Store安全文件身份；原生执行未接通时明确unavailable，不用文件结果冒充原生成功。文件模式沿既有Seatbelt sandbox，无新增宿主文件/子进程/网络权限。
+
+Word复杂字段/对象/修订及多段表格单元格拒绝修改；Excel文件模式保留公式但显示not_recalculated；PPT以presentation关系定义展示页序，文本对象按shape ID定位，保留未改页原始字节及被改页命名空间，生成须有登记模板。处理范围仍需真实产物及页面验收，ZIP片段合同不能证明PowerPoint可打开。
+
+写操作先落本任务独占暂存文件；完整响应及输入指纹复核通过后，以不覆盖的发布方式接入原outputs下载目录。输出冲突不覆盖已有文件；失败暂存不成为可下载成功产物。日志只记录格式、操作、状态和异常类型，不记录文档内容。
+
+普通会话文件面板现在提供三格式生成及有限局部编辑表单。Word/Excel通过结构化字段生成；PPT缺省复制`office-template.pptx`中性两页布局，也可使用已登记模板，生成内容匹配标题/正文对象ID2/3，不承诺任意模板的语义槽位兼容。该资源一次构建后随产品源码交付，产品不依赖开发机python-pptx。模板变更和布局可用性仍须实际PowerPoint验证。
+
+原生模式由同一文档业务入口委托现有LocalIntegrationManager和受监督工作进程，不进入文件处理sandbox，也不开放通用脚本或路径接口。Word仅支持简单标题/单行段落及单表格，编辑只写选中目标；Excel使用已准入副本的独立实例、真实重算与重开值，PPT使用受控单文件系统打开及原地保存。可用性、功能结果和清理分别记录，失败不能发布产物或改称文件模式。既有Host、Store、报告sandbox及本机执行边界保留；新增的是有限操作合同及连线，未新增后台服务或通用Office平台。
+
+Runtime私有文档调用的等待边界与执行边界分开：文件模式仍为35秒；原生模式等待195秒，覆盖Host既有180秒执行及10秒协调上限，并留5秒传递结果。该等待不会延长Host的10秒准备、30秒单步及190秒监督总限；调用者取消信号仍合并进入请求，不授权额外执行或自动重试。
+
+Word原生新建使用专用save-as接口并显式选择DOCX格式；HFS文本路径在进入Word的tell上下文前从受控任务路径转换。转换语句放在Word上下文内的真实只读探针曾返回空值，不能把这种空参数交给保存接口。该接口合同和上下文测试不替代实际保存/重开/读回证据；失败继续记录原生错误及独立清理状态。
+
+Word单文件交接沿已有PowerPoint模式通过正常LaunchServices打开受控副本，按完整HFS路径与saved状态确认归属后才使用文稿引用。原生新建先准备不含请求内容的空DOCX作目的文件交接；关闭该空文稿后，Word自身执行make new document，再写入与保存。空交接文件不计作原生新建或功能通过。原始输入仍保持不变，未验证引用不关闭，共享Word不退出；交接、真实创建及最终读回均须各自有实际证据。
+
+Word目标段落/单元格的多run只有rPr规范化字节完全一致时允许编辑，真正混合格式继续拒绝，不忽略字体、语言或其他属性。Word段落集合计入表格行结束段落，映射同时计数XML段落与表格行；段落写入范围排除结束标记，以保留后续表格和段落边界。标题读回从段落取得样式对象，与该文稿内置Title的本地化名称及built-in标志比较；区分大小写的比较在Word tell之外，原加粗及全量内容校验保留。
 staging 修复只作用于镜像只读发布资产，不删除或迁移产品数据、凭据及 Native 目录。包根开发目录与深层运行时代码区分，文件内容和 manifest 哈希继续逐项绑定。
 
 正常 Hot Native 模型使用配置指定的已有 model_budgets scope，累计额度不会随重启/日期改变。input-v2 缓存身份仅绑定模型参数、输入和提示版本；旧价格身份的回执和未知尝试在同一 schema 栅栏查询，预留前原子复查。历史回执 resultKey 和原费用记录保持原值，不转写或退款。当前联合研究快照备份仍未完成。
@@ -220,3 +338,16 @@ Migration15增加briefs head、不可变brief_versions与brief_requests。版本
 简报网页预览只读取保存的payload。Markdown文本哈希不同于冻结payload哈希；Node分块读取精确正版本，Host有界组装/核验后才发送完整附件，失败不发送部分文件。导出不写Store、不生成研究会话、不改Hot原文，未知创建仍重放原UUID。
 
 原验收库现保存浏览器生成的两份真实简报version1，内容hash与实际下载字节分别核对，刷新不会新建版本。测试基线按proofId隔离且写一次；失败恢复保留FAIL与独立角色收尾状态，实际预算账本不因故障注入或重跑重置。
+
+### Office 两条能力与任务清理的页面投影
+
+本机设置页在 Word、Excel、PowerPoint 各自行内分别显示文件处理和本机操作。文件处理的固定 capability 标记仅表达 Mac 文件业务所需的项目依赖/内置模板就绪，操作仍受既有文件身份、有限内容、版本检查及沙箱约束；不从 Office 安装、授权或模型生成结果推导。其他平台保持未验证，不新建后端或文件回退。
+
+本机操作沿既有显式验证与有效期判断；过期或实例状态变化保留最近时间和失效说明，不提升授权或可调用。最近有效验证只将既有安全诊断的最后完成步骤、功能和清理结果投影到现有 detail，不增加持久协议、路径或秘密。普通刷新不启动 Office。文档业务结果同时显示清理已确认/未确认/失败/未创建，下载产物和功能状态独立保留；没有清理证据时明确未确认。该展示不更改原生执行、保存重开、取消或归属边界。
+
+
+## 研究情报统一入口 · 2026-10-12
+
+主导航统一为“研究情报”，本地热点与事件在 `#/intel/hot`，现有外部8栏目仍在 `#/intel/*`。旧 `#/workbench/hot` 链接保留视图/事件参数后转入本地页。两类页面共用栏目导航、主题与Host；本地版本证据和Golddata外部只读数据保持身份与覆盖来源区分，外部读取不写Hot、领取任务或调用模型。Hot未启用时，外部栏目与设置继续可用。
+
+恢复的DOCX切片通过 `GET /api/research/hot/briefs/{brief_id}/docx?version=<固定版本>` 从签名/哈希核对的冻结输入生成并保留私有产物，复用报告DOCX生成器；导出不创建会话、不调用模型、不外发。该路径尚需完整产品/恢复验收，局部测试不代表研究闭环完成。

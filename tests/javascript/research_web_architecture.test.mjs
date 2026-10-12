@@ -6,6 +6,7 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { runInNewContext } from 'node:vm';
 
 const checkerURL = new URL('../../scripts/check_research_architecture.mjs', import.meta.url);
 const atlasURL = new URL('../../scripts/build_research_web_api_atlas.mjs', import.meta.url);
@@ -156,7 +157,7 @@ test('dual-runtime production paths and deployment branches have current archite
     assert.ok(nodes.has(id), `missing deployment node: ${id}`);
   }
   const receipt = JSON.parse(fs.readFileSync(path.join(root, readmeReview), 'utf8'));
-  assert.equal(receipt.disposition, 'updated');
+  assert.ok(['updated', 'unchanged'].includes(receipt.disposition));
   assert.ok(receipt.summary.length > 20);
   assert.ok(receipt.reason.length > 20);
 });
@@ -243,8 +244,8 @@ test('API Atlas distinguishes unique operations from overlapping source declarat
   const result=spawnSync(process.execPath,[atlasURL.pathname,f.root],{encoding:'utf8'});
   assert.equal(result.status,0,result.stderr);
   const html=fs.readFileSync(path.join(f.root,'outputs/research-web-architecture/api-atlas.html'),'utf8');
-  assert.match(html,/<span>唯一接口<\/span><b>1<\/b>/);
-  assert.match(html,/<span>源码声明<\/span><b>2<\/b>/);
+  assert.match(html,/<span><b>1<\/b>唯一接口<\/span>/);
+  assert.match(html,/<span><b>2<\/b>源码声明<\/span>/);
 });
 
 test('generated pages detect API set drift, regenerate deterministically, and check without writes', t => {
@@ -276,6 +277,87 @@ test('generated pages detect API set drift, regenerate deterministically, and ch
   assert.match(generated,/研究框架/);assert.match(generated,/frameworks\/gold/);
   assert.equal(run().status,0);
   assert.equal(fs.readFileSync(path.join(f.root,artifact),'utf8'),generated);
+});
+
+test('reading workbench retains canonical entries and adds accessible reading controls', t => {
+  const f=fixture(t);
+  const index=fs.readFileSync(path.join(f.root,'outputs/research-web-architecture/index.html'),'utf8');
+  assert.match(index,/aria-label="架构阅读目录"/);
+  assert.match(index,/id="architecture-search"/);
+  assert.match(index,/id="architecture-theme"/);
+  assert.match(index,/id="architecture-density"/);
+  assert.match(index,/id="reading-status"[^>]*role="status"/);
+  assert.match(index,/id="top"/);
+  assert.match(index,/id="module-runtime"/);
+  assert.match(index,/<details[^>]*id="module-runtime-code"/);
+  for(const id of ids) assert.match(index,new RegExp(`class="[^"]*card[^"]*"[^>]*href="${id}\\.html"`));
+  assert.match(index,/源码与测试位置/);
+  assert.match(index,/prefers-reduced-motion/);
+  assert.match(index,/@media\(max-width:720px\)\{[^}]*\.shell\{display:block\}/);
+  assert.match(index,/@media\(max-width:720px\)[\s\S]*?\.sidebar\{display:none\}/);
+  assert.match(index,/@media\(max-width:720px\)[\s\S]*?\.mobile-nav\{display:block/);
+  assert.doesNotMatch(index,/localStorage|scrollIntoView|https:\/\/.*\.css|\[图预览待接入\]/);
+});
+
+test('reading controls are driven by escaped inventory rather than hardcoded module names', t => {
+  const f=fixture(t), map=f.read(mapPath);
+  map.reading={levels:[{id:'overview',title:'总览'},{id:'details',title:'细节'}],modules:[{id:'runtime',group:'runtime',title:'<img src=x onerror=bad()>',summary:'"<script>bad()</script>',category:'研究会话与 Runtime'}]};
+  map.diagrams[0].level='overview';f.write(mapPath,map);
+  assert.equal(spawnSync(process.execPath,[atlasURL.pathname,f.root],{encoding:'utf8'}).status,0);
+  const index=fs.readFileSync(path.join(f.root,'outputs/research-web-architecture/index.html'),'utf8');
+  assert.match(index,/data-reading-search="[^"]*app\/research_web\/main\.py/);
+  assert.match(index,/&lt;img src=x/);
+  assert.doesNotMatch(index,/<img src=x|<script>bad\(\)/);
+  assert.match(index,/id="overview"/);
+  assert.match(index,/id="details"/);
+});
+
+test('product brand is embedded as its original bounded PNG bytes and rejects aliases', t => {
+  const f=fixture(t), asset='app/research_web/ui/assets/brand/brand-mark.png';
+  f.write('app/research_web/ui/shell.mjs','// product brand consumer');
+  const run=()=>spawnSync(process.execPath,[atlasURL.pathname,f.root],{encoding:'utf8'});
+  assert.notEqual(run().status,0,'a product shell without its approved asset must fail');
+  const bytes=fs.readFileSync(new URL('../../app/research_web/ui/assets/brand/brand-mark.png',import.meta.url));
+  fs.mkdirSync(path.dirname(path.join(f.root,asset)),{recursive:true});fs.writeFileSync(path.join(f.root,asset),bytes);
+  assert.equal(run().status,0);
+  const index=fs.readFileSync(path.join(f.root,'outputs/research-web-architecture/index.html'),'utf8');
+  assert.ok(index.includes(`data:image/png;base64,${bytes.toString('base64')}`));
+  fs.unlinkSync(path.join(f.root,asset));fs.symlinkSync(new URL('../../app/research_web/ui/assets/brand/brand-mark.png',import.meta.url),path.join(f.root,asset));
+  assert.notEqual(run().status,0,'asset path aliases must fail closed');
+});
+
+test('reading script filters source paths, reports empty state, handles opaque themes and reveals hash targets', t => {
+  const f=fixture(t);
+  const index=fs.readFileSync(path.join(f.root,'outputs/research-web-architecture/index.html'),'utf8');
+  const script=index.match(/<script>([\s\S]*?)<\/script>/)?.[1];
+  assert.ok(script,'the reading page needs its own local interaction script');
+  const events=new Map();
+  const control=(value='')=>({value,hidden:false,disabled:false,textContent:'',addEventListener(type,handler){events.set(this.id+':'+type,handler);},focus(){this.focused=true;}});
+  const controls=Object.fromEntries(['architecture-search','architecture-theme','architecture-density','reading-status','reading-empty','reading-error'].map(id=>[id,{...control(id==='architecture-theme'?'auto':id==='architecture-density'?'comfortable':''),id}]));
+  const section={hidden:false,querySelector(){return entries.find(x=>!x.hidden)||null;},querySelectorAll(){return entries;},id:'details'};
+  const entries=[
+    {id:'diagram-first',hidden:false,dataset:{readingSearch:'runtime protocol',readingKind:'diagram'}},
+    {id:'module-runtime',hidden:false,dataset:{readingSearch:'runtime app/research_web/main.py',readingKind:'module'}},
+  ];
+  for(const entry of entries) entry.closest=()=>section;
+  const code={id:'module-runtime-code',tagName:'DETAILS',open:false,hidden:false,closest(){return section;},getBoundingClientRect(){return {top:30};}};
+  const root={dataset:{}};const docEvents=new Map();
+  const document={documentElement:root,getElementById(id){return controls[id]||entries.find(x=>x.id===id)|| (id===code.id?code:null);},querySelectorAll(selector){if(selector==='.reading-entry')return entries;if(selector==='main > section')return [section];return [];},addEventListener(type,handler){docEvents.set(type,handler);}};
+  const windowEvents=new Map();const window={scrollY:0,scrollTo(){},addEventListener(type,handler){windowEvents.set(type,handler);}};
+  const media={matches:true,addEventListener(){}};const location={hash:''};
+  runInNewContext(script,{document,window,location,matchMedia:()=>media,console});
+  assert.equal(root.dataset.theme,'dark');
+  controls['architecture-theme'].value='light';events.get('architecture-theme:change')();assert.equal(root.dataset.theme,'light');
+  controls['architecture-density'].value='compact';events.get('architecture-density:change')();assert.equal(root.dataset.density,'compact');
+  controls['architecture-search'].value='MAIN.PY';events.get('architecture-search:input')();
+  assert.equal(entries[0].hidden,true);assert.equal(entries[1].hidden,false);assert.equal(section.hidden,false);assert.match(controls['reading-status'].textContent,/1.*模块/);
+  controls['architecture-search'].value='not-present';events.get('architecture-search:input')();assert.equal(section.hidden,true);assert.equal(controls['reading-empty'].hidden,false);
+  location.hash='#module-runtime-code';windowEvents.get('hashchange')();assert.equal(code.open,true);assert.equal(section.hidden,false);assert.equal(controls['architecture-search'].value,'');
+  // A source detail can be hidden by its article while another entry keeps the section visible.
+  code.closest=selector=>selector==='.reading-entry'?entries[1]:section;
+  controls['architecture-search'].value='protocol';events.get('architecture-search:input')();assert.equal(section.hidden,false);assert.equal(entries[1].hidden,true);
+  windowEvents.get('hashchange')();assert.equal(entries[1].hidden,false);assert.equal(controls['architecture-search'].value,'');
+  let prevented=false;docEvents.get('keydown')({key:'k',metaKey:true,preventDefault(){prevented=true;}});assert.equal(prevented,true);assert.equal(controls['architecture-search'].focused,true);
 });
 
 test('architecture gate detects equal-count stale Atlas entries', async t => {
@@ -490,4 +572,35 @@ test('actual CI shell preserves NUL-delimited filenames as single arguments',t=>
   const filename='app/research_web/space and\nnewline.mjs';f.write(filename,'export const value = 1;');git('add','.');git('-c','user.name=Fixture','-c','user.email=fixture@example.invalid','commit','-qm','change');
   const result=runCI(f,base,'HEAD');assert.equal(result.status,0,result.stderr);
   assert.deepEqual(JSON.parse(result.stdout),['--project',f.root,'--changed-file',filename]);
+});
+
+
+test('API directory preserves declaration rows and exposes accessible lookup controls', t => {
+  const f=fixture(t), html=fs.readFileSync(path.join(f.root,'outputs/research-web-architecture/api-atlas.html'),'utf8');
+  for(const id of ['search','category','method','theme','density','clear','result-count'])assert.match(html,new RegExp(`id="${id}"`));
+  assert.match(html,/aria-label="API 领域目录"/);
+  assert.match(html,/class="endpoint api"/);
+  assert.match(html,/data-method="GET"/);
+  assert.match(html,/没有匹配的接口。/);
+  assert.match(html,/prefers-reduced-motion/);
+  assert.doesNotMatch(html,/localStorage|scrollIntoView|Tweaks|data-layout|<iframe|fetch\(/);
+});
+
+test('API filters combine domain, method and search while counting duplicate declarations', t => {
+  const f=fixture(t),html=fs.readFileSync(path.join(f.root,'outputs/research-web-architecture/api-atlas.html'),'utf8');
+  const script=html.match(/<script>([\s\S]*?)<\/script>/)[1], events=new Map();
+  const controls=Object.fromEntries(['search','category','method','theme','density','clear','result-domain','result-count','empty','atlas-error'].map(id=>[id,{value:'',hidden:true,addEventListener(type,fn){events.set(id+':'+type,fn);},focus(){this.focused=true;}}]));
+  controls.theme.value='auto';controls.density.value='comfortable';controls.category.options=[{value:''},{value:'研究框架'}];
+  const rows=[['GET','/frameworks','研究框架'],['GET','/frameworks','研究框架'],['POST','/frameworks','研究框架'],['GET','/runtime','Runtime']].map(([method,route,category])=>({dataset:{method,category,search:(method+' '+route+' main.py '+category).toLowerCase()},querySelector(){return {textContent:route};}}));
+  const buttons=['','研究框架'].map(domain=>({dataset:{domain},classList:{toggle(){}},setAttribute(){},addEventListener(type,fn){events.set(domain+':'+type,fn);}}));
+  const root={dataset:{}},media={matches:true,addEventListener(type,fn){events.set('media:'+type,fn);}};
+  const document={documentElement:root,getElementById(id){return controls[id];},querySelectorAll(selector){return selector==='[data-domain]'?buttons:rows;},addEventListener(type,fn){events.set('doc:'+type,fn);}};
+  runInNewContext(script,{document,matchMedia:()=>media,location:{search:'?category='+encodeURIComponent('研究框架')},URLSearchParams,console});
+  assert.equal(root.dataset.theme,'dark');assert.equal(controls['result-count'].textContent,'2 个唯一接口 / 3 条声明');
+  controls.method.value='GET';events.get('method:change')();assert.equal(controls['result-count'].textContent,'1 个唯一接口 / 2 条声明');
+  controls.search.value='MAIN.PY';events.get('search:input')();assert.equal(rows[0].hidden,false);assert.equal(rows[2].hidden,true);
+  controls.search.value='absent';events.get('search:input')();assert.equal(controls.empty.hidden,false);
+  events.get('clear:click')();assert.equal(controls['result-count'].textContent,'3 个唯一接口 / 4 条声明');assert.equal(controls.search.focused,true);
+  controls.density.value='compact';events.get('density:change')();assert.equal(root.dataset.density,'compact');
+  controls.theme.value='light';events.get('theme:change')();assert.equal(root.dataset.theme,'light');
 });

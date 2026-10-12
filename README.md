@@ -8,6 +8,8 @@ Research Workbench 当前交付的是本地优先的 **Research Web**：一个�
 
 > 当前产品阶段为 **Web-only**。桌面打包历史仍被保留，但桌面 sidecar、Tauri、安装包和原生桌面 CI 不属于普通 Research Web 的安装或验收前提。
 
+当前主开发与常驻节点为 24GB Mac mini，开发、构建和测试放在 Docker；MacBook Pro 是远程入口。Windows/Linux 原生验收由对应设备负责。固定 DSH 为 0.2.1-alpha.1 的 Fork 提交 `48504f07f217f9fd45a4f6d8fca4b1ed35c2d4b0`，安装版本由 `runtimes/research_web.json` 决定。空实例默认 `deepseek-flash`，已有模型 ID 和会话保留，不自动更新已运行的生产实例。
+
 架构阅读从 Settings →「架构文档」或[交互图册](outputs/research-web-architecture/index.html)开始，按产品总览、部署、子系统、关键流程和 API 逐层展开；模块入口关联权威说明、源码与测试。
 
 平台能力及实际证据见[支持矩阵](docs/research-web-platform-support.md)。非 macOS 研究脚本沙箱、Windows Native 架构阅读和 Windows Docker 凭据 ACL 目前存在明确安全边界；Doctor 的实现状态与真机验收分别记录。
@@ -16,21 +18,21 @@ Research Workbench 当前交付的是本地优先的 **Research Web**：一个�
 
 ### 前置条件
 
-- Docker 模式（推荐）：宿主 Python 3.12 解释器用于公开安装入口和统一 `rwb` CLI，另需 Docker Desktop、可用的 Engine 与 Compose v2；无需宿主 Node，也无需全局第三方 Python 包，镜像内使用锁定的 Python 3.12、Node 24 和固定 DSH。当前 Windows Docker 凭据目录 ACL 无法由实现证明时会以 `docker_credentials_acl_unverified` 失败关闭，不能据此宣称 Windows 已验收。
+- Docker 新实例路径（macOS）：宿主 shell、Docker Desktop、Docker CLI/Engine 与 buildx，无需宿主 Python/Node；[开发部署手册](docs/research-web-docker.md)提供 dev/stage/prod 实例入口。Windows cmd 与 legacy Python Docker CLI 保留原合同及未验收边界。
 - Native 模式：宿主 Python 3.12、Node.js 22.19+（22 系列）或 24.x、Git；Windows 另需 Visual Studio 2022 Build Tools 的 “Desktop development with C++” 工作负载。
 
 Wind、iFinD、Office 等本机或厂商能力均为可选项；缺少它们不会阻止 Research Web 启动。
 
 ### 安装
 
-在仓库根目录二选一安装。Docker 是新安装的推荐入口：
+Mac mini 新实例使用以下入口，默认建立回环端口 18088 的独立 stage 实例：
 
 ```bash
 ./setup-web.sh --runtime docker
-./rwb web doctor
+./rwb docker stage local doctor
 ```
 
-Native 替代入口；`./setup-web.sh` 无参数也默认 Native：
+当前 Native 入口；`./setup-web.sh` 无参数也默认 Native：
 
 ```bash
 ./setup-web.sh --runtime native
@@ -68,7 +70,18 @@ Windows 请将 `./rwb` 替换为 `rwb.cmd`。
 
 ## 启动与管理服务
 
-Research Web 对两种模式使用同一 `rwb web` 命令。Native 管理 DSH（3081）和 Web（8088）两个宿主进程；Docker 在单容器内运行两者，仅向宿主回环发布 8088。先查看当前选择：
+Research Web 对两种模式使用同一 `rwb web` 命令。Native 管理 DSH 和 Web 两个宿主进程，默认分别为 3081 和 8088；Docker 在单容器内运行两者，默认仅向宿主回环发布 Web 8088。
+
+macOS 启动优先复用已成功记录的端口，否则优先 Web 8088／Native DSH 3081；确认本安装已停止后，
+未显式指定的占用端口可自动避让。以 `web status --json` 的实际地址为准。安装器和
+`web start/restart` 接受 `--web-port 18088`，Native 另接受 `--runtime-port 13081`；
+显式端口被占用会失败。Docker 内部仍固定 8088／3081，不发布 DSH，宿主 3081 无关监听不阻塞 Docker。
+已有停止 Docker 容器需要更换绑定时仍返回 `docker_stopped_port_conflict`，不会隐式重建；
+这项限制与真实 macOS Docker 验收尚未闭合，不能据单元测试宣称完整端口迭代已交付。
+
+已有数据根缺运行账本时，其他 checkout 的 Web/DSH 仍可能共享该根；未知数据根写者会
+拒绝启动，显式新端口也不能绕过。正常 Native 安装 auto-start 可在同次真实生命周期锁下
+承接实际创建证明；已结束的 `--no-start` 或既有目录不继承 fresh，详见安装指南。
 
 ```bash
 ./rwb runtime status --json
@@ -119,6 +132,8 @@ macOS Native 的模型凭据由产品 overlay 挂载的固定用途桥接存入�
 
 Docker相关通用业务凭据隔离实现保留；本阶段不交付Docker模型凭据后端，不把Native系统存储保证泛化到容器。
 
+DataHub 连接凭据按规范化 data home 隔离系统凭据服务；不同实例互不读取、覆盖或清除。旧全局记录不自动迁移或回退，已有非秘密配置保留，升级后请在所属实例设置页重新录入数据源凭据；旧记录不会被删除。
+
 ### 旧 Research Web 数据迁移
 
 从旧研究目录迁移前，先查看不写入的摘要：
@@ -140,9 +155,9 @@ Docker相关通用业务凭据隔离实现保留；本阶段不交付Docker模�
 Research Web 使用用户私有目录保存运行状态与数据：
 
 - `~/.research-workbench/research-web/`：两种模式顺序使用的同一研究会话、附件、数据集、产物和其他产品数据；切换前必须停止当前运行时。
-- `~/.research-workbench/run/`：Native 受管进程的 PID 与命令归属状态；Docker 使用独立容器状态目录和归属标签，不复用 Native 认证/PID 文件。
+- `~/.research-workbench/run/`：Native 受管进程的 PID 与命令归属状态；Docker 认证状态位于容器私有 tmpfs `/state/runtime`，每次启动/重启正常重建，不复用 Native 认证/PID 文件。
 - `~/.research-workbench/logs/`：受管运行时与 Web 服务日志。
-- `~/.research-workbench/install/runtime.json`：当前选择与安装身份；Docker 的私有状态位于 `run/docker/<installation-id>/`，凭据位于 `secrets/docker/<installation-id>/`，均不等同于产品数据目录。
+- `~/.research-workbench/install/runtime.json`：当前选择与安装身份；Docker 宿主 `run/docker/<installation-id>/logs` 单独持久绑定，旧 `run/docker/<installation-id>/runtime` 内容保留、不迁移；凭据仍位于 `secrets/docker/<installation-id>/`，均不等同于产品数据目录。
 - `~/.research-workbench/runtime/dsh/<commit>/`：固定提交的项目私有 DSH 源码与构建来源。
 - `~/.research-workbench/install/manifest.json`：安装摘要与诊断状态。
 - `logs/setup-web.log`：仓库内的一键安装日志。
@@ -158,6 +173,7 @@ Research Web 使用用户私有目录保存运行状态与数据：
 - **Asset Observation（资产观察）**：按需查看资产相关数据。
 - **Research Workbench（研究台）**：市场、资产、基金、行业与文档的工作台入口。
 - **Capability Center（能力中心）**：Skill、Method、Tool、Workflow 与数据能力目录。
+- **研究情报**：事件、研报、赛道资讯、快讯与社交内容的原生只读页面；使用 Golddata 现成接口，支持原文阅读与 A 股代码查询。
 - **Research Frameworks（研究框架）**：独立的研究框架与快照驱动分析。
 - **Operations and Usage（运行与用量）**：只读聚合模型用量、Agent、工具、DataHub、服务健康与存储情况。
 - **Settings（设置）**：通用、模型服务、数据源、本机集成与架构文档。
@@ -181,3 +197,12 @@ MacBook Pro 负责项目功能开发、macOS 本地验收与 GitHub macOS CI。W
 ## 许可证
 
 MIT License
+
+能力详情的数据准入范围独立于模型健康：硬条件缺失阻断，可选条件缺失按声明省略章节；旧快照与资源全集不代表当前执行授权。当前Mac验证不扩展成其他平台或所有供应商品牌支持。
+
+
+## 单一兼容模型连接
+
+设置页支持固定 DeepSeek 官方目录及一种 OpenAI Chat Completions 兼容文本/流式连接。兼容连接显式配置非秘密 base URL 和模型 ID，专用 Key 与官方 Key 隔离；本机无Key模式不读取凭据。模型工具能力未经实测时保持未验证；保存、Runtime应用、真实生成与真实账户验收各自留证，不承诺全品牌支持。
+
+研究情报包含本地热点与事件（`#/intel/hot`，需配置Hot/PostgreSQL）及外部只读资讯；状态、版本和覆盖范围分别展示，完整Hot研究闭环仍在验收中。

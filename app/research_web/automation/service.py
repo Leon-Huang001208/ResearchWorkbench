@@ -86,6 +86,70 @@ class AutomationService:
         except KeyError as exc:
             raise AutomationError("Automation Run 不存在", "automation_run_not_found", 404) from exc
 
+    def _persist_native_reference(self, run_id: str, **references: str | None) -> None:
+        """Persist known references before any further native submission or wait."""
+        row = self._run_row(run_id)
+        before = copy.deepcopy(row)
+        required = "report_run_id" if "report_run_id" in references else "session_id"
+        if not isinstance(references.get(required), str) or not references[required]:
+            raise AutomationError("缺少可信原生运行关联", "automation_reference_invalid", 409)
+        for key, value in references.items():
+            if key not in {"session_id", "report_run_id"} or (
+                value is not None and not isinstance(value, str)
+            ):
+                raise AutomationError("原生运行关联无效", "automation_reference_invalid", 409)
+            if value is not None and (not value or (row.get(key) and row[key] != value)):
+                raise AutomationError("原生运行关联冲突", "automation_reference_conflict", 409)
+        for key, value in references.items():
+            if value is not None:
+                row[key] = value
+        row["updated_at"] = time.time()
+        try:
+            self.store.save()
+        except Exception as exc:  # Do not submit after a failed checkpoint.
+            row.clear()
+            row.update(before)
+            log.error("automation_reference_persistence_failed", error_type=type(exc).__name__)
+            raise AutomationError(
+                "原生运行关联保存失败；未继续提交研究",
+                "automation_reference_persistence_failed",
+                503,
+            ) from exc
+        log.info("automation_native_reference_saved", run_id_digest=_id_digest(run_id))
+
+    async def _checkpoint_report_reference(
+        self, run_id: str, report: dict, *, newly_created: bool = False
+    ) -> None:
+        target = self._row(self._run_row(run_id)["automation_id"])["target"]
+        if (
+            target["kind"] != "report_workflow"
+            or report.get("workflow_id") != target["id"]
+            or type(report.get("version")) is not int
+            or report["version"] != target["version"]
+        ):
+            raise AutomationError(
+                "报告运行关联不属于锁定任务", "automation_reference_conflict", 409
+            )
+        try:
+            self._persist_native_reference(
+                run_id, report_run_id=report.get("id"), session_id=report.get("session_id")
+            )
+        except AutomationError as error:
+            if (
+                newly_created
+                and error.code == "automation_reference_persistence_failed"
+                and report.get("status")
+                in {"queued", "preparing_data", "running", "blocked_approval", "validating"}
+            ):
+                try:
+                    await self.research.report_workflows.runtime.cancel(report["id"])
+                except Exception as exc:  # noqa: BLE001 - only this newly associated run.
+                    log.error(
+                        "automation_uncheckpointed_report_stop_failed",
+                        error_type=type(exc).__name__,
+                    )
+            raise
+
     @staticmethod
     def _public(value: dict) -> dict:
         return copy.deepcopy(value)
@@ -388,8 +452,13 @@ class AutomationService:
             raise
         except Exception as exc:  # noqa: BLE001 - persist every executor failure.
             row.update(
-                research_status="failed",
-                failure_code="research_failed",
+                research_status=(
+                    "interrupted"
+                    if getattr(exc, "code", None)
+                    in {"native_submission_unconfirmed", "admission_unknown"}
+                    else "failed"
+                ),
+                failure_code=getattr(exc, "code", "research_failed"),
                 updated_at=time.time(),
             )
             self.store.save()
@@ -694,13 +763,44 @@ class AutomationService:
         row = self._run_row(run_id)
         automation = self._row(row["automation_id"])
         try:
-            if row.get("session_id"):
-                self._bind_mcp(row["session_id"], automation.get("mcp_tools", []))
-                result = await self._monitor_session(row["session_id"])
-            elif row.get("report_run_id"):
+            if row.get("report_run_id"):
+                if automation["target"]["kind"] != "report_workflow":
+                    raise AutomationError(
+                        "原生运行关联类型不匹配", "automation_reference_conflict", 409
+                    )
                 result = await self._monitor_report_run(
-                    row["report_run_id"], automation.get("mcp_tools", [])
+                    row["report_run_id"],
+                    automation.get("mcp_tools", []),
+                    expected_target=automation["target"],
+                    automation_run_id=run_id,
                 )
+            elif row.get("session_id"):
+                if automation["target"]["kind"] == "report_workflow":
+                    raise AutomationError("缺少报告运行关联", "automation_reference_conflict", 409)
+                detail = await self.research.detail(row["session_id"])
+                if detail.get("status") not in {
+                    "running",
+                    "queued",
+                    "pending",
+                    "waiting",
+                    "waiting_input",
+                    "waiting_approval",
+                    "awaiting_approval",
+                    "busy",
+                    "cancelling",
+                    "completed",
+                    "failed",
+                    "cancelled",
+                    "interrupted",
+                    "disconnected",
+                }:
+                    raise AutomationError(
+                        "原生任务提交尚未得到证据确认；未重新发送",
+                        "native_submission_unconfirmed",
+                        409,
+                    )
+                self._bind_mcp(row["session_id"], automation.get("mcp_tools", []))
+                result = await self._monitor_session(row["session_id"], initial=detail)
             else:
                 raise RuntimeError("automation_resume_reference_missing")
             row.update(
@@ -725,7 +825,7 @@ class AutomationService:
         except Exception as exc:  # noqa: BLE001 - unresolved recovery becomes interrupted.
             row.update(
                 research_status="interrupted",
-                failure_code="service_restarted",
+                failure_code=getattr(exc, "code", "service_restarted"),
                 updated_at=time.time(),
             )
             self.store.save()
@@ -769,9 +869,10 @@ class AutomationService:
                 return item["text"][:4000]
         return None
 
-    async def _monitor_session(self, session_id: str) -> dict:
+    async def _monitor_session(self, session_id: str, *, initial: dict | None = None) -> dict:
         while True:
-            detail = await self.research.detail(session_id)
+            detail = initial if initial is not None else await self.research.detail(session_id)
+            initial = None
             status = detail.get("status")
             if status == "completed":
                 return {
@@ -786,11 +887,28 @@ class AutomationService:
                 }
             await self.sleep(1)
 
-    async def _monitor_report_run(self, report_run_id: str, tools: Sequence[dict]) -> dict:
+    async def _monitor_report_run(
+        self,
+        report_run_id: str,
+        tools: Sequence[dict],
+        *,
+        expected_target: dict | None = None,
+        automation_run_id: str | None = None,
+    ) -> dict:
         bound_session = None
         while True:
             report = self.research.report_workflows.runtime._run(report_run_id)
+            if expected_target is not None and (
+                report.get("id") != report_run_id
+                or report.get("workflow_id") != expected_target["id"]
+                or report.get("version") != expected_target["version"]
+            ):
+                raise AutomationError(
+                    "报告运行不属于锁定任务", "automation_reference_conflict", 409
+                )
             if report.get("session_id") and report["session_id"] != bound_session:
+                if automation_run_id is not None:
+                    await self._checkpoint_report_reference(automation_run_id, report)
                 self._bind_mcp(report["session_id"], tools)
                 bound_session = report["session_id"]
             status = report.get("status")
@@ -836,19 +954,38 @@ class AutomationService:
             raise AutomationError("研究服务不可用", "automation_unavailable", 503)
         target = automation["target"]
         if target["kind"] == "report_workflow":
-            report = await self.research.report_workflows.runtime.start_run(
+            runtime = self.research.report_workflows.runtime
+            existing_reports = set(runtime.catalog.data["runs"])
+            returned = await runtime.start_run(
                 target["id"], trigger="automation", version=target["version"]
             )
-            result = await self._monitor_report_run(report["id"], automation["mcp_tools"])
+            report_id = returned.get("id")
+            if not isinstance(report_id, str) or not report_id:
+                raise AutomationError("缺少可信报告运行关联", "automation_reference_invalid", 409)
+            if report_id in existing_reports or report_id not in runtime.catalog.data["runs"]:
+                raise AutomationError(
+                    "报告运行未证明为本次创建", "automation_reference_conflict", 409
+                )
+            report = runtime._run(report_id)
+            if report.get("id") != report_id or report.get("trigger") != "automation":
+                raise AutomationError("报告运行归属无法确认", "automation_reference_conflict", 409)
+            await self._checkpoint_report_reference(run["id"], report, newly_created=True)
+            result = await self._monitor_report_run(
+                report["id"],
+                automation["mcp_tools"],
+                expected_target=target,
+                automation_run_id=run["id"],
+            )
             return {
                 **result,
                 "session_id": result.get("session_id") or report.get("session_id"),
                 "report_run_id": report["id"],
             }
         session = await self.research.create("claw", f"{automation['name']} · Automation")
-        session_id = session["id"]
+        session_id = session.get("id")
+        self._persist_native_reference(run["id"], session_id=session_id)
         self._bind_mcp(session_id, automation["mcp_tools"])
-        await self.research.send(
+        admission = await self.research.send(
             session_id,
             automation["input_template"],
             f"automation:{run['id']}",
@@ -856,5 +993,11 @@ class AutomationService:
             capability_version=target["version"],
             formats=automation["output_formats"],
         )
+        if not isinstance(admission, dict) or admission.get("accepted") is not True:
+            raise AutomationError(
+                "原生任务提交尚未确认；未继续监控或重新发送",
+                "native_submission_unconfirmed",
+                409,
+            )
         result = await self._monitor_session(session_id)
         return {**result, "session_id": session_id}

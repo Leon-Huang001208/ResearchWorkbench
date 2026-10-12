@@ -126,7 +126,7 @@ test('settings renders exactly one active body and marks one category current', 
 test('only live settings sections render scoped refresh controls', () => {
   assert.deepEqual(settingsRefreshCatalogs('model'), ['runtime', 'models']);
   assert.deepEqual(settingsRefreshCatalogs('data'), ['connections', 'integrations']);
-  assert.deepEqual(settingsRefreshCatalogs('local'), ['localIntegrations', 'tabbit', 'integrations']);
+  assert.deepEqual(settingsRefreshCatalogs('local'), ['localIntegrations', 'tabbit']);
   assert.deepEqual(settingsRefreshCatalogs('general'), []);
   assert.deepEqual(settingsRefreshCatalogs('docs'), []);
   for (const section of ['model', 'data', 'local']) {
@@ -181,4 +181,22 @@ test('settings navigation and responsive CSS keep desktop rail and 44px mobile t
   assert.match(css, /\.local-diagnosis-action \.button\s*\{[^}]*min-height:\s*44px/);
   assert.match(css, /@media \(max-width:\s*860px\)[\s\S]*?\.local-check-row\s*\{[^}]*grid-template-columns:\s*1fr/);
   assert.match(css, /@media \(prefers-reduced-motion:\s*reduce\)/);
+});
+
+test('compatible keyless payload never reads a disabled key or targets the original provider', async () => {
+  const { modelConfigurationPayload } = await import('../../app/research_web/ui/settings.mjs');
+  const values = new Map([['provider', 'openai-compatible'], ['model', 'local-test'], ['base_url', 'http://127.0.0.1:11434/v1'], ['credential_mode', 'none']]);
+  const payload = modelConfigurationPayload(values);
+  assert.equal(payload.provider, 'openai-compatible');
+  assert.equal(payload.credential_mode, 'none');
+  assert.equal(Object.hasOwn(payload, 'api_key'), false);
+});
+
+
+test('Office category does not show browser configuration and all keeps it folded', () => {
+  const office = renderSettingsPage({...baseOptions, route: parseRoute('#/settings/local'), hash: '#/settings/local', localCategory: 'office'});
+  assert.doesNotMatch(office, /id="tabbit-settings-form"/);
+  const all = renderSettingsPage({...baseOptions, route: parseRoute('#/settings/local'), hash: '#/settings/local', localCategory: 'all'});
+  assert.match(all, /<details class="local-tabbit-details">/);
+  assert.match(all, /id="tabbit-settings-form"/);
 });

@@ -4,6 +4,18 @@
 
 ## 当前产品边界
 
+Mac mini 的 Docker 基座使用管理员 `rwb-docker`，dev/stage/prod 各自有身份账本、
+数据/凭据/日志/cache卷和网络。dev挂载worktree，stage/prod固定不可变image ID；
+唯一研究引擎与容器内 Web/DSH 回环不变。独立限额 BuildKit 和瞬时管理容器属于管理员平面，
+业务与开发容器无 Docker socket。旧 Native/Docker 单实例管理合同保留，不能混用数据和账本。
+资源、最短命令及 G2-G6 缺口见 [Docker 手册](research-web-docker.md)。
+
+macOS 已存在的目标产品根可复用标准 OS 用户根中完整且已认证的不同根 Native 私有 pair。
+共享 reader 的观察在真实目标 lifecycle lease 内保留目录/记录 FD 并复查，scope 退出失效；
+未知与同根 writer 保留拒绝。部署节点、研究引擎、认证交换与持久 schema 不因此改变。
+
+Docker 首装的无启动接受与首次启动分别使用同一现有生命周期入口内的 RAM 证明：前者只确认产品根缺失，后者必须实际私有 mkdir 并 pin 父目录/根 FD。证明不持久化或跨调用转移；已有根、已知容器、Native 记录或未知变化不获得 fresh 权限，部署节点与认证实现不变。
+
 Research Workbench 当前交付的是本地优先的 Research Web，Native 与 Docker 只是同一产品的两种互斥部署：
 
 ```text
@@ -22,8 +34,11 @@ Research Web FastAPI Host（8088）
 - DSH 是唯一研究引擎；Research Web 不创建第二套 Agent 编排、聊天正文库或研究事实库。
 - Native 以两个宿主进程运行 Web 与 DSH；Docker 以一个非 root 容器运行两者，仅向宿主回环发布 Web 8088，DSH 3081 留在容器内。`rwb runtime` 先按私有模式记录选择，再由 `rwb web` 按进程或容器归属管理；同一数据目录只允许顺序使用。
 - Host 与 Runtime 保持回环访问边界；两种模式都不接管未知进程、容器或端口。
+- macOS 启动链用私有 `install/endpoints.json` 记录健康后接受的实际回环端口。
+  Native/Docker/最终模式选择共用 `run/lifecycle.lock`；元数据写锁在生命周期锁内短时获取。
+  Docker 内部端口固定，只有宿主 Web 端口参与分配；可信控制 origin 的成对变更保留原 token。
 - Docker 安装摘要绑定不可变 image ID、依赖锁、DSH/CJPY 与 Compose；公开启动和 Doctor 必须验证该已接受构建。构建候选使用独立 tag，启动等待真实健康后才发布选择；失败只回滚本次创建且再次确认归属的容器。
-- Docker 私有 tmpfs 状态与凭据 bind 根内的私有叶由容器用户创建与严格验证；实际状态为 `/state/runtime`，凭据为 `/run/rwb-secrets/private`，不改变共享产品数据根或 Native 路径。
+- Docker `/state` 使用私有 tmpfs，`/state/runtime` 在每次启动/重启由原认证链重建；日志单独持久绑定到 `/state/logs`，凭据仍为 `/run/rwb-secrets/private`。旧宿主状态保留，不迁移或自动清理；共享数据与 Native 路径不变。
 - 基础研究不要求 PostgreSQL；启用 Hot 时，独立 PostgreSQL schema 承载原文、事件、预算和唯一持久队列。Host 桥是惰性、有界的，Hot 故障不接管基础设置或研究启动。pgvector、Tauri、桌面 sidecar 和旧 `app/api` 生命周期不进入本次 Web 交付。
 - 当前阶段为 Web-only；只有修改桌面专属路径或用户重新开启桌面工作时，才应用桌面原生 CI 和安装级烟测。
 
@@ -59,6 +74,8 @@ Research Web FastAPI Host（8088）
 
 ## 文档与验证
 
+- 双运行时 Python 质量整理只涉及现有文件的格式、导入顺序、显式默认值与内部类型说明。
+  进程、目录、认证、控制事务和回滚的原有边界不因此改变；类型检查债务与实际生命周期证据分开记录。
 - [Development Map](DEVELOPMENT_MAP.md) 映射源码区域、权威文档和测试。
 - [文档门禁](research-web-documentation.md) 校验文档分类、权威唯一性、链接、退役命令、生成索引和 Research Web 架构清单。
 - `.ai/reports/` 保存每次任务的真实命令、结果和架构影响；`CHANGELOG.md` 只保留用户可见变化。

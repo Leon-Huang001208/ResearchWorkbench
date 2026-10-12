@@ -1,6 +1,6 @@
 import { createAPI, createController, parseRoute, legacyRouteTarget, isRunning, safeLog, collectQuestionAnswers, reconcileSessionSummary, waitForDataProbe, waitForIntegrationBatch, waitForLocalIntegrationProbe, waitForLocalIntegrationVerification } from './core.mjs';
 import { escapeHTML as e } from './markdown.mjs';
-import { badge, empty, renderConversation, renderDeleteConfirm, renderHistory, renderPurgeConfirm, renderRename } from './views.mjs';
+import { badge, empty, renderConversation, renderDeleteConfirm, renderHistory, renderPurgeConfirm, renderRename, renderDocumentEditor, documentTargets, documentEditValue, documentCreationPayload } from './views.mjs';
 import { icon } from './icons.mjs';
 import { renderComposer, renderQuickSkills, removeTabbitMentionQuery, slashKey, skillMatches, tabbitKey, tabbitMentionQuery } from './composer.mjs';
 import { renderResearchAttention, renderClawWorkspaceCanvas, renderContextPanel, renderPrimaryRail, renderSidebar, renderTopbar } from './shell.mjs';
@@ -14,9 +14,10 @@ import { renderCapabilityEditor, renderCreationForm, renderCopyForm, readEditor,
 import { readWorkbenchQuery, renderWorkbench } from './workbench.mjs';
 import { readAssetObservation } from './asset-workspace.mjs';
 import { renderOperations } from './operations.mjs';
+import { createIntelController, renderIntel } from './intel.mjs';
 import { renderReportWorkflowDetail, renderReportWorkflowShelf } from './report-workflows.mjs';
-import { buildConfigurationPayload, confirmAutoProbeConsent, createLocalIntegrationPollingGuard, mergeIntegrationStatuses } from './connections.mjs';
-import { renderSettingsPage, resolveSettingsSection, settingsConnectionId, settingsRefreshCatalogs } from './settings.mjs';
+import { buildConfigurationPayload, confirmAutoProbeConsent, createLocalIntegrationPollingGuard, createOfficeConsentQueue, invalidateLocalIntegrationSnapshot, nextLocalStatusExpiry, mergeIntegrationStatuses } from './connections.mjs';
+import { modelConfigurationPayload, syncModelForm, renderSettingsPage, resolveSettingsSection, settingsConnectionId, settingsRefreshCatalogs } from './settings.mjs';
 import { renderFrameworks } from './frameworks.mjs';
 import { createHotController, renderHotWorkspace } from './hot-workspace.mjs';
 
@@ -60,7 +61,7 @@ let operationsRange = '7d';
 let operationsData = { usage: null, tools: null, datahub: null, services: null, storage: null };
 let reportWorkflowDetail = null; let reportWorkflowBusy = false;
 let automationFormOpen = false; let automationBusy = false;
-let selectedConnectionConfiguration = null; let migrationOpen = false; let connectionDetailOpen = true; let connectionProbeBusy = false; let localIntegrationProbeBusy = false; let localVerificationTarget = '';
+let selectedConnectionConfiguration = null; let migrationOpen = false; let connectionDetailOpen = true; let connectionProbeBusy = false; let localIntegrationProbeBusy = false; let localVerificationTarget = ''; let localCategory = 'all'; let officeConsentConfirmation = ''; let localStatusExpiryTimer = null;
 let frameworkState = { status: 'idle', catalog: null, data: null, slug: '', error: '' };
 let frameworkBot = { open: false, mode: 'explain', sessionId: '', detail: null, draft: '', busy: false, error: '', errorCode: '' };
 let closeFrameworkStream = () => {};
@@ -76,12 +77,18 @@ let mcpMarketplaceState = { registries: [], installations: [], approvals: [], ap
 const questionDrafts = new Map();
 const controller = createController({ api, onNavigate: (hash) => { history.pushState(null, '', hash); } });
 const state = controller.state;
-const hotController = createHotController({api,onChange:()=>render(),isActive:()=>state.route.page==='workbench'&&state.route.section==='hot'||state.route.page==='settings'&&state.route.settingsSection==='hot'});
+const hotController = createHotController({api,onChange:()=>render(),isActive:()=>state.route.page==='intel'&&state.route.intelTab==='hot'||state.route.page==='settings'&&state.route.settingsSection==='hot'});
+const intelController = createIntelController({ onChange: () => { if (state.route.page === 'intel') render(); } });
 const capabilityController = createCapabilityController({ api, onChange: () => render(), onCatalogChange: () => loadCatalog(['capabilities']) });
 const capabilityState = capabilityController.state;
 const localIntegrationPollingGuard = createLocalIntegrationPollingGuard(
   () => state.route.page === 'settings' && currentSettingsSection() === 'local',
 );
+
+const officeAutoPollingGuard = createLocalIntegrationPollingGuard(
+  () => state.route.page === 'settings' && currentSettingsSection() === 'local',
+);
+const officeConsentQueue = createOfficeConsentQueue((id, consent) => api.setIntegrationConsent(id, consent));
 
 function runtimeLabel() {
   if (catalog.pending.has('runtime')) return 'DSH 连接中';
@@ -235,6 +242,8 @@ function settingsPage() {
     localIntegrations: catalog.localIntegrations,
     integrations: catalog.integrations,
     localVerificationTarget,
+    localCategory,
+    officeConsentConfirmation,
     selectedConfiguration: selectedConnectionConfiguration,
     migrationOpen,
     connectionDetailOpen,
@@ -257,6 +266,7 @@ function mainPage() {
   if (state.route.page === 'workbench') return workbenchPage();
   if (state.route.page === 'frameworks') return renderFrameworks({ slug: state.route.frameworkSlug, anchor: state.route.frameworkTab, catalog: frameworkState.catalog, data: frameworkState.data, status: frameworkState.status, error: frameworkState.error, bot: frameworkBot });
   if (state.route.page === 'operations') return operationsPage();
+  if (state.route.page === 'intel') return state.route.intelTab === 'hot' ? renderHotWorkspace(hotController.state) : renderIntel(intelController.state);
   if (state.route.page === 'history') {
     const mode = state.route.historyMode;
     const view = state.route.historyView || 'active';
@@ -331,11 +341,14 @@ function contextPanel() {
   return renderContextPanel({ detail: state.detail, selectedTab: contextTab, mobileOpen: contextOpen, selectedPreview, busy: state.busy, workflow: state.detail?.capability ? workflowVersions.get(`${state.detail.capability.id}:${state.detail.capability.version}`) : null });
 }
 
+let documentEditor = null;
+
 function render() {
   // Keep the user's own dirty DOM form through unrelated catalog renders.
   // Secrets never enter application state or a server-provided refill.
   const modelForm = root.querySelector('#settings-form[data-dirty]');
   const dirtyHotForms=[...root.querySelectorAll('[data-hot-form][data-hot-dirty]')];
+  const documentForm = root.querySelector('#document-edit-form');
   const active = document.activeElement; const focusId = active?.id;
   const selection = active && ['TEXTAREA', 'INPUT'].includes(active.tagName) && active.type !== 'password' ? { start: active.selectionStart, end: active.selectionEnd } : null;
   const mainScroll = document.querySelector('#main')?.scrollTop || 0;
@@ -346,8 +359,10 @@ function render() {
   const visibleErrors = Object.entries(catalog.errors).filter(([name]) => (
     name !== 'artifacts' || (state.route.page === 'workbench' && state.route.section !== 'assets')
   ));
-  root.innerHTML = `<div class="app-shell ${hasContext ? '' : 'wide-page'} ${hasSecondary ? 'has-secondary' : ''} ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${sidebarOpen ? 'navigation-open' : ''} ${hasContext ? 'context-open' : ''}">${renderTopbar({ page: state.route.page, section: state.route.section, frameworkSlug: state.route.frameworkSlug, settingsSection: state.route.page === 'settings' ? currentSettingsSection() : '', detail: state.detail, runtimeLabel: runtimeLabel(), runtime: catalog.runtime, models: catalog.models, busy: state.busy, search: globalSearch, sessions: catalog.sessions, skills: searchableCapabilities, searchOpen })}${primaryRail()}${sidebar()}<main id="main" tabindex="-1"><div class="page-content">${notice(state.error)}${visibleErrors.map(([name, error]) => notice(`${({ runtime: '运行时', models: '模型目录', workspaces: '工作空间', sessions: '会话历史', deletedSessions: '已删除会话', capabilities: '能力目录', tools: '工具目录', reportWorkflows: '报告 Workflow', automations: '运行计划', automationRuns: 'Automation 运行', deliveryChannels: '交付渠道', dataCatalog: '数据目录', connections: '连接中心', localIntegrations: '本机集成诊断', connectionConfiguration: '来源配置', migration: '旧配置迁移' })[name] || name}：${error}`)).join('')}${notice(success, 'success')}${mainPage()}</div></main>${hasContext || contextOpen ? contextPanel() : ''}</div>${sidebarOpen || contextOpen ? '<button class="mobile-backdrop" data-close-drawers aria-label="关闭面板"></button>' : ''}${sessionActionsLayer()}`;
+  root.innerHTML = `<div class="app-shell ${hasContext ? '' : 'wide-page'} ${hasSecondary ? 'has-secondary' : ''} ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${sidebarOpen ? 'navigation-open' : ''} ${hasContext ? 'context-open' : ''}">${renderTopbar({ page: state.route.page, section: state.route.section, frameworkSlug: state.route.frameworkSlug, settingsSection: state.route.page === 'settings' ? currentSettingsSection() : '', detail: state.detail, runtimeLabel: runtimeLabel(), runtime: catalog.runtime, models: catalog.models, busy: state.busy, search: globalSearch, sessions: catalog.sessions, skills: searchableCapabilities, searchOpen })}${primaryRail()}${sidebar()}<main id="main" tabindex="-1"><div class="page-content">${notice(state.error)}${visibleErrors.map(([name, error]) => notice(`${({ runtime: '运行时', models: '模型目录', workspaces: '工作空间', sessions: '会话历史', deletedSessions: '已删除会话', capabilities: '能力目录', tools: '工具目录', reportWorkflows: '报告 Workflow', automations: '运行计划', automationRuns: 'Automation 运行', deliveryChannels: '交付渠道', dataCatalog: '数据目录', connections: '连接中心', localIntegrations: '本机集成诊断', connectionConfiguration: '来源配置', migration: '旧配置迁移' })[name] || name}：${error}`)).join('')}${notice(success, 'success')}${mainPage()}</div></main>${hasContext || contextOpen ? contextPanel() : ''}</div>${sidebarOpen || contextOpen ? '<button class="mobile-backdrop" data-close-drawers aria-label="关闭面板"></button>' : ''}${sessionActionsLayer()}${documentEditor?.sessionId === state.detail?.id ? renderDocumentEditor(documentEditor) : ""}`;
   window.ResearchWebTheme?.syncControls();
+  const freshDocumentForm = root.querySelector('#document-edit-form');
+  if (documentForm && freshDocumentForm && documentForm.dataset.documentBusy !== "true" && !documentEditor?.busy && documentForm.dataset.documentRevision === freshDocumentForm.dataset.documentRevision) freshDocumentForm.replaceWith(documentForm);
   const freshModelForm = root.querySelector('#settings-form');
   if (modelForm && freshModelForm) {
     const disabled = freshModelForm.querySelector('button[type="submit"]').disabled;
@@ -358,7 +373,12 @@ function render() {
     select.innerHTML = freshSelect.innerHTML;
     select.disabled = freshSelect.disabled;
     if ([...select.options].some(option => option.value === selected)) select.value = selected;
+    const provider = modelForm.querySelector('#provider');
+    const selectedProvider = provider.value;
+    provider.innerHTML = freshModelForm.querySelector('#provider').innerHTML;
+    if ([...provider.options].some(option => option.value === selectedProvider)) provider.value = selectedProvider;
     freshModelForm.replaceWith(modelForm);
+    syncModelForm(modelForm, { busy: state.busy });
   }
   for(const form of dirtyHotForms){
     const fresh=[...root.querySelectorAll('[data-hot-form]')].find(item=>item.dataset.hotFormKey===form.dataset.hotFormKey);
@@ -370,7 +390,7 @@ function render() {
     if (replacement && !replacement.disabled) { replacement.focus({ preventScroll: true }); if (selection && selection.start !== null) replacement.setSelectionRange?.(selection.start, selection.end); }
   }
   if (state.busy) root.querySelectorAll('[data-approval], [data-upload], .question-form button, #rename-form button').forEach((button) => { button.disabled = true; });
-  document.title = `${state.detail?.title || (state.route.page === 'workbench' && state.route.section === 'hot' ? '热点与事件' : state.route.page === 'workbench' && state.route.section === 'assets' ? '资产观察' : ({ fingpt: 'FinGPT', claw: 'Claw', workbench: '研究台', frameworks: '研究框架', history: '研究历史', skills: '能力中心', operations: '运行与用量', settings: '设置' })[state.route.page])} · Research Workbench`;
+  document.title = `${state.detail?.title || (state.route.page === 'workbench' && state.route.section === 'hot' ? '热点与事件' : state.route.page === 'workbench' && state.route.section === 'assets' ? '资产观察' : ({ fingpt: 'FinGPT', claw: 'Claw', workbench: '研究台', frameworks: '研究框架', history: '研究历史', skills: '能力中心', operations: '运行与用量', intel: '研究情报', settings: '设置' })[state.route.page])} · Research Workbench`;
 }
 
 async function loadCatalog(names = defaultCatalogNames) {
@@ -378,7 +398,7 @@ async function loadCatalog(names = defaultCatalogNames) {
   render();
   await Promise.all(requests.map(async ({ name, generation }) => {
     try {
-      const data = name === 'deletedSessions' ? await api.sessions('deleted') : name === 'tabbit' ? await api.tabbitStatus() : await api[name]();
+      const data = name === 'deletedSessions' ? await api.sessions('deleted') : name === 'tabbit' ? await api.tabbitStatus() : name === 'integrations' ? await api.integrations(state.route.page === 'settings' && currentSettingsSection() === 'data' ? 'data' : 'all') : await api[name]();
       if (!isLatestCatalogRequest(name, generation)) return;
       if (name === 'runtime') catalog.runtime = data;
       else if (name === 'tabbit') catalog.tabbit = data;
@@ -402,6 +422,13 @@ async function loadCatalog(names = defaultCatalogNames) {
         categories: Array.isArray(data?.categories) ? data.categories : [],
         items: Array.isArray(data?.items) ? data.items : [],
         last_checked_at: data?.last_checked_at || null,
+        integration_status: data?.integration_status ? {
+          ...data.integration_status,
+          items: (data.integration_status.items || []).map((item) => {
+            const desired = officeConsentQueue.desired(item.id);
+            return desired === undefined ? item : { ...item, details: { ...item.details, auto_probe_consent: desired } };
+          }),
+        } : null,
       };
       else if (name === 'integrations') catalog.integrations = {
         summary: data?.summary || {},
@@ -411,10 +438,12 @@ async function loadCatalog(names = defaultCatalogNames) {
       else if (name === 'artifacts') catalog.artifacts = data.items || [];
       else catalog[name] = data.items || [];
       delete catalog.errors[name];
+      if (name === 'localIntegrations') scheduleLocalStatusRefresh();
     } catch (error) {
       if (!isLatestCatalogRequest(name, generation)) return;
       catalog.errors[name] = error.message;
       if (name === 'runtime') catalog.runtime = null;
+      if (name === 'localIntegrations') { catalog.localIntegrations = invalidateLocalIntegrationSnapshot(catalog.localIntegrations); scheduleLocalStatusRefresh(); }
     }
     finally {
       finishCatalogRequest(name);
@@ -425,6 +454,18 @@ async function loadCatalog(names = defaultCatalogNames) {
     catalog.connections = mergeIntegrationStatuses(catalog.connections, catalog.integrations);
   }
   render();
+}
+
+function scheduleLocalStatusRefresh() {
+  clearTimeout(localStatusExpiryTimer);
+  localStatusExpiryTimer = null;
+  if (state.route.page !== 'settings' || currentSettingsSection() !== 'local') return;
+  const delay = nextLocalStatusExpiry(catalog.localIntegrations);
+  if (delay === null) return;
+  localStatusExpiryTimer = setTimeout(() => {
+    if (document.hidden || state.route.page !== 'settings' || currentSettingsSection() !== 'local') return;
+    void loadCatalog(['localIntegrations']);
+  }, Math.min(delay + 1, 2147483647));
 }
 
 function attachFrameworkStream(sessionId) {
@@ -982,7 +1023,8 @@ async function loadAssetWorkspace() {
 }
 
 async function showRoute() {
-  localIntegrationPollingGuard.invalidate();
+  intelController.cancel();
+  localIntegrationPollingGuard.invalidate(); officeAutoPollingGuard.invalidate(); officeConsentConfirmation = '';
   localVerificationTarget = '';
   const legacyTarget = legacyRouteTarget(location.hash);
   if (legacyTarget) {
@@ -991,7 +1033,7 @@ async function showRoute() {
   }
   quickCategory = '';
   const requestedRoute = parseRoute(location.hash);
-  if(!(requestedRoute.page==='workbench'&&requestedRoute.section==='hot'||requestedRoute.page==='settings'&&requestedRoute.settingsSection==='hot'))hotController.deactivate();
+  if(!(requestedRoute.page==='intel'&&requestedRoute.intelTab==='hot'||requestedRoute.page==='settings'&&requestedRoute.settingsSection==='hot'))hotController.deactivate();
   if (requestedRoute.page !== 'frameworks' || requestedRoute.frameworkSlug !== state.route.frameworkSlug) {
     closeFrameworkStream(); closeFrameworkStream = () => {};
     frameworkBot = { open: false, mode: 'explain', sessionId: '', detail: null, draft: '', busy: false, error: '', errorCode: '' };
@@ -1050,6 +1092,10 @@ async function showRoute() {
   if (state.route.page === 'claw' && !state.route.sessionId) await loadCatalog(['reportWorkflows']);
   if (state.route.page === 'workbench') await loadWorkbench();
   if (state.route.page === 'operations') await loadOperations();
+  if (state.route.page === 'intel') {
+    if (state.route.intelTab === 'hot') await hotController.activate(state.route);
+    else await intelController.activate(state.route.intelTab);
+  }
   if (ticket === pageGeneration && pendingMCPMarketTabFocus) {
     const expected = pendingMCPMarketTabFocus;
     pendingMCPMarketTabFocus = '';
@@ -1120,6 +1166,18 @@ function selectTabbit(tabId) {
 root.addEventListener('input', (event) => {
   const hotForm=event.target.closest?.('[data-hot-form]');
   if(hotForm)hotForm.dataset.hotDirty='true';
+  if (event.target.matches?.('[data-intel-query], [data-intel-code]')) { void intelController.handle(event); return; }
+  const documentForm = event.target.closest?.('#document-edit-form');
+  if (documentForm && documentEditor) {
+    const fields = new FormData(documentForm);
+    documentEditor.draft = { target: Number(fields.get('target')), value: String(fields.get('value') || ''), mode: String(fields.get('mode')), value_type: String(fields.get('value_type') || 'string') };
+    return;
+  }
+  const creationForm = event.target.closest?.('#document-create-form');
+  if (creationForm && documentEditor?.creating && !documentEditor.busy) {
+    documentEditor.draft = Object.fromEntries(new FormData(creationForm));
+    return;
+  }
   const modelForm = event.target.closest?.('#settings-form');
   if (modelForm) modelForm.dataset.dirty = 'true';
   if (event.target.id === 'framework-bot-input') frameworkBot.draft = event.target.value;
@@ -1165,6 +1223,7 @@ root.addEventListener('input', (event) => {
 });
 
 root.addEventListener('keydown', (event) => {
+  if (state.route.page === 'intel' && event.key === 'Escape' && intelController.state.detailId) { event.preventDefault(); intelController.closeDetail(); document.querySelector('.intel-tabs [aria-current="page"]')?.focus({ preventScroll: true }); return; }
   if (mcpMarketplaceState.detail && event.key === 'Tab') {
     const dialog = document.querySelector('.mcp-server-dialog');
     const focusable = [...(dialog?.querySelectorAll?.('button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled)') || [])];
@@ -1261,8 +1320,20 @@ root.addEventListener('keydown', (event) => {
 });
 
 root.addEventListener('change', async (event) => {
+  if (event.target.closest?.('.intel-page') && await intelController.handle(event)) return;
   const target = event.target;
   if('hotMaterial' in (target.dataset||{})){hotController.selectMaterial(target.value,target.checked);return;}
+  if (target.matches?.('[data-document-target]') && documentEditor) {
+    const selected = documentTargets(documentEditor.result)[Number(target.value)];
+    const input = target.closest('form')?.querySelector('textarea[name=value]');
+    if (selected && input) {
+      input.value = String(selected.value);
+      const type = target.closest('form')?.querySelector('select[name=value_type]');
+      if (type) type.value = typeof selected.value === 'number' ? 'number' : typeof selected.value === 'boolean' ? 'boolean' : 'string';
+      documentEditor.draft = null;
+    }
+    return;
+  }
   if ('connectionStatus' in (target.dataset || {})) applyConnectionWorkspaceFilters(target.closest('[data-connection-workbench]'));
   if (target.id === 'workspace-select') selectedWorkspace = target.value;
   if ('quickCategory' in target.dataset) { quickCategory = target.value; render(); }
@@ -1310,8 +1381,9 @@ root.addEventListener('change', async (event) => {
     controller.setFormats(selected); render();
     root.querySelector('.format-picker')?.setAttribute('open', '');
   }
+  if (target.id === 'provider' || target.name === 'credential_mode') { syncModelForm(target.closest('form'), { clearKey: true }); target.closest('form').dataset.dirty = 'true'; }
   if (target.id === 'settings-model' && target.value) {
-    try { const selected = JSON.parse(target.value); document.querySelector('#provider').value = selected.provider; document.querySelector('#model-id').value = selected.model; target.closest('form').dataset.dirty = 'true'; }
+    try { const selected = JSON.parse(target.value); document.querySelector('#provider').value = selected.provider; document.querySelector('#model-id').value = selected.model; syncModelForm(target.closest('form'), { clearKey: true }); target.closest('form').dataset.dirty = 'true'; }
     catch { safeLog('invalid_model_selection'); }
   }
   if (target.id === 'model-select' && target.value) {
@@ -1354,8 +1426,63 @@ root.addEventListener('paste', (event) => {
 });
 
 root.addEventListener('submit', async (event) => {
+  if (event.target.closest?.('.intel-page') && await intelController.handle(event)) return;
   event.preventDefault();
   if(event.target.matches('[data-hot-form]')){await hotController.submit(event.target);return;}
+  safeLog('document_form_dispatch', { status: event.target.id === 'document-edit-form' ? 'document' : 'other' });
+  if (event.target.id === 'document-create-form') {
+    const editor = documentEditor; if (!editor || editor.busy || editor.sessionId !== state.detail?.id) return;
+    editor.draft = Object.fromEntries(new FormData(event.target));
+    let body; try { body = documentCreationPayload({ ...editor.draft, format: editor.creating }); }
+    catch (error) { editor.error = error.message; render(); return; }
+    editor.busy = true; editor.error = ''; render();
+    try {
+      const result = await api.documentOperation(editor.sessionId, body);
+      if (documentEditor !== editor || editor.sessionId !== state.detail?.id) return;
+      editor.lastResult = result;
+      if (result.status !== 'completed' || !result.output) { editor.error = '生成未完成：' + (result.code || result.status); return; }
+      const read = await api.documentOperation(editor.sessionId, { format: body.format, operation: 'read', mode: 'file', file_id: result.output.id });
+      if (documentEditor !== editor || editor.sessionId !== state.detail?.id) return;
+      if (read.status !== 'completed') { editor.error = '文件已生成，但读回未完成；可刷新文件列表下载。'; return; }
+      editor.creating = null; editor.file = result.output; editor.result = { ...read, output: result.output }; editor.draft = null;
+      await showRoute();
+    } catch (error) { if (documentEditor === editor) editor.error = error.message; }
+    finally { editor.busy = false; render(); }
+    return;
+  }
+  if (event.target.id === 'document-edit-form') {
+    const editor = documentEditor;
+    if (!editor || editor.busy || editor.sessionId !== state.detail?.id) { safeLog('document_form_rejected', { status: !editor ? 'missing_editor' : editor.busy ? 'busy' : 'session_changed' }); return; }
+    const values = new FormData(event.target);
+    const target = documentTargets(editor.result)[Number(values.get('target'))];
+    if (!target) { safeLog('document_form_rejected', { status: 'target_missing' }); return; }
+    const value = String(values.get('value') ?? '');
+    const change = { ...target.change };
+    if (change.kind === 'cell') {
+      try { change.value = documentEditValue(value, String(values.get("value_type") || "string")); }
+      catch (error) { editor.error = error.message; render(); return; }
+    }
+    else change.text = value;
+    editor.draft = { target: Number(values.get('target')), value, mode: String(values.get('mode')), value_type: String(values.get('value_type') || 'string') };
+    editor.busy = true; editor.error = ''; render();
+    try {
+      const result = await api.documentOperation(editor.sessionId, {
+        format: editor.result.format, operation: 'modify', mode: String(values.get('mode')),
+        file_id: editor.file.id, expected_sha256: editor.result.sha256, changes: [change],
+      });
+      if (documentEditor !== editor || state.detail?.id !== editor.sessionId) return;
+      editor.lastResult = result;
+      if (result.status === 'completed' && result.output) {
+        const read = await api.documentOperation(editor.sessionId, { format: result.format, operation: 'read', mode: 'file', file_id: result.output.id });
+        if (documentEditor !== editor || state.detail?.id !== editor.sessionId) return;
+        if (read.status !== "completed") { editor.error = "新文件已生成，但读回未完成；原编辑内容仍保留。"; return; }
+        editor.file = result.output; editor.result = { ...read, output: result.output }; editor.draft = null;
+        await showRoute();
+      } else editor.error = `未完成修改：${result.code || result.status}`;
+    } catch (error) { if (documentEditor === editor) editor.error = error.message; }
+    finally { editor.busy = false; render(); }
+    return;
+  }
   if (event.target.matches('[data-framework-bot-form]')) { await sendFrameworkQuestion(frameworkBot.draft); return; }
   if (event.target.matches('[data-mcp-search]')) { await loadMCPMarketplace(); return; }
   if (event.target.matches('[data-delivery-channel-form]')) {
@@ -1601,14 +1728,17 @@ root.addEventListener('submit', async (event) => {
     return;
   }
   if (event.target.id === 'settings-form') {
-    const values = new FormData(event.target); const key = String(values.get('api_key') || '').trim();
-    const payload = { provider: String(values.get('provider')).trim(), model: String(values.get('model')).trim(), ...(key ? { api_key: key } : {}) };
-    // Capture once, clear immediately; never copy secrets into application state or logs.
+    const values = new FormData(event.target);
+    // Every submit clears the password, including payload-validation failures.
     document.querySelector('#api-key').value = '';
-    delete event.target.dataset.dirty;
-    const result = await controller.action(() => api.configure(payload), { refreshAfter: false });
-    delete payload.api_key;
-    if (result?.configured) { success = '配置已保存，新会话使用此模型；真实推理待测试。API Key 不会回填。'; await loadCatalog(['runtime', 'models']); }
+    let payload;
+    try { payload = modelConfigurationPayload(values); }
+    catch (error) { values.delete('api_key'); state.error = error.message; render(); return; }
+    values.delete('api_key');
+    const result = await controller.action(() => {
+      const pending = api.configure(payload); delete payload.api_key; return pending;
+    }, { refreshAfter: false });
+    if (result?.configured) { delete root.querySelector('#settings-form')?.dataset.dirty; success = '配置已保存，新会话使用此模型；真实推理待测试。API Key 不会回填。'; await loadCatalog(['runtime', 'models']); }
   }
   if (event.target.matches('[data-connection-config]')) {
     const sourceId = event.target.dataset.connectionConfig;
@@ -1639,6 +1769,14 @@ root.addEventListener('submit', async (event) => {
 });
 
 root.addEventListener('click', async (event) => {
+  if (event.target.closest?.('.intel-page')) {
+    const action = event.target.closest?.('[data-intel-action]')?.dataset.intelAction;
+    if (await intelController.handle(event)) {
+      if (['event', 'report'].includes(action)) document.querySelector('#intel-detail-title')?.focus({ preventScroll: true });
+      if (action === 'close') document.querySelector('.intel-tabs [aria-current="page"]')?.focus({ preventScroll: true });
+      return;
+    }
+  }
   const clickTarget = event.target;
   const hotAction=clickTarget?.closest?.('[data-hot-action]');
   if(hotAction?.dataset?.hotAction){await hotController.action(hotAction);return;}
@@ -1646,7 +1784,13 @@ root.addEventListener('click', async (event) => {
   if (modelAction && 'modelClear' in modelAction) {
     if (!catalog.runtime?.model) { state.error = '当前模型未知，请先刷新 Runtime 状态。'; render(); return; }
     if (!window.confirm('清除专属模型凭据？后续模型请求将不可用，已有会话仍保留。')) return;
-    const result = await controller.action(() => api.configure({ provider: 'deepseek-official', model: catalog.runtime.model, clear_api_key: true }), { refreshAfter: false });
+    const form = root.querySelector('#settings-form');
+    const values = new FormData(form); form.querySelector('#api-key').value = '';
+    values.delete('api_key');
+    let payload;
+    try { payload = modelConfigurationPayload(values, { clear: true }); }
+    catch (error) { state.error = error.message; render(); return; }
+    const result = await controller.action(() => api.configure(payload), { refreshAfter: false });
     if (result?.configured) { success = '模型凭据已清除。'; await loadCatalog(['runtime']); }
     return;
   }
@@ -1709,17 +1853,73 @@ root.addEventListener('click', async (event) => {
   if ('mcpApprovalDeny' in data) { await decideMCPApproval(data.mcpApprovalDeny, false); return; }
   if ('mcpPublisherAction' in data) { await runMCPPublisherAction(data.mcpPublisherAction); return; }
   if ('localCategoryTarget' in data) {
-    const target = document.getElementById(data.localCategoryTarget);
-    const main = document.querySelector('#main');
-    const scroller = main?.scrollHeight > main?.clientHeight ? main : document.scrollingElement;
-    if (target && scroller) {
-      target.focus({ preventScroll: true });
-      const scrollerTop = scroller === document.scrollingElement ? 0 : scroller.getBoundingClientRect().top;
-      const currentTop = scroller === document.scrollingElement ? window.scrollY : scroller.scrollTop;
-      const top = currentTop + target.getBoundingClientRect().top - scrollerTop - 60;
-      const behavior = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
-      scroller.scrollTo({ top: Math.max(0, top), behavior });
+    localCategory = data.localCategoryTarget === 'all' ? 'all' : data.localCategoryTarget.replace(/^local-category-/, '');
+    render();
+    document.querySelector(`[data-local-category-target="${CSS.escape(data.localCategoryTarget)}"]`)?.focus();
+    return;
+  }
+  if ('officeAutoCancel' in data) {
+    const target = officeConsentConfirmation;
+    officeConsentConfirmation = ''; render();
+    document.querySelector(`[data-office-auto-consent="${CSS.escape(target)}"]`)?.focus();
+    return;
+  }
+  if ('officeAutoConsent' in data) {
+    const allowed = ['local:excel_app', 'local:word_app', 'local:powerpoint_app'];
+    const ids = data.officeAutoConsent === 'all' ? allowed : allowed.filter((id) => id === data.officeAutoConsent);
+    if (!ids.length) return;
+    const enabled = data.consentEnabled === 'true';
+    if (!enabled && (data.officeAutoConfirmed !== 'true' || officeConsentConfirmation !== data.officeAutoConsent)) {
+      officeConsentConfirmation = data.officeAutoConsent;
+      render();
+      document.querySelector('[data-office-auto-confirmed]')?.focus();
+      return;
     }
+    officeConsentConfirmation = '';
+    const ticket = officeAutoPollingGuard.begin();
+    for (const item of catalog.localIntegrations.integration_status?.items || []) {
+      if (ids.includes(item.id)) item.details = { ...item.details, auto_probe_consent: !enabled };
+    }
+    render();
+    try {
+      const settled = await Promise.allSettled(ids.map((id) => officeConsentQueue.set(id, !enabled)));
+      if (!officeAutoPollingGuard.isCurrent(ticket)) return;
+      const rejected = settled.find((result) => result.status === 'rejected');
+      if (rejected) throw rejected.reason;
+      const results = settled.map((result) => result.value);
+      await loadCatalog(['localIntegrations']);
+      if (!officeAutoPollingGuard.isCurrent(ticket)) return;
+      if (enabled) { success = '已关闭对应 Office 自动验证。'; render(); }
+      const latest = catalog.localIntegrations.integration_status?.latest_batch;
+      const batches = [...new Set(results.map((result) => result.batch?.id).filter(Boolean))];
+      if (latest?.id && ['queued', 'checking'].includes(latest.status)) batches.push(latest.id);
+      if (batches.length) {
+        for (const id of batches) {
+          let previousProgress = '';
+          await waitForIntegrationBatch(async (batchId) => {
+            if (!officeAutoPollingGuard.isCurrent(ticket)) return { status: 'cancelled' };
+            const batch = await api.integrationProbeBatch(batchId);
+            if (!officeAutoPollingGuard.isCurrent(ticket)) return { status: 'cancelled' };
+            const progress = JSON.stringify(batch.items || {});
+            if (progress !== previousProgress) {
+              previousProgress = progress;
+              await loadCatalog(['localIntegrations']);
+            }
+            return batch;
+          }, id);
+        }
+        if (!officeAutoPollingGuard.isCurrent(ticket)) return;
+        await loadCatalog(['localIntegrations']);
+      }
+      if (!officeAutoPollingGuard.isCurrent(ticket)) return;
+      success = enabled ? '已关闭对应 Office 自动验证。' : 'Office 自动验证已处理；请查看每项结果。';
+    } catch (error) {
+      if (!officeAutoPollingGuard.isCurrent(ticket)) return;
+      state.error = error?.message || 'Office 自动验证设置失败。';
+      safeLog('office_auto_consent_failed', { status: error?.code || error?.name || 'unknown' });
+      await loadCatalog(['localIntegrations']);
+    }
+    if (officeAutoPollingGuard.isCurrent(ticket)) render();
     return;
   }
   if ('connectionGroup' in data) {
@@ -1805,7 +2005,7 @@ root.addEventListener('click', async (event) => {
       if (typeof accepted?.id !== 'string' || !accepted.id) throw new Error('服务未返回有效的探测任务，请刷新后重试。');
       const current = await waitForLocalIntegrationProbe((probeId) => api.localIntegrationProbe(probeId), accepted.id);
       if (current.status !== 'completed' || !current.snapshot) throw new Error(current?.error?.message || '本机能力检测未完成。');
-      catalog.localIntegrations = current.snapshot;
+      await loadCatalog(['localIntegrations']);
       success = '本机能力状态已更新。';
     } catch (error) {
       state.error = error?.message || '本机能力检测失败，请重试。';
@@ -1819,6 +2019,7 @@ root.addEventListener('click', async (event) => {
     const target = data.localIntegrationVerify;
     const labels = { excel: 'Excel', word: 'Word', powerpoint: 'PowerPoint', wind_excel: 'Wind Excel' };
     if (!(target in labels)) return;
+    if (target === 'wind_excel' && globalThis.confirm?.('单独确认 Wind Excel 真实厂商验证？会使用已登录厂商会话，在登记的独占测试工作簿中运行最小公式，可能出现厂商安全验证提示。Office 自动验证开关不包含此调用。') !== true) return;
     const verificationTicket = localIntegrationPollingGuard.begin();
     state.error = ''; success = ''; localVerificationTarget = target; render();
     try {
@@ -1922,7 +2123,7 @@ root.addEventListener('click', async (event) => {
     else if (state.route.page === 'settings') {
       const section = currentSettingsSection();
       if (section === 'local') {
-        localIntegrationPollingGuard.invalidate();
+        localIntegrationPollingGuard.invalidate(); officeAutoPollingGuard.invalidate(); officeConsentConfirmation = '';
         localVerificationTarget = '';
       }
       if (section === 'data') selectedConnectionConfiguration = null;
@@ -2003,6 +2204,22 @@ root.addEventListener('click', async (event) => {
   if ('slashSearch' in data) { slashOpen = !slashOpen; tabbitOpen = false; tabbitCandidates = []; tabbitRequest += 1; slashIndex = 0; render(); document.querySelector('#prompt')?.focus(); }
   if ('removeAttachment' in data) controller.removeAttachment(data.removeAttachment);
   if ('noFormats' in data) { controller.setFormats([]); render(); }
+  if ('documentCreate' in data && ['docx', 'xlsx', 'pptx'].includes(data.documentCreate) && state.detail?.id) {
+    documentEditor = { creating: data.documentCreate, file: { name: '新文件' }, sessionId: state.detail.id, busy: false, error: '', draft: null }; render(); return;
+  }
+  if ('documentClose' in data) { documentEditor = null; render(); }
+  if ('documentOpen' in data) {
+    const file = state.detail?.files?.find(item => item.id === data.documentOpen);
+    const format = file?.name?.split('.').pop()?.toLowerCase();
+    if (!file || !['docx', 'xlsx', 'pptx'].includes(format)) return;
+    const editor = { file, sessionId: state.detail.id, busy: true, result: null, error: '' };
+    documentEditor = editor; render();
+    try {
+      const result = await api.documentOperation(editor.sessionId, { format, operation: 'read', mode: 'file', file_id: file.id });
+      if (documentEditor === editor && state.detail?.id === editor.sessionId) editor.result = result;
+    } catch (error) { if (documentEditor === editor) editor.error = error.message; }
+    finally { editor.busy = false; render(); }
+  }
   if ('preview' in data) { selectedPreview = data.preview; render(); }
   if ('closePreview' in data) { selectedPreview = null; render(); }
   if ('closeSkillDetail' in data) { capabilityController.close(); render(); }
@@ -2309,7 +2526,10 @@ async function handleCapabilityClick(data) {
 }
 
 controller.subscribe(() => { catalog.sessions = reconcileSessionSummary(catalog.sessions, state.detail); render(); void loadWorkflowVersion(); });
-window.addEventListener('hashchange', () => { void showRoute(); });
+window.addEventListener('hashchange', () => { clearTimeout(localStatusExpiryTimer); void showRoute(); });
+window.addEventListener('visibilitychange', () => {
+  if (!document.hidden && state.route.page === 'settings' && currentSettingsSection() === 'local') void loadCatalog(['localIntegrations']);
+}, true);
 window.addEventListener('resize', () => { if (sessionMenu) { sessionMenu = null; render(); } });
 window.addEventListener('scroll', () => { if (sessionMenu) { sessionMenu = null; render(); } }, true);
 document.querySelector('.skip-link').addEventListener('click', (event) => { event.preventDefault(); document.querySelector('#main')?.focus(); });

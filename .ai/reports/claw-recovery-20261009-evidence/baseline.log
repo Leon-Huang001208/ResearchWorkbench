@@ -1,0 +1,32 @@
+2026-10-09 00:45:43 [info     ] automation_created             automation_id_digest=0947507c2f039591 status=disabled
+.2026-10-09 00:45:43 [info     ] automation_created             automation_id_digest=371a1b754723b920 status=disabled
+2026-10-09 00:45:43 [info     ] automation_enabled             automation_id_digest=371a1b754723b920 status=enabled
+.2026-10-09 00:45:43 [info     ] automation_created             automation_id_digest=0c82407b740c1dc7 status=disabled
+.2026-10-09 00:45:43 [info     ] automation_created             automation_id_digest=c117dd40b4067fd2 status=disabled
+...2026-10-09 00:45:43 [info     ] automation_created             automation_id_digest=08221e33a62651af status=disabled
+.2026-10-09 00:45:43 [info     ] automation_created             automation_id_digest=6bd3b1a545e58aa9 status=disabled
+.2026-10-09 00:45:43 [info     ] automation_created             automation_id_digest=2cf5a65322e56694 status=disabled
+.2026-10-09 00:45:43 [info     ] automation_created             automation_id_digest=1a59b784ad676bc1 status=disabled
+.2026-10-09 00:45:43 [info     ] automation_created             automation_id_digest=25f9a4239f3ac9b6 status=disabled
+2026-10-09 00:45:43 [info     ] automation_enabled             automation_id_digest=25f9a4239f3ac9b6 status=enabled
+2026-10-09 00:45:43 [info     ] automation_schedule_migrated   count=1 status=completed
+.2026-10-09 00:45:43 [warning  ] automation_schedule_migration_failed error_type=OSError
+......2026-10-09 00:45:43 [warning  ] automation_delivery_attempt_failed attempt=1 error_type=OSError status=retrying
+2026-10-09 00:45:43 [warning  ] automation_delivery_attempt_failed attempt=2 error_type=OSError status=retrying
+2026-10-09 00:45:43 [warning  ] automation_delivery_attempt_failed attempt=3 error_type=OSError status=retrying
+2026-10-09 00:45:43 [warning  ] automation_delivery_attempt_failed attempt=4 error_type=OSError status=failed
+.2026-10-09 00:45:43 [warning  ] automation_delivery_attempt_failed attempt=1 error_type=ConnectError status=retrying
+2026-10-09 00:45:43 [warning  ] automation_delivery_attempt_failed attempt=2 error_type=ConnectError status=retrying
+2026-10-09 00:45:43 [warning  ] automation_delivery_attempt_failed attempt=3 error_type=ConnectError status=retrying
+2026-10-09 00:45:43 [warning  ] automation_delivery_attempt_failed attempt=4 error_type=ConnectError status=failed
+....2026-10-09 00:45:43 [info     ] delivery_channel_saved         channel_id_digest=213e603e5101b14d status=configured
+...2026-10-09 00:45:43 [info     ] delivery_channel_saved         channel_id_digest=378fa87362098c4f status=configured
+.2026-10-09 00:45:43 [info     ] delivery_channel_saved         channel_id_digest=4bfd63921282d6ee status=configured
+...                                            [100%]
+=============================== warnings summary ===============================
+../../../../Desktop/Projects/ResearchWorkbench/.venv/lib/python3.12/site-packages/starlette/testclient.py:53
+  /Users/leon/Desktop/Projects/ResearchWorkbench/.venv/lib/python3.12/site-packages/starlette/testclient.py:53: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+29 passed, 1 warning in 0.62s

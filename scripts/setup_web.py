@@ -17,6 +17,7 @@ import zipfile
 from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import TypedDict, cast
 from urllib.parse import urlsplit
 from uuid import uuid4
 
@@ -25,14 +26,20 @@ if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).absolute().parents[1]))
 
 from app.research_web import RUNTIME_CONTRACT
+
+# port_busy remains an explicit re-export for existing adapters and test doubles.
 from research_workbench_entrypoint.docker_runtime import (
     ControlError,
-    DockerRuntime as _DockerRuntimeController,
-    port_busy,
 )
+from research_workbench_entrypoint.docker_runtime import DockerRuntime as _DockerRuntimeController
+from research_workbench_entrypoint.docker_runtime import port_busy as port_busy  # noqa: PLC0414
 from research_workbench_entrypoint.runtime_mode import (
-    RuntimeModeStore, _atomic_write_posix, _leaf_identity_at, _private_posix_parent,
-    _read_bytes, _same_identity,
+    RuntimeModeStore,
+    _atomic_write_posix,
+    _leaf_identity_at,
+    _private_posix_parent,
+    _read_bytes,
+    _same_identity,
 )
 from research_workbench_entrypoint.web_contract import (
     environment_marker_valid,
@@ -82,8 +89,12 @@ class SetupWebInstaller:
         corepack_executable: Path | None = None,
         npm_executable: Path | None = None,
         platform_name: str | None = None,
+        web_port: int | None = None,
+        runtime_port: int | None = None,
     ) -> None:
         self.project_root = Path(project_root).resolve()
+        self.web_port = web_port
+        self.runtime_port = runtime_port
         configured_data_home = Path(data_home or Path.home() / ".research-workbench").expanduser()
         self.data_home = Path(os.path.abspath(configured_data_home))
         self.venv = self.project_root / ".venv"
@@ -210,8 +221,8 @@ class SetupWebInstaller:
         finally:
             temporary.unlink(missing_ok=True)
 
-    def _runtime_lock_directory(self) -> int | Path:
-        """Open the product runtime directory without following aliases."""
+    def _prepare_data_home(self) -> None:
+        """Reuse the existing outer-home boundary before acquiring a lease."""
         self.data_home.mkdir(parents=True, exist_ok=True, mode=0o700)
         self._reject_alias(self.data_home, "runtime_build_lock_unsafe")
         data_home_identity = self.data_home.lstat()
@@ -221,6 +232,10 @@ class SetupWebInstaller:
             if data_home_identity.st_uid != os.getuid():
                 raise RuntimeError("runtime_build_lock_unsafe")
             os.chmod(self.data_home, 0o700)
+
+    def _runtime_lock_directory(self) -> int | Path:
+        """Open the product runtime directory without following aliases."""
+        self._prepare_data_home()
         if self.platform_name == "nt":
             trusted_root = self.data_home.resolve(strict=True)
             directory = self.data_home
@@ -1116,29 +1131,46 @@ class SetupWebInstaller:
             raise RuntimeError("unowned_virtual_environment")
         if blocking:
             raise RuntimeError(str(blocking[0]))
+        self._prepare_data_home()
         self.write_install_transaction_state()
         environment_python = self.prepare_environment(repair=repair)
         python_state = self.install_python_dependencies(environment_python)
         self.verify_web_import(environment_python)
-        dsh_state = self.provision_dsh(repair=repair)
-        self.write_runtime_build_lock(dsh_state=dsh_state)
-        manifest = self.write_install_manifest(
-            python_state=python_state,
-            dsh_state=dsh_state,
-            status="installed",
-        )
-        if start:
-            os.environ["RESEARCH_DSH_SOURCE"] = str(self.dsh_source)
-            from app.research_web.service_manager import WebServiceManager
 
-            manager = WebServiceManager(
-                project_root=self.project_root,
-                data_root=self.data_home / "research-web",
-                runtime_source=self.dsh_source,
-                python=str(environment_python),
-                node=str(self.node_executable),
+        def complete_runtime(manager=None, lease=None):
+            def check_scope():
+                if manager is not None:
+                    manager._assert_installation_scope(lease)
+
+            check_scope()
+            dsh_state = self.provision_dsh(repair=repair)
+            check_scope()
+            self.write_runtime_build_lock(dsh_state=dsh_state)
+            check_scope()
+            manifest = self.write_install_manifest(
+                python_state=python_state,
+                dsh_state=dsh_state,
+                status="installed",
             )
-            manager.start(open_browser=True)
+            check_scope()
+            return manifest
+
+        if not start:
+            return complete_runtime()
+        from app.research_web.service_manager import WebServiceManager
+
+        manager = WebServiceManager(
+            project_root=self.project_root,
+            data_root=self.data_home / "research-web",
+            runtime_source=self.dsh_source,
+            python=str(environment_python),
+            node=str(self.node_executable),
+            web_port=self.web_port,
+            runtime_port=self.runtime_port,
+        )
+        with manager._installation_start_scope() as lease:
+            manifest = complete_runtime(manager, lease)
+            manager._start_installed(lease, open_browser=True)
         return manifest
 
 
@@ -1159,6 +1191,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--check-only", action="store_true", help="只检查，不写入环境")
     parser.add_argument("--repair", action="store_true", help="修复安装器拥有的环境")
     parser.add_argument("--no-start", action="store_true", help="安装完成后不启动服务")
+    parser.add_argument("--web-port", type=int, default=None, help="显式 Web 回环端口")
+    parser.add_argument("--runtime-port", type=int, default=None, help="仅 Native 的 DSH 回环端口")
     return parser
 
 
@@ -1176,14 +1210,19 @@ def _docker_manifest(project_root: Path, image_id: str) -> dict[str, object]:
     if re.fullmatch(r"sha256:[a-f0-9]{64}", image_id) is None:
         raise RuntimeError("docker_build_not_ready")
     try:
-        lock_sha256 = hashlib.sha256((project_root / "requirements/web.lock").read_bytes()).hexdigest()
+        lock_sha256 = hashlib.sha256(
+            (project_root / "requirements/web.lock").read_bytes()
+        ).hexdigest()
         compose_sha256 = hashlib.sha256((project_root / "compose.yaml").read_bytes()).hexdigest()
     except OSError as exc:
         raise RuntimeError("docker_install_summary_failed") from exc
     try:
         commit = subprocess.check_output(
-            ["git", "rev-parse", "HEAD"], cwd=project_root, text=True,
-            stderr=subprocess.DEVNULL, timeout=10,
+            ["git", "rev-parse", "HEAD"],
+            cwd=project_root,
+            text=True,
+            stderr=subprocess.DEVNULL,
+            timeout=10,
         ).strip()
     except (OSError, subprocess.SubprocessError):
         commit = ""
@@ -1204,7 +1243,7 @@ def _docker_manifest(project_root: Path, image_id: str) -> dict[str, object]:
     }
 
 
-def _write_docker_manifest(path: Path, manifest: dict[str, object]) -> None:
+def _write_docker_manifest(path: Path, manifest: dict[str, object]) -> os.stat_result | None:
     """Publish only into the private install directory owned by mode store."""
     try:
         parent = path.parent.lstat()
@@ -1212,9 +1251,10 @@ def _write_docker_manifest(path: Path, manifest: dict[str, object]) -> None:
             not stat.S_ISDIR(parent.st_mode)
             or path.parent.is_symlink()
             or SetupWebInstaller._is_reparse_point(path.parent)
-            or (os.name == "posix" and (
-                parent.st_uid != os.getuid() or stat.S_IMODE(parent.st_mode) != 0o700
-            ))
+            or (
+                os.name == "posix"
+                and (parent.st_uid != os.getuid() or stat.S_IMODE(parent.st_mode) != 0o700)
+            )
         ):
             raise RuntimeError("docker_install_summary_unsafe")
         try:
@@ -1225,12 +1265,17 @@ def _write_docker_manifest(path: Path, manifest: dict[str, object]) -> None:
             not stat.S_ISREG(existing.st_mode)
             or existing.st_nlink != 1
             or SetupWebInstaller._is_reparse_point(path)
-            or (os.name == "posix" and (
-                existing.st_uid != os.getuid() or stat.S_IMODE(existing.st_mode) != 0o600
-            ))
+            or (
+                os.name == "posix"
+                and (existing.st_uid != os.getuid() or stat.S_IMODE(existing.st_mode) != 0o600)
+            )
         ):
             raise RuntimeError("docker_install_summary_unsafe")
+        if os.name == "posix":
+            raw = (json.dumps(manifest, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
+            return _atomic_write_posix(path, raw, existing)
         SetupWebInstaller._atomic_json(path, manifest)
+        return None
     except OSError as exc:
         raise RuntimeError("docker_install_summary_failed") from exc
 
@@ -1245,19 +1290,18 @@ class DockerRuntime(_DockerRuntimeController):
         checked = self.preflight(require_image=False)
         if not checked.get("ok"):
             raise RuntimeError(_docker_issue(checked, "docker_preflight_failed"))
-        native = NativeRuntime(self.project_root, self.home, ports=self.ports).status()
+        native_runtime = NativeRuntime(self.project_root, self.home)
+        native = native_runtime.status()
         docker = self.status()
-        if not native.get("ok") or not docker.get("ok"):
+        if not self._native_selection_safe(native_runtime, native) or not docker.get("ok"):
             raise RuntimeError("runtime_stop_current_required")
         try:
-            native_running = _running(native)
+            native_running = _running(native) if native.get("ok") else False
             docker_running = _running(docker)
             if native_running or docker_running:
                 raise RuntimeError("runtime_stop_current_required")
         except ControlError as exc:
             raise RuntimeError("runtime_ownership_unknown") from exc
-        if any(port_busy(port) for port in self.ports):
-            raise RuntimeError("runtime_stop_current_required")
         if checked.get("container_image_id") not in (None, image_id):
             if not repair:
                 raise RuntimeError("docker_upgrade_requires_container_disposition")
@@ -1276,74 +1320,147 @@ class DockerRuntime(_DockerRuntimeController):
             raise RuntimeError(_docker_issue(report, "docker_build_failed"))
         image_id = report.get("image_id")
         if not isinstance(image_id, str):
-            raise RuntimeError("docker_build_not_ready")
+            # Keep the coded installer RuntimeError contract.
+            raise RuntimeError("docker_build_not_ready")  # noqa: TRY004
         manifest = _docker_manifest(self.project_root, image_id)
         store = RuntimeModeStore(self.home)
         current = store.read()
         if not current.installation_id:
             current = store.write(current.mode)
-        self._verify_selection_safe(current, image_id, repair=repair)
-        try:
-            if start:
-                started = self._start_candidate(manifest)
-                if not started.get("ok"):
-                    raise RuntimeError(_docker_issue(started, "docker_start_failed"))
-                if not all(started.get("services", {}).get(role, {}).get("healthy") is True
-                           for role in ("web", "runtime")):
-                    raise RuntimeError("docker_services_unhealthy")
-            self._publish_selection(store, current, manifest)
-        except (OSError, RuntimeError):
-            self._rollback_created()
-            raise
-        return manifest
+
+        def accept_candidate():
+            self._verify_selection_safe(current, image_id, repair=repair)
+            try:
+                if start:
+                    started = self._start_candidate(manifest)
+                    if not started.get("ok"):
+                        raise RuntimeError(_docker_issue(started, "docker_start_failed"))
+                    if not all(
+                        started.get("services", {}).get(role, {}).get("healthy") is True
+                        for role in ("web", "runtime")
+                    ):
+                        raise RuntimeError("docker_services_unhealthy")
+                self._publish_selection(store, current, manifest)
+            except (OSError, RuntimeError) as error:
+                self._recover_fresh_failure(error, self._abort_candidate)
+                raise
+            return manifest
+
+        accepted = self._locked_guard("install_selection", accept_candidate)
+        if accepted.get("ok") is False:
+            raise RuntimeError(_docker_issue(accepted, "docker_install_failed"))
+        return accepted
 
     def _publish_selection(self, store, current, manifest):
         """Serialize mode publication and restore the receipt on a failed commit."""
         path = self.home / "install/docker-manifest.json"
+        self._revalidate_missing_selection()
         with store._write_lock():
             if store.read() != current:
                 raise RuntimeError("runtime_mode_changed")
             self._manifest(allow_missing=True, check_contract=False)
             try:
-                previous, _ = _read_bytes(path)
+                previous, previous_identity = _read_bytes(path)
             except FileNotFoundError:
-                previous = None
+                previous, previous_identity = None, None
+            published_mode = None
+            publication_identity = None
+            publication_bytes = (json.dumps(manifest, ensure_ascii=False, indent=2) + "\n").encode(
+                "utf-8"
+            )
             try:
-                _write_docker_manifest(path, manifest)
-                # Already-selected Docker upgrades commit in the receipt's
-                # atomic replacement: no fallible mode write follows it.
+                publication_identity = _write_docker_manifest(path, manifest)
+                # Keep the origin transaction pending until receipt and mode agree.
                 if current.mode != "docker":
-                    store._write_locked("docker", expected=current)
-            except (OSError, RuntimeError):
-                try:
-                    published, identity = _read_bytes(path)
-                except FileNotFoundError:
-                    published, identity = None, None
-                try:
-                    matches = published is not None and json.loads(published) == manifest
-                except ValueError:
-                    raise RuntimeError("docker_install_summary_changed") from None
-                if matches:
-                    if previous is not None:
-                        _atomic_write_posix(path, previous, identity)
-                    else:
-                        with _private_posix_parent(path) as parent:
-                            if not _same_identity(_leaf_identity_at(parent, path.name), identity):
-                                raise RuntimeError("docker_install_summary_changed") from None
-                            os.unlink(path.name, dir_fd=parent)
-                            os.fsync(parent)
-                logging.getLogger("research_workbench.setup_web").warning("docker_setup_publish_failed")
+                    published_mode = store._write_locked("docker", expected=current)
+                    if self._fresh_root is not None:
+                        self._fresh_root["mode"] = published_mode
+                self._revalidate_missing_selection()
+                self._commit_candidate()
+            except (OSError, RuntimeError) as error:
+
+                def restore_publication():
+                    if published_mode is not None:
+                        restored_mode = store._write_locked(current.mode, expected=published_mode)
+                        if self._fresh_root is not None:
+                            self._fresh_root["mode"] = restored_mode
+                    try:
+                        published, identity = _read_bytes(path)
+                    except FileNotFoundError:
+                        published, identity = None, None
+                    if publication_identity is None:
+                        # A failed writer cannot establish ownership by later readback.
+                        if published != previous or not _same_identity(identity, previous_identity):
+                            raise RuntimeError(
+                                "docker_install_summary_recovery_unverified"
+                            ) from None
+                        return
+                    matches = published == publication_bytes and _same_identity(
+                        identity, publication_identity
+                    )
+                    if not matches:
+                        raise RuntimeError("docker_install_summary_recovery_unverified") from None
+                    if matches:
+                        if previous is not None:
+                            _atomic_write_posix(path, previous, identity)
+                        else:
+                            with _private_posix_parent(path) as parent:
+                                if not _same_identity(
+                                    _leaf_identity_at(parent, path.name), identity
+                                ):
+                                    raise RuntimeError("docker_install_summary_changed") from None
+                                os.unlink(path.name, dir_fd=parent)
+                                os.fsync(parent)
+
+                self._recover_fresh_failure(error, restore_publication)
+                logging.getLogger("research_workbench.setup_web").warning(
+                    "docker_setup_publish_failed"
+                )
                 raise
 
 
-def install_selected_runtime(arguments: argparse.Namespace, *, project_root: Path) -> dict[str, object]:
+class _NativePortOptions(TypedDict, total=False):
+    """Only explicitly supplied ports are forwarded to the Native installer."""
+
+    web_port: int
+    runtime_port: int
+
+
+def _validated_setup_ports(arguments: argparse.Namespace) -> tuple[int | None, int | None]:
+    web_port = getattr(arguments, "web_port", None)
+    runtime_port = getattr(arguments, "runtime_port", None)
+    for port in (web_port, runtime_port):
+        if port is not None and (type(port) is not int or not 1 <= port <= 65535):
+            raise RuntimeError("endpoint_invalid_port")
+    if arguments.runtime == "docker" and runtime_port is not None:
+        raise RuntimeError("docker_runtime_port_unsupported")
+    if web_port is not None and web_port == runtime_port:
+        raise RuntimeError("endpoint_invalid_pair")
+    return web_port, runtime_port
+
+
+def install_selected_runtime(
+    arguments: argparse.Namespace, *, project_root: Path
+) -> dict[str, object]:
     data_home = Path.home() / ".research-workbench"
+    web_port, runtime_port = _validated_setup_ports(arguments)
     if arguments.runtime == "docker":
-        return DockerRuntime(project_root, data_home).install(
+        controller = DockerRuntime(project_root, data_home)
+        if web_port is not None:
+            controller.requested_web_port = web_port
+        return controller.install(
             repair=arguments.repair,
             start=not arguments.no_start,
         )
-    return SetupWebInstaller(project_root=project_root).install(
+    options = cast(
+        _NativePortOptions,
+        {
+            key: value
+            for key, value in (("web_port", web_port), ("runtime_port", runtime_port))
+            if value is not None
+        },
+    )
+    return SetupWebInstaller(project_root=project_root, **options).install(
         repair=arguments.repair,
         start=not arguments.no_start,
     )
@@ -1355,8 +1472,10 @@ _DOCKER_REMEDIATION = {
     "docker_compose_missing": "请检查 {platform} 的 Docker Desktop Compose 插件。",
     "docker_architecture_unsupported": "当前 CPU 架构不受支持，请使用 arm64 或 x86_64 主机。",
     "docker_data_home_unsafe": "请检查本机 Research Workbench 数据目录的所有权与权限。",
-    "docker_port_8088_occupied": "请先释放本机 8088 端口。",
-    "docker_port_3081_conflict": "请先释放本机 3081 端口。",
+    "docker_port_8088_occupied": "所选宿主 Web 端口发生绑定竞争；请重试或显式选择空闲 --web-port。",
+    "docker_port_3081_conflict": "Docker DSH 使用容器内部 3081；请检查旧版本端口配置，不要停止无关宿主服务。",
+    "endpoint_port_in_use": "显式端口被占用；请选择空闲端口，或省略端口参数使用自动候选。",
+    "docker_stopped_port_conflict": "停止的受管容器保留原端口绑定；当前不会隐式重建容器。",
     "docker_ownership_mismatch": "检测到容器归属冲突，请检查已有容器。",
     "docker_build_not_ready": "请重新运行 Docker 模式安装以构建受管镜像。",
     "docker_build_failed": "Docker 镜像构建失败，请检查 Docker Desktop 与构建日志后重试。",
@@ -1366,12 +1485,47 @@ _DOCKER_REMEDIATION = {
 }
 
 
+def _maybe_reexec_native(arguments, project_root: Path, argv: list[str]) -> int | None:
+    """Enter the exact owned venv before any product-root creation/witness."""
+    if arguments.runtime != "native" or arguments.check_only or arguments.no_start:
+        return None
+    installer = SetupWebInstaller(project_root=project_root)
+    if Path(sys.prefix).resolve() == installer.venv.resolve() and installer._owned_environment(
+        installer.venv
+    ):
+        return None
+    report = installer.check()
+    issues = report.get("issues")
+    if not isinstance(issues, list) or not all(isinstance(issue, str) for issue in issues):
+        raise RuntimeError("prerequisite_check_invalid")
+    if issues:
+        raise RuntimeError(issues[0])
+    python = installer.prepare_environment(repair=arguments.repair)
+    if python != installer._environment_python(installer.venv) or not installer._owned_environment(
+        installer.venv
+    ):
+        raise RuntimeError("unowned_virtual_environment")
+    installer.log.info("setup_web_owned_environment_reexec")
+    completed = subprocess.run(
+        [str(python), "-I", str(Path(__file__).resolve()), *argv],
+        cwd=Path.cwd(),
+        env=dict(os.environ),
+        check=False,
+    )
+    return completed.returncode
+
+
 def main(argv: list[str] | None = None) -> int:
-    arguments = build_parser().parse_args(argv)
+    original_arguments = list(sys.argv[1:] if argv is None else argv)
+    arguments = build_parser().parse_args(original_arguments)
     project_root = Path(__file__).resolve().parents[1]
     if not arguments.check_only:
         _configure_logging(project_root)
     try:
+        _validated_setup_ports(arguments)
+        reexecuted = _maybe_reexec_native(arguments, project_root, original_arguments)
+        if reexecuted is not None:
+            return reexecuted
         if arguments.check_only:
             if arguments.runtime == "docker":
                 report = DockerRuntime(project_root, Path.home() / ".research-workbench").preflight(
@@ -1380,9 +1534,11 @@ def main(argv: list[str] | None = None) -> int:
                 report = {
                     "schema_version": 1,
                     "ok": bool(report.get("ok")),
-                    "issues": [
-                        _docker_issue(report, "docker_preflight_failed")
-                    ] if not report.get("ok") else [],
+                    "issues": (
+                        [_docker_issue(report, "docker_preflight_failed")]
+                        if not report.get("ok")
+                        else []
+                    ),
                     "mode": "docker",
                 }
             else:
@@ -1391,13 +1547,19 @@ def main(argv: list[str] | None = None) -> int:
             return 0 if report["ok"] else 1
         manifest = install_selected_runtime(arguments, project_root=project_root)
         if arguments.runtime == "docker":
-            print(json.dumps({
-                "status": manifest["status"],
-                "runtime": "docker",
-                "code_commit": manifest["code_commit"],
-                "image_id": manifest["image_id"],
-                "started": not arguments.no_start,
-            }, ensure_ascii=False, indent=2))
+            print(
+                json.dumps(
+                    {
+                        "status": manifest["status"],
+                        "runtime": "docker",
+                        "code_commit": manifest["code_commit"],
+                        "image_id": manifest["image_id"],
+                        "started": not arguments.no_start,
+                    },
+                    ensure_ascii=False,
+                    indent=2,
+                )
+            )
             return 0
         print(
             json.dumps(
@@ -1417,9 +1579,7 @@ def main(argv: list[str] | None = None) -> int:
         code = str(exc)
         if arguments.runtime == "docker":
             code = code if re.fullmatch(r"[a-z][a-z0-9_]{1,79}", code) else "docker_install_failed"
-            advice = _DOCKER_REMEDIATION.get(
-                code, "请检查 Docker Desktop 状态和安装日志后重试。"
-            )
+            advice = _DOCKER_REMEDIATION.get(code, "请检查 Docker Desktop 状态和安装日志后重试。")
             platform = "Windows" if os.name == "nt" else "macOS"
             print(f"安装失败：{code}。{advice.format(platform=platform)}", file=sys.stderr)
         else:

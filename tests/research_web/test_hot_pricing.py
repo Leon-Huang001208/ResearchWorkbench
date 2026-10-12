@@ -9,6 +9,8 @@ from types import SimpleNamespace
 from unittest.mock import patch
 import io
 import sys
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 from contextlib import redirect_stdout
 from research_workbench_entrypoint.hot import dispatch
 from research_workbench_entrypoint.hot import HotError
@@ -74,6 +76,9 @@ class PricingTests(unittest.TestCase):
             self.assertEqual(list((self.manager.directory/"pricing").iterdir()),[])
             self.assertEqual(self.manager.import_pricing(self.pricing,verified=True,reason="verified")["durability"],"confirmed")
     def test_actual_cli_validator_publication_and_replay_without_credentials(self):
+        # The real validator requires today's date; this is a synthetic tariff,
+        # not renewed provider pricing or a production authorization.
+        self.pricing = {**self.pricing, "verifiedOn": datetime.now(ZoneInfo("Asia/Shanghai")).date().isoformat()}
         project=Path.cwd().resolve();self.project=project;self.manager=HotManager(project,self.home,Forbidden());self.prepare()
         settings=self.manager.directory/"settings.json";settings.write_text(json.dumps({"projectRoot":str(project),"config":{"enabled":False}}));settings.chmod(0o600)
         file=self.root/"price.json";file.write_text(json.dumps(self.pricing))
@@ -84,3 +89,12 @@ class PricingTests(unittest.TestCase):
                 code=dispatch(["--data-home",str(self.home),"model-pricing-import","--file",str(file),"--verify-official-pricing","--reason","CLI fixture using prior dated record","--json"],project)
             self.assertEqual(code,0);results.append(json.loads(stream.getvalue()))
         self.assertEqual(results[0]["pricingHash"],results[1]["pricingHash"]);self.assertTrue(results[1]["reused"])
+    def test_real_validator_rejects_previous_day_without_publishing_or_credentials(self):
+        self.project = Path.cwd().resolve()
+        self.manager = HotManager(self.project, self.home, Forbidden())
+        self.prepare()
+        self.pricing = {**self.pricing, "verifiedOn": (datetime.now(ZoneInfo("Asia/Shanghai")).date() - timedelta(days=1)).isoformat()}
+        with patch.object(self.manager, "_config", return_value={"timezone": "Asia/Shanghai"}):
+            with self.assertRaisesRegex(HotError, "hot_pricing_invalid"):
+                self.manager.import_pricing(self.pricing, verified=True, reason="synthetic stale tariff rejection")
+        self.assertFalse((self.manager.directory / "pricing").exists())

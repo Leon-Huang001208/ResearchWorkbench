@@ -1,0 +1,726 @@
+{
+  "schemaVersion": 2,
+  "changeSummary": {
+    "fileCount": 57,
+    "ruleIds": [
+      "documentation",
+      "research-web",
+      "fallback"
+    ],
+    "impactIds": [
+      "documentation",
+      "research-web",
+      "unknown-boundary"
+    ]
+  },
+  "changedFiles": [
+    ".ai/reports/claw-recovery-20261009-BLOCKED.md",
+    ".ai/reports/claw-recovery-20261009-PROGRESS.md",
+    ".ai/reports/claw-recovery-20261009-REPORT.md",
+    ".ai/reports/claw-recovery-20261009-artifact-loss-red.json",
+    ".ai/reports/claw-recovery-20261009-evidence/admission-red.log",
+    ".ai/reports/claw-recovery-20261009-evidence/architecture-tests.log",
+    ".ai/reports/claw-recovery-20261009-evidence/artifact-loss-red.log",
+    ".ai/reports/claw-recovery-20261009-evidence/artifact-report_workflow-after.md",
+    ".ai/reports/claw-recovery-20261009-evidence/artifact-report_workflow-before.md",
+    ".ai/reports/claw-recovery-20261009-evidence/artifact-skill-after.md",
+    ".ai/reports/claw-recovery-20261009-evidence/artifact-skill-before.md",
+    ".ai/reports/claw-recovery-20261009-evidence/artifact-workflow-after.md",
+    ".ai/reports/claw-recovery-20261009-evidence/artifact-workflow-before.md",
+    ".ai/reports/claw-recovery-20261009-evidence/baseline.log",
+    ".ai/reports/claw-recovery-20261009-evidence/black-baseline.log",
+    ".ai/reports/claw-recovery-20261009-evidence/black-quality.log",
+    ".ai/reports/claw-recovery-20261009-evidence/ci-and-quality-not-run.log",
+    ".ai/reports/claw-recovery-20261009-evidence/ci-not-run.log",
+    ".ai/reports/claw-recovery-20261009-evidence/constraints.log",
+    ".ai/reports/claw-recovery-20261009-evidence/creation-red.log",
+    ".ai/reports/claw-recovery-20261009-evidence/documentation.log",
+    ".ai/reports/claw-recovery-20261009-evidence/failure-red.log",
+    ".ai/reports/claw-recovery-20261009-evidence/harness-repair.log",
+    ".ai/reports/claw-recovery-20261009-evidence/isort-baseline.log",
+    ".ai/reports/claw-recovery-20261009-evidence/isort-quality.log",
+    ".ai/reports/claw-recovery-20261009-evidence/late-reference-red.log",
+    ".ai/reports/claw-recovery-20261009-evidence/missing-id-red.log",
+    ".ai/reports/claw-recovery-20261009-evidence/mypy-baseline.log",
+    ".ai/reports/claw-recovery-20261009-evidence/mypy-quality.log",
+    ".ai/reports/claw-recovery-20261009-evidence/node-full.log",
+    ".ai/reports/claw-recovery-20261009-evidence/ownership-red.log",
+    ".ai/reports/claw-recovery-20261009-evidence/process-green.log",
+    ".ai/reports/claw-recovery-20261009-evidence/process-red.log",
+    ".ai/reports/claw-recovery-20261009-evidence/python-index.log",
+    ".ai/reports/claw-recovery-20261009-evidence/python.log",
+    ".ai/reports/claw-recovery-20261009-evidence/report-red.log",
+    ".ai/reports/claw-recovery-20261009-evidence/review-red.log",
+    ".ai/reports/claw-recovery-20261009-evidence/ruff-baseline.log",
+    ".ai/reports/claw-recovery-20261009-evidence/ruff-quality.log",
+    ".ai/reports/claw-recovery-20261009-harness-repair.json",
+    ".ai/reports/claw-recovery-20261009-plan.json",
+    ".ai/reports/claw-recovery-20261009-process-probe.py",
+    ".ai/reports/claw-recovery-20261009-process-receipt.json",
+    ".ai/reports/claw-recovery-20261009-process-red.json",
+    ".ai/reports/claw-recovery-20261009-receipt.json",
+    "app/research_web/automation/service.py",
+    "docs/architecture/research-web/01-system.md",
+    "docs/architecture/research-web/02-research-runtime.md",
+    "docs/architecture/research-web/03-data-files.md",
+    "docs/architecture/research-web/04-api.md",
+    "docs/architecture/research-web/05-security-validation.md",
+    "docs/architecture/research-web/README.md",
+    "docs/architecture/research-web/readme-review.json",
+    "docs/generated/py_file_index.md",
+    "docs/research-web-capabilities.md",
+    "docs/research-web-ui.md",
+    "tests/research_web/test_automation_service.py"
+  ],
+  "plannedLevel": "L4",
+  "actualLevel": "L4",
+  "components": [
+    "documentation",
+    "research-web",
+    "unknown-boundary"
+  ],
+  "platforms": [
+    "generic",
+    "linux",
+    "cross-platform"
+  ],
+  "impact": [
+    {
+      "path": ".ai/reports/claw-recovery-20261009-BLOCKED.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/claw-recovery-20261009-PROGRESS.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/claw-recovery-20261009-REPORT.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/claw-recovery-20261009-artifact-loss-red.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/claw-recovery-20261009-evidence/admission-red.log",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/claw-recovery-20261009-evidence/architecture-tests.log",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/claw-recovery-20261009-evidence/artifact-loss-red.log",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/claw-recovery-20261009-evidence/artifact-report_workflow-after.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/claw-recovery-20261009-evidence/artifact-report_workflow-before.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/claw-recovery-20261009-evidence/artifact-skill-after.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/claw-recovery-20261009-evidence/artifact-skill-before.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/claw-recovery-20261009-evidence/artifact-workflow-after.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/claw-recovery-20261009-evidence/artifact-workflow-before.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/claw-recovery-20261009-evidence/baseline.log",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/claw-recovery-20261009-evidence/black-baseline.log",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/claw-recovery-20261009-evidence/black-quality.log",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/claw-recovery-20261009-evidence/ci-and-quality-not-run.log",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/claw-recovery-20261009-evidence/ci-not-run.log",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/claw-recovery-20261009-evidence/constraints.log",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/claw-recovery-20261009-evidence/creation-red.log",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/claw-recovery-20261009-evidence/documentation.log",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/claw-recovery-20261009-evidence/failure-red.log",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/claw-recovery-20261009-evidence/harness-repair.log",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/claw-recovery-20261009-evidence/isort-baseline.log",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/claw-recovery-20261009-evidence/isort-quality.log",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/claw-recovery-20261009-evidence/late-reference-red.log",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/claw-recovery-20261009-evidence/missing-id-red.log",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/claw-recovery-20261009-evidence/mypy-baseline.log",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/claw-recovery-20261009-evidence/mypy-quality.log",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/claw-recovery-20261009-evidence/node-full.log",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/claw-recovery-20261009-evidence/ownership-red.log",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/claw-recovery-20261009-evidence/process-green.log",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/claw-recovery-20261009-evidence/process-red.log",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/claw-recovery-20261009-evidence/python-index.log",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/claw-recovery-20261009-evidence/python.log",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/claw-recovery-20261009-evidence/report-red.log",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/claw-recovery-20261009-evidence/review-red.log",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/claw-recovery-20261009-evidence/ruff-baseline.log",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/claw-recovery-20261009-evidence/ruff-quality.log",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/claw-recovery-20261009-harness-repair.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/claw-recovery-20261009-plan.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/claw-recovery-20261009-process-probe.py",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/claw-recovery-20261009-process-receipt.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/claw-recovery-20261009-process-red.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/claw-recovery-20261009-receipt.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "app/research_web/automation/service.py",
+      "rule": "research-web",
+      "reason": "research_web_change",
+      "modules": [
+        "research-web"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L1"
+    },
+    {
+      "path": "docs/architecture/research-web/01-system.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/02-research-runtime.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/03-data-files.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/04-api.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/05-security-validation.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/README.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/architecture/research-web/readme-review.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/generated/py_file_index.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/research-web-capabilities.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "docs/research-web-ui.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": "tests/research_web/test_automation_service.py",
+      "rule": "fallback",
+      "reason": "unknown_path",
+      "modules": [
+        "unknown-boundary"
+      ],
+      "coupling": "high",
+      "minimumLevel": "L4"
+    }
+  ],
+  "executed": [
+    {
+      "id": "documentation-governance",
+      "status": "PASS",
+      "durationSeconds": 0.175,
+      "evidence": ".ai/reports/claw-recovery-20261009-evidence/documentation.log",
+      "level": "L0"
+    },
+    {
+      "id": "python-file-index",
+      "status": "PASS",
+      "durationSeconds": 1.048,
+      "evidence": ".ai/reports/claw-recovery-20261009-evidence/python-index.log",
+      "level": "L0"
+    },
+    {
+      "id": "project-constraints-local",
+      "status": "PASS",
+      "durationSeconds": 0.177,
+      "evidence": ".ai/reports/claw-recovery-20261009-evidence/constraints.log",
+      "level": "L2"
+    },
+    {
+      "id": "research-web-architecture",
+      "status": "PASS",
+      "durationSeconds": 7.727,
+      "evidence": ".ai/reports/claw-recovery-20261009-evidence/architecture-tests.log",
+      "level": "L1"
+    },
+    {
+      "id": "research-web-verification-full",
+      "status": "PASS",
+      "durationSeconds": 7.723,
+      "evidence": ".ai/reports/claw-recovery-20261009-evidence/node-full.log",
+      "level": "L4"
+    }
+  ],
+  "external": [
+    {
+      "id": "project-constraints",
+      "status": "NOT_RUN",
+      "evidence": ".ai/reports/claw-recovery-20261009-evidence/ci-not-run.log"
+    },
+    {
+      "id": "research-web-checks",
+      "status": "NOT_RUN",
+      "evidence": ".ai/reports/claw-recovery-20261009-evidence/ci-not-run.log"
+    }
+  ],
+  "realMachine": [],
+  "result": "BLOCKED",
+  "mergeReady": false,
+  "releaseReady": false,
+  "uncoveredRisks": [
+    "unknown_impact_boundary",
+    "external_gate_not_run:project-constraints",
+    "external_gate_not_run:research-web-checks",
+    "macos_clean_install_not_run",
+    "real_dsh_model_not_run",
+    "windows_linux_not_run",
+    "harness_corruption_origin_unknown"
+  ],
+  "escalation": {
+    "required": false,
+    "targetLevel": null,
+    "reasons": []
+  }
+}

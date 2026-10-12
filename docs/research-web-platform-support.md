@@ -16,6 +16,14 @@ Native 来源控制有真实签名服务/PG 验证：读取权限拒绝写入、
 解释器选择为fixture；真实SystemKeychain生命周期、Web界面、正式研究、同SHA安装CI仍待验。
 Windows/Linux及Mac Docker产品切换保持各自NOT_RUN，不借用Native或容器化PG证明。
 
+2026-10-12 G0/G1 在 Mac mini（Apple M6、24GiB、macOS27.0.1、arm64）完成本地 Docker
+开发与候选基座实测：固定DSH完整构建、容器内回归、实际健康、stop/up、开发重建/退休后
+源码与数据保留，以及固定候选不受开发源码变化影响。具体镜像、命令、哈希与失败重试记录
+见 [.ai/reports/2026-10-12-mini-docker-g01-PROGRESS.md](../.ai/reports/2026-10-12-mini-docker-g01-PROGRESS.md)。
+该条是当前本地证据；本轮新候选GitHub macOS干净安装CI尚NOT_RUN，不能借旧run宣布完整本平台验收。
+Docker VM实际约8GiB，16GiB是建议配置；冷构建错峰5GiB，stage2GiB、dev3GiB限额已inspect。
+真实供应商、多人登录、Linux严格沙箱、公网、生产迁移及Windows/Linux原生仍未验证/后续阶段。
+
 支持按能力、系统和运行方式声明。Doctor 的 `available` 表示代码具有当前实现，`unsupported` 表示明确边界，`not_verified` 表示必要安全证明缺失；`validated=false` 不会随操作系统推导为通过。实际验收由任务回执和下表的证据决定。
 
 ## 当前证据身份
@@ -23,6 +31,15 @@ Windows/Linux及Mac Docker产品切换保持各自NOT_RUN，不借用Native或�
 阶段一候选 `78df0448d65bc77ebf66366fd8fc6eb074bff320` 已通过 [macos-14 干净安装与健康检查](https://github.com/Leon-Huang001208/ResearchWorkbench/actions/runs/37566792823)，合并提交为 `c24a8a161674678d572bf9ac35fab30489b40605`。该 CI 证明固定 DSH 构建、安装、3081/8088 健康及 Doctor；不证明真实模型调用、厂商授权或所有能力。架构阅读有独立 Mac 浏览器及人工图审证据，详见阶段一交付记录。
 
 阶段二候选/合并 `205d2a170d9ece9c2751e014b63abe326510ab9c`、PR #83 已闭合 Mac Native；[Mac Bootstrap 37587972966](https://github.com/Leon-Huang001208/ResearchWorkbench/actions/runs/37587972966) 的实际 checkout `4bd5a6d8660ba7072da37878ce73396b8370fbab` 为 c24/205 的 PR preview。模型与厂商调用仍未验证。用户明确目前只有 Mac，Windows/Linux 真机及其 CI 保留 NOT_RUN；Windows目标版本仍待对应设备确认，Server2022不证明Win10。Mac Docker 独立任务的真实证据见下节，未借用 Native 结果。
+
+Task14 本地集成保留 macOS Native 公开停止成功后最多 45 秒的原端口释放等待，
+异根 Native 私有账本在真实 lifecycle lease 内的调用范围认证与复查，以及 Docker
+私有 state tmpfs 和独立持久日志 bind。未知归属、同根写者和失效观察仍拒绝；这些
+实现与本地合同测试不提升下表的支持或验收状态。目标源码的物理往返、最终合并源码的
+新镜像构建及各平台 CI 证据必须分别绑定实际提交，不能把历史 PASS 当作当前候选已验收。
+
+Docker DSH builder 的[命令局部并发 8 / 单请求期限 120 秒](research-web-installation.md)
+不提升本表任何平台状态；当前候选真实下载、镜像构建和运行健康仍须独立取得证据。
 
 ## 能力支持矩阵
 
@@ -60,6 +77,12 @@ Windows/Linux 设备任务从 GitHub 主线取得源码，确认目标 OS/版本
 
 显式选择 `macos-docker-desktop`，使用唯一任务镜像、安装身份、Compose 项目、私有 data/state/credentials 和独立回环端口。验证锁定镜像实际 Linux 架构、认证 DSH/Web 健康、Docker Doctor 能力边界、restart、down/up 后非秘密数据保留、最终停止和端口释放。该门属于 macOS 宿主 Docker Desktop，不能替代 Linux 原生设备或 Linux Docker CI，也不证明模型系统存储、研究沙箱或 Office/Wind/Tabbit。
 
+
+## 单一兼容文本/流式模型连接的证据范围
+
+settings-model-loop在macOS Native正常受管fixed DSH中验证新增LlmAdapter、私有非秘密配置通道及两个系统凭据ref。产品API保存、合成生成和真正Host/DSH冷重启恢复，以及真实Mac Keychain合成隔离/清理通过；合成模型端点不代表真实新增供应商、工具/图片或其他平台通过。无Key模式不使用系统库，API Key模式仍要求本平台已获准系统后端且无环境/旧文件回退。
+
+本聊天模型连接任务仅macOS Native；项目其他平台任务与整体支持矩阵继续保留，不从此任务授权自动执行Docker/Windows/Linux。Docker内localhost是容器，不能套用本机模型地址；未验的寻址、模型后端、ACL、严格沙箱和本机能力仍未验证/不支持。Linux Docker与Windows exact-SHA手动CI由对应设备任务执行，本任务不dispatch、不迁移生产。
 ## macOS Docker Desktop 当前证据
 
 真机 macOS 14.6.1/23G93 arm64，Docker Desktop 4.94.0、Engine29.8.2，实际镜像 Linux arm64。公开安装器 adapter 的安装快照 `5e1b790b581bca01bc73583a0720b50f664e5941`，不可变镜像 `sha256:7dc3942fbddc81f3c4d34d0e860117a086c6cb8a8637eec10624dcd551333ee7`；最新宿主 controller 验证候选 `fb9ec4fb978d04caf6e6fca03ba90f49decdd64e`。镜像确含安装快照的controller，不宣称最后宿主提交已重新构建镜像：最终差异仅host stop默认等待；Supervisor/DSH/Web/healthcheck/依赖/Compose的执行输入未变，scoped reuse另有哈希与差异证据。

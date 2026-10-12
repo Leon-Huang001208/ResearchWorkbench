@@ -1,6 +1,7 @@
 """Versioned unified integration status and probe-batch API."""
 
 from typing import Literal
+from uuid import uuid4
 
 from fastapi import APIRouter, Header, HTTPException, Request
 from fastapi.responses import JSONResponse
@@ -69,10 +70,20 @@ def probe_batch(batch_id: str, request: Request):
 
 
 @router.put("/{item_id}/auto-probe-consent")
-def update_auto_probe_consent(item_id: str, body: ConsentRequest, request: Request):
+async def update_auto_probe_consent(item_id: str, body: ConsentRequest, request: Request):
     _require_same_origin_user_action(request)
     try:
-        return request.app.state.research.integrations.set_auto_probe_consent(item_id, body.consent)
+        coordinator = request.app.state.research.integrations
+        result = coordinator.set_auto_probe_consent(item_id, body.consent)
+        if body.consent and item_id in {
+            "local:excel_app",
+            "local:word_app",
+            "local:powerpoint_app",
+        }:
+            result["batch"] = coordinator.start_batch(
+                scope="local", trigger="office_consent", idempotency_key=f"office-consent-{uuid4()}"
+            )
+        return result
     except KeyError:
         return JSONResponse(
             {"error": {"code": "integration_item_not_found", "message": "未找到集成项"}},

@@ -1,0 +1,59 @@
+{
+  "before": {
+    "command": [
+      "node",
+      "/Users/leon/.agents/leon-engineering/runtime/harness-enforce.mjs",
+      "--project",
+      "/Users/leon/.codex/worktrees/claw-native-recovery/ResearchWorkbench",
+      "--task-id",
+      "claw-recovery-20261009"
+    ],
+    "exitCode": 1,
+    "output": "harness enforce failed: invalid harness event stream\n"
+  },
+  "durableBackup": "/Users/leon/Desktop/Projects/ResearchWorkbench/.git/leon-engineering/harness-repair-backups/claw-20261009-NLDXb3",
+  "backups": [
+    {
+      "name": "events-before-prepare.jsonl",
+      "bytes": 6754586,
+      "sha256": "a8cd3777c27ef71800db3b40c2e57b69ef51afc77c469427777bef8c7e8ef640"
+    },
+    {
+      "name": "manifest.json",
+      "bytes": 900,
+      "sha256": "e903cd7e845a1d3fc0c048bbb6c325ffab55d7465d8684fca86960fc036a7310"
+    }
+  ],
+  "after": {
+    "command": [
+      "node",
+      "/Users/leon/.agents/leon-engineering/runtime/harness-enforce.mjs",
+      "--project",
+      "/Users/leon/.codex/worktrees/claw-native-recovery/ResearchWorkbench",
+      "--task-id",
+      "claw-recovery-20261009"
+    ],
+    "exitCode": 0,
+    "durationSeconds": 0.725,
+    "result": {
+      "taskId": "claw-recovery-20261009",
+      "verificationStatus": "passed",
+      "verificationDurationSeconds": 187
+    }
+  },
+  "finalAudit": {
+    "sourceSHA256": "560c877b82d86db505ab8910407de877a43de753b0fc5463d5c641a4db7be913",
+    "probeSHA256": "64905b27d1aee48a310ba097838d1fbf162eb66f68897200946d5f96926c34f6",
+    "changedFiles": 57,
+    "mainTrackedDiffEmpty": true,
+    "artifactProofs": 3,
+    "expectedRedControls": 6,
+    "strictEventRecords": 47197,
+    "newDamageFound": false,
+    "harness": {
+      "taskId": "claw-recovery-20261009",
+      "verificationStatus": "passed",
+      "verificationDurationSeconds": 187
+    }
+  }
+}

@@ -67,19 +67,28 @@ class MappingKeyring:
         self.fail_delete = False
 
     def get_password(self, service, account):
-        assert service == MYSQL_SERVICE
+        assert (
+            service.startswith(f"{MYSQL_SERVICE}.")
+            and len(service.removeprefix(f"{MYSQL_SERVICE}.")) == 64
+        )
         if self.fail_get:
             raise RuntimeError("locked secret value must never escape")
         return self.values.get(account)
 
     def set_password(self, service, account, value):
-        assert service == MYSQL_SERVICE
+        assert (
+            service.startswith(f"{MYSQL_SERVICE}.")
+            and len(service.removeprefix(f"{MYSQL_SERVICE}.")) == 64
+        )
         if self.fail_set:
             raise RuntimeError("denied secret value must never escape")
         self.values[account] = value
 
     def delete_password(self, service, account):
-        assert service == MYSQL_SERVICE
+        assert (
+            service.startswith(f"{MYSQL_SERVICE}.")
+            and len(service.removeprefix(f"{MYSQL_SERVICE}.")) == 64
+        )
         if self.fail_delete:
             raise RuntimeError("denied secret value must never escape")
         self.values.pop(account, None)
@@ -891,3 +900,51 @@ async def test_tinysoft_provider_uses_saved_keyring_token_after_env_migration(
     assert result.status == "complete"
     assert result.rows == [{"证券代码": "SH600000"}]
     assert "saved-cj-token" not in repr(result)
+
+
+def test_data_home_credentials_do_not_inherit_overwrite_or_clear_another_instance(tmp_path):
+    class SharedKeyring:
+        def __init__(self):
+            self.values = {}
+
+        def get_password(self, service, account):
+            return self.values.get((service, account))
+
+        def set_password(self, service, account, value):
+            self.values[(service, account)] = value
+
+        def delete_password(self, service, account):
+            self.values.pop((service, account), None)
+
+    keyring = SharedKeyring()
+    keyring.values[(MYSQL_SERVICE, MYSQL_ACCOUNT)] = "legacy-synthetic"
+    a = MySQLConnectionStore(tmp_path / "a", keyring_backend=keyring)
+    b = MySQLConnectionStore(tmp_path / "b", keyring_backend=keyring)
+    cfg = MySQLConfiguration(
+        **{key: value for key, value in mysql_payload().items() if key != "password"}
+    )
+    a.save(cfg, password="a-synthetic")
+    b.save(cfg)
+    with pytest.raises(CredentialStoreError, match="credential_missing"):
+        b.credentials()
+    b.save(cfg, password="b-synthetic")
+    assert a.credentials()[1] == "a-synthetic"
+    assert b.credentials()[1] == "b-synthetic"
+    a.save(cfg)
+    assert a.credentials()[1] == "a-synthetic"
+    b.delete()
+    assert a.credentials()[1] == "a-synthetic"
+    assert keyring.values[(MYSQL_SERVICE, MYSQL_ACCOUNT)] == "legacy-synthetic"
+    assert (
+        MySQLConnectionStore(tmp_path / "a", keyring_backend=keyring).credentials()[1]
+        == "a-synthetic"
+    )
+    with pytest.raises(CredentialStoreError, match="not_configured"):
+        MySQLConnectionStore(tmp_path / "b", keyring_backend=keyring).credentials()
+
+
+def test_credential_namespace_resolution_failure_is_sanitized(tmp_path):
+    root = tmp_path / "loop"
+    root.symlink_to(root)
+    with pytest.raises(CredentialStoreError, match="^credential_namespace_unavailable$"):
+        MySQLConnectionStore(root, keyring_backend=MappingKeyring())

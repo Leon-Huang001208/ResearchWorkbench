@@ -1,0 +1,110 @@
+2026-10-09 01:39:17 [info     ] automation_created             automation_id_digest=0320f1e7c6357353 status=disabled
+2026-10-09 01:39:17 [error    ] automation_reference_persistence_failed error_type=StoreError
+2026-10-09 01:39:17 [error    ] automation_run_failed          automation_id_digest=0320f1e7c6357353 error_type=AutomationError
+F2026-10-09 01:39:17 [info     ] automation_created             automation_id_digest=473a1f6acc488d34 status=disabled
+2026-10-09 01:39:17 [error    ] automation_reference_persistence_failed error_type=StoreError
+2026-10-09 01:39:17 [error    ] automation_run_failed          automation_id_digest=473a1f6acc488d34 error_type=AutomationError
+F                                                                       [100%]
+=================================== FAILURES ===================================
+____ test_initial_stale_report_reference_never_cancels_existing_work[True] _____
+
+tmp_path = PosixPath('/private/var/folders/rz/f7lsl4nn2bl0lpsfqyylp1jh0000gn/T/pytest-of-leon/pytest-1191/test_initial_stale_report_refe0')
+foreign = True
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("foreign", [True, False])
+    async def test_initial_stale_report_reference_never_cancels_existing_work(tmp_path, foreign):
+        cancelled = []
+        existing = {"id": "old-report", "workflow_id": "unrelated" if foreign else "company-research",
+                    "version": 99 if foreign else 2, "trigger": "automation", "status": "running"}
+    
+        class Runtime:
+            catalog = SimpleNamespace(data={"runs": {"old-report": existing}})
+    
+            async def start_run(self, *_args, **_kwargs):
+                return dict(existing)
+    
+            def _run(self, _run_id):
+                return dict(existing)
+    
+            async def cancel(self, run_id):
+                cancelled.append(run_id)
+                existing["status"] = "cancelled"
+    
+        store = Store(tmp_path)
+        service = AutomationService(
+            store, scheduler=False,
+            research=SimpleNamespace(report_workflows=SimpleNamespace(runtime=Runtime())),
+            target_resolver=lambda *_args: {"version": 2, "sha256": "a" * 64},
+        )
+        automation = service.create(automation_body(target_kind="report_workflow"))
+        save = store.save
+    
+        def failed_reference_write():
+            if any(row.get("report_run_id") for row in store.data["automation_runs"].values()):
+                raise StoreError("controlled checkpoint failure")
+            save()
+    
+        store.save = failed_reference_write
+        await service.run(automation["id"])
+        await service.wait_for_idle()
+>       assert cancelled == []
+E       AssertionError: assert ['old-report'] == []
+E         
+E         Left contains one more item: 'old-report'
+E         Use -v to get more diff
+
+tests/research_web/test_automation_service.py:771: AssertionError
+____ test_initial_stale_report_reference_never_cancels_existing_work[False] ____
+
+tmp_path = PosixPath('/private/var/folders/rz/f7lsl4nn2bl0lpsfqyylp1jh0000gn/T/pytest-of-leon/pytest-1191/test_initial_stale_report_refe1')
+foreign = False
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("foreign", [True, False])
+    async def test_initial_stale_report_reference_never_cancels_existing_work(tmp_path, foreign):
+        cancelled = []
+        existing = {"id": "old-report", "workflow_id": "unrelated" if foreign else "company-research",
+                    "version": 99 if foreign else 2, "trigger": "automation", "status": "running"}
+    
+        class Runtime:
+            catalog = SimpleNamespace(data={"runs": {"old-report": existing}})
+    
+            async def start_run(self, *_args, **_kwargs):
+                return dict(existing)
+    
+            def _run(self, _run_id):
+                return dict(existing)
+    
+            async def cancel(self, run_id):
+                cancelled.append(run_id)
+                existing["status"] = "cancelled"
+    
+        store = Store(tmp_path)
+        service = AutomationService(
+            store, scheduler=False,
+            research=SimpleNamespace(report_workflows=SimpleNamespace(runtime=Runtime())),
+            target_resolver=lambda *_args: {"version": 2, "sha256": "a" * 64},
+        )
+        automation = service.create(automation_body(target_kind="report_workflow"))
+        save = store.save
+    
+        def failed_reference_write():
+            if any(row.get("report_run_id") for row in store.data["automation_runs"].values()):
+                raise StoreError("controlled checkpoint failure")
+            save()
+    
+        store.save = failed_reference_write
+        await service.run(automation["id"])
+        await service.wait_for_idle()
+>       assert cancelled == []
+E       AssertionError: assert ['old-report'] == []
+E         
+E         Left contains one more item: 'old-report'
+E         Use -v to get more diff
+
+tests/research_web/test_automation_service.py:771: AssertionError
+=========================== short test summary info ============================
+FAILED tests/research_web/test_automation_service.py::test_initial_stale_report_reference_never_cancels_existing_work[True]
+FAILED tests/research_web/test_automation_service.py::test_initial_stale_report_reference_never_cancels_existing_work[False]
+2 failed, 32 deselected in 0.22s

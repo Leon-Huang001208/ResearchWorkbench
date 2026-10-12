@@ -100,6 +100,48 @@ async function privateControl(root) {
   } finally {await handle.close();}
 }
 
+/** Non-secret connection facts over the existing instance-private channel. */
+export async function readModelConnection(root, signal) {
+  const control = await privateControl(root);
+  const timeout = AbortSignal.timeout(4000);
+  const response = await fetch(`${control.url}/api/research/internal/data/model-connection`, {
+    headers: { 'X-Research-Data-Key': control.token }, redirect: 'error',
+    signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
+  });
+  if (!response.ok || !response.body) { await response.body?.cancel(); throw Error('compatible_configuration_unavailable'); }
+  const reader = response.body.getReader();
+  try {
+    let text = '', bytes = 0;
+    const decoder = new TextDecoder('utf-8', { fatal: true });
+    for (;;) {
+      const part = await reader.read(); if (part.done) break;
+      bytes += part.value.byteLength;
+      if (bytes > 4096) throw Error('compatible_configuration_unavailable');
+      text += decoder.decode(part.value, { stream: true });
+    }
+    const value = JSON.parse(text);
+    if (!value || Object.keys(value).join(',') !== 'connection' || (value.connection !== null && (typeof value.connection !== 'object' || Array.isArray(value.connection)))) throw Error('compatible_configuration_unavailable');
+    return value.connection;
+  } finally { try { await reader.cancel(); } catch { throw Error('compatible_configuration_unavailable'); } }
+}
+
+/** Finite Office operations use the existing private loopback authentication. */
+export async function executeDocumentTool(ctx, exec, config, args) {
+  const cwd = await trustedDirectory(ctx, exec, config);
+  exec.signal.throwIfAborted();
+  const control = await privateControl(config.researchRoot);
+  // Native supervisor: 180s operation + 10s coordination, then response delivery.
+  // This does not change Host phase deadlines or execution cancellation.
+  const waitMilliseconds = args.mode === 'native' ? 195000 : 35000;
+  const signal = AbortSignal.any([exec.signal, AbortSignal.timeout(waitMilliseconds)]);
+  const response = await fetch(control.url + '/api/research/internal/data/document-operation', {
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Research-Data-Key': control.token },
+    body: JSON.stringify({ ...args, session_id: basename(cwd) }),
+    redirect: 'error', credentials: 'omit', signal,
+  });
+  return boundedJson(response, signal);
+}
+
 async function boundedJson(response, signal) {
   if (!response.ok || response.redirected) {await response.body?.cancel();throw Error(`DataHub request failed (HTTP ${response.status})`);}
   if (!response.headers.get('content-type')?.includes('application/json') || !response.body || Number(response.headers.get('content-length')) > MAX_BYTES) {await response.body?.cancel();throw Error('DataHub response type or size is invalid');}
@@ -117,6 +159,29 @@ function smallResult(value) {
   return {dataset_id:value.dataset_id,source:value.source,status:value.status,
     manifest_json:JSON.stringify(Object.fromEntries(keys.filter(key=>key in value).map(key=>[key,value[key]]))),
     files_json:JSON.stringify(value.files.map(({name,path,sha256})=>({name,path,sha256}))),sample_json:JSON.stringify(value.sample)};
+}
+
+/** Same authenticated loopback channel; scope only, never credentials. */
+export async function nativeAdmission(ctx, exec, config, loaded = false) {
+  const cwd = await trustedDirectory(ctx, exec, config);
+  const control = await privateControl(config.researchRoot);
+  const signal = AbortSignal.any([exec.signal, AbortSignal.timeout(4000)]);
+  const body = { session_id: basename(cwd), tool_name: exec.name };
+  if (exec.name === 'skill' || exec.nativeSkillName !== undefined) {
+    const name = exec.name === 'skill' ? exec.arguments?.name : exec.nativeSkillName;
+    if (typeof name !== 'string' || !/^[a-z0-9][a-z0-9_-]{0,159}$/.test(name)) throw Error('skill_admission_invalid');
+    body.native_name = name;
+    if (loaded) body.loaded = true;
+  }
+  const response = await globalThis.fetch(control.url + '/api/research/internal/data/skill-preflight', {
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Research-Data-Key': control.token },
+    body: JSON.stringify(body), redirect: 'error', credentials: 'omit', signal,
+  });
+  const result = await boundedJson(response, signal);
+  if (!result || !['available','limited','unavailable','unverified'].includes(result.status) ||
+      typeof result.admitted !== 'boolean' || result.admitted !== ['available','limited'].includes(result.status) ||
+      !Array.isArray(result.missing) || !Array.isArray(result.omitted_sections)) throw Error('skill_admission_state_invalid');
+  return result;
 }
 
 export function apply(ctx, config) {

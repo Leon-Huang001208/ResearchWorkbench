@@ -32,11 +32,169 @@ Hot Web复用本地Origin边界；控制正文必须有明确动作标记且先�
 操作/SQL/路径，凭据按当前模式选择。超时线程保持容量，关闭后二次检查拒绝等待中的写入。
 UI转义原文并限制外链协议/无userinfo，持久选择与详情cutoff防跨页混合；未知写入原参数重放。
 
+新管理入口验证私有管理根与记录无alias、环境/实例labels、不可变镜像、容器ID、
+完整配置/挂载、网络、资源限额及卷归属后才启停/重建。Docker在start时把
+`OomKillDisable=null`补为false，两者同为启用OOM killer；只规范化该等值默认，true和其他变更仍拒绝。
+管理代码在只读绑定的管理员worktree中，瞬时控制器独占Docker socket；业务/dev无socket。
+独立BuildKit 3GiB初始编译不足，实测冷构建借stage额度至5GiB，与stage互斥，退出停止；
+入口另核对VM实际内存与所有运行容器硬上限，保留2GiB余量。未知无限额容器拒绝。
+容器隔离不替代用户鉴权或任意代码沙箱；模型后端/多人授权/严格Linux沙箱/公网仍待G2-G5。
+
+## 资讯雷达 · 2026-10-09
+
+资讯适配器只开放固定目标的 11 个 GET 路由，不转发浏览器 Authorization/Cookie、不继承代理环境、不跟随重定向；请求总超时 20 秒，JSON 响应上限 16 MiB，禁止任意 URL 转发。标的、ID、分页与游标有界验证。远端内容转义，原文链接只接受 HTTP/HTTPS；既有 CSP 保持同源。未提供上游鉴权时显示服务不可用，不读取本机模型或业务凭据。
+
+新版原生模块解析使用 `createRuntimeResolution`，每个 packageDir 必须属于固定源码或两项既有受管供应包；解析成功不扩大模块白名单。认证 bootstrap 的 source_commit 从共享 runtime 合同读取，仍验证所属进程、cwd、端口与私有控制文件。preset 注册迁移不改变固定模型 ref 的 Keychain 私有桥接，也不让模型 ref 委托回旧环境/文件解析器。父子活动状态未知时配置和提交失败关闭。
+
+Automation 恢复不重发研究；缺 ID、未知提交和 workflow/version 冲突失败关闭。初始报告保存失败时，只有已验证 Runtime 事实源且本次确实新建的活动 Run 才允许停止；陈旧/错误引用及恢复期间保存失败不能取消既有任务。日志只记录固定事件、类型和 Run ID 摘要，不含 Prompt、文件内容或凭据。受控 macOS 进程探针只处理自建进程/临时私有根，不证明真实 DSH/model 或其他平台。
+
+Docker DSH builder 的[下载参数](../../research-web-installation.md)仅将现有 pnpm install 并发设为 8、
+单请求期限设为 120 秒；frozen lockfile、默认重试、registry、TLS、签名和最低发布时间校验保持。
+
+停止端口等待不授予所有权：只在实际 NativeRuntime 的初始状态已确认运行、显式
+stop-current 与公开 stop 成功后执行；原 Native 端口在停止前冻结。预算在停止前
+拒绝 bool、数值子类、非有限、负数与超过45秒的值；巨大整数先比较界限。
+等待不刷新 ForeignLedger，不重试已失败的 guard，不用 SO_REUSEADDR；结束后仍走
+原 lease/scope、新状态和 CAS。日志仅固定 begin/released/timeout，不含身份或秘密。
+
+模式切换 finalize 日志仅输出固定模式、拒绝分支与显式 allowlist 的首个 issue 代码；未知、
+非字符串及空 issue 映射为 `unknown`，仍运行映射为 `none`，不输出 report、异常、路径或秘密。
+严格 running 类型检查、短路、错误优先级、所有权、锁与模式 CAS 均保持原合同。
+Native status 日志只记录固定 precheck/child/postcheck 阶段和固定 code，不输出子进程原 issue 或 stderr。
+
+容器 Web 启动探测使用 3 秒单轮总期限，并裁剪到剩余 35 秒角色启动期限。
+Runtime API、首页与主静态模块仍须全部通过状态码、媒体类型、正文标记与响应大小检查；
+认证会话、PID 绑定、2 MiB 响应上限及精确子进程清理不因预算调整而放宽。
+
+macOS 异根 Native 认证仅复用既有私有 launch ledger 信任模型。OS UID 的标准产品根是
+唯一候选；不使用 HOME/环境 override 扩大发现、不遍历其他用户或 checkout、不读取进程环境、
+认证秘密或执行候选源码。两角色必须完整且一致，相关 listener PID 集合精确等于已认证 pair。
+alias、不安全 owner/mode、单角色、额外未知 listener、PID 重用、argv/start 或记录/root 替换拒绝。
+Web 的 data-root 关联来自可信私有记录，未增加密码学或进程环境独立 attestation；既有同 UID
+可任意替换私有内容的信任边界没有被宣称解决。只读结果不产生写 capability；实际 lease 下的
+调用内 FD/身份观察才参与写门，scope/lease/controller 不匹配与 lease 丢失均失败关闭。
+原同根/未知写者拒绝、认证 token/额外字段保留、精确 ID 回滚和 stopped-port-conflict 均保持。
+
+本次 Native spawn 不以 `(role,pid)` 单独授权：scope 保留原 Popen 对象与实际 state writer
+FD，publish 前后及后续复核命名记录/FD identity、owner/mode、metadata；同内容换 inode
+亦拒绝。实际 start 在启动阶段只建立一次，稳定 owned-listen 时冻结完整 argv 与 exact
+listener 基线；其后变化永久失效，重复登记不重新捕获。停止阶段的合法退出不授予新 writer
+权限。Popen 返回后登记丢锁须收尾该精确新 child，保留原错误；未知记录或进程的普通
+rollback 不发信号、不删记录，health 错误继续为主错误。普通已有实例和认证字段合同不变。
+
+调用内拒绝是单调失效：已捕获 scope 看到未知 target 槽或不合法 own-child 退出时，统一撤销
+同一个 RAM 观察；未知记录后来删除、其他事实恢复原样也不能重新授权检查或 rollback。
+本次精确 stop 的 stopping/stopped 退出阶段属于预先验证的对象，不按未知退出撤销。
+该失效不持久化，finally 仍清观察与 FD；下一次调用须独立取得完整当前证据。
+
+target 槽读取的非 missing I/O 也先撤销当前观察再传播原错误；Docker 仍报告原 docker_io，
+不降级为空槽。权限/I/O 恢复不能使同 scope 重新获得 mutation 或 rollback 权限。
+
+安全拒绝与完整清理边界保留必要的宽异常捕获，逐处说明单行 lint 例外；不会为消除
+BLE001 而记录异常正文或缩窄到可能遗漏失败的类型。日志 handler 失败仍返回原拒绝路径，
+可选身份分类失败仍记录 `other`；验证脚本的 `check=False` 明示既有退出码断言责任。
+
+Docker fresh-root 权限不能由 mode、manifest、venv、bool/tuple、只读状态或外来 lease 推导。缺失观察限同一 controller 外层真实 `_locked_guard` 的私有父 FD/lease/元数据与稳定 OS 事实；真实 mkdir 后首次 open/fstat 捕获并 pin 当前根身份，up 前失去分配权限。捕获后的 parent/root 身份、lease、mode 记录值、PID/端点/监听或容器变化拒绝；已有根不授予该例外。另一个 controller 不能转移 witness；外层 abort 仅在本次容器已精确退出且原 lease/根/父/监听与 CAS 一致时恢复，本次恢复不授权重试。所有 witness 在 finally 清除，原通用目录/生命周期 guard 与认证实现不放宽。
+
+mkdir 到首次身份捕获非原子，沿用 Native/Supervisor 创建模型，不承诺抵御同 UID、可写 HOME 且不遵守 lease 的任意捕获前替换。mode 比较沿用 RuntimeModeRecord 值和逻辑 CAS，不跨读取保留 mode 文件 inode；合法同内容换 inode 不单独使 witness 失效。该边界不改变私有读取的 alias/owner/mode/no-follow 校验，也不改变安装摘要发布时独立的字节/FD 身份恢复检查。
+
 启动认证链接不得进入普通日志。产品Node preload在固定DSH CLI之前截获stdout/stderr认证行，临时启动token只进入既有0600认证控制文件；管理器验证authority/cwd/source_commit后交换Cookie并移除临时token字段。输出拆分、错误端口、过长无换行输出均不转发认证链接；控制写入拒绝别名、硬链接、非私有或非当前用户文件。模型Key与该Host认证平面保持分离；用户录入阶段不采集DOM、HAR、截图或请求体。
 
 macOS Native 的固定模型 ref 通过 owned overlay 挂载产品 provider，私有 stdio 桥接只允许 resolve/describe/set/unset 与所属规范化 data home。桥接使用受管产品 Python，直接选择 macOS Keyring；其他平台、未知后端、拒绝访问或进程失败均失败关闭。秘密只存在系统库和受控进程内存/管道，不进入 argv、环境、URL、普通日志或报告；只散列公开 data home 路径生成命名空间，不散列秘密。不新增通用取密 HTTP API、不复制生产 Key。合成值 Keychain 验证与真实供应商生命周期分开。
 
 模型配置保持同源、回环与专属 Runtime 所有权检查。不回退环境、`.credentials.yaml`、项目 `.env` 或 DSH_HOME `.env`，不复制 Keychain 值到旧文件。浏览器认证的 client-connection/browser-session 与 readRecord/modifyRecord 仍使用固定 DSH 原有受控实现及独立 `.browser-credentials.yaml`；模型未配置、清除、桥接失败不使 record 接口失效。配置保存不读取旧秘密制作备份。活动父/子任务阻止凭据更新；凭据提交结果未知时拒绝新请求，不能假定旧秘密未变。最小生成是用户显式操作，不由列表、刷新、Doctor 或保存自动触发。
+
+Docker Doctor schema 1 的 volumes 只投影固定类型：data/logs/credentials=bind、state=tmpfs；logs 为新增非秘密字段，不暴露路径，verified 仍须实际 inspect 成功，失败或缺容器为 false，查询不写目录。
+
+`runtime_state_directory_rejected` 的私有日志在原拒绝分支记录固定原因
+`invalid_type/reparse_point/unsafe_owner/unsafe_mode/identity_changed`，阶段限定
+`enter/open_fd/pre_yield/post_yield`，范围仅 `ancestor/leaf`。身份变化仅列
+`dev/ino/mode/uid/gid` 字段名，不输出目录名、路径、身份数值、文件内容、Cookie、
+token 或异常正文。既有外层未分类错误保留通用事件；日志 handler 失败只放弃诊断，
+继续原 `RuntimeStateError("runtime_state_unsafe")` 拒绝与异常传播。
+该取证不放宽任何 owner/mode/no-follow/身份校验，不修复目录、不预写认证、不重试。
+容器公开启动诊断仍为原五字段，CI artifact scanner 不接收此私有日志。
+确定性负面测试证明日志与 guard 合同，不证明真实 Docker startup 或根因已修复。
+
+`identity_changed` 私有事件另含 `ownership_transition` 和 `position`。
+只有完整 `(uid,gid)` 从 `(0,0)` 到当前进程对时分类 `root_pair_to_runtime_pair`，
+相反完整匹配为 `reverse`；混合root/runtime组、foreign GID、其他变化、无法读取进程对，
+以及进程对本身为 `(0,0)` 均为 `other`。`position` 仅由检查节点与叶的关系派生为
+`leaf/parent/other_ancestor`，不硬编码Docker挂载路径。分类只是拒绝后的诊断，不改变guard、
+不证明具体业务写入层、不授权初始化修复；原字段和公开五字段启动事件保持原合同。
+
+已安装生产包的发布载荷不因嵌套 `doc/docs` 名称被裁掉；Workspace 仍按 files 和目录
+negative 规则选择，绝对/越界声明拒绝。包顶层开发目录/README/suffix 及任意层级 Git/cache
+元数据过滤、source asset escape 和 manifest 哈希校验保留；嵌套 README 仅是载荷元数据，
+不构成可执行能力或秘密读取权限。源码回归不能代替真实 Docker 生命周期验收。
+
+根模块别名复用 pnpm hoist 的选中目标过滤与冲突检查；模块根须为规范真实目录，选中别名须
+严格解析到固定源码内的生产实体，输出相对链接。测试覆盖 scope、坏生产链接、越界、冲突、
+替换与资产 escape；未选开发别名不复制，launcher 不跳过私有模块校验。
+
+Docker stop 的端口认证先于任何 stop mutation：原 status 验证精确 loopback Web mapping，
+已有 Legacy 映射恢复实际端口后固定调用内 ID/image/ports；后续 inspect/status 必须一致。
+错误 0.0.0.0 或晚期 mapping 改变不先停止，宿主释放等待不包含容器内部 DSH；外来占用
+保留，超时仍拒绝，不删未知实例，不产生新的 endpoint 或模式 authority。
+
+固定Compose构建独享每路2MiB预算，完整argv精确匹配，默认/metadata64KiB保留。既有stream在token/auth等行外，抑制SOCKS、userinfo、loopback及明确proxy行的传输URL，保留错误文字与普通公开HTTPS下载URL；跨chunk按行脱敏。超限精确清理本次树，不操作无关进程。
+
+DSH builder 使用同一固定 Node stage 的本地 headers 与 builder-only nodedir，避免 node-gyp
+另下载不同 headers；不关闭 TLS/签名、不改官方软件源/依赖锁/代理协议。最终 runtime 无该
+开发目录或 ENV，继续原非 root、受管挂载与完整 staged-image 校验；源码合同不替代真实构建。
+
+Docker host CLI代理允许列表：仅http/https、localhost或loopback IPv4/IPv6、显式1..65535端口，
+输入≤1024ASCII字符；userinfo/path/query/fragment/control/畸形/非回环拒绝。大小写变量同时
+存在须校验后相等；均空禁用，空/非空或不同值冲突拒绝。URL归一化scheme/host/IP/端口，
+NO_PROXY保留合法列表顺序/拼写（仅trim元素空格），两种列表不同也冲突。
+NO_PROXY输入≤2048字符/64项，每项≤253字符，仅host/IP/CIDR/*或*.domain/.domain；无URL、
+凭据、端口或控制字符。有效配置追加localhost,127.0.0.1,::1本地bypass，输出有界至2074字符。
+诊断/安全stop滤除无效pair，稳定warning/Doctor状态无原值；构建以实际传给Popen的同一已验证
+env快照失败关闭。ALL_PROXY、DOCKER_HOST/TLS/任意provider秘密仍排除；共享minimal环境不变。
+
+installer auto-start 只借 manager 实际持有的同一 lease/mkdir 身份，bool、tuple 或持久
+marker 不能充当 fresh；root/lease/监听变化拒绝，no-start/失败退出失效。公开重执行限定
+精确 owned venv/已有 marker、同脚本原参数 -I，在创建根前完成，保持批准的 HOME/Node/
+代理/credential-root，不输出环境值、不添加全局包或新协议。
+
+失败停止既有容器须重新核对精确 ID、image、installation、mount 和 launch；任一替换均
+保留对象。安装摘要恢复必须匹配原发布写 FD 的 inode 与字节，同内容替换不成为恢复权限。
+
+无 Native 环境/账本的只读监听证明须取得 alive PID、无错误的 argv 与启动身份，并复查
+进程身份和监听 PID 集合；同数据根/当前 checkout 进程或不完整/变化事实拒绝。端口可连接
+本身不证明归属；Docker 容器仍必须独立核验安装/image/mount/实际 mapping 和健康。
+
+稳定 PID/argv 与其他 checkout 不证明产品写者的数据根不同：Web 环境和 DSH 配置均可能
+指向当前根，可识别产品命令无该证据时拒绝；不读取全进程环境或秘密。共享判定同时约束
+Native 静止与 bind retry。fresh 根只认本次已验证生命周期 lease 内成功 mkdir 的 inode，
+替换拒绝，首个 spawn 前与 finally 失效；不能用既有安装目录、测试目录名或环境开关伪造。
+
+另一个严格限于本次回滚的恢复证明要求原 lease 仍持有、根 inode 未替换、本次所有 Popen
+对象已精确退出，原外来监听集合及 PID/argv/启动身份未变。未知/新增 writer、PID 重用、
+root/lease 替换或本次对象仍活着均拒绝；内存基线不读取环境/配置，不记录 argv/秘密到日志。
+恢复证明不能恢复分配权限；恢复不确定时保留原错误和 intent，附加稳定诊断并停止重试。
+
+macOS 动态端口启动在共享生命周期锁内验证两模式静止后重绑成对可信origin；仅URL改变，
+token与其他有效字段保留。显式占用端口拒绝，自动候选不代表已保留监听；只有完整真实健康
+后写实际端点。Docker prepare-only guest必须匹配安装ID、单次nonce、不可变image、固定command、
+受管data挂载与无发布端口，成功/超时均按精确ID复核并清理，未知替换不删除；不挂载真实凭据。
+EndpointStore.restore仍受本次发布快照CAS和严格私有目录校验，回滚不重用旧revision。
+临时guest UID映射与完整双模式往返仍待真实macOS验收，源码fixture不等于平台安全证明。
+
+端点与成对 origin helper 已接入公开启动链，独立负面测试继续保留。端点 schema/type、Native
+不同端口、CAS revision、私有目录/文件与单链接均严格校验。新 helper 仅接受 POSIX 私有权限
+边界；这不构成 Windows/Linux 验收。共用原子 writer 保留旧调用默认行为，新 `strict_parent=True`
+禁止目录创建/权限修复，发布后仍持有写 FD 并与路径身份对照；未来操作须再次核对身份。
+端点写锁也显式使用严格父目录入口：可以创建缺失私有目录，但现存目录在预检之后变为非私有时
+只拒绝、不 chmod。原 RuntimeModeStore 未传严格选项的旧调用保持原行为。
+
+内部 origin 事务只处理 `.control/datahub.json` 与 `mcp-runtime.json` 的已知 schema，复用原 token/
+URL validator，拒绝重复 JSON key、漂移旧 origin、非私有父目录、alias 与内容相同的 inode 替换。
+`origin-transaction.json` 仅保存固定文件名、回环 origin、阶段及私有身份/摘要，不保存 token
+或原始记录备份；原始字节仅在进程内用于回滚，摘要也不进入日志。标记残留表示 interrupted，
+不自动猜测崩溃恢复。第二次写失败只有在整个 pair 仍可证明属于事务时才恢复；发布身份不确定、
+foreign 替换或未知静止状态保留标记并失败关闭。commit 不要求服务仍停止，但重验文件归属。
+原 DataHub/MCP `load_control()` 继续拒绝未经显式事务的 origin 漂移。
 
 容器启动诊断只记录固定阶段/异常类别、errno 和两个子进程退出码，不序列化异常文本、
 路径、命令、环境或输出。CI 仅接受精确五字段、枚举白名单及有界整数，最多保留 16 条；
@@ -52,9 +210,21 @@ Docker Desktop bind 根的 UID 映射不能替代私有目录所有权证明。D
 backend 的 owner、mode、dirfd/no-follow 检查保持不变。新增回归覆盖启动前准备、重启复用、
 state/credential alias 和不安全权限拒绝；物理 bind 映射必须另记真实 Docker 证据。
 
-Desktop首建阶段仅三个固定缺失叶可采用安全mkdir后重新pin：父FD全程保留，dev/inode/mode
+Desktop首建阶段仅凭据与产品日志两个固定缺失叶可采用安全mkdir后重新pin：父FD全程保留，dev/inode/mode
 与路径一致不得变化，仅固定mount父允许root:root→当前UID:GID。已有叶、自定义路径、foreign
 UID/GID、权限改变或节点替换仍失败关闭；原runtime_state与credential backend源码规则不变。
+
+Docker 状态通过 `/state` 私有 tmpfs 隔离 Desktop bind 父节点映射，选项为
+`rw,nosuid,nodev,noexec,uid=10001,gid=10001,mode=700,size=1m`。controller 有界 inspect
+同时核对实际 Mounts 的 Source/Destination/Type/RW 和 HostConfig.Tmpfs，后者必需三个 tmpfs；
+兼容 Engine 省略 Mounts 的 tmpfs 重复条目；任何显式条目仍严格检查，bind/volume 遮盖拒绝。
+按选项语义核对 UID/GID、八进制 mode 与字节 size，拒绝未知、重复、矛盾或缺失选项。
+已有认证、健康与 runtime_state_directory 的 owner/mode/no-follow/身份检查保持不变；
+状态叶不再享有 bind 映射例外，也不进行文件预写或权限修复。
+host state 根及其 logs 子目录必须私有且归属明确；只在正常受管生命周期创建缺失 logs，
+只读查询不创建，alias/foreign/不安全既有目录拒绝，旧 runtime 内容保持原状。
+Docker VM tmpfs 可能进入 swap，见 [Docker 文档](https://docs.docker.com/engine/storage/tmpfs/)；
+认证每次启动正常重建不等于秘密永不落盘。真实镜像与 macOS 验收仍需独立证据。
 
 Docker 公共 start/Doctor 必须安全读取接受摘要并按不可变 image ID 核对实际容器，不能因
 共享 tag、静态 runtime label 或 `running=true` 就宣称 ready。回归覆盖摘要损坏/缺失、
@@ -64,7 +234,7 @@ keyring 隔离只在测试作用域内生效，不降低生产凭据后端的错
 
 构建时保留 pnpm hoist 拓扑须逐项核对目标属于已选生产图；未选开发/平台别名不复制，hoist 根别名、目标改变或输出冲突失败关闭。新别名同样进入派生资产摘要与启动前验证。
 
-Docker 与 Native 复用固定运行合同，但部署证据分开：Docker 构建需验证完整 DSH 来源/闭包及精简运行资产清单，镜像内再以非 root 做 Web、CLI、supervisor 和健康入口检查。Compose 不向宿主发布 DSH 3081，只 bind 共享产品数据和独立凭据目录；认证与临时运行状态使用 UID/GID 10001、0700 私有 tmpfs；只读根、cap drop 与 `no-new-privileges` 不是宿主系统集成能力证明。Host controller 对容器归属标签、镜像、挂载和端口做有界核对，未知实例不删除或接管。Docker 凭据目录的 Windows ACL 不能证明时返回 `docker_credentials_acl_unverified`，不得用 POSIX mode 位替代 Windows ACL。Native 保留系统 keyring。模拟单元测试与源码检查不证明真实 Docker 镜像、Windows 生命周期或第三方软件可调用；它们应在任务回执中分别列为未验证门。
+Docker 与 Native 复用固定运行合同，但部署证据分开：Docker 构建需验证完整 DSH 来源/闭包及精简运行资产清单，镜像内再以非 root 做 Web、CLI、supervisor 和健康入口检查。Compose 不向宿主发布 DSH 3081，只 bind 共享产品数据、独立日志和独立凭据目录，运行状态使用私有 tmpfs；只读根、cap drop 与 `no-new-privileges` 不是宿主系统集成能力证明。Host controller 对容器归属标签、镜像、挂载和端口做有界核对，未知实例不删除或接管。Docker 凭据目录的 Windows ACL 不能证明时返回 `docker_credentials_acl_unverified`，不得用 POSIX mode 位替代 Windows ACL。Native 保留系统 keyring。模拟单元测试与源码检查不证明真实 Docker 镜像、Windows 生命周期或第三方软件可调用；它们应在任务回执中分别列为未验证门。
 
 一键安装只允许固定 PyPI 索引、指定 DSH GitHub 仓库和随包 CJPY 文件集；Python 锁、wheel、来源、
 提交、工作树与 DSH 构建闭包任一不符即关闭失败。子进程环境采用允许列表，不传应用密钥；安装器只
@@ -202,6 +372,29 @@ Windows 停止仍先验证产品状态文件、PID 存活与命令签名，绝�
 
 启动handoff不能以DSH_HOME父目录推断独立state位置。Node preload接受launcher明确的state绑定；消费方验证私有目录/文件、authority、cwd、固定commit及PID，秘密只进入脱敏集合和受控Cookie交换，独立健康检查保持只读。
 
+## 公网部署预留决策（阶段6，仅设计）
+
+当前 owner 是单用户本地实例及其 canonical data home；它不是 tenant 身份。连接、秘密、缓存、快照、任务的归属须由后端受管目录和会话绑定确定，不能由浏览器提交的 owner 标识授权。DataHub 连接服务按实例路径后缀隔离；旧全局秘密不自动读取或复制。
+
+未来公网任务必须先引入经服务端认证的 user/tenant 归属，并逐次校验连接、任务及缓存权限。公开可访问数据不等于可再分发；项目获准共享与用户商业私有数据须分别记录许可，私有及派生结果不得进入跨用户共享缓存或模型上下文。向所选模型服务外发商业数据须有独立数据外发授权。
+
+远端服务 API Key 与用户电脑的 Wind/Office 登录会话是不同授权主体。公网后端不扫描或控制浏览器所在电脑；远程本机能力须另立身份验证、限定白名单、超时、撤销和设备所有权的桥接任务。
+
+新增公网端点配置前必须确定 TLS、鉴权、DNS/重定向及 SSRF 规则，对环回、内网和跨用户目标失败关闭；审计只记录非秘密归属与操作结果。当前继续保持 loopback/same-origin/TrustedHost，不能通过绑定0.0.0.0宣称公网已支持。
+
+独立未来任务依次为：身份与授权归属合同；数据共享/外发许可和缓存隔离；模型端点SSRF与TLS；受限远程设备桥接。当前不实施注册、计费、多租户平台或公网监听。
+
+## 设置闭环阶段3：当前能力范围
+
+数据准入必须覆盖DSH tools/pre-execute及agent/pre-step产生的真实skill-invocation来源；不能仅依赖前端或提示词。最终tools/result成功后登记，未确认登记不继续执行。当前声明数据任务禁止借web_fetch、一般网页或MCP绕过；实际查询参数与dataset-specific频率/复权/单位及历史时点合同匹配。Seatbelt取消整resources/受限datasets读取，仅放行通用资源及受信响应生成的精确目录，模型不得指定授权路径。
+
+
+## 兼容模型的有界传输（1B实施中）
+
+新增一项固定系统ref RESEARCH_COMPAT_API_KEY，与原RESEARCH_DSH_API_KEY共享实例归属规则、使用不同系统账户；resolve/describe/set/unset不进入环境或文件，两ref也拒绝委托Host record路径。Host browser-session记录原行为保留。明确无Key模式不查询任何模型凭据，不填假Key或降级为ambient来源。
+
+新文本/流式适配复用固定DSH的LlmAdapter与同一Agent loop；请求禁止重定向、最多一次HTTP发送、90秒取消/超时、输入/输出有界，HTTP200与残缺流均不能产生成功finish。连接/凭据绑定相同公共revision，实际发送前检测变更；版本不读取或散列Key。工具、图像及其它能力未认证，不能因模型ID推导支持。保存/应用及合成生成已沿产品API接通，合成链路不冒充供应商验收。
+
 平台能力投影不降低安全门：Windows 安全文档 reader 不支持时返回 501；非 Mac 研究脚本保留严格沙箱阻断，Windows Docker 保留 ACL 未验证。能力 available 不等于 validated，真实验收在支持矩阵与任务回执中记录。
 
 生产资产筛选不得用模糊目录名删除程序；dist/doc 运行时代码保留，全深度 Git/cache 元数据排除以及 package graph、路径 containment、alias/no-follow 与 manifest 完整性仍失败关闭。Windows ACL、严格研究沙箱和 Docker 非 root 边界保持。
@@ -223,3 +416,18 @@ Hot简报冻结核心使用只读repeatable-read事务与精确版本引用；�
 Hot简报Host输入在读key前验证身份、严格版本和选材边界，Node仍是窗口/归组/预算权威。预览转义发布者文本并限定HTTP(S)无userinfo外链；下载只返回经固定版本分块与最终SHA256验证的Markdown附件，无缓存。块offset/大小/总长/哈希/identity一致才接收；Unicode字节边界和后续version0拒绝有回归。
 
 浏览器fixture在迁移/创建role前拒绝已有基线，恢复先绑定实例/role再产生效果。NOLOGIN独立于来源恢复与预算核对，即使注入审计失败也运行；收尾后的receipt保留FAIL与实际权限清理状态。实际浏览器使用临时Hot凭据backend和offline研究，不能证明完整系统凭据生命周期。
+
+## Office 自动验证同意
+
+设置 → 本机集成的 Office 开关默认关闭，仅明确同意后允许所属实例的 Word/Excel/PowerPoint。授权仍要求精确同源及用户动作头，只扩展三个精确 local:* 目标，其他本机目标拒绝；厂商调用仍单独确认。同意绑定私有状态根，不跨实例继承。会创建、保存、重开并清理本轮登记测试文稿，保留验证账本与阶段诊断（沙箱文件经归档后精确删除，合成副本由私有run目录按原容量/期限保留）；不会扫描用户文档或关闭用户文稿。系统权限提示必须人工处理，不reset TCC、不修改沙箱/目录权限。超时、拒绝、人工处理或清理未知停止该目标自动尝试，关闭开关取消所属任务，冷启动不重放历史任务。Doctor只读取安全开关投影，不执行验证。
+
+本机scope和Office同意的持久状态恢复不触及DataHub连接配置/凭据元数据；没有明确confirmed清理诊断的Office历史成功也不提升可调用，保持人工处理与停止标记。
+
+2026-10-09追加授权收口：Office成功且关闭确认后，仅归档登记的合成文稿到既有私有验证run目录，再清理沙箱副本；成功marker移除，仍沿原16项/512MiB/24小时有界保留策略回收，不新增执行器或任意路径接口。Office开启改用页内说明、确认/取消按钮，系统权限弹窗仍由人工处理。
+
+
+## 研究情报统一入口 · 2026-10-12
+
+主导航统一为“研究情报”，本地热点与事件在 `#/intel/hot`，现有外部8栏目仍在 `#/intel/*`。旧 `#/workbench/hot` 链接保留视图/事件参数后转入本地页。两类页面共用栏目导航、主题与Host；本地版本证据和Golddata外部只读数据保持身份与覆盖来源区分，外部读取不写Hot、领取任务或调用模型。Hot未启用时，外部栏目与设置继续可用。
+
+恢复的DOCX切片通过 `GET /api/research/hot/briefs/{brief_id}/docx?version=<固定版本>` 从签名/哈希核对的冻结输入生成并保留私有产物，复用报告DOCX生成器；导出不创建会话、不调用模型、不外发。该路径尚需完整产品/恢复验收，局部测试不代表研究闭环完成。

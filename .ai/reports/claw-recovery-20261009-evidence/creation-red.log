@@ -1,0 +1,193 @@
+2026-10-09 00:50:08 [info     ] automation_created             automation_id_digest=0601f7a576080959 status=disabled
+F2026-10-09 00:50:08 [info     ] automation_created             automation_id_digest=8a702e69d6b14c60 status=disabled
+F2026-10-09 00:50:08 [info     ] automation_created             automation_id_digest=b73d3ea58f915154 status=disabled
+F                                                                      [100%]
+=================================== FAILURES ===================================
+_______ test_native_run_reference_is_on_disk_before_monitor_wait[skill] ________
+
+tmp_path = PosixPath('/private/var/folders/rz/f7lsl4nn2bl0lpsfqyylp1jh0000gn/T/pytest-of-leon/pytest-1164/test_native_run_reference_is_o0')
+target_kind = 'skill'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("target_kind", ["skill", "workflow", "report_workflow"])
+    async def test_native_run_reference_is_on_disk_before_monitor_wait(tmp_path, target_kind):
+        """Use production create/send, not manually prefilled Run references."""
+        monitoring = asyncio.Event()
+        blocked = asyncio.Event()
+        calls = {"create": 0, "send": 0, "report_start": 0}
+    
+        class ReportRuntime:
+            async def start_run(self, _workflow_id, *, trigger, version):
+                assert trigger == "automation" and version == 2
+                calls["report_start"] += 1
+                return {"id": "report-native-1", "session_id": None}
+    
+            def _run(self, report_id):
+                assert report_id == "report-native-1"
+                monitoring.set()
+                return {"id": report_id, "status": "running", "session_id": None}
+    
+        class Research:
+            report_workflows = SimpleNamespace(runtime=ReportRuntime())
+    
+            async def create(self, mode, _title):
+                assert mode == "claw"
+                calls["create"] += 1
+                return {"id": "claw-native-1"}
+    
+            async def send(self, session_id, _text, _key, **_kwargs):
+                assert session_id == "claw-native-1"
+                calls["send"] += 1
+                return {"accepted": True}
+    
+            async def detail(self, session_id):
+                assert session_id == "claw-native-1"
+                monitoring.set()
+                await blocked.wait()
+                return {"status": "running"}
+    
+        service = AutomationService(
+            Store(tmp_path), research=Research(),
+            target_resolver=lambda *_args: {"version": 2, "sha256": "a" * 64},
+            scheduler=False, sleep=lambda _delay: blocked.wait(),
+        )
+        automation = service.create(automation_body(target_kind=target_kind))
+        run = await service.run(automation["id"])
+        try:
+            await asyncio.wait_for(monitoring.wait(), 2)
+            disk_run = Store(tmp_path).data["automation_runs"][run["id"]]
+            assert disk_run["research_status"] == "running"
+            if target_kind == "report_workflow":
+                assert disk_run["report_run_id"] == "report-native-1"
+                assert calls == {"create": 0, "send": 0, "report_start": 1}
+            else:
+>               assert disk_run["session_id"] == "claw-native-1"
+E               AssertionError: assert None == 'claw-native-1'
+
+tests/research_web/test_automation_service.py:466: AssertionError
+______ test_native_run_reference_is_on_disk_before_monitor_wait[workflow] ______
+
+tmp_path = PosixPath('/private/var/folders/rz/f7lsl4nn2bl0lpsfqyylp1jh0000gn/T/pytest-of-leon/pytest-1164/test_native_run_reference_is_o1')
+target_kind = 'workflow'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("target_kind", ["skill", "workflow", "report_workflow"])
+    async def test_native_run_reference_is_on_disk_before_monitor_wait(tmp_path, target_kind):
+        """Use production create/send, not manually prefilled Run references."""
+        monitoring = asyncio.Event()
+        blocked = asyncio.Event()
+        calls = {"create": 0, "send": 0, "report_start": 0}
+    
+        class ReportRuntime:
+            async def start_run(self, _workflow_id, *, trigger, version):
+                assert trigger == "automation" and version == 2
+                calls["report_start"] += 1
+                return {"id": "report-native-1", "session_id": None}
+    
+            def _run(self, report_id):
+                assert report_id == "report-native-1"
+                monitoring.set()
+                return {"id": report_id, "status": "running", "session_id": None}
+    
+        class Research:
+            report_workflows = SimpleNamespace(runtime=ReportRuntime())
+    
+            async def create(self, mode, _title):
+                assert mode == "claw"
+                calls["create"] += 1
+                return {"id": "claw-native-1"}
+    
+            async def send(self, session_id, _text, _key, **_kwargs):
+                assert session_id == "claw-native-1"
+                calls["send"] += 1
+                return {"accepted": True}
+    
+            async def detail(self, session_id):
+                assert session_id == "claw-native-1"
+                monitoring.set()
+                await blocked.wait()
+                return {"status": "running"}
+    
+        service = AutomationService(
+            Store(tmp_path), research=Research(),
+            target_resolver=lambda *_args: {"version": 2, "sha256": "a" * 64},
+            scheduler=False, sleep=lambda _delay: blocked.wait(),
+        )
+        automation = service.create(automation_body(target_kind=target_kind))
+        run = await service.run(automation["id"])
+        try:
+            await asyncio.wait_for(monitoring.wait(), 2)
+            disk_run = Store(tmp_path).data["automation_runs"][run["id"]]
+            assert disk_run["research_status"] == "running"
+            if target_kind == "report_workflow":
+                assert disk_run["report_run_id"] == "report-native-1"
+                assert calls == {"create": 0, "send": 0, "report_start": 1}
+            else:
+>               assert disk_run["session_id"] == "claw-native-1"
+E               AssertionError: assert None == 'claw-native-1'
+
+tests/research_web/test_automation_service.py:466: AssertionError
+__ test_native_run_reference_is_on_disk_before_monitor_wait[report_workflow] ___
+
+tmp_path = PosixPath('/private/var/folders/rz/f7lsl4nn2bl0lpsfqyylp1jh0000gn/T/pytest-of-leon/pytest-1164/test_native_run_reference_is_o2')
+target_kind = 'report_workflow'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("target_kind", ["skill", "workflow", "report_workflow"])
+    async def test_native_run_reference_is_on_disk_before_monitor_wait(tmp_path, target_kind):
+        """Use production create/send, not manually prefilled Run references."""
+        monitoring = asyncio.Event()
+        blocked = asyncio.Event()
+        calls = {"create": 0, "send": 0, "report_start": 0}
+    
+        class ReportRuntime:
+            async def start_run(self, _workflow_id, *, trigger, version):
+                assert trigger == "automation" and version == 2
+                calls["report_start"] += 1
+                return {"id": "report-native-1", "session_id": None}
+    
+            def _run(self, report_id):
+                assert report_id == "report-native-1"
+                monitoring.set()
+                return {"id": report_id, "status": "running", "session_id": None}
+    
+        class Research:
+            report_workflows = SimpleNamespace(runtime=ReportRuntime())
+    
+            async def create(self, mode, _title):
+                assert mode == "claw"
+                calls["create"] += 1
+                return {"id": "claw-native-1"}
+    
+            async def send(self, session_id, _text, _key, **_kwargs):
+                assert session_id == "claw-native-1"
+                calls["send"] += 1
+                return {"accepted": True}
+    
+            async def detail(self, session_id):
+                assert session_id == "claw-native-1"
+                monitoring.set()
+                await blocked.wait()
+                return {"status": "running"}
+    
+        service = AutomationService(
+            Store(tmp_path), research=Research(),
+            target_resolver=lambda *_args: {"version": 2, "sha256": "a" * 64},
+            scheduler=False, sleep=lambda _delay: blocked.wait(),
+        )
+        automation = service.create(automation_body(target_kind=target_kind))
+        run = await service.run(automation["id"])
+        try:
+            await asyncio.wait_for(monitoring.wait(), 2)
+            disk_run = Store(tmp_path).data["automation_runs"][run["id"]]
+            assert disk_run["research_status"] == "running"
+            if target_kind == "report_workflow":
+>               assert disk_run["report_run_id"] == "report-native-1"
+E               AssertionError: assert None == 'report-native-1'
+
+tests/research_web/test_automation_service.py:463: AssertionError
+=========================== short test summary info ============================
+FAILED tests/research_web/test_automation_service.py::test_native_run_reference_is_on_disk_before_monitor_wait[skill]
+FAILED tests/research_web/test_automation_service.py::test_native_run_reference_is_on_disk_before_monitor_wait[workflow]
+FAILED tests/research_web/test_automation_service.py::test_native_run_reference_is_on_disk_before_monitor_wait[report_workflow]
+3 failed, 12 deselected in 0.23s

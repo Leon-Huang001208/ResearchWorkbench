@@ -139,7 +139,9 @@ class Snapshots:
             raise StoreError("资料文件hash校验失败")
         return raw
 
-    def publish(self, sid, query, result, *, origin=None, request_query=None):
+    def publish(
+        self, sid, query, result, *, origin=None, request_query=None, authorization_fingerprint=None
+    ):
         did = str(uuid4())
         temporary = ".pending-" + did
         parsed = {"rows.json": json_bytes(result.rows), "rows.csv": csv_bytes(result.rows)}
@@ -202,6 +204,8 @@ class Snapshots:
                 for index, raw in enumerate(result.raw, 1)
             ],
         }
+        if authorization_fingerprint is not None:
+            manifest["authorization_fingerprint"] = authorization_fingerprint
         if origin is not None:
             manifest.update(
                 retrieved_at=origin["retrieved_at"],
