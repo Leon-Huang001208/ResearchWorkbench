@@ -148,3 +148,5 @@ Router选取的完整四项治理命令110/110 PASS，最终API门53/53 PASS（1
 预算/目录内核源码检查点 `b85be5079` 已提交，三项选定local gates再由monotonic计时runner记录命令、状态与时长；冻结plan4/receipt3在 `logs/hot-resume/research-quota-candidate-*.json`，validator valid=true、hostAcceptance BLOCKED、aggregate NOT_READY，Mac Bootstrap及其他外部门仍NOT_RUN。
 
 目录准备之后继续核查wire层，发现旧baseURL会令新版SDK请求https://api.deepseek.com/v1/messages而不是/anthropic/v1/messages。新增完全替换fetch的不出网探针，URL反例RED；使用相同固定SDK的PUBLIC_BASE_URL后两项native集成GREEN，核对synthetic x-api-key和唯一发送尝试。首测试错误地期待throw/error chunk，实际SDK源码将adapter异常映射为finish.reason.kind=error；按源码修正，保留这些失败日志，没有吞掉provider失败或放宽断言。fake key不来自Keychain，实际vendor请求仍0。正式DSH研究及其私有预算桥未提前认证。
+
+最终wire修复源码候选 `dba28e843`，继承预算候选b85。独立TypeScript限定复核及typecheck PASS；两项真实SDK目录/离线wire探针PASS，文档/架构/whitespace检查PASS。全切片冻结plan/receipt在 `research-quota-final-*.json`，validator valid=true，host/aggregate继续BLOCKED/NOT_READY、外部门NOT_RUN。报告提交仅保存续跑事实，不表示Goal、付费研究或远端交付完成。
