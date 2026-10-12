@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "updated",
-  "summary": "研究台增加ETF工程模拟入口，明确真实数据与算法准入BLOCKED。",
-  "reason": "已复核README现役Web、唯一DSH及公开安装合同，在导航说明工程模拟与真实边界；现有依赖不变，完整安装CI尚未执行，未声明真实收益或跨平台通过。"
+  "summary": "增加ETF工程模拟及真实准入BLOCKED说明，保留最新主线资讯雷达和Docker资源生命周期入口。",
+  "reason": "已复核合并后的README，ETF切片沿现有Host和唯一DSH边界；最新Docker命名、保留、收尾与清理说明完整保留。ETF没有新增产品依赖，当前候选的macOS安装CI另行验收，不声明真实策略收益或跨平台通过。"
 }

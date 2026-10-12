@@ -116,3 +116,10 @@ Ruff、Black、isort及新模块mypy通过；mypy实际参数`--follow-imports=s
 报告中源与回执都是本worktree未提交字节；GitHub macOS安装CI没有认证它们。
 GitHub当前visibility已只读核对为PUBLIC，未执行任何远端写操作。
 临时浏览器服务器已按唯一listener与任务script身份核验后停止，预览截图保留。
+
+## 授权后的集成与远端验收
+
+用户已明确授权本地提交、推送本分支、创建草稿PR及macOS安装CI；未授权merge或日常实例升级。
+2026-10-12刷新远端后基线前进到`b610f122575ece5bce3365fc5b504c710ef76e1f`（PR94）。
+集成保留主线Docker资源生命周期源码/文档，冲突仅为README复核说明与生成架构索引，后者从
+合并后的inventory重生成。ETF领域源码没有冲突。后续CI绑定实际候选SHA，不使用旧本机回执冒充。
