@@ -1,5 +1,9 @@
 # 研究协议、执行状态与恢复
 
+Docker 资源生命周期由 host 标准库 `docker_resources.py` 提供只读预览、精确清理和离线卷备份恢复校验。
+它复用现有生命周期锁与安装记录锁，不创建另一个产品运行时，不停止正式实例。
+新资源命名、回滚保护、任务收尾及操作入口见[安装指南](../../research-web-installation.md#docker-资源命名与收尾)。
+
 Automation 异常退出恢复只监控原会话/报告 Run，不重建或重发。普通会话须有原生执行或终止状态证据，idle/created/未知响应为 native_submission_unconfirmed；未确认 send 也不进入成功监控。报告恢复以报告 Run 为优先事实源，持续核对 workflow/version，等待其 validating/completed 与真实产物；显式停止保持原有 interrupted 语义，不冒充自动恢复。
 
 已验证运行中的实际 NativeRuntime 仅在显式 `--stop-current` 且公开 stop 成功后，

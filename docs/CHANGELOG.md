@@ -8,6 +8,8 @@
 
 ### Changed
 
+- 2026-10-12：Docker 新构建和测试资源使用可读名称与用途标签；增加默认预览的项目资源清理入口、上一接受镜像保护、数据卷归档恢复校验及任务收尾约束。
+
 - 2026-09-29：Research Web 启动诊断增加损坏环境后备入口、真实进程与监听归属核对、stale 状态恢复和完整页面资源就绪门；模型未配置时仍可打开设置页，浏览器打开失败会明确提示 URL。
 - 2026-09-17：Actions 免费额度治理改为分层路由；普通 Research Web 回归迁到 Ubuntu，Bootstrap／Windows／Desktop 仅由对应路径触发，Tabbit 保持手动，并将 Web 证据保留期缩短为 3 天。该变更在额度重置前仅保留为 local-only 提交。
 - 2026-09-17：`Research Web Tabbit Verify` 暂停普通 push／pull request 自动触发，仅保留手动运行；双平台合同套件保持不变，轻量触发器契约继续由 Project Constraints 自动验证。

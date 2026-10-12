@@ -1,5 +1,9 @@
 # 部署与模块职责
 
+Docker 的 host 管理工具增加资源预览与精确处置职责，仍通过现有 Docker Engine CLI 执行。
+此工具不增加产品服务、端口或后台调度；Web/DSH 单容器部署与 Native 顺序切换保持原拓扑。
+测试辅助容器只在显式验收或卷恢复校验期间存在，任务结束验证释放。
+
 Automation 原生关联检查点复用同一 Host 的 Store.save 原子索引，普通会话创建后先落盘再提交；报告已知的主关联及随后出现的 Claw 会话关联也在监控前落盘。恢复重用已证明原生任务，报告须保持自身校验链；组件、部署、唯一 DSH 与调度拓扑未变。
 
 Native→Docker 顺序切换在公开 Native stop 成功后，沿原 stdlib bootstrap 有界等待
