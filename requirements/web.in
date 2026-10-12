@@ -4,6 +4,7 @@ akshare>=1.13
 apscheduler>=3.10,<4
 beautifulsoup4>=4.12
 click>=8
+cryptography==50.0.1
 fastapi>=0.100
 hatchling>=1.27
 httpx>=0.24

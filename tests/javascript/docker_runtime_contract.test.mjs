@@ -102,7 +102,7 @@ test('runtime copies a bounded application set and uses the non-root PID1 superv
     '/opt/rwb/app', '/opt/rwb/core', '/opt/rwb/data_layer', '/opt/rwb/research_workbench_entrypoint',
     '/opt/rwb/runtimes', '/opt/rwb/vendor/dsh-tabbit', '/opt/rwb/docker/entrypoint.sh',
     '/opt/rwb/docker/supervisor.py', '/opt/rwb/docker/healthcheck.py', '/opt/rwb/pyproject.toml',
-    'outputs/research-web-architecture', '/opt/rwb/dsh-runtime',
+    'outputs/research-web-architecture', 'docker/credential_probe.mjs', '/opt/rwb/dsh-runtime',
   ]);
   assert.doesNotMatch(read('Dockerfile'), /^COPY \.\s|^(ARG|ENV) .*?(?:KEY|TOKEN|PASSWORD)=/m);
   assert.match(read('docker/entrypoint.sh'), /exec \/opt\/rwb\/venv\/bin\/python \/opt\/rwb\/docker\/supervisor\.py/);

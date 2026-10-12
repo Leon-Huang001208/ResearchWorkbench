@@ -122,6 +122,9 @@ Native 可在确认没有活动研究时普通重启；Docker 运行中无法认
 
 ## 模型、数据与迁移
 
+受管 Docker 候选支持显式初始化实例专属加密模型凭据和主密钥只读卷；操作与最小恢复材料
+见 [Docker 手册](docs/research-web-docker.md)。设置页保存与真实生成分别验收，Native Keychain 保留。
+
 ### 模型配置
 
 在产品的 **Settings（设置）→ Model（模型服务）** 中配置固定 Runtime 支持的 DeepSeek 模型。API Key 留空保留、填写替换、独立按钮清除；已有会话保留选模，任务运行时拒绝配置变更。保存、Runtime 可达与真实生成分别展示，生成测试由用户显式发起。

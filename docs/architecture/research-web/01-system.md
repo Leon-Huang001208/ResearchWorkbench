@@ -1,5 +1,8 @@
 # 部署与模块职责
 
+G2A 在现有单容器部署内增加实例专属 model_key 只读卷，credentials 卷存模型密文；
+受管初始化 helper 有 128MiB 硬限额并核对 VM 准入，不改变 Web＋固定 DSH 双进程与唯一引擎。
+
 24GB Mac mini 是 Docker 主开发与常驻节点，MacBook Pro 是远程入口。
 dev 挂载对应 worktree；stage/prod 按不可变 image ID 独立运行同一 Web＋DSH，
 每实例隔离 data/logs/credentials/cache卷、bridge网络、端口和管理身份。

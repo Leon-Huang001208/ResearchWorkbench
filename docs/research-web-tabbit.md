@@ -1,5 +1,8 @@
 # Research Web Tabbit 集成
 
+Docker 模型主密钥与密文不用于 Tabbit Cookie、claim 或浏览器授权；文本凭据闭环不证明
+宿主浏览器可调用，现有 Native 授权和一次性 token 语义保持。
+
 macOS 异根 Native 记录认证仅复核启动者的标准产品根、PID 与 listener；不会访问浏览器
 标签、URL、Cookie、正文或 Tabbit claim。调用内 lease/FD 证明不成为浏览器授权；原会话
 审批与一次性 token 保持，容器健康仍不证明宿主 Tabbit 可调用。

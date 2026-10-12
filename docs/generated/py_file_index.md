@@ -3435,6 +3435,7 @@ Module docstring:
 
 Imports:
 - `__future__`
+- `base64`
 - `collections.abc`
 - `contextlib`
 - `core.observability`
@@ -3460,6 +3461,9 @@ Classes:
 - `PrivateFileCredentialBackend`
   - Descriptor-relative, bounded, process-serialized POSIX credential records.
   - methods: __init__, _name, _verify_root, _locked_directory, _read, get_password, set_password, delete_password
+- `EncryptedModelCredentialBackend`
+  - AES-256-GCM model records; a separate read-only instance key is mandatory.
+  - methods: __init__, _load_key, _cipher, _aad, _decrypt, get_password, set_password, delete_password
 
 Functions:
 - `_safe_errors`
@@ -4695,6 +4699,8 @@ Functions:
 - `validate_research_python`
   - Fail closed unless the configured runtime is Python 3.12 with CPU libraries.
 - `mcp_runtime_enabled`
+- `model_credential_binding`
+  - The managed Docker launcher supplies public binding, never secret values.
 - `load_mcp_runtime_bindings`
   - Load exact Host-verified bindings for the next dedicated DSH start.
 - `load_tabbit_config`
@@ -5698,7 +5704,9 @@ Imports:
 - `hashlib`
 - `json`
 - `logging`
+- `os`
 - `pathlib`
+- `secrets`
 - `sys`
 
 Classes:
@@ -5707,6 +5715,9 @@ Classes:
   - methods: __init__, get_password, delete_password, set_password
 
 Functions:
+- `docker_backend`
+- `initialize_docker_store`
+  - Admin-only one-time initialization; existing resources are never reset.
 - `update_or_add`
   - Replace atomically; only an absent item may be added. Never delete first.
 - `system_backend`

@@ -1,4 +1,4 @@
-/** Fixed model refs use OS Keychain; inherited records retain DSH's lock/lifecycle. */
+/** Fixed model refs use the bound backend; Host records retain DSH's lock/lifecycle. */
 import { spawn } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 
@@ -8,8 +8,15 @@ const MODEL_REFS = new Set([MODEL_REF, COMPATIBLE_REF]);
 
 export function processBridge(config, op, value, ref = MODEL_REF) {
   if (!MODEL_REFS.has(ref)) return Promise.reject(Error('model_credential_ref_denied'));
+  const backend = config.backend ?? 'native';
+  if (!['native', 'docker-encrypted'].includes(backend)) return Promise.reject(Error('model_credential_backend_invalid'));
+  const binding = backend === 'docker-encrypted' ? [
+    '--backend', backend, '--credential-root', config.credentialRoot,
+    '--key-root', config.keyRoot, '--instance', config.instance,
+  ] : [];
+  if (binding.some(item => typeof item !== 'string' || !item)) return Promise.reject(Error('model_credential_binding_invalid'));
   return new Promise((resolve, reject) => {
-    const child = spawn(config.python, ['-I', '-B', config.bridge, '--data-home', config.dataHome], {
+    const child = spawn(config.python, ['-I', '-B', config.bridge, '--data-home', config.dataHome, ...binding], {
       cwd: '/', env: { PATH: '/usr/bin:/bin', LANG: 'en_US.UTF-8' }, stdio: ['pipe', 'pipe', 'pipe'],
     });
     let output = '';
@@ -43,6 +50,8 @@ export function createProvider(LocalProvider, bridge) {
     constructor(ctx, config) {
       // Distinct file, used only for the existing Host authentication records.
       super(ctx, { path: config.recordsPath, watch: true });
+      if (!['native', 'docker-encrypted'].includes(config.backend ?? 'native')) throw Error('model_credential_backend_invalid');
+      this.modelSource = config.backend === 'docker-encrypted' ? 'docker-encrypted' : 'system-keychain';
     }
     readRecord(key) {
       if (MODEL_REFS.has(key)) throw Error('model_credential_record_denied');
@@ -66,11 +75,11 @@ export function createProvider(LocalProvider, bridge) {
       if (typeof result.value !== 'string' || !result.value || result.value.length > 1024) {
         throw Error('model_credential_bridge_failed');
       }
-      return { value: result.value, source: 'system-keychain' };
+      return { value: result.value, source: this.modelSource };
     }
     async describe(ref) {
       const result = await this.modelCall(ref, 'describe');
-      if (typeof result.configured !== 'boolean' || result.source !== 'system-keychain' || result.writable !== true) {
+      if (typeof result.configured !== 'boolean' || result.source !== this.modelSource || result.writable !== true) {
         throw Error('model_credential_bridge_failed');
       }
       return { configured: result.configured, source: result.source, writable: true };

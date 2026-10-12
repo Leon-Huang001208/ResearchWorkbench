@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "updated",
-  "summary": "新增原生资讯雷达只读页面及固定公开接口适配器；复核安装入口与Web-only边界保持。",
-  "reason": "本次是现有Host中的页面及GET适配器扩展，已在README导航补充资讯雷达，未更改安装、DSH、凭据、平台支持或公开启动方式；细节由UI和API权威文档承载。"
+  "summary": "增加受管 Docker 候选的实例加密模型凭据入口，保留 Native Keychain 和现有模型设置。",
+  "reason": "README 链接权威 Docker 操作和最小恢复说明；固定 DSH、Web-only、模型保存与真实生成的证据边界保持，不将合成测试或健康检查写成供应商通过。"
 }

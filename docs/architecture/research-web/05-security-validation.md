@@ -1,5 +1,9 @@
 # 安全边界与验证方法
 
+Docker 模型后端使用已有 cryptography AES-256-GCM；主密钥独立随机生成并在业务运行时只读挂载。
+密文 AAD 绑定稳定实例身份和固定 ref；无环境/旧文件/Keychain 回退。权限、alias、篡改、
+错误主密钥和中断写入须失败关闭；真实生成、重建后生成与合成隔离分别验收。
+
 新管理入口验证私有管理根与记录无alias、环境/实例labels、不可变镜像、容器ID、
 完整配置/挂载、网络、资源限额及卷归属后才启停/重建。Docker在start时把
 `OomKillDisable=null`补为false，两者同为启用OOM killer；只规范化该等值默认，true和其他变更仍拒绝。

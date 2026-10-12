@@ -1,5 +1,10 @@
 # DataHub、研究资料与实际文件
 
+Docker 模型密文是 AES-256-GCM 版本化 envelope，复用私有文件权限、锁和原子替换。
+credentials 卷的 models 子目录与独立只读 model_key 卷、随机实例身份共同构成恢复材料。
+每次写入生成 nonce，AAD 绑定实例与 ref；身份/主密钥丢失或错误不会自动重建。
+Host 认证 record 和通用业务凭据仍为独立通道，不接收模型 Key。
+
 新 Docker 目标采用每实例独立 data/logs/credentials/cache 四个命名卷；data 映射
 `/data/research-web`，包含既有 DSH home、会话索引、上传、产物与产品日志。
 管理账本保留数据卷身份；开发重建/退休仅删除精确所属容器，保留四卷与源码，

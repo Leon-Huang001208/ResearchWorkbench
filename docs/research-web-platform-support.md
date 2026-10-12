@@ -1,5 +1,8 @@
 # Research Web 能力与平台证据
 
+G2A 的 Docker 模型加密后端由受管实例身份绑定，Mac Docker Desktop 的实际文本生成和
+重建证据另验；合成测试不等于供应商调用，Native Keychain 实机与各平台 CI 保留独立状态。
+
 2026-10-12 G0/G1 在 Mac mini（Apple M6、24GiB、macOS27.0.1、arm64）完成本地 Docker
 开发与候选基座实测：固定DSH完整构建、容器内回归、实际健康、stop/up、开发重建/退休后
 源码与数据保留，以及固定候选不受开发源码变化影响。具体镜像、命令、哈希与失败重试记录

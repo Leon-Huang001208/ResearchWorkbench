@@ -91,6 +91,7 @@ ENV VIRTUAL_ENV=/opt/rwb/venv \
     PDF_RAW_TEXT_DIR=/data/research-web/raw_text \
     RESEARCH_RUN_MODE=web-prod
 LABEL io.research-workbench.runtime="docker"
+LABEL io.research-workbench.model-credentials="aes-gcm-v1"
 COPY --from=node-runtime /usr/local/bin/node /usr/local/bin/node
 COPY --from=node-runtime /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/npm
 COPY --from=dsh-builder /usr/local/lib/node_modules/corepack /usr/local/lib/node_modules/corepack
@@ -106,6 +107,7 @@ COPY --from=python-builder /opt/rwb/docker/supervisor.py /opt/rwb/docker/supervi
 COPY --from=python-builder /opt/rwb/docker/healthcheck.py /opt/rwb/docker/healthcheck.py
 COPY --from=python-builder /opt/rwb/pyproject.toml /opt/rwb/pyproject.toml
 COPY outputs/research-web-architecture /opt/rwb/outputs/research-web-architecture
+COPY docker/credential_probe.mjs /opt/rwb/docker/credential_probe.mjs
 COPY --from=dsh-builder --chown=rwb:rwb /opt/rwb/dsh-runtime /opt/dsh
 RUN ln -s /usr/local/lib/node_modules/corepack/dist/corepack.js /usr/local/bin/corepack \
     && ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \

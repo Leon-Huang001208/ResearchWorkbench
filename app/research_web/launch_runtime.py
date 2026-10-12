@@ -86,6 +86,30 @@ def mcp_runtime_enabled() -> bool:
     }
 
 
+def model_credential_binding() -> list[str]:
+    """The managed Docker launcher supplies public binding, never secret values."""
+    backend = os.environ.get("RWB_MODEL_BACKEND")
+    if backend is None:
+        return ["        backend: native"]
+    if backend != "docker-encrypted" or os.environ.get("RWB_DSH_STAGED") != "1":
+        raise RuntimeError("model_credential_binding_invalid")
+    instance = os.environ.get("RWB_MODEL_INSTANCE_ID", "")
+    if not re.fullmatch(r"[0-9a-f]{32}", instance):
+        raise RuntimeError("model_credential_binding_invalid")
+    root = Path("/run/rwb-secrets/models")
+    keys = Path("/run/rwb-model-key")
+    # Validate loaded identity, key, permissions and aliases before publishing config.
+    from .model_credentials import docker_backend
+
+    docker_backend(root, keys, instance)
+    return [
+        "        backend: docker-encrypted",
+        f"        instance: {json.dumps(instance)}",
+        f"        credentialRoot: {json.dumps(str(root))}",
+        f"        keyRoot: {json.dumps(str(keys))}",
+    ]
+
+
 def load_mcp_runtime_bindings(data: Path) -> list[dict[str, object]]:
     """Load exact Host-verified bindings for the next dedicated DSH start."""
 
@@ -674,6 +698,7 @@ def _prepare_runtime(
                 f"        python: {json.dumps(sys.executable)}",
                 f"        bridge: {json.dumps(str(package.parent / 'model_credentials.py'))}",
                 f"        dataHome: {json.dumps(str(data))}",
+                *model_credential_binding(),
                 f"        recordsPath: {json.dumps(str(home / '.browser-credentials.yaml'))}",
                 f"        localProvider: {json.dumps(str(source / 'packages/credentials/credentials-local/lib/index.js'))}",
                 "- insert:",

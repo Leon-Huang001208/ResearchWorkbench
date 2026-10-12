@@ -124,6 +124,35 @@ docker stats --no-stream
 
 ## 下一阶段入口与真实缺口
 
+### G2A 模型凭据（实现与验收进行中）
+
+新镜像支持显式 `./rwb-docker stage candidate enable-model-credentials`。先停止候选，
+通过 `replace-image --image sha256:…` 选择本轮镜像，再执行初始化和 `up`。
+初始化由限额 128MiB 的无网络管理 helper 在容器内生成随机主密钥；秘密不经过管理员参数或环境。
+它保留现有 credentials 卷，在其中创建 `/run/rwb-secrets/models`，并增加独立
+`model_key` 命名卷，业务运行时只读挂载到 `/run/rwb-model-key`。
+账本生成稳定随机实例身份；所有实例内部路径相同也不会共享凭据命名空间。
+已有密文或部分初始化不得自动重置；缺少主密钥、身份不匹配或记录损坏明确失败。
+
+固定 DSH 的两个模型 ref 继续使用产品 Python `-I -B` 私有 stdio 桥；Host 认证 record
+仍走原有锁和生命周期。模型密文采用已有锁定依赖 cryptography 的 AES-256-GCM，
+每次写入使用随机 96-bit nonce，认证数据绑定版本、实例身份、service 和 ref。
+设置页显示本实例加密存储；留空保留、明确清除、活动任务拒绝和提交未知阻断保持原语义。
+Native macOS 仍用 Keychain，绝不自动读取或迁移旧 Key。
+
+最小恢复需要 **对应实例的 credentials 密文卷、model_key 卷（主密钥和身份文件）、
+以及管理账本的实例身份和资源关联**。丢失任一项不能重新生成密钥恢复密文。
+清除一个模型 Key 保留主密钥；stop/replace-image/up 保留这些卷。
+完整备份流程、生产迁移、多人授权和公网入口不在 G2A 范围。
+真实生成必须在设置页录入 Key 并运行“测试真实生成”，以 DSH 完成和非空文本为证；
+保存、configured 或容器健康不证明生成成功。当前验收状态见本轮 `.ai/reports`。
+
+`./rwb-docker stage candidate credential-probe` 要求候选和 builder 停止，使用该候选固定镜像，
+在候选已有 2GiB 登记预算内串行运行 128MiB helper。A/B 独立四个夹具卷，同样的容器内路径，
+通过同一 JavaScript/Python 私有桥验证保存、B 初始缺失、A 不受 B 保存/清除影响，
+并拒绝错实例身份和错主密钥。仅返回布尔断言；夹具身份/资源关联保存在管理账本，
+夹具卷保留以供审阅，不作为两个完整 stage 或真实供应商验收。
+
 - G2：Docker模型凭据后端尚未交付，现有通用业务文件凭据目录不证明模型Key可用。
   不读取/迁移Native Keychain，不调用真实供应商；加密凭据、registry digest发布/回退另实施。
 - G3：Linux研究脚本 strict sandbox 仍失败关闭，容器实例隔离不等于任意代码沙箱。

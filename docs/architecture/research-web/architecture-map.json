@@ -324,7 +324,8 @@
         "tests/javascript/research_web_guard.test.mjs",
         "tests/javascript/research_web_tabbit_adapter.test.mjs",
         "tests/javascript/research_web_tabbit_ui.test.mjs",
-        "tests/javascript/research_web_compatible_model.test.mjs"
+        "tests/javascript/research_web_compatible_model.test.mjs",
+        "tests/research_web/test_encrypted_model_credentials.py"
       ]
     },
     {
@@ -855,8 +856,24 @@
       "receipt": "outputs/research-web-architecture/01-deployment.receipt.json",
       "visualReceipt": "outputs/research-web-architecture/01-deployment.visual-check.json",
       "evidence": [
-        {"subjects":["bootstrap","selectDocker","dockerData","dockerCredential","runtimeState","sharedData"],"source":"docker/manage.py"},
-        {"subjects":["bootstrap","contractRoute"],"source":"rwb-docker"},
+        {
+          "subjects": [
+            "bootstrap",
+            "selectDocker",
+            "dockerData",
+            "dockerCredential",
+            "runtimeState",
+            "sharedData"
+          ],
+          "source": "docker/manage.py"
+        },
+        {
+          "subjects": [
+            "bootstrap",
+            "contractRoute"
+          ],
+          "source": "rwb-docker"
+        },
         {
           "subjects": [
             "modelKeychain",
