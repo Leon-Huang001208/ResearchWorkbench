@@ -122,3 +122,5 @@ Git绑定plan4/receipt3在 `logs/hot-resume/evidence-candidate-*.json`。最初�
 真实Native验证子进程已按明确PID/完整命令身份核验后SIGTERM退出0；生产3081/8088未触碰，冻结资料和PG卷保留。检查工具Ruff/Black/isort的隔离安装申请尚待回复，不自动把此前pytest授权扩展为其他依赖授权。当前工作保持可续跑状态，完整Goal及正式研究/安装/恢复/模式切换/CI门未完成。
 
 Router选取的完整四项治理命令110/110 PASS，最终API门53/53 PASS（163.39s），生成Python索引检查及10个本切片Python文件编译PASS，whitespace PASS。同一旧schema模型账本与本轮随机schema权限测试分别留证。该本地切片可保存源码检查点；工具安装待回复与远端/平台/全Goal门保留真实未完成状态。
+
+源码检查点 `c3a29fdd4b26fd9d0349686e79429c0308835d75`（48文件）已提交。绑定该SHA的plan4/receipt3在 `logs/hot-resume/handoff-candidate-*.json`；首回执缺少逐个未执行外部门的风险条目被validator拒绝，补齐明确NOT_RUN风险后valid=true。hostAcceptance=BLOCKED、aggregateAcceptance=NOT_READY、mergeReady/releaseReady=false；Linux/Windows设备交接保留NOT_RUN，Mac Bootstrap NOT_RUN。修正未改变验证内核或任何门，没有push/PR/CI/merge/部署。下一步仍为实际研究执行预算登记及未知受理查询恢复，而不是重新创建会话或重置累计付费scope。
