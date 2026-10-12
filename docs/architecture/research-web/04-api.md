@@ -1,5 +1,17 @@
 # Research Web 接口清单
 
+ETF工程模拟新增以下同源入口；合同见[数据与文件](03-data-files.md#etf-工程模拟与真实准入边界)。
+POST须有 `X-Research-User-Action: ?1` 与 `Idempotency-Key`，流式输入≤8MiB，只接受工程标记。
+真实准入始终BLOCKED；冲突409、非法合同422、输入预算413、存储失败503。
+
+| Method | 路径 | 源码 |
+| --- | --- | --- |
+| GET | `/api/research/portfolio-decisions/readiness` | `app/research_web/portfolio_decisions/routes.py` |
+| GET | `/api/research/portfolio-decisions/runs` | `app/research_web/portfolio_decisions/routes.py` |
+| GET | `/api/research/portfolio-decisions/runs/{run_id}` | `app/research_web/portfolio_decisions/routes.py` |
+| POST | `/api/research/portfolio-decisions/runs` | `app/research_web/portfolio_decisions/routes.py` |
+
+
 DSH 0.2.1 升级保持公开 HTTP 合同。内部 `subagent.list` 适配已移除的上游方法：读取权威父会话 `subagentCatalog` 投影，并与实时 `session/list` 的子会话归属、模式和 running 状态交叉核对；输出映射为既有 `kind=child` 与 `activity=running/inactive`，供详情、归属、取消及空闲保护共同消费；缺失或未知状态返回协议失败，不用空列表解除活动保护。空实例默认 `deepseek-flash`，已保存旧模型值继续保留。保存、应用、真实推理仍分别返回事实，不因默认值更新自动调用模型。
 
 Automation 本轮没有新增 HTTP 路由、请求字段或响应 schema。现有运行记录在执行中可返回已保存原生关联；failure_code 可报告 automation_reference_invalid、automation_reference_conflict、automation_reference_persistence_failed 或 native_submission_unconfirmed。关联错误不触发自动研究重试，报告成功仍取原报告校验/产物事实。

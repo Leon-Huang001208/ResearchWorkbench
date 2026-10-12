@@ -1,5 +1,6 @@
 import { escapeHTML as e } from './markdown.mjs';
 import { renderAssetWorkspace } from './asset-workspace.mjs';
+import { renderEtfPaper } from './etf-paper.mjs';
 
 export const SECTIONS = [
   ['market', '市场', '市场概览、板块、事件和资讯', 'search_news'],
@@ -7,6 +8,7 @@ export const SECTIONS = [
   ['funds', '基金', '基本资料、净值、分红和持仓', 'fund_data'],
   ['industry', '产业链', '上下游结构、公司和产业资料', 'search_research'],
   ['documents', '资料', '上传文件、公告、新闻、研报和数据集', 'search_announcements'],
+  ['etf-paper', 'ETF 模拟', '受约束的策略模拟与复盘', null],
 ];
 
 const bytes = (value = 0) => value < 1024 ? `${value} B` : value < 1048576 ? `${(value / 1024).toFixed(1)} KB` : `${(value / 1048576).toFixed(1)} MB`;
@@ -51,7 +53,8 @@ export function readWorkbenchQuery(form) {
   return { capability: form.dataset.capability, source: String(values.get('source') || 'auto'), parameters };
 }
 
-export function renderWorkbench({ section = 'market', catalog = {}, queries = [], artifacts = [], busy = false, assetState = {} } = {}) {
+export function renderWorkbench({ section = 'market', catalog = {}, queries = [], artifacts = [], busy = false, assetState = {}, etfState = {} } = {}) {
+  if (section === 'etf-paper') return `<nav class="workbench-tabs" aria-label="研究台页面">${SECTIONS.map(([id, label]) => `<a href="#/workbench/${id}" class="${section === id ? 'active' : ''}" ${section === id ? 'aria-current="page"' : ''}>${label}</a>`).join('')}</nav>${renderEtfPaper({ ...etfState, busy })}`;
   if (section === 'assets') return `<nav class="workbench-tabs" aria-label="研究台页面">${SECTIONS.map(([id, label]) => `<a href="#/workbench/${id}" class="${section === id ? 'active' : ''}" ${section === id ? 'aria-current="page"' : ''}>${label}</a>`).join('')}</nav>${renderAssetWorkspace({ ...assetState, busy })}`;
   const definition = SECTIONS.find(item => item[0] === section) || SECTIONS[0];
   const capability = (catalog.capabilities || []).find(item => item.id === definition[3]);

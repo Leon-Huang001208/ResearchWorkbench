@@ -1,5 +1,9 @@
 # 部署与模块职责
 
+ETF工程模拟位于现有Host `portfolio_decisions/`，有界SQLite仅保存产品根内模拟账。
+无独立服务、调度器、凭据中心或券商连接；见[数据与文件](03-data-files.md#etf-工程模拟与真实准入边界)。
+
+
 24GB Mac mini 是 Docker 主开发与常驻节点，MacBook Pro 是远程入口。
 dev 挂载对应 worktree；stage/prod 按不可变 image ID 独立运行同一 Web＋DSH，
 每实例隔离 data/logs/credentials/cache卷、bridge网络、端口和管理身份。

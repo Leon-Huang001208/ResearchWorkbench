@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "updated",
-  "summary": "新增原生资讯雷达只读页面及固定公开接口适配器；复核安装入口与Web-only边界保持。",
-  "reason": "本次是现有Host中的页面及GET适配器扩展，已在README导航补充资讯雷达，未更改安装、DSH、凭据、平台支持或公开启动方式；细节由UI和API权威文档承载。"
+  "summary": "研究台增加ETF工程模拟入口，明确真实数据与算法准入BLOCKED。",
+  "reason": "已复核README现役Web、唯一DSH及公开安装合同，在导航说明工程模拟与真实边界；现有依赖不变，完整安装CI尚未执行，未声明真实收益或跨平台通过。"
 }

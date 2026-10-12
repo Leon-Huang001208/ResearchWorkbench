@@ -1,5 +1,10 @@
 # 安全边界与验证方法
 
+ETF工程模拟沿原同源/回环边界，只有显式用户POST；工程上传不提升DataHub或receipt-gated Skill权限。
+SQLite参数绑定、私有叶目录、8MiB输入/结果预算及100次运行上限限制本地存储。同UID可改产品根的
+信任边界未被声称解决。真实数据闭包、算法比较、完整门禁、浏览器和安装CI分别验收。
+
+
 新管理入口验证私有管理根与记录无alias、环境/实例labels、不可变镜像、容器ID、
 完整配置/挂载、网络、资源限额及卷归属后才启停/重建。Docker在start时把
 `OomKillDisable=null`补为false，两者同为启用OOM killer；只规范化该等值默认，true和其他变更仍拒绝。

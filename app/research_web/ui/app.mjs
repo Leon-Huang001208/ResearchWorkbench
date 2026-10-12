@@ -56,6 +56,7 @@ let quickCategory = '';
 let researchDraftRoute = { page: 'fingpt', sessionId: null };
 let workbenchQueries = []; let workbenchContext = {}; let workbenchBusy = false;
 let assetState = { observations: [], observation: null, rows: {}, watchlists: [], notes: [], alerts: [], notifications: [] };
+let etfState = { readiness: {}, runs: [], result: null };
 let operationsRange = '7d';
 let operationsData = { usage: null, tools: null, datahub: null, services: null, storage: null };
 let reportWorkflowDetail = null; let reportWorkflowBusy = false;
@@ -278,7 +279,7 @@ function mainPage() {
 }
 
 function workbenchPage() {
-  return renderWorkbench({ section: state.route.section || 'market', catalog: catalog.dataCatalog, queries: workbenchQueries, artifacts: catalog.artifacts, busy: workbenchBusy, assetState });
+  return renderWorkbench({ section: state.route.section || 'market', catalog: catalog.dataCatalog, queries: workbenchQueries, artifacts: catalog.artifacts, busy: workbenchBusy, assetState, etfState });
 }
 
 function operationsPage() {
@@ -939,6 +940,14 @@ async function loadOperations() {
 
 async function loadWorkbench() {
   const section = state.route.section || 'market';
+  if (section === 'etf-paper') {
+    try {
+      const [readiness, runs] = await Promise.all([api.etfReadiness(), api.etfRuns()]);
+      etfState = { ...etfState, readiness, runs: runs.items || [] };
+      delete catalog.errors.etfPaper;
+    } catch (error) { catalog.errors.etfPaper = error.message; safeLog('etf_paper_load_failed'); }
+    render(); return;
+  }
   if (section === 'assets') {
     delete catalog.errors.artifacts;
     await Promise.all([loadCatalog(['dataCatalog']), loadAssetWorkspace()]);
@@ -1303,6 +1312,14 @@ root.addEventListener('keydown', (event) => {
 });
 
 root.addEventListener('change', async (event) => {
+  if (event.target.matches?.('[data-etf-run]')) {
+    if (!event.target.value || workbenchBusy) return;
+    workbenchBusy = true;
+    try { etfState.result = await api.etfRun(event.target.value); }
+    catch (error) { state.error = error.message; safeLog('etf_paper_detail_failed'); }
+    finally { workbenchBusy = false; render(); }
+    return;
+  }
   if (event.target.closest?.('.intel-page') && await intelController.handle(event)) return;
   const target = event.target;
   if (target.matches?.('[data-document-target]') && documentEditor) {
@@ -1408,6 +1425,20 @@ root.addEventListener('paste', (event) => {
 });
 
 root.addEventListener('submit', async (event) => {
+  if (event.target.matches?.('[data-etf-replay]')) {
+    event.preventDefault();
+    if (workbenchBusy) return;
+    const file = new FormData(event.target).get('snapshot');
+    if (!file || file.size > 8 * 1024 * 1024) { state.error = '输入文件须小于 8 MiB'; render(); return; }
+    workbenchBusy = true; state.error = ''; render();
+    try {
+      const body = JSON.parse(await file.text());
+      etfState.result = await api.etfReplay(body, crypto.randomUUID());
+      await loadWorkbench();
+    } catch (error) { state.error = error.message; safeLog('etf_paper_replay_failed'); }
+    finally { workbenchBusy = false; render(); }
+    return;
+  }
   if (event.target.closest?.('.intel-page') && await intelController.handle(event)) return;
   event.preventDefault();
   safeLog('document_form_dispatch', { status: event.target.id === 'document-edit-form' ? 'document' : 'other' });

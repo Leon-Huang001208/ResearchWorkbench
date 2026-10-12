@@ -1,5 +1,10 @@
 # Research Web Native / Docker 安装与运行
 
+ETF工程模拟使用现有Pydantic/FastAPI及stdlib SQLite，无新增Python/Node产品依赖或安装参数。
+首次显式模拟在所属产品根创建私有 `portfolio-decisions/paper.sqlite3`；工程输入不会配置真实数据来源、
+凭据或启用算法。数据/能力缺口由模拟页readiness显示，不能把Doctor的服务健康视作策略可运行。
+本切片的干净macOS安装CI与Docker开发/镜像验收尚待执行，现有环境聚焦通过不替代这些门。
+
 2026-10-12 起，24GB Mac mini 是 Docker 主开发与常驻节点，MacBook Pro 是远程入口。
 新的纯 Docker 安装和显式实例管理使用 [Docker 开发与部署手册](research-web-docker.md)：
 `./setup-web.sh --runtime docker --environment stage --instance local --web-port 18088`，

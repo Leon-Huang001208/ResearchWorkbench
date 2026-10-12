@@ -1,5 +1,10 @@
 # 研究协议、执行状态与恢复
 
+ETF工程模拟不进入DSH会话循环；用户提交冻结输入，由Host同一事务保存结果。
+回放与前向共用 `PaperEngine.step`，输入摘要绑定恢复/幂等，失败不产生部分资金账。
+尚不接Automation/Tool，真实运行BLOCKED；见[数据与文件](03-data-files.md#etf-工程模拟与真实准入边界)。
+
+
 Mac mini 的 dev/stage/prod 使用同一既有 Web＋DSH 协议，各实例独立 data/runtime 工作目录、
 认证 tmpfs 和身份账本；stage/prod 在固定镜像内执行，不读编辑中的worktree。
 管理员入口只管理容器生命周期，不创建第二套研究任务、调度、恢复或自动重试事实源。
