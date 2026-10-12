@@ -98,3 +98,6 @@ macOS 模型管理三条 CLI 已经现有解释器/配置桥、独立 Node 与�
 macOS 定价 CLI 的真实校验/文件发布、重放及故障注入已本地验证；无模型/PG调用，测试不证明完整安装、SystemKeychain、事件浏览或其他平台支持。
 
 Hot本轮新增网页冻结简报和Markdown；macOS本地真实HTTP→Manager→Node/PG使用隔离凭据/合成内容验证，大文本文字转义导致的>1MiB导出通过分块解决。真实浏览器、原验收库迁移15、DOCX、Docker模式及同提交Mac安装CI仍待验收；不提升Windows/Linux支持声明。
+
+
+2026-10-12接续实测：原Hot schema15的两份AI/宏观简报哈希一致；完整存储版本与来源响应已实际读出并核验，两份DOCX用现有报告生成器生成、保留并解析通过。合成独立schema另完成Host→签名Node/PG重建和DOCX HTTP/保留文件验证。没有新付费调用/研究会话；正式研究、Docker产品切换、安装及当前候选Mac CI仍待验，Windows/Linux不提升状态。

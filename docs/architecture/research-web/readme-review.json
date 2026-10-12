@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "updated",
-  "summary": "接续Hot与最新主线，统一研究情报入口并保留外部只读资讯和本地持久事件边界。",
-  "reason": "README同步入口命名、可选Hot/PostgreSQL与未完成验收；现有安装入口与Web-only平台合同保留。"
+  "summary": "研究情报补齐固定简报版本的完整存储原件读取与DOCX内核证据，保留正式研究/恢复/安装未完成边界。",
+  "reason": "沿既有reader桥扩展内部原件分块和Host完整性校验，README仅同步实际阶段事实，不认证尚未接入的目标会话、run映射、Keychain安装或跨平台能力。"
 }

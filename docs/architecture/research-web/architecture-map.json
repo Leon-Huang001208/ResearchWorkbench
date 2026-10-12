@@ -72,7 +72,8 @@
         "tests/javascript/docker_runtime_contract.test.mjs",
         "tests/research_web/test_platform_capabilities.py",
         "tests/research_web/test_hot_entrypoint.py",
-        "tests/research_web/test_hot_manager.py"
+        "tests/research_web/test_hot_manager.py",
+        "tests/research_web/test_hot_research_evidence.py"
       ]
     },
     {
@@ -601,7 +602,9 @@
         "tests/research_web/test_hot_web.py",
         "services/hot/tests/event-rpc.integration.ts",
         "tests/javascript/research_web_hot.test.mjs",
-        "tests/research_web/test_hot_documents.py"
+        "tests/research_web/test_hot_documents.py",
+        "services/hot/tests/research-evidence.test.ts",
+        "services/hot/tests/research-evidence.integration.ts"
       ]
     }
   ],

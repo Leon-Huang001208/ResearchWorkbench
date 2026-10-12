@@ -575,7 +575,7 @@ HTTP-to-Manager-to-owned Node/PG fixtures use an installed Web Python selected b
 RWB_HOT_TEST_PYTHON, defaulting to checkout .venv/bin/python on this macOS task.
 They use isolated in-memory credentials and synthetic event bodies, not real
 Keychain/model or browser acceptance. No new dependency, research session, scheduled
-brief or external delivery is created. Real AI/macro browser creation, preview, fixed-version download and reload now passed against the original real acceptance schema15; model and research were disabled and Hot credentials used a fixture backend. DOCX/full research and clean installation remain pending.
+brief or external delivery is created. Real AI/macro browser creation, preview, fixed-version download and reload now passed against the original real acceptance schema15; model and research were disabled and Hot credentials used a fixture backend. DOCX core/HTTP proofs now exist with explicit fixture bounds; full research and clean installation remain pending.
 
 Browser fixture preparation supports an optional safe proofId namespace; each
 proof baseline is write-once, so prior evidence is retained. Existing baselines
@@ -584,3 +584,35 @@ effects; role NOLOGIN cleanup runs independently of source/budget audit, and the
 final receipt separates restoration status from role cleanup. A failed audit
 never returns a successful cleanup receipt. Real browser/cleanup and injected
 baseline-budget failure evidence remain private under logs/hot-stage-zero.
+
+
+## Frozen complete stored originals (research handoff substrate)
+
+`research.evidence` is a signed reader-only RPC. It requires a positive saved brief
+version and 1–20 unique material IDs contained in that brief. The immutable manifest
+binds the logical instance, brief hash, cutoff, channel judgments, complete stored
+material versions and source-response objects. Source publication/acquisition/update
+times and unknown values remain distinct. A later content revision does not replace
+the selected old version.
+
+Both canonical manifest bytes and original bytes are served as <=32KiB base64 chunks,
+with fixed SHA256, byte counts and offsets. Manifest <=700000 bytes, each object <=8MiB,
+total originals <=32MiB; exceeding a limit rejects instead of truncating. The Host
+checks exact producer bytes (without reserializing JSON numbers), the separately
+verified brief anchor, instance, selected identities, safe filenames and all hashes.
+Assembly has a 15-second aggregate deadline plus the existing bounded RPC.
+
+The source response is the complete stored response: a saved RSS page is not the full
+HTML page at its article URL. Same-page unselected entries do not enlarge research
+selection or source coverage. These calls do not create a session, invoke a model,
+change the queue or send anything externally. DataHub-owned session publication and
+PG research-run/session mappings remain the next required integration.
+
+Local tests use an explicitly selected, owned isolated PG fixture; set
+`RWB_HOT_TEST_FIXTURE_DIR` to its private stage-zero directory and
+`RWB_HOT_TEST_PG_PORT` to the current verified loopback port.
+`RWB_HOT_TEST_PYTHON` enables the actual Host→signed Node/PG reconstruction and DOCX
+HTTP/retained-file assertions. This is fixture credentials, not installed Keychain
+or paid DSH acceptance. Two original real AI/macro brief versions have separately
+produced parsed, hash-checked DOCX artifacts; product install/browser DOCX and full
+research acceptance are still pending.

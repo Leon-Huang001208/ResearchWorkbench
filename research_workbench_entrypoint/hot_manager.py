@@ -84,7 +84,13 @@ def rpc(port: int, owner: dict, key: str, operation: str, params: dict | None = 
                      "hot_brief_window_invalid", "hot_brief_timezone_invalid", "hot_brief_unknown", "hot_brief_channel_unknown",
                      "hot_brief_selection_invalid", "hot_brief_selection_alias_duplicate", "hot_brief_selection_outside_window",
                      "hot_brief_evidence_missing", "hot_brief_integrity_invalid", "hot_brief_request_conflict", "hot_brief_version_conflict",
-                     "hot_brief_control_denied", "hot_brief_cutoff_required", "hot_brief_cutoff_invalid", "hot_brief_cancelled")
+                     "hot_brief_control_denied", "hot_brief_cutoff_required", "hot_brief_cutoff_invalid", "hot_brief_cancelled",
+                     "hot_research_selection_invalid", "hot_research_offset_invalid", "hot_research_evidence_invalid",
+                     "hot_research_evidence_conflict", "hot_research_evidence_changed", "hot_research_evidence_limit",
+                     "hot_research_material_not_selected", "hot_research_original_integrity_invalid", "hot_research_instance_invalid",
+                     "hot_research_manifest_limit", "hot_research_manifest_changed", "hot_research_cancelled",
+                     "hot_research_object_invalid", "hot_research_object_not_selected", "hot_research_evidence_failed",
+                     "hot_research_original_failed")
             raise HotError(code if code in known else "hot_rpc_unavailable")
         return result["result"]
     except HotError:
@@ -345,6 +351,145 @@ class HotManager:
 
     def brief_export(self, brief_id: str, version: int | None = None) -> dict:
         return self._brief_read(brief_id, version, True)
+
+    def research_evidence(self, brief_id: str, version: int, material_ids: list[str]) -> dict:
+        """Reconstruct exact immutable originals privately; never create a session or dispatch."""
+        try:
+            brief_id = self._brief_id(brief_id)
+            if (type(version) is not int or not 1 <= version <= 1000000
+                    or not isinstance(material_ids, list) or not 1 <= len(material_ids) <= 20):
+                raise HotError("hot_research_selection_invalid")
+            material_ids = sorted(self._brief_id(value) for value in material_ids)
+            if len(set(material_ids)) != len(material_ids):
+                raise HotError("hot_research_selection_invalid")
+            state = self._state()
+            if state is None:
+                raise HotError("hot_service_stopped")
+            reader = self._secret("rpc-reader")
+            params = {"briefId": brief_id, "version": version, "materialIds": material_ids}
+            deadline = time.monotonic() + 15
+            saved = rpc(state["port"], state["owner"], reader, "research.evidence", params)
+            if (not isinstance(saved, dict) or not isinstance(saved.get("manifestHash"), str)
+                    or not re.fullmatch(r"[a-f0-9]{64}", saved["manifestHash"])
+                    or type(saved.get("totalBytes")) is not int or not 0 < saved["totalBytes"] <= 700000):
+                raise HotError("hot_research_response_invalid")
+            digest, manifest_size = saved["manifestHash"], saved["totalBytes"]
+            manifest_data, offset = bytearray(), 0
+            for _ in range(23):
+                if time.monotonic() >= deadline:
+                    raise HotError("hot_research_read_timeout")
+                if (not isinstance(saved, dict) or saved.get("manifestHash") != digest or saved.get("contentHash") != digest
+                        or type(saved.get("offset")) is not int or saved["offset"] != offset
+                        or type(saved.get("totalBytes")) is not int or saved["totalBytes"] != manifest_size
+                        or not isinstance(saved.get("dataBase64"), str) or len(saved["dataBase64"]) > 43692):
+                    raise HotError("hot_research_response_invalid")
+                part = base64.b64decode(saved["dataBase64"], validate=True)
+                if not 0 < len(part) <= 32768:
+                    raise HotError("hot_research_response_invalid")
+                manifest_data.extend(part)
+                offset += len(part)
+                if offset > manifest_size:
+                    raise HotError("hot_research_response_invalid")
+                if offset == manifest_size:
+                    if saved.get("nextOffset") is not None or hashlib.sha256(manifest_data).hexdigest() != digest:
+                        raise HotError("hot_research_response_invalid")
+                    break
+                if type(saved.get("nextOffset")) is not int or saved["nextOffset"] != offset:
+                    raise HotError("hot_research_response_invalid")
+                saved = rpc(state["port"], state["owner"], reader, "research.evidence",
+                            {**params, "offset": offset, "manifestHash": digest})
+            else:
+                raise HotError("hot_research_response_invalid")
+            manifest = json.loads(manifest_data)
+            anchor = self.brief_detail(brief_id, version)
+            if (not isinstance(manifest, dict) or type(manifest.get("schemaVersion")) is not int or manifest["schemaVersion"] != 1
+                    or manifest.get("instanceId") != state["owner"]["instanceId"]
+                    or manifest.get("briefId") != brief_id or type(manifest.get("version")) is not int
+                    or manifest["version"] != version or manifest.get("materialIds") != material_ids
+                    or not isinstance(manifest.get("briefContext"), dict)
+                    or manifest.get("briefContentHash") != anchor["contentHash"]
+                    or manifest["briefContext"] != anchor["payload"]
+                    or manifest.get("cutoff") != manifest["briefContext"].get("cutoff")
+                    or manifest.get("timezone") != manifest["briefContext"].get("timezone")
+                    or type(manifest.get("totalBytes")) is not int or not 0 <= manifest["totalBytes"] <= 32 * 1024 * 1024
+                    or not isinstance(manifest.get("objects"), list) or not 2 <= len(manifest["objects"]) <= 40
+                    or not isinstance(manifest.get("materials"), list)):
+                raise HotError("hot_research_response_invalid")
+            descriptors = {}
+            total = 0
+            uuid = r"[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}"
+            for item in manifest["objects"]:
+                if (not isinstance(item, dict) or type(item.get("bytes")) is not int
+                        or not 0 <= item["bytes"] <= 8 * 1024 * 1024
+                        or not isinstance(item.get("key"), str) or item["key"] in descriptors
+                        or not isinstance(item.get("contentHash"), str)
+                        or not re.fullmatch(r"[a-f0-9]{64}", item["contentHash"])):
+                    raise HotError("hot_research_response_invalid")
+                key = item["key"]
+                if re.fullmatch("raw:" + uuid, key):
+                    filename, format_ = "raw-" + key[4:] + ".bin", "application/octet-stream"
+                elif re.fullmatch("material:" + uuid + r":[1-9][0-9]{0,9}", key):
+                    _, identity, revision = key.split(":")
+                    filename, format_ = f"material-{identity}-r{revision}.json", "application/json"
+                else:
+                    raise HotError("hot_research_response_invalid")
+                if item.get("filename") != filename or item.get("format") != format_:
+                    raise HotError("hot_research_response_invalid")
+                descriptors[key] = item
+                total += item["bytes"]
+            if total != manifest["totalBytes"] or len(manifest["materials"]) != len(material_ids):
+                raise HotError("hot_research_response_invalid")
+            selected = set()
+            referenced = set()
+            for item in manifest["materials"]:
+                if (not isinstance(item, dict) or item.get("materialId") not in material_ids
+                        or item["materialId"] in selected or type(item.get("revision")) is not int or item["revision"] < 1
+                        or item.get("normalizedObject") != f"material:{item['materialId']}:{item['revision']}"
+                        or item.get("normalizedObject") not in descriptors or item.get("rawObject") not in descriptors
+                        or not item["rawObject"].startswith("raw:")):
+                    raise HotError("hot_research_response_invalid")
+                selected.add(item["materialId"])
+                referenced.update([item["normalizedObject"], item["rawObject"]])
+            if selected != set(material_ids) or referenced != set(descriptors):
+                raise HotError("hot_research_response_invalid")
+            originals = {}
+            for key, item in descriptors.items():
+                data, offset = bytearray(), 0
+                for _ in range(257):
+                    if time.monotonic() >= deadline:
+                        raise HotError("hot_research_read_timeout")
+                    value = rpc(state["port"], state["owner"], reader, "research.original",
+                                {**params, "objectKey": key, "manifestHash": digest, "offset": offset})
+                    if (not isinstance(value, dict) or value.get("manifestHash") != digest or value.get("objectKey") != key
+                            or type(value.get("offset")) is not int or value["offset"] != offset
+                            or type(value.get("totalBytes")) is not int or value["totalBytes"] != item["bytes"]
+                            or value.get("contentHash") != item["contentHash"]
+                            or not isinstance(value.get("dataBase64"), str) or len(value["dataBase64"]) > 43692):
+                        raise HotError("hot_research_response_invalid")
+                    part = base64.b64decode(value["dataBase64"], validate=True)
+                    if len(part) > 32768 or (not part and offset < item["bytes"]):
+                        raise HotError("hot_research_response_invalid")
+                    data.extend(part)
+                    offset += len(part)
+                    if offset > item["bytes"]:
+                        raise HotError("hot_research_response_invalid")
+                    if offset == item["bytes"]:
+                        if value.get("nextOffset") is not None or hashlib.sha256(data).hexdigest() != item["contentHash"]:
+                            raise HotError("hot_research_response_invalid")
+                        originals[key] = bytes(data)
+                        break
+                    if type(value.get("nextOffset")) is not int or value["nextOffset"] != offset:
+                        raise HotError("hot_research_response_invalid")
+                else:
+                    raise HotError("hot_research_response_invalid")
+            log.info("hot_research_evidence_received")
+            return {"manifest": manifest, "manifestBytes": bytes(manifest_data), "manifestHash": digest, "objects": originals}
+        except HotError:
+            log.warning("hot_research_evidence_rejected")
+            raise
+        except (OSError, ValueError, TypeError, KeyError):
+            log.warning("hot_research_evidence_invalid")
+            raise HotError("hot_research_response_invalid") from None
 
     def create_brief(self, params: dict, request_id: str | None = None) -> dict:
         required = {"briefId", "expectedVersion", "eventIds", "channelId", "cutoff"}

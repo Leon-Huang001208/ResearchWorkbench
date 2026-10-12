@@ -57,3 +57,31 @@
 - 当前改变的20个Python源码/测试编译PASS。新Hot/融合相对origin/master的完整diff whitespace PASS；相对旧Hot HEAD的merge diff会看到主线已跟踪的Claw原始失败日志行尾空白，保留上游真实日志未修改，并且当前变更范围不包含这些日志的新编辑。
 - preview服务通过原TTY session Ctrl-C退出0，独立浏览器tab已关闭；未停生产Web/DSH、未删资料或PG卷。
 - 本地检查点可提交；这不是完整Goal、本平台最终验收或合并/发布就绪。尚无候选GitHubCI、干净Hot安装、真实Hot/DSH研究或Docker切换回执。
+
+## 阶段四：完整存储原件读取与DOCX证据（2026-10-12）
+
+上一goal turn为实质进展（接续/主线/入口/候选）；本turn继续原完整目标，无缩小完成标准。
+
+- 原PG容器 `rwb-hot-probe-6a5d3231` 初始exited255。先核对probe标签、固定image digest、指定volume及127.0.0.1动态绑定，启动同一容器/卷。原回执端口59705仅为旧观测；当前端口63670另记 `logs/hot-resume/pg-current.json`，没有篡改旧回执。
+- 首就绪检查在启动窗口返回2，随后同一容器pg_isready接受连接；第一次只读audit误查events.title返回42703，改查实际schema后通过，失败输出保留。
+- 原schema15仍有2事件/2原页/2简报，旧简报hash全部核对通过。只读账本仍为4calls/1417tokens/659microUSD（保守费用上界），max20/20000/1000000未变。
+- 在原聊天 `01a11684-d6a3-7a82-9c8f-3d84849a7dd0` 的2026-10-08直接用户回复找到累计上限明确授权；未发送消息给该聊天，也未创建新scope/重置额度。当前新付费调用0，正式模型仍需当前核价及安装级路径。
+- 新 `research-evidence.ts` 在只读一致事务中绑定逻辑实例、正简报版本、截止与1–20个已选材料，读取完整已存储文本/原始响应及来源/版本/未知时间。后续更正不回填；未选原件和hash/owner变化拒绝。RSS完整响应不等于其文章URL的HTML全文，清单明确这个局限。
+- 签名reader RPC `research.evidence`/`research.original` 分别按32KiB重建生产者规范JSON字节和原件字节。Host校验清单哈希、另读的简报锚、实例、对象选择、文件名、偏移/总字节数/最终SHA，15秒整体重建期限，清单700000B/单对象8MiB/总32MiB；失败不发布部分文件。
+- 初版Host重序列化JSON来验hash的潜在跨语言小数拼写问题已修正为原规范字节分块，新增1e-7/多页清单反例，不改付费/凭据逻辑。生产API仍不向页面交付读key。
+- RED：缺失Node模块/Host方法；初版typecheck因日志白名单/测试可选undefined失败，按真实接口修正。当前类型检查及新单元/真实PG+签名/Host重建待最终收束日志。新PG测试仅在随机schema/角色中写合成数据并精确清理；不修改原模型scope。
+- 实际HTTP→HotWebService→Manager→签名Node/PG→DOCX及私有保留文件验证通过。第一次helper stdout被项目日志污染而JSON解析失败，日志转stderr后通过；没有忽略错误或换成假响应。凭据是fixture，不是SystemKeychain/完整安装证明。
+- 原两份真实AI/宏观简报在只读连接下分别完成完整存储原件清单、字节/哈希核对和原件保存。final-core清单见 `logs/hot-resume/real-evidence-receipt-v2.json`；之前v1目录保留。原两份DOCX已通过python-docx打开、ZIP完整性、简报/材料版本哈希和原文说明核验，`logs/hot-resume/real-docx-receipt.json`记录真实产物。桌面预览打开请求返回queued，不宣称已在编辑器中渲染。
+- 原容器/卷保留，原worktree源码未变；无新研究会话、模型调用、外部发送、远端发布、生产部署。DataHub会话发布、PG research-run→session/report映射、未知受理恢复尚未接入，所以不把原件读取/DOCX解释为研究闭环完成。
+
+下一步可直接执行：在真实目标会话上接入DataHub冻结快照发布与hash校验，并追加PG research-run/session映射，随后沿既有ResearchService/DSH在同一剩余额度内完成真实研究。跟踪/周期简报、源覆盖重验/留出关系样本、联合恢复、安装/Docker/同候选MacCI等原Goal门仍保留，Goal ACTIVE。
+
+<!-- architecture-review {"group":"hot","structure":"unchanged","reason":"在既有Node/PG reader投影内加入固定简报版本的完整存储原件清单/分块读取，不新增数据库schema、队列、服务或研究引擎；来源/时间/哈希边界和未装配研究状态同步文档。未来DataHub会话及run映射未提前绘制为已实现。","diagrams":[]} -->
+<!-- architecture-review {"group":"dual-runtime","structure":"unchanged","reason":"Native HotManager新增有界reader重建，仍复用原私有状态/凭据/签名协议和实例代次；不改Native/Docker生命周期、安装版本、Keychain或跨模式切换，实际使用的PG验证容器与产品Docker证据分开。","diagrams":[]} -->
+
+### 原件读取切片最终本地检查
+
+- TypeScript typecheck PASS，Hot单元42/42 PASS，真实随机schema的签名Node/PG→Host原件重建与DOCX HTTP/保留/解析1/1 PASS，Python相关stdlib60/60 PASS；四个必需治理目录110/110 PASS。
+- 本切片21文件的项目约束、架构、文档治理、生成索引/图册与whitespace PASS。初约束缺README复核回执被拒；先在错误组件cwd定位README导致断言失败（无文件写入），再修正根目录定位并同步真实阶段说明/回执，未降低规则。
+- 原库最终只读预算审计PASS：4/1417/659microUSD及20/20000/$1上限未变，原runtime仍paused，测试research随机角色已全部移除，PG容器/卷保留。证据 `logs/hot-resume/evidence-final-ledger.json`。
+- 当前完整目标仍ACTIVE：冻结输入已可用，但尚未发布到真实研究会话、未持久化hot_run→session/report映射，尚无本轮正式DSH研究/联合恢复/连续采集重验/留出样本/Hot安装与Docker切换/候选CI。不能以本切片通过替代那些门。
