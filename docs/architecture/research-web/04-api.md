@@ -337,3 +337,21 @@ Doctor 的 capability 字段表示安全实现边界，validated=false 不替代
 ## 本机状态及Office自动验证
 
 GET `/api/research/local-integrations`附带`integration_status`，其中`scope=local`、`generated_at`、`local_revision`与本次明细同快照；GET或POST发现probe不触发真实操作。协调器新增unverified/stale/not_detected/not_applicable分类，Excel桥保留事实但不重复计数。现有auto-probe-consent接口仅扩展`local:excel_app`、`local:word_app`、`local:powerpoint_app`，写入仍要求精确同源与用户动作头。Office开启请求在既有批次消费，厂商不包含在内；API与证据期限细节见[协调器](09-integration-coordinator.md)。
+
+## 资讯雷达只读 API
+
+全部路径前缀为 `/api/research/intel`，仅支持 GET，返回解包后的上游 `data` 对象或列表：
+
+| 本地路径 | 上游路径 | 参数 |
+| --- | --- | --- |
+| `/overview` | `/intelligence` | impact=all/medium_high/high，view 固定 compact |
+| `/story-focus`、`/breakfast-focus` | `/intelligence/story-focus`、`/intelligence/breakfast-focus` | 无 |
+| `/events/{event_id}` | `/intelligence/events/{event_id}` | ID 为 1–160 位字母数字下划线/连字符 |
+| `/reports` | `/report-records` | limit 1–50，默认 20；offset 0–100000 |
+| `/reports/{report_id}` | `/report-records/{report_id}` | 同上 ID 校验 |
+| `/radar` | `/radar` | 无 |
+| `/wsc` | `/wsc/live` | cursor 最多 256 字符 |
+| `/social` | `/social/accounts` | 无 |
+| `/news`、`/announcements` | `/news`、`/announcements` | code 必须为六位数字 |
+
+参数不合法返回 422；上游内容不存在返回 404；连接、状态、格式异常返回 502；超时返回 504。错误响应 `detail` 包含固定 `code/message`，不暴露上游正文。无任意 URL、POST、模型调用或采集触发入口。事件概率不提供数据接口。

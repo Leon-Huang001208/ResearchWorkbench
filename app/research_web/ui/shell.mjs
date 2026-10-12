@@ -9,6 +9,7 @@ const navItems = [
   { page: 'claw', glyph: 'layers', title: 'Claw', href: '#/claw' },
   { page: 'workbench', section: 'assets', glyph: 'chart', title: '资产观察', href: '#/workbench/assets' },
   { page: 'workbench', glyph: 'chart', title: '研究台', href: '#/workbench' },
+  { page: 'intel', glyph: 'activity', title: '资讯雷达', href: '#/intel/overview' },
   { page: 'frameworks', glyph: 'grid', title: '研究框架', href: '#/frameworks' },
   { page: 'skills', glyph: 'grid', title: '能力中心', href: '#/skills' },
   { page: 'operations', glyph: 'activity', title: '运行与用量', href: '#/operations' },
@@ -116,7 +117,7 @@ export function renderContextPanel({ detail, selectedTab = 'activity', mobileOpe
 }
 
 export function renderTopbar({ page = 'fingpt', section = '', frameworkSlug = '', settingsSection = '', detail = null, runtimeLabel, runtime, search = '', sessions = [], skills = [], searchOpen = false } = {}) {
-  const title = page === 'workbench' && section === 'assets' ? '资产观察' : ({ fingpt: 'FinGPT', claw: 'Claw', workbench: '研究台', frameworks: '研究框架', skills: '能力中心', history: '研究历史', operations: '运行与用量', settings: '设置' })[page] || 'FinGPT';
+  const title = page === 'workbench' && section === 'assets' ? '资产观察' : ({ fingpt: 'FinGPT', claw: 'Claw', workbench: '研究台', frameworks: '研究框架', skills: '能力中心', history: '研究历史', operations: '运行与用量', intel: '资讯雷达', settings: '设置' })[page] || 'FinGPT';
   const settingsSubtitle = ({ general: '通用', model: '模型服务', data: '数据源', local: '本机集成', docs: '架构文档' })[settingsSection];
   let runtimeAttention = '';
   if (runtime && (!runtime.connected || runtime.credential_configured === false)) {

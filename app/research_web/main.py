@@ -33,6 +33,7 @@ from .documentation import router as documentation_router
 from .frameworks.base import FrameworkError
 from .frameworks.routes import router as frameworks_router
 from .integrations.routes import router as integrations_router
+from .intel_routes import router as intel_router
 from .local_integrations import LocalIntegrationError
 from .local_integrations.routes import router as local_integrations_router
 from .mcp_registry import RegistryError
@@ -206,6 +207,7 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
     app = FastAPI(title="Research Workbench Research Web", lifespan=lifespan)
     app.include_router(datahub_router)
     app.include_router(asset_router)
+    app.include_router(intel_router)
     app.include_router(capabilities_router)
     app.include_router(documentation_router)
     app.include_router(frameworks_router)
