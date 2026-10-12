@@ -1,5 +1,13 @@
 # 安全边界与验证方法
 
+新管理入口验证私有管理根与记录无alias、环境/实例labels、不可变镜像、容器ID、
+完整配置/挂载、网络、资源限额及卷归属后才启停/重建。Docker在start时把
+`OomKillDisable=null`补为false，两者同为启用OOM killer；只规范化该等值默认，true和其他变更仍拒绝。
+管理代码在只读绑定的管理员worktree中，瞬时控制器独占Docker socket；业务/dev无socket。
+独立BuildKit 3GiB初始编译不足，实测冷构建借stage额度至5GiB，与stage互斥，退出停止；
+入口另核对VM实际内存与所有运行容器硬上限，保留2GiB余量。未知无限额容器拒绝。
+容器隔离不替代用户鉴权或任意代码沙箱；模型后端/多人授权/严格Linux沙箱/公网仍待G2-G5。
+
 新版原生模块解析使用 `createRuntimeResolution`，每个 packageDir 必须属于固定源码或两项既有受管供应包；解析成功不扩大模块白名单。认证 bootstrap 的 source_commit 从共享 runtime 合同读取，仍验证所属进程、cwd、端口与私有控制文件。preset 注册迁移不改变固定模型 ref 的 Keychain 私有桥接，也不让模型 ref 委托回旧环境/文件解析器。父子活动状态未知时配置和提交失败关闭。
 
 Automation 恢复不重发研究；缺 ID、未知提交和 workflow/version 冲突失败关闭。初始报告保存失败时，只有已验证 Runtime 事实源且本次确实新建的活动 Run 才允许停止；陈旧/错误引用及恢复期间保存失败不能取消既有任务。日志只记录固定事件、类型和 Run ID 摘要，不含 Prompt、文件内容或凭据。受控 macOS 进程探针只处理自建进程/临时私有根，不证明真实 DSH/model 或其他平台。

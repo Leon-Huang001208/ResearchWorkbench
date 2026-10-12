@@ -4,6 +4,11 @@
 
 ## 当前 Research Web
 
+`rwb-docker`、`docker/manage.py`、`docker/Dockerfile.control`、`docker/Dockerfile.dev`
+及 `docker/buildkitd.toml` 是 Mac mini 管理平面与开发基座，权威说明为
+`docs/research-web-docker.md`，近处测试为 `tests/research_web/test_docker_manager.py`。
+生命周期/配额/镜像/挂载变化须同步该手册；真实镜像、实例健康与开发重建另保留本次证据。
+
 异根 Native 私有 pair 认证共享 `web_bootstrap.py` 的现有 bounded reader；OS 用户标准根
 发现、调用内根/父/record FD 与真实 lease 复查由 Docker 和 Native manager 同路径消费。
 `test_docker_runtime.py` 覆盖重复 start、restart 预拒绝、stop/start、正常 Native bridge、

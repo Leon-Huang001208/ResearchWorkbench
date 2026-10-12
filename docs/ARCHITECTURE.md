@@ -4,6 +4,12 @@
 
 ## 当前产品边界
 
+Mac mini 的 Docker 基座使用管理员 `rwb-docker`，dev/stage/prod 各自有身份账本、
+数据/凭据/日志/cache卷和网络。dev挂载worktree，stage/prod固定不可变image ID；
+唯一研究引擎与容器内 Web/DSH 回环不变。独立限额 BuildKit 和瞬时管理容器属于管理员平面，
+业务与开发容器无 Docker socket。旧 Native/Docker 单实例管理合同保留，不能混用数据和账本。
+资源、最短命令及 G2-G6 缺口见 [Docker 手册](research-web-docker.md)。
+
 macOS 已存在的目标产品根可复用标准 OS 用户根中完整且已认证的不同根 Native 私有 pair。
 共享 reader 的观察在真实目标 lifecycle lease 内保留目录/记录 FD 并复查，scope 退出失效；
 未知与同根 writer 保留拒绝。部署节点、研究引擎、认证交换与持久 schema 不因此改变。

@@ -11,6 +11,10 @@ while [ -L "$SCRIPT_PATH" ]; do
   esac
 done
 PROJECT_ROOT=$(CDPATH= cd -- "$(dirname -- "$SCRIPT_PATH")" && pwd -P)
+if [ "${1:-}" = docker ]; then
+  shift
+  exec "$PROJECT_ROOT/rwb-docker" "$@"
+fi
 PYTHON_BIN="$PROJECT_ROOT/.venv/bin/python"
 ENVIRONMENT_OWNER_ROOT=$PROJECT_ROOT
 

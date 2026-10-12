@@ -1,5 +1,12 @@
 # DataHub、研究资料与实际文件
 
+新 Docker 目标采用每实例独立 data/logs/credentials/cache 四个命名卷；data 映射
+`/data/research-web`，包含既有 DSH home、会话索引、上传、产物与产品日志。
+管理账本保留数据卷身份；开发重建/退休仅删除精确所属容器，保留四卷与源码，
+不迁移 canonical Native 根、PID、cookie、Keychain或旧Compose bind数据。
+stage/prod不挂载开发源码，各实例网络、端口与运行状态分离。
+通用业务凭据目录与模型系统存储仍是两个合同，Docker 模型后端由G2补齐。
+
 DSH 0.2.1 的 preset 注册改为 owned overlay 中的声明式插件行；原 `.agent-presets/<id>/agent.cordis.yml` 仍是产品生成源，不再依赖旧版文件目录自动发现。空实例默认模型为 `deepseek-flash`；已有保存的模型 ID、历史会话和快照不自动重写。安装清单绑定新的固定源码及实际构建闭包，模型秘密仍仅存于 Native Keychain，不随 preset、安装摘要或快照复制。
 
 Automation 沿用 automation_runs 的 session_id、report_run_id、updated_at 和 failure_code 字段，不新增索引或迁移。已知关联通过现有原子 Store.save 写入；失败回滚内存关联，不以未落盘引用继续提交。报告晚到的会话 ID 同样保存；未知、陈旧和异目标引用保留失败原因与原记录，恢复不删除或重建原数据/产物。

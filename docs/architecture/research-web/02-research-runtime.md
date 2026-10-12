@@ -1,5 +1,11 @@
 # 研究协议、执行状态与恢复
 
+Mac mini 的 dev/stage/prod 使用同一既有 Web＋DSH 协议，各实例独立 data/runtime 工作目录、
+认证 tmpfs 和身份账本；stage/prod 在固定镜像内执行，不读编辑中的worktree。
+管理员入口只管理容器生命周期，不创建第二套研究任务、调度、恢复或自动重试事实源。
+stage/dev 关闭 Automation；任务排空、全机重研究配额和 Linux 严格沙箱留给G3，
+不能从候选健康推出真实模型/研究已验收。操作见 [Docker 手册](../../research-web-docker.md)。
+
 Automation 异常退出恢复只监控原会话/报告 Run，不重建或重发。普通会话须有原生执行或终止状态证据，idle/created/未知响应为 native_submission_unconfirmed；未确认 send 也不进入成功监控。报告恢复以报告 Run 为优先事实源，持续核对 workflow/version，等待其 validating/completed 与真实产物；显式停止保持原有 interrupted 语义，不冒充自动恢复。
 
 已验证运行中的实际 NativeRuntime 仅在显式 `--stop-current` 且公开 stop 成功后，

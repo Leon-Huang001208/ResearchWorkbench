@@ -1,0 +1,21 @@
+# Appended to Dockerfile by the managed builder; reuse its exact runtime stage.
+FROM runtime AS development
+LABEL io.research-workbench.role="development"
+USER root
+RUN sed -i 's@http://deb.debian.org/@https://deb.debian.org/@g' /etc/apt/sources.list.d/debian.sources \
+    && apt-get update && apt-get install -y --no-install-recommends g++ make lsof procps \
+    && rm -rf /var/lib/apt/lists/*
+COPY docker/dev-requirements.txt /opt/dev-requirements.txt
+# The installed compatibility wheel still declares retired database/ML extras;
+# do not restore that stack merely to satisfy its metadata in a Web dev image.
+RUN python -m pip install -r /opt/dev-requirements.txt \
+    && python -m pytest --version && python -m black --version \
+    && mypy --version && isort --version-number && ruff --version
+# PATH-constrained compatibility CLI uses the same container-owned interpreter.
+RUN printf '%s\n' '#!/bin/sh' 'set -eu' 'exec /opt/rwb/venv/bin/python "$@"' > /usr/bin/python3.12 \
+    && chmod 755 /usr/bin/python3.12
+USER rwb
+WORKDIR /workspace
+ENV PYTHONPATH=/workspace RESEARCH_AUTOMATIONS_ENABLED=0 RWB_DSH_STAGED=0
+HEALTHCHECK NONE
+ENTRYPOINT ["/bin/sh", "-c", "exec sleep infinity"]
