@@ -154,3 +154,28 @@ def test_isolated_product_bridge_ignores_ambient_secret(tmp_path):
             assert reply["configured"] is False and reply["source"] == "docker-encrypted"
         if operation == "resolve":
             assert reply["value"] in ("synthetic-pipe", None)
+
+
+def test_isolated_backend_import_never_initializes_global_settings():
+    product = str(Path(__file__).resolve().parents[2])
+    script = (
+        "import sys; "
+        f"sys.path.insert(0,{product!r});\n"
+        "class DenySettings:\n"
+        " def find_spec(self, fullname, path=None, target=None):\n"
+        "  if fullname.startswith('core.settings'): raise RuntimeError('settings_import_denied')\n"
+        "sys.meta_path.insert(0,DenySettings())\n"
+        "from app.research_web.credential_backend import EncryptedModelCredentialBackend\n"
+        "print('isolated_import_pass')\n"
+    )
+    result = subprocess.run(
+        [sys.executable, "-I", "-B", "-c", script],
+        cwd="/",
+        env={"PATH": "/usr/bin:/bin", "LANG": "C.UTF-8"},
+        capture_output=True,
+        text=True,
+        timeout=20,
+        check=False,
+    )
+    assert result.returncode == 0
+    assert result.stdout.strip() == "isolated_import_pass"

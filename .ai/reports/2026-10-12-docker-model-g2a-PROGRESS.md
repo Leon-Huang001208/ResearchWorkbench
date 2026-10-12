@@ -1,5 +1,15 @@
 # G2A Docker 模型凭据进度
 
+后续用户明确授权为外部夹具设置上限并保持运行：实际更新为 memory=swap=512MiB、
+CPU=1、PIDs=128，核对原 container ID 仍 running 且未 OOM；没有停止或删除它。
+DSH 刷新构建成功，干净源码 `8bc8cd8ca910ad89a6cba3c7842bdb19579284b5`，
+本地 arm64 runtime image `sha256:24968bc07bb6ec84f789b7c4b4d99d230033f725e7a43270d5420347ca4cb653`，
+无 registry manifest digest。完整 DSH 编译、606 包 staging 和最终导入 smoke 通过，builder 退出停止。
+候选初始化主密钥成功并实际健康，但 credential-probe 和模型 describe 失败；未报告模型闭环通过。
+隔离 Python 导入 credential_backend 时，core.observability 导入全局 Settings，尝试在只读
+`/opt/rwb/logs` 创建目录。已增加拒绝全局 Settings 导入的回归，观察到 FAIL 后改为既有标准
+日志 handler；保持 -I -B、清洁环境和受管模块路径。修复后的新镜像及产品闭环待验。
+
 基线：master `8a2d4ba75294b3fbe2aa90aa802dfd25a1296a2b`；PR93 head `02a9a0c1aef8244a9c71aa2c32e06e07be4f9878` 已合并。
 上述 head 和 master 的三个对应 CI 均实时查询为 success，不沿用 f05c016 的旧证据。
 固定 DSH 为 `48504f07f217f9fd45a4f6d8fca4b1ed35c2d4b0`。

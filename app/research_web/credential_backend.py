@@ -9,6 +9,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
+import logging
 import os
 import secrets
 import stat
@@ -19,11 +20,11 @@ from pathlib import Path
 from threading import RLock
 from typing import Protocol
 
-from core.observability import get_logger
-
 from .runtime_state import runtime_state_directory
 
-log = get_logger(__name__)
+# The Host configures these same standard handlers into logs/. The isolated
+# model bridge must not import global settings or create unrelated directories.
+log = logging.getLogger(__name__)
 _PLATFORM_NAME = os.name
 MAX_VALUE_BYTES = 64 * 1024
 MAX_RECORD_BYTES = MAX_VALUE_BYTES * 6 + 64
