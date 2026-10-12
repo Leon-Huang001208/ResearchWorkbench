@@ -22,7 +22,7 @@
     "cross-platform"
   ],
   "changeSummary": {
-    "fileCount": 37,
+    "fileCount": 39,
     "ruleIds": [
       "documentation",
       "research-web-docker-packaging",
@@ -47,8 +47,10 @@
     ]
   },
   "changedFiles": [
+    ".ai/reports/2026-10-12-docker-model-g2a-HANDOFF.md",
     ".ai/reports/2026-10-12-docker-model-g2a-PROGRESS.md",
     ".ai/reports/2026-10-12-docker-model-g2a-plan.json",
+    ".ai/reports/2026-10-12-docker-model-g2a-receipt.json",
     "Dockerfile",
     "README.md",
     "app/research_web/credential_backend.py",
@@ -87,6 +89,16 @@
   ],
   "impact": [
     {
+      "path": ".ai/reports/2026-10-12-docker-model-g2a-HANDOFF.md",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
       "path": ".ai/reports/2026-10-12-docker-model-g2a-PROGRESS.md",
       "rule": "documentation",
       "reason": "documentation_only",
@@ -98,6 +110,16 @@
     },
     {
       "path": ".ai/reports/2026-10-12-docker-model-g2a-plan.json",
+      "rule": "documentation",
+      "reason": "documentation_only",
+      "modules": [
+        "documentation"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L0"
+    },
+    {
+      "path": ".ai/reports/2026-10-12-docker-model-g2a-receipt.json",
       "rule": "documentation",
       "reason": "documentation_only",
       "modules": [
@@ -504,12 +526,22 @@
   ],
   "reasons": [
     {
+      "path": ".ai/reports/2026-10-12-docker-model-g2a-HANDOFF.md",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
       "path": ".ai/reports/2026-10-12-docker-model-g2a-PROGRESS.md",
       "rule": "documentation",
       "code": "documentation_only"
     },
     {
       "path": ".ai/reports/2026-10-12-docker-model-g2a-plan.json",
+      "rule": "documentation",
+      "code": "documentation_only"
+    },
+    {
+      "path": ".ai/reports/2026-10-12-docker-model-g2a-receipt.json",
       "rule": "documentation",
       "code": "documentation_only"
     },
@@ -1250,8 +1282,10 @@
   "receiptTemplate": {
     "plannedLevel": "L4",
     "changedFiles": [
+      ".ai/reports/2026-10-12-docker-model-g2a-HANDOFF.md",
       ".ai/reports/2026-10-12-docker-model-g2a-PROGRESS.md",
       ".ai/reports/2026-10-12-docker-model-g2a-plan.json",
+      ".ai/reports/2026-10-12-docker-model-g2a-receipt.json",
       "Dockerfile",
       "README.md",
       "app/research_web/credential_backend.py",
