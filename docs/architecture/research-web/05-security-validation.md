@@ -416,3 +416,7 @@ FinGPT 资料范围在工具 preflight、上传入口及脚本数据集 read_pat
 ## 历史子会话模式兼容 · 2026-10-13
 
 activityOnly仍逐项验证父子关联、origin=subagent及running为布尔值，不能将missing/unknown活动推断为空闲。历史mode=unknown不授权打开子历史；继续、取消和删除路径仍使用严格执行模式查询。
+
+POSIX运行记录读取的共享祖先在stat/open与退出复查均采用dev/inode/mode及UID/GID，
+允许无关sibling目录变化；直接私有parent与记录文件保留完整元数据、单链接及权限校验。
+目录替换/alias/owner或mode变化仍拒绝；私有UID异常继续unsafe_path，不改变格式或端点。

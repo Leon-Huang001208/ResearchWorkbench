@@ -137,3 +137,18 @@ adapter.config私有调用导致两次失败，改稳定profile-boot.js及公开
 MISSING_CREDENTIAL、坏bridge必须TRANSPORT+固定cause，不接触用户key或供应商。
 两原生用例2通过，21.98秒，四阶段empty/冷启有key/冷启清除/backend不可用均检查Host记录
 和模型ref未落文件。最终候选固定后再完整复跑，最新实际计数与回执见PR当前描述。
+
+最终候选7879完整复跑实际3482通过/1失败/13跳过/9 subtests通过，1727.49秒，保留FAIL。
+剩余日志退出码用例是共享祖先stat/open窗口无关目录churn误报runtime_mode_changed；
+单点复跑通过，新增确定性注入红例复现（shared应成功却失败、private变化仍拒绝）。
+POSIX进入/退出目录node+owner判定统一，私有parent/file完整metadata和O_NOFOLLOW保留，
+新增UID/GID变化拒绝；旧private UID错误码unsafe_path保持，fake stat补真实st_gid。
+独立安全审查无P1/P2，24合成所有权/权限竞争组合全部拒绝。
+剩余3个DSH_SOURCE_ROOT缺参Native源/Schema用例使用固定SDK及任务Node补跑，结果见日志；
+Docker显式资源及Linux/Windows未验项保持NOT_RUN，不删安全门。
+
+共享目录修复后的runtime_mode+日志107通过，所有权fake和旧错误码复审6通过，
+安全审查无P1/P2。固定SDK源检查初次1失败/3通过，原生注册helper漏新增external_data；
+补齐真实enabledTools后4通过，真实注册表/schema及宿主目录排除/监听保持。
+最后完整回归按独立模块分三组，每组独立进程和临时根，按完整收集列表与唯一nodeid
+合并JUnit/summary；所有用例保留，原生DSH/Keychain flags显式启用，平台跳过单独列明。

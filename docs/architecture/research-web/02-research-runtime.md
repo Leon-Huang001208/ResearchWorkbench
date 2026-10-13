@@ -441,3 +441,7 @@ Office受控自动验证在Host既有批次内串行执行，与DSH研究循环�
 ## 历史子会话模式兼容 · 2026-10-13
 
 列表及父详情复用 activityOnly=True 查询，unknown模式只提供已验证的running活动状态。未知模式不会被猜成one-shot/continuable，子历史保留不可用提示；父列表和父历史继续可读，严格控制查询保持缺省路径。
+
+POSIX运行记录读取的共享祖先在stat/open与退出复查均采用dev/inode/mode及UID/GID，
+允许无关sibling目录变化；直接私有parent与记录文件保留完整元数据、单链接及权限校验。
+目录替换/alias/owner或mode变化仍拒绝；私有UID异常继续unsafe_path，不改变格式或端点。

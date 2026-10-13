@@ -172,6 +172,12 @@ def _pin_windows_parents(path: Path, *, node_only: bool = False) -> Iterator[Non
         _fail("io")
 
 
+def _posix_parent_identity(value: os.stat_result, *, full_metadata: bool) -> tuple[int, ...]:
+    """Pin ancestor nodes/owners; only private-parent contents are authoritative."""
+    identity = _identity(value) if full_metadata else _node_identity(value)
+    return (*identity, value.st_uid, value.st_gid)
+
+
 @contextmanager
 def _pin_posix_parents(path: Path, *, node_only: bool = False) -> Iterator[int]:
     """Traverse absolute parents with retained no-follow directory descriptors."""
@@ -183,9 +189,14 @@ def _pin_posix_parents(path: Path, *, node_only: bool = False) -> Iterator[int]:
             before = os.stat(name, dir_fd=parent, follow_symlinks=False)
             descriptor = os.open(name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=parent)
             stack.callback(os.close, descriptor)
-            if not stat.S_ISDIR(before.st_mode) or _identity(os.fstat(descriptor)) != _identity(
-                before
-            ):
+            full_metadata = not node_only and component == path.parent
+            opened = os.fstat(descriptor)
+            # Preserve the existing private-directory ownership failure code.
+            if full_metadata and opened.st_uid != before.st_uid:
+                _fail("unsafe_path")
+            if not stat.S_ISDIR(before.st_mode) or _posix_parent_identity(
+                opened, full_metadata=full_metadata
+            ) != _posix_parent_identity(before, full_metadata=full_metadata):
                 _fail("changed")
             directories.append((descriptor, parent, name, before))
             parent = descriptor
@@ -196,10 +207,17 @@ def _pin_posix_parents(path: Path, *, node_only: bool = False) -> Iterator[int]:
             # Retained descriptors protect the traversal identity. Unrelated
             # sibling creation in shared ancestors is not a private-file change.
             # Keep full metadata on the immediate parent for rename-and-restore.
-            comparison = _identity if not node_only and descriptor == parent else _node_identity
-            if comparison(os.fstat(descriptor)) != comparison(before) or comparison(
-                os.stat(name, dir_fd=ancestor, follow_symlinks=False)
-            ) != comparison(before):
+            full_metadata = not node_only and descriptor == parent
+            expected = _posix_parent_identity(before, full_metadata=full_metadata)
+            if (
+                _posix_parent_identity(os.fstat(descriptor), full_metadata=full_metadata)
+                != expected
+                or _posix_parent_identity(
+                    os.stat(name, dir_fd=ancestor, follow_symlinks=False),
+                    full_metadata=full_metadata,
+                )
+                != expected
+            ):
                 _fail("changed")
 
 

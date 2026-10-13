@@ -117,6 +117,7 @@ def _with_uid(identity: os.stat_result, uid: int) -> SimpleNamespace:
             )
         },
         st_uid=uid,
+        st_gid=identity.st_gid,
         st_file_attributes=getattr(identity, "st_file_attributes", 0),
     )
 
@@ -1196,3 +1197,79 @@ def test_write_lock_rejects_unsafe_leaf(tmp_path, kind):
     with pytest.raises(RuntimeModeError):
         RuntimeModeStore(home).write("docker")
     assert RuntimeModeStore(home).read() == record
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX retained directory descriptors")
+@pytest.mark.parametrize("private_parent", [False, True])
+def test_read_distinguishes_shared_ancestor_churn_from_private_parent_change(
+    tmp_path: Path, monkeypatch, private_parent: bool
+) -> None:
+    from research_workbench_entrypoint import runtime_mode
+
+    home = tmp_path / "home"
+    store = RuntimeModeStore(home)
+    expected = store.write("docker")
+    target = home / "install" if private_parent else tmp_path
+    original_open = os.open
+    changed = False
+
+    def racing_open(name, flags, *args, **kwargs):
+        nonlocal changed
+        if name == target.name and flags & os.O_DIRECTORY and not changed:
+            changed = True
+            (target / "unrelated-sibling").mkdir()
+        return original_open(name, flags, *args, **kwargs)
+
+    monkeypatch.setattr(runtime_mode.os, "open", racing_open)
+    if private_parent:
+        with pytest.raises(RuntimeModeError, match="runtime_mode_changed"):
+            store.read()
+    else:
+        assert store.read() == expected
+    assert changed
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX retained directory descriptors")
+@pytest.mark.parametrize("owner_field", ["st_uid", "st_gid"])
+def test_shared_ancestor_owner_change_during_open_is_rejected(
+    tmp_path: Path, monkeypatch, owner_field: str
+) -> None:
+    home = tmp_path / "home"
+    store = RuntimeModeStore(home)
+    store.write("docker")
+    original_open, original_fstat = os.open, os.fstat
+    target_fd = None
+
+    def observing_open(name, flags, *args, **kwargs):
+        nonlocal target_fd
+        descriptor = original_open(name, flags, *args, **kwargs)
+        if name == tmp_path.name and flags & os.O_DIRECTORY:
+            target_fd = descriptor
+        return descriptor
+
+    def changed_owner(descriptor):
+        value = original_fstat(descriptor)
+        if descriptor != target_fd:
+            return value
+        fields = {
+            name: getattr(value, name)
+            for name in (
+                "st_dev",
+                "st_ino",
+                "st_mode",
+                "st_nlink",
+                "st_size",
+                "st_mtime_ns",
+                "st_ctime_ns",
+                "st_uid",
+                "st_gid",
+            )
+        }
+        fields[owner_field] += 1
+        return SimpleNamespace(**fields)
+
+    monkeypatch.setattr(runtime_mode.os, "open", observing_open)
+    monkeypatch.setattr(runtime_mode.os, "fstat", changed_owner)
+    with pytest.raises(RuntimeModeError, match="runtime_mode_changed"):
+        store.read()
+    assert target_fd is not None
