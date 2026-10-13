@@ -172,6 +172,39 @@ def test_registry_selection_pins_arm64_manifest_without_publishing(tmp_path, mon
         store.registry_selection("r1")
 
 
+def test_seal_distinguishes_daemon_identity_from_config_digest(tmp_path, monkeypatch):
+    store = release.ReleaseStore(tmp_path, "/admin", "/worktree")
+    path = tmp_path / "releases/r1"
+    path.mkdir(parents=True)
+    for name in ("source", "control", "dsh"):
+        (path / name).mkdir()
+    prepared = {
+        "release_id": "r1",
+        "frozen_tree_hash": release.tree_hash(path / "source"),
+        "controller_hash": release.tree_hash(path / "control"),
+        "dsh_payload_hash": release.tree_hash(path / "dsh"),
+    }
+    (path / "prepared.json").write_text(json.dumps(prepared))
+    config, image = "sha256:" + "a" * 64, "sha256:" + "b" * 64
+    (path / "build-metadata.json").write_text(
+        json.dumps({"containerimage.config.digest": config, "containerimage.digest": image})
+    )
+    for name in ("python", "node"):
+        (path / ("base-" + name + ".json")).write_text(json.dumps({"digest": image}))
+    (path / "image.tar").write_bytes(b"unit-only")
+    monkeypatch.setattr(release.manage, "inspect", lambda kind, reference: {"Id": image})
+    monkeypatch.setattr(
+        release, "archive_identity", lambda archive, expected, identity: {"config_digest": expected}
+    )
+    monkeypatch.setattr(
+        store, "verify", lambda *args, **kwargs: json.loads((path / "release.json").read_text())
+    )
+    value = store.seal("r1")
+    assert value["local_image_id"] == image
+    assert value["config_digest"] == config
+    assert value["archive_identity"]["config_digest"] == config
+
+
 def test_plan_rejects_tamper_stale_state_and_expiration(tmp_path):
     store = release.ReleaseStore(tmp_path, "/admin", "/worktree")
     record = {"environment": "prod", "instance": "g2b-rehearsal", "purpose": "rehearsal"}

@@ -69,7 +69,7 @@ def sha256_file(path: Path) -> str:
 
 
 def tree_hash(root: Path) -> str:
-    entries = []
+    entries: list[list[Any]] = []
     for path in sorted(root.rglob("*")):
         name = str(path.relative_to(root))
         if path.is_symlink():
@@ -327,59 +327,58 @@ class ReleaseStore:
                 "--mount",
                 f"type=bind,src={self.host_root}/releases/{release_id}/empty/{name},dst={target}",
             ]
-        resource_session = ResourceSession(DockerResources(), "g2b-release-export")
-        resource_session.resources.append(("container", temporary))
-        resource_session.pending.add(("container", temporary))
-        identifier = manage.command(
-            "docker",
-            "create",
-            "--name",
-            temporary,
-            "--read-only",
-            "--network",
-            "none",
-            "--memory",
-            "128m",
-            "--memory-swap",
-            "128m",
-            "--cpus",
-            ".5",
-            "--pids-limit",
-            "32",
-            "--label",
-            manage.PREFIX + "release-export=" + release_id,
-            *resource_session.flags,
-            *bind_args,
-            "--entrypoint",
-            "/bin/true",
-            reuse,
-        )
-        # Exit the fixed /bin/true helper before copying; ResourceSession then
-        # cleans an exact stopped helper rather than adopting an unstarted one.
-        manage.command("docker", "start", "--attach", identifier)
-        projection = manage.identity_projection(manage.inspect("container", identifier))
-        resource_session.pending.discard(("container", temporary))
-        try:
-            (path / "dsh").mkdir()
-            manage.command(
+        with ResourceSession(DockerResources(), "g2b-release-export") as resource_session:
+            resource_session.resources.append(("container", temporary))
+            resource_session.pending.add(("container", temporary))
+            identifier = manage.command(
                 "docker",
-                "cp",
-                identifier + ":/opt/dsh/.",
-                str(path / "dsh" / "runtime"),
-                timeout=900,
+                "create",
+                "--name",
+                temporary,
+                "--read-only",
+                "--network",
+                "none",
+                "--memory",
+                "128m",
+                "--memory-swap",
+                "128m",
+                "--cpus",
+                ".5",
+                "--pids-limit",
+                "32",
+                "--label",
+                manage.PREFIX + "release-export=" + release_id,
+                *resource_session.flags,
+                *bind_args,
+                "--entrypoint",
+                "/bin/true",
+                reuse,
             )
-            manage.command(
-                "docker",
-                "cp",
-                identifier + ":/usr/local/lib/node_modules/corepack",
-                str(path / "dsh" / "corepack"),
-                timeout=120,
-            )
-        finally:
-            current = manage.inspect("container", identifier)
-            if manage.identity_projection(current) != projection or current["State"]["Running"]:
-                raise Refusal("release_export_ownership_mismatch")
-            resource_session.cleanup()
+            # Exit the fixed /bin/true helper before copying; ResourceSession then
+            # cleans an exact stopped helper rather than adopting an unstarted one.
+            manage.command("docker", "start", "--attach", identifier)
+            projection = manage.identity_projection(manage.inspect("container", identifier))
+            resource_session.pending.discard(("container", temporary))
+            try:
+                (path / "dsh").mkdir()
+                manage.command(
+                    "docker",
+                    "cp",
+                    identifier + ":/opt/dsh/.",
+                    str(path / "dsh" / "runtime"),
+                    timeout=900,
+                )
+                manage.command(
+                    "docker",
+                    "cp",
+                    identifier + ":/usr/local/lib/node_modules/corepack",
+                    str(path / "dsh" / "corepack"),
+                    timeout=120,
+                )
+            finally:
+                current = manage.inspect("container", identifier)
+                if manage.identity_projection(current) != projection or current["State"]["Running"]:
+                    raise Refusal("release_export_ownership_mismatch")
         prepared = {
             "schema": 1,
             "administrative_image_id": os.environ.get("RWB_CONTROL_IMAGE_ID"),
@@ -952,15 +951,15 @@ print('gate_ready')
             raise Refusal("registry_digest_unavailable")
         candidates = raw.get("manifests")
         if candidates is not None:
-            selected = [
+            platform_candidates = [
                 item
                 for item in candidates
                 if item.get("platform", {}).get("os") == "linux"
                 and item.get("platform", {}).get("architecture") == "arm64"
             ]
-            if len(selected) != 1:
+            if len(platform_candidates) != 1:
                 raise Refusal("registry_platform_manifest_ambiguous")
-            platform_digest, index_digest = selected[0].get("digest"), top
+            platform_digest, index_digest = platform_candidates[0].get("digest"), top
         else:
             if raw.get("mediaType") not in {
                 "application/vnd.oci.image.manifest.v1+json",

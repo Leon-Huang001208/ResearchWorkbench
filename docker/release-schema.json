@@ -18,6 +18,8 @@
     "dependency_locks": {"type": "object", "additionalProperties": {"$ref": "#/$defs/digest"}},
     "base_images": {"type": "object", "required": ["python", "node"]},
     "local_image_id": {"$ref": "#/$defs/digest"},
+    "config_digest": {"$ref": "#/$defs/digest", "description": "OCI Config content identity; daemon .Id is recorded independently"},
+    "administrative_image_id": {"$ref": "#/$defs/digest"},
     "build_manifest_digest": {"$ref": "#/$defs/nullableDigest", "description": "BuildKit exporter identity, not evidence of registry publication"},
     "registry_manifest_digest": {"$ref": "#/$defs/nullableDigest"},
     "registry_index_digest": {"$ref": "#/$defs/nullableDigest"},
