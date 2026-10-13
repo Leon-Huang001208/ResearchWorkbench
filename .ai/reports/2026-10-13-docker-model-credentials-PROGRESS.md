@@ -5,7 +5,8 @@
 宿主 macOS，功能开发及 Docker Desktop 本机验收。保留现有产品根、业务数据和通用凭据，
 为固定 DSH 的两个模型 ref 增加显式 Docker 加密文件存储。不迁移 Native Keychain，不读取
 旧 Key，不改研究引擎、模型供应商或公共配置端点。用户选择保留 DeepSeek 官方/deepseek-flash，
-允许仅在任务 Docker 工具镜像安装仓库已固定版本的 dev 工具。
+允许仅在任务 Docker 工具镜像安装仓库已固定版本的 dev 工具及 Dockerfile.dev 已声明的
+procps/lsof；另已授权推送、PR 和自动通用/macOS CI，不授权自动合并或 Windows/Linux dispatch。
 
 实现与目标回归已完成；候选镜像、现有实例升级、用户安全录入 Key、一次真实推理、
 同 SHA macOS CI 仍待验证。此报告不宣称整体验收或发布就绪。
@@ -46,10 +47,19 @@ argv，Key 仍仅走私有 stdin。Python Docker 桥的共享 guard/logger 导�
   opt-in 测试 SKIP；16 个模型 API 用例通过；Node 模型 provider 5/5 通过。
 - 隔离子进程存取、重建 store、两个 ref、密文绑定、丢失主密钥、并发首次写入及通用凭据
   保留均有合成回归。合成凭据不代表真实供应商证据。
-- Ruff、isort 通过；Black 已在任务容器格式化，需最终重检。Mypy 四个源码文件通过。
+- Ruff、isort、Black 最终检查通过；Mypy 四个源码文件通过。
 - 扩大完整 API：56 PASS / 1 FAIL，Word 文件生成返回 document_operation_failed。
   同一失败已在未修改 master cccb778 的同 Docker 工具环境复现；没有改 Word 实现、跳过
   用例或将完整 API 标为 PASS。早期 100/240 秒超时完整保留，扩大至 600 秒得到真实结果。
+- Word 路径调用的 sandbox.run_script 明确要求 macOS Seatbelt，任务 Linux 工具容器没有
+  此能力；不修改沙箱守卫，不以 Docker 结果证明 Native 文件执行。
+- 安装 ps/lsof 后扩大闭包为 962 PASS / 2 FAIL / 5 SKIP。Docker 控制器独立进程全部
+  357 PASS；Native service_manager 完整模块为 340 PASS / 1 FAIL / 2 SKIP，同样的 bind-race
+  失败在未修改 cccb778 基线完整模块复现；该用例独立基线运行 PASS。保留组合/单独结果，
+  不把扩大闭包写成 PASS，不为测试放宽进程归属保护。
+- GitHub 最新 master 566523a0 已合入，保留 FinGPT 与模型双方测试和文档；代码候选
+  89507af55090e1e742494dcf0ee95481d8b15e6e。Project Constraints 和 Research Web Checks
+  CI 已通过，macOS Bootstrap 仍在运行。PR #101 为 draft，无自动合并。
 - 两次只读审查没有发现限定范围内的行为/安全阻断；Python 审查要求的新接口类型标注已补。
   Node 审查的宿主测试不作为 Docker 验收证据，以上计数均由主任务的 Docker 回执提供。
 
@@ -61,4 +71,5 @@ argv，Key 仍仅走私有 stdin。Python Docker 桥的共享 guard/logger 导�
 
 候选镜像及安装验证、现有数据/凭据保留、用户在设置页安全录入 Key、单次真实生成、
 冷重启后配置恢复、当前 SHA 的 macOS 干净安装 CI：NOT_RUN。Windows/Linux 产品 CI
-由对应设备交接，NOT_RUN；当前未获推送、PR/合并或其它平台 dispatch 授权。
+由对应设备交接，NOT_RUN；已获推送/PR/通用和macOS自动CI授权，未获合并或其它平台dispatch授权。
+本文件是上述候选的进度快照；后续镜像、升级和真实模型结果保存于任务日志及最终回执。
