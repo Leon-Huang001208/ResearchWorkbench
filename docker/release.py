@@ -335,6 +335,9 @@ class ReleaseStore:
             "/bin/true",
             reuse,
         )
+        # Exit the fixed /bin/true helper before copying; ResourceSession then
+        # cleans an exact stopped helper rather than adopting an unstarted one.
+        manage.command("docker", "start", "--attach", identifier)
         projection = manage.identity_projection(manage.inspect("container", identifier))
         resource_session.pending.discard(("container", temporary))
         try:
