@@ -1475,3 +1475,31 @@ def test_registry_api_flag_crud_server_list_detail_and_publisher(tmp_path, monke
         assert validated.json()["valid"] is True
         removed = client.delete(f"/api/research/mcp/registries/{registry_id}")
         assert removed.json() == {"id": registry_id, "deleted": True}
+
+
+@pytest.mark.parametrize("value", [None, 123, [], {}])
+def test_registry_text_type_rejection_remains_a_value_error(value):
+    from app.research_web.mcp_registry.models import RegistryValidationError, safe_text
+
+    with pytest.raises(RegistryValidationError) as failure:
+        safe_text(value)
+    assert isinstance(failure.value, ValueError)
+
+
+def test_publisher_validation_logs_only_error_type(monkeypatch):
+    from types import SimpleNamespace
+
+    from app.research_web.mcp_registry import publisher
+
+    events = []
+    monkeypatch.setattr(
+        publisher,
+        "log",
+        SimpleNamespace(warning=lambda event, **fields: events.append((event, fields))),
+    )
+    result = publisher.PublisherMetadata().validate(["synthetic-secret-in-invalid-server-json"])
+    assert result["valid"] is False and result["executed"] is False
+    assert events == [
+        ("mcp_publisher_validation_failed", {"error_type": "RegistryValidationError"})
+    ]
+    assert "synthetic-secret" not in repr(events)

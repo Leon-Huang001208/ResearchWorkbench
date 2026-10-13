@@ -1,5 +1,9 @@
 # Research Web 能力与平台证据
 
+PR #100 的隔离 Native 预览与 macOS Bootstrap 属于该候选的 Web 证据；源码更新后须重新绑定。
+运行时、共享 Wind 和日志的类型/离线回归不证明 Windows/Linux、真实 Wind 或桌面安装可用。
+策略所选而未执行的 Docker、Windows及桌面门保持NOT_RUN；不复用其他平台结果提升支持状态。
+
 2026-10-12 G0/G1 在 Mac mini（Apple M6、24GiB、macOS27.0.1、arm64）完成本地 Docker
 开发与候选基座实测：固定DSH完整构建、容器内回归、实际健康、stop/up、开发重建/退休后
 源码与数据保留，以及固定候选不受开发源码变化影响。具体镜像、命令、哈希与失败重试记录

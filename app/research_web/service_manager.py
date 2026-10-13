@@ -480,12 +480,14 @@ class WebServiceManager:
             )
             and value["project_root"] == str(self.project_root)
             and value["data_root"] == str(self.data_root)
+            and isinstance(command, list)
             and len(command) <= 64
+            and isinstance(signature, list)
             and len(signature) <= 8
             and value.get("fingerprint") == self._fingerprint(command)
             and signature == list(process.signature)
         )
-        if not valid:
+        if not valid or not isinstance(signature, list):
             return _StateFact("invalid", safe_pid, (), (f"{process.role}_state_invalid",))
         return _StateFact(
             "valid",
@@ -2992,7 +2994,7 @@ class WebServiceManager:
             _read_bytes,
         )
 
-        proofs = {}
+        proofs: dict[str, tuple[bytes, tuple[int, ...]]] = {}
         try:
             for process in self._processes():
                 try:

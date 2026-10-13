@@ -1,5 +1,10 @@
 # 研究框架
 
+当前内置 framework-research 缺少可验证的 DataHub data_requirements 时，显式验证保持
+capability_data_unavailable（readiness 中 data_contract_missing），不提交原生 prompt。
+解释 preset 不替代验证准入。两条成功链的离线回归使用正规发布的合成 web-only v2，
+不代表默认内置 Skill 已获真实数据准入，也不通过测试绕过资源或凭据门。
+
 共用聊天 renderer 的停止、超时和重试资格检查不改变 Gold/Dollar 的版本、快照或准入。
 外部资料工具仍经会话 DataHub admission；框架不能凭目录或兼容传输支持绕过数据/工具验证。
 

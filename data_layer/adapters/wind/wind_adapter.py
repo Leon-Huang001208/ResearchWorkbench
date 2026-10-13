@@ -1,8 +1,9 @@
 """Wind 数据适配器 —— 通过 Excel 插件获取 Wind 数据"""
 
+from collections.abc import Callable
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
 import pandas as pd
 
@@ -36,7 +37,8 @@ class WindAdapter(BaseDataAdapter):
         try:
             client = self._get_client()
             return client.heartbeat()
-        except Exception:
+        except Exception as exc:
+            logger.exception("wind_heartbeat_failed", error_type=type(exc).__name__, exc_info=False)
             return False
 
     def close(self) -> None:
@@ -76,8 +78,8 @@ class WindAdapter(BaseDataAdapter):
             ]
             raw = client.execute_batch(formulas)
 
-            def _val(idx: int):
-                r = raw[idx]
+            def _val(idx: int, values=raw):
+                r = values[idx]
                 if isinstance(r, Exception):
                     raise r
                 return r
@@ -129,8 +131,8 @@ class WindAdapter(BaseDataAdapter):
                 ]
                 raw = client.execute_batch(formulas)
 
-                def _val(idx: int):
-                    r = raw[idx]
+                def _val(idx: int, values=raw):
+                    r = values[idx]
                     if isinstance(r, Exception):
                         return None
                     return r
@@ -178,8 +180,8 @@ class WindAdapter(BaseDataAdapter):
                 ]
                 raw = client.execute_batch(formulas)
 
-                def _val(idx: int):
-                    r = raw[idx]
+                def _val(idx: int, values=raw):
+                    r = values[idx]
                     if isinstance(r, Exception):
                         return None
                     return r
@@ -209,7 +211,7 @@ class WindAdapter(BaseDataAdapter):
     # ===== 二期接口 =====
 
     # 日行情字段定义（_fetch_dq_recent_batch 和 fetch_daily_quotes 共享）
-    _DQ_FIELD_KEYS = [
+    _DQ_FIELD_KEYS: ClassVar[list[str]] = [
         "open",
         "high",
         "low",
@@ -222,20 +224,28 @@ class WindAdapter(BaseDataAdapter):
         "pct_change",
         "amplitude",
     ]
-    _DQ_FIELD_FNS = [
-        wf.daily_open,
-        wf.daily_high,
-        wf.daily_low,
-        wf.daily_close,
-        wf.daily_volume,
-        wf.daily_amount,
-        wf.daily_turnover,
-        wf.daily_adj_factor,
-        wf.daily_vwap,
-        wf.daily_pct_change,
-        wf.daily_amplitude,
-    ]
-    _DQ_ADJ_FIELDS = {0, 1, 2, 3}  # open, high, low, close 需要 adj_type 参数
+    _DQ_ADJUSTED_FNS: ClassVar[dict[int, Callable[[str, str, int], str]]] = {
+        0: wf.daily_open,
+        1: wf.daily_high,
+        2: wf.daily_low,
+        3: wf.daily_close,
+    }
+    _DQ_UNADJUSTED_FNS: ClassVar[dict[int, Callable[[str, str], str]]] = {
+        4: wf.daily_volume,
+        5: wf.daily_amount,
+        6: wf.daily_turnover,
+        7: wf.daily_adj_factor,
+        8: wf.daily_vwap,
+        9: wf.daily_pct_change,
+        10: wf.daily_amplitude,
+    }
+
+    @classmethod
+    def _daily_quote_formula(cls, field_index: int, code: str, date: str, adj_type: int) -> str:
+        adjusted = cls._DQ_ADJUSTED_FNS.get(field_index)
+        if adjusted is not None:
+            return adjusted(code, date, adj_type)
+        return cls._DQ_UNADJUSTED_FNS[field_index](code, date)
 
     def fetch_daily_quotes(
         self, codes: list[str], start_date: str, end_date: str, adj_type: int = 1
@@ -270,7 +280,9 @@ class WindAdapter(BaseDataAdapter):
                     options="",
                 )
             except Exception as exc:
-                logger.warning(f"WSD 获取交易日历失败: {code}: {exc}")
+                logger.exception(
+                    "wind_calendar_fetch_failed", error_type=type(exc).__name__, exc_info=False
+                )
                 wsd_raw = []
 
             if not wsd_raw or len(wsd_raw) < 2:
@@ -327,12 +339,9 @@ class WindAdapter(BaseDataAdapter):
             formulas = []
             formula_dates = []
             for date_str in trading_dates:
-                for f_idx, fn in enumerate(self._DQ_FIELD_FNS):
+                for f_idx in range(len(self._DQ_FIELD_KEYS)):
                     formula_dates.append(date_str)
-                    if f_idx in self._DQ_ADJ_FIELDS:
-                        formulas.append(fn(code, date_str, adj_type))
-                    else:
-                        formulas.append(fn(code, date_str))
+                    formulas.append(self._daily_quote_formula(f_idx, code, date_str, adj_type))
 
             # 分批执行（每批最多 200 个公式，避免 Excel 过载）
             BATCH_SIZE = 200
@@ -387,12 +396,9 @@ class WindAdapter(BaseDataAdapter):
         dates = []
         for dt in date_range:
             date_str = dt.strftime("%Y-%m-%d")
-            for f_idx, fn in enumerate(self._DQ_FIELD_FNS):
+            for f_idx in range(len(self._DQ_FIELD_KEYS)):
                 dates.append(date_str)
-                if f_idx in self._DQ_ADJ_FIELDS:
-                    formulas.append(fn(code, date_str, adj_type))
-                else:
-                    formulas.append(fn(code, date_str))
+                formulas.append(self._daily_quote_formula(f_idx, code, date_str, adj_type))
 
         raw = client.execute_batch(formulas)
 
@@ -436,8 +442,8 @@ class WindAdapter(BaseDataAdapter):
             ]
             raw = client.execute_batch(formulas)
 
-            def _val(idx: int):
-                r = raw[idx]
+            def _val(idx: int, values=raw):
+                r = values[idx]
                 if isinstance(r, Exception):
                     return None
                 return r
@@ -480,8 +486,8 @@ class WindAdapter(BaseDataAdapter):
             ]
             raw = client.execute_batch(formulas, timeout=timeout)
 
-            def _val(idx: int):
-                r = raw[idx]
+            def _val(idx: int, values=raw):
+                r = values[idx]
                 if isinstance(r, Exception):
                     return None
                 return r
@@ -541,7 +547,9 @@ class WindAdapter(BaseDataAdapter):
         try:
             raw_values = client.execute_batch(formulas, timeout=10.0) if formulas else []
         except Exception as exc:
-            logger.warning("Wind index realtime batch failed: %s", exc)
+            logger.exception(
+                "wind_index_realtime_batch_failed", error_type=type(exc).__name__, exc_info=False
+            )
             raw_values = [None] * len(formulas)
 
         def _value(code: str, field: str):
@@ -638,8 +646,8 @@ class WindAdapter(BaseDataAdapter):
             all_formulas = td_formulas + rd_formulas + nd_formulas
             raw = client.execute_batch(all_formulas)
 
-            def _safe(idx):
-                r = raw[idx]
+            def _safe(idx, values=raw):
+                r = values[idx]
                 return None if isinstance(r, Exception) else r
 
             row = {"code": code, "trade_date": td}
@@ -674,8 +682,8 @@ class WindAdapter(BaseDataAdapter):
             ]
             raw = client.execute_batch(formulas)
 
-            def _val(idx: int):
-                r = raw[idx]
+            def _val(idx: int, values=raw):
+                r = values[idx]
                 if isinstance(r, Exception):
                     return None
                 return r
@@ -741,8 +749,8 @@ class WindAdapter(BaseDataAdapter):
             # 一次性批量执行
             raw = client.execute_batch(formulas)
 
-            def _val(idx: int):
-                r = raw[idx]
+            def _val(idx: int, values=raw):
+                r = values[idx]
                 return None if isinstance(r, Exception) else r
 
             # 按日期重新分组结果
@@ -791,8 +799,8 @@ class WindAdapter(BaseDataAdapter):
             ]
             raw = client.execute_batch(formulas)
 
-            def _val(idx: int):
-                r = raw[idx]
+            def _val(idx: int, values=raw):
+                r = values[idx]
                 if isinstance(r, Exception):
                     return None
                 return r

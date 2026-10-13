@@ -276,4 +276,5 @@ class _SimpleLoggerWrapper:
         self._logger.error(self._format_msg(msg, **kwargs), exc_info=kwargs.get("exc_info"))
 
     def exception(self, msg: str, **kwargs: Any) -> None:
-        self._logger.exception(self._format_msg(msg, **kwargs))
+        exc_info = kwargs.pop("exc_info", True)
+        self._logger.exception(self._format_msg(msg, **kwargs), exc_info=exc_info)

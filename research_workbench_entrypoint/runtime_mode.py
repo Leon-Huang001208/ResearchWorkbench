@@ -325,12 +325,13 @@ def _validate(payload: object) -> RuntimeModeRecord:
         _fail("value")
     try:
         # Validate UTC wire syntax only; the resulting naive datetime never escapes.
-        datetime.strptime(value["updated_at"], "%Y-%m-%dT%H:%M:%S.%fZ")  # noqa: DTZ007
+        # This validates the fixed UTC wire format; it does not interpret a local time.
+        datetime.strptime(value["updated_at"], "%Y-%m-%dT%H:%M:%S.%fZ")
     except ValueError:
         _fail("value")
     return RuntimeModeRecord(
         schema_version=_SCHEMA_VERSION,
-        mode=value["mode"],
+        mode="native" if value["mode"] == "native" else "docker",
         installation_id=value["installation_id"],
         updated_at=value["updated_at"],
     )
@@ -607,9 +608,9 @@ class RuntimeModeStore:
             self._log_failure("read", error)
             raise
         except (OSError, TypeError, ValueError):
-            error = RuntimeModeError("runtime_mode_io")
-            self._log_failure("read", error)
-            raise error from None
+            io_error = RuntimeModeError("runtime_mode_io")
+            self._log_failure("read", io_error)
+            raise io_error from None
         log.debug("runtime_mode operation=read code=ok")
         return record
 
@@ -625,9 +626,9 @@ class RuntimeModeStore:
             self._log_failure("write", error)
             raise
         except (OSError, TypeError, ValueError):
-            error = RuntimeModeError("runtime_mode_io")
-            self._log_failure("write", error)
-            raise error from None
+            io_error = RuntimeModeError("runtime_mode_io")
+            self._log_failure("write", io_error)
+            raise io_error from None
 
     def _write_locked(
         self, mode: RuntimeMode, *, expected: RuntimeModeRecord | None
@@ -665,8 +666,8 @@ class RuntimeModeStore:
             self._log_failure("write", error)
             raise
         except (OSError, TypeError, ValueError):
-            error = RuntimeModeError("runtime_mode_io")
-            self._log_failure("write", error)
-            raise error from None
+            io_error = RuntimeModeError("runtime_mode_io")
+            self._log_failure("write", io_error)
+            raise io_error from None
         log.debug("runtime_mode operation=write code=ok")
         return persisted

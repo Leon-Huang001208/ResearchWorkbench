@@ -958,6 +958,28 @@ def test_failed_atomic_replace_cleans_temporary_file(
     assert "private filesystem detail" not in "".join(traceback.format_exception(caught.value))
 
 
+@pytest.mark.parametrize("operation", ["read", "write", "locked_write"])
+def test_os_failure_uses_stable_error_without_exception_variable_leak(
+    tmp_path, monkeypatch, caplog, operation
+):
+    store = RuntimeModeStore(tmp_path / "home")
+
+    def fail_load(*_args, **_kwargs):
+        raise OSError("sensitive filesystem detail")
+
+    monkeypatch.setattr(store, "_load", fail_load)
+    with caplog.at_level(logging.WARNING), pytest.raises(RuntimeModeError) as caught:
+        if operation == "read":
+            store.read()
+        elif operation == "write":
+            store.write("docker")
+        else:
+            store._write_locked("docker", expected=None)
+    assert caught.value.code == "runtime_mode_io"
+    assert "sensitive filesystem detail" not in caplog.text
+    assert "sensitive filesystem detail" not in "".join(traceback.format_exception(caught.value))
+
+
 def test_failures_log_only_operation_and_code(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:

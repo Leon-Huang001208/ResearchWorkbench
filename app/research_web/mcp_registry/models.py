@@ -16,6 +16,11 @@ from pydantic import (
     model_validator,
 )
 
+
+class RegistryValidationError(ValueError):
+    """Invalid untrusted registry data, including Pydantic validator inputs."""
+
+
 REGISTRY_ID_PATTERN = r"^(official|local-[a-f0-9]{32})$"
 SERVER_NAME_PATTERN = r"^[A-Za-z0-9.-]+/[A-Za-z0-9._-]+$"
 FIXED_SEMVER_PATTERN = re.compile(
@@ -83,7 +88,7 @@ def validate_registry_transport(base_url: str, auth_type: str) -> str:
 
 def safe_text(value: Any, *, maximum: int = 1000) -> str:
     if not isinstance(value, str):
-        raise ValueError("文本字段类型非法")
+        raise RegistryValidationError("文本字段类型非法")
     normalized = value.strip()
     if not normalized or len(normalized) > maximum or _has_disallowed_control(normalized):
         raise ValueError("文本字段为空、过长或包含控制字符")
@@ -292,7 +297,7 @@ def _safe_environment_variables(value: Any) -> list[dict[str, Any]]:
     seen: set[str] = set()
     for item in value:
         if not isinstance(item, dict):
-            raise ValueError("package environment variable 格式非法")
+            raise RegistryValidationError("package environment variable 格式非法")
         name = safe_text(item.get("name"), maximum=128)
         if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", name) is None or name in seen:
             raise ValueError("package environment variable name 格式非法")
@@ -326,7 +331,7 @@ def _safe_packages(value: Any) -> list[dict[str, Any]]:
     result = []
     for item in value:
         if not isinstance(item, dict):
-            raise ValueError("package 格式非法")
+            raise RegistryValidationError("package 格式非法")
         registry_type = safe_text(item.get("registryType"), maximum=64)
         identifier = safe_text(item.get("identifier"), maximum=2048)
         version = (
@@ -388,7 +393,7 @@ def normalize_upstream_server(registry_id: str, wrapper: dict[str, Any]) -> dict
     """Project one untrusted Registry response into a bounded plain-text record."""
 
     if not isinstance(wrapper, dict) or not isinstance(wrapper.get("server"), dict):
-        raise ValueError("server wrapper 格式非法")
+        raise RegistryValidationError("server wrapper 格式非法")
     server = wrapper["server"]
     name = safe_text(server.get("name"), maximum=200)
     version = safe_text(server.get("version"), maximum=255)

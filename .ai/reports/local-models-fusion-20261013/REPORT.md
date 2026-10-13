@@ -38,6 +38,35 @@
 
 ## 结构复核
 
+## 用户授权的继续修复与预览
+
+2026-10-13 用户要求继续修复并查看临时服务。预览在独立安装clone保持已验证的1262b4858，
+目录与端口38188/33181独立；product_ready及Doctor通过，不读取日常实例秘密。
+
+五项失败的最小根因：工具/Skill目录旧计数遗漏已注册项；Native读探测用例检查了其他实例
+默认端口而不是显式配置端口；框架夹具缺合成credential describe，且默认内置数据合同确实
+不完整（继续409、无prompt）；研报脚本未显式准入锁版本资源。测试保留真实失败关闭，
+以正规创建/发布/编辑/再发布的合成web-only v2覆盖框架成功路径，不授予默认内置数据权限。
+
+类型修复采用精确Protocol/TypedDict/Callable和已验证类型收窄，保留锁、PID、alias、
+manifest、清理、超时及回滚边界；结构化日志改用项目logger，fallback显式exc_info=False
+不打印原异常，默认True保持。Wind11项公式、三复权参数及naiveUTC表示由离线回归认证，
+不改变市场口径。Mypy完整导入闭包58项诊断及全Web6项Ruff已清零，新增检查不加ignore/noqa。
+
+本轮完整Research Web Python复跑3439通过、10既有跳过、9警告、9 subtests通过，耗时1261.63秒，
+没有失败；随后最新日志/Wind122项专项补验通过。已观察的专项：框架10、能力/研报61、非runtime340、
+运行时1063（首次有两失败，时限例及端口例随后定点通过）、日志/Wind122通过。
+JS/治理510项中508通过、2既有跳过。计数有重叠，不相加成总验收。
+共享Wind路径触发额外桌面门，未执行门保留NOT_RUN，不削弱规则或擅自开启桌面工作；
+新源码CI不能复用1262b4858的run。预览先固定旧提交，最终更新须确认无用户活动任务。
+
+<!-- architecture-review {"group":"dual-runtime","structure":"unchanged","reason":"类型收窄保留已有根与PID证明、manifest、pipe清理和模式回滚，不增加控制器、端口或运行模式。","diagrams":[]} -->
+<!-- architecture-review {"group":"mcp-registry","structure":"unchanged","reason":"RegistryValidationError继续是ValueError，认证与Pydantic拒绝语义保持，日志只增加稳定错误类事件。","diagrams":[]} -->
+<!-- architecture-review {"group":"mcp-runtime","structure":"unchanged","reason":"安装Plan与Manifest的显式收窄沿既有安装生命周期，环境names和artifact完整性边界不扩张。","diagrams":[]} -->
+<!-- architecture-review {"group":"report-workflows","structure":"unchanged","reason":"报告迁移仅补精确需求字典与Service Protocol，CLI原SimpleNamespace路径不改变执行和资源授权。","diagrams":[]} -->
+<!-- architecture-review {"group":"workbench","structure":"unchanged","reason":"Asset类型默认值及空数据行声明保留资产观察API和现有权威口径，不新增DataHub查询或研究循环。","diagrams":[]} -->
+<!-- architecture-review {"group":"local-integrations","structure":"unchanged","reason":"已验证native_error再查消息映射，原Office/Wind权限、poisoned状态和清理合同保持。","diagrams":[]} -->
+
 <!-- architecture-review {"group":"ui","structure":"unchanged","reason":"共用原生renderer/controller融合停止超时和重试资格，不新增框架，Claw、深研和报告路径保持。","diagrams":[]} -->
 <!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"既有FastAPI Host继续负责会话和DataHub桥接，新增投影字段不创建研究循环，原准确失败语义保留。","diagrams":[]} -->
 <!-- architecture-review {"group":"datahub","structure":"unchanged","reason":"外部Provider扩展既有Broker和会话快照，HTTPS及反射检查留在Provider边界，不新增数据库或调度器。","diagrams":[]} -->

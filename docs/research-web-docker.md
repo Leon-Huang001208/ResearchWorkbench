@@ -1,5 +1,9 @@
 # Mac mini Docker 开发与独立部署
 
+共享控制器类型维护保留 manifest/镜像归属、pipe清理、目录身份与回滚顺序。
+候选 Native 预览使用独立目录和38188/33181，不修改 Docker 实例或日常服务；
+此预览及离线控制器测试不替代 Linux exact-SHA Docker CI 与 Mac Docker Desktop 真机验收。
+
 G0/G1 的入口是 `rwb-docker`（亦可用 `./rwb docker`）。管理员在 mini 的受控终端执行，
 宿主只使用 POSIX shell 与 Docker CLI/Engine/buildx；Python、Node、Git、编译器及测试工具
 在镜像中。当前仅交付 Mac Docker Desktop arm64 的基座，实际验收见任务报告。

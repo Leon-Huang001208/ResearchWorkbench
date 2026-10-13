@@ -43,7 +43,9 @@ def _read_regular(path: Path, limit: int) -> bytes:
         result = stream.read(limit + 1)
         after = os.fstat(stream.fileno())
         if len(result) > limit or (before.st_ino, before.st_size, before.st_mtime_ns) != (
-            after.st_ino, after.st_size, after.st_mtime_ns
+            after.st_ino,
+            after.st_size,
+            after.st_mtime_ns,
         ):
             raise ValueError("changed file")
         return result
@@ -70,7 +72,7 @@ def _source_facts(value: object) -> dict:
 def _inventory(root: Path) -> list[dict]:
     if root.absolute() != root.resolve(strict=True) or not root.is_dir():
         raise ValueError("unsafe root")
-    entries = []
+    entries: list[dict[str, str | int]] = []
     for directory, folders, files in os.walk(root, followlinks=False):
         for name in sorted(folders + files):
             path = Path(directory) / name
@@ -78,7 +80,7 @@ def _inventory(root: Path) -> list[dict]:
             if relative == MANIFEST:
                 continue
             metadata = path.lstat()
-            entry = {"path": relative}
+            entry: dict[str, str | int] = {"path": relative}
             if len(relative) > 1024 or len(entries) >= MAX_ASSETS:
                 raise ValueError("inventory limit")
             if stat.S_ISLNK(metadata.st_mode):
@@ -91,7 +93,9 @@ def _inventory(root: Path) -> list[dict]:
             elif stat.S_ISREG(metadata.st_mode):
                 content = _read_regular(path, MAX_FILE_BYTES)
                 entry.update(
-                    type="file", size=len(content), mode=stat.S_IMODE(metadata.st_mode),
+                    type="file",
+                    size=len(content),
+                    mode=stat.S_IMODE(metadata.st_mode),
                     sha256=hashlib.sha256(content).hexdigest(),
                 )
             else:
@@ -100,7 +104,7 @@ def _inventory(root: Path) -> list[dict]:
     for relative in REQUIRED_ASSETS:
         if not any(item["path"] == relative and item["type"] == "file" for item in entries):
             raise ValueError("required asset missing")
-    return sorted(entries, key=lambda item: item["path"])
+    return sorted(entries, key=lambda item: str(item["path"]))
 
 
 def _digest(entries: list[dict]) -> str:
@@ -122,10 +126,17 @@ def write_staged_manifest(root: Path, verified_source: dict) -> None:
     try:
         facts = _source_facts(verified_source)
         entries = _inventory(root)
-        payload = json.dumps({
-            "schema_version": 1, "source": facts, "assets": entries,
-            "asset_count": len(entries), "assets_sha256": _digest(entries),
-        }, sort_keys=True, separators=(",", ":")).encode()
+        payload = json.dumps(
+            {
+                "schema_version": 1,
+                "source": facts,
+                "assets": entries,
+                "asset_count": len(entries),
+                "assets_sha256": _digest(entries),
+            },
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode()
         if len(payload) > MAX_MANIFEST_BYTES:
             raise ValueError("manifest limit")
         with (root / MANIFEST).open("xb") as stream:
@@ -150,7 +161,8 @@ def verify_staged_runtime(root: Path, *, required: bool = False) -> dict | None:
         if (
             not isinstance(value, dict)
             or set(value) != {"schema_version", "source", "assets", "asset_count", "assets_sha256"}
-            or type(value["schema_version"]) is not int or value["schema_version"] != 1
+            or type(value["schema_version"]) is not int
+            or value["schema_version"] != 1
             or type(value["asset_count"]) is not int
             or not 0 < value["asset_count"] <= MAX_ASSETS
             or not isinstance(value["assets"], list)

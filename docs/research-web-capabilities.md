@@ -35,7 +35,7 @@ Skill 提供能力库/我的 Skill，Tool 提供工具目录/MCP 市场/连接�
 “立即使用”仍调用既有选用逻辑并返回 FinGPT/Claw 草稿，不自动发送。编辑、版本、回滚和报告
 Workflow 管理继续进入原专用管理视图。
 
-DataHub Tool 的可选状态读取统一连接中心的安全摘要，而不是直接读取来源环境变量。配置已保存、单次检测成功、Provider 已适配和当前 Runtime 可调用是四个独立事实；15 个品牌无关工具始终进入 Runtime 注册集合，DataHub Broker 在每次调用时按最新状态动态选源。没有可调用来源时工具明确失败，配置或探测状态变化不要求重启 Runtime。
+DataHub Tool 的可选状态读取统一连接中心的安全摘要，而不是直接读取来源环境变量。配置已保存、单次检测成功、Provider 已适配和当前 Runtime 可调用是四个独立事实；16 个品牌无关工具始终进入 Runtime 注册集合（含 external_data），DataHub Broker 在每次调用时按最新状态动态选源。没有可调用来源时工具明确失败，配置或探测状态变化不要求重启 Runtime。
 
 `datahub_market_bars` 与 `datahub_market_snapshot` 的公共 Tool schema 接受显式 `asset_type`；当前 Wind binding 只声明股票资产，
 并要求值为 `stock`。缺失类型、指数或 ETF 均由 Provider 在 adapter 初始化前失败关闭，指数只能通过

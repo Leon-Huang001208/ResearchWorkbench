@@ -1043,3 +1043,28 @@ class TestWindAdapterNewMethods:
         for col in expected_cols:
             assert col in df.columns
         assert "fund_pct" not in df.columns
+
+
+@pytest.mark.parametrize("adj_type", [1, 2, 3])
+def test_daily_formula_typed_dispatch_preserves_every_field(adj_type):
+    from data_layer.adapters.wind.wind_adapter import WindAdapter
+
+    code, day = "600519.SH", "2026-10-13"
+    expected = [
+        wf.daily_open(code, day, adj_type),
+        wf.daily_high(code, day, adj_type),
+        wf.daily_low(code, day, adj_type),
+        wf.daily_close(code, day, adj_type),
+        wf.daily_volume(code, day),
+        wf.daily_amount(code, day),
+        wf.daily_turnover(code, day),
+        wf.daily_adj_factor(code, day),
+        wf.daily_vwap(code, day),
+        wf.daily_pct_change(code, day),
+        wf.daily_amplitude(code, day),
+    ]
+    actual = [
+        WindAdapter._daily_quote_formula(index, code, day, adj_type)
+        for index in range(len(expected))
+    ]
+    assert actual == expected

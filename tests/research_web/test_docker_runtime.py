@@ -2835,7 +2835,9 @@ def test_native_bridge_subprocess_with_temporary_home_does_not_write(tmp_path, a
     root = Path(__file__).resolve().parents[2]
     home = tmp_path / "absent"
     controller = NativeRuntime(root, home, ports=available_ports)
-    facts = [probe_process(pid) for port in (8088, 3081) for pid in listener_pids(port).pids]
+    # This bridge targets the explicitly allocated pair. A product listening on
+    # another checkout's default ports is not proof of ownership of this pair.
+    facts = [probe_process(pid) for port in controller.ports for pid in listener_pids(port).pids]
     product_writer = any(
         fact.argv
         and any("app.research_web.main" in arg or "apps/cli/lib/bin.js" in arg for arg in fact.argv)
@@ -2846,6 +2848,11 @@ def test_native_bridge_subprocess_with_temporary_home_does_not_write(tmp_path, a
         assert report["issues"] == ["runtime_ownership_unknown"], report
     else:
         assert report["ok"], report
+        assert all(
+            report["services"][role]["port"] == port
+            and report["services"][role]["running"] is False
+            for role, port in zip(("web", "runtime"), available_ports)
+        )
     assert not home.exists()
 
 

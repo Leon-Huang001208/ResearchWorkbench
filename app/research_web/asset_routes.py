@@ -15,6 +15,10 @@ AssetBlock = Literal[
 ]
 
 
+def _default_sections() -> list[AssetBlock]:
+    return ["overview", "history", "financials", "activity"]
+
+
 class ObservationRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -23,7 +27,7 @@ class ObservationRequest(BaseModel):
     asset_type: AssetType
     source: str = Field(default="auto", pattern=r"^[a-z0-9_]+$")
     sections: list[AssetBlock] = Field(
-        default_factory=lambda: ["overview", "history", "financials", "activity"],
+        default_factory=_default_sections,
         min_length=1,
         max_length=7,
     )

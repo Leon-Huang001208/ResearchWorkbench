@@ -4,6 +4,12 @@ Research Workbench is moving toward a Tauri desktop shell while keeping the curr
 
 > **Current phase (2026-09-09): Web-only.** Desktop packaging is preserved but not part of normal product iteration acceptance. Web-only changes do not build sidecars, Tauri bundles, or installers and do not run native desktop CI. Desktop validation resumes only for an explicitly requested desktop task or a change to a desktop-owned path.
 
+2026-10-13 的共享 Wind adapter 类型维护将日频两参数与分钟三参数 Callable 分开声明，
+同步 DataFrame apply 的闭包显式绑定当轮字段，并保持全部11项指标及三种复权公式。
+离线 mock 回归不构成 Wind、桌面 sidecar、安装包或任何平台原生证据；未调用真实 Wind。
+现行验证策略对该共享路径仍选取桌面门，未执行的门保留 NOT_RUN，不以 Web CI 替代，
+本任务不主动开启 Tauri/sidecar 构建、桌面发布或 Windows/Linux dispatch。
+
 2026-09-11 的 Wind 客户端格式基线维护仅展开既有布尔条件的 Black 排版，生成的 Python 语义与桌面打包输入不变；它不构成新的桌面功能或平台支持声明。
 
 2026-09-14 的 Research Web Wind DataHub 只读边界为 `WindExcelClient` 增加显式 `isolated_app` 生命周期：

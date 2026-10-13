@@ -2905,6 +2905,7 @@ Classes:
 - `AlertPatch`
 
 Functions:
+- `_default_sections`
 - `create_observation`
 - `list_observations`
 - `observation`
@@ -5185,6 +5186,8 @@ Imports:
 - `urllib.parse`
 
 Classes:
+- `RegistryValidationError`
+  - Invalid untrusted registry data, including Pydantic validator inputs.
 - `AuthNone`
 - `AuthBearer`
 - `AuthOAuth2`
@@ -5227,6 +5230,7 @@ Module docstring:
 
 Imports:
 - `__future__`
+- `core.observability`
 - `hashlib`
 - `json`
 - `models`
@@ -6065,6 +6069,9 @@ Imports:
 - `zoneinfo`
 
 Classes:
+- `ReportStudioService`
+  - Structural host contract; CLI migration only consumes the store property.
+  - methods: store, datahub, create, send, detail, cancel
 - `ReportStudioError`
   - methods: __init__
 - `ReportStudio`
@@ -6228,11 +6235,13 @@ Imports:
 - `shutil`
 - `tempfile`
 - `time`
+- `typing`
 - `uuid`
 - `workbook`
 - `yaml`
 
 Classes:
+- `_ProviderRequirement`
 - `ReportWorkflowMigration`
   - methods: __init__, _logical_path, _scan, _blocks, migrate, _classify, _migration_state, _verified_bytes, _verify_project, _atomic_history_file, _append_history_locked, _apply, _apply_locked, _v2_primary_workbook, _v2_validation, _write_yaml, upgrade_all_v2
 
@@ -9532,8 +9541,9 @@ Imports:
 - `collections`
 - `dataclasses`
 - `datetime`
-- `logging`
+- `logger`
 - `threading`
+- `typing`
 
 Classes:
 - `Metric`
@@ -9545,10 +9555,11 @@ Classes:
 ## `core/observability/tracer.py`
 
 Imports:
+- `collections.abc`
 - `contextlib`
 - `dataclasses`
 - `datetime`
-- `logging`
+- `logger`
 - `threading`
 - `typing`
 - `uuid`
@@ -10646,6 +10657,7 @@ Module docstring:
 > Wind 数据适配器 —— 通过 Excel 插件获取 Wind 数据
 
 Imports:
+- `collections.abc`
 - `core.contracts`
 - `core.observability`
 - `data_layer.adapters.base`
@@ -10659,7 +10671,7 @@ Imports:
 Classes:
 - `WindAdapter`
   - Wind 数据适配器
-  - methods: __init__, _get_client, is_available, close, fetch_consensus_estimates, fetch_margin_trading, fetch_block_trades, fetch_daily_quotes, _dq_row_to_dict, _fetch_dq_recent_batch, fetch_market_snapshot, fetch_realtime_quotes, fetch_index_quotes, fetch_financial_statements, fetch_industry_data, fetch_fund_flow, fetch_holder_data, fetch_top10_holder_details, fetch, parse
+  - methods: __init__, _get_client, is_available, close, fetch_consensus_estimates, fetch_margin_trading, fetch_block_trades, _daily_quote_formula, fetch_daily_quotes, _dq_row_to_dict, _fetch_dq_recent_batch, fetch_market_snapshot, fetch_realtime_quotes, fetch_index_quotes, fetch_financial_statements, fetch_industry_data, fetch_fund_flow, fetch_holder_data, fetch_top10_holder_details, fetch, parse
 
 Functions:
 - `_safe_float_wind`

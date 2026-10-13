@@ -82,21 +82,21 @@ class HttpFact:
     issue: str | None
 
 
-def _file_identity(identity: os.stat_result | object) -> tuple[int, int, int]:
-    return int(identity.st_dev), int(identity.st_ino), int(identity.st_size)  # type: ignore[attr-defined]
+def _file_identity(identity: os.stat_result) -> tuple[int, int, int]:
+    return int(identity.st_dev), int(identity.st_ino), int(identity.st_size)
 
 
-def _directory_identity(identity: os.stat_result | object) -> tuple[int, int]:
-    return int(identity.st_dev), int(identity.st_ino)  # type: ignore[attr-defined]
+def _directory_identity(identity: os.stat_result) -> tuple[int, int]:
+    return int(identity.st_dev), int(identity.st_ino)
 
 
 def _unsafe_control_identity(
-    identity: os.stat_result | object,
+    identity: os.stat_result,
     *,
     directory: bool,
     platform_name: str,
 ) -> bool:
-    mode = int(identity.st_mode)  # type: ignore[attr-defined]
+    mode = int(identity.st_mode)
     reparse_flag = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
     return (
         (not stat.S_ISDIR(mode) if directory else not stat.S_ISREG(mode))

@@ -638,11 +638,17 @@ class LocalIntegrationManager:
                         f" 最后阶段：{diagnostics['last_completed_step']}；"
                         f"功能结果：{diagnostics['function_outcome']}；清理：{cleanup_label}。"
                     )
-                    error_label = {
+                    native_error_number = diagnostics.get("native_error_number")
+                    error_labels = {
                         -1743: "自动化权限被系统明确拒绝",
                         -54: "文件访问被拒绝",
                         -61: "文件访问被拒绝",
-                    }.get(diagnostics.get("native_error_number"))
+                    }
+                    error_label = (
+                        error_labels.get(native_error_number)
+                        if isinstance(native_error_number, int)
+                        else None
+                    )
                     if snapshot.get("platform") == "macos" and error_label is not None:
                         item["detail"] += f" {error_label}；请检查本任务对应的访问授权后重验。"
                     if outcome == "authorization_required":

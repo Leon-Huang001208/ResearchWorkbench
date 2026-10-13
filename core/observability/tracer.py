@@ -1,12 +1,14 @@
-import logging
 import threading
 import uuid
+from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
-from typing import Any, Iterator
+from datetime import UTC, datetime, timedelta
+from typing import Any, Self
 
-logger = logging.getLogger(__name__)
+from .logger import get_logger
+
+logger = get_logger(__name__)
 
 
 @dataclass
@@ -33,7 +35,7 @@ class Tracer:
     _instance = None
     _lock = threading.Lock()
 
-    def __new__(cls) -> "Tracer":
+    def __new__(cls) -> Self:
         if cls._instance is None:
             with cls._lock:
                 if cls._instance is None:
@@ -79,7 +81,7 @@ class Tracer:
             span_id=span_id,
             parent_span_id=parent_span_id,
             name=name,
-            start_time=datetime.utcnow(),
+            start_time=datetime.now(UTC).replace(tzinfo=None),
         )
         self._spans[span_id] = span
         self._push_span_id(span_id)
@@ -96,7 +98,7 @@ class Tracer:
 
         span = self._spans.get(span_id)
         if span:
-            span.end_time = datetime.utcnow()
+            span.end_time = datetime.now(UTC).replace(tzinfo=None)
             span.status = status
             logger.debug(
                 "span ended",
