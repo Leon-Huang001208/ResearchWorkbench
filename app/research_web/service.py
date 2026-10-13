@@ -21,6 +21,7 @@ from . import PINNED_DSH_COMMIT
 from .asset_workspace import AssetWorkspace
 from .automation.channels import DeliveryChannelStore
 from .automation.delivery import DeliveryDispatcher
+from .automation.drafts import AutomationDrafts
 from .automation.service import AutomationService, automation_feature_enabled
 from .automation.transport import DeliveryTransport
 from .capabilities.catalog import CapabilityCatalog
@@ -32,6 +33,7 @@ from .capabilities.methods import (
 from .capabilities.models import CapabilityError, Metadata, Step, data_preflight
 from .capabilities.packages import MAX_COMPRESSED, import_package
 from .capabilities.tools import SELECTABLE
+from .claw_projects import ClawProjects
 from .client import DSHClient, RuntimeFailure
 from .credential_backend import default_credential_backend
 from .datahub import DataHub
@@ -219,6 +221,8 @@ class ResearchService:
             dispatcher=DeliveryDispatcher(transport=DeliveryTransport(self.delivery_channels)),
         )
         self.connected: set[str] = set()
+        self.claw_projects = ClawProjects(self)
+        self.automation_drafts = AutomationDrafts(self)
         self.event_revision = 0
         self.events: dict[str, dict[int, dict]] = {}
         self.loaded: set[str] = set()
@@ -920,10 +924,17 @@ class ResearchService:
         agent_preset="research-web",
         purpose=None,
         metadata=None,
+        project_id=None,
     ):
         await self.ensure_owned()
         async with self.lock:
+            if project_id is not None:
+                project = self.claw_projects.get(project_id)
+                if mode != "claw" or project["archived"]:
+                    raise StoreError("只能在未归档的项目中新建 Claw 研究", "project_archived", 409)
             row = self.store.create(mode, title or ("Claw 研究" if mode == "claw" else "新研究"))
+            if project_id is not None:
+                row["project_id"] = project_id
             if purpose is not None:
                 row["purpose"] = purpose
             if metadata:
@@ -981,6 +992,7 @@ class ResearchService:
         }
         if isinstance(result["updated_at"], (int, float)):
             result["updated_at"] = datetime.fromtimestamp(result["updated_at"], UTC).isoformat()
+        result["project_id"] = row.get("project_id", "default")
         if row.get("deleted_at") is not None:
             deleted_at = row["deleted_at"]
             result["deleted_at"] = (
@@ -1531,6 +1543,8 @@ class ResearchService:
             result.update(status="failed", error=self.errors[sid])
         result["files"] = self.store.files(sid)
         result["datasets"] = self.datahub.summaries(sid)
+        if row["mode"] == "claw" and automation_feature_enabled():
+            result["automation_drafts"] = self.automation_drafts.list(sid)["items"]
         result["approvals"] = [
             {"id": key, "title": value["toolName"], "detail": value.get("reason", "需要授权")}
             for key, value in self.approvals.items()
@@ -1912,6 +1926,9 @@ class ResearchService:
             if row["mode"] == "claw":
                 prompt += (
                     "\n\n使用 DSH 原生子 Agent 分工研究；只使用实际可用工具，不虚构执行或产物。"
+                    "若用户明确要求定时研究，可通过 rwb_prepare_automation 提出日程草稿；"
+                    "仅使用用户所选能力快照的实际 ID、类型与版本。缺少能力目标、时间或时区时先询问。"
+                    "工具仅提出草稿，用户在页面确认后才保存，随后仍需显式启用；不得宣称日程已生效。"
                 )
             prompt += (
                 "\n\n语言契约：除非用户在当前请求中明确要求其他语言，"

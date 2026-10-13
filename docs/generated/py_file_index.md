@@ -3003,6 +3003,25 @@ Functions:
 - `signed_webhook`
 
 
+## `app/research_web/automation/drafts.py`
+
+Module docstring:
+> Native schedule proposals, persisted separately from executable Automations.
+
+Imports:
+- `copy`
+- `core.observability`
+- `models`
+- `service`
+- `store`
+- `time`
+- `uuid`
+
+Classes:
+- `AutomationDrafts`
+  - methods: __init__, _session, list, _get, _no_external_permissions, prepare, confirm, dismiss
+
+
 ## `app/research_web/automation/models.py`
 
 Module docstring:
@@ -3350,6 +3369,57 @@ Imports:
 
 Functions:
 - `tool_catalog`
+
+
+## `app/research_web/claw_projects.py`
+
+Module docstring:
+> Local project metadata and explicit, provenance-bound Claw file references.
+
+Imports:
+- `copy`
+- `core.observability`
+- `hashlib`
+- `os`
+- `pathlib`
+- `store`
+- `time`
+- `uuid`
+
+Classes:
+- `ClawProjects`
+  - methods: __init__, _projects, get, members, list, _save_projects, _name, create, update, move, detail, reference
+
+
+## `app/research_web/claw_routes.py`
+
+Module docstring:
+> Claw project and schedule-draft API over the existing product data root.
+
+Imports:
+- `automation.models`
+- `fastapi`
+- `pydantic`
+
+Classes:
+- `StrictBody`
+- `ProjectCreate`
+- `ProjectUpdate`
+- `ProjectMove`
+- `FileReference`
+- `DraftProposal`
+
+Functions:
+- `projects`
+- `create_project`
+- `project`
+- `update_project`
+- `move_session`
+- `reference_file`
+- `drafts`
+- `propose_draft`
+- `confirm_draft`
+- `dismiss_draft`
 
 
 ## `app/research_web/client.py`
@@ -4924,6 +4994,7 @@ Imports:
 - `automation.routes`
 - `capabilities.models`
 - `capabilities.routes`
+- `claw_routes`
 - `client`
 - `contextlib`
 - `core.observability`
@@ -4947,8 +5018,7 @@ Imports:
 - `operations`
 - `os`
 - `pathlib`
-- `pydantic`
-- ... 14 more
+- ... 15 more
 
 Classes:
 - `NewSession`
@@ -6459,6 +6529,7 @@ Imports:
 - `asyncio`
 - `automation.channels`
 - `automation.delivery`
+- `automation.drafts`
 - `automation.service`
 - `automation.transport`
 - `base64`
@@ -6467,6 +6538,7 @@ Imports:
 - `capabilities.models`
 - `capabilities.packages`
 - `capabilities.tools`
+- `claw_projects`
 - `client`
 - `contextlib`
 - `core.observability`
@@ -6483,9 +6555,7 @@ Imports:
 - `local_integrations`
 - `mcp_registry`
 - `mcp_runtime.authorization`
-- `mcp_runtime.control`
-- `mcp_runtime.credentials`
-- ... 20 more
+- ... 22 more
 
 Classes:
 - `_SessionOwnedMCPRuntime`

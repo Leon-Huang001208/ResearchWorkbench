@@ -1,5 +1,15 @@
 # 研究协议、执行状态与恢复
 
+固定 DSH 的 `session/list` 通过 `parentSessionId` 暴露父子归属；SDK Session Header 内部仍叫 `parentSession`。
+Workbench 子 Agent 投影只使用已核实的 API 字段，继续交叉验证父目录、`origin=subagent` 和严格布尔 running；缺失、外来父会话、非子任务来源或未知活动仍失败关闭，不以空目录释放活动保护。
+
+## Claw 日程提出与确认
+
+`rwb_prepare_automation` 沿现有 research-tools 与最终 guard 注册，先核对原生会话范围，再通过实例私有控制通道提出日程草稿。
+模型须使用用户所选真实能力快照的 ID、类型与版本；目标、时间或时区缺失时提问，不猜测创建任务。
+工具只返回草稿，不创建、启用、执行或投递 Automation，也不授予 MCP 权限。
+Host 确认保存仍使用现有 AutomationService、版本哈希锁与日程校验；正文、研究循环和原生子 Agent 沿 DSH，不增加第二引擎。
+
 Mac mini 的 dev/stage/prod 使用同一既有 Web＋DSH 协议，各实例独立 data/runtime 工作目录、
 认证 tmpfs 和身份账本；stage/prod 在固定镜像内执行，不读编辑中的worktree。
 管理员入口只管理容器生命周期，不创建第二套研究任务、调度、恢复或自动重试事实源。

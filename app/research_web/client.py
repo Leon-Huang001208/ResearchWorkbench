@@ -270,7 +270,7 @@ class DSHClient:
                 live = rows.get(child.get("id"))
                 if (
                     not isinstance(live, dict)
-                    or live.get("parentSession") != parent_id
+                    or live.get("parentSessionId") != parent_id
                     or live.get("origin") != "subagent"
                     or type(live.get("running")) is not bool
                 ):

@@ -1,5 +1,7 @@
 # 部署与模块职责
 
+Claw 项目和日程草稿由现有 FastAPI Host 管理产品索引；原生提出工具沿现有私有控制通道，不增加进程、端口或调度器。用户确认保存后继续使用 Automation 与同一 DSH。
+
 24GB Mac mini 是 Docker 主开发与常驻节点，MacBook Pro 是远程入口。
 dev 挂载对应 worktree；stage/prod 按不可变 image ID 独立运行同一 Web＋DSH，
 每实例隔离 data/logs/credentials/cache卷、bridge网络、端口和管理身份。

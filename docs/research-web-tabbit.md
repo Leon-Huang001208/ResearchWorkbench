@@ -1,5 +1,7 @@
 # Research Web Tabbit 集成
 
+Claw 项目分组与日程提出工具不读取浏览器会话、Cookie或实时标签；原 Tabbit 显式选择、一次性 marker 和审批边界保持不变。跨会话文件引用不会携带来源会话 Tabbit 授权。
+
 macOS 异根 Native 记录认证仅复核启动者的标准产品根、PID 与 listener；不会访问浏览器
 标签、URL、Cookie、正文或 Tabbit claim。调用内 lease/FD 证明不成为浏览器授权；原会话
 审批与一次性 token 保持，容器健康仍不证明宿主 Tabbit 可调用。

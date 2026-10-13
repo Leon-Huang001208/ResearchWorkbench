@@ -1554,3 +1554,71 @@ def test_upgraded_empty_instance_uses_catalog_default_without_rewriting_saved_mo
     old.save()
     preserved = ResearchService(NativeFixture(), old)
     assert preserved.default_model["model"] == "deepseek-v4-flash"
+
+
+def test_claw_project_api_preserves_workspace_and_requires_explicit_reference(api):
+    client, native, service = api
+    project = client.post("/api/research/claw/projects", json={"name": "投研项目"}).json()
+    source = client.post(
+        "/api/research/sessions", json={"mode": "claw", "project_id": project["id"]}
+    ).json()
+    target = client.post(
+        "/api/research/sessions", json={"mode": "claw", "project_id": project["id"]}
+    ).json()
+    assert source["workspace_id"] == "research"
+    assert source["project_id"] == project["id"]
+    path = service.store.directory(source["id"]) / "outputs" / "evidence.md"
+    path.write_text("项目证据", encoding="utf-8")
+    detail = client.get(f"/api/research/claw/projects/{project['id']}").json()
+    file = detail["files"][0]
+    response = client.post(
+        f"/api/research/sessions/{target['id']}/file-references",
+        json={
+            "source_session_id": source["id"],
+            "file_id": file["id"],
+            "expected_sha256": file["sha256"],
+        },
+    )
+    assert response.status_code == 201
+    assert client.get(response.json()["url"]).content.decode() == "项目证据"
+    assert not [call for call in native.calls if call[0] == "session.prompt"]
+    client.patch(f"/api/research/claw/projects/{project['id']}", json={"archived": True})
+    blocked = client.post(
+        "/api/research/sessions", json={"mode": "claw", "project_id": project["id"]}
+    )
+    assert blocked.status_code == 409
+    assert len(client.get(f"/api/research/claw/projects/{project['id']}").json()["sessions"]) == 2
+
+
+def test_native_automation_proposal_is_authenticated_and_user_confirmation_is_disabled(api):
+    client, _, service = api
+    sid = client.post("/api/research/sessions", json={"mode": "claw"}).json()["id"]
+    body = {
+        "name": "每日公司研究",
+        "target_kind": "skill",
+        "target_id": "company-research",
+        "target_version": 1,
+        "input_template": "研究公司",
+        "schedule": {"kind": "daily", "timezone": "Asia/Shanghai", "hour": 9, "minute": 0},
+    }
+    assert (
+        client.post(
+            "/api/research/internal/data/automation-draft", json={"session_id": sid, "body": body}
+        ).status_code
+        == 403
+    )
+    response = client.post(
+        "/api/research/internal/data/automation-draft",
+        json={"session_id": sid, "body": body},
+        headers={"X-Research-Data-Key": service.datahub.control["token"]},
+    )
+    assert response.status_code == 201
+    draft = response.json()
+    assert client.get("/api/research/automations").json()["items"] == []
+    endpoint = f"/api/research/sessions/{sid}/automation-drafts/{draft['id']}/confirm"
+    first = client.post(endpoint, json=draft["body"])
+    second = client.post(endpoint, json=draft["body"])
+    assert first.status_code == second.status_code == 201
+    assert first.json()["id"] == second.json()["id"]
+    assert first.json()["enabled"] is False
+    assert len(client.get("/api/research/automations").json()["items"]) == 1
