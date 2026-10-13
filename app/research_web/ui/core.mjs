@@ -20,7 +20,7 @@ export function parseRoute(hash = '') {
     const tabs = new Set(['hot', 'overview', 'research-reports', 'investment-news', 'wsc', 'social', 'news', 'filings', 'events']);
     route.intelTab = !extraSegments.length && tabs.has(sectionSegment) ? sectionSegment : 'overview';
     if (route.intelTab === 'hot') {
-      route.hotView = ['events', 'sources', 'channels', 'briefs'].includes(params.get('view')) ? params.get('view') : 'events';
+      route.hotView = ['events', 'sources', 'channels', 'briefs', 'research'].includes(params.get('view')) ? params.get('view') : 'events';
       route.hotEventId = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(params.get('event') || '') ? params.get('event') : null;
     }
   }
@@ -53,7 +53,7 @@ export function parseRoute(hash = '') {
     const requestedSection = sectionSegment || params.get('section');
     route.section = workbenchSections.has(requestedSection) ? requestedSection : 'market';
     if (route.section === 'hot') {
-      route.hotView = ['events', 'sources', 'channels', 'briefs'].includes(params.get('view')) ? params.get('view') : 'events';
+      route.hotView = ['events', 'sources', 'channels', 'briefs', 'research'].includes(params.get('view')) ? params.get('view') : 'events';
       route.hotEventId = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(params.get('event') || '') ? params.get('event') : null;
     }
   }
@@ -157,6 +157,8 @@ export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSo
     hotChannelConfigure: (body) => request('/hot/channels/configure', { method: 'POST', body, userAction: true }),
     hotCorrect: (body) => request('/hot/events/correct', { method: 'POST', body, userAction: true }),
     hotSourceConfigure: (body) => request('/hot/sources/configure', { method: 'POST', body, userAction: true }),
+    hotResearchResults: (params) => request(`/hot/research/runs${hotQuery(params)}`),
+    hotResearchRefresh: (id) => request(`/hot/research/runs/${segment(id)}/refresh`, {method:'POST',body:{},userAction:true}),
     hotBriefs: (params) => request(`/hot/briefs${hotQuery(params)}`),
     hotBrief: (id, params) => request(`/hot/briefs/${segment(id)}${hotQuery(params)}`),
     hotBriefCreate: (body) => request('/hot/briefs', { method: 'POST', body, userAction: true }),

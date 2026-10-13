@@ -146,3 +146,6 @@ Gold/Dollar采集、评分、revision及renderer保持原合同；公共源码�
 ## 设置页本机证据与框架分离
 
 本机设置页精简和Office自动验证不改变Gold/Dollar框架、评分、采集器或框架快照。Office状态只表示对应本机验证，不能提升任何研究框架或DataHub来源为已验收；状态投影与授权边界统一由[集成协调器](09-integration-coordinator.md)维护。
+
+
+Hot研究与报告是既有FinGPT/Claw会话结果的读取面，不启动另一研究框架或周期调度。框架工作区和后台Collector不因该列表改变；真实报告依据有限RSS标题，保留推断和覆盖缺口。

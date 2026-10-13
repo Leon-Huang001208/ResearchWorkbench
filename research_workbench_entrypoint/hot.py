@@ -84,8 +84,10 @@ def normalize(project: Path, value: dict) -> dict:
         raise HotError("hot_configuration_bridge_unavailable") from None
 
 
-def _record_configuration(project: Path) -> None:
-    path = project / "logs" / "hot" / "configuration.jsonl"
+def _record_configuration(project: Path, home: Path | None = None) -> None:
+    docker_guest = bool(home and os.path.isfile("/.dockerenv") and os.environ.get("RESEARCH_RUN_MODE") == "web-prod"
+                        and os.environ.get("RESEARCH_CREDENTIAL_HOME") is not None and os.environ.get("RWB_DATA_ROOT") == str(home))
+    path = home / "hot" / "logs" / "configuration.jsonl" if docker_guest else project / "logs" / "hot" / "configuration.jsonl"
     _no_alias(path)
     try:
         path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -135,7 +137,7 @@ def save_settings(project: Path, home: Path, config: dict) -> dict:
         os.close(directory)
     log.info("hot_configuration_saved")
     try:
-        _record_configuration(project)
+        _record_configuration(project, home)
     except HotError:
         return {"state": "configured" if normalized["enabled"] else "disabled", "enabled": normalized["enabled"],
                 "config_saved": True, "logging": "unavailable", "code": "hot_log_unavailable"}
@@ -237,9 +239,16 @@ def dispatch(argv: list[str], project: Path) -> int:
         archive.add_argument("--migration-user", default="postgres")
         archive.add_argument("--migration-account", default="hot-migration-database")
         archive.add_argument("--json", action="store_true")
+        if command == "backup":
+            archive.add_argument("--include-session", action="append", default=[])
         if command == "restore":
             archive.add_argument("--from", dest="archive_directory", type=Path, required=True)
             archive.add_argument("--target-database", required=True)
+            archive.add_argument("--research-data-home", type=Path)
+    snapshots = sub.add_parser("restore-research-snapshots")
+    snapshots.add_argument("--from", dest="archive_directory", type=Path, required=True)
+    snapshots.add_argument("--research-data-home", type=Path, required=True)
+    snapshots.add_argument("--json", action="store_true")
     configure = sub.add_parser("configure")
     configure.add_argument("--file", type=Path, required=True)
     configure.add_argument("--json", action="store_true")
@@ -250,7 +259,7 @@ def dispatch(argv: list[str], project: Path) -> int:
     try:
         if args.command == "configure":
             value = save_settings(project, home, _read(args.file.absolute()))
-        elif args.command in ("setup", "start", "stop", "restart", "credential", "backup", "restore", "sources", "source-configure", "channels", "events", "event", "channel-configure", "event-correct", "model-attempts", "model-authorize", "model-terminate", "model-amend-tokens", "model-pricing-import") or (
+        elif args.command in ("setup", "start", "stop", "restart", "credential", "backup", "restore", "restore-research-snapshots", "sources", "source-configure", "channels", "events", "event", "channel-configure", "event-correct", "model-attempts", "model-authorize", "model-terminate", "model-amend-tokens", "model-pricing-import") or (
             args.command in ("status", "doctor") and (home / "hot" / "process.json").exists()
         ):
             from .bootstrap import native_python, native_environment
@@ -316,10 +325,25 @@ def dispatch(argv: list[str], project: Path) -> int:
                 value = manager.configure_channel(args.channel, args.expected_version, config, args.request_id)
             elif args.command == "event-correct":
                 value = manager.correct_event(_read(args.file.absolute()), args.reason, args.request_id)
+            elif args.command == "restore-research-snapshots":
+                from .hot_joint_archive import restore_research
+                value = restore_research(args.research_data_home.absolute(), args.archive_directory.absolute(), manager._secret("rpc-controller"))
             elif args.command in ("backup", "restore"):
                 directory = args.archive_directory.absolute() if args.command == "restore" else None
+                research_home = getattr(args, "research_data_home", None)
+                research_home = research_home.absolute() if research_home else home
+                joint = bool(directory and (directory / "research-manifest.json").exists())
+                if joint:
+                    from .hot_joint_archive import preflight_research_restore
+                    preflight_research_restore(research_home, directory, manager._secret("rpc-controller"))
                 value = manager.archive(args.command, directory, getattr(args, "target_database", None),
                                         args.migration_user, args.migration_account)
+                if args.command == "backup" and args.include_session:
+                    from .hot_joint_archive import backup_research
+                    value["researchSnapshots"] = backup_research(home, Path(value["directory"]), args.include_session, manager._secret("rpc-controller"))
+                elif joint:
+                    from .hot_joint_archive import restore_research
+                    value["researchSnapshots"] = restore_research(research_home, directory, manager._secret("rpc-controller"))
             elif args.command == "doctor":
                 value = manager.status()
                 value["checks"] = {"service": "PASS" if value["state"] == "initialized" else "NOT_RUN",

@@ -74,3 +74,33 @@ test('material selection survives page changes and detail pages retain their own
   assert.equal(calls[1].cutoff,'2026-10-08T00:00:00Z');assert.deepEqual(c.state.selectedMaterialIds,['first','second']);
   c.state.loading=true;await c.action({dataset:{hotAction:'detail',event:'another'}});assert.equal(calls.length,2);
 });
+
+test('saved research route reads offline and preserves failure beside verified report',async()=>{
+  const {renderHotResults}=await import('../../app/research_web/ui/hot-workspace.mjs');
+  const sid='ffe77d48-b717-4946-854c-a9ea5810468e', fid='e563eea6489e8b7cf916b731';
+  assert.equal(parseRoute('#/intel/hot?view=research').hotView,'research');
+  const row={runId:'run',sessionId:sid,targetMode:'fingpt',title:'<script>bad</script>',runState:'failed',deliveryState:'completed',stateVerified:true,errorCode:'hot_model_budget_exhausted',artifacts:[{id:fid,name:'report.md',url:`/api/research/sessions/${sid}/files/${fid}/download`,verified:true}]};
+  const html=renderHotResults([row]);assert.match(html,/运行失败/);assert.match(html,/报告已生成并校验/);assert.ok(!html.includes('<script>'));
+  assert.ok(html.includes('download'));assert.ok(!renderHotResults([{...row,artifacts:[{...row.artifacts[0],url:'javascript:alert(1)'}]}]).includes('javascript:'));
+  const calls=[];
+  const c=createHotController({api:{hotResearchResults:async()=>{calls.push('read');return {items:[row],hasMore:false};}}});
+  await c.activate({page:'intel',hotView:'research'});assert.deepEqual(calls,['read']);assert.equal(c.state.researchRows[0].runState,'failed');
+});
+
+test('late research page and observation failures cannot overwrite another view',async()=>{
+  for(const action of ['more-research','refresh-run']){
+    let reject;
+    const c=createHotController({api:{hotResearchResults:async()=>new Promise((_,r)=>{reject=r;}),hotResearchRefresh:async()=>new Promise((_,r)=>{reject=r;})}});
+    c.state.researchHasMore=true;
+    const pending=c.action({dataset:{hotAction:action,run:'old'}});
+    c.deactivate();c.state.error='new-view-error';reject(Error('old-request-error'));await pending;
+    assert.equal(c.state.error,'new-view-error');
+  }
+});
+
+test('failed current status observation remains visible even when list GET would succeed',async()=>{
+  let reads=0;
+  const c=createHotController({api:{hotResearchRefresh:async()=>{throw Error('observation failed');},hotResearchResults:async()=>{reads++;return {items:[],hasMore:false};}}});
+  await c.action({dataset:{hotAction:'refresh-run',run:'run'}});
+  assert.equal(c.state.error,'observation failed');assert.equal(reads,0);assert.equal(c.state.busy,false);
+});

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "updated",
-  "summary": "已在批准的原scope内生成并核验真实Hot Markdown报告，收尾模型请求预算拒绝的Native failed保留。",
-  "reason": "README同步真实报告及轻量冻结研究边界；不是完整安装、持续worker、恢复、Docker或CI验收。"
+  "summary": "研究情报已接入真实报告、独立运行/交付状态及MD/Word下载，预算不变。",
+  "reason": "已更新README用户入口；隔离真浏览器和HTTP验证不等同完整恢复、Docker或干净安装CI。"
 }

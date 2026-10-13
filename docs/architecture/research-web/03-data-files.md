@@ -390,3 +390,6 @@ public inputs完整写入并fsync后，private快照UUID目录才作为目录提
 
 
 2026-10-13续跑：Snapshots.admit_hot_script核对created/purpose、run/instance/manifest和私有快照文件hash，安全FD有界读取最多40个原件后validate_bundle；仅许可会话所属资料副本，不引用可变Hot对象。
+
+
+Hot报告固定绑定PG deliveryKey，核对读取原RWB_HOT_EXECUTION回合，不使用会话后续任务的交付或终态。当前文件SHA须在完成状态条件提交前核验；pending通过原严格沙箱校验，未核对不能判失败。Word由已校验MD确定性转换并复验来源hash。

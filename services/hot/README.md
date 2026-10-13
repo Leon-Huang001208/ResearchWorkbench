@@ -725,3 +725,33 @@ frozen preset and bounded read_hot_evidence helper reuse the existing Host guard
 Seatbelt runner and ledger; ordinary research and Claw remain unchanged. This is
 control-only PG evidence, not installed worker, clean install, Docker or full Goal
 acceptance. Exact report/run/session provenance is in the continuation record.
+
+
+Hot research result projection now reads the existing Host Store with an authenticated PG run binding. It separates failed execution from completed report delivery, binds the immutable deliveryKey and exact original Native turn, and rechecks current file hashes. Explicit refresh validates pending artifacts with the existing sandbox, never sends a prompt. PG-unavailable results remain unverified. Word export deterministically converts verified Markdown. No new quota, worker, queue or paid calls.
+# Selected joint restoration and installed Hot dependencies
+
+The Native installer installs `services/hot/package-lock.json` using its managed
+Node/npm and `npm ci --omit=dev --ignore-scripts --no-audit --no-fund`. The Docker
+image includes the same locked production dependencies, source and migrations.
+This does not install PostgreSQL inside the application container.
+
+`rwb hot backup --include-session <UUID>` attaches only selected Hot research
+inputs, outputs, snapshot manifests, session metadata and delivery receipts to
+the existing paused PG archive. A controller HMAC binds the companion manifest
+to the PG manifest and every archived byte. Credentials, runtime authentication,
+unselected sessions and Native execution history are excluded.
+
+Joint `restore` requires an explicit, new `--research-data-home <path>`. It verifies
+the research archive and target before mutating PG. A signed journal permits
+retrying only the same interrupted file restore; altered receipts, extra files
+or an existing unrelated target are rejected. `restore-research-snapshots`
+retries the filesystem portion after PG has already been restored, without
+replaying the database restore. Restored snapshots remain paused and do not
+start a runtime or submit a model request.
+
+Docker Hot is owned by the existing Supervisor Web process and writes Hot logs
+under its writable data home. It uses its own private credential backend and
+explicit external PG configuration. Docker does not receive the Native model
+bootstrap; model execution remains `blocked_model` until an independently
+supported Docker provider path exists. A compiled image alone does not prove
+collection, sequential mode switching or installation acceptance.

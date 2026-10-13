@@ -161,15 +161,18 @@ class Delivery:
                 log.warning("research_cancel_recheck_uncertain", error_type=type(exc).__name__)
                 return None
 
-    async def refresh(self, sid, entries, *, busy, connected):
+    async def refresh(self, sid, entries, *, busy, connected, key=None):
         async with self.locks.setdefault(sid, asyncio.Lock()):
-            delivery = self.current(sid)
+            key = key or self.store.session(sid).get("delivery_key")
+            receipt = self.store.data["receipts"].get(f"{sid}:{key}", {})
+            delivery = receipt.get("delivery")
             if not delivery:
                 return None
             if delivery["status"] in FINAL:
                 return self.public(delivery)
-            key = self.store.session(sid)["delivery_key"]
-            receipt = self.store.receipt(sid, key)
+            if self.store.session(sid).get("delivery_key") != key:
+                log.warning("research_delivery_scope_unconfirmed")
+                return self.public(delivery)
             marker_seq = next(
                 (
                     entry["event"]["seq"]

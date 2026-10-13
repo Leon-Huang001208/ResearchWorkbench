@@ -1,5 +1,17 @@
 # Research Web Native / Docker 安装与运行
 
+Hot 的生产 Node 依赖现在由 Native 一键安装器按组件锁文件安装，使用受管 Node/npm，
+执行 `npm ci --omit=dev --ignore-scripts --no-audit --no-fund`。Docker 镜像也包含相同锁定
+依赖、Hot 源码和迁移文件；PostgreSQL 仍是显式配置的外部数据库。
+容器内 Hot 配置/运行日志写入私有数据目录的 `hot/logs/`，不写只读源码根。
+Docker 不装配 Native 模型凭据，模型不可用状态保留为 `blocked_model`。
+这些安装契约变更仍需干净 Mac 安装、真实容器运行及候选 macOS CI 分层验收。
+
+所选研究资料可随暂停的 PG 备份联合封存：`rwb hot backup --include-session <UUID>`。
+联合 `restore` 需传 `--research-data-home <全新目录>`；恢复前核验双方清单、签名与哈希，
+恢复后保持暂停，不恢复凭据或 Native 执行历史。PG 已恢复但文件复制中断时，可用
+`restore-research-snapshots` 重试同一封存档，避免再次恢复 PG。详见 Hot 组件 README。
+
 Hot/model启用后重启Web Runtime以生成本实例官方provider零重试配置；配置本身不授予
 预算。修改后实际重启与模型研究仍需验收。model-terminate现在可明确取消DB证明未发送的
 reserved预留；已发送/未知仍不退款，先停止Hot并保留相同操作UUID恢复未知管理回执。
@@ -564,3 +576,6 @@ schema17的研究模型私有RPC桥不新增依赖或迁移；它继续要求既
 
 Hot冻结FinGPT的research-hot-frozen声明随现有runtime YAML包数据安装，无新依赖；
 仍需候选Mac Bootstrap干净安装验证。普通研究/Claw不换preset，已存在Hot会话保持其原组合。
+
+
+Hot报告列表/显式核对/Word下载复用现有app与python-docx，无新依赖。模型预算不变；源码本地回归和隔离浏览器不替代候选Mac干净安装CI。

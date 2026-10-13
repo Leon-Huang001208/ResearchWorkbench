@@ -1117,6 +1117,20 @@ class SetupWebInstaller:
         self._write_runtime_lock_json(runtime_lock)
         return runtime_lock
 
+    def install_hot_dependencies(self) -> dict[str, str]:
+        """Install only the checked-in optional Hot lock, with lifecycle scripts disabled."""
+        component = self.project_root / "services" / "hot"
+        if not (component / "package.json").is_file():
+            return {"state": "not_included"}
+        if not (component / "package-lock.json").is_file() or self.npm_executable is None:
+            raise RuntimeError("hot_dependency_lock_missing")
+        self._run_checked([str(self.node_executable), str(self.npm_executable), "ci", "--omit=dev",
+                           "--ignore-scripts", "--no-audit", "--no-fund"], cwd=component,
+                          environment=self._node_subprocess_environment(), timeout=180,
+                          failure_code="hot_dependency_install_failed")
+        self.log.info("hot_dependencies_installed")
+        return {"state": "installed"}
+
     def install(self, *, repair: bool = False, start: bool = True) -> dict[str, object]:
         """Install the Web stack and optionally start both loopback services."""
         report = self.check()
@@ -1146,6 +1160,8 @@ class SetupWebInstaller:
             dsh_state = self.provision_dsh(repair=repair)
             check_scope()
             self.write_runtime_build_lock(dsh_state=dsh_state)
+            check_scope()
+            self.install_hot_dependencies()
             check_scope()
             manifest = self.write_install_manifest(
                 python_state=python_state,

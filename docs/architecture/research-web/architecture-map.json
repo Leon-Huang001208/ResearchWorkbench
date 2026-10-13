@@ -590,7 +590,9 @@
         "app/research_web/hot_service.py",
         "services/hot/",
         "app/research_web/hot_documents.py",
-        "app/research_web/hot_handoff.py"
+        "app/research_web/hot_handoff.py",
+        "app/research_web/hot_results.py",
+        "research_workbench_entrypoint/hot_joint_archive.py"
       ],
       "documents": [
         "services/hot/README.md",
@@ -621,7 +623,9 @@
         "services/hot/tests/transport.test.ts",
         "services/hot/tests/native-dsh.integration.ts",
         "services/hot/tests/model-budget.integration.ts",
-        "services/hot/tests/pricing.test.ts"
+        "services/hot/tests/pricing.test.ts",
+        "tests/research_web/test_hot_results.py",
+        "tests/research_web/test_hot_joint_archive.py"
       ]
     }
   ],
@@ -3206,6 +3210,27 @@
       "method": "GET",
       "path": "/api/research/hot/research/runs/{run_id}",
       "declaredPath": "/research/runs/{run_id}",
+      "prefix": "/api/research/hot"
+    },
+    {
+      "source": "app/research_web/hot_routes.py",
+      "method": "GET",
+      "path": "/api/research/hot/research/runs",
+      "declaredPath": "/research/runs",
+      "prefix": "/api/research/hot"
+    },
+    {
+      "source": "app/research_web/hot_routes.py",
+      "method": "POST",
+      "path": "/api/research/hot/research/runs/{run_id}/refresh",
+      "declaredPath": "/research/runs/{run_id}/refresh",
+      "prefix": "/api/research/hot"
+    },
+    {
+      "source": "app/research_web/hot_routes.py",
+      "method": "GET",
+      "path": "/api/research/hot/research/runs/{run_id}/docx",
+      "declaredPath": "/research/runs/{run_id}/docx",
       "prefix": "/api/research/hot"
     }
   ],

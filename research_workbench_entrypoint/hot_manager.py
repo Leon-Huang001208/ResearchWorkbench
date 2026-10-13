@@ -916,6 +916,12 @@ class HotManager:
             log.info("hot_archive_completed operation=%s", operation)
             return value
 
+    def _runtime_mode(self) -> str:
+        # Supervisor deliberately withholds RWB_DSH_STAGED from Web; it is DSH-only.
+        return "docker" if (os.path.isfile("/.dockerenv") and os.environ.get("RESEARCH_RUN_MODE") == "web-prod"
+                            and os.environ.get("RESEARCH_CREDENTIAL_HOME") is not None
+                            and os.environ.get("RWB_DATA_ROOT") == str(self.home)) else "native"
+
     def _start(self) -> dict:
         if os.name != "posix":
             raise HotError("hot_platform_not_verified")
@@ -942,12 +948,14 @@ class HotManager:
             if any(config["database"][key] != value for key, value in actual.items()):
                 config["database"].update(actual)
                 save_settings(self.project, self.home, config)
-        payload = {"config": config, "instanceId": identity["instanceId"], "mode": "native",
+        docker_guest = self._runtime_mode() == "docker"
+        mode = "docker" if docker_guest else "native"
+        payload = {"config": config, "instanceId": identity["instanceId"], "mode": mode,
                    "workerPassword": self._secret(config["database"]["secretRef"]),
                    "controllerUser": config["database"]["controllerUser"],
                    "controllerPassword": self._secret(config["database"]["controllerSecretRef"]),
                    "controllerToken": self._secret("rpc-controller"), "readerToken": self._secret("rpc-reader")}
-        if config.get("model", {}).get("enabled"):
+        if config.get("model", {}).get("enabled") and mode == "native":
             from .bootstrap import native_python
             from app.research_web import PINNED_DSH_COMMIT
 
@@ -958,7 +966,7 @@ class HotManager:
                 "dataHome": str(self.home),
             }}
         launch_id = uuid4().hex
-        path = self.project / "logs" / "hot" / "runtime.log"
+        path = self.home / "hot" / "logs" / "runtime.log" if docker_guest else self.project / "logs" / "hot" / "runtime.log"
         _no_alias(path)
         path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
         descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_APPEND | os.O_NOFOLLOW | os.O_NONBLOCK, 0o600)
@@ -970,7 +978,8 @@ class HotManager:
                     raise HotError("hot_log_unsafe")
                 child = subprocess.Popen([_node(), str(self.project / "services/hot/scripts/serve.ts"), launch_id],
                                          stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=errors,
-                                         cwd=self.project, start_new_session=True)
+                                         cwd=self.project, start_new_session=True,
+                                         **({"env": {**os.environ, "RWB_SUPERVISOR_ROLE": "web"}} if docker_guest else {}))
                 packet = json.dumps(payload).encode()
                 if len(packet) > 65536:
                     raise HotError("hot_bootstrap_limit")

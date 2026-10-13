@@ -108,3 +108,14 @@ class HotEntrypointTests(unittest.TestCase):
         self.assertTrue(result["config_saved"])
         self.assertEqual(result["logging"], "unavailable")
         self.assertTrue((self.home / "hot" / "settings.json").exists())
+
+
+class DockerHotLogTests(unittest.TestCase):
+    def test_configuration_log_uses_writable_private_home_in_guest(self):
+        with tempfile.TemporaryDirectory() as directory:
+            home=Path(directory).resolve()
+            with patch.dict('os.environ',{'RESEARCH_RUN_MODE':'web-prod','RESEARCH_CREDENTIAL_HOME':'/run/rwb-secrets/private','RWB_DATA_ROOT':str(home)},clear=True),patch('os.path.isfile',return_value=True):
+                hot._record_configuration(Path('/read-only/project'),home)
+            path=home/'hot/logs/configuration.jsonl'
+            self.assertTrue(path.is_file())
+            self.assertEqual(json.loads(path.read_text())['event'],'hot_configuration_saved')

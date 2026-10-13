@@ -234,3 +234,6 @@ Hot简报列表和冻结详情复用hot-card/hot-detail/既有主题，来源文
 主导航统一为“研究情报”，本地热点与事件在 `#/intel/hot`，现有外部8栏目仍在 `#/intel/*`。旧 `#/workbench/hot` 链接保留视图/事件参数后转入本地页。两类页面共用栏目导航、主题与Host；本地版本证据和Golddata外部只读数据保持身份与覆盖来源区分，外部读取不写Hot、领取任务或调用模型。Hot未启用时，外部栏目与设置继续可用。
 
 恢复的DOCX切片通过 `GET /api/research/hot/briefs/{brief_id}/docx?version=<固定版本>` 从签名/哈希核对的冻结输入生成并保留私有产物，复用报告DOCX生成器；导出不创建会话、不调用模型、不外发。该路径尚需完整产品/恢复验收，局部测试不代表研究闭环完成。
+
+
+研究与报告复用现有hot-card/hot-source-grid/button/notice；没有新色板或组件库。运行失败但已校验报告使用独立状态说明，下载链接仅本session固定API路径。

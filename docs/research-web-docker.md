@@ -1,5 +1,10 @@
 # Mac mini Docker 开发与独立部署
 
+Hot 镜像增加独立 Node 构建层，按组件锁文件安装生产依赖并显式复制源码与迁移。
+容器 Web 启动的 Hot 进程继承 Supervisor 的 Web 角色；日志写可写数据目录 `hot/logs/`。
+外部 PG 的连接配置与凭据由本实例管理，不挂载 Docker socket，不复制 Native 模型秘密。
+Docker 模型尚无已验证装配路径，保留 `blocked_model`；构建成功不能替代真实采集/切换验收。
+
 Hot正式执行和零重试准备沿同一Host/DSH通道；本轮仅macOS源码/临时PG验证。
 Docker真实worker、模型策略、联合恢复及模式切换未验收，不据本轮测试提升容器状态。
 

@@ -340,3 +340,13 @@ class HotManagerTests(unittest.TestCase):
         self.assertEqual(child.calls, 2)
         value = json.loads((self.manager.directory / "archive-attempt.json").read_text())
         self.assertEqual(value["state"], "outcome_unknown")
+
+
+class DockerWebModeTests(unittest.TestCase):
+    def test_supervisor_web_without_dsh_staged_marker_uses_docker_owner(self):
+        with tempfile.TemporaryDirectory() as directory:
+            home=Path(directory).resolve();manager=HotManager(Path('/project'),home,MemoryCredentials())
+            with patch.dict('os.environ',{'RESEARCH_RUN_MODE':'web-prod','RESEARCH_CREDENTIAL_HOME':'/run/rwb-secrets/private','RWB_DATA_ROOT':str(home)},clear=True),patch('os.path.isfile',return_value=True):
+                self.assertEqual(manager._runtime_mode(),'docker')
+            with patch.dict('os.environ',{'RWB_DSH_STAGED':'1'},clear=True),patch('os.path.isfile',return_value=True):
+                self.assertEqual(manager._runtime_mode(),'native')

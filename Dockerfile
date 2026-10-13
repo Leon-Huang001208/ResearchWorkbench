@@ -3,6 +3,16 @@ ARG NODE_IMAGE=node:24.19.0-bookworm-slim
 ARG PYTHON_IMAGE=python:3.12.13-slim-bookworm
 FROM ${NODE_IMAGE} AS node-runtime
 
+FROM node-runtime AS hot-builder
+WORKDIR /opt/rwb/services/hot
+COPY services/hot/package.json services/hot/package-lock.json ./
+RUN npm ci --omit=dev --ignore-scripts --no-audit --no-fund
+COPY services/hot/src ./src
+COPY services/hot/scripts ./scripts
+COPY services/hot/migrations ./migrations
+COPY services/hot/*.json ./
+COPY services/hot/README.md services/hot/THIRD_PARTY_NOTICES.md ./
+
 FROM ${PYTHON_IMAGE} AS python-builder
 WORKDIR /opt/rwb
 ENV VIRTUAL_ENV=/opt/rwb/venv \
@@ -105,6 +115,7 @@ COPY --from=python-builder --chmod=755 /opt/rwb/docker/entrypoint.sh /opt/rwb/do
 COPY --from=python-builder /opt/rwb/docker/supervisor.py /opt/rwb/docker/supervisor.py
 COPY --from=python-builder /opt/rwb/docker/healthcheck.py /opt/rwb/docker/healthcheck.py
 COPY --from=python-builder /opt/rwb/pyproject.toml /opt/rwb/pyproject.toml
+COPY --from=hot-builder /opt/rwb/services/hot /opt/rwb/services/hot
 COPY outputs/research-web-architecture /opt/rwb/outputs/research-web-architecture
 COPY --from=dsh-builder --chown=rwb:rwb /opt/rwb/dsh-runtime /opt/dsh
 RUN ln -s /usr/local/lib/node_modules/corepack/dist/corepack.js /usr/local/bin/corepack \

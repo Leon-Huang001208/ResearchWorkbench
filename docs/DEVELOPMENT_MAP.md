@@ -250,3 +250,5 @@ Hot token限额修订为migration18/model-control.ts `amend-tokens`及Native
 冻结Hot快照的脚本准入在Snapshots.admit_hot_script与ResearchService.native_admission；
 既有capability准入后验证本会话Hot归属和所有原件哈希，仅返回该dataset只读目录。
 真实研究5次回执已保存但100k预留上限导致未产出报告；读资料的Seatbelt验收不等于报告完成。
+
+Hot研究结果读取/原回合核对为hot_results.py与hot_routes，测试test_hot_results/test_delivery及research_web_hot；Delivery.refresh新增可选不可变key，旧调用默认保持。

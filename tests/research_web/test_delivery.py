@@ -15,7 +15,7 @@ from app.research_web.store import Store
 
 
 @pytest.fixture
-def delivery_api(tmp_path):
+def delivery_api(tmp_path, monkeypatch):
     native = NativeFixture()
     original = native.rpc
 
@@ -26,6 +26,16 @@ def delivery_api(tmp_path):
 
     native.rpc = rpc
     service = ResearchService(native, Store(tmp_path))
+    # These tests exercise file intent and parsing, not provider availability.
+    # Supply the fund Skill's declared preflight facts; production admission stays strict.
+    monkeypatch.setattr(service.datahub, "catalog", lambda: {
+        "sources": [{"id": "delivery-format-fixture", "readiness": {
+            "integration_completed": True, "configured": True, "dependency_ready": True,
+            "allowed": True, "callable": True, "health": "healthy"}}],
+        "bindings": [{"capability_id": "fund_data", "source_id": "delivery-format-fixture",
+                      "datasets": ["fund_nav"], "implemented": True,
+                      "semantics": {"fund_nav": {"frequencies": ["daily"], "adjustments": ["none"],
+                                                 "units": {"unit_nav": "currency/share"}}}}]})
     with TestClient(create_app(service)) as client:
         service.connected = {"mux", "host"}
         sid = client.post("/api/research/sessions", json={}).json()["id"]

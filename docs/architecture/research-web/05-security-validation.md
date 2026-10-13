@@ -467,3 +467,6 @@ Hot研究映射prepare/advance为controller-only，所有变更仍受实例/模�
 
 
 2026-10-13续跑：migration18允许不可变amend-tokens审计；仅停机迁移Owner及匹配实例凭据可增加已有scope两token列，次数/费用/已用值/authorization hash不变。冻结快照仅在既有capability准入通过且本会话归属/全hash核对后只读。
+
+
+报告GET不创建运行、请求模型或改变预算。显式refresh须原user-action/header，匹配run/session/instance/manifest并只观察原Native回合。PG不可用仅展示未核验状态和已保存文件；旧成功回执不能认证当前变更字节。

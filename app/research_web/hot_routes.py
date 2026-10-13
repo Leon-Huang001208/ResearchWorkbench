@@ -206,6 +206,68 @@ async def research_run(run_id: str, request: Request):
     return await request.app.state.hot.call("research_run", str(UUID(run_id)))
 
 
+@router.get("/research/runs")
+async def research_runs(request: Request):
+    from .hot_results import research_results
+    values = query(request, {"limit", "offset"}, {"limit", "offset"})
+    return await research_results(request.app.state.research, request.app.state.hot, **values)
+
+
+@router.post("/research/runs/{run_id}/refresh")
+async def research_run_refresh(run_id: str, request: Request):
+    from .hot_results import refresh_research_result
+    value = await body(request)
+    if value or not re.fullmatch(UUID_PATTERN, run_id):
+        raise HotWebError("hot_request_invalid", "核对请求不正确。", 400)
+    return await refresh_research_result(request.app.state.research, request.app.state.hot, str(UUID(run_id)))
+
+
+@router.get("/research/runs/{run_id}/docx")
+async def research_report_docx(run_id: str, request: Request):
+    import hashlib
+    from io import BytesIO
+    from docx import Document
+    from .hot_results import artifacts, bound_session
+    if not re.fullmatch(UUID_PATTERN, run_id):
+        raise HotWebError("hot_request_invalid", "运行标识不正确。", 400)
+    query(request, set())
+    service = request.app.state.research
+    run = await request.app.state.hot.call("research_run", str(UUID(run_id)))
+    bound_session(service, run)
+    files = artifacts(service, run["sessionId"], run.get("deliveryKey"))
+    report = next((item for item in files["artifacts"] if item["verified"] and item["format"] == "md"), None)
+    if report is None:
+        raise HotWebError("hot_report_unverified", "没有可核验的本次研究报告。", 409)
+    stream, _ = service.store.open_file(run["sessionId"], report["id"])
+    with stream:
+        raw = stream.read(2 * 1024 * 1024 + 1)
+    if len(raw) > 2 * 1024 * 1024 or hashlib.sha256(raw).hexdigest() != report["sha256"]:
+        raise HotWebError("hot_report_changed", "报告已变化，请重新核对。", 409)
+    try:
+        document = Document()
+        lines = raw.decode("utf-8").splitlines()
+        if len(lines) > 10000:
+            raise ValueError("hot_report_paragraph_limit")
+        for line in lines:
+            if line.startswith("# "):
+                document.add_heading(line[2:], 0)
+            elif line.startswith("## "):
+                document.add_heading(line[3:], 1)
+            elif line.startswith("- "):
+                document.add_paragraph(line[2:], style="List Bullet")
+            elif line.strip():
+                document.add_paragraph(line)
+        document.add_paragraph("来源：由本次已校验Markdown报告转换；SHA-256：" + report["sha256"])
+        output = BytesIO()
+        document.save(output)
+    except (UnicodeError, ValueError, OSError):
+        log.warning("hot_report_docx_failed")
+        raise HotWebError("hot_report_docx_failed", "报告转换失败。") from None
+    log.info("hot_report_docx_exported")
+    return Response(output.getvalue(), media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    headers={"Content-Disposition": 'attachment; filename="hot-research-report.docx"'})
+
+
 @router.get("/events")
 async def events(request: Request):
     params = query(request, {"cutoff", "channelId", "q", "topic", "institution", "asset", "from", "to", "sort", "limit", "offset", "minRelevance"}, {"limit", "offset", "minRelevance"})

@@ -4618,6 +4618,29 @@ Functions:
   - Only Host writes existing Store; Hot workers never mutate session metadata.
 
 
+## `app/research_web/hot_results.py`
+
+Module docstring:
+> Read existing Hot research artifacts without starting Runtime, tasks or models.
+
+Imports:
+- `asyncio`
+- `core.observability`
+- `hashlib`
+- `hot_service`
+- `pathlib`
+- `re`
+- `store`
+- `uuid`
+
+Functions:
+- `bound_session`
+- `artifacts`
+- `research_results`
+- `refresh_research_result`
+  - Explicit observation updates PG terminal state, never creates or sends a prompt.
+
+
 ## `app/research_web/hot_routes.py`
 
 Module docstring:
@@ -4658,6 +4681,9 @@ Functions:
 - `channels`
 - `research_handoff`
 - `research_run`
+- `research_runs`
+- `research_run_refresh`
+- `research_report_docx`
 - `events`
 - `detail`
 - `sources`
@@ -19139,7 +19165,7 @@ Imports:
 Classes:
 - `SetupWebInstaller`
   - Public bootstrap API used by the shell wrappers and contract tests.
-  - methods: __init__, _git_worktree_options, _python_supported, _node_supported, check, _is_reparse_point, _reject_alias, _atomic_json, _prepare_data_home, _runtime_lock_directory, _write_runtime_lock_json, _subprocess_environment, _node_subprocess_environment, _python_subprocess_environment, _macos_cpp_include, _run_checked, verify_cjpy_bundle, dependency_install_commands, install_python_dependencies, verify_web_import, _corepack_prefix, dsh_build_commands, prepare_pnpm_shims, _environment_python, _environment_pip_ready, _owned_environment, prepare_environment, calculate_dsh_closure, verify_dsh_source, _owned_dsh_source, _publish_dsh_build, _recover_completed_dsh_staging, provision_dsh, _code_commit, write_install_manifest, write_install_transaction_state, write_runtime_build_lock, install
+  - methods: __init__, _git_worktree_options, _python_supported, _node_supported, check, _is_reparse_point, _reject_alias, _atomic_json, _prepare_data_home, _runtime_lock_directory, _write_runtime_lock_json, _subprocess_environment, _node_subprocess_environment, _python_subprocess_environment, _macos_cpp_include, _run_checked, verify_cjpy_bundle, dependency_install_commands, install_python_dependencies, verify_web_import, _corepack_prefix, dsh_build_commands, prepare_pnpm_shims, _environment_python, _environment_pip_ready, _owned_environment, prepare_environment, calculate_dsh_closure, verify_dsh_source, _owned_dsh_source, _publish_dsh_build, _recover_completed_dsh_staging, provision_dsh, _code_commit, write_install_manifest, write_install_transaction_state, write_runtime_build_lock, install_hot_dependencies, install
 - `DockerRuntime`
   - Public installer adapter around the stdlib Docker lifecycle controller.
   - methods: _verify_selection_safe, install, _publish_selection

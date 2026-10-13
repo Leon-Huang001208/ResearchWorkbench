@@ -1,5 +1,9 @@
 # 研究协议、执行状态与恢复
 
+联合封存只选 Hot 会话的输入、输出、冻结清单和原交付回执；HMAC 绑定 PG 清单与文件哈希。
+文件恢复要求新目标，同一签名日志只允许中断重试；不恢复模型凭据或 Native 执行历史。
+Docker Hot 子进程由 Web 角色监督，不接收 Native 模型 bootstrap，明确保留不可用状态。
+
 新增Hot正式执行API固定问题/格式的deliveryKey，PG先记录execution_starting再发送。
 回复丢失或重启只查根会话稳定原生marker，不重发；无Store receipt的确定前置失败标failed，
 未知是否已执行返回null。已接受后的failed保持True或未知，不冒充未提交。

@@ -1,5 +1,9 @@
 # 部署与模块职责
 
+Hot 的 Docker 镜像已包含锁定生产依赖和迁移。HotManager 在 Supervisor Web 内识别
+Docker 模式，子进程沿 Web 角色归属，写日志到数据目录；不引入新队列或 Docker socket。
+实际容器运行与同逻辑 PG 顺序切换仍须独立证据，不从镜像构建推定通过。
+
 Hot/model明确启用的同项目实例在Web Runtime准备时把官方provider重试设为零；该设置
 作用于本Runtime的官方模型，未配置实例保留原策略。正式执行API沿ResearchService.send及
 原PG运行映射，不创建第二执行器；实际产物完成与UI动作接入仍待验。
