@@ -52,7 +52,7 @@ master
 
 | 宿主真机 | 允许的工作 | 本任务验收责任 |
 | --- | --- | --- |
-| MacBook Pro / macOS | 项目功能开发与 macOS 适配 | macOS 本地验收 + 适用的 GitHub macOS CI |
+| 24GB Mac mini / macOS | Docker 主开发、构建、测试、常驻服务；MacBook Pro 远程操作 | macOS / Docker Desktop 本地验收 + 适用的 GitHub macOS CI |
 | Windows | 已有功能的 Windows 适配；不承担功能开发 | Windows 本地验收 + 适用的 GitHub Windows CI |
 | Linux | 已有功能的 Linux 适配；不承担功能开发 | Linux 本地验收 + 适用的 GitHub Linux CI |
 
@@ -182,6 +182,12 @@ worktree 只隔离文件冲突，绝不取代桌面端原生 Windows CI，也不
 macOS 本地运行或隔离 worktree 都不能证明 Windows 可用。
 
 ## 证据与交接（Evidence and handoff）
+
+Docker 构建与验收任务的完成检查必须包含资源收尾：临时资源使用
+`research_workbench_entrypoint.docker_resources.ResourceSession`；成功、失败及正常中断均验证无遗留。
+正式资源保持持久身份与数据；遗留清理先预览、逐项核对证据并保护有效安装及上一接受镜像。
+涉及数据卷时必须归档、校验并实际恢复验证。回执记录已删除、已缺席、失败及剩余对象，
+同时记录前后实际 Docker 占用；共享层大小不相加，未知归属资源与构建缓存保留。
 
 交接应让接手者无需猜测即可复核结果，至少包含：
 

@@ -1,5 +1,60 @@
 # Research Web Native / Docker 安装与运行
 
+Claw 项目与日程入口使用既有 Web/DSH 依赖，无新增产品包或安装步骤。旧数据根可直接读取，缺少 project_id 的 Claw 会话归入默认“我的研究”，不移动文件。
+Automation 被显式关闭时，聊天日程草稿也不可用；提出草稿不等于保存或启用。日程需实际能力版本，数据/模型/工具的可调用性继续由现有设置与 Doctor 分层诊断。
+
+## 中文 PDF 依赖与验收
+
+Web 锁新增 ReportLab（reportlab>=4.5,<5），使用原 Python3.12 universal/哈希解析流程；其余锁定依赖保持。resources/fonts 包含可嵌入的 Noto Sans SC 静态中文字体、OFL 许可证和固定 Google Fonts 来源摘要。产品 PDF 不要求宿主 Office、CMake 或 Node 开发头文件；后两者是固定 DSH 原生构建的工具链前提。
+
+安装器继续通过完整锁与项目包安装校验依赖。验收须实际生成中文 PDF、重开提取文字并渲染关键页，源码/单元测试不替代干净安装与 Mac CI。任务内测试环境不发布，不读取其他任务模型密钥。
+
+
+2026-10-12 起，24GB Mac mini 是 Docker 主开发与常驻节点，MacBook Pro 是远程入口。
+新的纯 Docker 安装和显式实例管理使用 [Docker 开发与部署手册](research-web-docker.md)：
+`./setup-web.sh --runtime docker --environment stage --instance local --web-port 18088`，
+随后 `./rwb docker stage local doctor`。宿主只需 shell、Docker CLI/Engine 和 buildx，
+不探测宿主 Python/Node。Native 无参数入口、Windows cmd 及
+`python scripts/setup_web.py --runtime docker` 的 legacy 合同保留；它们不管理新实例账本。
+
+## Docker 资源命名与收尾
+
+新构建使用 `research-workbench:dev-<短提交号>-<构建号>`，镜像标签保存完整提交号与构建身份。
+源码归档或宿主没有 Git 时明确使用 `unknown` 并记录警告，不新增宿主 Git 依赖或伪造提交号。
+新 Compose 项目使用 `rwb-dev-<安装短ID>`；既有安装继续使用其原 Compose 名称。
+项目、用途、安装或任务身份、`persistent`/`temporary` 属性通过标签记录，名称不充当删除授权。
+安装替换前保存 `install/docker-previous-manifest.json`；发布失败恢复原回滚记录。
+有效安装及上一接受版本均受保护，停止正式容器不删除数据或镜像。
+
+清理入口只使用标准库，默认预览；不执行全局 prune，不推断构建缓存归属。
+所有实际有效的产品 home 必须通过重复 `--home` 指定，省略时只检查当前用户的标准根。
+无法确认已废弃的其他安装或测试资源必须保留。
+
+```bash
+python -m research_workbench_entrypoint.docker_resources --home /absolute/product-home \
+  --retired /absolute/audited-retirement.json --plan /absolute/cleanup-plan.json
+python -m research_workbench_entrypoint.docker_resources --home /absolute/product-home \
+  --apply /absolute/cleanup-plan.json --archive /absolute/private-archive \
+  --helper-image sha256:<existing-local-image-id> --receipt /absolute/cleanup-receipt.json
+```
+
+退休清单是 `{"container:<完整ID>": "已结束任务的证据", "volume:<名称>": "废弃确认依据"}`
+形式的 JSON；镜像使用 `image:sha256:<完整ID>`。仅精确核对的对象进入清单。
+停止或年代久远都不是废弃证明。临时资源只有任务完成标签或显式退休证据才进入清理候选。
+执行持有各 home 的生命周期/安装锁，按容器、卷、镜像顺序再次核对身份与引用。
+卷备份用已有本地辅助镜像的 `sh`/`tar`，无网络、无端口；备份 SHA-256 记录后，
+实际恢复到临时卷并逐文件比较，验证成功后才删除原卷。归档目录须为私有 0700，归档保持 0600。
+回执逐项持久化；失败/中断停止后续处置，保留归档及剩余资源，重复执行允许已删除对象缺席。
+日志仅记录稳定代码和状态，位于 `logs/docker-resources.log`。
+
+开发及验收脚本必须在 `with ResourceSession(driver, purpose)` 中创建临时资源，
+使用其 `volume()`、`run()`、`build()`，将成功、失败和正常中断收尾放在同一 finally 边界。
+测试镜像为 `research-workbench:test-<用途>-<任务短ID>`，容器和卷为
+`rwb-test-<用途>-<实例短ID>` 与对应 `-data`；各资源标记唯一任务身份。
+异常进程退出可能留资源，须按任务证据显式清理；不得把未完成任务的 stopped 资源自动删掉。
+Docker 创建/构建超时可能仍在 Engine 执行；尚未确认创建结果时，收尾明确报告未确认并记录任务身份，
+不把一次查询缺席当作清理成功。须等 Engine 状态明确后按该任务身份再次核对和处置。
+
 阶段二、三及跨平台范围已由用户明确重新开启；每个平台仍由对应宿主完成验收。当前实现边界、OS/运行模式、证据提交和未验证项见 [能力支持矩阵](research-web-platform-support.md)。安装路径存在不等于该平台能力已验收。
 
 Python 质量整理保持公开安装参数及 coded RuntimeError 合同。内部端口 TypedDict 只描述
@@ -104,7 +159,7 @@ fixture 证明；Windows/Linux 本轮未验收。
 
 当前是本地 Web 产品，支持 Native 与 Docker 两条安装路径；不安装 Tauri、桌面 sidecar、数据库或桌面安装包。两种模式使用同一源码、`runtimes/research_web.json`、Web 依赖锁、固定 DSH 与顺序共享的产品数据目录。前置条件按模式区分：
 
-- Docker（推荐新安装）：宿主 Python 3.12 解释器用于公开安装入口和统一 `rwb` CLI，另需 Docker Desktop、运行中的 Engine、Compose v2、构建时可访问固定基础镜像及 DSH 依赖的网络；无需宿主 Node，也无需全局第三方 Python 包。容器使用固定 Python 3.12、Node 24 和非 root 用户。Windows 的 Docker 凭据目录 ACL 尚无可证明的安全准备/验证路径，当前以 `docker_credentials_acl_unverified` 失败关闭，不能称为 Windows Docker 已可用或已验收。
+- Docker 新实例入口：shell、Docker Desktop、可用 Engine/buildx，以及访问镜像和固定 DSH 依赖的网络；无需宿主 Python/Node。legacy Python Docker CLI 仍需宿主解释器。镜像使用固定 Python 3.12、Node 24 和非 root 用户。Windows cmd 保留 legacy 路径；凭据 ACL 未证明时以 `docker_credentials_acl_unverified` 失败关闭，不称为 Windows Docker 已验收。
 - Native：Python 3.12、Node.js 22.19+（22 系列）或 24.x、Git；Node 23 和 25+ 不受支持。
 - Windows Native：Visual Studio 2022 Build Tools 的 “Desktop development with C++” 工作负载；固定 DSH 的
   `fs-ext` 原生模块需要本机编译，安装器不会静默安装或修改系统工具链
@@ -114,7 +169,7 @@ Cookie 和账号只在本机设置页录入，不进入代码包、安装清单�
 
 ## 开发与验收责任
 
-MacBook Pro 负责项目功能开发、macOS 本地验收及远端 GitHub macOS CI。Windows 真机负责已有功能的 Windows 适配、本地验收及远端 GitHub Windows CI；Linux 真机负责对应的 Linux 适配、本地验收及远端 GitHub Linux CI。Windows/Linux 不承担功能开发；发现通用功能缺陷时交回 Mac 开发任务。
+24GB Mac mini 负责主开发、Docker 构建/测试、常驻服务、macOS 本地验收及适用 GitHub macOS CI；MacBook Pro 负责远程编辑与操作。Windows/Linux 真机负责既有功能的本平台原生适配、本地及远端同平台 CI 验收；发现通用功能缺陷时交回 Mac 开发任务。
 
 各宿主任务只以本平台验收为完成条件；其他平台保留待验收与交接记录，不阻塞本平台任务，也不因 Mac 验收通过就宣称跨平台支持。Linux 适配职责不表示当前安装器或桌面包已经支持 Linux；支持声明仍须有实际证据。详细任务与总体验收的区分见 [Agent 任务路由指南](AGENT_WORKFLOW.md)。
 
@@ -125,6 +180,15 @@ MacBook Pro 负责项目功能开发、macOS 本地验收及远端 GitHub macOS 
 安装完成后，在设置的模型服务页录入固定 Runtime 支持的 DeepSeek 配置。留空保留、填写替换、独立清除；保存只设定新会话模型，已有会话保留选模，任务运行时拒绝变更。模型页分别显示保存、Runtime 应用、凭据与最近真实生成；生成测试显式调用模型并消耗少量额度，前置检查最多 30 秒、生成执行段最多 60 秒、取消等待最多 3 秒，不由安装或 Doctor 自动执行。
 
 macOS Native 模型凭据使用已有 Web 依赖 `keyring==25.7.0` 的 macOS Keychain 后端；owned overlay 使用产品受管 Python 的私有 stdio 桥接，固定 DSH 版本和构建闭包不变。命名空间由规范化 data home 派生，重启从同一系统账户恢复；不读取开发者 Codex/Claude 配置，不导入环境、旧 YAML 或任何 `.env`。旧模型 Key 不自动迁移，需在本实例设置页重新录入。Host 认证 record 独立存于 Runtime home 的 `.browser-credentials.yaml`，保留固定 DSH 锁和更新语义，不持有模型 Key。Keychain 拒绝/不可用及非 macOS 后端均明确失败，不采用文件回退。产品锁、安装器与 workflow 未变，仍须当前代码的 macOS 干净安装 CI 证明兼容。
+
+Docker 模型凭据由 owned overlay 显式选择 `docker-encrypted-file`，并绑定
+`/run/rwb-secrets/private`；私有 stdio 桥接不继承 API Key 环境变量。后端复用原有
+no-follow、0700/0600、固定 inode 锁和有界文件读写，在 `models/` 子目录保存 Fernet 密文
+和一次创建的主密钥；复用已有锁定的 `cryptography==50.0.1`，不升级包版本。两个模型 ref
+独立，密文绑定 data-home 命名空间及 ref；缺失/损坏主密钥、损坏密文或不安全目录均失败
+关闭，不自动轮换、导入或清空旧凭据。主密钥与密文同卷，管理员及同 UID 仍属于信任边界。
+Doctor 只声明实现，Runtime API 的存储投影为 `docker_encrypted_file`。现有数据、通用业务
+凭据和 Host 认证保持；模型保存不发起推理，生成测试须用户显式请求。
 
 macOS：
 
@@ -417,3 +481,11 @@ Docker Desktop 的共享文件系统可能反复刷新 bind 根的 UID/GID 视�
 Docker Engine 可只在 `HostConfig.Tmpfs` 中表示 tmpfs，不将它们列入 `Mounts`；控制器兼容列表完全省略或完整三项表示，仍强制 HostConfig 的固定路径、UID/GID、权限和安全选项。部分、重复、别名或额外挂载均拒绝。
 
 macOS Docker 停止后回环端口的非监听绑定保留可能延迟释放；默认最多等待120秒，其余宿主默认10秒，显式等待参数保持。仍必须实际释放IPv4/IPv6绑定，超时失败关闭；不使用SO_REUSEADDR或只做连接探测来绕过占用。具体内核延迟原因未独立证实。
+
+## 可选 Office 自动验证
+
+安装/启动成功不代表 Office 可调用。默认不开启真实验证；在设置 → 本机集成一次开启所属实例的Word、Excel、PowerPoint自动验证，或逐项开启/关闭。会创建、保存、重开并清理登记的测试文稿，保留验证记录（沙箱文件经归档后精确删除，合成副本由私有run目录按原容量/期限保留），可能出现系统提示；提示只能人工处理。有效24小时证据复用，失败不自动重试，关闭后不再启动，冷启动不重放旧任务。Wind最多5分钟，厂商调用不在此开关内。
+
+`rwb web doctor --json`的office_auto_verification仅显示所属实例开关/未知状态、应用范围、人工提示与关闭位置，不发起真实操作，不影响主体安装就绪。未知、未发现、失效及不适用不会提升为可调用或一概归为系统故障。本轮不改安装依赖或一键启动逻辑。
+
+2026-10-09追加授权收口：Office成功且关闭确认后，仅归档登记的合成文稿到既有私有验证run目录，再清理沙箱副本；成功marker移除，仍沿原16项/512MiB/24小时有界保留策略回收，不新增执行器或任意路径接口。Office开启改用页内说明、确认/取消按钮，系统权限弹窗仍由人工处理。

@@ -12,6 +12,19 @@ const modules = await Promise.all(['markdown.mjs', 'core.mjs', 'views.mjs'].map(
 const [markdown, core, views] = modules;
 const dataCatalog = await import(new URL('data-catalog.mjs', root));
 
+test('canonical native plan uses the current plan tab and hides stale compatibility items', async () => {
+  const { renderContextPanel } = await import(new URL('shell.mjs', root));
+  const detail = { research_plan: { turn: 2, seq: 1, status: 'available', history_complete: true,
+    items: [{ content: 'canonical <item>', status: 'pending' }] }, plan: { todos: [{ content: 'stale', status: 'completed' }] } };
+  const html = renderContextPanel({ detail, selectedTab: 'plan' });
+  assert.match(html, /canonical &lt;item&gt;/);
+  assert.doesNotMatch(html, /stale/);
+  assert.match(views.renderResearchPlan({ ...detail, plan_error: 'stale error' }), /canonical &lt;item&gt;/);
+  assert.doesNotMatch(renderContextPanel({ detail, selectedTab: 'activity' }), /canonical &lt;item&gt;/);
+  assert.match(views.renderResearchPlan({ ...detail, research_plan: { status: 'incomplete', history_complete: false, items: [] } }), /历史不完整/);
+  assert.doesNotMatch(views.renderResearchPlan({ ...detail, research_plan: { status: 'incomplete', history_complete: false, items: [] } }), /stale/);
+});
+
 test('native research plan stays separate from delivery and escapes original content', () => {
   const detail = { status: 'cancelled', plan: { turn: 3, seq: 9, version: '3:9', todos: [
     { content: '<img src=x>', status: 'completed' }, { content: 'B', status: 'in_progress' },
@@ -162,6 +175,39 @@ test('controller preserves draft on failed sends and retries with the same idemp
   assert.equal(controller.state.detail.messages.length, 0, 'no fabricated assistant or optimistic message');
 });
 
+test('controller restores only explicit draft text and attachments after reload, isolated by session', async () => {
+  const data = new Map(); const storage = { getItem: key => data.get(key) ?? null, setItem: (key, value) => data.set(key, value) };
+  const api = { detail: async id => session(id), message: async () => ({ accepted: true }) };
+  const first = core.createController({ api, draftStorage: storage });
+  await first.open({ page: 'claw', sessionId: 'receiver' });
+  first.setDraft('保留未发送问题'); first.addAttachments([{ id: 'owned-file', name: 'reference.md' }]);
+  first.setTools(['private-tool']);
+  const reload = core.createController({ api, draftStorage: storage });
+  await reload.open({ page: 'claw', sessionId: 'other' });
+  assert.equal(reload.state.draft, ''); assert.deepEqual(reload.state.attachments, []);
+  await reload.open({ page: 'claw', sessionId: 'receiver' });
+  assert.equal(reload.state.draft, '保留未发送问题');
+  assert.deepEqual(reload.state.attachments, [{ id: 'owned-file', name: 'reference.md' }]);
+  assert.deepEqual(reload.state.toolIds, []);
+  await reload.send();
+  const afterSend = core.createController({ api, draftStorage: storage });
+  await afterSend.open({ page: 'claw', sessionId: 'receiver' });
+  assert.equal(afterSend.state.draft, ''); assert.deepEqual(afterSend.state.attachments, []);
+});
+
+test('draft storage rejects oversized writes visibly without replacing the last valid copy', async () => {
+  const data = new Map(); const events = []; const storage = { getItem: key => data.get(key) ?? null, setItem: (key, value) => data.set(key, value) };
+  const api = { detail: async id => session(id) };
+  const first = core.createController({ api, draftStorage: storage, logger: event => events.push(event) });
+  await first.open({ page: 'claw', sessionId: 'receiver' }); first.setDraft('保留文字');
+  first.addAttachments(Array.from({ length: 101 }, (_, i) => ({ id: `file-${i}`, name: `${i}.md` })));
+  assert.equal(first.state.attachments.length, 101);
+  assert.match(first.state.error, /无法保存/); assert.ok(events.includes('draft_storage_write_failed'));
+  const reload = core.createController({ api, draftStorage: storage });
+  await reload.open({ page: 'claw', sessionId: 'receiver' });
+  assert.equal(reload.state.draft, '保留文字'); assert.deepEqual(reload.state.attachments, []);
+});
+
 test('controller ignores stale session loads and SSE events after navigating away', async () => {
   assert.equal(typeof core.createController, 'function');
   let resolveFirst; const streams = [];
@@ -278,7 +324,11 @@ test('connection probe feedback uses health and shared ZhiQiu removal discloses 
   assert.match(app, /current\.health === 'healthy'/);
   assert.match(app, /知丘研报、公众号与纪要共享/);
   assert.match(settings, /class="settings-card model-settings"/);
-  assert.doesNotMatch(settings, /<details/);
+  const { renderSettingsPage } = await import('../../app/research_web/ui/settings.mjs');
+  const modelPage = renderSettingsPage({ route: {page: 'settings', settingsSection: 'model'}, hash: '#/settings/model', models: [], runtime: {}, modelFailures: [], connections: {sources: []}, busy: false });
+  assert.doesNotMatch(modelPage, /<details/);
+  const localPage = renderSettingsPage({ route: {page: 'settings', settingsSection: 'local'}, hash: '#/settings/local', models: [], runtime: {}, modelFailures: [], connections: {sources: []}, busy: false });
+  assert.match(localPage, /<details class="local-tabbit-details">/);
   assert.doesNotMatch(app, /current\.status === 'healthy'/);
 });
 

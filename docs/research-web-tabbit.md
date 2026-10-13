@@ -4,6 +4,11 @@
 审批和安装拒绝保持原样。计划投影不调用浏览器、不抓取标签页，也不从 Todo 内容推断网页
 已读取或来源已验证；原生计划集成通过不能替代 Tabbit 真实浏览器验收。
 
+显式 Docker 模型加密文件桥继续与 Tabbit/Host 浏览器认证分离。模型 ref 不进入
+`.browser-credentials.yaml` 或 readRecord/modifyRecord；模型配置、清除和生成测试不会
+迁移 Cookie、打开浏览器权限或将 Docker 中不可用的宿主 Tabbit 提升为可调用。
+
+Claw 项目分组与日程提出工具不读取浏览器会话、Cookie或实时标签；原 Tabbit 显式选择、一次性 marker 和审批边界保持不变。跨会话文件引用不会携带来源会话 Tabbit 授权。
 
 macOS 异根 Native 记录认证仅复核启动者的标准产品根、PID 与 listener；不会访问浏览器
 标签、URL、Cookie、正文或 Tabbit claim。调用内 lease/FD 证明不成为浏览器授权；原会话
@@ -266,3 +271,11 @@ Windows 受管服务的非强制停止失败现在可升级到既有强制进程
 
 
 兼容模型1B文本/流式适配仍由同一受管Runtime执行，不改变Tabbit保存/实际应用或浏览器选择合同；新连接的工具能力未验证，不能由文本生成、服务可达或连接名称提升为Tabbit可调用。
+
+## 本机页的分类与详情
+
+Tabbit设置与诊断保留在本机页的默认折叠详情，仅在全部/浏览器分类显示；Office分类不展示浏览器配置。Office自动验证同意不覆盖Tabbit浏览器调用，原Tabbit配置、审批和Runtime应用边界保持不变。未开启、缺可选组件与已观察异常仍分别显示，由[协调器](architecture/research-web/09-integration-coordinator.md)归因。
+
+## FinGPT 研究融合 · 2026-10-13
+
+FinGPT 的 web 检索范围同时约束 tabbit_tabs 附加与 tabbit_browser 调用；未选择 web 时拒绝受理。保留 Tabbit 的原 claim、一次性 token、审批与只读限制；FinGPT 原生 Todo/报告投影不会将 Codex 内置浏览器连接证据用作 Tabbit 可调用性证明。

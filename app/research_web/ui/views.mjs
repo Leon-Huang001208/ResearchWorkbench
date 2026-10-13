@@ -38,7 +38,7 @@ export function renderFormatPicker(formats, capability) {
   const defaults = capability?.metadata?.default_formats || capability?.default_formats || [];
   const selected = formats === null ? defaults : formats;
   const label = selected.length ? selected.map((value) => value.toUpperCase()).join(' / ') : '无需文件';
-  return `<details class="format-picker"><summary>输出格式：${formats === null ? '自动 · ' : ''}${e(label)}</summary><div class="format-options"><label class="check-label"><input id="auto-formats" type="checkbox" data-auto-formats ${formats === null ? 'checked' : ''}>按 Skill 默认格式</label>${['md', 'html', 'docx', 'xlsx', 'png'].map((format) => `<label class="check-label"><input id="format-${format}" type="checkbox" data-format="${format}" ${selected.includes(format) ? 'checked' : ''}>${format.toUpperCase()}</label>`).join('')}<button type="button" class="text-button" data-no-formats>仅聊天，无需文件</button></div></details>`;
+  return `<details class="format-picker"><summary>输出格式：${formats === null ? '自动 · ' : ''}${e(label)}</summary><div class="format-options"><label class="check-label"><input id="auto-formats" type="checkbox" data-auto-formats ${formats === null ? 'checked' : ''}>按 Skill 默认格式</label>${['md', 'html', 'docx', 'pdf', 'xlsx', 'png'].map((format) => `<label class="check-label"><input id="format-${format}" type="checkbox" data-format="${format}" ${selected.includes(format) ? 'checked' : ''}>${format.toUpperCase()}</label>`).join('')}<button type="button" class="text-button" data-no-formats>仅聊天，无需文件</button></div></details>`;
 }
 
 export function renderDelivery(delivery) {
@@ -92,9 +92,13 @@ export function renderDatasets(sessionID, datasets = []) {
 }
 
 export function renderResearchPlan(detail) {
-  const plan = detail?.plan;
-  const error = detail?.plan_error;
-  const incomplete = detail?.plan_history_incomplete === true;
+  const canonical = detail?.research_plan;
+  const hasCanonical = detail && Object.hasOwn(detail, 'research_plan');
+  const plan = hasCanonical ? canonical?.status === 'available' ? {
+    turn: canonical.turn, seq: canonical.seq, version: `${canonical.turn}:${canonical.seq}`, todos: canonical.items,
+  } : null : detail?.plan;
+  const error = hasCanonical ? canonical?.status === 'invalid' ? '原生计划事件无效；当前计划无法确认。' : null : detail?.plan_error;
+  const incomplete = hasCanonical ? canonical?.history_complete === false : detail?.plan_history_incomplete === true;
   if (!plan && !error && !incomplete) return '';
   const labels = { pending: '待开始', in_progress: '进行中', completed: '已完成' };
   const items = !error && Array.isArray(plan?.todos) ? plan.todos : [];

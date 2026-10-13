@@ -2,11 +2,13 @@
 
 Research Workbench 当前交付的是本地优先的 **Research Web**：一个由 FinGPT、Claw、数据能力和研究框架组成的研究工作台。
 
+Claw 在同一研究引擎上组织本地项目、成员会话、带来源的文件与显式引用，并提供日程、技能和 MCP 入口；聊天提出的日程须用户确认保存，默认停用，之后另行启用。见[Claw 页面合同](docs/research-web-ui.md#claw-项目与日程)。
+
 当前 Web 入口为 `app.research_web.main:app`。Research Web 通过 FastAPI 轻量适配层连接专属 DSH；**DSH 是唯一的研究引擎**，负责研究执行循环、会话历史、Skill 与子 Agent。Research Web 不启动旧 API 生命周期，也不要求 PostgreSQL、pgvector 或桌面预览。
 
 > 当前产品阶段为 **Web-only**。桌面打包历史仍被保留，但桌面 sidecar、Tauri、安装包和原生桌面 CI 不属于普通 Research Web 的安装或验收前提。
 
-当前交付优先 macOS Native；Windows/Linux 和 Docker 保留实现、暂缓产品验收。固定 DSH 已更新为 0.2.1-alpha.1 的 Fork 提交 `48504f07f217f9fd45a4f6d8fca4b1ed35c2d4b0`，安装版本由 `runtimes/research_web.json` 决定。空实例默认 `deepseek-flash`，已有模型 ID 和会话保留，不自动重写或更新已运行的生产实例。
+当前主开发与常驻节点为 24GB Mac mini，开发、构建和测试放在 Docker；MacBook Pro 是远程入口。Windows/Linux 原生验收由对应设备负责。固定 DSH 为 0.2.1-alpha.1 的 Fork 提交 `48504f07f217f9fd45a4f6d8fca4b1ed35c2d4b0`，安装版本由 `runtimes/research_web.json` 决定。空实例默认 `deepseek-flash`，已有模型 ID 和会话保留，不自动更新已运行的生产实例。
 
 架构阅读从 Settings →「架构文档」或[交互图册](outputs/research-web-architecture/index.html)开始，按产品总览、部署、子系统、关键流程和 API 逐层展开；模块入口关联权威说明、源码与测试。
 
@@ -16,18 +18,18 @@ Research Workbench 当前交付的是本地优先的 **Research Web**：一个�
 
 ### 前置条件
 
-- Docker 模式（实现保留，本阶段暂缓验收）：宿主 Python 3.12 解释器用于公开安装入口和统一 `rwb` CLI，另需 Docker Desktop、可用的 Engine 与 Compose v2；无需宿主 Node，也无需全局第三方 Python 包，镜像内使用锁定的 Python 3.12、Node 24 和固定 DSH。当前 Windows Docker 凭据目录 ACL 无法由实现证明时会以 `docker_credentials_acl_unverified` 失败关闭，不能据此宣称 Windows 已验收。
+- Docker 新实例路径（macOS）：宿主 shell、Docker Desktop、Docker CLI/Engine 与 buildx，无需宿主 Python/Node；[开发部署手册](docs/research-web-docker.md)提供 dev/stage/prod 实例入口。Windows cmd 与 legacy Python Docker CLI 保留原合同及未验收边界。
 - Native 模式：宿主 Python 3.12、Node.js 22.19+（22 系列）或 24.x、Git；Windows 另需 Visual Studio 2022 Build Tools 的 “Desktop development with C++” 工作负载。
 
 Wind、iFinD、Office 等本机或厂商能力均为可选项；缺少它们不会阻止 Research Web 启动。
 
 ### 安装
 
-当前 macOS 阶段使用下述 Native 入口；以下 Docker 命令保留供未来恢复验收时使用：
+Mac mini 新实例使用以下入口，默认建立回环端口 18088 的独立 stage 实例：
 
 ```bash
 ./setup-web.sh --runtime docker
-./rwb web doctor
+./rwb docker stage local doctor
 ```
 
 当前 Native 入口；`./setup-web.sh` 无参数也默认 Native：
@@ -56,6 +58,8 @@ python scripts/setup_web.py --runtime native
 ```
 
 Native 安装器创建 checkout 专属 `.venv`；Docker 安装器构建受管镜像，使用单容器内的 DSH 与 Web。两者消费同一带哈希 Web 锁、随包 CJPY 和固定 DSH 合同，不安装数据库、桌面 sidecar 或 Tauri。Docker 的临时认证与运行状态使用容器私有 tmpfs，重启时重建；产品数据和私有凭据分别使用持久 bind。Docker 构建需要网络拉取固定基础镜像和 DSH 依赖；macOS Docker Desktop 已有独立镜像、安装、健康、重启与重建数据保留证据，适用的镜像/宿主提交及限制见支持矩阵；这些结果不认证 Windows/Linux 或厂商授权。
+
+Docker 开发资源的命名、镜像保留、测试收尾与可恢复清理见[资源治理指南](docs/research-web-installation.md#docker-资源命名与收尾)。清理入口默认只预览；正式数据不随停止容器删除，废弃卷先备份并验证恢复。
 
 可在安装后检查运行环境：
 
@@ -128,7 +132,7 @@ Native 可在确认没有活动研究时普通重启；Docker 运行中无法认
 
 macOS Native 的模型凭据由产品 overlay 挂载的固定用途桥接存入系统 Keychain，按规范化 data home 隔离；不回退环境、旧凭据 YAML 或 `.env`，也不把 Keychain 值复制到文件。不迁移旧模型 Key，需在该实例设置页重新录入。Host 浏览器认证 record 保留固定 DSH 的受控文件实现，和模型 Key 分开。其他平台或 Keychain 不可用时模型失败关闭，设置页与 Host 认证仍可使用；其他平台系统模型存储尚未验证。
 
-Docker相关通用业务凭据隔离实现保留；本阶段不交付Docker模型凭据后端，不把Native系统存储保证泛化到容器。
+Docker 模型凭据使用显式绑定的加密文件后端，保存在独立私有凭据挂载的 `models/` 子目录；API Key 不以明文写入产品索引、旧 YAML 或镜像。主密钥与密文同卷，不防御能读取整个挂载的同 UID 进程或管理员。现有通用业务凭据原样保留，不读取或迁移 Native Keychain；请在当前 Docker 实例的设置页录入模型 Key。保存、重启恢复与真实生成分别验收，不把后端存在当成模型可调用。
 
 DataHub 连接凭据按规范化 data home 隔离系统凭据服务；不同实例互不读取、覆盖或清除。旧全局记录不自动迁移或回退，已有非秘密配置保留，升级后请在所属实例设置页重新录入数据源凭据；旧记录不会被删除。
 
@@ -171,6 +175,7 @@ Research Web 使用用户私有目录保存运行状态与数据：
 - **Asset Observation（资产观察）**：按需查看资产相关数据。
 - **Research Workbench（研究台）**：市场、资产、基金、行业与文档的工作台入口。
 - **Capability Center（能力中心）**：Skill、Method、Tool、Workflow 与数据能力目录。
+- **资讯雷达**：事件、研报、赛道资讯、快讯与社交内容的原生只读页面；使用 Golddata 现成接口，支持原文阅读与 A 股代码查询。
 - **Research Frameworks（研究框架）**：独立的研究框架与快照驱动分析。
 - **Operations and Usage（运行与用量）**：只读聚合模型用量、Agent、工具、DataHub、服务健康与存储情况。
 - **Settings（设置）**：通用、模型服务、数据源、本机集成与架构文档。

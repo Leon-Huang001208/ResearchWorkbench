@@ -2933,6 +2933,42 @@ class WebServiceManager:
         product_ready = all(probe.ready for probe in probes)
         model_ready, model_warnings = self._model_diagnosis() if product_ready else (False, ())
         warnings = list(dict.fromkeys([*model_warnings, *proxy_warnings(os.environ)]))
+        office_fact = read_private_json(
+            self.data_root / "integrations/status.json",
+            trusted_root=self.data_root.parent,
+            max_bytes=STATE_LIMIT_BYTES,
+        )
+        office_value = office_fact.value if office_fact.state == "valid" else {}
+        office_owner = hashlib.sha256(
+            json.dumps(
+                {
+                    "coordinator": str((self.data_root / "integrations").resolve()),
+                    "manager": str((self.data_root / "local-integrations").resolve()),
+                },
+                ensure_ascii=True,
+                sort_keys=True,
+                separators=(",", ":"),
+            ).encode()
+        ).hexdigest()
+        office_scope_valid = (
+            isinstance(office_value, dict) and office_value.get("office_owner") == office_owner
+        )
+        office_consents = office_value.get("consents", {}) if office_scope_valid else {}
+        if not isinstance(office_consents, dict):
+            office_consents = {}
+        office_auto = {
+            "state": "known" if office_scope_valid or office_fact.state == "missing" else "unknown",
+            "targets": {
+                name: office_consents.get(f"local:{name}_app") is True
+                for name in ("excel", "word", "powerpoint")
+            },
+            "scope": "owned_instance",
+            "disable_at": "settings/local",
+            "system_prompts": "manual_required",
+            "cleanup": "registered_test_documents_only",
+        }
+        if office_auto["state"] == "unknown":
+            log.warning("office_auto_doctor_state_unknown")
         return {
             **diagnosis,
             "runtime_mode": "native",
@@ -2945,6 +2981,7 @@ class WebServiceManager:
             "issues": list(dict.fromkeys([*installation_issues, *service_issues])),
             "warnings": warnings,
             "services": {probe.role: probe.public() for probe in probes},
+            "office_auto_verification": office_auto,
         }
 
     def _validate_log_ownership(self) -> dict[str, tuple[bytes, tuple[int, ...]]]:

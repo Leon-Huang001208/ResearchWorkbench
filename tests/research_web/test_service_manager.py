@@ -5785,6 +5785,12 @@ def test_fix4_fresh_failure_restores_only_with_exact_recovery_proof(manager, mon
         raise ServiceManagerError("web_health_timeout", code="web_health_timeout", role="web")
 
     monkeypatch.setattr(manager, "_prepare_private_directories", prepare)
+    # This suite tests a real origin mutation, not the host's free default port.
+    monkeypatch.setattr(
+        service_manager_module,
+        "select_port",
+        lambda preferred, **_kwargs: 18089 if preferred == 8088 else 13082,
+    )
     monkeypatch.setattr(manager, "_require_installation_ready", lambda: {"ok": True})
     monkeypatch.setattr(service_manager_module, "listener_pids", listeners)
     monkeypatch.setattr(service_manager_module, "probe_process", facts)
@@ -5854,3 +5860,34 @@ def test_fix5_installer_cannot_borrow_a_boolean_or_tuple_lease(manager, impostor
         pytest.raises(ServiceManagerError, match="lifecycle_lock_ownership_lost"),
     ):
         manager._start_installed(impostor, open_browser=False)
+
+
+def test_doctor_office_auto_is_owned_read_only_and_unknown_on_wrong_owner(manager, monkeypatch):
+    monkeypatch.setattr(manager, "_installation_diagnosis", lambda: {"ok": False, "issues": []})
+    monkeypatch.setattr(manager, "_service_probes", lambda: ())
+    monkeypatch.setattr(manager, "_model_diagnosis", lambda: (False, ()))
+    manager.data_root.mkdir(parents=True, exist_ok=True, mode=0o700)
+    manager.data_root.chmod(0o700)
+    state = manager.data_root / "integrations/status.json"
+    state.parent.mkdir(mode=0o700)
+    owner = service_manager_module.hashlib.sha256(
+        json.dumps(
+            {
+                "coordinator": str(state.parent.resolve()),
+                "manager": str((manager.data_root / "local-integrations").resolve()),
+            },
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode()
+    ).hexdigest()
+    state.write_text(json.dumps({"office_owner": owner, "consents": {"local:word_app": True}}))
+    state.chmod(0o600)
+    raw = state.read_bytes()
+    office = manager.doctor()["office_auto_verification"]
+    assert office["targets"] == {"excel": False, "word": True, "powerpoint": False}
+    assert office["state"] == "known"
+    assert state.read_bytes() == raw
+    state.write_text(json.dumps({"office_owner": "foreign", "consents": {"local:word_app": True}}))
+    office = manager.doctor()["office_auto_verification"]
+    assert office["state"] == "unknown"
+    assert not any(office["targets"].values())

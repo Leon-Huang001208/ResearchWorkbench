@@ -1,5 +1,17 @@
 # Research Web 能力与平台证据
 
+2026-10-12 G0/G1 在 Mac mini（Apple M6、24GiB、macOS27.0.1、arm64）完成本地 Docker
+开发与候选基座实测：固定DSH完整构建、容器内回归、实际健康、stop/up、开发重建/退休后
+源码与数据保留，以及固定候选不受开发源码变化影响。具体镜像、命令、哈希与失败重试记录
+见 [.ai/reports/2026-10-12-mini-docker-g01-PROGRESS.md](../.ai/reports/2026-10-12-mini-docker-g01-PROGRESS.md)。
+该条是当前本地证据；本轮新候选GitHub macOS干净安装CI尚NOT_RUN，不能借旧run宣布完整本平台验收。
+Docker VM实际约8GiB，16GiB是建议配置；冷构建错峰5GiB，stage2GiB、dev3GiB限额已inspect。
+真实供应商、多人登录、Linux严格沙箱、公网、生产迁移及Windows/Linux原生仍未验证/后续阶段。
+
+2026-10-12 Docker 资源治理为本地源码迭代：Mac Docker Desktop 已验证专用辅助资源的成功、失败、
+正常中断收尾及数据卷实际备份恢复比较。该证据不等于新应用镜像完整构建或产品启动验收，
+不替代候选提交的 macOS CI；Windows/Linux 的新资源治理验收仍为 NOT_RUN。
+
 支持按能力、系统和运行方式声明。Doctor 的 `available` 表示代码具有当前实现，`unsupported` 表示明确边界，`not_verified` 表示必要安全证明缺失；`validated=false` 不会随操作系统推导为通过。实际验收由任务回执和下表的证据决定。
 
 ## 当前证据身份
@@ -25,7 +37,7 @@ Docker DSH builder 的[命令局部并发 8 / 单请求期限 120 秒](research-
 | --- | --- | --- | --- | --- | --- | --- |
 | 安装、固定 DSH 构建 | 阶段二清洁 CI PASS | 待真机、Windows CI | 待真机、Linux CI | 两架构待 Linux 设备 dispatch | 独立安装 PASS（镜像快照5e1b） | 凭据 ACL 门阻断 |
 | 启动、停止、重启、Doctor | 阶段二 CI 与独立重启 PASS | 待验 | 待验 | 健康/重启/端口释放待验 | 独立启动/重启/Doctor/停止与端口释放 PASS（宿主fb9） | ACL 阻断，不声明 ready |
-| 模型系统存储 | Keychain 桥接有实现，真实调用依授权配置 | 不支持：仅 Mac Native 实施 | 不支持：仅 Mac Native 实施 | 不支持：未实施模型系统存储桥接 | 不支持：未实施模型系统存储桥接 | 不支持 |
+| 模型存储 | Keychain 桥接有实现，真实调用依授权配置 | 不支持：仅 Mac Native 实施 | 不支持：仅 Mac Native 实施 | 加密文件桥有实现；本平台验收 NOT_RUN | 加密文件桥有实现；本任务镜像、配置恢复和真实推理待验 | ACL 阻断，未验证 |
 | DataHub 凭据 | Native keyring 有实现、授权逐项验收 | keyring 有实现、待验 | keyring 有实现、待验 | 私有文件后端有实现、待验 | 私有文件后端有实现、待验 | DACL 未证明，失败关闭 |
 | 数据源及授权 | 按 Provider 实际状态；未配置非可调用 | 待验、厂商授权单列 | 待验、厂商授权单列 | 不从依赖安装推导授权 | 不从依赖安装推导授权 | ACL 阻断 |
 | 研究脚本严格沙箱 | 真实 sandbox-exec 文件生成与会话外写入拒绝 PASS（Native快照985/205） | 不支持 | 不支持 | 不支持 | Linux 容器中不支持 | 不支持 |

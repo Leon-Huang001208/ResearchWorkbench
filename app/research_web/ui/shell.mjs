@@ -1,7 +1,8 @@
 import { escapeHTML as e } from './markdown.mjs';
 import { sessionHash, isRunning } from './core.mjs';
-import { renderActivities, renderDatasets, renderDelivery, renderFiles, renderResearchPlan } from './views.mjs';
+import { renderActivities, renderDatasets, renderDelivery, renderFiles } from './views.mjs';
 import { icon } from './icons.mjs';
+import { renderResearchPanel } from './research-report.mjs';
 import { renderWorkflowPlan } from './capabilities.mjs';
 
 const navItems = [
@@ -9,6 +10,7 @@ const navItems = [
   { page: 'claw', glyph: 'layers', title: 'Claw', href: '#/claw' },
   { page: 'workbench', section: 'assets', glyph: 'chart', title: '资产观察', href: '#/workbench/assets' },
   { page: 'workbench', glyph: 'chart', title: '研究台', href: '#/workbench' },
+  { page: 'intel', glyph: 'activity', title: '资讯雷达', href: '#/intel/overview' },
   { page: 'frameworks', glyph: 'grid', title: '研究框架', href: '#/frameworks' },
   { page: 'skills', glyph: 'grid', title: '能力中心', href: '#/skills' },
   { page: 'operations', glyph: 'activity', title: '运行与用量', href: '#/operations' },
@@ -108,15 +110,15 @@ export function renderSidebar({ page, sessionId, sessions = [], workspaces = [],
   return `<aside class="sidebar secondary-sidebar ${mobileOpen ? 'mobile-open' : ''} ${collapsed ? 'collapsed' : ''}" aria-label="${ariaLabel}" ${hidden ? 'aria-hidden="true"' : ''}><div class="sidebar-top"><h2>${modeLabel}</h2><button class="icon-button sidebar-collapse" data-collapse-sidebar aria-label="折叠 ${modeLabel} 二级侧栏">${icon('sidebar')}</button></div>${clawTabs}${body}</aside>`;
 }
 
-export function renderContextPanel({ detail, selectedTab = 'activity', mobileOpen = false, selectedPreview = null, busy = false, workflow = null } = {}) {
+export function renderContextPanel({ detail, selectedTab = 'activity', mobileOpen = false, selectedPreview = null, busy = false, workflow = null, researchStage = null } = {}) {
   if (!detail) return '';
-  const tabs = [['activity', '活动'], ['datasets', '资料'], ['files', '文件']];
-  const panel = selectedTab === 'datasets' ? renderDatasets(detail?.id, detail?.datasets) || '<p class="muted small context-empty">本会话暂无研究资料。</p>' : selectedTab === 'files' ? `<section class="context-section"><div class="section-heading"><h3>文件</h3>${detail ? `<button class="text-button" data-refresh-files ${busy ? 'disabled' : ''}>刷新</button>` : ''}</div>${renderFiles(detail?.files || [], selectedPreview)}</section>` : `${renderLockedWorkflowSummary(detail)}${renderDelivery(detail?.delivery)}${renderResearchPlan(detail)}${renderWorkflowPlan(workflow || detail.capability)}${renderActivities(detail)}`;
+  const tabs = [['activity', '活动'], ['plan', '计划'], ['evidence', '证据'], ['notes', '笔记'], ['report', '报告'], ['datasets', '资料'], ['files', '文件']];
+  const panel = ['plan', 'evidence', 'notes', 'report'].includes(selectedTab) ? renderResearchPanel(detail, selectedTab, researchStage) : selectedTab === 'datasets' ? renderDatasets(detail?.id, detail?.datasets) || '<p class="muted small context-empty">本会话暂无研究资料。</p>' : selectedTab === 'files' ? `<section class="context-section"><div class="section-heading"><h3>文件</h3>${detail ? `<button class="text-button" data-refresh-files ${busy ? 'disabled' : ''}>刷新</button>` : ''}</div>${renderFiles(detail?.files || [], selectedPreview)}</section>` : `${renderLockedWorkflowSummary(detail)}${renderDelivery(detail?.delivery)}${renderWorkflowPlan(workflow || detail.capability)}${renderActivities(detail)}`;
   return `<aside class="context-panel ${mobileOpen ? 'mobile-open' : ''}" aria-label="研究活动、资料与文件"><header class="context-header"><div><h2>研究空间</h2><span class="badge">${detail?.mode === 'claw' ? 'CLAW' : 'FINGPT'}</span></div><button class="icon-button context-close" data-toggle-context aria-label="关闭研究空间">×</button></header><div class="context-tabs" role="tablist">${tabs.map(([id, label]) => `<button type="button" role="tab" class="context-tab ${selectedTab === id ? 'active' : ''}" aria-selected="${selectedTab === id}" data-context-tab="${id}">${label}</button>`).join('')}</div><div class="context-tab-panel">${panel}</div></aside>`;
 }
 
 export function renderTopbar({ page = 'fingpt', section = '', frameworkSlug = '', settingsSection = '', detail = null, runtimeLabel, runtime, search = '', sessions = [], skills = [], searchOpen = false } = {}) {
-  const title = page === 'workbench' && section === 'assets' ? '资产观察' : ({ fingpt: 'FinGPT', claw: 'Claw', workbench: '研究台', frameworks: '研究框架', skills: '能力中心', history: '研究历史', operations: '运行与用量', settings: '设置' })[page] || 'FinGPT';
+  const title = page === 'workbench' && section === 'assets' ? '资产观察' : ({ fingpt: 'FinGPT', claw: 'Claw', workbench: '研究台', frameworks: '研究框架', skills: '能力中心', history: '研究历史', operations: '运行与用量', intel: '资讯雷达', settings: '设置' })[page] || 'FinGPT';
   const settingsSubtitle = ({ general: '通用', model: '模型服务', data: '数据源', local: '本机集成', docs: '架构文档' })[settingsSection];
   let runtimeAttention = '';
   if (runtime && (!runtime.connected || runtime.credential_configured === false)) {

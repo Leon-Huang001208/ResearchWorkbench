@@ -50,7 +50,7 @@ def _project_plan(entries: list[dict]) -> dict:
         if kind != "todo/write":
             continue
         todos = data.get("todos") if isinstance(data, dict) else None
-        valid = isinstance(todos, list)
+        valid = isinstance(todos, list) and len(todos) <= 100
         seen = set()
         if isinstance(todos, list):
             for item in todos:
@@ -59,6 +59,7 @@ def _project_plan(entries: list[dict]) -> dict:
                     or set(item) != {"content", "status"}
                     or not isinstance(item["content"], str)
                     or not item["content"].strip()
+                    or len(item["content"]) > 10000
                     or item["content"] != item["content"].strip()
                     or item["content"] in seen
                     or item["status"] not in ("pending", "in_progress", "completed")
@@ -123,7 +124,7 @@ def project(entries: list[dict]) -> dict:
         event = entry["event"]
         data, kind, seq = event["data"], event["type"], event["seq"]
         if kind == "todo/write":
-            continue  # validated by the independent native plan fold above
+            continue  # The independent native fold validates the complete snapshot.
         timestamp = event.get("time")
         if not isinstance(timestamp, (int, float)) or isinstance(timestamp, bool):
             timestamp = None
@@ -205,8 +206,16 @@ def project(entries: list[dict]) -> dict:
                 aid, {"id": aid, "type": "tool", "title": message.get("name", "工具结果")}
             )
             row.update(
-                status="failed" if data.get("error") or block.get("isError") else "completed",
-                detail=content_text(block.get("content")),
+                status=(
+                    "failed"
+                    if data.get("error") or message.get("isError") or block.get("isError")
+                    else "completed"
+                ),
+                detail=content_text(
+                    message.get("content")
+                    if message.get("role") == "tool"
+                    else block.get("content")
+                ),
             )
             started = tool_started.get(aid)
             if started is not None and timestamp is not None and timestamp > started:
@@ -249,8 +258,28 @@ def project(entries: list[dict]) -> dict:
             "text": "\n".join(partial["blocks"][key] for key in sorted(partial["blocks"])),
             "seq": partial["seq"],
         }
+    native_plan = plan_projection["plan"]
+    if native_plan is not None:
+        plan = {
+            "turn": native_plan["turn"],
+            "seq": native_plan["seq"],
+            "status": "available",
+            "history_complete": not plan_projection["plan_history_incomplete"],
+            "items": native_plan["todos"],
+        }
+    elif plan_projection.get("plan_error") or plan_projection["plan_history_incomplete"]:
+        plan = {
+            "turn": None,
+            "seq": None,
+            "status": "invalid" if plan_projection.get("plan_error") else "incomplete",
+            "history_complete": False,
+            "items": [],
+        }
+    else:
+        plan = None
     result = {
         **plan_projection,
+        "research_plan": plan,
         "messages": sorted(
             (message for message in messages.values() if message["text"]),
             key=lambda row: row["seq"],

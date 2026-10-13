@@ -28,7 +28,7 @@ export function settingsConnectionId(hash, sources, section) {
 export function settingsRefreshCatalogs(section) {
   if (section === 'model') return ['runtime', 'models'];
   if (section === 'data') return ['connections', 'integrations'];
-  if (section === 'local') return ['localIntegrations', 'tabbit', 'integrations'];
+  if (section === 'local') return ['localIntegrations', 'tabbit'];
   return [];
 }
 
@@ -118,14 +118,14 @@ function renderTabbitSettings(tabbit, busy) {
 }
 
 function renderSettingsBody(options) {
-  const { section, runtime, tabbit, models, runtimeLabel, busy, modelFailures, connections, integrations, localIntegrations, localVerificationTarget, selectedConfiguration, migrationOpen, connectionDetailOpen, hash } = options;
+  const { section, runtime, tabbit, models, runtimeLabel, busy, modelFailures, connections, integrations, localIntegrations, localVerificationTarget, localCategory, officeConsentConfirmation, selectedConfiguration, migrationOpen, connectionDetailOpen, hash } = options;
   if (section === 'model') return renderModelSettings({ runtime, models, runtimeLabel, busy, modelFailures });
   if (section === 'local') {
-    const localSummary = (integrations?.items || []).filter((item) => item?.scope === 'local').reduce((summary, item) => {
-      summary[item.bucket] = (summary[item.bucket] || 0) + 1;
-      return summary;
-    }, { available: 0, checking: 0, user_action: 0, system_fault: 0, not_delivered: 0 });
-    return `${renderTabbitSettings(tabbit, busy)}${renderLocalIntegrationConsole(localIntegrations, { busy, verificationTarget: localVerificationTarget, integrationSummary: localSummary })}`;
+    const tabbitVisible = !localCategory || ['all', 'browsers'].includes(localCategory);
+    const tabbitItem = localIntegrations?.integration_status?.items?.find((item) => item.id === 'local:tabbit');
+    const tabbitLabel = tabbitItem?.runtime_callable ? '可用' : tabbitItem?.bucket === 'system_fault' ? '已观察异常' : '待确认接入条件';
+    const tabbitDetails = tabbitVisible ? `<details class="local-tabbit-details"><summary>Tabbit 浏览器 · ${tabbitLabel} · 设置与诊断</summary>${renderTabbitSettings(tabbit, busy)}</details>` : '';
+    return `${renderLocalIntegrationConsole(localIntegrations, { busy, verificationTarget: localVerificationTarget, category: localCategory, officeConsentConfirmation, integrationSummary: localIntegrations?.integration_status?.summary })}${tabbitDetails}`;
   }
   if (section === 'data') {
     return renderConnectionCenter({

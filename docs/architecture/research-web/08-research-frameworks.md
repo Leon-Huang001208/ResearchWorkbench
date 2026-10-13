@@ -4,6 +4,11 @@
 framework-explain/framework-verify preset 不增加 Todo 或改变契约。研究空间的原生计划
 来自会话日志，与框架步骤及 Workflow 版本说明分别呈现，不推断阶段归属。
 
+Claw 项目归属只组织会话，不重绑 Gold/Dollar 快照或改变 Bot 执行。项目聚合不把其他会话数据自动注入框架，日程提出工具也不改变 framework-explain/verify 的权限。
+
+## 资讯雷达 · 2026-10-09
+
+资讯雷达作为独立只读页面读取外部现有资讯。它不调用 Gold/Dollar 框架分析、创建框架会话或更改快照；事件与研报详情使用独立前端状态。
 
 异根 Native pair 的私有记录认证在框架消费者启动前复核单写者边界；不同根的完整已认证
 日常实例可继续运行，同根或未知 writer 仍拒绝。框架定义、快照/评分/Bot 合同不变；该源码
@@ -134,3 +139,11 @@ Gold/Dollar采集、评分、revision及renderer保持原合同；公共源码�
 ## 单一兼容模型连接
 
 兼容模型文本/流式连接不会授予专业数据或工具能力。无工具的框架解释preset可用于显式生成验收；Gold/Dollar采集、版本快照、确定性评分及深度验证范围不变，模型成功不提升框架数据完整性。
+
+## 设置页本机证据与框架分离
+
+本机设置页精简和Office自动验证不改变Gold/Dollar框架、评分、采集器或框架快照。Office状态只表示对应本机验证，不能提升任何研究框架或DataHub来源为已验收；状态投影与授权边界统一由[集成协调器](09-integration-coordinator.md)维护。
+
+## FinGPT 研究融合 · 2026-10-13
+
+FinGPT 的 research_depth/source_scope 属于研究会话，不进入 Gold/Dollar 快照或框架 Bot。新增报告底稿与 PDF 使用会话 outputs 和原文件交付解析；框架数据及生命周期仍由原模块负责。

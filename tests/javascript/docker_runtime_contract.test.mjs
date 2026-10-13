@@ -11,6 +11,20 @@ const contract = JSON.parse(read('runtimes/research_web.json'));
 const documentNames = ['index', 'api-atlas', '01-deployment', '02-module-dependencies', '03-research-sequence', '04-data-file-flow', '05-capability-flow', '06-run-state', '07-delivery-state', '08-iteration-docs', '09-report-workflow-sequence', '10-excel-report-dataflow'];
 const instructions = () => read('Dockerfile').replace(/\\\n\s*/g, ' ').split('\n').filter((line) => /^[A-Z]+ /.test(line));
 
+test('Docker shell installer dispatches before any host interpreter probe', () => {
+  const temporary = mkdtempSync(join(tmpdir(), 'rwb-shell-install-'));
+  try {
+    writeFileSync(join(temporary, 'setup-web.sh'), read('setup-web.sh'));
+    writeFileSync(join(temporary, 'rwb-docker'), '#!/bin/sh\nprintf "%s\\n" "$*" >> "$(dirname "$0")/calls"\n', { mode: 0o755 });
+    const result = spawnSync('/bin/sh', [join(temporary, 'setup-web.sh'), '--runtime', 'docker', '--no-start'],
+      { encoding: 'utf8', env: { PATH: '/bin:/usr/bin' } });
+    assert.equal(result.status, 0, result.stderr);
+    assert.deepEqual(readFileSync(join(temporary, 'calls'), 'utf8').trim().split('\n'),
+      ['bootstrap', 'build', 'stage local register --port 18088']);
+    assert.ok(read('setup-web.sh').indexOf('if [ "$DOCKER_ONLY" = 1 ]') < read('setup-web.sh').indexOf('command -v python3'));
+  } finally { rmSync(temporary, { recursive: true, force: true }); }
+});
+
 test('every apt stage uses authenticated HTTPS transport and retains archive verification', () => {
   const apt=instructions().filter(line=>line.includes('apt-get update'));
   assert.equal(apt.length,2);
@@ -50,7 +64,8 @@ test('DSH builder bounds locked downloads only on its existing pnpm install comm
     lines.indexOf('FROM ${PYTHON_IMAGE} AS runtime'));
   assert.deepEqual(builder.filter(line => line.startsWith('RUN corepack pnpm@'))
     .map(line => line.replace(/\s+/g, ' ').trim()), [
-    'RUN corepack pnpm@11.7.0 install --frozen-lockfile --network-concurrency=8 --fetch-timeout=120000 && corepack pnpm@11.7.0 run build',
+    'RUN corepack pnpm@11.7.0 install --frozen-lockfile --network-concurrency=8 --fetch-timeout=120000',
+    'RUN corepack pnpm@11.7.0 run build',
   ]);
 });
 
@@ -125,9 +140,14 @@ test('Compose requires explicit canonical mounts and includes only non-secret co
   assert.match(read('Dockerfile'), /RWB_RUNTIME_STATE=\/state\/runtime/);
   assert.match(read('Dockerfile'), /RESEARCH_CREDENTIAL_HOME=\/run\/rwb-secrets\/private/);
   assert.deepEqual(service.labels, {
+    'io.research-workbench.project': '${RWB_RESOURCE_PROJECT:-research-workbench}',
+    'io.research-workbench.purpose': '${RWB_RESOURCE_PURPOSE:-research-web}',
+    'io.research-workbench.lifetime': '${RWB_RESOURCE_LIFETIME:-persistent}',
     'io.research-workbench.runtime': 'docker',
     'io.research-workbench.installation': '${RWB_INSTALLATION_ID:?Set RWB_INSTALLATION_ID}',
   });
+  assert.equal(service.build.labels['org.opencontainers.image.revision'], '${RWB_CODE_COMMIT:-unknown}');
+  assert.equal(service.build.labels['io.research-workbench.build'], '${RWB_BUILD_ID:-unknown}');
   assert.deepEqual(service.tmpfs, ['/tmp:rw,nosuid,nodev,mode=1777', '/home/rwb:rw,nosuid,nodev,uid=10001,gid=10001,mode=700', '/state:rw,nosuid,nodev,noexec,uid=10001,gid=10001,mode=700,size=1m']);
   assert.match(read('.github/workflows/research-web-docker.yml'), /sudo install -d -m 700 -o 10001 -g 10001 "\$root\/data" "\$root\/state" "\$root\/state\/logs" "\$root\/credentials"/);
   assert.match(read('Dockerfile'), /VOLUME \["\/data\/research-web", "\/state", "\/run\/rwb-secrets"\]/);

@@ -129,6 +129,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self.wfile.write(json.dumps({"type": "server-response", "rpcId": "wrong" if Path(events + ".bad-rpc").exists() else request["rpcId"],
             "result": {"ok": True, "value": {"items": []}}}).encode())
 server = http.server.HTTPServer(("127.0.0.1", int(port)), Handler)
+record("listening")
 server.timeout = .03
 if role == "runtime":
     if mode == "bootstrap-auth":
@@ -214,6 +215,20 @@ if web_mode.startswith("budget-"):
     original_probe = supervisor.real_probe
     def timed_probe(config, role, timeout, **kwargs):
         global offset
+        if role == "web" and web_mode.endswith("-error"):
+            # Inject HTTP errors only after the fixture listener exists. A cold
+            # process in a CPU-limited container may otherwise lose this one
+            # deterministic probe to connection refusal, exhausting the clock
+            # without exercising the three production GETs under test.
+            import time
+            listener_deadline = real_monotonic() + 2.0
+            while real_monotonic() < listener_deadline:
+                rows = [json.loads(line) for line in (root/"events").read_text().splitlines()]
+                if any(row[:2] == ["web", "listening"] for row in rows):
+                    break
+                time.sleep(.01)
+            else:
+                raise RuntimeError("fixture_web_listener_not_ready")
         with (root/"budgets").open("a") as stream:
             stream.write(json.dumps([role, timeout]) + "\n")
         ready = original_probe(config, role, timeout, **kwargs)

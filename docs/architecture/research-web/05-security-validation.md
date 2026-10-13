@@ -6,6 +6,30 @@ UI 转义显示，项目日志只记错误状态/事件计数。无稳定 item I
 坏数据不保留完成清单。Todo 完成、研究终态和文件交付各自独立。真实集成使用测试私有根，
 不触碰生产 runtime、秘密或付费模型。
 
+启动恢复回归固定端口选择以确定进入控制地址变更事务，保留所有原有身份、字节回滚与拒绝恢复断言；另测同地址 prepare/rollback 不改写内容、stat或journal。原生子会话归属使用固定源码实际导出的 `parentSessionId`，错误父归属、来源与非布尔活动状态仍拒绝。
+模型空闲检查允许原生标为 unknown 执行模式的历史条目仅提供已经核实的活动状态；内部 activityOnly 标记须为真布尔值，默认详情和执行模式门禁不变。回归覆盖原生活动 true/false、缺失 live、外来父、错误来源和字符串布尔值，不删除历史数据。
+
+Claw 项目只是产品索引分组，不授权任意宿主文件访问。文件聚合校验所属会话，显式引用在复制前核对项目和普通文件身份、复制后核对哈希；接收文件使用所属目录 FD 创建，来源变化明确拒绝。
+日程提出端点由原实例私有认证保护；确认/取消端点校验会话归属。模型草稿拒绝 MCP 与投递权限，不能直接启用日程。确认稳定创建键绑定内容，重复请求不得生成第二任务。
+相关回归为 `test_claw_projects.py`、`test_automation_drafts.py`、`test_api.py` 和 `research_web_automation_draft_tool.test.mjs`；这些测试不替代真实模型与同平台 CI。
+
+新管理入口验证私有管理根与记录无alias、环境/实例labels、不可变镜像、容器ID、
+完整配置/挂载、网络、资源限额及卷归属后才启停/重建。Docker在start时把
+`OomKillDisable=null`补为false，两者同为启用OOM killer；只规范化该等值默认，true和其他变更仍拒绝。
+管理代码在只读绑定的管理员worktree中，瞬时控制器独占Docker socket；业务/dev无socket。
+独立BuildKit 3GiB初始编译不足，实测冷构建借stage额度至5GiB，与stage互斥，退出停止；
+入口另核对VM实际内存与所有运行容器硬上限，保留2GiB余量。未知无限额容器拒绝。
+容器隔离不替代用户鉴权或任意代码沙箱；显式 Docker 模型加密文件桥之外的多人授权、
+严格 Linux 沙箱、公网及其余 G2-G5 工作仍待实施。
+
+Docker 清理只执行经预览的精确身份，并持指定 home 的现有生命周期/安装锁，复查保护和引用。
+卷归档的源挂载为只读且 `volume-nocopy`，辅助容器无网络/端口；恢复卷与辅助容器有独立任务标签。
+辅助镜像的未绑定 VOLUME 使用 tmpfs，避免隐式匿名卷遗留；辅助容器删除只释放自己的匿名卷。
+错误与中断停止后续处置并持久化回执，日志不记录 stderr、环境、数据内容或秘密。
+
+## 资讯雷达 · 2026-10-09
+
+资讯适配器只开放固定目标的 11 个 GET 路由，不转发浏览器 Authorization/Cookie、不继承代理环境、不跟随重定向；请求总超时 20 秒，JSON 响应上限 16 MiB，禁止任意 URL 转发。标的、ID、分页与游标有界验证。远端内容转义，原文链接只接受 HTTP/HTTPS；既有 CSP 保持同源。未提供上游鉴权时显示服务不可用，不读取本机模型或业务凭据。
 
 新版原生模块解析使用 `createRuntimeResolution`，每个 packageDir 必须属于固定源码或两项既有受管供应包；解析成功不扩大模块白名单。认证 bootstrap 的 source_commit 从共享 runtime 合同读取，仍验证所属进程、cwd、端口与私有控制文件。preset 注册迁移不改变固定模型 ref 的 Keychain 私有桥接，也不让模型 ref 委托回旧环境/文件解析器。父子活动状态未知时配置和提交失败关闭。
 
@@ -66,6 +90,13 @@ mkdir 到首次身份捕获非原子，沿用 Native/Supervisor 创建模型，�
 macOS Native 的固定模型 ref 通过 owned overlay 挂载产品 provider，私有 stdio 桥接只允许 resolve/describe/set/unset 与所属规范化 data home。桥接使用受管产品 Python，直接选择 macOS Keyring；其他平台、未知后端、拒绝访问或进程失败均失败关闭。秘密只存在系统库和受控进程内存/管道，不进入 argv、环境、URL、普通日志或报告；只散列公开 data home 路径生成命名空间，不散列秘密。不新增通用取密 HTTP API、不复制生产 Key。合成值 Keychain 验证与真实供应商生命周期分开。
 
 模型配置保持同源、回环与专属 Runtime 所有权检查。不回退环境、`.credentials.yaml`、项目 `.env` 或 DSH_HOME `.env`，不复制 Keychain 值到旧文件。浏览器认证的 client-connection/browser-session 与 readRecord/modifyRecord 仍使用固定 DSH 原有受控实现及独立 `.browser-credentials.yaml`；模型未配置、清除、桥接失败不使 record 接口失效。配置保存不读取旧秘密制作备份。活动父/子任务阻止凭据更新；凭据提交结果未知时拒绝新请求，不能假定旧秘密未变。最小生成是用户显式操作，不由列表、刷新、Doctor 或保存自动触发。
+
+Docker 模型桥仅接受 owned overlay 的显式后端和私有凭据挂载绑定。Fernet 记录位于独立
+`models/` 子目录，使用原目录/文件身份守卫、0700/0600 和进程锁；子目录与主密钥首次创建
+串行化，主密钥不隐式轮换，密文校验命名空间及固定 ref，重放到另一 ref 失败关闭。
+既有通用凭据和浏览器认证不迁移。API Key 明文只在受控进程/管道内流转，不进入 argv、
+环境、日志、安装摘要、镜像或业务索引。主密钥与密文同一私有挂载，不抵抗同 UID 或管理员
+读取完整挂载；不把该存储合同当作研究代码沙箱。合成值测试、配置保存与真实推理分别留证。
 
 Docker Doctor schema 1 的 volumes 只投影固定类型：data/logs/credentials=bind、state=tmpfs；logs 为新增非秘密字段，不暴露路径，verified 仍须实际 inspect 成功，失败或缺容器为 false，查询不写目录。
 
@@ -363,3 +394,19 @@ Windows 停止仍先验证产品状态文件、PID 存活与命令签名，绝�
 生产资产筛选不得用模糊目录名删除程序；dist/doc 运行时代码保留，全深度 Git/cache 元数据排除以及 package graph、路径 containment、alias/no-follow 与 manifest 完整性仍失败关闭。Windows ACL、严格研究沙箱和 Docker 非 root 边界保持。
 
 Docker Desktop 初始化在固定 bind 私有叶的原完整 guard 内，用 O_DIRECTORY/O_NOFOLLOW 固定描述符对父根执行不跟随链接的相对属性同步；前后 dev/inode/mode/uid/gid 和父别名/叶替换仍完整复核。同步不 chmod/chown、不读取秘密、不增加 owner 例外；自定义目录仍使用原严格边界。
+
+## Office 自动验证同意
+
+设置 → 本机集成的 Office 开关默认关闭，仅明确同意后允许所属实例的 Word/Excel/PowerPoint。授权仍要求精确同源及用户动作头，只扩展三个精确 local:* 目标，其他本机目标拒绝；厂商调用仍单独确认。同意绑定私有状态根，不跨实例继承。会创建、保存、重开并清理本轮登记测试文稿，保留验证账本与阶段诊断（沙箱文件经归档后精确删除，合成副本由私有run目录按原容量/期限保留）；不会扫描用户文档或关闭用户文稿。系统权限提示必须人工处理，不reset TCC、不修改沙箱/目录权限。超时、拒绝、人工处理或清理未知停止该目标自动尝试，关闭开关取消所属任务，冷启动不重放历史任务。Doctor只读取安全开关投影，不执行验证。
+
+本机scope和Office同意的持久状态恢复不触及DataHub连接配置/凭据元数据；没有明确confirmed清理诊断的Office历史成功也不提升可调用，保持人工处理与停止标记。
+
+2026-10-09追加授权收口：Office成功且关闭确认后，仅归档登记的合成文稿到既有私有验证run目录，再清理沙箱副本；成功marker移除，仍沿原16项/512MiB/24小时有界保留策略回收，不新增执行器或任意路径接口。Office开启改用页内说明、确认/取消按钮，系统权限弹窗仍由人工处理。
+
+## FinGPT 研究融合 · 2026-10-13
+
+FinGPT 资料范围在工具 preflight、上传入口及脚本数据集 read_paths 处执行；datahub_search_web 按 web 分类。底稿绑定当前 task_id，未知来源/缺笔记链路/重复格式/哈希改变或未通过独立沙箱解析均保留缺口。报告仅检查声明章节与来源身份，不证明全文阅读或数值正确；数字结论显示需独立复核。旧任务与无效报告不会展示为当前笔记。
+
+## 历史子会话模式兼容 · 2026-10-13
+
+activityOnly仍逐项验证父子关联、origin=subagent及running为布尔值，不能将missing/unknown活动推断为空闲。历史mode=unknown不授权打开子历史；继续、取消和删除路径仍使用严格执行模式查询。

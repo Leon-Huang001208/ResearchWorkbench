@@ -1,0 +1,10 @@
+# Administrative image only; never used by Web, DSH or research code.
+FROM docker:29.8.2-cli AS cli
+FROM python:3.12.13-slim-bookworm
+RUN sed -i 's@http://deb.debian.org/@https://deb.debian.org/@g' /etc/apt/sources.list.d/debian.sources \
+    && apt-get update && apt-get install -y --no-install-recommends git ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+COPY --from=cli /usr/local/bin/docker /usr/local/bin/docker
+COPY docker/manage.py /opt/manage.py
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+ENTRYPOINT ["python", "/opt/manage.py"]

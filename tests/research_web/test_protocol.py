@@ -13,6 +13,37 @@ from app.research_web.client import DSHClient, RuntimeFailure
 from app.research_web.projection import project
 
 
+def test_native_plan_fold_preserves_mainline_shape_and_bounds():
+    rows = [
+        event(0, "turn/start", {"turn": 2}),
+        event(1, "todo/write", {"todos": [{"content": "A", "status": "pending"}]}),
+    ]
+    view = project(rows)
+    assert view["research_plan"] == {
+        "turn": 2,
+        "seq": 1,
+        "status": "available",
+        "history_complete": True,
+        "items": [{"content": "A", "status": "pending"}],
+    }
+    assert view["plan"]["todos"] == view["research_plan"]["items"]
+    gap = project([rows[0], event(4, "todo/write", {"todos": []})])
+    assert gap["research_plan"]["status"] == "incomplete"
+    assert gap["research_plan"]["items"] == [] and gap["plan"] is None
+    oversized = project(
+        [
+            rows[0],
+            event(
+                1,
+                "todo/write",
+                {"todos": [{"content": str(index), "status": "pending"} for index in range(101)]},
+            ),
+        ]
+    )
+    assert oversized["research_plan"]["status"] == "invalid"
+    assert oversized["research_plan"]["items"] == []
+
+
 @pytest.mark.parametrize(
     "broken",
     [
@@ -566,7 +597,7 @@ async def test_upgraded_subagent_catalog_uses_authoritative_parent_projection_an
             },
             {
                 "sessionId": "child",
-                "parentSession": "parent",
+                "parentSessionId": "parent",
                 "origin": "subagent",
                 "running": running,
             },
@@ -616,7 +647,8 @@ async def test_upgraded_subagent_catalog_uses_authoritative_parent_projection_an
 
 
 @pytest.mark.asyncio
-async def test_upgraded_subagent_unknown_activity_fails_closed():
+@pytest.mark.parametrize("activity_only", [False, True])
+async def test_upgraded_subagent_unknown_activity_fails_closed(activity_only):
     def reply(request):
         body = json.loads(request.content)
         items = [
@@ -641,4 +673,90 @@ async def test_upgraded_subagent_unknown_activity_fails_closed():
 
     async with DSHClient("http://127.0.0.1:3081", transport=httpx.MockTransport(reply)) as client:
         with pytest.raises(RuntimeFailure, match="状态"):
+            await client.rpc(
+                "subagent.list", {"parentSessionId": "parent", "activityOnly": activity_only}
+            )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "live",
+    [
+        {"parentSessionId": "foreign", "origin": "subagent", "running": False},
+        {"parentSessionId": "parent", "origin": "user", "running": False},
+        {"parentSessionId": "parent", "origin": "subagent", "running": "false"},
+        {"parentSession": "parent", "origin": "subagent", "running": False},
+    ],
+)
+@pytest.mark.parametrize("activity_only", [False, True])
+async def test_native_child_parent_identity_and_boolean_activity_remain_required(
+    live, activity_only
+):
+    def reply(request):
+        body = json.loads(request.content)
+        items = [
+            {
+                "sessionId": "parent",
+                "running": False,
+                "projections": {
+                    "values": {
+                        "subagentCatalog": [
+                            {"id": "child", "mode": "unknown" if activity_only else "continuable"}
+                        ]
+                    }
+                },
+            },
+            {"sessionId": "child", **live},
+        ]
+        return httpx.Response(
+            200,
+            json={
+                "type": "server-response",
+                "rpcId": body["rpcId"],
+                "result": {"ok": True, "value": {"items": items}},
+            },
+        )
+
+    async with DSHClient("http://127.0.0.1:3081", transport=httpx.MockTransport(reply)) as client:
+        with pytest.raises(RuntimeFailure, match="状态"):
+            await client.rpc(
+                "subagent.list", {"parentSessionId": "parent", "activityOnly": activity_only}
+            )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("running", [False, True])
+async def test_unknown_child_mode_can_only_supply_verified_activity(running):
+    def reply(request):
+        body = json.loads(request.content)
+        items = [
+            {
+                "sessionId": "parent",
+                "projections": {
+                    "values": {"subagentCatalog": [{"id": "child", "mode": "unknown"}]}
+                },
+            },
+            {
+                "sessionId": "child",
+                "parentSessionId": "parent",
+                "origin": "subagent",
+                "running": running,
+            },
+        ]
+        return httpx.Response(
+            200,
+            json={
+                "type": "server-response",
+                "rpcId": body["rpcId"],
+                "result": {"ok": True, "value": {"items": items}},
+            },
+        )
+
+    async with DSHClient("http://127.0.0.1:3081", transport=httpx.MockTransport(reply)) as client:
+        with pytest.raises(RuntimeFailure, match="状态未知"):
             await client.rpc("subagent.list", {"parentSessionId": "parent"})
+        value = await client.rpc(
+            "subagent.list", {"parentSessionId": "parent", "activityOnly": True}
+        )
+        assert value["entries"][0]["mode"] == "unknown"
+        assert value["entries"][0]["activity"] == ("running" if running else "inactive")

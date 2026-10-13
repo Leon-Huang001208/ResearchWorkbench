@@ -126,7 +126,7 @@ test('settings renders exactly one active body and marks one category current', 
 test('only live settings sections render scoped refresh controls', () => {
   assert.deepEqual(settingsRefreshCatalogs('model'), ['runtime', 'models']);
   assert.deepEqual(settingsRefreshCatalogs('data'), ['connections', 'integrations']);
-  assert.deepEqual(settingsRefreshCatalogs('local'), ['localIntegrations', 'tabbit', 'integrations']);
+  assert.deepEqual(settingsRefreshCatalogs('local'), ['localIntegrations', 'tabbit']);
   assert.deepEqual(settingsRefreshCatalogs('general'), []);
   assert.deepEqual(settingsRefreshCatalogs('docs'), []);
   for (const section of ['model', 'data', 'local']) {
@@ -190,4 +190,13 @@ test('compatible keyless payload never reads a disabled key or targets the origi
   assert.equal(payload.provider, 'openai-compatible');
   assert.equal(payload.credential_mode, 'none');
   assert.equal(Object.hasOwn(payload, 'api_key'), false);
+});
+
+
+test('Office category does not show browser configuration and all keeps it folded', () => {
+  const office = renderSettingsPage({...baseOptions, route: parseRoute('#/settings/local'), hash: '#/settings/local', localCategory: 'office'});
+  assert.doesNotMatch(office, /id="tabbit-settings-form"/);
+  const all = renderSettingsPage({...baseOptions, route: parseRoute('#/settings/local'), hash: '#/settings/local', localCategory: 'all'});
+  assert.match(all, /<details class="local-tabbit-details">/);
+  assert.match(all, /id="tabbit-settings-form"/);
 });
