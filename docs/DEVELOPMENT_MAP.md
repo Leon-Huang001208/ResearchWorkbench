@@ -213,6 +213,11 @@ Docker staging 的包发布载荷与过滤合同归 docker/stage_dsh.py、test_s
 
 Hot 正常 Native 模型装配：services/hot/src/native-model.ts 由 service.ts owner 建立后加载，读取已有预算和当日定价并复用 native-dsh.mjs。默认停用、缺凭据/权限、跨日 guard 及跨价格缓存兼容分别在 native-model.test.ts、dsh-cache-compat.test.ts 与 model-budget.integration.ts 验证；实际 readiness/cache 脚本为 native-model-readiness-proof.ts。
 
+研究共享预算私有接口为 `services/hot/src/research-model-rpc.ts`，service注册五项签名控制操作；
+`model-budget.ts` 的事务内dispatch helper与run/价目校验共享owner fence。标准流usage由服务计算
+费用并保存完整回放；transport只为回执/缓存开放有界大帧。测试为research-model-rpc/transport
+单元及research-evidence真实PG/RPC。DSH流消费者及正式研究执行仍待装配。
+
 Hot 模型管理由 hot_model_controls.py / scripts/model-control.ts 连接 model-control.ts；0014-model-controls.sql 添加不可变审计和状态保护。model-control.integration.ts 覆盖普通角色拒绝、活动归属拒绝迁移、迟到回执和真实三条 CLI；test_hot_model_controls.py 覆盖 pre-key、UUID、记录失败与冷库恢复。
 
 Hot 用户定价：hot_pricing.py 经 check-pricing.ts/ pricing.ts 校验并保存私有日期记录；native-model.ts 在 run/reserve/dispatch 验证日期与指纹。pricing.test.ts/test_hot_pricing.py 覆盖新模拟日期、变化阻断、私有文件、真实CLI及fsync故障。

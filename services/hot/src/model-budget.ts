@@ -95,6 +95,12 @@ export async function lookupModelInTransaction(tx:Tx,schema:string,spec:{resultK
 export async function markModelDispatch(db:Sql,schema:string,owner:RuntimeOwner,value:ModelTicket):Promise<void>{
   ticket(value);
   await withOwnerTransaction(db,schema,owner,async tx=>{
+    await markModelDispatchInTransaction(tx,schema,owner,value);
+  });
+}
+/** Caller holds the owner fence, allowing research-state admission to be atomic. */
+export async function markModelDispatchInTransaction(tx:Tx,schema:string,owner:RuntimeOwner,value:ModelTicket):Promise<void>{
+    ticket(value);
     const [attempt]=await tx`select scope_id,max_tokens,max_cost_micros from ${tx(schema)}.model_attempts where id=${value.id}
       and dispatch_token_hash=${sha256(value.token)} and generation=${owner.generation} and state='reserved'`;
     if(!attempt)throw Error('hot_model_dispatch_denied');
@@ -108,7 +114,6 @@ export async function markModelDispatch(db:Sql,schema:string,owner:RuntimeOwner,
     const rows=await tx`update ${tx(schema)}.model_attempts set state='dispatching',dispatched_at=clock_timestamp(),day_key=${budget.today}
       where id=${value.id} and dispatch_token_hash=${sha256(value.token)} and generation=${owner.generation} and state='reserved' returning id`;
     if(rows.length!==1)throw Error('hot_model_dispatch_denied');
-  });
 }
 export async function markModelUnknown(db:Sql,schema:string,value:ModelTicket):Promise<void>{
   schemaName(schema);ticket(value);

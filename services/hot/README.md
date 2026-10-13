@@ -656,6 +656,23 @@ current verified pricing and the existing authorization. The kernel does not dis
 or enforce the actual DSH stream input bound yet; the private Host/LLM bridge and
 actual paid study remain required next work.
 
+The signed internal service now mounts `research.model.reserve/dispatch/unknown/
+cancel/receipt`, all requiring the controller key. Lifecycle messages bind run,
+session, call and a hashed dispatch ticket; another call cannot adopt that ticket.
+Dispatch rechecks the active run and unchanged current tariff inside the same
+owner transaction as budget admission. Receipts carry bounded complete DSH chunks
+and actual normalized usage; the service computes tariff-ceiling costs itself.
+Known billed failures retain a rejected replay marker. Missing finish/usage remains
+unknown. Receipt persistence and replay do not require today's price, while new
+dispatch does. The Host/DSH stream consumer still needs to be wired to these methods.
+
+Ordinary v1 input/output frames keep 64KiB/1MiB limits. Only authenticated research
+receipt input and research reserve cache output support 2MiB signed frames, covering
+the base64 overhead of at most 1MiB replay JSON. This is not a browser write endpoint.
+`research-model-rpc.test.ts`, `transport.test.ts` and the real PG/signed
+`research-evidence.integration.ts` cover accounting, large replay, cross-identity
+denials, terminal-run concurrency and late receipt reuse without provider dispatch.
+
 Native assembly reads the same `runtimes/research_web.json` pin as Web, rejects a
 different commit, aliased source or modified tracked checkout, and mounts the current
 `llm-deepseek-api-key` route. Catalog/prepared-call integration uses the real installed

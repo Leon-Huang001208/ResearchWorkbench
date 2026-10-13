@@ -8,7 +8,7 @@ export interface RpcIdentity {instanceId:string;mode:'native'|'docker';generatio
 export interface RpcHandler {permission:'read'|'control';run:(params:Record<string,postgres.JSONValue>,id:string,signal:AbortSignal)=>Promise<postgres.JSONValue>}
 export interface TransportOptions {port?:number;identity:RpcIdentity;readerToken:string;controllerToken:string;
   guard:(signal:AbortSignal)=>Promise<void>;handlers:Map<string,RpcHandler>;secrets?:string[]}
-const PROTOCOL='rwb-hot/v1',MAX_INPUT=65536,MAX_OUTPUT=1048576;
+const PROTOCOL='rwb-hot/v1',MAX_INPUT=65536,MAX_OUTPUT=1048576,MAX_MODEL_FRAME=2097152;
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 function tokenValid(token:string){if(!/^[A-Za-z0-9_\-]{32,128}$/.test(token))throw Error('hot_rpc_token_invalid');}
 function identityValid(identity:RpcIdentity){if(!UUID.test(identity.instanceId)||!['native','docker'].includes(identity.mode)||!/^\d{1,18}$/.test(identity.generation))throw Error('hot_rpc_identity_invalid');}
@@ -44,7 +44,7 @@ export async function startTransport(options:TransportOptions):Promise<{port:num
     socket.on('data',chunk=>{
       if(processing){socket.destroy();return;}
       buffer=Buffer.concat([buffer,chunk]);
-      if(buffer.length>MAX_INPUT){socket.destroy();return;}
+      if(buffer.length>MAX_MODEL_FRAME){socket.destroy();return;}
       const end=buffer.indexOf(10);if(end<0)return;
       processing=true;
       if(buffer.subarray(end+1).length){socket.destroy();return;}
@@ -63,6 +63,7 @@ export async function startTransport(options:TransportOptions):Promise<{port:num
             request.protocol!==PROTOCOL||!UUID.test(request.id)||!Number.isFinite(request.sentAt)||Math.abs(Date.now()-request.sentAt)>10000||
             !request.params||typeof request.params!=='object'||Array.isArray(request.params))throw Error('hot_rpc_request_invalid');
           id=request.id;
+          if(buffer.length>MAX_INPUT&&request.op!=='research.model.receipt')throw Error('hot_rpc_request_limit');
           if(request.instanceId!==identity.instanceId||request.mode!==identity.mode||request.generation!==identity.generation)throw Error('hot_rpc_identity_mismatch');
           const handler=options.handlers.get(request.op);
           if(!handler||(handler.permission==='control'&&key!==options.controllerToken))throw Error('hot_rpc_denied');
@@ -71,7 +72,7 @@ export async function startTransport(options:TransportOptions):Promise<{port:num
           await options.guard(cancellation.signal);
           if(reflects(result,secrets)||reflects(id,secrets))throw Error('hot_rpc_credential_reflection');
           const response=encode({protocol:PROTOCOL,id,ok:true,result},key);
-          if(Buffer.byteLength(response)>MAX_OUTPUT)throw Error('hot_rpc_response_limit');
+          if(Buffer.byteLength(response)>(request.op==='research.model.reserve'?MAX_MODEL_FRAME:MAX_OUTPUT))throw Error('hot_rpc_response_limit');
           socket.end(response);
         }catch(error){
           logEvent('rpc_failed');let code=safeCode(error);
@@ -98,7 +99,7 @@ export async function rpc(port:number,identity:RpcIdentity,token:string,op:strin
   identityValid(identity);tokenValid(token);
   if(!Number.isInteger(port)||port<1||port>65535)throw Error('hot_rpc_port_invalid');
   const payload=encode({protocol:PROTOCOL,id,...identity,op,params,sentAt:Date.now()},token);
-  if(Buffer.byteLength(payload)>MAX_INPUT)throw Error('hot_rpc_request_limit');
+  if(Buffer.byteLength(payload)>(op==='research.model.receipt'?MAX_MODEL_FRAME:MAX_INPUT))throw Error('hot_rpc_request_limit');
   return new Promise((resolve,reject)=>{
     const socket=createConnection({host:'127.0.0.1',port});let buffer=Buffer.alloc(0),settled=false;
     const deadline=setTimeout(()=>finish(Error('hot_rpc_timeout')),5000);deadline.unref();
@@ -106,7 +107,7 @@ export async function rpc(port:number,identity:RpcIdentity,token:string,op:strin
     socket.on('connect',()=>socket.write(payload));socket.on('error',()=>finish(Error('hot_rpc_unavailable')));
     socket.on('end',()=>{if(!settled)finish(Error('hot_rpc_incomplete'));});
     socket.on('data',chunk=>{
-      buffer=Buffer.concat([buffer,chunk]);if(buffer.length>MAX_OUTPUT)return finish(Error('hot_rpc_response_limit'));
+      buffer=Buffer.concat([buffer,chunk]);if(buffer.length>(op==='research.model.reserve'?MAX_MODEL_FRAME:MAX_OUTPUT))return finish(Error('hot_rpc_response_limit'));
       const end=buffer.indexOf(10);if(end<0)return;
       try{
         const frame=JSON.parse(buffer.subarray(0,end).toString('utf8'));

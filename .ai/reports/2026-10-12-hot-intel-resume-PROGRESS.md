@@ -187,4 +187,17 @@ pyproject现有app打包范围覆盖静态目录，干净macOS安装/候选CI仍
 不将这次布局复刻重定义为完整Goal结束。无push/PR/merge/部署或新付费调用。
 
 <!-- architecture-review {"group":"ui","structure":"unchanged","reason":"在既有研究情报页面内复用原事件/频道GET和控制器，新增纸面阅读组件与主题不新增API、服务或执行器；保留工作台路由、八栏目与原有写边界，框架画布不受局部CSS影响。","diagrams":[]} -->
+
+## 2026-10-13 研究共享预算私有RPC桥
+
+上一goal轮仅核对状态，分类NO_PROGRESS；本轮从51505f045干净续跑，macOS功能开发。
+新增签名control-only五项research.model操作，票据绑定run/session/call及原scope，服务按
+冻结价目/标准usage计算费用并保存完整流。重放、跨日迟到回执和已知失败收费保持；
+没有provider发送、迁移原库、扩额或发布。DSH模型流消费者尚未接入，不宣称研究闭环完成。
+
+独立审查两项P1已修复：终态/价目与dispatch共用owner事务；完整回执/缓存双向签名帧支持
+2MiB，普通操作仍原限制。真实PG终态竞争反例、1500碎片回执、950000字节双向RPC通过。
+Hot单元47 PASS、真实随机PG/签名RPC1 PASS、最终typecheck PASS；失败日志和测试资源清理
+由fixture保留。细节见2026-10-13-hot-research-model-rpc.md。本轮后续仍为真实请求input bound、
+Host/DSH流装配、正式研究及恢复/持续采集/计划简报/Docker/干净安装与候选CI，Goal ACTIVE。
 <!-- architecture-review {"group":"hot","structure":"unchanged","reason":"该轮仅记录前端开源适配许可和现有数据/运行边界；原schema/模型scope/唯一队列/Owner未改，真实宏观资料为只读样式预览，不把预览绘成新增产品运行路径。","diagrams":[]} -->

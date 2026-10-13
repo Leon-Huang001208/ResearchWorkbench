@@ -17,6 +17,7 @@ import {configureChannelRequest} from './channel-control.ts';
 import {createBriefRequest,briefGet,briefList,briefExport} from './brief-control.ts';
 import {researchManifestChunk,researchOriginal} from './research-evidence.ts';
 import {prepareResearchRun,advanceResearchRun,readResearchRun} from './research-run.ts';
+import {researchModelHandlers} from './research-model-rpc.ts';
 import {correctEvent,type Correction} from './events.ts';
 import {loadNativeModel,type NativeModelBootstrap,type ModelCapability} from './native-model.ts';
 
@@ -82,6 +83,9 @@ export async function startService(input: ServiceBootstrap,capabilities:{groupin
     }
     const noParams = (params: Record<string,postgres.JSONValue>) => { if(Object.keys(params).length) throw Error('hot_rpc_params_invalid'); };
     const handlers = new Map<string,RpcHandler>([
+      ...researchModelHandlers(controller,config.database.schema,current,config.model.scopeId,
+        ()=>modelCapability?.researchPricing?.()??null,
+        ()=>new Intl.DateTimeFormat('en-CA',{timeZone:config.timezone,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())),
       ['status',{permission:'read',run:async params=>{
         noParams(params);
         const [counts] = await reader`select count(*)::int n from ${reader(config.database.schema)}.sources`;

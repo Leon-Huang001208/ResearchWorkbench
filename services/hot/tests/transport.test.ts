@@ -5,7 +5,26 @@ import { createHmac } from 'node:crypto';
 import { createConnection } from 'node:net';
 import { once } from 'node:events';
 import { setTimeout as delay } from 'node:timers/promises';
-import { startTransport, rpc, type RpcIdentity } from '../src/transport.ts';
+import { startTransport, rpc, type RpcIdentity, type RpcHandler } from '../src/transport.ts';
+
+test('large signed research receipts and cached streams fit without widening ordinary operations',async()=>{
+  const reader=randomBytes(32).toString('hex'),controller=randomBytes(32).toString('hex');
+  const identity:RpcIdentity={instanceId:randomUUID(),mode:'native',generation:'1'};
+  const payload={chunks:[{type:'text-delta',text:'x'.repeat(950000)}]};
+  let saved:any;
+  const service=await startTransport({identity,readerToken:reader,controllerToken:controller,guard:async()=>{},handlers:new Map([
+    ['research.model.receipt',{permission:'control',run:async (params:Parameters<RpcHandler['run']>[0])=>{saved=params;return {state:'received'};}}],
+    ['research.model.reserve',{permission:'control',run:async()=>({state:'reused',response:saved})}],
+    ['ordinary',{permission:'control',run:async()=>({})}],
+  ])});
+  try{
+    await assert.rejects(rpc(service.port,identity,controller,'ordinary',payload),/request_limit/);
+    await assert.rejects(rpc(service.port,identity,reader,'research.model.receipt',payload),/denied/);
+    assert.deepEqual(await rpc(service.port,identity,controller,'research.model.receipt',payload),{state:'received'});
+    assert.deepEqual(await rpc(service.port,identity,controller,'research.model.reserve',{}),{state:'reused',response:payload});
+    await assert.rejects(rpc(service.port,identity,controller,'research.model.receipt',{text:'x'.repeat(2097152)}),/request_limit/);
+  }finally{await service.close();}
+});
 
 test('private protocol enforces instance, mode, generation and control permission', async () => {
   const reader = randomBytes(32).toString('hex');

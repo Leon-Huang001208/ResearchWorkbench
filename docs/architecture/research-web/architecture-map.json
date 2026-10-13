@@ -612,6 +612,8 @@
         "services/hot/tests/research-evidence.test.ts",
         "services/hot/tests/research-evidence.integration.ts",
         "services/hot/tests/research-run.test.ts",
+        "services/hot/tests/research-model-rpc.test.ts",
+        "services/hot/tests/transport.test.ts",
         "services/hot/tests/native-dsh.integration.ts",
         "services/hot/tests/model-budget.integration.ts",
         "services/hot/tests/pricing.test.ts"

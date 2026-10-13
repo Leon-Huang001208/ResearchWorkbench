@@ -15,7 +15,7 @@ import {validatePricing,readPrivatePrice,priceExists} from './pricing.ts';
 
 export type NativeModelBootstrap=Parameters<typeof createNativeDsh>[0];
 type Context=Awaited<ReturnType<typeof createNativeDsh>>;
-export interface ModelCapability {state:'ready'|'blocked_model';code:string|null;groupingModel?:GroupingModel;close:()=>Promise<void>}
+export interface ModelCapability {state:'ready'|'blocked_model';code:string|null;groupingModel?:GroupingModel;researchPricing?:()=>unknown;close:()=>Promise<void>}
 const empty=(code:string):ModelCapability=>({state:'blocked_model',code,close:async()=>{}});
 export async function loadNativeModel(db:postgres.Sql,schema:string,owner:RuntimeOwner,config:HotConfig,
   bootstrap:NativeModelBootstrap|undefined,
@@ -70,6 +70,7 @@ export async function loadNativeModel(db:postgres.Sql,schema:string,owner:Runtim
     logEvent('model_ready');
     return {get state(){return pricingCurrent()?'ready':'blocked_model';},
       get code(){return pricingCurrent()?null:'hot_model_pricing_refresh_required';},
+      researchPricing:()=>pricingCurrent()?JSON.parse(JSON.stringify(pricing)):null,
       groupingModel:{run(packet,signal){pricingGuard();return grouping.run(packet,signal);}},close:()=>active.close()};
   }catch(error){
     if(context){try{await context.close();}catch{logEvent('model_blocked');}}

@@ -13,7 +13,8 @@ import {sha256} from '../src/material.ts';
 import {openQueue} from '../src/queue.ts';
 import {grantWorker,grantController} from '../src/provision.ts';
 import {startService} from '../src/service.ts';
-import {rpc} from '../src/transport.ts';
+import {rpc,startTransport} from '../src/transport.ts';
+import {researchModelHandlers} from '../src/research-model-rpc.ts';
 import {spawn} from 'node:child_process';
 import {reserveResearchModelCall} from '../src/research-model.ts';
 import {provisionModelBudget,reserveModel,markModelDispatch,saveModelReceipt,cancelUnsentModel} from '../src/model-budget.ts';
@@ -94,6 +95,7 @@ test('signed PG evidence copies old full originals, rejects foreign objects and 
   const instanceId=randomUUID(),controllerToken=randomBytes(32).toString('hex'),readerToken=randomBytes(32).toString('hex');
   let service:Awaited<ReturnType<typeof startService>>|undefined;
   let controllerDb:ReturnType<typeof postgres>|undefined;
+  let modelRpc:Awaited<ReturnType<typeof startTransport>>|undefined;
   try{
     await migrate(db,schema);await initializeIdentity(db,schema,instanceId,controllerToken);
     const queue=await openQueue(db,schema,true);await queue.stop();
@@ -164,7 +166,12 @@ test('signed PG evidence copies old full originals, rejects foreign objects and 
     await db.unsafe(`drop trigger fail_model_mapping on "${schema}".research_model_calls`);
     const pipeline=await reserveModel(controllerDb,schema,service.owner,'shared_goal',{resultKey:'f'.repeat(64),specHash:'f'.repeat(64),maxTokens:100,maxCostMicros:100});
     assert.equal(pipeline.state,'reserved');
-    const ticket=await reserveResearchModelCall(controllerDb,schema,service.owner,'shared_goal',price,day,call);
+    let activePrice:unknown=price;
+    modelRpc=await startTransport({port:0,identity:service.owner,controllerToken,readerToken,
+      handlers:new Map(researchModelHandlers(controllerDb,schema,service.owner,'shared_goal',()=>activePrice,()=>day)),guard:async()=>{}});
+    const modelCall=(op:string,params:any,token=controllerToken)=>rpc(modelRpc!.port,service!.owner,token,'research.model.'+op,params) as Promise<any>;
+    await assert.rejects(modelCall('reserve',call,readerToken),/denied/);
+    const ticket=await modelCall('reserve',call);
     assert.equal(ticket.state,'reserved');
     const repeated=await reserveResearchModelCall(controllerDb!,schema,service.owner,'shared_goal',price,day,call);
     assert.equal(repeated.state,'busy');
@@ -175,8 +182,28 @@ test('signed PG evidence copies old full originals, rejects foreign objects and 
     assert.equal(used.charged_calls,2);assert.equal(used.charged_tokens,'1012');
     await assert.rejects(db`update ${db(schema)}.research_model_calls set request_hash=${'d'.repeat(64)}`,/immutable_evidence/);
     if(ticket.state!=='reserved')throw Error('hot_fixture_ticket_invalid');
-    await markModelDispatch(controllerDb,schema,service.owner,ticket.ticket);
-    await saveModelReceipt(controllerDb,schema,ticket.ticket,{answer:'synthetic research response'},{tokens:50,costMicros:100,providerRequestId:null,costBasis:'synthetic'});
+    const bound={runId,sessionId:run.sessionId,callId:call.callId,ticket:ticket.ticket};
+    for(const op of ['dispatch','unknown','cancel','receipt'])await assert.rejects(modelCall(op,bound,readerToken),/denied/);
+    await assert.rejects(modelCall('dispatch',{...bound,sessionId:randomUUID()}),/binding_denied/);
+    await assert.rejects(modelCall('dispatch',{...bound,ticket:{...ticket.ticket,token:'a'.repeat(64)}}),/binding_denied/);
+    activePrice={...price,outputMicrosPerMillion:2400000};
+    await assert.rejects(modelCall('dispatch',bound),/model_denied/);
+    activePrice=price;
+    assert.equal((await modelCall('dispatch',bound)).state,'dispatching');
+    await assert.rejects(modelCall('dispatch',bound),/dispatch_denied/);
+    assert.equal((await modelCall('unknown',bound)).state,'outcome_unknown');
+    assert.equal((await modelCall('unknown',bound)).state,'outcome_unknown');
+    // Synthetic provider usage; token-fragmented output exercises a >64KiB signed receipt.
+    const chunks=[...Array.from({length:1500},()=>({type:'text-delta',index:0,text:'x'})), {type:'usage',usage:{inputTokens:30,outputTokens:20,totalTokens:50}}, {type:'finish',reason:{kind:'stop'}}];
+    const receipt={...bound,chunks,providerRequestId:null};
+    await assert.rejects(modelCall('receipt',{...receipt,costMicros:0}),/invalid/);
+    assert.equal((await modelCall('receipt',receipt)).state,'received');
+    assert.equal((await modelCall('receipt',receipt)).state,'received');
+    assert.equal((await modelCall('unknown',bound)).state,'received');
+    await assert.rejects(modelCall('receipt',{...receipt,chunks:[{...chunks[0],text:'changed'},...chunks.slice(1)]}),/receipt_conflict/);
+    activePrice=null;
+    assert.equal((await modelCall('reserve',call)).state,'reused');
+    activePrice=price;
     assert.equal((await reserveResearchModelCall(controllerDb,schema,service.owner,'shared_goal',price,day,call)).state,'reused');
     if(pipeline.state!=='reserved')throw Error('hot_fixture_ticket_invalid');
     await cancelUnsentModel(controllerDb,schema,service.owner,pipeline.ticket.id);
@@ -186,7 +213,18 @@ test('signed PG evidence copies old full originals, rejects foreign objects and 
     await cancelUnsentModel(controllerDb,schema,service.owner,cancelled.ticket.id);
     await assert.rejects(reserveResearchModelCall(controllerDb,schema,service.owner,'shared_goal',price,day,cancelledCall),/attempt_changed/);
     assert.equal((await db`select charged_calls from ${db(schema)}.model_budgets where scope_id='shared_goal'`)[0].charged_calls,1);
-    await advance('completed');
+    const racedCall={...call,callId:randomUUID()};
+    const raced=await modelCall('reserve',racedCall);assert.equal(raced.state,'reserved');
+    let reached!:()=>void,release!:()=>void;
+    const beforeFence=new Promise<void>(resolve=>{reached=resolve;}),resumeFence=new Promise<void>(resolve=>{release=resolve;});
+    const delayed=new Proxy(controllerDb,{get(target,key,receiver){if(key!=='begin')return Reflect.get(target,key,receiver);return async(fn:any)=>{reached();await resumeFence;return target.begin(fn);};}});
+    const handler=new Map(researchModelHandlers(delayed,schema,service.owner,'shared_goal',()=>price,()=>day)).get('research.model.dispatch')!;
+    const racedBound={runId,sessionId:run.sessionId,callId:racedCall.callId,ticket:raced.ticket};
+    const dispatching=handler.run(racedBound,randomUUID(),new AbortController().signal);
+    await beforeFence;await advance('completed');release();
+    await assert.rejects(dispatching,/model_denied/,'terminal transition before the owner fence forbids dispatch');
+    assert.equal((await db`select state from ${db(schema)}.model_attempts where id=${raced.ticket.id}`)[0].state,'reserved');
+    await modelCall('cancel',racedBound);
     assert.equal((await reserveResearchModelCall(controllerDb,schema,service.owner,'shared_goal',undefined,'2026-10-13',call)).state,'reused','saved result replays in terminal run across dates without current pricing or new admission');
     await assert.rejects(reserveResearchModelCall(controllerDb!,schema,service.owner,'shared_goal',price,day,{...call,callId:randomUUID()}),/execution_not_active/);
     assert.equal((await read('research.run',{runId})).sessionId,reserved);
@@ -218,6 +256,7 @@ test('signed PG evidence copies old full originals, rejects foreign objects and 
     await assert.rejects(rpc(service.port,{...service.owner,generation:String(Number(service.owner.generation)+1)},readerToken,'research.evidence',selection),/untrusted|owner_stale|identity|scope/);
     await assert.rejects(db`update ${db(schema)}.raw_pages set body=${Buffer.from('tampered')} where source_id='official'`,/immutable_evidence/);
   }finally{
+    if(modelRpc)await modelRpc.close();
     if(controllerDb)await controllerDb.end({timeout:5});
     if(service)await service.close();
     await db.unsafe(`drop schema if exists "${schema}" cascade`);
