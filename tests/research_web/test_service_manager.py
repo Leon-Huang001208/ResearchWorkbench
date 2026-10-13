@@ -5785,6 +5785,12 @@ def test_fix4_fresh_failure_restores_only_with_exact_recovery_proof(manager, mon
         raise ServiceManagerError("web_health_timeout", code="web_health_timeout", role="web")
 
     monkeypatch.setattr(manager, "_prepare_private_directories", prepare)
+    # This suite tests a real origin mutation, not the host's free default port.
+    monkeypatch.setattr(
+        service_manager_module,
+        "select_port",
+        lambda preferred, **_kwargs: 18089 if preferred == 8088 else 13082,
+    )
     monkeypatch.setattr(manager, "_require_installation_ready", lambda: {"ok": True})
     monkeypatch.setattr(service_manager_module, "listener_pids", listeners)
     monkeypatch.setattr(service_manager_module, "probe_process", facts)

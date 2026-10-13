@@ -3,6 +3,9 @@
 研究台增加ETF工程模拟切片，确定性策略、约束、事务账本及回放均在同一Host内，真实链路保持BLOCKED。
 合同见[数据与文件](03-data-files.md#etf-工程模拟与真实准入边界)。
 
+模型空闲检查区分已核实活动与历史执行模式；详情/执行仍按原严格模式校验。内部查询范围及失败关闭条件见[运行时](02-research-runtime.md)与[安全验证](05-security-validation.md)，无公开协议或持久格式变化。
+
+Claw 本地研究项目和可确认日程草稿复用现有 Host 索引、文件目录、Automation 与 DSH。项目归属不改变执行目录，跨会话文件必须显式引用；详见[文件](03-data-files.md)、[API](04-api.md)和[UI](../../research-web-ui.md)。
 
 Automation 对普通原生会话和报告 Run 的关联现在在已知后立即原子保存；恢复只监控同一已证明任务，不重新 create/send。报告归属、版本与校验状态仍由既有报告 Runtime 决定；提交未知或关联持久化失败保留失败状态。本次不新增执行器、调度器、API 或持久 schema。
 
@@ -21,6 +24,10 @@ macOS实际端点/origin事务现接入公开CLI启动链；同一产品部署�
 研究布局、能力中心与架构更新检查已实施。当前 Web 包含研究台按需数据入口、独立资产观察、Claw 具体报告 Workflow、会话快照交接、实际产物及只读“运行与用量”聚合；DataHub 同时迁入天软 CJPY 的四项已实现能力，并加入只复用现有 WindAdapter 封闭方法的受限 Wind binding，缺少本机依赖、登录或等价字段口径时仍失败关闭。东方财富基金和财联社是当前无需专业配置即可真实调用的来源。研究脚本由宿主 FIFO 串行、Python 3.12 readiness 和 `cpu_bounded_v1` 公共预算约定共同约束；不依赖 GPU，Seatbelt 仍仅支持 macOS。Phase 2A 提供只读 MCP Registry；Phase 2B 增加不可变安装、官方 SDK Host、OAuth、工具分级、会话授权、人工审批和 DSH 原子激活回滚；Phase 2C 增加锁定版本的通用 Automation、独立 Claw Run 与研究/投递双状态。当前限制见 [架构状态](status.md)，逐任务证据进入 `.ai/reports/`。图形通过不替代产品、数据覆盖或真实连接审查。
 
 ## 阅读顺序
+
+Docker 模型凭据由 owned overlay 显式绑定加密文件桥，固定 ref、私有目录守卫和 Host
+认证边界沿用既有合同；Native 不回退到该后端。密钥存储、重启恢复和真实模型输出分别验收，
+细节见[运行时](02-research-runtime.md)、[文件](03-data-files.md)与[安全验证](05-security-validation.md)。
 
 首次阅读先打开[交互图册](../../../outputs/research-web-architecture/index.html)：产品/系统总览 → 运行结构与部署 → 子系统分图 → 关键业务流程 → API 与代码细节。重要模块的阅读卡片使用稳定标识，将职责、分图、说明、API、源码和测试放在同一入口。
 
@@ -81,3 +88,11 @@ macOS实际端点/origin事务现接入公开CLI启动链；同一产品部署�
 ## 单一兼容模型连接
 
 单一兼容文本/流式模型适配位于既有Runtime，私有非秘密配置沿同一Host/DataHub通道读取，系统ref仍沿原进程桥接；没有新增研究引擎、模型代理daemon或Vault。Native macOS合成冷启动与真实供应商验收分别记录；本模型连接任务未执行其他平台验收，项目总平台范围以支持矩阵为准。
+
+## FinGPT 研究融合 · 2026-10-13
+
+FinGPT 研究深度、原生计划与会话底稿参见 02-research-runtime、03-data-files、04-api 和 05-security-validation。Automation 继续调用同一会话/报告运行服务；本次新增 PDF 格式，不改变调度、投递或生命周期成功判定。
+
+## 历史子会话模式兼容 · 2026-10-13
+
+历史子模式兼容只调整读取投影，原生协议与控制边界见02-research-runtime和05-security-validation；服务与模块结构不变。

@@ -1,0 +1,9 @@
+{
+  "version": "24.19.0",
+  "url": "https://nodejs.org/dist/v24.19.0/node-v24.19.0-headers.tar.gz",
+  "expected_sha256": "54f14a297d47ea0794fe272363703d9dc419c96ac68f20d890f98b63754a3e4c",
+  "actual_sha256": "54f14a297d47ea0794fe272363703d9dc419c96ac68f20d890f98b63754a3e4c",
+  "verified": true,
+  "node": "/Users/leon/.codex/worktrees/fingpt-fusion/ResearchWorkbench/.ai/reports/fingpt-fusion/toolchain/node/bin/node",
+  "system_modified": false
+}

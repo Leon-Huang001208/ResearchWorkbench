@@ -73,3 +73,19 @@ test('model references cannot enter the inherited Host record plane', () => {
   provider.modifyRecord('client-connection/browser-session', () => ({ type: 'api-key' }));
   assert.equal(provider.readRecord('client-connection/browser-session').type, 'api-key');
 });
+
+test('explicit Docker binding reports encrypted storage and rejects a backend mismatch', async () => {
+  let value = null;
+  const bridge = async (op, next) => {
+    if (op === 'set') value = next;
+    return op === 'resolve' ? { value } : op === 'describe' ?
+      { configured: value !== null, source: 'docker-encrypted-file', writable: true } : {};
+  };
+  const Provider = createProvider(Records, bridge, 'docker-encrypted-file');
+  const provider = new Provider(ctx, { recordsPath: '/private/records.yaml' });
+  assert.equal((await provider.describe(MODEL_REF)).source, 'docker-encrypted-file');
+  await provider.set(MODEL_REF, 'synthetic-docker');
+  assert.equal((await provider.resolve(MODEL_REF)).source, 'docker-encrypted-file');
+  const NativeProvider = createProvider(Records, bridge);
+  await assert.rejects(new NativeProvider(ctx, {}).describe(MODEL_REF), /model_credential_bridge_failed/);
+});

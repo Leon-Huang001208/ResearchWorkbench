@@ -1,0 +1,31 @@
+{
+  "hostPlatform": "macos",
+  "taskKind": "feature-development",
+  "implementation": "LOCAL_VERIFIED",
+  "realModelSubmissionCount": 1,
+  "nativeTodo": "PASS",
+  "nativeHistoryRecovery": "PASS",
+  "pdfSandboxAndDownload": "PASS",
+  "browserPlanEvidenceNotesReport": "PASS",
+  "isolatedInstallDoctor": "PASS",
+  "fullDelivery": "NOT_READY",
+  "githubMacCI": "NOT_RUN",
+  "platformHandoffs": {
+    "macos-docker": "NOT_RUN",
+    "windows": "NOT_RUN",
+    "linux": "NOT_RUN"
+  },
+  "baselineFailures": 8,
+  "evidence": [
+    "live-research-receipt.json",
+    "native-install-receipt.json",
+    "native-doctor-receipt.json",
+    "node-headers-receipt.json",
+    "PROGRESS.md",
+    "harness-evaluation.json"
+  ],
+  "risk": "Source identities and declared note coverage are checked; numeric/factual claims still require independent review.",
+  "harness": "LOCAL_OUTCOME_RECORDED",
+  "harnessObservedExecutionReceipt": "NOT_RUN",
+  "browserDownloadLinks": "PASS"
+}

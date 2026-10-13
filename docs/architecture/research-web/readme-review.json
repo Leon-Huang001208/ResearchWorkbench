@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "updated",
-  "summary": "增加ETF工程模拟及真实准入BLOCKED说明，保留最新主线资讯雷达和Docker资源生命周期入口。",
-  "reason": "已复核合并后的README，ETF切片沿现有Host和唯一DSH边界；最新Docker命名、保留、收尾与清理说明完整保留。ETF没有新增产品依赖，当前候选的macOS安装CI另行验收，不声明真实策略收益或跨平台通过。"
+  "disposition": "unchanged",
+  "summary": "保留最新Docker凭据说明，同时修复历史子会话unknown模式读取。 ETF工程模拟仍为engineering_only，真实数据准入BLOCKED；保留主线Claw、FinGPT与Docker凭据说明。",
+  "reason": "主线README的双运行时与凭据边界仍准确；本修复仅区分历史读路径与控制模式，不改产品入口或安装依赖，细节见原生协议和安全模块文档。 ETF工程模拟仍为engineering_only，真实数据准入BLOCKED；保留主线Claw、FinGPT与Docker凭据说明。"
 }

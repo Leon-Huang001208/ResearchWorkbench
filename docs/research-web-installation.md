@@ -5,6 +5,16 @@ ETF工程模拟使用现有Pydantic/FastAPI及stdlib SQLite，无新增Python/No
 凭据或启用算法。数据/能力缺口由模拟页readiness显示，不能把Doctor的服务健康视作策略可运行。
 本切片的干净macOS安装CI与Docker开发/镜像验收尚待执行，现有环境聚焦通过不替代这些门。
 
+Claw 项目与日程入口使用既有 Web/DSH 依赖，无新增产品包或安装步骤。旧数据根可直接读取，缺少 project_id 的 Claw 会话归入默认“我的研究”，不移动文件。
+Automation 被显式关闭时，聊天日程草稿也不可用；提出草稿不等于保存或启用。日程需实际能力版本，数据/模型/工具的可调用性继续由现有设置与 Doctor 分层诊断。
+
+## 中文 PDF 依赖与验收
+
+Web 锁新增 ReportLab（reportlab>=4.5,<5），使用原 Python3.12 universal/哈希解析流程；其余锁定依赖保持。resources/fonts 包含可嵌入的 Noto Sans SC 静态中文字体、OFL 许可证和固定 Google Fonts 来源摘要。产品 PDF 不要求宿主 Office、CMake 或 Node 开发头文件；后两者是固定 DSH 原生构建的工具链前提。
+
+安装器继续通过完整锁与项目包安装校验依赖。验收须实际生成中文 PDF、重开提取文字并渲染关键页，源码/单元测试不替代干净安装与 Mac CI。任务内测试环境不发布，不读取其他任务模型密钥。
+
+
 2026-10-12 起，24GB Mac mini 是 Docker 主开发与常驻节点，MacBook Pro 是远程入口。
 新的纯 Docker 安装和显式实例管理使用 [Docker 开发与部署手册](research-web-docker.md)：
 `./setup-web.sh --runtime docker --environment stage --instance local --web-port 18088`，
@@ -175,6 +185,15 @@ Cookie 和账号只在本机设置页录入，不进入代码包、安装清单�
 安装完成后，在设置的模型服务页录入固定 Runtime 支持的 DeepSeek 配置。留空保留、填写替换、独立清除；保存只设定新会话模型，已有会话保留选模，任务运行时拒绝变更。模型页分别显示保存、Runtime 应用、凭据与最近真实生成；生成测试显式调用模型并消耗少量额度，前置检查最多 30 秒、生成执行段最多 60 秒、取消等待最多 3 秒，不由安装或 Doctor 自动执行。
 
 macOS Native 模型凭据使用已有 Web 依赖 `keyring==25.7.0` 的 macOS Keychain 后端；owned overlay 使用产品受管 Python 的私有 stdio 桥接，固定 DSH 版本和构建闭包不变。命名空间由规范化 data home 派生，重启从同一系统账户恢复；不读取开发者 Codex/Claude 配置，不导入环境、旧 YAML 或任何 `.env`。旧模型 Key 不自动迁移，需在本实例设置页重新录入。Host 认证 record 独立存于 Runtime home 的 `.browser-credentials.yaml`，保留固定 DSH 锁和更新语义，不持有模型 Key。Keychain 拒绝/不可用及非 macOS 后端均明确失败，不采用文件回退。产品锁、安装器与 workflow 未变，仍须当前代码的 macOS 干净安装 CI 证明兼容。
+
+Docker 模型凭据由 owned overlay 显式选择 `docker-encrypted-file`，并绑定
+`/run/rwb-secrets/private`；私有 stdio 桥接不继承 API Key 环境变量。后端复用原有
+no-follow、0700/0600、固定 inode 锁和有界文件读写，在 `models/` 子目录保存 Fernet 密文
+和一次创建的主密钥；复用已有锁定的 `cryptography==50.0.1`，不升级包版本。两个模型 ref
+独立，密文绑定 data-home 命名空间及 ref；缺失/损坏主密钥、损坏密文或不安全目录均失败
+关闭，不自动轮换、导入或清空旧凭据。主密钥与密文同卷，管理员及同 UID 仍属于信任边界。
+Doctor 只声明实现，Runtime API 的存储投影为 `docker_encrypted_file`。现有数据、通用业务
+凭据和 Host 认证保持；模型保存不发起推理，生成测试须用户显式请求。
 
 macOS：
 

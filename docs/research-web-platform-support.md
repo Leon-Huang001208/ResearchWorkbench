@@ -37,7 +37,7 @@ Docker DSH builder 的[命令局部并发 8 / 单请求期限 120 秒](research-
 | --- | --- | --- | --- | --- | --- | --- |
 | 安装、固定 DSH 构建 | 阶段二清洁 CI PASS | 待真机、Windows CI | 待真机、Linux CI | 两架构待 Linux 设备 dispatch | 独立安装 PASS（镜像快照5e1b） | 凭据 ACL 门阻断 |
 | 启动、停止、重启、Doctor | 阶段二 CI 与独立重启 PASS | 待验 | 待验 | 健康/重启/端口释放待验 | 独立启动/重启/Doctor/停止与端口释放 PASS（宿主fb9） | ACL 阻断，不声明 ready |
-| 模型系统存储 | Keychain 桥接有实现，真实调用依授权配置 | 不支持：仅 Mac Native 实施 | 不支持：仅 Mac Native 实施 | 不支持：未实施模型系统存储桥接 | 不支持：未实施模型系统存储桥接 | 不支持 |
+| 模型存储 | Keychain 桥接有实现，真实调用依授权配置 | 不支持：仅 Mac Native 实施 | 不支持：仅 Mac Native 实施 | 加密文件桥有实现；本平台验收 NOT_RUN | 加密文件桥有实现；本任务镜像、配置恢复和真实推理待验 | ACL 阻断，未验证 |
 | DataHub 凭据 | Native keyring 有实现、授权逐项验收 | keyring 有实现、待验 | keyring 有实现、待验 | 私有文件后端有实现、待验 | 私有文件后端有实现、待验 | DACL 未证明，失败关闭 |
 | 数据源及授权 | 按 Provider 实际状态；未配置非可调用 | 待验、厂商授权单列 | 待验、厂商授权单列 | 不从依赖安装推导授权 | 不从依赖安装推导授权 | ACL 阻断 |
 | 研究脚本严格沙箱 | 真实 sandbox-exec 文件生成与会话外写入拒绝 PASS（Native快照985/205） | 不支持 | 不支持 | 不支持 | Linux 容器中不支持 | 不支持 |

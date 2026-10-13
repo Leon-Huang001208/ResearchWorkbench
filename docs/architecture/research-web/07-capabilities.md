@@ -1,5 +1,7 @@
 # 能力包、版本与原生调用
 
+`rwb_prepare_automation` 在原生 research-tools 中注册并受最终 guard 与会话准入保护。Claw 只投影真实能力目录；日程草稿锁定选定 Skill/Workflow/报告版本，确认不发布新能力，版本失效明确拒绝。保存后默认停用，执行与投递仍由现有 Automation 管理。
+
 MCP 控制 JSON/URL 的纯 parser 现供原 reader 与独立 origin helper 共享；原 reader 的
 额外字段、版本与异常语义保持，不改变 MCP 授权、审批、能力版本或秘密存储边界。
 
@@ -248,3 +250,7 @@ MCP 市场、MCP Runtime 与 Automation 默认启用后仍是 Tool/Workflow 内�
 ## 设置闭环阶段3：当前能力范围
 
 Metadata增加严格data_requirements：能力/dataset、硬/可选、频率、复权、历史时点、单位/币种及省略章节。仅fund-evaluation（公开NAV有限评价）、industry-research（公开快讯+可选财务）、chanlun（Wind前复权日线+独立比较回执）声明本轮合同；精确原始builtin才发布继任版本，保留历史/自定义草稿，chanlun新版本仍disabled待独立证据。旧数据依赖声明不足保留unverified，不推断注册工具代表专业数据可用。
+
+## FinGPT 研究融合 · 2026-10-13
+
+能力 default_formats 新增 pdf；文件仍交原沙箱验证，不由任务完成或计划状态判定成功。会话 research_depth/source_scope 是创建时锁定的研究选项，能力及 Automation 复用原 Service/DSH 链；工具 preflight 收紧排除来源与脚本 dataset read_paths，MCP 未分类来源在部分范围选择下拒绝。

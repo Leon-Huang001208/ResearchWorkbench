@@ -3,6 +3,8 @@
 ETF工程模拟作为研究台独立确定性领域入口，不注册新框架、不扩大framework-explain/verify权限，
 Gold/Dollar快照及Bot绑定仍沿原合同。真实链路BLOCKED；见[数据与文件](03-data-files.md#etf-工程模拟与真实准入边界)。
 
+Claw 项目归属只组织会话，不重绑 Gold/Dollar 快照或改变 Bot 执行。项目聚合不把其他会话数据自动注入框架，日程提出工具也不改变 framework-explain/verify 的权限。
+
 ## 资讯雷达 · 2026-10-09
 
 资讯雷达作为独立只读页面读取外部现有资讯。它不调用 Gold/Dollar 框架分析、创建框架会话或更改快照；事件与研报详情使用独立前端状态。
@@ -140,3 +142,7 @@ Gold/Dollar采集、评分、revision及renderer保持原合同；公共源码�
 ## 设置页本机证据与框架分离
 
 本机设置页精简和Office自动验证不改变Gold/Dollar框架、评分、采集器或框架快照。Office状态只表示对应本机验证，不能提升任何研究框架或DataHub来源为已验收；状态投影与授权边界统一由[集成协调器](09-integration-coordinator.md)维护。
+
+## FinGPT 研究融合 · 2026-10-13
+
+FinGPT 的 research_depth/source_scope 属于研究会话，不进入 Gold/Dollar 快照或框架 Bot。新增报告底稿与 PDF 使用会话 outputs 和原文件交付解析；框架数据及生命周期仍由原模块负责。
