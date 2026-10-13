@@ -13,6 +13,7 @@ import logging
 import os
 import re
 import shutil
+import stat
 import sys
 import tarfile
 import time
@@ -74,8 +75,27 @@ def tree_hash(root: Path) -> str:
         if path.is_symlink():
             entries.append([name, "link", os.readlink(path)])
         elif path.is_file():
-            entries.append([name, "file", sha256_file(path)])
+            entries.append([name, "file", stat.S_IMODE(path.stat().st_mode), sha256_file(path)])
+        elif path.is_dir():
+            entries.append([name, "directory", stat.S_IMODE(path.stat().st_mode)])
     return canonical_hash(entries)
+
+
+def freeze_source_archive(archive: Path, source: Path) -> None:
+    """Safe Git extraction with deterministic public-code modes inside a private root.
+
+    tarfile's data filter intentionally discards directory modes. The manager's
+    077 umask must not turn packaged source directories into root-only 0700.
+    """
+    with tarfile.open(archive) as stream:
+        stream.extractall(source, filter="data")
+    for path in source.rglob("*"):
+        if path.is_symlink():
+            continue
+        if path.is_dir():
+            path.chmod(0o755)
+        elif path.is_file():
+            path.chmod(0o755 if path.stat().st_mode & 0o111 else 0o644)
 
 
 def archive_identity(path: Path, expected_image: str, release_id: str | None = None) -> dict:
@@ -274,8 +294,7 @@ class ReleaseStore:
             source,
         )
         (path / "source").mkdir(mode=0o700)
-        with tarfile.open(archive) as stream:
-            stream.extractall(path / "source", filter="data")
+        freeze_source_archive(archive, path / "source")
         source_root = path / "source"
         sys.path.insert(0, str(source_root))
         from research_workbench_entrypoint.docker_resources import DockerResources, ResourceSession
@@ -895,6 +914,99 @@ print('gate_ready')
             self.control(record, "end", journal["transaction"])
         return self.status(record)
 
+    def registry_plan(self, release_id: str) -> dict:
+        value = self.bound_controller(release_id)
+        reference = (
+            f"ghcr.io/leon-huang001208/researchworkbench:{release_id}-{value['local_image_id'][7:]}"
+        )
+        return {
+            "release_id": release_id,
+            "seal": value["seal"],
+            "reference": reference,
+            "image_id": value["local_image_id"],
+            "platform": "linux/arm64",
+            "authorization": "explicit-publish-required",
+            "visibility_change": False,
+            "registry_publish": "NOT_RUN",
+            "registry_digest_pull": "NOT_RUN",
+        }
+
+    def registry_selection(self, release_id: str) -> dict:
+        plan = self.registry_plan(release_id)
+        path = self.directory(release_id)
+        descriptor_path, manifest_path = (
+            path / "registry-descriptor.json",
+            path / "registry-raw-manifest.json",
+        )
+        sha256_file(descriptor_path)
+        sha256_file(manifest_path)
+        descriptor = json.loads(descriptor_path.read_text())
+        raw = json.loads(manifest_path.read_text())
+        top = descriptor.get("digest")
+        if not isinstance(top, str) or not re.fullmatch(IMAGE_PATTERN, top):
+            raise Refusal("registry_digest_unavailable")
+        candidates = raw.get("manifests")
+        if candidates is not None:
+            selected = [
+                item
+                for item in candidates
+                if item.get("platform", {}).get("os") == "linux"
+                and item.get("platform", {}).get("architecture") == "arm64"
+            ]
+            if len(selected) != 1:
+                raise Refusal("registry_platform_manifest_ambiguous")
+            platform_digest, index_digest = selected[0].get("digest"), top
+        else:
+            if raw.get("mediaType") not in {
+                "application/vnd.oci.image.manifest.v1+json",
+                "application/vnd.docker.distribution.manifest.v2+json",
+            }:
+                raise Refusal("registry_manifest_invalid")
+            platform_digest, index_digest = top, None
+        if not isinstance(platform_digest, str) or not re.fullmatch(IMAGE_PATTERN, platform_digest):
+            raise Refusal("registry_digest_unavailable")
+        selected = {
+            "release_id": release_id,
+            "seal": plan["seal"],
+            "reference": plan["reference"],
+            "manifest_digest": platform_digest,
+            "index_digest": index_digest,
+            "pull_reference": plan["reference"].split(":", 1)[0] + "@" + platform_digest,
+        }
+        manage.atomic_json(path / "registry-selection.json", selected)
+        return selected
+
+    def registry_record(self, release_id: str) -> dict:
+        value = self.bound_controller(release_id)
+        path = self.directory(release_id)
+        selected = self.registry_selection(release_id)
+        sha256_file(path / "registry-pulled-image.json")
+        pulled = json.loads((path / "registry-pulled-image.json").read_text())
+        if pulled != {"image_id": value["local_image_id"], "os": "linux", "architecture": "arm64"}:
+            raise Refusal("registry_pulled_artifact_mismatch")
+        inspected = manage.inspect("image", selected["pull_reference"])
+        if (
+            inspected["Id"] != value["local_image_id"]
+            or inspected["Architecture"] != "arm64"
+            or inspected["Os"] != "linux"
+        ):
+            raise Refusal("registry_pulled_artifact_mismatch")
+        receipt = {
+            **selected,
+            "registry_publish": "PASS",
+            "registry_digest_pull": "PASS",
+            "image_id": inspected["Id"],
+            "platform": "linux/arm64",
+            "verified_at": time.time(),
+            "visibility_change": False,
+            "controller_hash": value["controller_hash"],
+        }
+        receipt_root = path / "receipts"
+        receipt_root.mkdir(exist_ok=True, mode=0o700)
+        write_once(receipt_root / ("registry-" + uuid.uuid4().hex + ".json"), receipt)
+        manage.atomic_json(path / "registry.json", receipt)
+        return receipt
+
 
 def main() -> int:
     os.umask(0o077)
@@ -914,6 +1026,9 @@ def main() -> int:
             "apply",
             "status",
             "resume",
+            "registry-plan",
+            "registry-selection",
+            "registry-record",
         ),
     )
     parser.add_argument("--source")
@@ -960,6 +1075,12 @@ def main() -> int:
             output = store.status(store.manager.read(args.environment, args.instance))
         elif args.action == "resume":
             output = store.resume(args.release_id, args.environment, args.instance)
+        elif args.action == "registry-plan":
+            output = store.registry_plan(args.release_id)
+        elif args.action == "registry-selection":
+            output = store.registry_selection(args.release_id)
+        elif args.action == "registry-record":
+            output = store.registry_record(args.release_id)
         else:
             output = store.verify(args.release_id)
         print(json.dumps(output, sort_keys=True))

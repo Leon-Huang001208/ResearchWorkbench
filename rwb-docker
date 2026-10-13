@@ -171,10 +171,27 @@ case "${1:-help}" in
       docker load --input "$RWB_RELEASE_ROOT/image.tar" >> "$ROOT/logs/release-load-$RWB_RELEASE_ID.log"
       release_tool "/ledger/releases/$RWB_RELEASE_ID/control/release.py" "$RWB_RELEASE_ID" seal
     else
-      case "$RWB_RELEASE_ACTION" in inspect|verify|import|accept|deploy-plan|rollback-plan|apply|status|resume) ;; *) fail release_action_invalid;; esac
+      case "$RWB_RELEASE_ACTION" in inspect|verify|import|accept|deploy-plan|rollback-plan|apply|status|resume|registry-plan|publish) ;; *) fail release_action_invalid;; esac
       test -f "$ROOT/releases/$RWB_RELEASE_ID/seal.json" || fail sealed_release_required
       cmp -s "$PROJECT/rwb-docker" "$ROOT/releases/$RWB_RELEASE_ID/control/rwb-docker" || fail sealed_launcher_version_required
-      release_tool "/ledger/releases/$RWB_RELEASE_ID/control/release.py" "$RWB_RELEASE_ID" "$RWB_RELEASE_ACTION" "$@"
+      if [ "$RWB_RELEASE_ACTION" = publish ]; then
+        test "$#:$(printf '%s' "${1:-}")" = '1:--confirm-publish' || fail explicit_registry_publish_required
+        release_tool "/ledger/releases/$RWB_RELEASE_ID/control/release.py" "$RWB_RELEASE_ID" registry-plan > "$ROOT/logs/registry-plan-$RWB_RELEASE_ID.json"
+        RWB_REGISTRY_IMAGE=$(sed -n 's/.*"local_image_id": "\(sha256:[0-9a-f]*\)".*/\1/p' "$ROOT/releases/$RWB_RELEASE_ID/release.json")
+        RWB_REGISTRY_REFERENCE="ghcr.io/leon-huang001208/researchworkbench:$RWB_RELEASE_ID-${RWB_REGISTRY_IMAGE#sha256:}"
+        docker tag "$RWB_REGISTRY_IMAGE" "$RWB_REGISTRY_REFERENCE"
+        docker push "$RWB_REGISTRY_REFERENCE" > "$ROOT/logs/registry-push-$RWB_RELEASE_ID.log" 2>&1
+        docker buildx imagetools inspect "$RWB_REGISTRY_REFERENCE" --format '{{json .Manifest}}' > "$ROOT/releases/$RWB_RELEASE_ID/registry-descriptor.json"
+        docker buildx imagetools inspect "$RWB_REGISTRY_REFERENCE" --raw > "$ROOT/releases/$RWB_RELEASE_ID/registry-raw-manifest.json"
+        release_tool "/ledger/releases/$RWB_RELEASE_ID/control/release.py" "$RWB_RELEASE_ID" registry-selection > "$ROOT/logs/registry-selection-$RWB_RELEASE_ID.json"
+        RWB_PULL_REFERENCE=$(sed -n 's/.*"pull_reference": "\([^"]*\)".*/\1/p' "$ROOT/releases/$RWB_RELEASE_ID/registry-selection.json")
+        case "$RWB_PULL_REFERENCE" in ghcr.io/leon-huang001208/researchworkbench@sha256:*) ;; *) fail registry_pull_reference_invalid;; esac
+        docker pull --platform linux/arm64 "$RWB_PULL_REFERENCE" > "$ROOT/logs/registry-pull-$RWB_RELEASE_ID.log" 2>&1
+        docker image inspect "$RWB_PULL_REFERENCE" --format '{"image_id":"{{.Id}}","os":"{{.Os}}","architecture":"{{.Architecture}}"}' > "$ROOT/releases/$RWB_RELEASE_ID/registry-pulled-image.json"
+        release_tool "/ledger/releases/$RWB_RELEASE_ID/control/release.py" "$RWB_RELEASE_ID" registry-record
+      else
+        release_tool "/ledger/releases/$RWB_RELEASE_ID/control/release.py" "$RWB_RELEASE_ID" "$RWB_RELEASE_ACTION" "$@"
+      fi
     fi
     exit 0;;
   builder-cold-budget)

@@ -22,6 +22,31 @@ def test_frozen_format_inventory_uses_existing_repository_sources():
     assert all((root / name).is_file() for name in release.FORMAT_SOURCES)
 
 
+def test_archive_freeze_restores_public_source_directory_traversal(tmp_path):
+    import os
+    import stat
+
+    archive = tmp_path / "source.tar"
+    with tarfile.open(archive, "w") as stream:
+        directory = tarfile.TarInfo("app/datahub")
+        directory.type = tarfile.DIRTYPE
+        directory.mode = 0o775
+        stream.addfile(directory)
+        file = tarfile.TarInfo("app/datahub/contracts.py")
+        file.size = 4
+        file.mode = 0o664
+        stream.addfile(file, io.BytesIO(b"pass"))
+    source = tmp_path / "frozen"
+    source.mkdir(mode=0o700)
+    prior = os.umask(0o077)
+    try:
+        release.freeze_source_archive(archive, source)
+    finally:
+        os.umask(prior)
+    assert stat.S_IMODE((source / "app/datahub").stat().st_mode) == 0o755
+    assert stat.S_IMODE((source / "app/datahub/contracts.py").stat().st_mode) == 0o644
+
+
 def test_stream_hash_and_immutable_release_record(tmp_path):
     archive = tmp_path / "artifact.tar"
     archive.write_bytes(b"standard archive fixture")
@@ -119,6 +144,32 @@ def test_acceptance_binds_seal_controller_and_expiry():
     ):
         with pytest.raises(Refusal):
             release.check_acceptance(sealed, {**receipt, **change})
+
+
+def test_registry_selection_pins_arm64_manifest_without_publishing(tmp_path, monkeypatch):
+    store = release.ReleaseStore(tmp_path, "/admin", "/worktree")
+    path = tmp_path / "releases/r1"
+    path.mkdir(parents=True)
+    image = "sha256:" + "1" * 64
+    monkeypatch.setattr(
+        store, "bound_controller", lambda _: {"seal": "sealed", "local_image_id": image}
+    )
+    (path / "registry-descriptor.json").write_text(json.dumps({"digest": "sha256:" + "a" * 64}))
+    raw = {
+        "manifests": [
+            {"digest": "sha256:" + "b" * 64, "platform": {"os": "linux", "architecture": "arm64"}},
+            {"digest": "sha256:" + "c" * 64, "platform": {"os": "linux", "architecture": "amd64"}},
+        ]
+    }
+    (path / "registry-raw-manifest.json").write_text(json.dumps(raw))
+    selected = store.registry_selection("r1")
+    assert selected["manifest_digest"] == "sha256:" + "b" * 64
+    assert selected["index_digest"] == "sha256:" + "a" * 64
+    assert selected["pull_reference"].endswith("@sha256:" + "b" * 64)
+    raw["manifests"] = [raw["manifests"][1]]
+    (path / "registry-raw-manifest.json").write_text(json.dumps(raw))
+    with pytest.raises(Refusal, match="registry_platform_manifest_ambiguous"):
+        store.registry_selection("r1")
 
 
 def test_plan_rejects_tamper_stale_state_and_expiration(tmp_path):
