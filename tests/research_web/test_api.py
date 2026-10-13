@@ -1729,3 +1729,40 @@ def test_deep_options_survive_reload_and_require_verified_tool_model(api, monkey
     assert response.status_code == 409
     assert response.json()["error"]["code"] == "deep_research_tools_unverified"
     assert not any(call[0] == "session.prompt" for call in native.calls)
+
+
+@pytest.mark.parametrize("running", [False, True])
+def test_history_read_keeps_unknown_child_mode_without_guessing_execution(api, running):
+    client, native, _ = api
+    sid = client.post("/api/research/sessions", json={"mode": "fingpt"}).json()["id"]
+    original = native.rpc
+
+    async def historical(method, payload):
+        if method == "subagent.list":
+            if payload.get("activityOnly") is not True:
+                raise RuntimeFailure("原生子会话状态未知", "protocol_error")
+            return {
+                "entries": [
+                    {
+                        "id": "historical-child",
+                        "kind": "child",
+                        "mode": "unknown",
+                        "activity": "running" if running else "inactive",
+                    }
+                ]
+            }
+        if method == "subagent.history":
+            pytest.fail("unknown mode must never be guessed to open child history")
+        return await original(method, payload)
+
+    native.rpc = historical
+    listing = client.get("/api/research/sessions")
+    assert listing.status_code == 200, listing.text
+    row = next(row for row in listing.json()["items"] if row["id"] == sid)
+    assert (row["status"] == "running") is running
+    detail = client.get(f"/api/research/sessions/{sid}")
+    assert detail.status_code == 200, detail.text
+    assert detail.json()["can_cancel"] is running
+    child = detail.json()["subagents"][0]
+    assert child["status"] == ("running" if running else "unavailable")
+    assert "模式未知" in child["error"]

@@ -324,3 +324,7 @@ Office自动验证只复用Host内既有集成批次和受管验证器，不增�
 ## FinGPT 研究融合 · 2026-10-13
 
 FinGPT 深入研究沿用 ResearchService→固定 DSH 执行链。Web 投影原生 todo/write，保存创建时锁定的 research_depth/source_scope；证据、笔记与报告使用会话资源和原 DeliveryManager，不增加研究执行器。HTML/DOCX/PDF 共用底稿，PDF 使用项目锁定 ReportLab 与随包许可字体。
+
+## 历史子会话模式兼容 · 2026-10-13
+
+历史读取与执行能力分开：列表及父详情复用原生已认证活动目录，旧子会话模式无法恢复不会阻断全部父会话。仍只有DSH持有历史和执行状态。

@@ -375,3 +375,7 @@ GET `/api/research/local-integrations`附带`integration_status`，其中`scope=
 | `/news`、`/announcements` | `/news`、`/announcements` | code 必须为六位数字 |
 
 参数不合法返回 422；上游内容不存在返回 404；连接、状态、格式异常返回 502；超时返回 504。错误响应 `detail` 包含固定 `code/message`，不暴露上游正文。无任意 URL、POST、模型调用或采集触发入口。事件概率不提供数据接口。
+
+## 历史子会话模式兼容 · 2026-10-13
+
+GET会话列表及父详情不因已验证活动的历史子mode=unknown整体返回503。父详情沿用subagents的status/error字段显示运行中或历史不可用；真实活动/归属未知仍返回协议错误，响应schema不增加字段。
