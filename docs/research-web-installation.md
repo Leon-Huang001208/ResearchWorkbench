@@ -1,5 +1,9 @@
 # Research Web Native / Docker 安装与运行
 
+2026-10-13 阅读界面新增本仓原生 `hot-reader.mjs/css` 静态资源，沿已有FastAPI/static与
+Web包数据路径安装，没有新增React/Tailwind运行依赖或CDN。Native/Docker的完整安装兼容性
+仍须由候选Mac Bootstrap证明；源码/隔离预览不替代干净安装。原Hot数据库未因界面迭代迁移。
+
 Hot Native 模型上下文与 Web 共用 `runtimes/research_web.json` 的固定 DSH，装配新版
 `llm-deepseek-api-key` 官方路由；旧提交与修改过的 tracked checkout 被拒绝。日期价目
 仍须当前有效并绑定已授权累计 scope。migration17 的研究预算/调用映射只在停机迁移

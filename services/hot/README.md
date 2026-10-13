@@ -1,5 +1,11 @@
 # Hot internal engine
 
+The 2026-10-13 reading interface adapts AIHOT's MIT frontend patterns into RWB's
+existing native UI: scoped paper/teal themes, observation-date rail and page-local
+heat strip. Own branding, eight external columns and existing Host read/control
+boundaries remain. `THIRD_PARTY_NOTICES.md` records the frontend reference commit;
+this appearance change does not assemble the outstanding paid study or scheduler.
+
 This package is under implementation. It is not yet a supported product entry.
 The authoritative continuation record is `.ai/reports/2026-10-12-hot-intel-resume-PROGRESS.md`;
 the original `.ai/reports/2026-10-07-hot-events-PROGRESS.md` preserves earlier evidence.

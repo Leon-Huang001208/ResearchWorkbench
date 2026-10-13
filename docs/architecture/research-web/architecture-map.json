@@ -115,7 +115,8 @@
         "tests/e2e/research_web_mcp_marketplace.mjs",
         "tests/e2e/research_web_mcp_runtime.mjs",
         "tests/javascript/research_web_intel.test.mjs",
-        "tests/javascript/research_web_hot.test.mjs"
+        "tests/javascript/research_web_hot.test.mjs",
+        "tests/javascript/research_web_hot_reader.test.mjs"
       ]
     },
     {

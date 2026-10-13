@@ -150,3 +150,41 @@ Router选取的完整四项治理命令110/110 PASS，最终API门53/53 PASS（1
 目录准备之后继续核查wire层，发现旧baseURL会令新版SDK请求https://api.deepseek.com/v1/messages而不是/anthropic/v1/messages。新增完全替换fetch的不出网探针，URL反例RED；使用相同固定SDK的PUBLIC_BASE_URL后两项native集成GREEN，核对synthetic x-api-key和唯一发送尝试。首测试错误地期待throw/error chunk，实际SDK源码将adapter异常映射为finish.reason.kind=error；按源码修正，保留这些失败日志，没有吞掉provider失败或放宽断言。fake key不来自Keychain，实际vendor请求仍0。正式DSH研究及其私有预算桥未提前认证。
 
 最终wire修复源码候选 `dba28e843`，继承预算候选b85。独立TypeScript限定复核及typecheck PASS；两项真实SDK目录/离线wire探针PASS，文档/架构/whitespace检查PASS。全切片冻结plan/receipt在 `research-quota-final-*.json`，validator valid=true，host/aggregate继续BLOCKED/NOT_READY、外部门NOT_RUN。报告提交仅保存续跑事实，不表示Goal、付费研究或远端交付完成。
+
+## 2026-10-13 用户指定 AIHOT 开源复刻
+
+用户明确指定 reverse-engineering / reverse-engineer-anything 与 aihot.news，并提供开源仓库。
+这作为原完整Goal的产品方向补充：按开源实现复刻阅读体验，当前“研究情报”品牌和八栏目保留。
+宿主macOS，功能开发；Mac mini主开发/Docker及同平台CI范围遵守新版AGENTS，其他平台未验证。
+前一turn为PROGRESS（共享研究预算/新版native wire源码与证据已提交），本turn从41a1e5d8d干净续跑。
+
+只读取得上游最新652bd6b，读MIT/NOTICE，不复制名字/Logo。已按源码梳理首页/全部/热点/日报/
+详情、筛选分页、已读/收藏机制；模型榜、重置监控及运营数据未开源。完整参考/Design Read与
+证据机制表在 `2026-10-13-aihot-replica-reference.md`。没有新增依赖或运行上游后台。
+
+RWB新增hot-reader纯JS/CSS，沿源码暖纸面/青绿、日期轨道、紧凑热度条和来源理由；本地及外部
+共用阅读主题。保留现有详情、修正、来源、简报、Origin和控制边界。日期标为观察记录；未知
+不造时间；指标分开；本页热度条明确非全榜，不造趋势。重要性排序不被日期分组重新打乱。
+
+独立TypeScript审查以内存mock复现两项P2：新筛选失败混合旧页；离开视图后旧拒绝污染新错误。
+已先RED后修复共享reloadEvents（快捷按钮与原高级筛选共用），清空旧分页、限定current(ticket)
+错误，more要求hasMore；补充分页迟到错误反例。最终Hot/Reader/Intel23项PASS，不把mock当完整后端证明。
+
+原站 CUA 创建的标签存在，但AX/截图观察超时；REA受控Chrome成功加载却返回blocked/567，
+原站视觉比较 NOT_RUN，没有绕过拦截。REA本地工作台截图/外部真实Golddata总览均成功、page-error
+为零；样式资料预览用只读PG真实宏观事件，原实例仍暂停、无模型/修改调用。桌面1440与手机390
+实际查看，手机标题/操作进一步压紧；首次18198导航启动窗口失败，HTTP200后仅原场景重试成功。
+上述证明本地布局/资料读取，不认证正式DSH研究、完整安装或实时采集。源/截图/证据ID详参考报告。
+
+最终全量Web JavaScript回归392项：391 PASS、1 SKIP、0 FAIL（7338ms）。20个变更文件的
+项目约束、架构与文档治理PASS，Python文件索引PASS。没有Python源码、依赖或安装器变更；
+pyproject现有app打包范围覆盖静态目录，干净macOS安装/候选CI仍NOT_RUN，不能用本地预览代替。
+最终1440×1000和390×844只读真实资料预览均完成，page-error为零；独立预览favicon返回404，
+保留为非产品页面的控制台记录。独立TypeScript复核已覆盖筛选及分页迟到错误，未发现新阻断。
+
+原后台阶段零至五、两域持续来源、真实模型/研究、关注/计划简报、联合恢复、Docker与候选CI等
+全部目标仍保留，Goal ACTIVE。下一步继续实现开源精选/关注/日报与既有Hot/研究预算闭环的适配；
+不将这次布局复刻重定义为完整Goal结束。无push/PR/merge/部署或新付费调用。
+
+<!-- architecture-review {"group":"ui","structure":"unchanged","reason":"在既有研究情报页面内复用原事件/频道GET和控制器，新增纸面阅读组件与主题不新增API、服务或执行器；保留工作台路由、八栏目与原有写边界，框架画布不受局部CSS影响。","diagrams":[]} -->
+<!-- architecture-review {"group":"hot","structure":"unchanged","reason":"该轮仅记录前端开源适配许可和现有数据/运行边界；原schema/模型scope/唯一队列/Owner未改，真实宏观资料为只读样式预览，不把预览绘成新增产品运行路径。","diagrams":[]} -->

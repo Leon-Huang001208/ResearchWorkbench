@@ -1,5 +1,8 @@
 # Research Workbench
 
+“研究情报”已按 AIHOT 开源阅读模式适配纸面主题、日期时间轴、热度条和来源卡片，保留
+八个外部栏目及工作台品牌。此界面迭代不表示 Hot 后台完整研究、定时任务或安装验收已完成。
+
 Research Workbench 当前交付的是本地优先的 **Research Web**：一个由 FinGPT、Claw、数据能力和研究框架组成的研究工作台。
 
 当前 Web 入口为 `app.research_web.main:app`。Research Web 通过 FastAPI 轻量适配层连接专属 DSH；**DSH 是唯一的研究引擎**，负责研究执行循环、会话历史、Skill 与子 Agent。基础 Research Web 不启动旧 API 生命周期，也不要求 PostgreSQL、pgvector 或桌面预览。

@@ -9,7 +9,8 @@ Commit: `8e34e05feb161cb5838e592ee22715f791c7f814`.
 versus HTTPS and validates explicit timezone/future publication times.
 
 Upstream PostgreSQL revision, receipt-attempt and pg-boss designs are being
-evaluated; their full application, frontend and provider secrets are not copied.
+evaluated; the full upstream application and provider secrets are not copied.
+The bounded frontend adaptation is documented below.
 Historical materials will be eligible for long-term event linking in RWB; the
 upstream historical exclusion and 14-day recall policy are not adopted.
 
@@ -17,7 +18,20 @@ The AIHOT name/logo are not licensed for this product. Feed content belongs to
 its publishers. Store evidence for local research; public use needs the source's
 rights. No upstream fonts, logo, screenshots or branding are included.
 
-## MIT License
+## Frontend reading-pattern adaptation (2026-10-13)
+
+Reference commit: `652bd6bf4190df0030824dd86a982ea96f5623d5` from the same AIHOT repository.
+`app/research_web/ui/hot-reader.css` adapts semantic light/dark colour tokens and
+reading density from `apps/web/app/app.css`; `hot-reader.mjs` adapts the ranked
+strip/date-rail/card organization from `features/feed/HotTopics.tsx`, `Timeline.tsx`
+and `FeedItem.tsx`. RWB keeps its own identity, native JS controllers, data contracts,
+eight external columns and private runtime. Observation time is explicitly distinct
+from publication/effective time, and rankings are labelled as a page subset.
+No AIHOT name/logo, upstream private data, model leaderboard, Codex reset monitor,
+or site-specific operational module is incorporated. The license text below covers
+this adaptation as well as the earlier backend reuse.
+
+## MIT License text
 
 Copyright (c) 2026 数字生命卡兹克
 
