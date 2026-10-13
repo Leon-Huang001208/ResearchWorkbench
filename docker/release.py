@@ -419,10 +419,14 @@ class ReleaseStore:
         if tree_hash(path / "dsh") != prepared["dsh_payload_hash"]:
             raise Refusal("dsh_payload_changed")
         metadata = json.loads((path / "build-metadata.json").read_text())
-        image_id = metadata.get("containerimage.config.digest")
-        if not isinstance(image_id, str) or not re.fullmatch(IMAGE_PATTERN, image_id):
+        config_digest = metadata.get("containerimage.config.digest")
+        if not isinstance(config_digest, str) or not re.fullmatch(IMAGE_PATTERN, config_digest):
             raise Refusal("build_identity_missing")
-        archive = archive_identity(path / "image.tar", image_id, release_id)
+        loaded = manage.inspect("image", "rwb-release:" + release_id)
+        image_id = loaded["Id"]
+        if not re.fullmatch(IMAGE_PATTERN, image_id):
+            raise Refusal("local_image_identity_missing")
+        archive = archive_identity(path / "image.tar", config_digest, release_id)
         bases = {}
         for name in ("python", "node"):
             descriptor = json.loads((path / ("base-" + name + ".json")).read_text())
@@ -433,6 +437,7 @@ class ReleaseStore:
             **prepared,
             "base_images": bases,
             "local_image_id": image_id,
+            "config_digest": config_digest,
             "build_manifest_digest": metadata.get("containerimage.digest"),
             "registry_manifest_digest": None,
             "registry_index_digest": None,
@@ -457,7 +462,7 @@ class ReleaseStore:
         if canonical_hash(value) != seal or value["release_id"] != release_id:
             raise Refusal("release_seal_mismatch")
         check_compatibility(value, value)
-        archive = archive_identity(path / "image.tar", value["local_image_id"], release_id)
+        archive = archive_identity(path / "image.tar", value["config_digest"], release_id)
         if archive != value["archive_identity"]:
             raise Refusal("archive_image_identity_mismatch")
         if (
