@@ -1,0 +1,154 @@
+{
+  "sid": "a0285a19-0e46-4147-918a-fb675475cb61",
+  "state": "verified",
+  "paid_prompt_sent": true,
+  "source_scope": [
+    "uploads"
+  ],
+  "submission_key": "fingpt-live-20261013-first",
+  "http_status": 202,
+  "latest": {
+    "status": "completed",
+    "can_cancel": false,
+    "research_plan": {
+      "turn": 1,
+      "seq": 48,
+      "status": "available",
+      "history_complete": true,
+      "items": [
+        {
+          "content": "读取 inputs 附件（合成验收资料），核对文件名、内容与边界",
+          "status": "completed"
+        },
+        {
+          "content": "完成底稿与交付：生成 HTML/Word/中文PDF/结构化底稿并重开验证",
+          "status": "completed"
+        }
+      ]
+    },
+    "delivery": {
+      "status": "completed",
+      "required_formats": [
+        "html",
+        "docx",
+        "pdf"
+      ],
+      "missing_formats": [],
+      "failure_code": null
+    },
+    "activities": [
+      {
+        "title": "todo_write",
+        "status": "completed"
+      },
+      {
+        "title": "research_run_script",
+        "status": "failed"
+      },
+      {
+        "title": "research_run_script",
+        "status": "failed"
+      },
+      {
+        "title": "research_run_script",
+        "status": "failed"
+      },
+      {
+        "title": "research_run_script",
+        "status": "failed"
+      },
+      {
+        "title": "todo_write",
+        "status": "completed"
+      }
+    ],
+    "report_quality": "incomplete",
+    "file_count": 5
+  },
+  "native_status": "completed",
+  "native_plan": {
+    "turn": 1,
+    "seq": 48,
+    "status": "available",
+    "history_complete": true,
+    "items": [
+      {
+        "content": "读取 inputs 附件（合成验收资料），核对文件名、内容与边界",
+        "status": "completed"
+      },
+      {
+        "content": "完成底稿与交付：生成 HTML/Word/中文PDF/结构化底稿并重开验证",
+        "status": "completed"
+      }
+    ]
+  },
+  "activities": [
+    {
+      "title": "todo_write",
+      "status": "completed"
+    },
+    {
+      "title": "research_run_script",
+      "status": "completed"
+    },
+    {
+      "title": "research_run_script",
+      "status": "failed"
+    },
+    {
+      "title": "research_run_script",
+      "status": "completed"
+    },
+    {
+      "title": "research_run_script",
+      "status": "completed"
+    },
+    {
+      "title": "todo_write",
+      "status": "completed"
+    }
+  ],
+  "delivery_status": "completed",
+  "research_quality": "incomplete",
+  "quality_issues": [
+    "无行情或指数数据：未调用行情类工具，附件亦不含价格信息。",
+    "无财务报表、盈利或估值数据：无证据支持基本面判断。",
+    "无基金净值、分红或持仓数据：无法评估任何基金表现。",
+    "无联网检索结果：未执行网页搜索，无外部来源可引用或交叉验证。",
+    "无期间收益或基准序列：不存在首末观测区间，也无基准文本或基准序列。",
+    "无独立第三方核实：仅来源身份可定位，结论未经外部证据独立确认。",
+    "附件未提供日期、作者或版本信息；as_of=2026-10-13 仅为任务指定口径。",
+    "附件未给出任何可用于投资决策的量化要求或阈值。",
+    "numeric_claims_need_independent_review"
+  ],
+  "downloads": [
+    {
+      "name": "research-report-b4078a221842.html",
+      "sha256": "8def6acffad5a4bbefc9bcb9c2196defdaa6cf4239d28c2d1b3ea429b0e9e23c",
+      "bytes": 3078,
+      "format": "html",
+      "http_status": 200,
+      "verified": true
+    },
+    {
+      "name": "research-report-b4078a221842.pdf",
+      "sha256": "fc88b99a19e2f434072305520c75ae7f4d6dac18f98ff6cdd0eb45bd658fd044",
+      "bytes": 60337,
+      "format": "pdf",
+      "http_status": 200,
+      "verified": true
+    },
+    {
+      "name": "research-report-b4078a221842.docx",
+      "sha256": "68391cde38008e58f22a7e398e019d67bc7953db6a16604e0234fb5b3dce172c",
+      "bytes": 38249,
+      "format": "docx",
+      "http_status": 200,
+      "verified": true
+    }
+  ],
+  "model_calls": 1,
+  "pdf_pages": 2,
+  "pdf_text_characters": 1082,
+  "recovered_from_history": true
+}

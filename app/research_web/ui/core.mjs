@@ -312,12 +312,12 @@ export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSo
 }
 
 export function createController({ api, draftStorage, logger = safeLog, makeID = () => globalThis.crypto.randomUUID(), onNavigate = () => {}, confirmTabbit = async () => globalThis.confirm?.('所选标签页将临时移入代理任务，标签分组可能改变。继续发送？') !== false }) {
-  const state = { route: { page: 'fingpt', sessionId: null }, detail: null, draft: '', attachments: [], tabbitTabs: [], skillId: '', capability: null, toolIds: [], methodIds: [], expectedFormats: null, error: '', streamError: '', loading: false, busy: false };
+  const state = { route: { page: 'fingpt', sessionId: null }, detail: null, draft: '', attachments: [], tabbitTabs: [], skillId: '', capability: null, toolIds: [], methodIds: [], sourceScope: ['datahub', 'web', 'uploads'], researchDepth: 'instant', expectedFormats: null, error: '', streamError: '', loading: false, busy: false };
   const listeners = new Set(); const drafts = new Map(); const pending = new Map();
   let generation = 0; let snapshotRevision = 0; let closeStream = () => {};
   const emit = () => listeners.forEach((listener) => listener(state));
   const draftKey = () => state.route.sessionId || `new:${state.route.page}`;
-  const draftState = () => ({ draft: state.draft, attachments: state.attachments, tabbitTabs: state.tabbitTabs, skillId: state.skillId, capability: state.capability, toolIds: state.toolIds, methodIds: state.methodIds, expectedFormats: state.expectedFormats });
+  const draftState = () => ({ draft: state.draft, attachments: state.attachments, tabbitTabs: state.tabbitTabs, skillId: state.skillId, capability: state.capability, toolIds: state.toolIds, methodIds: state.methodIds, sourceScope: state.sourceScope, researchDepth: state.researchDepth, expectedFormats: state.expectedFormats });
   if (draftStorage === undefined) {
     try { draftStorage = globalThis.sessionStorage; } catch { logger('draft_storage_unavailable', {}); }
   }
@@ -360,7 +360,7 @@ export function createController({ api, draftStorage, logger = safeLog, makeID =
   async function open(route) {
     saveDraft(); const ticket = ++generation; closeStream(); closeStream = () => {};
     state.route = route; state.detail = null; state.error = ''; state.streamError = ''; state.loading = Boolean(route.sessionId); state.busy = false;
-    Object.assign(state, { expectedFormats: null, capability: null, toolIds: [], methodIds: [], tabbitTabs: [] }, readDraft(draftKey()) || { draft: '', attachments: [], tabbitTabs: [], skillId: '', methodIds: [] }); emit();
+    Object.assign(state, { sourceScope: ["datahub", "web", "uploads"], researchDepth: "instant", expectedFormats: null, capability: null, toolIds: [], methodIds: [], tabbitTabs: [] }, readDraft(draftKey()) || { draft: '', attachments: [], tabbitTabs: [], skillId: '', methodIds: [] }); emit();
     if (!route.sessionId) return;
     try {
       const data = await api.detail(route.sessionId);
@@ -407,6 +407,8 @@ export function createController({ api, draftStorage, logger = safeLog, makeID =
   }
   return {
     state, subscribe: (listener) => { listeners.add(listener); return () => listeners.delete(listener); }, open, refresh, send, action,
+    setSourceScope: (value) => { if (!Array.isArray(value) || !value.length || value.some(s => !["datahub", "web", "uploads"].includes(s))) throw new Error("至少选择一个资料范围"); state.sourceScope = [...new Set(value)]; saveDraft(); emit(); },
+    setResearchDepth: (value) => { if (!["instant", "deep"].includes(value)) throw new Error("不支持的研究深度"); state.researchDepth = value; saveDraft(); emit(); },
     setDraft: (value) => { state.draft = value; saveDraft(); },
     setSkill: (value) => { state.skillId = value; state.capability = null; saveDraft(); },
     setCapability: (value) => {
@@ -440,7 +442,7 @@ export function createController({ api, draftStorage, logger = safeLog, makeID =
     create: async (mode, workspaceId) => {
       const ticket = generation;
       const previousDraft = { ...draftState(), attachments: [] };
-      const result = await action(() => api.create({ mode, ...(workspaceId ? { workspace_id: workspaceId } : {}) }), { refreshAfter: false });
+      const result = await action(() => api.create({ mode, research_depth: state.researchDepth, source_scope: state.sourceScope, ...(workspaceId ? { workspace_id: workspaceId } : {}) }), { refreshAfter: false });
       if (ticket !== generation) return null;
       if (result?.id) { drafts.set(result.id, previousDraft); onNavigate(sessionHash(result)); }
       return result;

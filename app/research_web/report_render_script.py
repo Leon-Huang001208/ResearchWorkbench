@@ -650,9 +650,28 @@ if office_request is not None:
 else:
     payload = load_payload()
     values = replacements(payload)
+
+    def workflow_pdf():
+        from research_report import render_pdf
+
+        converted = {
+            "title": payload["title"],
+            "as_of": payload.get("as_of"),
+            "sections": [
+                {"heading": s["title"], "text": s["content"]} for s in payload["sections"]
+            ],
+            "sources": [
+                {"id": str(i + 1), "title": clean_text(s)}
+                for i, s in enumerate(payload.get("sources", []))
+            ],
+            "missing": [clean_text(s) for s in payload.get("missing", [])],
+        }
+        return render_pdf(Path("outputs/report.pdf"), converted)
+
     writers = {
         "docx": lambda: render_docx(payload, values),
         "html": lambda: render_html(payload),
+        "pdf": workflow_pdf,
         "xlsx": lambda: render_xlsx(payload),
         "pptx": lambda: render_pptx(payload, values),
     }

@@ -428,3 +428,7 @@ Tool/Workflow/Method 契约、DataHub 动态选源、MCP 授权或 Automation �
 ## 单一兼容模型连接
 
 新增兼容连接仅认证传输的文本/流式合同；工具功能在真实受控验收前为unverified，不能启动依赖工具的Skill/Workflow。Automation仍经相同create/send执行，继承连接版本、活动保护与当前授权；不按模型名字提升能力。
+
+## FinGPT 研究融合 · 2026-10-13
+
+报告可声明 pdf 作为默认交付格式；是否成功仍由原交付沙箱重开、正文与哈希验证决定。FinGPT 深入研究默认 HTML/Word/PDF，显式需求优先；会话创建时锁定资料范围，在原生工具与脚本读取边界收紧，不因能力安装或计划勾选放宽。Automation 复用既有创建/提交链，工具来源范围取会话锁定值。

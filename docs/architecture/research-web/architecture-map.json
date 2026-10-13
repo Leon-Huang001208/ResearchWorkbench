@@ -280,7 +280,8 @@
         "app/research_web/data_migration.py",
         "app/research_web/delivery.py",
         "app/research_web/delivery_validation.py",
-        "app/research_web/resources/"
+        "app/research_web/resources/",
+        "app/research_web/research_evidence.py"
       ],
       "documents": [
         "docs/architecture/research-web/03-data-files.md"
@@ -297,7 +298,10 @@
         "tests/research_web/test_store.py",
         "tests/research_web/test_delivery.py",
         "tests/research_web/test_cancel_reconciliation.py",
-        "tests/research_web/test_artifacts.py"
+        "tests/research_web/test_artifacts.py",
+        "tests/research_web/test_fingpt_research.py",
+        "tests/research_web/test_research_report.py",
+        "tests/javascript/research_web_fingpt.test.mjs"
       ]
     },
     {
