@@ -12,6 +12,15 @@ DataHub 资料快照仍属于原会话，项目仅聚合摘要和来源链接，
 `automation_drafts` 保存提出、取消与确认状态；原生工具只提出草稿，不写可执行 `automations`。
 确认调用原 Automation 创建逻辑，稳定创建键与内容绑定处理重复请求及确认检查点失败；创建结果默认停用。
 
+## 会话研究底稿与中文 PDF
+
+research_sources 从本会话输入文件、DataHub 快照和已完成检索活动派生；web:URL摘要、file:文件ID、dataset:资料ID 是来源标识，不代表全文已读。网页日期未知、资料不完整或无法证实的引用保持限制。它不是第二套事实数据库。
+
+受控 resources/research_report.py 的 write_research_report(output,payload) 共用同一正文生成 HTML/DOCX/PDF，重开后发布 outputs/research-report.json。底稿绑定 delivery.task_id，含 title/as_of/sections/required_sections/sources/notes/missing；section.id 与 note.stage_id 为显式底稿关联。每次生成使用独立文件名，并记录 artifact 名称与 SHA-256；变更/缺失或跨会话来源不认证质量检查。
+
+PDF 使用锁定 ReportLab 与随包中文字体 Noto Sans SC（许可证与固定来源摘要在 resources/fonts）；所有文本转义，无外部字体或宿主 Office。PDF 交付检查在既有严格沙箱内重开，要求有文本且不超过 300 页，仍受 16 MiB 限额。源身份/声明覆盖检查不等价完整研究或数值事实复核。
+
+
 新 Docker 目标采用每实例独立 data/logs/credentials/cache 四个命名卷；data 映射
 `/data/research-web`，包含既有 DSH home、会话索引、上传、产物与产品日志。
 管理账本保留数据卷身份；开发重建/退休仅删除精确所属容器，保留四卷与源码，
@@ -318,3 +327,5 @@ staging 修复只作用于镜像只读发布资产，不删除或迁移产品数
 本机设置页在 Word、Excel、PowerPoint 各自行内分别显示文件处理和本机操作。文件处理的固定 capability 标记仅表达 Mac 文件业务所需的项目依赖/内置模板就绪，操作仍受既有文件身份、有限内容、版本检查及沙箱约束；不从 Office 安装、授权或模型生成结果推导。其他平台保持未验证，不新建后端或文件回退。
 
 本机操作沿既有显式验证与有效期判断；过期或实例状态变化保留最近时间和失效说明，不提升授权或可调用。最近有效验证只将既有安全诊断的最后完成步骤、功能和清理结果投影到现有 detail，不增加持久协议、路径或秘密。普通刷新不启动 Office。文档业务结果同时显示清理已确认/未确认/失败/未创建，下载产物和功能状态独立保留；没有清理证据时明确未确认。该展示不更改原生执行、保存重开、取消或归属边界。
+
+ReportLab 初始化需读取当前目录；PDF helper 在已授权输出目录初始化，再恢复工作目录，未增加沙箱目录授权。底稿 JSON 在三份唯一产物生成并重开后以临时文件替换发布；质量还要求独立交付验证哈希一致。

@@ -215,7 +215,7 @@ class Metadata(BaseModel):
     category: str = Field(min_length=1, max_length=80)
     inputs: list[InputField] = Field(min_length=1, max_length=30)
     scenarios: list[str] = Field(min_length=1, max_length=30)
-    default_formats: list[Literal["md", "html", "docx", "xlsx", "pptx", "png"]]
+    default_formats: list[Literal["md", "html", "docx", "xlsx", "pptx", "png", "pdf"]]
     required_tools: list[str] = Field(default_factory=list, max_length=20)
     dependencies: list[str] = Field(default_factory=list, max_length=40)
     method_policy: MethodPolicy = Field(default_factory=MethodPolicy)

@@ -5865,6 +5865,7 @@ Module docstring:
 
 Imports:
 - `json`
+- `logging`
 
 Functions:
 - `content_text`
@@ -6361,6 +6362,26 @@ Functions:
 - `_validate_values`
 
 
+## `app/research_web/research_evidence.py`
+
+Module docstring:
+> Bounded session evidence/report projections; DSH and file bytes remain authoritative.
+
+Imports:
+- `datetime`
+- `hashlib`
+- `json`
+- `logging`
+- `re`
+- `resources.research_report`
+- `store`
+- `urllib.parse`
+
+Functions:
+- `evidence_index`
+- `report_projection`
+
+
 ## `app/research_web/resources/__init__.py`
 
 Module docstring:
@@ -6382,6 +6403,31 @@ Functions:
 - `read_pdf`
 - `safe_cell`
 - `write_deliverables`
+
+
+## `app/research_web/resources/research_report.py`
+
+Module docstring:
+> Offline research artifacts sharing one payload and an embedded Chinese font.
+
+Imports:
+- `hashlib`
+- `html`
+- `json`
+- `logging`
+- `os`
+- `pathlib`
+- `re`
+- `urllib.parse`
+- `uuid`
+
+Functions:
+- `source_id`
+- `validate_payload`
+- `report_blocks`
+  - The same text/version is consumed by all three renderers.
+- `render_pdf`
+- `write_research_report`
 
 
 ## `app/research_web/runtime_auth.py`
@@ -6562,7 +6608,7 @@ Imports:
 - `local_integrations`
 - `mcp_registry`
 - `mcp_runtime.authorization`
-- ... 22 more
+- ... 23 more
 
 Classes:
 - `_SessionOwnedMCPRuntime`

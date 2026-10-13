@@ -85,3 +85,7 @@ Docker 模型凭据由 owned overlay 显式绑定加密文件桥，固定 ref、
 ## 单一兼容模型连接
 
 单一兼容文本/流式模型适配位于既有Runtime，私有非秘密配置沿同一Host/DataHub通道读取，系统ref仍沿原进程桥接；没有新增研究引擎、模型代理daemon或Vault。Native macOS合成冷启动与真实供应商验收分别记录；本模型连接任务未执行其他平台验收，项目总平台范围以支持矩阵为准。
+
+## FinGPT 研究融合 · 2026-10-13
+
+FinGPT 研究深度、原生计划与会话底稿参见 02-research-runtime、03-data-files、04-api 和 05-security-validation。Automation 继续调用同一会话/报告运行服务；本次新增 PDF 格式，不改变调度、投递或生命周期成功判定。

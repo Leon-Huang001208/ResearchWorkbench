@@ -20,14 +20,52 @@ def delivery_api(tmp_path):
     original = native.rpc
 
     async def rpc(method, payload):
+        if method == "host.describe":
+            return {
+                "version": "fixture",
+                "provider": "deepseek-official",
+                "model": "deepseek-flash",
+            }
         if method == "skill.list":
             return {"skills": [{"name": "fund-evaluation"}]}
         return await original(method, payload)
 
     native.rpc = rpc
     service = ResearchService(native, Store(tmp_path))
+    # Isolate file delivery from live provider probes with an explicit narrow data contract.
+    service.datahub.catalog = lambda: {
+        "sources": [
+            {
+                "id": "delivery-fixture",
+                "readiness": {
+                    "integration_completed": True,
+                    "configured": True,
+                    "dependency_ready": True,
+                    "allowed": True,
+                    "callable": True,
+                    "health": "healthy",
+                },
+            }
+        ],
+        "bindings": [
+            {
+                "capability_id": "fund_data",
+                "source_id": "delivery-fixture",
+                "datasets": ["fund_nav"],
+                "implemented": True,
+                "semantics": {
+                    "fund_nav": {
+                        "frequencies": ["daily"],
+                        "adjustments": ["none"],
+                        "units": {"unit_nav": "currency/share"},
+                    }
+                },
+            }
+        ],
+    }
     with TestClient(create_app(service)) as client:
         service.connected = {"mux", "host"}
+        # File-delivery fixture uses the pinned tool-capable model; it does not certify inference.
         sid = client.post("/api/research/sessions", json={}).json()["id"]
         yield client, native, service, sid
 
@@ -39,11 +77,18 @@ def submit(api, formats=None, key="delivery-one", skill=None):
         body["expected_formats"] = formats
     if skill:
         body["skill_id"] = skill
-    return client.post(
+    response = client.post(
         f"/api/research/sessions/{sid}/messages",
         json=body,
         headers={"Idempotency-Key": key},
     )
+    return response
+
+
+def test_delivery_fixture_does_not_bypass_unverified_model_admission(delivery_api):
+    _, _, service, sid = delivery_api
+    service.store.session(sid)["model"] = "fixture-unverified"
+    assert submit(delivery_api, [], skill="fund-evaluation").status_code == 409
 
 
 def finish(api, reason="completed"):

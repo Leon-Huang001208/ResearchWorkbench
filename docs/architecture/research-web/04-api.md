@@ -9,6 +9,13 @@
 `/sessions/{sid}/automation-drafts` 查询、`/{draft_id}/confirm` 确认保存、`/{draft_id}/dismiss` 取消属于会话；确认可编辑名称、目标描述与日程，不可改换锁定能力或增加外发/MCP权限，且结果默认停用。
 新增请求拒绝额外字段；非法归属、归档、失效版本和已取消草稿给出明确错误。API Atlas 由机器清单同步生成。
 
+## FinGPT 会话扩展
+
+POST /api/research/sessions 增加 research_depth=instant|deep（缺省 instant）与 source_scope=[datahub,web,uploads]（非空且不重复）；其余 mode/workspace 与旧请求兼容。会话摘要公开同名锁定值；详情/SSE 增加 research_plan、research_sources、research_report。
+
+Prompt.expected_formats 与能力 default_formats 向后兼容接受 pdf。未知模型工具事实的 deep 提交返回 deep_research_tools_unverified；既有技能准入、凭据未知与幂等收据不弱化。内部 skill-preflight 仅在既有响应中拒绝被排除的来源，不新增权限或控制端点。
+
+
 DSH 0.2.1 升级保持公开 HTTP 合同。内部 `subagent.list` 适配已移除的上游方法：读取权威父会话 `subagentCatalog` 投影，并与实时 `session/list` 的子会话归属、模式和 running 状态交叉核对；输出映射为既有 `kind=child` 与 `activity=running/inactive`，供详情、归属、取消及空闲保护共同消费；缺失或未知状态返回协议失败，不用空列表解除活动保护。空实例默认 `deepseek-flash`，已保存旧模型值继续保留。保存、应用、真实推理仍分别返回事实，不因默认值更新自动调用模型。
 
 Automation 本轮没有新增 HTTP 路由、请求字段或响应 schema。现有运行记录在执行中可返回已保存原生关联；failure_code 可报告 automation_reference_invalid、automation_reference_conflict、automation_reference_persistence_failed 或 native_submission_unconfirmed。关联错误不触发自动研究重试，报告成功仍取原报告校验/产物事实。

@@ -137,6 +137,7 @@ def test_create_submit_duplicate_never_replays(api):
     created = client.post("/api/research/sessions", json={"mode": "fingpt"})
     assert created.status_code == 201
     sid = created.json()["id"]
+    assert created.json()["research_depth"] == "instant"
     endpoint = f"/api/research/sessions/{sid}/messages"
     for _ in range(2):
         response = client.post(
@@ -1674,3 +1675,57 @@ async def test_runtime_reports_docker_encrypted_storage_without_returning_key(tm
     assert result["credential_configured"] is True
     assert result["credential_code"] is None
     assert "synthetic-must-not-be-returned" not in str(result)
+
+
+def test_fingpt_locked_sources_deny_online_search_and_dataset_reuse(api, monkeypatch):
+    client, _, service = api
+    created = client.post(
+        "/api/research/sessions", json={"mode": "fingpt", "source_scope": ["uploads"]}
+    )
+    assert created.status_code == 201
+    sid = created.json()["id"]
+    monkeypatch.setattr(service.datahub, "catalog", lambda: {"sources": []})
+    monkeypatch.setattr(service.datahub.snapshots, "ids", lambda _: ["a" * 36])
+    monkeypatch.setattr(
+        service.datahub,
+        "detail",
+        lambda *_: pytest.fail("excluded datasets must not be inspected or admitted"),
+    )
+    assert service.native_admission(sid, tool_name="datahub_search_web")["admitted"] is False
+    assert service.native_admission(sid, tool_name="research_run_script")["read_paths"] == []
+    response = client.post(
+        f"/api/research/sessions/{sid}/uploads",
+        files={"files": ("a.md", b"allowed", "text/markdown")},
+    )
+    assert response.status_code == 200
+    other = client.post(
+        "/api/research/sessions", json={"mode": "fingpt", "source_scope": ["datahub"]}
+    ).json()["id"]
+    assert service.native_admission(other, tool_name="datahub_search_web")["admitted"] is False
+    response = client.post(
+        f"/api/research/sessions/{other}/uploads",
+        files={"files": ("a.md", b"denied", "text/markdown")},
+    )
+    assert response.status_code == 409
+
+
+def test_deep_options_survive_reload_and_require_verified_tool_model(api, monkeypatch):
+    client, native, service = api
+    created = client.post(
+        "/api/research/sessions",
+        json={"mode": "fingpt", "research_depth": "deep", "source_scope": ["uploads"]},
+    )
+    assert created.status_code == 201
+    sid = created.json()["id"]
+    restored = Store(service.store.root).session(sid)
+    assert restored["research_depth"] == "deep"
+    assert restored["source_scope"] == ["uploads"]
+    monkeypatch.setattr(service, "_model_tools_verified", lambda *_: False)
+    response = client.post(
+        f"/api/research/sessions/{sid}/messages",
+        json={"text": "研究风险"},
+        headers={"Idempotency-Key": "deep-reject"},
+    )
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "deep_research_tools_unverified"
+    assert not any(call[0] == "session.prompt" for call in native.calls)

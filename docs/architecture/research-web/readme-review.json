@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "updated",
-  "summary": "README 已同步显式 Docker 模型加密文件后端、凭据隔离及管理员信任边界。",
-  "reason": "新增 Docker 模型存储实现及非秘密状态投影；保留 Native Keychain、现有数据、通用凭据和独立真实推理验收边界。"
+  "summary": "README 已同步 Docker 模型加密文件后端；保留主线 FinGPT 深度、证据底稿、PDF 和 Claw 功能。",
+  "reason": "新增显式 Docker 模型存储和非秘密状态投影；保留 Native Keychain、既有数据和凭据、唯一 DSH 与公开入口，真实推理及跨平台验收仍独立记录。"
 }

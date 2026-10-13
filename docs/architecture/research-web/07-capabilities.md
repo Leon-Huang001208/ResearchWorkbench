@@ -250,3 +250,7 @@ MCP 市场、MCP Runtime 与 Automation 默认启用后仍是 Tool/Workflow 内�
 ## 设置闭环阶段3：当前能力范围
 
 Metadata增加严格data_requirements：能力/dataset、硬/可选、频率、复权、历史时点、单位/币种及省略章节。仅fund-evaluation（公开NAV有限评价）、industry-research（公开快讯+可选财务）、chanlun（Wind前复权日线+独立比较回执）声明本轮合同；精确原始builtin才发布继任版本，保留历史/自定义草稿，chanlun新版本仍disabled待独立证据。旧数据依赖声明不足保留unverified，不推断注册工具代表专业数据可用。
+
+## FinGPT 研究融合 · 2026-10-13
+
+能力 default_formats 新增 pdf；文件仍交原沙箱验证，不由任务完成或计划状态判定成功。会话 research_depth/source_scope 是创建时锁定的研究选项，能力及 Automation 复用原 Service/DSH 链；工具 preflight 收紧排除来源与脚本 dataset read_paths，MCP 未分类来源在部分范围选择下拒绝。

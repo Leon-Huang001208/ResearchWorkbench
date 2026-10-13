@@ -1,6 +1,9 @@
 """Pure projection of native DSH events; no parallel research execution model."""
 
 import json
+import logging
+
+log = logging.getLogger(__name__)
 
 
 def content_text(content) -> str:
@@ -16,6 +19,7 @@ def content_text(content) -> str:
 
 
 def project(entries: list[dict]) -> dict:
+    plan, plan_turn = None, None
     messages: dict = {}
     activities: dict = {}
     partials: dict = {}
@@ -30,7 +34,33 @@ def project(entries: list[dict]) -> dict:
         timestamp = event.get("time")
         if not isinstance(timestamp, (int, float)) or isinstance(timestamp, bool):
             timestamp = None
-        if kind == "user/message":
+        if kind == "todo/write":
+            todos = data.get("todos")
+            valid = (
+                isinstance(todos, list)
+                and len(todos) <= 100
+                and all(
+                    isinstance(item, dict)
+                    and isinstance(item.get("content"), str)
+                    and 0 < len(item["content"]) <= 10000
+                    and item.get("status") in {"pending", "in_progress", "completed"}
+                    for item in todos
+                )
+            )
+            if not valid:
+                log.warning("research_plan_event_invalid")
+            plan = {
+                "turn": plan_turn,
+                "seq": seq,
+                "status": "available" if valid else "invalid",
+                "history_complete": plan_turn is not None,
+                "items": (
+                    [{"content": item["content"], "status": item["status"]} for item in todos]
+                    if valid
+                    else []
+                ),
+            }
+        elif kind == "user/message":
             # Skill/system injected context is not a human message in the UI.
             source = data.get("source")
             if (
@@ -108,8 +138,16 @@ def project(entries: list[dict]) -> dict:
                 aid, {"id": aid, "type": "tool", "title": message.get("name", "工具结果")}
             )
             row.update(
-                status="failed" if data.get("error") or block.get("isError") else "completed",
-                detail=content_text(block.get("content")),
+                status=(
+                    "failed"
+                    if data.get("error") or message.get("isError") or block.get("isError")
+                    else "completed"
+                ),
+                detail=content_text(
+                    message.get("content")
+                    if message.get("role") == "tool"
+                    else block.get("content")
+                ),
             )
             started = tool_started.get(aid)
             if started is not None and timestamp is not None and timestamp > started:
@@ -123,6 +161,7 @@ def project(entries: list[dict]) -> dict:
                 except (ValueError, TypeError):
                     row["status"] = "failed"
         elif kind == "turn/start":
+            plan, plan_turn = None, data.get("turn")
             status, error = "running", None
             turn_started = timestamp
         elif kind == "turn/end":
@@ -153,6 +192,7 @@ def project(entries: list[dict]) -> dict:
             "seq": partial["seq"],
         }
     result = {
+        "research_plan": plan,
         "messages": sorted(
             (message for message in messages.values() if message["text"]),
             key=lambda row: row["seq"],
