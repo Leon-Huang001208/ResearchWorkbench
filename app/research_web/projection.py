@@ -190,6 +190,13 @@ def project(entries: list[dict]) -> dict:
                         row["status"] = "cancelled" if outcome == "cancelled" else "failed"
                 except (ValueError, TypeError):
                     row["status"] = "failed"
+            elif str(row.get("title", "")).startswith("datahub_") and row["status"] == "completed":
+                try:
+                    payload = json.loads(row.get("detail") or "")
+                    if isinstance(payload, dict) and payload.get("status") == "failed":
+                        row["status"] = "failed"
+                except (ValueError, TypeError):
+                    log.warning("research_data_result_status_unreadable")
         elif kind == "turn/start":
             plan, plan_turn = None, data.get("turn")
             status, error = "running", None

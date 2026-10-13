@@ -895,3 +895,142 @@ def test_secret_replacement_with_same_public_configuration_invalidates_authority
     second = hub.source_configuration_digest("mysql")
     assert first != second
     assert hub.connections.source_status("mysql")["secret_configured"] is True
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "capability,parameters",
+    [
+        ("market_activity", {"asset": "600519.SH", "dataset": "northbound"}),
+        ("market_activity", {"asset": "600519.SH", "dataset": "money_flow"}),
+        ("market_snapshot", {"assets": ["600519.SH"], "asset_type": "index"}),
+        ("market_snapshot", {"assets": ["510300.SH"], "asset_type": "etf"}),
+    ],
+)
+@pytest.mark.parametrize("call_id", ["legacy", "new-call"])
+async def test_old_akshare_nonequivalent_cache_is_rejected_without_deleting_history(
+    hub_module, tmp_path, monkeypatch, capability, parameters, call_id
+):
+    from app.research_web.datahub import catalog, providers
+
+    monkeypatch.setattr(catalog, "find_spec", lambda name: object() if name == "akshare" else None)
+    hub, _store, sid = make_hub(
+        hub_module, tmp_path, lambda _request: (_ for _ in ()).throw(AssertionError("no network"))
+    )
+    monkeypatch.setattr(hub.connections, "statuses", dict)
+
+    async def reject(*_args, **_kwargs):
+        raise AssertionError("cached invalid query must not reach provider")
+
+    monkeypatch.setattr(providers, "fetch", reject)
+    q = hub_module.BusinessQuery(capability=capability, source="akshare", parameters=parameters)
+    bad = providers.Result(
+        provider_id="akshare",
+        status="complete",
+        rows=[{"date": "2026-10-13", "synthetic": 1}],
+        raw=[b'{"synthetic":1}'],
+    )
+    manifest = hub.snapshots.publish(
+        sid,
+        q,
+        bad,
+        request_query=q,
+        authorization_fingerprint=hub.source_configuration_digest("akshare"),
+    )
+    hub.snapshots.receipt(
+        sid,
+        "legacy",
+        {
+            "status": "completed",
+            "fingerprint": q.fingerprint(include_refresh=True),
+            "dataset_id": manifest["dataset_id"],
+            "cache_hit": True,
+        },
+    )
+    with pytest.raises(StoreError) as failure:
+        await hub.query(sid, call_id, q)
+    assert failure.value.code == "data_not_equivalent"
+    assert hub.rows(sid, manifest["dataset_id"])["total"] == 1
+    assert (hub.store.root / manifest["raw_files"][0]["path"]).read_bytes() == b'{"synthetic":1}'
+    await hub.close()
+
+
+@pytest.mark.asyncio
+async def test_old_akshare_semantics_digest_blocks_receipt_and_refreshes_new_call(
+    hub_module, tmp_path, monkeypatch
+):
+    import hashlib
+
+    from app.research_web.datahub import catalog, providers
+
+    monkeypatch.setattr(catalog, "find_spec", lambda name: object() if name == "akshare" else None)
+    hub, _store, sid = make_hub(
+        hub_module, tmp_path, lambda _request: (_ for _ in ()).throw(AssertionError("no network"))
+    )
+    monkeypatch.setattr(hub.connections, "statuses", dict)
+    q = hub_module.BusinessQuery(
+        capability="market_activity",
+        source="akshare",
+        parameters={
+            "asset": "600519.SH",
+            "dataset": "fund_flow",
+            "start_date": "2026-10-13",
+            "end_date": "2026-10-13",
+        },
+    )
+    old_payload = json.dumps(
+        {
+            "status": {"source_id": "akshare"},
+            "revision": hub.connections.configuration_revision("akshare"),
+            "namespace": hub.connections.credential_service,
+        },
+        ensure_ascii=True,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    old_digest = hashlib.sha256(old_payload.encode()).hexdigest()
+    assert hub.source_configuration_digest("akshare") != old_digest
+    old = providers.Result(
+        provider_id="akshare",
+        status="complete",
+        rows=[{"date": "2026-01-01", "synthetic": 1}],
+        raw=[b'{"synthetic-old":1}'],
+    )
+    manifest = hub.snapshots.publish(
+        sid, q, old, request_query=q, authorization_fingerprint=old_digest
+    )
+    hub.snapshots.receipt(
+        sid,
+        "legacy",
+        {
+            "status": "completed",
+            "fingerprint": q.fingerprint(include_refresh=True),
+            "dataset_id": manifest["dataset_id"],
+            "cache_hit": True,
+        },
+    )
+    with pytest.raises(StoreError) as failure:
+        await hub.query(sid, "legacy", q)
+    assert failure.value.code == "data_cache_authorization_changed"
+    calls = []
+
+    async def fresh(query, **_kwargs):
+        calls.append(query)
+        return providers.Result(
+            provider_id="akshare",
+            status="complete",
+            rows=[{"date": "2026-10-13", "synthetic": 2}],
+            raw=[b'{"synthetic-new":2}'],
+        )
+
+    monkeypatch.setattr(providers, "fetch", fresh)
+    result = await hub.query(sid, "fresh", q)
+    assert len(calls) == 1 and result["cache_hit"] is False
+    assert result["dataset_id"] != manifest["dataset_id"]
+    assert hub.rows(sid, manifest["dataset_id"])["items"][0]["date"] == "2026-01-01"
+    assert (
+        hub.store.root / manifest["raw_files"][0]["path"]
+    ).read_bytes() == b'{"synthetic-old":1}'
+    assert (await hub.query(sid, "fresh", q))["cache_hit"] is False
+    assert len(calls) == 1
+    await hub.close()

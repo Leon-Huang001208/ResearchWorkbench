@@ -1,5 +1,10 @@
 # 安全边界与验证方法
 
+字体兼容不扩大sandbox：getcwd、network connect和未准入资源依然拒绝。chinese_font_path
+仅由模块绝对__file__定位打包字体，缺失或alias固定错误退出，不扫描其他宿主文件。
+非2xx错误摘要只取4KiB JSON中白名单code，redirect立即拒绝，流读取/清理不超过原超时信号；
+scope拒绝仍deny且不登记资源，只追加安全missing.code摘要。准入快照只是提示，不能覆盖实时guard。
+
 外部资料取数只使用登记的固定 endpoint；认证请求必须为 HTTPS，检查在读秘密前执行。
 HTTP 认证来源保留目录和 `credential_transport_blocked`，不以配置完成冒充可调用。
 秘密不得出现在原始响应、解析后的数据、日志或会话快照中；测试仅使用合成凭据。

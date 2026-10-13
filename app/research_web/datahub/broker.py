@@ -4,9 +4,15 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from core.observability import get_logger
+
 from ..store import StoreError
 from .catalog import build_catalog
 from .contracts import BusinessQuery, Query
+from .providers import ProviderError
+from .providers_akshare import validate_supported_query
+
+log = get_logger(__name__)
 
 
 @dataclass(frozen=True)
@@ -69,6 +75,7 @@ def resolve(
 
     attempts = []
     selected = None
+    unsupported_code: str | None = None
     for source_id in ordered:
         readiness = sources[source_id]["readiness"]
         reason = None
@@ -84,6 +91,13 @@ def resolve(
             reason = "disabled"
         elif readiness["health"] == "unavailable":
             reason = "probe_unavailable"
+        if reason is None and source_id == "akshare":
+            try:
+                validate_supported_query(query)
+            except ProviderError as exc:
+                reason = str(exc)
+                unsupported_code = reason
+                log.warning("datahub_akshare_query_semantics_rejected", reason=reason)
         attempts.append(
             {
                 "source": source_id,
@@ -97,7 +111,11 @@ def resolve(
         if query.source != "auto" and not query.allow_fallback:
             break
     if selected is None:
-        raise StoreError("当前没有完成 DataHub 适配且满足配置的数据来源")
+        if unsupported_code is not None:
+            raise StoreError("AKShare 请求口径不受支持", unsupported_code, 400)
+        raise StoreError(
+            "当前没有完成 DataHub 适配且满足配置的数据来源", "data_source_unavailable", 400
+        )
 
     parameters = query.parameters
     if query.capability == "fund_data" and selected == "eastmoney_fund":

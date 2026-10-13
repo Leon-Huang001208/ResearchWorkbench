@@ -3624,7 +3624,10 @@ Imports:
 - `__future__`
 - `catalog`
 - `contracts`
+- `core.observability`
 - `dataclasses`
+- `providers`
+- `providers_akshare`
 - `store`
 
 Classes:
@@ -3888,6 +3891,11 @@ Functions:
 - `_market_code`
 - `_market_symbol`
 - `_exchange_symbol`
+- `_activity_bounds`
+- `validate_supported_query`
+  - Pure semantics check shared by selection/cache admission and execution.
+- `_slice_activity_frame`
+  - Filter provider dates before the shared row cap; unknown dates fail closed.
 - `_clean`
 - `_records`
 - `_pick`
@@ -3898,6 +3906,7 @@ Functions:
 - `_normalize_bars`
 - `_normalize_snapshot`
 - `_normalize_generic`
+- `_normalize_activity`
 - `_normalize_financials`
 - `_invoke`
 - `_fetch_probe_payload`
@@ -6479,6 +6488,8 @@ Imports:
 - `uuid`
 
 Functions:
+- `chinese_font_path`
+  - Return the bundled CJK font's absolute path without reading the cwd.
 - `read_pdf`
 - `safe_cell`
 - `write_deliverables`
@@ -6694,7 +6705,7 @@ Classes:
   - Enforce Research Store ownership before any session-scoped MCP operation.
   - methods: __init__, __getattr__, start, close, _owned, authorize_session, register_automation_session, read_resource, get_prompt, call_tool, approvals, decide_approval
 - `ResearchService`
-  - methods: __init__, _build_mcp_runtime, ensure_owned, start, close, _retention_loop, notify, _connect, _consume, _interaction_owner, _model_plane, compatible_connection, _require_model_credentials, runtime, configure_model, test_model, create, summary, list_sessions, soft_delete_session, restore_session, permanent_delete_session, purge_expired_sessions, _model_tools_verified, _task_capabilities, _effective_records, native_admission, _data_query_admission, capability_readiness, detail, _cancel_observation, send, skill_catalog, _capability_idle, _mcp_idle_gate, _restart_mcp_runtime, change_capability, create_capability_session, capability_from_artifact, approve, cancel, _cancel, answer
+  - methods: __init__, _build_mcp_runtime, ensure_owned, start, close, _retention_loop, notify, _connect, _consume, _interaction_owner, _model_plane, compatible_connection, _require_model_credentials, runtime, configure_model, test_model, create, summary, list_sessions, soft_delete_session, restore_session, permanent_delete_session, purge_expired_sessions, _model_tools_verified, _task_capabilities, _effective_records, _task_readiness_context, native_admission, _data_query_admission, capability_readiness, detail, _cancel_observation, send, skill_catalog, _capability_idle, _mcp_idle_gate, _restart_mcp_runtime, change_capability, create_capability_session, capability_from_artifact, approve, cancel, _cancel, answer
 
 Functions:
 - `_mcp_internal_url`

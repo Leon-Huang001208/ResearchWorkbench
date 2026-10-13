@@ -13,6 +13,36 @@ from app.research_web.client import DSHClient, RuntimeFailure
 from app.research_web.projection import project
 
 
+@pytest.mark.parametrize(
+    "outcome,expected",
+    [
+        ("failed", "failed"),
+        ("complete", "completed"),
+        ("snapshot", "completed"),
+        ("partial", "completed"),
+        ("empty", "completed"),
+    ],
+)
+def test_datahub_domain_failure_is_not_shown_as_success(outcome, expected):
+    result = project(
+        [
+            event(1, "tool/call", {"callId": "data", "name": "datahub_get_market_bars"}),
+            event(
+                2,
+                "tool/result",
+                {
+                    "message": {
+                        "source": {"callId": "data"},
+                        "role": "tool",
+                        "content": [{"type": "text", "text": json.dumps({"status": outcome})}],
+                    }
+                },
+            ),
+        ]
+    )
+    assert result["activities"][0]["status"] == expected
+
+
 @pytest.mark.parametrize("payload", ["not-json", "{}", '{"status":"unknown"}', "[]"])
 def test_invalid_script_result_remains_failed(payload):
     result = project(

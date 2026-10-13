@@ -280,3 +280,17 @@ ETF 参数边界参考 [AKShare 官方 ETF 历史接口说明](https://akshare.a
 凭据反射检查同时覆盖原始响应字节与解析后所有行的字符串（字典键/值及嵌套列表），
 在裁剪行数、发布快照或生成样例之前执行。迭代遍历拒绝 JSON Unicode 转义及 HTML 实体
 解码后出现的秘密；错误仅记录 `credential_reflection`，不记录秘密或响应内容。
+
+## AKShare 请求口径与旧缓存复用边界
+
+AKShare `market_activity` 当前只实现个股 `fund_flow`；`northbound`、`money_flow` 等未审阅
+数据集返回 `data_not_equivalent`，不会用个股大中小单流量冒充北向资金。请求日期先在
+完整供应商 frame 上切片，再应用 5,000 行硬门；缺少可验证日期、非法日期或超限分别失败
+关闭，不静默发布范围外数据。输出保留原字段并增加标准 `date`，金额/流量单位不猜测。
+`market_snapshot` 当前只支持股票；指数/ETF 在 SDK 调用前拒绝，股票身份保留显式交易所后缀。
+
+同一纯支持规则由 Broker 的选择/缓存准入与 Provider 执行共同使用；AKShare 的固定非秘密
+语义版本也进入已有配置授权摘要，旧收据返回 `data_cache_authorization_changed`，新调用跳过
+旧缓存并按新口径取数。历史快照和 raw 保留供审计，不删除、不改写，也不恢复新查询授权。
+无任何可用来源时保留 HTTP 400 与原中文说明，稳定代码为 `data_source_unavailable`。
+这些修复只经离线 Mock 回归，不证明真实供应商、收费数据或其他平台已验证。

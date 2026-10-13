@@ -1,5 +1,10 @@
 # Research Web 接口清单
 
+DataHub无可调用来源仍返回400，但稳定error.code为data_source_unavailable；
+不等价AKShare查询为data_not_equivalent，旧授权摘要缓存为data_cache_authorization_changed。
+Runtime仅传播受限code，不传播错误message/原始上游数据。GET会话活动会把DataHub failed结果
+显示为failed，而不是仅凭原生isError=false显示执行成功；原生回合完成和领域数据成功仍分开。
+
 既有 DataHub 查询 API 新增 external_data 能力，参数为 dataset、arguments_json 和 limit；
 source=auto 只读取外部总目录，具名查询使用登记端点且禁止自定义目的地址/认证字段。
 连接 API 同步四类外部来源凭据，HTTP认证返回 credential_transport_blocked。

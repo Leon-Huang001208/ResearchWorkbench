@@ -240,3 +240,28 @@ test('a parent pending load blocks a child tool until the shared registration co
   await new Promise(resolve => setImmediate(resolve)); assert.equal(settled, false);
   release(); assert.equal((await result).kind, 'allow');
 });
+
+test('scope denial reports only stable missing codes and clears failed skill load state', async t => {
+  const f = await admissionFixture(t); const original = globalThis.fetch; const requests = [];
+  t.after(() => { globalThis.fetch = original; });
+  globalThis.fetch = async (_url, options) => {
+    requests.push(JSON.parse(options.body));
+    return new Response(JSON.stringify({ status: 'unverified', admitted: false, missing: [
+      { code: 'data_contract_missing', message: 'synthetic-secret', source: 'private-vendor' },
+      { code: 'data_source_unavailable' }, { code: 'data_contract_missing' },
+      { code: 'encoded_secret_c2VjcmV0' }, { code: 'data_contract_missing%0Asecret' },
+    ], omitted_sections: ['private-section'] }), { headers: { 'content-type': 'application/json' } });
+  };
+  const denied = await f.handler(f.exec, async () => ({ kind: 'allow' }));
+  assert.equal(denied.kind, 'deny');
+  assert.equal(denied.reason, 'capability_scope_unavailable: data_contract_missing,data_source_unavailable');
+  assert.doesNotMatch(denied.reason, /secret|vendor|section/);
+  f.handlers.get('tools/result')(f.exec, { isError: true });
+  globalThis.fetch = async (_url, options) => {
+    requests.push(JSON.parse(options.body));
+    return new Response(JSON.stringify({ status: 'available', admitted: true, missing: [], omitted_sections: [] }), { headers: { 'content-type': 'application/json' } });
+  };
+  const following = await f.handler({ ...f.exec, name: 'web_search' }, async () => ({ kind: 'allow' }));
+  assert.equal(following.kind, 'allow');
+  assert.ok(requests.every(body => body.loaded === undefined));
+});

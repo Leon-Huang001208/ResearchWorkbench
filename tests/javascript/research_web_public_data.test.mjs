@@ -272,3 +272,138 @@ test('business tool schemas conform to pinned DSH',{skip:!process.env.DSH_SOURCE
   assert.deepEqual(validateJsonSchemaValue(f.tool.parameters,{dataset:'nav',code:'000001',start_date:'2025-01-01',end_date:'2025-12-31'}),[]);
   assert.deepEqual(validateJsonSchemaValue(f.tool.parameters,{dataset:'holdings',code:'000001',year:2025}),[]);
 });
+
+test('non-2xx DataHub responses expose only allowlisted stable codes within a small JSON envelope', async () => {
+  const f = await fixture(); const original = globalThis.fetch;
+  const { executeDocumentTool } = await import(moduleURL);
+  try {
+    for (const [body, headers, expected] of [
+      [JSON.stringify({ error: { code: 'data_source_unavailable', message: 'synthetic secret sk-test-private' }, raw: 'vendor payload' }), { 'content-type': 'application/json; charset=utf-8' }, /HTTP 400.*data_source_unavailable/],
+      [JSON.stringify({ error: { code: 'data_not_equivalent' } }), { 'content-type': 'application/json' }, /HTTP 400.*data_not_equivalent/],
+      [JSON.stringify({ error: { code: 'data_cache_authorization_changed' } }), { 'content-type': 'application/json' }, /HTTP 400.*data_cache_authorization_changed/],
+      [JSON.stringify({ error: { code: 'synthetic_secret_b64_c2VjcmV0' } }), { 'content-type': 'application/json' }, /^DataHub request failed \(HTTP 400\)$/],
+      [JSON.stringify({ error: { code: 'data_source_unavailable%0Asecret' } }), { 'content-type': 'application/json' }, /^DataHub request failed \(HTTP 400\)$/],
+      [JSON.stringify({ error: { code: 'data_source_unavailable' }, padding: 'x'.repeat(4096) }), { 'content-type': 'application/json' }, /^DataHub request failed \(HTTP 400\)$/],
+      [JSON.stringify({ error: { code: 'data_source_unavailable' } }), { 'content-type': 'text/html' }, /^DataHub request failed \(HTTP 400\)$/],
+      ['{"error":', { 'content-type': 'application/json' }, /^DataHub request failed \(HTTP 400\)$/],
+    ]) {
+      globalThis.fetch = async () => new Response(body, { status: 400, headers });
+      await assert.rejects(executeDocumentTool(f.ctx, f.exec, { researchRoot: f.root }, { mode: 'file' }), error => {
+        assert.match(error.message, expected);
+        assert.doesNotMatch(error.message, /sk-test-private|vendor payload|synthetic_secret|%0A/);
+        return true;
+      });
+    }
+  } finally { globalThis.fetch = original; }
+});
+
+test('tool descriptions separate registration from current readiness and identify asset notation', async () => {
+  const f = await fixture();
+  for (const tool of f.tools.values()) {
+    assert.doesNotMatch(tool.description, /仅包含启动时 DataHub 目录可调用/);
+    assert.match(tool.description, /注册不代表.*可调用/);
+    assert.match(tool.description, /data_source_unavailable/);
+    assert.match(tool.description, /不要重复相同请求/);
+  }
+  assert.match(f.tools.get('datahub_get_market_bars').description, /000001\.SH/);
+});
+
+test('error envelope enforces streamed and declared 4KiB caps and rejects redirects before reading', async () => {
+  const f = await fixture(); const original = globalThis.fetch;
+  const { executeDocumentTool } = await import(moduleURL);
+  try {
+    let padding = '';
+    const envelope = () => JSON.stringify({ error: { code: 'data_source_unavailable' }, padding });
+    padding = 'x'.repeat(4096 - Buffer.byteLength(envelope()));
+    assert.equal(Buffer.byteLength(envelope()), 4096);
+    globalThis.fetch = async () => new Response(envelope(), { status: 400, headers: { 'content-type': 'application/json' } });
+    await assert.rejects(executeDocumentTool(f.ctx, f.exec, { researchRoot: f.root }, { mode: 'file' }), /data_source_unavailable/);
+
+    for (const [status, redirected, length] of [[400, false, undefined], [400, false, '4097'], [302, false, undefined], [400, true, undefined]]) {
+      let pulls = 0; let cancelled = 0;
+      const oversized = Buffer.from(envelope() + 'x');
+      const body = new ReadableStream({
+        pull(controller) { pulls++; controller.enqueue(oversized); },
+        cancel() { cancelled++; },
+      }, { highWaterMark: 0 });
+      const headers = { 'content-type': 'application/json' };
+      if (length) headers['content-length'] = length;
+      const response = new Response(body, { status, headers });
+      if (redirected) Object.defineProperty(response, 'redirected', { value: true });
+      globalThis.fetch = async () => response;
+      await assert.rejects(executeDocumentTool(f.ctx, f.exec, { researchRoot: f.root }, { mode: 'file' }), error => {
+        assert.equal(error.message, `DataHub request failed (HTTP ${status})`); return true;
+      });
+      assert.equal(pulls, status === 400 && !redirected && !length ? 1 : 0);
+      assert.equal(cancelled, 1);
+    }
+  } finally { globalThis.fetch = original; }
+});
+
+test('error body reading observes the existing request deadline and caller cancellation', async () => {
+  const f = await fixture(); const original = globalThis.fetch; const originalTimeout = AbortSignal.timeout;
+  const { executeDocumentTool } = await import(moduleURL);
+  const timeouts = []; let cancelled = 0;
+  globalThis.fetch = async () => new Response(new ReadableStream({ cancel() { cancelled++; } }), { status: 400, headers: { 'content-type': 'application/json' } });
+  try {
+    AbortSignal.timeout = ms => { timeouts.push(ms); return originalTimeout(10); };
+    const keepAlive = setTimeout(() => {}, 1000);
+    try {
+      await assert.rejects(executeDocumentTool(f.ctx, f.exec, { researchRoot: f.root }, { mode: 'file' }), error => error.name === 'TimeoutError');
+    } finally { clearTimeout(keepAlive); }
+    assert.deepEqual(timeouts, [35000]);
+    AbortSignal.timeout = originalTimeout;
+    const controller = new AbortController();
+    const pending = executeDocumentTool(f.ctx, { ...f.exec, signal: controller.signal }, { researchRoot: f.root }, { mode: 'file' });
+    const timer = setTimeout(() => controller.abort(), 10);
+    try { await assert.rejects(pending, error => error.name === 'AbortError'); }
+    finally { clearTimeout(timer); }
+    assert.equal(cancelled, 2);
+  } finally { globalThis.fetch = original; AbortSignal.timeout = originalTimeout; }
+});
+
+test('coded business failure cancels once without replaying the business request or exposing secrets', async () => {
+  const f = await fixture(); const original = globalThis.fetch; const paths = [];
+  globalThis.fetch = async (url, options) => {
+    paths.push(new URL(url).pathname);
+    assert.equal(options.redirect, 'error');
+    if (url.endsWith('/cancel')) return reply({ cancelled: true });
+    return new Response(JSON.stringify({ error: { code: 'data_source_unavailable', message: 'synthetic-secret' } }), { status: 400, headers: { 'content-type': 'application/json' } });
+  };
+  try {
+    await assert.rejects(f.tool.execute({ dataset: 'nav', code: '000001' }, f.exec), error => {
+      assert.match(error.message, /data_source_unavailable/); assert.doesNotMatch(error.message, /secret/); return true;
+    });
+    assert.deepEqual(paths, ['/api/research/internal/data/business-query', '/api/research/internal/data/cancel']);
+  } finally { globalThis.fetch = original; }
+});
+
+test('stream parsing and cleanup failures never relay stream-controlled error text', async () => {
+  const f = await fixture(); const original = globalThis.fetch;
+  const { executeDocumentTool } = await import(moduleURL);
+  try {
+    for (const type of ['read', 'cancel']) {
+      const body = new ReadableStream({
+        pull(controller) { if (type === 'read') controller.error(Error('synthetic-stream-secret')); },
+        cancel() { throw Error('synthetic-cancel-secret'); },
+      }, { highWaterMark: 0 });
+      globalThis.fetch = async () => new Response(body, { status: 400, headers: { 'content-type': type === 'read' ? 'application/json' : 'text/plain' } });
+      await assert.rejects(executeDocumentTool(f.ctx, f.exec, { researchRoot: f.root }, { mode: 'file' }), error => {
+        assert.equal(error.message, 'DataHub request failed (HTTP 400)'); return true;
+      });
+    }
+  } finally { globalThis.fetch = original; }
+});
+
+test('unsettled error-body cleanup stays within the existing deadline', async () => {
+  const f = await fixture(); const original = globalThis.fetch; const originalTimeout = AbortSignal.timeout;
+  const { executeDocumentTool } = await import(moduleURL);
+  let requestedTimeout;
+  AbortSignal.timeout = ms => { requestedTimeout = ms; return originalTimeout(10); };
+  globalThis.fetch = async () => new Response(new ReadableStream({ cancel() { return new Promise(() => {}); } }), { status: 400, headers: { 'content-type': 'text/html' } });
+  const keepAlive = setTimeout(() => {}, 1000);
+  try {
+    await assert.rejects(executeDocumentTool(f.ctx, f.exec, { researchRoot: f.root }, { mode: 'file' }), error => error.name === 'TimeoutError');
+    assert.equal(requestedTimeout, 35000);
+  } finally { clearTimeout(keepAlive); globalThis.fetch = original; AbortSignal.timeout = originalTimeout; }
+});

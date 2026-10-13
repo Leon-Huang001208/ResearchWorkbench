@@ -2,6 +2,10 @@
 
 ## 外部来源与兼容模型融合
 
+打包research_helpers新增chinese_font_path，仍复用现有中文字体和Matplotlib，无新产品依赖。
+新版任务提示传达真实能力/来源准入；旧会话资源不会被覆盖，字体可从模块绝对__file__兼容定位。
+AKShare缓存语义版本升级只失效复用，不删除历史数据；首次新调用重新验证请求口径。
+
 外部来源目录、JSON 模型预设和取数适配器随现有 Web 包安装，无新增产品依赖；
 `requirements/web.in`、`requirements/web.lock`、安装器与 Bootstrap 工作流保持原合同。
 连接中心新增 ext_ths/ext_daole/ext_tikhub/ext_cicc，凭据只在本实例设置页接收。

@@ -135,6 +135,11 @@ class DataHub:
         """Return a canonical digest of safe configuration metadata only."""
 
         private = canonical_source_id(source_id) in SUPPORTED_CONFIGURATION_SOURCES
+        semantics: dict[str, str] = {}
+        if source_id == "akshare":
+            from .providers_akshare import SEMANTICS_REVISION
+
+            semantics["provider_semantics_revision"] = SEMANTICS_REVISION
         payload = json.dumps(
             {
                 "status": (
@@ -144,6 +149,7 @@ class DataHub:
                 ),
                 "revision": self.connections.configuration_revision(source_id),
                 "namespace": self.connections.credential_service,
+                **semantics,
             },
             ensure_ascii=True,
             sort_keys=True,

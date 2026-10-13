@@ -38,6 +38,25 @@
 
 ## 结构复核
 
+## 用户实际新任务失败修复
+
+用户报告预览新任务失败。只读该会话原生事件确认：4次市场能力被data_contract_missing拒绝；
+6次Python直接/相对字体路径间接触发getcwd拒绝，没有直接network绕过证据。
+DataHub27次结果包含5次无可调用绑定HTTP400和7次failed；另发现northbound/money_flow被
+当个股资金流返回、指数快照使用股票feed并改错后缀的金融口径缺陷。未自动重跑用户任务。
+
+修复保持安全门：普通任务得到真实admitted与数据可调用性快照；deny摘要含安全missing.code；
+非2xx只读4KiB JSON提取稳定code白名单，不泄message/raw/秘密；DataHub failed不投影成功。
+新增打包字体绝对路径helper，真实sandbox相对路径红→绝对路径绿，同时cwd/network/未准入资源
+负例保持；旧会话提示通过已准入模块__file__兼容，不修改历史资源或用户数据。
+AKShare查询支持规则在Broker/SDK/缓存前同源复用；资金流日期先切片再限行，股票身份保持，
+不等价北向/资金口径和指数/ETF股票feed快照明确拒绝。semantics revision失效旧cache复用，
+原raw/rows保留，新调用可刷新。历史错误数据不能认证为真实北向资金或指数成功。
+
+当前实际回归：相关Python230通过、Research Web JS425通过0skip、固定SDK五组61通过0skip；
+Mypy20源码及导入闭包无error，Ruff/格式检查通过。供应商与真实模型未调用；CI、预览更新和
+新Git绑定回执在提交后另行核对，既有内置Skill不因提示或目录存在被自动放行。
+
 ## 用户授权的继续修复与预览
 
 2026-10-13 用户要求继续修复并查看临时服务。预览在独立安装clone保持已验证的1262b4858，

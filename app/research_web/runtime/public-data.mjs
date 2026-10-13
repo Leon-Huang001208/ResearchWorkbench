@@ -10,7 +10,7 @@ const BUSINESS = {
   datahub_get_external_data: ['external_data','读取已整理的41个外部数据来源。先不传参数读取catalog；再按返回的source和dataset取数。arguments_json为JSON字符串，结构为{"params":{目录占位参数},"query":{业务筛选},"body":{POST业务参数}}。凭据由服务端提供；来源字段和单次快照不等于完整历史；样例最多三行且有字节上限，完整数据在数据集文件，不要重复调用同一来源。',{dataset:{type:'string'},arguments_json:{type:'string'},limit:{type:'integer'}},[]],
   datahub_search_assets: ['search_assets','识别证券、基金和指数代码',{query:{type:'string'},market:{type:'string'},asset_type:{type:'string'}},['query']],
   datahub_get_trading_calendar: ['trading_calendar','读取交易日历',{market:{type:'string'},start_date:{type:'string'},end_date:{type:'string'}},['market','start_date','end_date']],
-  datahub_get_market_bars: ['market_bars','读取历史行情与复权口径',{asset:{type:'string'},asset_type:{type:'string',enum:['stock','index','etf']},start_date:{type:'string'},end_date:{type:'string'},frequency:{type:'string'},adjustment:{type:'string'}},['asset','start_date','end_date']],
+  datahub_get_market_bars: ['market_bars','读取历史行情与复权口径；asset 采用明确市场代码，例如 000001.SH，并显式指定 asset_type，所选来源须支持对应类型与口径',{asset:{type:'string'},asset_type:{type:'string',enum:['stock','index','etf']},start_date:{type:'string'},end_date:{type:'string'},frequency:{type:'string'},adjustment:{type:'string'}},['asset','start_date','end_date']],
   datahub_get_market_snapshot: ['market_snapshot','读取当前或最近行情快照',{assets:{type:'array',items:{type:'string'}},asset_type:{type:'string',enum:['stock','index','etf']},fields:{type:'array',items:{type:'string'}}},['assets']],
   datahub_get_index_data: ['index_data','读取指数行情、成分或估值',{index:{type:'string'},dataset:{type:'string'},date:{type:'string'}},['index','dataset']],
   datahub_get_financials: ['financials','读取财务报表与标准化指标',{asset:{type:'string'},statements:{type:'array',items:{type:'string'}},periods:{type:'array',items:{type:'string'}}},['asset']],
@@ -30,6 +30,18 @@ const BUSINESS = {
   },['database','table','columns']],
 };
 const MAX_BYTES = 1048576;
+const MAX_ERROR_BYTES = 4096;
+// Stable product codes only: never relay vendor text or arbitrary identifiers.
+const SAFE_ERROR_CODES = new Set([
+  'invalid_request', 'invalid_resource', 'internal_error',
+  'data_source_unavailable', 'data_capability_unsupported', 'data_operation_unsupported',
+  'data_cache_authorization_changed',
+  'data_not_equivalent', 'invalid_asset', 'invalid_adjustment', 'invalid_frequency',
+  'data_contract_missing', 'data_contract_invalid', 'data_state_unknown',
+  'data_dependency_unavailable', 'data_semantics_not_equivalent', 'data_semantics_unverified',
+  'capability_data_unavailable', 'model_tool_capability_unverified',
+  'capability_disabled', 'source_scope_excluded',
+]);
 
 function isDenseStringArray(value) {
   if (!Array.isArray(value) || value.length > 32768) return false;
@@ -143,12 +155,61 @@ export async function executeDocumentTool(ctx, exec, config, args) {
   return boundedJson(response, signal);
 }
 
+async function waitForResponse(operation, signal) {
+  if (signal.aborted) return Promise.race([operation, Promise.reject(signal.reason)]);
+  let onAbort;
+  const aborted = new Promise((_resolve, reject) => {
+    onAbort = () => reject(signal.reason);
+    signal.addEventListener('abort', onAbort, { once: true });
+  });
+  try { return await Promise.race([operation, aborted]); }
+  finally { signal.removeEventListener('abort', onAbort); }
+}
+
+async function readResponsePart(reader, signal) {
+  signal.throwIfAborted();
+  return waitForResponse(reader.read(), signal);
+}
+
+async function discardErrorBody(body, signal) {
+  // A stream-controlled cleanup error must not replace the safe HTTP failure.
+  try { if (body) await waitForResponse(body.cancel(), signal); } catch { signal.throwIfAborted(); }
+}
+
+async function responseErrorCode(response, signal) {
+  const mediaType = response.headers.get('content-type')?.split(';', 1)[0].trim().toLowerCase();
+  const length = response.headers.get('content-length');
+  if (mediaType !== 'application/json' || !response.body ||
+      (length !== null && (!/^\d+$/.test(length) || Number(length) > MAX_ERROR_BYTES))) {
+    await discardErrorBody(response.body, signal); signal.throwIfAborted(); return '';
+  }
+  const reader = response.body.getReader(); const chunks = []; let size = 0;
+  try {
+    for (;;) {
+      const { done, value } = await readResponsePart(reader, signal); if (done) break;
+      size += value.byteLength; if (size > MAX_ERROR_BYTES) return '';
+      chunks.push(value);
+    }
+    signal.throwIfAborted();
+    const value = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(Buffer.concat(chunks)));
+    const code = value?.error?.code;
+    return typeof code === 'string' && /^[a-z][a-z0-9_]{0,63}$/.test(code) && SAFE_ERROR_CODES.has(code) ? code : '';
+  } catch { signal.throwIfAborted(); return ''; }
+  finally { await discardErrorBody(reader, signal); }
+}
+
 async function boundedJson(response, signal) {
-  if (!response.ok || response.redirected) {await response.body?.cancel();throw Error(`DataHub request failed (HTTP ${response.status})`);}
+  if (response.redirected || (response.status >= 300 && response.status < 400)) {
+    await discardErrorBody(response.body, signal); throw Error(`DataHub request failed (HTTP ${response.status})`);
+  }
+  if (!response.ok) {
+    const code = await responseErrorCode(response, signal);
+    throw Error(`DataHub request failed (HTTP ${response.status})${code ? `: ${code}` : ''}`);
+  }
   if (!response.headers.get('content-type')?.includes('application/json') || !response.body || Number(response.headers.get('content-length')) > MAX_BYTES) {await response.body?.cancel();throw Error('DataHub response type or size is invalid');}
   const reader=response.body.getReader();const chunks=[];let size=0;
   try {
-    while(true) {signal.throwIfAborted();const {done,value}=await reader.read();if(done)break;size+=value.byteLength;if(size>MAX_BYTES)throw Error('DataHub response size exceeds limit');chunks.push(value);}
+    while(true) {signal.throwIfAborted();const {done,value}=await readResponsePart(reader, signal);if(done)break;size+=value.byteLength;if(size>MAX_BYTES)throw Error('DataHub response size exceeds limit');chunks.push(value);}
   } finally {await reader.cancel();}
   signal.throwIfAborted();
   return JSON.parse(Buffer.concat(chunks).toString('utf8'));
@@ -214,7 +275,7 @@ export function apply(ctx, config) {
     const common={source:{type:'string',description:'目录来源 ID；默认 auto'},allow_fallback:{type:'boolean'},refresh:{type:'boolean'}};
     ctx.tools.register({
       name:toolName,
-      description:`${description}。当前工具列表仅包含启动时 DataHub 目录可调用的能力；由 DataHub 选源、校验并保存会话隔离快照。`,
+      description:`${description}。工具注册不代表当前来源可调用；每次由 DataHub 核对适配、配置、依赖及权限并保存会话隔离快照。遇到 data_source_unavailable、data_operation_unsupported 或 data_not_equivalent 时，报告限制并先核对来源与参数，不要重复相同请求。`,
       parameters:{type:'object',properties:{...properties,...common},required,additionalProperties:false},
       output:{schema:{type:'object',properties:Object.fromEntries(outputKeys.map(key=>[key,{type:'string'}])),required:outputKeys,additionalProperties:false},render(_args,value){return [{type:'text',text:JSON.stringify(value)}];}},
       async execute(args,exec) {

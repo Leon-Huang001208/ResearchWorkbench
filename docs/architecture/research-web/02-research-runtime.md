@@ -1,5 +1,10 @@
 # 研究协议、执行状态与恢复
 
+普通任务现在附带当前能力admitted/status/missing_codes与数据工具可调用性提示；这是规划事实，
+不是授权，执行前仍走实时nativeAdmission。缺合约或来源的能力不应反复加载，不能改用脚本绕过。
+非2xx DataHub响应只提取4KiB以内JSON的稳定error.code白名单，不向模型回传message或供应商原文。
+DataHub领域status=failed投影为失败活动；complete/snapshot/partial/empty保留原状态和数据局限。
+
 兼容模型支持原生工具声明、tool-call/reasoning/usage 流和历史工具结果，推理块在正文或工具块前关闭。
 未明确披露容量时上下文压缩预算为32768，显式配置由范围校验后覆盖；预算不是能力证明。
 固定 DSH compaction 组在隔离域加载，persona 保留资料口径、文件验证、权限与四子任务约束。

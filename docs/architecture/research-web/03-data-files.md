@@ -1,5 +1,11 @@
 # DataHub、研究资料与实际文件
 
+AKShare不支持的northbound/money_flow资金口径及index/ETF股票feed快照在选择、缓存和SDK前
+失败关闭，不把个股资金流或股票价格冒充目标数据。fund_flow按日期裁剪再限行数，股票后缀保持。
+Provider semantics revision纳入非秘密授权摘要；旧cache不能复用，新调用可重新取数，历史raw/rows保留。
+Matplotlib字体使用research_helpers.chinese_font_path()的打包绝对路径；旧会话可由该模块__file__
+构造同一已准入字体路径，不需要getcwd、额外宿主目录或网络权限。
+
 `external_data` 复用既有 Broker、会话快照和原生工具桥，不创建新数据执行器。
 外部来源总目录包含取数登记与仅参考来源；目录、凭据配置、健康和实际查询状态分别认证。
 外部响应保存供应商原字段及单次响应限制；未验证成交量单位保持 provider_defined，

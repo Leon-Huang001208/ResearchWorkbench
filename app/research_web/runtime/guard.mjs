@@ -3,6 +3,18 @@ import { isAbsolute } from 'node:path';
 import { nativeAdmission } from './public-data.mjs';
 
 export const inject = ['tools', 'llm', 'sessions'];
+const SAFE_SCOPE_CODES = new Set([
+  'data_contract_missing', 'data_contract_invalid', 'data_state_unknown',
+  'data_source_unavailable', 'data_dependency_unavailable',
+  'data_semantics_not_equivalent', 'data_semantics_unverified',
+  'model_tool_capability_unverified', 'capability_disabled', 'source_scope_excluded',
+  'linked_version_conflict',
+]);
+function scopeDenialReason(scope) {
+  const codes = [...new Set((Array.isArray(scope?.missing) ? scope.missing.slice(0, 20) : [])
+    .map(item => item?.code).filter(code => typeof code === 'string' && SAFE_SCOPE_CODES.has(code)))].sort();
+  return `capability_scope_unavailable${codes.length ? `: ${codes.join(',')}` : ''}`;
+}
 
 export const RESEARCH_TOOLS = new Set([
   'todo_write',
@@ -42,7 +54,7 @@ export function apply(ctx, config = {}) {
         if (!scope.admitted || (!skill && pendingFor(exec.agent).size)) {
           ctx.logger.warn('research_native_capability_admission_denied');
           if (skill) pendingFor(exec.agent).delete(exec.callId);
-          return { kind: 'deny', reason: 'capability_scope_unavailable' };
+          return { kind: 'deny', reason: scopeDenialReason(scope) };
         }
         return decision;
       } catch {
