@@ -320,3 +320,7 @@ Docker `/state` 使用 UID/GID 10001、0700 的 Linux 私有 tmpfs；临时认�
 ## 本机状态投影
 
 Office自动验证只复用Host内既有集成批次和受管验证器，不增加进程或守护服务。实例同意、同快照汇总及真实证据/清理的条件见[集成协调器](09-integration-coordinator.md)。Doctor仅投影所属实例开关，不调用Office，也不改变安装或服务就绪。
+
+## FinGPT 研究融合 · 2026-10-13
+
+FinGPT 深入研究沿用 ResearchService→固定 DSH 执行链。Web 投影原生 todo/write，保存创建时锁定的 research_depth/source_scope；证据、笔记与报告使用会话资源和原 DeliveryManager，不增加研究执行器。HTML/DOCX/PDF 共用底稿，PDF 使用项目锁定 ReportLab 与随包许可字体。

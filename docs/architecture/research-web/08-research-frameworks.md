@@ -139,3 +139,7 @@ Gold/Dollar采集、评分、revision及renderer保持原合同；公共源码�
 ## 设置页本机证据与框架分离
 
 本机设置页精简和Office自动验证不改变Gold/Dollar框架、评分、采集器或框架快照。Office状态只表示对应本机验证，不能提升任何研究框架或DataHub来源为已验收；状态投影与授权边界统一由[集成协调器](09-integration-coordinator.md)维护。
+
+## FinGPT 研究融合 · 2026-10-13
+
+FinGPT 的 research_depth/source_scope 属于研究会话，不进入 Gold/Dollar 快照或框架 Bot。新增报告底稿与 PDF 使用会话 outputs 和原文件交付解析；框架数据及生命周期仍由原模块负责。

@@ -267,3 +267,7 @@ Windows 受管服务的非强制停止失败现在可升级到既有强制进程
 ## 本机页的分类与详情
 
 Tabbit设置与诊断保留在本机页的默认折叠详情，仅在全部/浏览器分类显示；Office分类不展示浏览器配置。Office自动验证同意不覆盖Tabbit浏览器调用，原Tabbit配置、审批和Runtime应用边界保持不变。未开启、缺可选组件与已观察异常仍分别显示，由[协调器](architecture/research-web/09-integration-coordinator.md)归因。
+
+## FinGPT 研究融合 · 2026-10-13
+
+FinGPT 的 web 检索范围同时约束 tabbit_tabs 附加与 tabbit_browser 调用；未选择 web 时拒绝受理。保留 Tabbit 的原 claim、一次性 token、审批与只读限制；FinGPT 原生 Todo/报告投影不会将 Codex 内置浏览器连接证据用作 Tabbit 可调用性证明。
