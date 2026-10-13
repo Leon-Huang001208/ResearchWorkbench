@@ -22,7 +22,7 @@
     "cross-platform"
   ],
   "changeSummary": {
-    "fileCount": 39,
+    "fileCount": 40,
     "ruleIds": [
       "documentation",
       "research-web-docker-packaging",
@@ -84,6 +84,7 @@
     "rwb-docker",
     "tests/javascript/docker_runtime_contract.test.mjs",
     "tests/javascript/research_web_model_credentials.test.mjs",
+    "tests/research_web/test_api.py",
     "tests/research_web/test_docker_manager.py",
     "tests/research_web/test_encrypted_model_credentials.py"
   ],
@@ -504,6 +505,16 @@
       "minimumLevel": "L4"
     },
     {
+      "path": "tests/research_web/test_api.py",
+      "rule": "research-web-api",
+      "reason": "research_web_api_change",
+      "modules": [
+        "research-web-api"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L1"
+    },
+    {
       "path": "tests/research_web/test_docker_manager.py",
       "rule": "fallback",
       "reason": "unknown_path",
@@ -731,6 +742,11 @@
       "code": "unknown_path"
     },
     {
+      "path": "tests/research_web/test_api.py",
+      "rule": "research-web-api",
+      "code": "research_web_api_change"
+    },
+    {
       "path": "tests/research_web/test_docker_manager.py",
       "rule": "fallback",
       "code": "unknown_path"
@@ -741,14 +757,7 @@
       "code": "unknown_path"
     }
   ],
-  "escalations": [
-    {
-      "code": "validation_failure",
-      "fromLevel": "L4",
-      "toLevel": "L4",
-      "impacts": []
-    }
-  ],
+  "escalations": [],
   "uncoveredRisks": [
     "unknown_impact_boundary"
   ],
@@ -1319,6 +1328,7 @@
       "rwb-docker",
       "tests/javascript/docker_runtime_contract.test.mjs",
       "tests/javascript/research_web_model_credentials.test.mjs",
+      "tests/research_web/test_api.py",
       "tests/research_web/test_docker_manager.py",
       "tests/research_web/test_encrypted_model_credentials.py"
     ],

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "changeSummary": {
-    "fileCount": 39,
+    "fileCount": 40,
     "ruleIds": [
       "documentation",
       "research-web-docker-packaging",
@@ -461,6 +461,16 @@
       "minimumLevel": "L4"
     },
     {
+      "path": "tests/research_web/test_api.py",
+      "rule": "research-web-api",
+      "reason": "research_web_api_change",
+      "modules": [
+        "research-web-api"
+      ],
+      "coupling": "low",
+      "minimumLevel": "L1"
+    },
+    {
       "path": "tests/research_web/test_docker_manager.py",
       "rule": "fallback",
       "reason": "unknown_path",
@@ -519,6 +529,7 @@
     "rwb-docker",
     "tests/javascript/docker_runtime_contract.test.mjs",
     "tests/javascript/research_web_model_credentials.test.mjs",
+    "tests/research_web/test_api.py",
     "tests/research_web/test_docker_manager.py",
     "tests/research_web/test_encrypted_model_credentials.py"
   ],
@@ -527,87 +538,87 @@
   "executed": [
     {
       "id": "research-web-docker-contract",
+      "level": "L2",
       "status": "PASS",
-      "evidence": ".ai/reports/2026-10-12-docker-model-g2a-HANDOFF.md",
-      "durationSeconds": 2.512842376,
-      "level": "L2"
+      "durationSeconds": 2.446913501,
+      "evidence": ".ai/reports/2026-10-12-docker-model-g2a-HANDOFF.md"
     },
     {
       "id": "research-web-container-runtime",
+      "level": "L2",
       "status": "PASS",
-      "evidence": ".ai/reports/2026-10-12-docker-model-g2a-HANDOFF.md",
-      "durationSeconds": 203.6,
-      "level": "L2"
+      "durationSeconds": 29.02,
+      "evidence": ".ai/reports/2026-10-12-docker-model-g2a-HANDOFF.md"
     },
     {
       "id": "research-web-architecture",
+      "level": "L1",
       "status": "PASS",
-      "evidence": ".ai/reports/2026-10-12-docker-model-g2a-HANDOFF.md",
-      "durationSeconds": 2.512842376,
-      "level": "L1"
+      "durationSeconds": 2.446913501,
+      "evidence": ".ai/reports/2026-10-12-docker-model-g2a-HANDOFF.md"
     },
     {
       "id": "project-constraints-local",
+      "level": "L2",
       "status": "PASS",
-      "evidence": ".ai/reports/2026-10-12-docker-model-g2a-HANDOFF.md",
-      "durationSeconds": 0.17011324999839417,
-      "level": "L2"
+      "durationSeconds": 0.16263779200380668,
+      "evidence": ".ai/reports/2026-10-12-docker-model-g2a-HANDOFF.md"
     },
     {
       "id": "research-web-verification-full",
+      "level": "L4",
       "status": "PASS",
-      "evidence": ".ai/reports/2026-10-12-docker-model-g2a-HANDOFF.md",
-      "durationSeconds": 2.512842376,
-      "level": "L4"
+      "durationSeconds": 2.446913501,
+      "evidence": ".ai/reports/2026-10-12-docker-model-g2a-HANDOFF.md"
     },
     {
       "id": "research-web-credential-backend",
+      "level": "L2",
       "status": "PASS",
-      "evidence": ".ai/reports/2026-10-12-docker-model-g2a-HANDOFF.md",
-      "durationSeconds": 1.56,
-      "level": "L2"
+      "durationSeconds": 29.02,
+      "evidence": ".ai/reports/2026-10-12-docker-model-g2a-HANDOFF.md"
     },
     {
       "id": "research-web-service-manager",
-      "status": "FAIL",
-      "evidence": ".ai/reports/2026-10-12-docker-model-g2a-HANDOFF.md",
-      "durationSeconds": 203.6,
-      "level": "L1"
+      "level": "L1",
+      "status": "PASS",
+      "durationSeconds": 2.28,
+      "evidence": ".ai/reports/2026-10-12-docker-model-g2a-HANDOFF.md"
     },
     {
       "id": "research-web-local-integrations",
+      "level": "L1",
       "status": "PASS",
-      "evidence": ".ai/reports/2026-10-12-docker-model-g2a-HANDOFF.md",
       "durationSeconds": 203.6,
-      "level": "L1"
+      "evidence": ".ai/reports/2026-10-12-docker-model-g2a-HANDOFF.md"
     },
     {
       "id": "research-web-critical-smoke",
+      "level": "L3",
       "status": "PASS",
-      "evidence": ".ai/reports/2026-10-12-docker-model-g2a-HANDOFF.md",
       "durationSeconds": 203.6,
-      "level": "L3"
+      "evidence": ".ai/reports/2026-10-12-docker-model-g2a-HANDOFF.md"
     },
     {
       "id": "research-web-api",
-      "status": "FAIL",
-      "evidence": ".ai/reports/2026-10-12-docker-model-g2a-HANDOFF.md",
-      "durationSeconds": 212.85,
-      "level": "L1"
+      "level": "L1",
+      "status": "PASS",
+      "durationSeconds": 194.09,
+      "evidence": ".ai/reports/2026-10-12-docker-model-g2a-HANDOFF.md"
     },
     {
       "id": "documentation-governance",
+      "level": "L0",
       "status": "PASS",
-      "evidence": ".ai/reports/2026-10-12-docker-model-g2a-HANDOFF.md",
-      "durationSeconds": 0.0883233749991632,
-      "level": "L0"
+      "durationSeconds": 0.10590308300743345,
+      "evidence": ".ai/reports/2026-10-12-docker-model-g2a-HANDOFF.md"
     },
     {
       "id": "python-file-index",
+      "level": "L0",
       "status": "PASS",
-      "evidence": ".ai/reports/2026-10-12-docker-model-g2a-HANDOFF.md",
-      "durationSeconds": 0.6480842509990907,
-      "level": "L0"
+      "durationSeconds": 0.6005805839959066,
+      "evidence": ".ai/reports/2026-10-12-docker-model-g2a-HANDOFF.md"
     }
   ],
   "external": [
@@ -638,7 +649,7 @@
     }
   ],
   "realMachine": [],
-  "result": "FAIL",
+  "result": "BLOCKED",
   "mergeReady": false,
   "releaseReady": false,
   "uncoveredRisks": [
@@ -647,14 +658,11 @@
     "external_gate_not_run:research-web-checks",
     "external_gate_not_run:research-web-docker",
     "external_gate_not_run:research-web-windows-verify",
-    "external_gate_not_run:research-web-bootstrap",
-    "real_supplier_generation_not_run"
+    "external_gate_not_run:research-web-bootstrap"
   ],
   "escalation": {
-    "required": true,
-    "targetLevel": "L4",
-    "reasons": [
-      "Existing service-manager/API failures reproduced on unchanged baseline; external gates pending."
-    ]
+    "required": false,
+    "targetLevel": null,
+    "reasons": []
   }
 }

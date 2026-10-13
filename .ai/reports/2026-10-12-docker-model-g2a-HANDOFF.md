@@ -21,6 +21,16 @@ Key 已按验收要求清除，主密钥、身份、其他凭据资源与研究�
 本轮仍保留九项已在未修改主线复现的 Linux 容器 Native/API 失败，未将其改写为 PASS；
 PR 不因模型闭环成功自动宣称 mergeReady 或跨平台发布就绪。
 
+最终范围复核：主线模型空闲修复后，service-manager 全文件 341 PASS/2 SKIP。
+残留文档 API 用例在 Linux 上错误期待仅 macOS 支持的研究沙箱生成成功；已保留其 macOS
+原生成/下载/读取断言，并在无原生沙箱的分支观察真实 SandboxError、断言 failed 和零产物。
+不跳过测试、不替换成功响应、不改变 sandbox.run_script；针对原失败用例 1 PASS。
+该修正证明 Linux 守卫拒绝有效，不证明 Linux Word 或任意代码研究可用。
+
+完整 API 文件最终 58 PASS（194.09s）。日程草稿接口测试需显式
+`RESEARCH_AUTOMATIONS_ENABLED=1`，仅作用于隔离 pytest 服务器；dev/candidate 默认仍为 0。
+新增主线用例在继承默认 0 时的 404 失败及单例重测保留在私有日志，未扩大实际运行能力。
+
 本轮使用 Mac mini / Docker Desktop 的 Linux arm64 实例，沿用固定 DSH
 `48504f07f217f9fd45a4f6d8fca4b1ed35c2d4b0`。不迁移 Native Keychain 或其他应用凭据。
 尚未收到用户在本实例保存真实 Key 的通知；真实供应商生成及重建后真实生成为 NOT_RUN。

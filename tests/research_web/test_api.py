@@ -590,11 +590,29 @@ def test_upload_ownership_and_preview_sandbox(api):
 
 
 def test_document_business_api_generates_download_and_reads_owned_word(api, monkeypatch):
+    import sys
     from io import BytesIO
+    from pathlib import Path
 
     from docx import Document
 
+    from app.research_web import sandbox
+
     client, _, service = api
+    native_sandbox = sys.platform == "darwin" and Path("/usr/bin/sandbox-exec").is_file()
+    rejected = []
+    if not native_sandbox:
+        original_run = sandbox.run_script
+
+        def observe_refusal(*args, **kwargs):
+            try:
+                return original_run(*args, **kwargs)
+            except sandbox.SandboxError as exc:
+                assert "verified native macOS sandbox" in str(exc)
+                rejected.append(True)
+                raise
+
+        monkeypatch.setattr(sandbox, "run_script", observe_refusal)
 
     async def unavailable_native(_session_id, _document):
         return {"outcome": "failed", "code": "native_document_executor_not_ready"}
@@ -615,6 +633,19 @@ def test_document_business_api_generates_download_and_reads_owned_word(api, monk
     response = client.post(endpoint, json=body)
     assert response.status_code == 200, response.text
     result = response.json()
+    if not native_sandbox:
+        assert rejected == [True]
+        assert result == {
+            "status": "failed",
+            "mode": "file",
+            "code": "document_operation_failed",
+            "files": [],
+        }
+        assert service.store.files(sid) == []
+        unavailable = client.post(endpoint, json={**body, "mode": "native"}).json()
+        assert unavailable["code"] == "native_document_executor_not_ready"
+        assert client.post(endpoint, json={**body, "path": "/etc/passwd"}).status_code == 422
+        return
     assert result["status"] == "completed", result
     downloaded = client.get(result["output"]["url"])
     assert Document(BytesIO(downloaded.content)).paragraphs[2].text == "报告版本 A。"
