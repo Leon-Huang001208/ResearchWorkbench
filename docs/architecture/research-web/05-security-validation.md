@@ -392,3 +392,7 @@ Docker Desktop 初始化在固定 bind 私有叶的原完整 guard 内，用 O_D
 ## FinGPT 研究融合 · 2026-10-13
 
 FinGPT 资料范围在工具 preflight、上传入口及脚本数据集 read_paths 处执行；datahub_search_web 按 web 分类。底稿绑定当前 task_id，未知来源/缺笔记链路/重复格式/哈希改变或未通过独立沙箱解析均保留缺口。报告仅检查声明章节与来源身份，不证明全文阅读或数值正确；数字结论显示需独立复核。旧任务与无效报告不会展示为当前笔记。
+
+## 历史子会话模式兼容 · 2026-10-13
+
+activityOnly仍逐项验证父子关联、origin=subagent及running为布尔值，不能将missing/unknown活动推断为空闲。历史mode=unknown不授权打开子历史；继续、取消和删除路径仍使用严格执行模式查询。

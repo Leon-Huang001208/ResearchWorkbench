@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "unchanged",
-  "summary": "合入 FinGPT 深度、来源范围、证据底稿与 PDF，同时保留主线 Claw 项目与模型空闲修复。",
-  "reason": "README 对现有 FinGPT/Claw、唯一 DSH 和公开入口的描述仍准确；本轮详细交互与依赖由模块和安装文档覆盖，未宣称跨平台验收。"
+  "summary": "修复历史子会话unknown模式阻断列表与父详情。",
+  "reason": "复用既有活动读取和错误字段，不改变产品入口、研究引擎、安装依赖及README功能说明；原生归属与控制操作校验保留。"
 }
