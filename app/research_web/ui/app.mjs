@@ -261,7 +261,10 @@ function currentSettingsConnectionId() {
 }
 
 function mainPage() {
-  if (state.route.page === 'claw') return renderClawNavigation(state.route.clawView || 'sessions', state.route.sessionId) + clawMainPage();
+  if (state.route.page === 'claw') {
+    const projectId = state.route.clawView === 'projects' ? state.route.projectId : state.detail?.project_id || state.route.projectId || 'default';
+    return renderClawNavigation(state.route.clawView || 'sessions', state.route.sessionId, projectId) + clawMainPage();
+  }
   if (state.route.page === 'fingpt') return researchPage();
   if (state.route.page === 'settings') return settingsPage();
   if (state.route.page === 'workbench') return workbenchPage();

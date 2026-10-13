@@ -2,8 +2,8 @@
 import { escapeHTML as e } from './markdown.mjs';
 import { sessionHash } from './core.mjs';
 
-export function renderClawNavigation(current = 'sessions', sessionId = null) {
-  return `<nav class="claw-navigation" aria-label="Claw 工作入口">${[['sessions','会话'],['projects','项目工作区'],['plans','Agent 日程'],['skills','技能与连接']].map(([view,label]) => `<a href="#/claw?view=${view}${sessionId ? `&session=${encodeURIComponent(sessionId)}` : ''}" ${view === current ? 'aria-current="page"' : ''}>${label}</a>`).join('')}</nav>`;
+export function renderClawNavigation(current = 'sessions', sessionId = null, projectId = 'default') {
+  return `<nav class="claw-navigation" aria-label="Claw 工作入口">${[['sessions','会话'],['projects','项目工作区'],['plans','Agent 日程'],['skills','技能与连接']].map(([view,label]) => `<a href="#/claw?view=${view}${view === 'projects' ? `&project=${encodeURIComponent(projectId)}` : ''}${sessionId ? `&session=${encodeURIComponent(sessionId)}` : ''}" ${view === current ? 'aria-current="page"' : ''}>${label}</a>`).join('')}</nav>`;
 }
 
 export const clawNavigationCurrent = (expected, current) => expected === current;

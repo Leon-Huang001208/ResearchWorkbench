@@ -448,7 +448,7 @@ async def test_upgraded_subagent_catalog_uses_authoritative_parent_projection_an
             },
             {
                 "sessionId": "child",
-                "parentSession": "parent",
+                "parentSessionId": "parent",
                 "origin": "subagent",
                 "running": running,
             },
@@ -511,6 +511,43 @@ async def test_upgraded_subagent_unknown_activity_fails_closed():
                     }
                 },
             }
+        ]
+        return httpx.Response(
+            200,
+            json={
+                "type": "server-response",
+                "rpcId": body["rpcId"],
+                "result": {"ok": True, "value": {"items": items}},
+            },
+        )
+
+    async with DSHClient("http://127.0.0.1:3081", transport=httpx.MockTransport(reply)) as client:
+        with pytest.raises(RuntimeFailure, match="状态"):
+            await client.rpc("subagent.list", {"parentSessionId": "parent"})
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "live",
+    [
+        {"parentSessionId": "foreign", "origin": "subagent", "running": False},
+        {"parentSessionId": "parent", "origin": "user", "running": False},
+        {"parentSessionId": "parent", "origin": "subagent", "running": "false"},
+        {"parentSession": "parent", "origin": "subagent", "running": False},
+    ],
+)
+async def test_native_child_parent_identity_and_boolean_activity_remain_required(live):
+    def reply(request):
+        body = json.loads(request.content)
+        items = [
+            {
+                "sessionId": "parent",
+                "running": False,
+                "projections": {
+                    "values": {"subagentCatalog": [{"id": "child", "mode": "continuable"}]}
+                },
+            },
+            {"sessionId": "child", **live},
         ]
         return httpx.Response(
             200,

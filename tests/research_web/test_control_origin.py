@@ -74,6 +74,18 @@ def test_unchanged_origin_never_writes(root):
     assert [(root / ".control" / n).stat() for n in NAMES] == before
 
 
+def test_unchanged_origin_rollback_never_rewrites_or_creates_journal(root):
+    before = snapshots(root)
+    identities = [(root / ".control" / name).stat() for name in NAMES]
+    tx = transaction(root, next_origin=OLD)
+    tx.prepare()
+    assert not (root / ".control" / "origin-transaction.json").exists()
+    tx.rollback()
+    assert snapshots(root) == before
+    assert [(root / ".control" / name).stat() for name in NAMES] == identities
+    assert not (root / ".control" / "origin-transaction.json").exists()
+
+
 @pytest.mark.parametrize("absent", [NAMES, (NAMES[0],), (NAMES[1],)])
 def test_missing_records_remain_missing(root, absent):
     for name in absent:

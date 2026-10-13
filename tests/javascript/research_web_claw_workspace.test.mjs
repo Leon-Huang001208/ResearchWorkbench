@@ -1,13 +1,31 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import { parseRoute, createController } from '../../app/research_web/ui/core.mjs';
-import { renderClawProject, renderAutomationDrafts, automationDraftBody, clawNavigationCurrent } from '../../app/research_web/ui/claw-workspace.mjs';
+import { renderClawProject, renderAutomationDrafts, automationDraftBody, clawNavigationCurrent, renderClawNavigation } from '../../app/research_web/ui/claw-workspace.mjs';
+
+test('Claw borders and cards use declared product theme tokens', async () => {
+  const styles = await readFile(new URL('../../app/research_web/ui/styles.css', import.meta.url), 'utf8');
+  const appearance = await readFile(new URL('../../app/research_web/ui/appearance.css', import.meta.url), 'utf8');
+  const declared = new Set([...`${styles}\n${appearance}`.matchAll(/(--[a-z0-9-]+)\s*:/g)].map(m => m[1]));
+  const rules = [...styles.matchAll(/\.claw[^{}]*\{([^{}]*)\}/g)].map(m => m[1]).join('\n');
+  const used = [...rules.matchAll(/var\((--[a-z0-9-]+)\)/g)].map(m => m[1]);
+  assert.ok(used.length > 0);
+  assert.deepEqual([...new Set(used.filter(token => !declared.has(token)))], []);
+});
 
 test('Claw routes select explicit project and view without replacing session identity', () => {
   const route = parseRoute('#/claw?view=projects&project=default&session=abc');
   assert.equal(route.clawView, 'projects'); assert.equal(route.projectId, 'default'); assert.equal(route.sessionId, 'abc');
   assert.equal(parseRoute('#/claw?view=bad&project=../../outside').clawView, 'sessions');
   assert.equal(parseRoute('#/claw?project=../../outside').projectId, 'default');
+});
+
+test('Session navigation returns to its owned project instead of the default project', () => {
+  const project = 'project-' + 'a'.repeat(32);
+  const html = renderClawNavigation('sessions', 'session-one', project);
+  assert.match(html, new RegExp(`view=projects&project=${project}&session=session-one`));
+  assert.match(html, /view=sessions&session=session-one/);
 });
 
 test('Project files retain provenance and require an explicit receiver', () => {
