@@ -162,3 +162,6 @@ python -m research_workbench_entrypoint.docker_resources --home "$HOME/.research
 
 Windows/Linux原生及同平台产品CI、模型付费生成、Office/Wind等本机集成保持 NOT_RUN。
 本地 Docker Desktop 健康不替代 GitHub macOS 干净安装门，不触发无关桌面打包。
+
+PR100完整回归的监督器类型维护仅显式声明目录身份记录的可空父FD及二进制Popen集合，
+保留openat身份复查、信号、进程归属和有界清理；本机Python合同不代替Linux镜像原生验收。

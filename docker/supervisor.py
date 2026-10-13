@@ -86,7 +86,7 @@ def _prepare_private_leaf(path: Path) -> None:
         with runtime_state_directory(path):
             return
     with ExitStack() as stack:
-        records = []
+        records: list[tuple[Path, int, int | None, str, os.stat_result]] = []
         parent = None
         for component in reversed(path.parents):
             name = str(component) if parent is None else component.name
@@ -621,7 +621,7 @@ def _stop(child, role, timeout, output, children, ownership):
 
 def run(config: SupervisorConfig, *, probe: HealthProbe = real_probe) -> int:
     """Own both process groups until external shutdown or a nonzero failure."""
-    children = {}
+    children: dict[str, subprocess.Popen[bytes]] = {}
     output = ChildOutput(config.runtime_port)
     requested = False
     status = 1

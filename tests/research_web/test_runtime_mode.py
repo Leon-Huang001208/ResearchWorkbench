@@ -121,7 +121,13 @@ def _with_uid(identity: os.stat_result, uid: int) -> SimpleNamespace:
     )
 
 
-def test_missing_record_defaults_to_native_without_writing(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    ("field_name", "value"),
+    [("mode", "docker"), ("installation_id", "synthetic-id"), ("schema_version", 2)],
+)
+def test_missing_record_defaults_to_native_without_writing(
+    tmp_path: Path, field_name: str, value: object
+) -> None:
     home = tmp_path / "home"
     home.mkdir()
 
@@ -133,7 +139,7 @@ def test_missing_record_defaults_to_native_without_writing(tmp_path: Path) -> No
     assert record.updated_at is None
     assert not _path(home).exists()
     with pytest.raises(FrozenInstanceError):
-        record.mode = "docker"
+        setattr(record, field_name, value)
     assert not hasattr(record, "__dict__")
 
 

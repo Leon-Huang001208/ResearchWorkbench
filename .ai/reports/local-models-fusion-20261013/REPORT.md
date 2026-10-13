@@ -107,3 +107,21 @@ JS/治理510项中508通过、2既有跳过。计数有重叠，不相加成总�
 最新主线专项首次265通过、5失败、2跳过；5失败为Linux专属Docker后端在Mac直接运行。
 修正测试平台路由，仅Linux执行这5项；新增非Linux构造拒绝且不创建凭据目录测试，
 产品sys.platform硬门保持，Linux原生桥依然NOT_RUN，不把Mac跳过记为Linux通过。
+
+## 2026-10-14 完整回归与macOS Web验收
+
+用户明确要求完整回归、修复失败并列出BLOCKED缺失证据，仍禁止合并。
+在原独立worktree复用已授权环境，最新起点6ef620be3，master0cf38ff23。
+扩展Mypy到所有变更Python文件及导入闭包，发现监督器记录/children两项推断和
+冻结字段测试直接赋值一项诊断；只补显式类型，测试以setattr仍触发FrozenInstanceError。
+按namespace实际布局使用--explicit-package-bases，不加ignore/noqa或修改产品依赖。
+57源码/测试及导入闭包Mypy通过，Ruff、两修改文件Black/isort通过。
+全Research Web pytest已运行，完整结果与最终候选CI/安装验证在本节后续补齐。
+当前预览仍6ef620be3，product_ready/Doctor复查通过，未重跑用户真实市场任务。
+Linux专属加密桥、Windows/Linux产品、真实供应商/模型及桌面证据保持未执行。
+
+独立审查发现常量setattr触发Ruff B010，冻结断言改为mode/installation_id/schema_version
+三字段参数化；三者仍必须FrozenInstanceError且无目录写入。最新57文件Ruff/Mypy均通过，
+未删断言或加lint豁免。监督器/模式190项回归通过，Wind离线117通过，JS/治理471通过0skip。
+处理挂起只读命令时误中断首次全套，保留KeyboardInterrupt和teardown日志，不认证通过；
+已重新启动完整套件，最终计数、同SHA CI与macOS验收以PR当前描述和Git绑定回执为准。
