@@ -89,6 +89,10 @@ LABEL org.opencontainers.image.revision=$SOURCE_SHA \
     io.research-workbench.release-control="release-v1" \
     io.research-workbench.controller-hash=$CONTROLLER_HASH
 RUN SOURCE_SHA="$SOURCE_SHA" RELEASE_ID="$RELEASE_ID" CONTROLLER_HASH="$CONTROLLER_HASH" python -c 'import json,os; from pathlib import Path; Path("/opt/rwb/release-identity.json").write_text(json.dumps({"source_sha":os.environ["SOURCE_SHA"],"release_id":os.environ["RELEASE_ID"],"controller_hash":os.environ["CONTROLLER_HASH"],"managed":True}))'
+# Normalize public installed code explicitly: directory-only mode changes are
+# not a reliable COPY cache boundary. No business or credential paths are here.
+RUN find /opt/rwb -type d -exec chmod 755 {} + \
+    && find /opt/rwb -type f -exec chmod a+r {} +
 USER rwb
 RUN python -I - <<'PY'
 import importlib
