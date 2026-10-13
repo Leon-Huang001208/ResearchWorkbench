@@ -10,11 +10,60 @@ from uuid import UUID
 from fastapi import APIRouter, Request
 from fastapi.responses import Response
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from core.observability import get_logger
 
 from .hot_service import HotWebError
+from .store import StoreError
+
+log = get_logger(__name__)
 
 router = APIRouter(prefix="/api/research/hot")
+private_router = APIRouter(prefix="/api/research/internal/data")
 UUID_PATTERN = r"^[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$"
+
+
+@private_router.post("/hot-model")
+async def private_model(request: Request):
+    """Native-only model accounting; browser action headers never authorize this route."""
+    research = request.app.state.research
+    if not research.datahub.authenticate(request.headers.get("X-Research-Data-Key")):
+        log.warning("hot_model_private_denied")
+        raise HotWebError("hot_model_private_denied", "仅可信原生模型插件可调用。", 403)
+    await research.ensure_owned()
+    raw = bytearray()
+    async for chunk in request.stream():
+        if len(raw) + len(chunk) > 1114112:
+            raise HotWebError("hot_model_request_limit", "研究回执超出范围。", 413)
+        raw.extend(chunk)
+    try:
+        value = json.loads(raw)
+        if not isinstance(value, dict) or set(value) != {"operation", "params"} or not isinstance(value["params"], dict):
+            raise ValueError()
+        operation, params = value["operation"], value["params"]
+        if operation not in {"binding", "reserve", "dispatch", "unknown", "cancel", "receipt"}:
+            raise ValueError()
+        sid = str(UUID(params["sessionId"]))
+        row = research.store.session(sid)
+        origin = row.get("hot_origin")
+        if row.get("purpose") != "hot_research" or not isinstance(origin, dict):
+            raise ValueError()
+        run_id = origin["runId"]
+        if operation == "binding":
+            if set(params) != {"sessionId"}:
+                raise ValueError()
+        elif params.get("runId") != run_id or params["sessionId"] != sid:
+            raise ValueError()
+    except (ValueError, KeyError, TypeError, StoreError):
+        log.warning("hot_model_binding_denied")
+        raise HotWebError("hot_model_binding_denied", "研究会话与运行归属不一致。", 403) from None
+    hot = request.app.state.hot
+    run = await hot.call("research_run", run_id)
+    if run["sessionId"] != sid or run["instanceId"] != origin.get("instanceId") or run["evidenceManifestHash"] != origin.get("manifestHash"):
+        raise HotWebError("hot_model_binding_denied", "研究运行归属不一致。", 403)
+    if operation == "binding":
+        log.info("hot_model_binding_confirmed")
+        return {"runId": run_id, "sessionId": sid}
+    return await hot.call("research_model", operation, params)
 
 
 class ChannelRequest(BaseModel):

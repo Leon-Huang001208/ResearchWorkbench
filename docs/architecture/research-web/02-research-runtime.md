@@ -1,5 +1,9 @@
 # 研究协议、执行状态与恢复
 
+Hot模型流增加hot-model/hot-model-stream：请求冻结、prepared单发、预算登记、回执先存后输出。
+managed子会话沿祖先绑定根Hot run；普通外部会话透传。默认official retry=5会被拒绝，
+专用零重试装配与真实研究尚待验收。
+
 Hot 内部控制/读取服务与研究执行分离：`rwb hot setup/start/stop/restart` 管理独立进程和指定库，
 未启用模型时，启动、只读查询和 `rwb hot configure/status/doctor`
 不调用模型；所有 Hot 模型步骤都不创建研究会话。Native worker 现按显式 model 配置装配

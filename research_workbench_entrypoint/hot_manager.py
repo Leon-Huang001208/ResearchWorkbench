@@ -40,7 +40,7 @@ def rpc(port: int, owner: dict, key: str, operation: str, params: dict | None = 
         raise HotError("hot_rpc_request_invalid") from None
     proof = hmac.new(key.encode(), data.encode(), hashlib.sha256).hexdigest()
     payload = json.dumps({"data": data, "proof": proof}).encode() + b"\n"
-    if len(payload) > 65536:
+    if len(payload) > (2097152 if operation == "research.model.receipt" else 65536):
         raise HotError("hot_rpc_request_limit")
     try:
         deadline = time.monotonic() + 5
@@ -53,7 +53,7 @@ def rpc(port: int, owner: dict, key: str, operation: str, params: dict | None = 
                     raise HotError("hot_rpc_timeout")
                 peer.settimeout(remaining)
                 chunk = peer.recv(65536)
-                if not chunk or len(received) + len(chunk) > 1048576:
+                if not chunk or len(received) + len(chunk) > (2097152 if operation == "research.model.reserve" else 1048576):
                     raise HotError("hot_rpc_incomplete")
                 received += chunk
         frame = json.loads(received.split(b"\n")[0])
@@ -94,7 +94,17 @@ def rpc(port: int, owner: dict, key: str, operation: str, params: dict | None = 
                      "hot_research_control_denied", "hot_research_request_conflict", "hot_research_revision_conflict",
                      "hot_research_transition_invalid", "hot_research_mapping_conflict", "hot_research_snapshot_required",
                      "hot_research_delivery_required", "hot_research_input_integrity_invalid")
-            raise HotError(code if code in known else "hot_rpc_unavailable")
+            model_codes = {
+                "hot_research_model_invalid", "hot_research_control_denied", "hot_research_session_invalid",
+                "hot_research_request_conflict", "hot_research_model_attempt_changed", "hot_research_execution_not_active",
+                "hot_research_model_denied", "hot_research_model_failed", "hot_research_model_binding_denied",
+                "hot_research_receipt_invalid", "hot_pricing_invalid", "hot_model_budget_invalid",
+                "hot_model_spec_invalid", "hot_model_scope_invalid", "hot_model_ticket_invalid",
+                "hot_model_authorization_missing", "hot_model_budget_exhausted", "hot_model_daily_budget_exhausted",
+                "hot_model_dispatch_denied", "hot_model_attempt_state_conflict", "hot_model_cancel_denied",
+                "hot_model_receipt_invalid", "hot_model_ticket_denied", "hot_model_receipt_conflict",
+            }
+            raise HotError(code if code in known or operation.startswith("research.model.") and code in model_codes else "hot_rpc_unavailable")
         return result["result"]
     except HotError:
         raise
@@ -521,6 +531,26 @@ class HotManager:
         if not self._valid_research_run(value, run_id) or value["instanceId"] != state["owner"]["instanceId"]:
             raise HotError("hot_research_response_invalid")
         return value
+
+    def research_model(self, operation: str, params: dict) -> dict:
+        """Private Host bridge only; no credentials or caller-supplied costs are returned."""
+        if operation not in {"reserve", "dispatch", "unknown", "cancel", "receipt"} or not isinstance(params, dict):
+            raise HotError("hot_research_model_invalid")
+        state = self._state()
+        if state is None:
+            raise HotError("hot_not_running")
+        try:
+            result = rpc(state["port"], state["owner"], self._secret("rpc-controller"),
+                         "research.model." + operation, params)
+            if not isinstance(result, dict) or result.get("state") not in {
+                "reserved", "busy", "reused", "dispatching", "outcome_unknown", "cancelled", "received"
+            }:
+                raise HotError("hot_research_model_response_invalid")
+            log.info("hot_research_model_bridge", extra={"operation": operation, "state": result["state"]})
+            return result
+        except HotError:
+            log.warning("hot_research_model_bridge_failed")
+            raise
 
     def prepare_research_run(self, params: dict, request_id: str) -> dict:
         required = {"runId", "briefId", "version", "materialIds", "targetMode"}

@@ -1,5 +1,8 @@
 # Research Web Native / Docker 安装与运行
 
+Hot流插件随已有app/runtime安装，无新包或迁移；发送需要当前价目、原授权及零重试。
+正常official默认5次重试目前被桥拒绝，专用策略装配待验。离线SDK通过不认证干净安装或Mac CI。
+
 2026-10-13 阅读界面新增本仓原生 `hot-reader.mjs/css` 静态资源，沿已有FastAPI/static与
 Web包数据路径安装，没有新增React/Tailwind运行依赖或CDN。Native/Docker的完整安装兼容性
 仍须由候选Mac Bootstrap证明；源码/隔离预览不替代干净安装。原Hot数据库未因界面迭代迁移。

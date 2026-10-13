@@ -4621,12 +4621,14 @@ Module docstring:
 
 Imports:
 - `__future__`
+- `core.observability`
 - `fastapi`
 - `fastapi.responses`
 - `hot_service`
 - `json`
 - `pydantic`
 - `re`
+- `store`
 - `typing`
 - `uuid`
 
@@ -4639,6 +4641,8 @@ Classes:
 - `ResearchRequest`
 
 Functions:
+- `private_model`
+  - Native-only model accounting; browser action headers never authorize this route.
 - `body`
 - `query`
 - `status`

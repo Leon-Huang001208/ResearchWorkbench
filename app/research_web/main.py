@@ -33,6 +33,7 @@ from .documentation import router as documentation_router
 from .frameworks.base import FrameworkError
 from .frameworks.routes import router as frameworks_router
 from .hot_routes import router as hot_router
+from .hot_routes import private_router as hot_private_router
 from .hot_service import HotWebError, HotWebService
 from .integrations.routes import router as integrations_router
 from .intel_routes import router as intel_router
@@ -218,6 +219,7 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
     app.include_router(documentation_router)
     app.include_router(frameworks_router)
     app.include_router(hot_router)
+    app.include_router(hot_private_router)
     app.include_router(local_integrations_router)
     app.include_router(integrations_router)
     app.include_router(mcp_registry_router)

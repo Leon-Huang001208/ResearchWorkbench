@@ -1,5 +1,8 @@
 # Research Workbench Research Web 当前架构
 
+Hot模型流预算桥已接入overlay和私有Host API，准备会话与预算准入分开。
+离线SSE只证明SDK机制与回执顺序；正常Runtime零重试及真实研究尚未跑通，完整Goal继续。
+
 Hot 的持久研究映射与受控交接准备现在适配同一 ResearchService/DataHub：固定目标身份、
 完整原件副本及目录核验可恢复。它尚不启动付费研究或报告；既有 Automation 调度与
 create/send 路径保持，Hot 周期任务的 Automation 适配仍待实现，见图11和权威进度报告。

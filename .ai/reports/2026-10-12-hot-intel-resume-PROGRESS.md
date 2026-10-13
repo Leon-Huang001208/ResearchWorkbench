@@ -205,4 +205,22 @@ Host/DSH流装配、正式研究及恢复/持续采集/计划简报/Docker/干�
 合计两项PG集成通过。原库只读核对仍paused，累计4calls/1417tokens/659microUSD，授权
 20/20000/$1未变；随机研究测试角色为零。绑定候选的完整Router计划保存在
 logs/hot-resume/research-rpc-candidate-plan.json，Mac Bootstrap及通用远端门保持NOT_RUN。
+
+## 2026-10-13 Host/DSH模型流装配
+
+从181636494干净续跑，上一goal轮为PROGRESS。hot-model/hot-model-stream已由现有overlay
+装配，Host私有数据API核对owned、Store/PG根session/run/instance/manifest，再用既有预算
+签名RPC。完整请求冻结与字节bound、稳定call UUID、prepared单发、回执先存后输出、unknown
+不退款不重发已实现；子会话沿真实ancestry归属根run，普通外部会话保持透传。
+
+审查取消后仍发布和普通scope误拦截已先加反例修复，JS限定复核确认关闭。Python初审两项
+MEDIUM（稳定错误码、真实大帧/HMAC覆盖）已改并测试；最终复核连续两次capacity失败，
+最终Python审查NOT_RUN。服务/普通Web仍可用；正常official retry=5会被新桥拒绝，专用
+零重试配置/实际研究下一步完成，不能宣称完整Hot已可用。
+
+目标JS25 PASS，全Web398 PASS/1 SKIP，相关Python168 PASS。固定48504 SDK离线SSE1 PASS
+验证一条真实SDK请求wire bytes<=登记bound、usage转换、一次发送及receipt先于输出。
+Router所选service-manager/local-integrations/protocol合计472 PASS/1 SKIP；治理和其他门
+继续按当前候选留证。合成凭据/SSE不是vendor推理或PG全链验收；provider发送仍0。
+详细事实、失败和后续在2026-10-13-hot-model-stream.md，完整Goal ACTIVE。
 <!-- architecture-review {"group":"hot","structure":"unchanged","reason":"该轮仅记录前端开源适配许可和现有数据/运行边界；原schema/模型scope/唯一队列/Owner未改，真实宏观资料为只读样式预览，不把预览绘成新增产品运行路径。","diagrams":[]} -->

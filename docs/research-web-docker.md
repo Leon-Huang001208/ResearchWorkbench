@@ -1,5 +1,8 @@
 # Mac mini Docker 开发与独立部署
 
+Hot流桥复用同一overlay/私有Host通道，本轮只有macOS离线SDK和协议证据。
+Docker模型许可、真实worker/模式切换仍NOT_RUN，不以合成流回执认证容器可用。
+
 Hot 研究交接新增 schema16 的持久运行映射和 DataHub 冻结副本发布。当前本地
 Node/PG/HTTP 组合回归使用模拟 native 会话回执，不是 Docker 产品验收；生产原库
 仍保持 schema15 与暂停状态。Mac Docker 的真实 Hot worker、采集、共享数据库模式

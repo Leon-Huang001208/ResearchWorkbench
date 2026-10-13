@@ -1,5 +1,9 @@
 # Research Web 接口清单
 
+新增POST `/api/research/internal/data/hot-model`，只接受既有DataHub私有key和owned Runtime。
+operation为binding/reserve/dispatch/unknown/cancel/receipt；根session/run/instance/manifest
+同时核对Store和PG。请求/返回有界，browser user-action不能授权预算票据。
+
 Hot接口统一在 `/api/research/hot`：status/configuration/channels/events/events/{id}/sources只读，
 PUT configuration及POST lifecycle/channels/configure/events/correct/sources/configure为明确操作。
 后者要求同源、X-Research-User-Action、JSON <=64KiB；条件配置/纠错有规范UUID。查询字段沿用

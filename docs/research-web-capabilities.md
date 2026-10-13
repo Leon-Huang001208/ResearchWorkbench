@@ -1,5 +1,8 @@
 # Research Web 能力包与版本
 
+Hot流预算adapter是内部Runtime插件；子会话沿真实session ancestry绑定根Hot run。
+它复用私有Host数据key及既有能力guard，没有新的模型访问工具；正式零重试研究仍待验。
+
 Hot 交接准备复用既有 ResearchService 会话与 DataHub 冻结资料，没有新增 Skill、
 执行器或 Automation 调度。当前准备接口不会发送模型消息；Hot 周期简报及正式研究
 仍需独立接入现有运行与预算边界，不据 session 创建成功宣称执行可用。

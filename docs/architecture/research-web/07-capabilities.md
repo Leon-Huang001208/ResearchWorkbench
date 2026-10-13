@@ -1,5 +1,8 @@
 # 能力包、版本与原生调用
 
+Hot预算adapter复用public-data的私有控制读取器，调用根Hot研究账本。
+它未注册MCP/Skill工具或扩大厂商/文件权限，Store与PG仍共同核对归属。
+
 MCP 控制 JSON/URL 的纯 parser 现供原 reader 与独立 origin helper 共享；原 reader 的
 额外字段、版本与异常语义保持，不改变 MCP 授权、审批、能力版本或秘密存储边界。
 

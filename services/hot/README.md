@@ -645,6 +645,17 @@ paid DSH execution and its budget bridge remain required next work.
 
 ## Shared research-call admission (migration17)
 
+The Host now mounts `/api/research/internal/data/hot-model` behind its existing
+private data key and owned-Runtime boundary. `hot-model.mjs` traces native child
+lineage to the root Hot workspace; the Host verifies Store/run/instance/manifest.
+`hot-model-stream.mjs` freezes the complete request, uses a deterministic call ID,
+checks a zero-retry prepared call and saves complete chunks before exposing output.
+Late cancellation preserves charges while suppressing output. Unknown dispatch is
+not refunded or automatically resent; receipt replay makes no provider call.
+The real pinned SDK offline SSE test proves one example's wire bound and normalized
+usage; it uses synthetic credentials and is not paid inference. Normal Runtime's
+default retry=5 is still rejected, pending dedicated zero-retry activation and study.
+
 `research-model.ts` binds an immutable call ID, run/session ownership, request
 fingerprint and frozen tariff to the existing `model_attempts` ledger. Reservation,
 attempt and call mapping commit in one owner-fenced transaction; mapping failure

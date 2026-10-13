@@ -1,5 +1,8 @@
 # 统一集成协调器
 
+Hot流归属与账本借既有私有数据通道；连接探测和集成五阶段状态保持原合同。
+合成SDK回执不能提升DataHub厂商的可调用状态。
+
 macOS 异根 lifecycle reader 只认证标准 OS 用户根中的既有私有 Native pair，不读取厂商
 凭据或进程环境，不新增来源探测。消费者仍须目标单写者与就绪条件；Docker/Native 服务
 生命周期成功不提升 Office/Wind/Tabbit 的授权或可调用状态，五阶段投影保持原合同。

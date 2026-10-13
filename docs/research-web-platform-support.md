@@ -1,5 +1,8 @@
 # Research Web 能力与平台证据
 
+2026-10-13 Hot流桥只取得macOS离线SDK与HTTP协议证据；vendor发送为零。
+Mac安装/CI、Mac Docker及Windows/Linux原生证据仍未取得，不据本轮本地测试提升平台状态。
+
 2026-10-12 续跑增加研究交接准备接口、schema16 运行映射及目标会话冻结快照。
 随机测试 schema 中的真实 PG/签名服务/HTTP 往返和模拟 native 中断恢复已验证；
 它们不证明正式付费研究、生产迁移或当前候选安装 CI。原库仍 schema15/paused。

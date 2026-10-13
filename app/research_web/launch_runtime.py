@@ -726,6 +726,11 @@ def _prepare_runtime(
                 f"        tabbitBrowserEnabled: {'true' if tabbit_config['browser_enabled'] is True else 'false'}",
                 f"        tabbitWebFetchEnabled: {'true' if tabbit_config['web_fetch_enabled'] is True else 'false'}",
                 f"        mcpTools: {json.dumps([item['name'] for item in mcp_bindings])}",
+                "- insert:",
+                "    - id: research-hot-model",
+                f"      name: {json.dumps(str(package / 'hot-model.mjs'))}",
+                "      config:",
+                f"        researchRoot: {json.dumps(str(data))}",
                 "",
             ]
         )

@@ -1,5 +1,9 @@
 # DataHub、研究资料与实际文件
 
+Hot流回执复用原PG model_receipts；Host只透传绑定根Hot会话的预算操作，费用由Hot计算。
+hot-context内容不授予权限。请求含完整messages/tools/toolHistory，以UTF8字节加余量登记；
+未知结果保留额度，未保存回执不输出。
+
 AIHOT阅读界面适配只读取原事件、频道和材料投影；列表日期明确是观察日期，展示层不重写
 原文/版本/发布时间、不搬运Golddata记录进Hot。新版快捷筛选开始时清空旧分页与cutoff，
 失败后不能用新条件续接旧频道资料；本页热度不是完整来源覆盖或全榜。

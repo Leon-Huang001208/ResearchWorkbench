@@ -1,5 +1,8 @@
 # 部署与模块职责
 
+Hot流预算插件随现有Runtime overlay装配，借既有私有Host通道连接同一PG模型账本。
+当前验证为源码与离线SDK；正常Runtime零重试策略、真实研究及产品安装尚未验收。
+
 ## Hot 阶段一组件
 
 `services/hot/` 已有独立 Node/PostgreSQL 控制与读取进程，使用私有 stdin 接收宿主解析后的
