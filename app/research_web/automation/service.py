@@ -16,6 +16,7 @@ from uuid import uuid4
 
 from core.observability import get_logger
 
+from ..maintenance import task_admission
 from .models import AutomationCreate, AutomationError, AutomationUpdate
 from .schedule import next_occurrence
 
@@ -367,6 +368,7 @@ class AutomationService:
         self.store.save()
         return row
 
+    @task_admission()
     async def run(
         self,
         automation_id: str,
@@ -417,6 +419,7 @@ class AutomationService:
             raise AutomationError("运行仍在进行", "automation_run_busy", 409)
         return await self.run(run["automation_id"], trigger="retry", retry_of=run_id)
 
+    @task_admission(background=True)
     async def _execute(self, run_id: str) -> None:
         row = self._run_row(run_id)
         automation = self._row(row["automation_id"])
@@ -539,6 +542,8 @@ class AutomationService:
             await asyncio.gather(*tasks)
 
     async def tick(self, now: datetime | None = None) -> None:
+        if getattr(getattr(self.research, "maintenance", None), "transaction", None):
+            return
         now = now or self.now()
         due = [
             row

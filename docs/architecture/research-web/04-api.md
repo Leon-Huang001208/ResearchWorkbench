@@ -3,6 +3,10 @@
 模型设置和最小生成沿现有 API；Docker 后端来源投影为 `credential_storage=docker_encrypted`，
 Native 为 `system_keychain`。固定 DSH 的 source 是 provider 自定义字符串；不返回 Key。
 
+`GET /api/research/release` 只读投影已安装制品的源码 SHA、release ID 与控制器内容身份；
+Native 返回 managed=false。发布维护仅用 owned 容器内私有 Unix socket，不提供公共部署 API。
+维护期间所有公开修改入口返回 503/release_maintenance，已受理任务继续；内部 DSH 查询沿原认证。
+
 ## Claw 项目与日程草稿 API
 
 `claw_routes.py` 提供 `/claw/projects` 列表/创建与 `/{project_id}` 查询/改名/归档，`/sessions/{sid}/project` 显式移组，`/sessions/{sid}/file-references` 显式复制所选同项目文件。

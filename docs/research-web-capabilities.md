@@ -1,5 +1,8 @@
 # Research Web 能力包与版本
 
+G2B 维护闸门覆盖 Web、Automation 和报告原生提交，不改变 Skill/MCP 权限或能力版本。
+发布只等待已存在的真实工作，不强制取消、不发供应商 prompt；排队工作等恢复再受理。
+
 Docker 模型来源 `docker_encrypted` 只表示凭据存储，不提升 Tool、MCP 或 Automation 可用性。
 Linux 严格沙箱守卫和活动任务期间的凭据修改拒绝保持；文本生成不证明研究执行能力。
 

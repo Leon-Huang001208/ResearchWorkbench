@@ -211,6 +211,38 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
             await active.close()
 
     app = FastAPI(title="Research Workbench Research Web", lifespan=lifespan)
+
+    @app.get("/api/research/release")
+    async def release_identity():
+        if os.environ.get("RWB_RELEASE_MANAGED") != "1":
+            return {"managed": False}
+        try:
+            path = Path("/opt/rwb/release-identity.json")
+            if path.is_symlink() or path.stat().st_size > 2048:
+                raise ValueError("invalid")
+            return json.loads(path.read_text())
+        except (OSError, ValueError):
+            log.error("release_identity_unavailable")
+            return JSONResponse(
+                {"error": {"code": "release_identity_unavailable"}}, status_code=503
+            )
+
+    @app.middleware("http")
+    async def release_admission(request, call_next):
+        service = getattr(request.app.state, "research", None)
+        gate = getattr(service, "maintenance", None)
+        if (
+            gate is None
+            or request.method in {"GET", "HEAD", "OPTIONS"}
+            or request.url.path.startswith("/api/research/internal/")
+        ):
+            return await call_next(request)
+        try:
+            async with gate.admit():
+                return await call_next(request)
+        except RuntimeFailure as exc:
+            return JSONResponse({"error": {"code": exc.code, "message": str(exc)}}, status_code=503)
+
     app.include_router(datahub_router)
     app.include_router(asset_router)
     app.include_router(intel_router)

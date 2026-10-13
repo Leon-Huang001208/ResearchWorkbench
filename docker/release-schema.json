@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:rwb:docker-release:v1",
+  "title": "Sealed local Research Workbench release",
+  "type": "object",
+  "required": ["schema", "release_id", "source_sha", "frozen_tree_hash", "source_archive_hash", "controller_hash", "platform", "dsh_commit", "compatibility", "format_source_hashes", "dependency_locks", "base_images", "local_image_id", "build_manifest_digest", "registry_manifest_digest", "registry_index_digest", "export_format", "export_hash", "archive_identity", "build_identity", "sealed_at"],
+  "properties": {
+    "schema": {"const": 1},
+    "release_id": {"type": "string", "pattern": "^[a-z][a-z0-9-]{0,31}$"},
+    "source_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "frozen_tree_hash": {"$ref": "#/$defs/digest"},
+    "source_archive_hash": {"$ref": "#/$defs/digest"},
+    "controller_hash": {"$ref": "#/$defs/digest"},
+    "platform": {"const": "linux/arm64"},
+    "dsh_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "compatibility": {"type": "object", "required": ["control", "data", "credentials", "dsh"]},
+    "format_source_hashes": {"type": "object", "additionalProperties": {"$ref": "#/$defs/digest"}},
+    "dependency_locks": {"type": "object", "additionalProperties": {"$ref": "#/$defs/digest"}},
+    "base_images": {"type": "object", "required": ["python", "node"]},
+    "local_image_id": {"$ref": "#/$defs/digest"},
+    "build_manifest_digest": {"$ref": "#/$defs/nullableDigest", "description": "BuildKit exporter identity, not evidence of registry publication"},
+    "registry_manifest_digest": {"$ref": "#/$defs/nullableDigest"},
+    "registry_index_digest": {"$ref": "#/$defs/nullableDigest"},
+    "registry_reference": {"type": ["null", "string"]},
+    "registry_reason": {"type": "string"},
+    "export_format": {"const": "docker-archive"},
+    "export_hash": {"$ref": "#/$defs/digest"},
+    "archive_identity": {"type": "object", "required": ["config_digest", "platform", "labels", "archive_manifest_json_digest", "archive_top_level_index_digest", "layer_count"]},
+    "build_identity": {"type": ["string", "null"]},
+    "sealed_at": {"type": "number"}
+  },
+  "$defs": {
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "nullableDigest": {"type": ["null", "string"], "pattern": "^sha256:[0-9a-f]{64}$"}
+  },
+  "description": "Immutable build information. Separate acceptance, deployment and optional registry receipts reference the seal; business volumes, model keys and supplier-call evidence are never embedded."
+}

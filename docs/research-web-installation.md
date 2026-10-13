@@ -17,6 +17,9 @@ Web 锁新增 ReportLab（reportlab>=4.5,<5），使用原 Python3.12 universal/
 不探测宿主 Python/Node。Native 无参数入口、Windows cmd 及
 `python scripts/setup_web.py --runtime docker` 的 legacy 合同保留；它们不管理新实例账本。
 
+G2B release 从完整 Git SHA 冻结构建，stage 接受后的同一 image archive 晋级到独立演练目标；
+维护、故障恢复、五卷与凭据初始化见 Docker 手册，不自动替换日常生产或重跑收费模型。
+
 ## Docker 资源命名与收尾
 
 新构建使用 `research-workbench:dev-<短提交号>-<构建号>`，镜像标签保存完整提交号与构建身份。

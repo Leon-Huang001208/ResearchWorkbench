@@ -24,8 +24,9 @@ NewSession 的 research_depth 默认为 instant，deep 启用完整研究底稿�
 
 Mac mini 的 dev/stage/prod 使用同一既有 Web＋DSH 协议，各实例独立 data/runtime 工作目录、
 认证 tmpfs 和身份账本；stage/prod 在固定镜像内执行，不读编辑中的worktree。
-管理员入口只管理容器生命周期，不创建第二套研究任务、调度、恢复或自动重试事实源。
-stage/dev 关闭 Automation；任务排空、全机重研究配额和 Linux 严格沙箱留给G3，
+管理员入口不创建第二研究任务事实源。G2B 发布维护共用原有任务事实：Web/Automation/报告
+准入门、DSH 主/子任务和本地 worker 空闲；未知或等待超时拒绝，不强制取消。
+stage/dev 关闭 Automation；全机重研究配额和 Linux 严格沙箱留给G3，
 不能从候选健康推出真实模型/研究已验收。操作见 [Docker 手册](../../research-web-docker.md)。
 
 Docker 资源生命周期由 host 标准库 `docker_resources.py` 提供只读预览、精确清理和离线卷备份恢复校验。

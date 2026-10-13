@@ -5,6 +5,11 @@ credentials 卷的 models 子目录与独立只读 model_key 卷、随机实例�
 每次写入生成 nonce，AAD 绑定实例与 ref；身份/主密钥丢失或错误不会自动重建。
 Host 认证 record 和通用业务凭据仍为独立通道，不接收模型 Key。
 
+G2B release 管理记录、标准 image archive 和独立接受回执在外部管理根，不包含业务五卷。
+实例数据根 .release-maintenance.json 是持久维护事务标记；pending/未知状态失败关闭，
+released 标记重启后仍须固定接受控制器验证恢复，不由页面健康自动释放。
+同目标晋级/回退保留自己的 data/logs/credentials/cache/model_key；镜像回退不恢复或覆盖数据。
+
 历史子 Agent 的原生 catalog 与正文保持原状。模型设置可以读取已核实的 inactive 活动而不恢复 unknown 执行模式；不清理、转换或重写历史记录，也不改产品索引 schema。
 
 ## Claw 本地研究项目

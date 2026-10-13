@@ -1,5 +1,9 @@
 # Research Web 能力与平台证据
 
+G2B 本轮仅验证 Mac mini Docker Desktop 的 linux/arm64 独立演练。
+冻结制品、stage、晋级、回退和 registry/供应商分别报告；Windows/Linux 原生、日常生产、
+多人登录、公网与完整备份不能从本地发布演练推断为通过。
+
 G2A 的 Docker 模型加密后端由受管实例身份绑定，Mac Docker Desktop 的实际文本生成和
 重建证据另验；合成测试不等于供应商调用，Native Keychain 实机与各平台 CI 保留独立状态。
 

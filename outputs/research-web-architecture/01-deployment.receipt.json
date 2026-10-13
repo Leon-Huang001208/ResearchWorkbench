@@ -6,12 +6,12 @@
   "input": "/workspace/docs/architecture/research-web/diagrams/01-deployment.json",
   "output": "/workspace/outputs/research-web-architecture/01-deployment.html",
   "specification": {
-    "sha256": "c67139f565e6e757fd1a163d2373f2596ae2c11b7372ad3a47cc4351cef0eb81",
-    "bytes": 4760
+    "sha256": "173cc2c3866e97f53dc3254468d44547c0ecc2fb558872e171f9791cebedfb71",
+    "bytes": 4781
   },
   "artifact": {
-    "sha256": "fb102b50ce6ae49d1c3248f967a44576c7f4637c8824dbdf591b71b034b3523f",
-    "bytes": 637790
+    "sha256": "4efcc87859ff5db225df0308d15cd974235d763261303a7541959a8c8795012e",
+    "bytes": 637889
   },
   "validation": {
     "checksPassed": 9,

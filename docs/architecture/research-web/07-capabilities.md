@@ -1,5 +1,8 @@
 # 能力包、版本与原生调用
 
+报告 scheduler、准备数据 worker、续跑和 Automation 与 Web 共用发布维护准入。
+空闲必须检查实际 runtime.tasks、已排队/运行状态及 DSH 主/子任务；维护不赋予新工具或能力权限。
+
 `rwb_prepare_automation` 在原生 research-tools 中注册并受最终 guard 与会话准入保护。Claw 只投影真实能力目录；日程草稿锁定选定 Skill/Workflow/报告版本，确认不发布新能力，版本失效明确拒绝。保存后默认停用，执行与投递仍由现有 Automation 管理。
 
 MCP 控制 JSON/URL 的纯 parser 现供原 reader 与独立 origin helper 共享；原 reader 的

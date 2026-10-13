@@ -21,8 +21,8 @@
     {
       "id": "source",
       "type": "cloud",
-      "label": "同一源码与依赖合同",
-      "sublabel": "Web 锁 · CJPY · 固定 DSH",
+      "label": "冻结源码与同一制品",
+      "sublabel": "SHA · archive · 固定 DSH",
       "row": 0,
       "col": 1,
       "size": [
@@ -34,7 +34,7 @@
       "id": "bootstrap",
       "type": "security",
       "label": "公开管理入口",
-      "sublabel": "rwb-docker / legacy rwb",
+      "sublabel": "冻结控制器 · 维护晋级/回退",
       "row": 1,
       "col": 1,
       "size": [
@@ -82,7 +82,7 @@
       "id": "runtimeState",
       "type": "database",
       "label": "独立身份与运行状态",
-      "sublabel": "镜像 / 端口 / 卷 / 归属",
+      "sublabel": "接受制品 / 事务 / 五卷归属",
       "row": 3,
       "col": 0,
       "size": [
@@ -106,7 +106,7 @@
       "id": "credentials",
       "type": "security",
       "label": "实例分离业务凭据",
-      "sublabel": "Docker 模型后端仍待 G2",
+      "sublabel": "AES-GCM · 独立只读主密钥",
       "row": 3,
       "col": 3,
       "size": [
@@ -132,7 +132,7 @@
       "id": "contractRoute",
       "from": "source",
       "to": "bootstrap",
-      "label": "读取固定合同",
+      "label": "冻结并核验合同",
       "variant": "emphasis",
       "labelDy": 24
     },
@@ -211,15 +211,15 @@
       "title": "管理员构建与隔离边界",
       "items": [
         "冷构建5GiB借stage预算，结束停止builder",
-        "各实例四卷/网络/账本独立，业务无socket"
+        "各实例五卷/网络/身份独立，业务无socket"
       ]
     },
     {
       "dot": "amber",
       "title": "验证边界",
       "items": [
-        "Mac Docker 本轮真机；新候选CI仍待执行",
-        "模型后端/多人鉴权/严格沙箱/公网待后续"
+        "Mac Docker 演练需独立证据；收费生成另验",
+        "多人鉴权/严格沙箱/公网仍待后续"
       ]
     }
   ]

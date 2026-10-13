@@ -150,7 +150,7 @@ python -m research_workbench_entrypoint.docker_resources --home "$HOME/.research
 
 ## 下一阶段入口与真实缺口
 
-### G2A 模型凭据（实现与验收进行中）
+### G2A 模型凭据
 
 新镜像支持显式 `./rwb-docker stage candidate enable-model-credentials`。先停止候选，
 通过 `replace-image --image sha256:…` 选择本轮镜像，再执行初始化和 `up`。
@@ -179,8 +179,8 @@ Native macOS 仍用 Keychain，绝不自动读取或迁移旧 Key。
 并拒绝错实例身份和错主密钥。仅返回布尔断言；夹具身份/资源关联保存在管理账本，
 夹具卷保留以供审阅，不作为两个完整 stage 或真实供应商验收。
 
-- G2：Docker模型凭据后端尚未交付，现有通用业务文件凭据目录不证明模型Key可用。
-  不读取/迁移Native Keychain，不调用真实供应商；加密凭据、registry digest发布/回退另实施。
+- G2A：Mac Docker 模型保存、真实文本、实际重建后文本、清除和合成隔离已验收，见 G2A HANDOFF。
+  不将这些历史供应商证据套用到新制品；G2B 发布能力的实际状态见本轮报告。
 - G3：Linux研究脚本 strict sandbox 仍失败关闭，容器实例隔离不等于任意代码沙箱。
   完整任务期全机重研究配额、排队/恢复、文档处理限额及攻击回归未实施。
 - G4：固定 `workspace_id=research` 及实例级共享设置仍保持现状，无受邀账号/鉴权路由。
@@ -190,3 +190,61 @@ Native macOS 仍用 Keychain，绝不自动读取或迁移旧 Key。
 
 Windows/Linux原生及同平台产品CI、模型付费生成、Office/Wind等本机集成保持 NOT_RUN。
 本地 Docker Desktop 健康不替代 GitHub macOS 干净安装门，不触发无关桌面打包。
+
+## G2B 冻结制品与受管切换
+
+以下是命令示例，执行状态按 G2B 报告分别记录。先提交完整源码，再使用完整 SHA。
+`create` 执行 Git archive，冻结输入不含 worktree 未提交/未跟踪文件。固定 DSH 从已核验的
+不可变镜像提取 staged payload 并验证原 manifest，不重复编译。基础镜像按取得的 digest
+固定；Web/CJPY/runtime 锁来自冻结源码。BuildKit 仍为 5GiB/CPU2/并行2，与 stage 错峰。
+正式制品为标准 Docker archive，流式核验单一 Config、平台、标签、层 diff_ids 和整体哈希。
+归档及恢复材料在管理根 releases/ID，至少预检 20GiB 空间，不占用小额 /tmp。
+
+```sh
+# 先受管停止本任务 dev、stage、演练目标；保留外来服务。
+./rwb-docker release r0 create --source FULL_40_CHARACTER_SHA --reuse-dsh-image sha256:FIXED_G2A_IMAGE_ID
+./rwb-docker release r0 verify
+./rwb-docker release r0 import
+./rwb-docker stage candidate replace-image --image sha256:SEALED_R0_IMAGE_ID
+./rwb-docker stage candidate up
+./rwb-docker release r0 accept --instance candidate
+./rwb-docker stage candidate stop
+./rwb-docker prod g2b-rehearsal register --purpose rehearsal --port 18089 --image sha256:SEALED_R0_IMAGE_ID
+./rwb-docker prod g2b-rehearsal enable-model-credentials
+mkdir -p "$HOME/.local/share/rwb-docker/plans"
+./rwb-docker release r0 deploy-plan > "$HOME/.local/share/rwb-docker/plans/initial.json"
+./rwb-docker release r0 apply --plan /ledger/plans/initial.json
+# r1 完成同样的封存、导入、stage 验收后，晋级与回退不再次 build。
+./rwb-docker release r1 deploy-plan > "$HOME/.local/share/rwb-docker/plans/promote.json"
+./rwb-docker release r1 apply --plan /ledger/plans/promote.json
+./rwb-docker release r1 rollback-plan > "$HOME/.local/share/rwb-docker/plans/rollback.json"
+./rwb-docker release r1 apply --plan /ledger/plans/rollback.json
+./rwb-docker release r1 status
+```
+
+plan 默认只读并输出 JSON；保存清单为管理员显式重定向。apply 只读管理根 plans 下普通文件，
+复核期限、账本身份、制品、受审控制器与 stage 回执。本轮只操作 purpose=rehearsal 的 prod 目标。
+stage/目标独立初始化自己的五卷、网络和稳定模型身份，不复制 stage 主密钥；同目标切换保留它们。
+缺主密钥、错身份或损坏仍失败关闭，不自动重置。制品与业务数据分离。
+
+控制器/launcher 绑定 release 冻结源码与内容哈希，不从另一个开发 worktree 取发布代码。
+release.json 分开记录源码 SHA、冻结输入、image ID、构建 manifest、归档哈希及 Config、
+实际基础镜像与 registry manifest/index；未发布远端的字段为 null/NOT_PUBLISHED。
+schema 见 docker/release-schema.json。独立 receipts 绑定封存身份，acceptance.json 是最新证据；
+不把取得的 digest 写回构建输入后循环重建，也不把本地归档 manifest.json 哈希称为 registry digest。
+
+owned 容器的私有 Unix 控制通道进入持久维护；Web 修改、Automation、报告调度/执行/续跑及
+原生 prompt 共用准入门。已有受理继续，排队工作等待；主/子任务及本地工作空闲未知或超时拒绝，
+不强制取消。确认旧写者退出后才启动固定候选，保持维护验证真实协议、API/静态资源、版本及
+加密后端，再原子登记接受版本和恢复入口；不自动发收费 prompt。
+
+恢复受理成功或结果不明后的故障只报 RECOVERY_REQUIRED，不自动强停新任务。候选失败只有
+在其退出已确认、旧版本已接受、数据/凭据/运行合同兼容时才恢复旧镜像。格式声明或关键格式
+源码变化直接阻断；回退不覆盖业务数据、不重建主密钥。已完成 apply 幂等核对，未完事务拒绝
+盲目重跑；显式恢复预览为 rollback-plan --recovery。未知资源或 pending 持久化状态必须保留调查。
+实例重启保守保持维护，已接受且空闲时用 release ID resume 验证后恢复入口。
+
+远端 GHCR 推拉需要独立授权与对应认证，不自动改变 package 可见性、不读取其他应用秘密。
+参考 [GitHub Container registry](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry)。
+registry_publish、registry_digest_pull、real_supplier_for_this_artifact、daily_production_deployment
+分别报告；未执行保持 NOT_RUN/BLOCKED_EXTERNAL，不从本地演练推断跨平台、多人、公网或完整备份能力。

@@ -33,6 +33,9 @@
         "docker/supervisor.py",
         "docker/healthcheck.py",
         "docker/manage.py",
+        "docker/release.py",
+        "docker/Dockerfile.release",
+        "app/research_web/maintenance.py",
         "docker/Dockerfile.control",
         "docker/Dockerfile.dev",
         "docker/dev-requirements.txt",
@@ -66,6 +69,8 @@
         "tests/research_web/test_setup_web.py",
         "tests/research_web/test_docker_packaging.py",
         "tests/research_web/test_docker_manager.py",
+        "tests/research_web/test_docker_release.py",
+        "tests/research_web/test_release_maintenance.py",
         "tests/research_web/test_container_supervisor.py",
         "tests/research_web/test_staged_runtime.py",
         "tests/research_web/test_credential_backend.py",
@@ -1514,6 +1519,13 @@
     }
   ],
   "apis": [
+    {
+      "method": "GET",
+      "path": "/api/research/release",
+      "source": "app/research_web/main.py",
+      "declaredPath": "/api/research/release",
+      "prefix": ""
+    },
     {
       "method": "GET",
       "path": "/api/research/integrations/status",

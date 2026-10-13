@@ -132,6 +132,53 @@ def api(tmp_path):
         yield client, native, service
 
 
+def test_release_maintenance_blocks_web_automation_and_report_entries(api):
+    client, native, service = api
+    client.portal.call(service.maintenance.begin, "a" * 32)
+    before = list(native.calls)
+    for path in (
+        "/api/research/sessions",
+        "/api/research/runtime/model/test",
+        "/api/research/automations/missing/run",
+        "/api/research/report-workflows/missing/run",
+    ):
+        response = client.post(path, json={})
+        assert response.status_code == 503
+        assert response.json()["error"]["code"] == "release_maintenance"
+    assert native.calls == before
+    client.portal.call(service.maintenance.end, "a" * 32)
+    assert client.post("/api/research/sessions", json={"mode": "fingpt"}).status_code == 201
+
+
+def test_release_idle_includes_native_children_and_report_workers(api):
+    client, native, service = api
+    original = native.rpc
+
+    async def activity(method, payload):
+        if method == "session.list":
+            return {"items": [{"sessionId": "external-parent", "running": False}]}
+        if method == "subagent.list":
+            return {"entries": [{"kind": "child", "id": "child", "activity": "running"}]}
+        return await original(method, payload)
+
+    native.rpc = activity
+    assert client.portal.call(service.release_idle) is False
+    native.rpc = original
+    stopped = asyncio.Event()
+
+    async def worker():
+        await stopped.wait()
+
+    async def spawn():
+        service.report_workflows.runtime.tasks["fixture"] = asyncio.create_task(worker())
+        return True
+
+    client.portal.call(spawn)
+    assert client.portal.call(service.release_idle) is False
+    client.portal.call(stopped.set)
+    service.report_workflows.runtime.tasks.clear()
+
+
 def test_create_submit_duplicate_never_replays(api):
     client, native, _ = api
     created = client.post("/api/research/sessions", json={"mode": "fingpt"})

@@ -1,5 +1,8 @@
 # Research Workbench Research Web 当前架构
 
+G2B 的冻结制品与受管维护切换位于管理员平面，研究循环仍唯一 DSH；
+版本/归档/接受事务独立于业务五卷，日常生产不随 PR 或镜像发布自动更新。
+
 G2A 为受管 Docker 增加固定模型 ref 的实例加密后端及主密钥只读卷，仍由原 Web→DSH
 私有 stdio 桥调用。生成、重建和隔离证据分别记录，Native Keychain 与原 Automation 合同保留。
 

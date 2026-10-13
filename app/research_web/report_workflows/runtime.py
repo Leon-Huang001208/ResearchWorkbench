@@ -19,6 +19,7 @@ from zoneinfo import ZoneInfo
 from core.observability import get_logger
 
 from ..delivery import FINAL
+from ..maintenance import task_admission
 from ..report_rendering import render_report_payload
 from ..store import StoreError
 from .models import RefreshStatus, WorkflowError, WorkflowSchedule
@@ -208,9 +209,7 @@ class ReportWorkflowRuntime:
 
     @staticmethod
     def public_run(row: dict) -> dict:
-        return _public_metadata(
-            {key: value for key, value in row.items() if key != "path"}
-        )
+        return _public_metadata({key: value for key, value in row.items() if key != "path"})
 
     def runs(self, workflow_id: str) -> list[dict]:
         with self.catalog._exclusive():
@@ -225,6 +224,7 @@ class ReportWorkflowRuntime:
             for row in sorted(rows, key=lambda item: item["created_at"], reverse=True)
         ]
 
+    @task_admission()
     async def start_run(
         self, workflow_id: str, *, trigger: str = "manual", version: int | None = None
     ) -> dict:
@@ -232,29 +232,22 @@ class ReportWorkflowRuntime:
             with self.catalog._exclusive():
                 workflow = self.catalog._row(workflow_id)
                 selected = version or workflow.get("current_version")
-                if selected is None or not workflow.get("versions", {}).get(
-                    str(selected), {}
-                ).get("published"):
-                    raise WorkflowError(
-                        "Workflow 尚无已发布版本", "version_required", 409
-                    )
+                if selected is None or not workflow.get("versions", {}).get(str(selected), {}).get(
+                    "published"
+                ):
+                    raise WorkflowError("Workflow 尚无已发布版本", "version_required", 409)
                 workflow_status = workflow.get("status", "draft")
                 if workflow_status == "disabled":
                     raise WorkflowError("Workflow 已停用", "workflow_disabled", 409)
                 if workflow_status != "enabled":
-                    raise WorkflowError(
-                        "Workflow 尚未启用", "workflow_not_enabled", 409
-                    )
+                    raise WorkflowError("Workflow 尚未启用", "workflow_not_enabled", 409)
                 run_id = uuid4().hex
                 if any(
-                    item.get("workflow_id") == workflow_id
-                    and item.get("status") in ACTIVE
+                    item.get("workflow_id") == workflow_id and item.get("status") in ACTIVE
                     for item in self.catalog.data["runs"].values()
                 ):
                     return self.public_run(
-                        self._new_run(
-                            run_id, workflow_id, selected, trigger, "skipped_overlap"
-                        )
+                        self._new_run(run_id, workflow_id, selected, trigger, "skipped_overlap")
                     )
                 workspace = self.catalog.create_run_workspace(workflow_id, selected)
                 run_id = workspace["run_id"]
@@ -284,6 +277,7 @@ class ReportWorkflowRuntime:
             )
             return public
 
+    @task_admission(background=True)
     async def _execute(self, run_id: str) -> None:
         run = self._run(run_id)
         try:
@@ -311,9 +305,7 @@ class ReportWorkflowRuntime:
                 dataset_snapshot=snapshot["path"],
                 dataset_snapshot_sha256=snapshot["sha256"],
             )
-            session = await self.service.create(
-                "claw", f"{manifest.name} · 报告 Workflow"
-            )
+            session = await self.service.create("claw", f"{manifest.name} · 报告 Workflow")
             sid = session["id"]
             run = self._update_run(run_id, session_id=sid)
             session_row = self.service.store.session(sid)
@@ -332,16 +324,9 @@ class ReportWorkflowRuntime:
                 "delivery": json.loads(manifest.delivery.model_dump_json()),
                 "primary_workbook": manifest.delivery.primary_workbook,
                 "blocks": json.loads(
-                    json.dumps(
-                        [
-                            json.loads(block.model_dump_json())
-                            for block in manifest.blocks
-                        ]
-                    )
+                    json.dumps([json.loads(block.model_dump_json()) for block in manifest.blocks])
                 ),
-                "refresh_manifests": [
-                    Path(path).name for path in run["refresh_manifests"]
-                ],
+                "refresh_manifests": [Path(path).name for path in run["refresh_manifests"]],
                 "dataset_snapshot": snapshot["path"],
                 "dataset_snapshot_sha256": snapshot["sha256"],
                 "minimum_subagents": manifest.minimum_subagents,
@@ -381,9 +366,7 @@ class ReportWorkflowRuntime:
             raise
         except Exception as exc:  # noqa: BLE001 - background boundary fails closed.
             log.error("report_workflow_run_failed", error_type=type(exc).__name__)
-            self._update_run(
-                run_id, status="failed", failure_code="report_execution_failed"
-            )
+            self._update_run(run_id, status="failed", failure_code="report_execution_failed")
         finally:
             self.tasks.pop(run_id, None)
             self.cancellations.pop(run_id, None)
@@ -431,9 +414,7 @@ class ReportWorkflowRuntime:
                 # Every Report Workflow must project the structured payload through
                 # the reviewed deterministic renderer before delivery can pass.
                 if not current.get("projection_attempted_at"):
-                    manifest = self.catalog.manifest(
-                        current["workflow_id"], current["version"]
-                    )
+                    manifest = self.catalog.manifest(current["workflow_id"], current["version"])
                     self._update_run(
                         run_id,
                         status="validating",
@@ -450,9 +431,7 @@ class ReportWorkflowRuntime:
                     self._update_run(
                         run_id,
                         projection_status=projection_status,
-                        projection_missing_blocks=list(
-                            projection.get("missing_blocks") or []
-                        ),
+                        projection_missing_blocks=list(projection.get("missing_blocks") or []),
                     )
                     if projection_status == "completed":
                         detail = await self.service.detail(current["session_id"])
@@ -460,9 +439,7 @@ class ReportWorkflowRuntime:
                         if delivery.get("status") not in FINAL:
                             continue
                 current = self._run(run_id)
-                manifest = self.catalog.manifest(
-                    current["workflow_id"], current["version"]
-                )
+                manifest = self.catalog.manifest(current["workflow_id"], current["version"])
                 by_id = {
                     item.get("id"): item
                     for item in [
@@ -481,13 +458,11 @@ class ReportWorkflowRuntime:
                 ]
                 missing = list(delivery.get("missing_formats", []))
                 missing.extend(
-                    f"block:{item}"
-                    for item in current.get("projection_missing_blocks") or []
+                    f"block:{item}" for item in current.get("projection_missing_blocks") or []
                 )
                 if current.get("projection_status") != "completed":
                     missing.append(
-                        "projection:"
-                        + str(current.get("projection_status") or "not_attempted")
+                        "projection:" + str(current.get("projection_status") or "not_attempted")
                     )
                 if len(completed_subagents) < manifest.minimum_subagents:
                     missing.append(f"subagents:{manifest.minimum_subagents}")
@@ -518,6 +493,7 @@ class ReportWorkflowRuntime:
         run = self._update_run(run_id, status="cancelled", delivery_status="incomplete")
         return self.public_run(run)
 
+    @task_admission()
     async def retry(self, run_id: str) -> dict:
         run = self._run(run_id)
         if run["status"] in ACTIVE:
@@ -543,24 +519,16 @@ class ReportWorkflowRuntime:
                 return self.public_run(self._run(run_id))
             attempt = int(run.get("delivery_retry_attempt") or 0) + 1
             previous_session_id = run["session_id"]
-            session = await self.service.create(
-                "claw", f"{run['workflow_id']} · 报告交付续跑"
-            )
+            session = await self.service.create("claw", f"{run['workflow_id']} · 报告交付续跑")
             delivery_session_id = session["id"]
             source = (
-                self.service.store.directory(previous_session_id)
-                / "inputs"
-                / "report-workflow"
+                self.service.store.directory(previous_session_id) / "inputs" / "report-workflow"
             )
             target = (
-                self.service.store.directory(delivery_session_id)
-                / "inputs"
-                / "report-workflow"
+                self.service.store.directory(delivery_session_id) / "inputs" / "report-workflow"
             )
             if source.is_symlink() or not source.is_dir():
-                raise WorkflowError(
-                    "锁定的报告资源不存在", "workflow_resources_missing", 409
-                )
+                raise WorkflowError("锁定的报告资源不存在", "workflow_resources_missing", 409)
             shutil.copytree(source, target, dirs_exist_ok=True)
             session_row = self.service.store.session(delivery_session_id)
             session_row["report_workflow"] = {
@@ -575,8 +543,7 @@ class ReportWorkflowRuntime:
                 status="running",
                 delivery_status="pending",
                 delivery_retry_attempt=attempt,
-                research_session_id=run.get("research_session_id")
-                or previous_session_id,
+                research_session_id=run.get("research_session_id") or previous_session_id,
                 session_id=delivery_session_id,
                 delivery_session_id=delivery_session_id,
                 projection_attempted_at=None,
@@ -601,10 +568,9 @@ class ReportWorkflowRuntime:
                 self._resume_delivery(run_id), name=f"report-delivery-retry-{run_id}"
             )
             return self.public_run(self._run(run_id))
-        return await self.start_run(
-            run["workflow_id"], trigger="retry", version=run["version"]
-        )
+        return await self.start_run(run["workflow_id"], trigger="retry", version=run["version"])
 
+    @task_admission(background=True)
     async def _resume_delivery(self, run_id: str) -> None:
         try:
             await self._wait_for_delivery(run_id)
@@ -613,9 +579,7 @@ class ReportWorkflowRuntime:
             raise
         except Exception as exc:  # noqa: BLE001 - resumed background boundary.
             log.error("report_delivery_retry_failed", error_type=type(exc).__name__)
-            self._update_run(
-                run_id, status="failed", failure_code="delivery_retry_failed"
-            )
+            self._update_run(run_id, status="failed", failure_code="delivery_retry_failed")
         finally:
             self.tasks.pop(run_id, None)
 
@@ -633,9 +597,7 @@ class ReportWorkflowRuntime:
             "last_triggered_at": None,
         }
 
-    def put_schedule(
-        self, workflow_id: str, body: dict, *, now: datetime | None = None
-    ) -> dict:
+    def put_schedule(self, workflow_id: str, body: dict, *, now: datetime | None = None) -> dict:
         contract = WorkflowSchedule.model_validate(body)
         if contract.enabled:
             with self.catalog._exclusive():
@@ -656,9 +618,7 @@ class ReportWorkflowRuntime:
         value["next_run_at"] = self._next_run(value, now or datetime.now(UTC))
         with self.catalog._exclusive():
             row = self.catalog._row(workflow_id)
-            value["last_triggered_at"] = row.get("schedule", {}).get(
-                "last_triggered_at"
-            )
+            value["last_triggered_at"] = row.get("schedule", {}).get("last_triggered_at")
             row["schedule"] = value
             self.catalog._save()
         return value
@@ -684,17 +644,13 @@ class ReportWorkflowRuntime:
     def _set_schedule_due_for_test(self, workflow_id: str, value: datetime) -> None:
         with self.catalog._exclusive():
             row = self.catalog._row(workflow_id)
-            row.setdefault("schedule", {})["next_run_at"] = value.astimezone(
-                UTC
-            ).isoformat()
+            row.setdefault("schedule", {})["next_run_at"] = value.astimezone(UTC).isoformat()
             self.catalog._save()
 
     def _record_schedule_failure(
         self, workflow_id: str, code: str, now: datetime, *, disable: bool = False
     ) -> None:
-        safe_code = (
-            code if re.fullmatch(r"[a-z0-9_]{1,64}", code) else "schedule_failed"
-        )
+        safe_code = code if re.fullmatch(r"[a-z0-9_]{1,64}", code) else "schedule_failed"
         with self.catalog._exclusive():
             row = self.catalog.data["workflows"].get(workflow_id)
             if row is None:
@@ -716,6 +672,7 @@ class ReportWorkflowRuntime:
             error_code=safe_code,
         )
 
+    @task_admission(background=True)
     async def tick(self, now: datetime | None = None) -> None:
         now = now or datetime.now(UTC)
         with self.catalog._exclusive():
@@ -733,9 +690,7 @@ class ReportWorkflowRuntime:
                 if datetime.fromisoformat(due) > now:
                     continue
             except (TypeError, ValueError):
-                self._record_schedule_failure(
-                    workflow_id, "schedule_invalid", now, disable=True
-                )
+                self._record_schedule_failure(workflow_id, "schedule_invalid", now, disable=True)
                 continue
             try:
                 await self.start_run(workflow_id, trigger="schedule")
@@ -745,9 +700,7 @@ class ReportWorkflowRuntime:
                     "workflow_not_enabled",
                     "version_required",
                 }
-                self._record_schedule_failure(
-                    workflow_id, exc.code, now, disable=disable
-                )
+                self._record_schedule_failure(workflow_id, exc.code, now, disable=disable)
                 continue
             except Exception as exc:  # noqa: BLE001 - isolate each persisted schedule.
                 log.error(
@@ -755,9 +708,7 @@ class ReportWorkflowRuntime:
                     workflow_id=workflow_id,
                     error_type=type(exc).__name__,
                 )
-                self._record_schedule_failure(
-                    workflow_id, "schedule_trigger_failed", now
-                )
+                self._record_schedule_failure(workflow_id, "schedule_trigger_failed", now)
                 continue
             with self.catalog._exclusive():
                 # start_run may update the persisted catalog. Re-read while holding
@@ -778,7 +729,5 @@ class ReportWorkflowRuntime:
             try:
                 await self.tick()
             except Exception as exc:  # noqa: BLE001 - scheduler must survive a bad record.
-                log.error(
-                    "report_workflow_scheduler_failed", error_type=type(exc).__name__
-                )
+                log.error("report_workflow_scheduler_failed", error_type=type(exc).__name__)
             await asyncio.sleep(15)

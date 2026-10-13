@@ -43,6 +43,7 @@ from .delivery import FINAL, Delivery, expected_formats
 from .frameworks import FrameworkService
 from .integrations import IntegrationCoordinator
 from .local_integrations import LocalIntegrationManager
+from .maintenance import MaintenanceGate, task_admission
 from .mcp_registry import MCPRegistryService
 from .mcp_runtime.authorization import AuthorizationManager
 from .mcp_runtime.control import load_control as load_mcp_control
@@ -235,6 +236,12 @@ class ResearchService:
         self.child_views: dict[str, tuple[float, dict]] = {}
         self.listeners: set[asyncio.Event] = set()
         self.lock = asyncio.Lock()
+        self.maintenance = MaintenanceGate(
+            store.root / ".release-maintenance.json"
+            if os.environ.get("RWB_RELEASE_MANAGED") == "1"
+            else None
+        )
+        self.client.maintenance = self.maintenance
         # Product-level query and handoff admission must be serialized separately
         # from native DSH session mutations, which already use ``self.lock``.
         self.workbench_lock = asyncio.Lock()
@@ -305,6 +312,7 @@ class ResearchService:
             )
 
     async def start(self):
+        await self.maintenance.start_control(self)
         await self.frameworks.start()
         await self.mcp_registry.start()
         await self.mcp_runtime.start()
@@ -321,6 +329,7 @@ class ResearchService:
             self.integrations.start()
 
     async def close(self):
+        await self.maintenance.close()
         if self.retention_task:
             self.retention_task.cancel()
             with suppress(asyncio.CancelledError):
@@ -831,6 +840,7 @@ class ResearchService:
             log.info("research_model_configured", provider=provider)
             return {"configured": True, "applied_to": "new_sessions", "inference_verified": False}
 
+    @task_admission()
     async def test_model(self):
         """Bounded explicit smoke through the existing native research channel."""
         if self.model_test_lock.locked():
@@ -918,6 +928,7 @@ class ResearchService:
             )
             return result
 
+    @task_admission()
     async def create(
         self,
         mode="fingpt",
@@ -1707,6 +1718,7 @@ class ResearchService:
     def _cancel_observation(self, sid):
         return self.event_revision, max(self.events.get(sid, {}), default=-1), self.running.get(sid)
 
+    @task_admission()
     async def send(
         self,
         sid,
@@ -2099,6 +2111,49 @@ class ResearchService:
             for receipt in self.store.data["receipts"].values()
         ):
             raise CapabilityError("存在尚未确认的受理请求，草稿已保留", "capability_busy", 409)
+        return True
+
+    async def release_idle(self):
+        """Release requires live native parent/child and local orchestration facts."""
+        if self.maintenance.active or self.model_test_lock.locked():
+            return False
+        for component in (
+            self.automations,
+            self.report_studio,
+            self.report_workflows,
+            self.report_workflows.runtime,
+            self.frameworks,
+        ):
+            for name in ("tasks", "running", "_tasks"):
+                values = getattr(component, name, {})
+                if isinstance(values, dict) and any(
+                    not value.done() if isinstance(value, asyncio.Task) else bool(value)
+                    for value in values.values()
+                ):
+                    return False
+        if any(
+            row.get("research_status") in {"queued", "running", "interrupted"}
+            or row.get("delivery_status") == "pending"
+            for row in self.store.data.get("automation_runs", {}).values()
+        ):
+            return False
+        if any(
+            row.get("status")
+            in {"queued", "preparing_data", "running", "blocked_approval", "validating"}
+            for row in self.report_workflows.catalog.data.get("runs", {}).values()
+        ):
+            return False
+        async with self.lock:
+            await self._capability_idle()
+            native = await self.client.rpc("session.list", {})
+            for row in native["items"]:
+                if row.get("running") is not False or not isinstance(row.get("sessionId"), str):
+                    return False
+                children = await self.client.rpc(
+                    "subagent.list", {"parentSessionId": row["sessionId"], "activityOnly": True}
+                )
+                if any(child.get("activity") != "inactive" for child in children["entries"]):
+                    return False
         return True
 
     async def _mcp_idle_gate(self):
