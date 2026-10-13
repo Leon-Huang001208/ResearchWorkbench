@@ -15,6 +15,13 @@ from docker import release
 from docker.manage import Refusal
 
 
+def test_frozen_format_inventory_uses_existing_repository_sources():
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[2]
+    assert all((root / name).is_file() for name in release.FORMAT_SOURCES)
+
+
 def test_stream_hash_and_immutable_release_record(tmp_path):
     archive = tmp_path / "artifact.tar"
     archive.write_bytes(b"standard archive fixture")

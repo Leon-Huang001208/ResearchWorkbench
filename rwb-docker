@@ -134,7 +134,7 @@ release_tool() {
     --mount "type=bind,src=$ROOT,dst=/ledger" \
     --mount "type=bind,src=$PROJECT,dst=$PROJECT,readonly" \
     --mount "type=bind,src=$GIT_COMMON,dst=$GIT_COMMON,readonly" \
-    --entrypoint python -e "RWB_MANAGER_ROOT=$ROOT" -e "RWB_WORKTREE=$PROJECT" \
+    --entrypoint python -e "RWB_MANAGER_ROOT=$ROOT" -e "RWB_WORKTREE=$PROJECT" -e "RWB_CONTROL_IMAGE_ID=$RWB_CONTROL_IMAGE" \
     "$RWB_CONTROL_IMAGE" "$RWB_RELEASE_SCRIPT" "$@"
 }
 case "${1:-help}" in

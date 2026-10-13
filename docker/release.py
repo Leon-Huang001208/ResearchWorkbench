@@ -13,6 +13,7 @@ import logging
 import os
 import re
 import shutil
+import sys
 import tarfile
 import time
 import uuid
@@ -43,7 +44,7 @@ FORMAT_SOURCES = (
     "app/research_web/automation/models.py",
     "app/research_web/report_workflows/models.py",
     "app/research_web/report_workflows/migration.py",
-    "app/research_web/report_workflows/service.py",
+    "app/research_web/report_workflows/catalog.py",
 )
 
 
@@ -276,6 +277,9 @@ class ReleaseStore:
         with tarfile.open(archive) as stream:
             stream.extractall(path / "source", filter="data")
         source_root = path / "source"
+        sys.path.insert(0, str(source_root))
+        from research_workbench_entrypoint.docker_resources import DockerResources, ResourceSession
+
         runtime = json.loads((source_root / "runtimes/research_web.json").read_text())
         if runtime["dsh"]["commit"] != CONTRACT["dsh"]:
             raise Refusal("dsh_pin_mismatch")
@@ -304,6 +308,9 @@ class ReleaseStore:
                 "--mount",
                 f"type=bind,src={self.host_root}/releases/{release_id}/empty/{name},dst={target}",
             ]
+        resource_session = ResourceSession(DockerResources(), "g2b-release-export")
+        resource_session.resources.append(("container", temporary))
+        resource_session.pending.add(("container", temporary))
         identifier = manage.command(
             "docker",
             "create",
@@ -322,12 +329,14 @@ class ReleaseStore:
             "32",
             "--label",
             manage.PREFIX + "release-export=" + release_id,
+            *resource_session.flags,
             *bind_args,
             "--entrypoint",
             "/bin/true",
             reuse,
         )
         projection = manage.identity_projection(manage.inspect("container", identifier))
+        resource_session.pending.discard(("container", temporary))
         try:
             (path / "dsh").mkdir()
             manage.command(
@@ -348,9 +357,10 @@ class ReleaseStore:
             current = manage.inspect("container", identifier)
             if manage.identity_projection(current) != projection or current["State"]["Running"]:
                 raise Refusal("release_export_ownership_mismatch")
-            manage.command("docker", "rm", identifier)
+            resource_session.cleanup()
         prepared = {
             "schema": 1,
+            "administrative_image_id": os.environ.get("RWB_CONTROL_IMAGE_ID"),
             "release_id": release_id,
             "source_sha": source,
             "source_archive_hash": sha256_file(archive),
@@ -493,6 +503,8 @@ class ReleaseStore:
 
     def bound_controller(self, release_id: str) -> dict:
         value = self.verify(release_id)
+        if value.get("administrative_image_id") != os.environ.get("RWB_CONTROL_IMAGE_ID"):
+            raise Refusal("sealed_administrative_image_required")
         actual = Path(__file__).resolve().parent
         if (
             actual != (self.directory(release_id) / "control").resolve()
