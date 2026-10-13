@@ -1,5 +1,15 @@
 # DataHub、研究资料与实际文件
 
+## Claw 本地研究项目
+
+`claw_projects.py` 只管理索引中的 `claw_projects` 与会话 `project_id`；旧会话归入默认项目，执行 `workspace_id=research` 不变，项目归档不删除会话或文件。
+项目文件列表保留来源会话和 SHA-256；跨会话文件引用须显式选择，同项目归属、普通文件身份、允许附件格式与 30 MiB 上限逐项校验，读取源文件使用既有 descriptor-relative `Store.open_file`。
+复制生成独立附件，并在 `file_references` 保存来源与内容哈希；来源后续修改不改变已经引用的副本。
+DataHub 资料快照仍属于原会话，项目仅聚合摘要和来源链接，不隐式复制或混入新会话数据准入范围。
+
+`automation_drafts` 保存提出、取消与确认状态；原生工具只提出草稿，不写可执行 `automations`。
+确认调用原 Automation 创建逻辑，稳定创建键与内容绑定处理重复请求及确认检查点失败；创建结果默认停用。
+
 新 Docker 目标采用每实例独立 data/logs/credentials/cache 四个命名卷；data 映射
 `/data/research-web`，包含既有 DSH home、会话索引、上传、产物与产品日志。
 管理账本保留数据卷身份；开发重建/退休仅删除精确所属容器，保留四卷与源码，

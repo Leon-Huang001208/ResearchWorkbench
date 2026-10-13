@@ -1,5 +1,7 @@
 # 能力包、版本与原生调用
 
+`rwb_prepare_automation` 在原生 research-tools 中注册并受最终 guard 与会话准入保护。Claw 只投影真实能力目录；日程草稿锁定选定 Skill/Workflow/报告版本，确认不发布新能力，版本失效明确拒绝。保存后默认停用，执行与投递仍由现有 Automation 管理。
+
 MCP 控制 JSON/URL 的纯 parser 现供原 reader 与独立 origin helper 共享；原 reader 的
 额外字段、版本与异常语义保持，不改变 MCP 授权、审批、能力版本或秘密存储边界。
 

@@ -104,7 +104,12 @@ async function defaultAdmission(ctx, exec, config) {
   return nativeAdmission(ctx, exec, config);
 }
 
-export function apply(ctx, config, spawnProcess = spawn, admissionClient = defaultAdmission) {
+async function defaultDraftClient(ctx, exec, config, args) {
+  const { executeAutomationDraft } = await import('./public-data.mjs');
+  return executeAutomationDraft(ctx, exec, config, args);
+}
+
+export function apply(ctx, config, spawnProcess = spawn, admissionClient = defaultAdmission, draftClient = defaultDraftClient) {
   for (const key of ['python', 'runnerPath', 'researchRoot']) {
     if (typeof config?.[key] !== 'string' || !isAbsolute(config[key])) throw new Error(`research-tools requires absolute ${key}`);
   }
@@ -117,6 +122,38 @@ export function apply(ctx, config, spawnProcess = spawn, admissionClient = defau
   if (!Number.isFinite(timeoutSeconds) || timeoutSeconds <= 0 || timeoutSeconds > 60 || !Number.isFinite(queueWaitSeconds) || queueWaitSeconds <= 0 || queueWaitSeconds > 60 || !Number.isSafeInteger(maxOutputBytes) || maxOutputBytes < 1 || maxOutputBytes > 1048576) {
     throw new Error('research-tools execution limits are invalid');
   }
+  ctx.tools.register({
+    name: 'rwb_prepare_automation',
+    description: 'Propose a version-locked research schedule for user review. This NEVER creates, enables, runs or delivers an Automation. Use the selected real capability ID/version; ask the user when target, time or timezone is unclear. The user must confirm the draft in Claw, then separately enable the saved task.',
+    parameters: { type: 'object', properties: {
+      name: { type: 'string', minLength: 1, maxLength: 160 },
+      target_kind: { type: 'string', enum: ['skill', 'workflow', 'report_workflow'] },
+      target_id: { type: 'string' }, target_version: { type: 'integer', minimum: 1 },
+      input_template: { type: 'string', minLength: 1, maxLength: 100000 },
+      output_formats: { type: 'array', maxItems: 7, items: { type: 'string', enum: ['md','html','docx','xlsx','pptx','png','pdf'] } },
+      schedule: { type: 'object', properties: {
+        kind: { type: 'string', enum: ['once','daily','weekly','monthly'] }, timezone: { type: 'string' },
+        once_at: { type: 'string' }, weekday: { type: 'integer', minimum: 0, maximum: 6 },
+        day: { type: 'integer', minimum: 1, maximum: 31 }, hour: { type: 'integer', minimum: 0, maximum: 23 }, minute: { type: 'integer', minimum: 0, maximum: 59 },
+      }, required: ['kind','timezone'], additionalProperties: false },
+    }, required: ['name','target_kind','target_id','target_version','input_template','schedule'], additionalProperties: false },
+    output: { schema: { type: 'object', properties: { result_json: { type: 'string' } }, required: ['result_json'], additionalProperties: false }, render(_args, value) { return [{ type: 'text', text: value.result_json }]; } },
+    async execute(args, exec) {
+      const allowed = new Set(['name','target_kind','target_id','target_version','input_template','output_formats','schedule']);
+      if (!args || typeof args !== 'object' || Array.isArray(args) || Object.keys(args).some(key => !allowed.has(key)) || Buffer.byteLength(JSON.stringify(args)) > 110000) throw Error('draft_arguments_invalid');
+      exec.signal.throwIfAborted();
+      const scope = await admissionClient(ctx, { ...exec, name: 'rwb_prepare_automation' }, config);
+      if (!scope.admitted) throw Error('draft_scope_unverified');
+      try {
+        const result = await draftClient(ctx, exec, config, args);
+        ctx.logger.info('automation_draft_proposed');
+        return { result_json: JSON.stringify(result) };
+      } catch (error) {
+        ctx.logger.warn('automation_draft_proposal_failed');
+        throw error;
+      }
+    },
+  });
   ctx.tools.register({
     name: 'research_document_operation',
     description: 'Read, generate or precisely modify owned DOCX/XLSX/PPTX files. Use file_id, never host paths. Writes create a new version; modifications require expected_sha256 from read. File Excel preserves formulas but does not recalculate. PPT generation requires an owned template. Native mode never silently falls back.',

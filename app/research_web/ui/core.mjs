@@ -20,6 +20,10 @@ export function parseRoute(hash = '') {
     const tabs = new Set(['overview', 'research-reports', 'investment-news', 'wsc', 'social', 'news', 'filings', 'events']);
     route.intelTab = !extraSegments.length && tabs.has(sectionSegment) ? sectionSegment : 'overview';
   }
+  if (page === 'claw' && (params.has('view') || params.has('project'))) {
+    route.clawView = ['projects','plans','skills'].includes(params.get('view')) ? params.get('view') : 'sessions';
+    route.projectId = /^(default|project-[a-f0-9]{32})$/.test(params.get('project') || '') ? params.get('project') : 'default';
+  }
   if (page === 'history') {
     route.historyMode = ['fingpt', 'claw'].includes(params.get('mode')) ? params.get('mode') : null;
     route.historyView = params.get('view') === 'deleted' ? 'deleted' : 'active';
@@ -265,6 +269,14 @@ export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSo
     createCapabilitySession: (kind, goal) => request('/capabilities/creation-sessions', { method: 'POST', body: { kind, goal } }),
     capabilityFromArtifact: (sessionId, fileId) => request('/capabilities/from-artifact', { method: 'POST', body: { session_id: sessionId, file_id: fileId } }),
     create: (body) => request('/sessions', { method: 'POST', body }),
+    clawProjects: () => request('/claw/projects'),
+    clawProject: (id) => request(`/claw/projects/${segment(id)}`),
+    createClawProject: (body) => request('/claw/projects', { method: 'POST', body }),
+    updateClawProject: (id, body) => request(`/claw/projects/${segment(id)}`, { method: 'PATCH', body }),
+    moveClawSession: (id, projectId) => request(`${sessionPath(id)}/project`, { method: 'PUT', body: { project_id: projectId } }),
+    referenceClawFile: (id, body) => request(`${sessionPath(id)}/file-references`, { method: 'POST', body }),
+    confirmAutomationDraft: (id, draftId, body) => request(`${sessionPath(id)}/automation-drafts/${segment(draftId)}/confirm`, { method: 'POST', body }),
+    dismissAutomationDraft: (id, draftId) => request(`${sessionPath(id)}/automation-drafts/${segment(draftId)}/dismiss`, { method: 'POST', body: {} }),
     detail: (id) => request(sessionPath(id)),
     message: (id, body, key) => request(`${sessionPath(id)}/messages`, { method: 'POST', body, key }),
     rename: (id, title) => request(sessionPath(id), { method: 'PATCH', body: { title } }),
@@ -382,6 +394,14 @@ export function createController({ api, makeID = () => globalThis.crypto.randomU
     },
     setFormats: (value) => { state.expectedFormats = value === null ? null : [...new Set(value)]; saveDraft(); },
     addAttachments: (items) => { state.attachments = [...new Map([...state.attachments, ...items].map((file) => [file.id, file])).values()]; saveDraft(); emit(); },
+    addAttachmentsForSession: (id, items) => {
+      if (state.route.sessionId === id) {
+        state.attachments = [...new Map([...state.attachments, ...items].map(file => [file.id, file])).values()]; saveDraft(); emit();
+      } else {
+        const saved = drafts.get(id) || { draft: '', attachments: [], tabbitTabs: [], skillId: '', capability: null, toolIds: [], methodIds: [], expectedFormats: null };
+        drafts.set(id, { ...saved, attachments: [...new Map([...saved.attachments, ...items].map(file => [file.id, file])).values()] });
+      }
+    },
     removeAttachment: (id) => { state.attachments = state.attachments.filter((file) => file.id !== id); saveDraft(); emit(); },
     addTabbit: (item) => {
       if (state.tabbitTabs.some((tab) => tab.tab_id === item.tab_id && tab.instance_id === item.instance_id)) return;

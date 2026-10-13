@@ -1,5 +1,14 @@
 # Research Web 接口清单
 
+## Claw 项目与日程草稿 API
+
+`claw_routes.py` 提供 `/claw/projects` 列表/创建与 `/{project_id}` 查询/改名/归档，`/sessions/{sid}/project` 显式移组，`/sessions/{sid}/file-references` 显式复制所选同项目文件。
+`POST /sessions` 增加可选 `project_id`，仅允许在未归档项目创建 Claw；旧请求保持原默认研究空间。
+会话摘要增加 `project_id`，Claw 详情增加 `automation_drafts`。
+`/internal/data/automation-draft` 继续使用现有实例私有认证，拒绝普通浏览器提交；它只生成经 AutomationCreate 校验的锁版本草稿。
+`/sessions/{sid}/automation-drafts` 查询、`/{draft_id}/confirm` 确认保存、`/{draft_id}/dismiss` 取消属于会话；确认可编辑名称、目标描述与日程，不可改换锁定能力或增加外发/MCP权限，且结果默认停用。
+新增请求拒绝额外字段；非法归属、归档、失效版本和已取消草稿给出明确错误。API Atlas 由机器清单同步生成。
+
 DSH 0.2.1 升级保持公开 HTTP 合同。内部 `subagent.list` 适配已移除的上游方法：读取权威父会话 `subagentCatalog` 投影，并与实时 `session/list` 的子会话归属、模式和 running 状态交叉核对；输出映射为既有 `kind=child` 与 `activity=running/inactive`，供详情、归属、取消及空闲保护共同消费；缺失或未知状态返回协议失败，不用空列表解除活动保护。空实例默认 `deepseek-flash`，已保存旧模型值继续保留。保存、应用、真实推理仍分别返回事实，不因默认值更新自动调用模型。
 
 Automation 本轮没有新增 HTTP 路由、请求字段或响应 schema。现有运行记录在执行中可返回已保存原生关联；failure_code 可报告 automation_reference_invalid、automation_reference_conflict、automation_reference_persistence_failed 或 native_submission_unconfirmed。关联错误不触发自动研究重试，报告成功仍取原报告校验/产物事实。

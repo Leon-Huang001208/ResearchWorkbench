@@ -1,5 +1,9 @@
 # 安全边界与验证方法
 
+Claw 项目只是产品索引分组，不授权任意宿主文件访问。文件聚合校验所属会话，显式引用在复制前核对项目和普通文件身份、复制后核对哈希；接收文件使用所属目录 FD 创建，来源变化明确拒绝。
+日程提出端点由原实例私有认证保护；确认/取消端点校验会话归属。模型草稿拒绝 MCP 与投递权限，不能直接启用日程。确认稳定创建键绑定内容，重复请求不得生成第二任务。
+相关回归为 `test_claw_projects.py`、`test_automation_drafts.py`、`test_api.py` 和 `research_web_automation_draft_tool.test.mjs`；这些测试不替代真实模型与同平台 CI。
+
 新管理入口验证私有管理根与记录无alias、环境/实例labels、不可变镜像、容器ID、
 完整配置/挂载、网络、资源限额及卷归属后才启停/重建。Docker在start时把
 `OomKillDisable=null`补为false，两者同为启用OOM killer；只规范化该等值默认，true和其他变更仍拒绝。

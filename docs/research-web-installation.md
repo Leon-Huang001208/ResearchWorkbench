@@ -1,5 +1,8 @@
 # Research Web Native / Docker 安装与运行
 
+Claw 项目与日程入口使用既有 Web/DSH 依赖，无新增产品包或安装步骤。旧数据根可直接读取，缺少 project_id 的 Claw 会话归入默认“我的研究”，不移动文件。
+Automation 被显式关闭时，聊天日程草稿也不可用；提出草稿不等于保存或启用。日程需实际能力版本，数据/模型/工具的可调用性继续由现有设置与 Doctor 分层诊断。
+
 2026-10-12 起，24GB Mac mini 是 Docker 主开发与常驻节点，MacBook Pro 是远程入口。
 新的纯 Docker 安装和显式实例管理使用 [Docker 开发与部署手册](research-web-docker.md)：
 `./setup-web.sh --runtime docker --environment stage --instance local --web-port 18088`，

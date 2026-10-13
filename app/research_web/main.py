@@ -26,6 +26,7 @@ from .asset_workspace import AssetWorkspaceError
 from .automation.routes import router as automation_router
 from .capabilities.models import CapabilityError
 from .capabilities.routes import router as capabilities_router
+from .claw_routes import router as claw_router
 from .client import DSHClient, RuntimeFailure
 from .datahub.routes import router as datahub_router
 from .documentation import DOCUMENT_NAMES
@@ -73,6 +74,7 @@ class NewSession(BaseModel):
     mode: Literal["fingpt", "claw"] = "fingpt"
     title: str | None = Field(default=None, min_length=1, max_length=120)
     workspace_id: Literal["research"] = "research"
+    project_id: str | None = Field(default=None, pattern=r"^(default|project-[a-f0-9]{32})$")
 
 
 class TabbitTabRef(BaseModel):
@@ -216,6 +218,7 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
     app.include_router(mcp_registry_router)
     app.include_router(mcp_runtime_router)
     app.include_router(automation_router)
+    app.include_router(claw_router)
     app.include_router(workbench_router)
     app.include_router(operations_router)
     app.include_router(report_workflow_router)
@@ -415,7 +418,7 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
 
     @app.post("/api/research/sessions", status_code=201)
     async def create_session(body: NewSession, request: Request):
-        return await svc(request).create(body.mode, body.title)
+        return await svc(request).create(body.mode, body.title, project_id=body.project_id)
 
     @app.get("/api/research/sessions/{sid}")
     async def session(sid: str, request: Request):

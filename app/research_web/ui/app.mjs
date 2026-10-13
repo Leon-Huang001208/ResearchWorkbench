@@ -8,6 +8,7 @@ import { renderResearchAttention, renderClawWorkspaceCanvas, renderContextPanel,
 import { createCapabilityController, refreshProbedSourceDetail } from './capability-controller.mjs';
 import { capabilityTabKey, reportWorkflowEligibility, renderCapabilityDetail, renderToolDetail, renderCreationArtifacts, creationArtifacts } from './capabilities.mjs';
 import { capabilityWorkspaceKindKey, renderCapabilityPreviewDialog, renderCapabilityWorkspace } from './capability-workspace.mjs';
+import { renderClawNavigation, renderClawProject, renderAutomationDrafts, automationDraftBody, renderClawConnections, clawNavigationCurrent } from './claw-workspace.mjs';
 import { mcpEnvironmentPayload, mcpInstallSelection, mcpMarketplaceTabKey, renderMCPServerDialog } from './mcp-marketplace.mjs';
 import { renderDataCapabilityDetail, renderDataSourceDetail } from './data-catalog.mjs';
 import { renderCapabilityEditor, renderCreationForm, renderCopyForm, readEditor, moveStepWithFeedback, newWorkflowStep } from './capability-editor.mjs';
@@ -21,6 +22,8 @@ import { modelConfigurationPayload, syncModelForm, renderSettingsPage, resolveSe
 import { renderFrameworks } from './frameworks.mjs';
 
 const api = createAPI();
+const clawWorkspace = { projects: [], detail: null, busy: false, error: '', newName: '', targetSession: '', renameEdits: new Map() };
+const clawDraftEdits = new Map();
 const root = document.querySelector('#app');
 const defaultCatalogNames = ['runtime', 'models', 'workspaces', 'sessions', 'capabilities', 'tools', 'reportWorkflows'];
 const catalog = { runtime: null, tabbit: null, integrations: { summary: {}, items: [], latest_batch: null }, localIntegrations: { categories: [], items: [], summary: {}, service: {} }, connections: { groups: [], sources: [], platform: {}, migration: {} }, models: [], sessions: [], deletedSessions: [], workspaces: [], capabilities: [], tools: [], reportWorkflows: [], automations: [], automationRuns: [], deliveryChannels: [], artifacts: [], dataCatalog: { summary: {}, capabilities: [], sources: [], bindings: [] }, errors: {}, modelFailures: [], pending: new Set(defaultCatalogNames) };
@@ -258,7 +261,8 @@ function currentSettingsConnectionId() {
 }
 
 function mainPage() {
-  if (['fingpt', 'claw'].includes(state.route.page)) return researchPage();
+  if (state.route.page === 'claw') return renderClawNavigation(state.route.clawView || 'sessions', state.route.sessionId) + clawMainPage();
+  if (state.route.page === 'fingpt') return researchPage();
   if (state.route.page === 'settings') return settingsPage();
   if (state.route.page === 'workbench') return workbenchPage();
   if (state.route.page === 'frameworks') return renderFrameworks({ slug: state.route.frameworkSlug, anchor: state.route.frameworkTab, catalog: frameworkState.catalog, data: frameworkState.data, status: frameworkState.status, error: frameworkState.error, bot: frameworkBot });
@@ -275,6 +279,41 @@ function mainPage() {
     return `<header class="page-header"><div><div class="eyebrow">YOUR RESEARCH</div><h1>${modeLabel ? `${modeLabel} 研究历史` : '研究历史'}</h1><p class="muted">${view === 'deleted' ? '删除的会话保留 30 天，可恢复或立即永久删除。' : modeLabel ? `所有 ${modeLabel} 会话，随时回来继续。` : '所有 FinGPT 与 Claw 会话，随时回来继续。'}</p></div><button class="button" data-refresh>刷新</button></header><nav class="history-tabs" aria-label="研究历史视图"><a href="${activeHref}" class="${view === 'active' ? 'active' : ''}" ${view === 'active' ? 'aria-current="page"' : ''}>研究</a><a href="${deletedHref}" class="${view === 'deleted' ? 'active' : ''}" ${view === 'deleted' ? 'aria-current="page"' : ''}>已删除</a></nav><label class="search-box"><span aria-hidden="true">⌕</span><input id="history-search" type="search" placeholder="搜索会话标题…" value="${e(historyFilter)}" aria-label="搜索${modeLabel ? ` ${modeLabel}` : ''}研究历史"></label><div id="history-results">${renderHistory(sessions, historyFilter, mode, view)}</div>`;
   }
   return capabilityPage();
+}
+
+function clawMainPage() {
+  const view = state.route.clawView || 'sessions';
+  if (view === 'projects') return renderClawProject(clawWorkspace);
+  if (view === 'skills') return renderClawConnections(catalog.capabilities, catalog.tools);
+  if (view === 'plans') return `<header class="page-header"><div><h1>Agent 日程</h1><p class="muted">在会话中说明研究目标和执行时间，可提出待确认日程；保存后需另行启用。</p></div></header>${renderAutomationDrafts(state.detail?.automation_drafts || [], clawDraftEdits, clawWorkspace.busy)}${renderCapabilityWorkspace({ capabilities: catalog.capabilities, tools: catalog.tools, reportWorkflows: catalog.reportWorkflows, automations: catalog.automations, automationRuns: catalog.automationRuns, deliveryChannels: catalog.deliveryChannels, automationFormOpen, view: 'plans', kind: 'workflow', busy: automationBusy, error: catalog.errors.automations || '' })}`;
+  return researchPage() + renderAutomationDrafts(state.detail?.automation_drafts || [], clawDraftEdits, clawWorkspace.busy);
+}
+
+async function loadClawProjects() {
+  const ticket = pageGeneration; const projectId = state.route.projectId || 'default';
+  if (clawWorkspace.detail?.id !== projectId) clawWorkspace.targetSession = '';
+  clawWorkspace.error = ''; clawWorkspace.detail = null; render();
+  try {
+    const projects = await api.clawProjects();
+    const detail = await api.clawProject(projectId);
+    if (ticket !== pageGeneration || state.route.page !== 'claw' || state.route.clawView !== 'projects') return;
+    clawWorkspace.projects = projects.items; clawWorkspace.detail = detail;
+    if (!detail.sessions.some(s => s.id === clawWorkspace.targetSession)) clawWorkspace.targetSession = '';
+  } catch (error) {
+    if (ticket !== pageGeneration) return;
+    clawWorkspace.error = error.message;
+    safeLog('claw_project_load_failed', { status: error.code || 'request_failed' });
+  }
+  render();
+}
+
+async function clawAction(action) {
+  if (clawWorkspace.busy) return;
+  clawWorkspace.busy = true; clawWorkspace.error = ''; state.error = ''; render();
+  const ticket = pageGeneration;
+  try { await action(); }
+  catch (error) { if (ticket === pageGeneration) { clawWorkspace.error = error.message; state.error = error.message; } safeLog('claw_action_failed', { status: error.code || 'request_failed' }); }
+  finally { clawWorkspace.busy = false; render(); }
 }
 
 function workbenchPage() {
@@ -1078,6 +1117,9 @@ async function showRoute() {
     else if (previousView === 'market') mcpMarketplaceState = { ...mcpMarketplaceState, detail: null, returnIdentity: null, error: '', loading: false, syncing: false };
   }
   if (state.route.page === 'claw' && !state.route.sessionId) await loadCatalog(['reportWorkflows']);
+  if (state.route.page === 'claw' && state.route.clawView === 'projects') await loadClawProjects();
+  if (state.route.page === 'claw' && state.route.clawView === 'plans') await loadCatalog(['automations', 'automationRuns', 'deliveryChannels', 'capabilities', 'reportWorkflows']);
+  if (state.route.page === 'claw' && state.route.clawView === 'skills') await loadCatalog(['capabilities', 'tools']);
   if (state.route.page === 'workbench') await loadWorkbench();
   if (state.route.page === 'operations') await loadOperations();
   if (state.route.page === 'intel') await intelController.activate(state.route.intelTab);
@@ -1149,6 +1191,11 @@ function selectTabbit(tabId) {
 }
 
 root.addEventListener('input', (event) => {
+  const draftForm = event.target.closest?.('[data-claw-draft-form]');
+  if (draftForm) { clawDraftEdits.set(draftForm.dataset.clawDraftForm, Object.fromEntries(new FormData(draftForm))); return; }
+  if (event.target.closest?.('[data-claw-project-create]')) { clawWorkspace.newName = event.target.value; return; }
+  const renameForm = event.target.closest?.('[data-claw-project-update]');
+  if (renameForm) { clawWorkspace.renameEdits.set(renameForm.dataset.clawProjectUpdate, event.target.value); return; }
   if (event.target.matches?.('[data-intel-query], [data-intel-code]')) { void intelController.handle(event); return; }
   const documentForm = event.target.closest?.('#document-edit-form');
   if (documentForm && documentEditor) {
@@ -1305,6 +1352,17 @@ root.addEventListener('keydown', (event) => {
 root.addEventListener('change', async (event) => {
   if (event.target.closest?.('.intel-page') && await intelController.handle(event)) return;
   const target = event.target;
+  if (target.matches?.('[data-claw-project-select]')) {
+    history.pushState(null, '', `#/claw?view=projects&project=${encodeURIComponent(target.value)}`);
+    await showRoute(); return;
+  }
+  if (target.matches?.('[data-claw-session-project]') && target.value) {
+    const sid = target.dataset.clawSessionProject; const projectId = target.value;
+    await clawAction(async () => { await api.moveClawSession(sid, projectId); await loadClawProjects(); await loadCatalog(['sessions']); }); return;
+  }
+  if (target.matches?.('[data-claw-reference-target]')) { clawWorkspace.targetSession = target.value; return; }
+  const changedDraft = target.closest?.('[data-claw-draft-form]');
+  if (changedDraft) { clawDraftEdits.set(changedDraft.dataset.clawDraftForm, Object.fromEntries(new FormData(changedDraft))); return; }
   if (target.matches?.('[data-document-target]') && documentEditor) {
     const selected = documentTargets(documentEditor.result)[Number(target.value)];
     const input = target.closest('form')?.querySelector('textarea[name=value]');
@@ -1411,6 +1469,31 @@ root.addEventListener('submit', async (event) => {
   if (event.target.closest?.('.intel-page') && await intelController.handle(event)) return;
   event.preventDefault();
   safeLog('document_form_dispatch', { status: event.target.id === 'document-edit-form' ? 'document' : 'other' });
+  if (event.target.matches('[data-claw-project-create]')) {
+    const name = String(new FormData(event.target).get('name') || '');
+    const ticket = pageGeneration;
+    await clawAction(async () => {
+      const project = await api.createClawProject({ name }); clawWorkspace.newName = '';
+      if (!clawNavigationCurrent(ticket, pageGeneration)) return;
+      history.pushState(null, '', `#/claw?view=projects&project=${encodeURIComponent(project.id)}`); await showRoute();
+    }); return;
+  }
+  if (event.target.matches('[data-claw-project-update]')) {
+    const projectId = event.target.dataset.clawProjectUpdate; const name = String(new FormData(event.target).get('name') || '');
+    await clawAction(async () => { await api.updateClawProject(projectId, { name }); clawWorkspace.renameEdits.delete(projectId); await loadClawProjects(); }); return;
+  }
+  if (event.target.matches('[data-claw-draft-form]')) {
+    const sid = state.detail?.id; const draftId = event.target.dataset.clawDraftForm;
+    const draft = state.detail?.automation_drafts?.find(d => d.id === draftId);
+    if (!sid || !draft || clawWorkspace.busy) return;
+    let body;
+    try { body = automationDraftBody(draft.body, new FormData(event.target)); }
+    catch (error) { state.error = error.message; render(); return; }
+    await clawAction(async () => {
+      await api.confirmAutomationDraft(sid, draftId, body); clawDraftEdits.delete(draftId);
+      success = '日程已保存但尚未启用。'; await controller.refresh(); await loadCatalog(['automations', 'automationRuns']);
+    }); return;
+  }
   if (event.target.id === 'document-create-form') {
     const editor = documentEditor; if (!editor || editor.busy || editor.sessionId !== state.detail?.id) return;
     editor.draft = Object.fromEntries(new FormData(event.target));
@@ -1803,6 +1886,34 @@ root.addEventListener('click', async (event) => {
   }
   const button = clickTarget?.closest?.('button'); if (!button || button.disabled || button.getAttribute?.('aria-disabled') === 'true') return;
   const data = button.dataset;
+  if ('clawProjectRefresh' in data) { await loadClawProjects(); return; }
+  if ('clawProjectArchive' in data) {
+    await clawAction(async () => { await api.updateClawProject(data.clawProjectArchive, { archived: data.archived === 'true' }); await loadClawProjects(); }); return;
+  }
+  if ('clawNewSession' in data) {
+    const ticket = pageGeneration;
+    await clawAction(async () => {
+      const created = await api.create({ mode: 'claw', project_id: data.clawNewSession });
+      if (!clawNavigationCurrent(ticket, pageGeneration)) return;
+      history.pushState(null, '', `#/claw?session=${encodeURIComponent(created.id)}`); await showRoute(); await loadCatalog(['sessions']);
+    }); return;
+  }
+  if ('clawReference' in data) {
+    const target = root.querySelector('[data-claw-reference-target]')?.value;
+    if (!target) { state.error = '请先显式选择接收会话。'; render(); return; }
+    const ticket = pageGeneration;
+    await clawAction(async () => {
+      const file = await api.referenceClawFile(target, { source_session_id: data.sourceSession, file_id: data.clawReference, expected_sha256: data.sha256 });
+      controller.addAttachmentsForSession(target, [file]);
+      if (!clawNavigationCurrent(ticket, pageGeneration)) return;
+      history.pushState(null, '', `#/claw?session=${encodeURIComponent(target)}`); await showRoute();
+      if (state.detail?.id === target) success = '已复制所选文件并加入当前会话草稿；尚未发送研究。';
+    }); return;
+  }
+  if ('clawDraftDismiss' in data) {
+    const sid = state.detail?.id; if (!sid) return;
+    await clawAction(async () => { await api.dismissAutomationDraft(sid, data.clawDraftDismiss); clawDraftEdits.delete(data.clawDraftDismiss); await controller.refresh(); }); return;
+  }
   if ('frameworkBotOpen' in data) { frameworkBot.open = true; render(); requestAnimationFrame(() => document.getElementById('framework-bot-input')?.focus()); return; }
   if ('frameworkBotClose' in data) { frameworkBot.open = false; render(); return; }
   if ('frameworkRetry' in data) { await loadFrameworkPage(); return; }
