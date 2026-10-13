@@ -32,9 +32,7 @@ def _first_valid_local(local: datetime, zone: ZoneInfo) -> datetime:
 def _candidate(schedule: AutomationSchedule, day: date, zone: ZoneInfo) -> datetime:
     # A naive value is deliberate: this is a wall-clock candidate whose IANA
     # offset/fold validity is resolved by ``_first_valid_local``.
-    local = datetime(  # noqa: DTZ001
-        day.year, day.month, day.day, schedule.hour or 0, schedule.minute or 0
-    )
+    local = datetime(day.year, day.month, day.day, schedule.hour or 0, schedule.minute or 0)
     return _first_valid_local(local, zone)
 
 
@@ -51,7 +49,9 @@ def next_occurrence(schedule: AutomationSchedule, after: datetime) -> datetime |
     start = local_after.date()
     for offset in range(370):
         current = start + timedelta(days=offset)
-        if schedule.kind == "weekly" and current.weekday() != schedule.weekday:
+        if schedule.kind == "weekly" and current.weekday() not in (
+            schedule.weekdays if schedule.weekdays is not None else [schedule.weekday]
+        ):
             continue
         if schedule.kind == "monthly":
             last = calendar.monthrange(current.year, current.month)[1]

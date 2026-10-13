@@ -10,7 +10,8 @@
 DataHub 资料快照仍属于原会话，项目仅聚合摘要和来源链接，不隐式复制或混入新会话数据准入范围。
 
 `automation_drafts` 保存提出、取消与确认状态；原生工具只提出草稿，不写可执行 `automations`。
-确认调用原 Automation 创建逻辑，稳定创建键与内容绑定处理重复请求及确认检查点失败；创建结果默认停用。
+确认调用原 Automation 创建逻辑，稳定创建键与内容绑定处理重复请求及确认检查点失败。旧目标保持默认停用；research_task 明确确认创建并启用，失败保留已创建停用任务。
+任务保留 definition_version/definition_revisions，Run 保留 definition_snapshot/version 和 source_session_id。automation_tombstones 仅保存已删除稳定 ID 的拒绝重放索引；automation_trial_requests 保存用户请求序号到 Run 的受理指针，不保存第二份正文。历史研究与数据不迁移。执行会话删除或单条历史异常只显示受限结果，不阻断来源对话。
 
 ## 会话研究底稿与中文 PDF
 

@@ -1,5 +1,7 @@
 # Research Web DataHub
 
+Claw 日程研究在独立 DSH 会话锁定 approved_data_sources 与 approved_tools，仍由原 DataHub/原生准入校验。资料未就绪时保留缺口，定时定义不证明金融来源可调用；试跑文件也不能把合成数据作为真实市场数据。
+
 Claw 项目只聚合成员会话的 DataHub 快照摘要与来源链接；文件引用独立复制已显式选择的附件，不扩大新会话 DataHub 准入或自动复制源会话快照。日程草稿沿既有私有控制认证，不触发数据查询。
 
 DataHub 内部控制 reader 复用 `control_origin.py` 的纯 JSON/回环 URL parser，原错误与

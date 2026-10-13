@@ -1,5 +1,8 @@
 # Research Web 能力包与版本
 
+本轮 Claw 日程采用直接 `research_task`（schema_version=1），锁定研究描述、模型、输出要求、资料与工具白名单。用户确认创建并启用后才生效，创建不立即运行；旧 Skill/Workflow/报告任务保持兼容。修改以同一 ID、expected_version 和变更确认卡生成新定义版本，Run 保留不可变 definition_snapshot；手动试跑与 schedule 触发分别记录，不改下一次计划时间。能力与连接管理统一在能力中心，Claw 仅选择能力，Agent 日程使用独立表格。DSH 仍是唯一研究引擎，Automation 仍是唯一调度层。
+
+
 Docker 模型密钥后端只改变固定凭据 ref 的存储，不授予 Skill、MCP、Automation、工具或
 研究脚本权限。加密密钥可读取和设置保存成功均不能推导真实推理通过；生成测试仍显式调用
 原 DSH 无研究工具 preset，失败不自动重试或清理用户凭据。

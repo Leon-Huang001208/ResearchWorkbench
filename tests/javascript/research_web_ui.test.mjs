@@ -457,3 +457,26 @@ test('dataset downloads only use the current session, safe dataset id and three 
   assert.match(html, /read_back/);
   assert.match(html, /下载新版本/);
 });
+
+test('controller persists reference display provenance, rebuilds it and sends only real attachment IDs', async()=>{
+  const data=new Map();const storage={getItem:key=>data.get(key)??null,setItem:(key,value)=>data.set(key,value)};
+  const requests=[];const api={detail:async id=>session(id),message:async(id,body)=>{requests.push(body);return{accepted:true};}};
+  const reference={id:'copy-id',name:'reference-uuid.md',source_name:'原收盘点评.md',source_session_id:'source-session',source_file_id:'original-file',url:'/private/url',path:'/private/path',secret:'never',sha256:'a'.repeat(64)};
+  const first=core.createController({api,draftStorage:storage});await first.open({page:'claw',sessionId:'receiver'});first.setDraft('使用显式引用');first.addAttachments([reference]);
+  const serialized=data.get('research-web:explicit-draft:v1:receiver');
+  assert.doesNotMatch(serialized,/private|never|url|path|secret|sha256/);
+  const restored=core.createController({api,draftStorage:storage});await restored.open({page:'claw',sessionId:'receiver'});
+  assert.deepEqual(restored.state.attachments,[{id:'copy-id',name:'reference-uuid.md',source_name:'原收盘点评.md',source_session_id:'source-session',source_file_id:'original-file'}]);
+  const {renderComposer}=await import('../../app/research_web/ui/composer.mjs');
+  const html=renderComposer({page:'claw',draft:restored.state.draft,attachments:restored.state.attachments});
+  assert.match(html,/原收盘点评.md/);assert.match(html,/来源会话/);assert.doesNotMatch(html,/reference-uuid.md/);
+  await restored.send();assert.deepEqual(requests[0].attachment_ids,['copy-id']);assert.equal(requests[0].source_session_id,undefined);
+});
+test('restored reference display metadata is bounded and cannot carry URLs, paths or unknown fields',async()=>{
+  const key='research-web:explicit-draft:v1:receiver';const data=new Map([[key,JSON.stringify({draft:'保留正文',attachments:[{id:'copy',name:'copy.md',source_name:'x'.repeat(501),source_session_id:'../foreign',source_file_id:'f'.repeat(256),url:'javascript:bad',path:'/outside',allow:true}]})]]);
+  const events=[];const storage={getItem:key=>data.get(key)??null,setItem:(key,value)=>data.set(key,value)};
+  const controller=core.createController({api:{detail:async id=>session(id)},draftStorage:storage,logger:event=>events.push(event)});
+  await controller.open({page:'claw',sessionId:'receiver'});
+  assert.deepEqual(controller.state.attachments,[{id:'copy',name:'copy.md'}]);assert.equal(controller.state.draft,'保留正文');
+  assert.ok(events.includes('draft_attachment_source_invalid'));
+});

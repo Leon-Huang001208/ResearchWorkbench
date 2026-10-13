@@ -63,6 +63,17 @@ export function parseRoute(hash = '') {
 export function legacyRouteTarget(hash = '') {
   return /^#\/reports\/?$/.test(String(hash)) ? '#/skills?kind=workflow' : null;
 }
+export async function prepareClawExampleDraft(controller, prompt, { navigate, currentGeneration }) {
+  const pending = navigate();
+  const ticket = currentGeneration();
+  await pending;
+  const route = controller.state.route;
+  if (ticket !== currentGeneration() || route.page !== 'claw' || route.sessionId || route.clawView) return false;
+  const previous = controller.state.draft || '';
+  controller.setDraft(previous.trim() && previous !== prompt ? `${previous}\n\n${prompt}` : prompt);
+  return true;
+}
+
 export const sessionHash = (session) => `#/${session.mode === 'claw' ? 'claw' : 'fingpt'}?session=${segment(session.id)}`;
 export const isRunning = (status) => ['running', 'queued', 'pending', 'waiting', 'waiting_approval', 'awaiting_approval', 'waiting_input', 'busy', 'cancelling'].includes(status);
 
@@ -275,7 +286,7 @@ export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSo
     updateClawProject: (id, body) => request(`/claw/projects/${segment(id)}`, { method: 'PATCH', body }),
     moveClawSession: (id, projectId) => request(`${sessionPath(id)}/project`, { method: 'PUT', body: { project_id: projectId } }),
     referenceClawFile: (id, body) => request(`${sessionPath(id)}/file-references`, { method: 'POST', body }),
-    confirmAutomationDraft: (id, draftId, body) => request(`${sessionPath(id)}/automation-drafts/${segment(draftId)}/confirm`, { method: 'POST', body }),
+    confirmAutomationDraft: (id, draftId, body, enable = false) => request(`${sessionPath(id)}/automation-drafts/${segment(draftId)}/confirm${enable ? "?enable=true" : ""}`, { method: 'POST', body }),
     dismissAutomationDraft: (id, draftId) => request(`${sessionPath(id)}/automation-drafts/${segment(draftId)}/dismiss`, { method: 'POST', body: {} }),
     detail: (id) => request(sessionPath(id)),
     message: (id, body, key) => request(`${sessionPath(id)}/messages`, { method: 'POST', body, key }),
@@ -323,11 +334,25 @@ export function createController({ api, draftStorage, logger = safeLog, makeID =
   }
   const storageKey = id => `research-web:explicit-draft:v1:${id}`;
   const validDraft = value => typeof value?.draft === 'string' && Array.isArray(value.attachments) && value.attachments.length <= 100 && value.attachments.every(file => typeof file?.id === 'string' && /^[A-Za-z0-9_-]{1,255}$/.test(file.id) && typeof file.name === 'string' && file.name.length <= 500);
+  const draftAttachment = file => {
+    const result = { id: file.id, name: file.name };
+    const validators = {
+      source_name: value => typeof value === 'string' && value.length > 0 && value.length <= 500 && !/[\u0000-\u001f\u007f]/.test(value),
+      source_session_id: value => typeof value === 'string' && /^[A-Za-z0-9_-]{1,255}$/.test(value),
+      source_file_id: value => typeof value === 'string' && /^[A-Za-z0-9_-]{1,255}$/.test(value),
+    };
+    for (const [field, validate] of Object.entries(validators)) {
+      if (file[field] === undefined) continue;
+      if (validate(file[field])) result[field] = file[field];
+      else logger('draft_attachment_source_invalid', {});
+    }
+    return result;
+  };
   const persistDraft = (id, value) => {
     if (!draftStorage || id.startsWith('new:')) return;
     try {
       if (!validDraft(value)) throw new Error('draft_invalid');
-      const serialized = JSON.stringify({ draft: value.draft, attachments: value.attachments.map(({ id, name }) => ({ id, name })) });
+      const serialized = JSON.stringify({ draft: value.draft, attachments: value.attachments.map(draftAttachment) });
       if (serialized.length > 200000) throw new Error('draft_too_large');
       draftStorage.setItem(storageKey(id), serialized);
     } catch { logger('draft_storage_write_failed', {}); state.error = '草稿仍保留在页面中，但无法保存刷新恢复副本。'; }
@@ -342,7 +367,7 @@ export function createController({ api, draftStorage, logger = safeLog, makeID =
       if (raw.length > 200000) throw new Error('draft_too_large');
       const value = JSON.parse(raw);
       if (!validDraft(value)) throw new Error('draft_invalid');
-      return { draft: value.draft, attachments: value.attachments.map(({ id, name }) => ({ id, name })), tabbitTabs: [], skillId: '', methodIds: [] };
+      return { draft: value.draft, attachments: value.attachments.map(draftAttachment), tabbitTabs: [], skillId: '', methodIds: [] };
     } catch { logger('draft_storage_read_failed', {}); state.error = '草稿恢复副本无效；请重新选择附件。'; return undefined; }
   };
   const saveDraft = () => putDraft(draftKey(), draftState());

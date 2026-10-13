@@ -611,3 +611,75 @@ async def test_unknown_child_mode_can_only_supply_verified_activity(running):
         )
         assert value["entries"][0]["mode"] == "unknown"
         assert value["entries"][0]["activity"] == ("running" if running else "inactive")
+
+
+@pytest.mark.asyncio
+async def test_question_wire_failure_retains_pending_event_for_safe_retry():
+    calls = []
+
+    def reply(request):
+        calls.append(json.loads(request.content))
+        if len(calls) == 1:
+            raise httpx.ConnectError("temporary failure", request=request)
+        return httpx.Response(
+            200,
+            json={
+                "type": "server-response",
+                "rpcId": calls[-1]["rpcId"],
+                "result": {"ok": True, "value": None},
+            },
+        )
+
+    async with DSHClient("http://127.0.0.1:3081", transport=httpx.MockTransport(reply)) as client:
+        client._event_client_id = "event-client"
+        client._pending_events["question-retry"] = {
+            "event": "user-questions/request",
+            "sessionId": "owned",
+        }
+        answer = {"answer": {"answers": [{"id": "time", "custom": "15:30", "selected": []}]}}
+        with pytest.raises(RuntimeFailure):
+            await client.respond("question-retry", answer)
+        assert "question-retry" in client._pending_events
+        assert await client.respond("question-retry", answer) == {"accepted": True}
+        assert "question-retry" not in client._pending_events
+        with pytest.raises(RuntimeFailure, match="失效"):
+            await client.respond("question-retry", answer)
+        assert len(calls) == 2
+        assert calls[0]["payload"]["args"]["outcome"] == calls[1]["payload"]["args"]["outcome"]
+
+
+def test_native_question_history_requires_matching_successful_result():
+    items = [{"id": "time", "question": "何时执行？"}]
+    call = event(
+        1,
+        "tool/call",
+        {"callId": "q", "name": "ask_user_question", "arguments": json.dumps({"questions": items})},
+    )
+
+    def result(answers, error=False):
+        return event(
+            2,
+            "tool/result",
+            {
+                "message": {
+                    "role": "tool",
+                    "source": {"callId": "q"},
+                    "isError": error,
+                    "content": [{"type": "text", "text": json.dumps({"answers": answers})}],
+                }
+            },
+        )
+
+    answers = [{"id": "time", "selected": ["15:30"], "custom": ""}]
+    assert project([call, result(answers)])["question_history"] == [
+        {"id": "q", "seq": 2, "items": items, "answers": answers}
+    ]
+    assert project([call])["question_history"] == []
+    assert project([call, result(answers, True)])["question_history"] == []
+    assert (
+        project([call, result([{"id": "foreign", "selected": [], "custom": "伪造"}])])[
+            "question_history"
+        ]
+        == []
+    )
+    assert project([result(answers)])["question_history"] == []

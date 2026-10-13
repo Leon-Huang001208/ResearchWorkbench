@@ -8,10 +8,19 @@ export const empty = (title, description = '') => `<div class="empty"><span clas
 export function renderConversation(detail, questionDrafts = new Map()) {
   if (!detail) return '';
   const assistantLabel = detail.mode === 'fingpt' ? 'FinGPT 回复' : detail.mode === 'claw' ? 'Claw 回复' : '助手回复';
-  const messages = (detail.messages || []).map((message) => {
+  const messageEntries = (detail.messages || []).map((message, index) => {
     const label = message.role === 'user' ? '用户消息' : message.role === 'assistant' ? assistantLabel : `${message.role || '未知角色'}消息`;
-    return `<article class="message ${message.role === 'user' ? 'user' : 'assistant'}" aria-label="${e(label)}"><div class="markdown">${renderMarkdown(message.text)}</div></article>`;
-  }).join('');
+    return { seq: Number.isFinite(message.seq) ? message.seq : Infinity, index, html: `<article class="message ${message.role === 'user' ? 'user' : 'assistant'}" aria-label="${e(label)}"><div class="markdown">${renderMarkdown(message.text)}</div></article>` };
+  });
+  const questionEntries = (Array.isArray(detail.question_history) ? detail.question_history : []).filter(question => Number.isFinite(question?.seq) && Array.isArray(question.items) && Array.isArray(question.answers)).map((question, index) => ({
+    seq: question.seq, index: messageEntries.length + index, html: `<section class="decision-card question-history" aria-label="已确认的原生提问参数"><div class="eyebrow">已确认参数</div><p class="muted small">来源：DSH 原生提问</p><dl>${question.items.map((item, itemIndex) => {
+      const answer = item.id != null ? question.answers.find(value => value.id === item.id) : question.answers[itemIndex];
+      const selected = Array.isArray(answer?.selected) ? answer.selected.filter(value => typeof value === 'string') : [];
+      const custom = typeof answer?.custom === 'string' ? answer.custom : '';
+      return `<div><dt>${e(item.question || '')}</dt><dd>${selected.length ? `<p>${selected.map(value => e(value)).join('、')}</p>` : ''}${custom ? `<p>${e(custom)}</p>` : ''}${!selected.length && !custom ? '<p class="muted">未记录回答</p>' : ''}</dd></div>`;
+    }).join('')}</dl></section>`,
+  }));
+  const messages = [...messageEntries, ...questionEntries].sort((a,b) => a.seq - b.seq || a.index - b.index).map(entry => entry.html).join('');
   const approvals = (detail.approvals || []).map((approval) => `<section class="decision-card"><div class="eyebrow">需要你的授权</div><h3>${e(approval.title)}</h3><div class="markdown">${renderMarkdown(approval.detail)}</div><div class="button-row"><button class="button primary" data-approval="${e(approval.id)}" data-decision="approve">允许</button><button class="button danger-outline" data-approval="${e(approval.id)}" data-decision="deny">拒绝</button></div></section>`).join('');
   const questions = (detail.questions || []).map((question) => {
     const draft = questionDrafts.get(question.id) || [];
@@ -198,7 +207,7 @@ export function renderHistory(sessions, filter = '', mode = null, view = 'active
   if (view === 'deleted') {
     return `<div class="history-list deleted-history">${visible.map((session) => `<article class="history-row deleted-row"><span class="session-mark ${session.mode === 'claw' ? 'claw' : ''}">${session.mode === 'claw' ? 'C' : 'F'}</span><div><strong>${e(session.title || '未命名会话')}</strong><span class="muted small">${e(session.mode === 'claw' ? 'Claw · 多 Agent' : 'FinGPT · 即时研究')} · ${e(retentionText(session.purge_at))}</span></div><time>${formatTime(session.deleted_at)}</time><div class="history-actions"><button type="button" class="button small" data-restore-session="${e(session.id)}">恢复</button><button type="button" class="button small danger-outline" data-purge-session="${e(session.id)}">永久删除</button></div></article>`).join('')}</div>`;
   }
-  return `<div class="history-list">${visible.map((session) => `<a class="history-row" href="${sessionHash(session)}"><span class="session-mark ${session.mode === 'claw' ? 'claw' : ''}">${session.mode === 'claw' ? 'C' : 'F'}</span><div><strong>${e(session.title || '未命名会话')}</strong><span class="muted small">${e(session.mode === 'claw' ? 'Claw · 多 Agent' : 'FinGPT · 即时研究')}${session.model ? ` · ${e(session.model)}` : ''}</span></div>${badge(session.status)}<time>${formatTime(session.updated_at)}</time><span aria-hidden="true">↗</span></a>`).join('')}</div>`;
+  return `<div class="history-list">${visible.map((session) => `<a class="history-row" href="${sessionHash(session)}"><span class="session-mark ${session.mode === 'claw' ? 'claw' : ''}">${session.mode === 'claw' ? 'C' : 'F'}</span><div><strong>${e(session.title || '未命名会话')}</strong><span class="muted small">${e(session.mode === 'claw' ? 'Claw · 多 Agent' : 'FinGPT · 即时研究')}${session.model ? ` · ${e(session.model)}` : ''}</span>${session.history_warning ? `<span class="session-history-warning small" role="status">历史受限：${e(session.history_warning)}</span>` : ''}</div>${badge(session.status)}<time>${formatTime(session.updated_at)}</time><span aria-hidden="true">↗</span></a>`).join('')}</div>`;
 }
 
 function retentionText(value) {

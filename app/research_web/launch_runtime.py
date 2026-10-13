@@ -696,7 +696,9 @@ def _prepare_runtime(
                 "  config:",
                 "    apiKeyEnv: RESEARCH_DSH_API_KEY",
                 "    thinking: disabled",
-                "    maxTokens: 4096",
+                # File-producing research needs room for the native script call;
+                # truncation remains an incomplete turn, never a completed run.
+                "    maxTokens: 16384",
                 *(
                     ["    retryPolicy:", "      mode: normal", "      maxRetries: 0"]
                     if acceptance

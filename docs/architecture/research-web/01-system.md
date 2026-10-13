@@ -1,5 +1,8 @@
 # 部署与模块职责
 
+本轮 Claw 日程采用直接 `research_task`（schema_version=1），锁定研究描述、模型、输出要求、资料与工具白名单。用户确认创建并启用后才生效，创建不立即运行；旧 Skill/Workflow/报告任务保持兼容。修改以同一 ID、expected_version 和变更确认卡生成新定义版本，Run 保留不可变 definition_snapshot；手动试跑与 schedule 触发分别记录，不改下一次计划时间。能力与连接管理统一在能力中心，Claw 仅选择能力，Agent 日程使用独立表格。DSH 仍是唯一研究引擎，Automation 仍是唯一调度层。
+
+
 模型设置的空闲保护仍由 Host 读取 DSH 原生事实；内部活动查询区分运行状态与历史执行模式，不增加进程、公开参数或凭据写者。未知模式不获得执行权限。
 
 Claw 项目和日程草稿由现有 FastAPI Host 管理产品索引；原生提出工具沿现有私有控制通道，不增加进程、端口或调度器。用户确认保存后继续使用 Automation 与同一 DSH。

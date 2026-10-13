@@ -28,6 +28,7 @@ class AutomationSchedule(StrictModel):
     timezone: str = Field(min_length=1, max_length=80)
     once_at: str | None = Field(default=None, max_length=64)
     weekday: int | None = Field(default=None, ge=0, le=6)
+    weekdays: list[int] | None = Field(default=None, min_length=1, max_length=7)
     day: int | None = Field(default=None, ge=1, le=31)
     hour: int | None = Field(default=None, ge=0, le=23)
     minute: int | None = Field(default=None, ge=0, le=59)
@@ -43,24 +44,34 @@ class AutomationSchedule(StrictModel):
 
     @model_validator(mode="after")
     def validate_shape(self) -> AutomationSchedule:
+        if self.weekdays is not None:
+            if any(type(day) is not int or not 0 <= day <= 6 for day in self.weekdays):
+                raise ValueError("weekday_invalid")
+            if len(set(self.weekdays)) != len(self.weekdays):
+                raise ValueError("duplicate_weekday")
+            if self.weekday is not None and self.weekdays != [self.weekday]:
+                raise ValueError("weekday_conflict")
         if self.kind == "once":
             if not self.once_at:
                 raise ValueError("once_at_required")
             value = datetime.fromisoformat(self.once_at)
             if value.tzinfo is None:
                 raise ValueError("once_at_timezone_required")
-            if any(value is not None for value in (self.weekday, self.day, self.hour, self.minute)):
+            if any(
+                value is not None
+                for value in (self.weekday, self.weekdays, self.day, self.hour, self.minute)
+            ):
                 raise ValueError("once_at_exclusive")
         else:
             if self.hour is None or self.minute is None:
                 raise ValueError("schedule_time_required")
             if self.once_at is not None:
                 raise ValueError("once_at_not_allowed")
-            if self.kind == "weekly" and self.weekday is None:
+            if self.kind == "weekly" and self.weekday is None and self.weekdays is None:
                 raise ValueError("weekday_required")
             if self.kind == "monthly" and self.day is None:
                 raise ValueError("day_required")
-            if self.kind != "weekly" and self.weekday is not None:
+            if self.kind != "weekly" and (self.weekday is not None or self.weekdays is not None):
                 raise ValueError("weekday_not_allowed")
             if self.kind != "monthly" and self.day is not None:
                 raise ValueError("day_not_allowed")
@@ -94,13 +105,38 @@ class DeliveryConfiguration(StrictModel):
         return values
 
 
+class ResearchTaskDefinition(StrictModel):
+    """Explicit research intent and permission scope, independent of a Skill."""
+
+    schema_version: Literal[1] = 1
+    description: str = Field(min_length=1, max_length=100_000)
+    model_provider: str = Field(pattern=IDENTIFIER_PATTERN)
+    model_id: str = Field(pattern=IDENTIFIER_PATTERN)
+    output_requirements: str = Field(min_length=1, max_length=10_000)
+    approved_data_sources: list[Literal["datahub", "web", "uploads"]] = Field(
+        min_length=1, max_length=3
+    )
+    approved_tools: list[str] = Field(default_factory=list, max_length=64)
+
+    @model_validator(mode="after")
+    def scopes_are_unique(self) -> ResearchTaskDefinition:
+        if len(set(self.approved_data_sources)) != len(self.approved_data_sources):
+            raise ValueError("duplicate_data_source")
+        if len(set(self.approved_tools)) != len(self.approved_tools):
+            raise ValueError("duplicate_research_tool")
+        if any(not value or len(value) > 255 for value in self.approved_tools):
+            raise ValueError("research_tool_invalid")
+        return self
+
+
 class AutomationCreate(StrictModel):
     name: str = Field(min_length=1, max_length=160)
-    target_kind: Literal["skill", "workflow", "report_workflow"]
-    target_id: str = Field(pattern=IDENTIFIER_PATTERN)
-    target_version: int = Field(ge=1)
+    target_kind: Literal["skill", "workflow", "report_workflow", "research_task"]
+    target_id: str | None = Field(default=None, pattern=IDENTIFIER_PATTERN)
+    target_version: int | None = Field(default=None, ge=1)
+    research_task: ResearchTaskDefinition | None = None
     target_sha256: str | None = Field(default=None, pattern=DIGEST_PATTERN)
-    input_template: str = Field(min_length=1, max_length=100_000)
+    input_template: str | None = Field(default=None, min_length=1, max_length=100_000)
     workspace_id: Literal["research"] = "research"
     output_formats: list[Literal["md", "html", "docx", "xlsx", "pptx", "png", "pdf"]] = Field(
         default_factory=list, max_length=7
@@ -111,6 +147,23 @@ class AutomationCreate(StrictModel):
 
     @model_validator(mode="after")
     def values_are_unique(self) -> AutomationCreate:
+        if self.target_kind == "research_task":
+            if self.research_task is None:
+                raise ValueError("research_task_required")
+            if self.target_id not in (None, "research_task") or self.target_version not in (
+                None,
+                1,
+            ):
+                raise ValueError("research_task_target_invalid")
+            if self.input_template not in (None, self.research_task.description):
+                raise ValueError("research_task_description_conflict")
+            self.target_id = "research_task"
+            self.target_version = 1
+            self.input_template = self.research_task.description
+        elif self.target_id is None or self.target_version is None or self.input_template is None:
+            raise ValueError("target_required")
+        elif self.research_task is not None:
+            raise ValueError("research_task_not_allowed")
         if len(self.output_formats) != len(set(self.output_formats)):
             raise ValueError("duplicate_output_format")
         keys = [(item.installation_id, item.tool_name) for item in self.mcp_tools]
@@ -120,6 +173,8 @@ class AutomationCreate(StrictModel):
 
 
 class AutomationUpdate(StrictModel):
+    expected_version: int | None = Field(default=None, ge=1)
+    research_task: ResearchTaskDefinition | None = None
     name: str | None = Field(default=None, min_length=1, max_length=160)
     input_template: str | None = Field(default=None, min_length=1, max_length=100_000)
     output_formats: list[Literal["md", "html", "docx", "xlsx", "pptx", "png", "pdf"]] | None = (

@@ -109,7 +109,19 @@ async function defaultDraftClient(ctx, exec, config, args) {
   return executeAutomationDraft(ctx, exec, config, args);
 }
 
-export function apply(ctx, config, spawnProcess = spawn, admissionClient = defaultAdmission, draftClient = defaultDraftClient) {
+
+async function defaultActionClient(ctx, exec, config, args) {
+  const { executeAutomationAction } = await import('./public-data.mjs');
+  return executeAutomationAction(ctx, exec, config, args);
+}
+const taskSchema = { type: 'object', properties: {
+  schema_version: {type:'integer',enum:[1]}, description:{type:'string',minLength:1,maxLength:100000},
+  model_provider:{type:'string'},model_id:{type:'string'},output_requirements:{type:'string'},
+  approved_data_sources:{type:'array',minItems:1,maxItems:3,items:{type:'string',enum:['datahub','web','uploads']}},
+  approved_tools:{type:'array',maxItems:64,items:{type:'string'}},
+},required:['description','model_provider','model_id','output_requirements','approved_data_sources','approved_tools'],additionalProperties:false};
+
+export function apply(ctx, config, spawnProcess = spawn, admissionClient = defaultAdmission, draftClient = defaultDraftClient, actionClient = defaultActionClient) {
   for (const key of ['python', 'runnerPath', 'researchRoot']) {
     if (typeof config?.[key] !== 'string' || !isAbsolute(config[key])) throw new Error(`research-tools requires absolute ${key}`);
   }
@@ -124,22 +136,23 @@ export function apply(ctx, config, spawnProcess = spawn, admissionClient = defau
   }
   ctx.tools.register({
     name: 'rwb_prepare_automation',
-    description: 'Propose a version-locked research schedule for user review. This NEVER creates, enables, runs or delivers an Automation. Use the selected real capability ID/version; ask the user when target, time or timezone is unclear. The user must confirm the draft in Claw, then separately enable the saved task.',
+    description: 'Propose a research_task schedule without selecting a Skill, or an existing locked capability schedule. NEVER saves, enables or runs. Use ask_user_question for missing details; the confirmation card creates and enables research tasks only after a human click. List tasks first. Weekdays 0-4 means Monday-Friday, not a trading calendar.',
     parameters: { type: 'object', properties: {
       name: { type: 'string', minLength: 1, maxLength: 160 },
-      target_kind: { type: 'string', enum: ['skill', 'workflow', 'report_workflow'] },
+      target_kind: { type: 'string', enum: ['skill', 'workflow', 'report_workflow','research_task'] },
+      research_task: taskSchema,
       target_id: { type: 'string' }, target_version: { type: 'integer', minimum: 1 },
       input_template: { type: 'string', minLength: 1, maxLength: 100000 },
       output_formats: { type: 'array', maxItems: 7, items: { type: 'string', enum: ['md','html','docx','xlsx','pptx','png','pdf'] } },
       schedule: { type: 'object', properties: {
         kind: { type: 'string', enum: ['once','daily','weekly','monthly'] }, timezone: { type: 'string' },
-        once_at: { type: 'string' }, weekday: { type: 'integer', minimum: 0, maximum: 6 },
+        once_at: { type: 'string' }, weekdays: {type:'array',minItems:1,maxItems:7,items:{type:'integer',minimum:0,maximum:6}}, weekday: { type: 'integer', minimum: 0, maximum: 6 },
         day: { type: 'integer', minimum: 1, maximum: 31 }, hour: { type: 'integer', minimum: 0, maximum: 23 }, minute: { type: 'integer', minimum: 0, maximum: 59 },
       }, required: ['kind','timezone'], additionalProperties: false },
-    }, required: ['name','target_kind','target_id','target_version','input_template','schedule'], additionalProperties: false },
+    }, required: ['name','target_kind','schedule'], additionalProperties: false },
     output: { schema: { type: 'object', properties: { result_json: { type: 'string' } }, required: ['result_json'], additionalProperties: false }, render(_args, value) { return [{ type: 'text', text: value.result_json }]; } },
     async execute(args, exec) {
-      const allowed = new Set(['name','target_kind','target_id','target_version','input_template','output_formats','schedule']);
+      const allowed = new Set(['name','target_kind','target_id','target_version','input_template','output_formats','schedule','research_task']);
       if (!args || typeof args !== 'object' || Array.isArray(args) || Object.keys(args).some(key => !allowed.has(key)) || Buffer.byteLength(JSON.stringify(args)) > 110000) throw Error('draft_arguments_invalid');
       exec.signal.throwIfAborted();
       const scope = await admissionClient(ctx, { ...exec, name: 'rwb_prepare_automation' }, config);
@@ -154,6 +167,27 @@ export function apply(ctx, config, spawnProcess = spawn, admissionClient = defau
       }
     },
   });
+  for (const [name, operation, description, properties, required] of [
+    ['rwb_list_automations','list','Query real schedule definitions, IDs, versions and latest Run statuses/summaries/artifacts before creating, updating or checking a trial. Pass automation_id for one task. Does not mutate anything.',{automation_id:{type:'string'}},[]],
+    ['rwb_prepare_automation_update','prepare_update','Propose changes to the SAME task ID using expected_version. Ask for clarification for ambiguous increases; only include explicitly changed fields. NEVER applies changes.',{
+      automation_id:{type:'string'},body:{type:'object',properties:{
+        expected_version:{type:'integer',minimum:1},name:{type:'string'},input_template:{type:'string'},research_task:taskSchema,
+        output_formats:{type:'array',items:{type:'string',enum:['md','html','docx','xlsx','pptx','png','pdf']}},
+        schedule:{type:'object',properties:{kind:{type:'string',enum:['once','daily','weekly','monthly']},timezone:{type:'string'},once_at:{type:'string'},weekday:{type:'integer'},weekdays:{type:'array',items:{type:'integer',minimum:0,maximum:6}},day:{type:'integer'},hour:{type:'integer'},minute:{type:'integer'}},required:['kind','timezone'],additionalProperties:false},
+      },required:['expected_version'],additionalProperties:false}},['automation_id','body']],
+    ['rwb_run_automation','run','Start a manual trial ONLY when the latest human explicitly requested it, or answered the immediately pending trial question. An ambiguous increase never authorizes this. Uses separate DSH session; response is queued, not completed. Never changes the next schedule time.',{automation_id:{type:'string'}},['automation_id']],
+  ]) {
+    ctx.tools.register({name,description,parameters:{type:'object',properties,required,additionalProperties:false},
+      output:{schema:{type:'object',properties:{result_json:{type:'string'}},required:['result_json'],additionalProperties:false},render(_args,value){return[{type:'text',text:value.result_json}];}},
+      async execute(args,exec){
+        if(!args || typeof args!=='object' || Array.isArray(args) || Object.keys(args).some(key=>!Object.hasOwn(properties,key)) || required.some(key=>!(key in args)) || Buffer.byteLength(JSON.stringify(args))>110000) throw Error('automation_arguments_invalid');
+        exec.signal.throwIfAborted();
+        if(!(await admissionClient(ctx,{...exec,name},config)).admitted) throw Error('automation_scope_unverified');
+        try {const result=await actionClient(ctx,exec,config,{operation,...args});ctx.logger.info('automation_chat_action_returned');return {result_json:JSON.stringify(result)};}
+        catch(error){ctx.logger.warn('automation_chat_action_failed');throw error;}
+      },
+    });
+  }
   ctx.tools.register({
     name: 'research_document_operation',
     description: 'Read, generate or precisely modify owned DOCX/XLSX/PPTX files. Use file_id, never host paths. Writes create a new version; modifications require expected_sha256 from read. File Excel preserves formulas but does not recalculate. PPT generation requires an owned template. Native mode never silently falls back.',

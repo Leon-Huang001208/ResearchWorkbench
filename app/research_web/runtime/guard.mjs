@@ -10,6 +10,7 @@ export const RESEARCH_TOOLS = new Set([
   'research_document_operation',
   'rwb_record_method_use',
   'rwb_prepare_automation',
+  'rwb_list_automations', 'rwb_prepare_automation_update', 'rwb_run_automation', 'ask_user_question',
   'datahub_search_assets', 'datahub_get_trading_calendar', 'datahub_get_market_bars',
   'datahub_get_market_snapshot', 'datahub_get_index_data', 'datahub_get_financials',
   'datahub_get_market_activity', 'datahub_get_factor_macro', 'datahub_get_fund_data',

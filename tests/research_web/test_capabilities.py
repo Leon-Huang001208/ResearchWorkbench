@@ -188,7 +188,13 @@ def test_offline_seed_catalog_tools_and_workflows_without_session(api, monkeypat
         "datahub_get_market_activity",
         "web_search",
     }
-    assert len(tools) == 31
+    assert len(tools) == 36
+    assert {
+        "rwb_list_automations",
+        "rwb_prepare_automation_update",
+        "rwb_run_automation",
+        "ask_user_question",
+    } <= {tool["id"] for tool in tools}
     document_tool = next(tool for tool in tools if tool["id"] == "research_document_operation")
     assert document_tool["read_only"] is False
     workflow_tools = {t["id"] for t in tools if t.get("execution_surface") == "workflow_backend"}

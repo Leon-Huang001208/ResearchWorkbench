@@ -2,7 +2,7 @@
 
 固定 DSH 的 `session/list` 通过 `parentSessionId` 暴露父子归属；SDK Session Header 内部仍叫 `parentSession`。
 Workbench 子 Agent 投影只使用已核实的 API 字段，继续交叉验证父目录、`origin=subagent` 和严格布尔 running；缺失、外来父会话、非子任务来源或未知活动仍失败关闭，不以空目录释放活动保护。
-模型设置的空闲检查采用内部 `activityOnly=true`：历史 `mode=unknown` 只可在父归属、subagent 来源和布尔运行状态全部验证后提供活动事实。默认详情与执行仍拒绝未知模式；不推断历史执行地址，不删改记录，也不把未知活动当作已结束。
+模型设置的空闲检查采用内部 `activityOnly=true`：历史 `mode=unknown` 只可在父归属、subagent 来源和布尔运行状态全部验证后提供活动事实。父会话列表与详情也可读取核实后的活动；unknown 子会话只显示受限提示，不读取历史或推断执行模式；不推断历史执行地址，不删改记录，也不把未知活动当作已结束。
 
 ## Docker 模型凭据绑定
 
@@ -15,9 +15,14 @@ Docker `describe/resolve` 的来源为 `docker-encrypted-file`，Host 仅投影 
 ## Claw 日程提出与确认
 
 `rwb_prepare_automation` 沿现有 research-tools 与最终 guard 注册，先核对原生会话范围，再通过实例私有控制通道提出日程草稿。
-模型须使用用户所选真实能力快照的 ID、类型与版本；目标、时间或时区缺失时提问，不猜测创建任务。
+普通日程直接承载 research_task；缺少研究内容、模型、时间、时区、输出或权限时通过既有 ask_user_question 提问。原生 rwb_list_automations 查询真实任务与最新运行结果；rwb_prepare_automation_update 提出同 ID/expected_version 的修改。
 工具只返回草稿，不创建、启用、执行或投递 Automation，也不授予 MCP 权限。
+Host 的确认卡明确创建并启用研究任务，启用失败保留停用任务，重试不重复创建。rwb_run_automation 只接受最新人的明确肯定试跑指令，绑定任务与单次请求，不把增加/否定/解释视为运行授权。独立执行会话锁定模型和工具，所有工具仍经过原 guard 与资料准入。
+每周 weekdays 支持多个星期日，旧 weekday 兼容，周一至周五不等于交易日历。
 Host 确认保存仍使用现有 AutomationService、版本哈希锁与日程校验；正文、研究循环和原生子 Agent 沿 DSH，不增加第二引擎。
+
+原生提问的试跑授权只接受完整匹配的肯定选择，并绑定问题、最新用户消息、任务 ID 和定义版本。试跑问题使用规范格式 `是否试跑「任务名称」（任务 完整任务ID，定义 v版本）？`，整串精确核对名称、ID、版本；名称子串、混合目标或模糊问题继续澄清。RPC 未确认、否定、解释或其他任务选项不能授予运行权限。
+owned launcher 将 DeepSeek 单次输出预算固定为 16384 tokens，避免复杂文件生成在原 4096 上限截断；这不是总执行预算或完成保证。原生 max-tokens 仍投影为 incomplete，Automation 保留失败运行，不自动重试或伪造文件交付。
 
 ## FinGPT 深度与计划
 

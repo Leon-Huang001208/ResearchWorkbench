@@ -1,7 +1,10 @@
 # Research Web Native / Docker 安装与运行
 
 Claw 项目与日程入口使用既有 Web/DSH 依赖，无新增产品包或安装步骤。旧数据根可直接读取，缺少 project_id 的 Claw 会话归入默认“我的研究”，不移动文件。
-Automation 被显式关闭时，聊天日程草稿也不可用；提出草稿不等于保存或启用。日程需实际能力版本，数据/模型/工具的可调用性继续由现有设置与 Doctor 分层诊断。
+Claw 接入固定 DSH 已存在的 ask_user_question 插件，无新增 Python/Node 依赖，公开安装入口、web.in/web.lock/setup_web.py/Bootstrap workflow 保持原锁。
+Automation 被显式关闭时，聊天日程草稿也不可用；提出草稿不等于保存或启用。直接 research_task 无需 Skill；旧目标仍需实际能力版本，数据/模型/工具的可调用性继续由现有设置与 Doctor 分层诊断。
+
+固定 Native/Docker 启动 overlay 的 DeepSeek 单次输出上限为 16384 tokens；不修改模型凭据、DSH pin 或锁定依赖。截断仍是 incomplete，文件验收必须核对原生完成事件及实际非空产物。
 
 ## 中文 PDF 依赖与验收
 

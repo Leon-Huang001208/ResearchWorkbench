@@ -120,7 +120,7 @@ def no_delta_digest():
 def test_builtin_metadata_text_boundaries_and_reviewed_resources(api):
     client, _, _ = api
     rows = client.get("/api/research/capabilities").json()["items"]
-    assert len([row for row in rows if row["kind"] == "skill"]) == 18
+    assert len([row for row in rows if row["kind"] == "skill"]) == 30
     assert len([row for row in rows if row["kind"] == "workflow"]) == 4
     assert not any("router" in row["id"] for row in rows)
     row = next(row for row in rows if row["id"] == SLUG)
@@ -141,6 +141,7 @@ def test_builtin_metadata_text_boundaries_and_reviewed_resources(api):
         "default_formats": [],
         "required_tools": ["research_run_script", "web_search"],
         "dependencies": [],
+        "data_requirements": [],
         "method_policy": {"required": [], "recommended": [], "excluded": []},
     }
     detail = client.get(f"/api/research/capabilities/{SLUG}").json()
@@ -486,7 +487,10 @@ Path('outputs/graph.svg').write_text(svg, encoding='utf-8')
 print(json.dumps(result, ensure_ascii=False, sort_keys=True))
 """
     result = run_script(
-        SandboxConfig(research_root=root, python=Path(sys.executable)), session, code
+        SandboxConfig(research_root=root, python=Path(sys.executable)),
+        session,
+        code,
+        read_paths=(f"resources/capabilities/{SLUG}/1",),
     )
     assert result.status == "completed", result
     assert json.loads(result.stdout)["valid"] is True

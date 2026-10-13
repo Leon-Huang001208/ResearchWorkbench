@@ -90,7 +90,7 @@ test('app wires shell-only interactions without changing controller routes or AP
   assert.match(app, /#\/fingpt/);
   assert.match(app, /#\/claw/);
   assert.match(app, /has-secondary/);
-  assert.doesNotMatch(app, /<div class="navigation-column">/);
+  assert.match(app, /<div class="navigation-column">/);
   assert.doesNotMatch(app, /fetch\(['"`]https?:\/\//);
 });
 

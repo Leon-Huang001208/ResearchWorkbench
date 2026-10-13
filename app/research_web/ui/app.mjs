@@ -1,15 +1,15 @@
-import { createAPI, createController, parseRoute, legacyRouteTarget, isRunning, safeLog, collectQuestionAnswers, reconcileSessionSummary, waitForDataProbe, waitForIntegrationBatch, waitForLocalIntegrationProbe, waitForLocalIntegrationVerification } from './core.mjs';
+import { createAPI, createController, prepareClawExampleDraft, parseRoute, legacyRouteTarget, isRunning, safeLog, collectQuestionAnswers, reconcileSessionSummary, waitForDataProbe, waitForIntegrationBatch, waitForLocalIntegrationProbe, waitForLocalIntegrationVerification } from './core.mjs';
 import { escapeHTML as e } from './markdown.mjs';
 import { badge, empty, renderConversation, renderDeleteConfirm, renderHistory, renderPurgeConfirm, renderRename, renderDocumentEditor, documentTargets, documentEditValue, documentCreationPayload } from './views.mjs';
 import { icon } from './icons.mjs';
 import { researchRecipes, renderResearchRecipes } from './research-report.mjs';
 import { renderComposer, renderQuickSkills, removeTabbitMentionQuery, slashKey, skillMatches, tabbitKey, tabbitMentionQuery } from './composer.mjs';
-import { renderResearchAttention, renderClawWorkspaceCanvas, renderContextPanel, renderPrimaryRail, renderSidebar, renderTopbar } from './shell.mjs';
+import { focusSidebarControl, renderResearchAttention, renderClawWorkspaceCanvas, renderContextPanel, renderPrimaryRail, renderSidebar, renderTopbar } from './shell.mjs';
 
 import { createCapabilityController, refreshProbedSourceDetail } from './capability-controller.mjs';
 import { capabilityTabKey, reportWorkflowEligibility, renderCapabilityDetail, renderToolDetail, renderCreationArtifacts, creationArtifacts } from './capabilities.mjs';
 import { capabilityWorkspaceKindKey, renderCapabilityPreviewDialog, renderCapabilityWorkspace } from './capability-workspace.mjs';
-import { renderClawNavigation, renderClawProject, renderAutomationDrafts, automationDraftBody, renderClawConnections, clawNavigationCurrent } from './claw-workspace.mjs';
+import { renderClawNavigation, renderClawProject, renderAutomationDrafts, automationDraftBody, renderClawConnections, clawNavigationCurrent, renderClawSchedules, renderClawRunCards, renderClawCases, clawCases, captureAutomationDraftEdits } from './claw-workspace.mjs';
 import { mcpEnvironmentPayload, mcpInstallSelection, mcpMarketplaceTabKey, renderMCPServerDialog } from './mcp-marketplace.mjs';
 import { renderDataCapabilityDetail, renderDataSourceDetail } from './data-catalog.mjs';
 import { renderCapabilityEditor, renderCreationForm, renderCopyForm, readEditor, moveStepWithFeedback, newWorkflowStep } from './capability-editor.mjs';
@@ -215,7 +215,7 @@ function composer() {
 
 function landing() {
   const claw = state.route.page === 'claw';
-  return `<div class="landing ${claw ? 'claw-landing' : 'fingpt-landing'}"><div class="greeting">${claw ? `<span class="mode-label">${icon('layers')}Claw</span>` : ''}<h1>${claw ? '把研究目标，变成可用成果。' : '从一个问题，开始研究。'}</h1><p class="landing-subtitle">${claw ? '说明目标、资料与交付要求，在一个空间推进研究。' : '读懂资料，比较公司，探索行业。'}</p></div>${!claw ? renderResearchRecipes({ busy: state.busy }) : ""}${composer()}${claw ? renderReportWorkflowShelf(catalog.reportWorkflows, { busy: reportWorkflowBusy, compact: true }) : ''}${renderQuickSkills(catalog.capabilities, { page: state.route.page, category: quickCategory })}</div>`;
+  return `<div class="landing ${claw ? 'claw-landing' : 'fingpt-landing'}"><div class="greeting">${claw ? `<span class="mode-label">${icon('layers')}Claw</span>` : ''}<h1>${claw ? '把研究目标，变成可用成果。' : '从一个问题，开始研究。'}</h1><p class="landing-subtitle">${claw ? '说明目标、资料与交付要求，在一个空间推进研究。' : '读懂资料，比较公司，探索行业。'}</p></div>${!claw ? renderResearchRecipes({ busy: state.busy }) : ""}${composer()}${claw ? renderClawCases(quickCategory) + `<details class="claw-existing-templates"><summary>使用现有研究步骤模板</summary>${renderQuickSkills(catalog.capabilities, { page: state.route.page, category: quickCategory })}</details>` : renderQuickSkills(catalog.capabilities, { page: state.route.page, category: quickCategory })}</div>`;
 }
 
 function researchPage() {
@@ -228,7 +228,7 @@ function researchPage() {
   const sourceLabels = { required: '能力必需', 'user-selected': '用户选择', recommended: '能力推荐', 'model-supplemented': '模型补选' };
   const methodSummary = (detail.methods || []).length ? `<p class="small muted" data-method-adoption>采用方法：${detail.methods.map(item => `${e(item.title || item.method_id)} · ${e(sourceLabels[item.source] || item.source)}`).join('；')}</p>` : '';
   const methodWarning = detail.method_trace_incomplete ? notice('部分推荐或模型补选方法缺少调用证据；本次结果已降级标记 method_trace_incomplete。', 'warning') : '';
-  return `<header class="page-header"><div class="session-title"><div class="eyebrow">${detail.mode === 'claw' ? 'CLAW · AGENT RESEARCH' : 'FINGPT · RESEARCH SESSION'}</div><h1>${e(detail.title || '未命名会话')}</h1><div class="session-meta">${badge(detail.status)}${detail.model ? `<span>${e(detail.model)}</span>` : ''}</div></div><div class="button-row">${detail.mode !== 'claw' ? `<button class="button small" data-upgrade ${state.busy || isRunning(detail.status) ? 'disabled' : ''}>升级为 Claw ↗</button>` : ''}<button class="button small context-toggle" data-toggle-context aria-expanded="${window.matchMedia('(max-width: 1050px)').matches ? contextOpen : !contextCollapsed}">活动与文件</button></div></header>${notice(state.streamError, 'warning')}${renderCreationArtifacts(detail, state.busy || isRunning(detail.status))}${detail.capability ? `<p class="small muted">所选能力版本：${e(detail.capability.id)} · v${e(detail.capability.version)}（选择记录，不代表每个工具已执行）</p>` : ''}${methodSummary}${methodWarning}${renderResearchAttention(detail)}${canvas}<div class="composer-dock">${composer()}</div>`;
+  return `<header class="page-header"><div class="session-title"><div class="eyebrow">${detail.mode === 'claw' ? 'CLAW · AGENT RESEARCH' : 'FINGPT · RESEARCH SESSION'}</div><h1>${e(detail.title || '未命名会话')}</h1><div class="session-meta">${badge(detail.status)}${detail.model ? `<span>${e(detail.model)}</span>` : ''}</div></div><div class="button-row">${detail.mode !== 'claw' ? `<button class="button small" data-upgrade ${state.busy || isRunning(detail.status) ? 'disabled' : ''}>升级为 Claw ↗</button>` : ''}<button class="button small context-toggle" data-toggle-context aria-expanded="${window.matchMedia('(max-width: 1050px)').matches ? contextOpen : !contextCollapsed}">活动与文件</button></div></header>${notice(state.streamError, 'warning')}${renderCreationArtifacts(detail, state.busy || isRunning(detail.status))}${detail.capability ? `<p class="small muted">所选能力版本：${e(detail.capability.id)} · v${e(detail.capability.version)}（选择记录，不代表每个工具已执行）</p>` : ''}${methodSummary}${methodWarning}${renderResearchAttention(detail)}${canvas}${detail.mode === 'claw' ? renderAutomationDrafts(detail.automation_drafts || [], clawDraftEdits, clawWorkspace.busy) + (detail.automation_runs?.length ? renderClawRunCards(detail.automation_runs) : '') : ''}<div class="composer-dock">${composer()}</div>`;
 }
 
 function settingsPage() {
@@ -263,8 +263,7 @@ function currentSettingsConnectionId() {
 
 function mainPage() {
   if (state.route.page === 'claw') {
-    const projectId = state.route.clawView === 'projects' ? state.route.projectId : state.detail?.project_id || state.route.projectId || 'default';
-    return renderClawNavigation(state.route.clawView || 'sessions', state.route.sessionId, projectId) + clawMainPage();
+    return clawMainPage();
   }
   if (state.route.page === 'fingpt') return researchPage();
   if (state.route.page === 'settings') return settingsPage();
@@ -289,8 +288,8 @@ function clawMainPage() {
   const view = state.route.clawView || 'sessions';
   if (view === 'projects') return renderClawProject(clawWorkspace);
   if (view === 'skills') return renderClawConnections(catalog.capabilities, catalog.tools);
-  if (view === 'plans') return `<header class="page-header"><div><h1>Agent 日程</h1><p class="muted">在会话中说明研究目标和执行时间，可提出待确认日程；保存后需另行启用。</p></div></header>${renderAutomationDrafts(state.detail?.automation_drafts || [], clawDraftEdits, clawWorkspace.busy)}${renderCapabilityWorkspace({ capabilities: catalog.capabilities, tools: catalog.tools, reportWorkflows: catalog.reportWorkflows, automations: catalog.automations, automationRuns: catalog.automationRuns, deliveryChannels: catalog.deliveryChannels, automationFormOpen, view: 'plans', kind: 'workflow', busy: automationBusy, error: catalog.errors.automations || '' })}`;
-  return researchPage() + renderAutomationDrafts(state.detail?.automation_drafts || [], clawDraftEdits, clawWorkspace.busy);
+  if (view === 'plans') return renderClawSchedules(catalog.automations, catalog.automationRuns, automationBusy || catalog.pending.has('automations') || catalog.pending.has('automationRuns'), catalog.errors.automations || '');
+  return researchPage();
 }
 
 async function loadClawProjects() {
@@ -351,7 +350,7 @@ function capabilityPage() {
 }
 
 function sidebar() {
-  return renderSidebar({ page: state.route.page, sessionId: state.route.sessionId, sessions: catalog.sessions, workspaces: catalog.workspaces, selectedWorkspace, collapsed: sidebarCollapsed, mobileOpen: sidebarOpen, detail: state.detail, clawSidebarView, openMenuId: sessionMenu?.id });
+  return renderSidebar({ page: state.route.page, sessionId: state.route.sessionId, sessions: catalog.sessions, workspaces: catalog.workspaces, selectedWorkspace, collapsed: sidebarCollapsed, mobileOpen: sidebarOpen, detail: state.detail, clawSidebarView: state.route.clawView === 'projects' ? 'workspace' : clawSidebarView, projects: clawWorkspace.projects, openMenuId: sessionMenu?.id });
 }
 
 function sessionActionsLayer() {
@@ -397,7 +396,7 @@ function render() {
   const visibleErrors = Object.entries(catalog.errors).filter(([name]) => (
     name !== 'artifacts' || (state.route.page === 'workbench' && state.route.section !== 'assets')
   ));
-  root.innerHTML = `<div class="app-shell ${hasContext ? '' : 'wide-page'} ${hasSecondary ? 'has-secondary' : ''} ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${sidebarOpen ? 'navigation-open' : ''} ${hasContext ? 'context-open' : ''}">${renderTopbar({ page: state.route.page, section: state.route.section, frameworkSlug: state.route.frameworkSlug, settingsSection: state.route.page === 'settings' ? currentSettingsSection() : '', detail: state.detail, runtimeLabel: runtimeLabel(), runtime: catalog.runtime, models: catalog.models, busy: state.busy, search: globalSearch, sessions: catalog.sessions, skills: searchableCapabilities, searchOpen })}${primaryRail()}${sidebar()}<main id="main" tabindex="-1"><div class="page-content">${notice(state.error)}${visibleErrors.map(([name, error]) => notice(`${({ runtime: '运行时', models: '模型目录', workspaces: '工作空间', sessions: '会话历史', deletedSessions: '已删除会话', capabilities: '能力目录', tools: '工具目录', reportWorkflows: '报告 Workflow', automations: '运行计划', automationRuns: 'Automation 运行', deliveryChannels: '交付渠道', dataCatalog: '数据目录', connections: '连接中心', localIntegrations: '本机集成诊断', connectionConfiguration: '来源配置', migration: '旧配置迁移' })[name] || name}：${error}`)).join('')}${notice(success, 'success')}${mainPage()}</div></main>${hasContext || contextOpen ? contextPanel() : ''}</div>${sidebarOpen || contextOpen ? '<button class="mobile-backdrop" data-close-drawers aria-label="关闭面板"></button>' : ''}${sessionActionsLayer()}${documentEditor?.sessionId === state.detail?.id ? renderDocumentEditor(documentEditor) : ""}`;
+  root.innerHTML = `<div class="app-shell ${state.route.page === 'claw' ? 'claw-shell' : ''} ${hasContext ? '' : 'wide-page'} ${hasSecondary ? 'has-secondary' : ''} ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${sidebarOpen ? 'navigation-open' : ''} ${hasContext ? 'context-open' : ''}">${renderTopbar({ page: state.route.page, section: state.route.section, frameworkSlug: state.route.frameworkSlug, settingsSection: state.route.page === 'settings' ? currentSettingsSection() : '', detail: state.detail, runtimeLabel: runtimeLabel(), runtime: catalog.runtime, models: catalog.models, busy: state.busy, search: globalSearch, sessions: catalog.sessions, skills: searchableCapabilities, searchOpen })}<div class="navigation-column">${primaryRail()}${sidebar()}</div><main id="main" tabindex="-1"><div class="page-content">${notice(state.error)}${visibleErrors.map(([name, error]) => notice(`${({ runtime: '运行时', models: '模型目录', workspaces: '工作空间', sessions: '会话历史', deletedSessions: '已删除会话', capabilities: '能力目录', tools: '工具目录', reportWorkflows: '报告 Workflow', automations: '运行计划', automationRuns: 'Automation 运行', deliveryChannels: '交付渠道', dataCatalog: '数据目录', connections: '连接中心', localIntegrations: '本机集成诊断', connectionConfiguration: '来源配置', migration: '旧配置迁移' })[name] || name}：${error}`)).join('')}${notice(success, 'success')}${mainPage()}</div></main>${hasContext || contextOpen ? contextPanel() : ''}</div>${sidebarOpen || contextOpen ? '<button class="mobile-backdrop" data-close-drawers aria-label="关闭面板"></button>' : ''}${sessionActionsLayer()}${documentEditor?.sessionId === state.detail?.id ? renderDocumentEditor(documentEditor) : ""}`;
   window.ResearchWebTheme?.syncControls();
   const freshDocumentForm = root.querySelector('#document-edit-form');
   if (documentForm && freshDocumentForm && documentForm.dataset.documentBusy !== "true" && !documentEditor?.busy && documentForm.dataset.documentRevision === freshDocumentForm.dataset.documentRevision) freshDocumentForm.replaceWith(documentForm);
@@ -1056,6 +1055,9 @@ async function loadAssetWorkspace() {
 }
 
 async function showRoute() {
+  if (/^#\/skills\?.*\bview=plans(?:&|$)/.test(location.hash)) {
+    history.replaceState(null, '', '#/claw?view=plans');
+  }
   intelController.cancel();
   localIntegrationPollingGuard.invalidate(); officeAutoPollingGuard.invalidate(); officeConsentConfirmation = '';
   localVerificationTarget = '';
@@ -1120,9 +1122,13 @@ async function showRoute() {
     if (nextKind === 'tool' && capabilityState.view === 'market') await loadMCPMarketplace({ reloadRegistries: !mcpMarketplaceState.registries.length });
     else if (previousView === 'market') mcpMarketplaceState = { ...mcpMarketplaceState, detail: null, returnIdentity: null, error: '', loading: false, syncing: false };
   }
+  if (state.route.page === 'claw') {
+    try { const projects = await api.clawProjects(); if (ticket === pageGeneration) clawWorkspace.projects = projects.items || []; }
+    catch (error) { if (ticket === pageGeneration) clawWorkspace.error = error.message; safeLog('claw_project_index_failed', { status: error.code || 'request_failed' }); }
+  }
   if (state.route.page === 'claw' && !state.route.sessionId) await loadCatalog(['reportWorkflows']);
   if (state.route.page === 'claw' && state.route.clawView === 'projects') await loadClawProjects();
-  if (state.route.page === 'claw' && state.route.clawView === 'plans') await loadCatalog(['automations', 'automationRuns', 'deliveryChannels', 'capabilities', 'reportWorkflows']);
+  if (state.route.page === 'claw' && state.route.clawView === 'plans') await loadCatalog(['automations', 'automationRuns']);
   if (state.route.page === 'claw' && state.route.clawView === 'skills') await loadCatalog(['capabilities', 'tools']);
   if (state.route.page === 'workbench') await loadWorkbench();
   if (state.route.page === 'operations') await loadOperations();
@@ -1196,7 +1202,7 @@ function selectTabbit(tabId) {
 
 root.addEventListener('input', (event) => {
   const draftForm = event.target.closest?.('[data-claw-draft-form]');
-  if (draftForm) { clawDraftEdits.set(draftForm.dataset.clawDraftForm, Object.fromEntries(new FormData(draftForm))); return; }
+  if (draftForm) { clawDraftEdits.set(draftForm.dataset.clawDraftForm, captureAutomationDraftEdits(new FormData(draftForm), clawDraftEdits.get(draftForm.dataset.clawDraftForm))); return; }
   if (event.target.closest?.('[data-claw-project-create]')) { clawWorkspace.newName = event.target.value; return; }
   const renameForm = event.target.closest?.('[data-claw-project-update]');
   if (renameForm) { clawWorkspace.renameEdits.set(renameForm.dataset.clawProjectUpdate, event.target.value); return; }
@@ -1346,10 +1352,12 @@ root.addEventListener('keydown', (event) => {
     if (closeConnectionDrawer(workbench)) { event.preventDefault(); return; }
     event.preventDefault();
     const focusSession = sessionMenu?.id || renameSession?.id || deleteSession?.id || purgeSession?.id;
+    const wasSidebarOpen = sidebarOpen;
     sidebarOpen = false; contextOpen = false; slashOpen = false; tabbitOpen = false; tabbitCandidates = []; tabbitRequest += 1; globalSearch = ''; searchOpen = false;
     renameDraft = null; renameSession = null; deleteSession = null; purgeSession = null; sessionMenu = null; sessionActionError = '';
     render();
     if (focusSession) document.querySelector(`[data-session-menu="${focusSession}"]`)?.focus({ preventScroll: true });
+    else if (wasSidebarOpen) focusSidebarControl(document, window.matchMedia('(max-width: 1050px)').matches);
   }
 });
 
@@ -1366,7 +1374,7 @@ root.addEventListener('change', async (event) => {
   }
   if (target.matches?.('[data-claw-reference-target]')) { clawWorkspace.targetSession = target.value; return; }
   const changedDraft = target.closest?.('[data-claw-draft-form]');
-  if (changedDraft) { clawDraftEdits.set(changedDraft.dataset.clawDraftForm, Object.fromEntries(new FormData(changedDraft))); return; }
+  if (changedDraft) { clawDraftEdits.set(changedDraft.dataset.clawDraftForm, captureAutomationDraftEdits(new FormData(changedDraft), clawDraftEdits.get(changedDraft.dataset.clawDraftForm))); if (target.name === 'kind') render(); return; }
   if (target.matches?.('[data-document-target]') && documentEditor) {
     const selected = documentTargets(documentEditor.result)[Number(target.value)];
     const input = target.closest('form')?.querySelector('textarea[name=value]');
@@ -1493,11 +1501,17 @@ root.addEventListener('submit', async (event) => {
     const draft = state.detail?.automation_drafts?.find(d => d.id === draftId);
     if (!sid || !draft || clawWorkspace.busy) return;
     let body;
-    try { body = automationDraftBody(draft.body, new FormData(event.target)); }
+    try { body = draft.operation === 'update' || draft.status === 'confirmed' ? structuredClone(draft.body) : automationDraftBody(draft.body, new FormData(event.target)); }
     catch (error) { state.error = error.message; render(); return; }
+    const ticket = pageGeneration;
     await clawAction(async () => {
-      await api.confirmAutomationDraft(sid, draftId, body); clawDraftEdits.delete(draftId);
-      success = '日程已保存但尚未启用。'; await controller.refresh(); await loadCatalog(['automations', 'automationRuns']);
+      let result;
+      try { result = await api.confirmAutomationDraft(sid, draftId, body, draft.operation !== 'update' && (draft.body.target_kind === 'research_task' || Boolean(draft.body.research_task))); }
+      catch (error) { if (ticket === pageGeneration && state.detail?.id === sid) await controller.refresh(); throw error; }
+      if (ticket !== pageGeneration || state.detail?.id !== sid) return;
+      clawDraftEdits.delete(draftId);
+      success = result.enabled === false ? '任务已保存但尚未启用，请重试启用。' : '日程定义已确认。';
+      await controller.refresh(); await loadCatalog(['automations', 'automationRuns']);
     }); return;
   }
   if (event.target.id === 'document-create-form') {
@@ -1782,6 +1796,7 @@ root.addEventListener('submit', async (event) => {
   if (event.target.id === 'composer') {
     if (state.draft.trimStart().startsWith('/')) { slashOpen = true; slashIndex = 0; render(); return; }
     if (!state.draft.trim() || state.busy || slashOpen) return;
+    if (state.detail?.execution_restricted) { state.error = '此历史会话执行受限；保留可读记录，请新建研究。'; render(); return; }
     if (state.detail && (isRunning(state.detail.status) || state.detail.can_cancel || ['pending', 'admission_unknown'].includes(state.detail.delivery?.status))) { state.error = '上一任务与交付尚未确认结束；草稿已保留，未发送。'; render(); return; }
     if (catalog.pending.has('runtime') || !catalog.runtime?.connected || catalog.runtime.credential_configured === false) { state.error = '运行时未就绪，请检查连接与授权；草稿已保留。'; render(); return; }
     if (await ensureSession()) { await controller.send(); await loadCatalog(['sessions']); }
@@ -2281,24 +2296,50 @@ root.addEventListener('click', async (event) => {
     } catch (error) { state.error = error.message; }
     finally { workbenchBusy = false; render(); }
   }
+  if ('clawScheduleRefresh' in data) {
+    if (state.route.page !== 'claw' || state.route.clawView !== 'plans' || catalog.pending.has('automations') || catalog.pending.has('automationRuns')) return;
+    const ticket = pageGeneration;
+    await loadCatalog(['automations', 'automationRuns']);
+    if (ticket === pageGeneration && state.route.page === 'claw' && state.route.clawView === 'plans') document.querySelector('[data-claw-schedule-refresh]')?.focus({ preventScroll: true });
+    return;
+  }
   if ('reloadSession' in data) await showRoute();
   if ('toggleSidebar' in data) {
     const narrow = window.matchMedia('(max-width: 1050px)').matches;
     if (narrow) sidebarOpen = !sidebarOpen;
     else sidebarCollapsed = !sidebarCollapsed;
-    contextOpen = false; render();
+    contextOpen = false; render(); focusSidebarControl(document, narrow, sidebarOpen);
   }
   if ('toggleContext' in data) { if (window.matchMedia('(max-width: 1050px)').matches) contextOpen = !contextOpen; else contextCollapsed = !contextCollapsed; sidebarOpen = false; render(); }
   if ('collapseSidebar' in data) {
     if (window.matchMedia('(max-width: 1050px)').matches) sidebarOpen = false;
     else sidebarCollapsed = true;
-    render();
+    render(); focusSidebarControl(document, window.matchMedia('(max-width: 1050px)').matches);
   }
-  if ('clawSidebarView' in data) { clawSidebarView = data.clawSidebarView; render(); }
+  if ('clawSidebarView' in data) {
+    if (data.clawSidebarView === 'workspace') { history.pushState(null, '', `#/claw?view=projects&project=${encodeURIComponent(state.detail?.project_id || 'default')}`); await showRoute(); }
+    else { history.pushState(null, '', state.detail?.id ? `#/claw?session=${encodeURIComponent(state.detail.id)}` : '#/claw'); await showRoute(); }
+  }
+  if ('clawCaseCategory' in data) { quickCategory = data.clawCaseCategory; render(); }
+  if ('clawCase' in data || 'clawEditTask' in data) {
+    const prompt = 'clawEditTask' in data ? `请查询任务 ID ${data.clawEditTask} 的当前定义。我想修改它，请先澄清修改内容，提出同一任务的待确认变更。` : clawCases.find(c => c.id === data.clawCase)?.text;
+    if (prompt) {
+      const prepared = await prepareClawExampleDraft(controller, prompt, {
+        currentGeneration: () => pageGeneration,
+        navigate: () => {
+          if (state.route.clawView || state.route.sessionId || state.route.page !== 'claw') {
+            history.pushState(null, '', '#/claw');
+            return showRoute();
+          }
+        },
+      });
+      if (prepared) { render(); document.querySelector('#prompt')?.focus(); }
+    }
+  }
   if ('showAttention' in data) { contextOpen = window.matchMedia('(max-width: 1050px)').matches; contextCollapsed = false; contextTab = 'activity'; render(); }
   if ('reportStage' in data && state.detail?.research_report?.sections?.some(section => section.id === data.reportStage)) { researchStage = data.reportStage; contextTab = 'notes'; render(); }
   if ('contextTab' in data) { researchStage = null; contextTab = data.contextTab; render(); }
-  if ('closeDrawers' in data) { sidebarOpen = false; contextOpen = false; render(); }
+  if ('closeDrawers' in data) { const wasSidebarOpen = sidebarOpen; sidebarOpen = false; contextOpen = false; render(); if (wasSidebarOpen) focusSidebarControl(document, window.matchMedia('(max-width: 1050px)').matches); }
   if ('upload' in data) document.querySelector('#file-input')?.click();
   if ('slashSearch' in data) { slashOpen = !slashOpen; tabbitOpen = false; tabbitCandidates = []; tabbitRequest += 1; slashIndex = 0; render(); document.querySelector('#prompt')?.focus(); }
   if ('removeAttachment' in data) controller.removeAttachment(data.removeAttachment);

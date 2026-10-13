@@ -112,7 +112,9 @@
         "tests/e2e/research_web_mcp_marketplace.mjs",
         "tests/e2e/research_web_mcp_runtime.mjs",
         "tests/javascript/research_web_intel.test.mjs",
-        "tests/javascript/research_web_claw_workspace.test.mjs"
+        "tests/javascript/research_web_claw_workspace.test.mjs",
+        "tests/javascript/research_web_claw_redo.test.mjs",
+        "tests/javascript/research_web_navigation_cascade.test.mjs"
       ]
     },
     {
@@ -270,7 +272,8 @@
         "tests/research_web/test_automation_routes.py",
         "tests/javascript/research_web_capabilities_ui.test.mjs",
         "tests/e2e/research_web_automations.mjs",
-        "tests/research_web/test_automation_drafts.py"
+        "tests/research_web/test_automation_drafts.py",
+        "tests/research_web/test_automation_research_task.py"
       ]
     },
     {
@@ -3001,6 +3004,13 @@
       "method": "POST",
       "path": "/api/research/sessions/{sid}/automation-drafts/{draft_id}/dismiss",
       "declaredPath": "/sessions/{sid}/automation-drafts/{draft_id}/dismiss",
+      "prefix": "/api/research",
+      "source": "app/research_web/claw_routes.py"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/internal/data/automation-action",
+      "declaredPath": "/internal/data/automation-action",
       "prefix": "/api/research",
       "source": "app/research_web/claw_routes.py"
     }

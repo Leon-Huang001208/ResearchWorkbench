@@ -24,6 +24,8 @@ def project(entries: list[dict]) -> dict:
     activities: dict = {}
     partials: dict = {}
     tool_started: dict = {}
+    question_calls: dict = {}
+    question_history = []
     turn_started, duration_ms = None, 0
     status, error, tokens = "idle", None, 0
     input_tokens, output_tokens, usage_observed = 0, 0, False
@@ -128,6 +130,25 @@ def project(entries: list[dict]) -> dict:
                 "status": "running",
                 "detail": data.get("arguments", ""),
             }
+            if data["name"] == "ask_user_question":
+                try:
+                    args = data.get("arguments")
+                    args = json.loads(args) if isinstance(args, str) else args
+                    items = args.get("questions") if isinstance(args, dict) else None
+                    if (
+                        not isinstance(items, list)
+                        or not items
+                        or any(
+                            not isinstance(item, dict)
+                            or not isinstance(item.get("id"), str)
+                            or not isinstance(item.get("question"), str)
+                            for item in items
+                        )
+                    ):
+                        raise ValueError("question_history_invalid")
+                    question_calls[aid] = items
+                except (ValueError, TypeError):
+                    log.warning("research_question_history_call_unavailable")
         elif kind == "tool/result":
             message = data.get("message", {})
             block: dict = next(
@@ -150,6 +171,30 @@ def project(entries: list[dict]) -> dict:
                 ),
             )
             started = tool_started.get(aid)
+            if aid in question_calls and row["status"] == "completed":
+                try:
+                    value = json.loads(row["detail"])
+                    answers = value.get("answers") if isinstance(value, dict) else None
+                    items = question_calls[aid]
+                    if (
+                        not isinstance(answers, list)
+                        or len(answers) != len(items)
+                        or any(
+                            not isinstance(answer, dict)
+                            or not isinstance(answer.get("id"), str)
+                            or not isinstance(answer.get("selected"), list)
+                            or any(not isinstance(choice, str) for choice in answer["selected"])
+                            or not isinstance(answer.get("custom", ""), str)
+                            for answer in answers
+                        )
+                        or {a["id"] for a in answers} != {item["id"] for item in items}
+                    ):
+                        raise ValueError("question_history_invalid")
+                    question_history.append(
+                        {"id": aid, "seq": seq, "items": items, "answers": answers}
+                    )
+                except (ValueError, TypeError):
+                    log.warning("research_question_history_answer_unavailable")
             if started is not None and timestamp is not None and timestamp > started:
                 row["duration_ms"] = timestamp - started
             if row.get("title") == "research_run_script" and row["status"] == "completed":
@@ -198,6 +243,7 @@ def project(entries: list[dict]) -> dict:
             key=lambda row: row["seq"],
         ),
         "activities": list(activities.values()),
+        "question_history": question_history,
         "status": status,
         "usage": (
             {

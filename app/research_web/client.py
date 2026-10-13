@@ -353,6 +353,7 @@ class DSHClient:
                 "outcome": {"kind": "result", "value": answer},
             },
         )
+        self._pending_events.pop(rpc_id, None)
         return {"accepted": True}
 
     async def _stream(self, endpoint: str, args: dict) -> AsyncIterator[dict]:

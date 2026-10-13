@@ -33,6 +33,8 @@ class NativeFixture:
             return {"entries": []}
         if method == "skill.list":
             return {"skills": [{"name": "framework-research"}]}
+        if method == "credentials.describe":
+            return {"credentials": {ref: {"configured": True} for ref in payload["refs"]}}
         return {"accepted": True}
 
     async def history(self, sid):
@@ -108,7 +110,7 @@ def test_framework_session_is_bound_to_exact_snapshot_and_safe_preset(framework_
     assert stale.json()["error"]["code"] == "framework_snapshot_changed"
 
 
-def test_framework_explain_and_explicit_verify_use_separate_dsh_presets(framework_api):
+def test_framework_presets_do_not_bypass_missing_data_contract(framework_api):
     client, native, _ = framework_api
     revision = client.get("/api/research/frameworks/gold/data").json()["snapshot"]["revision"]
     created = client.post(
@@ -134,7 +136,10 @@ def test_framework_explain_and_explicit_verify_use_separate_dsh_presets(framewor
             "expected_snapshot_revision": revision,
         },
     )
-    assert verified.status_code == 202, verified.text
+    # The bundled verification capability still lacks a declared DataHub
+    # contract. Preset creation cannot certify it or silently grant data access.
+    assert verified.status_code == 409, verified.text
+    assert verified.json()["error"]["code"] == "capability_data_unavailable"
     creations = [payload for method, payload in native.calls if method == "session.create"]
     assert [item["agentPreset"] for item in creations[-2:]] == [
         "framework-explain",
@@ -146,8 +151,7 @@ def test_framework_explain_and_explicit_verify_use_separate_dsh_presets(framewor
         if method == "session.prompt"
     ]
     assert "当前模式没有网页检索" not in prompts[0]
-    assert prompts[-1].startswith("/framework-research ")
-    assert "深度验证" in prompts[-1]
+    assert len(prompts) == 1
 
 
 def test_gold_snapshot_store_rejects_symlink_and_preserves_strict_revision(tmp_path):

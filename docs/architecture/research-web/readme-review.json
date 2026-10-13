@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "updated",
-  "summary": "README 已同步 Docker 模型加密文件后端；保留主线 FinGPT 深度、证据底稿、PDF 和 Claw 功能。",
-  "reason": "新增显式 Docker 模型存储和非秘密状态投影；保留 Native Keychain、既有数据和凭据、唯一 DSH 与公开入口，真实推理及跨平台验收仍独立记录。"
+  "disposition": "unchanged",
+  "summary": "Claw 对话日程与侧栏交互重做，保留 ResearchWorkbench 产品入口。",
+  "reason": "根 README 已覆盖 Claw、能力中心、唯一 DSH 与 Automation；本轮具体版本化研究任务、确认卡及布局合同更新在模块/API/UI 文档，无新安装依赖或命令。"
 }

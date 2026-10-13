@@ -11,8 +11,11 @@ import os
 import time
 from collections.abc import Sequence
 from datetime import UTC, datetime
+from functools import wraps
+from threading import RLock
 from typing import Any
 from uuid import uuid4
+from zoneinfo import ZoneInfo
 
 from core.observability import get_logger
 
@@ -21,6 +24,17 @@ from .schedule import next_occurrence
 
 log = get_logger(__name__)
 ACTIVE_RESEARCH = {"queued", "running"}
+
+
+def _definition_transaction(method):
+    """Serialize synchronous definition CAS and snapshots, never native awaits."""
+
+    @wraps(method)
+    def locked(self, *args, **kwargs):
+        with self.definition_lock:
+            return method(self, *args, **kwargs)
+
+    return locked
 
 
 def automation_feature_enabled() -> bool:
@@ -70,6 +84,7 @@ class AutomationService:
         self.sleep = sleep
         self.tasks: dict[str, asyncio.Task] = {}
         self.lock = asyncio.Lock()
+        self.definition_lock = RLock()
         self.store.data.setdefault("automations", {})
         self.store.data.setdefault("automation_runs", {})
         self.store.data.setdefault("delivery_channels", {})
@@ -86,6 +101,15 @@ class AutomationService:
         except KeyError as exc:
             raise AutomationError("Automation Run 不存在", "automation_run_not_found", 404) from exc
 
+    def _notify_research(self) -> None:
+        notify = getattr(self.research, "notify", None)
+        if callable(notify):
+            try:
+                notify()
+            except Exception as exc:  # noqa: BLE001 - an observer cannot alter committed Run facts.
+                log.warning("automation_projection_notify_failed", error_type=type(exc).__name__)
+
+    @_definition_transaction
     def _persist_native_reference(self, run_id: str, **references: str | None) -> None:
         """Persist known references before any further native submission or wait."""
         row = self._run_row(run_id)
@@ -116,6 +140,7 @@ class AutomationService:
                 503,
             ) from exc
         log.info("automation_native_reference_saved", run_id_digest=_id_digest(run_id))
+        self._notify_research()
 
     async def _checkpoint_report_reference(
         self, run_id: str, report: dict, *, newly_created: bool = False
@@ -154,6 +179,7 @@ class AutomationService:
     def _public(value: dict) -> dict:
         return copy.deepcopy(value)
 
+    @_definition_transaction
     def list(self) -> dict:
         rows = sorted(
             self.store.data["automations"].values(),
@@ -161,9 +187,11 @@ class AutomationService:
         )
         return {"items": [self._public(row) for row in rows]}
 
+    @_definition_transaction
     def get(self, automation_id: str) -> dict:
         return self._public(self._row(automation_id))
 
+    @_definition_transaction
     def list_runs(self, *, automation_id: str | None = None) -> dict:
         rows = [
             row
@@ -173,6 +201,7 @@ class AutomationService:
         rows.sort(key=lambda item: item["created_at"], reverse=True)
         return {"items": [self._public(row) for row in rows]}
 
+    @_definition_transaction
     def create(self, body: AutomationCreate, *, creation_key: str | None = None) -> dict:
         creation_sha = _canonical_sha(body.model_dump(mode="json"))
         automation_id = (
@@ -181,13 +210,15 @@ class AutomationService:
             else f"automation-{uuid4().hex}"
         )
         existing = self.store.data["automations"].get(automation_id)
+        if automation_id in self.store.data.get("automation_tombstones", {}):
+            raise AutomationError("原日程已删除，不能重放创建确认", "draft_automation_deleted", 409)
         if existing is not None:
             if existing.get("creation_sha256") != creation_sha:
                 raise AutomationError(
                     "确认内容与已保存任务不一致", "draft_confirmation_conflict", 409
                 )
             return self._public(existing)
-        resolved = self.target_resolver(body.target_kind, body.target_id, body.target_version)
+        resolved = self.resolve_definition(body)
         if resolved["version"] != body.target_version or (
             body.target_sha256 is not None and resolved["sha256"] != body.target_sha256
         ):
@@ -221,7 +252,11 @@ class AutomationService:
             "last_run_id": None,
             "created_at": time.time(),
             "updated_at": time.time(),
+            "definition_version": 1,
         }
+        if payload["research_task"] is not None:
+            row["research_task"] = payload["research_task"]
+        row["definition_revisions"] = [self._definition_snapshot(row)]
         if creation_key is not None:
             row["creation_sha256"] = creation_sha
         self.store.data["automations"][automation_id] = row
@@ -238,19 +273,131 @@ class AutomationService:
         )
         return self._public(row)
 
-    def update(self, automation_id: str, body: AutomationUpdate) -> dict:
+    @staticmethod
+    def _definition_snapshot(row: dict) -> dict:
+        return copy.deepcopy(
+            {
+                key: row[key]
+                for key in (
+                    "id",
+                    "name",
+                    "target",
+                    "input_template",
+                    "workspace_id",
+                    "output_formats",
+                    "mcp_tools",
+                    "schedule",
+                    "delivery",
+                    "research_task",
+                    "definition_version",
+                )
+                if key in row
+            }
+        )
+
+    def resolve_definition(self, body: AutomationCreate) -> dict:
+        if body.target_kind == "research_task":
+            if body.research_task is None:
+                raise AutomationError("研究定义缺失", "research_task_required", 409)
+            self._validate_research_tools(body.research_task.approved_tools)
+            return {
+                "version": 1,
+                "sha256": _canonical_sha(body.research_task.model_dump(mode="json")),
+            }
+        if body.target_id is None or body.target_version is None:
+            raise AutomationError("能力版本缺失", "target_required", 409)
+        return self.target_resolver(body.target_kind, body.target_id, body.target_version)
+
+    @staticmethod
+    def _validate_research_tools(tools: Sequence[str]) -> None:
+        from ..capabilities.tools import SELECTABLE
+
+        if any(tool not in SELECTABLE for tool in tools):
+            raise AutomationError(
+                "研究日程只能批准可选择的研究工具，不能授予管理或外部 MCP 权限",
+                "automation_tool_scope_denied",
+                409,
+            )
+
+    @_definition_transaction
+    def update(
+        self, automation_id: str, body: AutomationUpdate, *, mutation_key: str | None = None
+    ) -> dict:
         row = self._row(automation_id)
+        mutation_sha = _canonical_sha(body.model_dump(mode="json"))
+        if mutation_key is not None:
+            previous_mutation = next(
+                (
+                    revision
+                    for revision in row.get("definition_revisions", [])
+                    if revision.get("mutation_key") == mutation_key
+                ),
+                None,
+            )
+            if previous_mutation is not None:
+                if previous_mutation.get("mutation_sha256") != mutation_sha:
+                    raise AutomationError("确认内容已变化", "draft_confirmation_conflict", 409)
+                return self._public(row)
+        version = row.get("definition_version", 1)
+        if (body.expected_version is not None and body.expected_version != version) or (
+            row["target"]["kind"] == "research_task" and body.expected_version is None
+        ):
+            raise AutomationError(
+                "日程定义版本已变化，请重新确认", "automation_version_conflict", 409
+            )
+        if body.research_task is not None and row["target"]["kind"] != "research_task":
+            raise AutomationError("任务类型不能修改", "target_kind_conflict", 409)
+        if body.research_task is not None:
+            self._validate_research_tools(body.research_task.approved_tools)
+        if (
+            row["target"]["kind"] == "research_task"
+            and body.input_template is not None
+            and (
+                body.research_task is None or body.input_template != body.research_task.description
+            )
+        ):
+            raise AutomationError(
+                "研究描述必须随定义确认", "research_task_description_conflict", 409
+            )
         updates = body.model_dump(mode="json", exclude_none=True)
+        if "research_task" in updates:
+            updates["input_template"] = updates["research_task"]["description"]
         if "delivery" in updates:
             self._validate_delivery(updates["delivery"])
-        for field in ("name", "input_template", "output_formats", "schedule", "delivery"):
+        previous = copy.deepcopy(row)
+        if "definition_revisions" not in row:
+            row["definition_version"] = version
+            row["definition_revisions"] = [self._definition_snapshot(row)]
+        for field in (
+            "name",
+            "input_template",
+            "output_formats",
+            "schedule",
+            "delivery",
+            "research_task",
+        ):
             if field in updates:
                 row[field] = updates[field]
+        if "research_task" in updates:
+            row["target"]["sha256"] = _canonical_sha(updates["research_task"])
+        row["definition_version"] = version + 1
+        revision = self._definition_snapshot(row)
+        if mutation_key is not None:
+            revision.update(mutation_key=mutation_key, mutation_sha256=mutation_sha)
+        row["definition_revisions"].append(revision)
         row["updated_at"] = time.time()
         if row["enabled"] and "schedule" in updates:
             row["next_run_at"] = self._next_iso(row["schedule"], self.now())
-        self.store.save()
-        self._arm(row)
+        try:
+            self.store.save()
+            self._arm(row)
+        except Exception:
+            row.clear()
+            row.update(previous)
+            self.store.save()
+            self._arm(row)
+            log.error("automation_update_failed", automation_id_digest=_id_digest(automation_id))
+            raise
         log.info(
             "automation_updated",
             automation_id_digest=_id_digest(automation_id),
@@ -258,13 +405,23 @@ class AutomationService:
         )
         return self._public(row)
 
+    @_definition_transaction
     def delete(self, automation_id: str) -> dict:
         row = self._row(automation_id)
         if self._active_run(automation_id):
             raise AutomationError("Automation 正在运行", "automation_busy", 409)
         self._remove_job(automation_id)
         self.store.data["automations"].pop(automation_id)
-        self.store.save()
+        tombstones = self.store.data.setdefault("automation_tombstones", {})
+        tombstones[automation_id] = {"deleted_at": time.time()}
+        try:
+            self.store.save()
+        except Exception:
+            self.store.data["automations"][automation_id] = row
+            tombstones.pop(automation_id, None)
+            self._arm(row)
+            log.error("automation_delete_failed", automation_id_digest=_id_digest(automation_id))
+            raise
         log.info(
             "automation_deleted",
             automation_id_digest=_id_digest(automation_id),
@@ -272,15 +429,27 @@ class AutomationService:
         )
         return {"deleted": True, "id": row["id"]}
 
+    @_definition_transaction
     def enable(self, automation_id: str) -> dict:
         row = self._row(automation_id)
+        if row["enabled"]:
+            return self._public(row)
         self._validate_lock(row)
         self._validate_delivery(row.get("delivery", {}))
+        previous = copy.deepcopy(row)
         row["enabled"] = True
         row["next_run_at"] = self._next_iso(row["schedule"], self.now())
         row["updated_at"] = time.time()
-        self.store.save()
-        self._arm(row)
+        try:
+            self.store.save()
+            self._arm(row)
+        except Exception:
+            row.clear()
+            row.update(previous)
+            self._remove_job(automation_id)
+            self.store.save()
+            log.error("automation_enable_failed", automation_id_digest=_id_digest(automation_id))
+            raise
         log.info(
             "automation_enabled",
             automation_id_digest=_id_digest(automation_id),
@@ -288,6 +457,7 @@ class AutomationService:
         )
         return self._public(row)
 
+    @_definition_transaction
     def disable(self, automation_id: str) -> dict:
         row = self._row(automation_id)
         row["enabled"] = False
@@ -302,8 +472,18 @@ class AutomationService:
         )
         return self._public(row)
 
+    @_definition_transaction
     def _validate_lock(self, row: dict) -> dict:
         target = row["target"]
+        if target["kind"] == "research_task":
+            from .models import ResearchTaskDefinition
+
+            definition = ResearchTaskDefinition.model_validate(row.get("research_task"))
+            self._validate_research_tools(definition.approved_tools)
+            digest = _canonical_sha(definition.model_dump(mode="json"))
+            if digest != target["sha256"]:
+                raise AutomationError("研究定义已变化", "blocked_version", 409)
+            return {"version": 1, "sha256": digest}
         try:
             resolved = self.target_resolver(target["kind"], target["id"], target["version"])
         except Exception as exc:
@@ -334,6 +514,7 @@ class AutomationService:
             if not channel.get("enabled") or not channel.get("configured"):
                 raise AutomationError("交付渠道未启用或未配置", "delivery_channel_unavailable", 409)
 
+    @_definition_transaction
     def _new_run(
         self,
         automation_id: str,
@@ -361,10 +542,13 @@ class AutomationService:
             "artifacts": [],
             "created_at": time.time(),
             "updated_at": time.time(),
+            "definition_version": self._row(automation_id).get("definition_version", 1),
+            "definition_snapshot": self._definition_snapshot(self._row(automation_id)),
         }
         self.store.data["automation_runs"][run_id] = row
         self._row(automation_id)["last_run_id"] = run_id
         self.store.save()
+        self._notify_research()
         return row
 
     async def run(
@@ -376,40 +560,40 @@ class AutomationService:
         retry_of: str | None = None,
     ) -> dict:
         async with self.lock:
-            automation = self._row(automation_id)
-            if self._active_run(automation_id):
-                return self._public(
-                    self._new_run(
-                        automation_id,
-                        trigger=trigger,
-                        scheduled_for=scheduled_for,
-                        retry_of=retry_of,
-                        status="skipped_overlap",
-                    )
-                )
-            try:
-                self._validate_lock(automation)
-            except AutomationError:
-                row = self._new_run(
-                    automation_id,
-                    trigger=trigger,
-                    scheduled_for=scheduled_for,
-                    retry_of=retry_of,
-                    status="blocked_version",
-                )
-                row["failure_code"] = "blocked_version"
-                self.store.save()
-                return self._public(row)
-            row = self._new_run(
+            row = self._admit_run(
                 automation_id,
                 trigger=trigger,
                 scheduled_for=scheduled_for,
                 retry_of=retry_of,
-                status="queued",
             )
-            task = asyncio.create_task(self._execute(row["id"]), name=f"automation-{row['id']}")
-            self.tasks[row["id"]] = task
+            if row["research_status"] == "queued":
+                task = asyncio.create_task(self._execute(row["id"]), name=f"automation-{row['id']}")
+                self.tasks[row["id"]] = task
             return self._public(row)
+
+    @_definition_transaction
+    def _admit_run(self, automation_id, *, trigger, scheduled_for, retry_of):
+        automation = self._row(automation_id)
+        status = "queued"
+        if self._active_run(automation_id):
+            status = "skipped_overlap"
+        else:
+            try:
+                self._validate_lock(automation)
+            except AutomationError:
+                status = "blocked_version"
+        row = self._new_run(
+            automation_id,
+            trigger=trigger,
+            scheduled_for=scheduled_for,
+            retry_of=retry_of,
+            status=status,
+        )
+        if status == "blocked_version":
+            row["failure_code"] = "blocked_version"
+            self.store.save()
+            self._notify_research()
+        return row
 
     async def retry(self, run_id: str) -> dict:
         run = self._run_row(run_id)
@@ -419,10 +603,11 @@ class AutomationService:
 
     async def _execute(self, run_id: str) -> None:
         row = self._run_row(run_id)
-        automation = self._row(row["automation_id"])
+        automation = row.get("definition_snapshot") or self._row(row["automation_id"])
         row["research_status"] = "running"
         row["updated_at"] = time.time()
         self.store.save()
+        self._notify_research()
         try:
             result = self.executor(self._public(automation), self._public(row))
             if inspect.isawaitable(result):
@@ -488,6 +673,7 @@ class AutomationService:
             )
         finally:
             self.tasks.pop(run_id, None)
+            self._notify_research()
 
     async def _deliver(self, automation: dict, run: dict) -> None:
         channels = automation.get("delivery", {}).get("channel_ids", [])
@@ -683,6 +869,7 @@ class AutomationService:
             }
         raise AutomationError("旧报告日程不受支持", "schedule_migration_unsupported", 409)
 
+    @_definition_transaction
     def preview_report_schedule_migrations(self) -> dict:
         if self.research is None:
             raise AutomationError("研究服务不可用", "automation_unavailable", 503)
@@ -717,6 +904,7 @@ class AutomationService:
             )
         return {"items": items}
 
+    @_definition_transaction
     def apply_report_schedule_migrations(self, workflow_ids: Sequence[str]) -> dict:
         if self.research is None:
             raise AutomationError("研究服务不可用", "automation_unavailable", 503)
@@ -780,7 +968,7 @@ class AutomationService:
 
     async def _resume(self, run_id: str) -> None:
         row = self._run_row(run_id)
-        automation = self._row(row["automation_id"])
+        automation = row.get("definition_snapshot") or self._row(row["automation_id"])
         try:
             if row.get("report_run_id"):
                 if automation["target"]["kind"] != "report_workflow":
@@ -808,6 +996,8 @@ class AutomationService:
                     "busy",
                     "cancelling",
                     "completed",
+                    "incomplete",
+                    "blocked",
                     "failed",
                     "cancelled",
                     "interrupted",
@@ -851,10 +1041,11 @@ class AutomationService:
             log.warning("automation_resume_failed", error_type=type(exc).__name__)
         finally:
             self.tasks.pop(run_id, None)
+            self._notify_research()
 
     async def _resume_delivery(self, run_id: str) -> None:
         row = self._run_row(run_id)
-        automation = self._row(row["automation_id"])
+        automation = row.get("definition_snapshot") or self._row(row["automation_id"])
         try:
             await self._deliver(automation, row)
         except asyncio.CancelledError:
@@ -879,6 +1070,7 @@ class AutomationService:
             )
         finally:
             self.tasks.pop(run_id, None)
+            self._notify_research()
 
     @staticmethod
     def _session_summary(detail: dict) -> str | None:
@@ -893,9 +1085,25 @@ class AutomationService:
             detail = initial if initial is not None else await self.research.detail(session_id)
             initial = None
             status = detail.get("status")
+            if detail.get("execution_restricted") is True:
+                log.warning("automation_native_child_state_unverified")
+                return {
+                    "status": "failed",
+                    "failure_code": "native_child_state_unverified",
+                    "summary": self._session_summary(detail),
+                    "artifacts": detail.get("files", []),
+                }
             if status == "completed":
                 return {
                     "status": "completed",
+                    "summary": self._session_summary(detail),
+                    "artifacts": detail.get("files", []),
+                }
+            if status in {"incomplete", "blocked"} and detail.get("can_cancel") is not True:
+                log.warning("automation_session_terminal_incomplete", status=status)
+                return {
+                    "status": "failed",
+                    "failure_code": f"session_{status}",
                     "summary": self._session_summary(detail),
                     "artifacts": detail.get("files", []),
                 }
@@ -1000,17 +1208,51 @@ class AutomationService:
                 "session_id": result.get("session_id") or report.get("session_id"),
                 "report_run_id": report["id"],
             }
-        session = await self.research.create("claw", f"{automation['name']} · Automation")
+        if target["kind"] == "research_task":
+            session = await self.research.create_automation_research_session(
+                automation["name"], automation["research_task"]
+            )
+        else:
+            session = await self.research.create("claw", f"{automation['name']} · Automation")
         session_id = session.get("id")
         self._persist_native_reference(run["id"], session_id=session_id)
         self._bind_mcp(session_id, automation["mcp_tools"])
+        arguments = {"formats": automation["output_formats"]}
+        prompt = automation["input_template"]
+        if target["kind"] == "research_task":
+            arguments["tool_ids"] = automation["research_task"]["approved_tools"]
+            prompt += "\n\n输出要求：" + automation["research_task"]["output_requirements"]
+            timezone = automation["schedule"]["timezone"]
+            executed_at = self.now().astimezone(ZoneInfo(timezone))
+            formats = ", ".join(automation["output_formats"]) or "仅对话回复（未请求文件格式）"
+            prompt += (
+                f"\n\n本次实际执行时间：{executed_at.isoformat()}；时区：{timezone}。"
+                "“今日”以该实际执行日期为准，不得沿用历史样例日期。"
+                "收盘前执行时不得声称当日已经收盘；交易状态与数据日期须依实际可核对来源标注，"
+                "无法核实时明确写未取得或受限，不得编造收盘数据。"
+                f"\n只生成明确请求的文件格式：{formats}；文件写入本会话 outputs/ 目录。"
+                "不得额外生成未请求的格式；不得枚举 cwd 或宿主目录、扫描主机文件、"
+                "读取会话范围外的文件。仅使用已批准资料范围及工具完成任务。"
+            )
+            if (
+                automation["output_formats"]
+                and "research_run_script" in automation["research_task"]["approved_tools"]
+            ):
+                prompt += (
+                    "\n文件交付顺序：完成必要取证后，立即调用 research_run_script 生成实际文件，"
+                    "再用同一工具读回核对内容，最后才发最终答复。"
+                    "联网检索控制在四轮内；取不到的专业数据写明缺口，不要反复重试不可用工具。"
+                    "Markdown 可直接用 Path('outputs/报告.md').write_text(完整正文, encoding='utf-8')。"
+                    "所有请求章节应有真实内容或具体缺口；不要写空白占位文件。"
+                    "没有收到生成工具的成功结果就不能宣称文件已交付，也不能以‘现在生成文件’的承诺结束。"
+                )
+        else:
+            arguments.update(capability_id=target["id"], capability_version=target["version"])
         admission = await self.research.send(
             session_id,
-            automation["input_template"],
+            prompt,
             f"automation:{run['id']}",
-            capability_id=target["id"],
-            capability_version=target["version"],
-            formats=automation["output_formats"],
+            **arguments,
         )
         if not isinstance(admission, dict) or admission.get("accepted") is not True:
             raise AutomationError(

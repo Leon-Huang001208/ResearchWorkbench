@@ -3,7 +3,8 @@
 from fastapi import APIRouter, Request
 from pydantic import BaseModel, ConfigDict, Field
 
-from .automation.models import AutomationCreate
+from .automation.models import AutomationCreate, AutomationUpdate
+from .store import StoreError
 
 router = APIRouter(prefix="/api/research")
 
@@ -34,6 +35,13 @@ class FileReference(StrictBody):
 class DraftProposal(StrictBody):
     session_id: str = Field(pattern=r"^[a-f0-9-]{36}$")
     body: AutomationCreate
+
+
+class AutomationAction(StrictBody):
+    session_id: str = Field(pattern=r"^[a-f0-9-]{36}$")
+    operation: str = Field(pattern=r"^(list|prepare_update|run)$")
+    automation_id: str | None = Field(default=None, max_length=255)
+    body: AutomationUpdate | None = None
 
 
 @router.get("/claw/projects")
@@ -99,11 +107,73 @@ async def propose_draft(body: DraftProposal, request: Request):
     return result
 
 
+@router.post("/internal/data/automation-action")
+async def automation_action(body: AutomationAction, request: Request):
+    service = request.app.state.research
+    await service.ensure_owned()
+    async with service.lock:
+        session = service.automation_drafts._session(body.session_id)
+        if session.get("purpose") == "automation":
+            raise StoreError("研究执行不能管理或递归试跑日程", "automation_control_denied", 409)
+        if body.operation == "list":
+            result = (
+                {"items": [service.automations.get(body.automation_id)]}
+                if body.automation_id
+                else service.automations.list()
+            )
+            fields = {
+                "id",
+                "automation_id",
+                "trigger",
+                "definition_version",
+                "research_status",
+                "delivery_status",
+                "failure_code",
+                "session_id",
+                "created_at",
+                "summary",
+                "artifacts",
+            }
+            result["runs"] = [
+                {key: value for key, value in run.items() if key in fields}
+                for run in service.automations.list_runs(automation_id=body.automation_id)["items"][
+                    :20
+                ]
+            ]
+        elif body.operation == "prepare_update" and body.automation_id and body.body:
+            result = service.automation_drafts.prepare_update(
+                body.session_id, body.automation_id, body.body
+            )
+        elif body.operation == "run" and body.automation_id and body.body is None:
+            result = await service.run_automation_from_chat(body.session_id, body.automation_id)
+        else:
+            raise StoreError("日程操作参数不完整", "automation_action_invalid", 422)
+    service.notify()
+    return result
+
+
 @router.post("/sessions/{sid}/automation-drafts/{draft_id}/confirm", status_code=201)
-async def confirm_draft(sid: str, draft_id: str, body: AutomationCreate, request: Request):
+async def confirm_draft(
+    sid: str,
+    draft_id: str,
+    body: AutomationCreate | AutomationUpdate,
+    request: Request,
+    enable: bool = False,
+):
     service = request.app.state.research
     async with service.lock:
-        result = service.automation_drafts.confirm(sid, draft_id, body)
+        draft = service.automation_drafts._get(sid, draft_id)
+        if draft.get("operation") == "update" and isinstance(body, AutomationUpdate):
+            result = service.automation_drafts.confirm_update(sid, draft_id, body)
+        elif draft.get("operation") != "update" and isinstance(body, AutomationCreate):
+            result = service.automation_drafts.confirm(sid, draft_id, body, enable=enable)
+        else:
+            raise StoreError("确认卡内容类型不符", "invalid_request", 422)
+        service.store.session(sid)["automation_trial_context"] = {
+            "automation_id": result["id"],
+            "definition_version": result.get("definition_version", 1),
+        }
+        service.store.save()
     service.notify()
     return result
 
