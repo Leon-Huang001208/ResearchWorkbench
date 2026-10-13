@@ -1,5 +1,7 @@
 # DataHub、研究资料与实际文件
 
+历史子 Agent 的原生 catalog 与正文保持原状。模型设置可以读取已核实的 inactive 活动而不恢复 unknown 执行模式；不清理、转换或重写历史记录，也不改产品索引 schema。
+
 ## Claw 本地研究项目
 
 `claw_projects.py` 只管理索引中的 `claw_projects` 与会话 `project_id`；旧会话归入默认项目，执行 `workspace_id=research` 不变，项目归档不删除会话或文件。

@@ -244,6 +244,9 @@ class DSHClient:
                 int(payload.get("maxMessages", 100)),
             )
         if method == "subagent.list":
+            activity_only = payload.get("activityOnly", False)
+            if type(activity_only) is not bool:
+                raise RuntimeFailure("原生子会话活动请求无效", "protocol_error")
             native = await self._rpc_wire("session/list", {"_request": {}})
             items = native.get("items")
             parent_id = payload.get("parentSessionId")
@@ -262,10 +265,10 @@ class DSHClient:
                 raise RuntimeFailure("原生子会话目录或状态缺失", "protocol_error")
             entries = []
             for child in catalog:
-                if not isinstance(child, dict) or child.get("mode") not in {
-                    "one-shot",
-                    "continuable",
-                }:
+                if not isinstance(child, dict) or (
+                    child.get("mode") not in {"one-shot", "continuable"}
+                    and not (activity_only and child.get("mode") == "unknown")
+                ):
                     raise RuntimeFailure("原生子会话状态未知", "protocol_error")
                 live = rows.get(child.get("id"))
                 if (
@@ -275,6 +278,8 @@ class DSHClient:
                     or type(live.get("running")) is not bool
                 ):
                     raise RuntimeFailure("原生子会话活动状态未知", "protocol_error")
+                if child.get("mode") == "unknown":
+                    log.info("research_historical_child_activity_verified")
                 entries.append(
                     {
                         **child,
