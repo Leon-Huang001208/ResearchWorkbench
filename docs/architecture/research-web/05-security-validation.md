@@ -413,3 +413,5 @@ FinGPT 资料范围在工具 preflight、上传入口及脚本数据集 read_pat
 activityOnly仍逐项验证父子关联、origin=subagent及running为布尔值，不能将missing/unknown活动推断为空闲。历史mode=unknown不授权打开子历史；继续、取消和删除路径仍使用严格执行模式查询。
 
 PR96 与既有 Fernet 模型桥共用唯一私有 stdio 接口；默认 `native-keychain`、常规 staged `docker-encrypted-file` 语义保留，管理器仅显式绑定 `docker-encrypted` 选择 AES-GCM。两种 Docker 格式与主密钥布局独立，混合绑定或外来格式失败关闭，不转换密文、不删除旧 Key、不回退。四操作与固定 ref 保持；来源如实区分，configured/Doctor 不证明真实生成。
+
+AES 专用模型后端在构造器的既有文件锁内核验全部现有 JSON：外层私有记录格式、完整密文封装、版本与实例身份、实例 service 与两个固定模型 ref 派生的文件名，以及相同 AAD 的 AEAD 认证。A 密文树与 B 完整主密钥/身份绑定不能被新命名空间遮蔽成未配置；未知 JSON、篡改或旁写记录失败关闭且不改原密文。正确旧 AES/Fernet 树保持可读；通用 PrivateFileCredentialBackend 仍允许其原服务/账户用途，不做迁移。

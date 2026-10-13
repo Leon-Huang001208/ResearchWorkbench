@@ -2,5 +2,5 @@
   "schemaVersion": 1,
   "disposition": "updated",
   "summary": "保留主线 Native Keychain/Fernet、FinGPT 与 Claw；明确管理器 AES-GCM 独立绑定。",
-  "reason": "README 区分常规 staged Fernet 同卷主密钥与管理器 AES-GCM 独立只读主密钥卷；两格式拒绝混用，无自动迁移或真实生成认证。"
+  "reason": "README 区分常规 staged Fernet 同卷主密钥与管理器 AES-GCM 独立只读主密钥卷；两格式拒绝混用，无自动迁移或真实生成认证。 AES 载入认证全部旧记录，外来树不会被当前 namespace 遮蔽为未配置；不改部署边界或旧有效格式。"
 }

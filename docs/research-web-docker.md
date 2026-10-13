@@ -194,3 +194,5 @@ Windows/Linux原生及同平台产品CI、模型付费生成、Office/Wind等本
 本地 Docker Desktop 健康不替代 GitHub macOS 干净安装门，不触发无关桌面打包。
 
 两种已存在的密文格式保持独立：常规 staged launcher 默认 `docker-encrypted-file`（Fernet，同卷主密钥）；管理器显式 `RWB_MODEL_BACKEND=docker-encrypted` 绑定 AES-GCM 与独立只读主密钥卷。桥接拒绝混用参数和外来密文格式；无自动转换、回退、旧 Key 删除或重新生成主密钥。来源分别报告 `docker-encrypted-file` 与 `docker-encrypted`，配置不认证真实生成。
+
+AES 构造时在原锁内核验既有树的实例、固定 namespace/ref 文件名及完整 AEAD；A 树配 B 完整密钥/身份不会成为未配置的新写目标，修复不执行卷迁移或清理。

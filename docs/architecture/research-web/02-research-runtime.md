@@ -437,3 +437,5 @@ Office受控自动验证在Host既有批次内串行执行，与DSH研究循环�
 列表及父详情复用 activityOnly=True 查询，unknown模式只提供已验证的running活动状态。未知模式不会被猜成one-shot/continuable，子历史保留不可用提示；父列表和父历史继续可读，严格控制查询保持缺省路径。
 
 PR96 与既有 Fernet 模型桥共用唯一私有 stdio 接口；默认 `native-keychain`、常规 staged `docker-encrypted-file` 语义保留，管理器仅显式绑定 `docker-encrypted` 选择 AES-GCM。两种 Docker 格式与主密钥布局独立，混合绑定或外来格式失败关闭，不转换密文、不删除旧 Key、不回退。四操作与固定 ref 保持；来源如实区分，configured/Doctor 不证明真实生成。
+
+AES 绑定先验证已有树及两个固定 ref 的完整认证，不允许外来实例记录被当前 namespace 遮蔽；resolve/describe/set/unset 与原活动守卫保持。
