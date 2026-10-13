@@ -261,7 +261,7 @@ Windows 读取 DSH 认证文件、DataHub 私有控制/收据/快照和会话下
 - Automation 与 Run 事实位于数据根的原子索引；任务锁定目标版本、内容 SHA 与 MCP 工具 schema 快照。投递渠道 JSON 只保存非敏感投影，URL、密码和签名秘密只进入 `ResearchWorkbench.Delivery`。
 - 最新本机诊断安全投影原子写入 `local-integrations/local-integrations.json`，权限限制为当前用户；Excel、Word、PowerPoint 的真实验证副本位于各自 Office 容器内。Wind 复用当前 Excel 厂商会话但只持有独占空白工作簿；监督器仅清理本轮真正拥有的进程，用户已有 Excel 不进入清理集合。不持久化探测到的绝对路径、命令参数、环境变量或秘密。
 - 本机显式验证结果按 TTL 和上下文指纹读取；TTL 截止时刻即失效，`0` 表示不产生可复用的可调用证据。
-- macOS Native 模型 ref 仅进入按 data home 隔离的系统 Keychain，产品 overlay/私有进程桥接挂载于固定 DSH CredentialProvider 扩展点。Host 认证 record 独立保留于专属 DSH 私有目录；两者都不提供给研究脚本环境。其他平台模型系统存储未实施，失败关闭而不回退文件。
+- macOS Native 模型 ref 仅进入按 data home 隔离的系统 Keychain；staged Docker 显式绑定独立私有凭据挂载中的加密模型记录，均经 product overlay/私有 stdio 挂载于固定 DSH CredentialProvider。Host 认证 record 独立保留；模型秘密不提供给研究脚本环境。Docker 后端不作为 Native 失败后的回退，其它 Native 平台的模型系统存储仍未实施。
 - Tabbit 页面访问授权只存在于当前 Research Runtime 生命周期；实时正文 token 绑定当前会话、单次消费并在 10 分钟后过期。
 - 迁移只复制研究状态和 DSH 会话索引；凭据、运行时 overlay、临时文件、旧控制令牌与日志不复制。新实例需要在设置页重新授权模型。
 
@@ -327,3 +327,7 @@ Office自动验证只复用Host内既有集成批次和受管验证器，不增�
 ## FinGPT 研究融合 · 2026-10-13
 
 FinGPT 深入研究沿用 ResearchService→固定 DSH 执行链。Web 投影原生 todo/write，保存创建时锁定的 research_depth/source_scope；证据、笔记与报告使用会话资源和原 DeliveryManager，不增加研究执行器。HTML/DOCX/PDF 共用底稿，PDF 使用项目锁定 ReportLab 与随包许可字体。
+
+## 历史子会话模式兼容 · 2026-10-13
+
+历史读取与执行能力分开：列表及父详情复用原生已认证活动目录，旧子会话模式无法恢复不会阻断全部父会话。仍只有DSH持有历史和执行状态。

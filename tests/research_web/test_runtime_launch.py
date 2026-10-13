@@ -165,6 +165,33 @@ def test_runtime_binds_model_system_store_and_separate_host_records(tmp_path, mo
     assert "RESEARCH_DSH_API_KEY" not in env
 
 
+def test_staged_docker_overlay_binds_model_storage_without_inheriting_secrets(
+    tmp_path, monkeypatch
+):
+    source = make_source(tmp_path)
+    data = tmp_path / "data"
+    monkeypatch.setattr(
+        launch_runtime.subprocess, "check_output", lambda *a, **kw: launch_runtime.PINNED_COMMIT
+    )
+    monkeypatch.setenv("RWB_DSH_STAGED", "1")
+    monkeypatch.setenv("RESEARCH_CREDENTIAL_HOME", "/run/rwb-secrets/private")
+    monkeypatch.setenv("RESEARCH_DSH_API_KEY", "synthetic-ambient-denied")
+    monkeypatch.setattr(
+        launch_runtime,
+        "verify_staged_runtime",
+        lambda *a, **kw: {"closure_sha256": "a" * 64, "closure_files": 1},
+    )
+    _, env, _ = launch_runtime.prepare(source, data, "/node", 13081)
+    overlay = (data / "runtime/overlay.yml").read_text()
+    assert 'backend: "docker-encrypted-file"' in overlay
+    assert 'credentialHome: "/run/rwb-secrets/private"' in overlay
+    assert "synthetic-ambient-denied" not in overlay
+    assert "RESEARCH_DSH_API_KEY" not in env
+    monkeypatch.setenv("RESEARCH_CREDENTIAL_HOME", "/unexpected/root")
+    with pytest.raises(RuntimeError, match="docker_model_credential_binding_invalid"):
+        launch_runtime.prepare(source, data, "/node", 13081)
+
+
 @pytest.mark.parametrize("marker", ["runtime", "web", "invalid", "runtime\nweb", ""])
 def test_clean_runtime_exec_environment_retains_only_exact_runtime_role(
     tmp_path, monkeypatch, marker

@@ -5849,18 +5849,25 @@ Functions:
 ## `app/research_web/model_credentials.py`
 
 Module docstring:
-> Fixed-purpose private stdio bridge for the Native macOS model Keychain.
+> Fixed-purpose private stdio bridge for Native Keychain or Docker encryption.
 
 Imports:
+- `__future__`
 - `argparse`
 - `ctypes`
 - `hashlib`
 - `json`
 - `logging`
+- `os`
 - `pathlib`
+- `secrets`
 - `sys`
+- `typing`
 
 Classes:
+- `DockerModelStore`
+  - Encrypted fixed model accounts in a separate, guarded credential subtree.
+  - methods: __init__, _master, _reference, get_password, set_password, delete_password
 - `MacSystemStore`
   - Use existing keyring reads/removals and Security's atomic replacement.
   - methods: __init__, get_password, delete_password, set_password

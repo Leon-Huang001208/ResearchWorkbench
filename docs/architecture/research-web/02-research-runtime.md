@@ -14,6 +14,14 @@ DataHub领域status=failed投影为失败活动；complete/snapshot/partial/empt
 Workbench 子 Agent 投影只使用已核实的 API 字段，继续交叉验证父目录、`origin=subagent` 和严格布尔 running；缺失、外来父会话、非子任务来源或未知活动仍失败关闭，不以空目录释放活动保护。
 模型设置的空闲检查采用内部 `activityOnly=true`：历史 `mode=unknown` 只可在父归属、subagent 来源和布尔运行状态全部验证后提供活动事实。默认详情与执行仍拒绝未知模式；不推断历史执行地址，不删改记录，也不把未知活动当作已结束。
 
+## Docker 模型凭据绑定
+
+模型 provider 由 owned launcher 显式绑定后端：Native 保持 macOS Keychain；已验证 staged
+Docker Runtime 只接受 `/run/rwb-secrets/private`，在私有 stdio 参数中传递非秘密绑定。
+子进程继续清理环境，两个固定模型 ref 不回退旧 resolver；Host 认证 record 接口和锁保持。
+Docker `describe/resolve` 的来源为 `docker-encrypted-file`，Host 仅投影 `docker_encrypted_file`，
+不回传秘密。保存、Runtime 应用、重启恢复和真实生成仍由原有产品 API 各自记录。
+
 ## Claw 日程提出与确认
 
 `rwb_prepare_automation` 沿现有 research-tools 与最终 guard 注册，先核对原生会话范围，再通过实例私有控制通道提出日程草稿。
@@ -429,3 +437,7 @@ ID/image 与端口观察，停止前及每轮等待重新核验。错误或变�
 Office受控自动验证在Host既有批次内串行执行，与DSH研究循环分离；同意仅限所属实例的三款Office，不向模型或厂商发送请求。读取本机状态和证据到期刷新不创建研究任务；取消/冷启动不重放旧验证。协议与进程管理保持原合同，详见[协调器](09-integration-coordinator.md)。
 
 当前固定 DSH 的 tool/result 使用 role=tool 消息、顶层 toolCallId/isError 和直接 content；投影兼容旧嵌套 tool-result，同时按脚本 JSON outcome 判定成功/失败。真实验收曾发现旧解析将成功脚本读为空而误报，现通过原生历史重放与协议回归核对，保留真实失败活动。
+
+## 历史子会话模式兼容 · 2026-10-13
+
+列表及父详情复用 activityOnly=True 查询，unknown模式只提供已验证的running活动状态。未知模式不会被猜成one-shot/continuable，子历史保留不可用提示；父列表和父历史继续可读，严格控制查询保持缺省路径。

@@ -92,3 +92,18 @@ JS/治理510项中508通过、2既有跳过。计数有重叠，不相加成总�
 <!-- architecture-review {"group":"automations","structure":"unchanged","reason":"共享service只保留精确工具验证，日程草稿、锁版本确认和原Automation监控合同完全保持。","diagrams":[]} -->
 <!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"固定DSH内注册兼容协议和隔离压缩组，安装器、唯一执行循环、Tabbit审批及进程所有权未扩展。","diagrams":[]} -->
 <!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"external_data工具复用已登记准入和版本目录，未知endpoint/model不获得深入研究或MCP权限。","diagrams":[]} -->
+
+<!-- architecture-review {"group":"files","structure":"unchanged","reason":"字体helper沿已准入资源模块定位只读打包字体，不新增文件仓库或扩大脚本cwd及网络权限，历史资源不覆盖。","diagrams":[]} -->
+
+现场修复收尾时master更新至0cf38ff23（PR101 Docker凭据、PR102历史模式读取）。
+以普通merge保留全部主线更新，文档冲突合并双方内容；DockerModelStore仅补backend类型声明，
+不修改加密、锁或权限行为。对最新主线的凭据/启动/平台/协议/API重新回归，结果另见日志。
+
+最新master融合专项JavaScript42通过0skip，Mypy22源码及导入闭包无error；
+独立合并快审未发现P1/P2，精确选模、准入快照、历史字体回退与Docker桥均保留。
+项目约束、文档治理、生成索引通过。首次pytest误加载根conftest因未授权的legacy SQLAlchemy
+依赖失败；改用既有Web-only confcutdir，不安装无关依赖，实际结果见专项日志。
+
+最新主线专项首次265通过、5失败、2跳过；5失败为Linux专属Docker后端在Mac直接运行。
+修正测试平台路由，仅Linux执行这5项；新增非Linux构造拒绝且不创建凭据目录测试，
+产品sys.platform硬门保持，Linux原生桥依然NOT_RUN，不把Mac跳过记为Linux通过。

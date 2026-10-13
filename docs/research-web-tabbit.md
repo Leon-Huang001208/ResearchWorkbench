@@ -3,6 +3,10 @@
 融合后的研究 persona 保留 Tabbit 只读声明、写操作逐次审批及禁止插件安装的约束。
 上下文压缩不改变 Tabbit 启用状态、实时标签显式选择或一次性 marker 的生命周期。
 
+显式 Docker 模型加密文件桥继续与 Tabbit/Host 浏览器认证分离。模型 ref 不进入
+`.browser-credentials.yaml` 或 readRecord/modifyRecord；模型配置、清除和生成测试不会
+迁移 Cookie、打开浏览器权限或将 Docker 中不可用的宿主 Tabbit 提升为可调用。
+
 Claw 项目分组与日程提出工具不读取浏览器会话、Cookie或实时标签；原 Tabbit 显式选择、一次性 marker 和审批边界保持不变。跨会话文件引用不会携带来源会话 Tabbit 授权。
 
 macOS 异根 Native 记录认证仅复核启动者的标准产品根、PID 与 listener；不会访问浏览器

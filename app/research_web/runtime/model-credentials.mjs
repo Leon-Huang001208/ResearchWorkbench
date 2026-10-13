@@ -1,4 +1,4 @@
-/** Fixed model refs use OS Keychain; inherited records retain DSH's lock/lifecycle. */
+/** Fixed model refs use the launcher's bound store; Host records keep DSH lifecycle. */
 import { spawn } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 
@@ -8,8 +8,16 @@ const MODEL_REFS = new Set([MODEL_REF, COMPATIBLE_REF]);
 
 export function processBridge(config, op, value, ref = MODEL_REF) {
   if (!MODEL_REFS.has(ref)) return Promise.reject(Error('model_credential_ref_denied'));
+  const backend = config.backend ?? 'native-keychain';
+  if (!['native-keychain', 'docker-encrypted-file'].includes(backend) ||
+      (backend === 'docker-encrypted-file' && typeof config.credentialHome !== 'string') ||
+      (backend === 'native-keychain' && config.credentialHome !== undefined)) {
+    return Promise.reject(Error('model_credential_binding_invalid'));
+  }
   return new Promise((resolve, reject) => {
-    const child = spawn(config.python, ['-I', '-B', config.bridge, '--data-home', config.dataHome], {
+    const args = ['-I', '-B', config.bridge, '--data-home', config.dataHome, '--backend', backend];
+    if (backend === 'docker-encrypted-file') args.push('--credential-home', config.credentialHome);
+    const child = spawn(config.python, args, {
       cwd: '/', env: { PATH: '/usr/bin:/bin', LANG: 'en_US.UTF-8' }, stdio: ['pipe', 'pipe', 'pipe'],
     });
     let output = '';
@@ -36,7 +44,8 @@ export function processBridge(config, op, value, ref = MODEL_REF) {
   });
 }
 
-export function createProvider(LocalProvider, bridge) {
+export function createProvider(LocalProvider, bridge, source = 'system-keychain') {
+  if (!['system-keychain', 'docker-encrypted-file'].includes(source)) throw Error('model_credential_binding_invalid');
   return class ModelCredentialProvider extends LocalProvider {
     // The file provider's schema must not discard the launcher's private binding.
     static Config = undefined;
@@ -66,11 +75,11 @@ export function createProvider(LocalProvider, bridge) {
       if (typeof result.value !== 'string' || !result.value || result.value.length > 1024) {
         throw Error('model_credential_bridge_failed');
       }
-      return { value: result.value, source: 'system-keychain' };
+      return { value: result.value, source };
     }
     async describe(ref) {
       const result = await this.modelCall(ref, 'describe');
-      if (typeof result.configured !== 'boolean' || result.source !== 'system-keychain' || result.writable !== true) {
+      if (typeof result.configured !== 'boolean' || result.source !== source || result.writable !== true) {
         throw Error('model_credential_bridge_failed');
       }
       return { configured: result.configured, source: result.source, writable: true };
@@ -90,5 +99,6 @@ export function createProvider(LocalProvider, bridge) {
 export async function apply(ctx, config) {
   // This path is bound exclusively by the owned launcher to the pinned build.
   const { default: LocalProvider } = await import(pathToFileURL(config.localProvider).href);
-  await ctx.plugin(createProvider(LocalProvider, (op, value, ref) => processBridge(config, op, value, ref)), config);
+  const source = (config.backend ?? 'native-keychain') === 'docker-encrypted-file' ? 'docker-encrypted-file' : 'system-keychain';
+  await ctx.plugin(createProvider(LocalProvider, (op, value, ref) => processBridge(config, op, value, ref), source), config);
 }
