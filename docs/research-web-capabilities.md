@@ -1,5 +1,7 @@
 # Research Web 能力包与版本
 
+模型设置的活动查询仅证明可安全更改新会话选模，不证明历史 unknown 子 Agent 可恢复或能力可执行。能力空闲、历史交互与执行继续使用默认严格子会话查询；不能借模型保存获得能力授权。
+
 Claw 的技能与连接入口直接复用本目录；研究日程草稿通过 `rwb_prepare_automation` 提出，锁定真实能力版本及 SHA，用户确认后复用 Automation 保存并保持停用。该工具属于内部控制，不可手动添加为外部 Tool，不赋予 MCP 或投递权限。
 
 Automation 原生创建之后先保存会话/报告关联，再提交或监控。报告首次关联须核对 Runtime 事实源、本次新建身份和锁定 workflow/version；陈旧或异目标引用不得进入自动取消。恢复不 create/send，普通会话缺执行证据时为 native_submission_unconfirmed；报告仍通过原报告 Run 等待校验和产物，不因聊天完成就成功。

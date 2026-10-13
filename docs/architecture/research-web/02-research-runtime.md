@@ -2,6 +2,7 @@
 
 固定 DSH 的 `session/list` 通过 `parentSessionId` 暴露父子归属；SDK Session Header 内部仍叫 `parentSession`。
 Workbench 子 Agent 投影只使用已核实的 API 字段，继续交叉验证父目录、`origin=subagent` 和严格布尔 running；缺失、外来父会话、非子任务来源或未知活动仍失败关闭，不以空目录释放活动保护。
+模型设置的空闲检查采用内部 `activityOnly=true`：历史 `mode=unknown` 只可在父归属、subagent 来源和布尔运行状态全部验证后提供活动事实。默认详情与执行仍拒绝未知模式；不推断历史执行地址，不删改记录，也不把未知活动当作已结束。
 
 ## Claw 日程提出与确认
 

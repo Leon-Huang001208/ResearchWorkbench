@@ -690,7 +690,7 @@ class ResearchService:
             for row in self.store.data["sessions"].values():
                 if row["created"]:
                     children = await self.client.rpc(
-                        "subagent.list", {"parentSessionId": row["id"]}
+                        "subagent.list", {"parentSessionId": row["id"], "activityOnly": True}
                     )
                     if any(child.get("activity") == "running" for child in children["entries"]):
                         raise RuntimeFailure(

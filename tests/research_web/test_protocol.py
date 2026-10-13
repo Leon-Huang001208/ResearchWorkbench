@@ -498,7 +498,8 @@ async def test_upgraded_subagent_catalog_uses_authoritative_parent_projection_an
 
 
 @pytest.mark.asyncio
-async def test_upgraded_subagent_unknown_activity_fails_closed():
+@pytest.mark.parametrize("activity_only", [False, True])
+async def test_upgraded_subagent_unknown_activity_fails_closed(activity_only):
     def reply(request):
         body = json.loads(request.content)
         items = [
@@ -523,7 +524,9 @@ async def test_upgraded_subagent_unknown_activity_fails_closed():
 
     async with DSHClient("http://127.0.0.1:3081", transport=httpx.MockTransport(reply)) as client:
         with pytest.raises(RuntimeFailure, match="状态"):
-            await client.rpc("subagent.list", {"parentSessionId": "parent"})
+            await client.rpc(
+                "subagent.list", {"parentSessionId": "parent", "activityOnly": activity_only}
+            )
 
 
 @pytest.mark.asyncio
@@ -536,7 +539,10 @@ async def test_upgraded_subagent_unknown_activity_fails_closed():
         {"parentSession": "parent", "origin": "subagent", "running": False},
     ],
 )
-async def test_native_child_parent_identity_and_boolean_activity_remain_required(live):
+@pytest.mark.parametrize("activity_only", [False, True])
+async def test_native_child_parent_identity_and_boolean_activity_remain_required(
+    live, activity_only
+):
     def reply(request):
         body = json.loads(request.content)
         items = [
@@ -544,7 +550,11 @@ async def test_native_child_parent_identity_and_boolean_activity_remain_required
                 "sessionId": "parent",
                 "running": False,
                 "projections": {
-                    "values": {"subagentCatalog": [{"id": "child", "mode": "continuable"}]}
+                    "values": {
+                        "subagentCatalog": [
+                            {"id": "child", "mode": "unknown" if activity_only else "continuable"}
+                        ]
+                    }
                 },
             },
             {"sessionId": "child", **live},
@@ -560,4 +570,44 @@ async def test_native_child_parent_identity_and_boolean_activity_remain_required
 
     async with DSHClient("http://127.0.0.1:3081", transport=httpx.MockTransport(reply)) as client:
         with pytest.raises(RuntimeFailure, match="状态"):
+            await client.rpc(
+                "subagent.list", {"parentSessionId": "parent", "activityOnly": activity_only}
+            )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("running", [False, True])
+async def test_unknown_child_mode_can_only_supply_verified_activity(running):
+    def reply(request):
+        body = json.loads(request.content)
+        items = [
+            {
+                "sessionId": "parent",
+                "projections": {
+                    "values": {"subagentCatalog": [{"id": "child", "mode": "unknown"}]}
+                },
+            },
+            {
+                "sessionId": "child",
+                "parentSessionId": "parent",
+                "origin": "subagent",
+                "running": running,
+            },
+        ]
+        return httpx.Response(
+            200,
+            json={
+                "type": "server-response",
+                "rpcId": body["rpcId"],
+                "result": {"ok": True, "value": {"items": items}},
+            },
+        )
+
+    async with DSHClient("http://127.0.0.1:3081", transport=httpx.MockTransport(reply)) as client:
+        with pytest.raises(RuntimeFailure, match="状态未知"):
             await client.rpc("subagent.list", {"parentSessionId": "parent"})
+        value = await client.rpc(
+            "subagent.list", {"parentSessionId": "parent", "activityOnly": True}
+        )
+        assert value["entries"][0]["mode"] == "unknown"
+        assert value["entries"][0]["activity"] == ("running" if running else "inactive")

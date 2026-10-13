@@ -1074,6 +1074,29 @@ async def test_model_configuration_serializes_with_session_creation(tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_model_save_checks_activity_without_requiring_historical_execution_mode(tmp_path):
+    native = NativeFixture()
+    service = ResearchService(native, Store(tmp_path))
+    row = await service.create()
+    row["created"] = True
+    service.store.save()
+    original = native.rpc
+
+    async def historical_rpc(method, payload):
+        if method == "subagent.list":
+            if payload.get("activityOnly") is not True:
+                raise RuntimeFailure("原生子会话状态未知", "protocol_error")
+            return {"entries": [{"id": "child", "mode": "unknown", "activity": "inactive"}]}
+        return await original(method, payload)
+
+    native.rpc = historical_rpc
+    result = await service.configure_model("deepseek-official", "new-model")
+    assert result["configured"] is True
+    assert service.store.data["model"]["model"] == "new-model"
+    assert not any(method.startswith("credentials.") for method, _ in native.calls)
+
+
+@pytest.mark.asyncio
 async def test_model_save_does_not_reselect_existing_sessions(tmp_path):
     native = NativeFixture()
     service = ResearchService(native, Store(tmp_path))
