@@ -144,6 +144,39 @@ test('controller preserves draft on failed sends and retries with the same idemp
   assert.equal(controller.state.detail.messages.length, 0, 'no fabricated assistant or optimistic message');
 });
 
+test('controller restores only explicit draft text and attachments after reload, isolated by session', async () => {
+  const data = new Map(); const storage = { getItem: key => data.get(key) ?? null, setItem: (key, value) => data.set(key, value) };
+  const api = { detail: async id => session(id), message: async () => ({ accepted: true }) };
+  const first = core.createController({ api, draftStorage: storage });
+  await first.open({ page: 'claw', sessionId: 'receiver' });
+  first.setDraft('保留未发送问题'); first.addAttachments([{ id: 'owned-file', name: 'reference.md' }]);
+  first.setTools(['private-tool']);
+  const reload = core.createController({ api, draftStorage: storage });
+  await reload.open({ page: 'claw', sessionId: 'other' });
+  assert.equal(reload.state.draft, ''); assert.deepEqual(reload.state.attachments, []);
+  await reload.open({ page: 'claw', sessionId: 'receiver' });
+  assert.equal(reload.state.draft, '保留未发送问题');
+  assert.deepEqual(reload.state.attachments, [{ id: 'owned-file', name: 'reference.md' }]);
+  assert.deepEqual(reload.state.toolIds, []);
+  await reload.send();
+  const afterSend = core.createController({ api, draftStorage: storage });
+  await afterSend.open({ page: 'claw', sessionId: 'receiver' });
+  assert.equal(afterSend.state.draft, ''); assert.deepEqual(afterSend.state.attachments, []);
+});
+
+test('draft storage rejects oversized writes visibly without replacing the last valid copy', async () => {
+  const data = new Map(); const events = []; const storage = { getItem: key => data.get(key) ?? null, setItem: (key, value) => data.set(key, value) };
+  const api = { detail: async id => session(id) };
+  const first = core.createController({ api, draftStorage: storage, logger: event => events.push(event) });
+  await first.open({ page: 'claw', sessionId: 'receiver' }); first.setDraft('保留文字');
+  first.addAttachments(Array.from({ length: 101 }, (_, i) => ({ id: `file-${i}`, name: `${i}.md` })));
+  assert.equal(first.state.attachments.length, 101);
+  assert.match(first.state.error, /无法保存/); assert.ok(events.includes('draft_storage_write_failed'));
+  const reload = core.createController({ api, draftStorage: storage });
+  await reload.open({ page: 'claw', sessionId: 'receiver' });
+  assert.equal(reload.state.draft, '保留文字'); assert.deepEqual(reload.state.attachments, []);
+});
+
 test('controller ignores stale session loads and SSE events after navigating away', async () => {
   assert.equal(typeof core.createController, 'function');
   let resolveFirst; const streams = [];

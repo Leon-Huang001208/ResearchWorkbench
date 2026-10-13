@@ -311,14 +311,41 @@ export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSo
   };
 }
 
-export function createController({ api, makeID = () => globalThis.crypto.randomUUID(), onNavigate = () => {}, confirmTabbit = async () => globalThis.confirm?.('所选标签页将临时移入代理任务，标签分组可能改变。继续发送？') !== false }) {
+export function createController({ api, draftStorage, logger = safeLog, makeID = () => globalThis.crypto.randomUUID(), onNavigate = () => {}, confirmTabbit = async () => globalThis.confirm?.('所选标签页将临时移入代理任务，标签分组可能改变。继续发送？') !== false }) {
   const state = { route: { page: 'fingpt', sessionId: null }, detail: null, draft: '', attachments: [], tabbitTabs: [], skillId: '', capability: null, toolIds: [], methodIds: [], expectedFormats: null, error: '', streamError: '', loading: false, busy: false };
   const listeners = new Set(); const drafts = new Map(); const pending = new Map();
   let generation = 0; let snapshotRevision = 0; let closeStream = () => {};
   const emit = () => listeners.forEach((listener) => listener(state));
   const draftKey = () => state.route.sessionId || `new:${state.route.page}`;
   const draftState = () => ({ draft: state.draft, attachments: state.attachments, tabbitTabs: state.tabbitTabs, skillId: state.skillId, capability: state.capability, toolIds: state.toolIds, methodIds: state.methodIds, expectedFormats: state.expectedFormats });
-  const saveDraft = () => drafts.set(draftKey(), draftState());
+  if (draftStorage === undefined) {
+    try { draftStorage = globalThis.sessionStorage; } catch { logger('draft_storage_unavailable', {}); }
+  }
+  const storageKey = id => `research-web:explicit-draft:v1:${id}`;
+  const validDraft = value => typeof value?.draft === 'string' && Array.isArray(value.attachments) && value.attachments.length <= 100 && value.attachments.every(file => typeof file?.id === 'string' && /^[A-Za-z0-9_-]{1,255}$/.test(file.id) && typeof file.name === 'string' && file.name.length <= 500);
+  const persistDraft = (id, value) => {
+    if (!draftStorage || id.startsWith('new:')) return;
+    try {
+      if (!validDraft(value)) throw new Error('draft_invalid');
+      const serialized = JSON.stringify({ draft: value.draft, attachments: value.attachments.map(({ id, name }) => ({ id, name })) });
+      if (serialized.length > 200000) throw new Error('draft_too_large');
+      draftStorage.setItem(storageKey(id), serialized);
+    } catch { logger('draft_storage_write_failed', {}); state.error = '草稿仍保留在页面中，但无法保存刷新恢复副本。'; }
+  };
+  const putDraft = (id, value) => { drafts.set(id, value); persistDraft(id, value); };
+  const readDraft = id => {
+    if (drafts.has(id)) return drafts.get(id);
+    if (!draftStorage || id.startsWith('new:')) return undefined;
+    try {
+      const raw = draftStorage.getItem(storageKey(id));
+      if (!raw) return undefined;
+      if (raw.length > 200000) throw new Error('draft_too_large');
+      const value = JSON.parse(raw);
+      if (!validDraft(value)) throw new Error('draft_invalid');
+      return { draft: value.draft, attachments: value.attachments.map(({ id, name }) => ({ id, name })), tabbitTabs: [], skillId: '', methodIds: [] };
+    } catch { logger('draft_storage_read_failed', {}); state.error = '草稿恢复副本无效；请重新选择附件。'; return undefined; }
+  };
+  const saveDraft = () => putDraft(draftKey(), draftState());
   const fail = (error) => { state.error = error?.message || '操作失败，请重试。'; };
   function snapshot(data) {
     if (!data || data.id !== state.route.sessionId || !Array.isArray(data.messages)) throw new Error('会话响应格式异常，请刷新重试。');
@@ -333,7 +360,7 @@ export function createController({ api, makeID = () => globalThis.crypto.randomU
   async function open(route) {
     saveDraft(); const ticket = ++generation; closeStream(); closeStream = () => {};
     state.route = route; state.detail = null; state.error = ''; state.streamError = ''; state.loading = Boolean(route.sessionId); state.busy = false;
-    Object.assign(state, { expectedFormats: null, capability: null, toolIds: [], methodIds: [], tabbitTabs: [] }, drafts.get(draftKey()) || { draft: '', attachments: [], tabbitTabs: [], skillId: '', methodIds: [] }); emit();
+    Object.assign(state, { expectedFormats: null, capability: null, toolIds: [], methodIds: [], tabbitTabs: [] }, readDraft(draftKey()) || { draft: '', attachments: [], tabbitTabs: [], skillId: '', methodIds: [] }); emit();
     if (!route.sessionId) return;
     try {
       const data = await api.detail(route.sessionId);
@@ -366,7 +393,7 @@ export function createController({ api, makeID = () => globalThis.crypto.randomU
         if (state.draft === text) state.draft = '';
         state.attachments = []; state.tabbitTabs = []; saveDraft(); await refresh();
       } else {
-        const saved = drafts.get(id); if (saved?.draft === text) drafts.set(id, { ...saved, draft: '', attachments: [], tabbitTabs: [] });
+        const saved = readDraft(id); if (saved?.draft === text) putDraft(id, { ...saved, draft: '', attachments: [], tabbitTabs: [] });
       }
     } catch (error) { if (ticket === generation) fail(error); }
     finally { if (ticket === generation) { state.busy = false; emit(); } }
@@ -398,8 +425,8 @@ export function createController({ api, makeID = () => globalThis.crypto.randomU
       if (state.route.sessionId === id) {
         state.attachments = [...new Map([...state.attachments, ...items].map(file => [file.id, file])).values()]; saveDraft(); emit();
       } else {
-        const saved = drafts.get(id) || { draft: '', attachments: [], tabbitTabs: [], skillId: '', capability: null, toolIds: [], methodIds: [], expectedFormats: null };
-        drafts.set(id, { ...saved, attachments: [...new Map([...saved.attachments, ...items].map(file => [file.id, file])).values()] });
+        const saved = readDraft(id) || { draft: '', attachments: [], tabbitTabs: [], skillId: '', capability: null, toolIds: [], methodIds: [], expectedFormats: null };
+        putDraft(id, { ...saved, attachments: [...new Map([...saved.attachments, ...items].map(file => [file.id, file])).values()] });
       }
     },
     removeAttachment: (id) => { state.attachments = state.attachments.filter((file) => file.id !== id); saveDraft(); emit(); },
