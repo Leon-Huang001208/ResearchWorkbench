@@ -5,7 +5,7 @@ import { readFile } from 'node:fs/promises';
 
 const [source, dataHome, phase, port] = process.argv.slice(2);
 const pinned = async path => import(pathToFileURL(`${source}/${path}`).href);
-const { runProfile } = await pinned('apps/cli/lib/profile-boot-CMEGRIuU.js');
+const { runProfile } = await pinned('apps/cli/lib/profile-boot.js');
 const { loadLayeredEnv } = await pinned('packages/boot/app-boot/lib/index.js');
 const { credentialKey } = await pinned('packages/credentials/credentials/lib/index.js');
 const ref = 'RESEARCH_DSH_API_KEY';
@@ -33,7 +33,28 @@ try {
   assert.equal(ctx.get('sessions').get(sessionId).header.agentPreset, 'research-web');
   stage = 'consumer';
   const adapter = ctx.get('llm').adapters.get('deepseek-official').adapter;
-  const resolve = () => adapter.config.resolveApiKey({ apiKeyEnv: ref });
+  // Exercise the pinned SDK's public request consumer, blocking transport before
+  // any network call. Only synthetic fixture values reach these local headers.
+  const resolve = async () => {
+    const originalFetch = globalThis.fetch;
+    let attempted = false;
+    let value;
+    globalThis.fetch = async (url, request) => {
+      assert.ok(String(url).endsWith('/messages'));
+      attempted = true;
+      value = new Headers(request.headers).get('x-api-key');
+      throw Error('native_test_transport_blocked');
+    };
+    try {
+      for await (const _ of adapter.stream({ provider: 'deepseek-official', model: 'deepseek-flash', messages: [], tools: [] })) {}
+      throw Error('native_test_transport_not_reached');
+    } catch (error) {
+      if (!attempted) throw error;
+      assert.equal(error.code, 'TRANSPORT');
+      assert.equal(error.cause?.message, 'native_test_transport_blocked');
+      return value;
+    } finally { globalThis.fetch = originalFetch; }
+  };
   const absent = async () => {
     let rejected = false;
     try { await resolve(); } catch (error) { rejected = error.code === 'MISSING_CREDENTIAL'; }
@@ -43,7 +64,9 @@ try {
   };
   if (phase === 'backend-unavailable') {
     let rejected = false;
-    try { await resolve(); } catch (error) { rejected = error.message === 'model_credential_bridge_failed'; }
+    try { await resolve(); } catch (error) {
+      rejected = error.code === 'TRANSPORT' && error.cause?.message === 'model_credential_bridge_failed';
+    }
     assert.equal(rejected, true);
     assert.ok(ctx.get('credentials'));
     assert.ok(await credentials.readRecord(key));

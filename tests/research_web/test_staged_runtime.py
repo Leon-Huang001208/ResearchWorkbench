@@ -56,6 +56,7 @@ def test_launcher_uses_original_source_closure_for_staged_state_lock(tmp_path, m
     source = staged(tmp_path)
     data = tmp_path / "data"
     monkeypatch.setenv("RWB_DSH_STAGED", "1")
+    monkeypatch.setenv("RESEARCH_CREDENTIAL_HOME", "/run/rwb-secrets/private")
     prepare(source, data, "/node", 3081)
     lock = json.loads((data / "runtime/build-lock.json").read_text())
     assert lock["closure_sha256"] == facts()["closure_sha256"]

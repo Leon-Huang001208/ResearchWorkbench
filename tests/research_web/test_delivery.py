@@ -34,6 +34,7 @@ def delivery_api(tmp_path):
     service = ResearchService(native, Store(tmp_path))
     # Isolate file delivery from live provider probes with an explicit narrow data contract.
     service.datahub.catalog = lambda: {
+        "capabilities": [{"tool_id": "datahub_get_fund_data", "callable_source_count": 1}],
         "sources": [
             {
                 "id": "delivery-fixture",

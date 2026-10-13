@@ -125,3 +125,15 @@ Linux专属加密桥、Windows/Linux产品、真实供应商/模型及桌面证�
 未删断言或加lint豁免。监督器/模式190项回归通过，Wind离线117通过，JS/治理471通过0skip。
 处理挂起只读命令时误中断首次全套，保留KeyboardInterrupt和teardown日志，不认证通过；
 已重新启动完整套件，最终计数、同SHA CI与macOS验收以PR当前描述和Git绑定回执为准。
+
+完整主套件复跑实际3424通过、55失败、15跳过、9 subtests通过，1575.21秒，保留FAIL。
+54失败来自旧catalog fixture缺capabilities汇总，分别给文件交付可调用合成fund来源与
+可选财务零来源补真实格式字段；硬依赖仍409/无prompt，未验证模型仍409，不改产品准入。
+staged闭包fixture补固定/run/rwb-secrets/private绑定，真实绑定硬门未放宽。
+失败闭包首次182通过/1可选fixture仍失败，其目标夹具再补齐并定点复验。
+Mac真实新命名空间合成Keychain跨进程用例通过；原生helper陈旧hash入口与已移除
+adapter.config私有调用导致两次失败，改稳定profile-boot.js及公开adapter.stream。
+每次stream的fetch均先替换为本地假值header捕获和固定拒绝，finally恢复；空key必须
+MISSING_CREDENTIAL、坏bridge必须TRANSPORT+固定cause，不接触用户key或供应商。
+两原生用例2通过，21.98秒，四阶段empty/冷启有key/冷启清除/backend不可用均检查Host记录
+和模型ref未落文件。最终候选固定后再完整复跑，最新实际计数与回执见PR当前描述。
