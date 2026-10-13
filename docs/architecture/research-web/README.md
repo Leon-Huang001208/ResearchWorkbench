@@ -1,5 +1,9 @@
 # Research Workbench Research Web 当前架构
 
+本轮融合外部来源、兼容模型协议与交互修复，仍以 DSH 为唯一执行循环。
+认证 HTTPS、秘密反射拒绝、明确脚本成功及精确工具准入见[安全边界](05-security-validation.md)；
+Claw 项目、研究深度/资料范围、原生 Todo 和 HTML/Word/中文 PDF 合同保持。
+
 模型空闲检查区分已核实活动与历史执行模式；详情/执行仍按原严格模式校验。内部查询范围及失败关闭条件见[运行时](02-research-runtime.md)与[安全验证](05-security-validation.md)，无公开协议或持久格式变化。
 
 Claw 本地研究项目和可确认日程草稿复用现有 Host 索引、文件目录、Automation 与 DSH。项目归属不改变执行目录，跨会话文件必须显式引用；详见[文件](03-data-files.md)、[API](04-api.md)和[UI](../../research-web-ui.md)。

@@ -7,6 +7,7 @@ import { trustedDirectory } from './research-tools.mjs';
 export const name = 'research-data-tools';
 export const inject = ['tools', 'sessions'];
 const BUSINESS = {
+  datahub_get_external_data: ['external_data','读取已整理的41个外部数据来源。先不传参数读取catalog；再按返回的source和dataset取数。arguments_json为JSON字符串，结构为{"params":{目录占位参数},"query":{业务筛选},"body":{POST业务参数}}。凭据由服务端提供；来源字段和单次快照不等于完整历史；样例最多三行且有字节上限，完整数据在数据集文件，不要重复调用同一来源。',{dataset:{type:'string'},arguments_json:{type:'string'},limit:{type:'integer'}},[]],
   datahub_search_assets: ['search_assets','识别证券、基金和指数代码',{query:{type:'string'},market:{type:'string'},asset_type:{type:'string'}},['query']],
   datahub_get_trading_calendar: ['trading_calendar','读取交易日历',{market:{type:'string'},start_date:{type:'string'},end_date:{type:'string'}},['market','start_date','end_date']],
   datahub_get_market_bars: ['market_bars','读取历史行情与复权口径',{asset:{type:'string'},asset_type:{type:'string',enum:['stock','index','etf']},start_date:{type:'string'},end_date:{type:'string'},frequency:{type:'string'},adjustment:{type:'string'}},['asset','start_date','end_date']],

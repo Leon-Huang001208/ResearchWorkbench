@@ -18,6 +18,16 @@ def content_text(content) -> str:
     )
 
 
+def content_reasoning(content) -> str:
+    if not isinstance(content, list):
+        return ""
+    return "\n".join(
+        str(block.get("text", ""))
+        for block in content
+        if isinstance(block, dict) and block.get("type") == "reasoning"
+    ).strip()
+
+
 def project(entries: list[dict]) -> dict:
     plan, plan_turn = None, None
     messages: dict = {}
@@ -85,6 +95,9 @@ def project(entries: list[dict]) -> dict:
                     "text": content_text(data.get("message", {}).get("content")),
                     "seq": seq,
                 }
+                reasoning = content_reasoning(data.get("message", {}).get("content"))
+                if reasoning:
+                    messages[mid]["reasoning"] = reasoning
                 partials.pop(mid, None)
                 usage = data.get("usage") or {}
                 if usage:
@@ -112,12 +125,21 @@ def project(entries: list[dict]) -> dict:
                         )
             elif mid not in messages:
                 chunk = data["chunk"]
-                blocks = partials.setdefault(mid, {"seq": seq, "blocks": {}})["blocks"]
+                partial = partials.setdefault(mid, {"seq": seq, "blocks": {}, "thinking": {}})
+                blocks = partial["blocks"]
                 index = chunk.get("index", 0)
                 if chunk["type"] == "text-delta":
                     blocks[index] = blocks.get(index, "") + chunk.get("text", "")
                 elif chunk["type"] == "block-end" and chunk.get("block", {}).get("type") == "text":
                     blocks[index] = chunk["block"].get("text", "")
+                elif chunk["type"] == "reasoning-delta":
+                    thinking = partial["thinking"]
+                    thinking[index] = thinking.get(index, "") + chunk.get("text", "")
+                elif (
+                    chunk["type"] == "block-end"
+                    and chunk.get("block", {}).get("type") == "reasoning"
+                ):
+                    partial["thinking"][index] = chunk["block"].get("text", "")
         elif kind == "tool/call":
             aid = data["callId"]
             tool_started[aid] = timestamp
@@ -127,6 +149,7 @@ def project(entries: list[dict]) -> dict:
                 "title": data["name"],
                 "status": "running",
                 "detail": data.get("arguments", ""),
+                "seq": seq,
             }
         elif kind == "tool/result":
             message = data.get("message", {})
@@ -135,7 +158,13 @@ def project(entries: list[dict]) -> dict:
             )
             aid = message.get("source", {}).get("callId") or block.get("toolCallId", f"tool-{seq}")
             row = activities.setdefault(
-                aid, {"id": aid, "type": "tool", "title": message.get("name", "工具结果")}
+                aid,
+                {
+                    "id": aid,
+                    "type": "tool",
+                    "title": message.get("name", "工具结果"),
+                    "seq": seq,
+                },
             )
             row.update(
                 status=(
@@ -153,8 +182,9 @@ def project(entries: list[dict]) -> dict:
             if started is not None and timestamp is not None and timestamp > started:
                 row["duration_ms"] = timestamp - started
             if row.get("title") == "research_run_script" and row["status"] == "completed":
+                detail = row.get("detail") or ""
                 try:
-                    script = json.loads(row["detail"])
+                    script = json.loads(detail) if isinstance(detail, str) else detail
                     outcome = script.get("status") if isinstance(script, dict) else None
                     if outcome != "completed":
                         row["status"] = "cancelled" if outcome == "cancelled" else "failed"
@@ -185,12 +215,18 @@ def project(entries: list[dict]) -> dict:
         elif kind == "session/title":
             title = data.get("title")
     for mid, partial in partials.items():
-        messages[mid] = {
+        message = {
             "id": mid,
             "role": "assistant",
             "text": "\n".join(partial["blocks"][key] for key in sorted(partial["blocks"])),
             "seq": partial["seq"],
         }
+        reasoning = "\n".join(
+            partial["thinking"][key] for key in sorted(partial["thinking"])
+        ).strip()
+        if reasoning:
+            message["reasoning"] = reasoning
+        messages[mid] = message
     result = {
         "research_plan": plan,
         "messages": sorted(

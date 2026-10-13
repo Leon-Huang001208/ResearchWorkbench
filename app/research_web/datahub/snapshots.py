@@ -13,6 +13,7 @@ from core.observability import get_logger
 
 from ..store import Store, StoreError
 from .contracts import SCHEMA_VERSION, SOURCES
+from .external_sources import source_label
 from .security import (
     atomic_json,
     directory,
@@ -146,10 +147,11 @@ class Snapshots:
         temporary = ".pending-" + did
         parsed = {"rows.json": json_bytes(result.rows), "rows.csv": csv_bytes(result.rows)}
         dates = sorted(row["date"] for row in result.rows if "date" in row)
+        label = SOURCES.get(query.source) or source_label(query.source) or query.source
         manifest = {
             "id": did,
             "dataset_id": did,
-            "name": f"{SOURCES.get(query.source, query.source)} {getattr(query, 'code', None) or ''}".strip(),
+            "name": f"{label} {getattr(query, 'code', None) or ''}".strip(),
             "source": query.source,
             "provider": result.provider_id or query.source,
             "capability": getattr(request_query, "capability", query.source),

@@ -23,6 +23,7 @@ from app.research_web.datahub.connections import (
     MySQLConnectionStore,
 )
 from app.research_web.datahub.contracts import BusinessQuery
+from app.research_web.datahub.external_sources import EXTERNAL_SOURCES
 from app.research_web.datahub.probes import probe_source
 from app.research_web.main import create_app
 from app.research_web.service import ResearchService
@@ -161,18 +162,23 @@ def mysql_payload(**overrides):
     return payload
 
 
-def test_connections_summary_has_22_safe_catalog_sources_and_platform_sections(tmp_path):
+def test_connections_summary_has_safe_catalog_sources_and_platform_sections(tmp_path):
     service, _keyring = configured_service(tmp_path)
     with TestClient(create_app(service)) as client:
         response = client.get("/api/research/data/connections")
     assert response.status_code == 200
     body = response.json()
     assert set(body) == {"groups", "sources", "platform", "migration"}
-    assert len(body["sources"]) == 22
+    assert len(body["sources"]) == 64
     assert {item["id"] for item in body["sources"]} == {
         item["id"] for item in build_catalog(environ={})["sources"]
     }
     assert body["groups"] == [
+        {
+            "id": "external",
+            "label": "已整理外部来源",
+            "items": ["ext_registry", *EXTERNAL_SOURCES],
+        },
         {
             "id": "professional",
             "label": "专业数据源",
@@ -248,7 +254,7 @@ def test_corrupt_single_source_profile_does_not_break_connection_catalog(tmp_pat
         response = client.get("/api/research/data/connections")
     assert response.status_code == 200
     sources = {item["id"]: item for item in response.json()["sources"]}
-    assert len(sources) == 22
+    assert len(sources) == 64
     assert sources["ifind"]["configured"] is False
     assert "configuration_read_failed" in sources["ifind"]["warnings"]
     assert sources["mysql"]["warnings"] == []

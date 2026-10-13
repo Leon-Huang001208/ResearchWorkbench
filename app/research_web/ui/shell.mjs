@@ -41,16 +41,23 @@ export function filterGlobalSearch(query, sessions = [], skills = []) {
   if (!normalized) return [];
   const work = (Array.isArray(sessions) ? sessions : []).filter((session) => `${session?.title || ''} ${session?.mode || ''}`.toLocaleLowerCase().includes(normalized)).map((session) => ({ kind: 'session', item: session }));
   const capabilities = (Array.isArray(skills) ? skills : []).filter((skill) => `${skill?.name || ''} ${skill?.description || ''}`.toLocaleLowerCase().includes(normalized)).map((skill) => ({
-    kind: skill.kind === 'tool' ? 'tool' : skill.kind === 'report-workflow' ? 'report-workflow' : 'skill',
+    kind: ['tool', 'report-workflow', 'data'].includes(skill.kind) ? skill.kind : 'skill',
     item: skill,
   }));
   return [...work, ...capabilities].slice(0, 8);
 }
 
 export function renderGlobalSearch(query, sessions, skills) {
+  return `<div class="global-search"><label class="sr-only" for="global-search">搜索会话标题和能力名称或简介</label>${icon('search')}<input id="global-search" data-global-search type="search" value="${e(query || '')}" placeholder="搜索会话标题、能力名称或简介…" autocomplete="off" role="combobox" aria-expanded="${query ? 'true' : 'false'}" aria-controls="global-search-results">` +
+    `<div class="global-results" id="global-search-results" role="listbox" aria-label="搜索结果">${renderGlobalResults(query, sessions, skills)}</div></div>`;
+}
+
+export function renderGlobalResults(query, sessions, skills) {
+  if (!String(query || '').trim()) return '';
   const results = filterGlobalSearch(query, sessions, skills);
-  const attribute = (kind) => ({ tool: 'data-tool-detail', 'report-workflow': 'data-report-workflow-detail' })[kind] || 'data-skill-shortcut';
-  return `<div class="global-search"><label class="sr-only" for="global-search">搜索会话标题和能力名称或简介</label>${icon('search')}<input id="global-search" data-global-search type="search" value="${e(query || '')}" placeholder="搜索会话标题、能力名称或简介…" autocomplete="off">${query ? `<div class="global-results" role="listbox">${results.length ? results.map(({ kind, item }) => kind === 'session' ? `<a role="option" href="${sessionHash(item)}" data-global-result="session" data-session-id="${e(item.id)}"><strong>${e(item.title || '未命名会话')}</strong><span>会话 · ${e(item.mode || 'FinGPT')}</span></a>` : `<button type="button" role="option" data-global-result="${kind}" ${attribute(kind)}="${e(item.id)}"><strong>${e(item.name)}</strong><span>${e(item.description || '此能力未提供描述。')}</span></button>`).join('') : '<p class="muted small">没有匹配的真实会话或能力。</p>'}</div>` : ''}</div>`;
+  const attribute = (kind, item) => ({ tool: 'data-tool-detail', data: 'data-data-capability-detail', 'report-workflow': 'data-report-workflow-detail' })[kind] || (item.enabled === false ? 'data-skill-detail' : 'data-skill-shortcut');
+  if (!results.length) return '<p class="muted small">没有匹配的真实会话或能力。</p>';
+  return results.map(({ kind, item }) => kind === 'session' ? `<a role="option" href="${sessionHash(item)}" data-global-result="session" data-session-id="${e(item.id)}"><strong>${e(item.title || '未命名会话')}</strong><span>会话 · ${e({ fingpt: 'FinGPT', claw: 'Claw' }[item.mode] || '研究')}</span></a>` : `<button type="button" role="option" data-global-result="${kind}" ${attribute(kind, item)}="${e(item.id)}"><strong>${e(item.name)}</strong><span>${e(item.description || '此能力未提供描述。')}</span></button>`).join('');
 }
 
 export function renderPrimaryRail({ page, section = '', secondaryOpen = false } = {}) {

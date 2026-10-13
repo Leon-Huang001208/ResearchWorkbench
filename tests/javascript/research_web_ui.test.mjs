@@ -12,6 +12,46 @@ const modules = await Promise.all(['markdown.mjs', 'core.mjs', 'views.mjs'].map(
 const [markdown, core, views] = modules;
 const dataCatalog = await import(new URL('data-catalog.mjs', root));
 
+test('a stalled response body times out once and leaves writes explicitly unconfirmed', async () => {
+  let calls = 0;
+  const api = core.createAPI({ requestTimeoutMs: 10, logger() {}, fetcher: async () => {
+    calls++;
+    return { ok: true, status: 200, json: () => new Promise(() => {}) };
+  } });
+  await assert.rejects(api.message('s1', { text: '草稿' }, 'same-key'), error => error.code === 'request_timeout');
+  assert.equal(calls, 1);
+});
+
+test('stop remains available during a pending ordinary action and deduplicates stop clicks', async () => {
+  let finishAction; let finishCancel; let cancels = 0;
+  const detail = { id: 's1', mode: 'fingpt', status: 'running', can_cancel: true, messages: [] };
+  const control = core.createController({ api: {
+    detail: async () => detail,
+    cancel: async () => { cancels++; await new Promise(resolve => { finishCancel = resolve; }); detail.status = 'cancelled'; detail.can_cancel = false; return { accepted: true }; },
+  } });
+  await control.open({ page: 'fingpt', sessionId: 's1' });
+  const action = control.action(() => new Promise(resolve => { finishAction = resolve; }));
+  try {
+    const stopped = control.cancel();
+    assert.equal(control.state.stopping, true);
+    await control.cancel(); assert.equal(cancels, 1);
+    finishCancel(); await stopped;
+    assert.equal(control.state.detail.status, 'cancelled');
+    assert.equal(control.state.stopping, false);
+    assert.equal(control.state.busy, true);
+  } finally { finishAction(); await action; }
+});
+
+test('composer does not disable stop behind ordinary busy state', async () => {
+  const { renderComposer } = await import(new URL('composer.mjs', root));
+  const html = renderComposer({ page: 'fingpt', busy: true, detail: { status: 'running', can_cancel: true } });
+  assert.doesNotMatch(html.match(/<button[^>]*data-cancel[^>]*>/)[0], /disabled/);
+  const stopping = renderComposer({ page: 'fingpt', stopping: true, detail: { status: 'running', can_cancel: true } });
+  assert.match(stopping, /data-cancel[^>]*disabled/);
+  const offline = renderComposer({ page: 'fingpt', runtimeReady: false, detail: { status: 'running', can_cancel: true } });
+  assert.match(offline, /data-cancel[^>]*disabled/);
+});
+
 test('research attachment picker accepts all three Office document formats', async () => {
   const { renderComposer } = await import(new URL('composer.mjs', root));
   const html = renderComposer({ page: 'fingpt' });
@@ -239,6 +279,59 @@ test('conversation attributes assistant replies to the active research mode', ()
   assert.match(views.renderConversation(session('fin', { mode: 'fingpt', messages: assistant })), /aria-label="FinGPT 回复"/);
   assert.match(views.renderConversation(session('claw', { mode: 'claw', messages: assistant })), /aria-label="Claw 回复"/);
   assert.match(views.renderConversation(session('other', { mode: 'other', messages: assistant })), /aria-label="助手回复"/);
+});
+
+test('conversation groups each answer into process, body with reference tags, and action bar', () => {
+  const detail = session('s1', {
+    status: 'completed',
+    messages: [
+      { id: 'u1', role: 'user', text: '真实问题', seq: 1 },
+      { id: 'a1', role: 'assistant', text: '结论见 [doc1]。', seq: 4 },
+      { id: 'u2', role: 'user', text: '追问', seq: 5 },
+      { id: 'a2', role: 'assistant', text: '追问回答', seq: 8 },
+    ],
+    activities: [
+      { id: 't1', type: 'tool', title: 'web_search', status: 'completed', duration_ms: 1000, seq: 2 },
+      { id: 'child:t9', type: 'tool', title: 'web_search', status: 'completed', seq: 3 },
+      { id: 't2', type: 'tool', title: 'research_run_script', status: 'failed', error: '真实失败', seq: 6 },
+    ],
+  });
+  const html = views.renderConversation(detail, new Map(), { toolNames: { web_search: '网页检索' } });
+  assert.match(html, /研究过程 · 1 步 · 1.0s/);
+  assert.match(html, /<strong>网页检索<\/strong>/);
+  assert.doesNotMatch(html, /研究过程 · 2 步/);
+  assert.match(html, /data-doc-ref="1"/);
+  assert.match(html, /data-retry-round="u1"/);
+  assert.match(html, /data-copy-answer="a2"/);
+  assert.match(html, /data-share-session/);
+  assert.match(html, /data-answer-feedback="good" data-message="a2"/);
+  assert.match(html, /<details open><summary><span class="activity-dot  failed/);
+  assert.match(html, /<details class="answer-process" open>/);
+  assert.match(html, /<details class="answer-process"><summary>/);
+  const live = views.renderConversation(session('s1', { status: 'running', messages: [{ id: 'u', role: 'user', text: '进行中问题', seq: 1 }], activities: [] }));
+  assert.match(live, /正在研究…/);
+  assert.doesNotMatch(live, /data-retry-round|data-copy-answer/);
+});
+
+test('conversation renders reasoning as a collapsible thinking block and translates adapter errors', () => {
+  const detail = session('s1', {
+    status: 'completed',
+    messages: [
+      { id: 'u1', role: 'user', text: '宏观问题', seq: 1 },
+      { id: 'a1', role: 'assistant', text: '正文结论。', seq: 3, reasoning: '先拆解变量。' },
+    ],
+    activities: [],
+  });
+  const html = views.renderConversation(detail);
+  assert.match(html, /<details class="answer-thinking">/);
+  assert.match(html, /思考过程/);
+  assert.match(html, /先拆解变量。/);
+  const streaming = views.renderConversation(session('s1', { status: 'running', messages: [{ id: 'u', role: 'user', text: '问', seq: 1 }, { id: 'a', role: 'assistant', text: '', seq: 2, reasoning: '推理片段' }] }));
+  assert.match(streaming, /<details class="answer-thinking" open>/);
+  assert.match(streaming, /正在思考…/);
+  const failed = views.renderConversation(session('s2', { status: 'failed', error: 'compatible_stream_incomplete', messages: [{ id: 'u', role: 'user', text: '问', seq: 1 }] }));
+  assert.match(failed, /模型响应不完整/);
+  assert.doesNotMatch(failed, /compatible_stream_incomplete/);
 });
 
 test('entrypoint is self hosted and settings do not persist secrets in browser storage', async () => {

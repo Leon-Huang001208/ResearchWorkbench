@@ -1,5 +1,8 @@
 # 能力包、版本与原生调用
 
+external_data 通过原 DataHub bridge 注册，来源目录不赋予 Skill、MCP 或深入研究准入。
+兼容模型工具流只能提供协议能力，现有精确模型验证门和锁版本日程草稿合同保留。
+
 `rwb_prepare_automation` 在原生 research-tools 中注册并受最终 guard 与会话准入保护。Claw 只投影真实能力目录；日程草稿锁定选定 Skill/Workflow/报告版本，确认不发布新能力，版本失效明确拒绝。保存后默认停用，执行与投递仍由现有 Automation 管理。
 
 MCP 控制 JSON/URL 的纯 parser 现供原 reader 与独立 origin helper 共享；原 reader 的

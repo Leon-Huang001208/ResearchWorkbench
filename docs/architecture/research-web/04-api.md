@@ -1,5 +1,11 @@
 # Research Web 接口清单
 
+既有 DataHub 查询 API 新增 external_data 能力，参数为 dataset、arguments_json 和 limit；
+source=auto 只读取外部总目录，具名查询使用登记端点且禁止自定义目的地址/认证字段。
+连接 API 同步四类外部来源凭据，HTTP认证返回 credential_transport_blocked。
+会话详情的 assistant 消息可增加 reasoning，活动可增加原生 seq；原有计划、来源、报告字段保留。
+写请求前端超时表示结果未确认，不改变 API 幂等键或后台任务的实际状态。
+
 ## Claw 项目与日程草稿 API
 
 `claw_routes.py` 提供 `/claw/projects` 列表/创建与 `/{project_id}` 查询/改名/归档，`/sessions/{sid}/project` 显式移组，`/sessions/{sid}/file-references` 显式复制所选同项目文件。

@@ -29,7 +29,7 @@ try {
   await page.reload();
   await page.getByRole('heading',{name:'Workflow 验收 · 基金资料共享与受限评价',exact:true}).waitFor();
   const panel=page.getByRole('complementary',{name:'研究活动、资料与文件',exact:true});
-  if(!await panel.isVisible()) await page.getByRole('button',{name:'活动与文件',exact:true}).click();
+  if(!await panel.isVisible()) await page.getByRole('button',{name:'工作空间',exact:true}).click();
   await panel.getByRole('tab',{name:'活动',exact:true}).click();
   await panel.getByText('文件交付已检查',{exact:true}).waitFor();
   const steps=panel.getByRole('region',{name:'Workflow 预设步骤',exact:true});

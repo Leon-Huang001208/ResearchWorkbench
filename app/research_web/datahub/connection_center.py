@@ -10,8 +10,10 @@ from .connections import (
     CredentialStoreError,
     canonical_source_id,
 )
+from .external_sources import EXTERNAL_SOURCES
 
 GROUP_SPECS = (
+    ("external", "已整理外部来源", ["ext_registry", *EXTERNAL_SOURCES]),
     ("professional", "专业数据源", ["wind", "tinysoft", "ifind", "mysql"]),
     (
         "api",

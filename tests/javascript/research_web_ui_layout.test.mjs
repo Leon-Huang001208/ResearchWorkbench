@@ -1,5 +1,18 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+
+test('global search keeps tool and data destinations separate from research skills', async () => {
+  const shell = await import('../../app/research_web/ui/shell.mjs');
+  const html = shell.renderGlobalSearch('行情', [], [
+    { id: 'bars', kind: 'data', name: '行情数据' },
+    { id: 'read', kind: 'tool', name: '行情工具' },
+    { id: 'off', kind: 'skill', name: '行情分析', enabled: false },
+  ]);
+  assert.match(html, /data-data-capability-detail="bars"/);
+  assert.match(html, /data-tool-detail="read"/);
+  assert.match(html, /data-skill-detail="off"/);
+  assert.doesNotMatch(html, /data-skill-shortcut="(?:bars|read|off)"/);
+});
 import { readFile } from 'node:fs/promises';
 
 const root = new URL('../../app/research_web/ui/', import.meta.url);

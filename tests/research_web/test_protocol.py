@@ -13,6 +13,36 @@ from app.research_web.client import DSHClient, RuntimeFailure
 from app.research_web.projection import project
 
 
+@pytest.mark.parametrize("payload", ["not-json", "{}", '{"status":"unknown"}', "[]"])
+def test_invalid_script_result_remains_failed(payload):
+    result = project(
+        [
+            event(1, "tool/call", {"callId": "c", "name": "research_run_script"}),
+            event(
+                2,
+                "tool/result",
+                {
+                    "message": {
+                        "source": {"callId": "c"},
+                        "role": "tool",
+                        "content": [{"type": "text", "text": payload}],
+                    }
+                },
+            ),
+        ]
+    )
+    assert result["activities"][0]["status"] == "failed"
+
+
+@pytest.mark.parametrize("model", ["arbitrary-no-tools-model", "deepseek/deepseek-flash"])
+def test_compatible_transport_does_not_certify_model_tool_admission(model):
+    from app.research_web.service import ResearchService
+
+    service = object.__new__(ResearchService)
+    service.default_model = {"provider": "openai-compatible", "model": model}
+    assert service._model_tools_verified() is False
+
+
 @pytest.mark.asyncio
 async def test_native_credential_clear_uses_unset_without_secret_payload():
     def reply(request):
@@ -241,6 +271,7 @@ def test_native_tool_result_error_updates_matching_call():
             "title": "research_run_script",
             "status": "failed",
             "detail": "permission denied",
+            "seq": 1,
         }
     ]
 

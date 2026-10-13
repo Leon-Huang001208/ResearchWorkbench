@@ -110,8 +110,22 @@ export function safeLog(event, metadata = {}) {
   console.info('[ResearchWeb]', event, { status: metadata.status, method: metadata.method });
 }
 
-export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSourceClass = globalThis.EventSource, logger = safeLog } = {}) {
+export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSourceClass = globalThis.EventSource, logger = safeLog, requestTimeoutMs = 120000 } = {}) {
   async function request(path, { method = 'GET', body, key, userAction = false } = {}) {
+    const abort = new AbortController();
+    let timer;
+    const timeout = new Promise((_, reject) => {
+      timer = setTimeout(() => {
+        abort.abort();
+        logger('request_timeout', { method });
+        const error = new Error(method === 'GET' ? '读取超时，请刷新重试。' : '请求超时，操作结果尚未确认；请核对会话状态。草稿已保留，不会自动重发。');
+        error.code = 'request_timeout'; reject(error);
+      }, method === 'GET' ? Math.min(requestTimeoutMs, 30000) : requestTimeoutMs);
+    });
+    try { return await Promise.race([performRequest(path, { method, body, key, userAction, signal: abort.signal }), timeout]); }
+    finally { clearTimeout(timer); }
+  }
+  async function performRequest(path, { method, body, key, userAction, signal }) {
     const headers = { Accept: 'application/json' };
     const isForm = typeof FormData !== 'undefined' && body instanceof FormData;
     if (body !== undefined && !isForm) headers['Content-Type'] = 'application/json';
@@ -119,7 +133,7 @@ export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSo
     if (userAction) headers['X-Research-User-Action'] = '?1';
     let response;
     try {
-      response = await fetcher(`${API_ROOT}${path}`, { method, credentials: 'same-origin', cache: 'no-store', headers, body: body === undefined ? undefined : isForm ? body : JSON.stringify(body) });
+      response = await fetcher(`${API_ROOT}${path}`, { method, signal, credentials: 'same-origin', cache: 'no-store', headers, body: body === undefined ? undefined : isForm ? body : JSON.stringify(body) });
     } catch {
       logger('request_failed', { method });
       throw new Error('网络连接失败，请检查服务后重试。未自动重新提交请求。');
@@ -312,7 +326,7 @@ export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSo
 }
 
 export function createController({ api, draftStorage, logger = safeLog, makeID = () => globalThis.crypto.randomUUID(), onNavigate = () => {}, confirmTabbit = async () => globalThis.confirm?.('所选标签页将临时移入代理任务，标签分组可能改变。继续发送？') !== false }) {
-  const state = { route: { page: 'fingpt', sessionId: null }, detail: null, draft: '', attachments: [], tabbitTabs: [], skillId: '', capability: null, toolIds: [], methodIds: [], sourceScope: ['datahub', 'web', 'uploads'], researchDepth: 'instant', expectedFormats: null, error: '', streamError: '', loading: false, busy: false };
+  const state = { route: { page: 'fingpt', sessionId: null }, detail: null, draft: '', attachments: [], tabbitTabs: [], skillId: '', capability: null, toolIds: [], methodIds: [], sourceScope: ['datahub', 'web', 'uploads'], researchDepth: 'instant', expectedFormats: null, error: '', streamError: '', loading: false, busy: false, stopping: false };
   const listeners = new Set(); const drafts = new Map(); const pending = new Map();
   let generation = 0; let snapshotRevision = 0; let closeStream = () => {};
   const emit = () => listeners.forEach((listener) => listener(state));
@@ -359,7 +373,7 @@ export function createController({ api, draftStorage, logger = safeLog, makeID =
   }
   async function open(route) {
     saveDraft(); const ticket = ++generation; closeStream(); closeStream = () => {};
-    state.route = route; state.detail = null; state.error = ''; state.streamError = ''; state.loading = Boolean(route.sessionId); state.busy = false;
+    state.route = route; state.detail = null; state.error = ''; state.streamError = ''; state.loading = Boolean(route.sessionId); state.busy = false; state.stopping = false;
     Object.assign(state, { sourceScope: ["datahub", "web", "uploads"], researchDepth: "instant", expectedFormats: null, capability: null, toolIds: [], methodIds: [], tabbitTabs: [] }, readDraft(draftKey()) || { draft: '', attachments: [], tabbitTabs: [], skillId: '', methodIds: [] }); emit();
     if (!route.sessionId) return;
     try {
@@ -375,7 +389,7 @@ export function createController({ api, draftStorage, logger = safeLog, makeID =
     finally { if (ticket === generation) { state.loading = false; emit(); } }
   }
   async function send() {
-    if (state.busy || !state.detail || !state.draft.trim()) return;
+    if (state.busy || state.stopping || !state.detail || !state.draft.trim()) return;
     if (state.tabbitTabs.length) {
       try { if (!await confirmTabbit()) return; }
       catch (error) { fail(error); emit(); return; }
@@ -399,14 +413,26 @@ export function createController({ api, draftStorage, logger = safeLog, makeID =
     finally { if (ticket === generation) { state.busy = false; emit(); } }
   }
   async function action(operation, { refreshAfter = true } = {}) {
-    if (state.busy) return null;
+    if (state.busy || state.stopping) return null;
     const ticket = generation; state.busy = true; state.error = ''; emit();
     try { const result = await operation(); if (ticket === generation && refreshAfter) await refresh(); return result; }
     catch (error) { if (ticket === generation) fail(error); return null; }
     finally { if (ticket === generation) { state.busy = false; emit(); } }
   }
+  async function cancel() {
+    if (state.stopping || !state.detail) return null;
+    const ticket = generation; const id = state.detail.id;
+    state.stopping = true; state.error = ''; emit();
+    try {
+      const result = await api.cancel(id);
+      if (result?.accepted !== true) throw new Error('停止尚未确认，请重新核对会话状态。');
+      if (ticket === generation) await refresh();
+      return result;
+    } catch (error) { if (ticket === generation) fail(error); return null; }
+    finally { if (ticket === generation) { state.stopping = false; emit(); } }
+  }
   return {
-    state, subscribe: (listener) => { listeners.add(listener); return () => listeners.delete(listener); }, open, refresh, send, action,
+    state, subscribe: (listener) => { listeners.add(listener); return () => listeners.delete(listener); }, open, refresh, send, action, cancel,
     setSourceScope: (value) => { if (!Array.isArray(value) || !value.length || value.some(s => !["datahub", "web", "uploads"].includes(s))) throw new Error("至少选择一个资料范围"); state.sourceScope = [...new Set(value)]; saveDraft(); emit(); },
     setResearchDepth: (value) => { if (!["instant", "deep"].includes(value)) throw new Error("不支持的研究深度"); state.researchDepth = value; saveDraft(); emit(); },
     setDraft: (value) => { state.draft = value; saveDraft(); },

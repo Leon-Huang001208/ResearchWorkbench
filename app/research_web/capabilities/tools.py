@@ -112,6 +112,7 @@ SELECTABLE = {
 }
 
 DATA_PROPERTIES = {
+    "external_data": ({"dataset": "string", "arguments_json": "string", "limit": "integer"}, []),
     "search_assets": (
         {"query": "string", "market": "string", "asset_type": "string"},
         ["query"],

@@ -43,6 +43,15 @@ def resolve(
     ]
     binding_by_source = {binding["source_id"]: binding for binding in bindings}
     sources = {source["id"]: source for source in catalog["sources"]}
+    if query.capability == "external_data":
+        selected = "ext_registry" if query.source == "auto" else query.source
+        if selected not in binding_by_source:
+            raise StoreError("指定来源不属于外部数据源目录")
+        return Resolution(
+            selected,
+            query.model_copy(update={"source": selected}),
+            [{"source": selected, "status": "selected", "reason": None}],
+        )
     if query.source != "auto":
         if query.source not in sources:
             raise StoreError("指定来源不在静态目录白名单")

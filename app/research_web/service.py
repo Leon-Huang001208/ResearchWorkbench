@@ -1240,7 +1240,8 @@ class ResearchService:
                 "model_provider": self.default_model["provider"],
             }
         )
-        # Exact tuple bound to the independently observed native tool round.
+        # A transport implementation is not evidence for every endpoint/model.
+        # Keep admission bound to the independently observed native tool round.
         return (
             PINNED_DSH_COMMIT == "48504f07f217f9fd45a4f6d8fca4b1ed35c2d4b0"
             and model.get("model_provider", "deepseek-official") == "deepseek-official"

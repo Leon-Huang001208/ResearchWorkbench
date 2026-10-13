@@ -682,6 +682,7 @@ def _prepare_runtime(
                 "      config:",
                 f"        dataHome: {json.dumps(str(data))}",
                 f"        nativeLlmModule: {json.dumps(str(source / 'packages/llm/llm/lib/index.js'))}",
+                "        contextWindow: 32768",
                 "- id: llm-deepseek",
                 "  config:",
                 "    apiKeyEnv: RESEARCH_DSH_API_KEY",

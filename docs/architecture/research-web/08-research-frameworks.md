@@ -1,5 +1,8 @@
 # 研究框架
 
+共用聊天 renderer 的停止、超时和重试资格检查不改变 Gold/Dollar 的版本、快照或准入。
+外部资料工具仍经会话 DataHub admission；框架不能凭目录或兼容传输支持绕过数据/工具验证。
+
 Claw 项目归属只组织会话，不重绑 Gold/Dollar 快照或改变 Bot 执行。项目聚合不把其他会话数据自动注入框架，日程提出工具也不改变 framework-explain/verify 的权限。
 
 ## 资讯雷达 · 2026-10-09

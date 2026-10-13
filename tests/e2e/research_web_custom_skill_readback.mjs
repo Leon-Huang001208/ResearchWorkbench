@@ -28,7 +28,7 @@ try {
   await page.reload();
   await page.getByRole('heading',{name:'能力验收 · 自建 Skill 统计报告',exact:true}).waitFor();
   await page.getByText(`所选能力版本：${capability} · v1`,{exact:false}).waitFor();
-  const panelToggle=page.getByRole('button',{name:'活动与文件',exact:true});
+  const panelToggle=page.getByRole('button',{name:'工作空间',exact:true});
   if (await panelToggle.getAttribute('aria-expanded') !== 'true') await panelToggle.click();
   await page.getByRole('region',{name:'文件交付检查',exact:true}).getByText('文件交付已检查',{exact:true}).waitFor();
   await page.getByRole('tab',{name:'文件',exact:true}).click();

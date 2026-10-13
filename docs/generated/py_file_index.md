@@ -3601,11 +3601,17 @@ Imports:
 - `snapshots`
 - `store`
 - `time`
+- `typing`
 - `uuid`
 
 Classes:
 - `DataHub`
   - methods: __init__, authenticate, _latest_probes, catalog, connection_center, source_configuration_digest, catalog_capability, catalog_source, start_probe, _probe, _mark_probe_terminal, _prune_probes, probe, run_probe, restore_probe_statuses, detail, summaries, copy_for_upgrade, copy_selected, list, rows, short, _authorize_query, query, _query, cancel, close
+
+Functions:
+- `_trim_sample_strings`
+- `bounded_sample`
+  - Bound the model-facing sample; complete rows stay in rows.json.
 
 
 ## `app/research_web/datahub/broker.py`
@@ -3637,6 +3643,7 @@ Imports:
 - `__future__`
 - `contracts`
 - `datetime`
+- `external_sources`
 - `importlib.metadata`
 - `importlib.util`
 - `os`
@@ -3669,6 +3676,7 @@ Module docstring:
 Imports:
 - `__future__`
 - `connections`
+- `external_sources`
 - `importlib.util`
 - `platform`
 
@@ -3759,6 +3767,27 @@ Classes:
 - `InternalBusinessQuery`
 
 
+## `app/research_web/datahub/external_sources.py`
+
+Module docstring:
+> Versioned external-source inventory; importing it never performs network I/O.
+
+Imports:
+- `json`
+- `pathlib`
+- `re`
+- `typing`
+- `urllib.parse`
+
+Functions:
+- `credential_transport_blocked`
+  - Authenticated HTTP inventory entries remain registered but cannot execute.
+- `readable_endpoints`
+- `inventory_rows`
+- `source_label`
+- `catalog_entries`
+
+
 ## `app/research_web/datahub/probes.py`
 
 Module docstring:
@@ -3847,6 +3876,7 @@ Imports:
 - `providers`
 - `re`
 - `threading`
+- `time`
 - `typing`
 
 Functions:
@@ -3856,10 +3886,12 @@ Functions:
 - `_symbol`
 - `_market_code`
 - `_market_symbol`
+- `_exchange_symbol`
 - `_clean`
 - `_records`
 - `_pick`
 - `_date`
+- `_iso_date`
 - `_number`
 - `_normalize_assets`
 - `_normalize_bars`
@@ -3910,6 +3942,49 @@ Functions:
 - `_failure_code`
 - `fetch`
 - `probe`
+
+
+## `app/research_web/datahub/providers_external.py`
+
+Module docstring:
+> Bounded, cancellable reads of named endpoints from the external-source inventory.
+
+Imports:
+- `asyncio`
+- `contracts`
+- `core.observability`
+- `csv`
+- `datetime`
+- `external_sources`
+- `hashlib`
+- `hmac`
+- `html.parser`
+- `httpx`
+- `io`
+- `json`
+- `providers`
+- `re`
+- `time`
+- `typing`
+- `urllib.parse`
+- `xml.etree`
+
+Classes:
+- `PageText`
+  - methods: __init__, handle_starttag, handle_endtag, handle_data
+
+Functions:
+- `arguments`
+- `endpoint_request`
+- `_list_payload`
+  - Dict payloads with a primary list become real rows so samples stay small.
+- `response_rows`
+- `_rows_reflect_credentials`
+  - Inspect decoded strings before publishing; never log credential contents.
+- `bounded_response`
+- `credentials`
+- `cicc_request`
+- `fetch`
 
 
 ## `app/research_web/datahub/providers_mysql.py`
@@ -4093,6 +4168,7 @@ Imports:
 - `core.observability`
 - `csv`
 - `datetime`
+- `external_sources`
 - `hashlib`
 - `io`
 - `json`
@@ -5862,6 +5938,7 @@ Imports:
 
 Functions:
 - `content_text`
+- `content_reasoning`
 - `project`
 
 

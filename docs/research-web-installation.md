@@ -1,5 +1,21 @@
 # Research Web Native / Docker 安装与运行
 
+## 外部来源与兼容模型融合
+
+外部来源目录、JSON 模型预设和取数适配器随现有 Web 包安装，无新增产品依赖；
+`requirements/web.in`、`requirements/web.lock`、安装器与 Bootstrap 工作流保持原合同。
+连接中心新增 ext_ths/ext_daole/ext_tikhub/ext_cicc，凭据只在本实例设置页接收。
+目录、已配置和真实取数成功分别显示；Doctor 的健康或依赖安装不证明供应商可调用。
+认证入口必须使用 HTTPS；目前道乐目录的 HTTP 入口返回
+`credential_transport_blocked`，不会读取或发送其 API Key，不猜测 HTTPS 替代地址。
+普通公开入口不自动继承秘密，参考来源不提供取数能力。
+
+兼容模型预设只对已匹配的本地 gateway 展示；其他 endpoint 使用自己的模型目录。
+未披露模型容量时使用 32768 的保守上下文压缩预算，可由运行时显式配置覆盖；
+该预算不是模型能力认证。兼容传输支持工具流，不自动授予任意 endpoint/model
+深入研究或受验证能力准入；既有验证门保持。自动压缩使用已固定 DSH 插件，
+不改 DSH pin。安装和 Bootstrap 继续验证实际固定构建与 3081/8088/Doctor。
+
 Claw 项目与日程入口使用既有 Web/DSH 依赖，无新增产品包或安装步骤。旧数据根可直接读取，缺少 project_id 的 Claw 会话归入默认“我的研究”，不移动文件。
 Automation 被显式关闭时，聊天日程草稿也不可用；提出草稿不等于保存或启用。日程需实际能力版本，数据/模型/工具的可调用性继续由现有设置与 Doctor 分层诊断。
 

@@ -11,6 +11,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 from .contracts import BUSINESS_TOOLS, DataCapabilityId
+from .external_sources import catalog_entries
 
 IntegrationState = Literal["ready", "blocked_config", "blocked_dependency", "disabled", "error"]
 HealthState = Literal["untested", "checking", "healthy", "degraded", "unavailable"]
@@ -364,6 +365,16 @@ SOURCE_SPECS: tuple[SourceSpec, ...] = (
 )
 
 CAPABILITY_SPECS: tuple[CapabilitySpec, ...] = (
+    (
+        "external_data",
+        "外部数据源",
+        "外部资料",
+        "查询已整理的外部来源：先读取 catalog，按 source、dataset 和目录参数取数；保留原字段与来源。",
+        ["dataset", "arguments_json", "limit"],
+        ["provider_native_fields"],
+        ["全球"],
+        ["多资产"],
+    ),
     (
         "search_assets",
         "证券目录",
@@ -799,6 +810,10 @@ def build_catalog(
                     semantics=BINDING_SEMANTICS.get((source_id, capability_id), {}),
                 ).model_dump(mode="json")
             )
+    external_sources, external_bindings = catalog_entries(connection_statuses, probe_map)
+    sources.extend(external_sources)
+    bindings.extend(external_bindings)
+    by_source.update({source["id"]: source for source in external_sources})
     capabilities = []
     for capability_spec in CAPABILITY_SPECS:
         cid, name, category, description, parameters, fields, markets, assets = capability_spec

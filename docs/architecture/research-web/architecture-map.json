@@ -204,6 +204,7 @@
       "tests": [
         "tests/research_web/test_datahub.py",
         "tests/research_web/test_datahub_catalog.py",
+        "tests/research_web/test_external_sources.py",
         "tests/research_web/test_integration_coordinator.py",
         "tests/research_web/test_mysql_configuration.py",
         "tests/research_web/test_mysql_provider.py",

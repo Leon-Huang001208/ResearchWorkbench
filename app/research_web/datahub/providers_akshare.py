@@ -7,6 +7,7 @@ import json
 import math
 import re
 import threading
+import time
 from concurrent.futures import Future, ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -66,9 +67,18 @@ def _market_code(symbol: str) -> str:
 
 
 def _market_symbol(value: str) -> str:
-    symbol = _symbol(value)
-    prefix = _market_code(symbol).lower()
-    return f"{prefix}{symbol}"
+    return _exchange_symbol(value)
+
+
+def _exchange_symbol(value: str) -> str:
+    match = re.fullmatch(r"([0-9]{6})(?:\.(SH|SZ|BJ))?", value.upper())
+    if not match:
+        raise ProviderError("invalid_asset")
+    code = match.group(1)
+    # An explicit suffix wins: prefix guessing sends 000300.SH to the Shenzhen
+    # feed, whose payload decodes to an empty frame.
+    market = (match.group(2) or _market_code(code)).lower()
+    return f"{market}{code}"
 
 
 def _clean(value: Any) -> Any:
@@ -110,6 +120,10 @@ def _date(value: Any) -> str | None:
     if not re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", text):
         raise ProviderError("invalid_provider_date")
     return text
+
+
+def _iso_date(value: str) -> str | None:
+    return f"{value[:4]}-{value[4:6]}-{value[6:]}" if re.fullmatch(r"[0-9]{8}", value) else None
 
 
 def _number(value: Any) -> float | None:
@@ -228,12 +242,63 @@ def _invoke(query: BusinessQuery):
         return ak.stock_info_a_code_name(), _normalize_assets
     if capability == "market_bars":
         adjustment = parameters.get("adjustment", "qfq")
+        asset_type = str(parameters.get("asset_type", "stock"))
+        start_date = str(parameters.get("start_date", "")).replace("-", "")
+        end_date = str(parameters.get("end_date", "")).replace("-", "")
+        # Index and ETF codes must not fall through to the stock endpoint: it
+        # maps bare codes into the stock pool and returns wrong instruments.
+        if asset_type == "index":
+            if parameters.get("adjustment", "none") != "none":
+                raise ProviderError("invalid_adjustment")
+            if parameters.get("frequency", "daily") != "daily":
+                raise ProviderError("invalid_frequency")
+            symbol = _exchange_symbol(str(parameters["asset"]))
+            frame = None
+            # Public index feeds throttle bursts; one bounded retry plus an
+            # alternate feed keeps the query inside the provider deadline.
+            for attempt in range(2):
+                if attempt:
+                    time.sleep(1.5)
+                try:
+                    candidate = ak.stock_zh_index_daily(symbol=symbol)
+                except Exception:  # noqa: BLE001 - upstream HTML or shape drift
+                    log.warning("datahub_akshare_index_feed_failed", attempt=attempt + 1)
+                    continue
+                if candidate is not None and not candidate.empty and "date" in candidate.columns:
+                    frame = candidate
+                    break
+            if frame is None:
+                try:
+                    candidate = ak.stock_zh_index_daily_em(symbol=symbol)
+                except Exception:  # noqa: BLE001 - upstream busy payloads
+                    log.warning("datahub_akshare_index_fallback_failed")
+                    candidate = None
+                if candidate is not None and not candidate.empty and "date" in candidate.columns:
+                    frame = candidate
+            if frame is None:
+                raise ProviderError("vendor_unreachable")
+            start_iso, end_iso = _iso_date(start_date), _iso_date(end_date)
+            # Full history arrives in one frame; slice before the row cap would
+            # drop the newest dates.
+            if not frame.empty and start_iso and end_iso:
+                dates = frame["date"].astype(str)
+                frame = frame[(dates >= start_iso) & (dates <= end_iso)]
+            return frame, _normalize_bars
+        if asset_type == "etf":
+            frame = ak.fund_etf_hist_em(
+                symbol=_symbol(str(parameters["asset"])),
+                period=parameters.get("frequency", "daily"),
+                start_date=start_date,
+                end_date=end_date,
+                adjust="" if adjustment == "none" else adjustment,
+            )
+            return frame, _normalize_bars
         if parameters.get("frequency", "daily") == "daily":
             return (
                 ak.stock_zh_a_daily(
-                    symbol=_market_symbol(str(parameters["asset"])),
-                    start_date=str(parameters.get("start_date", "")).replace("-", ""),
-                    end_date=str(parameters.get("end_date", "")).replace("-", ""),
+                    symbol=_exchange_symbol(str(parameters["asset"])),
+                    start_date=start_date,
+                    end_date=end_date,
                     adjust="" if adjustment == "none" else adjustment,
                 ),
                 _normalize_bars,
@@ -242,8 +307,8 @@ def _invoke(query: BusinessQuery):
             ak.stock_zh_a_hist(
                 symbol=_symbol(str(parameters["asset"])),
                 period=parameters.get("frequency", "daily"),
-                start_date=str(parameters.get("start_date", "")).replace("-", ""),
-                end_date=str(parameters.get("end_date", "")).replace("-", ""),
+                start_date=start_date,
+                end_date=end_date,
                 adjust="" if adjustment == "none" else adjustment,
             ),
             _normalize_bars,
@@ -396,17 +461,30 @@ async def fetch(query: BusinessQuery) -> Result:
             capability=query.capability,
             error_type=type(exc).__name__,
         )
+    if query.parameters.get("asset_type") in {"index", "etf"} and result.rows:
+        result.limitations.append("volume_unit_not_verified")
     fields = {key for row in result.rows for key in row}
     for field in fields:
         unit = None
         currency = None
-        if field in {"open", "close", "high", "low", "price", "turnover", "market_cap"}:
+        if query.parameters.get("asset_type") == "index" and field in {
+            "open",
+            "close",
+            "high",
+            "low",
+        }:
+            unit = "points"
+        elif field in {"open", "close", "high", "low", "price", "turnover", "market_cap"}:
             unit = "CNY"
             currency = "CNY"
         elif field.endswith("_pct"):
             unit = "%"
         elif field == "volume":
-            unit = "share"
+            unit = (
+                "provider_defined"
+                if query.parameters.get("asset_type") in {"index", "etf"}
+                else "share"
+            )
         result.fields[field] = {"unit": unit, "currency": currency}
     return result
 
