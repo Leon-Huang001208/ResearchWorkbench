@@ -84,3 +84,5 @@ macOS实际端点/origin事务现接入公开CLI启动链；同一产品部署�
 ## 单一兼容模型连接
 
 单一兼容文本/流式模型适配位于既有Runtime，私有非秘密配置沿同一Host/DataHub通道读取，系统ref仍沿原进程桥接；没有新增研究引擎、模型代理daemon或Vault。Native macOS合成冷启动与真实供应商验收分别记录；本模型连接任务未执行其他平台验收，项目总平台范围以支持矩阵为准。
+
+Hot FinGPT冻结研究采用research-hot-frozen的轻量DSH composition，仅本地脚本/文档工具；Claw与普通研究保持research-web。原预算/guard/沙箱/回执不变，不新增研究引擎或Automation调度。

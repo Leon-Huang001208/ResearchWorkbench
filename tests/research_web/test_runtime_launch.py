@@ -157,12 +157,22 @@ def test_runtime_binds_model_system_store_and_separate_host_records(tmp_path, mo
     assert ".browser-credentials.yaml" in overlay
     assert "default: research-web" in overlay
     assert "- id: agent-preset-registry" in overlay
-    for name in ("research-web", "framework-explain", "framework-verify"):
+    for name in ("research-web", "framework-explain", "framework-verify", "research-hot-frozen"):
         assert f"id: rwb-preset-{name}" in overlay
     assert "@deepseek-ai/dsh-agent-preset" in overlay
     assert "plugins:" in overlay
     assert "synthetic-ambient" not in overlay
     assert "RESEARCH_DSH_API_KEY" not in env
+
+
+def test_hot_frozen_composition_is_local_and_keeps_normal_research_tools():
+    import yaml
+    package = Path(launch_runtime.__file__).parent / "runtime"
+    plugins = yaml.safe_load((package / "hot-frozen.cordis.yml").read_text())
+    assert {row["id"] for row in plugins} == {"persona", "tool-presentation", "research-tools"}
+    assert "research_run_script" in plugins[0]["config"]["prefix"]
+    normal = yaml.safe_load((package / "research.cordis.yml").read_text())
+    assert {"public-data", "tool-skill", "tool-subagent"} <= {row["id"] for row in normal}
 
 
 @pytest.mark.parametrize("marker", ["runtime", "web", "invalid", "runtime\nweb", ""])

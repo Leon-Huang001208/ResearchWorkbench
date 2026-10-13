@@ -464,3 +464,6 @@ Hot简报Host输入在读key前验证身份、严格版本和选材边界，Node
 
 
 Hot研究映射prepare/advance为controller-only，所有变更仍受实例/模式/代次与CAS；原件和状态为reader-only。预留session身份先持久化，未知结果不能自动创建另一个会话或重发付费执行。原生ID存在但cwd/本次归属不一致时拒绝采用。DataHub只允许已原生确认的匹配目标会话导入固定bundle，校验原件键/文件名/字节数/SHA与清单、截止时点；不会把材料解释成代码或用户授权。跨会话复制保留独立字节，未知暂存内容与已存在不同快照拒绝覆盖。
+
+
+2026-10-13续跑：migration18允许不可变amend-tokens审计；仅停机迁移Owner及匹配实例凭据可增加已有scope两token列，次数/费用/已用值/authorization hash不变。冻结快照仅在既有capability准入通过且本会话归属/全hash核对后只读。

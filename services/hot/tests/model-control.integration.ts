@@ -79,6 +79,23 @@ test('explicit offline model controls preserve cumulative charges, audits and la
         secrets:{worker:password,migration:await readFile(join(dir,'password'),'utf8'),'rpc-controller':identity.controllerToken}})}));
     assert.equal(output.state,'PASS');assert.equal(output.calls,2);assert.equal(output.tokens,'80');
     assert.equal((await db`select count(*)::int n from ${db(schema)}.model_control_requests`)[0].n,5);
+    const amendment={requestId:randomUUID(),operator:'synthetic operator',reason:'Explicit token-only increase',operation:'amend-tokens' as const,
+      parameters:{scopeId:policy.scopeId,maxTokens:600,dailyMaxTokens:600,authorizePaid:true}};
+    const [beforeAmend]=await db`select * from ${db(schema)}.model_budgets where scope_id=${policy.scopeId}`;
+    await assert.rejects(modelControl(worker,schema,identity,amendment),/control_denied/);
+    await assert.rejects(modelControl(db,schema,identity,{...amendment,parameters:{...amendment.parameters,authorizePaid:false}}),/paid_authorization_required/);
+    await assert.rejects(modelControl(db,schema,identity,{...amendment,parameters:{...amendment.parameters,scopeId:'new_scope'}}),/amendment_invalid/);
+    await assert.rejects(modelControl(db,schema,identity,{...amendment,parameters:{...amendment.parameters,maxTokens:200}}),/amendment_invalid/);
+    const activeAmendOwner=await activateRuntime(db,schema,identity.instanceId,identity.controllerToken,'native');
+    await assert.rejects(modelControl(db,schema,identity,amendment),/requires_stopped/);
+    await pauseRuntime(db,schema,activeAmendOwner,identity.controllerToken);
+    const amended=await modelControl(db,schema,identity,amendment);
+    assert.equal(amended.state,'amended');assert.deepEqual(await modelControl(db,schema,identity,amendment),amended);
+    await assert.rejects(modelControl(db,schema,identity,{...amendment,reason:'conflicting replay'}),/request_conflict/);
+    const [afterAmend]=await db`select * from ${db(schema)}.model_budgets where scope_id=${policy.scopeId}`;
+    assert.deepEqual({...afterAmend,max_tokens:beforeAmend.max_tokens,daily_max_tokens:beforeAmend.daily_max_tokens},beforeAmend);
+    assert.equal(Number(afterAmend.max_tokens),600);assert.equal(Number(afterAmend.daily_max_tokens),600);
+    assert.equal((await db`select count(*)::int n from ${db(schema)}.model_control_requests`)[0].n,6);
     await assert.rejects(db`delete from ${db(schema)}.model_control_requests`);
   }finally{
     try{if(worker)await worker.end({timeout:5});

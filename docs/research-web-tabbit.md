@@ -271,3 +271,6 @@ Windows 受管服务的非强制停止失败现在可升级到既有强制进程
 ## 本机页的分类与详情
 
 Tabbit设置与诊断保留在本机页的默认折叠详情，仅在全部/浏览器分类显示；Office分类不展示浏览器配置。Office自动验证同意不覆盖Tabbit浏览器调用，原Tabbit配置、审批和Runtime应用边界保持不变。未开启、缺可选组件与已观察异常仍分别显示，由[协调器](architecture/research-web/09-integration-coordinator.md)归因。
+
+Hot冻结FinGPT使用仅本地脚本/文档工具的research-hot-frozen组合，不加载浏览器工具。
+普通研究和Claw组合保留Tabbit原审批/claim合同；预算middleware仍核对完整实际请求。

@@ -156,3 +156,6 @@ Hot冻结简报DOCX与报告沙箱共用 `report_documents.py` 中的纯数据�
 
 
 Hot原件冻结的本轮PG容器仅为既有项目隔离验证资源：启动前核对固定镜像、probe标签、指定卷和回环绑定；重启后重新核对动态端口，原回执保持不变。该行为不接入Mac mini管理平面，也不认证Hot Docker产品worker、模式切换或模型支持。
+
+
+2026-10-13续跑：token-only修订是停机migration-owner管理动作，保留同一逻辑scope及历史账本；不会通过切换模式获得新额度。Hot快照脚本准入修复仅有macOS Native Seatbelt证据，不能提升Docker模型或容器脚本能力。

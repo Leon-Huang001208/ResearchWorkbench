@@ -117,3 +117,6 @@ Hot本轮新增网页冻结简报和Markdown；macOS本地真实HTTP→Manager�
 
 
 2026-10-12接续实测：原Hot schema15的两份AI/宏观简报哈希一致；完整存储版本与来源响应已实际读出并核验，两份DOCX用现有报告生成器生成、保留并解析通过。合成独立schema另完成Host→签名Node/PG重建和DOCX HTTP/保留文件验证。没有新付费调用/研究会话；正式研究、Docker产品切换、安装及当前候选Mac CI仍待验，Windows/Linux不提升状态。
+
+
+2026-10-13续跑：本轮Hot原scope预算修订和冻结资料读取仅有macOS Native证据；真实研究5次回执保存，报告仍incomplete。Docker及Windows/Linux尚无本轮对应验收，保持NOT_RUN。

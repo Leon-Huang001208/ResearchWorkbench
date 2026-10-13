@@ -46,6 +46,37 @@ class HotSnapshotTests(unittest.TestCase):
     def tearDown(self):
         self.temp.cleanup()
 
+    def test_hot_script_admission_checks_owner_origin_and_every_file_hash(self):
+        self.row["purpose"] = "hot_research"
+        snapshot = self.snapshots.publish_hot(self.row["id"], self.run, self.data)
+        did = snapshot["dataset_id"]
+        self.assertEqual(self.snapshots.admit_hot_script(self.row["id"], did), f"inputs/datasets/{did}")
+        for field, value in (("runId", str(uuid4())), ("instanceId", str(uuid4())), ("manifestHash", "c" * 64)):
+            original = self.row["hot_origin"][field]
+            self.row["hot_origin"][field] = value
+            with self.assertRaises(StoreError):
+                self.snapshots.admit_hot_script(self.row["id"], did)
+            self.row["hot_origin"][field] = original
+        self.row["purpose"] = "research"
+        with self.assertRaises(StoreError):
+            self.snapshots.admit_hot_script(self.row["id"], did)
+        self.row["purpose"] = "hot_research"
+        self.row["created"] = False
+        with self.assertRaises(StoreError):
+            self.snapshots.admit_hot_script(self.row["id"], did)
+        self.row["created"] = True
+        for item in self.data["manifest"]["objects"]:
+            path = self.store.root / "sessions" / self.row["id"] / "inputs" / "datasets" / did / item["filename"]
+            original = path.read_bytes()
+            path.write_bytes(b"corrupted")
+            with self.assertRaises(StoreError):
+                self.snapshots.admit_hot_script(self.row["id"], did)
+            path.write_bytes(original)
+        path = self.store.root / "sessions" / self.row["id"] / "inputs" / "datasets" / did / "evidence-manifest.json"
+        path.write_bytes(b"corrupted")
+        with self.assertRaises(StoreError):
+            self.snapshots.admit_hot_script(self.row["id"], did)
+
     def test_exact_copy_replay_and_generic_handoff_copy_keep_old_times_and_originals(self):
         original = self.snapshots.publish_hot(self.row["id"], self.run, self.data)
         self.assertEqual(self.snapshots.publish_hot(self.row["id"], self.run, self.data)["dataset_id"], original["dataset_id"])

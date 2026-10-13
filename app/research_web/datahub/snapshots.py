@@ -289,6 +289,42 @@ class Snapshots:
                         remove_directory(parent, name)
             raise
 
+    def admit_hot_script(self, sid, did):
+        """Grant only this owned Hot run's fully verified, immutable evidence copy."""
+        from .frozen_archive import OBJECT_FILE, validate_bundle
+        row = self.store.session(sid)
+        origin = row.get("hot_origin")
+        snapshot = self.detail(sid, did)
+        binding = snapshot.get("hot")
+        if (row.get("created") is not True or row.get("purpose") != "hot_research"
+                or not isinstance(origin, dict) or snapshot.get("snapshot_kind") != "hot_evidence"
+                or not isinstance(binding, dict) or binding.get("runId") != origin.get("runId")
+                or binding.get("instanceId") != origin.get("instanceId")
+                or binding.get("manifestHash") != origin.get("manifestHash")):
+            raise StoreError("冻结资料不属于当前Hot研究会话")
+        try:
+            # detail already verified the private manifest and all public hashes.
+            # One safe directory read avoids revalidating the entire archive per file.
+            with directory(self.store.root, ("sessions", sid, "inputs", "datasets", did)) as fd:
+                canonical = read_file(fd, "evidence-manifest.json")
+                frozen = json.loads(canonical)
+                if frozen["instanceId"] != origin["instanceId"]:
+                    raise ValueError("hot_instance_mismatch")
+                if not isinstance(frozen["objects"], list) or len(frozen["objects"]) > 40:
+                    raise ValueError("hot_object_limit")
+                values = {}
+                for item in frozen["objects"]:
+                    if not OBJECT_FILE.fullmatch(item["filename"]):
+                        raise ValueError("hot_object_name")
+                    values[item["key"]] = read_file(fd, item["filename"])
+            validate_bundle({"manifest": frozen, "manifestBytes": canonical,
+                             "manifestHash": origin["manifestHash"], "objects": values})
+        except (ValueError, KeyError, TypeError) as exc:
+            log.warning("hot_script_snapshot_denied")
+            raise StoreError("冻结资料校验失败") from exc
+        log.info("hot_script_snapshot_admitted", session_id=sid, dataset_id=did)
+        return f"inputs/datasets/{did}"
+
     def publish_hot(self, sid, run_id, bundle, *, origin=None):
         from .frozen_archive import build_archive, validate_bundle
         row = self.store.session(sid)

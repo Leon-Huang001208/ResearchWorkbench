@@ -558,3 +558,9 @@ Hot原件冻结新增同包读取方法，不增加产品依赖或数据库迁�
 schema17的研究模型私有RPC桥不新增依赖或迁移；它继续要求既有Hot Node24、当前Native价目
 及原预算授权。只有完整流回执/缓存返回允许2MiB签名帧，普通请求保留原上限。DSH流消费者
 尚未装配，因此该桥的本机PG回归不替代干净安装、Mac CI或正式研究产物验收。
+
+
+2026-10-13续跑：停机执行 `rwb hot setup` 追加migration18后，可用 `model-amend-tokens` 明确提高已有scope的累计/单日token限额。原计费历史及次数/费用上限保持；另把本实例budget.maxTokensPerDay设为批准值。无新增依赖。原验收库现schema18；研究已真实调用但未生成报告，干净安装CI仍待执行。
+
+Hot冻结FinGPT的research-hot-frozen声明随现有runtime YAML包数据安装，无新依赖；
+仍需候选Mac Bootstrap干净安装验证。普通研究/Claw不换preset，已存在Hot会话保持其原组合。

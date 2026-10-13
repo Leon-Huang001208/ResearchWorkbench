@@ -379,3 +379,6 @@ GET `/api/research/local-integrations`附带`integration_status`，其中`scope=
 
 
 `POST /api/research/hot/research/handoffs`要求同源、显式动作和有界JSON，字段为runId/requestId/briefId/正version/materialIds(1–20)/targetMode(fingpt|claw)。相同固定请求准备同一目标会话和快照，返回snapshot_ready与研究草稿；不提交付费研究。`GET /api/research/hot/research/runs/{run_id}`只读映射与真实状态，不创建或执行任务。未知会话创建与未知研究执行分别保留状态。
+
+
+2026-10-13续跑：新增Native管理CLI model-amend-tokens（scope、max-tokens、daily-max-tokens、authorize-paid、reason、可复用request-id），通过既有私有stdin管理进程；不新增浏览器付费管理API。

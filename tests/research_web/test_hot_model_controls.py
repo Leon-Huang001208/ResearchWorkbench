@@ -18,6 +18,21 @@ class ForbiddenCredentials:
         raise AssertionError("must not resolve")
 
 class ModelControlTests(unittest.TestCase):
+    def test_token_amendment_rejects_missing_approval_and_malformed_receipts(self):
+        from research_workbench_entrypoint.hot_model_controls import _validate, _confirmed
+        params = {"scopeId": "authorized", "maxTokens": 100000, "dailyMaxTokens": 100000, "authorizePaid": True}
+        _validate("amend-tokens", params)
+        with self.assertRaisesRegex(HotError, "paid_authorization_required"):
+            _validate("amend-tokens", {**params, "authorizePaid": False})
+        with self.assertRaises(HotError):
+            _validate("amend-tokens", {**params, "maxTokens": True})
+        budget = {"scope_id": "authorized", "max_tokens": "100000", "daily_max_tokens": "100000",
+                  "max_calls": 20, "daily_max_calls": 20, "max_cost_micros": "1000000", "daily_max_cost_micros": "1000000",
+                  "charged_calls": 4, "charged_tokens": "1417", "charged_cost_micros": "659",
+                  "authorization_hash": "a" * 64, "paused": False, "quota_timezone": "Asia/Shanghai"}
+        response = {"state": "amended", "requestId": RID, "scopeId": "authorized", "budget": budget}
+        self.assertTrue(_confirmed("amend-tokens", response, params, RID))
+        self.assertFalse(_confirmed("amend-tokens", {**response, "budget": {**budget, "daily_max_tokens": "20000"}}, params, RID))
     def setUp(self):
         self.temp=tempfile.TemporaryDirectory();self.root=Path(self.temp.name).resolve()
         self.project=self.root/"project";self.project.mkdir();self.home=self.root/"home"

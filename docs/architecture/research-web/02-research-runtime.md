@@ -449,3 +449,6 @@ Hot研究交接的原件读取已进入既有reader签名桥；独立Node不创�
 
 
 Hot交接准备已接入ResearchService与DataHub：PG先预留session ID，Host保留匹配归属并查询DSH已有会话；创建回执丢失时复用已存在会话，未知缺席保持待恢复。原件快照私有目录提交后CAS绑定dataset/manifest hash。snapshot_ready仅表示研究草稿与证据已准备，不表示session.prompt已受理。execution_starting/execution_outcome_unknown的恢复须查询既有Delivery/原生历史，禁止自动重发；本轮未新增正式付费执行。
+
+
+2026-10-13续跑：native_admission在既有capability/model工具许可后验证Hot冻结快照归属并提供单dataset只读路径；Seatbelt不开放datasets父目录、写入或网络。真实原会话读取已验证，模型报告仍未完成。

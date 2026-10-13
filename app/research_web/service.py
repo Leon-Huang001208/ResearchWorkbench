@@ -1010,7 +1010,7 @@ class ResearchService:
                 row["hot_creation_state"] = "creating"
                 self.store.save()
                 try:
-                    await self.client.rpc("session.create", {"sessionId": sid, "cwd": str(self.store.directory(sid)), "agentPreset": "research-web"})
+                    await self.client.rpc("session.create", {"sessionId": sid, "cwd": str(self.store.directory(sid)), "agentPreset": "research-hot-frozen" if row["mode"] == "fingpt" else "research-web"})
                 except (RuntimeFailure, asyncio.CancelledError):
                     row.update(hot_creation_state="outcome_unknown", status="failed")
                     self.store.save()
@@ -1370,6 +1370,9 @@ class ResearchService:
             for did in self.datahub.snapshots.ids(sid)[:256]:
                 try:
                     manifest = self.datahub.detail(sid, did)
+                    if manifest.get("snapshot_kind") == "hot_evidence":
+                        scope["read_paths"].append(self.datahub.snapshots.admit_hot_script(sid, did))
+                        continue
                     source = next(
                         (
                             item

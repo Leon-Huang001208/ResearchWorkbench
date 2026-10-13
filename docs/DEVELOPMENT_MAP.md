@@ -244,3 +244,9 @@ DOCX、原文研究副本与调度映射仍待实现。合同见 `services/hot/R
 Hot简报Host为hot_routes/hot_service与HotManager，网页core/hot-workspace新增briefs视图和详情显式生成；brief.export按32KiB UTF8分块，Host固定版本并校验完整哈希。相关test_hot_manager/test_hot_web、research_web_hot与event-rpc integration覆盖只读权限、未知UUID、晚到预览和真实HTTP→Node/PG。完整浏览器旅程与DOCX仍待验收。
 
 浏览器简报验收使用原hot_acceptance_model schema15，保存真实AI/宏观两份version1简报并从浏览器下载；browser-dataset-proof.ts使用独立proofId写一次基线，恢复失败也独立禁用已绑定临时角色，失败/权限清理状态分开记录。真实Keychain生命周期、DOCX与研究仍待验收。
+
+Hot token限额修订为migration18/model-control.ts `amend-tokens`及Native
+`model-amend-tokens`，仅停机migration-owner增加已有scope的两个token列并保留原费用审计。
+冻结Hot快照的脚本准入在Snapshots.admit_hot_script与ResearchService.native_admission；
+既有capability准入后验证本会话Hot归属和所有原件哈希，仅返回该dataset只读目录。
+真实研究5次回执已保存但100k预留上限导致未产出报告；读资料的Seatbelt验收不等于报告完成。

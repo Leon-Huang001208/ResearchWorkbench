@@ -6,7 +6,7 @@ import {canonicalGroupingInput} from './processing.ts';
 import {logEvent} from './log.ts';
 type Sql=ReturnType<typeof postgres>;
 interface Identity {instanceId:string;controllerToken:string}
-interface Request {requestId:string;operator:string;reason:string;operation:'authorize'|'terminate';parameters:unknown}
+interface Request {requestId:string;operator:string;reason:string;operation:'authorize'|'terminate'|'amend-tokens';parameters:unknown}
 const UUID=/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i;
 function object(value:unknown,keys:string[]):Record<string,any>{
   if(!value||typeof value!=='object'||Array.isArray(value)||Object.keys(value).some(k=>!keys.includes(k)))throw Error('hot_model_control_invalid');
@@ -28,12 +28,13 @@ export async function modelControl(db:Sql,schema:string,identity:Identity,reques
   schemaName(schema);object(request,['requestId','operator','reason','operation','parameters']);
   if(!UUID.test(request.requestId)||!UUID.test(identity.instanceId)||!/^[A-Za-z0-9_-]{32,128}$/.test(identity.controllerToken)||
     typeof request.operator!=='string'||!request.operator.trim()||request.operator.length>200||
-    typeof request.reason!=='string'||!request.reason.trim()||request.reason.length>2000||!['authorize','terminate'].includes(request.operation))throw Error('hot_model_control_invalid');
-  const id=request.requestId.toLowerCase(),params=object(request.parameters,request.operation==='authorize'?['policy','authorizePaid']:['attemptId']);
-  if(request.operation==='authorize'&&params.authorizePaid!==true)throw Error('hot_model_paid_authorization_required');
+    typeof request.reason!=='string'||!request.reason.trim()||request.reason.length>2000||!['authorize','terminate','amend-tokens'].includes(request.operation))throw Error('hot_model_control_invalid');
+  const id=request.requestId.toLowerCase(),params=object(request.parameters,request.operation==='authorize'?['policy','authorizePaid']:request.operation==='amend-tokens'?['scopeId','maxTokens','dailyMaxTokens','authorizePaid']:['attemptId']);
+  if(request.operation!=='terminate'&&params.authorizePaid!==true)throw Error('hot_model_paid_authorization_required');
   const authorized=request.operation==='authorize'?policy(params.policy):undefined;
+  const amendment=request.operation==='amend-tokens'?{scopeId:scope(params.scopeId),maxTokens:amount(params.maxTokens,10000000),dailyMaxTokens:amount(params.dailyMaxTokens,10000000),authorizePaid:true}:undefined;
   if(request.operation==='terminate'&&(typeof params.attemptId!=='string'||!UUID.test(params.attemptId)))throw Error('hot_model_control_invalid');
-  const normalized={operation:request.operation,operator:request.operator.trim(),reason:request.reason.trim(),parameters:authorized?{policy:authorized,authorizePaid:true}:{attemptId:params.attemptId.toLowerCase()}};
+  const normalized={operation:request.operation,operator:request.operator.trim(),reason:request.reason.trim(),parameters:authorized?{policy:authorized,authorizePaid:true}:amendment??{attemptId:params.attemptId.toLowerCase()}};
   const hash=sha256(canonicalGroupingInput(normalized));
   const response=await db.begin(async tx=>{
     await tx`select pg_advisory_xact_lock(hashtextextended(${schema},231501))`;
@@ -45,7 +46,14 @@ export async function modelControl(db:Sql,schema:string,identity:Identity,reques
     const [replayed]=await tx`select input_hash,response from ${tx(schema)}.model_control_requests where request_id=${id}`;
     if(replayed){if(replayed.input_hash!==hash)throw Error('hot_model_control_request_conflict');return replayed.response;}
     let before:postgres.JSONValue=null,result:Record<string,any>;
-    if(authorized){
+    if(amendment){
+      const [existing]=await tx`select * from ${tx(schema)}.model_budgets where scope_id=${amendment.scopeId} for update`;
+      if(!existing||amendment.maxTokens<Number(existing.max_tokens)||amendment.dailyMaxTokens<Number(existing.daily_max_tokens))throw Error('hot_model_amendment_invalid');
+      before=JSON.parse(JSON.stringify(existing));
+      await tx`update ${tx(schema)}.model_budgets set max_tokens=${amendment.maxTokens},daily_max_tokens=${amendment.dailyMaxTokens} where scope_id=${amendment.scopeId}`;
+      const [current]=await tx`select * from ${tx(schema)}.model_budgets where scope_id=${amendment.scopeId}`;
+      result={state:'amended',requestId:id,scopeId:amendment.scopeId,budget:JSON.parse(JSON.stringify(current))};
+    }else if(authorized){
       const [existing]=await tx`select * from ${tx(schema)}.model_budgets where scope_id=${authorized.scopeId}`;
       if(existing){
         if(existing.max_calls!==authorized.maxCalls||Number(existing.max_tokens)!==authorized.maxTokens||Number(existing.max_cost_micros)!==authorized.maxCostMicros||

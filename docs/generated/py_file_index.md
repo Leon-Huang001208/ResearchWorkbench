@@ -4056,7 +4056,7 @@ Imports:
 
 Classes:
 - `Snapshots`
-  - methods: __init__, _private, _public, receipt, ids, detail, read, publish, _publish_files, publish_hot, copy_for_upgrade, copy_selected
+  - methods: __init__, _private, _public, receipt, ids, detail, read, publish, _publish_files, admit_hot_script, publish_hot, copy_for_upgrade, copy_selected
 
 Functions:
 - `sha`
@@ -6464,6 +6464,8 @@ Imports:
 - `uuid`
 
 Functions:
+- `read_hot_evidence`
+  - Verify the admitted frozen copy and return bounded selected evidence only.
 - `read_pdf`
 - `safe_cell`
 - `write_deliverables`

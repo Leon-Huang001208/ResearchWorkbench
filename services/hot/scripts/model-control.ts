@@ -9,7 +9,7 @@ try{
   assertNodeRuntime();const parts:Buffer[]=[];let size=0;
   for await(const chunk of process.stdin){size+=chunk.length;if(size>65536)throw Error('hot_model_control_invalid');parts.push(Buffer.from(chunk));}
   const input=JSON.parse(Buffer.concat(parts).toString('utf8')),config=parseConfig(input.config);
-  if(!['attempts','authorize','terminate'].includes(input.operation)||!/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(input.instanceId))throw Error('hot_model_control_invalid');
+  if(!['attempts','authorize','terminate','amend-tokens'].includes(input.operation)||!/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(input.instanceId))throw Error('hot_model_control_invalid');
   const read=input.operation==='attempts',user=read?config.database.user:input.migrationUser;
   if(typeof user!=='string'||!/^[a-zA-Z][a-zA-Z0-9_]{0,62}$/.test(user)||(!read&&[config.database.user,config.database.controllerUser].includes(user)))throw Error('hot_model_control_denied');
   db=postgres({...poolOptions({...config.database,user},input.password),
@@ -24,7 +24,7 @@ try{
   console.log(JSON.stringify({protocol:'rwb-hot-model/v1',ok:true,response}));
 }catch(error){
   const known=['hot_model_control_invalid','hot_model_paid_authorization_required','hot_model_control_denied','hot_model_control_requires_stopped',
-    'hot_model_control_instance_mismatch','hot_model_control_request_conflict','hot_model_authorization_conflict','hot_model_termination_invalid','hot_model_controls_setup_required'];
+    'hot_model_control_instance_mismatch','hot_model_control_request_conflict','hot_model_authorization_conflict','hot_model_termination_invalid','hot_model_amendment_invalid','hot_model_controls_setup_required'];
   const code=error instanceof Error&&known.includes(error.message)?error.message:'hot_model_operation_failed';
   console.log(JSON.stringify({protocol:'rwb-hot-model/v1',ok:false,code}));process.exitCode=1;
 }finally{if(db)await db.end({timeout:5});}

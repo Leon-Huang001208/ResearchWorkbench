@@ -603,7 +603,8 @@ def _prepare_runtime(
     preset = preset_root / "research-web"
     explain_preset = preset_root / "framework-explain"
     verify_preset = preset_root / "framework-verify"
-    for path in (preset, explain_preset, verify_preset):
+    hot_preset = preset_root / "research-hot-frozen"
+    for path in (preset, explain_preset, verify_preset, hot_preset):
         path.mkdir(parents=True, exist_ok=True, mode=0o700)
     package = Path(__file__).parent / "runtime"
     explain_content = (package / "framework-explain.cordis.yml").read_text(encoding="utf-8")
@@ -618,6 +619,15 @@ def _prepare_runtime(
         if not runner.exists() or not (package / "research-tools.mjs").exists():
             raise RuntimeError("安全脚本运行器尚未完成，禁止启用研究工具")
         content = (package / "research.cordis.yml").read_text(encoding="utf-8")
+        hot_content = (package / "hot-frozen.cordis.yml").read_text(encoding="utf-8")
+        for key, value in {
+            "__TOOLS_MODULE__": package / "research-tools.mjs",
+            "__PYTHON__": Path(sys.executable),
+            "__RUNNER__": runner,
+            "__RESEARCH_ROOT__": data,
+        }.items():
+            hot_content = hot_content.replace(key, json.dumps(str(value)))
+        (hot_preset / "agent.cordis.yml").write_text(hot_content, encoding="utf-8")
         for key, value in {
             "__SKILL_ROOT__": CapabilityCatalog(data).prepare_native_root(),
             "__TOOLS_MODULE__": package / "research-tools.mjs",
@@ -653,6 +663,7 @@ def _prepare_runtime(
         )
         log.info("mcp_runtime_tools_prepared", enabled_tool_count=len(mcp_bindings))
     else:
+        (hot_preset / "agent.cordis.yml").write_text(explain_content, encoding="utf-8")
         content = (package / "agent.cordis.yml").read_text(encoding="utf-8")
         if tabbit_config["browser_enabled"] is True:
             content = content.replace(
@@ -678,6 +689,7 @@ def _prepare_runtime(
         ("research-web", preset),
         ("framework-explain", explain_preset),
         ("framework-verify", verify_preset),
+        ("research-hot-frozen", hot_preset),
     ):
         rows = (folder / "agent.cordis.yml").read_text(encoding="utf-8")
         if not rows.strip():
@@ -689,7 +701,7 @@ def _prepare_runtime(
             f"        id: {identity}\n"
             "        plugins:\n" + "".join("          " + line + "\n" for line in rows.splitlines())
         )
-    log.info("research_runtime_presets_declared", count=3)
+    log.info("research_runtime_presets_declared", count=4)
     adapter = home / "profiles" / "node_modules" / "research-tabbit-adapter" / "index.mjs"
     overlay.write_text(
         "\n".join(

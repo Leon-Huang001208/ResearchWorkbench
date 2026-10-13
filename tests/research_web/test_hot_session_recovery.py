@@ -22,6 +22,7 @@ class Native:
         if operation == "session.list":
             return {"items": list(self.items.values())}
         if operation == "session.create":
+            assert params["agentPreset"] == "research-hot-frozen"
             self.creations += 1
             self.items[params["sessionId"]] = {"sessionId": params["sessionId"], "cwd": params["cwd"], "running": False}
             if self.lose_reply:

@@ -464,6 +464,7 @@ must match this authorization before activation.
 ./rwb hot stop --json
 ./rwb hot setup --json
 ./rwb hot model-authorize --file budget.json --authorize-paid --reason "Explicit budget approval" --json
+./rwb hot model-amend-tokens --scope hot --max-tokens 100000 --daily-max-tokens 100000 --authorize-paid --reason "Explicit token increase approval" --json
 ./rwb hot model-attempts --scope hot --limit 50 --json
 ./rwb hot model-terminate --attempt <attempt-UUID> --reason "Stop uncertain work; retain charges" --json
 ```
@@ -475,6 +476,14 @@ not worker or Agent RPC capabilities. The managed database is verified and can b
 cold-started for explicit controls; external databases are not started. Attempt reads
 use the ordinary scoped role and never start PG, daemon or model. Credentials remain
 in the configured backend; list responses omit dispatch-token hashes and model text.
+
+The stopped migration-owner `model-amend-tokens` operation only raises cumulative
+and daily token limits on an existing scope. It preserves counters, call/fee caps,
+timezone, pause state and original authorization hash, recording an immutable UUID
+audit with before/after state. It cannot create a scope or decrease a limit. After
+amending, explicitly configure the same scope's `budget.maxTokensPerDay` to match;
+the normal worker continues to reject conflicting settings. This operation does
+not activate a model or start a worker. Migration 18 adds its audit operation.
 
 An identical authorization cannot reset counters, enlarge immutable limits or clear
 a paused budget. Reusing a UUID with different parameters rejects. Unknown/timeout
@@ -705,3 +714,14 @@ ChatCompletion root. An offline fetch probe verifies the `/anthropic/v1/messages
 endpoint, synthetic x-api-key and one zero-retry attempt; it never contacts a vendor.
 The 2026-10-12 official price record uses `deepseek-flash`; old records stay immutable,
 and no price record grants or resets authorization.
+
+2026-10-14 Native proof: a real fixed-DSH FinGPT study generated and verified a
+2734-byte Markdown report from the stored macro evidence; a deterministic DOCX
+conversion was reopened successfully. Its file delivery completed, while the final
+model turn was denied by conservative cumulative token reservation and the Native
+session remained failed. Both facts are retained. Original ledger: 17 calls,
+76,804 tokens, 10,253 microUSD under unchanged 20 / 100,000 / USD1 caps. The reduced
+frozen preset and bounded read_hot_evidence helper reuse the existing Host guard,
+Seatbelt runner and ledger; ordinary research and Claw remain unchanged. This is
+control-only PG evidence, not installed worker, clean install, Docker or full Goal
+acceptance. Exact report/run/session provenance is in the continuation record.

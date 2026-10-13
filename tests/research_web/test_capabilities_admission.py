@@ -795,3 +795,20 @@ def test_data_builtin_migration_preserves_any_published_customization(api, monke
         assert active["metadata"]["description"] == "已发布的用户自定义描述"
     else:
         assert any(file["path"] == "user.txt" for file in active["files"])
+
+
+def test_owned_hot_snapshot_is_admitted_to_scripts_without_catalog_provider(api):
+    from uuid import uuid4
+    from test_hot_snapshot_publication import bundle
+    client, _native, service = api
+    sid = client.post('/api/research/sessions', json={}).json()['id']
+    row = service.store.session(sid)
+    evidence = bundle(str(uuid4()), str(uuid4()))
+    run = str(uuid4())
+    row.update(purpose='hot_research', hot_origin={'runId': run, 'instanceId': evidence['manifest']['instanceId'], 'manifestHash': evidence['manifestHash']})
+    service.store.save()
+    snapshot = service.datahub.snapshots.publish_hot(sid, run, evidence)
+    expected = 'inputs/datasets/' + snapshot['dataset_id']
+    assert expected in service.native_admission(sid, tool_name='research_run_script')['read_paths']
+    row['hot_origin']['runId'] = str(uuid4())
+    assert expected not in service.native_admission(sid, tool_name='research_run_script')['read_paths']

@@ -431,3 +431,5 @@ Tool/Workflow/Method 契约、DataHub 动态选源、MCP 授权或 Automation �
 ## 单一兼容模型连接
 
 新增兼容连接仅认证传输的文本/流式合同；工具功能在真实受控验收前为unverified，不能启动依赖工具的Skill/Workflow。Automation仍经相同create/send执行，继承连接版本、活动保护与当前授权；不按模型名字提升能力。
+
+Hot FinGPT的冻结研究不加载全量Skill目录及外部数据工具，沿既有模型/脚本准入核对本会话原件；Claw和普通研究仍保留其能力组合。该轻量preset不改变任何权限或预算。

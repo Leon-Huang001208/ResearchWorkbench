@@ -16,7 +16,7 @@ from .hot import HotError, MAX_BYTES, _node, _no_alias, _read, save_settings
 log=logging.getLogger(__name__)
 KNOWN={"hot_model_control_invalid","hot_model_paid_authorization_required","hot_model_control_denied",
        "hot_model_control_requires_stopped","hot_model_control_instance_mismatch","hot_model_control_request_conflict",
-       "hot_model_authorization_conflict","hot_model_termination_invalid","hot_model_controls_setup_required"}
+       "hot_model_authorization_conflict","hot_model_termination_invalid","hot_model_amendment_invalid","hot_model_controls_setup_required"}
 
 def _object(value: object, keys: set[str]) -> dict:
     if not isinstance(value,dict) or set(value)!=keys:
@@ -50,6 +50,13 @@ def _validate(operation: str, params: dict) -> None:
             ZoneInfo(daily["timezone"])
         except (ZoneInfoNotFoundError,ValueError,TypeError):
             raise HotError("hot_model_control_invalid") from None
+    elif operation=="amend-tokens":
+        _object(params,{"scopeId","maxTokens","dailyMaxTokens","authorizePaid"})
+        if params["authorizePaid"] is not True:
+            raise HotError("hot_model_paid_authorization_required")
+        _scope(params["scopeId"])
+        _amount(params["maxTokens"],10000000)
+        _amount(params["dailyMaxTokens"],10000000)
     elif operation=="terminate":
         _object(params,{"attemptId"})
         try:
@@ -126,6 +133,19 @@ def _confirmed(operation: str, response: object, params: dict, request_id: str |
             response.get("state")=="abandoned" and response.get("chargesRetained") is True
             or response.get("state")=="cancelled" and response.get("chargesRetained") is False and response.get("knownUnsent") is True
         )
+    if operation=="amend-tokens":
+        budget=response.get("budget")
+        return (response.get("state")=="amended" and response.get("scopeId")==params["scopeId"]
+                and isinstance(budget,dict) and budget.get("scope_id")==params["scopeId"]
+                and budget.get("max_tokens")==str(params["maxTokens"])
+                and budget.get("daily_max_tokens")==str(params["dailyMaxTokens"])
+                and type(budget.get("charged_calls")) is int and budget["charged_calls"]>=0
+                and all(isinstance(budget.get(k),str) and budget[k].isascii() and budget[k].isdigit()
+                        for k in ("charged_tokens","charged_cost_micros","max_cost_micros","daily_max_cost_micros"))
+                and type(budget.get("max_calls")) is int and type(budget.get("daily_max_calls")) is int
+                and isinstance(budget.get("authorization_hash"),str)
+                and bool(re.fullmatch(r"[a-f0-9]{64}",budget["authorization_hash"]))
+                and type(budget.get("paused")) is bool and isinstance(budget.get("quota_timezone"),str))
     charged=response.get("charged")
     return response.get("state")=="authorized" and response.get("scopeId")==params["policy"]["scopeId"] and response.get("policy")==params["policy"] and isinstance(response.get("authorizationHash"),str) and bool(re.fullmatch(r"[a-f0-9]{64}",response["authorizationHash"])) and isinstance(charged,dict) and type(charged.get("calls")) is int and charged["calls"]>=0 and all(isinstance(charged.get(k),str) and charged[k].isascii() and charged[k].isdigit() for k in ("tokens","costMicros")) and type(response.get("paused")) is bool
 

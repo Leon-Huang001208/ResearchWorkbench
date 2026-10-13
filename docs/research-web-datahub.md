@@ -254,3 +254,6 @@ ProviderBinding按dataset发布已审阅的语义；未知频率/单位/历史�
 
 
 Hot原件导入属于frozen_evidence/hot_evidence会话快照，不宣称为新的可查询市场Provider，也不伪造业务查询。实际选定的规范清单、完整存储材料JSON和原始响应按哈希独立复制到已确认目标会话；现有私有manifest、dataset读取、copy_selected和升级路径核验并支持它。取得/发表/来源更新与本次快照准备时间区分，显式选材不是来源全量覆盖。
+
+
+2026-10-13续跑：Hot研究脚本现在可读取本会话授权的冻结资料：创建回执、hot_research目的、run/instance/manifest匹配及所有原件hash必须通过。普通Provider选源/查询仍走原合同；本次仅修复快照只读权限。

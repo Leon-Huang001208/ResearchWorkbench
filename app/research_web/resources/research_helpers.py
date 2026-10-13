@@ -8,6 +8,82 @@ from uuid import uuid4
 log = logging.getLogger("research_web.documents")
 
 
+def read_hot_evidence() -> dict:
+    """Verify the admitted frozen copy and return bounded selected evidence only."""
+    import hashlib
+    import json
+    import re
+    from uuid import UUID
+
+    try:
+        context = json.loads(Path("inputs/hot-context.json").read_bytes())
+        did = str(UUID(context["dataset_id"]))
+        root = Path("inputs/datasets") / did
+        expected_path = str(root / "evidence-manifest.json")
+        if context["evidence_manifest"] != expected_path:
+            raise ValueError("hot_evidence_path_invalid")
+        canonical = (root / "evidence-manifest.json").read_bytes()
+        digest = hashlib.sha256(canonical).hexdigest()
+        if len(canonical) > 700000 or digest != context["evidence_manifest_hash"]:
+            raise ValueError("hot_evidence_manifest_hash_invalid")
+        manifest = json.loads(canonical)
+        selected = context["selected_material_ids"]
+        if (manifest["instanceId"] != context["logical_instance_id"] or manifest["materialIds"] != selected
+                or not isinstance(selected, list) or not 1 <= len(selected) <= 20
+                or not isinstance(manifest["objects"], list) or len(manifest["objects"]) > 40):
+            raise ValueError("hot_evidence_binding_invalid")
+        objects = {}
+        total = 0
+        for item in manifest["objects"]:
+            name = item["filename"]
+            if not isinstance(name, str) or not re.fullmatch(r"(?:raw-[a-f0-9-]{36}\.bin|material-[a-f0-9-]{36}-r[1-9][0-9]{0,9}\.json)", name):
+                raise ValueError("hot_evidence_object_name_invalid")
+            raw = (root / name).read_bytes()
+            total += len(raw)
+            if (len(raw) > 8 * 1024 * 1024 or total > 32 * 1024 * 1024
+                    or len(raw) != item["bytes"] or hashlib.sha256(raw).hexdigest() != item["contentHash"]):
+                raise ValueError("hot_evidence_object_hash_invalid")
+            objects[item["key"]] = raw
+        materials = []
+        for item in manifest["materials"]:
+            material = json.loads(objects[item["normalizedObject"]])
+            if material["materialId"] not in selected or material["revision"] != item["revision"]:
+                raise ValueError("hot_evidence_material_invalid")
+            summary = {"revision": material["revision"]}
+            truncated = []
+            for name, limit in (("materialId", 64), ("title", 256), ("originalUrl", 512),
+                                ("publishedAt", 64), ("acquiredAt", 64), ("contentHash", 64), ("excerpt", 512)):
+                value = material.get(name)
+                if value is None:
+                    summary[name] = None
+                elif not isinstance(value, str):
+                    raise ValueError("hot_evidence_field_type_invalid")
+                elif len(value.encode("utf-8")) > limit:
+                    truncated.append(name)
+                    # Do not return a broken URL or identity/hash as if it were complete.
+                    summary[name] = value.encode("utf-8")[:limit].decode("utf-8", errors="ignore") if name in {"title", "excerpt"} else None
+                else:
+                    summary[name] = value
+            summary["truncatedFields"] = truncated
+            summary["rawHash"] = hashlib.sha256(objects[item["rawObject"]]).hexdigest()
+            materials.append(summary)
+        log.info("hot_evidence_read materials=%d", len(materials))
+        limitations = manifest.get("limitations", [])
+        if not isinstance(limitations, list) or any(not isinstance(value, str) for value in limitations):
+            raise ValueError("hot_evidence_limitations_invalid")
+        result = {"manifestHash": digest, "cutoff": manifest["cutoff"], "timezone": manifest["timezone"],
+                  "materials": materials,
+                  "limitations": [value.encode("utf-8")[:256].decode("utf-8", errors="ignore") for value in limitations[:10]],
+                  "limitationsTruncated": len(limitations) > 10 or any(len(value.encode("utf-8")) > 256 for value in limitations[:10]),
+                  "scope": "仅所选已存材料；原始RSS已核验，不是原链接网页全文或完整覆盖"}
+        if len(json.dumps(result, ensure_ascii=False).encode("utf-8")) > 32768:
+            raise ValueError("hot_evidence_summary_limit")
+        return result
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        log.error("hot_evidence_read_failed type=%s", type(exc).__name__)
+        raise ValueError("hot_evidence_read_failed") from exc
+
+
 def read_pdf(path: str | Path, max_pages: int = 150) -> list[dict]:
     import pdfplumber
 

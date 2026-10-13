@@ -242,3 +242,67 @@ configured=false；没有resolve/输出密钥或发送vendor请求，预算未�
 凭据复用、原库停机备份/迁移、真实Native研究与产物/终态，再继续UI、持续来源、恢复、
 Docker、干净安装与同SHA CI。完整Goal ACTIVE。细节hot-execution-activation报告。
 <!-- architecture-review {"group":"hot","structure":"unchanged","reason":"该轮仅记录前端开源适配许可和现有数据/运行边界；原schema/模型scope/唯一队列/Owner未改，真实宏观资料为只读样式预览，不把预览绘成新增产品运行路径。","diagrams":[]} -->
+
+## 2026-10-13 原库迁移、批准的token修订及真实研究阻塞
+
+宿主macOS功能开发。原schema15已备份并迁移至17，45个既有表内容保持；本轮新增18
+仅扩展model_control_requests的operation约束。原scope hot_events_goal_01a11684保留。
+用户明确批准累计/单日token20,000→100,000；20calls/USD1不变。amend-tokens需停机、
+迁移Owner、同实例token、明确authorizePaid、已有scope及单调增额；只修改两个token列，
+不重置charged、authorization_hash、pause、时区或调用/费用限额，记录不可变UUID审计。
+公开CLI为model-amend-tokens；正常worker的预算配置须另外与已批准额度匹配。
+实际修订前用量4calls/1417tokens/659microUSD；备份和审计见goal-token-amend-receipt.json。
+
+第一次原生研究205da122-a017-5ec3-9e77-36969125a654在20k准入前拒绝，没有paid attempt。
+修订后新的a4048698-fd32-51ae-9673-f2b8fbafa74a / session
+b94f161d-8e27-4927-9ddd-0a3a9ee3d3ea通过既有ResearchService/固定DSH/私有预算桥完成
+5次真实模型调用，全部received回执保存；累计9calls/41444tokens/4160microUSD。
+第6次预留上下文+输出上界会超100k，hot_model_daily_budget_exhausted，Native failed、
+delivery incomplete、没有MD。不增加预算，不自动重复付费。失败已按Owner条件提交PG。
+本次是control-only签名PG后端的隔离研究证明，不认证正常安装worker/持续采集。
+
+真实工具回执定位inputs/datasets冻结快照被script scope排除（provider不在普通来源目录）。
+修复native_admission：先保持既有capability/model-tools准入，再只许可created且purpose
+hot_research会话的run/instance/manifest一致、完整私有hash和冻结bundle均校验的单个快照。
+不放开datasets父目录、其它会话、写入或网络。一次安全FD读取避免逐原件重复全目录校验。
+真实原会话Seatbelt读取manifest PASS，核对hash91e546f0…、1material/2objects，0paid。
+
+验证：真实随机schema PG model-controls 1 PASS（新scope/降低/无审批/worker/active/replay/
+历史费用保持等反例）；Python关联64 PASS+6subtests，性能改后目标15 PASS+6subtests。
+TS限定审查无阻断/typecheck PASS；Python MEDIUM重复哈希读取修复后复核关闭。
+控制服务与Native均已停、PG paused、临时controller NOLOGIN；原worktree/生产服务未改。
+格式工具尚未获安装许可，不能宣称执行；安装CI、Docker、恢复联合演练及UI研究动作仍NOT_RUN。
+下一步先减少Hot研究不需要的上下文/工具，但保留完整请求的保守预算、研究准入与原回执；
+在同scope剩余额度内生成并核验真实报告，接入终态/产物映射，再继续原Goal剩余门。
+
+## 2026-10-14 轻量冻结研究与真实报告已交付（Native收尾失败保留）
+
+用户明确要求修复检查、精简上下文并在原额度内完成报告，不增加预算。
+Hot新FinGPT会话选择research-hot-frozen，同一固定DSH仅原脚本/文档工具；普通研究与Claw
+保持research-web，已存在会话不更换preset。全局guard/原系统凭据引用/预算流桥保持。
+read_hot_evidence在已准入资料内一次核验全部原件，只返回有界选材摘要，不回传整页RSS。
+摘要所有字符串按UTF8限制、长URL不伪装有效链接、标明截断；JSON硬限32768字节。
+Python审查两项MEDIUM（重复全档校验、输出未全界定）均修复并复核关闭。
+
+轻量研究3五次调用仍因打印整页RSS耗尽下一请求准入；如实记failed，无自动重试。
+研究4通过helper完成真实报告：run1f0ba854-ed67-515e-9306-9928b8c5d901，session
+ffe77d48-b717-4946-854c-a9ea5810468e；MD2734bytes，SHA256
+ e98d29acfddc3e9e2b9c54cd6844d06b8de22146dd3d7146db0ca1e56caaf976。
+原生delivery completed/valid，但生成后模型收尾请求保守预留越累计上限，Native failed。
+不伪造会话completed；PG条件写入failed，实际报告仍保留可读。独立核对完整manifest
+91e546f077b11e5f8af9b395e930dfe3c3c2e9d4fd5ea99f8fe0739d24c799c6，原件版本/URL/时间
+及报告事实/推断/缺口分开。报告依据有限的RSS标题，不冒称取得反馈函全文或完整覆盖。
+从真实MD确定性转换DOCX，python-docx重开25段含来源/hash验证PASS，0额外模型调用。
+
+累计原scope现17calls/76804tokens/10253microUSD（保守峰值费率预算记账，不是厂商账单）；
+剩余3calls/23196tokens，限额仍20/100000/USD1，单日100k。10-14官方价目再核对，未改费率。
+所有付费尝试received保存，旧失败/历史用量不清除。控制与Native进程已退出，PG paused且
+临时controller NOLOGIN。隔离PG曾被外部停止，重启同label/image/volume后loopback变58154；
+按原instance/generation和固定controller引用暂停死owner、登记研究失败，没有新库或新scope。
+
+本地：PG model-control1 PASS，关联Python64+6subtests及改后15+6subtests；runtime/恢复
+143 PASS；helpers4 PASS；路由必需service-manager/integrations/protocol/API525 PASS/1skip；
+治理110 PASS。完整changed-set架构/文档/约束/生成索引及whitespace日志见hot-frozen-*。
+远端CI（包括Mac干净安装）、Docker、联合恢复及UI研究动作仍NOT_RUN，整体Goal未完成。
+本次没有远端push/PR/部署。原worktree保全，模型报告存在不意味着完整Goal或正常worker验收。
+下一步接入报告/终态的正常产品映射和UI动作，再做持续来源/留出样本/联合恢复/Docker及安装CI。
