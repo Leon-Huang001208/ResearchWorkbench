@@ -4,6 +4,24 @@ Docker 模型桥由 owned launcher 显式绑定后端、随机实例身份、密
 私有 Python 子进程保持 `-I -B` 和清洁环境，只从自身受管产品安装路径加载模块。
 模型保存/清除/未知提交与真实生成语义不变，Linux 研究沙箱守卫不放宽。
 
+固定 DSH 的 `session/list` 通过 `parentSessionId` 暴露父子归属；SDK Session Header 内部仍叫 `parentSession`。
+Workbench 子 Agent 投影只使用已核实的 API 字段，继续交叉验证父目录、`origin=subagent` 和严格布尔 running；缺失、外来父会话、非子任务来源或未知活动仍失败关闭，不以空目录释放活动保护。
+模型设置的空闲检查采用内部 `activityOnly=true`：历史 `mode=unknown` 只可在父归属、subagent 来源和布尔运行状态全部验证后提供活动事实。默认详情与执行仍拒绝未知模式；不推断历史执行地址，不删改记录，也不把未知活动当作已结束。
+
+## Claw 日程提出与确认
+
+`rwb_prepare_automation` 沿现有 research-tools 与最终 guard 注册，先核对原生会话范围，再通过实例私有控制通道提出日程草稿。
+模型须使用用户所选真实能力快照的 ID、类型与版本；目标、时间或时区缺失时提问，不猜测创建任务。
+工具只返回草稿，不创建、启用、执行或投递 Automation，也不授予 MCP 权限。
+Host 确认保存仍使用现有 AutomationService、版本哈希锁与日程校验；正文、研究循环和原生子 Agent 沿 DSH，不增加第二引擎。
+
+## FinGPT 深度与计划
+
+NewSession 的 research_depth 默认为 instant，deep 启用完整研究底稿提示；source_scope 默认 datahub/web/uploads。两者在创建时锁定，旧行使用缺省。未知深度/来源和重复来源在注册前拒绝；深入研究须满足现有模型工具事实，不能绕过准入。
+
+固定 DSH 的 @deepseek-ai/dsh-tool-todo 声明 tools/sessionProjections 注入，allowParallelInProgress=true 仅允许计划状态并列。guard 精确放行 todo_write，48 工具/4 子任务预算保持。todo/write 是 {todos:[{content,status}]} 全量替换；turn/start 清空，turn/end 保留。Web 的 research_plan 只投影该事实，不生成阶段执行或完成证据。
+
+
 Mac mini 的 dev/stage/prod 使用同一既有 Web＋DSH 协议，各实例独立 data/runtime 工作目录、
 认证 tmpfs 和身份账本；stage/prod 在固定镜像内执行，不读编辑中的worktree。
 管理员入口只管理容器生命周期，不创建第二套研究任务、调度、恢复或自动重试事实源。
@@ -403,3 +421,5 @@ ID/image 与端口观察，停止前及每轮等待重新核验。错误或变�
 ## 本机验证与研究 Runtime 边界
 
 Office受控自动验证在Host既有批次内串行执行，与DSH研究循环分离；同意仅限所属实例的三款Office，不向模型或厂商发送请求。读取本机状态和证据到期刷新不创建研究任务；取消/冷启动不重放旧验证。协议与进程管理保持原合同，详见[协调器](09-integration-coordinator.md)。
+
+当前固定 DSH 的 tool/result 使用 role=tool 消息、顶层 toolCallId/isError 和直接 content；投影兼容旧嵌套 tool-result，同时按脚本 JSON outcome 判定成功/失败。真实验收曾发现旧解析将成功脚本读为空而误报，现通过原生历史重放与协议回归核对，保留真实失败活动。

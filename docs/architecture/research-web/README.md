@@ -3,6 +3,10 @@
 G2A 为受管 Docker 增加固定模型 ref 的实例加密后端及主密钥只读卷，仍由原 Web→DSH
 私有 stdio 桥调用。生成、重建和隔离证据分别记录，Native Keychain 与原 Automation 合同保留。
 
+模型空闲检查区分已核实活动与历史执行模式；详情/执行仍按原严格模式校验。内部查询范围及失败关闭条件见[运行时](02-research-runtime.md)与[安全验证](05-security-validation.md)，无公开协议或持久格式变化。
+
+Claw 本地研究项目和可确认日程草稿复用现有 Host 索引、文件目录、Automation 与 DSH。项目归属不改变执行目录，跨会话文件必须显式引用；详见[文件](03-data-files.md)、[API](04-api.md)和[UI](../../research-web-ui.md)。
+
 Automation 对普通原生会话和报告 Run 的关联现在在已知后立即原子保存；恢复只监控同一已证明任务，不重新 create/send。报告归属、版本与校验状态仍由既有报告 Runtime 决定；提交未知或关联持久化失败保留失败状态。本次不新增执行器、调度器、API 或持久 schema。
 
 这是当前研究产品的唯一架构主入口。Research Web 组织研究页面、框架、能力与文件，专属 DSH 是唯一研究执行循环。当前任务按 macOS Native / Mac Docker Desktop 与 Windows/Linux 对应设备分工验收；源码同时保留 `app/research_web/`、`research_workbench_entrypoint/`、`docker/` 与共用运行合同，Docker 实现按运行宿主与镜像架构分别验收；未验证项见 [支持矩阵](../../research-web-platform-support.md)。Native 双宿主进程与 Docker 单容器是互斥运行方式，顺序共享产品数据。旧 `app/api`、量化业务和 merged-platform 图文保持历史身份，不作为本入口依赖。
@@ -80,3 +84,7 @@ macOS实际端点/origin事务现接入公开CLI启动链；同一产品部署�
 ## 单一兼容模型连接
 
 单一兼容文本/流式模型适配位于既有Runtime，私有非秘密配置沿同一Host/DataHub通道读取，系统ref仍沿原进程桥接；没有新增研究引擎、模型代理daemon或Vault。Native macOS合成冷启动与真实供应商验收分别记录；本模型连接任务未执行其他平台验收，项目总平台范围以支持矩阵为准。
+
+## FinGPT 研究融合 · 2026-10-13
+
+FinGPT 研究深度、原生计划与会话底稿参见 02-research-runtime、03-data-files、04-api 和 05-security-validation。Automation 继续调用同一会话/报告运行服务；本次新增 PDF 格式，不改变调度、投递或生命周期成功判定。

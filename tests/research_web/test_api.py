@@ -137,6 +137,7 @@ def test_create_submit_duplicate_never_replays(api):
     created = client.post("/api/research/sessions", json={"mode": "fingpt"})
     assert created.status_code == 201
     sid = created.json()["id"]
+    assert created.json()["research_depth"] == "instant"
     endpoint = f"/api/research/sessions/{sid}/messages"
     for _ in range(2):
         response = client.post(
@@ -1074,6 +1075,29 @@ async def test_model_configuration_serializes_with_session_creation(tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_model_save_checks_activity_without_requiring_historical_execution_mode(tmp_path):
+    native = NativeFixture()
+    service = ResearchService(native, Store(tmp_path))
+    row = await service.create()
+    row["created"] = True
+    service.store.save()
+    original = native.rpc
+
+    async def historical_rpc(method, payload):
+        if method == "subagent.list":
+            if payload.get("activityOnly") is not True:
+                raise RuntimeFailure("原生子会话状态未知", "protocol_error")
+            return {"entries": [{"id": "child", "mode": "unknown", "activity": "inactive"}]}
+        return await original(method, payload)
+
+    native.rpc = historical_rpc
+    result = await service.configure_model("deepseek-official", "new-model")
+    assert result["configured"] is True
+    assert service.store.data["model"]["model"] == "new-model"
+    assert not any(method.startswith("credentials.") for method, _ in native.calls)
+
+
+@pytest.mark.asyncio
 async def test_model_save_does_not_reselect_existing_sessions(tmp_path):
     native = NativeFixture()
     service = ResearchService(native, Store(tmp_path))
@@ -1554,3 +1578,125 @@ def test_upgraded_empty_instance_uses_catalog_default_without_rewriting_saved_mo
     old.save()
     preserved = ResearchService(NativeFixture(), old)
     assert preserved.default_model["model"] == "deepseek-v4-flash"
+
+
+def test_claw_project_api_preserves_workspace_and_requires_explicit_reference(api):
+    client, native, service = api
+    project = client.post("/api/research/claw/projects", json={"name": "投研项目"}).json()
+    source = client.post(
+        "/api/research/sessions", json={"mode": "claw", "project_id": project["id"]}
+    ).json()
+    target = client.post(
+        "/api/research/sessions", json={"mode": "claw", "project_id": project["id"]}
+    ).json()
+    assert source["workspace_id"] == "research"
+    assert source["project_id"] == project["id"]
+    path = service.store.directory(source["id"]) / "outputs" / "evidence.md"
+    path.write_text("项目证据", encoding="utf-8")
+    detail = client.get(f"/api/research/claw/projects/{project['id']}").json()
+    file = detail["files"][0]
+    response = client.post(
+        f"/api/research/sessions/{target['id']}/file-references",
+        json={
+            "source_session_id": source["id"],
+            "file_id": file["id"],
+            "expected_sha256": file["sha256"],
+        },
+    )
+    assert response.status_code == 201
+    assert client.get(response.json()["url"]).content.decode() == "项目证据"
+    assert not [call for call in native.calls if call[0] == "session.prompt"]
+    client.patch(f"/api/research/claw/projects/{project['id']}", json={"archived": True})
+    blocked = client.post(
+        "/api/research/sessions", json={"mode": "claw", "project_id": project["id"]}
+    )
+    assert blocked.status_code == 409
+    assert len(client.get(f"/api/research/claw/projects/{project['id']}").json()["sessions"]) == 2
+
+
+def test_native_automation_proposal_is_authenticated_and_user_confirmation_is_disabled(api):
+    client, _, service = api
+    sid = client.post("/api/research/sessions", json={"mode": "claw"}).json()["id"]
+    body = {
+        "name": "每日公司研究",
+        "target_kind": "skill",
+        "target_id": "company-research",
+        "target_version": 1,
+        "input_template": "研究公司",
+        "schedule": {"kind": "daily", "timezone": "Asia/Shanghai", "hour": 9, "minute": 0},
+    }
+    assert (
+        client.post(
+            "/api/research/internal/data/automation-draft", json={"session_id": sid, "body": body}
+        ).status_code
+        == 403
+    )
+    response = client.post(
+        "/api/research/internal/data/automation-draft",
+        json={"session_id": sid, "body": body},
+        headers={"X-Research-Data-Key": service.datahub.control["token"]},
+    )
+    assert response.status_code == 201
+    draft = response.json()
+    assert client.get("/api/research/automations").json()["items"] == []
+    endpoint = f"/api/research/sessions/{sid}/automation-drafts/{draft['id']}/confirm"
+    first = client.post(endpoint, json=draft["body"])
+    second = client.post(endpoint, json=draft["body"])
+    assert first.status_code == second.status_code == 201
+    assert first.json()["id"] == second.json()["id"]
+    assert first.json()["enabled"] is False
+    assert len(client.get("/api/research/automations").json()["items"]) == 1
+
+
+def test_fingpt_locked_sources_deny_online_search_and_dataset_reuse(api, monkeypatch):
+    client, _, service = api
+    created = client.post(
+        "/api/research/sessions", json={"mode": "fingpt", "source_scope": ["uploads"]}
+    )
+    assert created.status_code == 201
+    sid = created.json()["id"]
+    monkeypatch.setattr(service.datahub, "catalog", lambda: {"sources": []})
+    monkeypatch.setattr(service.datahub.snapshots, "ids", lambda _: ["a" * 36])
+    monkeypatch.setattr(
+        service.datahub,
+        "detail",
+        lambda *_: pytest.fail("excluded datasets must not be inspected or admitted"),
+    )
+    assert service.native_admission(sid, tool_name="datahub_search_web")["admitted"] is False
+    assert service.native_admission(sid, tool_name="research_run_script")["read_paths"] == []
+    response = client.post(
+        f"/api/research/sessions/{sid}/uploads",
+        files={"files": ("a.md", b"allowed", "text/markdown")},
+    )
+    assert response.status_code == 200
+    other = client.post(
+        "/api/research/sessions", json={"mode": "fingpt", "source_scope": ["datahub"]}
+    ).json()["id"]
+    assert service.native_admission(other, tool_name="datahub_search_web")["admitted"] is False
+    response = client.post(
+        f"/api/research/sessions/{other}/uploads",
+        files={"files": ("a.md", b"denied", "text/markdown")},
+    )
+    assert response.status_code == 409
+
+
+def test_deep_options_survive_reload_and_require_verified_tool_model(api, monkeypatch):
+    client, native, service = api
+    created = client.post(
+        "/api/research/sessions",
+        json={"mode": "fingpt", "research_depth": "deep", "source_scope": ["uploads"]},
+    )
+    assert created.status_code == 201
+    sid = created.json()["id"]
+    restored = Store(service.store.root).session(sid)
+    assert restored["research_depth"] == "deep"
+    assert restored["source_scope"] == ["uploads"]
+    monkeypatch.setattr(service, "_model_tools_verified", lambda *_: False)
+    response = client.post(
+        f"/api/research/sessions/{sid}/messages",
+        json={"text": "研究风险"},
+        headers={"Idempotency-Key": "deep-reject"},
+    )
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "deep_research_tools_unverified"
+    assert not any(call[0] == "session.prompt" for call in native.calls)

@@ -1,5 +1,15 @@
 # Research Web Native / Docker 安装与运行
 
+Claw 项目与日程入口使用既有 Web/DSH 依赖，无新增产品包或安装步骤。旧数据根可直接读取，缺少 project_id 的 Claw 会话归入默认“我的研究”，不移动文件。
+Automation 被显式关闭时，聊天日程草稿也不可用；提出草稿不等于保存或启用。日程需实际能力版本，数据/模型/工具的可调用性继续由现有设置与 Doctor 分层诊断。
+
+## 中文 PDF 依赖与验收
+
+Web 锁新增 ReportLab（reportlab>=4.5,<5），使用原 Python3.12 universal/哈希解析流程；其余锁定依赖保持。resources/fonts 包含可嵌入的 Noto Sans SC 静态中文字体、OFL 许可证和固定 Google Fonts 来源摘要。产品 PDF 不要求宿主 Office、CMake 或 Node 开发头文件；后两者是固定 DSH 原生构建的工具链前提。
+
+安装器继续通过完整锁与项目包安装校验依赖。验收须实际生成中文 PDF、重开提取文字并渲染关键页，源码/单元测试不替代干净安装与 Mac CI。任务内测试环境不发布，不读取其他任务模型密钥。
+
+
 2026-10-12 起，24GB Mac mini 是 Docker 主开发与常驻节点，MacBook Pro 是远程入口。
 新的纯 Docker 安装和显式实例管理使用 [Docker 开发与部署手册](research-web-docker.md)：
 `./setup-web.sh --runtime docker --environment stage --instance local --web-port 18088`，

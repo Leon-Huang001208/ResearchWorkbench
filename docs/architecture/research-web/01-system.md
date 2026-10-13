@@ -3,6 +3,10 @@
 G2A 在现有单容器部署内增加实例专属 model_key 只读卷，credentials 卷存模型密文；
 受管初始化 helper 有 128MiB 硬限额并核对 VM 准入，不改变 Web＋固定 DSH 双进程与唯一引擎。
 
+模型设置的空闲保护仍由 Host 读取 DSH 原生事实；内部活动查询区分运行状态与历史执行模式，不增加进程、公开参数或凭据写者。未知模式不获得执行权限。
+
+Claw 项目和日程草稿由现有 FastAPI Host 管理产品索引；原生提出工具沿现有私有控制通道，不增加进程、端口或调度器。用户确认保存后继续使用 Automation 与同一 DSH。
+
 24GB Mac mini 是 Docker 主开发与常驻节点，MacBook Pro 是远程入口。
 dev 挂载对应 worktree；stage/prod 按不可变 image ID 独立运行同一 Web＋DSH，
 每实例隔离 data/logs/credentials/cache卷、bridge网络、端口和管理身份。
@@ -319,3 +323,7 @@ Docker `/state` 使用 UID/GID 10001、0700 的 Linux 私有 tmpfs；临时认�
 ## 本机状态投影
 
 Office自动验证只复用Host内既有集成批次和受管验证器，不增加进程或守护服务。实例同意、同快照汇总及真实证据/清理的条件见[集成协调器](09-integration-coordinator.md)。Doctor仅投影所属实例开关，不调用Office，也不改变安装或服务就绪。
+
+## FinGPT 研究融合 · 2026-10-13
+
+FinGPT 深入研究沿用 ResearchService→固定 DSH 执行链。Web 投影原生 todo/write，保存创建时锁定的 research_depth/source_scope；证据、笔记与报告使用会话资源和原 DeliveryManager，不增加研究执行器。HTML/DOCX/PDF 共用底稿，PDF 使用项目锁定 ReportLab 与随包许可字体。

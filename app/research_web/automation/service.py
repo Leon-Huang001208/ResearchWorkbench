@@ -173,7 +173,20 @@ class AutomationService:
         rows.sort(key=lambda item: item["created_at"], reverse=True)
         return {"items": [self._public(row) for row in rows]}
 
-    def create(self, body: AutomationCreate) -> dict:
+    def create(self, body: AutomationCreate, *, creation_key: str | None = None) -> dict:
+        creation_sha = _canonical_sha(body.model_dump(mode="json"))
+        automation_id = (
+            "automation-" + hashlib.sha256(creation_key.encode()).hexdigest()
+            if creation_key is not None
+            else f"automation-{uuid4().hex}"
+        )
+        existing = self.store.data["automations"].get(automation_id)
+        if existing is not None:
+            if existing.get("creation_sha256") != creation_sha:
+                raise AutomationError(
+                    "确认内容与已保存任务不一致", "draft_confirmation_conflict", 409
+                )
+            return self._public(existing)
         resolved = self.target_resolver(body.target_kind, body.target_id, body.target_version)
         if resolved["version"] != body.target_version or (
             body.target_sha256 is not None and resolved["sha256"] != body.target_sha256
@@ -187,7 +200,6 @@ class AutomationService:
                     409,
                 )
         self._validate_delivery(body.delivery.model_dump(mode="json"))
-        automation_id = f"automation-{uuid4().hex}"
         payload = body.model_dump(mode="json")
         row: dict[str, Any] = {
             "id": automation_id,
@@ -210,8 +222,15 @@ class AutomationService:
             "created_at": time.time(),
             "updated_at": time.time(),
         }
+        if creation_key is not None:
+            row["creation_sha256"] = creation_sha
         self.store.data["automations"][automation_id] = row
-        self.store.save()
+        try:
+            self.store.save()
+        except Exception:
+            self.store.data["automations"].pop(automation_id, None)
+            log.error("automation_create_failed")
+            raise
         log.info(
             "automation_created",
             automation_id_digest=_id_digest(automation_id),
@@ -325,7 +344,7 @@ class AutomationService:
         status: str,
     ) -> dict:
         run_id = f"automation-run-{uuid4().hex}"
-        row = {
+        row: dict[str, Any] = {
             "id": run_id,
             "automation_id": automation_id,
             "trigger": trigger,

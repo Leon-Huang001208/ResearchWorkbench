@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "updated",
-  "summary": "复核独立 Docker 模型加密凭据与主线新增资源生命周期入口。",
-  "reason": "README 保留资源清理归属边界并新增实例加密模型存储与恢复说明；Native Keychain、固定 DSH 和保存/真实生成分层证据保持，独立 manager 不由 legacy cleanup 接管。"
+  "summary": "保留主线 FinGPT/Claw/模型空闲修复，并补充 Docker 实例加密凭据与恢复入口。",
+  "reason": "README 继续描述唯一固定 DSH 和公开安装入口，同时区分实例模型存储、真实生成与资源清理归属；不扩展到生产迁移或跨平台支持声明。"
 }
