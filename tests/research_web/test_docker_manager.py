@@ -9,6 +9,16 @@ import pytest
 from docker import manage
 
 
+def test_engine_empty_dns_projection_is_equivalent_but_custom_dns_is_not():
+    base = {"Id": "owned", "Image": "fixed", "Config": {}, "HostConfig": {"Dns": None}, "Mounts": []}
+    empty = deepcopy(base)
+    empty["HostConfig"]["Dns"] = []
+    custom = deepcopy(base)
+    custom["HostConfig"]["Dns"] = ["8.8.8.8"]
+    assert manage.identity_projection(base) == manage.identity_projection(empty)
+    assert manage.identity_projection(base) != manage.identity_projection(custom)
+
+
 def test_model_provisioning_rejects_running_stage_without_secret_operations(tmp_path, monkeypatch):
     manager = manage.Manager(tmp_path, "/admin", "/worktree")
     monkeypatch.setattr(manager, "verify_resources", lambda record: None)
