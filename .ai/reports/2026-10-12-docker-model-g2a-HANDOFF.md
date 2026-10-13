@@ -18,8 +18,8 @@ DeepSeek 官方 / deepseek-flash、固定 DSH 返回的两份会话详情均为 
 以上更新取代下文历史的供应商 NOT_RUN 快照。镜像仍为同一 c3885222e 来源的固定内容 ID，
 没有把后续报告提交冒称为镜像 revision。原始证据仅在私有 logs/g2a/real-*.json。
 Key 已按验收要求清除，主密钥、身份、其他凭据资源与研究数据保留；后续使用需在设置页重新录入。
-本轮仍保留九项已在未修改主线复现的 Linux 容器 Native/API 失败，未将其改写为 PASS；
-PR 不因模型闭环成功自动宣称 mergeReady 或跨平台发布就绪。
+早期九项 Linux 容器 Native/API 失败保留在历史日志；主线修复和下述测试合同修正后，
+相关完整文件已通过。PR 不因模型闭环成功自动宣称跨平台发布就绪。
 
 最终范围复核：主线模型空闲修复后，service-manager 全文件 341 PASS/2 SKIP。
 残留文档 API 用例在 Linux 上错误期待仅 macOS 支持的研究沙箱生成成功；已保留其 macOS
@@ -33,8 +33,7 @@ PR 不因模型闭环成功自动宣称 mergeReady 或跨平台发布就绪。
 
 本轮使用 Mac mini / Docker Desktop 的 Linux arm64 实例，沿用固定 DSH
 `48504f07f217f9fd45a4f6d8fca4b1ed35c2d4b0`。不迁移 Native Keychain 或其他应用凭据。
-尚未收到用户在本实例保存真实 Key 的通知；真实供应商生成及重建后真实生成为 NOT_RUN。
-保存、configured、健康和合成断言均不充当真实推理证据。
+真实供应商验证见上表；保存、configured、健康和合成断言均不充当真实推理证据。
 
 ## 实现与来源
 
@@ -68,8 +67,8 @@ PR 不因模型闭环成功自动宣称 mergeReady 或跨平台发布就绪。
 | helper 资源与路径 | 128MiB / CPU .5 / PIDs32；A/B 独立资源、相同内部路径，借已停止候选登记额度，非两个完整 stage |
 | 实际候选与设置页 | PASS：DSH connected、healthy；Chrome AX 显示本实例加密存储、凭据未配置，不回填秘密 |
 | 缺少凭据时产品最小生成请求 | PASS：实际 POST 返回 model_credentials_missing；未调用真实模型 |
-| 设置页真实 Key 保存与真实文本生成 | NOT_RUN：等待用户在本实例设置页自行输入 Key |
-| 重建后真实生成、真实 Key 清除后的请求 | NOT_RUN：同一真实供应商前置条件未满足 |
+| 设置页真实 Key 保存与真实文本生成 | PASS：用户保存后，实际 DSH completed/非空文本 |
+| 重建后真实生成、真实 Key 清除后的请求 | PASS：新容器再次生成；清除后 model_credentials_missing |
 | 本轮 GitHub CI | 交付时据 exact head 更新；不沿用 PR93 或主线旧 CI |
 
 最终集成后的 Node 合同批次为 145 PASS，耗时 2.512842376 秒。回执中同一合并执行批次的
@@ -77,8 +76,10 @@ PR 不因模型闭环成功自动宣称 mergeReady 或跨平台发布就绪。
 同样对应相应日志中完整批次；文档/索引/项目约束由 perf_counter 单独实测。
 
 一次扩大检查耗尽 dev 的 256MiB /tmp，夹具改放本实例 cache 卷后消除空间问题。
-剩余 9 项 Native 恢复/文档生成失败在未修改主线的同一 Linux 容器复现，保留 FAIL；
-不修改无关守卫或把它们写成 PASS。详见 PROGRESS 及私有基线对照日志。
+当时 9 项 Native 恢复/文档生成失败在未修改主线的同一 Linux 容器复现，历史 FAIL 日志保留。
+最终 service-manager 341 PASS/2 SKIP，完整 API 58 PASS；Linux 文档用例验证真实守卫拒绝。
+最终启动器/凭据/管理器闭包 316 PASS/2 SKIP，Node 合同闭包 128 PASS。
+详见 PROGRESS、上方补验及私有基线对照日志。
 
 ## 命令与继续入口
 
@@ -97,9 +98,9 @@ PR 不因模型闭环成功自动宣称 mergeReady 或跨平台发布就绪。
 ```
 
 上述对应操作实际执行；最终正常 `build` 已生成日志修复镜像。
-真实 Key 只由用户在 `http://127.0.0.1:18088/#/settings/model` 输入并保存，回复“已保存”后
-继续按钮生成 → 受管 stop/replace-image/up（记录 ID 改变）→ 再次生成 → 清除/缺失请求。
-当前没有供应商成功记录；Linux 严格沙箱未放宽，不据文本调用推断研究、多用户或生产能力。
+真实 Key 只由用户在 `http://127.0.0.1:18088/#/settings/model` 输入并保存。
+本轮已实际执行生成 → 受管 stop/replace-image/up（ID 改变）→ 再次生成 → 清除/缺失请求。
+Linux 严格沙箱未放宽，不据文本调用推断研究、多用户或生产能力。
 
 最小恢复材料：该实例的 credentials 密文卷、model_key 主密钥/身份卷及管理账本关联。
 缺失、错配或损坏明确拒绝，不自动生成新密钥覆盖；清除模型 Key 保留主密钥。
