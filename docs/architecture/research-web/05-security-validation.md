@@ -20,7 +20,8 @@ Claw 项目只是产品索引分组，不授权任意宿主文件访问。文件
 管理代码在只读绑定的管理员worktree中，瞬时控制器独占Docker socket；业务/dev无socket。
 独立BuildKit 3GiB初始编译不足，实测冷构建借stage额度至5GiB，与stage互斥，退出停止；
 入口另核对VM实际内存与所有运行容器硬上限，保留2GiB余量。未知无限额容器拒绝。
-容器隔离不替代用户鉴权或任意代码沙箱；模型后端/多人授权/严格Linux沙箱/公网仍待G2-G5。
+容器隔离不替代用户鉴权或任意代码沙箱；显式 Docker 模型加密文件桥之外的多人授权、
+严格 Linux 沙箱、公网及其余 G2-G5 工作仍待实施。
 
 Docker 清理只执行经预览的精确身份，并持指定 home 的现有生命周期/安装锁，复查保护和引用。
 卷归档的源挂载为只读且 `volume-nocopy`，辅助容器无网络/端口；恢复卷与辅助容器有独立任务标签。
@@ -90,6 +91,13 @@ mkdir 到首次身份捕获非原子，沿用 Native/Supervisor 创建模型，�
 macOS Native 的固定模型 ref 通过 owned overlay 挂载产品 provider，私有 stdio 桥接只允许 resolve/describe/set/unset 与所属规范化 data home。桥接使用受管产品 Python，直接选择 macOS Keyring；其他平台、未知后端、拒绝访问或进程失败均失败关闭。秘密只存在系统库和受控进程内存/管道，不进入 argv、环境、URL、普通日志或报告；只散列公开 data home 路径生成命名空间，不散列秘密。不新增通用取密 HTTP API、不复制生产 Key。合成值 Keychain 验证与真实供应商生命周期分开。
 
 模型配置保持同源、回环与专属 Runtime 所有权检查。不回退环境、`.credentials.yaml`、项目 `.env` 或 DSH_HOME `.env`，不复制 Keychain 值到旧文件。浏览器认证的 client-connection/browser-session 与 readRecord/modifyRecord 仍使用固定 DSH 原有受控实现及独立 `.browser-credentials.yaml`；模型未配置、清除、桥接失败不使 record 接口失效。配置保存不读取旧秘密制作备份。活动父/子任务阻止凭据更新；凭据提交结果未知时拒绝新请求，不能假定旧秘密未变。最小生成是用户显式操作，不由列表、刷新、Doctor 或保存自动触发。
+
+Docker 模型桥仅接受 owned overlay 的显式后端和私有凭据挂载绑定。Fernet 记录位于独立
+`models/` 子目录，使用原目录/文件身份守卫、0700/0600 和进程锁；子目录与主密钥首次创建
+串行化，主密钥不隐式轮换，密文校验命名空间及固定 ref，重放到另一 ref 失败关闭。
+既有通用凭据和浏览器认证不迁移。API Key 明文只在受控进程/管道内流转，不进入 argv、
+环境、日志、安装摘要、镜像或业务索引。主密钥与密文同一私有挂载，不抵抗同 UID 或管理员
+读取完整挂载；不把该存储合同当作研究代码沙箱。合成值测试、配置保存与真实推理分别留证。
 
 Docker Doctor schema 1 的 volumes 只投影固定类型：data/logs/credentials=bind、state=tmpfs；logs 为新增非秘密字段，不暴露路径，verified 仍须实际 inspect 成功，失败或缺容器为 false，查询不写目录。
 
@@ -399,3 +407,9 @@ Docker Desktop 初始化在固定 bind 私有叶的原完整 guard 内，用 O_D
 ## FinGPT 研究融合 · 2026-10-13
 
 FinGPT 资料范围在工具 preflight、上传入口及脚本数据集 read_paths 处执行；datahub_search_web 按 web 分类。底稿绑定当前 task_id，未知来源/缺笔记链路/重复格式/哈希改变或未通过独立沙箱解析均保留缺口。报告仅检查声明章节与来源身份，不证明全文阅读或数值正确；数字结论显示需独立复核。旧任务与无效报告不会展示为当前笔记。
+
+## 历史子会话模式兼容 · 2026-10-13
+
+activityOnly仍逐项验证父子关联、origin=subagent及running为布尔值，不能将missing/unknown活动推断为空闲。历史mode=unknown不授权打开子历史；继续、取消和删除路径仍使用严格执行模式查询。
+
+PR96 与既有 Fernet 模型桥共用唯一私有 stdio 接口；默认 `native-keychain`、常规 staged `docker-encrypted-file` 语义保留，管理器仅显式绑定 `docker-encrypted` 选择 AES-GCM。两种 Docker 格式与主密钥布局独立，混合绑定或外来格式失败关闭，不转换密文、不删除旧 Key、不回退。四操作与固定 ref 保持；来源如实区分，configured/Doctor 不证明真实生成。

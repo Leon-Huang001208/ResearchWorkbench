@@ -49,9 +49,10 @@ def test_namespace_lifecycle_ignores_legacy_values(tmp_path, monkeypatch):
     other.mkdir()
     monkeypatch.setenv(bridge.MODEL_REF, "synthetic-ambient")
     (tmp_path / ".credentials.yaml").write_text("RESEARCH_DSH_API_KEY: synthetic-file")
-    call = lambda op, **kw: bridge.execute(
-        tmp_path, {"op": op, "ref": bridge.MODEL_REF, **kw}, backend
-    )
+
+    def call(op, **kw):
+        return bridge.execute(tmp_path, {"op": op, "ref": bridge.MODEL_REF, **kw}, backend)
+
     assert call("resolve") == {"value": None}
     assert call("describe") == {"configured": False, "source": "system-keychain", "writable": True}
     call("set", value="synthetic-first")
@@ -244,7 +245,10 @@ def test_compatible_reference_is_independent_and_has_no_legacy_fallback(tmp_path
     compatible_ref = "RESEARCH_COMPAT_API_KEY"
     monkeypatch.setenv(compatible_ref, "synthetic-ambient")
     (tmp_path / ".credentials.yaml").write_text("RESEARCH_COMPAT_API_KEY: synthetic-file")
-    call = lambda ref, op, **kw: bridge.execute(tmp_path, {"op": op, "ref": ref, **kw}, backend)
+
+    def call(ref, op, **kw):
+        return bridge.execute(tmp_path, {"op": op, "ref": ref, **kw}, backend)
+
     call(bridge.MODEL_REF, "set", value="synthetic-original")
     assert call(compatible_ref, "resolve") == {"value": None}
     call(compatible_ref, "set", value="synthetic-compatible")
@@ -253,3 +257,146 @@ def test_compatible_reference_is_independent_and_has_no_legacy_fallback(tmp_path
     call(compatible_ref, "unset")
     assert call(compatible_ref, "resolve") == {"value": None}
     assert call(bridge.MODEL_REF, "resolve")["value"] == "synthetic-original"
+
+
+def test_docker_model_store_encrypts_and_preserves_existing_host_credentials(tmp_path, monkeypatch):
+    from app.research_web.credential_backend import PrivateFileCredentialBackend
+
+    bridge = load_bridge()
+    # Synthetic POSIX storage coverage; real Linux bridge acceptance is separate.
+    monkeypatch.setattr(bridge.sys, "platform", "linux")
+    home = tmp_path / "data"
+    home.mkdir(mode=0o700)
+    root = tmp_path / "credentials"
+    host = PrivateFileCredentialBackend(root)
+    host.set_password("existing-host-service", "account", "synthetic-host-unchanged")
+    monkeypatch.setenv(bridge.MODEL_REF, "synthetic-ambient-denied")
+    (home / ".credentials.yaml").write_text("RESEARCH_DSH_API_KEY: synthetic-legacy-denied")
+    store = bridge.DockerModelStore(root)
+
+    def call(op, ref=bridge.MODEL_REF, **kw):
+        return bridge.execute(home, {"op": op, "ref": ref, **kw}, store)
+
+    assert call("describe") == {
+        "configured": False,
+        "source": "docker-encrypted-file",
+        "writable": True,
+    }
+    assert call("resolve") == {"value": None}
+    call("set", value="synthetic-docker-first")
+    call("set", ref=bridge.COMPATIBLE_REF, value="synthetic-compatible-independent")
+    fresh = bridge.DockerModelStore(root)
+    assert bridge.execute(home, {"op": "resolve", "ref": bridge.MODEL_REF}, fresh) == {
+        "value": "synthetic-docker-first"
+    }
+    raw = b"".join(path.read_bytes() for path in (root / "models").glob("*.json"))
+    assert b"synthetic-docker-first" not in raw
+    assert b"synthetic-compatible-independent" not in raw
+    assert host.get_password("existing-host-service", "account") == "synthetic-host-unchanged"
+    call("unset")
+    assert call("resolve") == {"value": None}
+    assert call("resolve", ref=bridge.COMPATIBLE_REF)["value"] == "synthetic-compatible-independent"
+
+
+def test_docker_model_key_loss_never_replaces_key_or_existing_ciphertext(tmp_path, monkeypatch):
+    bridge = load_bridge()
+    # Synthetic POSIX storage coverage; real Linux bridge acceptance is separate.
+    monkeypatch.setattr(bridge.sys, "platform", "linux")
+    store = bridge.DockerModelStore(tmp_path / "credentials")
+    store.set_password("test-namespace", bridge.MODEL_REF, "synthetic-preserved")
+    key = store.backend.root / store.backend._name(store.KEY_SERVICE, store.KEY_ACCOUNT)
+    record = store.backend.root / store.backend._name("test-namespace", bridge.MODEL_REF)
+    before = record.read_bytes()
+    key.unlink()
+    with pytest.raises(RuntimeError, match="model_credential_key_unavailable"):
+        store.get_password("test-namespace", bridge.MODEL_REF)
+    with pytest.raises(RuntimeError, match="model_credential_key_unavailable"):
+        store.set_password("test-namespace", bridge.MODEL_REF, "synthetic-replacement")
+    assert not key.exists()
+    assert record.read_bytes() == before
+
+
+def test_docker_ciphertext_is_bound_to_model_reference(tmp_path, monkeypatch):
+    bridge = load_bridge()
+    # Synthetic POSIX storage coverage; real Linux bridge acceptance is separate.
+    monkeypatch.setattr(bridge.sys, "platform", "linux")
+    store = bridge.DockerModelStore(tmp_path / "credentials")
+    store.set_password("test-namespace", bridge.MODEL_REF, "synthetic-one")
+    encoded = store.backend.get_password("test-namespace", bridge.MODEL_REF)
+    store.backend.set_password("test-namespace", bridge.COMPATIBLE_REF, encoded)
+    with pytest.raises(RuntimeError, match="model_credential_record_invalid"):
+        store.get_password("test-namespace", bridge.COMPATIBLE_REF)
+    assert store.get_password("test-namespace", bridge.MODEL_REF) == "synthetic-one"
+
+
+def test_docker_master_key_first_write_is_process_serialized(tmp_path, monkeypatch):
+    from concurrent.futures import ThreadPoolExecutor
+
+    bridge = load_bridge()
+    # Synthetic POSIX storage coverage; real Linux bridge acceptance is separate.
+    monkeypatch.setattr(bridge.sys, "platform", "linux")
+    root = tmp_path / "credentials"
+    root.mkdir(mode=0o700)
+
+    def store(ref, value):
+        bridge.DockerModelStore(root).set_password("test-namespace", ref, value)
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        results = [
+            pool.submit(store, bridge.MODEL_REF, "synthetic-original"),
+            pool.submit(store, bridge.COMPATIBLE_REF, "synthetic-compatible"),
+        ]
+        for result in results:
+            result.result()
+    fresh = bridge.DockerModelStore(root)
+    assert fresh.get_password("test-namespace", bridge.MODEL_REF) == "synthetic-original"
+    assert fresh.get_password("test-namespace", bridge.COMPATIBLE_REF) == "synthetic-compatible"
+
+
+@pytest.mark.skipif(sys.platform != "linux", reason="requires native Linux private stdio bridge")
+def test_docker_isolated_stdio_bridge_persists_without_secret_diagnostics(tmp_path):
+    home = tmp_path / "data"
+    home.mkdir(mode=0o700)
+    root = tmp_path / "credentials"
+    root.mkdir(mode=0o700)
+
+    def call(op, **values):
+        command = [
+            sys.executable,
+            "-I",
+            "-B",
+            str(BRIDGE),
+            "--data-home",
+            str(home),
+            "--backend",
+            "docker-encrypted-file",
+            "--credential-home",
+            str(root),
+        ]
+        result = subprocess.run(
+            command,
+            input=json.dumps({"op": op, "ref": "RESEARCH_DSH_API_KEY", **values}),
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=True,
+            env={"PATH": "/usr/bin:/bin", "RESEARCH_DSH_API_KEY": "synthetic-ambient-denied"},
+        )
+        assert "synthetic-cross-process" not in result.stderr
+        return json.loads(result.stdout)
+
+    assert call("describe")["configured"] is False
+    call("set", value="synthetic-cross-process")
+    assert call("describe")["source"] == "docker-encrypted-file"
+    assert call("resolve")["value"] == "synthetic-cross-process"
+    call("unset")
+    assert call("resolve")["value"] is None
+
+
+@pytest.mark.skipif(sys.platform == "linux", reason="requires an actual non-Linux host")
+def test_native_nonlinux_docker_store_rejects_without_creating_directory(tmp_path):
+    bridge = load_bridge()
+    root = tmp_path / "must-remain-absent"
+    with pytest.raises(RuntimeError, match="model_credential_backend_unavailable"):
+        bridge.DockerModelStore(root)
+    assert not root.exists()

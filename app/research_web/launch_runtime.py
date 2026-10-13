@@ -86,12 +86,20 @@ def mcp_runtime_enabled() -> bool:
     }
 
 
-def model_credential_binding() -> list[str]:
+def model_credential_binding(staged: bool = False) -> list[str]:
     """The managed Docker launcher supplies public binding, never secret values."""
     backend = os.environ.get("RWB_MODEL_BACKEND")
     if backend is None:
-        return ["        backend: native"]
-    if backend != "docker-encrypted" or os.environ.get("RWB_DSH_STAGED") != "1":
+        if staged:
+            home = os.environ.get("RESEARCH_CREDENTIAL_HOME")
+            if home != "/run/rwb-secrets/private":
+                raise RuntimeError("docker_model_credential_binding_invalid")
+            return [
+                '        backend: "docker-encrypted-file"',
+                f"        credentialHome: {json.dumps(home)}",
+            ]
+        return ['        backend: "native-keychain"']
+    if backend != "docker-encrypted" or not staged or os.environ.get("RWB_DSH_STAGED") != "1":
         raise RuntimeError("model_credential_binding_invalid")
     instance = os.environ.get("RWB_MODEL_INSTANCE_ID", "")
     if not re.fullmatch(r"[0-9a-f]{32}", instance):
@@ -698,7 +706,7 @@ def _prepare_runtime(
                 f"        python: {json.dumps(sys.executable)}",
                 f"        bridge: {json.dumps(str(package.parent / 'model_credentials.py'))}",
                 f"        dataHome: {json.dumps(str(data))}",
-                *model_credential_binding(),
+                *model_credential_binding(staged_source is not None),
                 f"        recordsPath: {json.dumps(str(home / '.browser-credentials.yaml'))}",
                 f"        localProvider: {json.dumps(str(source / 'packages/credentials/credentials-local/lib/index.js'))}",
                 "- insert:",

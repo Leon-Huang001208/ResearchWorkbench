@@ -373,6 +373,20 @@ class EncryptedModelCredentialBackend(PrivateFileCredentialBackend):
             # Loading is not initialization: absent ciphertext directories fail.
             with runtime_state_directory(root):
                 super().__init__(root)
+            with self._locked_directory() as directory:
+                for name in os.listdir(directory):
+                    if not name.endswith(".json"):
+                        continue
+                    record = self._read(directory, name)
+                    if record is None:
+                        raise CredentialBackendError("model_ciphertext_invalid")
+                    payload = json.loads(record[0])
+                    raw = payload.get("password") if isinstance(payload, dict) else None
+                    if not isinstance(raw, str):
+                        raise CredentialBackendError("model_ciphertext_invalid")
+                    envelope = json.loads(raw)
+                    if not isinstance(envelope, dict) or envelope.get("algorithm") != "AES-256-GCM":
+                        raise CredentialBackendError("model_ciphertext_invalid")
 
     def _load_key(self) -> tuple[bytes, tuple[int, ...]]:
         with runtime_state_directory(self.key_root):

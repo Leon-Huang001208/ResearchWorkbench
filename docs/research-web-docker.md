@@ -179,8 +179,10 @@ Native macOS 仍用 Keychain，绝不自动读取或迁移旧 Key。
 并拒绝错实例身份和错主密钥。仅返回布尔断言；夹具身份/资源关联保存在管理账本，
 夹具卷保留以供审阅，不作为两个完整 stage 或真实供应商验收。
 
-- G2：Docker模型凭据后端尚未交付，现有通用业务文件凭据目录不证明模型Key可用。
-  不读取/迁移Native Keychain，不调用真实供应商；加密凭据、registry digest发布/回退另实施。
+- G2：模型桥现支持显式绑定的 Docker 加密文件后端，两个固定模型 ref 使用凭据卷内独立
+  `models/` 子目录，不改通用业务凭据或读取/迁移 Native Keychain。主密钥与密文同卷，
+  不声称抵抗管理员或同 UID 读取。配置、重启恢复与真实供应商生成仍分别验收；
+  registry digest 发布/提升/回退及其它 G2 工作尚未交付。
 - G3：Linux研究脚本 strict sandbox 仍失败关闭，容器实例隔离不等于任意代码沙箱。
   完整任务期全机重研究配额、排队/恢复、文档处理限额及攻击回归未实施。
 - G4：固定 `workspace_id=research` 及实例级共享设置仍保持现状，无受邀账号/鉴权路由。
@@ -190,3 +192,5 @@ Native macOS 仍用 Keychain，绝不自动读取或迁移旧 Key。
 
 Windows/Linux原生及同平台产品CI、模型付费生成、Office/Wind等本机集成保持 NOT_RUN。
 本地 Docker Desktop 健康不替代 GitHub macOS 干净安装门，不触发无关桌面打包。
+
+两种已存在的密文格式保持独立：常规 staged launcher 默认 `docker-encrypted-file`（Fernet，同卷主密钥）；管理器显式 `RWB_MODEL_BACKEND=docker-encrypted` 绑定 AES-GCM 与独立只读主密钥卷。桥接拒绝混用参数和外来密文格式；无自动转换、回退、旧 Key 删除或重新生成主密钥。来源分别报告 `docker-encrypted-file` 与 `docker-encrypted`，配置不认证真实生成。

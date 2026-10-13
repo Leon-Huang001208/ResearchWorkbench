@@ -34,6 +34,9 @@ pair 可继续 start/force restart，未知/变化/同根写者仍返回 `runtim
 1A收口：`ModelConfig.api_key`拒绝明显掩码、redacted/hidden占位及空白，错误响应仍固定invalid_request且不回显输入。普通新消息在受理收据/Native prompt之前检查凭据，configured严格为true才继续；缺失为model_credentials_missing，未确认形状为model_credential_state_unavailable。Runtime credential_storage来自受控source映射，未知不猜测为Keychain。
 
 模型页新增 `POST /api/research/runtime/model/test`：用户显式最小生成，通过现有 DSH 会话与最终事件验收，返回 `status`、`selection`、`checked_at`、可选 `session_id/code`；不返回密钥或推理正文。`PUT /runtime/model` 增加互斥的 `clear_api_key`，返回 `configured/applied_to/inference_verified`，保存不代表推理通过。Runtime GET 分开展示已保存、新会话应用、凭据配置、后端类型、提交结果未知及最近测试。
+显式 Docker 模型后端的受控来源 `docker-encrypted-file` 投影为
+`credential_storage=docker_encrypted_file`；未配置时 configured=false，损坏/拒绝读取时仍为
+unknown/unavailable，不能推导真实生成通过。HTTP 不增加取密入口或秘密返回字段。
 保存模型的空闲保护读取真实子会话活动，不要求已结束历史的执行模式仍可恢复。内部活动查询仍校验父归属、原生子任务来源与严格布尔 running；历史 unknown 模式不能由此执行，未知活动或正在运行仍拒绝保存。HTTP 请求/响应和凭据边界保持。
 
 macOS Native 模型 bridge 失败时，Runtime GET 保留成功的 Host `connected/health_check_passed`，仅将 `credential_configured` 设为 null、`credential_storage` 设为 unknown、`credential_code` 设为稳定 `model_credential_backend_unavailable`。不回显 Keychain 异常、不把未知当作可用；保存/请求仍沿既有失败关闭与 uncertain 处理。
@@ -375,3 +378,7 @@ GET `/api/research/local-integrations`附带`integration_status`，其中`scope=
 | `/news`、`/announcements` | `/news`、`/announcements` | code 必须为六位数字 |
 
 参数不合法返回 422；上游内容不存在返回 404；连接、状态、格式异常返回 502；超时返回 504。错误响应 `detail` 包含固定 `code/message`，不暴露上游正文。无任意 URL、POST、模型调用或采集触发入口。事件概率不提供数据接口。
+
+## 历史子会话模式兼容 · 2026-10-13
+
+GET会话列表及父详情不因已验证活动的历史子mode=unknown整体返回503。父详情沿用subagents的status/error字段显示运行中或历史不可用；真实活动/归属未知仍返回协议错误，响应schema不增加字段。
