@@ -92,3 +92,7 @@ Docker 模型凭据由 owned overlay 显式绑定加密文件桥，固定 ref、
 ## FinGPT 研究融合 · 2026-10-13
 
 FinGPT 研究深度、原生计划与会话底稿参见 02-research-runtime、03-data-files、04-api 和 05-security-validation。Automation 继续调用同一会话/报告运行服务；本次新增 PDF 格式，不改变调度、投递或生命周期成功判定。
+
+## 历史子会话模式兼容 · 2026-10-13
+
+历史子模式兼容只调整读取投影，原生协议与控制边界见02-research-runtime和05-security-validation；服务与模块结构不变。

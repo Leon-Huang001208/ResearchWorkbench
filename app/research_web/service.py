@@ -1839,8 +1839,9 @@ class ResearchService:
                 "status": child.get("reason", "unknown"),
             }
             if child.get("mode") == "unknown":
+                log.info("research_historical_child_mode_unavailable")
                 view.update(
-                    status="unavailable",
+                    status="running" if child["activity"] == "running" else "unavailable",
                     mode="unknown",
                     error="历史子会话模式未知；保留记录，禁止读取和继续",
                     activity=child.get("activity"),
