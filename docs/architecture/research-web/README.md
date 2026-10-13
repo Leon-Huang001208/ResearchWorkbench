@@ -22,6 +22,10 @@ macOS实际端点/origin事务现接入公开CLI启动链；同一产品部署�
 
 ## 阅读顺序
 
+Docker 模型凭据由 owned overlay 显式绑定加密文件桥，固定 ref、私有目录守卫和 Host
+认证边界沿用既有合同；Native 不回退到该后端。密钥存储、重启恢复和真实模型输出分别验收，
+细节见[运行时](02-research-runtime.md)、[文件](03-data-files.md)与[安全验证](05-security-validation.md)。
+
 首次阅读先打开[交互图册](../../../outputs/research-web-architecture/index.html)：产品/系统总览 → 运行结构与部署 → 子系统分图 → 关键业务流程 → API 与代码细节。重要模块的阅读卡片使用稳定标识，将职责、分图、说明、API、源码和测试放在同一入口。
 
 前端外观以 [Research Web 外观与主题](../../research-web-appearance.md) 为准：Codex 风格、Light/Dark 与用户原图符号；不改变下述服务部署和研究契约。

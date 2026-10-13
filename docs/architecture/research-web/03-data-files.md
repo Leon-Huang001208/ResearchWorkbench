@@ -17,14 +17,17 @@ DataHub 资料快照仍属于原会话，项目仅聚合摘要和来源链接，
 管理账本保留数据卷身份；开发重建/退休仅删除精确所属容器，保留四卷与源码，
 不迁移 canonical Native 根、PID、cookie、Keychain或旧Compose bind数据。
 stage/prod不挂载开发源码，各实例网络、端口与运行状态分离。
-通用业务凭据目录与模型系统存储仍是两个合同，Docker 模型后端由G2补齐。
+通用业务凭据目录与模型存储仍是两个合同：Docker 模型桥显式绑定
+`/run/rwb-secrets/private/models` 的加密记录，既有通用凭据保持原路径和格式。
+主密钥一次创建且跨重启保留，两个 ref 的密文绑定 data-home 命名空间与账户；
+缺失/损坏密钥或密文失败关闭，不从环境、旧 YAML 或 Native Keychain 恢复。
 
 Docker 资源清理不删除产品 bind mount 的宿主目录。废弃数据卷先保存到本机私有归档目录，
 以 SHA-256 和临时卷实际恢复/逐文件比较建立恢复证据，再删除原卷；归档不自动过期删除。
 当前及上一接受镜像分别由原安装摘要和 `install/docker-previous-manifest.json` 保护，
 失败发布恢复两份摘要。历史标签、未知卷与缓存不能被当作有效安装或可丢弃数据的证明。
 
-DSH 0.2.1 的 preset 注册改为 owned overlay 中的声明式插件行；原 `.agent-presets/<id>/agent.cordis.yml` 仍是产品生成源，不再依赖旧版文件目录自动发现。空实例默认模型为 `deepseek-flash`；已有保存的模型 ID、历史会话和快照不自动重写。安装清单绑定新的固定源码及实际构建闭包，模型秘密仍仅存于 Native Keychain，不随 preset、安装摘要或快照复制。
+DSH 0.2.1 的 preset 注册改为 owned overlay 中的声明式插件行；原 `.agent-presets/<id>/agent.cordis.yml` 仍是产品生成源，不再依赖旧版文件目录自动发现。空实例默认模型为 `deepseek-flash`；已有保存的模型 ID、历史会话和快照不自动重写。安装清单绑定新的固定源码及实际构建闭包，模型秘密仅进入 Native Keychain 或显式 Docker 加密凭据挂载，不随 preset、安装摘要或快照复制。
 
 Automation 沿用 automation_runs 的 session_id、report_run_id、updated_at 和 failure_code 字段，不新增索引或迁移。已知关联通过现有原子 Store.save 写入；失败回滚内存关联，不以未落盘引用继续提交。报告晚到的会话 ID 同样保存；未知、陈旧和异目标引用保留失败原因与原记录，恢复不删除或重建原数据/产物。
 

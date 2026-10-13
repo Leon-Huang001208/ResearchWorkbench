@@ -4,6 +4,14 @@
 Workbench 子 Agent 投影只使用已核实的 API 字段，继续交叉验证父目录、`origin=subagent` 和严格布尔 running；缺失、外来父会话、非子任务来源或未知活动仍失败关闭，不以空目录释放活动保护。
 模型设置的空闲检查采用内部 `activityOnly=true`：历史 `mode=unknown` 只可在父归属、subagent 来源和布尔运行状态全部验证后提供活动事实。默认详情与执行仍拒绝未知模式；不推断历史执行地址，不删改记录，也不把未知活动当作已结束。
 
+## Docker 模型凭据绑定
+
+模型 provider 由 owned launcher 显式绑定后端：Native 保持 macOS Keychain；已验证 staged
+Docker Runtime 只接受 `/run/rwb-secrets/private`，在私有 stdio 参数中传递非秘密绑定。
+子进程继续清理环境，两个固定模型 ref 不回退旧 resolver；Host 认证 record 接口和锁保持。
+Docker `describe/resolve` 的来源为 `docker-encrypted-file`，Host 仅投影 `docker_encrypted_file`，
+不回传秘密。保存、Runtime 应用、重启恢复和真实生成仍由原有产品 API 各自记录。
+
 ## Claw 日程提出与确认
 
 `rwb_prepare_automation` 沿现有 research-tools 与最终 guard 注册，先核对原生会话范围，再通过实例私有控制通道提出日程草稿。

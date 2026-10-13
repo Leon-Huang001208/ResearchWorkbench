@@ -145,8 +145,10 @@ python -m research_workbench_entrypoint.docker_resources --home "$HOME/.research
 
 ## 下一阶段入口与真实缺口
 
-- G2：Docker模型凭据后端尚未交付，现有通用业务文件凭据目录不证明模型Key可用。
-  不读取/迁移Native Keychain，不调用真实供应商；加密凭据、registry digest发布/回退另实施。
+- G2：模型桥现支持显式绑定的 Docker 加密文件后端，两个固定模型 ref 使用凭据卷内独立
+  `models/` 子目录，不改通用业务凭据或读取/迁移 Native Keychain。主密钥与密文同卷，
+  不声称抵抗管理员或同 UID 读取。配置、重启恢复与真实供应商生成仍分别验收；
+  registry digest 发布/提升/回退及其它 G2 工作尚未交付。
 - G3：Linux研究脚本 strict sandbox 仍失败关闭，容器实例隔离不等于任意代码沙箱。
   完整任务期全机重研究配额、排队/恢复、文档处理限额及攻击回归未实施。
 - G4：固定 `workspace_id=research` 及实例级共享设置仍保持现状，无受邀账号/鉴权路由。
