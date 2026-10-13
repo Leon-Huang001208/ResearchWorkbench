@@ -1648,6 +1648,35 @@ def test_native_automation_proposal_is_authenticated_and_user_confirmation_is_di
     assert len(client.get("/api/research/automations").json()["items"]) == 1
 
 
+@pytest.mark.asyncio
+async def test_runtime_reports_docker_encrypted_storage_without_returning_key(tmp_path):
+    native = NativeFixture()
+    original = native.rpc
+
+    async def encrypted(method, payload):
+        if method == "credentials.describe":
+            return {
+                "credentials": {
+                    "RESEARCH_DSH_API_KEY": {
+                        "configured": True,
+                        "source": "docker-encrypted-file",
+                        "writable": True,
+                        "value": "synthetic-must-not-be-returned",
+                    }
+                }
+            }
+        return await original(method, payload)
+
+    native.rpc = encrypted
+    service = ResearchService(native, Store(tmp_path))
+    service.connected = {"mux", "host"}
+    result = await service.runtime()
+    assert result["credential_storage"] == "docker_encrypted_file"
+    assert result["credential_configured"] is True
+    assert result["credential_code"] is None
+    assert "synthetic-must-not-be-returned" not in str(result)
+
+
 def test_fingpt_locked_sources_deny_online_search_and_dataset_reuse(api, monkeypatch):
     client, _, service = api
     created = client.post(

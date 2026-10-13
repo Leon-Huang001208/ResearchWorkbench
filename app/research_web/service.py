@@ -585,6 +585,7 @@ class ResearchService:
                     "project-env": "project_dotenv",
                     "user-env": "runtime_home_dotenv",
                     "system-keychain": "system_keychain",
+                    "docker-encrypted-file": "docker_encrypted_file",
                     "not-required": "not_required",
                 }.get(credential_source, "unknown"),
                 "configuration_saved": "model" in self.store.data,

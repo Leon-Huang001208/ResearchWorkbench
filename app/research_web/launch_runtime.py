@@ -662,6 +662,10 @@ def _prepare_runtime(
         )
     log.info("research_runtime_presets_declared", count=3)
     adapter = home / "profiles" / "node_modules" / "research-tabbit-adapter" / "index.mjs"
+    model_backend = "docker-encrypted-file" if staged_source is not None else "native-keychain"
+    model_credential_home = os.environ.get("RESEARCH_CREDENTIAL_HOME")
+    if staged_source is not None and model_credential_home != "/run/rwb-secrets/private":
+        raise RuntimeError("docker_model_credential_binding_invalid")
     overlay.write_text(
         "\n".join(
             [
@@ -674,6 +678,12 @@ def _prepare_runtime(
                 f"        python: {json.dumps(sys.executable)}",
                 f"        bridge: {json.dumps(str(package.parent / 'model_credentials.py'))}",
                 f"        dataHome: {json.dumps(str(data))}",
+                f"        backend: {json.dumps(model_backend)}",
+                *(
+                    [f"        credentialHome: {json.dumps(model_credential_home)}"]
+                    if staged_source is not None
+                    else []
+                ),
                 f"        recordsPath: {json.dumps(str(home / '.browser-credentials.yaml'))}",
                 f"        localProvider: {json.dumps(str(source / 'packages/credentials/credentials-local/lib/index.js'))}",
                 "- insert:",

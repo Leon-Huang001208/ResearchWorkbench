@@ -37,7 +37,9 @@ def platform_capabilities(
         log.warning("platform_capabilities_invalid_runtime_mode")
         raise ValueError("invalid runtime mode")
     platform = sys.platform if platform_name is None else platform_name
-    model_store_available = runtime_mode == "native" and platform == "darwin"
+    model_store_available = (
+        runtime_mode == "docker" or runtime_mode == "native" and platform == "darwin"
+    )
     sandbox_available = runtime_mode == "native" and platform == "darwin"
     document_available = runtime_mode == "docker" or documentation_reader_available(
         platform_name=platform
@@ -46,9 +48,13 @@ def platform_capabilities(
         "model_system_storage": _capability(
             "available" if model_store_available else "unsupported",
             (
-                "macos_model_keychain_implementation"
-                if model_store_available
-                else "model_credential_backend_unavailable"
+                "docker_model_encrypted_file_implementation"
+                if runtime_mode == "docker"
+                else (
+                    "macos_model_keychain_implementation"
+                    if model_store_available
+                    else "model_credential_backend_unavailable"
+                )
             ),
         ),
         "research_script_sandbox": _capability(
