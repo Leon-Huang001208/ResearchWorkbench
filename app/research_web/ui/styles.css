@@ -772,3 +772,15 @@ textarea { resize: vertical; }
 .claw-automation-drafts form { margin: 16px 0; padding: 18px; border: 1px solid var(--line); border-radius: 12px; }
 .claw-automation-drafts .button-row { margin-top: 14px; }
 @media (max-width: 760px) { .claw-project-toolbar, .claw-project-page form { align-items: stretch; } .claw-project-toolbar label, .claw-project-page form label { flex: 1 1 100%; } }
+
+/* Research panels preserve mobile reading and long source identities. */
+.context-tabs { flex-wrap: wrap; }
+.research-evidence-card { padding: 12px 0; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+.context-tab-panel article p { white-space: pre-wrap; overflow-wrap: anywhere; }
+
+.quick-skills.research-recipes { flex-direction: row; flex-wrap: wrap; gap: 8px; margin: 0 0 16px; padding: 0; }
+.composer-tools .research-source-picker { flex: 0 0 auto; margin-left: 0; }
+.research-source-picker summary { white-space: nowrap; font-size: 11px; }
+.research-source-options { position: absolute; top: 100%; left: 0; min-width: 170px; z-index: 12; display: grid; gap: 10px; padding: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; box-shadow: var(--shadow); }
+.research-source-options label { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+.research-source-options input { min-height: auto; width: auto; }

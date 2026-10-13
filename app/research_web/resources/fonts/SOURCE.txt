@@ -1,0 +1,6 @@
+Noto Sans SC, Google Fonts, SIL Open Font License (OFL.txt).
+Source commit: a85815a42757630ce188fdad368c2dfc444d4773
+Original SHA256: a3041811a78c361b1de50f953c805e0244951c21c5bd412f7232ef0d899af0da
+Derived static weight 400; Latin/CJK punctuation and U+3400..U+9FFF subset.
+FontTools build: 4.65.0
+SHA256: 3ab72d688df29880855d3234de44cee7179dd1b8e51ea077f729220fe3375d51

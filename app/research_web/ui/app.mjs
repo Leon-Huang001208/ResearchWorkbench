@@ -2,6 +2,7 @@ import { createAPI, createController, parseRoute, legacyRouteTarget, isRunning, 
 import { escapeHTML as e } from './markdown.mjs';
 import { badge, empty, renderConversation, renderDeleteConfirm, renderHistory, renderPurgeConfirm, renderRename, renderDocumentEditor, documentTargets, documentEditValue, documentCreationPayload } from './views.mjs';
 import { icon } from './icons.mjs';
+import { researchRecipes, renderResearchRecipes } from './research-report.mjs';
 import { renderComposer, renderQuickSkills, removeTabbitMentionQuery, slashKey, skillMatches, tabbitKey, tabbitMentionQuery } from './composer.mjs';
 import { renderResearchAttention, renderClawWorkspaceCanvas, renderContextPanel, renderPrimaryRail, renderSidebar, renderTopbar } from './shell.mjs';
 
@@ -50,7 +51,7 @@ function finishCatalogRequest(name) {
     catalog.pending.delete(name);
   }
 }
-let selectedWorkspace = ''; let selectedPreview = null; let historyFilter = ''; let success = ''; let sidebarOpen = false; let sidebarCollapsed = false; let clawSidebarView = 'sessions'; let contextOpen = false; let contextTab = 'activity'; let globalSearch = ''; let slashOpen = false;
+let selectedWorkspace = ''; let selectedPreview = null; let historyFilter = ''; let success = ''; let sidebarOpen = false; let sidebarCollapsed = false; let clawSidebarView = 'sessions'; let contextOpen = false; let contextTab = 'activity'; let researchStage = null; let globalSearch = ''; let slashOpen = false;
 let searchOpen = false; let slashIndex = 0; let contextCollapsed = true;
 let tabbitOpen = false; let tabbitLoading = false; let tabbitIndex = 0; let tabbitCandidates = []; let tabbitRequest = 0;
 let methodPickerOpen = false;
@@ -209,12 +210,12 @@ function composer() {
   const taskPending = state.detail && (isRunning(state.detail.status) || state.detail.can_cancel || ['pending', 'admission_unknown'].includes(state.detail.delivery?.status));
   const runtimePending = catalog.pending.has('runtime');
   const runtimeReady = !runtimePending && catalog.runtime?.connected === true && catalog.runtime?.credential_configured !== false;
-  return renderComposer({ models: catalog.models, model: catalog.runtime?.model, page: state.route.page, draft: state.draft, attachments: state.attachments, tabbitTabs: state.tabbitTabs, tabbitCandidates, tabbitOpen, tabbitLoading, tabbitIndex, expectedFormats: state.expectedFormats, skills: catalog.capabilities, skillId: state.skillId, disabled, busy: state.busy, taskPending, detail: state.detail, slashOpen, slashIndex, capability: state.capability, toolIds: state.toolIds, tools: catalog.tools, methods: catalog.capabilities.filter(item => item.kind === 'method'), methodIds: state.methodIds, methodPickerOpen, runtimeReady, runtimePending });
+  return renderComposer({ models: catalog.models, model: catalog.runtime?.model, page: state.route.page, draft: state.draft, attachments: state.attachments, tabbitTabs: state.tabbitTabs, tabbitCandidates, tabbitOpen, tabbitLoading, tabbitIndex, sourceScope: state.sourceScope, researchDepth: state.researchDepth, expectedFormats: state.expectedFormats, skills: catalog.capabilities, skillId: state.skillId, disabled, busy: state.busy, taskPending, detail: state.detail, slashOpen, slashIndex, capability: state.capability, toolIds: state.toolIds, tools: catalog.tools, methods: catalog.capabilities.filter(item => item.kind === 'method'), methodIds: state.methodIds, methodPickerOpen, runtimeReady, runtimePending });
 }
 
 function landing() {
   const claw = state.route.page === 'claw';
-  return `<div class="landing ${claw ? 'claw-landing' : 'fingpt-landing'}"><div class="greeting">${claw ? `<span class="mode-label">${icon('layers')}Claw</span>` : ''}<h1>${claw ? '把研究目标，变成可用成果。' : '从一个问题，开始研究。'}</h1><p class="landing-subtitle">${claw ? '说明目标、资料与交付要求，在一个空间推进研究。' : '读懂资料，比较公司，探索行业。'}</p></div>${composer()}${claw ? renderReportWorkflowShelf(catalog.reportWorkflows, { busy: reportWorkflowBusy, compact: true }) : ''}${renderQuickSkills(catalog.capabilities, { page: state.route.page, category: quickCategory })}</div>`;
+  return `<div class="landing ${claw ? 'claw-landing' : 'fingpt-landing'}"><div class="greeting">${claw ? `<span class="mode-label">${icon('layers')}Claw</span>` : ''}<h1>${claw ? '把研究目标，变成可用成果。' : '从一个问题，开始研究。'}</h1><p class="landing-subtitle">${claw ? '说明目标、资料与交付要求，在一个空间推进研究。' : '读懂资料，比较公司，探索行业。'}</p></div>${!claw ? renderResearchRecipes({ busy: state.busy }) : ""}${composer()}${claw ? renderReportWorkflowShelf(catalog.reportWorkflows, { busy: reportWorkflowBusy, compact: true }) : ''}${renderQuickSkills(catalog.capabilities, { page: state.route.page, category: quickCategory })}</div>`;
 }
 
 function researchPage() {
@@ -376,7 +377,7 @@ function primaryRail() {
 }
 
 function contextPanel() {
-  return renderContextPanel({ detail: state.detail, selectedTab: contextTab, mobileOpen: contextOpen, selectedPreview, busy: state.busy, workflow: state.detail?.capability ? workflowVersions.get(`${state.detail.capability.id}:${state.detail.capability.version}`) : null });
+  return renderContextPanel({ detail: state.detail, selectedTab: contextTab, researchStage, mobileOpen: contextOpen, selectedPreview, busy: state.busy, workflow: state.detail?.capability ? workflowVersions.get(`${state.detail.capability.id}:${state.detail.capability.version}`) : null });
 }
 
 let documentEditor = null;
@@ -1071,7 +1072,7 @@ async function showRoute() {
   }
   const requestedMarket = requestedRoute.page === 'skills' && requestedRoute.capabilityKind === 'tool' && requestedRoute.capabilityView === 'market';
   if (!requestedMarket) invalidateMCPRequests();
-  const ticket = ++pageGeneration; success = ''; selectedPreview = null; sidebarOpen = false; clawSidebarView = 'sessions'; contextOpen = false; contextTab = 'activity'; slashOpen = false; slashIndex = 0; tabbitOpen = false; tabbitLoading = false; tabbitIndex = 0; tabbitCandidates = []; tabbitRequest += 1; globalSearch = ''; searchOpen = false; renameDraft = null; renameSession = null; deleteSession = null; purgeSession = null; sessionMenu = null; sessionActionBusy = false; sessionActionError = ''; questionDrafts.clear();
+  const ticket = ++pageGeneration; success = ''; selectedPreview = null; sidebarOpen = false; clawSidebarView = 'sessions'; contextOpen = false; contextTab = 'activity'; researchStage = null; slashOpen = false; slashIndex = 0; tabbitOpen = false; tabbitLoading = false; tabbitIndex = 0; tabbitCandidates = []; tabbitRequest += 1; globalSearch = ''; searchOpen = false; renameDraft = null; renameSession = null; deleteSession = null; purgeSession = null; sessionMenu = null; sessionActionBusy = false; sessionActionError = ''; questionDrafts.clear();
   await controller.open(requestedRoute);
   if (ticket !== pageGeneration) return;
   if (state.route.settingsSectionFallback) safeLog('settings_section_fallback');
@@ -1378,6 +1379,8 @@ root.addEventListener('change', async (event) => {
     return;
   }
   if ('connectionStatus' in (target.dataset || {})) applyConnectionWorkspaceFilters(target.closest('[data-connection-workbench]'));
+  if ('researchSource' in target.dataset) { const values = target.checked ? [...state.sourceScope, target.dataset.researchSource] : state.sourceScope.filter(s => s !== target.dataset.researchSource); if (values.length) controller.setSourceScope(values); render(); }
+  if (target.id === 'research-depth') { controller.setResearchDepth(target.value); render(); }
   if (target.id === 'workspace-select') selectedWorkspace = target.value;
   if ('quickCategory' in target.dataset) { quickCategory = target.value; render(); }
   if (target.id === 'skill-select') { if (target.value) await selectCapability(target.value); else { controller.setCapability(null); render(); } }
@@ -1844,6 +1847,8 @@ root.addEventListener('click', async (event) => {
       return;
     }
   }
+  const recipe = event.target.closest?.('[data-research-recipe]')?.dataset.researchRecipe;
+  if (recipe && researchRecipes[recipe]) { if (state.busy) return; controller.setDraft(researchRecipes[recipe] + '\n' + state.draft); render(); root.querySelector('#prompt')?.focus(); return; }
   const clickTarget = event.target;
   const modelAction = clickTarget?.closest?.('[data-model-clear], [data-model-test]')?.dataset;
   if (modelAction && 'modelClear' in modelAction) {
@@ -2291,7 +2296,8 @@ root.addEventListener('click', async (event) => {
   }
   if ('clawSidebarView' in data) { clawSidebarView = data.clawSidebarView; render(); }
   if ('showAttention' in data) { contextOpen = window.matchMedia('(max-width: 1050px)').matches; contextCollapsed = false; contextTab = 'activity'; render(); }
-  if ('contextTab' in data) { contextTab = data.contextTab; render(); }
+  if ('reportStage' in data && state.detail?.research_report?.sections?.some(section => section.id === data.reportStage)) { researchStage = data.reportStage; contextTab = 'notes'; render(); }
+  if ('contextTab' in data) { researchStage = null; contextTab = data.contextTab; render(); }
   if ('closeDrawers' in data) { sidebarOpen = false; contextOpen = false; render(); }
   if ('upload' in data) document.querySelector('#file-input')?.click();
   if ('slashSearch' in data) { slashOpen = !slashOpen; tabbitOpen = false; tabbitCandidates = []; tabbitRequest += 1; slashIndex = 0; render(); document.querySelector('#prompt')?.focus(); }
