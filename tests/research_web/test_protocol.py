@@ -13,6 +13,21 @@ from app.research_web.client import DSHClient, RuntimeFailure
 from app.research_web.projection import project
 
 
+@pytest.mark.parametrize("previous_plan", [False, True])
+def test_native_todo_without_data_fails_closed_without_losing_session(previous_plan):
+    rows = []
+    if previous_plan:
+        rows = [
+            event(0, "turn/start", {"turn": 1}),
+            event(1, "todo/write", {"todos": [{"content": "old", "status": "completed"}]}),
+        ]
+    rows.append({"event": {"seq": len(rows), "type": "todo/write"}})
+    view = project(rows)
+    assert view["research_plan"]["status"] == "invalid"
+    assert view["research_plan"]["items"] == [] and view["plan"] is None
+    assert view["plan_error"]
+
+
 def test_native_plan_fold_preserves_mainline_shape_and_bounds():
     rows = [
         event(0, "turn/start", {"turn": 2}),

@@ -122,9 +122,10 @@ def project(entries: list[dict]) -> dict:
     ]
     for entry in sorted(readable, key=lambda row: row["event"]["seq"]):
         event = entry["event"]
-        data, kind, seq = event["data"], event["type"], event["seq"]
+        kind, seq = event["type"], event["seq"]
         if kind == "todo/write":
             continue  # The independent native fold validates the complete snapshot.
+        data = event["data"]
         timestamp = event.get("time")
         if not isinstance(timestamp, (int, float)) or isinstance(timestamp, bool):
             timestamp = None

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "unchanged",
-  "summary": "保留最新Docker凭据说明，同时修复历史子会话unknown模式读取。",
-  "reason": "主线README的双运行时与凭据边界仍准确；本修复仅区分历史读路径与控制模式，不改产品入口或安装依赖，细节见原生协议和安全模块文档。"
+  "summary": "在主线FinGPT研究空间中合并严格原生计划恢复；保留七个标签和既有接口，缺页与冲突记录不复用绿色计划。",
+  "reason": "README与模块文档已复核：继续采用唯一DSH，保留Claw、报告与Docker凭据；只增加原生日志完整性投影，不授予工具权限、并行执行或文件交付证明。"
 }
