@@ -306,3 +306,36 @@ ffe77d48-b717-4946-854c-a9ea5810468e；MD2734bytes，SHA256
 远端CI（包括Mac干净安装）、Docker、联合恢复及UI研究动作仍NOT_RUN，整体Goal未完成。
 本次没有远端push/PR/部署。原worktree保全，模型报告存在不意味着完整Goal或正常worker验收。
 下一步接入报告/终态的正常产品映射和UI动作，再做持续来源/留出样本/联合恢复/Docker及安装CI。
+
+## 2026-10-14 真实报告页面、联合恢复与干净安装
+
+源码检查点 `6aa80b64bb6e37855a4490ab5bb6b4ffa310fba6`，仍在接续 worktree。
+“研究情报”的“研究与报告”页已显示原真实 run/session 的独立执行与交付状态。
+原 Native failed 与有效报告 completed 都保留；原回合核对、Markdown/Word 下载实际
+浏览器通过。Word 38556 bytes、25 段，含原 manifest hash；本轮不发模型请求。
+
+联合恢复：原暂停 PG 的 50 表和选定会话的输入/输出/冻结清单/回执通过签名与逐字节
+核对，最新源码恢复重验 PASS。凭据、无关会话与 Native 执行历史不恢复。
+恢复到隔离 DB `hot_joint_restore_20261014` 后，正常 worker 实际采集了 DeepMind/ECB
+公开来源，保留原材料身份；停止后暂停。原库始终暂停，原 scope 累计仍17/76804/10253。
+
+干净 checkout `hot-clean-install-20261014` 同源码提交，通过受管安装器 API 在独立
+目录安装完整哈希锁定依赖、CJPY、固定DSH和Hot生产依赖，实际启动/Doctor/HTTP/停止
+PASS。公共 shell 安装实跑与同SHA Mac CI NOT_RUN；不以 API 证明代替这两个层级。
+
+受管 Docker 冷构建与重建完成，exact-commit image为
+`sha256:6733bdd1825dec80ff487fcbad5754e47b3ab2d8e7da16180403e39320c2aac7`。
+新增独立 stage 被既有停止候选保留的2GiB池拒绝 `environment_pool_exceeded`；
+旧候选/5卷/镜像未动，未扩大配额或绕过账本。复用旧候选的授权问题保持待答，
+Docker真实运行/模式切换 BLOCKED；临时透明回环探针尚未运行，不冒充TLS/容器证明。
+
+本地必需127项治理合同、247项容器协议、162项安装恢复管理测试PASS；结果39/UI10
+通过，独立审查已关闭本切片问题。日志与Git绑定BLOCKED回执见report-install-*。
+最新GitHub master `0cf38ff23f72b9537ca4a09616115ec1cc50d979` 已fetch；兼容Git的
+只读三方预览发现40个冲突标记，原字节保留，未合并。完整Goal未完成，MacCI尚未运行。
+未push/PR/merge/部署，Windows/Linux不执行，仅交接。研究/控制/安装/构建进程已退出；
+原PG容器保持运行，Hot暂停，PG卷/恢复目标/干净安装目录保留。
+
+下一步：收到旧stage复用授权后先按固定6aa80b镜像完成真实容器Hot/采集/顺序切换，
+保留旧镜像和全部卷；随后处理最新master集成、关注/周期简报及剩余验收与候选MacCI。
+预算不得再增加；剩余3calls/23196tokens，仍20calls/100000tokens/USD1。

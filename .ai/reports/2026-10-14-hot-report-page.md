@@ -32,3 +32,34 @@ report-page-api-proof/download-proof记录原件及0模型调用。原scope仍17
 冻结清单与交付回执逐字节核对，报告 SHA256 不变。联合恢复回执
 `logs/hot-resume/joint-restoration-receipt.json` PASS；Native 执行历史 NOT_RESTORED。
 安装/恢复/Hot管理回归162 PASS（182.12秒）；非法UUID、未知目录、篡改回执与并发index拒绝保留。
+
+## 当前本地验收与阻塞
+
+- 源码提交 `6aa80b64bb6e37855a4490ab5bb6b4ffa310fba6`。真实浏览器截图在
+  `logs/hot-resume/report-page-real.jpg`；隔离预览已停止。
+- 恢复后独立目标库实际启动正常 source worker，DeepMind 与 ECB 的公开来源采集成功，
+  原材料身份保留；停止后 `paused=true`。`joint-recovery-runtime-receipt.json`
+  保留原预算 17/76804，模型禁用、没有付费调用。最新文件恢复重验见
+  `joint-restore-current-code.json`；不恢复 Native 会话执行历史。
+- 干净 Git checkout 为相同源码提交，在独立数据目录通过 `SetupWebInstaller`
+  安装 API 完成哈希锁定 Python、CJPY、固定 DSH 和 Hot 生产依赖的完整安装；
+  实际 Web/DSH 启动、Doctor、首页/静态模块/Hot 状态与结果读取、受管停止 PASS。
+  证据在 `/Users/leon/.codex/worktrees/hot-clean-install-20261014/ResearchWorkbench/logs/`。
+  公共 shell 入口真实安装 NOT_RUN；其入口/安装合同测试通过。Mac CI NOT_RUN。
+- 受管冷构建、重建和 exact-commit 镜像完成；当前候选镜像
+  `sha256:6733bdd1825dec80ff487fcbad5754e47b3ab2d8e7da16180403e39320c2aac7`，
+  镜像 revision 与源码提交一致。未把编译成功当作 Docker worker/切换通过。
+- Docker stage register 返回 `environment_pool_exceeded`：另一个已停止候选保留
+  stage 配额。未退休/删除它，未手改账本或通过私有账本绕过配额。
+  复用其镜像与数据需要用户明确授权，已经提出一次请求；Docker 运行/切换 BLOCKED。
+- 必需源码门：127 项治理/架构/Docker 合同、247 项容器/协议、162 项安装/恢复/管理
+  回归 PASS；结果 Python 39 项与 UI 10 项 PASS。计数覆盖不同闭包，重叠不相加。
+  Git 绑定回执 `report-install-bound-receipt.json` 为 BLOCKED/NOT_READY，远端门未运行。
+- 最新 master 为 `0cf38ff23f72b9537ca4a09616115ec1cc50d979`。系统 Git 无
+  `merge-tree --write-tree`；使用兼容三参数的只读预览保留原始字节，发现 40 个冲突标记。
+  尚未合入新主线。未 push/PR/CI/merge/部署，其他平台保持交接 NOT_RUN。
+
+完整 Goal 仍未完成。后续需完成关注/周期简报产品动作、来源/留出样本收束、
+Docker 实际采集与顺序模式切换、最新 master 集成及候选 Mac CI/可审查交付。
+预算仍 20 次 / 100000 tokens / 1 美元，累计 17 次 / 76804 tokens / 10253 microUSD；
+本轮新增模型调用 0，不创建或重置 scope。
