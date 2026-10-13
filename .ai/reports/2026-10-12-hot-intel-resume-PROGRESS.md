@@ -200,4 +200,9 @@ pyproject现有app打包范围覆盖静态目录，干净macOS安装/候选CI仍
 Hot单元47 PASS、真实随机PG/签名RPC1 PASS、最终typecheck PASS；失败日志和测试资源清理
 由fixture保留。细节见2026-10-13-hot-research-model-rpc.md。本轮后续仍为真实请求input bound、
 Host/DSH流装配、正式研究及恢复/持续采集/计划简报/Docker/干净安装与候选CI，Goal ACTIVE。
+
+本轮源码候选10b2e844b已提交，工作区干净。共享dispatch helper另经真实预算竞争回归1 PASS，
+合计两项PG集成通过。原库只读核对仍paused，累计4calls/1417tokens/659microUSD，授权
+20/20000/$1未变；随机研究测试角色为零。绑定候选的完整Router计划保存在
+logs/hot-resume/research-rpc-candidate-plan.json，Mac Bootstrap及通用远端门保持NOT_RUN。
 <!-- architecture-review {"group":"hot","structure":"unchanged","reason":"该轮仅记录前端开源适配许可和现有数据/运行边界；原schema/模型scope/唯一队列/Owner未改，真实宏观资料为只读样式预览，不把预览绘成新增产品运行路径。","diagrams":[]} -->
