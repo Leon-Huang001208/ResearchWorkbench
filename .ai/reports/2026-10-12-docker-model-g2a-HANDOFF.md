@@ -1,5 +1,26 @@
 # G2A Docker 模型凭据验收与交接
 
+## 2026-10-13 真实供应商闭环补验
+
+用户确认已在候选设置页保存 Key 后，本轮两次现有“模型最小生成测试”均实际通过。
+DeepSeek 官方 / deepseek-flash、固定 DSH 返回的两份会话详情均为 completed，
+且存在非空 assistant 文本；报告只记断言，不记 Key、主密钥或秘密哈希。
+
+| 本次补验 | 结果 |
+| --- | --- |
+| 设置页保存后的首次真实生成 | PASS，session e3f213a2-333c-4ab5-b0b1-f15f68b269f2，completed/非空文本 |
+| stop → 同一 image ID replace-image → up 实际重建 | PASS，容器 49b97e13f138… → eb8494a5565f…，同一五卷/网络/身份 |
+| 无重新录入 Key，重建后再次真实生成 | PASS，session 90a328bb-d45a-4ddd-953a-7ca762adf218，completed/非空文本 |
+| 显式清除模型 Key 后新请求 | PASS，model_credentials_missing，消息“模型凭据已清除，请重新配置” |
+| 清除后主密钥保留 | PASS，只验证文件存在；未读取内容或哈希 |
+| 收尾 | candidate 已停止；builder 已停止（5GiB）；dev g2a 可继续使用 |
+
+以上更新取代下文历史的供应商 NOT_RUN 快照。镜像仍为同一 c3885222e 来源的固定内容 ID，
+没有把后续报告提交冒称为镜像 revision。原始证据仅在私有 logs/g2a/real-*.json。
+Key 已按验收要求清除，主密钥、身份、其他凭据资源与研究数据保留；后续使用需在设置页重新录入。
+本轮仍保留九项已在未修改主线复现的 Linux 容器 Native/API 失败，未将其改写为 PASS；
+PR 不因模型闭环成功自动宣称 mergeReady 或跨平台发布就绪。
+
 本轮使用 Mac mini / Docker Desktop 的 Linux arm64 实例，沿用固定 DSH
 `48504f07f217f9fd45a4f6d8fca4b1ed35c2d4b0`。不迁移 Native Keychain 或其他应用凭据。
 尚未收到用户在本实例保存真实 Key 的通知；真实供应商生成及重建后真实生成为 NOT_RUN。
