@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "updated",
-  "summary": "新增 Claw 本地项目、显式文件引用及待确认日程入口的产品说明，并链接权威 UI 合同。",
-  "reason": "本轮新增项目索引和日程草稿公开 API，需让 README 使用者了解确认保存与另行启用；部署、安装依赖和唯一 DSH 研究引擎边界保持，详细契约由 UI/API/资料模块文档维护。"
+  "disposition": "unchanged",
+  "summary": "复核 Native 模型保存的历史子会话活动校验修复；README 当前入口和产品边界仍准确。",
+  "reason": "只增加客户端内部活动查询上下文，公开 HTTP、安装锁、配置选项、研究执行与数据 schema 均不改变；未知历史模式仍不能执行，具体校验维护在运行时/API/安全文档。"
 }
