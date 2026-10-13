@@ -427,3 +427,7 @@ ID/image 与端口观察，停止前及每轮等待重新核验。错误或变�
 Office受控自动验证在Host既有批次内串行执行，与DSH研究循环分离；同意仅限所属实例的三款Office，不向模型或厂商发送请求。读取本机状态和证据到期刷新不创建研究任务；取消/冷启动不重放旧验证。协议与进程管理保持原合同，详见[协调器](09-integration-coordinator.md)。
 
 当前固定 DSH 的 tool/result 使用 role=tool 消息、顶层 toolCallId/isError 和直接 content；投影兼容旧嵌套 tool-result，同时按脚本 JSON outcome 判定成功/失败。真实验收曾发现旧解析将成功脚本读为空而误报，现通过原生历史重放与协议回归核对，保留真实失败活动。
+
+## 历史子会话模式兼容 · 2026-10-13
+
+列表及父详情复用 activityOnly=True 查询，unknown模式只提供已验证的running活动状态。未知模式不会被猜成one-shot/continuable，子历史保留不可用提示；父列表和父历史继续可读，严格控制查询保持缺省路径。

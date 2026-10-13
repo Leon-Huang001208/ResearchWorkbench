@@ -1055,7 +1055,9 @@ class ResearchService:
             if row.get("deleted_at") is not None or not row["created"]:
                 return {"entries": []}
             async with semaphore:
-                return await self.client.rpc("subagent.list", {"parentSessionId": row["id"]})
+                return await self.client.rpc(
+                    "subagent.list", {"parentSessionId": row["id"], "activityOnly": True}
+                )
 
         child_tasks = [asyncio.create_task(children_for(row)) for row in rows]
         try:
@@ -1605,7 +1607,9 @@ class ResearchService:
         ]
         if result["approvals"]:
             result["status"] = "awaiting_approval"
-        children = await self.client.rpc("subagent.list", {"parentSessionId": sid})
+        children = await self.client.rpc(
+            "subagent.list", {"parentSessionId": sid, "activityOnly": True}
+        )
         result["subagents"] = []
         for child in children["entries"]:
             view = {
@@ -1615,6 +1619,14 @@ class ResearchService:
             }
             if child["kind"] == "child":
                 self.child_parents[child["id"]] = sid
+                if child["mode"] == "unknown":
+                    log.info("research_historical_child_mode_unavailable")
+                    view.update(
+                        status="running" if child["activity"] == "running" else "unavailable",
+                        error="历史子会话执行模式未知，暂不能读取子会话历史；未猜测执行模式。",
+                    )
+                    result["subagents"].append(view)
+                    continue
                 try:
                     cached = self.child_views.get(child["id"])
                     if cached and time.monotonic() - cached[0] < 1:
