@@ -1,5 +1,9 @@
 # 研究协议、执行状态与恢复
 
+新增Hot正式执行API固定问题/格式的deliveryKey，PG先记录execution_starting再发送。
+回复丢失或重启只查根会话稳定原生marker，不重发；无Store receipt的确定前置失败标failed，
+未知是否已执行返回null。已接受后的failed保持True或未知，不冒充未提交。
+
 Hot模型流增加hot-model/hot-model-stream：请求冻结、prepared单发、预算登记、回执先存后输出。
 managed子会话沿祖先绑定根Hot run；普通外部会话透传。默认official retry=5会被拒绝，
 专用零重试装配与真实研究尚待验收。

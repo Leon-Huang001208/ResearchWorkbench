@@ -1,5 +1,9 @@
 # 部署与模块职责
 
+Hot/model明确启用的同项目实例在Web Runtime准备时把官方provider重试设为零；该设置
+作用于本Runtime的官方模型，未配置实例保留原策略。正式执行API沿ResearchService.send及
+原PG运行映射，不创建第二执行器；实际产物完成与UI动作接入仍待验。
+
 Hot流预算插件随现有Runtime overlay装配，借既有私有Host通道连接同一PG模型账本。
 当前验证为源码与离线SDK；正常Runtime零重试策略、真实研究及产品安装尚未验收。
 

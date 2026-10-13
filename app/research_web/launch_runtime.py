@@ -509,6 +509,34 @@ def live_acceptance_control(data: Path, port: int) -> dict[str, object] | None:
     return {"modelCalls": value["modelCalls"], "tool": value["tool"]}
 
 
+def hot_zero_retry(data: Path, project: Path | None = None) -> bool:
+    """Read a private local model-enable intent; never authorizes calls or loads Node."""
+    from research_workbench_entrypoint.hot import HotError, _read
+
+    file = data / "hot/settings.json"
+    try:
+        if not file.exists():
+            return False
+        value = _read(file, private=True)
+        expected = (project or Path(__file__).resolve().parents[2]).resolve()
+        if value.get("schemaVersion") != 1 or value.get("projectRoot") != str(expected):
+            raise ValueError()
+        config = value["config"]
+        model = config.get("model", {})
+        if not isinstance(config, dict) or not isinstance(model, dict):
+            raise ValueError()
+        enabled, paid = config.get("enabled", False), model.get("enabled", False)
+        if type(enabled) is not bool or type(paid) is not bool:
+            raise ValueError()
+        active = enabled and paid
+        if active:
+            log.info("hot_research_zero_retry_enabled")
+        return active
+    except (HotError, OSError, ValueError, KeyError, TypeError, AttributeError):
+        log.warning("hot_research_retry_configuration_unavailable")
+        return False
+
+
 def prepare(
     source: Path,
     data: Path,
@@ -554,6 +582,7 @@ def _prepare_runtime(
 ) -> tuple[list[str], dict, Path]:
     source, data = source.resolve(), data.resolve()
     acceptance = live_acceptance_control(data, port)
+    zero_retry = acceptance is not None or hot_zero_retry(data)
     tabbit_config = load_tabbit_config(data)
     commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=source, text=True).strip()
     if commit != PINNED_COMMIT:
@@ -689,7 +718,7 @@ def _prepare_runtime(
                 "    maxTokens: 4096",
                 *(
                     ["    retryPolicy:", "      mode: normal", "      maxRetries: 0"]
-                    if acceptance
+                    if zero_retry
                     else []
                 ),
                 *(["- id: llm-retry", "  disabled: true"] if acceptance else []),

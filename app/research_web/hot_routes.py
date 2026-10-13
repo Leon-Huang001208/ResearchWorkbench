@@ -118,6 +118,21 @@ class ResearchRequest(BaseModel):
     requestId: str = Field(pattern=UUID_PATTERN)
 
 
+class ResearchExecutionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    question: str = Field(min_length=1, max_length=6000, strict=True)
+    formats: list[Literal["md", "docx"]] = Field(default_factory=lambda: ["md"], min_length=1, max_length=2)
+
+
+@router.post("/research-runs/{run_id}/execute")
+async def execute_research(run_id: str, request: Request):
+    from .hot_handoff import execute_hot_handoff
+    value = await body(request, ResearchExecutionRequest)
+    if not re.fullmatch(UUID_PATTERN, run_id):
+        raise HotWebError("hot_research_run_invalid", "运行标识不正确。", 400)
+    return await execute_hot_handoff(request.app.state.research, request.app.state.hot, run_id, value.question, value.formats)
+
+
 async def body(request: Request, model=None):
     if request.headers.get("X-Research-User-Action") != "?1":
         raise HotWebError("hot_user_action_required", "请通过明确的用户操作提交。", 403)

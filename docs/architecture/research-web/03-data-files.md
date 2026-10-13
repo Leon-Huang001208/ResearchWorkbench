@@ -1,5 +1,9 @@
 # DataHub、研究资料与实际文件
 
+Hot正式研究固定deliveryKey绑定问题和输出格式，并复验会话快照/manifest哈希。
+只对数据库证明reserved、dispatched_at为空且无回执的尝试允许停止后显式取消/归还预留；
+dispatching/outcome_unknown费用保留，操作审计和UUID重放避免重复退款。
+
 Hot流回执复用原PG model_receipts；Host只透传绑定根Hot会话的预算操作，费用由Hot计算。
 hot-context内容不授予权限。请求含完整messages/tools/toolHistory，以UTF8字节加余量登记；
 未知结果保留额度，未保存回执不输出。

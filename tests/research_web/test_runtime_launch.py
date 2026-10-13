@@ -218,13 +218,19 @@ launcher.main()
 
 
 @pytest.mark.parametrize("separate_state", [False, True])
+@pytest.mark.parametrize("hot_model", [False, True])
 def test_prepare_separates_persistent_data_from_runtime_state(
-    tmp_path, monkeypatch, separate_state
+    tmp_path, monkeypatch, separate_state, hot_model
 ):
     from app.research_web.client import _default_auth_path
 
     source = make_source(tmp_path)
     data = tmp_path / "data"
+    if hot_model:
+        settings = data / "hot/settings.json"
+        settings.parent.mkdir(parents=True)
+        settings.write_text(json.dumps({"schemaVersion": 1, "projectRoot": str(Path(launch_runtime.__file__).resolve().parents[2]), "config": {"enabled": True, "model": {"enabled": True, "scopeId": "existing_authorization"}}}))
+        settings.chmod(0o600)
     state = tmp_path / "state" if separate_state else data / "runtime"
     monkeypatch.setattr(
         launch_runtime.subprocess,
@@ -242,6 +248,13 @@ def test_prepare_separates_persistent_data_from_runtime_state(
     assert env["RESEARCH_RUNTIME_AUTH"] == str(state.resolve() / "auth.json")
     assert env["RWB_RUNTIME_STATE"] == str(state.resolve())
     assert (state / "build-lock.json").is_file()
+    import yaml
+    overlay = yaml.safe_load((state / "overlay.yml").read_text())
+    official = next(item for item in overlay if item.get("id") == "llm-deepseek")["config"]
+    if hot_model:
+        assert official["retryPolicy"] == {"mode": "normal", "maxRetries": 0}
+    else:
+        assert "retryPolicy" not in official
     assert _default_auth_path() == state / "auth.json"
     if separate_state:
         assert not (data / "runtime/overlay.yml").exists()

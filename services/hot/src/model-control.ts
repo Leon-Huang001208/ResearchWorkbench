@@ -58,11 +58,19 @@ export async function modelControl(db:Sql,schema:string,identity:Identity,reques
       result={state:'authorized',requestId:id,scopeId:authorized.scopeId,policy:authorized,authorizationHash:current.authorization_hash,
         charged:{calls:current.charged_calls,tokens:current.charged_tokens,costMicros:current.charged_cost_micros},paused:current.paused};
     }else{
-      const [attempt]=await tx`select id,scope_id,state,max_tokens::text,max_cost_micros::text from ${tx(schema)}.model_attempts where id=${params.attemptId} for update`;
-      if(!attempt||!['dispatching','outcome_unknown'].includes(attempt.state))throw Error('hot_model_termination_invalid');
+      const [attempt]=await tx`select id,scope_id,state,dispatched_at,max_tokens::text,max_cost_micros::text,
+        exists(select 1 from ${tx(schema)}.model_receipts r where r.attempt_id=a.id) has_receipt
+        from ${tx(schema)}.model_attempts a where id=${params.attemptId} for update`;
+      if(!attempt||!['reserved','dispatching','outcome_unknown'].includes(attempt.state)||attempt.state==='reserved'&&(attempt.dispatched_at!==null||attempt.has_receipt))throw Error('hot_model_termination_invalid');
       before=JSON.parse(JSON.stringify(attempt));
-      await tx`update ${tx(schema)}.model_attempts set state='abandoned',finished_at=clock_timestamp() where id=${attempt.id}`;
-      result={state:'abandoned',requestId:id,attemptId:attempt.id,scopeId:attempt.scope_id,chargesRetained:true};
+      if(attempt.state==='reserved'){
+        await tx`update ${tx(schema)}.model_attempts set state='cancelled',finished_at=clock_timestamp() where id=${attempt.id}`;
+        await tx`update ${tx(schema)}.model_budgets set charged_calls=charged_calls-1,charged_tokens=charged_tokens-${attempt.max_tokens},charged_cost_micros=charged_cost_micros-${attempt.max_cost_micros} where scope_id=${attempt.scope_id}`;
+        result={state:'cancelled',requestId:id,attemptId:attempt.id,scopeId:attempt.scope_id,chargesRetained:false,knownUnsent:true};
+      }else{
+        await tx`update ${tx(schema)}.model_attempts set state='abandoned',finished_at=clock_timestamp() where id=${attempt.id}`;
+        result={state:'abandoned',requestId:id,attemptId:attempt.id,scopeId:attempt.scope_id,chargesRetained:true};
+      }
     }
     await tx`insert into ${tx(schema)}.model_control_requests(request_id,operation,input_hash,operator,reason,before_state,after_state,response)
       values(${id},${request.operation},${hash},${normalized.operator},${normalized.reason},${tx.json(before)},${tx.json(result)},${tx.json(result)})`;

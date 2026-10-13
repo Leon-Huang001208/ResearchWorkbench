@@ -4603,12 +4603,16 @@ Imports:
 - `client`
 - `core.observability`
 - `datahub.security`
+- `hashlib`
 - `hot_service`
 - `json`
+- `projection`
 - `store`
 - `uuid`
 
 Functions:
+- `execute_hot_handoff`
+  - One existing ResearchService admission; uncertain submissions are queried, never resent.
 - `_context`
 - `prepare_hot_handoff`
   - Only Host writes existing Store; Hot workers never mutate session metadata.
@@ -4639,10 +4643,12 @@ Classes:
 - `SourceRequest`
 - `BriefRequest`
 - `ResearchRequest`
+- `ResearchExecutionRequest`
 
 Functions:
 - `private_model`
   - Native-only model accounting; browser action headers never authorize this route.
+- `execute_research`
 - `body`
 - `query`
 - `status`
@@ -4861,6 +4867,8 @@ Functions:
   - Heal DSH profile module links and reject dependencies outside the pinned tree.
 - `live_acceptance_control`
   - Bind optional, non-secret acceptance limits to one non-production instance.
+- `hot_zero_retry`
+  - Read a private local model-enable intent; never authorizes calls or loads Node.
 - `prepare`
 - `_prepare_runtime`
 - `calculate_build_closure`

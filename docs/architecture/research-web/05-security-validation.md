@@ -1,5 +1,9 @@
 # 安全边界与验证方法
 
+已启用Hot模型的同项目私有配置才选择官方零重试；非法配置不探测凭据或阻断基础Web。
+正式执行先PG登记、再既有send，失去受理回执只查原生marker。未发送取消必须停止态、
+迁移owner、匹配instance/token和无发送/回执证据；未知发送不退款。真实PG和否定用例覆盖。
+
 Hot流桥核对私有key、owned Runtime和Store/PG归属。prepared单发、未知发送不退款，
 回执先存后输出，迟到取消及逐块回放检查signal。大帧/HMAC/稳定错误码有真实loopback测试；
 真实厂商研究和安装CI尚未执行。

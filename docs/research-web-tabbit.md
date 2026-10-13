@@ -1,5 +1,8 @@
 # Research Web Tabbit 集成
 
+Hot正式执行复用既有ResearchService.send；没有扩大Tabbit工具、浏览器审批或claim权限。
+官方零重试配置不授予浏览器或付费外部工具访问，冻结研究与浏览器授权仍分开。
+
 Hot流预算插件与Tabbit共用既有Runtime，保留原浏览器审批、claim及工具guard。
 新私有HTTP请求仅用于根Hot归属和模型账本，不注册浏览器工具或读取浏览器内容。
 

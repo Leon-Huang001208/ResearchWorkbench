@@ -1,5 +1,8 @@
 # Mac mini Docker 开发与独立部署
 
+Hot正式执行和零重试准备沿同一Host/DSH通道；本轮仅macOS源码/临时PG验证。
+Docker真实worker、模型策略、联合恢复及模式切换未验收，不据本轮测试提升容器状态。
+
 Hot流桥复用同一overlay/私有Host通道，本轮只有macOS离线SDK和协议证据。
 Docker模型许可、真实worker/模式切换仍NOT_RUN，不以合成流回执认证容器可用。
 

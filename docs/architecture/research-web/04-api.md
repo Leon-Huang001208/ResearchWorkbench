@@ -1,5 +1,9 @@
 # Research Web 接口清单
 
+新增POST `/api/research/hot/research-runs/{run_id}/execute`，要求同源明确用户动作，
+JSON question及md/docx formats；复用准备好的根会话和快照。deliveryKey不可绑定另一问题。
+executionStarted为true/false/null，分别表示已受理、确定未提交、证据不明；不以受理证明报告完成。
+
 新增POST `/api/research/internal/data/hot-model`，只接受既有DataHub私有key和owned Runtime。
 operation为binding/reserve/dispatch/unknown/cancel/receipt；根session/run/instance/manifest
 同时核对Store和PG。请求/返回有界，browser user-action不能授权预算票据。

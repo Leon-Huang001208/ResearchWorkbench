@@ -1,5 +1,8 @@
 # Research Web 能力与平台证据
 
+本轮Hot零重试配置生成、执行映射和未发送预留处理为macOS本地证据；尚未启动正式模型研究。
+Native干净安装/Mac CI、Docker和其他平台原生验证仍各自NOT_RUN。
+
 2026-10-13 Hot流桥只取得macOS离线SDK与HTTP协议证据；vendor发送为零。
 Mac安装/CI、Mac Docker及Windows/Linux原生证据仍未取得，不据本轮本地测试提升平台状态。
 

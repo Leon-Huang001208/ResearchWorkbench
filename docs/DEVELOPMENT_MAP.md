@@ -1,5 +1,11 @@
 # Research Workbench Development Map
 
+Hot零重试准备位于launch_runtime.hot_zero_retry，私有同项目启用配置只影响本实例官方route。
+正式执行为hot_handoff.execute_hot_handoff/hot_routes execute，复用send及原生marker恢复；
+test_hot_execution覆盖丢失/重启/失败真值，test_hot_retry_policy/runtime_launch覆盖配置与overlay。
+model-control.ts取消明确未发送reserved，hot_model_controls.py复验knownUnsent回执，真实PG测试
+精确清理本次资源，未知或历史资源保留。
+
 本文件只回答四个问题：改哪片源码、先读哪份权威文档、跑哪些测试、什么变化需要同步文档。文件和公开符号的机械清单由 [生成索引](generated/py_file_index.md) 负责。
 
 ## 当前 Research Web

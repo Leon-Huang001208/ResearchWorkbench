@@ -645,6 +645,18 @@ paid DSH execution and its budget bridge remain required next work.
 
 ## Shared research-call admission (migration17)
 
+Hot-enabled local model intent now selects official zero retries when Web Runtime
+is prepared; restart Web after enabling it. This affects that instance's official
+provider and does not grant budget. Explicit execute freezes question/formats into
+the delivery key, advances PG before existing ResearchService.send, and reconciles
+lost acceptance from the native user-message marker without replaying the send.
+Known pre-submit failures and accepted-then-failed runs retain distinct truth states.
+
+After stopping Hot, model-terminate can cancel only a DB-proven unsent reserved
+attempt (no dispatch timestamp or receipt), refunding its reservation once in the
+same audited transaction. Dispatched/unknown attempts stay charged/abandoned.
+Actual research completion, outputs, UI integration and clean installation remain pending.
+
 The Host now mounts `/api/research/internal/data/hot-model` behind its existing
 private data key and owned-Runtime boundary. `hot-model.mjs` traces native child
 lineage to the root Hot workspace; the Host verifies Store/run/instance/manifest.

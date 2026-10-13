@@ -122,7 +122,10 @@ def _confirmed(operation: str, response: object, params: dict, request_id: str |
     if response.get("requestId")!=request_id:
         return False
     if operation=="terminate":
-        return response.get("state")=="abandoned" and response.get("attemptId")==params["attemptId"] and response.get("chargesRetained") is True
+        return response.get("attemptId")==params["attemptId"] and (
+            response.get("state")=="abandoned" and response.get("chargesRetained") is True
+            or response.get("state")=="cancelled" and response.get("chargesRetained") is False and response.get("knownUnsent") is True
+        )
     charged=response.get("charged")
     return response.get("state")=="authorized" and response.get("scopeId")==params["policy"]["scopeId"] and response.get("policy")==params["policy"] and isinstance(response.get("authorizationHash"),str) and bool(re.fullmatch(r"[a-f0-9]{64}",response["authorizationHash"])) and isinstance(charged,dict) and type(charged.get("calls")) is int and charged["calls"]>=0 and all(isinstance(charged.get(k),str) and charged[k].isascii() and charged[k].isdigit() for k in ("tokens","costMicros")) and type(response.get("paused")) is bool
 

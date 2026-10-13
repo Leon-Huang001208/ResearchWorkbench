@@ -223,4 +223,22 @@ MEDIUM（稳定错误码、真实大帧/HMAC覆盖）已改并测试；最终复
 Router所选service-manager/local-integrations/protocol合计472 PASS/1 SKIP；治理和其他门
 继续按当前候选留证。合成凭据/SSE不是vendor推理或PG全链验收；provider发送仍0。
 详细事实、失败和后续在2026-10-13-hot-model-stream.md，完整Goal ACTIVE。
+
+## 2026-10-13 正式执行入口与零重试条件启用
+
+本轮从db346d092干净续跑。Hot/model私有同项目配置启用后，Web Runtime准备生成官方
+零重试配置；缺/非法配置不阻断基础Web。正式execute固定问题/格式及deliveryKey，沿原
+ResearchService.send受理；丢失/重启只查询原生user/message marker，不重发。确定未提交、
+接受后失败及未知执行返回不同真值。manifest预期SHA也进入研究提示，真实产物终态/页面
+动作仍待接入，不能把受理/单元测试视为完整研究完成。
+
+停止态的model-terminate可取消DB证明未发送reserved并归还预留一次；unknown仍保留费用。
+真实PG1 PASS，Hot单元47 PASS，类型PASS；相关Python165 PASS+6subtests，执行9项含在内。
+Python两项HIGH按反例修复并限定复核关闭；TS限定复核无新阻断。治理110 PASS、28文件
+约束/架构/文档/索引通过。测试遗留1个本轮随机资源完成有界证据审计及精确清理，11历史排除。
+
+固定ref的describe只核对模型配置状态：主实例configured=true，隔离native-handoff-home
+configured=false；没有resolve/输出密钥或发送vendor请求，预算未扩。下一步建立受控原有
+凭据复用、原库停机备份/迁移、真实Native研究与产物/终态，再继续UI、持续来源、恢复、
+Docker、干净安装与同SHA CI。完整Goal ACTIVE。细节hot-execution-activation报告。
 <!-- architecture-review {"group":"hot","structure":"unchanged","reason":"该轮仅记录前端开源适配许可和现有数据/运行边界；原schema/模型scope/唯一队列/Owner未改，真实宏观资料为只读样式预览，不把预览绘成新增产品运行路径。","diagrams":[]} -->

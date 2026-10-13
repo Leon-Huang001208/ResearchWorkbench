@@ -1,5 +1,9 @@
 # Research Web Native / Docker 安装与运行
 
+Hot/model启用后重启Web Runtime以生成本实例官方provider零重试配置；配置本身不授予
+预算。修改后实际重启与模型研究仍需验收。model-terminate现在可明确取消DB证明未发送的
+reserved预留；已发送/未知仍不退款，先停止Hot并保留相同操作UUID恢复未知管理回执。
+
 Hot流插件随已有app/runtime安装，无新包或迁移；发送需要当前价目、原授权及零重试。
 正常official默认5次重试目前被桥拒绝，专用策略装配待验。离线SDK通过不认证干净安装或Mac CI。
 

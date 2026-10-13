@@ -614,6 +614,8 @@
         "services/hot/tests/research-run.test.ts",
         "services/hot/tests/research-model-rpc.test.ts",
         "tests/research_web/test_hot_model_bridge.py",
+        "tests/research_web/test_hot_execution.py",
+        "tests/research_web/test_hot_retry_policy.py",
         "tests/javascript/research_web_hot_model_stream.test.mjs",
         "services/hot/tests/native-research-stream.integration.mjs",
         "services/hot/tests/transport.test.ts",
@@ -2981,6 +2983,13 @@
       "source": "app/research_web/datahub/routes.py",
       "declaredPath": "/internal/data/skill-preflight",
       "prefix": "/api/research"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/hot/research-runs/{run_id}/execute",
+      "source": "app/research_web/hot_routes.py",
+      "declaredPath": "/research-runs/{run_id}/execute",
+      "prefix": "/api/research/hot"
     },
     {
       "method": "POST",
