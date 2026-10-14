@@ -6,7 +6,7 @@ import os
 import re
 import stat
 import tempfile
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -77,9 +77,13 @@ def brief_docx(saved: dict) -> bytes:
         zone = ZoneInfo(p["timezone"])
         def text(value):
             return "未知" if value is None else str(value)
-        def time(value):
+        def time(value, allow_day=False):
             if value is None:
                 return "未知"
+            if allow_day and isinstance(value, str) and re.fullmatch(r"\d{4}-\d{2}-\d{2}", value):
+                if date.fromisoformat(value).isoformat() != value:
+                    raise ValueError("hot_docx_time_invalid")
+                return value + "（日精度）"
             parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
             if parsed.tzinfo is None:
                 raise ValueError("hot_docx_time_invalid")
@@ -98,7 +102,14 @@ def brief_docx(saved: dict) -> bytes:
             "选材发布时间窗口：" + (time(p['window']['from']) if p['window']['from'] else "未指定") + " — " + (time(p['window']['to']) if p['window']['to'] else "未指定")])}]
         for index, event in enumerate(p["events"]):
             lines = ["事件摘要（归组结果）：" + event["title"], f"事件 {event['canonicalId']} · 版本 {event['revision']}",
-                     "发生：" + time(event["occurredAt"]) + " · 生效：" + time(event["effectiveAt"])]
+                     "发生：" + time(event["occurredAt"], True) + " · 生效：" + time(event["effectiveAt"], True)]
+            for key, claim in (event.get("dateEvidence") or {}).items():
+                if claim is None:
+                    continue
+                ref = claim["evidence"]
+                lines += ["人工核验" + ("发生" if key == "occurred" else "生效") + "时间：" + claim["value"]
+                          + " · " + claim["precision"] + " · 来源时区 " + claim["timezone"],
+                          f"材料 {ref['id']} · 版本 {ref['revision']} · 摘录：{ref['quote']}"]
             for basis in event["judgments"]:
                 j = basis["judgment"]
                 lines += [{"human": "人工判断", "model": "模型推断", "rule": "规则判断"}[basis["authority"]],

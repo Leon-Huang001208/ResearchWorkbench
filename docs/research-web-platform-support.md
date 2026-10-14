@@ -1,5 +1,7 @@
 # Research Web 能力与平台证据
 
+日期纠错和原PG/网页/MD/DOCX已有macOS Native组件证据，最终generation99暂停、预算18/77375/10464microUSD不变。新候选Docker整镜像/干净安装MacCI仍待验，Windows/Linux原生保持NOT_RUN。
+
 来源表单与Doctor已在正常Native worker/原PG/独立Host适配上实测保存、列权限与审计，结束后generation91暂停，预算未变。本范围为组件，不代表新源码Mac Bootstrap、完整镜像或Windows/Linux原生通过。
 
 Native原PG已明确激活OpenAI/Fed目录源，四源真实取数成功，OpenAI/Fed两轮计划采集及inbox排空通过，模型关闭。catalog新增接口/角色权限已有PG和Python回归，新源码的Docker/当前Mac安装CI仍未验证，Windows/Linux原生保持NOT_RUN。

@@ -86,6 +86,6 @@ export async function eventDetail(db:Sql,schema:string,params:Record<string,post
     const [evidence]=await db`select details,algorithm_version from ${db(schema)}.channel_rule_evidence where judgment_id=${judgment.id}`;
     judgments.push({channelId:row.channel_id,...judgment,ruleEvidence:evidence??null});}}
   signal?.throwIfAborted();return json({requestedId:id,canonicalId:event.id,revision:event.revision,cutoff:cutoff.toISOString(),title:event.snapshot.title,
-    occurredAt:event.snapshot.occurredAt,effectiveAt:event.snapshot.effectiveAt,links:event.snapshot.links,manual:event.snapshot.manual,
+    occurredAt:event.snapshot.occurredAt,effectiveAt:event.snapshot.effectiveAt,dateEvidence:event.snapshot.dateEvidence??null,links:event.snapshot.links,manual:event.snapshot.manual,
     reportOffset:offset,reportLimit:limit,materialCount:event.snapshot.materials.length,reports,history:[...history],historyLimitedTo:20,judgments});
 }

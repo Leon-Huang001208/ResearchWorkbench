@@ -1,5 +1,7 @@
 # Research Web 接口清单
 
+现有events/correct的change可为type=times，除id/expected外必须同时给occurred/effective nullable严格日期主张；没有新endpoint。Manager核对manual.times、完整dateEvidence及两个值，不匹配保留原UUID。Node稳定time_invalid/time_evidence_invalid拒绝非法日期或未关联/不匹配原文；读取详情携带dateEvidence。
+
 Hot status增加backfill=publisher_next_links、backfillDays及maxPages=3；来源覆盖沿已有raw_page的partial/gap投影。没有新增公开写接口或自定义URL输入。
 
 来源GET新增collection_state、catalog_activation_allowed/code及adapter/catalog_id；status新增sourceControl.catalogActivation权限诊断。字段缺失不能推断ready。POST目录激活新增稳定hot_source_catalog_permission_missing错误，读路径不授予控制权限，旧URI/参数/UUID合同保持。

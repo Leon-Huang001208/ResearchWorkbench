@@ -1,5 +1,7 @@
 # Hot / 研究情报接续记录
 
+最新日期切片：父候选09215bbe9。times人工日期纠错/严格原件引用/精度/时区/回执/PIT保护已实现，撤回日期释放日期专属限制，审查P2已关闭。真实原PG+正常worker+Host/生产UI组件已核对官方反馈函发布日，事件517a…revision2保存纽约2026-09-29日精度、生效未知，旧版仍未知；新宏观brief03ba2707…v1网页/MD2145bytes/DOCX38073bytes真实下载与内容核验通过，热度仍0。首次DOCX旧转换拒绝day，补RED回归和最小修复后通过，错误保留。event-dates-live-pg-receipt记录原generation99暂停，模型预算仍18/77375/10464microUSD，上限20/100000/USD1。PG1/Python67/TS与JS治理208、类型/编译/文档/约束/索引/Git完整性与审查全部通过。完整Goal仍INCOMPLETE：下一步真实评价/留出样本审计，然后最终最新联合恢复/整镜像与模式切换/干净安装和当前MacCI/受管集成交付；不增预算，旧镜像/五卷/dev保留。
+
 最新续跑：abcb5c600之上feed next分页切片本地实现完成；固定同origin HTTPS三页/每页4MiB/整轮25秒，backfillDays有界继续，raw/inbox同owner/claim事务保存、后页失败不前移水位，逐页解析不回退水位/清错误。单位58、真实PG2（含中断回滚）、typecheck、治理111、独立TS审查通过。正常Native四源各两轮实采通过、频率已恢复、generation95暂停；当前四feed全no_next_link，因此只认证latest_snapshot，不冒充真实供应商历史多页覆盖。pagination-live及pagination-live-pg回执；预算仍18/77375/10464microUSD，上限20/100000/USD1。本切片文档/项目门收束后提交；下一步已知事件发生/生效日期与独立评价，最终最新联合恢复/整镜像切换/安装及MacCI/受管交付继续。旧镜像/五卷/dev均保留，Goal INCOMPLETE。
 
 当前源候选abcb5c600：source-status读真实目录绑定及controller config列权限；冻结enabled样本不标采集中。来源表单启停/间隔0默认或60–86400/明确目录checkbox+reason已实现，首次激活权限缺失稳定拒绝、旧UUID可读。真实原PG+正常worker+Host/生产UI组件完成Fed保存，config::text SHA和PG审计匹配，Doctor权限ready/模型研究NOT_RUN、console错误0；source-ui-real-receipt.json，截图source-configuration-real.jpg。最终owner91暂停，预算18/77375/10464microUSD不变。PG1、Python53、TS、JS141、独立审查、文档/约束/索引/Git fsck通过，源码切片已提交，当前仅本进度注记未提交。本切片未新镜像或当前MacCI认证；下一步按原Goal实现受边界约束的feed分页/有界补抓（同一固定origin、有限页/字节/时间、每页原件和inbox先持久化、失败游标不漏收、明确snapshot缺口），然后已知事件时间；留出评价/最新恢复/安装/受管交付继续。不能把本地已存原件重读代替真实来源分页，也不能宣称RSS结束等于完整历史。

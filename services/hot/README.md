@@ -1,5 +1,7 @@
 # Hot internal engine
 
+Event `times` correction accepts both nullable occurred/effective claims: `{value,precision:"day"|"instant",timezone,evidence:{id,revision,quote}}`. Days use YYYY-MM-DD; instants use canonical UTC ISO with milliseconds. Evidence must be a current event material revision and a literal title/excerpt quote. No date is guessed from acquisition or publication alone. Claims append immutable event versions and controller audit; old as-of reads stay unchanged. Automatic reruns preserve active claims and reject removing their evidence. Withdrawing a claim releases only its date-specific restriction, leaving other manual protections intact. Before split/reassign removes evidence, explicitly clear that claim; merges retain target dates and source historical versions. Frozen brief webpage/Markdown/DOCX retain precision, source timezone, quote and revision; day precision never renders midnight. Schema remains20 and no new model call is authorized.
+
 Read-only source projection distinguishes scheduled/paused/awaiting_catalog/
 catalog_mismatch. An enabled frozen subset is not a collecting source. The
 `sourceControl.catalogActivation` status checks the controller's actual config

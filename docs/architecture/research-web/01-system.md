@@ -1,5 +1,7 @@
 # 部署与模块职责
 
+事件日期继续由Hot现有controller纠错事务及event_versions负责；Host核对签名回执，原文/版本/队列和研究引擎归属保持。没有新增服务、迁移或日期抽取模型。
+
 来源状态投影在现有Hot Node中读取目录绑定与controller config列权限；前端不读取数据库或凭据。Source表单沿已有Host API与source.configure，未新增Provider、服务或调度器。
 
 来源激活继续由现有source.configure/controller和Hot PG负责。DataHub固定目录决定endpoint/operator，CLI和Host仅传source ID、期望版本、明确catalog标志及理由；不新增来源服务、研究会话或模型调用。

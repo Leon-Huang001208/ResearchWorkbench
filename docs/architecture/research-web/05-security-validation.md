@@ -1,5 +1,7 @@
 # 安全边界与验证方法
 
+日期纠错使用原同源/显式动作/UUID/expectedRevision及签名controller权限。Python发送前验证真实日期、时区、精度与引用shape；Node核对版本在当前事件并与原文quote字面匹配，权限/owner和旧PIT合同不弱化。日期依据文本转义，日志不记录正文。真实PG覆盖worker拒绝、旧版未知、自动保护、撤回解锁和无效引用不落盘。
+
 分页拒绝跨origin、非HTTPS、凭据、fragment、循环、多next和重定向；三页各4MiB、整轮25秒，不复制SDK/Key，不增预算。真实PG测试覆盖后页HTTP失败/水位保留、顺序排空和事务中断回滚。
 
 来源UI的permission旗标只作提示，Node在新激活写入前核对实际config列UPDATE权限；真实PG revoke反例确认拒绝新请求且保留旧回执读。表单不接受URL/凭据，文本转义，显式checkbox+有界理由才激活；SDK/model权限不变。真实组件浏览器保存及审计核对、错误console0通过，不替代完整安装/镜像验收。

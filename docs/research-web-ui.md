@@ -1,5 +1,7 @@
 # Research Web 前端
 
+人工纠错可选“核验发生／生效日期”，填写occurred/effective JSON；两项可为null，每个已知项记录value、precision、timezone和evidence(id/revision/quote)。页面日精度原样显示日期、不随显示时区移日，依据面板说明来源时区和原材料版本。移出依据前先清相应日期；合并保留目标日期，源日期仍在历史。网页/MD/DOCX同一冻结版本带依据；首次DOCX不接受日精度已补回归并真实下载通过。
+
 Hot来源覆盖仍按原raw_pages/coverage/gap投影：同源next有界补抓标partial，范围边界/页数上限/HTTP失败保留缺口。没有分页链接标最新快照；页面读取不触发翻页、模型或研究。新分页切片尚无当前完整镜像或Mac安装CI证据。
 
 来源卡片按服务器真实绑定显示“已接入计划采集／已暂停／尚未接入持续采集／目录或运营主体不匹配”，不把enabled的冻结样本说成采集中。表单提供启停、60–86400秒或0默认间隔、明确目录checkbox及理由；权限未就绪时禁用目录激活并提示停止setup。已知permission_missing清除待重试写入，未知结果沿原UUID重放。真实组件页面已完成Fed明确保存、Doctor与PG审计核验，非最终安装主应用或Docker证据。

@@ -74,7 +74,7 @@ def rpc(port: int, owner: dict, key: str, operation: str, params: dict | None = 
                      "hot_channel_request_invalid", "hot_channel_request_conflict", "hot_channel_revision_conflict", "hot_channel_control_denied",
                      "hot_channel_invalid", "hot_channel_rule_invalid", "hot_channel_source_unknown", "hot_channel_unknown",
                      "hot_event_identity_invalid", "hot_event_revision_invalid", "hot_event_revision_conflict", "hot_event_unknown",
-                     "hot_event_correction_invalid", "hot_event_request_conflict", "hot_event_control_denied", "hot_event_text_invalid",
+                     "hot_event_correction_invalid", "hot_event_request_conflict", "hot_event_control_denied", "hot_event_text_invalid", "hot_event_time_invalid", "hot_event_time_evidence_invalid",
                      "hot_event_split_invalid", "hot_event_merge_invalid", "hot_event_reassign_invalid", "hot_event_manual_conflict",
                      "hot_event_link_cycle", "hot_event_link_depth", "hot_event_graph_limit", "hot_event_alias_requires_canonical",
                      "hot_projection_params_invalid", "hot_projection_cutoff_invalid", "hot_projection_cutoff_required",
@@ -788,7 +788,7 @@ class HotManager:
 
     def correct_event(self, change: dict, reason: str, request_id: str | None = None) -> dict:
         fields = {"title": {"title"}, "merge": {"target", "targetExpected"}, "split": {"materialIds", "title"},
-                  "reassign": {"target", "targetExpected", "materialIds"}, "channels": {"channelIds"}}
+                  "reassign": {"target", "targetExpected", "materialIds"}, "channels": {"channelIds"}, "times": {"occurred", "effective"}}
         def uuid_value(value):
             if not isinstance(value, str) or not re.fullmatch(r"[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}", value):
                 raise HotError("hot_event_correction_invalid")
@@ -796,6 +796,32 @@ class HotManager:
         if not isinstance(change, dict) or not isinstance(change.get("type"), str) or change["type"] not in fields or set(change) != fields[change["type"]] | {"id", "expected", "type"} or not isinstance(reason, str) or not reason.strip() or len(reason) > 2000:
             raise HotError("hot_event_correction_invalid")
         change = dict(change)
+        if change["type"] == "times":
+            from datetime import date, datetime, timezone
+            from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+            for field in ("occurred", "effective"):
+                value = change[field]
+                if value is None:
+                    continue
+                try:
+                    if not isinstance(value, dict) or set(value) != {"value", "precision", "timezone", "evidence"} or not isinstance(value["timezone"], str) or len(value["timezone"]) > 100:
+                        raise ValueError()
+                    ZoneInfo(value["timezone"])
+                    if value["precision"] == "day":
+                        if not isinstance(value["value"], str) or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", value["value"]) or date.fromisoformat(value["value"]).isoformat() != value["value"]:
+                            raise ValueError()
+                    elif value["precision"] == "instant":
+                        if not isinstance(value["value"], str) or not re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z", value["value"]) or datetime.fromisoformat(value["value"]).astimezone(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z") != value["value"]:
+                            raise ValueError()
+                    else:
+                        raise ValueError()
+                    ref = value["evidence"]
+                    if not isinstance(ref, dict) or set(ref) != {"id", "revision", "quote"} or type(ref["revision"]) is not int or not 1 <= ref["revision"] <= 1000000 or not isinstance(ref["quote"], str) or not ref["quote"].strip() or len(ref["quote"]) > 1000:
+                        raise ValueError()
+                    change[field] = {**value, "evidence": {**ref, "id": uuid_value(ref["id"])}}
+                except (ValueError, TypeError, KeyError, ZoneInfoNotFoundError):
+                    log.warning("hot_event_time_rejected")
+                    raise HotError("hot_event_time_invalid") from None
         change["id"] = uuid_value(change["id"])
         if type(change["expected"]) is not int or not 0 <= change["expected"] <= 1000000:
             raise HotError("hot_event_correction_invalid")
@@ -836,6 +862,11 @@ class HotManager:
             if snapshot.get("state") != ("merged" if change["type"] == "merge" else "active"):
                 return False
             manual = snapshot.get("manual")
+            if change["type"] == "times":
+                return (isinstance(manual, dict) and manual.get("times") is True
+                        and snapshot.get("dateEvidence") == {"occurred": change["occurred"], "effective": change["effective"]}
+                        and all(snapshot.get(field) == (change[key]["value"] if change[key] else None)
+                                for key, field in (("occurred", "occurredAt"), ("effective", "effectiveAt"))))
             if change["type"] == "title":
                 return snapshot.get("title") == change["title"] and isinstance(manual, dict) and manual.get("title") is True
             if change["type"] == "channels":

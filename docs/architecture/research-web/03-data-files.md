@@ -1,5 +1,7 @@
 # DataHub、研究资料与实际文件
 
+事件快照occurredAt/effectiveAt支持null、YYYY-MM-DD日精度和UTC毫秒时刻，新增可选dateEvidence两项nullable引用与manual.times；仍append-only/schema20，旧snapshot兼容。日期依据为材料id/revision/quote与来源时区，不能用取得时间补空。旧截止/旧简报/研究快照不回填，新冻结版本携带日期依据。
+
 schema20原raw_pages metadata保存runId/pageIndex/url/stop/backfillDays，已有partial/gap枚举记录边界。每轮原件和inbox同事务先于水位；晚页失败仍保留早页但不发布成功水位，已存页解析不清除错误或回退水位。
 
 sources只读返回adapter/catalog_id、绑定状态与激活许可，不回传完整config或秘密。来源表单期望版本来自最新config_revision，保存与审计沿原表；频率0由Host转为默认null，不增加数据文件或复制旧原文。

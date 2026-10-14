@@ -1,5 +1,7 @@
 # Mac mini Docker 开发与独立部署
 
+日期字段只扩展schema20事件JSON和既有纠错回执，最终Docker镜像必须包含Node/Host/MD及DOCX的精度支持。当前Native原PG/组件页面已验日期及MD/DOCX；旧b364镜像不能认证新日期，五卷/旧镜像保持。
+
 Hot同源next分页逻辑由Native/Docker共用，schema仍20，三页/整轮25秒边界不扩大容器资源。当前源码分页切片尚未构建新镜像；旧Docker运行证据不认证本改动。
 
 来源控制权限和目录绑定在Hot PG投影中读出，不由容器running/healthy推断。旧镜像缺该字段时新界面显示未核验，不自动授予权限或激活。当前来源页面与Doctor有Native组件证据，新模块/权限提示的完整Docker镜像仍待验收。

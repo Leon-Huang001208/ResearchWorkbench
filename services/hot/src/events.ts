@@ -9,16 +9,37 @@ type Sql=ReturnType<typeof postgres>;
 export interface MaterialRef {id:string;revision:number;relation:'same_occurrence'|'composite'}
 export interface EventLink {id:string;relation:'direct_followup'|'related'|'pending_review'}
 export interface EventProposal {title:string;materials:MaterialRef[];links:EventLink[]}
-export interface EventSnapshot extends EventProposal {state:'active'|'merged';canonicalId:string|null;occurredAt:null;effectiveAt:null;
-  manual:{title:boolean;protected:MaterialRef[];excluded:string[];channels:string[]|null}}
+export interface EventDate {value:string;precision:'day'|'instant';timezone:string;evidence:{id:string;revision:number;quote:string}}
+export interface EventSnapshot extends EventProposal {state:'active'|'merged';canonicalId:string|null;occurredAt:string|null;effectiveAt:string|null;
+  dateEvidence?:{occurred:EventDate|null;effective:EventDate|null};
+  manual:{title:boolean;protected:MaterialRef[];excluded:string[];channels:string[]|null;times?:boolean}}
 export interface ChannelRule {id:string;keywords:string[];requireOfficial?:boolean;relevance:number;importance:number}
 export interface ChannelConfig {name:string;topics:string[];sourceIds:string[];importanceRules:string[];rules?:ChannelRule[]}
 function uuid(value:string){if(!/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(value))throw Error('hot_event_identity_invalid');}
 function revision(value:number){if(!Number.isSafeInteger(value)||value<0||value>1000000)throw Error('hot_event_revision_invalid');}
 function text(value:string,max=500){if(typeof value!=='string'||!value.trim()||value.length>max)throw Error('hot_event_text_invalid');}
 function refKey(value:MaterialRef){return value.id+':'+value.revision;}
+/** Human-reviewed source claim, never derived from acquisition/publication alone. */
+export function eventDate(input:unknown):EventDate|null {
+  if(input===null)return null;
+  try{
+    if(!input||typeof input!=='object'||Array.isArray(input))throw Error();
+    const value=input as EventDate;
+    if(Object.keys(value).sort().join(',')!=='evidence,precision,timezone,value'||typeof value.value!=='string'||value.value.startsWith('0000')||typeof value.timezone!=='string'||value.timezone.length>100)throw Error();
+    new Intl.DateTimeFormat('en',{timeZone:value.timezone});
+    if(value.precision==='day'){
+      if(!/^\d{4}-\d\d-\d\d$/.test(value.value)||new Date(value.value+'T00:00:00.000Z').toISOString().slice(0,10)!==value.value)throw Error();
+    }else if(value.precision==='instant'){
+      if(!/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/.test(value.value)||new Date(value.value).toISOString()!==value.value)throw Error();
+    }else throw Error();
+    const evidence=value.evidence;
+    if(!evidence||Object.keys(evidence).sort().join(',')!=='id,quote,revision')throw Error();
+    uuid(evidence.id);revision(evidence.revision);text(evidence.quote,1000);if(evidence.revision===0)throw Error();
+    return {...value,evidence:{...evidence,id:evidence.id.toLowerCase()}};
+  }catch{throw Error('hot_event_time_invalid');}
+}
 function proposal(value:EventProposal){
-  if(Object.keys(value).some(key=>!['title','materials','links','state','canonicalId','occurredAt','effectiveAt','manual'].includes(key)))throw Error('hot_event_proposal_invalid');
+  if(Object.keys(value).some(key=>!['title','materials','links','state','canonicalId','occurredAt','effectiveAt','dateEvidence','manual'].includes(key)))throw Error('hot_event_proposal_invalid');
   text(value.title);if(!Array.isArray(value.materials)||value.materials.length>200||!Array.isArray(value.links)||value.links.length>50)throw Error('hot_event_proposal_invalid');
   const materials=new Set<string>(),links=new Set<string>();
   for(const ref of value.materials){uuid(ref.id);revision(ref.revision);if(Object.keys(ref).some(key=>!['id','revision','relation'].includes(key))||ref.revision===0||!['same_occurrence','composite'].includes(ref.relation)||materials.has(refKey(ref)))throw Error('hot_event_proposal_invalid');materials.add(refKey(ref));}
@@ -54,6 +75,14 @@ async function append(tx:Tx,schema:string,id:string,expected:number,snapshot:Eve
     const found=await tx`select material_id from ${tx(schema)}.material_versions where material_id=${ref.id} and revision=${ref.revision} and acquired_at<=clock_timestamp()`;
     if(!found.length)throw Error('hot_event_evidence_unknown');
   }
+  for(const [key,field]of [['occurred','occurredAt'],['effective','effectiveAt']]as const){
+    const claim=eventDate(snapshot.dateEvidence?.[key]??null);
+    if((claim?.value??null)!==snapshot[field])throw Error('hot_event_time_invalid');
+    if(!claim)continue;
+    if(!snapshot.materials.some(ref=>ref.id===claim.evidence.id&&ref.revision===claim.evidence.revision))throw Error('hot_event_time_evidence_invalid');
+    const [row]=await tx`select title,excerpt from ${tx(schema)}.material_versions where material_id=${claim.evidence.id} and revision=${claim.evidence.revision}`;
+    if(!row||(!row.title.includes(claim.evidence.quote)&&!row.excerpt.includes(claim.evidence.quote)))throw Error('hot_event_time_evidence_invalid');
+  }
   for(const link of snapshot.links){
     if(link.id===id)throw Error('hot_event_link_cycle');
     if(link.relation==='direct_followup'){
@@ -85,7 +114,8 @@ export async function saveAutomaticEventTransaction(tx:Tx,schema:string,id:strin
       const locks=previous.snapshot.manual;
       if(locks.title&&value.title!==previous.snapshot.title)throw Error('hot_event_manual_conflict');
       if(value.materials.some(ref=>locks.excluded.includes(ref.id))||locks.protected.some(ref=>!value.materials.some(item=>refKey(item)===refKey(ref)&&item.relation===ref.relation)))throw Error('hot_event_manual_conflict');
-      snapshot={...snapshot,manual:locks};
+      snapshot={...snapshot,manual:locks,occurredAt:previous.snapshot.occurredAt,effectiveAt:previous.snapshot.effectiveAt,
+        ...(previous.snapshot.dateEvidence?{dateEvidence:previous.snapshot.dateEvidence}:{})};
     }
     const result=await append(tx,schema,id,expected,snapshot);logEvent('event_saved');return result;
 }
@@ -116,17 +146,18 @@ export async function configureChannelTransaction(tx:Tx,schema:string,id:string,
     await tx`update ${tx(schema)}.channels set current_version=${expected+1} where id=${id}`;
     logEvent('channel_configured');return {id,version:expected+1};
 }
-export type Correction={type:'title';id:string;expected:number;title:string}|{type:'merge';id:string;expected:number;target:string;targetExpected:number}|{type:'split';id:string;expected:number;materialIds:string[];title:string}|{type:'reassign';id:string;expected:number;target:string;targetExpected:number;materialIds:string[]}|{type:'channels';id:string;expected:number;channelIds:string[]};
+export type Correction={type:'times';id:string;expected:number;occurred:EventDate|null;effective:EventDate|null}|{type:'title';id:string;expected:number;title:string}|{type:'merge';id:string;expected:number;target:string;targetExpected:number}|{type:'split';id:string;expected:number;materialIds:string[];title:string}|{type:'reassign';id:string;expected:number;target:string;targetExpected:number;materialIds:string[]}|{type:'channels';id:string;expected:number;channelIds:string[]};
 function canonical(value:unknown):string {
   if(Array.isArray(value))return '['+value.map(canonical).join(',')+']';
   if(value!==null&&typeof value==='object')return '{'+Object.keys(value).sort().map(key=>JSON.stringify(key)+':'+canonical((value as Record<string,unknown>)[key])).join(',')+'}';
   return JSON.stringify(value);
 }
 function correctionInput(change:Correction):Correction {
-  const keys:Record<Correction['type'],string[]>={title:['title'],merge:['target','targetExpected'],split:['materialIds','title'],reassign:['target','targetExpected','materialIds'],channels:['channelIds']};
+  const keys:Record<Correction['type'],string[]>={times:['occurred','effective'],title:['title'],merge:['target','targetExpected'],split:['materialIds','title'],reassign:['target','targetExpected','materialIds'],channels:['channelIds']};
   if(!keys[change.type]||Object.keys(change).some(key=>!['type','id','expected',...keys[change.type]].includes(key)))throw Error('hot_event_correction_invalid');
   uuid(change.id);revision(change.expected);
   const normalized={...change,id:change.id.toLowerCase()};
+  if(normalized.type==='times'){normalized.occurred=eventDate(normalized.occurred);normalized.effective=eventDate(normalized.effective);}
   if('target' in normalized){uuid(normalized.target);revision(normalized.targetExpected);normalized.target=normalized.target.toLowerCase();}
   if('materialIds' in normalized){
     if(!Array.isArray(normalized.materialIds)||normalized.materialIds.length===0||normalized.materialIds.length>200)throw Error('hot_event_split_invalid');
@@ -148,7 +179,10 @@ export async function correctEvent(db:Sql,schema:string,owner:RuntimeOwner,reque
     if(original.revision!==change.expected||original.snapshot.state!=='active')throw Error('hot_event_revision_conflict');
     const before:any={source:original},after:any={};
     const [{observed}]=await tx`select clock_timestamp() observed`;
-    if(change.type==='title'){
+    if(change.type==='times'){
+      after.source=await append(tx,schema,change.id,change.expected,{...original.snapshot,occurredAt:change.occurred?.value??null,effectiveAt:change.effective?.value??null,
+        dateEvidence:{occurred:change.occurred,effective:change.effective},manual:{...original.snapshot.manual,times:true}},observed);
+    }else if(change.type==='title'){
       text(change.title);after.source=await append(tx,schema,change.id,change.expected,{...original.snapshot,title:change.title,manual:{...original.snapshot.manual,title:true}},observed);
     }else if(change.type==='merge'){
       uuid(change.target);if(change.target===change.id)throw Error('hot_event_merge_invalid');

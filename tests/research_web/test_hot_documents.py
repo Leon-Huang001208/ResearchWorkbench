@@ -20,6 +20,22 @@ def saved():
 
 
 class BriefDocxTests(unittest.TestCase):
+    def test_day_precision_and_date_source_evidence_are_exported_without_midnight(self):
+        value = saved()
+        event = value["payload"]["events"][0]
+        event["occurredAt"] = "2026-09-29"
+        event["dateEvidence"] = {"occurred": {"value": "2026-09-29", "precision": "day", "timezone": "America/New_York",
+                                             "evidence": {"id": "material-id", "revision": 1, "quote": "Agencies published letters"}}, "effective": None}
+        doc = Document(io.BytesIO(brief_docx(value)))
+        text = "\n".join(paragraph.text for paragraph in doc.paragraphs)
+        self.assertIn("2026-09-29（日精度）", text)
+        self.assertIn("America/New_York", text)
+        self.assertIn("Agencies published letters", text)
+        self.assertNotIn("2026-09-29 00:00", text)
+        event["occurredAt"] = "2026-02-30"
+        with self.assertRaises(ValueError):
+            brief_docx(value)
+
     def test_periodic_provenance_and_skipped_periods_are_preserved_in_word(self):
         value = saved()
         identifier = value["briefId"]

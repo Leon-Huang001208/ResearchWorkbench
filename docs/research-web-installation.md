@@ -1,5 +1,7 @@
 # Research Web Native / Docker 安装与运行
 
+事件日期可从研究情报人工纠错配置，或用已有rwb hot event-correct CHANGE.json --reason传times变更；引用当前事件材料版本/非空原文摘录，格式day=YYYY-MM-DD、instant=UTC ISO毫秒，timezone为来源IANA时区。occurred/effective两项必给，null表示未知/撤回；无需改源码、依赖或迁移。新镜像/干净Mac安装CI仍需匹配当前候选。
+
 升级来源界面后，Doctor的checks.source_catalog仅核对目录控制列权限，ready不代表模型调用或完整历史覆盖。setup_required时停止Hot并执行原setup更新权限，再启动。来源页可设置默认间隔0或60–86400秒，并显式目录接入；无新依赖/迁移。新静态模块hot-sources.mjs随现有ui包数据安装，当前候选干净Mac安装CI与新镜像仍须取得。
 
 接续旧冻结来源时，先停止Hot并运行`rwb hot setup`重授controller的sources.config列权限（schema仍20、无依赖改变），再启动。`rwb hot source-configure fed --expected-revision 4 --use-catalog --reason "恢复官方持续采集"`明确按固定DataHub目录激活；只能绑定已有同运营主体公开源，不接受URL。配置字段与旧材料保留，预算不变。普通worker没有config写权限；源码新字段尚需当前安装CI和新镜像验证。

@@ -104,7 +104,7 @@ function escape(value:Json|undefined):string {
 export function briefMarkdown(brief:FrozenBrief):string {
   validate(brief.payload);if(sha256(canonical(brief.payload))!==brief.contentHash)throw Error('hot_brief_integrity_invalid');
   const p=brief.payload;
-  const time=(value:Json|undefined)=>typeof value==='string'?new Intl.DateTimeFormat('zh-CN',{timeZone:p.timezone,dateStyle:'medium',timeStyle:'medium'}).format(date(value)):'未知';
+  const time=(value:Json|undefined)=>typeof value==='string'?(/^\d{4}-\d\d-\d\d$/.test(value)?value+'（日精度）':new Intl.DateTimeFormat('zh-CN',{timeZone:p.timezone,dateStyle:'medium',timeStyle:'medium'}).format(date(value))):'未知';
   const lines=['# 热点与事件简报','',`截止：${time(p.cutoff)} · 时区：${escape(p.timezone)}`,
     `选材发布时间窗口：${p.window.from?time(p.window.from):'未指定'} — ${p.window.to?time(p.window.to):'未指定'}`,
     `内容校验：${brief.contentHash}`,'','## 覆盖与限制',...p.limitations.map(value=>'- '+escape(value))];
@@ -113,6 +113,11 @@ export function briefMarkdown(brief:FrozenBrief):string {
   for(const value of p.events){const event=object(value);
     lines.push('','## 事件摘要（归组结果）',escape(event.title),`事件 ${escape(event.canonicalId)} · 版本 ${escape(event.revision)}`,
       `发生：${time(event.occurredAt)} · 生效：${time(event.effectiveAt)}`);
+    if(event.dateEvidence){const dates=object(event.dateEvidence);for(const key of ['occurred','effective']){
+      if(!dates[key])continue;const claim=object(dates[key]),ref=object(claim.evidence);
+      lines.push(`人工核验${key==='occurred'?'发生':'生效'}时间：${escape(claim.value)} · ${escape(claim.precision)} · 来源时区 ${escape(claim.timezone)}`,
+        `材料 ${escape(ref.id)} · 版本 ${escape(ref.revision)} · 摘录：${escape(ref.quote)}`);
+    }}
     for(const value of list(event.judgments)){const basis=object(value),judgment=object(basis.judgment);
       const label=basis.authority==='model'?'模型推断':basis.authority==='human'?'人工判断':'规则判断';
       lines.push('',`### ${label}`,`相关性 ${escape(judgment.relevance)} · 研究重要性 ${escape(judgment.importance)} · 热度 ${escape(judgment.heat)} · 信息增量 ${escape(judgment.informationIncrement)}`,
