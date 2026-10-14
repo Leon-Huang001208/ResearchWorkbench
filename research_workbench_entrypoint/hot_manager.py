@@ -867,7 +867,8 @@ class HotManager:
         return self._control_projection("event.correct", {"change": change, "reason": reason}, request_id, receipt)
 
     def configure_source(self, source: str, revision: str, enabled: bool | None = None,
-                         frequency: int | None = None, request_id: str | None = None) -> dict:
+                         frequency: int | None = None, request_id: str | None = None,
+                         use_catalog: bool = False, reason: str | None = None) -> dict:
         """Conditional source control; the reader key never authorizes this operation."""
         with self._lock():
             state = self._state()
@@ -876,6 +877,8 @@ class HotManager:
             if not re.fullmatch(r"[a-z][a-z0-9_-]{0,47}", source) or not re.fullmatch(r"[0-9]{1,18}", revision):
                 raise HotError("hot_source_config_invalid")
             if enabled is not None and type(enabled) is not bool:
+                raise HotError("hot_source_config_invalid")
+            if type(use_catalog) is not bool or (use_catalog and (not isinstance(reason, str) or not reason.strip() or len(reason) > 1000)) or (not use_catalog and reason is not None):
                 raise HotError("hot_source_config_invalid")
             if frequency is not None and (type(frequency) is not int or frequency != 0 and not 60 <= frequency <= 86400):
                 raise HotError("hot_source_config_invalid")
@@ -886,6 +889,8 @@ class HotManager:
                 params["enabled"] = enabled
             if frequency is not None:
                 params["frequencySeconds"] = None if frequency == 0 else frequency
+            if use_catalog:
+                params.update(useCatalog=True, reason=reason)
             if len(params) == 2:
                 raise HotError("hot_source_config_invalid")
             request_id = request_id or str(uuid4())
@@ -902,6 +907,11 @@ class HotManager:
                 log.warning("hot_source_control_outcome_unknown")
                 return {"state": "outcome_unknown", "code": "hot_source_control_outcome_unknown",
                         "sourceId": source, "requestId": request_id}
+            if use_catalog:
+                activation = value.get("catalogActivation")
+                if not isinstance(activation, dict) or activation.get("adapter") != "public_feed" or activation.get("catalogId") != source or activation.get("reason") != reason or any(not isinstance(activation.get(key), str) or not re.fullmatch(r"[a-f0-9]{64}", activation[key]) for key in ("previousConfigSha256", "configSha256")):
+                    log.warning("hot_source_control_outcome_unknown")
+                    return {"state": "outcome_unknown", "code": "hot_source_control_outcome_unknown", "sourceId": source, "requestId": request_id}
             log.info("hot_source_configuration_saved")
             return value
 

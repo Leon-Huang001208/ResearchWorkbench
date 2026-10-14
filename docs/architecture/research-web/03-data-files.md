@@ -1,5 +1,7 @@
 # DataHub、研究资料与实际文件
 
+公开目录激活用JSONB合并只更新adapter/catalogId，旧配置额外字段和大整数原样保留；materials/material_versions/raw_pages及研究快照不改。审计追加理由、旧adapter和前后配置SHA，编码postgres-jsonb-text-v1对应实际SQL config::text，不把原配置或秘密复制到回执。
+
 Hot周期aliases在旧Automation关闭时继续仅访问Hot PG和其已冻结简报，旧Automation Store没有读取或写入。已有计划/运行/选材不复制到旧调度存储；无新增schema、秘密或目录。
 
 显式stage升级只更新固定image/source SHA及清空原容器projection，previous_image与data/logs/credentials/cache/model_key五卷保持。停止pre-AES兼容判断不读取密钥，不更改model_instance/model_store_state，不迁移业务数据。

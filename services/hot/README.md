@@ -1,5 +1,20 @@
 # Hot internal engine
 
+Explicit `source.configure` activation accepts `useCatalog:true` and a nonempty
+reason (at most 1000 characters), keeping old requests unchanged. The source ID
+must exist in the fixed DataHub public directory and its stored operator must
+match. Only `public_feed`/`frozen_acceptance_subset` may transition. A JSONB merge
+preserves legacy fields, including integers beyond JS precision, and immutable
+material versions. Revision, due time and immutable request audit commit under
+the same owner fence. Matching UUID replay precedes catalog lookup. Audit hashes
+use declared `postgres-jsonb-text-v1` encoding of actual database values.
+Controller alone receives UPDATE(config); upgrade through stopped `rwb hot setup`
+before using the new operation. CLI: `rwb hot source-configure fed
+--expected-revision 4 --use-catalog --reason "Resume verified official feed"`.
+This does not authorize models or historical completeness. Native original-PG
+acceptance collected all four sources; OpenAI/Fed additionally completed two
+scheduled cycles with their inboxes drained and zero model calls.
+
 `model.materialIds` optionally restricts paid processing to at most 20 distinct
 material UUIDs. UUIDs are normalized to lowercase. Omission or an empty list
 retains ordinary backlog processing; neither setting grants budget authorization.

@@ -1,5 +1,7 @@
 # 部署与模块职责
 
+来源激活继续由现有source.configure/controller和Hot PG负责。DataHub固定目录决定endpoint/operator，CLI和Host仅传source ID、期望版本、明确catalog标志及理由；不新增来源服务、研究会话或模型调用。
+
 Automation命名空间内Hot周期管理aliases直接委派Hot，旧Automation feature flag只控制旧Automation。该适配不访问其Store或启动其scheduler；PG/Hot worker仍独占周期事实。
 
 管理平面显式stage镜像替换可退休身份完全匹配的停止pre-AES容器，保留其已有五卷；模型就绪账本不证明旧容器具有密钥挂载。例外仅为已授权升级，普通运行身份门和业务容器无Docker socket边界保持。Native/Docker产品节点及唯一DSH归属不变。

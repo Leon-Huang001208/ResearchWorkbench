@@ -1,5 +1,7 @@
 # 研究协议、执行状态与恢复
 
+catalog激活在当前owner事务内核对旧运营主体、配置版本，更新adapter/catalogId并使next_due立即到期；暂停源仍暂停。相同UUID先复用原审计回执，不因后续目录不可读而重复激活；未知回执保留UUID。旧owner拒绝，停机不删除已有材料。
+
 stage默认关闭旧Automation不再阻止Hot计划管理：Hot列表/运行读取不调度，明确配置仍由Hot owner/controller执行。旧Automation关闭继续拒绝其create/send/投递；不因管理aliases可读而恢复旧执行。
 
 历史pre-AES stage替换仅接受created/exited且Running=false的原登记容器；两次核对后用固定ID普通rm，运行态变化会拒绝删除，不使用force。新container沿现有up流程挂载原model_key，旧Native/Docker任务和凭据不会转移或自动重新执行。

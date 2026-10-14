@@ -172,6 +172,8 @@ def dispatch(argv: list[str], project: Path) -> int:
     toggles.add_argument("--enable", dest="enabled", action="store_const", const=True)
     toggles.add_argument("--disable", dest="enabled", action="store_const", const=False)
     source.add_argument("--frequency-seconds", type=int)
+    source.add_argument("--use-catalog", action="store_true")
+    source.add_argument("--reason")
     source.add_argument("--request-id")
     source.add_argument("--json", action="store_true")
     channels = sub.add_parser("channels")
@@ -306,7 +308,7 @@ def dispatch(argv: list[str], project: Path) -> int:
                                                 migration_user=args.migration_user, migration_account=args.migration_account)
             elif args.command == "source-configure":
                 value = manager.configure_source(args.source, args.expected_revision, args.enabled,
-                                                 args.frequency_seconds, args.request_id)
+                                                 args.frequency_seconds, args.request_id, args.use_catalog, args.reason)
             elif args.command == "channels":
                 value = manager.channels(args.cutoff)
             elif args.command == "events":

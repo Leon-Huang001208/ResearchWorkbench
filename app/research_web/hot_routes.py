@@ -123,6 +123,8 @@ class SourceRequest(BaseModel):
     expectedRevision: str = Field(pattern=r"^\d{1,18}$")
     enabled: bool | None = Field(default=None, strict=True)
     frequencySeconds: int | None = Field(default=None, ge=0, le=86400, strict=True)
+    useCatalog: bool = Field(default=False, strict=True)
+    reason: str | None = Field(default=None, min_length=1, max_length=1000, strict=True)
     requestId: str = Field(pattern=UUID_PATTERN)
 
 
@@ -408,4 +410,9 @@ async def correct(request: Request):
 async def configure_source(request: Request):
     value = await body(request, SourceRequest)
     request_id = str(UUID(value.requestId))
-    return await request.app.state.hot.call("configure_source", value.sourceId, value.expectedRevision, value.enabled, value.frequencySeconds, request_id, request_id=request_id)
+    args = (value.sourceId, value.expectedRevision, value.enabled, value.frequencySeconds, request_id)
+    if value.useCatalog or value.reason is not None:
+        if not value.useCatalog or value.reason is None or not value.reason.strip():
+            raise HotWebError("hot_source_config_invalid", "公开来源激活需要明确理由。", 400)
+        args += (True, value.reason)
+    return await request.app.state.hot.call("configure_source", *args, request_id=request_id)

@@ -1,5 +1,7 @@
 # Research Workbench
 
+接续旧冻结来源可用`rwb hot source-configure SOURCE --expected-revision REV --use-catalog --reason "恢复官方采集"`，先停止Hot并setup更新controller列权限。此操作仅激活固定目录的同运营主体源，保留旧资料；当前Native四源实采、OpenAI/Fed双轮排空通过，新字段Docker/安装CI仍待验收。
+
 “研究情报”已按 AIHOT 开源阅读模式适配纸面主题、日期时间轴、热度条和来源卡片，保留
 八个外部栏目及工作台品牌。此界面迭代不表示 Hot 后台完整研究、定时任务或安装验收已完成。
 Hot 已有 Native 真实研究报告、联合恢复、Docker组件顺序模式切换和 Mac 安装 CI 证据。

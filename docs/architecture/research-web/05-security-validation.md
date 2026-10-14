@@ -1,5 +1,7 @@
 # 安全边界与验证方法
 
+source.configure的useCatalog只接受严格true及非空有界理由，绑定DataHub同ID/同operator，拒绝URL和其他adapter。controller新增sources.config列UPDATE，普通worker仍无该权限；条件版本/审计/owner双检保持。真实PG覆盖错误operator、旧owner、UUID重放、目录不可读时缓存复用、落库指纹与大整数/旧版本不变。升级先停止setup，新镜像和MacCI须另验。
+
 Hot周期aliases去除旧Automation feature guard后仍调用相同Hot query/body/user-action及签名controller合同。关闭旧Automation时GET/POST Hot适配不访问旧服务，原Automation GET仍404；无动作POST403、明确动作POST200和Hot503传播均有回归。不得为修复Hot页面而启用旧scheduler或扩大预算。
 
 pre-AES例外只在显式stage replace的两次owned验证内使用，要求ready账本、停止原容器、精确四挂载、无RWB_MODEL_环境和旧镜像无加密标签；新镜像须AES。普通owned继续拒绝缺密钥挂载。运行中、已AES镜像、模型环境、projection变化及initializing反例均拒绝并且没有Docker rm调用；26项本地回归通过，不冒充实际容器验收。

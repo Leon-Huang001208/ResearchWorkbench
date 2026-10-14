@@ -1,5 +1,7 @@
 # Research Web Native / Docker 安装与运行
 
+接续旧冻结来源时，先停止Hot并运行`rwb hot setup`重授controller的sources.config列权限（schema仍20、无依赖改变），再启动。`rwb hot source-configure fed --expected-revision 4 --use-catalog --reason "恢复官方持续采集"`明确按固定DataHub目录激活；只能绑定已有同运营主体公开源，不接受URL。配置字段与旧材料保留，预算不变。普通worker没有config写权限；源码新字段尚需当前安装CI和新镜像验证。
+
 已有停止stage的pre-AES容器与已初始化model_key账本可经显式不可变镜像替换升级：严格核对旧容器归属及停止态，仅退休没有模型环境的旧四挂载容器，下一次up挂载既有只读密钥卷。普通操作不接受缺挂载；不初始化新密钥、不删除五卷、不更新prod，无新增依赖。
 
 Hot非秘密配置可指定`model.materialIds`（最多20个唯一材料UUID）进行有界处理；省略或空数组处理普通积压。先停止Hot、修改既有配置、再启动，凭据仍来自该模式的受控桥接；字段不创建预算、不提高限额、不增加依赖或迁移。重启保留未选择任务。当前真实Native组件已处理近期AI材料并生成两频道周期产物，schema20联合恢复已验证；最终完整镜像及同候选干净Mac安装仍须独立通过。

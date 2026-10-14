@@ -17,6 +17,27 @@ from app.research_web.hot_service import HotWebError, HotWebService
 
 
 class FollowBoundaryTests(unittest.TestCase):
+    def test_source_catalog_activation_requires_typed_action_and_reason(self):
+        seen = []
+        class Bridge:
+            async def call(self, operation, *args, **kwargs):
+                seen.append((operation, args))
+                return {"saved": True}
+        app = FastAPI();app.include_router(router);app.state.hot = Bridge()
+        @app.exception_handler(HotWebError)
+        async def error(request, exc):
+            return JSONResponse({"error": {"code": exc.code}}, status_code=exc.status)
+        body = {"sourceId": "fed", "expectedRevision": "4", "useCatalog": True,
+                "reason": "resume", "requestId": "11111111-1111-4111-8111-111111111111"}
+        url = "/api/research/hot/sources/configure"
+        with TestClient(app) as client:
+            self.assertEqual(client.post(url, json=body).status_code, 403)
+            headers = {"X-Research-User-Action": "?1"}
+            for invalid in [{**body, "reason": None}, {**body, "reason": " "}, {**body, "useCatalog": 1}, {**body, "url": "https://untrusted.invalid"}]:
+                self.assertEqual(client.post(url, json=invalid, headers=headers).status_code, 400)
+            self.assertEqual(client.post(url, json=body, headers=headers).status_code, 200)
+            self.assertEqual(seen, [("configure_source", ("fed", "4", None, None, body["requestId"], True, "resume"))])
+
     def test_automation_periodic_adapter_is_readonly_and_preserves_explicit_write_contract(self):
         from app.research_web.automation.routes import router as automation_router
         seen = []

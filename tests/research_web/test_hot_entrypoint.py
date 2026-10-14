@@ -15,6 +15,15 @@ from research_workbench_entrypoint import hot
 
 
 class HotEntrypointTests(unittest.TestCase):
+    def test_source_catalog_cli_passes_explicit_flag_reason_and_stable_request(self):
+        manager = MagicMock()
+        manager.configure_source.return_value = {"sourceId": "fed", "revision": "5"}
+        request = "11111111-1111-4111-8111-111111111111"
+        with patch("research_workbench_entrypoint.bootstrap.native_python", return_value=Path(os.sys.executable)), patch("research_workbench_entrypoint.hot_manager.HotManager", return_value=manager), redirect_stdout(io.StringIO()):
+            result = hot.dispatch(["--data-home", str(self.home), "source-configure", "fed", "--expected-revision", "4", "--use-catalog", "--reason", "resume", "--request-id", request, "--json"], Path("/project"))
+        self.assertEqual(result, 0)
+        manager.configure_source.assert_called_once_with("fed", "4", None, None, request, True, "resume")
+
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory()
         self.home = Path(self.temporary.name).resolve()

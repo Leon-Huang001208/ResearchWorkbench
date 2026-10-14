@@ -237,6 +237,20 @@ class HotManagerTests(unittest.TestCase):
                 self.assertEqual(value["state"], "outcome_unknown")
                 self.assertEqual(value["requestId"], request)
 
+    def test_catalog_activation_binds_reason_and_rejects_incomplete_signed_receipt(self):
+        self.manager.directory.mkdir(mode=0o700)
+        request = "11111111-1111-4111-8111-111111111111"
+        activation = {"adapter": "public_feed", "catalogId": "fed", "reason": "resume", "previousConfigSha256": "a" * 64, "configSha256": "b" * 64}
+        saved = {"sourceId": "fed", "revision": "5", "enabled": True, "requestId": request, "frequencySeconds": None, "catalogActivation": activation}
+        with patch.object(self.manager, "_state", return_value={"port": 1234, "owner": {}}), patch.object(self.manager, "_secret", return_value="test-controller"):
+            with patch("research_workbench_entrypoint.hot_manager.rpc", return_value=saved) as call:
+                self.assertEqual(self.manager.configure_source("fed", "4", request_id=request, use_catalog=True, reason="resume"), saved)
+                self.assertEqual(call.call_args.args[4], {"sourceId": "fed", "expectedRevision": "4", "useCatalog": True, "reason": "resume"})
+            with patch("research_workbench_entrypoint.hot_manager.rpc", return_value={**saved, "catalogActivation": {}}):
+                self.assertEqual(self.manager.configure_source("fed", "4", request_id=request, use_catalog=True, reason="resume")["state"], "outcome_unknown")
+            with self.assertRaisesRegex(HotError, "hot_source_config_invalid"):
+                self.manager.configure_source("fed", "4", use_catalog=True, reason=" ")
+
     def test_bad_source_frequency_does_not_resolve_credentials(self):
         self.manager.directory.mkdir(mode=0o700)
         with patch.object(self.manager, "_state", return_value={"port": 1234, "owner": {}}):

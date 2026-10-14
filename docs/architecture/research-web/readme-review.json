@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "updated",
-  "summary": "Hot周期管理独立于旧Automation开关，旧执行/投递仍关闭；README更新近期AI、双频道周期、schema20恢复及候选镜像实际证据。",
-  "reason": "修复真实stage浏览器发现的三个alias错误guard；Hot权限/PG唯一调度保持，未增预算。区分已验5a32镜像运行与本修复待重建/当前MacCI，未把旧CI提升为新候选通过。"
+  "summary": "Hot新增明确固定目录来源激活，保留旧配置与材料；四源已实采，模型预算不变。",
+  "reason": "README新增接续冻结源的CLI入口与权限生效要求，区分Native实采/双轮排空与新字段待验Docker/MacCI；不新增依赖或秘密迁移。"
 }
