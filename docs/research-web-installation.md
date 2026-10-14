@@ -214,8 +214,9 @@ fixture 证明；Windows/Linux 本轮未验收。
 当前 `rwb hot` 已提供非秘密配置、Native 独立服务生命周期与受管 PG 配置；Docker 产品装配、
 Settings 和研究交接尚在实施，不能作为成品安装说明。Hot Node 组件要求 Node 24.11+ 的 24 系列。
 Native 启动后由受限 worker 持续采集已登记的四个官方 feed；`./rwb hot sources --json`
-查询来源成功时间、错误、待解析条目和覆盖区间。来源仅提供最新快照，当前不支持历史分页/
-`backfillDays`；状态明确返回 `backfill: not_supported`。启用 Hot 不触发付费模型或研究。
+查询来源成功时间、错误、待解析条目和覆盖区间。采集器只跟随来源声明的同源HTTPS next链接，每轮最多三页、每页4MiB、整轮25秒。
+`collection.backfillDays`为0时不翻下一页；全部已知发布时间早于范围下界时停止继续，未知时间不推造日期。
+状态返回 `backfill: publisher_next_links`、范围和3页硬门；没有next仍是最新快照，有界补抓不表示完整历史。启用 Hot 不触发付费模型或研究。
 
 来源配置无需修改代码。先用 `sources --json` 取得当前 `config_revision`，然后执行：
 

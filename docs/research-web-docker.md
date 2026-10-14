@@ -1,5 +1,7 @@
 # Mac mini Docker 开发与独立部署
 
+Hot同源next分页逻辑由Native/Docker共用，schema仍20，三页/整轮25秒边界不扩大容器资源。当前源码分页切片尚未构建新镜像；旧Docker运行证据不认证本改动。
+
 来源控制权限和目录绑定在Hot PG投影中读出，不由容器running/healthy推断。旧镜像缺该字段时新界面显示未核验，不自动授予权限或激活。当前来源页面与Doctor有Native组件证据，新模块/权限提示的完整Docker镜像仍待验收。
 
 来源catalog激活属于Hot签名controller业务操作，沿已登记数据库执行，不由Docker管理员直接改业务表。新版本先停止Hot并setup更新最小列权限；不能靠复制Native vendor Key或直接SQL升级来源。当前Native四源实采、OpenAI/Fed双轮排空有证据，新字段的Docker镜像与外部TLS路径仍需单独验收。

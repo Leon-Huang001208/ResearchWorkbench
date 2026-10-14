@@ -1,5 +1,7 @@
 # 安全边界与验证方法
 
+分页拒绝跨origin、非HTTPS、凭据、fragment、循环、多next和重定向；三页各4MiB、整轮25秒，不复制SDK/Key，不增预算。真实PG测试覆盖后页HTTP失败/水位保留、顺序排空和事务中断回滚。
+
 来源UI的permission旗标只作提示，Node在新激活写入前核对实际config列UPDATE权限；真实PG revoke反例确认拒绝新请求且保留旧回执读。表单不接受URL/凭据，文本转义，显式checkbox+有界理由才激活；SDK/model权限不变。真实组件浏览器保存及审计核对、错误console0通过，不替代完整安装/镜像验收。
 
 source.configure的useCatalog只接受严格true及非空有界理由，绑定DataHub同ID/同operator，拒绝URL和其他adapter。controller新增sources.config列UPDATE，普通worker仍无该权限；条件版本/审计/owner双检保持。真实PG覆盖错误operator、旧owner、UUID重放、目录不可读时缓存复用、落库指纹与大整数/旧版本不变。升级先停止setup，新镜像和MacCI须另验。

@@ -1,5 +1,7 @@
 # Research Workbench
 
+Hot公开源支持同源声明next的三页有界补抓，范围/缺口明确；部分网络失败保留已取得页与待处理材料，不推进成功水位。此切片的最终镜像与MacCI仍待验收。
+
 “研究情报”的来源页可设置启停、采集间隔和明确目录接入；Doctor会核对目录控制权限，冻结样本不会显示为采集中。来源组件保存/审计已在Native原PG验证，新源码完整镜像和Mac安装CI仍待验收。
 
 接续旧冻结来源可用`rwb hot source-configure SOURCE --expected-revision REV --use-catalog --reason "恢复官方采集"`，先停止Hot并setup更新controller列权限。此操作仅激活固定目录的同运营主体源，保留旧资料；当前Native四源实采、OpenAI/Fed双轮排空通过，新字段Docker/安装CI仍待验收。

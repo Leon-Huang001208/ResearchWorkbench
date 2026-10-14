@@ -71,7 +71,9 @@ export async function ingestPage(db: Sql | Tx, page: Page, schema = 'hot'): Prom
   const operation = async (tx: Tx) => {
     const sources = await tx`select id,last_success_at from ${tx(schema)}.sources where id=${page.source} for update`;
     if (!sources.length) throw Error('hot_source_unknown');
-    if (sources[0].last_success_at && page.acquiredAt < sources[0].last_success_at) throw Error('hot_page_obsolete');
+    // A durable inbox page belongs to an already published acquisition batch.
+    // Its timestamp may precede the final page watermark; verify its exact bytes below.
+    if (!page.existingPageId && sources[0].last_success_at && page.acquiredAt < sources[0].last_success_at) throw Error('hot_page_obsolete');
     const pageId = page.existingPageId ?? randomUUID();
     const dates = page.materials.map(item => item.publishedAt).filter((date): date is Date => date !== null).sort((a, b) => a.getTime() - b.getTime());
     if(page.existingPageId){
@@ -120,7 +122,7 @@ export async function ingestPage(db: Sql | Tx, page: Page, schema = 'hot'): Prom
     }
     for (const item of page.materials) materialIds.push(idsByIdentity.get(identityKeyForUrl(item.url)!)!);
     // Publication of raw bytes, every entry, discoveries and watermark is one commit.
-    await tx`update ${tx(schema)}.sources set cursor=${tx.json(page.cursor)}, last_success_at=${page.acquiredAt}, last_error_code=null where id=${page.source}`;
+    if(!page.existingPageId)await tx`update ${tx(schema)}.sources set cursor=${tx.json(page.cursor)}, last_success_at=${page.acquiredAt}, last_error_code=null where id=${page.source}`;
     return { materialIds, newVersions };
   };
   const result = 'begin' in db ? await db.begin(operation) : await db.savepoint(operation);

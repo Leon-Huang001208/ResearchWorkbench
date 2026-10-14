@@ -1,5 +1,7 @@
 # DataHub、研究资料与实际文件
 
+schema20原raw_pages metadata保存runId/pageIndex/url/stop/backfillDays，已有partial/gap枚举记录边界。每轮原件和inbox同事务先于水位；晚页失败仍保留早页但不发布成功水位，已存页解析不清除错误或回退水位。
+
 sources只读返回adapter/catalog_id、绑定状态与激活许可，不回传完整config或秘密。来源表单期望版本来自最新config_revision，保存与审计沿原表；频率0由Host转为默认null，不增加数据文件或复制旧原文。
 
 公开目录激活用JSONB合并只更新adapter/catalogId，旧配置额外字段和大整数原样保留；materials/material_versions/raw_pages及研究快照不改。审计追加理由、旧adapter和前后配置SHA，编码postgres-jsonb-text-v1对应实际SQL config::text，不把原配置或秘密复制到回执。

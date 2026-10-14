@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "updated",
-  "summary": "来源页面支持启停、频率与明确目录接入，Doctor读取真实控制列权限；预算与部署归属保持。",
-  "reason": "README同步真实绑定状态与组件验证范围，权限缺失需停止setup，区别新界面已验Native组件与待验最终镜像/MacCI。"
+  "summary": "Hot公开源next有界补抓及逐页持久恢复，保留真实partial/gap与待验镜像/CI。",
+  "reason": "README反映三页/25秒/同源边界和部分失败水位，不宣称完整历史或新模型验收。"
 }

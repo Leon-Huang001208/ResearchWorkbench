@@ -21,6 +21,20 @@ function text(value: any): string {
   return value && typeof value === 'object' ? text(value['#text'] ?? value['#cdata']) : '';
 }
 
+/** Only publisher-declared feed-level links; never guess archive URLs. */
+export function feedNext(raw:string,base:string,origin:string):string|null {
+  if (/<!(?:DOCTYPE|ENTITY)\b/i.test(raw) || XMLValidator.validate(raw)!==true) throw Error('hot_source_parse_failed');
+  const doc=new XMLParser({ignoreAttributes:false,attributeNamePrefix:'@'}).parse(raw);
+  const root=doc.feed??doc.rss?.channel??doc['rdf:RDF'];
+  const links=[...array(root?.link),...array(root?.['atom:link'])].filter(link=>link?.['@rel']==='next'&&link?.['@href']);
+  if(!links.length)return null;
+  if(links.length!==1)throw Error('hot_source_pagination_ambiguous');
+  let url:URL;
+  try{url=new URL(links[0]['@href'],base);}catch{throw Error('hot_source_pagination_unsafe');}
+  if(url.protocol!=='https:'||url.origin!==origin||url.username||url.password||url.hash||url.href.length>2048)throw Error('hot_source_pagination_unsafe');
+  return url.href;
+}
+
 export function parseFeed(raw: string, base: string, seen: Date): FeedMaterial[] {
   if (/<!(?:DOCTYPE|ENTITY)\b/i.test(raw) || XMLValidator.validate(raw) !== true) {
     throw Error('feed_xml_invalid');

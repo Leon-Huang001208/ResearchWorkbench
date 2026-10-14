@@ -102,7 +102,7 @@ export async function startService(input: ServiceBootstrap,capabilities:{groupin
         return { state:'initialized',worker:workerState,model:modelCapability?.state??(groupingModel?'ready':'blocked_model'),modelCode:modelCapability?.code??null,processing:JSON.parse(JSON.stringify([...pending])),schemaVersion:SCHEMA_VERSION,
           periodic:JSON.parse(JSON.stringify(briefPlans)),
           sourceControl:{catalogActivation:await catalogControlReady(controller,config.database.schema)?'ready':'setup_required'},
-          mode:current.mode,generation:current.generation,sourceCount:counts.n,collectionMode:'latest_snapshot',backfill:'not_supported' };
+          mode:current.mode,generation:current.generation,sourceCount:counts.n,collectionMode:'bounded_feed_snapshots',backfill:'publisher_next_links',backfillDays:config.collection.backfillDays,maxPages:3 };
       }}],
       ['sources',{permission:'read',run:async params=>{
         noParams(params);

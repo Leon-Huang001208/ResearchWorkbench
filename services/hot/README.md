@@ -289,10 +289,22 @@ Interrupted attempts and bad raw XML remain visible; errors do not advance the
 success watermark. Read RPC and `rwb hot sources --json` expose recent success,
 errors, pending counts and actual snapshot coverage without triggering collection.
 
-These feeds provide latest snapshots, not complete historical ranges. Pagination
-and configured backfillDays are not supported by this first adapter; status
-explicitly returns backfill:not_supported. Event/channel inference and DataHub
-Broker/UI registration are still pending; channelHint is catalog metadata only.
+Feeds provide snapshots, not complete calendar/history coverage. The adapter now
+follows publisher-declared RSS/Atom `next` links only on the fixed HTTPS origin;
+credentials, fragments, ambiguous links, redirects and cycles are rejected.
+Each round has a shared 25-second deadline, at most three pages and 4 MiB per
+page. `collection.backfillDays` (0 disables additional pages) bounds continued
+walking when every known publication on a page precedes the cutoff; unknown
+or mixed dates do not manufacture a boundary. This does not assume feed order
+or prove that the requested historical range is complete. All fetched raw pages
+and parsed inboxes publish in the same owner/claim-fenced transaction; a later
+page failure retains preceding pages without advancing successful acquisition.
+Parse jobs drain pages in order without clearing collection failure or regressing
+the final watermark. The existing schema20 stores page ordinal/URL/run/boundary
+metadata and explicit partial/gap codes; interrupted publication rolls back the
+whole batch, and an unchanged refetch reuses material versions. Status reports
+`backfill: publisher_next_links`, `backfillDays` and `maxPages: 3`. No declared
+next link remains a latest snapshot, never an inferred complete archive.
 `node scripts/collection-proof.ts` tests two real scheduled cycles through the
 production worker on an isolated schema and scoped roles. An earlier proof
 collected 1389 stable materials/versions and 8 originals, with zero pending items;
