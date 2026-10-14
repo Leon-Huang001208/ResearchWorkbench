@@ -1,5 +1,7 @@
 # 研究协议、执行状态与恢复
 
+首次目录激活在事务内重新检查实际列权限，不依赖UI缓存。已完成UUID重放仍先返回原回执，即使权限后来撤销也不重新写。已知permission_missing停止新提交并提示setup；提交未知沿既有UUID/body恢复，不发起第二请求。
+
 catalog激活在当前owner事务内核对旧运营主体、配置版本，更新adapter/catalogId并使next_due立即到期；暂停源仍暂停。相同UUID先复用原审计回执，不因后续目录不可读而重复激活；未知回执保留UUID。旧owner拒绝，停机不删除已有材料。
 
 stage默认关闭旧Automation不再阻止Hot计划管理：Hot列表/运行读取不调度，明确配置仍由Hot owner/controller执行。旧Automation关闭继续拒绝其create/send/投递；不因管理aliases可读而恢复旧执行。

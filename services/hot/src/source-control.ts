@@ -5,6 +5,7 @@ import {schemaName} from './config.ts';
 import {sha256} from './material.ts';
 import {logEvent} from './log.ts';
 import {publicSources,type PublicSource} from './collection.ts';
+import {catalogControlReady} from './source-status.ts';
 type Sql=ReturnType<typeof postgres>;
 export interface SourceChange {sourceId:string;expectedRevision:string;enabled?:boolean;frequencySeconds?:number|null;useCatalog?:true;reason?:string}
 export function sourceChange(input:Record<string,postgres.JSONValue>):SourceChange{
@@ -42,6 +43,7 @@ export async function configureSource(db:Sql,schema:string,owner:RuntimeOwner,re
     const before={sourceId:row.id,enabled:row.enabled,frequencySeconds:row.frequency_seconds,revision:String(row.config_revision)};
     let activation:Record<string,postgres.JSONValue>|undefined;
     if(value.useCatalog){
+      if(!await catalogControlReady(tx as unknown as Sql,schema))throw Error('hot_source_catalog_permission_missing');
       if(row.operator!==catalog!.operator||!row.config||typeof row.config!=='object'||Array.isArray(row.config)||
         !['public_feed','frozen_acceptance_subset'].includes(row.config.adapter))throw Error('hot_source_config_invalid');
       // JSONB merge preserves unknown legacy numeric values without a JS round trip.

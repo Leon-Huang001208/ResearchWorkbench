@@ -2,6 +2,7 @@ import {test} from 'node:test';import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';import{resolve,join}from'node:path';import{randomBytes,randomUUID}from'node:crypto';
 import postgres from 'postgres';import{migrate,ingestPage}from'../src/database.ts';import{initializeIdentity,activateRuntime,pauseRuntime}from'../src/control.ts';
 import{seedPublicSources,scheduleCollection}from'../src/collection.ts';import{configureSource}from'../src/source-control.ts';import{grantWorker,grantController}from'../src/provision.ts';import{openQueue}from'../src/queue.ts';import{parseConfig}from'../src/config.ts';import{sha256}from'../src/material.ts';
+import {catalogControlReady} from '../src/source-status.ts';
 test('explicit catalog activation preserves old evidence, audits/replays and becomes schedulable only under controller ownership',{timeout:20000},async()=>{
  const dir=resolve(process.env.RWB_HOT_PROOF_DIR??new URL('../../../logs/hot-stage-zero',import.meta.url).pathname),proof=JSON.parse(await readFile(join(dir,'receipt.json'),'utf8')),password=await readFile(join(dir,'password'),'utf8');
  const port=Number(process.env.RWB_HOT_PROOF_PORT??proof.port);assert.ok(Number.isSafeInteger(port)&&port>0&&port<65536);
@@ -30,6 +31,13 @@ test('explicit catalog activation preserves old evidence, audits/replays and bec
   await assert.rejects(configureSource(controller,schema,owner,id,{...params,reason:'different'}),/request_conflict/);
   await assert.rejects(configureSource(controller,schema,owner,randomUUID(),params),/revision_conflict/);
   assert.equal(await scheduleCollection(ordinary,boss,schema,owner,config),1);
+  assert.equal(await catalogControlReady(controller,schema),true);
+  assert.equal(await catalogControlReady(ordinary,schema),false);
+  await db`revoke update(config) on ${db(schema)}.sources from ${db(control)}`;
+  assert.equal(await catalogControlReady(controller,schema),false);
+  await assert.rejects(configureSource(controller,schema,owner,randomUUID(),{...params,expectedRevision:'1'}),/catalog_permission_missing/);
+  assert.deepEqual(await configureSource(controller,schema,owner,id,params),first);
+  await db`grant update(config) on ${db(schema)}.sources to ${db(control)}`;
   await db`update ${db(schema)}.sources set operator='foreign' where id='openai'`;
   await assert.rejects(configureSource(controller,schema,owner,randomUUID(),{...params,sourceId:'openai'}),/config_invalid/);
   await pauseRuntime(controller,schema,owner,token);

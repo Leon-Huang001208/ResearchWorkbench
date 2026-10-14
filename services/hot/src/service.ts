@@ -8,7 +8,8 @@ import { checkDatabase } from './health.ts';
 import { startTransport,type RpcHandler } from './transport.ts';
 import { logEvent } from './log.ts';
 import {runWorker} from './worker.ts';
-import {collectionHandlers,scheduleCollection} from './collection.ts';
+import {collectionHandlers,scheduleCollection,publicSources} from './collection.ts';
+import {catalogControlReady,sourceEligibility} from './source-status.ts';
 import {configureSource} from './source-control.ts';
 import {scheduleProcessing,processingHandler,processingPriority,type GroupingModel} from './processing.ts';
 import {evaluateChannelRules} from './channel-rules.ts';
@@ -100,16 +101,18 @@ export async function startService(input: ServiceBootstrap,capabilities:{groupin
           (select count(*)::int from ${reader(config.database.schema)}.follows f join ${reader(config.database.schema)}.follow_versions v on v.follow_id=f.id and v.version=f.current_version where v.config->>'enabled'='true') "activeFollows"`;
         return { state:'initialized',worker:workerState,model:modelCapability?.state??(groupingModel?'ready':'blocked_model'),modelCode:modelCapability?.code??null,processing:JSON.parse(JSON.stringify([...pending])),schemaVersion:SCHEMA_VERSION,
           periodic:JSON.parse(JSON.stringify(briefPlans)),
+          sourceControl:{catalogActivation:await catalogControlReady(controller,config.database.schema)?'ready':'setup_required'},
           mode:current.mode,generation:current.generation,sourceCount:counts.n,collectionMode:'latest_snapshot',backfill:'not_supported' };
       }}],
       ['sources',{permission:'read',run:async params=>{
         noParams(params);
-        const rows = await reader`select s.id,s.operator,s.enabled,s.frequency_seconds,s.config_revision::text,s.last_success_at,s.last_error_code,s.next_due_at,s.consecutive_failures,
+        const rows = await reader`select s.id,s.operator,s.config->>'adapter' adapter,s.config->>'catalogId' catalog_id,s.enabled,s.frequency_seconds,s.config_revision::text,s.last_success_at,s.last_error_code,s.next_due_at,s.consecutive_failures,
           (select count(*)::int from ${reader(config.database.schema)}.material_inbox i join ${reader(config.database.schema)}.raw_pages p on p.id=i.page_id where p.source_id=s.id and not i.processed) as pending_items,
           (select json_build_object('coverage',p.coverage,'oldestPublishedAt',p.oldest_published_at,'newestPublishedAt',p.newest_published_at,'acquiredAt',p.acquired_at,'gap',p.gap)
             from ${reader(config.database.schema)}.raw_pages p where p.source_id=s.id order by p.acquired_at desc limit 1) as latest_snapshot
           from ${reader(config.database.schema)}.sources s order by s.id limit 100`;
-        return JSON.parse(JSON.stringify([...rows])) as postgres.JSONValue;
+        const catalog=await publicSources(),permission=await catalogControlReady(controller,config.database.schema);
+        return JSON.parse(JSON.stringify(rows.map(row=>({...row,...sourceEligibility(row as any,catalog,permission)})))) as postgres.JSONValue;
       }}],
       ['source.configure',{permission:'control',run:async(params,id,signal)=>{
         signal.throwIfAborted();

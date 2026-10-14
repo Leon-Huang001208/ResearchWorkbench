@@ -1,5 +1,7 @@
 # Mac mini Docker 开发与独立部署
 
+来源控制权限和目录绑定在Hot PG投影中读出，不由容器running/healthy推断。旧镜像缺该字段时新界面显示未核验，不自动授予权限或激活。当前来源页面与Doctor有Native组件证据，新模块/权限提示的完整Docker镜像仍待验收。
+
 来源catalog激活属于Hot签名controller业务操作，沿已登记数据库执行，不由Docker管理员直接改业务表。新版本先停止Hot并setup更新最小列权限；不能靠复制Native vendor Key或直接SQL升级来源。当前Native四源实采、OpenAI/Fed双轮排空有证据，新字段的Docker镜像与外部TLS路径仍需单独验收。
 
 停止的历史candidate可能已经登记model_key卷，但其原容器仍为未启用AES的四挂载镜像。普通status/up/stop继续拒绝缺密钥挂载；显式`stage candidate replace-image --image sha256:…`仅在原身份/projection/资源/网络/限额一致、容器created/exited、账本ready、旧镜像无模型加密标签/模型环境且精确四挂载时允许替换。新镜像仍须AES标签；保留全部五卷和previous_image，不回退或重建密钥。其他不匹配拒绝。此兼容修复的26项本地测试不代替实际运行与模式切换验收。

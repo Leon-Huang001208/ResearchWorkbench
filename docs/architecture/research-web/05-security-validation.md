@@ -1,5 +1,7 @@
 # 安全边界与验证方法
 
+来源UI的permission旗标只作提示，Node在新激活写入前核对实际config列UPDATE权限；真实PG revoke反例确认拒绝新请求且保留旧回执读。表单不接受URL/凭据，文本转义，显式checkbox+有界理由才激活；SDK/model权限不变。真实组件浏览器保存及审计核对、错误console0通过，不替代完整安装/镜像验收。
+
 source.configure的useCatalog只接受严格true及非空有界理由，绑定DataHub同ID/同operator，拒绝URL和其他adapter。controller新增sources.config列UPDATE，普通worker仍无该权限；条件版本/审计/owner双检保持。真实PG覆盖错误operator、旧owner、UUID重放、目录不可读时缓存复用、落库指纹与大整数/旧版本不变。升级先停止setup，新镜像和MacCI须另验。
 
 Hot周期aliases去除旧Automation feature guard后仍调用相同Hot query/body/user-action及签名controller合同。关闭旧Automation时GET/POST Hot适配不访问旧服务，原Automation GET仍404；无动作POST403、明确动作POST200和Hot503传播均有回归。不得为修复Hot页面而启用旧scheduler或扩大预算。

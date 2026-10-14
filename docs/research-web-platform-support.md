@@ -1,5 +1,7 @@
 # Research Web 能力与平台证据
 
+来源表单与Doctor已在正常Native worker/原PG/独立Host适配上实测保存、列权限与审计，结束后generation91暂停，预算未变。本范围为组件，不代表新源码Mac Bootstrap、完整镜像或Windows/Linux原生通过。
+
 Native原PG已明确激活OpenAI/Fed目录源，四源真实取数成功，OpenAI/Fed两轮计划采集及inbox排空通过，模型关闭。catalog新增接口/角色权限已有PG和Python回归，新源码的Docker/当前Mac安装CI仍未验证，Windows/Linux原生保持NOT_RUN。
 
 停止pre-AES stage显式升级的管理器兼容修复仅有macOS本地26项回归与独立Python审查证据；实际候选镜像重建、运行及新候选Mac CI仍待验收。不得由此宣称Windows/Linux原生或完整Docker模型处理通过。

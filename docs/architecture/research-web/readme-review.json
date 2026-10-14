@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "updated",
-  "summary": "Hot新增明确固定目录来源激活，保留旧配置与材料；四源已实采，模型预算不变。",
-  "reason": "README新增接续冻结源的CLI入口与权限生效要求，区分Native实采/双轮排空与新字段待验Docker/MacCI；不新增依赖或秘密迁移。"
+  "summary": "来源页面支持启停、频率与明确目录接入，Doctor读取真实控制列权限；预算与部署归属保持。",
+  "reason": "README同步真实绑定状态与组件验证范围，权限缺失需停止setup，区别新界面已验Native组件与待验最终镜像/MacCI。"
 }

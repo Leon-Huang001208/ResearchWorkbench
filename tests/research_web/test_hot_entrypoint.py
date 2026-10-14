@@ -15,6 +15,24 @@ from research_workbench_entrypoint import hot
 
 
 class HotEntrypointTests(unittest.TestCase):
+    def test_doctor_catalog_permission_does_not_claim_model_or_missing_capability_pass(self):
+        (self.home / "hot").mkdir(mode=0o700)
+        (self.home / "hot/process.json").write_text("{}")
+        manager = MagicMock()
+        for capability in ("ready", "setup_required", None):
+            manager.status.return_value = {"state": "initialized", **({"sourceControl": {"catalogActivation": capability}} if capability else {})}
+            output = io.StringIO()
+            with patch("research_workbench_entrypoint.bootstrap.native_python", return_value=Path(os.sys.executable)), patch("research_workbench_entrypoint.hot_manager.HotManager", return_value=manager), redirect_stdout(output):
+                self.assertEqual(hot.dispatch(["--data-home", str(self.home), "doctor", "--json"], Path("/project")), 0)
+            checks = json.loads(output.getvalue())["checks"]
+            self.assertEqual(checks["source_catalog"], capability or "NOT_RUN")
+            self.assertEqual(checks["model"], "NOT_RUN")
+        (self.home / "hot/process.json").unlink()
+        output = io.StringIO()
+        with redirect_stdout(output):
+            self.assertEqual(hot.dispatch(["--data-home", str(self.home), "doctor", "--json"], Path("/project")), 0)
+        self.assertEqual(json.loads(output.getvalue())["checks"]["source_catalog"], "NOT_RUN")
+
     def test_source_catalog_cli_passes_explicit_flag_reason_and_stable_request(self):
         manager = MagicMock()
         manager.configure_source.return_value = {"sourceId": "fed", "revision": "5"}

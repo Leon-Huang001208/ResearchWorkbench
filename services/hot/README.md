@@ -1,5 +1,15 @@
 # Hot internal engine
 
+Read-only source projection distinguishes scheduled/paused/awaiting_catalog/
+catalog_mismatch. An enabled frozen subset is not a collecting source. The
+`sourceControl.catalogActivation` status checks the controller's actual config
+column privilege; `rwb hot doctor` reports it separately from model/research
+acceptance. New activation with missing permission rejects with
+`hot_source_catalog_permission_missing`; historical replay remains readable.
+The existing Sources page now offers explicit enable/pause, interval (0 means
+configured default), and a permission-gated catalog checkbox plus reason. Reads
+do not activate sources; unknown writes retain the original request UUID.
+
 Explicit `source.configure` activation accepts `useCatalog:true` and a nonempty
 reason (at most 1000 characters), keeping old requests unchanged. The source ID
 must exist in the fixed DataHub public directory and its stored operator must

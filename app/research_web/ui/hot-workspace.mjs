@@ -5,6 +5,7 @@ import { renderHotReaderFeed, renderHotReaderRank } from './hot-reader.mjs';
 import { renderHotPreparation, renderHotExecution, hotResearchSubmission } from './hot-research-actions.mjs';
 import { renderHotFollows } from './hot-follows.mjs';
 import {renderHotBriefPlans,hotPlanSubmission} from './hot-brief-plans.mjs';
+import {renderHotSources,hotSourceSubmission} from './hot-sources.mjs';
 
 const score = (value) => typeof value === 'number' && Number.isFinite(value) ? String(value) : '—';
 const names = { disabled: '尚未配置', stopped: '已停止', initialized: '运行中' };
@@ -49,7 +50,7 @@ export function renderHotWorkspace(state, { settings = false } = {}) {
   if (state.view === 'research') body = renderHotResults(state.researchRows || [], state.loading, state.researchHasMore, state.loading ? 'disabled' : disabled);
   else if (state.view === 'follows') body = renderHotFollows(state.follows || [], state.loading ? 'disabled' : disabled);
   else if (state.view === 'plans') body = renderHotBriefPlans(state,state.loading?'disabled':disabled);
-  else if (state.view === 'sources') body = `<div class="hot-source-grid">${state.sources.map(source => `<article class="hot-card"><h2>${e(source.operator)}</h2><p>${source.enabled ? '采集中' : '已暂停'} · ${e(source.latest_snapshot?.coverage === 'latest_snapshot' ? '最新快照' : source.latest_snapshot?.coverage || '尚无取得记录')}</p><dl><dt>最近成功</dt><dd>${e(hotTime(source.last_success_at, timezone))}</dd><dt>待解析条目</dt><dd>${e(source.pending_items)}</dd><dt>已知缺口／错误</dt><dd>${e(source.last_error_code || source.latest_snapshot?.gap?.code || '未记录；不等于完整覆盖')}</dd></dl><p class="small muted">覆盖发布区间 ${e(hotTime(source.latest_snapshot?.oldestPublishedAt, timezone))} — ${e(hotTime(source.latest_snapshot?.newestPublishedAt, timezone))}</p><button class="button" data-hot-action="source-toggle" data-source="${e(source.id)}" ${disabled}>${source.enabled ? '暂停' : '恢复'}此来源</button></article>`).join('') || '<p class="muted">暂无来源状态。</p>'}</div>`;
+  else if (state.view === 'sources') body = renderHotSources(state,disabled,value=>hotTime(value,timezone));
   else if (state.view === 'briefs') body = `<div class="hot-source-grid">${state.briefs.map(brief => `<article class="hot-card"><h2>${e(brief.channelId)} · 简报版本 ${e(brief.version)}</h2><p>选材截止 ${e(hotTime(brief.cutoff, timezone))}</p><button class="button" data-hot-action="open-brief" data-brief="${e(brief.briefId)}" data-version="${e(brief.version)}">查看冻结简报</button></article>`).join('') || (state.loading ? '<p>简报读取中…</p>' : '<p>暂无已保存简报。打开事件详情可显式生成。</p>')}</div>${state.briefHasMore ? '<button class="button" data-hot-action="more-briefs">下一页简报</button>' : ''}`;
   else if (state.view === 'channels') body = `<div class="hot-source-grid">${state.channels.map(channel => `<article class="hot-card"><h2>${e(channel.config.name)}</h2><p>版本 ${e(channel.version)} · ${e(channel.channel_id)}</p><p>${e(channel.config.topics.join('、'))}</p><button class="button" data-hot-action="edit-channel" data-channel="${e(channel.channel_id)}" ${disabled}>编辑频道</button></article>`).join('')}</div><form data-hot-form="channel" data-hot-form-key="channel:${e(state.editChannel)}:${e(state.editVersion)}"><h2>${state.editChannel ? '修改频道' : '新增频道'}</h2><label>频道 ID<input name="channelId" required pattern="[a-z][a-z0-9_-]{0,47}" value="${e(state.editChannel || '')}" ${state.editChannel ? 'readonly' : ''}></label><label>版本化配置<textarea name="config" rows="12" spellcheck="false">${e(JSON.stringify(state.channelDraft || { name:'新频道', topics:[], sourceIds:[], importanceRules:[], rules:[] }, null, 2))}</textarea></label><p class="small muted">名称、主题、来源和规则权重通过配置保存，来源须已登记。</p><button class="button primary" ${disabled}>保存频道</button><button type="button" class="button" data-hot-action="new-channel" ${disabled}>新建另一频道</button></form>`;
   else {
@@ -143,7 +144,7 @@ export function createHotController({ api, onChange = () => {}, isActive = () =>
     } catch (error) {
       safeLog('hot_mutation_failed');
       if(current(ticket))state.error = error.message || '修改结果未知。';
-      if (/(?:conflict|invalid|required|denied|limit)$/.test(error.code || '') || ['hot_event_unknown','hot_channel_unknown','hot_channel_source_unknown','hot_service_stopped'].includes(error.code)) state.pending = null;
+      if (/(?:conflict|invalid|required|denied|limit)$/.test(error.code || '') || ['hot_event_unknown','hot_channel_unknown','hot_channel_source_unknown','hot_service_stopped','hot_source_catalog_permission_missing'].includes(error.code)) state.pending = null;
     } finally { state.busy = false; if (isActive()) onChange(); }
   }
   async function submit(form) {
@@ -155,6 +156,7 @@ export function createHotController({ api, onChange = () => {}, isActive = () =>
       let method, body;
       if (['research-prepare','research-execute'].includes(kind)) { state.pending=hotResearchSubmission(kind,values,state,form,uuid); return await sendPending(); }
       if(kind==='brief-plan'){state.pending=hotPlanSubmission(values,state,uuid);return await sendPending();}
+      if(kind==='source'){state.pending=hotSourceSubmission(values,state,uuid);return await sendPending();}
       if (kind === 'follow') {method='hotFollowConfigure';body={followId:uuid(),expectedVersion:0,config:{kind:String(values.get('kind')),target:String(values.get('target')).trim(),name:String(values.get('name')).trim(),enabled:true},reason:String(values.get('reason')).trim(),requestId:uuid()};}
       else if (kind === 'brief' && state.detail) { method = 'hotBriefCreate'; body = {briefId:uuid(),expectedVersion:0,eventIds:[state.detail.canonicalId],channelId:String(values.get('channelId')),cutoff:state.detail.cutoff,timezone:state.config?.timezone || 'Asia/Shanghai',...(state.filters.from ? {from:state.filters.from} : {}),...(state.filters.to ? {to:state.filters.to} : {}),requestId:uuid()}; }
       else if (kind === 'channel') { const channelId = String(values.get('channelId')); method = 'hotChannelConfigure'; body = { channelId, expectedVersion:state.editChannel === channelId ? state.editVersion : 0, config:JSON.parse(String(values.get('config'))), requestId:uuid() }; }

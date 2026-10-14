@@ -1,5 +1,7 @@
 # Research Web 接口清单
 
+来源GET新增collection_state、catalog_activation_allowed/code及adapter/catalog_id；status新增sourceControl.catalogActivation权限诊断。字段缺失不能推断ready。POST目录激活新增稳定hot_source_catalog_permission_missing错误，读路径不授予控制权限，旧URI/参数/UUID合同保持。
+
 POST `/api/research/hot/sources/configure`可显式带严格bool useCatalog=true及1–1000字符非空reason，沿同源/user-action/UUID和expectedRevision合同激活固定目录源。旧调用省略新字段保持原参数及重放哈希。reason不能单独提交；缺动作403、非法字段/URL400，旧owner/运营主体冲突拒绝。成功含catalogActivation审计指纹；不增加付费许可。
 
 `/api/research/automations/hot-brief-plans`三个管理aliases不受旧`RESEARCH_AUTOMATIONS_ENABLED`控制，直接使用Hot列表、运行读取、条件配置合同；缺显式动作403、非法输入400、Hot不可用503保持。旧`/automations`与投递接口仍沿原开关拒绝，路径/参数和公开符号未变化。

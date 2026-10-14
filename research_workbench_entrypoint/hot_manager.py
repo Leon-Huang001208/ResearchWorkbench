@@ -70,7 +70,7 @@ def rpc(port: int, owner: dict, key: str, operation: str, params: dict | None = 
         if not result.get("ok"):
             code = result.get("code")
             known = ("hot_periodic_config_invalid", "hot_periodic_due_invalid", "hot_periodic_request_invalid", "hot_periodic_enable_required", "hot_periodic_control_denied", "hot_periodic_request_conflict", "hot_periodic_version_conflict", "hot_periodic_channel_invalid", "hot_periodic_limit", "hot_periodic_save_failed", "hot_periodic_read_failed", "hot_periodic_schedule_failed", "hot_periodic_run_invalid", "hot_periodic_plan_changed", "hot_periodic_brief_failed", "hot_follow_request_invalid", "hot_follow_control_denied", "hot_follow_version_conflict", "hot_follow_target_conflict", "hot_follow_target_invalid", "hot_follow_request_conflict", "hot_follow_limit", "hot_follow_read_failed", "hot_follow_save_failed", "hot_source_config_invalid", "hot_source_request_invalid", "hot_source_revision_conflict",
-                     "hot_source_request_conflict", "hot_source_unknown", "hot_owner_stale", "hot_rpc_denied",
+                     "hot_source_request_conflict", "hot_source_unknown", "hot_source_catalog_permission_missing", "hot_owner_stale", "hot_rpc_denied",
                      "hot_channel_request_invalid", "hot_channel_request_conflict", "hot_channel_revision_conflict", "hot_channel_control_denied",
                      "hot_channel_invalid", "hot_channel_rule_invalid", "hot_channel_source_unknown", "hot_channel_unknown",
                      "hot_event_identity_invalid", "hot_event_revision_invalid", "hot_event_revision_conflict", "hot_event_unknown",

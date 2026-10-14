@@ -1,5 +1,7 @@
 # Research Web Native / Docker 安装与运行
 
+升级来源界面后，Doctor的checks.source_catalog仅核对目录控制列权限，ready不代表模型调用或完整历史覆盖。setup_required时停止Hot并执行原setup更新权限，再启动。来源页可设置默认间隔0或60–86400秒，并显式目录接入；无新依赖/迁移。新静态模块hot-sources.mjs随现有ui包数据安装，当前候选干净Mac安装CI与新镜像仍须取得。
+
 接续旧冻结来源时，先停止Hot并运行`rwb hot setup`重授controller的sources.config列权限（schema仍20、无依赖改变），再启动。`rwb hot source-configure fed --expected-revision 4 --use-catalog --reason "恢复官方持续采集"`明确按固定DataHub目录激活；只能绑定已有同运营主体公开源，不接受URL。配置字段与旧材料保留，预算不变。普通worker没有config写权限；源码新字段尚需当前安装CI和新镜像验证。
 
 已有停止stage的pre-AES容器与已初始化model_key账本可经显式不可变镜像替换升级：严格核对旧容器归属及停止态，仅退休没有模型环境的旧四挂载容器，下一次up挂载既有只读密钥卷。普通操作不接受缺挂载；不初始化新密钥、不删除五卷、不更新prod，无新增依赖。

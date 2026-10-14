@@ -1,5 +1,7 @@
 # DataHub、研究资料与实际文件
 
+sources只读返回adapter/catalog_id、绑定状态与激活许可，不回传完整config或秘密。来源表单期望版本来自最新config_revision，保存与审计沿原表；频率0由Host转为默认null，不增加数据文件或复制旧原文。
+
 公开目录激活用JSONB合并只更新adapter/catalogId，旧配置额外字段和大整数原样保留；materials/material_versions/raw_pages及研究快照不改。审计追加理由、旧adapter和前后配置SHA，编码postgres-jsonb-text-v1对应实际SQL config::text，不把原配置或秘密复制到回执。
 
 Hot周期aliases在旧Automation关闭时继续仅访问Hot PG和其已冻结简报，旧Automation Store没有读取或写入。已有计划/运行/选材不复制到旧调度存储；无新增schema、秘密或目录。

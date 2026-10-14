@@ -349,6 +349,7 @@ def dispatch(argv: list[str], project: Path) -> int:
             elif args.command == "doctor":
                 value = manager.status()
                 value["checks"] = {"service": "PASS" if value["state"] == "initialized" else "NOT_RUN",
+                                   "source_catalog": value.get("sourceControl", {}).get("catalogActivation", "NOT_RUN"),
                                    "model": "NOT_RUN", "research": "NOT_RUN"}
             else:
                 value = getattr(manager, args.command)()
@@ -356,7 +357,7 @@ def dispatch(argv: list[str], project: Path) -> int:
             value = status(project, home)
             if args.command == "doctor":
                 value["checks"] = {"configuration": "configured" if value["enabled"] else "disabled",
-                                   "service": "NOT_RUN", "database": "NOT_RUN", "model": "NOT_RUN"}
+                                   "service": "NOT_RUN", "database": "NOT_RUN", "model": "NOT_RUN", "source_catalog": "NOT_RUN"}
         print(json.dumps(value, ensure_ascii=False))
         return 1 if isinstance(value, dict) and (value.get("logging") == "unavailable" or value.get("persistence") == "unavailable" or value.get("durability") == "unavailable" or value.get("state") in ("outcome_unknown","rejected")) else 0
     except HotError as error:

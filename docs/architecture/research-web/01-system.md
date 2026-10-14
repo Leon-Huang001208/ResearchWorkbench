@@ -1,5 +1,7 @@
 # 部署与模块职责
 
+来源状态投影在现有Hot Node中读取目录绑定与controller config列权限；前端不读取数据库或凭据。Source表单沿已有Host API与source.configure，未新增Provider、服务或调度器。
+
 来源激活继续由现有source.configure/controller和Hot PG负责。DataHub固定目录决定endpoint/operator，CLI和Host仅传source ID、期望版本、明确catalog标志及理由；不新增来源服务、研究会话或模型调用。
 
 Automation命名空间内Hot周期管理aliases直接委派Hot，旧Automation feature flag只控制旧Automation。该适配不访问其Store或启动其scheduler；PG/Hot worker仍独占周期事实。
