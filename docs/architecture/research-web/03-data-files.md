@@ -1,5 +1,7 @@
 # DataHub、研究资料与实际文件
 
+研究页面从不可变简报的报告集合中选择1–20个唯一材料ID，连同简报ID/版本准备已有Hot运行。原件及会话快照由既有Host校验发布；浏览器不复制可变原件。未知执行保留runId、问题、格式，核对不生成新runId或改变原deliveryKey。
+
 Hot正式研究固定deliveryKey绑定问题和输出格式，并复验会话快照/manifest哈希。
 只对数据库证明reserved、dispatched_at为空且无回执的尝试允许停止后显式取消/归还预留；
 dispatching/outcome_unknown费用保留，操作审计和UUID重放避免重复退款。

@@ -2,6 +2,19 @@
 
 宿主 macOS，任务类型功能开发。目标仍为原 Goal 的阶段 0–5，未完成任何门不降级。
 
+## 当前权威断点 · 2026-10-14（覆盖下方历史待验状态）
+
+源候选 341000f7f51fba13a14bda91b20550a7cd552cd7，已合入 master baba313ae41af81a49d129ce71e8dd34c11a5f9b；PR #106 仍为 draft，未合并或部署。
+Mac Bootstrap 38498932227、Project Constraints 38498932373、Research Web Checks 38498932424 全部成功；实际安装 checkout 为 merge preview 7c34e6026189313ec2da03b93606d49b37b7abe3（341000f7 + baba313）。安装/3081/8088/Doctor 通过，model_ready=false，厂商调用未验证。
+
+Docker Hot 实际镜像基于 24060ee3a24e71a1fad5cbad0eca1ad77da1d891，修复无 ps 的 guest 指纹与启动失败清理。原 PG 实例顺序 Docker generation54 → 暂停55 → Native56 → 暂停57；旧 Docker 代次拒绝，同逻辑数据库保持。Hot源码至341000f7无变化，但G2A合并改变完整镜像基础：最终341整镜像重建/运行仍 NOT_RUN，不能把组件证据算作完整最终产品 Docker PASS。
+用户授权临时停止的 dev/g2b 已恢复原 container/image/全部卷且运行；candidate已停止，旧镜像及全部5卷保留。ECB真实采集成功；DeepMind本轮 connection_reset 如实保留，不声明全来源成功。
+
+模型预算仍20calls/100000tokens/USD1，累计17calls/76804tokens/10253microUSD；本轮新增模型调用0。真实报告、联合PG/原文/研究快照恢复已完成，证据见 logs/hot-resume/ 下 report-page、joint-recovery、hot-mode-switch、mac-ci-final 回执。
+
+本轮UI增量：研究页面接入已有 prepare/execute 两步接口，冻结简报选材、明确提交问题，未知保留原请求，迟到响应不覆盖新提示。目标JS闭包79 PASS；浏览器DOM隔离接口替身验证通过（无模型/数据库调用），不能代替新增真实DSH研究。限定审查两项P2已关闭；文档、项目约束、文件索引及111项治理测试PASS。新增UI尚无远端CI证据，341000f7的MacCI不能升级为此增量PASS。
+完整 Goal 仍 INCOMPLETE：关注/加入跟踪、Hot唯一调度器的周期简报及Automation入口、完整真实评价/留出样本审计、最终整镜像验收和绑定当前候选的最终回执仍需推进。Windows/Linux由对应设备承担，保持NOT_RUN；不扩大预算。
+
 ## 断点与保全
 
 - 原 worktree：`/Users/leon/.codex/worktrees/hot-events-system/ResearchWorkbench`。

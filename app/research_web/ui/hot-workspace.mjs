@@ -2,6 +2,7 @@ import { renderIntelligenceNavigation } from './intel.mjs';
 import { escapeHTML as e } from './markdown.mjs';
 import { safeLog } from './core.mjs';
 import { renderHotReaderFeed, renderHotReaderRank } from './hot-reader.mjs';
+import { renderHotPreparation, renderHotExecution, hotResearchSubmission } from './hot-research-actions.mjs';
 
 const score = (value) => typeof value === 'number' && Number.isFinite(value) ? String(value) : '—';
 const names = { disabled: '尚未配置', stopped: '已停止', initialized: '运行中' };
@@ -32,13 +33,13 @@ export function renderHotResults(rows, loading = false, hasMore = false, disable
       const safe = sid && /^[a-f0-9]{24}$/.test(file.id || '') && file.url === expected;
       return `<p>${safe ? `<a class="button" href="${e(expected)}" download>下载 ${e(file.name)}</a>` : e(file.name)} <span class="small muted">${file.changed ? '文件已变化，旧校验不再适用' : file.verified ? '本次交付已校验' : '附加文件'}</span></p>`;
     }).join('')}${row.artifacts?.some(file=>file.verified&&file.format==='md')&&/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(row.runId)?`<a class="button" href="/api/research/hot/research/runs/${e(row.runId)}/docx" download>下载 Word 报告</a>`:''}${sid ? `<a class="button" href="#/${mode}?session=${e(sid)}">查看研究会话</a>` : ''}<button class="button" data-hot-action="refresh-run" data-run="${e(row.runId)}" ${disabled}>核对运行状态</button><details><summary>冻结证据与文件校验</summary><code>${e(row.manifestHash)}</code>${(row.artifacts || []).map(file => `<p>${e(file.name)} · ${e(file.sha256)}</p>`).join('')}</details></article>`;
-  }).join('') || (loading ? '<p>研究与报告读取中…</p>' : '<p>暂无已保存的Hot研究。冻结简报后可继续研究。</p>')}</div>${hasMore ? `<button class="button" data-hot-action="more-research" ${loading ? 'disabled' : ''}>下一页研究</button>` : ''}`;
+  }).join('') || (loading ? '<p>研究与报告读取中…</p>' : '<p>暂无已保存的Hot研究。冻结简报后可继续研究。</p>')}</div>${rows.filter(row=>row.stateVerified&&row.runState==='snapshot_ready').map(row=>renderHotExecution(row.runId,disabled)).join('')}${hasMore ? `<button class="button" data-hot-action="more-research" ${loading ? 'disabled' : ''}>下一页研究</button>` : ''}`;
 }
 export function renderHotWorkspace(state, { settings = false } = {}) {
   const disabled = state.busy || state.pending ? 'disabled' : '', timezone = state.config?.timezone || 'Asia/Shanghai';
   const status = names[state.status?.state] || '暂时不可用';
   const top = `<div class="hot-status"><span>${e(state.view === 'research' ? '已保存研究与报告' : status)}</span><span class="muted">显示时区：${e(timezone)}</span>${state.status?.model === 'blocked_model' ? '<span class="muted">模型未就绪，保留待处理资料</span>' : ''}<button class="button" type="button" data-hot-action="refresh" ${state.loading ? 'disabled' : ''}>刷新读取</button></div>`;
-  const notice = `${state.error ? `<div class="notice error" role="alert">${e(state.error)}</div>` : ''}${state.message ? `<div class="notice" role="status">${e(state.message)}</div>` : ''}${state.pending ? `<div class="notice" role="status"><strong>操作结果尚不确定</strong><p>请求 ${e(state.pending.body.requestId)} 已保留。重试使用完全相同参数。</p><button class="button" data-hot-action="retry" ${state.busy ? 'disabled' : ''}>核对并重试原请求</button></div>` : ''}`;
+  const notice = `${state.error ? `<div class="notice error" role="alert">${e(state.error)}</div>` : ''}${state.message ? `<div class="notice" role="status">${e(state.message)}</div>` : ''}${state.pending ? `<div class="notice" role="status"><strong>操作结果尚不确定</strong><p>请求 ${e(state.pending.body.requestId || state.pending.body.runId)} 已保留。重试使用完全相同参数。</p><button class="button" data-hot-action="retry" ${state.busy ? 'disabled' : ''}>核对并重试原请求</button></div>` : ''}`;
   if (settings) return `<div data-hot-workspace>${top}${notice}<form data-hot-form="configuration" data-hot-form-key="configuration"><label>Hot 非秘密配置<textarea name="configuration" rows="20" spellcheck="false" aria-label="Hot 非秘密配置">${e(JSON.stringify(state.config || {}, null, 2))}</textarea></label><p class="muted small">仅保存配置，运行参数在重启后生效。密码由系统凭据库管理，不填入此处。</p><button class="button primary" ${disabled}>保存配置</button></form><div class="hot-lifecycle">${['start','stop','restart'].map((action,index) => `<button class="button" data-hot-action="${action}" ${disabled}>${['启动','停止','重启'][index]}</button>`).join('')}<a href="#/intel/hot">查看事件</a></div><p class="muted small">首次依赖和数据库准备仍通过 rwb hot setup 完成；不会由页面刷新自动安装。</p></div>`;
   const header = `<header class="page-header"><div><p class="eyebrow">RESEARCH INTELLIGENCE</p><h1>研究情报</h1><p class="muted">本地热点与事件 · 共享事实与原文，按研究方向判断重要性。</p></div><a class="button" href="#/settings/hot">运行配置</a></header>${renderIntelligenceNavigation('hot')}`;
   const tabs = `<nav class="hot-tabs" aria-label="热点视图">${[['events','事件'],['sources','来源覆盖'],['channels','频道配置'],['briefs','简报'],['research','研究与报告']].map(([view,label]) => `<a href="#/intel/hot?view=${view}" ${state.view === view ? 'aria-current="page" class="active"' : ''}>${label}</a>`).join('')}</nav>`;
@@ -56,11 +57,11 @@ export function renderHotWorkspace(state, { settings = false } = {}) {
     const detail = state.detail ? `<aside class="hot-detail"><header><h2>${e(state.detail.title)}</h2><button class="button" data-hot-action="close-detail">关闭详情</button></header><p class="small muted">观察截止 ${e(hotTime(state.detail.cutoff, timezone))} · 事件版本 ${e(state.detail.revision)}</p>${state.detail.requestedId !== state.detail.canonicalId ? '<p class="notice">旧事件 ID 已解析为合并后的当前事件。</p>' : ''}<p>发生时间 ${e(hotTime(state.detail.occurredAt, timezone))} · 生效时间 ${e(hotTime(state.detail.effectiveAt, timezone))}</p>${state.detail.judgments.map(j => `<section><h3>${e(state.channels.find(c => c.channel_id === j.channelId)?.config.name || j.channelId)}</h3>${metrics(j.judgment)}<p>${e(j.judgment.reason)}</p>${j.inherited ? '<p class="small muted">继承既有人工判断，保留原始版本。</p>' : ''}<details><summary>判断依据与限制</summary><ul>${j.judgment.limitations.map(value => `<li>${e(value)}</li>`).join('')}</ul></details></section>`).join('')}<h3>来源报道</h3>${reports(state.detail, timezone, state.selectedMaterialIds)}${state.detail.reportOffset + state.detail.reports.length < state.detail.materialCount ? '<button class="button" data-hot-action="more-reports">下一页材料</button>' : ''}<h3>历史进展</h3><ol>${state.detail.history.map(item => `<li>版本 ${e(item.revision)} · ${e(hotTime(item.created_at, timezone))} · ${e(item.title)}</li>`).join('')}</ol>${state.detail.links.map(link => `<p><button class="button" data-hot-action="detail" data-event="${e(link.id)}">${e(({direct_followup:'直接前序',related:'相关事件',pending_review:'待复核关系'})[link.relation] || link.relation)}</button></p>`).join('')}<form data-hot-form="brief" data-hot-form-key="brief:${e(state.detail.canonicalId)}:${e(state.detail.revision)}"><label>简报频道<select name="channelId" required>${state.channels.map(c => `<option value="${e(c.channel_id)}" ${c.channel_id === state.filters.channelId ? 'selected' : ''}>${e(c.config.name)}</option>`).join('')}</select></label><p class="small muted">冻结此事件在详情截止时点的全部材料和频道判断，不调用模型。</p><button class="button primary" ${disabled}>生成此事件简报</button></form>${correction(state.detail, state.channels, disabled)}</aside>` : '';
     body = `${readerControls}${renderHotReaderRank(state.events,{loading:state.loading})}<details class="hot-reader-filter-panel"><summary>搜索、机构、资产与时间筛选</summary>${form}</details><p class="small muted">筛选为原文与事件的文字匹配；未知发布时间不进入日期窗口。截止 ${e(hotTime(state.cutoff, timezone))}。</p><div class="hot-layout"><div>${cards}${state.hasMore ? '<button class="button" data-hot-action="more">下一页事件</button>' : ''}</div>${detail}</div>`;
   }
-  return `<section class="hot-reader" data-hot-workspace aria-busy="${state.loading ? 'true' : 'false'}">${header}${top}${notice}${tabs}${body}${renderHotBrief(state.brief)}</section>`;
+  return `<section class="hot-reader" data-hot-workspace aria-busy="${state.loading ? 'true' : 'false'}">${header}${top}${notice}${tabs}${body}${renderHotBrief(state.brief)}${renderHotPreparation(state.brief,disabled)}${state.view!=='research'&&state.researchDraft?.state==='snapshot_ready'?renderHotExecution(state.researchDraft.runId,disabled):''}</section>`;
 }
 
 export function createHotController({ api, onChange = () => {}, isActive = () => true, uuid = () => crypto.randomUUID() }) {
-  const state = { view:'events', status:null, config:null, channels:[], sources:[], events:[], detail:null, filters:{sort:'recent'}, cutoff:'', offset:0, hasMore:false, loading:false, busy:false, error:'', message:'', pending:null, editChannel:'', editVersion:0, channelDraft:null, selectedMaterialIds:[], selectionKey:'', briefs:[], brief:null, briefCutoff:'', briefOffset:0, briefHasMore:false, researchRows:[], researchOffset:0, researchHasMore:false };
+  const state = { view:'events', status:null, config:null, channels:[], sources:[], events:[], detail:null, filters:{sort:'recent'}, cutoff:'', offset:0, hasMore:false, loading:false, busy:false, error:'', message:'', pending:null, editChannel:'', editVersion:0, channelDraft:null, selectedMaterialIds:[], selectionKey:'', briefs:[], brief:null, briefCutoff:'', briefOffset:0, briefHasMore:false, researchDraft:null, researchRows:[], researchOffset:0, researchHasMore:false };
   let generation = 0, detailGeneration = 0, briefGeneration = 0, lastRoute = {page:'workbench',section:'hot'};
   const current = (ticket) => ticket === generation && isActive();
   async function loadEvents(ticket, append = false) {
@@ -114,12 +115,26 @@ export function createHotController({ api, onChange = () => {}, isActive = () =>
     const pending = state.pending, ticket = generation, previewTicket = briefGeneration;
     try {
       const result = await api[pending.method](pending.body);
+      if (['hotResearchPrepare','hotResearchExecute'].includes(pending.method)) {
+        if(result.runId!==pending.body.runId)throw Error('研究响应归属不一致，原请求已保留。');
+        const prepared=pending.method==='hotResearchPrepare';
+        const confirmed=prepared?['snapshot_ready','running','completed','failed','abandoned'].includes(result.state):['running','completed','failed'].includes(result.state)&&typeof result.executionStarted==='boolean';
+        if(!confirmed) {if(current(ticket))state.message='研究受理结果尚不确定；核对并重试使用原请求，服务不会自动重新提交。';safeLog('hot_research_submission_unknown');return;}
+        state.pending=null;
+        if(current(ticket)){
+          state.researchDraft=result;
+          if(!prepared)state.researchRows=state.researchRows.map(row=>row.runId===result.runId?{...row,runState:result.state}:row);
+        }
+        if(current(ticket))state.message=prepared?(result.state==='snapshot_ready'?'研究会话与冻结资料已准备，请另行提交研究问题。':'原研究已有运行状态，请到研究与报告核对。'):result.executionStarted===false?'研究尚未启动，请查看运行状态。':'研究受理状态已返回，请到研究与报告核对产物。';
+        safeLog('hot_research_submission_confirmed');
+        return;
+      }
       if (result.state === 'outcome_unknown' || result.requestId !== pending.body.requestId) { state.message = '服务未能确认此次修改，原请求已保留。'; return; }
       state.pending = null; state.message = pending.method === 'hotBriefCreate' ? '简报已保存，网页与下载使用同一冻结版本。' : '修改已保存，请刷新读取最新版本。'; if(current(ticket)) state.detail = null;
       if (pending.method === 'hotBriefCreate' && current(ticket) && previewTicket === briefGeneration) { try { await openBrief(result.briefId,result.version,ticket); } catch {safeLog('hot_brief_read_failed');state.error = '简报已保存，详情暂不可用；可从简报列表重读。';} }
     } catch (error) {
       safeLog('hot_mutation_failed');
-      state.error = error.message || '修改结果未知。';
+      if(current(ticket))state.error = error.message || '修改结果未知。';
       if (/(?:conflict|invalid|required|denied|limit)$/.test(error.code || '') || ['hot_event_unknown','hot_channel_unknown','hot_channel_source_unknown','hot_service_stopped'].includes(error.code)) state.pending = null;
     } finally { state.busy = false; if (isActive()) onChange(); }
   }
@@ -130,6 +145,7 @@ export function createHotController({ api, onChange = () => {}, isActive = () =>
     try {
       if (kind === 'configuration') { state.busy = true; onChange(); await api.hotConfigure(JSON.parse(String(values.get('configuration')))); state.message = '配置已保存，重启后生效。'; state.busy = false; onChange(); return; }
       let method, body;
+      if (['research-prepare','research-execute'].includes(kind)) { state.pending=hotResearchSubmission(kind,values,state,form,uuid); return await sendPending(); }
       if (kind === 'brief' && state.detail) { method = 'hotBriefCreate'; body = {briefId:uuid(),expectedVersion:0,eventIds:[state.detail.canonicalId],channelId:String(values.get('channelId')),cutoff:state.detail.cutoff,timezone:state.config?.timezone || 'Asia/Shanghai',...(state.filters.from ? {from:state.filters.from} : {}),...(state.filters.to ? {to:state.filters.to} : {}),requestId:uuid()}; }
       else if (kind === 'channel') { const channelId = String(values.get('channelId')); method = 'hotChannelConfigure'; body = { channelId, expectedVersion:state.editChannel === channelId ? state.editVersion : 0, config:JSON.parse(String(values.get('config'))), requestId:uuid() }; }
       else if (kind === 'correction' && state.detail) {

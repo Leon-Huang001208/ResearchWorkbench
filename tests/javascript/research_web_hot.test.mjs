@@ -1,7 +1,72 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {createAPI,parseRoute} from '../../app/research_web/ui/core.mjs';
-import {createHotController,renderHotWorkspace,renderHotBrief,hotURL,hotTime} from '../../app/research_web/ui/hot-workspace.mjs';
+import {createHotController,renderHotWorkspace,renderHotBrief,renderHotResults,hotURL,hotTime} from '../../app/research_web/ui/hot-workspace.mjs';
+import {hotResearchSubmission,renderHotPreparation,renderHotExecution} from '../../app/research_web/ui/hot-research-actions.mjs';
+
+const researchRun='11111111-1111-4111-8111-111111111111', researchMaterial='22222222-2222-4222-8222-222222222222';
+const researchBrief={briefId:'33333333-3333-4333-8333-333333333333',version:2,payload:{events:[{reports:[{materialId:researchMaterial,title:'<script>publisher</script>',revision:3}]}]}};
+test('research preparation admits only selected frozen materials and never calls execution',async()=>{
+  const original=globalThis.FormData;const calls=[];
+  globalThis.FormData=class{get(){return 'claw';}getAll(){return [researchMaterial];}};
+  try{
+    const c=createHotController({uuid:()=>researchRun,api:{hotResearchPrepare:async body=>{calls.push(body);return {...body,state:'snapshot_ready',executionStarted:false};},hotResearchExecute:async()=>assert.fail('automatic execution')}});
+    c.state.brief=researchBrief;
+    await c.submit({dataset:{hotForm:'research-prepare'}});
+    assert.equal(c.state.pending,null);assert.equal(c.state.researchDraft.state,'snapshot_ready');assert.equal(calls[0].version,2);assert.deepEqual(calls[0].materialIds,[researchMaterial]);
+    assert.match(renderHotPreparation(researchBrief),/&lt;script&gt;/);assert.ok(!renderHotPreparation(researchBrief).includes('<script>'));
+  }finally{globalThis.FormData=original;}
+});
+test('research selection rejects foreign, duplicate, empty materials and invalid mode',()=>{
+  for(const [ids,mode] of [[[], 'claw'],[[researchRun],'claw'],[[researchMaterial,researchMaterial],'claw'],[[researchMaterial],'other']]){
+    assert.throws(()=>hotResearchSubmission('research-prepare',{get:()=>mode,getAll:()=>ids},{brief:researchBrief},{},()=>researchRun));
+  }
+});
+test('unknown execution retains exact question and run; explicit retry does not create a new run',async()=>{
+  const original=globalThis.FormData;let question='研究当前固定资料',count=0;const bodies=[];
+  globalThis.FormData=class{get(){return question;}};
+  try{
+    const c=createHotController({api:{hotResearchExecute:async body=>{bodies.push(JSON.stringify(body));return {runId:body.runId,state:++count===1?'execution_outcome_unknown':'running',executionStarted:count===1?null:true};}}});
+    c.state.researchDraft={runId:researchRun,state:'snapshot_ready'};
+    await c.submit({dataset:{hotForm:'research-execute',hotRun:researchRun}});
+    assert.ok(c.state.pending);question='changed';await c.submit({dataset:{hotForm:'research-execute',hotRun:researchRun}});assert.equal(bodies.length,1);
+    await c.action({dataset:{hotAction:'retry'}});assert.equal(bodies[0],bodies[1]);assert.equal(c.state.pending,null);
+  }finally{globalThis.FormData=original;}
+});
+test('execute requires a verified prepared run; reads and unverified rows expose no paid action',()=>{
+  const row={runId:researchRun,runState:'snapshot_ready',stateVerified:false,artifacts:[]};
+  assert.ok(!renderHotResults([row]).includes('data-hot-form="research-execute"'));
+  assert.ok(renderHotResults([{...row,stateVerified:true}]).includes('data-hot-form="research-execute"'));
+  assert.throws(()=>hotResearchSubmission('research-execute',{get:()=> 'question'},{researchRows:[{runId:researchRun,runState:'snapshot_ready',stateVerified:false}]},{dataset:{hotRun:researchRun}}));
+  assert.equal(renderHotExecution('bad'), '');assert.match(renderHotExecution(researchRun,'disabled'),/disabled/);
+});
+test('research API writes carry explicit action and execution does not leak client run into body',async()=>{
+  const calls=[];const api=createAPI({logger:()=>{},fetcher:async(url,options)=>{calls.push({url,options});return {ok:true,status:200,json:async()=>({})};}});
+  await api.hotResearchPrepare({runId:researchRun});await api.hotResearchExecute({runId:researchRun,question:'q',formats:['md']});
+  assert.equal(calls[0].options.headers['X-Research-User-Action'],'?1');assert.equal(calls[1].options.headers['X-Research-User-Action'],'?1');assert.match(calls[1].url,/research-runs\//);assert.deepEqual(JSON.parse(calls[1].options.body),{question:'q',formats:['md']});
+});
+test('incomplete execution response keeps original request and cannot certify acceptance',async()=>{
+  const original=globalThis.FormData;
+  globalThis.FormData=class{get(){return 'question';}};
+  try{
+    for(const response of [{runId:researchRun},{runId:researchRun,state:'running'},{runId:researchRun,state:'invented',executionStarted:true}]){
+      const c=createHotController({api:{hotResearchExecute:async()=>response}});c.state.researchDraft={runId:researchRun,state:'snapshot_ready'};
+      await c.submit({dataset:{hotForm:'research-execute',hotRun:researchRun}});assert.ok(c.state.pending);assert.match(c.state.message,/不确定/);
+    }
+  }finally{globalThis.FormData=original;}
+});
+test('late research success or failure does not overwrite next view messages',async()=>{
+  const original=globalThis.FormData;globalThis.FormData=class{get(){return 'question';}};
+  try{
+    for(const fail of [false,true]){
+      let finish;
+      const c=createHotController({api:{hotResearchExecute:async()=>new Promise((resolve,reject)=>{finish=()=>fail?reject(Error('old error')):resolve({runId:researchRun,state:'running',executionStarted:true});})}});
+      c.state.researchDraft={runId:researchRun,state:'snapshot_ready'};
+      const promise=c.submit({dataset:{hotForm:'research-execute',hotRun:researchRun}});c.deactivate();c.state.message='new message';c.state.error='new error';finish();await promise;
+      assert.equal(c.state.message,'new message');assert.equal(c.state.error,'new error');assert.equal(Boolean(c.state.pending),fail);
+    }
+  }finally{globalThis.FormData=original;}
+});
 
 test('Hot routes preserve existing app routes and explicit action API boundaries',async()=>{
   assert.equal(parseRoute('#/workbench/hot?view=sources').hotView,'sources');

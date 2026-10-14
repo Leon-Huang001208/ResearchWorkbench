@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "updated",
-  "summary": "同时保留Hot真实报告、Claw/FinGPT/ETF入口及主线两种容器凭据格式边界。",
-  "reason": "Hot预算不变；ETF仍engineering_only，Fernet同卷与管理器AES-GCM只读独立主密钥卷拒绝混用；合并不以旧运行证据升级新制品或跨平台状态。"
+  "summary": "更新Hot真实报告、恢复和MacCI进度，研究页面补齐冻结选材准备与明确执行两步。",
+  "reason": "继续复用原ResearchService/DSH及已有额度，未知响应保留原请求；组件Docker证据不升级最终整镜像，关注/周期简报及完整Goal保持未完成。Claw/ETF/凭据格式边界沿用现行合同。"
 }

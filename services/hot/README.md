@@ -10,7 +10,15 @@ The 2026-10-13 reading interface adapts AIHOT's MIT frontend patterns into RWB's
 existing native UI: scoped paper/teal themes, observation-date rail and page-local
 heat strip. Own branding, eight external columns and existing Host read/control
 boundaries remain. `THIRD_PARTY_NOTICES.md` records the frontend reference commit;
-this appearance change does not assemble the outstanding paid study or scheduler.
+this appearance change alone does not certify the research or scheduler loop.
+
+The UI now selects 1–20 frozen brief materials for the existing Host handoff,
+then admits an explicit question through the existing execution API. Preparation
+and reads do not execute research. Unknown responses retain the exact original
+run/question/formats for user-requested reconciliation; incomplete responses do
+not certify acceptance. The existing paid report and the isolated browser UI
+fixture have separate evidence. Follows and periodic brief adaptation remain
+outstanding; this does not declare the full Goal complete.
 
 This package is under implementation. It is not yet a supported product entry.
 The authoritative continuation record is `.ai/reports/2026-10-12-hot-intel-resume-PROGRESS.md`;

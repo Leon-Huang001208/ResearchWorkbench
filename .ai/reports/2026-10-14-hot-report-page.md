@@ -1,5 +1,10 @@
 # 研究情报真实报告与状态接入
 
+当前状态以 2026-10-12-hot-intel-resume-PROGRESS.md 顶部“当前权威断点”为准；下列为历史执行记录。
+source341000f7的Mac安装/通用CI已通过，Docker Hot24060ee3实际运行与Native顺序同库切换已验，dev/g2b已恢复。
+新增研究UI两步动作复用现有API，79项目标JS测试通过；浏览器隔离接口替身通过，不新增模型调用。
+完整最终341 Docker镜像、关注/周期简报与完整Goal仍未完成，不能把旧阶段待验条目或当前组件PASS误读为整体验收。
+
 PR #106已为集成候选c77ba3bee创建；通用CI通过，首次MacCI执行中。
 实际Docker诊断已复现镜像缺ps，Hot初始化后的指纹核对因此失败；PG为docker/53，
 账本17/76804不变。guest改用有界/proc birth/UID/argv双读，不新增依赖；启动清理
