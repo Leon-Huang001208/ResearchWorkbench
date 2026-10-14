@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "updated",
-  "summary": "保留最新主线模型、数据、会话及Git安全改动；新增框架嵌入核心与九套静态入口。",
-  "reason": "复核README及模块文档，原生Gold/Dollar快照和唯一DSH执行链不变；展示适配不激活预算、不迁移凭据或新增部署节点，所有证据重绑最新集成候选。"
+  "disposition": "unchanged",
+  "summary": "纠正Dollar既有托管指标源映射，README公开入口与产品边界保持。",
+  "reason": "无新增依赖、schema、部署节点、权限或方法；Source语义、频率、单位及日期更新在框架模块文档和任务报告中，旧快照保持历史身份。"
 }

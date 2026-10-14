@@ -25,6 +25,8 @@ from .store import DollarSnapshotStore
 
 log = get_logger(__name__)
 FRED = "https://fred.stlouisfed.org/"
+CUSTODY_SERIES_ID = "WMTSECL1"
+CUSTODY_SERIES_URL = FRED + "series/" + CUSTODY_SERIES_ID
 NY_RATES = "https://markets.newyorkfed.org/api/rates/all/search.json"
 FISCAL = "https://api.fiscaldata.treasury.gov/services/api/fiscal_service/v1/accounting/dts/operating_cash_balance"
 AUCTIONS = "https://www.treasurydirect.gov/TA_WS/securities/upcoming?format=json"
@@ -42,7 +44,7 @@ FRED_IDS = (
     "DEXCHUS",
     "DEXUSEU",
     "BAMLH0A0HYM2",
-    "TRESEGUSM052N",
+    CUSTODY_SERIES_ID,
 )
 
 
@@ -381,13 +383,22 @@ class DollarCollector:
                     ],
                 }
                 custody = [
-                    {**item, "value": item["value"] / 1000} for item in rows["TRESEGUSM052N"]
+                    {**item, "value": item["value"] / 1000} for item in rows[CUSTODY_SERIES_ID]
                 ]
+                custody_date = custody[-1]["date"]
+                custody_source = source_record(
+                    "Federal Reserve Board · H.4.1 Treasury custody",
+                    CUSTODY_SERIES_URL,
+                    custody_date,
+                    "USD billions",
+                    "weekly Wednesday level; source USD millions divided by 1000; "
+                    "foreign official and international accounts, not all foreign holdings",
+                )
                 value["cross_border_x"] = {
                     **common,
-                    "as_of": dollar[-1]["date"],
+                    "as_of": max(dollar[-1]["date"], custody_date),
                     "status": "partial",
-                    "sources": [fred_source],
+                    "sources": [fred_source, custody_source],
                     "gaps": [
                         {
                             "id": "cross-currency-basis",
@@ -415,17 +426,17 @@ class DollarCollector:
                             True,
                         ),
                         _metric(
-                            "外国官方托管美债",
+                            "外国官方及国际账户托管美债",
                             f"${custody[-1]['value']:.0f}bn",
                             _trend(latest_change(custody, 1), 10),
-                            "不代表全部海外美债持仓",
-                            True,
+                            f"周频周三水平，观测 {custody_date}；不代表全部海外美债持仓",
+                            False,
                         ),
                     ],
                     "series": [
                         _series("广义美元", "指数", dollar),
                         _series("USD/JPY", "JPY/USD", rows["DEXJPUS"]),
-                        _series("外国官方托管", "十亿美元", custody),
+                        _series("外国官方及国际账户托管美债", "十亿美元", custody),
                     ],
                 }
                 value["transmission"].update(
