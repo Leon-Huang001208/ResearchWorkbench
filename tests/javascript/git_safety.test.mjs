@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import crypto from 'node:crypto';
 import {spawnSync} from 'node:child_process';
 import {backupRepository, checkRepository, configureRepository, selectGitPath, withRepositoryLock, validateCleanup, runDelivery, parseCli} from '../../scripts/git_safety.mjs';
 
@@ -543,4 +544,198 @@ test('private CommonJS marker rejects unknown, symlinked and hardlinked files wi
     assert.deepEqual(fs.readFileSync(marker), before);
     assert.equal(fs.readFileSync(victim, 'utf8'), '{"type":"commonjs"}\n');
   }
+});
+
+test('actual restore preserves private/read-only/executable tracked modes, patches, missing files and symlinks', t => {
+  const {root, projectRoot, options} = fixture(t);
+  fs.writeFileSync(path.join(projectRoot, 'private.txt'), 'private fixture');
+  fs.writeFileSync(path.join(projectRoot, 'readonly.txt'), 'read-only fixture');
+  fs.writeFileSync(path.join(projectRoot, 'run.sh'), '#!/bin/sh\nexit 0\n', {mode: 0o755});
+  fs.writeFileSync(path.join(projectRoot, 'missing.txt'), 'will be removed');
+  const outside = path.join(root, 'outside.txt'); fs.writeFileSync(outside, 'outside unchanged', {mode: 0o640});
+  fs.symlinkSync(outside, path.join(projectRoot, 'tracked-link'));
+  git(projectRoot, ['add', '.']); git(projectRoot, ['commit', '-m', 'tracked permissions fixture']);
+  fs.chmodSync(path.join(projectRoot, 'private.txt'), 0o600);
+  fs.chmodSync(path.join(projectRoot, 'readonly.txt'), 0o400);
+  fs.chmodSync(path.join(projectRoot, 'run.sh'), 0o700);
+  fs.writeFileSync(path.join(projectRoot, 'tracked.txt'), 'staged\n'); git(projectRoot, ['add', 'tracked.txt']);
+  fs.writeFileSync(path.join(projectRoot, 'tracked.txt'), 'unstaged\n'); fs.chmodSync(path.join(projectRoot, 'tracked.txt'), 0o600);
+  fs.chmodSync(path.join(projectRoot, 'missing.txt'), 0o400); fs.unlinkSync(path.join(projectRoot, 'missing.txt'));
+  const result = backupRepository({projectRoot}, options);
+  assert.equal(result.restoreVerified, true);
+  const manifest = JSON.parse(fs.readFileSync(path.join(result.directory, 'manifest.json')));
+  const tracked = Object.fromEntries(manifest.worktrees[0].tracked.map(item => [item.path, item]));
+  assert.equal(tracked['private.txt'].mode, 0o600);
+  assert.equal(tracked['readonly.txt'].mode, 0o400);
+  assert.equal(tracked['run.sh'].mode, 0o700);
+  assert.equal(tracked['missing.txt'].type, 'missing');
+  assert.equal(tracked['tracked-link'].type, 'symlink');
+  assert.equal(fs.statSync(outside).mode & 0o777, 0o640);
+  assert.equal(fs.readFileSync(outside, 'utf8'), 'outside unchanged');
+});
+
+test('failed restore retains private uncertified draft and immutable failure status', t => {
+  const {root, projectRoot, options} = fixture(t);
+  const wrapper = path.join(root, 'tamper-restore-git');
+  fs.writeFileSync(wrapper, `#!${process.execPath}\nconst fs=require('node:fs');const path=require('node:path');const {spawnSync}=require('node:child_process');const a=process.argv.slice(2);const r=spawnSync('/usr/bin/git',a,{stdio:'inherit'});if(r.status===0&&a.includes('worktree')&&a.includes('add')&&a.includes('--detach')){const target=a[a.indexOf('--detach')+1];if(!path.resolve(target).startsWith(${JSON.stringify(options.backupRoot + path.sep)}))process.exit(78);const backup=path.dirname(path.dirname(target));const manifest=JSON.parse(fs.readFileSync(path.join(backup,'manifest-draft.json')));const index=manifest.worktrees[0].tracked.findIndex(item=>item.path==='tracked.txt');fs.writeFileSync(path.join(backup,'worktrees/0/tracked',String(index)),'TAMPERED_ARTIFACT');}process.exit(r.status??1);\n`, {mode: 0o700});
+  assert.throws(() => backupRepository({projectRoot}, {...options, gitPath: wrapper}), {code: 'BACKUP_HASH_MISMATCH'});
+  const directory = path.join(options.backupRoot, fs.readdirSync(options.backupRoot)[0]);
+  const draftPath = path.join(directory, 'manifest-draft.json');
+  const draft = JSON.parse(fs.readFileSync(draftPath));
+  assert.equal(draft.restoreVerified, false);
+  assert.ok(draft.files.some(item => item.path === 'objects.pack'));
+  assert.ok(draft.files.some(item => item.path === 'worktrees/0/unstaged.patch'));
+  const status = JSON.parse(fs.readFileSync(path.join(directory, 'failure-status.json')));
+  assert.equal(status.restoreVerified, false);
+  assert.equal(status.status, 'FAIL');
+  assert.equal(status.code, 'BACKUP_HASH_MISMATCH');
+  assert.equal(fs.statSync(draftPath).mode & 0o777, 0o600);
+  assert.equal(fs.statSync(path.join(directory, 'failure-status.json')).mode & 0o777, 0o600);
+  assert.equal(fs.existsSync(path.join(directory, 'manifest.json')), false);
+  assert.equal(fs.readFileSync(path.join(projectRoot, 'tracked.txt'), 'utf8'), 'base\n');
+});
+
+test('restored regular-file replacement by symlink/hardlink cannot chmod external data', t => {
+  for (const kind of ['symlink', 'hardlink']) {
+    const {root, projectRoot, options} = fixture(t);
+    fs.chmodSync(path.join(projectRoot, 'tracked.txt'), 0o600);
+    const outside = path.join(root, 'outside.txt'); fs.writeFileSync(outside, 'outside untouched', {mode: 0o640});
+    const wrapper = path.join(root, 'replace-restore-git');
+    fs.writeFileSync(wrapper, `#!${process.execPath}\nconst fs=require('node:fs');const path=require('node:path');const {spawnSync}=require('node:child_process');const a=process.argv.slice(2);const r=spawnSync('/usr/bin/git',a,{stdio:'inherit'});if(r.status===0&&a.includes('worktree')&&a.includes('add')&&a.includes('--detach')){const target=a[a.indexOf('--detach')+1];if(!path.resolve(target).startsWith(${JSON.stringify(options.backupRoot + path.sep)}))process.exit(78);const file=path.join(target,'tracked.txt');fs.unlinkSync(file);fs.${kind === 'symlink' ? 'symlinkSync' : 'linkSync'}(${JSON.stringify(outside)},file);}process.exit(r.status??1);\n`, {mode: 0o700});
+    assert.throws(() => backupRepository({projectRoot}, {...options, gitPath: wrapper}), {code: 'RESTORE_FILE_INVALID'});
+    assert.equal(fs.statSync(outside).mode & 0o777, 0o640);
+    assert.equal(fs.readFileSync(outside, 'utf8'), 'outside untouched');
+    assert.equal(fs.statSync(path.join(projectRoot, 'tracked.txt')).mode & 0o777, 0o600);
+  }
+});
+
+test('tracked raw LF working copy survives Git CRLF checkout normalization with exact bytes and mode', t => {
+  const {root, projectRoot, options} = fixture(t);
+  const bytes = Buffer.from('@echo off\necho fixture\n');
+  fs.writeFileSync(path.join(projectRoot, '.gitattributes'), '*.cmd text eol=crlf\n');
+  fs.writeFileSync(path.join(projectRoot, '.gitignore'), 'logs/\n');
+  fs.writeFileSync(path.join(projectRoot, 'fixture.cmd'), bytes);
+  git(projectRoot, ['add', '.']); git(projectRoot, ['commit', '-m', 'CRLF normalization fixture']);
+  fs.chmodSync(path.join(projectRoot, 'fixture.cmd'), 0o600);
+  assert.equal(git(projectRoot, ['status', '--porcelain']), '');
+  const probe = path.join(root, 'canonical-checkout');
+  git(projectRoot, ['clone', '--no-hardlinks', projectRoot, probe]);
+  assert.deepEqual(fs.readFileSync(path.join(probe, 'fixture.cmd')), Buffer.from('@echo off\r\necho fixture\r\n'));
+  const result = backupRepository({projectRoot}, options);
+  assert.equal(result.restoreVerified, true);
+  const manifest = JSON.parse(fs.readFileSync(path.join(result.directory, 'manifest.json')));
+  const tracked = manifest.worktrees[0].tracked;
+  const index = tracked.findIndex(item => item.path === 'fixture.cmd');
+  const artifact = path.join(result.directory, `worktrees/0/tracked/${index}`);
+  assert.deepEqual(fs.readFileSync(artifact), bytes);
+  assert.equal(tracked[index].sha256, crypto.createHash('sha256').update(bytes).digest('hex'));
+  assert.equal(tracked[index].mode, 0o600);
+  assert.equal(fs.statSync(artifact).mode & 0o777, 0o600);
+  assert.equal(fs.statSync(path.dirname(artifact)).mode & 0o777, 0o700);
+  assert.deepEqual(fs.readFileSync(path.join(projectRoot, 'fixture.cmd')), bytes);
+  assert.equal(git(projectRoot, ['status', '--porcelain']), '');
+});
+
+test('tracked raw snapshot refuses source content/identity races and does not follow replaced symlinks', t => {
+  for (const kind of ['content', 'symlink']) {
+    const {root, projectRoot, options} = fixture(t);
+    const source = path.join(projectRoot, 'tracked.txt');
+    const outside = path.join(root, 'outside.txt'); fs.writeFileSync(outside, 'OUTSIDE_NOT_EXPORTED', {mode: 0o640});
+    const originalOpen = fs.openSync; let raced = false;
+    fs.openSync = function(filename, flags, mode) {
+      if (filename === source && typeof flags === 'number' && !raced) {
+        raced = true;
+        if (kind === 'content') fs.writeFileSync(source, 'changed during snapshot');
+        else { fs.unlinkSync(source); fs.symlinkSync(outside, source); }
+      }
+      return originalOpen.call(fs, filename, flags, mode);
+    };
+    try { assert.throws(() => backupRepository({projectRoot}, options), {code: 'BACKUP_RACE'}); }
+    finally { fs.openSync = originalOpen; }
+    assert.equal(raced, true);
+    assert.equal(fs.statSync(outside).mode & 0o777, 0o640);
+    assert.equal(fs.readFileSync(outside, 'utf8'), 'OUTSIDE_NOT_EXPORTED');
+    const directory = path.join(options.backupRoot, fs.readdirSync(options.backupRoot)[0]);
+    assert.equal(fs.existsSync(path.join(directory, 'manifest.json')), false);
+    const draft = JSON.parse(fs.readFileSync(path.join(directory, 'manifest-draft.json')));
+    const sentinelHash = crypto.createHash('sha256').update('OUTSIDE_NOT_EXPORTED').digest('hex');
+    assert.equal(draft.files.some(file => file.sha256 === sentinelHash), false);
+    assert.equal(JSON.parse(fs.readFileSync(path.join(directory, 'failure-status.json'))).code, 'BACKUP_RACE');
+  }
+});
+
+function snapshotTree(projectRoot, contents) {
+  const blob = spawnSync('/usr/bin/git', ['-C', projectRoot, 'hash-object', '-w', '--stdin'], {input: contents, encoding: 'utf8'});
+  assert.equal(blob.status, 0);
+  const tree = spawnSync('/usr/bin/git', ['-C', projectRoot, 'mktree'], {input: `100644 blob ${blob.stdout.trim()}\tsnapshot.txt\n`, encoding: 'utf8'});
+  assert.equal(tree.status, 0);
+  return {blob: blob.stdout.trim(), tree: tree.stdout.trim()};
+}
+function verifyPackedBlob(projectRoot, root, directory, oid, contents) {
+  const bare = path.join(root, 'pack-proof.git');
+  git(projectRoot, ['init', '--bare', '-b', 'master', bare]);
+  const indexed = spawnSync('/usr/bin/git', ['-C', bare, 'index-pack', '--stdin'], {input: fs.readFileSync(path.join(directory, 'objects.pack')), encoding: 'utf8'});
+  assert.equal(indexed.status, 0, indexed.stderr);
+  assert.equal(git(bare, ['cat-file', '-p', oid]), contents);
+}
+
+test('as-of backup allows concurrent Codex tree updates/new unrelated worktrees and restores saved old closure', t => {
+  const {root, projectRoot, options} = fixture(t);
+  const ref = 'refs/codex/turn-diffs/checkpoints/fixture';
+  const old = snapshotTree(projectRoot, 'OLD_SNAPSHOT_ONLY_BLOB');
+  const newer = snapshotTree(projectRoot, 'NEW_SNAPSHOT_ONLY_BLOB');
+  git(projectRoot, ['update-ref', ref, old.tree]);
+  const unrelated = path.join(root, 'new-other');
+  const wrapper = path.join(root, 'concurrent-snapshot-git');
+  fs.writeFileSync(wrapper, `#!${process.execPath}\nconst {spawnSync}=require('node:child_process');const a=process.argv.slice(2);const r=spawnSync('/usr/bin/git',a,{stdio:'inherit'});if(r.status===0&&a.includes('pack-objects')){const root=${JSON.stringify(projectRoot)};for(const args of [['update-ref',${JSON.stringify(ref)},${JSON.stringify(newer.tree)}],['worktree','add','-b','codex/new-other',${JSON.stringify(unrelated)}]]){if(spawnSync('/usr/bin/git',['--no-optional-locks','-c','gc.auto=0','-c','maintenance.auto=false','-C',root,...args],{stdio:'ignore'}).status!==0)process.exit(79);}}process.exit(r.status??1);\n`, {mode: 0o700});
+  const result = backupRepository({projectRoot}, {...options, gitPath: wrapper});
+  assert.equal(result.restoreVerified, true);
+  const manifest = JSON.parse(fs.readFileSync(path.join(result.directory, 'manifest.json')));
+  assert.equal(manifest.metadataSemantics, 'as-of-capture');
+  assert.equal(manifest.refs[ref], old.tree);
+  assert.equal(git(projectRoot, ['rev-parse', ref]), newer.tree);
+  assert.ok(fs.existsSync(unrelated));
+  assert.equal(manifest.registeredWorktrees.some(item => item.worktree === unrelated), false);
+  verifyPackedBlob(projectRoot, root, result.directory, old.blob, 'OLD_SNAPSHOT_ONLY_BLOB');
+});
+
+test('preservation anchors archive snapshot old OIDs changed before backup capture', t => {
+  const {root, projectRoot, options} = fixture(t);
+  const ref = 'refs/codex/turn-diffs/captures/base';
+  const old = snapshotTree(projectRoot, 'PRE_CAPTURE_OLD_BLOB');
+  const newer = snapshotTree(projectRoot, 'CAPTURE_CURRENT_BLOB');
+  git(projectRoot, ['update-ref', ref, old.tree]);
+  const preservationRefs = {[ref]: old.tree};
+  git(projectRoot, ['update-ref', ref, newer.tree]);
+  const result = backupRepository({projectRoot}, {...options, preservationRefs});
+  const manifest = JSON.parse(fs.readFileSync(path.join(result.directory, 'manifest.json')));
+  assert.equal(manifest.refs[ref], newer.tree);
+  assert.equal(manifest.preservationRefs[ref], old.tree);
+  verifyPackedBlob(projectRoot, root, result.directory, old.blob, 'PRE_CAPTURE_OLD_BLOB');
+});
+
+test('target HEAD/branch changes still fail backup despite allowing unrelated snapshot updates', t => {
+  const {root, projectRoot, options} = fixture(t);
+  const wrapper = path.join(root, 'move-target-git');
+  fs.writeFileSync(wrapper, `#!${process.execPath}\nconst {spawnSync}=require('node:child_process');const a=process.argv.slice(2);const r=spawnSync('/usr/bin/git',a,{stdio:'inherit'});if(r.status===0&&a.includes('pack-objects')){if(spawnSync('/usr/bin/git',['-c','gc.auto=0','-c','maintenance.auto=false','-C',${JSON.stringify(projectRoot)},'commit','--allow-empty','-m','target moved'],{stdio:'ignore'}).status!==0)process.exit(79);}process.exit(r.status??1);\n`, {mode: 0o700});
+  assert.throws(() => backupRepository({projectRoot}, {...options, gitPath: wrapper}), {code: 'BACKUP_RACE'});
+});
+
+test('cleanup preserves concurrent Codex tree pointers and verifies old snapshot backup before accepting update', async t => {
+  const {root, projectRoot, options, receipt} = cleanupFixture(t);
+  const ref = 'refs/codex/turn-diffs/checkpoints/cleanup';
+  const old = snapshotTree(projectRoot, 'CLEANUP_OLD_BLOB');
+  const newer = snapshotTree(projectRoot, 'CLEANUP_NEW_BLOB');
+  git(projectRoot, ['update-ref', ref, old.tree]);
+  const controller = {readDeliveryReceipt: () => receipt, cleanupDelivery: () => {
+    git(projectRoot, ['update-ref', ref, newer.tree]);
+    for (const target of [receipt.featureWorktree, receipt.integrationWorktree]) git(projectRoot, ['worktree', 'remove', target]);
+    for (const branch of [receipt.featureBranch, receipt.integrationBranch]) git(projectRoot, ['branch', '-d', branch]);
+    return {status: 'cleaned'};
+  }};
+  const result = await runDelivery({projectRoot, taskId: 'task', action: 'cleanup'}, {...options, controller, processProbe: () => false, quotaProbe: () => ({allowed: true})});
+  assert.ok(result.concurrentRefAdvances.some(item => item.event === 'concurrent_snapshot_update' && item.oldCommit === old.tree && item.newCommit === newer.tree));
+  assert.equal(git(projectRoot, ['rev-parse', ref]), newer.tree);
+  assert.equal(JSON.parse(fs.readFileSync(path.join(result.safetyBackup, 'manifest.json'))).preservationRefs[ref], old.tree);
+  verifyPackedBlob(projectRoot, root, result.safetyBackup, old.blob, 'CLEANUP_OLD_BLOB');
 });

@@ -236,15 +236,91 @@ function capture(repository, options) {
   });
   return {refs: refs(repository, options), registeredWorktrees, worktrees: lists.map(({entry, untracked}) => ({
     path: entry.worktree, head: entry.HEAD, branch: entry.branch ?? null,
+    index: sha256(git(entry.worktree, ['ls-files', '--stage', '-z'], options).stdout),
     staged: sha256(git(entry.worktree, ['diff', '--cached', '--binary', '--full-index', 'HEAD', '--'], options).stdout),
     unstaged: sha256(git(entry.worktree, ['diff', '--binary', '--full-index', '--'], options).stdout),
     tracked: [...new Set(paths(entry.worktree, ['ls-files', '--cached', '-z'], options))].sort().map(name => fileRecord(entry.worktree, name)),
     untracked: untracked.sort().map(name => fileRecord(entry.worktree, name))
   }))};
 }
+function targetFootprint(captured) {
+  return {worktrees: captured.worktrees, branchRefs: Object.fromEntries(captured.worktrees.filter(item => item.branch).map(item => [item.branch, captured.refs[item.branch] ?? null]))};
+}
 function saveArtifact(directory, relative, bytes, manifest) {
   privateWrite(path.join(directory, relative), bytes);
   manifest.files.push({path: relative, sha256: sha256(bytes)});
+}
+function copyDescriptors(sourceFd, targetFd) {
+  const digest = crypto.createHash('sha256');
+  const buffer = Buffer.allocUnsafe(1024 * 1024);
+  let count;
+  while ((count = fs.readSync(sourceFd, buffer, 0, buffer.length, null))) {
+    digest.update(buffer.subarray(0, count));
+    let written = 0;
+    while (written < count) {
+      const size = fs.writeSync(targetFd, buffer, written, count - written, null);
+      if (size <= 0) fail('BACKUP_WRITE_FAILED');
+      written += size;
+    }
+  }
+  return digest.digest('hex');
+}
+function snapshotRegularFile(sourceRoot, item, directory, relative, manifest) {
+  const source = path.resolve(sourceRoot, item.path);
+  if (!source.startsWith(path.resolve(sourceRoot) + path.sep) || item.type !== 'file') fail('BACKUP_RACE');
+  assertNoSymlinkAncestors(path.dirname(source));
+  const before = fs.lstatSync(source, {throwIfNoEntry: false});
+  if (!before?.isFile() || before.isSymbolicLink() || (before.mode & 0o777) !== item.mode) fail('BACKUP_RACE');
+  let sourceFd, targetFd;
+  try {
+    try { sourceFd = fs.openSync(source, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW); } catch { fail('BACKUP_RACE'); }
+    const opened = fs.fstatSync(sourceFd);
+    if (!opened.isFile() || opened.ino !== before.ino || opened.dev !== before.dev || opened.uid !== before.uid) fail('BACKUP_RACE');
+    const target = path.join(directory, relative);
+    privateDirectory(path.dirname(target));
+    assertNoSymlinkAncestors(path.dirname(target));
+    targetFd = fs.openSync(target, fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_EXCL | fs.constants.O_NOFOLLOW, 0o600);
+    const hash = copyDescriptors(sourceFd, targetFd);
+    const after = fs.fstatSync(sourceFd);
+    const current = fs.lstatSync(source, {throwIfNoEntry: false});
+    assertNoSymlinkAncestors(path.dirname(source));
+    if (hash !== item.sha256 || !current?.isFile() || current.isSymbolicLink() || current.ino !== opened.ino || current.dev !== opened.dev || current.uid !== opened.uid || after.size !== before.size || after.mtimeMs !== before.mtimeMs || after.ctimeMs !== before.ctimeMs || after.nlink !== before.nlink || (after.mode & 0o777) !== item.mode) fail('BACKUP_RACE');
+    manifest.files.push({path: relative, sha256: hash});
+  } finally { if (sourceFd !== undefined) fs.closeSync(sourceFd); if (targetFd !== undefined) fs.closeSync(targetFd); }
+}
+function restoreFileMode(scratch, restored, item, rawArtifact) {
+  const target = path.resolve(restored, item.path);
+  const scope = path.resolve(scratch) + path.sep;
+  if (item.type !== 'file' || !target.startsWith(scope) || !target.startsWith(path.resolve(restored) + path.sep) || !Number.isInteger(item.mode) || item.mode < 0 || item.mode > 0o777) fail('RESTORE_FILE_INVALID');
+  assertNoSymlinkAncestors(path.dirname(target));
+  const before = fs.lstatSync(target, {throwIfNoEntry: false});
+  if (!before?.isFile() || before.isSymbolicLink() || before.nlink !== 1 || (typeof process.getuid === 'function' && before.uid !== process.getuid())) fail('RESTORE_FILE_INVALID');
+  let fd;
+  try {
+    try { fd = fs.openSync(target, (rawArtifact ? fs.constants.O_RDWR : fs.constants.O_RDONLY) | fs.constants.O_NOFOLLOW); } catch { fail('RESTORE_FILE_INVALID'); }
+    const opened = fs.fstatSync(fd);
+    const current = fs.lstatSync(target, {throwIfNoEntry: false});
+    assertNoSymlinkAncestors(path.dirname(target));
+    if (!opened.isFile() || opened.nlink !== 1 || opened.ino !== before.ino || opened.dev !== before.dev || opened.uid !== before.uid || !current || current.isSymbolicLink() || current.nlink !== 1 || current.ino !== opened.ino || current.dev !== opened.dev) fail('RESTORE_FILE_INVALID');
+    if (rawArtifact) {
+      assertNoSymlinkAncestors(path.dirname(rawArtifact));
+      const artifact = fs.lstatSync(rawArtifact, {throwIfNoEntry: false});
+      if (!artifact?.isFile() || artifact.isSymbolicLink() || artifact.nlink !== 1 || (typeof process.getuid === 'function' && artifact.uid !== process.getuid())) fail('BACKUP_HASH_MISMATCH');
+      let sourceFd;
+      try {
+        sourceFd = fs.openSync(rawArtifact, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW);
+        const actual = fs.fstatSync(sourceFd);
+        if (actual.ino !== artifact.ino || actual.dev !== artifact.dev || actual.nlink !== 1) fail('BACKUP_HASH_MISMATCH');
+        fs.ftruncateSync(fd, 0);
+        if (copyDescriptors(sourceFd, fd) !== item.sha256) fail('BACKUP_HASH_MISMATCH');
+      } finally { if (sourceFd !== undefined) fs.closeSync(sourceFd); }
+    }
+    fs.fchmodSync(fd, item.mode);
+    const after = fs.fstatSync(fd);
+    const afterPath = fs.lstatSync(target, {throwIfNoEntry: false});
+    assertNoSymlinkAncestors(path.dirname(target));
+    if (after.nlink !== 1 || (after.mode & 0o777) !== item.mode || !afterPath || afterPath.isSymbolicLink() || afterPath.nlink !== 1 || afterPath.ino !== after.ino || afterPath.dev !== after.dev) fail('RESTORE_FILE_INVALID');
+  } finally { if (fd !== undefined) fs.closeSync(fd); }
 }
 function restoreBackup(directory, manifest, options) {
   const scratch = fs.mkdtempSync(path.join(directory, '.restore-'));
@@ -270,15 +346,20 @@ function restoreBackup(directory, manifest, options) {
         const target = path.join(restored, item.path);
         fs.mkdirSync(path.dirname(target), {recursive: true, mode: 0o700});
         if (item.type === 'symlink') fs.symlinkSync(item.link, target);
-        else { fs.copyFileSync(path.join(directory, `worktrees/${index}/untracked/${itemIndex}`), target); fs.chmodSync(target, item.mode); }
+        else { fs.copyFileSync(path.join(directory, `worktrees/${index}/untracked/${itemIndex}`), target); restoreFileMode(scratch, restored, item); }
       }
+      saved.tracked.forEach((item, itemIndex) => { if (item.type === 'file') restoreFileMode(scratch, restored, item, path.join(directory, `worktrees/${index}/tracked/${itemIndex}`)); });
       const actualTracked = saved.tracked.map(item => fileRecord(restored, item.path));
       const actualUntracked = saved.untracked.map(item => fileRecord(restored, item.path));
       if (JSON.stringify(actualTracked) !== JSON.stringify(saved.tracked) || JSON.stringify(actualUntracked) !== JSON.stringify(saved.untracked)) fail('RESTORE_HASH_MISMATCH');
+      if (sha256(git(restored, ['ls-files', '--stage', '-z'], options).stdout) !== saved.index) fail('RESTORE_INDEX_MISMATCH');
       if (sha256(git(restored, ['diff', '--cached', '--binary', '--full-index', 'HEAD', '--'], options).stdout) !== saved.staged || sha256(git(restored, ['diff', '--binary', '--full-index', '--'], options).stdout) !== saved.unstaged) fail('RESTORE_PATCH_MISMATCH');
     }
     if (git(bare, ['fsck', '--full', '--no-reflogs'], options, {allowFailure: true}).status !== 0) fail('RESTORE_FSCK_FAILED');
     for (const [ref, oid] of Object.entries(manifest.refs)) if (output(git(bare, ['rev-parse', ref], options)) !== oid) fail('RESTORE_REF_MISMATCH');
+    const anchors = [...new Set(Object.values(manifest.preservationRefs))];
+    for (const oid of anchors) if (git(bare, ['cat-file', '-e', oid], options, {allowFailure: true}).status !== 0) fail('RESTORE_REF_MISMATCH');
+    if (anchors.length && git(bare, ['fsck', '--connectivity-only', '--no-reflogs', ...anchors], options, {allowFailure: true}).status !== 0) fail('RESTORE_FSCK_FAILED');
     for (const item of manifest.files) if (hashFile(path.join(directory, item.path)) !== item.sha256) fail('BACKUP_HASH_MISMATCH');
   } finally { fs.rmSync(scratch, {recursive: true, force: true}); }
 }
@@ -293,12 +374,14 @@ function backupUnlocked(repository, options) {
   privateDirectory(root);
   const directory = path.join(root, crypto.randomUUID());
   privateDirectory(directory);
-  const manifest = {schemaVersion: 1, refs: before.refs, registeredWorktrees: before.registeredWorktrees, worktrees: before.worktrees, files: []};
+  const preservationRefs = {...(options.preservationRefs ?? {})};
+  if (Object.entries(preservationRefs).some(([ref, oid]) => !ref.startsWith('refs/') || !/^[a-f0-9]{40,64}$/.test(oid))) fail('PRESERVATION_REFS_INVALID');
+  const manifest = {schemaVersion: 1, metadataSemantics: 'as-of-capture', restoreVerified: false, preservationRefs, refs: before.refs, registeredWorktrees: before.registeredWorktrees, worktrees: before.worktrees, files: []};
   try {
     git(repository.repositoryRoot, ['bundle', 'create', path.join(directory, 'commits.bundle'), '--all', ...before.worktrees.map(item => item.head)], options);
     fs.chmodSync(path.join(directory, 'commits.bundle'), 0o600);
     manifest.files.push({path: 'commits.bundle', sha256: hashFile(path.join(directory, 'commits.bundle'))});
-    const oids = [...new Set([...Object.values(before.refs), ...before.registeredWorktrees.map(item => item.HEAD).filter(Boolean)])];
+    const oids = [...new Set([...Object.values(before.refs), ...Object.values(preservationRefs), ...before.registeredWorktrees.map(item => item.HEAD).filter(Boolean)])];
     const packFile = path.join(directory, 'objects.pack');
     const packFd = fs.openSync(packFile, 'wx', 0o600);
     try {
@@ -310,17 +393,23 @@ function backupUnlocked(repository, options) {
       const item = before.worktrees[index];
       saveArtifact(directory, `worktrees/${index}/staged.patch`, git(item.path, ['diff', '--cached', '--binary', '--full-index', 'HEAD', '--'], options).stdout, manifest);
       saveArtifact(directory, `worktrees/${index}/unstaged.patch`, git(item.path, ['diff', '--binary', '--full-index', '--'], options).stdout, manifest);
-      item.untracked.forEach((file, itemIndex) => { if (file.type === 'file') saveArtifact(directory, `worktrees/${index}/untracked/${itemIndex}`, fs.readFileSync(path.join(item.path, file.path)), manifest); });
+      item.tracked.forEach((file, itemIndex) => { if (file.type === 'file') snapshotRegularFile(item.path, file, directory, `worktrees/${index}/tracked/${itemIndex}`, manifest); });
+      item.untracked.forEach((file, itemIndex) => { if (file.type === 'file') snapshotRegularFile(item.path, file, directory, `worktrees/${index}/untracked/${itemIndex}`, manifest); });
     }
-    if (JSON.stringify(capture(repository, options)) !== JSON.stringify(before)) fail('BACKUP_RACE');
+    saveArtifact(directory, 'manifest-draft.json', JSON.stringify(manifest, null, 2) + '\n', {files: []});
+    if (JSON.stringify(targetFootprint(capture(repository, options))) !== JSON.stringify(targetFootprint(before))) fail('BACKUP_RACE');
     restoreBackup(directory, manifest, options);
-    if (JSON.stringify(capture(repository, options)) !== JSON.stringify(before)) fail('BACKUP_RACE');
+    if (JSON.stringify(targetFootprint(capture(repository, options))) !== JSON.stringify(targetFootprint(before))) fail('BACKUP_RACE');
     manifest.restoreVerified = true;
     saveArtifact(directory, 'manifest.json', JSON.stringify(manifest, null, 2) + '\n', {files: []});
     log(repository, 'backup', 'PASS', undefined, {backup: directory}, options);
-    return {directory, restoreVerified: true, fsck: 'PASS', snapshotRefs: Object.fromEntries(Object.entries(before.refs).filter(([ref]) => ref.startsWith('refs/codex/')))};
+    const result = {directory, restoreVerified: true, fsck: 'PASS', snapshotRefs: Object.fromEntries(Object.entries(before.refs).filter(([ref]) => ref.startsWith('refs/codex/')))};
+    Object.defineProperty(result, 'verifiedPreservationRefs', {value: preservationRefs});
+    return result;
   } catch (error) {
     // Failed evidence is retained privately; it is never certified or used for cleanup.
+    if (!fs.existsSync(path.join(directory, 'manifest-draft.json'))) saveArtifact(directory, 'manifest-draft.json', JSON.stringify({...manifest, restoreVerified: false}, null, 2) + '\n', {files: []});
+    saveArtifact(directory, 'failure-status.json', JSON.stringify({schemaVersion: 1, status: 'FAIL', restoreVerified: false, code: error.code ?? 'BACKUP_FAILED', failedAt: new Date().toISOString()}) + '\n', {files: []});
     log(repository, 'backup', 'FAIL', error.code ?? 'BACKUP_FAILED', {backup: directory}, options);
     throw error;
   }
@@ -498,15 +587,21 @@ function reviewedStatus(repository, receipt, reviewedCommit, options) {
   gh(['pr', 'merge', receipt.pullRequest.url, '--repo', repo, '--merge', '--match-head-commit', review.reviewedCommit], repository.repositoryRoot, options);
   return {status: 'pending', runs}; // Refresh must observe the merge and CI before cleanup.
 }
-function preservationAudit(repository, beforeRefs, beforeWorktrees, targets, options) {
+function preservationAudit(repository, beforeRefs, beforeWorktrees, targets, options, verifiedPreservationRefs) {
   const afterRefs = refs(repository, options);
   const managedRefs = new Set(targets.flatMap(item => [`refs/heads/${item.branch}`, `refs/remotes/origin/${item.branch}`]));
   const advances = [];
   const ancestor = (oldCommit, newCommit) => git(repository.repositoryRoot, ['merge-base', '--is-ancestor', oldCommit, newCommit], options, {allowFailure: true}).status === 0;
   for (const [ref, oid] of Object.entries(beforeRefs)) {
     if (managedRefs.has(ref) || afterRefs[ref] === oid) continue;
-    if (!afterRefs[ref] || !ancestor(oid, afterRefs[ref])) fail('UNRELATED_REF_CHANGED');
-    advances.push({oldCommit: oid, newCommit: afterRefs[ref]});
+    if (!afterRefs[ref]) fail('UNRELATED_REF_CHANGED');
+    if (ref.startsWith('refs/codex/turn-diffs/') && verifiedPreservationRefs?.[ref] === oid && output(git(repository.repositoryRoot, ['cat-file', '-t', oid], options)) === 'tree' && output(git(repository.repositoryRoot, ['cat-file', '-t', afterRefs[ref]], options)) === 'tree') {
+      if (git(repository.repositoryRoot, ['fsck', '--connectivity-only', '--no-reflogs', afterRefs[ref]], options, {allowFailure: true}).status !== 0) fail('OBJECT_INTEGRITY_FAILED');
+      advances.push({event: 'concurrent_snapshot_update', oldCommit: oid, newCommit: afterRefs[ref]});
+    } else {
+      if (!ancestor(oid, afterRefs[ref])) fail('UNRELATED_REF_CHANGED');
+      advances.push({event: 'concurrent_ref_advance', oldCommit: oid, newCommit: afterRefs[ref]});
+    }
   }
   const afterWorktrees = worktrees(repository, options);
   for (const item of beforeWorktrees) {
@@ -576,10 +671,10 @@ export async function runDelivery({projectRoot, taskId, action, reviewedCommit, 
         }
         const beforeRefs = refs(repository, options);
         const beforeWorktrees = worktrees(repository, options);
-        const backup = backupUnlocked(repository, {...options, worktreePaths: [...new Set([repository.repositoryRoot, ...validated.managed.map(item => item.worktree).filter(item => fs.existsSync(item))])]});
+        const backup = backupUnlocked(repository, {...options, preservationRefs: beforeRefs, worktreePaths: [...new Set([repository.repositoryRoot, ...validated.managed.map(item => item.worktree).filter(item => fs.existsSync(item))])]});
         if (!backup.restoreVerified) fail('BACKUP_NOT_VERIFIED');
         validateCleanup({projectRoot, receipt}, options);
-        preservationAudit(repository, beforeRefs, beforeWorktrees, validated.managed, options);
+        preservationAudit(repository, beforeRefs, beforeWorktrees, validated.managed, options, backup.verifiedPreservationRefs);
         for (const item of validated.managed) if (fs.existsSync(item.worktree)) assertNoIgnoredData(item.worktree, options);
         // The controller omits superseded worktree removal. Remove only the validated task history.
         for (const item of validated.managed.filter(item => item.worktree !== receipt.featureWorktree && item.worktree !== receipt.integrationWorktree)) {
@@ -588,7 +683,7 @@ export async function runDelivery({projectRoot, taskId, action, reviewedCommit, 
         for (const item of validated.managed) if (fs.existsSync(item.worktree)) assertNoIgnoredData(item.worktree, options);
         result = controller.cleanupDelivery(common);
         fsck(repository, options);
-        const concurrentRefAdvances = preservationAudit(repository, beforeRefs, beforeWorktrees, validated.managed, options);
+        const concurrentRefAdvances = preservationAudit(repository, beforeRefs, beforeWorktrees, validated.managed, options, backup.verifiedPreservationRefs);
         result = {...result, safetyBackup: backup.directory, safetyFsck: 'PASS', concurrentRefAdvances};
       }
       log(repository, 'delivery-' + action, 'PASS', undefined, result?.safetyBackup ? {backup: result.safetyBackup, concurrentRefAdvances: result.concurrentRefAdvances} : {}, options);
