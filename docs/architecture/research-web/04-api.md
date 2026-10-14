@@ -1,5 +1,9 @@
 # Research Web 接口清单
 
+资料业务查询对未适配/当前不可用来源分别返回503 `data_capability_not_integrated`/`data_capability_unavailable`；请求字段、来源排序及显式fallback合同不变。研究发送的当前时钟由Host在受理后注入原生prompt，不新增客户端字段、不改变幂等请求摘要。
+
+`GET /api/research/sessions/{sid}/files/{fid}/preview`对Markdown返回`text/plain`供沙箱iframe显示原始字节；同一文件的`download`仍使用原Markdown类型。请求参数、归属/错误契约、CSP与nosniff保持原状，不增加API或转换执行。
+
 Session 详情与原生 snapshot 增量投影工具活动 `seq`、`tool`、`arguments`、`result`，保留旧 `detail` 兼容；参数、结果和错误使用限长脱敏后的显示值。研究型 Automation 执行详情增加 `execution_context={run_id,automation_id,definition_version,trigger,definition_snapshot}`，来源是该执行 Run，不是当前可修改的任务。旧 Skill/Workflow 执行保持原契约。研究型执行续答不接受新的能力、方法、额外工具或不同输出格式；未确认快照失败关闭。没有增加另一套调度或研究接口。
 
 ## Claw 项目与日程草稿 API

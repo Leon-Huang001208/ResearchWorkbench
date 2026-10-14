@@ -20,6 +20,32 @@ from app.research_web.service import ResearchService
 from app.research_web.store import Store, StoreError
 
 
+@pytest.mark.parametrize("source", ["auto", "tavily", "bing"])
+def test_web_search_without_integrated_provider_is_unavailable_not_invalid_query(source):
+    from app.research_web.datahub.broker import resolve
+
+    with pytest.raises(StoreError) as caught:
+        resolve(
+            BusinessQuery(capability="search_web", source=source, parameters={"query": "CSV"}),
+            environ={},
+        )
+    assert caught.value.code == "data_capability_not_integrated"
+    assert caught.value.status == 503
+
+
+def test_integrated_provider_missing_configuration_is_unavailable():
+    from app.research_web.datahub.broker import resolve
+
+    with pytest.raises(StoreError) as caught:
+        resolve(
+            BusinessQuery(capability="database_schema", source="mysql", parameters={}),
+            environ={},
+            connection_statuses={},
+        )
+    assert caught.value.code == "data_capability_unavailable"
+    assert caught.value.status == 503
+
+
 def test_catalog_contains_all_declared_sources_without_constructing_connectors(
     monkeypatch,
 ):

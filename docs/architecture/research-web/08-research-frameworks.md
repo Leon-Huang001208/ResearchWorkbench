@@ -1,5 +1,7 @@
 # 研究框架
 
+Claw 工作区侧栏切换保留当前聊天和输入草稿，文件按钮只打开当前会话的既有预览；项目管理仍有独立入口。此导航修复不改变 Gold/Dollar 路由、快照、Bot 或权限，也不将文件自动注入框架上下文。
+
 Claw 的工具卡、运行报告和执行快照只投影原生研究事实，不改变 Gold/Dollar 的计划、来源、模板和校验。新工具目录限制仅应用研究型 Automation 会话；框架 preset 保持原有准入。
 
 本轮 Claw 日程采用直接 `research_task`（schema_version=1），锁定研究描述、模型、输出要求、资料与工具白名单。用户确认创建并启用后才生效，创建不立即运行；旧 Skill/Workflow/报告任务保持兼容。修改以同一 ID、expected_version 和变更确认卡生成新定义版本，Run 保留不可变 definition_snapshot；手动试跑与 schedule 触发分别记录，不改下一次计划时间。能力与连接管理统一在能力中心，Claw 仅选择能力，Agent 日程使用独立表格。DSH 仍是唯一研究引擎，Automation 仍是唯一调度层。

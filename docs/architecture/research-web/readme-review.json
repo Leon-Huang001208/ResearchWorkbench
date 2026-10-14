@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "unchanged",
-  "summary": "Claw 全页面调查、原生工具时间线、不可变执行快照与会话工具目录修复。",
-  "reason": "根 README 已涵盖 DSH 与 Automation 入口；本次只增加现有详情投影、工具目录收窄与回答渲染，模块/API/UI/安全文档已同步；没有新增安装依赖、公开命令或服务拓扑。"
+  "disposition": "updated",
+  "summary": "核对 Claw 源码调查与工作区侧栏修复，纠正研究日程启用说明。",
+  "reason": "README 原将所有日程描述为默认停用，与显式确认创建并启用的研究任务合同不符；现区分研究任务和既有能力任务，并说明工作区保留聊天。DSH、Automation、安装依赖与服务拓扑保持原合同。"
 }

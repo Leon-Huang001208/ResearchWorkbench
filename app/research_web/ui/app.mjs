@@ -4,7 +4,7 @@ import { badge, empty, renderConversation, copyResearchText, renderDeleteConfirm
 import { icon } from './icons.mjs';
 import { researchRecipes, renderResearchRecipes } from './research-report.mjs';
 import { renderComposer, renderQuickSkills, removeTabbitMentionQuery, slashKey, skillMatches, tabbitKey, tabbitMentionQuery } from './composer.mjs';
-import { focusSidebarControl, renderResearchAttention, renderClawWorkspaceCanvas, renderContextPanel, renderPrimaryRail, renderSidebar, renderTopbar } from './shell.mjs';
+import { focusSidebarControl, renderResearchAttention, renderContextPanel, renderPrimaryRail, renderSidebar, renderTopbar } from './shell.mjs';
 
 import { createCapabilityController, refreshProbedSourceDetail } from './capability-controller.mjs';
 import { capabilityTabKey, reportWorkflowEligibility, renderCapabilityDetail, renderToolDetail, renderCreationArtifacts, creationArtifacts } from './capabilities.mjs';
@@ -223,13 +223,12 @@ function researchPage() {
   if (state.route.sessionId && !state.detail) return `${empty('暂时无法读取这个会话', '检查连接后重试，输入内容仍会保留。')}<button class="button" data-reload-session>重新读取</button>`;
   if (!state.detail) return landing();
   const detail = state.detail;
-  const workspaceView = detail.mode === 'claw' && clawSidebarView === 'workspace';
   const cards = detail.mode === 'claw' ? positionClawAutomationCards(detail,clawDraftEdits,clawWorkspace.busy) : {entries:[],unpositionedDrafts:[],unpositionedRuns:[]};
-  const canvas = workspaceView ? renderClawWorkspaceCanvas({ detail, selectedPreview, busy: state.busy }) : `<div id="messages" class="messages" aria-label="会话消息">${renderConversation(detail, questionDrafts, cards.entries)}</div>`;
+  const canvas = `<div id="messages" class="messages" aria-label="会话消息">${renderConversation(detail, questionDrafts, cards.entries)}</div>`;
   const sourceLabels = { required: '能力必需', 'user-selected': '用户选择', recommended: '能力推荐', 'model-supplemented': '模型补选' };
   const methodSummary = (detail.methods || []).length ? `<p class="small muted" data-method-adoption>采用方法：${detail.methods.map(item => `${e(item.title || item.method_id)} · ${e(sourceLabels[item.source] || item.source)}`).join('；')}</p>` : '';
   const methodWarning = detail.method_trace_incomplete ? notice('部分推荐或模型补选方法缺少调用证据；本次结果已降级标记 method_trace_incomplete。', 'warning') : '';
-  return `<header class="page-header"><div class="session-title"><div class="eyebrow">${detail.mode === 'claw' ? 'CLAW · AGENT RESEARCH' : 'FINGPT · RESEARCH SESSION'}</div><h1>${e(detail.title || '未命名会话')}</h1><div class="session-meta">${badge(detail.status)}${detail.model ? `<span>${e(detail.model)}</span>` : ''}</div></div><div class="button-row">${detail.mode !== 'claw' ? `<button class="button small" data-upgrade ${state.busy || isRunning(detail.status) ? 'disabled' : ''}>升级为 Claw ↗</button>` : ''}<button class="button small context-toggle" data-toggle-context aria-expanded="${window.matchMedia('(max-width: 1050px)').matches ? contextOpen : !contextCollapsed}">活动与文件</button></div></header>${notice(state.streamError, 'warning')}${renderCreationArtifacts(detail, state.busy || isRunning(detail.status))}${detail.capability ? `<p class="small muted">所选能力版本：${e(detail.capability.id)} · v${e(detail.capability.version)}（选择记录，不代表每个工具已执行）</p>` : ''}${methodSummary}${methodWarning}${renderResearchAttention(detail)}${canvas}${detail.mode === 'claw' ? workspaceView ? renderAutomationDrafts(detail.automation_drafts || [],clawDraftEdits,clawWorkspace.busy) + (detail.automation_runs?.length ? renderClawRunCards(detail.automation_runs) : '') : (cards.unpositionedDrafts.length || cards.unpositionedRuns.length ? '<p class="muted small">以下日程记录缺少唯一原生调用位置，未推断其回答顺序。</p>' : '') + renderAutomationDrafts(cards.unpositionedDrafts,clawDraftEdits,clawWorkspace.busy) + (cards.unpositionedRuns.length ? renderClawRunCards(cards.unpositionedRuns) : '') : ''}<div class="composer-dock">${composer()}</div>`;
+  return `<header class="page-header"><div class="session-title"><div class="eyebrow">${detail.mode === 'claw' ? 'CLAW · AGENT RESEARCH' : 'FINGPT · RESEARCH SESSION'}</div><h1>${e(detail.title || '未命名会话')}</h1><div class="session-meta">${badge(detail.status)}${detail.model ? `<span>${e(detail.model)}</span>` : ''}</div></div><div class="button-row">${detail.mode !== 'claw' ? `<button class="button small" data-upgrade ${state.busy || isRunning(detail.status) ? 'disabled' : ''}>升级为 Claw ↗</button>` : ''}<button class="button small context-toggle" data-toggle-context aria-expanded="${window.matchMedia('(max-width: 1050px)').matches ? contextOpen : !contextCollapsed}">活动与文件</button></div></header>${notice(state.streamError, 'warning')}${renderCreationArtifacts(detail, state.busy || isRunning(detail.status))}${detail.capability ? `<p class="small muted">所选能力版本：${e(detail.capability.id)} · v${e(detail.capability.version)}（选择记录，不代表每个工具已执行）</p>` : ''}${methodSummary}${methodWarning}${renderResearchAttention(detail)}${canvas}${detail.mode === 'claw' ? (cards.unpositionedDrafts.length || cards.unpositionedRuns.length ? '<p class="muted small">以下日程记录缺少唯一原生调用位置，未推断其回答顺序。</p>' : '') + renderAutomationDrafts(cards.unpositionedDrafts,clawDraftEdits,clawWorkspace.busy) + (cards.unpositionedRuns.length ? renderClawRunCards(cards.unpositionedRuns) : '') : ''}<div class="composer-dock">${composer()}</div>`;
 }
 
 function settingsPage() {
@@ -351,7 +350,7 @@ function capabilityPage() {
 }
 
 function sidebar() {
-  return renderSidebar({ page: state.route.page, sessionId: state.route.sessionId, sessions: catalog.sessions, workspaces: catalog.workspaces, selectedWorkspace, collapsed: sidebarCollapsed, mobileOpen: sidebarOpen, detail: state.detail, clawSidebarView: state.route.clawView === 'projects' ? 'workspace' : clawSidebarView, projects: clawWorkspace.projects, openMenuId: sessionMenu?.id });
+  return renderSidebar({ page: state.route.page, sessionId: state.route.sessionId, sessions: catalog.sessions, workspaces: catalog.workspaces, selectedWorkspace, collapsed: sidebarCollapsed, mobileOpen: sidebarOpen, detail: state.detail, clawSidebarView, projects: clawWorkspace.projects, openMenuId: sessionMenu?.id });
 }
 
 function sessionActionsLayer() {
@@ -2328,8 +2327,20 @@ root.addEventListener('click', async (event) => {
     render(); focusSidebarControl(document, window.matchMedia('(max-width: 1050px)').matches);
   }
   if ('clawSidebarView' in data) {
-    if (data.clawSidebarView === 'workspace') { history.pushState(null, '', `#/claw?view=projects&project=${encodeURIComponent(state.detail?.project_id || 'default')}`); await showRoute(); }
-    else { history.pushState(null, '', state.detail?.id ? `#/claw?session=${encodeURIComponent(state.detail.id)}` : '#/claw'); await showRoute(); }
+    clawSidebarView = data.clawSidebarView === 'workspace' ? 'workspace' : 'sessions';
+    safeLog('claw_sidebar_view_changed', { status: clawSidebarView });
+    render();
+    document.querySelector(`[data-claw-sidebar-view="${clawSidebarView}"]`)?.focus({ preventScroll: true });
+  }
+  if ('workspacePreview' in data) {
+    const file = state.detail?.files?.find(item => item.id === data.workspacePreview);
+    if (file) {
+      selectedPreview = file.id; contextTab = 'files'; contextOpen = window.matchMedia('(max-width: 1050px)').matches; contextCollapsed = false; sidebarOpen = false;
+      render();
+      document.querySelector('[data-close-preview]')?.focus({ preventScroll: true });
+    } else {
+      safeLog('claw_workspace_preview_missing', {});
+    }
   }
   if ('clawCaseCategory' in data) { quickCategory = data.clawCaseCategory; render(); }
   if ('clawCase' in data || 'clawEditTask' in data) {

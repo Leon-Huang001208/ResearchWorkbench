@@ -4,9 +4,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from core.observability import get_logger
+
 from ..store import StoreError
 from .catalog import build_catalog
 from .contracts import BusinessQuery, Query
+
+log = get_logger(__name__)
 
 
 @dataclass(frozen=True)
@@ -88,7 +92,13 @@ def resolve(
         if query.source != "auto" and not query.allow_fallback:
             break
     if selected is None:
-        raise StoreError("当前没有完成 DataHub 适配且满足配置的数据来源")
+        code = (
+            "data_capability_unavailable"
+            if any(binding_by_source[source_id]["implemented"] for source_id in ordered)
+            else "data_capability_not_integrated"
+        )
+        log.warning("datahub_source_selection_unavailable", capability=query.capability, code=code)
+        raise StoreError("当前没有完成 DataHub 适配且满足配置的数据来源", code, 503)
 
     parameters = query.parameters
     if query.capability == "fund_data" and selected == "eastmoney_fund":

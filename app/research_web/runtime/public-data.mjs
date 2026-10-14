@@ -229,7 +229,7 @@ export function apply(ctx, config) {
     const common={source:{type:'string',description:'目录来源 ID；默认 auto'},allow_fallback:{type:'boolean'},refresh:{type:'boolean'}};
     ctx.tools.register({
       name:toolName,
-      description:`${description}。此能力已注册；来源是否已配置、授权、适配及当前可用由 DataHub 每次请求核验，目录存在不等于可调用。由 DataHub 选源、校验并保存会话隔离快照。`,
+      description:`${description}。此能力已注册；来源是否已配置、授权、适配及当前可用由 DataHub 每次请求核验，目录存在不等于可调用。data_capability_not_integrated 表示来源尚未适配；data_capability_unavailable 表示当前来源条件未满足，不要用改写同一查询反复尝试，须说明缺口。其他工具仍须符合本任务批准范围，不得隐式扩大权限。由 DataHub 选源、校验并保存会话隔离快照。`,
       parameters:{type:'object',properties:{...properties,...common},required,additionalProperties:false},
       output:{schema:{type:'object',properties:Object.fromEntries(outputKeys.map(key=>[key,{type:'string'}])),required:outputKeys,additionalProperties:false},render(_args,value){return [{type:'text',text:JSON.stringify(value)}];}},
       async execute(args,exec) {

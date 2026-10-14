@@ -216,22 +216,20 @@ test('research sidebars own their mode-specific new action and recent sessions',
   }
 });
 
-test('Claw workspace tab renders current-session datasets and safe file actions in the main canvas', async () => {
+test('Claw workspace sidebar offers current-session file previews and a separate project entry', async () => {
   const shell = await import(new URL('shell.mjs', root));
   const detail = {
     id: 'claw-current', mode: 'claw', title: '当前 Claw',
     datasets: [{ id: 'dataset-1', name: '当前资料', status: 'complete', files: [] }],
     files: [{ id: 'file-1', name: '当前产物.docx', size: 10, url: '/api/research/sessions/claw-current/files/file-1/download', preview_url: '/api/research/sessions/claw-current/files/file-1/preview' }],
   };
-  assert.equal(typeof shell.renderClawWorkspaceCanvas, 'function');
-  const workspace = shell.renderClawWorkspaceCanvas({ detail, selectedPreview: 'file-1' });
+  const workspace = shell.renderSidebar({ page: 'claw', detail, clawSidebarView: 'workspace' });
   assert.match(workspace, /当前资料/);
-  assert.match(workspace, /datasets\/dataset-1\/files\/rows\.csv/);
   assert.match(workspace, /当前产物\.docx/);
-  assert.match(workspace, /sandbox=""/);
-  const app = await readFile(new URL('app.mjs', root), 'utf8');
-  assert.match(app, /detail\.mode === 'claw' && clawSidebarView === 'workspace'/);
-  assert.match(app, /renderClawWorkspaceCanvas/);
+  assert.match(workspace, /data-workspace-preview="file-1"/);
+  assert.match(workspace, /研究分组与项目/);
+  const empty = shell.renderSidebar({ page: 'claw', detail: { ...detail, files: [] }, clawSidebarView: 'workspace' });
+  assert.doesNotMatch(empty, /data-workspace-preview=/);
 });
 
 test('a lone slash lists every enabled real Skill without submitting a model request', async () => {

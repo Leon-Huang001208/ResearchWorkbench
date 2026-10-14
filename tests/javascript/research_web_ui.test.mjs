@@ -75,6 +75,34 @@ test('Markdown treats HTML as text and refuses active or credential URLs', () =>
   assert.equal(markdown.safeURL('/\\evil.test'), null);
 });
 
+test('Markdown angle destinations support sources without relaxing URL safety', () => {
+  const html = markdown.renderMarkdown('| 来源 | 类型 |\n| --- | --- |\n| [官网](<https://example.com/report>) | 官网 |');
+  assert.match(html, /href="https:\/\/example.com\/report"/);
+  for (const destination of ['javascript:alert', 'data:text/html,test', '//evil.test', 'https://u:p@example.com']) {
+    assert.doesNotMatch(markdown.renderMarkdown(`[来源](<${destination}>)`), /<a /);
+  }
+});
+
+test('conversation artifact links resolve only exact verified files in the same session', () => {
+  const id = 'a'.repeat(24), url = `/api/research/sessions/s/files/${id}/download`;
+  const file = { id, name: 'report.md', path: 'outputs/report.md', valid: true, url };
+  const detail = { id: 's', mode: 'claw', messages: [{ role: 'assistant', text: '[报告](<outputs/report.md>)' }], files: [file], delivery: { files: [file] } };
+  assert.match(views.renderConversation(detail), new RegExp(`href="${url}"`));
+  for (const change of [
+    { files: [] }, { delivery: null }, { id: 'other' },
+    { delivery: { files: [{ ...file, valid: false }] } },
+    { delivery: { files: [file, { ...file, id: 'b'.repeat(24) }] } },
+    { delivery: { files: [{ ...file, url: url.replace('/s/', '/foreign/') }] } },
+  ]) assert.doesNotMatch(views.renderConversation({ ...detail, ...change }), /<a /);
+  for (const path of ['../outputs/report.md', 'outputs/../report.md', 'outputs/%2e%2e/report.md', '//evil.test/report.md']) {
+    const bad = { ...file, path };
+    assert.doesNotMatch(views.renderConversation({ ...detail, messages: [{ role: 'assistant', text: `[报告](<${path}>)` }], files: [bad], delivery: { files: [bad] } }), /<a /);
+  }
+  const code = { ...detail, messages: [{ role: 'assistant', text: '`[报告](<outputs/report.md>)`\n\n```md\n[报告](<outputs/report.md>)\n```' }] };
+  assert.doesNotMatch(views.renderConversation(code), /<a /);
+  assert.doesNotMatch(markdown.renderMarkdown('[报告](outputs/report.md)'), /<a /);
+});
+
 test('routing accepts only product routes and safely round trips session identifiers', () => {
   assert.equal(typeof core.parseRoute, 'function');
   assert.deepEqual(core.parseRoute('#/claw?session=a%2Fb'), { page: 'claw', sessionId: 'a/b' });

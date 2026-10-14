@@ -506,6 +506,7 @@ body { line-height: 1.5; }
 .format-picker summary::-webkit-details-marker, .capability-picker summary::-webkit-details-marker { display: none; }
 .format-picker summary:hover { background: var(--sidebar); }
 .composer .format-options { position: absolute; left: 0; top: 35px; width: 275px; max-width: 70vw; padding: 16px; border: 1px solid var(--control-line); background: var(--surface); border-radius: 10px; box-shadow: var(--shadow); z-index: 12; }
+.composer-dock .format-options, .composer-dock .method-picker fieldset { top: auto; bottom: calc(100% + 8px); max-height: min(320px, 60vh); overflow-y: auto; }
 .composer-tools #model-select { font-size: 12px; width: auto; max-width: 180px; padding: 6px; min-height: 32px; background: transparent; }
 .composer-tools .composer-send { width: 32px; min-width: 32px; height: 32px; min-height: 32px; border-radius: 50%; padding: 6px; display: inline-flex; justify-content: center; align-items: center; }
 .composer-tools .spacer { display: block; flex: 1; }
@@ -609,6 +610,8 @@ body { line-height: 1.5; }
   .composer-tools #model-select { max-width: 135px; font-size: 11px; }
   .format-picker summary { padding: 12px 6px; max-width: 160px; font-size: 11px; }
   .composer .format-options { left: auto; right: -10px; }
+  .composer-dock .format-picker { position: static; }
+  .composer-dock .format-options { left: 8px; right: 8px; width: auto; max-width: none; }
   .capability-picker { margin-left: -4px; }
   .quick-skill-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .quick-use { opacity: 1; min-width: 44px; min-height: 44px; right: 0; bottom: 0; }

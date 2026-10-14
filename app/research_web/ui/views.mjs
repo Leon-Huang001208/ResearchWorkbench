@@ -19,10 +19,11 @@ export async function copyResearchText(text, { clipboard = globalThis.navigator?
 
 export function renderConversation(detail, questionDrafts = new Map(), extraEntries = []) {
   if (!detail) return '';
+  const resolveLink = artifactLinkResolver(detail);
   const assistantLabel = detail.mode === 'fingpt' ? 'FinGPT 回复' : detail.mode === 'claw' ? 'Claw 回复' : '助手回复';
   const messageEntries = (detail.messages || []).map((message, index) => {
     const label = message.role === 'user' ? '用户消息' : message.role === 'assistant' ? assistantLabel : `${message.role || '未知角色'}消息`;
-    return { seq: Number.isFinite(message.seq) ? message.seq : Infinity, index, html: `<article class="message ${message.role === 'user' ? 'user' : 'assistant'}" aria-label="${e(label)}"><div class="markdown">${renderMarkdown(message.text)}</div>${detail.mode === 'claw' && message.role === 'assistant' && message.text ? `<button type="button" class="text-button" data-copy-message="${index}" data-copy-session="${e(detail.id || '')}" aria-label="复制这条回复">复制回复</button>` : ''}</article>` };
+    return { seq: Number.isFinite(message.seq) ? message.seq : Infinity, index, html: `<article class="message ${message.role === 'user' ? 'user' : 'assistant'}" aria-label="${e(label)}"><div class="markdown">${renderMarkdown(message.text, { resolveLink })}</div>${detail.mode === 'claw' && message.role === 'assistant' && message.text ? `<button type="button" class="text-button" data-copy-message="${index}" data-copy-session="${e(detail.id || '')}" aria-label="复制这条回复">复制回复</button>` : ''}</article>` };
   });
   const questionEntries = (Array.isArray(detail.question_history) ? detail.question_history : []).filter(question => Number.isFinite(question?.seq) && Array.isArray(question.items) && Array.isArray(question.answers)).map((question, index) => ({
     seq: question.seq, index: messageEntries.length + index, html: `<section class="decision-card question-history" aria-label="已确认的原生提问参数"><div class="eyebrow">已确认参数</div><p class="muted small">来源：DSH 原生提问</p><dl>${question.items.map((item, itemIndex) => {
@@ -148,6 +149,28 @@ export function fileURL(value) {
   const path = url.split('?')[0];
   if (/%(?:2e|2f|5c)/i.test(path) || path.split('/').some((part) => ['.', '..'].includes(part))) return null;
   return /^\/api\/research\/sessions\/[^/]+\/files\/[^/]+(?:\/(?:preview|download))?(?:\?[^#]*)?$/.test(url) ? url : null;
+}
+
+// Resolve model-authored relative links through the verified, current-session catalog only.
+function artifactLinkResolver(detail) {
+  const registered = Array.isArray(detail.files) ? detail.files : [];
+  const delivery = Array.isArray(detail.delivery?.files) ? detail.delivery.files : [];
+  const links = new Map();
+  const counts = new Map();
+  for (const file of delivery) {
+    if (typeof file?.path === 'string') counts.set(file.path, (counts.get(file.path) || 0) + 1);
+  }
+  if (typeof detail.id !== 'string' || !detail.id) return () => null;
+  const prefix = `/api/research/sessions/${encodeURIComponent(detail.id)}/files/`;
+  for (const file of delivery) {
+    const path = file?.path;
+    if (file?.valid !== true || typeof path !== 'string' || !path.startsWith('outputs/') || /[%\\\s<>\u0000-\u001f\u007f]/.test(path) || path.split('/').some(part => !part || part === '.' || part === '..') || counts.get(path) !== 1) continue;
+    const url = fileURL(file.url);
+    if (!/^[0-9a-f]{24}$/.test(file.id || '') || !url?.startsWith(prefix) || url !== `${prefix}${file.id}/download`) continue;
+    if (registered.filter(row => row?.id === file.id && row?.url === url).length !== 1) continue;
+    links.set(path, url);
+  }
+  return (path) => links.get(path) || null;
 }
 
 export function formatSize(size) {

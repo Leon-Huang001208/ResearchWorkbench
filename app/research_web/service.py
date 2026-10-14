@@ -2275,6 +2275,15 @@ class ResearchService:
             if tabbit_markers:
                 prompt += "\n\nTabbit 标签页引用：" + " ".join(tabbit_markers)
             prompt += "\n\n" + delivery["marker"]
+            clock = datetime.now(UTC)
+            prompt += (
+                "\n\n本次执行时钟（不是资料证据）：UTC="
+                + clock.isoformat(timespec="seconds")
+                + "；本机="
+                + clock.astimezone().isoformat(timespec="seconds")
+                + "。用户指定的历史研究日期保持原意；本时钟不证明交易日、行情日期或网页已被访问。"
+                "访问日期只写本次真实访问的时间；检索摘要与未访问的建议链接须分别说明，不能编造访问日期。"
+            )
             prompt += "\n本会话允许的资料范围：" + ", ".join(source_scope)
             if self.store.session(sid).get("research_depth") == "deep" and required:
                 prompt += (

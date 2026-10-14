@@ -3628,6 +3628,7 @@ Imports:
 - `__future__`
 - `catalog`
 - `contracts`
+- `core.observability`
 - `dataclasses`
 - `store`
 

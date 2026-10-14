@@ -132,19 +132,36 @@ def api(tmp_path):
         yield client, native, service
 
 
-def test_create_submit_duplicate_never_replays(api):
+def test_create_submit_duplicate_never_replays(api, monkeypatch):
+    from datetime import UTC, datetime
+
+    class Clock(datetime):
+        current = datetime(2026, 10, 14, 16, 0, tzinfo=UTC)
+
+        @classmethod
+        def now(cls, tz=None):
+            return cls.current.astimezone(tz)
+
+    monkeypatch.setattr("app.research_web.service.datetime", Clock)
     client, native, _ = api
     created = client.post("/api/research/sessions", json={"mode": "fingpt"})
     assert created.status_code == 201
     sid = created.json()["id"]
     assert created.json()["research_depth"] == "instant"
     endpoint = f"/api/research/sessions/{sid}/messages"
-    for _ in range(2):
+    for day in (14, 15):
+        Clock.current = datetime(2026, 10, day, 16, 0, tzinfo=UTC)
         response = client.post(
             endpoint, json={"text": "你好"}, headers={"Idempotency-Key": "abcdefgh"}
         )
         assert response.status_code == 202, response.text
     assert len([call for call in native.calls if call[0] == "session.prompt"]) == 1
+    prompt = next(payload for method, payload in native.calls if method == "session.prompt")
+    sent_text = prompt["content"][0]["text"]
+    assert "UTC=2026-10-14T16:00:00+00:00" in sent_text
+    assert "不是资料证据" in sent_text
+    assert "不证明交易日、行情日期或网页已被访问" in sent_text
+    assert sent_text.index("[RESEARCH_TASK:") < sent_text.index("本次执行时钟")
     assert (
         client.post(
             endpoint, json={"text": "别的问题"}, headers={"Idempotency-Key": "abcdefgh"}
@@ -572,17 +589,37 @@ def test_office_document_upload_preserves_bytes_and_session_ownership(api, exten
     assert client.get(item["url"].replace(sid, other)).status_code == 400
 
 
-def test_upload_ownership_and_preview_sandbox(api):
-    client, _, _ = api
+@pytest.mark.parametrize(
+    ("extension", "preview_type", "download_type"),
+    [
+        ("md", "text/plain", "text/markdown"),
+        ("html", "text/html", "text/html"),
+        ("txt", "text/plain", "text/plain"),
+    ],
+)
+def test_upload_ownership_and_preview_sandbox(api, extension, preview_type, download_type):
+    client, _, service = api
     sid = client.post("/api/research/sessions", json={}).json()["id"]
     uploaded = client.post(
         f"/api/research/sessions/{sid}/uploads",
-        files=[("files", ("../note.md", b"# Notes", "text/markdown"))],
+        files=[("files", (f"../note.{extension}", b"# Notes", download_type))],
     )
-    assert uploaded.status_code == 200, uploaded.text
-    file = uploaded.json()["items"][0]
+    if extension == "md":
+        assert uploaded.status_code == 200, uploaded.text
+        file = uploaded.json()["items"][0]
+    else:
+        # HTML/TXT are output formats, not permitted research uploads.
+        assert uploaded.status_code == 400, uploaded.text
+        output = service.store.directory(sid) / "outputs" / f"note.{extension}"
+        output.write_bytes(b"# Notes")
+        file = service.store.files(sid)[0]
     preview = client.get(file["preview_url"])
     assert preview.status_code == 200
+    assert preview.headers["content-type"].startswith(preview_type)
+    assert preview.content == b"# Notes"
+    download = client.get(file["url"])
+    assert download.headers["content-type"].startswith(download_type)
+    assert download.content == preview.content
     assert "sandbox" in preview.headers["content-security-policy"]
     assert "allow-same-origin" not in preview.headers["content-security-policy"]
     other = client.post("/api/research/sessions", json={}).json()["id"]
