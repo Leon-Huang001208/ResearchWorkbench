@@ -177,3 +177,11 @@ Gold／Dollar 的页面由同源 iframe 核心看板呈现，原生 definition�
 X 维度的外国官方及国际账户托管美债使用 [FRED WMTSECL1](https://fred.stlouisfed.org/series/WMTSECL1)，来源美联储 H.4.1，周频周三水平，原值百万美元除以1000显示为十亿美元。它是限定账户范围的托管可流通美债，不代表全部海外美债持仓或跨境资金流。指标和独立来源条目均保留该序列实际观测日期；取数时间不替代观测期。
 
 TRESEGUSM052N 是 IMF 月频美国不含黄金储备，不能用于上述名称；旧 WMTSECL 已终止，也不使用。此项纠正原方法既有指标实现错误，X 评分仍只沿原广义美元公式，阈值、快照schema、Gold和Bot权限不变，不引入新方法或迁移。历史坏值不认证为正确；正常采集写新revision替换该区块，不回写旧快照或重绑旧会话。正确来源不可用时保留旧值并标stale／待核验，不回退到错误序列。
+
+## Gold 配置模块未接入边界 · 2026-10-14
+
+原生 `allocation_context` 的 diversification_note、drawdown_note、scenarios、correlations 目前仅由 seed 提供；现有 collector 没有该区块的真实采集与计算链，也没有可审计的股票/债券总回报及统一观测窗口。既有真实黄金/美元/利率序列不能替代这套配置研究结果，本轮不引入回测或新采集。
+
+当前嵌入看板保留“情景与配置”入口，对 fixture、missing、无来源、`.invalid` 来源或明确 fixture 计算方法显示“尚未接入”，不绘制相关性、情景表或样例说明。新 Bot 解释与深度验证的上下文同样剔除这些样例值，仅保留未接入原因和缺口。带真实来源的 complete/partial/proxy 以及 stale 最后成功值保留其数值、来源和日期；来源元数据的存在不是实采认证。
+
+原生 schema 2、API 形状、seed 和历史文件不迁移；同一 snapshot revision、确定性评分和覆盖率保持（实采后配置仍缺失时为85%）。API 为合同兼容仍保留明确 fixture 区块，它不能被认作当前事实；当前生产 renderer/Bot 在消费边界拒绝使用。旧离线 canvas renderer 仅由测试直接调用，不是当前宿主生产入口。旧会话历史不回写，新提示上下文按服务器绑定的原 revision 生成。

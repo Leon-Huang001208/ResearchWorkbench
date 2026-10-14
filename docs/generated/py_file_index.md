@@ -4573,9 +4573,12 @@ Module docstring:
 
 Imports:
 - `contracts`
+- `core.observability`
 - `definition`
+- `urllib.parse`
 
 Functions:
+- `_allocation_context`
 - `build_context`
 
 
