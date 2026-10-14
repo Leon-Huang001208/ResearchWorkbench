@@ -112,8 +112,8 @@ export async function runDshText(runtime:DshRuntime,ledger:TextLedger,request:Te
     // Only a synchronous credential-safety check belongs before persistence.
     // Domain/JSON validation must happen AFTER this receipt is durable.
     let valid=false;try{valid=!unsupported&&finishKind==='stop'&&output.length>0&&usage.outputTokens>0&&safeOutput(output)===true;}catch{valid=false;}
-    const response:postgres.JSONValue=valid?{provider:request.provider,requestedModel:request.model,text:output,usage:{...usage}}:
-      {provider:request.provider,requestedModel:request.model,rejected:true,code:'hot_dsh_output_rejected',finishKind,usage:{...usage}};
+    const response:postgres.JSONValue=valid?{provider:request.provider,requestedModel:request.model,promptVersion:request.promptVersion,text:output,usage:{...usage}}:
+      {provider:request.provider,requestedModel:request.model,promptVersion:request.promptVersion,rejected:true,code:'hot_dsh_output_rejected',finishKind,usage:{...usage}};
     const result=await ledger.save(admitted.ticket,response,{tokens:usage.totalTokens,costMicros:cost(tariff,usage.inputTokens,usage.cacheReadTokens,usage.cacheWriteTokens,usage.outputTokens),providerRequestId:null,costBasis:'tariff-ceiling'});
     saved=true;
     if(result.overrun)throw Error('hot_dsh_budget_overrun');

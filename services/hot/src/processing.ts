@@ -4,7 +4,7 @@ import type {PgBoss} from 'pg-boss';
 import {withOwnerTransaction,type RuntimeOwner,type Claim,type Tx} from './control.ts';
 import {enqueueTransaction,transactionAdapter,type JobOutput} from './queue.ts';
 import {saveAutomaticEventTransaction,type EventSnapshot} from './events.ts';
-import {sha256} from './material.ts';
+import {sha256,identityKeyForUrl} from './material.ts';
 import {schemaName} from './config.ts';
 import {logEvent} from './log.ts';
 type Sql=ReturnType<typeof postgres>;
@@ -16,6 +16,19 @@ export interface GroupingPacket {
 export interface GroupingPart {relation:'same_occurrence'|'direct_followup'|'different_event'|'pending_review';candidateId:string|null;title:string;reason:string}
 export interface GroupingDecision {parts:GroupingPart[]}
 export interface GroupingModel {run(packet:GroupingPacket,signal:AbortSignal):Promise<{resultKey:string;decision:GroupingDecision}>}
+export function groupingSourceReferences(text:string):string[]{
+  return [...new Set((text.match(/https?:\/\/[^\s<>"']+/g)??[]).map(url=>identityKeyForUrl(url.replace(/[\])},.;!?。；，]+$/u,''))).filter((key):key is string=>key!==null))].slice(0,20);
+}
+/** Fail closed for newly introduced camel-case brands; candidate titles are not source evidence. */
+export function assertMaterialAnchoredDecision(value:GroupingDecision,packet:GroupingPacket){
+  const source=(packet.material.title+' '+packet.material.excerpt).toLowerCase().replace(/[^\p{L}\p{N}]/gu,'');
+  for(const part of value.parts){
+    const brands=part.title.match(/\b[A-Z][a-z]+(?:[A-Z][A-Za-z]*)+\b/g)??[];
+    if(brands.some(brand=>!source.includes(brand.toLowerCase()))){
+      throw Error('hot_grouping_output_unreported_entity');
+    }
+  }
+}
 export function canonicalGroupingInput(value:unknown):string {
   return stable(value);
 }
@@ -83,7 +96,8 @@ async function assertClaim(tx:Tx,schema:string,claim:Claim){
     and worker_id=${claim.workerId} and lease_token=${claim.leaseToken} and generation=${claim.owner.generation} and state='running' and lease_until>clock_timestamp()`;
   if(!rows.length)throw Error('hot_claim_stale');
 }
-async function preparePacket(tx:Tx,schema:string,id:string,rev:number):Promise<GroupingPacket>{
+/** Caller must hold the instance owner transaction; freezes inputs before any paid dispatch. */
+export async function prepareGroupingPacket(tx:Tx,schema:string,id:string,rev:number):Promise<GroupingPacket>{
   const [item]=await tx`select packet,packet_hash from ${tx(schema)}.processing_items where material_id=${id} and material_revision=${rev} and prompt_version=${GROUP_PROMPT_VERSION} for update`;
   if(!item)throw Error('hot_processing_unknown');
   const [material]=await tx`select m.current_revision,m.original_url,v.* from ${tx(schema)}.materials m join ${tx(schema)}.material_versions v
@@ -92,6 +106,7 @@ async function preparePacket(tx:Tx,schema:string,id:string,rev:number):Promise<G
   if(item.packet){if(sha256(stable(item.packet))!==item.packet_hash)throw Error('hot_processing_packet_invalid');return item.packet as GroupingPacket;}
   const terms=[...new Set((material.title as string).toLowerCase().match(/[\p{L}\p{N}]{3,}/gu)??[])].slice(0,20);
   const patterns=terms.map(term=>'%'+term+'%');
+  const references=groupingSourceReferences(material.excerpt.slice(0,1500));
   // No recency window: matching old chains and previous associations remain eligible.
   const candidates=await tx`select e.id,e.current_revision revision,v.snapshot,
     (select coalesce(jsonb_agg(report),'[]'::jsonb) from (select mv.title,m.original_url url,mv.published_at as "publishedAt"
@@ -100,10 +115,14 @@ async function preparePacket(tx:Tx,schema:string,id:string,rev:number):Promise<G
     from ${tx(schema)}.events e
     join ${tx(schema)}.event_versions v on v.event_id=e.id and v.revision=e.current_revision
     where v.snapshot->>'state'='active' and ((v.snapshot->>'title') ilike any(${tx.array(patterns)}::text[])
+      or exists(select 1 from ${tx(schema)}.event_materials r join ${tx(schema)}.materials m on m.id=r.material_id
+        where r.event_id=e.id and r.event_revision=e.current_revision and m.identity=any(${tx.array(references)}::text[]))
       or exists(select 1 from ${tx(schema)}.event_materials r where r.event_id=e.id and r.event_revision=e.current_revision and r.material_id=${id})
       or exists(select 1 from ${tx(schema)}.event_materials r join ${tx(schema)}.material_versions mv on mv.material_id=r.material_id and mv.revision=r.material_revision
         where r.event_id=e.id and r.event_revision=e.current_revision and (mv.title ilike any(${tx.array(patterns)}::text[]) or mv.excerpt ilike any(${tx.array(patterns)}::text[]))))
-    order by case when exists(select 1 from ${tx(schema)}.event_materials r where r.event_id=e.id and r.event_revision=e.current_revision and r.material_id=${id}) then 0 else 1 end,e.id limit 20`;
+    order by case when exists(select 1 from ${tx(schema)}.event_materials r where r.event_id=e.id and r.event_revision=e.current_revision and r.material_id=${id}) then 0
+      when exists(select 1 from ${tx(schema)}.event_materials r join ${tx(schema)}.materials m on m.id=r.material_id
+        where r.event_id=e.id and r.event_revision=e.current_revision and m.identity=any(${tx.array(references)}::text[])) then 1 else 2 end,e.id limit 20`;
   const packet:GroupingPacket={promptVersion:GROUP_PROMPT_VERSION,material:{id,revision:rev,title:material.title,excerpt:material.excerpt.slice(0,1500),url:material.original_url,
     publishedAt:material.published_at?.toISOString()??null,acquiredAt:material.acquired_at.toISOString(),contentHash:material.content_hash,partial:material.excerpt.length>1500},
     candidates:candidates.map(row=>({id:row.id,revision:row.revision,snapshot:row.snapshot,reports:row.reports})),candidateLimit:20,candidateSearch:'bounded_all_history'};
@@ -117,10 +136,10 @@ export function processingHandler(db:Sql,schema:string,owner:RuntimeOwner,model:
     if(!input||Array.isArray(input)||Object.keys(input).some(k=>!['materialId','revision'].includes(k))||
       !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(input.materialId)||!Number.isSafeInteger(input.revision)||input.revision<1||
       claim.inputKey!=='hot.process:'+key(input.materialId,input.revision))throw Error('hot_processing_payload_invalid');
-    const packet=await withOwnerTransaction(db,schema,owner,async tx=>{await assertClaim(tx,schema,claim);signal.throwIfAborted();return preparePacket(tx,schema,input.materialId,input.revision);});
+    const packet=await withOwnerTransaction(db,schema,owner,async tx=>{await assertClaim(tx,schema,claim);signal.throwIfAborted();return prepareGroupingPacket(tx,schema,input.materialId,input.revision);});
     let output:Awaited<ReturnType<GroupingModel['run']>>;
     try{
-      output=await model.run(packet,signal);validateDecision(output.decision,packet);if(!/^[a-f0-9]{64}$/.test(output.resultKey))throw Error('hot_grouping_output_invalid');
+      output=await model.run(packet,signal);validateDecision(output.decision,packet);assertMaterialAnchoredDecision(output.decision,packet);if(!/^[a-f0-9]{64}$/.test(output.resultKey))throw Error('hot_grouping_output_invalid');
       const [receipt]=await db`select r.response from ${db(schema)}.model_results m join ${db(schema)}.model_receipts r on r.attempt_id=m.attempt_id where m.result_key=${output.resultKey}`;
       let decision:unknown;try{decision=JSON.parse(receipt?.response?.text);}catch{throw Error('hot_grouping_receipt_invalid');}
       if(receipt.response.rejected||stable(decision)!==stable(output.decision))throw Error('hot_grouping_receipt_invalid');
