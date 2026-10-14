@@ -1,5 +1,9 @@
 # Research Web 前端
 
+`#/workbench/etf-paper` 由 `etf-paper.mjs` 展示工程输入、真实BLOCKED缺口、仓位/风险、模拟委托/成交、
+现金费用与复盘。打开只读目录及运行摘要，提交须明确上传完整JSON，空缺参数不补推荐值。
+合同见[数据与文件](architecture/research-web/03-data-files.md#etf-工程模拟与真实准入边界)。
+
 模型服务页保留留空保留、填写替换与独立清除的既有交互。Docker 的受控存储来源投影为
 `docker_encrypted_file`，缺失或损坏仍显示未配置/未知/不可用；设置保存和真实生成分开。
 密钥提交后不回显，录入阶段不采集 DOM、HAR、截图或请求体；不把健康状态当作模型验收。

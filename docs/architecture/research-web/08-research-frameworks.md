@@ -1,5 +1,8 @@
 # 研究框架
 
+ETF工程模拟作为研究台独立确定性领域入口，不注册新框架、不扩大framework-explain/verify权限，
+Gold/Dollar快照及Bot绑定仍沿原合同。真实链路BLOCKED；见[数据与文件](03-data-files.md#etf-工程模拟与真实准入边界)。
+
 Claw 项目归属只组织会话，不重绑 Gold/Dollar 快照或改变 Bot 执行。项目聚合不把其他会话数据自动注入框架，日程提出工具也不改变 framework-explain/verify 的权限。
 
 ## 资讯雷达 · 2026-10-09
