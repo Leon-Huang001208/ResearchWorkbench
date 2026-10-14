@@ -1,5 +1,7 @@
 # Research Web 能力包与版本
 
+Hot周期计划管理不要求启用旧Automation功能；别名直接沿Hot接口授权，旧Automation关闭时其研究执行/投递接口仍404。Hot管理成功不会提升模型、工具或外发权限，Hot未配置错误保持503可见。
+
 Automation运行计划提供Hot周期简报管理入口与HTTP适配；其计划和周期run以Hot PG为唯一事实源，由Hot调度器创建，未登记为旧Automation周期任务。启用只授权既有资料冻结；不会扩大模型预算、工具许可、外发渠道或正式ResearchService准入。
 
 Hot流预算adapter是内部Runtime插件；子会话沿真实session ancestry绑定根Hot run。

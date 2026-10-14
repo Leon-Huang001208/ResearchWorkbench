@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "updated",
-  "summary": "Hot关注和周期简报接入现有研究情报与Automation管理，原正式研究与预算边界保持。",
-  "reason": "schema19/20同一PG唯一队列；默认停用、明确启用、固定窗口及租约双检。README与进度区分真实关注、PG周期证据和待验正常周期/最终镜像/当前CI。"
+  "summary": "Hot周期管理独立于旧Automation开关，旧执行/投递仍关闭；README更新近期AI、双频道周期、schema20恢复及候选镜像实际证据。",
+  "reason": "修复真实stage浏览器发现的三个alias错误guard；Hot权限/PG唯一调度保持，未增预算。区分已验5a32镜像运行与本修复待重建/当前MacCI，未把旧CI提升为新候选通过。"
 }

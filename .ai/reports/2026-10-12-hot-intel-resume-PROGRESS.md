@@ -1,5 +1,7 @@
 # Hot / 研究情报接续记录
 
+最新断点（覆盖下方旧候选描述）：本地提交c8b0b0ae与5a32c302f完成材料选择和停止pre-AES候选显式替换修复，整镜像sha256:7a012ddf…绑定5a32c302f，真实Doctor健康/schema20 Hot读取/ECB采集通过，DeepMind connection_reset如实保留。5个stage卷与旧镜像保留；dev/g2b原容器/镜像/卷已恢复运行。两轮Docker owner72/76顺序停止后Native74/78接回同一原PG并拒绝旧签名，最终原库暂停。当前累计18calls/77375tokens/10464microUSD，cap20/100000/USD1不变。最新58表/原文/真实报告联合恢复、恢复worker、两个频道周期MD/DOCX通过。本镜像浏览器发现周期管理错误依赖旧Automation开关：3处guard已最小修复，13项Python回归及独立审查通过，其余模块文档/项目门和修复后新镜像仍收束中。完整Goal仍INCOMPLETE，分页/有界补抓、已知发生/生效时间录入、真实评价样本审计、最终Mac CI/受管交付继续；不增加预算。
+
 当前断点：关注/周期切片已提交d484ceac2；schema20正常Native已运行，Macro周期MD/DOCX真实产物已验。其上未提交有界材料选择：配置4项、真实PG共5项及TypeScript检查通过，限定TS审查无阻断；未选择积压不改任务ID/排队状态。正常startService使用此前报告明确使用的主安装固定Native桥接，真实处理2026-10-06 DeepMind EmbeddingGemma 2材料，保存事件110b3a68-9688-51fe-a182-13e2e5ae7929，different_event正确区别于旧OpenAI活动；没有注入替身模型或复制密钥。current-ai-primary-worker-receipt.json记录PASS、generation68→暂停69，新增1call/571tokens/211microUSD，累计18/77375/10464microUSD，上限20/100000/USD1不变。隔离home首次未配置错误保留。停止时其他来源handler_late/job_failed日志保留，不声明该轮全来源成功；选中材料receipt/业务应用及队列完成已持久化。最新恢复、整镜像/当前MacCI与完整Goal审计继续。
 
 最新未提交切片（2026-10-14）：关注schema19已正常Native/签名RPC/Host HTTP验证；周期schema20、Automation管理适配、固定选材与产物溯源已实现，真实PG7/Python45/UI86/TS检查通过。慢写租约与日期边界经RED→GREEN修复，限定审查收尾；正常schema20周期、浏览器、文档/项目门、最终整镜像/当前MacCI与完整Goal审计仍待完成。细节见2026-10-14-hot-follows-periodic.md，不能用旧CI或旧schema运行认证新切片。

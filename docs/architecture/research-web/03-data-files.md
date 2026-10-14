@@ -1,5 +1,7 @@
 # DataHub、研究资料与实际文件
 
+Hot周期aliases在旧Automation关闭时继续仅访问Hot PG和其已冻结简报，旧Automation Store没有读取或写入。已有计划/运行/选材不复制到旧调度存储；无新增schema、秘密或目录。
+
 显式stage升级只更新固定image/source SHA及清空原容器projection，previous_image与data/logs/credentials/cache/model_key五卷保持。停止pre-AES兼容判断不读取密钥，不更改model_instance/model_store_state，不迁移业务数据。
 
 可选`model.materialIds`只限定处理范围，不复制材料、事件或预算。明确选择的排队任务在同一hot.process队列按当前owner generation精确优先级领取；重启只取消/重新入队这些已选择的created/retry任务，不改其他任务ID/排队状态或活动尝试。schema20联合恢复已核验58表全量清单及所选真实研究报告字节哈希；恢复目标暂停，原生执行历史不恢复。

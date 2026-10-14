@@ -1,5 +1,7 @@
 # 安全边界与验证方法
 
+Hot周期aliases去除旧Automation feature guard后仍调用相同Hot query/body/user-action及签名controller合同。关闭旧Automation时GET/POST Hot适配不访问旧服务，原Automation GET仍404；无动作POST403、明确动作POST200和Hot503传播均有回归。不得为修复Hot页面而启用旧scheduler或扩大预算。
+
 pre-AES例外只在显式stage replace的两次owned验证内使用，要求ready账本、停止原容器、精确四挂载、无RWB_MODEL_环境和旧镜像无加密标签；新镜像须AES。普通owned继续拒绝缺密钥挂载。运行中、已AES镜像、模型环境、projection变化及initializing反例均拒绝并且没有Docker rm调用；26项本地回归通过，不冒充实际容器验收。
 
 处理选择接受最多20个唯一材料UUID并小写归一化；省略/空列表保持默认范围，不授权费用。现有预算、发送回执、owner/领取租约仍为硬门；旧代次不能调度，超过正int32优先级范围拒绝。真实PG测试核对未选择积压原ID/状态保留、重启仅领取所选材料和零模型调用。真实Native处理沿已明确使用的原安装固定凭据桥接，不复制密钥，隔离home未配置的失败单独保留；不外推为Docker模型验收。

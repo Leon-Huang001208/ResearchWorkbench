@@ -1,5 +1,7 @@
 # Research Web 接口清单
 
+`/api/research/automations/hot-brief-plans`三个管理aliases不受旧`RESEARCH_AUTOMATIONS_ENABLED`控制，直接使用Hot列表、运行读取、条件配置合同；缺显式动作403、非法输入400、Hot不可用503保持。旧`/automations`与投递接口仍沿原开关拒绝，路径/参数和公开符号未变化。
+
 关注入口为GET /api/research/hot/follows及POST /api/research/hot/follows/configure。周期计划为GET /api/research/hot/brief-plans、GET /api/research/hot/brief-plans/{plan_id}/runs、POST /api/research/hot/brief-plans/configure；Automation路径 /api/research/automations/hot-brief-plans 提供相同list/configure/runs适配。GET只读；POST沿同源、明确动作、64KiB body、严格版本/布尔类型和UUID重放合同。新计划必须停用创建，再显式启用。
 
 新增POST `/api/research/hot/research-runs/{run_id}/execute`，要求同源明确用户动作，
