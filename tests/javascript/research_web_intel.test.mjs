@@ -1,10 +1,32 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { parseRoute } from '../../app/research_web/ui/core.mjs';
+import { parseRoute, legacyRouteTarget } from '../../app/research_web/ui/core.mjs';
 import { renderPrimaryRail } from '../../app/research_web/ui/shell.mjs';
 import { createIntelController, renderIntel, intelTabs, validStockCode, intelURL, filterIntelEvents, filterIntelPosts } from '../../app/research_web/ui/intel.mjs';
+import { createHotController, renderHotWorkspace } from '../../app/research_web/ui/hot-workspace.mjs';
 const response = data => ({ ok: true, json: async () => data });
 const overview = { reading: Array.from({ length: 45 }, (_, i) => ({ id: `e${i}`, title: `资讯${i}`, groups: ['ai'], revision: i % 3 })), logics: [{ id: 'ai', name: 'AI' }], trading: [], potential: [], challenges: [{ id: 'e0' }] };
+
+test('one research intelligence entry preserves external tabs and frozen Hot deep links', () => {
+  const id = '11111111-1111-4111-8111-111111111111';
+  assert.equal(legacyRouteTarget(`#/workbench/hot?view=sources&event=${id}`), `#/intel/hot?view=sources&event=${id}`);
+  const route = parseRoute(`#/intel/hot?view=briefs&event=${id}`);
+  assert.equal(route.intelTab, 'hot');
+  assert.equal(route.hotView, 'briefs');
+  assert.equal(route.hotEventId, id);
+  const rail = renderPrimaryRail({ page: 'intel' });
+  assert.equal((rail.match(/title="研究情报"/g) || []).length, 1);
+  assert.doesNotMatch(rail, /title="热点与事件"|title="资讯雷达"/);
+  const hot = renderHotWorkspace(createHotController({ api: {} }).state);
+  assert.match(hot, /研究情报/);
+  assert.match(hot, /本地热点与事件/);
+  assert.match(hot, /href="#\/intel\/overview"/);
+  const external = renderIntel({ tab: 'events', entries: {} });
+  assert.match(external, /研究情报/);
+  assert.match(external, /href="#\/intel\/hot"/);
+  assert.match(external, /Golddata/);
+  assert.equal(intelTabs.length, 8);
+});
 
 test('eight native routes and active navigation', () => {
   for (const [tab] of intelTabs) assert.equal(parseRoute(`#/intel/${tab}`).intelTab, tab);

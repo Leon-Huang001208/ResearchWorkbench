@@ -3070,6 +3070,10 @@ Imports:
 Functions:
 - `service`
 - `automations`
+- `hot_brief_plans`
+  - Automation management adapter; Hot PG and its worker retain sole scheduling ownership.
+- `hot_brief_runs`
+- `configure_hot_brief_plan`
 - `create_automation`
 - `preview_report_schedule_migrations`
 - `apply_report_schedule_migrations`
@@ -3797,6 +3801,28 @@ Functions:
 - `catalog_entries`
 
 
+## `app/research_web/datahub/frozen_archive.py`
+
+Module docstring:
+> Validate Hot's exact stored originals before DataHub publishes a target-session copy.
+
+Imports:
+- `contracts`
+- `core.observability`
+- `datetime`
+- `hashlib`
+- `json`
+- `re`
+- `store`
+- `uuid`
+
+Functions:
+- `digest`
+- `validate_bundle`
+- `build_archive`
+  - No provider query is fabricated: this is a stored-evidence snapshot kind.
+
+
 ## `app/research_web/datahub/probes.py`
 
 Module docstring:
@@ -4195,7 +4221,7 @@ Imports:
 
 Classes:
 - `Snapshots`
-  - methods: __init__, _private, _public, receipt, ids, detail, read, publish, copy_for_upgrade, copy_selected
+  - methods: __init__, _private, _public, receipt, ids, detail, read, publish, _publish_files, admit_hot_script, publish_hot, copy_for_upgrade, copy_selected
 
 Functions:
 - `sha`
@@ -4809,6 +4835,167 @@ Functions:
   - Reject any existing symlink before resolving or opening a framework path.
 
 
+## `app/research_web/hot_documents.py`
+
+Module docstring:
+> Project an authenticated, immutable Hot brief to the existing report DOCX writer.
+
+Imports:
+- `core.observability`
+- `datetime`
+- `hashlib`
+- `io`
+- `json`
+- `os`
+- `pathlib`
+- `re`
+- `report_documents`
+- `stat`
+- `tempfile`
+- `zoneinfo`
+
+Functions:
+- `retain_brief_docx`
+  - Hash-addressed private Hot artifact, independent of research-session deletion.
+- `brief_docx`
+  - Caller obtains saved input through Manager's signed/hash-verified brief read.
+
+
+## `app/research_web/hot_handoff.py`
+
+Module docstring:
+> Prepare one genuine research session from a PG run; execution remains a separate admission.
+
+Imports:
+- `client`
+- `core.observability`
+- `datahub.security`
+- `hashlib`
+- `hot_service`
+- `json`
+- `projection`
+- `store`
+- `uuid`
+
+Functions:
+- `execute_hot_handoff`
+  - One existing ResearchService admission; uncertain submissions are queried, never resent.
+- `_context`
+- `prepare_hot_handoff`
+  - Only Host writes existing Store; Hot workers never mutate session metadata.
+
+
+## `app/research_web/hot_results.py`
+
+Module docstring:
+> Read existing Hot research artifacts without starting Runtime, tasks or models.
+
+Imports:
+- `asyncio`
+- `core.observability`
+- `hashlib`
+- `hot_service`
+- `pathlib`
+- `re`
+- `store`
+- `uuid`
+
+Functions:
+- `bound_session`
+- `artifacts`
+- `research_results`
+- `refresh_research_result`
+  - Explicit observation updates PG terminal state, never creates or sends a prompt.
+
+
+## `app/research_web/hot_routes.py`
+
+Module docstring:
+> Same-origin Hot projections and explicit controls; credentials remain Host-owned.
+
+Imports:
+- `__future__`
+- `core.observability`
+- `fastapi`
+- `fastapi.responses`
+- `hot_service`
+- `json`
+- `pydantic`
+- `re`
+- `store`
+- `typing`
+- `uuid`
+
+Classes:
+- `ChannelRequest`
+- `FollowRequest`
+- `BriefPlanConfig`
+- `BriefPlanRequest`
+- `CorrectionRequest`
+- `LifecycleRequest`
+- `SourceRequest`
+- `BriefRequest`
+- `ResearchRequest`
+- `ResearchExecutionRequest`
+
+Functions:
+- `private_model`
+  - Native-only model accounting; browser action headers never authorize this route.
+- `execute_research`
+- `body`
+- `query`
+- `status`
+- `configuration`
+- `configure`
+- `lifecycle`
+- `channels`
+- `follows`
+- `configure_follow`
+- `brief_plans`
+- `brief_plan_runs`
+- `configure_brief_plan`
+- `research_handoff`
+- `research_run`
+- `research_runs`
+- `research_run_refresh`
+- `research_report_docx`
+- `events`
+- `detail`
+- `sources`
+- `briefs`
+- `create_brief`
+- `brief_detail`
+- `brief_markdown`
+- `brief_docx`
+- `configure_channel`
+- `correct`
+- `configure_source`
+
+
+## `app/research_web/hot_service.py`
+
+Module docstring:
+> Bounded lazy Host bridge; Hot faults never own base research startup.
+
+Imports:
+- `__future__`
+- `asyncio`
+- `core.observability`
+- `credential_backend`
+- `hashlib`
+- `pathlib`
+- `research_workbench_entrypoint.hot`
+- `research_workbench_entrypoint.hot_manager`
+- `threading`
+
+Classes:
+- `HotWebError`
+  - Stable, content-free HTTP error.
+  - methods: __init__
+- `HotWebService`
+  - methods: __init__, _manager, _perform, call, close
+
+
 ## `app/research_web/integrations/__init__.py`
 
 Module docstring:
@@ -4993,6 +5180,8 @@ Functions:
   - Read explicit, existing authorization; never discover or initialize it.
 - `live_acceptance_control`
   - Bind optional, non-secret acceptance limits to one explicit owned acceptance instance.
+- `hot_zero_retry`
+  - Read a private local model-enable intent; never authorizes calls or loads Node.
 - `prepare`
 - `_prepare_runtime`
 - `calculate_build_closure`
@@ -5264,6 +5453,8 @@ Imports:
 - `fastapi.staticfiles`
 - `frameworks.base`
 - `frameworks.routes`
+- `hot_routes`
+- `hot_service`
 - `integrations.routes`
 - `intel_routes`
 - `json`
@@ -5274,9 +5465,7 @@ Imports:
 - `mcp_runtime.routes`
 - `mimetypes`
 - `operations`
-- `os`
-- `pathlib`
-- ... 16 more
+- ... 18 more
 
 Classes:
 - `NewSession`
@@ -6254,6 +6443,18 @@ Functions:
 - `project`
 
 
+## `app/research_web/report_documents.py`
+
+Module docstring:
+> Reviewed data-only DOCX projection, shared by report sandbox and Hot exports.
+
+Imports:
+- `logging`
+
+Functions:
+- `build_docx_document`
+
+
 ## `app/research_web/report_render_script.py`
 
 Module docstring:
@@ -6273,7 +6474,6 @@ Functions:
 - `payload_sections`
 - `load_payload`
 - `replacements`
-- `replace_paragraph`
 - `render_docx`
 - `render_xlsx`
 - `render_html`
@@ -6789,6 +6989,8 @@ Imports:
 Functions:
 - `chinese_font_path`
   - Return the bundled CJK font's absolute path without reading the cwd.
+- `read_hot_evidence`
+  - Verify the admitted frozen copy and return bounded selected evidence only.
 - `read_pdf`
 - `safe_cell`
 - `write_deliverables`
@@ -7004,7 +7206,7 @@ Classes:
   - Enforce Research Store ownership before any session-scoped MCP operation.
   - methods: __init__, __getattr__, start, close, _owned, authorize_session, register_automation_session, read_resource, get_prompt, call_tool, approvals, decide_approval
 - `ResearchService`
-  - methods: __init__, _build_mcp_runtime, ensure_owned, start, close, _retention_loop, notify, _connect, _consume, _interaction_owner, _model_plane, compatible_connection, _require_model_credentials, runtime, configure_model, test_model, create, summary, list_sessions, soft_delete_session, restore_session, permanent_delete_session, purge_expired_sessions, _model_tools_verified, _task_capabilities, _effective_records, _task_readiness_context, native_admission, _data_query_admission, capability_readiness, detail, _cancel_observation, send, skill_catalog, _capability_idle, _mcp_idle_gate, _restart_mcp_runtime, change_capability, create_capability_session, capability_from_artifact, approve, cancel, _cancel, answer
+  - methods: __init__, _build_mcp_runtime, ensure_owned, start, close, _retention_loop, notify, _connect, _consume, _interaction_owner, _model_plane, compatible_connection, _require_model_credentials, runtime, configure_model, test_model, create, ensure_hot_session, summary, list_sessions, soft_delete_session, restore_session, permanent_delete_session, purge_expired_sessions, _model_tools_verified, _task_capabilities, _effective_records, _task_readiness_context, native_admission, _data_query_admission, capability_readiness, detail, _cancel_observation, send, skill_catalog, _capability_idle, _mcp_idle_gate, _restart_mcp_runtime, change_capability, create_capability_session, capability_from_artifact, approve, cancel, _cancel, answer
 
 Functions:
 - `_mcp_internal_url`
@@ -7819,7 +8021,7 @@ Classes:
 - `StoreError`
   - methods: __init__
 - `Store`
-  - methods: __init__, save, create, audit, session, soft_delete, restore, mark_native_deleted, _remove_owned_tree, purge, directory, reserve, receipt, files, file_path, open_file
+  - methods: __init__, save, create, reserve_hot_session, audit, session, soft_delete, restore, mark_native_deleted, _remove_owned_tree, purge, directory, reserve, receipt, files, file_path, open_file
 
 Functions:
 - `_is_reparse_point`
@@ -19489,7 +19691,7 @@ Imports:
 Classes:
 - `SetupWebInstaller`
   - Public bootstrap API used by the shell wrappers and contract tests.
-  - methods: __init__, _git_worktree_options, _python_supported, _node_supported, check, _is_reparse_point, _reject_alias, _atomic_json, _prepare_data_home, _runtime_lock_directory, _write_runtime_lock_json, _subprocess_environment, _node_subprocess_environment, _python_subprocess_environment, _macos_cpp_include, _run_checked, verify_cjpy_bundle, dependency_install_commands, install_python_dependencies, verify_web_import, _corepack_prefix, dsh_build_commands, prepare_pnpm_shims, _environment_python, _environment_pip_ready, _owned_environment, prepare_environment, calculate_dsh_closure, verify_dsh_source, _owned_dsh_source, _publish_dsh_build, _recover_completed_dsh_staging, provision_dsh, _code_commit, write_install_manifest, write_install_transaction_state, write_runtime_build_lock, install
+  - methods: __init__, _git_worktree_options, _python_supported, _node_supported, check, _is_reparse_point, _reject_alias, _atomic_json, _prepare_data_home, _runtime_lock_directory, _write_runtime_lock_json, _subprocess_environment, _node_subprocess_environment, _python_subprocess_environment, _macos_cpp_include, _run_checked, verify_cjpy_bundle, dependency_install_commands, install_python_dependencies, verify_web_import, _corepack_prefix, dsh_build_commands, prepare_pnpm_shims, _environment_python, _environment_pip_ready, _owned_environment, prepare_environment, calculate_dsh_closure, verify_dsh_source, _owned_dsh_source, _publish_dsh_build, _recover_completed_dsh_staging, provision_dsh, _code_commit, write_install_manifest, write_install_transaction_state, write_runtime_build_lock, install_hot_dependencies, install
 - `DockerRuntime`
   - Public installer adapter around the stdlib Docker lifecycle controller.
   - methods: _verify_selection_safe, install, _publish_selection

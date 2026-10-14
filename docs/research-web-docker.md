@@ -4,6 +4,45 @@
 候选 Native 预览使用独立目录和38188/33181，不修改 Docker 实例或日常服务；
 此预览及离线控制器测试不替代 Linux exact-SHA Docker CI 与 Mac Docker Desktop 真机验收。
 
+2026-10-14当前Hot源候选7010a2bd4整镜像sha256:7800f8dd…已实际build/up/Doctor/日期详情及MD/DOCX读取通过。原PG Docker100→暂停101→Native102→暂停103，旧Docker身份拒绝；三源成功，DeepMind connection_reset真实保留。模型为hot_dsh_native_platform_required、付费新增0。旧镜像/五卷/dev原容器镜像卷保留。连接使用验收专用本地TCP relay，不认证生产外部TLS；后续master集成与最终候选MacCI仍待执行。
+
+日期字段只扩展schema20事件JSON和既有纠错回执，最终Docker镜像必须包含Node/Host/MD及DOCX的精度支持。当前Native原PG/组件页面已验日期及MD/DOCX；旧b364镜像不能认证新日期，五卷/旧镜像保持。
+
+Hot同源next分页逻辑由Native/Docker共用，schema仍20，三页/整轮25秒边界不扩大容器资源。当前源码分页切片尚未构建新镜像；旧Docker运行证据不认证本改动。
+
+来源控制权限和目录绑定在Hot PG投影中读出，不由容器running/healthy推断。旧镜像缺该字段时新界面显示未核验，不自动授予权限或激活。当前来源页面与Doctor有Native组件证据，新模块/权限提示的完整Docker镜像仍待验收。
+
+来源catalog激活属于Hot签名controller业务操作，沿已登记数据库执行，不由Docker管理员直接改业务表。新版本先停止Hot并setup更新最小列权限；不能靠复制Native vendor Key或直接SQL升级来源。当前Native四源实采、OpenAI/Fed双轮排空有证据，新字段的Docker镜像与外部TLS路径仍需单独验收。
+
+停止的历史candidate可能已经登记model_key卷，但其原容器仍为未启用AES的四挂载镜像。普通status/up/stop继续拒绝缺密钥挂载；显式`stage candidate replace-image --image sha256:…`仅在原身份/projection/资源/网络/限额一致、容器created/exited、账本ready、旧镜像无模型加密标签/模型环境且精确四挂载时允许替换。新镜像仍须AES标签；保留全部五卷和previous_image，不回退或重建密钥。其他不匹配拒绝。此兼容修复的26项本地测试不代替实际运行与模式切换验收。
+
+关注与周期简报共用同一逻辑Hot PostgreSQL和现有worker/队列；更换运行模式不另建关注或计划库。停止worker后周期触发暂停，重启只处理一个保存的到期窗口并记录跳过周期数。schema20的最终Docker镜像/运行还未认证，旧24060ee3组件证据不升级为此候选通过；旧镜像和五个卷继续保留。
+
+Hot 在 guest 内用 `/proc` 的启动时点、UID、boot ID 和精确 argv 识别进程，双读拒绝
+PID 复用或读取间身份变化；僵尸/消失进程可识别，活跃 PID 的缺失字段拒绝。
+镜像无需新增 `ps` 依赖。启动后的宿主状态保存/核对失败时，先 SIGTERM 让 worker
+暂停自己拥有的 PG 代次，超时再强制退出；不把强退当作数据库已暂停的证明。
+
+Docker Engine 可把未设置的 `HostConfig.Dns` 从 `null` 表示为 `[]`；受管身份投影
+仅把这两个默认表示规范化为同一空列表。显式 DNS、镜像、挂载、内存、认证与其他
+授权字段仍精确比较，任何真实变更继续拒绝；不改写既有账本。
+
+Hot 镜像增加独立 Node 构建层，按组件锁文件安装生产依赖并显式复制源码与迁移。
+容器 Web 启动的 Hot 进程继承 Supervisor 的 Web 角色；日志写可写数据目录 `hot/logs/`。
+外部 PG 的连接配置与凭据由本实例管理，不挂载 Docker socket，不复制 Native 模型秘密。
+Docker 模型尚无已验证装配路径，保留 `blocked_model`；构建成功不能替代真实采集/切换验收。
+
+Hot正式执行和零重试准备沿同一Host/DSH通道；本轮仅macOS源码/临时PG验证。
+Docker真实worker、模型策略、联合恢复及模式切换未验收，不据本轮测试提升容器状态。
+
+Hot流桥复用同一overlay/私有Host通道，本轮只有macOS离线SDK和协议证据。
+Docker模型许可、真实worker/模式切换仍NOT_RUN，不以合成流回执认证容器可用。
+
+Hot 研究交接新增 schema16 的持久运行映射和 DataHub 冻结副本发布。当前本地
+Node/PG/HTTP 组合回归使用模拟 native 会话回执，不是 Docker 产品验收；生产原库
+仍保持 schema15 与暂停状态。Mac Docker 的真实 Hot worker、采集、共享数据库模式
+切换及联合恢复仍需独立完成，不借用开发 PostgreSQL 容器或 Native 结果认证。
+
 持久文本验收预算必须显式配置并绑定受管 AES 身份；本轮不初始化真实账本、不恢复过期授权、不修改 dev/stage/prod 实例。身份校验本身不证明环境角色，未来真实验收必须另选独立候选实例。
 
 G0/G1 的入口是 `rwb-docker`（亦可用 `./rwb docker`）。管理员在 mini 的受控终端执行，
@@ -201,6 +240,19 @@ Windows/Linux原生及同平台产品CI、模型付费生成、Office/Wind等本
 
 PR100完整回归的监督器类型维护仅显式声明目录身份记录的可空父FD及二进制Popen集合，
 保留openat身份复查、信号、进程归属和有界清理；本机Python合同不代替Linux镜像原生验收。
+
+
+## Hot / 研究情报接续边界 · 2026-10-12
+
+主线Mac mini Docker基座和兼容Native保持既有运行合同。可选Hot依旧是独立Node/PostgreSQL组件，尚未认证Docker产品装配或跨模式切换；基础研究与外部资讯不依赖Hot。研究情报统一导航不授予采集或模型权限。
+
+Hot冻结简报DOCX与报告沙箱共用 `report_documents.py` 中的纯数据生成函数；模板替换、原文标识、内容哈希和来源观点分别保留，导出不创建研究/模型执行。共享生成器新增局部测试，完整报告/产品验收按接续记录报告实际状态。
+
+
+Hot原件冻结的本轮PG容器仅为既有项目隔离验证资源：启动前核对固定镜像、probe标签、指定卷和回环绑定；重启后重新核对动态端口，原回执保持不变。该行为不接入Mac mini管理平面，也不认证Hot Docker产品worker、模式切换或模型支持。
+
+
+2026-10-13续跑：token-only修订是停机migration-owner管理动作，保留同一逻辑scope及历史账本；不会通过切换模式获得新额度。Hot快照脚本准入修复仅有macOS Native Seatbelt证据，不能提升Docker模型或容器脚本能力。
 
 两种已存在的密文格式保持独立：常规 staged launcher 默认 `docker-encrypted-file`（Fernet，同卷主密钥）；管理器显式 `RWB_MODEL_BACKEND=docker-encrypted` 绑定 AES-GCM 与独立只读主密钥卷。桥接拒绝混用参数和外来密文格式；无自动转换、回退、旧 Key 删除或重新生成主密钥。来源分别报告 `docker-encrypted-file` 与 `docker-encrypted`，配置不认证真实生成。
 

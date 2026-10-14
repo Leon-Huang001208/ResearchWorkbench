@@ -21,6 +21,9 @@ Research Web 当前安装说明区分 Native 与 Docker：两者复用产品数�
 
 首次阅读从[交互图册](../outputs/research-web-architecture/index.html)开始，按总览 → 部署 → 子系统 → 流程 → API 展开。阅读工作台提供固定目录、页内查找、主题与密度控制，模块详情按需展开；全部图、说明、API、源码与测试链接仍由同一清单和生成器维护。
 
+可选Hot子系统从 [Hot当前边界](../outputs/research-web-architecture/11-hot-events.html) 进入；
+它的Host/UI、Node/PG与待交接研究分开记录，不把界面或图文门禁当成完整研究验收。
+
 | 文档 | 状态 | 受众 | 权威范围 | 更新触发 |
 | --- | --- | --- | --- | --- |
 | [系统架构总览](ARCHITECTURE.md) | current | 所有开发者 | 当前系统边界与兼容面 | 顶层边界变化 |

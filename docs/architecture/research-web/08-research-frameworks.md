@@ -8,6 +8,22 @@ capability_data_unavailable（readiness 中 data_contract_missing），不提交
 共用聊天 renderer 的停止、超时和重试资格检查不改变 Gold/Dollar 的版本、快照或准入。
 外部资料工具仍经会话 DataHub admission；框架不能凭目录或兼容传输支持绕过数据/工具验证。
 
+离线真实材料评价复用scoreChannel和canonical输入函数，只验证冻结领域规则和既有三次归组回执，不创建研究/框架或给Claw评分。工程核对不能替代独立人工标注，零规则分尤其可能源于空摘要。
+
+日期核验沿人工纠错改变Hot事件版本，不创建FinGPT/Claw会话；新简报/研究冻结可携带新版本，旧会话不回填日期。字段记录人工来源核验，不能冒充独立评价标注或付费抽取已通过。
+
+有界来源next补抓只写Hot原件/待处理材料，不创建FinGPT/Claw会话或付费调用；历史补录仍沿取得时间及冻结版本合同，不因补录制造新鲜热度。
+
+来源配置页面仅管理Hot既有公开源的绑定、频率与启停，不注册框架、Bot、商业Provider或新研究。明确目录操作仍沿Hot控制权限，数据进入同一PG材料版本；FinGPT/Claw必须另由用户冻结资料并提交问题，来源保存不授权模型或外发。
+
+关注和周期简报按Hot频道与固定原件选材；没有注册Gold/Dollar框架或改变Bot/评分合同。周期冻结不启动FinGPT/Claw；需要正式研究时仍由用户从冻结简报准备资料并明确提交问题。
+
+Hot 的两步研究入口选择 FinGPT 或 Claw，沿已有 ResearchService 与 DSH 执行；不注册新 Gold/Dollar 框架，也不复制其规则或调度。冻结简报资料先准备会话，明确提交问题才进入研究。
+
+2026-10-13 的 AIHOT 阅读界面适配仅作用于研究情报的 `.hot-reader` 区域，复用原 Hot/外部
+资讯控制器及GET投影；Gold/Dollar画布、框架快照、Bot和采集边界保持。版式与现有研究
+入口共存，不为前端展示创建研究回合或复制框架数据。
+
 原生 Todo 仅进入研究 preset 与现有研究空间；Gold/Dollar 的采集、评分、Bot 快照和
 framework-explain/framework-verify preset 不增加 Todo 或改变契约。研究空间的原生计划
 来自会话日志，与框架步骤及 Workflow 版本说明分别呈现，不推断阶段归属。
@@ -86,6 +102,9 @@ renderer 或 Bot 会话。
 
 ## 产品边界
 
+新增Hot黄金频道属于共享材料/事件的规则视图，不替代Gold框架快照或其Bot。Hot页面与设置
+独立路由，不借用框架验收声明；正式冻结交接至FinGPT/Claw仍待实现。
+
 研究框架是 Research Web 的解释层，不是第二个资产行情终端。`#/frameworks` 固定列出黄金与美元流动性，`#/frameworks/gold` 和 `#/frameworks/dollar` 分别提供专用研究画布；资产观察继续负责个股、基金、债券、外汇和商品的行情与资产详情。框架引用的美债、美元、基金和商品只作为因果驱动、传导或组合背景。
 
 两个框架都使用一张连续研究画布，而不是七个相互割裂的页面。Gold 的七个语义锚点保持不变；Dollar 按“总览 → Q 总量水库 → P 资金价格 → g 财政水流 → M 融资管道 → X 跨境美元 → 传导与证据”排列。`?tab=` 深链映射到同页锚点。产品壳持有唯一 `main` 地标，专属 renderer 把连续画布输出为带框架名称的 `section` 区域。桌面 Bot 是画布右侧的吸顶解释面板，移动端为全页底部面板；900px 及以下的关闭入口收为 44px 图标按钮，打开态契约不变。
@@ -145,6 +164,8 @@ Research Workbench Method 层不改变 Gold／Dollar 的领域定义、版本、
 资产观察对 AKShare 财务缺失哨兵的规范化不进入 Gold／Dollar 专用 collector、快照 schema、评分或
 Bot 上下文；框架数据缺口仍只由各自严格契约判断。
 
+Hot简报继续绑定Hot自身事件/材料/频道版本，来源陈述、规则/模型/人工判断独立展示；不借用或伪造Gold/Dollar框架快照、研究方法revision或Bot会话归属。共享UIcore只增加Hot简报子路由，正式框架handoff仍待接入现有ResearchService。
+
 ## 设置闭环阶段3：当前能力范围
 
 Gold/Dollar采集、评分、revision及renderer保持原合同；公共源码的能力准入和脚本读取门也作用于同一Runtime，不能由模型生成成功提升为框架数据完整。无工具解释preset不因此获得专业数据授权。
@@ -157,6 +178,9 @@ Gold/Dollar采集、评分、revision及renderer保持原合同；公共源码�
 ## 设置页本机证据与框架分离
 
 本机设置页精简和Office自动验证不改变Gold/Dollar框架、评分、采集器或框架快照。Office状态只表示对应本机验证，不能提升任何研究框架或DataHub来源为已验收；状态投影与授权边界统一由[集成协调器](09-integration-coordinator.md)维护。
+
+
+Hot研究与报告是既有FinGPT/Claw会话结果的读取面，不启动另一研究框架或周期调度。框架工作区和后台Collector不因该列表改变；真实报告依据有限RSS标题，保留推断和覆盖缺口。
 
 ## FinGPT 研究融合 · 2026-10-13
 

@@ -5,6 +5,17 @@
 停止和重试不创建新 Automation，重试须满足普通发送的交付与运行时资格检查。
 
 
+Hot周期计划管理不要求启用旧Automation功能；别名直接沿Hot接口授权，旧Automation关闭时其研究执行/投递接口仍404。Hot管理成功不会提升模型、工具或外发权限，Hot未配置错误保持503可见。
+
+Automation运行计划提供Hot周期简报管理入口与HTTP适配；其计划和周期run以Hot PG为唯一事实源，由Hot调度器创建，未登记为旧Automation周期任务。启用只授权既有资料冻结；不会扩大模型预算、工具许可、外发渠道或正式ResearchService准入。
+
+Hot流预算adapter是内部Runtime插件；子会话沿真实session ancestry绑定根Hot run。
+它复用私有Host数据key及既有能力guard，没有新的模型访问工具；正式零重试研究仍待验。
+
+Hot 交接准备复用既有 ResearchService 会话与 DataHub 冻结资料，没有新增 Skill、
+执行器或 Automation 调度。当前准备接口不会发送模型消息；Hot 周期简报及正式研究
+仍需独立接入现有运行与预算边界，不据 session 创建成功宣称执行可用。
+
 原生 Todo 的冲突记录仅影响研究计划投影；既有 Skill/Tool 授权、Automation 草稿确认与版本门不变。历史、分页与 SSE 共用保留冲突证据的缓存归并，不能将坏快照视为能力执行完成。
 
 Docker 模型来源 `docker_encrypted` 只表示凭据存储，不提升 Tool、MCP 或 Automation 可用性。
@@ -441,6 +452,8 @@ Tool/Workflow/Method 契约、DataHub 动态选源、MCP 授权或 Automation �
 ## 单一兼容模型连接
 
 新增兼容连接仅认证传输的文本/流式合同；工具功能在真实受控验收前为unverified，不能启动依赖工具的Skill/Workflow。Automation仍经相同create/send执行，继承连接版本、活动保护与当前授权；不按模型名字提升能力。
+
+Hot FinGPT的冻结研究不加载全量Skill目录及外部数据工具，沿既有模型/脚本准入核对本会话原件；Claw和普通研究仍保留其能力组合。该轻量preset不改变任何权限或预算。
 
 ## FinGPT 研究融合 · 2026-10-13
 
