@@ -1,0 +1,180 @@
+<svg viewBox="0 0 1000 640" xmlns="http://www.w3.org/2000/svg" class="ph-scene">
+  <!-- 机柜框架 -->
+  <g class="ph-hot" data-part="rack-frame">
+    <rect class="ph-fill ph-ln" x="330" y="44" width="300" height="560" stroke-width="2"/>
+    <line class="ph-ln2" x1="344" y1="44" x2="344" y2="604"/>
+    <line class="ph-ln2" x1="616" y1="44" x2="616" y2="604"/>
+  </g>
+
+  <!-- 直流母线 -->
+  <g class="ph-hot" data-part="busbar">
+    <rect class="ph-metal" x="602" y="78" width="10" height="522"/>
+  </g>
+
+  <!-- 液冷歧管 供/回 -->
+  <g class="ph-hot" data-part="manifold">
+    <rect class="ph-pipe-sf" x="346" y="78" width="6" height="522"/>
+    <rect class="ph-pipe-rf" x="354" y="78" width="6" height="522"/>
+    <g class="ph-plus"><circle cx="337" cy="305" r="9"/><path d="M337 301 v8 M333 305 h8"/></g>
+  </g>
+
+  <!-- 管理交换机 -->
+  <g class="ph-hot" data-part="tor-switch">
+    <rect class="ph-fill ph-ln2" x="362" y="54" width="238" height="20"/>
+    <rect class="ph-ln2" x="370" y="60" width="8" height="8" fill="none"/>
+    <rect class="ph-ln2" x="382" y="60" width="8" height="8" fill="none"/>
+    <rect class="ph-ln2" x="394" y="60" width="8" height="8" fill="none"/>
+    <rect class="ph-ln2" x="406" y="60" width="8" height="8" fill="none"/>
+    <rect class="ph-ln2" x="418" y="60" width="8" height="8" fill="none"/>
+  </g>
+
+  <!-- 电源架 ×2（顶）+1（底） -->
+  <g class="ph-hot" data-part="power-shelf">
+    <rect class="ph-metal" x="362" y="78" width="238" height="22"/>
+    <line class="ph-ln2" x1="409" y1="78" x2="409" y2="100"/>
+    <line class="ph-ln2" x1="457" y1="78" x2="457" y2="100"/>
+    <line class="ph-ln2" x1="505" y1="78" x2="505" y2="100"/>
+    <line class="ph-ln2" x1="553" y1="78" x2="553" y2="100"/>
+    <rect class="ph-metal" x="362" y="104" width="238" height="22"/>
+    <line class="ph-ln2" x1="409" y1="104" x2="409" y2="126"/>
+    <line class="ph-ln2" x1="457" y1="104" x2="457" y2="126"/>
+    <line class="ph-ln2" x1="505" y1="104" x2="505" y2="126"/>
+    <line class="ph-ln2" x1="553" y1="104" x2="553" y2="126"/>
+    <rect class="ph-metal" x="362" y="584" width="238" height="16"/>
+  </g>
+
+  <!-- 计算托盘（上 6，示意） -->
+  <g class="ph-hot" data-part="compute-tray">
+    <g>
+      <rect class="ph-fill ph-ln2" x="362" y="132" width="238" height="24"/>
+      <rect class="ph-ln2" x="368" y="139" width="7" height="10" fill="none"/><rect class="ph-ln2" x="378" y="139" width="7" height="10" fill="none"/><rect class="ph-ln2" x="388" y="139" width="7" height="10" fill="none"/><rect class="ph-ln2" x="398" y="139" width="7" height="10" fill="none"/>
+      <rect class="ph-chipf" x="430" y="138" width="20" height="12"/><rect class="ph-chipf" x="456" y="138" width="20" height="12"/>
+      <line class="ph-ln2" x1="586" y1="138" x2="586" y2="150"/><line class="ph-ln2" x1="591" y1="138" x2="591" y2="150"/>
+    </g>
+    <g>
+      <rect class="ph-fill ph-ln2" x="362" y="160" width="238" height="24"/>
+      <rect class="ph-ln2" x="368" y="167" width="7" height="10" fill="none"/><rect class="ph-ln2" x="378" y="167" width="7" height="10" fill="none"/><rect class="ph-ln2" x="388" y="167" width="7" height="10" fill="none"/><rect class="ph-ln2" x="398" y="167" width="7" height="10" fill="none"/>
+      <rect class="ph-chipf" x="430" y="166" width="20" height="12"/><rect class="ph-chipf" x="456" y="166" width="20" height="12"/>
+      <line class="ph-ln2" x1="586" y1="166" x2="586" y2="178"/><line class="ph-ln2" x1="591" y1="166" x2="591" y2="178"/>
+    </g>
+    <g>
+      <rect class="ph-fill ph-ln2" x="362" y="188" width="238" height="24"/>
+      <rect class="ph-ln2" x="368" y="195" width="7" height="10" fill="none"/><rect class="ph-ln2" x="378" y="195" width="7" height="10" fill="none"/><rect class="ph-ln2" x="388" y="195" width="7" height="10" fill="none"/><rect class="ph-ln2" x="398" y="195" width="7" height="10" fill="none"/>
+      <rect class="ph-chipf" x="430" y="194" width="20" height="12"/><rect class="ph-chipf" x="456" y="194" width="20" height="12"/>
+      <line class="ph-ln2" x1="586" y1="194" x2="586" y2="206"/><line class="ph-ln2" x1="591" y1="194" x2="591" y2="206"/>
+    </g>
+    <g>
+      <rect class="ph-fill ph-ln2" x="362" y="216" width="238" height="24"/>
+      <rect class="ph-ln2" x="368" y="223" width="7" height="10" fill="none"/><rect class="ph-ln2" x="378" y="223" width="7" height="10" fill="none"/><rect class="ph-ln2" x="388" y="223" width="7" height="10" fill="none"/><rect class="ph-ln2" x="398" y="223" width="7" height="10" fill="none"/>
+      <rect class="ph-chipf" x="430" y="222" width="20" height="12"/><rect class="ph-chipf" x="456" y="222" width="20" height="12"/>
+      <line class="ph-ln2" x1="586" y1="222" x2="586" y2="234"/><line class="ph-ln2" x1="591" y1="222" x2="591" y2="234"/>
+    </g>
+    <g>
+      <rect class="ph-fill ph-ln2" x="362" y="244" width="238" height="24"/>
+      <rect class="ph-ln2" x="368" y="251" width="7" height="10" fill="none"/><rect class="ph-ln2" x="378" y="251" width="7" height="10" fill="none"/><rect class="ph-ln2" x="388" y="251" width="7" height="10" fill="none"/><rect class="ph-ln2" x="398" y="251" width="7" height="10" fill="none"/>
+      <rect class="ph-chipf" x="430" y="250" width="20" height="12"/><rect class="ph-chipf" x="456" y="250" width="20" height="12"/>
+      <line class="ph-ln2" x1="586" y1="250" x2="586" y2="262"/><line class="ph-ln2" x1="591" y1="250" x2="591" y2="262"/>
+    </g>
+    <g>
+      <rect class="ph-fill ph-ln2" x="362" y="272" width="238" height="24"/>
+      <rect class="ph-ln2" x="368" y="279" width="7" height="10" fill="none"/><rect class="ph-ln2" x="378" y="279" width="7" height="10" fill="none"/><rect class="ph-ln2" x="388" y="279" width="7" height="10" fill="none"/><rect class="ph-ln2" x="398" y="279" width="7" height="10" fill="none"/>
+      <rect class="ph-chipf" x="430" y="278" width="20" height="12"/><rect class="ph-chipf" x="456" y="278" width="20" height="12"/>
+      <line class="ph-ln2" x1="586" y1="278" x2="586" y2="290"/><line class="ph-ln2" x1="591" y1="278" x2="591" y2="290"/>
+    </g>
+    <g class="ph-plus"><circle cx="481" cy="200" r="9"/><path d="M481 196 v8 M477 200 h8"/></g>
+  </g>
+
+  <!-- NVSwitch 托盘（示意 4） -->
+  <g class="ph-hot" data-part="nvswitch-tray">
+    <g>
+      <rect class="ph-chipbg ph-ln2" x="362" y="302" width="238" height="24"/>
+      <rect class="ph-ln2" x="382" y="309" width="16" height="10" fill="none"/><rect class="ph-ln2" x="408" y="309" width="16" height="10" fill="none"/><rect class="ph-ln2" x="434" y="309" width="16" height="10" fill="none"/><rect class="ph-ln2" x="460" y="309" width="16" height="10" fill="none"/><rect class="ph-ln2" x="486" y="309" width="16" height="10" fill="none"/><rect class="ph-ln2" x="512" y="309" width="16" height="10" fill="none"/><rect class="ph-ln2" x="538" y="309" width="16" height="10" fill="none"/><rect class="ph-ln2" x="564" y="309" width="16" height="10" fill="none"/>
+    </g>
+    <g>
+      <rect class="ph-chipbg ph-ln2" x="362" y="330" width="238" height="24"/>
+      <rect class="ph-ln2" x="382" y="337" width="16" height="10" fill="none"/><rect class="ph-ln2" x="408" y="337" width="16" height="10" fill="none"/><rect class="ph-ln2" x="434" y="337" width="16" height="10" fill="none"/><rect class="ph-ln2" x="460" y="337" width="16" height="10" fill="none"/><rect class="ph-ln2" x="486" y="337" width="16" height="10" fill="none"/><rect class="ph-ln2" x="512" y="337" width="16" height="10" fill="none"/><rect class="ph-ln2" x="538" y="337" width="16" height="10" fill="none"/><rect class="ph-ln2" x="564" y="337" width="16" height="10" fill="none"/>
+    </g>
+    <g>
+      <rect class="ph-chipbg ph-ln2" x="362" y="358" width="238" height="24"/>
+      <rect class="ph-ln2" x="382" y="365" width="16" height="10" fill="none"/><rect class="ph-ln2" x="408" y="365" width="16" height="10" fill="none"/><rect class="ph-ln2" x="434" y="365" width="16" height="10" fill="none"/><rect class="ph-ln2" x="460" y="365" width="16" height="10" fill="none"/><rect class="ph-ln2" x="486" y="365" width="16" height="10" fill="none"/><rect class="ph-ln2" x="512" y="365" width="16" height="10" fill="none"/><rect class="ph-ln2" x="538" y="365" width="16" height="10" fill="none"/><rect class="ph-ln2" x="564" y="365" width="16" height="10" fill="none"/>
+    </g>
+    <g>
+      <rect class="ph-chipbg ph-ln2" x="362" y="386" width="238" height="24"/>
+      <rect class="ph-ln2" x="382" y="393" width="16" height="10" fill="none"/><rect class="ph-ln2" x="408" y="393" width="16" height="10" fill="none"/><rect class="ph-ln2" x="434" y="393" width="16" height="10" fill="none"/><rect class="ph-ln2" x="460" y="393" width="16" height="10" fill="none"/><rect class="ph-ln2" x="486" y="393" width="16" height="10" fill="none"/><rect class="ph-ln2" x="512" y="393" width="16" height="10" fill="none"/><rect class="ph-ln2" x="538" y="393" width="16" height="10" fill="none"/><rect class="ph-ln2" x="564" y="393" width="16" height="10" fill="none"/>
+    </g>
+  </g>
+
+  <!-- 计算托盘（下 6，示意） -->
+  <g class="ph-hot" data-part="compute-tray">
+    <g>
+      <rect class="ph-fill ph-ln2" x="362" y="416" width="238" height="24"/>
+      <rect class="ph-ln2" x="368" y="423" width="7" height="10" fill="none"/><rect class="ph-ln2" x="378" y="423" width="7" height="10" fill="none"/><rect class="ph-ln2" x="388" y="423" width="7" height="10" fill="none"/><rect class="ph-ln2" x="398" y="423" width="7" height="10" fill="none"/>
+      <rect class="ph-chipf" x="430" y="422" width="20" height="12"/><rect class="ph-chipf" x="456" y="422" width="20" height="12"/>
+      <line class="ph-ln2" x1="586" y1="422" x2="586" y2="434"/><line class="ph-ln2" x1="591" y1="422" x2="591" y2="434"/>
+    </g>
+    <g>
+      <rect class="ph-fill ph-ln2" x="362" y="444" width="238" height="24"/>
+      <rect class="ph-ln2" x="368" y="451" width="7" height="10" fill="none"/><rect class="ph-ln2" x="378" y="451" width="7" height="10" fill="none"/><rect class="ph-ln2" x="388" y="451" width="7" height="10" fill="none"/><rect class="ph-ln2" x="398" y="451" width="7" height="10" fill="none"/>
+      <rect class="ph-chipf" x="430" y="450" width="20" height="12"/><rect class="ph-chipf" x="456" y="450" width="20" height="12"/>
+      <line class="ph-ln2" x1="586" y1="450" x2="586" y2="462"/><line class="ph-ln2" x1="591" y1="450" x2="591" y2="462"/>
+    </g>
+    <g>
+      <rect class="ph-fill ph-ln2" x="362" y="472" width="238" height="24"/>
+      <rect class="ph-ln2" x="368" y="479" width="7" height="10" fill="none"/><rect class="ph-ln2" x="378" y="479" width="7" height="10" fill="none"/><rect class="ph-ln2" x="388" y="479" width="7" height="10" fill="none"/><rect class="ph-ln2" x="398" y="479" width="7" height="10" fill="none"/>
+      <rect class="ph-chipf" x="430" y="478" width="20" height="12"/><rect class="ph-chipf" x="456" y="478" width="20" height="12"/>
+      <line class="ph-ln2" x1="586" y1="478" x2="586" y2="490"/><line class="ph-ln2" x1="591" y1="478" x2="591" y2="490"/>
+    </g>
+    <g>
+      <rect class="ph-fill ph-ln2" x="362" y="500" width="238" height="24"/>
+      <rect class="ph-ln2" x="368" y="507" width="7" height="10" fill="none"/><rect class="ph-ln2" x="378" y="507" width="7" height="10" fill="none"/><rect class="ph-ln2" x="388" y="507" width="7" height="10" fill="none"/><rect class="ph-ln2" x="398" y="507" width="7" height="10" fill="none"/>
+      <rect class="ph-chipf" x="430" y="506" width="20" height="12"/><rect class="ph-chipf" x="456" y="506" width="20" height="12"/>
+      <line class="ph-ln2" x1="586" y1="506" x2="586" y2="518"/><line class="ph-ln2" x1="591" y1="506" x2="591" y2="518"/>
+    </g>
+    <g>
+      <rect class="ph-fill ph-ln2" x="362" y="528" width="238" height="24"/>
+      <rect class="ph-ln2" x="368" y="535" width="7" height="10" fill="none"/><rect class="ph-ln2" x="378" y="535" width="7" height="10" fill="none"/><rect class="ph-ln2" x="388" y="535" width="7" height="10" fill="none"/><rect class="ph-ln2" x="398" y="535" width="7" height="10" fill="none"/>
+      <rect class="ph-chipf" x="430" y="534" width="20" height="12"/><rect class="ph-chipf" x="456" y="534" width="20" height="12"/>
+      <line class="ph-ln2" x1="586" y1="534" x2="586" y2="546"/><line class="ph-ln2" x1="591" y1="534" x2="591" y2="546"/>
+    </g>
+    <g>
+      <rect class="ph-fill ph-ln2" x="362" y="556" width="238" height="24"/>
+      <rect class="ph-ln2" x="368" y="563" width="7" height="10" fill="none"/><rect class="ph-ln2" x="378" y="563" width="7" height="10" fill="none"/><rect class="ph-ln2" x="388" y="563" width="7" height="10" fill="none"/><rect class="ph-ln2" x="398" y="563" width="7" height="10" fill="none"/>
+      <rect class="ph-chipf" x="430" y="562" width="20" height="12"/><rect class="ph-chipf" x="456" y="562" width="20" height="12"/>
+      <line class="ph-ln2" x1="586" y1="562" x2="586" y2="574"/><line class="ph-ln2" x1="591" y1="562" x2="591" y2="574"/>
+    </g>
+  </g>
+
+  <!-- 盲插快接头 -->
+  <g class="ph-hot" data-part="blind-mate">
+    <circle class="ph-bm" cx="364" cy="144" r="2.6"/><circle class="ph-bm" cx="364" cy="172" r="2.6"/><circle class="ph-bm" cx="364" cy="200" r="2.6"/><circle class="ph-bm" cx="364" cy="228" r="2.6"/><circle class="ph-bm" cx="364" cy="256" r="2.6"/><circle class="ph-bm" cx="364" cy="284" r="2.6"/>
+    <circle class="ph-bm" cx="364" cy="314" r="2.6"/><circle class="ph-bm" cx="364" cy="342" r="2.6"/><circle class="ph-bm" cx="364" cy="370" r="2.6"/><circle class="ph-bm" cx="364" cy="398" r="2.6"/>
+    <circle class="ph-bm" cx="364" cy="428" r="2.6"/><circle class="ph-bm" cx="364" cy="456" r="2.6"/><circle class="ph-bm" cx="364" cy="484" r="2.6"/><circle class="ph-bm" cx="364" cy="512" r="2.6"/><circle class="ph-bm" cx="364" cy="540" r="2.6"/><circle class="ph-bm" cx="364" cy="568" r="2.6"/>
+    <g class="ph-plus"><circle cx="382" cy="336" r="9"/><path d="M382 332 v8 M378 336 h8"/></g>
+  </g>
+
+  <!-- 右侧标注 -->
+  <g class="ph-lead">
+    <line x1="656" y1="64" x2="602" y2="64"/>
+    <line x1="656" y1="94" x2="602" y2="92"/>
+    <line x1="656" y1="198" x2="613" y2="196"/>
+    <line x1="656" y1="248" x2="601" y2="246"/>
+    <line x1="656" y1="344" x2="601" y2="344"/>
+  </g>
+  <text class="ph-lbl" x="662" y="68">管理交换机</text>
+  <text class="ph-lbl" x="662" y="98">电源架 AC→DC · SiC 功率器件</text>
+  <text class="ph-lbl" x="662" y="202">直流母线 · 铜排</text>
+  <text class="ph-lbl" x="662" y="252">计算托盘 ×18（示意 12）</text>
+  <text class="ph-lbl" x="662" y="348">NVSwitch ×9（示意 4）· 铜背板</text>
+
+  <!-- 左侧标注 -->
+  <g class="ph-lead">
+    <line x1="304" y1="58" x2="330" y2="58"/>
+    <line x1="304" y1="318" x2="346" y2="318"/>
+    <line x1="304" y1="348" x2="360" y2="342"/>
+  </g>
+  <text class="ph-lbl" x="298" y="62" text-anchor="end">机柜框架 · 1.3 吨+</text>
+  <text class="ph-lbl" x="298" y="322" text-anchor="end">液冷歧管 供/回</text>
+  <text class="ph-lbl" x="298" y="352" text-anchor="end">盲插快接头</text>
+
+  <text class="ph-lbls" x="480" y="628" text-anchor="middle">120-140kW/柜 · 72× GPU 一个 NVLink 域 · 托盘数量为示意</text>
+</svg>

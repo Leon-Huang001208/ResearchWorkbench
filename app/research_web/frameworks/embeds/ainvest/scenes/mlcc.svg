@@ -1,0 +1,22 @@
+<svg viewBox="0 0 1000 540" xmlns="http://www.w3.org/2000/svg" class="ph-scene">
+  <text class="ph-lbls" x="44" y="42">MLCC：钛酸钡介质层与镍内电极交替堆叠，为 AI 板卡的高频瞬态供电去耦</text>
+  <path class="ph-flow" d="M70 280H910"/><polygon points="910,275 922,280 910,285" fill="var(--accent)"/>
+  <g class="ph-hot" data-part="batio3-powder">
+    <rect class="ph-fill ph-ln" x="70" y="218" width="160" height="124" rx="5"/><path class="ph-ln2" d="M100 316q24-56 48 0q24-56 48 0"/><circle class="ph-chipf" cx="114" cy="248" r="7"/><circle class="ph-chipf" cx="145" cy="258" r="7"/><circle class="ph-chipf" cx="178" cy="244" r="7"/>
+    <text class="ph-lbl" x="150" y="374" text-anchor="middle">钛酸钡介质粉</text><text class="ph-lbls" x="150" y="389" text-anchor="middle">高纯 · 细粒径</text>
+    <g class="ph-plus"><circle cx="214" cy="232" r="8"/><path d="M214 228v8M210 232h8"/></g>
+  </g>
+  <g class="ph-hot" data-part="mlcc-stack">
+    <rect class="ph-fill ph-ln" x="330" y="190" width="214" height="176"/><rect class="ph-chipf" x="362" y="230" width="150" height="10"/><rect class="ph-metal" x="362" y="244" width="150" height="5"/><rect class="ph-chipf" x="362" y="253" width="150" height="10"/><rect class="ph-metal" x="362" y="267" width="150" height="5"/><rect class="ph-chipf" x="362" y="276" width="150" height="10"/><rect class="ph-metal" x="362" y="290" width="150" height="5"/><rect class="ph-chipf" x="362" y="299" width="150" height="10"/>
+    <text class="ph-lbl" x="437" y="398" text-anchor="middle">流延 / 印刷 / 叠层</text><text class="ph-lbls" x="437" y="413" text-anchor="middle">介质层 × 镍内电极</text>
+  </g>
+  <g class="ph-hot" data-part="mlcc-sinter">
+    <rect class="ph-fill ph-ln" x="646" y="202" width="152" height="148" rx="5"/><path class="ph-ln2" d="M670 242h104M670 268h104M670 294h104M696 202v148M748 202v148"/><path class="ph-pipe-s" d="M646 278h-48"/><path class="ph-pipe-r" d="M798 254h46"/>
+    <text class="ph-lbl" x="722" y="382" text-anchor="middle">共烧结 / 端电极</text><text class="ph-lbls" x="722" y="397" text-anchor="middle">铜/镍/锡</text>
+  </g>
+  <g class="ph-hot" data-part="mlcc-vrm">
+    <rect class="ph-chipbg ph-ln" x="856" y="206" width="88" height="138"/><rect class="ph-fill ph-ln2" x="868" y="222" width="22" height="16"/><rect class="ph-fill ph-ln2" x="904" y="222" width="22" height="16"/><rect class="ph-fill ph-ln2" x="868" y="250" width="22" height="16"/><rect class="ph-fill ph-ln2" x="904" y="250" width="22" height="16"/><rect class="ph-fill ph-ln2" x="868" y="278" width="22" height="16"/><rect class="ph-fill ph-ln2" x="904" y="278" width="22" height="16"/>
+    <text class="ph-lbl" x="900" y="376" text-anchor="middle">VRM 去耦阵列</text><text class="ph-lbls" x="900" y="391" text-anchor="middle">GPU / CPU 周边</text>
+  </g>
+  <line class="ph-ln2" x1="40" y1="468" x2="960" y2="468"/>
+</svg>

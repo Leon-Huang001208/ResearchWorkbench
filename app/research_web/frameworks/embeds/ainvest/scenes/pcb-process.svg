@@ -1,0 +1,29 @@
+<svg viewBox="0 0 1000 540" xmlns="http://www.w3.org/2000/svg" class="ph-scene">
+  <text class="ph-lbls" x="45" y="42">PCB 制程：多层压合、孔互连、线路图形与终检连续决定高多层 / HDI / mSAP 的有效良率</text>
+  <path class="ph-flow" d="M90 260H910"/><polygon points="910,255 922,260 910,265" fill="var(--accent)"/>
+  <g class="ph-hot" data-part="proc-lamination">
+    <rect class="ph-fill ph-ln" x="50" y="190" width="120" height="116" rx="5"/><rect class="ph-fill ph-ln2" x="78" y="212" width="64" height="10"/><rect class="ph-gold" x="82" y="230" width="56" height="5"/><rect class="ph-hbm" x="82" y="242" width="56" height="9"/><rect class="ph-gold" x="82" y="258" width="56" height="5"/>
+    <text class="ph-lbl" x="110" y="338" text-anchor="middle">多层压合</text><text class="ph-lbls" x="110" y="353" text-anchor="middle">芯板 + PP + 铜箔</text>
+  </g>
+  <g class="ph-hot" data-part="proc-drilling">
+    <rect class="ph-fill ph-ln" x="200" y="190" width="120" height="116" rx="5"/><path class="ph-fill ph-ln2" d="M252 208h16v30l-8 18-8-18z"/><rect class="ph-chipbg ph-ln2" x="226" y="262" width="68" height="18"/><path class="ph-ln2" d="M242 262v18M260 262v18M278 262v18"/>
+    <text class="ph-lbl" x="260" y="338" text-anchor="middle">钻孔</text><text class="ph-lbls" x="260" y="353" text-anchor="middle">通孔 / 盲孔 / 微孔</text>
+  </g>
+  <g class="ph-hot" data-part="proc-plating">
+    <rect class="ph-fill ph-ln" x="350" y="190" width="120" height="116" rx="5"/><rect class="ph-fill ph-ln2" x="376" y="238" width="68" height="38"/><path class="ph-pipe-r" d="M394 212v26M426 212v26"/><path class="ph-ln2" d="M386 250h48M386 264h48"/>
+    <text class="ph-lbl" x="410" y="338" text-anchor="middle">孔金属化 / 电镀</text><text class="ph-lbls" x="410" y="353" text-anchor="middle">铜层导通与填孔</text>
+  </g>
+  <g class="ph-hot" data-part="proc-ldi">
+    <rect class="ph-fill ph-ln" x="530" y="190" width="120" height="116" rx="5"/><rect class="ph-chipf" x="548" y="216" width="18" height="42"/><path class="ph-lead" d="M566 237h26"/><path class="ph-ln2" d="M592 225l24 12-24 12z"/><rect class="ph-chipbg ph-ln2" x="600" y="220" width="30" height="34"/>
+    <text class="ph-lbl" x="590" y="338" text-anchor="middle">LDI 直写曝光</text><text class="ph-lbls" x="590" y="353" text-anchor="middle">数字化线路图形</text>
+  </g>
+  <g class="ph-hot" data-part="proc-etch">
+    <rect class="ph-fill ph-ln" x="680" y="190" width="120" height="116" rx="5"/><rect class="ph-gold" x="704" y="222" width="72" height="10"/><path class="ph-fill ph-ln2" d="M714 246h52v28h-52z"/><path class="ph-ln2" d="M720 252h40M720 264h40"/>
+    <text class="ph-lbl" x="740" y="338" text-anchor="middle">图形电镀 / 蚀刻</text><text class="ph-lbls" x="740" y="353" text-anchor="middle">减成法 / mSAP / SAP</text>
+  </g>
+  <g class="ph-hot" data-part="proc-inspection">
+    <rect class="ph-fill ph-ln" x="830" y="190" width="120" height="116" rx="5"/><rect class="ph-chipbg ph-ln2" x="854" y="222" width="72" height="48"/><circle class="ph-ln2" cx="878" cy="246" r="10" fill="none"/><path class="ph-ln2" d="M886 254l12 12"/>
+    <text class="ph-lbl" x="890" y="338" text-anchor="middle">AOI / 电测 / 终检</text><text class="ph-lbls" x="890" y="353" text-anchor="middle">缺陷、连通、阻抗</text>
+  </g>
+  <text class="ph-lbls" x="500" y="444" text-anchor="middle">mSAP：超薄铜箔 → 图形电镀 → 剥膜 → 闪蚀，兼顾量产与约 20-25μm 线宽线距</text>
+</svg>

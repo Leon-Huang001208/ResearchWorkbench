@@ -1,0 +1,116 @@
+<svg viewBox="0 0 1000 560" xmlns="http://www.w3.org/2000/svg" class="ph-scene">
+  <!-- 内部封闭框架 -->
+  <g class="ph-hot" data-part="litho-frame">
+    <rect class="ph-dash" x="150" y="70" width="780" height="400" fill="none"/>
+    <text class="ph-lbls" x="540" y="62" text-anchor="middle">内部封闭框架 · 恒温 ±0.01℃ · 洁净度 10 级 · EUV 需全真空</text>
+  </g>
+
+  <!-- 光束路径 -->
+  <g class="ph-pipe-s">
+    <path d="M120 342 H160" fill="none"/>
+    <path d="M168 334 V166" fill="none"/>
+    <path d="M176 160 H296" fill="none"/>
+    <path d="M484 160 H826" fill="none"/>
+    <path d="M830 156 V118" fill="none"/>
+    <path d="M830 164 V210" fill="none"/>
+    <path d="M830 242 V248" fill="none"/>
+    <path d="M830 372 V384" fill="none"/>
+  </g>
+  <circle class="ph-bm" cx="830" cy="160" r="2.5"/>
+
+  <!-- 激光器（光源系统） -->
+  <g class="ph-hot" data-part="laser-source">
+    <rect class="ph-fill ph-ln" x="30" y="320" width="90" height="44"/>
+    <line class="ph-ln2" x1="42" y1="334" x2="108" y2="334"/>
+    <line class="ph-ln2" x1="42" y1="350" x2="108" y2="350"/>
+    <text class="ph-lbl" x="75" y="388" text-anchor="middle">激光器 · 光源系统</text>
+    <text class="ph-lbls" x="75" y="403" text-anchor="middle">DUV 准分子 / EUV 锡滴 LPP</text>
+  </g>
+
+  <!-- 光束矫正器 -->
+  <g class="ph-hot" data-part="beam-corrector">
+    <line class="ph-ln" x1="158" y1="352" x2="178" y2="332"/>
+    <line class="ph-ln" x1="158" y1="310" x2="178" y2="292"/>
+    <line class="ph-ln" x1="158" y1="270" x2="178" y2="252"/>
+    <text class="ph-lbl" x="188" y="344" >3 个光束矫正器</text>
+  </g>
+
+  <!-- 能量控制器 -->
+  <g class="ph-hot" data-part="energy-ctrl">
+    <polygon class="ph-fill ph-ln" points="158,214 178,214 168,232"/>
+    <polygon class="ph-fill ph-ln" points="158,250 178,250 168,232"/>
+    <text class="ph-lbl" x="188" y="230">能量控制器</text>
+  </g>
+
+  <!-- 照明系统：光束形状设置装置 + 遮光器 -->
+  <g class="ph-hot" data-part="illum">
+    <rect class="ph-chipf" x="300" y="138" width="184" height="44"/>
+    <ellipse class="ph-fill ph-ln" cx="345" cy="160" rx="10" ry="17"/>
+    <ellipse class="ph-fill ph-ln" cx="372" cy="160" rx="7" ry="14"/>
+    <rect class="ph-fill ph-ln" x="432" y="142" width="7" height="36"/>
+    <rect class="ph-fill ph-ln" x="452" y="142" width="7" height="36"/>
+    <text class="ph-lbl" x="392" y="204" text-anchor="middle">光束形状设置装置 · 遮光器</text>
+    <text class="ph-lbls" x="392" y="219" text-anchor="middle">照明系统：匀光/离轴照明/剂量控制</text>
+  </g>
+
+  <!-- 能量探测器 -->
+  <g class="ph-hot" data-part="energy-detect">
+    <rect class="ph-fill ph-ln" x="796" y="86" width="68" height="32"/>
+    <text class="ph-lbl" x="872" y="106">能量探测器</text>
+  </g>
+
+  <!-- 掩模台 + 掩模版 -->
+  <g class="ph-hot" data-part="mask-stage">
+    <rect class="ph-fill ph-ln" x="760" y="214" width="140" height="12"/>
+    <rect class="ph-metal" x="775" y="230" width="110" height="8"/>
+    <text class="ph-lbl" x="752" y="224" text-anchor="end">掩模台</text>
+    <text class="ph-lbl" x="752" y="240" text-anchor="end">掩模版</text>
+  </g>
+
+  <!-- 物镜（投影物镜系统） -->
+  <g class="ph-hot" data-part="projection">
+    <rect class="ph-fill ph-ln" x="790" y="250" width="80" height="120"/>
+    <line class="ph-ln2" x1="798" y1="258" x2="862" y2="362"/>
+    <line class="ph-ln2" x1="862" y1="258" x2="798" y2="362"/>
+    <ellipse class="ph-ln2" cx="830" cy="282" rx="26" ry="6" fill="none"/>
+    <ellipse class="ph-ln2" cx="830" cy="338" rx="26" ry="6" fill="none"/>
+    <text class="ph-lbl" x="782" y="306" text-anchor="end">物镜 · 投影物镜系统</text>
+    <text class="ph-lbls" x="782" y="322" text-anchor="end">4:1 缩小 · 近 30 片镜片</text>
+  </g>
+
+  <!-- 硅片 + 曝光台 -->
+  <g class="ph-hot" data-part="wafer-stage">
+    <ellipse class="ph-chipf" cx="830" cy="392" rx="36" ry="7"/>
+    <rect class="ph-fill ph-ln" x="770" y="400" width="120" height="18"/>
+    <text class="ph-lbl" x="830" y="440" text-anchor="middle">硅片 · 曝光台</text>
+  </g>
+
+  <!-- 测量台 + 测量设备 -->
+  <g class="ph-hot" data-part="metro-stage">
+    <rect class="ph-fill ph-ln" x="410" y="296" width="44" height="18"/>
+    <rect class="ph-fill ph-ln" x="496" y="296" width="44" height="18"/>
+    <line class="ph-lead" x1="432" y1="314" x2="470" y2="388"/>
+    <line class="ph-lead" x1="518" y1="314" x2="488" y2="388"/>
+    <ellipse class="ph-chipf" cx="480" cy="392" rx="36" ry="7"/>
+    <rect class="ph-fill ph-ln" x="420" y="400" width="120" height="18"/>
+    <text class="ph-lbl" x="480" y="288" text-anchor="middle">测量设备</text>
+    <text class="ph-lbl" x="480" y="440" text-anchor="middle">硅片 · 测量台</text>
+  </g>
+
+  <!-- 双工作台交换 -->
+  <path class="ph-dash" d="M552 409 H758"/>
+  <polygon points="562,404 552,409 562,414" fill="var(--txt3)"/>
+  <polygon points="748,404 758,409 748,414" fill="var(--txt3)"/>
+  <text class="ph-lbls" x="655" y="400" text-anchor="middle">双工作台交换 · 测量与曝光并行，产能 +35%</text>
+
+  <!-- 减振器 -->
+  <g class="ph-hot" data-part="damper">
+    <rect class="ph-fill ph-ln" x="180" y="478" width="56" height="24"/>
+    <rect class="ph-fill ph-ln" x="852" y="478" width="56" height="24"/>
+    <line class="ph-lead" x1="240" y1="492" x2="516" y2="492"/>
+    <line class="ph-lead" x1="572" y1="492" x2="848" y2="492"/>
+    <text class="ph-lbl" x="544" y="496" text-anchor="middle">减振器</text>
+  </g>
+
+  <text class="ph-lbls" x="540" y="540" text-anchor="middle">结构参考中科院半导体所示意图（华创证券光刻机深度报告转引）· EUV 整机约 45 万个零件 · 重 17 吨 · 光路总长逾 500 米</text>
+</svg>

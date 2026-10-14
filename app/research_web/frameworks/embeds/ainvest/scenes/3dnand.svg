@@ -1,0 +1,29 @@
+<svg viewBox="0 0 1000 600" xmlns="http://www.w3.org/2000/svg" class="ph-scene">
+  <text class="ph-lbls" x="45" y="42">3D NAND：存储单元沿垂直方向堆叠，通道孔贯穿阵列；Xtacking 可将阵列与 CMOS 外围电路分开制造后再键合</text>
+  <g class="ph-hot" data-part="nand-layer-stack">
+    <rect class="ph-fill ph-ln" x="92" y="116" width="320" height="250" rx="6"/>
+    <path class="ph-ln2" d="M118 142h268M118 158h268M118 174h268M118 190h268M118 206h268M118 222h268M118 238h268M118 254h268M118 270h268M118 286h268M118 302h268M118 318h268M118 334h268"/>
+    <text class="ph-lbl" x="252" y="92" text-anchor="middle">垂直字线 / 存储层堆叠</text><text class="ph-lbls" x="252" y="392" text-anchor="middle">层数提升带来更高 bit 密度，也提高深宽比刻蚀难度</text>
+  </g>
+  <g class="ph-hot" data-part="nand-channel-hole">
+    <g class="ph-gold"><path d="M160 126v230M238 126v230M316 126v230" stroke-width="11" fill="none" opacity=".8"/></g><path class="ph-ln2" d="M160 126v230M238 126v230M316 126v230" stroke-width="2" fill="none"/>
+    <text class="ph-lbl" x="472" y="170">垂直通道孔</text><text class="ph-lbls" x="472" y="187">沿深孔形成存储串</text><path class="ph-lead" d="M326 160H452"/>
+  </g>
+  <g class="ph-hot" data-part="nand-staircase">
+    <path class="ph-metal ph-ln" d="M474 300h42v-18h38v-18h38v-18h38v-18h38v-18h38v-18h38v-18h40v144H474z"/>
+    <text class="ph-lbl" x="666" y="336" text-anchor="middle">Staircase 阶梯结构</text><text class="ph-lbls" x="666" y="353" text-anchor="middle">把每层字线引出连接</text>
+  </g>
+  <g class="ph-hot" data-part="nand-xtacking">
+    <rect class="ph-chipf ph-ln" x="110" y="444" width="240" height="44" rx="4"/><text class="ph-die" x="230" y="471" text-anchor="middle">NAND Array Wafer</text>
+    <rect class="ph-chipbg ph-ln" x="110" y="520" width="240" height="44" rx="4"/><text class="ph-die" x="230" y="547" text-anchor="middle">CMOS Periphery Wafer</text>
+    <g class="ph-gold"><circle cx="142" cy="506" r="4"/><circle cx="178" cy="506" r="4"/><circle cx="214" cy="506" r="4"/><circle cx="250" cy="506" r="4"/><circle cx="286" cy="506" r="4"/><circle cx="322" cy="506" r="4"/></g>
+    <text class="ph-lbl" x="394" y="490">Xtacking / 混合键合</text><text class="ph-lbls" x="394" y="507">阵列与外围电路分别优化再互连</text><path class="ph-lead" d="M350 506H378"/>
+  </g>
+  <g class="ph-hot" data-part="nand-cell-modes">
+    <rect class="ph-fill ph-ln" x="634" y="430" width="90" height="72" rx="4"/><text class="ph-lbl" x="679" y="458" text-anchor="middle">SLC</text><text class="ph-lbls" x="679" y="477" text-anchor="middle">1 bit/cell</text><text class="ph-lbls" x="679" y="491" text-anchor="middle">高可靠 / 低延迟</text>
+    <rect class="ph-fill ph-ln" x="748" y="430" width="90" height="72" rx="4"/><text class="ph-lbl" x="793" y="458" text-anchor="middle">TLC</text><text class="ph-lbls" x="793" y="477" text-anchor="middle">3 bit/cell</text><text class="ph-lbls" x="793" y="491" text-anchor="middle">容量主流</text>
+    <rect class="ph-fill ph-ln" x="862" y="430" width="90" height="72" rx="4"/><text class="ph-lbl" x="907" y="458" text-anchor="middle">QLC</text><text class="ph-lbls" x="907" y="477" text-anchor="middle">4 bit/cell</text><text class="ph-lbls" x="907" y="491" text-anchor="middle">高密度 / 成本优先</text>
+    <text class="ph-lbls" x="793" y="534" text-anchor="middle">pSLC 可用 TLC/QLC 的部分空间换取更高性能与耐久</text>
+  </g>
+  <text class="ph-lbls" x="500" y="586" text-anchor="middle">SLC、TLC、QLC 是每单元存储 bit 数的不同取舍：性能、耐久、密度和成本需结合具体介质与系统策略判断。</text>
+</svg>

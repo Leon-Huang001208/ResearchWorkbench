@@ -1,0 +1,115 @@
+<svg viewBox="0 0 1000 560" xmlns="http://www.w3.org/2000/svg" class="ph-scene">
+  <!-- 对齐虚线 -->
+  <path class="ph-dash" d="M310 104 V430 M470 104 V430 M640 104 V430"/>
+
+  <!-- 上壳体 -->
+  <g class="ph-hot" data-part="top-housing">
+    <path class="ph-ln2" d="M252 58v12M270 58v12M288 58v12M306 58v12M324 58v12M342 58v12M360 58v12M378 58v12M396 58v12M414 58v12M432 58v12M450 58v12M468 58v12M486 58v12M504 58v12M522 58v12M540 58v12M558 58v12M576 58v12M594 58v12M612 58v12M630 58v12M648 58v12M666 58v12M684 58v12" fill="none"/>
+    <rect class="ph-fill ph-ln" x="240" y="70" width="460" height="30" rx="4"/>
+  </g>
+  <!-- 拉环 -->
+  <g class="ph-hot" data-part="pull-tab">
+    <rect class="ph-ln" x="704" y="79" width="40" height="13" rx="6" fill="none"/>
+  </g>
+
+  <!-- 光引擎层 -->
+  <g class="ph-hot" data-part="mpo">
+    <rect class="ph-metal" x="246" y="176" width="54" height="30" rx="2"/>
+    <circle class="ph-ln2" cx="256" cy="191" r="2.5" fill="none"/>
+    <circle class="ph-ln2" cx="288" cy="191" r="2.5" fill="none"/>
+    <path class="ph-ln2" d="M246 186 C220 186 208 182 186 182 M246 196 C220 196 208 200 186 200" fill="none"/>
+  </g>
+  <g class="ph-hot" data-part="siph">
+    <rect class="ph-fill ph-ln" x="300" y="190" width="310" height="16"/>
+    <rect class="ph-chipf" x="356" y="164" width="56" height="26"/>
+    <text class="ph-die" x="384" y="181" text-anchor="middle">SiPh</text>
+  </g>
+  <g class="ph-hot" data-part="fau">
+    <rect class="ph-fill ph-ln" x="310" y="168" width="36" height="22"/>
+    <path class="ph-ln2" d="M316 172 v14 M322 172 v14 M328 172 v14 M334 172 v14 M340 172 v14" fill="none"/>
+  </g>
+  <g class="ph-hot" data-part="lens">
+    <polygon class="ph-fill ph-ln" points="424,190 444,190 439,168 429,168"/>
+  </g>
+  <g class="ph-hot" data-part="eml-laser">
+    <rect class="ph-chipf" x="456" y="172" width="18" height="18"/>
+    <rect class="ph-chipf" x="482" y="172" width="18" height="18"/>
+    <rect class="ph-chipf" x="508" y="172" width="18" height="18"/>
+    <rect class="ph-chipf" x="534" y="172" width="18" height="18"/>
+  </g>
+  <g class="ph-hot" data-part="pd">
+    <rect class="ph-hbm" x="570" y="174" width="22" height="16"/>
+  </g>
+
+  <!-- PCBA 层 -->
+  <g class="ph-hot" data-part="pcba">
+    <rect class="ph-fill ph-ln" x="240" y="300" width="460" height="16"/>
+  </g>
+  <g class="ph-hot" data-part="driver-tia-chip">
+    <rect class="ph-fill ph-ln2" x="352" y="278" width="30" height="22"/>
+    <rect class="ph-fill ph-ln2" x="486" y="278" width="30" height="22"/>
+  </g>
+  <g class="ph-hot" data-part="dsp-chip">
+    <rect class="ph-chipf" x="400" y="268" width="70" height="32"/>
+    <text class="ph-die" x="435" y="288" text-anchor="middle">DSP</text>
+  </g>
+  <g class="ph-hot" data-part="gold-finger">
+    <rect class="ph-gold" x="640" y="302" width="5" height="12"/><rect class="ph-gold" x="649" y="302" width="5" height="12"/><rect class="ph-gold" x="658" y="302" width="5" height="12"/><rect class="ph-gold" x="667" y="302" width="5" height="12"/><rect class="ph-gold" x="676" y="302" width="5" height="12"/><rect class="ph-gold" x="685" y="302" width="5" height="12"/><rect class="ph-gold" x="694" y="302" width="5" height="12"/>
+  </g>
+
+  <!-- 下壳体 -->
+  <g class="ph-hot" data-part="bottom-housing">
+    <rect class="ph-fill ph-ln" x="240" y="390" width="460" height="34" rx="4"/>
+    <path class="ph-ln2" d="M250 390 V412 H690 V390" fill="none"/>
+  </g>
+
+  <!-- 尺寸标注 -->
+  <g class="ph-lead">
+    <line x1="240" y1="448" x2="240" y2="460"/>
+    <line x1="700" y1="448" x2="700" y2="460"/>
+    <line x1="240" y1="454" x2="410" y2="454"/>
+    <line x1="530" y1="454" x2="700" y2="454"/>
+  </g>
+  <text class="ph-lbls" x="470" y="458" text-anchor="middle">OSFP ≈100 mm</text>
+
+  <!-- 左侧标注 -->
+  <g class="ph-lead">
+    <line x1="231" y1="80" x2="240" y2="80"/>
+    <line x1="231" y1="162" x2="246" y2="180"/>
+    <line x1="231" y1="266" x2="352" y2="282"/>
+    <line x1="231" y1="306" x2="240" y2="306"/>
+    <line x1="231" y1="398" x2="240" y2="398"/>
+  </g>
+  <text class="ph-lbl" x="225" y="84" text-anchor="end">上壳体 · 锌合金压铸</text>
+  <text class="ph-lbl" x="225" y="166" text-anchor="end">MPO 插芯 · 锆陶瓷</text>
+  <text class="ph-lbls" x="180" y="176" text-anchor="end">出纤</text>
+  <text class="ph-lbl" x="225" y="270" text-anchor="end">Driver / TIA</text>
+  <text class="ph-lbl" x="225" y="310" text-anchor="end">PCBA · 高频板</text>
+  <text class="ph-lbl" x="225" y="402" text-anchor="end">下壳体</text>
+
+  <!-- 右侧标注 -->
+  <g class="ph-lead">
+    <line x1="750" y1="84" x2="746" y2="85"/>
+    <line x1="750" y1="138" x2="545" y2="172"/>
+    <line x1="750" y1="178" x2="594" y2="182"/>
+    <line x1="750" y1="250" x2="472" y2="272"/>
+    <line x1="750" y1="308" x2="701" y2="308"/>
+  </g>
+  <text class="ph-lbl" x="756" y="88">拉环 · 不锈钢</text>
+  <text class="ph-lbl" x="756" y="142">EML 激光器 ×4 · 磷化铟 InP</text>
+  <text class="ph-lbl" x="756" y="182">PD 光电探测器 · InGaAs</text>
+  <text class="ph-lbl" x="756" y="254">DSP · 5nm 硅基</text>
+  <text class="ph-lbl" x="756" y="312">金手指 · 铜镀金</text>
+
+  <!-- 中部标注 -->
+  <g class="ph-lead">
+    <line x1="328" y1="154" x2="328" y2="166"/>
+    <line x1="434" y1="154" x2="434" y2="166"/>
+    <line x1="384" y1="230" x2="384" y2="208"/>
+  </g>
+  <text class="ph-lbl" x="328" y="150" text-anchor="middle">FAU</text>
+  <text class="ph-lbl" x="434" y="150" text-anchor="middle">透镜</text>
+  <text class="ph-lbl" x="384" y="244" text-anchor="middle">硅光芯片 + 光引擎基板</text>
+
+  <text class="ph-lbls" x="470" y="536" text-anchor="middle">1.6T OSFP · EML + 硅光方案 · 爆炸示意（点击元器件查看材料与矿产）</text>
+</svg>

@@ -1,0 +1,110 @@
+<svg viewBox="0 0 1000 560" xmlns="http://www.w3.org/2000/svg" class="ph-scene">
+  <text class="ph-lbls" x="45" y="40">算力变现链：数据中心 → 云 → 模型 → 分发 → 应用与终端 · 收入回流形成 Capex 飞轮</text>
+
+  <!-- 算力池 -->
+  <g class="ph-hot" data-part="dc-pool">
+    <rect class="ph-fill ph-ln2" x="45" y="140" width="150" height="160"/>
+    <rect class="ph-fill ph-ln" x="65" y="162" width="30" height="94"/>
+    <rect class="ph-fill ph-ln" x="105" y="162" width="30" height="94"/>
+    <rect class="ph-fill ph-ln" x="145" y="162" width="30" height="94"/>
+    <line class="ph-ln2" x1="65" y1="192" x2="175" y2="192"/>
+    <line class="ph-ln2" x1="65" y1="222" x2="175" y2="222"/>
+    <text class="ph-lbl" x="120" y="278" text-anchor="middle">数据中心算力池</text>
+    <text class="ph-lbls" x="120" y="292" text-anchor="middle">自建 + 租赁</text>
+  </g>
+
+  <!-- 云层 -->
+  <g class="ph-hot" data-part="hyperscaler-p">
+    <rect class="ph-fill ph-ln" x="255" y="70" width="200" height="76" rx="6"/>
+    <text class="ph-lbl" x="355" y="102" text-anchor="middle">海外云巨头</text>
+    <text class="ph-lbls" x="355" y="122" text-anchor="middle">微软 · 谷歌 · 亚马逊 · Meta · 甲骨文</text>
+  </g>
+  <g class="ph-hot" data-part="cn-cloud">
+    <rect class="ph-fill ph-ln" x="255" y="168" width="200" height="76" rx="6"/>
+    <text class="ph-lbl" x="355" y="200" text-anchor="middle">国内云</text>
+    <text class="ph-lbls" x="355" y="220" text-anchor="middle">阿里 · 腾讯 · 百度 · 华为 · 运营商云</text>
+  </g>
+  <g class="ph-hot" data-part="gpu-cloud">
+    <rect class="ph-fill ph-ln" x="255" y="266" width="200" height="76" rx="6"/>
+    <text class="ph-lbl" x="355" y="298" text-anchor="middle">GPU 云 · 算力租赁</text>
+    <text class="ph-lbls" x="355" y="318" text-anchor="middle">CoreWeave · Nebius · 国内智算</text>
+  </g>
+
+  <!-- 模型层 -->
+  <g class="ph-hot" data-part="frontier-model">
+    <rect class="ph-chipf" x="515" y="70" width="200" height="76" rx="6"/>
+    <text class="ph-lbl" x="615" y="102" text-anchor="middle">海外前沿模型</text>
+    <text class="ph-lbls" x="615" y="122" text-anchor="middle">OpenAI · Anthropic · Google · xAI</text>
+    <g class="ph-plus"><circle cx="702" cy="84" r="8"/><path d="M702 80v8M698 84h8"/></g>
+  </g>
+  <g class="ph-hot" data-part="cn-model">
+    <rect class="ph-chipf" x="515" y="168" width="200" height="76" rx="6"/>
+    <text class="ph-lbl" x="615" y="200" text-anchor="middle">国内模型</text>
+    <text class="ph-lbls" x="615" y="220" text-anchor="middle">DeepSeek · 通义 · 豆包 · Kimi · 智谱</text>
+    <g class="ph-plus"><circle cx="702" cy="182" r="8"/><path d="M702 178v8M698 182h8"/></g>
+  </g>
+  <g class="ph-hot" data-part="api-infra">
+    <rect class="ph-fill ph-ln" x="515" y="266" width="200" height="76" rx="6"/>
+    <text class="ph-lbl" x="615" y="298" text-anchor="middle">AI Infra · API / Agent 分发</text>
+    <text class="ph-lbls" x="615" y="318" text-anchor="middle">推理优化 · Token 计价 · 智能体平台</text>
+    <g class="ph-plus"><circle cx="702" cy="280" r="8"/><path d="M702 276v8M698 280h8"/></g>
+  </g>
+
+  <!-- 应用与终端 -->
+  <g class="ph-hot" data-part="ai-apps">
+    <rect class="ph-fill ph-ln" x="775" y="70" width="180" height="120" rx="6"/>
+    <rect class="ph-chipbg ph-ln2" x="795" y="86" width="34" height="26" rx="4"/>
+    <text class="ph-die" x="812" y="103" text-anchor="middle">&lt;/&gt;</text>
+    <rect class="ph-chipbg ph-ln2" x="841" y="86" width="34" height="26" rx="4"/>
+    <path class="ph-lead" d="M849 96 h18 M849 102 h12"/>
+    <rect class="ph-chipbg ph-ln2" x="887" y="86" width="34" height="26" rx="4"/>
+    <path class="ph-ln2" d="M894 106 l7 -8 l6 4 l8 -9" fill="none"/>
+    <text class="ph-lbl" x="865" y="146" text-anchor="middle">应用层</text>
+    <text class="ph-lbls" x="865" y="164" text-anchor="middle">Agent 编程 · 办公 · 金融医疗 · AIGC</text>
+  </g>
+  <g class="ph-hot" data-part="edge-devices">
+    <rect class="ph-fill ph-ln" x="775" y="230" width="180" height="120" rx="6"/>
+    <rect class="ph-fill ph-ln2" x="798" y="248" width="20" height="34" rx="3"/>
+    <path class="ph-ln2" d="M832 262 a8 8 0 0 1 16 0 M852 262 a8 8 0 0 1 16 0 M848 262 h4" fill="none"/>
+    <rect class="ph-fill ph-ln2" x="884" y="248" width="26" height="24" rx="4"/>
+    <circle class="ph-ln2" cx="892" cy="258" r="2.5" fill="none"/>
+    <circle class="ph-ln2" cx="902" cy="258" r="2.5" fill="none"/>
+    <text class="ph-lbl" x="865" y="306" text-anchor="middle">端侧 AI · 智能驾驶</text>
+    <text class="ph-lbls" x="865" y="324" text-anchor="middle">AI 手机/PC · 眼镜 · 机器人 · 智驾</text>
+    <g class="ph-plus"><circle cx="942" cy="244" r="8"/><path d="M942 240v8M938 244h8"/></g>
+  </g>
+
+  <!-- 流向 -->
+  <g class="ph-lead">
+    <line x1="195" y1="200" x2="248" y2="108"/>
+    <line x1="195" y1="216" x2="248" y2="206"/>
+    <line x1="195" y1="232" x2="248" y2="304"/>
+    <line x1="455" y1="108" x2="508" y2="108"/>
+    <line x1="455" y1="206" x2="508" y2="206"/>
+    <line x1="455" y1="304" x2="508" y2="304"/>
+  </g>
+  <polygon points="248,108 240,104 242,114" fill="var(--txt3)"/>
+  <polygon points="248,206 238,201 238,211" fill="var(--txt3)"/>
+  <polygon points="248,304 240,296 238,306" fill="var(--txt3)"/>
+  <polygon points="508,103 518,108 508,113" fill="var(--txt3)"/>
+  <polygon points="508,201 518,206 508,211" fill="var(--txt3)"/>
+  <polygon points="508,299 518,304 508,309" fill="var(--txt3)"/>
+  <path class="ph-lead" d="M615 244 V258"/>
+  <polygon points="610,258 615,266 620,258" fill="var(--txt3)"/>
+  <path class="ph-lead" d="M715 108 H745 V290 H723" stroke-dasharray="4 4"/>
+  <polygon points="723,285 715,290 723,295" fill="var(--txt3)"/>
+  <path class="ph-lead" d="M715 290 H745"/>
+  <g class="ph-lead">
+    <line x1="715" y1="304" x2="768" y2="290"/>
+    <line x1="715" y1="290" x2="768" y2="140"/>
+  </g>
+  <polygon points="768,290 760,286 760,296" fill="var(--txt3)"/>
+  <polygon points="768,140 759,140 763,148" fill="var(--txt3)"/>
+
+  <!-- 收入回流 -->
+  <path class="ph-dash" d="M955 372 C960 470 200 486 130 320"/>
+  <polygon points="127,326 126,312 138,318" fill="var(--txt3)"/>
+  <text class="ph-lbls" x="540" y="472" text-anchor="middle">订阅 / API / 广告收入回流 → 反哺 Capex · 检验飞轮能否闭环的关键在「模型收入增速 vs 算力折旧」</text>
+
+  <text class="ph-lbls" x="500" y="532" text-anchor="middle">点击各卡片查看对应赛道标的与研报 · 由「泡沫监控」页跟踪本链条的现金流健康度</text>
+</svg>

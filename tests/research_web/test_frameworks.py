@@ -61,7 +61,19 @@ def test_catalog_and_framework_data_use_versioned_specific_contracts(framework_a
     client, _, _ = framework_api
     catalog = client.get("/api/research/frameworks")
     assert catalog.status_code == 200
-    assert [item["slug"] for item in catalog.json()["items"]] == ["gold", "dollar"]
+    assert [item["slug"] for item in catalog.json()["items"]] == [
+        "gold",
+        "dollar",
+        "ai-economy",
+        "bond-framework",
+        "elnino",
+        "fund-track-selection",
+        "memory-chips-60",
+        "inference-chips-42",
+        "model-hardware-chain",
+        "gold-cycle",
+        "ainvest",
+    ]
 
     response = client.get("/api/research/frameworks/gold/data")
     assert response.status_code == 200

@@ -1,0 +1,27 @@
+<svg viewBox="0 0 1000 540" xmlns="http://www.w3.org/2000/svg" class="ph-scene">
+  <text class="ph-lbls" x="44" y="42">近端燃气供电：燃气轮机 / 联合循环 / SOFC 均可接入园区中压母线</text>
+  <path class="ph-flow" d="M66 282H906"/><polygon points="906,277 918,282 906,287" fill="var(--accent)"/>
+  <text class="ph-lbls" x="486" y="267" text-anchor="middle">天然气 → 轴功率 → 交流电 → 园区 10kV</text>
+  <g class="ph-hot" data-part="gas-turbine">
+    <rect class="ph-fill ph-ln" x="70" y="236" width="240" height="92" rx="5"/><circle class="ph-ln" cx="122" cy="282" r="25" fill="none"/><path class="ph-ln2" d="M97 282h50M122 257v50M104 264l36 36M140 264l-36 36"/>
+    <path class="ph-ln" d="M170 258l52 24-52 24z"/><path class="ph-metal" d="M236 250q38 32 0 64"/><line class="ph-ln2" x1="248" y1="258" x2="248" y2="306"/>
+    <text class="ph-lbl" x="190" y="356" text-anchor="middle">燃气轮机</text><text class="ph-lbls" x="190" y="371" text-anchor="middle">压气机 · 燃烧室 · 透平</text>
+    <g class="ph-plus"><circle cx="292" cy="222" r="9"/><path d="M292 218 v8 M288 222 h8"/></g>
+  </g>
+  <g class="ph-hot" data-part="gas-generator">
+    <circle class="ph-fill ph-ln" cx="384" cy="282" r="48"/><circle class="ph-ln2" cx="384" cy="282" r="26" fill="none"/><path class="ph-ln2" d="M358 282h52M384 256v52"/><text class="ph-die" x="384" y="286" text-anchor="middle">G</text>
+    <text class="ph-lbl" x="384" y="356" text-anchor="middle">同步发电机</text><text class="ph-lbls" x="384" y="371" text-anchor="middle">铜绕组 · 电工钢</text>
+  </g>
+  <g class="ph-hot" data-part="hrsg">
+    <rect class="ph-fill ph-ln" x="480" y="208" width="154" height="120"/><path class="ph-ln2" d="M500 230h114M500 252h114M500 274h114M500 296h114M522 208v120M570 208v120"/>
+    <path class="ph-pipe-s" d="M480 282h-46"/><path class="ph-pipe-r" d="M634 244h48v-84"/><text class="ph-lbl" x="557" y="356" text-anchor="middle">余热锅炉 · 联合循环</text><text class="ph-lbls" x="557" y="371" text-anchor="middle">回收高温烟气</text>
+    <g class="ph-plus"><circle cx="618" cy="194" r="9"/><path d="M618 190 v8 M614 194 h8"/></g>
+  </g>
+  <g class="ph-hot" data-part="sofc">
+    <rect class="ph-fill ph-ln" x="704" y="232" width="116" height="96"/><path class="ph-ln2" d="M720 252h84M720 272h84M720 292h84M742 232v96M770 232v96"/><path class="ph-flow" d="M820 282h64"/>
+    <text class="ph-lbl" x="762" y="356" text-anchor="middle">SOFC 燃料电池</text><text class="ph-lbls" x="762" y="371" text-anchor="middle">模块化分布式供电</text>
+  </g>
+  <path class="ph-lead" d="M640 160v246M672 160v246"/><text class="ph-lbls" x="656" y="144" text-anchor="middle">蒸汽轮机</text><path class="ph-flow" d="M682 282h22"/>
+  <rect class="ph-fill ph-ln" x="878" y="238" width="72" height="88"/><path class="ph-ln2" d="M886 258h56M886 278h56M886 298h56"/><text class="ph-lbl" x="914" y="356" text-anchor="middle">园区中压母线</text>
+  <line class="ph-ln2" x1="40" y1="438" x2="960" y2="438"/>
+</svg>

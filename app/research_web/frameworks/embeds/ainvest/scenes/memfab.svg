@@ -1,0 +1,136 @@
+<svg viewBox="0 0 1000 600" xmlns="http://www.w3.org/2000/svg" class="ph-scene">
+  <text class="ph-lbls" x="45" y="40">HBM 主线：DRAM 晶圆 → TSV → 减薄 → 堆叠 → 塑封 → 测试 · 下排为 NAND/SSD 分支与周期看板</text>
+
+  <!-- Row1 HBM 前段 -->
+  <g class="ph-hot" data-part="dram-wafer">
+    <rect class="ph-fill ph-ln2" x="45" y="64" width="170" height="100"/>
+    <circle class="ph-fill ph-ln" cx="130" cy="114" r="38"/>
+    <path class="ph-lead" d="M96 102 H164 M94 114 H166 M96 126 H164 M118 78 V150 M130 76 V152 M142 78 V150"/>
+    <text class="ph-lbl" x="130" y="182" text-anchor="middle">DRAM 晶圆</text>
+    <text class="ph-lbls" x="130" y="196" text-anchor="middle">1γ 制程 · EUV 导入</text>
+    <g class="ph-plus"><circle cx="198" cy="78" r="9"/><path d="M198 74 v8 M194 78 h8"/></g>
+  </g>
+  <g class="ph-hot" data-part="tsv">
+    <rect class="ph-fill ph-ln2" x="285" y="64" width="170" height="100"/>
+    <rect class="ph-fill ph-ln" x="320" y="100" width="100" height="30"/>
+    <rect class="ph-gold" x="336" y="100" width="5" height="30"/>
+    <rect class="ph-gold" x="356" y="100" width="5" height="30"/>
+    <rect class="ph-gold" x="376" y="100" width="5" height="30"/>
+    <rect class="ph-gold" x="396" y="100" width="5" height="30"/>
+    <path class="ph-lead" d="M338 88 v8 M358 88 v8 M378 88 v8 M398 88 v8"/>
+    <text class="ph-lbl" x="370" y="182" text-anchor="middle">TSV 硅通孔</text>
+    <text class="ph-lbls" x="370" y="196" text-anchor="middle">深硅刻蚀 + 电镀铜填孔</text>
+  </g>
+  <g class="ph-hot" data-part="thinning">
+    <rect class="ph-fill ph-ln2" x="525" y="64" width="170" height="100"/>
+    <circle class="ph-fill ph-ln" cx="588" cy="98" r="20"/>
+    <line class="ph-ln2" x1="588" y1="84" x2="588" y2="112"/>
+    <line class="ph-ln2" x1="574" y1="98" x2="602" y2="98"/>
+    <ellipse class="ph-fill ph-ln" cx="610" cy="132" rx="44" ry="6"/>
+    <text class="ph-lbl" x="610" y="182" text-anchor="middle">晶圆减薄</text>
+    <text class="ph-lbls" x="610" y="196" text-anchor="middle">磨至 ~30μm · 临时键合</text>
+  </g>
+  <g class="ph-hot" data-part="stacking">
+    <rect class="ph-fill ph-ln2" x="765" y="64" width="170" height="100"/>
+    <rect class="ph-fill ph-ln" x="812" y="76" width="76" height="16"/>
+    <path class="ph-lead" d="M850 92 V102"/>
+    <polygon points="845,102 850,110 855,102" fill="var(--txt3)"/>
+    <rect class="ph-hbm" x="812" y="112" width="76" height="6"/>
+    <rect class="ph-hbm" x="812" y="120" width="76" height="6"/>
+    <rect class="ph-hbm" x="812" y="128" width="76" height="6"/>
+    <rect class="ph-hbm" x="812" y="136" width="76" height="6"/>
+    <rect class="ph-chipf" x="812" y="144" width="76" height="9"/>
+    <text class="ph-lbl" x="850" y="182" text-anchor="middle">堆叠键合</text>
+    <text class="ph-lbls" x="850" y="196" text-anchor="middle">TC-NCF / MR-MUF → 混合键合</text>
+  </g>
+  <g class="ph-lead">
+    <line x1="215" y1="114" x2="278" y2="114"/>
+    <line x1="455" y1="114" x2="518" y2="114"/>
+    <line x1="695" y1="114" x2="758" y2="114"/>
+  </g>
+  <polygon points="278,109 288,114 278,119" fill="var(--txt3)"/>
+  <polygon points="518,109 528,114 518,119" fill="var(--txt3)"/>
+  <polygon points="758,109 768,114 758,119" fill="var(--txt3)"/>
+
+  <path class="ph-lead" d="M850 164 V244"/>
+  <polygon points="845,244 850,254 855,244" fill="var(--txt3)"/>
+
+  <!-- Row2 HBM 后段（右→左） -->
+  <g class="ph-hot" data-part="emc-mold">
+    <rect class="ph-fill ph-ln2" x="765" y="258" width="170" height="100"/>
+    <rect class="ph-fill ph-ln" x="800" y="288" width="100" height="40"/>
+    <rect class="ph-hbm" x="812" y="298" width="76" height="20"/>
+    <circle class="ph-bm" cx="790" cy="276" r="2.5"/><circle class="ph-bm" cx="800" cy="272" r="2.5"/><circle class="ph-bm" cx="810" cy="276" r="2.5"/>
+    <text class="ph-lbl" x="850" y="376" text-anchor="middle">EMC 塑封</text>
+    <text class="ph-lbls" x="850" y="390" text-anchor="middle">环氧塑封料 · 硅微粉填料 80%+</text>
+  </g>
+  <g class="ph-hot" data-part="hbm-test">
+    <rect class="ph-fill ph-ln2" x="525" y="258" width="170" height="100"/>
+    <rect class="ph-fill ph-ln" x="560" y="278" width="70" height="52"/>
+    <rect class="ph-chipbg ph-ln2" x="568" y="286" width="54" height="24"/>
+    <path class="ph-ln2" d="M572 302 l6 -8 l6 6 l8 -10 l8 8 l10 -6" fill="none"/>
+    <path class="ph-ln" d="M646 306 l8 10 l16 -18" fill="none"/>
+    <text class="ph-lbl" x="610" y="376" text-anchor="middle">测试分选</text>
+    <text class="ph-lbls" x="610" y="390" text-anchor="middle">探针台 · 高低温老化 · KGSD</text>
+  </g>
+  <g class="ph-hot" data-part="hbm-done">
+    <rect class="ph-fill ph-ln2" x="285" y="258" width="170" height="100"/>
+    <rect class="ph-hbm" x="330" y="272" width="80" height="7"/>
+    <rect class="ph-hbm" x="330" y="281" width="80" height="7"/>
+    <rect class="ph-hbm" x="330" y="290" width="80" height="7"/>
+    <rect class="ph-hbm" x="330" y="299" width="80" height="7"/>
+    <rect class="ph-hbm" x="330" y="308" width="80" height="7"/>
+    <rect class="ph-hbm" x="330" y="317" width="80" height="7"/>
+    <rect class="ph-chipf" x="330" y="326" width="80" height="12"/>
+    <text class="ph-die" x="370" y="336" text-anchor="middle">逻辑 Base Die</text>
+    <text class="ph-lbl" x="370" y="376" text-anchor="middle">HBM 成品</text>
+    <text class="ph-lbls" x="370" y="390" text-anchor="middle">8-12 层 · HBM3e → HBM4</text>
+    <g class="ph-plus"><circle cx="438" cy="272" r="9"/><path d="M438 268 v8 M434 272 h8"/></g>
+  </g>
+  <g class="ph-lead">
+    <line x1="765" y1="308" x2="702" y2="308"/>
+    <line x1="525" y1="308" x2="462" y2="308"/>
+    <line x1="285" y1="308" x2="180" y2="308" stroke-dasharray="5 5"/>
+  </g>
+  <polygon points="702,303 692,308 702,313" fill="var(--txt3)"/>
+  <polygon points="462,303 452,308 462,313" fill="var(--txt3)"/>
+  <polygon points="180,303 170,308 180,313" fill="var(--txt3)"/>
+  <text class="ph-lbl" x="120" y="300" text-anchor="middle">送入 CoWoS</text>
+  <text class="ph-lbls" x="120" y="316" text-anchor="middle">与 GPU 合封</text>
+  <text class="ph-lbls" x="120" y="331" text-anchor="middle">点「HBM 成品」可跳转</text>
+
+  <!-- Row3 NAND / 周期 -->
+  <text class="ph-lbls" x="45" y="432">NAND / eSSD 分支 与 周期看板</text>
+  <g class="ph-hot" data-part="nand-stack">
+    <rect class="ph-fill ph-ln2" x="45" y="446" width="170" height="100"/>
+    <rect class="ph-fill ph-ln" x="95" y="462" width="70" height="70"/>
+    <path class="ph-lead" d="M95 470 H165 M95 478 H165 M95 486 H165 M95 494 H165 M95 502 H165 M95 510 H165 M95 518 H165 M95 526 H165"/>
+    <text class="ph-lbl" x="130" y="564" text-anchor="middle">3D NAND</text>
+    <text class="ph-lbls" x="130" y="578" text-anchor="middle">200+ 层堆叠 · 混合键合</text>
+    <g class="ph-plus"><circle cx="198" cy="460" r="9"/><path d="M198 456 v8 M194 460 h8"/></g>
+  </g>
+  <g class="ph-hot" data-part="ssd-ctrl">
+    <rect class="ph-fill ph-ln2" x="285" y="446" width="170" height="100"/>
+    <rect class="ph-fill ph-ln" x="310" y="478" width="120" height="40" rx="3"/>
+    <rect class="ph-chipf" x="322" y="488" width="24" height="20"/>
+    <rect class="ph-hbm" x="354" y="488" width="16" height="20"/>
+    <rect class="ph-hbm" x="374" y="488" width="16" height="20"/>
+    <rect class="ph-hbm" x="394" y="488" width="16" height="20"/>
+    <text class="ph-lbl" x="370" y="564" text-anchor="middle">企业级 SSD</text>
+    <text class="ph-lbls" x="370" y="578" text-anchor="middle">主控 + 固件 + 颗粒</text>
+    <g class="ph-plus"><circle cx="438" cy="460" r="9"/><path d="M438 456 v8 M434 460 h8"/></g>
+  </g>
+  <g class="ph-hot" data-part="mem-cycle">
+    <rect class="ph-fill ph-ln2" x="525" y="446" width="170" height="100"/>
+    <path class="ph-lead" d="M556 530 V468 M556 530 H672"/>
+    <path class="ph-ln" d="M560 522 L588 514 L610 502 L634 486 L660 470" fill="none"/>
+    <polygon points="656,466 668,466 662,478" fill="var(--up)"/>
+    <text class="ph-lbl" x="610" y="564" text-anchor="middle">存储超级周期</text>
+    <text class="ph-lbls" x="610" y="578" text-anchor="middle">长协 3-5 年 · 合约价占九成</text>
+  </g>
+  <path class="ph-lead" d="M215 496 H278"/>
+  <polygon points="278,491 288,496 278,501" fill="var(--txt3)"/>
+  <text class="ph-lbls" x="810" y="492">推理时代 KV Cache 膨胀，</text>
+  <text class="ph-lbls" x="810" y="508">「以存代算」× 服务器占存储</text>
+  <text class="ph-lbls" x="810" y="524">敞口 50-60%，需求全面爆发</text>
+</svg>

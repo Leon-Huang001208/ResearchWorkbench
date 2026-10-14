@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="%230a0a0b"/><path d="M7 22 L16 8 L25 22" fill="none" stroke="%23e8b04b" stroke-width="2.4" stroke-linejoin="round"/><path d="M11 17 H21" stroke="%23e8b04b" stroke-width="2.4"/></svg>'>
+<title>AI 革命如何改变经济与市场 · 精读台</title>
+<meta name="description" content="左边读逻辑框架，右边看数据图表：AI 革命如何改变经济与市场 —— 八组图表全部重建，七个判断可以打分。">
+<style>
+/* React 的挂载点不能占一层盒子：body 直接就是 grid 容器，中间多一个 <div id="root">
+   会掐断 height:100% 的参照链，撑满视口的两栏会变成按内容无限长高。 */
+#root{display:contents}
+</style>
+<script>
+/* 必须同步跑在 <body> 之前：等 React 挂载再定主题，用户会先看到一帧另一套配色。
+   三态：'light' / 'dark' / 'system'（缺省按系统）。 */
+try{
+  var m = localStorage.getItem('pv-theme-mode')
+  var sys = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'
+  document.documentElement.dataset.theme =
+    (m === 'light' || m === 'dark') ? m : sys
+}catch(e){ document.documentElement.dataset.theme = 'dark' }
+</script>
+  <script type="module" crossorigin src="./assets/index-D8EzPBv8.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-CU3kWakV.css">
+</head>
+<body>
+<div id="root"></div>
+</body>
+</html>

@@ -1,0 +1,43 @@
+<svg viewBox="0 0 1000 600" xmlns="http://www.w3.org/2000/svg" class="ph-scene">
+  <text class="ph-lbls" x="45" y="42">HBM 成品爆炸结构：多层 DRAM die 经 TSV 相连，依次落在 Base Die、微凸点、硅中介层与封装基板上</text>
+
+  <g class="ph-hot" data-part="hbm-die-stack">
+    <polygon class="ph-hbm" points="270,104 480,104 516,82 306,82"/><polygon class="ph-hbm" points="270,104 480,104 480,132 270,132"/><polygon class="ph-chipbg ph-ln2" points="480,104 516,82 516,110 480,132"/>
+    <polygon class="ph-hbm" points="270,140 480,140 516,118 306,118"/><polygon class="ph-hbm" points="270,140 480,140 480,168 270,168"/><polygon class="ph-chipbg ph-ln2" points="480,140 516,118 516,146 480,168"/>
+    <polygon class="ph-hbm" points="270,176 480,176 516,154 306,154"/><polygon class="ph-hbm" points="270,176 480,176 480,204 270,204"/><polygon class="ph-chipbg ph-ln2" points="480,176 516,154 516,182 480,204"/>
+    <polygon class="ph-hbm" points="270,212 480,212 516,190 306,190"/><polygon class="ph-hbm" points="270,212 480,212 480,240 270,240"/><polygon class="ph-chipbg ph-ln2" points="480,212 516,190 516,218 480,240"/>
+    <polygon class="ph-hbm" points="270,248 480,248 516,226 306,226"/><polygon class="ph-hbm" points="270,248 480,248 480,276 270,276"/><polygon class="ph-chipbg ph-ln2" points="480,248 516,226 516,254 480,276"/>
+    <polygon class="ph-hbm" points="270,284 480,284 516,262 306,262"/><polygon class="ph-hbm" points="270,284 480,284 480,312 270,312"/><polygon class="ph-chipbg ph-ln2" points="480,284 516,262 516,290 480,312"/>
+    <text class="ph-die" x="392" y="108" text-anchor="middle">HBM</text><text class="ph-lbl" x="162" y="172">多层 DRAM Die</text><text class="ph-lbls" x="162" y="189">以 6 层爆炸示意</text><path class="ph-lead" d="M238 180H270"/>
+  </g>
+
+  <g class="ph-hot" data-part="hbm-tsv-detail">
+    <path class="ph-gold" d="M306 104V312M350 104V312M394 104V312M438 104V312" stroke-width="5" fill="none"/>
+    <text class="ph-lbl" x="590" y="166">TSV 硅通孔</text><text class="ph-lbls" x="590" y="183">贯穿 DRAM 堆叠的铜互连</text><path class="ph-lead" d="M516 174H572"/>
+  </g>
+
+  <g class="ph-hot" data-part="hbm-base-die">
+    <polygon class="ph-chipf" points="254,350 486,350 530,324 298,324"/><polygon class="ph-chipf" points="254,350 486,350 486,386 254,386"/><polygon class="ph-chipbg ph-ln2" points="486,350 530,324 530,360 486,386"/>
+    <text class="ph-die" x="370" y="372" text-anchor="middle">逻辑 Base Die</text><text class="ph-lbls" x="164" y="358">接口 / 测试 / 堆叠管理</text><path class="ph-lead" d="M246 354H224"/>
+  </g>
+
+  <g class="ph-hot" data-part="hbm-microbumps">
+    <g class="ph-gold"><circle cx="286" cy="404" r="4"/><circle cx="318" cy="404" r="4"/><circle cx="350" cy="404" r="4"/><circle cx="382" cy="404" r="4"/><circle cx="414" cy="404" r="4"/><circle cx="446" cy="404" r="4"/></g>
+    <text class="ph-lbl" x="570" y="408">Microbump 微凸点</text><text class="ph-lbls" x="570" y="425">die 与中介层间的精细互连</text><path class="ph-lead" d="M470 404H552"/>
+  </g>
+
+  <g class="ph-hot" data-part="hbm-interposer">
+    <polygon class="ph-metal" points="220,442 522,442 574,412 272,412"/><polygon class="ph-metal" points="220,442 522,442 522,470 220,470"/><polygon class="ph-metal" points="522,442 574,412 574,440 522,470"/>
+    <path class="ph-ln2" d="M258 451h220M278 460h180"/><text class="ph-lbl" x="156" y="452" text-anchor="middle">Silicon Interposer</text><text class="ph-lbls" x="156" y="469" text-anchor="middle">硅中介层 / RDL</text><path class="ph-lead" d="M200 454H220"/>
+  </g>
+
+  <g class="ph-hot" data-part="hbm-substrate">
+    <polygon class="ph-chipbg ph-ln" points="188,516 538,516 600,480 250,480"/><polygon class="ph-chipbg ph-ln" points="188,516 538,516 538,548 188,548"/><polygon class="ph-chipbg ph-ln2" points="538,516 600,480 600,512 538,548"/>
+    <path class="ph-ln2" d="M240 526h230M260 536h190"/><text class="ph-lbl" x="642" y="510">Package Substrate</text><text class="ph-lbls" x="642" y="527">封装基板 / BGA 扇出</text><path class="ph-lead" d="M600 514H626"/>
+  </g>
+
+  <g class="ph-hot" data-part="hbm-gpu-integration">
+    <rect class="ph-fill ph-ln" x="730" y="312" width="170" height="126" rx="7"/><rect class="ph-chipf" x="770" y="340" width="90" height="50"/><text class="ph-die" x="815" y="370" text-anchor="middle">GPU</text><path class="ph-dash" d="M574 428H730"/><text class="ph-lbl" x="815" y="470" text-anchor="middle">与 GPU 先进封装集成</text><text class="ph-lbls" x="815" y="487" text-anchor="middle">高带宽 / 短互连</text>
+  </g>
+  <text class="ph-lbls" x="500" y="580" text-anchor="middle">层数、接口、凸点与封装路线会随 HBM 产品代际变化；图示为结构关系示意。</text>
+</svg>
