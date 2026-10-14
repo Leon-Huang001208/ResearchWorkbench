@@ -1,6 +1,8 @@
 /** Non-secret settings only. The authorized Host resolves secretRef separately. */
 import type postgres from 'postgres';
 import { isIP } from 'node:net';
+import { checkServerIdentity } from 'node:tls';
+import type { PeerCertificate } from 'node:tls';
 
 export interface DatabaseConfig {
   mode: 'managed' | 'external'; host: string; port: number; name: string;
@@ -91,7 +93,9 @@ export function parseConfig(input: unknown): HotConfig {
 export function poolOptions(config: DatabaseConfig, password: string): postgres.Options<{}> {
   if (!password || password.length > 4096) throw Error('hot_database_secret_missing');
   return { host: config.host, port: config.port, database: config.name, username: config.user, password,
-    ssl: config.tls === 'verify-full' ? { rejectUnauthorized: true } : false,
+    // Socket-based TLS can fall back to localhost for an IP host; bind the check explicitly.
+    ssl: config.tls === 'verify-full' ? { rejectUnauthorized: true,
+      checkServerIdentity: (_servername:string, certificate:PeerCertificate) => checkServerIdentity(config.host, certificate) } : false,
     max: config.poolMax, connect_timeout: 5, idle_timeout: 30, onnotice: () => {},
     connection: { application_name: 'rwb-hot', statement_timeout: 15000, lock_timeout: 5000 } };
 }

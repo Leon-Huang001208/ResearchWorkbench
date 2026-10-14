@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import type { ConnectionOptions, PeerCertificate } from 'node:tls';
 import { parseConfig, schemaName, poolOptions, assertNodeRuntime } from '../src/config.ts';
 
 test('non-secret configuration has bounded defaults and explicit TLS policy', () => {
@@ -17,7 +18,18 @@ test('non-secret configuration has bounded defaults and explicit TLS policy', ()
   assert.throws(() => parseConfig({ password: 'secret' }), /hot_config_unknown_field/);
   assert.throws(() => parseConfig({ database: { mode: 'external', host: 'db.example', tls: 'disable' } }), /hot_external_tls_required/);
   const external = parseConfig({ database: { mode: 'external', host: 'db.example', tls: 'verify-full' } });
-  assert.deepEqual(poolOptions(external.database, 'only-injected-secret').ssl, { rejectUnauthorized: true });
+  assert.equal((poolOptions(external.database, 'only-injected-secret').ssl as ConnectionOptions).rejectUnauthorized, true);
+});
+
+test('verified database TLS binds certificate identity to configured DNS or IP host',()=>{
+  const options=(host:string)=>poolOptions(parseConfig({database:{mode:'external',host,tls:'verify-full'}}).database,'injected-test-secret').ssl as ConnectionOptions;
+  const dns={subject:{CN:'localhost'},subjectaltname:'DNS:localhost'} as PeerCertificate;
+  const ip={subject:{CN:'localhost'},subjectaltname:'IP Address:127.0.0.1'} as PeerCertificate;
+  assert.equal(typeof options('127.0.0.1').checkServerIdentity,'function');
+  const mismatch=options('127.0.0.1').checkServerIdentity!('localhost',dns) as (Error & {code:string})|undefined;
+  assert.equal(mismatch?.code,'ERR_TLS_CERT_ALTNAME_INVALID');
+  assert.equal(options('127.0.0.1').checkServerIdentity!('localhost',ip),undefined);
+  assert.equal(options('localhost').checkServerIdentity!('driver-fallback',dns),undefined);
 });
 
 test('Hot runtime requires its supported Node family without changing base Web requirements', () => {
