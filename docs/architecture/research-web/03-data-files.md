@@ -1,5 +1,9 @@
 # DataHub、研究资料与实际文件
 
+Docker 模型密文是 AES-256-GCM 版本化 envelope，复用私有文件权限、锁和原子替换。
+credentials 卷的 models 子目录与独立只读 model_key 卷、随机实例身份共同构成恢复材料。
+每次写入生成 nonce，AAD 绑定实例与 ref；身份/主密钥丢失或错误不会自动重建。
+Host 认证 record 和通用业务凭据仍为独立通道，不接收模型 Key。
 
 ## ETF 工程模拟与真实准入边界
 
@@ -373,3 +377,7 @@ ReportLab 初始化需读取当前目录；PDF helper 在已授权输出目录�
 ## 历史子会话模式兼容 · 2026-10-13
 
 不会删除或重写旧子会话数据来修复列表。父历史与会话文件保持原归属读取，子历史在执行模式未知时明确不可用。
+
+PR96 与既有 Fernet 模型桥共用唯一私有 stdio 接口；默认 `native-keychain`、常规 staged `docker-encrypted-file` 语义保留，管理器仅显式绑定 `docker-encrypted` 选择 AES-GCM。两种 Docker 格式与主密钥布局独立，混合绑定或外来格式失败关闭，不转换密文、不删除旧 Key、不回退。四操作与固定 ref 保持；来源如实区分，configured/Doctor 不证明真实生成。
+
+AES 载入检查每个 JSON 的 canonical 外层记录、完整封装、版本/实例及固定 namespace/ref 文件名，并认证密文；正确旧树只读通过，外来/未知记录拒绝且保留原字节。

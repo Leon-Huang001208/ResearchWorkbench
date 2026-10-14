@@ -1,5 +1,8 @@
 # Research Web 前端
 
+模型设置的“凭据存储”显示实际后端：系统 Keychain、本实例加密存储或未知/不可用。
+Key 提交后清空且不回填；来源展示不等于真实生成验收。
+
 `#/workbench/etf-paper` 由 `etf-paper.mjs` 展示工程输入、真实BLOCKED缺口、仓位/风险、模拟委托/成交、
 现金费用与复盘。打开只读目录及运行摘要，提交须明确上传完整JSON，空缺参数不补推荐值。
 合同见[数据与文件](architecture/research-web/03-data-files.md#etf-工程模拟与真实准入边界)。

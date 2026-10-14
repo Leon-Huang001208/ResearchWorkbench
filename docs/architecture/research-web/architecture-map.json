@@ -337,7 +337,8 @@
         "tests/javascript/research_web_tabbit_adapter.test.mjs",
         "tests/javascript/research_web_tabbit_ui.test.mjs",
         "tests/javascript/research_web_compatible_model.test.mjs",
-        "tests/javascript/research_web_automation_draft_tool.test.mjs"
+        "tests/javascript/research_web_automation_draft_tool.test.mjs",
+        "tests/research_web/test_encrypted_model_credentials.py"
       ]
     },
     {

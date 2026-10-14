@@ -1,5 +1,8 @@
 # Research Workbench Research Web 当前架构
 
+G2A 为受管 Docker 增加固定模型 ref 的实例加密后端及主密钥只读卷，仍由原 Web→DSH
+私有 stdio 桥调用。生成、重建和隔离证据分别记录，Native Keychain 与原 Automation 合同保留。
+
 研究台增加ETF工程模拟切片，确定性策略、约束、事务账本及回放均在同一Host内，真实链路保持BLOCKED。
 合同见[数据与文件](03-data-files.md#etf-工程模拟与真实准入边界)。
 

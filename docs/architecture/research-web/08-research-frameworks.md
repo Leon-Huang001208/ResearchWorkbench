@@ -1,5 +1,8 @@
 # 研究框架
 
+Docker 模型存储来源展示复用模型设置，框架定义、快照、评分和 Bot 的数据合同保持；
+文本凭据调用成功不能替代框架研究或 Linux 代码沙箱验收。
+
 ETF工程模拟作为研究台独立确定性领域入口，不注册新框架、不扩大framework-explain/verify权限，
 Gold/Dollar快照及Bot绑定仍沿原合同。真实链路BLOCKED；见[数据与文件](03-data-files.md#etf-工程模拟与真实准入边界)。
 

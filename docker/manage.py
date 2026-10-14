@@ -15,6 +15,7 @@ import re
 import subprocess
 import sys
 import time
+import uuid
 from pathlib import Path
 
 GIB = 1024**3
@@ -140,6 +141,13 @@ class Manager:
                 raise Refusal("container_mounts_mismatch")
         if any("docker.sock" in str(mount) for mount in container["Mounts"]):
             raise Refusal("business_socket_forbidden")
+        if record.get("model_instance"):
+            master = mounts.get("/run/rwb-model-key", {})
+            if (
+                master.get("Name") != record["volumes"]["model_key"]
+                or master.get("RW") is not False
+            ):
+                raise Refusal("model_master_mount_mismatch")
         host = container["HostConfig"]
         if (host["Memory"], host["MemorySwap"], host["NanoCpus"], host["PidsLimit"]) != (
             record["memory"],
@@ -327,6 +335,17 @@ class Manager:
             args += ["--mount", f"type=volume,src={record['volumes'][key]},dst={target}"]
         for key, value in record["labels"].items():
             args += ["--label", f"{key}={value}"]
+        if record.get("model_instance"):
+            if record.get("model_store_state") != "ready":
+                raise Refusal("model_store_initialization_incomplete")
+            args += [
+                "--mount",
+                f"type=volume,src={record['volumes']['model_key']},dst=/run/rwb-model-key,readonly",
+                "--env",
+                "RWB_MODEL_BACKEND=docker-encrypted",
+                "--env",
+                f"RWB_MODEL_INSTANCE_ID={record['model_instance']}",
+            ]
         args += ["--env", "PIP_CACHE_DIR=/cache/pip", "--env", "XDG_CACHE_HOME=/cache"]
         if record["environment"] != "prod":
             args += ["--env", "RESEARCH_AUTOMATIONS_ENABLED=0"]
@@ -478,6 +497,11 @@ class Manager:
             or labels.get(PREFIX + "role") == "development"
         ):
             raise Refusal("runtime_image_required")
+        if (
+            record.get("model_instance")
+            and labels.get(PREFIX + "model-credentials") != "aes-gcm-v1"
+        ):
+            raise Refusal("encrypted_model_image_required")
         self.verify_resources(record)
         if record["container_id"]:
             if self.owned(record)["State"]["Running"]:
@@ -494,6 +518,230 @@ class Manager:
             projection=None,
         )
         atomic_json(self.path(record["environment"], record["instance"]), record)
+
+    def enable_model_credentials(self, record: dict) -> None:
+        """Explicit one-time stage provisioning; never regenerate existing secrets."""
+        if record["environment"] != "stage":
+            raise Refusal("model_credentials_stage_only")
+        self.verify_resources(record)
+        if record["container_id"] and self.owned(record)["State"]["Running"]:
+            raise Refusal("stop_stage_before_model_initialization")
+        image = inspect("image", record["image"])
+        if image["Config"].get("Labels", {}).get(PREFIX + "model-credentials") != "aes-gcm-v1":
+            raise Refusal("encrypted_model_image_required")
+        if record.get("model_instance"):
+            if record.get("model_store_state") != "ready":
+                raise Refusal("model_store_initialization_incomplete")
+            return
+        # Account for the bounded initializer and the running administrative controller.
+        used = sum(
+            inspect("container", i)["HostConfig"]["Memory"]
+            for i in command("docker", "ps", "-q").splitlines()
+        )
+        if any(
+            inspect("container", i)["HostConfig"]["Memory"] <= 0
+            for i in command("docker", "ps", "-q").splitlines()
+        ):
+            raise Refusal("unbounded_running_container")
+        if used + 128 * 1024**2 + 2 * GIB > int(
+            command("docker", "info", "--format", "{{.MemTotal}}")
+        ):
+            raise Refusal("vm_memory_budget_exceeded")
+        volume = record["name"] + "-model-key"
+        if volume in command("docker", "volume", "ls", "--format", "{{.Name}}").splitlines():
+            raise Refusal("resource_unregistered")
+        labels = [part for k, v in record["labels"].items() for part in ("--label", f"{k}={v}")]
+        command("docker", "volume", "create", *labels, volume)
+        if record["container_id"]:
+            self.owned(record)
+            command("docker", "rm", record["container_id"])
+        record.update(
+            model_instance=uuid.uuid4().hex,
+            model_store_state="initializing",
+            container_id=None,
+            projection=None,
+        )
+        record["volumes"]["model_key"] = volume
+        atomic_json(self.path(record["environment"], record["instance"]), record)
+        command(
+            "docker",
+            "run",
+            "--rm",
+            "--network",
+            "none",
+            "--read-only",
+            "--user",
+            "0:0",
+            "--cap-drop",
+            "ALL",
+            "--cap-add",
+            "CHOWN",
+            "--cap-add",
+            "SETUID",
+            "--cap-add",
+            "SETGID",
+            "--security-opt",
+            "no-new-privileges:true",
+            "--memory",
+            "128m",
+            "--memory-swap",
+            "128m",
+            "--cpus",
+            ".5",
+            "--pids-limit",
+            "32",
+            "--log-opt",
+            "max-size=10m",
+            "--log-opt",
+            "max-file=3",
+            "--mount",
+            f"type=volume,src={volume},dst=/run/rwb-model-key",
+            "--mount",
+            f"type=volume,src={record['volumes']['credentials']},dst=/run/rwb-secrets",
+            "--entrypoint",
+            "/opt/rwb/venv/bin/python",
+            record["image"],
+            "-I",
+            "-B",
+            "-c",
+            "import os; os.chmod('/run/rwb-model-key',0o700); os.chown('/run/rwb-model-key',10001,10001); "
+            "os.setgid(10001); os.setuid(10001); "
+            "os.execv('/opt/rwb/venv/bin/python',['python','-I','-B','/opt/rwb/app/research_web/model_credentials.py',"
+            "'--backend','docker-encrypted','--data-home','/run/rwb-secrets',"
+            "'--credential-root','/run/rwb-secrets/models','--key-root','/run/rwb-model-key',"
+            f"'--instance','{record['model_instance']}','--initialize'])",
+        )
+        record["model_store_state"] = "ready"
+        atomic_json(self.path(record["environment"], record["instance"]), record)
+
+    def credential_probe(self, record: dict) -> dict:
+        """Serial 128MiB fixtures inside the stopped candidate's reservation."""
+        if record["environment"] != "stage":
+            raise Refusal("credential_probe_stage_only")
+        self.verify_resources(record)
+        if record["container_id"] and self.owned(record)["State"]["Running"]:
+            raise Refusal("stop_stage_before_credential_probe")
+        if command("docker", "ps", "-q", "--filter", "name=^/buildx_buildkit_rwb-dev-builder0$"):
+            raise Refusal("cold_build_active_stop_builder_first")
+        running = [inspect("container", i) for i in command("docker", "ps", "-q").splitlines()]
+        limits = [c["HostConfig"]["Memory"] for c in running]
+        if any(limit <= 0 for limit in limits):
+            raise Refusal("unbounded_running_container")
+        if sum(limits) + 128 * 1024**2 + 2 * GIB > int(
+            command("docker", "info", "--format", "{{.MemTotal}}")
+        ):
+            raise Refusal("vm_memory_budget_exceeded")
+        image = inspect("image", record["image"])
+        if image["Config"].get("Labels", {}).get(PREFIX + "model-credentials") != "aes-gcm-v1":
+            raise Refusal("encrypted_model_image_required")
+        identity = uuid.uuid4().hex
+        labels = {**record["labels"], PREFIX + "credential-probe": identity}
+        volumes = {
+            key: record["name"] + "-probe-" + identity[:8] + "-" + key
+            for key in ("a-records", "a-key", "b-records", "b-key")
+        }
+        existing = command("docker", "volume", "ls", "--format", "{{.Name}}").splitlines()
+        if any(v in existing for v in volumes.values()):
+            raise Refusal("resource_unregistered")
+        label_args = [part for k, v in labels.items() for part in ("--label", f"{k}={v}")]
+        for volume in volumes.values():
+            command("docker", "volume", "create", *label_args, volume)
+        base = [
+            "docker",
+            "run",
+            "--rm",
+            "--read-only",
+            "--network",
+            "none",
+            "--memory",
+            "128m",
+            "--memory-swap",
+            "128m",
+            "--cpus",
+            ".5",
+            "--pids-limit",
+            "32",
+            "--log-opt",
+            "max-size=10m",
+            "--log-opt",
+            "max-file=3",
+            "--security-opt",
+            "no-new-privileges:true",
+        ]
+        mounts = [
+            part
+            for k, v in volumes.items()
+            for part in ("--mount", f"type=volume,src={v},dst=/init/{k}")
+        ]
+        command(
+            *base,
+            "--user",
+            "0:0",
+            "--cap-drop",
+            "ALL",
+            "--cap-add",
+            "CHOWN",
+            *mounts,
+            "--entrypoint",
+            "/bin/sh",
+            record["image"],
+            "-c",
+            "chmod 700 /init/* && chown 10001:10001 /init/*",
+        )
+        instances = {"a": uuid.uuid4().hex, "b": uuid.uuid4().hex}
+        receipt: dict = {
+            "memory": 128 * 1024**2,
+            "reservation": "stopped-stage",
+            "volumes": volumes,
+            "labels": labels,
+            "instances": instances,
+            "assertions": {},
+        }
+        record.setdefault("credential_probes", []).append(receipt)
+        atomic_json(self.path(record["environment"], record["instance"]), record)
+        for phase, records, keys, instance in (
+            ("init-a", "a-records", "a-key", instances["a"]),
+            ("init-b", "b-records", "b-key", instances["b"]),
+            ("check-a-before-clear", "a-records", "a-key", instances["a"]),
+            ("clear-b", "b-records", "b-key", instances["b"]),
+            ("check-a-after-clear", "a-records", "a-key", instances["a"]),
+            ("negative", "a-records", "b-key", instances["a"]),
+        ):
+            for volume in volumes.values():
+                if inspect("volume", volume).get("Labels") != labels:
+                    raise Refusal("probe_volume_ownership_mismatch")
+            result = json.loads(
+                command(
+                    *base,
+                    "--user",
+                    "10001:10001",
+                    "--cap-drop",
+                    "ALL",
+                    "--tmpfs",
+                    "/tmp:rw,nosuid,nodev,mode=1777,size=32m",
+                    "--mount",
+                    f"type=volume,src={volumes[records]},dst=/run/rwb-secrets",
+                    "--mount",
+                    f"type=volume,src={volumes[keys]},dst=/run/rwb-model-key"
+                    + (",readonly" if not phase.startswith("init") else ""),
+                    "--entrypoint",
+                    "/usr/local/bin/node",
+                    record["image"],
+                    "/opt/rwb/docker/credential_probe.mjs",
+                    phase,
+                    instance,
+                )
+            )
+            if result != {"phase": phase, "assertions_passed": True}:
+                raise Refusal("credential_probe_failed")
+            receipt["assertions"][phase] = True
+            atomic_json(self.path(record["environment"], record["instance"]), record)
+        return {
+            "assertions": receipt["assertions"],
+            "memory": receipt["memory"],
+            "same_internal_paths": True,
+            "full_stage_instances": False,
+        }
 
 
 def main() -> int:
@@ -513,6 +761,8 @@ def main() -> int:
             "exec",
             "cleanup",
             "replace-image",
+            "enable-model-credentials",
+            "credential-probe",
         ),
     )
     parser.add_argument("--image")
@@ -595,6 +845,11 @@ def main() -> int:
         elif arguments.action == "stop":
             manager.stop(record)
             output = manager.status(record)
+        elif arguments.action == "enable-model-credentials":
+            manager.enable_model_credentials(record)
+            output = manager.status(record)
+        elif arguments.action == "credential-probe":
+            output = manager.credential_probe(record)
         elif arguments.action == "cleanup":
             manager.cleanup(record)
             output = manager.status(record)
@@ -618,7 +873,11 @@ def main() -> int:
             output = manager.status(record)
             if arguments.action == "doctor":
                 output["capability_gaps"] = {
-                    "model_credentials": "model_credential_backend_unavailable",
+                    "model_credentials": (
+                        "encrypted_backend_bound_generation_not_verified"
+                        if record.get("model_store_state") == "ready"
+                        else "model_credential_backend_unavailable"
+                    ),
                     "linux_research_sandbox": "research_sandbox_unsupported",
                     "invited_user_authentication": "NOT_IMPLEMENTED_G4",
                     "public_ingress": "NOT_IMPLEMENTED_G5",

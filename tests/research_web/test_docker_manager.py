@@ -9,6 +9,33 @@ import pytest
 from docker import manage
 
 
+def test_model_provisioning_rejects_running_stage_without_secret_operations(tmp_path, monkeypatch):
+    manager = manage.Manager(tmp_path, "/admin", "/worktree")
+    monkeypatch.setattr(manager, "verify_resources", lambda record: None)
+    monkeypatch.setattr(manager, "owned", lambda record: {"State": {"Running": True}})
+    with pytest.raises(manage.Refusal, match="stop_stage_before_model_initialization"):
+        manager.enable_model_credentials({"environment": "stage", "container_id": "owned"})
+
+
+def test_partial_model_initialization_is_never_reset(tmp_path, monkeypatch):
+    manager = manage.Manager(tmp_path, "/admin", "/worktree")
+    monkeypatch.setattr(manager, "verify_resources", lambda record: None)
+    monkeypatch.setattr(
+        manage,
+        "inspect",
+        lambda *args: {"Config": {"Labels": {manage.PREFIX + "model-credentials": "aes-gcm-v1"}}},
+    )
+    record = {
+        "environment": "stage",
+        "container_id": None,
+        "image": "fixed",
+        "model_instance": "a" * 32,
+        "model_store_state": "initializing",
+    }
+    with pytest.raises(manage.Refusal, match="model_store_initialization_incomplete"):
+        manager.enable_model_credentials(record)
+
+
 def test_pool_counts_stopped_reservations_and_controller_margin(tmp_path, monkeypatch):
     manager = manage.Manager(tmp_path, "/private/admin", "/worktree")
     monkeypatch.setattr(manage, "command", lambda *args: "")

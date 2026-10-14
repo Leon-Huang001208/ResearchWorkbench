@@ -1,5 +1,9 @@
 # 研究协议、执行状态与恢复
 
+Docker 模型桥由 owned launcher 显式绑定后端、随机实例身份、密文根与主密钥根。
+私有 Python 子进程保持 `-I -B` 和清洁环境，只从自身受管产品安装路径加载模块。
+模型保存/清除/未知提交与真实生成语义不变，Linux 研究沙箱守卫不放宽。
+
 ETF工程模拟不进入DSH会话循环；用户提交冻结输入，由Host同一事务保存结果。
 回放与前向共用 `PaperEngine.step`，输入摘要绑定恢复/幂等，失败不产生部分资金账。
 尚不接Automation/Tool，真实运行BLOCKED；见[数据与文件](03-data-files.md#etf-工程模拟与真实准入边界)。
@@ -435,3 +439,7 @@ Office受控自动验证在Host既有批次内串行执行，与DSH研究循环�
 ## 历史子会话模式兼容 · 2026-10-13
 
 列表及父详情复用 activityOnly=True 查询，unknown模式只提供已验证的running活动状态。未知模式不会被猜成one-shot/continuable，子历史保留不可用提示；父列表和父历史继续可读，严格控制查询保持缺省路径。
+
+PR96 与既有 Fernet 模型桥共用唯一私有 stdio 接口；默认 `native-keychain`、常规 staged `docker-encrypted-file` 语义保留，管理器仅显式绑定 `docker-encrypted` 选择 AES-GCM。两种 Docker 格式与主密钥布局独立，混合绑定或外来格式失败关闭，不转换密文、不删除旧 Key、不回退。四操作与固定 ref 保持；来源如实区分，configured/Doctor 不证明真实生成。
+
+AES 绑定先验证已有树及两个固定 ref 的完整认证，不允许外来实例记录被当前 namespace 遮蔽；resolve/describe/set/unset 与原活动守卫保持。
