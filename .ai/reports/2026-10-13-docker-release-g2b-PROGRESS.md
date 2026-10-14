@@ -6,6 +6,7 @@ architecture-review: updated
 <!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"既有BFF与DSH执行拓扑不变，维护在原任务准入前串行控制，版本API只读取安装身份。","diagrams":[]} -->
 <!-- architecture-review {"group":"automations","structure":"unchanged","reason":"仍由既有Automation调度与执行，维护仅暂停受理并等待原工作，不新增调度器或任务事实源。","diagrams":[]} -->
 <!-- architecture-review {"group":"report-workflows","structure":"unchanged","reason":"原生报告执行和产物投影不变，维护覆盖已有scheduler和worker，未改变能力或报告持久格式。","diagrams":[]} -->
+<!-- architecture-review {"group":"ui","structure":"unchanged","reason":"合入依赖保留模型来源的既有状态显示；维护503沿用错误提示，无新增页面、组件、主题、断点或框架交互拓扑，版本身份由管理员只读验收。","diagrams":[]} -->
 
 ## 范围与基线
 
@@ -46,8 +47,8 @@ pending 持久化失败不在重启时开放；导入前 archive Config 绑定�
 | 项目 | 当前状态 |
 | --- | --- |
 | implementation | 实现与合并后本地闭包已通过；最终 CI 尚待本轮最终提交 |
-| local_release | PASS：r0d/r1/r1a 均真实封存、验证和导入；新集成制品另验 |
-| stage_acceptance | PASS：历史 r0d/r1/r1a；不套用到合并后新制品 |
+| local_release | PASS：r0d/r1/r1a/r2 均真实封存、验证和导入，来源分别记录 |
+| stage_acceptance | PASS：r0d/r1/r1a/r2 各有实际验收回执 |
 | promotion_rehearsal | PASS：r0d → r1a，同 stage image ID，无二次 build |
 | rollback_rehearsal | PASS：r1a → r0d，合成数据与私有模型桥解析保留 |
 | registry_publish | NOT_RUN，缺独立授权与明确认证条件 |
@@ -66,6 +67,8 @@ unfinished_transaction_recovery_required；显式恢复和最终资源收尾仍�
 Ruff/Black/isort、新增发布/维护的 mypy、完整 changed set 项目约束均通过。
 已合入 G2A ca0249f（含 master 0cf38ff）；新凭据格式源身份不同于历史 r0d/r1a，
 兼容性未知必须拒绝直接切换，不能放宽门或把历史验收冒充新制品验收。
-下一步完成新集成制品 stage、故障拒绝剩余回执、最终 CI 与独立 PR，不合并或更新日常生产。
+新集成制品 r2 已独立 stage PASS；向历史实例 deploy-plan 实际拒绝兼容性未知。
+中断 recovery 完成后已受管停止演练目标。下一步完成故障拒绝剩余回执、最终 CI 与独立 PR，
+不合并或更新日常生产；外部 probe 持续运行。
 release.json、独立接受回执和部署事务分别保持版本身份，不把新证据提交冒称实测镜像源码。
 Windows/Linux 产品 dispatch 与原生验收由对应真机接手；本轮 Mac 不伪造这些 PASS。
