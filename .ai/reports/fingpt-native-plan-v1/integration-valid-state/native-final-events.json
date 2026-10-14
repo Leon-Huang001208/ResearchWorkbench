@@ -1,0 +1,69 @@
+[
+  {
+    "event": {
+      "type": "turn/start",
+      "seq": 0,
+      "time": 1791524903616,
+      "data": {
+        "turn": 1
+      }
+    }
+  },
+  {
+    "event": {
+      "type": "todo/write",
+      "seq": 1,
+      "time": 1791524903618,
+      "data": {
+        "todos": [
+          {
+            "content": "Read evidence",
+            "status": "in_progress"
+          },
+          {
+            "content": "Check state",
+            "status": "in_progress"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "event": {
+      "type": "todo/write",
+      "seq": 2,
+      "time": 1791524903620,
+      "data": {
+        "todos": [
+          {
+            "content": "Check state",
+            "status": "completed"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "event": {
+      "type": "turn/end",
+      "seq": 3,
+      "time": 1791524903643,
+      "data": {
+        "turn": 1,
+        "reason": {
+          "kind": "completed"
+        }
+      }
+    }
+  },
+  {
+    "event": {
+      "type": "turn/start",
+      "seq": 4,
+      "time": 1791524903644,
+      "data": {
+        "turn": 2
+      }
+    }
+  }
+]

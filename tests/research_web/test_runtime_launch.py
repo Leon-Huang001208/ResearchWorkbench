@@ -37,6 +37,19 @@ def make_source(tmp_path: Path) -> Path:
     return source
 
 
+def test_research_preset_declares_native_todo_with_explicit_parallel_policy(tmp_path, monkeypatch):
+    source = make_source(tmp_path)
+    data = tmp_path / "data"
+    monkeypatch.setattr(
+        launch_runtime.subprocess, "check_output", lambda *a, **k: launch_runtime.PINNED_COMMIT
+    )
+    _, _, _ = launch_runtime.prepare(source, data, "/node", 13081, research_tools=True)
+    overlay = (data / "runtime/overlay.yml").read_text(encoding="utf-8")
+    assert "name: '@deepseek-ai/dsh-tool-todo'" in overlay
+    assert "allowParallelInProgress: true" in overlay
+    assert "id: rwb-preset-research-web" in overlay
+
+
 def test_runtime_module_fallback_is_healed_inside_private_source(tmp_path, monkeypatch):
     source = make_source(tmp_path)
     home = tmp_path / "home"

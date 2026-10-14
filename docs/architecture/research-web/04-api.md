@@ -1,5 +1,14 @@
 # Research Web 接口清单
 
+主线 `research_plan` 保持 turn/seq/status/history_complete/items 字段；与兼容计划投影
+共用原生日志折叠。available 才提供已确认条目，incomplete/invalid 不保留绿色旧快照。
+
+会话详情与 SSE snapshot 新增只读计划投影字段：`plan` 为 null 或
+`{turn, seq, version, todos:[{content,status}]}`；`plan_history_incomplete` 标记原生日志
+缺失/间断，`plan_error` 仅在无法确认计划时存在。`version` 绑定原生回合及日志写入序列，
+不提供稳定 item ID。新回合、无 Todo、错误 Todo 不复用旧快照；原生空列表与无计划不同。
+计划状态不修改会话终态或 `delivery`，不新增路由、提交操作或正文存储。
+
 模型设置和最小生成沿现有 API；Docker 后端来源投影为 `credential_storage=docker_encrypted`，
 Native 为 `system_keychain`。固定 DSH 的 source 是 provider 自定义字符串；不返回 Key。
 

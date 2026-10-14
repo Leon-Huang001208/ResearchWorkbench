@@ -1,5 +1,10 @@
 # 部署与模块职责
 
+原生研究计划沿用 DSH 唯一执行与日志源：研究 preset 注册已有 Todo，Web projection
+读取同会话日志并向既有详情/SSE snapshot 添加计划字段，研究空间只读显示。
+新增快照字段不创建调度器、正文库或持久 schema；Native/Docker 部署和生命周期不变。
+固定插件无模型进程内集成不代替完整服务启动、干净安装或同平台 GitHub CI。
+
 G2A 在现有单容器部署内增加实例专属 model_key 只读卷，credentials 卷存模型密文；
 受管初始化 helper 有 128MiB 硬限额并核对 VM 准入，不改变 Web＋固定 DSH 双进程与唯一引擎。
 

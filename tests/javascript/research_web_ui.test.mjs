@@ -12,6 +12,37 @@ const modules = await Promise.all(['markdown.mjs', 'core.mjs', 'views.mjs'].map(
 const [markdown, core, views] = modules;
 const dataCatalog = await import(new URL('data-catalog.mjs', root));
 
+test('canonical native plan uses the current plan tab and hides stale compatibility items', async () => {
+  const { renderContextPanel } = await import(new URL('shell.mjs', root));
+  const detail = { research_plan: { turn: 2, seq: 1, status: 'available', history_complete: true,
+    items: [{ content: 'canonical <item>', status: 'pending' }] }, plan: { todos: [{ content: 'stale', status: 'completed' }] } };
+  const html = renderContextPanel({ detail, selectedTab: 'plan' });
+  assert.match(html, /canonical &lt;item&gt;/);
+  assert.doesNotMatch(html, /stale/);
+  assert.match(views.renderResearchPlan({ ...detail, plan_error: 'stale error' }), /canonical &lt;item&gt;/);
+  assert.doesNotMatch(renderContextPanel({ detail, selectedTab: 'activity' }), /canonical &lt;item&gt;/);
+  assert.match(views.renderResearchPlan({ ...detail, research_plan: { status: 'incomplete', history_complete: false, items: [] } }), /历史不完整/);
+  assert.doesNotMatch(views.renderResearchPlan({ ...detail, research_plan: { status: 'incomplete', history_complete: false, items: [] } }), /stale/);
+});
+
+test('native research plan stays separate from delivery and escapes original content', () => {
+  const detail = { status: 'cancelled', plan: { turn: 3, seq: 9, version: '3:9', todos: [
+    { content: '<img src=x>', status: 'completed' }, { content: 'B', status: 'in_progress' },
+  ] } };
+  const html = views.renderResearchPlan(detail);
+  assert.match(html, /原生研究计划/);
+  assert.match(html, /&lt;img src=x&gt;/);
+  assert.match(html, /已取消/);
+  assert.match(html, /不代表文件交付完成/);
+  assert.match(html, /不证明并行执行/);
+  assert.doesNotMatch(html, /<img src=x>/);
+  assert.equal(views.renderResearchPlan({}), '');
+  assert.equal(views.renderResearchPlan({ plan: null }), '');
+  assert.match(views.renderResearchPlan({ plan_history_incomplete: true }), /历史不完整/);
+  assert.match(views.renderResearchPlan({ plan_error: 'bad', plan: detail.plan }), /role="alert"/);
+  assert.doesNotMatch(views.renderResearchPlan({ plan_error: 'bad', plan: detail.plan }), /&lt;img/);
+});
+
 test('research attachment picker accepts all three Office document formats', async () => {
   const { renderComposer } = await import(new URL('composer.mjs', root));
   const html = renderComposer({ page: 'fingpt' });

@@ -1,5 +1,8 @@
 # Research Workbench Research Web 当前架构
 
+原生研究计划复用既有 DSH 与 FinGPT 计划标签；历史分页和 SSE 缓存保留同序号冲突证据，
+坏快照不显示已确认计划。此内存恢复改动不新增 Automation 调度或改变日程草稿确认边界。
+
 G2A 为受管 Docker 增加固定模型 ref 的实例加密后端及主密钥只读卷，仍由原 Web→DSH
 私有 stdio 桥调用。生成、重建和隔离证据分别记录，Native Keychain 与原 Automation 合同保留。
 

@@ -9,6 +9,13 @@
 
 ## 当前 Research Web
 
+原生计划：`runtime/research.cordis.yml` / `runtime/guard.mjs` 仅装配固定 Todo 与精确授权；
+`projection.py` 恢复同会话回合/写入版本，`ui/views.mjs` / `shell.mjs` 在研究空间呈现。
+合同见 `architecture/research-web/02-research-runtime.md`、`04-api.md` 和 `research-web-ui.md`；
+验证为 `test_protocol.py`、`test_event_recovery.py`、`test_runtime_launch.py`、
+`research_web_guard.test.mjs`、`research_web_ui.test.mjs`。原生插件集成证据独立于模型 live、
+浏览器、干净安装和 macOS CI；文件交付与 Todo 完成分别判定。
+
 `app/research_web/portfolio_decisions/` 与 `ui/etf-paper.mjs` 提供工程ETF模拟。
 权威合同为 `architecture/research-web/03-data-files.md`，API为 `04-api.md`；
 测试为 `test_etf_decisions.py`、`test_etf_decision_routes.py`、`research_web_etf_paper.test.mjs`。

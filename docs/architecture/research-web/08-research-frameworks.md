@@ -1,5 +1,9 @@
 # 研究框架
 
+原生 Todo 仅进入研究 preset 与现有研究空间；Gold/Dollar 的采集、评分、Bot 快照和
+framework-explain/framework-verify preset 不增加 Todo 或改变契约。研究空间的原生计划
+来自会话日志，与框架步骤及 Workflow 版本说明分别呈现，不推断阶段归属。
+
 Docker 模型存储来源展示复用模型设置，框架定义、快照、评分和 Bot 的数据合同保持；
 文本凭据调用成功不能替代框架研究或 Linux 代码沙箱验收。
 

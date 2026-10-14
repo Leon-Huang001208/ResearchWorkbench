@@ -1,0 +1,15 @@
+{
+  "status": "PASS",
+  "changedFiles": 44,
+  "manifestFiles": 14,
+  "unchangedSHA256": {
+    "runtimes/research_web.json": "fbcc643543743ff1c828e7a137269df4ef500b26cf09a594635761870a5245ae",
+    "requirements/web.in": "8915938c7cc10f61a48f24a4190cb8ad34dd5add8c2aabd604289215b3fe0771",
+    "requirements/web.lock": "68b81b735a2891d9b4c6f7bd449ddeb2384d0ff59f4638c2d6dbe46bfb0681e4",
+    "scripts/setup_web.py": "80f13c87f6455fe815530be825a22ca72410f0500e6692c880606652b89a3e93",
+    "docs/research-web-installation.md": "21b19d95efedd75ace0402c383f8267770c6d5fad4bad0c3affcd1f148481a15",
+    ".github/workflows/research-web-bootstrap.yml": "08d66fa982916aad988381075929340691f089b78b6cb3dc3e158513fcd6c058",
+    ".agents/verification-policy.json": "bb3a31a83745d9260ca961d614e924f054dfedcbaae8fb4833a0e3f243b0d530",
+    "app/research_web/service.py": "fead0300be3d17c0d1f787a600220aac52a0a12539f4fa279fb0cbea08bf7951"
+  }
+}
