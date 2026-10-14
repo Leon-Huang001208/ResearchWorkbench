@@ -1,5 +1,27 @@
 # Hot internal engine
 
+Grouping now prioritizes literal source citations against normalized material
+identities before keyword matches, with the same 20-candidate/all-history bound.
+The immutable packet/business contract remains `hot-group-v1`; generation uses
+`hot-group-material-v2`, which is part of the paid-call cache fingerprint and is
+recorded on new responses. Old packets and paid receipts are not rewritten.
+Candidates are comparison evidence, never a list of events to create. A focused
+publication guard rejects camel-case brands absent from the material; it does
+not claim comprehensive semantic verification. Failures retain the paid receipt
+and enter `rejected`, with no automatic paid retry.
+
+The File's verified anonymous RSS is an additional, non-official source and is
+disabled when first seeded. Activation uses the existing signed catalog action.
+Its observed 14-item feed does not contain the Sept30 repost used in the relation
+proof. That article and the 2022 Fed release were explicit operator historical
+snapshots, persisted through the sole ingestion owner with raw hashes and partial
+coverage; they did not advance feed watermarks or pretend to be automatic archive
+coverage. The same original URL retains revisions when citation extraction is
+enriched. A first real model response misclassified a candidate and required
+audited title corrections; the revised prompt then produced real same-occurrence
+and direct-followup parts. Review is retrospective and not an independent accuracy
+benchmark. See the 2026-10-15 task report for exact budget and evidence.
+
 External `database.tls: "verify-full"` verifies both the certificate trust chain
 and the configured DNS/IP host. The host is bound explicitly to Node's standard
 `checkServerIdentity`, because socket-based PostgreSQL TLS can otherwise use a
