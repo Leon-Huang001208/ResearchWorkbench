@@ -2,7 +2,6 @@
 
 from core.observability import get_logger
 
-from .contracts import EmbeddedSnapshot
 from .store import EmbeddedSnapshotStore
 
 log = get_logger(__name__)
@@ -14,4 +13,4 @@ class EmbeddedCollector:
 
     async def ping(self) -> None:
         """Optional: could health-check external URL in the future."""
-        pass
+        log.info("framework_static_collection_not_supported")

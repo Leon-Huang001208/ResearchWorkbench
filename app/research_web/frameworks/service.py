@@ -42,12 +42,18 @@ class FrameworkService:
     def data(self, slug: str) -> dict:
         runtime = self.registry.get(slug)
         return {
-            "framework": runtime.definition.model_dump(mode="json"),
+            "framework": {
+                **runtime.definition.model_dump(mode="json"),
+                "display": runtime.display(),
+            },
             "snapshot": runtime.snapshot().model_dump(mode="json"),
         }
 
     def _binding(self, slug: str, revision: str, focus_section=None, gap_ids=()) -> dict:
         runtime = self.registry.get(slug)
+        if not runtime.display()["bot_enabled"]:
+            log.warning("framework_bot_unavailable", framework=slug)
+            raise FrameworkError("静态导入看板尚未接入框架 Bot", "framework_bot_unavailable", 409)
         snapshot = runtime.snapshot()
         if revision != snapshot.revision:
             raise FrameworkError(
@@ -86,6 +92,8 @@ class FrameworkService:
 
     def _context(self, runtime: FrameworkRuntime, binding: dict, *, verification: bool) -> str:
         snapshot = runtime.snapshot()
+        if snapshot.revision != binding["snapshot_revision"]:
+            raise FrameworkError("框架数据已经更新", "framework_snapshot_changed", 409)
         context = {
             "binding": binding,
             "model_version": runtime.definition.version,

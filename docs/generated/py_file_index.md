@@ -4340,6 +4340,101 @@ Classes:
   - methods: __init__
 
 
+## `app/research_web/frameworks/embedded/__init__.py`
+
+Module docstring:
+> Embedded framework package.
+
+Imports:
+- `context`
+- `contracts`
+- `definition`
+- `seed`
+- `store`
+
+
+## `app/research_web/frameworks/embedded/collector.py`
+
+Module docstring:
+> No-op collector for embedded frameworks; the app runs standalone.
+
+Imports:
+- `core.observability`
+- `store`
+
+Classes:
+- `EmbeddedCollector`
+  - methods: __init__, ping
+
+
+## `app/research_web/frameworks/embedded/context.py`
+
+Module docstring:
+> Framework-specific DSH context builder for embedded frameworks.
+
+Imports:
+- `contracts`
+- `definition`
+
+Functions:
+- `build_context`
+
+
+## `app/research_web/frameworks/embedded/contracts.py`
+
+Module docstring:
+> Lightweight snapshot contract for embedded (iframe) frameworks.
+
+Imports:
+- `base`
+- `pydantic`
+- `typing`
+
+Classes:
+- `EmbeddedModel`
+- `ResearchState`
+- `ExternalApp`
+- `EmbeddedSnapshot`
+
+
+## `app/research_web/frameworks/embedded/definition.py`
+
+Module docstring:
+> Embedded framework definition for external standalone research apps.
+
+Imports:
+- `base`
+
+
+## `app/research_web/frameworks/embedded/seed.py`
+
+Module docstring:
+> Seed snapshot for an embedded framework.
+
+Imports:
+- `contracts`
+- `storage`
+
+Functions:
+- `build_seed`
+
+
+## `app/research_web/frameworks/embedded/store.py`
+
+Module docstring:
+> Bounded storage for embedded framework snapshots.
+
+Imports:
+- `contracts`
+- `pathlib`
+- `seed`
+- `storage`
+
+Classes:
+- `EmbeddedSnapshotStore`
+  - methods: __init__
+
+
 ## `app/research_web/frameworks/goldar/__init__.py`
 
 Module docstring:
@@ -4481,8 +4576,11 @@ Imports:
 - `__future__`
 - `base`
 - `collections.abc`
+- `core.observability`
 - `dataclasses`
 - `dollar`
+- `embedded`
+- `embedded.contracts`
 - `goldar`
 - `pathlib`
 - `storage`
@@ -4490,9 +4588,10 @@ Imports:
 
 Classes:
 - `FrameworkRuntime`
-  - methods: snapshot, catalog_item
+  - methods: display, snapshot, catalog_item
+- `EmbeddedConfig`
 - `FrameworkRegistry`
-  - methods: __init__, all, get
+  - methods: __init__, _register_embedded, all, get
 
 
 ## `app/research_web/frameworks/routes.py`

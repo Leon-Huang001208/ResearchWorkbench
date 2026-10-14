@@ -27,25 +27,14 @@ def collectors_enabled() -> bool:
 
 class FrameworkScheduler:
     def __init__(self, registry: FrameworkRegistry) -> None:
-        self._jobs: list[tuple[str, Callable, int]] = []
-        try:
-            gold_store = registry.get("gold").store
-            if isinstance(gold_store, GoldSnapshotStore):
-                self.gold = GoldCollector(gold_store)
-                self._jobs.append(("gold-macro", self.gold.collect_macro, 60))
-                self._jobs.append(("gold-goldhub", self.gold.collect_goldhub, 24 * 60))
-                self._jobs.append(("gold-options", self.gold.collect_options, 24 * 60))
-                self._jobs.append(("gold-cftc", self.gold.collect_cftc, 7 * 24 * 60))
-        except Exception:
-            pass
-        try:
-            dollar_store = registry.get("dollar").store
-            if isinstance(dollar_store, DollarSnapshotStore):
-                self.dollar = DollarCollector(dollar_store)
-                self._jobs.append(("dollar-core", self.dollar.collect_core, 60))
-                self._jobs.append(("dollar-fiscal", self.dollar.collect_fiscal, 60))
-        except Exception:
-            pass
+        gold_store = registry.get("gold").store
+        dollar_store = registry.get("dollar").store
+        if not isinstance(gold_store, GoldSnapshotStore) or not isinstance(
+            dollar_store, DollarSnapshotStore
+        ):
+            raise TypeError("framework registry store mismatch")
+        self.gold = GoldCollector(gold_store)
+        self.dollar = DollarCollector(dollar_store)
         self.scheduler: AsyncIOScheduler | None = None
 
     async def start(self) -> None:
@@ -53,7 +42,15 @@ class FrameworkScheduler:
             return
         scheduler = AsyncIOScheduler(timezone=UTC)
         now = datetime.now(UTC)
-        for job_id, function, minutes in self._jobs:
+        jobs = (
+            ("gold-macro", self.gold.collect_macro, 60),
+            ("gold-goldhub", self.gold.collect_goldhub, 24 * 60),
+            ("gold-options", self.gold.collect_options, 24 * 60),
+            ("gold-cftc", self.gold.collect_cftc, 7 * 24 * 60),
+            ("dollar-core", self.dollar.collect_core, 60),
+            ("dollar-fiscal", self.dollar.collect_fiscal, 60),
+        )
+        for job_id, function, minutes in jobs:
             scheduler.add_job(
                 function,
                 "interval",
@@ -67,7 +64,7 @@ class FrameworkScheduler:
             )
         scheduler.start()
         self.scheduler = scheduler
-        log.info("framework_scheduler_started", job_count=len(self._jobs))
+        log.info("framework_scheduler_started", job_count=len(jobs))
 
     async def close(self) -> None:
         scheduler = self.scheduler
@@ -76,4 +73,3 @@ class FrameworkScheduler:
         self.scheduler = None
         scheduler.shutdown(wait=False)
         log.info("framework_scheduler_closed")
-

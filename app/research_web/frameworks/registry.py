@@ -5,14 +5,24 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, TypedDict
+
+from core.observability import get_logger
 
 from .base import FrameworkDefinition, FrameworkError
-from .embedded import DEFINITION as EMBEDDED_DEFINITION
+from .dollar import DEFINITION as DOLLAR_DEFINITION
+from .dollar import DollarSnapshotStore
+from .dollar import build_context as build_dollar_context
 from .embedded import EmbeddedSnapshotStore
 from .embedded import build_context as build_embedded_context
 from .embedded.contracts import EmbeddedSnapshot
+from .goldar import DEFINITION as GOLD_DEFINITION
+from .goldar import GoldSnapshotStore
+from .goldar import build_context as build_gold_context
 from .storage import AtomicSnapshotStore, compute_revision
+
+log = get_logger(__name__)
+IMPORT_DATE = "2026-10-14"
 
 
 @dataclass(frozen=True)
@@ -20,6 +30,15 @@ class FrameworkRuntime:
     definition: FrameworkDefinition
     store: AtomicSnapshotStore[Any]
     context_builder: Callable[[Any], dict]
+
+    def display(self) -> dict:
+        native = self.definition.slug in {"gold", "dollar"}
+        return {
+            "kind": "native-embed" if native else "static-embed",
+            "url": f"/frameworks-embed/{self.definition.slug}/",
+            "imported_at": IMPORT_DATE,
+            "bot_enabled": native,
+        }
 
     def snapshot(self) -> Any:
         return self.store.read()
@@ -37,17 +56,34 @@ class FrameworkRuntime:
             "coverage": snapshot.coverage,
             "updated_at": snapshot.as_of,
             "revision": snapshot.revision,
+            "display": self.display(),
         }
+
+
+class EmbeddedConfig(TypedDict):
+    slug: str
+    name: str
+    domain: str
+    question: str
+    chain: list[str]
 
 
 class FrameworkRegistry:
     def __init__(self, root: Path) -> None:
-        self._items: dict[str, FrameworkRuntime] = {}
+        self._items: dict[str, FrameworkRuntime] = {
+            "gold": FrameworkRuntime(
+                GOLD_DEFINITION, GoldSnapshotStore(root / "gold"), build_gold_context
+            ),
+            "dollar": FrameworkRuntime(
+                DOLLAR_DEFINITION, DollarSnapshotStore(root / "dollar"), build_dollar_context
+            ),
+        }
         self._register_embedded(root)
+        log.info("framework_registry_initialized", count=len(self._items))
 
     def _register_embedded(self, root: Path) -> None:
         embed_base = "/frameworks-embed"
-        embedded_configs = [
+        embedded_configs: list[EmbeddedConfig] = [
             {
                 "slug": "gold",
                 "name": "黄金研究框架",
@@ -127,12 +163,14 @@ class FrameworkRegistry:
             },
         ]
         for config in embedded_configs:
+            if config["slug"] in self._items:
+                continue
             store = EmbeddedSnapshotStore(root / config["slug"])
             snapshot = store.read().model_dump(mode="json")
             snapshot["external_app"] = {
                 "url": f"{embed_base}/{config['slug']}/",
             }
-            snapshot["research_state"]["note"] = "项目代码与数据已并入本仓库，同源运行，图表与交互完整保留。"
+            snapshot["research_state"]["note"] = "静态导入快照；没有实时采集或框架 Bot。"
             snapshot["overview"]["sources"] = [
                 {
                     "name": config["name"],
@@ -152,19 +190,29 @@ class FrameworkRegistry:
                     "name": config["name"],
                     "domain": config["domain"],
                     "version": "1.0.0",
-                    "source_revision": "0000000000000000000000000000000000000000",
+                    "source_revision": "f68372fb07429a9e284e867ab033b07ed24d82c8",
                     "question": config["question"],
                     "chain": config["chain"],
                     "counter_evidence": ["内嵌静态资源缺失", "内嵌数据文件过期或损坏"],
                     "sections": [
-                        {"id": "overview", "label": "总览", "question": "当前框架状态与入口是什么？"},
+                        {
+                            "id": "overview",
+                            "label": "总览",
+                            "question": "当前框架状态与入口是什么？",
+                        },
                         {"id": "external", "label": "项目全景", "question": config["question"]},
-                        {"id": "data", "label": "数据回传", "question": "哪些结论可以回传到主研究台？"},
+                        {
+                            "id": "data",
+                            "label": "数据回传",
+                            "question": "哪些结论可以回传到主研究台？",
+                        },
                     ],
                     "method": "项目代码并入本仓库并构建为静态资产，以 iframe 同源嵌入，保留完整交互。",
                 }
             )
-            self._items[config["slug"]] = FrameworkRuntime(definition, store, build_embedded_context)
+            self._items[config["slug"]] = FrameworkRuntime(
+                definition, store, build_embedded_context
+            )
 
     def all(self) -> tuple[FrameworkRuntime, ...]:
         return tuple(self._items.values())
@@ -174,4 +222,3 @@ class FrameworkRegistry:
             return self._items[slug]
         except KeyError as exc:
             raise FrameworkError("研究框架不存在", "framework_not_found", 404) from exc
-

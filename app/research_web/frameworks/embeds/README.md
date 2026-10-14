@@ -30,17 +30,32 @@
 
 ## 服务端接线
 
-- `app/research_web/main.py`：`app.mount("/frameworks-embed", StaticFiles(directory=..., html=True))`，并为该前缀下发允许同源 iframe 的 CSP（`frame-ancestors 'self'`，放开 jsdelivr / Google Fonts）。
-- `app/research_web/frameworks/registry.py`：`_register_embedded` 注册 11 个内嵌框架元数据，`external_app.url` 指向同源路径。
+- `app/research_web/main.py`：`app.mount("/frameworks-embed", StaticFiles(directory=..., html=True))`，并为该前缀下发允许同源 iframe 的 CSP（`frame-ancestors 'self'`，仅允许本站资源）。
+- `app/research_web/frameworks/registry.py`：`_register_embedded` 仅注册九个静态框架；Gold／Dollar 保留原生 store，`framework.display.url` 指向同源路径。
 - `app/research_web/ui/frameworks/embedded.mjs`：详情页 iframe 渲染。
 
 ## 当前运行边界
 
-详情页直接加载看板，框架名称显示在产品顶栏；外层只保留返回与新标签页入口。
-运行时无需访问来源项目的本机目录。卡片的覆盖率表示嵌入资产元数据，不代表实时数据覆盖率。
+Gold／Dollar 核心入口使用本站原生快照与采集链，不读取历史导入 JSON；旧文件仅作来源留档。宿主读取一次快照并向同源 iframe 发送，确认 revision 后允许原生 Bot。新标签页进入宿主详情。回测、策略与模型拟合明确为尚未接入。
 
-Goldar、Dollar 和 AInvest 当前保留导入时的数据快照。原项目的后台采集任务、
-动态代理接口和模型评分任务未随静态资源迁入。Dollar 的 `api/refresh.json`
-返回 `started: false`，不会启动新的采集；Goldar 的动态 Goldhub 接口也尚未迁入。
-原页面中描述定时更新的文字来自来源项目，不作为本项目已经实现后台更新的证据。
-后续接入采集必须使用本项目的服务端配置与仓库内实现，不能依赖开发机器路径。
+其余九套页面保留原静态交互，外层标记 2026-10-14 导入快照，没有实时采集或框架 Bot。导入日期不是各指标观测日期；原页面的定时更新文字不是本站更新能力证明。静态 coverage=0，仅说明本站尚未认证实时数据覆盖。
+
+资源清单和字段映射见本任务报告；原始源码分支保留。运行时无需访问来源项目本机目录，不引入 CDN 或独立服务。
+
+## 资产清单
+
+每行 SHA-256 绑定该目录全部文件的路径、大小与文件哈希清单。旧 Gold／Dollar 导入文件作来源留档，核心入口不读取它们。
+
+| slug | 文件数 | 字节数 | 清单 SHA-256 |
+| --- | ---: | ---: | --- |
+| ai-economy | 5 | 458516 | f29356dff1cac26c3b28b78121a4df22a1cfb7966b8497748be641fa432d76bf |
+| ainvest | 304 | 2277635 | 4abe58c6adbc120f0173d9221ce39442cb94734cdd9132c2418aed4b5e23029b |
+| bond-framework | 3 | 1547871 | 7162d66993d6de3e49adc2a38357f9c048c3563647cb8b28facaa2cb7aeebc9a |
+| dollar | 18 | 14254463 | de21a8cb27b8127accf792f3cb73e6772a5736764b959e2941608a360d5095f7 |
+| elnino | 8 | 3127345 | 050fdd755b15dc523a5a80befaa5fcbabf9e12981b3561d6d94ce2c498303987 |
+| fund-track-selection | 3 | 353045 | b030a274dbbcff520867d8f4b405bae8750809a4cea5b285a04745cc7d086747 |
+| gold | 30 | 16835958 | 6dd03e277cb498689f78acd049eb50cea12f765d566f22dba396940e5d9ec39f |
+| gold-cycle | 3 | 1646759 | 1ae4a22239d8c33237462e02fdac0e436c7cdcb4afbb026f6852490cf7af2c3d |
+| inference-chips-42 | 3 | 822561 | 0c9d8ba9207e5362ca14a6a231e619569f778c413edf02e39556ba60e3a611e5 |
+| memory-chips-60 | 6 | 1117259 | e19e0ad98f9de3e45358a37bce845e019d94ed3cae273877abdf932b2f48b3b4 |
+| model-hardware-chain | 16 | 136170 | 8450b71bb6f4107355d01d1af41c03995c1f36f53eefeb7c96d7119e552f1093 |

@@ -83,6 +83,6 @@ export function renderFrameworks({ slug = null, catalog = null, data = null, sta
   if (status === 'error' && !data) return `<section class="framework-not-found" role="alert"><span class="eyebrow">FRAMEWORK UNAVAILABLE</span><h1>框架数据暂时不可用</h1><p>${e(error || '请稍后刷新。')}</p><button class="button" type="button" data-framework-retry>重新读取</button></section>`;
   if (!data) return '<section class="framework-not-found" role="status"><h1>框架快照尚未生成</h1><p>服务端完成首次采集后再显示数据，不使用浏览器样例冒充实时结果。</p></section>';
   if (data.framework?.slug !== slug) return `<section class="framework-loading" role="status"><span></span><strong>正在读取${e(meta.name)}…</strong></section>`;
-  return renderEmbedded(data, { bot });
+  return `${status === 'error' ? `<div class="framework-bot-error" role="alert">刷新失败，保留上次快照：${e(error)}</div>` : ''}${renderEmbedded(data, { bot })}`;
 }
 

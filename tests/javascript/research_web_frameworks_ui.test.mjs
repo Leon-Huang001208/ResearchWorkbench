@@ -3,6 +3,10 @@ import test from 'node:test';
 import { readFile } from 'node:fs/promises';
 
 import { createAPI, parseRoute } from '../../app/research_web/ui/core.mjs';
+import { renderGoldar } from '../../app/research_web/ui/frameworks/goldar.mjs';
+import { renderDollar } from '../../app/research_web/ui/frameworks/dollar.mjs';
+const renderNativeCanvas = ({ slug, data, ...options }) => slug === 'gold' ? renderGoldar(data, options) : renderDollar(data, options);
+
 import { renderFrameworks } from '../../app/research_web/ui/frameworks.mjs';
 import { dollarTestData } from '../../app/research_web/ui/frameworks/fixtures/dollar-v1.mjs';
 import { goldTestData } from '../../app/research_web/ui/frameworks/fixtures/gold-v0.mjs';
@@ -17,18 +21,18 @@ test('legacy tab query remains a safe anchor into the continuous canvas', () => 
 
 test('hub separates framework reasoning from every asset detail class', () => {
   const html = renderFrameworks();
-  assert.match(html, /框架解释“为什么”/);
-  assert.match(html, /个股、基金、债券、外汇和商品详情/);
-  assert.match(html, /href="#\/workbench\/assets"/);
+  assert.match(html, /可重复验证的研究工作区/);
+
+
   assert.match(html, /data-framework-card="gold"/);
   assert.match(html, /data-framework-card="dollar"/);
-  assert.match(html, /美元流动性框架/);
+  assert.match(html, /美元流动性研究框架/);
   assert.doesNotMatch(html, /基金排行|完整 K 线/);
 });
 
 test('gold is one continuous canvas with seven anchors and five charts', () => {
   const data = goldTestData();
-  const html = renderFrameworks({ slug: 'gold', data, anchor: 'positioning' });
+  const html = renderNativeCanvas({ slug: 'gold', data, anchor: 'positioning' });
   for (const section of data.framework.sections) {
     assert.match(html, new RegExp(`id="framework-${section.id}"`));
     assert.match(html, new RegExp(`data-framework-anchor="${section.id}"`));
@@ -46,14 +50,14 @@ test('framework renderers expose one named canvas region without nesting a main 
     ['dollar', dollarTestData(), '美元流动性研究画布'],
   ];
   for (const [slug, data, label] of cases) {
-    const html = renderFrameworks({ slug, data });
+    const html = renderNativeCanvas({ slug, data });
     assert.match(html, new RegExp(`<section class="framework-canvas" aria-label="${label}">`));
     assert.doesNotMatch(html, /<main class="framework-canvas">/);
   }
 });
 
 test('each Lieflat chart states a conclusion, source and encoding', () => {
-  const html = renderFrameworks({ slug: 'gold', data: goldTestData() });
+  const html = renderNativeCanvas({ slug: 'gold', data: goldTestData() });
   assert.match(html, /最新值/);
   assert.match(html, /已知贡献合计/);
   assert.match(html, /投资与央行需求抵消珠宝需求回落/);
@@ -66,21 +70,21 @@ test('each Lieflat chart states a conclusion, source and encoding', () => {
 
 test('framework bot exposes explain, verify, busy and stale states', () => {
   const data = goldTestData();
-  const closed = renderFrameworks({ slug: 'gold', data, bot: { open: false } });
+  const closed = renderNativeCanvas({ slug: 'gold', data, bot: { open: false } });
   assert.match(closed, /data-framework-bot-open aria-label="问当前框架"/);
   assert.match(closed, /<\/section><button class="framework-bot-launch"[\s\S]*<\/button><\/div>\s*<\/article>$/);
-  const open = renderFrameworks({ slug: 'gold', data, bot: { open: true, mode: 'explain', sessionId: 's', busy: true, draft: '' } });
+  const open = renderNativeCanvas({ slug: 'gold', data, bot: { open: true, mode: 'explain', sessionId: 's', busy: true, draft: '' } });
   assert.match(open, /无工具解释/);
   assert.match(open, /DSH 正在处理/);
   assert.match(open, /data-framework-verify/);
-  const stale = renderFrameworks({ slug: 'gold', data, bot: { open: true, mode: 'verify', sessionId: 's', errorCode: 'framework_snapshot_changed', error: 'stale' } });
+  const stale = renderNativeCanvas({ slug: 'gold', data, bot: { open: true, mode: 'verify', sessionId: 's', errorCode: 'framework_snapshot_changed', error: 'stale' } });
   assert.match(stale, /数据已更新/);
   assert.match(stale, /只读检索已启用/);
 });
 
 test('dollar is one continuous Q-P-g-M-X canvas with six non-repeated charts', () => {
   const data = dollarTestData();
-  const html = renderFrameworks({ slug: 'dollar', data, anchor: 'cross-border' });
+  const html = renderNativeCanvas({ slug: 'dollar', data, anchor: 'cross-border' });
   for (const section of data.framework.sections) {
     assert.match(html, new RegExp(`id="framework-${section.id}"`));
     assert.match(html, new RegExp(`data-framework-anchor="${section.id}"`));
@@ -103,14 +107,14 @@ test('production renderer never substitutes browser fixture after an API failure
 
 test('route transition never renders a snapshot from another framework', () => {
   const html = renderFrameworks({ slug: 'dollar', status: 'ready', data: goldTestData() });
-  assert.match(html, /正在读取美元流动性框架/);
+  assert.match(html, /正在读取美元流动性研究框架/);
   assert.doesNotMatch(html, /data-framework="gold"|data-framework="dollar"/);
 });
 
 test('dollar F2 chart bounds the live sixty-point plumbing series', () => {
   const data = dollarTestData();
   data.snapshot.plumbing_m.series[0].points = Array.from({ length: 60 }, (_, index) => ({ date: `day-${index + 1}`, value: index - 30 }));
-  const html = renderFrameworks({ slug: 'dollar', data });
+  const html = renderNativeCanvas({ slug: 'dollar', data });
   assert.match(html, /data-lieflat-basics="F2"/);
   assert.doesNotMatch(html, /价格背景暂时无法显示/);
 });

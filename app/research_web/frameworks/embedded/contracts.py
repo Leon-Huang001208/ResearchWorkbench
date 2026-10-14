@@ -4,7 +4,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from ..base import BlockMeta, GapRecord, SourceRecord
+from ..base import BlockMeta, GapRecord
 
 
 class EmbeddedModel(BaseModel):

@@ -153,3 +153,13 @@ Gold/Dollar采集、评分、revision及renderer保持原合同；公共源码�
 ## FinGPT 研究融合 · 2026-10-13
 
 FinGPT 的 research_depth/source_scope 属于研究会话，不进入 Gold/Dollar 快照或框架 Bot。新增报告底稿与 PDF 使用会话 outputs 和原文件交付解析；框架数据及生命周期仍由原模块负责。
+
+## 同源嵌入看板与原生数据闭环 · 2026-10-14
+
+Gold／Dollar 的页面由同源 iframe 核心看板呈现，原生 definition、collector、score、store、schema、历史快照和 DSH Bot 保留。旧原生画布 renderer 仅作兼容代码与回归对照；新页面不再使用旧画布布局，也不读取导入 JSON 作为核心数据回退。
+
+宿主只读取既有 data API，领域适配器保留数值、null、单位、来源、日期和 revision。iframe 渲染同一快照后返回来源窗口、slug、revision 和本次 token 一致的 ack；在确认前不能发起 Bot。刷新不改变旧会话绑定；旧 revision 触发原有 409。源失败保留原生最后成功值和缺口。
+
+回测、量化策略和模型拟合入口明确为尚未接入；不向 Bot 注入这些静态结果。其余九个框架是 2026-10-14 导入的静态看板，其日期表示导入日期，不表示各指标观测日期；没有实时采集或 Bot。静态看板 coverage=0，不把资产存在当数据完整。静态看板创建 Bot 返回 framework_bot_unavailable。
+
+静态入口位于 /frameworks-embed/{slug}/，单独使用同源 iframe CSP；主页面 CSP 不放宽。新标签页进入宿主框架详情。原生模型真实生成、供应商实采及其他平台证据分别记录。
