@@ -1,5 +1,7 @@
 # Research Web 接口清单
 
+文本验收预算没有新增公开 HTTP API；只通过显式 launcher 控制和内部 Linux Python stdio RPC 读取/扣票。stdin 仅操作与输出上限，不包含 prompt 或 Key；固定错误码区分过期、耗尽、不确定提交。
+
 主线 `research_plan` 保持 turn/seq/status/history_complete/items 字段；与兼容计划投影
 共用原生日志折叠。available 才提供已确认条目，incomplete/invalid 不保留绿色旧快照。
 

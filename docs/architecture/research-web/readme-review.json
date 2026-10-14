@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "unchanged",
-  "summary": "保持当前README中的FinGPT、Claw、ETF与双凭据路径，仅补原生Todo恢复完整性。",
-  "reason": "README已覆盖既有研究空间和唯一DSH；本轮不新增入口、依赖、工具权限或产品导航，具体内存冲突归并和计划合同更新在模块文档。"
+  "disposition": "updated",
+  "summary": "仅提取PR88持久验收预算，保留当前加密凭据及正常运行；旧政策过期不激活。",
+  "reason": "README新增预算入口说明，设计与模块文档区分历史机制测试、真实授权和平台验收，不引入明文凭据或自动续期。"
 }

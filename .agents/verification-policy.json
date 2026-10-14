@@ -295,6 +295,24 @@
           "generic"
         ],
         "value": "python -m pytest tests/research_web/test_platform_capabilities.py --confcutdir=tests/research_web"
+      },
+      "research-web-live-acceptance-budget": {
+        "level": "L3",
+        "lane": "local",
+        "gate": "merge",
+        "platforms": [
+          "generic"
+        ],
+        "value": "python -m pytest tests/research_web/test_live_acceptance_budget.py tests/research_web/test_runtime_launch.py --confcutdir=tests/research_web"
+      },
+      "research-web-live-acceptance-guard": {
+        "level": "L3",
+        "lane": "local",
+        "gate": "merge",
+        "platforms": [
+          "generic"
+        ],
+        "value": "node --test tests/javascript/research_web_guard.test.mjs"
       }
     },
     "documentation": {
@@ -425,6 +443,51 @@
     }
   },
   "rules": [
+    {
+      "id": "research-web-live-acceptance-budget",
+      "risk": "full-delivery",
+      "minimumLevel": "L4",
+      "reason": "durable_model_acceptance_budget_change",
+      "impact": [
+        "security-boundary",
+        "research-web-runtime"
+      ],
+      "coupling": "high",
+      "match": {
+        "files": [
+          "app/research_web/live_acceptance_budget.py",
+          "tests/research_web/test_live_acceptance_budget.py"
+        ],
+        "prefixes": [],
+        "segments": [],
+        "suffixes": []
+      },
+      "platforms": [
+        "linux",
+        "macos",
+        "windows",
+        "cross-platform"
+      ],
+      "tests": [
+        "research-web-live-acceptance-budget",
+        "research-web-live-acceptance-guard",
+        "research-web-architecture",
+        "project-constraints-local",
+        "research-web-verification-full"
+      ],
+      "documentation": [
+        "documentation-governance",
+        "python-file-index"
+      ],
+      "ci": [
+        "project-constraints",
+        "research-web-checks",
+        "research-web-bootstrap",
+        "research-web-docker",
+        "research-web-windows-verify"
+      ],
+      "realMachine": []
+    },
     {
       "id": "desktop",
       "risk": "full-delivery",
