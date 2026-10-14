@@ -1,5 +1,7 @@
 # Research Workbench Research Web 当前架构
 
+Hot关注/周期计划复用现有Node、PostgreSQL与唯一队列。Automation仅适配用户管理入口；周期调度不写旧Store，也不创建第二研究引擎。schema19/20、权限、回放与截止资料合同见Hot组件README；正常Native已产出宏观周期简报，AI旧材料超窗如实为空；完整Goal仍须当前AI事件、恢复复验、最终Docker与当前候选Mac CI/完整审核证据。
+
 Hot模型流预算桥已接入overlay和私有Host API，准备会话与预算准入分开。
 离线SSE只证明SDK机制与回执顺序；正常Runtime零重试及真实研究尚未跑通，完整Goal继续。
 

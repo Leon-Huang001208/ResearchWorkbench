@@ -18,6 +18,8 @@ import {createBriefRequest,briefGet,briefList,briefExport} from './brief-control
 import {researchManifestChunk,researchOriginal} from './research-evidence.ts';
 import {prepareResearchRun,advanceResearchRun,readResearchRun} from './research-run.ts';
 import {researchModelHandlers} from './research-model-rpc.ts';
+import {readFollows,configureFollow} from './follows.ts';
+import {periodicPlans,periodicRuns,configurePeriodicPlan,schedulePeriodicBriefs,periodicBriefHandler} from './periodic-briefs.ts';
 import {correctEvent,type Correction} from './events.ts';
 import {loadNativeModel,type NativeModelBootstrap,type ModelCapability} from './native-model.ts';
 
@@ -90,7 +92,14 @@ export async function startService(input: ServiceBootstrap,capabilities:{groupin
         noParams(params);
         const [counts] = await reader`select count(*)::int n from ${reader(config.database.schema)}.sources`;
         const pending=await reader`select state,count(*)::int count from ${reader(config.database.schema)}.processing_items where state<>'applied' group by state`;
+        const [briefPlans]=await reader`select
+          (select count(*)::int from ${reader(config.database.schema)}.periodic_plans) configured,
+          (select count(*)::int from ${reader(config.database.schema)}.periodic_plans p join ${reader(config.database.schema)}.periodic_plan_versions v on v.plan_id=p.id and v.version=p.current_version where v.config->>'enabled'='true') enabled,
+          (select count(*)::int from ${reader(config.database.schema)}.periodic_runs where state='queued') queued,
+          (select count(*)::int from ${reader(config.database.schema)}.periodic_runs where state='queued' and error_code is not null) "withErrors",
+          (select count(*)::int from ${reader(config.database.schema)}.follows f join ${reader(config.database.schema)}.follow_versions v on v.follow_id=f.id and v.version=f.current_version where v.config->>'enabled'='true') "activeFollows"`;
         return { state:'initialized',worker:workerState,model:modelCapability?.state??(groupingModel?'ready':'blocked_model'),modelCode:modelCapability?.code??null,processing:JSON.parse(JSON.stringify([...pending])),schemaVersion:SCHEMA_VERSION,
+          periodic:JSON.parse(JSON.stringify(briefPlans)),
           mode:current.mode,generation:current.generation,sourceCount:counts.n,collectionMode:'latest_snapshot',backfill:'not_supported' };
       }}],
       ['sources',{permission:'read',run:async params=>{
@@ -110,6 +119,15 @@ export async function startService(input: ServiceBootstrap,capabilities:{groupin
         return result;
       }}],
       ['channels',{permission:'read',run:params=>channelsAt(reader,config.database.schema,params)}],
+      ['follow.list',{permission:'read',run:params=>readFollows(reader,config.database.schema,params)}],
+      ['periodic.list',{permission:'read',run:params=>periodicPlans(reader,config.database.schema,params)}],
+      ['periodic.runs',{permission:'read',run:params=>periodicRuns(reader,config.database.schema,params)}],
+      ['periodic.configure',{permission:'control',run:(params,id,signal)=>{
+        signal.throwIfAborted();return configurePeriodicPlan(controller,config.database.schema,current,id,params);
+      }}],
+      ['follow.configure',{permission:'control',run:(params,id,signal)=>{
+        signal.throwIfAborted();return configureFollow(controller,config.database.schema,current,id,params);
+      }}],
       ['brief.list',{permission:'read',run:params=>briefList(reader,config.database.schema,params)}],
       ['brief.get',{permission:'read',run:params=>briefGet(reader,config.database.schema,params)}],
       ['brief.export',{permission:'read',run:params=>briefExport(reader,config.database.schema,params)}],
@@ -147,10 +165,12 @@ export async function startService(input: ServiceBootstrap,capabilities:{groupin
     const queue=boss;
     workerTask=runWorker({db,controllerDb:controller,boss:queue,schema:config.database.schema,owner:current,config,
       handlers:{...collectionHandlers(db,queue,config.database.schema,current,config,fetch,sourceControllers),
+        'hot.brief':periodicBriefHandler(controller,config.database.schema,current),
         ...(groupingModel?{'hot.process':processingHandler(db,config.database.schema,current,groupingModel)}:{})},signal:workerStop.signal,
       heartbeat:async()=>{
         await heartbeatRuntime(controller,config.database.schema,current,input.controllerToken);
         await scheduleCollection(db,queue,config.database.schema,current,config);
+        await schedulePeriodicBriefs(controller,queue,config.database.schema,current);
         await scheduleProcessing(db,queue,config.database.schema,current,Boolean(groupingModel)&&modelCapability?.state!=='blocked_model');
         await evaluateChannelRules(db,config.database.schema,current);
       }}).catch(()=>{

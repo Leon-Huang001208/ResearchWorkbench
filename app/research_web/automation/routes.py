@@ -27,6 +27,28 @@ def automations(request: Request):
     return service(request).list()
 
 
+@router.get("/automations/hot-brief-plans")
+async def hot_brief_plans(request: Request):
+    """Automation management adapter; Hot PG and its worker retain sole scheduling ownership."""
+    from ..hot_routes import brief_plans
+    service(request)
+    return await brief_plans(request)
+
+
+@router.get("/automations/hot-brief-plans/{plan_id}/runs")
+async def hot_brief_runs(plan_id: str, request: Request):
+    from ..hot_routes import brief_plan_runs
+    service(request)
+    return await brief_plan_runs(plan_id, request)
+
+
+@router.post("/automations/hot-brief-plans/configure")
+async def configure_hot_brief_plan(request: Request):
+    from ..hot_routes import configure_brief_plan
+    service(request)
+    return await configure_brief_plan(request)
+
+
 @router.post("/automations", status_code=201)
 def create_automation(body: AutomationCreate, request: Request):
     return service(request).create(body)

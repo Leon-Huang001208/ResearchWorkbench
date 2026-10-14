@@ -1,5 +1,7 @@
 # Research Web 能力与平台证据
 
+本轮macOS：schema19关注已通过正常Native worker、签名RPC、Host HTTP读写/重放/暂停。schema20周期流程有真实PG队列/权限/崩溃后复用与慢写租约反例，正常Native已取得宏观周期MD/DOCX并验证AI空窗口；真实组件浏览器操作通过，最终整镜像与当前Mac CI仍无证据。Windows/Linux产品适配与真机保持NOT_RUN，本机组件测试不冒充它们通过。
+
 2026-10-14：macOS 隔离实例已实际展示原 PG 研究状态和有效真实报告，核对与 Word 下载通过。
 所选研究文件/回执与 PG 50 表联合恢复已核验。Docker 生产依赖构建层与 Native 安装步骤已接入；
 容器采集/切换、干净安装及同候选 Mac CI 在获得各自回执前仍 NOT_RUN。

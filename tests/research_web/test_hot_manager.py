@@ -291,6 +291,55 @@ class HotManagerTests(unittest.TestCase):
                     self.manager.stop()
                 killed.assert_not_called()
 
+    def test_follows_real_manager_admits_reader_and_same_controller_request(self):
+        self.manager.directory.mkdir(mode=0o700)
+        identifier = "11111111-1111-4111-8111-111111111111"
+        params = {"followId": identifier, "expectedVersion": 0, "config": {"kind": "channel", "target": "macro", "name": "宏观", "enabled": True}, "reason": "关注"}
+        calls = []
+        def response(port, owner, token, operation, body=None, request_id=None):
+            calls.append((operation, body, request_id))
+            if operation == "follow.list":
+                return {"items": [], "cutoff": "2026-10-14T00:00:00Z"}
+            return {"followId": identifier, "version": 1, "config": params["config"], "requestId": request_id}
+        with patch.object(self.manager, "_state", return_value={"port": 3082, "owner": {}}), patch("research_workbench_entrypoint.hot_manager.rpc", side_effect=response):
+            self.assertEqual(self.manager.follows()["items"], [])
+            first = self.manager.configure_follow(params, identifier)
+            self.assertEqual(first, self.manager.configure_follow(params, identifier))
+            self.assertEqual(calls[1], calls[2])
+            self.assertEqual(calls[0][0], "follow.list")
+            self.assertEqual(calls[1][0], "follow.configure")
+
+    def test_periodic_rejects_bad_offsets_and_datetime_underflow_before_rpc(self):
+        identifier = "11111111-1111-4111-8111-111111111111"
+        config = {"name": "Macro", "channelId": "macro", "enabled": False, "firstRunAt": "2026-10-14T00:00:00Z", "intervalSeconds": 86400, "windowSeconds": 86400, "maxEvents": 10, "timezone": "Asia/Shanghai", "sort": "importance"}
+        with patch.object(self.manager, "_control_projection") as control:
+            for value in ["2026-10-14T00:00:00+00:99", "2026-10-14T00:00:00+24:00", "0001-01-01T00:00:00+23:59"]:
+                with self.assertRaisesRegex(HotError, "hot_periodic_config_invalid"):
+                    self.manager.configure_periodic_plan({"planId": identifier, "expectedVersion": 0, "config": {**config, "firstRunAt": value}, "reason": "test"}, identifier)
+            control.assert_not_called()
+
+    def test_periodic_real_reader_control_and_normalized_receipt_are_admitted(self):
+        self.manager.directory.mkdir(mode=0o700)
+        identifier = "11111111-1111-4111-8111-111111111111"
+        config = {"name": "Macro", "channelId": "macro", "enabled": False, "firstRunAt": "2026-10-14T08:00:00+08:00", "intervalSeconds": 86400, "windowSeconds": 86400, "maxEvents": 10, "timezone": "Asia/Shanghai", "sort": "importance"}
+        body = {"planId": identifier, "expectedVersion": 0, "config": config, "reason": "test"}
+        calls = []
+        def response(port, owner, token, operation, params=None, request_id=None):
+            calls.append((operation, params, request_id))
+            if operation in {"periodic.list", "periodic.runs"}:
+                return {"items": [], "cutoff": "2026-10-14T00:00:00Z"}
+            return {"planId": identifier, "version": 1, "config": params["config"], "nextDueAt": params["config"]["firstRunAt"], "requestId": request_id}
+        with patch.object(self.manager, "_state", return_value={"port": 3082, "owner": {}}), patch("research_workbench_entrypoint.hot_manager.rpc", side_effect=response):
+            self.assertEqual(self.manager.periodic_plans()["items"], [])
+            self.assertEqual(self.manager.periodic_runs(identifier)["items"], [])
+            result = self.manager.configure_periodic_plan(body, identifier)
+            self.assertEqual(result["config"]["firstRunAt"], "2026-10-14T00:00:00.000Z")
+            self.assertEqual(result, self.manager.configure_periodic_plan(body, identifier))
+            self.assertEqual(calls[-1], calls[-2])
+            with self.assertRaisesRegex(HotError, "hot_periodic_enable_required"):
+                self.manager.configure_periodic_plan({**body, "config": {**config, "enabled": True}}, identifier)
+        self.assertEqual(config["firstRunAt"], "2026-10-14T08:00:00+08:00")
+
     def test_foreign_project_state_is_rejected(self):
         self.state()
         self.manager.project = Path("/other-project")

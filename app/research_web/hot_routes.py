@@ -74,6 +74,37 @@ class ChannelRequest(BaseModel):
     requestId: str = Field(pattern=UUID_PATTERN)
 
 
+class FollowRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    followId: str = Field(pattern=UUID_PATTERN)
+    expectedVersion: int = Field(ge=0, lt=1000000, strict=True)
+    config: dict
+    reason: str = Field(min_length=1, max_length=1000, strict=True)
+    requestId: str = Field(pattern=UUID_PATTERN)
+
+
+class BriefPlanConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    name: str = Field(min_length=1, max_length=120, strict=True)
+    channelId: str = Field(pattern=r"^[a-z][a-z0-9_-]{0,47}$", strict=True)
+    enabled: bool = Field(strict=True)
+    firstRunAt: str = Field(min_length=1, max_length=100, strict=True)
+    intervalSeconds: int = Field(ge=60, le=604800, strict=True)
+    windowSeconds: int = Field(ge=60, le=31622400, strict=True)
+    maxEvents: int = Field(ge=1, le=20, strict=True)
+    timezone: str = Field(min_length=1, max_length=80, strict=True)
+    sort: Literal["importance", "heat", "recent"]
+
+
+class BriefPlanRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    planId: str = Field(pattern=UUID_PATTERN)
+    expectedVersion: int = Field(ge=0, lt=1000000, strict=True)
+    config: BriefPlanConfig
+    reason: str = Field(min_length=1, max_length=1000, strict=True)
+    requestId: str = Field(pattern=UUID_PATTERN)
+
+
 class CorrectionRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     reason: str = Field(min_length=1, max_length=2000)
@@ -188,6 +219,40 @@ async def lifecycle(request: Request):
 async def channels(request: Request):
     params = query(request, {"cutoff"})
     return await request.app.state.hot.call("channels", params.get("cutoff"))
+
+
+@router.get("/follows")
+async def follows(request: Request):
+    query(request, set())
+    return await request.app.state.hot.call("follows")
+
+
+@router.post("/follows/configure")
+async def configure_follow(request: Request):
+    value = await body(request, FollowRequest)
+    request_id = str(UUID(value.requestId))
+    return await request.app.state.hot.call("configure_follow", value.model_dump(exclude={"requestId"}), request_id, request_id=request_id)
+
+
+@router.get("/brief-plans")
+async def brief_plans(request: Request):
+    query(request, set())
+    return await request.app.state.hot.call("periodic_plans")
+
+
+@router.get("/brief-plans/{plan_id}/runs")
+async def brief_plan_runs(plan_id: str, request: Request):
+    query(request, set())
+    if not re.fullmatch(UUID_PATTERN, plan_id):
+        raise HotWebError("hot_periodic_request_invalid", "计划标识不正确。", 400)
+    return await request.app.state.hot.call("periodic_runs", str(UUID(plan_id)))
+
+
+@router.post("/brief-plans/configure")
+async def configure_brief_plan(request: Request):
+    value = await body(request, BriefPlanRequest)
+    request_id = str(UUID(value.requestId))
+    return await request.app.state.hot.call("configure_periodic_plan", value.model_dump(exclude={"requestId"}), request_id, request_id=request_id)
 
 
 @router.post("/research/handoffs")

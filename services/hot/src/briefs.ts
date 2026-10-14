@@ -9,7 +9,9 @@ type Json=postgres.JSONValue;
 export interface BriefPayload {
   schemaVersion:1;cutoff:string;timezone:string;window:{from:string|null;to:string|null};
   channel:Json;events:Json[];limitations:string[];
+  selection?:PeriodicSelection;
 }
+export interface PeriodicSelection {kind:'periodic';planId:string;planVersion:number;runId:string;missedPeriods:number}
 export interface FrozenBrief {payload:BriefPayload;contentHash:string}
 function canonical(value:unknown):string {
   if(value instanceof Date)return JSON.stringify(value.toISOString());
@@ -24,6 +26,12 @@ function date(value:string):Date {
 function validate(payload:BriefPayload){
   if(payload.schemaVersion!==1||!Array.isArray(payload.events)||payload.events.length>20)throw Error('hot_brief_limit');
   date(payload.cutoff);
+  if(payload.selection){
+    const s=payload.selection;
+    if(s.kind!=='periodic'||Object.keys(s).some(key=>!['kind','planId','planVersion','runId','missedPeriods'].includes(key))||
+      [s.planId,s.runId].some(id=>typeof id!=='string'||!/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(id))||
+      !Number.isSafeInteger(s.planVersion)||s.planVersion<1||!Number.isSafeInteger(s.missedPeriods)||s.missedPeriods<0)throw Error('hot_brief_input_invalid');
+  }
   try{new Intl.DateTimeFormat('zh-CN',{timeZone:payload.timezone});}catch{throw Error('hot_brief_timezone_invalid');}
   const {from,to}=payload.window;if(from)date(from);if(to)date(to);
   if(from&&to&&date(from)>date(to))throw Error('hot_brief_window_invalid');
@@ -39,7 +47,7 @@ function object(value:Json):Record<string,Json>{
 function list(value:Json|undefined):Json[]{if(!Array.isArray(value))throw Error('hot_brief_input_invalid');return value;}
 /** One repeatable-read view, bounded explicit selection. All material pages reuse the same cutoff. */
 export async function freezeBrief(db:Sql,schema:string,input:{eventIds:string[];channelId:string;cutoff:string;
-  from?:string;to?:string;timezone?:string},signal?:AbortSignal):Promise<FrozenBrief>{
+  from?:string;to?:string;timezone?:string;selection?:PeriodicSelection},signal?:AbortSignal):Promise<FrozenBrief>{
   schemaName(schema);
   if(!Array.isArray(input.eventIds)||!input.eventIds.length||input.eventIds.length>20||
     new Set(input.eventIds.map(id=>id.toLowerCase())).size!==input.eventIds.length||
@@ -50,6 +58,8 @@ export async function freezeBrief(db:Sql,schema:string,input:{eventIds:string[];
     channel:null,events:[],limitations:['显式选材，不代表频道或全天完整覆盖。',
       '来源摘录为发布者陈述，未经独立事实核验；事件标题为归组摘要。',
       '覆盖依据来自已保存的判断快照，缺失或较旧的覆盖不代表当前采集健康。']};
+  if(input.selection){base.selection=input.selection;base.limitations[0]='Hot周期计划从截止时点已保存的频道事件中有界选材，不代表频道或全天完整覆盖。';
+    if(input.selection.missedPeriods)base.limitations.push(`停机或延迟跳过 ${input.selection.missedPeriods} 个周期；只处理本次保存的截止窗口，不补造完整覆盖。`);}
   validate(base);
   try{
     const result=await db.begin('isolation level repeatable read read only',async tx=>{
@@ -98,6 +108,7 @@ export function briefMarkdown(brief:FrozenBrief):string {
   const lines=['# 热点与事件简报','',`截止：${time(p.cutoff)} · 时区：${escape(p.timezone)}`,
     `选材发布时间窗口：${p.window.from?time(p.window.from):'未指定'} — ${p.window.to?time(p.window.to):'未指定'}`,
     `内容校验：${brief.contentHash}`,'','## 覆盖与限制',...p.limitations.map(value=>'- '+escape(value))];
+  if(p.selection)lines.push('',`周期计划：${escape(p.selection.planId)} · 版本 ${p.selection.planVersion} · 运行 ${escape(p.selection.runId)} · 跳过周期 ${p.selection.missedPeriods}`);
   const channel=object(p.channel);lines.push('',`频道：${escape(channel.channel_id)} · 配置版本 ${escape(channel.version)}`);
   for(const value of p.events){const event=object(value);
     lines.push('','## 事件摘要（归组结果）',escape(event.title),`事件 ${escape(event.canonicalId)} · 版本 ${escape(event.revision)}`,

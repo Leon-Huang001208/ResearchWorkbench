@@ -1,5 +1,7 @@
 # 研究框架
 
+关注和周期简报按Hot频道与固定原件选材；没有注册Gold/Dollar框架或改变Bot/评分合同。周期冻结不启动FinGPT/Claw；需要正式研究时仍由用户从冻结简报准备资料并明确提交问题。
+
 Hot 的两步研究入口选择 FinGPT 或 Claw，沿已有 ResearchService 与 DSH 执行；不注册新 Gold/Dollar 框架，也不复制其规则或调度。冻结简报资料先准备会话，明确提交问题才进入研究。
 
 2026-10-13 的 AIHOT 阅读界面适配仅作用于研究情报的 `.hot-reader` 区域，复用原 Hot/外部

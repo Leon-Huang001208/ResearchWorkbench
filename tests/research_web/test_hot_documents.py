@@ -20,6 +20,17 @@ def saved():
 
 
 class BriefDocxTests(unittest.TestCase):
+    def test_periodic_provenance_and_skipped_periods_are_preserved_in_word(self):
+        value = saved()
+        identifier = value["briefId"]
+        value["payload"]["selection"] = {"kind": "periodic", "planId": identifier, "planVersion": 2, "runId": identifier, "missedPeriods": 3}
+        text = "\n".join(p.text for p in Document(io.BytesIO(brief_docx(value))).paragraphs)
+        self.assertIn("周期计划 " + identifier, text)
+        self.assertIn("跳过周期 3", text)
+        value["payload"]["selection"]["missedPeriods"] = True
+        with self.assertRaises(ValueError):
+            brief_docx(value)
+
     def test_docx_retains_provenance_unknowns_and_source_assertions(self):
         data = brief_docx(saved())
         document = Document(io.BytesIO(data))

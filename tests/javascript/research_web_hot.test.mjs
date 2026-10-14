@@ -3,6 +3,55 @@ import assert from 'node:assert/strict';
 import {createAPI,parseRoute} from '../../app/research_web/ui/core.mjs';
 import {createHotController,renderHotWorkspace,renderHotBrief,renderHotResults,hotURL,hotTime} from '../../app/research_web/ui/hot-workspace.mjs';
 import {hotResearchSubmission,renderHotPreparation,renderHotExecution} from '../../app/research_web/ui/hot-research-actions.mjs';
+import {renderHotFollows} from '../../app/research_web/ui/hot-follows.mjs';
+import {renderHotBriefPlans,hotPlanSubmission} from '../../app/research_web/ui/hot-brief-plans.mjs';
+
+test('periodic plan creation is disabled and rendering/reading cannot enable a schedule',()=>{
+  assert.equal(parseRoute('#/intel/hot?view=plans').hotView,'plans');
+  const fields={name:'Macro',channelId:'macro',firstRunAt:'2026-10-14T08:00:00Z',intervalSeconds:'86400',windowSeconds:'86400',maxEvents:'10',timezone:'Asia/Shanghai',sort:'importance',reason:'test'};
+  const state={channels:[{channel_id:'macro',config:{name:'Macro'}}],editPlan:'',editPlanVersion:0};
+  const pending=hotPlanSubmission({get:key=>fields[key]},state,()=> 'uuid');assert.equal(pending.body.config.enabled,false);assert.equal(pending.body.expectedVersion,0);assert.equal(pending.body.config.firstRunAt,'2026-10-14T08:00:00.000Z');
+  assert.match(renderHotBriefPlans({...state,plans:[],planRuns:[],selectedPlan:''}),/保存为停用计划/);
+  assert.throws(()=>hotPlanSubmission({get:key=>key==='maxEvents'?'21':fields[key]},state,()=> 'uuid'));
+});
+test('unknown periodic toggle retains exact plan version; late run read failure cannot change next view',async()=>{
+  const bodies=[];let count=0;
+  const row={planId:'plan',version:1,config:{enabled:false}};
+  const c=createHotController({uuid:()=> 'request',api:{hotPlanConfigure:async body=>{bodies.push(JSON.stringify(body));return ++count===1?{state:'outcome_unknown',requestId:body.requestId}:{...body,version:2};}}});
+  c.state.plans=[row];await c.action({dataset:{hotAction:'toggle-plan',plan:'plan'}});assert.ok(c.state.pending);
+  await c.action({dataset:{hotAction:'retry'}});assert.equal(bodies[0],bodies[1]);assert.equal(c.state.plans[0].version,2);assert.equal(c.state.plans[0].config.enabled,true);
+  let reject;const late=createHotController({api:{hotPlanRuns:async()=>new Promise((_,r)=>{reject=r;})}});late.state.plans=[row];
+  const read=late.action({dataset:{hotAction:'plan-runs',plan:'plan'}});late.deactivate();late.state.error='new view';reject(Error('old failure'));await read;assert.equal(late.state.error,'new view');
+});
+
+test('follow page is readonly, escapes labels and explicit toggle retries its original revision',async()=>{
+  assert.equal(parseRoute('#/intel/hot?view=follows').hotView,'follows');
+  const row={followId:'follow',version:3,config:{kind:'keyword',target:'<tag>',name:'<script>bad</script>',enabled:true}};
+  assert.ok(!renderHotFollows([row]).includes('<script>'));assert.match(renderHotFollows([row]),/&lt;tag&gt;/);
+  const bodies=[];let count=0;
+  const c=createHotController({uuid:()=> 'request',api:{hotFollowConfigure:async body=>{bodies.push(JSON.stringify(body));return ++count===1?{state:'outcome_unknown',requestId:body.requestId}:{...body,version:4};}}});
+  c.state.follows=[row];await c.action({dataset:{hotAction:'toggle-follow',follow:'follow'}});assert.ok(c.state.pending);
+  await c.action({dataset:{hotAction:'retry'}});assert.equal(bodies[0],bodies[1]);assert.equal(c.state.follows[0].config.enabled,false);assert.equal(c.state.follows[0].version,4);
+});
+test('followed event navigation keeps old event id for canonical resolution and late reads cannot change new view',async()=>{
+  const calls=[];
+  const c=createHotController({api:{hotEvents:async()=>({items:[],offset:0,hasMore:false,cutoff:'2026-10-14T00:00:00Z'}),hotEvent:async(id)=>{calls.push(id);return {canonicalId:'new',revision:1,reports:[]};}}});
+  c.state.follows=[{followId:'f',config:{kind:'event',target:'old'}}];
+  await c.action({dataset:{hotAction:'open-follow',follow:'f'}});assert.deepEqual(calls,['old']);assert.equal(c.state.detail.canonicalId,'new');
+  let reject;const late=createHotController({api:{hotFollows:async()=>new Promise((_,r)=>{reject=r;})}});late.state.detail={canonicalId:'old',title:'Old'};
+  const pending=late.action({dataset:{hotAction:'follow-event'}});late.deactivate();late.state.error='new view';reject(Error('old error'));await pending;assert.equal(late.state.error,'new view');
+});
+test('follow current detail failure is visible after reload and late writes retain new view messages',async()=>{
+  const c=createHotController({api:{hotEvents:async()=>({items:[],cutoff:'2026-10-14T00:00:00Z',offset:0,hasMore:false}),hotEvent:async()=>{throw Error('follow detail unavailable');}}});
+  c.state.follows=[{followId:'f',config:{kind:'event',target:'old'}}];await c.action({dataset:{hotAction:'open-follow',follow:'f'}});assert.equal(c.state.error,'follow detail unavailable');
+  for(const unknown of [false,true]){
+    let finish;
+    const late=createHotController({uuid:()=> 'request',api:{hotFollowConfigure:async body=>new Promise(resolve=>{finish=()=>resolve(unknown?{state:'outcome_unknown',requestId:body.requestId}:{...body,version:2});})}});
+    late.state.follows=[{followId:'f',version:1,config:{kind:'keyword',target:'policy',name:'Policy',enabled:true}}];
+    const pending=late.action({dataset:{hotAction:'toggle-follow',follow:'f'}});late.deactivate();late.state.message='new message';finish();await pending;
+    assert.equal(late.state.message,'new message');assert.equal(Boolean(late.state.pending),unknown);
+  }
+});
 
 const researchRun='11111111-1111-4111-8111-111111111111', researchMaterial='22222222-2222-4222-8222-222222222222';
 const researchBrief={briefId:'33333333-3333-4333-8333-333333333333',version:2,payload:{events:[{reports:[{materialId:researchMaterial,title:'<script>publisher</script>',revision:3}]}]}};

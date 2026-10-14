@@ -1,5 +1,9 @@
 # Hot / 研究情报接续记录
 
+当前断点：未提交关注/周期切片在d6b0cb873上；schema20正常Native已运行，Macro周期MD/DOCX真实产物已验，AI因2025-02原件超出一年窗口记录empty。真实Hot组件浏览器CRUD/启停/历史通过，测试计划/关注均暂停、worker/server已停止。PG7/Python45/UI86/TS与111治理检查通过、限定审查关闭。模型仍17/76804/10253microUSD，上限未变。当前AI事件、最新恢复、整镜像/当前MacCI与完整Goal审计继续；详见2026-10-14-hot-follows-periodic.md。
+
+最新未提交切片（2026-10-14）：关注schema19已正常Native/签名RPC/Host HTTP验证；周期schema20、Automation管理适配、固定选材与产物溯源已实现，真实PG7/Python45/UI86/TS检查通过。慢写租约与日期边界经RED→GREEN修复，限定审查收尾；正常schema20周期、浏览器、文档/项目门、最终整镜像/当前MacCI与完整Goal审计仍待完成。细节见2026-10-14-hot-follows-periodic.md，不能用旧CI或旧schema运行认证新切片。
+
 宿主 macOS，任务类型功能开发。目标仍为原 Goal 的阶段 0–5，未完成任何门不降级。
 
 ## 当前权威断点 · 2026-10-14（覆盖下方历史待验状态）

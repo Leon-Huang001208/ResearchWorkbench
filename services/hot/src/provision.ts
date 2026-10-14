@@ -56,6 +56,11 @@ export async function grantController(db: Sql, schema: string, role: string): Pr
   await db`grant update(current_version) on ${db(schema)}.channels to ${db(role)}`;
   await db`grant insert on ${db(schema)}.briefs,${db(schema)}.brief_versions,${db(schema)}.brief_requests to ${db(role)}`;
   await db`grant update(current_version) on ${db(schema)}.briefs to ${db(role)}`;
+  await db`grant insert on ${db(schema)}.follows,${db(schema)}.follow_versions,${db(schema)}.follow_requests to ${db(role)}`;
+  await db`grant update(current_version) on ${db(schema)}.follows to ${db(role)}`;
+  await db`grant insert on ${db(schema)}.periodic_plans,${db(schema)}.periodic_plan_versions,${db(schema)}.periodic_plan_requests,${db(schema)}.periodic_runs,${db(schema)}.periodic_selections to ${db(role)}`;
+  await db`grant update(current_version,next_due_at) on ${db(schema)}.periodic_plans to ${db(role)}`;
+  await db`grant update(state,error_code,brief_version,content_hash,finished_at) on ${db(schema)}.periodic_runs to ${db(role)}`;
   await db`grant insert on ${db(schema)}.research_inputs,${db(schema)}.research_runs,${db(schema)}.research_operations to ${db(role)}`;
   await db`grant insert on ${db(schema)}.research_model_calls to ${db(role)}`;
   await db`grant update(revision,state,dataset_id,dataset_manifest_hash,delivery_key,report_run_id,error_code,updated_at) on ${db(schema)}.research_runs to ${db(role)}`;

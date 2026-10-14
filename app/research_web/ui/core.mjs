@@ -20,7 +20,7 @@ export function parseRoute(hash = '') {
     const tabs = new Set(['hot', 'overview', 'research-reports', 'investment-news', 'wsc', 'social', 'news', 'filings', 'events']);
     route.intelTab = !extraSegments.length && tabs.has(sectionSegment) ? sectionSegment : 'overview';
     if (route.intelTab === 'hot') {
-      route.hotView = ['events', 'sources', 'channels', 'briefs', 'research'].includes(params.get('view')) ? params.get('view') : 'events';
+      route.hotView = ['events', 'sources', 'channels', 'briefs', 'research', 'follows', 'plans'].includes(params.get('view')) ? params.get('view') : 'events';
       route.hotEventId = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(params.get('event') || '') ? params.get('event') : null;
     }
   }
@@ -57,7 +57,7 @@ export function parseRoute(hash = '') {
     const requestedSection = sectionSegment || params.get('section');
     route.section = workbenchSections.has(requestedSection) ? requestedSection : 'market';
     if (route.section === 'hot') {
-      route.hotView = ['events', 'sources', 'channels', 'briefs', 'research'].includes(params.get('view')) ? params.get('view') : 'events';
+      route.hotView = ['events', 'sources', 'channels', 'briefs', 'research', 'follows', 'plans'].includes(params.get('view')) ? params.get('view') : 'events';
       route.hotEventId = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(params.get('event') || '') ? params.get('event') : null;
     }
   }
@@ -164,6 +164,11 @@ export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSo
     hotResearchResults: (params) => request(`/hot/research/runs${hotQuery(params)}`),
     hotResearchRefresh: (id) => request(`/hot/research/runs/${segment(id)}/refresh`, {method:'POST',body:{},userAction:true}),
     hotResearchPrepare: (body) => request('/hot/research/handoffs', {method:'POST',body,userAction:true}),
+    hotFollows: () => request('/hot/follows'),
+    hotBriefPlans: () => request('/automations/hot-brief-plans'),
+    hotPlanRuns: (id) => request(`/automations/hot-brief-plans/${segment(id)}/runs`),
+    hotPlanConfigure: (body) => request('/automations/hot-brief-plans/configure', {method:'POST',body,userAction:true}),
+    hotFollowConfigure: (body) => request('/hot/follows/configure', {method:'POST',body,userAction:true}),
     hotResearchExecute: (body) => request(`/hot/research-runs/${segment(body.runId)}/execute`, {method:'POST',body:{question:body.question,formats:body.formats},userAction:true}),
     hotBriefs: (params) => request(`/hot/briefs${hotQuery(params)}`),
     hotBrief: (id, params) => request(`/hot/briefs/${segment(id)}${hotQuery(params)}`),

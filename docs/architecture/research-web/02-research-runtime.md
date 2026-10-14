@@ -1,5 +1,7 @@
 # 研究协议、执行状态与恢复
 
+周期简报的稳定身份由计划ID、配置版本和due时点派生。事务同时登记运行、入队和推进next_due；重复heartbeat不多触发。资料按固定due和发布时间窗口选择，选材先持久化；发布及终态回执写前/写后复核owner、claim、signal和有效计划版本。停用或版本变化取消尚未执行运行，PG错误保留errorCode/queueState；有限重试后仍显示失败，不生成模型执行。
+
 Hot guest 的进程身份由内核 boot ID、启动 ticks、UID 与精确 argv 双读固定；状态
 缺失拒绝，PID 复用拒绝，不依赖镜像中的 ps。初始化后宿主写状态失败时优先让
 原 worker 通过 SIGTERM 暂停自己代次；强退/缺回执仍须独立核对 PG 状态。

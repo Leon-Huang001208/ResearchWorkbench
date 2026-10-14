@@ -85,6 +85,14 @@ def brief_docx(saved: dict) -> bytes:
                 raise ValueError("hot_docx_time_invalid")
             return parsed.astimezone(zone).strftime("%Y-%m-%d %H:%M:%S")
         identity = f"简报 {saved['briefId']} · 版本 {saved['version']} · 内容哈希 {saved['contentHash']}"
+        if "selection" in p:
+            selection = p["selection"]
+            if (not isinstance(selection, dict) or set(selection) != {"kind", "planId", "planVersion", "runId", "missedPeriods"}
+                    or selection["kind"] != "periodic" or type(selection["planVersion"]) is not int or selection["planVersion"] < 1
+                    or type(selection["missedPeriods"]) is not int or selection["missedPeriods"] < 0
+                    or any(not isinstance(selection[key], str) or not re.fullmatch(r"[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}", selection[key]) for key in ["planId", "runId"])):
+                raise ValueError("hot_docx_selection_invalid")
+            identity += f"\n周期计划 {selection['planId']} · 版本 {selection['planVersion']} · 运行 {selection['runId']} · 跳过周期 {selection['missedPeriods']}"
         sections = [{"id": "provenance", "title": "版本与选材依据", "content": "\n".join([
             identity, "显示时区：" + p["timezone"], f"频道 {p['channel']['channel_id']} · 配置版本 {p['channel']['version']}",
             "选材发布时间窗口：" + (time(p['window']['from']) if p['window']['from'] else "未指定") + " — " + (time(p['window']['to']) if p['window']['to'] else "未指定")])}]

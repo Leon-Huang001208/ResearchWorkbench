@@ -1,5 +1,7 @@
 # Research Workbench Development Map
 
+Hot关注位于follows.ts/migration0019；周期计划位于periodic-briefs.ts/migration0020和brief-control的内部租约准入。Host hot_routes/hot_manager与Automation routes管理适配；UI为hot-follows/hot-brief-plans。近处测试覆盖PG最小角色、回放、截止、慢写回滚及Host真实白名单。
+
 Hot零重试准备位于launch_runtime.hot_zero_retry，私有同项目启用配置只影响本实例官方route。
 正式执行为hot_handoff.execute_hot_handoff/hot_routes execute，复用send及原生marker恢复；
 test_hot_execution覆盖丢失/重启/失败真值，test_hot_retry_policy/runtime_launch覆盖配置与overlay。

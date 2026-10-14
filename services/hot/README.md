@@ -1,5 +1,7 @@
 # Hot internal engine
 
+Schema 19 adds local follows (channel/event/keyword/institution/asset), immutable revisions and replayable audit. Schema 20 adds disabled-by-default periodic brief plans, runs and immutable selections. The existing Hot heartbeat and pg-boss queue are the sole scheduler. Explicit enable creates bounded frozen evidence briefs; no paid research or outbound delivery. Plan/run status is managed through the Automation adapter and the Research Intelligence UI. Native follows have a normal worker/signed RPC/Host HTTP proof; Normal Native periodic acceptance produced a verified macro Markdown/DOCX; the AI publication window was honestly empty because its existing event is from February 2025. Live-component browser operations passed. Final-image and installed-main-app acceptance remain pending.
+
 Docker lifecycle uses bounded kernel `/proc` birth/UID/argv checks rather than
 assuming `ps` is installed. A live process with missing/malformed identity is
 refused; PID reuse and changed argv are rejected. Startup cleanup requests

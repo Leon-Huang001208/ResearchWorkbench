@@ -1,5 +1,7 @@
 # Mac mini Docker 开发与独立部署
 
+关注与周期简报共用同一逻辑Hot PostgreSQL和现有worker/队列；更换运行模式不另建关注或计划库。停止worker后周期触发暂停，重启只处理一个保存的到期窗口并记录跳过周期数。schema20的最终Docker镜像/运行还未认证，旧24060ee3组件证据不升级为此候选通过；旧镜像和五个卷继续保留。
+
 Hot 在 guest 内用 `/proc` 的启动时点、UID、boot ID 和精确 argv 识别进程，双读拒绝
 PID 复用或读取间身份变化；僵尸/消失进程可识别，活跃 PID 的缺失字段拒绝。
 镜像无需新增 `ps` 依赖。启动后的宿主状态保存/核对失败时，先 SIGTERM 让 worker

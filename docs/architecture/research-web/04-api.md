@@ -1,5 +1,7 @@
 # Research Web 接口清单
 
+关注入口为GET /api/research/hot/follows及POST /api/research/hot/follows/configure。周期计划为GET /api/research/hot/brief-plans、GET /api/research/hot/brief-plans/{plan_id}/runs、POST /api/research/hot/brief-plans/configure；Automation路径 /api/research/automations/hot-brief-plans 提供相同list/configure/runs适配。GET只读；POST沿同源、明确动作、64KiB body、严格版本/布尔类型和UUID重放合同。新计划必须停用创建，再显式启用。
+
 新增POST `/api/research/hot/research-runs/{run_id}/execute`，要求同源明确用户动作，
 JSON question及md/docx formats；复用准备好的根会话和快照。deliveryKey不可绑定另一问题。
 executionStarted为true/false/null，分别表示已受理、确定未提交、证据不明；不以受理证明报告完成。

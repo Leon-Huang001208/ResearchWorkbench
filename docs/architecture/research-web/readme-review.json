@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "updated",
-  "summary": "保留Hot真实报告与两步研究UI、主线Todo恢复和显式受管文本验收预算。",
-  "reason": "Hot预算不变；PR88历史政策过期不得自动激活或续期，Todo计划不等于报告交付；组件与最终整镜像、旧CI与新候选分别认证。"
+  "summary": "Hot关注和周期简报接入现有研究情报与Automation管理，原正式研究与预算边界保持。",
+  "reason": "schema19/20同一PG唯一队列；默认停用、明确启用、固定窗口及租约双检。README与进度区分真实关注、PG周期证据和待验正常周期/最终镜像/当前CI。"
 }

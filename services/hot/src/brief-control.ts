@@ -1,7 +1,7 @@
 /** Controller-only immutable brief versions; request UUID replay never resamples evidence. */
 import type postgres from 'postgres';
-import {freezeBrief,sealBrief,briefMarkdown,type FrozenBrief,type BriefPayload} from './briefs.ts';
-import {withOwnerTransaction,type RuntimeOwner} from './control.ts';
+import {freezeBrief,sealBrief,briefMarkdown,type FrozenBrief,type BriefPayload,type PeriodicSelection} from './briefs.ts';
+import {withOwnerTransaction,type RuntimeOwner,type Tx} from './control.ts';
 import {schemaName} from './config.ts';
 import {canonicalGroupingInput} from './processing.ts';
 import {sha256,publicationTime} from './material.ts';
@@ -48,15 +48,16 @@ export async function briefList(db:Sql,schema:string,params:Params){
     order by v.created_at desc,v.brief_id offset ${offset} limit ${limit+1}`;
   return json({cutoff:cutoff.toISOString(),items:rows.slice(0,limit).map(row=>({...metadata(row),cutoff:row.cutoff,channelId:row.channel_id})),limit,offset,hasMore:rows.length>limit});
 }
-export async function createBriefRequest(db:Sql,schema:string,owner:RuntimeOwner,requestId:string,params:Params,signal?:AbortSignal){
+export async function createBriefRequest(db:Sql,schema:string,owner:RuntimeOwner,requestId:string,params:Params,signal?:AbortSignal,
+  admission?:{actor:'hot_scheduler';selection:PeriodicSelection;fence:(tx:Tx)=>Promise<void>;saved:(tx:Tx,result:ReturnType<typeof metadata>)=>Promise<void>}){
   schemaName(schema);requestId=uuid(requestId);only(params,['briefId','expectedVersion','eventIds','channelId','cutoff','from','to','timezone']);
   const briefId=uuid(params.briefId),expected=integer(params.expectedVersion,-1,0,999999);
   if(!Array.isArray(params.eventIds)||params.eventIds.some(id=>typeof id!=='string')||typeof params.channelId!=='string'||typeof params.cutoff!=='string'||
     ['from','to','timezone'].some(key=>params[key]!==undefined&&typeof params[key]!=='string'))throw Error('hot_brief_params_invalid');
   const input={eventIds:params.eventIds as string[],channelId:params.channelId,cutoff:params.cutoff,
     ...(params.from===undefined?{}:{from:params.from as string}),...(params.to===undefined?{}:{to:params.to as string}),
-    ...(params.timezone===undefined?{}:{timezone:params.timezone as string})};
-  const hash=sha256(canonicalGroupingInput(params));
+    ...(params.timezone===undefined?{}:{timezone:params.timezone as string}),...(admission?{selection:admission.selection}:{})};
+  const hash=sha256(canonicalGroupingInput(admission?{params,selection:admission.selection,actor:admission.actor}:params));
   try{
     // Validate control privilege before any potentially expensive read snapshot.
     const [permission]=await db`select has_table_privilege(current_user,${schema+'.brief_requests'},'INSERT') allowed`;
@@ -68,20 +69,24 @@ export async function createBriefRequest(db:Sql,schema:string,owner:RuntimeOwner
       if(cached&&cached.params_hash!==hash)throw Error('hot_brief_request_conflict');return cached;
     };
     const prior=await lookup(db);signal?.throwIfAborted();
-    if(prior)return await withOwnerTransaction(db,schema,owner,async()=>json({...metadata(prior),requestId}));
+    if(prior)return await withOwnerTransaction(db,schema,owner,async tx=>{
+      if(admission){await admission.fence(tx);await admission.saved(tx,metadata(prior));await admission.fence(tx);}return json({...metadata(prior),requestId});
+    });
     const frozen=await freezeBrief(db,schema,input,signal);
     // Leave room for JSONB whitespace, signed response encoding and transport metadata.
     if(Buffer.byteLength(JSON.stringify(frozen.payload))>350000)throw Error('hot_brief_persist_limit');
     const result=await withOwnerTransaction(db,schema,owner,async tx=>{
       signal?.throwIfAborted();const cached=await lookup(tx as unknown as Sql);
-      if(cached)return json({...metadata(cached),requestId});
+      if(admission)await admission.fence(tx);
+      if(cached){if(admission){await admission.saved(tx,metadata(cached));await admission.fence(tx);}return json({...metadata(cached),requestId});}
       const [current]=await tx`select current_version from ${tx(schema)}.briefs where id=${briefId} for update`;
       if((current?.current_version??0)!==expected||(!current&&expected!==0))throw Error('hot_brief_version_conflict');
       if(!current)await tx`insert into ${tx(schema)}.briefs(id) values(${briefId})`;
       const [saved]=await tx`insert into ${tx(schema)}.brief_versions(brief_id,version,payload,content_hash)
         values(${briefId},${expected+1},${tx.json(JSON.parse(JSON.stringify(frozen.payload)))},${frozen.contentHash}) returning brief_id,version,content_hash,created_at`;
-      await tx`insert into ${tx(schema)}.brief_requests(request_id,params_hash,brief_id,version,actor) values(${requestId},${hash},${briefId},${expected+1},'local_host')`;
+      await tx`insert into ${tx(schema)}.brief_requests(request_id,params_hash,brief_id,version,actor) values(${requestId},${hash},${briefId},${expected+1},${admission?.actor??'local_host'})`;
       await tx`update ${tx(schema)}.briefs set current_version=${expected+1} where id=${briefId}`;
+      if(admission){await admission.saved(tx,metadata(saved));await admission.fence(tx);}
       signal?.throwIfAborted();return json({...metadata(saved),requestId});
     });
     logEvent('brief_saved');return result;

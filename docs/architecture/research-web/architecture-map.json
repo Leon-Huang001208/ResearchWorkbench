@@ -3351,6 +3351,62 @@
       "source": "app/research_web/portfolio_decisions/routes.py",
       "declaredPath": "/runs/{run_id}",
       "prefix": "/api/research/portfolio-decisions"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/hot/follows",
+      "source": "app/research_web/hot_routes.py",
+      "declaredPath": "/follows",
+      "prefix": "/api/research/hot"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/hot/follows/configure",
+      "source": "app/research_web/hot_routes.py",
+      "declaredPath": "/follows/configure",
+      "prefix": "/api/research/hot"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/hot/brief-plans",
+      "source": "app/research_web/hot_routes.py",
+      "declaredPath": "/brief-plans",
+      "prefix": "/api/research/hot"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/hot/brief-plans/{plan_id}/runs",
+      "source": "app/research_web/hot_routes.py",
+      "declaredPath": "/brief-plans/{plan_id}/runs",
+      "prefix": "/api/research/hot"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/hot/brief-plans/configure",
+      "source": "app/research_web/hot_routes.py",
+      "declaredPath": "/brief-plans/configure",
+      "prefix": "/api/research/hot"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/automations/hot-brief-plans",
+      "source": "app/research_web/automation/routes.py",
+      "declaredPath": "/automations/hot-brief-plans",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/automations/hot-brief-plans/{plan_id}/runs",
+      "source": "app/research_web/automation/routes.py",
+      "declaredPath": "/automations/hot-brief-plans/{plan_id}/runs",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/automations/hot-brief-plans/configure",
+      "source": "app/research_web/automation/routes.py",
+      "declaredPath": "/automations/hot-brief-plans/configure",
+      "prefix": "/api/research"
     }
   ],
   "visualReview": "docs/architecture/research-web/visual-review.json",

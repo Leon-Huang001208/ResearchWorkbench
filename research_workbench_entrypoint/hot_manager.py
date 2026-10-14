@@ -69,7 +69,7 @@ def rpc(port: int, owner: dict, key: str, operation: str, params: dict | None = 
             raise HotError("hot_rpc_response_untrusted")
         if not result.get("ok"):
             code = result.get("code")
-            known = ("hot_source_config_invalid", "hot_source_request_invalid", "hot_source_revision_conflict",
+            known = ("hot_periodic_config_invalid", "hot_periodic_due_invalid", "hot_periodic_request_invalid", "hot_periodic_enable_required", "hot_periodic_control_denied", "hot_periodic_request_conflict", "hot_periodic_version_conflict", "hot_periodic_channel_invalid", "hot_periodic_limit", "hot_periodic_save_failed", "hot_periodic_read_failed", "hot_periodic_schedule_failed", "hot_periodic_run_invalid", "hot_periodic_plan_changed", "hot_periodic_brief_failed", "hot_follow_request_invalid", "hot_follow_control_denied", "hot_follow_version_conflict", "hot_follow_target_conflict", "hot_follow_target_invalid", "hot_follow_request_conflict", "hot_follow_limit", "hot_follow_read_failed", "hot_follow_save_failed", "hot_source_config_invalid", "hot_source_request_invalid", "hot_source_revision_conflict",
                      "hot_source_request_conflict", "hot_source_unknown", "hot_owner_stale", "hot_rpc_denied",
                      "hot_channel_request_invalid", "hot_channel_request_conflict", "hot_channel_revision_conflict", "hot_channel_control_denied",
                      "hot_channel_invalid", "hot_channel_rule_invalid", "hot_channel_source_unknown", "hot_channel_unknown",
@@ -335,7 +335,7 @@ class HotManager:
         return value
 
     def _read_projection(self, operation: str, params: dict) -> dict:
-        if operation not in ("channels", "events.list", "event.detail", "brief.list"):
+        if operation not in ("channels", "events.list", "event.detail", "brief.list", "follow.list", "periodic.list", "periodic.runs"):
             raise HotError("hot_projection_operation_invalid")
         state = self._state()
         if state is None:
@@ -367,6 +367,80 @@ class HotManager:
 
     def briefs(self, filters: dict | None = None) -> dict:
         return self._read_projection("brief.list", filters or {})
+
+    def follows(self) -> dict:
+        return self._read_projection("follow.list", {})
+
+    def periodic_plans(self) -> dict:
+        return self._read_projection("periodic.list", {})
+
+    def periodic_runs(self, plan_id: str) -> dict:
+        return self._read_projection("periodic.runs", {"planId": self._brief_id(plan_id)})
+
+    def configure_periodic_plan(self, params: dict, request_id: str | None = None) -> dict:
+        from datetime import datetime, timezone
+        from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+        fields = {"name", "channelId", "enabled", "firstRunAt", "intervalSeconds", "windowSeconds", "maxEvents", "timezone", "sort"}
+        if not isinstance(params, dict) or set(params) != {"planId", "expectedVersion", "config", "reason"}:
+            raise HotError("hot_periodic_request_invalid")
+        params = dict(params)
+        params["planId"] = self._brief_id(params["planId"])
+        config = params["config"]
+        if (type(params["expectedVersion"]) is not int or not 0 <= params["expectedVersion"] < 1000000
+                or not isinstance(params["reason"], str) or not params["reason"].strip() or len(params["reason"]) > 1000
+                or not isinstance(config, dict) or set(config) != fields):
+            raise HotError("hot_periodic_request_invalid")
+        config = dict(config)
+        for key, maximum in [("name", 120), ("channelId", 48), ("firstRunAt", 100), ("timezone", 80), ("sort", 20)]:
+            if not isinstance(config[key], str) or not config[key].strip() or len(config[key]) > maximum:
+                raise HotError("hot_periodic_config_invalid")
+        if (type(config["enabled"]) is not bool or not re.fullmatch(r"[a-z][a-z0-9_-]{0,47}", config["channelId"])
+                or config["sort"] not in {"importance", "heat", "recent"}
+                or any(type(config[key]) is not int or not low <= config[key] <= high for key, low, high in
+                       [("intervalSeconds", 60, 604800), ("windowSeconds", 60, 31622400), ("maxEvents", 1, 20)])):
+            raise HotError("hot_periodic_config_invalid")
+        try:
+            if not re.fullmatch(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{1,3})?(?:Z|[+-]\d\d:\d\d)", config["firstRunAt"]):
+                raise ValueError()
+            offset = re.search(r"[+-](\d{2}):(\d{2})$", config["firstRunAt"])
+            if offset and (int(offset[1]) > 23 or int(offset[2]) > 59):
+                raise ValueError()
+            config["firstRunAt"] = datetime.fromisoformat(config["firstRunAt"]).astimezone(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+            ZoneInfo(config["timezone"])
+        except (ValueError, OverflowError, ZoneInfoNotFoundError):
+            raise HotError("hot_periodic_config_invalid") from None
+        if params["expectedVersion"] == 0 and config["enabled"]:
+            raise HotError("hot_periodic_enable_required")
+        params["config"] = config
+        def receipt(value, request):
+            return (isinstance(value, dict) and value.get("planId") == params["planId"]
+                    and type(value.get("version")) is int and value["version"] == params["expectedVersion"] + 1
+                    and value.get("requestId") == request and value.get("config") == config and isinstance(value.get("nextDueAt"), str))
+        return self._control_projection("periodic.configure", params, request_id, receipt)
+
+    def configure_follow(self, params: dict, request_id: str | None = None) -> dict:
+        if not isinstance(params, dict) or set(params) != {"followId", "expectedVersion", "config", "reason"}:
+            raise HotError("hot_follow_request_invalid")
+        params = dict(params)
+        params["followId"] = self._brief_id(params["followId"])
+        config = params["config"]
+        if (type(params["expectedVersion"]) is not int or not 0 <= params["expectedVersion"] < 1000000
+                or not isinstance(config, dict) or set(config) != {"kind", "target", "name", "enabled"}
+                or not isinstance(config["kind"], str) or config["kind"] not in {"channel", "event", "keyword", "institution", "asset"}
+                or type(config["enabled"]) is not bool or any(not isinstance(value, str) or not value.strip() or len(value) > limit
+                    for value, limit in [(params["reason"], 1000), (config["target"], 200), (config["name"], 120)])):
+            raise HotError("hot_follow_request_invalid")
+        config = dict(config)
+        if config["kind"] == "event":
+            config["target"] = self._brief_id(config["target"])
+        if config["kind"] == "channel" and not re.fullmatch(r"[a-z][a-z0-9_-]{0,47}", config["target"]):
+            raise HotError("hot_follow_request_invalid")
+        params["config"] = config
+        def receipt(value, request):
+            return (isinstance(value, dict) and value.get("followId") == params["followId"]
+                    and type(value.get("version")) is int and value["version"] == params["expectedVersion"] + 1
+                    and value.get("requestId") == request and value.get("config") == config)
+        return self._control_projection("follow.configure", params, request_id, receipt)
 
     def _brief_read(self, brief_id: str, version: int | None, export: bool = False) -> dict:
         brief_id = self._brief_id(brief_id)
@@ -654,7 +728,7 @@ class HotManager:
         return self._control_projection("brief.create", params, request_id, receipt)
 
     def _control_projection(self, operation: str, params: dict, request_id: str | None, valid_receipt) -> dict:
-        if operation not in ("channel.configure", "event.correct", "brief.create", "research.prepare", "research.advance"):
+        if operation not in ("channel.configure", "event.correct", "brief.create", "research.prepare", "research.advance", "follow.configure", "periodic.configure"):
             raise HotError("hot_control_operation_invalid")
         if request_id is not None and (not isinstance(request_id, str) or not re.fullmatch(r"[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}", request_id)):
             raise HotError("hot_control_request_invalid")

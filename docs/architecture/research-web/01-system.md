@@ -1,5 +1,7 @@
 # 部署与模块职责
 
+Hot Node现有heartbeat向同一pg-boss hot.brief队列登记周期运行；controller负责计划授权和冻结简报发布，普通worker只处理已有领取/确认。Automation提供管理适配，不在旧Store写第二套计划或周期调度。关注、计划、运行和选材在指定PG schema持久化；ResearchService/DSH仍只承担用户明确提交的正式研究。
+
 Hot 的 Docker 镜像已包含锁定生产依赖和迁移。HotManager 在 Supervisor Web 内识别
 Docker 模式，子进程沿 Web 角色归属，写日志到数据目录；不引入新队列或 Docker socket。
 实际容器运行与同逻辑 PG 顺序切换仍须独立证据，不从镜像构建推定通过。

@@ -3069,6 +3069,10 @@ Imports:
 Functions:
 - `service`
 - `automations`
+- `hot_brief_plans`
+  - Automation management adapter; Hot PG and its worker retain sole scheduling ownership.
+- `hot_brief_runs`
+- `configure_hot_brief_plan`
 - `create_automation`
 - `preview_report_schedule_migrations`
 - `apply_report_schedule_migrations`
@@ -4736,6 +4740,9 @@ Imports:
 
 Classes:
 - `ChannelRequest`
+- `FollowRequest`
+- `BriefPlanConfig`
+- `BriefPlanRequest`
 - `CorrectionRequest`
 - `LifecycleRequest`
 - `SourceRequest`
@@ -4754,6 +4761,11 @@ Functions:
 - `configure`
 - `lifecycle`
 - `channels`
+- `follows`
+- `configure_follow`
+- `brief_plans`
+- `brief_plan_runs`
+- `configure_brief_plan`
 - `research_handoff`
 - `research_run`
 - `research_runs`

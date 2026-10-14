@@ -3,6 +3,8 @@ import { escapeHTML as e } from './markdown.mjs';
 import { safeLog } from './core.mjs';
 import { renderHotReaderFeed, renderHotReaderRank } from './hot-reader.mjs';
 import { renderHotPreparation, renderHotExecution, hotResearchSubmission } from './hot-research-actions.mjs';
+import { renderHotFollows } from './hot-follows.mjs';
+import {renderHotBriefPlans,hotPlanSubmission} from './hot-brief-plans.mjs';
 
 const score = (value) => typeof value === 'number' && Number.isFinite(value) ? String(value) : '—';
 const names = { disabled: '尚未配置', stopped: '已停止', initialized: '运行中' };
@@ -42,9 +44,11 @@ export function renderHotWorkspace(state, { settings = false } = {}) {
   const notice = `${state.error ? `<div class="notice error" role="alert">${e(state.error)}</div>` : ''}${state.message ? `<div class="notice" role="status">${e(state.message)}</div>` : ''}${state.pending ? `<div class="notice" role="status"><strong>操作结果尚不确定</strong><p>请求 ${e(state.pending.body.requestId || state.pending.body.runId)} 已保留。重试使用完全相同参数。</p><button class="button" data-hot-action="retry" ${state.busy ? 'disabled' : ''}>核对并重试原请求</button></div>` : ''}`;
   if (settings) return `<div data-hot-workspace>${top}${notice}<form data-hot-form="configuration" data-hot-form-key="configuration"><label>Hot 非秘密配置<textarea name="configuration" rows="20" spellcheck="false" aria-label="Hot 非秘密配置">${e(JSON.stringify(state.config || {}, null, 2))}</textarea></label><p class="muted small">仅保存配置，运行参数在重启后生效。密码由系统凭据库管理，不填入此处。</p><button class="button primary" ${disabled}>保存配置</button></form><div class="hot-lifecycle">${['start','stop','restart'].map((action,index) => `<button class="button" data-hot-action="${action}" ${disabled}>${['启动','停止','重启'][index]}</button>`).join('')}<a href="#/intel/hot">查看事件</a></div><p class="muted small">首次依赖和数据库准备仍通过 rwb hot setup 完成；不会由页面刷新自动安装。</p></div>`;
   const header = `<header class="page-header"><div><p class="eyebrow">RESEARCH INTELLIGENCE</p><h1>研究情报</h1><p class="muted">本地热点与事件 · 共享事实与原文，按研究方向判断重要性。</p></div><a class="button" href="#/settings/hot">运行配置</a></header>${renderIntelligenceNavigation('hot')}`;
-  const tabs = `<nav class="hot-tabs" aria-label="热点视图">${[['events','事件'],['sources','来源覆盖'],['channels','频道配置'],['briefs','简报'],['research','研究与报告']].map(([view,label]) => `<a href="#/intel/hot?view=${view}" ${state.view === view ? 'aria-current="page" class="active"' : ''}>${label}</a>`).join('')}</nav>`;
+  const tabs = `<nav class="hot-tabs" aria-label="热点视图">${[['events','事件'],['sources','来源覆盖'],['channels','频道配置'],['briefs','简报'],['research','研究与报告'],['follows','我的关注'],['plans','周期简报']].map(([view,label]) => `<a href="#/intel/hot?view=${view}" ${state.view === view ? 'aria-current="page" class="active"' : ''}>${label}</a>`).join('')}</nav>`;
   let body = '';
   if (state.view === 'research') body = renderHotResults(state.researchRows || [], state.loading, state.researchHasMore, state.loading ? 'disabled' : disabled);
+  else if (state.view === 'follows') body = renderHotFollows(state.follows || [], state.loading ? 'disabled' : disabled);
+  else if (state.view === 'plans') body = renderHotBriefPlans(state,state.loading?'disabled':disabled);
   else if (state.view === 'sources') body = `<div class="hot-source-grid">${state.sources.map(source => `<article class="hot-card"><h2>${e(source.operator)}</h2><p>${source.enabled ? '采集中' : '已暂停'} · ${e(source.latest_snapshot?.coverage === 'latest_snapshot' ? '最新快照' : source.latest_snapshot?.coverage || '尚无取得记录')}</p><dl><dt>最近成功</dt><dd>${e(hotTime(source.last_success_at, timezone))}</dd><dt>待解析条目</dt><dd>${e(source.pending_items)}</dd><dt>已知缺口／错误</dt><dd>${e(source.last_error_code || source.latest_snapshot?.gap?.code || '未记录；不等于完整覆盖')}</dd></dl><p class="small muted">覆盖发布区间 ${e(hotTime(source.latest_snapshot?.oldestPublishedAt, timezone))} — ${e(hotTime(source.latest_snapshot?.newestPublishedAt, timezone))}</p><button class="button" data-hot-action="source-toggle" data-source="${e(source.id)}" ${disabled}>${source.enabled ? '暂停' : '恢复'}此来源</button></article>`).join('') || '<p class="muted">暂无来源状态。</p>'}</div>`;
   else if (state.view === 'briefs') body = `<div class="hot-source-grid">${state.briefs.map(brief => `<article class="hot-card"><h2>${e(brief.channelId)} · 简报版本 ${e(brief.version)}</h2><p>选材截止 ${e(hotTime(brief.cutoff, timezone))}</p><button class="button" data-hot-action="open-brief" data-brief="${e(brief.briefId)}" data-version="${e(brief.version)}">查看冻结简报</button></article>`).join('') || (state.loading ? '<p>简报读取中…</p>' : '<p>暂无已保存简报。打开事件详情可显式生成。</p>')}</div>${state.briefHasMore ? '<button class="button" data-hot-action="more-briefs">下一页简报</button>' : ''}`;
   else if (state.view === 'channels') body = `<div class="hot-source-grid">${state.channels.map(channel => `<article class="hot-card"><h2>${e(channel.config.name)}</h2><p>版本 ${e(channel.version)} · ${e(channel.channel_id)}</p><p>${e(channel.config.topics.join('、'))}</p><button class="button" data-hot-action="edit-channel" data-channel="${e(channel.channel_id)}" ${disabled}>编辑频道</button></article>`).join('')}</div><form data-hot-form="channel" data-hot-form-key="channel:${e(state.editChannel)}:${e(state.editVersion)}"><h2>${state.editChannel ? '修改频道' : '新增频道'}</h2><label>频道 ID<input name="channelId" required pattern="[a-z][a-z0-9_-]{0,47}" value="${e(state.editChannel || '')}" ${state.editChannel ? 'readonly' : ''}></label><label>版本化配置<textarea name="config" rows="12" spellcheck="false">${e(JSON.stringify(state.channelDraft || { name:'新频道', topics:[], sourceIds:[], importanceRules:[], rules:[] }, null, 2))}</textarea></label><p class="small muted">名称、主题、来源和规则权重通过配置保存，来源须已登记。</p><button class="button primary" ${disabled}>保存频道</button><button type="button" class="button" data-hot-action="new-channel" ${disabled}>新建另一频道</button></form>`;
@@ -54,15 +58,15 @@ export function renderHotWorkspace(state, { settings = false } = {}) {
     const cards = renderHotReaderFeed(state.events,timezone,{loading:state.loading,blocked:state.status?.model==='blocked_model',sort:filters.sort});
     const readerDisabled=state.loading||state.busy||state.pending?'disabled':'';
     const readerControls=`<div class="hot-reader-toolbar"><nav class="hot-reader-modes" aria-label="事件阅读顺序">${[['recent','全部事件'],['importance','频道重点'],['heat','传播热点']].map(([sort,label])=>`<button type="button" data-hot-action="feed-sort" data-sort="${sort}" aria-pressed="${filters.sort===sort}" ${readerDisabled||(!filters.channelId&&sort!=='recent'?'disabled title="先选择研究频道"':'')}>${label}</button>`).join('')}</nav><nav class="hot-reader-channels" aria-label="研究频道">${[{channel_id:'',config:{name:'全部频道'}},...state.channels].map(channel=>`<button type="button" data-hot-action="feed-channel" data-channel="${e(channel.channel_id)}" aria-pressed="${filters.channelId===channel.channel_id}" ${readerDisabled}>${e(channel.config.name)}</button>`).join('')}</nav></div>`;
-    const detail = state.detail ? `<aside class="hot-detail"><header><h2>${e(state.detail.title)}</h2><button class="button" data-hot-action="close-detail">关闭详情</button></header><p class="small muted">观察截止 ${e(hotTime(state.detail.cutoff, timezone))} · 事件版本 ${e(state.detail.revision)}</p>${state.detail.requestedId !== state.detail.canonicalId ? '<p class="notice">旧事件 ID 已解析为合并后的当前事件。</p>' : ''}<p>发生时间 ${e(hotTime(state.detail.occurredAt, timezone))} · 生效时间 ${e(hotTime(state.detail.effectiveAt, timezone))}</p>${state.detail.judgments.map(j => `<section><h3>${e(state.channels.find(c => c.channel_id === j.channelId)?.config.name || j.channelId)}</h3>${metrics(j.judgment)}<p>${e(j.judgment.reason)}</p>${j.inherited ? '<p class="small muted">继承既有人工判断，保留原始版本。</p>' : ''}<details><summary>判断依据与限制</summary><ul>${j.judgment.limitations.map(value => `<li>${e(value)}</li>`).join('')}</ul></details></section>`).join('')}<h3>来源报道</h3>${reports(state.detail, timezone, state.selectedMaterialIds)}${state.detail.reportOffset + state.detail.reports.length < state.detail.materialCount ? '<button class="button" data-hot-action="more-reports">下一页材料</button>' : ''}<h3>历史进展</h3><ol>${state.detail.history.map(item => `<li>版本 ${e(item.revision)} · ${e(hotTime(item.created_at, timezone))} · ${e(item.title)}</li>`).join('')}</ol>${state.detail.links.map(link => `<p><button class="button" data-hot-action="detail" data-event="${e(link.id)}">${e(({direct_followup:'直接前序',related:'相关事件',pending_review:'待复核关系'})[link.relation] || link.relation)}</button></p>`).join('')}<form data-hot-form="brief" data-hot-form-key="brief:${e(state.detail.canonicalId)}:${e(state.detail.revision)}"><label>简报频道<select name="channelId" required>${state.channels.map(c => `<option value="${e(c.channel_id)}" ${c.channel_id === state.filters.channelId ? 'selected' : ''}>${e(c.config.name)}</option>`).join('')}</select></label><p class="small muted">冻结此事件在详情截止时点的全部材料和频道判断，不调用模型。</p><button class="button primary" ${disabled}>生成此事件简报</button></form>${correction(state.detail, state.channels, disabled)}</aside>` : '';
+    const detail = state.detail ? `<aside class="hot-detail"><header><h2>${e(state.detail.title)}</h2><button class="button" data-hot-action="close-detail">关闭详情</button></header><p class="small muted">观察截止 ${e(hotTime(state.detail.cutoff, timezone))} · 事件版本 ${e(state.detail.revision)}</p>${state.detail.requestedId !== state.detail.canonicalId ? '<p class="notice">旧事件 ID 已解析为合并后的当前事件。</p>' : ''}<p>发生时间 ${e(hotTime(state.detail.occurredAt, timezone))} · 生效时间 ${e(hotTime(state.detail.effectiveAt, timezone))}</p>${state.detail.judgments.map(j => `<section><h3>${e(state.channels.find(c => c.channel_id === j.channelId)?.config.name || j.channelId)}</h3>${metrics(j.judgment)}<p>${e(j.judgment.reason)}</p>${j.inherited ? '<p class="small muted">继承既有人工判断，保留原始版本。</p>' : ''}<details><summary>判断依据与限制</summary><ul>${j.judgment.limitations.map(value => `<li>${e(value)}</li>`).join('')}</ul></details></section>`).join('')}<h3>来源报道</h3>${reports(state.detail, timezone, state.selectedMaterialIds)}${state.detail.reportOffset + state.detail.reports.length < state.detail.materialCount ? '<button class="button" data-hot-action="more-reports">下一页材料</button>' : ''}<h3>历史进展</h3><ol>${state.detail.history.map(item => `<li>版本 ${e(item.revision)} · ${e(hotTime(item.created_at, timezone))} · ${e(item.title)}</li>`).join('')}</ol>${state.detail.links.map(link => `<p><button class="button" data-hot-action="detail" data-event="${e(link.id)}">${e(({direct_followup:'直接前序',related:'相关事件',pending_review:'待复核关系'})[link.relation] || link.relation)}</button></p>`).join('')}<form data-hot-form="brief" data-hot-form-key="brief:${e(state.detail.canonicalId)}:${e(state.detail.revision)}"><label>简报频道<select name="channelId" required>${state.channels.map(c => `<option value="${e(c.channel_id)}" ${c.channel_id === state.filters.channelId ? 'selected' : ''}>${e(c.config.name)}</option>`).join('')}</select></label><p class="small muted">冻结此事件在详情截止时点的全部材料和频道判断，不调用模型。</p><button class="button primary" ${disabled}>生成此事件简报</button></form><button class="button" data-hot-action="follow-event" ${disabled}>加入跟踪</button>${correction(state.detail, state.channels, disabled)}</aside>` : '';
     body = `${readerControls}${renderHotReaderRank(state.events,{loading:state.loading})}<details class="hot-reader-filter-panel"><summary>搜索、机构、资产与时间筛选</summary>${form}</details><p class="small muted">筛选为原文与事件的文字匹配；未知发布时间不进入日期窗口。截止 ${e(hotTime(state.cutoff, timezone))}。</p><div class="hot-layout"><div>${cards}${state.hasMore ? '<button class="button" data-hot-action="more">下一页事件</button>' : ''}</div>${detail}</div>`;
   }
   return `<section class="hot-reader" data-hot-workspace aria-busy="${state.loading ? 'true' : 'false'}">${header}${top}${notice}${tabs}${body}${renderHotBrief(state.brief)}${renderHotPreparation(state.brief,disabled)}${state.view!=='research'&&state.researchDraft?.state==='snapshot_ready'?renderHotExecution(state.researchDraft.runId,disabled):''}</section>`;
 }
 
 export function createHotController({ api, onChange = () => {}, isActive = () => true, uuid = () => crypto.randomUUID() }) {
-  const state = { view:'events', status:null, config:null, channels:[], sources:[], events:[], detail:null, filters:{sort:'recent'}, cutoff:'', offset:0, hasMore:false, loading:false, busy:false, error:'', message:'', pending:null, editChannel:'', editVersion:0, channelDraft:null, selectedMaterialIds:[], selectionKey:'', briefs:[], brief:null, briefCutoff:'', briefOffset:0, briefHasMore:false, researchDraft:null, researchRows:[], researchOffset:0, researchHasMore:false };
-  let generation = 0, detailGeneration = 0, briefGeneration = 0, lastRoute = {page:'workbench',section:'hot'};
+  const state = { view:'events', status:null, config:null, channels:[], plans:[], planRuns:[], selectedPlan:'', editPlan:'', editPlanVersion:0, planDraft:null, follows:[], sources:[], events:[], detail:null, filters:{sort:'recent'}, cutoff:'', offset:0, hasMore:false, loading:false, busy:false, error:'', message:'', pending:null, editChannel:'', editVersion:0, channelDraft:null, selectedMaterialIds:[], selectionKey:'', briefs:[], brief:null, briefCutoff:'', briefOffset:0, briefHasMore:false, researchDraft:null, researchRows:[], researchOffset:0, researchHasMore:false };
+  let generation = 0, detailGeneration = 0, briefGeneration = 0, planGeneration = 0, lastRoute = {page:'workbench',section:'hot'};
   const current = (ticket) => ticket === generation && isActive();
   async function loadEvents(ticket, append = false) {
     const data = await api.hotEvents({ ...state.filters, cutoff: append ? state.cutoff : undefined, offset: append ? state.offset + 20 : 0, limit:20 });
@@ -89,7 +93,7 @@ export function createHotController({ api, onChange = () => {}, isActive = () =>
     if (current(ticket) && selection === briefGeneration) {state.brief = data;onChange();}
   }
   async function activate(route) {
-    lastRoute = route; detailGeneration++; briefGeneration++; state.brief = null; const ticket = ++generation; state.view = route.page === 'settings' ? 'configuration' : route.hotView || 'events'; state.loading = true; state.error = ''; state.detail = null; onChange();
+    lastRoute = route; detailGeneration++; briefGeneration++; planGeneration++;state.planRuns=[];state.selectedPlan=''; state.brief = null; const ticket = ++generation; state.view = route.page === 'settings' ? 'configuration' : route.hotView || 'events'; state.loading = true; state.error = ''; state.detail = null; onChange();
     try {
       if (state.view === 'research') { const data=await api.hotResearchResults({limit:10,offset:0}); if(current(ticket)){state.researchRows=data.items;state.researchOffset=0;state.researchHasMore=data.hasMore;} return; }
       const [status, configuration] = await Promise.all([api.hotStatus(), api.hotConfiguration()]);
@@ -98,6 +102,8 @@ export function createHotController({ api, onChange = () => {}, isActive = () =>
       if (state.view !== 'configuration' && status.state === 'initialized') {
         const channels = await api.hotChannels(); if (!current(ticket)) return; state.channels = channels.items;
         if (state.view === 'briefs') { await loadBriefs(ticket); }
+        else if (state.view === 'follows') {const data=await api.hotFollows();if(current(ticket))state.follows=data.items;}
+        else if (state.view === 'plans') {const data=await api.hotBriefPlans();if(current(ticket))state.plans=data.items;}
         else if (state.view === 'sources') { const sources = await api.hotSources(); if (current(ticket)) state.sources = sources.items; }
         else if (state.view === 'events') { await loadEvents(ticket); if (route.hotEventId) await selectDetail(route.hotEventId, ticket); }
       } else { state.channels = []; state.sources = []; state.events = []; state.briefs = []; state.cutoff = ''; state.hasMore = false; }
@@ -129,8 +135,10 @@ export function createHotController({ api, onChange = () => {}, isActive = () =>
         safeLog('hot_research_submission_confirmed');
         return;
       }
-      if (result.state === 'outcome_unknown' || result.requestId !== pending.body.requestId) { state.message = '服务未能确认此次修改，原请求已保留。'; return; }
-      state.pending = null; state.message = pending.method === 'hotBriefCreate' ? '简报已保存，网页与下载使用同一冻结版本。' : '修改已保存，请刷新读取最新版本。'; if(current(ticket)) state.detail = null;
+      if (result.state === 'outcome_unknown' || result.requestId !== pending.body.requestId) { if(current(ticket))state.message = '服务未能确认此次修改，原请求已保留。'; return; }
+      state.pending = null; if(current(ticket)){state.message = pending.method === 'hotBriefCreate' ? '简报已保存，网页与下载使用同一冻结版本。' : '修改已保存，请刷新读取最新版本。';state.detail = null;}
+      if(pending.method==='hotFollowConfigure'&&current(ticket))state.follows=[result,...state.follows.filter(row=>row.followId!==result.followId)];
+      if(pending.method==='hotPlanConfigure'&&current(ticket)){state.plans=[result,...state.plans.filter(row=>row.planId!==result.planId)];if(state.editPlan===result.planId){state.editPlanVersion=result.version;state.planDraft=result.config;}}
       if (pending.method === 'hotBriefCreate' && current(ticket) && previewTicket === briefGeneration) { try { await openBrief(result.briefId,result.version,ticket); } catch {safeLog('hot_brief_read_failed');state.error = '简报已保存，详情暂不可用；可从简报列表重读。';} }
     } catch (error) {
       safeLog('hot_mutation_failed');
@@ -146,7 +154,9 @@ export function createHotController({ api, onChange = () => {}, isActive = () =>
       if (kind === 'configuration') { state.busy = true; onChange(); await api.hotConfigure(JSON.parse(String(values.get('configuration')))); state.message = '配置已保存，重启后生效。'; state.busy = false; onChange(); return; }
       let method, body;
       if (['research-prepare','research-execute'].includes(kind)) { state.pending=hotResearchSubmission(kind,values,state,form,uuid); return await sendPending(); }
-      if (kind === 'brief' && state.detail) { method = 'hotBriefCreate'; body = {briefId:uuid(),expectedVersion:0,eventIds:[state.detail.canonicalId],channelId:String(values.get('channelId')),cutoff:state.detail.cutoff,timezone:state.config?.timezone || 'Asia/Shanghai',...(state.filters.from ? {from:state.filters.from} : {}),...(state.filters.to ? {to:state.filters.to} : {}),requestId:uuid()}; }
+      if(kind==='brief-plan'){state.pending=hotPlanSubmission(values,state,uuid);return await sendPending();}
+      if (kind === 'follow') {method='hotFollowConfigure';body={followId:uuid(),expectedVersion:0,config:{kind:String(values.get('kind')),target:String(values.get('target')).trim(),name:String(values.get('name')).trim(),enabled:true},reason:String(values.get('reason')).trim(),requestId:uuid()};}
+      else if (kind === 'brief' && state.detail) { method = 'hotBriefCreate'; body = {briefId:uuid(),expectedVersion:0,eventIds:[state.detail.canonicalId],channelId:String(values.get('channelId')),cutoff:state.detail.cutoff,timezone:state.config?.timezone || 'Asia/Shanghai',...(state.filters.from ? {from:state.filters.from} : {}),...(state.filters.to ? {to:state.filters.to} : {}),requestId:uuid()}; }
       else if (kind === 'channel') { const channelId = String(values.get('channelId')); method = 'hotChannelConfigure'; body = { channelId, expectedVersion:state.editChannel === channelId ? state.editVersion : 0, config:JSON.parse(String(values.get('config'))), requestId:uuid() }; }
       else if (kind === 'correction' && state.detail) {
         const type = String(values.get('type')), change = { type, id:state.detail.canonicalId, expected:state.detail.revision };
@@ -160,7 +170,7 @@ export function createHotController({ api, onChange = () => {}, isActive = () =>
     } catch { safeLog('hot_input_rejected'); state.busy = false; state.error = '输入格式错误，请核对 JSON 和必要字段。'; if (isActive()) onChange(); }
   }
   async function action(button) {
-    const action = button.dataset.hotAction;
+    const action = button.dataset.hotAction, actionTicket=generation;
     try {
       if (action === 'refresh-run') {
         if(state.busy||state.pending||state.loading)return;
@@ -193,6 +203,54 @@ export function createHotController({ api, onChange = () => {}, isActive = () =>
         return await reloadEvents(filters);
       }
       if (action === 'retry') return await sendPending();
+      if(action==='follow-event'){
+        if(state.busy||state.pending||state.loading||!state.detail)return;
+        const ticket=generation,id=state.detail.canonicalId,title=state.detail.title.replace(/\s+/g,' ').trim();state.busy=true;onChange();
+        try{
+          const data=await api.hotFollows();if(!current(ticket))return;
+          state.follows=data.items;const previous=data.items.find(row=>row.config.kind==='event'&&row.config.target===id);
+          if(previous?.config.enabled){state.message='此事件已加入跟踪。';return;}
+          state.pending={method:'hotFollowConfigure',body:{followId:previous?.followId||uuid(),expectedVersion:previous?.version||0,config:{kind:'event',target:id,name:previous?.config.name||title.slice(0,120),enabled:true},reason:'用户在事件详情加入跟踪',requestId:uuid()}};
+        }finally{state.busy=false;if(isActive())onChange();}
+        return await sendPending();
+      }
+      if(action==='toggle-plan'){
+        if(state.busy||state.pending||state.loading)return;
+        const row=state.plans.find(item=>item.planId===button.dataset.plan);if(!row)throw Error('计划已变化，请刷新。');
+        state.pending={method:'hotPlanConfigure',body:{planId:row.planId,expectedVersion:row.version,config:{...row.config,enabled:!row.config.enabled},reason:row.config.enabled?'用户停用周期简报':'用户明确启用周期简报',requestId:uuid()}};
+        return await sendPending();
+      }
+      if(action==='edit-plan'){
+        if(state.busy||state.pending||state.loading)return;
+        const row=state.plans.find(item=>item.planId===button.dataset.plan);if(!row)throw Error('计划已变化，请刷新。');
+        state.editPlan=row.planId;state.editPlanVersion=row.version;state.planDraft=structuredClone(row.config);onChange();return;
+      }
+      if(action==='new-plan'){if(state.busy||state.pending)return;state.editPlan='';state.editPlanVersion=0;state.planDraft=null;onChange();return;}
+      if(action==='plan-runs'){
+        if(state.busy||state.pending||state.loading)return;
+        const row=state.plans.find(item=>item.planId===button.dataset.plan);if(!row)throw Error('计划已变化，请刷新。');
+        const ticket=generation,selection=++planGeneration;state.selectedPlan=row.planId;state.planRuns=[];state.loading=true;onChange();
+        try{const data=await api.hotPlanRuns(row.planId);if(current(ticket)&&selection===planGeneration)state.planRuns=data.items;}
+        catch(error){safeLog('hot_plan_runs_failed');if(current(ticket)&&selection===planGeneration)state.error=error.message||'周期运行读取失败。';}
+        finally{if(current(ticket)&&selection===planGeneration){state.loading=false;onChange();}}return;
+      }
+      if(action==='toggle-follow'){
+        if(state.busy||state.pending||state.loading)return;
+        const row=state.follows.find(item=>item.followId===button.dataset.follow);if(!row)throw Error('关注已变化，请刷新。');
+        state.pending={method:'hotFollowConfigure',body:{followId:row.followId,expectedVersion:row.version,config:{...row.config,enabled:!row.config.enabled},reason:row.config.enabled?'用户暂停关注':'用户恢复关注',requestId:uuid()}};
+        return await sendPending();
+      }
+      if(action==='open-follow'){
+        if(state.busy||state.pending||state.loading)return;
+        const row=state.follows.find(item=>item.followId===button.dataset.follow);if(!row)throw Error('关注已变化，请刷新。');
+        const c=row.config;state.view='events';lastRoute={page:'intel',hotView:'events'};
+        const filters=c.kind==='channel'?{channelId:c.target,sort:'importance'}:{sort:'recent',...(c.kind==='event'?{}:{[c.kind==='keyword'?'q':c.kind]:c.target})};
+        const loading=reloadEvents(filters),ticket=generation;await loading;
+        if(current(ticket)&&c.kind==='event'){
+          try{await selectDetail(c.target,ticket);}
+          catch(error){safeLog('hot_follow_detail_failed');if(current(ticket)){state.error=error.message||'跟踪事件读取失败。';onChange();}}
+        }safeLog('hot_follow_opened');return;
+      }
       if (action === 'open-brief') return await openBrief(button.dataset.brief,Number(button.dataset.version));
       if (action === 'close-brief') {briefGeneration++;state.brief=null;onChange();return;}
       if (action === 'more-briefs') {if(state.loading)return;const ticket=generation;state.loading=true;onChange();try{await loadBriefs(ticket,true);}finally{if(current(ticket)){state.loading=false;onChange();}}return;}
@@ -205,7 +263,7 @@ export function createHotController({ api, onChange = () => {}, isActive = () =>
       if (state.pending || state.busy) return;
       if (action === 'source-toggle') { const source = state.sources.find(s => s.id === button.dataset.source); state.pending = {method:'hotSourceConfigure',body:{sourceId:source.id,expectedRevision:source.config_revision,enabled:!source.enabled,requestId:uuid()}}; return await sendPending(); }
       if (['start','stop','restart'].includes(action)) { state.busy = true; onChange(); try { await api.hotLifecycle(action); state.message = '运行操作已返回，请刷新核对当前状态。'; } finally { state.busy = false; onChange(); } }
-    } catch (error) { state.error = error.message || '操作失败，请刷新核对。'; if (isActive()) onChange(); }
+    } catch (error) { if(current(actionTicket))state.error = error.message || '操作失败，请刷新核对。'; if (isActive()) onChange(); }
   }
-  return {state,activate,deactivate(){generation++;detailGeneration++;briefGeneration++;},submit,action,selectMaterial(id,selected){if(!state.detail?.reports.some(report=>report.materialId===id))return;state.selectedMaterialIds=selected?[...new Set([...state.selectedMaterialIds,id])]:state.selectedMaterialIds.filter(value=>value!==id);onChange();}};
+  return {state,activate,deactivate(){generation++;detailGeneration++;briefGeneration++;planGeneration++;},submit,action,selectMaterial(id,selected){if(!state.detail?.reports.some(report=>report.materialId===id))return;state.selectedMaterialIds=selected?[...new Set([...state.selectedMaterialIds,id])]:state.selectedMaterialIds.filter(value=>value!==id);onChange();}};
 }
