@@ -26,6 +26,7 @@ from .asset_workspace import AssetWorkspaceError
 from .automation.routes import router as automation_router
 from .capabilities.models import CapabilityError
 from .capabilities.routes import router as capabilities_router
+from .claw_routes import router as claw_router
 from .client import DSHClient, RuntimeFailure
 from .datahub.routes import router as datahub_router
 from .documentation import DOCUMENT_NAMES
@@ -74,8 +75,13 @@ UPLOAD_EXTENSIONS = {
 
 class NewSession(BaseModel):
     mode: Literal["fingpt", "claw"] = "fingpt"
+    research_depth: Literal["instant", "deep"] = "instant"
+    source_scope: list[Literal["datahub", "web", "uploads"]] = Field(
+        default=["datahub", "web", "uploads"], min_length=1, max_length=3
+    )
     title: str | None = Field(default=None, min_length=1, max_length=120)
     workspace_id: Literal["research"] = "research"
+    project_id: str | None = Field(default=None, pattern=r"^(default|project-[a-f0-9]{32})$")
 
 
 class TabbitTabRef(BaseModel):
@@ -91,8 +97,8 @@ class Prompt(BaseModel):
     capability_version: int | None = Field(default=None, ge=1, strict=True)
     tool_ids: list[str] = Field(default_factory=list, max_length=3)
     method_ids: list[str] = Field(default_factory=list, max_length=3)
-    expected_formats: list[Literal["md", "html", "docx", "xlsx", "pptx", "png"]] | None = Field(
-        default=None, max_length=5
+    expected_formats: list[Literal["md", "html", "docx", "xlsx", "pptx", "png", "pdf"]] | None = (
+        Field(default=None, max_length=5)
     )
     tabbit_tabs: list[TabbitTabRef] = Field(default_factory=list, max_length=8)
     tabbit_live_confirmed: bool = False
@@ -225,6 +231,7 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
     app.include_router(mcp_registry_router)
     app.include_router(mcp_runtime_router)
     app.include_router(automation_router)
+    app.include_router(claw_router)
     app.include_router(workbench_router)
     app.include_router(operations_router)
     app.include_router(report_workflow_router)
@@ -429,7 +436,13 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
 
     @app.post("/api/research/sessions", status_code=201)
     async def create_session(body: NewSession, request: Request):
-        return await svc(request).create(body.mode, body.title)
+        return await svc(request).create(
+            body.mode,
+            body.title,
+            project_id=body.project_id,
+            research_depth=body.research_depth,
+            source_scope=body.source_scope,
+        )
 
     @app.get("/api/research/sessions/{sid}")
     async def session(sid: str, request: Request):
@@ -592,6 +605,9 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
     @app.post("/api/research/sessions/{sid}/uploads")
     async def upload(sid: str, request: Request, files: list[UploadFile]):
         store = svc(request).store
+        if "uploads" not in store.session(sid).get("source_scope", ["datahub", "web", "uploads"]):
+            log.warning("research_upload_source_excluded", session_id=sid)
+            raise CapabilityError("本会话检索范围未包含上传资料", "research_source_excluded", 409)
         root = store.directory(sid) / "inputs"
         if root.is_symlink():
             raise StoreError("上传目录非法")

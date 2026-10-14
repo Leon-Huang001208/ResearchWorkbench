@@ -110,7 +110,13 @@ def safe_cell(value):
 
 
 def write_deliverables(
-    output: str | Path, title: str, sections: list[dict], rows: list[dict], sources: list[str]
+    output: str | Path,
+    title: str,
+    sections: list[dict],
+    rows: list[dict],
+    sources: list[str],
+    *,
+    pdf: bool = False,
 ) -> dict[str, Path]:
     from docx import Document
     from openpyxl import Workbook, load_workbook
@@ -161,6 +167,24 @@ def write_deliverables(
         Document(paths["docx"])
         check = load_workbook(paths["xlsx"], read_only=True)
         check.close()
+        if pdf:
+            if __package__:
+                from .research_report import render_pdf
+            else:
+                from research_report import render_pdf
+            paths["pdf"] = output / f"{stem}.pdf"
+            render_pdf(
+                paths["pdf"],
+                {
+                    "title": title,
+                    "sections": sections,
+                    "sources": [
+                        {"id": str(index), "title": source}
+                        for index, source in enumerate(sources, 1)
+                    ],
+                },
+            )
+            read_pdf(paths["pdf"])
         log.info("deliverables_validated count=%d", len(paths))
         return paths
     except (OSError, ValueError, KeyError, TypeError) as exc:

@@ -6,6 +6,12 @@ Hot正式执行复用既有ResearchService.send；没有扩大Tabbit工具、浏
 Hot流预算插件与Tabbit共用既有Runtime，保留原浏览器审批、claim及工具guard。
 新私有HTTP请求仅用于根Hot归属和模型账本，不注册浏览器工具或读取浏览器内容。
 
+显式 Docker 模型加密文件桥继续与 Tabbit/Host 浏览器认证分离。模型 ref 不进入
+`.browser-credentials.yaml` 或 readRecord/modifyRecord；模型配置、清除和生成测试不会
+迁移 Cookie、打开浏览器权限或将 Docker 中不可用的宿主 Tabbit 提升为可调用。
+
+Claw 项目分组与日程提出工具不读取浏览器会话、Cookie或实时标签；原 Tabbit 显式选择、一次性 marker 和审批边界保持不变。跨会话文件引用不会携带来源会话 Tabbit 授权。
+
 macOS 异根 Native 记录认证仅复核启动者的标准产品根、PID 与 listener；不会访问浏览器
 标签、URL、Cookie、正文或 Tabbit claim。调用内 lease/FD 证明不成为浏览器授权；原会话
 审批与一次性 token 保持，容器健康仍不证明宿主 Tabbit 可调用。
@@ -274,3 +280,7 @@ Tabbit设置与诊断保留在本机页的默认折叠详情，仅在全部/浏�
 
 Hot冻结FinGPT使用仅本地脚本/文档工具的research-hot-frozen组合，不加载浏览器工具。
 普通研究和Claw组合保留Tabbit原审批/claim合同；预算middleware仍核对完整实际请求。
+
+## FinGPT 研究融合 · 2026-10-13
+
+FinGPT 的 web 检索范围同时约束 tabbit_tabs 附加与 tabbit_browser 调用；未选择 web 时拒绝受理。保留 Tabbit 的原 claim、一次性 token、审批与只读限制；FinGPT 原生 Todo/报告投影不会将 Codex 内置浏览器连接证据用作 Tabbit 可调用性证明。

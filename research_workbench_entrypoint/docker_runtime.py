@@ -645,7 +645,7 @@ class DockerRuntime:
         identity = self.installation_id
         if not identity:
             raise ControlError("docker_installation_missing")
-        return "rwb-" + identity[:12]
+        return getattr(self, "_observed_project_name", "rwb-dev-" + identity[:12])
 
     @property
     def compose_prefix(self) -> tuple[str, ...]:
@@ -690,6 +690,11 @@ class DockerRuntime:
             "RWB_INSTALLATION_ID": self.installation_id,
             "RWB_WEB_PORT": str(self.ports[0]),
             "RWB_IMAGE": image,
+            "RWB_RESOURCE_PROJECT": "research-workbench",
+            "RWB_RESOURCE_PURPOSE": "research-web",
+            "RWB_RESOURCE_LIFETIME": "persistent",
+            "RWB_BUILD_ID": getattr(self, "_build_id", "unknown"),
+            "RWB_CODE_COMMIT": getattr(self, "_build_commit", "unknown"),
             # Explicitly disable implicit .env interpolation even for a trusted
             # project directory; no secrets are imported by the Compose process.
             "COMPOSE_DISABLE_ENV_FILE": "1",
@@ -931,9 +936,12 @@ class DockerRuntime:
             ["docker", "container", "inspect", "--format", _CONTAINER_FORMAT, identity],
             "docker_ownership_mismatch",
         )
+        observed_project = value.get("project") if isinstance(value, dict) else None
+        if observed_project not in {self.project_name, "rwb-" + self.installation_id[:12]}:
+            raise ControlError("docker_ownership_mismatch")
         expected = {
             "id": identity,
-            "project": self.project_name,
+            "project": observed_project,
             "service": "research-web",
             "installation": self.installation_id,
             "runtime": "docker",
@@ -1004,6 +1012,7 @@ class DockerRuntime:
             or self._image(image)["id"] != image
         ):
             raise ControlError("docker_ownership_mismatch")
+        self._observed_project_name = observed_project
         return value
 
     def _guard(self, operation, function):
@@ -1536,7 +1545,33 @@ class DockerRuntime:
             if not self.installation_id:
                 self.store.write(self.store.read().mode)
             self._safe_home()
-            candidate = "research-workbench:build-" + uuid4().hex
+            self._build_id = uuid4().hex
+            try:
+                revision = subprocess.run(
+                    ["git", "rev-parse", "HEAD"],
+                    cwd=self.project_root,
+                    capture_output=True,
+                    text=True,
+                    timeout=5,
+                    check=False,
+                )
+            except (OSError, subprocess.SubprocessError):
+                revision = None
+            self._build_commit = (
+                revision.stdout.strip()
+                if revision is not None and revision.returncode == 0
+                else "unknown"
+            )
+            if self._build_commit == "unknown":
+                log.warning("docker_runtime code=docker_build_revision_unavailable")
+            if self._build_commit != "unknown" and not re.fullmatch(
+                r"[a-f0-9]{40}", self._build_commit
+            ):
+                raise ControlError("docker_build_revision_invalid")
+            candidate = (
+                "research-workbench:dev-" + self._build_commit[:12] + "-" + self._build_id[:12]
+            )
+            log.info("docker_runtime operation=build_candidate")
             self._call(
                 [*self.compose_prefix, "build", "research-web"],
                 "docker_build_failed",

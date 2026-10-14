@@ -6,6 +6,11 @@ test_hot_execution覆盖丢失/重启/失败真值，test_hot_retry_policy/runti
 model-control.ts取消明确未发送reserved，hot_model_controls.py复验knownUnsent回执，真实PG测试
 精确清理本次资源，未知或历史资源保留。
 
+## FinGPT 深入研究定位
+
+原生计划由 projection.py、runtime/research.cordis.yml 和 guard.mjs 处理；research_evidence.py 管理会话来源与底稿质量投影；resources/research_report.py 管理确定性中文报告。UI 的 research-report.mjs 复用当前研究空间与草稿控制器。近处用例为 test_fingpt_research.py、test_research_report.py 与 research_web_fingpt.test.mjs；改变引用/格式合同须同步 API、文件、UI、安装文档和架构清单。
+
+
 本文件只回答四个问题：改哪片源码、先读哪份权威文档、跑哪些测试、什么变化需要同步文档。文件和公开符号的机械清单由 [生成索引](generated/py_file_index.md) 负责。
 
 ## 当前 Research Web
@@ -83,6 +88,7 @@ main挂载惰性有界桥，core/app/shell/settings保留既有路由并新增�
 | --- | --- | --- | --- | --- |
 | `runtimes/research_web.json`、`app/research_web/runtime_contract.py` | Native/Docker 共用 Python、Node、CJPY、DSH、pnpm 事实 | `research-web-installation.md`、`architecture/research-web/01-system.md` | `test_runtime_contract.py`、`docker_runtime_contract.test.mjs` | 固定版本、闭包或镜像事实变化 |
 | `research_workbench_entrypoint/runtime_mode.py`、`bootstrap.py`、`docker_runtime.py` | 无 `.venv` 的模式路由、安全切换、Compose 归属 | `research-web-installation.md`、`architecture/research-web/02-research-runtime.md` | `test_runtime_mode.py`、`test_docker_runtime.py` | mode schema、CLI、归属或错误码变化 |
+| `research_workbench_entrypoint/docker_resources.py` | 精确资源预览/清理、卷归档恢复、测试任务收尾 | `research-web-installation.md`、`architecture/research-web/02-research-runtime.md` | `test_docker_resources.py`；Mac Docker Desktop 真实资源验证 | 命名、保留、删除授权、引用或备份合同变化 |
 | `app/research_web/process_spec.py`、`runtime_state.py`、`staged_runtime.py`、`launch_runtime.py`、`service_manager.py` | 共用进程规范，分离认证状态和镜像内已验证 DSH 资产 | `architecture/research-web/01-system.md`、`02-research-runtime.md` | `test_service_manager.py`、`test_runtime_launch.py`、`test_staged_runtime.py` | 生命周期、挂载或 DSH 资产合同变化 |
 | `app/research_web/credential_backend.py`、连接/MCP/Automation 调用点 | Native 系统 keyring 与 Docker 私有文件凭据后端的明确选择 | `architecture/research-web/03-data-files.md`、`05-security-validation.md` | `test_credential_backend.py`、相关连接/MCP/Automation 测试 | 凭据存储、ACL 或跨模式边界变化 |
 | `Dockerfile`、`compose.yaml`、`.dockerignore`、`docker/` | 非 root 单容器镜像、DSH/Web 监督、认证健康检查 | `research-web-installation.md`、`architecture/research-web/01-system.md` | `test_docker_packaging.py`、`test_container_supervisor.py`、`docker_runtime_contract.test.mjs` | 基础镜像、构建、挂载、端口或健康变化 |
@@ -125,7 +131,7 @@ Docker `/state` 为私有 tmpfs，状态叶不采用 bind 映射例外或写初�
 | --- | --- | --- | --- | --- |
 | `app/research_web/main.py`、`service.py`、`client.py` | HTTP/SSE、会话和 DSH 投影；按运行模式注入凭据后端 | `architecture/research-web/01-system.md`、`02-research-runtime.md`、`04-api.md` | `tests/research_web/test_api.py`、`test_protocol.py` | 路由、状态、恢复或认证变化 |
 
-| `model_credentials.py`、`runtime/model-credentials.mjs`、`launch_runtime.py` | macOS Native 固定模型 Keychain 私有桥接与 owned overlay；Host record 保留原实现 | `architecture/research-web/05-security-validation.md`、`02-research-runtime.md`、`research-web-installation.md` | `test_model_credentials.py`、`test_runtime_launch.py`、`research_web_model_credentials.test.mjs`；真实 Keychain/固定 DSH 仅显式 opt-in 合成验收 | 后端、命名空间、凭据回退、记录委托或受管解释器变化 |
+| `model_credentials.py`、`runtime/model-credentials.mjs`、`launch_runtime.py` | Native Keychain 与显式 Docker 加密模型文件的私有桥接、owned overlay；Host record 保留原实现 | `architecture/research-web/05-security-validation.md`、`02-research-runtime.md`、`research-web-installation.md` | `test_model_credentials.py`、`test_runtime_launch.py`、`research_web_model_credentials.test.mjs`；真实 Keychain/固定 DSH 仅显式 opt-in 合成验收，真实模型另验 | 后端、命名空间、凭据回退、记录委托或受管解释器变化 |
 | `rwb`、`rwb.cmd`、`research_workbench_entrypoint/web_*.py`、`app/research_web/service_manager.py`、`service_diagnostics.py`、`lifecycle_lock.py` | 环境后备诊断、服务事实、排他锁、启动恢复与 Web ready | `research-web-installation.md`、`architecture/research-web/01-system.md`、`02-research-runtime.md`、`05-security-validation.md` | `test_web_contract.py`、`test_web_bootstrap.py`、`test_service_manager.py`、`test_cli_lazy.py` | 公开 CLI、PID/端口归属、健康、错误码、恢复或浏览器时机变化 |
 | `app/research_web/ui/`、`app/research_web/asset_workspace.py`、`app/research_web/asset_routes.py` | 当前产品原生 UI 与 Asset Workbench backend | `research-web-ui.md`、`research-web-appearance.md` | 验证策略 focused closure：`ui/asset-workspace.mjs` → `tests/javascript/research_web_workbench.test.mjs`；`asset_workspace.py` / `asset_routes.py` → `tests/javascript/research_web_workbench.test.mjs` + `tests/research_web/test_asset_workspace.py`，并累积架构与 Project Constraints 检查；其他 UI 运行相关测试和 E2E | 导航、DOM、可访问性、交互或 Asset Workbench API 合同变化 |
 | `app/research_web/datahub/` | 目录、Provider、Broker、快照 | `research-web-datahub.md`、`architecture/research-web/03-data-files.md` | `providers_akshare.py` → `tests/research_web/test_datahub_catalog.py` + `tests/research_web/test_datahub.py`；其他已登记 DataHub 测试 | 能力、来源、字段、路由或快照合同变化 |

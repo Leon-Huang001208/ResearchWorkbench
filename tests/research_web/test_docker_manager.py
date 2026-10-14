@@ -89,6 +89,16 @@ def test_docker_materialized_oom_default_preserves_identity():
     assert manage.identity_projection(container) != expected
 
 
+def test_docker_materialized_empty_dns_preserves_only_default_identity():
+    container = {"Id": "owned", "Image": "sha256:one", "Config": {},
+                 "Mounts": [], "HostConfig": {"Dns": None}}
+    expected = manage.identity_projection(container)
+    container["HostConfig"]["Dns"] = []
+    assert manage.identity_projection(container) == expected
+    container["HostConfig"]["Dns"] = ["8.8.8.8"]
+    assert manage.identity_projection(container) != expected
+
+
 def test_cleanup_cannot_mutate_production(tmp_path, monkeypatch):
     calls = []
     monkeypatch.setattr(manage, "command", lambda *args: calls.append(args))

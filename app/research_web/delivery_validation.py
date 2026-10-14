@@ -104,11 +104,17 @@ def validate_content(raw, extension):
                 paragraphs = PPTX_PARAGRAPH.findall(xml)
                 bodies = paragraphs or [xml]
                 for body in bodies:
-                    visible = "".join(
-                        unescape(value) for value in PPTX_TEXT.findall(body)
-                    )
+                    visible = "".join(unescape(value) for value in PPTX_TEXT.findall(body))
                     if PPTX_PLACEHOLDER.search(visible):
                         return "PPTX 仍有未替换占位符"
+    elif extension == "pdf":
+        import pdfplumber
+
+        with pdfplumber.open(stream) as pdf:
+            if not pdf.pages or len(pdf.pages) > 300:
+                return "PDF 页数无效或超过 300 页"
+            if not any((page.extract_text() or "").strip() for page in pdf.pages):
+                return "PDF 可打开，但没有可提取正文"
     elif extension == "png":
         from PIL import Image
 

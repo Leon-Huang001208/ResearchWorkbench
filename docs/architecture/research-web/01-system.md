@@ -41,11 +41,19 @@ Web Host已新增惰性有界Hot桥与页面入口；其lifespan不启动Hot/PG/
 读取/超时不会接管基础设置。部署图与Hot专项图记录Node/PG当前实现，Docker产品切换、
 真实事件浏览/研究和同SHA干净安装仍须各自验收。
 
+模型设置的空闲保护仍由 Host 读取 DSH 原生事实；内部活动查询区分运行状态与历史执行模式，不增加进程、公开参数或凭据写者。未知模式不获得执行权限。
+
+Claw 项目和日程草稿由现有 FastAPI Host 管理产品索引；原生提出工具沿现有私有控制通道，不增加进程、端口或调度器。用户确认保存后继续使用 Automation 与同一 DSH。
+
 24GB Mac mini 是 Docker 主开发与常驻节点，MacBook Pro 是远程入口。
 dev 挂载对应 worktree；stage/prod 按不可变 image ID 独立运行同一 Web＋DSH，
 每实例隔离 data/logs/credentials/cache卷、bridge网络、端口和管理身份。
 管理员 `rwb-docker` 与独立限额 BuildKit 管理生命周期；业务及开发容器无 Docker socket。
 配置与命令见 [Docker 手册](../../research-web-docker.md)，legacy 单实例入口仍独立保留。
+
+Docker 的 host 管理工具增加资源预览与精确处置职责，仍通过现有 Docker Engine CLI 执行。
+此工具不增加产品服务、端口或后台调度；Web/DSH 单容器部署与 Native 顺序切换保持原拓扑。
+测试辅助容器只在显式验收或卷恢复校验期间存在，任务结束验证释放。
 
 ## 资讯雷达 · 2026-10-09
 
@@ -291,7 +299,7 @@ Windows 读取 DSH 认证文件、DataHub 私有控制/收据/快照和会话下
 - Automation 与 Run 事实位于数据根的原子索引；任务锁定目标版本、内容 SHA 与 MCP 工具 schema 快照。投递渠道 JSON 只保存非敏感投影，URL、密码和签名秘密只进入 `ResearchWorkbench.Delivery`。
 - 最新本机诊断安全投影原子写入 `local-integrations/local-integrations.json`，权限限制为当前用户；Excel、Word、PowerPoint 的真实验证副本位于各自 Office 容器内。Wind 复用当前 Excel 厂商会话但只持有独占空白工作簿；监督器仅清理本轮真正拥有的进程，用户已有 Excel 不进入清理集合。不持久化探测到的绝对路径、命令参数、环境变量或秘密。
 - 本机显式验证结果按 TTL 和上下文指纹读取；TTL 截止时刻即失效，`0` 表示不产生可复用的可调用证据。
-- macOS Native 模型 ref 仅进入按 data home 隔离的系统 Keychain，产品 overlay/私有进程桥接挂载于固定 DSH CredentialProvider 扩展点。Host 认证 record 独立保留于专属 DSH 私有目录；两者都不提供给研究脚本环境。其他平台模型系统存储未实施，失败关闭而不回退文件。
+- macOS Native 模型 ref 仅进入按 data home 隔离的系统 Keychain；staged Docker 显式绑定独立私有凭据挂载中的加密模型记录，均经 product overlay/私有 stdio 挂载于固定 DSH CredentialProvider。Host 认证 record 独立保留；模型秘密不提供给研究脚本环境。Docker 后端不作为 Native 失败后的回退，其它 Native 平台的模型系统存储仍未实施。
 - Tabbit 页面访问授权只存在于当前 Research Runtime 生命周期；实时正文 token 绑定当前会话、单次消费并在 10 分钟后过期。
 - 迁移只复制研究状态和 DSH 会话索引；凭据、运行时 overlay、临时文件、旧控制令牌与日志不复制。新实例需要在设置页重新授权模型。
 
@@ -375,3 +383,11 @@ Hot完整原件读取继续复用独立Node/PostgreSQL与Host reader通道，没
 
 
 2026-10-13续跑：Hot预算管理追加token-only停机修订；现有Host脚本准入可验证并读取当前Hot研究的冻结快照。服务、队列与研究引擎拓扑保持；研究实际调用不等于报告已完成。
+
+## FinGPT 研究融合 · 2026-10-13
+
+FinGPT 深入研究沿用 ResearchService→固定 DSH 执行链。Web 投影原生 todo/write，保存创建时锁定的 research_depth/source_scope；证据、笔记与报告使用会话资源和原 DeliveryManager，不增加研究执行器。HTML/DOCX/PDF 共用底稿，PDF 使用项目锁定 ReportLab 与随包许可字体。
+
+## 历史子会话模式兼容 · 2026-10-13
+
+历史读取与执行能力分开：列表及父详情复用原生已认证活动目录，旧子会话模式无法恢复不会阻断全部父会话。仍只有DSH持有历史和执行状态。

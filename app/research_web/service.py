@@ -21,6 +21,7 @@ from . import PINNED_DSH_COMMIT
 from .asset_workspace import AssetWorkspace
 from .automation.channels import DeliveryChannelStore
 from .automation.delivery import DeliveryDispatcher
+from .automation.drafts import AutomationDrafts
 from .automation.service import AutomationService, automation_feature_enabled
 from .automation.transport import DeliveryTransport
 from .capabilities.catalog import CapabilityCatalog
@@ -32,6 +33,7 @@ from .capabilities.methods import (
 from .capabilities.models import CapabilityError, Metadata, Step, data_preflight
 from .capabilities.packages import MAX_COMPRESSED, import_package
 from .capabilities.tools import SELECTABLE
+from .claw_projects import ClawProjects
 from .client import DSHClient, RuntimeFailure
 from .credential_backend import default_credential_backend
 from .datahub import DataHub
@@ -59,6 +61,7 @@ from .mcp_runtime.service import MCPRuntimeService, runtime_feature_enabled
 from .projection import content_text, project
 from .report_studio import ReportStudio
 from .report_workflows.manager import ReportWorkflowManager
+from .research_evidence import evidence_index, report_projection
 from .service_manager import WebServiceManager
 from .store import Store, StoreError
 from .tabbit import TabbitIntegration
@@ -219,6 +222,8 @@ class ResearchService:
             dispatcher=DeliveryDispatcher(transport=DeliveryTransport(self.delivery_channels)),
         )
         self.connected: set[str] = set()
+        self.claw_projects = ClawProjects(self)
+        self.automation_drafts = AutomationDrafts(self)
         self.event_revision = 0
         self.events: dict[str, dict[int, dict]] = {}
         self.loaded: set[str] = set()
@@ -580,6 +585,7 @@ class ResearchService:
                     "project-env": "project_dotenv",
                     "user-env": "runtime_home_dotenv",
                     "system-keychain": "system_keychain",
+                    "docker-encrypted-file": "docker_encrypted_file",
                     "not-required": "not_required",
                 }.get(credential_source, "unknown"),
                 "configuration_saved": "model" in self.store.data,
@@ -686,7 +692,7 @@ class ResearchService:
             for row in self.store.data["sessions"].values():
                 if row["created"]:
                     children = await self.client.rpc(
-                        "subagent.list", {"parentSessionId": row["id"]}
+                        "subagent.list", {"parentSessionId": row["id"], "activityOnly": True}
                     )
                     if any(child.get("activity") == "running" for child in children["entries"]):
                         raise RuntimeFailure(
@@ -917,13 +923,37 @@ class ResearchService:
         mode="fingpt",
         title=None,
         *,
+        research_depth="instant",
+        source_scope=None,
         agent_preset="research-web",
         purpose=None,
         metadata=None,
+        project_id=None,
     ):
         await self.ensure_owned()
         async with self.lock:
+            if project_id is not None:
+                project = self.claw_projects.get(project_id)
+                if mode != "claw" or project["archived"]:
+                    raise StoreError("只能在未归档的项目中新建 Claw 研究", "project_archived", 409)
+            if research_depth not in {"instant", "deep"}:
+                raise StoreError("不支持的研究深度")
+            sources = ["datahub", "web", "uploads"] if source_scope is None else source_scope
+            if (
+                not isinstance(sources, list)
+                or not sources
+                or len(sources) > 3
+                or any(not isinstance(s, str) for s in sources)
+                or len(set(sources)) != len(sources)
+                or any(s not in {"datahub", "web", "uploads"} for s in sources)
+            ):
+                raise StoreError("资料范围无效")
             row = self.store.create(mode, title or ("Claw 研究" if mode == "claw" else "新研究"))
+            row["research_depth"] = research_depth
+            row["source_scope"] = list(sources)
+            log.info("research_depth_selected", mode=mode, depth=research_depth)
+            if project_id is not None:
+                row["project_id"] = project_id
             if purpose is not None:
                 row["purpose"] = purpose
             if metadata:
@@ -1032,8 +1062,11 @@ class ResearchService:
             key: row[key]
             for key in ("id", "mode", "title", "workspace_id", "status", "model", "updated_at")
         }
+        result["research_depth"] = row.get("research_depth", "instant")
+        result["source_scope"] = row.get("source_scope", ["datahub", "web", "uploads"])
         if isinstance(result["updated_at"], (int, float)):
             result["updated_at"] = datetime.fromtimestamp(result["updated_at"], UTC).isoformat()
+        result["project_id"] = row.get("project_id", "default")
         if row.get("deleted_at") is not None:
             deleted_at = row["deleted_at"]
             result["deleted_at"] = (
@@ -1075,7 +1108,9 @@ class ResearchService:
             if row.get("deleted_at") is not None or not row["created"]:
                 return {"entries": []}
             async with semaphore:
-                return await self.client.rpc("subagent.list", {"parentSessionId": row["id"]})
+                return await self.client.rpc(
+                    "subagent.list", {"parentSessionId": row["id"], "activityOnly": True}
+                )
 
         child_tasks = [asyncio.create_task(children_for(row)) for row in rows]
         try:
@@ -1352,6 +1387,23 @@ class ResearchService:
                 )
             ),
         }
+        allowed_sources = self.store.session(sid).get("source_scope", ["datahub", "web", "uploads"])
+        web_tools = {"web_search", "web_fetch", "tabbit_browser", "datahub_search_web"}
+        excluded_source = (
+            tool_name
+            and tool_name.startswith("datahub_")
+            and tool_name not in web_tools
+            and "datahub" not in allowed_sources
+        ) or (tool_name in web_tools and "web" not in allowed_sources)
+        if (
+            tool_name
+            and tool_name.startswith("mcp__")
+            and set(allowed_sources) != {"datahub", "web", "uploads"}
+        ):
+            excluded_source = True
+        if excluded_source:
+            scope.update(status="unavailable", admitted=False)
+            scope["missing"].append({"code": "research_source_excluded"})
         declared = any(record["metadata"].get("data_requirements") for record in records)
         if (
             declared
@@ -1367,7 +1419,10 @@ class ResearchService:
             scope["read_paths"] = [
                 f"resources/capabilities/{record['id']}/{record['version']}" for record in records
             ]
-            for did in self.datahub.snapshots.ids(sid)[:256]:
+            dataset_ids = (
+                self.datahub.snapshots.ids(sid)[:256] if "datahub" in allowed_sources else []
+            )
+            for did in dataset_ids:
                 try:
                     manifest = self.datahub.detail(sid, did)
                     if manifest.get("snapshot_kind") == "hot_evidence":
@@ -1587,6 +1642,11 @@ class ResearchService:
             result.update(status="failed", error=self.errors[sid])
         result["files"] = self.store.files(sid)
         result["datasets"] = self.datahub.summaries(sid)
+        if row["mode"] == "claw" and automation_feature_enabled():
+            result["automation_drafts"] = self.automation_drafts.list(sid)["items"]
+        result["research_sources"] = evidence_index(
+            result["files"], result["datasets"], result["activities"]
+        )
         result["approvals"] = [
             {"id": key, "title": value["toolName"], "detail": value.get("reason", "需要授权")}
             for key, value in self.approvals.items()
@@ -1603,7 +1663,9 @@ class ResearchService:
         ]
         if result["approvals"]:
             result["status"] = "awaiting_approval"
-        children = await self.client.rpc("subagent.list", {"parentSessionId": sid})
+        children = await self.client.rpc(
+            "subagent.list", {"parentSessionId": sid, "activityOnly": True}
+        )
         result["subagents"] = []
         for child in children["entries"]:
             view = {
@@ -1613,6 +1675,14 @@ class ResearchService:
             }
             if child["kind"] == "child":
                 self.child_parents[child["id"]] = sid
+                if child["mode"] == "unknown":
+                    log.info("research_historical_child_mode_unavailable")
+                    view.update(
+                        status="running" if child["activity"] == "running" else "unavailable",
+                        error="历史子会话执行模式未知，暂不能读取子会话历史；未猜测执行模式。",
+                    )
+                    result["subagents"].append(view)
+                    continue
                 try:
                     cached = self.child_views.get(child["id"])
                     if cached and time.monotonic() - cached[0] < 1:
@@ -1666,6 +1736,14 @@ class ResearchService:
             busy=result["can_cancel"],
             connected=self.connected == {"mux", "host"},
         )
+        result["research_report"] = report_projection(
+            self.store,
+            sid,
+            result["files"],
+            result["research_sources"],
+            latest_receipt.get("delivery", {}).get("task_id"),
+            result["delivery"],
+        )
         delivery = result["delivery"]
         result["can_recheck_stop"] = bool(
             delivery
@@ -1715,6 +1793,21 @@ class ResearchService:
     ):
         await self.ensure_owned()
         async with self.lock:
+            source_scope = self.store.session(sid).get(
+                "source_scope", ["datahub", "web", "uploads"]
+            )
+            if self.store.session(sid).get(
+                "research_depth"
+            ) == "deep" and not self._model_tools_verified(sid):
+                raise CapabilityError(
+                    "当前模型工具能力未验证；请新建即时回答会话或使用已验证模型新建深入研究",
+                    "deep_research_tools_unverified",
+                    409,
+                )
+            if attachments and "uploads" not in source_scope:
+                raise StoreError("当前研究未选择上传资料")
+            if tabbit_tabs and "web" not in source_scope:
+                raise StoreError("当前研究未选择联网资料")
             provider = self.store.session(sid).get("model_provider", "deepseek-official")
             _ref, uncertain, cleared = self._model_plane(provider)
             if self.store.data.get(uncertain):
@@ -1807,6 +1900,12 @@ class ResearchService:
                 method_policy,
                 user_selected=method_ids,
             )
+            if (
+                formats is None
+                and defaults is None
+                and self.store.session(sid).get("research_depth") == "deep"
+            ):
+                defaults = ["html", "docx", "pdf"]
             required = expected_formats(formats if formats is not None else defaults, skill_id)
             payload = {
                 "text": text,
@@ -1931,6 +2030,23 @@ class ResearchService:
             if tabbit_markers:
                 prompt += "\n\nTabbit 标签页引用：" + " ".join(tabbit_markers)
             prompt += "\n\n" + delivery["marker"]
+            prompt += "\n本会话允许的资料范围：" + ", ".join(source_scope)
+            if self.store.session(sid).get("research_depth") == "deep" and required:
+                prompt += (
+                    "\n深入研究：先用 todo_write 建立并维护真实计划，先取证再写结论。"
+                    "仅复用可用 DataHub、web_search 和当前附件，未获取全文的网页只标为检索摘要。"
+                    "通过 research_run_script 调用 resources 中的 from research_report import write_research_report, source_id。"
+                    "write_research_report('outputs', payload) 生成页面/Word/PDF及结构化底稿。"
+                    "payload 必须包含 task_id、title、as_of(YYYY-MM-DD)、required_sections(报告必须覆盖的标题列表)、"
+                    "sections([{id:阶段ID,heading,text,citations:[来源ID]}])、sources([{id,title,url可选}])、notes([{stage_id:对应章节ID,text,citations}])、missing。"
+                    "要求未覆盖的章节或无法取证的结论必须列在missing，不能补造数值。"
+                    "网页来源ID由 source_id(url) 计算，数据集ID是dataset:dataset_id，附件ID是file:附件ID。"
+                    "来源ID须来自本会话真实检索/数据/附件；历史报告与其他会话资料不可借用。"
+                    "引用可定位只证明来源身份，不冒称全文已读或结论已独立核实。"
+                    "当前 task_id=" + delivery["task_id"]
+                )
+            if self.store.session(sid).get("research_depth") == "deep" and not required:
+                prompt += "\n深入研究：维护真实 todo_write 计划，核对资料来源与缺口；按用户选择只在聊天回答，不生成文件。"
             if formats is not None:
                 prompt += "\n用户显式选择的输出格式优先于 Skill 默认格式。"
                 if not required:
@@ -1945,7 +2061,10 @@ class ResearchService:
                     "仅使用已可用的严格沙箱工具生成，不虚构文件、数据或验证。"
                 )
             if files:
-                prompt += "\n\n附件（仅本会话 inputs 目录）：\n" + "\n".join(files)
+                prompt += "\n\n附件（仅本会话 inputs 目录）：\n" + "\n".join(
+                    f"{path} 引用ID=file:{fid}"
+                    for path, fid in zip(files, attachments, strict=True)
+                )
             if selection:
                 prompt += "\n\n本次能力与只读资源快照：" + json.dumps(selection, ensure_ascii=False)
                 prompt += "\n本次数据准入范围：" + json.dumps(
@@ -1968,6 +2087,9 @@ class ResearchService:
             if row["mode"] == "claw":
                 prompt += (
                     "\n\n使用 DSH 原生子 Agent 分工研究；只使用实际可用工具，不虚构执行或产物。"
+                    "若用户明确要求定时研究，可通过 rwb_prepare_automation 提出日程草稿；"
+                    "仅使用用户所选能力快照的实际 ID、类型与版本。缺少能力目标、时间或时区时先询问。"
+                    "工具仅提出草稿，用户在页面确认后才保存，随后仍需显式启用；不得宣称日程已生效。"
                 )
             prompt += (
                 "\n\n语言契约：除非用户在当前请求中明确要求其他语言，"

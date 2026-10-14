@@ -1,5 +1,13 @@
 # 研究情报真实报告与状态接入
 
+2026-10-14后续：用户明确允许复用已停止stage/candidate并保留旧镜像/5卷，预算不变。
+首次受管replace-image拒绝container_ownership_mismatch；实际字段只差默认DNS的
+null/[]与已规范化的OOM默认。DNS新增RED反例后仅规范化空默认，18测试PASS，
+显式DNS变更仍拒绝，限定Python与合并审查通过。未手改账本。
+随后同一candidate被docker-release-g2b工作流并发使用；不抢占其运行演练。
+最新0cf38ff主线合并25个冲突文件已处理，保留Hot报告与Claw/凭据/历史能力。
+合并后JS464项：463 PASS/1 SKIP/0 FAIL；Python必需闭包执行中，MacCI尚未开始。
+
 macOS功能开发，continuation worktree，父候选5ce3d5dab；原目标及预算保持。
 读取接口新增GET /hot/research/runs，显式POST /hot/research/runs/{id}/refresh，
 GET /hot/research/runs/{id}/docx。GET/下载无模型动作。POST只观察原Native回合及条件更新PG。

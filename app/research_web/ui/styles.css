@@ -787,3 +787,29 @@ textarea { resize: vertical; }
   .mcp-install-confirmation { padding: 13px; }
   .mcp-install-preview-heading { flex-direction: column; }
 }
+
+.claw-navigation { display: flex; flex-wrap: wrap; gap: 8px; border-bottom: 1px solid var(--line); padding: 8px 0 14px; margin-bottom: 18px; }
+.claw-navigation a { padding: 8px 12px; border-radius: 8px; color: var(--muted); text-decoration: none; }
+.claw-navigation a[aria-current="page"] { color: var(--text); background: var(--surface); font-weight: 600; }
+.claw-project-toolbar, .claw-project-page form { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; margin: 14px 0; }
+.claw-project-page label { display: grid; gap: 6px; min-width: 0; }
+.claw-project-page input, .claw-project-page select { max-width: 100%; }
+.claw-project-files, .claw-project-sessions { display: grid; gap: 10px; margin: 12px 0 24px; }
+.claw-project-files article, .claw-project-sessions article { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 14px; border: 1px solid var(--line); border-radius: 10px; }
+.claw-project-files article > div:first-child { display: grid; gap: 6px; min-width: 0; overflow-wrap: anywhere; }
+.claw-project-files small { color: var(--muted); }
+.claw-automation-drafts form { margin: 16px 0; padding: 18px; border: 1px solid var(--line); border-radius: 12px; }
+.claw-automation-drafts .button-row { margin-top: 14px; }
+@media (max-width: 760px) { .claw-project-toolbar, .claw-project-page form { align-items: stretch; } .claw-project-toolbar label, .claw-project-page form label { flex: 1 1 100%; } }
+
+/* Research panels preserve mobile reading and long source identities. */
+.context-tabs { flex-wrap: wrap; }
+.research-evidence-card { padding: 12px 0; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+.context-tab-panel article p { white-space: pre-wrap; overflow-wrap: anywhere; }
+
+.quick-skills.research-recipes { flex-direction: row; flex-wrap: wrap; gap: 8px; margin: 0 0 16px; padding: 0; }
+.composer-tools .research-source-picker { flex: 0 0 auto; margin-left: 0; }
+.research-source-picker summary { white-space: nowrap; font-size: 11px; }
+.research-source-options { position: absolute; top: 100%; left: 0; min-width: 170px; z-index: 12; display: grid; gap: 10px; padding: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; box-shadow: var(--shadow); }
+.research-source-options label { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+.research-source-options input { min-height: auto; width: auto; }

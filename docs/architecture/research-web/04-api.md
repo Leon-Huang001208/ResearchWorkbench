@@ -14,6 +14,22 @@ PUT configuration及POST lifecycle/channels/configure/events/correct/sources/con
 受控投影合同，未知字段拒绝。版本/参数冲突409、未授权403、格式400、过大413、服务故障503。
 Host桥有界，业务写入未知时返回原UUID；声明来自实际源码清单，不能推导研究交接已实现。
 
+## Claw 项目与日程草稿 API
+
+`claw_routes.py` 提供 `/claw/projects` 列表/创建与 `/{project_id}` 查询/改名/归档，`/sessions/{sid}/project` 显式移组，`/sessions/{sid}/file-references` 显式复制所选同项目文件。
+`POST /sessions` 增加可选 `project_id`，仅允许在未归档项目创建 Claw；旧请求保持原默认研究空间。
+会话摘要增加 `project_id`，Claw 详情增加 `automation_drafts`。
+`/internal/data/automation-draft` 继续使用现有实例私有认证，拒绝普通浏览器提交；它只生成经 AutomationCreate 校验的锁版本草稿。
+`/sessions/{sid}/automation-drafts` 查询、`/{draft_id}/confirm` 确认保存、`/{draft_id}/dismiss` 取消属于会话；确认可编辑名称、目标描述与日程，不可改换锁定能力或增加外发/MCP权限，且结果默认停用。
+新增请求拒绝额外字段；非法归属、归档、失效版本和已取消草稿给出明确错误。API Atlas 由机器清单同步生成。
+
+## FinGPT 会话扩展
+
+POST /api/research/sessions 增加 research_depth=instant|deep（缺省 instant）与 source_scope=[datahub,web,uploads]（非空且不重复）；其余 mode/workspace 与旧请求兼容。会话摘要公开同名锁定值；详情/SSE 增加 research_plan、research_sources、research_report。
+
+Prompt.expected_formats 与能力 default_formats 向后兼容接受 pdf。未知模型工具事实的 deep 提交返回 deep_research_tools_unverified；既有技能准入、凭据未知与幂等收据不弱化。内部 skill-preflight 仅在既有响应中拒绝被排除的来源，不新增权限或控制端点。
+
+
 DSH 0.2.1 升级保持公开 HTTP 合同。内部 `subagent.list` 适配已移除的上游方法：读取权威父会话 `subagentCatalog` 投影，并与实时 `session/list` 的子会话归属、模式和 running 状态交叉核对；输出映射为既有 `kind=child` 与 `activity=running/inactive`，供详情、归属、取消及空闲保护共同消费；缺失或未知状态返回协议失败，不用空列表解除活动保护。空实例默认 `deepseek-flash`，已保存旧模型值继续保留。保存、应用、真实推理仍分别返回事实，不因默认值更新自动调用模型。
 
 Automation 本轮没有新增 HTTP 路由、请求字段或响应 schema。现有运行记录在执行中可返回已保存原生关联；failure_code 可报告 automation_reference_invalid、automation_reference_conflict、automation_reference_persistence_failed 或 native_submission_unconfirmed。关联错误不触发自动研究重试，报告成功仍取原报告校验/产物事实。
@@ -29,6 +45,10 @@ pair 可继续 start/force restart，未知/变化/同根写者仍返回 `runtim
 1A收口：`ModelConfig.api_key`拒绝明显掩码、redacted/hidden占位及空白，错误响应仍固定invalid_request且不回显输入。普通新消息在受理收据/Native prompt之前检查凭据，configured严格为true才继续；缺失为model_credentials_missing，未确认形状为model_credential_state_unavailable。Runtime credential_storage来自受控source映射，未知不猜测为Keychain。
 
 模型页新增 `POST /api/research/runtime/model/test`：用户显式最小生成，通过现有 DSH 会话与最终事件验收，返回 `status`、`selection`、`checked_at`、可选 `session_id/code`；不返回密钥或推理正文。`PUT /runtime/model` 增加互斥的 `clear_api_key`，返回 `configured/applied_to/inference_verified`，保存不代表推理通过。Runtime GET 分开展示已保存、新会话应用、凭据配置、后端类型、提交结果未知及最近测试。
+显式 Docker 模型后端的受控来源 `docker-encrypted-file` 投影为
+`credential_storage=docker_encrypted_file`；未配置时 configured=false，损坏/拒绝读取时仍为
+unknown/unavailable，不能推导真实生成通过。HTTP 不增加取密入口或秘密返回字段。
+保存模型的空闲保护读取真实子会话活动，不要求已结束历史的执行模式仍可恢复。内部活动查询仍校验父归属、原生子任务来源与严格布尔 running；历史 unknown 模式不能由此执行，未知活动或正在运行仍拒绝保存。HTTP 请求/响应和凭据边界保持。
 
 macOS Native 模型 bridge 失败时，Runtime GET 保留成功的 Host `connected/health_check_passed`，仅将 `credential_configured` 设为 null、`credential_storage` 设为 unknown、`credential_code` 设为稳定 `model_credential_backend_unavailable`。不回显 Keychain 异常、不把未知当作可用；保存/请求仍沿既有失败关闭与 uncertain 处理。
 
@@ -382,3 +402,7 @@ GET `/api/research/local-integrations`附带`integration_status`，其中`scope=
 
 
 2026-10-13续跑：新增Native管理CLI model-amend-tokens（scope、max-tokens、daily-max-tokens、authorize-paid、reason、可复用request-id），通过既有私有stdin管理进程；不新增浏览器付费管理API。
+
+## 历史子会话模式兼容 · 2026-10-13
+
+GET会话列表及父详情不因已验证活动的历史子mode=unknown整体返回503。父详情沿用subagents的status/error字段显示运行中或历史不可用；真实活动/归属未知仍返回协议错误，响应schema不增加字段。

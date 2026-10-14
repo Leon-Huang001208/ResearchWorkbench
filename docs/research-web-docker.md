@@ -1,5 +1,9 @@
 # Mac mini Docker 开发与独立部署
 
+Docker Engine 可把未设置的 `HostConfig.Dns` 从 `null` 表示为 `[]`；受管身份投影
+仅把这两个默认表示规范化为同一空列表。显式 DNS、镜像、挂载、内存、认证与其他
+授权字段仍精确比较，任何真实变更继续拒绝；不改写既有账本。
+
 Hot 镜像增加独立 Node 构建层，按组件锁文件安装生产依赖并显式复制源码与迁移。
 容器 Web 启动的 Hot 进程继承 Supervisor 的 Web 角色；日志写可写数据目录 `hot/logs/`。
 外部 PG 的连接配置与凭据由本实例管理，不挂载 Docker socket，不复制 Native 模型秘密。
@@ -138,10 +142,33 @@ docker inspect buildx_buildkit_rwb-dev-builder0 --format '{{.HostConfig.Memory}}
 docker stats --no-stream
 ```
 
+## Legacy 安装与任务资源清理
+
+Legacy 单实例安装与验证任务使用 `research_workbench_entrypoint.docker_resources`：
+默认只预览，`--plan` 保存资源身份、引用和保留/删除理由；`--retired` 接收逐项审计的
+`kind:ID -> reason` JSON。名称、停止状态或年龄不能单独证明废弃。
+
+```sh
+python -m research_workbench_entrypoint.docker_resources --home "$HOME/.research-workbench" --plan work/docker-cleanup-plan.json
+```
+
+实际执行使用 `--apply` 指定已预览的清单，并显式提供 `--archive` 与 `--receipt`。
+执行持有所有相关 legacy 安装锁，逐对象复查身份及引用；顺序为容器、卷、镜像。
+卷先在本机私有目录归档、校验并实际恢复比较，再删除原卷。当前安装和上一接受镜像、
+持久数据及未知归属资源保留；无法隔离归属的构建缓存保留。失败回执列出未完成对象。
+
+新 legacy 应用镜像使用 `research-workbench:dev-短提交号-构建号` 与完整身份标签；
+已有正式容器继续兼容。验证工具用 `ResourceSession` 在成功、失败和正常中断时收尾
+自身临时资源，异常退出残留须显式审计清理。正式容器停止后仍保留供重启。
+此入口读取 legacy 安装记录，不认证 G0/G1 的独立管理账本；G0/G1 四卷与登记镜像
+不得写入 legacy 退休清单，继续按上文受管入口维护。
+
 ## 下一阶段入口与真实缺口
 
-- G2：Docker模型凭据后端尚未交付，现有通用业务文件凭据目录不证明模型Key可用。
-  不读取/迁移Native Keychain，不调用真实供应商；加密凭据、registry digest发布/回退另实施。
+- G2：模型桥现支持显式绑定的 Docker 加密文件后端，两个固定模型 ref 使用凭据卷内独立
+  `models/` 子目录，不改通用业务凭据或读取/迁移 Native Keychain。主密钥与密文同卷，
+  不声称抵抗管理员或同 UID 读取。配置、重启恢复与真实供应商生成仍分别验收；
+  registry digest 发布/提升/回退及其它 G2 工作尚未交付。
 - G3：Linux研究脚本 strict sandbox 仍失败关闭，容器实例隔离不等于任意代码沙箱。
   完整任务期全机重研究配额、排队/恢复、文档处理限额及攻击回归未实施。
 - G4：固定 `workspace_id=research` 及实例级共享设置仍保持现状，无受邀账号/鉴权路由。

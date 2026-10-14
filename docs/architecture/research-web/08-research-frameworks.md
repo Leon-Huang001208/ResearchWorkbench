@@ -4,6 +4,8 @@
 资讯控制器及GET投影；Gold/Dollar画布、框架快照、Bot和采集边界保持。版式与现有研究
 入口共存，不为前端展示创建研究回合或复制框架数据。
 
+Claw 项目归属只组织会话，不重绑 Gold/Dollar 快照或改变 Bot 执行。项目聚合不把其他会话数据自动注入框架，日程提出工具也不改变 framework-explain/verify 的权限。
+
 ## 资讯雷达 · 2026-10-09
 
 资讯雷达作为独立只读页面读取外部现有资讯。它不调用 Gold/Dollar 框架分析、创建框架会话或更改快照；事件与研报详情使用独立前端状态。
@@ -149,3 +151,7 @@ Gold/Dollar采集、评分、revision及renderer保持原合同；公共源码�
 
 
 Hot研究与报告是既有FinGPT/Claw会话结果的读取面，不启动另一研究框架或周期调度。框架工作区和后台Collector不因该列表改变；真实报告依据有限RSS标题，保留推断和覆盖缺口。
+
+## FinGPT 研究融合 · 2026-10-13
+
+FinGPT 的 research_depth/source_scope 属于研究会话，不进入 Gold/Dollar 快照或框架 Bot。新增报告底稿与 PDF 使用会话 outputs 和原文件交付解析；框架数据及生命周期仍由原模块负责。

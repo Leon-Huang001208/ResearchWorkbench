@@ -3,6 +3,8 @@
 Hot预算adapter复用public-data的私有控制读取器，调用根Hot研究账本。
 它未注册MCP/Skill工具或扩大厂商/文件权限，Store与PG仍共同核对归属。
 
+`rwb_prepare_automation` 在原生 research-tools 中注册并受最终 guard 与会话准入保护。Claw 只投影真实能力目录；日程草稿锁定选定 Skill/Workflow/报告版本，确认不发布新能力，版本失效明确拒绝。保存后默认停用，执行与投递仍由现有 Automation 管理。
+
 MCP 控制 JSON/URL 的纯 parser 现供原 reader 与独立 origin helper 共享；原 reader 的
 额外字段、版本与异常语义保持，不改变 MCP 授权、审批、能力版本或秘密存储边界。
 
@@ -258,3 +260,7 @@ Metadata增加严格data_requirements：能力/dataset、硬/可选、频率、�
 主线Mac mini Docker基座和兼容Native保持既有运行合同。可选Hot依旧是独立Node/PostgreSQL组件，尚未认证Docker产品装配或跨模式切换；基础研究与外部资讯不依赖Hot。研究情报统一导航不授予采集或模型权限。
 
 Hot冻结简报DOCX与报告沙箱共用 `report_documents.py` 中的纯数据生成函数；模板替换、原文标识、内容哈希和来源观点分别保留，导出不创建研究/模型执行。共享生成器新增局部测试，完整报告/产品验收按接续记录报告实际状态。
+
+## FinGPT 研究融合 · 2026-10-13
+
+能力 default_formats 新增 pdf；文件仍交原沙箱验证，不由任务完成或计划状态判定成功。会话 research_depth/source_scope 是创建时锁定的研究选项，能力及 Automation 复用原 Service/DSH 链；工具 preflight 收紧排除来源与脚本 dataset read_paths，MCP 未分类来源在部分范围选择下拒绝。

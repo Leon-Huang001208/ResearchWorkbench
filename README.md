@@ -7,6 +7,8 @@ Hot启用后的零重试配置生成和正式执行映射已有本地验证；�
 
 Research Workbench 当前交付的是本地优先的 **Research Web**：一个由 FinGPT、Claw、数据能力和研究框架组成的研究工作台。
 
+Claw 在同一研究引擎上组织本地项目、成员会话、带来源的文件与显式引用，并提供日程、技能和 MCP 入口；聊天提出的日程须用户确认保存，默认停用，之后另行启用。见[Claw 页面合同](docs/research-web-ui.md#claw-项目与日程)。
+
 当前 Web 入口为 `app.research_web.main:app`。Research Web 通过 FastAPI 轻量适配层连接专属 DSH；**DSH 是唯一的研究引擎**，负责研究执行循环、会话历史、Skill 与子 Agent。基础 Research Web 不启动旧 API 生命周期，也不要求 PostgreSQL、pgvector 或桌面预览。
 
 统一「研究情报」入口包含本地热点与事件及外部只读资讯，保留资讯雷达的八个栏目。本地部分连接独立 Hot Node 服务及指定 PostgreSQL，提供事件、来源覆盖、频道和人工纠错；Hot 设置仍在设置页。未配置时显示真实状态，页面读取不启动服务或模型。Native 模型工厂支持已有预算下的受控装配与原回执复用；模型默认关闭，配置不能创建付费授权。预算授权、尝试查询及未知尝试终止通过独立 CLI 明确操作，终止不退款。当前实现与配置命令见 [Hot 组件说明](services/hot/README.md)；冻结简报支持固定版本 Markdown/DOCX，继续研究的会话及快照准备已有本地证据。正式付费研究、安装级 worker 与干净安装仍在验收中，完整 Hot 产品尚未交付。
@@ -63,6 +65,8 @@ python scripts/setup_web.py --runtime native
 ```
 
 Native 安装器创建 checkout 专属 `.venv`；Docker 安装器构建受管镜像，使用单容器内的 DSH 与 Web。两者消费同一带哈希 Web 锁、随包 CJPY 和固定 DSH 合同，不安装数据库、桌面 sidecar 或 Tauri。Docker 的临时认证与运行状态使用容器私有 tmpfs，重启时重建；产品数据和私有凭据分别使用持久 bind。Docker 构建需要网络拉取固定基础镜像和 DSH 依赖；macOS Docker Desktop 已有独立镜像、安装、健康、重启与重建数据保留证据，适用的镜像/宿主提交及限制见支持矩阵；这些结果不认证 Windows/Linux 或厂商授权。
+
+Docker 开发资源的命名、镜像保留、测试收尾与可恢复清理见[资源治理指南](docs/research-web-installation.md#docker-资源命名与收尾)。清理入口默认只预览；正式数据不随停止容器删除，废弃卷先备份并验证恢复。
 
 可在安装后检查运行环境：
 
@@ -135,7 +139,7 @@ Native 可在确认没有活动研究时普通重启；Docker 运行中无法认
 
 macOS Native 的模型凭据由产品 overlay 挂载的固定用途桥接存入系统 Keychain，按规范化 data home 隔离；不回退环境、旧凭据 YAML 或 `.env`，也不把 Keychain 值复制到文件。不迁移旧模型 Key，需在该实例设置页重新录入。Host 浏览器认证 record 保留固定 DSH 的受控文件实现，和模型 Key 分开。其他平台或 Keychain 不可用时模型失败关闭，设置页与 Host 认证仍可使用；其他平台系统模型存储尚未验证。
 
-Docker相关通用业务凭据隔离实现保留；本阶段不交付Docker模型凭据后端，不把Native系统存储保证泛化到容器。
+Docker 模型凭据使用显式绑定的加密文件后端，保存在独立私有凭据挂载的 `models/` 子目录；API Key 不以明文写入产品索引、旧 YAML 或镜像。主密钥与密文同卷，不防御能读取整个挂载的同 UID 进程或管理员。现有通用业务凭据原样保留，不读取或迁移 Native Keychain；请在当前 Docker 实例的设置页录入模型 Key。保存、重启恢复与真实生成分别验收，不把后端存在当成模型可调用。
 
 DataHub 连接凭据按规范化 data home 隔离系统凭据服务；不同实例互不读取、覆盖或清除。旧全局记录不自动迁移或回退，已有非秘密配置保留，升级后请在所属实例设置页重新录入数据源凭据；旧记录不会被删除。
 

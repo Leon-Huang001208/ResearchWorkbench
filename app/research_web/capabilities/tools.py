@@ -16,6 +16,21 @@ from .models import CapabilityError
 
 PIN = RUNTIME_CONTRACT.dsh_commit
 DECLARATIONS = {
+    "rwb_prepare_automation": (
+        "提出研究日程草稿",
+        "runtime/research-tools.mjs",
+        {
+            "name": "string",
+            "target_kind": "string",
+            "target_id": "string",
+            "target_version": "integer",
+            "input_template": "string",
+            "output_formats": "array",
+            "schedule": "object",
+        },
+        ["name", "target_kind", "target_id", "target_version", "input_template", "schedule"],
+        "仅提出锁版本日程草稿；用户确认后保存，另行启用；不授予 MCP 或投递权限",
+    ),
     "research_document_operation": (
         "Office 文档操作",
         "runtime/research-tools.mjs",

@@ -301,7 +301,7 @@ async def render_report_payload(
     python: str | Path | None = None,
 ) -> dict:
     """Project a model-authored payload into reviewed, deterministic file formats."""
-    if not formats or any(item not in {"docx", "html", "xlsx", "pptx"} for item in formats):
+    if not formats or any(item not in {"docx", "html", "xlsx", "pptx", "pdf"} for item in formats):
         raise StoreError("报告渲染格式不受支持")
     session = store.directory(session_id)
     payload = session / "outputs" / "report_payload.json"

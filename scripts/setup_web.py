@@ -1381,10 +1381,28 @@ class DockerRuntime(_DockerRuntimeController):
                 previous, previous_identity = None, None
             published_mode = None
             publication_identity = None
+            rollback_path = path.with_name("docker-previous-manifest.json")
+            try:
+                rollback_before, rollback_before_identity = _read_bytes(rollback_path)
+            except FileNotFoundError:
+                rollback_before, rollback_before_identity = None, None
+            rollback_written = None
+            rollback_written_bytes = None
             publication_bytes = (json.dumps(manifest, ensure_ascii=False, indent=2) + "\n").encode(
                 "utf-8"
             )
             try:
+                if previous is not None:
+                    previous_manifest = json.loads(previous)
+                    self._validate_manifest(previous_manifest, check_contract=False)
+                    if previous_manifest["image_id"] != manifest["image_id"]:
+                        # Retain the last accepted immutable image before replacement.
+                        # A failed replacement may retain an extra protection; never
+                        # discard data or an accepted image to finish publication.
+                        rollback_written = _write_docker_manifest(rollback_path, previous_manifest)
+                        rollback_written_bytes = (
+                            json.dumps(previous_manifest, ensure_ascii=False, indent=2) + "\n"
+                        ).encode("utf-8")
                 publication_identity = _write_docker_manifest(path, manifest)
                 # Keep the origin transaction pending until receipt and mode agree.
                 if current.mode != "docker":
@@ -1396,6 +1414,31 @@ class DockerRuntime(_DockerRuntimeController):
             except (OSError, RuntimeError) as error:
 
                 def restore_publication():
+                    if rollback_written_bytes is not None:
+                        observed, observed_identity = _read_bytes(rollback_path)
+                        if observed != rollback_written_bytes or not _same_identity(
+                            observed_identity, rollback_written
+                        ):
+                            raise RuntimeError("docker_rollback_summary_recovery_unverified")
+                        if rollback_before is not None:
+                            _atomic_write_posix(rollback_path, rollback_before, observed_identity)
+                        else:
+                            with _private_posix_parent(rollback_path) as parent:
+                                if not _same_identity(
+                                    _leaf_identity_at(parent, rollback_path.name), observed_identity
+                                ):
+                                    raise RuntimeError("docker_rollback_summary_changed")
+                                os.unlink(rollback_path.name, dir_fd=parent)
+                                os.fsync(parent)
+                    else:
+                        try:
+                            observed, observed_identity = _read_bytes(rollback_path)
+                        except FileNotFoundError:
+                            observed, observed_identity = None, None
+                        if observed != rollback_before or not _same_identity(
+                            observed_identity, rollback_before_identity
+                        ):
+                            raise RuntimeError("docker_rollback_summary_recovery_unverified")
                     if published_mode is not None:
                         restored_mode = store._write_locked(current.mode, expected=published_mode)
                         if self._fresh_root is not None:

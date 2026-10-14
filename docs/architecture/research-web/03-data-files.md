@@ -52,14 +52,43 @@ Hot内部简报冻结核心在同一只读repeatable-read事务中取得截止�
 来源陈述与规则/模型/人工判断；不把旧判断覆盖写成当前采集健康。当前仅内部返回与验收导出，
 尚无简报表、公开路由、DOCX或研究冻结原文副本，不能据此认证阶段四完成。
 
+历史子 Agent 的原生 catalog 与正文保持原状。模型设置可以读取已核实的 inactive 活动而不恢复 unknown 执行模式；不清理、转换或重写历史记录，也不改产品索引 schema。
+
+## Claw 本地研究项目
+
+`claw_projects.py` 只管理索引中的 `claw_projects` 与会话 `project_id`；旧会话归入默认项目，执行 `workspace_id=research` 不变，项目归档不删除会话或文件。
+项目文件列表保留来源会话和 SHA-256；跨会话文件引用须显式选择，同项目归属、普通文件身份、允许附件格式与 30 MiB 上限逐项校验，读取源文件使用既有 descriptor-relative `Store.open_file`。
+复制生成独立附件，并在 `file_references` 保存来源与内容哈希；来源后续修改不改变已经引用的副本。
+DataHub 资料快照仍属于原会话，项目仅聚合摘要和来源链接，不隐式复制或混入新会话数据准入范围。
+
+`automation_drafts` 保存提出、取消与确认状态；原生工具只提出草稿，不写可执行 `automations`。
+确认调用原 Automation 创建逻辑，稳定创建键与内容绑定处理重复请求及确认检查点失败；创建结果默认停用。
+
+## 会话研究底稿与中文 PDF
+
+research_sources 从本会话输入文件、DataHub 快照和已完成检索活动派生；web:URL摘要、file:文件ID、dataset:资料ID 是来源标识，不代表全文已读。网页日期未知、资料不完整或无法证实的引用保持限制。它不是第二套事实数据库。
+
+受控 resources/research_report.py 的 write_research_report(output,payload) 共用同一正文生成 HTML/DOCX/PDF，重开后发布 outputs/research-report.json。底稿绑定 delivery.task_id，含 title/as_of/sections/required_sections/sources/notes/missing；section.id 与 note.stage_id 为显式底稿关联。每次生成使用独立文件名，并记录 artifact 名称与 SHA-256；变更/缺失或跨会话来源不认证质量检查。
+
+PDF 使用锁定 ReportLab 与随包中文字体 Noto Sans SC（许可证与固定来源摘要在 resources/fonts）；所有文本转义，无外部字体或宿主 Office。PDF 交付检查在既有严格沙箱内重开，要求有文本且不超过 300 页，仍受 16 MiB 限额。源身份/声明覆盖检查不等价完整研究或数值事实复核。
+
+
 新 Docker 目标采用每实例独立 data/logs/credentials/cache 四个命名卷；data 映射
 `/data/research-web`，包含既有 DSH home、会话索引、上传、产物与产品日志。
 管理账本保留数据卷身份；开发重建/退休仅删除精确所属容器，保留四卷与源码，
 不迁移 canonical Native 根、PID、cookie、Keychain或旧Compose bind数据。
 stage/prod不挂载开发源码，各实例网络、端口与运行状态分离。
-通用业务凭据目录与模型系统存储仍是两个合同，Docker 模型后端由G2补齐。
+通用业务凭据目录与模型存储仍是两个合同：Docker 模型桥显式绑定
+`/run/rwb-secrets/private/models` 的加密记录，既有通用凭据保持原路径和格式。
+主密钥一次创建且跨重启保留，两个 ref 的密文绑定 data-home 命名空间与账户；
+缺失/损坏密钥或密文失败关闭，不从环境、旧 YAML 或 Native Keychain 恢复。
 
-DSH 0.2.1 的 preset 注册改为 owned overlay 中的声明式插件行；原 `.agent-presets/<id>/agent.cordis.yml` 仍是产品生成源，不再依赖旧版文件目录自动发现。空实例默认模型为 `deepseek-flash`；已有保存的模型 ID、历史会话和快照不自动重写。安装清单绑定新的固定源码及实际构建闭包，模型秘密仍仅存于 Native Keychain，不随 preset、安装摘要或快照复制。
+Docker 资源清理不删除产品 bind mount 的宿主目录。废弃数据卷先保存到本机私有归档目录，
+以 SHA-256 和临时卷实际恢复/逐文件比较建立恢复证据，再删除原卷；归档不自动过期删除。
+当前及上一接受镜像分别由原安装摘要和 `install/docker-previous-manifest.json` 保护，
+失败发布恢复两份摘要。历史标签、未知卷与缓存不能被当作有效安装或可丢弃数据的证明。
+
+DSH 0.2.1 的 preset 注册改为 owned overlay 中的声明式插件行；原 `.agent-presets/<id>/agent.cordis.yml` 仍是产品生成源，不再依赖旧版文件目录自动发现。空实例默认模型为 `deepseek-flash`；已有保存的模型 ID、历史会话和快照不自动重写。安装清单绑定新的固定源码及实际构建闭包，模型秘密仅进入 Native Keychain 或显式 Docker 加密凭据挂载，不随 preset、安装摘要或快照复制。
 
 Automation 沿用 automation_runs 的 session_id、report_run_id、updated_at 和 failure_code 字段，不新增索引或迁移。已知关联通过现有原子 Store.save 写入；失败回滚内存关联，不以未落盘引用继续提交。报告晚到的会话 ID 同样保存；未知、陈旧和异目标引用保留失败原因与原记录，恢复不删除或重建原数据/产物。
 
@@ -393,3 +422,9 @@ public inputs完整写入并fsync后，private快照UUID目录才作为目录提
 
 
 Hot报告固定绑定PG deliveryKey，核对读取原RWB_HOT_EXECUTION回合，不使用会话后续任务的交付或终态。当前文件SHA须在完成状态条件提交前核验；pending通过原严格沙箱校验，未核对不能判失败。Word由已校验MD确定性转换并复验来源hash。
+
+ReportLab 初始化需读取当前目录；PDF helper 在已授权输出目录初始化，再恢复工作目录，未增加沙箱目录授权。底稿 JSON 在三份唯一产物生成并重开后以临时文件替换发布；质量还要求独立交付验证哈希一致。
+
+## 历史子会话模式兼容 · 2026-10-13
+
+不会删除或重写旧子会话数据来修复列表。父历史与会话文件保持原归属读取，子历史在执行模式未知时明确不可用。

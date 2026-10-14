@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "updated",
-  "summary": "研究情报已接入真实报告、独立运行/交付状态及MD/Word下载，预算不变。",
-  "reason": "已更新README用户入口；隔离真浏览器和HTTP验证不等同完整恢复、Docker或干净安装CI。"
+  "summary": "统一保留研究情报真实报告入口、主线Claw项目/日程与Docker模型凭据边界。",
+  "reason": "本次合并保留Hot独立PG与预算、主线历史会话和受控凭据合同；README复核不代替Docker实际运行或同SHA Mac CI。"
 }

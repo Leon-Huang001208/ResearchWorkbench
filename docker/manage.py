@@ -66,6 +66,10 @@ def identity_projection(container: dict) -> dict:
         # Null and false have identical policy; true remains a mismatch.
         if host.get("OomKillDisable") is None:
             host["OomKillDisable"] = False
+        # The Engine also materializes the unset default DNS list as [].
+        # Nonempty DNS lists retain their exact values and still fail closed.
+        if host.get("Dns") is None:
+            host["Dns"] = []
         projection["HostConfig"] = host
     return projection
 

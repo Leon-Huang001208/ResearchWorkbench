@@ -153,6 +153,20 @@ async function boundedJson(response, signal) {
   return JSON.parse(Buffer.concat(chunks).toString('utf8'));
 }
 
+/** Propose only over the existing authenticated instance-private channel. */
+export async function executeAutomationDraft(ctx, exec, config, args) {
+  const cwd = await trustedDirectory(ctx, exec, config);
+  exec.signal.throwIfAborted();
+  const control = await privateControl(config.researchRoot);
+  const signal = AbortSignal.any([exec.signal, AbortSignal.timeout(10000)]);
+  const response = await fetch(control.url + '/api/research/internal/data/automation-draft', {
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Research-Data-Key': control.token },
+    body: JSON.stringify({ session_id: basename(cwd), body: args }),
+    redirect: 'error', credentials: 'omit', signal,
+  });
+  return boundedJson(response, signal);
+}
+
 function smallResult(value) {
   if (!value || typeof value.dataset_id !== 'string' || typeof value.source !== 'string' || !/^[a-z0-9_]{1,64}$/.test(value.source) || !['complete','snapshot','empty','partial','failed'].includes(value.status) || !Array.isArray(value.files) || !Array.isArray(value.sample) || value.sample.length > 3 || !Number.isSafeInteger(value.row_count)) throw Error('DataHub response schema is invalid');
   const keys=['dataset_id','source','provider','capability','attempted_sources','source_url','schema_version','status','row_count','provider_total','pages_fetched','pagination_complete','requested_range','actual_range','retrieved_at','as_of','cache_hit','fields','missing','limitations','manifest_sha256'];

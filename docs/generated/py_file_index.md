@@ -3003,6 +3003,25 @@ Functions:
 - `signed_webhook`
 
 
+## `app/research_web/automation/drafts.py`
+
+Module docstring:
+> Native schedule proposals, persisted separately from executable Automations.
+
+Imports:
+- `copy`
+- `core.observability`
+- `models`
+- `service`
+- `store`
+- `time`
+- `uuid`
+
+Classes:
+- `AutomationDrafts`
+  - methods: __init__, _session, list, _get, _no_external_permissions, prepare, confirm, dismiss
+
+
 ## `app/research_web/automation/models.py`
 
 Module docstring:
@@ -3350,6 +3369,57 @@ Imports:
 
 Functions:
 - `tool_catalog`
+
+
+## `app/research_web/claw_projects.py`
+
+Module docstring:
+> Local project metadata and explicit, provenance-bound Claw file references.
+
+Imports:
+- `copy`
+- `core.observability`
+- `hashlib`
+- `os`
+- `pathlib`
+- `store`
+- `time`
+- `uuid`
+
+Classes:
+- `ClawProjects`
+  - methods: __init__, _projects, get, members, list, _save_projects, _name, create, update, move, detail, reference
+
+
+## `app/research_web/claw_routes.py`
+
+Module docstring:
+> Claw project and schedule-draft API over the existing product data root.
+
+Imports:
+- `automation.models`
+- `fastapi`
+- `pydantic`
+
+Classes:
+- `StrictBody`
+- `ProjectCreate`
+- `ProjectUpdate`
+- `ProjectMove`
+- `FileReference`
+- `DraftProposal`
+
+Functions:
+- `projects`
+- `create_project`
+- `project`
+- `update_project`
+- `move_session`
+- `reference_file`
+- `drafts`
+- `propose_draft`
+- `confirm_draft`
+- `dismiss_draft`
 
 
 ## `app/research_web/client.py`
@@ -5101,6 +5171,7 @@ Imports:
 - `automation.routes`
 - `capabilities.models`
 - `capabilities.routes`
+- `claw_routes`
 - `client`
 - `contextlib`
 - `core.observability`
@@ -5124,8 +5195,7 @@ Imports:
 - `mcp_runtime.routes`
 - `mimetypes`
 - `operations`
-- `os`
-- ... 16 more
+- ... 17 more
 
 Classes:
 - `NewSession`
@@ -5867,18 +5937,25 @@ Functions:
 ## `app/research_web/model_credentials.py`
 
 Module docstring:
-> Fixed-purpose private stdio bridge for the Native macOS model Keychain.
+> Fixed-purpose private stdio bridge for Native Keychain or Docker encryption.
 
 Imports:
+- `__future__`
 - `argparse`
 - `ctypes`
 - `hashlib`
 - `json`
 - `logging`
+- `os`
 - `pathlib`
+- `secrets`
 - `sys`
+- `typing`
 
 Classes:
+- `DockerModelStore`
+  - Encrypted fixed model accounts in a separate, guarded credential subtree.
+  - methods: __init__, _master, _reference, get_password, set_password, delete_password
 - `MacSystemStore`
   - Use existing keyring reads/removals and Security's atomic replacement.
   - methods: __init__, get_password, delete_password, set_password
@@ -5965,6 +6042,7 @@ Module docstring:
 
 Imports:
 - `json`
+- `logging`
 
 Functions:
 - `content_text`
@@ -6472,6 +6550,26 @@ Functions:
 - `_validate_values`
 
 
+## `app/research_web/research_evidence.py`
+
+Module docstring:
+> Bounded session evidence/report projections; DSH and file bytes remain authoritative.
+
+Imports:
+- `datetime`
+- `hashlib`
+- `json`
+- `logging`
+- `re`
+- `resources.research_report`
+- `store`
+- `urllib.parse`
+
+Functions:
+- `evidence_index`
+- `report_projection`
+
+
 ## `app/research_web/resources/__init__.py`
 
 Module docstring:
@@ -6495,6 +6593,31 @@ Functions:
 - `read_pdf`
 - `safe_cell`
 - `write_deliverables`
+
+
+## `app/research_web/resources/research_report.py`
+
+Module docstring:
+> Offline research artifacts sharing one payload and an embedded Chinese font.
+
+Imports:
+- `hashlib`
+- `html`
+- `json`
+- `logging`
+- `os`
+- `pathlib`
+- `re`
+- `urllib.parse`
+- `uuid`
+
+Functions:
+- `source_id`
+- `validate_payload`
+- `report_blocks`
+  - The same text/version is consumed by all three renderers.
+- `render_pdf`
+- `write_research_report`
 
 
 ## `app/research_web/runtime_auth.py`
@@ -6649,6 +6772,7 @@ Imports:
 - `asyncio`
 - `automation.channels`
 - `automation.delivery`
+- `automation.drafts`
 - `automation.service`
 - `automation.transport`
 - `base64`
@@ -6657,6 +6781,7 @@ Imports:
 - `capabilities.models`
 - `capabilities.packages`
 - `capabilities.tools`
+- `claw_projects`
 - `client`
 - `contextlib`
 - `core.observability`
@@ -6673,9 +6798,7 @@ Imports:
 - `local_integrations`
 - `mcp_registry`
 - `mcp_runtime.authorization`
-- `mcp_runtime.control`
-- `mcp_runtime.credentials`
-- ... 20 more
+- ... 23 more
 
 Classes:
 - `_SessionOwnedMCPRuntime`
