@@ -1,5 +1,10 @@
 # Agent 任务路由指南
 
+Hot 安装变更沿既有 Mac Bootstrap 验收：公开安装器运行后，在 Node 24.19.0 下
+验证 Hot 生产依赖导入。此步骤不连接 PG/模型，不替代真实 worker、模式切换或付费
+研究证据；Windows/Linux 产品 dispatch 仍由对应真机执行。CI 的受管停止错误保留
+非零结果，不用 `|| true` 省略。源检查点与仅记录结果的报告检查点须分别标明。
+
 当前交付平台以 [AGENTS.md 的 Current Research Web delivery phase](../AGENTS.md#current-research-web-delivery-phase-authoritative) 为准：用户已开启阶段二、三，Mac 任务验收 macOS Native 与 Docker Desktop；Windows/Linux 由对应设备执行，缺设备保留交接。Ubuntu 通用 CI 不代替平台真机验收。
 
 

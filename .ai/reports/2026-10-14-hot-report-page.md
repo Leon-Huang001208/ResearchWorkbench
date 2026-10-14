@@ -1,6 +1,8 @@
 # 研究情报真实报告与状态接入
 
 2026-10-14后续：用户明确允许复用已停止stage/candidate并保留旧镜像/5卷，预算不变。
+
+<!-- architecture-review {"group":"verification-workflow","structure":"unchanged","reason":"在既有macos-14公开安装任务中选择受支持Node24.19并增加Hot生产包纯导入核验，保留完整平台与模型硬门；停止错误不再省略，不新增工作流、运行器或付费调用。","diagrams":[]} -->
 首次受管replace-image拒绝container_ownership_mismatch；实际字段只差默认DNS的
 null/[]与已规范化的OOM默认。DNS新增RED反例后仅规范化空默认，18测试PASS，
 显式DNS变更仍拒绝，限定Python与合并审查通过。未手改账本。
