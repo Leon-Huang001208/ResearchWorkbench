@@ -170,6 +170,26 @@ def test_final_reasoning_only_message_survives_without_body():
     assert view["status"] == "completed"
 
 
+def test_confirmed_new_turn_clears_plan_without_hiding_older_history_gap():
+    rows = [
+        event(5, "todo/write", {"todos": [{"content": "old", "status": "completed"}]}),
+        event(6, "turn/start", {"turn": 2}),
+    ]
+    view = project(rows)
+    assert view["research_plan"] is None
+    assert view["plan"] is None
+    assert view["plan_history_incomplete"] is True
+    assert "plan_error" not in view
+    unknown_turn = project([*rows, event(8, "turn/end", {"reason": {"kind": "completed"}})])
+    assert unknown_turn["research_plan"]["status"] == "incomplete"
+    assert unknown_turn["plan_history_incomplete"] is True
+    assert unknown_turn["plan"] is None
+    conflict = project([*rows, event(6, "turn/start", {"turn": 3})])
+    assert conflict["research_plan"]["status"] == "invalid"
+    assert conflict["plan"] is None
+    assert conflict["plan_history_incomplete"] is True
+
+
 def test_native_plan_fold_preserves_mainline_shape_and_bounds():
     rows = [
         event(0, "turn/start", {"turn": 2}),

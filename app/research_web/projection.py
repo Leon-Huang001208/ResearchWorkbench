@@ -100,7 +100,11 @@ def _project_plan(entries: list[dict]) -> dict:
             }
     if corrupt:
         plan, error = None, True
-    result = {"plan": plan, "plan_history_incomplete": incomplete}
+    result = {
+        "plan": plan,
+        "plan_history_incomplete": incomplete,
+        "_plan_turn_known": turn is not None,
+    }
     if error:
         result["plan_error"] = "原生计划事件无效；当前计划无法确认。"
         log.warning("research_plan_invalid", event_count=len(rows))
@@ -131,6 +135,7 @@ def content_reasoning(content) -> str:
 
 def project(entries: list[dict]) -> dict:
     plan_projection = _project_plan(entries)
+    plan_turn_known = plan_projection.pop("_plan_turn_known")
     messages: dict = {}
     activities: dict = {}
     partials: dict = {}
@@ -331,7 +336,9 @@ def project(entries: list[dict]) -> dict:
             "history_complete": not plan_projection["plan_history_incomplete"],
             "items": native_plan["todos"],
         }
-    elif plan_projection.get("plan_error") or plan_projection["plan_history_incomplete"]:
+    elif plan_projection.get("plan_error") or (
+        plan_projection["plan_history_incomplete"] and not plan_turn_known
+    ):
         plan = {
             "turn": None,
             "seq": None,

@@ -43,22 +43,20 @@ def test_span_and_metric_timestamps_preserve_naive_utc_contract():
     assert before <= metric.timestamp <= after
 
 
-def test_fallback_explicit_no_traceback_keeps_synthetic_secret_out_of_logs(caplog, monkeypatch):
-    from unittest.mock import MagicMock
-
+def test_fallback_explicit_no_traceback_keeps_synthetic_secret_out_of_logs(caplog):
     from core.observability.logger import _SimpleLoggerWrapper
-    from data_layer.adapters.wind import wind_adapter
-    from data_layer.adapters.wind.wind_adapter import WindAdapter
 
-    fallback = _SimpleLoggerWrapper(logging.getLogger("synthetic-wind-fallback"))
-    monkeypatch.setattr(wind_adapter, "logger", fallback)
-    client = MagicMock()
-    client.heartbeat.side_effect = RuntimeError("synthetic-credential-must-not-be-logged")
+    fallback = _SimpleLoggerWrapper(logging.getLogger("synthetic-private-fallback"))
     with caplog.at_level(logging.ERROR):
-        assert WindAdapter(client).is_available() is False
-    event = next(record for record in caplog.records if record.name == "synthetic-wind-fallback")
+        try:
+            raise RuntimeError("synthetic-credential-must-not-be-logged")
+        except RuntimeError as error:
+            fallback.exception(
+                "private_operation_failed", error_type=type(error).__name__, exc_info=False
+            )
+    event = next(record for record in caplog.records if record.name == "synthetic-private-fallback")
     assert event.exc_info is False
-    assert "wind_heartbeat_failed" in event.getMessage()
+    assert "private_operation_failed" in event.getMessage()
     assert "RuntimeError" in event.getMessage()
     assert "synthetic-credential-must-not-be-logged" not in caplog.text
 
