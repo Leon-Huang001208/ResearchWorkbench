@@ -1,5 +1,7 @@
 # 研究协议、执行状态与恢复
 
+Hot offline evaluation只读冻结原件/已计费响应及规则，不启动worker/DSH/SDK，不重发模型、不改变18/77375的正式scope。三个既有回执只覆盖different_event；四项其他关系参考保留模型NOT_RUN。
+
 times人工纠错不调用模型；已知日期需引用当前事件原材料版本及原文摘录，自动重跑保存日期主张并拒绝移出依据。撤回只释放日期专属限制，不解除已有其他人工保护；旧模型scope/预算保持。
 
 Hot分页仍由一个hot.collect claim执行，整轮25秒/三页；逐页hot.parse复用同一pg-boss和owner fence。没有新研究引擎或模型调用。

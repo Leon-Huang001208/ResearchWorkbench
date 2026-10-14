@@ -1,5 +1,7 @@
 # Research Web 接口清单
 
+离线真实样本检查无HTTP接口或写操作；只通过显式Node命令读取版本化artifact。页面刷新/模型路由/预算授权合同保持。输出NOT_RUN关系与候选上下文重叠，不把评价状态映射为产品ready。
+
 现有events/correct的change可为type=times，除id/expected外必须同时给occurred/effective nullable严格日期主张；没有新endpoint。Manager核对manual.times、完整dateEvidence及两个值，不匹配保留原UUID。Node稳定time_invalid/time_evidence_invalid拒绝非法日期或未关联/不匹配原文；读取详情携带dateEvidence。
 
 Hot status增加backfill=publisher_next_links、backfillDays及maxPages=3；来源覆盖沿已有raw_page的partial/gap投影。没有新增公开写接口或自定义URL输入。

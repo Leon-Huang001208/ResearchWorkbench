@@ -1,5 +1,7 @@
 # 安全边界与验证方法
 
+评价器不信材料hash格式或自报official：核对完整冻结row、目录主体/origin、packet完整材料字段与response/packet指纹；跨partition主事件/ID/URL及参考URL泄漏拒绝。生产候选历史重叠单独披露，不改真实回执以制造独立性。没有独立人工金标准，不输出accuracy；source-review-only案例模型NOT_RUN保留。
+
 日期纠错使用原同源/显式动作/UUID/expectedRevision及签名controller权限。Python发送前验证真实日期、时区、精度与引用shape；Node核对版本在当前事件并与原文quote字面匹配，权限/owner和旧PIT合同不弱化。日期依据文本转义，日志不记录正文。真实PG覆盖worker拒绝、旧版未知、自动保护、撤回解锁和无效引用不落盘。
 
 分页拒绝跨origin、非HTTPS、凭据、fragment、循环、多next和重定向；三页各4MiB、整轮25秒，不复制SDK/Key，不增预算。真实PG测试覆盖后页HTTP失败/水位保留、顺序排空和事务中断回滚。

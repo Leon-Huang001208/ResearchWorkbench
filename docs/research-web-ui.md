@@ -1,5 +1,7 @@
 # Research Web 前端
 
+评价样本及离线复核不新增页面/自动模型动作；现有待判断/待复核及partial覆盖语义保持。空摘要和规则零分不能呈现为事实不重要，3真实不同事件回执不能代表四类关系全已实测。
+
 人工纠错可选“核验发生／生效日期”，填写occurred/effective JSON；两项可为null，每个已知项记录value、precision、timezone和evidence(id/revision/quote)。页面日精度原样显示日期、不随显示时区移日，依据面板说明来源时区和原材料版本。移出依据前先清相应日期；合并保留目标日期，源日期仍在历史。网页/MD/DOCX同一冻结版本带依据；首次DOCX不接受日精度已补回归并真实下载通过。
 
 Hot来源覆盖仍按原raw_pages/coverage/gap投影：同源next有界补抓标partial，范围边界/页数上限/HTTP失败保留缺口。没有分页链接标最新快照；页面读取不触发翻页、模型或研究。新分页切片尚无当前完整镜像或Mac安装CI证据。

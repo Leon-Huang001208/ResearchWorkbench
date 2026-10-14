@@ -1,5 +1,7 @@
 # Research Web Native / Docker 安装与运行
 
+可在完成既有Hot Node依赖安装后运行node services/hot/scripts/evaluate-corpus.ts离线复核；无新增依赖、数据库或凭据要求。该命令不证明完整安装、Docker镜像或真实模型全关系通过。
+
 事件日期可从研究情报人工纠错配置，或用已有rwb hot event-correct CHANGE.json --reason传times变更；引用当前事件材料版本/非空原文摘录，格式day=YYYY-MM-DD、instant=UTC ISO毫秒，timezone为来源IANA时区。occurred/effective两项必给，null表示未知/撤回；无需改源码、依赖或迁移。新镜像/干净Mac安装CI仍需匹配当前候选。
 
 升级来源界面后，Doctor的checks.source_catalog仅核对目录控制列权限，ready不代表模型调用或完整历史覆盖。setup_required时停止Hot并执行原setup更新权限，再启动。来源页可设置默认间隔0或60–86400秒，并显式目录接入；无新依赖/迁移。新静态模块hot-sources.mjs随现有ui包数据安装，当前候选干净Mac安装CI与新镜像仍须取得。

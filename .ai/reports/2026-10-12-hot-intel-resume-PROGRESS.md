@@ -1,5 +1,7 @@
 # Hot / 研究情报接续记录
 
+最新评价切片（父813d17af8）：版本化5真实PG材料/3已计费归组回执及冻结目录/领域规则，2开发/3回顾留出仅主目标发生分离；held AI候选历史包含dev AI Jam，明确输出storedReceiptContextDisjoint=false，不改真实回执。source/完整row/packet/response指纹及跨partition事件/ID/URL/参考URL反例通过，空摘要/零规则分限制保留。4来源核对关系参考模型NOT_RUN，不报独立accuracy。评价2/全TS61/类型、治理111/文档/约束/索引/Git完整性与限定审查通过，三P2关闭；本地切片可提交。原PG generation99暂停，预算18/77375/10464microUSD不变、上限20/100000/USD1不增。下一步优先最新联合恢复、当前整镜像与同原库模式切换、干净安装/MacCI及受管主线集成；困难关系真模型覆盖仍有明确gap，完整Goal INCOMPLETE。旧镜像/五卷/dev全部保留。
+
 最新日期切片：父候选09215bbe9。times人工日期纠错/严格原件引用/精度/时区/回执/PIT保护已实现，撤回日期释放日期专属限制，审查P2已关闭。真实原PG+正常worker+Host/生产UI组件已核对官方反馈函发布日，事件517a…revision2保存纽约2026-09-29日精度、生效未知，旧版仍未知；新宏观brief03ba2707…v1网页/MD2145bytes/DOCX38073bytes真实下载与内容核验通过，热度仍0。首次DOCX旧转换拒绝day，补RED回归和最小修复后通过，错误保留。event-dates-live-pg-receipt记录原generation99暂停，模型预算仍18/77375/10464microUSD，上限20/100000/USD1。PG1/Python67/TS与JS治理208、类型/编译/文档/约束/索引/Git完整性与审查全部通过。完整Goal仍INCOMPLETE：下一步真实评价/留出样本审计，然后最终最新联合恢复/整镜像与模式切换/干净安装和当前MacCI/受管集成交付；不增预算，旧镜像/五卷/dev保留。
 
 最新续跑：abcb5c600之上feed next分页切片本地实现完成；固定同origin HTTPS三页/每页4MiB/整轮25秒，backfillDays有界继续，raw/inbox同owner/claim事务保存、后页失败不前移水位，逐页解析不回退水位/清错误。单位58、真实PG2（含中断回滚）、typecheck、治理111、独立TS审查通过。正常Native四源各两轮实采通过、频率已恢复、generation95暂停；当前四feed全no_next_link，因此只认证latest_snapshot，不冒充真实供应商历史多页覆盖。pagination-live及pagination-live-pg回执；预算仍18/77375/10464microUSD，上限20/100000/USD1。本切片文档/项目门收束后提交；下一步已知事件发生/生效日期与独立评价，最终最新联合恢复/整镜像切换/安装及MacCI/受管交付继续。旧镜像/五卷/dev均保留，Goal INCOMPLETE。

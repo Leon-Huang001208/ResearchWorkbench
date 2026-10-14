@@ -1,5 +1,7 @@
 # DataHub、研究资料与实际文件
 
+services/hot/evaluation/real-corpus-v1.json为可版本化公开样本，保留不可变材料版本/原页/完整材料快照hash和三份模型packet/response hash。不是生产数据备份或秘密载体；外部参考文章未冒充已入PG。2开发/3回顾留出仅主样本分离，真实候选上下文重叠原样保留并在回执列出。
+
 事件快照occurredAt/effectiveAt支持null、YYYY-MM-DD日精度和UTC毫秒时刻，新增可选dateEvidence两项nullable引用与manual.times；仍append-only/schema20，旧snapshot兼容。日期依据为材料id/revision/quote与来源时区，不能用取得时间补空。旧截止/旧简报/研究快照不回填，新冻结版本携带日期依据。
 
 schema20原raw_pages metadata保存runId/pageIndex/url/stop/backfillDays，已有partial/gap枚举记录边界。每轮原件和inbox同事务先于水位；晚页失败仍保留早页但不发布成功水位，已存页解析不清除错误或回退水位。
