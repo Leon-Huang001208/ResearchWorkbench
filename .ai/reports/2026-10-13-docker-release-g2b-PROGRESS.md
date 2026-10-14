@@ -45,11 +45,11 @@ pending 持久化失败不在重启时开放；导入前 archive Config 绑定�
 
 | 项目 | 当前状态 |
 | --- | --- |
-| implementation | IN_PROGRESS |
-| local_release | NOT_RUN |
-| stage_acceptance | NOT_RUN |
-| promotion_rehearsal | NOT_RUN |
-| rollback_rehearsal | NOT_RUN |
+| implementation | 实现与合并后本地闭包已通过；最终 CI 尚待本轮最终提交 |
+| local_release | PASS：r0d/r1/r1a 均真实封存、验证和导入；新集成制品另验 |
+| stage_acceptance | PASS：历史 r0d/r1/r1a；不套用到合并后新制品 |
+| promotion_rehearsal | PASS：r0d → r1a，同 stage image ID，无二次 build |
+| rollback_rehearsal | PASS：r1a → r0d，合成数据与私有模型桥解析保留 |
 | registry_publish | NOT_RUN，缺独立授权与明确认证条件 |
 | registry_digest_pull | NOT_RUN |
 | real_supplier_for_this_artifact | NOT_RUN，本轮不索要 Key、不重复收费生成 |
@@ -59,6 +59,13 @@ pending 持久化失败不在重启时开放；导入前 archive Config 绑定�
 
 所有实际命令的私有 stdout/stderr 位于 ~/.local/share/rwb-docker/logs/g2b/；
 管理日志为 logs/manager.log 与 logs/release.log，只记录稳定分类、不输出秘密。
-下一步冻结首个已验证源码 SHA，完成真实封存与 stage，再实施晋级/回退及失败演练。
+2026-10-14：已完成上述实际晋级、回退、候选失败恢复及维护期间控制器中断。
+中断只 KILL 本任务管理员控制器；旧写者继续且新 POST 收到 503，重复 apply 拒绝
+unfinished_transaction_recovery_required；显式恢复和最终资源收尾仍以 HANDOFF 为准。
+合并后相关 Python 闭包 335 PASS / 3 SKIP，JavaScript 必需闭包 128 PASS，
+Ruff/Black/isort、新增发布/维护的 mypy、完整 changed set 项目约束均通过。
+已合入 G2A ca0249f（含 master 0cf38ff）；新凭据格式源身份不同于历史 r0d/r1a，
+兼容性未知必须拒绝直接切换，不能放宽门或把历史验收冒充新制品验收。
+下一步完成新集成制品 stage、故障拒绝剩余回执、最终 CI 与独立 PR，不合并或更新日常生产。
 release.json、独立接受回执和部署事务分别保持版本身份，不把新证据提交冒称实测镜像源码。
 Windows/Linux 产品 dispatch 与原生验收由对应真机接手；本轮 Mac 不伪造这些 PASS。
