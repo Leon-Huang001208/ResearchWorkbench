@@ -29,6 +29,40 @@ master
 
 一个并行任务对应一个明确 branch，原则上对应一个独立 worktree。合并后仅在确认提交已进入 `master`、worktree 没有未归并修改且没有进程占用时，才移除该 worktree 和失效短期分支。2026-10-07已启用master保护：PR、最新基线和Actions check（app15368）强制通过，管理员也受约束；平台条件门继续由任务回执校验。禁止强推/删除主线及未解决讨论由远端保护执行；各平台条件 CI 与真机证据仍是项目任务合同，不能宣称全部被远端无条件强制。
 
+## RWB Git 安全入口（macOS）
+
+本入口只管理 RWB 的受管 Git 交付，不改变产品运行时。写入操作要求 `--project` 与脚本所在 RWB checkout 共用同一个 Git common directory，不接受其他仓库或 CLI 身份绕过参数。macOS 固定使用系统 `/usr/bin/git`，控制器子进程使用任务私有 PATH 转接；不修改全局框架、系统 PATH 或其他项目。转接禁止对象维护，fetch 不带 `--prune`。`check` 只读，不写日志或修复引用；其余操作在 `logs/git-safety.jsonl` 记录结果、Git 版本、SHA、耗时及备份引用，不记录凭据、环境变量或完整命令输出。
+
+在已有 RWB checkout 中使用以下流程；`--project` 指向任务交付账本所属的主 checkout，不随意切换到其他仓库：
+
+```bash
+node scripts/git_safety.mjs check --project /absolute/RWB
+node scripts/git_safety.mjs configure --project /absolute/RWB
+node scripts/git_safety.mjs delivery --project /absolute/RWB --task-id TASK --start --slug SLUG
+```
+
+`configure` 先保存仓库本地 `gc.auto` 和 `maintenance.auto` 的原值（含原先不存在），再设置为 `0` 和 `false`；配置只留在本机 Git common directory，不进入代码包。回滚仅恢复这两个配置项，并确认它们没有被其他任务改动，禁止整体覆盖旧 `.git/config`。自动维护暂停期间对象库可能增长；本阶段不自动删除备份或执行 GC，后续维护需在停止并发写入、完成备份与完整性检查后另行安排。
+
+实现、提交和本地验收后，仍按完整 changed set 的 Router 结果执行所有必需检查：
+
+```bash
+node scripts/git_safety.mjs delivery --project /absolute/RWB --task-id TASK --prepare
+node scripts/git_safety.mjs delivery --project /absolute/RWB --task-id TASK --publish \
+  --verification-command 'ACTUALLY_EXECUTED_COMMANDS' \
+  --verification-status passed --verification-duration-seconds INTEGER_SECONDS
+node scripts/git_safety.mjs delivery --project /absolute/RWB --task-id TASK --status \
+  --reviewed-commit EXACT_REVIEWED_PR_HEAD_SHA
+node scripts/git_safety.mjs delivery --project /absolute/RWB --task-id TASK --cleanup
+```
+
+发布必须走 PR；检查、评审和分支保护通过后才合并。`--reviewed-commit` 是操作者对独立评审候选的明确声明，必须绑定当前 PR head，不能用旧 SHA 或仅看测试通过代替评审。入口在 common directory 的私有任务记录中持久保存该声明；已被外部合并的 PR 也不能在缺少 matching 声明时认证完成，清理前必须再次核对。仓库未开启 GitHub Auto-merge 时，由入口在后续 `status` 检查中执行普通 Merge；不启用仓库设置、不使用管理员绕过。private／billable 仓库没有当前额度证明时停止远端操作，不能从历史 public 状态推导权限。
+
+`backup` 也可独立创建当前 checkout 的恢复证据；清理时捕获本任务受管 worktree 和调用 checkout，其他任务的工作区文件不被读取或导出，历史失效注册不被删除。备份位于 `~/.codex/backups/rwb-git-safety/`，目录 `0700`、普通文件 `0600`，包含提交 bundle、分开保存的暂存／未暂存二进制补丁、未被忽略的未跟踪文件、快照引用及其对象闭包。在自己的临时仓库中实际恢复并校验对象链、文件哈希；发现备份期间目标变化、缺失对象、明确敏感文件或失败时停止，不能静默省略后继续清理。不读取凭据库或忽略的运行时秘密文件；合法报告名出现 token 不视为凭据文件。
+
+清理前必须确认所有拟处理的分支均已归并、worktree 共用同一 Git 目录且匹配任务账本、工作区干净、没有进程占用，并完成可恢复备份。ignored 文件不会因为 Git status 干净就变成可删除数据：只要拟删除工作区仍有 ignored 路径，入口就拒绝清理，且不读取或导出它们。操作者可将明确由本任务产生的验证日志保留到私有证据目录，其他缓存、数据和秘密必须保留并单独处理。清理后检查对象完整性和其他任务资源保留情况。遇到 Git 锁或仓库级入口锁时停止，不自动删除遗留锁。只允许移除本任务已归并资源，不接受任意 shell 命令，也不提供 GC／prune 接口。
+
+锁仅串行化采用本入口的操作；Codex 内部和人工直接执行的 Git 命令仍可能并发。Ubuntu 临时仓库测试属于通用算法证据，不代表 Linux／Windows 宿主启用已验证。现有隔离备份永久保留至另行授权；原始对象删除者仍未确定。
+
 ## 任务路由（Routing rules）
 
 先按下列优先级路由，而不是只凭任务大小选择。后台/远程是执行通道，worktree 是本地仓库修改隔离；二者可以组合，长时本身不要求 worktree。选择最小但足够的方式，不因任务看似复杂而跳过验证。

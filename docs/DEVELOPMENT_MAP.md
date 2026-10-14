@@ -138,6 +138,7 @@ Docker 控制测试使用临时端口，真实端口冲突断言继续执行，�
 - `scripts/validate_verification_receipt.mjs`：受管共享内核的只读薄入口，receipt v3 分别推导 `hostAcceptance`、完整 `platformHandoffs` 与 `aggregateAcceptance`，同时保留总 `mergeReady`/`releaseReady`。CI 的实际 runner/checkout 和真机平台独立核对，不能用单宿主证据证明所有原生平台；继续只读兼容历史 plan v2/receipt v1、plan v3/receipt v2。
 - `scripts/summarize_verification_delivery.mjs`：只读复核 plan v4 / receipt v3 后输出任务/平台验收及交付 metadata。候选必须一致，未知 metadata 拒绝；metadata 不能改写机械结果，PR/合并/实例及图形身份只是记录，不由摘要认证实际交付。
 - `tests/javascript/verification_policy.test.mjs`、`verification_receipt.test.mjs`、`verification_platform_task_entry.test.mjs`：规划、升级、平台、状态、安全与证据合同；新薄入口 fixture 只证明参数/职责路由，受管内核集成和真实平台证据分别验收。
+- `scripts/git_safety.mjs`、`tests/javascript/git_safety.test.mjs`：RWB macOS 受管 Git 入口、共用目录锁、仓库本地维护配置、可恢复备份与清理保留合同；临时仓库恢复测试不代表其他宿主启用。操作和限制见 `docs/AGENT_WORKFLOW.md`，不修改共享框架安装副本或产品运行时。
 - `tests/javascript/verification_delivery_summary.test.mjs`：正式受管 validator 的交付摘要合同，使用临时 Git 与明确 synthetic 证据；覆盖候选、未知 metadata、路径及旧/未绑定回执拒绝，不证明原生或远端验收。
 - `tests/javascript/repository_cross_platform_contract.test.mjs`：Git 换行、vendor 字节稳定和本机状态忽略合同。
 - `.agents/runtime/leon-engineering/manifest.json`：共享验收内核固定版本、source commit、协议和受管文件哈希；不拥有项目策略。

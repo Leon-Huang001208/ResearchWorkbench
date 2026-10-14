@@ -50,6 +50,8 @@ Research Web Checks 的 Python 部分固定为协议、集成协调、文档服�
 
 验证策略、只读规划器、薄兼容入口及其治理文档属于项目治理变更，只进入 Project Constraints。规划器输出的是待执行计划，不会自行触发 Actions；`full-delivery` 只声明交付强度，实际远端动作仍由受管交付控制器和本页状态门决定。
 
+RWB Git 安全入口的临时仓库测试在现有 Project Constraints 的独立步骤运行，使用该 job 的标准 Ubuntu runner、既有 concurrency 与 10 分钟上限，不新增 workflow 或原生平台 job。它验证 Git 对象恢复、备份与清理算法，不代表 Linux 产品或其他宿主启用。macOS 受管入口在 push、合并及远端分支清理前重新核对当前 visibility 和标准 runner 运行证据；private／billable 状态没有当前额度证明时停止远端动作，不沿用历史 public 结论。当前 RWB 不开启 GitHub Auto-merge，入口在检查及评审满足后执行普通 PR Merge，不修改仓库设置。
+
 Docker 路由的专项例外是 `.agents/verification-policy.json`、`tests/javascript/verification_policy.test.mjs` 及 Docker/额度契约测试：它们仍选择容器验收门，交接给 Linux 真机对 exact SHA 手动发起，防止门禁 ID 与实际工作流脱节。门禁 ID 为 `.github/workflows/research-web-docker.yml#docker-runtime`。普通治理文档、产品文档和 UI 仍不触发 Docker。
 
 Research Web Docker 使用标准 `ubuntu-24.04`，两个矩阵项 `linux/amd64`、`linux/arm64` 串行执行（`max-parallel: 1`），每项最多 60 分钟；仅 arm64 设置 QEMU，Buildx 只加载本机镜像、不推送 registry。按提交与架构唯一标记镜像，构建前验证 Dockerfile 与共享运行时版本锁一致。不从 PR/push 自动触发；Linux 真机完成本机验收后 checkout 待验提交，以 `git rev-parse HEAD` 获取 exact SHA，发起 `workflow_dispatch` 并传入必填 `expected_sha`。checkout HEAD 与 `GITHUB_SHA` 均须等于该 SHA，否则在构建前失败关闭。取消同 ref 的旧运行；两个矩阵项最多使用 120 Linux runner 分钟，不配置外部缓存或扩大 runner。
