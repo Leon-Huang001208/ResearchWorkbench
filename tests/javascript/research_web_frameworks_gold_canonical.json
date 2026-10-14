@@ -1,0 +1,622 @@
+{
+  "framework": {
+    "slug": "gold",
+    "name": "黄金研究框架",
+    "domain": "commodity",
+    "version": "2.0.0",
+    "source_revision": "758ae3848dc32adf2b361fdd070f98cbc75ce496",
+    "question": "黄金当前由哪组实际利率、美元、避险需求与实物资金力量共同定价？",
+    "chain": [
+      "宏观状态",
+      "定价驱动",
+      "供需与资金",
+      "持仓与期权",
+      "情景与配置"
+    ],
+    "counter_evidence": [
+      "实际利率与美元同时转强",
+      "ETF 与央行资金共同转弱",
+      "价格强势但持仓和期权结构不确认"
+    ],
+    "sections": [
+      {
+        "id": "overview",
+        "label": "总览",
+        "question": "当前结论、置信度与下一项验证是什么？"
+      },
+      {
+        "id": "drivers",
+        "label": "定价驱动",
+        "question": "实际利率、美元、通胀与波动各贡献多少？"
+      },
+      {
+        "id": "supply",
+        "label": "供需与资金",
+        "question": "实物需求与资金流是否确认价格？"
+      },
+      {
+        "id": "cycle",
+        "label": "周期与宏观",
+        "question": "当前处于哪类政策和增长通胀组合？"
+      },
+      {
+        "id": "positioning",
+        "label": "持仓与期权",
+        "question": "拥挤度与期权压力是否构成反证？"
+      },
+      {
+        "id": "allocation",
+        "label": "情景与配置",
+        "question": "黄金在不同冲击下提供何种分散化？"
+      },
+      {
+        "id": "evidence",
+        "label": "事件与证据",
+        "question": "哪些证据已确认，哪些数据仍有缺口？"
+      }
+    ],
+    "method": "按基本面35%、资金流30%、交易20%、衍生品15%形成四维贡献；因子使用滚动五年z-score，GVZ仅作尾部风险监控。再按支持、拖累、反证和数据缺口解释状态。任一关键输入缺失、过期或口径冲突时，状态降级为待核验。"
+  },
+  "snapshot": {
+    "schema_version": 2,
+    "revision": "bc9a721a0371417dced27bfd00056bde7e723a81ccb89f5ed178c77bbf9f9cf8",
+    "as_of": "2026-08-30",
+    "fetched_at": "2026-08-30T16:00:00+08:00",
+    "status": "待核验",
+    "coverage": 78,
+    "market_context": {
+      "as_of": "2026-08-30",
+      "fetched_at": "2026-08-30T16:00:00+08:00",
+      "checked_at": null,
+      "failure_code": null,
+      "status": "fixture",
+      "sources": [
+        {
+          "name": "Illustrative gold series",
+          "url": "https://example.invalid/gold-fixture",
+          "observed_at": "2026-08-30",
+          "unit": "USD/oz",
+          "method": "offline fixture",
+          "proxy": false
+        }
+      ],
+      "gaps": [],
+      "price": 2516.4,
+      "change_percent": 0.7,
+      "range_low": 2384.0,
+      "range_high": 2531.0,
+      "series": [
+        {
+          "label": "06/14",
+          "value": 2384.0
+        },
+        {
+          "label": "06/21",
+          "value": 2398.0
+        },
+        {
+          "label": "06/28",
+          "value": 2411.0
+        },
+        {
+          "label": "07/05",
+          "value": 2406.0
+        },
+        {
+          "label": "07/12",
+          "value": 2432.0
+        },
+        {
+          "label": "07/19",
+          "value": 2458.0
+        },
+        {
+          "label": "07/26",
+          "value": 2449.0
+        },
+        {
+          "label": "08/02",
+          "value": 2476.0
+        },
+        {
+          "label": "08/09",
+          "value": 2492.0
+        },
+        {
+          "label": "08/16",
+          "value": 2487.0
+        },
+        {
+          "label": "08/23",
+          "value": 2510.0
+        },
+        {
+          "label": "08/30",
+          "value": 2516.0
+        }
+      ]
+    },
+    "pricing_drivers": {
+      "as_of": "2026-08-30",
+      "fetched_at": "2026-08-30T16:00:00+08:00",
+      "checked_at": null,
+      "failure_code": null,
+      "status": "fixture",
+      "sources": [
+        {
+          "name": "FRED",
+          "url": "https://fred.stlouisfed.org/",
+          "observed_at": "2026-08-30",
+          "unit": "mixed",
+          "method": "offline fixture",
+          "proxy": false
+        }
+      ],
+      "gaps": [],
+      "factors": [
+        {
+          "dimension": "fundamental",
+          "label": "基本面",
+          "value": 0.25,
+          "score": 0.71,
+          "weight": 35,
+          "raw_value": "样例：实际利率 / 美元 / 通胀",
+          "monitor_only": false
+        },
+        {
+          "dimension": "flow",
+          "label": "资金流",
+          "value": 0.12,
+          "score": 0.4,
+          "weight": 30,
+          "raw_value": "样例：ETF / 央行 / CFTC",
+          "monitor_only": false
+        },
+        {
+          "dimension": "trading",
+          "label": "交易",
+          "value": 0.08,
+          "score": 0.4,
+          "weight": 20,
+          "raw_value": "样例：1M / 6M / 200D",
+          "monitor_only": false
+        },
+        {
+          "dimension": "derivatives",
+          "label": "衍生品",
+          "value": -0.03,
+          "score": -0.2,
+          "weight": 15,
+          "raw_value": "样例：基差 / 期权 / 拥挤度",
+          "monitor_only": false
+        }
+      ],
+      "relationships": [
+        {
+          "label": "10Y 实际利率",
+          "value": "1.71%",
+          "direction": "回落",
+          "interpretation": "机会成本边际缓和"
+        },
+        {
+          "label": "美元指数",
+          "value": "102.4",
+          "direction": "震荡",
+          "interpretation": "尚未提供趋势确认"
+        },
+        {
+          "label": "10Y 盈亏平衡通胀",
+          "value": "2.31%",
+          "direction": "抬升",
+          "interpretation": "通胀补偿温和扩张"
+        },
+        {
+          "label": "VIX",
+          "value": "18.6",
+          "direction": "上行",
+          "interpretation": "避险需求有所增加"
+        }
+      ]
+    },
+    "supply_demand": {
+      "as_of": "2026 Q2",
+      "fetched_at": "2026-08-30T16:00:00+08:00",
+      "checked_at": null,
+      "failure_code": null,
+      "status": "fixture",
+      "sources": [
+        {
+          "name": "World Gold Council Goldhub",
+          "url": "https://www.gold.org/goldhub/data",
+          "observed_at": "2026 Q2",
+          "unit": "tonnes",
+          "method": "offline fixture",
+          "proxy": false
+        }
+      ],
+      "gaps": [
+        {
+          "id": "goldhub-q3",
+          "label": "2026 Q3 尚未发布",
+          "severity": "medium",
+          "next_check": "Goldhub 季报发布后更新"
+        }
+      ],
+      "categories": [
+        {
+          "label": "珠宝",
+          "current": 391.0,
+          "previous": 476.0
+        },
+        {
+          "label": "科技",
+          "current": 81.0,
+          "previous": 79.0
+        },
+        {
+          "label": "央行",
+          "current": 244.0,
+          "previous": 229.0
+        },
+        {
+          "label": "投资",
+          "current": 477.0,
+          "previous": 382.0
+        }
+      ],
+      "flows": [
+        {
+          "label": "黄金 ETF 月度净流",
+          "value": "+38 t",
+          "note": "连续第二月转正"
+        },
+        {
+          "label": "央行季度净购金",
+          "value": "244 t",
+          "note": "仍高于五年中位数"
+        },
+        {
+          "label": "期现基差",
+          "value": "+0.34%",
+          "note": "近月结构平稳"
+        }
+      ]
+    },
+    "cycle_macro": {
+      "as_of": "2026-08-30",
+      "fetched_at": "2026-08-30T16:00:00+08:00",
+      "checked_at": null,
+      "failure_code": null,
+      "status": "fixture",
+      "sources": [
+        {
+          "name": "FRED",
+          "url": "https://fred.stlouisfed.org/",
+          "observed_at": "2026-08-30",
+          "unit": "mixed",
+          "method": "offline fixture",
+          "proxy": false
+        }
+      ],
+      "gaps": [],
+      "policy_phase": "通胀后再平衡",
+      "regimes": [
+        {
+          "label": "增长放缓 / 通胀回落",
+          "fit": "较有利",
+          "reason": "实际利率与美元约束可能同步缓和"
+        },
+        {
+          "label": "增长强劲 / 通胀黏性",
+          "fit": "中性",
+          "reason": "名义价格支撑与紧缩约束并存"
+        },
+        {
+          "label": "增长下行 / 通胀抬升",
+          "fit": "有利",
+          "reason": "避险与通胀补偿共同增强"
+        }
+      ]
+    },
+    "options": {
+      "as_of": "2026-08-29",
+      "fetched_at": "2026-08-30T16:00:00+08:00",
+      "checked_at": null,
+      "failure_code": null,
+      "status": "proxy",
+      "sources": [
+        {
+          "name": "GLD options",
+          "url": "https://www.cboe.com/",
+          "observed_at": "2026-08-29",
+          "unit": "contracts",
+          "method": "listed option proxy fixture",
+          "proxy": true
+        }
+      ],
+      "gaps": [
+        {
+          "id": "otc-options",
+          "label": "场外期权敞口不可得",
+          "severity": "medium",
+          "next_check": "继续用 GLD 上市期权作代理并显式标注"
+        }
+      ],
+      "positioning": [
+        {
+          "label": "管理基金净多",
+          "value": "182k",
+          "note": "71% 历史分位"
+        },
+        {
+          "label": "GVZ",
+          "value": "17.8",
+          "note": "一月均值 16.9"
+        },
+        {
+          "label": "看跌 / 看涨",
+          "value": "0.84",
+          "note": "保护需求抬升"
+        }
+      ],
+      "strikes": [
+        {
+          "label": "GLD 220",
+          "value": 18.0,
+          "side": "neutral"
+        },
+        {
+          "label": "GLD 225",
+          "value": 34.0,
+          "side": "support"
+        },
+        {
+          "label": "GLD 230",
+          "value": 49.0,
+          "side": "support"
+        },
+        {
+          "label": "GLD 235",
+          "value": 61.0,
+          "side": "pressure"
+        },
+        {
+          "label": "GLD 240",
+          "value": 43.0,
+          "side": "pressure"
+        }
+      ]
+    },
+    "research_state": {
+      "label": "待核验",
+      "score": 0.42,
+      "confidence": 64,
+      "supports": [
+        "实际利率回落",
+        "ETF 流向改善",
+        "央行需求仍具韧性"
+      ],
+      "drags": [
+        "美元尚未形成趋势性走弱",
+        "期权上方压力集中"
+      ],
+      "next_check": "核验最新央行购金与 CFTC 周度持仓是否同向确认。",
+      "model_weights": {
+        "fundamental": 35,
+        "flow": 30,
+        "trading": 20,
+        "derivatives": 15
+      }
+    },
+    "allocation_context": {
+      "as_of": "2016-01 / 2026-08",
+      "fetched_at": "2026-08-30T16:00:00+08:00",
+      "checked_at": null,
+      "failure_code": null,
+      "status": "fixture",
+      "sources": [
+        {
+          "name": "Illustrative allocation study",
+          "url": "https://example.invalid/allocation-fixture",
+          "observed_at": "2016-01 / 2026-08",
+          "unit": "monthly return",
+          "method": "offline fixture",
+          "proxy": false
+        }
+      ],
+      "gaps": [
+        {
+          "id": "allocation-costs",
+          "label": "未纳入税费与交易约束",
+          "severity": "low",
+          "next_check": "仅作历史背景，不形成仓位建议"
+        }
+      ],
+      "diversification_note": "历史样例中，黄金与美元负相关、与股债相关性较低；关系会随制度切换。",
+      "drawdown_note": "黄金可缓和部分风险资产回撤，但流动性冲击初期也可能同步下跌。",
+      "scenarios": [
+        {
+          "label": "实际利率快速下行",
+          "gold": "+",
+          "equities": "0 / +",
+          "bonds": "+",
+          "note": "黄金与债券可能共同受益"
+        },
+        {
+          "label": "美元流动性收紧",
+          "gold": "-",
+          "equities": "-",
+          "bonds": "0 / +",
+          "note": "先看美元与实际利率谁占主导"
+        },
+        {
+          "label": "滞胀冲击",
+          "gold": "+",
+          "equities": "-",
+          "bonds": "-",
+          "note": "分散化价值通常更突出"
+        }
+      ],
+      "correlations": [
+        {
+          "row": "黄金",
+          "column": "黄金",
+          "value": 1.0
+        },
+        {
+          "row": "黄金",
+          "column": "美元",
+          "value": -0.42
+        },
+        {
+          "row": "黄金",
+          "column": "美股",
+          "value": 0.08
+        },
+        {
+          "row": "黄金",
+          "column": "美债",
+          "value": 0.19
+        },
+        {
+          "row": "美元",
+          "column": "黄金",
+          "value": -0.42
+        },
+        {
+          "row": "美元",
+          "column": "美元",
+          "value": 1.0
+        },
+        {
+          "row": "美元",
+          "column": "美股",
+          "value": -0.18
+        },
+        {
+          "row": "美元",
+          "column": "美债",
+          "value": 0.11
+        },
+        {
+          "row": "美股",
+          "column": "黄金",
+          "value": 0.08
+        },
+        {
+          "row": "美股",
+          "column": "美元",
+          "value": -0.18
+        },
+        {
+          "row": "美股",
+          "column": "美股",
+          "value": 1.0
+        },
+        {
+          "row": "美股",
+          "column": "美债",
+          "value": -0.06
+        },
+        {
+          "row": "美债",
+          "column": "黄金",
+          "value": 0.19
+        },
+        {
+          "row": "美债",
+          "column": "美元",
+          "value": 0.11
+        },
+        {
+          "row": "美债",
+          "column": "美股",
+          "value": -0.06
+        },
+        {
+          "row": "美债",
+          "column": "美债",
+          "value": 1.0
+        }
+      ]
+    },
+    "events": [
+      {
+        "date": "09/06",
+        "type": "宏观",
+        "title": "美国非农与失业率",
+        "impact": "验证增长降温是否延续",
+        "status": "待发生"
+      },
+      {
+        "date": "09/12",
+        "type": "通胀",
+        "title": "美国 CPI",
+        "impact": "更新实际利率与通胀补偿链",
+        "status": "待发生"
+      },
+      {
+        "date": "09/18",
+        "type": "政策",
+        "title": "FOMC 决议",
+        "impact": "更新 Fed 周期判断",
+        "status": "待发生"
+      },
+      {
+        "date": "周五",
+        "type": "持仓",
+        "title": "CFTC 周报",
+        "impact": "检查价格与净多是否背离",
+        "status": "周期性"
+      }
+    ],
+    "evidence": [
+      {
+        "date": "2026-08-30",
+        "source": "FRED",
+        "observation": "实际利率较月内高点回落",
+        "use": "支撑定价驱动",
+        "quality": "直接指标",
+        "url": "https://fred.stlouisfed.org/"
+      },
+      {
+        "date": "2026-08-29",
+        "source": "CFTC",
+        "observation": "管理基金净多位于偏高分位",
+        "use": "提示拥挤风险",
+        "quality": "周频",
+        "url": "https://www.cftc.gov/MarketReports/CommitmentsofTraders/index.htm"
+      },
+      {
+        "date": "2026 Q2",
+        "source": "Goldhub",
+        "observation": "投资需求改善、央行需求保持韧性",
+        "use": "支撑资金与实物需求",
+        "quality": "季度",
+        "url": "https://www.gold.org/goldhub/data"
+      },
+      {
+        "date": "2026-08-29",
+        "source": "GLD 期权",
+        "observation": "上方执行价未平仓量集中",
+        "use": "提示短期压力区",
+        "quality": "代理指标",
+        "url": "https://www.cboe.com/"
+      }
+    ],
+    "gaps": [
+      {
+        "id": "central-bank-monthly",
+        "label": "央行购金月度序列待更新",
+        "severity": "high",
+        "next_check": "核验 Goldhub 最新月度数据"
+      },
+      {
+        "id": "otc-options",
+        "label": "场外期权敞口不可得，使用 GLD 期权代理",
+        "severity": "medium",
+        "next_check": "保持代理标签并交叉验证 CFTC"
+      }
+    ]
+  }
+}

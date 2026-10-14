@@ -28,6 +28,8 @@ class NativeFixture:
 
     async def rpc(self, method, payload):
         self.calls.append((method, payload))
+        if method == "credentials.describe":
+            return {"credentials": {ref: {"configured": True} for ref in payload["refs"]}}
         if method == "host.describe":
             return {"version": "fixture", "model": "fixture", "provider": "fixture"}
         if method == "credentials.describe":
@@ -99,7 +101,19 @@ def test_catalog_and_framework_data_use_versioned_specific_contracts(framework_a
     client, _, _ = framework_api
     catalog = client.get("/api/research/frameworks")
     assert catalog.status_code == 200
-    assert [item["slug"] for item in catalog.json()["items"]] == ["gold", "dollar"]
+    assert [item["slug"] for item in catalog.json()["items"]] == [
+        "gold",
+        "dollar",
+        "ai-economy",
+        "bond-framework",
+        "elnino",
+        "fund-track-selection",
+        "memory-chips-60",
+        "inference-chips-42",
+        "model-hardware-chain",
+        "gold-cycle",
+        "ainvest",
+    ]
 
     response = client.get("/api/research/frameworks/gold/data")
     assert response.status_code == 200
@@ -298,3 +312,81 @@ async def test_framework_runtime_start_and_close_are_idempotent(tmp_path, monkey
     await service.frameworks.close()
     await service.frameworks.close()
     assert service.frameworks._started is False
+
+
+def test_static_embeds_are_dated_and_cannot_create_bot(framework_api):
+    client, native, _ = framework_api
+    payload = client.get("/api/research/frameworks/ainvest/data").json()
+    assert payload["framework"]["display"] == {
+        "kind": "static-embed",
+        "url": "/frameworks-embed/ainvest/",
+        "imported_at": "2026-10-14",
+        "bot_enabled": False,
+    }
+    assert payload["snapshot"]["coverage"] == 0
+    assert payload["snapshot"]["as_of"] == "2026-10-14"
+    before = len(native.calls)
+    response = client.post(
+        "/api/research/frameworks/ainvest/sessions",
+        json={"snapshot_revision": payload["snapshot"]["revision"]},
+    )
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "framework_bot_unavailable"
+    assert len(native.calls) == before
+
+
+def test_native_display_retains_snapshot_and_collector_identity(framework_api):
+    client, _, service = framework_api
+    for slug, model in (("gold", GoldSnapshotStore), ("dollar", DollarSnapshotStore)):
+        runtime = service.frameworks.registry.get(slug)
+        assert isinstance(runtime.store, model)
+        before = runtime.snapshot().model_dump(mode="json")
+        payload = client.get(f"/api/research/frameworks/{slug}/data").json()
+        assert payload["snapshot"] == before
+        assert payload["framework"]["display"]["kind"] == "native-embed"
+        assert payload["framework"]["display"]["bot_enabled"] is True
+    assert service.frameworks.scheduler.gold.store is service.frameworks.registry.get("gold").store
+    assert (
+        service.frameworks.scheduler.dollar.store is service.frameworks.registry.get("dollar").store
+    )
+
+
+def test_embed_resources_are_same_origin_and_host_csp_is_unchanged(framework_api):
+    client, _, _ = framework_api
+    for slug in (
+        "gold",
+        "dollar",
+        "ainvest",
+        "elnino",
+        "ai-economy",
+        "bond-framework",
+        "fund-track-selection",
+        "gold-cycle",
+        "inference-chips-42",
+        "memory-chips-60",
+        "model-hardware-chain",
+    ):
+        response = client.get(f"/frameworks-embed/{slug}/")
+        assert response.status_code == 200
+        assert "frame-ancestors 'self'" in response.headers["content-security-policy"]
+        assert "https://" not in response.headers["content-security-policy"]
+    host_csp = client.get("/").headers["content-security-policy"]
+    assert "frame-ancestors 'none'" in host_csp
+    assert "script-src 'self';" in host_csp
+
+
+def test_framework_verify_retains_real_data_admission_gate(framework_api):
+    client, native, _ = framework_api
+    revision = client.get("/api/research/frameworks/gold/data").json()["snapshot"]["revision"]
+    sid = client.post(
+        "/api/research/frameworks/gold/sessions", json={"snapshot_revision": revision}
+    ).json()["session"]["id"]
+    before = len([call for call in native.calls if call[0] == "session.prompt"])
+    response = client.post(
+        f"/api/research/frameworks/gold/sessions/{sid}/verify",
+        headers={"Idempotency-Key": "framework-unavailable-1"},
+        json={"expected_snapshot_revision": revision, "question": "核验数据缺口"},
+    )
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "capability_data_unavailable"
+    assert len([call for call in native.calls if call[0] == "session.prompt"]) == before

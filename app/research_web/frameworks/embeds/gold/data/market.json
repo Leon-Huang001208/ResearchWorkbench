@@ -1,0 +1,1107 @@
+{
+  "updatedAt": "2026-10-14 09:52:45",
+  "spot": [
+    {
+      "name": "伦敦金现 XAU/USD",
+      "price": 4156.25,
+      "chg": -0.11,
+      "unit": "$/oz"
+    },
+    {
+      "name": "上海金 AU9999",
+      "price": 896.8,
+      "chg": -0.85,
+      "unit": "¥/g"
+    },
+    {
+      "name": "苏黎世金现",
+      "price": 4043.2,
+      "chg": -0.12,
+      "unit": "$/oz"
+    },
+    {
+      "name": "迪拜金现",
+      "price": 4045.8,
+      "chg": -0.08,
+      "unit": "$/oz"
+    },
+    {
+      "name": "香港金 999.9",
+      "price": 37694.87,
+      "chg": 0.16,
+      "unit": "港元/两"
+    },
+    {
+      "name": "台湾黄金",
+      "price": 158122,
+      "chg": 0.37,
+      "unit": "新台币/两"
+    },
+    {
+      "name": "现货白银 XAG/USD",
+      "price": 59.245,
+      "chg": -0.47,
+      "unit": "$/oz"
+    },
+    {
+      "name": "现货铂金 XPT/USD",
+      "price": 1610,
+      "chg": 0.68,
+      "unit": "$/oz"
+    },
+    {
+      "name": "现货钯金 XPD/USD",
+      "price": 1248.5,
+      "chg": -0.54,
+      "unit": "$/oz"
+    }
+  ],
+  "futures": [
+    {
+      "name": "COMEX黄金主力",
+      "price": 4179.632,
+      "chg": 0.06,
+      "unit": "$/oz"
+    },
+    {
+      "name": "上期所沪金主力(AU2612)",
+      "price": 898.9,
+      "chg": -0.6,
+      "unit": "¥/g"
+    },
+    {
+      "name": "东京TOCOM黄金",
+      "price": 20150,
+      "chg": -0.1,
+      "unit": "¥/g(JPY)"
+    },
+    {
+      "name": "上金所Au(T+D)",
+      "price": 896.76,
+      "chg": -0.83,
+      "unit": "¥/g"
+    },
+    {
+      "name": "MCX印度黄金期货",
+      "price": 120800,
+      "chg": -0.05,
+      "unit": "卢比/10g"
+    },
+    {
+      "name": "CME电子盘迷你黄金",
+      "price": 4044.5,
+      "chg": -0.05,
+      "unit": "$/oz"
+    }
+  ],
+  "volatility": [
+    {
+      "name": "GVZ 黄金波动率指数",
+      "value": 22.48,
+      "chg": -1.36
+    },
+    {
+      "name": "COMEX期权隐含波动率(30D，估算)",
+      "value": 23.9,
+      "chg": 3.8
+    },
+    {
+      "name": "沪金AU期货30日历史波动率",
+      "value": 18.2,
+      "chg": 1.4
+    },
+    {
+      "name": "黄金现货30日历史波动率",
+      "value": 19.6,
+      "chg": 1.1
+    },
+    {
+      "name": "VIX 恐慌指数(参考)",
+      "value": 18.7,
+      "chg": 0
+    },
+    {
+      "name": "美元指数20日波动率(参考)",
+      "value": 6.8,
+      "chg": 0.3
+    }
+  ],
+  "stocks": {
+    "domestic": [
+      {
+        "code": "600547",
+        "name": "山东黄金",
+        "price": 26.5,
+        "chg": -1.82,
+        "pe": 32.1
+      },
+      {
+        "code": "601899",
+        "name": "紫金矿业",
+        "price": 30.15,
+        "chg": -0.82,
+        "pe": 15.6
+      },
+      {
+        "code": "600988",
+        "name": "赤峰黄金",
+        "price": 39.65,
+        "chg": -0.9,
+        "pe": 28.9
+      },
+      {
+        "code": "600489",
+        "name": "中金黄金",
+        "price": 22.07,
+        "chg": -1.12,
+        "pe": 24.3
+      },
+      {
+        "code": "002155",
+        "name": "湖南黄金",
+        "price": 22.44,
+        "chg": -2.14,
+        "pe": 26.5
+      },
+      {
+        "code": "601069",
+        "name": "西部黄金",
+        "price": 25.07,
+        "chg": -3.28,
+        "pe": 41.3
+      },
+      {
+        "code": "000975",
+        "name": "山金国际",
+        "price": 23.59,
+        "chg": -0.88,
+        "pe": 19.8
+      },
+      {
+        "code": "002237",
+        "name": "恒邦股份",
+        "price": 12.2,
+        "chg": -1.05,
+        "pe": 22.1
+      },
+      {
+        "code": "001337",
+        "name": "四川黄金",
+        "price": 44.57,
+        "chg": -1.42,
+        "pe": 29.7
+      },
+      {
+        "code": "601020",
+        "name": "华钰矿业",
+        "price": 18.21,
+        "chg": -1.35,
+        "pe": 33.2
+      },
+      {
+        "code": "000603",
+        "name": "盛达资源",
+        "price": 28.94,
+        "chg": -2.16,
+        "pe": 27.4
+      }
+    ],
+    "international": [
+      {
+        "code": "NEM",
+        "name": "Newmont",
+        "price": 115.63,
+        "chg": 0.04,
+        "pe": 18.4
+      },
+      {
+        "code": "GOLD",
+        "name": "Barrick Gold",
+        "price": 40.1,
+        "chg": -0.1,
+        "pe": 16.2
+      },
+      {
+        "code": "AEM",
+        "name": "Agnico Eagle",
+        "price": 184.88,
+        "chg": -0.73,
+        "pe": 22.7
+      },
+      {
+        "code": "AU",
+        "name": "AngloGold Ashanti",
+        "price": 91.65,
+        "chg": 0,
+        "pe": 14.8
+      },
+      {
+        "code": "FNV",
+        "name": "Franco-Nevada",
+        "price": 243.85,
+        "chg": 0,
+        "pe": 38.9
+      },
+      {
+        "code": "WPM",
+        "name": "Wheaton Precious Metals",
+        "price": 135.0394,
+        "chg": -0.99,
+        "pe": 44.2
+      },
+      {
+        "code": "KGC",
+        "name": "Kinross Gold",
+        "price": 23.397,
+        "chg": -0.04,
+        "pe": 13.6
+      },
+      {
+        "code": "GFI",
+        "name": "Gold Fields",
+        "price": 36.64,
+        "chg": 0.3,
+        "pe": 12.9
+      },
+      {
+        "code": "RGLD",
+        "name": "Royal Gold",
+        "price": 230.05,
+        "chg": -3.47,
+        "pe": 33.1
+      },
+      {
+        "code": "HMY",
+        "name": "Harmony Gold",
+        "price": 16.75,
+        "chg": 0.04,
+        "pe": 11.5
+      }
+    ]
+  },
+  "macro": {
+    "dxy": {
+      "value": 102.155,
+      "chg": -0.02
+    },
+    "yields": {
+      "y5": {
+        "value": 5.007,
+        "chg": -0.24
+      },
+      "y10": {
+        "value": 5.217,
+        "chg": -0.44
+      },
+      "y10Real": {
+        "value": 2.02,
+        "chg": -0.05
+      },
+      "y30": {
+        "value": 5.563,
+        "chg": -0.63
+      }
+    },
+    "inflation": {
+      "cpi": {
+        "value": 3.4,
+        "period": "8月",
+        "basis": "同比"
+      },
+      "pce": {
+        "value": 3.4,
+        "period": "8月",
+        "monthKey": "2026-08",
+        "basis": "同比"
+      }
+    },
+    "etf": {
+      "northAmerica": {
+        "value": 2.1,
+        "unit": "亿美元",
+        "period": "北美·本周"
+      },
+      "europe": {
+        "value": 0.8,
+        "unit": "亿美元",
+        "period": "欧洲·本周"
+      },
+      "asia": {
+        "value": 0.3,
+        "unit": "亿美元",
+        "period": "亚洲·本周"
+      },
+      "totalHoldings": {
+        "value": 3120,
+        "unit": "吨",
+        "chg": 0.4
+      }
+    },
+    "cbPurchase": {
+      "month": {
+        "value": 32,
+        "unit": "吨",
+        "period": "本月"
+      },
+      "ytd": {
+        "value": 268,
+        "unit": "吨",
+        "period": "年内累计"
+      }
+    }
+  },
+  "funds": {
+    "domestic": [
+      {
+        "code": "518880",
+        "name": "黄金ETF华安",
+        "price": 8.525,
+        "chg": -0.86
+      },
+      {
+        "code": "518800",
+        "name": "黄金ETF国泰",
+        "price": 8.937,
+        "chg": -0.85
+      },
+      {
+        "code": "159937",
+        "name": "黄金ETF博时",
+        "price": 8.51,
+        "chg": -0.86
+      },
+      {
+        "code": "518660",
+        "name": "黄金ETF工银",
+        "price": 8.558,
+        "chg": -0.85
+      },
+      {
+        "code": "518850",
+        "name": "黄金ETF华夏",
+        "price": 8.618,
+        "chg": -0.86
+      },
+      {
+        "code": "159812",
+        "name": "黄金ETF前海开源",
+        "price": 8.49,
+        "chg": -0.84
+      },
+      {
+        "code": "518860",
+        "name": "上海金ETF建信",
+        "price": 8.54,
+        "chg": -0.84
+      },
+      {
+        "code": "518890",
+        "name": "上海金ETF中银",
+        "price": 8.539,
+        "chg": -0.85
+      }
+    ],
+    "domesticGoldStock": [
+      {
+        "code": "159315",
+        "name": "黄金股ETF工银",
+        "price": 1.52,
+        "chg": -1.43
+      },
+      {
+        "code": "159321",
+        "name": "黄金股ETF华安",
+        "price": 1.42,
+        "chg": -1.32
+      },
+      {
+        "code": "159322",
+        "name": "黄金股ETF平安",
+        "price": 1.49,
+        "chg": -1.2
+      },
+      {
+        "code": "159562",
+        "name": "黄金股ETF华夏",
+        "price": 2.02,
+        "chg": -1.32
+      },
+      {
+        "code": "517400",
+        "name": "黄金股ETF国泰",
+        "price": 1.461,
+        "chg": -1.15
+      },
+      {
+        "code": "517520",
+        "name": "黄金股ETF永赢",
+        "price": 1.848,
+        "chg": -1.44
+      }
+    ],
+    "feedersNote": "按背后ETF规模降序排列；阶段收益率取自天天基金历史净值计算；每日21:30更新，最新净值 2026-10-13，ETF规模 2026-06-30",
+    "feeders": [
+      {
+        "code": "022653",
+        "name": "华安黄金ETF联接I",
+        "category": "黄金ETF联接",
+        "returns": {
+          "d1": 0.12,
+          "w1": -0.33,
+          "m1": -3.82,
+          "m3": 1.78,
+          "m6": -13.56,
+          "ytd": -7.76,
+          "y1": -2.96
+        },
+        "underlyingEtfCode": "518880",
+        "underlyingEtfName": "华安黄金ETF",
+        "underlyingEtfScale": 862.08,
+        "underlyingEtfScaleDate": "2026-06-30"
+      },
+      {
+        "code": "000217",
+        "name": "华安黄金ETF联接C",
+        "category": "黄金ETF联接",
+        "returns": {
+          "d1": 0.12,
+          "w1": -0.35,
+          "m1": -3.85,
+          "m3": 1.69,
+          "m6": -13.71,
+          "ytd": -8.01,
+          "y1": -3.29
+        },
+        "underlyingEtfCode": "518880",
+        "underlyingEtfName": "华安黄金ETF",
+        "underlyingEtfScale": 862.08,
+        "underlyingEtfScaleDate": "2026-06-30"
+      },
+      {
+        "code": "002611",
+        "name": "博时黄金ETF联接C",
+        "category": "黄金ETF联接",
+        "returns": {
+          "d1": 0.11,
+          "w1": -0.35,
+          "m1": -3.78,
+          "m3": 1.75,
+          "m6": -13.55,
+          "ytd": -7.83,
+          "y1": -3.39
+        },
+        "underlyingEtfCode": "159937",
+        "underlyingEtfName": "博时黄金ETF",
+        "underlyingEtfScale": 397.03,
+        "underlyingEtfScaleDate": "2026-06-30"
+      },
+      {
+        "code": "002963",
+        "name": "易方达黄金ETF联接C",
+        "category": "黄金ETF联接",
+        "returns": {
+          "d1": 0.12,
+          "w1": -0.35,
+          "m1": -3.85,
+          "m3": 1.71,
+          "m6": -13.71,
+          "ytd": -7.85,
+          "y1": -3.32
+        },
+        "underlyingEtfCode": "159934",
+        "underlyingEtfName": "易方达黄金ETF",
+        "underlyingEtfScale": 330.95,
+        "underlyingEtfScaleDate": "2026-06-30"
+      },
+      {
+        "code": "004253",
+        "name": "国泰黄金ETF联接C",
+        "category": "黄金ETF联接",
+        "returns": {
+          "d1": 0.13,
+          "w1": -0.34,
+          "m1": -3.85,
+          "m3": 1.71,
+          "m6": -13.72,
+          "ytd": -7.68,
+          "y1": -3.16
+        },
+        "underlyingEtfCode": "518800",
+        "underlyingEtfName": "国泰黄金ETF",
+        "underlyingEtfScale": 317.35,
+        "underlyingEtfScaleDate": "2026-06-30"
+      },
+      {
+        "code": "008702",
+        "name": "华夏黄金ETF联接C",
+        "category": "黄金ETF联接",
+        "returns": {
+          "d1": 0.1,
+          "w1": -0.33,
+          "m1": -3.81,
+          "m3": 1.79,
+          "m6": -13.53,
+          "ytd": -7.87,
+          "y1": -2.98
+        },
+        "underlyingEtfCode": "518850",
+        "underlyingEtfName": "华夏黄金ETF",
+        "underlyingEtfScale": 144.11,
+        "underlyingEtfScaleDate": "2026-06-30"
+      },
+      {
+        "code": "008987",
+        "name": "广发上海金ETF联接C",
+        "category": "上海金ETF联接",
+        "returns": {
+          "d1": 0.08,
+          "w1": -0.39,
+          "m1": -4.13,
+          "m3": 1.68,
+          "m6": -13.9,
+          "ytd": -7.97,
+          "y1": -3.15
+        },
+        "underlyingEtfCode": "518600",
+        "underlyingEtfName": "广发上海金ETF",
+        "underlyingEtfScale": 78.89,
+        "underlyingEtfScaleDate": "2026-06-30"
+      },
+      {
+        "code": "020412",
+        "name": "永赢黄金产业股票ETF联接C",
+        "category": "黄金股ETF联接",
+        "returns": {
+          "d1": 1.1,
+          "w1": 0,
+          "m1": -11.19,
+          "m3": 11.76,
+          "m6": -18.02,
+          "ytd": -10.8,
+          "y1": -14.97
+        },
+        "underlyingEtfCode": "517520",
+        "underlyingEtfName": "永赢黄金股ETF",
+        "underlyingEtfScale": 74.93,
+        "underlyingEtfScaleDate": "2026-06-30"
+      },
+      {
+        "code": "009505",
+        "name": "富国上海金ETF联接C",
+        "category": "上海金ETF联接",
+        "returns": {
+          "d1": 0.09,
+          "w1": -0.37,
+          "m1": -3.89,
+          "m3": 2.09,
+          "m6": -13.36,
+          "ytd": -7.11,
+          "y1": -2.43
+        },
+        "underlyingEtfCode": "518680",
+        "underlyingEtfName": "富国上海金ETF",
+        "underlyingEtfScale": 67.96,
+        "underlyingEtfScaleDate": "2026-06-30"
+      },
+      {
+        "code": "009034",
+        "name": "建信上海金ETF联接C",
+        "category": "上海金ETF联接",
+        "returns": {
+          "d1": 0.08,
+          "w1": -0.4,
+          "m1": -3.98,
+          "m3": 1.78,
+          "m6": -13.66,
+          "ytd": -7.61,
+          "y1": -2.9
+        },
+        "underlyingEtfCode": "518860",
+        "underlyingEtfName": "建信上海金ETF",
+        "underlyingEtfScale": 40.07,
+        "underlyingEtfScaleDate": "2026-06-30"
+      },
+      {
+        "code": "021075",
+        "name": "华夏黄金产业股票ETF联接C",
+        "category": "黄金股ETF联接",
+        "returns": {
+          "d1": 1.11,
+          "w1": 0.02,
+          "m1": -10.96,
+          "m3": 12.18,
+          "m6": -17.27,
+          "ytd": -10.51,
+          "y1": -14.58
+        },
+        "underlyingEtfCode": "159562",
+        "underlyingEtfName": "华夏黄金股ETF",
+        "underlyingEtfScale": 37.69,
+        "underlyingEtfScaleDate": "2026-06-30"
+      },
+      {
+        "code": "009478",
+        "name": "中银上海金ETF联接C",
+        "category": "上海金ETF联接",
+        "returns": {
+          "d1": 0.13,
+          "w1": -0.37,
+          "m1": -3.73,
+          "m3": 1.9,
+          "m6": -12.9,
+          "ytd": -7.43,
+          "y1": -2.85
+        },
+        "underlyingEtfCode": "518890",
+        "underlyingEtfName": "中银上海金ETF",
+        "underlyingEtfScale": 33.56,
+        "underlyingEtfScaleDate": "2026-06-30"
+      },
+      {
+        "code": "014662",
+        "name": "天弘黄金ETF联接C",
+        "category": "黄金ETF联接",
+        "returns": {
+          "d1": 0.09,
+          "w1": -0.39,
+          "m1": -3.94,
+          "m3": 1.93,
+          "m6": -13.55,
+          "ytd": -7.53,
+          "y1": -2.74
+        },
+        "underlyingEtfCode": "159830",
+        "underlyingEtfName": "天弘上海金ETF",
+        "underlyingEtfScale": 32.64,
+        "underlyingEtfScaleDate": "2026-06-30"
+      },
+      {
+        "code": "016582",
+        "name": "嘉实上海金ETF发起联接C",
+        "category": "上海金ETF联接",
+        "returns": {
+          "d1": 0.09,
+          "w1": -0.43,
+          "m1": -3.95,
+          "m3": 1.8,
+          "m6": -13.66,
+          "ytd": -8.28,
+          "y1": -4.01
+        },
+        "underlyingEtfCode": "159831",
+        "underlyingEtfName": "嘉实上海金ETF",
+        "underlyingEtfScale": 17.43,
+        "underlyingEtfScaleDate": "2026-06-30"
+      },
+      {
+        "code": "018392",
+        "name": "南方上海金ETF联接C",
+        "category": "上海金ETF联接",
+        "returns": {
+          "d1": 0.13,
+          "w1": -0.38,
+          "m1": -3.86,
+          "m3": 1.9,
+          "m6": -13.02,
+          "ytd": -7.16,
+          "y1": -2.72
+        },
+        "underlyingEtfCode": "159834",
+        "underlyingEtfName": "南方上海金ETF",
+        "underlyingEtfScale": 16.68,
+        "underlyingEtfScaleDate": "2026-06-30"
+      },
+      {
+        "code": "021674",
+        "name": "国泰黄金产业股票ETF联接C",
+        "category": "黄金股ETF联接",
+        "returns": {
+          "d1": 1.12,
+          "w1": 0.04,
+          "m1": -10.78,
+          "m3": 12.64,
+          "m6": -16.89,
+          "ytd": -7.73,
+          "y1": -11.91
+        },
+        "underlyingEtfCode": "517400",
+        "underlyingEtfName": "国泰黄金股ETF",
+        "underlyingEtfScale": 9.64,
+        "underlyingEtfScaleDate": "2026-06-30"
+      },
+      {
+        "code": "021959",
+        "name": "南方黄金股C",
+        "category": "黄金股场外指数",
+        "returns": {
+          "d1": 1.15,
+          "w1": 0.05,
+          "m1": -10.91,
+          "m3": 12.79,
+          "m6": -17,
+          "ytd": -7.93,
+          "y1": -11.86
+        }
+      },
+      {
+        "code": "021874",
+        "name": "中欧黄金股指数C",
+        "category": "黄金股场外指数",
+        "returns": {
+          "d1": 1.09,
+          "w1": 0.04,
+          "m1": -10.95,
+          "m3": 12.55,
+          "m6": -16.99,
+          "ytd": -6.33,
+          "y1": -10.64
+        }
+      }
+    ],
+    "international": [
+      {
+        "code": "GLD",
+        "name": "SPDR Gold Shares",
+        "price": 380.8077,
+        "chg": -0.86,
+        "unit": "$"
+      },
+      {
+        "code": "IAU",
+        "name": "iShares Gold Trust",
+        "price": 78.19,
+        "chg": -0.06,
+        "unit": "$"
+      },
+      {
+        "code": "SGOL",
+        "name": "abrdn Physical Gold",
+        "price": 39.52,
+        "chg": -0.11,
+        "unit": "$"
+      },
+      {
+        "code": "AAAU",
+        "name": "Goldman Sachs Physical Gold",
+        "price": 40.97,
+        "chg": -0.05,
+        "unit": "$"
+      },
+      {
+        "code": "BAR",
+        "name": "GraniteShares Gold Trust",
+        "price": 40.95,
+        "chg": 0,
+        "unit": "$"
+      },
+      {
+        "code": "SGLN.L",
+        "name": "iShares Physical Gold ETC",
+        "price": 6094,
+        "chg": -0.36,
+        "unit": "GBp"
+      },
+      {
+        "code": "4GLD.DE",
+        "name": "Xetra-Gold",
+        "price": 119.58,
+        "chg": -0.37,
+        "unit": "€"
+      },
+      {
+        "code": "PHAU.L",
+        "name": "WisdomTree Physical Gold",
+        "price": 385.66,
+        "chg": -0.11,
+        "unit": "$"
+      },
+      {
+        "code": "ZGLD.SW",
+        "name": "ZKB Gold ETF",
+        "price": 1025.8,
+        "chg": -0.29,
+        "unit": "CHF"
+      }
+    ]
+  },
+  "retail": {
+    "note": "银行金条/金商金条/金币报价截至 2026-07-24，数据参考金投网；纸黄金见「纸黄金」板块",
+    "bank": [
+      {
+        "name": "建设银行 · 龙鼎金条",
+        "price": 899.4,
+        "unit": "¥/g",
+        "chg": -2.16
+      },
+      {
+        "name": "工商银行 · 如意金条",
+        "price": 902.31,
+        "unit": "¥/g",
+        "chg": -1.93
+      },
+      {
+        "name": "农业银行 · 传世之宝金条",
+        "price": 900.41,
+        "unit": "¥/g",
+        "chg": -2.28
+      },
+      {
+        "name": "平安银行 · 和谐平安金条",
+        "price": 898.4,
+        "unit": "¥/g",
+        "chg": -2.2
+      },
+      {
+        "name": "浦发银行 · 投资金条",
+        "price": 907,
+        "unit": "¥/g",
+        "chg": -2.58
+      },
+      {
+        "name": "上海黄金交易所 · 金条",
+        "price": 881.06,
+        "unit": "¥/g",
+        "chg": -2.25
+      },
+      {
+        "name": "中国黄金 · 投资金条",
+        "price": 898.6,
+        "unit": "¥/g",
+        "chg": -1.9
+      }
+    ],
+    "jewelry": [
+      {
+        "name": "周大福",
+        "price": 1080,
+        "unit": "¥/g",
+        "chg": -2
+      },
+      {
+        "name": "周六福",
+        "price": 1075,
+        "unit": "¥/g",
+        "chg": -1.9
+      },
+      {
+        "name": "周生生",
+        "price": 1077,
+        "unit": "¥/g",
+        "chg": -2.1
+      },
+      {
+        "name": "六福",
+        "price": 1078,
+        "unit": "¥/g",
+        "chg": -2
+      },
+      {
+        "name": "菜百",
+        "price": 1055,
+        "unit": "¥/g",
+        "chg": -1.7
+      },
+      {
+        "name": "老庙",
+        "price": 1056,
+        "unit": "¥/g",
+        "chg": -1.8
+      },
+      {
+        "name": "高赛尔",
+        "price": 892,
+        "unit": "¥/g",
+        "chg": -1.5
+      },
+      {
+        "name": "百泰",
+        "price": 1065,
+        "unit": "¥/g",
+        "chg": -1.9
+      }
+    ]
+  },
+  "earnings": [
+    {
+      "name": "紫金矿业",
+      "date": "2026-08-15",
+      "period": "2026Q2",
+      "status": "待披露",
+      "revenueExp": "820亿元",
+      "profitExp": "68亿元"
+    },
+    {
+      "name": "山东黄金",
+      "date": "2026-08-20",
+      "period": "2026Q2",
+      "status": "待披露",
+      "revenueExp": "165亿元",
+      "profitExp": "9.2亿元"
+    },
+    {
+      "name": "Newmont",
+      "date": "2026-07-24",
+      "period": "2026Q2",
+      "status": "超预期",
+      "revenue": "58.3亿美元",
+      "revenueYoY": 12.4,
+      "profit": "9.8亿美元",
+      "profitYoY": 21.6
+    },
+    {
+      "name": "Barrick Gold",
+      "date": "2026-07-22",
+      "period": "2026Q2",
+      "status": "符合预期",
+      "revenue": "31.6亿美元",
+      "revenueYoY": 6.1,
+      "profit": "4.2亿美元",
+      "profitYoY": 5.8
+    },
+    {
+      "name": "赤峰黄金",
+      "date": "2026-07-18",
+      "period": "2026Q2",
+      "status": "超预期",
+      "revenue": "42.7亿元",
+      "revenueYoY": 18.9,
+      "profit": "6.5亿元",
+      "profitYoY": 34.2
+    },
+    {
+      "name": "Agnico Eagle",
+      "date": "2026-07-17",
+      "period": "2026Q2",
+      "status": "不及预期",
+      "revenue": "22.4亿美元",
+      "revenueYoY": -3.2,
+      "profit": "3.1亿美元",
+      "profitYoY": -9.5
+    }
+  ],
+  "sge": [
+    {
+      "name": "黄金9995",
+      "price": 874.2,
+      "chg": -0.66,
+      "unit": "¥/g"
+    },
+    {
+      "name": "白银9999",
+      "price": 14558,
+      "chg": -0.76,
+      "unit": "¥/kg"
+    },
+    {
+      "name": "铂金9995",
+      "price": 400.08,
+      "chg": -3.15,
+      "unit": "¥/g"
+    },
+    {
+      "name": "金条100g",
+      "price": 883.78,
+      "chg": -1.27,
+      "unit": "¥/g"
+    }
+  ],
+  "paperGold": [
+    {
+      "name": "工行纸黄金(美元)",
+      "price": 4054.5,
+      "chg": 0.2
+    },
+    {
+      "name": "工行纸黄金(人民币)",
+      "price": 883.08,
+      "chg": 0.14
+    },
+    {
+      "name": "工行纸白银(美元)",
+      "price": 58.36,
+      "chg": 1.47
+    },
+    {
+      "name": "工行纸铂金(美元)",
+      "price": 1598.93,
+      "chg": 0.57
+    },
+    {
+      "name": "工行纸钯金(美元)",
+      "price": 1233.25,
+      "chg": -0.87
+    },
+    {
+      "name": "中行纸黄金(美元)",
+      "price": 4054.87,
+      "chg": 0.21
+    },
+    {
+      "name": "中行纸黄金(人民币)",
+      "price": 883.37,
+      "chg": 0.16
+    },
+    {
+      "name": "中行纸白银(美元)",
+      "price": 58.37,
+      "chg": 1.51
+    },
+    {
+      "name": "中行纸铂金(美元)",
+      "price": 1599.67,
+      "chg": 0.54
+    },
+    {
+      "name": "中行纸钯金(美元)",
+      "price": 1244.74,
+      "chg": -0.86
+    }
+  ],
+  "coins": [
+    {
+      "name": "熊猫金套币",
+      "price": 54177,
+      "unit": "元/套"
+    },
+    {
+      "name": "1克熊猫金币",
+      "price": 1213,
+      "unit": "元/个"
+    },
+    {
+      "name": "3克熊猫金币",
+      "price": 3366,
+      "unit": "元/个"
+    },
+    {
+      "name": "8克熊猫金币",
+      "price": 9105,
+      "unit": "元/个"
+    },
+    {
+      "name": "15克熊猫金币",
+      "price": 14348,
+      "unit": "元/个"
+    },
+    {
+      "name": "30克熊猫金币",
+      "price": 27021,
+      "unit": "元/个"
+    },
+    {
+      "name": "100克熊猫金币",
+      "price": 119570,
+      "unit": "元/个"
+    },
+    {
+      "name": "150克熊猫金币",
+      "price": 179354,
+      "unit": "元/个"
+    },
+    {
+      "name": "1公斤金制纪念币",
+      "price": 480000,
+      "unit": "元/个"
+    }
+  ]
+}

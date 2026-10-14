@@ -1,0 +1,1780 @@
+{
+  "updatedAt": "2026-10-12 08:57:13",
+  "timezone": "北京时间",
+  "events": [
+    {
+      "id": "ff-146575",
+      "type": "pmi",
+      "name": "美国ISM制造业PMI",
+      "period": "已公布",
+      "releaseAt": "2026-01-05T23:00:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / ISM",
+      "result": {
+        "actual": "47.9",
+        "forecast": "48.3",
+        "previous": "48.2",
+        "surprise": "低于预期"
+      }
+    },
+    {
+      "id": "ff-150290",
+      "type": "employment",
+      "name": "美国ADP就业人数",
+      "period": "已公布",
+      "releaseAt": "2026-01-07T21:15:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / BLS",
+      "result": {
+        "actual": "41K",
+        "forecast": "49K",
+        "previous": "-29K",
+        "originalPrevious": "-32K",
+        "surprise": "低于预期"
+      }
+    },
+    {
+      "id": "ff-146599",
+      "type": "pmi",
+      "name": "美国ISM服务业PMI",
+      "period": "已公布",
+      "releaseAt": "2026-01-07T23:00:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / ISM",
+      "result": {
+        "actual": "54.4",
+        "forecast": "52.2",
+        "previous": "52.6",
+        "surprise": "高于预期"
+      }
+    },
+    {
+      "id": "ff-149786",
+      "type": "jolts",
+      "name": "美国JOLTS职位空缺",
+      "period": "已公布",
+      "releaseAt": "2026-01-07T23:00:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / BLS",
+      "result": {
+        "actual": "7.15M",
+        "forecast": "7.61M",
+        "previous": "7.45M",
+        "originalPrevious": "7.67M",
+        "surprise": "低于预期"
+      }
+    },
+    {
+      "id": "ff-146979",
+      "type": "employment",
+      "name": "美国初请失业金人数",
+      "period": "已公布",
+      "releaseAt": "2026-01-08T21:30:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / US DOL",
+      "result": {
+        "actual": "208K",
+        "forecast": "213K",
+        "previous": "200K",
+        "originalPrevious": "199K",
+        "surprise": "低于预期"
+      }
+    },
+    {
+      "id": "ff-146927",
+      "type": "employment",
+      "name": "美国平均时薪（月环比）",
+      "period": "已公布",
+      "releaseAt": "2026-01-09T21:30:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / BLS",
+      "result": {
+        "actual": "0.3%",
+        "forecast": "0.3%",
+        "previous": "0.1%",
+        "surprise": "符合预期"
+      }
+    },
+    {
+      "id": "ff-148570",
+      "type": "sentiment",
+      "name": "美国密歇根消费者信心初值",
+      "period": "已公布",
+      "releaseAt": "2026-01-09T23:00:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / University of Michigan",
+      "result": {
+        "actual": "54.0",
+        "forecast": "53.5",
+        "previous": "52.9",
+        "originalPrevious": "53.3",
+        "surprise": "高于预期"
+      }
+    },
+    {
+      "id": "ff-148356",
+      "type": "cpi",
+      "name": "美国核心CPI（月环比）",
+      "period": "已公布",
+      "releaseAt": "2026-01-13T21:30:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / BLS",
+      "result": {
+        "actual": "0.2%",
+        "forecast": "0.3%",
+        "previous": "0.2%",
+        "surprise": "低于预期"
+      }
+    },
+    {
+      "id": "ff-148395",
+      "type": "ppi",
+      "name": "美国核心PPI（月环比）",
+      "period": "已公布",
+      "releaseAt": "2026-01-14T21:30:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / BLS",
+      "result": {
+        "actual": "0.0%",
+        "forecast": "0.2%",
+        "previous": "0.3%",
+        "surprise": "低于预期"
+      }
+    },
+    {
+      "id": "ff-148037",
+      "type": "retail",
+      "name": "美国核心零售销售（月环比）",
+      "period": "已公布",
+      "releaseAt": "2026-01-14T21:30:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / US Census",
+      "result": {
+        "actual": "0.5%",
+        "forecast": "0.4%",
+        "previous": "0.2%",
+        "originalPrevious": "0.4%",
+        "surprise": "高于预期"
+      }
+    },
+    {
+      "id": "ff-146980",
+      "type": "employment",
+      "name": "美国初请失业金人数",
+      "period": "已公布",
+      "releaseAt": "2026-01-15T21:30:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / US DOL",
+      "result": {
+        "actual": "198K",
+        "forecast": "215K",
+        "previous": "207K",
+        "originalPrevious": "208K",
+        "surprise": "低于预期"
+      }
+    },
+    {
+      "id": "ff-142552",
+      "type": "gdp",
+      "name": "美国GDP终值（季环比）",
+      "period": "已公布",
+      "releaseAt": "2026-01-22T21:30:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / BEA",
+      "result": {
+        "actual": "4.4%",
+        "forecast": "4.3%",
+        "previous": "4.3%",
+        "surprise": "高于预期"
+      }
+    },
+    {
+      "id": "ff-146981",
+      "type": "employment",
+      "name": "美国初请失业金人数",
+      "period": "已公布",
+      "releaseAt": "2026-01-22T21:30:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / US DOL",
+      "result": {
+        "actual": "200K",
+        "forecast": "209K",
+        "previous": "199K",
+        "originalPrevious": "198K",
+        "surprise": "低于预期"
+      }
+    },
+    {
+      "id": "ff-148227",
+      "type": "pce",
+      "name": "美国核心PCE（月环比）",
+      "period": "已公布",
+      "releaseAt": "2026-01-22T23:00:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / BEA",
+      "result": {
+        "actual": "0.2%",
+        "forecast": "0.2%",
+        "previous": "0.2%",
+        "surprise": "符合预期"
+      }
+    },
+    {
+      "id": "ff-149762",
+      "type": "pmi",
+      "name": "美国制造业PMI初值",
+      "period": "已公布",
+      "releaseAt": "2026-01-23T22:45:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / S&P Global",
+      "result": {
+        "actual": "51.9",
+        "forecast": "51.9",
+        "previous": "51.8",
+        "surprise": "符合预期"
+      }
+    },
+    {
+      "id": "ff-146494",
+      "type": "fomc",
+      "name": "FOMC联邦基金利率",
+      "period": "已公布",
+      "releaseAt": "2026-01-29T03:00:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / Federal Reserve",
+      "result": {
+        "actual": "3.75%",
+        "forecast": "3.75%",
+        "previous": "3.75%",
+        "surprise": "符合预期"
+      }
+    },
+    {
+      "id": "ff-146982",
+      "type": "employment",
+      "name": "美国初请失业金人数",
+      "period": "已公布",
+      "releaseAt": "2026-01-29T21:30:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / US DOL",
+      "result": {
+        "actual": "209K",
+        "forecast": "206K",
+        "previous": "210K",
+        "originalPrevious": "200K",
+        "surprise": "高于预期"
+      }
+    },
+    {
+      "id": "ff-151479",
+      "type": "ppi",
+      "name": "美国核心PPI（月环比）",
+      "period": "已公布",
+      "releaseAt": "2026-01-30T21:30:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / BLS",
+      "result": {
+        "actual": "0.7%",
+        "forecast": "0.2%",
+        "previous": "0.0%",
+        "surprise": "高于预期"
+      }
+    },
+    {
+      "id": "ff-146576",
+      "type": "pmi",
+      "name": "美国ISM制造业PMI",
+      "period": "已公布",
+      "releaseAt": "2026-02-02T23:00:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / ISM",
+      "result": {
+        "actual": "52.6",
+        "forecast": "48.5",
+        "previous": "47.9",
+        "surprise": "高于预期"
+      }
+    },
+    {
+      "id": "ff-150295",
+      "type": "employment",
+      "name": "美国ADP就业人数",
+      "period": "已公布",
+      "releaseAt": "2026-02-04T21:15:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / BLS",
+      "result": {
+        "actual": "22K",
+        "forecast": "46K",
+        "previous": "37K",
+        "originalPrevious": "41K",
+        "surprise": "低于预期"
+      }
+    },
+    {
+      "id": "ff-146600",
+      "type": "pmi",
+      "name": "美国ISM服务业PMI",
+      "period": "已公布",
+      "releaseAt": "2026-02-04T23:00:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / ISM",
+      "result": {
+        "actual": "53.8",
+        "forecast": "53.5",
+        "previous": "54.4",
+        "surprise": "高于预期"
+      }
+    },
+    {
+      "id": "ff-146983",
+      "type": "employment",
+      "name": "美国初请失业金人数",
+      "period": "已公布",
+      "releaseAt": "2026-02-05T21:30:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / US DOL",
+      "result": {
+        "actual": "231K",
+        "forecast": "212K",
+        "previous": "209K",
+        "surprise": "高于预期"
+      }
+    },
+    {
+      "id": "ff-152626",
+      "type": "jolts",
+      "name": "美国JOLTS职位空缺",
+      "period": "已公布",
+      "releaseAt": "2026-02-05T23:00:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / BLS",
+      "result": {
+        "actual": "6.54M",
+        "forecast": "7.25M",
+        "previous": "6.93M",
+        "originalPrevious": "7.15M",
+        "surprise": "低于预期"
+      }
+    },
+    {
+      "id": "ff-148571",
+      "type": "sentiment",
+      "name": "美国密歇根消费者信心初值",
+      "period": "已公布",
+      "releaseAt": "2026-02-06T23:00:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / University of Michigan",
+      "result": {
+        "actual": "57.3",
+        "forecast": "55.0",
+        "previous": "56.4",
+        "originalPrevious": "54.0",
+        "surprise": "高于预期"
+      }
+    },
+    {
+      "id": "ff-148038",
+      "type": "retail",
+      "name": "美国核心零售销售（月环比）",
+      "period": "已公布",
+      "releaseAt": "2026-02-10T21:30:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / US Census",
+      "result": {
+        "actual": "0.0%",
+        "forecast": "0.3%",
+        "previous": "0.4%",
+        "originalPrevious": "0.5%",
+        "surprise": "低于预期"
+      }
+    },
+    {
+      "id": "ff-152624",
+      "type": "employment",
+      "name": "美国平均时薪（月环比）",
+      "period": "已公布",
+      "releaseAt": "2026-02-11T21:30:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / BLS",
+      "result": {
+        "actual": "0.4%",
+        "forecast": "0.3%",
+        "previous": "0.1%",
+        "originalPrevious": "0.3%",
+        "surprise": "高于预期"
+      }
+    },
+    {
+      "id": "ff-146984",
+      "type": "employment",
+      "name": "美国初请失业金人数",
+      "period": "已公布",
+      "releaseAt": "2026-02-12T21:30:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / US DOL",
+      "result": {
+        "actual": "227K",
+        "forecast": "222K",
+        "previous": "232K",
+        "originalPrevious": "231K",
+        "surprise": "高于预期"
+      }
+    },
+    {
+      "id": "ff-148357",
+      "type": "cpi",
+      "name": "美国核心CPI（月环比）",
+      "period": "已公布",
+      "releaseAt": "2026-02-13T21:30:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / BLS",
+      "result": {
+        "actual": "0.3%",
+        "forecast": "0.3%",
+        "previous": "0.2%",
+        "surprise": "符合预期"
+      }
+    },
+    {
+      "id": "ff-146985",
+      "type": "employment",
+      "name": "美国初请失业金人数",
+      "period": "已公布",
+      "releaseAt": "2026-02-19T21:30:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / US DOL",
+      "result": {
+        "actual": "206K",
+        "forecast": "223K",
+        "previous": "229K",
+        "originalPrevious": "227K",
+        "surprise": "低于预期"
+      }
+    },
+    {
+      "id": "ff-152038",
+      "type": "gdp",
+      "name": "美国GDP初值（季环比）",
+      "period": "已公布",
+      "releaseAt": "2026-02-20T21:30:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / BEA",
+      "result": {
+        "actual": "1.4%",
+        "forecast": "2.8%",
+        "previous": "4.4%",
+        "originalPrevious": "3.0%",
+        "surprise": "低于预期"
+      }
+    },
+    {
+      "id": "ff-152042",
+      "type": "pce",
+      "name": "美国核心PCE（月环比）",
+      "period": "已公布",
+      "releaseAt": "2026-02-20T21:30:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / BEA",
+      "result": {
+        "actual": "0.4%",
+        "forecast": "0.3%",
+        "previous": "0.2%",
+        "surprise": "高于预期"
+      }
+    },
+    {
+      "id": "ff-149763",
+      "type": "pmi",
+      "name": "美国制造业PMI初值",
+      "period": "已公布",
+      "releaseAt": "2026-02-20T22:45:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / S&P Global",
+      "result": {
+        "actual": "51.2",
+        "forecast": "52.4",
+        "previous": "52.4",
+        "originalPrevious": "51.9",
+        "surprise": "低于预期"
+      }
+    },
+    {
+      "id": "ff-146986",
+      "type": "employment",
+      "name": "美国初请失业金人数",
+      "period": "已公布",
+      "releaseAt": "2026-02-26T21:30:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / US DOL",
+      "result": {
+        "actual": "212K",
+        "forecast": "217K",
+        "previous": "208K",
+        "originalPrevious": "206K",
+        "surprise": "低于预期"
+      }
+    },
+    {
+      "id": "ff-148396",
+      "type": "ppi",
+      "name": "美国核心PPI（月环比）",
+      "period": "已公布",
+      "releaseAt": "2026-02-27T21:30:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / BLS",
+      "result": {
+        "actual": "0.8%",
+        "forecast": "0.3%",
+        "previous": "0.6%",
+        "originalPrevious": "0.7%",
+        "surprise": "高于预期"
+      }
+    },
+    {
+      "id": "ff-146577",
+      "type": "pmi",
+      "name": "美国ISM制造业PMI",
+      "period": "已公布",
+      "releaseAt": "2026-03-02T23:00:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / ISM",
+      "result": {
+        "actual": "52.4",
+        "forecast": "51.7",
+        "previous": "52.6",
+        "surprise": "高于预期"
+      }
+    },
+    {
+      "id": "wgc-central-bank-2026-03",
+      "type": "central-bank-gold",
+      "name": "全球央行净购金（月度已报告）",
+      "period": "1月数据",
+      "releaseAt": "2026-03-03T08:00:00+08:00",
+      "windowEnd": "2026-03-03T23:59:00+08:00",
+      "timePrecision": "window",
+      "importance": "高",
+      "source": "World Gold Council / IMF IFS",
+      "sourceUrl": "https://www.gold.org/goldhub/gold-focus/2026/03/central-bank-gold-statistics-momentum-eases-january-while-demand-base",
+      "result": {
+        "actual": "+5吨",
+        "forecast": "—",
+        "previous": "—",
+        "surprise": "无市场预期"
+      }
+    },
+    {
+      "id": "ff-150296",
+      "type": "employment",
+      "name": "美国ADP就业人数",
+      "period": "已公布",
+      "releaseAt": "2026-03-04T21:15:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / BLS",
+      "result": {
+        "actual": "63K",
+        "forecast": "50K",
+        "previous": "11K",
+        "originalPrevious": "22K",
+        "surprise": "高于预期"
+      }
+    },
+    {
+      "id": "ff-146601",
+      "type": "pmi",
+      "name": "美国ISM服务业PMI",
+      "period": "已公布",
+      "releaseAt": "2026-03-04T23:00:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / ISM",
+      "result": {
+        "actual": "56.1",
+        "forecast": "53.5",
+        "previous": "53.8",
+        "surprise": "高于预期"
+      }
+    },
+    {
+      "id": "ff-146987",
+      "type": "employment",
+      "name": "美国初请失业金人数",
+      "period": "已公布",
+      "releaseAt": "2026-03-05T21:30:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / US DOL",
+      "result": {
+        "actual": "213K",
+        "forecast": "215K",
+        "previous": "213K",
+        "originalPrevious": "212K",
+        "surprise": "低于预期"
+      }
+    },
+    {
+      "id": "ff-146929",
+      "type": "employment",
+      "name": "美国平均时薪（月环比）",
+      "period": "已公布",
+      "releaseAt": "2026-03-06T21:30:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / BLS",
+      "result": {
+        "actual": "0.4%",
+        "forecast": "0.3%",
+        "previous": "0.4%",
+        "surprise": "高于预期"
+      }
+    },
+    {
+      "id": "ff-148039",
+      "type": "retail",
+      "name": "美国核心零售销售（月环比）",
+      "period": "已公布",
+      "releaseAt": "2026-03-06T21:30:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / US Census",
+      "result": {
+        "actual": "0.0%",
+        "forecast": "0.1%",
+        "previous": "0.0%",
+        "surprise": "低于预期"
+      }
+    },
+    {
+      "id": "ff-148359",
+      "type": "cpi",
+      "name": "美国核心CPI（月环比）",
+      "period": "已公布",
+      "releaseAt": "2026-03-11T20:30:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / BLS",
+      "result": {
+        "actual": "0.2%",
+        "forecast": "0.2%",
+        "previous": "0.3%",
+        "surprise": "符合预期"
+      }
+    },
+    {
+      "id": "ff-146988",
+      "type": "employment",
+      "name": "美国初请失业金人数",
+      "period": "已公布",
+      "releaseAt": "2026-03-12T20:30:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / US DOL",
+      "result": {
+        "actual": "213K",
+        "forecast": "214K",
+        "previous": "214K",
+        "originalPrevious": "213K",
+        "surprise": "低于预期"
+      }
+    },
+    {
+      "id": "ff-152086",
+      "type": "pce",
+      "name": "美国核心PCE（月环比）",
+      "period": "已公布",
+      "releaseAt": "2026-03-13T20:30:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / BEA",
+      "result": {
+        "actual": "0.4%",
+        "forecast": "0.4%",
+        "previous": "0.4%",
+        "surprise": "符合预期"
+      }
+    },
+    {
+      "id": "ff-152090",
+      "type": "gdp",
+      "name": "美国GDP修正值（季环比）",
+      "period": "已公布",
+      "releaseAt": "2026-03-13T20:30:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / BEA",
+      "result": {
+        "actual": "0.7%",
+        "forecast": "1.4%",
+        "previous": "1.4%",
+        "surprise": "低于预期"
+      }
+    },
+    {
+      "id": "ff-149788",
+      "type": "jolts",
+      "name": "美国JOLTS职位空缺",
+      "period": "已公布",
+      "releaseAt": "2026-03-13T22:00:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / BLS",
+      "result": {
+        "actual": "6.95M",
+        "forecast": "6.76M",
+        "previous": "6.55M",
+        "originalPrevious": "6.54M",
+        "surprise": "高于预期"
+      }
+    },
+    {
+      "id": "ff-148397",
+      "type": "ppi",
+      "name": "美国核心PPI（月环比）",
+      "period": "已公布",
+      "releaseAt": "2026-03-18T20:30:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / BLS",
+      "result": {
+        "actual": "0.5%",
+        "forecast": "0.3%",
+        "previous": "0.8%",
+        "surprise": "高于预期"
+      }
+    },
+    {
+      "id": "ff-146495",
+      "type": "fomc",
+      "name": "FOMC联邦基金利率",
+      "period": "已公布",
+      "releaseAt": "2026-03-19T02:00:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / Federal Reserve",
+      "result": {
+        "actual": "3.75%",
+        "forecast": "3.75%",
+        "previous": "3.75%",
+        "surprise": "符合预期"
+      }
+    },
+    {
+      "id": "ff-146989",
+      "type": "employment",
+      "name": "美国初请失业金人数",
+      "period": "已公布",
+      "releaseAt": "2026-03-19T20:30:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / US DOL",
+      "result": {
+        "actual": "205K",
+        "forecast": "215K",
+        "previous": "213K",
+        "surprise": "低于预期"
+      }
+    },
+    {
+      "id": "ff-149764",
+      "type": "pmi",
+      "name": "美国制造业PMI初值",
+      "period": "已公布",
+      "releaseAt": "2026-03-24T21:45:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / S&P Global",
+      "result": {
+        "actual": "52.4",
+        "forecast": "51.5",
+        "previous": "51.6",
+        "originalPrevious": "51.2",
+        "surprise": "高于预期"
+      }
+    },
+    {
+      "id": "ff-146990",
+      "type": "employment",
+      "name": "美国初请失业金人数",
+      "period": "已公布",
+      "releaseAt": "2026-03-26T20:30:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / US DOL",
+      "result": {
+        "actual": "210K",
+        "forecast": "211K",
+        "previous": "205K",
+        "surprise": "低于预期"
+      }
+    },
+    {
+      "id": "ff-149789",
+      "type": "jolts",
+      "name": "美国JOLTS职位空缺",
+      "period": "已公布",
+      "releaseAt": "2026-03-31T22:00:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / BLS",
+      "result": {
+        "actual": "6.88M",
+        "forecast": "6.89M",
+        "previous": "7.24M",
+        "originalPrevious": "6.95M",
+        "surprise": "低于预期"
+      }
+    },
+    {
+      "id": "ff-150297",
+      "type": "employment",
+      "name": "美国ADP就业人数",
+      "period": "已公布",
+      "releaseAt": "2026-04-01T20:15:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / BLS",
+      "result": {
+        "actual": "62K",
+        "forecast": "41K",
+        "previous": "66K",
+        "originalPrevious": "63K",
+        "surprise": "高于预期"
+      }
+    },
+    {
+      "id": "ff-148040",
+      "type": "retail",
+      "name": "美国核心零售销售（月环比）",
+      "period": "已公布",
+      "releaseAt": "2026-04-01T20:30:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / US Census",
+      "result": {
+        "actual": "0.5%",
+        "forecast": "0.3%",
+        "previous": "0.0%",
+        "surprise": "高于预期"
+      }
+    },
+    {
+      "id": "ff-146578",
+      "type": "pmi",
+      "name": "美国ISM制造业PMI",
+      "period": "已公布",
+      "releaseAt": "2026-04-01T22:00:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / ISM",
+      "result": {
+        "actual": "52.7",
+        "forecast": "52.3",
+        "previous": "52.4",
+        "surprise": "高于预期"
+      }
+    },
+    {
+      "id": "wgc-central-bank-2026-04",
+      "type": "central-bank-gold",
+      "name": "全球央行净购金（月度已报告）",
+      "period": "2月数据",
+      "releaseAt": "2026-04-02T08:00:00+08:00",
+      "windowEnd": "2026-04-02T23:59:00+08:00",
+      "timePrecision": "window",
+      "importance": "高",
+      "source": "World Gold Council / IMF IFS",
+      "sourceUrl": "https://www.gold.org/goldhub/gold-focus/2026/04/central-bank-gold-statistics-central-banks-stay-course-gold-february",
+      "result": {
+        "actual": "+27吨",
+        "forecast": "—",
+        "previous": "+5吨",
+        "surprise": "无市场预期"
+      }
+    },
+    {
+      "id": "ff-146991",
+      "type": "employment",
+      "name": "美国初请失业金人数",
+      "period": "已公布",
+      "releaseAt": "2026-04-02T20:30:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / US DOL",
+      "result": {
+        "actual": "202K",
+        "forecast": "212K",
+        "previous": "211K",
+        "originalPrevious": "210K",
+        "surprise": "低于预期"
+      }
+    },
+    {
+      "id": "ff-146930",
+      "type": "employment",
+      "name": "美国平均时薪（月环比）",
+      "period": "已公布",
+      "releaseAt": "2026-04-03T20:30:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / BLS",
+      "result": {
+        "actual": "0.2%",
+        "forecast": "0.3%",
+        "previous": "0.4%",
+        "surprise": "低于预期"
+      }
+    },
+    {
+      "id": "ff-146602",
+      "type": "pmi",
+      "name": "美国ISM服务业PMI",
+      "period": "已公布",
+      "releaseAt": "2026-04-06T22:00:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / ISM",
+      "result": {
+        "actual": "54.0",
+        "forecast": "54.8",
+        "previous": "56.1",
+        "surprise": "低于预期"
+      }
+    },
+    {
+      "id": "ff-148229",
+      "type": "pce",
+      "name": "美国核心PCE（月环比）",
+      "period": "已公布",
+      "releaseAt": "2026-04-09T20:30:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / BEA",
+      "result": {
+        "actual": "0.4%",
+        "forecast": "0.4%",
+        "previous": "0.4%",
+        "surprise": "符合预期"
+      }
+    },
+    {
+      "id": "ff-148307",
+      "type": "gdp",
+      "name": "美国GDP终值（季环比）",
+      "period": "已公布",
+      "releaseAt": "2026-04-09T20:30:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / BEA",
+      "result": {
+        "actual": "0.5%",
+        "forecast": "0.7%",
+        "previous": "0.7%",
+        "surprise": "低于预期"
+      }
+    },
+    {
+      "id": "ff-148360",
+      "type": "cpi",
+      "name": "美国核心CPI（月环比）",
+      "period": "已公布",
+      "releaseAt": "2026-04-10T20:30:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / BLS",
+      "result": {
+        "actual": "0.2%",
+        "forecast": "0.3%",
+        "previous": "0.2%",
+        "surprise": "低于预期"
+      }
+    },
+    {
+      "id": "ff-148398",
+      "type": "ppi",
+      "name": "美国核心PPI（月环比）",
+      "period": "已公布",
+      "releaseAt": "2026-04-14T20:30:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / BLS",
+      "result": {
+        "actual": "0.1%",
+        "forecast": "0.4%",
+        "previous": "0.3%",
+        "originalPrevious": "0.5%",
+        "surprise": "低于预期"
+      }
+    },
+    {
+      "id": "ff-152774",
+      "type": "retail",
+      "name": "美国核心零售销售（月环比）",
+      "period": "已公布",
+      "releaseAt": "2026-04-21T20:30:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / US Census",
+      "result": {
+        "actual": "1.9%",
+        "forecast": "1.4%",
+        "previous": "0.7%",
+        "originalPrevious": "0.5%",
+        "surprise": "高于预期"
+      }
+    },
+    {
+      "id": "ff-146496",
+      "type": "fomc",
+      "name": "FOMC联邦基金利率",
+      "period": "已公布",
+      "releaseAt": "2026-04-30T02:00:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / Federal Reserve",
+      "result": {
+        "actual": "3.75%",
+        "forecast": "3.75%",
+        "previous": "3.75%",
+        "surprise": "符合预期"
+      }
+    },
+    {
+      "id": "ff-148272",
+      "type": "gdp",
+      "name": "美国GDP初值（季环比）",
+      "period": "已公布",
+      "releaseAt": "2026-04-30T20:30:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / BEA",
+      "result": {
+        "actual": "2.0%",
+        "forecast": "2.2%",
+        "previous": "0.5%",
+        "originalPrevious": "1.4%",
+        "surprise": "低于预期"
+      }
+    },
+    {
+      "id": "ff-148230",
+      "type": "pce",
+      "name": "美国核心PCE（月环比）",
+      "period": "已公布",
+      "releaseAt": "2026-04-30T20:30:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / BEA",
+      "result": {
+        "actual": "0.3%",
+        "forecast": "0.3%",
+        "previous": "0.4%",
+        "surprise": "符合预期"
+      }
+    },
+    {
+      "id": "ff-148408",
+      "type": "employment",
+      "name": "美国就业成本指数（季环比）",
+      "period": "已公布",
+      "releaseAt": "2026-04-30T20:30:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / BLS",
+      "result": {
+        "actual": "0.9%",
+        "forecast": "0.8%",
+        "previous": "0.7%",
+        "surprise": "高于预期"
+      }
+    },
+    {
+      "id": "wgc-central-bank-2026-05",
+      "type": "central-bank-gold",
+      "name": "全球央行净购金（月度已报告）",
+      "period": "3月数据",
+      "releaseAt": "2026-05-05T08:00:00+08:00",
+      "windowEnd": "2026-05-05T23:59:00+08:00",
+      "timePrecision": "window",
+      "importance": "高",
+      "source": "World Gold Council / IMF IFS",
+      "sourceUrl": "https://www.gold.org/goldhub/gold-focus/2026/05/central-bank-gold-statistics-march-2026",
+      "result": {
+        "actual": "-30吨",
+        "forecast": "—",
+        "previous": "+27吨",
+        "surprise": "无市场预期"
+      }
+    },
+    {
+      "id": "ff-146603",
+      "type": "pmi",
+      "name": "美国ISM服务业PMI",
+      "period": "已公布",
+      "releaseAt": "2026-05-05T22:00:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / ISM",
+      "result": {
+        "actual": "53.6",
+        "forecast": "53.7",
+        "previous": "54.0",
+        "surprise": "低于预期"
+      }
+    },
+    {
+      "id": "ff-149790",
+      "type": "jolts",
+      "name": "美国JOLTS职位空缺",
+      "period": "已公布",
+      "releaseAt": "2026-05-05T22:00:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / BLS",
+      "result": {
+        "actual": "6.87M",
+        "forecast": "6.86M",
+        "previous": "6.92M",
+        "originalPrevious": "6.88M",
+        "surprise": "高于预期"
+      }
+    },
+    {
+      "id": "ff-146931",
+      "type": "employment",
+      "name": "美国平均时薪（月环比）",
+      "period": "已公布",
+      "releaseAt": "2026-05-08T20:30:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / BLS",
+      "result": {
+        "actual": "0.2%",
+        "forecast": "0.3%",
+        "previous": "0.2%",
+        "surprise": "低于预期"
+      }
+    },
+    {
+      "id": "ff-148361",
+      "type": "cpi",
+      "name": "美国核心CPI（月环比）",
+      "period": "已公布",
+      "releaseAt": "2026-05-12T20:30:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / BLS",
+      "result": {
+        "actual": "0.4%",
+        "forecast": "0.3%",
+        "previous": "0.2%",
+        "surprise": "高于预期"
+      }
+    },
+    {
+      "id": "ff-148399",
+      "type": "ppi",
+      "name": "美国核心PPI（月环比）",
+      "period": "已公布",
+      "releaseAt": "2026-05-13T20:30:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / BLS",
+      "result": {
+        "actual": "1.0%",
+        "forecast": "0.3%",
+        "previous": "0.2%",
+        "originalPrevious": "0.1%",
+        "surprise": "高于预期"
+      }
+    },
+    {
+      "id": "ff-148041",
+      "type": "retail",
+      "name": "美国核心零售销售（月环比）",
+      "period": "已公布",
+      "releaseAt": "2026-05-14T20:30:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / US Census",
+      "result": {
+        "actual": "0.7%",
+        "forecast": "0.7%",
+        "previous": "1.9%",
+        "surprise": "符合预期"
+      }
+    },
+    {
+      "id": "ff-148231",
+      "type": "pce",
+      "name": "美国核心PCE（月环比）",
+      "period": "已公布",
+      "releaseAt": "2026-05-28T20:30:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / BEA",
+      "result": {
+        "actual": "0.2%",
+        "forecast": "0.3%",
+        "previous": "0.3%",
+        "surprise": "低于预期"
+      }
+    },
+    {
+      "id": "ff-148289",
+      "type": "gdp",
+      "name": "美国GDP修正值（季环比）",
+      "period": "已公布",
+      "releaseAt": "2026-05-28T20:30:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / BEA",
+      "result": {
+        "actual": "1.6%",
+        "forecast": "2.0%",
+        "previous": "0.7%",
+        "surprise": "低于预期"
+      }
+    },
+    {
+      "id": "ff-146580",
+      "type": "pmi",
+      "name": "美国ISM制造业PMI",
+      "period": "已公布",
+      "releaseAt": "2026-06-01T22:00:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / ISM",
+      "result": {
+        "actual": "54.0",
+        "forecast": "53.3",
+        "previous": "52.7",
+        "surprise": "高于预期"
+      }
+    },
+    {
+      "id": "wgc-central-bank-2026-06",
+      "type": "central-bank-gold",
+      "name": "全球央行净购金（月度已报告）",
+      "period": "4月数据",
+      "releaseAt": "2026-06-03T08:00:00+08:00",
+      "windowEnd": "2026-06-03T23:59:00+08:00",
+      "timePrecision": "window",
+      "importance": "高",
+      "source": "World Gold Council / IMF IFS",
+      "sourceUrl": "https://www.gold.org/goldhub/gold-focus/2026/06/central-bank-gold-statistics-central-banks-resume-net-buying-april",
+      "result": {
+        "actual": "+19吨",
+        "forecast": "—",
+        "previous": "-30吨",
+        "surprise": "无市场预期"
+      }
+    },
+    {
+      "id": "ff-150302",
+      "type": "employment",
+      "name": "美国ADP就业人数",
+      "period": "已公布",
+      "releaseAt": "2026-06-03T20:15:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / BLS",
+      "result": {
+        "actual": "122K",
+        "forecast": "118K",
+        "previous": "105K",
+        "originalPrevious": "109K",
+        "surprise": "高于预期"
+      }
+    },
+    {
+      "id": "ff-146604",
+      "type": "pmi",
+      "name": "美国ISM服务业PMI",
+      "period": "已公布",
+      "releaseAt": "2026-06-03T22:00:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / ISM",
+      "result": {
+        "actual": "54.5",
+        "forecast": "53.7",
+        "previous": "53.6",
+        "surprise": "高于预期"
+      }
+    },
+    {
+      "id": "ff-146932",
+      "type": "employment",
+      "name": "美国平均时薪（月环比）",
+      "period": "已公布",
+      "releaseAt": "2026-06-05T20:30:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / BLS",
+      "result": {
+        "actual": "0.3%",
+        "forecast": "0.3%",
+        "previous": "0.2%",
+        "surprise": "符合预期"
+      }
+    },
+    {
+      "id": "ff-148363",
+      "type": "cpi",
+      "name": "美国核心CPI（月环比）",
+      "period": "已公布",
+      "releaseAt": "2026-06-10T20:30:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / BLS",
+      "result": {
+        "actual": "0.2%",
+        "forecast": "0.3%",
+        "previous": "0.4%",
+        "surprise": "低于预期"
+      }
+    },
+    {
+      "id": "ff-148400",
+      "type": "ppi",
+      "name": "美国核心PPI（月环比）",
+      "period": "已公布",
+      "releaseAt": "2026-06-11T20:30:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / BLS",
+      "result": {
+        "actual": "0.4%",
+        "forecast": "0.5%",
+        "previous": "0.7%",
+        "originalPrevious": "1.0%",
+        "surprise": "低于预期"
+      }
+    },
+    {
+      "id": "ff-146497",
+      "type": "fomc",
+      "name": "FOMC联邦基金利率",
+      "period": "已公布",
+      "releaseAt": "2026-06-18T02:00:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / Federal Reserve",
+      "result": {
+        "actual": "3.75%",
+        "forecast": "3.75%",
+        "previous": "3.75%",
+        "surprise": "符合预期"
+      }
+    },
+    {
+      "id": "ff-148232",
+      "type": "pce",
+      "name": "美国核心PCE（月环比）",
+      "period": "已公布",
+      "releaseAt": "2026-06-25T20:30:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / BEA",
+      "result": {
+        "actual": "0.3%",
+        "forecast": "0.3%",
+        "previous": "0.3%",
+        "originalPrevious": "0.2%",
+        "surprise": "符合预期"
+      }
+    },
+    {
+      "id": "ff-148308",
+      "type": "gdp",
+      "name": "美国GDP终值（季环比）",
+      "period": "已公布",
+      "releaseAt": "2026-06-25T20:30:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / BEA",
+      "result": {
+        "actual": "2.1%",
+        "forecast": "1.6%",
+        "previous": "1.6%",
+        "surprise": "高于预期"
+      }
+    },
+    {
+      "id": "ff-146581",
+      "type": "pmi",
+      "name": "美国ISM制造业PMI",
+      "period": "已公布",
+      "releaseAt": "2026-07-01T22:00:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / ISM",
+      "result": {
+        "actual": "53.3",
+        "forecast": "53.8",
+        "previous": "54.0",
+        "surprise": "低于预期"
+      }
+    },
+    {
+      "id": "wgc-central-bank-2026-07",
+      "type": "central-bank-gold",
+      "name": "全球央行净购金（月度已报告）",
+      "period": "5月数据",
+      "releaseAt": "2026-07-02T08:00:00+08:00",
+      "windowEnd": "2026-07-02T23:59:00+08:00",
+      "timePrecision": "window",
+      "importance": "高",
+      "source": "World Gold Council / IMF IFS",
+      "sourceUrl": "https://www.gold.org/goldhub/gold-focus/2026/07/central-bank-gold-statistics-central-banks-remain-committed-gold",
+      "result": {
+        "actual": "+41吨",
+        "forecast": "—",
+        "previous": "+19吨",
+        "surprise": "无市场预期"
+      }
+    },
+    {
+      "id": "ff-146933",
+      "type": "employment",
+      "name": "美国平均时薪（月环比）",
+      "period": "已公布",
+      "releaseAt": "2026-07-02T20:30:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / BLS",
+      "result": {
+        "actual": "0.3%",
+        "forecast": "0.3%",
+        "previous": "0.3%",
+        "surprise": "符合预期"
+      }
+    },
+    {
+      "id": "ff-146605",
+      "type": "pmi",
+      "name": "美国ISM服务业PMI",
+      "period": "已公布",
+      "releaseAt": "2026-07-06T22:00:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / ISM",
+      "result": {
+        "actual": "54.0",
+        "forecast": "54.2",
+        "previous": "54.5",
+        "surprise": "低于预期"
+      }
+    },
+    {
+      "id": "ff-148364",
+      "type": "cpi",
+      "name": "美国核心CPI（月环比）",
+      "period": "已公布",
+      "releaseAt": "2026-07-14T20:30:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / BLS",
+      "result": {
+        "actual": "0.0%",
+        "forecast": "0.2%",
+        "previous": "0.2%",
+        "surprise": "低于预期"
+      }
+    },
+    {
+      "id": "ff-148401",
+      "type": "ppi",
+      "name": "美国核心PPI（月环比）",
+      "period": "已公布",
+      "releaseAt": "2026-07-15T20:30:00+08:00",
+      "importance": "高",
+      "source": "Forex Factory / BLS",
+      "result": {
+        "actual": "0.2%",
+        "forecast": "0.3%",
+        "previous": "0.1%",
+        "originalPrevious": "0.4%",
+        "surprise": "低于预期"
+      }
+    },
+    {
+      "type": "fomc",
+      "name": "FOMC利率决议",
+      "period": "7月会议",
+      "releaseAt": "2026-07-30T02:00:00+08:00",
+      "importance": "高",
+      "source": "Federal Reserve"
+    },
+    {
+      "type": "pce",
+      "name": "美国PCE",
+      "period": "6月",
+      "releaseAt": "2026-07-30T20:30:00+08:00",
+      "importance": "高",
+      "source": "BEA",
+      "dataRefreshedAt": "2026-07-31 08:47:21"
+    },
+    {
+      "type": "gdp",
+      "name": "美国GDP初值",
+      "period": "二季度",
+      "releaseAt": "2026-07-30T20:30:00+08:00",
+      "importance": "高",
+      "source": "BEA"
+    },
+    {
+      "type": "central-bank-gold",
+      "name": "全球央行购金月报",
+      "period": "6月数据",
+      "releaseAt": "2026-08-01T08:00:00+08:00",
+      "windowEnd": "2026-08-10T23:59:00+08:00",
+      "timePrecision": "window",
+      "importance": "高",
+      "source": "World Gold Council / IMF IFS"
+    },
+    {
+      "type": "payrolls",
+      "name": "美国非农就业",
+      "period": "7月",
+      "releaseAt": "2026-08-07T20:30:00+08:00",
+      "importance": "高",
+      "source": "BLS"
+    },
+    {
+      "type": "cpi",
+      "name": "美国CPI",
+      "period": "7月",
+      "releaseAt": "2026-08-12T20:30:00+08:00",
+      "importance": "高",
+      "source": "BLS",
+      "dataRefreshedAt": "2026-08-12 23:59:51"
+    },
+    {
+      "type": "pce",
+      "name": "美国PCE",
+      "period": "7月",
+      "releaseAt": "2026-08-26T20:30:00+08:00",
+      "importance": "高",
+      "source": "BEA",
+      "dataRefreshedAt": "2026-09-17 10:14:28",
+      "result": {
+        "actual": "3.7%",
+        "forecast": "—",
+        "previous": "—",
+        "surprise": "未给预期"
+      }
+    },
+    {
+      "type": "central-bank-gold",
+      "name": "全球央行购金月报",
+      "period": "7月数据",
+      "releaseAt": "2026-09-01T08:00:00+08:00",
+      "windowEnd": "2026-09-10T23:59:00+08:00",
+      "timePrecision": "window",
+      "importance": "高",
+      "source": "World Gold Council / IMF IFS"
+    },
+    {
+      "type": "payrolls",
+      "name": "美国非农就业",
+      "period": "8月",
+      "releaseAt": "2026-09-04T20:30:00+08:00",
+      "importance": "高",
+      "source": "BLS"
+    },
+    {
+      "type": "cpi",
+      "name": "美国CPI",
+      "period": "8月",
+      "releaseAt": "2026-09-11T20:30:00+08:00",
+      "importance": "高",
+      "source": "BLS",
+      "dataRefreshedAt": "2026-09-17 10:14:28",
+      "result": {
+        "actual": "3.4%",
+        "forecast": "—",
+        "previous": "—",
+        "surprise": "未给预期"
+      }
+    },
+    {
+      "type": "fomc",
+      "name": "FOMC利率决议",
+      "period": "9月会议",
+      "releaseAt": "2026-09-17T02:00:00+08:00",
+      "importance": "高",
+      "source": "Federal Reserve",
+      "ffTitle": "Federal Funds Rate"
+    },
+    {
+      "type": "pce",
+      "name": "美国PCE",
+      "period": "8月",
+      "releaseAt": "2026-09-30T20:30:00+08:00",
+      "importance": "高",
+      "source": "BEA",
+      "ffTitle": "Core PCE Price Index m/m",
+      "dataRefreshedAt": "2026-10-05 00:11:41",
+      "result": {
+        "actual": "3.4%",
+        "forecast": "—",
+        "previous": "—",
+        "surprise": "未给预期"
+      }
+    },
+    {
+      "id": "employment-2026-09",
+      "type": "employment",
+      "name": "美国非农就业",
+      "period": "9月",
+      "releaseAt": "2026-10-02T12:30:00.000Z",
+      "importance": "高",
+      "source": "BLS",
+      "scheduled": true,
+      "ffTitle": "Average Hourly Earnings m/m"
+    },
+    {
+      "id": "cpi-2026-09",
+      "type": "cpi",
+      "name": "美国CPI",
+      "period": "9月",
+      "releaseAt": "2026-10-14T12:30:00.000Z",
+      "importance": "高",
+      "source": "BLS",
+      "scheduled": true,
+      "ffTitle": "Core CPI m/m"
+    },
+    {
+      "id": "fomc-2026-10-28",
+      "type": "fomc",
+      "name": "FOMC利率决议",
+      "period": "27-28会议",
+      "releaseAt": "2026-10-28T18:00:00.000Z",
+      "importance": "高",
+      "source": "Federal Reserve",
+      "scheduled": true
+    },
+    {
+      "id": "employment-2026-10",
+      "type": "employment",
+      "name": "美国非农就业",
+      "period": "10月",
+      "releaseAt": "2026-11-06T13:30:00.000Z",
+      "importance": "高",
+      "source": "BLS",
+      "scheduled": true
+    },
+    {
+      "id": "cpi-2026-10",
+      "type": "cpi",
+      "name": "美国CPI",
+      "period": "10月",
+      "releaseAt": "2026-11-10T13:30:00.000Z",
+      "importance": "高",
+      "source": "BLS",
+      "scheduled": true
+    },
+    {
+      "id": "employment-2026-11",
+      "type": "employment",
+      "name": "美国非农就业",
+      "period": "11月",
+      "releaseAt": "2026-12-04T13:30:00.000Z",
+      "importance": "高",
+      "source": "BLS",
+      "scheduled": true
+    },
+    {
+      "id": "fomc-2026-12-09",
+      "type": "fomc",
+      "name": "FOMC利率决议",
+      "period": "8-9会议",
+      "releaseAt": "2026-12-09T19:00:00.000Z",
+      "importance": "高",
+      "source": "Federal Reserve",
+      "scheduled": true
+    },
+    {
+      "id": "cpi-2026-11",
+      "type": "cpi",
+      "name": "美国CPI",
+      "period": "11月",
+      "releaseAt": "2026-12-10T13:30:00.000Z",
+      "importance": "高",
+      "source": "BLS",
+      "scheduled": true
+    },
+    {
+      "id": "employment-2026-12",
+      "type": "employment",
+      "name": "美国非农就业",
+      "period": "12月",
+      "releaseAt": "2027-01-08T13:30:00.000Z",
+      "importance": "高",
+      "source": "BLS",
+      "scheduled": true
+    },
+    {
+      "id": "cpi-2026-12",
+      "type": "cpi",
+      "name": "美国CPI",
+      "period": "12月",
+      "releaseAt": "2027-01-13T13:30:00.000Z",
+      "importance": "高",
+      "source": "BLS",
+      "scheduled": true
+    },
+    {
+      "id": "fomc-2027-01-27",
+      "type": "fomc",
+      "name": "FOMC利率决议",
+      "period": "26-27会议",
+      "releaseAt": "2027-01-27T19:00:00.000Z",
+      "importance": "高",
+      "source": "Federal Reserve",
+      "scheduled": true
+    },
+    {
+      "id": "employment-2027-01",
+      "type": "employment",
+      "name": "美国非农就业",
+      "period": "1月",
+      "releaseAt": "2027-02-05T13:30:00.000Z",
+      "importance": "高",
+      "source": "BLS",
+      "scheduled": true
+    },
+    {
+      "id": "cpi-2027-01",
+      "type": "cpi",
+      "name": "美国CPI",
+      "period": "1月",
+      "releaseAt": "2027-02-11T13:30:00.000Z",
+      "importance": "高",
+      "source": "BLS",
+      "scheduled": true
+    },
+    {
+      "id": "employment-2027-02",
+      "type": "employment",
+      "name": "美国非农就业",
+      "period": "2月",
+      "releaseAt": "2027-03-05T13:30:00.000Z",
+      "importance": "高",
+      "source": "BLS",
+      "scheduled": true
+    },
+    {
+      "id": "cpi-2027-02",
+      "type": "cpi",
+      "name": "美国CPI",
+      "period": "2月",
+      "releaseAt": "2027-03-10T13:30:00.000Z",
+      "importance": "高",
+      "source": "BLS",
+      "scheduled": true
+    },
+    {
+      "id": "fomc-2027-03-17",
+      "type": "fomc",
+      "name": "FOMC利率决议",
+      "period": "16-17会议",
+      "releaseAt": "2027-03-17T18:00:00.000Z",
+      "importance": "高",
+      "source": "Federal Reserve",
+      "scheduled": true
+    },
+    {
+      "id": "fomc-2027-04-28",
+      "type": "fomc",
+      "name": "FOMC利率决议",
+      "period": "27-28会议",
+      "releaseAt": "2027-04-28T18:00:00.000Z",
+      "importance": "高",
+      "source": "Federal Reserve",
+      "scheduled": true
+    },
+    {
+      "id": "fomc-2027-06-09",
+      "type": "fomc",
+      "name": "FOMC利率决议",
+      "period": "8-9会议",
+      "releaseAt": "2027-06-09T18:00:00.000Z",
+      "importance": "高",
+      "source": "Federal Reserve",
+      "scheduled": true
+    },
+    {
+      "id": "fomc-2027-07-28",
+      "type": "fomc",
+      "name": "FOMC利率决议",
+      "period": "27-28会议",
+      "releaseAt": "2027-07-28T18:00:00.000Z",
+      "importance": "高",
+      "source": "Federal Reserve",
+      "scheduled": true
+    },
+    {
+      "id": "fomc-2027-09-15",
+      "type": "fomc",
+      "name": "FOMC利率决议",
+      "period": "14-15会议",
+      "releaseAt": "2027-09-15T18:00:00.000Z",
+      "importance": "高",
+      "source": "Federal Reserve",
+      "scheduled": true
+    }
+  ],
+  "historyCoverage": "2026-01-01起已公布的美国高影响关键数据"
+}

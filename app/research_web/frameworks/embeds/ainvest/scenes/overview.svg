@@ -1,0 +1,69 @@
+<svg viewBox="0 0 1000 650" xmlns="http://www.w3.org/2000/svg" class="ph-scene">
+  <text class="ph-lbls" x="45" y="40">硬件制造供应链 · 五条关键链路，点击进入</text>
+
+  <!-- 顶部五条制造链：统一宽度、等间距 -->
+  <g class="ph-hot" data-part="chip-factory">
+    <path class="ph-ln" d="M45 76L45 60 82 76 82 60 119 76 119 60 156 76 156 60 193 76" fill="none"/><rect class="ph-fill ph-ln" x="45" y="76" width="150" height="62"/>
+    <circle class="ph-ln" cx="96" cy="107" r="17"/><path class="ph-ln2" d="M82 101h28M80 108h32M82 115h28M89 92v32M97 90v36M105 92v32"/><rect class="ph-chipf" x="150" y="97" width="20" height="20"/>
+    <g class="ph-plus"><circle cx="181" cy="90" r="9"/><path d="M181 86v8M177 90h8"/></g><text class="ph-lbl" x="120" y="156" text-anchor="middle">芯片制造链</text><text class="ph-lbls" x="120" y="170" text-anchor="middle">石英砂 → GPU</text>
+  </g>
+  <g class="ph-hot" data-part="pcb-factory">
+    <path class="ph-ln" d="M235 76L235 60 272 76 272 60 309 76 309 60 346 76 346 60 383 76" fill="none"/><rect class="ph-fill ph-ln" x="235" y="76" width="150" height="62"/>
+    <rect class="ph-chipbg ph-ln2" x="278" y="92" width="42" height="30"/><path class="ph-ln2" d="M284 100h30M284 108h18M302 116h12"/><circle class="ph-gold" cx="290" cy="116" r="2.5"/><circle class="ph-gold" cx="314" cy="100" r="2.5"/>
+    <g class="ph-plus"><circle cx="371" cy="90" r="9"/><path d="M371 86v8M367 90h8"/></g><text class="ph-lbl" x="310" y="156" text-anchor="middle">PCB/CCL 制造链</text><text class="ph-lbls" x="310" y="170" text-anchor="middle">电子布 → CCL → 五类 AI PCB</text>
+  </g>
+  <g class="ph-hot" data-part="mem-factory">
+    <path class="ph-ln" d="M425 76L425 60 462 76 462 60 499 76 499 60 536 76 536 60 573 76" fill="none"/><rect class="ph-fill ph-ln" x="425" y="76" width="150" height="62"/>
+    <rect class="ph-hbm" x="470" y="116" width="60" height="10"/><rect class="ph-hbm" x="474" y="104" width="52" height="10"/><rect class="ph-hbm" x="478" y="92" width="44" height="10"/><rect class="ph-chipf" x="486" y="84" width="28" height="7"/>
+    <g class="ph-plus"><circle cx="561" cy="90" r="9"/><path d="M561 86v8M557 90h8"/></g><text class="ph-lbl" x="500" y="156" text-anchor="middle">存储制造链</text><text class="ph-lbls" x="500" y="170" text-anchor="middle">DRAM → HBM/SSD</text>
+  </g>
+  <g class="ph-hot" data-part="opt-factory">
+    <path class="ph-ln" d="M615 76L615 60 652 76 652 60 689 76 689 60 726 76 726 60 763 76" fill="none"/><rect class="ph-fill ph-ln" x="615" y="76" width="150" height="62"/>
+    <rect class="ph-chipf" x="632" y="98" width="22" height="16"/><polygon class="ph-fill ph-ln2" points="664,114 676,114 673,98 667,98"/><path class="ph-lead" d="M656 106h6M678 106h30"/><path class="ph-ln2" d="M708 102l8 4-8 4z"/><rect class="ph-metal" x="720" y="98" width="26" height="16"/>
+    <g class="ph-plus"><circle cx="751" cy="90" r="9"/><path d="M751 86v8M747 90h8"/></g><text class="ph-lbl" x="690" y="156" text-anchor="middle">光模块制造链</text><text class="ph-lbls" x="690" y="170" text-anchor="middle">InP/硅光 → 1.6T · CPO/OCS</text>
+  </g>
+  <g class="ph-hot" data-part="fiber-factory">
+    <path class="ph-ln" d="M805 76L805 60 842 76 842 60 879 76 879 60 916 76 916 60 953 76" fill="none"/><rect class="ph-fill ph-ln" x="805" y="76" width="150" height="62"/>
+    <circle class="ph-ln" cx="860" cy="106" r="17"/><circle class="ph-ln2" cx="860" cy="106" r="10"/><circle class="ph-ln2" cx="860" cy="106" r="3.5"/><path class="ph-ln2" d="M877 106c23 0 31 8 59 8"/>
+    <g class="ph-plus"><circle cx="941" cy="90" r="9"/><path d="M941 86v8M937 90h8"/></g><text class="ph-lbl" x="880" y="156" text-anchor="middle">光纤光缆制造链</text><text class="ph-lbls" x="880" y="170" text-anchor="middle">光棒 → 拉丝 → 空芯</text>
+  </g>
+
+  <!-- 五条制造链等距接入供给母线；两侧流光向数据中心汇集 -->
+  <path class="ph-route" d="M120 184V210"/>
+  <path class="ph-route" d="M310 184V210"/>
+  <path class="ph-route" d="M500 184V210"/>
+  <path class="ph-route" d="M690 184V210"/>
+  <path class="ph-route" d="M880 184V210"/>
+  <path class="ph-route" d="M120 210H340"/>
+  <path class="ph-route" d="M880 210H340"/>
+  <path class="ph-route" d="M340 210V286"/>
+  <text class="ph-lbls" x="620" y="240" text-anchor="middle">服务器/机柜/PCB/光模块/光缆 供给 → 数据中心</text>
+
+  <!-- 电力与数据中心：算力物理底座 -->
+  <g class="ph-hot" data-part="power-zone">
+    <path class="ph-fill ph-ln" d="M60 390c6-26 6-44 2-62h24c-4 18-4 36 2 62z"/><ellipse class="ph-ln2" cx="74" cy="328" rx="12" ry="3"/><line class="ph-ln" x1="118" y1="390" x2="118" y2="332"/><circle class="ph-fill ph-ln" cx="118" cy="332" r="4"/><path class="ph-ln" d="M118 328v-24M115 335l-21 13M121 335l21 13"/><line class="ph-ln" x1="168" y1="390" x2="168" y2="318"/><path class="ph-ln" d="M156 390l12-40 12 40M150 328h36"/>
+    <line class="ph-ln2" x1="38" y1="390" x2="200" y2="390"/><g class="ph-plus"><circle cx="74" cy="300" r="9"/><path d="M74 296v8M70 300h8"/></g><text class="ph-lbl" x="120" y="432" text-anchor="middle">电力 · 电厂到园区</text><text class="ph-lbls" x="120" y="447" text-anchor="middle">点击展开电力全景</text>
+  </g>
+  <path class="ph-route" d="M210 324H272"/><text class="ph-lbls" x="241" y="316" text-anchor="middle">300MW+ 电力</text>
+  <g class="ph-hot" data-part="dc-campus" transform="translate(-120 0)">
+    <rect class="ph-fill ph-ln" x="395" y="310" width="130" height="100"/><rect class="ph-fill ph-ln2" x="405" y="298" width="20" height="12"/><rect class="ph-fill ph-ln2" x="435" y="298" width="20" height="12"/><rect class="ph-fill ph-ln2" x="465" y="298" width="20" height="12"/><path class="ph-ln2" d="M402 334h116M402 354h116"/><rect class="ph-ln2" x="442" y="374" width="28" height="36"/><rect class="ph-fill ph-ln" x="535" y="332" width="70" height="78"/><path class="ph-ln2" d="M542 354h56M542 374h56"/>
+    <g class="ph-plus"><circle cx="460" cy="282" r="9"/><path d="M460 278v8M456 282h8"/></g><text class="ph-lbl" x="500" y="432" text-anchor="middle">数据中心园区 · 算力生产车间</text><text class="ph-lbls" x="500" y="447" text-anchor="middle">机房 → 机柜 → 托盘 → 光模块</text>
+  </g>
+  <path class="ph-route" d="M492 324H552"/><text class="ph-lbls" x="522" y="316" text-anchor="middle">算力 / Token</text>
+
+  <!-- 云模型、通用应用与机器人模型接口 -->
+  <g class="ph-hot" data-part="downstream" transform="translate(-153 0)">
+    <path class="ph-fill ph-ln" d="M710 320a16 16 0 0 1-2-32 20 20 0 0 1 38-8 16 16 0 0 1 22 14 13 13 0 0 1-4 26z"/><text class="ph-lbl" x="738" y="306" text-anchor="middle">云</text><rect class="ph-chipf" x="790" y="282" width="70" height="44"/><text class="ph-die" x="825" y="308" text-anchor="middle">模型 LLM</text><path class="ph-lead" d="M770 300h16M782 296l8 4-8 4z"/>
+    <path class="ph-lead" d="M738 332v24M825 332v24"/><rect class="ph-fill ph-ln" x="706" y="362" width="26" height="38" rx="4"/><rect class="ph-fill ph-ln" x="748" y="366" width="40" height="30"/><rect class="ph-fill ph-ln" x="804" y="364" width="36" height="30" rx="4"/><path class="ph-ln2" d="M756 376h24M812 384h20"/>
+    <g class="ph-plus"><circle cx="878" cy="288" r="9"/><path d="M878 284v8M874 288h8"/></g><text class="ph-lbl" x="783" y="432" text-anchor="middle">云 · 模型 · 应用</text><text class="ph-lbls" x="783" y="447" text-anchor="middle">通用模型的云端变现链</text>
+  </g>
+  <path class="ph-route" d="M707 324H855"/><text class="ph-lbls" x="781" y="316" text-anchor="middle">模型 → 感知/控制</text>
+
+  <!-- 人形机器人：模型只接入大脑，机械链独立汇入本体 -->
+  <g class="ph-hot" data-part="humanoid-robot" transform="translate(30 -216)">
+    <circle class="ph-fill ph-ln" cx="850" cy="488" r="20"/><circle class="ph-ln2" cx="842" cy="485" r="3"/><circle class="ph-ln2" cx="858" cy="485" r="3"/><path class="ph-ln2" d="M842 498h16"/>
+    <rect class="ph-chipbg ph-ln" x="825" y="512" width="50" height="56" rx="8"/><rect class="ph-chipf" x="838" y="524" width="24" height="16"/><path class="ph-ln" d="M825 526l-28 18M875 526l28 18M836 568l-14 38M864 568l14 38"/><circle class="ph-fill ph-ln2" cx="797" cy="544" r="7"/><circle class="ph-fill ph-ln2" cx="903" cy="544" r="7"/><rect class="ph-metal" x="777" y="540" width="16" height="10"/><rect class="ph-metal" x="907" y="540" width="16" height="10"/><circle class="ph-fill ph-ln2" cx="822" cy="606" r="6"/><circle class="ph-fill ph-ln2" cx="878" cy="606" r="6"/>
+    <g class="ph-plus"><circle cx="924" cy="478" r="9"/><path d="M924 474v8M920 478h8"/></g><text class="ph-lbl" x="850" y="648" text-anchor="middle">人形机器人 · 本体 + 零部件</text><text class="ph-lbls" x="850" y="663" text-anchor="middle">关节执行 · 灵巧手 · 感知控制 · 结构能源</text>
+  </g>
+  <path class="ph-route" d="M630 452V540H380V420"/><text class="ph-lbls" x="505" y="570" text-anchor="middle">Token/物理数据收入回流 → 再投资 Capex · AI 飞轮</text>
+</svg>

@@ -276,7 +276,13 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["Referrer-Policy"] = "no-referrer"
         documentation_response = documentation_path and response.status_code == 200
-        if "/preview" not in request.url.path and not documentation_response:
+        # Vendored framework apps have a route-scoped same-origin iframe policy.
+        embed_response = request.url.path.startswith("/frameworks-embed/")
+        if embed_response:
+            response.headers["Content-Security-Policy"] = (
+                "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data:; connect-src 'self'; frame-src 'self'; object-src 'none'; frame-ancestors 'self'"
+            )
+        elif "/preview" not in request.url.path and not documentation_response:
             response.headers["Content-Security-Policy"] = (
                 "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-src 'self'; object-src 'none'; frame-ancestors 'none'"
             )
@@ -660,6 +666,12 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
             return {"items": []}
         result = await service.skill_catalog(rows[-1]["id"])
         return {"items": [{"id": skill["name"], **skill} for skill in result["skills"]]}
+
+    EMBEDS = Path(__file__).resolve().parent / "frameworks" / "embeds"
+    if EMBEDS.exists():
+        app.mount(
+            "/frameworks-embed", StaticFiles(directory=EMBEDS, html=True), name="frameworks-embed"
+        )
 
     if UI.exists():
         app.mount("/static", StaticFiles(directory=UI), name="static")

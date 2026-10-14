@@ -1,0 +1,38 @@
+<svg viewBox="0 0 1000 600" xmlns="http://www.w3.org/2000/svg" class="ph-scene">
+  <text class="ph-lbls" x="45" y="42">高速 CCL 工艺：低损耗树脂与填料浸润电子布，经预固化、叠配、热压和检测形成覆铜板</text>
+  <g class="ph-hot" data-part="ccl-mixing">
+    <rect class="ph-fill ph-ln" x="38" y="104" width="138" height="182" rx="5"/><path class="ph-fill ph-ln2" d="M90 134v20l-18 38q-4 11 9 11h50q13 0 9-11l-18-38v-20z"/><path class="ph-ln2" d="M82 134h48M92 176h30"/><circle class="ph-chipf" cx="108" cy="222" r="16"/><path class="ph-lead" d="M108 222l14-9M108 222l-12-11M108 222l9 13"/>
+    <text class="ph-lbl" x="107" y="315" text-anchor="middle">1. 调胶</text><text class="ph-lbls" x="107" y="332" text-anchor="middle">树脂 + 填料 + 助剂</text>
+  </g>
+  <path class="ph-flow" d="M176 195h25"/>
+  <g class="ph-hot" data-part="ccl-impregnation">
+    <rect class="ph-fill ph-ln" x="201" y="104" width="138" height="182" rx="5"/><path class="ph-metal ph-ln2" d="M220 224h100v20H220z"/><circle class="ph-metal ph-ln2" cx="238" cy="190" r="18"/><circle class="ph-metal ph-ln2" cx="302" cy="190" r="18"/><path class="ph-ln2" d="M238 172v-30M302 172v-30M226 190h88"/><path class="ph-lead" d="M238 142h64"/>
+    <text class="ph-lbl" x="270" y="315" text-anchor="middle">2. 含浸</text><text class="ph-lbls" x="270" y="332" text-anchor="middle">电子布连续浸胶</text>
+  </g>
+  <path class="ph-flow" d="M339 195h25"/>
+  <g class="ph-hot" data-part="ccl-treating">
+    <rect class="ph-fill ph-ln" x="364" y="104" width="138" height="182" rx="5"/><rect class="ph-metal ph-ln2" x="390" y="138" width="86" height="100" rx="3"/><path class="ph-ln2" d="M406 156h54M406 178h54M406 200h54"/><path class="ph-lead" d="M382 248h102"/><path class="ph-flow" d="M433 156v50"/>
+    <text class="ph-lbl" x="433" y="315" text-anchor="middle">3. 烘干</text><text class="ph-lbls" x="433" y="332" text-anchor="middle">预固化为半固化片</text>
+  </g>
+  <path class="ph-flow" d="M502 195h25"/>
+  <g class="ph-hot" data-part="ccl-buildup">
+    <rect class="ph-fill ph-ln" x="527" y="104" width="138" height="182" rx="5"/><rect class="ph-gold" x="552" y="154" width="88" height="8"/><rect class="ph-hbm" x="552" y="166" width="88" height="18"/><rect class="ph-gold" x="552" y="188" width="88" height="8"/><rect class="ph-hbm" x="552" y="200" width="88" height="18"/><path class="ph-lead" d="M544 230h104"/>
+    <text class="ph-lbl" x="596" y="315" text-anchor="middle">4. 叠配</text><text class="ph-lbls" x="596" y="332" text-anchor="middle">铜箔 / PP / 芯材</text>
+  </g>
+  <path class="ph-flow" d="M665 195h25"/>
+  <g class="ph-hot" data-part="ccl-press">
+    <rect class="ph-fill ph-ln" x="690" y="104" width="138" height="182" rx="5"/><rect class="ph-metal ph-ln2" x="714" y="136" width="90" height="14"/><rect class="ph-metal ph-ln2" x="714" y="232" width="90" height="14"/><path class="ph-ln2" d="M728 152v76M790 152v76"/><rect class="ph-gold" x="730" y="174" width="58" height="5"/><rect class="ph-hbm" x="730" y="183" width="58" height="12"/><rect class="ph-gold" x="730" y="199" width="58" height="5"/>
+    <text class="ph-lbl" x="759" y="315" text-anchor="middle">5. 热压</text><text class="ph-lbls" x="759" y="332" text-anchor="middle">温度 / 压力 / 时间</text>
+  </g>
+  <path class="ph-flow" d="M828 195h25"/>
+  <g class="ph-hot" data-part="ccl-inspection">
+    <rect class="ph-fill ph-ln" x="853" y="104" width="110" height="182" rx="5"/><rect class="ph-chipbg ph-ln2" x="873" y="150" width="70" height="46"/><path class="ph-ln2" d="M884 164h48M884 180h34"/><circle class="ph-metal ph-ln2" cx="908" cy="224" r="16"/><path class="ph-lead" d="M908 214v20M898 224h20"/>
+    <text class="ph-lbl" x="908" y="315" text-anchor="middle">6. 检测</text><text class="ph-lbls" x="908" y="332" text-anchor="middle">外观 / 性能 / 一致性</text>
+  </g>
+  <text class="ph-lbl" x="45" y="386">核心材料</text>
+  <g class="ph-hot" data-part="hvlp-foil"><rect class="ph-fill ph-ln" x="45" y="410" width="200" height="98" rx="5"/><circle class="ph-metal ph-ln2" cx="90" cy="455" r="20"/><path class="ph-lead" d="M112 455h50"/><text class="ph-lbl" x="170" y="446" text-anchor="middle">HVLP 低轮廓铜箔</text><text class="ph-lbls" x="170" y="466" text-anchor="middle">降低趋肤损耗</text></g>
+  <g class="ph-hot" data-part="lowloss-resin"><rect class="ph-fill ph-ln" x="270" y="410" width="200" height="98" rx="5"/><path class="ph-fill ph-ln2" d="M310 430v16l-12 28q-3 9 8 9h28q11 0 8-9l-12-28v-16z"/><text class="ph-lbl" x="394" y="446" text-anchor="middle">低损耗树脂</text><text class="ph-lbls" x="394" y="466" text-anchor="middle">PPO / 碳氢 / BT / PTFE</text></g>
+  <g class="ph-hot" data-part="silica-filler"><rect class="ph-fill ph-ln" x="495" y="410" width="200" height="98" rx="5"/><circle class="ph-chipf" cx="540" cy="450" r="10"/><circle class="ph-metal" cx="570" cy="460" r="12"/><circle class="ph-chipf" cx="598" cy="444" r="8"/><text class="ph-lbl" x="626" y="446" text-anchor="middle">无机填料</text><text class="ph-lbls" x="626" y="466" text-anchor="middle">流动 / CTE / 耐热</text></g>
+  <g class="ph-hot" data-part="prepreg"><rect class="ph-fill ph-ln" x="720" y="410" width="235" height="98" rx="5"/><rect class="ph-chipbg ph-ln2" x="748" y="432" width="90" height="40"/><path class="ph-ln2" d="M754 442h78M754 452h78M754 462h78M766 436v32M782 436v32M798 436v32M814 436v32"/><text class="ph-lbl" x="886" y="446" text-anchor="middle">电子布 / 半固化片 PP</text><text class="ph-lbls" x="886" y="466" text-anchor="middle">树脂浸润后的层间介质</text></g>
+  <text class="ph-lbls" x="500" y="558" text-anchor="middle">结构示意参考：广发证券《电子行业2026年中期策略：AI创新与存储周期》图 29 · 参数与配方因材料等级而异</text>
+</svg>

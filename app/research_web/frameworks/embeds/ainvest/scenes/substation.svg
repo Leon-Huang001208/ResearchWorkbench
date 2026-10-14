@@ -1,0 +1,22 @@
+<svg viewBox="0 0 1000 540" xmlns="http://www.w3.org/2000/svg" class="ph-scene">
+  <text class="ph-lbls" x="44" y="42">变电站：高压侧接入、主变降压、保护自动化、10kV 配电送入园区</text>
+  <path class="ph-flow" d="M70 292H910"/><polygon points="910,287 922,292 910,297" fill="var(--accent)"/>
+  <g class="ph-hot" data-part="gis">
+    <rect class="ph-fill ph-ln" x="70" y="222" width="154" height="140"/><path class="ph-ln2" d="M88 248h118M88 274h118M88 300h118M88 326h118M110 222v140M148 222v140M186 222v140"/>
+    <text class="ph-lbl" x="147" y="394" text-anchor="middle">GIS / 高压开关</text><text class="ph-lbls" x="147" y="409" text-anchor="middle">隔离 · 开断 · 接地</text>
+  </g>
+  <g class="ph-hot" data-part="main-transformer">
+    <rect class="ph-fill ph-ln" x="330" y="198" width="214" height="178" rx="4"/><circle class="ph-ln" cx="405" cy="286" r="44" fill="none"/><circle class="ph-ln" cx="470" cy="286" r="44" fill="none"/><path class="ph-ln2" d="M361 286h88M426 286h88"/>
+    <path class="ph-ln2" d="M348 224h178M348 348h178"/><text class="ph-lbl" x="437" y="408" text-anchor="middle">主变压器</text><text class="ph-lbls" x="437" y="423" text-anchor="middle">高压 → 10kV</text>
+  </g>
+  <g class="ph-hot" data-part="relay-protection">
+    <rect class="ph-chipf" x="646" y="208" width="136" height="90" rx="6"/><text class="ph-die" x="714" y="247" text-anchor="middle">保护测控</text><text class="ph-lbls" x="714" y="266" text-anchor="middle">故障识别 / 切除</text>
+    <path class="ph-dash" d="M714 298v86M714 384h-278M714 384v32"/><text class="ph-lbl" x="714" y="332" text-anchor="middle">继电保护</text>
+  </g>
+  <g class="ph-hot" data-part="mv-switchgear">
+    <rect class="ph-fill ph-ln" x="840" y="206" width="106" height="166"/><path class="ph-ln2" d="M840 246h106M840 286h106M840 326h106M866 206v166M892 206v166M918 206v166"/>
+    <text class="ph-lbl" x="893" y="404" text-anchor="middle">10kV 开关柜</text><text class="ph-lbls" x="893" y="419" text-anchor="middle">分配至园区</text>
+  </g>
+  <text class="ph-lbls" x="100" y="274">高压进线</text><text class="ph-lbls" x="570" y="274">二次系统</text>
+  <line class="ph-ln2" x1="40" y1="476" x2="960" y2="476"/>
+</svg>

@@ -1,0 +1,133 @@
+<svg viewBox="0 0 1000 620" xmlns="http://www.w3.org/2000/svg" class="ph-scene">
+  <text class="ph-lbls" x="45" y="40">棒 — 纤 — 缆 价值传导：光棒占成本 70%、扩产 18-24 个月，是本轮供给刚性之源</text>
+
+  <!-- Row1 原料与光棒 -->
+  <g class="ph-hot" data-part="sicl4">
+    <rect class="ph-fill ph-ln2" x="45" y="64" width="170" height="100"/>
+    <path class="ph-fill ph-ln" d="M110 80 V104 L92 140 Q88 150 98 150 H138 Q148 150 144 140 L126 104 V80 Z"/>
+    <line class="ph-ln2" x1="104" y1="80" x2="132" y2="80"/>
+    <text class="ph-lbls" x="118" y="136" text-anchor="middle">SiCl₄</text>
+    <polygon class="ph-fill ph-ln2" points="160,150 180,122 200,150"/>
+    <text class="ph-lbl" x="130" y="182" text-anchor="middle">高纯原料</text>
+    <text class="ph-lbls" x="130" y="196" text-anchor="middle">四氯化硅 · 高纯石英</text>
+  </g>
+  <g class="ph-hot" data-part="preform-core">
+    <rect class="ph-fill ph-ln2" x="285" y="64" width="170" height="100"/>
+    <line class="ph-ln" x1="310" y1="100" x2="430" y2="100"/>
+    <rect class="ph-fill ph-ln" x="350" y="92" width="60" height="16" rx="8"/>
+    <polygon class="ph-fill ph-ln2" points="372,140 380,118 388,140"/>
+    <path class="ph-lead" d="M380 118 V110"/>
+    <circle class="ph-bm" cx="366" cy="112" r="1.5"/><circle class="ph-bm" cx="380" cy="108" r="1.5"/><circle class="ph-bm" cx="394" cy="112" r="1.5"/>
+    <text class="ph-lbl" x="370" y="182" text-anchor="middle">预制棒 · 芯棒</text>
+    <text class="ph-lbls" x="370" y="196" text-anchor="middle">VAD/OVD 化学气相沉积</text>
+  </g>
+  <g class="ph-hot" data-part="preform-clad">
+    <rect class="ph-fill ph-ln2" x="525" y="64" width="170" height="100"/>
+    <rect class="ph-fill ph-ln" x="560" y="94" width="100" height="32" rx="16"/>
+    <rect class="ph-chipf" x="576" y="104" width="68" height="12" rx="6"/>
+    <text class="ph-lbl" x="610" y="182" text-anchor="middle">外包层</text>
+    <text class="ph-lbls" x="610" y="196" text-anchor="middle">套管/外沉积 · 决定几何精度</text>
+  </g>
+  <text class="ph-lbls" x="850" y="84" text-anchor="middle">危化品审批 · 设备自研定制</text>
+  <text class="ph-lbls" x="850" y="100" text-anchor="middle">折射率/沉积速度极难控制</text>
+  <g class="ph-lead">
+    <line x1="215" y1="114" x2="278" y2="114"/>
+    <line x1="455" y1="114" x2="518" y2="114"/>
+  </g>
+  <polygon points="278,109 288,114 278,119" fill="var(--txt3)"/>
+  <polygon points="518,109 528,114 518,119" fill="var(--txt3)"/>
+  <path class="ph-lead" d="M695 114 H850 V244"/>
+  <polygon points="845,244 850,254 855,244" fill="var(--txt3)"/>
+
+  <!-- Row2 拉丝与光纤（右→左） -->
+  <g class="ph-hot" data-part="draw-tower">
+    <rect class="ph-fill ph-ln2" x="765" y="258" width="170" height="100"/>
+    <rect class="ph-fill ph-ln" x="828" y="264" width="44" height="24"/>
+    <rect class="ph-chipf" x="842" y="252" width="16" height="12"/>
+    <line class="ph-ln2" x1="850" y1="288" x2="850" y2="330"/>
+    <circle class="ph-ln2" cx="850" cy="304" r="6" fill="none"/>
+    <rect class="ph-ln2" x="844" y="316" width="12" height="6" fill="none"/>
+    <circle class="ph-fill ph-ln" cx="850" cy="340" r="9"/>
+    <text class="ph-lbl" x="850" y="376" text-anchor="middle">拉丝塔</text>
+    <text class="ph-lbls" x="850" y="390" text-anchor="middle">2000℃ · 20-30 米高塔 · 双层涂覆</text>
+  </g>
+  <g class="ph-hot" data-part="fiber-types">
+    <rect class="ph-fill ph-ln2" x="525" y="258" width="170" height="100"/>
+    <circle class="ph-fill ph-ln" cx="566" cy="300" r="18"/><circle class="ph-bm" cx="566" cy="300" r="2.5"/>
+    <circle class="ph-fill ph-ln" cx="610" cy="300" r="18"/><circle class="ph-bm" cx="610" cy="300" r="2.5"/>
+    <circle class="ph-fill ph-ln" cx="654" cy="300" r="18"/><circle class="ph-bm" cx="654" cy="300" r="2.5"/>
+    <text class="ph-lbls" x="566" y="334" text-anchor="middle">652D</text>
+    <text class="ph-lbls" x="610" y="334" text-anchor="middle">657A2</text>
+    <text class="ph-lbls" x="654" y="334" text-anchor="middle">654E</text>
+    <text class="ph-lbl" x="610" y="376" text-anchor="middle">光纤型号</text>
+    <text class="ph-lbls" x="610" y="390" text-anchor="middle">长途 · AIDC 高密度 · 超低损 DCI</text>
+  </g>
+  <g class="ph-hot" data-part="hcf">
+    <rect class="ph-fill ph-ln2" x="285" y="258" width="170" height="100"/>
+    <circle class="ph-fill ph-ln" cx="370" cy="304" r="34"/>
+    <circle class="ph-ln2" cx="370" cy="282" r="9" fill="none"/>
+    <circle class="ph-ln2" cx="389" cy="293" r="9" fill="none"/>
+    <circle class="ph-ln2" cx="389" cy="315" r="9" fill="none"/>
+    <circle class="ph-ln2" cx="370" cy="326" r="9" fill="none"/>
+    <circle class="ph-ln2" cx="351" cy="315" r="9" fill="none"/>
+    <circle class="ph-ln2" cx="351" cy="293" r="9" fill="none"/>
+    <circle class="ph-bm" cx="370" cy="304" r="3"/>
+    <text class="ph-lbl" x="370" y="376" text-anchor="middle">空芯光纤 HCF</text>
+    <text class="ph-lbls" x="370" y="390" text-anchor="middle">光走空气 · 快 30-47% · 良率是瓶颈</text>
+    <g class="ph-plus"><circle cx="438" cy="272" r="9"/><path d="M438 268 v8 M434 272 h8"/></g>
+  </g>
+  <text class="ph-lbls" x="130" y="296" text-anchor="middle">微软/康宁/长飞/亨通</text>
+  <text class="ph-lbls" x="130" y="312" text-anchor="middle">竞逐下一代性能边界</text>
+  <g class="ph-lead">
+    <line x1="765" y1="308" x2="702" y2="308"/>
+    <line x1="525" y1="308" x2="462" y2="308" stroke-dasharray="5 5"/>
+  </g>
+  <polygon points="702,303 692,308 702,313" fill="var(--txt3)"/>
+  <polygon points="462,303 452,308 462,313" fill="var(--txt3)"/>
+
+  <path class="ph-lead" d="M610 358 V412 H130 V438"/>
+  <polygon points="125,438 130,448 135,438" fill="var(--txt3)"/>
+
+  <!-- Row3 成缆与部署 -->
+  <g class="ph-hot" data-part="cabling">
+    <rect class="ph-fill ph-ln2" x="45" y="452" width="170" height="100"/>
+    <circle class="ph-fill ph-ln" cx="130" cy="500" r="34"/>
+    <circle class="ph-ln2" cx="130" cy="500" r="26" fill="none"/>
+    <circle class="ph-ln2" cx="130" cy="486" r="7" fill="none"/>
+    <circle class="ph-ln2" cx="143" cy="494" r="7" fill="none"/>
+    <circle class="ph-ln2" cx="143" cy="508" r="7" fill="none"/>
+    <circle class="ph-ln2" cx="130" cy="514" r="7" fill="none"/>
+    <circle class="ph-ln2" cx="117" cy="508" r="7" fill="none"/>
+    <circle class="ph-ln2" cx="117" cy="494" r="7" fill="none"/>
+    <circle class="ph-ln2" cx="130" cy="500" r="7" fill="none"/>
+    <text class="ph-lbl" x="130" y="570" text-anchor="middle">成缆</text>
+    <text class="ph-lbls" x="130" y="584" text-anchor="middle">套塑/绞合/铠装 · 扩产仅 6 个月</text>
+  </g>
+  <g class="ph-hot" data-part="deploy-aidc">
+    <rect class="ph-fill ph-ln2" x="285" y="452" width="170" height="100"/>
+    <rect class="ph-fill ph-ln" x="316" y="472" width="30" height="64"/>
+    <line class="ph-ln2" x1="316" y1="492" x2="346" y2="492"/>
+    <line class="ph-ln2" x1="316" y1="512" x2="346" y2="512"/>
+    <path class="ph-ln2" d="M346 480 C390 480 400 470 428 470 M346 500 C390 500 400 496 428 496 M346 520 C390 520 400 522 428 522" fill="none"/>
+    <text class="ph-lbl" x="370" y="570" text-anchor="middle">AIDC / DCI 部署</text>
+    <text class="ph-lbls" x="370" y="584" text-anchor="middle">单柜 800-1000 芯 · 15 倍于传统</text>
+    <g class="ph-plus"><circle cx="438" cy="466" r="9"/><path d="M438 462 v8 M434 466 h8"/></g>
+  </g>
+  <g class="ph-hot" data-part="fiber-cycle">
+    <rect class="ph-fill ph-ln2" x="525" y="452" width="170" height="100"/>
+    <path class="ph-lead" d="M556 536 V474 M556 536 H672"/>
+    <path class="ph-ln" d="M560 528 L592 524 L620 512 L644 490 L662 474" fill="none"/>
+    <polygon points="658,470 670,470 664,482" fill="var(--up)"/>
+    <text class="ph-lbl" x="610" y="570" text-anchor="middle">供需与长协</text>
+    <text class="ph-lbls" x="610" y="584" text-anchor="middle">藤仓 200亿$ · 康宁-Meta 60亿$</text>
+  </g>
+  <g class="ph-lead">
+    <line x1="215" y1="502" x2="278" y2="502"/>
+    <line x1="455" y1="502" x2="518" y2="502"/>
+  </g>
+  <polygon points="278,497 288,502 278,507" fill="var(--txt3)"/>
+  <polygon points="518,497 528,502 518,507" fill="var(--txt3)"/>
+  <text class="ph-lbls" x="815" y="492">AIDC 占全球光纤需求</text>
+  <text class="ph-lbls" x="815" y="508">5% → 30%（2024→2027E）</text>
+  <text class="ph-lbls" x="815" y="524">散纤价格一年上涨近一倍</text>
+</svg>

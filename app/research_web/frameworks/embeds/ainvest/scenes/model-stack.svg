@@ -1,0 +1,27 @@
+<svg viewBox="0 0 1000 560" xmlns="http://www.w3.org/2000/svg" class="ph-scene">
+  <text class="ph-lbls" x="46" y="40">模型栈：数据与算力训练基础模型，经推理/多模态/工具工程走向可执行 Agent · 结构示意</text>
+
+  <g class="ph-hot" data-part="model-data-detail">
+    <rect class="ph-fill ph-ln" x="52" y="158" width="150" height="166" rx="8"/><text class="ph-lbl" x="127" y="192" text-anchor="middle">数据/反馈</text><text class="ph-lbls" x="127" y="211" text-anchor="middle">语料 · 领域数据 · 合成数据</text>
+    <ellipse class="ph-fill ph-ln2" cx="104" cy="250" rx="25" ry="8"/><path class="ph-ln2" d="M79 250v33c0 11 50 11 50 0v-33M79 266c0 11 50 11 50 0"/>
+    <path class="ph-ln2" d="M152 240l24 14-24 14zM152 282h28"/>
+  </g>
+  <g class="ph-hot" data-part="model-foundation-detail">
+    <rect class="ph-chipbg ph-ln" x="268" y="130" width="188" height="226" rx="8"/><text class="ph-lbl" x="362" y="164" text-anchor="middle">基础模型/预训练</text><text class="ph-lbls" x="362" y="183" text-anchor="middle">Transformer · MoE · 规模化训练</text>
+    <rect class="ph-chipf" x="302" y="218" width="120" height="74" rx="5"/><path class="ph-ln2" d="M318 238h88M318 254h54M318 270h76"/><circle class="ph-ln2" cx="328" cy="310" r="5"/><circle class="ph-ln2" cx="362" cy="310" r="5"/><circle class="ph-ln2" cx="396" cy="310" r="5"/>
+  </g>
+  <g class="ph-hot" data-part="model-reasoning-detail">
+    <rect class="ph-fill ph-ln" x="522" y="104" width="178" height="120" rx="8"/><text class="ph-lbl" x="611" y="137" text-anchor="middle">推理/强化学习</text><text class="ph-lbls" x="611" y="156" text-anchor="middle">后训练 · 奖励 · 测试时计算</text><path class="ph-ln2" d="M560 185h100M572 176l-12 9 12 9M648 176l12 9-12 9"/>
+  </g>
+  <g class="ph-hot" data-part="model-world-detail">
+    <rect class="ph-fill ph-ln" x="522" y="258" width="178" height="120" rx="8"/><text class="ph-lbl" x="611" y="291" text-anchor="middle">多模态/世界模型</text><text class="ph-lbls" x="611" y="310" text-anchor="middle">图像 · 视频 · 空间 · 动作</text><circle class="ph-ln2" cx="565" cy="340" r="15"/><path class="ph-ln2" d="M550 340h30M565 325v30"/><rect class="ph-chipbg ph-ln2" x="606" y="325" width="54" height="30" rx="3"/>
+  </g>
+  <g class="ph-hot" data-part="model-agent-detail">
+    <rect class="ph-chipbg ph-ln" x="770" y="158" width="178" height="166" rx="8"/><text class="ph-lbl" x="859" y="191" text-anchor="middle">Agent/Harness</text><text class="ph-lbls" x="859" y="210" text-anchor="middle">上下文 · 工具 · 评测 · 纠错</text>
+    <circle class="ph-fill ph-ln2" cx="810" cy="265" r="17"/><text class="ph-die" x="810" y="271" text-anchor="middle">AI</text><rect class="ph-fill ph-ln2" x="842" y="244" width="72" height="22" rx="3"/><rect class="ph-fill ph-ln2" x="842" y="276" width="72" height="22" rx="3"/><path class="ph-lead" d="M827 265h15M827 282h15"/>
+  </g>
+  <g class="ph-lead"><path d="M202 241h58M456 241h58M700 164h46M700 318h46"/></g>
+  <polygon points="260,236 268,241 260,246" fill="var(--txt3)"/><polygon points="514,236 522,241 514,246" fill="var(--txt3)"/><polygon points="746,159 754,164 746,169" fill="var(--txt3)"/><polygon points="746,313 754,318 746,323" fill="var(--txt3)"/>
+  <path class="ph-dash" d="M880 350C910 457 210 459 127 347"/><polygon points="124,353 122,340 134,346" fill="var(--txt3)"/>
+  <text class="ph-lbls" x="503" y="482" text-anchor="middle">多模态/世界模型可分支服务具身与智能驾驶；Agent 则把通用模型接入企业工具和任务流程</text>
+</svg>

@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>存储芯片六十年 · 1965–2026 周期深度研究</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=Inter:wght@400;600;700&family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&family=Noto+Sans+SC:wght@400;600;700&family=Noto+Serif+SC:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+<script src="assets/echarts.min.js"></script>
+</head>
+<body>
+
+<header class="top">
+  <div class="logo">MEMORY<b>CYCLES</b>·60Y</div>
+  <nav id="nav-links"></nav>
+  <div class="live">2026H2 · 周期进行中</div>
+</header>
+
+<!-- ================= 首屏 ================= -->
+<section class="hero">
+  <div class="kicker">Deep Research · Memory Semiconductor Industry</div>
+  <h1>存储芯片六十年：<br>一部由<em>供给扩张</em>书写的周期史 <em>1965–2026</em></h1>
+  <p class="sub">需求增长从来不是线性的，供给扩张才决定周期。从 Intel 1103 到 HBM4，六轮「需求点火 → 扩产 → 库存累积 → 价格反转 → 行业出清」的完整解剖，与 2026→2028E 的三种情景裁决框架。</p>
+  <div class="hero-stats">
+    <div class="hstat"><div class="k">2026E DRAM 缺口</div><div class="v">4.9%</div><div class="d">近 15 年最大 · Goldman Sachs</div></div>
+    <div class="hstat"><div class="k">2026Q1 DRAM 合约价</div><div class="v">+90~95%</div><div class="d">环比 · TrendForce</div></div>
+    <div class="hstat"><div class="k">2026E HBM 市场</div><div class="v">$54.6B</div><div class="d">+58% YoY · BofA</div></div>
+    <div class="hstat"><div class="k">三大原厂 2026 Capex</div><div class="v">$53.5B</div><div class="d">+16% · TrendForce</div></div>
+    <div class="hstat"><div class="k">DRAM 玩家</div><div class="v">20 → 3</div><div class="d">六轮出清后的寡头格局</div></div>
+    <div class="hstat"><div class="k">交互图表</div><div class="v">26</div><div class="d">点击任意图表钻取数据来源</div></div>
+  </div>
+  <div id="hero-chart"></div>
+  <div class="hint">▲ 图 01 · 六十年存储周期墙 — 拖动下方滑块缩放年代 · 点击进入钻取视图</div>
+</section>
+
+<!-- ================= 三栏叙事 ================= -->
+<div class="scrolly">
+  <div id="chapters"></div>
+
+  <div class="stage">
+    <div class="stage-head">
+      <div id="stage-title">—</div>
+      <div id="progress-label">—</div>
+    </div>
+    <div id="stage-sub">—</div>
+    <div id="stage-chart"></div>
+    <div class="stage-foot">中央图表随左侧章节滚动切换 · 点击图表可钻取底层数据来源</div>
+  </div>
+
+  <aside class="panel">
+    <div class="panel-box">
+      <div class="panel-head">
+        <div class="t">DATA PANEL · 实时联动</div>
+        <div id="panel-era">—</div>
+      </div>
+      <div id="panel-metrics"></div>
+    </div>
+  </aside>
+</div>
+
+<!-- ================= 图表库 ================= -->
+<section class="section" id="gallery">
+  <div class="sec-kicker">Chart Library</div>
+  <h2 class="sec-title">26 张可交互图表 · 全部支持点击钻取</h2>
+  <p class="sec-sub">每一张图都标注了底层数据来源与口径说明；点击卡片打开全尺寸视图与来源明细。早期历史数据为量级估算，仅用于结构性示意。</p>
+  <div id="gallery-grid"></div>
+</section>
+
+<!-- ================= Kill Switch ================= -->
+<section class="section" id="killswitch">
+  <div class="sec-kicker">Risk Console</div>
+  <h2 class="sec-title">Kill Switch 压力测试台</h2>
+  <p class="sec-sub">四个关键风险开关，实时叠加到 2026Q3–2028Q2 的 DRAM 价格路径上。任意组合触发，即可观察情景从 Base 向 Conservative / Contraction 的迁移。</p>
+  <div class="ks-wrap">
+    <div id="ks-list"></div>
+    <div>
+      <div id="ks-chart"></div>
+      <div id="ks-verdict"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 触发器 ================= -->
+<section class="section" id="triggers">
+  <div class="sec-kicker">Falsifiable Triggers</div>
+  <h2 class="sec-title">八个可证伪触发器</h2>
+  <p class="sec-sub">任何研究结论都必须附带证伪条件。以下八个触发器覆盖价格、供给、库存、需求与结构性叙事五条链路，任一项触发即应重检情景概率。</p>
+  <table class="triggers">
+    <thead><tr><th>#</th><th>触发器</th><th>阈值</th><th>作用窗口</th><th>信号含义</th><th>当前状态（2026H2）</th></tr></thead>
+    <tbody id="trigger-body"></tbody>
+  </table>
+</section>
+
+<!-- ================= 结论 ================= -->
+<section class="section">
+  <div class="sec-kicker">Conclusion 2026 → 2028E</div>
+  <h2 class="sec-title">结论：超级周期仍在，但时钟已经开始倒数</h2>
+  <p class="sec-sub">「需求增长不是线性的，供给扩张才决定周期。」AI 与 HBM 改变了本轮周期的斜率与持续性——资本与客户认证双壁垒拉长了供给时滞——但没有取消周期本身。2026 年宣布的每一座 fab，都是 2028 年的价格。</p>
+  <div class="verdict">
+    <div class="v-card b">
+      <span class="v-tag">BASE · 55%</span>
+      <h3>景气上行至 2028E</h3>
+      <p>AI 资本开支维持增长，HBM 成为核心增量（2028E TAM ~$100B），供给纪律大体维持，DRAM 收入 CAGR ~25%。HBM4 顺利量产是核心假设。</p>
+    </div>
+    <div class="v-card c">
+      <span class="v-tag">CONSERVATIVE · 30%</span>
+      <h3>传统周期回归</h3>
+      <p>AI 资本开支增速放缓，HBM 溢价收窄，竞争回到容量与成本。2027 年价格见顶后温和回落，盈利均值回归，行业估值中枢下移。</p>
+    </div>
+    <div class="v-card x">
+      <span class="v-tag">CONTRACTION · 15%</span>
+      <h3>新一轮价格压力</h3>
+      <p>需求不及预期叠加 2027–28 扩产集中释放（含长鑫 60 万片/月产能），缺口转负，历史级别的价格下跌重演，弱者二次出清。</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <b>MEMORY CYCLES · 1965–2026</b> — 交互式存储芯片周期研究报告<br>
+  数据来源：TrendForce · Omdia · Counterpoint · SemiAnalysis · Goldman Sachs · BofA · UBS · 各公司财报及公开指引。早期历史序列为量级估算。<br>
+  本报告仅供投资研究与产业分析讨论使用，不构成投资建议。© <span id="year"></span>
+</footer>
+
+<!-- 钻取弹窗 -->
+<div id="modal">
+  <div class="modal-box">
+    <div class="modal-top">
+      <div><div id="modal-title"></div><div id="modal-sub"></div></div>
+      <button id="modal-close">✕</button>
+    </div>
+    <div id="modal-chart"></div>
+    <div id="modal-src"></div>
+  </div>
+</div>
+
+<script src="js/data.js"></script>
+<script src="js/charts.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

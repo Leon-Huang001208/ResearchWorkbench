@@ -1,0 +1,161 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 32 1080 656" role="img" aria-labelledby="title desc">
+  <title id="title">AI 产业链系统</title>
+  <desc id="desc">按照能源层、芯片层、基础设施层、模型层和应用层展示算力价值交付主链与跨层外溢反馈约束</desc>
+  <defs>
+    <marker id="arrow-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0L10 5L0 10Z" fill="#255a78"/>
+    </marker>
+    <marker id="arrow-orange" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10Z" fill="#df8738"/>
+    </marker>
+    <style>
+      text{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif}
+      .legend-text{font-size:11px;fill:#63778b}
+      .legend-orange{fill:#c68a54}
+      .main-flow{fill:none;stroke:#255a78;stroke-width:2;marker-end:url(#arrow-blue)}
+      .feedback{fill:none;stroke:#df8738;stroke-width:2;stroke-dasharray:8 7;marker-end:url(#arrow-orange)}
+      .feedback-both{marker-start:url(#arrow-orange);marker-end:url(#arrow-orange)}
+      .flow-label{font-size:11px;font-weight:500;fill:#657b8e}
+      .feedback-label{font-size:11px;font-weight:500;fill:#d18c4e}
+      .layer-border{stroke-width:1.5}
+      .layer-head{font-size:16px;font-weight:600;fill:#fff}
+      .layer-kicker{font-size:11.5px;font-weight:700;fill:#1f2937}
+      .layer-body{font-size:11.2px;fill:#3d4652}
+      .layer-strong{font-weight:700;fill:#222831}
+      .center-title{font-size:20px;font-weight:700;fill:#375b7b}
+      .center-sub{font-size:15px;font-weight:600;fill:#df8738}
+      .callout-title{font-size:12px;font-weight:700;fill:#416887}
+      .callout-body{font-size:10.7px;fill:#425466}
+      .footer-text{font-size:11px;fill:#64778b}
+      .source{font-size:10.5px;fill:#8a929c}
+      .system-clickable{cursor:pointer}
+      .system-clickable:hover{filter:brightness(.96)}
+    </style>
+  </defs>
+
+  <rect width="1080" height="594" fill="#fff"/>
+  <!-- 图例：与参考图一致 -->
+  <path d="M30 57H70" class="main-flow"/>
+  <text x="80" y="61" class="legend-text">算力/价值交付主链</text>
+  <path d="M30 79H70" class="feedback"/>
+  <text x="80" y="83" class="legend-text legend-orange">跨层外溢/反馈约束</text>
+
+  <!-- 蓝色价值交付主链：能源→芯片→基础设施→模型→应用→能源 -->
+  <path d="M250 466L168 293" class="main-flow"/>
+  <path d="M305 163L420 108" class="main-flow"/>
+  <path d="M650 108L775 163" class="main-flow"/>
+  <path d="M925 293L868 466" class="main-flow"/>
+  <path d="M698 530H372" class="main-flow"/>
+
+  <text x="145" y="376" class="flow-label system-clickable" data-node="power-equip">电力约束</text>
+  <text x="246" y="122" class="flow-label system-clickable" data-node="server">机柜级竞争+价值量外溢</text>
+  <text x="710" y="122" class="flow-label system-clickable" data-node="idc-dc">可交付算力</text>
+  <text x="930" y="376" class="flow-label system-clickable" data-node="model-serving">高价值Token</text>
+  <text x="442" y="550" class="flow-label system-clickable" data-node="downstream">收入反哺 Capex（估值锚定交付节奏）</text>
+
+  <!-- 橙色跨层外溢/反馈约束：方向与参考图一致 -->
+  <path d="M775 204H305" class="feedback feedback-both"/>
+  <path d="M420 146L335 466" class="feedback"/>
+  <path d="M214 293L285 466" class="feedback"/>
+  <path d="M650 146L742 466" class="feedback"/>
+  <path d="M805 466L890 293" class="feedback"/>
+  <path d="M698 492L305 293" class="feedback"/>
+
+  <text x="470" y="195" class="feedback-label system-clickable" data-node="llm">Scaling Law / 供需协同设计</text>
+  <text x="544" y="222" class="feedback-label system-clickable" data-node="model-serving">模式转换</text>
+  <text x="330" y="286" class="feedback-label system-clickable" data-node="idc-dc">表层失配+</text>
+  <text x="330" y="304" class="feedback-label system-clickable" data-node="idc-dc">时间成本</text>
+  <text x="252" y="378" class="feedback-label system-clickable" data-node="compute-chip">Token产出效率</text>
+  <text x="699" y="286" class="feedback-label system-clickable" data-node="downstream">应用收入兑现</text>
+  <text x="699" y="304" class="feedback-label system-clickable" data-node="downstream">or供需风险</text>
+  <text x="791" y="378" class="feedback-label system-clickable" data-node="llm">高质量数据反哺</text>
+  <text x="791" y="396" class="feedback-label system-clickable" data-node="llm">→模型迭代</text>
+  <text x="416" y="428" class="feedback-label system-clickable" data-node="compute-chip">应用变化→芯片需求与优先级（推理→ASIC/存储）</text>
+
+  <!-- L3 基础设施层 -->
+  <g class="system-clickable" data-node="server">
+    <rect x="420" y="43" width="230" height="130" rx="10" fill="#e9f0fa" stroke="#58769c" class="layer-border"/>
+    <rect x="420" y="43" width="230" height="31" rx="10" fill="#88a9d9"/>
+    <rect x="420" y="64" width="230" height="10" fill="#88a9d9"/>
+    <text x="437" y="65" class="layer-head">▦ L3 基础设施层</text>
+    <text x="434" y="91" class="layer-kicker">· 最大的物理约束 ·</text>
+    <text x="434" y="111" class="layer-body">作用：能源+芯片→可交付算力；年均投入</text>
+    <text x="434" y="128" class="layer-body">约 1 万亿美元（470 亿美元/GW）</text>
+    <text x="434" y="148" class="layer-body"><tspan class="layer-strong">瓶颈：</tspan>16GW 计划仅 5GW 开工；电工缺口</text>
+    <text x="434" y="165" class="layer-body">8.1 万/年；审批时长翻倍</text>
+  </g>
+
+  <!-- L2 芯片层 -->
+  <g class="system-clickable" data-node="compute-chip">
+    <rect x="75" y="163" width="230" height="130" rx="10" fill="#dfe9f8" stroke="#456788" class="layer-border"/>
+    <rect x="75" y="163" width="230" height="31" rx="10" fill="#315eaa"/>
+    <rect x="75" y="184" width="230" height="10" fill="#315eaa"/>
+    <text x="91" y="185" class="layer-head">⚙ L2 芯片层</text>
+    <text x="89" y="211" class="layer-kicker">· 单位能耗算力核心标杆 ·</text>
+    <text x="89" y="232" class="layer-body">作用：训练→推理运转，异构平台：<tspan class="system-clickable" data-node="cpu">AI CPU</tspan></text>
+    <text x="89" y="249" class="layer-body">市场 114→1773 亿美元</text>
+    <text x="89" y="270" class="layer-body"><tspan class="layer-strong">瓶颈：</tspan><tspan class="system-clickable" data-node="adv-pkg">CoWoS</tspan> 与 <tspan class="system-clickable" data-node="dram-hbm">HBM</tspan> 量级约束；制程代</text>
+    <text x="89" y="287" class="layer-body">差 1.5-2 代</text>
+  </g>
+
+  <!-- L4 模型层 -->
+  <g class="system-clickable" data-node="llm">
+    <rect x="775" y="163" width="230" height="130" rx="10" fill="#fff5cc" stroke="#c7a128" class="layer-border"/>
+    <rect x="775" y="163" width="230" height="31" rx="10" fill="#c99c00"/>
+    <rect x="775" y="184" width="230" height="10" fill="#c99c00"/>
+    <text x="792" y="185" class="layer-head">◐ L4 模型层</text>
+    <text x="789" y="211" class="layer-kicker">· 算力→Token 变现枢纽 ·</text>
+    <text x="789" y="232" class="layer-body">作用：算力→可交付 <tspan class="system-clickable" data-node="model-serving">Token 服务</tspan>；快速系统</text>
+    <text x="789" y="249" class="layer-body">分层路由；前沿定上限、基础定广度</text>
+    <text x="789" y="270" class="layer-body"><tspan class="layer-strong">瓶颈：</tspan>边际成本非零+网络效应弱→同质化</text>
+    <text x="789" y="287" class="layer-body">竞争；性能/速度/价格不可能三角</text>
+  </g>
+
+  <!-- 中央系统竞争 -->
+  <g>
+    <rect x="412" y="238" width="246" height="88" rx="9" fill="#f7f7f7" stroke="#9aa1a8" stroke-width="1.4"/>
+    <text x="535" y="272" text-anchor="middle" class="center-title">AI 系统级竞争</text>
+    <text x="535" y="304" text-anchor="middle" class="center-sub">单点瓶颈 → 系统协同</text>
+  </g>
+
+  <!-- L1 能源层 -->
+  <g class="system-clickable" data-node="power-equip">
+    <rect x="140" y="466" width="232" height="130" rx="10" fill="#e7eef4" stroke="#58708a" class="layer-border"/>
+    <rect x="140" y="466" width="232" height="31" rx="10" fill="#213f72"/>
+    <rect x="140" y="487" width="232" height="10" fill="#213f72"/>
+    <text x="156" y="488" class="layer-head">⚡ L1 能源层</text>
+    <text x="154" y="514" class="layer-kicker">· AI 扩张的物理上限 ·</text>
+    <text x="154" y="535" class="layer-body">作用：<tspan class="system-clickable" data-node="idc-dc">数据中心</tspan> 82→219GW（2030E）；</text>
+    <text x="154" y="552" class="layer-body">推理占比近 40%；年均新增约 22GW</text>
+    <text x="154" y="573" class="layer-body"><tspan class="layer-strong">瓶颈：</tspan>并网&gt;5 年；<tspan class="system-clickable" data-node="gas-turbine">燃机订单</tspan> 110GW vs 产</text>
+    <text x="154" y="590" class="layer-body">能 60-70GW；社区反对规模化</text>
+  </g>
+
+  <!-- L5 应用层 -->
+  <g class="system-clickable" data-node="downstream">
+    <rect x="698" y="466" width="232" height="130" rx="10" fill="#fff0e5" stroke="#d18b54" class="layer-border"/>
+    <rect x="698" y="466" width="232" height="31" rx="10" fill="#efa06a"/>
+    <rect x="698" y="487" width="232" height="10" fill="#efa06a"/>
+    <text x="714" y="488" class="layer-head">⚑ L5 应用层</text>
+    <text x="712" y="514" class="layer-kicker" style="fill:#d68a4e">· 全产业链估值锚 ·</text>
+    <text x="712" y="535" class="layer-body">作用：5 万亿 Capex→2030 年需 10 万亿/年</text>
+    <text x="712" y="552" class="layer-body">收入验证（当前仅千亿美元级）</text>
+    <text x="712" y="573" class="layer-body"><tspan class="layer-strong">瓶颈：</tspan>规模化部署&lt;10%；<tspan class="system-clickable" data-node="agent-enterprise">SaaS 被 Agent</tspan></text>
+    <text x="712" y="590" class="layer-body">生态分化；组织调整以年计</text>
+  </g>
+
+  <!-- 应用层需求引擎 -->
+  <g class="system-clickable" data-node="downstream">
+    <rect x="850" y="43" width="182" height="106" rx="10" fill="#e5edf8"/>
+    <text x="866" y="66" class="callout-title">▮应用层需求引擎</text>
+    <text x="866" y="87" class="callout-body">Token 需求 = 复杂度 × 时长 × 并发</text>
+    <text x="866" y="106" class="callout-body">Chatbot→Agent→Physical AI</text>
+    <text x="866" y="125" class="callout-body">Prompt→Loop→AGI</text>
+    <text x="866" y="144" class="callout-body">Agent→Agent to Agent</text>
+  </g>
+
+  <!-- 底部传导逻辑与来源 -->
+  <rect x="26" y="612" width="1018" height="38" rx="7" fill="#dfe8f6"/>
+  <text x="46" y="636" class="footer-text">传导逻辑：算力与价值自下而上交付（能源→芯片→基础设施→模型→应用）；需求、估值与债务风险自上而下传导</text>
+  <text x="16" y="685" class="source">资料来源：英伟达，OpenAI，华泰研究</text>
+</svg>

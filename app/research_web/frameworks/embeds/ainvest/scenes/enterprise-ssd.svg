@@ -1,0 +1,12 @@
+<svg viewBox="0 0 1000 560" xmlns="http://www.w3.org/2000/svg" class="ph-scene">
+  <text class="ph-lbls" x="45" y="42">企业级 SSD 结构：NAND 提供容量，主控与 DRAM 负责映射和调度，固件将性能、寿命、可靠性组织为可用存储池</text>
+  <g class="ph-hot" data-part="ssd-nand-detail"><rect class="ph-hbm ph-ln" x="110" y="164" width="142" height="82" rx="4"/><path class="ph-ln2" d="M130 184h102M130 202h102M130 220h102"/><text class="ph-lbl" x="181" y="282" text-anchor="middle">3D NAND 颗粒</text><text class="ph-lbls" x="181" y="297" text-anchor="middle">容量介质 / 多 die 并行</text></g>
+  <g class="ph-hot" data-part="ssd-controller-detail"><rect class="ph-chipf ph-ln" x="374" y="154" width="164" height="102" rx="5"/><text class="ph-die" x="456" y="212" text-anchor="middle">SSD Controller</text><text class="ph-lbl" x="456" y="282" text-anchor="middle">主控 SoC</text><text class="ph-lbls" x="456" y="297" text-anchor="middle">PCIe / NAND 通道 / ECC</text></g>
+  <g class="ph-hot" data-part="ssd-dram-cache"><rect class="ph-fill ph-ln" x="650" y="164" width="142" height="82" rx="4"/><path class="ph-ln2" d="M670 184h102M670 202h102M670 220h102"/><text class="ph-lbl" x="721" y="282" text-anchor="middle">DRAM 缓存</text><text class="ph-lbls" x="721" y="297" text-anchor="middle">映射表 / 写入缓冲</text></g>
+  <path class="ph-flow" d="M252 205H374M538 205H650"/>
+  <g class="ph-hot" data-part="ssd-firmware"><rect class="ph-fill ph-ln" x="350" y="372" width="212" height="74" rx="5"/><text class="ph-lbl" x="456" y="406" text-anchor="middle">固件 / FTL / QoS</text><text class="ph-lbls" x="456" y="424" text-anchor="middle">垃圾回收、磨损均衡、掉电保护策略</text></g>
+  <path class="ph-dash" d="M456 256V372"/>
+  <g class="ph-hot" data-part="ssd-host-interface"><rect class="ph-metal ph-ln" x="810" y="372" width="130" height="74" rx="5"/><text class="ph-lbl" x="875" y="406" text-anchor="middle">PCIe / NVMe</text><text class="ph-lbls" x="875" y="424" text-anchor="middle">服务器与存储网络</text></g>
+  <path class="ph-flow" d="M562 409H810"/>
+  <text class="ph-lbls" x="500" y="530" text-anchor="middle">在推理分层中，eSSD 常保存检查点、冷/温数据及超出 HBM/DRAM 容量的数据；具体介质策略随软件栈而变化。</text>
+</svg>

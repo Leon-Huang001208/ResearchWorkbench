@@ -1,0 +1,97 @@
+<svg viewBox="0 0 1000 620" xmlns="http://www.w3.org/2000/svg" class="ph-scene">
+  <text class="ph-lbls" x="45" y="40">上：CoWoS-L 剖面结构（点各层看材料与玩家）· 下：先进封装形态演进——从圆晶圆到方形玻璃面板</text>
+
+  <!-- 剖面：芯片层 -->
+  <g class="ph-hot" data-part="pkg-die">
+    <rect class="ph-hbm" x="290" y="140" width="70" height="60"/>
+    <line class="ph-ln2" x1="290" y1="152" x2="360" y2="152"/>
+    <line class="ph-ln2" x1="290" y1="164" x2="360" y2="164"/>
+    <line class="ph-ln2" x1="290" y1="176" x2="360" y2="176"/>
+    <line class="ph-ln2" x1="290" y1="188" x2="360" y2="188"/>
+    <rect class="ph-chipf" x="400" y="140" width="90" height="60"/>
+    <rect class="ph-chipf" x="510" y="140" width="90" height="60"/>
+    <text class="ph-die" x="500" y="174" text-anchor="middle">GPU die ×2</text>
+    <rect class="ph-hbm" x="640" y="140" width="70" height="60"/>
+    <line class="ph-ln2" x1="640" y1="152" x2="710" y2="152"/>
+    <line class="ph-ln2" x1="640" y1="164" x2="710" y2="164"/>
+    <line class="ph-ln2" x1="640" y1="176" x2="710" y2="176"/>
+    <line class="ph-ln2" x1="640" y1="188" x2="710" y2="188"/>
+    <text class="ph-lbl" x="240" y="168" text-anchor="end">HBM 堆栈</text>
+  </g>
+
+  <!-- 微凸点层 -->
+  <g class="ph-hot" data-part="bump-layer">
+    <circle class="ph-bm" cx="300" cy="203" r="1.8"/><circle class="ph-bm" cx="322" cy="203" r="1.8"/><circle class="ph-bm" cx="344" cy="203" r="1.8"/><circle class="ph-bm" cx="366" cy="203" r="1.8"/><circle class="ph-bm" cx="388" cy="203" r="1.8"/><circle class="ph-bm" cx="410" cy="203" r="1.8"/><circle class="ph-bm" cx="432" cy="203" r="1.8"/><circle class="ph-bm" cx="454" cy="203" r="1.8"/><circle class="ph-bm" cx="476" cy="203" r="1.8"/><circle class="ph-bm" cx="498" cy="203" r="1.8"/><circle class="ph-bm" cx="520" cy="203" r="1.8"/><circle class="ph-bm" cx="542" cy="203" r="1.8"/><circle class="ph-bm" cx="564" cy="203" r="1.8"/><circle class="ph-bm" cx="586" cy="203" r="1.8"/><circle class="ph-bm" cx="608" cy="203" r="1.8"/><circle class="ph-bm" cx="630" cy="203" r="1.8"/><circle class="ph-bm" cx="652" cy="203" r="1.8"/><circle class="ph-bm" cx="674" cy="203" r="1.8"/><circle class="ph-bm" cx="696" cy="203" r="1.8"/>
+    <text class="ph-lbl" x="240" y="207" text-anchor="end">μBump 微凸点</text>
+  </g>
+
+  <!-- RDL 中介层 + LSI 桥 -->
+  <g class="ph-hot" data-part="lsi-rdl">
+    <rect class="ph-fill ph-ln" x="270" y="208" width="460" height="26"/>
+    <line class="ph-ln2" x1="278" y1="216" x2="722" y2="216"/>
+    <line class="ph-ln2" x1="278" y1="226" x2="722" y2="226"/>
+    <rect class="ph-chipf" x="420" y="212" width="52" height="16"/>
+    <rect class="ph-chipf" x="528" y="212" width="52" height="16"/>
+    <rect class="ph-hbm" x="330" y="214" width="26" height="12"/>
+    <rect class="ph-hbm" x="644" y="214" width="26" height="12"/>
+    <text class="ph-lbl" x="760" y="224">RDL 中介层 + LSI 硅桥</text>
+    <text class="ph-lbls" x="760" y="239">内嵌 eDTC 电容 / IVR 稳压</text>
+  </g>
+
+  <!-- C4 + ABF 载板 + BGA -->
+  <g class="ph-hot" data-part="c4-sub">
+    <circle class="ph-bm" cx="300" cy="240" r="2.6"/><circle class="ph-bm" cx="340" cy="240" r="2.6"/><circle class="ph-bm" cx="380" cy="240" r="2.6"/><circle class="ph-bm" cx="420" cy="240" r="2.6"/><circle class="ph-bm" cx="460" cy="240" r="2.6"/><circle class="ph-bm" cx="500" cy="240" r="2.6"/><circle class="ph-bm" cx="540" cy="240" r="2.6"/><circle class="ph-bm" cx="580" cy="240" r="2.6"/><circle class="ph-bm" cx="620" cy="240" r="2.6"/><circle class="ph-bm" cx="660" cy="240" r="2.6"/><circle class="ph-bm" cx="700" cy="240" r="2.6"/>
+    <rect class="ph-metal" x="250" y="246" width="500" height="28"/>
+    <circle class="ph-gold" cx="290" cy="282" r="4"/><circle class="ph-gold" cx="340" cy="282" r="4"/><circle class="ph-gold" cx="390" cy="282" r="4"/><circle class="ph-gold" cx="440" cy="282" r="4"/><circle class="ph-gold" cx="490" cy="282" r="4"/><circle class="ph-gold" cx="540" cy="282" r="4"/><circle class="ph-gold" cx="590" cy="282" r="4"/><circle class="ph-gold" cx="640" cy="282" r="4"/><circle class="ph-gold" cx="690" cy="282" r="4"/>
+    <text class="ph-lbl" x="760" y="264">C4 凸点 + ABF 载板 + BGA</text>
+  </g>
+  <line class="ph-ln2" x1="200" y1="296" x2="800" y2="296"/>
+  <text class="ph-lbls" x="500" y="312" text-anchor="middle">↓ 焊到计算托盘 PCB 主板</text>
+
+  <!-- 演进路线 -->
+  <g class="ph-hot" data-part="evo-cowos-s">
+    <rect class="ph-fill ph-ln2" x="45" y="360" width="210" height="160"/>
+    <circle class="ph-fill ph-ln" cx="150" cy="428" r="42"/>
+    <rect class="ph-hbm" x="128" y="406" width="18" height="18"/><rect class="ph-hbm" x="150" y="406" width="18" height="18"/>
+    <rect class="ph-hbm" x="128" y="428" width="18" height="18"/><rect class="ph-hbm" x="150" y="428" width="18" height="18"/>
+    <text class="ph-lbl" x="150" y="496" text-anchor="middle">CoWoS-S · 硅中介层</text>
+    <text class="ph-lbls" x="150" y="511" text-anchor="middle">≤3.3 光罩 · 圆晶利用率 ~50%</text>
+  </g>
+  <g class="ph-hot" data-part="evo-cowos-l">
+    <rect class="ph-fill ph-ln2" x="285" y="360" width="210" height="160"/>
+    <circle class="ph-fill ph-ln" cx="390" cy="428" r="42"/>
+    <rect class="ph-hbm" x="362" y="408" width="24" height="18"/><rect class="ph-hbm" x="394" y="408" width="24" height="18"/>
+    <rect class="ph-chipf" x="382" y="412" width="16" height="10"/>
+    <rect class="ph-hbm" x="362" y="432" width="24" height="18"/><rect class="ph-hbm" x="394" y="432" width="24" height="18"/>
+    <rect class="ph-chipf" x="382" y="436" width="16" height="10"/>
+    <text class="ph-lbl" x="390" y="496" text-anchor="middle">CoWoS-L · LSI 桥 + RDL</text>
+    <text class="ph-lbls" x="390" y="511" text-anchor="middle">Rubin 4 倍光罩 · 当前主力</text>
+  </g>
+  <g class="ph-hot" data-part="evo-copos">
+    <rect class="ph-fill ph-ln2" x="525" y="360" width="210" height="160"/>
+    <rect class="ph-fill ph-ln" x="588" y="386" width="84" height="84"/>
+    <path class="ph-lead" d="M588 407 H672 M588 428 H672 M588 449 H672 M609 386 V470 M630 386 V470 M651 386 V470"/>
+    <text class="ph-lbl" x="630" y="496" text-anchor="middle">CoPoS · 方形面板级</text>
+    <text class="ph-lbls" x="630" y="511" text-anchor="middle">14 光罩 · 利用率 75%+ · 台积电 2028</text>
+  </g>
+  <g class="ph-hot" data-part="evo-glass">
+    <rect class="ph-fill ph-ln2" x="765" y="360" width="210" height="160"/>
+    <rect class="ph-chipf" x="812" y="400" width="116" height="44"/>
+    <path class="ph-lead" d="M826 400 V444 M846 400 V444 M866 400 V444 M886 400 V444 M906 400 V444"/>
+    <circle class="ph-gold" cx="826" cy="422" r="2.5"/><circle class="ph-gold" cx="846" cy="422" r="2.5"/><circle class="ph-gold" cx="866" cy="422" r="2.5"/><circle class="ph-gold" cx="886" cy="422" r="2.5"/><circle class="ph-gold" cx="906" cy="422" r="2.5"/>
+    <text class="ph-lbl" x="870" y="496" text-anchor="middle">玻璃基板 · TGV 通孔</text>
+    <text class="ph-lbls" x="870" y="511" text-anchor="middle">CTE 匹配硅 · 通孔密度 10×</text>
+    <g class="ph-plus"><circle cx="956" cy="378" r="8"/><path d="M956 374v8M952 378h8"/></g>
+  </g>
+  <g class="ph-lead">
+    <line x1="255" y1="440" x2="278" y2="440"/>
+    <line x1="495" y1="440" x2="518" y2="440"/>
+    <line x1="735" y1="440" x2="758" y2="440"/>
+  </g>
+  <polygon points="278,435 288,440 278,445" fill="var(--txt3)"/>
+  <polygon points="518,435 528,440 518,445" fill="var(--txt3)"/>
+  <polygon points="758,435 768,440 758,445" fill="var(--txt3)"/>
+
+  <text class="ph-lbls" x="500" y="560" text-anchor="middle">中介层面积路线：3.3 光罩(2024) → 5.5(2026) → 9.5(2027) → 14(2028) → 40+ 光罩 SoW-X(2029)（台积电北美技术论坛）</text>
+  <text class="ph-lbls" x="500" y="584" text-anchor="middle">玻璃基板市场 186 亿美元(2026) → 320 亿美元(2030)，年复合 +14.5%（Omdia，转引自国盛证券）</text>
+</svg>

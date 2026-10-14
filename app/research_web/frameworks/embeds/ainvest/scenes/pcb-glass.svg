@@ -1,0 +1,29 @@
+<svg viewBox="0 0 1000 540" xmlns="http://www.w3.org/2000/svg" class="ph-scene">
+  <text class="ph-lbls" x="45" y="42">电子布：玻璃配方 → 熔融拉丝 → 整经织造 → 表面处理 · 介电损耗与热稳定性的材料起点</text>
+  <path class="ph-flow" d="M92 260H902"/><polygon points="902,255 914,260 902,265" fill="var(--accent)"/>
+  <g class="ph-hot" data-part="glass-formula">
+    <rect class="ph-fill ph-ln" x="55" y="190" width="130" height="118" rx="5"/><path class="ph-ln2" d="M84 270q16-42 32 0q16-42 32 0"/><circle class="ph-chipf" cx="92" cy="224" r="7"/><circle class="ph-metal" cx="122" cy="238" r="7"/><circle class="ph-chipf" cx="148" cy="222" r="7"/>
+    <text class="ph-lbl" x="120" y="340" text-anchor="middle">玻璃配方</text><text class="ph-lbls" x="120" y="355" text-anchor="middle">石英 / 氧化物</text>
+  </g>
+  <g class="ph-hot" data-part="glass-melt">
+    <rect class="ph-fill ph-ln" x="215" y="190" width="130" height="118" rx="5"/><path class="ph-ln2" d="M243 250h74M252 272h56M260 286h40"/><path class="ph-pipe-r" d="M280 190v-20M280 308v18"/>
+    <text class="ph-lbl" x="280" y="340" text-anchor="middle">熔融均化</text><text class="ph-lbls" x="280" y="355" text-anchor="middle">稳定玻璃液</text>
+  </g>
+  <g class="ph-hot" data-part="glass-fiber">
+    <rect class="ph-fill ph-ln" x="375" y="190" width="130" height="118" rx="5"/><path class="ph-fill ph-ln2" d="M422 210h36l-8 30h-20z"/><path class="ph-lead" d="M430 240v46M440 240v46M450 240v46"/><ellipse class="ph-fill ph-ln2" cx="476" cy="266" rx="12" ry="20"/>
+    <text class="ph-lbl" x="440" y="340" text-anchor="middle">拉丝 / 上浆</text><text class="ph-lbls" x="440" y="355" text-anchor="middle">电子纱单丝</text>
+  </g>
+  <g class="ph-hot" data-part="cloth-weaving">
+    <rect class="ph-fill ph-ln" x="535" y="190" width="130" height="118" rx="5"/><rect class="ph-chipbg ph-ln2" x="560" y="216" width="80" height="58"/><path class="ph-lead" d="M566 226h68M566 240h68M566 254h68M576 220v50M592 220v50M608 220v50M624 220v50"/>
+    <text class="ph-lbl" x="600" y="340" text-anchor="middle">整经 / 织造</text><text class="ph-lbls" x="600" y="355" text-anchor="middle">经纬结构控制</text>
+  </g>
+  <g class="ph-hot" data-part="cloth-finish">
+    <rect class="ph-fill ph-ln" x="695" y="190" width="130" height="118" rx="5"/><path class="ph-fill ph-ln2" d="M730 222h60v18h-60zM730 250h60v18h-60z"/><path class="ph-lead" d="M720 280h80"/>
+    <text class="ph-lbl" x="760" y="340" text-anchor="middle">表面处理</text><text class="ph-lbls" x="760" y="355" text-anchor="middle">浸润 / 尺寸稳定</text>
+  </g>
+  <g class="ph-hot" data-part="quartz-cloth">
+    <rect class="ph-metal ph-ln" x="855" y="190" width="100" height="118" rx="5"/><path class="ph-ln2" d="M875 218h60M875 234h60M875 250h60M886 212v50M904 212v50M922 212v50"/>
+    <text class="ph-lbl" x="905" y="340" text-anchor="middle">石英 / Q 布</text><text class="ph-lbls" x="905" y="355" text-anchor="middle">M9 极低损耗</text>
+  </g>
+  <text class="ph-lbls" x="500" y="444" text-anchor="middle">低 Dk/Df：降低介质损耗　·　Low CTE：抑制翘曲　·　石英布：服务更高频、更长链路</text>
+</svg>

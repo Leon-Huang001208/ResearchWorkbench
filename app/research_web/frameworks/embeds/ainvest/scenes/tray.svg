@@ -1,0 +1,168 @@
+<svg viewBox="0 0 1000 560" xmlns="http://www.w3.org/2000/svg" class="ph-scene">
+  <!-- 托盘机箱 -->
+  <rect class="ph-fill ph-ln" x="150" y="64" width="700" height="430" rx="8" stroke-width="2"/>
+
+  <!-- NVLink 背板连接器 -->
+  <g class="ph-hot" data-part="nvlink-conn">
+    <rect class="ph-metal" x="300" y="56" width="300" height="16"/>
+    <line class="ph-ln2" x1="340" y1="56" x2="340" y2="72"/>
+    <line class="ph-ln2" x1="380" y1="56" x2="380" y2="72"/>
+    <line class="ph-ln2" x1="420" y1="56" x2="420" y2="72"/>
+    <line class="ph-ln2" x1="460" y1="56" x2="460" y2="72"/>
+    <line class="ph-ln2" x1="500" y1="56" x2="500" y2="72"/>
+    <line class="ph-ln2" x1="540" y1="56" x2="540" y2="72"/>
+  </g>
+
+  <!-- PCB 主板 -->
+  <g class="ph-hot" data-part="pcb-board">
+    <rect class="ph-chipbg ph-ln2" x="170" y="88" width="660" height="330"/>
+  </g>
+
+  <!-- GPU 封装 ×4（含 HBM） -->
+  <g class="ph-hot" data-part="gpu-package">
+    <rect class="ph-fill ph-ln" x="210" y="120" width="130" height="110"/>
+    <g class="ph-hot" data-part="hbm">
+      <rect class="ph-hbm" x="220" y="128" width="24" height="22"/><rect class="ph-hbm" x="220" y="154" width="24" height="22"/><rect class="ph-hbm" x="220" y="180" width="24" height="22"/><rect class="ph-hbm" x="220" y="206" width="24" height="22"/>
+      <rect class="ph-hbm" x="306" y="128" width="24" height="22"/><rect class="ph-hbm" x="306" y="154" width="24" height="22"/><rect class="ph-hbm" x="306" y="180" width="24" height="22"/><rect class="ph-hbm" x="306" y="206" width="24" height="22"/>
+    </g>
+    <rect class="ph-chipf" x="253" y="153" width="44" height="44"/>
+    <text class="ph-die" x="275" y="179" text-anchor="middle">GPU</text>
+    <g class="ph-plus"><circle cx="326" cy="134" r="8"/><path d="M326 130v8M322 134h8"/></g>
+  </g>
+  <g class="ph-hot" data-part="gpu-package">
+    <rect class="ph-fill ph-ln" x="370" y="120" width="130" height="110"/>
+    <g class="ph-hot" data-part="hbm">
+      <rect class="ph-hbm" x="380" y="128" width="24" height="22"/><rect class="ph-hbm" x="380" y="154" width="24" height="22"/><rect class="ph-hbm" x="380" y="180" width="24" height="22"/><rect class="ph-hbm" x="380" y="206" width="24" height="22"/>
+      <rect class="ph-hbm" x="466" y="128" width="24" height="22"/><rect class="ph-hbm" x="466" y="154" width="24" height="22"/><rect class="ph-hbm" x="466" y="180" width="24" height="22"/><rect class="ph-hbm" x="466" y="206" width="24" height="22"/>
+    </g>
+    <rect class="ph-chipf" x="413" y="153" width="44" height="44"/>
+    <text class="ph-die" x="435" y="179" text-anchor="middle">GPU</text>
+    <g class="ph-plus"><circle cx="486" cy="134" r="8"/><path d="M486 130v8M482 134h8"/></g>
+  </g>
+  <g class="ph-hot" data-part="gpu-package">
+    <rect class="ph-fill ph-ln" x="210" y="255" width="130" height="110"/>
+    <g class="ph-hot" data-part="hbm">
+      <rect class="ph-hbm" x="220" y="263" width="24" height="22"/><rect class="ph-hbm" x="220" y="289" width="24" height="22"/><rect class="ph-hbm" x="220" y="315" width="24" height="22"/><rect class="ph-hbm" x="220" y="341" width="24" height="22"/>
+      <rect class="ph-hbm" x="306" y="263" width="24" height="22"/><rect class="ph-hbm" x="306" y="289" width="24" height="22"/><rect class="ph-hbm" x="306" y="315" width="24" height="22"/><rect class="ph-hbm" x="306" y="341" width="24" height="22"/>
+    </g>
+    <rect class="ph-chipf" x="253" y="288" width="44" height="44"/>
+    <text class="ph-die" x="275" y="314" text-anchor="middle">GPU</text>
+    <g class="ph-plus"><circle cx="326" cy="269" r="8"/><path d="M326 265v8M322 269h8"/></g>
+  </g>
+  <g class="ph-hot" data-part="gpu-package">
+    <rect class="ph-fill ph-ln" x="370" y="255" width="130" height="110"/>
+    <g class="ph-hot" data-part="hbm">
+      <rect class="ph-hbm" x="380" y="263" width="24" height="22"/><rect class="ph-hbm" x="380" y="289" width="24" height="22"/><rect class="ph-hbm" x="380" y="315" width="24" height="22"/><rect class="ph-hbm" x="380" y="341" width="24" height="22"/>
+      <rect class="ph-hbm" x="466" y="263" width="24" height="22"/><rect class="ph-hbm" x="466" y="289" width="24" height="22"/><rect class="ph-hbm" x="466" y="315" width="24" height="22"/><rect class="ph-hbm" x="466" y="341" width="24" height="22"/>
+    </g>
+    <rect class="ph-chipf" x="413" y="288" width="44" height="44"/>
+    <text class="ph-die" x="435" y="314" text-anchor="middle">GPU</text>
+    <g class="ph-plus"><circle cx="486" cy="269" r="8"/><path d="M486 265v8M482 269h8"/></g>
+  </g>
+
+  <!-- Grace CPU ×2 -->
+  <g class="ph-hot" data-part="cpu-grace">
+    <rect class="ph-fill ph-ln" x="560" y="140" width="100" height="90"/>
+    <rect class="ph-chipf" x="590" y="165" width="40" height="40"/>
+    <text class="ph-die" x="610" y="189" text-anchor="middle">CPU</text>
+    <g class="ph-plus"><circle cx="646" cy="150" r="8"/><path d="M646 146v8M642 150h8"/></g>
+  </g>
+  <g class="ph-hot" data-part="cpu-grace">
+    <rect class="ph-fill ph-ln" x="560" y="275" width="100" height="90"/>
+    <rect class="ph-chipf" x="590" y="300" width="40" height="40"/>
+    <text class="ph-die" x="610" y="324" text-anchor="middle">CPU</text>
+    <g class="ph-plus"><circle cx="646" cy="285" r="8"/><path d="M646 281v8M642 285h8"/></g>
+  </g>
+
+  <!-- SOCAMM 内存 -->
+  <g class="ph-hot" data-part="dram">
+    <rect class="ph-fill ph-ln2" x="688" y="140" width="16" height="90"/>
+    <rect class="ph-fill ph-ln2" x="710" y="140" width="16" height="90"/>
+    <rect class="ph-fill ph-ln2" x="688" y="275" width="16" height="90"/>
+    <rect class="ph-fill ph-ln2" x="710" y="275" width="16" height="90"/>
+    <line class="ph-ln2" x1="688" y1="170" x2="704" y2="170"/>
+    <line class="ph-ln2" x1="710" y1="170" x2="726" y2="170"/>
+    <line class="ph-ln2" x1="688" y1="200" x2="704" y2="200"/>
+    <line class="ph-ln2" x1="710" y1="200" x2="726" y2="200"/>
+    <line class="ph-ln2" x1="688" y1="305" x2="704" y2="305"/>
+    <line class="ph-ln2" x1="710" y1="305" x2="726" y2="305"/>
+    <line class="ph-ln2" x1="688" y1="335" x2="704" y2="335"/>
+    <line class="ph-ln2" x1="710" y1="335" x2="726" y2="335"/>
+  </g>
+
+  <!-- 供电 VRM -->
+  <g class="ph-hot" data-part="vrm">
+    <rect class="ph-metal" x="762" y="120" width="54" height="24"/><rect class="ph-ln2" x="766" y="126" width="14" height="12" fill="none"/><circle class="ph-ln2" cx="800" cy="132" r="5" fill="none"/>
+    <rect class="ph-metal" x="762" y="154" width="54" height="24"/><rect class="ph-ln2" x="766" y="160" width="14" height="12" fill="none"/><circle class="ph-ln2" cx="800" cy="166" r="5" fill="none"/>
+    <rect class="ph-metal" x="762" y="188" width="54" height="24"/><rect class="ph-ln2" x="766" y="194" width="14" height="12" fill="none"/><circle class="ph-ln2" cx="800" cy="200" r="5" fill="none"/>
+    <rect class="ph-metal" x="762" y="222" width="54" height="24"/><rect class="ph-ln2" x="766" y="228" width="14" height="12" fill="none"/><circle class="ph-ln2" cx="800" cy="234" r="5" fill="none"/>
+    <rect class="ph-metal" x="762" y="256" width="54" height="24"/><rect class="ph-ln2" x="766" y="262" width="14" height="12" fill="none"/><circle class="ph-ln2" cx="800" cy="268" r="5" fill="none"/>
+    <rect class="ph-metal" x="762" y="290" width="54" height="24"/><rect class="ph-ln2" x="766" y="296" width="14" height="12" fill="none"/><circle class="ph-ln2" cx="800" cy="302" r="5" fill="none"/>
+    <rect class="ph-metal" x="762" y="324" width="54" height="24"/><rect class="ph-ln2" x="766" y="330" width="14" height="12" fill="none"/><circle class="ph-ln2" cx="800" cy="336" r="5" fill="none"/>
+  </g>
+
+  <!-- ConnectX 网卡 ×2 -->
+  <g class="ph-hot" data-part="nic">
+    <rect class="ph-fill ph-ln" x="300" y="372" width="44" height="40"/>
+    <rect class="ph-chipf" x="314" y="384" width="16" height="16"/>
+  </g>
+  <g class="ph-hot" data-part="nic">
+    <rect class="ph-fill ph-ln" x="460" y="372" width="44" height="40"/>
+    <rect class="ph-chipf" x="474" y="384" width="16" height="16"/>
+  </g>
+
+  <!-- 液冷冷板回路 -->
+  <g class="ph-hot" data-part="coldplate">
+    <path class="ph-cool" d="M190 80 V175 H600 Q625 175 625 200 V285 Q625 310 600 310 H240 Q215 310 215 285 V80"/>
+    <circle class="ph-bm" cx="190" cy="76" r="4"/>
+    <circle class="ph-bm" cx="215" cy="76" r="4"/>
+  </g>
+
+  <!-- OSFP 光模块笼（前面板，可下钻） -->
+  <g class="ph-hot" data-part="osfp-cage">
+    <rect class="ph-fill ph-ln" x="190" y="434" width="54" height="40"/><rect class="ph-ln2" x="195" y="441" width="44" height="13" fill="none"/><path class="ph-ln2" d="M200 460 v8 M208 460 v8 M216 460 v8" fill="none"/>
+    <rect class="ph-fill ph-ln" x="256" y="434" width="54" height="40"/><rect class="ph-ln2" x="261" y="441" width="44" height="13" fill="none"/><path class="ph-ln2" d="M266 460 v8 M274 460 v8 M282 460 v8" fill="none"/>
+    <rect class="ph-fill ph-ln" x="322" y="434" width="54" height="40"/><rect class="ph-ln2" x="327" y="441" width="44" height="13" fill="none"/><path class="ph-ln2" d="M332 460 v8 M340 460 v8 M348 460 v8" fill="none"/>
+    <rect class="ph-fill ph-ln" x="388" y="434" width="54" height="40"/><rect class="ph-ln2" x="393" y="441" width="44" height="13" fill="none"/><path class="ph-ln2" d="M398 460 v8 M406 460 v8 M414 460 v8" fill="none"/>
+    <rect class="ph-fill ph-ln" x="454" y="434" width="54" height="40"/><rect class="ph-ln2" x="459" y="441" width="44" height="13" fill="none"/><path class="ph-ln2" d="M464 460 v8 M472 460 v8 M480 460 v8" fill="none"/>
+    <rect class="ph-fill ph-ln" x="520" y="434" width="54" height="40"/><rect class="ph-ln2" x="525" y="441" width="44" height="13" fill="none"/><path class="ph-ln2" d="M530 460 v8 M538 460 v8 M546 460 v8" fill="none"/>
+    <rect class="ph-fill ph-ln" x="586" y="434" width="54" height="40"/><rect class="ph-ln2" x="591" y="441" width="44" height="13" fill="none"/><path class="ph-ln2" d="M596 460 v8 M604 460 v8 M612 460 v8" fill="none"/>
+    <rect class="ph-fill ph-ln" x="652" y="434" width="54" height="40"/><rect class="ph-ln2" x="657" y="441" width="44" height="13" fill="none"/><path class="ph-ln2" d="M662 460 v8 M670 460 v8 M678 460 v8" fill="none"/>
+    <g class="ph-plus"><circle cx="217" cy="427" r="9"/><path d="M217 423 v8 M213 427 h8"/></g>
+  </g>
+
+  <!-- 管理口 -->
+  <rect class="ph-fill ph-ln2" x="730" y="440" width="26" height="20"/>
+  <rect class="ph-fill ph-ln2" x="762" y="440" width="26" height="20"/>
+
+  <!-- 左侧标注 -->
+  <g class="ph-lead">
+    <line x1="144" y1="128" x2="210" y2="140"/>
+    <line x1="144" y1="168" x2="219" y2="166"/>
+    <line x1="144" y1="308" x2="214" y2="308"/>
+    <line x1="144" y1="398" x2="171" y2="400"/>
+  </g>
+  <text class="ph-lbl" x="138" y="132" text-anchor="end">GPU 封装 · CoWoS</text>
+  <text class="ph-lbl" x="138" y="172" text-anchor="end">HBM ×8</text>
+  <text class="ph-lbl" x="138" y="312" text-anchor="end">液冷冷板回路</text>
+  <text class="ph-lbl" x="138" y="402" text-anchor="end">PCB 主板 · 40 层+</text>
+
+  <!-- 右侧标注 -->
+  <g class="ph-lead">
+    <line x1="856" y1="62" x2="601" y2="62"/>
+    <line x1="856" y1="168" x2="728" y2="180"/>
+    <line x1="856" y1="228" x2="818" y2="230"/>
+    <line x1="856" y1="308" x2="662" y2="310"/>
+    <line x1="856" y1="388" x2="506" y2="392"/>
+  </g>
+  <text class="ph-lbl" x="862" y="66">NVLink 背板连接器</text>
+  <text class="ph-lbl" x="862" y="172">SOCAMM 内存</text>
+  <text class="ph-lbl" x="862" y="232">供电 VRM</text>
+  <text class="ph-lbl" x="862" y="312">Grace CPU</text>
+  <text class="ph-lbl" x="862" y="392">ConnectX 网卡</text>
+
+  <!-- 底部标注 -->
+  <line class="ph-lead" x1="420" y1="514" x2="420" y2="476"/>
+  <text class="ph-lbl" x="420" y="528" text-anchor="middle">OSFP 光模块笼 ×8 · 点击拆解光模块</text>
+  <text class="ph-lbls" x="500" y="550" text-anchor="middle">2× Grace CPU + 4× Blackwell GPU · 全液冷 · 点击 GPU / CPU / 液冷继续拆解</text>
+</svg>

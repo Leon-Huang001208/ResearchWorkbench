@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="auto">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AInvest</title>
+<link rel="icon" type="image/svg+xml" href="./logo.svg?v=1">
+<link rel="apple-touch-icon" href="./logo.svg?v=1">
+<link rel="stylesheet" href="./style.css">
+</head>
+<body>
+<div class="ambient ambient-a" aria-hidden="true"></div>
+<div class="ambient ambient-b" aria-hidden="true"></div>
+<header class="topbar">
+  <div class="brand" id="brand-home" title="返回总览 · 热力图">
+    <img class="logo-img" src="./logo.svg?v=1" alt="AInvest" onerror="this.style.display='none';this.nextElementSibling.style.display='inline-block'">
+    <span class="logo-dot" style="display:none"></span>
+    <div class="brand-copy">
+      <h1>AInvest</h1>
+      <span>AI 产业链投研终端</span>
+    </div>
+  </div>
+  <div class="top-actions">
+    <span class="sub" id="meta-info">加载中…</span>
+    <button id="btn-theme" title="切换主题">主题：自动</button>
+    <button id="btn-refresh" title="刷新数据">刷新</button>
+  </div>
+</header>
+
+
+<div class="layout">
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <main class="main">
+    <div id="view-overview" style="display:none">
+      <section class="ov-section">
+        <div class="ov-title">全球指数</div>
+        <div class="idx-row" id="idx-row"></div>
+      </section>
+      <section class="ov-section">
+        <div class="ov-title">今日焦点 <span class="hint">专题聚合全网最重磅事件 · 要闻按重要度精选 · 业绩、IPO 与宏观数据就近提示</span></div>
+        <div class="focus-grid focus-grid-3">
+          <div class="focus-col" id="focus-topics" data-kind="topics"></div>
+          <div class="focus-col" id="focus-news" data-kind="news"></div>
+          <div class="focus-col" id="focus-events" data-kind="events"></div>
+        </div>
+      </section>
+      <section class="ov-section">
+        <div class="ov-title">AI 产业链热力图 <span class="hint">按环节聚合 · 点环节名进入下钻 · 颜色=当日涨跌</span></div>
+        <div class="hm-wrap" id="hm-wrap"></div>
+      </section>
+      <section class="ov-section">
+        <div class="ov-title">美股/韩股 → A股·港股 映射 <span class="hint">隔夜美股定方向 · 韩股 08:00 先行验证 · 按信号强度排序 · 点赛道下钻</span></div>
+        <div id="map-list"></div>
+      </section>
+      <div class="overview-grid">
+        <section class="ov-section rotation-section">
+          <div class="ov-title">AI 产业链轮动 <span class="hint">2022-11 起月线复权收盘价归一化 · 100 = 起点 · 数据源：Yahoo Finance，韩股由 Naver 兜底</span></div>
+          <div class="rotation-scroll" id="rotation-chart"><div class="empty">正在加载产业链轮动…</div></div>
+        </section>
+        <section class="ov-section maturity-section">
+          <div class="ov-title">技术成熟度曲线 <span class="hint">Gartner 式研判 · 点节点进入环节 · <span id="hype-date"></span> 更新</span></div>
+          <div class="gartner-scroll"><svg id="gartner-svg"></svg></div>
+        </section>
+        <section class="ov-section chain-section">
+          <div class="ov-title">AI 产业链图谱 <span class="hint">材料→芯片→整机→数据中心→云模型→具身机器人→应用 · 点节点下钻</span></div>
+          <div class="gartner-scroll"><svg id="chain-svg"></svg></div>
+        </section>
+        <section class="ov-section system-section">
+          <div class="ov-title">AI 产业链系统 <span class="hint">能源→芯片→基础设施→模型→应用 · 点击层级或环节文字进入二/三级菜单</span></div>
+          <div class="system-diagram-wrap" id="system-diagram" aria-label="AI 产业链系统五层架构示意图"></div>
+        </section>
+      </div>
+    </div>
+
+    <div id="view-topic" style="display:none">
+      <a class="back-link" id="topic-back">← 返回总览</a>
+      <div class="topic-head">
+        <span class="chip topic-tag" id="topic-tag"></span>
+        <span class="topic-date" id="topic-date"></span>
+      </div>
+      <div class="topic-title-row">
+        <h2 class="topic-title" id="topic-title"></h2>
+        <div class="topic-action" id="topic-action"></div>
+      </div>
+      <p class="topic-summary" id="topic-summary"></p>
+
+      <section class="ov-section">
+        <div class="ov-title">来龙去脉</div>
+        <div id="topic-narrative"></div>
+      </section>
+
+      <section class="ov-section topic-impact">
+        <div class="ov-title">对投资的影响</div>
+        <div class="judgment" id="topic-impact-body" style="border:none;background:none;padding:14px 18px"></div>
+      </section>
+
+      <section class="panels">
+        <div class="panel">
+          <div class="panel-title">相关标的 <span class="panel-badge" id="badge-topic-tickers"></span></div>
+          <div class="panel-body" id="topic-tickers"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-title">相关基金 <span class="panel-badge" id="badge-topic-funds"></span></div>
+          <div class="panel-body" id="topic-funds"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-title">业绩与 IPO <span class="panel-badge" id="badge-topic-tl"></span></div>
+          <div class="panel-body" id="topic-tl"></div>
+        </div>
+      </section>
+
+      <section class="panels" style="margin-top:14px">
+        <div class="panel">
+          <div class="panel-title">相关资讯 <span class="panel-badge" id="badge-topic-news"></span></div>
+          <div class="panel-body" id="topic-news"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-title">相关研报 <span class="panel-badge" id="badge-topic-reports"></span></div>
+          <div class="panel-body" id="topic-reports"></div>
+        </div>
+      </section>
+    </div>
+
+    <div id="view-phys" style="display:none">
+      <div class="bb-head">
+        <h2 class="topic-title">图解产业链 <span class="beta-badge">beta</span></h2>
+        <span class="hint">电力 · 芯片 · 存储 · 光模块 · 光纤光缆 · PCB · 云与模型 · 具身机器人，八条链路逐层实物拆解 · 点 ⊕ 下钻，点部件看材料/设备与对应赛道</span>
+      </div>
+      <div class="ph-crumbs" id="ph-crumbs"></div>
+      <div class="ph-layout">
+        <div class="ph-stage-col">
+          <section class="ov-section ph-stage-card">
+            <div class="ph-stage" id="ph-stage"></div>
+          </section>
+          <p class="ph-foot hint">所有场景为结构示意图（数量/比例做了可读性简化），非精确工程图 · 结构参考：广发证券/国盛证券/中泰证券公开研报与英伟达公开资料</p>
+        </div>
+        <aside class="ph-panel ov-section" id="ph-panel"></aside>
+      </div>
+    </div>
+
+    <div id="view-macro" style="display:none">
+      <div class="bb-head">
+        <h2 class="topic-title">宏观研究</h2>
+        <span class="hint" id="macro-updated"></span>
+      </div>
+      <p class="topic-summary">跟踪对 AI 板块估值与融资环境最相关的宏观变量：增长、通胀、利率与流动性、风险偏好。指标全部为可独立核实的公开数据（FRED），不采用第三方专有分析。</p>
+      <section class="ov-section bb-verdict-card">
+        <div class="ov-title">今日宏观状态 <span class="hint" id="macro-regime-label"></span></div>
+        <div class="judgment" id="macro-regime-text" style="border:none;background:none;padding:14px 18px"></div>
+      </section>
+      <section class="ov-section">
+        <div class="ov-title">关键指标 <span class="hint">10Y美债/期限利差/信用利差/VIX/通胀，一屏看懂当前宏观姿态</span></div>
+        <div class="idx-row" id="macro-strip"></div>
+      </section>
+      <div class="bb-dims" id="macro-groups"></div>
+    </div>
+
+    <div id="view-bubble" style="display:none">
+      <div class="bb-head">
+        <h2 class="topic-title">AI 泡沫监控</h2>
+        <span class="hint" id="bubble-asof"></span>
+      </div>
+      <section class="ov-section bb-gauge-card">
+        <div class="ov-title">AI 泡沫压力指数 <span class="hint">四维度加权压力指数 · 关注边际变化速度而非绝对水平 · 蓝=冷 → 红=热</span></div>
+        <div class="bb-gauge-inner">
+          <div class="bb-gauge-visual">
+            <svg id="bb-gauge-svg" viewBox="0 0 260 150"></svg>
+            <div class="bb-gauge-scorewrap">
+              <span class="bb-gauge-score" id="bb-gauge-score">-</span>
+              <span class="bb-gauge-scale">/ 100</span>
+            </div>
+            <div class="bb-gauge-label" id="bb-gauge-label"></div>
+          </div>
+          <div class="bb-gauge-breakdown-wrap">
+            <div class="bb-gb-title">加权构成</div>
+            <div id="bb-gauge-breakdown"></div>
+          </div>
+        </div>
+        <div class="bb-gauge-methodology" id="bb-gauge-methodology"></div>
+      </section>
+      <section class="ov-section bb-verdict-card">
+        <div class="ov-title">当前判断</div>
+        <div class="judgment" id="bubble-verdict" style="border:none;background:none;padding:14px 18px"></div>
+      </section>
+      <div class="bb-dims" id="bubble-dims"></div>
+      <section class="ov-section">
+        <div class="ov-title">四维度 · 20+ 指标全表 <span class="hint">value 为研报快照，标"实时跟踪"的指标本站接了独立公开数据源持续更新</span></div>
+        <div id="bubble-table"></div>
+      </section>
+    </div>
+
+    <div id="view-timeline" style="display:none">
+      <section class="ov-section">
+        <div class="ov-title">业绩时间线 <span class="hint">重要 AI 公司 · 未披露日期为预计 · <span id="tl-date"></span> 更新</span></div>
+        <div id="tl-earnings"></div>
+      </section>
+      <section class="ov-section">
+        <div class="ov-title">IPO 时间线 <span class="hint">AI 产业链拟上市公司 · 状态以官方披露为准</span></div>
+        <div id="tl-ipos"></div>
+      </section>
+      <section class="ov-section">
+        <div class="ov-title">重大事件时间线 <span class="hint">发布会/行业大会/监管政策/法律诉讼，不含业绩与 IPO</span></div>
+        <div id="tl-events"></div>
+      </section>
+      <section class="ov-section">
+        <div class="ov-title">
+          投资日历
+          <span class="hint">业绩 · IPO · 重大事件汇总到一张月历 · 点条目跳转环节</span>
+          <span class="cal-nav">
+            <button id="cal-prev" aria-label="上个月">‹</button>
+            <span id="cal-month-label"></span>
+            <button id="cal-next" aria-label="下个月">›</button>
+            <button id="cal-today">今天</button>
+          </span>
+        </div>
+        <div class="cal-legend">
+          <span class="cal-lg"><i class="cal-dot cal-earn"></i>业绩</span>
+          <span class="cal-lg"><i class="cal-dot cal-ipo"></i>IPO</span>
+          <span class="cal-lg"><i class="cal-dot cal-event"></i>重大事件</span>
+        </div>
+        <div class="cal-grid" id="cal-grid"></div>
+      </section>
+    </div>
+
+    <div id="view-industry" style="display:none">
+      <section class="ov-section industry-section">
+        <div class="ov-title">行业数据 <span class="hint">按产业链顺序追踪硬数据、机构估算与代理指标 · <span id="industry-date"></span> 更新</span></div>
+        <div class="industry-toolbar">
+          <div class="industry-filters" id="industry-scope-filters" aria-label="算力归属筛选"></div>
+          <div class="industry-filters" id="industry-evidence-filters" aria-label="数据性质筛选"></div>
+          <input class="industry-search" id="industry-search" type="search" placeholder="搜索指标、环节或来源" aria-label="搜索行业数据">
+        </div>
+        <div class="industry-table-wrap">
+          <table class="industry-table">
+            <thead>
+              <tr>
+                <th>产业链位置</th>
+                <th>核心指标</th>
+                <th>最新数据</th>
+                <th>变化</th>
+                <th>最新周期</th>
+                <th>频率</th>
+                <th>归属</th>
+                <th>数据性质</th>
+              </tr>
+            </thead>
+            <tbody id="industry-rows"></tbody>
+          </table>
+        </div>
+        <div class="industry-method" id="industry-method"></div>
+      </section>
+    </div>
+
+    <div id="view-feed" style="display:none">
+      <section class="ov-section">
+        <div class="ov-title">AI 信息流 <span class="hint" id="feed-meta"></span></div>
+        <div class="feed-cats" id="feed-cats"></div>
+        <div class="feed-list" id="feed-list"></div>
+      </section>
+    </div>
+
+    <div id="view-node">
+      <div class="node-head">
+        <div>
+          <div class="breadcrumb" id="breadcrumb"></div>
+          <div class="counts" id="counts"></div>
+        </div>
+        <div class="judgment" id="judgment"></div>
+      </div>
+
+      <section class="tree-card">
+        <div class="tree-scroll"><svg id="tree-svg"></svg></div>
+      </section>
+
+      <section class="ov-section" id="node-timeline" style="display:none">
+        <div class="ov-title">业绩与 IPO <span class="hint" id="node-tl-hint">该环节相关公司 · 未披露日期为预计</span></div>
+        <div id="node-tl-body"></div>
+      </section>
+
+      <section class="panels">
+        <div class="panel">
+          <div class="panel-title">标的涨幅 <span class="panel-badge" id="badge-tickers"></span></div>
+          <div class="panel-body" id="panel-tickers"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-title">基金标的 <span class="panel-badge" id="badge-funds"></span></div>
+          <div class="panel-body" id="panel-funds"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-title">产业资讯 <span class="panel-badge" id="badge-news"></span></div>
+          <div class="panel-body" id="panel-news"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-title">研报 <span class="panel-badge" id="badge-reports"></span></div>
+          <div class="panel-body" id="panel-reports"></div>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<footer class="footer">
+  <div class="footer-line"><span>AInvest 由猫饭出品</span><span class="footer-sep">·</span><span>2026</span></div>
+  <div class="footer-line"><span>数据来源于公开渠道，仅供投研参考，不构成投资建议</span><span class="footer-sep">·</span><span>最终解释权归猫饭所有</span></div>
+</footer>
+
+<script src="./app.js"></script>
+</body>
+</html>

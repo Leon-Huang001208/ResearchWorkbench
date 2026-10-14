@@ -1,0 +1,10 @@
+<svg viewBox="0 0 1000 520" xmlns="http://www.w3.org/2000/svg" class="ph-scene">
+  <text class="ph-lbls" x="45" y="42">高速材料等级阶梯：等级越高，越依赖低损耗树脂、低轮廓铜箔、特种电子布及更稳定的压合窗口</text>
+  <path class="ph-flow" d="M92 370H908"/><polygon points="908,365 920,370 908,375" fill="var(--accent)"/>
+  <g class="ph-hot" data-part="grade-m6"><rect class="ph-fill ph-ln" x="55" y="282" width="130" height="72" rx="5"/><text class="ph-lbl" x="120" y="316" text-anchor="middle">M4/M6</text><text class="ph-lbls" x="120" y="335" text-anchor="middle">常规高速</text></g>
+  <g class="ph-hot" data-part="grade-m7"><rect class="ph-fill ph-ln" x="220" y="254" width="130" height="100" rx="5"/><text class="ph-lbl" x="285" y="300" text-anchor="middle">M7</text><text class="ph-lbls" x="285" y="319" text-anchor="middle">一代低 Dk</text></g>
+  <g class="ph-hot" data-part="grade-m8"><rect class="ph-chipf ph-ln" x="385" y="226" width="130" height="128" rx="5"/><text class="ph-lbl" x="450" y="285" text-anchor="middle">M8</text><text class="ph-lbls" x="450" y="304" text-anchor="middle">二代低 Dk</text></g>
+  <g class="ph-hot" data-part="grade-m9"><rect class="ph-metal ph-ln" x="550" y="198" width="130" height="156" rx="5"/><text class="ph-lbl" x="615" y="270" text-anchor="middle">M9</text><text class="ph-lbls" x="615" y="289" text-anchor="middle">石英 / Q 布</text></g>
+  <g class="ph-hot" data-part="grade-lowcte"><rect class="ph-metal ph-ln" x="715" y="170" width="180" height="184" rx="5"/><text class="ph-lbl" x="805" y="254" text-anchor="middle">Low CTE</text><text class="ph-lbls" x="805" y="273" text-anchor="middle">高稳定性 / 载板邻近</text></g>
+  <text class="ph-lbls" x="500" y="438" text-anchor="middle">材料等级是性能路线的概念化表达；具体 M 系命名、层数与混压组合须以客户平台、板厂和材料厂认证为准。</text>
+</svg>
