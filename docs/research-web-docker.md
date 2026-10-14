@@ -1,5 +1,7 @@
 # Mac mini Docker 开发与独立部署
 
+2026-10-14当前Hot源候选7010a2bd4整镜像sha256:7800f8dd…已实际build/up/Doctor/日期详情及MD/DOCX读取通过。原PG Docker100→暂停101→Native102→暂停103，旧Docker身份拒绝；三源成功，DeepMind connection_reset真实保留。模型为hot_dsh_native_platform_required、付费新增0。旧镜像/五卷/dev原容器镜像卷保留。连接使用验收专用本地TCP relay，不认证生产外部TLS；后续master集成与最终候选MacCI仍待执行。
+
 日期字段只扩展schema20事件JSON和既有纠错回执，最终Docker镜像必须包含Node/Host/MD及DOCX的精度支持。当前Native原PG/组件页面已验日期及MD/DOCX；旧b364镜像不能认证新日期，五卷/旧镜像保持。
 
 Hot同源next分页逻辑由Native/Docker共用，schema仍20，三页/整轮25秒边界不扩大容器资源。当前源码分页切片尚未构建新镜像；旧Docker运行证据不认证本改动。

@@ -1,5 +1,7 @@
 # Research Web 能力与平台证据
 
+最新联合恢复源7010a2bd4：58表/原件/日期与新简报校验，原2734字节真实报告SHA保持；新隔离恢复库正常worker四源实采并排空，最终暂停、执行历史NOT_RESTORED。当前整镜像7800f8dd生命周期/读取/日期MD-DOCX/原库顺序模式通过，DeepMind本轮连接重置，不宣称Docker四源全成功。原库Native103暂停、预算18/77375/10464microUSD不变。当前master已e45d3bc，PR106仍冲突草稿；旧CI不认证当前候选，Windows/Linux原生仍NOT_RUN。
+
 日期纠错和原PG/网页/MD/DOCX已有macOS Native组件证据，最终generation99暂停、预算18/77375/10464microUSD不变。新候选Docker整镜像/干净安装MacCI仍待验，Windows/Linux原生保持NOT_RUN。
 
 来源表单与Doctor已在正常Native worker/原PG/独立Host适配上实测保存、列权限与审计，结束后generation91暂停，预算未变。本范围为组件，不代表新源码Mac Bootstrap、完整镜像或Windows/Linux原生通过。
