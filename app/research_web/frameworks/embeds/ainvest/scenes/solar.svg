@@ -1,0 +1,22 @@
+<svg viewBox="0 0 1000 540" xmlns="http://www.w3.org/2000/svg" class="ph-scene">
+  <text class="ph-lbls" x="44" y="42">光伏电站：直流侧发电，经逆变升压后接入电网或园区微网</text>
+  <path class="ph-flow" d="M78 338H902"/><polygon points="902,333 914,338 902,343" fill="var(--accent)"/>
+  <g class="ph-hot" data-part="solar-tracker">
+    <path class="ph-ln" d="M78 330l92-54 62 36-92 54z"/><path class="ph-ln2" d="M108 312l62-36M140 330l62-36M110 294l62 36M142 276l62 36"/><line class="ph-ln" x1="155" y1="350" x2="155" y2="406"/><path class="ph-ln2" d="M130 406h50"/>
+    <text class="ph-lbl" x="155" y="438" text-anchor="middle">跟踪支架</text><text class="ph-lbls" x="155" y="453" text-anchor="middle">驱动器 / 结构件</text>
+  </g>
+  <g class="ph-hot" data-part="solar-module">
+    <polygon class="ph-fill ph-ln" points="268 310 408 310 382 382 242 382"/><path class="ph-ln2" d="M260 334h140M251 358h140M286 310l-26 72M326 310l-26 72M366 310l-26 72"/>
+    <text class="ph-lbl" x="325" y="414" text-anchor="middle">光伏组件</text><text class="ph-lbls" x="325" y="429" text-anchor="middle">硅片 · 电池片 · 封装</text>
+  </g>
+  <g class="ph-hot" data-part="solar-inverter">
+    <rect class="ph-fill ph-ln" x="490" y="286" width="116" height="104" rx="5"/><path class="ph-ln2" d="M510 338q12-22 24 0t24 0t24 0"/><path class="ph-flow" d="M448 338h42M606 338h42"/>
+    <text class="ph-lbl" x="548" y="414" text-anchor="middle">组串逆变器</text><text class="ph-lbls" x="548" y="429" text-anchor="middle">MPPT · 直流转交流</text>
+  </g>
+  <g class="ph-hot" data-part="solar-stepup">
+    <rect class="ph-fill ph-ln" x="694" y="276" width="122" height="114"/><path class="ph-ln2" d="M714 300v-28M742 300v-28M770 300v-28M704 320h102M704 344h102M704 368h102"/>
+    <text class="ph-lbl" x="755" y="414" text-anchor="middle">箱变 / 升压站</text><text class="ph-lbls" x="755" y="429" text-anchor="middle">汇集并网</text>
+  </g>
+  <rect class="ph-fill ph-ln" x="862" y="296" width="78" height="86"/><path class="ph-ln2" d="M872 318h58M872 340h58M872 362h58"/><text class="ph-lbl" x="901" y="414" text-anchor="middle">园区 / 电网</text>
+  <line class="ph-ln2" x1="40" y1="482" x2="960" y2="482"/>
+</svg>

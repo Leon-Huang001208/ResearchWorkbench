@@ -1,0 +1,128 @@
+<svg viewBox="0 0 1000 620" xmlns="http://www.w3.org/2000/svg" class="ph-scene">
+  <text class="ph-lbls" x="45" y="40">电子纱 → 电子布 → 覆铜板 → PCB · 特种布（低Dk/Df、低CTE、石英布）是 AI 高速板材的胜负手</text>
+
+  <!-- Row1 原材料 -->
+  <g class="ph-hot" data-part="e-yarn">
+    <rect class="ph-fill ph-ln2" x="45" y="64" width="170" height="100"/>
+    <path class="ph-fill ph-ln" d="M96 84 H128 L122 116 H102 Z"/>
+    <path class="ph-lead" d="M104 116 L100 146 M112 116 L112 146 M120 116 L124 146"/>
+    <ellipse class="ph-fill ph-ln" cx="166" cy="132" rx="14" ry="20"/>
+    <line class="ph-ln2" x1="166" y1="112" x2="166" y2="152"/>
+    <g class="ph-plus"><circle cx="199" cy="78" r="9"/><path d="M199 74 v8 M195 78 h8"/></g>
+    <text class="ph-lbl" x="130" y="182" text-anchor="middle">电子纱</text>
+    <text class="ph-lbls" x="130" y="196" text-anchor="middle">玻璃/石英拉丝 · 单丝 ≤9μm</text>
+  </g>
+  <g class="ph-hot" data-part="e-cloth-station">
+    <rect class="ph-fill ph-ln2" x="285" y="64" width="170" height="100"/>
+    <rect class="ph-fill ph-ln" x="316" y="86" width="72" height="52"/>
+    <path class="ph-lead" d="M322 94 H382 M322 104 H382 M322 114 H382 M322 124 H382 M330 90 V134 M344 90 V134 M358 90 V134 M372 90 V134"/>
+    <ellipse class="ph-fill ph-ln" cx="414" cy="112" rx="12" ry="24"/>
+    <g class="ph-plus"><circle cx="439" cy="78" r="9"/><path d="M439 74 v8 M435 78 h8"/></g>
+    <text class="ph-lbl" x="370" y="182" text-anchor="middle">特种电子布</text>
+    <text class="ph-lbls" x="370" y="196" text-anchor="middle">整经/织造 · 一代/二代/Q 布</text>
+  </g>
+  <g class="ph-hot" data-part="copper-foil-station">
+    <rect class="ph-fill ph-ln2" x="525" y="64" width="170" height="100"/>
+    <circle class="ph-metal" cx="586" cy="110" r="26"/>
+    <circle class="ph-fill ph-ln2" cx="586" cy="110" r="9"/>
+    <path d="M612 110 C640 110 648 122 672 122" stroke="var(--rating-txt)" stroke-width="3" fill="none"/>
+    <g class="ph-plus"><circle cx="679" cy="78" r="9"/><path d="M679 74 v8 M675 78 h8"/></g>
+    <text class="ph-lbl" x="610" y="182" text-anchor="middle">HVLP 铜箔</text>
+    <text class="ph-lbls" x="610" y="196" text-anchor="middle">低轮廓电解铜箔 · 高频降损</text>
+  </g>
+  <g class="ph-hot" data-part="resin-station">
+    <rect class="ph-fill ph-ln2" x="765" y="64" width="170" height="100"/>
+    <path class="ph-fill ph-ln" d="M842 82 V102 L826 138 Q822 148 832 148 H868 Q878 148 874 138 L858 102 V82 Z"/>
+    <line class="ph-ln2" x1="836" y1="82" x2="864" y2="82"/>
+    <line class="ph-ln2" x1="830" y1="130" x2="870" y2="130"/>
+    <g class="ph-plus"><circle cx="919" cy="78" r="9"/><path d="M919 74 v8 M915 78 h8"/></g>
+    <text class="ph-lbl" x="850" y="182" text-anchor="middle">树脂体系</text>
+    <text class="ph-lbls" x="850" y="196" text-anchor="middle">碳氢/PPO/BT · 硅微粉填料</text>
+  </g>
+  <g class="ph-lead">
+    <line x1="215" y1="114" x2="278" y2="114"/>
+    <line x1="455" y1="114" x2="518" y2="114"/>
+    <line x1="695" y1="114" x2="758" y2="114"/>
+  </g>
+  <polygon points="278,109 288,114 278,119" fill="var(--txt3)"/>
+  <polygon points="518,109 528,114 518,119" fill="var(--txt3)"/>
+  <polygon points="758,109 768,114 758,119" fill="var(--txt3)"/>
+
+  <path class="ph-lead" d="M850 164 V244"/>
+  <polygon points="845,244 850,254 855,244" fill="var(--txt3)"/>
+
+  <!-- Row2（右→左）：CCL → PCB → 成品 -->
+  <g class="ph-hot" data-part="ccl-station">
+    <rect class="ph-fill ph-ln2" x="765" y="258" width="170" height="100"/>
+    <rect class="ph-fill ph-ln" x="800" y="270" width="100" height="14"/>
+    <path class="ph-lead" d="M850 284 V294"/>
+    <polygon points="845,294 850,302 855,294" fill="var(--txt3)"/>
+    <rect class="ph-gold" x="806" y="306" width="88" height="5"/>
+    <rect class="ph-hbm" x="806" y="313" width="88" height="8"/>
+    <rect class="ph-gold" x="806" y="323" width="88" height="5"/>
+    <rect class="ph-fill ph-ln" x="800" y="332" width="100" height="14"/>
+    <g class="ph-plus"><circle cx="919" cy="272" r="9"/><path d="M919 268 v8 M915 272 h8"/></g>
+    <text class="ph-lbl" x="850" y="376" text-anchor="middle">覆铜板 CCL · 热压</text>
+    <text class="ph-lbls" x="850" y="390" text-anchor="middle">成本：铜箔39% 树脂26% 玻纤18%</text>
+  </g>
+  <g class="ph-hot" data-part="pcb-station">
+    <rect class="ph-fill ph-ln2" x="525" y="258" width="170" height="100"/>
+    <rect class="ph-fill ph-ln" x="556" y="316" width="110" height="18"/>
+    <rect class="ph-chipf" x="596" y="272" width="14" height="30"/>
+    <path class="ph-lead" d="M603 302 V316"/>
+    <path class="ph-lead" d="M572 316 v18 M588 316 v18 M620 316 v18 M640 316 v18"/>
+    <g class="ph-plus"><circle cx="679" cy="272" r="9"/><path d="M679 268 v8 M675 272 h8"/></g>
+    <text class="ph-lbl" x="610" y="376" text-anchor="middle">PCB 制造</text>
+    <text class="ph-lbls" x="610" y="390" text-anchor="middle">机械/激光钻孔 · 电镀铜 · 直写光刻</text>
+  </g>
+  <g class="ph-hot" data-part="pcb-done">
+    <rect class="ph-fill ph-ln2" x="285" y="258" width="170" height="100"/>
+    <rect class="ph-chipbg ph-ln" x="316" y="290" width="108" height="44"/>
+    <path class="ph-lead" d="M326 300 H370 M326 310 H352 M382 300 H414 M382 312 H406"/>
+    <circle class="ph-gold" cx="334" cy="324" r="2.5"/><circle class="ph-gold" cx="348" cy="324" r="2.5"/><circle class="ph-gold" cx="362" cy="324" r="2.5"/>
+    <g class="ph-plus"><circle cx="439" cy="272" r="9"/><path d="M439 268 v8 M435 272 h8"/></g>
+    <text class="ph-lbl" x="370" y="376" text-anchor="middle">高多层 / HDI 成品板</text>
+    <text class="ph-lbls" x="370" y="390" text-anchor="middle">AI 主板 40 层+ · 量价齐升</text>
+  </g>
+  <g class="ph-lead">
+    <line x1="765" y1="308" x2="702" y2="308"/>
+    <line x1="525" y1="308" x2="462" y2="308"/>
+    <line x1="285" y1="308" x2="180" y2="308" stroke-dasharray="5 5"/>
+  </g>
+  <polygon points="702,303 692,308 702,313" fill="var(--txt3)"/>
+  <polygon points="462,303 452,308 462,313" fill="var(--txt3)"/>
+  <polygon points="180,303 170,308 180,313" fill="var(--txt3)"/>
+  <text class="ph-lbl" x="120" y="300" text-anchor="middle">装上计算托盘</text>
+  <text class="ph-lbls" x="120" y="316" text-anchor="middle">GPU/交换机主板</text>
+
+  <!-- Row3：布的代际 × CCL 等级阶梯 -->
+  <g class="ph-hot" data-part="m-ladder">
+    <rect class="ph-fill ph-ln2" x="45" y="446" width="650" height="120"/>
+    <rect class="ph-fill ph-ln" x="75" y="510" width="100" height="34"/>
+    <rect class="ph-fill ph-ln" x="195" y="498" width="100" height="46"/>
+    <rect class="ph-chipf" x="315" y="486" width="100" height="58"/>
+    <rect class="ph-chipf" x="435" y="474" width="100" height="70"/>
+    <rect class="ph-metal" x="555" y="462" width="100" height="82"/>
+    <g class="ph-plus"><circle cx="679" cy="460" r="9"/><path d="M679 456 v8 M675 460 h8"/></g>
+    <text class="ph-lbls" x="125" y="530" text-anchor="middle">M4/M6</text>
+    <text class="ph-lbls" x="125" y="542" text-anchor="middle">普通 E 布</text>
+    <text class="ph-lbls" x="245" y="522" text-anchor="middle">M7</text>
+    <text class="ph-lbls" x="245" y="536" text-anchor="middle">一代低Dk布</text>
+    <text class="ph-lbls" x="365" y="510" text-anchor="middle">M8</text>
+    <text class="ph-lbls" x="365" y="524" text-anchor="middle">二代低Dk布</text>
+    <text class="ph-lbls" x="485" y="498" text-anchor="middle">M9（在研）</text>
+    <text class="ph-lbls" x="485" y="512" text-anchor="middle">石英布 Q布</text>
+    <text class="ph-lbls" x="605" y="486" text-anchor="middle">低CTE布</text>
+    <text class="ph-lbls" x="605" y="500" text-anchor="middle">IC 载板 BT/ABF</text>
+    <text class="ph-lbl" x="370" y="586" text-anchor="middle">覆铜板等级阶梯：越高速的板，越离不开特种布（松下 M 系分级）</text>
+  </g>
+  <g class="ph-hot" data-part="cloth-market">
+    <rect class="ph-fill ph-ln2" x="725" y="446" width="210" height="120"/>
+    <path class="ph-lead" d="M756 546 V478 M756 546 H902"/>
+    <path class="ph-ln" d="M760 540 L800 532 L840 512 L880 482" fill="none"/>
+    <polygon points="876,478 888,478 882,490" fill="var(--up)"/>
+    <g class="ph-plus"><circle cx="919" cy="460" r="9"/><path d="M919 456 v8 M915 460 h8"/></g>
+    <text class="ph-lbl" x="830" y="586" text-anchor="middle">特种布景气</text>
+    <text class="ph-lbls" x="830" y="600" text-anchor="middle">2025-30 CAGR 30% · 石英布 75%</text>
+  </g>
+</svg>

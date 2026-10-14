@@ -1,0 +1,20 @@
+{
+  "attributes": [
+    { "tier": "长期货币属性", "factors": ["全球货币超发", "货币体系变迁", "去中心化需求", "黄金储备结构"] },
+    { "tier": "中期金融属性", "factors": ["实际利率", "经济周期", "通胀预期", "汇率波动"] },
+    { "tier": "短期投机属性", "factors": ["资金持仓", "技术分析", "地缘政治", "市场情绪"] }
+  ],
+  "quant": [
+    { "attr": "货币属性", "cycle": "长周期", "indicator": "美国M2同比、全球央行购金量", "note": "驱动黄金长期价值中枢" },
+    { "attr": "金融属性", "cycle": "中周期", "indicator": "10Y TIPS实际利率、美元指数", "note": "决定黄金持有机会成本" },
+    { "attr": "商品/避险属性", "cycle": "短周期", "indicator": "COMEX持仓、GVZ波动率、地缘风险指数", "note": "放大短期波动" }
+  ],
+  "signals": [
+    { "category": "货币属性", "sub": "央行购金", "status": "持续净增持", "suggest": "看多", "term": "长期" },
+    { "category": "货币属性", "sub": "美元信用", "status": "边际走弱", "suggest": "看多", "term": "长期" },
+    { "category": "金融属性", "sub": "实际利率", "status": "高位震荡", "suggest": "中性", "term": "中期" },
+    { "category": "金融属性", "sub": "美元指数", "status": "承压回落", "suggest": "看多", "term": "中期" },
+    { "category": "商品属性", "sub": "持仓拥挤度", "status": "偏高", "suggest": "谨慎", "term": "短期" },
+    { "category": "商品属性", "sub": "波动率(GVZ)", "status": "抬升", "suggest": "谨慎", "term": "短期" }
+  ]
+}

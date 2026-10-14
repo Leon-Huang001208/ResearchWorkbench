@@ -1,0 +1,24 @@
+<svg viewBox="0 0 1000 540" xmlns="http://www.w3.org/2000/svg" class="ph-scene">
+  <text class="ph-lbls" x="44" y="42">太空光伏：卫星与天基算力的能源系统；高效率、抗辐照与可展开性是核心约束</text>
+  <rect class="ph-chipbg" x="36" y="72" width="928" height="376" rx="8"/>
+  <g class="ph-hot" data-part="space-wing">
+    <rect class="ph-fill ph-ln" x="348" y="234" width="120" height="72"/><path class="ph-ln2" d="M364 252h88M364 270h88M364 288h88M388 234v72M420 234v72"/>
+    <polygon class="ph-chipf" points="96,176 348,234 348,306 96,364"/><path class="ph-ln2" d="M136 198v144M176 208v124M216 216v108M256 226v88M296 234v72M96 224l252 54M96 270l252 0M96 316l252-54"/>
+    <polygon class="ph-chipf" points="468,234 720,176 720,364 468,306"/><path class="ph-ln2" d="M508 226v88M548 216v108M588 208v124M628 198v144M680 224l-212 54M680 270l-212 0M680 316l-212-54"/>
+    <text class="ph-lbl" x="408" y="338" text-anchor="middle">可展开太阳翼</text><text class="ph-lbls" x="408" y="353" text-anchor="middle">折叠发射 · 入轨展开</text>
+  </g>
+  <g class="ph-hot" data-part="gaas-cell">
+    <rect class="ph-metal" x="182" y="112" width="150" height="54" rx="4"/><path class="ph-ln2" d="M204 112v54M234 112v54M264 112v54M294 112v54"/><text class="ph-lbl" x="257" y="98" text-anchor="middle">砷化镓多结电池</text><path class="ph-lead" d="M257 166v38"/>
+  </g>
+  <g class="ph-hot" data-part="perovskite-material">
+    <rect class="ph-fill ph-ln" x="500" y="112" width="168" height="54" rx="4"/><path class="ph-ln2" d="M524 112v54M556 112v54M588 112v54M620 112v54"/><text class="ph-lbl" x="584" y="98" text-anchor="middle">钙钛矿薄膜材料</text><text class="ph-lbls" x="584" y="184" text-anchor="middle">轻量柔性 · 叠层探索</text><path class="ph-lead" d="M584 166v38"/>
+  </g>
+  <g class="ph-hot" data-part="space-pcu">
+    <rect class="ph-fill ph-ln" x="510" y="352" width="156" height="70" rx="6"/><text class="ph-die" x="588" y="382" text-anchor="middle">PCU / 电池</text><text class="ph-lbls" x="588" y="401" text-anchor="middle">稳压 · 阴影期供电</text><path class="ph-flow" d="M468 270h42M588 422v30"/>
+  </g>
+  <g class="ph-hot" data-part="space-thermal">
+    <path class="ph-fill ph-ln" d="M754 250h166l-34 38 34 38H754l34-38z"/><path class="ph-ln2" d="M778 270h112M778 288h112M778 306h112"/><text class="ph-lbl" x="837" y="354" text-anchor="middle">热控 / 抗辐照</text><text class="ph-lbls" x="837" y="369" text-anchor="middle">散热器 · 盖片</text>
+  </g>
+  <circle class="ph-gold" cx="88" cy="94" r="18"/><path class="ph-ln2" d="M88 66v-14M88 136v14M60 94H46M116 94h14"/>
+  <path class="ph-flow" d="M666 387h72"/><text class="ph-lbls" x="792" y="428" text-anchor="middle">载荷 / 天基算力（示意）</text>
+</svg>

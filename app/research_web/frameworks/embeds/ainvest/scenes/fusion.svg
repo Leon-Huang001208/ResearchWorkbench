@@ -1,0 +1,19 @@
+<svg viewBox="0 0 1000 540" xmlns="http://www.w3.org/2000/svg" class="ph-scene">
+  <text class="ph-lbls" x="44" y="42">磁约束托卡马克：工程化早期的清洁基荷技术，关键在高场磁体与面对等离子体材料</text>
+  <g class="ph-hot" data-part="fusion-magnet">
+    <ellipse class="ph-chipf" cx="486" cy="270" rx="230" ry="142"/><ellipse class="ph-fill ph-ln" cx="486" cy="270" rx="162" ry="94"/>
+    <path class="ph-ln2" d="M278 194q208 152 416 0M278 346q208-152 416 0"/><text class="ph-lbl" x="486" y="112" text-anchor="middle">超导磁体系统</text><text class="ph-lbls" x="486" y="127" text-anchor="middle">环向场 / 极向场线圈</text>
+  </g>
+  <g class="ph-hot" data-part="tokamak">
+    <ellipse class="ph-fill ph-ln" cx="486" cy="270" rx="96" ry="54"/><ellipse class="ph-ln2" cx="486" cy="270" rx="58" ry="28" fill="none"/><path class="ph-cool" d="M442 270q44-32 88 0q-44 32-88 0"/>
+    <text class="ph-die" x="486" y="274" text-anchor="middle">等离子体</text><text class="ph-lbl" x="486" y="352" text-anchor="middle">真空室</text>
+  </g>
+  <g class="ph-hot" data-part="divertor">
+    <path class="ph-metal" d="M408 338q78 38 156 0l-18 34q-60 22-120 0z"/><path class="ph-pipe-s" d="M432 372v48h108v-48"/><text class="ph-lbl" x="486" y="450" text-anchor="middle">偏滤器 / 第一壁</text><text class="ph-lbls" x="486" y="465" text-anchor="middle">钨基面对等离子体材料</text>
+  </g>
+  <g class="ph-hot" data-part="breeding-blanket">
+    <path class="ph-fill ph-ln" d="M292 270a194 116 0 0 1 388 0a194 116 0 0 1-388 0zm32 0a162 94 0 0 0 324 0a162 94 0 0 0-324 0z" fill-rule="evenodd"/>
+    <text class="ph-lbl" x="760" y="250" text-anchor="middle">氚增殖包层</text><text class="ph-lbls" x="760" y="266" text-anchor="middle">吸收中子 / 换热</text><path class="ph-lead" d="M682 270h58"/>
+  </g>
+  <path class="ph-dash" d="M486 488v24"/><text class="ph-lbls" x="486" y="526" text-anchor="middle">热量 → 蒸汽轮机 → 发电（示意）</text>
+</svg>

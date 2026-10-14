@@ -1,0 +1,25 @@
+<svg viewBox="0 0 1000 540" xmlns="http://www.w3.org/2000/svg" class="ph-scene">
+  <text class="ph-lbls" x="44" y="42">储能电站：电芯簇、PCS、热管理与 EMS 共同构成可调节电力资源</text>
+  <path class="ph-flow" d="M88 302H900"/><polygon points="900,297 912,302 900,307" fill="var(--accent)"/><text class="ph-lbls" x="494" y="286" text-anchor="middle">充电 ←→ 放电</text>
+  <g class="ph-hot" data-part="battery-container">
+    <rect class="ph-fill ph-ln" x="82" y="222" width="258" height="156" rx="4"/><path class="ph-ln2" d="M82 258h258M82 294h258M82 330h258M122 222v156M166 222v156M210 222v156M254 222v156M298 222v156"/>
+    <text class="ph-lbl" x="211" y="410" text-anchor="middle">电池簇 / 集装箱</text><text class="ph-lbls" x="211" y="425" text-anchor="middle">电芯 · BMS · 直流母线</text>
+  </g>
+  <g class="ph-hot" data-part="battery-cell-supplier">
+    <rect class="ph-fill ph-ln" x="82" y="104" width="258" height="70" rx="4"/><path class="ph-ln2" d="M102 154h218M126 104v50M170 104v50M214 104v50M258 104v50M302 104v50"/>
+    <text class="ph-lbl" x="211" y="126" text-anchor="middle">储能电芯厂</text><text class="ph-lbls" x="211" y="143" text-anchor="middle">宁德时代 · 比亚迪 · 亿纬锂能</text><path class="ph-flow" d="M211 174v34"/>
+  </g>
+  <g class="ph-hot" data-part="pcs">
+    <rect class="ph-fill ph-ln" x="432" y="230" width="144" height="144"/><path class="ph-ln2" d="M456 302q12-26 24 0t24 0t24 0t24 0"/><path class="ph-flow" d="M340 302h92M576 302h78"/>
+    <text class="ph-lbl" x="504" y="406" text-anchor="middle">PCS 功率变换</text><text class="ph-lbls" x="504" y="421" text-anchor="middle">DC ⇄ AC</text>
+  </g>
+  <g class="ph-hot" data-part="storage-thermal">
+    <rect class="ph-fill ph-ln" x="654" y="230" width="110" height="144"/><circle class="ph-ln" cx="709" cy="282" r="26" fill="none"/><path class="ph-ln2" d="M683 282h52M709 256v52M691 264l36 36M727 264l-36 36"/>
+    <text class="ph-lbl" x="709" y="406" text-anchor="middle">热管理 / 消防</text><text class="ph-lbls" x="709" y="421" text-anchor="middle">安全窗口</text>
+  </g>
+  <g class="ph-hot" data-part="storage-ems">
+    <rect class="ph-chipf" x="832" y="224" width="112" height="88" rx="6"/><text class="ph-die" x="888" y="264" text-anchor="middle">EMS</text><text class="ph-lbls" x="888" y="283" text-anchor="middle">价格 · 负荷 · 天气</text>
+    <path class="ph-dash" d="M888 312v78M888 390h-684M432 390v-16M709 390v-16"/><text class="ph-lbl" x="888" y="346" text-anchor="middle">能量管理</text>
+  </g>
+  <line class="ph-ln2" x1="40" y1="478" x2="960" y2="478"/>
+</svg>

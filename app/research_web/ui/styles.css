@@ -825,3 +825,26 @@ textarea { resize: vertical; }
 .research-source-options { position: absolute; top: 100%; left: 0; min-width: 170px; z-index: 12; display: grid; gap: 10px; padding: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; box-shadow: var(--shadow); }
 .research-source-options label { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
 .research-source-options input { min-height: auto; width: auto; }
+.embedded-launch { display: grid; gap: 14px; }
+.embedded-launch p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.embedded-notes { margin: 0; padding-left: 18px; color: var(--muted); font-size: 12px; line-height: 1.7; }
+.embedded-top-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-bottom: 6px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); font-size: 11px; }
+.embedded-top-meta .badge { margin-right: 2px; }
+.embedded-status { font-weight: 550; }
+.embedded-status.positive { color: var(--green); }
+.embedded-status.negative { color: var(--red); }
+.embedded-status.neutral { color: var(--muted); }
+.embedded-meta-item { color: var(--muted); white-space: nowrap; }
+.embedded-open-link { margin-left: auto; color: var(--text); text-decoration: none; font-weight: 500; }
+.embedded-open-link:hover { text-decoration: underline; }
+.embedded-note-bar { margin-bottom: 10px; color: var(--muted); font-size: 10px; line-height: 1.5; }
+.embedded-toolbar { display: flex; align-items: center; gap: 16px; height: 36px; font-size: 12px; }
+.embedded-toolbar .framework-back { margin: 0; }
+.embedded-iframe-wrap { position: relative; width: 100%; height: calc(100dvh - 128px); min-height: 400px; overflow: hidden; background: var(--surface); }
+.embedded-iframe-wrap iframe { width: 100%; height: 100%; border: 0; }
+.embedded-framework .framework-hero { margin-bottom: 10px; padding-bottom: 12px; }
+.embedded-framework .framework-hero-meta { display: none; }
+.embedded-framework .framework-hero-meta .positive { color: var(--green); }
+.embedded-framework .framework-hero-meta .negative { color: var(--red); }
+.embedded-framework .framework-hero-meta .neutral { color: var(--muted); }
+

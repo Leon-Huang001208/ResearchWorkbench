@@ -1,0 +1,39 @@
+<svg viewBox="0 0 1000 620" xmlns="http://www.w3.org/2000/svg" class="ph-scene">
+  <text class="ph-lbls" x="45" y="42">AI PCB 五类成品板：服务器、交换机、光模块 mSAP、NPO mSAP 与存储 mSAP · 点击任一板型查看规格与赛道</text>
+  <path class="ph-flow" d="M500 74v42"/>
+  <g class="ph-hot" data-part="ai-server-pcb">
+    <rect class="ph-chipbg ph-ln" x="42" y="128" width="168" height="214" rx="5"/>
+    <rect class="ph-fill ph-ln2" x="64" y="154" width="54" height="42"/><rect class="ph-fill ph-ln2" x="134" y="154" width="54" height="42"/>
+    <rect class="ph-chipf" x="76" y="218" width="98" height="38"/><path class="ph-ln2" d="M58 278h136M58 300h136M80 140v178M132 140v178"/>
+    <text class="ph-lbl" x="126" y="374" text-anchor="middle">AI 服务器 PCB</text><text class="ph-lbls" x="126" y="391" text-anchor="middle">计算板 / Midplane / 背板</text><text class="ph-lbls" x="126" y="408" text-anchor="middle">高多层 / HDI · M8/M9</text>
+  </g>
+  <g class="ph-hot" data-part="ai-switch-pcb">
+    <rect class="ph-chipbg ph-ln" x="231" y="128" width="168" height="214" rx="5"/>
+    <rect class="ph-chipf" x="285" y="172" width="60" height="50"/><path class="ph-ln2" d="M250 150v168M268 150v168M362 150v168M380 150v168M248 250h134M248 276h134"/>
+    <circle class="ph-gold" cx="270" cy="164" r="4"/><circle class="ph-gold" cx="360" cy="164" r="4"/>
+    <text class="ph-lbl" x="315" y="374" text-anchor="middle">AI 交换机 PCB</text><text class="ph-lbls" x="315" y="391" text-anchor="middle">800G → 1.6T 端口</text><text class="ph-lbls" x="315" y="408" text-anchor="middle">22-28 → 46-52 层</text>
+  </g>
+  <g class="ph-hot" data-part="optical-msap-pcb">
+    <rect class="ph-chipbg ph-ln" x="420" y="128" width="168" height="214" rx="5"/>
+    <rect class="ph-chipf" x="442" y="180" width="48" height="34"/><path class="ph-lead" d="M490 197h28"/><rect class="ph-metal" x="518" y="180" width="42" height="34"/>
+    <path class="ph-ln2" d="M440 244h126M440 258h126M440 272h126M440 286h126"/><circle class="ph-gold" cx="468" cy="154" r="5"/><circle class="ph-gold" cx="540" cy="154" r="5"/>
+    <text class="ph-lbl" x="504" y="374" text-anchor="middle">光模块 mSAP PCB</text><text class="ph-lbls" x="504" y="391" text-anchor="middle">1.6T · 12层任意互连 HDI</text><text class="ph-lbls" x="504" y="408" text-anchor="middle">25/25μm · M8 + HVLP2</text>
+  </g>
+  <g class="ph-hot" data-part="npo-msap-pcb">
+    <rect class="ph-chipbg ph-ln" x="609" y="128" width="168" height="214" rx="5"/>
+    <rect class="ph-metal ph-ln2" x="636" y="246" width="114" height="18"/><rect class="ph-chipf" x="660" y="194" width="64" height="44"/>
+    <rect class="ph-fill ph-ln2" x="642" y="162" width="26" height="20"/><rect class="ph-fill ph-ln2" x="716" y="162" width="26" height="20"/><path class="ph-flow" d="M668 172h48"/>
+    <circle class="ph-gold" cx="670" cy="278" r="4"/><circle class="ph-gold" cx="690" cy="278" r="4"/><circle class="ph-gold" cx="710" cy="278" r="4"/>
+    <text class="ph-lbl" x="693" y="374" text-anchor="middle">NPO mSAP PCB</text><text class="ph-lbls" x="693" y="391" text-anchor="middle">Near-Package Optics</text><text class="ph-lbls" x="693" y="408" text-anchor="middle">短电链路 · 前瞻导入</text>
+  </g>
+  <g class="ph-hot" data-part="storage-msap-pcb">
+    <rect class="ph-chipbg ph-ln" x="798" y="128" width="160" height="214" rx="5"/>
+    <rect class="ph-metal ph-ln2" x="820" y="266" width="116" height="16"/><rect class="ph-chipf" x="820" y="178" width="24" height="68"/><rect class="ph-chipf" x="852" y="178" width="24" height="68"/><rect class="ph-chipf" x="884" y="178" width="24" height="68"/><rect class="ph-chipf" x="916" y="178" width="18" height="68"/>
+    <path class="ph-ln2" d="M816 296h124M816 310h124"/>
+    <text class="ph-lbl" x="878" y="374" text-anchor="middle">存储 mSAP PCB</text><text class="ph-lbls" x="878" y="391" text-anchor="middle">SOCAMM / CXL</text><text class="ph-lbls" x="878" y="408" text-anchor="middle">低 Dk/Df/CTE · 16/20层</text>
+  </g>
+  <path class="ph-lead" d="M126 448v34H878v-34"/>
+  <text class="ph-lbl" x="500" y="526" text-anchor="middle">mSAP：超薄铜箔 + 图形电镀 + 剥膜 + 闪蚀</text>
+  <text class="ph-lbls" x="500" y="547" text-anchor="middle">兼顾量产与约 20-25μm 线宽线距；具体层数、材料与渗透节奏会随平台迭代变化</text>
+  <text class="ph-lbls" x="500" y="584" text-anchor="middle">结构示意参考：广发证券《电子行业2026年中期策略：AI创新与存储周期》</text>
+</svg>

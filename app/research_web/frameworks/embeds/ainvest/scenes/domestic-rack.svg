@@ -1,0 +1,94 @@
+<svg viewBox="0 0 1000 620" xmlns="http://www.w3.org/2000/svg" class="ph-scene">
+  <text class="ph-lbls" x="45" y="38">国产超节点四强：从服务器堆叠到 Scale-Up 一体化机柜 · 均已进入工程化交付阶段</text>
+
+  <!-- 华为 CloudMatrix 384 -->
+  <g class="ph-hot" data-part="huawei-cm384">
+    <rect class="ph-fill ph-ln" x="45" y="60" width="210" height="300" stroke-width="2"/>
+    <rect class="ph-metal" x="66" y="76" width="168" height="18"/>
+    <rect class="ph-chipbg ph-ln2" x="66" y="100" width="168" height="14"/>
+    <rect class="ph-chipbg ph-ln2" x="66" y="118" width="168" height="14"/>
+    <rect class="ph-chipbg ph-ln2" x="66" y="136" width="168" height="14"/>
+    <rect class="ph-chipbg ph-ln2" x="66" y="154" width="168" height="14"/>
+    <path class="ph-lead" d="M100 176 V220 M132 176 V220 M164 176 V220 M196 176 V220"/>
+    <rect class="ph-chipf" x="80" y="220" width="26" height="20"/><rect class="ph-chipf" x="112" y="220" width="26" height="20"/>
+    <rect class="ph-chipf" x="144" y="220" width="26" height="20"/><rect class="ph-chipf" x="176" y="220" width="26" height="20"/>
+    <text class="ph-die" x="150" y="234" text-anchor="middle">昇腾 910C ×384</text>
+    <path class="ph-lead" d="M80 250 V270 M202 250 V270"/>
+    <rect class="ph-fill ph-ln2" x="66" y="270" width="168" height="22"/>
+    <text class="ph-lbls" x="150" y="285" text-anchor="middle">UB Plane · 384 NPU 全互联</text>
+    <text class="ph-lbl" x="150" y="324" text-anchor="middle">华为 CloudMatrix 384</text>
+    <text class="ph-lbls" x="150" y="340" text-anchor="middle">Atlas 950/960 · 8192-15488 卡</text>
+    <text class="ph-lbls" x="150" y="354" text-anchor="middle">已在 20+ 客户规模化落地</text>
+  </g>
+
+  <!-- 中科曙光 scaleX -->
+  <g class="ph-hot" data-part="sugon-scalex">
+    <rect class="ph-fill ph-ln" x="285" y="60" width="210" height="300" stroke-width="2"/>
+    <rect class="ph-fill ph-ln2" x="306" y="80" width="168" height="240"/>
+    <line class="ph-ln2" x1="306" y1="112" x2="474" y2="112"/>
+    <line class="ph-ln2" x1="306" y1="144" x2="474" y2="144"/>
+    <line class="ph-ln2" x1="306" y1="176" x2="474" y2="176"/>
+    <line class="ph-ln2" x1="306" y1="208" x2="474" y2="208"/>
+    <line class="ph-ln2" x1="306" y1="240" x2="474" y2="240"/>
+    <line class="ph-ln2" x1="306" y1="272" x2="474" y2="272"/>
+    <rect class="ph-chipf" x="316" y="96" width="20" height="12"/><rect class="ph-chipf" x="316" y="128" width="20" height="12"/>
+    <rect class="ph-chipf" x="316" y="160" width="20" height="12"/><rect class="ph-chipf" x="316" y="192" width="20" height="12"/>
+    <path class="ph-ln2" d="M444 100 C458 100 462 96 470 96 M444 132 C458 132 462 128 470 128 M444 164 C458 164 462 160 470 160" fill="none"/>
+    <text class="ph-lbl" x="390" y="324" text-anchor="middle">中科曙光 scaleX640/40</text>
+    <text class="ph-lbls" x="390" y="340" text-anchor="middle">单机柜 640 卡 · 无线缆一体化</text>
+    <text class="ph-lbls" x="390" y="354" text-anchor="middle">开放架构 · 多品牌加速卡兼容</text>
+  </g>
+
+  <!-- 百度天池 -->
+  <g class="ph-hot" data-part="baidu-tianchi">
+    <rect class="ph-fill ph-ln" x="525" y="60" width="210" height="300" stroke-width="2"/>
+    <rect class="ph-fill ph-ln2" x="546" y="80" width="76" height="240"/>
+    <rect class="ph-fill ph-ln2" x="630" y="80" width="76" height="240"/>
+    <path class="ph-lead" d="M556 96 H612 M556 116 H612 M556 136 H612 M556 156 H612 M556 176 H612 M556 196 H612 M556 216 H612 M556 236 H612 M556 256 H612 M556 276 H612 M556 296 H612"/>
+    <path class="ph-lead" d="M640 96 H696 M640 116 H696 M640 136 H696 M640 156 H696 M640 176 H696 M640 196 H696 M640 216 H696 M640 236 H696 M640 256 H696 M640 276 H696 M640 296 H696"/>
+    <path class="ph-flow" d="M622 190 H630"/>
+    <text class="ph-lbl" x="630" y="324" text-anchor="middle">百度天池 256/512</text>
+    <text class="ph-lbls" x="630" y="340" text-anchor="middle">P800 加速卡 · 卡间互联带宽翻倍</text>
+    <text class="ph-lbls" x="630" y="354" text-anchor="middle">推理吞吐较上代提升 3.5 倍</text>
+  </g>
+
+  <!-- 阿里磐久 -->
+  <g class="ph-hot" data-part="alibaba-panjiu">
+    <rect class="ph-fill ph-ln" x="765" y="60" width="190" height="300" stroke-width="2"/>
+    <rect class="ph-fill ph-ln2" x="786" y="80" width="148" height="200"/>
+    <rect class="ph-chipf" x="798" y="92" width="30" height="18"/><rect class="ph-chipf" x="836" y="92" width="30" height="18"/><rect class="ph-chipf" x="874" y="92" width="30" height="18"/>
+    <rect class="ph-chipf" x="798" y="116" width="30" height="18"/><rect class="ph-chipf" x="836" y="116" width="30" height="18"/><rect class="ph-chipf" x="874" y="116" width="30" height="18"/>
+    <rect class="ph-chipf" x="798" y="140" width="30" height="18"/><rect class="ph-chipf" x="836" y="140" width="30" height="18"/><rect class="ph-chipf" x="874" y="140" width="30" height="18"/>
+    <rect class="ph-metal" x="798" y="168" width="106" height="16"/>
+    <text class="ph-lbls" x="851" y="180" text-anchor="middle">CIPU 2.0 + EIC/MOC</text>
+    <path class="ph-ln2" d="M798 198 C816 214 834 198 852 214 C870 198 888 214 906 198" fill="none"/>
+    <path class="ph-ln2" d="M798 220 C816 236 834 220 852 236 C870 220 888 236 906 220" fill="none"/>
+    <text class="ph-lbl" x="860" y="324" text-anchor="middle">阿里磐久 AL128</text>
+    <text class="ph-lbls" x="860" y="340" text-anchor="middle">128 卡 · Pb/s 级 Scale-Up 带宽</text>
+    <text class="ph-lbls" x="860" y="354" text-anchor="middle">软硬协同 · 推理性能提升 50%</text>
+  </g>
+
+  <!-- 价值量框架 -->
+  <g class="ph-hot" data-part="ai-server-bom">
+    <rect class="ph-fill ph-ln2" x="45" y="392" width="910" height="200"/>
+    <text class="ph-lbl" x="500" y="418" text-anchor="middle">为什么超节点重估产业链价值量：AI 服务器 vs 通用服务器整机 BOM 对比</text>
+    <rect class="ph-fill ph-ln" x="90" y="440" width="380" height="130"/>
+    <text class="ph-lbls" x="280" y="460" text-anchor="middle">通用双路服务器 · 约 1.05 万美元</text>
+    <rect class="ph-chipbg ph-ln2" x="110" y="472" width="340" height="16"/>
+    <text class="ph-lbls" x="280" y="484" text-anchor="middle">CPU 17.7% · 内存 37.5% · 存储 14.7%</text>
+    <rect class="ph-chipbg ph-ln2" x="110" y="496" width="340" height="16"/>
+    <text class="ph-lbls" x="280" y="508" text-anchor="middle">网卡 6.2% · 机箱/主板/电源 ~14%</text>
+    <rect class="ph-chipbg ph-ln2" x="110" y="520" width="340" height="16"/>
+    <text class="ph-lbls" x="280" y="532" text-anchor="middle">GPU+NVSwitch Baseboard：0%</text>
+    <rect class="ph-fill ph-ln" x="530" y="440" width="380" height="130"/>
+    <text class="ph-lbls" x="720" y="460" text-anchor="middle">Nvidia DGX H100 · 约 26.9 万美元</text>
+    <rect class="ph-chipf" x="550" y="472" width="340" height="46"/>
+    <text class="ph-lbls" x="720" y="500" text-anchor="middle">GPU+NVSwitch Baseboard 72.5%（19.5万美元）</text>
+    <rect class="ph-chipbg ph-ln2" x="550" y="522" width="340" height="16"/>
+    <text class="ph-lbls" x="720" y="534" text-anchor="middle">内存 2.9% · 存储 1.3% · 网卡 4.1%</text>
+    <rect class="ph-chipbg ph-ln2" x="550" y="546" width="340" height="16"/>
+    <text class="ph-lbls" x="720" y="558" text-anchor="middle">CPU 1.9% · 机箱/主板/电源/组装 ~17%</text>
+    <g class="ph-plus"><circle cx="930" cy="416" r="8"/><path d="M930 412v8M926 416h8"/></g>
+  </g>
+  <text class="ph-lbls" x="500" y="608" text-anchor="middle">整机价值量差约 25 倍（SemiAnalysis）· GPU+NVSwitch Baseboard 是价值跃迁的绝对主导环节，国产超节点复刻同一逻辑</text>
+</svg>

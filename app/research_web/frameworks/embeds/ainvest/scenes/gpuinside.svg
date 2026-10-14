@@ -1,0 +1,99 @@
+<svg viewBox="0 0 1000 600" xmlns="http://www.w3.org/2000/svg" class="ph-scene">
+  <text class="ph-lbls" x="45" y="38">英伟达最先进量产 GPU：Rubin（2026 下半年放量）· 左：封装俯视 · 右：剖面与家族成员 · 底部：面积路线图</text>
+
+  <!-- 俯视图 -->
+  <rect class="ph-fill ph-ln" x="60" y="90" width="360" height="360" rx="6" stroke-width="2"/>
+  <rect class="ph-chipbg ph-ln2" x="88" y="118" width="304" height="304"/>
+  <g class="ph-hot" data-part="hbm4-stack">
+    <rect class="ph-hbm" x="100" y="130" width="52" height="66"/><line class="ph-ln2" x1="100" y1="152" x2="152" y2="152"/><line class="ph-ln2" x1="100" y1="174" x2="152" y2="174"/>
+    <rect class="ph-hbm" x="100" y="204" width="52" height="66"/><line class="ph-ln2" x1="100" y1="226" x2="152" y2="226"/><line class="ph-ln2" x1="100" y1="248" x2="152" y2="248"/>
+    <rect class="ph-hbm" x="100" y="278" width="52" height="66"/><line class="ph-ln2" x1="100" y1="300" x2="152" y2="300"/><line class="ph-ln2" x1="100" y1="322" x2="152" y2="322"/>
+    <rect class="ph-hbm" x="100" y="352" width="52" height="66"/><line class="ph-ln2" x1="100" y1="374" x2="152" y2="374"/><line class="ph-ln2" x1="100" y1="396" x2="152" y2="396"/>
+    <rect class="ph-hbm" x="328" y="130" width="52" height="66"/><line class="ph-ln2" x1="328" y1="152" x2="380" y2="152"/><line class="ph-ln2" x1="328" y1="174" x2="380" y2="174"/>
+    <rect class="ph-hbm" x="328" y="204" width="52" height="66"/><line class="ph-ln2" x1="328" y1="226" x2="380" y2="226"/><line class="ph-ln2" x1="328" y1="248" x2="380" y2="248"/>
+    <rect class="ph-hbm" x="328" y="278" width="52" height="66"/><line class="ph-ln2" x1="328" y1="300" x2="380" y2="300"/><line class="ph-ln2" x1="328" y1="322" x2="380" y2="322"/>
+    <rect class="ph-hbm" x="328" y="352" width="52" height="66"/><line class="ph-ln2" x1="328" y1="374" x2="380" y2="374"/><line class="ph-ln2" x1="328" y1="396" x2="380" y2="396"/>
+  </g>
+  <g class="ph-hot" data-part="rubin-die">
+    <rect class="ph-chipf" x="166" y="150" width="72" height="240"/>
+    <rect class="ph-chipf" x="242" y="150" width="72" height="240"/>
+    <rect class="ph-gold" x="238" y="160" width="4" height="220"/>
+    <text class="ph-die" x="202" y="274" text-anchor="middle">Die 1</text>
+    <text class="ph-die" x="278" y="274" text-anchor="middle">Die 2</text>
+  </g>
+  <text class="ph-lbl" x="240" y="474" text-anchor="middle">Rubin GPU · 台积电 3nm · 双 die 拼接</text>
+  <text class="ph-lbls" x="240" y="490" text-anchor="middle">288GB HBM4 ×8 · 50 PFLOPS NVFP4 · NVLink6 3.6TB/s</text>
+
+  <!-- 剖面 -->
+  <g class="ph-hot" data-part="gpu-cooling">
+    <rect class="ph-fill ph-ln" x="500" y="104" width="380" height="24"/>
+    <path class="ph-cool" d="M516 116 H864" stroke-width="5"/>
+    <text class="ph-lbl" x="892" y="120">液冷冷板</text>
+  </g>
+  <g class="ph-hot" data-part="gpu-xsec-die">
+    <rect class="ph-hbm" x="520" y="136" width="80" height="34"/>
+    <rect class="ph-chipf" x="612" y="136" width="156" height="34"/>
+    <rect class="ph-hbm" x="780" y="136" width="80" height="34"/>
+    <text class="ph-lbl" x="892" y="158">裸 die 直触冷板</text>
+  </g>
+  <g class="ph-hot" data-part="gpu-interposer">
+    <rect class="ph-fill ph-ln" x="500" y="176" width="380" height="20"/>
+    <line class="ph-ln2" x1="508" y1="186" x2="872" y2="186"/>
+    <text class="ph-lbl" x="892" y="192">CoWoS-L 中介层</text>
+  </g>
+  <g class="ph-hot" data-part="gpu-substrate">
+    <rect class="ph-metal" x="480" y="202" width="420" height="24"/>
+    <circle class="ph-gold" cx="520" cy="234" r="4"/><circle class="ph-gold" cx="570" cy="234" r="4"/><circle class="ph-gold" cx="620" cy="234" r="4"/><circle class="ph-gold" cx="670" cy="234" r="4"/><circle class="ph-gold" cx="720" cy="234" r="4"/><circle class="ph-gold" cx="770" cy="234" r="4"/><circle class="ph-gold" cx="820" cy="234" r="4"/><circle class="ph-gold" cx="860" cy="234" r="4"/>
+    <text class="ph-lbl" x="892" y="220">ABF 载板 + BGA</text>
+  </g>
+
+  <!-- Rubin CPX -->
+  <g class="ph-hot" data-part="rubin-cpx">
+    <rect class="ph-fill ph-ln2" x="470" y="286" width="220" height="120"/>
+    <rect class="ph-chipf" x="540" y="306" width="56" height="44"/>
+    <rect class="ph-hbm" x="506" y="312" width="24" height="14"/>
+    <rect class="ph-hbm" x="506" y="332" width="24" height="14"/>
+    <rect class="ph-hbm" x="606" y="312" width="24" height="14"/>
+    <rect class="ph-hbm" x="606" y="332" width="24" height="14"/>
+    <text class="ph-lbl" x="580" y="376" text-anchor="middle">Rubin CPX · 单 die</text>
+    <text class="ph-lbls" x="580" y="392" text-anchor="middle">30 PFLOPS NVFP4 · 128GB GDDR7 · 长上下文 Prefill 专用</text>
+  </g>
+
+  <!-- 装入托盘 -->
+  <g class="ph-hot" data-part="to-tray">
+    <rect class="ph-fill ph-ln2" x="720" y="286" width="210" height="120"/>
+    <rect class="ph-fill ph-ln" x="756" y="310" width="140" height="40" rx="3"/>
+    <rect class="ph-chipf" x="768" y="320" width="20" height="20"/>
+    <rect class="ph-chipf" x="794" y="320" width="20" height="20"/>
+    <rect class="ph-chipf" x="820" y="320" width="20" height="20"/>
+    <rect class="ph-chipf" x="846" y="320" width="20" height="20"/>
+    <g class="ph-plus"><circle cx="906" cy="300" r="9"/><path d="M906 296 v8 M902 300 h8"/></g>
+    <text class="ph-lbl" x="825" y="376" text-anchor="middle">装入计算托盘</text>
+    <text class="ph-lbls" x="825" y="392" text-anchor="middle">VR NVL144 · 每托盘 4× Rubin</text>
+  </g>
+
+  <!-- 面积路线图 -->
+  <g class="ph-hot" data-part="gpu-roadmap">
+    <rect class="ph-fill ph-ln2" x="60" y="500" width="870" height="72"/>
+    <rect class="ph-chipf" x="90" y="518" width="24" height="24"/>
+    <text class="ph-lbl" x="126" y="530">Blackwell</text>
+    <text class="ph-lbls" x="126" y="545">3.3 光罩 · 2739mm²</text>
+    <rect class="ph-chipf" x="292" y="514" width="32" height="32"/>
+    <text class="ph-lbl" x="336" y="530">Rubin（2026）</text>
+    <text class="ph-lbls" x="336" y="545">4 光罩 · 3320mm²</text>
+    <rect class="ph-chipf" x="520" y="508" width="44" height="44"/>
+    <text class="ph-lbl" x="576" y="530">Rubin Ultra（2027）</text>
+    <text class="ph-lbls" x="576" y="545">9 光罩 · 7470mm² · 1TB HBM4E</text>
+    <rect class="ph-chipf" x="790" y="502" width="56" height="56"/>
+    <text class="ph-lbl" x="856" y="530">Feynman</text>
+    <text class="ph-lbls" x="856" y="545">2029 · CoPoS?</text>
+    <g class="ph-lead">
+      <line x1="240" y1="530" x2="284" y2="530"/>
+      <line x1="470" y1="530" x2="512" y2="530"/>
+      <line x1="726" y1="530" x2="782" y2="530"/>
+    </g>
+    <polygon points="284,525 292,530 284,535" fill="var(--txt3)"/>
+    <polygon points="512,525 520,530 512,535" fill="var(--txt3)"/>
+    <polygon points="782,525 790,530 782,535" fill="var(--txt3)"/>
+  </g>
+</svg>

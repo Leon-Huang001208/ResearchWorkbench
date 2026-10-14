@@ -443,3 +443,7 @@ POSIX运行记录读取的共享祖先在stat/open与退出复查均采用dev/in
 PR96 与既有 Fernet 模型桥共用唯一私有 stdio 接口；默认 `native-keychain`、常规 staged `docker-encrypted-file` 语义保留，管理器仅显式绑定 `docker-encrypted` 选择 AES-GCM。两种 Docker 格式与主密钥布局独立，混合绑定或外来格式失败关闭，不转换密文、不删除旧 Key、不回退。四操作与固定 ref 保持；来源如实区分，configured/Doctor 不证明真实生成。
 
 AES 专用模型后端在构造器的既有文件锁内核验全部现有 JSON：外层私有记录格式、完整密文封装、版本与实例身份、实例 service 与两个固定模型 ref 派生的文件名，以及相同 AAD 的 AEAD 认证。A 密文树与 B 完整主密钥/身份绑定不能被新命名空间遮蔽成未配置；未知 JSON、篡改或旁写记录失败关闭且不改原密文。正确旧 AES/Fernet 树保持可读；通用 PrivateFileCredentialBackend 仍允许其原服务/账户用途，不做迁移。
+
+## 框架嵌入核心闭环 · 2026-10-14
+
+嵌入资源使用 /frameworks-embed/ 路由级同源 CSP，不放宽宿主 CSP。宿主与子窗口桥接校验 origin、source、slug、revision 与本次 token，重新挂载必须重新确认；过时回执不能解锁 Bot。原生快照不回退静态 JSON；来源缺口、数据准入和固定 DSH 权限门保留。真实模型、供应商和跨平台证据独立记录。

@@ -1,0 +1,42 @@
+<svg viewBox="0 0 1000 560" xmlns="http://www.w3.org/2000/svg" class="ph-scene">
+  <text class="ph-lbls" x="46" y="40">AI 云平台：把集群资源、模型工程与企业任务链串成可交付服务 · 结构示意</text>
+
+  <g class="ph-hot" data-part="cloud-iaas">
+    <rect class="ph-fill ph-ln" x="48" y="118" width="184" height="246" rx="8"/>
+    <text class="ph-lbl" x="140" y="150" text-anchor="middle">AI IaaS</text><text class="ph-lbls" x="140" y="169" text-anchor="middle">集群 · 网络 · 存储 · 调度</text>
+    <rect class="ph-fill ph-ln2" x="72" y="194" width="40" height="104"/><rect class="ph-fill ph-ln2" x="120" y="194" width="40" height="104"/><rect class="ph-fill ph-ln2" x="168" y="194" width="40" height="104"/>
+    <path class="ph-ln2" d="M72 220h40M120 220h40M168 220h40M72 248h40M120 248h40M168 248h40"/>
+    <path class="ph-lead" d="M84 322h112"/><text class="ph-lbls" x="140" y="342" text-anchor="middle">GPU / ASIC 资源池</text>
+  </g>
+
+  <g class="ph-hot" data-part="cloud-paas">
+    <rect class="ph-fill ph-ln" x="286" y="118" width="184" height="246" rx="8"/>
+    <text class="ph-lbl" x="378" y="150" text-anchor="middle">AI PaaS</text><text class="ph-lbls" x="378" y="169" text-anchor="middle">数据 · 检索 · 微调 · 评测</text>
+    <ellipse class="ph-fill ph-ln2" cx="330" cy="210" rx="24" ry="8"/><path class="ph-ln2" d="M306 210v38c0 11 48 11 48 0v-38M306 229c0 11 48 11 48 0"/>
+    <rect class="ph-chipbg ph-ln2" x="376" y="196" width="66" height="28" rx="3"/><path class="ph-ln2" d="M386 205h46M386 214h30"/>
+    <rect class="ph-fill ph-ln2" x="306" y="278" width="136" height="42" rx="4"/><path class="ph-ln2" d="M320 292h108M320 305h72"/><text class="ph-lbls" x="378" y="342" text-anchor="middle">RAG / 工作流 / MLOps</text>
+  </g>
+
+  <g class="ph-hot" data-part="cloud-maas">
+    <rect class="ph-chipbg ph-ln" x="524" y="118" width="184" height="246" rx="8"/>
+    <text class="ph-lbl" x="616" y="150" text-anchor="middle">MaaS · 模型 API</text><text class="ph-lbls" x="616" y="169" text-anchor="middle">调用、并发、Token 计量</text>
+    <rect class="ph-chipf" x="552" y="195" width="128" height="58" rx="5"/><text class="ph-die" x="616" y="222" text-anchor="middle">模型服务</text><text class="ph-lbls" x="616" y="241" text-anchor="middle">推理路由 / KV Cache</text>
+    <path class="ph-lead" d="M616 254v24"/><polygon points="611,278 616,286 621,278" fill="var(--txt3)"/>
+    <rect class="ph-fill ph-ln2" x="552" y="287" width="128" height="34" rx="4"/><text class="ph-lbls" x="616" y="309" text-anchor="middle">API / 私有化 / 混合云</text>
+    <text class="ph-lbls" x="616" y="342" text-anchor="middle">从卖卡时长到服务密度</text>
+  </g>
+
+  <g class="ph-hot" data-part="cloud-agent-governance">
+    <rect class="ph-fill ph-ln" x="762" y="118" width="190" height="246" rx="8"/>
+    <text class="ph-lbl" x="857" y="150" text-anchor="middle">Agent 平台/治理</text><text class="ph-lbls" x="857" y="169" text-anchor="middle">工具 · 权限 · 记忆 · 可观测</text>
+    <circle class="ph-chipbg ph-ln2" cx="808" cy="218" r="24"/><text class="ph-die" x="808" y="224" text-anchor="middle">AI</text>
+    <rect class="ph-fill ph-ln2" x="846" y="194" width="78" height="23" rx="3"/><rect class="ph-fill ph-ln2" x="846" y="227" width="78" height="23" rx="3"/><rect class="ph-fill ph-ln2" x="846" y="260" width="78" height="23" rx="3"/>
+    <path class="ph-lead" d="M832 218h14M832 235h14M832 252h14"/><text class="ph-lbls" x="885" y="210" text-anchor="middle">工具调用</text><text class="ph-lbls" x="885" y="243" text-anchor="middle">权限/审计</text><text class="ph-lbls" x="885" y="276" text-anchor="middle">任务记忆</text>
+    <text class="ph-lbls" x="857" y="342" text-anchor="middle">按席位 / 任务 / 解决方案交付</text>
+  </g>
+
+  <g class="ph-lead"><path d="M232 241h47M470 241h47M708 241h47"/></g>
+  <polygon points="279,236 287,241 279,246" fill="var(--txt3)"/><polygon points="517,236 525,241 517,246" fill="var(--txt3)"/><polygon points="755,236 763,241 755,246" fill="var(--txt3)"/>
+  <path class="ph-dash" d="M895 390C884 488 168 490 113 382"/><polygon points="110,388 107,375 119,381" fill="var(--txt3)"/>
+  <text class="ph-lbls" x="502" y="505" text-anchor="middle">调用、订阅与行业交付形成收入回流；云侧核心是把推理负载转化为可持续的服务收入</text>
+</svg>

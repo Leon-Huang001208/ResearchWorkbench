@@ -1,0 +1,91 @@
+<svg viewBox="0 0 1000 600" xmlns="http://www.w3.org/2000/svg" class="ph-scene">
+  <text class="ph-lbls" x="45" y="38">卫星互联网算力节点：星链在轨超 1 万颗 · 天地一体化通信体系正在形成</text>
+
+  <!-- 卫星本体 -->
+  <g class="ph-hot" data-part="sat-bus">
+    <rect class="ph-fill ph-ln2" x="45" y="60" width="300" height="220"/>
+    <rect class="ph-fill ph-ln" x="150" y="130" width="90" height="70"/>
+    <line class="ph-ln2" x1="150" y1="150" x2="240" y2="150"/>
+    <line class="ph-ln2" x1="150" y1="170" x2="240" y2="170"/>
+    <path class="ph-fill ph-ln" d="M70 150 H150 V180 H70 Z"/>
+    <path class="ph-lead" d="M78 156 V174 M90 156 V174 M102 156 V174 M114 156 V174 M126 156 V174 M138 156 V174"/>
+    <path class="ph-fill ph-ln" d="M240 150 H320 V180 H240 Z"/>
+    <path class="ph-lead" d="M248 156 V174 M260 156 V174 M272 156 V174 M284 156 V174 M296 156 V174 M308 156 V174"/>
+    <text class="ph-lbl" x="195" y="242" text-anchor="middle">卫星总线 · 可展开太阳翼</text>
+    <text class="ph-lbls" x="195" y="258" text-anchor="middle">V3 平台 · 单星发射质量显著提升</text>
+  </g>
+
+  <!-- 星间激光链路 -->
+  <g class="ph-hot" data-part="sat-laser-isl">
+    <rect class="ph-fill ph-ln2" x="365" y="60" width="270" height="220"/>
+    <circle class="ph-fill ph-ln" cx="440" cy="170" r="26"/>
+    <circle class="ph-fill ph-ln" cx="560" cy="170" r="26"/>
+    <path class="ph-flow" d="M466 170 H534"/>
+    <polygon points="530,165 540,170 530,175" fill="var(--accent)"/>
+    <polygon points="470,175 460,170 470,165" fill="var(--accent)"/>
+    <text class="ph-lbls" x="500" y="150" text-anchor="middle">星间激光链路 ISL</text>
+    <text class="ph-lbl" x="500" y="242" text-anchor="middle">卫星组网骨干</text>
+    <text class="ph-lbls" x="500" y="258" text-anchor="middle">无需地面中继 · 跨洋低延迟传输</text>
+  </g>
+
+  <!-- 相控阵天线 + 自研芯片 -->
+  <g class="ph-hot" data-part="sat-phased-array">
+    <rect class="ph-fill ph-ln2" x="655" y="60" width="300" height="220"/>
+    <rect class="ph-fill ph-ln" x="700" y="90" width="210" height="90"/>
+    <circle class="ph-bm" cx="720" cy="108" r="2.6"/><circle class="ph-bm" cx="740" cy="108" r="2.6"/><circle class="ph-bm" cx="760" cy="108" r="2.6"/><circle class="ph-bm" cx="780" cy="108" r="2.6"/><circle class="ph-bm" cx="800" cy="108" r="2.6"/><circle class="ph-bm" cx="820" cy="108" r="2.6"/><circle class="ph-bm" cx="840" cy="108" r="2.6"/><circle class="ph-bm" cx="860" cy="108" r="2.6"/><circle class="ph-bm" cx="880" cy="108" r="2.6"/>
+    <circle class="ph-bm" cx="720" cy="128" r="2.6"/><circle class="ph-bm" cx="740" cy="128" r="2.6"/><circle class="ph-bm" cx="760" cy="128" r="2.6"/><circle class="ph-bm" cx="780" cy="128" r="2.6"/><circle class="ph-bm" cx="800" cy="128" r="2.6"/><circle class="ph-bm" cx="820" cy="128" r="2.6"/><circle class="ph-bm" cx="840" cy="128" r="2.6"/><circle class="ph-bm" cx="860" cy="128" r="2.6"/><circle class="ph-bm" cx="880" cy="128" r="2.6"/>
+    <circle class="ph-bm" cx="720" cy="148" r="2.6"/><circle class="ph-bm" cx="740" cy="148" r="2.6"/><circle class="ph-bm" cx="760" cy="148" r="2.6"/><circle class="ph-bm" cx="780" cy="148" r="2.6"/><circle class="ph-bm" cx="800" cy="148" r="2.6"/><circle class="ph-bm" cx="820" cy="148" r="2.6"/><circle class="ph-bm" cx="840" cy="148" r="2.6"/><circle class="ph-bm" cx="860" cy="148" r="2.6"/><circle class="ph-bm" cx="880" cy="148" r="2.6"/>
+    <rect class="ph-chipf" x="740" y="196" width="30" height="20"/>
+    <rect class="ph-chipf" x="790" y="196" width="30" height="20"/>
+    <rect class="ph-chipf" x="840" y="196" width="30" height="20"/>
+    <text class="ph-lbls" x="805" y="230" text-anchor="middle">SpaceX 自研通信芯片 ×3</text>
+    <text class="ph-lbl" x="805" y="252" text-anchor="middle">相控阵天线 · 波束赋形</text>
+    <text class="ph-lbls" x="805" y="268" text-anchor="middle">用户下行/馈电双频段</text>
+  </g>
+
+  <!-- 猎鹰9可回收发射 -->
+  <g class="ph-hot" data-part="falcon9-launch">
+    <rect class="ph-fill ph-ln2" x="45" y="312" width="270" height="220"/>
+    <path class="ph-fill ph-ln" d="M170 340 L184 380 V480 L170 500 L156 480 V380 Z"/>
+    <line class="ph-ln2" x1="163" y1="380" x2="163" y2="470"/>
+    <line class="ph-ln2" x1="177" y1="380" x2="177" y2="470"/>
+    <path class="ph-fill ph-ln2" d="M156 470 L140 500 H156 Z"/>
+    <path class="ph-fill ph-ln2" d="M184 470 L200 500 H184 Z"/>
+    <path d="M163 500 C150 520 150 500 145 522 M177 500 C190 520 190 500 195 522" stroke="var(--rating-txt)" stroke-width="3" fill="none"/>
+    <line class="ph-ln2" x1="60" y1="522" x2="290" y2="522"/>
+    <text class="ph-lbl" x="180" y="500" text-anchor="middle" dy="0"></text>
+    <text class="ph-lbl" x="180" y="216" text-anchor="middle"></text>
+    <text class="ph-lbl" x="180" y="548" text-anchor="middle">猎鹰 9 号 · 一子级可回收</text>
+    <text class="ph-lbls" x="180" y="564" text-anchor="middle">单箭 20+ 颗卫星 · 高频次复用发射</text>
+  </g>
+
+  <!-- 直连手机 DTC -->
+  <g class="ph-hot" data-part="starlink-dtc">
+    <rect class="ph-fill ph-ln2" x="335" y="312" width="300" height="220"/>
+    <path class="ph-flow" d="M480 340 L410 480"/>
+    <path class="ph-flow" d="M480 340 L550 480"/>
+    <rect class="ph-fill ph-ln2" x="392" y="480" width="36" height="60" rx="4"/>
+    <line class="ph-ln2" x1="398" y1="530" x2="422" y2="530"/>
+    <rect class="ph-fill ph-ln2" x="535" y="480" width="36" height="60" rx="4"/>
+    <line class="ph-ln2" x1="541" y1="530" x2="565" y2="530"/>
+    <circle class="ph-fill ph-ln" cx="480" cy="345" r="7"/>
+    <text class="ph-lbls" x="480" y="330" text-anchor="middle">Direct-to-Cell 卫星直连</text>
+    <text class="ph-lbl" x="480" y="564" text-anchor="middle">StarlinkMobile 手机直连</text>
+  </g>
+
+  <!-- 地面站/信关站 -->
+  <g class="ph-hot" data-part="ground-station">
+    <rect class="ph-fill ph-ln2" x="655" y="312" width="300" height="220"/>
+    <path class="ph-fill ph-ln" d="M760 480 V430 A46 46 0 0 1 852 430 V480 Z"/>
+    <line class="ph-ln2" x1="806" y1="430" x2="806" y2="400"/>
+    <rect class="ph-fill ph-ln2" x="798" y="392" width="16" height="10"/>
+    <rect class="ph-fill ph-ln" x="742" y="480" width="126" height="18"/>
+    <path class="ph-flow" d="M806 392 L806 350"/>
+    <polygon points="801,354 806,344 811,354" fill="var(--accent)"/>
+    <text class="ph-lbls" x="806" y="336" text-anchor="middle">馈电链路 · 光缆入网</text>
+    <text class="ph-lbl" x="806" y="522" text-anchor="middle">地面信关站</text>
+    <text class="ph-lbls" x="806" y="538" text-anchor="middle">连接骨干网 · 覆盖 32+ 国家</text>
+  </g>
+
+  <text class="ph-lbls" x="500" y="576" text-anchor="middle">卫星通信是端侧 AI 的网络延伸：偏远地区/海事/应急场景补齐地面网络覆盖盲区</text>
+</svg>

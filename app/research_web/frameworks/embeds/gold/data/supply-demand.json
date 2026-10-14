@@ -1,0 +1,334 @@
+{
+  "updatedAt": "2026-10-14 08:45:38",
+  "source": "World Gold Council · Gold Demand Trends",
+  "sourceUrl": "https://www.gold.org/goldhub/research/gold-demand-trends",
+  "unit": "吨",
+  "periods": {
+    "quarter": {
+      "label": "2026年1季度",
+      "comparisonLabel": "上年同期",
+      "asOf": "数据截至2026-03-31",
+      "insight": "2026年1季度相对上年同期：总量同比下降6%，投资需求下降11%，首饰加工下降24%，央行购金同比增加17%。",
+      "rows": [
+        {
+          "section": "供给",
+          "name": "矿山产量",
+          "previous": 968.4,
+          "current": 884.7,
+          "yoy": -9
+        },
+        {
+          "section": "供给",
+          "name": "生产商净套保",
+          "previous": -23.8,
+          "current": -19.7,
+          "yoy": -17
+        },
+        {
+          "section": "供给",
+          "name": "再生金",
+          "previous": 365.7,
+          "current": 366,
+          "yoy": 0
+        },
+        {
+          "section": "供给",
+          "name": "总供给",
+          "previous": 1310.3,
+          "current": 1231,
+          "yoy": -6,
+          "total": true
+        },
+        {
+          "section": "需求",
+          "name": "首饰加工",
+          "previous": 438,
+          "current": 335,
+          "yoy": -24
+        },
+        {
+          "section": "需求",
+          "name": "科技用金",
+          "previous": 82.1,
+          "current": 81.6,
+          "yoy": -1
+        },
+        {
+          "section": "需求",
+          "name": "投资需求",
+          "previous": 602.9,
+          "current": 535.6,
+          "yoy": -11
+        },
+        {
+          "section": "需求",
+          "name": "其中：金条金币",
+          "previous": 428,
+          "current": 473.6,
+          "yoy": 11,
+          "sub": true
+        },
+        {
+          "section": "需求",
+          "name": "其中：黄金ETF",
+          "previous": 174.9,
+          "current": 62,
+          "yoy": -65,
+          "sub": true
+        },
+        {
+          "section": "需求",
+          "name": "央行及其他机构",
+          "previous": 207.6,
+          "current": 243.7,
+          "yoy": 17
+        },
+        {
+          "section": "需求",
+          "name": "可见黄金需求",
+          "previous": 1330.6,
+          "current": 1195.9,
+          "yoy": -10
+        },
+        {
+          "section": "需求",
+          "name": "OTC及其他（平衡项）",
+          "previous": -20.3,
+          "current": 35.1,
+          "yoy": -273
+        },
+        {
+          "section": "需求",
+          "name": "总需求",
+          "previous": 1310.3,
+          "current": 1231,
+          "yoy": -6,
+          "total": true
+        }
+      ],
+      "composition": {
+        "supply": [
+          {
+            "name": "矿山产量",
+            "value": 884.7
+          },
+          {
+            "name": "净套保",
+            "value": -19.7
+          },
+          {
+            "name": "再生金",
+            "value": 366
+          }
+        ],
+        "demand": [
+          {
+            "name": "首饰",
+            "value": 335
+          },
+          {
+            "name": "科技用金",
+            "value": 81.6
+          },
+          {
+            "name": "投资需求",
+            "value": 535.6
+          },
+          {
+            "name": "央行",
+            "value": 243.7
+          },
+          {
+            "name": "OTC及其他",
+            "value": 35.1
+          }
+        ]
+      }
+    },
+    "annual": {
+      "label": "2025全年",
+      "comparisonLabel": "2024全年",
+      "asOf": "数据截至2025-12-31",
+      "insight": "2025全年相对2024全年：总量同比增长2%，投资需求增长83%，首饰加工下降19%，央行购金同比减少22%。",
+      "rows": [
+        {
+          "section": "供给",
+          "name": "矿山产量",
+          "previous": 3742.5,
+          "current": 3814.7,
+          "yoy": 2
+        },
+        {
+          "section": "供给",
+          "name": "生产商净套保",
+          "previous": -53.8,
+          "current": -74.2,
+          "yoy": 38
+        },
+        {
+          "section": "供给",
+          "name": "再生金",
+          "previous": 1365.3,
+          "current": 1403.4,
+          "yoy": 3
+        },
+        {
+          "section": "供给",
+          "name": "总供给",
+          "previous": 5054,
+          "current": 5143.9,
+          "yoy": 2,
+          "total": true
+        },
+        {
+          "section": "需求",
+          "name": "首饰加工",
+          "previous": 2026.6,
+          "current": 1648.1,
+          "yoy": -19
+        },
+        {
+          "section": "需求",
+          "name": "科技用金",
+          "previous": 326.2,
+          "current": 322.9,
+          "yoy": -1
+        },
+        {
+          "section": "需求",
+          "name": "投资需求",
+          "previous": 1205.6,
+          "current": 2204,
+          "yoy": 83
+        },
+        {
+          "section": "需求",
+          "name": "其中：金条金币",
+          "previous": 1208.5,
+          "current": 1402.4,
+          "yoy": 16,
+          "sub": true
+        },
+        {
+          "section": "需求",
+          "name": "其中：黄金ETF",
+          "previous": -2.9,
+          "current": 801.6,
+          "yoy": -27575,
+          "sub": true
+        },
+        {
+          "section": "需求",
+          "name": "央行及其他机构",
+          "previous": 1092.4,
+          "current": 850.1,
+          "yoy": -22
+        },
+        {
+          "section": "需求",
+          "name": "可见黄金需求",
+          "previous": 4650.8,
+          "current": 5025.1,
+          "yoy": 8
+        },
+        {
+          "section": "需求",
+          "name": "OTC及其他（平衡项）",
+          "previous": 403.2,
+          "current": 118.8,
+          "yoy": -71
+        },
+        {
+          "section": "需求",
+          "name": "总需求",
+          "previous": 5054,
+          "current": 5143.9,
+          "yoy": 2,
+          "total": true
+        }
+      ],
+      "composition": {
+        "supply": [
+          {
+            "name": "矿山产量",
+            "value": 3814.7
+          },
+          {
+            "name": "净套保",
+            "value": -74.2
+          },
+          {
+            "name": "再生金",
+            "value": 1403.4
+          }
+        ],
+        "demand": [
+          {
+            "name": "首饰",
+            "value": 1648.1
+          },
+          {
+            "name": "科技用金",
+            "value": 322.9
+          },
+          {
+            "name": "投资需求",
+            "value": 2204
+          },
+          {
+            "name": "央行",
+            "value": 850.1
+          },
+          {
+            "name": "OTC及其他",
+            "value": 118.8
+          }
+        ]
+      }
+    }
+  },
+  "availability": [
+    {
+      "factor": "矿山产量、再生金、生产商套保",
+      "status": "可直接获取",
+      "frequency": "季度 / 年度",
+      "source": "Goldhub",
+      "visual": "历史趋势、同比"
+    },
+    {
+      "factor": "央行购金",
+      "status": "可直接获取",
+      "frequency": "月度 / 季度",
+      "source": "Goldhub、IMF、各央行",
+      "visual": "净购金趋势、国家排行"
+    },
+    {
+      "factor": "黄金ETF持仓与流量",
+      "status": "可直接获取",
+      "frequency": "日度 / 月度",
+      "source": "Goldhub",
+      "visual": "净流入、总持仓"
+    },
+    {
+      "factor": "金条金币、首饰、科技用金",
+      "status": "可直接获取",
+      "frequency": "季度",
+      "source": "Goldhub",
+      "visual": "趋势、地区结构"
+    },
+    {
+      "factor": "配置型与交易型机构",
+      "status": "代理指标",
+      "frequency": "日度 / 周度",
+      "source": "实际利率、CFTC COT",
+      "visual": "实际利率、持仓趋势"
+    },
+    {
+      "factor": "家办、个人、地缘需求",
+      "status": "部分可观测",
+      "frequency": "季度 / 事件",
+      "source": "ETF、金条金币及事件代理",
+      "visual": "不能形成统一全球序列"
+    }
+  ]
+}

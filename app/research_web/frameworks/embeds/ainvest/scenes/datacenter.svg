@@ -1,0 +1,201 @@
+<svg viewBox="0 0 1000 540" xmlns="http://www.w3.org/2000/svg" class="ph-scene">
+  <!-- 建筑外壳 -->
+  <rect class="ph-fill ph-ln" x="110" y="120" width="830" height="360"/>
+  <line class="ph-ln2" x1="110" y1="160" x2="940" y2="160"/>
+  <!-- 地面 -->
+  <line class="ph-ln2" x1="10" y1="480" x2="990" y2="480"/>
+  <!-- 房间隔墙 -->
+  <line class="ph-ln2" x1="250" y1="160" x2="250" y2="480"/>
+  <line class="ph-ln2" x1="388" y1="160" x2="388" y2="480"/>
+  <line class="ph-ln2" x1="652" y1="160" x2="652" y2="480"/>
+  <line class="ph-ln2" x1="780" y1="160" x2="780" y2="480"/>
+  <line class="ph-ln2" x1="868" y1="160" x2="868" y2="480"/>
+
+  <!-- 房间名 -->
+  <text class="ph-lbl" x="180" y="182" text-anchor="middle">变配电室</text>
+  <text class="ph-lbl" x="319" y="182" text-anchor="middle">UPS · 电池间</text>
+  <text class="ph-lbl" x="520" y="182" text-anchor="middle">机房白区 · 机柜列</text>
+  <text class="ph-lbl" x="716" y="182" text-anchor="middle">网络间</text>
+  <text class="ph-lbl" x="824" y="182" text-anchor="middle">进线间</text>
+  <text class="ph-lbl" x="904" y="182" text-anchor="middle">冷冻站</text>
+
+  <!-- 柴油发电机（楼外） -->
+  <g class="ph-hot" data-part="dg-plant">
+    <rect class="ph-fill ph-ln" x="16" y="412" width="82" height="68"/>
+    <rect class="ph-fill ph-ln2" x="84" y="386" width="9" height="26"/>
+    <line class="ph-ln2" x1="24" y1="430" x2="76" y2="430"/>
+    <line class="ph-ln2" x1="24" y1="444" x2="76" y2="444"/>
+    <line class="ph-ln2" x1="24" y1="458" x2="76" y2="458"/>
+    <text class="ph-lbl" x="57" y="500" text-anchor="middle">柴发</text>
+    <g class="ph-plus"><circle cx="88" cy="398" r="9"/><path d="M88 394 v8 M84 398 h8"/></g>
+  </g>
+
+  <!-- 变配电室 -->
+  <g class="ph-hot" data-part="dc-transformer">
+    <rect class="ph-fill ph-ln" x="132" y="368" width="52" height="112"/>
+    <line class="ph-ln" x1="142" y1="368" x2="142" y2="346"/>
+    <line class="ph-ln" x1="158" y1="368" x2="158" y2="346"/>
+    <line class="ph-ln" x1="174" y1="368" x2="174" y2="346"/>
+    <line class="ph-ln2" x1="138" y1="354" x2="146" y2="354"/>
+    <line class="ph-ln2" x1="154" y1="354" x2="162" y2="354"/>
+    <line class="ph-ln2" x1="170" y1="354" x2="178" y2="354"/>
+    <rect class="ph-fill ph-ln2" x="196" y="396" width="20" height="84"/>
+    <rect class="ph-fill ph-ln2" x="220" y="396" width="20" height="84"/>
+    <text class="ph-lbls" x="158" y="340" text-anchor="middle">变压器</text>
+    <g class="ph-plus"><circle cx="228" cy="354" r="9"/><path d="M228 350 v8 M224 354 h8"/></g>
+  </g>
+
+  <!-- UPS/HVDC -->
+  <g class="ph-hot" data-part="ups-room">
+    <rect class="ph-fill ph-ln" x="262" y="400" width="22" height="80"/>
+    <rect class="ph-fill ph-ln" x="288" y="400" width="22" height="80"/>
+    <line class="ph-ln2" x1="262" y1="420" x2="284" y2="420"/>
+    <line class="ph-ln2" x1="288" y1="420" x2="310" y2="420"/>
+    <circle class="ph-ln2" cx="273" cy="440" r="4" fill="none"/>
+    <circle class="ph-ln2" cx="299" cy="440" r="4" fill="none"/>
+    <text class="ph-lbls" x="286" y="392" text-anchor="middle">UPS/HVDC</text>
+    <g class="ph-plus"><circle cx="304" cy="382" r="9"/><path d="M304 378 v8 M300 382 h8"/></g>
+  </g>
+
+  <!-- 电池间 -->
+  <g class="ph-hot" data-part="battery-room">
+    <rect class="ph-fill ph-ln" x="322" y="400" width="58" height="80"/>
+    <line class="ph-ln2" x1="322" y1="420" x2="380" y2="420"/>
+    <line class="ph-ln2" x1="322" y1="440" x2="380" y2="440"/>
+    <line class="ph-ln2" x1="322" y1="460" x2="380" y2="460"/>
+    <rect class="ph-ln2" x="328" y="406" width="12" height="9" fill="none"/>
+    <rect class="ph-ln2" x="344" y="406" width="12" height="9" fill="none"/>
+    <rect class="ph-ln2" x="360" y="406" width="12" height="9" fill="none"/>
+    <rect class="ph-ln2" x="328" y="426" width="12" height="9" fill="none"/>
+    <rect class="ph-ln2" x="344" y="426" width="12" height="9" fill="none"/>
+    <rect class="ph-ln2" x="360" y="426" width="12" height="9" fill="none"/>
+    <text class="ph-lbls" x="351" y="392" text-anchor="middle">电池</text>
+    <g class="ph-plus"><circle cx="370" cy="382" r="9"/><path d="M370 378 v8 M366 382 h8"/></g>
+  </g>
+
+  <!-- 机房白区（可下钻） -->
+  <g class="ph-hot" data-part="server-hall">
+    <rect class="ph-fill ph-ln2" x="410" y="300" width="24" height="58"/>
+    <rect class="ph-fill ph-ln2" x="442" y="300" width="24" height="58"/>
+    <rect class="ph-fill ph-ln2" x="474" y="300" width="24" height="58"/>
+    <rect class="ph-fill ph-ln2" x="506" y="300" width="24" height="58"/>
+    <rect class="ph-fill ph-ln2" x="538" y="300" width="24" height="58"/>
+    <rect class="ph-fill ph-ln2" x="570" y="300" width="24" height="58"/>
+    <line class="ph-ln2" x1="410" y1="318" x2="594" y2="318"/>
+    <rect class="ph-fill ph-ln" x="406" y="386" width="28" height="94"/>
+    <rect class="ph-fill ph-ln" x="444" y="386" width="28" height="94"/>
+    <rect class="ph-fill ph-ln" x="482" y="386" width="28" height="94"/>
+    <rect class="ph-fill ph-ln" x="520" y="386" width="28" height="94"/>
+    <rect class="ph-fill ph-ln" x="558" y="386" width="28" height="94"/>
+    <line class="ph-ln2" x1="406" y1="412" x2="586" y2="412"/>
+    <line class="ph-ln2" x1="406" y1="440" x2="586" y2="440"/>
+    <g class="ph-plus"><circle cx="498" cy="272" r="9"/><path d="M498 268 v8 M494 272 h8"/></g>
+    <text class="ph-lbls" x="498" y="250" text-anchor="middle">点击进入机柜</text>
+  </g>
+
+  <!-- 国产超节点：与英伟达机柜并排的另一种机柜实体，画成自己的样子 -->
+  <g class="ph-hot" data-part="domestic-rack-mini">
+    <rect class="ph-fill ph-ln" x="600" y="306" width="42" height="174"/>
+    <rect class="ph-metal" x="604" y="310" width="34" height="14"/>
+    <line class="ph-ln2" x1="604" y1="332" x2="638" y2="332"/>
+    <line class="ph-ln2" x1="604" y1="350" x2="638" y2="350"/>
+    <line class="ph-ln2" x1="604" y1="368" x2="638" y2="368"/>
+    <line class="ph-ln2" x1="604" y1="386" x2="638" y2="386"/>
+    <line class="ph-ln2" x1="604" y1="404" x2="638" y2="404"/>
+    <line class="ph-ln2" x1="604" y1="422" x2="638" y2="422"/>
+    <line class="ph-ln2" x1="604" y1="440" x2="638" y2="440"/>
+    <line class="ph-ln2" x1="604" y1="458" x2="638" y2="458"/>
+    <g class="ph-plus"><circle cx="638" cy="296" r="9"/><path d="M638 292 v8 M634 296 h8"/></g>
+    <text class="ph-lbls" x="621" y="280" text-anchor="middle">国产超节点</text>
+  </g>
+
+  <!-- 卫星互联网：屋顶的另一种链路，画成卫星本体的样子 -->
+  <g class="ph-hot" data-part="starlink-roof">
+    <rect class="ph-fill ph-ln2" x="440" y="86" width="16" height="24"/>
+    <rect class="ph-fill ph-ln2" x="524" y="86" width="16" height="24"/>
+    <path class="ph-ln2" d="M456 98 H479 M501 98 H524"/>
+    <circle class="ph-fill ph-ln" cx="490" cy="98" r="11"/>
+    <path class="ph-ln2" d="M490 87 V76 M484 80 L490 74 L496 80" fill="none"/>
+    <path class="ph-dash" d="M490 109 V150"/>
+    <g class="ph-plus"><circle cx="548" cy="78" r="9"/><path d="M548 74 v8 M544 78 h8"/></g>
+    <text class="ph-lbl" x="490" y="56" text-anchor="middle">卫星互联网</text>
+  </g>
+
+  <!-- CDU -->
+  <g class="ph-hot" data-part="cdu">
+    <rect class="ph-fill ph-ln" x="608" y="396" width="36" height="84"/>
+    <circle class="ph-ln2" cx="626" cy="420" r="8" fill="none"/>
+    <line class="ph-ln2" x1="608" y1="444" x2="644" y2="444"/>
+    <line class="ph-ln2" x1="608" y1="460" x2="644" y2="460"/>
+    <text class="ph-lbls" x="626" y="390" text-anchor="middle">CDU</text>
+    <g class="ph-plus"><circle cx="638" cy="382" r="9"/><path d="M638 378 v8 M634 382 h8"/></g>
+  </g>
+
+  <!-- 网络间 -->
+  <g class="ph-hot" data-part="network-room">
+    <rect class="ph-fill ph-ln" x="682" y="396" width="30" height="84"/>
+    <rect class="ph-fill ph-ln" x="722" y="396" width="30" height="84"/>
+    <path class="ph-ln2" d="M686 410 L708 426 M708 410 L686 426" fill="none"/>
+    <path class="ph-ln2" d="M726 410 L748 426 M748 410 L726 426" fill="none"/>
+    <line class="ph-ln2" x1="682" y1="440" x2="712" y2="440"/>
+    <line class="ph-ln2" x1="722" y1="440" x2="752" y2="440"/>
+    <text class="ph-lbls" x="717" y="390" text-anchor="middle">核心交换</text>
+    <g class="ph-plus"><circle cx="744" cy="382" r="9"/><path d="M744 378 v8 M740 382 h8"/></g>
+  </g>
+
+  <!-- 进线间 / DCI -->
+  <g class="ph-hot" data-part="fiber-entry">
+    <rect class="ph-fill ph-ln" x="794" y="410" width="60" height="70"/>
+    <line class="ph-ln2" x1="794" y1="432" x2="854" y2="432"/>
+    <line class="ph-ln2" x1="794" y1="454" x2="854" y2="454"/>
+    <path class="ph-ln2" d="M985 440 C930 440 910 444 854 444" fill="none"/>
+    <path class="ph-ln2" d="M985 452 C930 452 910 462 854 462" fill="none"/>
+    <text class="ph-lbls" x="824" y="402" text-anchor="middle">光缆进楼</text>
+    <g class="ph-plus"><circle cx="846" cy="396" r="9"/><path d="M846 392 v8 M842 396 h8"/></g>
+  </g>
+
+  <!-- 冷冻站 -->
+  <g class="ph-hot" data-part="chiller-plant">
+    <rect class="ph-fill ph-ln" x="876" y="408" width="56" height="72"/>
+    <circle class="ph-ln2" cx="892" cy="432" r="9" fill="none"/>
+    <circle class="ph-ln2" cx="916" cy="432" r="9" fill="none"/>
+    <line class="ph-ln2" x1="876" y1="456" x2="932" y2="456"/>
+    <text class="ph-lbls" x="904" y="400" text-anchor="middle">冷水机组</text>
+    <g class="ph-plus"><circle cx="924" cy="394" r="9"/><path d="M924 390 v8 M920 394 h8"/></g>
+  </g>
+
+  <!-- 冷却塔（屋顶） -->
+  <g class="ph-hot" data-part="cooling-tower">
+    <rect class="ph-fill ph-ln" x="762" y="66" width="70" height="54"/>
+    <circle class="ph-ln" cx="797" cy="84" r="13" fill="none"/>
+    <line class="ph-ln2" x1="797" y1="71" x2="797" y2="97"/>
+    <line class="ph-ln2" x1="784" y1="84" x2="810" y2="84"/>
+    <line class="ph-ln2" x1="768" y1="106" x2="826" y2="106"/>
+    <rect class="ph-fill ph-ln" x="846" y="66" width="70" height="54"/>
+    <circle class="ph-ln" cx="881" cy="84" r="13" fill="none"/>
+    <line class="ph-ln2" x1="881" y1="71" x2="881" y2="97"/>
+    <line class="ph-ln2" x1="868" y1="84" x2="894" y2="84"/>
+    <line class="ph-ln2" x1="852" y1="106" x2="910" y2="106"/>
+    <text class="ph-lbl" x="838" y="56" text-anchor="middle">冷却塔</text>
+    <g class="ph-plus"><circle cx="906" cy="54" r="9"/><path d="M906 50 v8 M902 54 h8"/></g>
+  </g>
+
+  <!-- 冷冻水管：冷机 → 天花 → CDU；冷机 → 屋顶冷却塔 -->
+  <g class="ph-hot" data-part="dc-liquid-loop">
+    <path class="ph-pipe-s" d="M890 408 V140 H630 V396"/>
+    <path class="ph-pipe-r" d="M902 408 V148 H638 V396"/>
+    <path class="ph-pipe-s" d="M914 408 V120 M914 120 V108"/>
+    <text class="ph-lbls" x="758" y="134" text-anchor="middle">冷冻水 供/回</text>
+    <g class="ph-plus"><circle cx="758" cy="150" r="9"/><path d="M758 146 v8 M754 150 h8"/></g>
+  </g>
+
+  <!-- 电力流：市电+柴发 → 变配电 → UPS → 白区 -->
+  <path class="ph-flow" d="M98 446 H132"/>
+  <path class="ph-flow" d="M184 452 H406"/>
+  <polygon points="400,447 410,452 400,457" fill="var(--accent)"/>
+  <text class="ph-lbls" x="300" y="470" text-anchor="middle">10kV → 400V/800V DC</text>
+
+  <!-- 光纤流：进线间 → 网络间 → 白区 -->
+  <path class="ph-dash" d="M794 468 H752"/>
+  <path class="ph-dash" d="M682 430 C650 400 620 360 594 330"/>
+</svg>

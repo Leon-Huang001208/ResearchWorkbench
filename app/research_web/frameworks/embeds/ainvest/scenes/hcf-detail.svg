@@ -1,0 +1,9 @@
+<svg viewBox="0 0 1000 580" xmlns="http://www.w3.org/2000/svg" class="ph-scene">
+  <text class="ph-lbls" x="45" y="42">空芯光纤 HCF：光主要在空气芯中传输，外围反谐振微结构把光约束在中心；制造、熔接和测试生态仍是产业化重点</text>
+  <g class="ph-hot" data-part="hcf-air-core"><circle class="ph-fill ph-ln" cx="330" cy="280" r="112"/><circle class="ph-chipbg ph-ln" cx="330" cy="280" r="46"/><text class="ph-die" x="330" y="286" text-anchor="middle">空气芯</text><text class="ph-lbl" x="330" y="426" text-anchor="middle">光在低折射率空气核心传播</text></g>
+  <g class="ph-hot" data-part="hcf-antiresonant"><circle class="ph-ln" cx="330" cy="202" r="25" fill="none"/><circle class="ph-ln" cx="397" cy="241" r="25" fill="none"/><circle class="ph-ln" cx="397" cy="319" r="25" fill="none"/><circle class="ph-ln" cx="330" cy="358" r="25" fill="none"/><circle class="ph-ln" cx="263" cy="319" r="25" fill="none"/><circle class="ph-ln" cx="263" cy="241" r="25" fill="none"/><text class="ph-lbl" x="612" y="238">反谐振微结构包层</text><text class="ph-lbls" x="612" y="255">嵌套玻璃管形成低损耗约束</text><path class="ph-lead" d="M426 242H594"/>
+  </g>
+  <g class="ph-hot" data-part="hcf-cabling"><rect class="ph-metal ph-ln" x="610" y="318" width="220" height="80" rx="6"/><path class="ph-ln2" d="M630 342h180M630 366h180"/><text class="ph-lbl" x="720" y="432" text-anchor="middle">成缆 / 熔接 / 测试</text><text class="ph-lbls" x="720" y="449" text-anchor="middle">连接器与工程交付生态</text></g>
+  <g class="ph-hot" data-part="hcf-dci-use"><rect class="ph-fill ph-ln" x="610" y="132" width="220" height="84" rx="6"/><text class="ph-lbl" x="720" y="170" text-anchor="middle">AIDC / DCI 低时延互联</text><text class="ph-lbls" x="720" y="188" text-anchor="middle">长距、低损耗、低时延潜在场景</text></g>
+  <path class="ph-dash" d="M442 280H610M720 216V318"/><text class="ph-lbls" x="500" y="548" text-anchor="middle">HCF 的传输性能和工程可制造性需同时评估；部署路径受成本、可靠性、熔接和系统兼容性约束。</text>
+</svg>

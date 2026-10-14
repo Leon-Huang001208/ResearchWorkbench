@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>厄尔尼诺不仅是一个周期 · 太平洋观察家报</title>
+<script src="assets/echarts.min.js"></script>
+<style>
+:root{
+  --paper:#f2e9d5;
+  --paper-deep:#e9dcbe;
+  --ink:#211a12;
+  --ink-soft:#4a3f30;
+  --ink-faint:#7a6c55;
+  --red:#a5271f;
+  --red-deep:#7c1a14;
+  --sage:#5f7050;
+  --blue:#2e4a5e;
+  --gold:#b98a2f;
+  --rule:rgba(33,26,18,.85);
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{
+  background:#3a332a;
+  font-family:"Noto Serif SC","Songti SC","STSong","SimSun",serif;
+  color:var(--ink);
+  -webkit-font-smoothing:antialiased;
+}
+.sheet{
+  max-width:1180px;margin:0 auto;background:var(--paper);
+  background-image:
+    radial-gradient(rgba(33,26,18,.05) 1px, transparent 1.4px),
+    radial-gradient(rgba(33,26,18,.035) 1px, transparent 1.6px);
+  background-size:5px 5px, 9px 9px;
+  background-position:0 0, 3px 4px;
+  box-shadow:0 0 60px rgba(0,0,0,.6);
+  border-left:1px solid rgba(0,0,0,.4);
+  border-right:1px solid rgba(0,0,0,.4);
+}
+/* ---------- 报头 ---------- */
+.masthead{padding:26px 34px 0;}
+.mast-top{display:flex;justify-content:space-between;align-items:flex-end;font-size:12px;letter-spacing:.15em;color:var(--ink-soft);border-bottom:3px solid var(--rule);padding-bottom:8px;}
+.mast-top .en{font-family:Georgia,serif;letter-spacing:.28em;}
+.paper-name{
+  text-align:center;padding:14px 0 6px;
+  font-size:clamp(38px,6.2vw,72px);font-weight:900;letter-spacing:.08em;
+  line-height:1.05;
+}
+.paper-sub{display:flex;justify-content:center;gap:26px;flex-wrap:wrap;font-size:12.5px;color:var(--ink-soft);letter-spacing:.12em;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);padding:6px 0;}
+.extra{
+  margin:14px 0 0;background:var(--red);color:var(--paper);
+  text-align:center;font-weight:900;letter-spacing:.5em;text-indent:.5em;
+  font-size:clamp(15px,2.4vw,22px);padding:9px 0;
+  box-shadow:0 2px 0 var(--red-deep);
+}
+/* ---------- 头条 ---------- */
+.headline-zone{padding:22px 34px 10px;text-align:center;}
+.kicker{display:inline-block;border:1.5px solid var(--ink);padding:2px 14px;font-size:12px;letter-spacing:.4em;text-indent:.4em;margin-bottom:14px;}
+h1.main-title{
+  font-size:clamp(34px,5.4vw,62px);font-weight:900;line-height:1.18;letter-spacing:.02em;
+}
+h1.main-title .accent{color:var(--red);}
+.sub-title{margin-top:12px;font-size:clamp(14px,1.8vw,18px);color:var(--ink-soft);line-height:1.9;max-width:900px;margin-left:auto;margin-right:auto;text-align:justify;text-align-last:center;}
+.dateline{margin-top:12px;font-size:12px;letter-spacing:.2em;color:var(--ink-faint);}
+/* ---------- 英雄图 ---------- */
+.hero{padding:18px 34px 6px;}
+.hero figure{border:3px solid var(--ink);padding:6px;background:var(--paper-deep);}
+.hero img{width:100%;display:block;image-rendering:pixelated;filter:contrast(1.03) saturate(1.02);}
+figcaption{font-size:12px;color:var(--ink-faint);padding-top:7px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;letter-spacing:.05em;}
+/* ---------- 摘要三栏 ---------- */
+.lede-cols{display:grid;grid-template-columns:1.1fr .9fr 1fr;gap:0;margin:18px 34px 8px;border-top:3px double var(--rule);border-bottom:3px double var(--rule);}
+.lede-cols>div{padding:16px 18px;font-size:14.5px;line-height:2.0;text-align:justify;}
+.lede-cols>div+div{border-left:1px solid var(--rule);}
+.lede-cols h3{font-size:13px;letter-spacing:.3em;color:var(--red);margin-bottom:8px;}
+.dropcap::first-letter{float:left;font-size:52px;font-weight:900;line-height:.9;padding:4px 8px 0 0;color:var(--ink);}
+.stat-strip{display:grid;grid-template-columns:repeat(4,1fr);margin:10px 34px 0;border:2px solid var(--ink);}
+.stat-cell{padding:14px 10px;text-align:center;border-right:1px solid var(--rule);}
+.stat-cell:last-child{border-right:none;}
+.stat-num{font-size:clamp(22px,3vw,34px);font-weight:900;color:var(--red);line-height:1.1;font-family:Georgia,"Noto Serif SC",serif;}
+.stat-num small{font-size:.45em;color:var(--ink-soft);}
+.stat-label{font-size:11.5px;color:var(--ink-soft);margin-top:6px;letter-spacing:.08em;line-height:1.6;}
+/* ---------- 章节 ---------- */
+section.page{padding:34px 34px 10px;}
+.sec-head{border-bottom:4px double var(--rule);margin-bottom:20px;padding-bottom:10px;display:flex;align-items:baseline;gap:16px;flex-wrap:wrap;}
+.sec-no{font-family:Georgia,serif;font-size:13px;letter-spacing:.3em;color:var(--paper);background:var(--ink);padding:3px 10px;}
+.sec-title{font-size:clamp(24px,3.4vw,36px);font-weight:900;letter-spacing:.04em;}
+.sec-title .accent{color:var(--red);}
+.sec-standfirst{font-size:13px;color:var(--ink-faint);letter-spacing:.06em;width:100%;}
+.cols-2{column-count:2;column-gap:30px;column-rule:1px solid var(--rule);}
+.cols-2 p{font-size:14.5px;line-height:2.05;text-align:justify;margin-bottom:14px;break-inside:avoid;}
+p b{color:var(--ink);}
+.hl{background:linear-gradient(transparent 62%, rgba(165,39,31,.22) 62%);}
+/* ---------- 图表框 ---------- */
+.chart-box{border:2px solid var(--ink);background:var(--paper);margin:20px 0 8px;break-inside:avoid;}
+.chart-title{padding:10px 14px 4px;font-weight:900;font-size:15.5px;letter-spacing:.03em;border-bottom:1px solid var(--rule);display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;}
+.chart-title .fig{font-family:Georgia,serif;color:var(--red);font-size:12px;letter-spacing:.15em;white-space:nowrap;}
+.chart{width:100%;}
+.chart-note{padding:8px 14px 10px;font-size:11.5px;color:var(--ink-faint);line-height:1.8;border-top:1px dashed var(--rule);}
+.src{color:var(--ink-faint);}
+.src a{color:var(--blue);text-decoration:none;border-bottom:1px dotted var(--blue);}
+/* ---------- 图片框 ---------- */
+.pix-frame{border:3px solid var(--ink);padding:5px;background:var(--paper-deep);margin:18px 0;}
+.pix-frame img{width:100%;display:block;image-rendering:pixelated;}
+/* ---------- 表格 ---------- */
+table.news{width:100%;border-collapse:collapse;font-size:13px;margin:16px 0;}
+table.news caption{font-weight:900;font-size:15px;text-align:left;padding-bottom:8px;letter-spacing:.03em;}
+table.news th{background:var(--ink);color:var(--paper);padding:8px 10px;text-align:left;font-weight:700;letter-spacing:.06em;}
+table.news td{border:1px solid var(--rule);padding:8px 10px;line-height:1.7;vertical-align:top;}
+table.news tr:nth-child(even) td{background:rgba(33,26,18,.045);}
+.up{color:var(--red);font-weight:900;}
+.down{color:var(--sage);font-weight:900;}
+.neu{color:var(--ink-faint);font-weight:700;}
+/* ---------- 三催化 ---------- */
+.trio{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:18px 0;}
+.trio .card{border:2px solid var(--ink);background:var(--paper);}
+.trio .card h4{background:var(--ink);color:var(--paper);padding:7px 12px;font-size:14px;letter-spacing:.2em;}
+.trio .card .body{padding:12px 14px;font-size:13px;line-height:1.9;text-align:justify;}
+/* ---------- 时间轴 ---------- */
+.timeline{margin:22px 0 6px;border-left:3px solid var(--ink);padding-left:0;}
+.tl-item{display:flex;gap:0;border-bottom:1px dashed var(--rule);}
+.tl-date{flex:0 0 118px;background:var(--ink);color:var(--paper);font-family:Georgia,serif;font-weight:700;padding:10px;font-size:13px;letter-spacing:.05em;}
+.tl-body{padding:10px 16px;font-size:13.5px;line-height:1.85;}
+.tl-body b{color:var(--red);}
+/* ---------- 尾版 ---------- */
+.colophon{margin:34px;padding:22px;border:3px double var(--rule);background:var(--paper-deep);}
+.colophon h4{letter-spacing:.3em;font-size:13px;margin-bottom:10px;color:var(--red);}
+.colophon p{font-size:12.5px;line-height:2;color:var(--ink-soft);text-align:justify;}
+.disclaimer{margin:0 34px 34px;font-size:11.5px;color:var(--ink-faint);line-height:1.9;border-top:1px solid var(--rule);padding-top:14px;text-align:justify;}
+/* ---------- 响应式 ---------- */
+@media (max-width:860px){
+  .lede-cols{grid-template-columns:1fr;}
+  .lede-cols>div+div{border-left:none;border-top:1px solid var(--rule);}
+  .stat-strip{grid-template-columns:repeat(2,1fr);}
+  .stat-cell:nth-child(2){border-right:none;}
+  .stat-cell:nth-child(1),.stat-cell:nth-child(2){border-bottom:1px solid var(--rule);}
+  .cols-2{column-count:1;}
+  .trio{grid-template-columns:1fr;}
+  .crop-pair{grid-template-columns:1fr !important;}
+  section.page,.masthead,.headline-zone,.hero{padding-left:18px;padding-right:18px;}
+  .stat-strip{margin-left:18px;margin-right:18px;}
+  .colophon,.disclaimer{margin-left:18px;margin-right:18px;}
+}
+</style>
+</head>
+<body>
+<div class="sheet">
+
+<!-- ===================== 报头 ===================== -->
+<header class="masthead">
+  <div class="mast-top">
+    <span>二〇二六年十月十二日 · 星期一 · 第柒佰贰拾玖期</span>
+    <span class="en">THE PACIFIC OBSERVER</span>
+    <span>气候·农产品·大类资产 | 数据叙事专刊</span>
+  </div>
+  <div class="paper-name">太平洋观察家报</div>
+  <div class="paper-sub">
+    <span>社址 · 赤道中东太平洋 Niño 3.4 监测区（5°N–5°S, 170°W–120°W）</span>
+    <span>定价 · 一场秋雨一场寒</span>
+    <span>本期图表全部可复现 · 来源随图标注</span>
+  </div>
+  <div class="extra">号 外 · 号 外</div>
+</header>
+
+<!-- ===================== 头条 ===================== -->
+<div class="headline-zone">
+  <div class="kicker">气候特稿 · 深度数据叙事</div>
+  <h1 class="main-title">厄尔尼诺，<span class="accent">不仅是一个周期</span></h1>
+  <p class="sub-title">一次有观测记录以来最强的"超强厄尔尼诺"已在二〇二六年九月正式形成。它不只是两至七年一次的冷暖循环——在供需紧平衡、霍尔木兹海峡受限与黑海粮运受阻的时代背景里，这股来自赤道的暖流正在同时改写天气、农田报价单与全球大类资产的定价逻辑。本报综合 NOAA/CPC、国家气候中心、USDA 等一手数据源与公开研究，逐图复现、逐数核实，呈现完整推理链。</p>
+  <div class="dateline">本报记者 数据组 发自太平洋上空 · 电头时间 2026-10-12 16:00</div>
+</div>
+
+<!-- ===================== 英雄图 ===================== -->
+<div class="hero">
+  <figure>
+    <img src="assets/hero_earth.jpg" alt="像素风地球：东太平洋暖水团">
+    <figcaption>
+      <span>头版图片 · 赤道中东太平洋暖水团正以前所未有的强度向东扩展（像素艺术重构 NOAA 海温监测意象）</span>
+      <span>美术编辑：AI 像素工坊</span>
+    </figcaption>
+  </figure>
+</div>
+
+<!-- ===================== 数据快照 ===================== -->
+<div class="stat-strip">
+  <div class="stat-cell">
+    <div class="stat-num">2.94<small>℃</small></div>
+    <div class="stat-label">2026年9月 Niño3.4 海温指数<br>（8月为2.59℃，逐月攀升）</div>
+  </div>
+  <div class="stat-cell">
+    <div class="stat-num">&gt;90<small>%</small></div>
+    <div class="stat-label">NOAA/CPC：北半球秋冬季<br>发展为"非常强"事件的概率</div>
+  </div>
+  <div class="stat-cell">
+    <div class="stat-num">75<small>%</small></div>
+    <div class="stat-label">10–12月 RONI≥+2.5℃<br>（超1950年以来所有事件）概率</div>
+  </div>
+  <div class="stat-cell">
+    <div class="stat-num">3.2–3.5<small>℃</small></div>
+    <div class="stat-label">国家气候中心峰值预测<br>（窗口：2026年11–12月）</div>
+  </div>
+</div>
+
+<!-- ===================== 摘要三栏 ===================== -->
+<div class="lede-cols">
+  <div>
+    <h3>发生了什么</h3>
+    <p class="dropcap">赤道中東太平洋的海表温度自2026年5月起快速增暖，7—9月滑动平均值已越过+2.5℃的"超强"门槛。国家气候中心9月29日宣布：一次超强厄尔尼诺事件正式形成，预计11—12月达到峰值，强度大概率刷新1951年有系统监测以来的纪录。世界气象组织10月8日通报：事件持续至2027年2月的可能性接近100%。</p>
+  </div>
+  <div>
+    <h3>为什么"不仅是周期"</h3>
+    <p>厄尔尼诺平均2—7年一次，是气候系统的常客。但这一次它走进了一个不同的世界：全球变暖抬高了海温基数，农产品供需正从宽松切换到紧平衡，地缘冲突掐住了能源与粮食通道。气候变量第一次与库存、油价、航运同时站在天平同侧——周期性事件，产生了结构性的价格后果。</p>
+  </div>
+  <div>
+    <h3>将发生什么</h3>
+    <p>历史三次超强事件中，全球玉米、棕榈油全部减产，大豆大概率增产。据库消比与价格的历史回归测算：库消比每降1个百分点，玉米价格弹性16%—26%、大豆约9%。中性假设下，未来3—6个月CBOT玉米看涨约20%至560美分/蒲式耳、大豆约10%至1300美分、BMD棕榈油约20%至5500林吉特/吨。影响沿"海温→环流→农田→库存→物价→资产"逐级传导。</p>
+  </div>
+</div>
+
+<!-- ===================== 第一版 · 强度 ===================== -->
+<section class="page" id="s1">
+  <div class="sec-head">
+    <span class="sec-no">第一版</span>
+    <span class="sec-title">强在哪里：一次<span class="accent">破纪录</span>的增暖</span>
+    <span class="sec-standfirst">峰值未至，纪录已破——9月单日 Niño3.4 距平已达 3.11℃，超过2015年11月18日创下的前纪录</span>
+  </div>
+  <div class="cols-2">
+    <p><b>何谓"超强"。</b>厄尔尼诺是赤道中东太平洋海温异常增暖引发的自然现象，平均2—7年一次、每次持续9—12个月；拉尼娜则是其冷位相镜像。按 NOAA 口径，Niño3.4 区海温距平 ≥+0.5℃ 为厄尔尼诺，≥+1.5℃ 为强，≥+2.0℃ 为"非常强"（very strong）；采用剔除全球变暖背景的相对指数 RONI ≥+2.0℃ 即达"超强"级别。自1950年有系统观测以来，达到这一级别的只有三次：<span class="hl">1982/83、1997/98、2015/16</span>。</p>
+    <p><b>本轮强在何处。</b>其一，速度快：2026年5月进入厄尔尼诺状态，仅三个月便逼近超强门槛，增暖速率超过1997年与2015年同期。其二，峰值高：国家气候中心监测显示7月海温指数2.09℃、8月2.59℃、9月2.94℃，均为1951年以来历史同期最高；预计11—12月峰值达3.2—3.5℃，将明显超过2014—2016年事件2.8℃的历史最大值。其三，口径交叉验证：NOAA/CPC 10月8日诊断确认"厄尔尼诺持续增强"，秋冬季发展为非常强事件的概率超过90%，其中10—12月 RONI 达到+2.5℃以上（即超越1950年以来全部事件）的概率为75%。</p>
+    <p><b>一个必须说明的细节。</b>本轮事件的"破纪录"在不同指数口径下结论不同：传统 ONI（直接海温距平）下，9月单日读数3.11℃已打破2015年纪录；而剔除热带海盆整体增暖的 RONI 口径下，9月中旬约2.5℃，仍低于1982年12月下旬创下的单日最高值。NOAA/CPC 多模型预测显示：本轮峰值 RONI 均值约2.7℃，有望超过历史峰值2.4℃。无论哪种口径，这都是40余年来最强的太平洋增暖事件之一。</p>
+  </div>
+
+  <div class="chart-box">
+    <div class="chart-title"><span>2026年海温指数逐月攀升，峰值预测区间已越过全部历史事件</span><span class="fig">图 1</span></div>
+    <div id="chart-temp" class="chart" style="height:420px;"></div>
+    <div class="chart-note">注：2026年实线为国家气候中心海温指数（6—9月为实测，10—12月为预测区间3.2—3.5℃）；三条虚线为三次历史超强事件的 NOAA ONI 峰值（1982/83：2.2℃、1997/98：2.3℃、2015/16：2.6℃），指数口径不同，仅作量级参照。<span class="src">资料来源：<a href="https://baike.baidu.com/item/2026%E5%B9%B4%E5%8E%84%E5%B0%94%E5%B0%BC%E8%AF%BA%E7%8E%B0%E8%B1%A1/67633454" target="_blank">国家气候中心</a>、<a href="https://www.cpc.ncep.noaa.gov/products/analysis_monitoring/enso_advisory/ensodisc.shtml" target="_blank">NOAA/CPC</a>、<a href="https://mrcc.purdue.edu/index.php/climate_watch/special_topics/enso-indices-and-past-events" target="_blank">MRCC</a></span></div>
+  </div>
+
+  <div class="chart-box">
+    <div class="chart-title"><span>1950年以来 RONI 峰值排行：2026年预测中值将站上历史第一</span><span class="fig">图 2</span></div>
+    <div id="chart-roni" class="chart" style="height:380px;"></div>
+    <div class="chart-note">注：柱为各事件峰值 RONI（相对 ONI，剔除热带海洋整体增暖背景）；2026年为预测区间（多模型预测峰值 RONI 均值约2.7℃；CPC：≥2.5℃概率75%），取中值2.6℃绘制并以误差线标示区间。虚线为+2.0℃"超强"门槛。<span class="src">资料来源：NOAA ONI &amp; RONI 历史序列（经 <a href="https://4billionyearson.org/climate/enso" target="_blank">ENSO Tracker</a> 整理）</span></div>
+  </div>
+</section>
+
+<!-- ===================== 第二版 · 机理 ===================== -->
+<section class="page" id="s2">
+  <div class="sec-head">
+    <span class="sec-no">第二版</span>
+    <span class="sec-title">影响哪里：太平洋的<span class="accent">东涝西旱</span></span>
+    <span class="sec-standfirst">热带对流整体东移——西太平洋（印尼）干旱，东太平洋（南美西岸）暴雨；对中国的最大考验在2027年夏季</span>
+  </div>
+  <div class="pix-frame">
+    <img src="assets/map_world.jpg" alt="像素风世界地图：东涝西旱格局">
+    <figcaption style="padding:7px 2px 2px;"><span>图 3 · 超强厄尔尼诺的典型环流格局：暖水东移→沃克环流减弱→对流与雨带东移（像素艺术示意）</span><span>资料来源：NOAA/CPC、Wenju Cai 等（2014）</span></figcaption>
+  </div>
+  <div class="cols-2">
+    <p><b>传导链条。</b>正常年份热带太平洋"西暖东冷"，沃克环流驱动信风将暖水吹向西太平洋。厄尔尼诺发生时东风减弱甚至逆转，暖水向东回流，热带对流随之东移：东太平洋（南美东南部、秘鲁—厄瓜多尔沿岸）降水明显增强，西太平洋（印尼、马来西亚、澳大利亚东部）干旱特征显著。超强事件相对中等偏弱事件，对流东移的特征更为极端。</p>
+    <p><b>对中国的滞后影响。</b>厄尔尼诺对气温的影响存在2—3个月滞后：海温每升高1℃，全球平均地表温度约上升0.07℃。国家气候中心指出，超强事件下中国在"厄尔尼诺衰减并结束的夏季"影响最为显著——预计2027年夏季中东部降水总体偏多，长江中下游暴雨洪涝风险明显上升。历史镜鉴清晰：1982/83、1997/98、2015/16 三次强或超强事件之后的1983、1998、2016年，长江流域均出现明显洪涝。</p>
+    <p><b>为何峰值落在冬季最关键。</b>厄尔尼诺强度峰值通常在当年11月至次年1月——恰逢北半球主粮已收获、南半球正值种植生长期。这决定了受冲击最大的不是美国玉米带，而是南美的大豆玉米、东南亚的棕榈橡胶、西非的可可与越南的咖啡。影响的地理分布，本质上由作物的生长日历与峰值时钟的错位决定。</p>
+  </div>
+
+  <div class="chart-box">
+    <div class="chart-title"><span>影响矩阵：十个关键区域的降水、气温与作物减产风险</span><span class="fig">图 4</span></div>
+    <div id="chart-heat" class="chart" style="height:440px;"></div>
+    <div class="chart-note">注：降水/气温列为超强厄尔尼诺典型距平方向（-2 显著偏干/偏冷 … +2 显著偏涝/偏暖）；减产风险列为对该区域代表作物的冲击评估（0 无显著影响，+2 显著减产风险）。综合 NOAA 影响路径与公开研究绘制。<span class="src">资料来源：<a href="https://www.cpc.ncep.noaa.gov/products/analysis_monitoring/enso_advisory/ensodisc.shtml" target="_blank">NOAA/CPC</a>、<a href="https://apnews.com/article/asia-el-nino-drought-rice-palm-oil-31c88df9ce8f67bcbfe3ea7f39431d57" target="_blank">AP</a>、自然资源部、IRI</span></div>
+  </div>
+
+  <div class="chart-box">
+    <div class="chart-title"><span>影响的"时差"：从海温峰值到不同后果兑现的滞后月数</span><span class="fig">图 5</span></div>
+    <div id="chart-lag" class="chart" style="height:300px;"></div>
+    <div class="chart-note">注：柱为自海温峰值起的典型滞后月数（区间取中值绘制，误差线为区间）。棕榈油减产滞后最长（9—12个月）——2026年底的干旱，将在2027年的棕榈果串上兑现。<span class="src">资料来源：<a href="https://m.stock.pingan.com/omm/mobile/zixun/m.html?id=1002004002" target="_blank">平安期货</a>、<a href="https://m.sgpjbg.com/info/f7df087d27431918970b52c1b4752e49.html" target="_blank">农产品行业报告</a></span></div>
+  </div>
+</section>
+
+<!-- ===================== 第三版 · 历史账本 ===================== -->
+<section class="page" id="s3">
+  <div class="sec-head">
+    <span class="sec-no">第三版</span>
+    <span class="sec-title">历史复盘：三次超强事件的<span class="accent">作物账本</span></span>
+    <span class="sec-standfirst">1982/83、1997/98、2015/16——玉米与棕榈油三次全部减产，大豆两次增产；伤害的分布极不均匀</span>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:stretch;" class="crop-pair">
+    <div class="pix-frame" style="margin:0;"><img src="assets/crop_corn.jpg" alt="像素玉米"><figcaption style="padding:6px 2px 2px;"><span>玉米 · 峰值时钟与南美种植期重合</span></figcaption></div>
+    <div class="pix-frame" style="margin:0;"><img src="assets/crop_palm.jpg" alt="像素油棕"><figcaption style="padding:6px 2px 2px;"><span>油棕 · 产区高度集中于东南亚旱区</span></figcaption></div>
+  </div>
+
+  <div class="cols-2">
+    <p><b>玉米：面积比单产更脆弱。</b>三次超强事件全球玉米全部减产（-0.4% / -3.2% / -3.8%），平均减产2.4%。关键不在单产而在面积：巴西南部多雨洪涝导致玉米无法下种，三次事件中两次造成巴西玉米面积下降17%—18%，巴西平均减产15.6%；阿根廷则因降水受益，两次增产、平均+15.4%。北半球因收获早于峰值，总体影响偏弱——美国两次减产、平均仅-1%，中国仅1997/98年因严重旱灾减产18%。</p>
+    <p><b>大豆：南北对冲后的"受益者"。</b>三次超强事件全球大豆两次增产（+8.6% / +19.7% / -1.7%），平均增产14%。机理是产区分布更广：巴西北部干旱与南部多雨形成对冲，巴西两次增产、平均+17%；阿根廷平均增产37.7%；美国因生长期与峰值错峰，两次增产、平均+11.5%。厄尔尼诺对大豆不是免费的午餐，但历史上方向偏多。</p>
+    <p><b>棕榈油：三次全部减产的"确定性之王"。</b>印尼与马来西亚合计占全球产量约82%—85%，油棕需要全年均匀降雨，干旱冲击果串形成，且影响滞后9—12个月。三次超强事件下：马来西亚单产全部下降、平均-13%；印尼两次下降、平均-14%；两国加权全球单产平均下降8.4%。AP 9月21日报道，马来西亚总理已责令农业部制定应对预案，预计11月对马来西亚冲击最大。</p>
+    <p><b>橡胶与其他作物。</b>橡胶三次超强事件中一次减产、两次单产下降（平均-2.2%），而最近三次中等以上强度事件全部减产——随着泰国产区树龄老化，缓冲能力正在消失。其他作物中：可可（科特迪瓦三次全部减产、平均约-14%）、白糖（印度、泰国三次全部减产；1997/98泰国甘蔗减产22%、纽约原糖上涨58%）历史负向影响最稳定；咖啡分化（巴西三次全部增产、平均+42%；越南两增一减）；小麦、棉花方向不明；水稻威胁在中国次年长江流域的洪涝。</p>
+  </div>
+
+  <div class="chart-box">
+    <div class="chart-title"><span>三次超强事件：全球玉米三次皆减产，大豆两次增产</span><span class="fig">图 6</span></div>
+    <div id="chart-global" class="chart" style="height:380px;"></div>
+    <div class="chart-note">注：柱为各事件对应的全球产量同比变化（%）。<span class="src">资料来源：NOAA、USDA 数据，本报测算</span></div>
+  </div>
+
+  <div class="chart-box">
+    <div class="chart-title"><span>伤害的分布：同一事件下，各国产量变化方向迥异（三次超强事件均值）</span><span class="fig">图 7</span></div>
+    <div id="chart-country" class="chart" style="height:420px;"></div>
+    <div class="chart-note">注：条形为三次超强事件中各国产量同比变化的平均幅度（%）；标签括号内为方向频次（如"2/3增产"表示三次中两次增产）。中国玉米为1997/98单次降幅。<span class="src">资料来源：NOAA、USDA 数据，本报测算</span></div>
+  </div>
+
+  <div class="chart-box">
+    <div class="chart-title"><span>多年生作物没有"错峰"的运气：棕榈与橡胶的单产惩罚</span><span class="fig">图 8</span></div>
+    <div id="chart-perennial" class="chart" style="height:360px;"></div>
+    <div class="chart-note">注：柱为三次超强事件平均单产降幅（%）；点标为减产发生频次。棕榈油采用印尼与马来西亚加权单产代替全球（两国占全球约82%）。<span class="src">资料来源：NOAA、USDA、iFinD、FAO 数据，本报测算</span></div>
+  </div>
+</section>
+
+<!-- ===================== 第四版 · 定价逻辑 ===================== -->
+<section class="page" id="s4">
+  <div class="sec-head">
+    <span class="sec-no">第四版</span>
+    <span class="sec-title">定价逻辑：库消比的<span class="accent">弹性法则</span></span>
+    <span class="sec-standfirst">粮食作物看库存消费比，经济作物看油价与替代品——三条定价链，三种弹性</span>
+  </div>
+  <div class="cols-2">
+    <p><b>玉米：负相关最强的"粮食锚"。</b>以1990/91至2026/27年度全球（除中国）玉米库消比与 CBOT 结算价对照，两者负相关显著：据历史数据测算，库消比每下降1个百分点，价格弹性区间16%—26%（均值约20%）。2007年美国《能源独立与安全法案》之后，乙醇需求使玉米价格中枢上移约89%，玉米与原油的相关性自此增强——能源属性抬高了整条价格曲线的底座。</p>
+    <p><b>大豆：不对称的弹性。</b>大豆同样与库消比负相关，但不对称性更强：库消比见底时（如2012/13、2022/23，布伦特年度均价分别约100、80—90美元/桶），能源属性放大涨幅；库消比见顶时，中国补库与美国可再生燃料掺混义务（EPA 2026年提高2026—27年 RVO 并对境内燃料提供税收抵免）抬升价格底部。近年来库消比每降1个百分点，价格涨幅稳定在约9%。</p>
+    <p><b>棕榈油：库消比几乎失灵。</b>1990/91—2026/27年度棕榈油库消比与价格的相关系数仅+0.72（方向甚至为正），解释力让位于两条更强的链：与替代品——2000—2025年 BMD 棕榈油与 CBOT 豆油结算价相关系数高达0.91；与原油——印尼自2006年推进生物燃料政策（从 B2.5 到2026年的 B50），同期棕榈油与布伦特原油相关系数达0.60，2020年后进一步升至0.86。买棕榈油，某种程度上是在买"豆油+原油"的组合。</p>
+  </div>
+
+  <div class="chart-box">
+    <div class="chart-title"><span>库消比每下降1个百分点对应的价格涨幅：玉米弹性最大</span><span class="fig">图 9</span></div>
+    <div id="chart-elastic" class="chart" style="height:340px;"></div>
+    <div class="chart-note">注：玉米为弹性区间16%—26%（浮动柱表示区间，菱形为中值约20%）；大豆为近年稳定值约9%。<span class="src">资料来源：USDA、iFinD 数据，本报测算</span></div>
+  </div>
+
+  <div class="chart-box">
+    <div class="chart-title"><span>棕榈油的真实定价锚：与豆油0.91、与原油0.60（2020年后0.86）</span><span class="fig">图 10</span></div>
+    <div id="chart-corr" class="chart" style="height:340px;"></div>
+    <div class="chart-note">注：柱为价格相关系数（2000—2025年，除标注外）。<span class="src">资料来源：iFinD 数据，本报测算</span></div>
+  </div>
+</section>
+
+<!-- ===================== 第五版 · 当下格局 ===================== -->
+<section class="page" id="s5">
+  <div class="sec-head">
+    <span class="sec-no">第五版</span>
+    <span class="sec-title">当下格局：供需、地缘、天气<span class="accent">三线共振</span></span>
+    <span class="sec-standfirst">基本面本就从宽松切换到紧平衡——厄尔尼诺不是孤立的天气故事，而是压上天平的第三块砝码</span>
+  </div>
+
+  <div class="pix-frame">
+    <img src="assets/weather_split.jpg" alt="像素风干旱与洪涝对照">
+    <figcaption style="padding:7px 2px 2px;"><span>图 11 · 同一事件的两种面孔：西太平洋的干旱与东太平洋的洪涝（像素艺术示意）</span><span>美术编辑：AI 像素工坊</span></figcaption>
+  </div>
+
+  <div class="trio">
+    <div class="card"><h4>① 供需 · 紧平衡</h4><div class="body">供给端：美国玉米优良率截至8月30日仅57%，低于上年同期12个百分点；USDA 9月将美玉米单产从180.5下调至178.5蒲式耳/英亩，期末库存降至15.67亿蒲，<b>库消比跌破10%（约9.7%）</b>。需求端：中国采购美豆、美国及印尼生柴政策扩张油籽需求。USDA 预计2026/27年度海外玉米/全球大豆库消比分别为11%/28%，较上年度下降1.8/1.1个百分点。</div></div>
+    <div class="card"><h4>② 地缘 · 成本抬升</h4><div class="body">霍尔木兹海峡通航受限推升能源与化肥供应风险，9月9日以来原油价格升至100美元/桶以上高位，从成本端抬升种植成本、并刺激玉米乙醇与豆油柴油的替代需求；俄乌冲突制约黑海粮食外运——俄乌合计提供全球约28%的小麦与12%的玉米出口。成本上行、需求提振、贸易中断，共同抬高农产品价格中枢。</div></div>
+    <div class="card"><h4>③ 天气 · 打开空间</h4><div class="body">厄尔尼诺峰值期对应南半球主粮种植生长期与东南亚经济作物关键生长期。东南亚干旱相对确定；南美方向存在分歧——玉米易受洪涝减产、大豆南北对冲可能增产。若南美减产兑现，将冲击原先丰产预期，价格有望进一步上涨；若不兑现，紧平衡与油价仍托底。天气是最后、也最具爆发力的变量。</div></div>
+  </div>
+
+  <div class="cols-2">
+    <p><b>市场已经给出第一次投票。</b>截至10月9日收盘：CBOT 12月玉米报479.75美分/蒲式耳——注意，10月9日 USDA 月度报告确认美国丰产（产量158亿蒲）后玉米一度触及30美分跌停，说明"美国丰产"已计入价格，而"南美天气"尚未定价；大豆11月合约约1283美分，市场聚焦中国250亿美元采购框架的执行节奏；BMD 棕榈油约4600—4650林吉特/吨，马来西亚9月末库存创下351万吨的纪录高位——短期"弱现实"与远期"强预期"正在拉锯，而这恰是"弱现实逐步修复、强预期进一步抬升"这一判断的最佳注脚。</p>
+    <p><b>国内品种的隔离与传导。</b>中国玉米2026/27年度库消比预计51%，库存安全度高，厄尔尼诺对国内玉米产区影响有限；但外盘涨价将抬升进口成本、压缩进口量，边际带动国内小幅去库，价格有望小幅走强。小麦、水稻供应保障充足，受极端天气影响有限；真正的天气风险敞口在2027年夏季的长江流域洪涝与东北积温。内盘棕榈油进口依赖度高，涨幅预计与外盘一致。</p>
+  </div>
+
+  <div class="chart-box">
+    <div class="chart-title"><span>价格位置图：现价 vs 中性/峰值情景目标（未来3—6个月）</span><span class="fig">图 12</span></div>
+    <div id="chart-target" class="chart" style="height:400px;"></div>
+    <div class="chart-note">注：现价为2026年10月9日结算/收盘参考价（玉米为CBOT 12月合约479.75美分/蒲式耳；大豆为11月合约约1283美分；棕榈油为BMD约4650林吉特/吨）；中性/峰值情景目标为本报测算（玉米560/610美分，大豆1300/1400美分，棕榈油5500林吉特，对应内盘约11500元/吨）。各品种单位不同，仅比较相对位置。<span class="src">资料来源：<a href="https://www.ams.usda.gov/mnreports/ams_2920.pdf" target="_blank">USDA AMS</a>、<a href="https://tradingeconomics.com/commodity/palm-oil" target="_blank">Trading Economics</a>，目标价为本报测算</span></div>
+  </div>
+
+  <div class="chart-box">
+    <div class="chart-title"><span>其他农产品速览：历史弹性与本轮判断</span><span class="fig">图 13</span></div>
+    <div style="overflow-x:auto;">
+    <table class="news">
+      <thead><tr><th>品种</th><th>三次超强事件历史表现</th><th>本轮关键变量</th><th>方向判断</th></tr></thead>
+      <tbody>
+        <tr><td><b>可可</b></td><td>科特迪瓦三次均减产、平均约-14%；加纳一降两增；厄瓜多尔三次均降</td><td>前期供给冲击已推高价格；关注四季度西非干旱与中间季减产兑现</td><td class="up">高位仍有上行空间</td></tr>
+        <tr><td><b>咖啡</b></td><td>巴西三次均增产、平均+42%；越南两增一减（增产年约+4%，减产年-13%）</td><td>阿拉比卡随巴西新豆释放回落；罗布斯塔看越南干旱风险</td><td class="neu">阿拉比卡回落 / 罗布斯塔有支撑</td></tr>
+        <tr><td><b>白糖</b></td><td>巴西两增一减（增产年约+9%）；印度、泰国三次均减产</td><td>9—11月巴西降雨干扰压榨、印度季风偏弱；现实供需仍偏宽松</td><td class="up">远期有支撑</td></tr>
+        <tr><td><b>棉花</b></td><td>美国三次均减产、平均-15.1%；中国两增一减；方向不明</td><td>美国南部高温干旱支撑短期价格，高价抑制纺织需求</td><td class="neu">高位震荡，空间有限</td></tr>
+        <tr><td><b>小麦</b></td><td>历史影响总体偏负；中国两增一减，美国、印度两增一减</td><td>本季减产风险已基本兑现；黑海物流扰动支撑价格</td><td class="neu">支撑偏强，看下一季</td></tr>
+        <tr><td><b>水稻</b></td><td>19次厄尔尼诺期间国际米价11涨（均值+22%）8跌（均值-10%）；中国1983/1998/2016年均现长江洪涝</td><td>中国本季供给充裕；2027年夏季洪涝减产风险</td><td class="neu">短期受限，远期有风险支撑</td></tr>
+        <tr><td><b>天然橡胶</b></td><td>泰国两增一减；印尼产量、单产三次均降；越南三次均增</td><td>四季度若泰、印尼持续高温干旱，割胶受抑</td><td class="up">中期有上行空间</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <div class="chart-note"><span class="src">资料来源：USDA、iFinD、ICCO、Conab、Czarnikow、Reuters、NOAA/CPC、ICE 等数据，本报综合</span></div>
+  </div>
+</section>
+
+<!-- ===================== 第六版 · 前瞻 ===================== -->
+<section class="page" id="s6">
+  <div class="sec-head">
+    <span class="sec-no">第六版</span>
+    <span class="sec-title">前瞻推演：大类资产与各国的<span class="accent">再定价</span></span>
+    <span class="sec-standfirst">从海温到资产价格：一条"海温→环流→农田→库存→物价→政策→资产"的传导链</span>
+  </div>
+
+  <div class="cols-2">
+    <p><b>商品是最直接的一章。</b>农产品内部弹性排序清晰：棕榈油（历史三次超强事件最大涨幅均超100%，1982年达169%）与白糖（2015/16期间 ICE 原糖自10美分涨至23.8美分、涨幅140%）弹性居前，橡胶居中（2015/16最大涨幅108%），玉米大豆受北半球错峰保护、弹性相对温和但有紧平衡加持。工业品的暗线常被忽略：印尼干旱压制水电，威胁其镍矿湿法冶炼；智利、秘鲁（合计约40%全球铜产量）的洪涝可能淹没矿山、中断铜精矿运输。高盛估计本轮厄尔尼诺可能推动全球食品商品价格上涨超过15%。</p>
+    <p><b>宏观资产的传导更迂回。</b>食品与能源价格共振意味着通胀下行路径变得颠簸，主要央行降息空间受挤压，债券承压；股票内部剧烈分化——摩根士丹利指出，糖生产商、农资供应商（种子、化肥、农机）、拉美电力板块与美国大型食品零售商受益于高价环境，而巴西禽肉蛋白等"买原料"的企业利润受压；汇率上，拉美货币面临"高利率支撑 vs 增长受损"的双向波动。非洲开发银行警告：本轮事件可能给非洲带来100亿—200亿美元经济损失，受灾最重国家 GDP 或下降1—2个百分点，2026年农业损失可达3.3亿美元、玉米价格或翻倍。</p>
+    <p><b>节奏比方向更重要。</b>复盘显示，农产品主升段多在厄尔尼诺达峰之后出现：预期阶段（开始前3—6个月）咖啡、可可先动；发生阶段品种分化；结束阶段（结束后3—6个月）供给冲击兑现，棕榈油进入最强主升段。本轮的时间表：2026年11—12月达峰，2027年春季衰减，2027年夏季迎来对中国的最大考验（长江洪涝）与棕榈油减产的全面兑现。期货通常提前定价预期，但波动极大——逢低参与而非追逐天气头条，是历史给的纪律。</p>
+  </div>
+
+  <div class="chart-box">
+    <div class="chart-title"><span>大类资产影响图谱：方向 × 置信度 × 弹性</span><span class="fig">图 14</span></div>
+    <div id="chart-asset" class="chart" style="height:460px;"></div>
+    <div class="chart-note">注：横轴为预期价格方向（左跌右涨），纵轴为判断置信度，气泡大小为预期弹性。为本报综合摩根士丹利、高盛、华泰证券、东方证券等机构公开观点的定性评估，非投资评级。<span class="src">资料来源：各机构公开观点，详见尾版来源清单</span></div>
+  </div>
+
+  <div class="chart-box">
+    <div class="chart-title"><span>国家与地区影响一览：谁在雨中，谁在旱里</span><span class="fig">图 15</span></div>
+    <div style="overflow-x:auto;">
+    <table class="news">
+      <thead><tr><th>国家/地区</th><th>气候影响</th><th>核心暴露</th><th>经济/资产含义</th></tr></thead>
+      <tbody>
+        <tr><td><b>中国</b></td><td>今冬偏暖；2027年夏季中东部降水偏多，长江中下游暴雨洪涝风险升高</td><td>水稻（2027洪涝）、小麦播种、内盘油脂进口成本</td><td>主粮库存充足隔离冲击；进口成本抬升；1998年式洪涝是2027年最大尾部风险</td></tr>
+        <tr><td><b>美国</b></td><td>冬季北暖南冷，南部平原降水偏多；中西部夏季相对温和</td><td>玉米大豆（影响有限）、棉花（南部高温）、天然气（暖冬压制取暖需求）</td><td>丰产 vs 出口需求博弈；农业股分化，农资受益</td></tr>
+        <tr><td><b>巴西</b></td><td>北部干旱、南部多雨洪涝</td><td>玉米（面积风险）、大豆（南北对冲偏多）、甘蔗（多雨干扰压榨）、咖啡（利好）</td><td>农业产出波动加大；蛋白生产商利润受压；货币双向波动</td></tr>
+        <tr><td><b>阿根廷</b></td><td>降水偏多</td><td>大豆（历史平均+37.7%）、玉米（平均+15.4%）</td><td>南美难得的受益方，出口与汇兑收入改善</td></tr>
+        <tr><td><b>印尼 / 马来西亚</b></td><td>显著干旱，11月前后冲击最大</td><td>棕榈油（两国占全球约85%）、橡胶、镍（水电约束冶炼）</td><td>减产滞后9—12个月兑现于2027年；出口收入与通胀压力并存</td></tr>
+        <tr><td><b>印度 / 泰国</b></td><td>季风偏弱、干旱概率上升</td><td>甘蔗（两国历史均三次减产）、水稻、棉花</td><td>糖价支撑；印度食品通胀与出口政策收紧风险</td></tr>
+        <tr><td><b>西非（科特迪瓦/加纳）</b></td><td>干旱风险</td><td>可可（科特迪瓦历史三次均减产、均值-14%）</td><td>可可远期上涨空间；农户收入与财政脆弱性加剧</td></tr>
+        <tr><td><b>秘鲁 / 厄瓜多尔</b></td><td>暴雨洪涝（1997/98秘鲁北部降雨超年均16倍）</td><td>渔业（鳀鱼）、铜矿运输、基础设施</td><td>鱼粉供应冲击饲料链；铜供应扰动</td></tr>
+        <tr><td><b>澳大利亚</b></td><td>东部干旱</td><td>小麦</td><td>出口减产风险，全球小麦边际收紧</td></tr>
+        <tr><td><b>非洲整体</b></td><td>南部、西部长期干旱，东部洪涝</td><td>玉米（价格或翻倍）、粮食安全</td><td>损失或达100—200亿美元；气候移民与财政挤出风险</td></tr>
+        <tr><td><b>欧洲</b></td><td>秋季偏暖、2027年春季极端天气概率上升；风暴风险</td><td>能源需求（暖冬）、保险</td><td>再保险损失上升；山火已是增长最快的极端天气风险</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <div class="chart-note"><span class="src">资料来源：<a href="https://apnews.com/article/asia-el-nino-drought-rice-palm-oil-31c88df9ce8f67bcbfe3ea7f39431d57" target="_blank">AP</a>、<a href="https://www.morganstanley.com/insights/articles/super-el-nino-global-economic-impact-2026" target="_blank">摩根士丹利</a>、<a href="https://baike.baidu.com/item/2026%E5%B9%B4%E5%8E%84%E5%B0%94%E5%B0%BC%E8%AF%BA%E7%8E%B0%E8%B1%A1/67633454" target="_blank">非洲开发银行（经公开报道）</a>、<a href="https://publications.jrc.ec.europa.eu/repository/handle/JRC147365" target="_blank">欧盟 JRC</a></span></div>
+  </div>
+
+  <div class="chart-box">
+    <div class="chart-title"><span>事件时钟：从形成到影响兑现的完整时间轴</span><span class="fig">图 16</span></div>
+    <div class="timeline">
+      <div class="tl-item"><div class="tl-date">2026.05</div><div class="tl-body">赤道中东太平洋<b>进入厄尔尼诺状态</b>，随后快速发展</div></div>
+      <div class="tl-item"><div class="tl-date">2026.06</div><div class="tl-body">NOAA 发布厄尔尼诺预警；WMO 通报发生概率80%</div></div>
+      <div class="tl-item"><div class="tl-date">2026.09</div><div class="tl-body"><b>超强厄尔尼诺正式形成</b>（7—9月滑动平均超+2.5℃）；单日 Niño3.4 距平3.11℃打破2015年纪录</div></div>
+      <div class="tl-item"><div class="tl-date">2026.10</div><div class="tl-body">CPC：非常强事件概率&gt;90%；WMO：持续至2027年2月概率接近100%；马来西亚进入应对窗口</div></div>
+      <div class="tl-item"><div class="tl-date">2026.11–12</div><div class="tl-body"><b>预测峰值窗口</b>：国家气候中心预计海温指数3.2—3.5℃；东南亚干旱最深、南美种植期关键阶段</div></div>
+      <div class="tl-item"><div class="tl-date">2027.春</div><div class="tl-body">事件逐步衰减；南美大豆玉米产量兑现，验证"天气预期差"</div></div>
+      <div class="tl-item"><div class="tl-date">2027.夏</div><div class="tl-body">滞后影响的集中兑现期：<b>中国长江流域洪涝风险</b>；棕榈油减产（滞后9—12个月）落地；全球气温冲击纪录</div></div>
+    </div>
+    <div class="chart-note"><span class="src">资料来源：NOAA/CPC、WMO、国家气候中心</span></div>
+  </div>
+
+  <div style="margin-top:22px;" class="pix-frame">
+    <img src="assets/crop_grain.jpg" alt="像素谷物">
+    <figcaption style="padding:7px 2px 2px;"><span>尾图 · 稻麦与甘蔗：下一季的故事，写在2027年的夏天（像素艺术）</span><span>美术编辑：AI 像素工坊</span></figcaption>
+  </div>
+</section>
+
+<!-- ===================== 尾版 ===================== -->
+<div class="colophon">
+  <h4>风险提示与数据来源</h4>
+  <p><b>风险提示：</b>极端天气风险——厄尔尼诺/拉尼娜发生的时间、区域和结果存在不确定性，可能引发农产品价格阶段性剧烈波动；地缘关系风险——冲突升级若波及关键港口或运输通道将直接阻断农产品跨区域流通，并推升能源与化肥成本；贸易摩擦风险——关税政策反复可能改变全球农产品贸易流格局，加剧区域供需错配。此外，10月9日 USDA 报告显示美国丰产落地曾致玉米触及跌停，提示"预期先行"的天气交易存在回撤风险。</p>
+  <p style="margin-top:10px;"><b>数据来源：</b>NOAA 气候预测中心 ENSO 诊断讨论（2026-10-08）；中国国家气候中心监测公报（2026-09-29 及10月通报）；世界气象组织《全球季节性气候最新通报》（2026-10-08）；USDA WASDE（2026年8/9/10月）；Carbon Brief（2026-09-21）；美联社（2026-09-21）；Trading Economics / USDA AMS 行情（2026-10-09/12）；摩根士丹利（2026-08-12）；高盛（经 AP 转引）；非洲开发银行（经公开报道）；华泰证券、东方证券、平安期货等公开研究。页面中标注"本报测算"的数字均基于上述公开数据整理计算。</p>
+</div>
+<div class="disclaimer">
+  本报为数据叙事作品，所有内容仅供一般信息参考，不构成任何证券、期货或其他金融工具的买卖建议、投资评级或操作意见。历史规律不代表未来表现，气候预测存在不确定性，市场有风险，决策需谨慎。图表中涉及的第三方数据版权归原机构所有；像素插图为 AI 生成的艺术示意，不代表真实卫星影像。© 2026 太平洋观察家报 · 数据组
+</div>
+
+</div><!-- /sheet -->
+
+<script>
+const INK='#211a12', INK_SOFT='#4a3f30', INK_FAINT='#7a6c55', RED='#a5271f', RED_DEEP='#7c1a14',
+      SAGE='#5f7050', BLUE='#2e4a5e', GOLD='#b98a2f', PAPER='#f2e9d5';
+const SERIF='"Noto Serif SC","Songti SC","STSong",serif';
+const charts=[];
+function mk(id,opt){const el=document.getElementById(id);if(!el)return;const c=echarts.init(el);c.setOption(opt);charts.push(c);}
+const baseText={color:INK,fontFamily:SERIF};
+const axisCommon={axisLine:{lineStyle:{color:INK}},axisTick:{lineStyle:{color:INK}},axisLabel:{color:INK_SOFT,fontFamily:SERIF},splitLine:{lineStyle:{color:'rgba(33,26,18,.15)',type:'dashed'}}};
+
+/* ---- 图1：2026 海温进程 ---- */
+(function(){
+  const months=['5月','6月','7月','8月','9月','10月','11月','12月','27年1月'];
+  const actual=[null,1.60,2.09,2.59,2.94,null,null,null,null];
+  const bandBase=[null,null,null,null,2.94,3.0,3.2,3.2,3.0];
+  const bandTop =[null,null,null,null,0,0.2,0.3,0.3,0.2];
+  const mid    =[null,null,null,null,2.94,3.1,3.35,3.35,3.1];
+  mk('chart-temp',{
+    textStyle:baseText,backgroundColor:'transparent',
+    grid:{left:56,right:26,top:60,bottom:44},
+    legend:{top:8,textStyle:{color:INK_SOFT,fontFamily:SERIF,fontSize:12},itemWidth:26},
+    xAxis:{type:'category',data:months,name:'2026年 →',nameTextStyle:{color:INK_FAINT},...axisCommon,boundaryGap:false},
+    yAxis:{type:'value',name:'海温指数 (℃)',min:0,max:4,nameTextStyle:{color:INK_FAINT},...axisCommon},
+    series:[
+      {name:'2026年实测（国家气候中心海温指数）',type:'line',data:actual,smooth:true,symbol:'circle',symbolSize:9,
+       lineStyle:{color:RED,width:3.5},itemStyle:{color:RED,borderColor:PAPER,borderWidth:2},
+       label:{show:true,color:RED,fontWeight:'bold',fontFamily:SERIF,formatter:p=>p.value==null?'':p.value.toFixed(2)},
+       markLine:{symbol:'none',label:{fontFamily:SERIF,fontSize:11,color:INK_SOFT,formatter:'{b}'},lineStyle:{type:'dashed',width:1.4},
+         data:[
+           {yAxis:2.2,name:'1982/83 ONI峰值 2.2℃',lineStyle:{color:INK_FAINT}},
+           {yAxis:2.3,name:'1997/98 ONI峰值 2.3℃',lineStyle:{color:BLUE}},
+           {yAxis:2.6,name:'2015/16 ONI峰值 2.6℃',lineStyle:{color:SAGE}}
+         ]}},
+      {name:'bandBase',type:'line',data:bandBase,stack:'band',symbol:'none',lineStyle:{opacity:0},legendHoverLink:false,showInLegend:false},
+      {name:'峰值预测区间 3.2–3.5℃（国家气候中心）',type:'line',data:bandTop,stack:'band',symbol:'none',lineStyle:{opacity:0},
+       areaStyle:{color:'rgba(165,39,31,.18)'}},
+      {name:'预测中值',type:'line',data:mid,smooth:true,symbol:'none',lineStyle:{color:RED,type:'dashed',width:2}}
+    ]
+  });
+})();
+
+/* ---- 图2：RONI 历史峰值 ---- */
+(function(){
+  const evts=['1965/66','1972/73','1982/83','1991/92','1997/98','2015/16','2026/27 (预测)'];
+  const vals=[2.0,2.0,2.4,2.1,2.3,2.3,2.6];
+  mk('chart-roni',{
+    textStyle:baseText,backgroundColor:'transparent',
+    grid:{left:50,right:30,top:44,bottom:40},
+    xAxis:{type:'category',data:evts,...axisCommon,axisLabel:{...axisCommon.axisLabel,interval:0,fontSize:11}},
+    yAxis:{type:'value',name:'峰值 RONI (℃)',min:0,max:3.2,nameTextStyle:{color:INK_FAINT},...axisCommon},
+    series:[{type:'bar',barWidth:'52%',
+      data:vals.map((v,i)=>({value:v,itemStyle:{color:i===6?RED:(v>=2.0?GOLD:'rgba(33,26,18,.35)'),borderColor:INK,borderWidth:1}})),
+      label:{show:true,position:'top',fontFamily:SERIF,fontWeight:'bold',color:INK,formatter:p=>p.value.toFixed(1)+'℃'},
+      markLine:{symbol:'none',lineStyle:{color:RED_DEEP,type:'dashed',width:1.6},
+        label:{formatter:'超强门槛 RONI ≥ +2.0℃',fontFamily:SERIF,color:RED_DEEP,position:'insideEndTop'},
+        data:[{yAxis:2.0}]}
+    }]
+  });
+})();
+
+/* ---- 图4：影响矩阵 ---- */
+(function(){
+  const regions=['东南亚（印尼/马来）','印度 / 泰国','西非（可可带）','澳大利亚东部','越南','巴西北部','秘鲁 / 厄瓜多尔','中国长江流域(27年夏)','巴西南部 / 阿根廷','美国南部','美国中西部'];
+  const dims=['干旱(+) / 洪涝(-)','偏暖程度','作物减产风险'];
+  // value: -2..2 ; red=压力方向
+  const data=[
+    [2,2,2],[2,1,2],[2,1,1],[2,1,1],[1,1,1],[1,1,1],
+    [-2,1,1],[-2,0,1],[-2,0,-1],[0,1,1],[0,0,0]
+  ];
+  const cells=[];
+  data.forEach((r,i)=>r.forEach((v,j)=>cells.push([j,i,v])));
+  mk('chart-heat',{
+    textStyle:baseText,backgroundColor:'transparent',
+    grid:{left:170,right:30,top:20,bottom:70},
+    xAxis:{type:'category',data:dims,position:'top',...axisCommon,splitLine:{show:false},axisLabel:{...axisCommon.axisLabel,interval:0,fontSize:12,fontWeight:'bold'}},
+    yAxis:{type:'category',data:regions,inverse:true,...axisCommon,splitLine:{show:false},axisLabel:{...axisCommon.axisLabel,fontSize:12}},
+    visualMap:{show:true,orient:'horizontal',left:'center',bottom:6,min:-2,max:2,calculable:false,
+      text:['压力更大','受益/温和'],textStyle:{color:INK_SOFT,fontFamily:SERIF,fontSize:11},
+      inRange:{color:['#4d6b57','#a8b48f','#efe6cf','#d9a05b','#a5271f']}},
+    series:[{type:'heatmap',data:cells,
+      label:{show:true,fontFamily:SERIF,fontSize:11,color:INK,
+        formatter:p=>{const v=p.value[2];return v===0?'—':(v>0?'+'+v:v);}},
+      itemStyle:{borderColor:PAPER,borderWidth:2},emphasis:{itemStyle:{shadowBlur:6,shadowColor:'rgba(0,0,0,.35)'}}}]
+  });
+})();
+
+/* ---- 图5：滞后月数 ---- */
+(function(){
+  const items=[{n:'全球气温响应（+1℃→+0.07℃）',lo:2,hi:3},{n:'天然橡胶减产',lo:3,hi:6},{n:'中国长江流域洪涝（次年夏）',lo:6,hi:9},{n:'棕榈油减产（果串形成受损）',lo:9,hi:12}];
+  mk('chart-lag',{
+    textStyle:baseText,backgroundColor:'transparent',
+    grid:{left:230,right:50,top:20,bottom:36},
+    xAxis:{type:'value',name:'滞后月数（自海温峰值起）',max:13,nameTextStyle:{color:INK_FAINT},...axisCommon},
+    yAxis:{type:'category',data:items.map(i=>i.n),...axisCommon,splitLine:{show:false},axisLabel:{...axisCommon.axisLabel,fontSize:12}},
+    series:[
+      {type:'bar',stack:'lag',barWidth:22,data:items.map(i=>({value:i.lo,itemStyle:{color:'transparent'}})),tooltip:{show:false},label:{show:false}},
+      {type:'bar',stack:'lag',barWidth:22,data:items.map(i=>({value:i.hi-i.lo,itemStyle:{color:'rgba(165,39,31,.55)',borderColor:RED,borderWidth:1.2}})),
+       label:{show:true,position:'right',fontFamily:SERIF,color:INK,fontWeight:'bold',formatter:p=>items[p.dataIndex].lo+'–'+items[p.dataIndex].hi+' 个月'}}
+    ]
+  });
+})();
+
+/* ---- 图6：三次事件全球产量 ---- */
+(function(){
+  mk('chart-global',{
+    textStyle:baseText,backgroundColor:'transparent',
+    grid:{left:56,right:26,top:56,bottom:40},
+    legend:{top:8,textStyle:{color:INK_SOFT,fontFamily:SERIF}},
+    xAxis:{type:'category',data:['1982/83','1997/98','2015/16'],...axisCommon},
+    yAxis:{type:'value',name:'全球产量同比 (%)',nameTextStyle:{color:INK_FAINT},...axisCommon},
+    series:[
+      {name:'玉米（3/3 减产）',type:'bar',data:[-0.4,-3.2,-3.8],barGap:'15%',itemStyle:{color:GOLD,borderColor:INK,borderWidth:1},
+       label:{show:true,position:'bottom',fontFamily:SERIF,color:INK,formatter:'{c}%'}},
+      {name:'大豆（2/3 增产）',type:'bar',data:[8.6,19.7,-1.7],itemStyle:{color:SAGE,borderColor:INK,borderWidth:1},
+       label:{show:true,position:'top',fontFamily:SERIF,color:INK,formatter:p=>p.value>0?'+'+p.value+'%':p.value+'%'}}
+    ]
+  });
+})();
+
+/* ---- 图7：分国家均值 ---- */
+(function(){
+  const rows=[
+    {n:'玉米 · 中国',v:-18,note:'1/3 减产（97/98）'},{n:'玉米 · 巴西',v:-15.6,note:'3/3 减产'},
+    {n:'玉米 · 美国',v:-1,note:'2/3 减产'},{n:'玉米 · 阿根廷',v:15.4,note:'2/3 增产'},
+    {n:'大豆 · 美国',v:11.5,note:'2/3 增产'},{n:'大豆 · 巴西',v:17,note:'2/3 增产'},
+    {n:'大豆 · 阿根廷',v:37.7,note:'2/3 增产'}
+  ];
+  mk('chart-country',{
+    textStyle:baseText,backgroundColor:'transparent',
+    grid:{left:130,right:110,top:20,bottom:40},
+    xAxis:{type:'value',name:'三次超强事件平均产量变化 (%)',nameLocation:'middle',nameGap:30,nameTextStyle:{color:INK_FAINT},...axisCommon},
+    yAxis:{type:'category',data:rows.map(r=>r.n),...axisCommon,splitLine:{show:false},axisLabel:{...axisCommon.axisLabel,fontSize:12}},
+    series:[{type:'bar',barWidth:20,
+      data:rows.map(r=>({value:r.v,itemStyle:{color:r.v<0?RED:SAGE,borderColor:INK,borderWidth:1}})),
+      label:{show:true,position:'right',fontFamily:SERIF,color:INK,fontSize:11.5,
+        formatter:p=>{const r=rows[p.dataIndex];return (r.v>0?'+':'')+r.v+'%  ·  '+r.note;},
+        overflow:'break' }
+    }]
+  });
+})();
+
+/* ---- 图8：棕榈/橡胶单产 ---- */
+(function(){
+  const rows=[
+    {n:'棕榈油 · 印尼',v:-14,f:'2/3 减产'},{n:'棕榈油 · 马来西亚',v:-13,f:'3/3 减产'},
+    {n:'棕榈油 · 全球(两国加权)',v:-8.4,f:'3/3 减产'},{n:'天然橡胶 · 全球单产',v:-2.2,f:'2/3 单产下降'}
+  ];
+  mk('chart-perennial',{
+    textStyle:baseText,backgroundColor:'transparent',
+    grid:{left:180,right:110,top:20,bottom:40},
+    xAxis:{type:'value',name:'三次超强事件平均单产变化 (%)',min:-16,max:0,nameLocation:'middle',nameGap:30,nameTextStyle:{color:INK_FAINT},...axisCommon},
+    yAxis:{type:'category',data:rows.map(r=>r.n),...axisCommon,splitLine:{show:false},axisLabel:{...axisCommon.axisLabel,fontSize:12}},
+    series:[{type:'bar',barWidth:22,
+      data:rows.map(r=>({value:r.v,itemStyle:{color:RED,borderColor:INK,borderWidth:1}})),
+      label:{show:true,position:'right',fontFamily:SERIF,color:INK,fontWeight:'bold',
+        formatter:p=>rows[p.dataIndex].v+'%  ·  '+rows[p.dataIndex].f}
+    }]
+  });
+})();
+
+/* ---- 图9：弹性 ---- */
+(function(){
+  mk('chart-elastic',{
+    textStyle:baseText,backgroundColor:'transparent',
+    grid:{left:56,right:30,top:50,bottom:40},
+    xAxis:{type:'category',data:['玉米（粮食代表）','大豆（油籽代表）'],...axisCommon,axisLabel:{...axisCommon.axisLabel,fontSize:13,fontWeight:'bold'}},
+    yAxis:{type:'value',name:'库消比 -1ppt 对应价格涨幅 (%)',max:30,nameTextStyle:{color:INK_FAINT},...axisCommon},
+    series:[
+      {type:'bar',stack:'e',barWidth:64,data:[{value:16,itemStyle:{color:'transparent'}},{value:9,itemStyle:{color:'transparent'}}],tooltip:{show:false},label:{show:false}},
+      {type:'bar',stack:'e',barWidth:64,
+       data:[{value:10,itemStyle:{color:'rgba(185,138,47,.65)',borderColor:GOLD,borderWidth:1.5}},
+             {value:0.25,itemStyle:{color:RED,borderColor:RED}}],
+       label:{show:true,position:'top',fontFamily:SERIF,fontWeight:'bold',color:INK,fontSize:14,
+         formatter:p=>p.dataIndex===0?'+16% ~ +26%（中值约+20%）':'约 +9%'}}
+    ]
+  });
+})();
+
+/* ---- 图10：棕榈油相关性 ---- */
+(function(){
+  const rows=[{n:'与 CBOT 豆油',v:0.91},{n:'与布伦特原油（2020年后）',v:0.86},{n:'与布伦特原油（2000–25）',v:0.60},{n:'与自身库消比（90/91–26/27）',v:0.72}];
+  mk('chart-corr',{
+    textStyle:baseText,backgroundColor:'transparent',
+    grid:{left:200,right:70,top:20,bottom:40},
+    xAxis:{type:'value',name:'相关系数',min:0,max:1,nameLocation:'middle',nameGap:30,nameTextStyle:{color:INK_FAINT},...axisCommon},
+    yAxis:{type:'category',data:rows.map(r=>r.n),...axisCommon,splitLine:{show:false},axisLabel:{...axisCommon.axisLabel,fontSize:12}},
+    series:[{type:'bar',barWidth:22,
+      data:rows.map((r,i)=>({value:r.v,itemStyle:{color:i===3?'rgba(33,26,18,.4)':(i===0?GOLD:BLUE),borderColor:INK,borderWidth:1}})),
+      label:{show:true,position:'right',fontFamily:SERIF,color:INK,fontWeight:'bold',formatter:p=>rows[p.dataIndex].v.toFixed(2)}
+    }]
+  });
+})();
+
+/* ---- 图12：现价 vs 目标 ---- */
+(function(){
+  mk('chart-target',{
+    textStyle:baseText,backgroundColor:'transparent',
+    grid:{left:60,right:30,top:56,bottom:44},
+    legend:{top:8,textStyle:{color:INK_SOFT,fontFamily:SERIF}},
+    xAxis:{type:'category',data:['CBOT 玉米 (美分/蒲)','CBOT 大豆 (美分/蒲)','BMD 棕榈油 (林吉特/吨)'],...axisCommon,axisLabel:{...axisCommon.axisLabel,fontSize:12,interval:0}},
+    yAxis:{type:'value',name:'价格（各品种自身单位）',nameTextStyle:{color:INK_FAINT},...axisCommon},
+    series:[
+      {name:'现价 (2026-10-09)',type:'bar',data:[479.75,1283,4650],itemStyle:{color:'rgba(33,26,18,.75)',borderColor:INK,borderWidth:1},label:{show:true,position:'top',fontFamily:SERIF,color:INK}},
+      {name:'中性情景目标 (+10~20%)',type:'bar',data:[560,1300,5500],itemStyle:{color:GOLD,borderColor:INK,borderWidth:1},label:{show:true,position:'top',fontFamily:SERIF,color:INK}},
+      {name:'峰值情景目标 (+20~30%)',type:'bar',data:[610,1400,5500],itemStyle:{color:RED,borderColor:INK,borderWidth:1},label:{show:true,position:'top',fontFamily:SERIF,color:INK}}
+    ]
+  });
+})();
+
+/* ---- 图14：大类资产气泡图 ---- */
+(function(){
+  const cats={'农产品':RED,'软商品':GOLD,'工业品':BLUE,'宏观':INK_SOFT,'权益':SAGE};
+  const items=[
+    {n:'棕榈油',x:1.30,y:.85,s:60,c:'农产品'},{n:'白糖',x:1.00,y:.70,s:50,c:'软商品'},
+    {n:'天然橡胶',x:.90,y:.75,s:44,c:'软商品'},{n:'可可',x:.85,y:.60,s:40,c:'软商品'},
+    {n:'玉米',x:.60,y:.65,s:38,c:'农产品'},{n:'大豆',x:.35,y:.55,s:30,c:'农产品'},
+    {n:'小麦/水稻',x:.25,y:.40,s:24,c:'农产品'},{n:'铜 / 镍',x:.50,y:.45,s:30,c:'工业品'},
+    {n:'原油(成本端)',x:.40,y:.50,s:28,c:'工业品'},{n:'农资/糖业股',x:.70,y:.60,s:34,c:'权益'},
+    {n:'蛋白/食品加工股',x:-.45,y:.50,s:28,c:'权益'},{n:'债券(通胀抬头)',x:-.55,y:.55,s:26,c:'宏观'},
+    {n:'拉美货币',x:0,y:.35,s:22,c:'宏观'},{n:'美国天然气',x:-.30,y:.45,s:22,c:'工业品'}
+  ];
+  const series=Object.keys(cats).map(k=>({
+    name:k,type:'scatter',
+    data:items.filter(i=>i.c===k).map(i=>({value:[i.x,i.y],name:i.n,symbolSize:i.s,
+      itemStyle:{color:cats[k],borderColor:INK,borderWidth:1.2,opacity:.85},
+      label:{show:true,position:'top',fontFamily:SERIF,fontSize:12,color:INK,fontWeight:'bold',formatter:i.n}}))
+  }));
+  mk('chart-asset',{
+    textStyle:baseText,backgroundColor:'transparent',
+    grid:{left:64,right:44,top:56,bottom:50},
+    legend:{top:8,textStyle:{color:INK_SOFT,fontFamily:SERIF}},
+    xAxis:{type:'value',name:'预期方向（←承压 / 上行→）',min:-1,max:1.6,nameLocation:'middle',nameGap:30,nameTextStyle:{color:INK_FAINT},...axisCommon,
+      axisLabel:{...axisCommon.axisLabel,formatter:v=>v===0?'中性':v}},
+    yAxis:{type:'value',name:'判断置信度',min:0,max:1,nameTextStyle:{color:INK_FAINT},...axisCommon,
+      axisLabel:{...axisCommon.axisLabel,formatter:v=>v.toFixed(1)}},
+    series
+  });
+})();
+
+window.addEventListener('resize',()=>charts.forEach(c=>c.resize()));
+</script>
+</body>
+</html>

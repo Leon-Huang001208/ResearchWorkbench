@@ -1,0 +1,3226 @@
+{
+  "auditedAt": "2026-10-14T01:48:31.019818+00:00",
+  "method": "所有源序列由已保存的原始响应重新解析并逐点对照，检查日期、有限数值、唯一性与来源；不等于独立确认发布机构没有错误。H41历史保留项核对最新一期。",
+  "dataChecks": [
+    {
+      "id": "TGA",
+      "kind": "series",
+      "points": 1251,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-09",
+      "sourceUrl": "https://fiscaldata.treasury.gov/datasets/daily-treasury-statement/",
+      "status": "ok"
+    },
+    {
+      "id": "TGA_IN",
+      "kind": "series",
+      "points": 1124,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-09",
+      "sourceUrl": "https://fiscaldata.treasury.gov/datasets/daily-treasury-statement/",
+      "status": "ok"
+    },
+    {
+      "id": "TGA_OUT",
+      "kind": "series",
+      "points": 1124,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-09",
+      "sourceUrl": "https://fiscaldata.treasury.gov/datasets/daily-treasury-statement/",
+      "status": "ok"
+    },
+    {
+      "id": "SOFR",
+      "kind": "series",
+      "points": 1244,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-09",
+      "sourceUrl": "https://www.newyorkfed.org/markets/reference-rates/sofr",
+      "status": "ok"
+    },
+    {
+      "id": "SOFR_25",
+      "kind": "series",
+      "points": 1244,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-09",
+      "sourceUrl": "https://www.newyorkfed.org/markets/reference-rates/sofr",
+      "status": "ok"
+    },
+    {
+      "id": "SOFR_75",
+      "kind": "series",
+      "points": 1244,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-09",
+      "sourceUrl": "https://www.newyorkfed.org/markets/reference-rates/sofr",
+      "status": "ok"
+    },
+    {
+      "id": "SOFR_99",
+      "kind": "series",
+      "points": 1244,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-09",
+      "sourceUrl": "https://www.newyorkfed.org/markets/reference-rates/sofr",
+      "status": "ok"
+    },
+    {
+      "id": "SOFR_VOL",
+      "kind": "series",
+      "points": 1244,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-09",
+      "sourceUrl": "https://www.newyorkfed.org/markets/reference-rates/sofr",
+      "status": "ok"
+    },
+    {
+      "id": "EFFR",
+      "kind": "series",
+      "points": 1251,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-09",
+      "sourceUrl": "https://www.newyorkfed.org/markets/reference-rates/effr",
+      "status": "ok"
+    },
+    {
+      "id": "EFFR_25",
+      "kind": "series",
+      "points": 1251,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-09",
+      "sourceUrl": "https://www.newyorkfed.org/markets/reference-rates/effr",
+      "status": "ok"
+    },
+    {
+      "id": "EFFR_75",
+      "kind": "series",
+      "points": 1251,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-09",
+      "sourceUrl": "https://www.newyorkfed.org/markets/reference-rates/effr",
+      "status": "ok"
+    },
+    {
+      "id": "EFFR_99",
+      "kind": "series",
+      "points": 1251,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-09",
+      "sourceUrl": "https://www.newyorkfed.org/markets/reference-rates/effr",
+      "status": "ok"
+    },
+    {
+      "id": "EFFR_VOL",
+      "kind": "series",
+      "points": 1251,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-09",
+      "sourceUrl": "https://www.newyorkfed.org/markets/reference-rates/effr",
+      "status": "ok"
+    },
+    {
+      "id": "TGCR",
+      "kind": "series",
+      "points": 1244,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-09",
+      "sourceUrl": "https://www.newyorkfed.org/markets/reference-rates/tgcr",
+      "status": "ok"
+    },
+    {
+      "id": "TGCR_25",
+      "kind": "series",
+      "points": 1244,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-09",
+      "sourceUrl": "https://www.newyorkfed.org/markets/reference-rates/tgcr",
+      "status": "ok"
+    },
+    {
+      "id": "TGCR_75",
+      "kind": "series",
+      "points": 1244,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-09",
+      "sourceUrl": "https://www.newyorkfed.org/markets/reference-rates/tgcr",
+      "status": "ok"
+    },
+    {
+      "id": "TGCR_99",
+      "kind": "series",
+      "points": 1244,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-09",
+      "sourceUrl": "https://www.newyorkfed.org/markets/reference-rates/tgcr",
+      "status": "ok"
+    },
+    {
+      "id": "TGCR_VOL",
+      "kind": "series",
+      "points": 1244,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-09",
+      "sourceUrl": "https://www.newyorkfed.org/markets/reference-rates/tgcr",
+      "status": "ok"
+    },
+    {
+      "id": "BGCR",
+      "kind": "series",
+      "points": 1244,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-09",
+      "sourceUrl": "https://www.newyorkfed.org/markets/reference-rates/bgcr",
+      "status": "ok"
+    },
+    {
+      "id": "BGCR_25",
+      "kind": "series",
+      "points": 1244,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-09",
+      "sourceUrl": "https://www.newyorkfed.org/markets/reference-rates/bgcr",
+      "status": "ok"
+    },
+    {
+      "id": "BGCR_75",
+      "kind": "series",
+      "points": 1244,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-09",
+      "sourceUrl": "https://www.newyorkfed.org/markets/reference-rates/bgcr",
+      "status": "ok"
+    },
+    {
+      "id": "BGCR_99",
+      "kind": "series",
+      "points": 1244,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-09",
+      "sourceUrl": "https://www.newyorkfed.org/markets/reference-rates/bgcr",
+      "status": "ok"
+    },
+    {
+      "id": "BGCR_VOL",
+      "kind": "series",
+      "points": 1244,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-09",
+      "sourceUrl": "https://www.newyorkfed.org/markets/reference-rates/bgcr",
+      "status": "ok"
+    },
+    {
+      "id": "OBFR",
+      "kind": "series",
+      "points": 1251,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-09",
+      "sourceUrl": "https://www.newyorkfed.org/markets/reference-rates/obfr",
+      "status": "ok"
+    },
+    {
+      "id": "OBFR_25",
+      "kind": "series",
+      "points": 1251,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-09",
+      "sourceUrl": "https://www.newyorkfed.org/markets/reference-rates/obfr",
+      "status": "ok"
+    },
+    {
+      "id": "OBFR_75",
+      "kind": "series",
+      "points": 1251,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-09",
+      "sourceUrl": "https://www.newyorkfed.org/markets/reference-rates/obfr",
+      "status": "ok"
+    },
+    {
+      "id": "OBFR_99",
+      "kind": "series",
+      "points": 1251,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-09",
+      "sourceUrl": "https://www.newyorkfed.org/markets/reference-rates/obfr",
+      "status": "ok"
+    },
+    {
+      "id": "OBFR_VOL",
+      "kind": "series",
+      "points": 1251,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-09",
+      "sourceUrl": "https://www.newyorkfed.org/markets/reference-rates/obfr",
+      "status": "ok"
+    },
+    {
+      "id": "SRF",
+      "kind": "series",
+      "points": 249,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-13",
+      "sourceUrl": "https://markets.newyorkfed.org/api/rp/repo/all/results/last/500.json",
+      "status": "ok"
+    },
+    {
+      "id": "PDPOSGST-TOT",
+      "kind": "series",
+      "points": 118,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-09-30",
+      "sourceUrl": "https://markets.newyorkfed.org/api/pd/get/SBN2024/timeseries/PDPOSGST-TOT.json",
+      "status": "ok"
+    },
+    {
+      "id": "PDPOSGSC-G21",
+      "kind": "series",
+      "points": 118,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-09-30",
+      "sourceUrl": "https://markets.newyorkfed.org/api/pd/get/SBN2024/timeseries/PDPOSGSC-G21.json",
+      "status": "ok"
+    },
+    {
+      "id": "H41_SECURITIES",
+      "kind": "series",
+      "points": 6,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-07",
+      "sourceUrl": "https://www.federalreserve.gov/releases/h41/current/",
+      "status": "ok"
+    },
+    {
+      "id": "FIMA_REPO",
+      "kind": "series",
+      "points": 6,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-07",
+      "sourceUrl": "https://www.federalreserve.gov/releases/h41/current/",
+      "status": "ok"
+    },
+    {
+      "id": "FOREIGN_CUSTODY",
+      "kind": "series",
+      "points": 6,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-07",
+      "sourceUrl": "https://www.federalreserve.gov/releases/h41/current/",
+      "status": "ok"
+    },
+    {
+      "id": "PDSORA-UTSETTOT",
+      "kind": "series",
+      "points": 54,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-09-16",
+      "sourceUrl": "https://markets.newyorkfed.org/api/pd/get/SBN2024/timeseries/PDSORA-UTSETTOT.json",
+      "status": "ok"
+    },
+    {
+      "id": "PDFTD-USTET",
+      "kind": "series",
+      "points": 118,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-09-30",
+      "sourceUrl": "https://markets.newyorkfed.org/api/pd/get/SBN2024/timeseries/PDFTD-USTET.json",
+      "status": "ok"
+    },
+    {
+      "id": "PDFTR-USTET",
+      "kind": "series",
+      "points": 118,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-09-30",
+      "sourceUrl": "https://markets.newyorkfed.org/api/pd/get/SBN2024/timeseries/PDFTR-USTET.json",
+      "status": "ok"
+    },
+    {
+      "id": "PDTRGST-TOT",
+      "kind": "series",
+      "points": 118,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-09-30",
+      "sourceUrl": "https://markets.newyorkfed.org/api/pd/get/SBN2024/timeseries/PDTRGST-TOT.json",
+      "status": "ok"
+    },
+    {
+      "id": "MOVE",
+      "kind": "series",
+      "points": 1244,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-13",
+      "sourceUrl": "https://finance.yahoo.com/quote/%5EMOVE/",
+      "status": "ok"
+    },
+    {
+      "id": "WALCL",
+      "kind": "series",
+      "points": 260,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-07",
+      "sourceUrl": "https://fred.stlouisfed.org/series/WALCL",
+      "status": "ok"
+    },
+    {
+      "id": "WCURCIR",
+      "kind": "series",
+      "points": 260,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-07",
+      "sourceUrl": "https://fred.stlouisfed.org/series/WCURCIR",
+      "status": "ok"
+    },
+    {
+      "id": "WDTGAL",
+      "kind": "series",
+      "points": 260,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-07",
+      "sourceUrl": "https://fred.stlouisfed.org/series/WDTGAL",
+      "status": "ok"
+    },
+    {
+      "id": "WRESBAL",
+      "kind": "series",
+      "points": 260,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-07",
+      "sourceUrl": "https://fred.stlouisfed.org/series/WRESBAL",
+      "status": "ok"
+    },
+    {
+      "id": "WSHOSHO",
+      "kind": "series",
+      "points": 260,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-07",
+      "sourceUrl": "https://fred.stlouisfed.org/series/WSHOSHO",
+      "status": "ok"
+    },
+    {
+      "id": "IORB",
+      "kind": "series",
+      "points": 1825,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-13",
+      "sourceUrl": "https://fred.stlouisfed.org/series/IORB",
+      "status": "ok"
+    },
+    {
+      "id": "RRPONTSYD",
+      "kind": "series",
+      "points": 1245,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-13",
+      "sourceUrl": "https://fred.stlouisfed.org/series/RRPONTSYD",
+      "status": "ok"
+    },
+    {
+      "id": "DFII10",
+      "kind": "series",
+      "points": 1246,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-09",
+      "sourceUrl": "https://fred.stlouisfed.org/series/DFII10",
+      "status": "ok"
+    },
+    {
+      "id": "DFII20",
+      "kind": "series",
+      "points": 1246,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-09",
+      "sourceUrl": "https://fred.stlouisfed.org/series/DFII20",
+      "status": "ok"
+    },
+    {
+      "id": "DFII30",
+      "kind": "series",
+      "points": 1246,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-09",
+      "sourceUrl": "https://fred.stlouisfed.org/series/DFII30",
+      "status": "ok"
+    },
+    {
+      "id": "DFII5",
+      "kind": "series",
+      "points": 1246,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-09",
+      "sourceUrl": "https://fred.stlouisfed.org/series/DFII5",
+      "status": "ok"
+    },
+    {
+      "id": "DEXJPUS",
+      "kind": "series",
+      "points": 1247,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-09",
+      "sourceUrl": "https://fred.stlouisfed.org/series/DEXJPUS",
+      "status": "ok"
+    },
+    {
+      "id": "BAMLH0A0HYM2",
+      "kind": "series",
+      "points": 784,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-12",
+      "sourceUrl": "https://fred.stlouisfed.org/series/BAMLH0A0HYM2",
+      "status": "ok"
+    },
+    {
+      "id": "BAMLC0A0CM",
+      "kind": "series",
+      "points": 783,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-12",
+      "sourceUrl": "https://fred.stlouisfed.org/series/BAMLC0A0CM",
+      "status": "ok"
+    },
+    {
+      "id": "DEXUSEU",
+      "kind": "series",
+      "points": 1247,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-09",
+      "sourceUrl": "https://fred.stlouisfed.org/series/DEXUSEU",
+      "status": "ok"
+    },
+    {
+      "id": "VIXCLS",
+      "kind": "series",
+      "points": 1285,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-12",
+      "sourceUrl": "https://fred.stlouisfed.org/series/VIXCLS",
+      "status": "ok"
+    },
+    {
+      "id": "T5YIE",
+      "kind": "series",
+      "points": 1247,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-13",
+      "sourceUrl": "https://fred.stlouisfed.org/series/T5YIE",
+      "status": "ok"
+    },
+    {
+      "id": "T10YIE",
+      "kind": "series",
+      "points": 1247,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-13",
+      "sourceUrl": "https://fred.stlouisfed.org/series/T10YIE",
+      "status": "ok"
+    },
+    {
+      "id": "PCEPI",
+      "kind": "series",
+      "points": 58,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-08-01",
+      "sourceUrl": "https://fred.stlouisfed.org/series/PCEPI",
+      "status": "ok"
+    },
+    {
+      "id": "DGS1",
+      "kind": "series",
+      "points": 1246,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-09",
+      "sourceUrl": "https://fred.stlouisfed.org/series/DGS1",
+      "status": "ok"
+    },
+    {
+      "id": "DGS6MO",
+      "kind": "series",
+      "points": 1246,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-09",
+      "sourceUrl": "https://fred.stlouisfed.org/series/DGS6MO",
+      "status": "delayed"
+    },
+    {
+      "id": "DGS3MO",
+      "kind": "series",
+      "points": 1246,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-09",
+      "sourceUrl": "https://fred.stlouisfed.org/series/DGS3MO",
+      "status": "ok"
+    },
+    {
+      "id": "DGS1MO",
+      "kind": "series",
+      "points": 1246,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-09",
+      "sourceUrl": "https://fred.stlouisfed.org/series/DGS1MO",
+      "status": "ok"
+    },
+    {
+      "id": "DTWEXBGS",
+      "kind": "series",
+      "points": 1247,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-09",
+      "sourceUrl": "https://fred.stlouisfed.org/series/DTWEXBGS",
+      "status": "ok"
+    },
+    {
+      "id": "DGS2",
+      "kind": "series",
+      "points": 1246,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-09",
+      "sourceUrl": "https://fred.stlouisfed.org/series/DGS2",
+      "status": "ok"
+    },
+    {
+      "id": "CPIAUCSL",
+      "kind": "series",
+      "points": 57,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-08-01",
+      "sourceUrl": "https://fred.stlouisfed.org/series/CPIAUCSL",
+      "status": "ok"
+    },
+    {
+      "id": "DGS10",
+      "kind": "series",
+      "points": 1246,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-09",
+      "sourceUrl": "https://fred.stlouisfed.org/series/DGS10",
+      "status": "ok"
+    },
+    {
+      "id": "DGS20",
+      "kind": "series",
+      "points": 1246,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-09",
+      "sourceUrl": "https://fred.stlouisfed.org/series/DGS20",
+      "status": "ok"
+    },
+    {
+      "id": "DGS5",
+      "kind": "series",
+      "points": 1246,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-09",
+      "sourceUrl": "https://fred.stlouisfed.org/series/DGS5",
+      "status": "delayed"
+    },
+    {
+      "id": "DGS3",
+      "kind": "series",
+      "points": 1246,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-09",
+      "sourceUrl": "https://fred.stlouisfed.org/series/DGS3",
+      "status": "ok"
+    },
+    {
+      "id": "DGS30",
+      "kind": "series",
+      "points": 1246,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-09",
+      "sourceUrl": "https://fred.stlouisfed.org/series/DGS30",
+      "status": "ok"
+    },
+    {
+      "id": "DGS7",
+      "kind": "series",
+      "points": 1246,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-09",
+      "sourceUrl": "https://fred.stlouisfed.org/series/DGS7",
+      "status": "delayed"
+    },
+    {
+      "id": "UNRATE",
+      "kind": "series",
+      "points": 58,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-09-01",
+      "sourceUrl": "https://fred.stlouisfed.org/series/UNRATE",
+      "status": "ok"
+    },
+    {
+      "id": "H41_RESERVES",
+      "kind": "series",
+      "points": 6,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-07",
+      "sourceUrl": "https://www.federalreserve.gov/releases/h41/current/",
+      "status": "ok"
+    },
+    {
+      "id": "SRF_RATE",
+      "kind": "series",
+      "points": 209,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-13",
+      "sourceUrl": "https://markets.newyorkfed.org/api/rp/repo/all/results/last/500.json",
+      "status": "ok"
+    },
+    {
+      "id": "ONRRP_RATE",
+      "kind": "series",
+      "points": 496,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-13",
+      "sourceUrl": "https://markets.newyorkfed.org/api/rp/reverserepo/all/results/last/500.json",
+      "status": "ok"
+    },
+    {
+      "id": "DEXCHUS",
+      "kind": "series",
+      "points": 1247,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-09",
+      "sourceUrl": "https://fred.stlouisfed.org/series/DEXCHUS",
+      "status": "ok"
+    },
+    {
+      "id": "AIQ",
+      "kind": "assets",
+      "points": 1253,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-13",
+      "sourceUrl": "https://finance.yahoo.com/quote/AIQ/history/",
+      "status": "ok"
+    },
+    {
+      "id": "AMAT",
+      "kind": "assets",
+      "points": 1253,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-13",
+      "sourceUrl": "https://finance.yahoo.com/quote/AMAT/history/",
+      "status": "ok"
+    },
+    {
+      "id": "ANET",
+      "kind": "assets",
+      "points": 1253,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-13",
+      "sourceUrl": "https://finance.yahoo.com/quote/ANET/history/",
+      "status": "ok"
+    },
+    {
+      "id": "BOTZ",
+      "kind": "assets",
+      "points": 1253,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-13",
+      "sourceUrl": "https://finance.yahoo.com/quote/BOTZ/history/",
+      "status": "ok"
+    },
+    {
+      "id": "BTC-USD",
+      "kind": "assets",
+      "points": 1824,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-12",
+      "sourceUrl": "https://finance.yahoo.com/quote/BTC-USD/history/",
+      "status": "ok"
+    },
+    {
+      "id": "CIBR",
+      "kind": "assets",
+      "points": 1253,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-13",
+      "sourceUrl": "https://finance.yahoo.com/quote/CIBR/history/",
+      "status": "ok"
+    },
+    {
+      "id": "DBC",
+      "kind": "assets",
+      "points": 1253,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-13",
+      "sourceUrl": "https://finance.yahoo.com/quote/DBC/history/",
+      "status": "ok"
+    },
+    {
+      "id": "COPX",
+      "kind": "assets",
+      "points": 1253,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-13",
+      "sourceUrl": "https://finance.yahoo.com/quote/COPX/history/",
+      "status": "ok"
+    },
+    {
+      "id": "EEM",
+      "kind": "assets",
+      "points": 1253,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-13",
+      "sourceUrl": "https://finance.yahoo.com/quote/EEM/history/",
+      "status": "ok"
+    },
+    {
+      "id": "ETH-USD",
+      "kind": "assets",
+      "points": 1824,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-12",
+      "sourceUrl": "https://finance.yahoo.com/quote/ETH-USD/history/",
+      "status": "ok"
+    },
+    {
+      "id": "EWJ",
+      "kind": "assets",
+      "points": 1253,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-13",
+      "sourceUrl": "https://finance.yahoo.com/quote/EWJ/history/",
+      "status": "ok"
+    },
+    {
+      "id": "FXY",
+      "kind": "assets",
+      "points": 1253,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-13",
+      "sourceUrl": "https://finance.yahoo.com/quote/FXY/history/",
+      "status": "ok"
+    },
+    {
+      "id": "GLD",
+      "kind": "assets",
+      "points": 1253,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-13",
+      "sourceUrl": "https://finance.yahoo.com/quote/GLD/history/",
+      "status": "ok"
+    },
+    {
+      "id": "GRID",
+      "kind": "assets",
+      "points": 1253,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-13",
+      "sourceUrl": "https://finance.yahoo.com/quote/GRID/history/",
+      "status": "ok"
+    },
+    {
+      "id": "HYG",
+      "kind": "assets",
+      "points": 1253,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-13",
+      "sourceUrl": "https://finance.yahoo.com/quote/HYG/history/",
+      "status": "ok"
+    },
+    {
+      "id": "ICLN",
+      "kind": "assets",
+      "points": 1253,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-13",
+      "sourceUrl": "https://finance.yahoo.com/quote/ICLN/history/",
+      "status": "ok"
+    },
+    {
+      "id": "IBB",
+      "kind": "assets",
+      "points": 1253,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-13",
+      "sourceUrl": "https://finance.yahoo.com/quote/IBB/history/",
+      "status": "ok"
+    },
+    {
+      "id": "IEF",
+      "kind": "assets",
+      "points": 1253,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-13",
+      "sourceUrl": "https://finance.yahoo.com/quote/IEF/history/",
+      "status": "ok"
+    },
+    {
+      "id": "IGV",
+      "kind": "assets",
+      "points": 1253,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-13",
+      "sourceUrl": "https://finance.yahoo.com/quote/IGV/history/",
+      "status": "ok"
+    },
+    {
+      "id": "INDA",
+      "kind": "assets",
+      "points": 1253,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-13",
+      "sourceUrl": "https://finance.yahoo.com/quote/INDA/history/",
+      "status": "ok"
+    },
+    {
+      "id": "ITB",
+      "kind": "assets",
+      "points": 1253,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-13",
+      "sourceUrl": "https://finance.yahoo.com/quote/ITB/history/",
+      "status": "ok"
+    },
+    {
+      "id": "IWM",
+      "kind": "assets",
+      "points": 1253,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-13",
+      "sourceUrl": "https://finance.yahoo.com/quote/IWM/history/",
+      "status": "ok"
+    },
+    {
+      "id": "IYT",
+      "kind": "assets",
+      "points": 1253,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-13",
+      "sourceUrl": "https://finance.yahoo.com/quote/IYT/history/",
+      "status": "ok"
+    },
+    {
+      "id": "KCE",
+      "kind": "assets",
+      "points": 1253,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-13",
+      "sourceUrl": "https://finance.yahoo.com/quote/KCE/history/",
+      "status": "ok"
+    },
+    {
+      "id": "LQD",
+      "kind": "assets",
+      "points": 1253,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-13",
+      "sourceUrl": "https://finance.yahoo.com/quote/LQD/history/",
+      "status": "ok"
+    },
+    {
+      "id": "KRE",
+      "kind": "assets",
+      "points": 1253,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-13",
+      "sourceUrl": "https://finance.yahoo.com/quote/KRE/history/",
+      "status": "ok"
+    },
+    {
+      "id": "MCHI",
+      "kind": "assets",
+      "points": 1253,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-13",
+      "sourceUrl": "https://finance.yahoo.com/quote/MCHI/history/",
+      "status": "ok"
+    },
+    {
+      "id": "QQQ",
+      "kind": "assets",
+      "points": 1253,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-13",
+      "sourceUrl": "https://finance.yahoo.com/quote/QQQ/history/",
+      "status": "ok"
+    },
+    {
+      "id": "OIH",
+      "kind": "assets",
+      "points": 1253,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-13",
+      "sourceUrl": "https://finance.yahoo.com/quote/OIH/history/",
+      "status": "ok"
+    },
+    {
+      "id": "SKYY",
+      "kind": "assets",
+      "points": 1253,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-13",
+      "sourceUrl": "https://finance.yahoo.com/quote/SKYY/history/",
+      "status": "ok"
+    },
+    {
+      "id": "SLV",
+      "kind": "assets",
+      "points": 1253,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-13",
+      "sourceUrl": "https://finance.yahoo.com/quote/SLV/history/",
+      "status": "ok"
+    },
+    {
+      "id": "SMH",
+      "kind": "assets",
+      "points": 1253,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-13",
+      "sourceUrl": "https://finance.yahoo.com/quote/SMH/history/",
+      "status": "ok"
+    },
+    {
+      "id": "SPY",
+      "kind": "assets",
+      "points": 1253,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-13",
+      "sourceUrl": "https://finance.yahoo.com/quote/SPY/history/",
+      "status": "ok"
+    },
+    {
+      "id": "SRVR",
+      "kind": "assets",
+      "points": 1253,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-13",
+      "sourceUrl": "https://finance.yahoo.com/quote/SRVR/history/",
+      "status": "ok"
+    },
+    {
+      "id": "TAN",
+      "kind": "assets",
+      "points": 1253,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-13",
+      "sourceUrl": "https://finance.yahoo.com/quote/TAN/history/",
+      "status": "ok"
+    },
+    {
+      "id": "TLT",
+      "kind": "assets",
+      "points": 1253,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-13",
+      "sourceUrl": "https://finance.yahoo.com/quote/TLT/history/",
+      "status": "ok"
+    },
+    {
+      "id": "URA",
+      "kind": "assets",
+      "points": 1253,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-13",
+      "sourceUrl": "https://finance.yahoo.com/quote/URA/history/",
+      "status": "ok"
+    },
+    {
+      "id": "UUP",
+      "kind": "assets",
+      "points": 1253,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-13",
+      "sourceUrl": "https://finance.yahoo.com/quote/UUP/history/",
+      "status": "ok"
+    },
+    {
+      "id": "VNQ",
+      "kind": "assets",
+      "points": 1253,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-13",
+      "sourceUrl": "https://finance.yahoo.com/quote/VNQ/history/",
+      "status": "ok"
+    },
+    {
+      "id": "VRT",
+      "kind": "assets",
+      "points": 1253,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-13",
+      "sourceUrl": "https://finance.yahoo.com/quote/VRT/history/",
+      "status": "ok"
+    },
+    {
+      "id": "XBI",
+      "kind": "assets",
+      "points": 1253,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-13",
+      "sourceUrl": "https://finance.yahoo.com/quote/XBI/history/",
+      "status": "ok"
+    },
+    {
+      "id": "XLB",
+      "kind": "assets",
+      "points": 1253,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-13",
+      "sourceUrl": "https://finance.yahoo.com/quote/XLB/history/",
+      "status": "ok"
+    },
+    {
+      "id": "USO",
+      "kind": "assets",
+      "points": 1253,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-13",
+      "sourceUrl": "https://finance.yahoo.com/quote/USO/history/",
+      "status": "ok"
+    },
+    {
+      "id": "XLE",
+      "kind": "assets",
+      "points": 1253,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-13",
+      "sourceUrl": "https://finance.yahoo.com/quote/XLE/history/",
+      "status": "ok"
+    },
+    {
+      "id": "XLP",
+      "kind": "assets",
+      "points": 1253,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-13",
+      "sourceUrl": "https://finance.yahoo.com/quote/XLP/history/",
+      "status": "ok"
+    },
+    {
+      "id": "XLF",
+      "kind": "assets",
+      "points": 1253,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-13",
+      "sourceUrl": "https://finance.yahoo.com/quote/XLF/history/",
+      "status": "ok"
+    },
+    {
+      "id": "XLV",
+      "kind": "assets",
+      "points": 1253,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-13",
+      "sourceUrl": "https://finance.yahoo.com/quote/XLV/history/",
+      "status": "ok"
+    },
+    {
+      "id": "XLU",
+      "kind": "assets",
+      "points": 1253,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-13",
+      "sourceUrl": "https://finance.yahoo.com/quote/XLU/history/",
+      "status": "ok"
+    },
+    {
+      "id": "XLY",
+      "kind": "assets",
+      "points": 1253,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-13",
+      "sourceUrl": "https://finance.yahoo.com/quote/XLY/history/",
+      "status": "ok"
+    },
+    {
+      "id": "SHY",
+      "kind": "assets",
+      "points": 1253,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-13",
+      "sourceUrl": "https://finance.yahoo.com/quote/SHY/history/",
+      "status": "ok"
+    },
+    {
+      "id": "XME",
+      "kind": "assets",
+      "points": 1253,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-13",
+      "sourceUrl": "https://finance.yahoo.com/quote/XME/history/",
+      "status": "ok"
+    },
+    {
+      "id": "^MOVE",
+      "kind": "assets",
+      "points": 1244,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-13",
+      "sourceUrl": "https://finance.yahoo.com/quote/%5EMOVE/history/",
+      "status": "ok"
+    },
+    {
+      "id": "XRT",
+      "kind": "assets",
+      "points": 1253,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-13",
+      "sourceUrl": "https://finance.yahoo.com/quote/XRT/history/",
+      "status": "ok"
+    },
+    {
+      "id": "XOP",
+      "kind": "assets",
+      "points": 1253,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-13",
+      "sourceUrl": "https://finance.yahoo.com/quote/XOP/history/",
+      "status": "ok"
+    },
+    {
+      "id": "EWH",
+      "kind": "assets",
+      "points": 1253,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-13",
+      "sourceUrl": "https://finance.yahoo.com/quote/EWH/history/",
+      "status": "ok"
+    },
+    {
+      "id": "EWT",
+      "kind": "assets",
+      "points": 1253,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-13",
+      "sourceUrl": "https://finance.yahoo.com/quote/EWT/history/",
+      "status": "ok"
+    },
+    {
+      "id": "EWY",
+      "kind": "assets",
+      "points": 1253,
+      "sourceMatch": true,
+      "integrity": true,
+      "date": "2026-10-13",
+      "sourceUrl": "https://finance.yahoo.com/quote/EWY/history/",
+      "status": "ok"
+    }
+  ],
+  "rawReparseErrors": [],
+  "newsChecks": [
+    {
+      "id": "8673ecddfbae4c21",
+      "publishedAt": "2026-10-14T01:34:18+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "金十数据"
+    },
+    {
+      "id": "c82e7513883ee133",
+      "publishedAt": "2026-10-14T01:10:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "fe8ca2fff75cbe82",
+      "publishedAt": "2026-10-14T00:28:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "c2541d000ab59a41",
+      "publishedAt": "2026-10-14T00:23:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "7aa9eb366dc4325d",
+      "publishedAt": "2026-10-14T00:12:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "a8c8861f57a2cd5e",
+      "publishedAt": "2026-10-14T00:02:55+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "财联社"
+    },
+    {
+      "id": "1197cc0700f5a19c",
+      "publishedAt": "2026-10-13T23:41:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "57390c4e83194b5d",
+      "publishedAt": "2026-10-13T23:27:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "ad67b213860e35f1",
+      "publishedAt": "2026-10-13T23:23:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "1890c328d2acb589",
+      "publishedAt": "2026-10-13T23:02:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "dc0d65a75caa5478",
+      "publishedAt": "2026-10-13T22:51:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "541103677cf008ed",
+      "publishedAt": "2026-10-13T22:09:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "40479bb2a7e7a42a",
+      "publishedAt": "2026-10-13T21:15:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "8d260687f08c420b",
+      "publishedAt": "2026-10-13T21:14:18+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "560ce44032a9a230",
+      "publishedAt": "2026-10-13T20:48:57+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "090812e4fb4e3005",
+      "publishedAt": "2026-10-13T20:19:43+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "7d26d6671fa0bb45",
+      "publishedAt": "2026-10-13T20:09:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "5421a3f1bd6f2731",
+      "publishedAt": "2026-10-13T20:00:37+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "4bb6d69002fadd43",
+      "publishedAt": "2026-10-13T19:51:51+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "f3124655d43d2a27",
+      "publishedAt": "2026-10-13T19:07:44+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "64caa85f28da058f",
+      "publishedAt": "2026-10-13T19:02:19+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "b2433c2b440e4717",
+      "publishedAt": "2026-10-13T18:14:38+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "929f41fbf0e8b218",
+      "publishedAt": "2026-10-13T18:08:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "d5168808ccd69d6a",
+      "publishedAt": "2026-10-13T18:07:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "5d15318bbb232e83",
+      "publishedAt": "2026-10-13T18:06:35+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "5d2ac88772a1eeb0",
+      "publishedAt": "2026-10-13T17:46:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "63a92ab35f950bc2",
+      "publishedAt": "2026-10-13T17:45:37+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "8d5a824002d55f91",
+      "publishedAt": "2026-10-13T17:17:22+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "财联社"
+    },
+    {
+      "id": "fe7a12bcd43b6f11",
+      "publishedAt": "2026-10-13T17:17:17+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "1837cc2a5ec81e2c",
+      "publishedAt": "2026-10-13T17:17:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "4b1b58fd210bb466",
+      "publishedAt": "2026-10-13T17:16:45+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "财联社"
+    },
+    {
+      "id": "aef99ceb153dc340",
+      "publishedAt": "2026-10-13T17:16:12+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "6e5282dd539a8e77",
+      "publishedAt": "2026-10-13T17:12:29+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "7a4549eac37aec97",
+      "publishedAt": "2026-10-13T17:02:34+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "7a7b74ab8655f5dd",
+      "publishedAt": "2026-10-13T16:04:21+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "fe1b84d2f665f7e4",
+      "publishedAt": "2026-10-13T15:42:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "85eaf943ff1dd28a",
+      "publishedAt": "2026-10-13T15:32:20+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "4eb888410e708f58",
+      "publishedAt": "2026-10-13T15:31:52+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "7ad6eb61c4e79808",
+      "publishedAt": "2026-10-13T14:24:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "964fc23ff7a39439",
+      "publishedAt": "2026-10-13T14:04:52+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "7e89ba81e805c36f",
+      "publishedAt": "2026-10-13T14:01:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "c0a717bee2bac6dc",
+      "publishedAt": "2026-10-13T14:00:12+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "8857ff543f4600ef",
+      "publishedAt": "2026-10-13T14:00:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "4c8af581dbc8f54a",
+      "publishedAt": "2026-10-13T13:55:57+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "e82988eda4375f48",
+      "publishedAt": "2026-10-13T13:46:17+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "27045cdf758d3d39",
+      "publishedAt": "2026-10-13T12:13:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "36d858455709c04d",
+      "publishedAt": "2026-10-13T12:12:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "财联社"
+    },
+    {
+      "id": "0eb5f9d7034b6d9b",
+      "publishedAt": "2026-10-13T12:11:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "e074f6c75bc0c338",
+      "publishedAt": "2026-10-13T12:09:13+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "ab1caf2ca7280a99",
+      "publishedAt": "2026-10-13T11:52:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "4f8086720640c0b6",
+      "publishedAt": "2026-10-13T11:14:45+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "财联社"
+    },
+    {
+      "id": "fcff54c2fd785e75",
+      "publishedAt": "2026-10-13T11:14:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "f5097e8f468dc20c",
+      "publishedAt": "2026-10-13T11:07:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "d65a0caa8f47e8b2",
+      "publishedAt": "2026-10-13T10:03:17+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "3e62d72f6f919711",
+      "publishedAt": "2026-10-13T10:00:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "fba6031a66fedb0e",
+      "publishedAt": "2026-10-13T09:22:32+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "金十数据"
+    },
+    {
+      "id": "2a40cd0d6fdbc1fc",
+      "publishedAt": "2026-10-13T09:16:14+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "财联社"
+    },
+    {
+      "id": "e4920777f520170c",
+      "publishedAt": "2026-10-13T08:24:10+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "013446a832784ac1",
+      "publishedAt": "2026-10-13T08:17:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "76951d105cef6842",
+      "publishedAt": "2026-10-13T08:14:04+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "财联社"
+    },
+    {
+      "id": "c08db094b971aeda",
+      "publishedAt": "2026-10-13T08:05:41+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "8bde9d1419379dfd",
+      "publishedAt": "2026-10-13T02:38:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "949ef71d3a34a0b6",
+      "publishedAt": "2026-10-13T01:51:04+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "金十数据"
+    },
+    {
+      "id": "a49bc379c4065997",
+      "publishedAt": "2026-10-13T00:59:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "545c1974038bd033",
+      "publishedAt": "2026-10-13T00:53:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "530f6cf7290adbde",
+      "publishedAt": "2026-10-13T00:43:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "f6c651a7da94cce3",
+      "publishedAt": "2026-10-13T00:34:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "d166c7602eb3818a",
+      "publishedAt": "2026-10-12T23:50:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "b06a3080a91c2f98",
+      "publishedAt": "2026-10-12T22:07:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "de19467ac3fedcb7",
+      "publishedAt": "2026-10-12T21:49:02+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "9f0b01942dfa455b",
+      "publishedAt": "2026-10-12T21:36:48+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "财联社"
+    },
+    {
+      "id": "9ceba091fa742015",
+      "publishedAt": "2026-10-12T21:36:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "c658371ceedb8840",
+      "publishedAt": "2026-10-12T19:19:03+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "69b82b8ae15971a0",
+      "publishedAt": "2026-10-12T17:43:44+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "财联社"
+    },
+    {
+      "id": "6f0ca82ebbeb53e8",
+      "publishedAt": "2026-10-12T17:43:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "ec048d08cccf5982",
+      "publishedAt": "2026-10-12T17:28:38+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "财联社"
+    },
+    {
+      "id": "8379fd69548bb69f",
+      "publishedAt": "2026-10-12T17:14:27+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "56d7e2560ee0aac4",
+      "publishedAt": "2026-10-12T16:55:03+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "7c9c7718fec2231e",
+      "publishedAt": "2026-10-12T16:44:09+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "3c957e31d9683ca7",
+      "publishedAt": "2026-10-12T16:44:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "2bb9c5a5619591e7",
+      "publishedAt": "2026-10-12T15:53:05+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "e08b71898e065ac9",
+      "publishedAt": "2026-10-12T15:25:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "4f5b6b14b9a63194",
+      "publishedAt": "2026-10-12T14:54:50+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "金十数据"
+    },
+    {
+      "id": "d794326752e0ee84",
+      "publishedAt": "2026-10-12T14:18:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "330b0880c15b82ca",
+      "publishedAt": "2026-10-12T14:17:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "37a2c6a4e17d25d5",
+      "publishedAt": "2026-10-12T14:02:29+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "8bf051d25be582ed",
+      "publishedAt": "2026-10-12T13:19:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "0102f539fd23d0ae",
+      "publishedAt": "2026-10-12T09:30:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "b8b577f1e0db8a69",
+      "publishedAt": "2026-10-12T02:55:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "5f05a6fe0bc41638",
+      "publishedAt": "2026-10-12T02:37:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "9d2f46c5659931e5",
+      "publishedAt": "2026-10-12T00:10:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "6fcfff54f8e1a43e",
+      "publishedAt": "2026-10-11T13:16:56+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "581e9a0f218ab4aa",
+      "publishedAt": "2026-10-11T13:05:41+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "90c7810c3166f299",
+      "publishedAt": "2026-10-10T17:42:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "天天基金"
+    },
+    {
+      "id": "01dbc1fd33fb35cd",
+      "publishedAt": "2026-10-09T22:42:37+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "财联社"
+    },
+    {
+      "id": "ec14679a81bf53d1",
+      "publishedAt": "2026-10-09T22:32:40+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "财联社"
+    },
+    {
+      "id": "39aa9e4f7286bbc6",
+      "publishedAt": "2026-10-09T17:57:57+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "财联社"
+    },
+    {
+      "id": "2f64144a0bd3bbba",
+      "publishedAt": "2026-10-09T17:33:26+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "财联社"
+    },
+    {
+      "id": "ed6b4f1ba8dd7c0c",
+      "publishedAt": "2026-10-09T17:16:29+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "财联社"
+    },
+    {
+      "id": "e7e620509627de95",
+      "publishedAt": "2026-10-09T14:00:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "美联储官网"
+    },
+    {
+      "id": "88901e1ffd26c40e",
+      "publishedAt": "2026-10-09T13:57:56+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "财联社"
+    },
+    {
+      "id": "4e45559a1e74d90c",
+      "publishedAt": "2026-10-09T08:36:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "f7826c257a37da0b",
+      "publishedAt": "2026-10-09T06:54:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "0b9290b4cc6b3aea",
+      "publishedAt": "2026-10-09T04:55:22+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "金十数据"
+    },
+    {
+      "id": "7da5532bdc48e98d",
+      "publishedAt": "2026-10-09T04:44:09+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "da3e1a7856bb04e5",
+      "publishedAt": "2026-10-09T04:04:36+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "9d688d4a31cbae00",
+      "publishedAt": "2026-10-09T03:58:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "8f5631705b7d7fee",
+      "publishedAt": "2026-10-09T03:40:38+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "金十数据"
+    },
+    {
+      "id": "47d6064b633fe9d8",
+      "publishedAt": "2026-10-09T02:50:38+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "金十数据"
+    },
+    {
+      "id": "aca7e1164632ca28",
+      "publishedAt": "2026-10-09T02:25:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "11c5b617413da14a",
+      "publishedAt": "2026-10-09T01:59:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "cb5c7b97b1e89bb0",
+      "publishedAt": "2026-10-09T01:39:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "c073c92bd3b3693d",
+      "publishedAt": "2026-10-09T01:17:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "5d7e82e2db6bac89",
+      "publishedAt": "2026-10-09T01:00:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "5d791ef1495bb2cb",
+      "publishedAt": "2026-10-09T00:17:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "84cf7bd2e7bbe381",
+      "publishedAt": "2026-10-08T23:42:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "1caa612596071174",
+      "publishedAt": "2026-10-08T23:36:21+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "4e2ac7ed9c4efd47",
+      "publishedAt": "2026-10-08T22:05:22+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "财联社"
+    },
+    {
+      "id": "7e4b3c9141bf7cf6",
+      "publishedAt": "2026-10-08T20:40:47+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "财联社"
+    },
+    {
+      "id": "6ff930efedb20fe2",
+      "publishedAt": "2026-10-08T20:37:58+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "a2172f033fdd00c2",
+      "publishedAt": "2026-10-08T20:30:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "美联储官网"
+    },
+    {
+      "id": "2427944d82e7681c",
+      "publishedAt": "2026-10-08T20:03:29+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "a5d10b0f917a5366",
+      "publishedAt": "2026-10-08T19:45:34+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "2907e67db77d89f0",
+      "publishedAt": "2026-10-08T19:23:41+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "d315e8e2881a7304",
+      "publishedAt": "2026-10-08T17:46:53+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "财联社"
+    },
+    {
+      "id": "6ddef0e7500b9fbc",
+      "publishedAt": "2026-10-08T17:38:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "fb03f4a8e78cbd39",
+      "publishedAt": "2026-10-08T16:17:21+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "财联社"
+    },
+    {
+      "id": "d1dec93f582159cc",
+      "publishedAt": "2026-10-08T12:07:46+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "财联社"
+    },
+    {
+      "id": "bd20f1c851d2b1ef",
+      "publishedAt": "2026-10-08T09:14:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "f519ff3c253bfeb5",
+      "publishedAt": "2026-10-08T08:55:46+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "2a1f3214119e13ff",
+      "publishedAt": "2026-10-08T08:52:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "655cb267673d619a",
+      "publishedAt": "2026-10-08T08:38:38+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "75fde93089f6e74d",
+      "publishedAt": "2026-10-08T08:38:12+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "财联社"
+    },
+    {
+      "id": "d0634a07fe570b26",
+      "publishedAt": "2026-10-08T08:38:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "576a51e42713d2ba",
+      "publishedAt": "2026-10-08T08:36:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "de2c1341311cb4fd",
+      "publishedAt": "2026-10-08T08:31:45+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "cd0e6ba9bb8923e5",
+      "publishedAt": "2026-10-08T08:31:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "33ac80f63aa7ed85",
+      "publishedAt": "2026-10-08T07:31:19+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "财联社"
+    },
+    {
+      "id": "f1e90aba28ee70c7",
+      "publishedAt": "2026-10-08T06:45:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "ceaa2b38b3419449",
+      "publishedAt": "2026-10-08T06:11:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "0f4c4b42d7ac98d5",
+      "publishedAt": "2026-10-08T06:07:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "4459b60200f48eda",
+      "publishedAt": "2026-10-08T04:36:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "7c85ed0ca0bae910",
+      "publishedAt": "2026-10-08T03:41:30+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "金十数据"
+    },
+    {
+      "id": "3e2b20b62087ed05",
+      "publishedAt": "2026-10-08T02:52:26+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "财联社"
+    },
+    {
+      "id": "8048dbf388cc5108",
+      "publishedAt": "2026-10-08T02:40:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "7450aa2fd53cd2c2",
+      "publishedAt": "2026-10-08T01:24:08+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "金十数据"
+    },
+    {
+      "id": "85a89510800f909f",
+      "publishedAt": "2026-10-08T01:16:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "30d81a09a2b89461",
+      "publishedAt": "2026-10-08T01:14:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "1be526a121443e6d",
+      "publishedAt": "2026-10-08T01:12:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "6adc1a3b7671dcca",
+      "publishedAt": "2026-10-08T00:48:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "b4c3507fc0d1ec41",
+      "publishedAt": "2026-10-08T00:38:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "59a199e5d92a3c33",
+      "publishedAt": "2026-10-08T00:33:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "34ea42c4b70bed34",
+      "publishedAt": "2026-10-08T00:15:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "0e06dba59f4b7cbc",
+      "publishedAt": "2026-10-07T23:41:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "0b31a50c4139dc9e",
+      "publishedAt": "2026-10-07T23:17:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "def8e9d8e7005304",
+      "publishedAt": "2026-10-07T23:12:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "edf83fc864d395eb",
+      "publishedAt": "2026-10-07T23:11:12+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "c1fc8a155060a8c5",
+      "publishedAt": "2026-10-07T22:07:55+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "财联社"
+    },
+    {
+      "id": "72ce99664feae3e8",
+      "publishedAt": "2026-10-07T21:02:34+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "5861d0447b53094d",
+      "publishedAt": "2026-10-07T19:42:18+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "215e3632420bce39",
+      "publishedAt": "2026-10-07T19:40:38+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "a90263201ab59806",
+      "publishedAt": "2026-10-07T19:04:15+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "c784cfc6d1dfa371",
+      "publishedAt": "2026-10-07T19:03:51+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "财联社"
+    },
+    {
+      "id": "be7018eca783d602",
+      "publishedAt": "2026-10-07T18:47:08+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "财联社"
+    },
+    {
+      "id": "7fdd44906a7538cc",
+      "publishedAt": "2026-10-07T18:01:18+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "财联社"
+    },
+    {
+      "id": "3dd4c4aa798fcbee",
+      "publishedAt": "2026-10-07T17:49:55+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "财联社"
+    },
+    {
+      "id": "747edce6e3bb948f",
+      "publishedAt": "2026-10-07T17:36:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "天天基金"
+    },
+    {
+      "id": "60ef7a038147475f",
+      "publishedAt": "2026-10-07T17:17:59+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "财联社"
+    },
+    {
+      "id": "b59e5785e77c9700",
+      "publishedAt": "2026-10-06T22:02:13+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "财联社"
+    },
+    {
+      "id": "0e23ef61dcc5a7b4",
+      "publishedAt": "2026-10-06T17:51:10+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "财联社"
+    },
+    {
+      "id": "4c31c3099eb26359",
+      "publishedAt": "2026-10-06T17:24:51+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "财联社"
+    },
+    {
+      "id": "75698445d1f3f551",
+      "publishedAt": "2026-10-06T17:16:54+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "财联社"
+    },
+    {
+      "id": "bc7237d990f4af6b",
+      "publishedAt": "2026-10-06T17:04:37+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "2ab0ec77176a9da8",
+      "publishedAt": "2026-10-06T17:02:12+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "57ff99a68ad9a773",
+      "publishedAt": "2026-10-06T16:46:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "d10725f31dff38d8",
+      "publishedAt": "2026-10-06T16:00:49+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "财联社"
+    },
+    {
+      "id": "bc41fa89d0a17ada",
+      "publishedAt": "2026-10-06T15:59:34+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "659902967c7b9a48",
+      "publishedAt": "2026-10-06T15:32:18+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "ea8e2c143e228b33",
+      "publishedAt": "2026-10-06T15:21:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "3fac1c5a2e2c3a47",
+      "publishedAt": "2026-10-06T15:19:49+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "财联社"
+    },
+    {
+      "id": "2f439b04bbb64985",
+      "publishedAt": "2026-10-06T14:47:01+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "169fb41952be777f",
+      "publishedAt": "2026-10-06T14:45:50+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "c9a02044f2898d70",
+      "publishedAt": "2026-10-06T14:43:38+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "2d8aaf9844ae5851",
+      "publishedAt": "2026-10-06T14:13:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "64b20da4e89852de",
+      "publishedAt": "2026-10-06T14:05:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "26d4493ff458a8ad",
+      "publishedAt": "2026-10-06T12:31:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "1d503f51e33bb0df",
+      "publishedAt": "2026-10-06T12:30:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "a428996e73be44e8",
+      "publishedAt": "2026-10-06T09:58:12+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "财联社"
+    },
+    {
+      "id": "0958320159f97dab",
+      "publishedAt": "2026-10-06T01:07:28+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "965d2c36abb9e02f",
+      "publishedAt": "2026-10-05T23:31:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "天天基金"
+    },
+    {
+      "id": "c3feb2ba4bb80712",
+      "publishedAt": "2026-10-05T22:06:41+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "财联社"
+    },
+    {
+      "id": "7b814c9170a53f22",
+      "publishedAt": "2026-10-05T20:49:53+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "2d8d628ac02358dc",
+      "publishedAt": "2026-10-05T20:30:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "美联储官网"
+    },
+    {
+      "id": "26cc80c410f4f12d",
+      "publishedAt": "2026-10-05T20:14:21+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "ff9be4b1b48ae036",
+      "publishedAt": "2026-10-05T20:13:57+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "3009bd12bd9db019",
+      "publishedAt": "2026-10-05T19:46:43+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "49e0f037b65b3d15",
+      "publishedAt": "2026-10-05T19:25:31+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "b1a4c00cb8d6efc9",
+      "publishedAt": "2026-10-05T18:27:31+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "4a757ba992312a34",
+      "publishedAt": "2026-10-05T17:19:21+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "财联社"
+    },
+    {
+      "id": "676be07339d874c5",
+      "publishedAt": "2026-10-05T17:19:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "b29df225fa97fff3",
+      "publishedAt": "2026-10-05T17:17:46+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "7d8424a12ba287d4",
+      "publishedAt": "2026-10-05T17:00:27+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "3676aacb9f059fcb",
+      "publishedAt": "2026-10-05T15:52:40+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "9b45dc12260fe82a",
+      "publishedAt": "2026-10-05T15:51:57+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "87ce780e4b90ee9e",
+      "publishedAt": "2026-10-05T15:50:48+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "2798d35fda2f9b8c",
+      "publishedAt": "2026-10-05T15:32:19+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "ef42c46030df10ef",
+      "publishedAt": "2026-10-05T15:09:32+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "b411b11abd251120",
+      "publishedAt": "2026-10-05T15:03:15+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "5ebf8680ec065735",
+      "publishedAt": "2026-10-05T14:49:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "12385676cffebc37",
+      "publishedAt": "2026-10-05T14:06:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "5932f6ebbb603f2b",
+      "publishedAt": "2026-10-05T14:04:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "25d4f7ae92e67470",
+      "publishedAt": "2026-10-05T14:00:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "90343cb701de4bcb",
+      "publishedAt": "2026-10-05T13:47:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "93bca90486e64c15",
+      "publishedAt": "2026-10-05T13:46:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "9dc6f1275ecb86ac",
+      "publishedAt": "2026-10-05T13:45:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "7d2a2302bed35e42",
+      "publishedAt": "2026-10-05T13:45:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "61544c58f1a8d92b",
+      "publishedAt": "2026-10-05T13:45:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "31a1f3bc6cc6dcf0",
+      "publishedAt": "2026-10-05T12:53:43+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "db3f4efd7d5467d0",
+      "publishedAt": "2026-10-05T05:57:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "ea92881e0c161405",
+      "publishedAt": "2026-10-05T03:32:21+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "金十数据"
+    },
+    {
+      "id": "9973f70e724f431d",
+      "publishedAt": "2026-10-05T02:17:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "89de975c1ec9ad62",
+      "publishedAt": "2026-10-05T00:54:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "a7107898835b3d27",
+      "publishedAt": "2026-10-04T23:27:27+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "金十数据"
+    },
+    {
+      "id": "766a3b6683571133",
+      "publishedAt": "2026-10-04T23:05:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "27cd1024bae79b1a",
+      "publishedAt": "2026-10-04T22:01:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "1ee3ff08574367c2",
+      "publishedAt": "2026-10-04T18:29:57+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "财联社"
+    },
+    {
+      "id": "99cf328475aa604e",
+      "publishedAt": "2026-10-04T18:29:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "bcdb8070ae3c3489",
+      "publishedAt": "2026-10-04T18:28:24+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "8653c58e8130f729",
+      "publishedAt": "2026-10-04T14:20:17+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "0d40836d58848cdd",
+      "publishedAt": "2026-10-04T05:50:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "ca10b01e9bc0f8ee",
+      "publishedAt": "2026-10-04T05:19:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "东方财富"
+    },
+    {
+      "id": "beee736e13a2bc30",
+      "publishedAt": "2026-10-03T19:19:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "天天基金"
+    },
+    {
+      "id": "8dbd3a29c94514fd",
+      "publishedAt": "2026-10-03T16:05:48+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "财联社"
+    },
+    {
+      "id": "3682bd00e68e32b0",
+      "publishedAt": "2026-10-03T12:05:33+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "华尔街见闻"
+    },
+    {
+      "id": "742222e9107353a2",
+      "publishedAt": "2026-10-03T00:40:59+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "财联社"
+    },
+    {
+      "id": "f68bc186326af8e1",
+      "publishedAt": "2026-10-02T20:45:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "美联储官网"
+    },
+    {
+      "id": "c42ce4a98260ca70",
+      "publishedAt": "2026-10-02T20:00:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "美联储官网"
+    },
+    {
+      "id": "eeb17dd225eca966",
+      "publishedAt": "2026-10-02T15:00:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "美联储官网"
+    },
+    {
+      "id": "a1674c3e28802ed4",
+      "publishedAt": "2026-10-02T13:20:16+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "金十数据"
+    },
+    {
+      "id": "86bc56cbc7abf937",
+      "publishedAt": "2026-10-02T12:53:44+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "金十数据"
+    },
+    {
+      "id": "b3c59a56b0721db5",
+      "publishedAt": "2026-10-02T05:34:48+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "金十数据"
+    },
+    {
+      "id": "badd9b17b7a9fdc5",
+      "publishedAt": "2026-10-02T05:11:10+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "财联社"
+    },
+    {
+      "id": "0539825fbab6f40a",
+      "publishedAt": "2026-10-01T20:13:47+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "财联社"
+    },
+    {
+      "id": "8868403738f9f8c1",
+      "publishedAt": "2026-10-01T19:51:58+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "财联社"
+    },
+    {
+      "id": "157a0000949b5071",
+      "publishedAt": "2026-10-01T19:45:14+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "财联社"
+    },
+    {
+      "id": "12905d4207f93371",
+      "publishedAt": "2026-10-01T19:41:21+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "财联社"
+    },
+    {
+      "id": "13f275fb7ef9ddf1",
+      "publishedAt": "2026-10-01T13:09:03+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "金十数据"
+    },
+    {
+      "id": "5cd7bf00786a2f74",
+      "publishedAt": "2026-10-01T13:08:39+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "财联社"
+    },
+    {
+      "id": "c59917f94e17bf97",
+      "publishedAt": "2026-10-01T13:08:02+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "财联社"
+    },
+    {
+      "id": "051d164057cad3c1",
+      "publishedAt": "2026-10-01T11:09:37+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "财联社"
+    },
+    {
+      "id": "3a42756a56ca2971",
+      "publishedAt": "2026-10-01T10:00:43+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "金十数据"
+    },
+    {
+      "id": "1fcb43f8abbc2470",
+      "publishedAt": "2026-10-01T09:26:29+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "金十数据"
+    },
+    {
+      "id": "6a8304d2aa48207f",
+      "publishedAt": "2026-10-01T06:47:18+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "金十数据"
+    },
+    {
+      "id": "3fa1190dc14f2808",
+      "publishedAt": "2026-10-01T05:56:31+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "财联社"
+    },
+    {
+      "id": "aea67be4c54f6bc8",
+      "publishedAt": "2026-10-01T00:35:59+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "财联社"
+    },
+    {
+      "id": "98aaa9a6ae4396df",
+      "publishedAt": "2026-09-30T22:09:13+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "财联社"
+    },
+    {
+      "id": "26530fecc6c14c06",
+      "publishedAt": "2026-09-30T19:28:15+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "财联社"
+    },
+    {
+      "id": "2f315d616a7dd532",
+      "publishedAt": "2026-09-30T14:56:59+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "金十数据"
+    },
+    {
+      "id": "2adae86cfabed711",
+      "publishedAt": "2026-09-30T13:05:44+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "财联社"
+    },
+    {
+      "id": "600c2954953b3011",
+      "publishedAt": "2026-09-30T13:02:28+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "财联社"
+    },
+    {
+      "id": "84096bbaf63724df",
+      "publishedAt": "2026-09-30T13:00:00+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "美联储官网"
+    },
+    {
+      "id": "e19d38e8e892f8cb",
+      "publishedAt": "2026-09-30T12:33:17+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "财联社"
+    },
+    {
+      "id": "2d13d783f1911bce",
+      "publishedAt": "2026-09-30T07:54:05+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "财联社"
+    },
+    {
+      "id": "735c3e1fea7e426c",
+      "publishedAt": "2026-09-30T06:27:37+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "财联社"
+    },
+    {
+      "id": "6f07916629e69e12",
+      "publishedAt": "2026-09-30T02:13:42+00:00",
+      "validTime": true,
+      "hasSource": true,
+      "source": "财联社"
+    }
+  ],
+  "scoreSchemaValid": true,
+  "summary": {
+    "sourceSeries": 76,
+    "marketProxies": 57,
+    "passed": 133,
+    "failed": 0,
+    "news": 265,
+    "scoreTotal": -2,
+    "policyPassed": 2,
+    "policyFailed": 0
+  },
+  "limitations": [
+    "行业暴露权重与敏感度是透明研究先验，不是验证后的因果系数。",
+    "本轮模型评分总体低置信度：g前瞻依赖结算与税期代理，X缺少完整对冲成本。",
+    "新闻时间为来源自报发布时间，报道内容仍需交叉核验；列表窗口不是全网全量。",
+    "万得尚无已验证授权新闻接口，同花顺最近扫描列表无符合筛选的条目。",
+    "FRED历史可能修订，观测日不等于当时发布日；不可直接称真实时点回测。"
+  ],
+  "policyChecks": [
+    {
+      "id": "MPT_PATH",
+      "sourceMatch": true,
+      "date": "2026-10-09",
+      "sourceUrl": "https://www.atlantafed.org/research-and-data/data/market-probability-tracker"
+    },
+    {
+      "id": "SEP_DOTS",
+      "sourceMatch": true,
+      "date": "2026-09-16",
+      "sourceUrl": "https://www.federalreserve.gov/monetarypolicy/fomcprojtabl20260916.htm"
+    }
+  ]
+}

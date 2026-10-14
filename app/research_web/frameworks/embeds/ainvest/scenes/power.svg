@@ -1,0 +1,50 @@
+<svg viewBox="0 0 1000 540" xmlns="http://www.w3.org/2000/svg" class="ph-scene">
+  <text class="ph-lbls" x="44" y="42">源 · 网 · 荷 · 储：点击任一环节继续拆解</text>
+  <path class="ph-flow" d="M64 354 H916"/>
+  <polygon points="916,349 928,354 916,359" fill="var(--accent)"/>
+  <text class="ph-lbls" x="505" y="340" text-anchor="middle">绿电 / 近端电源 / 大电网 · 汇入园区</text>
+  <line class="ph-ln2" x1="30" y1="438" x2="970" y2="438"/>
+
+  <g class="ph-hot" data-part="power-plant">
+    <rect class="ph-fill ph-ln" x="54" y="334" width="82" height="104"/>
+    <circle class="ph-ln" cx="82" cy="370" r="16" fill="none"/><path class="ph-ln2" d="M82 354v32M66 370h32M71 359l22 22M93 359l-22 22"/>
+    <rect class="ph-fill ph-ln" x="104" y="298" width="18" height="36"/><line class="ph-ln2" x1="110" y1="304" x2="118" y2="304"/>
+    <text class="ph-lbl" x="95" y="462" text-anchor="middle">燃气发电</text><text class="ph-lbls" x="95" y="477" text-anchor="middle">燃机 / SOFC</text><g class="ph-plus"><circle cx="130" cy="310" r="9"/><path d="M130 306v8M126 310h8"/></g>
+  </g>
+  <g class="ph-hot" data-part="nuclear-plant">
+    <path class="ph-fill ph-ln" d="M174 438v-56a36 36 0 0 1 72 0v56z"/><ellipse class="ph-ln2" cx="210" cy="382" rx="36" ry="6" fill="none"/>
+    <ellipse class="ph-ln" cx="210" cy="394" rx="17" ry="25" fill="none"/><path class="ph-ln2" d="M193 394h34M210 369v50"/>
+    <text class="ph-lbl" x="210" y="462" text-anchor="middle">可控核聚变</text><text class="ph-lbls" x="210" y="477" text-anchor="middle">长期技术支线</text><g class="ph-plus"><circle cx="238" cy="350" r="9"/><path d="M238 346v8M234 350h8"/></g>
+  </g>
+  <g class="ph-hot" data-part="solar-farm">
+    <polygon class="ph-fill ph-ln" points="278,414 362,414 350,370 290,370"/><path class="ph-ln2" d="M298 370l6 44M316 370l4 44M334 370l2 44M285 392h72"/>
+    <line class="ph-ln" x1="320" y1="414" x2="320" y2="438"/><text class="ph-lbl" x="320" y="462" text-anchor="middle">光伏电站</text><text class="ph-lbls" x="320" y="477" text-anchor="middle">组件 → 逆变</text><g class="ph-plus"><circle cx="352" cy="356" r="9"/><path d="M352 352v8M348 356h8"/></g>
+  </g>
+  <g class="ph-hot" data-part="wind-farm">
+    <line class="ph-ln" x1="422" y1="438" x2="422" y2="365"/><circle class="ph-fill ph-ln" cx="422" cy="365" r="5"/>
+    <path class="ph-ln" d="M422 360v-38M418 368l-34 20M426 368l34 20"/><line class="ph-ln2" x1="410" y1="438" x2="434" y2="438"/>
+    <text class="ph-lbl" x="422" y="462" text-anchor="middle">风电场</text><text class="ph-lbls" x="422" y="477" text-anchor="middle">叶片 → 机舱</text><g class="ph-plus"><circle cx="456" cy="344" r="9"/><path d="M456 340v8M452 344h8"/></g>
+  </g>
+  <g class="ph-hot" data-part="energy-storage">
+    <rect class="ph-fill ph-ln" x="490" y="372" width="82" height="66"/><path class="ph-ln2" d="M490 394h82M490 416h82M510 372v66M532 372v66M554 372v66"/>
+    <path class="ph-ln2" d="M574 402h18m-9-9v18"/><text class="ph-lbl" x="531" y="462" text-anchor="middle">储能电站</text><text class="ph-lbls" x="531" y="477" text-anchor="middle">电池 · PCS · EMS</text><g class="ph-plus"><circle cx="562" cy="356" r="9"/><path d="M562 352v8M558 356h8"/></g>
+  </g>
+  <g class="ph-hot" data-part="transmission">
+    <line class="ph-ln" x1="646" y1="438" x2="646" y2="326"/><path class="ph-ln" d="M628 438l18-76 18 76M620 344h52M626 370h40" fill="none"/>
+    <path class="ph-ln2" d="M592 344q28 20 54 0M646 344q28 20 54 0"/><text class="ph-lbl" x="646" y="462" text-anchor="middle">特高压 / 电网</text><text class="ph-lbls" x="646" y="477" text-anchor="middle">输电 · 调度</text><g class="ph-plus"><circle cx="678" cy="314" r="9"/><path d="M678 310v8M674 314h8"/></g>
+  </g>
+  <g class="ph-hot" data-part="substation">
+    <rect class="ph-fill ph-ln" x="730" y="374" width="82" height="64"/><path class="ph-ln2" d="M742 374v-36M766 374v-36M790 374v-36M736 350h60M736 362h60M742 400h58M742 418h58"/>
+    <text class="ph-lbl" x="771" y="462" text-anchor="middle">变电站</text><text class="ph-lbls" x="771" y="477" text-anchor="middle">主变 → 10kV</text><g class="ph-plus"><circle cx="800" cy="324" r="9"/><path d="M800 320v8M796 324h8"/></g>
+  </g>
+  <g class="ph-hot" data-part="dc-campus">
+    <rect class="ph-fill ph-ln" x="854" y="354" width="92" height="84"/><path class="ph-ln2" d="M862 376h76M862 396h76M882 354v-18M908 354v-18M934 354v-18"/>
+    <rect class="ph-fill ph-ln2" x="892" y="410" width="18" height="28"/><text class="ph-lbl" x="900" y="462" text-anchor="middle">数据中心园区</text><text class="ph-lbls" x="900" y="477" text-anchor="middle">10kV 进园区</text><g class="ph-plus"><circle cx="900" cy="322" r="9"/><path d="M900 318v8M896 322h8"/></g>
+  </g>
+
+  <g class="ph-hot" data-part="space-solar-array">
+    <circle class="ph-gold" cx="74" cy="126" r="20"/><path class="ph-ln2" d="M74 96v-16M74 172v16M44 126H28M104 126h16M53 105l-12-12M95 105l12-12"/>
+    <rect class="ph-fill ph-ln" x="158" y="112" width="46" height="28"/><polygon class="ph-chipf" points="204,118 262,100 262,152 204,134"/><path class="ph-dash" d="M222 152q80 70 164 104"/>
+    <text class="ph-lbl" x="166" y="174" text-anchor="middle">太空光伏</text><text class="ph-lbls" x="166" y="189" text-anchor="middle">天基能源支线</text><g class="ph-plus"><circle cx="252" cy="88" r="9"/><path d="M252 84v8M248 88h8"/></g>
+  </g>
+</svg>

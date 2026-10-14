@@ -1,0 +1,393 @@
+{
+  "updatedAt": "2026-10-13 14:30:04",
+  "decisionTime": "每天 14:30（北京时间）",
+  "horizon": "未来约1个月",
+  "score": -0.06,
+  "action": "保持不变",
+  "modelView": "中性偏空",
+  "summary": "ETF持仓是当前主要支撑，6M动量构成主要拖累。综合分-0.06，未越过交易阈值。",
+  "regime": {
+    "label": "利率脱敏",
+    "correlation": -0.14,
+    "rule": "52周黄金收益与10Y实际利率周变化相关系数：高于-0.15为利率脱敏，低于-0.30为利率主导，中间为过渡区。"
+  },
+  "thresholds": {
+    "add": 0.3,
+    "takeProfit": -0.3
+  },
+  "dimensions": [
+    {
+      "key": "fundamental",
+      "label": "基本面",
+      "weight": 35,
+      "score": 0.43,
+      "contribution": 0.151,
+      "tone": "bull",
+      "driver": "10Y通胀支撑最明显"
+    },
+    {
+      "key": "flow",
+      "label": "资金流",
+      "weight": 30,
+      "score": 0.3,
+      "contribution": 0.089,
+      "tone": "bull",
+      "driver": "ETF持仓支撑最明显"
+    },
+    {
+      "key": "trading",
+      "label": "交易",
+      "weight": 20,
+      "score": -1.38,
+      "contribution": -0.276,
+      "tone": "bear",
+      "driver": "6M动量拖累最明显"
+    },
+    {
+      "key": "derivatives",
+      "label": "衍生品",
+      "weight": 15,
+      "score": -0.15,
+      "contribution": -0.023,
+      "tone": "bear",
+      "driver": "期货基差拖累最明显"
+    }
+  ],
+  "factors": [
+    {
+      "dimension": "fundamental",
+      "name": "10Y TIPS实际利率（3个月变动，反号）",
+      "short": "实际利率",
+      "value": "+0.51pct",
+      "raw": 0.5100000000000002,
+      "score": -0.61,
+      "date": "2026-10-08",
+      "source": "FRED DFII10",
+      "url": "https://fred.stlouisfed.org/series/DFII10",
+      "note": "实际利率下行利好黄金",
+      "tone": "bear",
+      "contribution": -0.024,
+      "internalWeight": 11.1
+    },
+    {
+      "dimension": "fundamental",
+      "name": "美元指数（3个月变动，反号）",
+      "short": "广义美元",
+      "value": "+0.47%",
+      "raw": 0.4720459878574168,
+      "score": -0.21,
+      "date": "2026-10-02",
+      "source": "FRED DTWEXBGS",
+      "url": "https://fred.stlouisfed.org/series/DTWEXBGS",
+      "note": "广义美元走弱利好黄金",
+      "tone": "bear",
+      "contribution": -0.008,
+      "internalWeight": 11.1
+    },
+    {
+      "dimension": "fundamental",
+      "name": "5年通胀预期",
+      "short": "5Y5Y通胀",
+      "value": "2.32%",
+      "raw": 2.32,
+      "score": 0.34,
+      "date": "2026-10-09",
+      "source": "FRED T5YIFR",
+      "url": "https://fred.stlouisfed.org/series/T5YIFR",
+      "note": "公开可更新的5Y5Y市场预期替代密歇根5年调查",
+      "proxy": true,
+      "tone": "bull",
+      "contribution": 0.026,
+      "internalWeight": 22.2
+    },
+    {
+      "dimension": "fundamental",
+      "name": "克利夫兰联储10年通胀预期",
+      "short": "10Y通胀",
+      "value": "2.57%",
+      "raw": 2.57264358,
+      "score": 1.41,
+      "date": "2026-09-01",
+      "source": "FRED EXPINF10YR",
+      "url": "https://fred.stlouisfed.org/series/EXPINF10YR",
+      "note": "长期通胀预期上行利好黄金",
+      "tone": "bull",
+      "contribution": 0.11,
+      "internalWeight": 22.2
+    },
+    {
+      "dimension": "fundamental",
+      "name": "全球央行净购金（滚动4季）",
+      "short": "央行购金",
+      "value": "+299吨",
+      "raw": 298.8499999999996,
+      "score": 0.4,
+      "date": "2026-06-30",
+      "source": "World Gold Council / IMF",
+      "url": "https://www.gold.org/goldhub/data/gold-reserves-by-country",
+      "note": "按各央行已报告黄金储备变动汇总",
+      "proxy": true,
+      "tone": "bull",
+      "contribution": 0.047,
+      "internalWeight": 33.3
+    },
+    {
+      "dimension": "flow",
+      "name": "黄金ETF持仓1个月变动",
+      "short": "ETF持仓",
+      "value": "+121吨 / 4,189吨",
+      "raw": 121,
+      "score": 1.5,
+      "date": "9 September, 2026",
+      "source": "World Gold Council / SPDR",
+      "url": "https://www.gold.org/goldhub/research/gold-etfs-holdings-and-flows/2026/09",
+      "note": "全球月度流量代理；SPDR最新1055.4吨",
+      "proxy": true,
+      "tone": "bull",
+      "contribution": 0.15,
+      "internalWeight": 33.3
+    },
+    {
+      "dimension": "flow",
+      "name": "CFTC管理基金净多头（4周变动）",
+      "short": "CFTC资金",
+      "value": "-23985张",
+      "raw": -23985,
+      "score": -0.74,
+      "date": "2026-10-06",
+      "source": "CFTC Disaggregated COT",
+      "url": "https://www.cftc.gov/MarketReports/CommitmentsofTraders/index.htm",
+      "note": "管理基金多头减空头的4周变化",
+      "tone": "bear",
+      "contribution": -0.074,
+      "internalWeight": 33.3
+    },
+    {
+      "dimension": "flow",
+      "name": "沪金—伦金溢价",
+      "short": "沪伦溢价",
+      "value": "+0.26%",
+      "raw": 0.2588738846195371,
+      "score": 0.13,
+      "date": "2026-10-13",
+      "source": "上金所 / LBMA / Yahoo FX",
+      "url": "https://www.sge.com.cn/sjzx/mrhqsj",
+      "note": "按USD/CNY 6.6959换算",
+      "proxy": false,
+      "tone": "bull",
+      "contribution": 0.013,
+      "internalWeight": 33.3
+    },
+    {
+      "dimension": "trading",
+      "name": "6个月动量",
+      "short": "6M动量",
+      "value": "-13.1%",
+      "raw": -13.103474027253704,
+      "score": -1.69,
+      "date": "2026-10-13",
+      "source": "LBMA Gold Price / XAUUSD",
+      "url": "https://www.lbma.org.uk/prices-and-data/precious-metal-prices",
+      "note": "中期趋势强度",
+      "tone": "bear",
+      "contribution": -0.113,
+      "internalWeight": 33.3
+    },
+    {
+      "dimension": "trading",
+      "name": "1个月动量",
+      "short": "1M动量",
+      "value": "-2.6%",
+      "raw": -2.551277965305232,
+      "score": -0.83,
+      "date": "2026-10-13",
+      "source": "LBMA Gold Price / XAUUSD",
+      "url": "https://www.lbma.org.uk/prices-and-data/precious-metal-prices",
+      "note": "短期趋势强度",
+      "tone": "bear",
+      "contribution": -0.055,
+      "internalWeight": 33.3
+    },
+    {
+      "dimension": "trading",
+      "name": "价格相对200日均线偏离",
+      "short": "200D偏离",
+      "value": "-7.5%",
+      "raw": -7.495233303544612,
+      "score": -1.62,
+      "date": "2026-10-13",
+      "source": "LBMA Gold Price / XAUUSD",
+      "url": "https://www.lbma.org.uk/prices-and-data/precious-metal-prices",
+      "note": "趋势位置与追高风险",
+      "tone": "bear",
+      "contribution": -0.108,
+      "internalWeight": 33.3
+    },
+    {
+      "dimension": "derivatives",
+      "name": "CFTC净多头拥挤度（5年分位）",
+      "short": "多头拥挤",
+      "value": "56%分位",
+      "raw": 55.76923076923077,
+      "score": 0,
+      "date": "2026-10-06",
+      "source": "CFTC Disaggregated COT",
+      "url": "https://www.cftc.gov/MarketReports/CommitmentsofTraders/index.htm",
+      "note": ">90%扣分，<10%加分，其余不计分",
+      "tone": "neutral",
+      "contribution": 0,
+      "internalWeight": 50
+    },
+    {
+      "dimension": "derivatives",
+      "name": "期货展期收益（反号）",
+      "short": "期货基差",
+      "value": "+0.61%",
+      "raw": 0.6109678035731259,
+      "score": -0.31,
+      "date": "2026-10-13",
+      "source": "COMEX主力 / XAUUSD",
+      "url": "https://www.cmegroup.com/markets/metals/precious/gold.html",
+      "note": "以主力期货相对现货基差作为公开代理",
+      "proxy": true,
+      "tone": "bear",
+      "contribution": -0.023,
+      "internalWeight": 50
+    },
+    {
+      "dimension": "derivatives",
+      "name": "GVZ波动率分位（仅监控）",
+      "short": "GVZ监控",
+      "value": "22.48 / 79%分位",
+      "raw": 22.48,
+      "score": 0,
+      "date": "2026-10-13",
+      "source": "CBOE GVZ",
+      "url": "https://www.cboe.com/tradable_products/vix/vix_historical_data/",
+      "note": "监控尾部风险，不进入综合分",
+      "monitorOnly": true,
+      "tone": "neutral",
+      "contribution": 0
+    }
+  ],
+  "history": [
+    {
+      "date": "2026-09-03",
+      "score": -0.33,
+      "action": "止盈"
+    },
+    {
+      "date": "2026-09-08",
+      "score": -0.02,
+      "action": "保持不变"
+    },
+    {
+      "date": "2026-09-09",
+      "score": -0.02,
+      "action": "保持不变"
+    },
+    {
+      "date": "2026-09-13",
+      "score": 0.06,
+      "action": "保持不变"
+    },
+    {
+      "date": "2026-09-15",
+      "score": 0.04,
+      "action": "保持不变"
+    },
+    {
+      "date": "2026-09-17",
+      "score": 0.02,
+      "action": "保持不变"
+    },
+    {
+      "date": "2026-09-18",
+      "score": -0.01,
+      "action": "保持不变"
+    },
+    {
+      "date": "2026-09-21",
+      "score": 0.03,
+      "action": "保持不变"
+    },
+    {
+      "date": "2026-09-22",
+      "score": -0.02,
+      "action": "保持不变"
+    },
+    {
+      "date": "2026-09-23",
+      "score": -0.01,
+      "action": "保持不变"
+    },
+    {
+      "date": "2026-09-28",
+      "score": -0.1,
+      "action": "保持不变"
+    },
+    {
+      "date": "2026-09-29",
+      "score": -0.1,
+      "action": "保持不变"
+    },
+    {
+      "date": "2026-10-05",
+      "score": -0.04,
+      "action": "保持不变"
+    },
+    {
+      "date": "2026-10-09",
+      "score": -0.03,
+      "action": "保持不变"
+    },
+    {
+      "date": "2026-10-12",
+      "score": -0.07,
+      "action": "保持不变"
+    },
+    {
+      "date": "2026-10-13",
+      "score": -0.06,
+      "action": "保持不变"
+    }
+  ],
+  "methodology": {
+    "title": "黄金多因子打分模型（公开数据可更新版）",
+    "steps": [
+      "因子方向统一",
+      "滚动5年z-score",
+      "维度内加权",
+      "四维合成",
+      "机制切换"
+    ],
+    "note": "研报正文称12个计分因子；表9实际列出13个计分项，另有GVZ仅监控。页面按表9逐项呈现。Wind专有序列由FRED、CFTC、WGC、LBMA/公开行情的可复核数据替代，替代项均已标注。"
+  },
+  "sources": [
+    {
+      "name": "Federal Reserve Bank of St. Louis (FRED)",
+      "url": "https://fred.stlouisfed.org/",
+      "detail": "实际利率、广义美元、通胀预期"
+    },
+    {
+      "name": "U.S. CFTC",
+      "url": "https://www.cftc.gov/MarketReports/CommitmentsofTraders/index.htm",
+      "detail": "管理基金持仓与拥挤度"
+    },
+    {
+      "name": "World Gold Council",
+      "url": "https://www.gold.org/goldhub/data",
+      "detail": "央行储备、全球黄金ETF流量"
+    },
+    {
+      "name": "SPDR Gold Shares",
+      "url": "https://www.spdrgoldshares.com/usa/gld/",
+      "detail": "GLD最新持仓校验"
+    },
+    {
+      "name": "LBMA / SGE / CME / CBOE",
+      "url": "https://www.lbma.org.uk/prices-and-data/precious-metal-prices",
+      "detail": "金价、沪伦溢价、基差与GVZ"
+    }
+  ]
+}

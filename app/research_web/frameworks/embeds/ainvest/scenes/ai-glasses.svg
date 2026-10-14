@@ -1,0 +1,10 @@
+<svg viewBox="0 0 1000 540" xmlns="http://www.w3.org/2000/svg" class="ph-scene">
+  <text class="ph-lbls" x="45" y="42">AI 眼镜：先以拍摄、语音和开放式音频建立交互入口；显示路线再叠加光机、显示与波导</text>
+  <g class="ph-hot" data-part="glasses-sensing"><circle class="ph-fill ph-ln2" cx="220" cy="244" r="48"/><circle class="ph-ln2" cx="220" cy="244" r="17" fill="none"/><path class="ph-ln2" d="M174 244h-62m154 0h62"/><text class="ph-lbl" x="220" y="334" text-anchor="middle">视觉 / 语音感知</text><text class="ph-lbls" x="220" y="350" text-anchor="middle">摄像头 · 麦克风 · IMU</text></g>
+  <path class="ph-flow" d="M300 244H400"/><polygon points="400,239 412,244 400,249" fill="var(--accent)"/>
+  <g class="ph-hot" data-part="glasses-soc"><rect class="ph-chipf" x="420" y="190" width="160" height="108" rx="6"/><text class="ph-die" x="500" y="235" text-anchor="middle">低功耗 SoC</text><text class="ph-lbls" x="500" y="255" text-anchor="middle">ISP · NPU · 连接与功耗管理</text></g>
+  <path class="ph-flow" d="M580 244H670"/><polygon points="670,239 682,244 670,249" fill="var(--accent)"/>
+  <g class="ph-hot" data-part="glasses-display"><rect class="ph-fill ph-ln" x="700" y="170" width="190" height="148" rx="6"/><rect class="ph-chipbg ph-ln2" x="730" y="204" width="74" height="48"/><path class="ph-ln2" d="M818 212l40 24-40 24z" fill="none"/><text class="ph-lbl" x="795" y="354" text-anchor="middle">显示与光学</text><text class="ph-lbls" x="795" y="370" text-anchor="middle">SiOLED / MicroLED · 光机 / 波导</text></g>
+  <g class="ph-hot" data-part="glasses-agent"><rect class="ph-fill ph-ln2" x="370" y="392" width="260" height="74" rx="6"/><text class="ph-lbl" x="500" y="423" text-anchor="middle">智能体交互</text><text class="ph-lbls" x="500" y="442" text-anchor="middle">看见 · 听见 · 理解 · 提醒与执行</text><path class="ph-flow" d="M500 318V384"/></g>
+  <text class="ph-lbls" x="500" y="510" text-anchor="middle">无显示与带显示产品的硬件复杂度不同；共同关键是全天候佩戴下的重量、续航、隐私与交互可用性。</text>
+</svg>

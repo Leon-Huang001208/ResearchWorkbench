@@ -1,0 +1,65 @@
+<svg viewBox="0 0 1000 560" xmlns="http://www.w3.org/2000/svg" class="ph-scene">
+  <text class="ph-lbls" x="45" y="40">磷资源经电子级提纯与高纯铟合成 InP；同一资源端也分流至磷酸铁锂，二者需求周期不同</text>
+
+  <!-- InP 主链：磷资源 → 电子级磷源，与高纯铟汇合 -->
+  <g class="ph-hot" data-part="inp-phosphate">
+    <rect class="ph-fill ph-ln2" x="45" y="84" width="170" height="100"/>
+    <path class="ph-ln" d="M92 146 h76 M112 116 v58 M142 116 v58"/>
+    <circle class="ph-fill ph-ln" cx="130" cy="130" r="22"/>
+    <text class="ph-lbl" x="130" y="202" text-anchor="middle">磷矿 / 工业黄磷</text>
+    <text class="ph-lbls" x="130" y="216" text-anchor="middle">磷化工资源端</text>
+  </g>
+  <g class="ph-hot" data-part="electronic-phosphorus-source">
+    <rect class="ph-fill ph-ln2" x="285" y="84" width="170" height="100"/>
+    <path class="ph-ln2" d="M320 142 h100 M336 116 h68 l-12 26 h-44 Z"/>
+    <circle class="ph-chipf" cx="350" cy="142" r="5"/><circle class="ph-chipf" cx="370" cy="142" r="5"/><circle class="ph-chipf" cx="390" cy="142" r="5"/>
+    <text class="ph-lbl" x="370" y="202" text-anchor="middle">电子级红磷 / PH₃</text>
+    <text class="ph-lbls" x="370" y="216" text-anchor="middle">黄磷深度提纯 · 去硫/卤</text>
+  </g>
+  <g class="ph-hot" data-part="inp-indium">
+    <rect class="ph-fill ph-ln2" x="285" y="294" width="170" height="100"/>
+    <rect class="ph-metal" x="330" y="326" width="80" height="28" rx="3"/>
+    <path class="ph-ln2" d="M338 332 h64 M338 340 h64 M338 348 h64"/>
+    <text class="ph-lbl" x="370" y="412" text-anchor="middle">高纯铟 7N+</text>
+    <text class="ph-lbls" x="370" y="426" text-anchor="middle">锌冶炼副产 · 再提纯</text>
+  </g>
+  <path class="ph-flow" d="M215 134 H278"/>
+  <polygon points="278,129 288,134 278,139" fill="var(--accent)"/>
+  <path class="ph-flow" d="M455 134 H520 V232 H548"/>
+  <path class="ph-flow" d="M455 344 H500 V276 H548"/>
+  <polygon points="548,227 558,232 548,237" fill="var(--accent)"/>
+  <polygon points="548,271 558,276 548,281" fill="var(--accent)"/>
+
+  <g class="ph-hot" data-part="inp-polycrystal">
+    <rect class="ph-fill ph-ln2" x="565" y="184" width="170" height="140"/>
+    <path class="ph-ln" d="M616 274 Q650 236 684 274 L678 292 H622 Z"/>
+    <path class="ph-ln2" d="M628 268 l10 -20 10 20 10 -20 10 20 10 -20"/>
+    <text class="ph-lbl" x="650" y="344" text-anchor="middle">InP 多晶合成</text>
+    <text class="ph-lbls" x="650" y="358" text-anchor="middle">密闭温压控制 · 化合物半导体</text>
+  </g>
+  <path class="ph-flow" d="M735 254 H758"/>
+  <polygon points="758,249 768,254 758,259" fill="var(--accent)"/>
+  <g class="ph-hot" data-part="inp-substrate-material">
+    <rect class="ph-fill ph-ln2" x="775" y="184" width="170" height="140"/>
+    <ellipse class="ph-fill ph-ln" cx="860" cy="224" rx="44" ry="12"/>
+    <path class="ph-ln2" d="M816 224 v28 Q860 280 904 252 V224"/>
+    <ellipse class="ph-fill ph-ln" cx="860" cy="252" rx="44" ry="12"/>
+    <rect class="ph-chipf" x="832" y="276" width="56" height="8"/>
+    <text class="ph-lbl" x="860" y="344" text-anchor="middle">InP 单晶 / 衬底</text>
+    <text class="ph-lbls" x="860" y="358" text-anchor="middle">LEC/VGF → 切磨抛 → 外延</text>
+  </g>
+
+  <!-- 同源但独立的储能支线 -->
+  <path class="ph-lead" d="M130 184 V430 H278"/>
+  <polygon points="278,425 288,430 278,435" fill="var(--txt3)"/>
+  <text class="ph-lbls" x="158" y="382">湿法磷酸路线</text>
+  <g class="ph-hot" data-part="inp-lfp-branch">
+    <rect class="ph-fill ph-ln2" x="285" y="380" width="170" height="100"/>
+    <rect class="ph-metal" x="320" y="414" width="40" height="28" rx="2"/>
+    <rect class="ph-chipf" x="378" y="414" width="42" height="28" rx="2"/>
+    <path class="ph-lead" d="M360 428 H378"/>
+    <text class="ph-lbl" x="370" y="498" text-anchor="middle">磷酸铁 → LFP 电芯</text>
+    <text class="ph-lbls" x="370" y="512" text-anchor="middle">同源资源 · 独立储能分支</text>
+  </g>
+  <text class="ph-lbls" x="650" y="470" text-anchor="middle">InP 衬底进入 MOCVD 外延，服务 EML/DFB 激光器、CW 泵浦与 APD 等高速光通信器件</text>
+</svg>

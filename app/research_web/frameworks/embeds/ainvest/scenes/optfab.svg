@@ -1,0 +1,159 @@
+<svg viewBox="0 0 1000 620" xmlns="http://www.w3.org/2000/svg" class="ph-scene">
+  <text class="ph-lbls" x="45" y="40">上排 InP 光芯片链 + 中排 硅光链，合流进入封装测试 · 底排为成品与下一代形态（CPO/OCS）</text>
+
+  <!-- Row1 InP 光芯片链 -->
+  <g class="ph-hot" data-part="inp-crystal">
+    <rect class="ph-fill ph-ln2" x="45" y="64" width="170" height="100"/>
+    <line class="ph-ln2" x1="130" y1="70" x2="130" y2="80"/>
+    <ellipse class="ph-fill ph-ln" cx="130" cy="84" rx="16" ry="4"/>
+    <rect class="ph-chipf" x="114" y="84" width="32" height="42"/>
+    <path class="ph-fill ph-ln" d="M88 128 Q130 156 172 128 L166 144 H94 Z"/>
+    <text class="ph-lbl" x="130" y="182" text-anchor="middle">InP 单晶生长</text>
+    <text class="ph-lbls" x="130" y="196" text-anchor="middle">LEC/VGF · 铟为锌矿副产</text>
+    <g class="ph-plus"><circle cx="198" cy="78" r="9"/><path d="M198 74 v8 M194 78 h8"/></g>
+  </g>
+  <g class="ph-hot" data-part="mocvd-epi">
+    <rect class="ph-fill ph-ln2" x="285" y="64" width="170" height="100"/>
+    <rect class="ph-fill ph-ln" x="320" y="86" width="100" height="56" rx="10"/>
+    <path class="ph-lead" d="M340 92 v10 M370 92 v10 M400 92 v10"/>
+    <ellipse class="ph-fill ph-ln" cx="370" cy="126" rx="34" ry="6"/>
+    <rect class="ph-hbm" x="352" y="112" width="36" height="4"/>
+    <rect class="ph-chipf" x="352" y="106" width="36" height="4"/>
+    <text class="ph-lbl" x="370" y="182" text-anchor="middle">MOCVD 外延</text>
+    <text class="ph-lbls" x="370" y="196" text-anchor="middle">量子阱 · 镓/砷/铝 金属有机源</text>
+  </g>
+  <g class="ph-hot" data-part="chip-etch">
+    <rect class="ph-fill ph-ln2" x="525" y="64" width="170" height="100"/>
+    <circle class="ph-fill ph-ln" cx="588" cy="112" r="30"/>
+    <path class="ph-lead" d="M564 100 H612 M562 112 H614 M564 124 H612 M580 84 V140 M596 84 V140"/>
+    <rect class="ph-chipf" x="636" y="94" width="34" height="8"/>
+    <rect class="ph-chipf" x="636" y="108" width="34" height="8"/>
+    <rect class="ph-chipf" x="636" y="122" width="34" height="8"/>
+    <text class="ph-lbl" x="610" y="182" text-anchor="middle">光刻 · 解理 · 镀膜</text>
+    <text class="ph-lbls" x="610" y="196" text-anchor="middle">端面镀膜决定良率与成本</text>
+  </g>
+  <g class="ph-hot" data-part="eml-test">
+    <rect class="ph-fill ph-ln2" x="765" y="64" width="170" height="100"/>
+    <rect class="ph-chipf" x="800" y="104" width="18" height="14"/>
+    <rect class="ph-chipf" x="826" y="104" width="18" height="14"/>
+    <rect class="ph-chipf" x="852" y="104" width="18" height="14"/>
+    <path class="ph-lead" d="M818 111 h4 M844 111 h4 M870 111 h20"/>
+    <path class="ph-ln2" d="M890 107 L898 111 L890 115 Z"/>
+    <path class="ph-lead" d="M809 96 l-8 -14 M835 96 l-8 -14"/>
+    <text class="ph-lbl" x="850" y="182" text-anchor="middle">EML / DFB 光芯片</text>
+    <text class="ph-lbls" x="850" y="196" text-anchor="middle">200G/lane · 模块 BOM 里最贵</text>
+  </g>
+  <g class="ph-lead">
+    <line x1="215" y1="114" x2="278" y2="114"/>
+    <line x1="455" y1="114" x2="518" y2="114"/>
+    <line x1="695" y1="114" x2="758" y2="114"/>
+  </g>
+  <polygon points="278,109 288,114 278,119" fill="var(--txt3)"/>
+  <polygon points="518,109 528,114 518,119" fill="var(--txt3)"/>
+  <polygon points="758,109 768,114 758,119" fill="var(--txt3)"/>
+
+  <!-- Row2 硅光链 → 封装 -->
+  <g class="ph-hot" data-part="soi-wafer">
+    <rect class="ph-fill ph-ln2" x="45" y="258" width="170" height="100"/>
+    <circle class="ph-fill ph-ln" cx="115" cy="308" r="30"/>
+    <rect class="ph-fill ph-ln2" x="158" y="292" width="40" height="8"/>
+    <rect class="ph-chipf" x="158" y="302" width="40" height="6"/>
+    <rect class="ph-fill ph-ln2" x="158" y="310" width="40" height="12"/>
+    <text class="ph-lbl" x="130" y="376" text-anchor="middle">SOI 晶圆</text>
+    <text class="ph-lbls" x="130" y="390" text-anchor="middle">绝缘体上硅 · 顶硅做波导</text>
+  </g>
+  <g class="ph-hot" data-part="siph-fab">
+    <rect class="ph-fill ph-ln2" x="285" y="258" width="170" height="100"/>
+    <rect class="ph-fill ph-ln" x="322" y="282" width="96" height="52"/>
+    <path class="ph-ln2" d="M330 322 H360 Q368 322 368 314 V300 Q368 292 376 292 H410" fill="none"/>
+    <circle class="ph-bm" cx="336" cy="296" r="1.6"/><circle class="ph-bm" cx="342" cy="296" r="1.6"/><circle class="ph-bm" cx="348" cy="296" r="1.6"/>
+    <text class="ph-lbl" x="370" y="376" text-anchor="middle">硅光代工</text>
+    <text class="ph-lbls" x="370" y="390" text-anchor="middle">CMOS 产线 · 锗探测器外延</text>
+    <g class="ph-plus"><circle cx="438" cy="272" r="9"/><path d="M438 268 v8 M434 272 h8"/></g>
+  </g>
+  <g class="ph-hot" data-part="die-attach">
+    <rect class="ph-fill ph-ln2" x="525" y="258" width="170" height="100"/>
+    <rect class="ph-fill ph-ln" x="596" y="270" width="28" height="22"/>
+    <path class="ph-lead" d="M610 292 V304"/>
+    <polygon points="605,304 610,312 615,304" fill="var(--txt3)"/>
+    <rect class="ph-fill ph-ln" x="560" y="318" width="100" height="14"/>
+    <rect class="ph-chipf" x="576" y="308" width="16" height="10"/>
+    <rect class="ph-chipf" x="620" y="308" width="16" height="10"/>
+    <path class="ph-ln2" d="M584 308 q6 -10 14 -2 M628 308 q6 -10 14 -2" fill="none"/>
+    <text class="ph-lbl" x="610" y="376" text-anchor="middle">COC / COB 固晶</text>
+    <text class="ph-lbls" x="610" y="390" text-anchor="middle">高精度贴片 · 金线键合</text>
+  </g>
+  <g class="ph-hot" data-part="coupling">
+    <rect class="ph-fill ph-ln2" x="765" y="258" width="170" height="100"/>
+    <rect class="ph-chipf" x="790" y="298" width="40" height="24"/>
+    <rect class="ph-fill ph-ln" x="852" y="300" width="30" height="20"/>
+    <path class="ph-ln2" d="M882 306 C900 306 904 302 918 302 M882 314 C900 314 904 318 918 318" fill="none"/>
+    <path class="ph-lead" d="M834 310 H848"/>
+    <path class="ph-lead" d="M841 292 v36"/>
+    <path class="ph-ln2" d="M837 296 L841 288 L845 296 Z M837 324 L841 332 L845 324 Z"/>
+    <text class="ph-lbl" x="850" y="376" text-anchor="middle">光耦合对准</text>
+    <text class="ph-lbls" x="850" y="390" text-anchor="middle">FAU/透镜 · 亚微米有源对准</text>
+    <g class="ph-plus"><circle cx="918" cy="272" r="9"/><path d="M918 268 v8 M914 272 h8"/></g>
+  </g>
+  <path class="ph-lead" d="M215 308 H278"/>
+  <polygon points="278,303 288,308 278,313" fill="var(--txt3)"/>
+  <path class="ph-lead" d="M455 308 H518"/>
+  <polygon points="518,303 528,308 518,313" fill="var(--txt3)"/>
+  <path class="ph-lead" d="M850 164 C850 210 700 224 622 254" stroke-dasharray="5 5"/>
+  <polygon points="626,248 616,256 630,260" fill="var(--txt3)"/>
+  <text class="ph-lbls" x="742" y="228" text-anchor="middle">光芯片汇入封装</text>
+  <path class="ph-lead" d="M695 308 H758"/>
+  <polygon points="758,303 768,308 758,313" fill="var(--txt3)"/>
+
+  <path class="ph-lead" d="M850 358 V438"/>
+  <polygon points="845,438 850,448 855,438" fill="var(--txt3)"/>
+
+  <!-- Row3 成品与演进（右→左） -->
+  <g class="ph-hot" data-part="om-assembly">
+    <rect class="ph-fill ph-ln2" x="765" y="452" width="170" height="100"/>
+    <rect class="ph-fill ph-ln" x="792" y="474" width="116" height="18" rx="3"/>
+    <rect class="ph-fill ph-ln" x="800" y="500" width="116" height="18" rx="3"/>
+    <circle class="ph-bm" cx="800" cy="483" r="2"/><circle class="ph-bm" cx="900" cy="483" r="2"/>
+    <text class="ph-lbl" x="850" y="570" text-anchor="middle">壳体封装</text>
+    <text class="ph-lbls" x="850" y="584" text-anchor="middle">锌合金壳 · 散热/屏蔽</text>
+  </g>
+  <g class="ph-hot" data-part="om-testing">
+    <rect class="ph-fill ph-ln2" x="525" y="452" width="170" height="100"/>
+    <path class="ph-lead" d="M556 532 V470 M556 532 H672"/>
+    <path class="ph-ln2" d="M566 500 C596 470 636 470 662 500 C636 530 596 530 566 500" fill="none"/>
+    <path class="ph-ln2" d="M566 500 C596 530 636 530 662 500" fill="none"/>
+    <text class="ph-lbl" x="610" y="570" text-anchor="middle">测试老化</text>
+    <text class="ph-lbls" x="610" y="584" text-anchor="middle">眼图/误码 · 高低温老化</text>
+  </g>
+  <g class="ph-hot" data-part="final-om">
+    <rect class="ph-fill ph-ln2" x="285" y="452" width="170" height="100"/>
+    <rect class="ph-fill ph-ln" x="312" y="490" width="96" height="26" rx="3"/>
+    <rect class="ph-metal" x="300" y="494" width="14" height="18"/>
+    <rect class="ph-ln2" x="408" y="496" width="18" height="6" rx="3" fill="none"/>
+    <path class="ph-ln2" d="M300 500 C282 500 278 496 266 496 M300 508 C282 508 278 512 266 512" fill="none"/>
+    <text class="ph-lbl" x="370" y="570" text-anchor="middle">1.6T 模块成品</text>
+    <text class="ph-lbls" x="370" y="584" text-anchor="middle">点击可跳转成品爆炸拆解</text>
+    <g class="ph-plus"><circle cx="438" cy="466" r="9"/><path d="M438 462 v8 M434 466 h8"/></g>
+  </g>
+  <g class="ph-hot" data-part="interco-entry">
+    <rect class="ph-fill ph-ln2" x="45" y="452" width="170" height="100"/>
+    <rect class="ph-chipf" x="106" y="480" width="48" height="44"/>
+    <rect class="ph-hbm" x="88" y="488" width="12" height="12"/>
+    <rect class="ph-hbm" x="88" y="506" width="12" height="12"/>
+    <rect class="ph-hbm" x="160" y="488" width="12" height="12"/>
+    <rect class="ph-hbm" x="160" y="506" width="12" height="12"/>
+    <rect class="ph-hbm" x="112" y="466" width="12" height="12"/>
+    <rect class="ph-hbm" x="136" y="466" width="12" height="12"/>
+    <g class="ph-plus"><circle cx="188" cy="470" r="9"/><path d="M188 466 v8 M184 470 h8"/></g>
+    <text class="ph-lbl" x="130" y="570" text-anchor="middle">下一代：CPO / OCS</text>
+    <text class="ph-lbls" x="130" y="584" text-anchor="middle">点击进入光互连形态演进</text>
+  </g>
+  <g class="ph-lead">
+    <line x1="765" y1="502" x2="702" y2="502"/>
+    <line x1="525" y1="502" x2="462" y2="502"/>
+    <line x1="285" y1="502" x2="222" y2="502" stroke-dasharray="5 5"/>
+  </g>
+  <polygon points="702,497 692,502 702,507" fill="var(--txt3)"/>
+  <polygon points="462,497 452,502 462,507" fill="var(--txt3)"/>
+  <polygon points="222,497 212,502 222,507" fill="var(--txt3)"/>
+</svg>

@@ -1,0 +1,727 @@
+{
+  "framework": {
+    "slug": "dollar",
+    "name": "美元流动性研究框架",
+    "domain": "macro-liquidity",
+    "version": "1.0.0",
+    "source_revision": "2c210b45577905c0e8ec5f9c061e7069a6cb3b96",
+    "question": "美元流动性当前由总量、资金价格、财政水流、融资管道与跨境需求中的哪一环主导？",
+    "chain": [
+      "Q 总量",
+      "P 价格",
+      "g 财政",
+      "M 管道",
+      "X 跨境",
+      "资产传导"
+    ],
+    "counter_evidence": [
+      "净流动性代理改善但准备金继续收缩",
+      "政策利率稳定但 SOFR−IORB 与融资失败同步恶化",
+      "美国境内偏松但广义美元与海外融资压力走强"
+    ],
+    "sections": [
+      {
+        "id": "overview",
+        "label": "总览",
+        "question": "当前偏松、偏紧还是仍需核验？"
+      },
+      {
+        "id": "quantity",
+        "label": "Q 总量水库",
+        "question": "联储资产、准备金和逆回购如何改变可用水位？"
+      },
+      {
+        "id": "price",
+        "label": "P 资金价格",
+        "question": "政策路径、曲线和实际利率如何定价资金？"
+      },
+      {
+        "id": "fiscal",
+        "label": "g 财政水流",
+        "question": "TGA、发行和结算正在注入还是抽走流动性？"
+      },
+      {
+        "id": "plumbing",
+        "label": "M 融资管道",
+        "question": "回购、交易商与交割链是否顺畅？"
+      },
+      {
+        "id": "cross-border",
+        "label": "X 跨境美元",
+        "question": "美元、汇率与海外官方需求是否放大压力？"
+      },
+      {
+        "id": "evidence",
+        "label": "传导与证据",
+        "question": "流动性如何传导到资产，哪些缺口仍未解决？"
+      }
+    ],
+    "method": "分别计算Q、P、g、M、X五个标准化信号后等权合成；均值高于0.15为偏松，低于-0.15为偏紧，其余为中性。WALCL减TGA减ON RRP仅作为净流动性代理，不是会计恒等式；任一维度不可计算时只显示已知小计与可能区间并标记待核验。"
+  },
+  "snapshot": {
+    "schema_version": 1,
+    "revision": "ee48c506eda85b503faaa58ee3007bd5d4f86c09af8990c01ae6cfa742025b10",
+    "as_of": "2026-09-03",
+    "fetched_at": "2026-09-03T16:00:00+08:00",
+    "status": "待核验",
+    "coverage": 72,
+    "quantity_q": {
+      "as_of": "2026-09-03",
+      "fetched_at": "2026-09-03T16:00:00+08:00",
+      "checked_at": null,
+      "failure_code": null,
+      "status": "fixture",
+      "sources": [
+        {
+          "name": "Deterministic offline fixture",
+          "url": "https://example.invalid/dollar-fixture",
+          "observed_at": "2026-09-03",
+          "unit": "mixed",
+          "method": "offline fixture",
+          "proxy": true
+        }
+      ],
+      "gaps": [],
+      "key": "Q",
+      "label": "总量水库",
+      "score": 0.2,
+      "summary": "银行体系水位边际改善",
+      "metrics": [
+        {
+          "label": "准备金",
+          "value": "$3.32tn",
+          "direction": "回升",
+          "interpretation": "银行体系水位边际改善",
+          "proxy": false
+        },
+        {
+          "label": "ON RRP",
+          "value": "$0.11tn",
+          "direction": "低位",
+          "interpretation": "非银缓冲已明显缩小",
+          "proxy": false
+        }
+      ],
+      "series": [
+        {
+          "label": "准备金",
+          "unit": "十亿美元",
+          "points": [
+            {
+              "date": "04/03",
+              "value": 3120.0
+            },
+            {
+              "date": "05/01",
+              "value": 3160.0
+            },
+            {
+              "date": "05/29",
+              "value": 3110.0
+            },
+            {
+              "date": "06/26",
+              "value": 3180.0
+            },
+            {
+              "date": "07/24",
+              "value": 3210.0
+            },
+            {
+              "date": "08/21",
+              "value": 3260.0
+            },
+            {
+              "date": "09/03",
+              "value": 3320.0
+            }
+          ]
+        },
+        {
+          "label": "净流动性代理",
+          "unit": "十亿美元",
+          "points": [
+            {
+              "date": "04/03",
+              "value": 5720.0
+            },
+            {
+              "date": "05/01",
+              "value": 5780.0
+            },
+            {
+              "date": "05/29",
+              "value": 5740.0
+            },
+            {
+              "date": "06/26",
+              "value": 5810.0
+            },
+            {
+              "date": "07/24",
+              "value": 5890.0
+            },
+            {
+              "date": "08/21",
+              "value": 5940.0
+            },
+            {
+              "date": "09/03",
+              "value": 5990.0
+            }
+          ]
+        }
+      ]
+    },
+    "price_p": {
+      "as_of": "2026-09-03",
+      "fetched_at": "2026-09-03T16:00:00+08:00",
+      "checked_at": null,
+      "failure_code": null,
+      "status": "fixture",
+      "sources": [
+        {
+          "name": "Deterministic offline fixture",
+          "url": "https://example.invalid/dollar-fixture",
+          "observed_at": "2026-09-03",
+          "unit": "mixed",
+          "method": "offline fixture",
+          "proxy": true
+        }
+      ],
+      "gaps": [],
+      "key": "P",
+      "label": "资金价格",
+      "score": -0.1,
+      "summary": "长期美元资金价格仍具约束",
+      "metrics": [
+        {
+          "label": "10Y 实际利率",
+          "value": "1.79%",
+          "direction": "偏高",
+          "interpretation": "长期美元资金价格仍具约束",
+          "proxy": false
+        },
+        {
+          "label": "SOFR",
+          "value": "4.08%",
+          "direction": "稳定",
+          "interpretation": "隔夜价格仍围绕政策走廊",
+          "proxy": false
+        }
+      ],
+      "series": [
+        {
+          "label": "2Y",
+          "unit": "%",
+          "points": [
+            {
+              "date": "04/03",
+              "value": 4.12
+            },
+            {
+              "date": "05/01",
+              "value": 4.08
+            },
+            {
+              "date": "05/29",
+              "value": 4.01
+            },
+            {
+              "date": "06/26",
+              "value": 3.98
+            },
+            {
+              "date": "07/24",
+              "value": 4.05
+            },
+            {
+              "date": "08/21",
+              "value": 4.11
+            },
+            {
+              "date": "09/03",
+              "value": 4.03
+            }
+          ]
+        },
+        {
+          "label": "10Y",
+          "unit": "%",
+          "points": [
+            {
+              "date": "04/03",
+              "value": 4.25
+            },
+            {
+              "date": "05/01",
+              "value": 4.31
+            },
+            {
+              "date": "05/29",
+              "value": 4.28
+            },
+            {
+              "date": "06/26",
+              "value": 4.35
+            },
+            {
+              "date": "07/24",
+              "value": 4.29
+            },
+            {
+              "date": "08/21",
+              "value": 4.22
+            },
+            {
+              "date": "09/03",
+              "value": 4.19
+            }
+          ]
+        }
+      ]
+    },
+    "fiscal_g": {
+      "as_of": "2026-09-03",
+      "fetched_at": "2026-09-03T16:00:00+08:00",
+      "checked_at": null,
+      "failure_code": null,
+      "status": "fixture",
+      "sources": [
+        {
+          "name": "Deterministic offline fixture",
+          "url": "https://example.invalid/dollar-fixture",
+          "observed_at": "2026-09-03",
+          "unit": "mixed",
+          "method": "offline fixture",
+          "proxy": true
+        }
+      ],
+      "gaps": [],
+      "key": "g",
+      "label": "财政水流",
+      "score": 0.1,
+      "summary": "财政账户下降对市场形成边际注入",
+      "metrics": [
+        {
+          "label": "TGA",
+          "value": "$0.71tn",
+          "direction": "回落",
+          "interpretation": "财政账户下降对市场形成边际注入",
+          "proxy": false
+        },
+        {
+          "label": "未来7日结算",
+          "value": "$126bn",
+          "direction": "集中",
+          "interpretation": "发行结算仍可能造成短期抽水",
+          "proxy": true
+        }
+      ],
+      "series": [
+        {
+          "label": "TGA",
+          "unit": "十亿美元",
+          "points": [
+            {
+              "date": "04/03",
+              "value": 820.0
+            },
+            {
+              "date": "05/01",
+              "value": 790.0
+            },
+            {
+              "date": "05/29",
+              "value": 760.0
+            },
+            {
+              "date": "06/26",
+              "value": 745.0
+            },
+            {
+              "date": "07/24",
+              "value": 730.0
+            },
+            {
+              "date": "08/21",
+              "value": 720.0
+            },
+            {
+              "date": "09/03",
+              "value": 710.0
+            }
+          ]
+        },
+        {
+          "label": "国债结算",
+          "unit": "十亿美元",
+          "points": [
+            {
+              "date": "04/03",
+              "value": 86.0
+            },
+            {
+              "date": "05/01",
+              "value": 101.0
+            },
+            {
+              "date": "05/29",
+              "value": 92.0
+            },
+            {
+              "date": "06/26",
+              "value": 118.0
+            },
+            {
+              "date": "07/24",
+              "value": 95.0
+            },
+            {
+              "date": "08/21",
+              "value": 110.0
+            },
+            {
+              "date": "09/03",
+              "value": 126.0
+            }
+          ]
+        }
+      ]
+    },
+    "plumbing_m": {
+      "as_of": "2026-09-03",
+      "fetched_at": "2026-09-03T16:00:00+08:00",
+      "checked_at": null,
+      "failure_code": null,
+      "status": "fixture",
+      "sources": [
+        {
+          "name": "Deterministic offline fixture",
+          "url": "https://example.invalid/dollar-fixture",
+          "observed_at": "2026-09-03",
+          "unit": "mixed",
+          "method": "offline fixture",
+          "proxy": true
+        }
+      ],
+      "gaps": [],
+      "key": "M",
+      "label": "融资管道",
+      "score": 0.0,
+      "summary": "隔夜融资尚未显著脱离政策锚",
+      "metrics": [
+        {
+          "label": "SOFR−IORB",
+          "value": "+3bp",
+          "direction": "正常",
+          "interpretation": "隔夜融资尚未显著脱离政策锚",
+          "proxy": false
+        },
+        {
+          "label": "交割失败",
+          "value": "$48bn",
+          "direction": "抬升",
+          "interpretation": "需要继续核验交易商资产负债表压力",
+          "proxy": false
+        }
+      ],
+      "series": [
+        {
+          "label": "SOFR−IORB",
+          "unit": "bp",
+          "points": [
+            {
+              "date": "04/03",
+              "value": 1.0
+            },
+            {
+              "date": "05/01",
+              "value": 2.0
+            },
+            {
+              "date": "05/29",
+              "value": 1.0
+            },
+            {
+              "date": "06/26",
+              "value": 2.0
+            },
+            {
+              "date": "07/24",
+              "value": 4.0
+            },
+            {
+              "date": "08/21",
+              "value": 2.0
+            },
+            {
+              "date": "09/03",
+              "value": 3.0
+            }
+          ]
+        },
+        {
+          "label": "国债交割失败",
+          "unit": "十亿美元",
+          "points": [
+            {
+              "date": "04/03",
+              "value": 22.0
+            },
+            {
+              "date": "05/01",
+              "value": 27.0
+            },
+            {
+              "date": "05/29",
+              "value": 24.0
+            },
+            {
+              "date": "06/26",
+              "value": 31.0
+            },
+            {
+              "date": "07/24",
+              "value": 29.0
+            },
+            {
+              "date": "08/21",
+              "value": 35.0
+            },
+            {
+              "date": "09/03",
+              "value": 48.0
+            }
+          ]
+        }
+      ]
+    },
+    "cross_border_x": {
+      "as_of": "2026-09-03",
+      "fetched_at": "2026-09-03T16:00:00+08:00",
+      "checked_at": null,
+      "failure_code": null,
+      "status": "fixture",
+      "sources": [
+        {
+          "name": "Deterministic offline fixture",
+          "url": "https://example.invalid/dollar-fixture",
+          "observed_at": "2026-09-03",
+          "unit": "mixed",
+          "method": "offline fixture",
+          "proxy": true
+        }
+      ],
+      "gaps": [],
+      "key": "X",
+      "label": "跨境美元",
+      "score": -0.2,
+      "summary": "海外美元条件边际收紧",
+      "metrics": [
+        {
+          "label": "广义美元",
+          "value": "121.4",
+          "direction": "走强",
+          "interpretation": "海外美元条件边际收紧",
+          "proxy": false
+        },
+        {
+          "label": "外国官方托管",
+          "value": "$3.29tn",
+          "direction": "稳定",
+          "interpretation": "官方美债需求暂未明显恶化",
+          "proxy": true
+        }
+      ],
+      "series": [
+        {
+          "label": "广义美元",
+          "unit": "指数",
+          "points": [
+            {
+              "date": "04/03",
+              "value": 118.6
+            },
+            {
+              "date": "05/01",
+              "value": 119.2
+            },
+            {
+              "date": "05/29",
+              "value": 118.9
+            },
+            {
+              "date": "06/26",
+              "value": 119.8
+            },
+            {
+              "date": "07/24",
+              "value": 120.3
+            },
+            {
+              "date": "08/21",
+              "value": 120.9
+            },
+            {
+              "date": "09/03",
+              "value": 121.4
+            }
+          ]
+        },
+        {
+          "label": "外国官方托管",
+          "unit": "十亿美元",
+          "points": [
+            {
+              "date": "04/03",
+              "value": 3260.0
+            },
+            {
+              "date": "05/01",
+              "value": 3255.0
+            },
+            {
+              "date": "05/29",
+              "value": 3272.0
+            },
+            {
+              "date": "06/26",
+              "value": 3280.0
+            },
+            {
+              "date": "07/24",
+              "value": 3276.0
+            },
+            {
+              "date": "08/21",
+              "value": 3288.0
+            },
+            {
+              "date": "09/03",
+              "value": 3290.0
+            }
+          ]
+        }
+      ]
+    },
+    "research_state": {
+      "label": "待核验",
+      "score": null,
+      "known_subtotal": 0.0,
+      "possible_low": -0.2,
+      "possible_high": 0.2,
+      "confidence": 58,
+      "supports": [
+        "准备金边际回升",
+        "TGA 回落形成短期注入"
+      ],
+      "drags": [
+        "实际利率仍高",
+        "广义美元走强"
+      ],
+      "next_check": "补齐稳定的跨币种基差，并核验财政结算与交易商交割失败是否共振。"
+    },
+    "transmission": {
+      "as_of": "2026-09-03",
+      "fetched_at": "2026-09-03T16:00:00+08:00",
+      "checked_at": null,
+      "failure_code": null,
+      "status": "fixture",
+      "sources": [
+        {
+          "name": "Dollar method fixture",
+          "url": "https://example.invalid/dollar-fixture",
+          "observed_at": "2026-09-03",
+          "unit": "qualitative",
+          "method": "offline fixture",
+          "proxy": true
+        }
+      ],
+      "gaps": [],
+      "links": [
+        {
+          "source": "准备金",
+          "target": "风险资产",
+          "state": "边际支撑",
+          "explanation": "总量改善但仍需融资价格确认"
+        },
+        {
+          "source": "实际利率",
+          "target": "黄金",
+          "state": "约束",
+          "explanation": "持有无息资产的机会成本仍高"
+        },
+        {
+          "source": "广义美元",
+          "target": "海外融资",
+          "state": "偏紧",
+          "explanation": "美元走强放大非美借款人的偿付压力"
+        }
+      ]
+    },
+    "events": [
+      {
+        "date": "每周四",
+        "type": "总量",
+        "title": "Fed H.4.1",
+        "impact": "更新资产负债表、准备金和外国官方账户",
+        "status": "周期性"
+      },
+      {
+        "date": "每日",
+        "type": "财政",
+        "title": "Daily Treasury Statement",
+        "impact": "更新TGA日终余额与水流",
+        "status": "周期性"
+      },
+      {
+        "date": "FOMC",
+        "type": "政策",
+        "title": "利率决议与SEP",
+        "impact": "更新政策路径和曲线锚",
+        "status": "待核验"
+      }
+    ],
+    "evidence": [
+      {
+        "date": "2026-09-03",
+        "source": "FRED",
+        "observation": "准备金边际回升但实际利率仍高",
+        "use": "Q与P",
+        "quality": "固定样例",
+        "url": "https://fred.stlouisfed.org/"
+      },
+      {
+        "date": "2026-09-03",
+        "source": "U.S. Treasury",
+        "observation": "TGA回落与发行结算并存",
+        "use": "g",
+        "quality": "固定样例",
+        "url": "https://fiscaldata.treasury.gov/"
+      },
+      {
+        "date": "2026-09-03",
+        "source": "New York Fed",
+        "observation": "SOFR仍靠近IORB",
+        "use": "M",
+        "quality": "固定样例",
+        "url": "https://markets.newyorkfed.org/"
+      }
+    ],
+    "gaps": [
+      {
+        "id": "cross-currency-basis",
+        "label": "稳定跨币种基差序列不可得",
+        "severity": "high",
+        "next_check": "接入可审计来源前保持X维度待核验"
+      },
+      {
+        "id": "mpt-live",
+        "label": "Atlanta Fed政策路径尚未实时更新",
+        "severity": "medium",
+        "next_check": "以官方MPT发布页补齐政策路径"
+      }
+    ]
+  }
+}

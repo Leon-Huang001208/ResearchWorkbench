@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "updated",
-  "summary": "保留主线ETF、加密凭据、Todo恢复、过期预算及Git安全规则；整合PR100兼容模型与外部来源增量。",
-  "reason": "README与模块文档复核当前Web边界，默认不启用验收预算，不改变唯一DSH或既有凭据身份。当前源码新SHA重新验证，历史报告不作本候选PASS。"
+  "summary": "保留最新主线模型、数据、会话及Git安全改动；新增框架嵌入核心与九套静态入口。",
+  "reason": "复核README及模块文档，原生Gold/Dollar快照和唯一DSH执行链不变；展示适配不激活预算、不迁移凭据或新增部署节点，所有证据重绑最新集成候选。"
 }

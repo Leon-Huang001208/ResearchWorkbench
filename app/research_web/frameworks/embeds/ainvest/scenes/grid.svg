@@ -1,0 +1,22 @@
+<svg viewBox="0 0 1000 540" xmlns="http://www.w3.org/2000/svg" class="ph-scene">
+  <text class="ph-lbls" x="44" y="42">电网：能源基地经特高压通道与换流站送出，调度将大电网、储能与园区负荷统一协调</text>
+  <path class="ph-flow" d="M62 332H920"/><polygon points="920,327 932,332 920,337" fill="var(--accent)"/>
+  <g class="ph-hot" data-part="uhv-line">
+    <line class="ph-ln" x1="128" y1="410" x2="128" y2="182"/><path class="ph-ln" d="M92 410l36-130 36 130M78 226h100M88 268h80" fill="none"/><path class="ph-ln2" d="M178 226q44 30 78 0"/>
+    <line class="ph-ln" x1="256" y1="410" x2="256" y2="182"/><path class="ph-ln" d="M220 410l36-130 36 130M206 226h100M216 268h80" fill="none"/>
+    <text class="ph-lbl" x="192" y="442" text-anchor="middle">特高压输电通道</text><text class="ph-lbls" x="192" y="457" text-anchor="middle">远距离 · 大容量</text>
+  </g>
+  <g class="ph-hot" data-part="converter-station">
+    <rect class="ph-fill ph-ln" x="402" y="238" width="166" height="122"/><path class="ph-ln2" d="M424 264v-30M456 264v-30M488 264v-30M520 264v-30M416 294h138M416 326h138"/>
+    <text class="ph-lbl" x="485" y="392" text-anchor="middle">换流站 / 区域变电站</text><text class="ph-lbls" x="485" y="407" text-anchor="middle">交直流变换 · 分层变压</text>
+  </g>
+  <g class="ph-hot" data-part="grid-dispatch">
+    <rect class="ph-chipf" x="654" y="194" width="150" height="94" rx="6"/><text class="ph-die" x="729" y="233" text-anchor="middle">电网调度</text><text class="ph-lbls" x="729" y="252" text-anchor="middle">源网荷储 · 虚拟电厂</text>
+    <path class="ph-dash" d="M729 288v88M729 376h-242M729 376h154"/>
+  </g>
+  <g class="ph-hot" data-part="park-microgrid">
+    <rect class="ph-fill ph-ln" x="850" y="248" width="96" height="114"/><path class="ph-ln2" d="M860 276h76M860 304h76M860 332h76"/><rect class="ph-fill ph-ln2" x="885" y="334" width="24" height="28"/>
+    <text class="ph-lbl" x="898" y="394" text-anchor="middle">园区微网接入</text><text class="ph-lbls" x="898" y="409" text-anchor="middle">数据中心负荷</text>
+  </g>
+  <line class="ph-ln2" x1="40" y1="480" x2="960" y2="480"/>
+</svg>

@@ -1,0 +1,1782 @@
+{
+  "updatedAt": "2026-10-14 08:45:41",
+  "frequency": "月末值（当月使用最新可得观测）",
+  "range": {
+    "start": "2007-01",
+    "end": "2026-09"
+  },
+  "latest": {
+    "date": "2026-09-28",
+    "gold": 4144.55,
+    "rate": 3.88,
+    "targetLow": 3.75,
+    "targetHigh": 4,
+    "stance": "暂停期"
+  },
+  "rows": [
+    {
+      "date": "2007-01",
+      "gold": 650.5,
+      "rate": 5.33,
+      "targetLow": null,
+      "targetHigh": null
+    },
+    {
+      "date": "2007-02",
+      "gold": 664.2,
+      "rate": 5.41,
+      "targetLow": null,
+      "targetHigh": null
+    },
+    {
+      "date": "2007-03",
+      "gold": 661.75,
+      "rate": 5.3,
+      "targetLow": null,
+      "targetHigh": null
+    },
+    {
+      "date": "2007-04",
+      "gold": 677,
+      "rate": 5.29,
+      "targetLow": null,
+      "targetHigh": null
+    },
+    {
+      "date": "2007-05",
+      "gold": 659.1,
+      "rate": 5.28,
+      "targetLow": null,
+      "targetHigh": null
+    },
+    {
+      "date": "2007-06",
+      "gold": 650.5,
+      "rate": 5.31,
+      "targetLow": null,
+      "targetHigh": null
+    },
+    {
+      "date": "2007-07",
+      "gold": 665.5,
+      "rate": 5.28,
+      "targetLow": null,
+      "targetHigh": null
+    },
+    {
+      "date": "2007-08",
+      "gold": 672,
+      "rate": 4.96,
+      "targetLow": null,
+      "targetHigh": null
+    },
+    {
+      "date": "2007-09",
+      "gold": 743,
+      "rate": 4.58,
+      "targetLow": null,
+      "targetHigh": null
+    },
+    {
+      "date": "2007-10",
+      "gold": 789.5,
+      "rate": 4.6,
+      "targetLow": null,
+      "targetHigh": null
+    },
+    {
+      "date": "2007-11",
+      "gold": 783.5,
+      "rate": 4.66,
+      "targetLow": null,
+      "targetHigh": null
+    },
+    {
+      "date": "2007-12",
+      "gold": 833.75,
+      "rate": 3.06,
+      "targetLow": null,
+      "targetHigh": null
+    },
+    {
+      "date": "2008-01",
+      "gold": 923.25,
+      "rate": 3.22,
+      "targetLow": null,
+      "targetHigh": null
+    },
+    {
+      "date": "2008-02",
+      "gold": 971.5,
+      "rate": 3.01,
+      "targetLow": null,
+      "targetHigh": null
+    },
+    {
+      "date": "2008-03",
+      "gold": 933.5,
+      "rate": 2.51,
+      "targetLow": null,
+      "targetHigh": null
+    },
+    {
+      "date": "2008-04",
+      "gold": 871,
+      "rate": 2.37,
+      "targetLow": null,
+      "targetHigh": null
+    },
+    {
+      "date": "2008-05",
+      "gold": 885.75,
+      "rate": 1.98,
+      "targetLow": null,
+      "targetHigh": null
+    },
+    {
+      "date": "2008-06",
+      "gold": 930.25,
+      "rate": 2.47,
+      "targetLow": null,
+      "targetHigh": null
+    },
+    {
+      "date": "2008-07",
+      "gold": 918,
+      "rate": 2.09,
+      "targetLow": null,
+      "targetHigh": null
+    },
+    {
+      "date": "2008-08",
+      "gold": 833,
+      "rate": 1.94,
+      "targetLow": null,
+      "targetHigh": null
+    },
+    {
+      "date": "2008-09",
+      "gold": 884.5,
+      "rate": 2.03,
+      "targetLow": null,
+      "targetHigh": null
+    },
+    {
+      "date": "2008-10",
+      "gold": 730.75,
+      "rate": 0.22,
+      "targetLow": null,
+      "targetHigh": null
+    },
+    {
+      "date": "2008-11",
+      "gold": 814.5,
+      "rate": 0.52,
+      "targetLow": null,
+      "targetHigh": null
+    },
+    {
+      "date": "2008-12",
+      "gold": 869.75,
+      "rate": 0.14,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2009-01",
+      "gold": 919.5,
+      "rate": 0.23,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2009-02",
+      "gold": 952,
+      "rate": 0.22,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2009-03",
+      "gold": 916.5,
+      "rate": 0.16,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2009-04",
+      "gold": 883.25,
+      "rate": 0.2,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2009-05",
+      "gold": 975.5,
+      "rate": 0.19,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2009-06",
+      "gold": 934.5,
+      "rate": 0.22,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2009-07",
+      "gold": 939,
+      "rate": 0.18,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2009-08",
+      "gold": 955.5,
+      "rate": 0.15,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2009-09",
+      "gold": 995.75,
+      "rate": 0.07,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2009-10",
+      "gold": 1040,
+      "rate": 0.11,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2009-11",
+      "gold": 1175.75,
+      "rate": 0.13,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2009-12",
+      "gold": 1087.5,
+      "rate": 0.05,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2010-01",
+      "gold": 1078.5,
+      "rate": 0.12,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2010-02",
+      "gold": 1108.25,
+      "rate": 0.13,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2010-03",
+      "gold": 1115.5,
+      "rate": 0.09,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2010-04",
+      "gold": 1179.25,
+      "rate": 0.2,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2010-05",
+      "gold": 1207.5,
+      "rate": 0.19,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2010-06",
+      "gold": 1244,
+      "rate": 0.09,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2010-07",
+      "gold": 1169,
+      "rate": 0.18,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2010-08",
+      "gold": 1246,
+      "rate": 0.21,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2010-09",
+      "gold": 1307,
+      "rate": 0.15,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2010-10",
+      "gold": 1346.75,
+      "rate": 0.2,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2010-11",
+      "gold": 1383.5,
+      "rate": 0.2,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2010-12",
+      "gold": 1405.5,
+      "rate": 0.13,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2011-01",
+      "gold": 1327,
+      "rate": 0.17,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2011-02",
+      "gold": 1411,
+      "rate": 0.16,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2011-03",
+      "gold": 1439,
+      "rate": 0.1,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2011-04",
+      "gold": 1535.5,
+      "rate": 0.09,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2011-05",
+      "gold": 1536.5,
+      "rate": 0.1,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2011-06",
+      "gold": 1505.5,
+      "rate": 0.07,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2011-07",
+      "gold": 1628.5,
+      "rate": 0.11,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2011-08",
+      "gold": 1813.5,
+      "rate": 0.08,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2011-09",
+      "gold": 1620,
+      "rate": 0.06,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2011-10",
+      "gold": 1722,
+      "rate": 0.09,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2011-11",
+      "gold": 1746,
+      "rate": 0.1,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2011-12",
+      "gold": 1531,
+      "rate": 0.04,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2012-01",
+      "gold": 1744,
+      "rate": 0.11,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2012-02",
+      "gold": 1770,
+      "rate": 0.1,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2012-03",
+      "gold": 1662.5,
+      "rate": 0.09,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2012-04",
+      "gold": 1651.25,
+      "rate": 0.16,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2012-05",
+      "gold": 1558,
+      "rate": 0.16,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2012-06",
+      "gold": 1598.5,
+      "rate": 0.09,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2012-07",
+      "gold": 1622,
+      "rate": 0.13,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2012-08",
+      "gold": 1648.5,
+      "rate": 0.13,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2012-09",
+      "gold": 1776,
+      "rate": 0.09,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2012-10",
+      "gold": 1719,
+      "rate": 0.18,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2012-11",
+      "gold": 1726,
+      "rate": 0.16,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2012-12",
+      "gold": 1657.5,
+      "rate": 0.09,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2013-01",
+      "gold": 1664.75,
+      "rate": 0.15,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2013-02",
+      "gold": 1588.5,
+      "rate": 0.14,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2013-03",
+      "gold": 1598.25,
+      "rate": 0.09,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2013-04",
+      "gold": 1469,
+      "rate": 0.14,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2013-05",
+      "gold": 1394.5,
+      "rate": 0.09,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2013-06",
+      "gold": 1192,
+      "rate": 0.07,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2013-07",
+      "gold": 1314.5,
+      "rate": 0.09,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2013-08",
+      "gold": 1394.75,
+      "rate": 0.07,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2013-09",
+      "gold": 1326.5,
+      "rate": 0.06,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2013-10",
+      "gold": 1324,
+      "rate": 0.07,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2013-11",
+      "gold": 1253,
+      "rate": 0.07,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2013-12",
+      "gold": 1204.5,
+      "rate": 0.07,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2014-01",
+      "gold": 1251,
+      "rate": 0.07,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2014-02",
+      "gold": 1326.5,
+      "rate": 0.06,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2014-03",
+      "gold": 1291.75,
+      "rate": 0.06,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2014-04",
+      "gold": 1288.5,
+      "rate": 0.09,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2014-05",
+      "gold": 1250.5,
+      "rate": 0.08,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2014-06",
+      "gold": 1315,
+      "rate": 0.09,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2014-07",
+      "gold": 1285.25,
+      "rate": 0.08,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2014-08",
+      "gold": 1285.75,
+      "rate": 0.07,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2014-09",
+      "gold": 1216.5,
+      "rate": 0.07,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2014-10",
+      "gold": 1164.25,
+      "rate": 0.07,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2014-11",
+      "gold": 1182.75,
+      "rate": 0.08,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2014-12",
+      "gold": 1206,
+      "rate": 0.06,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2015-01",
+      "gold": 1260.25,
+      "rate": 0.06,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2015-02",
+      "gold": 1214,
+      "rate": 0.06,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2015-03",
+      "gold": 1187,
+      "rate": 0.06,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2015-04",
+      "gold": 1180.25,
+      "rate": 0.08,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2015-05",
+      "gold": 1191.4,
+      "rate": 0.08,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2015-06",
+      "gold": 1171,
+      "rate": 0.08,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2015-07",
+      "gold": 1098.4,
+      "rate": 0.08,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2015-08",
+      "gold": 1135,
+      "rate": 0.08,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2015-09",
+      "gold": 1114,
+      "rate": 0.07,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2015-10",
+      "gold": 1142.35,
+      "rate": 0.07,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2015-11",
+      "gold": 1061.9,
+      "rate": 0.08,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2015-12",
+      "gold": 1060,
+      "rate": 0.2,
+      "targetLow": 0.25,
+      "targetHigh": 0.5
+    },
+    {
+      "date": "2016-01",
+      "gold": 1111.8,
+      "rate": 0.29,
+      "targetLow": 0.25,
+      "targetHigh": 0.5
+    },
+    {
+      "date": "2016-02",
+      "gold": 1234.9,
+      "rate": 0.29,
+      "targetLow": 0.25,
+      "targetHigh": 0.5
+    },
+    {
+      "date": "2016-03",
+      "gold": 1237,
+      "rate": 0.25,
+      "targetLow": 0.25,
+      "targetHigh": 0.5
+    },
+    {
+      "date": "2016-04",
+      "gold": 1285.65,
+      "rate": 0.3,
+      "targetLow": 0.25,
+      "targetHigh": 0.5
+    },
+    {
+      "date": "2016-05",
+      "gold": 1212.1,
+      "rate": 0.29,
+      "targetLow": 0.25,
+      "targetHigh": 0.5
+    },
+    {
+      "date": "2016-06",
+      "gold": 1320.75,
+      "rate": 0.3,
+      "targetLow": 0.25,
+      "targetHigh": 0.5
+    },
+    {
+      "date": "2016-07",
+      "gold": 1342,
+      "rate": 0.3,
+      "targetLow": 0.25,
+      "targetHigh": 0.5
+    },
+    {
+      "date": "2016-08",
+      "gold": 1309.25,
+      "rate": 0.3,
+      "targetLow": 0.25,
+      "targetHigh": 0.5
+    },
+    {
+      "date": "2016-09",
+      "gold": 1322.5,
+      "rate": 0.29,
+      "targetLow": 0.25,
+      "targetHigh": 0.5
+    },
+    {
+      "date": "2016-10",
+      "gold": 1272,
+      "rate": 0.31,
+      "targetLow": 0.25,
+      "targetHigh": 0.5
+    },
+    {
+      "date": "2016-11",
+      "gold": 1178.1,
+      "rate": 0.31,
+      "targetLow": 0.25,
+      "targetHigh": 0.5
+    },
+    {
+      "date": "2016-12",
+      "gold": 1145.9,
+      "rate": 0.55,
+      "targetLow": 0.5,
+      "targetHigh": 0.75
+    },
+    {
+      "date": "2017-01",
+      "gold": 1212.8,
+      "rate": 0.56,
+      "targetLow": 0.5,
+      "targetHigh": 0.75
+    },
+    {
+      "date": "2017-02",
+      "gold": 1255.6,
+      "rate": 0.57,
+      "targetLow": 0.5,
+      "targetHigh": 0.75
+    },
+    {
+      "date": "2017-03",
+      "gold": 1244.85,
+      "rate": 0.82,
+      "targetLow": 0.75,
+      "targetHigh": 1
+    },
+    {
+      "date": "2017-04",
+      "gold": 1266.45,
+      "rate": 0.83,
+      "targetLow": 0.75,
+      "targetHigh": 1
+    },
+    {
+      "date": "2017-05",
+      "gold": 1266.2,
+      "rate": 0.83,
+      "targetLow": 0.75,
+      "targetHigh": 1
+    },
+    {
+      "date": "2017-06",
+      "gold": 1242.25,
+      "rate": 1.06,
+      "targetLow": 1,
+      "targetHigh": 1.25
+    },
+    {
+      "date": "2017-07",
+      "gold": 1267.55,
+      "rate": 1.07,
+      "targetLow": 1,
+      "targetHigh": 1.25
+    },
+    {
+      "date": "2017-08",
+      "gold": 1311.75,
+      "rate": 1.07,
+      "targetLow": 1,
+      "targetHigh": 1.25
+    },
+    {
+      "date": "2017-09",
+      "gold": 1283.1,
+      "rate": 1.06,
+      "targetLow": 1,
+      "targetHigh": 1.25
+    },
+    {
+      "date": "2017-10",
+      "gold": 1270.15,
+      "rate": 1.07,
+      "targetLow": 1,
+      "targetHigh": 1.25
+    },
+    {
+      "date": "2017-11",
+      "gold": 1280.2,
+      "rate": 1.07,
+      "targetLow": 1,
+      "targetHigh": 1.25
+    },
+    {
+      "date": "2017-12",
+      "gold": 1291,
+      "rate": 1.33,
+      "targetLow": 1.25,
+      "targetHigh": 1.5
+    },
+    {
+      "date": "2018-01",
+      "gold": 1345.05,
+      "rate": 1.34,
+      "targetLow": 1.25,
+      "targetHigh": 1.5
+    },
+    {
+      "date": "2018-02",
+      "gold": 1317.85,
+      "rate": 1.35,
+      "targetLow": 1.25,
+      "targetHigh": 1.5
+    },
+    {
+      "date": "2018-03",
+      "gold": 1323.85,
+      "rate": 1.67,
+      "targetLow": 1.5,
+      "targetHigh": 1.75
+    },
+    {
+      "date": "2018-04",
+      "gold": 1313.2,
+      "rate": 1.69,
+      "targetLow": 1.5,
+      "targetHigh": 1.75
+    },
+    {
+      "date": "2018-05",
+      "gold": 1305.35,
+      "rate": 1.7,
+      "targetLow": 1.5,
+      "targetHigh": 1.75
+    },
+    {
+      "date": "2018-06",
+      "gold": 1250.45,
+      "rate": 1.91,
+      "targetLow": 1.75,
+      "targetHigh": 2
+    },
+    {
+      "date": "2018-07",
+      "gold": 1220.95,
+      "rate": 1.91,
+      "targetLow": 1.75,
+      "targetHigh": 2
+    },
+    {
+      "date": "2018-08",
+      "gold": 1202.45,
+      "rate": 1.91,
+      "targetLow": 1.75,
+      "targetHigh": 2
+    },
+    {
+      "date": "2018-09",
+      "gold": 1187.25,
+      "rate": 2.18,
+      "targetLow": 2,
+      "targetHigh": 2.25
+    },
+    {
+      "date": "2018-10",
+      "gold": 1214.95,
+      "rate": 2.2,
+      "targetLow": 2,
+      "targetHigh": 2.25
+    },
+    {
+      "date": "2018-11",
+      "gold": 1217.55,
+      "rate": 2.2,
+      "targetLow": 2,
+      "targetHigh": 2.25
+    },
+    {
+      "date": "2018-12",
+      "gold": 1279,
+      "rate": 2.4,
+      "targetLow": 2.25,
+      "targetHigh": 2.5
+    },
+    {
+      "date": "2019-01",
+      "gold": 1323.25,
+      "rate": 2.4,
+      "targetLow": 2.25,
+      "targetHigh": 2.5
+    },
+    {
+      "date": "2019-02",
+      "gold": 1319.15,
+      "rate": 2.4,
+      "targetLow": 2.25,
+      "targetHigh": 2.5
+    },
+    {
+      "date": "2019-03",
+      "gold": 1295.4,
+      "rate": 2.43,
+      "targetLow": 2.25,
+      "targetHigh": 2.5
+    },
+    {
+      "date": "2019-04",
+      "gold": 1282.3,
+      "rate": 2.45,
+      "targetLow": 2.25,
+      "targetHigh": 2.5
+    },
+    {
+      "date": "2019-05",
+      "gold": 1295.55,
+      "rate": 2.4,
+      "targetLow": 2.25,
+      "targetHigh": 2.5
+    },
+    {
+      "date": "2019-06",
+      "gold": 1409,
+      "rate": 2.4,
+      "targetLow": 2.25,
+      "targetHigh": 2.5
+    },
+    {
+      "date": "2019-07",
+      "gold": 1427.55,
+      "rate": 2.4,
+      "targetLow": 2.25,
+      "targetHigh": 2.5
+    },
+    {
+      "date": "2019-08",
+      "gold": 1528.4,
+      "rate": 2.13,
+      "targetLow": 2,
+      "targetHigh": 2.25
+    },
+    {
+      "date": "2019-09",
+      "gold": 1485.3,
+      "rate": 1.9,
+      "targetLow": 1.75,
+      "targetHigh": 2
+    },
+    {
+      "date": "2019-10",
+      "gold": 1510.95,
+      "rate": 1.58,
+      "targetLow": 1.5,
+      "targetHigh": 1.75
+    },
+    {
+      "date": "2019-11",
+      "gold": 1460.15,
+      "rate": 1.56,
+      "targetLow": 1.5,
+      "targetHigh": 1.75
+    },
+    {
+      "date": "2019-12",
+      "gold": 1514.75,
+      "rate": 1.55,
+      "targetLow": 1.5,
+      "targetHigh": 1.75
+    },
+    {
+      "date": "2020-01",
+      "gold": 1584.2,
+      "rate": 1.59,
+      "targetLow": 1.5,
+      "targetHigh": 1.75
+    },
+    {
+      "date": "2020-02",
+      "gold": 1609.85,
+      "rate": 1.58,
+      "targetLow": 1.5,
+      "targetHigh": 1.75
+    },
+    {
+      "date": "2020-03",
+      "gold": 1608.95,
+      "rate": 0.08,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2020-04",
+      "gold": 1702.75,
+      "rate": 0.05,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2020-05",
+      "gold": 1728.7,
+      "rate": 0.05,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2020-06",
+      "gold": 1768.1,
+      "rate": 0.08,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2020-07",
+      "gold": 1964.9,
+      "rate": 0.1,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2020-08",
+      "gold": 1957.35,
+      "rate": 0.09,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2020-09",
+      "gold": 1886.9,
+      "rate": 0.09,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2020-10",
+      "gold": 1881.85,
+      "rate": 0.09,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2020-11",
+      "gold": 1762.55,
+      "rate": 0.09,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2020-12",
+      "gold": 1887.6,
+      "rate": 0.09,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2021-01",
+      "gold": 1863.8,
+      "rate": 0.07,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2021-02",
+      "gold": 1742.85,
+      "rate": 0.07,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2021-03",
+      "gold": 1691.05,
+      "rate": 0.06,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2021-04",
+      "gold": 1767.65,
+      "rate": 0.05,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2021-05",
+      "gold": 1899.95,
+      "rate": 0.05,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2021-06",
+      "gold": 1763.15,
+      "rate": 0.08,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2021-07",
+      "gold": 1825.75,
+      "rate": 0.07,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2021-08",
+      "gold": 1814.85,
+      "rate": 0.06,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2021-09",
+      "gold": 1742.8,
+      "rate": 0.06,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2021-10",
+      "gold": 1769.15,
+      "rate": 0.07,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2021-11",
+      "gold": 1804.4,
+      "rate": 0.07,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2021-12",
+      "gold": 1805.85,
+      "rate": 0.07,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2022-01",
+      "gold": 1795.25,
+      "rate": 0.08,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2022-02",
+      "gold": 1909.85,
+      "rate": 0.08,
+      "targetLow": 0,
+      "targetHigh": 0.25
+    },
+    {
+      "date": "2022-03",
+      "gold": 1942.15,
+      "rate": 0.33,
+      "targetLow": 0.25,
+      "targetHigh": 0.5
+    },
+    {
+      "date": "2022-04",
+      "gold": 1911.3,
+      "rate": 0.33,
+      "targetLow": 0.25,
+      "targetHigh": 0.5
+    },
+    {
+      "date": "2022-05",
+      "gold": 1838.7,
+      "rate": 0.83,
+      "targetLow": 0.75,
+      "targetHigh": 1
+    },
+    {
+      "date": "2022-06",
+      "gold": 1817,
+      "rate": 1.58,
+      "targetLow": 1.5,
+      "targetHigh": 1.75
+    },
+    {
+      "date": "2022-07",
+      "gold": 1753.4,
+      "rate": 2.32,
+      "targetLow": 2.25,
+      "targetHigh": 2.5
+    },
+    {
+      "date": "2022-08",
+      "gold": 1715.9,
+      "rate": 2.33,
+      "targetLow": 2.25,
+      "targetHigh": 2.5
+    },
+    {
+      "date": "2022-09",
+      "gold": 1671.75,
+      "rate": 3.08,
+      "targetLow": 3,
+      "targetHigh": 3.25
+    },
+    {
+      "date": "2022-10",
+      "gold": 1639,
+      "rate": 3.08,
+      "targetLow": 3,
+      "targetHigh": 3.25
+    },
+    {
+      "date": "2022-11",
+      "gold": 1753.5,
+      "rate": 3.83,
+      "targetLow": 3.75,
+      "targetHigh": 4
+    },
+    {
+      "date": "2022-12",
+      "gold": 1813.75,
+      "rate": 4.33,
+      "targetLow": 4.25,
+      "targetHigh": 4.5
+    },
+    {
+      "date": "2023-01",
+      "gold": 1923.9,
+      "rate": 4.33,
+      "targetLow": 4.25,
+      "targetHigh": 4.5
+    },
+    {
+      "date": "2023-02",
+      "gold": 1824.6,
+      "rate": 4.57,
+      "targetLow": 4.5,
+      "targetHigh": 4.75
+    },
+    {
+      "date": "2023-03",
+      "gold": 1979.7,
+      "rate": 4.83,
+      "targetLow": 4.75,
+      "targetHigh": 5
+    },
+    {
+      "date": "2023-04",
+      "gold": 1982.55,
+      "rate": 4.83,
+      "targetLow": 4.75,
+      "targetHigh": 5
+    },
+    {
+      "date": "2023-05",
+      "gold": 1964.4,
+      "rate": 5.08,
+      "targetLow": 5,
+      "targetHigh": 5.25
+    },
+    {
+      "date": "2023-06",
+      "gold": 1912.25,
+      "rate": 5.08,
+      "targetLow": 5,
+      "targetHigh": 5.25
+    },
+    {
+      "date": "2023-07",
+      "gold": 1970.65,
+      "rate": 5.33,
+      "targetLow": 5.25,
+      "targetHigh": 5.5
+    },
+    {
+      "date": "2023-08",
+      "gold": 1942.3,
+      "rate": 5.33,
+      "targetLow": 5.25,
+      "targetHigh": 5.5
+    },
+    {
+      "date": "2023-09",
+      "gold": 1870.5,
+      "rate": 5.33,
+      "targetLow": 5.25,
+      "targetHigh": 5.5
+    },
+    {
+      "date": "2023-10",
+      "gold": 1996.9,
+      "rate": 5.33,
+      "targetLow": 5.25,
+      "targetHigh": 5.5
+    },
+    {
+      "date": "2023-11",
+      "gold": 2035.45,
+      "rate": 5.33,
+      "targetLow": 5.25,
+      "targetHigh": 5.5
+    },
+    {
+      "date": "2023-12",
+      "gold": 2078.4,
+      "rate": 5.33,
+      "targetLow": 5.25,
+      "targetHigh": 5.5
+    },
+    {
+      "date": "2024-01",
+      "gold": 2053.25,
+      "rate": 5.33,
+      "targetLow": 5.25,
+      "targetHigh": 5.5
+    },
+    {
+      "date": "2024-02",
+      "gold": 2048.05,
+      "rate": 5.33,
+      "targetLow": 5.25,
+      "targetHigh": 5.5
+    },
+    {
+      "date": "2024-03",
+      "gold": 2214.35,
+      "rate": 5.33,
+      "targetLow": 5.25,
+      "targetHigh": 5.5
+    },
+    {
+      "date": "2024-04",
+      "gold": 2307,
+      "rate": 5.33,
+      "targetLow": 5.25,
+      "targetHigh": 5.5
+    },
+    {
+      "date": "2024-05",
+      "gold": 2348.25,
+      "rate": 5.33,
+      "targetLow": 5.25,
+      "targetHigh": 5.5
+    },
+    {
+      "date": "2024-06",
+      "gold": 2330.9,
+      "rate": 5.33,
+      "targetLow": 5.25,
+      "targetHigh": 5.5
+    },
+    {
+      "date": "2024-07",
+      "gold": 2426.3,
+      "rate": 5.33,
+      "targetLow": 5.25,
+      "targetHigh": 5.5
+    },
+    {
+      "date": "2024-08",
+      "gold": 2513.35,
+      "rate": 5.33,
+      "targetLow": 5.25,
+      "targetHigh": 5.5
+    },
+    {
+      "date": "2024-09",
+      "gold": 2629.95,
+      "rate": 4.83,
+      "targetLow": 4.75,
+      "targetHigh": 5
+    },
+    {
+      "date": "2024-10",
+      "gold": 2734.15,
+      "rate": 4.83,
+      "targetLow": 4.75,
+      "targetHigh": 5
+    },
+    {
+      "date": "2024-11",
+      "gold": 2651.05,
+      "rate": 4.58,
+      "targetLow": 4.5,
+      "targetHigh": 4.75
+    },
+    {
+      "date": "2024-12",
+      "gold": 2609.1,
+      "rate": 4.33,
+      "targetLow": 4.25,
+      "targetHigh": 4.5
+    },
+    {
+      "date": "2025-01",
+      "gold": 2812.05,
+      "rate": 4.33,
+      "targetLow": 4.25,
+      "targetHigh": 4.5
+    },
+    {
+      "date": "2025-02",
+      "gold": 2834.55,
+      "rate": 4.33,
+      "targetLow": 4.25,
+      "targetHigh": 4.5
+    },
+    {
+      "date": "2025-03",
+      "gold": 3115.1,
+      "rate": 4.33,
+      "targetLow": 4.25,
+      "targetHigh": 4.5
+    },
+    {
+      "date": "2025-04",
+      "gold": 3302.05,
+      "rate": 4.33,
+      "targetLow": 4.25,
+      "targetHigh": 4.5
+    },
+    {
+      "date": "2025-05",
+      "gold": 3277.55,
+      "rate": 4.33,
+      "targetLow": 4.25,
+      "targetHigh": 4.5
+    },
+    {
+      "date": "2025-06",
+      "gold": 3287.45,
+      "rate": 4.33,
+      "targetLow": 4.25,
+      "targetHigh": 4.5
+    },
+    {
+      "date": "2025-07",
+      "gold": 3298.85,
+      "rate": 4.33,
+      "targetLow": 4.25,
+      "targetHigh": 4.5
+    },
+    {
+      "date": "2025-08",
+      "gold": 3429.15,
+      "rate": 4.33,
+      "targetLow": 4.25,
+      "targetHigh": 4.5
+    },
+    {
+      "date": "2025-09",
+      "gold": 3825.3,
+      "rate": 4.09,
+      "targetLow": 4,
+      "targetHigh": 4.25
+    },
+    {
+      "date": "2025-10",
+      "gold": 4011.5,
+      "rate": 3.86,
+      "targetLow": 3.75,
+      "targetHigh": 4
+    },
+    {
+      "date": "2025-11",
+      "gold": 4191.05,
+      "rate": 3.89,
+      "targetLow": 3.75,
+      "targetHigh": 4
+    },
+    {
+      "date": "2025-12",
+      "gold": 4367.8,
+      "rate": 3.64,
+      "targetLow": 3.5,
+      "targetHigh": 3.75
+    },
+    {
+      "date": "2026-01",
+      "gold": 4981.85,
+      "rate": 3.64,
+      "targetLow": 3.5,
+      "targetHigh": 3.75
+    },
+    {
+      "date": "2026-02",
+      "gold": 5222.3,
+      "rate": 3.64,
+      "targetLow": 3.5,
+      "targetHigh": 3.75
+    },
+    {
+      "date": "2026-03",
+      "gold": 4608.35,
+      "rate": 3.64,
+      "targetLow": 3.5,
+      "targetHigh": 3.75
+    },
+    {
+      "date": "2026-04",
+      "gold": 4611.35,
+      "rate": 3.64,
+      "targetLow": 3.5,
+      "targetHigh": 3.75
+    },
+    {
+      "date": "2026-05",
+      "gold": 4545.95,
+      "rate": 3.62,
+      "targetLow": 3.5,
+      "targetHigh": 3.75
+    },
+    {
+      "date": "2026-06",
+      "gold": 4026.05,
+      "rate": 3.63,
+      "targetLow": 3.5,
+      "targetHigh": 3.75
+    },
+    {
+      "date": "2026-07",
+      "gold": 4026.6,
+      "rate": 3.63,
+      "targetLow": 3.5,
+      "targetHigh": 3.75
+    },
+    {
+      "date": "2026-08",
+      "gold": 4562.75,
+      "rate": 3.63,
+      "targetLow": 3.5,
+      "targetHigh": 3.75
+    },
+    {
+      "date": "2026-09",
+      "gold": 4144.55,
+      "rate": 3.88,
+      "targetLow": 3.75,
+      "targetHigh": 4
+    }
+  ],
+  "periods": [
+    {
+      "start": "2007-09-18",
+      "end": "2015-12-17",
+      "stance": "宽松周期",
+      "tone": "easing",
+      "goldStart": 714.75,
+      "goldEnd": 1049.4,
+      "goldChange": 46.8,
+      "rateStart": 4.92,
+      "rateEnd": 0.37
+    },
+    {
+      "start": "2015-12-17",
+      "end": "2018-12-20",
+      "stance": "紧缩周期",
+      "tone": "tightening",
+      "goldStart": 1049.4,
+      "goldEnd": 1259.75,
+      "goldChange": 20,
+      "rateStart": 0.37,
+      "rateEnd": 2.4
+    },
+    {
+      "start": "2018-12-20",
+      "end": "2020-03-16",
+      "stance": "宽松周期",
+      "tone": "easing",
+      "goldStart": 1259.75,
+      "goldEnd": 1487.7,
+      "goldChange": 18.1,
+      "rateStart": 2.4,
+      "rateEnd": 0.25
+    },
+    {
+      "start": "2020-03-16",
+      "end": "2022-03-17",
+      "stance": "超宽松周期",
+      "tone": "easing",
+      "goldStart": 1487.7,
+      "goldEnd": 1949.65,
+      "goldChange": 31.1,
+      "rateStart": 0.25,
+      "rateEnd": 0.33
+    },
+    {
+      "start": "2022-03-17",
+      "end": "2023-07-27",
+      "stance": "紧缩周期",
+      "tone": "tightening",
+      "goldStart": 1949.65,
+      "goldEnd": 1945.35,
+      "goldChange": -0.2,
+      "rateStart": 0.33,
+      "rateEnd": 5.33
+    },
+    {
+      "start": "2023-07-27",
+      "end": "2024-09-19",
+      "stance": "高利率暂停期",
+      "tone": "pause",
+      "goldStart": 1945.35,
+      "goldEnd": 2575.35,
+      "goldChange": 32.4,
+      "rateStart": 5.33,
+      "rateEnd": 4.83
+    },
+    {
+      "start": "2024-09-19",
+      "end": "2025-12-11",
+      "stance": "宽松周期",
+      "tone": "easing",
+      "goldStart": 2575.35,
+      "goldEnd": 4230.35,
+      "goldChange": 64.3,
+      "rateStart": 4.83,
+      "rateEnd": 3.64
+    },
+    {
+      "start": "2025-12-11",
+      "end": "2026-09-28",
+      "stance": "暂停期",
+      "tone": "pause",
+      "goldStart": 4230.35,
+      "goldEnd": 4144.55,
+      "goldChange": -2,
+      "rateStart": 3.64,
+      "rateEnd": 3.88
+    }
+  ],
+  "sources": [
+    {
+      "label": "LBMA Gold Price PM",
+      "url": "https://prices.lbma.org.uk/json/gold_pm.json"
+    },
+    {
+      "label": "FRED DFF",
+      "url": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=DFF&cosd=2007-01-01"
+    },
+    {
+      "label": "Federal Reserve target range",
+      "url": "https://www.federalreserve.gov/monetarypolicy/openmarket.htm"
+    }
+  ],
+  "note": "黄金采用LBMA Gold Price PM美元日线；利率曲线采用FRED有效联邦基金利率DFF，目标区间采用DFEDTARL/DFEDTARU。政策周期按FOMC利率方向划分，区间涨跌幅按起止附近可得的LBMA交易日价格计算。"
+}

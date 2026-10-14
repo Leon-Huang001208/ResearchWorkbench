@@ -415,3 +415,7 @@ GET `/api/research/local-integrations`附带`integration_status`，其中`scope=
 ## 历史子会话模式兼容 · 2026-10-13
 
 GET会话列表及父详情不因已验证活动的历史子mode=unknown整体返回503。父详情沿用subagents的status/error字段显示运行中或历史不可用；真实活动/归属未知仍返回协议错误，响应schema不增加字段。
+
+## 框架展示元数据 · 2026-10-14
+
+框架目录 item 和 data 响应中的 framework 附加 display：kind 为 native-embed 或 static-embed，url 为本站 /frameworks-embed/{slug}/，imported_at 为资产导入日期，bot_enabled 表示本站框架 Bot 是否接入。Gold／Dollar 的定义字段与 snapshot 保持原合同；该附加对象不参与快照 revision。九个静态看板 Bot API 返回 409 framework_bot_unavailable，不发起 DSH 会话。

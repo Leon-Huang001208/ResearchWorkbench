@@ -1,0 +1,73 @@
+<svg viewBox="0 0 1000 590" xmlns="http://www.w3.org/2000/svg" class="ph-scene">
+  <text class="ph-lbls" x="45" y="38">推理 CPU：高密度核心、矩阵引擎、缓存与大内存共同服务低延迟 Decode、RAG、KV Cache 和 Agent 调度</text>
+
+  <g class="ph-hot" data-part="cpu-gpu-c2c">
+    <rect class="ph-chipbg ph-ln" x="58" y="174" width="142" height="100" rx="6"/>
+    <rect class="ph-chipf" x="98" y="200" width="62" height="48"/>
+    <text class="ph-die" x="129" y="229" text-anchor="middle">GPU</text>
+    <path class="ph-flow" d="M200 224H270"/>
+    <polygon points="260,219 270,224 260,229" fill="var(--accent)"/>
+    <text class="ph-lbl" x="129" y="304" text-anchor="middle">GPU 协处理器</text>
+    <text class="ph-lbls" x="129" y="321" text-anchor="middle">NVLink-C2C 900GB/s</text>
+  </g>
+
+  <rect class="ph-fill ph-ln" x="270" y="86" width="430" height="292" rx="8" stroke-width="2"/>
+  <text class="ph-lbl" x="485" y="114" text-anchor="middle">服务器 CPU Package · 推理 / Agent 优化</text>
+
+  <g class="ph-hot" data-part="cpu-core-clusters">
+    <rect class="ph-chipbg ph-ln2" x="298" y="136" width="114" height="86" rx="4"/>
+    <rect class="ph-chipbg ph-ln2" x="298" y="242" width="114" height="86" rx="4"/>
+    <rect class="ph-chipbg ph-ln2" x="556" y="136" width="114" height="86" rx="4"/>
+    <rect class="ph-chipbg ph-ln2" x="556" y="242" width="114" height="86" rx="4"/>
+    <path class="ph-ln2" d="M320 158h22v18h-22zM356 158h22v18h-22zM320 188h22v18h-22zM356 188h22v18h-22zM320 264h22v18h-22zM356 264h22v18h-22zM320 294h22v18h-22zM356 294h22v18h-22zM578 158h22v18h-22zM614 158h22v18h-22zM578 188h22v18h-22zM614 188h22v18h-22zM578 264h22v18h-22zM614 264h22v18h-22zM578 294h22v18h-22zM614 294h22v18h-22z"/>
+    <text class="ph-lbls" x="355" y="236" text-anchor="middle">核心簇</text>
+    <text class="ph-lbls" x="613" y="236" text-anchor="middle">核心簇</text>
+    <g class="ph-plus"><circle cx="402" cy="146" r="8"/><path d="M402 142v8M398 146h8"/></g>
+  </g>
+
+  <g class="ph-hot" data-part="cpu-cache-hierarchy">
+    <rect class="ph-fill ph-ln" x="432" y="136" width="106" height="98" rx="4"/>
+    <rect class="ph-metal" x="446" y="150" width="78" height="22"/>
+    <rect class="ph-metal" x="446" y="179" width="78" height="42"/>
+    <text class="ph-lbl" x="485" y="166" text-anchor="middle">L2 Cache</text>
+    <text class="ph-lbl" x="485" y="205" text-anchor="middle">共享 L3 Cache</text>
+  </g>
+
+  <g class="ph-hot" data-part="cpu-matrix-engine">
+    <rect class="ph-chipf ph-ln" x="432" y="252" width="106" height="76" rx="4"/>
+    <path class="ph-ln2" d="M450 270h18v16h-18zM478 270h18v16h-18zM450 296h18v16h-18zM478 296h18v16h-18z"/>
+    <text class="ph-die" x="485" y="305" text-anchor="middle">AMX / 向量引擎</text>
+  </g>
+
+  <g class="ph-hot" data-part="cpu-ddr5-channels">
+    <rect class="ph-fill ph-ln" x="288" y="414" width="80" height="58" rx="4"/>
+    <rect class="ph-fill ph-ln" x="386" y="414" width="80" height="58" rx="4"/>
+    <rect class="ph-fill ph-ln" x="504" y="414" width="80" height="58" rx="4"/>
+    <rect class="ph-fill ph-ln" x="602" y="414" width="80" height="58" rx="4"/>
+    <path class="ph-ln2" d="M302 430h52M302 446h52M400 430h52M400 446h52M518 430h52M518 446h52M616 430h52M616 446h52"/>
+    <path class="ph-lead" d="M328 378V414M426 378V414M544 378V414M642 378V414"/>
+    <text class="ph-lbl" x="485" y="504" text-anchor="middle">DDR5 多通道 · 容量与带宽主存池</text>
+  </g>
+
+  <g class="ph-hot" data-part="cpu-cxl-pool">
+    <rect class="ph-fill ph-ln" x="752" y="132" width="174" height="104" rx="6"/>
+    <rect class="ph-metal ph-ln2" x="774" y="154" width="58" height="58"/>
+    <rect class="ph-metal ph-ln2" x="846" y="154" width="58" height="58"/>
+    <text class="ph-lbl" x="839" y="268" text-anchor="middle">CXL 内存扩展池</text>
+    <text class="ph-lbls" x="839" y="285" text-anchor="middle">KV Cache 池化 / 一致性共享</text>
+    <path class="ph-dash" d="M700 190H752"/>
+    <g class="ph-plus"><circle cx="914" cy="144" r="8"/><path d="M914 140v8M910 144h8"/></g>
+  </g>
+
+  <g class="ph-hot" data-part="cpu-inference-roles">
+    <rect class="ph-fill ph-ln" x="750" y="334" width="180" height="126" rx="6"/>
+    <text class="ph-lbl" x="840" y="366" text-anchor="middle">CPU 推理任务</text>
+    <path class="ph-ln2" d="M774 388h132M774 414h132M774 440h132"/>
+    <text class="ph-lbls" x="840" y="405" text-anchor="middle">Decode / 小 Batch</text>
+    <text class="ph-lbls" x="840" y="431" text-anchor="middle">RAG / KV Cache</text>
+    <text class="ph-lbls" x="840" y="457" text-anchor="middle">Agent 调度 / 工具调用</text>
+    <path class="ph-dash" d="M700 320H750"/>
+  </g>
+
+  <text class="ph-lbls" x="500" y="555" text-anchor="middle">CPU 与 GPU 的角色不是替代：GPU 承担高并行矩阵吞吐，CPU 擅长低时延、控制、内存与异构任务编排。</text>
+</svg>

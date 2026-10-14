@@ -473,3 +473,7 @@ POSIX运行记录读取的共享祖先在stat/open与退出复查均采用dev/in
 PR96 与既有 Fernet 模型桥共用唯一私有 stdio 接口；默认 `native-keychain`、常规 staged `docker-encrypted-file` 语义保留，管理器仅显式绑定 `docker-encrypted` 选择 AES-GCM。两种 Docker 格式与主密钥布局独立，混合绑定或外来格式失败关闭，不转换密文、不删除旧 Key、不回退。四操作与固定 ref 保持；来源如实区分，configured/Doctor 不证明真实生成。
 
 AES 绑定先验证已有树及两个固定 ref 的完整认证，不允许外来实例记录被当前 namespace 遮蔽；resolve/describe/set/unset 与原活动守卫保持。
+
+## 框架嵌入核心闭环 · 2026-10-14
+
+Gold／Dollar 看板确认宿主已读 snapshot revision 后，Bot 才沿原解释／显式深度验证 preset 请求 DSH；已有会话仍绑定旧 revision，刷新不改变绑定。静态九项拒绝框架 Bot，不生成第二套执行链。

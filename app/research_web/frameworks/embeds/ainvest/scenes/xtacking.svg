@@ -1,0 +1,24 @@
+<svg viewBox="0 0 1000 600" xmlns="http://www.w3.org/2000/svg" class="ph-scene">
+  <text class="ph-lbls" x="45" y="42">国产 3D NAND · Xtacking：CMOS 外围电路与 NAND 阵列分别制造，再以高密度金属互连键合为一体</text>
+  <text class="ph-lbls" x="184" y="96" text-anchor="middle">独立制造 · 逻辑工艺窗口</text><text class="ph-lbls" x="450" y="96" text-anchor="middle">独立制造 · 阵列密度与堆叠</text><text class="ph-lbls" x="790" y="96" text-anchor="middle">键合后形成单一 3D NAND 芯片</text>
+  <g class="ph-hot" data-part="xtacking-cmos">
+    <rect class="ph-chipbg ph-ln" x="72" y="138" width="224" height="170" rx="5"/><rect class="ph-metal ph-ln2" x="96" y="168" width="176" height="96" rx="3"/>
+    <path class="ph-ln2" d="M112 188h50v26h42v-26h52M112 238h42v-22h48v22h54M126 168v96M246 168v96"/><circle class="ph-chipf" cx="142" cy="188" r="7"/><circle class="ph-chipf" cx="224" cy="238" r="7"/>
+    <text class="ph-lbl" x="184" y="340" text-anchor="middle">CMOS 外围电路晶圆</text><text class="ph-lbls" x="184" y="357" text-anchor="middle">译码 / 读写 / I/O / 控制</text>
+  </g>
+  <text class="ph-lbl" x="326" y="232" text-anchor="middle">+</text>
+  <g class="ph-hot" data-part="xtacking-array">
+    <rect class="ph-chipbg ph-ln" x="338" y="138" width="224" height="170" rx="5"/><path class="ph-ln2" d="M362 166h176M362 180h176M362 194h176M362 208h176M362 222h176M362 236h176M362 250h176M362 264h176"/><path class="ph-gold" d="M394 156v116M450 156v116M506 156v116" stroke-width="10" fill="none" opacity=".8"/><path class="ph-ln2" d="M394 156v116M450 156v116M506 156v116"/>
+    <text class="ph-lbl" x="450" y="340" text-anchor="middle">NAND 存储阵列晶圆</text><text class="ph-lbls" x="450" y="357" text-anchor="middle">3D 堆叠 · 通道孔 / 字线</text>
+  </g>
+  <path class="ph-flow" d="M582 224h74"/>
+  <g class="ph-hot" data-part="xtacking-die">
+    <rect class="ph-fill ph-ln" x="676" y="128" width="230" height="216" rx="6"/>
+    <rect class="ph-chipbg ph-ln2" x="704" y="150" width="174" height="62"/><path class="ph-ln2" d="M720 166h142M720 180h142M720 194h142"/>
+    <g class="ph-hot" data-part="xtacking-vias"><rect class="ph-metal ph-ln2" x="704" y="232" width="174" height="20"/><g class="ph-gold"><circle cx="726" cy="242" r="4"/><circle cx="750" cy="242" r="4"/><circle cx="774" cy="242" r="4"/><circle cx="798" cy="242" r="4"/><circle cx="822" cy="242" r="4"/><circle cx="846" cy="242" r="4"/></g></g>
+    <rect class="ph-chipf ph-ln2" x="704" y="272" width="174" height="42"/><path class="ph-ln2" d="M724 292h134M744 272v42M804 272v42"/>
+    <text class="ph-lbl" x="791" y="376" text-anchor="middle">合并为牢固的整体</text><text class="ph-lbls" x="791" y="393" text-anchor="middle">上：NAND 阵列 · 下：CMOS 外围电路</text>
+  </g>
+  <path class="ph-lead" d="M450 420v46H790v-46"/><text class="ph-lbl" x="620" y="500" text-anchor="middle">金属互连（Vias）完成晶圆键合</text><text class="ph-lbls" x="620" y="521" text-anchor="middle">分别优化后再集成，兼顾存储密度、I/O 速度与芯片面积</text>
+  <text class="ph-lbls" x="500" y="570" text-anchor="middle">结构示意参考：长江存储公开资料、广发证券《电子行业2026年中期策略：AI创新与存储周期》图 46</text>
+</svg>
