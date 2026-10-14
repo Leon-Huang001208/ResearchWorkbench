@@ -121,6 +121,38 @@ class Store:
         log.info("research_session_registered", session_id=sid, mode=mode)
         return row
 
+    def reserve_hot_session(self, sid: str, mode: str, origin: dict) -> dict:
+        """Persist the preallocated identity before native creation; never adopt another row."""
+        from .datahub.security import directory, make_directory
+        if (not isinstance(sid, str) or not re.fullmatch(r"[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}", sid)
+                or mode not in {"fingpt", "claw"} or not isinstance(origin, dict)
+                or set(origin) != {"runId", "instanceId", "manifestHash"}
+                or any(not isinstance(origin[k], str) or not re.fullmatch(r"[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}", origin[k]) for k in ["runId", "instanceId"])
+                or not isinstance(origin["manifestHash"], str) or not re.fullmatch(r"[a-f0-9]{64}", origin["manifestHash"])):
+            raise StoreError("研究交接保留身份非法")
+        if sid in self.data["sessions"]:
+            row = self.session(sid)
+            if row.get("hot_origin") != origin or row["mode"] != mode:
+                raise StoreError("目标会话属于其他交接")
+        else:
+            with directory(self.root, ("sessions",), create=True) as parent:
+                if sid in os.listdir(parent):
+                    raise StoreError("目标会话目录已存在但没有归属")
+            row = {"id": sid, "mode": mode, "title": "热点与事件研究", "workspace_id": "research",
+                   "status": "idle", "model": None, "updated_at": time.time(), "files": {}, "created": False,
+                   "purpose": "hot_research", "hot_origin": dict(origin), "hot_creation_state": "reserved"}
+            self.data["sessions"][sid] = row
+            self.save()
+            log.info("hot_session_reserved", session_id=sid)
+        # Recovery can finish directory preparation from the durable matching row.
+        with directory(self.root, ("sessions", sid), create=True) as parent:
+            for name in ["inputs", "outputs"]:
+                if name not in os.listdir(parent):
+                    make_directory(parent, name)
+                with directory(self.root, ("sessions", sid, name)):
+                    pass
+        return row
+
     def audit(self, kind: str, outcome: str, **safe_metadata) -> None:
         """Persist a bounded, content-free operational event."""
         allowed = {

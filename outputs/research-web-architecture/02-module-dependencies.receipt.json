@@ -3,15 +3,15 @@
   "ok": true,
   "command": "deliver",
   "type": "architecture",
-  "input": "/Users/leon/ResearchWorkbench-worktrees/task-20260911-phase2c-automations/docs/architecture/research-web/diagrams/02-module-dependencies-final.json",
-  "output": "/Users/leon/ResearchWorkbench-worktrees/task-20260911-phase2c-automations/outputs/research-web-architecture/02-module-dependencies.html",
+  "input": "/Users/leon/.codex/worktrees/hot-events-system/ResearchWorkbench/docs/architecture/research-web/diagrams/02-module-dependencies-final.json",
+  "output": "/Users/leon/.codex/worktrees/hot-events-system/ResearchWorkbench/outputs/research-web-architecture/02-module-dependencies.html",
   "specification": {
-    "sha256": "fd63c80fc915d319f60b6804ec81048eb01e87af9005ac40862c6a51df4a9534",
-    "bytes": 9135
+    "sha256": "0afdf59f36b6b45e2d0d9ac7a9c4c25ba625bc7f8142b524efc1b2690895ef3f",
+    "bytes": 14055
   },
   "artifact": {
-    "sha256": "01aed4e526e3876396e5b3575f4836623f5c57a74e005c3974e52b734ccff803",
-    "bytes": 657296
+    "sha256": "14312c6a90944b4efe0ce0a063df699a4c1229869d7a1cd668fba24ab5b21fef",
+    "bytes": 659289
   },
   "validation": {
     "checksPassed": 9,

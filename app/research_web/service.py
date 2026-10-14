@@ -1004,6 +1004,59 @@ class ResearchService:
                 raise
             return self.summary(row)
 
+    async def ensure_hot_session(self, record: dict):
+        """Reconcile Hot's reserved session after crash/reply loss before any new native create."""
+        await self.ensure_owned()
+        origin = {"runId": record["runId"], "instanceId": record["instanceId"],
+                  "manifestHash": record["evidenceManifestHash"]}
+        async with self.lock:
+            row = self.store.reserve_hot_session(record["sessionId"], record["targetMode"], origin)
+            sid = row["id"]
+            native = await self.client.rpc("session.list", {})
+            if (not isinstance(native, dict) or not isinstance(native.get("items"), list)
+                    or any(not isinstance(item, dict) or not isinstance(item.get("sessionId"), str) for item in native["items"])):
+                raise RuntimeFailure("原生会话列表不可核验，未创建", "hot_session_list_invalid")
+            existing = next((item for item in native["items"] if item["sessionId"] == sid), None)
+            phase = row.get("hot_creation_state")
+            if existing:
+                if phase == "reserved" or existing.get("cwd") != str(self.store.directory(sid)):
+                    raise RuntimeFailure("原生会话已存在但无法确认本次归属", "hot_session_foreign")
+                if phase == "ready" and row["created"]:
+                    return self.summary(row)
+            elif phase != "reserved":
+                raise RuntimeFailure("会话创建结果仍未知；只查询恢复，不自动重发", "hot_session_outcome_unknown")
+            if row["model"] is None:
+                row["model"], row["model_provider"] = self.default_model["model"], self.default_model["provider"]
+                if row["model_provider"] == "openai-compatible":
+                    connection = self.compatible_connection()
+                    row["model_connection_binding"] = {name: connection[name] for name in ("base_url", "protocol", "credential_mode")}
+                self.store.save()
+            if existing is None:
+                destination = self.store.directory(sid) / "resources"
+                from .datahub.security import _is_reparse_point
+                if _is_reparse_point(destination) or (destination.exists() and any(_is_reparse_point(path) or (path.is_file() and path.stat().st_nlink != 1) for path in destination.rglob("*"))):
+                    raise StoreError("研究资源目录类型非法")
+                shutil.copytree(Path(__file__).parent / "resources", destination,
+                                ignore=shutil.ignore_patterns("__pycache__"), dirs_exist_ok=True)
+                row["hot_creation_state"] = "creating"
+                self.store.save()
+                try:
+                    await self.client.rpc("session.create", {"sessionId": sid, "cwd": str(self.store.directory(sid)), "agentPreset": "research-hot-frozen" if row["mode"] == "fingpt" else "research-web"})
+                except (RuntimeFailure, asyncio.CancelledError):
+                    row.update(hot_creation_state="outcome_unknown", status="failed")
+                    self.store.save()
+                    log.warning("hot_session_creation_unknown")
+                    raise
+            row.update(created=True, hot_creation_state="configuring")
+            self.store.save()
+            await self.client.rpc("session.selectModel", {"sessionId": sid, "provider": row["model_provider"], "model": row["model"]})
+            await self.client.rpc("session.rename", {"sessionId": sid, "title": row["title"]})
+            row.update(hot_creation_state="ready", status="idle", updated_at=time.time())
+            self.store.save()
+            self.notify()
+            log.info("hot_session_reconciled", session_id=sid)
+            return self.summary(row)
+
     @staticmethod
     def summary(row):
         result = {
@@ -1425,6 +1478,9 @@ class ResearchService:
             for did in dataset_ids:
                 try:
                     manifest = self.datahub.detail(sid, did)
+                    if manifest.get("snapshot_kind") == "hot_evidence":
+                        scope["read_paths"].append(self.datahub.snapshots.admit_hot_script(sid, did))
+                        continue
                     source = next(
                         (
                             item

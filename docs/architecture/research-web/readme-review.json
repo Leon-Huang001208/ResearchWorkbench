@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "unchanged",
-  "summary": "Gold配置样例在当前嵌入看板和Bot消费边界标记未接入，README公开入口与产品边界保持。",
-  "reason": "无依赖、schema、评分、采集、部署或权限变化；模块文档、嵌入说明与任务报告说明来源缺口和历史兼容。"
+  "disposition": "updated",
+  "summary": "保留Gold未接入配置数据修复，并融合Hot研究情报。",
+  "reason": "主线无来源的Gold配置仍显示未接入；Hot回执/原件/预算和当前验收边界保持，旧CI/镜像不认证新候选。"
 }
