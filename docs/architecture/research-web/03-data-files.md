@@ -36,14 +36,17 @@ PDF 使用锁定 ReportLab 与随包中文字体 Noto Sans SC（许可证与固�
 管理账本保留数据卷身份；开发重建/退休仅删除精确所属容器，保留四卷与源码，
 不迁移 canonical Native 根、PID、cookie、Keychain或旧Compose bind数据。
 stage/prod不挂载开发源码，各实例网络、端口与运行状态分离。
-通用业务凭据目录与模型系统存储仍是两个合同，Docker 模型后端由G2补齐。
+通用业务凭据目录与模型存储仍是两个合同：Docker 模型桥显式绑定
+`/run/rwb-secrets/private/models` 的加密记录，既有通用凭据保持原路径和格式。
+主密钥一次创建且跨重启保留，两个 ref 的密文绑定 data-home 命名空间与账户；
+缺失/损坏密钥或密文失败关闭，不从环境、旧 YAML 或 Native Keychain 恢复。
 
 Docker 资源清理不删除产品 bind mount 的宿主目录。废弃数据卷先保存到本机私有归档目录，
 以 SHA-256 和临时卷实际恢复/逐文件比较建立恢复证据，再删除原卷；归档不自动过期删除。
 当前及上一接受镜像分别由原安装摘要和 `install/docker-previous-manifest.json` 保护，
 失败发布恢复两份摘要。历史标签、未知卷与缓存不能被当作有效安装或可丢弃数据的证明。
 
-DSH 0.2.1 的 preset 注册改为 owned overlay 中的声明式插件行；原 `.agent-presets/<id>/agent.cordis.yml` 仍是产品生成源，不再依赖旧版文件目录自动发现。空实例默认模型为 `deepseek-flash`；已有保存的模型 ID、历史会话和快照不自动重写。安装清单绑定新的固定源码及实际构建闭包，模型秘密仍仅存于 Native Keychain，不随 preset、安装摘要或快照复制。
+DSH 0.2.1 的 preset 注册改为 owned overlay 中的声明式插件行；原 `.agent-presets/<id>/agent.cordis.yml` 仍是产品生成源，不再依赖旧版文件目录自动发现。空实例默认模型为 `deepseek-flash`；已有保存的模型 ID、历史会话和快照不自动重写。安装清单绑定新的固定源码及实际构建闭包，模型秘密仅进入 Native Keychain 或显式 Docker 加密凭据挂载，不随 preset、安装摘要或快照复制。
 
 Automation 沿用 automation_runs 的 session_id、report_run_id、updated_at 和 failure_code 字段，不新增索引或迁移。已知关联通过现有原子 Store.save 写入；失败回滚内存关联，不以未落盘引用继续提交。报告晚到的会话 ID 同样保存；未知、陈旧和异目标引用保留失败原因与原记录，恢复不删除或重建原数据/产物。
 
@@ -336,3 +339,11 @@ staging 修复只作用于镜像只读发布资产，不删除或迁移产品数
 本机操作沿既有显式验证与有效期判断；过期或实例状态变化保留最近时间和失效说明，不提升授权或可调用。最近有效验证只将既有安全诊断的最后完成步骤、功能和清理结果投影到现有 detail，不增加持久协议、路径或秘密。普通刷新不启动 Office。文档业务结果同时显示清理已确认/未确认/失败/未创建，下载产物和功能状态独立保留；没有清理证据时明确未确认。该展示不更改原生执行、保存重开、取消或归属边界。
 
 ReportLab 初始化需读取当前目录；PDF helper 在已授权输出目录初始化，再恢复工作目录，未增加沙箱目录授权。底稿 JSON 在三份唯一产物生成并重开后以临时文件替换发布；质量还要求独立交付验证哈希一致。
+
+## 历史子会话模式兼容 · 2026-10-13
+
+不会删除或重写旧子会话数据来修复列表。父历史与会话文件保持原归属读取，子历史在执行模式未知时明确不可用。
+
+PR96 与既有 Fernet 模型桥共用唯一私有 stdio 接口；默认 `native-keychain`、常规 staged `docker-encrypted-file` 语义保留，管理器仅显式绑定 `docker-encrypted` 选择 AES-GCM。两种 Docker 格式与主密钥布局独立，混合绑定或外来格式失败关闭，不转换密文、不删除旧 Key、不回退。四操作与固定 ref 保持；来源如实区分，configured/Doctor 不证明真实生成。
+
+AES 载入检查每个 JSON 的 canonical 外层记录、完整封装、版本/实例及固定 namespace/ref 文件名，并认证密文；正确旧树只读通过，外来/未知记录拒绝且保留原字节。

@@ -184,6 +184,15 @@ Cookie 和账号只在本机设置页录入，不进入代码包、安装清单�
 
 macOS Native 模型凭据使用已有 Web 依赖 `keyring==25.7.0` 的 macOS Keychain 后端；owned overlay 使用产品受管 Python 的私有 stdio 桥接，固定 DSH 版本和构建闭包不变。命名空间由规范化 data home 派生，重启从同一系统账户恢复；不读取开发者 Codex/Claude 配置，不导入环境、旧 YAML 或任何 `.env`。旧模型 Key 不自动迁移，需在本实例设置页重新录入。Host 认证 record 独立存于 Runtime home 的 `.browser-credentials.yaml`，保留固定 DSH 锁和更新语义，不持有模型 Key。Keychain 拒绝/不可用及非 macOS 后端均明确失败，不采用文件回退。产品锁、安装器与 workflow 未变，仍须当前代码的 macOS 干净安装 CI 证明兼容。
 
+Docker 模型凭据由 owned overlay 显式选择 `docker-encrypted-file`，并绑定
+`/run/rwb-secrets/private`；私有 stdio 桥接不继承 API Key 环境变量。后端复用原有
+no-follow、0700/0600、固定 inode 锁和有界文件读写，在 `models/` 子目录保存 Fernet 密文
+和一次创建的主密钥；复用已有锁定的 `cryptography==50.0.1`，不升级包版本。两个模型 ref
+独立，密文绑定 data-home 命名空间及 ref；缺失/损坏主密钥、损坏密文或不安全目录均失败
+关闭，不自动轮换、导入或清空旧凭据。主密钥与密文同卷，管理员及同 UID 仍属于信任边界。
+Doctor 只声明实现，Runtime API 的存储投影为 `docker_encrypted_file`。现有数据、通用业务
+凭据和 Host 认证保持；模型保存不发起推理，生成测试须用户显式请求。
+
 macOS：
 
 macOS Docker 入口（本任务已执行隔离安装与生命周期验收，证据见支持矩阵）：
@@ -488,3 +497,5 @@ macOS Docker 停止后回环端口的非监听绑定保留可能延迟释放；�
 `rwb web doctor --json`的office_auto_verification仅显示所属实例开关/未知状态、应用范围、人工提示与关闭位置，不发起真实操作，不影响主体安装就绪。未知、未发现、失效及不适用不会提升为可调用或一概归为系统故障。本轮不改安装依赖或一键启动逻辑。
 
 2026-10-09追加授权收口：Office成功且关闭确认后，仅归档登记的合成文稿到既有私有验证run目录，再清理沙箱副本；成功marker移除，仍沿原16项/512MiB/24小时有界保留策略回收，不新增执行器或任意路径接口。Office开启改用页内说明、确认/取消按钮，系统权限弹窗仍由人工处理。
+
+AES 载入进一步认证全部既有模型记录；错误密文树/实例绑定明确拒绝，安装依赖和正确旧记录格式不变，不自动转换或生成替代主密钥。

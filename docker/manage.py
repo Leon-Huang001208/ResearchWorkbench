@@ -551,9 +551,8 @@ class Manager:
         ):
             raise Refusal("model_credentials_stage_only")
         self.verify_resources(record)
-        if record["container_id"]:
-            if self.owned(record)["State"]["Running"]:
-                raise Refusal("stop_stage_before_model_initialization")
+        if record["container_id"] and self.owned(record)["State"]["Running"]:
+            raise Refusal("stop_stage_before_model_initialization")
         image = inspect("image", record["image"])
         if image["Config"].get("Labels", {}).get(PREFIX + "model-credentials") != "aes-gcm-v1":
             raise Refusal("encrypted_model_image_required")

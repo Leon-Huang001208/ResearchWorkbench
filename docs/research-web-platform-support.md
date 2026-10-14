@@ -44,7 +44,7 @@ Docker DSH builder 的[命令局部并发 8 / 单请求期限 120 秒](research-
 | --- | --- | --- | --- | --- | --- | --- |
 | 安装、固定 DSH 构建 | 阶段二清洁 CI PASS | 待真机、Windows CI | 待真机、Linux CI | 两架构待 Linux 设备 dispatch | 独立安装 PASS（镜像快照5e1b） | 凭据 ACL 门阻断 |
 | 启动、停止、重启、Doctor | 阶段二 CI 与独立重启 PASS | 待验 | 待验 | 健康/重启/端口释放待验 | 独立启动/重启/Doctor/停止与端口释放 PASS（宿主fb9） | ACL 阻断，不声明 ready |
-| 模型系统存储 | Keychain 桥接有实现，真实调用依授权配置 | 不支持：仅 Mac Native 实施 | 不支持：仅 Mac Native 实施 | 不支持：未实施模型系统存储桥接 | 不支持：未实施模型系统存储桥接 | 不支持 |
+| 模型存储 | Keychain 桥接有实现，真实调用依授权配置 | 不支持：仅 Mac Native 实施 | 不支持：仅 Mac Native 实施 | 加密文件桥有实现；本平台验收 NOT_RUN | 加密文件桥有实现；本任务镜像、配置恢复和真实推理待验 | ACL 阻断，未验证 |
 | DataHub 凭据 | Native keyring 有实现、授权逐项验收 | keyring 有实现、待验 | keyring 有实现、待验 | 私有文件后端有实现、待验 | 私有文件后端有实现、待验 | DACL 未证明，失败关闭 |
 | 数据源及授权 | 按 Provider 实际状态；未配置非可调用 | 待验、厂商授权单列 | 待验、厂商授权单列 | 不从依赖安装推导授权 | 不从依赖安装推导授权 | ACL 阻断 |
 | 研究脚本严格沙箱 | 真实 sandbox-exec 文件生成与会话外写入拒绝 PASS（Native快照985/205） | 不支持 | 不支持 | 不支持 | Linux 容器中不支持 | 不支持 |
@@ -85,3 +85,5 @@ settings-model-loop在macOS Native正常受管fixed DSH中验证新增LlmAdapter
 独立回环端口18092/13086完成实际install、双服务认证ready、Doctor、root/static/index/Atlas HTTP200；最新host restart16.773秒、stop1.953秒，精确down/up后容器生成的非秘密文件SHA保持；真实Chrome架构入口/分类/图返回及文档、源码、测试固定链接均200。最终stop2.962秒、owned容器移除、两family端口释放；保留测试数据/凭据，未更新日常实例或操作foreign容器。构建使用本机既有无凭据代理作为运输条件，锁、CA与签名保持。CI与机器回执归档在阶段三报告，报告提交与验证候选身份分开。
 
 模型付费生成、厂商数据授权、真实产品升级、双已安装模式迁移、真实凭据存取仍NOT_RUN；非Mac严格脚本沙箱与宿主Office/Wind/Tabbit等保持明确不支持。Windows/Linux真机及其产品CI继续NOT_RUN，总体跨平台发布NOT_READY。
+
+外来 AES 树绑定修复已用 macOS 临时合成文件证明四操作拒绝和正确旧树可读；本轮未运行真实 Docker、Linux/Windows、供应商或远端 CI，不提升这些层级状态。

@@ -21,12 +21,14 @@ def test_native_projection_never_claims_platform_validation(platform):
 
 @pytest.mark.parametrize("mode", ["native", "docker"])
 @pytest.mark.parametrize("platform", ["darwin", "linux", "win32"])
-def test_model_system_storage_is_only_a_macos_native_implementation(mode, platform):
+def test_model_storage_has_explicit_native_and_docker_implementation_boundaries(mode, platform):
     capabilities = boundaries.platform_capabilities(mode, platform_name=platform)
     storage = capabilities["model_system_storage"]
     assert storage["status"] == (
-        "available" if mode == "native" and platform == "darwin" else "unsupported"
+        "available" if mode == "docker" or platform == "darwin" else "unsupported"
     )
+    if mode == "docker":
+        assert storage["reason_code"] == "docker_model_encrypted_file_implementation"
     assert storage["validated"] is False
 
 

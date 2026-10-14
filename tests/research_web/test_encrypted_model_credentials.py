@@ -18,6 +18,7 @@ from app.research_web.model_credentials import execute, initialize_docker_store
 def store(home: Path, identity: str):
     records, keys = home / "models", home / "master"
     keys.mkdir(parents=True, mode=0o700)
+    home.chmod(0o700)
     initialize_docker_store(records, keys, identity)
     return EncryptedModelCredentialBackend(records, keys, identity)
 
@@ -179,3 +180,175 @@ def test_isolated_backend_import_never_initializes_global_settings():
     )
     assert result.returncode == 0
     assert result.stdout.strip() == "isolated_import_pass"
+
+
+@pytest.mark.parametrize("operation", ["resolve", "describe", "set", "unset"])
+def test_fernet_tree_rejected_by_aes_binding_without_mutation(tmp_path, monkeypatch, operation):
+    """Synthetic POSIX storage check; not Linux runtime acceptance."""
+    from app.research_web.model_credentials import DockerModelStore
+
+    monkeypatch.setattr(sys, "platform", "linux")
+    root = tmp_path / "credentials"
+    fernet = DockerModelStore(root)
+    call(tmp_path, fernet, "set", "synthetic-fernet")
+    records = {p.name: p.read_bytes() for p in fernet.backend.root.glob("*.json")}
+    aes = store(tmp_path / "aes", "a" * 32)
+    with pytest.raises(CredentialBackendError):
+        foreign = EncryptedModelCredentialBackend(fernet.backend.root, aes.key_root, aes.instance)
+        call(tmp_path, foreign, operation, "synthetic-new" if operation == "set" else None)
+    assert records == {p.name: p.read_bytes() for p in fernet.backend.root.glob("*.json")}
+    assert call(tmp_path, fernet, "resolve")["value"] == "synthetic-fernet"
+
+
+@pytest.mark.parametrize("operation", ["resolve", "describe", "set", "unset"])
+def test_aes_tree_rejected_by_fernet_binding_without_mutation(tmp_path, monkeypatch, operation):
+    """Reject cross-format binding before a new namespace could mask the old tree."""
+    from app.research_web.model_credentials import DockerModelStore
+
+    monkeypatch.setattr(sys, "platform", "linux")
+    aes = store(tmp_path / "aes", "a" * 32)
+    call(tmp_path, aes, "set", "synthetic-aes")
+    records = {p.name: p.read_bytes() for p in aes.root.glob("*.json")}
+    key = (aes.key_root / "master.key").read_bytes()
+    with pytest.raises(RuntimeError, match="model_credential_binding_invalid"):
+        foreign = DockerModelStore(aes.root.parent)
+        call(tmp_path, foreign, operation, "synthetic-new" if operation == "set" else None)
+    assert records == {p.name: p.read_bytes() for p in aes.root.glob("*.json")}
+    assert key == (aes.key_root / "master.key").read_bytes()
+    assert call(tmp_path, aes, "resolve")["value"] == "synthetic-aes"
+
+
+@pytest.mark.parametrize(
+    "backend", ["native-keychain", "docker-encrypted-file", "docker-encrypted"]
+)
+def test_stdio_rejects_mixed_backend_binding(tmp_path, backend):
+    bridge = Path(__file__).resolve().parents[2] / "app/research_web/model_credentials.py"
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-I",
+            "-B",
+            str(bridge),
+            "--data-home",
+            str(tmp_path),
+            "--backend",
+            backend,
+            "--credential-home",
+            str(tmp_path),
+            "--credential-root",
+            str(tmp_path),
+            "--key-root",
+            str(tmp_path),
+            "--instance",
+            "a" * 32,
+        ],
+        input=json.dumps({"op": "describe", "ref": "RESEARCH_DSH_API_KEY"}),
+        text=True,
+        capture_output=True,
+        check=False,
+        timeout=20,
+        env={"PATH": "/usr/bin:/bin", "LANG": "C.UTF-8"},
+    )
+    assert result.returncode == 1
+    assert json.loads(result.stdout) == {"ok": False, "error": "model_credential_bridge_failed"}
+    assert list(tmp_path.iterdir()) == []
+
+
+@pytest.mark.parametrize("operation", ["resolve", "describe", "set", "unset"])
+def test_bad_master_key_refuses_all_operations_and_preserves_ciphertext(tmp_path, operation):
+    aes = store(tmp_path / "aes", "a" * 32)
+    call(tmp_path, aes, "set", "synthetic-preserved")
+    records = {p.name: p.read_bytes() for p in aes.root.glob("*.json")}
+    (aes.key_root / "master.key").write_bytes(b"synthetic-invalid-master-length")
+    with pytest.raises(CredentialBackendError):
+        call(tmp_path, aes, operation, "synthetic-new" if operation == "set" else None)
+    assert records == {p.name: p.read_bytes() for p in aes.root.glob("*.json")}
+    assert (aes.key_root / "master.key").read_bytes() == b"synthetic-invalid-master-length"
+
+
+@pytest.mark.parametrize("operation", ["resolve", "describe", "set", "unset"])
+def test_foreign_aes_tree_and_complete_foreign_key_binding_refuse_without_mutation(
+    tmp_path, operation
+):
+    a, b = store(tmp_path / "a", "a" * 32), store(tmp_path / "b", "b" * 32)
+    call(tmp_path, a, "set", "synthetic-a")
+    original = {p.name: p.read_bytes() for p in a.root.iterdir()}
+    with pytest.raises(CredentialBackendError):
+        foreign = EncryptedModelCredentialBackend(a.root, b.key_root, b.instance)
+        call(tmp_path, foreign, operation, "synthetic-b" if operation == "set" else None)
+    assert original == {p.name: p.read_bytes() for p in a.root.iterdir()}
+    assert call(tmp_path, a, "resolve")["value"] == "synthetic-a"
+
+
+@pytest.mark.parametrize(
+    "mutation", ["wrong_key", "version", "schema", "namespace", "reference", "forged_instance"]
+)
+def test_constructor_authenticates_complete_existing_aes_tree(tmp_path, mutation):
+    a, b = store(tmp_path / "a", "a" * 32), store(tmp_path / "b", "b" * 32)
+    call(tmp_path, a, "set", "synthetic-a")
+    record = next(a.root.glob("*.json"))
+    payload = json.loads(record.read_text())
+    envelope = json.loads(payload["password"])
+    keys, instance = a.key_root, a.instance
+    if mutation == "wrong_key":
+        (a.key_root / "master.key").write_bytes((b.key_root / "master.key").read_bytes())
+    elif mutation == "namespace":
+        record.rename(a.root / a._name("unbound-service", "RESEARCH_DSH_API_KEY"))
+    elif mutation == "reference":
+        record.rename(a.root / a._name("org.research-workbench.model." + a.instance, "OTHER"))
+    else:
+        if mutation == "version":
+            envelope["version"] = True
+        elif mutation == "schema":
+            envelope["unexpected"] = "untrusted"
+        elif mutation == "forged_instance":
+            # Relabel/rename cannot authenticate A's ciphertext under B's key/AAD.
+            envelope["instance"] = b.instance
+            keys, instance = b.key_root, b.instance
+            record = record.rename(
+                a.root
+                / a._name("org.research-workbench.model." + b.instance, "RESEARCH_DSH_API_KEY")
+            )
+        payload["password"] = json.dumps(envelope)
+        record.write_text(json.dumps(payload, ensure_ascii=False, separators=(",", ":")))
+    original = {p.name: p.read_bytes() for p in a.root.iterdir()}
+    with pytest.raises(CredentialBackendError):
+        EncryptedModelCredentialBackend(a.root, keys, instance)
+    assert original == {p.name: p.read_bytes() for p in a.root.iterdir()}
+
+
+@pytest.mark.parametrize(
+    "service,reference",
+    [
+        ("wrong-service", "RESEARCH_DSH_API_KEY"),
+        ("", "RESEARCH_DSH_API_KEY"),
+        ("instance-service", "OTHER"),
+    ],
+)
+def test_model_backend_rejects_generic_references_without_records(tmp_path, service, reference):
+    a = store(tmp_path / "a", "a" * 32)
+    original = {p.name: p.read_bytes() for p in a.root.iterdir()}
+    for operation in (a.get_password, a.delete_password):
+        with pytest.raises(CredentialBackendError, match="model_record_binding_invalid"):
+            operation(service, reference)
+    with pytest.raises(CredentialBackendError, match="model_record_binding_invalid"):
+        a.set_password(service, reference, "synthetic-denied")
+    assert original == {p.name: p.read_bytes() for p in a.root.iterdir()}
+
+
+def test_both_correct_existing_model_refs_reopen_without_conversion(tmp_path):
+    a = store(tmp_path / "a", "a" * 32)
+    call(tmp_path, a, "set", "synthetic-original")
+    execute(
+        tmp_path,
+        {"op": "set", "ref": "RESEARCH_COMPAT_API_KEY", "value": "synthetic-compatible"},
+        a,
+    )
+    original = {p.name: p.read_bytes() for p in a.root.iterdir()}
+    reopened = EncryptedModelCredentialBackend(a.root, a.key_root, a.instance)
+    assert call(tmp_path, reopened, "resolve")["value"] == "synthetic-original"
+    assert (
+        execute(tmp_path, {"op": "resolve", "ref": "RESEARCH_COMPAT_API_KEY"}, reopened)["value"]
+        == "synthetic-compatible"
+    )
+    assert original == {p.name: p.read_bytes() for p in a.root.iterdir()}

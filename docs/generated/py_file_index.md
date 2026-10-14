@@ -3534,7 +3534,7 @@ Classes:
   - methods: __init__, _name, _verify_root, _locked_directory, _read, get_password, set_password, delete_password
 - `EncryptedModelCredentialBackend`
   - AES-256-GCM model records; a separate read-only instance key is mandatory.
-  - methods: __init__, _load_key, _cipher, _aad, _decrypt, get_password, set_password, delete_password
+  - methods: __init__, _reference, _load_key, _cipher, _aad, _decrypt, get_password, set_password, delete_password
 
 Functions:
 - `_safe_errors`
@@ -5798,9 +5798,10 @@ Functions:
 ## `app/research_web/model_credentials.py`
 
 Module docstring:
-> Fixed-purpose stdio bridge for Native Keychain or bound Docker model storage.
+> Fixed-purpose private stdio bridge for Native Keychain or Docker encryption.
 
 Imports:
+- `__future__`
 - `argparse`
 - `ctypes`
 - `hashlib`
@@ -5810,8 +5811,12 @@ Imports:
 - `pathlib`
 - `secrets`
 - `sys`
+- `typing`
 
 Classes:
+- `DockerModelStore`
+  - Encrypted fixed model accounts in a separate, guarded credential subtree.
+  - methods: __init__, _master, _reference, get_password, set_password, delete_password
 - `MacSystemStore`
   - Use existing keyring reads/removals and Security's atomic replacement.
   - methods: __init__, get_password, delete_password, set_password

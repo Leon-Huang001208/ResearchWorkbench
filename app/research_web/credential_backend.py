@@ -362,6 +362,7 @@ class EncryptedModelCredentialBackend(PrivateFileCredentialBackend):
     """
 
     source = "docker-encrypted"
+    MODEL_REFS = frozenset({"RESEARCH_DSH_API_KEY", "RESEARCH_COMPAT_API_KEY"})
 
     def __init__(self, root: Path, key_root: Path, instance: str) -> None:
         with _safe_errors():
@@ -373,6 +374,37 @@ class EncryptedModelCredentialBackend(PrivateFileCredentialBackend):
             # Loading is not initialization: absent ciphertext directories fail.
             with runtime_state_directory(root):
                 super().__init__(root)
+            with self._locked_directory() as directory:
+                service = "org.research-workbench.model." + self.instance
+                references = {self._name(service, ref): ref for ref in self.MODEL_REFS}
+                for name in os.listdir(directory):
+                    if not name.endswith(".json"):
+                        continue
+                    if name not in references:
+                        raise CredentialBackendError("model_record_binding_invalid")
+                    record = self._read(directory, name)
+                    if record is None:
+                        raise CredentialBackendError("model_ciphertext_invalid")
+                    payload = json.loads(record[0])
+                    if (
+                        not isinstance(payload, dict)
+                        or set(payload) != {"version", "password"}
+                        or type(payload["version"]) is not int
+                        or payload["version"] != 1
+                        or not isinstance(payload["password"], str)
+                        or _encode(payload["password"]) != record[0]
+                    ):
+                        raise CredentialBackendError("model_ciphertext_invalid")
+                    # Validate every existing record, not just the requested account.
+                    # A foreign tree cannot be masked by an empty current namespace.
+                    self._decrypt(payload["password"], service, references[name])
+
+    def _reference(self, service: str, account: str) -> None:
+        if (
+            service != "org.research-workbench.model." + self.instance
+            or account not in self.MODEL_REFS
+        ):
+            raise CredentialBackendError("model_record_binding_invalid")
 
     def _load_key(self) -> tuple[bytes, tuple[int, ...]]:
         with runtime_state_directory(self.key_root):
@@ -426,12 +458,14 @@ class EncryptedModelCredentialBackend(PrivateFileCredentialBackend):
 
     def get_password(self, service: str, account: str) -> str | None:
         with _safe_errors():
+            self._reference(service, account)
             self._cipher()
             raw = super().get_password(service, account)
             return None if raw is None else self._decrypt(raw, service, account)
 
     def set_password(self, service: str, account: str, password: str) -> None:
         with _safe_errors():
+            self._reference(service, account)
             if not isinstance(password, str) or not password or len(password) > 1024:
                 raise CredentialBackendError("model_value_invalid")
             # An existing damaged record must not be silently replaced.
@@ -451,5 +485,6 @@ class EncryptedModelCredentialBackend(PrivateFileCredentialBackend):
 
     def delete_password(self, service: str, account: str) -> None:
         with _safe_errors():
+            self._reference(service, account)
             self.get_password(service, account)
             super().delete_password(service, account)

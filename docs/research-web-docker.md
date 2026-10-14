@@ -248,3 +248,7 @@ owned 容器的私有 Unix 控制通道进入持久维护；Web 修改、Automat
 参考 [GitHub Container registry](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry)。
 registry_publish、registry_digest_pull、real_supplier_for_this_artifact、daily_production_deployment
 分别报告；未执行保持 NOT_RUN/BLOCKED_EXTERNAL，不从本地演练推断跨平台、多人、公网或完整备份能力。
+
+两种已存在的密文格式保持独立：常规 staged launcher 默认 `docker-encrypted-file`（Fernet，同卷主密钥）；管理器显式 `RWB_MODEL_BACKEND=docker-encrypted` 绑定 AES-GCM 与独立只读主密钥卷。桥接拒绝混用参数和外来密文格式；无自动转换、回退、旧 Key 删除或重新生成主密钥。来源分别报告 `docker-encrypted-file` 与 `docker-encrypted`，配置不认证真实生成。
+
+AES 构造时在原锁内核验既有树的实例、固定 namespace/ref 文件名及完整 AEAD；A 树配 B 完整密钥/身份不会成为未配置的新写目标，修复不执行卷迁移或清理。
