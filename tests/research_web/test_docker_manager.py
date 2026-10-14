@@ -10,7 +10,13 @@ from docker import manage
 
 
 def test_engine_empty_dns_projection_is_equivalent_but_custom_dns_is_not():
-    base = {"Id": "owned", "Image": "fixed", "Config": {}, "HostConfig": {"Dns": None}, "Mounts": []}
+    base = {
+        "Id": "owned",
+        "Image": "fixed",
+        "Config": {},
+        "HostConfig": {"Dns": None},
+        "Mounts": [],
+    }
     empty = deepcopy(base)
     empty["HostConfig"]["Dns"] = []
     custom = deepcopy(base)

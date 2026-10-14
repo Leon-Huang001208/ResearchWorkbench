@@ -3,7 +3,7 @@
   "$id": "urn:rwb:docker-release:v1",
   "title": "Sealed local Research Workbench release",
   "type": "object",
-  "required": ["schema", "release_id", "source_sha", "frozen_tree_hash", "source_archive_hash", "controller_hash", "platform", "dsh_commit", "compatibility", "format_source_hashes", "dependency_locks", "base_images", "local_image_id", "build_manifest_digest", "registry_manifest_digest", "registry_index_digest", "export_format", "export_hash", "archive_identity", "build_identity", "sealed_at"],
+  "required": ["schema", "release_id", "source_sha", "frozen_tree_hash", "source_archive_hash", "controller_hash", "platform", "dsh_commit", "compatibility", "format_source_hashes", "dependency_locks", "base_images", "local_image_id", "config_digest", "administrative_image_id", "build_manifest_digest", "registry_manifest_digest", "registry_index_digest", "export_format", "export_hash", "archive_identity", "build_identity", "sealed_at"],
   "properties": {
     "schema": {"const": 1},
     "release_id": {"type": "string", "pattern": "^[a-z][a-z0-9-]{0,31}$"},
