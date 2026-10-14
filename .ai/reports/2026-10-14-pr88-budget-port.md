@@ -18,3 +18,5 @@ RED/GREEN、静态质量、规格/质量审查、本地回归和自动 CI 证据
 独立JS审查发现只停止流读取不能abort上游的P1；现已通过公开agent/request归属与Agent.cancel修复，真实固定SDK的无网络合成fetch链断言原signal abort、0迟到chunk。测试夹具首次失败日志保留，不改SDK或新增依赖。
 
 <!-- architecture-review {"group":"verification-workflow","structure":"unchanged","reason":"新增预算精确路径映射与L4必需ledger/guard测试，继续使用同一planner及Git绑定receipt，其他平台门不裁剪。","diagrams":[]} -->
+
+完整Node回归发现budget精确路径未覆盖Mac安装workflow matcher；已仅补两个预算路径到现有Mac pull_request/master触发，不改Windows/Linux手动归属或桌面workflow，原FAIL日志保留。
