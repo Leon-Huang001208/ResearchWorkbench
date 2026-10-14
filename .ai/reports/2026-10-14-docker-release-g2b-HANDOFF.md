@@ -95,6 +95,8 @@ stage 回执期限，按管理器验证所有权。不要直接删已有 release
 没有把未改变的 G0/G1/G2A 全套重跑。Ruff/Black/isort 和发布/维护/client mypy 通过。
 完整 changed set 约束最初发现三个 UI 文档/复核缺口，已修正并重新通过，不把旧失败写成 PASS。
 py_file_index、文档治理、架构 source/rendered/visual receipts 已实际核验；最终 CI 尚待最终提交。
+PR #104 首轮 Project Constraints 发现 README 复核回执未相对依赖基线更新；已补齐该回执，
+以修正后最终 HEAD 的 CI 为准。首轮失败日志保留，不把不同 base 的本地约束结果套用到 PR。
 
 原始回执留在 `/Users/leon/.local/share/rwb-docker/logs/g2b/`，包括
 `r1a-promotion.json`、`r1a-repeat-apply.json`、`r1a-rollback.json`、
