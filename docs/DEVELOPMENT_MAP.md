@@ -9,6 +9,12 @@
 
 ## 当前 Research Web
 
+`app/research_web/portfolio_decisions/` 与 `ui/etf-paper.mjs` 提供工程ETF模拟。
+权威合同为 `architecture/research-web/03-data-files.md`，API为 `04-api.md`；
+测试为 `test_etf_decisions.py`、`test_etf_decision_routes.py`、`research_web_etf_paper.test.mjs`。
+时间因果、资金事务、恢复、数据准入或执行假设变化须同步合同与测试，不认证真实收益。
+
+
 `rwb-docker`、`docker/manage.py`、`docker/Dockerfile.control`、`docker/Dockerfile.dev`
 及 `docker/buildkitd.toml` 是 Mac mini 管理平面与开发基座，权威说明为
 `docs/research-web-docker.md`，近处测试为 `tests/research_web/test_docker_manager.py`。
