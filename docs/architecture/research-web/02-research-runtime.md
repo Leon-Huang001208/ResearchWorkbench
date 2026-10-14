@@ -34,6 +34,10 @@ Node/PG 往返与父 Python 退出后的独立 Manager.stop 已验证；凭据 b
 Web Hot桥最多四个在途线程，超时/取消后容量直到实际线程完成才释放。关闭后待容量的请求
 不能继续获准执行。条件写入Host超时保留原UUID；普通导航/读取没有模型或研究调用。
 
+ETF工程模拟不进入DSH会话循环；用户提交冻结输入，由Host同一事务保存结果。
+回放与前向共用 `PaperEngine.step`，输入摘要绑定恢复/幂等，失败不产生部分资金账。
+尚不接Automation/Tool，真实运行BLOCKED；见[数据与文件](03-data-files.md#etf-工程模拟与真实准入边界)。
+
 固定 DSH 的 `session/list` 通过 `parentSessionId` 暴露父子归属；SDK Session Header 内部仍叫 `parentSession`。
 Workbench 子 Agent 投影只使用已核实的 API 字段，继续交叉验证父目录、`origin=subagent` 和严格布尔 running；缺失、外来父会话、非子任务来源或未知活动仍失败关闭，不以空目录释放活动保护。
 模型设置的空闲检查采用内部 `activityOnly=true`：历史 `mode=unknown` 只可在父归属、subagent 来源和布尔运行状态全部验证后提供活动事实。默认详情与执行仍拒绝未知模式；不推断历史执行地址，不删改记录，也不把未知活动当作已结束。

@@ -44,6 +44,10 @@ Research Web FastAPI Host（8088）
 
 ## 主要子系统
 
+ETF工程模拟由Host内 `portfolio_decisions/` 完成确定性信号、组合裁决和事务账本，真实准入保持BLOCKED。
+合同见[数据与文件](architecture/research-web/03-data-files.md#etf-工程模拟与真实准入边界)。
+
+
 [产品总图与分层图册](../outputs/research-web-architecture/index.html)先展示使用者、Web / DSH 及外部系统边界；各模块卡片继续连接说明、API、源码和测试。
 
 | 子系统 | 源码 | 职责 | 权威文档 |

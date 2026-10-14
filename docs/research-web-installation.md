@@ -32,6 +32,11 @@ Hot Native 模型上下文与 Web 共用 `runtimes/research_web.json` 的固定 
 仍须当前有效并绑定已授权累计 scope。migration17 的研究预算/调用映射只在停机迁移
 后启用；当前原验收库仍 schema15/paused，新 schema 的随机测试不认证干净安装或正式研究。
 
+ETF工程模拟使用现有Pydantic/FastAPI及stdlib SQLite，无新增Python/Node产品依赖或安装参数。
+首次显式模拟在所属产品根创建私有 `portfolio-decisions/paper.sqlite3`；工程输入不会配置真实数据来源、
+凭据或启用算法。数据/能力缺口由模拟页readiness显示，不能把Doctor的服务健康视作策略可运行。
+本切片的干净macOS安装CI与Docker开发/镜像验收尚待执行，现有环境聚焦通过不替代这些门。
+
 Claw 项目与日程入口使用既有 Web/DSH 依赖，无新增产品包或安装步骤。旧数据根可直接读取，缺少 project_id 的 Claw 会话归入默认“我的研究”，不移动文件。
 Automation 被显式关闭时，聊天日程草稿也不可用；提出草稿不等于保存或启用。日程需实际能力版本，数据/模型/工具的可调用性继续由现有设置与 Doctor 分层诊断。
 

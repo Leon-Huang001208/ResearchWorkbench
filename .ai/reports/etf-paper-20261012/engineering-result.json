@@ -1,0 +1,1069 @@
+{
+  "strategy": {
+    "strategy_id": "fixture-etf",
+    "version": "1",
+    "effective_from": "2026-01-05",
+    "asset_pool": [
+      "510001.SH",
+      "159001.SZ"
+    ],
+    "benchmark": "fixture-index",
+    "initial_cash": "10000",
+    "risk_budget": "0.30",
+    "security_cap": "0.15",
+    "industry_caps": {
+      "broad": "0.30"
+    },
+    "min_cash_weight": "0.70",
+    "fee_rate": "0.001",
+    "minimum_fee": "1",
+    "slippage_bps": "0",
+    "max_price_deviation": "0.05",
+    "participation_rate": "0.1",
+    "order_lifetime_sessions": 2,
+    "lookback_sessions": 63,
+    "max_names": 3,
+    "execution_mode": "paper",
+    "rule": "weekly_positive_total_return_equal_weight_v1",
+    "missing_data_action": "block_new_risk_preserve_holdings",
+    "exit_rule": "not_selected_at_rebalance",
+    "reentry_same_event": false
+  },
+  "implementation_digest": "235df8d151e255aa40b57d7b00c8026962b74dad9839b1a1fde189a449334cbf",
+  "data_digest": "7e74d5a05df9003cd68ee49566a937a4691a5409256cdc5fd1369c24b7d2abb9",
+  "data_source": "synthetic-fixture",
+  "data_cutoff": "2026-04-17",
+  "missing": [],
+  "events": [
+    {
+      "day": "2026-01-09",
+      "status": "BLOCKED",
+      "reason": "signal_inputs_missing",
+      "reasons": {
+        "159001.SZ": "insufficient_or_unavailable_history",
+        "510001.SH": "insufficient_or_unavailable_history"
+      }
+    },
+    {
+      "day": "2026-01-16",
+      "status": "BLOCKED",
+      "reason": "signal_inputs_missing",
+      "reasons": {
+        "159001.SZ": "insufficient_or_unavailable_history",
+        "510001.SH": "insufficient_or_unavailable_history"
+      }
+    },
+    {
+      "day": "2026-01-23",
+      "status": "BLOCKED",
+      "reason": "signal_inputs_missing",
+      "reasons": {
+        "159001.SZ": "insufficient_or_unavailable_history",
+        "510001.SH": "insufficient_or_unavailable_history"
+      }
+    },
+    {
+      "day": "2026-01-30",
+      "status": "BLOCKED",
+      "reason": "signal_inputs_missing",
+      "reasons": {
+        "159001.SZ": "insufficient_or_unavailable_history",
+        "510001.SH": "insufficient_or_unavailable_history"
+      }
+    },
+    {
+      "day": "2026-02-06",
+      "status": "BLOCKED",
+      "reason": "signal_inputs_missing",
+      "reasons": {
+        "159001.SZ": "insufficient_or_unavailable_history",
+        "510001.SH": "insufficient_or_unavailable_history"
+      }
+    },
+    {
+      "day": "2026-02-13",
+      "status": "BLOCKED",
+      "reason": "signal_inputs_missing",
+      "reasons": {
+        "159001.SZ": "insufficient_or_unavailable_history",
+        "510001.SH": "insufficient_or_unavailable_history"
+      }
+    },
+    {
+      "day": "2026-02-20",
+      "status": "BLOCKED",
+      "reason": "signal_inputs_missing",
+      "reasons": {
+        "159001.SZ": "insufficient_or_unavailable_history",
+        "510001.SH": "insufficient_or_unavailable_history"
+      }
+    },
+    {
+      "day": "2026-02-27",
+      "status": "BLOCKED",
+      "reason": "signal_inputs_missing",
+      "reasons": {
+        "159001.SZ": "insufficient_or_unavailable_history",
+        "510001.SH": "insufficient_or_unavailable_history"
+      }
+    },
+    {
+      "day": "2026-03-06",
+      "status": "BLOCKED",
+      "reason": "signal_inputs_missing",
+      "reasons": {
+        "159001.SZ": "insufficient_or_unavailable_history",
+        "510001.SH": "insufficient_or_unavailable_history"
+      }
+    },
+    {
+      "day": "2026-03-13",
+      "status": "BLOCKED",
+      "reason": "signal_inputs_missing",
+      "reasons": {
+        "159001.SZ": "insufficient_or_unavailable_history",
+        "510001.SH": "insufficient_or_unavailable_history"
+      }
+    },
+    {
+      "day": "2026-03-20",
+      "status": "BLOCKED",
+      "reason": "signal_inputs_missing",
+      "reasons": {
+        "159001.SZ": "insufficient_or_unavailable_history",
+        "510001.SH": "insufficient_or_unavailable_history"
+      }
+    },
+    {
+      "day": "2026-03-27",
+      "status": "BLOCKED",
+      "reason": "signal_inputs_missing",
+      "reasons": {
+        "159001.SZ": "insufficient_or_unavailable_history",
+        "510001.SH": "insufficient_or_unavailable_history"
+      }
+    },
+    {
+      "day": "2026-04-03",
+      "signal": {
+        "id": "f5dcc228288cbdd8a5463616c63ef2e79378f776878cb9702ee5af23a3304eb3",
+        "strategy_version": "1",
+        "confirmed_at": "2026-04-03T16:00:00+08:00",
+        "selected": [
+          "159001.SZ",
+          "510001.SH"
+        ],
+        "scores": {
+          "159001.SZ": "0.623762376237623762376237624",
+          "510001.SH": "0.623762376237623762376237624"
+        },
+        "reasons": {}
+      },
+      "intent": {
+        "weights": {
+          "159001.SZ": "0.15",
+          "510001.SH": "0.15"
+        },
+        "cash_weight": "0.7",
+        "current_quantities": {
+          "510001.SH": 0,
+          "159001.SZ": 0
+        },
+        "reasons": {}
+      },
+      "decision": {
+        "action": "adopt",
+        "reason": "mechanical_rule",
+        "evidence_ref": "f5dcc228288cbdd8a5463616c63ef2e79378f776878cb9702ee5af23a3304eb3",
+        "before": {
+          "cash": "10000",
+          "fees": "0",
+          "distributions": "0",
+          "lots": [],
+          "last_day": "2026-04-02"
+        },
+        "order_ids": [
+          "5a4aa65b5dc7a0bc1fb76639ec9f1e4630385b48dedfc29b6946b7861b90bbb9",
+          "e5821456bdfa184ab5db1a72b9afcd537262406df11d7f5ce96e38a0ebc36892"
+        ]
+      }
+    },
+    {
+      "day": "2026-04-10",
+      "signal": {
+        "id": "2bcecc720a32ed1f779ce79a882a9cb15cd2389c6dc361de5f466abebae28f8d",
+        "strategy_version": "1",
+        "confirmed_at": "2026-04-10T16:00:00+08:00",
+        "selected": [
+          "159001.SZ",
+          "510001.SH"
+        ],
+        "scores": {
+          "159001.SZ": "0.594339622641509433962264151",
+          "510001.SH": "0.594339622641509433962264151"
+        },
+        "reasons": {}
+      },
+      "intent": {
+        "weights": {
+          "159001.SZ": "0.15",
+          "510001.SH": "0.15"
+        },
+        "cash_weight": "0.7",
+        "current_quantities": {
+          "510001.SH": 1490,
+          "159001.SZ": 1490
+        },
+        "reasons": {}
+      },
+      "decision": {
+        "action": "adopt",
+        "reason": "mechanical_rule",
+        "evidence_ref": "2bcecc720a32ed1f779ce79a882a9cb15cd2389c6dc361de5f466abebae28f8d",
+        "before": {
+          "cash": "7017.02",
+          "fees": "2.98",
+          "distributions": "0",
+          "lots": [
+            {
+              "symbol": "159001.SZ",
+              "quantity": 1490,
+              "buy_day": "2026-04-06",
+              "fill_id": "3dd348726a3d8be609b90a1ba6682df69025e3f69618fbb3eb4b8a004c02fb4b"
+            },
+            {
+              "symbol": "510001.SH",
+              "quantity": 1490,
+              "buy_day": "2026-04-06",
+              "fill_id": "a6bc917f5da3a5e0e447bebbe1cbc01cdeccc796da2899e77c53fd532a673487"
+            }
+          ],
+          "last_day": "2026-04-09"
+        },
+        "order_ids": []
+      }
+    }
+  ],
+  "orders": [
+    {
+      "id": "5a4aa65b5dc7a0bc1fb76639ec9f1e4630385b48dedfc29b6946b7861b90bbb9",
+      "signal_id": "f5dcc228288cbdd8a5463616c63ef2e79378f776878cb9702ee5af23a3304eb3",
+      "symbol": "159001.SZ",
+      "side": "buy",
+      "quantity": 1500,
+      "remaining": 10,
+      "reference_price": "1",
+      "earliest_day": "2026-04-06",
+      "expires_day": "2026-04-07",
+      "status": "expired",
+      "reason": "signal_expired"
+    },
+    {
+      "id": "e5821456bdfa184ab5db1a72b9afcd537262406df11d7f5ce96e38a0ebc36892",
+      "signal_id": "f5dcc228288cbdd8a5463616c63ef2e79378f776878cb9702ee5af23a3304eb3",
+      "symbol": "510001.SH",
+      "side": "buy",
+      "quantity": 1500,
+      "remaining": 10,
+      "reference_price": "1",
+      "earliest_day": "2026-04-06",
+      "expires_day": "2026-04-07",
+      "status": "expired",
+      "reason": "signal_expired"
+    }
+  ],
+  "fills": [
+    {
+      "id": "3dd348726a3d8be609b90a1ba6682df69025e3f69618fbb3eb4b8a004c02fb4b",
+      "order_id": "5a4aa65b5dc7a0bc1fb76639ec9f1e4630385b48dedfc29b6946b7861b90bbb9",
+      "day": "2026-04-06",
+      "symbol": "159001.SZ",
+      "side": "buy",
+      "price": "1",
+      "quantity": 1490,
+      "notional": "1490",
+      "fee": "1.49",
+      "mode": "paper",
+      "assumed_execution_at": "2026-04-06T09:30:00+08:00",
+      "matched_at": "2026-04-06T16:00:00+08:00",
+      "liquidity_model": "daily_post_session_participation"
+    },
+    {
+      "id": "a6bc917f5da3a5e0e447bebbe1cbc01cdeccc796da2899e77c53fd532a673487",
+      "order_id": "e5821456bdfa184ab5db1a72b9afcd537262406df11d7f5ce96e38a0ebc36892",
+      "day": "2026-04-06",
+      "symbol": "510001.SH",
+      "side": "buy",
+      "price": "1",
+      "quantity": 1490,
+      "notional": "1490",
+      "fee": "1.49",
+      "mode": "paper",
+      "assumed_execution_at": "2026-04-06T09:30:00+08:00",
+      "matched_at": "2026-04-06T16:00:00+08:00",
+      "liquidity_model": "daily_post_session_participation"
+    }
+  ],
+  "state": {
+    "cash": "7017.02",
+    "fees": "2.98",
+    "distributions": "0",
+    "lots": [
+      {
+        "symbol": "159001.SZ",
+        "quantity": 1490,
+        "buy_day": "2026-04-06",
+        "fill_id": "3dd348726a3d8be609b90a1ba6682df69025e3f69618fbb3eb4b8a004c02fb4b"
+      },
+      {
+        "symbol": "510001.SH",
+        "quantity": 1490,
+        "buy_day": "2026-04-06",
+        "fill_id": "a6bc917f5da3a5e0e447bebbe1cbc01cdeccc796da2899e77c53fd532a673487"
+      }
+    ],
+    "last_day": "2026-04-17"
+  },
+  "curve": [
+    {
+      "day": "2026-01-05",
+      "nav": "10000",
+      "indicative_nav": "10000",
+      "cash": "10000",
+      "fees": "0",
+      "valuation_missing": [],
+      "benchmark_index": "100"
+    },
+    {
+      "day": "2026-01-06",
+      "nav": "10000",
+      "indicative_nav": "10000",
+      "cash": "10000",
+      "fees": "0",
+      "valuation_missing": [],
+      "benchmark_index": "101"
+    },
+    {
+      "day": "2026-01-07",
+      "nav": "10000",
+      "indicative_nav": "10000",
+      "cash": "10000",
+      "fees": "0",
+      "valuation_missing": [],
+      "benchmark_index": "102"
+    },
+    {
+      "day": "2026-01-08",
+      "nav": "10000",
+      "indicative_nav": "10000",
+      "cash": "10000",
+      "fees": "0",
+      "valuation_missing": [],
+      "benchmark_index": "103"
+    },
+    {
+      "day": "2026-01-09",
+      "nav": "10000",
+      "indicative_nav": "10000",
+      "cash": "10000",
+      "fees": "0",
+      "valuation_missing": [],
+      "benchmark_index": "104"
+    },
+    {
+      "day": "2026-01-12",
+      "nav": "10000",
+      "indicative_nav": "10000",
+      "cash": "10000",
+      "fees": "0",
+      "valuation_missing": [],
+      "benchmark_index": "105"
+    },
+    {
+      "day": "2026-01-13",
+      "nav": "10000",
+      "indicative_nav": "10000",
+      "cash": "10000",
+      "fees": "0",
+      "valuation_missing": [],
+      "benchmark_index": "106"
+    },
+    {
+      "day": "2026-01-14",
+      "nav": "10000",
+      "indicative_nav": "10000",
+      "cash": "10000",
+      "fees": "0",
+      "valuation_missing": [],
+      "benchmark_index": "107"
+    },
+    {
+      "day": "2026-01-15",
+      "nav": "10000",
+      "indicative_nav": "10000",
+      "cash": "10000",
+      "fees": "0",
+      "valuation_missing": [],
+      "benchmark_index": "108"
+    },
+    {
+      "day": "2026-01-16",
+      "nav": "10000",
+      "indicative_nav": "10000",
+      "cash": "10000",
+      "fees": "0",
+      "valuation_missing": [],
+      "benchmark_index": "109"
+    },
+    {
+      "day": "2026-01-19",
+      "nav": "10000",
+      "indicative_nav": "10000",
+      "cash": "10000",
+      "fees": "0",
+      "valuation_missing": [],
+      "benchmark_index": "110"
+    },
+    {
+      "day": "2026-01-20",
+      "nav": "10000",
+      "indicative_nav": "10000",
+      "cash": "10000",
+      "fees": "0",
+      "valuation_missing": [],
+      "benchmark_index": "111"
+    },
+    {
+      "day": "2026-01-21",
+      "nav": "10000",
+      "indicative_nav": "10000",
+      "cash": "10000",
+      "fees": "0",
+      "valuation_missing": [],
+      "benchmark_index": "112"
+    },
+    {
+      "day": "2026-01-22",
+      "nav": "10000",
+      "indicative_nav": "10000",
+      "cash": "10000",
+      "fees": "0",
+      "valuation_missing": [],
+      "benchmark_index": "113"
+    },
+    {
+      "day": "2026-01-23",
+      "nav": "10000",
+      "indicative_nav": "10000",
+      "cash": "10000",
+      "fees": "0",
+      "valuation_missing": [],
+      "benchmark_index": "114"
+    },
+    {
+      "day": "2026-01-26",
+      "nav": "10000",
+      "indicative_nav": "10000",
+      "cash": "10000",
+      "fees": "0",
+      "valuation_missing": [],
+      "benchmark_index": "115"
+    },
+    {
+      "day": "2026-01-27",
+      "nav": "10000",
+      "indicative_nav": "10000",
+      "cash": "10000",
+      "fees": "0",
+      "valuation_missing": [],
+      "benchmark_index": "116"
+    },
+    {
+      "day": "2026-01-28",
+      "nav": "10000",
+      "indicative_nav": "10000",
+      "cash": "10000",
+      "fees": "0",
+      "valuation_missing": [],
+      "benchmark_index": "117"
+    },
+    {
+      "day": "2026-01-29",
+      "nav": "10000",
+      "indicative_nav": "10000",
+      "cash": "10000",
+      "fees": "0",
+      "valuation_missing": [],
+      "benchmark_index": "118"
+    },
+    {
+      "day": "2026-01-30",
+      "nav": "10000",
+      "indicative_nav": "10000",
+      "cash": "10000",
+      "fees": "0",
+      "valuation_missing": [],
+      "benchmark_index": "119"
+    },
+    {
+      "day": "2026-02-02",
+      "nav": "10000",
+      "indicative_nav": "10000",
+      "cash": "10000",
+      "fees": "0",
+      "valuation_missing": [],
+      "benchmark_index": "120"
+    },
+    {
+      "day": "2026-02-03",
+      "nav": "10000",
+      "indicative_nav": "10000",
+      "cash": "10000",
+      "fees": "0",
+      "valuation_missing": [],
+      "benchmark_index": "121"
+    },
+    {
+      "day": "2026-02-04",
+      "nav": "10000",
+      "indicative_nav": "10000",
+      "cash": "10000",
+      "fees": "0",
+      "valuation_missing": [],
+      "benchmark_index": "122"
+    },
+    {
+      "day": "2026-02-05",
+      "nav": "10000",
+      "indicative_nav": "10000",
+      "cash": "10000",
+      "fees": "0",
+      "valuation_missing": [],
+      "benchmark_index": "123"
+    },
+    {
+      "day": "2026-02-06",
+      "nav": "10000",
+      "indicative_nav": "10000",
+      "cash": "10000",
+      "fees": "0",
+      "valuation_missing": [],
+      "benchmark_index": "124"
+    },
+    {
+      "day": "2026-02-09",
+      "nav": "10000",
+      "indicative_nav": "10000",
+      "cash": "10000",
+      "fees": "0",
+      "valuation_missing": [],
+      "benchmark_index": "125"
+    },
+    {
+      "day": "2026-02-10",
+      "nav": "10000",
+      "indicative_nav": "10000",
+      "cash": "10000",
+      "fees": "0",
+      "valuation_missing": [],
+      "benchmark_index": "126"
+    },
+    {
+      "day": "2026-02-11",
+      "nav": "10000",
+      "indicative_nav": "10000",
+      "cash": "10000",
+      "fees": "0",
+      "valuation_missing": [],
+      "benchmark_index": "127"
+    },
+    {
+      "day": "2026-02-12",
+      "nav": "10000",
+      "indicative_nav": "10000",
+      "cash": "10000",
+      "fees": "0",
+      "valuation_missing": [],
+      "benchmark_index": "128"
+    },
+    {
+      "day": "2026-02-13",
+      "nav": "10000",
+      "indicative_nav": "10000",
+      "cash": "10000",
+      "fees": "0",
+      "valuation_missing": [],
+      "benchmark_index": "129"
+    },
+    {
+      "day": "2026-02-16",
+      "nav": "10000",
+      "indicative_nav": "10000",
+      "cash": "10000",
+      "fees": "0",
+      "valuation_missing": [],
+      "benchmark_index": "130"
+    },
+    {
+      "day": "2026-02-17",
+      "nav": "10000",
+      "indicative_nav": "10000",
+      "cash": "10000",
+      "fees": "0",
+      "valuation_missing": [],
+      "benchmark_index": "131"
+    },
+    {
+      "day": "2026-02-18",
+      "nav": "10000",
+      "indicative_nav": "10000",
+      "cash": "10000",
+      "fees": "0",
+      "valuation_missing": [],
+      "benchmark_index": "132"
+    },
+    {
+      "day": "2026-02-19",
+      "nav": "10000",
+      "indicative_nav": "10000",
+      "cash": "10000",
+      "fees": "0",
+      "valuation_missing": [],
+      "benchmark_index": "133"
+    },
+    {
+      "day": "2026-02-20",
+      "nav": "10000",
+      "indicative_nav": "10000",
+      "cash": "10000",
+      "fees": "0",
+      "valuation_missing": [],
+      "benchmark_index": "134"
+    },
+    {
+      "day": "2026-02-23",
+      "nav": "10000",
+      "indicative_nav": "10000",
+      "cash": "10000",
+      "fees": "0",
+      "valuation_missing": [],
+      "benchmark_index": "135"
+    },
+    {
+      "day": "2026-02-24",
+      "nav": "10000",
+      "indicative_nav": "10000",
+      "cash": "10000",
+      "fees": "0",
+      "valuation_missing": [],
+      "benchmark_index": "136"
+    },
+    {
+      "day": "2026-02-25",
+      "nav": "10000",
+      "indicative_nav": "10000",
+      "cash": "10000",
+      "fees": "0",
+      "valuation_missing": [],
+      "benchmark_index": "137"
+    },
+    {
+      "day": "2026-02-26",
+      "nav": "10000",
+      "indicative_nav": "10000",
+      "cash": "10000",
+      "fees": "0",
+      "valuation_missing": [],
+      "benchmark_index": "138"
+    },
+    {
+      "day": "2026-02-27",
+      "nav": "10000",
+      "indicative_nav": "10000",
+      "cash": "10000",
+      "fees": "0",
+      "valuation_missing": [],
+      "benchmark_index": "139"
+    },
+    {
+      "day": "2026-03-02",
+      "nav": "10000",
+      "indicative_nav": "10000",
+      "cash": "10000",
+      "fees": "0",
+      "valuation_missing": [],
+      "benchmark_index": "140"
+    },
+    {
+      "day": "2026-03-03",
+      "nav": "10000",
+      "indicative_nav": "10000",
+      "cash": "10000",
+      "fees": "0",
+      "valuation_missing": [],
+      "benchmark_index": "141"
+    },
+    {
+      "day": "2026-03-04",
+      "nav": "10000",
+      "indicative_nav": "10000",
+      "cash": "10000",
+      "fees": "0",
+      "valuation_missing": [],
+      "benchmark_index": "142"
+    },
+    {
+      "day": "2026-03-05",
+      "nav": "10000",
+      "indicative_nav": "10000",
+      "cash": "10000",
+      "fees": "0",
+      "valuation_missing": [],
+      "benchmark_index": "143"
+    },
+    {
+      "day": "2026-03-06",
+      "nav": "10000",
+      "indicative_nav": "10000",
+      "cash": "10000",
+      "fees": "0",
+      "valuation_missing": [],
+      "benchmark_index": "144"
+    },
+    {
+      "day": "2026-03-09",
+      "nav": "10000",
+      "indicative_nav": "10000",
+      "cash": "10000",
+      "fees": "0",
+      "valuation_missing": [],
+      "benchmark_index": "145"
+    },
+    {
+      "day": "2026-03-10",
+      "nav": "10000",
+      "indicative_nav": "10000",
+      "cash": "10000",
+      "fees": "0",
+      "valuation_missing": [],
+      "benchmark_index": "146"
+    },
+    {
+      "day": "2026-03-11",
+      "nav": "10000",
+      "indicative_nav": "10000",
+      "cash": "10000",
+      "fees": "0",
+      "valuation_missing": [],
+      "benchmark_index": "147"
+    },
+    {
+      "day": "2026-03-12",
+      "nav": "10000",
+      "indicative_nav": "10000",
+      "cash": "10000",
+      "fees": "0",
+      "valuation_missing": [],
+      "benchmark_index": "148"
+    },
+    {
+      "day": "2026-03-13",
+      "nav": "10000",
+      "indicative_nav": "10000",
+      "cash": "10000",
+      "fees": "0",
+      "valuation_missing": [],
+      "benchmark_index": "149"
+    },
+    {
+      "day": "2026-03-16",
+      "nav": "10000",
+      "indicative_nav": "10000",
+      "cash": "10000",
+      "fees": "0",
+      "valuation_missing": [],
+      "benchmark_index": "150"
+    },
+    {
+      "day": "2026-03-17",
+      "nav": "10000",
+      "indicative_nav": "10000",
+      "cash": "10000",
+      "fees": "0",
+      "valuation_missing": [],
+      "benchmark_index": "151"
+    },
+    {
+      "day": "2026-03-18",
+      "nav": "10000",
+      "indicative_nav": "10000",
+      "cash": "10000",
+      "fees": "0",
+      "valuation_missing": [],
+      "benchmark_index": "152"
+    },
+    {
+      "day": "2026-03-19",
+      "nav": "10000",
+      "indicative_nav": "10000",
+      "cash": "10000",
+      "fees": "0",
+      "valuation_missing": [],
+      "benchmark_index": "153"
+    },
+    {
+      "day": "2026-03-20",
+      "nav": "10000",
+      "indicative_nav": "10000",
+      "cash": "10000",
+      "fees": "0",
+      "valuation_missing": [],
+      "benchmark_index": "154"
+    },
+    {
+      "day": "2026-03-23",
+      "nav": "10000",
+      "indicative_nav": "10000",
+      "cash": "10000",
+      "fees": "0",
+      "valuation_missing": [],
+      "benchmark_index": "155"
+    },
+    {
+      "day": "2026-03-24",
+      "nav": "10000",
+      "indicative_nav": "10000",
+      "cash": "10000",
+      "fees": "0",
+      "valuation_missing": [],
+      "benchmark_index": "156"
+    },
+    {
+      "day": "2026-03-25",
+      "nav": "10000",
+      "indicative_nav": "10000",
+      "cash": "10000",
+      "fees": "0",
+      "valuation_missing": [],
+      "benchmark_index": "157"
+    },
+    {
+      "day": "2026-03-26",
+      "nav": "10000",
+      "indicative_nav": "10000",
+      "cash": "10000",
+      "fees": "0",
+      "valuation_missing": [],
+      "benchmark_index": "158"
+    },
+    {
+      "day": "2026-03-27",
+      "nav": "10000",
+      "indicative_nav": "10000",
+      "cash": "10000",
+      "fees": "0",
+      "valuation_missing": [],
+      "benchmark_index": "159"
+    },
+    {
+      "day": "2026-03-30",
+      "nav": "10000",
+      "indicative_nav": "10000",
+      "cash": "10000",
+      "fees": "0",
+      "valuation_missing": [],
+      "benchmark_index": "160"
+    },
+    {
+      "day": "2026-03-31",
+      "nav": "10000",
+      "indicative_nav": "10000",
+      "cash": "10000",
+      "fees": "0",
+      "valuation_missing": [],
+      "benchmark_index": "161"
+    },
+    {
+      "day": "2026-04-01",
+      "nav": "10000",
+      "indicative_nav": "10000",
+      "cash": "10000",
+      "fees": "0",
+      "valuation_missing": [],
+      "benchmark_index": "162"
+    },
+    {
+      "day": "2026-04-02",
+      "nav": "10000",
+      "indicative_nav": "10000",
+      "cash": "10000",
+      "fees": "0",
+      "valuation_missing": [],
+      "benchmark_index": "163"
+    },
+    {
+      "day": "2026-04-03",
+      "nav": "10000",
+      "indicative_nav": "10000",
+      "cash": "10000",
+      "fees": "0",
+      "valuation_missing": [],
+      "benchmark_index": "164"
+    },
+    {
+      "day": "2026-04-06",
+      "nav": "9997.02",
+      "indicative_nav": "9997.02",
+      "cash": "7017.02",
+      "fees": "2.98",
+      "valuation_missing": [],
+      "benchmark_index": "165"
+    },
+    {
+      "day": "2026-04-07",
+      "nav": "9997.02",
+      "indicative_nav": "9997.02",
+      "cash": "7017.02",
+      "fees": "2.98",
+      "valuation_missing": [],
+      "benchmark_index": "166"
+    },
+    {
+      "day": "2026-04-08",
+      "nav": "9997.02",
+      "indicative_nav": "9997.02",
+      "cash": "7017.02",
+      "fees": "2.98",
+      "valuation_missing": [],
+      "benchmark_index": "167"
+    },
+    {
+      "day": "2026-04-09",
+      "nav": "9997.02",
+      "indicative_nav": "9997.02",
+      "cash": "7017.02",
+      "fees": "2.98",
+      "valuation_missing": [],
+      "benchmark_index": "168"
+    },
+    {
+      "day": "2026-04-10",
+      "nav": "9997.02",
+      "indicative_nav": "9997.02",
+      "cash": "7017.02",
+      "fees": "2.98",
+      "valuation_missing": [],
+      "benchmark_index": "169"
+    },
+    {
+      "day": "2026-04-13",
+      "nav": "9997.02",
+      "indicative_nav": "9997.02",
+      "cash": "7017.02",
+      "fees": "2.98",
+      "valuation_missing": [],
+      "benchmark_index": "170"
+    },
+    {
+      "day": "2026-04-14",
+      "nav": "9997.02",
+      "indicative_nav": "9997.02",
+      "cash": "7017.02",
+      "fees": "2.98",
+      "valuation_missing": [],
+      "benchmark_index": "171"
+    },
+    {
+      "day": "2026-04-15",
+      "nav": "9997.02",
+      "indicative_nav": "9997.02",
+      "cash": "7017.02",
+      "fees": "2.98",
+      "valuation_missing": [],
+      "benchmark_index": "172"
+    },
+    {
+      "day": "2026-04-16",
+      "nav": "9997.02",
+      "indicative_nav": "9997.02",
+      "cash": "7017.02",
+      "fees": "2.98",
+      "valuation_missing": [],
+      "benchmark_index": "173"
+    },
+    {
+      "day": "2026-04-17",
+      "nav": "9997.02",
+      "indicative_nav": "9997.02",
+      "cash": "7017.02",
+      "fees": "2.98",
+      "valuation_missing": [],
+      "benchmark_index": "174"
+    }
+  ],
+  "review": {
+    "net_return": "-0.000298",
+    "gross_return": "0",
+    "max_drawdown": "0.000298",
+    "turnover": "0.298",
+    "cost": "2.98",
+    "benchmark": "fixture-index",
+    "benchmark_return": "0.74",
+    "cash_weight": "0.7019111695285194988106455724",
+    "unfilled_quantity": 20,
+    "research_status": "NOT_VALIDATED",
+    "parameter_trials": [
+      {
+        "strategy_id": "fixture-etf",
+        "version": "1",
+        "effective_from": "2026-01-05",
+        "asset_pool": [
+          "510001.SH",
+          "159001.SZ"
+        ],
+        "benchmark": "fixture-index",
+        "initial_cash": "10000",
+        "risk_budget": "0.30",
+        "security_cap": "0.15",
+        "industry_caps": {
+          "broad": "0.30"
+        },
+        "min_cash_weight": "0.70",
+        "fee_rate": "0.001",
+        "minimum_fee": "1",
+        "slippage_bps": "0",
+        "max_price_deviation": "0.05",
+        "participation_rate": "0.1",
+        "order_lifetime_sessions": 2,
+        "lookback_sessions": 63,
+        "max_names": 3,
+        "execution_mode": "paper",
+        "rule": "weekly_positive_total_return_equal_weight_v1",
+        "missing_data_action": "block_new_risk_preserve_holdings",
+        "exit_rule": "not_selected_at_rebalance",
+        "reentry_same_event": false
+      }
+    ],
+    "limitations": [
+      "工程输入不构成真实数据或策略收益证据",
+      "下一交易时段开盘成交为显式日线模型假设",
+      "涨跌停触价保守拒绝；不证明盘口成交概率",
+      "未划分并认证真实样本外研究区间"
+    ]
+  },
+  "real_chain": {
+    "status": "BLOCKED",
+    "gaps": [
+      "ETF完整历史资格及逐日规则尚无已准入适配",
+      "二级市场价格、总回报、公司行动与可知时间等价未认证",
+      "必要计算能力真实版本比较回执未闭合"
+    ],
+    "uploaded_data_grants_admission": false
+  },
+  "ledger_status": "COMPLETE_ENGINEERING",
+  "ledger_gap": null,
+  "requested_range": {
+    "start": "2026-01-05",
+    "end": "2026-04-17"
+  }
+}

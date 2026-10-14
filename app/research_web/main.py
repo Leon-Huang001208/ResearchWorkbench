@@ -44,6 +44,7 @@ from .mcp_registry import RegistryError
 from .mcp_registry.routes import router as mcp_registry_router
 from .mcp_runtime.routes import router as mcp_runtime_router
 from .operations import router as operations_router
+from .portfolio_decisions.routes import router as portfolio_decisions_router
 from .report_routes import router as report_router
 from .report_studio import ReportStudioError
 from .report_workflow_routes import router as report_workflow_router
@@ -234,6 +235,7 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
     app.include_router(claw_router)
     app.include_router(workbench_router)
     app.include_router(operations_router)
+    app.include_router(portfolio_decisions_router)
     app.include_router(report_workflow_router)
     # Legacy report-project paths remain readable, but the versioned Workflow
     # runtime owns overlapping /report-runs paths.
