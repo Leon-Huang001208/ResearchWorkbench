@@ -1,5 +1,7 @@
 # Module: reporting
 
+Hot冻结事件日期在网页/Markdown/DOCX保持相同精度、来源时区和不可变材料引用。Word仅在事件发生/生效字段允许日精度，其余截止/窗口/材料时间仍要求带时区时刻；不把日精度补为午夜。导出复用原report_documents，不创建研究或模型会话。
+
 ## Responsibility
 
 `reporting` provides report composition, templates, markdown/Word/PPT projections, and research outputs.

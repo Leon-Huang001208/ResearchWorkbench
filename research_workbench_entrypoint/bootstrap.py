@@ -500,6 +500,10 @@ def dispatch(argv: list[str], project_root: Path) -> int | None:
     store = RuntimeModeStore(home)
     try:
         command_argv = _command_arguments(argv)
+        if command_argv[:1] == ["hot"]:
+            from .hot import dispatch as hot_dispatch
+
+            return hot_dispatch(command_argv[1:], project_root)
         record = store.read() if command_argv[:1] in (["runtime"], ["web"]) else None
         if command_argv[:1] == ["runtime"]:
             assert record is not None

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "unchanged",
-  "summary": "纠正Dollar既有托管指标源映射，README公开入口与产品边界保持。",
-  "reason": "无新增依赖、schema、部署节点、权限或方法；Source语义、频率、单位及日期更新在框架模块文档和任务报告中，旧快照保持历史身份。"
+  "disposition": "updated",
+  "summary": "融合最新主线研究/嵌入框架/连接能力与Hot研究情报完整切片。",
+  "reason": "保留两侧产品和风险边界，新集成候选未由旧镜像或CI认证；原模型预算不增。"
 }

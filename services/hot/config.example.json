@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "enabled": false,
+  "timezone": "Asia/Shanghai",
+  "database": {
+    "mode": "managed",
+    "host": "127.0.0.1",
+    "port": 55432,
+    "name": "rwb_hot",
+    "schema": "hot",
+    "user": "rwb_hot_worker",
+    "secretRef": "hot-database",
+    "tls": "disable",
+    "poolMax": 4
+  },
+  "collection": { "frequencySeconds": 600, "maxItems": 200, "backfillDays": 30 },
+  "worker": { "concurrency": 2, "leaseSeconds": 120, "maxRetries": 3 },
+  "budget": { "maxCallsPerDay": 0, "maxTokensPerDay": 0, "maxCostPerDay": 0 },
+  "model": { "enabled": false, "scopeId": "hot" },
+  "retention": { "days": 365, "backupDirectory": "hot/backups" }
+}

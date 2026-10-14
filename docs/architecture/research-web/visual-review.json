@@ -17,22 +17,6 @@
       "notes": "已人工查看更新后 1440 浅色与 2048 浅色/深色最终截图；固定十图、源码/API/文档/测试映射、CI 和只读入口关系可读，未见穿线、遮挡或裁剪。作者更新图文与自动一致性检查分开，检查不代替语义或产品验收。"
     },
     {
-      "id": "02-module-dependencies",
-      "artifactSha256": "01aed4e526e3876396e5b3575f4836623f5c57a74e005c3974e52b734ccff803",
-      "specificationSha256": "fd63c80fc915d319f60b6804ec81048eb01e87af9005ac40862c6a51df4a9534",
-      "status": "reviewed",
-      "reviewer": "controller",
-      "date": "2026-09-11",
-      "captures": [
-        "02-module-dependencies.visual-check.1440x900.light.png",
-        "02-module-dependencies.visual-check.1440x900.dark.png",
-        "02-module-dependencies.visual-check.2048x1320.light.png",
-        "02-module-dependencies.visual-check.2048x1320.dark.png"
-      ],
-      "findings": [],
-      "notes": "已人工查看同一最终哈希的 1440 浅色与 2048 深色截图，并以自动回执确认 1440/1600/1920/2048 包含性及最小/最大明暗截图生成；MCP Registry + Host、Automation、原子任务事实/系统凭据库、专属 DSH、报告 Workflow 与外部投递关系可读，未见遮挡、裁剪或节点穿线。图只证明结构表达，不证明 Registry、MCP Server、投递渠道、Tabbit 或 Provider 在线。"
-    },
-    {
       "id": "05-capability-flow",
       "artifactSha256": "c67787db5aa11de415903ab82d882cb2b9254f0221a98e1ce3ee9774a22adce5",
       "specificationSha256": "1f19790e4a68a12825af9cf1cea95472504d68e78d2f8a2ca3e08ec7533c192c",
@@ -131,27 +115,6 @@
       "notes": "已人工查看 1440 浅色/深色与 2048 浅色最终截图；Workflow 母版只读、Run 副本刷新、Provider 校验、快照复用及产物发布边界清楚，主路径平衡且无明显空带、遮挡、穿线或裁剪。"
     },
     {
-      "id": "01-deployment",
-      "artifactSha256": "fb102b50ce6ae49d1c3248f967a44576c7f4637c8824dbdf591b71b034b3523f",
-      "specificationSha256": "c67139f565e6e757fd1a163d2373f2596ae2c11b7372ad3a47cc4351cef0eb81",
-      "status": "reviewed",
-      "reviewer": "Codex Agent (视觉模型，用户未确认)",
-      "date": "2026-10-12",
-      "captures": [
-        "01-deployment.visual-check.1440x900.light.png",
-        "01-deployment.visual-check.2048x1320.dark.png"
-      ],
-      "findings": [],
-      "notes": "Agent实际查看同哈希1440浅色、2048深色截图；图文可读，无交叉遮挡或裁剪，最大视图无空白下带；四viewport自动containment通过。仅Agent图像检查，未声称用户人工确认或CI/供应商通过。",
-      "previousReview": {
-        "reviewer": "user",
-        "date": "2026-10-06",
-        "artifactSha256": "959f560983c02c1d54272c04afdf81a6aee1f6863395a1f895d23d0a497682f6",
-        "specificationSha256": "25f9f2cacfdb9e6dddc553841de1135d9f724f53bf64dd1d3f203dd18f92ee64",
-        "notes": "用户在本轮结构化回复明确表示已查看四张截图并确认无问题；对应当前同哈希产物。Codex先前图像检查另存，未伪造人工；不证明Docker运行或B归因。"
-      }
-    },
-    {
       "id": "00-system-overview",
       "status": "reviewed",
       "reviewer": "用户（本会话明确确认）",
@@ -165,6 +128,48 @@
         "00-system-overview.visual-check.1440x900.light.png",
         "00-system-overview.visual-check.2048x1320.dark.png"
       ]
+    },
+    {
+      "id": "02-module-dependencies",
+      "artifactSha256": "14312c6a90944b4efe0ce0a063df699a4c1229869d7a1cd668fba24ab5b21fef",
+      "specificationSha256": "0afdf59f36b6b45e2d0d9ac7a9c4c25ba625bc7f8142b524efc1b2690895ef3f",
+      "status": "reviewed",
+      "reviewer": "Codex image inspection",
+      "date": "2026-10-09",
+      "captures": [
+        "02-module-dependencies.visual-check.1440x900.light.png",
+        "02-module-dependencies.visual-check.2048x1320.dark.png"
+      ],
+      "findings": [],
+      "notes": "实际查看当前哈希的1440浅色和2048深色截图：Hot简报/数据边界标签可读，无新增遮挡或裁剪。四视口包含检查与9项结构检查分别通过；本次仅图形视觉检查，不证明产品简报浏览器、模型、DOCX或研究验收。"
+    },
+    {
+      "id": "11-hot-events",
+      "artifactSha256": "c0c965515fb0e4ab1f1c610c0faaa197b2e9a0f971a380c47ff9224ed3d97afd",
+      "specificationSha256": "7aa4c50b31620170b235d10478c08fa419d4fb2ca78b25226178633feff44c6c",
+      "status": "reviewed",
+      "reviewer": "Codex image inspection",
+      "date": "2026-10-12",
+      "captures": [
+        "11-hot-events.visual-check.1440x900.light.png",
+        "11-hot-events.visual-check.2048x1320.dark.png"
+      ],
+      "findings": [],
+      "notes": "实际查看最终1440浅色与2048深色截图：PG研究映射和冻结快照适配可读，无新增遮挡或裁剪；正式研究/联合恢复/模式切换保持待验。9/9结构及四视口检查独立通过，不代替付费研究或安装验收。"
+    },
+    {
+      "id": "01-deployment",
+      "artifactSha256": "9e9888bc16924b8c752b064f795f6a4d8056ab5a0be9f5e9f8b6918b5c11369e",
+      "specificationSha256": "6549f68baf2dfd588b0e3ec0163cd9dd687b3cf1e0b9b1280461c58d7b17c899",
+      "status": "reviewed",
+      "reviewer": "controller",
+      "date": "2026-10-12",
+      "captures": [
+        "01-deployment.visual-check.1440x900.light.png",
+        "01-deployment.visual-check.2048x1320.dark.png"
+      ],
+      "findings": [],
+      "notes": "Codex已查看本次生成1440浅色与2048深色截图；Hot可选Node/PG和Mac mini隔离Docker/Native路径清晰，未见遮挡/裁剪。自动容纳四视口通过；本图不认证产品模式切换或真实模型研究。"
     }
   ]
 }

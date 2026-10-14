@@ -1,6 +1,19 @@
 # Default deny; keep build inputs explicit. JSON Compose is not a build input.
 **
 !Dockerfile
+!services/
+!services/hot/
+!services/hot/package.json
+!services/hot/package-lock.json
+!services/hot/*.json
+!services/hot/README.md
+!services/hot/THIRD_PARTY_NOTICES.md
+!services/hot/src/
+!services/hot/src/**
+!services/hot/scripts/
+!services/hot/scripts/**
+!services/hot/migrations/
+!services/hot/migrations/**
 !pyproject.toml
 !app/
 !app/__init__.py
