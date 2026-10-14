@@ -137,7 +137,7 @@ for(const path of ['packages/skill/tool-skill/src/index.ts','packages/subagent/t
 const web=await import(pathToFileURL(join(process.cwd(),'packages/web/tool-web/src/index.ts')));
 web.apply(ctx,{search:true,fetch:false,searchMaxResults:8,searchMaxQueries:4,fetchTimeoutMs:30000,searchTimeoutMs:60000,fetchMaxOutputChars:200000});
 (await import(pathToFileURL(join(root,'app/research_web/runtime/research-tools.mjs')))).apply(ctx,{python:'/usr/bin/python3',runnerPath:'/tmp/never-run.py',researchRoot:'/tmp/never-used',timeoutSeconds:60,maxOutputBytes:262144});
-const enabledTools=['datahub_search_assets','datahub_get_trading_calendar','datahub_get_market_bars','datahub_get_market_snapshot','datahub_get_index_data','datahub_get_financials','datahub_get_market_activity','datahub_get_factor_macro','datahub_get_fund_data','datahub_search_news','datahub_search_announcements','datahub_search_research','datahub_search_web','datahub_get_database_schema','datahub_query_table'];
+const enabledTools=['datahub_search_assets','datahub_get_trading_calendar','datahub_get_market_bars','datahub_get_market_snapshot','datahub_get_index_data','datahub_get_financials','datahub_get_market_activity','datahub_get_factor_macro','datahub_get_fund_data','datahub_search_news','datahub_search_announcements','datahub_search_research','datahub_search_web','datahub_get_database_schema','datahub_query_table','datahub_get_external_data'];
 (await import(pathToFileURL(join(root,'app/research_web/runtime/public-data.mjs')))).apply(ctx,{researchRoot:'/tmp/never-used',enabledTools});
 console.log(JSON.stringify(tools.map(t=>({id:t.name,parameters:t.parameters}))));
 """

@@ -59,9 +59,12 @@ class PackageInstaller:
         value: InstallationManifest | InstallationPlanUnion,
         environment_values: dict[str, str] | None = None,
     ) -> Path:
-        manifest = value if isinstance(value, InstallationManifest) else None
-        plan = manifest.plan if manifest is not None else value
-        installation_id = manifest.id if manifest is not None else None
+        if isinstance(value, InstallationManifest):
+            plan = value.plan
+            installation_id = value.id
+        else:
+            plan = value
+            installation_id = None
         environment_values = dict(environment_values or {})
         if set(environment_values) != set(plan.environment_names):
             raise PackageInstallError("installation_environment_mismatch")

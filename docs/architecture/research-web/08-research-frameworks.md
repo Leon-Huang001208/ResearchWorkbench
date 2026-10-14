@@ -1,5 +1,13 @@
 # 研究框架
 
+当前内置 framework-research 缺少可验证的 DataHub data_requirements 时，显式验证保持
+capability_data_unavailable（readiness 中 data_contract_missing），不提交原生 prompt。
+解释 preset 不替代验证准入。两条成功链的离线回归使用正规发布的合成 web-only v2，
+不代表默认内置 Skill 已获真实数据准入，也不通过测试绕过资源或凭据门。
+
+共用聊天 renderer 的停止、超时和重试资格检查不改变 Gold/Dollar 的版本、快照或准入。
+外部资料工具仍经会话 DataHub admission；框架不能凭目录或兼容传输支持绕过数据/工具验证。
+
 原生 Todo 仅进入研究 preset 与现有研究空间；Gold/Dollar 的采集、评分、Bot 快照和
 framework-explain/framework-verify preset 不增加 Todo 或改变契约。研究空间的原生计划
 来自会话日志，与框架步骤及 Workflow 版本说明分别呈现，不推断阶段归属。

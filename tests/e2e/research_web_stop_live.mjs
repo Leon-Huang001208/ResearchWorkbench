@@ -51,7 +51,7 @@ try {
   assert.equal(new Set(record.samples.map(s=>s.sha256)).size,1,'Cancelled script must not keep writing');
   assert.ok(record.samples[0].lines<120);
   await page.reload();
-  await page.getByRole('button',{name:'活动与文件',exact:true}).waitFor();
+  await page.getByRole('button',{name:'工作空间',exact:true}).waitFor();
   await page.screenshot({path:`${output}/cancelled.png`,fullPage:true});
   assert.equal(detail.can_cancel,false);assert.equal(detail.status,'cancelled');
   assert.notEqual(detail.delivery.status,'pending');

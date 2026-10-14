@@ -7,6 +7,7 @@ import json
 import re
 import time
 from datetime import UTC, datetime
+from typing import Any
 from uuid import uuid4
 
 from core.observability import get_logger
@@ -29,6 +30,42 @@ from .snapshots import Snapshots
 log = get_logger(__name__)
 __all__ = ["BusinessQuery", "DataHub", "Query", "load_control"]
 PROBE_TIMEOUT = 15
+
+SAMPLE_BUDGET_BYTES = 32768
+SAMPLE_STRING_LIMIT = 16384
+
+
+def _trim_sample_strings(value: Any, limit: int = SAMPLE_STRING_LIMIT) -> Any:
+    if isinstance(value, str):
+        return (
+            value if len(value) <= limit else value[:limit] + "…（样例截断，完整内容见 rows.json）"
+        )
+    if isinstance(value, dict):
+        return {key: _trim_sample_strings(item, limit) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_trim_sample_strings(item, limit) for item in value]
+    return value
+
+
+def bounded_sample(rows: list[dict], budget: int = SAMPLE_BUDGET_BYTES) -> list[dict]:
+    """Bound the model-facing sample; complete rows stay in rows.json."""
+
+    if budget < 256:
+        raise ValueError("sample_budget_invalid")
+    kept: list[dict] = []
+    for row in rows[:3]:
+        candidate = row
+        encoded = len(json.dumps(candidate, ensure_ascii=False, default=str).encode())
+        if encoded > budget:
+            candidate = _trim_sample_strings(row, max(2048, budget // 4))
+            encoded = len(json.dumps(candidate, ensure_ascii=False, default=str).encode())
+        if encoded > budget:
+            candidate = {"truncated": True, "note": "单行样例超过大小上限；完整内容见 rows.json"}
+            encoded = len(json.dumps(candidate, ensure_ascii=False).encode())
+        if len(json.dumps([*kept, candidate], ensure_ascii=False, default=str).encode()) > budget:
+            break
+        kept.append(candidate)
+    return kept
 
 
 class DataHub:
@@ -98,6 +135,11 @@ class DataHub:
         """Return a canonical digest of safe configuration metadata only."""
 
         private = canonical_source_id(source_id) in SUPPORTED_CONFIGURATION_SOURCES
+        semantics: dict[str, str] = {}
+        if source_id == "akshare":
+            from .providers_akshare import SEMANTICS_REVISION
+
+            semantics["provider_semantics_revision"] = SEMANTICS_REVISION
         payload = json.dumps(
             {
                 "status": (
@@ -107,6 +149,7 @@ class DataHub:
                 ),
                 "revision": self.connections.configuration_revision(source_id),
                 "namespace": self.connections.credential_service,
+                **semantics,
             },
             ensure_ascii=True,
             sort_keys=True,
@@ -393,7 +436,7 @@ class DataHub:
         self.cache_hits[(sid, manifest["dataset_id"])] = cache_hit
         return {
             **manifest,
-            "sample": self.rows(sid, manifest["dataset_id"], 0, 3)["items"],
+            "sample": bounded_sample(self.rows(sid, manifest["dataset_id"], 0, 3)["items"]),
             "cache_hit": cache_hit,
         }
 

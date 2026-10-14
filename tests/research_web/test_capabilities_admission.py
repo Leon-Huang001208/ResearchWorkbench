@@ -576,7 +576,15 @@ def test_declared_hard_data_dependency_blocks_before_native_prompt(api, monkeypa
     assert client.post(f"/api/research/capabilities/{cid}/publish").status_code == 200
     discovery(native, service)
     sid = client.post("/api/research/sessions", json={}).json()["id"]
-    monkeypatch.setattr(service.datahub, "catalog", lambda: {"sources": [], "bindings": []})
+    monkeypatch.setattr(
+        service.datahub,
+        "catalog",
+        lambda: {
+            "sources": [],
+            "bindings": [],
+            "capabilities": [{"tool_id": "datahub_get_fund_data", "callable_source_count": 0}],
+        },
+    )
     response = client.post(
         f"/api/research/sessions/{sid}/messages",
         json={"text": "开展声明范围内研究", "capability_id": cid, "expected_formats": []},
@@ -603,7 +611,15 @@ def test_declared_optional_data_scope_is_saved_and_unknown_model_tools_block(api
     assert client.post(f"/api/research/capabilities/{cid}/publish").status_code == 200
     discovery(native, service)
     sid = client.post("/api/research/sessions", json={}).json()["id"]
-    monkeypatch.setattr(service.datahub, "catalog", lambda: {"sources": [], "bindings": []})
+    monkeypatch.setattr(
+        service.datahub,
+        "catalog",
+        lambda: {
+            "sources": [],
+            "bindings": [],
+            "capabilities": [{"tool_id": "datahub_get_financials", "callable_source_count": 0}],
+        },
+    )
     response = client.post(
         f"/api/research/sessions/{sid}/messages",
         json={"text": "只做允许的有限研究", "capability_id": cid, "expected_formats": []},

@@ -120,8 +120,49 @@ def no_delta_digest():
 def test_builtin_metadata_text_boundaries_and_reviewed_resources(api):
     client, _, _ = api
     rows = client.get("/api/research/capabilities").json()["items"]
-    assert len([row for row in rows if row["kind"] == "skill"]) == 18
-    assert len([row for row in rows if row["kind"] == "workflow"]) == 4
+    baseline_skill_ids = {
+        "document-reading",
+        "company-research",
+        "industry-research",
+        "fund-evaluation",
+        "market-commentary",
+        "factor-database-research",
+        "sell-side-report-reader",
+        "finance-news-event-research",
+        "industry-chain-research",
+        "earnings-consensus-research",
+        "macro-asset-research",
+        "framework-research",
+        "daily-market-brief",
+        "policy-sentinel",
+        "event-review",
+        "etf-flow-monitor",
+        "earnings-report-monitor",
+        "earnings-preview-monitor",
+    }
+    added_cpu_skill_ids = {
+        "fund-matcher",
+        "fund-penetration",
+        "portfolio-overlap",
+        "portfolio-benchmark-deviation",
+        "industry-prosperity",
+        "industry-quadrant-monitor",
+        "industry-crowding-monitor",
+        "rate-ma-timing-research",
+        "equity-risk-premium-timing",
+        "style-rotation-research",
+        "platform-breakout",
+        "chanlun",
+    }
+    assert {row["id"] for row in rows if row["kind"] == "skill"} == (
+        baseline_skill_ids | added_cpu_skill_ids
+    )
+    assert {row["id"] for row in rows if row["kind"] == "workflow"} == {
+        "market-commentary-workflow",
+        "fund-research-workflow",
+        "company-research-workflow",
+        "report-production-workflow",
+    }
     assert not any("router" in row["id"] for row in rows)
     row = next(row for row in rows if row["id"] == SLUG)
     assert row["metadata"] == {
@@ -142,6 +183,7 @@ def test_builtin_metadata_text_boundaries_and_reviewed_resources(api):
         "required_tools": ["research_run_script", "web_search"],
         "dependencies": [],
         "method_policy": {"required": [], "recommended": [], "excluded": []},
+        "data_requirements": [],
     }
     detail = client.get(f"/api/research/capabilities/{SLUG}").json()
     header = yaml.safe_load(detail["draft"]["instructions"].split("---", 2)[1])
@@ -463,11 +505,14 @@ def test_packaged_scripts_run_inside_research_sandbox(tmp_path):
     session = root / "sessions" / str(uuid4())
     for name in ("inputs", "outputs", "tmp", "resources"):
         (session / name).mkdir(parents=True)
-    catalog.snapshot(catalog.selection(SLUG), session)
+    selection = catalog.selection(SLUG)
+    catalog.snapshot(selection, session)
     (session / "inputs/digest.json").write_text(
         json.dumps(valid_digest(), ensure_ascii=False), encoding="utf-8"
     )
-    resource = f"resources/capabilities/{SLUG}/1/scripts"
+    resource = f"{selection['resource_path']}/scripts"
+    for script in ("validate_digest.py", "render_knowledge_graph.py"):
+        assert (session / resource / script).is_file()
     code = f"""
 import json
 from pathlib import Path
@@ -485,9 +530,14 @@ svg=renderer['build_svg'](digest)
 Path('outputs/graph.svg').write_text(svg, encoding='utf-8')
 print(json.dumps(result, ensure_ascii=False, sort_keys=True))
 """
-    result = run_script(
-        SandboxConfig(research_root=root, python=Path(sys.executable)), session, code
+    config = SandboxConfig(research_root=root, python=Path(sys.executable))
+    denied = run_script(
+        config,
+        session,
+        f"from pathlib import Path; Path('{resource}/validate_digest.py').read_text()",
     )
+    assert denied.status == "failed" and "PermissionError" in denied.stderr, denied
+    result = run_script(config, session, code, read_paths=[selection["resource_path"]])
     assert result.status == "completed", result
     assert json.loads(result.stdout)["valid"] is True
     assert (session / "outputs/graph.svg").read_text(encoding="utf-8").startswith("<svg")

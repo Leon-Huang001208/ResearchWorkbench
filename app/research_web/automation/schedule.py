@@ -32,9 +32,7 @@ def _first_valid_local(local: datetime, zone: ZoneInfo) -> datetime:
 def _candidate(schedule: AutomationSchedule, day: date, zone: ZoneInfo) -> datetime:
     # A naive value is deliberate: this is a wall-clock candidate whose IANA
     # offset/fold validity is resolved by ``_first_valid_local``.
-    local = datetime(  # noqa: DTZ001
-        day.year, day.month, day.day, schedule.hour or 0, schedule.minute or 0
-    )
+    local = datetime(day.year, day.month, day.day, schedule.hour or 0, schedule.minute or 0)
     return _first_valid_local(local, zone)
 
 

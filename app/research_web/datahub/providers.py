@@ -466,6 +466,10 @@ async def supplement(client, query, result):
 
 async def fetch(query: Query | BusinessQuery, *, transport=None, connections=None):
     if isinstance(query, BusinessQuery):
+        if query.capability == "external_data":
+            from .providers_external import fetch as external_fetch
+
+            return await external_fetch(query, transport=transport, connections=connections)
         if query.source == "tinysoft":
             from .providers_cjpy import fetch as tinysoft_fetch
 
@@ -564,6 +568,34 @@ async def probe(source_id: str, *, transport=None, connections=None):
             raise ProviderError("mysql_configuration_unavailable")
         configuration, password = await asyncio.to_thread(connections.credentials)
         return await mysql_probe(configuration, password)
+    if source_id == "ext_registry" or source_id.startswith("ext_"):
+        # Status-only probe: the startup batch must not fan out to dozens of
+        # external endpoints on every service start. Live evidence comes from
+        # explicit data calls, so report configuration/adapter state here.
+        from .external_sources import credential_transport_blocked, readable_endpoints
+
+        if source_id == "ext_registry":
+            return {"health": "degraded", "failure_code": "not_live_verified"}
+        endpoints = readable_endpoints(source_id)
+        if not endpoints:
+            return {"health": "unavailable", "failure_code": "connector_required"}
+        if all(credential_transport_blocked(endpoint) for endpoint in endpoints):
+            return {"health": "unavailable", "failure_code": "credential_transport_blocked"}
+        gated = all(endpoint.get("auth") or endpoint.get("specialAuth") for endpoint in endpoints)
+        if gated:
+            if connections is None:
+                return {"health": "unavailable", "failure_code": "blocked_config"}
+            try:
+                # Only inspect the non-secret saved configuration record. Status
+                # projection may itself read a keyring secret, so do not use it here.
+                configured = (
+                    await asyncio.to_thread(connections.source_configuration, source_id)
+                ) is not None
+            except Exception:  # noqa: BLE001 - missing secret and store failures stay distinct.
+                return {"health": "unavailable", "failure_code": "blocked_config"}
+            if not configured:
+                return {"health": "unavailable", "failure_code": "blocked_config"}
+        return {"health": "degraded", "failure_code": "not_live_verified"}
     if source_id == "eastmoney_fund":
         query = Query(source="fund_profile", code="000001", limit=1)
     elif source_id == "cls":

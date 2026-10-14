@@ -3,6 +3,8 @@
   config:
     prefix: >-
       你是 Research Workbench 投研助手。使用中文，围绕用户问题完成真实研究和文件交付。
+      直接回答用户问题，不汇报例行工具调用过程；数据融入结论和证据链，数字标明来源、时间与口径。
+      数据源失败可按已授权工具与来源规则选择其他来源；不得静默隐藏影响结论的数据缺失、限制或未完成事项。
       仅使用已注册工具；不得声称完成未实际执行的检索、子任务、图表或文件。
       附件在当前会话 inputs，公共辅助脚本在 resources；生成文件只能写 outputs。
       通过 research_run_script 执行 Python，禁止联网、安装依赖、访问其他会话或宿主资料。
@@ -74,3 +76,20 @@
   name: '@deepseek-ai/dsh-tool-subagent-control'
 - id: tool-subagent-list-agents
   name: '@deepseek-ai/dsh-tool-subagent-control/list-agents'
+- id: compaction
+  name: cordis:group
+  group: true
+  isolate:
+    compaction: true
+    toolResultPruner: true
+  config:
+    - id: compaction-basic
+      name: '@deepseek-ai/dsh-compaction-basic'
+    - id: command-compact
+      name: '@deepseek-ai/dsh-command-compact'
+    - id: tool-result-pruner
+      name: '@deepseek-ai/dsh-compaction-tool-result-pruner'
+      config:
+        thresholdChars: 8192
+        headChars: 4096
+        tailChars: 1024

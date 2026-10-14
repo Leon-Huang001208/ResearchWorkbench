@@ -7,7 +7,9 @@ import os
 import pytest
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
+from test_capabilities import isolate_keyring
 
+from app.research_web.capabilities.seeds import seed_packages
 from app.research_web.frameworks.base import FrameworkError
 from app.research_web.frameworks.dollar.contracts import DollarSnapshot
 from app.research_web.frameworks.dollar.seed import build_seed as build_dollar_seed
@@ -22,17 +24,24 @@ from app.research_web.store import Store
 class NativeFixture:
     def __init__(self):
         self.calls = []
+        self.skill_names = ["framework-research"]
 
     async def rpc(self, method, payload):
         self.calls.append((method, payload))
         if method == "host.describe":
             return {"version": "fixture", "model": "fixture", "provider": "fixture"}
+        if method == "credentials.describe":
+            return {
+                "credentials": {
+                    ref: {"configured": True, "writable": True} for ref in payload["refs"]
+                }
+            }
         if method == "session.list":
             return {"items": []}
         if method == "subagent.list":
             return {"entries": []}
         if method == "skill.list":
-            return {"skills": [{"name": "framework-research"}]}
+            return {"skills": [{"name": name} for name in self.skill_names]}
         return {"accepted": True}
 
     async def history(self, sid):
@@ -47,11 +56,40 @@ class NativeFixture:
 
 
 @pytest.fixture
-def framework_api(tmp_path, monkeypatch):
+def framework_api(tmp_path, monkeypatch, request):
+    isolate_keyring(monkeypatch)
+    declared_web_only = getattr(request, "param", None) == "declared_web_only"
+    if declared_web_only:
+        # Preserve the production package for other tests; this fixture owns a
+        # manual package with the ID required by FrameworkService.
+        monkeypatch.setattr(
+            "app.research_web.capabilities.catalog.seed_packages",
+            lambda: [item for item in seed_packages() if item[0] != "framework-research"],
+        )
     monkeypatch.setenv("RESEARCH_MCP_RUNTIME_ENABLED", "0")
     monkeypatch.setenv("RESEARCH_AUTOMATIONS_ENABLED", "0")
     native = NativeFixture()
     service = ResearchService(native, Store(tmp_path))
+    if declared_web_only:
+        candidate = next(draft for cid, draft in seed_packages() if cid == "framework-research")
+        candidate["metadata"].update(
+            name="合成网页验证",
+            description="仅验证框架预设路由的网页工具测试包，不证明内置数据能力可用。",
+            required_tools=["web_search"],
+            data_requirements=[],
+        )
+        candidate.update(
+            instructions="---\nname: framework-research\ndescription: 合成网页验证\n---\n# 合成网页验证\n仅使用已注册网页搜索工具。",
+            files=[],
+            reviewed_scripts=[],
+        )
+        created = service.capabilities._create(candidate, source="manual", cid="framework-research")
+        service.capabilities.publish(created["id"])
+        service.capabilities.edit(created["id"], candidate)
+        published = service.capabilities.publish(created["id"])
+        native.skill_names = [service.capabilities.selection(created["id"])["native_name"]]
+        assert published["version"] == 2
+        assert service.capability_readiness(created["id"])["admitted"] is True
     with TestClient(create_app(service)) as client:
         service.connected = {"mux", "host"}
         yield client, native, service
@@ -108,8 +146,9 @@ def test_framework_session_is_bound_to_exact_snapshot_and_safe_preset(framework_
     assert stale.json()["error"]["code"] == "framework_snapshot_changed"
 
 
+@pytest.mark.parametrize("framework_api", ["declared_web_only"], indirect=True)
 def test_framework_explain_and_explicit_verify_use_separate_dsh_presets(framework_api):
-    client, native, _ = framework_api
+    client, native, service = framework_api
     revision = client.get("/api/research/frameworks/gold/data").json()["snapshot"]["revision"]
     created = client.post(
         "/api/research/frameworks/gold/sessions", json={"snapshot_revision": revision}
@@ -146,8 +185,32 @@ def test_framework_explain_and_explicit_verify_use_separate_dsh_presets(framewor
         if method == "session.prompt"
     ]
     assert "当前模式没有网页检索" not in prompts[0]
-    assert prompts[-1].startswith("/framework-research ")
+    selection = service.capabilities.selection("framework-research")
+    assert selection["version"] == 2
+    assert prompts[-1].startswith(f"/{selection['native_name']} ")
     assert "深度验证" in prompts[-1]
+
+
+def test_builtin_framework_verify_missing_data_contract_fails_closed(framework_api):
+    client, native, service = framework_api
+    readiness = service.capability_readiness("framework-research")
+    assert readiness["admitted"] is False
+    assert {item["code"] for item in readiness["missing"]} == {"data_contract_missing"}
+    revision = client.get("/api/research/frameworks/gold/data").json()["snapshot"]["revision"]
+    created = client.post(
+        "/api/research/frameworks/gold/sessions", json={"snapshot_revision": revision}
+    ).json()
+    sid = created["session"]["id"]
+    native.calls.clear()
+    verified = client.post(
+        f"/api/research/frameworks/gold/sessions/{sid}/verify",
+        headers={"Idempotency-Key": "builtin-framework-no-contract"},
+        json={"question": "核验央行购金数据", "expected_snapshot_revision": revision},
+    )
+    assert verified.status_code == 409, verified.text
+    assert verified.json()["error"]["code"] == "capability_data_unavailable"
+    assert not any(method == "session.prompt" for method, _ in native.calls)
+    assert service.capabilities.row("framework-research")["version"] == 1
 
 
 def test_gold_snapshot_store_rejects_symlink_and_preserves_strict_revision(tmp_path):

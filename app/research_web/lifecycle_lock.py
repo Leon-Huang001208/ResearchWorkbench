@@ -12,7 +12,7 @@ import tempfile
 import time
 from collections.abc import Callable
 from pathlib import Path
-from typing import Self
+from typing import Literal, Self
 from uuid import uuid4
 
 try:
@@ -519,7 +519,10 @@ class LifecycleLock:
     def _reclaim_dead_owner(self) -> None:
         try:
             owner, _identity = self._read_owner(self.path)
-            alive = self.pid_exists(int(owner["pid"]))
+            owner_pid = owner["pid"]
+            if type(owner_pid) is not int:
+                raise LifecycleLockError("lifecycle lock is busy", code="lifecycle_busy")
+            alive = self.pid_exists(owner_pid)
         except LifecycleLockError:
             raise
         except Exception as exc:
@@ -600,7 +603,7 @@ class LifecycleLock:
                 "lifecycle lock ownership was lost", code="lifecycle_lock_ownership_lost"
             ) from error
 
-    def __exit__(self, exc_type, exc_value, traceback) -> bool:
+    def __exit__(self, exc_type, exc_value, traceback) -> Literal[False]:
         if not self._entered:
             try:
                 self._release_guard()

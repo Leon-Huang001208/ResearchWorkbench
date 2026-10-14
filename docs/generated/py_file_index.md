@@ -2905,6 +2905,7 @@ Classes:
 - `AlertPatch`
 
 Functions:
+- `_default_sections`
 - `create_observation`
 - `list_observations`
 - `observation`
@@ -3606,11 +3607,17 @@ Imports:
 - `snapshots`
 - `store`
 - `time`
+- `typing`
 - `uuid`
 
 Classes:
 - `DataHub`
   - methods: __init__, authenticate, _latest_probes, catalog, connection_center, source_configuration_digest, catalog_capability, catalog_source, start_probe, _probe, _mark_probe_terminal, _prune_probes, probe, run_probe, restore_probe_statuses, detail, summaries, copy_for_upgrade, copy_selected, list, rows, short, _authorize_query, query, _query, cancel, close
+
+Functions:
+- `_trim_sample_strings`
+- `bounded_sample`
+  - Bound the model-facing sample; complete rows stay in rows.json.
 
 
 ## `app/research_web/datahub/broker.py`
@@ -3622,7 +3629,10 @@ Imports:
 - `__future__`
 - `catalog`
 - `contracts`
+- `core.observability`
 - `dataclasses`
+- `providers`
+- `providers_akshare`
 - `store`
 
 Classes:
@@ -3642,6 +3652,7 @@ Imports:
 - `__future__`
 - `contracts`
 - `datetime`
+- `external_sources`
 - `importlib.metadata`
 - `importlib.util`
 - `os`
@@ -3674,6 +3685,7 @@ Module docstring:
 Imports:
 - `__future__`
 - `connections`
+- `external_sources`
 - `importlib.util`
 - `platform`
 
@@ -3764,6 +3776,27 @@ Classes:
 - `InternalBusinessQuery`
 
 
+## `app/research_web/datahub/external_sources.py`
+
+Module docstring:
+> Versioned external-source inventory; importing it never performs network I/O.
+
+Imports:
+- `json`
+- `pathlib`
+- `re`
+- `typing`
+- `urllib.parse`
+
+Functions:
+- `credential_transport_blocked`
+  - Authenticated HTTP inventory entries remain registered but cannot execute.
+- `readable_endpoints`
+- `inventory_rows`
+- `source_label`
+- `catalog_entries`
+
+
 ## `app/research_web/datahub/probes.py`
 
 Module docstring:
@@ -3852,6 +3885,7 @@ Imports:
 - `providers`
 - `re`
 - `threading`
+- `time`
 - `typing`
 
 Functions:
@@ -3861,15 +3895,23 @@ Functions:
 - `_symbol`
 - `_market_code`
 - `_market_symbol`
+- `_exchange_symbol`
+- `_activity_bounds`
+- `validate_supported_query`
+  - Pure semantics check shared by selection/cache admission and execution.
+- `_slice_activity_frame`
+  - Filter provider dates before the shared row cap; unknown dates fail closed.
 - `_clean`
 - `_records`
 - `_pick`
 - `_date`
+- `_iso_date`
 - `_number`
 - `_normalize_assets`
 - `_normalize_bars`
 - `_normalize_snapshot`
 - `_normalize_generic`
+- `_normalize_activity`
 - `_normalize_financials`
 - `_invoke`
 - `_fetch_probe_payload`
@@ -3915,6 +3957,49 @@ Functions:
 - `_failure_code`
 - `fetch`
 - `probe`
+
+
+## `app/research_web/datahub/providers_external.py`
+
+Module docstring:
+> Bounded, cancellable reads of named endpoints from the external-source inventory.
+
+Imports:
+- `asyncio`
+- `contracts`
+- `core.observability`
+- `csv`
+- `datetime`
+- `external_sources`
+- `hashlib`
+- `hmac`
+- `html.parser`
+- `httpx`
+- `io`
+- `json`
+- `providers`
+- `re`
+- `time`
+- `typing`
+- `urllib.parse`
+- `xml.etree`
+
+Classes:
+- `PageText`
+  - methods: __init__, handle_starttag, handle_endtag, handle_data
+
+Functions:
+- `arguments`
+- `endpoint_request`
+- `_list_payload`
+  - Dict payloads with a primary list become real rows so samples stay small.
+- `response_rows`
+- `_rows_reflect_credentials`
+  - Inspect decoded strings before publishing; never log credential contents.
+- `bounded_response`
+- `credentials`
+- `cicc_request`
+- `fetch`
 
 
 ## `app/research_web/datahub/providers_mysql.py`
@@ -4098,6 +4183,7 @@ Imports:
 - `core.observability`
 - `csv`
 - `datetime`
+- `external_sources`
 - `hashlib`
 - `io`
 - `json`
@@ -5179,6 +5265,8 @@ Imports:
 - `urllib.parse`
 
 Classes:
+- `RegistryValidationError`
+  - Invalid untrusted registry data, including Pydantic validator inputs.
 - `AuthNone`
 - `AuthBearer`
 - `AuthOAuth2`
@@ -5221,6 +5309,7 @@ Module docstring:
 
 Imports:
 - `__future__`
+- `core.observability`
 - `hashlib`
 - `json`
 - `models`
@@ -6059,6 +6148,7 @@ Functions:
 - `_project_plan`
   - Fold whole native snapshots; version identifies a write, never an item.
 - `content_text`
+- `content_reasoning`
 - `project`
 
 
@@ -6185,6 +6275,9 @@ Imports:
 - `zoneinfo`
 
 Classes:
+- `ReportStudioService`
+  - Structural host contract; CLI migration only consumes the store property.
+  - methods: store, datahub, create, send, detail, cancel
 - `ReportStudioError`
   - methods: __init__
 - `ReportStudio`
@@ -6348,11 +6441,13 @@ Imports:
 - `shutil`
 - `tempfile`
 - `time`
+- `typing`
 - `uuid`
 - `workbook`
 - `yaml`
 
 Classes:
+- `_ProviderRequirement`
 - `ReportWorkflowMigration`
   - methods: __init__, _logical_path, _scan, _blocks, migrate, _classify, _migration_state, _verified_bytes, _verify_project, _atomic_history_file, _append_history_locked, _apply, _apply_locked, _v2_primary_workbook, _v2_validation, _write_yaml, upgrade_all_v2
 
@@ -6590,6 +6685,8 @@ Imports:
 - `uuid`
 
 Functions:
+- `chinese_font_path`
+  - Return the bundled CJK font's absolute path without reading the cwd.
 - `read_pdf`
 - `safe_cell`
 - `write_deliverables`
@@ -6805,7 +6902,7 @@ Classes:
   - Enforce Research Store ownership before any session-scoped MCP operation.
   - methods: __init__, __getattr__, start, close, _owned, authorize_session, register_automation_session, read_resource, get_prompt, call_tool, approvals, decide_approval
 - `ResearchService`
-  - methods: __init__, _build_mcp_runtime, ensure_owned, start, close, _retention_loop, notify, _connect, _consume, _interaction_owner, _model_plane, compatible_connection, _require_model_credentials, runtime, configure_model, test_model, create, summary, list_sessions, soft_delete_session, restore_session, permanent_delete_session, purge_expired_sessions, _model_tools_verified, _task_capabilities, _effective_records, native_admission, _data_query_admission, capability_readiness, detail, _cancel_observation, send, skill_catalog, _capability_idle, _mcp_idle_gate, _restart_mcp_runtime, change_capability, create_capability_session, capability_from_artifact, approve, cancel, _cancel, answer
+  - methods: __init__, _build_mcp_runtime, ensure_owned, start, close, _retention_loop, notify, _connect, _consume, _interaction_owner, _model_plane, compatible_connection, _require_model_credentials, runtime, configure_model, test_model, create, summary, list_sessions, soft_delete_session, restore_session, permanent_delete_session, purge_expired_sessions, _model_tools_verified, _task_capabilities, _effective_records, _task_readiness_context, native_admission, _data_query_admission, capability_readiness, detail, _cancel_observation, send, skill_catalog, _capability_idle, _mcp_idle_gate, _restart_mcp_runtime, change_capability, create_capability_session, capability_from_artifact, approve, cancel, _cancel, answer
 
 Functions:
 - `_mcp_internal_url`
@@ -9652,8 +9749,9 @@ Imports:
 - `collections`
 - `dataclasses`
 - `datetime`
-- `logging`
+- `logger`
 - `threading`
+- `typing`
 
 Classes:
 - `Metric`
@@ -9665,10 +9763,11 @@ Classes:
 ## `core/observability/tracer.py`
 
 Imports:
+- `collections.abc`
 - `contextlib`
 - `dataclasses`
 - `datetime`
-- `logging`
+- `logger`
 - `threading`
 - `typing`
 - `uuid`

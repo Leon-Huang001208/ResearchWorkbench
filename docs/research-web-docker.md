@@ -1,5 +1,9 @@
 # Mac mini Docker 开发与独立部署
 
+共享控制器类型维护保留 manifest/镜像归属、pipe清理、目录身份与回滚顺序。
+候选 Native 预览使用独立目录和38188/33181，不修改 Docker 实例或日常服务；
+此预览及离线控制器测试不替代 Linux exact-SHA Docker CI 与 Mac Docker Desktop 真机验收。
+
 持久文本验收预算必须显式配置并绑定受管 AES 身份；本轮不初始化真实账本、不恢复过期授权、不修改 dev/stage/prod 实例。身份校验本身不证明环境角色，未来真实验收必须另选独立候选实例。
 
 G0/G1 的入口是 `rwb-docker`（亦可用 `./rwb docker`）。管理员在 mini 的受控终端执行，
@@ -194,6 +198,9 @@ Native macOS 仍用 Keychain，绝不自动读取或迁移旧 Key。
 
 Windows/Linux原生及同平台产品CI、模型付费生成、Office/Wind等本机集成保持 NOT_RUN。
 本地 Docker Desktop 健康不替代 GitHub macOS 干净安装门，不触发无关桌面打包。
+
+PR100完整回归的监督器类型维护仅显式声明目录身份记录的可空父FD及二进制Popen集合，
+保留openat身份复查、信号、进程归属和有界清理；本机Python合同不代替Linux镜像原生验收。
 
 两种已存在的密文格式保持独立：常规 staged launcher 默认 `docker-encrypted-file`（Fernet，同卷主密钥）；管理器显式 `RWB_MODEL_BACKEND=docker-encrypted` 绑定 AES-GCM 与独立只读主密钥卷。桥接拒绝混用参数和外来密文格式；无自动转换、回退、旧 Key 删除或重新生成主密钥。来源分别报告 `docker-encrypted-file` 与 `docker-encrypted`，配置不认证真实生成。
 

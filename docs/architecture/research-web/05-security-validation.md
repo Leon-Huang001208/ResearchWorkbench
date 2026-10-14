@@ -1,5 +1,17 @@
 # 安全边界与验证方法
 
+字体兼容不扩大sandbox：getcwd、network connect和未准入资源依然拒绝。chinese_font_path
+仅由模块绝对__file__定位打包字体，缺失或alias固定错误退出，不扫描其他宿主文件。
+非2xx错误摘要只取4KiB JSON中白名单code，redirect立即拒绝，流读取/清理不超过原超时信号；
+scope拒绝仍deny且不登记资源，只追加安全missing.code摘要。准入快照只是提示，不能覆盖实时guard。
+
+外部资料取数只使用登记的固定 endpoint；认证请求必须为 HTTPS，检查在读秘密前执行。
+HTTP 认证来源保留目录和 `credential_transport_blocked`，不以配置完成冒充可调用。
+秘密不得出现在原始响应、解析后的数据、日志或会话快照中；测试仅使用合成凭据。
+兼容模型的传输实现不替代 endpoint/model 的工具验证，未知组合保留未验证准入。
+脚本结果仅在可解析且明确 status=completed 时标为完成，未知和损坏结果失败关闭。
+推理块必须在正文或工具块开始前结束，取消和后续非法推理保持原失败语义。
+
 预算新增不可退款预留：调用失败或预先取消仍扣票，迟到响应不能延长期限。旧政策 2026-10-10 到期，当前真实时钟拒绝；不得自动刷新费用、日期或旧账本。截止通过固定 SDK 公开 Agent.cancel 中止已绑定的原 transport signal；原生 loop marker、会话身份和当前 owner signal 均校验，陈旧 timer 不能取消下一轮。供应商远端计算是否停止仍不由本地 abort 认证。历史时钟夹具只验证机制，真实模型和其他平台仍未运行。
 
 研究工具边界仅新增精确 `todo_write`，仍要求启用研究及 Agent 归属，沿用48工具/4子任务
@@ -423,6 +435,10 @@ FinGPT 资料范围在工具 preflight、上传入口及脚本数据集 read_pat
 ## 历史子会话模式兼容 · 2026-10-13
 
 activityOnly仍逐项验证父子关联、origin=subagent及running为布尔值，不能将missing/unknown活动推断为空闲。历史mode=unknown不授权打开子历史；继续、取消和删除路径仍使用严格执行模式查询。
+
+POSIX运行记录读取的共享祖先在stat/open与退出复查均采用dev/inode/mode及UID/GID，
+允许无关sibling目录变化；直接私有parent与记录文件保留完整元数据、单链接及权限校验。
+目录替换/alias/owner或mode变化仍拒绝；私有UID异常继续unsafe_path，不改变格式或端点。
 
 PR96 与既有 Fernet 模型桥共用唯一私有 stdio 接口；默认 `native-keychain`、常规 staged `docker-encrypted-file` 语义保留，管理器仅显式绑定 `docker-encrypted` 选择 AES-GCM。两种 Docker 格式与主密钥布局独立，混合绑定或外来格式失败关闭，不转换密文、不删除旧 Key、不回退。四操作与固定 ref 保持；来源如实区分，configured/Doctor 不证明真实生成。
 

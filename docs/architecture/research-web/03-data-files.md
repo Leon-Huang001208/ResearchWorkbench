@@ -1,5 +1,17 @@
 # DataHub、研究资料与实际文件
 
+AKShare不支持的northbound/money_flow资金口径及index/ETF股票feed快照在选择、缓存和SDK前
+失败关闭，不把个股资金流或股票价格冒充目标数据。fund_flow按日期裁剪再限行数，股票后缀保持。
+Provider semantics revision纳入非秘密授权摘要；旧cache不能复用，新调用可重新取数，历史raw/rows保留。
+Matplotlib字体使用research_helpers.chinese_font_path()的打包绝对路径；旧会话可由该模块__file__
+构造同一已准入字体路径，不需要getcwd、额外宿主目录或网络权限。
+
+`external_data` 复用既有 Broker、会话快照和原生工具桥，不创建新数据执行器。
+外部来源总目录包含取数登记与仅参考来源；目录、凭据配置、健康和实际查询状态分别认证。
+外部响应保存供应商原字段及单次响应限制；未验证成交量单位保持 provider_defined，
+指数价格使用 points，不猜测换算。模型面对的前三行样例按 UTF-8 字节裁剪，完整数据仍在
+会话 inputs/datasets 的 JSON/CSV 中；不能用截断样例认证历史完整性。
+
 验收 control/ledger 位于实例私有 live-acceptance/<身份> 叶中，控制摘要、永久锁、FD 复核、原子替换和读回绑定票据。describe/reserve 不创建；init 拒绝已有或中断初始化的实例，不修复、不退款或重置。最多3票、512输出/票、1536累计；旧费用政策仅为已过期历史字段。
 
 原生事件仍由 DSH 日志保存；历史/分页/SSE 归并的同序号冲突标记只保留在 Host 内存记录外层，不新增正文库、持久 schema 或写回日志。Automation 草稿及文件交付不能从计划项完成推导。

@@ -1244,7 +1244,8 @@ class ResearchService:
                 "model_provider": self.default_model["provider"],
             }
         )
-        # Exact tuple bound to the independently observed native tool round.
+        # A transport implementation is not evidence for every endpoint/model.
+        # Keep admission bound to the independently observed native tool round.
         return (
             PINNED_DSH_COMMIT == "48504f07f217f9fd45a4f6d8fca4b1ed35c2d4b0"
             and model.get("model_provider", "deepseek-official") == "deepseek-official"
@@ -1279,6 +1280,57 @@ class ResearchService:
             records.append({**record, "id": ref["id"]})
             pending.extend(record["bindings"])
         return records
+
+    def _task_readiness_context(self, sid: str, snapshots: list[dict]) -> dict:
+        """Non-secret planning facts; live native admission remains authoritative."""
+        catalog = self.datahub.catalog()
+        capabilities = []
+        for item in snapshots[:128]:
+            try:
+                ready = self.capability_readiness(item["id"], sid, data_catalog=catalog)
+                codes = sorted(
+                    {
+                        value["code"]
+                        for value in ready.get("missing", [])
+                        if isinstance(value, dict)
+                        and isinstance(value.get("code"), str)
+                        and re.fullmatch(r"[a-z][a-z0-9_]{0,79}", value["code"])
+                    }
+                )[:8]
+                capabilities.append(
+                    {
+                        "native_name": item["native_name"],
+                        "status": ready["status"],
+                        "admitted": ready["admitted"],
+                        "missing_codes": codes,
+                    }
+                )
+            except CapabilityError as exc:
+                log.warning(
+                    "research_task_capability_readiness_failed", error_type=type(exc).__name__
+                )
+                capabilities.append(
+                    {
+                        "native_name": item["native_name"],
+                        "status": "unverified",
+                        "admitted": False,
+                        "missing_codes": ["capability_readiness_unavailable"],
+                    }
+                )
+        sources = self.store.session(sid).get("source_scope", ["datahub", "web", "uploads"])
+        tools = []
+        for item in catalog["capabilities"]:
+            tool = item["tool_id"]
+            permitted = "web" in sources if tool == "datahub_search_web" else "datahub" in sources
+            count = item.get("callable_source_count")
+            available = type(count) is int and count > 0 and permitted
+            tools.append({"tool_id": tool, "callable": available})
+        log.info(
+            "research_task_readiness_context_prepared",
+            capability_count=len(capabilities),
+            data_tool_count=len(tools),
+        )
+        return {"capabilities": capabilities, "data_tools": tools}
 
     def native_admission(
         self,
@@ -1974,6 +2026,21 @@ class ResearchService:
                 prompt += "\n\nTabbit 标签页引用：" + " ".join(tabbit_markers)
             prompt += "\n\n" + delivery["marker"]
             prompt += "\n本会话允许的资料范围：" + ", ".join(source_scope)
+            prompt += "\n本次工具与能力准入快照：" + json.dumps(
+                self._task_readiness_context(sid, capability_snapshots),
+                ensure_ascii=False,
+                separators=(",", ":"),
+            )
+            prompt += (
+                "\n目录注册不等于可加载或当前可调用；只加载admitted=true的能力，执行时仍以实时准入为准。"
+                "遇到data_contract_missing、data_source_unavailable或data_not_equivalent，不要重复相同请求，"
+                "不要用别的数据口径冒充；明确报告缺口，使用其余已允许来源。"
+                "Python禁止getcwd和联网。绘图字体用from research_helpers import chinese_font_path，"
+                "FontProperties(fname=str(chinese_font_path()))，不使用相对字体路径或自行扫描宿主字体。"
+                "旧会话若没有该helper，先import research_helpers并from pathlib import Path，"
+                "使用Path(research_helpers.__file__).with_name('fonts') / "
+                "'NotoSansSC-Regular.ttf'构造同一打包字体的绝对路径，不能调用cwd或改沙箱权限。"
+            )
             if self.store.session(sid).get("research_depth") == "deep" and required:
                 prompt += (
                     "\n深入研究：先用 todo_write 建立并维护真实计划，先取证再写结论。"

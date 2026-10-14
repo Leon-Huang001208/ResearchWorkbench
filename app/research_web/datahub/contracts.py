@@ -20,6 +20,7 @@ SOURCES = {
 }
 
 DataCapabilityId = Literal[
+    "external_data",
     "search_assets",
     "trading_calendar",
     "market_bars",
@@ -38,6 +39,7 @@ DataCapabilityId = Literal[
 ]
 
 DATA_CAPABILITIES: tuple[DataCapabilityId, ...] = (
+    "external_data",
     "search_assets",
     "trading_calendar",
     "market_bars",
@@ -56,6 +58,7 @@ DATA_CAPABILITIES: tuple[DataCapabilityId, ...] = (
 )
 
 CAPABILITY_PARAMETERS = {
+    "external_data": {"dataset", "arguments_json", "limit"},
     "search_assets": {"query", "market", "asset_type"},
     "trading_calendar": {"market", "start_date", "end_date"},
     "market_bars": {

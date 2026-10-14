@@ -9,7 +9,11 @@ from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 
-from .models import SERVER_NAME_PATTERN, safe_http_url, safe_text
+from core.observability import get_logger
+
+from .models import SERVER_NAME_PATTERN, RegistryValidationError, safe_http_url, safe_text
+
+log = get_logger(__name__)
 
 SERVER_SCHEMA = "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json"
 PUBLISHER_ARGV = {
@@ -185,7 +189,7 @@ class PublisherMetadata:
 
     def preview(self, value: dict[str, Any]) -> dict[str, Any]:
         if not isinstance(value, dict):
-            raise ValueError("server.json 根节点必须为对象")
+            raise RegistryValidationError("server.json 根节点必须为对象")
         raw = self.canonical_json(value).encode("utf-8")
         if len(raw) > 256 * 1024:
             raise ValueError("server.json 超过 256 KiB")
@@ -211,6 +215,7 @@ class PublisherMetadata:
         try:
             return self.preview(value)
         except (ValidationError, TypeError, ValueError) as exc:
+            log.warning("mcp_publisher_validation_failed", error_type=type(exc).__name__)
             if isinstance(exc, ValidationError):
                 issues = [
                     {"path": ".".join(str(item) for item in error["loc"]), "message": error["msg"]}

@@ -229,7 +229,7 @@ class MCPRegistryService:
         effective_base_url = request.base_url or current["base_url"]
         effective_auth = request.auth if request.auth is not None else current["auth"]
         effective_auth_type = (
-            effective_auth.type if request.auth is not None else effective_auth["type"]
+            request.auth.type if request.auth is not None else current["auth"]["type"]
         )
         self._validate_transport(effective_base_url, effective_auth_type, effective_auth)
         changes = request.model_dump(exclude_none=True, exclude={"auth"})

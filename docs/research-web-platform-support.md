@@ -1,5 +1,9 @@
 # Research Web 能力与平台证据
 
+PR #100 的隔离 Native 预览与 macOS Bootstrap 属于该候选的 Web 证据；源码更新后须重新绑定。
+运行时、共享 Wind 和日志的类型/离线回归不证明 Windows/Linux、真实 Wind 或桌面安装可用。
+策略所选而未执行的 Docker、Windows及桌面门保持NOT_RUN；不复用其他平台结果提升支持状态。
+
 G2A 的 Docker 模型加密后端由受管实例身份绑定，Mac Docker Desktop 的实际文本生成和
 重建证据另验；合成测试不等于供应商调用，Native Keychain 实机与各平台 CI 保留独立状态。
 

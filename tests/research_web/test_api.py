@@ -153,6 +153,34 @@ def test_create_submit_duplicate_never_replays(api):
     )
 
 
+def test_ordinary_task_receives_truthful_capability_and_data_readiness(api):
+    import json
+
+    client, native, _ = api
+    sid = client.post("/api/research/sessions", json={}).json()["id"]
+    response = client.post(
+        f"/api/research/sessions/{sid}/messages",
+        json={"text": "合成任务"},
+        headers={"Idempotency-Key": "readiness-context"},
+    )
+    assert response.status_code == 202
+    payload = next(body for name, body in native.calls if name == "session.prompt")
+    text = payload["content"][0]["text"]
+    raw = text.split("本次工具与能力准入快照：", 1)[1].split("\n", 1)[0]
+    context = json.loads(raw)
+    skill = next(
+        item for item in context["capabilities"] if item["native_name"] == "market-commentary"
+    )
+    assert skill["admitted"] is False
+    assert "data_contract_missing" in skill["missing_codes"]
+    calendar = next(
+        item for item in context["data_tools"] if item["tool_id"] == "datahub_get_trading_calendar"
+    )
+    assert calendar["callable"] is False
+    assert "不要重复" in text
+    assert "chinese_font_path" in text
+
+
 def test_tabbit_status_access_inventory_and_live_message(api):
     client, native, _ = api
     sid = client.post("/api/research/sessions", json={}).json()["id"]
@@ -434,7 +462,7 @@ def test_datahub_read_only_catalog_authenticated_queries_and_upgrade(api):
     client, native, service = api
     catalog = client.get("/api/research/data/catalog")
     assert catalog.status_code == 200
-    assert len(catalog.json()["capabilities"]) == 15
+    assert len(catalog.json()["capabilities"]) == 16
     sid = client.post("/api/research/sessions", json={}).json()["id"]
     assert client.get(f"/api/research/sessions/{sid}").json()["datasets"] == []
     called = []

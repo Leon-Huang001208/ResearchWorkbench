@@ -1,5 +1,12 @@
 # 能力包、版本与原生调用
 
+研报脚本的能力资源必须由锁定 selection.resource_path 显式进入 read_paths；
+发布资源存在不等于脚本已获准读取，未准入的资源继续由 sandbox 拒绝。
+目录回归核对真实注册ID集合，保留缺数据合同的内置框架验证拒绝和独立合成版本成功证据。
+
+external_data 通过原 DataHub bridge 注册，来源目录不赋予 Skill、MCP 或深入研究准入。
+兼容模型工具流只能提供协议能力，现有精确模型验证门和锁版本日程草稿合同保留。
+
 `rwb_prepare_automation` 在原生 research-tools 中注册并受最终 guard 与会话准入保护。Claw 只投影真实能力目录；日程草稿锁定选定 Skill/Workflow/报告版本，确认不发布新能力，版本失效明确拒绝。保存后默认停用，执行与投递仍由现有 Automation 管理。
 
 MCP 控制 JSON/URL 的纯 parser 现供原 reader 与独立 origin helper 共享；原 reader 的

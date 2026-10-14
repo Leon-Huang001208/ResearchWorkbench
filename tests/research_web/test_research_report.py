@@ -155,3 +155,70 @@ def test_invalid_artifact_name_returns_quality_gap_instead_of_raising(tmp_path, 
     view = report_projection(store, sid, store.files(sid), [], "a" * 24)
     assert view["quality"] == "incomplete"
     assert "report_artifact_invalid" in view["issues"]
+
+
+@pytest.mark.skipif(__import__("sys").platform != "darwin", reason="native macOS sandbox")
+def test_bundled_font_absolute_helper_avoids_cwd_without_expanding_sandbox(tmp_path):
+    import shutil
+    import sys
+    from pathlib import Path
+
+    from app.research_web.sandbox import SandboxConfig, run_script
+    from app.research_web.store import Store
+
+    store = Store(tmp_path / "data")
+    session = store.directory(store.create("fingpt", "字体路径夹具")["id"])
+    shutil.copytree(Path("app/research_web/resources"), session / "resources", dirs_exist_ok=True)
+    private = session / "resources/capabilities/not-admitted/1"
+    private.mkdir(parents=True)
+    (private / "canary.txt").write_text("private-synthetic-canary")
+    config = SandboxConfig(
+        research_root=store.root, python=Path(sys.executable), timeout_seconds=30
+    )
+    relative = run_script(
+        config,
+        session,
+        "from matplotlib.font_manager import FontProperties\n"
+        "print(FontProperties(fname='resources/fonts/NotoSansSC-Regular.ttf').get_name())\n",
+    )
+    assert relative.status == "failed"
+    assert "PermissionError" in relative.stderr
+    fixed = run_script(
+        config,
+        session,
+        "import os, socket, errno\n"
+        "from pathlib import Path\n"
+        "from matplotlib.font_manager import FontProperties\n"
+        "from research_helpers import chinese_font_path\n"
+        "font = chinese_font_path()\n"
+        "assert font.is_absolute()\n"
+        "assert FontProperties(fname=str(font)).get_name()\n"
+        "def denied(operation):\n"
+        "    try: operation()\n"
+        "    except OSError as error: assert error.errno in (errno.EPERM, errno.EACCES)\n"
+        "    else: raise AssertionError('sandbox restriction lost')\n"
+        "denied(os.getcwd)\n"
+        "denied(lambda: socket.create_connection(('127.0.0.1', 9), timeout=1))\n"
+        "denied(lambda: Path('resources/capabilities/not-admitted/1/canary.txt').read_text())\n"
+        "print('font-ready-guards-preserved')\n",
+    )
+    assert fixed.status == "completed", fixed.stderr
+    assert "font-ready-guards-preserved" in fixed.stdout
+
+
+@pytest.mark.parametrize("unsafe", ["missing", "symlink"])
+def test_chinese_font_helper_fails_with_path_free_error(tmp_path, monkeypatch, caplog, unsafe):
+    from app.research_web.resources import research_helpers
+
+    module_file = tmp_path / "research_helpers.py"
+    fonts = tmp_path / "fonts"
+    fonts.mkdir()
+    if unsafe == "symlink":
+        target = tmp_path / "synthetic.ttf"
+        target.write_bytes(b"not-a-font")
+        (fonts / "NotoSansSC-Regular.ttf").symlink_to(target)
+    monkeypatch.setattr(research_helpers, "__file__", str(module_file))
+    with pytest.raises(ValueError, match="^research_chinese_font_unavailable$") as caught:
+        research_helpers.chinese_font_path()
+    assert caught.value.__cause__ is None
+    assert str(tmp_path) not in caplog.text

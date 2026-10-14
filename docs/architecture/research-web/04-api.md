@@ -1,5 +1,16 @@
 # Research Web 接口清单
 
+DataHub无可调用来源仍返回400，但稳定error.code为data_source_unavailable；
+不等价AKShare查询为data_not_equivalent，旧授权摘要缓存为data_cache_authorization_changed。
+Runtime仅传播受限code，不传播错误message/原始上游数据。GET会话活动会把DataHub failed结果
+显示为failed，而不是仅凭原生isError=false显示执行成功；原生回合完成和领域数据成功仍分开。
+
+既有 DataHub 查询 API 新增 external_data 能力，参数为 dataset、arguments_json 和 limit；
+source=auto 只读取外部总目录，具名查询使用登记端点且禁止自定义目的地址/认证字段。
+连接 API 同步四类外部来源凭据，HTTP认证返回 credential_transport_blocked。
+会话详情的 assistant 消息可增加 reasoning，活动可增加原生 seq；原有计划、来源、报告字段保留。
+写请求前端超时表示结果未确认，不改变 API 幂等键或后台任务的实际状态。
+
 文本验收预算没有新增公开 HTTP API；只通过显式 launcher 控制和内部 Linux Python stdio RPC 读取/扣票。stdin 仅操作与输出上限，不包含 prompt 或 Key；固定错误码区分过期、耗尽、不确定提交。
 
 主线 `research_plan` 保持 turn/seq/status/history_complete/items 字段；与兼容计划投影

@@ -555,7 +555,11 @@ test('real app event handlers close/select slash, search and drawers without any
   const rootElement = { innerHTML: '', addEventListener: (name, handler) => handlers.set(name, handler), querySelectorAll: () => [], querySelector: () => null };
   const main = { scrollTop: 0, scrollTo() {}, focus() {} };
   const prompt = { id: 'prompt', focus() {} };
-  const selectors = { '#app': rootElement, '#main': main, '#prompt': prompt, '#global-search': { focus() {} }, '.skip-link': { addEventListener() {} } };
+  let focused = '';
+  const searchResults = { innerHTML: '' };
+  const searchInput = { id: 'global-search', value: '', dataset: { globalSearch: '' }, closest: () => null, setAttribute() {}, focus() { focused = 'input'; } };
+  const resultItems = [0, 1].map(index => ({ dataset: { globalResult: 'skill' }, matches: () => true, focus() { focused = index; }, click() { focused = 'clicked'; } }));
+  const selectors = { '#app': rootElement, '#main': main, '#prompt': prompt, '#global-search': searchInput, '#global-search-results [data-global-result]': resultItems[0], '.mobile-search-toggle[data-toggle-search]': { focus() { focused = 'toggle'; } }, '.skip-link': { addEventListener() {} } };
   const previous = new Map(['document', 'window', 'location', 'history', 'fetch'].map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
   const originalLog = console.info;
   const builtinResearchSkills = productBuiltinResearchSkills();
@@ -563,7 +567,7 @@ test('real app event handlers close/select slash, search and drawers without any
   assert.ok(selectedSkill, 'real product catalog must contain the report specialist');
   const detail = { ...selectedSkill, draft: { kind: 'skill', metadata: selectedSkill.metadata, instructions: '真实候选', files: [], steps: [] } };
   try {
-    Object.defineProperty(globalThis, 'document', { configurable: true, value: { querySelector: key => selectors[key] || null, getElementById: () => null, activeElement: null, title: '' } });
+    Object.defineProperty(globalThis, 'document', { configurable: true, value: { querySelector: key => selectors[key] || null, querySelectorAll: () => resultItems, getElementById: id => id === 'global-search-results' ? searchResults : null, activeElement: null, title: '' } });
     Object.defineProperty(globalThis, 'window', { configurable: true, value: { matchMedia: () => ({ matches: true }), addEventListener() {} } });
     Object.defineProperty(globalThis, 'location', { configurable: true, value: { hash: '#/fingpt' } });
     Object.defineProperty(globalThis, 'history', { configurable: true, value: { pushState: (_a, _b, hash) => { globalThis.location.hash = hash; } } });
@@ -586,7 +590,22 @@ test('real app event handlers close/select slash, search and drawers without any
     await click({ toggleSidebar: '' }); assert.match(rootElement.innerHTML, /secondary-sidebar mobile-open/);
     await click({ toggleSidebar: '' }); assert.doesNotMatch(rootElement.innerHTML, /secondary-sidebar mobile-open/);
     await click({ toggleSearch: '' }); assert.match(rootElement.innerHTML, /topbar search-open/);
+    const beforeSearch = rootElement.innerHTML;
+    searchInput.value = '研报';
+    await handlers.get('input')({ target: searchInput, isComposing: false });
+    assert.equal(rootElement.innerHTML, beforeSearch, 'typing must not replace the input DOM');
+    assert.match(searchResults.innerHTML, /data-global-result/);
+    await handlers.get('compositionstart')({ target: searchInput });
+    searchInput.value = '公司';
+    await handlers.get('input')({ target: searchInput, isComposing: true });
+    await handlers.get('keydown')({ key: 'Escape', target: searchInput, isComposing: true, preventDefault() { throw Error('IME Escape must not close the search'); } });
+    await handlers.get('compositionend')({ target: searchInput });
+    assert.match(searchResults.innerHTML, /公司/);
+    await handlers.get('keydown')({ key: 'ArrowDown', target: searchInput, preventDefault() {} }); assert.equal(focused, 0);
+    await handlers.get('keydown')({ key: 'ArrowDown', target: resultItems[0], preventDefault() {} }); assert.equal(focused, 1);
+    await handlers.get('keydown')({ key: 'ArrowUp', target: resultItems[1], preventDefault() {} }); assert.equal(focused, 0);
     await key('Escape'); assert.doesNotMatch(rootElement.innerHTML, /topbar search-open/);
+    assert.equal(focused, 'toggle');
     await click({ skillDetail: selectedSkill.id }); assert.equal(globalThis.location.hash, '#/skills');
     assert.match(rootElement.innerHTML, /role="dialog"[^>]*aria-modal="true"/);
     await click({ capClose: '' }); assert.match(rootElement.innerHTML, /role="tablist" aria-label="能力类型"/);
@@ -697,12 +716,62 @@ test('failed workflow version reads retry on explicit refresh and clear only the
     assert.equal(versionReads, 2, 'explicit refresh must retry the failed immutable-version read');
     assert.doesNotMatch(rootElement.innerHTML, /版本恢复后的步骤/, 'research panel is collapsed by default');
     await handlers.get('click')({ target: { closest: () => ({ dataset: { toggleContext: '' }, disabled: false }) } });
+    await handlers.get('click')({ target: { closest: () => ({ dataset: { contextTab: 'activity' }, disabled: false }) } });
     assert.match(rootElement.innerHTML, /版本恢复后的步骤/);
     assert.doesNotMatch(rootElement.innerHTML, /未能读取本次 Workflow/);
     await handlers.get('click')({ target: { closest: () => ({ dataset: { refresh: '' }, disabled: false }) } });
     await new Promise(resolve => setImmediate(resolve));
     assert.equal(versionReads, 2, 'successfully loaded immutable versions stay cached');
     assert.equal(calls.some(([, method]) => method !== 'GET'), false);
+  } finally {
+    console.info = originalLog;
+    for (const [key, descriptor] of previous) { if (descriptor) Object.defineProperty(globalThis, key, descriptor); else delete globalThis[key]; }
+  }
+});
+
+test('real retry events preserve drafts and never send behind task, delivery, or runtime gates', async () => {
+  const previous = new Map(['document', 'window', 'location', 'history', 'fetch', 'EventSource'].map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
+  const originalLog = console.info;
+  try {
+    for (const [name, extra, runtime] of [
+      ['delivery-pending', { delivery: { status: 'pending' } }, { connected: true }],
+      ['admission-unknown', { delivery: { status: 'admission_unknown' } }, { connected: true }],
+      ['cancel-unconfirmed', { can_cancel: true }, { connected: true }],
+      ['runtime-offline', {}, { connected: false }],
+      ['runtime-unconfigured', {}, { connected: true, credential_configured: false }],
+      ['ready-with-draft', {}, { connected: true }],
+      ['ready-empty', {}, { connected: true }],
+    ]) {
+      const handlers = new Map(); const calls = [];
+      const rootElement = { innerHTML: '', addEventListener: (name, handler) => handlers.set(name, handler), querySelectorAll: () => [], querySelector: () => null };
+      const selectors = { '#app': rootElement, '#main': { scrollTop: 0, scrollTo() {}, focus() {} }, '#prompt': { focus() {} }, '.skip-link': { addEventListener() {} } };
+      const detail = { id: 'retry-session', mode: 'fingpt', status: 'completed', messages: [{ id: 'u', role: 'user', text: '旧问题', seq: 1 }, { id: 'a', role: 'assistant', text: '既有正文', seq: 2 }], ...extra };
+      Object.defineProperty(globalThis, 'document', { configurable: true, value: { querySelector: key => selectors[key] || null, getElementById: () => null, activeElement: null, title: '' } });
+      Object.defineProperty(globalThis, 'window', { configurable: true, value: { matchMedia: () => ({ matches: false }), addEventListener() {} } });
+      Object.defineProperty(globalThis, 'location', { configurable: true, value: { hash: '#/fingpt?session=retry-session' } });
+      Object.defineProperty(globalThis, 'history', { configurable: true, value: { pushState() {} } });
+      Object.defineProperty(globalThis, 'EventSource', { configurable: true, value: class { addEventListener() {} close() {} } });
+      Object.defineProperty(globalThis, 'fetch', { configurable: true, value: async (url, options) => {
+        calls.push([url, options.method]);
+        const payload = url.endsWith('/runtime') ? runtime : url.endsWith('/models') ? { groups: [] } : url.endsWith('/sessions/retry-session') ? detail : url.endsWith('/messages') ? { accepted: true } : { items: [] };
+        return new Response(JSON.stringify(payload));
+      } });
+      console.info = () => {};
+      await load(`app.mjs?retry-gate=${name}-${Date.now()}`);
+      handlers.get('input')({ target: { id: 'prompt', value: name === 'ready-empty' ? '' : '保留现有草稿', dataset: {}, closest: () => null } });
+      await handlers.get('click')({ target: { closest: () => ({ dataset: { retryRound: 'u' }, disabled: false }) } });
+      assert.equal(calls.filter(([, method]) => method !== 'GET').length, name === 'ready-empty' ? 1 : 0, name);
+      if (name !== 'ready-empty') {
+        assert.match(rootElement.innerHTML, /保留现有草稿/, name);
+        assert.match(rootElement.innerHTML, /data-retry-round="u"[^>]*disabled/, name);
+        if (name === 'ready-with-draft') {
+          await handlers.get('submit')({ preventDefault() {}, target: { id: 'composer', dataset: {}, matches: () => false } });
+          assert.equal(calls.filter(([, method]) => method !== 'GET').length, 1, 'ordinary send still accepts the current draft');
+        }
+      } else {
+        assert.doesNotMatch(rootElement.innerHTML, /data-retry-round="u"[^>]*disabled/, name);
+      }
+    }
   } finally {
     console.info = originalLog;
     for (const [key, descriptor] of previous) { if (descriptor) Object.defineProperty(globalThis, key, descriptor); else delete globalThis[key]; }

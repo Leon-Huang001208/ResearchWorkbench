@@ -1,23 +1,105 @@
 import { escapeHTML as e, renderMarkdown, safeURL } from './markdown.mjs';
 import { sessionHash, isRunning } from './core.mjs';
+import { icon } from './icons.mjs';
+import localModels from './local-models.json' with { type: 'json' };
 
 export const statusText = (status) => ({ idle: '待命', running: '运行中', queued: '排队中', completed: '执行已结束', failed: '失败', cancelled: '已取消', waiting_approval: '等待授权', awaiting_approval: '等待授权', waiting_input: '等待回复', cancelling: '取消中' })[status] || status || '未知';
 export const badge = (status) => `<span class="badge ${isRunning(status) ? 'live' : ['failed', 'error'].includes(status) ? 'danger' : ''}">${e(statusText(status))}</span>`;
 export const empty = (title, description = '') => `<div class="empty"><span class="empty-symbol" aria-hidden="true">◇</span><h3>${e(title)}</h3>${description ? `<p>${e(description)}</p>` : ''}</div>`;
 
-export function renderConversation(detail, questionDrafts = new Map()) {
+const stepStatusText = (status) => ({ running: '进行中', queued: '排队中', pending: '排队中', completed: '已完成', failed: '失败', cancelled: '已取消', interrupted: '已中断', blocked: '已阻断', incomplete: '不完整' })[status] || statusText(status);
+
+// Adapter failure codes reach the banner raw; translate the known compatible-route set.
+const failureText = (code) => ({
+  compatible_stream_incomplete: '模型响应不完整：连接中断，或输出预算在思考阶段耗尽。请重试。',
+  compatible_http_failed: '模型服务连接失败，请检查本地代理与网络后重试。',
+  compatible_generation_timeout: '模型响应超时，请重试。',
+  compatible_generation_cancelled: '生成已取消。',
+  compatible_credentials_missing: '模型密钥不可用，请在设置中重新配置。',
+  compatible_credentials_unavailable: '模型密钥读取失败，请在设置中重新配置。',
+  compatible_connection_missing: '尚未配置模型连接，请在设置中选择模型。',
+  compatible_model_unavailable: '当前模型不可用，请重新选择。',
+  compatible_request_too_large: '对话上下文超过模型请求上限；请减少一次性取数数量，或切换更大上下文的模型后重试。',
+}[code] || code);
+
+function renderThinking(message, { live = false } = {}) {
+  const reasoning = typeof message?.reasoning === 'string' ? message.reasoning.trim() : '';
+  if (!reasoning) return '';
+  const streaming = live && !message.text;
+  return '<details class="answer-thinking"' + (live ? ' open' : '') + '><summary><span class="activity-dot' + (streaming ? ' active' : '') + '"></span><span>' + (streaming ? '正在思考…' : '思考过程') + '</span><span class="process-toggle" aria-hidden="true">' + icon('chevron') + '</span></summary><div class="markdown thinking-detail">' + renderMarkdown(message.reasoning) + '</div></details>';
+}
+
+// Group messages and tool activities into 问题 -> 研究过程 -> 正文 rounds, the
+// AlphaEngine answer structure. Only main-session activities carry the shared
+// projection seq; sub-agent rows (id prefix "child:") stay in 执行记录.
+function researchRounds(messages = [], activities = []) {
+  const rounds = [];
+  for (const message of messages) {
+    if (message.role === 'user') rounds.push({ user: message, assistants: [], activities: [], start: Number.isFinite(message.seq) ? message.seq : -1 });
+    else if (rounds.length) rounds[rounds.length - 1].assistants.push(message);
+    else rounds.push({ user: null, assistants: [message], activities: [], start: Number.isFinite(message.seq) ? message.seq : -1 });
+  }
+  const scoped = (Array.isArray(activities) ? activities : []).filter((activity) => Number.isFinite(activity?.seq) && !String(activity?.id ?? '').includes(':'));
+  for (const activity of scoped) {
+    let target = null;
+    for (const round of rounds) if (round.start >= 0 && round.start <= activity.seq) target = round;
+    (target || rounds[0])?.activities.push(activity);
+  }
+  return rounds;
+}
+
+function renderRoundProcess(activities, { running = false, toolNames = {} } = {}) {
+  if (!activities.length) {
+    return running ? `<div class="answer-process answer-process-live" role="status"><span class="activity-dot active"></span><span>正在研究…</span></div>` : '';
+  }
+  const done = activities.filter((activity) => !isRunning(activity.status)).length;
+  const current = activities.find((a) => isRunning(a.status));
+  const currentLabel = current ? (toolNames[current.title] || current.title || '工具调用') : '';
+  const duration = activities.reduce((sum, activity) => sum + (Number.isFinite(activity.duration_ms) ? activity.duration_ms : 0), 0);
+  const title = running
+    ? (currentLabel ? `正在研究 · ${currentLabel}` : `正在研究 · ${done}/${activities.length}`)
+    : `研究过程 · ${activities.length} 步${duration >= 100 ? ` · ${(duration / 1000).toFixed(1)}s` : ''}`;
+  const steps = activities.map((activity) => {
+    const failed = ['failed', 'error'].includes(activity.status);
+    const label = toolNames[activity.title] || activity.title || '工具调用';
+    return `<li><details${failed ? ' open' : ''}><summary><span class="activity-dot ${isRunning(activity.status) ? 'active' : ''} ${failed ? 'failed' : ''}"></span><span><strong>${e(label)}</strong><small>${e(stepStatusText(activity.status))}${Number.isFinite(activity.duration_ms) ? ` · ${(activity.duration_ms / 1000).toFixed(1)}s` : ''}</small></span></summary>${activity.error ? `<p class="notice error activity-error" role="alert">${e(activity.error)}</p>` : ''}${activity.detail ? `<div class="markdown activity-detail">${renderMarkdown(typeof activity.detail === 'string' ? activity.detail : JSON.stringify(activity.detail, null, 2))}</div>` : ''}</details></li>`;
+  }).join('');
+  return `<details class="answer-process"${activities.some(activity => ['failed', 'error'].includes(activity.status)) ? ' open' : ''}><summary><span class="activity-dot${running ? ' active' : ''}"></span><span>${e(title)}</span><span class="process-toggle" aria-hidden="true">${icon('chevron')}</span></summary><ol class="activity-list process-steps">${steps}</ol></details>`;
+}
+
+function renderAnswerActions(round, message, { feedback = null, copied = '', retryAllowed = true } = {}) {
+  const retry = round.user ? `<button type="button" class="answer-action" data-retry-round="${e(round.user.id)}" ${retryAllowed ? '' : 'disabled'} title="以同样的问题重新研究">${icon('restore')}<span>重试</span></button>` : '';
+  const isCopied = copied === `answer:${message.id}`;
+  const isShared = copied === 'share';
+  return `<div class="answer-actions">${retry}<button type="button" class="answer-action" data-copy-answer="${e(message.id)}">${icon('copy')}<span>${isCopied ? '已复制' : '复制'}</span></button><button type="button" class="answer-action" data-share-session>${icon('share')}<span>${isShared ? '已复制链接' : '分享'}</span></button><span class="answer-feedback" role="group" aria-label="回答反馈"><button type="button" class="answer-action ${feedback === 'good' ? 'active' : ''}" data-answer-feedback="good" data-message="${e(message.id)}" aria-pressed="${feedback === 'good'}">${icon('thumbUp')}<span>有用</span></button><button type="button" class="answer-action ${feedback === 'bad' ? 'active' : ''}" data-answer-feedback="bad" data-message="${e(message.id)}" aria-pressed="${feedback === 'bad'}">${icon('thumbDown')}<span>没用</span></button></span></div>`;
+}
+
+export function renderConversation(detail, questionDrafts = new Map(), options = {}) {
   if (!detail) return '';
   const assistantLabel = detail.mode === 'fingpt' ? 'FinGPT 回复' : detail.mode === 'claw' ? 'Claw 回复' : '助手回复';
-  const messages = (detail.messages || []).map((message) => {
-    const label = message.role === 'user' ? '用户消息' : message.role === 'assistant' ? assistantLabel : `${message.role || '未知角色'}消息`;
-    return `<article class="message ${message.role === 'user' ? 'user' : 'assistant'}" aria-label="${e(label)}"><div class="markdown">${renderMarkdown(message.text)}</div></article>`;
+  const running = isRunning(detail.status);
+  const rounds = researchRounds(detail.messages || [], detail.activities || []);
+  const lastRound = rounds[rounds.length - 1];
+  const messages = rounds.map((round) => {
+    const isLast = round === lastRound;
+    const parts = [];
+    if (round.user) parts.push(`<article class="message user" aria-label="用户消息"><div class="markdown">${renderMarkdown(round.user.text)}</div></article>`);
+    if (!round.assistants.length && isLast && running) parts.push(renderRoundProcess(round.activities, { running: true, toolNames: options.toolNames }));
+    round.assistants.forEach((message, index) => {
+      if (index === 0 && (round.activities.length || (isLast && running))) parts.push(renderRoundProcess(round.activities, { running: isLast && running, toolNames: options.toolNames }));
+      const label = message.role === 'assistant' ? assistantLabel : `${message.role || '未知角色'}消息`;
+      parts.push(renderThinking(message, { live: isLast && running }));
+      parts.push(`<article class="message assistant" aria-label="${e(label)}"><div class="markdown">${renderMarkdown(message.text)}</div></article>`);
+      if (index === round.assistants.length - 1 && !running) parts.push(renderAnswerActions(round, message, { feedback: options.feedback?.[message.id], copied: options.copied, retryAllowed: options.retryAllowed !== false && !detail.can_cancel && !['pending', 'admission_unknown'].includes(detail.delivery?.status) }));
+    });
+    return parts.join('');
   }).join('');
   const approvals = (detail.approvals || []).map((approval) => `<section class="decision-card"><div class="eyebrow">需要你的授权</div><h3>${e(approval.title)}</h3><div class="markdown">${renderMarkdown(approval.detail)}</div><div class="button-row"><button class="button primary" data-approval="${e(approval.id)}" data-decision="approve">允许</button><button class="button danger-outline" data-approval="${e(approval.id)}" data-decision="deny">拒绝</button></div></section>`).join('');
   const questions = (detail.questions || []).map((question) => {
     const draft = questionDrafts.get(question.id) || [];
     return `<form class="decision-card question-form" data-question-form="${e(question.id)}"><div class="eyebrow">DSH 需要补充信息</div>${question.items?.length ? question.items.map((item, index) => `<fieldset><legend>${e(item.question)}</legend>${(item.options || []).map((option) => `<label class="check-label"><input type="${item.multiSelect === true ? 'checkbox' : 'radio'}" name="selection-${index}" value="${e(option.label)}" ${draft[index]?.selected?.includes(option.label) ? 'checked' : ''}>${e(option.label)}${option.description ? `<span class="muted">${e(option.description)}</span>` : ''}</label>`).join('')}<label for="question-${e(encodeURIComponent(question.id))}-${index}">补充回答</label><textarea id="question-${e(encodeURIComponent(question.id))}-${index}" name="custom-${index}" maxlength="10000" rows="2">${e(draft[index]?.custom || '')}</textarea></fieldset>`).join('') : `<div class="markdown">${renderMarkdown(question.text)}</div>`}<button type="submit" class="button primary">提交回答</button></form>`;
   }).join('');
-  return `${messages || empty('尚无消息', '输入问题，开始这个会话。所有回答和活动均来自 DSH。')}${approvals}${questions}${detail.error ? `<div class="notice error" role="alert">${e(detail.error)}</div>` : ''}`;
+  return `${messages || empty('尚无消息', '输入问题，开始这个会话。所有回答和活动均来自 DSH。')}${approvals}${questions}${detail.error ? `<div class="notice error" role="alert">${e(failureText(detail.error))}</div>` : ''}`;
 }
 
 export function renderRename(title, error = '', busy = false) {
@@ -207,13 +289,14 @@ export function renderDocumentEditor(editor) {
 }
 
 export function renderHistory(sessions, filter = '', mode = null, view = 'active') {
-  const visible = sessions.filter((session) => (!mode || session.mode === mode) && `${session.title} ${session.mode}`.toLowerCase().includes(filter.toLowerCase()));
+  const needle = String(filter || '').trim().toLocaleLowerCase();
+  const visible = sessions.filter((session) => (!mode || session.mode === mode) && `${session?.title || ''} ${session?.mode || ''}`.toLocaleLowerCase().includes(needle));
   const modeLabel = mode === 'claw' ? 'Claw' : mode === 'fingpt' ? 'FinGPT' : '';
   if (!visible.length) return empty(filter ? '没有匹配的会话' : view === 'deleted' ? '“已删除”中没有会话' : `还没有${modeLabel ? ` ${modeLabel}` : ''}研究会话`, filter ? '试试不同的关键词。' : view === 'deleted' ? '删除的会话会在这里保留 30 天。' : modeLabel ? `从 ${modeLabel} 开始研究后，会话会自动保留。` : '从 FinGPT 或 Claw 开始，研究历史会自动保留。');
   if (view === 'deleted') {
     return `<div class="history-list deleted-history">${visible.map((session) => `<article class="history-row deleted-row"><span class="session-mark ${session.mode === 'claw' ? 'claw' : ''}">${session.mode === 'claw' ? 'C' : 'F'}</span><div><strong>${e(session.title || '未命名会话')}</strong><span class="muted small">${e(session.mode === 'claw' ? 'Claw · 多 Agent' : 'FinGPT · 即时研究')} · ${e(retentionText(session.purge_at))}</span></div><time>${formatTime(session.deleted_at)}</time><div class="history-actions"><button type="button" class="button small" data-restore-session="${e(session.id)}">恢复</button><button type="button" class="button small danger-outline" data-purge-session="${e(session.id)}">永久删除</button></div></article>`).join('')}</div>`;
   }
-  return `<div class="history-list">${visible.map((session) => `<a class="history-row" href="${sessionHash(session)}"><span class="session-mark ${session.mode === 'claw' ? 'claw' : ''}">${session.mode === 'claw' ? 'C' : 'F'}</span><div><strong>${e(session.title || '未命名会话')}</strong><span class="muted small">${e(session.mode === 'claw' ? 'Claw · 多 Agent' : 'FinGPT · 即时研究')}${session.model ? ` · ${e(session.model)}` : ''}</span></div>${badge(session.status)}<time>${formatTime(session.updated_at)}</time><span aria-hidden="true">↗</span></a>`).join('')}</div>`;
+  return `<div class="history-list">${visible.map((session) => `<article class="history-row"><a class="history-link" href="${sessionHash(session)}"><span class="session-mark ${session.mode === 'claw' ? 'claw' : ''}">${session.mode === 'claw' ? 'C' : 'F'}</span><div><strong>${e(session.title || '未命名会话')}</strong><span class="muted small">${e(session.mode === 'claw' ? 'Claw · 多 Agent' : 'FinGPT · 即时研究')}${session.model ? ` · ${e(session.model)}` : ''}</span></div>${badge(session.status)}<time>${formatTime(session.updated_at)}</time><span aria-hidden="true">↗</span></a><div class="history-actions"><button type="button" class="button small" data-rename-history="${e(session.id)}" title="重命名">重命名</button><button type="button" class="button small danger-outline" data-delete-history="${e(session.id)}" title="移至已删除">删除</button></div></article>`).join('')}</div>`;
 }
 
 function retentionText(value) {
@@ -230,6 +313,25 @@ function formatTime(value) {
   return Number.isNaN(date.getTime()) ? '时间未知' : e(date.toLocaleString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }));
 }
 
-export function modelOptions(groups = [], current = '') {
-  return '<option value="">选择运行模型</option>' + groups.map((group) => `<optgroup label="${e(group.provider)}">${(group.models || []).map((model) => `<option value="${e(JSON.stringify({ provider: group.provider, model: model.id }))}" ${model.id === current ? 'selected' : ''}>${e(model.name || model.id)}</option>`).join('')}</optgroup>`).join('');
+function matchesLocalGateway(endpoint) {
+  try {
+    const address = new URL(endpoint); const gateway = new URL(localModels.gateway);
+    return ['http:', 'https:'].includes(address.protocol) && address.protocol === gateway.protocol &&
+      ['127.0.0.1', 'localhost', '[::1]'].includes(address.hostname) && !address.username && !address.password &&
+      address.port === gateway.port && address.pathname.replace(/\/$/, '') === gateway.pathname.replace(/\/$/, '') &&
+      !address.search && !address.hash;
+  } catch { return false; }
+}
+
+export function modelOptions(groups = [], current = '', endpoint = '') {
+  const presets = Array.isArray(localModels.models) ? localModels.models.filter(model =>
+    typeof model?.id === 'string' && /^[a-zA-Z0-9._:/-]{1,100}$/.test(model.id) && typeof model.name === 'string') : [];
+  const expanded = groups.map(group => {
+    if (!matchesLocalGateway(endpoint) || group.provider !== 'openai-compatible' || localModels.provider !== group.provider ||
+        !(group.models || []).some(model => presets.some(preset => preset.id === model.id))) return group;
+    const models = new Map(presets.map(model => [model.id, model]));
+    for (const model of group.models || []) if (!models.has(model.id)) models.set(model.id, model);
+    return { ...group, models: [...models.values()] };
+  });
+  return '<option value="">选择运行模型</option>' + expanded.map((group) => `<optgroup label="${e(group.provider)}">${(group.models || []).map((model) => `<option value="${e(JSON.stringify({ provider: group.provider, model: model.id }))}" ${model.id === current ? 'selected' : ''}>${e(model.name || model.id)}</option>`).join('')}</optgroup>`).join('');
 }

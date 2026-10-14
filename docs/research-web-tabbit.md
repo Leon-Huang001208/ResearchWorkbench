@@ -1,5 +1,9 @@
 # Research Web Tabbit 集成
 
+融合后的研究 persona 保留 Tabbit 只读声明、写操作逐次审批及禁止插件安装的约束。
+上下文压缩不改变 Tabbit 启用状态、实时标签显式选择或一次性 marker 的生命周期。
+
+
 显式docker-text验收模式关闭Tabbit并拒绝所有工具与附件；普通研究的Tabbit配置和审批保持不变。预算测试不认证宿主浏览器或网页已读取。
 
 研究 preset 新增原生 Todo 只放行 `todo_write`；Tabbit browser/web_fetch 的独立开关、

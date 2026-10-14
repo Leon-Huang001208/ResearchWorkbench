@@ -1,0 +1,1047 @@
+{
+  "schemaVersion": 1,
+  "inventoryDate": "2026-10-08",
+  "sources": [
+    {
+      "id": "morningstar",
+      "name": "Morningstar / Sustainalytics",
+      "category": "金融数据",
+      "purpose": "证券指标、基金持仓、研报、筛选、ESG",
+      "status": "connector_visible",
+      "endpoints": []
+    },
+    {
+      "id": "tradingview",
+      "name": "TradingView",
+      "category": "金融数据",
+      "purpose": "多市场技术指标、筛选、策略回测",
+      "status": "mcp_configured",
+      "endpoints": []
+    },
+    {
+      "id": "ths",
+      "name": "同花顺 / iFinD",
+      "category": "金融数据/新闻/研报",
+      "purpose": "QuantAPI、iFinD MCP、快讯、研报",
+      "status": "code_integrated_not_live_verified",
+      "endpoints": [
+        {
+          "id": "refresh",
+          "url": "https://quantapi.51ifind.com/api/v1/get_access_token",
+          "method": "POST",
+          "auth": {
+            "header": "refresh_token",
+            "env": "THS_REFRESH_TOKEN"
+          }
+        },
+        {
+          "id": "real_time_quotation",
+          "url": "https://quantapi.51ifind.com/api/v1/real_time_quotation",
+          "method": "POST",
+          "auth": {
+            "header": "access_token",
+            "env": "THS_ACCESS_TOKEN"
+          }
+        },
+        {
+          "id": "cmd_history_quotation",
+          "url": "https://quantapi.51ifind.com/api/v1/cmd_history_quotation",
+          "method": "POST",
+          "auth": {
+            "header": "access_token",
+            "env": "THS_ACCESS_TOKEN"
+          }
+        },
+        {
+          "id": "basic_data_service",
+          "url": "https://quantapi.51ifind.com/api/v1/basic_data_service",
+          "method": "POST",
+          "auth": {
+            "header": "access_token",
+            "env": "THS_ACCESS_TOKEN"
+          }
+        },
+        {
+          "id": "smart_stock_picking",
+          "url": "https://quantapi.51ifind.com/api/v1/smart_stock_picking",
+          "method": "POST",
+          "auth": {
+            "header": "access_token",
+            "env": "THS_ACCESS_TOKEN"
+          }
+        },
+        {
+          "id": "ths_login",
+          "url": "https://quantapi.51ifind.com/api/v1/ths_login",
+          "method": "POST",
+          "auth": {
+            "header": "access_token",
+            "env": "THS_ACCESS_TOKEN"
+          }
+        },
+        {
+          "id": "news",
+          "url": "https://news.10jqka.com.cn/tapp/news/push/stock/?page={page}&pagesize=50&track=website&tag=",
+          "method": "GET"
+        },
+        {
+          "id": "reports",
+          "url": "http://zx.10jqka.com.cn/report/search/list/page/{page}/",
+          "method": "GET"
+        },
+        {
+          "id": "futures-reports",
+          "url": "https://goodsfu.10jqka.com.cn/qhpl_list/{suffix}",
+          "method": "GET"
+        }
+      ],
+      "notes": [
+        "iFinD MCP 文档入口 https://mcp.51ifind.com/#/profile；未在当前工具目录确认独立 iFinD MCP。",
+        "iFinD 网页宏观接口需 Chrome 登录态；包不迁移浏览器会话。"
+      ]
+    },
+    {
+      "id": "aihot",
+      "name": "AI HOT",
+      "category": "AI资讯",
+      "purpose": "精选 AI 动态、日报、归档",
+      "status": "code_integrated_not_live_verified",
+      "endpoints": [
+        {
+          "id": "items",
+          "url": "https://aihot.virxact.com/api/public/items?mode=selected&take=20",
+          "method": "GET"
+        },
+        {
+          "id": "daily",
+          "url": "https://aihot.virxact.com/api/public/daily",
+          "method": "GET"
+        },
+        {
+          "id": "daily-date",
+          "url": "https://aihot.virxact.com/api/public/daily/{date}",
+          "method": "GET"
+        },
+        {
+          "id": "archive",
+          "url": "https://aihot.virxact.com/api/public/dailies?take=14",
+          "method": "GET"
+        }
+      ],
+      "notes": [
+        "API 使用浏览器 User-Agent；items 最近7天，默认精选，历史使用日报归档。"
+      ]
+    },
+    {
+      "id": "realfund",
+      "name": "realfund / real_fund",
+      "category": "金融数据",
+      "purpose": "基金关联板块及 secid 映射",
+      "status": "code_integrated_not_live_verified",
+      "endpoints": [
+        {
+          "id": "related-sector",
+          "url": "http://47.92.168.126/real_fund/api/related-sector?fundCode={fundCode}",
+          "method": "GET"
+        },
+        {
+          "id": "fund-secid",
+          "url": "http://47.92.168.126/real_fund/api/fund-secid?relatedSector={relatedSector}",
+          "method": "GET"
+        }
+      ],
+      "notes": [
+        "按用户口径作为数据源列出；共享远程服务，不能等同于原始行情发布机构。"
+      ]
+    },
+    {
+      "id": "daole",
+      "name": "道乐 / 乐数",
+      "category": "支付宝数据",
+      "purpose": "SQL 快照、支付宝/蚂蚁榜单与达人数据",
+      "status": "code_integrated_not_live_verified",
+      "endpoints": [
+        {
+          "id": "summary",
+          "url": "http://47.92.168.126/sync_file/api/query/summary",
+          "method": "GET",
+          "auth": {
+            "header": "X-API-Key",
+            "env": "LESHU_SYNC_API_KEY"
+          }
+        },
+        {
+          "id": "datasets",
+          "url": "http://47.92.168.126/sync_file/api/query/datasets?limit=100",
+          "method": "GET",
+          "auth": {
+            "header": "X-API-Key",
+            "env": "LESHU_SYNC_API_KEY"
+          }
+        },
+        {
+          "id": "data",
+          "url": "http://47.92.168.126/sync_file/api/data/{dataset}?limit=20&offset=0",
+          "method": "GET",
+          "auth": {
+            "header": "X-API-Key",
+            "env": "LESHU_SYNC_API_KEY"
+          }
+        },
+        {
+          "id": "schema",
+          "url": "http://47.92.168.126/sync_file/api/data/{dataset}/schema",
+          "method": "GET",
+          "auth": {
+            "header": "X-API-Key",
+            "env": "LESHU_SYNC_API_KEY"
+          }
+        },
+        {
+          "id": "batches",
+          "url": "http://47.92.168.126/sync_file/api/query/batches?limit=20",
+          "method": "GET",
+          "auth": {
+            "header": "X-API-Key",
+            "env": "LESHU_SYNC_API_KEY"
+          }
+        }
+      ],
+      "notes": [
+        "仅支付宝/蚂蚁：SQL API 优先，失败兜底；非支付宝用配置的兜底。原始入口 asset.cdollar.cn/leshu-dashboard-new/dev 保留作排障参考。"
+      ]
+    },
+    {
+      "id": "eastmoney",
+      "name": "东方财富 / 天天基金",
+      "category": "金融数据/新闻/研报",
+      "purpose": "基金估值净值持仓、行情、财报、宏观发布、快讯、研报",
+      "status": "code_integrated_not_live_verified",
+      "endpoints": [
+        {
+          "id": "legacy-0",
+          "url": "https://fundgz.1234567.com.cn/js/{fundCode}.js?rt={timestamp}",
+          "method": "GET",
+          "purpose": "实时估值、估算涨跌幅、净值日期"
+        },
+        {
+          "id": "legacy-1",
+          "url": "https://fundf10.eastmoney.com/F10DataApi.aspx?type=lsjz&code={fundCode}",
+          "method": "GET",
+          "purpose": "单位净值、累计净值、日增长率"
+        },
+        {
+          "id": "legacy-2",
+          "url": "https://fundf10.eastmoney.com/FundArchivesDatas.aspx?type=jjcc&code={fundCode}",
+          "method": "GET",
+          "purpose": "前十大重仓股"
+        },
+        {
+          "id": "legacy-3",
+          "url": "https://fundsuggest.eastmoney.com/FundSearch/api/FundSearchAPI.ashx",
+          "method": "GET",
+          "purpose": "按名称/代码搜索基金"
+        },
+        {
+          "id": "legacy-4",
+          "url": "https://fund.eastmoney.com/js/fundcode_search.js",
+          "method": "GET",
+          "purpose": "全量基金代码、拼音、名称、类型"
+        },
+        {
+          "id": "legacy-5",
+          "url": "https://fund.eastmoney.com/pingzhongdata/{fundCode}.js",
+          "method": "GET",
+          "purpose": "趋势、收益、资产配置、经理、费率"
+        },
+        {
+          "id": "legacy-6",
+          "url": "https://push2delay.eastmoney.com/api/qt/stock/get?secid={secid}",
+          "method": "GET",
+          "purpose": "板块/指数行情"
+        },
+        {
+          "id": "fund-position",
+          "url": "https://fundmobapi.eastmoney.com/FundMNewApi/FundMNInverstPosition?FCODE={fundCode}&deviceid=Wap&plat=Wap&product=EFund&version=2.0.0",
+          "method": "GET"
+        },
+        {
+          "id": "fund-history",
+          "url": "https://api.fund.eastmoney.com/f10/lsjz?fundCode={fundCode}&pageIndex=1&pageSize=20",
+          "method": "GET"
+        },
+        {
+          "id": "datacenter",
+          "url": "https://datacenter-web.eastmoney.com/api/data/v1/get",
+          "method": "GET"
+        },
+        {
+          "id": "reports",
+          "url": "https://reportapi.eastmoney.com/report/list",
+          "method": "GET"
+        },
+        {
+          "id": "news",
+          "url": "https://newsapi.eastmoney.com/kuaixun/v1/getlist_102_ajaxResult_50_1_.html",
+          "method": "GET"
+        },
+        {
+          "id": "boards",
+          "url": "https://push2.eastmoney.com/api/qt/clist/get",
+          "method": "GET"
+        },
+        {
+          "id": "intraday",
+          "url": "https://push2his.eastmoney.com/api/qt/stock/trends2/get",
+          "method": "GET"
+        },
+        {
+          "id": "valuation-last",
+          "url": "https://fundcomapi.tiantianfunds.com/mm/newCore/FundValuationLast",
+          "method": "POST"
+        },
+        {
+          "id": "wealth-account",
+          "url": "https://wealthaccount.eastmoney.com/api",
+          "method": "GET"
+        }
+      ],
+      "notes": [
+        "部分接口还需业务参数、Referer、Cookie；目录保留入口，不保证未登录可读。"
+      ]
+    },
+    {
+      "id": "tencent",
+      "name": "腾讯财经",
+      "category": "金融数据",
+      "purpose": "股票、指数快照、分时、复权K线",
+      "status": "code_integrated_not_live_verified",
+      "endpoints": [
+        {
+          "id": "quote",
+          "url": "https://qt.gtimg.cn/q={code}",
+          "method": "GET"
+        },
+        {
+          "id": "minute",
+          "url": "https://web.ifzq.gtimg.cn/appstock/app/minute/query?code={code}",
+          "method": "GET"
+        },
+        {
+          "id": "history",
+          "url": "https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param={code},day,,,320,qfq",
+          "method": "GET"
+        }
+      ]
+    },
+    {
+      "id": "sina",
+      "name": "新浪财经",
+      "category": "金融数据/新闻",
+      "purpose": "股票期货现货行情、黄金K线、基金估值、热点新闻",
+      "status": "code_integrated_not_live_verified",
+      "endpoints": [
+        {
+          "id": "quote",
+          "url": "https://hq.sinajs.cn/list={codes}",
+          "method": "GET",
+          "headers": {
+            "Referer": "https://finance.sina.com.cn/"
+          }
+        },
+        {
+          "id": "gold-history",
+          "url": "https://stock2.finance.sina.com.cn/futures/api/json.php/GlobalFuturesService.getGlobalFuturesDailyKLine?symbol=XAU",
+          "method": "GET"
+        },
+        {
+          "id": "fund-estimate",
+          "url": "https://stock.finance.sina.com.cn/fundInfo/api/openapi.php/FdFundService.getEstimateNetworthPic?symbol={fundCode}",
+          "method": "GET"
+        },
+        {
+          "id": "news",
+          "url": "https://top.finance.sina.com.cn/ws/GetTopDataList.php",
+          "method": "GET"
+        }
+      ]
+    },
+    {
+      "id": "yahoo",
+      "name": "Yahoo Finance",
+      "category": "金融数据",
+      "purpose": "全球资产历史与分时行情",
+      "status": "code_integrated_not_live_verified",
+      "endpoints": [
+        {
+          "id": "chart",
+          "url": "https://query1.finance.yahoo.com/v8/finance/chart/{symbol}?range=1mo&interval=1d",
+          "method": "GET"
+        },
+        {
+          "id": "chart-backup",
+          "url": "https://query2.finance.yahoo.com/v8/finance/chart/{symbol}?range=1mo&interval=1d",
+          "method": "GET"
+        }
+      ]
+    },
+    {
+      "id": "nasdaq",
+      "name": "Nasdaq",
+      "category": "金融数据",
+      "purpose": "ETF 历史行情兜底",
+      "status": "code_integrated_not_live_verified",
+      "endpoints": [
+        {
+          "id": "history",
+          "url": "https://api.nasdaq.com/api/quote/{symbol}/historical?assetclass=etf&limit=20&offset=0",
+          "method": "GET"
+        }
+      ]
+    },
+    {
+      "id": "fred",
+      "name": "FRED / 圣路易斯联储",
+      "category": "宏观数据",
+      "purpose": "利率、通胀、流动性、信用利差等序列",
+      "status": "code_integrated_not_live_verified",
+      "endpoints": [
+        {
+          "id": "series",
+          "url": "https://fred.stlouisfed.org/graph/fredgraph.csv?id={series}",
+          "method": "GET"
+        }
+      ]
+    },
+    {
+      "id": "nyfed",
+      "name": "纽约联储",
+      "category": "宏观数据",
+      "purpose": "SOFR等参考利率、repo、reverse repo、一级交易商",
+      "status": "code_integrated_not_live_verified",
+      "endpoints": [
+        {
+          "id": "rates",
+          "url": "https://markets.newyorkfed.org/api/rates/all/search.json?startDate={start}&endDate={end}",
+          "method": "GET"
+        },
+        {
+          "id": "reverse-repo",
+          "url": "https://markets.newyorkfed.org/api/rp/reverserepo/all/results/last/500.json",
+          "method": "GET"
+        },
+        {
+          "id": "repo",
+          "url": "https://markets.newyorkfed.org/api/rp/repo/all/results/last/500.json",
+          "method": "GET"
+        },
+        {
+          "id": "dealer",
+          "url": "https://markets.newyorkfed.org/api/pd/get/SBN2024/timeseries/{key}.json",
+          "method": "GET"
+        }
+      ]
+    },
+    {
+      "id": "fed",
+      "name": "美联储",
+      "category": "宏观数据/新闻",
+      "purpose": "H.4.1、FOMC日历、SEP预测、公告RSS",
+      "status": "code_integrated_not_live_verified",
+      "endpoints": [
+        {
+          "id": "h41",
+          "url": "https://www.federalreserve.gov/releases/h41/current/",
+          "method": "GET"
+        },
+        {
+          "id": "calendar",
+          "url": "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm",
+          "method": "GET"
+        },
+        {
+          "id": "sep",
+          "url": "https://www.federalreserve.gov/monetarypolicy/fomcprojtabl{date}.htm",
+          "method": "GET"
+        },
+        {
+          "id": "news",
+          "url": "https://www.federalreserve.gov/feeds/press_all.xml",
+          "method": "GET"
+        }
+      ]
+    },
+    {
+      "id": "atlantafed",
+      "name": "亚特兰大联储",
+      "category": "宏观数据",
+      "purpose": "Market Probability Tracker 政策概率",
+      "status": "code_integrated_not_live_verified",
+      "endpoints": [
+        {
+          "id": "mpt",
+          "url": "https://www.atlantafed.org/research-and-data/data/market-probability-tracker",
+          "method": "GET"
+        }
+      ]
+    },
+    {
+      "id": "treasury",
+      "name": "美国财政部 / TreasuryDirect",
+      "category": "宏观数据",
+      "purpose": "TGA现金收支、国债拍卖与结算",
+      "status": "code_integrated_not_live_verified",
+      "endpoints": [
+        {
+          "id": "cash",
+          "url": "https://api.fiscaldata.treasury.gov/services/api/fiscal_service/v1/accounting/dts/operating_cash_balance?page[size]=20",
+          "method": "GET"
+        },
+        {
+          "id": "auction",
+          "url": "https://www.treasurydirect.gov/TA_WS/securities/search?format=json&auctionDate:gte={date}",
+          "method": "GET"
+        }
+      ]
+    },
+    {
+      "id": "bls",
+      "name": "美国劳工统计局 BLS",
+      "category": "宏观数据",
+      "purpose": "CPI等统计序列、数据发布时间",
+      "status": "code_integrated_not_live_verified",
+      "endpoints": [
+        {
+          "id": "series",
+          "url": "https://api.bls.gov/publicAPI/v2/timeseries/data/",
+          "method": "POST"
+        },
+        {
+          "id": "cpi-calendar",
+          "url": "https://www.bls.gov/schedule/news_release/cpi.htm",
+          "method": "GET"
+        },
+        {
+          "id": "employment-calendar",
+          "url": "https://www.bls.gov/schedule/news_release/empsit.htm",
+          "method": "GET"
+        }
+      ]
+    },
+    {
+      "id": "worldbank",
+      "name": "世界银行",
+      "category": "宏观数据",
+      "purpose": "全球通胀等指标",
+      "status": "code_integrated_not_live_verified",
+      "endpoints": [
+        {
+          "id": "inflation",
+          "url": "https://api.worldbank.org/v2/country/WLD/indicator/FP.CPI.TOTL.ZG?format=json&per_page=100",
+          "method": "GET"
+        }
+      ]
+    },
+    {
+      "id": "wgc",
+      "name": "世界黄金协会 WGC / Goldhub",
+      "category": "黄金数据",
+      "purpose": "供需、ETF流量持仓、央行储备、矿产成本、交易量",
+      "status": "code_integrated_not_live_verified",
+      "endpoints": [
+        {
+          "id": "supply",
+          "url": "https://fsapi-china.gold.org/api/v11/charts/supply-and-demand/41",
+          "method": "GET"
+        },
+        {
+          "id": "etf-flows",
+          "url": "https://fsapi.gold.org/api/v11/charts/etfv2/revised/flows-chart2",
+          "method": "GET"
+        },
+        {
+          "id": "etf-holdings",
+          "url": "https://fsapi.gold.org/api/v11/charts/etfv2/revised/holdings-chart2",
+          "method": "GET"
+        },
+        {
+          "id": "aisc",
+          "url": "https://fsapi.gold.org/api/productioncosts/v11/charts/aisc",
+          "method": "GET"
+        },
+        {
+          "id": "open-interest",
+          "url": "https://fsapi.gold.org/datawarehouseapi/api/total-open-interest",
+          "method": "GET"
+        },
+        {
+          "id": "comex",
+          "url": "https://fsapi.gold.org/api/comex/v11/chart/data",
+          "method": "GET"
+        },
+        {
+          "id": "premium",
+          "url": "https://fsapi.gold.org/api/v11/charts/local-gold-price-premiums",
+          "method": "GET"
+        },
+        {
+          "id": "volumes",
+          "url": "https://fsapi-china.gold.org/datawarehouseapi/api/trading-volumes-chart?lang=zh-CN",
+          "method": "GET"
+        },
+        {
+          "id": "central-banks",
+          "url": "https://fsapi-china.gold.org/api/cbd/v11/charts/getPage?page=snapshot&periodicity=QTD_FULL",
+          "method": "GET"
+        }
+      ]
+    },
+    {
+      "id": "lbma",
+      "name": "LBMA",
+      "category": "黄金数据",
+      "purpose": "伦敦黄金下午定盘价日序列",
+      "status": "code_integrated_not_live_verified",
+      "endpoints": [
+        {
+          "id": "gold-pm",
+          "url": "https://prices.lbma.org.uk/json/gold_pm.json",
+          "method": "GET"
+        }
+      ]
+    },
+    {
+      "id": "cftc",
+      "name": "美国 CFTC",
+      "category": "衍生品数据",
+      "purpose": "COT 管理基金持仓",
+      "status": "code_integrated_not_live_verified",
+      "endpoints": [
+        {
+          "id": "cot",
+          "url": "https://publicreporting.cftc.gov/resource/72hh-3qpy.json",
+          "method": "GET"
+        }
+      ]
+    },
+    {
+      "id": "cboe",
+      "name": "Cboe",
+      "category": "衍生品数据",
+      "purpose": "GLD延迟期权链、希腊值",
+      "status": "code_integrated_not_live_verified",
+      "endpoints": [
+        {
+          "id": "gld-options",
+          "url": "https://cdn.cboe.com/api/global/delayed_quotes/options/GLD.json",
+          "method": "GET"
+        }
+      ]
+    },
+    {
+      "id": "spdr",
+      "name": "SPDR Gold Shares",
+      "category": "黄金数据",
+      "purpose": "GLD官方持仓校验",
+      "status": "code_integrated_not_live_verified",
+      "endpoints": [
+        {
+          "id": "gld",
+          "url": "https://api.spdrgoldshares.com/api/v1/data?product=gld&exchange=NYSE&lang=en",
+          "method": "GET"
+        }
+      ]
+    },
+    {
+      "id": "moex",
+      "name": "莫斯科交易所 MOEX",
+      "category": "金融数据",
+      "purpose": "俄罗斯指数历史行情兜底",
+      "status": "code_integrated_not_live_verified",
+      "endpoints": [
+        {
+          "id": "index",
+          "url": "https://iss.moex.com/iss/history/engines/stock/markets/index/securities/{symbol}.json",
+          "method": "GET"
+        }
+      ]
+    },
+    {
+      "id": "kapsarc",
+      "name": "KAPSARC / BGS 数据转发",
+      "category": "黄金数据",
+      "purpose": "黄金矿山产量 CSV",
+      "status": "code_integrated_not_live_verified",
+      "endpoints": [
+        {
+          "id": "production",
+          "url": "https://datasource.kapsarc.org/api/v2/catalog/datasets/production-of-gold-mine/exports/csv",
+          "method": "GET"
+        }
+      ]
+    },
+    {
+      "id": "cls",
+      "name": "财联社",
+      "category": "新闻",
+      "purpose": "财经头条、热榜、联储专题",
+      "status": "code_integrated_not_live_verified",
+      "endpoints": [
+        {
+          "id": "home",
+          "url": "https://www.cls.cn/",
+          "method": "GET"
+        },
+        {
+          "id": "fed-subject",
+          "url": "https://www.cls.cn/subject/3140",
+          "method": "GET"
+        },
+        {
+          "id": "hot-list",
+          "url": "https://api3.cls.cn/v1/hot_list",
+          "method": "GET"
+        }
+      ],
+      "notes": [
+        "hot-list 调用需要原采集代码的参数与 clsSign 签名。"
+      ]
+    },
+    {
+      "id": "wallstreetcn",
+      "name": "华尔街见闻",
+      "category": "新闻",
+      "purpose": "全球快讯、AI新闻、最热文章",
+      "status": "code_integrated_not_live_verified",
+      "endpoints": [
+        {
+          "id": "lives",
+          "url": "https://api-one.wallstcn.com/apiv1/content/lives?channel=global-channel&limit=100",
+          "method": "GET"
+        },
+        {
+          "id": "articles",
+          "url": "https://api-one.wallstcn.com/apiv1/content/articles?category=ai&limit=30&platform=pc",
+          "method": "GET"
+        },
+        {
+          "id": "lives-alternate",
+          "url": "https://api-one-wscn.awtmt.com/apiv1/content/lives?channel=global&client=pc&limit=100",
+          "method": "GET"
+        },
+        {
+          "id": "popular",
+          "url": "https://api-one-wscn.awtmt.com/apiv1/content/information-flow?channel=most-read&accept=article&limit=20&action=upglide",
+          "method": "GET"
+        }
+      ]
+    },
+    {
+      "id": "jin10",
+      "name": "金十数据",
+      "category": "新闻",
+      "purpose": "公开热点及重点快讯",
+      "status": "code_integrated_not_live_verified",
+      "endpoints": [
+        {
+          "id": "hot",
+          "url": "https://xnews.jin10.com/53",
+          "method": "GET"
+        },
+        {
+          "id": "priority-flash",
+          "url": "https://1b8d6028d99849668a6d8755c79e650f.z3c.jin10.com/top/flashsByTime?time_type=time&sort=priority",
+          "method": "GET"
+        }
+      ]
+    },
+    {
+      "id": "google-news",
+      "name": "Google News RSS",
+      "category": "新闻",
+      "purpose": "国际黄金财经新闻聚合",
+      "status": "code_integrated_not_live_verified",
+      "endpoints": [
+        {
+          "id": "search",
+          "url": "https://news.google.com/rss/search?q={query}&hl=en-US&gl=US&ceid=US:en",
+          "method": "GET"
+        }
+      ],
+      "notes": [
+        "返回媒体原文来源；Reuters 等媒体经聚合转载不等于官方 API 直连。"
+      ]
+    },
+    {
+      "id": "forexfactory",
+      "name": "Forex Factory / Fair Economy",
+      "category": "财经日历",
+      "purpose": "本周经济日历",
+      "status": "code_integrated_not_live_verified",
+      "endpoints": [
+        {
+          "id": "week-json",
+          "url": "https://nfs.faireconomy.media/ff_calendar_thisweek.json",
+          "method": "GET"
+        },
+        {
+          "id": "week-xml",
+          "url": "https://nfs.faireconomy.media/ff_calendar_thisweek.xml",
+          "method": "GET"
+        }
+      ]
+    },
+    {
+      "id": "csindex",
+      "name": "中证指数",
+      "category": "估值数据",
+      "purpose": "指数PE等估值",
+      "status": "code_integrated_not_live_verified",
+      "endpoints": [
+        {
+          "id": "valuation",
+          "url": "https://www.csindex.com.cn/csindex-home/perf/indexCsiDsPe?indexCode={code}",
+          "method": "GET",
+          "headers": {
+            "Referer": "https://www.csindex.com.cn/"
+          }
+        }
+      ]
+    },
+    {
+      "id": "danjuan",
+      "name": "蛋卷基金 / 雪球",
+      "category": "估值数据",
+      "purpose": "指数估值历史",
+      "status": "code_integrated_not_live_verified",
+      "endpoints": [
+        {
+          "id": "history",
+          "url": "https://danjuanfunds.com/djapi/index_eva/pe_history/{code}?day=all",
+          "method": "GET"
+        }
+      ]
+    },
+    {
+      "id": "etfrun",
+      "name": "ETF.run",
+      "category": "估值数据",
+      "purpose": "指数估值页面兜底",
+      "status": "code_integrated_not_live_verified",
+      "endpoints": [
+        {
+          "id": "index",
+          "url": "https://www.etf.run/index/SZSE/{code}",
+          "method": "GET"
+        }
+      ]
+    },
+    {
+      "id": "funddb",
+      "name": "韭圈儿 / FundDB",
+      "category": "估值数据",
+      "purpose": "指数估值曲线",
+      "status": "code_integrated_not_live_verified",
+      "endpoints": [
+        {
+          "id": "valuation",
+          "url": "https://api.jiucaishuo.com/v2/guzhi/newtubiaolinedata",
+          "method": "POST",
+          "headers": {
+            "Referer": "https://funddb.cn/"
+          }
+        }
+      ]
+    },
+    {
+      "id": "tikhub",
+      "name": "TikHub",
+      "category": "社媒数据",
+      "purpose": "小红书、抖音搜索与内容数据",
+      "status": "code_integrated_not_live_verified",
+      "endpoints": [
+        {
+          "id": "xiaohongshu",
+          "url": "https://api.tikhub.dev/api/v1/xiaohongshu/app_v2/search_notes?keyword={query}&page=1",
+          "method": "GET",
+          "auth": {
+            "header": "Authorization",
+            "prefix": "Bearer ",
+            "env": "TIKHUB_API_KEY"
+          }
+        },
+        {
+          "id": "douyin",
+          "url": "https://api.tikhub.dev/api/v1/douyin/search/fetch_general_search_v1",
+          "method": "POST",
+          "auth": {
+            "header": "Authorization",
+            "prefix": "Bearer ",
+            "env": "TIKHUB_API_KEY"
+          }
+        }
+      ],
+      "notes": [
+        "原项目手动刷新时才发起付费API；本包调用也由用户手动触发。"
+      ]
+    },
+    {
+      "id": "cicc",
+      "name": "中金点睛",
+      "category": "研报",
+      "purpose": "文章与研究知识库检索",
+      "status": "local_skill_available",
+      "endpoints": [
+        {
+          "id": "search",
+          "url": "https://www.research.cicc.com/api/llm/dianjing-agent/search/integration",
+          "method": "POST",
+          "specialAuth": "CICC OAuth2 + HMAC SHA256"
+        }
+      ],
+      "notes": [
+        "需 APP_ID / APP_SECRET。使用 adapters/cicc_get_data.py，通用HTTP脚本不实现该签名。"
+      ]
+    },
+    {
+      "id": "datahub-gold",
+      "name": "DataHub datasets/gold-prices",
+      "category": "黄金数据",
+      "purpose": "黄金月度历史CSV",
+      "status": "code_integrated_not_live_verified",
+      "endpoints": [
+        {
+          "id": "monthly",
+          "url": "https://raw.githubusercontent.com/datasets/gold-prices/main/data/monthly.csv",
+          "method": "GET"
+        }
+      ]
+    },
+    {
+      "id": "reddit",
+      "name": "Reddit",
+      "category": "情绪数据",
+      "purpose": "标的讨论及情绪",
+      "status": "mcp_dependency_configured",
+      "endpoints": [
+        {
+          "id": "search",
+          "url": "https://www.reddit.com/r/{subreddit}/search.json?q={query}&restrict_sr=on&sort=new&limit=20",
+          "method": "GET"
+        }
+      ]
+    },
+    {
+      "id": "coindesk",
+      "name": "CoinDesk",
+      "category": "新闻",
+      "purpose": "加密货币RSS",
+      "status": "mcp_dependency_configured",
+      "endpoints": [
+        {
+          "id": "rss",
+          "url": "https://www.coindesk.com/arc/outboundfeeds/rss/",
+          "method": "GET"
+        }
+      ]
+    },
+    {
+      "id": "cointelegraph",
+      "name": "CoinTelegraph",
+      "category": "新闻",
+      "purpose": "加密货币RSS",
+      "status": "mcp_dependency_configured",
+      "endpoints": [
+        {
+          "id": "rss",
+          "url": "https://cointelegraph.com/rss",
+          "method": "GET"
+        }
+      ]
+    },
+    {
+      "id": "reuters-rss",
+      "name": "Reuters RSS",
+      "category": "新闻",
+      "purpose": "商业及公司新闻RSS",
+      "status": "mcp_dependency_configured",
+      "endpoints": [
+        {
+          "id": "business",
+          "url": "https://feeds.reuters.com/reuters/businessNews",
+          "method": "GET"
+        },
+        {
+          "id": "company",
+          "url": "https://feeds.reuters.com/reuters/companyNews",
+          "method": "GET"
+        }
+      ],
+      "notes": [
+        "仅确认安装的MCP代码配置；这些历史RSS未实测，不能保证仍可访问。"
+      ]
+    }
+  ],
+  "referenceOnly": [
+    {
+      "name": "IMF COFER",
+      "url": "https://data.imf.org/Datasets/COFER",
+      "evidence": "Codex/goldar/collect-macro-relations.js",
+      "status": "reference_or_manual"
+    },
+    {
+      "name": "Perth Mint",
+      "url": "https://www.perthmint.com/",
+      "evidence": "Codex/goldar/collect-macro-relations.js",
+      "status": "reference_or_page_extraction"
+    },
+    {
+      "name": "上海黄金交易所 SGE",
+      "url": "https://www.sge.com.cn/sjzx/mrhqsj",
+      "evidence": "Codex/goldar/collect-signal.js",
+      "status": "reference_not_direct_api"
+    },
+    {
+      "name": "CME / COMEX",
+      "url": "https://www.cmegroup.com/markets/metals/precious/gold.html",
+      "evidence": "Codex/goldar/collect-quant-strategy.js",
+      "status": "reference_data_via_yahoo_or_wgc"
+    },
+    {
+      "name": "Kitco",
+      "url": "https://www.kitco.com/",
+      "evidence": "Codex/goldar/collect-signal.js",
+      "status": "reference_not_direct_api"
+    },
+    {
+      "name": "中国金币",
+      "url": "https://www.chngc.net/",
+      "evidence": "Codex/goldar/public/app.js",
+      "status": "reference_link"
+    },
+    {
+      "name": "金投网",
+      "url": "https://gold.cngold.org/",
+      "evidence": "Codex/goldar/public/app.js",
+      "status": "reference_link"
+    },
+    {
+      "name": "香港金银业贸易场",
+      "url": "https://www.cgse.com.hk/",
+      "evidence": "Codex/goldar/public/app.js",
+      "status": "reference_link"
+    },
+    {
+      "name": "台湾柜买中心",
+      "url": "https://www.tpex.org.tw/",
+      "evidence": "Codex/goldar/public/app.js",
+      "status": "reference_link"
+    },
+    {
+      "name": "万得 Wind",
+      "url": "https://www.wind.com.cn/portal/zh/ClientApi/index.html",
+      "evidence": "Codex/Dollar/scripts/collect_news.py",
+      "status": "explicitly_unavailable"
+    }
+  ]
+}

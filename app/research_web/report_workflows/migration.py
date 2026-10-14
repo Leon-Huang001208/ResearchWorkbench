@@ -11,6 +11,7 @@ import tempfile
 import time
 from contextlib import suppress
 from pathlib import Path
+from typing import TypedDict
 from uuid import uuid4
 
 import yaml
@@ -19,6 +20,12 @@ from core.observability import get_logger
 
 from .models import WorkflowError
 from .workbook import read_cached_workbook, scan_workbook_formulas
+
+
+class _ProviderRequirement(TypedDict):
+    provider: str
+    required: bool
+
 
 log = get_logger(__name__)
 SOURCE_REF = "legacy-report-projects"
@@ -102,9 +109,7 @@ class ReportWorkflowMigration:
                 except (OSError, yaml.YAMLError):
                     pass
         report_config = {}
-        configured_report = str(
-            config.get("report_config") or "config/report_config.yaml"
-        )
+        configured_report = str(config.get("report_config") or "config/report_config.yaml")
         configured_path = Path(configured_report)
         if not configured_path.is_absolute() and ".." not in configured_path.parts:
             candidate = folder / configured_path
@@ -237,9 +242,7 @@ class ReportWorkflowMigration:
         try:
             root = source.resolve(strict=True)
         except OSError as exc:
-            raise WorkflowError(
-                "迁移源目录不可读取", "migration_source_invalid", 422
-            ) from exc
+            raise WorkflowError("迁移源目录不可读取", "migration_source_invalid", 422) from exc
         if root.is_symlink() or not root.is_dir():
             raise WorkflowError("迁移源目录不可读取", "migration_source_invalid", 422)
         projects: list[dict] = []
@@ -251,23 +254,17 @@ class ReportWorkflowMigration:
             spec = KNOWN.get(folder.name)
             if folder.is_symlink():
                 if spec:
-                    rejected.append(
-                        {"path": folder.name, "reason": "unsafe_project_directory"}
-                    )
+                    rejected.append({"path": folder.name, "reason": "unsafe_project_directory"})
                 continue
             try:
                 resolved = folder.resolve(strict=True)
             except OSError:
                 if spec:
-                    rejected.append(
-                        {"path": folder.name, "reason": "source_unreadable"}
-                    )
+                    rejected.append({"path": folder.name, "reason": "source_unreadable"})
                 continue
             if not resolved.is_dir() or not resolved.is_relative_to(root):
                 if spec:
-                    rejected.append(
-                        {"path": folder.name, "reason": "unsafe_project_directory"}
-                    )
+                    rejected.append({"path": folder.name, "reason": "unsafe_project_directory"})
                 continue
             if not spec:
                 rejected.append({"path": folder.name, "reason": "unknown_project"})
@@ -275,18 +272,13 @@ class ReportWorkflowMigration:
             project = self._scan(resolved, *spec)
             projects.append(project)
             quarantined.extend(
-                {**issue, "workflow_id": project["id"]}
-                for issue in project.get("scan_issues", [])
+                {**issue, "workflow_id": project["id"]} for issue in project.get("scan_issues", [])
             )
         duplicate = root / "华安ETF周报 2"
-        primary = next(
-            (item for item in projects if item["id"] == "huaan-etf-weekly"), None
-        )
+        primary = next((item for item in projects if item["id"] == "huaan-etf-weekly"), None)
         duplicate_root = None
         if duplicate.is_symlink():
-            quarantined.append(
-                {"path": duplicate.name, "reason": "unsafe_duplicate_directory"}
-            )
+            quarantined.append({"path": duplicate.name, "reason": "unsafe_duplicate_directory"})
         elif duplicate.exists():
             try:
                 resolved = duplicate.resolve(strict=True)
@@ -297,19 +289,11 @@ class ReportWorkflowMigration:
                         {"path": duplicate.name, "reason": "unsafe_duplicate_directory"}
                     )
             except OSError:
-                quarantined.append(
-                    {"path": duplicate.name, "reason": "unsafe_duplicate_directory"}
-                )
+                quarantined.append({"path": duplicate.name, "reason": "unsafe_duplicate_directory"})
         if duplicate_root is not None and primary:
-            resource_paths = {
-                item["logical_path"]: item["sha256"] for item in primary["resources"]
-            }
-            history_paths = {
-                item["path"]: item["sha256"] for item in primary["history"]
-            }
-            hashes = {
-                item["sha256"] for item in [*primary["resources"], *primary["history"]]
-            }
+            resource_paths = {item["logical_path"]: item["sha256"] for item in primary["resources"]}
+            history_paths = {item["path"]: item["sha256"] for item in primary["history"]}
+            hashes = {item["sha256"] for item in [*primary["resources"], *primary["history"]]}
             for path in sorted(duplicate_root.rglob("*")):
                 if path.is_symlink():
                     quarantined.append(
@@ -453,13 +437,9 @@ class ReportWorkflowMigration:
                     "history_sha256": item["history_sha256"],
                     "migration_status": outcomes[item["id"]],
                     "resource_count": len(item["resources"]),
-                    "resource_bytes": sum(
-                        resource["size"] for resource in item["resources"]
-                    ),
+                    "resource_bytes": sum(resource["size"] for resource in item["resources"]),
                     "history_count": len(item["history"]),
-                    "history_bytes": sum(
-                        artifact["size"] for artifact in item["history"]
-                    ),
+                    "history_bytes": sum(artifact["size"] for artifact in item["history"]),
                 }
                 for item in projects
             ],
@@ -486,9 +466,7 @@ class ReportWorkflowMigration:
         migration = row.get("migration") or {}
         # Before split identities were introduced, source_sha256 represented only
         # the immutable resource package. Preserve idempotency for those records.
-        existing_resources = migration.get("resource_sha256") or migration.get(
-            "source_sha256"
-        )
+        existing_resources = migration.get("resource_sha256") or migration.get("source_sha256")
         if existing_resources != project["resource_sha256"]:
             return "conflict"
         if migration.get("history_sha256") == project["history_sha256"]:
@@ -512,9 +490,7 @@ class ReportWorkflowMigration:
             ) from exc
         digest = hashlib.sha256(raw).hexdigest()
         if digest != item["sha256"] or len(raw) != item["size"]:
-            raise WorkflowError(
-                "迁移源文件在导入前发生变化", "migration_source_changed", 409
-            )
+            raise WorkflowError("迁移源文件在导入前发生变化", "migration_source_changed", 409)
         return raw
 
     def _verify_project(self, project: dict) -> dict[str, bytes]:
@@ -526,14 +502,8 @@ class ReportWorkflowMigration:
     @staticmethod
     def _atomic_history_file(target: Path, raw: bytes, expected_sha256: str) -> bool:
         if target.exists():
-            if (
-                target.is_symlink()
-                or not target.is_file()
-                or _sha256(target) != expected_sha256
-            ):
-                raise WorkflowError(
-                    "历史产物存储冲突", "migration_history_conflict", 409
-                )
+            if target.is_symlink() or not target.is_file() or _sha256(target) != expected_sha256:
+                raise WorkflowError("历史产物存储冲突", "migration_history_conflict", 409)
             return False
         fd, temporary = tempfile.mkstemp(prefix="history-", dir=target.parent)
         try:
@@ -553,9 +523,7 @@ class ReportWorkflowMigration:
                 with suppress(OSError):
                     os.unlink(temporary)
 
-    def _append_history_locked(
-        self, row: dict, project: dict, payloads: dict[str, bytes]
-    ) -> None:
+    def _append_history_locked(self, row: dict, project: dict, payloads: dict[str, bytes]) -> None:
         history_root = self.catalog.root / project["id"] / "history"
         history_root.mkdir(parents=True, exist_ok=True, mode=0o700)
         existing = list(row.get("historical_artifacts", []))
@@ -564,9 +532,7 @@ class ReportWorkflowMigration:
             if item["sha256"] in existing_hashes:
                 continue
             target = history_root / f"{item['sha256'][:12]}-{Path(item['path']).name}"
-            self._atomic_history_file(
-                target, payloads[item["source_path"]], item["sha256"]
-            )
+            self._atomic_history_file(target, payloads[item["source_path"]], item["sha256"])
             existing.append(
                 {
                     "id": item["sha256"],
@@ -626,9 +592,7 @@ class ReportWorkflowMigration:
         workbook_policies = []
         providers = {}
         refresh = project["config"].get("excel_refresh") or {}
-        active_workbook = Path(
-            str(project["config"].get("active_excel_workbook", ""))
-        ).name
+        active_workbook = Path(str(project["config"].get("active_excel_workbook", ""))).name
         for item in project["resources"]:
             if not item["logical_path"].startswith("workbooks/"):
                 continue
@@ -636,18 +600,14 @@ class ReportWorkflowMigration:
                 with tempfile.NamedTemporaryFile(suffix=".xlsx") as workbook:
                     workbook.write(payloads[item["source_path"]])
                     workbook.flush()
-                    formula_provider = scan_workbook_formulas(
-                        Path(workbook.name)
-                    ).provider.value
+                    formula_provider = scan_workbook_formulas(Path(workbook.name)).provider.value
             except WorkflowError:
                 project["status"] = "needs_attention"
                 continue
             required = (
                 ["wind_excel", "ifind_excel"]
                 if formula_provider == "mixed"
-                else [formula_provider]
-                if formula_provider in {"wind_excel", "ifind_excel"}
-                else []
+                else [formula_provider] if formula_provider in {"wind_excel", "ifind_excel"} else []
             )
             declared = str(refresh.get("provider", ""))
             if item["logical_path"].endswith(active_workbook) and declared in {
@@ -656,9 +616,7 @@ class ReportWorkflowMigration:
             }:
                 required = sorted({*required, declared})
             if required or item["logical_path"].endswith(active_workbook):
-                requirements = [
-                    {"provider": provider, "required": True} for provider in required
-                ]
+                requirements = [{"provider": provider, "required": True} for provider in required]
                 for requirement in requirements:
                     providers[requirement["provider"]] = requirement
                 policy = {
@@ -673,9 +631,7 @@ class ReportWorkflowMigration:
                     "poll_interval_seconds": float(refresh.get("poll_seconds", 0.25)),
                     "timeout_seconds": float(refresh.get("timeout_seconds", 30)),
                 }
-                if item["logical_path"].endswith(active_workbook) and refresh.get(
-                    "date_cell"
-                ):
+                if item["logical_path"].endswith(active_workbook) and refresh.get("date_cell"):
                     policy["required_date_cell"] = refresh["date_cell"]
                     policy["max_age_days"] = 7
                 workbook_policies.append(policy)
@@ -709,13 +665,10 @@ class ReportWorkflowMigration:
             logical = resource["logical_path"]
             if logical in seen:
                 logical = (
-                    Path(logical).parent
-                    / f"{resource['sha256'][:12]}-{Path(logical).name}"
+                    Path(logical).parent / f"{resource['sha256'][:12]}-{Path(logical).name}"
                 ).as_posix()
             seen[logical] = resource["sha256"]
-            self.catalog.upload_resource(
-                project["id"], logical, payloads[resource["source_path"]]
-            )
+            self.catalog.upload_resource(project["id"], logical, payloads[resource["source_path"]])
         row = self.catalog._row(project["id"])
         row.update(
             status=project["status"],
@@ -744,9 +697,7 @@ class ReportWorkflowMigration:
 
     @staticmethod
     def _v2_validation(workflow_id: str, workbook: str) -> dict:
-        if workflow_id == "chinext-50-weekly" and workbook.endswith(
-            "创业板50周报（iFind版）.xlsx"
-        ):
+        if workflow_id == "chinext-50-weekly" and workbook.endswith("创业板50周报（iFind版）.xlsx"):
             return {
                 "required_cells": [
                     "基本信息!C3",
@@ -780,9 +731,7 @@ class ReportWorkflowMigration:
             os.chmod(temporary, 0o600)
             os.replace(temporary, path)
         except (OSError, yaml.YAMLError) as exc:
-            raise WorkflowError(
-                "Workflow v2 无法保存", "workflow_unavailable", 503
-            ) from exc
+            raise WorkflowError("Workflow v2 无法保存", "workflow_unavailable", 503) from exc
         finally:
             if os.path.exists(temporary):
                 with suppress(OSError):
@@ -806,8 +755,7 @@ class ReportWorkflowMigration:
                     continue
                 manifest = self.catalog.manifest(workflow_id, int(current))
                 needs_backup_fix = workflow_id == "huaan-etf-weekly" and any(
-                    ".before_excel_update" in item.workbook
-                    for item in manifest.workbook_policies
+                    ".before_excel_update" in item.workbook for item in manifest.workbook_policies
                 )
                 needs_timeout_fix = any(
                     item.providers and item.timeout_seconds < 180
@@ -832,10 +780,7 @@ class ReportWorkflowMigration:
                     if resource.role.value != "workbook":
                         continue
                     workbook = resource.path
-                    if (
-                        workflow_id == "chinext-50-weekly"
-                        and "Wind版" in Path(workbook).name
-                    ) or (
+                    if (workflow_id == "chinext-50-weekly" and "Wind版" in Path(workbook).name) or (
                         workflow_id == "huaan-etf-weekly"
                         and ".before_excel_update" in Path(workbook).name
                     ):
@@ -856,9 +801,7 @@ class ReportWorkflowMigration:
                             }
                         )
                         continue
-                    formula_provider = scan_workbook_formulas(
-                        draft / workbook
-                    ).provider.value
+                    formula_provider = scan_workbook_formulas(draft / workbook).provider.value
                     required = (
                         ["wind_excel", "ifind_excel"]
                         if formula_provider == "mixed"
@@ -875,18 +818,15 @@ class ReportWorkflowMigration:
                         if workbook in previous
                         else {"workbook": workbook}
                     )
-                    requirements = [
-                        {"provider": provider, "required": True}
-                        for provider in required
+                    requirements: list[_ProviderRequirement] = [
+                        {"provider": provider, "required": True} for provider in required
                     ]
                     base["providers"] = requirements
                     # Financial add-ins may need more than 30 seconds to load,
                     # authenticate and refresh a workbook.  The worker remains
                     # bounded and killable, but the immutable workflow version
                     # must allow a realistic Excel refresh window.
-                    base["timeout_seconds"] = max(
-                        180.0, float(base.get("timeout_seconds") or 0)
-                    )
+                    base["timeout_seconds"] = max(180.0, float(base.get("timeout_seconds") or 0))
                     validation = self._v2_validation(workflow_id, workbook)
                     if validation:
                         try:
@@ -906,9 +846,7 @@ class ReportWorkflowMigration:
                     for requirement in requirements:
                         providers[requirement["provider"]] = requirement
                 primary = self._v2_primary_workbook(workflow_id)
-                if primary and not any(
-                    item["workbook"] == primary for item in policies
-                ):
+                if primary and not any(item["workbook"] == primary for item in policies):
                     row["status"] = "needs_attention"
                     self.catalog._save()
                     log.warning(
@@ -986,9 +924,7 @@ class ReportWorkflowMigration:
                 self.catalog.publish_version(workflow_id, version.version)
                 row = self.catalog._row(workflow_id)
                 row.update(status="enabled", updated_at=time.time())
-                row.setdefault("migration", {})["schema_version"] = max(
-                    4, migration_schema + 1
-                )
+                row.setdefault("migration", {})["schema_version"] = max(4, migration_schema + 1)
                 self.catalog._save()
                 upgraded.append(workflow_id)
                 log.info(

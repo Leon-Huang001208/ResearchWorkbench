@@ -144,7 +144,7 @@ def runtime_state_directory(
             native is not None and path == native / "runtime" and native == native.resolve()
         )
         with ExitStack() as stack:
-            records = []
+            records: list[tuple[Path, int | None, os.stat_result]] = []
             parent = None
             for component in (*reversed(path.parents), path):
                 name = str(component) if parent is None else component.name

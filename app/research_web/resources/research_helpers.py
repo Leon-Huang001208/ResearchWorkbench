@@ -8,6 +8,22 @@ from uuid import uuid4
 log = logging.getLogger("research_web.documents")
 
 
+def chinese_font_path() -> Path:
+    """Return the bundled CJK font's absolute path without reading the cwd."""
+    try:
+        module = Path(__file__)
+        if not module.is_absolute():
+            raise ValueError("relative helper module")
+        font = module.with_name("fonts") / "NotoSansSC-Regular.ttf"
+        if font.parent.is_symlink() or font.is_symlink() or not font.is_file():
+            raise ValueError("bundled font missing or aliased")
+    except (OSError, ValueError):
+        log.error("research_chinese_font_unavailable")
+        raise ValueError("research_chinese_font_unavailable") from None
+    log.info("research_chinese_font_ready")
+    return font
+
+
 def read_pdf(path: str | Path, max_pages: int = 150) -> list[dict]:
     import pdfplumber
 
@@ -74,7 +90,7 @@ def write_deliverables(
         doc.add_heading("来源与缺失项", 1)
         for source in sources:
             doc.add_paragraph(source)
-        doc.save(paths["docx"])
+        doc.save(str(paths["docx"]))
         book = Workbook()
         sheet = book.active
         sheet.title = "analysis"
@@ -88,14 +104,16 @@ def write_deliverables(
             references.append([safe_cell(source)])
         book.save(paths["xlsx"])
         # Reopen to detect broken containers before reporting delivery.
-        Document(paths["docx"])
+        Document(str(paths["docx"]))
         check = load_workbook(paths["xlsx"], read_only=True)
         check.close()
         if pdf:
             if __package__:
                 from .research_report import render_pdf
             else:
-                from research_report import render_pdf
+                from research_report import render_pdf as sandbox_render_pdf
+
+                render_pdf = sandbox_render_pdf
             paths["pdf"] = output / f"{stem}.pdf"
             render_pdf(
                 paths["pdf"],

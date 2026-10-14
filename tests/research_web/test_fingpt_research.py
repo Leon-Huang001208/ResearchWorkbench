@@ -33,6 +33,8 @@ def test_new_turn_clears_plan_and_bad_event_does_not_restore_old_success():
     old = ("todo/write", {"todos": [{"content": "旧计划", "status": "completed"}]})
     view = project(entries(("turn/start", {"turn": 1}), old, ("turn/start", {"turn": 2})))
     assert view["research_plan"] is None
+    assert view["plan"] is None
+    assert view["plan_history_incomplete"] is True
     view = project(
         entries(
             ("turn/start", {"turn": 2}),
@@ -42,6 +44,7 @@ def test_new_turn_clears_plan_and_bad_event_does_not_restore_old_success():
     )
     assert view["research_plan"]["status"] == "invalid"
     assert view["research_plan"]["items"] == []
+    assert view["plan_history_incomplete"] is True
 
 
 def test_plan_without_turn_cannot_claim_complete_history():

@@ -19,8 +19,27 @@ from app.research_web.service import ResearchService
 from app.research_web.store import Store
 
 
+def isolate_keyring(monkeypatch):
+    """Give shared API fixtures synthetic credentials without consulting the host."""
+    import keyring
+
+    values = {}
+    monkeypatch.setattr(
+        keyring, "get_password", lambda service, account: values.get((service, account))
+    )
+    monkeypatch.setattr(
+        keyring,
+        "set_password",
+        lambda service, account, value: values.__setitem__((service, account), value),
+    )
+    monkeypatch.setattr(
+        keyring, "delete_password", lambda service, account: values.pop((service, account), None)
+    )
+
+
 @pytest.fixture
-def api(tmp_path):
+def api(tmp_path, monkeypatch):
+    isolate_keyring(monkeypatch)
     native = NativeFixture()
     service = ResearchService(native, Store(tmp_path))
     with TestClient(create_app(service)) as client:
@@ -188,7 +207,43 @@ def test_offline_seed_catalog_tools_and_workflows_without_session(api, monkeypat
         "datahub_get_market_activity",
         "web_search",
     }
-    assert len(tools) == 31
+    baseline_tool_ids = {
+        "rwb_prepare_automation",
+        "rwb_record_method_use",
+        "research_document_operation",
+        "research_run_script",
+        "web_search",
+        "skill",
+        "subagent",
+        "send_message",
+        "interrupt_agent",
+        "list_agents",
+        "datahub_search_assets",
+        "datahub_get_trading_calendar",
+        "datahub_get_market_bars",
+        "datahub_get_market_snapshot",
+        "datahub_get_index_data",
+        "datahub_get_financials",
+        "datahub_get_market_activity",
+        "datahub_get_factor_macro",
+        "datahub_get_fund_data",
+        "datahub_search_news",
+        "datahub_search_announcements",
+        "datahub_search_research",
+        "datahub_search_web",
+        "datahub_get_database_schema",
+        "datahub_query_table",
+        "report_workbook_refresh",
+        "report_workbook_extract",
+        "report_template_inspect",
+        "report_chart_render",
+        "report_docx_assemble",
+        "report_pptx_assemble",
+        "report_delivery_validate",
+    }
+    added_tool_ids = {"datahub_get_external_data"}
+    assert {tool["id"] for tool in tools} == baseline_tool_ids | added_tool_ids
+    assert len(tools) == len(baseline_tool_ids | added_tool_ids)
     document_tool = next(tool for tool in tools if tool["id"] == "research_document_operation")
     assert document_tool["read_only"] is False
     workflow_tools = {t["id"] for t in tools if t.get("execution_surface") == "workflow_backend"}

@@ -117,11 +117,18 @@ def _with_uid(identity: os.stat_result, uid: int) -> SimpleNamespace:
             )
         },
         st_uid=uid,
+        st_gid=identity.st_gid,
         st_file_attributes=getattr(identity, "st_file_attributes", 0),
     )
 
 
-def test_missing_record_defaults_to_native_without_writing(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    ("field_name", "value"),
+    [("mode", "docker"), ("installation_id", "synthetic-id"), ("schema_version", 2)],
+)
+def test_missing_record_defaults_to_native_without_writing(
+    tmp_path: Path, field_name: str, value: object
+) -> None:
     home = tmp_path / "home"
     home.mkdir()
 
@@ -133,7 +140,7 @@ def test_missing_record_defaults_to_native_without_writing(tmp_path: Path) -> No
     assert record.updated_at is None
     assert not _path(home).exists()
     with pytest.raises(FrozenInstanceError):
-        record.mode = "docker"
+        setattr(record, field_name, value)
     assert not hasattr(record, "__dict__")
 
 
@@ -958,6 +965,28 @@ def test_failed_atomic_replace_cleans_temporary_file(
     assert "private filesystem detail" not in "".join(traceback.format_exception(caught.value))
 
 
+@pytest.mark.parametrize("operation", ["read", "write", "locked_write"])
+def test_os_failure_uses_stable_error_without_exception_variable_leak(
+    tmp_path, monkeypatch, caplog, operation
+):
+    store = RuntimeModeStore(tmp_path / "home")
+
+    def fail_load(*_args, **_kwargs):
+        raise OSError("sensitive filesystem detail")
+
+    monkeypatch.setattr(store, "_load", fail_load)
+    with caplog.at_level(logging.WARNING), pytest.raises(RuntimeModeError) as caught:
+        if operation == "read":
+            store.read()
+        elif operation == "write":
+            store.write("docker")
+        else:
+            store._write_locked("docker", expected=None)
+    assert caught.value.code == "runtime_mode_io"
+    assert "sensitive filesystem detail" not in caplog.text
+    assert "sensitive filesystem detail" not in "".join(traceback.format_exception(caught.value))
+
+
 def test_failures_log_only_operation_and_code(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
@@ -1168,3 +1197,79 @@ def test_write_lock_rejects_unsafe_leaf(tmp_path, kind):
     with pytest.raises(RuntimeModeError):
         RuntimeModeStore(home).write("docker")
     assert RuntimeModeStore(home).read() == record
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX retained directory descriptors")
+@pytest.mark.parametrize("private_parent", [False, True])
+def test_read_distinguishes_shared_ancestor_churn_from_private_parent_change(
+    tmp_path: Path, monkeypatch, private_parent: bool
+) -> None:
+    from research_workbench_entrypoint import runtime_mode
+
+    home = tmp_path / "home"
+    store = RuntimeModeStore(home)
+    expected = store.write("docker")
+    target = home / "install" if private_parent else tmp_path
+    original_open = os.open
+    changed = False
+
+    def racing_open(name, flags, *args, **kwargs):
+        nonlocal changed
+        if name == target.name and flags & os.O_DIRECTORY and not changed:
+            changed = True
+            (target / "unrelated-sibling").mkdir()
+        return original_open(name, flags, *args, **kwargs)
+
+    monkeypatch.setattr(runtime_mode.os, "open", racing_open)
+    if private_parent:
+        with pytest.raises(RuntimeModeError, match="runtime_mode_changed"):
+            store.read()
+    else:
+        assert store.read() == expected
+    assert changed
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX retained directory descriptors")
+@pytest.mark.parametrize("owner_field", ["st_uid", "st_gid"])
+def test_shared_ancestor_owner_change_during_open_is_rejected(
+    tmp_path: Path, monkeypatch, owner_field: str
+) -> None:
+    home = tmp_path / "home"
+    store = RuntimeModeStore(home)
+    store.write("docker")
+    original_open, original_fstat = os.open, os.fstat
+    target_fd = None
+
+    def observing_open(name, flags, *args, **kwargs):
+        nonlocal target_fd
+        descriptor = original_open(name, flags, *args, **kwargs)
+        if name == tmp_path.name and flags & os.O_DIRECTORY:
+            target_fd = descriptor
+        return descriptor
+
+    def changed_owner(descriptor):
+        value = original_fstat(descriptor)
+        if descriptor != target_fd:
+            return value
+        fields = {
+            name: getattr(value, name)
+            for name in (
+                "st_dev",
+                "st_ino",
+                "st_mode",
+                "st_nlink",
+                "st_size",
+                "st_mtime_ns",
+                "st_ctime_ns",
+                "st_uid",
+                "st_gid",
+            )
+        }
+        fields[owner_field] += 1
+        return SimpleNamespace(**fields)
+
+    monkeypatch.setattr(runtime_mode.os, "open", observing_open)
+    monkeypatch.setattr(runtime_mode.os, "fstat", changed_owner)
+    with pytest.raises(RuntimeModeError, match="runtime_mode_changed"):
+        store.read()
+    assert target_fd is not None

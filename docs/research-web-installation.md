@@ -1,5 +1,25 @@
 # Research Web Native / Docker 安装与运行
 
+## 外部来源与兼容模型融合
+
+打包research_helpers新增chinese_font_path，仍复用现有中文字体和Matplotlib，无新产品依赖。
+新版任务提示传达真实能力/来源准入；旧会话资源不会被覆盖，字体可从模块绝对__file__兼容定位。
+AKShare缓存语义版本升级只失效复用，不删除历史数据；首次新调用重新验证请求口径。
+
+外部来源目录、JSON 模型预设和取数适配器随现有 Web 包安装，无新增产品依赖；
+`requirements/web.in`、`requirements/web.lock`、安装器与 Bootstrap 工作流保持原合同。
+连接中心新增 ext_ths/ext_daole/ext_tikhub/ext_cicc，凭据只在本实例设置页接收。
+目录、已配置和真实取数成功分别显示；Doctor 的健康或依赖安装不证明供应商可调用。
+认证入口必须使用 HTTPS；目前道乐目录的 HTTP 入口返回
+`credential_transport_blocked`，不会读取或发送其 API Key，不猜测 HTTPS 替代地址。
+普通公开入口不自动继承秘密，参考来源不提供取数能力。
+
+兼容模型预设只对已匹配的本地 gateway 展示；其他 endpoint 使用自己的模型目录。
+未披露模型容量时使用 32768 的保守上下文压缩预算，可由运行时显式配置覆盖；
+该预算不是模型能力认证。兼容传输支持工具流，不自动授予任意 endpoint/model
+深入研究或受验证能力准入；既有验证门保持。自动压缩使用已固定 DSH 插件，
+不改 DSH pin。安装和 Bootstrap 继续验证实际固定构建与 3081/8088/Doctor。
+
 本轮预算适配不改变依赖、公开安装入口或固定 DSH；常规安装不初始化/激活预算。显式候选验收只接入已认证的受管 AES 模型实例，Fernet/Native 正常安装不受影响。旧政策过期，新的真实窗口需另外授权及政策复核。
 
 ETF工程模拟使用现有Pydantic/FastAPI及stdlib SQLite，无新增Python/Node产品依赖或安装参数。

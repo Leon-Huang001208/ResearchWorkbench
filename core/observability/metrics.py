@@ -1,17 +1,19 @@
-import logging
 import threading
 from collections import defaultdict
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
+from typing import Self
 
-logger = logging.getLogger(__name__)
+from .logger import get_logger
+
+logger = get_logger(__name__)
 
 
 @dataclass
 class Metric:
     name: str
     value: float | int
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC).replace(tzinfo=None))
     tags: dict[str, str] = field(default_factory=dict)
 
 
@@ -21,7 +23,7 @@ class MetricsCollector:
     _instance = None
     _lock = threading.Lock()
 
-    def __new__(cls) -> "MetricsCollector":
+    def __new__(cls) -> Self:
         if cls._instance is None:
             with cls._lock:
                 if cls._instance is None:

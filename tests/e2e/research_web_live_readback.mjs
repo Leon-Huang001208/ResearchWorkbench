@@ -35,7 +35,7 @@ try {
   await page.reload();
   await page.getByRole('heading',{name:'UI 验收 · 多轮与 HTML 文件',exact:true}).waitFor();
   assert.equal(await page.locator('[aria-label="会话消息"] article').count(),10);
-  await page.getByRole('button',{name:'活动与文件',exact:true}).click();
+  await page.getByRole('button',{name:'工作空间',exact:true}).click();
   await page.getByRole('region',{name:'文件交付检查',exact:true}).getByText('本任务未要求文件',{exact:true}).waitFor();
   await page.screenshot({path:path.join(output,'cold-recovery.png'),fullPage:true});
   await page.getByRole('tab',{name:'文件',exact:true}).click();

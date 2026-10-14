@@ -1,5 +1,15 @@
 # 研究协议、执行状态与恢复
 
+普通任务现在附带当前能力admitted/status/missing_codes与数据工具可调用性提示；这是规划事实，
+不是授权，执行前仍走实时nativeAdmission。缺合约或来源的能力不应反复加载，不能改用脚本绕过。
+非2xx DataHub响应只提取4KiB以内JSON的稳定error.code白名单，不向模型回传message或供应商原文。
+DataHub领域status=failed投影为失败活动；complete/snapshot/partial/empty保留原状态和数据局限。
+
+兼容模型支持原生工具声明、tool-call/reasoning/usage 流和历史工具结果，推理块在正文或工具块前关闭。
+未明确披露容量时上下文压缩预算为32768，显式配置由范围校验后覆盖；预算不是能力证明。
+固定 DSH compaction 组在隔离域加载，persona 保留资料口径、文件验证、权限与四子任务约束。
+普通请求等待期间仍可独立停止；超时不自动重发，正文重试与普通发送共用交付/运行时门。
+
 显式 docker-text 仅在已认证受管 AES 身份下读取已有预算；默认不发现账本。Fernet/Native 无认证实例身份时拒绝该模式，普通运行不变。固定 DSH 官方 Messages endpoint 为 https://api.deepseek.com/anthropic；此模式禁工具、附件、重试和 Tabbit，并绑定已授权输出上限。身份验证不认证 dev/stage/prod 角色。
 
 研究 preset 装配固定 DSH 已有 `@deepseek-ai/dsh-tool-todo`，显式配置
@@ -455,6 +465,10 @@ Office受控自动验证在Host既有批次内串行执行，与DSH研究循环�
 ## 历史子会话模式兼容 · 2026-10-13
 
 列表及父详情复用 activityOnly=True 查询，unknown模式只提供已验证的running活动状态。未知模式不会被猜成one-shot/continuable，子历史保留不可用提示；父列表和父历史继续可读，严格控制查询保持缺省路径。
+
+POSIX运行记录读取的共享祖先在stat/open与退出复查均采用dev/inode/mode及UID/GID，
+允许无关sibling目录变化；直接私有parent与记录文件保留完整元数据、单链接及权限校验。
+目录替换/alias/owner或mode变化仍拒绝；私有UID异常继续unsafe_path，不改变格式或端点。
 
 PR96 与既有 Fernet 模型桥共用唯一私有 stdio 接口；默认 `native-keychain`、常规 staged `docker-encrypted-file` 语义保留，管理器仅显式绑定 `docker-encrypted` 选择 AES-GCM。两种 Docker 格式与主密钥布局独立，混合绑定或外来格式失败关闭，不转换密文、不删除旧 Key、不回退。四操作与固定 ref 保持；来源如实区分，configured/Doctor 不证明真实生成。
 

@@ -13,7 +13,9 @@ export function safeURL(value) {
 }
 
 function inline(value) {
-  const pattern = /(`+)([^`]+)\1|\[([^\]\n]+)\]\(([^)\s]+)\)|\*\*([^*\n]+)\*\*|\*([^*\n]+)\*/g;
+  // [docN] / [资料N] render as clickable reference tags; N follows the order of
+  // the session dataset list (研究空间 · 资料); a tag does not verify the claim.
+  const pattern = /(`+)([^`]+)\1|\[([^\]\n]+)\]\(([^)\s]+)\)|\*\*([^*\n]+)\*\*|\*([^*\n]+)\*|\[(?:doc|资料)(\d{1,4})\]/g;
   let result = ''; let start = 0;
   for (const match of value.matchAll(pattern)) {
     result += escapeHTML(value.slice(start, match.index));
@@ -22,7 +24,8 @@ function inline(value) {
       const url = safeURL(match[4]);
       result += url ? `<a href="${escapeHTML(url)}" target="_blank" rel="noopener noreferrer">${escapeHTML(match[3])}</a>` : escapeHTML(match[0]);
     } else if (match[5]) result += `<strong>${escapeHTML(match[5])}</strong>`;
-    else result += `<em>${escapeHTML(match[6])}</em>`;
+    else if (match[6]) result += `<em>${escapeHTML(match[6])}</em>`;
+    else result += `<button type="button" class="source-tag" data-doc-ref="${match[7]}" title="查看参考文件 ${match[7]}">${match[7]}</button>`;
     start = match.index + match[0].length;
   }
   return result + escapeHTML(value.slice(start));

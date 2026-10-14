@@ -11,7 +11,7 @@ import time
 from contextlib import suppress
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import Protocol
 from uuid import uuid4
 from zoneinfo import ZoneInfo
 
@@ -19,12 +19,37 @@ import yaml
 
 from core.observability import get_logger
 
-from .datahub import BusinessQuery
+from .datahub import BusinessQuery, DataHub
 from .delivery import FINAL
-from .store import StoreError
+from .store import Store, StoreError
 
-if TYPE_CHECKING:
-    from .service import ResearchService
+
+class ReportStudioService(Protocol):
+    """Structural host contract; CLI migration only consumes the store property."""
+
+    @property
+    def store(self) -> Store: ...
+
+    @property
+    def datahub(self) -> DataHub: ...
+
+    async def create(self, mode: str, title: str) -> dict: ...
+
+    async def send(
+        self,
+        sid: str,
+        text: str,
+        key: str,
+        *,
+        formats: list[str],
+        capability_id: str,
+        capability_version: int | None,
+    ) -> object: ...
+
+    async def detail(self, sid: str) -> dict: ...
+
+    async def cancel(self, sid: str) -> object: ...
+
 
 log = get_logger(__name__)
 SHANGHAI = ZoneInfo("Asia/Shanghai")
@@ -60,9 +85,7 @@ MIGRATION_NAMES = {
 
 
 class ReportStudioError(StoreError):
-    def __init__(
-        self, message: str, code: str = "report_studio_error", status: int = 400
-    ):
+    def __init__(self, message: str, code: str = "report_studio_error", status: int = 400):
         super().__init__(message)
         self.code = code
         self.status = status
@@ -81,17 +104,13 @@ def _sha256(path: Path) -> str:
 
 
 def _public_file(item: dict) -> dict:
-    return {
-        key: value
-        for key, value in item.items()
-        if key not in {"stored_path", "source_path"}
-    }
+    return {key: value for key, value in item.items() if key not in {"stored_path", "source_path"}}
 
 
 class ReportStudio:
     """Own project metadata and schedules; delegate every report turn to Claw."""
 
-    def __init__(self, service: ResearchService):
+    def __init__(self, service: ReportStudioService):
         self.service = service
         self.store = service.store
         self.root = self.store.root / "report-projects"
@@ -103,9 +122,7 @@ class ReportStudio:
         self.lock = asyncio.Lock()
 
     async def start(self) -> None:
-        self.scheduler_task = asyncio.create_task(
-            self._scheduler(), name="report-scheduler"
-        )
+        self.scheduler_task = asyncio.create_task(self._scheduler(), name="report-scheduler")
 
     async def close(self) -> None:
         if self.scheduler_task:
@@ -163,9 +180,7 @@ class ReportStudio:
         return {
             **self._summary(row),
             "draft": row.get("draft", {}),
-            "versions": [
-                self._public_version(v) for v in row.get("versions", {}).values()
-            ],
+            "versions": [self._public_version(v) for v in row.get("versions", {}).values()],
             "schedule": row.get("schedule", self._default_schedule()),
             "migration": row.get("migration"),
         }
@@ -226,9 +241,7 @@ class ReportStudio:
             if requested not in PROJECT_STATES:
                 raise ReportStudioError("报告项目状态无效")
             if requested in {"ready", "enabled"} and not row.get("current_version"):
-                raise ReportStudioError(
-                    "没有已发布版本，不能启用", "version_required", 409
-                )
+                raise ReportStudioError("没有已发布版本，不能启用", "version_required", 409)
             row["status"] = requested
         row["updated_at"] = _now()
         self.store.save()
@@ -241,14 +254,10 @@ class ReportStudio:
             for run in self.store.data["report_runs"].values()
         )
         if active:
-            raise ReportStudioError(
-                "项目正在运行；草稿已保留，请结束后再发布", "project_busy", 409
-            )
+            raise ReportStudioError("项目正在运行；草稿已保留，请结束后再发布", "project_busy", 409)
         formats = list(dict.fromkeys(body.get("output_formats") or []))
         if not formats or any(item not in OUTPUT_FORMATS for item in formats):
-            raise ReportStudioError(
-                "必须声明支持的输出格式", "invalid_output_formats", 422
-            )
+            raise ReportStudioError("必须声明支持的输出格式", "invalid_output_formats", 422)
         number = max((int(value) for value in row["versions"]), default=0) + 1
         version_files = []
         logical_paths: dict[str, str] = {}
@@ -257,18 +266,11 @@ class ReportStudio:
             if (
                 stored.is_symlink()
                 or not stored.is_file()
-                or not stored.resolve().is_relative_to(
-                    (self.root / project_id).resolve()
-                )
+                or not stored.resolve().is_relative_to((self.root / project_id).resolve())
                 or _sha256(stored) != item.get("sha256")
             ):
-                raise ReportStudioError(
-                    "项目草稿文件无法安全读取", "unsafe_project_file", 409
-                )
-            if (
-                item["path"] in logical_paths
-                and logical_paths[item["path"]] != item["sha256"]
-            ):
+                raise ReportStudioError("项目草稿文件无法安全读取", "unsafe_project_file", 409)
+            if item["path"] in logical_paths and logical_paths[item["path"]] != item["sha256"]:
                 raise ReportStudioError(
                     "同名项目文件存在不同内容，请先处理冲突",
                     "project_file_conflict",
@@ -293,40 +295,28 @@ class ReportStudio:
         row["status"] = "ready"
         row["updated_at"] = _now()
         self.store.save()
-        log.info(
-            "report_project_version_created", project_id=project_id, version=number
-        )
+        log.info("report_project_version_created", project_id=project_id, version=number)
         return self._public_version(version)
 
     def _validated_data_recipe(self, recipe: list[dict]) -> list[dict]:
         catalog = self.service.datahub.catalog()
         capabilities = {row["id"] for row in catalog["capabilities"]}
         sources = {row["id"] for row in catalog["sources"]}
-        bindings = {
-            (row["capability_id"], row["source_id"]) for row in catalog["bindings"]
-        }
+        bindings = {(row["capability_id"], row["source_id"]) for row in catalog["bindings"]}
         normalized = []
         for index, item in enumerate(recipe):
             if not isinstance(item, dict):
-                raise ReportStudioError(
-                    "数据配方条目必须是对象", "invalid_data_recipe", 422
-                )
+                raise ReportStudioError("数据配方条目必须是对象", "invalid_data_recipe", 422)
             capability = item.get("capability")
             source = item.get("source")
-            if (
-                capability not in capabilities
-                or source not in sources
-                or source == "auto"
-            ):
+            if capability not in capabilities or source not in sources or source == "auto":
                 raise ReportStudioError(
                     "数据配方必须固定已登记的能力和来源",
                     "invalid_data_recipe",
                     422,
                 )
             if (capability, source) not in bindings:
-                raise ReportStudioError(
-                    "数据来源不支持配方中的能力", "invalid_data_recipe", 422
-                )
+                raise ReportStudioError("数据来源不支持配方中的能力", "invalid_data_recipe", 422)
             try:
                 query = BusinessQuery(
                     capability=capability,
@@ -336,9 +326,7 @@ class ReportStudio:
                     refresh=bool(item.get("refresh", True)),
                 )
             except ValueError as exc:
-                raise ReportStudioError(
-                    "数据配方参数无效", "invalid_data_recipe", 422
-                ) from exc
+                raise ReportStudioError("数据配方参数无效", "invalid_data_recipe", 422) from exc
             normalized.append(
                 {
                     "id": item.get("id") or f"dataset-{index + 1}",
@@ -354,11 +342,7 @@ class ReportStudio:
         if detail is None:
             return "blocked_approval", "source_not_registered"
         binding = next(
-            (
-                row
-                for row in detail["bindings"]
-                if row["capability_id"] == item["capability"]
-            ),
+            (row for row in detail["bindings"] if row["capability_id"] == item["capability"]),
             None,
         )
         if binding is None or not binding["implemented"]:
@@ -370,9 +354,7 @@ class ReportStudio:
             return "blocked_data", readiness["integration_state"]
         return "allowed", None
 
-    async def _prepare_data(
-        self, run: dict, session_id: str, recipe: list[dict]
-    ) -> bool:
+    async def _prepare_data(self, run: dict, session_id: str, recipe: list[dict]) -> bool:
         missing = []
         for index, item in enumerate(recipe):
             decision, reason = self._preauthorization(item)
@@ -446,17 +428,11 @@ class ReportStudio:
             or any(ord(character) < 32 for character in filename)
             or extension not in REPORT_INPUT_EXTENSIONS
         ):
-            raise ReportStudioError(
-                "报告项目文件类型不支持", "unsupported_project_file", 422
-            )
+            raise ReportStudioError("报告项目文件类型不支持", "unsupported_project_file", 422)
         if not raw or len(raw) > 32 * 1024 * 1024:
-            raise ReportStudioError(
-                "报告项目文件必须为 1 字节至 32 MiB", "project_file_size", 413
-            )
+            raise ReportStudioError("报告项目文件必须为 1 字节至 32 MiB", "project_file_size", 413)
         digest = hashlib.sha256(raw).hexdigest()
-        target = (
-            self.root / project_id / "drafts" / "uploads" / f"{digest[:12]}-{safe_name}"
-        )
+        target = self.root / project_id / "drafts" / "uploads" / f"{digest[:12]}-{safe_name}"
         target.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
         if not target.exists():
             target.write_bytes(raw)
@@ -474,16 +450,13 @@ class ReportStudio:
             files.append(item)
             row["updated_at"] = _now()
             self.store.save()
-        log.info(
-            "report_project_file_added", project_id=project_id, extension=extension
-        )
+        log.info("report_project_file_added", project_id=project_id, extension=extension)
         return _public_file(item)
 
     def versions(self, project_id: str) -> list[dict]:
         versions = self._project(project_id).get("versions", {}).values()
         return [
-            self._public_version(row)
-            for row in sorted(versions, key=lambda row: row["version"])
+            self._public_version(row) for row in sorted(versions, key=lambda row: row["version"])
         ]
 
     def rollback(self, project_id: str, version: int) -> dict:
@@ -511,9 +484,7 @@ class ReportStudio:
                 rejected.append({"path": folder.name, "reason": "unknown_project"})
                 continue
             project_id, project_type = spec
-            projects[project_id] = self._scan_migration_project(
-                folder, project_id, project_type
-            )
+            projects[project_id] = self._scan_migration_project(folder, project_id, project_type)
         duplicate = source / "华安ETF周报 2"
         if duplicate.is_dir() and "huaan-etf-weekly" in projects:
             self._merge_duplicate(projects["huaan-etf-weekly"], duplicate, quarantined)
@@ -546,9 +517,7 @@ class ReportStudio:
             self.store.save()
         return report
 
-    def _scan_migration_project(
-        self, folder: Path, project_id: str, project_type: str
-    ) -> dict:
+    def _scan_migration_project(self, folder: Path, project_id: str, project_type: str) -> dict:
         config = {}
         project_file = folder / "project.yaml"
         if project_file.is_file() and not project_file.is_symlink():
@@ -580,9 +549,7 @@ class ReportStudio:
                 files.append(item)
         template = next((item for item in files if item["role"] == "templates"), None)
         status = "ready" if config and template else "needs_attention"
-        formats = (
-            ["pptx"] if project_type == "presentation" else ["docx", "html", "xlsx"]
-        )
+        formats = ["pptx"] if project_type == "presentation" else ["docx", "html", "xlsx"]
         sections = []
         for section_id, section in report_config.get("placeholders", {}).items():
             if not isinstance(section, dict):
@@ -637,9 +604,7 @@ class ReportStudio:
         }
 
     @staticmethod
-    def _merge_duplicate(
-        project: dict, duplicate: Path, quarantined: list[dict]
-    ) -> None:
+    def _merge_duplicate(project: dict, duplicate: Path, quarantined: list[dict]) -> None:
         by_path = {item["path"]: item for item in project["version"]["files"]}
         by_hash = {item["sha256"] for item in project["version"]["files"]}
         for path in sorted(duplicate.rglob("*")):
@@ -683,9 +648,7 @@ class ReportStudio:
             destination.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
             shutil.copy2(source["source_path"], destination)
             if _sha256(destination) != source["sha256"]:
-                raise ReportStudioError(
-                    "报告文件复制后校验失败", "migration_hash_mismatch", 500
-                )
+                raise ReportStudioError("报告文件复制后校验失败", "migration_hash_mismatch", 500)
             stored_files.append({**source, "stored_path": str(destination)})
         history_root = self.root / item["id"] / "history"
         history_root.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -695,13 +658,9 @@ class ReportStudio:
             if source["sha256"] in seen:
                 continue
             seen.add(source["sha256"])
-            destination = (
-                history_root / f"{source['sha256'][:12]}-{Path(source['path']).name}"
-            )
+            destination = history_root / f"{source['sha256'][:12]}-{Path(source['path']).name}"
             shutil.copy2(source["source_path"], destination)
-            artifact_index.append(
-                {**source, "stored_path": str(destination), "historical": True}
-            )
+            artifact_index.append({**source, "stored_path": str(destination), "historical": True})
         now = _now()
         version = {**item["version"], "files": stored_files}
         row = {
@@ -722,16 +681,12 @@ class ReportStudio:
         }
         self.store.data["report_projects"][item["id"]] = row
         self.store.save()
-        log.info(
-            "report_project_migrated", project_id=item["id"], status=item["status"]
-        )
+        log.info("report_project_migrated", project_id=item["id"], status=item["status"])
 
     def schedule(self, project_id: str) -> dict:
         return self._project(project_id).get("schedule", self._default_schedule())
 
-    def put_schedule(
-        self, project_id: str, body: dict, *, now: datetime | None = None
-    ) -> dict:
+    def put_schedule(self, project_id: str, body: dict, *, now: datetime | None = None) -> dict:
         project = self._project(project_id)
         kind = body.get("kind", "off")
         if kind not in {"off", "once", "weekly"}:
@@ -818,8 +773,7 @@ class ReportStudio:
                 (
                     item
                     for item in self.store.data["report_runs"].values()
-                    if item["project_id"] == project_id
-                    and item["status"] in ACTIVE_RUNS
+                    if item["project_id"] == project_id and item["status"] in ACTIVE_RUNS
                 ),
                 None,
             )
@@ -829,19 +783,13 @@ class ReportStudio:
                 self.store.data["report_runs"][run_id] = skipped
                 self.store.save()
                 return self.public_run(skipped)
-            if project["status"] not in {"ready", "enabled"} or not project.get(
-                "current_version"
-            ):
-                raise ReportStudioError(
-                    "项目资料或版本尚未补全", "project_not_ready", 409
-                )
+            if project["status"] not in {"ready", "enabled"} or not project.get("current_version"):
+                raise ReportStudioError("项目资料或版本尚未补全", "project_not_ready", 409)
             run = self._new_run(run_id, project, trigger, "queued")
             self.store.data["report_runs"][run_id] = run
             project["latest_run"] = run_id
             self.store.save()
-            self.tasks[run_id] = asyncio.create_task(
-                self._execute(run_id), name=f"report-{run_id}"
-            )
+            self.tasks[run_id] = asyncio.create_task(self._execute(run_id), name=f"report-{run_id}")
             return self.public_run(run)
 
     @staticmethod
@@ -947,9 +895,7 @@ class ReportStudio:
                     if delivery.get("status") not in FINAL:
                         continue
                     run["delivery_status"] = (
-                        "complete"
-                        if delivery.get("status") == "completed"
-                        else "incomplete"
+                        "complete" if delivery.get("status") == "completed" else "incomplete"
                     )
                     run["artifacts"] = delivery.get("files", [])
                     run["missing"] = delivery.get("missing_formats", [])
@@ -1029,11 +975,9 @@ class ReportStudio:
             for item in project.get("historical_artifacts", [])
             if self._visible_historical_artifact(item)
         ]
-        generated = []
+        generated: list[dict] = []
         for run in self.runs(project_id):
-            generated.extend(
-                {**item, "run_id": run["id"]} for item in run.get("artifacts", [])
-            )
+            generated.extend({**item, "run_id": run["id"]} for item in run.get("artifacts", []))
         return generated + historical
 
     @staticmethod
@@ -1045,9 +989,7 @@ class ReportStudio:
         suffix = relative.suffix.lower().lstrip(".")
         if suffix not in REPORT_ARTIFACT_EXTENSIONS:
             return False
-        return suffix != "json" or any(
-            part in {"logs", "log"} for part in relative.parts
-        )
+        return suffix != "json" or any(part in {"logs", "log"} for part in relative.parts)
 
     def artifact_path(self, project_id: str, artifact_id: str) -> Path:
         project = self._project(project_id)
@@ -1064,10 +1006,6 @@ class ReportStudio:
         if not item:
             raise ReportStudioError("报告产物不存在", "artifact_not_found", 404)
         path = Path(item["stored_path"])
-        if (
-            path.is_symlink()
-            or not path.is_file()
-            or not path.resolve().is_relative_to(self.root)
-        ):
+        if path.is_symlink() or not path.is_file() or not path.resolve().is_relative_to(self.root):
             raise ReportStudioError("报告产物不可安全读取", "unsafe_artifact", 409)
         return path

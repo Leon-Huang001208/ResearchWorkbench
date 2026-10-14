@@ -6,7 +6,8 @@ DataHub 内部控制 reader 复用 `control_origin.py` 的纯 JSON/回环 URL pa
 额外有效字段保持兼容；macOS启动链现以静止证明接入显式 origin 事务，只重绑内部URL，
 保留既有 token，不迁移供应商凭据。Docker临时准备guest仅用原creator补齐缺失控制文件。
 
-Native 和 Docker 复用 15 项业务能力、22 个来源、Broker 动态选源和会话快照合同。连接秘密沿用
+Native 和 Docker 复用 16 项业务能力、64 个来源条目、Broker 动态选源和会话快照合同。
+来源条目包含外部总目录及尚待授权/配置的登记，不表示64个厂商已验证可调用。连接秘密沿用
 `ResearchWorkbench.DataHub.<canonical-data-home-sha256>` 实例服务命名空间：Native 默认存于宿主 keyring，Docker 仅存于
 显式配置的受检私有凭据目录；模式切换不迁移秘密。容器内缺少宿主 Wind/Office 驱动、GUI 或
 已登录会话时，不能把 Native 的旧探测结果当作 Docker 当前可调用证明。
@@ -243,3 +244,53 @@ ProviderBinding按dataset发布已审阅的语义；未知频率/单位/历史�
 ## 单一兼容模型连接
 
 私有GET model-connection只供同一Native模型适配读取非秘密连接字段；鉴权、路径与大小限制复用现有DataHub通道。它不增加业务来源、取密接口、查询权限或缓存授权；模型工具未验证仍由能力准入拒绝，15项数据工具不因文本生成成功而获授权。
+
+## 已整理外部数据源（2026-10-13）
+
+新能力 `external_data`（工具 `datahub_get_external_data`）把用户 2026-10-08 核对的外部来源清单固化为
+`app/research_web/datahub/external_sources.json`：41 个取数来源与 102 个 HTTP 入口，另列 10 个参考或未接通来源；
+不复制业务项目代码，只保留来源、入口、方法与参数占位。调用先不传参数读取 `ext_registry` 总目录，再按返回的
+`source` 与 `dataset` 取数。`arguments_json` 只接受 `params`（填充目录占位符）、`query`（业务筛选）、`body`（POST 业务体）
+三个键；URL、凭据、路径、回调、SQL 等键在 Provider 边界直接拒绝。
+
+出口固定为目录内注册的 URL 与方法，拒绝重定向；单响应 1MiB、行数上限 5000，超限保留 `row_limit` 说明。
+供应商 HTTP 200 但错误码非零、密钥反弹（凭据出现在响应正文）都失败关闭，不写入快照。四个凭据来源
+`ext_ths`、`ext_daole`、`ext_tikhub`、`ext_cicc` 只经 DataHub 凭据后端读取秘密；其中 `ext_ths` 支持用
+`refresh_token` 在 Provider 内换取 access token，换取与业务响应的密钥均不进入参数、结果或日志。
+
+状态语义：`code_exists` 表示来源在清单中已登记；`integration_completed` 表示已有按需取数适配；
+`configured` 对公开来源为真、对凭据来源仅在秘密已保存时为真。外部来源的探测只报告配置与适配状态，不向上游发请求，
+避免服务启动的批量探测对数十个外部站点产生周期性流量：登记但可读的来源返回 `degraded/not_live_verified`，
+全部入口需要凭据且未配置时返回 `blocked_config`，Morningstar/TradingView 等连接器来源返回 `connector_required`，
+总体目录返回 `not_live_verified`。实时可用性以每次显式取数调用的真实结果为准，单次响应是 `snapshot` 语义，
+不等于完整历史；来源原字段按供应商口径保存并标记 `provider_native_fields`，不做跨来源换算。
+本批没有把任何来源标为“实时可用”。
+
+认证外部入口必须使用清单已登记的 HTTPS 地址。`ext_daole` 的五个入口仍保留原 HTTP
+目录记录，未猜测或替换供应商地址；目录、连接状态与探测显示 `credential_transport_blocked`，
+业务调用在读取凭据或发送请求之前返回同一稳定错误码。探测只读取非秘密配置状态，不取密。
+HTTPS 与密钥反射回归均使用 MockTransport 和合成秘密，不证明真实供应商可用。
+模型摘要最多三行，完整 UTF-8 JSON 总预算为 32 KiB；裁剪不改变快照完整 rows.json。
+AKShare 日线按显式交易所后缀选源，指数先裁日期再应用行数上限，ETF 使用独立基金历史接口；
+离线回归不等于实盘行情与跨来源单位已核实。
+指数 OHLC 使用 points，ETF 使用 CNY；新增指数/ETF 成交量保留供应商数值与
+`provider_defined` 单位并标记 `volume_unit_not_verified`，不在缺少已核实单位时猜测手/股换算。
+ETF 参数边界参考 [AKShare 官方 ETF 历史接口说明](https://akshare.akfamily.xyz/data/fund/fund_public.html#etf)。
+
+凭据反射检查同时覆盖原始响应字节与解析后所有行的字符串（字典键/值及嵌套列表），
+在裁剪行数、发布快照或生成样例之前执行。迭代遍历拒绝 JSON Unicode 转义及 HTML 实体
+解码后出现的秘密；错误仅记录 `credential_reflection`，不记录秘密或响应内容。
+
+## AKShare 请求口径与旧缓存复用边界
+
+AKShare `market_activity` 当前只实现个股 `fund_flow`；`northbound`、`money_flow` 等未审阅
+数据集返回 `data_not_equivalent`，不会用个股大中小单流量冒充北向资金。请求日期先在
+完整供应商 frame 上切片，再应用 5,000 行硬门；缺少可验证日期、非法日期或超限分别失败
+关闭，不静默发布范围外数据。输出保留原字段并增加标准 `date`，金额/流量单位不猜测。
+`market_snapshot` 当前只支持股票；指数/ETF 在 SDK 调用前拒绝，股票身份保留显式交易所后缀。
+
+同一纯支持规则由 Broker 的选择/缓存准入与 Provider 执行共同使用；AKShare 的固定非秘密
+语义版本也进入已有配置授权摘要，旧收据返回 `data_cache_authorization_changed`，新调用跳过
+旧缓存并按新口径取数。历史快照和 raw 保留供审计，不删除、不改写，也不恢复新查询授权。
+无任何可用来源时保留 HTTP 400 与原中文说明，稳定代码为 `data_source_unavailable`。
+这些修复只经离线 Mock 回归，不证明真实供应商、收费数据或其他平台已验证。

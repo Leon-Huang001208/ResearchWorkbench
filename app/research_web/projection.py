@@ -100,7 +100,11 @@ def _project_plan(entries: list[dict]) -> dict:
             }
     if corrupt:
         plan, error = None, True
-    result = {"plan": plan, "plan_history_incomplete": incomplete}
+    result = {
+        "plan": plan,
+        "plan_history_incomplete": incomplete,
+        "_plan_turn_known": turn is not None,
+    }
     if error:
         result["plan_error"] = "原生计划事件无效；当前计划无法确认。"
         log.warning("research_plan_invalid", event_count=len(rows))
@@ -119,8 +123,19 @@ def content_text(content) -> str:
     )
 
 
+def content_reasoning(content) -> str:
+    if not isinstance(content, list):
+        return ""
+    return "\n".join(
+        str(block.get("text", ""))
+        for block in content
+        if isinstance(block, dict) and block.get("type") == "reasoning"
+    ).strip()
+
+
 def project(entries: list[dict]) -> dict:
     plan_projection = _project_plan(entries)
+    plan_turn_known = plan_projection.pop("_plan_turn_known")
     messages: dict = {}
     activities: dict = {}
     partials: dict = {}
@@ -173,6 +188,9 @@ def project(entries: list[dict]) -> dict:
                     "text": content_text(data.get("message", {}).get("content")),
                     "seq": seq,
                 }
+                reasoning = content_reasoning(data.get("message", {}).get("content"))
+                if reasoning:
+                    messages[mid]["reasoning"] = reasoning
                 partials.pop(mid, None)
                 usage = data.get("usage") or {}
                 if usage:
@@ -200,12 +218,21 @@ def project(entries: list[dict]) -> dict:
                         )
             elif mid not in messages:
                 chunk = data["chunk"]
-                blocks = partials.setdefault(mid, {"seq": seq, "blocks": {}})["blocks"]
+                partial = partials.setdefault(mid, {"seq": seq, "blocks": {}, "thinking": {}})
+                blocks = partial["blocks"]
                 index = chunk.get("index", 0)
                 if chunk["type"] == "text-delta":
                     blocks[index] = blocks.get(index, "") + chunk.get("text", "")
                 elif chunk["type"] == "block-end" and chunk.get("block", {}).get("type") == "text":
                     blocks[index] = chunk["block"].get("text", "")
+                elif chunk["type"] == "reasoning-delta":
+                    thinking = partial["thinking"]
+                    thinking[index] = thinking.get(index, "") + chunk.get("text", "")
+                elif (
+                    chunk["type"] == "block-end"
+                    and chunk.get("block", {}).get("type") == "reasoning"
+                ):
+                    partial["thinking"][index] = chunk["block"].get("text", "")
         elif kind == "tool/call":
             aid = data["callId"]
             tool_started[aid] = timestamp
@@ -215,6 +242,7 @@ def project(entries: list[dict]) -> dict:
                 "title": data["name"],
                 "status": "running",
                 "detail": data.get("arguments", ""),
+                "seq": seq,
             }
         elif kind == "tool/result":
             message = data.get("message", {})
@@ -223,7 +251,13 @@ def project(entries: list[dict]) -> dict:
             )
             aid = message.get("source", {}).get("callId") or block.get("toolCallId", f"tool-{seq}")
             row = activities.setdefault(
-                aid, {"id": aid, "type": "tool", "title": message.get("name", "工具结果")}
+                aid,
+                {
+                    "id": aid,
+                    "type": "tool",
+                    "title": message.get("name", "工具结果"),
+                    "seq": seq,
+                },
             )
             row.update(
                 status=(
@@ -241,13 +275,21 @@ def project(entries: list[dict]) -> dict:
             if started is not None and timestamp is not None and timestamp > started:
                 row["duration_ms"] = timestamp - started
             if row.get("title") == "research_run_script" and row["status"] == "completed":
+                detail = row.get("detail") or ""
                 try:
-                    script = json.loads(row["detail"])
+                    script = json.loads(detail) if isinstance(detail, str) else detail
                     outcome = script.get("status") if isinstance(script, dict) else None
                     if outcome != "completed":
                         row["status"] = "cancelled" if outcome == "cancelled" else "failed"
                 except (ValueError, TypeError):
                     row["status"] = "failed"
+            elif str(row.get("title", "")).startswith("datahub_") and row["status"] == "completed":
+                try:
+                    payload = json.loads(row.get("detail") or "")
+                    if isinstance(payload, dict) and payload.get("status") == "failed":
+                        row["status"] = "failed"
+                except (ValueError, TypeError):
+                    log.warning("research_data_result_status_unreadable")
         elif kind == "turn/start":
             status, error = "running", None
             turn_started = timestamp
@@ -272,12 +314,19 @@ def project(entries: list[dict]) -> dict:
         elif kind == "session/title":
             title = data.get("title")
     for mid, partial in partials.items():
-        messages[mid] = {
+        message = {
             "id": mid,
             "role": "assistant",
             "text": "\n".join(partial["blocks"][key] for key in sorted(partial["blocks"])),
             "seq": partial["seq"],
         }
+        reasoning = "\n".join(
+            partial["thinking"][key] for key in sorted(partial["thinking"])
+        ).strip()
+        if reasoning:
+            message["reasoning"] = reasoning
+        messages[mid] = message
+
     native_plan = plan_projection["plan"]
     if native_plan is not None:
         plan = {
@@ -287,7 +336,9 @@ def project(entries: list[dict]) -> dict:
             "history_complete": not plan_projection["plan_history_incomplete"],
             "items": native_plan["todos"],
         }
-    elif plan_projection.get("plan_error") or plan_projection["plan_history_incomplete"]:
+    elif plan_projection.get("plan_error") or (
+        plan_projection["plan_history_incomplete"] and not plan_turn_known
+    ):
         plan = {
             "turn": None,
             "seq": None,
@@ -301,7 +352,11 @@ def project(entries: list[dict]) -> dict:
         **plan_projection,
         "research_plan": plan,
         "messages": sorted(
-            (message for message in messages.values() if message["text"]),
+            (
+                message
+                for message in messages.values()
+                if message["text"] or message.get("reasoning")
+            ),
             key=lambda row: row["seq"],
         ),
         "activities": list(activities.values()),

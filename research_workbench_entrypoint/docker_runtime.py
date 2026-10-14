@@ -370,7 +370,8 @@ def run_bounded(
             process.kill()
             process.wait(timeout=5)
             for pipe in (process.stdout, process.stderr):
-                pipe.close()
+                if pipe is not None:
+                    pipe.close()
             raise
     buffers = [bytearray(), bytearray()]
     overflow = threading.Event()
@@ -381,7 +382,7 @@ def run_bounded(
         pending = bytearray()
         emitted = 0
 
-        def display(chunk: bytes) -> bool:
+        def display(chunk: bytes | bytearray) -> bool:
             nonlocal emitted
             destination = sys.stdout if index == 0 else sys.stderr
             encoded = safe_log_text(chunk.decode("utf-8", "replace")).encode("utf-8")
@@ -892,6 +893,8 @@ class DockerRuntime:
 
     def _accepted_image(self) -> dict:
         manifest = self._manifest()
+        if manifest is None:
+            raise ControlError("docker_manifest_missing")
         image = self._image(manifest["image_id"])
         if image["id"] != manifest["image_id"]:
             raise ControlError("docker_image_mismatch")
@@ -2167,6 +2170,8 @@ class DockerRuntime:
     def _dispose_stopped_for_repair(self, current) -> None:
         """Explicit repair may remove an owned stopped container, never its image/data."""
         manifest = self._manifest(check_contract=False)
+        if manifest is None:
+            raise ControlError("docker_manifest_missing")
         containers = self._containers()
         self._match_image(containers, manifest["image_id"])
         for container in containers:

@@ -13,6 +13,66 @@ from app.research_web.client import DSHClient, RuntimeFailure
 from app.research_web.projection import project
 
 
+@pytest.mark.parametrize(
+    "outcome,expected",
+    [
+        ("failed", "failed"),
+        ("complete", "completed"),
+        ("snapshot", "completed"),
+        ("partial", "completed"),
+        ("empty", "completed"),
+    ],
+)
+def test_datahub_domain_failure_is_not_shown_as_success(outcome, expected):
+    result = project(
+        [
+            event(1, "tool/call", {"callId": "data", "name": "datahub_get_market_bars"}),
+            event(
+                2,
+                "tool/result",
+                {
+                    "message": {
+                        "source": {"callId": "data"},
+                        "role": "tool",
+                        "content": [{"type": "text", "text": json.dumps({"status": outcome})}],
+                    }
+                },
+            ),
+        ]
+    )
+    assert result["activities"][0]["status"] == expected
+
+
+@pytest.mark.parametrize("payload", ["not-json", "{}", '{"status":"unknown"}', "[]"])
+def test_invalid_script_result_remains_failed(payload):
+    result = project(
+        [
+            event(1, "tool/call", {"callId": "c", "name": "research_run_script"}),
+            event(
+                2,
+                "tool/result",
+                {
+                    "message": {
+                        "source": {"callId": "c"},
+                        "role": "tool",
+                        "content": [{"type": "text", "text": payload}],
+                    }
+                },
+            ),
+        ]
+    )
+    assert result["activities"][0]["status"] == "failed"
+
+
+@pytest.mark.parametrize("model", ["arbitrary-no-tools-model", "deepseek/deepseek-flash"])
+def test_compatible_transport_does_not_certify_model_tool_admission(model):
+    from app.research_web.service import ResearchService
+
+    service = object.__new__(ResearchService)
+    service.default_model = {"provider": "openai-compatible", "model": model}
+    assert service._model_tools_verified() is False
+
+
 @pytest.mark.parametrize("previous_plan", [False, True])
 def test_native_todo_without_data_fails_closed_without_losing_session(previous_plan):
     rows = []
@@ -26,6 +86,108 @@ def test_native_todo_without_data_fails_closed_without_losing_session(previous_p
     assert view["research_plan"]["status"] == "invalid"
     assert view["research_plan"]["items"] == [] and view["plan"] is None
     assert view["plan_error"]
+
+
+def test_native_plan_and_streamed_reasoning_coexist_in_same_session():
+    view = project(
+        [
+            event(0, "turn/start", {"turn": 2}),
+            event(1, "todo/write", {"todos": [{"content": "A", "status": "pending"}]}),
+            event(
+                2,
+                "assistant/chunk",
+                {
+                    "turn": 2,
+                    "step": 1,
+                    "chunk": {"type": "reasoning-delta", "index": 0, "text": "thinking"},
+                },
+            ),
+            event(
+                3,
+                "assistant/chunk",
+                {
+                    "turn": 2,
+                    "step": 1,
+                    "chunk": {"type": "text-delta", "index": 1, "text": "answer"},
+                },
+            ),
+        ]
+    )
+    assert view["research_plan"]["items"] == [{"content": "A", "status": "pending"}]
+    assert view["plan"]["todos"] == view["research_plan"]["items"]
+    assert view["messages"][0]["text"] == "answer"
+    assert view["messages"][0]["reasoning"] == "thinking"
+
+
+@pytest.mark.parametrize(
+    "reason,status", [(None, "running"), ("aborted", "cancelled"), ("completed", "completed")]
+)
+def test_reasoning_only_messages_survive_stream_cancel_and_completion(reason, status):
+    entries = [
+        event(0, "turn/start", {"turn": 2}),
+        event(1, "todo/write", {"todos": [{"content": "A", "status": "pending"}]}),
+        event(
+            2,
+            "assistant/chunk",
+            {
+                "turn": 2,
+                "step": 1,
+                "chunk": {"type": "reasoning-delta", "index": 0, "text": "thinking"},
+            },
+        ),
+    ]
+    if reason is not None:
+        entries.append(event(3, "turn/end", {"turn": 2, "reason": {"kind": reason}}))
+    view = project(entries)
+    assert view["messages"] == [
+        {"id": "assistant-2-1", "role": "assistant", "text": "", "seq": 2, "reasoning": "thinking"}
+    ]
+    assert view["status"] == status
+    assert view["plan"]["todos"] == view["research_plan"]["items"]
+    assert view["plan_history_incomplete"] is False
+    assert view["usage"] == {}
+    assert "delivery" not in view
+
+
+def test_final_reasoning_only_message_survives_without_body():
+    view = project(
+        [
+            event(0, "turn/start", {"turn": 1}),
+            event(
+                1,
+                "assistant/message",
+                {
+                    "turn": 1,
+                    "step": 1,
+                    "message": {"content": [{"type": "reasoning", "text": "final thinking"}]},
+                },
+            ),
+            event(2, "turn/end", {"turn": 1, "reason": {"kind": "completed"}}),
+        ]
+    )
+    assert view["messages"][0]["text"] == ""
+    assert view["messages"][0]["reasoning"] == "final thinking"
+    assert view["status"] == "completed"
+
+
+def test_confirmed_new_turn_clears_plan_without_hiding_older_history_gap():
+    rows = [
+        event(5, "todo/write", {"todos": [{"content": "old", "status": "completed"}]}),
+        event(6, "turn/start", {"turn": 2}),
+    ]
+    view = project(rows)
+    assert view["research_plan"] is None
+    assert view["plan"] is None
+    assert view["plan_history_incomplete"] is True
+    assert "plan_error" not in view
+    unknown_turn = project([*rows, event(8, "turn/end", {"reason": {"kind": "completed"}})])
+    assert unknown_turn["research_plan"]["status"] == "incomplete"
+    assert unknown_turn["plan_history_incomplete"] is True
+    assert unknown_turn["plan"] is None
+    conflict = project([*rows, event(6, "turn/start", {"turn": 3})])
+    assert conflict["research_plan"]["status"] == "invalid"
+    assert conflict["plan"] is None
+    assert conflict["plan_history_incomplete"] is True
 
 
 def test_native_plan_fold_preserves_mainline_shape_and_bounds():
@@ -405,6 +567,7 @@ def test_native_tool_result_error_updates_matching_call():
             "title": "research_run_script",
             "status": "failed",
             "detail": "permission denied",
+            "seq": 1,
         }
     ]
 

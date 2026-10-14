@@ -15,6 +15,7 @@ from test_api import NativeFixture
 
 from app.research_web.datahub import BusinessQuery, DataHub
 from app.research_web.datahub.catalog import build_catalog
+from app.research_web.datahub.external_sources import EXTERNAL_SOURCES
 from app.research_web.main import create_app
 from app.research_web.service import ResearchService
 from app.research_web.store import Store, StoreError
@@ -29,10 +30,10 @@ def test_catalog_contains_all_declared_sources_without_constructing_connectors(
     monkeypatch.setattr(module, "find_spec", lambda name: object() if name == "akshare" else None)
     catalog = build_catalog()
     assert catalog["summary"] == {
-        "capabilities": 15,
-        "sources": 22,
-        "callable_sources": 3,
-        "needs_configuration": 10,
+        "capabilities": 16,
+        "sources": 64,
+        "callable_sources": 40,
+        "needs_configuration": 15,
         "unavailable": 0,
     }
     ids = {source["id"] for source in catalog["sources"]}
@@ -59,12 +60,23 @@ def test_catalog_contains_all_declared_sources_without_constructing_connectors(
         "tavily",
         "bing",
         "mysql",
+        "ext_registry",
+        *EXTERNAL_SOURCES,
     }
     assert all(source["readiness"]["code_exists"] for source in catalog["sources"])
     assert {source["id"] for source in catalog["sources"] if source["readiness"]["callable"]} == {
         "akshare",
         "cls",
         "eastmoney_fund",
+        "ext_registry",
+        *[
+            sid
+            for sid, item in EXTERNAL_SOURCES.items()
+            if any(
+                not endpoint.get("auth") and not endpoint.get("specialAuth")
+                for endpoint in item.get("endpoints", [])
+            )
+        ],
     }
     wind = next(source for source in catalog["sources"] if source["id"] == "wind")
     assert wind["readiness"]["integration_completed"] is True
@@ -787,3 +799,329 @@ def test_probe_for_unconfigured_wind_source_never_touches_network(tmp_path):
     assert result["health"] == "unavailable"
     assert result["failure_code"] == "blocked_config"
     assert calls == []
+
+
+@pytest.mark.parametrize(
+    "asset,symbol",
+    [
+        ("000300.SH", "sh000300"),
+        ("399001.SZ", "sz399001"),
+        ("600519.SH", "sh600519"),
+        ("430047.BJ", "bj430047"),
+    ],
+)
+def test_akshare_explicit_exchange_suffix_wins(asset, symbol):
+    from app.research_web.datahub.providers_akshare import _exchange_symbol
+
+    assert _exchange_symbol(asset) == symbol
+
+
+@pytest.mark.asyncio
+async def test_akshare_index_filters_full_history_before_cap_and_uses_points(monkeypatch):
+    import pandas as pd
+
+    import app.research_web.datahub.providers_akshare as provider
+
+    package = ModuleType("akshare")
+
+    def index(**kwargs):
+        assert kwargs == {"symbol": "sh000300"}
+        return pd.DataFrame(
+            {
+                "date": pd.date_range("2000-01-01", periods=10000).date,
+                "close": [4000] * 10000,
+                "volume": [100] * 10000,
+            }
+        )
+
+    package.stock_zh_index_daily = index
+    monkeypatch.setitem(sys.modules, "akshare", package)
+    result = await provider.fetch(
+        BusinessQuery(
+            capability="market_bars",
+            source="akshare",
+            parameters={
+                "asset": "000300.SH",
+                "asset_type": "index",
+                "start_date": "2026-01-01",
+                "end_date": "2026-01-02",
+                "frequency": "daily",
+                "adjustment": "none",
+            },
+        )
+    )
+    assert result.status == "complete"
+    assert [row["date"] for row in result.rows] == ["2026-01-01", "2026-01-02"]
+    assert all(row["asset"] == "000300.SH" for row in result.rows)
+    assert result.fields["close"] == {"unit": "points", "currency": None}
+
+
+@pytest.mark.asyncio
+async def test_akshare_etf_uses_fund_feed_and_marks_native_volume(monkeypatch):
+    import pandas as pd
+
+    import app.research_web.datahub.providers_akshare as provider
+
+    package = ModuleType("akshare")
+
+    def etf(**kwargs):
+        assert kwargs == {
+            "symbol": "510300",
+            "period": "daily",
+            "start_date": "20261001",
+            "end_date": "20261002",
+            "adjust": "",
+        }
+        return pd.DataFrame([{"日期": "2026-10-01", "收盘": 4.5, "成交量": 123}])
+
+    package.fund_etf_hist_em = etf
+    monkeypatch.setitem(sys.modules, "akshare", package)
+    result = await provider.fetch(
+        BusinessQuery(
+            capability="market_bars",
+            source="akshare",
+            parameters={
+                "asset": "510300.SH",
+                "asset_type": "etf",
+                "start_date": "2026-10-01",
+                "end_date": "2026-10-02",
+                "frequency": "daily",
+                "adjustment": "none",
+            },
+        )
+    )
+    assert result.status == "complete" and result.rows[0]["volume"] == 123
+    assert result.fields["volume"]["unit"] == "provider_defined"
+    assert "volume_unit_not_verified" in result.limitations
+    assert result.fields["close"] == {"unit": "CNY", "currency": "CNY"}
+
+
+@pytest.mark.parametrize(
+    "parameters,reason",
+    [
+        ({"frequency": "weekly", "adjustment": "none"}, "invalid_frequency"),
+        ({"frequency": "daily", "adjustment": "qfq"}, "invalid_adjustment"),
+    ],
+)
+@pytest.mark.asyncio
+async def test_akshare_index_rejects_unsupported_semantics_before_feed(
+    monkeypatch, parameters, reason
+):
+    import app.research_web.datahub.providers_akshare as provider
+
+    monkeypatch.setitem(sys.modules, "akshare", ModuleType("akshare"))
+    result = await provider.fetch(
+        BusinessQuery(
+            capability="market_bars",
+            source="akshare",
+            parameters={"asset": "000300.SH", "asset_type": "index", **parameters},
+        )
+    )
+    assert result.status == "failed" and result.limitations[-1] == reason
+    assert result.rows == [] and result.raw == []
+
+
+@pytest.mark.asyncio
+async def test_akshare_index_fallback_is_bounded_and_retains_unknown_volume_unit(monkeypatch):
+    import pandas as pd
+
+    import app.research_web.datahub.providers_akshare as provider
+
+    package = ModuleType("akshare")
+    calls = []
+
+    def primary(**kwargs):
+        calls.append(("primary", kwargs["symbol"]))
+        raise ValueError("synthetic vendor failure")
+
+    def alternate(**kwargs):
+        calls.append(("alternate", kwargs["symbol"]))
+        return pd.DataFrame([{"date": "2026-10-01", "close": 4000, "volume": 123}])
+
+    package.stock_zh_index_daily = primary
+    package.stock_zh_index_daily_em = alternate
+    monkeypatch.setitem(sys.modules, "akshare", package)
+    monkeypatch.setattr(provider.time, "sleep", lambda _delay: None)
+    result = await provider.fetch(
+        BusinessQuery(
+            capability="market_bars",
+            source="akshare",
+            parameters={
+                "asset": "000300.SH",
+                "asset_type": "index",
+                "frequency": "daily",
+                "adjustment": "none",
+            },
+        )
+    )
+    assert result.status == "complete"
+    assert calls == [("primary", "sh000300"), ("primary", "sh000300"), ("alternate", "sh000300")]
+    assert result.rows[0]["volume"] == 123
+    assert result.fields["volume"]["unit"] == "provider_defined"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "capability,parameters",
+    [
+        ("market_activity", {"asset": "600519.SH", "dataset": "northbound"}),
+        ("market_activity", {"asset": "600519.SH", "dataset": "money_flow"}),
+        ("market_snapshot", {"assets": ["600519.SH"], "asset_type": "index"}),
+        ("market_snapshot", {"assets": ["510300.SH"], "asset_type": "etf"}),
+    ],
+)
+async def test_akshare_nonequivalent_queries_fail_before_vendor(
+    capability, parameters, monkeypatch
+):
+    import pandas as pd
+
+    import app.research_web.datahub.providers_akshare as provider
+
+    package = ModuleType("akshare")
+    calls = []
+
+    def reply(**kwargs):
+        calls.append(kwargs)
+        return pd.DataFrame([{"date": "2026-10-13", "close": 10}])
+
+    package.stock_individual_fund_flow = reply
+    package.stock_zh_a_daily = reply
+    monkeypatch.setitem(sys.modules, "akshare", package)
+    result = await provider.fetch(
+        BusinessQuery(capability=capability, source="akshare", parameters=parameters)
+    )
+    assert result.status == "failed" and result.limitations[-1] == "data_not_equivalent"
+    assert calls == [] and result.rows == [] and result.raw == []
+
+
+@pytest.mark.asyncio
+async def test_akshare_fund_flow_slices_dates_before_row_limit(monkeypatch):
+    import pandas as pd
+
+    import app.research_web.datahub.providers_akshare as provider
+
+    package = ModuleType("akshare")
+
+    def reply(**kwargs):
+        assert kwargs == {"stock": "600519", "market": "sh"}
+        return pd.DataFrame(
+            {
+                "日期": pd.date_range("2000-01-01", periods=10000).date,
+                "主力净流入-净额": [1] * 10000,
+            }
+        )
+
+    package.stock_individual_fund_flow = reply
+    monkeypatch.setitem(sys.modules, "akshare", package)
+    result = await provider.fetch(
+        BusinessQuery(
+            capability="market_activity",
+            source="akshare",
+            parameters={
+                "asset": "600519.SH",
+                "dataset": "fund_flow",
+                "start_date": "2026-10-13",
+                "end_date": "2026-10-13",
+            },
+        )
+    )
+    assert result.status == "complete" and len(result.rows) == 1
+    assert result.rows[0]["日期"] == "2026-10-13"
+
+
+def test_akshare_stock_snapshot_keeps_explicit_exchange_identity():
+    import app.research_web.datahub.providers_akshare as provider
+
+    query = BusinessQuery(
+        capability="market_snapshot",
+        source="akshare",
+        parameters={"assets": ["000001.SH"], "asset_type": "stock"},
+    )
+    rows = provider._normalize_snapshot([{"代码": "000001", "最新价": 10}], query)
+    assert rows[0]["asset"] == "000001.SH"
+
+
+@pytest.mark.parametrize(
+    "capability,parameters",
+    [
+        ("trading_calendar", {"market": "CN"}),
+        ("index_data", {"index": "000300.SH", "dataset": "quotes"}),
+        ("factor_macro", {"series": "synthetic"}),
+    ],
+)
+def test_unavailable_business_source_has_stable_code(capability, parameters, monkeypatch):
+    from app.research_web.datahub import catalog
+    from app.research_web.datahub.broker import resolve
+    from app.research_web.store import StoreError
+
+    monkeypatch.setattr(catalog, "find_spec", lambda _name: None)
+    with pytest.raises(StoreError) as failure:
+        resolve(
+            BusinessQuery(capability=capability, parameters=parameters),
+            environ={},
+            connection_statuses={},
+        )
+    assert failure.value.code == "data_source_unavailable" and failure.value.status == 400
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("asset,expected", [("000001.SH", "sh000001"), ("000001.SZ", "sz000001")])
+async def test_akshare_stock_snapshot_preserves_exchange_in_feed_and_result(
+    monkeypatch, asset, expected
+):
+    import pandas as pd
+
+    import app.research_web.datahub.providers_akshare as provider
+
+    package = ModuleType("akshare")
+
+    def reply(**kwargs):
+        assert kwargs["symbol"] == expected
+        return pd.DataFrame([{"date": "2026-10-13", "close": 10, "volume": 1}])
+
+    package.stock_zh_a_daily = reply
+    monkeypatch.setitem(sys.modules, "akshare", package)
+    result = await provider.fetch(
+        BusinessQuery(
+            capability="market_snapshot",
+            source="akshare",
+            parameters={"assets": [asset], "asset_type": "stock"},
+        )
+    )
+    assert result.status == "complete" and result.rows[0]["asset"] == asset
+    assert result.fields["price"] == {"unit": "CNY", "currency": "CNY"}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "payload,reason",
+    [
+        ([{"unknown_date": "2026-10-13", "flow": 1}], "data_not_equivalent"),
+        ([{"日期": "invalid", "flow": 1}], "invalid_provider_date"),
+        ([{"日期": "2026-10-13", "flow": 1}] * 5001, "row_limit"),
+    ],
+)
+async def test_akshare_fund_flow_unverifiable_or_excessive_rows_fail_closed(
+    monkeypatch, payload, reason
+):
+    import pandas as pd
+
+    import app.research_web.datahub.providers_akshare as provider
+
+    package = ModuleType("akshare")
+    package.stock_individual_fund_flow = lambda **_kwargs: pd.DataFrame(payload)
+    monkeypatch.setitem(sys.modules, "akshare", package)
+    result = await provider.fetch(
+        BusinessQuery(
+            capability="market_activity",
+            source="akshare",
+            parameters={
+                "asset": "600519.SH",
+                "dataset": "fund_flow",
+                "start_date": "2026-10-13",
+                "end_date": "2026-10-13",
+            },
+        )
+    )
+    assert result.status == "failed" and result.limitations[-1] == reason
+    assert result.rows == [] and result.raw == []

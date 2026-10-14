@@ -151,7 +151,11 @@ class AssetWorkspace:
     async def _run_block(self, row: dict, block: str) -> None:
         state = row["blocks"][block]
         try:
-            parameters = {key: value for key, value in self._parameters(row, block).items() if value is not None}
+            parameters = {
+                key: value
+                for key, value in self._parameters(row, block).items()
+                if value is not None
+            }
             result = await self.service.datahub.query(
                 row["session_id"],
                 f"asset:{row['id']}:{block}",
@@ -165,11 +169,15 @@ class AssetWorkspace:
             status = (
                 "empty"
                 if provider_status == "empty"
-                else "partial"
-                if provider_status == "partial"
-                else "unavailable"
-                if provider_status in {"failed", "unavailable", "stale"}
-                else "complete"
+                else (
+                    "partial"
+                    if provider_status == "partial"
+                    else (
+                        "unavailable"
+                        if provider_status in {"failed", "unavailable", "stale"}
+                        else "complete"
+                    )
+                )
             )
             state.update(
                 status=status,
@@ -178,7 +186,11 @@ class AssetWorkspace:
                 failure_code=None if status not in {"unavailable", "error"} else "data_unavailable",
             )
             if block == "overview" and result.get("sample"):
-                observation = {"status": provider_status, "as_of": result.get("as_of"), **result["sample"][0]}
+                observation = {
+                    "status": provider_status,
+                    "as_of": result.get("as_of"),
+                    **result["sample"][0],
+                }
                 self.evaluate_alerts(row["asset"], observation)
         except asyncio.CancelledError:
             state.update(status="unavailable", failure_code="cancelled")
@@ -215,11 +227,13 @@ class AssetWorkspace:
         return self.public_observation(row)
 
     def list_observations(self) -> list[dict]:
-        rows = [self.public_observation(row) for row in self.store.data["asset_observations"].values()]
+        rows = [
+            self.public_observation(row) for row in self.store.data["asset_observations"].values()
+        ]
         return sorted(rows, key=lambda row: row["updated_at"], reverse=True)
 
     def create_watchlist(self, name: str, polling_minutes: int | None) -> dict:
-        row = {
+        row: dict[str, Any] = {
             "id": str(uuid4()),
             "name": name.strip(),
             "polling_minutes": polling_minutes,
@@ -235,7 +249,12 @@ class AssetWorkspace:
         watchlist = _uuid_record(self.store.data["watchlists"], watchlist_id, "自选列表")
         if any(entry["asset"] == item["asset"].upper() for entry in watchlist["items"]):
             raise AssetWorkspaceError("资产已在自选列表中", 409)
-        row = {"id": str(uuid4()), **item, "asset": item["asset"].upper(), "created_at": time.time()}
+        row = {
+            "id": str(uuid4()),
+            **item,
+            "asset": item["asset"].upper(),
+            "created_at": time.time(),
+        }
         watchlist["items"].append(row)
         watchlist["updated_at"] = time.time()
         self.store.save()

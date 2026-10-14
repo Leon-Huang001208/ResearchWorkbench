@@ -28,7 +28,7 @@ from .models import InstallationManifest, InstallationPlanUnion
 log = get_logger(__name__)
 MAX_MANIFEST_BYTES = 4 * 1024 * 1024
 INSTALLATION_ID = re.compile(r"^mcp-installation-[a-f0-9]{32}$")
-PLAN_ADAPTER = TypeAdapter(InstallationPlanUnion)
+PLAN_ADAPTER: TypeAdapter[InstallationPlanUnion] = TypeAdapter(InstallationPlanUnion)
 INTEGRITY_KEY_SERVICE = "ResearchWorkbench.MCPRuntime"
 INTEGRITY_KEY_ACCOUNT = "manifest-integrity-v1"
 _PLATFORM_NAME = os.name
@@ -269,8 +269,8 @@ class InstallationStore:
             if folder.is_symlink():
                 raise InstallationStoreError("unsafe_installation_path")
             if folder.exists():
-                manifest = folder / "manifest.json"
-                if manifest.is_symlink():
+                manifest_path = folder / "manifest.json"
+                if manifest_path.is_symlink():
                     raise InstallationStoreError("unsafe_installation_manifest")
                 raise InstallationStoreError("installation_manifest_immutable")
             try:

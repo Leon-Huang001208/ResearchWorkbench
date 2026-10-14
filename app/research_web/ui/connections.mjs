@@ -1,8 +1,8 @@
 import { escapeHTML as e } from './markdown.mjs';
 
 const zhiqiuSources = new Set(['zhiqiu_reports', 'zhiqiu_wechat', 'zhiqiu_transcript']);
-const tokenLabels = { tinysoft: 'CJ_KEY', tushare: 'API Token', tavily: 'API Key', bing: 'API Key' };
-const tokenFields = { tinysoft: 'token', tushare: 'token', tavily: 'api_key', bing: 'api_key' };
+const tokenLabels = { tinysoft: 'CJ_KEY', tushare: 'API Token', tavily: 'API Key', bing: 'API Key', ext_ths: 'iFinD Access Token 或包含 refresh_token 的 JSON', ext_daole: '道乐 SQL API Key', ext_tikhub: 'TikHub API Key', ext_cicc: '中金凭据 JSON（app_id、app_secret）' };
+const tokenFields = { tinysoft: 'token', tushare: 'token', tavily: 'api_key', bing: 'api_key', ext_ths: 'api_key', ext_daole: 'api_key', ext_tikhub: 'api_key', ext_cicc: 'api_key' };
 const statusText = {
   healthy: '正常', available: '可用', ready: '就绪', checking: '检测中',
   untested: '未检测', unverified: '未验证', unavailable: '不可用',

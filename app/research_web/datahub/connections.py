@@ -35,9 +35,26 @@ SOURCE_ALIASES = {
     "zhiqiu_transcript": "zhiqiu",
 }
 SUPPORTED_CONFIGURATION_SOURCES = frozenset(
-    {"mysql", "ifind", "zhiqiu", "tinysoft", "tushare", "tavily", "bing", "wind"}
+    {
+        "mysql",
+        "ifind",
+        "zhiqiu",
+        "tinysoft",
+        "tushare",
+        "tavily",
+        "bing",
+        "wind",
+        "ext_ths",
+        "ext_daole",
+        "ext_tikhub",
+        "ext_cicc",
+    }
 )
 SINGLE_SECRET_FIELDS = {
+    "ext_ths": ("api_key", "api_key"),
+    "ext_daole": ("api_key", "api_key"),
+    "ext_tikhub": ("api_key", "api_key"),
+    "ext_cicc": ("api_key", "api_key"),
     "tinysoft": ("token", "token"),
     "tushare": ("token", "token"),
     "tavily": ("api_key", "api_key"),
@@ -289,6 +306,7 @@ class MySQLConnectionStore:
     def source_configuration(self, source_id: str) -> BaseModel | None:
         source = canonical_source_id(source_id)
         models: dict[str, type[BaseModel]] = {
+            **{source: SingleSecretConfiguration for source in SINGLE_SECRET_FIELDS},
             "mysql": MySQLConfiguration,
             "ifind": IFindConfiguration,
             "zhiqiu": ZhiqiuConfiguration,
@@ -429,7 +447,9 @@ class MySQLConnectionStore:
                 "configured": secret_configured,
                 "secret_configured": secret_configured,
                 "credential_store_available": True,
-                "restart_required": secret_configured and source != "tinysoft",
+                "restart_required": secret_configured
+                and source != "tinysoft"
+                and not source.startswith("ext_"),
                 "failure_code": None,
             }
         except CredentialStoreError:

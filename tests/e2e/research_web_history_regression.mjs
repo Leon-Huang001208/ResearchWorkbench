@@ -32,7 +32,7 @@ try {
     await page.goto(`${origin.origin}/?acceptance=historical#/${mode}?session=${sid}`);
     await page.getByRole('heading',{name:title,exact:true}).waitFor();
     const panel = page.getByRole('complementary',{name:'研究活动、资料与文件',exact:true});
-    if (!await panel.isVisible()) await page.getByRole('button',{name:'活动与文件',exact:true}).click();
+    if (!await panel.isVisible()) await page.getByRole('button',{name:'工作空间',exact:true}).click();
     return panel;
   }
   const fund = 'd918f34f-02bf-4c85-bc7a-a8b5880195b6';

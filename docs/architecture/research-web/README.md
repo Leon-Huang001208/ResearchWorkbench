@@ -1,5 +1,9 @@
 # Research Workbench Research Web 当前架构
 
+本轮融合外部来源、兼容模型协议与交互修复，仍以 DSH 为唯一执行循环。
+认证 HTTPS、秘密反射拒绝、明确脚本成功及精确工具准入见[安全边界](05-security-validation.md)；
+Claw 项目、研究深度/资料范围、原生 Todo 和 HTML/Word/中文 PDF 合同保持。
+
 显式文本验收预算复用已有私有模型桥与受管 AES 身份，持久票据不退款。旧政策过期，真实验收未启用；预算不是运行实例管理或产品推理 PASS。
 
 原生研究计划复用既有 DSH 与 FinGPT 计划标签；历史分页和 SSE 缓存保留同序号冲突证据，

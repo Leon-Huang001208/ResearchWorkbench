@@ -119,16 +119,15 @@ def _pin_posix_parents(path: Path) -> Iterator[int]:
     """Traverse from root using retained directory descriptors, never path aliases."""
     with ExitStack() as stack:
         parent = None
-        directories = []
+        directories: list[tuple[int, int | None, str, os.stat_result]] = []
         for component in reversed(path.parents):
             name = str(component) if parent is None else component.name
             before = os.stat(name, dir_fd=parent, follow_symlinks=False)
             descriptor = os.open(name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=parent)
             stack.callback(os.close, descriptor)
-            if (
-                not stat.S_ISDIR(before.st_mode)
-                or _node_identity(os.fstat(descriptor)) != _node_identity(before)
-            ):
+            if not stat.S_ISDIR(before.st_mode) or _node_identity(
+                os.fstat(descriptor)
+            ) != _node_identity(before):
                 _fail("changed")
             directories.append((descriptor, parent, name, before))
             parent = descriptor
@@ -137,11 +136,9 @@ def _pin_posix_parents(path: Path) -> Iterator[int]:
         yield parent
         for descriptor, ancestor, name, before in directories:
             comparison = _identity if descriptor == parent else _node_identity
-            if (
-                comparison(os.fstat(descriptor)) != comparison(before)
-                or comparison(os.stat(name, dir_fd=ancestor, follow_symlinks=False))
-                != comparison(before)
-            ):
+            if comparison(os.fstat(descriptor)) != comparison(before) or comparison(
+                os.stat(name, dir_fd=ancestor, follow_symlinks=False)
+            ) != comparison(before):
                 _fail("changed")
 
 
@@ -168,10 +165,9 @@ def _read(path: Path) -> bytes:
             raw = stream.read(MAX_CONTRACT_BYTES + 1)
         if len(raw) > MAX_CONTRACT_BYTES:
             _fail("too_large")
-        if (
-            _identity(os.fstat(descriptor)) != _identity(before)
-            or _identity(_path_identity(path)) != _identity(before)
-        ):
+        if _identity(os.fstat(descriptor)) != _identity(before) or _identity(
+            _path_identity(path)
+        ) != _identity(before):
             _fail("changed")
         return raw
 
