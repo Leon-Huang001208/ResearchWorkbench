@@ -24,8 +24,21 @@ const blocks = {
 function table(headers, rows) {
   return `<div class="core-table"><table><thead><tr>${headers.map(h => `<th>${e(h)}</th>`).join('')}</tr></thead><tbody>${rows.map(row => `<tr>${row.map(c => `<td>${value(c)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
 }
+function allocationConnected(block) {
+  if (['fixture', 'missing'].includes(block.status) || !block.sources?.length) return false;
+  return block.sources.every(source => {
+    try {
+      const url = new URL(source.url);
+      return ['http:', 'https:'].includes(url.protocol) && Boolean(url.hostname) && url.hostname !== 'invalid' && !url.hostname.endsWith('.invalid') && !/fixture/i.test(source.method || '');
+    } catch (error) {
+      console.warn('gold_allocation_source_invalid', error.name);
+      return false;
+    }
+  });
+}
 function panel(key, title, b) {
   if (!b) return `<section class="core-card"><h2>${e(title)}</h2><p>尚未接入</p></section>`;
+  if (key === 'allocation_context' && !allocationConnected(b)) return `<section id="allocation_context" class="core-card"><header><h2>${e(title)}</h2><span>尚未接入</span></header><p>缺少带来源、观测窗口与计算口径的配置研究数据。</p>${gaps(b.gaps)}</section>`;
   const metrics = b.metrics || b.relationships || b.flows || b.positioning || [];
   const series = Array.isArray(b.series) && b.series[0]?.points ? b.series : b.series ? [{ label: title, unit: b.sources?.[0]?.unit || '', points: b.series }] : [];
   const maxStrike = Math.max(...(b.strikes || []).map(s => s.value), 1);

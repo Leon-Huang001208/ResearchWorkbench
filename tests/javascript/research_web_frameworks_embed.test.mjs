@@ -80,8 +80,8 @@ test('canonical server Gold seed renders every native core section and source me
   assert.match(html, /id="allocation_context"/);
   assert.doesNotMatch(html, /id="allocation"/);
   assert.ok(html.includes(s.cycle_macro.policy_phase));
-  assert.ok(html.includes(s.allocation_context.diversification_note));
-  assert.ok(html.includes(s.allocation_context.drawdown_note));
+  assert.ok(!html.includes(s.allocation_context.diversification_note));
+  assert.ok(!html.includes(s.allocation_context.drawdown_note));
   for (const flow of s.supply_demand.flows) { assert.ok(html.includes(flow.label)); assert.ok(html.includes(flow.value)); assert.ok(html.includes(flow.note)); }
   for (const factor of s.pricing_drivers.factors) {
     assert.ok(html.includes(factor.raw_value));
@@ -89,12 +89,13 @@ test('canonical server Gold seed renders every native core section and source me
   }
   for (const regime of s.cycle_macro.regimes) { assert.ok(html.includes(regime.label)); assert.ok(html.includes(regime.fit)); assert.ok(html.includes(regime.reason)); }
   for (const strike of s.options.strikes) { assert.ok(html.includes(strike.label)); assert.ok(html.includes(strike.side)); }
-  for (const scenario of s.allocation_context.scenarios) { assert.ok(html.includes(scenario.label)); assert.ok(html.includes(scenario.gold)); assert.ok(html.includes(scenario.note)); }
-  for (const correlation of s.allocation_context.correlations) { assert.ok(html.includes(correlation.row)); assert.ok(html.includes(correlation.column)); }
+  const allocation = html.split('id="allocation_context"')[1].split('</section>')[0];
+  assert.match(allocation, /尚未接入/);
+  assert.doesNotMatch(allocation, /<table|相关性矩阵/);
   for (const gap of s.gaps) { assert.ok(html.includes(gap.label)); assert.ok(html.includes(gap.next_check)); }
   assert.ok(html.includes(`变化 ${s.market_context.change_percent}%`));
   assert.ok(html.includes(s.market_context.range_low.toLocaleString('zh-CN', { maximumFractionDigits: 3 })));
-  for (const block of [s.market_context,s.pricing_drivers,s.supply_demand,s.cycle_macro,s.options,s.allocation_context]) {
+  for (const block of [s.market_context,s.pricing_drivers,s.supply_demand,s.cycle_macro,s.options]) {
     for (const source of block.sources) { assert.ok(html.includes(`href="${source.url}"`)); assert.ok(html.includes(source.unit)); assert.ok(html.includes(source.method)); }
   }
   for (const event of s.events) { assert.ok(html.includes(event.title)); assert.ok(html.includes(event.impact)); }
@@ -182,5 +183,27 @@ test('embedded viewport height follows wrapper at short viewports rather than cl
     const frameHeight = wrapperHeight; // CSS percentage resolves against explicit wrapper height.
     assert.equal(frameHeight,wrapperHeight);
     assert.ok(frameHeight > 0);
+  }
+});
+
+
+test('unconnected Gold allocation hides sample correlations and scenarios without changing native model', () => {
+  const data = goldTestData();
+  const before = structuredClone(data);
+  const html = renderEmbedDashboard(data);
+  const allocation = html.split('id="allocation_context"')[1].split('</section>')[0];
+  assert.match(allocation, /尚未接入/);
+  assert.doesNotMatch(allocation, /相关性矩阵|<table|offline.*fixture|example\.invalid/);
+  assert.deepEqual(data, before);
+});
+
+test('Gold allocation retains sourced stale values with observation date, while empty or fixture provenance stays disconnected', () => {
+  for (const kind of ['sourced', 'empty', 'fixture']) {
+    const data = goldTestData();
+    data.snapshot.allocation_context.status = 'stale';
+    data.snapshot.allocation_context.sources = kind === 'empty' ? [] : [{name:'Audited study',url:'https://research.example.org/study',observed_at:'2026-10-01',unit:'monthly returns',method:kind === 'fixture' ? 'offline fixture' : 'documented monthly returns'}];
+    const section = renderEmbedDashboard(data).split('id="allocation_context"')[1].split('</section>')[0];
+    if (kind === 'sourced') { assert.match(section, /相关性矩阵/); assert.match(section, /stale/); assert.match(section, /2026-10-01/); }
+    else { assert.match(section, /尚未接入/); assert.doesNotMatch(section, /<table/); }
   }
 });
