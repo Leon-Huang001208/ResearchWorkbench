@@ -1,7 +1,7 @@
 /** Claw projections: one project index, one Automation directory, explicit references. */
-import { escapeHTML as e } from './markdown.mjs';
+import { escapeHTML as e, renderMarkdown } from './markdown.mjs';
 import { sessionHash, safeLog } from './core.mjs';
-import { fileURL } from './views.mjs';
+import { fileURL, renderActivityCard, activitySummary } from './views.mjs';
 
 export function renderClawNavigation(current = 'sessions', sessionId = null, projectId = 'default') {
   return `<nav class="claw-navigation" aria-label="Claw 工作入口">${[['sessions','会话'],['projects','项目工作区'],['plans','Agent 日程'],['skills','选择能力']].map(([view,label]) => `<a href="#/claw?view=${view}${view === 'projects' ? `&project=${encodeURIComponent(projectId)}` : ''}${sessionId ? `&session=${encodeURIComponent(sessionId)}` : ''}" ${view === current ? 'aria-current="page"' : ''}>${label}</a>`).join('')}</nav>`;
@@ -70,9 +70,30 @@ const dateLabel = (value, timezone = 'UTC') => {
 export function renderClawSchedules(automations = [], runs = [], busy = false, error = '') {
   return `<section class="claw-schedules"><header class="page-header"><div><h1>Agent 日程</h1><p class="muted">在对话中提出任务、澄清参数并确认创建。每周执行日不是交易日历，节假日仍按所选星期运行。</p></div><div class="button-row"><button class="button" data-claw-schedule-refresh${busy ? ' disabled' : ''}>刷新日程与运行</button><button class="button primary" data-claw-case="schedule">新建任务</button></div></header>${error ? `<p class="notice danger" role="alert">${e(error)}</p>` : ''}<div class="claw-table-scroll"><table><thead><tr><th>任务名称</th><th>模型与版本</th><th>执行时间</th><th>下次执行</th><th>状态</th><th>操作</th></tr></thead><tbody>${automations.map(a=>`<tr><td><strong>${e(a.name)}</strong><details><summary>研究内容</summary><p>${e(a.research_task?.description || a.input_template || '')}</p></details></td><td>${e(a.research_task?.model_id || a.target?.id || '既有能力')}<small>v${e(a.definition_version || a.target?.version || '—')}</small></td><td>${e(clawScheduleLabel(a.schedule))}</td><td>${e(dateLabel(a.next_run_at,a.schedule?.timezone || 'UTC'))}</td><td>${a.enabled ? '已启用' : '已停用'}</td><td><div class="button-row"><button class="button small" data-run-automation="${e(a.id)}" ${busy?'disabled':''}>试跑</button><button class="button small" data-claw-edit-task="${e(a.id)}" ${busy?'disabled':''}>在对话中修改</button><button class="button small" data-${a.enabled?'disable':'enable'}-automation="${e(a.id)}" ${busy?'disabled':''}>${a.enabled?'停用':'启用'}</button><button class="button small" data-delete-automation="${e(a.id)}" ${busy?'disabled':''}>删除</button></div></td></tr>`).join('') || '<tr><td colspan="6">暂无任务。先在会话中说明研究内容和时间。</td></tr>'}</tbody></table></div><h2>执行记录</h2>${renderClawRunCards(runs)}</section>`;
 }
+export function positionClawAutomationCards(detail, edits = new Map(), busy = false) {
+  const entries = []; const unpositionedDrafts = []; const unpositionedRuns = [];
+  const activities = (detail.activities || []).filter(activity=>Number.isFinite(activity.seq) && activity.status === 'completed' && activity.result && typeof activity.result === 'object' && !Array.isArray(activity.result));
+  const anchor = (row,tools,requireTask) => {
+    const matches=activities.filter(activity=>tools.includes(activity.tool || activity.title) && activity.result.id === row.id && (!requireTask || activity.arguments?.automation_id === row.automation_id));
+    return matches.length === 1 ? matches[0].seq : null;
+  };
+  for (const draft of detail.automation_drafts || []) {
+    const update=draft.operation === 'update' || draft.action === 'update';
+    const seq=anchor(draft,[update ? 'rwb_prepare_automation_update' : 'rwb_prepare_automation'],update);
+    const html=renderAutomationDrafts([draft],edits,busy);
+    if (!html) continue;
+    if (seq === null) unpositionedDrafts.push(draft); else entries.push({seq,html});
+  }
+  for (const run of detail.automation_runs || []) {
+    const seq=anchor(run,['rwb_run_automation'],true);
+    if (seq === null) unpositionedRuns.push(run); else entries.push({seq,html:renderClawRunCards([run])});
+  }
+  return {entries,unpositionedDrafts,unpositionedRuns};
+}
+
 export function renderClawRunCards(runs = []) {
   if (!runs.length) return '<p class="muted">尚无执行记录。</p>';
-  return `<section class="claw-run-cards" aria-label="日程运行记录">${runs.map(r=>`<article class="claw-run-card"><header><strong>${e(r.automation_name || r.name || r.definition_snapshot?.name || '研究任务')}</strong><span class="badge">${({schedule:'定时运行',scheduled:'定时运行',manual:'手动试跑',retry:'手动重试'})[r.trigger] || '运行来源未知'}</span><span>${e(runState(r.research_status))}</span></header><p class="muted small">来源：Automation ${e(r.automation_id)} · 定义 v${e(r.definition_version || '—')} · ${e(dateLabel(r.created_at,r.definition_snapshot?.schedule?.timezone || 'UTC'))}</p>${r.failure_code ? `<p class="notice danger">${e(r.failure_code)}</p>` : ''}${r.result_error ? `<p class="notice warning" role="status">结果受限：${e(r.result_error)}</p>` : ''}${r.result_text ? `<details><summary>运行结果</summary><p class="claw-run-result">${e(r.result_text)}</p></details>` : ''}${r.activities?.length ? `<details><summary>工具活动（${r.activities.length}）</summary><ul>${r.activities.map(a=>`<li>${e(a.title || a.tool || a.type || '活动')} · ${e(a.status || '状态未知')}</li>`).join('')}</ul></details>` : ''}${r.files?.length ? `<details><summary>文件（${r.files.length}）</summary>${r.files.map(f=>fileURL(f.url) ? `<p><a href="${e(fileURL(f.url))}">${e(f.name || f.id)}</a></p>` : `<p>${e(f.name || f.id)}</p>`).join('')}</details>` : ''}${r.session_id ? `<a class="button small" href="#/claw?session=${encodeURIComponent(r.session_id)}">查看执行会话与文件</a>` : '<p class="muted small">执行会话尚未关联。</p>'}</article>`).join('')}</section>`;
+  return `<section class="claw-run-cards" aria-label="日程运行记录">${runs.map(r=>`<article class="claw-run-card"><header><strong>${e(r.automation_name || r.name || r.definition_snapshot?.name || '研究任务')}</strong><span class="badge">${({schedule:'定时运行',scheduled:'定时运行',manual:'手动试跑',retry:'手动重试'})[r.trigger] || '运行来源未知'}</span><span>${e(runState(r.research_status))}</span></header><p class="muted small">来源：Automation ${e(r.automation_id)} · 定义 v${e(r.definition_version || '—')} · ${e(dateLabel(r.created_at,r.definition_snapshot?.schedule?.timezone || 'UTC'))}</p>${r.failure_code ? `<p class="notice danger">${e(r.failure_code)}</p>` : ''}${r.result_error ? `<p class="notice warning" role="status">结果受限：${e(r.result_error)}</p>` : ''}${r.result_text ? `<details><summary>运行结果</summary><div class="markdown claw-run-result">${renderMarkdown(r.result_text)}</div></details>` : ''}${r.activities?.length ? `<details><summary>${e(activitySummary(r.activities))}</summary><ol class="activity-list">${r.activities.map(a=>`<li>${renderActivityCard(a,[],{compact:true})}</li>`).join('')}</ol></details>` : ''}${r.files?.length ? `<details><summary>文件（${r.files.length}）</summary><p class="muted small">来源：执行会话 ${e(r.session_id || '尚未关联')} · 定义 v${e(r.definition_version || '—')}</p>${r.files.map(f=>fileURL(f.url) ? `<p><a href="${e(fileURL(f.url))}">${e(f.name || f.id)}</a></p>` : `<p>${e(f.name || f.id)}</p>`).join('')}</details>` : ''}${(r.files || []).map(f=>{ const preview=fileURL(f.preview_url); return /\.md$/i.test(f.name || '') && r.session_id && preview?.startsWith(`/api/research/sessions/${encodeURIComponent(r.session_id)}/files/`) && preview.split('?')[0].endsWith('/preview') ? `<details class="claw-inline-report"><summary>完整报告 · ${e(f.name)}</summary><p class="muted small">来源：执行会话 ${e(r.session_id)} · 定义 v${e(r.definition_version || '—')}</p><iframe title="${e(f.name)} 完整报告" src="${e(preview)}" sandbox="" referrerpolicy="no-referrer" loading="lazy"></iframe></details>` : ''; }).join('')}${r.session_id ? `<a class="button small" href="#/claw?session=${encodeURIComponent(r.session_id)}">查看执行会话与文件</a>` : '<p class="muted small">执行会话尚未关联。</p>'}</article>`).join('')}</section>`;
 }
 function renderDraftSchedule(schedule, values, id) {
   const kind = values.kind || schedule.kind;
@@ -85,9 +106,15 @@ function renderDraftSchedule(schedule, values, id) {
   return time + `<fieldset class="claw-weekdays"><legend>执行日</legend><input type="hidden" name="weekdays_present" value="1">${dayNames.map((name,index)=>`<label><input type="checkbox" name="weekdays" value="${index}" ${selected.includes(index)?'checked':''}>${name}</label>`).join('')}</fieldset>`;
 }
 export function renderAutomationDrafts(drafts = [], edits = new Map(), busy = false) {
+  const receipts=drafts.filter(d=>d.status === 'confirmed' && !d.enable_error).map(d=>{
+    const definition=d.confirmed_definition || {};const task=definition.research_task || {};
+    const version=Number.isInteger(definition.definition_version) && definition.definition_version > 0 ? `定义 v${definition.definition_version}` : '版本未知';
+    const enabled=d.confirmed_enabled === true ? '已保存 · 已启用' : d.confirmed_enabled === false ? '已保存 · 已停用' : '状态未记录';
+    return `<article class="claw-confirm-receipt" aria-label="日程确认回执"><header><h3>日程确认回执</h3><strong>${e(definition.name || '已确认日程')} · ${e(version)}</strong></header><p class="muted small">来源：产品日程保存记录 · 任务 ${e(d.automation_id || definition.id || '标识未提供')}</p><p>当时保存/启用状态：${enabled}。当前状态请查看 Agent 日程。</p><p class="muted small">确认时间：${e(d.confirmed_at ? dateLabel(d.confirmed_at,definition.schedule?.timezone || 'UTC') : '未记录')}</p>${task.description || definition.input_template ? `<p>${e(task.description || definition.input_template)}</p>` : '<p class="muted small">旧记录未保存确认定义快照。</p>'}${definition.schedule ? `<p>${e(clawScheduleLabel(definition.schedule))}</p>` : ''}<dl class="claw-confirm-scope"><div><dt>模型</dt><dd>${e(task.model_id ? `${task.model_provider || ''} / ${task.model_id}` : '未记录')}</dd></div><div><dt>输出</dt><dd>${e(task.output_requirements || (definition.output_formats || []).join('、') || '未记录')}</dd></div></dl><p class="small">创建或更新不会立即运行。${definition.name ? `如需试跑，请明确发送“先跑一次${e(definition.name)}”。` : '如需试跑，请在 Agent 日程选择已确认的任务。'}</p><a class="button small" href="#/claw?view=plans">查看 Agent 日程</a></article>`;
+  }).join('');
   const proposed = drafts.filter(d => d.status === 'proposed' || (d.status === 'confirmed' && d.enable_error));
-  if (!proposed.length) return '';
-  return `<section class="claw-automation-drafts" aria-label="待确认日程"><h2>待确认日程</h2>${proposed.map(d => {
+  if (!proposed.length) return receipts;
+  return `${receipts}<section class="claw-automation-drafts" aria-label="待确认日程"><h2>待确认日程</h2>${proposed.map(d => {
     const b = d.body || {}; const s = b.schedule || d.previous_definition?.schedule || {}; const values = edits.get(d.id) || {};
     const research = b.target_kind === 'research_task' || Boolean(b.research_task) || Boolean(d.previous_definition?.research_task);
     const update = d.operation === 'update' || d.action === 'update';

@@ -1,5 +1,6 @@
 """Research definitions, explicit confirmation and immutable run contracts."""
 
+import copy
 from datetime import UTC, datetime
 from types import SimpleNamespace
 
@@ -90,7 +91,7 @@ def test_enable_failure_retains_disabled_task_and_retry_does_not_duplicate(tmp_p
     body = AutomationCreate.model_validate(draft["body"])
     original = service.enable
 
-    def fail(_id):
+    def fail(_id, **_kwargs):
         raise StoreError("启用失败", "enable_failed", 503)
 
     monkeypatch.setattr(service, "enable", fail)
@@ -101,6 +102,64 @@ def test_enable_failure_retains_disabled_task_and_retry_does_not_duplicate(tmp_p
     monkeypatch.setattr(service, "enable", original)
     assert drafts.confirm(sid, draft["id"], body, enable=True)["enabled"] is True
     assert len(service.list()["items"]) == 1
+
+
+def test_enable_retry_rejects_changed_definition_version(tmp_path, monkeypatch):
+    service, drafts, sid = setup(tmp_path)
+    draft = drafts.prepare(sid, research_body())
+    body = AutomationCreate.model_validate(draft["body"])
+    original = service.enable
+
+    def fail(_id, **_kwargs):
+        raise StoreError("启用失败", "enable_failed", 503)
+
+    monkeypatch.setattr(service, "enable", fail)
+    with pytest.raises(StoreError):
+        drafts.confirm(sid, draft["id"], body, enable=True)
+    before = drafts.list(sid)["items"][0]
+    updated = service.update(
+        before["automation_id"], AutomationUpdate(expected_version=1, name="修改后的定义")
+    )
+    assert updated["definition_version"] == 2 and updated["enabled"] is False
+    monkeypatch.setattr(service, "enable", original)
+    with pytest.raises(StoreError) as failure:
+        drafts.confirm(sid, draft["id"], body, enable=True)
+    assert failure.value.code == "automation_version_conflict"
+    assert failure.value.status == 409
+    assert service.get(updated["id"])["enabled"] is False
+    after = drafts.list(sid)["items"][0]
+    assert after["confirmed_definition"] == before["confirmed_definition"]
+    assert after["confirmed_version"] == 1
+    assert after["confirmed_enabled"] is False
+    assert not after.get("enable_completed")
+    assert service.list_runs()["items"] == []
+
+
+@pytest.mark.parametrize("missing", ["confirmed_version", "confirmed_definition"])
+def test_enable_retry_missing_saved_receipt_fails_closed(tmp_path, monkeypatch, missing):
+    service, drafts, sid = setup(tmp_path)
+    draft = drafts.prepare(sid, research_body())
+    body = AutomationCreate.model_validate(draft["body"])
+    original = service.enable
+
+    def fail(_id, **_kwargs):
+        raise StoreError("启用失败", "enable_failed", 503)
+
+    monkeypatch.setattr(service, "enable", fail)
+    with pytest.raises(StoreError):
+        drafts.confirm(sid, draft["id"], body, enable=True)
+    row = drafts.store.data["automation_drafts"][draft["id"]]
+    row.pop(missing)
+    drafts.store.save()
+    monkeypatch.setattr(service, "enable", original)
+    with pytest.raises(StoreError) as failure:
+        drafts.confirm(sid, draft["id"], body, enable=True)
+    assert failure.value.code == "draft_confirmation_receipt_invalid"
+    assert failure.value.status == 409
+    assert service.get(row["automation_id"])["enabled"] is False
+    assert row["confirmed_enabled"] is False
+    assert not row.get("enable_completed")
+    assert missing not in row
 
 
 @pytest.mark.asyncio
@@ -537,3 +596,136 @@ async def test_projection_observer_error_cannot_change_saved_research_success(tm
     assert service.list_runs()["items"][0]["research_status"] == "completed"
     restored = Store(service.store.root)
     assert next(iter(restored.data["automation_runs"].values()))["research_status"] == "completed"
+
+
+def test_confirmed_draft_receipt_preserves_saved_definition_after_update_disable_and_delete(
+    tmp_path,
+):
+    service, drafts, sid = setup(tmp_path)
+    draft = drafts.prepare(sid, research_body())
+    body = AutomationCreate.model_validate(draft["body"])
+    saved = drafts.confirm(sid, draft["id"], body, enable=True)
+    receipt = drafts.list(sid)["items"][0]
+    assert receipt["confirmed_definition"]["definition_version"] == saved["definition_version"]
+    assert receipt["confirmed_definition"]["research_task"] == saved["research_task"]
+    assert receipt["confirmed_enabled"] is True
+    assert receipt["confirmed_next_run_at"] == saved["next_run_at"]
+    original = copy.deepcopy(receipt["confirmed_definition"])
+    service.update(saved["id"], AutomationUpdate(expected_version=1, name="changed task"))
+    service.disable(saved["id"])
+    assert drafts.confirm(sid, draft["id"], body, enable=True)["enabled"] is False
+    assert drafts.list(sid)["items"][0]["confirmed_definition"] == original
+    assert drafts.list(sid)["items"][0]["confirmed_enabled"] is True
+    receipt["confirmed_definition"]["name"] = "caller mutation"
+    assert drafts.list(sid)["items"][0]["confirmed_definition"]["name"] == saved["name"]
+    service.delete(saved["id"])
+    with pytest.raises(StoreError):
+        drafts.confirm(sid, draft["id"], body, enable=True)
+    assert drafts.list(sid)["items"][0]["confirmed_definition"] == original
+
+
+def test_update_receipt_uses_actual_result_and_duplicate_does_not_follow_later_version(tmp_path):
+    service, drafts, sid = setup(tmp_path)
+    saved = service.enable(service.create(research_body())["id"])
+    update = AutomationUpdate(expected_version=1, name="approved update")
+    draft = drafts.prepare_update(sid, saved["id"], update)
+    result = drafts.confirm_update(sid, draft["id"], update)
+    receipt = drafts.list(sid)["items"][0]
+    assert receipt["confirmed_definition"]["definition_version"] == result["definition_version"]
+    assert receipt["confirmed_definition"]["name"] == "approved update"
+    assert receipt["confirmed_enabled"] is True
+    original = copy.deepcopy(receipt["confirmed_definition"])
+    service.update(saved["id"], AutomationUpdate(expected_version=2, name="later version"))
+    drafts.confirm_update(sid, draft["id"], update)
+    assert drafts.list(sid)["items"][0]["confirmed_definition"] == original
+    service.delete(saved["id"])
+    with pytest.raises(StoreError):
+        drafts.confirm_update(sid, draft["id"], update)
+    assert drafts.list(sid)["items"][0]["confirmed_definition"] == original
+
+
+def test_enable_retry_updates_only_actual_enable_receipt_and_keeps_saved_definition(
+    tmp_path, monkeypatch
+):
+    service, drafts, sid = setup(tmp_path)
+    draft = drafts.prepare(sid, research_body())
+    body = AutomationCreate.model_validate(draft["body"])
+    original_enable = service.enable
+
+    def fail(_id, **_kwargs):
+        raise StoreError("failed", "enable_failed", 503)
+
+    monkeypatch.setattr(service, "enable", fail)
+    with pytest.raises(StoreError):
+        drafts.confirm(sid, draft["id"], body, enable=True)
+    before = drafts.list(sid)["items"][0]
+    assert before["confirmed_enabled"] is False
+    assert before["enable_error"] == "enable_failed"
+    monkeypatch.setattr(service, "enable", original_enable)
+    enabled = drafts.confirm(sid, draft["id"], body, enable=True)
+    after = drafts.list(sid)["items"][0]
+    assert after["confirmed_definition"] == before["confirmed_definition"]
+    assert after["confirmed_at"] == before["confirmed_at"]
+    assert after["confirmed_next_run_at"] == enabled["next_run_at"]
+    assert after["confirmed_enabled"] is enabled["enabled"] is True
+    assert "enable_error" not in after
+    assert len(service.list()["items"]) == 1
+
+
+@pytest.mark.parametrize("enabled", [False, True])
+@pytest.mark.parametrize("expected_version", [2, 0, True])
+def test_enable_compare_and_swap_precedes_already_enabled_shortcut(
+    tmp_path, enabled, expected_version
+):
+    service, _, _ = setup(tmp_path)
+    saved = service.create(research_body())
+    if enabled:
+        service.enable(saved["id"])
+    before = service.get(saved["id"])
+    with pytest.raises(StoreError) as failure:
+        service.enable(saved["id"], expected_version=expected_version)
+    assert failure.value.code == "automation_version_conflict"
+    assert failure.value.status == 409
+    assert service.get(saved["id"]) == before
+
+
+def test_enable_waiting_for_definition_lock_cannot_enable_intervening_update(tmp_path):
+    import threading
+    from concurrent.futures import ThreadPoolExecutor
+
+    service, _, _ = setup(tmp_path)
+    saved = service.create(research_body())
+    started = threading.Event()
+
+    def enable_old_definition():
+        started.set()
+        return service.enable(saved["id"], expected_version=1)
+
+    with ThreadPoolExecutor(max_workers=1) as worker:
+        with service.definition_lock:
+            pending = worker.submit(enable_old_definition)
+            assert started.wait(timeout=5)
+            updated = service.update(
+                saved["id"], AutomationUpdate(expected_version=1, name="锁内更新")
+            )
+            assert updated["definition_version"] == 2
+            assert updated["enabled"] is False
+        with pytest.raises(StoreError) as failure:
+            pending.result(timeout=5)
+    assert failure.value.code == "automation_version_conflict"
+    assert service.get(saved["id"]) == updated
+    assert service.list_runs()["items"] == []
+
+
+def test_legacy_confirmed_receipt_never_guesses_definition_from_current_task(tmp_path):
+    service, drafts, sid = setup(tmp_path)
+    draft = drafts.prepare(sid, research_body())
+    body = AutomationCreate.model_validate(draft["body"])
+    saved = drafts.confirm(sid, draft["id"], body, enable=True)
+    row = drafts.store.data["automation_drafts"][draft["id"]]
+    row.pop("confirmed_definition", None)
+    row.pop("confirmed_version", None)
+    service.update(saved["id"], AutomationUpdate(expected_version=1, name="new definition"))
+    drafts.confirm(sid, draft["id"], body, enable=True)
+    assert "confirmed_definition" not in drafts.list(sid)["items"][0]
+    assert "confirmed_version" not in drafts.list(sid)["items"][0]

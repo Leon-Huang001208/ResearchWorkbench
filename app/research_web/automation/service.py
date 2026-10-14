@@ -430,8 +430,19 @@ class AutomationService:
         return {"deleted": True, "id": row["id"]}
 
     @_definition_transaction
-    def enable(self, automation_id: str) -> dict:
+    def enable(self, automation_id: str, *, expected_version: int | None = None) -> dict:
         row = self._row(automation_id)
+        if expected_version is not None and (
+            type(expected_version) is not int
+            or expected_version < 1
+            or expected_version != row.get("definition_version")
+        ):
+            log.warning(
+                "automation_enable_version_conflict", automation_id_digest=_id_digest(automation_id)
+            )
+            raise AutomationError(
+                "日程定义版本已变化，请重新确认", "automation_version_conflict", 409
+            )
         if row["enabled"]:
             return self._public(row)
         self._validate_lock(row)

@@ -1,5 +1,7 @@
 # Research Web 接口清单
 
+Session 详情与原生 snapshot 增量投影工具活动 `seq`、`tool`、`arguments`、`result`，保留旧 `detail` 兼容；参数、结果和错误使用限长脱敏后的显示值。研究型 Automation 执行详情增加 `execution_context={run_id,automation_id,definition_version,trigger,definition_snapshot}`，来源是该执行 Run，不是当前可修改的任务。旧 Skill/Workflow 执行保持原契约。研究型执行续答不接受新的能力、方法、额外工具或不同输出格式；未确认快照失败关闭。没有增加另一套调度或研究接口。
+
 ## Claw 项目与日程草稿 API
 
 `claw_routes.py` 提供 `/claw/projects` 列表/创建与 `/{project_id}` 查询/改名/归档，`/sessions/{sid}/project` 显式移组，`/sessions/{sid}/file-references` 显式复制所选同项目文件。
@@ -9,6 +11,8 @@
 `POST /internal/data/automation-action` 受既有私有实例认证，operation 为 list/prepare_update/run；list 可按 automation_id 查任务及最近 20 条 Run 的持久状态、摘要和产物，避免把 queued 当完成；执行会话禁止管理和递归试跑。prepare_update 使用 AutomationUpdate、同任务 ID 与 expected_version，run 额外核验最新真实用户指令。
 `/sessions/{sid}/automation-drafts` 查询、`/{draft_id}/confirm?enable=true` 明确创建并启用 research_task，旧目标省略 enable 仍只保存；update 草稿确认接收 AutomationUpdate、`/{draft_id}/dismiss` 取消属于会话；确认可编辑名称、目标描述与日程，不可改换锁定能力或增加外发/MCP权限，且结果默认停用。
 新增请求拒绝额外字段；非法归属、归档、失效版本和已取消草稿给出明确错误。API Atlas 由机器清单同步生成。
+
+创建后的启用失败重试仅能启用确认回执绑定的定义版本。Automation 在同一定义事务锁内校验 `expected_version` 后才启用；任务已改版时返回 `automation_version_conflict`（409），保留任务停用和旧确认快照。旧草稿缺少有效 `confirmed_version` / `confirmed_definition` 回执时返回 `draft_confirmation_receipt_invalid`（409），不从当前任务猜测版本。已完成启用的草稿重放不会重新启用用户后来停用的任务；删除重放仍拒绝。
 
 ## FinGPT 会话扩展
 

@@ -3,6 +3,147 @@ import assert from 'node:assert/strict';
 import { renderClawSchedules, renderClawRunCards, renderClawCases, renderAutomationDrafts, automationDraftBody, renderClawConnections } from '../../app/research_web/ui/claw-workspace.mjs';
 import { createAPI } from '../../app/research_web/ui/core.mjs';
 import { renderSidebar, renderPrimaryRail } from '../../app/research_web/ui/shell.mjs';
+import { renderConversation } from '../../app/research_web/ui/views.mjs';
+import { renderComposer } from '../../app/research_web/ui/composer.mjs';
+
+test('homepage explicit unsent drafts persist synchronously across reload and remain mode isolated',async()=>{
+  const { createController }=await import('../../app/research_web/ui/core.mjs');
+  const data=new Map();const storage={getItem:key=>data.get(key) || null,setItem:(key,value)=>data.set(key,value)};
+  const api={detail:async id=>({id,mode:'claw',messages:[]})};
+  const first=createController({api,draftStorage:storage});await first.open({page:'fingpt',sessionId:null});first.setDraft('FinGPT 未发送草稿');await first.open({page:'claw',sessionId:null});first.setDraft('草稿保留验收：尚未发送');first.setTools(['不应跨刷新恢复的权限']);
+  assert.match(data.get('research-web:explicit-draft:v1:new:claw') || '',/草稿保留验收/);
+  const reload=createController({api,draftStorage:storage});await reload.open({page:'claw',sessionId:null});assert.equal(reload.state.draft,'草稿保留验收：尚未发送');assert.deepEqual(reload.state.toolIds,[]);
+  await reload.open({page:'fingpt',sessionId:null});assert.equal(reload.state.draft,'FinGPT 未发送草稿');
+  const direct=createController({api,draftStorage:storage});await direct.open({page:'fingpt',sessionId:null});assert.equal(direct.state.draft,'FinGPT 未发送草稿');
+});
+
+test('run and draft cards anchor only exact native result IDs and immutable task identity',async()=>{
+  const { positionClawAutomationCards }=await import('../../app/research_web/ui/claw-workspace.mjs');
+  const detail={mode:'claw',messages:[{seq:1,role:'user',text:'试跑一'},{seq:5,role:'user',text:'试跑二'},{seq:9,role:'assistant',text:'准备变更'}],activities:[{id:'c1',type:'tool',tool:'rwb_run_automation',seq:3,status:'completed',arguments:{automation_id:'a'},result:{id:'r1'}},{id:'c2',type:'tool',tool:'rwb_run_automation',seq:7,status:'completed',arguments:{automation_id:'a'},result:{id:'r2'}},{id:'c3',type:'tool',tool:'rwb_prepare_automation_update',seq:10,status:'completed',arguments:{automation_id:'a'},result:{id:'d'}}],automation_runs:[{id:'r1',automation_id:'a',result_text:'第一版报告'},{id:'r2',automation_id:'a',result_text:'第二版报告'}],automation_drafts:[{id:'d',status:'proposed',operation:'update',automation_id:'a',body:{expected_version:2,research_task:{description:'修改内容'}}}]};
+  const positioned=positionClawAutomationCards(detail);
+  assert.deepEqual(positioned.entries.map(entry=>entry.seq),[10,3,7]);assert.deepEqual(positioned.unpositionedRuns,[]);assert.deepEqual(positioned.unpositionedDrafts,[]);
+  const html=renderConversation(detail,new Map(),positioned.entries);
+  assert.ok(html.indexOf('试跑一')<html.indexOf('第一版报告'));assert.ok(html.indexOf('第一版报告')<html.indexOf('试跑二'));assert.ok(html.indexOf('试跑二')<html.indexOf('第二版报告'));assert.ok(html.indexOf('准备变更')<html.indexOf('确认更新同一任务'));
+  assert.equal((html.match(/data-claw-draft-form="d"/g)||[]).length,1);assert.equal((html.match(/第一版报告/g)||[]).length,1);
+  assert.doesNotMatch(renderConversation({...detail,mode:'fingpt'},new Map(),positioned.entries),/第一版报告|确认更新同一任务/);
+  for (const result of ['{"id":"r1"',null,{id:'other'}]) {
+    const unknown=positionClawAutomationCards({...detail,activities:[{...detail.activities[0],result}],automation_drafts:[],automation_runs:[detail.automation_runs[0]]});
+    assert.equal(unknown.entries.length,0);assert.equal(unknown.unpositionedRuns.length,1);
+  }
+  const wrongTask=positionClawAutomationCards({...detail,activities:[{...detail.activities[0],arguments:{automation_id:'wrong'}}],automation_drafts:[],automation_runs:[detail.automation_runs[0]]});assert.equal(wrongTask.entries.length,0);
+  for (const activities of [[{...detail.activities[0],seq:undefined}],[detail.activities[0],{...detail.activities[0],id:'replayed',seq:4}],[{...detail.activities[0],status:'failed'}]]) {
+    const ambiguous=positionClawAutomationCards({...detail,activities,automation_drafts:[],automation_runs:[detail.automation_runs[0]]});assert.equal(ambiguous.entries.length,0);assert.equal(ambiguous.unpositionedRuns.length,1);
+  }
+});
+test('conversation failures stay compact while their real status remains visible',()=>{
+  const html=renderConversation({mode:'claw',messages:[],activities:[{id:'x',seq:1,type:'tool',status:'failed',title:'research_run_script',arguments:{script:'很长脚本'},result:'很长返回',error:'实际错误'}]});
+  assert.match(html,/失败/);assert.match(html,/实际错误/);assert.doesNotMatch(html,/<details open>/);
+});
+
+test('accepted first message clears only its unchanged pre-create homepage draft',async()=>{
+  const { createController }=await import('../../app/research_web/ui/core.mjs');
+  let release;const hold=new Promise(resolve=>{release=resolve;});let accepted=true;
+  const data=new Map();const storage={getItem:key=>data.get(key) || null,setItem:(key,value)=>data.set(key,value)};
+  const api={create:async()=>({id:'created',mode:'claw'}),detail:async id=>({id,mode:'claw',messages:[]}),message:async()=>{await hold;return {accepted};}};
+  const control=createController({api,draftStorage:storage,logger(){}});
+  await control.open({page:'claw',sessionId:null});control.setDraft('首次问题');await control.create('claw');await control.open({page:'claw',sessionId:'created'});
+  const pending=control.send();await control.open({page:'claw',sessionId:null});assert.equal(control.state.draft,'首次问题');release();await pending;
+  assert.equal(control.state.draft,'');await control.open({page:'claw',sessionId:'created'});assert.equal(control.state.draft,'');
+  await control.open({page:'claw',sessionId:null});assert.equal(control.state.draft,'');
+  const reloaded=createController({api,draftStorage:storage});await reloaded.open({page:'claw',sessionId:null});assert.equal(reloaded.state.draft,'');
+});
+test('late first-message acceptance preserves a newer homepage draft and rejected sends keep original',async()=>{
+  const { createController }=await import('../../app/research_web/ui/core.mjs');
+  let release;let hold=new Promise(resolve=>{release=resolve;});let accepted=true;let sequence=0;
+  const control=createController({api:{create:async()=>({id:`created-${++sequence}`,mode:'claw'}),detail:async id=>({id,mode:'claw',messages:[]}),message:async()=>{await hold;return {accepted};}},logger(){}});
+  await control.open({page:'claw',sessionId:null});control.setDraft('首次问题');await control.create('claw');await control.open({page:'claw',sessionId:'created-1'});
+  const pending=control.send();await control.open({page:'claw',sessionId:null});control.setDraft('后来准备的新问题');release();await pending;
+  assert.equal(control.state.draft,'后来准备的新问题');await control.open({page:'claw',sessionId:'created-1'});await control.open({page:'claw',sessionId:null});assert.equal(control.state.draft,'后来准备的新问题');
+  accepted=false;hold=Promise.resolve();await control.create('claw');await control.open({page:'claw',sessionId:'created-2'});await control.send();await control.open({page:'claw',sessionId:null});assert.equal(control.state.draft,'后来准备的新问题');
+});
+
+test('copying a rendered reply writes only its actual Markdown and reports clipboard errors',async()=>{
+  const { copyResearchText }=await import('../../app/research_web/ui/views.mjs');
+  const writes=[],events=[];
+  await copyResearchText('## 真正回复',{clipboard:{writeText:async value=>writes.push(value)},logger:event=>events.push(event)});
+  assert.deepEqual(writes,['## 真正回复']);assert.deepEqual(events,['research_text_copied']);
+  await assert.rejects(copyResearchText('回复',{clipboard:{writeText:async()=>{throw new Error('denied');}},logger:event=>events.push(event)}),/无法复制/);
+  await assert.rejects(copyResearchText('',{clipboard:{writeText:async()=>writes.push('bad')}}),/没有可复制/);
+  assert.equal(writes.length,1);
+  assert.match(renderConversation({id:'s',mode:'claw',messages:[{role:'assistant',text:'内容'}]}),/data-copy-message="0"/);
+});
+
+test('Claw interleaves actual tools by call sequence and excludes native question duplication',()=>{
+  const detail={mode:'claw',messages:[{seq:1,role:'user',text:'问题'},{seq:2,role:'assistant',text:'先查询资料'},{seq:6,role:'assistant',text:'结论'}],activities:[{id:'a',seq:3,type:'tool',title:'web_search',tool:'web_search',status:'completed',arguments:{query:'真实查询'},result:'检索结果',duration_ms:1200},{id:'q',seq:4,type:'tool',title:'ask_user_question',status:'completed'},{id:'bad',seq:5,type:'tool',title:'datahub',status:'failed',error:'<denied>'}],question_history:[{id:'q',seq:4,items:[{id:'x',question:'需要哪类资料？'}],answers:[{id:'x',selected:['公开资料']}]}]};
+  const html=renderConversation(detail);
+  assert.ok(html.indexOf('先查询资料')<html.indexOf('web_search'));
+  assert.ok(html.indexOf('web_search')<html.indexOf('需要哪类资料？'));
+  assert.ok(html.indexOf('需要哪类资料？')<html.indexOf('datahub'));
+  assert.ok(html.indexOf('datahub')<html.indexOf('结论'));
+  assert.match(html,/参数/);assert.match(html,/真实查询/);assert.match(html,/检索结果/);assert.match(html,/1\.2 秒/);
+  assert.match(html,/工具 2 项 · 成功 1 · 失败 1/);assert.match(html,/&lt;denied&gt;/);
+  assert.doesNotMatch(html,/ask_user_question|<denied>/);
+  assert.equal(renderConversation(detail),html);
+  assert.doesNotMatch(renderConversation({...detail,mode:'fingpt'}),/真实查询|工具 2 项/);
+});
+test('pending native questions occupy their actual call position and never duplicate the tool',()=>{
+  const html=renderConversation({mode:'claw',messages:[{seq:1,role:'assistant',text:'执行说明'},{seq:8,role:'assistant',text:'后来解释'}],activities:[{id:'q',seq:3,type:'tool',title:'ask_user_question',status:'running'}],questions:[{id:'q',seq:3,items:[{id:'scope',question:'待确认范围'}]},{id:'old',items:[{id:'old',question:'旧提问'}]}]});
+  assert.ok(html.indexOf('执行说明')<html.indexOf('待确认范围'));
+  assert.ok(html.indexOf('待确认范围')<html.indexOf('后来解释'));
+  assert.ok(html.indexOf('后来解释')<html.indexOf('旧提问'));
+  assert.doesNotMatch(html,/ask_user_question/);assert.equal((html.match(/data-question-form="q"/g)||[]).length,1);
+});
+test('execution followup payload ignores restored selections and binds exact immutable scope',async()=>{
+  const { createController }=await import('../../app/research_web/ui/core.mjs');
+  const writes=[];let confirmations=0;
+  const detail={id:'exec',mode:'claw',messages:[],status:'idle',execution_context:{definition_snapshot:{output_formats:['md'],research_task:{approved_tools:['web_search'],approved_data_sources:['web']}}}};
+  const control=createController({api:{detail:async()=>detail,message:async(id,body)=>{writes.push(body);return {accepted:true};}},confirmTabbit:async()=>{confirmations++;return true;}});
+  await control.open({page:'claw',sessionId:'exec'});
+  control.setCapability({id:'extra',enabled:true,version:1});control.setTools(['unapproved']);control.setMethods(['extra-method']);control.setFormats([]);
+  control.state.tabbitTabs=[{tab_id:'tab',instance_id:'browser'}];control.addAttachments([{id:'unapproved-file'}]);control.setDraft('补充说明');await control.send();
+  assert.deepEqual(writes,[{text:'补充说明',tool_ids:['web_search'],expected_formats:['md']}]);assert.equal(confirmations,0);
+  detail.execution_context.definition_snapshot.research_task.approved_data_sources=['uploads'];
+  control.addAttachments([{id:'approved-file'}]);control.setDraft('参考附件');await control.send();
+  assert.deepEqual(writes[1],{text:'参考附件',tool_ids:['web_search'],expected_formats:['md'],attachment_ids:['approved-file']});
+  delete detail.execution_context.definition_snapshot.output_formats;
+  control.setDraft('缺失快照不能发送');await control.send();
+  assert.equal(writes.length,2);assert.equal(control.state.draft,'缺失快照不能发送');assert.match(control.state.error,/缺少批准范围/);
+});
+test('run reports use safe Markdown and shared actual tool details with provenance',()=>{
+  const html=renderClawRunCards([{id:'r',automation_id:'a',definition_version:2,session_id:'exec',trigger:'manual',result_text:'## 实际报告\n\n|项目|结果|\n|---|---|\n|A|B|\n\n<script>alert(1)</script>',activities:[{id:'t',type:'tool',title:'search',status:'failed',arguments:{q:'参数值'},result:'返回值',error:'失败原因',duration_ms:34}],files:[{id:'f',name:'报告.md',url:'/api/research/sessions/exec/files/f/download'}]}]);
+  assert.match(html,/<h2>实际报告<\/h2>/);assert.match(html,/<table>/);assert.doesNotMatch(html,/<script>/);
+  assert.match(html,/参数值/);assert.match(html,/返回值/);assert.match(html,/失败原因/);assert.match(html,/执行会话 exec/);
+});
+test('source run previews complete Markdown delivery safely without copying report into source inputs',()=>{
+  const preview='/api/research/sessions/exec/files/f/preview';
+  const html=renderClawRunCards([{id:'r',session_id:'exec',definition_version:2,result_text:'简短回复',files:[{name:'完整.md',preview_url:preview,url:'/api/research/sessions/exec/files/f/download'},{name:'report.html',preview_url:preview},{name:'unsafe.md',preview_url:'javascript:alert(1)'},{name:'outside.md',preview_url:'/api/research/sessions/exec/files/%2e%2e/preview'},{name:'foreign.md',preview_url:'/api/research/sessions/other/files/f/preview'},{name:'download.md',preview_url:'/api/research/sessions/exec/files/f/download'}]}]);
+  assert.match(html,/完整报告 · 完整.md/);assert.match(html,/来源：执行会话 exec · 定义 v2/);
+  assert.match(html,/src="\/api\/research\/sessions\/exec\/files\/f\/preview" sandbox="" referrerpolicy="no-referrer" loading="lazy"/);
+  assert.equal((html.match(/<iframe/g)||[]).length,1);assert.doesNotMatch(html,/src="javascript:|src="[^\"]*%2e|完整报告 · report.html|data-reference/);
+});
+test('confirmed draft receipts replay actual saved versions read-only without claiming current enable state',async()=>{
+  const { positionClawAutomationCards }=await import('../../app/research_web/ui/claw-workspace.mjs');
+  const saved={id:'a',name:'已保存任务',definition_version:2,schedule:{kind:'weekly',weekdays:[0,1,2,3,4],hour:15,minute:30,timezone:'Asia/Shanghai'},research_task:{description:'已保存研究',model_id:'actual-model'},output_formats:['md']};
+  const draft={id:'d',operation:'update',automation_id:'a',status:'confirmed',confirmed_at:'2026-10-14T01:00:00Z',confirmed_enabled:true,confirmed_definition:saved,body:{name:'旧草稿名称',research_task:{description:'旧草稿内容'}}};
+  const html=renderAutomationDrafts([draft],new Map([['d',{name:'未提交编辑'}]]));
+  assert.match(html,/日程确认回执/);assert.match(html,/已保存任务/);assert.match(html,/定义 v2/);assert.match(html,/当时保存\/启用状态：已保存 · 已启用/);assert.match(html,/当前状态请查看 Agent 日程/);assert.match(html,/actual-model/);assert.match(html,/确认时间/);assert.match(html,/先跑一次已保存任务/);
+  assert.doesNotMatch(html,/<form|<input|<textarea|data-run-automation|旧草稿名称|未提交编辑/);
+  const positions=positionClawAutomationCards({activities:[{seq:4,status:'completed',tool:'rwb_prepare_automation_update',arguments:{automation_id:'a'},result:{id:'d'}}],automation_drafts:[draft]});assert.equal(positions.entries.length,1);assert.equal(positions.entries[0].seq,4);
+  const legacy=renderAutomationDrafts([{...draft,confirmed_definition:undefined,confirmed_enabled:undefined}]);assert.match(legacy,/版本未知/);assert.match(legacy,/状态未记录/);assert.doesNotMatch(legacy,/定义 v2|已启用/);
+  const escaped=renderAutomationDrafts([{...draft,confirmed_definition:{...saved,name:'<script>',research_task:{description:'<svg>',model_id:'<img>'}}}]);assert.doesNotMatch(escaped,/<script>|<svg>|<img>/);
+  const retry=renderAutomationDrafts([{...draft,enable_error:'unavailable'}]);assert.match(retry,/重试启用/);assert.doesNotMatch(retry,/日程确认回执/);
+});
+test('execution composer displays immutable snapshot and keeps followup separate from grants',()=>{
+  const detail={mode:'claw',execution_context:{automation_id:'a',definition_version:2,definition_snapshot:{name:'点评',output_formats:['md'],research_task:{model_id:'locked-model',model_provider:'official',approved_data_sources:['datahub'],approved_tools:['web_search'],output_requirements:'Markdown 报告'}}}};
+  const html=renderComposer({page:'claw',detail,draft:'补充问题',expectedFormats:null,models:[],model:'unrelated'});
+  assert.match(html,/locked-model/);assert.match(html,/定义 v2/);assert.match(html,/datahub/);assert.match(html,/web_search/);assert.match(html,/MD/);
+  assert.doesNotMatch(html,/自动 · 无需文件|id="model-select"|data-format=|data-method-id|data-slash-search/);
+  assert.match(html,/data-upload disabled/);assert.doesNotMatch(html,/placeholder="[^\"]*@|@ 实时标签页/);
+  assert.match(html,/补充问题/);assert.match(html,/追问不会修改日程定义/);
+  const missing=renderComposer({page:'claw',detail:{execution_context:{definition_snapshot:{}}}});
+  assert.match(missing,/未提供范围快照/);assert.match(missing,/未提供工具快照/);assert.match(missing,/未提供格式快照/);
+  assert.doesNotMatch(missing,/无额外数据|无额外工具|自动 · 无需文件/);
+});
 
 test('schedule table distinguishes real manual and scheduled runs and all weekdays', () => {
   const html = renderClawSchedules([{ id:'a', name:'点评', enabled:true, schedule:{kind:'weekly',weekdays:[0,1,2,3,4],hour:15,minute:30,timezone:'Asia/Shanghai'}, target:{kind:'research_task',version:2}, next_run_at:null }], [{id:'r',automation_id:'a',trigger:'manual',research_status:'completed',session_id:'s',created_at:1}]);

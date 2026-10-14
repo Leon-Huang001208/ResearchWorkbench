@@ -1,5 +1,7 @@
 # Research Web 能力与平台证据
 
+2026-10-14 Claw 回答及工具范围修复在 macOS 独立 Native 候选验收；RuntimeMode 共享祖先竞态有确定性正负回归和独立安全复核。新提交的 macOS CI、Windows/Linux 原生产品验证分别记录，不能沿用上一候选的 CI 或将模拟平台参数当作对应真机证据。
+
 2026-10-12 G0/G1 在 Mac mini（Apple M6、24GiB、macOS27.0.1、arm64）完成本地 Docker
 开发与候选基座实测：固定DSH完整构建、容器内回归、实际健康、stop/up、开发重建/退休后
 源码与数据保留，以及固定候选不受开发源码变化影响。具体镜像、命令、哈希与失败重试记录

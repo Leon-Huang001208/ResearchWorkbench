@@ -3019,7 +3019,7 @@ Imports:
 
 Classes:
 - `AutomationDrafts`
-  - methods: __init__, _session, list, _get, _no_external_permissions, prepare, confirm, _enable, prepare_update, confirm_update, dismiss
+  - methods: __init__, _session, list, _get, _no_external_permissions, prepare, _confirmation_receipt, confirm, _enable, prepare_update, confirm_update, dismiss
 
 
 ## `app/research_web/automation/models.py`
@@ -5877,9 +5877,14 @@ Module docstring:
 Imports:
 - `json`
 - `logging`
+- `re`
 
 Functions:
 - `content_text`
+- `_activity_value`
+  - Bound public tool evidence and recursively remove credential fields.
+- `activity_value`
+- `activity_detail`
 - `project`
 
 
@@ -6414,6 +6419,7 @@ Functions:
 - `read_pdf`
 - `safe_cell`
 - `write_deliverables`
+  - Write selected formats; omitted selection preserves the legacy four files.
 
 
 ## `app/research_web/resources/research_report.py`
@@ -6605,6 +6611,7 @@ Imports:
 - `claw_projects`
 - `client`
 - `contextlib`
+- `copy`
 - `core.observability`
 - `credential_backend`
 - `datahub`
@@ -6618,8 +6625,7 @@ Imports:
 - `json`
 - `local_integrations`
 - `mcp_registry`
-- `mcp_runtime.authorization`
-- ... 23 more
+- ... 24 more
 
 Classes:
 - `_SessionOwnedMCPRuntime`
@@ -6633,6 +6639,10 @@ Functions:
   - Resolve the manager-provided loopback origin for this Web process.
 - `_persistent_mcp_key`
   - Load one fixed-size Host key without ever persisting it in the data root.
+- `automation_execution_context`
+  - Return only the exact execution Run snapshot, never the mutable task.
+- `automation_followup_scope`
+  - A continuation keeps the original approved tools and delivery contract.
 
 
 ## `app/research_web/service_diagnostics.py`

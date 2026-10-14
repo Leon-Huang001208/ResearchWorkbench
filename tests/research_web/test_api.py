@@ -1789,6 +1789,7 @@ async def test_research_task_selects_model_without_changing_global_application(t
     assert service.default_model["model"] == "deepseek-flash"
     assert service.store.data["model_application"] == application
     scope = service.native_admission(result["id"], tool_name="rwb_run_automation")
+    assert scope["visible_tools"] == ["todo_write", "research_run_script"]
     assert not scope["admitted"]
     assert {"code": "automation_tool_not_approved"} in scope["missing"]
 
@@ -2259,3 +2260,48 @@ def test_history_read_keeps_unknown_child_mode_without_guessing_execution(api, r
     child = detail.json()["subagents"][0]
     assert child["status"] == ("running" if running else "unavailable")
     assert "模式未知" in child["error"]
+
+
+@pytest.mark.asyncio
+async def test_legacy_automation_detail_keeps_existing_context_contract(tmp_path):
+    service = ResearchService(NativeFixture(), Store(tmp_path))
+    legacy = await service.create("claw", purpose="automation")
+    detail = await service.detail(legacy["id"])
+    assert "execution_context" not in detail
+
+
+@pytest.mark.asyncio
+async def test_service_error_override_is_redacted_in_public_detail(tmp_path):
+    service = ResearchService(NativeFixture(), Store(tmp_path))
+    session = await service.create("claw")
+    service.errors[session["id"]] = (
+        'Authorization: Basic c3VwZXJzZWNyZXQ=\nCookie: session=supersecret; csrf=othersecret\npassword="two word secret" credentials=supersecret'
+    )
+    detail = await service.detail(session["id"])
+    for secret in ("c3VwZXJzZWNyZXQ=", "supersecret", "othersecret", "two word secret"):
+        assert secret not in detail["error"]
+
+
+def test_named_human_trial_prompt_directs_run_without_repeated_confirmation(api):
+    client, native, _service = api
+    session = client.post("/api/research/sessions", json={"mode": "claw"}).json()
+    text = "先跑一次每日收盘点评·全页面验收"
+    response = client.post(
+        f"/api/research/sessions/{session['id']}/messages",
+        headers={"Idempotency-Key": "named-human-trial"},
+        json={"text": text},
+    )
+    assert response.status_code == 202, response.text
+    prompt = next(
+        payload for method, payload in reversed(native.calls) if method == "session.prompt"
+    )["content"][0]["text"]
+    assert text in prompt
+    assert "目标唯一且任务已保存时直接调用 rwb_run_automation" in prompt
+    assert "不重复要求确认" in prompt
+    assert "仅在目标任务不明确或主动询问用户是否要试跑时" in prompt
+    assert "是否试跑「任务名称」（任务 完整任务ID，定义 v当前版本）？" in prompt
+    assert "含混回复必须调用 ask_user_question 提供可选项" in prompt
+    assert "不能仅在正文列选项或要求用户复制格式" in prompt
+    assert "不能只把规范问题写在聊天正文" in prompt
+    assert "不得先问是否允许提问或是否要我提出问题" in prompt
+    assert "需要澄清或邀请试跑就直接调用 ask_user_question" in prompt

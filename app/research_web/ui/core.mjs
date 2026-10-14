@@ -324,8 +324,8 @@ export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSo
 
 export function createController({ api, draftStorage, logger = safeLog, makeID = () => globalThis.crypto.randomUUID(), onNavigate = () => {}, confirmTabbit = async () => globalThis.confirm?.('所选标签页将临时移入代理任务，标签分组可能改变。继续发送？') !== false }) {
   const state = { route: { page: 'fingpt', sessionId: null }, detail: null, draft: '', attachments: [], tabbitTabs: [], skillId: '', capability: null, toolIds: [], methodIds: [], sourceScope: ['datahub', 'web', 'uploads'], researchDepth: 'instant', expectedFormats: null, error: '', streamError: '', loading: false, busy: false };
-  const listeners = new Set(); const drafts = new Map(); const pending = new Map();
-  let generation = 0; let snapshotRevision = 0; let closeStream = () => {};
+  const listeners = new Set(); const drafts = new Map(); const pending = new Map(); const createdDraftOrigins = new Map();
+  let generation = 0; let snapshotRevision = 0; let closeStream = () => {}; let hasOpened = false;
   const emit = () => listeners.forEach((listener) => listener(state));
   const draftKey = () => state.route.sessionId || `new:${state.route.page}`;
   const draftState = () => ({ draft: state.draft, attachments: state.attachments, tabbitTabs: state.tabbitTabs, skillId: state.skillId, capability: state.capability, toolIds: state.toolIds, methodIds: state.methodIds, sourceScope: state.sourceScope, researchDepth: state.researchDepth, expectedFormats: state.expectedFormats });
@@ -349,7 +349,7 @@ export function createController({ api, draftStorage, logger = safeLog, makeID =
     return result;
   };
   const persistDraft = (id, value) => {
-    if (!draftStorage || id.startsWith('new:')) return;
+    if (!draftStorage) return;
     try {
       if (!validDraft(value)) throw new Error('draft_invalid');
       const serialized = JSON.stringify({ draft: value.draft, attachments: value.attachments.map(draftAttachment) });
@@ -360,7 +360,7 @@ export function createController({ api, draftStorage, logger = safeLog, makeID =
   const putDraft = (id, value) => { drafts.set(id, value); persistDraft(id, value); };
   const readDraft = id => {
     if (drafts.has(id)) return drafts.get(id);
-    if (!draftStorage || id.startsWith('new:')) return undefined;
+    if (!draftStorage) return undefined;
     try {
       const raw = draftStorage.getItem(storageKey(id));
       if (!raw) return undefined;
@@ -383,7 +383,7 @@ export function createController({ api, draftStorage, logger = safeLog, makeID =
     catch (error) { if (ticket === generation) { fail(error); emit(); } }
   }
   async function open(route) {
-    saveDraft(); const ticket = ++generation; closeStream(); closeStream = () => {};
+    if (hasOpened) saveDraft(); hasOpened = true; const ticket = ++generation; closeStream(); closeStream = () => {};
     state.route = route; state.detail = null; state.error = ''; state.streamError = ''; state.loading = Boolean(route.sessionId); state.busy = false;
     Object.assign(state, { sourceScope: ["datahub", "web", "uploads"], researchDepth: "instant", expectedFormats: null, capability: null, toolIds: [], methodIds: [], tabbitTabs: [] }, readDraft(draftKey()) || { draft: '', attachments: [], tabbitTabs: [], skillId: '', methodIds: [] }); emit();
     if (!route.sessionId) return;
@@ -401,12 +401,20 @@ export function createController({ api, draftStorage, logger = safeLog, makeID =
   }
   async function send() {
     if (state.busy || !state.detail || !state.draft.trim()) return;
-    if (state.tabbitTabs.length) {
+    const execution = state.detail.execution_context;
+    if (!execution && state.tabbitTabs.length) {
       try { if (!await confirmTabbit()) return; }
       catch (error) { fail(error); emit(); return; }
     }
     const id = state.detail.id; const ticket = generation; const text = state.draft;
-    const body = { text: text.trim(), ...(state.capability ? { capability_id: state.capability.id, capability_version: state.capability.version } : state.skillId ? { skill_id: state.skillId } : {}), ...(state.toolIds.length ? { tool_ids: state.toolIds } : {}), ...(state.methodIds.length ? { method_ids: state.methodIds } : {}), ...(state.expectedFormats !== null ? { expected_formats: state.expectedFormats } : {}), ...(state.attachments.length ? { attachment_ids: state.attachments.map((file) => file.id) } : {}), ...(state.tabbitTabs.length ? { tabbit_tabs: state.tabbitTabs.map(({ tab_id, instance_id }) => ({ tab_id, instance_id })), tabbit_live_confirmed: true } : {}) };
+    let body;
+    if (execution) {
+      const definition = execution.definition_snapshot;
+      const task = definition?.research_task;
+      if (!Array.isArray(definition?.output_formats) || !Array.isArray(task?.approved_tools) || !Array.isArray(task?.approved_data_sources)) { fail(new Error('日程执行定义缺少批准范围，无法发送追问；请刷新会话。')); emit(); return; }
+      body = {text:text.trim(),tool_ids:[...task.approved_tools],expected_formats:[...definition.output_formats],...(task.approved_data_sources.includes('uploads') && state.attachments.length ? {attachment_ids:state.attachments.map(file=>file.id)} : {})};
+      logger('execution_followup_scope_locked');
+    } else body = { text: text.trim(), ...(state.capability ? { capability_id: state.capability.id, capability_version: state.capability.version } : state.skillId ? { skill_id: state.skillId } : {}), ...(state.toolIds.length ? { tool_ids: state.toolIds } : {}), ...(state.methodIds.length ? { method_ids: state.methodIds } : {}), ...(state.expectedFormats !== null ? { expected_formats: state.expectedFormats } : {}), ...(state.attachments.length ? { attachment_ids: state.attachments.map((file) => file.id) } : {}), ...(state.tabbitTabs.length ? { tabbit_tabs: state.tabbitTabs.map(({ tab_id, instance_id }) => ({ tab_id, instance_id })), tabbit_live_confirmed: true } : {}) };
     const signature = JSON.stringify(body); const previous = pending.get(id);
     const attempt = previous?.signature === signature ? previous : { signature, key: makeID() };
     pending.set(id, attempt); state.busy = true; state.error = ''; emit();
@@ -414,6 +422,16 @@ export function createController({ api, draftStorage, logger = safeLog, makeID =
       const response = await api.message(id, body, attempt.key);
       if (response.accepted !== true) throw new Error('运行时未确认接收，请检查会话后重试。');
       pending.delete(id);
+      const origin = createdDraftOrigins.get(id);
+      createdDraftOrigins.delete(id);
+      if (origin && origin.draft === text) {
+        const homepage = readDraft(origin.key);
+        if (homepage?.draft === origin.draft) {
+          putDraft(origin.key,{...homepage,draft:''});
+          if (draftKey() === origin.key && state.draft === origin.draft) { state.draft = ''; emit(); }
+          logger('accepted_initial_draft_cleared');
+        }
+      }
       if (ticket === generation) {
         if (state.draft === text) state.draft = '';
         state.attachments = []; state.tabbitTabs = []; saveDraft(); await refresh();
@@ -467,9 +485,10 @@ export function createController({ api, draftStorage, logger = safeLog, makeID =
     create: async (mode, workspaceId) => {
       const ticket = generation;
       const previousDraft = { ...draftState(), attachments: [] };
+      const origin = !state.route.sessionId ? {key:draftKey(),draft:previousDraft.draft} : null;
       const result = await action(() => api.create({ mode, research_depth: state.researchDepth, source_scope: state.sourceScope, ...(workspaceId ? { workspace_id: workspaceId } : {}) }), { refreshAfter: false });
       if (ticket !== generation) return null;
-      if (result?.id) { drafts.set(result.id, previousDraft); onNavigate(sessionHash(result)); }
+      if (result?.id) { drafts.set(result.id, previousDraft); if (origin) createdDraftOrigins.set(result.id,origin); onNavigate(sessionHash(result)); }
       return result;
     },
     createCapabilitySession: async (kind, goal) => {

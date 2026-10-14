@@ -1,5 +1,7 @@
 # Mac mini Docker 开发与独立部署
 
+2026-10-14 Claw 门禁复现了 RuntimeMode 共享祖先目录受无关同级活动影响的误拒绝。初始身份比较与既有后置契约对齐，私有 install 父目录、记录所有权及 no-follow 校验保持严格；相关 RuntimeMode/Docker 控制器测试通过。该条是代码与本机回归证据，不代表新 Docker 镜像、容器真机或 Linux dispatch 已验收。
+
 G0/G1 的入口是 `rwb-docker`（亦可用 `./rwb docker`）。管理员在 mini 的受控终端执行，
 宿主只使用 POSIX shell 与 Docker CLI/Engine/buildx；Python、Node、Git、编译器及测试工具
 在镜像中。当前仅交付 Mac Docker Desktop arm64 的基座，实际验收见任务报告。

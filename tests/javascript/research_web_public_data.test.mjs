@@ -272,3 +272,23 @@ test('business tool schemas conform to pinned DSH',{skip:!process.env.DSH_SOURCE
   assert.deepEqual(validateJsonSchemaValue(f.tool.parameters,{dataset:'nav',code:'000001',start_date:'2025-01-01',end_date:'2025-12-31'}),[]);
   assert.deepEqual(validateJsonSchemaValue(f.tool.parameters,{dataset:'holdings',code:'000001',year:2025}),[]);
 });
+
+test('index schema states exact provider semantics and does not claim live availability', async()=>{
+  const f=await fixture();
+  const tool=f.tools.get('datahub_get_index_data');
+  assert.match(tool.parameters.properties.dataset.description,/quotes/);
+  assert.match(tool.parameters.properties.date.description,/历史/);
+  assert.doesNotMatch(tool.description,/目录可调用/);
+});
+
+test('manifest keeps query identity and bounded business error code',async()=>{
+  const f=await fixture(); const original=globalThis.fetch;
+  try {
+    globalThis.fetch=async()=>reply({...dataset,query:{capability:'fund_data'},provider_query:{code:'000001'},coverage:{asset_type:'fund'}});
+    const result=await f.tool.execute({dataset:'nav',code:'000001'},f.exec);
+    const manifest=JSON.parse(result.manifest_json);
+    assert.equal(manifest.provider_query.code,'000001'); assert.equal(manifest.coverage.asset_type,'fund');
+    globalThis.fetch=async()=>new Response(JSON.stringify({error:{code:'dataset_invalid',message:'secret'}}),{status:400,headers:{'content-type':'application/json'}});
+    await assert.rejects(f.tool.execute({dataset:'nav',code:'000001'},f.exec),/dataset_invalid/);
+  } finally {globalThis.fetch=original;}
+});

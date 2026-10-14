@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "unchanged",
-  "summary": "Claw 对话日程与侧栏重做，保留主线历史子模式与Docker凭据修复。",
-  "reason": "根 README 已覆盖产品入口、唯一 DSH、Automation和双运行时凭据边界；版本化研究任务、确认卡、布局及历史读取更新在模块/API/UI文档，无新增安装依赖或命令。"
+  "summary": "Claw 全页面调查、原生工具时间线、不可变执行快照与会话工具目录修复。",
+  "reason": "根 README 已涵盖 DSH 与 Automation 入口；本次只增加现有详情投影、工具目录收窄与回答渲染，模块/API/UI/安全文档已同步；没有新增安装依赖、公开命令或服务拓扑。"
 }

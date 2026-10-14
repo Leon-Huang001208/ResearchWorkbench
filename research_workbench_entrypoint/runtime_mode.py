@@ -14,7 +14,7 @@ from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Literal, NoReturn
+from typing import Any, Literal, NoReturn, cast
 from uuid import uuid4
 
 RuntimeMode = Literal["native", "docker"]
@@ -183,7 +183,11 @@ def _pin_posix_parents(path: Path, *, node_only: bool = False) -> Iterator[int]:
             before = os.stat(name, dir_fd=parent, follow_symlinks=False)
             descriptor = os.open(name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=parent)
             stack.callback(os.close, descriptor)
-            if not stat.S_ISDIR(before.st_mode) or _identity(os.fstat(descriptor)) != _identity(
+            # Apply the same traversal contract before and after pinning: shared
+            # ancestors may gain unrelated siblings, but the immediate private
+            # parent retains its full metadata check for rename-and-restore.
+            comparison = _identity if not node_only and component == path.parent else _node_identity
+            if not stat.S_ISDIR(before.st_mode) or comparison(os.fstat(descriptor)) != comparison(
                 before
             ):
                 _fail("changed")
@@ -325,12 +329,12 @@ def _validate(payload: object) -> RuntimeModeRecord:
         _fail("value")
     try:
         # Validate UTC wire syntax only; the resulting naive datetime never escapes.
-        datetime.strptime(value["updated_at"], "%Y-%m-%dT%H:%M:%S.%fZ")  # noqa: DTZ007
+        datetime.strptime(value["updated_at"], "%Y-%m-%dT%H:%M:%S.%fZ")
     except ValueError:
         _fail("value")
     return RuntimeModeRecord(
         schema_version=_SCHEMA_VERSION,
-        mode=value["mode"],
+        mode=cast(RuntimeMode, value["mode"]),
         installation_id=value["installation_id"],
         updated_at=value["updated_at"],
     )
@@ -607,9 +611,9 @@ class RuntimeModeStore:
             self._log_failure("read", error)
             raise
         except (OSError, TypeError, ValueError):
-            error = RuntimeModeError("runtime_mode_io")
-            self._log_failure("read", error)
-            raise error from None
+            io_error = RuntimeModeError("runtime_mode_io")
+            self._log_failure("read", io_error)
+            raise io_error from None
         log.debug("runtime_mode operation=read code=ok")
         return record
 
@@ -625,9 +629,9 @@ class RuntimeModeStore:
             self._log_failure("write", error)
             raise
         except (OSError, TypeError, ValueError):
-            error = RuntimeModeError("runtime_mode_io")
-            self._log_failure("write", error)
-            raise error from None
+            io_error = RuntimeModeError("runtime_mode_io")
+            self._log_failure("write", io_error)
+            raise io_error from None
 
     def _write_locked(
         self, mode: RuntimeMode, *, expected: RuntimeModeRecord | None
@@ -665,8 +669,8 @@ class RuntimeModeStore:
             self._log_failure("write", error)
             raise
         except (OSError, TypeError, ValueError):
-            error = RuntimeModeError("runtime_mode_io")
-            self._log_failure("write", error)
-            raise error from None
+            io_error = RuntimeModeError("runtime_mode_io")
+            self._log_failure("write", io_error)
+            raise io_error from None
         log.debug("runtime_mode operation=write code=ok")
         return persisted

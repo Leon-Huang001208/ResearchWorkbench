@@ -8,7 +8,7 @@ from core.observability import get_logger
 
 from ..store import StoreError
 from .models import AutomationCreate, AutomationUpdate
-from .service import automation_feature_enabled
+from .service import AutomationService, automation_feature_enabled
 
 log = get_logger(__name__)
 
@@ -82,6 +82,17 @@ class AutomationDrafts:
         log.info("automation_draft_prepared", session_id=sid)
         return copy.deepcopy(row)
 
+    @staticmethod
+    def _confirmation_receipt(automation):
+        """Receipt of the actual saved definition, independent of future task edits."""
+        return {
+            "confirmed_definition": AutomationService._definition_snapshot(automation),
+            "confirmed_version": automation.get("definition_version"),
+            "confirmed_enabled": automation["enabled"],
+            "confirmed_next_run_at": automation.get("next_run_at"),
+            "confirmed_at": time.time(),
+        }
+
     def confirm(self, sid, draft_id, body: AutomationCreate, *, enable=False):
         row = self._get(sid, draft_id)
         if row.get("operation", "create") != "create":
@@ -119,6 +130,7 @@ class AutomationDrafts:
             automation_id=automation["id"],
             body=body.model_dump(mode="json"),
             enable_requested=enable,
+            **self._confirmation_receipt(automation),
         )
         try:
             self.store.save()
@@ -132,7 +144,22 @@ class AutomationDrafts:
 
     def _enable(self, row, automation):
         try:
-            result = self.research.automations.enable(automation["id"])
+            version = row.get("confirmed_version")
+            definition = row.get("confirmed_definition")
+            if (
+                type(version) is not int
+                or version < 1
+                or not isinstance(definition, dict)
+                or definition.get("id") != automation["id"]
+                or type(definition.get("definition_version")) is not int
+                or definition["definition_version"] != version
+            ):
+                raise StoreError(
+                    "启用确认缺少有效的已保存版本，请重新确认日程定义",
+                    "draft_confirmation_receipt_invalid",
+                    409,
+                )
+            result = self.research.automations.enable(automation["id"], expected_version=version)
         except StoreError as exc:
             row["enable_error"] = exc.code
             self.store.save()
@@ -140,6 +167,9 @@ class AutomationDrafts:
             raise
         row.pop("enable_error", None)
         row["enable_completed"] = True
+        row["confirmed_enabled"] = result["enabled"]
+        row["confirmed_next_run_at"] = result.get("next_run_at")
+        row["enabled_at"] = time.time()
         self.store.save()
         return result
 
@@ -191,7 +221,7 @@ class AutomationDrafts:
             row["automation_id"], body, mutation_key=f"claw:{sid}:{draft_id}"
         )
         previous = copy.deepcopy(row)
-        row.update(status="confirmed", confirmed_version=result["definition_version"])
+        row.update(status="confirmed", **self._confirmation_receipt(result))
         try:
             self.store.save()
         except StoreError:

@@ -1,5 +1,9 @@
 # 研究协议、执行状态与恢复
 
+研究型 Automation 执行会话在原生 `agent/pre-step` 使用固定 DSH 的会话上下文 `tools.restrict({allow})`，目录范围来自认证的会话级 `visible_tools`，只包含任务批准工具与 todo 记录工具。目录核验失败拒绝当前 step，执行期全局 veto 仍保留；普通会话不套用研究任务工具清单，不改变全局目录。通用 persona 不强制派出两个子 Agent，委派须实际获准且可用。
+
+执行详情的 `execution_context` 来自唯一匹配 Run 的不可变定义快照；研究任务续答保持原批准工具、模型及输出格式。工具活动保留真实 call 序号、名称、独立 arguments/result 和实际错误；显示值递归脱敏并有共享大小、节点和深度上限，历史未定位记录不补造序号。DataHub 摘要保留 query/provider_query/coverage；已注册不等于来源当前可调用，错误仅返回受限业务代码。Wind 指数 quotes 是当前快照，不接受历史 date，不对错误参数静默改写。
+
 固定 DSH 的 `session/list` 通过 `parentSessionId` 暴露父子归属；SDK Session Header 内部仍叫 `parentSession`。
 Workbench 子 Agent 投影只使用已核实的 API 字段，继续交叉验证父目录、`origin=subagent` 和严格布尔 running；缺失、外来父会话、非子任务来源或未知活动仍失败关闭，不以空目录释放活动保护。
 模型设置的空闲检查采用内部 `activityOnly=true`：历史 `mode=unknown` 只可在父归属、subagent 来源和布尔运行状态全部验证后提供活动事实。父会话列表与详情也可读取核实后的活动；unknown 子会话只显示受限提示，不读取历史或推断执行模式；不推断历史执行地址，不删改记录，也不把未知活动当作已结束。

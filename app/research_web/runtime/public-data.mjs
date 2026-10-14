@@ -11,7 +11,7 @@ const BUSINESS = {
   datahub_get_trading_calendar: ['trading_calendar','读取交易日历',{market:{type:'string'},start_date:{type:'string'},end_date:{type:'string'}},['market','start_date','end_date']],
   datahub_get_market_bars: ['market_bars','读取历史行情与复权口径',{asset:{type:'string'},asset_type:{type:'string',enum:['stock','index','etf']},start_date:{type:'string'},end_date:{type:'string'},frequency:{type:'string'},adjustment:{type:'string'}},['asset','start_date','end_date']],
   datahub_get_market_snapshot: ['market_snapshot','读取当前或最近行情快照',{assets:{type:'array',items:{type:'string'}},asset_type:{type:'string',enum:['stock','index','etf']},fields:{type:'array',items:{type:'string'}}},['assets']],
-  datahub_get_index_data: ['index_data','读取指数行情、成分或估值',{index:{type:'string'},dataset:{type:'string'},date:{type:'string'}},['index','dataset']],
+  datahub_get_index_data: ['index_data','读取指数行情、成分或估值',{index:{type:'string'},dataset:{type:'string',description:'来源支持的精确 dataset；Wind 当前指数快照用 quotes（不是 quote），成分/估值须按来源契约核验'},date:{type:'string',description:'历史时点日期；Wind quotes 只支持当前快照，不接受 date，禁止当作历史收盘'}},['index','dataset']],
   datahub_get_financials: ['financials','读取财务报表与标准化指标',{asset:{type:'string'},statements:{type:'array',items:{type:'string'}},periods:{type:'array',items:{type:'string'}}},['asset']],
   datahub_get_market_activity: ['market_activity','读取资金与交易事件',{asset:{type:'string'},dataset:{type:'string'},start_date:{type:'string'},end_date:{type:'string'}},['asset','dataset']],
   datahub_get_factor_macro: ['factor_macro','读取因子、技术指标和宏观序列',{series:{type:'array',items:{type:'string'}},assets:{type:'array',items:{type:'string'}},start_date:{type:'string'},end_date:{type:'string'}},['series']],
@@ -143,14 +143,16 @@ export async function executeDocumentTool(ctx, exec, config, args) {
 }
 
 async function boundedJson(response, signal) {
-  if (!response.ok || response.redirected) {await response.body?.cancel();throw Error(`DataHub request failed (HTTP ${response.status})`);}
+  if (response.redirected) {await response.body?.cancel();throw Error('DataHub redirect denied');}
   if (!response.headers.get('content-type')?.includes('application/json') || !response.body || Number(response.headers.get('content-length')) > MAX_BYTES) {await response.body?.cancel();throw Error('DataHub response type or size is invalid');}
   const reader=response.body.getReader();const chunks=[];let size=0;
   try {
     while(true) {signal.throwIfAborted();const {done,value}=await reader.read();if(done)break;size+=value.byteLength;if(size>MAX_BYTES)throw Error('DataHub response size exceeds limit');chunks.push(value);}
   } finally {await reader.cancel();}
   signal.throwIfAborted();
-  return JSON.parse(Buffer.concat(chunks).toString('utf8'));
+  const value=JSON.parse(Buffer.concat(chunks).toString('utf8'));
+  if (!response.ok) { const code=value?.error?.code ?? value?.detail?.code ?? value?.code; throw Error(typeof code==='string' && /^[a-z][a-z0-9_]{0,95}$/.test(code) ? `DataHub request failed: ${code} (HTTP ${response.status})` : `DataHub request failed (HTTP ${response.status})`); }
+  return value;
 }
 
 /** Propose only over the existing authenticated instance-private channel. */
@@ -183,7 +185,7 @@ export async function executeAutomationAction(ctx, exec, config, args) {
 
 function smallResult(value) {
   if (!value || typeof value.dataset_id !== 'string' || typeof value.source !== 'string' || !/^[a-z0-9_]{1,64}$/.test(value.source) || !['complete','snapshot','empty','partial','failed'].includes(value.status) || !Array.isArray(value.files) || !Array.isArray(value.sample) || value.sample.length > 3 || !Number.isSafeInteger(value.row_count)) throw Error('DataHub response schema is invalid');
-  const keys=['dataset_id','source','provider','capability','attempted_sources','source_url','schema_version','status','row_count','provider_total','pages_fetched','pagination_complete','requested_range','actual_range','retrieved_at','as_of','cache_hit','fields','missing','limitations','manifest_sha256'];
+  const keys=['dataset_id','source','provider','capability','attempted_sources','source_url','schema_version','status','row_count','provider_total','pages_fetched','pagination_complete','requested_range','actual_range','retrieved_at','as_of','cache_hit','fields','missing','limitations','manifest_sha256','query','provider_query','coverage'];
   return {dataset_id:value.dataset_id,source:value.source,status:value.status,
     manifest_json:JSON.stringify(Object.fromEntries(keys.filter(key=>key in value).map(key=>[key,value[key]]))),
     files_json:JSON.stringify(value.files.map(({name,path,sha256})=>({name,path,sha256}))),sample_json:JSON.stringify(value.sample)};
@@ -227,7 +229,7 @@ export function apply(ctx, config) {
     const common={source:{type:'string',description:'目录来源 ID；默认 auto'},allow_fallback:{type:'boolean'},refresh:{type:'boolean'}};
     ctx.tools.register({
       name:toolName,
-      description:`${description}。当前工具列表仅包含启动时 DataHub 目录可调用的能力；由 DataHub 选源、校验并保存会话隔离快照。`,
+      description:`${description}。此能力已注册；来源是否已配置、授权、适配及当前可用由 DataHub 每次请求核验，目录存在不等于可调用。由 DataHub 选源、校验并保存会话隔离快照。`,
       parameters:{type:'object',properties:{...properties,...common},required,additionalProperties:false},
       output:{schema:{type:'object',properties:Object.fromEntries(outputKeys.map(key=>[key,{type:'string'}])),required:outputKeys,additionalProperties:false},render(_args,value){return [{type:'text',text:JSON.stringify(value)}];}},
       async execute(args,exec) {

@@ -1,5 +1,7 @@
 # Research Web 能力包与版本
 
+直接研究型日程的工具白名单同步限制 DSH 模型可见目录和执行准入；不修改全局能力目录，不自动加载 Skill 或授予子 Agent。旧 Skill/Workflow Run 不套用新研究任务续答契约；选择能力仍只是准备普通研究草稿。
+
 本轮 Claw 日程采用直接 `research_task`（schema_version=1），锁定研究描述、模型、输出要求、资料与工具白名单。用户确认创建并启用后才生效，创建不立即运行；旧 Skill/Workflow/报告任务保持兼容。修改以同一 ID、expected_version 和变更确认卡生成新定义版本，Run 保留不可变 definition_snapshot；手动试跑与 schedule 触发分别记录，不改下一次计划时间。能力与连接管理统一在能力中心，Claw 仅选择能力，Agent 日程使用独立表格。DSH 仍是唯一研究引擎，Automation 仍是唯一调度层。
 
 

@@ -238,6 +238,10 @@ def test_native_tool_result_error_updates_matching_call():
         {
             "id": "c",
             "type": "tool",
+            "seq": 1,
+            "tool": "research_run_script",
+            "arguments": {},
+            "result": "permission denied",
             "title": "research_run_script",
             "status": "failed",
             "detail": "permission denied",
@@ -683,3 +687,187 @@ def test_native_question_history_requires_matching_successful_result():
         == []
     )
     assert project([result(answers)])["question_history"] == []
+
+
+def test_tool_projection_keeps_order_arguments_and_redacts_nested_secrets():
+    rows = [
+        event(
+            7,
+            "tool/result",
+            {
+                "message": {
+                    "role": "tool",
+                    "name": "web_search",
+                    "source": {"callId": "x"},
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": '{"nested":{"authorization":"secret","answer":42}}',
+                        }
+                    ],
+                }
+            },
+        ),
+        event(
+            9,
+            "tool/call",
+            {
+                "callId": "x",
+                "name": "web_search",
+                "arguments": '{"query":"test","nested":{"api_key":"secret"}}',
+            },
+        ),
+    ]
+    activity = project(rows)["activities"][0]
+    assert activity["seq"] == 7
+    assert activity["tool"] == "web_search"
+    assert activity["status"] == "completed"
+    assert activity["arguments"]["nested"]["api_key"] == "[REDACTED]"
+    assert activity["result"]["nested"]["authorization"] == "[REDACTED]"
+    assert activity["result"]["nested"]["answer"] == 42
+    assert "secret" not in json.dumps(activity)
+
+
+def test_automation_execution_snapshot_does_not_follow_updated_task():
+    from app.research_web.service import automation_execution_context
+
+    snapshot = {"definition_version": 1, "output_formats": ["md"]}
+    run = {
+        "id": "r1",
+        "session_id": "s1",
+        "automation_id": "a1",
+        "trigger": "manual",
+        "definition_version": 1,
+        "definition_snapshot": snapshot,
+    }
+    result = automation_execution_context({"r1": run}, "s1")
+    snapshot["output_formats"].append("pdf")
+    assert result["definition_snapshot"]["output_formats"] == ["md"]
+    assert result["definition_version"] == 1
+    assert automation_execution_context({"r1": run}, "other") is None
+
+
+def test_automation_followup_scope_cannot_expand_or_change_outputs():
+    from app.research_web.service import automation_followup_scope
+    from app.research_web.store import StoreError
+
+    scope = {"approved_tools": ["research_run_script"]}
+    context = {"definition_snapshot": {"output_formats": ["md"]}}
+    assert automation_followup_scope(scope, context, None, None, None, (), (), None) == (
+        ["research_run_script"],
+        ["md"],
+    )
+    for changes in [
+        ("skill", None, None, (), (), None),
+        (None, None, None, ("web_search",), (), None),
+        (None, None, None, (), (), ["pdf"]),
+        (None, None, None, (), ("method",), None),
+    ]:
+        with pytest.raises(StoreError, match="批准范围"):
+            automation_followup_scope(scope, context, *changes)
+
+
+def test_activity_evidence_is_total_bounded_and_redacts_text_and_url_credentials():
+    from app.research_web.projection import activity_value
+
+    assert activity_value('{"api_key":"' + "x" * 40000 + '"}') == "[TRUNCATED]"
+    bounded = activity_value({"rows": ["x" * 16000] * 100})
+    assert len(json.dumps(bounded)) < 34000
+    value = activity_value(
+        "GET https://user:password@host/path?token=abc api_key=xyz Bearer secret"
+    )
+    assert all(secret not in value for secret in ("password", "abc", "xyz", "secret"))
+    rows = [
+        event(
+            1,
+            "tool/result",
+            {
+                "error": {"message": "password=secret"},
+                "message": {"source": {"callId": "x"}, "content": []},
+            },
+        )
+    ]
+    assert "secret" not in json.dumps(project(rows)["activities"])
+
+
+def test_activity_redacts_entire_auth_headers_and_quoted_credentials():
+    from app.research_web.projection import activity_value
+
+    examples = [
+        "Authorization: Basic c3VwZXJzZWNyZXQ=",
+        "Cookie: session=supersecret; csrf=othersecret",
+        'password="two word secret"',
+        "client_secret='long secret value'",
+        "credentials=supersecret",
+    ]
+    result = json.dumps(activity_value({"error": examples}))
+    for secret in (
+        "c3VwZXJzZWNyZXQ=",
+        "supersecret",
+        "othersecret",
+        "two word secret",
+        "long secret value",
+    ):
+        assert secret not in result
+
+
+def test_question_history_preserves_numeric_and_json_like_answer_strings():
+    items = [{"id": "q1", "question": "选择日期", "options": ["null", "2026"]}]
+    answers = [{"id": "q1", "selected": ["null"], "custom": "2026"}]
+    rows = [
+        event(
+            1,
+            "tool/call",
+            {
+                "callId": "qcall",
+                "name": "ask_user_question",
+                "arguments": json.dumps({"questions": items}),
+            },
+        ),
+        event(
+            2,
+            "tool/result",
+            {
+                "message": {
+                    "role": "tool",
+                    "name": "ask_user_question",
+                    "source": {"callId": "qcall"},
+                    "content": [{"type": "text", "text": json.dumps({"answers": answers})}],
+                }
+            },
+        ),
+    ]
+    result = project(rows)
+    assert result["question_history"][0]["answers"] == answers
+    assert result["activities"][0]["arguments"]["questions"] == items
+    from app.research_web.projection import activity_value
+
+    assert activity_value({"index": "123456", "flag": "true"}) == {
+        "index": "123456",
+        "flag": "true",
+    }
+
+
+def test_long_quoted_credentials_are_redacted_before_display_truncation():
+    from app.research_web.projection import activity_value
+
+    secret = "first " + ("rest_of_secret " * 1300)
+    for suffix in ('"', ""):
+        value = activity_value('password="' + secret + suffix)
+        assert "rest_of_secret" not in value
+        assert "first" not in value
+
+
+def test_activity_evidence_byte_limit_handles_cjk_and_emoji_without_broken_characters():
+    from app.research_web.projection import activity_value
+
+    for value in ("中" * 11000, {"rows": ["中文测试" * 1200] * 40}, {"rows": ["🔬📊" * 1500] * 40}):
+        result = activity_value(value)
+        serialized = json.dumps(result, ensure_ascii=False).encode("utf-8")
+        assert len(serialized) <= 32768
+        assert "\ufffd" not in serialized.decode("utf-8")
+    value = activity_value({"label": "中文🔬", "index": "123456", "answer": "2026"})
+    assert value == {"label": "中文🔬", "index": "123456", "answer": "2026"}
+    bounded = activity_value({"label": "中" * 7000})
+    assert isinstance(bounded["label"], str)
+    assert len(bounded["label"].encode("utf-8")) <= 16000

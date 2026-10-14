@@ -1,5 +1,7 @@
 # Research Web DataHub
 
+原生桥的 manifest 摘要保留 query/provider_query/coverage，便于核对标的、日期与统计范围；行数及哈希一致不能证明单一证券等于市场汇总。工具注册描述明确来源须逐次验证。Wind index_data 的 quotes 是当前快照，不接受历史 date；错误不静默改写，桥接仅返回受限业务代码。
+
 Claw 日程研究在独立 DSH 会话锁定 approved_data_sources 与 approved_tools，仍由原 DataHub/原生准入校验。资料未就绪时保留缺口，定时定义不证明金融来源可调用；试跑文件也不能把合成数据作为真实市场数据。
 
 Claw 项目只聚合成员会话的 DataHub 快照摘要与来源链接；文件引用独立复制已显式选择的附件，不扩大新会话 DataHub 准入或自动复制源会话快照。日程草稿沿既有私有控制认证，不触发数据查询。

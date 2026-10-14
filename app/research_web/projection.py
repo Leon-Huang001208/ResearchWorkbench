@@ -2,6 +2,7 @@
 
 import json
 import logging
+import re
 
 log = logging.getLogger(__name__)
 
@@ -16,6 +17,71 @@ def content_text(content) -> str:
         for block in content
         if isinstance(block, dict) and block.get("type") == "text"
     )
+
+
+def _activity_value(value, depth=0, budget=None):
+    """Bound public tool evidence and recursively remove credential fields."""
+    budget = [32000] if budget is None else budget
+    budget[0] -= 1
+    if depth > 8 or budget[0] <= 0:
+        return "[TRUNCATED]"
+    if isinstance(value, str):
+        if len(value) > 32000:
+            return "[TRUNCATED]"
+        encoded = value.encode("utf-8", errors="replace")
+        if len(encoded) > 32000:
+            return "[TRUNCATED]"
+        value = encoded.decode("utf-8")
+        if depth == 0 and value.lstrip().startswith(("{", "[")):
+            try:
+                parsed = json.loads(value)
+            except (ValueError, TypeError):
+                pass
+            else:
+                return _activity_value(parsed, depth + 1, budget)
+        text = re.sub(
+            r"(?im)\b((?:proxy-)?authorization|(?:set-)?cookie)\s*:[^\r\n]*",
+            r"\1: [REDACTED]",
+            value,
+        )
+        text = re.sub(r"(?i)((?:bearer|basic)\s+)[^\s]+", r"\1[REDACTED]", text)
+        text = re.sub(r"(https?://)[^/\s:@]+:[^/\s@]+@", r"\1[REDACTED]@", text)
+        text = re.sub(
+            r"(?i)((?:api[_-]?key|authorization|cookie|(?:client[_-]?)?secret|password|token|credentials?)[\"\']?\s*[:=]\s*)(?:\"(?:\\.|[^\"\\])*(?:\"|$)|'(?:\\.|[^'\\])*(?:'|$)|[^\s,;&]+)",
+            r"\1[REDACTED]",
+            text,
+        )
+        encoded = text.encode("utf-8")[: min(16000, max(0, budget[0]))]
+        budget[0] -= len(encoded)
+        return encoded.decode("utf-8", errors="ignore")
+    if isinstance(value, dict):
+        return {
+            str(key)[:128]
+            .encode("utf-8", errors="replace")
+            .decode("utf-8"): (
+                "[REDACTED]"
+                if re.search(
+                    r"(?i)(secret|password|token|api[_-]?key|authorization|cookie|credential)",
+                    str(key),
+                )
+                else _activity_value(item, depth + 1, budget)
+            )
+            for key, item in list(value.items())[:100]
+        }
+    if isinstance(value, list):
+        return [_activity_value(item, depth + 1, budget) for item in value[:100]]
+    return value if value is None or isinstance(value, (bool, int, float)) else "[UNAVAILABLE]"
+
+
+def activity_value(value):
+    result = _activity_value(value)
+    if len(json.dumps(result, ensure_ascii=False).encode("utf-8")) > 32768:
+        return "[TRUNCATED]"
+    return result
+
+
+def activity_detail(value):
+    return value if isinstance(value, str) else json.dumps(value, ensure_ascii=False)
 
 
 def project(entries: list[dict]) -> dict:
@@ -123,13 +189,14 @@ def project(entries: list[dict]) -> dict:
         elif kind == "tool/call":
             aid = data["callId"]
             tool_started[aid] = timestamp
-            activities[aid] = {
-                "id": aid,
-                "type": "tool",
-                "title": data["name"],
-                "status": "running",
-                "detail": data.get("arguments", ""),
-            }
+            row = activities.setdefault(aid, {"id": aid, "type": "tool", "seq": seq})
+            row.update(
+                title=data["name"],
+                tool=data["name"],
+                arguments=activity_value(data.get("arguments", "")),
+            )
+            if "result" not in row:
+                row.update(status="running", detail=activity_detail(row["arguments"]))
             if data["name"] == "ask_user_question":
                 try:
                     args = data.get("arguments")
@@ -156,7 +223,14 @@ def project(entries: list[dict]) -> dict:
             )
             aid = message.get("source", {}).get("callId") or block.get("toolCallId", f"tool-{seq}")
             row = activities.setdefault(
-                aid, {"id": aid, "type": "tool", "title": message.get("name", "工具结果")}
+                aid,
+                {
+                    "id": aid,
+                    "type": "tool",
+                    "seq": seq,
+                    "title": message.get("name", "工具结果"),
+                    "tool": message.get("name", "工具结果"),
+                },
             )
             row.update(
                 status=(
@@ -170,6 +244,10 @@ def project(entries: list[dict]) -> dict:
                     else block.get("content")
                 ),
             )
+            if data.get("error"):
+                row["error"] = activity_value(data["error"])
+            row["result"] = activity_value(row["detail"])
+            row["detail"] = activity_detail(row["result"])
             started = tool_started.get(aid)
             if aid in question_calls and row["status"] == "completed":
                 try:
@@ -258,7 +336,7 @@ def project(entries: list[dict]) -> dict:
     if error:
         if "no API key" in error:
             error = "DeepSeek 尚未授权：请在设置中填写 API Key，然后发送下一条消息继续。"
-        result["error"] = error
+        result["error"] = activity_detail(activity_value(error))
     if title:
         result["title"] = title
     if duration_ms:

@@ -1,6 +1,6 @@
 import { createAPI, createController, prepareClawExampleDraft, parseRoute, legacyRouteTarget, isRunning, safeLog, collectQuestionAnswers, reconcileSessionSummary, waitForDataProbe, waitForIntegrationBatch, waitForLocalIntegrationProbe, waitForLocalIntegrationVerification } from './core.mjs';
 import { escapeHTML as e } from './markdown.mjs';
-import { badge, empty, renderConversation, renderDeleteConfirm, renderHistory, renderPurgeConfirm, renderRename, renderDocumentEditor, documentTargets, documentEditValue, documentCreationPayload } from './views.mjs';
+import { badge, empty, renderConversation, copyResearchText, renderDeleteConfirm, renderHistory, renderPurgeConfirm, renderRename, renderDocumentEditor, documentTargets, documentEditValue, documentCreationPayload } from './views.mjs';
 import { icon } from './icons.mjs';
 import { researchRecipes, renderResearchRecipes } from './research-report.mjs';
 import { renderComposer, renderQuickSkills, removeTabbitMentionQuery, slashKey, skillMatches, tabbitKey, tabbitMentionQuery } from './composer.mjs';
@@ -9,7 +9,7 @@ import { focusSidebarControl, renderResearchAttention, renderClawWorkspaceCanvas
 import { createCapabilityController, refreshProbedSourceDetail } from './capability-controller.mjs';
 import { capabilityTabKey, reportWorkflowEligibility, renderCapabilityDetail, renderToolDetail, renderCreationArtifacts, creationArtifacts } from './capabilities.mjs';
 import { capabilityWorkspaceKindKey, renderCapabilityPreviewDialog, renderCapabilityWorkspace } from './capability-workspace.mjs';
-import { renderClawNavigation, renderClawProject, renderAutomationDrafts, automationDraftBody, renderClawConnections, clawNavigationCurrent, renderClawSchedules, renderClawRunCards, renderClawCases, clawCases, captureAutomationDraftEdits } from './claw-workspace.mjs';
+import { renderClawNavigation, renderClawProject, renderAutomationDrafts, automationDraftBody, renderClawConnections, clawNavigationCurrent, renderClawSchedules, renderClawRunCards, positionClawAutomationCards, renderClawCases, clawCases, captureAutomationDraftEdits } from './claw-workspace.mjs';
 import { mcpEnvironmentPayload, mcpInstallSelection, mcpMarketplaceTabKey, renderMCPServerDialog } from './mcp-marketplace.mjs';
 import { renderDataCapabilityDetail, renderDataSourceDetail } from './data-catalog.mjs';
 import { renderCapabilityEditor, renderCreationForm, renderCopyForm, readEditor, moveStepWithFeedback, newWorkflowStep } from './capability-editor.mjs';
@@ -224,11 +224,12 @@ function researchPage() {
   if (!state.detail) return landing();
   const detail = state.detail;
   const workspaceView = detail.mode === 'claw' && clawSidebarView === 'workspace';
-  const canvas = workspaceView ? renderClawWorkspaceCanvas({ detail, selectedPreview, busy: state.busy }) : `<div id="messages" class="messages" aria-label="会话消息">${renderConversation(detail, questionDrafts)}</div>`;
+  const cards = detail.mode === 'claw' ? positionClawAutomationCards(detail,clawDraftEdits,clawWorkspace.busy) : {entries:[],unpositionedDrafts:[],unpositionedRuns:[]};
+  const canvas = workspaceView ? renderClawWorkspaceCanvas({ detail, selectedPreview, busy: state.busy }) : `<div id="messages" class="messages" aria-label="会话消息">${renderConversation(detail, questionDrafts, cards.entries)}</div>`;
   const sourceLabels = { required: '能力必需', 'user-selected': '用户选择', recommended: '能力推荐', 'model-supplemented': '模型补选' };
   const methodSummary = (detail.methods || []).length ? `<p class="small muted" data-method-adoption>采用方法：${detail.methods.map(item => `${e(item.title || item.method_id)} · ${e(sourceLabels[item.source] || item.source)}`).join('；')}</p>` : '';
   const methodWarning = detail.method_trace_incomplete ? notice('部分推荐或模型补选方法缺少调用证据；本次结果已降级标记 method_trace_incomplete。', 'warning') : '';
-  return `<header class="page-header"><div class="session-title"><div class="eyebrow">${detail.mode === 'claw' ? 'CLAW · AGENT RESEARCH' : 'FINGPT · RESEARCH SESSION'}</div><h1>${e(detail.title || '未命名会话')}</h1><div class="session-meta">${badge(detail.status)}${detail.model ? `<span>${e(detail.model)}</span>` : ''}</div></div><div class="button-row">${detail.mode !== 'claw' ? `<button class="button small" data-upgrade ${state.busy || isRunning(detail.status) ? 'disabled' : ''}>升级为 Claw ↗</button>` : ''}<button class="button small context-toggle" data-toggle-context aria-expanded="${window.matchMedia('(max-width: 1050px)').matches ? contextOpen : !contextCollapsed}">活动与文件</button></div></header>${notice(state.streamError, 'warning')}${renderCreationArtifacts(detail, state.busy || isRunning(detail.status))}${detail.capability ? `<p class="small muted">所选能力版本：${e(detail.capability.id)} · v${e(detail.capability.version)}（选择记录，不代表每个工具已执行）</p>` : ''}${methodSummary}${methodWarning}${renderResearchAttention(detail)}${canvas}${detail.mode === 'claw' ? renderAutomationDrafts(detail.automation_drafts || [], clawDraftEdits, clawWorkspace.busy) + (detail.automation_runs?.length ? renderClawRunCards(detail.automation_runs) : '') : ''}<div class="composer-dock">${composer()}</div>`;
+  return `<header class="page-header"><div class="session-title"><div class="eyebrow">${detail.mode === 'claw' ? 'CLAW · AGENT RESEARCH' : 'FINGPT · RESEARCH SESSION'}</div><h1>${e(detail.title || '未命名会话')}</h1><div class="session-meta">${badge(detail.status)}${detail.model ? `<span>${e(detail.model)}</span>` : ''}</div></div><div class="button-row">${detail.mode !== 'claw' ? `<button class="button small" data-upgrade ${state.busy || isRunning(detail.status) ? 'disabled' : ''}>升级为 Claw ↗</button>` : ''}<button class="button small context-toggle" data-toggle-context aria-expanded="${window.matchMedia('(max-width: 1050px)').matches ? contextOpen : !contextCollapsed}">活动与文件</button></div></header>${notice(state.streamError, 'warning')}${renderCreationArtifacts(detail, state.busy || isRunning(detail.status))}${detail.capability ? `<p class="small muted">所选能力版本：${e(detail.capability.id)} · v${e(detail.capability.version)}（选择记录，不代表每个工具已执行）</p>` : ''}${methodSummary}${methodWarning}${renderResearchAttention(detail)}${canvas}${detail.mode === 'claw' ? workspaceView ? renderAutomationDrafts(detail.automation_drafts || [],clawDraftEdits,clawWorkspace.busy) + (detail.automation_runs?.length ? renderClawRunCards(detail.automation_runs) : '') : (cards.unpositionedDrafts.length || cards.unpositionedRuns.length ? '<p class="muted small">以下日程记录缺少唯一原生调用位置，未推断其回答顺序。</p>' : '') + renderAutomationDrafts(cards.unpositionedDrafts,clawDraftEdits,clawWorkspace.busy) + (cards.unpositionedRuns.length ? renderClawRunCards(cards.unpositionedRuns) : '') : ''}<div class="composer-dock">${composer()}</div>`;
 }
 
 function settingsPage() {
@@ -1854,6 +1855,16 @@ root.addEventListener('submit', async (event) => {
 });
 
 root.addEventListener('click', async (event) => {
+  const copy = event.target.closest?.('[data-copy-message]');
+  if (copy && Object.hasOwn(copy.dataset,'copyMessage')) {
+    const index = Number(copy.dataset.copyMessage);
+    const detail = state.detail;
+    if (copy.dataset.copySession !== detail?.id || !Number.isInteger(index) || index < 0 || detail.messages?.[index]?.role !== 'assistant') return;
+    const ticket = pageGeneration;
+    try { await copyResearchText(detail.messages[index].text); if (ticket === pageGeneration && copy.isConnected) copy.textContent = '已复制'; }
+    catch (error) { if (ticket === pageGeneration) { state.error = error.message; render(); } }
+    return;
+  }
   if (event.target.closest?.('.intel-page')) {
     const action = event.target.closest?.('[data-intel-action]')?.dataset.intelAction;
     if (await intelController.handle(event)) {

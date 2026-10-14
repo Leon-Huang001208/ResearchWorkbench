@@ -121,6 +121,13 @@ const taskSchema = { type: 'object', properties: {
   approved_tools:{type:'array',maxItems:64,items:{type:'string'}},
 },required:['description','model_provider','model_id','output_requirements','approved_data_sources','approved_tools'],additionalProperties:false};
 
+function requireMatchingResearchTemplate(ctx, body) {
+  if (body.research_task && Object.hasOwn(body, 'input_template') && body.input_template !== body.research_task.description) {
+    ctx.logger.warn('automation_research_description_conflict');
+    throw Error('research_task_description_conflict: omit input_template or match research_task.description exactly');
+  }
+}
+
 export function apply(ctx, config, spawnProcess = spawn, admissionClient = defaultAdmission, draftClient = defaultDraftClient, actionClient = defaultActionClient) {
   for (const key of ['python', 'runnerPath', 'researchRoot']) {
     if (typeof config?.[key] !== 'string' || !isAbsolute(config[key])) throw new Error(`research-tools requires absolute ${key}`);
@@ -136,13 +143,13 @@ export function apply(ctx, config, spawnProcess = spawn, admissionClient = defau
   }
   ctx.tools.register({
     name: 'rwb_prepare_automation',
-    description: 'Propose a research_task schedule without selecting a Skill, or an existing locked capability schedule. NEVER saves, enables or runs. Use ask_user_question for missing details; the confirmation card creates and enables research tasks only after a human click. List tasks first. Weekdays 0-4 means Monday-Friday, not a trading calendar.',
+    description: 'Propose a research_task schedule without selecting a Skill, or an existing locked capability schedule. For research_task omit input_template: the Host derives it from research_task.description; if supplied it must match that description exactly. NEVER saves, enables or runs. Use ask_user_question for missing details; the confirmation card creates and enables research tasks only after a human click. List tasks first. Weekdays 0-4 means Monday-Friday, not a trading calendar.',
     parameters: { type: 'object', properties: {
       name: { type: 'string', minLength: 1, maxLength: 160 },
       target_kind: { type: 'string', enum: ['skill', 'workflow', 'report_workflow','research_task'] },
       research_task: taskSchema,
       target_id: { type: 'string' }, target_version: { type: 'integer', minimum: 1 },
-      input_template: { type: 'string', minLength: 1, maxLength: 100000 },
+      input_template: { type: 'string', minLength: 1, maxLength: 100000, description: 'For research_task omit this field; it is derived from research_task.description. If supplied, match description exactly, never summarize or rewrite. Required for legacy capability tasks.' },
       output_formats: { type: 'array', maxItems: 7, items: { type: 'string', enum: ['md','html','docx','xlsx','pptx','png','pdf'] } },
       schedule: { type: 'object', properties: {
         kind: { type: 'string', enum: ['once','daily','weekly','monthly'] }, timezone: { type: 'string' },
@@ -154,6 +161,7 @@ export function apply(ctx, config, spawnProcess = spawn, admissionClient = defau
     async execute(args, exec) {
       const allowed = new Set(['name','target_kind','target_id','target_version','input_template','output_formats','schedule','research_task']);
       if (!args || typeof args !== 'object' || Array.isArray(args) || Object.keys(args).some(key => !allowed.has(key)) || Buffer.byteLength(JSON.stringify(args)) > 110000) throw Error('draft_arguments_invalid');
+      if (args.target_kind === 'research_task') requireMatchingResearchTemplate(ctx, args);
       exec.signal.throwIfAborted();
       const scope = await admissionClient(ctx, { ...exec, name: 'rwb_prepare_automation' }, config);
       if (!scope.admitted) throw Error('draft_scope_unverified');
@@ -169,9 +177,9 @@ export function apply(ctx, config, spawnProcess = spawn, admissionClient = defau
   });
   for (const [name, operation, description, properties, required] of [
     ['rwb_list_automations','list','Query real schedule definitions, IDs, versions and latest Run statuses/summaries/artifacts before creating, updating or checking a trial. Pass automation_id for one task. Does not mutate anything.',{automation_id:{type:'string'}},[]],
-    ['rwb_prepare_automation_update','prepare_update','Propose changes to the SAME task ID using expected_version. Ask for clarification for ambiguous increases; only include explicitly changed fields. NEVER applies changes.',{
+    ['rwb_prepare_automation_update','prepare_update','Propose changes to the SAME task ID using expected_version. Ask for clarification for ambiguous increases; only include explicitly changed fields. For research_task changes provide the new research_task and omit input_template; Host derives it from description. If also supplied it must match description exactly. Do not change input_template alone for a research_task. NEVER applies changes.',{
       automation_id:{type:'string'},body:{type:'object',properties:{
-        expected_version:{type:'integer',minimum:1},name:{type:'string'},input_template:{type:'string'},research_task:taskSchema,
+        expected_version:{type:'integer',minimum:1},name:{type:'string'},input_template:{type:'string',description:'For research_task omit: derived from new research_task.description. If supplied, include research_task and match description exactly. Legacy capability tasks may change only this field.'},research_task:taskSchema,
         output_formats:{type:'array',items:{type:'string',enum:['md','html','docx','xlsx','pptx','png','pdf']}},
         schedule:{type:'object',properties:{kind:{type:'string',enum:['once','daily','weekly','monthly']},timezone:{type:'string'},once_at:{type:'string'},weekday:{type:'integer'},weekdays:{type:'array',items:{type:'integer',minimum:0,maximum:6}},day:{type:'integer'},hour:{type:'integer'},minute:{type:'integer'}},required:['kind','timezone'],additionalProperties:false},
       },required:['expected_version'],additionalProperties:false}},['automation_id','body']],
@@ -181,6 +189,7 @@ export function apply(ctx, config, spawnProcess = spawn, admissionClient = defau
       output:{schema:{type:'object',properties:{result_json:{type:'string'}},required:['result_json'],additionalProperties:false},render(_args,value){return[{type:'text',text:value.result_json}];}},
       async execute(args,exec){
         if(!args || typeof args!=='object' || Array.isArray(args) || Object.keys(args).some(key=>!Object.hasOwn(properties,key)) || required.some(key=>!(key in args)) || Buffer.byteLength(JSON.stringify(args))>110000) throw Error('automation_arguments_invalid');
+        if (operation === 'prepare_update' && args.body && typeof args.body === 'object') requireMatchingResearchTemplate(ctx, args.body);
         exec.signal.throwIfAborted();
         if(!(await admissionClient(ctx,{...exec,name},config)).admitted) throw Error('automation_scope_unverified');
         try {const result=await actionClient(ctx,exec,config,{operation,...args});ctx.logger.info('automation_chat_action_returned');return {result_json:JSON.stringify(result)};}
@@ -215,7 +224,7 @@ export function apply(ctx, config, spawnProcess = spawn, admissionClient = defau
   });
   ctx.tools.register({
     name: 'research_run_script',
-    description: 'Run Python in this research session. Read inputs/resources; write outputs/tmp. Network, host files, and subprocesses are unavailable.',
+    description: 'Run Python in this research session using known relative paths only: read inputs/resources; write outputs/tmp. Do not call os.getcwd(), Path.resolve(), Path.absolute(), absolute-path conversion, or directory enumeration. Network, host files, and subprocesses are unavailable. After PermissionError use known relative paths directly; never repeat denied directory introspection.',
     parameters: { type: 'object', properties: { code: { type: 'string', description: 'Nonempty Python source, at most 65536 UTF-8 bytes; enforced before execution.' } }, required: ['code'], additionalProperties: false },
     output: {
       schema: { type: 'object', properties: { status: { type: 'string' }, stdout: { type: 'string' }, stderr: { type: 'string' }, exit_code: { oneOf: [{ type: 'integer' }, { type: 'null' }] }, error: { oneOf: [{ type: 'string' }, { type: 'null' }] } }, required: ['status', 'stdout', 'stderr', 'exit_code', 'error'], additionalProperties: false },
@@ -292,6 +301,11 @@ export function apply(ctx, config, spawnProcess = spawn, admissionClient = defau
             const result = JSON.parse(Buffer.concat(output).toString('utf8'));
             if (!result || typeof result.status !== 'string' || typeof result.stdout !== 'string' || typeof result.stderr !== 'string' || !(result.error === null || typeof result.error === 'string') || !(result.exit_code === null || Number.isSafeInteger(result.exit_code))) throw new Error('invalid response');
             if (Buffer.byteLength(result.stdout) + Buffer.byteLength(result.stderr) > maxOutputBytes) throw new Error('invalid response size');
+            if (result.status === 'failed' && /(?:^|\n)PermissionError:/.test(result.stderr)) {
+              const hint = 'sandbox_permission_denied: 请直接使用已知的 inputs/、resources/、outputs/ 相对路径，不调用 os.getcwd()、Path.resolve()、Path.absolute() 或枚举目录；不要重试已被拒绝的目录探测。';
+              result.error = result.error ? `${result.error}\n${hint}` : hint;
+              ctx.logger.warn('research_script_permission_recovery_hint');
+            }
             ctx.logger.info('research_script_run outcome=%s', result.status);
             resolveResult(result);
           } catch { ctx.logger.error('research_script_protocol_failed'); reject(new Error('research supervisor returned an invalid response')); }

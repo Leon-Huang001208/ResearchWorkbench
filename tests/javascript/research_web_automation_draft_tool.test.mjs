@@ -38,3 +38,27 @@ test('native tools expose direct research, versioned updates and guarded trial c
   await assert.rejects(()=>tools.get('rwb_run_automation').execute({automation_id:'task',confirmed:true},exec),/automation_arguments_invalid/);
   await assert.rejects(()=>tools.get('rwb_prepare_automation_update').execute({automation_id:'task'},exec),/automation_arguments_invalid/);
 });
+
+test('research task template mismatch is actionable before any RPC and never silently rewritten', async()=>{
+  const tools=new Map();let admissions=0;const calls=[];
+  const ctx={tools:{register:tool=>tools.set(tool.name,tool)},logger:{info(){},warn(){}}};
+  apply(ctx,{python:'/python',runnerPath:'/runner',researchRoot:'/research'},undefined,
+    async()=>{admissions++;return{admitted:true};},
+    async(_ctx,_exec,_config,args)=>{calls.push(args);return{status:'proposed'};},
+    async(_ctx,_exec,_config,args)=>{calls.push(args);return{status:'proposed'};});
+  const exec={signal:new AbortController().signal};
+  const task={description:'approved research',model_provider:'deepseek-official',model_id:'deepseek-flash',output_requirements:'Markdown',approved_data_sources:['web'],approved_tools:['research_run_script']};
+  const args={name:'research',target_kind:'research_task',research_task:task,schedule:{kind:'daily',timezone:'Asia/Shanghai',hour:15,minute:30}};
+  const create=tools.get('rwb_prepare_automation'); const update=tools.get('rwb_prepare_automation_update');
+  assert.match(create.parameters.properties.input_template.description,/omit/i);
+  await assert.rejects(()=>create.execute({...args,input_template:'different private text'},exec),/research_task_description_conflict: omit input_template or match research_task.description exactly/);
+  await assert.rejects(()=>update.execute({automation_id:'task',body:{expected_version:1,research_task:task,input_template:'different private text'}},exec),/research_task_description_conflict/);
+  assert.equal(admissions,0);assert.equal(calls.length,0);
+  await create.execute(args,exec);
+  assert.equal(Object.hasOwn(calls[0],'input_template'),false);
+  await create.execute({...args,input_template:task.description},exec);
+  assert.equal(calls[1].input_template,task.description);
+  await update.execute({automation_id:'task',body:{expected_version:1,research_task:task}},exec);
+  await update.execute({automation_id:'task',body:{expected_version:1,research_task:task,input_template:task.description}},exec);
+  assert.equal(calls.length,4);assert.equal(admissions,4);
+});

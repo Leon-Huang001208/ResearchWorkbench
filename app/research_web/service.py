@@ -2,6 +2,7 @@
 
 import asyncio
 import base64
+import copy
 import hashlib
 import json
 import os
@@ -58,7 +59,7 @@ from .mcp_runtime.package_planner import PackagePlanner
 from .mcp_runtime.package_resolver import PackageResolver
 from .mcp_runtime.sdk_host import SDKHost
 from .mcp_runtime.service import MCPRuntimeService, runtime_feature_enabled
-from .projection import content_text, project
+from .projection import activity_detail, activity_value, content_text, project
 from .report_studio import ReportStudio
 from .report_workflows.manager import ReportWorkflowManager
 from .research_evidence import evidence_index, report_projection
@@ -174,6 +175,42 @@ class _SessionOwnedMCPRuntime:
             session_id=session_id,
             approve=approve,
         )
+
+
+def automation_execution_context(runs, sid):
+    """Return only the exact execution Run snapshot, never the mutable task."""
+    matches = [run for run in runs.values() if run.get("session_id") == sid]
+    if len(matches) != 1 or not matches[0].get("definition_snapshot"):
+        return None
+    run = matches[0]
+    snapshot = copy.deepcopy(run["definition_snapshot"])
+    return {
+        "run_id": run["id"],
+        "automation_id": run["automation_id"],
+        "definition_version": snapshot.get("definition_version"),
+        "trigger": run.get("trigger"),
+        "definition_snapshot": snapshot,
+    }
+
+
+def automation_followup_scope(
+    scope, context, skill_id, capability_id, capability_version, tool_ids, method_ids, formats
+):
+    """A continuation keeps the original approved tools and delivery contract."""
+    if context is None:
+        raise StoreError("执行快照未确认", "automation_execution_unverified", 409)
+    locked_formats = context["definition_snapshot"]["output_formats"]
+    if (
+        skill_id
+        or capability_id
+        or capability_version is not None
+        or method_ids
+        or set(tool_ids) - set(scope["approved_tools"])
+        or (formats is not None and formats != locked_formats)
+    ):
+        log.warning("automation_followup_scope_change_denied")
+        raise StoreError("执行会话不能更改批准范围或输出", "automation_scope_immutable", 409)
+    return list(scope["approved_tools"]), list(locked_formats)
 
 
 class ResearchService:
@@ -1523,6 +1560,10 @@ class ResearchService:
         ):
             scope.update(status="unavailable", admitted=False)
             scope["missing"].append({"code": "automation_tool_not_approved"})
+        if automation_scope:
+            scope["visible_tools"] = list(
+                dict.fromkeys(["todo_write", *automation_scope["approved_tools"]])
+            )
         web_tools = {"web_search", "web_fetch", "tabbit_browser", "datahub_search_web"}
         excluded_source = (
             tool_name
@@ -1771,7 +1812,11 @@ class ResearchService:
                 status="interrupted", error="原生执行已不在运行，但历史未记录完成；请补充指令继续"
             )
         if sid in self.errors:
-            result.update(status="failed", error=self.errors[sid])
+            result.update(status="failed", error=activity_detail(activity_value(self.errors[sid])))
+        if row.get("automation_research_scope"):
+            result["execution_context"] = automation_execution_context(
+                self.store.data.get("automation_runs", {}), sid
+            )
         result["files"] = self.store.files(sid)
         result["datasets"] = self.datahub.summaries(sid)
         if row["mode"] == "claw" and automation_feature_enabled():
@@ -1812,6 +1857,20 @@ class ResearchService:
                 "id": key,
                 "text": "\n\n".join(question["question"] for question in value["questions"]),
                 "items": value["questions"],
+                **(
+                    {
+                        "seq": next(
+                            activity["seq"]
+                            for activity in result["activities"]
+                            if activity["id"] == value.get("callId") and "seq" in activity
+                        )
+                    }
+                    if any(
+                        activity["id"] == value.get("callId") and "seq" in activity
+                        for activity in result["activities"]
+                    )
+                    else {}
+                ),
             }
             for key, value in self.questions.items()
             if value.get("ownerSessionId", value["sessionId"]) == sid
@@ -2010,6 +2069,17 @@ class ResearchService:
                     )
             if not row["created"]:
                 raise StoreError("会话尚未创建")
+            if row.get("automation_research_scope"):
+                tool_ids, formats = automation_followup_scope(
+                    row["automation_research_scope"],
+                    automation_execution_context(self.store.data.get("automation_runs", {}), sid),
+                    skill_id,
+                    capability_id,
+                    capability_version,
+                    tool_ids,
+                    method_ids,
+                    formats,
+                )
             existing = self.store.data["receipts"].get(f"{sid}:{key}")
             if (
                 existing
@@ -2276,9 +2346,10 @@ class ResearchService:
                     + json.dumps(source_scope, ensure_ascii=False)
                     + "。"
                     "rwb_prepare_automation 仅提出草稿，用户点击确认创建并启用后才生效，创建不立即执行。每周多个执行日用 weekdays；周一至周五不等同交易日历。"
-                    "用户明确先跑一次时调用 rwb_run_automation，复用真实任务 ID；返回只证明受理，不证明完成。"
-                    "增加、需要等简短回复结合当前待确认事项，含混时 ask_user_question；不能猜测修改或运行。"
-                    "试跑提问必须严格使用：是否试跑「任务名称」（任务 完整任务ID，定义 v当前版本）？只替换名称、ID和版本，其他说明放在提问前；不能把其他任务或版本的回答沿用。"
+                    "用户明确要求先跑一次、再跑一次且点名任务，目标唯一且任务已保存时直接调用 rwb_run_automation，复用真实任务 ID，不重复要求确认；查询只用于核对真实 ID 和版本，不代替运行。返回只证明受理，不证明完成。"
+                    "增加、需要等简短回复结合当前待确认事项，不能猜测修改或运行。含混回复必须调用 ask_user_question 提供可选项，由原生问题卡收集回答；不能仅在正文列选项或要求用户复制格式。明确的当前问题肯定答复按已绑定的事项继续，不重新提问。"
+                    "仅在目标任务不明确或主动询问用户是否要试跑时，先通过 ask_user_question 澄清目标，再用 ask_user_question 提出规范试跑问题，不能只把规范问题写在聊天正文：是否试跑「任务名称」（任务 完整任务ID，定义 v当前版本）？只替换名称、ID和版本，其他说明放在提问前。用户回答需要等肯定回复只能绑定当前这一待确认问题，不能把其他任务或版本的回答沿用；已经明确点名要求运行时不再提出这次确认问题。"
+                    "不得先问是否允许提问或是否要我提出问题；需要澄清或邀请试跑就直接调用 ask_user_question，一次性绑定目标任务和定义版本。该问题本身不授权运行，仍须等待用户对当前问题明确回答。"
                     "修改前查询任务定义版本，rwb_prepare_automation_update 只提出变更草稿，必须 expected_version，同一 ID；未明确修改的时间、模型、权限保持原值。"
                     "用户确认卡后再查询验证结果，不得提前声称创建或更新成功。"
                 )
