@@ -120,6 +120,81 @@ async def test_todo_sse_duplicate_events_are_session_owned_and_next_turn_clears(
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("paginated", [False, True])
+async def test_conflicting_todo_history_cannot_become_available(paginated):
+    first = {"event": {"seq": 1, "type": "todo/write", "data": {"todos": []}}}
+    other = {
+        "event": {
+            "seq": 1,
+            "type": "todo/write",
+            "data": {"todos": [{"content": "conflicting", "status": "completed"}]},
+        }
+    }
+
+    class NativeStream(DSHClient):
+        async def _stream(self, endpoint, args):
+            yield {
+                "type": "snapshot",
+                "records": (
+                    [first]
+                    if paginated
+                    else [
+                        {"event": {"seq": 0, "type": "turn/start", "data": {"turn": 1}}},
+                        first,
+                        other,
+                    ]
+                ),
+                "cursor": 1,
+                "hasMore": paginated,
+            }
+
+        async def _rpc_wire(self, method, payload):
+            assert method == "session/page"
+            assert payload["request"]["beforeSeq"] == 1
+            return {
+                "records": [
+                    {"event": {"seq": 0, "type": "turn/start", "data": {"turn": 1}}},
+                    other,
+                ],
+                "hasMore": False,
+            }
+
+    async with NativeStream("http://127.0.0.1:3081") as client:
+        result = project(await client.history("owner"))
+    assert result["research_plan"]["status"] == "invalid"
+    assert result["plan"] is None
+
+
+@pytest.mark.asyncio
+async def test_conflicting_todo_sse_cannot_become_available(tmp_path):
+    store = Store(tmp_path)
+    sid = store.create("fingpt", "conflict")["id"]
+    frames = [
+        {
+            "payload": {
+                "sessionId": sid,
+                "type": "session/event",
+                "event": {
+                    "seq": seq,
+                    "type": kind,
+                    "data": data,
+                },
+            }
+        }
+        for seq, kind, data in [
+            (0, "turn/start", {"turn": 1}),
+            (1, "todo/write", {"todos": []}),
+            (1, "todo/write", {"todos": [{"content": "conflicting", "status": "completed"}]}),
+        ]
+    ]
+    service = ResearchService(Events(frames), store)
+    await service._consume("mux")
+    result = project(list(service.events[sid].values()))
+    assert result["research_plan"]["status"] == "invalid"
+    assert result["plan"] is None
+
+
+@pytest.mark.asyncio
 async def test_turn_start_after_previous_end_restores_running_state(tmp_path):
     store = Store(tmp_path)
     sid = store.create("fingpt", "event ordering")["id"]

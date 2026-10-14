@@ -3437,6 +3437,7 @@ Imports:
 - `json`
 - `os`
 - `pathlib`
+- `projection`
 - `runtime_auth`
 - `typing`
 - `urllib.parse`
@@ -5990,6 +5991,8 @@ Imports:
 - `json`
 
 Functions:
+- `merge_event_records`
+  - Keep conflict evidence when native records are indexed by sequence.
 - `_project_plan`
   - Fold whole native snapshots; version identifies a write, never an item.
 - `content_text`

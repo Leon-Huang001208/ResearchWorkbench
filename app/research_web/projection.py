@@ -8,6 +8,25 @@ from core.observability import get_logger
 log = get_logger(__name__)
 
 
+def merge_event_records(cache: dict[int, dict], entries: list[dict]) -> None:
+    """Keep conflict evidence when native records are indexed by sequence."""
+    for entry in entries:
+        seq = entry["event"]["seq"]
+        previous = cache.get(seq)
+        conflict = entry.get("_native_event_conflict") is True or (
+            previous is not None
+            and (
+                previous.get("_native_event_conflict") is True
+                or previous["event"] != entry["event"]
+            )
+        )
+        if conflict:
+            cache[seq] = {**entry, "_native_event_conflict": True}
+            log.warning("research_event_sequence_conflict", sequence=seq)
+        else:
+            cache[seq] = entry
+
+
 def _project_plan(entries: list[dict]) -> dict:
     """Fold whole native snapshots; version identifies a write, never an item."""
     rows: dict[int, dict] = {}
@@ -27,7 +46,7 @@ def _project_plan(entries: list[dict]) -> dict:
         if not isinstance(seq, int) or isinstance(seq, bool) or seq < 0:
             incomplete, corrupt = True, True
             continue
-        if seq in rows and rows[seq] != event:
+        if row.get("_native_event_conflict") is True or (seq in rows and rows[seq] != event):
             conflicts.add(seq)
         rows[seq] = event
     keys = sorted(rows)

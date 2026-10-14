@@ -17,6 +17,7 @@ import websockets
 
 from core.observability import get_logger
 
+from .projection import merge_event_records
 from .runtime_auth import RuntimeAuthFileError, read_runtime_auth_record
 
 log = get_logger(__name__)
@@ -541,11 +542,15 @@ class DSHClient:
     async def history(self, sid: str) -> list[dict]:
         address = {"kind": "session", "sessionId": sid}
         opening = await self._history_opening(address, 100)
-        entries = {
-            row["event"]["seq"]: row
-            for row in opening["events"]
-            if isinstance(row, dict) and isinstance(row.get("event"), dict)
-        }
+        entries: dict[int, dict] = {}
+        merge_event_records(
+            entries,
+            [
+                row
+                for row in opening["events"]
+                if isinstance(row, dict) and isinstance(row.get("event"), dict)
+            ],
+        )
         before = min(entries, default=None)
         for _ in range(100):
             if not opening.get("hasMore"):
@@ -568,7 +573,7 @@ class DSHClient:
                 raise RuntimeFailure("DSH 历史分页格式无效", "protocol_error")
             for row in rows:
                 if isinstance(row, dict) and isinstance(row.get("event"), dict):
-                    entries[row["event"]["seq"]] = row
+                    merge_event_records(entries, [row])
             next_before = min(
                 (
                     row["event"]["seq"]
