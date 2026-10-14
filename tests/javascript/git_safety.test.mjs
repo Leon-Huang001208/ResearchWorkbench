@@ -20,6 +20,7 @@ function fixture(t) {
   git(projectRoot, ['init', '-b', 'master']);
   git(projectRoot, ['config', 'user.name', 'Fixture']);
   git(projectRoot, ['config', 'user.email', 'fixture@example.invalid']);
+  fs.writeFileSync(path.join(projectRoot, 'package.json'), JSON.stringify({type: 'module'}) + '\n');
   fs.writeFileSync(path.join(projectRoot, 'tracked.txt'), 'base\n');
   git(projectRoot, ['add', '.']);
   git(projectRoot, ['commit', '-m', 'base']);
@@ -162,6 +163,11 @@ test('process-scoped native Git shim blocks maintenance and strips fetch pruning
   }};
   assert.equal((await runDelivery({projectRoot, taskId: 'task', action: 'start'}, {...options, controller})).status, 'started');
   assert.equal(process.env.PATH, previousPath);
+  const bin = path.join(projectRoot, '.git/leon-engineering/git-safety/bin');
+  assert.deepEqual(JSON.parse(fs.readFileSync(path.join(bin, 'package.json'))), {type: 'commonjs'});
+  const original = fs.readFileSync(path.join(bin, 'git'));
+  await runDelivery({projectRoot, taskId: 'task', action: 'start'}, {...options, controller});
+  assert.deepEqual(fs.readFileSync(path.join(bin, 'git')), original);
 });
 
 function githubFixture(receipt, captured, {existing = [], protection, pr, checkConclusion = 'success', mergeParent = receipt.integrationCommit} = {}) {
@@ -520,4 +526,21 @@ test('changed origin identity blocks receipt actions before any GitHub or destru
   assert.equal(calls, 0);
   assert.ok(fs.existsSync(receipt.featureWorktree));
   assert.ok(fs.existsSync(receipt.integrationWorktree));
+});
+
+test('private CommonJS marker rejects unknown, symlinked and hardlinked files without overwriting them', async t => {
+  for (const kind of ['unknown', 'symlink', 'hardlink']) {
+    const {root, projectRoot, options} = cleanupFixture(t);
+    const marker = path.join(projectRoot, '.git/leon-engineering/git-safety/bin/package.json');
+    fs.mkdirSync(path.dirname(marker), {recursive: true});
+    const victim = path.join(root, 'victim.json');
+    fs.writeFileSync(victim, JSON.stringify({type: 'commonjs'}) + '\n');
+    if (kind === 'unknown') fs.writeFileSync(marker, '{"type":"module"}\n');
+    else if (kind === 'symlink') fs.symlinkSync(victim, marker);
+    else fs.linkSync(victim, marker);
+    const before = fs.readFileSync(marker);
+    await assert.rejects(runDelivery({projectRoot, taskId: 'task', action: 'start'}, {...options, controller: {startDelivery: () => assert.fail('untrusted package scope must not execute')}}), {code: 'SHIM_INVALID'});
+    assert.deepEqual(fs.readFileSync(marker), before);
+    assert.equal(fs.readFileSync(victim, 'utf8'), '{"type":"commonjs"}\n');
+  }
 });

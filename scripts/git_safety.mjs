@@ -366,6 +366,22 @@ export function validateCleanup({projectRoot, receipt}, options = {}) {
 }
 
 /** Private process PATH shim. execFile-style argv forwarding; no user args become shell source. */
+function immutableShimFile(destination, expected) {
+  assertNoSymlinkAncestors(path.dirname(destination));
+  const before = fs.lstatSync(destination, {throwIfNoEntry: false});
+  if (!before) { privateWrite(destination, expected); return; }
+  if (!before.isFile() || before.isSymbolicLink() || before.nlink !== 1 || (typeof process.getuid === 'function' && before.uid !== process.getuid())) fail('SHIM_INVALID');
+  let fd;
+  try {
+    try { fd = fs.openSync(destination, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW); } catch { fail('SHIM_INVALID'); }
+    const opened = fs.fstatSync(fd);
+    if (!opened.isFile() || opened.nlink !== 1 || opened.ino !== before.ino || opened.dev !== before.dev || opened.uid !== before.uid) fail('SHIM_INVALID');
+    if (fs.readFileSync(fd, 'utf8') !== expected) fail('SHIM_INVALID');
+    const current = fs.lstatSync(destination, {throwIfNoEntry: false});
+    if (!current || current.isSymbolicLink() || current.nlink !== 1 || current.ino !== opened.ino || current.dev !== opened.dev || current.uid !== opened.uid) fail('SHIM_INVALID');
+    assertNoSymlinkAncestors(path.dirname(destination));
+  } finally { if (fd !== undefined) fs.closeSync(fd); }
+}
 function installShim(repository, options) {
   const directory = path.join(state(repository), 'bin');
   privateDirectory(directory);
@@ -374,10 +390,9 @@ function installShim(repository, options) {
   // Node treats an extensionless entry as CommonJS; dynamic import is unnecessary with require.
   const executableSource = source.replace("import {spawnSync} from 'node:child_process';", "const {spawnSync}=require('node:child_process');");
   assertNoSymlinkAncestors(directory);
-  if (fs.existsSync(destination)) {
-    const stat = fs.lstatSync(destination);
-    if (!stat.isFile() || stat.isSymbolicLink() || stat.nlink !== 1 || fs.readFileSync(destination, 'utf8') !== executableSource) fail('SHIM_INVALID');
-  } else privateWrite(destination, executableSource);
+  immutableShimFile(destination, executableSource);
+  // The repository's type:module scope also reaches .git. Pin this owned bin to CJS.
+  immutableShimFile(path.join(directory, 'package.json'), JSON.stringify({type: 'commonjs'}) + '\n');
   fs.chmodSync(destination, 0o700);
   return directory;
 }
