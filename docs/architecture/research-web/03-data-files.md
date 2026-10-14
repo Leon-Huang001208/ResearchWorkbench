@@ -1,5 +1,7 @@
 # DataHub、研究资料与实际文件
 
+原生事件仍由 DSH 日志保存；历史/分页/SSE 归并的同序号冲突标记只保留在 Host 内存记录外层，不新增正文库、持久 schema 或写回日志。Automation 草稿及文件交付不能从计划项完成推导。
+
 Docker 模型密文是 AES-256-GCM 版本化 envelope，复用私有文件权限、锁和原子替换。
 credentials 卷的 models 子目录与独立只读 model_key 卷、随机实例身份共同构成恢复材料。
 每次写入生成 nonce，AAD 绑定实例与 ref；身份/主密钥丢失或错误不会自动重建。
