@@ -203,6 +203,12 @@ def test_framework_explain_and_explicit_verify_use_separate_dsh_presets(framewor
     assert selection["version"] == 2
     assert prompts[-1].startswith(f"/{selection['native_name']} ")
     assert "深度验证" in prompts[-1]
+    for prompt in prompts:
+        context, _ = json.JSONDecoder().raw_decode(prompt[prompt.index('{"binding":') :])
+        assert context["binding"]["snapshot_revision"] == revision
+        assert context["allocation"]["availability"] == "not_connected"
+        assert "correlations" not in context["allocation"]
+        assert "scenarios" not in context["allocation"]
 
 
 def test_builtin_framework_verify_missing_data_contract_fails_closed(framework_api):
@@ -390,3 +396,52 @@ def test_framework_verify_retains_real_data_admission_gate(framework_api):
     assert response.status_code == 409
     assert response.json()["error"]["code"] == "capability_data_unavailable"
     assert len([call for call in native.calls if call[0] == "session.prompt"]) == before
+
+
+def test_gold_context_excludes_unconnected_allocation_without_mutating_snapshot():
+    from app.research_web.frameworks.goldar.context import build_context
+
+    snapshot = build_seed()
+    before = snapshot.model_dump(mode="json")
+    context = build_context(snapshot)
+    assert context["allocation"]["availability"] == "not_connected"
+    assert "correlations" not in context["allocation"]
+    assert "scenarios" not in context["allocation"]
+    assert snapshot.model_dump(mode="json") == before
+    assert context["state"] == before["research_state"]
+
+
+@pytest.mark.parametrize("status", ["complete", "partial", "proxy", "stale"])
+def test_gold_context_preserves_sourced_last_good_allocation(status):
+    from app.research_web.frameworks.base import SourceRecord
+    from app.research_web.frameworks.goldar.context import build_context
+
+    snapshot = build_seed()
+    snapshot.allocation_context.status = status
+    snapshot.allocation_context.sources = [
+        SourceRecord(
+            name="Audited study",
+            url="https://research.example.org/study",
+            observed_at="2026-10-01",
+            unit="monthly total return",
+            method="2016-2026 monthly observations; documented computation",
+        )
+    ]
+    assert build_context(snapshot)["allocation"] == snapshot.allocation_context.model_dump(
+        mode="json"
+    )
+
+
+@pytest.mark.parametrize("source_kind", ["none", "invalid", "fixture"])
+def test_gold_context_rejects_allocation_without_real_provenance(source_kind):
+    from app.research_web.frameworks.goldar.context import build_context
+
+    snapshot = build_seed()
+    snapshot.allocation_context.status = "complete"
+    if source_kind == "none":
+        snapshot.allocation_context.sources = []
+    elif source_kind == "invalid":
+        snapshot.allocation_context.sources[0].method = "documented observations"
+    elif source_kind == "fixture":
+        snapshot.allocation_context.sources[0].url = "https://research.example.org/study"
+    assert "correlations" not in build_context(snapshot)["allocation"]

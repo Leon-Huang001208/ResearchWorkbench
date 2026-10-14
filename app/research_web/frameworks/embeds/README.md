@@ -59,3 +59,7 @@ Gold／Dollar 核心入口使用本站原生快照与采集链，不读取历史
 | inference-chips-42 | 3 | 822561 | 0c9d8ba9207e5362ca14a6a231e619569f778c413edf02e39556ba60e3a611e5 |
 | memory-chips-60 | 6 | 1117259 | e19e0ad98f9de3e45358a37bce845e019d94ed3cae273877abdf932b2f48b3b4 |
 | model-hardware-chain | 16 | 136170 | 8450b71bb6f4107355d01d1af41c03995c1f36f53eefeb7c96d7119e552f1093 |
+
+### Gold 配置模块的样例边界
+
+Gold 核心入口由宿主原生快照与受控桥接驱动；配置区块目前尚无原生采集/计算链。fixture、missing 和缺少真实来源元数据的配置区块显示“尚未接入”，不渲染旧相关性/情景/配置说明；Bot 采用相同剔除规则。历史和严格快照 API 保留旧区块身份，不加载 vendored JSON 作当前结果，不增加外部资源或 CSP 权限。
