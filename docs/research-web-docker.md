@@ -1,5 +1,7 @@
 # Mac mini Docker 开发与独立部署
 
+持久文本验收预算必须显式配置并绑定受管 AES 身份；本轮不初始化真实账本、不恢复过期授权、不修改 dev/stage/prod 实例。身份校验本身不证明环境角色，未来真实验收必须另选独立候选实例。
+
 G0/G1 的入口是 `rwb-docker`（亦可用 `./rwb docker`）。管理员在 mini 的受控终端执行，
 宿主只使用 POSIX shell 与 Docker CLI/Engine/buildx；Python、Node、Git、编译器及测试工具
 在镜像中。当前仅交付 Mac Docker Desktop arm64 的基座，实际验收见任务报告。

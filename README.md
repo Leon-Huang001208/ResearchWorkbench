@@ -1,5 +1,7 @@
 # Research Workbench
 
+持久文本验收预算仅供显式受管 AES 候选：最多 3 次、每次 512 输出 tokens。旧政策已过期，当前不会启动真实验收或续期；普通运行不发现账本。见[预算设计](docs/superpowers/specs/2026-10-14-pr88-budget-port-design.md)。
+
 Research Workbench 当前交付的是本地优先的 **Research Web**：一个由 FinGPT、Claw、数据能力和研究框架组成的研究工作台。
 
 Claw 在同一研究引擎上组织本地项目、成员会话、带来源的文件与显式引用，并提供日程、技能和 MCP 入口；聊天提出的日程须用户确认保存，默认停用，之后另行启用。见[Claw 页面合同](docs/research-web-ui.md#claw-项目与日程)。

@@ -1,5 +1,7 @@
 # 研究协议、执行状态与恢复
 
+显式 docker-text 仅在已认证受管 AES 身份下读取已有预算；默认不发现账本。Fernet/Native 无认证实例身份时拒绝该模式，普通运行不变。固定 DSH 官方 Messages endpoint 为 https://api.deepseek.com/anthropic；此模式禁工具、附件、重试和 Tabbit，并绑定已授权输出上限。身份验证不认证 dev/stage/prod 角色。
+
 研究 preset 装配固定 DSH 已有 `@deepseek-ai/dsh-tool-todo`，显式配置
 `allowParallelInProgress: true`，依赖原生 `tools` 与 `sessionProjections` 服务。
 guard 仅新增精确 `todo_write`，仍要求研究已启用及当前 Agent，沿用每回合48工具/4子任务

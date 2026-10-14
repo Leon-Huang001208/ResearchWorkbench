@@ -1,5 +1,7 @@
 # Research Workbench Development Map
 
+`app/research_web/live_acceptance_budget.py` 是实例私有验收账本；入口为 launcher/guard，近处测试为 `test_live_acceptance_budget.py`、`test_runtime_launch.py`、`research_web_guard.test.mjs`。费用、期限、持久扣票或绑定变化须同步预算设计与安全合同。
+
 ## FinGPT 深入研究定位
 
 原生计划由 projection.py、runtime/research.cordis.yml 和 guard.mjs 处理；research_evidence.py 管理会话来源与底稿质量投影；resources/research_report.py 管理确定性中文报告。UI 的 research-report.mjs 复用当前研究空间与草稿控制器。近处用例为 test_fingpt_research.py、test_research_report.py 与 research_web_fingpt.test.mjs；改变引用/格式合同须同步 API、文件、UI、安装文档和架构清单。

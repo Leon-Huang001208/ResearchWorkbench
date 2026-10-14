@@ -1,5 +1,7 @@
 # Research Web Tabbit 集成
 
+显式docker-text验收模式关闭Tabbit并拒绝所有工具与附件；普通研究的Tabbit配置和审批保持不变。预算测试不认证宿主浏览器或网页已读取。
+
 研究 preset 新增原生 Todo 只放行 `todo_write`；Tabbit browser/web_fetch 的独立开关、
 审批和安装拒绝保持原样。计划投影不调用浏览器、不抓取标签页，也不从 Todo 内容推断网页
 已读取或来源已验证；原生计划集成通过不能替代 Tabbit 真实浏览器验收。

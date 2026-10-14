@@ -313,7 +313,8 @@
         "app/research_web/runtime/",
         "vendor/dsh-tabbit/0.3.4/",
         "app/research_web/sandbox.py",
-        "app/research_web/skills/"
+        "app/research_web/skills/",
+        "app/research_web/live_acceptance_budget.py"
       ],
       "documents": [
         "docs/architecture/research-web/01-system.md",
@@ -339,7 +340,8 @@
         "tests/javascript/research_web_tabbit_ui.test.mjs",
         "tests/javascript/research_web_compatible_model.test.mjs",
         "tests/javascript/research_web_automation_draft_tool.test.mjs",
-        "tests/research_web/test_encrypted_model_credentials.py"
+        "tests/research_web/test_encrypted_model_credentials.py",
+        "tests/research_web/test_live_acceptance_budget.py"
       ]
     },
     {

@@ -1,8 +1,82 @@
 /** Host-global final veto; MCP tools require an exact activation allowlist. */
+import { spawn } from 'node:child_process';
+import { pathToFileURL } from 'node:url';
 import { isAbsolute } from 'node:path';
 import { nativeAdmission } from './public-data.mjs';
 
 export const inject = ['tools', 'llm', 'sessions'];
+
+const budgetErrors = new Set(['acceptance_budget_unverified', 'acceptance_budget_invalid', 'acceptance_budget_expired',
+  'acceptance_budget_exhausted', 'acceptance_budget_unavailable', 'acceptance_budget_commit_uncertain']);
+
+function reserveBudget(acceptance, outputTokens) {
+  const config = acceptance.budgetBridge;
+  const began = performance.now();
+  return new Promise((resolve, reject) => {
+    const child = spawn(config.python, ['-I', '-B', config.bridge, '--installation-id', acceptance.installationId], {
+      cwd: '/', env: { PATH: '/usr/bin:/bin', LANG: 'en_US.UTF-8' }, stdio: ['pipe', 'pipe', 'pipe'],
+    });
+    let output = '';
+    let stderrBytes = 0;
+    let failed = false;
+    const fail = () => { failed = true; child.kill('SIGKILL'); };
+    const timer = setTimeout(fail, 10000);
+    child.on('error', fail);
+    child.stdin.on('error', fail);
+    child.stdout.setEncoding('utf8');
+    child.stdout.on('data', chunk => { output += chunk; if (Buffer.byteLength(output) > 1024) fail(); });
+    child.stderr.on('data', chunk => { stderrBytes += chunk.length; if (stderrBytes > 8192) fail(); });
+    child.on('close', code => {
+      clearTimeout(timer);
+      try {
+        const result = JSON.parse(output);
+        if (failed) throw Error();
+        if (code === 1 && result?.ok === false && Object.keys(result).sort().join(',') === 'error,ok' && budgetErrors.has(result.error)) {
+          reject(Error(result.error)); return;
+        }
+        if (code !== 0 || result?.ok !== true || Object.keys(result).sort().join(',') !== 'ok,remainingMillis,ticket' ||
+            !Number.isSafeInteger(result.ticket) || result.ticket < 1 || result.ticket > acceptance.modelCalls ||
+            !Number.isSafeInteger(result.remainingMillis) || result.remainingMillis < 1 || result.remainingMillis > 3600000) throw Error();
+        // Pipe time is charged conservatively; a late response cannot reopen an expired authorization.
+        resolve({ ticket: result.ticket, deadline: began + result.remainingMillis });
+      } catch { reject(Error('acceptance_budget_unavailable')); }
+    });
+    // No prompt, credential, model options, signal reason or usage crosses stdin.
+    child.stdin.end(JSON.stringify({ op: 'reserve', outputTokens }));
+  });
+}
+
+// Bound each pending iterator read as well as each delivered chunk. Do not echo
+// cancellation reasons, and do not await an uncooperative provider during cleanup.
+async function* boundedStream(next, signal, deadline, expire) {
+  const iterator = next()[Symbol.asyncIterator]();
+  let timer, abort;
+  const stopped = new Promise((_, reject) => {
+    abort = () => reject(Error('acceptance_request_aborted'));
+    signal?.addEventListener('abort', abort, { once: true });
+    timer = setTimeout(() => {
+      reject(Error('acceptance_budget_expired'));
+      expire();
+    }, Math.max(0, deadline - performance.now()));
+  });
+  // Install a rejection handler even while the consumer pauses between chunks.
+  void stopped.catch(() => {});
+  try {
+    while (true) {
+      if (signal?.aborted) throw Error('acceptance_request_aborted');
+      if (performance.now() >= deadline) { expire(); throw Error('acceptance_budget_expired'); }
+      const item = await Promise.race([iterator.next(), stopped]);
+      if (signal?.aborted) throw Error('acceptance_request_aborted');
+      if (performance.now() >= deadline) { expire(); throw Error('acceptance_budget_expired'); }
+      if (item.done) return;
+      yield item.value;
+    }
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener('abort', abort);
+    if (iterator.return) void Promise.resolve(iterator.return()).catch(() => {});
+  }
+}
 
 export const RESEARCH_TOOLS = new Set([
   'todo_write',
@@ -99,18 +173,93 @@ export function apply(ctx, config = {}) {
   }
   // Optional instance-wide acceptance caps; the owned launcher supplies them.
   const acceptance = config.acceptance;
+  const dockerText = acceptance?.profile === 'docker-text';
   let modelCalls = 0;
   let toolCalls = 0;
+  const requestOwners = new WeakMap();
+  const latestOwners = new WeakMap();
+  let nativeLlm;
+  if (dockerText) {
+    if (typeof config.nativeLlmModule !== 'string' || !isAbsolute(config.nativeLlmModule) || config.nativeLlmModule.includes('\0')) throw Error('acceptance_control_invalid');
+    ctx.on('agent/request', async (payload, next) => {
+      const owner = payload.agent;
+      if (!payload.signal || typeof owner?.cancel !== 'function' || typeof owner.session?.id !== 'string') throw Error('acceptance_transport_abort_unverified');
+      const decision = await next();
+      const binding = { agent: owner, sessionId: owner.session.id, signal: payload.signal };
+      requestOwners.set(payload.signal, binding);
+      latestOwners.set(owner, binding);
+      return decision;
+    }, { global: true, prepend: true });
+  }
   if (acceptance !== undefined) {
-    if (!acceptance || Object.keys(acceptance).sort().join(',') !== 'modelCalls,tool' ||
-        !Number.isInteger(acceptance.modelCalls) || acceptance.modelCalls < 1 || acceptance.modelCalls > 6 ||
-        acceptance.tool !== 'datahub_get_fund_data') throw Error('acceptance_control_invalid');
+    const validLegacy = acceptance && !dockerText && Object.keys(acceptance).sort().join(',') === 'modelCalls,tool' &&
+      Number.isInteger(acceptance.modelCalls) && acceptance.modelCalls >= 1 && acceptance.modelCalls <= 6 &&
+      acceptance.tool === 'datahub_get_fund_data';
+    const budgetBridge = acceptance?.budgetBridge;
+    const validBridge = budgetBridge && (Object.keys(budgetBridge).sort().join(',') === 'bridge,python' &&
+      [budgetBridge.python, budgetBridge.bridge].every(value => typeof value === 'string' && value.startsWith('/') && value.length <= 4096 && !value.includes('\0')));
+    const validDockerText = dockerText && validBridge &&
+      Object.keys(acceptance).sort().join(',') === 'budgetBridge,installationId,maxOutputTokens,modelCalls,profile' &&
+      typeof acceptance.installationId === 'string' && /^[a-f0-9]{32}$/.test(acceptance.installationId) &&
+      Number.isInteger(acceptance.modelCalls) && acceptance.modelCalls >= 1 && acceptance.modelCalls <= 3 &&
+      Number.isSafeInteger(acceptance.maxOutputTokens) && acceptance.maxOutputTokens >= 1 && acceptance.maxOutputTokens <= 512;
+    if (!validLegacy && !validDockerText) throw Error('acceptance_control_invalid');
     const maximum = acceptance.modelCalls;
+    const maxOutputTokens = acceptance.maxOutputTokens;
     const containsAttachment = value => value && typeof value === 'object' &&
       (['image', 'file', 'audio'].includes(value.type) || Object.values(value).some(containsAttachment));
     ctx.on('llm/stream', async function* (options, next) {
-      options.signal?.throwIfAborted();
+      if (!dockerText) options.signal?.throwIfAborted();
       if (containsAttachment(options.messages)) throw Error('acceptance_text_only');
+      if (dockerText) {
+        // NormalAgentLoop already froze the resolved options. Validate them;
+        // changing options here cannot establish the provider's actual bound.
+        if (!Number.isSafeInteger(options.maxTokens) || options.maxTokens < 1 || options.maxTokens > maxOutputTokens) {
+          ctx.logger.warn('research_acceptance_output_limit');
+          throw Error('acceptance_output_limit');
+        }
+        if (!budgetBridge) {
+          ctx.logger.warn('research_acceptance_budget_unverified');
+          throw Error('acceptance_budget_unverified');
+        }
+        if (options.provider !== 'deepseek-official' || options.model !== 'deepseek-flash') {
+          ctx.logger.warn('research_acceptance_provider_denied');
+          throw Error('acceptance_provider_denied');
+        }
+        if (options.tools !== undefined && (!Array.isArray(options.tools) || options.tools.length)) throw Error('acceptance_tool_limit');
+        const owner = options.signal && requestOwners.get(options.signal);
+        try { nativeLlm ??= import(pathToFileURL(config.nativeLlmModule).href); }
+        catch { throw Error('acceptance_transport_abort_unverified'); }
+        let sdk;
+        try { sdk = await nativeLlm; } catch { throw Error('acceptance_transport_abort_unverified'); }
+        if (!owner || latestOwners.get(owner.agent) !== owner || owner.signal !== options.signal || owner.sessionId !== options.sessionId || !sdk.isAgentLoopRequest?.(options)) throw Error('acceptance_transport_abort_unverified');
+        let reservation;
+        try { reservation = await reserveBudget(acceptance, options.maxTokens); }
+        catch (error) {
+          const code = budgetErrors.has(error?.message) ? error.message : 'acceptance_budget_unavailable';
+          ctx.logger.warn('research_acceptance_budget_rejected code=%s', code);
+          throw Error(code);
+        }
+        // Aborted/failed calls retain the durable reservation permanently.
+        if (options.signal?.aborted) throw Error('acceptance_request_aborted');
+        if (requestOwners.get(options.signal) !== owner || latestOwners.get(owner.agent) !== owner || owner.agent.session.id !== owner.sessionId) throw Error('acceptance_transport_abort_unverified');
+        if (performance.now() >= reservation.deadline) throw Error('acceptance_budget_expired');
+        ctx.logger.info('research_acceptance_model_call ordinal=%s', reservation.ticket);
+        const expire = () => {
+          // Cancel only the SDK owner of this exact frozen request. A newer
+          // request binding must never be cancelled by this request's timer.
+          if (requestOwners.get(options.signal) !== owner || latestOwners.get(owner.agent) !== owner || options.signal.aborted) return;
+          ctx.logger.warn('research_acceptance_budget_expired');
+          try { owner.agent.cancel({ kind: 'hook', reason: 'acceptance_budget_expired' }, { keepInbox: true }); }
+          catch { ctx.logger.warn('research_acceptance_transport_abort_failed'); }
+        };
+        try { yield* boundedStream(next, options.signal, reservation.deadline, expire); }
+        finally {
+          if (requestOwners.get(options.signal) === owner) requestOwners.delete(options.signal);
+          if (latestOwners.get(owner.agent) === owner) latestOwners.delete(owner.agent);
+        }
+        return;
+      }
       if (modelCalls >= maximum) {
         ctx.logger.warn('research_acceptance_model_limit');
         throw Error('acceptance_model_limit');
@@ -133,6 +282,10 @@ export function apply(ctx, config = {}) {
   }
   ctx.tools.guard((execution) => {
     if (acceptance !== undefined) {
+      if (dockerText) {
+        ctx.logger.warn('research_acceptance_tool_denied');
+        return 'acceptance_tool_limit';
+      }
       const args = execution.arguments;
       const publicNav = args && typeof args === 'object' && !Array.isArray(args) &&
         Object.keys(args).every(key => ['source', 'dataset', 'code', 'limit', 'allow_fallback', 'refresh'].includes(key)) &&

@@ -1,5 +1,7 @@
 # GitHub Actions 免费额度治理
 
+验收预算模块及私有桥接由专属账本/launcher/guard测试进入原验证路由；不新增自动 Docker、Windows 或桌面 dispatch。当前政策过期且不执行模型请求，费用字段不能视为当前报价。
+
 用户已于 2026-10-07 重新开启阶段二、三和跨平台范围。当前宿主按平台职责完成本机验收；Windows/Linux 由对应设备对 exact SHA 接手，缺失保持 NOT_RUN。Ubuntu 通用 CI 继续执行。
 
 

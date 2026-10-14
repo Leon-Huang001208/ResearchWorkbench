@@ -1,5 +1,7 @@
 # DataHub、研究资料与实际文件
 
+验收 control/ledger 位于实例私有 live-acceptance/<身份> 叶中，控制摘要、永久锁、FD 复核、原子替换和读回绑定票据。describe/reserve 不创建；init 拒绝已有或中断初始化的实例，不修复、不退款或重置。最多3票、512输出/票、1536累计；旧费用政策仅为已过期历史字段。
+
 原生事件仍由 DSH 日志保存；历史/分页/SSE 归并的同序号冲突标记只保留在 Host 内存记录外层，不新增正文库、持久 schema 或写回日志。Automation 草稿及文件交付不能从计划项完成推导。
 
 Docker 模型密文是 AES-256-GCM 版本化 envelope，复用私有文件权限、锁和原子替换。

@@ -1,5 +1,7 @@
 # Agent 任务路由指南
 
+持久文本验收预算精确匹配专属ledger与launcher测试和guard测试，按L4安全边界保留完整Docker/Windows及macOS计划；历史时钟测试不表示当前政策或模型授权有效。平台任务与总发布就绪继续分开记录。
+
 当前交付平台以 [AGENTS.md 的 Current Research Web delivery phase](../AGENTS.md#current-research-web-delivery-phase-authoritative) 为准：用户已开启阶段二、三，Mac 任务验收 macOS Native 与 Docker Desktop；Windows/Linux 由对应设备执行，缺设备保留交接。Ubuntu 通用 CI 不代替平台真机验收。
 
 
