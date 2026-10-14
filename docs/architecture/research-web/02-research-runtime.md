@@ -1,5 +1,7 @@
 # 研究协议、执行状态与恢复
 
+历史pre-AES stage替换仅接受created/exited且Running=false的原登记容器；两次核对后用固定ID普通rm，运行态变化会拒绝删除，不使用force。新container沿现有up流程挂载原model_key，旧Native/Docker任务和凭据不会转移或自动重新执行。
+
 周期简报的稳定身份由计划ID、配置版本和due时点派生。事务同时登记运行、入队和推进next_due；重复heartbeat不多触发。资料按固定due和发布时间窗口选择，选材先持久化；发布及终态回执写前/写后复核owner、claim、signal和有效计划版本。停用或版本变化取消尚未执行运行，PG错误保留errorCode/queueState；有限重试后仍显示失败，不生成模型执行。
 
 Hot guest 的进程身份由内核 boot ID、启动 ticks、UID 与精确 argv 双读固定；状态

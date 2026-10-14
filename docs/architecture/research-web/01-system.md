@@ -1,5 +1,7 @@
 # 部署与模块职责
 
+管理平面显式stage镜像替换可退休身份完全匹配的停止pre-AES容器，保留其已有五卷；模型就绪账本不证明旧容器具有密钥挂载。例外仅为已授权升级，普通运行身份门和业务容器无Docker socket边界保持。Native/Docker产品节点及唯一DSH归属不变。
+
 Hot Node现有heartbeat向同一pg-boss hot.brief队列登记周期运行；controller负责计划授权和冻结简报发布，普通worker只处理已有领取/确认。Automation提供管理适配，不在旧Store写第二套计划或周期调度。关注、计划、运行和选材在指定PG schema持久化；ResearchService/DSH仍只承担用户明确提交的正式研究。
 
 Hot 的 Docker 镜像已包含锁定生产依赖和迁移。HotManager 在 Supervisor Web 内识别

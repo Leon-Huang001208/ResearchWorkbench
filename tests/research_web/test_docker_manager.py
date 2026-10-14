@@ -162,3 +162,71 @@ def test_candidate_refresh_never_promotes_production_or_mutable_tag(
             {"environment": environment}, image
         )
     assert calls == []
+
+
+def pre_model_candidate():
+    volumes = {key: 'owned-' + key for key in ('data', 'logs', 'credentials', 'cache', 'model_key')}
+    container = {
+        'Id': 'owned', 'Image': 'sha256:' + 'a' * 64, 'Name': '/owned-stage',
+        'Config': {'Env': []}, 'State': {'Running': False, 'Status': 'exited'},
+        'NetworkSettings': {'Networks': {'owned-network': {}}},
+        'HostConfig': {'Memory': 2 * manage.GIB, 'MemorySwap': 2 * manage.GIB,
+                       'NanoCpus': 2_000_000_000, 'PidsLimit': 256, 'ReadonlyRootfs': True},
+        'Mounts': [{'Destination': target, 'Name': volumes[key], 'RW': True}
+                   for key, target in {'data': '/data/research-web', 'logs': '/state/logs',
+                                       'credentials': '/run/rwb-secrets', 'cache': '/cache'}.items()],
+    }
+    record = {'environment': 'stage', 'instance': 'candidate', 'container_id': 'owned',
+              'name': 'owned-stage', 'network': 'owned-network', 'memory': 2 * manage.GIB,
+              'image': container['Image'], 'model_instance': 'b' * 32,
+              'model_store_state': 'ready', 'volumes': volumes,
+              'projection': deepcopy(container)}
+    return record, container
+
+
+def test_explicit_replace_of_stopped_pre_model_candidate_preserves_all_volumes(tmp_path, monkeypatch):
+    record, container = pre_model_candidate()
+    manager = manage.Manager(tmp_path, '/admin', '/worktree')
+    image = 'sha256:' + 'c' * 64
+    replacement = {'Id': image, 'Architecture': 'arm64', 'Os': 'linux',
+                   'Config': {'Labels': {manage.PREFIX + 'runtime': 'docker',
+                                        manage.PREFIX + 'model-credentials': 'aes-gcm-v1'}}}
+    monkeypatch.setattr(manager, 'verify_resources', lambda record: None)
+    monkeypatch.setattr(manage, 'inspect', lambda kind, name: container if kind == 'container'
+                        else replacement if name == image else {'Config': {'Labels': {}}})
+    calls = []
+    monkeypatch.setattr(manage, 'command', lambda *args, **kwargs: calls.append(args))
+    original_volumes = deepcopy(record['volumes'])
+    with pytest.raises(manage.Refusal, match='model_master_mount_mismatch'):
+        manager.owned(record)
+    manager.replace_stage_image(record, image)
+    assert calls == [('docker', 'rm', 'owned')]
+    assert record['volumes'] == original_volumes
+    assert record['previous_image'] == container['Image']
+    assert record['image'] == image and record['container_id'] is None
+
+
+@pytest.mark.parametrize('mutation', ['running', 'encrypted_image', 'model_env', 'wrong_projection', 'initializing'])
+def test_pre_model_replace_refuses_unsafe_candidate(tmp_path, monkeypatch, mutation):
+    record, container = pre_model_candidate()
+    manager = manage.Manager(tmp_path, '/admin', '/worktree')
+    image = 'sha256:' + 'c' * 64
+    labels = {manage.PREFIX + 'runtime': 'docker', manage.PREFIX + 'model-credentials': 'aes-gcm-v1'}
+    if mutation == 'running':
+        container['State'].update(Running=True, Status='running')
+    elif mutation == 'model_env':
+        container['Config']['Env'] = ['RWB_MODEL_BACKEND=docker-encrypted']
+        record['projection'] = deepcopy(container)
+    elif mutation == 'wrong_projection':
+        container['Image'] = 'foreign'
+    elif mutation == 'initializing':
+        record['model_store_state'] = 'initializing'
+    monkeypatch.setattr(manager, 'verify_resources', lambda record: None)
+    monkeypatch.setattr(manage, 'inspect', lambda kind, name: container if kind == 'container' else
+                        {'Id': image, 'Architecture': 'arm64', 'Os': 'linux', 'Config': {'Labels': labels}}
+                        if name == image else {'Config': {'Labels': labels if mutation == 'encrypted_image' else {}}})
+    calls = []
+    monkeypatch.setattr(manage, 'command', lambda *args, **kwargs: calls.append(args))
+    with pytest.raises(manage.Refusal):
+        manager.replace_stage_image(record, image)
+    assert calls == []
