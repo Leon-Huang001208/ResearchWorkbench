@@ -5,6 +5,8 @@ Hot 安装变更沿既有 Mac Bootstrap 验收：公开安装器运行后，在 
 研究证据；Windows/Linux 产品 dispatch 仍由对应真机执行。CI 的受管停止错误保留
 非零结果，不用 `|| true` 省略。源检查点与仅记录结果的报告检查点须分别标明。
 
+持久文本验收预算精确匹配专属ledger与launcher测试和guard测试，按L4安全边界保留完整Docker/Windows及macOS计划；历史时钟测试不表示当前政策或模型授权有效。平台任务与总发布就绪继续分开记录。
+
 当前交付平台以 [AGENTS.md 的 Current Research Web delivery phase](../AGENTS.md#current-research-web-delivery-phase-authoritative) 为准：用户已开启阶段二、三，Mac 任务验收 macOS Native 与 Docker Desktop；Windows/Linux 由对应设备执行，缺设备保留交接。Ubuntu 通用 CI 不代替平台真机验收。
 
 
@@ -31,6 +33,42 @@ master
 短期分支使用 `feat/*`、`fix/*`、`refactor/*`、`codex/*`、`platform/windows/*` 或 `platform/macos/*`。Mac 是主要开发机，负责功能、架构、重构和 macOS 本地验证；Windows 默认运行 `git switch master` 与 `git pull --ff-only` 后验证最新集成版本，验证成功不创建分支。只有 Windows-only 缺陷才从最新 `master` 建立 `platform/windows/*`，并通过 PR 回到 `master`。需要 GitHub Windows CI 时，Windows 真机先 checkout 待验 ref、读取 `git rev-parse HEAD`，再从该机 dispatch workflow 并传入 `expected_sha`；Mac 不发送 Windows dispatch。禁止长期维护 `windows`、`macos`、`develop` 或设备专属代码线。
 
 一个并行任务对应一个明确 branch，原则上对应一个独立 worktree。合并后仅在确认提交已进入 `master`、worktree 没有未归并修改且没有进程占用时，才移除该 worktree 和失效短期分支。2026-10-07已启用master保护：PR、最新基线和Actions check（app15368）强制通过，管理员也受约束；平台条件门继续由任务回执校验。禁止强推/删除主线及未解决讨论由远端保护执行；各平台条件 CI 与真机证据仍是项目任务合同，不能宣称全部被远端无条件强制。
+
+## RWB Git 安全入口（macOS）
+
+本入口只管理 RWB 的受管 Git 交付，不改变产品运行时。写入操作要求 `--project` 与脚本所在 RWB checkout 共用同一个 Git common directory，不接受其他仓库或 CLI 身份绕过参数。macOS 固定使用系统 `/usr/bin/git`，控制器子进程使用任务私有 PATH 转接；不修改全局框架、系统 PATH 或其他项目。转接禁止对象维护，fetch 不带 `--prune`。`check` 只读，不写日志或修复引用；其余操作在 `logs/git-safety.jsonl` 记录结果、Git 版本、SHA、耗时及备份引用，不记录凭据、环境变量或完整命令输出。
+
+在已有 RWB checkout 中使用以下流程；`--project` 指向任务交付账本所属的主 checkout，不随意切换到其他仓库：
+
+```bash
+node scripts/git_safety.mjs check --project /absolute/RWB
+node scripts/git_safety.mjs configure --project /absolute/RWB
+node scripts/git_safety.mjs delivery --project /absolute/RWB --task-id TASK --start --slug SLUG
+```
+
+`configure` 先保存仓库本地 `gc.auto` 和 `maintenance.auto` 的原值（含原先不存在），再设置为 `0` 和 `false`；配置只留在本机 Git common directory，不进入代码包。回滚仅恢复这两个配置项，并确认它们没有被其他任务改动，禁止整体覆盖旧 `.git/config`。自动维护暂停期间对象库可能增长；本阶段不自动删除备份或执行 GC，后续维护需在停止并发写入、完成备份与完整性检查后另行安排。
+
+实现、提交和本地验收后，仍按完整 changed set 的 Router 结果执行所有必需检查：
+
+```bash
+node scripts/git_safety.mjs delivery --project /absolute/RWB --task-id TASK --prepare
+node scripts/git_safety.mjs delivery --project /absolute/RWB --task-id TASK --publish \
+  --verification-command 'ACTUALLY_EXECUTED_COMMANDS' \
+  --verification-status passed --verification-duration-seconds INTEGER_SECONDS
+node scripts/git_safety.mjs delivery --project /absolute/RWB --task-id TASK --status \
+  --reviewed-commit EXACT_REVIEWED_PR_HEAD_SHA
+node scripts/git_safety.mjs delivery --project /absolute/RWB --task-id TASK --cleanup
+```
+
+发布必须走 PR；检查、评审和分支保护通过后才合并。`--reviewed-commit` 是操作者对独立评审候选的明确声明，必须绑定当前 PR head，不能用旧 SHA 或仅看测试通过代替评审。入口在 common directory 的私有任务记录中持久保存该声明；已被外部合并的 PR 也不能在缺少 matching 声明时认证完成，清理前必须再次核对。仓库未开启 GitHub Auto-merge 时，由入口在后续 `status` 检查中执行普通 Merge；不启用仓库设置、不使用管理员绕过。private／billable 仓库没有当前额度证明时停止远端操作，不能从历史 public 状态推导权限。
+
+`backup` 也可独立创建当前 checkout 的恢复证据；清理时捕获本任务受管 worktree 和调用 checkout，其他任务的工作区文件不被读取或导出，历史失效注册不被删除。备份位于 `~/.codex/backups/rwb-git-safety/`，目录 `0700`、普通文件 `0600`，包含提交 bundle、分开保存的暂存／未暂存二进制补丁、tracked 普通文件的原始工作副本字节、未被忽略的未跟踪文件、快照引用及其对象闭包。在自己的临时仓库中实际恢复并校验对象链、文件哈希和普通文件权限：Git 只记录 executable 位，还可能按属性转换换行，不能用 checkout 的默认字节或 `0644` 替代原本的 LF／CRLF 工作副本及 `0600` 等权限。恢复字节和权限只作用于临时恢复仓库中的已验证普通文件，不跟随符号链接或修改源文件。恢复前保存未认证的 draft metadata；失败备份保留诊断状态，不产生成功认证。发现备份期间目标变化、缺失对象、明确敏感文件或失败时停止，不能静默省略后继续清理。不读取凭据库或忽略的运行时秘密文件；合法报告名出现 token 不视为凭据文件。
+
+清理前必须确认所有拟处理的分支均已归并、worktree 共用同一 Git 目录且匹配任务账本、工作区干净、没有进程占用，并完成可恢复备份。ignored 文件不会因为 Git status 干净就变成可删除数据：只要拟删除工作区仍有 ignored 路径，入口就拒绝清理，且不读取或导出它们。操作者可将明确由本任务产生的验证日志保留到私有证据目录，其他缓存、数据和秘密必须保留并单独处理。清理后检查对象完整性和其他任务资源保留情况。遇到 Git 锁或仓库级入口锁时停止，不自动删除遗留锁。只允许移除本任务已归并资源，不接受任意 shell 命令，也不提供 GC／prune 接口。
+
+锁仅串行化采用本入口的操作；Codex 内部和人工直接执行的 Git 命令仍可能并发。Ubuntu 临时仓库测试属于通用算法证据，不代表 Linux／Windows 宿主启用已验证。现有隔离备份永久保留至另行授权；原始对象删除者仍未确定。
+
+备份的全仓引用与其他 worktree 注册是捕获时的快照，不表示其他任务被冻结。导出并在临时仓库校验所捕获 SHA 的完整对象闭包后，其他聊天可继续新增或更新 Codex tree 引用；本任务目标 worktree 的 HEAD、分支、索引、补丁和文件仍必须在备份前后完全一致。清理保留性检查记录其他任务的合法提交快进；Codex 快照指针更新仅在旧对象已保存于认证备份、新对象仍完整时记录，不回退当前指针、不执行过期清理。其他非任务引用消失或非快进变化仍停止验收。
 
 ## 任务路由（Routing rules）
 

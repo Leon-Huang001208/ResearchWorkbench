@@ -4,6 +4,8 @@
 
 ## 当前权威断点 · 2026-10-14（覆盖下方历史待验状态）
 
+后续集成：UI源3233da967已推送PR106；随后master更新到d8127c300（PR90/107/108/109），PR暂冲突未启动新CI。已保留双方文档及图册增量，launch_runtime保留Hot零重试并采用主线staged/docker-text入口。261项Python、306项JS PASS；只读Python审查无阻断，Git安全check fsck PASS。此合并尚无远端CI证据；后续受管发布遵循新增Git安全入口。主线过期3×512验收预算不属于本Hot授权，不初始化/续期/收费。
+
 源候选 341000f7f51fba13a14bda91b20550a7cd552cd7，已合入 master baba313ae41af81a49d129ce71e8dd34c11a5f9b；PR #106 仍为 draft，未合并或部署。
 Mac Bootstrap 38498932227、Project Constraints 38498932373、Research Web Checks 38498932424 全部成功；实际安装 checkout 为 merge preview 7c34e6026189313ec2da03b93606d49b37b7abe3（341000f7 + baba313）。安装/3081/8088/Doctor 通过，model_ready=false，厂商调用未验证。
 

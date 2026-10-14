@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "updated",
-  "summary": "更新Hot真实报告、恢复和MacCI进度，研究页面补齐冻结选材准备与明确执行两步。",
-  "reason": "继续复用原ResearchService/DSH及已有额度，未知响应保留原请求；组件Docker证据不升级最终整镜像，关注/周期简报及完整Goal保持未完成。Claw/ETF/凭据格式边界沿用现行合同。"
+  "summary": "保留Hot真实报告与两步研究UI、主线Todo恢复和显式受管文本验收预算。",
+  "reason": "Hot预算不变；PR88历史政策过期不得自动激活或续期，Todo计划不等于报告交付；组件与最终整镜像、旧CI与新候选分别认证。"
 }

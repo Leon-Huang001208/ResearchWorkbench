@@ -6,6 +6,12 @@ Hot正式执行复用既有ResearchService.send；没有扩大Tabbit工具、浏
 Hot流预算插件与Tabbit共用既有Runtime，保留原浏览器审批、claim及工具guard。
 新私有HTTP请求仅用于根Hot归属和模型账本，不注册浏览器工具或读取浏览器内容。
 
+显式docker-text验收模式关闭Tabbit并拒绝所有工具与附件；普通研究的Tabbit配置和审批保持不变。预算测试不认证宿主浏览器或网页已读取。
+
+研究 preset 新增原生 Todo 只放行 `todo_write`；Tabbit browser/web_fetch 的独立开关、
+审批和安装拒绝保持原样。计划投影不调用浏览器、不抓取标签页，也不从 Todo 内容推断网页
+已读取或来源已验证；原生计划集成通过不能替代 Tabbit 真实浏览器验收。
+
 
 Docker 模型主密钥与密文不用于 Tabbit Cookie、claim 或浏览器授权；文本凭据闭环不证明
 宿主浏览器可调用，现有 Native 授权和一次性 token 语义保持。

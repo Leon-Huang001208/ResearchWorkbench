@@ -4,6 +4,8 @@ Hot 安装器变更进入既有 Mac Bootstrap；该 job 使用 Node 24.19.0，�
 Hot 生产依赖导入，不启动数据库或付费模型。Windows/Linux 产品 dispatch 仍由对应
 真机负责，Mac 任务不借新增 Hot 检查扩大它们的自动触发面。
 
+验收预算模块及私有桥接由专属账本/launcher/guard测试进入原验证路由；不新增自动 Docker、Windows 或桌面 dispatch。当前政策过期且不执行模型请求，费用字段不能视为当前报价。
+
 用户已于 2026-10-07 重新开启阶段二、三和跨平台范围。当前宿主按平台职责完成本机验收；Windows/Linux 由对应设备对 exact SHA 接手，缺失保持 NOT_RUN。Ubuntu 通用 CI 继续执行。
 
 
@@ -51,6 +53,8 @@ Windows job 在 clean checkout 上执行公开 `setup-web.cmd --no-start`、`rwb
 Research Web Checks 的 Python 部分固定为协议、集成协调、文档服务、文档同步与 CLI 懒加载合同，JavaScript 部分运行 `research_web*.test.mjs`。完整 `tests/research_web/` 仍在本地交付或高风险变更中按影响面运行，不能偷偷扩进日常 workflow；需要扩大自动测试时先以最近 5 次成功耗时重新评估额度。
 
 验证策略、只读规划器、薄兼容入口及其治理文档属于项目治理变更，只进入 Project Constraints。规划器输出的是待执行计划，不会自行触发 Actions；`full-delivery` 只声明交付强度，实际远端动作仍由受管交付控制器和本页状态门决定。
+
+RWB Git 安全入口的临时仓库测试在现有 Project Constraints 的独立步骤运行，使用该 job 的标准 Ubuntu runner、既有 concurrency 与 10 分钟上限，不新增 workflow 或原生平台 job。它验证 Git 对象恢复、备份与清理算法，不代表 Linux 产品或其他宿主启用。macOS 受管入口在 push、合并及远端分支清理前重新核对当前 visibility 和标准 runner 运行证据；private／billable 状态没有当前额度证明时停止远端动作，不沿用历史 public 结论。当前 RWB 不开启 GitHub Auto-merge，入口在检查及评审满足后执行普通 PR Merge，不修改仓库设置。
 
 Docker 路由的专项例外是 `.agents/verification-policy.json`、`tests/javascript/verification_policy.test.mjs` 及 Docker/额度契约测试：它们仍选择容器验收门，交接给 Linux 真机对 exact SHA 手动发起，防止门禁 ID 与实际工作流脱节。门禁 ID 为 `.github/workflows/research-web-docker.yml#docker-runtime`。普通治理文档、产品文档和 UI 仍不触发 Docker。
 

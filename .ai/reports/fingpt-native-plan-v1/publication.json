@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "sourceCandidateCommit": "c10cb6bf58fa36889d5647bc6eb99e53ccf27340",
+  "baseCommit": "f8adae050900e2209bf3f10025b901dea692cdee",
+  "branch": "codex/fingpt-native-plan-v1-20261009",
+  "pullRequest": "https://github.com/Leon-Huang001208/ResearchWorkbench/pull/90",
+  "remoteHeadVerified": "c10cb6bf58fa36889d5647bc6eb99e53ccf27340",
+  "githubMergePreview": "778959523ee5be7401bab01253e43f5ce79f198a",
+  "pullRequestState": "OPEN",
+  "autoMerge": false,
+  "merged": false,
+  "runtimeUpdated": false,
+  "ciRuns": {
+    "Project Constraints": 37888849149,
+    "Research Web Checks": 37888849128,
+    "Research Web Bootstrap": 37888849125
+  },
+  "evidenceSource": "live gh pr view, gh api pulls/90, gh run list; not a managed iteration-delivery receipt",
+  "reportStatus": "local append-only evidence after immutable candidate; not yet in PR head",
+  "permissions": "no merge/auto-merge, no Windows/Linux dispatch, no dependency installation or paid model calls"
+}

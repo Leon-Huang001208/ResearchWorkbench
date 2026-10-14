@@ -7,6 +7,11 @@ Hot 的持久研究映射与受控交接准备现在适配同一 ResearchService
 完整原件副本及目录核验可恢复。它尚不启动付费研究或报告；既有 Automation 调度与
 create/send 路径保持，Hot 周期任务的 Automation 适配仍待实现，见图11和权威进度报告。
 
+显式文本验收预算复用已有私有模型桥与受管 AES 身份，持久票据不退款。旧政策过期，真实验收未启用；预算不是运行实例管理或产品推理 PASS。
+
+原生研究计划复用既有 DSH 与 FinGPT 计划标签；历史分页和 SSE 缓存保留同序号冲突证据，
+坏快照不显示已确认计划。此内存恢复改动不新增 Automation 调度或改变日程草稿确认边界。
+
 G2A 为受管 Docker 增加固定模型 ref 的实例加密后端及主密钥只读卷，仍由原 Web→DSH
 私有 stdio 桥调用。生成、重建和隔离证据分别记录，Native Keychain 与原 Automation 合同保留。
 

@@ -41,6 +41,13 @@ Web Host已新增惰性有界Hot桥与页面入口；其lifespan不启动Hot/PG/
 读取/超时不会接管基础设置。部署图与Hot专项图记录Node/PG当前实现，Docker产品切换、
 真实事件浏览/研究和同SHA干净安装仍须各自验收。
 
+持久验收预算仍在现有Web/DSH部署内，通过受管AES身份和私有Python管道消费；没有新进程或自动激活。默认运行不读账本，过期控制拒绝。
+
+原生研究计划沿用 DSH 唯一执行与日志源：研究 preset 注册已有 Todo，Web projection
+读取同会话日志并向既有详情/SSE snapshot 添加计划字段，研究空间只读显示。
+新增快照字段不创建调度器、正文库或持久 schema；Native/Docker 部署和生命周期不变。
+固定插件无模型进程内集成不代替完整服务启动、干净安装或同平台 GitHub CI。
+
 G2A 在现有单容器部署内增加实例专属 model_key 只读卷，credentials 卷存模型密文；
 受管初始化 helper 有 128MiB 硬限额并核对 VM 准入，不改变 Web＋固定 DSH 双进程与唯一引擎。
 

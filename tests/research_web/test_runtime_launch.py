@@ -37,6 +37,19 @@ def make_source(tmp_path: Path) -> Path:
     return source
 
 
+def test_research_preset_declares_native_todo_with_explicit_parallel_policy(tmp_path, monkeypatch):
+    source = make_source(tmp_path)
+    data = tmp_path / "data"
+    monkeypatch.setattr(
+        launch_runtime.subprocess, "check_output", lambda *a, **k: launch_runtime.PINNED_COMMIT
+    )
+    _, _, _ = launch_runtime.prepare(source, data, "/node", 13081, research_tools=True)
+    overlay = (data / "runtime/overlay.yml").read_text(encoding="utf-8")
+    assert "name: '@deepseek-ai/dsh-tool-todo'" in overlay
+    assert "allowParallelInProgress: true" in overlay
+    assert "id: rwb-preset-research-web" in overlay
+
+
 def test_runtime_module_fallback_is_healed_inside_private_source(tmp_path, monkeypatch):
     source = make_source(tmp_path)
     home = tmp_path / "home"
@@ -1163,3 +1176,143 @@ def test_aes_overlay_binding_requires_verified_staged_selection(monkeypatch):
     monkeypatch.setenv("RWB_MODEL_INSTANCE_ID", "invalid")
     with pytest.raises(RuntimeError, match="model_credential_binding_invalid"):
         launch_runtime.model_credential_binding(staged=True)
+
+
+def test_docker_text_control_requires_explicit_authenticated_binding(tmp_path, monkeypatch):
+    data = tmp_path / "data"
+    identity = "a" * 32
+    value = {
+        "dataHome": str(data.resolve()),
+        "profile": "docker-text",
+        "installationId": identity,
+        "modelCalls": 3,
+        "maxOutputTokens": 512,
+    }
+    monkeypatch.delenv("RESEARCH_ACCEPTANCE_CONTROL", raising=False)
+    monkeypatch.setattr(
+        launch_runtime,
+        "validated_model_instance",
+        lambda *args: pytest.fail("implicit discovery"),
+        raising=False,
+    )
+    assert launch_runtime.live_acceptance_control(data, 3081) is None
+    monkeypatch.setenv("RESEARCH_ACCEPTANCE_CONTROL", json.dumps(value))
+    with pytest.raises(RuntimeError, match="acceptance_control_invalid"):
+        launch_runtime.live_acceptance_control(data, 3081)
+    monkeypatch.setattr(launch_runtime, "validated_model_instance", lambda *args: identity)
+    monkeypatch.setattr(
+        launch_runtime,
+        "read_acceptance_budget",
+        lambda instance: {"modelCalls": 3, "maxOutputTokens": 512},
+        raising=False,
+    )
+    result = launch_runtime.live_acceptance_control(data, 3081, staged=True)
+    assert result["installationId"] == identity
+    assert result["budgetBridge"]["python"] == sys.executable
+    assert "dataHome" not in result
+    for changed in (
+        {"installationId": "b" * 32},
+        {"maxOutputTokens": 513},
+        {"modelCalls": True},
+        {"extra": 1},
+    ):
+        monkeypatch.setenv("RESEARCH_ACCEPTANCE_CONTROL", json.dumps({**value, **changed}))
+        with pytest.raises(RuntimeError, match="acceptance_control_invalid"):
+            launch_runtime.live_acceptance_control(data, 3081, staged=True)
+
+
+@pytest.mark.parametrize("backend", [None, "docker-encrypted-file", "native-keychain"])
+def test_docker_text_refuses_unbound_fernet_and_native_even_with_environment_id(
+    monkeypatch, backend
+):
+    monkeypatch.setattr(launch_runtime.sys, "platform", "linux")
+    monkeypatch.setenv("RWB_DSH_STAGED", "1")
+    monkeypatch.setenv("RWB_INSTALLATION_ID", "a" * 32)
+    monkeypatch.setenv("RWB_MODEL_INSTANCE_ID", "a" * 32)
+    if backend is None:
+        monkeypatch.delenv("RWB_MODEL_BACKEND", raising=False)
+    else:
+        monkeypatch.setenv("RWB_MODEL_BACKEND", backend)
+    monkeypatch.setattr(
+        launch_runtime,
+        "model_credential_binding",
+        lambda *args: pytest.fail("unexpected key access"),
+    )
+    with pytest.raises(RuntimeError, match="acceptance_control_invalid"):
+        launch_runtime.validated_model_instance(True)
+
+
+def test_docker_text_reuses_authenticated_aes_binding(monkeypatch):
+    monkeypatch.setattr(launch_runtime.sys, "platform", "linux")
+    monkeypatch.setenv("RWB_DSH_STAGED", "1")
+    monkeypatch.setenv("RWB_MODEL_BACKEND", "docker-encrypted")
+    monkeypatch.setenv("RWB_MODEL_INSTANCE_ID", "a" * 32)
+    calls = []
+    monkeypatch.setattr(
+        launch_runtime, "model_credential_binding", lambda staged: calls.append(staged)
+    )
+    assert launch_runtime.validated_model_instance(True) == "a" * 32
+    assert calls == [True]
+    monkeypatch.setattr(
+        launch_runtime,
+        "model_credential_binding",
+        lambda staged: (_ for _ in ()).throw(RuntimeError("model_instance_mismatch")),
+    )
+    with pytest.raises(RuntimeError, match="model_instance_mismatch"):
+        launch_runtime.validated_model_instance(True)
+
+
+def test_docker_text_overlay_caps_official_model_and_disables_optional_tabbit(
+    tmp_path, monkeypatch
+):
+    source = make_source(tmp_path)
+    data = tmp_path / "data"
+    identity = "a" * 32
+    monkeypatch.setenv("RWB_DSH_STAGED", "1")
+    monkeypatch.setenv(
+        "RESEARCH_ACCEPTANCE_CONTROL",
+        json.dumps(
+            {
+                "dataHome": str(data.resolve()),
+                "profile": "docker-text",
+                "installationId": identity,
+                "modelCalls": 3,
+                "maxOutputTokens": 512,
+            }
+        ),
+    )
+    monkeypatch.setattr(launch_runtime, "validated_model_instance", lambda staged: identity)
+    monkeypatch.setattr(
+        launch_runtime,
+        "read_acceptance_budget",
+        lambda instance: {"modelCalls": 3, "maxOutputTokens": 512},
+    )
+    monkeypatch.setattr(
+        launch_runtime,
+        "verify_staged_runtime",
+        lambda *args, **kw: {"closure_sha256": "a" * 64, "closure_files": 1},
+    )
+    monkeypatch.setattr(
+        launch_runtime,
+        "model_credential_binding",
+        lambda staged: ["        backend: docker-encrypted"],
+    )
+    monkeypatch.setattr(
+        launch_runtime,
+        "load_tabbit_config",
+        lambda data: pytest.fail("text profile loaded optional browser config"),
+    )
+    monkeypatch.setattr(
+        launch_runtime.subprocess, "check_output", lambda *args, **kw: launch_runtime.PINNED_COMMIT
+    )
+    launch_runtime.prepare(source, data, "/node", 3081)
+    overlay = (data / "runtime/overlay.yml").read_text()
+    assert 'baseURL: "https://api.deepseek.com/anthropic"' in overlay
+    assert "maxTokens: 512" in overlay
+    assert "maxTokens: 4096" not in overlay
+    assert "maxRetries: 0" in overlay
+    assert "profile: docker-text" in overlay
+    assert 'installationId: "' + identity + '"' in overlay
+    assert "budgetBridge:" in overlay
+    assert "tabbitBrowserEnabled: false" in overlay
+    assert "tabbitWebFetchEnabled: false" in overlay

@@ -34,6 +34,8 @@ Hot Native 模型上下文与 Web 共用 `runtimes/research_web.json` 的固定 
 仍须当前有效并绑定已授权累计 scope。migration17 的研究预算/调用映射只在停机迁移
 后启用；当前原验收库仍 schema15/paused，新 schema 的随机测试不认证干净安装或正式研究。
 
+本轮预算适配不改变依赖、公开安装入口或固定 DSH；常规安装不初始化/激活预算。显式候选验收只接入已认证的受管 AES 模型实例，Fernet/Native 正常安装不受影响。旧政策过期，新的真实窗口需另外授权及政策复核。
+
 ETF工程模拟使用现有Pydantic/FastAPI及stdlib SQLite，无新增Python/Node产品依赖或安装参数。
 首次显式模拟在所属产品根创建私有 `portfolio-decisions/paper.sqlite3`；工程输入不会配置真实数据来源、
 凭据或启用算法。数据/能力缺口由模拟页readiness显示，不能把Doctor的服务健康视作策略可运行。

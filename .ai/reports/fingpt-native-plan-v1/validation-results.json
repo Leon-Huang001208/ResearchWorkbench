@@ -1,0 +1,65 @@
+[
+  {
+    "id": "documentation-governance",
+    "level": "L0",
+    "status": "PASS",
+    "durationSeconds": 0.140325459,
+    "evidence": ".ai/reports/fingpt-native-plan-v1/logs/final-documentation-governance.log"
+  },
+  {
+    "id": "python-file-index",
+    "level": "L0",
+    "status": "PASS",
+    "durationSeconds": 0.9894049170000001,
+    "evidence": ".ai/reports/fingpt-native-plan-v1/logs/final-python-file-index.log"
+  },
+  {
+    "id": "research-web-architecture",
+    "level": "L1",
+    "status": "PASS",
+    "durationSeconds": 7.0200936249999994,
+    "evidence": ".ai/reports/fingpt-native-plan-v1/logs/final-research-web-architecture.log"
+  },
+  {
+    "id": "research-web-service-manager",
+    "level": "L1",
+    "status": "PASS",
+    "durationSeconds": 7.328856625,
+    "evidence": ".ai/reports/fingpt-native-plan-v1/logs/final-research-web-service-manager.log"
+  },
+  {
+    "id": "research-web-local-integrations",
+    "level": "L1",
+    "status": "PASS",
+    "durationSeconds": 21.459931374999996,
+    "evidence": ".ai/reports/fingpt-native-plan-v1/logs/final-research-web-local-integrations.log"
+  },
+  {
+    "id": "research-web-ui",
+    "level": "L1",
+    "status": "PASS",
+    "durationSeconds": 13.433997874999994,
+    "evidence": ".ai/reports/fingpt-native-plan-v1/logs/final-research-web-ui.log"
+  },
+  {
+    "id": "project-constraints-local",
+    "level": "L2",
+    "status": "PASS",
+    "durationSeconds": 0.19420175000000017,
+    "evidence": ".ai/reports/fingpt-native-plan-v1/logs/final-project-constraints-local.log"
+  },
+  {
+    "id": "research-web-critical-smoke",
+    "level": "L3",
+    "status": "PASS",
+    "durationSeconds": 1.2060387090000004,
+    "evidence": ".ai/reports/fingpt-native-plan-v1/logs/final-research-web-critical-smoke.log"
+  },
+  {
+    "id": "research-web-verification-full",
+    "level": "L4",
+    "status": "PASS",
+    "durationSeconds": 7.193091375000003,
+    "evidence": ".ai/reports/fingpt-native-plan-v1/logs/final-research-web-verification-full.log"
+  }
+]

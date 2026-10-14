@@ -14,6 +14,17 @@ PUT configuration及POST lifecycle/channels/configure/events/correct/sources/con
 受控投影合同，未知字段拒绝。版本/参数冲突409、未授权403、格式400、过大413、服务故障503。
 Host桥有界，业务写入未知时返回原UUID；声明来自实际源码清单，不能推导研究交接已实现。
 
+文本验收预算没有新增公开 HTTP API；只通过显式 launcher 控制和内部 Linux Python stdio RPC 读取/扣票。stdin 仅操作与输出上限，不包含 prompt 或 Key；固定错误码区分过期、耗尽、不确定提交。
+
+主线 `research_plan` 保持 turn/seq/status/history_complete/items 字段；与兼容计划投影
+共用原生日志折叠。available 才提供已确认条目，incomplete/invalid 不保留绿色旧快照。
+
+会话详情与 SSE snapshot 新增只读计划投影字段：`plan` 为 null 或
+`{turn, seq, version, todos:[{content,status}]}`；`plan_history_incomplete` 标记原生日志
+缺失/间断，`plan_error` 仅在无法确认计划时存在。`version` 绑定原生回合及日志写入序列，
+不提供稳定 item ID。新回合、无 Todo、错误 Todo 不复用旧快照；原生空列表与无计划不同。
+计划状态不修改会话终态或 `delivery`，不新增路由、提交操作或正文存储。
+
 模型设置和最小生成沿现有 API；Docker 后端来源投影为 `credential_storage=docker_encrypted`，
 Native 为 `system_keychain`。固定 DSH 的 source 是 provider 自定义字符串；不返回 Key。
 

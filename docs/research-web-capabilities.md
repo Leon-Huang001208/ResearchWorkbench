@@ -7,6 +7,7 @@ Hot 交接准备复用既有 ResearchService 会话与 DataHub 冻结资料，�
 执行器或 Automation 调度。当前准备接口不会发送模型消息；Hot 周期简报及正式研究
 仍需独立接入现有运行与预算边界，不据 session 创建成功宣称执行可用。
 
+原生 Todo 的冲突记录仅影响研究计划投影；既有 Skill/Tool 授权、Automation 草稿确认与版本门不变。历史、分页与 SSE 共用保留冲突证据的缓存归并，不能将坏快照视为能力执行完成。
 
 Docker 模型来源 `docker_encrypted` 只表示凭据存储，不提升 Tool、MCP 或 Automation 可用性。
 Linux 严格沙箱守卫和活动任务期间的凭据修改拒绝保持；文本生成不证明研究执行能力。

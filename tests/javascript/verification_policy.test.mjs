@@ -771,7 +771,7 @@ test("every focused Research Web Python catalog isolates the repository root con
     && item.value.startsWith("python -m pytest tests/research_web/")
   ));
 
-  assert.equal(catalogs.length, 17);
+  assert.equal(catalogs.length, 18);
   for (const [id, item] of catalogs) {
     assert.match(
       item.value,
@@ -2182,4 +2182,15 @@ test("reopened platform scope retains Windows handoff without dropping generic C
   }
   const reopened = success(run(fixture(t, restored), files));
   assert.equal(reopened.receiptTemplate.externalGateIds.includes("research-web-windows-verify"), true);
+});
+
+test("durable acceptance budgets require ledger, guard and full platform handoffs", () => {
+  const plan = success(run(repositoryRoot, ["app/research_web/live_acceptance_budget.py"]));
+  assert.equal(plan.requiredLevel, "L4");
+  for (const id of ["research-web-live-acceptance-budget", "research-web-live-acceptance-guard"]) {
+    assert.ok(plan.receiptTemplate.requiredValidationIds.includes(id));
+  }
+  for (const id of ["research-web-bootstrap", "research-web-docker", "research-web-windows-verify"]) {
+    assert.ok(plan.receiptTemplate.externalGateIds.includes(id));
+  }
 });
