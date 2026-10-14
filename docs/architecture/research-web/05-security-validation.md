@@ -55,6 +55,13 @@ Hot Web复用本地Origin边界；控制正文必须有明确动作标记且先�
 操作/SQL/路径，凭据按当前模式选择。超时线程保持容量，关闭后二次检查拒绝等待中的写入。
 UI转义原文并限制外链协议/无userinfo，持久选择与详情cutoff防跨页混合；未知写入原参数重放。
 
+私有凭据模块使用项目已配置的标准日志 handlers，不加载会创建全局目录的 Settings。
+隔离导入测试拒绝 core.settings 导入；实际只读镜像中的 bridge 仍须独立验证。
+
+Docker 模型后端使用已有 cryptography AES-256-GCM；主密钥独立随机生成并在业务运行时只读挂载。
+密文 AAD 绑定稳定实例身份和固定 ref；无环境/旧文件/Keychain 回退。权限、alias、篡改、
+错误主密钥和中断写入须失败关闭；真实生成、重建后生成与合成隔离分别验收。
+
 ETF工程模拟沿原同源/回环边界，只有显式用户POST；工程上传不提升DataHub或receipt-gated Skill权限。
 SQLite参数绑定、私有叶目录、8MiB输入/结果预算及100次运行上限限制本地存储。同UID可改产品根的
 信任边界未被声称解决。真实数据闭包、算法比较、完整门禁、浏览器和安装CI分别验收。
@@ -502,3 +509,7 @@ FinGPT 资料范围在工具 preflight、上传入口及脚本数据集 read_pat
 ## 历史子会话模式兼容 · 2026-10-13
 
 activityOnly仍逐项验证父子关联、origin=subagent及running为布尔值，不能将missing/unknown活动推断为空闲。历史mode=unknown不授权打开子历史；继续、取消和删除路径仍使用严格执行模式查询。
+
+PR96 与既有 Fernet 模型桥共用唯一私有 stdio 接口；默认 `native-keychain`、常规 staged `docker-encrypted-file` 语义保留，管理器仅显式绑定 `docker-encrypted` 选择 AES-GCM。两种 Docker 格式与主密钥布局独立，混合绑定或外来格式失败关闭，不转换密文、不删除旧 Key、不回退。四操作与固定 ref 保持；来源如实区分，configured/Doctor 不证明真实生成。
+
+AES 专用模型后端在构造器的既有文件锁内核验全部现有 JSON：外层私有记录格式、完整密文封装、版本与实例身份、实例 service 与两个固定模型 ref 派生的文件名，以及相同 AAD 的 AEAD 认证。A 密文树与 B 完整主密钥/身份绑定不能被新命名空间遮蔽成未配置；未知 JSON、篡改或旁写记录失败关闭且不改原密文。正确旧 AES/Fernet 树保持可读；通用 PrivateFileCredentialBackend 仍允许其原服务/账户用途，不做迁移。

@@ -591,6 +591,11 @@ uv pip compile requirements/web.in \
 
 ## 单一兼容模型连接
 
+新受管 Docker 实例的模型后端可由管理员显式初始化为实例隔离的 AES-256-GCM 存储，
+复用锁文件中 cryptography 50.0.1，并将其列为 Web 直接依赖；版本与哈希未升级。
+Native macOS 的 Keychain 选择及安装流程保留。Docker 操作、主密钥只读挂载及最小恢复材料
+见 [Docker 手册](research-web-docker.md)，不能把安装成功作为模型生成验收。
+
 一键安装包含产品兼容文本/流式适配，固定DSH、Python/Node依赖锁不变，不安装本地模型服务或下载权重。用户另行配置自己实际可用的HTTPS兼容服务或本机loopback端点；localhost指Native后端设备。无Key不是旧文件/环境回退，Doctor/服务健康不发起隐式模型请求，真实模型与工具验收仍需独立证据。
 
 Docker 两个 APT 安装阶段使用 Debian HTTPS 源，保留 archive keyring 签名校验、原有包与锁定基础镜像；网络代理仅按宿主/构建环境配置，不禁用证书或包认证。HTTPS 源切换不证明 Linux/Windows 真机或 CI 已通过。
@@ -645,3 +650,5 @@ Hot冻结FinGPT的research-hot-frozen声明随现有runtime YAML包数据安装�
 
 
 Hot报告列表/显式核对/Word下载复用现有app与python-docx，无新依赖。模型预算不变；源码本地回归和隔离浏览器不替代候选Mac干净安装CI。
+
+AES 载入进一步认证全部既有模型记录；错误密文树/实例绑定明确拒绝，安装依赖和正确旧记录格式不变，不自动转换或生成替代主密钥。

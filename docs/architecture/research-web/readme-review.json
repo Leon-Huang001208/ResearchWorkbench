@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "updated",
-  "summary": "同时保留研究情报、Claw项目、受控凭据与ETF工程演练入口。",
-  "reason": "ETF保持engineering_only及真实数据准入BLOCKED；Hot保留原PG和预算，文档合并不升级实际运行或跨平台状态。"
+  "summary": "同时保留Hot真实报告、Claw/FinGPT/ETF入口及主线两种容器凭据格式边界。",
+  "reason": "Hot预算不变；ETF仍engineering_only，Fernet同卷与管理器AES-GCM只读独立主密钥卷拒绝混用；合并不以旧运行证据升级新制品或跨平台状态。"
 }

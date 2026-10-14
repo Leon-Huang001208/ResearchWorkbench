@@ -37,6 +37,9 @@ Native 来源控制有真实签名服务/PG 验证：读取权限拒绝写入、
 解释器选择为fixture；真实SystemKeychain生命周期、Web界面、正式研究、同SHA安装CI仍待验。
 Windows/Linux及Mac Docker产品切换保持各自NOT_RUN，不借用Native或容器化PG证明。
 
+G2A 的 Docker 模型加密后端由受管实例身份绑定，Mac Docker Desktop 的实际文本生成和
+重建证据另验；合成测试不等于供应商调用，Native Keychain 实机与各平台 CI 保留独立状态。
+
 2026-10-12 G0/G1 在 Mac mini（Apple M6、24GiB、macOS27.0.1、arm64）完成本地 Docker
 开发与候选基座实测：固定DSH完整构建、容器内回归、实际健康、stop/up、开发重建/退休后
 源码与数据保留，以及固定候选不受开发源码变化影响。具体镜像、命令、哈希与失败重试记录
@@ -129,3 +132,5 @@ Hot本轮新增网页冻结简报和Markdown；macOS本地真实HTTP→Manager�
 
 
 2026-10-13续跑：本轮Hot原scope预算修订和冻结资料读取仅有macOS Native证据；真实研究5次回执保存，报告仍incomplete。Docker及Windows/Linux尚无本轮对应验收，保持NOT_RUN。
+
+外来 AES 树绑定修复已用 macOS 临时合成文件证明四操作拒绝和正确旧树可读；本轮未运行真实 Docker、Linux/Windows、供应商或远端 CI，不提升这些层级状态。

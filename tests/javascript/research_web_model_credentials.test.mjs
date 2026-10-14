@@ -13,6 +13,15 @@ class Records {
   notifyUpdated() {}
 }
 const ctx = { logger: { warn() {} } };
+test('Docker source matches the explicit provider binding', async () => {
+  const Provider = createProvider(Records, async op => op === 'resolve' ? { value: 'synthetic' } :
+    { configured: true, source: 'docker-encrypted', writable: true });
+  const provider = new Provider(ctx, { backend: 'docker-encrypted', recordsPath: '/private/records.yaml' });
+  assert.equal((await provider.resolve(MODEL_REF)).source, 'docker-encrypted');
+  assert.equal((await provider.describe(MODEL_REF)).source, 'docker-encrypted');
+  const native = new Provider(ctx, { recordsPath: '/private/records.yaml' });
+  await assert.rejects(native.describe(MODEL_REF), /model_credential_bridge_failed/);
+});
 test('system model references and unchanged Host record plane', async () => {
   let value = null;
   const bridge = async (op, next) => {
@@ -88,4 +97,16 @@ test('explicit Docker binding reports encrypted storage and rejects a backend mi
   assert.equal((await provider.resolve(MODEL_REF)).source, 'docker-encrypted-file');
   const NativeProvider = createProvider(Records, bridge);
   await assert.rejects(new NativeProvider(ctx, {}).describe(MODEL_REF), /model_credential_bridge_failed/);
+});
+
+test('single bridge refuses mixed store bindings before spawning', async () => {
+  const { processBridge } = await import('../../app/research_web/runtime/model-credentials.mjs');
+  for (const backend of ['native-keychain', 'docker-encrypted-file', 'docker-encrypted']) {
+    await assert.rejects(processBridge({ backend, python: '/not-executed',
+      bridge: '/not-executed', dataHome: '/private', credentialHome: '/private',
+      credentialRoot: '/private', keyRoot: '/private', instance: 'a'.repeat(32) }, 'describe'),
+    /model_credential_binding_invalid/);
+  }
+  await assert.rejects(processBridge({ backend: 'native', python: '/not-executed' }, 'describe'),
+    /model_credential_binding_invalid/);
 });

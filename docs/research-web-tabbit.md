@@ -6,6 +6,9 @@ Hot正式执行复用既有ResearchService.send；没有扩大Tabbit工具、浏
 Hot流预算插件与Tabbit共用既有Runtime，保留原浏览器审批、claim及工具guard。
 新私有HTTP请求仅用于根Hot归属和模型账本，不注册浏览器工具或读取浏览器内容。
 
+
+Docker 模型主密钥与密文不用于 Tabbit Cookie、claim 或浏览器授权；文本凭据闭环不证明
+宿主浏览器可调用，现有 Native 授权和一次性 token 语义保持。
 显式 Docker 模型加密文件桥继续与 Tabbit/Host 浏览器认证分离。模型 ref 不进入
 `.browser-credentials.yaml` 或 readRecord/modifyRecord；模型配置、清除和生成测试不会
 迁移 Cookie、打开浏览器权限或将 Docker 中不可用的宿主 Tabbit 提升为可调用。

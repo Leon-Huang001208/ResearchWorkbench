@@ -7,6 +7,9 @@ Hot 的持久研究映射与受控交接准备现在适配同一 ResearchService
 完整原件副本及目录核验可恢复。它尚不启动付费研究或报告；既有 Automation 调度与
 create/send 路径保持，Hot 周期任务的 Automation 适配仍待实现，见图11和权威进度报告。
 
+G2A 为受管 Docker 增加固定模型 ref 的实例加密后端及主密钥只读卷，仍由原 Web→DSH
+私有 stdio 桥调用。生成、重建和隔离证据分别记录，Native Keychain 与原 Automation 合同保留。
+
 研究台增加ETF工程模拟切片，确定性策略、约束、事务账本及回放均在同一Host内，真实链路保持BLOCKED。
 合同见[数据与文件](03-data-files.md#etf-工程模拟与真实准入边界)。
 

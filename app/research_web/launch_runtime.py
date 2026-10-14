@@ -86,6 +86,38 @@ def mcp_runtime_enabled() -> bool:
     }
 
 
+def model_credential_binding(staged: bool = False) -> list[str]:
+    """The managed Docker launcher supplies public binding, never secret values."""
+    backend = os.environ.get("RWB_MODEL_BACKEND")
+    if backend is None:
+        if staged:
+            home = os.environ.get("RESEARCH_CREDENTIAL_HOME")
+            if home != "/run/rwb-secrets/private":
+                raise RuntimeError("docker_model_credential_binding_invalid")
+            return [
+                '        backend: "docker-encrypted-file"',
+                f"        credentialHome: {json.dumps(home)}",
+            ]
+        return ['        backend: "native-keychain"']
+    if backend != "docker-encrypted" or not staged or os.environ.get("RWB_DSH_STAGED") != "1":
+        raise RuntimeError("model_credential_binding_invalid")
+    instance = os.environ.get("RWB_MODEL_INSTANCE_ID", "")
+    if not re.fullmatch(r"[0-9a-f]{32}", instance):
+        raise RuntimeError("model_credential_binding_invalid")
+    root = Path("/run/rwb-secrets/models")
+    keys = Path("/run/rwb-model-key")
+    # Validate loaded identity, key, permissions and aliases before publishing config.
+    from .model_credentials import docker_backend
+
+    docker_backend(root, keys, instance)
+    return [
+        "        backend: docker-encrypted",
+        f"        instance: {json.dumps(instance)}",
+        f"        credentialRoot: {json.dumps(str(root))}",
+        f"        keyRoot: {json.dumps(str(keys))}",
+    ]
+
+
 def load_mcp_runtime_bindings(data: Path) -> list[dict[str, object]]:
     """Load exact Host-verified bindings for the next dedicated DSH start."""
 
@@ -703,10 +735,6 @@ def _prepare_runtime(
         )
     log.info("research_runtime_presets_declared", count=4)
     adapter = home / "profiles" / "node_modules" / "research-tabbit-adapter" / "index.mjs"
-    model_backend = "docker-encrypted-file" if staged_source is not None else "native-keychain"
-    model_credential_home = os.environ.get("RESEARCH_CREDENTIAL_HOME")
-    if staged_source is not None and model_credential_home != "/run/rwb-secrets/private":
-        raise RuntimeError("docker_model_credential_binding_invalid")
     overlay.write_text(
         "\n".join(
             [
@@ -719,12 +747,7 @@ def _prepare_runtime(
                 f"        python: {json.dumps(sys.executable)}",
                 f"        bridge: {json.dumps(str(package.parent / 'model_credentials.py'))}",
                 f"        dataHome: {json.dumps(str(data))}",
-                f"        backend: {json.dumps(model_backend)}",
-                *(
-                    [f"        credentialHome: {json.dumps(model_credential_home)}"]
-                    if staged_source is not None
-                    else []
-                ),
+                *model_credential_binding(staged_source is not None),
                 f"        recordsPath: {json.dumps(str(home / '.browser-credentials.yaml'))}",
                 f"        localProvider: {json.dumps(str(source / 'packages/credentials/credentials-local/lib/index.js'))}",
                 "- insert:",

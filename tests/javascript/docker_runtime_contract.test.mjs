@@ -102,12 +102,19 @@ test('runtime copies a bounded application set and uses the non-root PID1 superv
     '/opt/rwb/app', '/opt/rwb/core', '/opt/rwb/data_layer', '/opt/rwb/research_workbench_entrypoint',
     '/opt/rwb/runtimes', '/opt/rwb/vendor/dsh-tabbit', '/opt/rwb/docker/entrypoint.sh',
     '/opt/rwb/docker/supervisor.py', '/opt/rwb/docker/healthcheck.py', '/opt/rwb/pyproject.toml',
-    '/opt/rwb/services/hot', 'outputs/research-web-architecture', '/opt/rwb/dsh-runtime',
+    '/opt/rwb/services/hot', 'outputs/research-web-architecture', 'docker/credential_probe.mjs', '/opt/rwb/dsh-runtime',
   ]);
   assert.doesNotMatch(read('Dockerfile'), /^COPY \.\s|^(ARG|ENV) .*?(?:KEY|TOKEN|PASSWORD)=/m);
   assert.match(read('docker/entrypoint.sh'), /exec \/opt\/rwb\/venv\/bin\/python \/opt\/rwb\/docker\/supervisor\.py/);
   assert.match(read('docker/supervisor.py'), /web_host="0\.0\.0\.0"/);
   assert.ok(runtime.some((line) => line.includes('npm/bin/npm-cli.js /usr/local/bin/npm') && line.includes('npm/bin/npx-cli.js /usr/local/bin/npx')), 'MCP package resolution retains Node npm/npx');
+});
+
+test('managed DSH refresh preserves the bounded builder and refuses unknown build arguments', () => {
+  const entry = read('rwb-docker');
+  assert.match(entry, /1:--refresh-dsh\) set -- --no-cache-filter dsh-builder/);
+  assert.match(entry, /fail build_arguments_invalid/);
+  assert.match(entry, /docker buildx build --builder "\$BUILDER" --platform linux\/arm64 --load "\$@"/);
 });
 
 test('Compose has one isolated service with exactly one loopback Web publication', () => {
