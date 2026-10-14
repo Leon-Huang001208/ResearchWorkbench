@@ -1,5 +1,16 @@
 # Hot internal engine
 
+External `database.tls: "verify-full"` verifies both the certificate trust chain
+and the configured DNS/IP host. The host is bound explicitly to Node's standard
+`checkServerIdentity`, because socket-based PostgreSQL TLS can otherwise use a
+localhost fallback for an IP address. No certificate validation is disabled.
+The isolated PG17 TLS proof exercises real TLS 1.3, schema20 scoped-role health,
+and rejection of an untrusted CA, a hostname mismatch, and plaintext transport.
+Its private test CA is supplied only to the test Node process with
+`NODE_EXTRA_CA_CERTS`; it does not change system trust or a user's database.
+The production default uses Node's trusted CAs. This fixture proves the external
+TLS path, not connectivity to an unspecified user's remote database.
+
 Offline real-corpus review is available with `node services/hot/scripts/evaluate-corpus.ts`. Five real source materials, three paid receipt replays and frozen domain rules are integrity checked. Primary events are partitioned 2 development/3 retrospective holdout, but candidate history overlaps and is explicitly reported; no independent accuracy or blinded benchmark is claimed. Four source-reviewed difficult relation references remain model NOT_RUN. Details and provenance are in evaluation/README.md; execution adds no model calls or database writes.
 
 Event `times` correction accepts both nullable occurred/effective claims: `{value,precision:"day"|"instant",timezone,evidence:{id,revision,quote}}`. Days use YYYY-MM-DD; instants use canonical UTC ISO with milliseconds. Evidence must be a current event material revision and a literal title/excerpt quote. No date is guessed from acquisition or publication alone. Claims append immutable event versions and controller audit; old as-of reads stay unchanged. Automatic reruns preserve active claims and reject removing their evidence. Withdrawing a claim releases only its date-specific restriction, leaving other manual protections intact. Before split/reassign removes evidence, explicitly clear that claim; merges retain target dates and source historical versions. Frozen brief webpage/Markdown/DOCX retain precision, source timezone, quote and revision; day precision never renders midnight. Schema remains20 and no new model call is authorized.
