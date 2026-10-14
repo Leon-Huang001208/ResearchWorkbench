@@ -1,5 +1,11 @@
 # Hot internal engine
 
+Docker lifecycle uses bounded kernel `/proc` birth/UID/argv checks rather than
+assuming `ps` is installed. A live process with missing/malformed identity is
+refused; PID reuse and changed argv are rejected. Startup cleanup requests
+SIGTERM before escalation so an initialized worker can pause its PG generation.
+Forced exit does not by itself certify the database was paused.
+
 The 2026-10-13 reading interface adapts AIHOT's MIT frontend patterns into RWB's
 existing native UI: scoped paper/teal themes, observation-date rail and page-local
 heat strip. Own branding, eight external columns and existing Host read/control

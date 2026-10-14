@@ -229,12 +229,70 @@ class HotManager:
         log.info("hot_dependencies_installed")
 
     def _fingerprint(self, pid: int) -> str | None:
+        if self._runtime_mode() == "docker":
+            return self._docker_fingerprint(pid)
         try:
             result = subprocess.run(["ps", "-ww", "-p", str(pid), "-o", "stat=", "-o", "lstart=", "-o", "command="], capture_output=True, text=True, timeout=3)
             fields = result.stdout.strip().split(maxsplit=1)
             output = fields[1] if len(fields) == 2 and "Z" not in fields[0] else ""
             return output if result.returncode == 0 and output and "<defunct>" not in output else None
         except (OSError, subprocess.SubprocessError):
+            raise HotError("hot_process_probe_failed") from None
+
+    def _docker_fingerprint(self, pid: int, root: Path = Path("/proc")) -> str | None:
+        """Bind the guest process to kernel birth, UID and exact argv without ps."""
+        process = root / str(pid)
+
+        def read(name: Path, limit: int) -> bytes:
+            descriptor = os.open(name, os.O_RDONLY | os.O_NOFOLLOW)
+            with os.fdopen(descriptor, "rb") as stream:
+                value = stream.read(limit + 1)
+            if len(value) > limit:
+                raise ValueError()
+            return value
+
+        def identity() -> tuple[str, str]:
+            if process.stat().st_uid != os.getuid():
+                raise HotError("hot_process_identity_mismatch")
+            raw = read(process / "stat", 4096)
+            split = raw.rfind(b") ")
+            if split < 0 or raw.split(b" ", 1)[0] != str(pid).encode():
+                raise ValueError()
+            fields = raw[split + 2:].split()
+            if len(fields) < 20 or not fields[19].isdigit():
+                raise ValueError()
+            return fields[0].decode("ascii"), fields[19].decode("ascii")
+
+        try:
+            state, birth = identity()
+            if state in ("Z", "X"):
+                return None
+            boot = read(root / "sys/kernel/random/boot_id", 64).decode("ascii").strip()
+            if not re.fullmatch(r"[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}", boot):
+                raise ValueError()
+            command = read(process / "cmdline", 32768)
+            if not command or not command.endswith(b"\0"):
+                raise ValueError()
+            argv = command[:-1].decode("utf-8").split("\0")
+            if not all(argv):
+                raise ValueError()
+            final_state, final_birth = identity()
+            if final_state in ("Z", "X"):
+                return None
+            if final_birth != birth or read(process / "cmdline", 32768) != command:
+                raise HotError("hot_process_identity_mismatch")
+            digest = hashlib.sha256(command).hexdigest()
+            return f"linux:{boot}:{birth}:{os.getuid()}:{digest} " + " ".join(argv)
+        except FileNotFoundError:
+            if process.exists():
+                log.warning("hot_process_probe_failed")
+                raise HotError("hot_process_probe_failed") from None
+            return None
+        except HotError:
+            log.warning("hot_process_identity_mismatch")
+            raise
+        except (OSError, ValueError, UnicodeError):
+            log.warning("hot_process_probe_failed")
             raise HotError("hot_process_probe_failed") from None
 
     def _state(self) -> dict | None:
@@ -1030,8 +1088,16 @@ class HotManager:
                 return result
         except BaseException:
             if child is not None:
-                child.kill()
-                child.wait(timeout=5)
+                # A ready worker owns a PG generation; SIGTERM lets it pause that
+                # generation even if writing or probing the host state failed.
+                if child.poll() is None:
+                    child.terminate()
+                    try:
+                        child.wait(timeout=5)
+                    except subprocess.TimeoutExpired:
+                        log.warning("hot_start_cleanup_forced")
+                        child.kill()
+                        child.wait(timeout=5)
             raise HotError("hot_start_failed") from None
 
     def stop(self) -> dict:

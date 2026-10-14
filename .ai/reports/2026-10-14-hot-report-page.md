@@ -1,5 +1,12 @@
 # 研究情报真实报告与状态接入
 
+PR #106已为集成候选c77ba3bee创建；通用CI通过，首次MacCI执行中。
+实际Docker诊断已复现镜像缺ps，Hot初始化后的指纹核对因此失败；PG为docker/53，
+账本17/76804不变。guest改用有界/proc birth/UID/argv双读，不新增依赖；启动清理
+改为先SIGTERM，让已初始化worker暂停自己代次。缺字段、僵尸、PID复用/读取竞态
+反例及Hot相关闭包通过。该修复尚需新镜像实际验证，不冒充已通过。
+临时探针短ID/完整ID比较的误报已修正，未把它归因于另一任务篡改。
+
 2026-10-14后续：用户明确允许复用已停止stage/candidate并保留旧镜像/5卷，预算不变。
 
 <!-- architecture-review {"group":"verification-workflow","structure":"unchanged","reason":"在既有macos-14公开安装任务中选择受支持Node24.19并增加Hot生产包纯导入核验，保留完整平台与模型硬门；停止错误不再省略，不新增工作流、运行器或付费调用。","diagrams":[]} -->

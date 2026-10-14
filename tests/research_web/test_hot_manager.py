@@ -40,6 +40,58 @@ class HotManagerTests(unittest.TestCase):
         with self.assertRaisesRegex(HotError, "hot_service_stopped"):
             self.manager.sources()
 
+    def test_docker_fingerprint_binds_start_time_and_command_without_ps(self):
+        root = self.home / 'proc'; process = root / '123'
+        process.mkdir(parents=True)
+        boot = root / 'sys/kernel/random'; boot.mkdir(parents=True)
+        (boot / 'boot_id').write_text('11111111-1111-4111-8111-111111111111\n')
+        tail = ['S'] + ['0'] * 18 + ['400'] + ['0'] * 3
+        (process / 'stat').write_text('123 (node) ' + ' '.join(tail))
+        (process / 'cmdline').write_bytes(b'/node\0/project/services/hot/scripts/serve.ts\0' + b'a' * 32 + b'\0')
+        with patch('research_workbench_entrypoint.hot_manager.subprocess.run', side_effect=AssertionError('ps must not run')):
+            first = self.manager._docker_fingerprint(123, root)
+        self.assertTrue(first.endswith(' /project/services/hot/scripts/serve.ts ' + 'a' * 32))
+        tail[19] = '401'; (process / 'stat').write_text('123 (node) ' + ' '.join(tail))
+        self.assertNotEqual(first, self.manager._docker_fingerprint(123, root))
+        (process / 'cmdline').write_bytes(b'/node\0arg two\0/project/services/hot/scripts/serve.ts\0' + b'a' * 32 + b'\0')
+        single = self.manager._docker_fingerprint(123, root)
+        (process / 'cmdline').write_bytes(b'/node\0arg\0two\0/project/services/hot/scripts/serve.ts\0' + b'a' * 32 + b'\0')
+        separate = self.manager._docker_fingerprint(123, root)
+        self.assertEqual(single.split(' ', 1)[1], separate.split(' ', 1)[1])
+        self.assertNotEqual(single, separate)
+        tail[0] = 'Z'; (process / 'stat').write_text('123 (node) ' + ' '.join(tail))
+        self.assertIsNone(self.manager._docker_fingerprint(123, root))
+        self.assertIsNone(self.manager._docker_fingerprint(999, root))
+
+    def test_docker_fingerprint_rejects_birth_changed_during_read(self):
+        import os
+        root = self.home / 'proc'; process = root / '123'; process.mkdir(parents=True)
+        boot = root / 'sys/kernel/random'; boot.mkdir(parents=True)
+        (boot / 'boot_id').write_text('11111111-1111-4111-8111-111111111111\n')
+        tail = ['S'] + ['0'] * 18 + ['400'] + ['0'] * 3
+        (process / 'stat').write_text('123 (node) ' + ' '.join(tail))
+        (process / 'cmdline').write_bytes(b'/node\0/project/serve.ts\0launch\0')
+        original = os.open
+        def changed(path, *args, **kwargs):
+            if Path(path).name == 'cmdline':
+                tail[19] = '401'
+                (process / 'stat').write_text('123 (node) ' + ' '.join(tail))
+            return original(path, *args, **kwargs)
+        with patch('research_workbench_entrypoint.hot_manager.os.open', side_effect=changed):
+            with self.assertRaisesRegex(HotError, 'hot_process_identity_mismatch'):
+                self.manager._docker_fingerprint(123, root)
+
+    def test_docker_fingerprint_missing_leaf_is_not_a_stopped_live_pid(self):
+        root = self.home / 'proc'; (root / '123').mkdir(parents=True)
+        with self.assertRaisesRegex(HotError, 'hot_process_probe_failed'):
+            self.manager._docker_fingerprint(123, root)
+
+    def test_docker_fingerprint_rejects_malformed_live_identity(self):
+        root = self.home / 'proc'; process = root / '123'; process.mkdir(parents=True)
+        (process / 'stat').write_text('invalid')
+        with self.assertRaisesRegex(HotError, 'hot_process_probe_failed'):
+            self.manager._docker_fingerprint(123, root)
+
     def test_event_projections_use_reader_and_keep_filter_cutoff(self):
         with patch.object(self.manager, "_state", return_value={"port": 1234, "owner": {}}):
             with patch.object(self.manager, "_secret", return_value="reader") as secret:
