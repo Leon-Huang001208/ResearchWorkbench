@@ -1,5 +1,7 @@
 # DataHub、研究资料与实际文件
 
+可选`model.materialIds`只限定处理范围，不复制材料、事件或预算。明确选择的排队任务在同一hot.process队列按当前owner generation精确优先级领取；重启只取消/重新入队这些已选择的created/retry任务，不改其他任务ID/排队状态或活动尝试。schema20联合恢复已核验58表全量清单及所选真实研究报告字节哈希；恢复目标暂停，原生执行历史不恢复。
+
 schema19保存follows、不可变follow_versions和follow_requests（理由/操作者/前后状态）。schema20保存periodic_plans、不可变计划版本/请求、periodic_runs和不可变选材。简报及周期run回执同事务发布；迟到领取回滚整个发布。每份周期简报包含planId/planVersion/runId、固定cutoff、窗口、跳过周期数、来源覆盖限制；网页/Markdown/DOCX沿同一冻结版本。关注中的旧事件ID沿既有别名解析，不复制事件或原件。
 
 研究页面从不可变简报的报告集合中选择1–20个唯一材料ID，连同简报ID/版本准备已有Hot运行。原件及会话快照由既有Host校验发布；浏览器不复制可变原件。未知执行保留runId、问题、格式，核对不生成新runId或改变原deliveryKey。

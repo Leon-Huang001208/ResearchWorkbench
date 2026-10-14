@@ -12,7 +12,7 @@ export interface HotConfig {
   collection: { frequencySeconds: number; maxItems: number; backfillDays: number };
   worker: { concurrency: number; leaseSeconds: number; maxRetries: number };
   budget: { maxCallsPerDay: number; maxTokensPerDay: number; maxCostPerDay: number };
-  model: {enabled:boolean;scopeId:string};
+  model: {enabled:boolean;scopeId:string;materialIds?:string[]};
   retention: { days: number; backupDirectory: string };
 }
 
@@ -50,8 +50,13 @@ export function parseConfig(input: unknown): HotConfig {
   const row = object(input, ['version','enabled','timezone','database','collection','worker','budget','retention','model']);
   if (row.enabled !== undefined && typeof row.enabled !== 'boolean') throw Error('hot_config_invalid');
   if (row.version !== undefined && row.version !== 1) throw Error('hot_config_version_invalid');
-  const model=object(row.model??{},['enabled','scopeId']);
+  const model=object(row.model??{},['enabled','scopeId','materialIds']);
   if(model.enabled!==undefined&&typeof model.enabled!=='boolean')throw Error('hot_config_invalid');
+  let materialIds:string[]|undefined;
+  if(model.materialIds!==undefined){
+    if(!Array.isArray(model.materialIds)||model.materialIds.length>20||model.materialIds.some(id=>typeof id!=='string'||!/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(id)))throw Error('hot_config_invalid');
+    materialIds=model.materialIds.map(id=>(id as string).toLowerCase());if(new Set(materialIds).size!==materialIds.length)throw Error('hot_config_invalid');
+  }
   const timezone = word(row.timezone, 'Asia/Shanghai', /^[A-Za-z_]+(?:\/[A-Za-z0-9_+\-]+)*$/);
   try { new Intl.DateTimeFormat('en', { timeZone: timezone }); } catch { throw Error('hot_timezone_invalid'); }
   const db = object(row.database ?? {}, ['mode','host','port','name','schema','user','secretRef','controllerUser','controllerSecretRef','tls','poolMax']);
@@ -68,7 +73,7 @@ export function parseConfig(input: unknown): HotConfig {
   const backupDirectory = word(retention.backupDirectory, 'hot/backups', /^[a-zA-Z0-9_\-]+(?:\/[a-zA-Z0-9_\-]+)*$/);
   if((db.user??'rwb_hot_worker')===(db.controllerUser??'rwb_hot_controller'))throw Error('hot_database_roles_overlap');
   return { version: 1, enabled: row.enabled === true, timezone,
-    model:{enabled:model.enabled===true,scopeId:word(model.scopeId,'hot',/^[a-z][a-z0-9_-]{0,63}$/)},
+    model:{enabled:model.enabled===true,scopeId:word(model.scopeId,'hot',/^[a-z][a-z0-9_-]{0,63}$/),...(materialIds===undefined?{}:{materialIds})},
     database: { mode, host,
       port: bounded(db.port, 55432, 1, 65535), name: word(db.name, 'rwb_hot', /^[a-zA-Z][a-zA-Z0-9_]{0,62}$/),
       schema: schemaName(word(db.schema, 'hot', /^[a-z][a-z0-9_]{0,47}$/)),

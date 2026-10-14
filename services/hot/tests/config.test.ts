@@ -26,6 +26,13 @@ test('Hot runtime requires its supported Node family without changing base Web r
   assert.throws(() => assertNodeRuntime('25.9.0'), /hot_node_version_unsupported/);
 });
 
+test('explicit processing selection is bounded, normalized and does not alter budget authorization',()=>{
+  const id='A1111111-1111-4111-8111-111111111111';
+  const config=parseConfig({model:{materialIds:[id]}});
+  assert.deepEqual(config.model.materialIds,[id.toLowerCase()]);assert.equal(config.model.enabled,false);assert.equal(config.budget.maxCallsPerDay,0);
+  for(const ids of ['bad',[true],['bad'],[id,id.toLowerCase()],Array(21).fill(id)])assert.throws(()=>parseConfig({model:{materialIds:ids}}),/hot_config_invalid/);
+});
+
 test('schema and credentials references reject arbitrary SQL, URLs and paths', () => {
   assert.equal(schemaName('hot_custom_1'), 'hot_custom_1');
   assert.equal(schemaName('h'.repeat(48)).length, 48);

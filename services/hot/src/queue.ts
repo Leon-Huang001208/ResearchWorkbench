@@ -111,12 +111,13 @@ export async function openQueue(db: Sql | Tx, schema: string, provision = false,
 export async function enqueue(boss: PgBoss, db: Sql, schema: string, owner: RuntimeOwner, name: QueueName, key: string, payload: postgres.JSONValue): Promise<string | null> {
   return withOwnerTransaction(db,schema,owner,tx=>enqueueTransaction(boss,tx,name,key,payload));
 }
-export async function enqueueTransaction(boss:PgBoss,tx:Tx,name:QueueName,key:string,payload:postgres.JSONValue):Promise<string|null>{
+export async function enqueueTransaction(boss:PgBoss,tx:Tx,name:QueueName,key:string,payload:postgres.JSONValue,priority=0):Promise<string|null>{
   queueName(name); inputKey(key);
+  if(!Number.isSafeInteger(priority)||priority<0||priority>2147483647)throw Error('hot_priority_invalid');
   if (`${name}:${key}`.length > 160) throw Error('hot_input_key_invalid');
   if (Buffer.byteLength(JSON.stringify(payload)) > 262144) throw Error('hot_payload_limit');
   return boss.send(name, { inputKey: `${name}:${key}`, payload },
-    { singletonKey: key, db: transactionAdapter(tx) });
+    { singletonKey: key, priority, db: transactionAdapter(tx) });
 }
 
 export async function superviseOwner(db: Sql, schema: string, owner: RuntimeOwner, name?: QueueName): Promise<void> {
@@ -154,10 +155,11 @@ export async function waitForHandler(handler: (signal: AbortSignal) => Promise<J
 }
 export async function processOne(boss: PgBoss, db: Sql, schema: string, owner: RuntimeOwner, name: QueueName,
   handler: (payload: postgres.JSONValue, signal: AbortSignal, claim:Claim) => Promise<JobOutput>, workerId = randomUUID(), leaseSeconds = 120,
-  signal?: AbortSignal): Promise<'idle' | 'busy' | 'completed' | 'reused' | 'failed'> {
+  signal?: AbortSignal,priority?:number): Promise<'idle' | 'busy' | 'completed' | 'reused' | 'failed'> {
   queueName(name);
   if (signal?.aborted) return 'idle';
-  const jobs = await withOwnerTransaction(db, schema, owner, tx => boss.fetch<Payload>(name, { batchSize: 1, db: transactionAdapter(tx) }));
+  if(priority!==undefined&&(!Number.isSafeInteger(priority)||priority<1||priority>2147483647))throw Error('hot_priority_invalid');
+  const jobs = await withOwnerTransaction(db, schema, owner, tx => boss.fetch<Payload>(name, { batchSize: 1, db: transactionAdapter(tx),...(priority===undefined?{}:{minPriority:priority,maxPriority:priority}) }));
   if (!jobs.length) return 'idle';
   const job = jobs[0];
   if (!job.data || typeof job.data !== 'object' || typeof job.data.inputKey !== 'string' || !('payload' in job.data)

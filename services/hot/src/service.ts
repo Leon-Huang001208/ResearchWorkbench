@@ -10,7 +10,7 @@ import { logEvent } from './log.ts';
 import {runWorker} from './worker.ts';
 import {collectionHandlers,scheduleCollection} from './collection.ts';
 import {configureSource} from './source-control.ts';
-import {scheduleProcessing,processingHandler,type GroupingModel} from './processing.ts';
+import {scheduleProcessing,processingHandler,processingPriority,type GroupingModel} from './processing.ts';
 import {evaluateChannelRules} from './channel-rules.ts';
 import {channelsAt,eventsList,eventDetail} from './projections.ts';
 import {configureChannelRequest} from './channel-control.ts';
@@ -164,6 +164,7 @@ export async function startService(input: ServiceBootstrap,capabilities:{groupin
     workerState='running';
     const queue=boss;
     workerTask=runWorker({db,controllerDb:controller,boss:queue,schema:config.database.schema,owner:current,config,
+      processingPriority:processingPriority(current,config.model.materialIds),
       handlers:{...collectionHandlers(db,queue,config.database.schema,current,config,fetch,sourceControllers),
         'hot.brief':periodicBriefHandler(controller,config.database.schema,current),
         ...(groupingModel?{'hot.process':processingHandler(db,config.database.schema,current,groupingModel)}:{})},signal:workerStop.signal,
@@ -171,7 +172,7 @@ export async function startService(input: ServiceBootstrap,capabilities:{groupin
         await heartbeatRuntime(controller,config.database.schema,current,input.controllerToken);
         await scheduleCollection(db,queue,config.database.schema,current,config);
         await schedulePeriodicBriefs(controller,queue,config.database.schema,current);
-        await scheduleProcessing(db,queue,config.database.schema,current,Boolean(groupingModel)&&modelCapability?.state!=='blocked_model');
+        await scheduleProcessing(db,queue,config.database.schema,current,Boolean(groupingModel)&&modelCapability?.state!=='blocked_model',config.model.materialIds);
         await evaluateChannelRules(db,config.database.schema,current);
       }}).catch(()=>{
         workerState='failed';logEvent('worker_stopped');

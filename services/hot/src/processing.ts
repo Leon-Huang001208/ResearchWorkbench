@@ -2,7 +2,7 @@
 import type postgres from 'postgres';
 import type {PgBoss} from 'pg-boss';
 import {withOwnerTransaction,type RuntimeOwner,type Claim,type Tx} from './control.ts';
-import {enqueueTransaction,type JobOutput} from './queue.ts';
+import {enqueueTransaction,transactionAdapter,type JobOutput} from './queue.ts';
 import {saveAutomaticEventTransaction,type EventSnapshot} from './events.ts';
 import {sha256} from './material.ts';
 import {schemaName} from './config.ts';
@@ -49,17 +49,32 @@ export async function appliedGroupingResult(db:Sql,schema:string,id:string,revis
     where r.material_id=${id} and r.material_revision=${revision} and r.prompt_version=${GROUP_PROMPT_VERSION} and i.state='applied'`;
   return result??null;
 }
-export async function scheduleProcessing(db:Sql,boss:PgBoss,schema:string,owner:RuntimeOwner,modelReady:boolean){
+export function processingPriority(owner:RuntimeOwner,materialIds:string[]=[]):number|undefined{
+  if(!Array.isArray(materialIds)||materialIds.length>20||materialIds.some(id=>typeof id!=='string'||!/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(id))||new Set(materialIds).size!==materialIds.length)throw Error('hot_processing_selection_invalid');
+  if(!materialIds.length)return undefined;
+  const priority=Number(owner.generation);if(!Number.isSafeInteger(priority)||priority<1||priority>2147483647)throw Error('hot_processing_selection_invalid');return priority;
+}
+export async function scheduleProcessing(db:Sql,boss:PgBoss,schema:string,owner:RuntimeOwner,modelReady:boolean,materialIds:string[]=[]){
+  const priority=processingPriority(owner,materialIds);
   if(!modelReady)return 0;
   return withOwnerTransaction(db,schema,owner,async tx=>{
     await tx`update ${tx(schema)}.processing_items i set state='stale',error_code='hot_processing_stale',finished_at=clock_timestamp()
-      from ${tx(schema)}.materials m where m.id=i.material_id and m.current_revision<>i.material_revision and i.state in ('pending','ready')`;
+      from ${tx(schema)}.materials m where m.id=i.material_id and m.current_revision<>i.material_revision and i.state in ('pending','ready')
+      and (${!materialIds.length} or i.material_id=any(${tx.array(materialIds)}::uuid[]))`;
+    if(priority!==undefined){
+      // Only reclassify queued selected work after a mode/restart fence. Active attempts remain owned.
+      const old=await tx`select j.id from ${tx(schema)}.job j where j.name='hot.process' and j.state in ('created','retry') and j.priority<>${priority}
+        and j.data->'payload'->>'materialId'=any(${tx.array(materialIds)}::text[])`;
+      if(old.length)await boss.cancel('hot.process',old.map(row=>row.id),{db:transactionAdapter(tx)});
+    }
     const rows=await tx`select material_id,material_revision from ${tx(schema)}.processing_items i
       where state in ('pending','ready') and prompt_version=${GROUP_PROMPT_VERSION}
+      and (${!materialIds.length} or material_id=any(${tx.array(materialIds)}::uuid[]))
       and not exists(select 1 from ${tx(schema)}.job j where j.name='hot.process' and j.state in ('created','retry','active')
         and j.data->'payload'->>'materialId'=i.material_id::text and (j.data->'payload'->>'revision')::integer=i.material_revision)
       order by created_at,material_id limit 20`;
-    for(const row of rows)await enqueueTransaction(boss,tx,'hot.process',key(row.material_id,row.material_revision),{materialId:row.material_id,revision:row.material_revision});
+    for(const row of rows)await enqueueTransaction(boss,tx,'hot.process',key(row.material_id,row.material_revision),{materialId:row.material_id,revision:row.material_revision},priority??0);
+    if(priority!==undefined)logEvent('processing_selected',rows.length);
     return rows.length;
   });
 }

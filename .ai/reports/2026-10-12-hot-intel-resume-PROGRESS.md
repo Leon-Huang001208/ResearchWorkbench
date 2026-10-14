@@ -1,10 +1,12 @@
 # Hot / 研究情报接续记录
 
-当前断点：未提交关注/周期切片在d6b0cb873上；schema20正常Native已运行，Macro周期MD/DOCX真实产物已验，AI因2025-02原件超出一年窗口记录empty。真实Hot组件浏览器CRUD/启停/历史通过，测试计划/关注均暂停、worker/server已停止。PG7/Python45/UI86/TS与111治理检查通过、限定审查关闭。模型仍17/76804/10253microUSD，上限未变。当前AI事件、最新恢复、整镜像/当前MacCI与完整Goal审计继续；详见2026-10-14-hot-follows-periodic.md。
+当前断点：关注/周期切片已提交d484ceac2；schema20正常Native已运行，Macro周期MD/DOCX真实产物已验。其上未提交有界材料选择：配置4项、真实PG共5项及TypeScript检查通过，限定TS审查无阻断；未选择积压不改任务ID/排队状态。正常startService使用此前报告明确使用的主安装固定Native桥接，真实处理2026-10-06 DeepMind EmbeddingGemma 2材料，保存事件110b3a68-9688-51fe-a182-13e2e5ae7929，different_event正确区别于旧OpenAI活动；没有注入替身模型或复制密钥。current-ai-primary-worker-receipt.json记录PASS、generation68→暂停69，新增1call/571tokens/211microUSD，累计18/77375/10464microUSD，上限20/100000/USD1不变。隔离home首次未配置错误保留。停止时其他来源handler_late/job_failed日志保留，不声明该轮全来源成功；选中材料receipt/业务应用及队列完成已持久化。最新恢复、整镜像/当前MacCI与完整Goal审计继续。
 
 最新未提交切片（2026-10-14）：关注schema19已正常Native/签名RPC/Host HTTP验证；周期schema20、Automation管理适配、固定选材与产物溯源已实现，真实PG7/Python45/UI86/TS检查通过。慢写租约与日期边界经RED→GREEN修复，限定审查收尾；正常schema20周期、浏览器、文档/项目门、最终整镜像/当前MacCI与完整Goal审计仍待完成。细节见2026-10-14-hot-follows-periodic.md，不能用旧CI或旧schema运行认证新切片。
 
 宿主 macOS，任务类型功能开发。目标仍为原 Goal 的阶段 0–5，未完成任何门不降级。
+
+最新独立验证：periodic-current-two-channel-receipt.json记录正常Native两频道周期简报完成，两份MD/DOCX校验，新增模型调用0，测试计划已暂停。joint-schema20-receipt.json记录新鲜隔离目标数据库hot_joint_schema20_20261014的58表清单/hash全量核对，包含关注、计划、新AI事件、简报与18calls预算；选定真实研究报告联合恢复2734字节，SHA e98d29acfddc3e9e2b9c54cd6844d06b8de22146dd3d7146db0ca1e56caaf976。joint-schema20-runtime-receipt.json随后证明恢复库正常worker运行、原件保留、DeepMind/ECB真实采集成功，预算不变，目标generation73暂停；Native执行历史不恢复。材料选择最终本地治理111PASS、文档/索引/项目约束PASS；额外项目约束第一次误用不存在脚本失败，真实入口发现4份模块文档未同步，补说明后通过。Git安全fsck PASS。当前dev/g2b身份原样运行；stage/candidate在最新管理器下报model_master_mount_mismatch：旧登记容器只有4挂载，账本已配置第5 model_key卷。旧镜像/五卷均保留，须先严格修复停止旧容器的兼容替换，再重建/验收，不能绕过身份门。
 
 ## 当前权威断点 · 2026-10-14（覆盖下方历史待验状态）
 

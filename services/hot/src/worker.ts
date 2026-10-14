@@ -15,6 +15,7 @@ export interface WorkerOptions {
   db: Sql; controllerDb: Sql; boss: PgBoss; schema: string; owner: RuntimeOwner;
   config: HotConfig; handlers: Partial<Record<QueueName, Handler>>; signal: AbortSignal;
   heartbeat: () => Promise<void>;
+  processingPriority?:number;
 }
 async function pause(signal: AbortSignal, milliseconds: number) {
   try { await delay(milliseconds, undefined, { signal }); }
@@ -41,7 +42,7 @@ export async function runWorker(options: WorkerOptions): Promise<void> {
       for (const name of names) {
         if (signal.aborted) break;
         const state = await processOne(options.boss, options.db, options.schema, options.owner, name,
-          options.handlers[name]!, workerId, options.config.worker.leaseSeconds, signal);
+          options.handlers[name]!, workerId, options.config.worker.leaseSeconds, signal,name==='hot.process'?options.processingPriority:undefined);
         progressed ||= state !== 'idle';
       }
       if (!progressed) await pause(signal, 250);
