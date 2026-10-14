@@ -345,7 +345,11 @@ def project(entries: list[dict]) -> dict:
         **plan_projection,
         "research_plan": plan,
         "messages": sorted(
-            (message for message in messages.values() if message["text"]),
+            (
+                message
+                for message in messages.values()
+                if message["text"] or message.get("reasoning")
+            ),
             key=lambda row: row["seq"],
         ),
         "activities": list(activities.values()),

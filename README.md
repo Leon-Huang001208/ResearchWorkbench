@@ -2,7 +2,7 @@
 
 模型设置支持兼容服务的 Base URL 与模型 ID；凭据仍只进入本实例的既有私有存储。
 外部资料源由连接中心显示配置与准入状态，失败会保留明确状态；已保存或已配置不代表实际调用通过。
-详见[连接中心](docs/research-web-connection-center.md)与[能力合同](docs/research-web-capabilities.md)。
+详见[连接中心](docs/research-web-datahub.md)与[能力合同](docs/research-web-capabilities.md)。
 
 持久文本验收预算仅供显式受管 AES 候选：最多 3 次、每次 512 输出 tokens。旧政策已过期，当前不会启动真实验收或续期；普通运行不发现账本。见[预算设计](docs/superpowers/specs/2026-10-14-pr88-budget-port-design.md)。
 

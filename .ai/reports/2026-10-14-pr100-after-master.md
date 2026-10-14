@@ -20,3 +20,7 @@ NOT_RUN 并按候选 SHA 交接，跨平台发布状态与 Mac 本任务分开�
 <!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"融合兼容模型和来源控制到既有DSH与私有桥，保留预算owner信号与加密身份，没有新增引擎或部署。","diagrams":[]} -->
 <!-- architecture-review {"group":"ui","structure":"unchanged","reason":"在既有模型设置和研究空间叠加来源及计划恢复，保留原页面导航和单一计划渲染。","diagrams":[]} -->
 <!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"同一原生日志保留reasoning与canonical及兼容计划字段，HTTP和SSE沿既有边界。","diagrams":[]} -->
+
+独立Python复核发现reasoning-only消息被非空text过滤丢失；4项流式/取消/完成场景先RED，
+现以text或非空reasoning过滤保留消息，协议/事件恢复79PASS。旧全量运行不认证该后续修改，
+最终候选另跑完整相关闭包，失败证据保留。

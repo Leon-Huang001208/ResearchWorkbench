@@ -119,6 +119,57 @@ def test_native_plan_and_streamed_reasoning_coexist_in_same_session():
     assert view["messages"][0]["reasoning"] == "thinking"
 
 
+@pytest.mark.parametrize(
+    "reason,status", [(None, "running"), ("aborted", "cancelled"), ("completed", "completed")]
+)
+def test_reasoning_only_messages_survive_stream_cancel_and_completion(reason, status):
+    entries = [
+        event(0, "turn/start", {"turn": 2}),
+        event(1, "todo/write", {"todos": [{"content": "A", "status": "pending"}]}),
+        event(
+            2,
+            "assistant/chunk",
+            {
+                "turn": 2,
+                "step": 1,
+                "chunk": {"type": "reasoning-delta", "index": 0, "text": "thinking"},
+            },
+        ),
+    ]
+    if reason is not None:
+        entries.append(event(3, "turn/end", {"turn": 2, "reason": {"kind": reason}}))
+    view = project(entries)
+    assert view["messages"] == [
+        {"id": "assistant-2-1", "role": "assistant", "text": "", "seq": 2, "reasoning": "thinking"}
+    ]
+    assert view["status"] == status
+    assert view["plan"]["todos"] == view["research_plan"]["items"]
+    assert view["plan_history_incomplete"] is False
+    assert view["usage"] == {}
+    assert "delivery" not in view
+
+
+def test_final_reasoning_only_message_survives_without_body():
+    view = project(
+        [
+            event(0, "turn/start", {"turn": 1}),
+            event(
+                1,
+                "assistant/message",
+                {
+                    "turn": 1,
+                    "step": 1,
+                    "message": {"content": [{"type": "reasoning", "text": "final thinking"}]},
+                },
+            ),
+            event(2, "turn/end", {"turn": 1, "reason": {"kind": "completed"}}),
+        ]
+    )
+    assert view["messages"][0]["text"] == ""
+    assert view["messages"][0]["reasoning"] == "final thinking"
+    assert view["status"] == "completed"
+
+
 def test_native_plan_fold_preserves_mainline_shape_and_bounds():
     rows = [
         event(0, "turn/start", {"turn": 2}),
