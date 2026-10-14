@@ -12,6 +12,14 @@ Web 从同会话原生日志投影 Todo。`todo/write.data.todos` 是完整替�
 相同重复事件可重读。错误日志仅记录安全事件计数，不记录计划正文。失败与取消使用研究终态，
 Todo 完成不参与独立文件交付判定。分页仍沿现有100页硬上限失败关闭，不能截断冒充完整。
 
+Docker 模型桥由 owned launcher 显式绑定后端、随机实例身份、密文根与主密钥根。
+私有 Python 子进程保持 `-I -B` 和清洁环境，只从自身受管产品安装路径加载模块。
+模型保存/清除/未知提交与真实生成语义不变，Linux 研究沙箱守卫不放宽。
+
+ETF工程模拟不进入DSH会话循环；用户提交冻结输入，由Host同一事务保存结果。
+回放与前向共用 `PaperEngine.step`，输入摘要绑定恢复/幂等，失败不产生部分资金账。
+尚不接Automation/Tool，真实运行BLOCKED；见[数据与文件](03-data-files.md#etf-工程模拟与真实准入边界)。
+
 固定 DSH 的 `session/list` 通过 `parentSessionId` 暴露父子归属；SDK Session Header 内部仍叫 `parentSession`。
 Workbench 子 Agent 投影只使用已核实的 API 字段，继续交叉验证父目录、`origin=subagent` 和严格布尔 running；缺失、外来父会话、非子任务来源或未知活动仍失败关闭，不以空目录释放活动保护。
 模型设置的空闲检查采用内部 `activityOnly=true`：历史 `mode=unknown` 只可在父归属、subagent 来源和布尔运行状态全部验证后提供活动事实。默认详情与执行仍拒绝未知模式；不推断历史执行地址，不删改记录，也不把未知活动当作已结束。
@@ -443,3 +451,7 @@ Office受控自动验证在Host既有批次内串行执行，与DSH研究循环�
 ## 历史子会话模式兼容 · 2026-10-13
 
 列表及父详情复用 activityOnly=True 查询，unknown模式只提供已验证的running活动状态。未知模式不会被猜成one-shot/continuable，子历史保留不可用提示；父列表和父历史继续可读，严格控制查询保持缺省路径。
+
+PR96 与既有 Fernet 模型桥共用唯一私有 stdio 接口；默认 `native-keychain`、常规 staged `docker-encrypted-file` 语义保留，管理器仅显式绑定 `docker-encrypted` 选择 AES-GCM。两种 Docker 格式与主密钥布局独立，混合绑定或外来格式失败关闭，不转换密文、不删除旧 Key、不回退。四操作与固定 ref 保持；来源如实区分，configured/Doctor 不证明真实生成。
+
+AES 绑定先验证已有树及两个固定 ref 的完整认证，不允许外来实例记录被当前 namespace 遮蔽；resolve/describe/set/unset 与原活动守卫保持。

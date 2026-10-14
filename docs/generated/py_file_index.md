@@ -3505,11 +3505,12 @@ Module docstring:
 
 Imports:
 - `__future__`
+- `base64`
 - `collections.abc`
 - `contextlib`
-- `core.observability`
 - `hashlib`
 - `json`
+- `logging`
 - `os`
 - `pathlib`
 - `runtime_state`
@@ -3530,6 +3531,9 @@ Classes:
 - `PrivateFileCredentialBackend`
   - Descriptor-relative, bounded, process-serialized POSIX credential records.
   - methods: __init__, _name, _verify_root, _locked_directory, _read, get_password, set_password, delete_password
+- `EncryptedModelCredentialBackend`
+  - AES-256-GCM model records; a separate read-only instance key is mandatory.
+  - methods: __init__, _reference, _load_key, _cipher, _aad, _decrypt, get_password, set_password, delete_password
 
 Functions:
 - `_safe_errors`
@@ -4765,6 +4769,8 @@ Functions:
 - `validate_research_python`
   - Fail closed unless the configured runtime is Python 3.12 with CPU libraries.
 - `mcp_runtime_enabled`
+- `model_credential_binding`
+  - The managed Docker launcher supplies public binding, never secret values.
 - `load_mcp_runtime_bindings`
   - Load exact Host-verified bindings for the next dedicated DSH start.
 - `load_tabbit_config`
@@ -5018,7 +5024,7 @@ Imports:
 - `operations`
 - `os`
 - `pathlib`
-- ... 15 more
+- ... 16 more
 
 Classes:
 - `NewSession`
@@ -5784,6 +5790,9 @@ Classes:
   - methods: __init__, get_password, delete_password, set_password
 
 Functions:
+- `docker_backend`
+- `initialize_docker_store`
+  - Admin-only one-time initialization; existing resources are never reset.
 - `update_or_add`
   - Replace atomically; only an absent item may be added. Never delete first.
 - `system_backend`
@@ -5836,6 +5845,118 @@ Functions:
 - `services`
 - `storage`
 - `summary`
+
+
+## `app/research_web/portfolio_decisions/__init__.py`
+
+Module docstring:
+> Deterministic paper decisions; no agent, broker or data-source registry.
+
+
+## `app/research_web/portfolio_decisions/engine.py`
+
+Module docstring:
+> Causal ETF decisions and one accounting path for replay/forward paper use.
+
+Imports:
+- `__future__`
+- `copy`
+- `core.observability`
+- `datetime`
+- `decimal`
+- `hashlib`
+- `json`
+- `models`
+- `pathlib`
+- `typing`
+- `zoneinfo`
+
+Classes:
+- `PaperEngine`
+  - Only engineering inputs are accepted; no online capability is enabled.
+  - methods: __init__, checkpoint, _identity, restore, _quantity, _visible_bar, _execution_bar, _execution_valuation, _post_fill_violation, _valuation, _corporate_actions, _fee, _execute, _rebalance, step, result
+
+Functions:
+- `text`
+- `digest`
+- `money`
+- `cutoff`
+- `opening`
+- `replay`
+
+
+## `app/research_web/portfolio_decisions/models.py`
+
+Module docstring:
+> Explicit, bounded ETF research inputs. Uploaded data never grants admission.
+
+Imports:
+- `__future__`
+- `datetime`
+- `decimal`
+- `pydantic`
+- `typing`
+
+Classes:
+- `Contract`
+- `StrategySpec`
+  - methods: distinct_assets
+- `AssetRule`
+- `Bar`
+- `BenchmarkBar`
+- `ResearchSnapshot`
+  - methods: coherent_snapshot
+- `ManualDecision`
+- `ReplayRequest`
+  - methods: complete_configuration
+
+
+## `app/research_web/portfolio_decisions/routes.py`
+
+Module docstring:
+> Explicit user-triggered engineering paper replay over bounded JSON inputs.
+
+Imports:
+- `__future__`
+- `core.observability`
+- `fastapi`
+- `fastapi.responses`
+- `json`
+- `models`
+- `pydantic`
+- `starlette.concurrency`
+- `store`
+
+Functions:
+- `failure`
+- `store`
+- `readiness`
+- `runs`
+- `run_detail`
+- `run_create`
+
+
+## `app/research_web/portfolio_decisions/store.py`
+
+Module docstring:
+> Bounded local SQLite transaction for immutable specs, inputs and paper runs.
+
+Imports:
+- `__future__`
+- `contextlib`
+- `core.observability`
+- `engine`
+- `json`
+- `os`
+- `pathlib`
+- `re`
+- `sqlite3`
+- `stat`
+- `urllib.parse`
+
+Classes:
+- `DecisionStore`
+  - methods: __init__, _connection, run, get, list_runs
 
 
 ## `app/research_web/process_spec.py`

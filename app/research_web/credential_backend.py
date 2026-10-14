@@ -6,8 +6,10 @@ Native Windows uses keyring; POSIX modes cannot establish Windows mount ACLs.
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import json
+import logging
 import os
 import secrets
 import stat
@@ -18,11 +20,11 @@ from pathlib import Path
 from threading import RLock
 from typing import Protocol
 
-from core.observability import get_logger
-
 from .runtime_state import runtime_state_directory
 
-log = get_logger(__name__)
+# The Host configures these same standard handlers into logs/. The isolated
+# model bridge must not import global settings or create unrelated directories.
+log = logging.getLogger(__name__)
 _PLATFORM_NAME = os.name
 MAX_VALUE_BYTES = 64 * 1024
 MAX_RECORD_BYTES = MAX_VALUE_BYTES * 6 + 64
@@ -290,11 +292,7 @@ class PrivateFileCredentialBackend:
                         stream.flush()
                         os.fsync(descriptor)
                     staged = self._read(directory, temporary)
-                    if (
-                        staged is None
-                        or staged[0] != raw
-                        or _identity(staged[1]) != identity
-                    ):
+                    if staged is None or staged[0] != raw or _identity(staged[1]) != identity:
                         raise CredentialBackendError("credential_readback_failed")
                     current = self._read(directory, name)
                     if (current is None) != (previous is None) or (
@@ -353,3 +351,140 @@ def default_credential_backend() -> CredentialBackend:
     if root is None:
         return SystemKeyringBackend()
     return PrivateFileCredentialBackend(root)
+
+
+class EncryptedModelCredentialBackend(PrivateFileCredentialBackend):
+    """AES-256-GCM model records; a separate read-only instance key is mandatory.
+
+    The parent supplies descriptor checks, process locks and atomic publication.
+    Its JSON password field contains a versioned ciphertext envelope, never a Key.
+    No failure selects the generic plaintext or operating-system backend.
+    """
+
+    source = "docker-encrypted"
+    MODEL_REFS = frozenset({"RESEARCH_DSH_API_KEY", "RESEARCH_COMPAT_API_KEY"})
+
+    def __init__(self, root: Path, key_root: Path, instance: str) -> None:
+        with _safe_errors():
+            if len(instance) != 32 or any(c not in "0123456789abcdef" for c in instance):
+                raise CredentialBackendError("model_instance_invalid")
+            self.instance = instance
+            self.key_root = key_root
+            self._key, self._key_identity = self._load_key()
+            # Loading is not initialization: absent ciphertext directories fail.
+            with runtime_state_directory(root):
+                super().__init__(root)
+            with self._locked_directory() as directory:
+                service = "org.research-workbench.model." + self.instance
+                references = {self._name(service, ref): ref for ref in self.MODEL_REFS}
+                for name in os.listdir(directory):
+                    if not name.endswith(".json"):
+                        continue
+                    if name not in references:
+                        raise CredentialBackendError("model_record_binding_invalid")
+                    record = self._read(directory, name)
+                    if record is None:
+                        raise CredentialBackendError("model_ciphertext_invalid")
+                    payload = json.loads(record[0])
+                    if (
+                        not isinstance(payload, dict)
+                        or set(payload) != {"version", "password"}
+                        or type(payload["version"]) is not int
+                        or payload["version"] != 1
+                        or not isinstance(payload["password"], str)
+                        or _encode(payload["password"]) != record[0]
+                    ):
+                        raise CredentialBackendError("model_ciphertext_invalid")
+                    # Validate every existing record, not just the requested account.
+                    # A foreign tree cannot be masked by an empty current namespace.
+                    self._decrypt(payload["password"], service, references[name])
+
+    def _reference(self, service: str, account: str) -> None:
+        if (
+            service != "org.research-workbench.model." + self.instance
+            or account not in self.MODEL_REFS
+        ):
+            raise CredentialBackendError("model_record_binding_invalid")
+
+    def _load_key(self) -> tuple[bytes, tuple[int, ...]]:
+        with runtime_state_directory(self.key_root):
+            descriptor = os.open(self.key_root, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+            try:
+                identity = self._read(descriptor, "identity.json")
+                key = self._read(descriptor, "master.key")
+                if identity is None or key is None or len(key[0]) != 32:
+                    raise CredentialBackendError("model_master_key_unavailable")
+                payload = json.loads(identity[0])
+                if (
+                    not isinstance(payload, dict)
+                    or type(payload.get("version")) is not int
+                    or payload != {"version": 1, "instance": self.instance}
+                ):
+                    raise CredentialBackendError("model_instance_mismatch")
+                return key[0], _file_state(key[1])
+            finally:
+                os.close(descriptor)
+
+    def _cipher(self):
+        from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+
+        current, identity = self._load_key()
+        if identity != self._key_identity or current != self._key:
+            raise CredentialBackendError("model_master_key_changed")
+        return AESGCM(current)
+
+    def _aad(self, service: str, account: str) -> bytes:
+        return json.dumps(["rwb-model-v1", self.instance, service, account]).encode()
+
+    def _decrypt(self, raw: str, service: str, account: str) -> str:
+        payload = json.loads(raw)
+        if (
+            not isinstance(payload, dict)
+            or set(payload) != {"version", "algorithm", "instance", "nonce", "ciphertext"}
+            or type(payload["version"]) is not int
+            or payload["version"] != 1
+            or payload["algorithm"] != "AES-256-GCM"
+            or payload["instance"] != self.instance
+        ):
+            raise CredentialBackendError("model_ciphertext_invalid")
+        nonce = base64.b64decode(payload["nonce"], validate=True)
+        ciphertext = base64.b64decode(payload["ciphertext"], validate=True)
+        if len(nonce) != 12:
+            raise CredentialBackendError("model_ciphertext_invalid")
+        value = self._cipher().decrypt(nonce, ciphertext, self._aad(service, account)).decode()
+        if not value or len(value) > 1024:
+            raise CredentialBackendError("model_value_invalid")
+        return value
+
+    def get_password(self, service: str, account: str) -> str | None:
+        with _safe_errors():
+            self._reference(service, account)
+            self._cipher()
+            raw = super().get_password(service, account)
+            return None if raw is None else self._decrypt(raw, service, account)
+
+    def set_password(self, service: str, account: str, password: str) -> None:
+        with _safe_errors():
+            self._reference(service, account)
+            if not isinstance(password, str) or not password or len(password) > 1024:
+                raise CredentialBackendError("model_value_invalid")
+            # An existing damaged record must not be silently replaced.
+            self.get_password(service, account)
+            nonce = secrets.token_bytes(12)
+            ciphertext = self._cipher().encrypt(
+                nonce, password.encode(), self._aad(service, account)
+            )
+            payload = {
+                "version": 1,
+                "algorithm": "AES-256-GCM",
+                "instance": self.instance,
+                "nonce": base64.b64encode(nonce).decode(),
+                "ciphertext": base64.b64encode(ciphertext).decode(),
+            }
+            super().set_password(service, account, json.dumps(payload, sort_keys=True))
+
+    def delete_password(self, service: str, account: str) -> None:
+        with _safe_errors():
+            self._reference(service, account)
+            self.get_password(service, account)
+            super().delete_password(service, account)

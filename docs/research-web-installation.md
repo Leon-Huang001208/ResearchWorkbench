@@ -1,5 +1,10 @@
 # Research Web Native / Docker 安装与运行
 
+ETF工程模拟使用现有Pydantic/FastAPI及stdlib SQLite，无新增Python/Node产品依赖或安装参数。
+首次显式模拟在所属产品根创建私有 `portfolio-decisions/paper.sqlite3`；工程输入不会配置真实数据来源、
+凭据或启用算法。数据/能力缺口由模拟页readiness显示，不能把Doctor的服务健康视作策略可运行。
+本切片的干净macOS安装CI与Docker开发/镜像验收尚待执行，现有环境聚焦通过不替代这些门。
+
 Claw 项目与日程入口使用既有 Web/DSH 依赖，无新增产品包或安装步骤。旧数据根可直接读取，缺少 project_id 的 Claw 会话归入默认“我的研究”，不移动文件。
 Automation 被显式关闭时，聊天日程草稿也不可用；提出草稿不等于保存或启用。日程需实际能力版本，数据/模型/工具的可调用性继续由现有设置与 Doctor 分层诊断。
 
@@ -470,6 +475,11 @@ uv pip compile requirements/web.in \
 
 ## 单一兼容模型连接
 
+新受管 Docker 实例的模型后端可由管理员显式初始化为实例隔离的 AES-256-GCM 存储，
+复用锁文件中 cryptography 50.0.1，并将其列为 Web 直接依赖；版本与哈希未升级。
+Native macOS 的 Keychain 选择及安装流程保留。Docker 操作、主密钥只读挂载及最小恢复材料
+见 [Docker 手册](research-web-docker.md)，不能把安装成功作为模型生成验收。
+
 一键安装包含产品兼容文本/流式适配，固定DSH、Python/Node依赖锁不变，不安装本地模型服务或下载权重。用户另行配置自己实际可用的HTTPS兼容服务或本机loopback端点；localhost指Native后端设备。无Key不是旧文件/环境回退，Doctor/服务健康不发起隐式模型请求，真实模型与工具验收仍需独立证据。
 
 Docker 两个 APT 安装阶段使用 Debian HTTPS 源，保留 archive keyring 签名校验、原有包与锁定基础镜像；网络代理仅按宿主/构建环境配置，不禁用证书或包认证。HTTPS 源切换不证明 Linux/Windows 真机或 CI 已通过。
@@ -489,3 +499,5 @@ macOS Docker 停止后回环端口的非监听绑定保留可能延迟释放；�
 `rwb web doctor --json`的office_auto_verification仅显示所属实例开关/未知状态、应用范围、人工提示与关闭位置，不发起真实操作，不影响主体安装就绪。未知、未发现、失效及不适用不会提升为可调用或一概归为系统故障。本轮不改安装依赖或一键启动逻辑。
 
 2026-10-09追加授权收口：Office成功且关闭确认后，仅归档登记的合成文稿到既有私有验证run目录，再清理沙箱副本；成功marker移除，仍沿原16项/512MiB/24小时有界保留策略回收，不新增执行器或任意路径接口。Office开启改用页内说明、确认/取消按钮，系统权限弹窗仍由人工处理。
+
+AES 载入进一步认证全部既有模型记录；错误密文树/实例绑定明确拒绝，安装依赖和正确旧记录格式不变，不自动转换或生成替代主密钥。

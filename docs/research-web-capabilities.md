@@ -1,5 +1,7 @@
 # Research Web 能力包与版本
 
+Docker 模型来源 `docker_encrypted` 只表示凭据存储，不提升 Tool、MCP 或 Automation 可用性。
+Linux 严格沙箱守卫和活动任务期间的凭据修改拒绝保持；文本生成不证明研究执行能力。
 Docker 模型密钥后端只改变固定凭据 ref 的存储，不授予 Skill、MCP、Automation、工具或
 研究脚本权限。加密密钥可读取和设置保存成功均不能推导真实推理通过；生成测试仍显式调用
 原 DSH 无研究工具 preset，失败不自动重试或清理用户凭据。

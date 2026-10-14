@@ -1,7 +1,7 @@
 const API_ROOT = '/api/research';
 const segment = (value) => encodeURIComponent(value);
 const pages = new Set(['fingpt', 'claw', 'workbench', 'frameworks', 'skills', 'history', 'operations', 'settings', 'intel']);
-const workbenchSections = new Set(['market', 'assets', 'funds', 'industry', 'documents']);
+const workbenchSections = new Set(['market', 'assets', 'funds', 'industry', 'documents', 'etf-paper']);
 const settingsSections = new Set(['general', 'model', 'data', 'local', 'docs']);
 const capabilityViews = new Set(['library', 'mine', 'plans', 'connections', 'market']);
 const capabilityKinds = new Set(['skill', 'method', 'tool', 'workflow', 'data']);
@@ -140,6 +140,10 @@ export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSo
   const capabilityPath = (id) => `/capabilities/${segment(id)}`;
   const mcpRegistryPath = (id) => `/mcp/registries/${segment(id)}`;
   return {
+    etfReadiness: () => request('/portfolio-decisions/readiness'),
+    etfRuns: () => request('/portfolio-decisions/runs'),
+    etfRun: (id) => request(`/portfolio-decisions/runs/${segment(id)}`),
+    etfReplay: (body, key) => request('/portfolio-decisions/runs', { method: 'POST', body, key, userAction: true }),
     runtime: () => request('/runtime'), models: () => request('/models'), workspaces: () => request('/workspaces'),
     sessions: (view = 'active') => request(`/sessions?view=${segment(view)}`), skills: () => request('/skills'),
     documentOperation: (id, body) => request(`${sessionPath(id)}/document-operations`, { method: 'POST', body }),

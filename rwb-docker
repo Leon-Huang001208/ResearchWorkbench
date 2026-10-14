@@ -139,6 +139,12 @@ case "${1:-help}" in
     docker image inspect --format '{{.Id}}' rwb-control:g01 > "$ROOT/control.image"
     echo 'controller_ready'; exit 0;;
   build)
+    shift
+    case "$#:${1:-}" in
+      0:) set -- ;;
+      1:--refresh-dsh) set -- --no-cache-filter dsh-builder ;;
+      *) fail build_arguments_invalid ;;
+    esac
     admit_cold_build
     BUILDING=1
     test -f "$ROOT/control.image" || fail run_bootstrap_first
@@ -149,7 +155,7 @@ case "${1:-help}" in
       --mount "type=bind,src=$GIT_COMMON,dst=$GIT_COMMON,readonly" \
       --entrypoint git "$(cat "$ROOT/control.image")" \
       -c "safe.directory=$PROJECT" -C "$PROJECT" rev-parse HEAD)
-    docker buildx build --builder "$BUILDER" --platform linux/arm64 --load \
+    docker buildx build --builder "$BUILDER" --platform linux/arm64 --load "$@" \
       --label "org.opencontainers.image.revision=$SOURCE_SHA" \
       -t rwb-candidate:g01 "$PROJECT"
     IMAGE=$(docker image inspect --format '{{.Id}}' rwb-candidate:g01)
@@ -162,7 +168,7 @@ case "${1:-help}" in
     docker image inspect --format '{{.Id}}' rwb-development:g01 > "$ROOT/dev.image"
     echo "candidate_image=$IMAGE"; exit 0;;
   help)
-    echo './rwb-docker bootstrap | build | dev|stage|prod INSTANCE register|up|status|doctor|stop|rebuild|exec|cleanup|replace-image [options]'
+    echo './rwb-docker bootstrap | build | dev|stage|prod INSTANCE register|up|status|doctor|stop|rebuild|exec|cleanup|replace-image|enable-model-credentials|credential-probe [options]'
     exit 0;;
 esac
 test -f "$ROOT/control.image" || fail run_bootstrap_first

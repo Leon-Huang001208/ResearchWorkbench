@@ -338,7 +338,8 @@
         "tests/javascript/research_web_tabbit_adapter.test.mjs",
         "tests/javascript/research_web_tabbit_ui.test.mjs",
         "tests/javascript/research_web_compatible_model.test.mjs",
-        "tests/javascript/research_web_automation_draft_tool.test.mjs"
+        "tests/javascript/research_web_automation_draft_tool.test.mjs",
+        "tests/research_web/test_encrypted_model_credentials.py"
       ]
     },
     {
@@ -400,7 +401,8 @@
         "app/research_web/workbench.py",
         "app/research_web/asset_routes.py",
         "app/research_web/asset_workspace.py",
-        "app/research_web/ui/asset-workspace.mjs"
+        "app/research_web/ui/asset-workspace.mjs",
+        "app/research_web/portfolio_decisions/"
       ],
       "documents": [
         "docs/research-web-ui.md",
@@ -413,7 +415,10 @@
       ],
       "tests": [
         "tests/research_web/test_workbench_operations.py",
-        "tests/javascript/research_web_workbench.test.mjs"
+        "tests/javascript/research_web_workbench.test.mjs",
+        "tests/research_web/test_etf_decisions.py",
+        "tests/research_web/test_etf_decision_routes.py",
+        "tests/javascript/research_web_etf_paper.test.mjs"
       ]
     },
     {
@@ -3004,6 +3009,34 @@
       "declaredPath": "/sessions/{sid}/automation-drafts/{draft_id}/dismiss",
       "prefix": "/api/research",
       "source": "app/research_web/claw_routes.py"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/portfolio-decisions/readiness",
+      "source": "app/research_web/portfolio_decisions/routes.py",
+      "declaredPath": "/readiness",
+      "prefix": "/api/research/portfolio-decisions"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/portfolio-decisions/runs",
+      "source": "app/research_web/portfolio_decisions/routes.py",
+      "declaredPath": "/runs",
+      "prefix": "/api/research/portfolio-decisions"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/portfolio-decisions/runs",
+      "source": "app/research_web/portfolio_decisions/routes.py",
+      "declaredPath": "/runs",
+      "prefix": "/api/research/portfolio-decisions"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/portfolio-decisions/runs/{run_id}",
+      "source": "app/research_web/portfolio_decisions/routes.py",
+      "declaredPath": "/runs/{run_id}",
+      "prefix": "/api/research/portfolio-decisions"
     }
   ],
   "visualReview": "docs/architecture/research-web/visual-review.json",

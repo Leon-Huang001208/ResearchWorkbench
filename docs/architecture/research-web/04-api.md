@@ -9,6 +9,20 @@
 不提供稳定 item ID。新回合、无 Todo、错误 Todo 不复用旧快照；原生空列表与无计划不同。
 计划状态不修改会话终态或 `delivery`，不新增路由、提交操作或正文存储。
 
+模型设置和最小生成沿现有 API；Docker 后端来源投影为 `credential_storage=docker_encrypted`，
+Native 为 `system_keychain`。固定 DSH 的 source 是 provider 自定义字符串；不返回 Key。
+
+ETF工程模拟新增以下同源入口；合同见[数据与文件](03-data-files.md#etf-工程模拟与真实准入边界)。
+POST须有 `X-Research-User-Action: ?1` 与 `Idempotency-Key`，流式输入≤8MiB，只接受工程标记。
+真实准入始终BLOCKED；冲突409、非法合同422、输入预算413、存储失败503。
+
+| Method | 路径 | 源码 |
+| --- | --- | --- |
+| GET | `/api/research/portfolio-decisions/readiness` | `app/research_web/portfolio_decisions/routes.py` |
+| GET | `/api/research/portfolio-decisions/runs` | `app/research_web/portfolio_decisions/routes.py` |
+| GET | `/api/research/portfolio-decisions/runs/{run_id}` | `app/research_web/portfolio_decisions/routes.py` |
+| POST | `/api/research/portfolio-decisions/runs` | `app/research_web/portfolio_decisions/routes.py` |
+
 ## Claw 项目与日程草稿 API
 
 `claw_routes.py` 提供 `/claw/projects` 列表/创建与 `/{project_id}` 查询/改名/归档，`/sessions/{sid}/project` 显式移组，`/sessions/{sid}/file-references` 显式复制所选同项目文件。

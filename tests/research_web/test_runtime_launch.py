@@ -1132,3 +1132,25 @@ def test_launcher_failure_emits_fixed_stage_without_exception_text(
         }
     ]
     assert "fixture-private" not in json.dumps(messages)
+
+
+def test_aes_overlay_binding_requires_verified_staged_selection(monkeypatch):
+    from app.research_web import model_credentials
+
+    observations = []
+    monkeypatch.setenv("RWB_MODEL_BACKEND", "docker-encrypted")
+    monkeypatch.setenv("RWB_DSH_STAGED", "1")
+    monkeypatch.setenv("RWB_MODEL_INSTANCE_ID", "a" * 32)
+    monkeypatch.setattr(
+        model_credentials, "docker_backend", lambda *args: observations.append(args)
+    )
+    with pytest.raises(RuntimeError, match="model_credential_binding_invalid"):
+        launch_runtime.model_credential_binding(staged=False)
+    assert observations == []
+    binding = launch_runtime.model_credential_binding(staged=True)
+    assert binding[0] == "        backend: docker-encrypted"
+    assert observations == [(Path("/run/rwb-secrets/models"), Path("/run/rwb-model-key"), "a" * 32)]
+    assert not any("credentialHome" in line for line in binding)
+    monkeypatch.setenv("RWB_MODEL_INSTANCE_ID", "invalid")
+    with pytest.raises(RuntimeError, match="model_credential_binding_invalid"):
+        launch_runtime.model_credential_binding(staged=True)
