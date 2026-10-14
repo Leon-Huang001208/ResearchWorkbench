@@ -4,6 +4,17 @@
 认证 HTTPS、秘密反射拒绝、明确脚本成功及精确工具准入见[安全边界](05-security-validation.md)；
 Claw 项目、研究深度/资料范围、原生 Todo 和 HTML/Word/中文 PDF 合同保持。
 
+显式文本验收预算复用已有私有模型桥与受管 AES 身份，持久票据不退款。旧政策过期，真实验收未启用；预算不是运行实例管理或产品推理 PASS。
+
+原生研究计划复用既有 DSH 与 FinGPT 计划标签；历史分页和 SSE 缓存保留同序号冲突证据，
+坏快照不显示已确认计划。此内存恢复改动不新增 Automation 调度或改变日程草稿确认边界。
+
+G2A 为受管 Docker 增加固定模型 ref 的实例加密后端及主密钥只读卷，仍由原 Web→DSH
+私有 stdio 桥调用。生成、重建和隔离证据分别记录，Native Keychain 与原 Automation 合同保留。
+
+研究台增加ETF工程模拟切片，确定性策略、约束、事务账本及回放均在同一Host内，真实链路保持BLOCKED。
+合同见[数据与文件](03-data-files.md#etf-工程模拟与真实准入边界)。
+
 模型空闲检查区分已核实活动与历史执行模式；详情/执行仍按原严格模式校验。内部查询范围及失败关闭条件见[运行时](02-research-runtime.md)与[安全验证](05-security-validation.md)，无公开协议或持久格式变化。
 
 Claw 本地研究项目和可确认日程草稿复用现有 Host 索引、文件目录、Automation 与 DSH。项目归属不改变执行目录，跨会话文件必须显式引用；详见[文件](03-data-files.md)、[API](04-api.md)和[UI](../../research-web-ui.md)。

@@ -1,0 +1,14 @@
+{
+  "status": "FAIL",
+  "pin": "48504f07f217f9fd45a4f6d8fca4b1ed35c2d4b0",
+  "modelCalls": 0,
+  "productionRuntimeTouched": false,
+  "transport": "in-process real native registries",
+  "todoWrites": 2,
+  "durableRead": true,
+  "nextTurnCleared": true,
+  "eventsSHA256": "6ce8446002499a43431d797bb28eac4351371de9fad0045bc5e2e6fffe09b544",
+  "earlierObservedStatus": "PASS",
+  "invalidatedReason": "session \"native-plan-isolated\": stored log is corrupt: SessionFormatError: turn/start does not open the expected turn",
+  "currentAcceptanceReplacement": "integration-valid-state/receipt.json"
+}

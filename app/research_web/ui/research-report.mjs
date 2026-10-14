@@ -1,4 +1,5 @@
 import { escapeHTML as e, safeURL } from './markdown.mjs';
+import { renderResearchPlan } from './views.mjs';
 
 export const researchRecipes = {
   onepage: '请围绕以下对象制作一页纸研究摘要，列出关键事实、估值口径、风险和引用来源：',
@@ -13,11 +14,7 @@ export function renderResearchRecipes({ busy = false } = {}) {
 
 export function renderResearchPanel(detail = {}, tab = 'plan', stageId = null) {
   if (tab === 'plan') {
-    const plan = detail.research_plan;
-    if (!plan) return '<p class="muted">本回合尚无原生研究计划。</p>';
-    if (plan.status !== 'available') return '<p class="notice warning">计划事件无效，无法确认当前计划。</p>';
-    const labels = { pending: '待研究', in_progress: '进行中', completed: '计划项完成' };
-    return `<section aria-label="原生研究计划"><h3>研究计划</h3><p class="small muted">回合 ${e(plan.turn ?? '未知')} · 版本 ${e(plan.seq)}${!plan.history_complete ? ' · 历史不完整' : ''}</p><ol>${(plan.items || []).map(item => `<li><span class="badge">${e(labels[item.status] || '未知')}</span> ${e(item.content)}</li>`).join('')}</ol><p class="small muted">计划勾选不代表研究或文件交付完成。</p></section>`;
+    return renderResearchPlan(detail) || '<p class="muted">本回合尚无原生研究计划。</p>';
   }
   if (tab === 'evidence') {
     const sources = detail.research_sources || [];

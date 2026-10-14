@@ -3438,6 +3438,7 @@ Imports:
 - `json`
 - `os`
 - `pathlib`
+- `projection`
 - `runtime_auth`
 - `typing`
 - `urllib.parse`
@@ -3506,11 +3507,12 @@ Module docstring:
 
 Imports:
 - `__future__`
+- `base64`
 - `collections.abc`
 - `contextlib`
-- `core.observability`
 - `hashlib`
 - `json`
+- `logging`
 - `os`
 - `pathlib`
 - `runtime_state`
@@ -3531,6 +3533,9 @@ Classes:
 - `PrivateFileCredentialBackend`
   - Descriptor-relative, bounded, process-serialized POSIX credential records.
   - methods: __init__, _name, _verify_root, _locked_directory, _read, get_password, set_password, delete_password
+- `EncryptedModelCredentialBackend`
+  - AES-256-GCM model records; a separate read-only instance key is mandatory.
+  - methods: __init__, _reference, _load_key, _cipher, _aad, _decrypt, get_password, set_password, delete_password
 
 Functions:
 - `_safe_errors`
@@ -4829,6 +4834,7 @@ Module docstring:
 Imports:
 - `argparse`
 - `capabilities.catalog`
+- `collections.abc`
 - `core.observability`
 - `datahub.contracts`
 - `datahub.security`
@@ -4846,11 +4852,18 @@ Imports:
 - `sys`
 - `tarfile`
 - `tempfile`
+- `typing`
+
+Classes:
+- `AcceptanceBudgetBridge`
+- `AcceptanceControl`
 
 Functions:
 - `validate_research_python`
   - Fail closed unless the configured runtime is Python 3.12 with CPU libraries.
 - `mcp_runtime_enabled`
+- `model_credential_binding`
+  - The managed Docker launcher supplies public binding, never secret values.
 - `load_mcp_runtime_bindings`
   - Load exact Host-verified bindings for the next dedicated DSH start.
 - `load_tabbit_config`
@@ -4872,8 +4885,12 @@ Functions:
   - Keep all stable tools registered; the Broker decides availability per call.
 - `prepare_runtime_module_fallback`
   - Heal DSH profile module links and reject dependencies outside the pinned tree.
+- `validated_model_instance`
+  - Authenticate only the managed AES binding with a stable instance identity.
+- `read_acceptance_budget`
+  - Read explicit, existing authorization; never discover or initialize it.
 - `live_acceptance_control`
-  - Bind optional, non-secret acceptance limits to one non-production instance.
+  - Bind optional, non-secret acceptance limits to one explicit owned acceptance instance.
 - `prepare`
 - `_prepare_runtime`
 - `calculate_build_closure`
@@ -4912,6 +4929,59 @@ Classes:
 Functions:
 - `_fsync_directory`
   - Persist a directory entry where directory fsync is supported.
+
+
+## `app/research_web/live_acceptance_budget.py`
+
+Module docstring:
+> Explicit, dated Docker text acceptance authorization and nonrefundable tickets.
+
+Imports:
+- `__future__`
+- `argparse`
+- `collections.abc`
+- `contextlib`
+- `datetime`
+- `hashlib`
+- `json`
+- `logging`
+- `os`
+- `pathlib`
+- `re`
+- `secrets`
+- `sys`
+- `time`
+- `typing`
+
+Classes:
+- `PolicyFields`
+- `Authorization`
+- `Ledger`
+- `Reservation`
+- `InitRequest`
+- `DescribeRequest`
+- `ReserveRequest`
+- `BudgetError`
+  - Fixed public error code; no request, credential or path details.
+- `BudgetStore`
+  - Pinned private leaf, existing permanent lock, fixed control and ledger.
+  - methods: __init__, _control, _directory, _read, _publish, _failure, initialize, describe, read_optional, reserve
+
+Functions:
+- `_utcnow`
+- `_date`
+- `_number`
+- `request_cost`
+  - Integral micro-USD, independently ceiling each worst-case component.
+- `authorization`
+  - Build the exact reviewable nonsecret control; does not authorize/write.
+- `_encode`
+- `_mapping`
+- `_decode`
+- `_request`
+- `_budget_parent`
+  - Pin nodes, not mutable directory timestamps, while writers wait on lock.
+- `main`
 
 
 ## `app/research_web/local_integrations/__init__.py`
@@ -5104,7 +5174,7 @@ Imports:
 - `operations`
 - `os`
 - `pathlib`
-- ... 15 more
+- ... 16 more
 
 Classes:
 - `NewSession`
@@ -5873,6 +5943,9 @@ Classes:
   - methods: __init__, get_password, delete_password, set_password
 
 Functions:
+- `docker_backend`
+- `initialize_docker_store`
+  - Admin-only one-time initialization; existing resources are never reset.
 - `update_or_add`
   - Replace atomically; only an absent item may be added. Never delete first.
 - `system_backend`
@@ -5927,6 +6000,118 @@ Functions:
 - `summary`
 
 
+## `app/research_web/portfolio_decisions/__init__.py`
+
+Module docstring:
+> Deterministic paper decisions; no agent, broker or data-source registry.
+
+
+## `app/research_web/portfolio_decisions/engine.py`
+
+Module docstring:
+> Causal ETF decisions and one accounting path for replay/forward paper use.
+
+Imports:
+- `__future__`
+- `copy`
+- `core.observability`
+- `datetime`
+- `decimal`
+- `hashlib`
+- `json`
+- `models`
+- `pathlib`
+- `typing`
+- `zoneinfo`
+
+Classes:
+- `PaperEngine`
+  - Only engineering inputs are accepted; no online capability is enabled.
+  - methods: __init__, checkpoint, _identity, restore, _quantity, _visible_bar, _execution_bar, _execution_valuation, _post_fill_violation, _valuation, _corporate_actions, _fee, _execute, _rebalance, step, result
+
+Functions:
+- `text`
+- `digest`
+- `money`
+- `cutoff`
+- `opening`
+- `replay`
+
+
+## `app/research_web/portfolio_decisions/models.py`
+
+Module docstring:
+> Explicit, bounded ETF research inputs. Uploaded data never grants admission.
+
+Imports:
+- `__future__`
+- `datetime`
+- `decimal`
+- `pydantic`
+- `typing`
+
+Classes:
+- `Contract`
+- `StrategySpec`
+  - methods: distinct_assets
+- `AssetRule`
+- `Bar`
+- `BenchmarkBar`
+- `ResearchSnapshot`
+  - methods: coherent_snapshot
+- `ManualDecision`
+- `ReplayRequest`
+  - methods: complete_configuration
+
+
+## `app/research_web/portfolio_decisions/routes.py`
+
+Module docstring:
+> Explicit user-triggered engineering paper replay over bounded JSON inputs.
+
+Imports:
+- `__future__`
+- `core.observability`
+- `fastapi`
+- `fastapi.responses`
+- `json`
+- `models`
+- `pydantic`
+- `starlette.concurrency`
+- `store`
+
+Functions:
+- `failure`
+- `store`
+- `readiness`
+- `runs`
+- `run_detail`
+- `run_create`
+
+
+## `app/research_web/portfolio_decisions/store.py`
+
+Module docstring:
+> Bounded local SQLite transaction for immutable specs, inputs and paper runs.
+
+Imports:
+- `__future__`
+- `contextlib`
+- `core.observability`
+- `engine`
+- `json`
+- `os`
+- `pathlib`
+- `re`
+- `sqlite3`
+- `stat`
+- `urllib.parse`
+
+Classes:
+- `DecisionStore`
+  - methods: __init__, _connection, run, get, list_runs
+
+
 ## `app/research_web/process_spec.py`
 
 Module docstring:
@@ -5953,10 +6138,15 @@ Module docstring:
 > Pure projection of native DSH events; no parallel research execution model.
 
 Imports:
+- `core.observability`
+- `itertools`
 - `json`
-- `logging`
 
 Functions:
+- `merge_event_records`
+  - Keep conflict evidence when native records are indexed by sequence.
+- `_project_plan`
+  - Fold whole native snapshots; version identifies a write, never an item.
 - `content_text`
 - `content_reasoning`
 - `project`
@@ -10675,7 +10865,6 @@ Module docstring:
 > Wind 数据适配器 —— 通过 Excel 插件获取 Wind 数据
 
 Imports:
-- `collections.abc`
 - `core.contracts`
 - `core.observability`
 - `data_layer.adapters.base`
@@ -10689,7 +10878,7 @@ Imports:
 Classes:
 - `WindAdapter`
   - Wind 数据适配器
-  - methods: __init__, _get_client, is_available, close, fetch_consensus_estimates, fetch_margin_trading, fetch_block_trades, _daily_quote_formula, fetch_daily_quotes, _dq_row_to_dict, _fetch_dq_recent_batch, fetch_market_snapshot, fetch_realtime_quotes, fetch_index_quotes, fetch_financial_statements, fetch_industry_data, fetch_fund_flow, fetch_holder_data, fetch_top10_holder_details, fetch, parse
+  - methods: __init__, _get_client, is_available, close, fetch_consensus_estimates, fetch_margin_trading, fetch_block_trades, fetch_daily_quotes, _dq_row_to_dict, _fetch_dq_recent_batch, fetch_market_snapshot, fetch_realtime_quotes, fetch_index_quotes, fetch_financial_statements, fetch_industry_data, fetch_fund_flow, fetch_holder_data, fetch_top10_holder_details, fetch, parse
 
 Functions:
 - `_safe_float_wind`

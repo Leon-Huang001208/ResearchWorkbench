@@ -29,6 +29,55 @@ MAX_REQUEST = 8192
 log = logging.getLogger(__name__)
 
 
+def docker_backend(root: Path, key_root: Path, instance: str):
+    # -I intentionally omits the script/project directory. Bind imports to this
+    # owned product installation, never PYTHONPATH, cwd or a caller environment.
+    product = str(Path(__file__).resolve().parents[2])
+    sys.path.insert(0, product)
+    from app.research_web.credential_backend import EncryptedModelCredentialBackend
+
+    return EncryptedModelCredentialBackend(root, key_root, instance)
+
+
+def initialize_docker_store(root: Path, key_root: Path, instance: str) -> None:
+    """Admin-only one-time initialization; existing resources are never reset."""
+    product = str(Path(__file__).resolve().parents[2])
+    sys.path.insert(0, product)
+    from app.research_web.credential_backend import CredentialBackendError
+    from app.research_web.runtime_state import runtime_state_directory
+
+    with runtime_state_directory(key_root):
+        if any(key_root.iterdir()) or root.exists():
+            raise CredentialBackendError("model_store_already_initialized")
+        if len(instance) != 32 or any(c not in "0123456789abcdef" for c in instance):
+            raise CredentialBackendError("model_instance_invalid")
+        # The key is generated inside the bounded initializer, never an argv,
+        # environment value, stdout or manager-ledger field. Partial init fails closed.
+        for name, value in (
+            ("master.key", secrets.token_bytes(32)),
+            ("identity.json", json.dumps({"version": 1, "instance": instance}).encode()),
+        ):
+            fd = os.open(
+                key_root / name, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600
+            )
+            try:
+                with os.fdopen(fd, "wb", closefd=False) as stream:
+                    stream.write(value)
+                    stream.flush()
+                os.fsync(fd)
+            finally:
+                os.close(fd)
+        root.mkdir(mode=0o700)
+        for folder in (key_root, root.parent):
+            descriptor = os.open(folder, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+            try:
+                os.fsync(descriptor)
+            finally:
+                os.close(descriptor)
+        docker_backend(root, key_root, instance)
+        log.info("model_store_initialized")
+
+
 class DockerModelStore:
     """Encrypted fixed model accounts in a separate, guarded credential subtree.
 
@@ -53,6 +102,21 @@ class DockerModelStore:
         # of its model subtree with other cooperating credential consumers.
         with parent._locked_directory():
             self.backend = PrivateFileCredentialBackend(parent.root / "models")
+        # Refuse a foreign ciphertext tree even when its model namespace differs.
+        # This is validation only: no conversion, deletion, or key generation.
+        with self.backend._locked_directory() as directory:
+            for name in os.listdir(directory):
+                if not name.endswith(".json"):
+                    continue
+                record = self.backend._read(directory, name)
+                if record is None:
+                    raise RuntimeError("model_credential_record_invalid")
+                payload = json.loads(record[0])
+                value = payload.get("password") if isinstance(payload, dict) else None
+                master = name == self.backend._name(self.KEY_SERVICE, self.KEY_ACCOUNT)
+                if not isinstance(value, str) or (not master and not value.startswith("model:v1:")):
+                    log.warning("model_credential_binding_invalid")
+                    raise RuntimeError("model_credential_binding_invalid")
 
     def _master(self, *, create: bool) -> Fernet:
         from cryptography.fernet import Fernet
@@ -256,8 +320,11 @@ def execute(data_home: Path, request: object, backend=None) -> dict:
     if not root.is_dir():
         raise ValueError("model_credential_request_invalid")
     # This is a public path identity, never a hash of secret material.
-    namespace = "org.research-workbench.model." + hashlib.sha256(str(root).encode()).hexdigest()
     store = backend if backend is not None else system_backend()
+    identity = getattr(store, "instance", None)
+    namespace = "org.research-workbench.model." + (
+        identity if identity is not None else hashlib.sha256(str(root).encode()).hexdigest()
+    )
     if op == "set":
         store.set_password(namespace, account, request["value"])
         return {}
@@ -279,31 +346,40 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Private model credential bridge")
     parser.add_argument("--data-home", type=Path, required=True)
     parser.add_argument(
-        "--backend", choices=("native-keychain", "docker-encrypted-file"), default="native-keychain"
+        "--backend",
+        choices=("native-keychain", "docker-encrypted-file", "docker-encrypted"),
+        default="native-keychain",
     )
     parser.add_argument("--credential-home")
+    parser.add_argument("--credential-root", type=Path)
+    parser.add_argument("--key-root", type=Path)
+    parser.add_argument("--instance")
+    parser.add_argument("--initialize", action="store_true")
     args = parser.parse_args()
     try:
+        aes_binding = (args.credential_root, args.key_root, args.instance, args.initialize)
+        backend = None
+        if args.backend == "docker-encrypted":
+            if args.credential_home is not None or not all(aes_binding[:3]):
+                raise ValueError("model_credential_binding_invalid")
+            if args.initialize:
+                initialize_docker_store(args.credential_root, args.key_root, args.instance)
+                sys.stdout.write('{"ok":true}')
+                return 0
+            backend = docker_backend(args.credential_root, args.key_root, args.instance)
+        elif any(aes_binding):
+            raise ValueError("model_credential_binding_invalid")
+        elif args.backend == "docker-encrypted-file":
+            if not args.credential_home:
+                raise ValueError("model_credential_binding_invalid")
+            # Bind imports to the owned product even under isolated Python -I.
+            sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+            backend = DockerModelStore(args.credential_home)
+        elif args.credential_home is not None:
+            raise ValueError("model_credential_binding_invalid")
         raw = sys.stdin.buffer.read(MAX_REQUEST + 1)
         if len(raw) > MAX_REQUEST:
             raise ValueError("model_credential_request_invalid")
-        if args.backend == "docker-encrypted-file":
-            if args.credential_home is None:
-                raise ValueError("model_credential_binding_invalid")
-            # The shared filesystem guard imports the project's logger/settings.
-            # Keep that isolated import read-only and unable to load legacy .env.
-            source = str(Path(__file__).resolve().parent)
-            os.environ.clear()
-            os.environ.update(
-                {"PATH": "/usr/bin:/bin", "LANG": "en_US.UTF-8", "RESEARCH_RUN_MODE": "web-prod"}
-            )
-            for name in ("LOG_DIR", "OBJECT_STORAGE_PATH", "PDF_MARKDOWN_DIR", "PDF_RAW_TEXT_DIR"):
-                os.environ[name] = source
-            backend = DockerModelStore(args.credential_home)
-        else:
-            if args.credential_home is not None:
-                raise ValueError("model_credential_binding_invalid")
-            backend = None
         result = execute(args.data_home, json.loads(raw), backend)
         # stdout is exclusively the private parent pipe, never a log sink.
         sys.stdout.write(json.dumps({"ok": True, **result}))

@@ -1,9 +1,110 @@
 """Pure projection of native DSH events; no parallel research execution model."""
 
 import json
-import logging
+from itertools import pairwise
 
-log = logging.getLogger(__name__)
+from core.observability import get_logger
+
+log = get_logger(__name__)
+
+
+def merge_event_records(cache: dict[int, dict], entries: list[dict]) -> None:
+    """Keep conflict evidence when native records are indexed by sequence."""
+    for entry in entries:
+        seq = entry["event"]["seq"]
+        previous = cache.get(seq)
+        conflict = entry.get("_native_event_conflict") is True or (
+            previous is not None
+            and (
+                previous.get("_native_event_conflict") is True
+                or previous["event"] != entry["event"]
+            )
+        )
+        if conflict:
+            cache[seq] = {**entry, "_native_event_conflict": True}
+            log.warning("research_event_sequence_conflict", sequence=seq)
+        else:
+            cache[seq] = entry
+
+
+def _project_plan(entries: list[dict]) -> dict:
+    """Fold whole native snapshots; version identifies a write, never an item."""
+    rows: dict[int, dict] = {}
+    conflicts: set[int] = set()
+    incomplete, corrupt = False, False
+    for row in entries:
+        event = row.get("event") if isinstance(row, dict) else None
+        if not isinstance(event, dict):
+            incomplete, corrupt = True, True
+            continue
+        seq = event.get("seq")
+        if not isinstance(event.get("type"), str) or (
+            not isinstance(event.get("data"), dict) and event.get("type") != "todo/write"
+        ):
+            incomplete, corrupt = True, True
+            continue
+        if not isinstance(seq, int) or isinstance(seq, bool) or seq < 0:
+            incomplete, corrupt = True, True
+            continue
+        if row.get("_native_event_conflict") is True or (seq in rows and rows[seq] != event):
+            conflicts.add(seq)
+        rows[seq] = event
+    keys = sorted(rows)
+    incomplete |= bool(keys and (keys[0] > 0 or any(b != a + 1 for a, b in pairwise(keys))))
+    turn, plan, error = None, None, False
+    previous = None
+    for seq in keys:
+        if previous is not None and seq != previous + 1:
+            turn, plan = None, None  # the missing records may contain a new turn/start
+        previous = seq
+        event = rows[seq]
+        kind, data = event.get("type"), event.get("data")
+        if kind == "turn/start":
+            turn = data.get("turn") if isinstance(data, dict) else None
+            if not isinstance(turn, int) or isinstance(turn, bool) or turn < 0:
+                turn = None
+            plan, error = None, turn is None
+        if seq in conflicts:
+            plan, error, incomplete = None, True, True
+        if kind != "todo/write":
+            continue
+        todos = data.get("todos") if isinstance(data, dict) else None
+        valid = isinstance(todos, list) and len(todos) <= 100
+        seen = set()
+        if isinstance(todos, list):
+            for item in todos:
+                if (
+                    not isinstance(item, dict)
+                    or set(item) != {"content", "status"}
+                    or not isinstance(item["content"], str)
+                    or not item["content"].strip()
+                    or len(item["content"]) > 10000
+                    or item["content"] != item["content"].strip()
+                    or item["content"] in seen
+                    or item["status"] not in ("pending", "in_progress", "completed")
+                ):
+                    valid = False
+                    break
+                seen.add(item["content"])
+        if not valid or seq in conflicts:
+            plan, error = None, True
+        elif turn is None:
+            plan, incomplete = None, True
+        elif not error:
+            assert isinstance(todos, list)
+            plan = {
+                "turn": turn,
+                "seq": seq,
+                "version": f"{turn}:{seq}",
+                "todos": [dict(item) for item in todos],
+            }
+    if corrupt:
+        plan, error = None, True
+    result = {"plan": plan, "plan_history_incomplete": incomplete}
+    if error:
+        result["plan_error"] = "原生计划事件无效；当前计划无法确认。"
+        log.warning("research_plan_invalid", event_count=len(rows))
+    return result
 
 
 def content_text(content) -> str:
@@ -29,7 +130,7 @@ def content_reasoning(content) -> str:
 
 
 def project(entries: list[dict]) -> dict:
-    plan, plan_turn = None, None
+    plan_projection = _project_plan(entries)
     messages: dict = {}
     activities: dict = {}
     partials: dict = {}
@@ -38,39 +139,26 @@ def project(entries: list[dict]) -> dict:
     status, error, tokens = "idle", None, 0
     input_tokens, output_tokens, usage_observed = 0, 0, False
     title = None
-    for entry in sorted(entries, key=lambda row: row["event"]["seq"]):
+    readable = [
+        row
+        for row in entries
+        if isinstance(row, dict)
+        and isinstance(row.get("event"), dict)
+        and type(row["event"].get("seq")) is int
+        and row["event"]["seq"] >= 0
+        and isinstance(row["event"].get("type"), str)
+        and (isinstance(row["event"].get("data"), dict) or row["event"]["type"] == "todo/write")
+    ]
+    for entry in sorted(readable, key=lambda row: row["event"]["seq"]):
         event = entry["event"]
-        data, kind, seq = event["data"], event["type"], event["seq"]
+        kind, seq = event["type"], event["seq"]
+        if kind == "todo/write":
+            continue  # The independent native fold validates the complete snapshot.
+        data = event["data"]
         timestamp = event.get("time")
         if not isinstance(timestamp, (int, float)) or isinstance(timestamp, bool):
             timestamp = None
-        if kind == "todo/write":
-            todos = data.get("todos")
-            valid = (
-                isinstance(todos, list)
-                and len(todos) <= 100
-                and all(
-                    isinstance(item, dict)
-                    and isinstance(item.get("content"), str)
-                    and 0 < len(item["content"]) <= 10000
-                    and item.get("status") in {"pending", "in_progress", "completed"}
-                    for item in todos
-                )
-            )
-            if not valid:
-                log.warning("research_plan_event_invalid")
-            plan = {
-                "turn": plan_turn,
-                "seq": seq,
-                "status": "available" if valid else "invalid",
-                "history_complete": plan_turn is not None,
-                "items": (
-                    [{"content": item["content"], "status": item["status"]} for item in todos]
-                    if valid
-                    else []
-                ),
-            }
-        elif kind == "user/message":
+        if kind == "user/message":
             # Skill/system injected context is not a human message in the UI.
             source = data.get("source")
             if (
@@ -198,7 +286,6 @@ def project(entries: list[dict]) -> dict:
                 except (ValueError, TypeError):
                     log.warning("research_data_result_status_unreadable")
         elif kind == "turn/start":
-            plan, plan_turn = None, data.get("turn")
             status, error = "running", None
             turn_started = timestamp
         elif kind == "turn/end":
@@ -234,7 +321,28 @@ def project(entries: list[dict]) -> dict:
         if reasoning:
             message["reasoning"] = reasoning
         messages[mid] = message
+
+    native_plan = plan_projection["plan"]
+    if native_plan is not None:
+        plan = {
+            "turn": native_plan["turn"],
+            "seq": native_plan["seq"],
+            "status": "available",
+            "history_complete": not plan_projection["plan_history_incomplete"],
+            "items": native_plan["todos"],
+        }
+    elif plan_projection.get("plan_error") or plan_projection["plan_history_incomplete"]:
+        plan = {
+            "turn": None,
+            "seq": None,
+            "status": "invalid" if plan_projection.get("plan_error") else "incomplete",
+            "history_complete": False,
+            "items": [],
+        }
+    else:
+        plan = None
     result = {
+        **plan_projection,
         "research_plan": plan,
         "messages": sorted(
             (message for message in messages.values() if message["text"]),

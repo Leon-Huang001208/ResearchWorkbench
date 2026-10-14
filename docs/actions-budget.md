@@ -1,5 +1,7 @@
 # GitHub Actions 免费额度治理
 
+验收预算模块及私有桥接由专属账本/launcher/guard测试进入原验证路由；不新增自动 Docker、Windows 或桌面 dispatch。当前政策过期且不执行模型请求，费用字段不能视为当前报价。
+
 用户已于 2026-10-07 重新开启阶段二、三和跨平台范围。当前宿主按平台职责完成本机验收；Windows/Linux 由对应设备对 exact SHA 接手，缺失保持 NOT_RUN。Ubuntu 通用 CI 继续执行。
 
 
@@ -48,6 +50,8 @@ Research Web Checks 的 Python 部分固定为协议、集成协调、文档服�
 
 验证策略、只读规划器、薄兼容入口及其治理文档属于项目治理变更，只进入 Project Constraints。规划器输出的是待执行计划，不会自行触发 Actions；`full-delivery` 只声明交付强度，实际远端动作仍由受管交付控制器和本页状态门决定。
 
+RWB Git 安全入口的临时仓库测试在现有 Project Constraints 的独立步骤运行，使用该 job 的标准 Ubuntu runner、既有 concurrency 与 10 分钟上限，不新增 workflow 或原生平台 job。它验证 Git 对象恢复、备份与清理算法，不代表 Linux 产品或其他宿主启用。macOS 受管入口在 push、合并及远端分支清理前重新核对当前 visibility 和标准 runner 运行证据；private／billable 状态没有当前额度证明时停止远端动作，不沿用历史 public 结论。当前 RWB 不开启 GitHub Auto-merge，入口在检查及评审满足后执行普通 PR Merge，不修改仓库设置。
+
 Docker 路由的专项例外是 `.agents/verification-policy.json`、`tests/javascript/verification_policy.test.mjs` 及 Docker/额度契约测试：它们仍选择容器验收门，交接给 Linux 真机对 exact SHA 手动发起，防止门禁 ID 与实际工作流脱节。门禁 ID 为 `.github/workflows/research-web-docker.yml#docker-runtime`。普通治理文档、产品文档和 UI 仍不触发 Docker。
 
 Research Web Docker 使用标准 `ubuntu-24.04`，两个矩阵项 `linux/amd64`、`linux/arm64` 串行执行（`max-parallel: 1`），每项最多 60 分钟；仅 arm64 设置 QEMU，Buildx 只加载本机镜像、不推送 registry。按提交与架构唯一标记镜像，构建前验证 Dockerfile 与共享运行时版本锁一致。不从 PR/push 自动触发；Linux 真机完成本机验收后 checkout 待验提交，以 `git rev-parse HEAD` 获取 exact SHA，发起 `workflow_dispatch` 并传入必填 `expected_sha`。checkout HEAD 与 `GITHUB_SHA` 均须等于该 SHA，否则在构建前失败关闭。取消同 ref 的旧运行；两个矩阵项最多使用 120 Linux runner 分钟，不配置外部缓存或扩大 runner。
@@ -58,7 +62,7 @@ Research Web Docker 使用标准 `ubuntu-24.04`，两个矩阵项 `linux/amd64`�
 
 文档安全路由改动的 macOS 任务可对最终候选使用现有 Bootstrap 手动入口取得干净安装、固定 DSH、服务健康与 Doctor 证据，另保留本地文档路由/浏览器结果。此补充不扩大 docs-only 的自动触发面，不把 Ubuntu 文档门算作 macOS CI；dispatch 仍需独立明确授权。
 
-上述表格描述现有自动触发配置，不授予 Mac 任务 Linux/Windows 适配或验收责任。MacBook Pro 负责项目开发、本机 macOS 验收及 GitHub macOS CI；Windows/Linux 真机任务分别负责本平台适配、本机验收及对应 GitHub CI，不承担功能开发。Ubuntu 的 Project Constraints/Research Web Checks 结果属于 Linux CI，不能作为 macOS CI 证据，也不得要求 Mac 任务修复或等待其平台适配才能完成。
+上述表格描述现有自动触发配置，不授予 Mac 任务 Linux/Windows 适配或验收责任。24GB Mac mini 负责项目主开发、Docker 构建/测试、常驻服务、本机 macOS 验收及 GitHub macOS CI；MacBook Pro 作为受控远程操作与浏览器入口。Windows/Linux 真机任务分别负责本平台适配、本机验收及对应 GitHub CI，不承担功能开发。Ubuntu 的 Project Constraints/Research Web Checks 结果属于 Linux CI，不能作为 macOS CI 证据，也不得要求 Mac 任务修复或等待其平台适配才能完成。
 
 其他平台的 CI 自动启动时，保留状态并交接对应真机任务；本平台未取得所需 CI 时仍不能宣称本平台验收通过。跨平台发布就绪继续要求各目标平台证据。验收范围和任务状态记录以 [Agent 任务路由指南](AGENT_WORKFLOW.md) 为准。Docker workflow 已改为 Linux 真机 exact-SHA 手动入口；其余自动触发配置、runner、费用状态门和发布授权不变。
 

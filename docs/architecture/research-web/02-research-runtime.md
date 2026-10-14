@@ -10,6 +10,30 @@ DataHub领域status=failed投影为失败活动；complete/snapshot/partial/empt
 固定 DSH compaction 组在隔离域加载，persona 保留资料口径、文件验证、权限与四子任务约束。
 普通请求等待期间仍可独立停止；超时不自动重发，正文重试与普通发送共用交付/运行时门。
 
+显式 docker-text 仅在已认证受管 AES 身份下读取已有预算；默认不发现账本。Fernet/Native 无认证实例身份时拒绝该模式，普通运行不变。固定 DSH 官方 Messages endpoint 为 https://api.deepseek.com/anthropic；此模式禁工具、附件、重试和 Tabbit，并绑定已授权输出上限。身份验证不认证 dev/stage/prod 角色。
+
+研究 preset 装配固定 DSH 已有 `@deepseek-ai/dsh-tool-todo`，显式配置
+`allowParallelInProgress: true`，依赖原生 `tools` 与 `sessionProjections` 服务。
+guard 仅新增精确 `todo_write`，仍要求研究已启用及当前 Agent，沿用每回合48工具/4子任务
+预算。此配置不承诺实际并行执行，不新增编排器、DSH pin 或依赖。
+
+Web 从同会话原生日志投影 Todo。`todo/write.data.todos` 是完整替换列表，项仅有
+`content` 与 pending/in_progress/completed；`turn/start` 清空，turn/end 保留最后快照。
+`plan.version` 是 `<turn>:<seq>` 写入版本，不是跨版本 item 身份。无 Todo 的会话没有计划；
+缺失所属回合不猜测，序列间断或历史起点缺失提示不完整，坏快照/冲突重复不保留绿色计划。
+相同重复事件可重读。错误日志仅记录安全事件计数，不记录计划正文。失败与取消使用研究终态，
+Todo 完成不参与独立文件交付判定。分页仍沿现有100页硬上限失败关闭，不能截断冒充完整。
+历史首页、分页、SSE 与详情恢复缓存按序号归并时保留冲突标记，不覆盖掉不同内容的同序号
+事件。标记仅存在于内存记录外层，不修改原生事件或持久日志；投影据此拒绝当前不确定计划。
+
+Docker 模型桥由 owned launcher 显式绑定后端、随机实例身份、密文根与主密钥根。
+私有 Python 子进程保持 `-I -B` 和清洁环境，只从自身受管产品安装路径加载模块。
+模型保存/清除/未知提交与真实生成语义不变，Linux 研究沙箱守卫不放宽。
+
+ETF工程模拟不进入DSH会话循环；用户提交冻结输入，由Host同一事务保存结果。
+回放与前向共用 `PaperEngine.step`，输入摘要绑定恢复/幂等，失败不产生部分资金账。
+尚不接Automation/Tool，真实运行BLOCKED；见[数据与文件](03-data-files.md#etf-工程模拟与真实准入边界)。
+
 固定 DSH 的 `session/list` 通过 `parentSessionId` 暴露父子归属；SDK Session Header 内部仍叫 `parentSession`。
 Workbench 子 Agent 投影只使用已核实的 API 字段，继续交叉验证父目录、`origin=subagent` 和严格布尔 running；缺失、外来父会话、非子任务来源或未知活动仍失败关闭，不以空目录释放活动保护。
 模型设置的空闲检查采用内部 `activityOnly=true`：历史 `mode=unknown` 只可在父归属、subagent 来源和布尔运行状态全部验证后提供活动事实。默认详情与执行仍拒绝未知模式；不推断历史执行地址，不删改记录，也不把未知活动当作已结束。
@@ -445,3 +469,7 @@ Office受控自动验证在Host既有批次内串行执行，与DSH研究循环�
 POSIX运行记录读取的共享祖先在stat/open与退出复查均采用dev/inode/mode及UID/GID，
 允许无关sibling目录变化；直接私有parent与记录文件保留完整元数据、单链接及权限校验。
 目录替换/alias/owner或mode变化仍拒绝；私有UID异常继续unsafe_path，不改变格式或端点。
+
+PR96 与既有 Fernet 模型桥共用唯一私有 stdio 接口；默认 `native-keychain`、常规 staged `docker-encrypted-file` 语义保留，管理器仅显式绑定 `docker-encrypted` 选择 AES-GCM。两种 Docker 格式与主密钥布局独立，混合绑定或外来格式失败关闭，不转换密文、不删除旧 Key、不回退。四操作与固定 ref 保持；来源如实区分，configured/Doctor 不证明真实生成。
+
+AES 绑定先验证已有树及两个固定 ref 的完整认证，不允许外来实例记录被当前 namespace 遮蔽；resolve/describe/set/unset 与原活动守卫保持。

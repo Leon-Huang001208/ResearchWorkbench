@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "unchanged",
-  "summary": "融合兼容模型、外部来源与任务失败修复，保留最新Docker凭据和历史模式兼容。",
-  "reason": "README的唯一DSH、双运行时与安装入口仍准确；准入、金融口径和字体修复见模块文档，不声明供应商或跨平台已验证。"
+  "disposition": "updated",
+  "summary": "保留主线ETF、加密凭据、Todo恢复、过期预算及Git安全规则；整合PR100兼容模型与外部来源增量。",
+  "reason": "README与模块文档复核当前Web边界，默认不启用验收预算，不改变唯一DSH或既有凭据身份。当前源码新SHA重新验证，历史报告不作本候选PASS。"
 }

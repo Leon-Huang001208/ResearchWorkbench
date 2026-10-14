@@ -12,6 +12,25 @@ HTTP 认证来源保留目录和 `credential_transport_blocked`，不以配置�
 脚本结果仅在可解析且明确 status=completed 时标为完成，未知和损坏结果失败关闭。
 推理块必须在正文或工具块开始前结束，取消和后续非法推理保持原失败语义。
 
+预算新增不可退款预留：调用失败或预先取消仍扣票，迟到响应不能延长期限。旧政策 2026-10-10 到期，当前真实时钟拒绝；不得自动刷新费用、日期或旧账本。截止通过固定 SDK 公开 Agent.cancel 中止已绑定的原 transport signal；原生 loop marker、会话身份和当前 owner signal 均校验，陈旧 timer 不能取消下一轮。供应商远端计算是否停止仍不由本地 abort 认证。历史时钟夹具只验证机制，真实模型和其他平台仍未运行。
+
+研究工具边界仅新增精确 `todo_write`，仍要求启用研究及 Agent 归属，沿用48工具/4子任务
+预算；相似名称、任意 shell/宿主文件和既有拒绝项不得随 Todo 放开。计划正文来自原生日志，
+UI 转义显示，项目日志只记错误状态/事件计数。无稳定 item ID、缺回合或序列缺口不猜测身份；
+坏数据不保留完成清单。Todo 完成、研究终态和文件交付各自独立。真实集成使用测试私有根，
+不触碰生产 runtime、秘密或付费模型。
+
+私有凭据模块使用项目已配置的标准日志 handlers，不加载会创建全局目录的 Settings。
+隔离导入测试拒绝 core.settings 导入；实际只读镜像中的 bridge 仍须独立验证。
+
+Docker 模型后端使用已有 cryptography AES-256-GCM；主密钥独立随机生成并在业务运行时只读挂载。
+密文 AAD 绑定稳定实例身份和固定 ref；无环境/旧文件/Keychain 回退。权限、alias、篡改、
+错误主密钥和中断写入须失败关闭；真实生成、重建后生成与合成隔离分别验收。
+
+ETF工程模拟沿原同源/回环边界，只有显式用户POST；工程上传不提升DataHub或receipt-gated Skill权限。
+SQLite参数绑定、私有叶目录、8MiB输入/结果预算及100次运行上限限制本地存储。同UID可改产品根的
+信任边界未被声称解决。真实数据闭包、算法比较、完整门禁、浏览器和安装CI分别验收。
+
 启动恢复回归固定端口选择以确定进入控制地址变更事务，保留所有原有身份、字节回滚与拒绝恢复断言；另测同地址 prepare/rollback 不改写内容、stat或journal。原生子会话归属使用固定源码实际导出的 `parentSessionId`，错误父归属、来源与非布尔活动状态仍拒绝。
 模型空闲检查允许原生标为 unknown 执行模式的历史条目仅提供已经核实的活动状态；内部 activityOnly 标记须为真布尔值，默认详情和执行模式门禁不变。回归覆盖原生活动 true/false、缺失 live、外来父、错误来源和字符串布尔值，不删除历史数据。
 
@@ -420,3 +439,7 @@ activityOnly仍逐项验证父子关联、origin=subagent及running为布尔值�
 POSIX运行记录读取的共享祖先在stat/open与退出复查均采用dev/inode/mode及UID/GID，
 允许无关sibling目录变化；直接私有parent与记录文件保留完整元数据、单链接及权限校验。
 目录替换/alias/owner或mode变化仍拒绝；私有UID异常继续unsafe_path，不改变格式或端点。
+
+PR96 与既有 Fernet 模型桥共用唯一私有 stdio 接口；默认 `native-keychain`、常规 staged `docker-encrypted-file` 语义保留，管理器仅显式绑定 `docker-encrypted` 选择 AES-GCM。两种 Docker 格式与主密钥布局独立，混合绑定或外来格式失败关闭，不转换密文、不删除旧 Key、不回退。四操作与固定 ref 保持；来源如实区分，configured/Doctor 不证明真实生成。
+
+AES 专用模型后端在构造器的既有文件锁内核验全部现有 JSON：外层私有记录格式、完整密文封装、版本与实例身份、实例 service 与两个固定模型 ref 派生的文件名，以及相同 AAD 的 AEAD 认证。A 密文树与 B 完整主密钥/身份绑定不能被新命名空间遮蔽成未配置；未知 JSON、篡改或旁写记录失败关闭且不改原密文。正确旧 AES/Fernet 树保持可读；通用 PrivateFileCredentialBackend 仍允许其原服务/账户用途，不做迁移。

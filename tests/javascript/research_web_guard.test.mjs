@@ -11,6 +11,23 @@ const makeAgent = () => {
   return { session: { snapshotEvents: () => events }, events };
 };
 
+test('native todo_write is exact, agent-owned, enabled and shares the original budget', () => {
+  let guard;
+  const ctx = { tools: { guard: fn => { guard = fn; } }, logger: { warn() {} } };
+  apply(ctx, { enabled: false });
+  assert.ok(guard({ name: 'todo_write', agent: makeAgent() }));
+  apply(ctx, { enabled: true });
+  for (const name of ['todo_write_shadow', 'todo', 'bash', 'read_file', 'exec', 'write_file']) {
+    assert.ok(guard({ name, agent: makeAgent() }));
+  }
+  assert.ok(guard({ name: 'todo_write' }));
+  const agent = makeAgent();
+  for (let i = 0; i < 48; i++) assert.equal(guard({ name: 'todo_write', agent }), undefined);
+  assert.ok(guard({ name: 'todo_write', agent }));
+  agent.events.push({ type: 'turn/start', data: { turn: 2 } });
+  assert.equal(guard({ name: 'todo_write', agent }), undefined);
+});
+
 test('research guard fails closed and cannot expose arbitrary shell or host files', () => {
   let guard;
   const ctx = { tools: { guard: (fn) => { guard = fn; } }, logger: { warn() {} } };
@@ -264,4 +281,120 @@ test('scope denial reports only stable missing codes and clears failed skill loa
   const following = await f.handler({ ...f.exec, name: 'web_search' }, async () => ({ kind: 'allow' }));
   assert.equal(following.kind, 'allow');
   assert.ok(requests.every(body => body.loaded === undefined));
+});
+
+const dockerAcceptance = { profile: 'docker-text', installationId: 'a'.repeat(32), modelCalls: 3, maxOutputTokens: 512,
+  budgetBridge: { python: '/usr/bin/python3', bridge: '/opt/rwb/app/research_web/live_acceptance_budget.py' } };
+
+test('docker text requires durable bridge and rejects tools, alternate model and excess output', async () => {
+  const c = acceptanceContext();
+  for (const value of [{ ...dockerAcceptance, budgetBridge: undefined }, { ...dockerAcceptance, maxOutputTokens: 513 }]) {
+    assert.throws(() => apply(c.ctx, { acceptance: value }), /acceptance_control_invalid/);
+  }
+  apply(c.ctx, { enabled: true, acceptance: dockerAcceptance, nativeLlmModule: '/mock/index.mjs', tabbitBrowserEnabled: true });
+  assert.equal(c.guard({ name: 'todo_write', agent: makeAgent() }), 'acceptance_tool_limit');
+  assert.equal(c.guard({ name: 'tabbit_browser', agent: makeAgent() }), 'acceptance_tool_limit');
+  const stream = c.listeners.get('llm/stream');
+  const consume = async options => { for await (const _ of stream(options, async function* () { assert.fail('dispatched'); })) {} };
+  const valid = { messages: [], provider: 'deepseek-official', model: 'deepseek-flash', maxTokens: 512 };
+  await assert.rejects(consume({ ...valid, maxTokens: 513 }), /acceptance_output_limit/);
+  await assert.rejects(consume({ ...valid, provider: 'openai-compatible' }), /acceptance_provider_denied/);
+  await assert.rejects(consume({ ...valid, tools: [{}] }), /acceptance_tool_limit/);
+  await assert.rejects(consume({ ...valid, messages: [{ type: 'image' }] }), /acceptance_text_only/);
+});
+
+async function privateBudgetFixture(t, remainingMillis = 1000, delay = 0) {
+  const root = await mkdtemp(join(tmpdir(), 'rwb-budget-rpc-'));
+  t.after(() => rm(root, { recursive: true }));
+  const ledger = join(root, 'ledger.json');
+  const bridge = join(root, 'bridge.mjs');
+  const python = join(root, 'python');
+  await writeFile(ledger, '0');
+  await writeFile(bridge, `import fs from 'node:fs';
+    let input = ''; for await (const chunk of process.stdin) input += chunk;
+    const req = JSON.parse(input);
+    if (Object.keys(req).sort().join(',') !== 'op,outputTokens' || req.op !== 'reserve' || req.outputTokens !== 512 ||
+      process.argv.slice(2).join(',') !== '-I,-B,${bridge},--installation-id,${'a'.repeat(32)}' ||
+      Object.keys(process.env).some(key => !['LANG', 'PATH', '__CF_USER_TEXT_ENCODING'].includes(key))) { console.error(JSON.stringify({args:process.argv.slice(2),env:Object.keys(process.env),req})); process.exit(2); }
+    const ticket = JSON.parse(fs.readFileSync(${JSON.stringify(ledger)}, 'utf8')) + 1;
+    if (ticket > 3) { console.log(JSON.stringify({ok:false,error:'acceptance_budget_exhausted'})); process.exit(1); }
+    fs.writeFileSync(${JSON.stringify(ledger)}, JSON.stringify(ticket));
+    setTimeout(() => console.log(JSON.stringify({ok:true,ticket,remainingMillis:${remainingMillis}})), ${delay});`);
+  // An executable mock checks the full private RPC argv/environment; no Python
+  // package, provider, key, instance or request is involved in this fixture.
+  await writeFile(python, `#!${process.execPath}\nimport('${bridge}');\n`, { mode: 0o700 });
+  const sdkPath = join(root, 'llm.mjs');
+  await writeFile(sdkPath, `const owned = new WeakSet(); export const isAgentLoopRequest = request => owned.has(request); export const markAgentLoopRequest = request => { owned.add(request); return request; };`);
+  const sdk = await import(new URL(`file://${sdkPath}`).href);
+  const c = acceptanceContext();
+  apply(c.ctx, { acceptance: { ...dockerAcceptance, budgetBridge: { python, bridge } }, nativeLlmModule: sdkPath });
+  const options = { messages: [{ role: 'user', content: [{ type: 'text', text: 'fixture' }] }],
+    provider: 'deepseek-official', model: 'deepseek-flash', maxTokens: 512 };
+  let currentSignal; let cancelCalls = 0;
+  const consume = async (next, overrides = {}) => {
+    const controller = new AbortController();
+    const signal = overrides.signal || controller.signal; currentSignal = signal;
+    const agent = { session: { id: 'fixture-session' }, cancel(cause, cancelOptions) {
+      assert.deepEqual(cause, { kind: 'hook', reason: 'acceptance_budget_expired' });
+      assert.deepEqual(cancelOptions, { keepInbox: true }); cancelCalls++; controller.abort(cause);
+    } };
+    await c.listeners.get('agent/request')({ agent, signal }, async () => ({}));
+    const request = sdk.markAgentLoopRequest(Object.freeze({ ...options, ...overrides, signal, sessionId: agent.session.id }));
+    const out = []; for await (const chunk of c.listeners.get('llm/stream')(request, next)) out.push(chunk); return out;
+  };
+  return { consume, ledger, c, sdk, options, get currentSignal() { return currentSignal; }, get cancelCalls() { return cancelCalls; } };
+}
+
+test('private budget RPC consumes aborted and failed calls permanently before dispatch', async t => {
+  const f = await privateBudgetFixture(t);
+  const aborted = new AbortController(); aborted.abort('secret cancellation reason');
+  let dispatched = 0;
+  const next = async function* () { dispatched++; yield { type: 'text', text: 'fixture' }; };
+  await assert.rejects(f.consume(next, { signal: aborted.signal }), /acceptance_request_aborted/);
+  await assert.rejects(f.consume(async function* () { dispatched++; throw Error('synthetic model failure'); }), /synthetic model failure/);
+  assert.equal((await f.consume(next)).length, 1);
+  await assert.rejects(f.consume(next), /acceptance_budget_exhausted/);
+  assert.equal(dispatched, 2);
+});
+
+test('private budget RPC charges pipe time and never reopens a late reservation', async t => {
+  const f = await privateBudgetFixture(t, 10, 30);
+  let dispatched = false;
+  await assert.rejects(f.consume(async function* () { dispatched = true; }), /acceptance_budget_expired/);
+  assert.equal(dispatched, false);
+});
+
+test('docker text expiry bounds a pending stream read and withholds late chunks', async t => {
+  const f = await privateBudgetFixture(t, 1000);
+  await assert.rejects(f.consume(async function* () {
+    yield { type: 'text', text: 'first' };
+    await new Promise((resolve, reject) => {
+      f.currentSignal.addEventListener('abort', () => reject(Error('transport aborted')), { once: true });
+    });
+    yield { type: 'text', text: 'late' };
+  }), /acceptance_budget_expired/);
+  assert.equal(f.currentSignal.aborted, true);
+  assert.equal(f.cancelCalls, 1);
+});
+
+test('docker text cancellation bounds pending stream reads without exposing reason', async t => {
+  const f = await privateBudgetFixture(t);
+  const controller = new AbortController();
+  await assert.rejects(f.consume(async function* () {
+    controller.abort('SECRET');
+    await new Promise(resolve => setTimeout(resolve, 150));
+    yield { type: 'text', text: 'late' };
+  }, { signal: controller.signal }), error => error.message === 'acceptance_request_aborted');
+});
+
+
+test('docker text denies unowned and unmarked streams before spending or dispatch', async t => {
+  const f = await privateBudgetFixture(t);
+  const stream = f.c.listeners.get('llm/stream');
+  const deny = async request => { for await (const _ of stream(request, async function* () { assert.fail('dispatch'); })) {} };
+  await assert.rejects(deny(f.options), /acceptance_transport_abort_unverified/);
+  const controller = new AbortController();
+  const agent = { session: { id: 'fixture-session' }, cancel() {} };
+  await f.c.listeners.get('agent/request')({ agent, signal: controller.signal }, async () => ({}));
+  await assert.rejects(deny({ ...f.options, sessionId: agent.session.id, signal: controller.signal }), /acceptance_transport_abort_unverified/);
 });

@@ -58,7 +58,7 @@ from .mcp_runtime.package_planner import PackagePlanner
 from .mcp_runtime.package_resolver import PackageResolver
 from .mcp_runtime.sdk_host import SDKHost
 from .mcp_runtime.service import MCPRuntimeService, runtime_feature_enabled
-from .projection import content_text, project
+from .projection import content_text, merge_event_records, project
 from .report_studio import ReportStudio
 from .report_workflows.manager import ReportWorkflowManager
 from .research_evidence import evidence_index, report_projection
@@ -417,7 +417,7 @@ class ResearchService:
                     continue  # Never expose unowned sessions.
             if kind == "session/event":
                 event = frame["event"]
-                self.events.setdefault(sid, {})[event["seq"]] = {"event": event}
+                merge_event_records(self.events.setdefault(sid, {}), [{"event": event}])
                 if event["type"] == "turn/start":
                     self.errors.pop(sid, None)
                     self.running[sid] = True
@@ -585,6 +585,7 @@ class ResearchService:
                     "project-env": "project_dotenv",
                     "user-env": "runtime_home_dotenv",
                     "system-keychain": "system_keychain",
+                    "docker-encrypted": "docker_encrypted",
                     "docker-encrypted-file": "docker_encrypted_file",
                     "not-required": "not_required",
                 }.get(credential_source, "unknown"),
@@ -1588,9 +1589,7 @@ class ResearchService:
             ),
         )
         if entries is not None:
-            self.events.setdefault(sid, {}).update(
-                {entry["event"]["seq"]: entry for entry in entries}
-            )
+            merge_event_records(self.events.setdefault(sid, {}), entries)
             self.running[sid] = False
             self.loaded.add(sid)
         if sid not in self.loaded:
@@ -1600,7 +1599,7 @@ class ResearchService:
                 item["sessionId"] == sid and item["running"] for item in native["items"]
             )
             cache = self.events.setdefault(sid, {})
-            cache.update({entry["event"]["seq"]: entry for entry in entries})
+            merge_event_records(cache, entries)
             self.loaded.add(sid)
         result = {**self.summary(row), **project(list(self.events.get(sid, {}).values()))}
         result["purpose"] = row.get("purpose", "research")

@@ -10,7 +10,9 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+from collections.abc import Mapping
 from pathlib import Path, PurePosixPath
+from typing import Literal, NotRequired, TypedDict
 
 from core.observability import get_logger, setup_logging
 
@@ -84,6 +86,38 @@ def mcp_runtime_enabled() -> bool:
         "yes",
         "on",
     }
+
+
+def model_credential_binding(staged: bool = False) -> list[str]:
+    """The managed Docker launcher supplies public binding, never secret values."""
+    backend = os.environ.get("RWB_MODEL_BACKEND")
+    if backend is None:
+        if staged:
+            home = os.environ.get("RESEARCH_CREDENTIAL_HOME")
+            if home != "/run/rwb-secrets/private":
+                raise RuntimeError("docker_model_credential_binding_invalid")
+            return [
+                '        backend: "docker-encrypted-file"',
+                f"        credentialHome: {json.dumps(home)}",
+            ]
+        return ['        backend: "native-keychain"']
+    if backend != "docker-encrypted" or not staged or os.environ.get("RWB_DSH_STAGED") != "1":
+        raise RuntimeError("model_credential_binding_invalid")
+    instance = os.environ.get("RWB_MODEL_INSTANCE_ID", "")
+    if not re.fullmatch(r"[0-9a-f]{32}", instance):
+        raise RuntimeError("model_credential_binding_invalid")
+    root = Path("/run/rwb-secrets/models")
+    keys = Path("/run/rwb-model-key")
+    # Validate loaded identity, key, permissions and aliases before publishing config.
+    from .model_credentials import docker_backend
+
+    docker_backend(root, keys, instance)
+    return [
+        "        backend: docker-encrypted",
+        f"        instance: {json.dumps(instance)}",
+        f"        credentialRoot: {json.dumps(str(root))}",
+        f"        keyRoot: {json.dumps(str(keys))}",
+    ]
 
 
 def load_mcp_runtime_bindings(data: Path) -> list[dict[str, object]]:
@@ -483,8 +517,53 @@ console.log(JSON.stringify(resolution.entries.map(entry => entry.packageDir)));
     return len(packages)
 
 
-def live_acceptance_control(data: Path, port: int) -> dict[str, object] | None:
-    """Bind optional, non-secret acceptance limits to one non-production instance."""
+class AcceptanceBudgetBridge(TypedDict):
+    python: str
+    bridge: str
+
+
+class AcceptanceControl(TypedDict):
+    modelCalls: int
+    tool: NotRequired[str]
+    profile: NotRequired[Literal["docker-text"]]
+    installationId: NotRequired[str]
+    maxOutputTokens: NotRequired[int]
+    budgetBridge: NotRequired[AcceptanceBudgetBridge]
+
+
+def validated_model_instance(staged: bool) -> str:
+    """Authenticate only the managed AES binding with a stable instance identity."""
+    if (
+        sys.platform != "linux"
+        or not staged
+        or os.environ.get("RWB_DSH_STAGED") != "1"
+        or os.environ.get("RWB_MODEL_BACKEND") != "docker-encrypted"
+    ):
+        log.warning("research_acceptance_model_binding_unavailable")
+        raise RuntimeError("acceptance_control_invalid")
+    # Reuse the current credential contract; never infer a Fernet instance from env.
+    model_credential_binding(True)
+    return os.environ["RWB_MODEL_INSTANCE_ID"]
+
+
+def read_acceptance_budget(installation_id: str) -> Mapping[str, object]:
+    """Read explicit, existing authorization; never discover or initialize it."""
+    from .live_acceptance_budget import BudgetError, BudgetStore
+
+    try:
+        return BudgetStore(
+            Path("/run/rwb-secrets/private/live-acceptance") / installation_id,
+            installation_id,
+        ).describe()
+    except BudgetError as error:
+        log.warning("research_acceptance_budget_rejected")
+        raise RuntimeError(str(error)) from None
+
+
+def live_acceptance_control(
+    data: Path, port: int, *, staged: bool = False
+) -> AcceptanceControl | None:
+    """Bind optional, non-secret acceptance limits to one explicit owned acceptance instance."""
     raw = os.environ.get("RESEARCH_ACCEPTANCE_CONTROL")
     if raw is None:
         return None
@@ -492,10 +571,26 @@ def live_acceptance_control(data: Path, port: int) -> dict[str, object] | None:
         if len(raw) > 4096:
             raise ValueError()
         value = json.loads(raw)
-        if (
-            not isinstance(value, dict)
-            or set(value) != {"dataHome", "modelCalls", "tool"}
-            or value["dataHome"] != str(data.resolve())
+        if not isinstance(value, dict) or value.get("dataHome") != str(data.resolve()):
+            raise ValueError()
+        docker_text = value.get("profile") == "docker-text"
+        if docker_text:
+            if (
+                set(value)
+                != {"dataHome", "profile", "installationId", "modelCalls", "maxOutputTokens"}
+                or not staged
+                or not isinstance(value["installationId"], str)
+                or re.fullmatch(r"[a-f0-9]{32}", value["installationId"]) is None
+                or type(value["modelCalls"]) is not int
+                or not 1 <= value["modelCalls"] <= 3
+                or type(value["maxOutputTokens"]) is not int
+                or not 1 <= value["maxOutputTokens"] <= 512
+            ):
+                raise ValueError()
+            if validated_model_instance(staged) != value["installationId"]:
+                raise ValueError()
+        elif (
+            set(value) != {"dataHome", "modelCalls", "tool"}
             or port == 3081
             or type(value["modelCalls"]) is not int
             or not 1 <= value["modelCalls"] <= 6
@@ -505,6 +600,22 @@ def live_acceptance_control(data: Path, port: int) -> dict[str, object] | None:
     except (ValueError, TypeError):
         log.warning("research_acceptance_control_invalid")
         raise RuntimeError("acceptance_control_invalid") from None
+    if docker_text:
+        authorized = read_acceptance_budget(value["installationId"])
+        if any(authorized[key] != value[key] for key in ("modelCalls", "maxOutputTokens")):
+            log.warning("research_acceptance_control_invalid")
+            raise RuntimeError("acceptance_control_invalid")
+        log.info("research_acceptance_control_enabled", model_calls=value["modelCalls"])
+        return {
+            "profile": "docker-text",
+            "installationId": value["installationId"],
+            "modelCalls": value["modelCalls"],
+            "maxOutputTokens": value["maxOutputTokens"],
+            "budgetBridge": {
+                "python": sys.executable,
+                "bridge": str(Path(__file__).with_name("live_acceptance_budget.py")),
+            },
+        }
     log.info("research_acceptance_control_enabled", model_calls=value["modelCalls"])
     return {"modelCalls": value["modelCalls"], "tool": value["tool"]}
 
@@ -553,8 +664,13 @@ def _prepare_runtime(
     staged_source: dict | None = None,
 ) -> tuple[list[str], dict, Path]:
     source, data = source.resolve(), data.resolve()
-    acceptance = live_acceptance_control(data, port)
-    tabbit_config = load_tabbit_config(data)
+    acceptance = live_acceptance_control(data, port, staged=staged_source is not None)
+    docker_text = acceptance is not None and acceptance.get("profile") == "docker-text"
+    tabbit_config: dict[str, object] = (
+        {"browser_enabled": False, "web_fetch_enabled": False}
+        if docker_text
+        else load_tabbit_config(data)
+    )
     commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=source, text=True).strip()
     if commit != PINNED_COMMIT:
         raise RuntimeError("DSH 源码提交与已验证版本不符；未自动升级")
@@ -662,10 +778,6 @@ def _prepare_runtime(
         )
     log.info("research_runtime_presets_declared", count=3)
     adapter = home / "profiles" / "node_modules" / "research-tabbit-adapter" / "index.mjs"
-    model_backend = "docker-encrypted-file" if staged_source is not None else "native-keychain"
-    model_credential_home = os.environ.get("RESEARCH_CREDENTIAL_HOME")
-    if staged_source is not None and model_credential_home != "/run/rwb-secrets/private":
-        raise RuntimeError("docker_model_credential_binding_invalid")
     overlay.write_text(
         "\n".join(
             [
@@ -678,12 +790,7 @@ def _prepare_runtime(
                 f"        python: {json.dumps(sys.executable)}",
                 f"        bridge: {json.dumps(str(package.parent / 'model_credentials.py'))}",
                 f"        dataHome: {json.dumps(str(data))}",
-                f"        backend: {json.dumps(model_backend)}",
-                *(
-                    [f"        credentialHome: {json.dumps(model_credential_home)}"]
-                    if staged_source is not None
-                    else []
-                ),
+                *model_credential_binding(staged_source is not None),
                 f"        recordsPath: {json.dumps(str(home / '.browser-credentials.yaml'))}",
                 f"        localProvider: {json.dumps(str(source / 'packages/credentials/credentials-local/lib/index.js'))}",
                 "- insert:",
@@ -697,7 +804,8 @@ def _prepare_runtime(
                 "  config:",
                 "    apiKeyEnv: RESEARCH_DSH_API_KEY",
                 "    thinking: disabled",
-                "    maxTokens: 4096",
+                f"    maxTokens: {acceptance['maxOutputTokens'] if acceptance is not None and docker_text else 4096}",
+                *(['    baseURL: "https://api.deepseek.com/anthropic"'] if docker_text else []),
                 *(
                     ["    retryPolicy:", "      mode: normal", "      maxRetries: 0"]
                     if acceptance
@@ -727,9 +835,27 @@ def _prepare_runtime(
                 f"        researchRoot: {json.dumps(str(data))}",
                 *(
                     [
+                        f"        nativeLlmModule: {json.dumps(str(source / 'packages/llm/llm/lib/index.js'))}"
+                    ]
+                    if docker_text
+                    else []
+                ),
+                *(
+                    [
                         "        acceptance:",
                         f"          modelCalls: {acceptance['modelCalls']}",
-                        "          tool: datahub_get_fund_data",
+                        *(
+                            [
+                                "          profile: docker-text",
+                                f"          installationId: {json.dumps(acceptance['installationId'])}",
+                                f"          maxOutputTokens: {acceptance['maxOutputTokens']}",
+                                "          budgetBridge:",
+                                f"            python: {json.dumps(acceptance['budgetBridge']['python'])}",
+                                f"            bridge: {json.dumps(acceptance['budgetBridge']['bridge'])}",
+                            ]
+                            if docker_text
+                            else ["          tool: datahub_get_fund_data"]
+                        ),
                     ]
                     if acceptance
                     else []

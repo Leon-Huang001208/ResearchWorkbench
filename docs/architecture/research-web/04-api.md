@@ -11,6 +11,31 @@ source=auto 只读取外部总目录，具名查询使用登记端点且禁止�
 会话详情的 assistant 消息可增加 reasoning，活动可增加原生 seq；原有计划、来源、报告字段保留。
 写请求前端超时表示结果未确认，不改变 API 幂等键或后台任务的实际状态。
 
+文本验收预算没有新增公开 HTTP API；只通过显式 launcher 控制和内部 Linux Python stdio RPC 读取/扣票。stdin 仅操作与输出上限，不包含 prompt 或 Key；固定错误码区分过期、耗尽、不确定提交。
+
+主线 `research_plan` 保持 turn/seq/status/history_complete/items 字段；与兼容计划投影
+共用原生日志折叠。available 才提供已确认条目，incomplete/invalid 不保留绿色旧快照。
+
+会话详情与 SSE snapshot 新增只读计划投影字段：`plan` 为 null 或
+`{turn, seq, version, todos:[{content,status}]}`；`plan_history_incomplete` 标记原生日志
+缺失/间断，`plan_error` 仅在无法确认计划时存在。`version` 绑定原生回合及日志写入序列，
+不提供稳定 item ID。新回合、无 Todo、错误 Todo 不复用旧快照；原生空列表与无计划不同。
+计划状态不修改会话终态或 `delivery`，不新增路由、提交操作或正文存储。
+
+模型设置和最小生成沿现有 API；Docker 后端来源投影为 `credential_storage=docker_encrypted`，
+Native 为 `system_keychain`。固定 DSH 的 source 是 provider 自定义字符串；不返回 Key。
+
+ETF工程模拟新增以下同源入口；合同见[数据与文件](03-data-files.md#etf-工程模拟与真实准入边界)。
+POST须有 `X-Research-User-Action: ?1` 与 `Idempotency-Key`，流式输入≤8MiB，只接受工程标记。
+真实准入始终BLOCKED；冲突409、非法合同422、输入预算413、存储失败503。
+
+| Method | 路径 | 源码 |
+| --- | --- | --- |
+| GET | `/api/research/portfolio-decisions/readiness` | `app/research_web/portfolio_decisions/routes.py` |
+| GET | `/api/research/portfolio-decisions/runs` | `app/research_web/portfolio_decisions/routes.py` |
+| GET | `/api/research/portfolio-decisions/runs/{run_id}` | `app/research_web/portfolio_decisions/routes.py` |
+| POST | `/api/research/portfolio-decisions/runs` | `app/research_web/portfolio_decisions/routes.py` |
+
 ## Claw 项目与日程草稿 API
 
 `claw_routes.py` 提供 `/claw/projects` 列表/创建与 `/{project_id}` 查询/改名/归档，`/sessions/{sid}/project` 显式移组，`/sessions/{sid}/file-references` 显式复制所选同项目文件。

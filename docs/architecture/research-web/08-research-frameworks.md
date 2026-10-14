@@ -8,6 +8,16 @@ capability_data_unavailable（readiness 中 data_contract_missing），不提交
 共用聊天 renderer 的停止、超时和重试资格检查不改变 Gold/Dollar 的版本、快照或准入。
 外部资料工具仍经会话 DataHub admission；框架不能凭目录或兼容传输支持绕过数据/工具验证。
 
+原生 Todo 仅进入研究 preset 与现有研究空间；Gold/Dollar 的采集、评分、Bot 快照和
+framework-explain/framework-verify preset 不增加 Todo 或改变契约。研究空间的原生计划
+来自会话日志，与框架步骤及 Workflow 版本说明分别呈现，不推断阶段归属。
+
+Docker 模型存储来源展示复用模型设置，框架定义、快照、评分和 Bot 的数据合同保持；
+文本凭据调用成功不能替代框架研究或 Linux 代码沙箱验收。
+
+ETF工程模拟作为研究台独立确定性领域入口，不注册新框架、不扩大framework-explain/verify权限，
+Gold/Dollar快照及Bot绑定仍沿原合同。真实链路BLOCKED；见[数据与文件](03-data-files.md#etf-工程模拟与真实准入边界)。
+
 Claw 项目归属只组织会话，不重绑 Gold/Dollar 快照或改变 Bot 执行。项目聚合不把其他会话数据自动注入框架，日程提出工具也不改变 framework-explain/verify 的权限。
 
 ## 资讯雷达 · 2026-10-09

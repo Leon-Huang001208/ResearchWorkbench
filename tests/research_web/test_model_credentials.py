@@ -259,11 +259,12 @@ def test_compatible_reference_is_independent_and_has_no_legacy_fallback(tmp_path
     assert call(bridge.MODEL_REF, "resolve")["value"] == "synthetic-original"
 
 
-@pytest.mark.skipif(sys.platform != "linux", reason="Docker encrypted bridge requires native Linux")
 def test_docker_model_store_encrypts_and_preserves_existing_host_credentials(tmp_path, monkeypatch):
     from app.research_web.credential_backend import PrivateFileCredentialBackend
 
     bridge = load_bridge()
+    # Synthetic POSIX storage coverage; real Linux bridge acceptance is separate.
+    monkeypatch.setattr(bridge.sys, "platform", "linux")
     home = tmp_path / "data"
     home.mkdir(mode=0o700)
     root = tmp_path / "credentials"
@@ -297,9 +298,10 @@ def test_docker_model_store_encrypts_and_preserves_existing_host_credentials(tmp
     assert call("resolve", ref=bridge.COMPATIBLE_REF)["value"] == "synthetic-compatible-independent"
 
 
-@pytest.mark.skipif(sys.platform != "linux", reason="Docker encrypted bridge requires native Linux")
-def test_docker_model_key_loss_never_replaces_key_or_existing_ciphertext(tmp_path):
+def test_docker_model_key_loss_never_replaces_key_or_existing_ciphertext(tmp_path, monkeypatch):
     bridge = load_bridge()
+    # Synthetic POSIX storage coverage; real Linux bridge acceptance is separate.
+    monkeypatch.setattr(bridge.sys, "platform", "linux")
     store = bridge.DockerModelStore(tmp_path / "credentials")
     store.set_password("test-namespace", bridge.MODEL_REF, "synthetic-preserved")
     key = store.backend.root / store.backend._name(store.KEY_SERVICE, store.KEY_ACCOUNT)
@@ -314,9 +316,10 @@ def test_docker_model_key_loss_never_replaces_key_or_existing_ciphertext(tmp_pat
     assert record.read_bytes() == before
 
 
-@pytest.mark.skipif(sys.platform != "linux", reason="Docker encrypted bridge requires native Linux")
-def test_docker_ciphertext_is_bound_to_model_reference(tmp_path):
+def test_docker_ciphertext_is_bound_to_model_reference(tmp_path, monkeypatch):
     bridge = load_bridge()
+    # Synthetic POSIX storage coverage; real Linux bridge acceptance is separate.
+    monkeypatch.setattr(bridge.sys, "platform", "linux")
     store = bridge.DockerModelStore(tmp_path / "credentials")
     store.set_password("test-namespace", bridge.MODEL_REF, "synthetic-one")
     encoded = store.backend.get_password("test-namespace", bridge.MODEL_REF)
@@ -326,11 +329,12 @@ def test_docker_ciphertext_is_bound_to_model_reference(tmp_path):
     assert store.get_password("test-namespace", bridge.MODEL_REF) == "synthetic-one"
 
 
-@pytest.mark.skipif(sys.platform != "linux", reason="Docker encrypted bridge requires native Linux")
-def test_docker_master_key_first_write_is_process_serialized(tmp_path):
+def test_docker_master_key_first_write_is_process_serialized(tmp_path, monkeypatch):
     from concurrent.futures import ThreadPoolExecutor
 
     bridge = load_bridge()
+    # Synthetic POSIX storage coverage; real Linux bridge acceptance is separate.
+    monkeypatch.setattr(bridge.sys, "platform", "linux")
     root = tmp_path / "credentials"
     root.mkdir(mode=0o700)
 
@@ -349,7 +353,7 @@ def test_docker_master_key_first_write_is_process_serialized(tmp_path):
     assert fresh.get_password("test-namespace", bridge.COMPATIBLE_REF) == "synthetic-compatible"
 
 
-@pytest.mark.skipif(sys.platform != "linux", reason="Docker encrypted bridge requires native Linux")
+@pytest.mark.skipif(sys.platform != "linux", reason="requires native Linux private stdio bridge")
 def test_docker_isolated_stdio_bridge_persists_without_secret_diagnostics(tmp_path):
     home = tmp_path / "data"
     home.mkdir(mode=0o700)
@@ -389,10 +393,10 @@ def test_docker_isolated_stdio_bridge_persists_without_secret_diagnostics(tmp_pa
     assert call("resolve")["value"] is None
 
 
-@pytest.mark.skipif(sys.platform == "linux", reason="non-Linux rejection contract")
-def test_docker_model_store_rejects_non_linux_without_creating_credentials(tmp_path):
+@pytest.mark.skipif(sys.platform == "linux", reason="requires an actual non-Linux host")
+def test_native_nonlinux_docker_store_rejects_without_creating_directory(tmp_path):
     bridge = load_bridge()
-    root = tmp_path / "credentials"
+    root = tmp_path / "must-remain-absent"
     with pytest.raises(RuntimeError, match="model_credential_backend_unavailable"):
         bridge.DockerModelStore(root)
     assert not root.exists()
