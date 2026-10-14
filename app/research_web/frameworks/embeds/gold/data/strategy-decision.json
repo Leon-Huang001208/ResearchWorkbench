@@ -1,0 +1,326 @@
+{
+  "updatedAt": "2026-10-13 14:50:00",
+  "decisionTime": "14:50",
+  "orderCutoff": "15:00",
+  "modelUpdatedAt": "2026-10-13 14:30:04",
+  "score": -0.06,
+  "strength": -1,
+  "action": "减仓",
+  "changePp": -10,
+  "level": "轻",
+  "headroom": {
+    "up": 6,
+    "down": 4
+  },
+  "positions": {
+    "batch": {
+      "value": 0,
+      "label": "规则A · 分批加减仓",
+      "note": "自上次仓位 0% 变动 -10 个百分点"
+    },
+    "overlay": {
+      "value": 0,
+      "label": "规则B · 满仓打底＋择时减仓",
+      "note": "自上次仓位 0% 变动 -10 个百分点"
+    },
+    "target": {
+      "value": 40,
+      "label": "规则C · 目标仓位型",
+      "note": "目标仓位 = 50% + 10% × -1"
+    }
+  },
+  "scale": {
+    "step": 0.1,
+    "stepPp": 10,
+    "rule": "强度 = 综合分 ÷ 0.1（四舍五入，范围 -5~+5）；每 1 分强度对应 10 个百分点仓位变动",
+    "bands": [
+      {
+        "strength": 5,
+        "text": "≥ +0.50 满档加仓"
+      },
+      {
+        "strength": 3,
+        "text": "≈ +0.30 模型加仓阈值"
+      },
+      {
+        "strength": 1,
+        "text": "≈ +0.10 轻度加仓"
+      },
+      {
+        "strength": 0,
+        "text": "-0.05 ~ +0.05 不动"
+      },
+      {
+        "strength": -3,
+        "text": "≈ -0.30 模型止盈阈值"
+      },
+      {
+        "strength": -5,
+        "text": "≤ -0.50 满档减仓"
+      }
+    ]
+  },
+  "supporting": [
+    {
+      "name": "ETF持仓",
+      "contribution": 0.15,
+      "value": "+121吨 / 4,189吨"
+    },
+    {
+      "name": "10Y通胀",
+      "contribution": 0.11,
+      "value": "2.57%"
+    },
+    {
+      "name": "央行购金",
+      "contribution": 0.047,
+      "value": "+299吨"
+    }
+  ],
+  "dragging": [
+    {
+      "name": "6M动量",
+      "contribution": -0.113,
+      "value": "-13.1%"
+    },
+    {
+      "name": "200D偏离",
+      "contribution": -0.108,
+      "value": "-7.5%"
+    },
+    {
+      "name": "CFTC资金",
+      "contribution": -0.074,
+      "value": "-23985张"
+    }
+  ],
+  "regime": {
+    "label": "利率脱敏",
+    "correlation": -0.14,
+    "rule": "52周黄金收益与10Y实际利率周变化相关系数：高于-0.15为利率脱敏，低于-0.30为利率主导，中间为过渡区。"
+  },
+  "summary": "模型综合分 -0.06，建议减仓 1 档（约 -10 个百分点仓位）。",
+  "history": [
+    {
+      "date": "2026-10-13",
+      "time": "14:50",
+      "score": -0.06,
+      "strength": -1,
+      "action": "减仓",
+      "changePp": -10,
+      "batch": 0,
+      "overlay": 0,
+      "target": 40
+    },
+    {
+      "date": "2026-10-12",
+      "time": "14:50",
+      "score": -0.07,
+      "strength": -1,
+      "action": "减仓",
+      "changePp": -10,
+      "batch": 0,
+      "overlay": 0,
+      "target": 40
+    },
+    {
+      "date": "2026-10-09",
+      "time": "14:50",
+      "score": -0.03,
+      "strength": 0,
+      "action": "不动",
+      "changePp": 0,
+      "batch": 0,
+      "overlay": 0,
+      "target": 50
+    },
+    {
+      "date": "2026-10-08",
+      "time": "14:50",
+      "score": -0.04,
+      "strength": 0,
+      "action": "不动",
+      "changePp": 0,
+      "batch": 0,
+      "overlay": 0,
+      "target": 50
+    },
+    {
+      "date": "2026-10-07",
+      "time": "02:17",
+      "score": -0.04,
+      "strength": 0,
+      "action": "不动",
+      "changePp": 0,
+      "batch": 0,
+      "overlay": 0,
+      "target": 50
+    },
+    {
+      "date": "2026-10-06",
+      "time": "14:52",
+      "score": -0.04,
+      "strength": 0,
+      "action": "不动",
+      "changePp": 0,
+      "batch": 0,
+      "overlay": 0,
+      "target": 50
+    },
+    {
+      "date": "2026-10-05",
+      "time": "15:21",
+      "score": -0.04,
+      "strength": 0,
+      "action": "不动",
+      "changePp": 0,
+      "batch": 0,
+      "overlay": 0,
+      "target": 50
+    },
+    {
+      "date": "2026-09-29",
+      "time": "14:50",
+      "score": -0.1,
+      "strength": -1,
+      "action": "减仓",
+      "changePp": -10,
+      "batch": 0,
+      "overlay": 0,
+      "target": 40
+    },
+    {
+      "date": "2026-09-28",
+      "time": "22:01",
+      "score": -0.1,
+      "strength": -1,
+      "action": "减仓",
+      "changePp": -10,
+      "batch": 0,
+      "overlay": 0,
+      "target": 40
+    },
+    {
+      "date": "2026-09-27",
+      "time": "14:51",
+      "score": -0.01,
+      "strength": 0,
+      "action": "不动",
+      "changePp": 0,
+      "batch": 0,
+      "overlay": 0,
+      "target": 50
+    },
+    {
+      "date": "2026-09-26",
+      "time": "14:50",
+      "score": -0.01,
+      "strength": 0,
+      "action": "不动",
+      "changePp": 0,
+      "batch": 0,
+      "overlay": 0,
+      "target": 50
+    },
+    {
+      "date": "2026-09-25",
+      "time": "00:52",
+      "score": -0.01,
+      "strength": 0,
+      "action": "不动",
+      "changePp": 0,
+      "batch": 0,
+      "overlay": 0,
+      "target": 50
+    },
+    {
+      "date": "2026-09-24",
+      "time": "14:50",
+      "score": -0.01,
+      "strength": 0,
+      "action": "不动",
+      "changePp": 0,
+      "batch": 0,
+      "overlay": 0,
+      "target": 50
+    },
+    {
+      "date": "2026-09-23",
+      "time": "19:36",
+      "score": -0.01,
+      "strength": 0,
+      "action": "不动",
+      "changePp": 0,
+      "batch": 0,
+      "overlay": 0,
+      "target": 50
+    },
+    {
+      "date": "2026-09-22",
+      "time": "21:07",
+      "score": -0.02,
+      "strength": 0,
+      "action": "不动",
+      "changePp": 0,
+      "batch": 0,
+      "overlay": 0,
+      "target": 50
+    },
+    {
+      "date": "2026-09-21",
+      "time": "21:42",
+      "score": 0.03,
+      "strength": 0,
+      "action": "不动",
+      "changePp": 0,
+      "batch": 0,
+      "overlay": 0,
+      "target": 50
+    },
+    {
+      "date": "2026-09-20",
+      "time": "21:43",
+      "score": -0.01,
+      "strength": 0,
+      "action": "不动",
+      "changePp": 0,
+      "batch": 0,
+      "overlay": 0,
+      "target": 50
+    },
+    {
+      "date": "2026-09-19",
+      "time": "14:57",
+      "score": -0.01,
+      "strength": 0,
+      "action": "不动",
+      "changePp": 0,
+      "batch": 0,
+      "overlay": 0,
+      "target": 50
+    },
+    {
+      "date": "2026-09-18",
+      "time": "21:33",
+      "score": -0.01,
+      "strength": 0,
+      "action": "不动",
+      "changePp": 0,
+      "batch": 0,
+      "overlay": 0,
+      "target": 50
+    },
+    {
+      "date": "2026-09-17",
+      "time": "14:50",
+      "score": 0.02,
+      "strength": 0,
+      "action": "不动",
+      "changePp": 0,
+      "batch": 0,
+      "overlay": 0,
+      "target": 50
+    }
+  ],
+  "note": "强度分只描述模型读数的强弱，不构成投资建议；下单前请自行确认当日净值与个人持仓。"
+}

@@ -1,0 +1,132 @@
+{
+  "score": 5.5,
+  "scale": 10,
+  "action": "不变",
+  "level": "中性 · 不变",
+  "updatedAt": "2026-10-14 08:45:36",
+  "method": "10项指标等权；利好计1分，中性计0.5分，利空计0分。6分及以上为加仓，4分及以下为止盈，5分为保持不变。",
+  "factors": [
+    {
+      "category": "交易属性（短期）",
+      "indicator": "地缘风险",
+      "judgement": "黄金资讯流最新条目中没有新的直接军事升级头条；避险溢价维持但边际未继续放大，评为中性。",
+      "impact": "中性",
+      "points": 0.5,
+      "source": {
+        "label": "黄金资讯 · 最新24小时头条",
+        "url": "https://www.kitco.com/"
+      }
+    },
+    {
+      "category": "交易属性（短期）",
+      "indicator": "股市波动",
+      "judgement": "VIX最新18.7，低于常用20警戒线，未形成额外支撑。",
+      "impact": "中性",
+      "points": 0.5,
+      "source": {
+        "label": "Cboe VIX · 2026-10-14行情面板",
+        "url": "https://www.cboe.com/tradable-products/vix/"
+      }
+    },
+    {
+      "category": "交易属性（短期）",
+      "indicator": "资金面",
+      "judgement": "全球主要区域黄金ETF本周合计净流入约3.2亿美元，总持仓3120吨、环比+0.4%；资金面温和转强。",
+      "impact": "利好",
+      "points": 1,
+      "source": {
+        "label": "世界黄金协会 Goldhub · ETF持仓与流量",
+        "url": "https://www.gold.org/goldhub/data/global-gold-backed-etf-holdings-and-flows"
+      }
+    },
+    {
+      "category": "交易属性（短期）",
+      "indicator": "技术面",
+      "judgement": "伦敦金最新4144.55美元，当日-2.73%，5日-4.16%，20日-9.17%；RSI14约26.4，进入超卖区间、反弹概率上升。",
+      "impact": "中性",
+      "points": 0.5,
+      "source": {
+        "label": "LBMA金价序列 · 2026-09-28",
+        "url": "https://prices.lbma.org.uk/json/gold_pm.json"
+      }
+    },
+    {
+      "category": "金融属性（中期）",
+      "indicator": "实际利率",
+      "judgement": "10年期TIPS实际收益率2.02%，仍处高位，黄金持有机会成本偏高。",
+      "impact": "利空",
+      "points": 0,
+      "source": {
+        "label": "FRED · 10年期TIPS",
+        "url": "https://fred.stlouisfed.org/series/DFII10"
+      }
+    },
+    {
+      "category": "金融属性（中期）",
+      "indicator": "通胀",
+      "judgement": "最新CPI（8月）3.4%，PCE（8月）3.4%，仍高于2%目标，黄金的抗通胀需求保持。",
+      "impact": "中性",
+      "points": 0.5,
+      "source": {
+        "label": "BLS / BEA · CPI与PCE",
+        "url": "https://www.bls.gov/cpi/"
+      }
+    },
+    {
+      "category": "金融属性（中期）",
+      "indicator": "就业",
+      "judgement": "最新非农和失业率没有显示快速恶化，美联储仍以通胀为优先，实际利率维持偏高，对黄金构成中期压制。",
+      "impact": "利空",
+      "points": 0,
+      "source": {
+        "label": "BLS · Employment Situation",
+        "url": "https://www.bls.gov/schedule/news_release/empsit.htm"
+      }
+    },
+    {
+      "category": "货币属性（长期）",
+      "indicator": "人民币汇率",
+      "judgement": "上海金最新896元/克；美元兑人民币平稳，沪金未显示明显本币溢价扩张，综合影响中性。",
+      "impact": "中性",
+      "points": 0.5,
+      "source": {
+        "label": "上海黄金交易所 · AU9999",
+        "url": "https://www.sge.com.cn/sjzx/mrhqsj"
+      }
+    },
+    {
+      "category": "货币属性（长期）",
+      "indicator": "美债赤字",
+      "judgement": "美国财政部融资需求仍处高位，利息负担继续抬升，美元信用锚弱化是黄金的长期结构性支撑。",
+      "impact": "利好",
+      "points": 1,
+      "source": {
+        "label": "美国财政部 · 季度融资估计",
+        "url": "https://home.treasury.gov/news/press-releases"
+      }
+    },
+    {
+      "category": "货币属性（长期）",
+      "indicator": "央行购金",
+      "judgement": "央行本月净购金约32吨、年内累计约268吨，官方储备多元化仍在延续，为黄金提供长期买盘。",
+      "impact": "利好",
+      "points": 1,
+      "source": {
+        "label": "世界黄金协会 Goldhub · 央行购金",
+        "url": "https://www.gold.org/goldhub/data/gold-reserves-by-country"
+      }
+    }
+  ],
+  "history": [
+    5.5,
+    5.5,
+    5.5,
+    5.5,
+    5.5,
+    5.5,
+    5.5,
+    5.5,
+    5.5,
+    5.5
+  ]
+}

@@ -1,0 +1,937 @@
+{
+  "status": "delayed-live",
+  "statusLabel": "Cboe 延迟行情",
+  "market": "GLD ETF 期权 · Cboe",
+  "symbol": "GLD",
+  "sourceTimestamp": "2026-10-13 03:59:33 UTC",
+  "collectedAt": "2026-10-13T06:30:08.608Z",
+  "confirmedCadence": "每天 14:30 更新（北京时间）",
+  "provisionalCadence": "OI 采用最近交易日确认值",
+  "methodology": {
+    "scoreRange": [
+      -100,
+      100
+    ],
+    "bullishThreshold": 25,
+    "bearishThreshold": -25,
+    "weights": [
+      {
+        "key": "oi",
+        "label": "OI Put / Call结构",
+        "weight": 35
+      },
+      {
+        "key": "delta",
+        "label": "|Delta| × OI倾斜",
+        "weight": 20
+      },
+      {
+        "key": "relativeIv",
+        "label": "25Δ相对IV",
+        "weight": 25
+      },
+      {
+        "key": "skew",
+        "label": "25Δ / 10Δ Skew",
+        "weight": 20
+      }
+    ],
+    "note": "复合分刻画期权链的结构倾斜，不假定全部 OI 属于期权买方，也不等同于交易建议。方向必须与价格、次日 OI 变化及宏观信号交叉验证。"
+  },
+  "snapshots": [
+    {
+      "id": "2026-11-20",
+      "label": "11月20日 · 39D",
+      "tradeDate": "2026-10-13",
+      "updatedAt": "2026-10-13 03:59:33 UTC",
+      "expiry": "2026-11-20",
+      "dte": 39,
+      "underlying": "SPDR Gold Shares（GLD）",
+      "underlyingPrice": 382.15,
+      "dataState": "delayed-live",
+      "composite": {
+        "score": -2,
+        "signal": "中性",
+        "action": "多空结构暂未形成共识",
+        "confidence": 71,
+        "summary": "Call/Put OI 比为 1.02，25Δ 与 10Δ Put-Call Skew 分别为 -0.22pp、-0.42pp。复合分仅描述期权链结构，不等同于净买方方向。"
+      },
+      "levels": [
+        {
+          "label": "PUT WALL",
+          "value": 345,
+          "tone": "support",
+          "note": "72,564 张 Put OI，主要下方筹码位"
+        },
+        {
+          "label": "MAX PAIN",
+          "value": 392,
+          "tone": "pivot",
+          "note": "按当前 Call / Put OI 估算的到期最小赔付位"
+        },
+        {
+          "label": "CALL WALL",
+          "value": 460,
+          "tone": "resistance",
+          "note": "113,440 张 Call OI，主要上方筹码位"
+        }
+      ],
+      "metrics": [
+        {
+          "key": "oi",
+          "eyebrow": "OPEN INTEREST",
+          "label": "OI Put / Call",
+          "value": "0.98",
+          "unit": "Call 401,148 · Put 394,238",
+          "score": 1,
+          "tone": "neutral",
+          "judgment": "两端筹码接近",
+          "detail": "OI 是存量分布，不能单独识别买方或卖方；用于定位筹码密集区。"
+        },
+        {
+          "key": "delta",
+          "eyebrow": "DELTA EXPOSURE",
+          "label": "|Delta| × OI 倾斜",
+          "value": "0.54×",
+          "unit": "25Δ Call 404 · Put 367",
+          "score": -25,
+          "tone": "bear",
+          "judgment": "Put Delta 敏感度更高",
+          "detail": "按绝对 Delta 加权 OI 衡量价格敏感筹码，不假设持仓主体的净买卖方向。"
+        },
+        {
+          "key": "relativeIv",
+          "eyebrow": "RELATIVE IV",
+          "label": "25Δ 相对 IV",
+          "value": "C +0.71 / P +0.48pp",
+          "unit": "分别相对同到期日 ATM IV",
+          "score": 6,
+          "tone": "neutral",
+          "judgment": "两端溢价接近",
+          "detail": "当前到期日 ATM IV 20.66%，关键档位均以其为基准计算相对 IV。"
+        },
+        {
+          "key": "skew",
+          "eyebrow": "PUT-CALL SKEW",
+          "label": "25Δ / 10Δ Skew",
+          "value": "-0.22 / -0.42pp",
+          "unit": "10Δ Call 425 · Put 350",
+          "score": 8,
+          "tone": "neutral",
+          "judgment": "尾部定价均衡",
+          "detail": "口径为 Put IV − Call IV；负值代表同 Delta 的 Call 隐波更高。"
+        },
+        {
+          "key": "ivHeat",
+          "eyebrow": "VOLATILITY HEAT",
+          "label": "GLD 30日 IV",
+          "value": "20.72%",
+          "unit": "较前值 +0.00pp",
+          "score": 0,
+          "tone": "heat",
+          "judgment": "波动率常温",
+          "detail": "IV 热度用于调整仓位与风险预算，不直接决定多空方向。"
+        }
+      ],
+      "strikes": [
+        {
+          "type": "Put",
+          "strike": 330,
+          "openInterest": 53005,
+          "volume": 10,
+          "bid": 0.43,
+          "ask": 0.47,
+          "iv": 26.03,
+          "relativeIv": 5.36,
+          "delta": -0.035,
+          "gamma": 0.0024,
+          "signal": "下跌保护溢价",
+          "bias": "bear",
+          "note": "Put 隐波高于 ATM，下行保护需求较高"
+        },
+        {
+          "type": "Put",
+          "strike": 335,
+          "openInterest": 53923,
+          "volume": 19,
+          "bid": 0.56,
+          "ask": 0.61,
+          "iv": 25.11,
+          "relativeIv": 4.45,
+          "delta": -0.045,
+          "gamma": 0.003,
+          "signal": "下跌保护溢价",
+          "bias": "bear",
+          "note": "Put 隐波高于 ATM，下行保护需求较高"
+        },
+        {
+          "type": "Put",
+          "strike": 340,
+          "openInterest": 51080,
+          "volume": 33,
+          "bid": 0.74,
+          "ask": 0.79,
+          "iv": 24.19,
+          "relativeIv": 3.53,
+          "delta": -0.059,
+          "gamma": 0.0039,
+          "signal": "下跌保护溢价",
+          "bias": "bear",
+          "note": "Put 隐波高于 ATM，下行保护需求较高"
+        },
+        {
+          "type": "Put",
+          "strike": 345,
+          "openInterest": 72564,
+          "volume": 24,
+          "bid": 0.99,
+          "ask": 1.04,
+          "iv": 23.38,
+          "relativeIv": 2.72,
+          "delta": -0.077,
+          "gamma": 0.0049,
+          "signal": "Put Wall",
+          "bias": "bear",
+          "note": "Put 隐波高于 ATM，下行保护需求较高"
+        },
+        {
+          "type": "Put",
+          "strike": 355,
+          "openInterest": 11364,
+          "volume": 1193,
+          "bid": 1.85,
+          "ask": 1.91,
+          "iv": 22.11,
+          "relativeIv": 1.45,
+          "delta": -0.133,
+          "gamma": 0.0078,
+          "signal": "下跌保护溢价",
+          "bias": "bear",
+          "note": "Put 隐波高于 ATM，下行保护需求较高"
+        },
+        {
+          "type": "Put",
+          "strike": 380,
+          "openInterest": 11360,
+          "volume": 1183,
+          "bid": 8.4,
+          "ask": 8.65,
+          "iv": 20.72,
+          "relativeIv": 0.05,
+          "delta": -0.433,
+          "gamma": 0.0156,
+          "signal": "筹码密集",
+          "bias": "neutral",
+          "note": "结合相邻行权价与次日 OI 变化继续确认"
+        },
+        {
+          "type": "Call",
+          "strike": 395,
+          "openInterest": 6612,
+          "volume": 1864,
+          "bid": 6,
+          "ask": 6.05,
+          "iv": 20.96,
+          "relativeIv": 0.3,
+          "delta": 0.354,
+          "gamma": 0.0142,
+          "signal": "筹码密集",
+          "bias": "neutral",
+          "note": "结合相邻行权价与次日 OI 变化继续确认"
+        },
+        {
+          "type": "Call",
+          "strike": 400,
+          "openInterest": 13752,
+          "volume": 1693,
+          "bid": 4.6,
+          "ask": 4.65,
+          "iv": 21.13,
+          "relativeIv": 0.46,
+          "delta": 0.291,
+          "gamma": 0.0129,
+          "signal": "筹码密集",
+          "bias": "neutral",
+          "note": "结合相邻行权价与次日 OI 变化继续确认"
+        },
+        {
+          "type": "Call",
+          "strike": 430,
+          "openInterest": 25000,
+          "volume": 75,
+          "bid": 0.98,
+          "ask": 1.02,
+          "iv": 23.66,
+          "relativeIv": 3,
+          "delta": 0.079,
+          "gamma": 0.005,
+          "signal": "上涨尾部溢价",
+          "bias": "bull",
+          "note": "Call 隐波高于 ATM，市场为上涨尾部支付溢价"
+        },
+        {
+          "type": "Call",
+          "strike": 450,
+          "openInterest": 16397,
+          "volume": 116,
+          "bid": 0.46,
+          "ask": 0.49,
+          "iv": 26.53,
+          "relativeIv": 5.86,
+          "delta": 0.038,
+          "gamma": 0.0025,
+          "signal": "上涨尾部溢价",
+          "bias": "bull",
+          "note": "Call 隐波高于 ATM，市场为上涨尾部支付溢价"
+        },
+        {
+          "type": "Call",
+          "strike": 460,
+          "openInterest": 113440,
+          "volume": 11,
+          "bid": 0.35,
+          "ask": 0.38,
+          "iv": 28.23,
+          "relativeIv": 7.57,
+          "delta": 0.029,
+          "gamma": 0.0018,
+          "signal": "Call Wall",
+          "bias": "bull",
+          "note": "Call 隐波高于 ATM，市场为上涨尾部支付溢价"
+        },
+        {
+          "type": "Call",
+          "strike": 470,
+          "openInterest": 89827,
+          "volume": 23,
+          "bid": 0.28,
+          "ask": 0.3,
+          "iv": 29.91,
+          "relativeIv": 9.24,
+          "delta": 0.023,
+          "gamma": 0.0014,
+          "signal": "上涨尾部溢价",
+          "bias": "bull",
+          "note": "Call 隐波高于 ATM，市场为上涨尾部支付溢价"
+        }
+      ],
+      "diagnostics": {
+        "atmStrike": 382,
+        "atmIv": 20.66,
+        "callOi": 401148,
+        "putOi": 394238,
+        "callVolume": 8004,
+        "putVolume": 7035,
+        "call25": {
+          "strike": 404,
+          "iv": 21.37,
+          "delta": 0.247
+        },
+        "put25": {
+          "strike": 367,
+          "iv": 21.15,
+          "delta": -0.249
+        },
+        "call10": {
+          "strike": 425,
+          "iv": 23.13,
+          "delta": 0.098
+        },
+        "put10": {
+          "strike": 350,
+          "iv": 22.71,
+          "delta": -0.101
+        }
+      }
+    },
+    {
+      "id": "2026-12-18",
+      "label": "12月18日 · 67D",
+      "tradeDate": "2026-10-13",
+      "updatedAt": "2026-10-13 03:59:33 UTC",
+      "expiry": "2026-12-18",
+      "dte": 67,
+      "underlying": "SPDR Gold Shares（GLD）",
+      "underlyingPrice": 382.15,
+      "dataState": "delayed-live",
+      "composite": {
+        "score": 41,
+        "signal": "偏多",
+        "action": "上涨期权溢价占优",
+        "confidence": 94,
+        "summary": "Call/Put OI 比为 5.24，25Δ 与 10Δ Put-Call Skew 分别为 -0.69pp、-0.85pp。复合分仅描述期权链结构，不等同于净买方方向。"
+      },
+      "levels": [
+        {
+          "label": "PUT WALL",
+          "value": 380,
+          "tone": "support",
+          "note": "14,408 张 Put OI，主要下方筹码位"
+        },
+        {
+          "label": "MAX PAIN",
+          "value": 390,
+          "tone": "pivot",
+          "note": "按当前 Call / Put OI 估算的到期最小赔付位"
+        },
+        {
+          "label": "CALL WALL",
+          "value": 450,
+          "tone": "resistance",
+          "note": "137,337 张 Call OI，主要上方筹码位"
+        }
+      ],
+      "metrics": [
+        {
+          "key": "oi",
+          "eyebrow": "OPEN INTEREST",
+          "label": "OI Put / Call",
+          "value": "0.19",
+          "unit": "Call 551,611 · Put 105,207",
+          "score": 81,
+          "tone": "bull",
+          "judgment": "Call 端筹码占优",
+          "detail": "OI 是存量分布，不能单独识别买方或卖方；用于定位筹码密集区。"
+        },
+        {
+          "key": "delta",
+          "eyebrow": "DELTA EXPOSURE",
+          "label": "|Delta| × OI 倾斜",
+          "value": "1.78×",
+          "unit": "25Δ Call 413 · Put 363",
+          "score": 23,
+          "tone": "bull",
+          "judgment": "Call Delta 敏感度更高",
+          "detail": "按绝对 Delta 加权 OI 衡量价格敏感筹码，不假设持仓主体的净买卖方向。"
+        },
+        {
+          "key": "relativeIv",
+          "eyebrow": "RELATIVE IV",
+          "label": "25Δ 相对 IV",
+          "value": "C +1.11 / P +0.41pp",
+          "unit": "分别相对同到期日 ATM IV",
+          "score": 18,
+          "tone": "bull",
+          "judgment": "上涨端波动溢价更高",
+          "detail": "当前到期日 ATM IV 20.91%，关键档位均以其为基准计算相对 IV。"
+        },
+        {
+          "key": "skew",
+          "eyebrow": "PUT-CALL SKEW",
+          "label": "25Δ / 10Δ Skew",
+          "value": "-0.69 / -0.85pp",
+          "unit": "10Δ Call 442 · Put 340",
+          "score": 20,
+          "tone": "bull",
+          "judgment": "Call 尾部溢价占优",
+          "detail": "口径为 Put IV − Call IV；负值代表同 Delta 的 Call 隐波更高。"
+        },
+        {
+          "key": "ivHeat",
+          "eyebrow": "VOLATILITY HEAT",
+          "label": "GLD 30日 IV",
+          "value": "20.72%",
+          "unit": "较前值 +0.00pp",
+          "score": 0,
+          "tone": "heat",
+          "judgment": "波动率常温",
+          "detail": "IV 热度用于调整仓位与风险预算，不直接决定多空方向。"
+        }
+      ],
+      "strikes": [
+        {
+          "type": "Put",
+          "strike": 300,
+          "openInterest": 7536,
+          "volume": 23,
+          "bid": 0.35,
+          "ask": 0.38,
+          "iv": 29.33,
+          "relativeIv": 8.42,
+          "delta": -0.02,
+          "gamma": 0.001,
+          "signal": "下跌保护溢价",
+          "bias": "bear",
+          "note": "Put 隐波高于 ATM，下行保护需求较高"
+        },
+        {
+          "type": "Put",
+          "strike": 310,
+          "openInterest": 9625,
+          "volume": 2,
+          "bid": 0.49,
+          "ask": 0.52,
+          "iv": 27.44,
+          "relativeIv": 6.52,
+          "delta": -0.029,
+          "gamma": 0.0015,
+          "signal": "下跌保护溢价",
+          "bias": "bear",
+          "note": "Put 隐波高于 ATM，下行保护需求较高"
+        },
+        {
+          "type": "Put",
+          "strike": 350,
+          "openInterest": 7184,
+          "volume": 1023,
+          "bid": 2.77,
+          "ask": 2.85,
+          "iv": 22.06,
+          "relativeIv": 1.14,
+          "delta": -0.147,
+          "gamma": 0.0064,
+          "signal": "下跌保护溢价",
+          "bias": "bear",
+          "note": "Put 隐波高于 ATM，下行保护需求较高"
+        },
+        {
+          "type": "Put",
+          "strike": 380,
+          "openInterest": 14408,
+          "volume": 57,
+          "bid": 11.25,
+          "ask": 11.45,
+          "iv": 20.96,
+          "relativeIv": 0.05,
+          "delta": -0.432,
+          "gamma": 0.0119,
+          "signal": "Put Wall",
+          "bias": "neutral",
+          "note": "当前到期日未平仓量最大的关键筹码位"
+        },
+        {
+          "type": "Call",
+          "strike": 405,
+          "openInterest": 3425,
+          "volume": 7136,
+          "bid": 6.7,
+          "ask": 6.85,
+          "iv": 21.62,
+          "relativeIv": 0.71,
+          "delta": 0.313,
+          "gamma": 0.01,
+          "signal": "上涨尾部溢价",
+          "bias": "bull",
+          "note": "Call 隐波高于 ATM，市场为上涨尾部支付溢价"
+        },
+        {
+          "type": "Call",
+          "strike": 420,
+          "openInterest": 23063,
+          "volume": 4322,
+          "bid": 3.8,
+          "ask": 3.9,
+          "iv": 22.37,
+          "relativeIv": 1.46,
+          "delta": 0.199,
+          "gamma": 0.0076,
+          "signal": "上涨尾部溢价",
+          "bias": "bull",
+          "note": "Call 隐波高于 ATM，市场为上涨尾部支付溢价"
+        },
+        {
+          "type": "Call",
+          "strike": 440,
+          "openInterest": 44944,
+          "volume": 97,
+          "bid": 1.83,
+          "ask": 1.89,
+          "iv": 23.71,
+          "relativeIv": 2.8,
+          "delta": 0.106,
+          "gamma": 0.0047,
+          "signal": "上涨尾部溢价",
+          "bias": "bull",
+          "note": "Call 隐波高于 ATM，市场为上涨尾部支付溢价"
+        },
+        {
+          "type": "Call",
+          "strike": 450,
+          "openInterest": 137337,
+          "volume": 181,
+          "bid": 1.32,
+          "ask": 1.37,
+          "iv": 24.56,
+          "relativeIv": 3.65,
+          "delta": 0.079,
+          "gamma": 0.0036,
+          "signal": "Call Wall",
+          "bias": "bull",
+          "note": "Call 隐波高于 ATM，市场为上涨尾部支付溢价"
+        },
+        {
+          "type": "Put",
+          "strike": 480,
+          "openInterest": 201,
+          "volume": 375,
+          "bid": 96.5,
+          "ask": 99.9,
+          "iv": 35.74,
+          "relativeIv": 14.83,
+          "delta": -1,
+          "gamma": 0,
+          "signal": "下跌保护溢价",
+          "bias": "bear",
+          "note": "Put 隐波高于 ATM，下行保护需求较高"
+        },
+        {
+          "type": "Call",
+          "strike": 485,
+          "openInterest": 113446,
+          "volume": 3,
+          "bid": 0.56,
+          "ask": 0.59,
+          "iv": 28.32,
+          "relativeIv": 7.41,
+          "delta": 0.034,
+          "gamma": 0.0016,
+          "signal": "上涨尾部溢价",
+          "bias": "bull",
+          "note": "Call 隐波高于 ATM，市场为上涨尾部支付溢价"
+        }
+      ],
+      "diagnostics": {
+        "atmStrike": 382,
+        "atmIv": 20.91,
+        "callOi": 551611,
+        "putOi": 105207,
+        "callVolume": 16222,
+        "putVolume": 2095,
+        "call25": {
+          "strike": 413,
+          "iv": 22.02,
+          "delta": 0.247
+        },
+        "put25": {
+          "strike": 363,
+          "iv": 21.33,
+          "delta": -0.247
+        },
+        "call10": {
+          "strike": 442,
+          "iv": 23.87,
+          "delta": 0.1
+        },
+        "put10": {
+          "strike": 340,
+          "iv": 23.02,
+          "delta": -0.096
+        }
+      }
+    },
+    {
+      "id": "2027-01-15",
+      "label": "01月15日 · 95D",
+      "tradeDate": "2026-10-13",
+      "updatedAt": "2026-10-13 03:59:33 UTC",
+      "expiry": "2027-01-15",
+      "dte": 95,
+      "underlying": "SPDR Gold Shares（GLD）",
+      "underlyingPrice": 382.15,
+      "dataState": "delayed-live",
+      "composite": {
+        "score": 18,
+        "signal": "中性",
+        "action": "多空结构暂未形成共识",
+        "confidence": 94,
+        "summary": "Call/Put OI 比为 1.46，25Δ 与 10Δ Put-Call Skew 分别为 -0.65pp、-0.9pp。复合分仅描述期权链结构，不等同于净买方方向。"
+      },
+      "levels": [
+        {
+          "label": "PUT WALL",
+          "value": 335,
+          "tone": "support",
+          "note": "131,709 张 Put OI，主要下方筹码位"
+        },
+        {
+          "label": "MAX PAIN",
+          "value": 375,
+          "tone": "pivot",
+          "note": "按当前 Call / Put OI 估算的到期最小赔付位"
+        },
+        {
+          "label": "CALL WALL",
+          "value": 450,
+          "tone": "resistance",
+          "note": "153,012 张 Call OI，主要上方筹码位"
+        }
+      ],
+      "metrics": [
+        {
+          "key": "oi",
+          "eyebrow": "OPEN INTEREST",
+          "label": "OI Put / Call",
+          "value": "0.68",
+          "unit": "Call 738,605 · Put 505,771",
+          "score": 19,
+          "tone": "bull",
+          "judgment": "Call 端筹码占优",
+          "detail": "OI 是存量分布，不能单独识别买方或卖方；用于定位筹码密集区。"
+        },
+        {
+          "key": "delta",
+          "eyebrow": "DELTA EXPOSURE",
+          "label": "|Delta| × OI 倾斜",
+          "value": "1.44×",
+          "unit": "25Δ Call 420 · Put 360",
+          "score": 15,
+          "tone": "bull",
+          "judgment": "Call Delta 敏感度更高",
+          "detail": "按绝对 Delta 加权 OI 衡量价格敏感筹码，不假设持仓主体的净买卖方向。"
+        },
+        {
+          "key": "relativeIv",
+          "eyebrow": "RELATIVE IV",
+          "label": "25Δ 相对 IV",
+          "value": "C +1.08 / P +0.43pp",
+          "unit": "分别相对同到期日 ATM IV",
+          "score": 16,
+          "tone": "bull",
+          "judgment": "上涨端波动溢价更高",
+          "detail": "当前到期日 ATM IV 20.87%，关键档位均以其为基准计算相对 IV。"
+        },
+        {
+          "key": "skew",
+          "eyebrow": "PUT-CALL SKEW",
+          "label": "25Δ / 10Δ Skew",
+          "value": "-0.65 / -0.90pp",
+          "unit": "10Δ Call 455 · Put 334",
+          "score": 20,
+          "tone": "bull",
+          "judgment": "Call 尾部溢价占优",
+          "detail": "口径为 Put IV − Call IV；负值代表同 Delta 的 Call 隐波更高。"
+        },
+        {
+          "key": "ivHeat",
+          "eyebrow": "VOLATILITY HEAT",
+          "label": "GLD 30日 IV",
+          "value": "20.72%",
+          "unit": "较前值 +0.00pp",
+          "score": 0,
+          "tone": "heat",
+          "judgment": "波动率常温",
+          "detail": "IV 热度用于调整仓位与风险预算，不直接决定多空方向。"
+        }
+      ],
+      "strikes": [
+        {
+          "type": "Put",
+          "strike": 330,
+          "openInterest": 116266,
+          "volume": 10,
+          "bid": 1.78,
+          "ask": 1.85,
+          "iv": 23.36,
+          "relativeIv": 2.49,
+          "delta": -0.085,
+          "gamma": 0.0034,
+          "signal": "下跌保护溢价",
+          "bias": "bear",
+          "note": "Put 隐波高于 ATM，下行保护需求较高"
+        },
+        {
+          "type": "Put",
+          "strike": 335,
+          "openInterest": 131709,
+          "volume": 508,
+          "bid": 2.17,
+          "ask": 2.25,
+          "iv": 22.86,
+          "relativeIv": 1.99,
+          "delta": -0.102,
+          "gamma": 0.004,
+          "signal": "Put Wall",
+          "bias": "bear",
+          "note": "Put 隐波高于 ATM，下行保护需求较高"
+        },
+        {
+          "type": "Put",
+          "strike": 342,
+          "openInterest": 347,
+          "volume": 229,
+          "bid": 2.9,
+          "ask": 3.05,
+          "iv": 22.31,
+          "relativeIv": 1.44,
+          "delta": -0.132,
+          "gamma": 0.005,
+          "signal": "下跌保护溢价",
+          "bias": "bear",
+          "note": "Put 隐波高于 ATM，下行保护需求较高"
+        },
+        {
+          "type": "Put",
+          "strike": 350,
+          "openInterest": 46157,
+          "volume": 64,
+          "bid": 4.05,
+          "ask": 4.25,
+          "iv": 21.77,
+          "relativeIv": 0.9,
+          "delta": -0.175,
+          "gamma": 0.0062,
+          "signal": "下跌保护溢价",
+          "bias": "bear",
+          "note": "Put 隐波高于 ATM，下行保护需求较高"
+        },
+        {
+          "type": "Put",
+          "strike": 360,
+          "openInterest": 15855,
+          "volume": 80,
+          "bid": 6.15,
+          "ask": 6.4,
+          "iv": 21.3,
+          "relativeIv": 0.43,
+          "delta": -0.245,
+          "gamma": 0.0077,
+          "signal": "筹码密集",
+          "bias": "neutral",
+          "note": "结合相邻行权价与次日 OI 变化继续确认"
+        },
+        {
+          "type": "Call",
+          "strike": 410,
+          "openInterest": 10531,
+          "volume": 581,
+          "bid": 8.15,
+          "ask": 8.2,
+          "iv": 21.53,
+          "relativeIv": 0.66,
+          "delta": 0.318,
+          "gamma": 0.0084,
+          "signal": "上涨尾部溢价",
+          "bias": "bull",
+          "note": "Call 隐波高于 ATM，市场为上涨尾部支付溢价"
+        },
+        {
+          "type": "Call",
+          "strike": 420,
+          "openInterest": 18865,
+          "volume": 89,
+          "bid": 5.9,
+          "ask": 6.05,
+          "iv": 21.95,
+          "relativeIv": 1.08,
+          "delta": 0.25,
+          "gamma": 0.0074,
+          "signal": "上涨尾部溢价",
+          "bias": "bull",
+          "note": "Call 隐波高于 ATM，市场为上涨尾部支付溢价"
+        },
+        {
+          "type": "Call",
+          "strike": 450,
+          "openInterest": 153012,
+          "volume": 1332,
+          "bid": 2.41,
+          "ask": 2.47,
+          "iv": 23.55,
+          "relativeIv": 2.68,
+          "delta": 0.117,
+          "gamma": 0.0042,
+          "signal": "Call Wall",
+          "bias": "bull",
+          "note": "Call 隐波高于 ATM，市场为上涨尾部支付溢价"
+        },
+        {
+          "type": "Call",
+          "strike": 470,
+          "openInterest": 19171,
+          "volume": 24,
+          "bid": 1.42,
+          "ask": 1.48,
+          "iv": 24.94,
+          "relativeIv": 4.07,
+          "delta": 0.072,
+          "gamma": 0.0028,
+          "signal": "上涨尾部溢价",
+          "bias": "bull",
+          "note": "Call 隐波高于 ATM，市场为上涨尾部支付溢价"
+        },
+        {
+          "type": "Call",
+          "strike": 485,
+          "openInterest": 121392,
+          "volume": 36,
+          "bid": 1.05,
+          "ask": 1.08,
+          "iv": 26.26,
+          "relativeIv": 5.39,
+          "delta": 0.053,
+          "gamma": 0.0021,
+          "signal": "上涨尾部溢价",
+          "bias": "bull",
+          "note": "Call 隐波高于 ATM，市场为上涨尾部支付溢价"
+        }
+      ],
+      "diagnostics": {
+        "atmStrike": 380,
+        "atmIv": 20.87,
+        "callOi": 738605,
+        "putOi": 505771,
+        "callVolume": 3693,
+        "putVolume": 1523,
+        "call25": {
+          "strike": 420,
+          "iv": 21.95,
+          "delta": 0.25
+        },
+        "put25": {
+          "strike": 360,
+          "iv": 21.3,
+          "delta": -0.245
+        },
+        "call10": {
+          "strike": 455,
+          "iv": 23.87,
+          "delta": 0.103
+        },
+        "put10": {
+          "strike": 334,
+          "iv": 22.97,
+          "delta": -0.098
+        }
+      }
+    }
+  ],
+  "readingGuide": [
+    {
+      "key": "OI",
+      "title": "筹码在哪里",
+      "detail": "找 Call Wall、Put Wall 与 Max Pain；OI 是存量，不单独定方向。"
+    },
+    {
+      "key": "DELTA",
+      "title": "哪里对金价最敏感",
+      "detail": "用 |Delta|×OI 比较两端价格敏感筹码，避免只看合约张数。"
+    },
+    {
+      "key": "REL IV",
+      "title": "哪一端愿意付溢价",
+      "detail": "将同 Delta 的 Call、Put IV 分别减去 ATM IV，比较尾部溢价。"
+    },
+    {
+      "key": "SKEW",
+      "title": "尾部风险偏向哪边",
+      "detail": "Put IV−Call IV；负值偏向上涨端，正值偏向下跌保护。"
+    }
+  ],
+  "sources": [
+    {
+      "name": "Cboe Delayed Quotes · GLD Options",
+      "url": "https://cdn.cboe.com/api/global/delayed_quotes/options/GLD.json",
+      "detail": "标的价、盘口、OI、成交量、IV 与 Greeks"
+    },
+    {
+      "name": "Cboe Options Market Statistics",
+      "url": "https://www.cboe.com/us/options/market_statistics/",
+      "detail": "官方期权市场数据与延迟行情说明"
+    },
+    {
+      "name": "SPDR Gold Shares（GLD）",
+      "url": "https://www.ssga.com/us/en/intermediary/etfs/spdr-gold-shares-gld",
+      "detail": "监控标的及基金基本信息"
+    }
+  ]
+}

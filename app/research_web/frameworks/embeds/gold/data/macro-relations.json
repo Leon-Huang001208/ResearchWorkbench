@@ -1,0 +1,9883 @@
+{
+  "keys": [
+    "updatedAt",
+    "realRate",
+    "dollarIndex",
+    "vix",
+    "inflation",
+    "usdCredit",
+    "usDebt",
+    "goldDebtScale",
+    "dollarReserves"
+  ],
+  "updatedAt": "2026-10-13 20:45:42",
+  "realRate": {
+    "rows": [
+      {
+        "date": "2003-01",
+        "gold": 367.5,
+        "fedFunds": 1.33,
+        "nominal10y": 4,
+        "real10y": 2.19
+      },
+      {
+        "date": "2003-02",
+        "gold": 347.45,
+        "fedFunds": 1.33,
+        "nominal10y": 3.71,
+        "real10y": 1.77
+      },
+      {
+        "date": "2003-03",
+        "gold": 334.85,
+        "fedFunds": 1.38,
+        "nominal10y": 3.83,
+        "real10y": 2.03
+      },
+      {
+        "date": "2003-04",
+        "gold": 336.75,
+        "fedFunds": 1.31,
+        "nominal10y": 3.89,
+        "real10y": 2.16
+      },
+      {
+        "date": "2003-05",
+        "gold": 361.4,
+        "fedFunds": 1.28,
+        "nominal10y": 3.37,
+        "real10y": 1.77
+      },
+      {
+        "date": "2003-06",
+        "gold": 346,
+        "fedFunds": 1.45,
+        "nominal10y": 3.54,
+        "real10y": 1.9
+      },
+      {
+        "date": "2003-07",
+        "gold": 354.75,
+        "fedFunds": 1.04,
+        "nominal10y": 4.49,
+        "real10y": 2.41
+      },
+      {
+        "date": "2003-08",
+        "gold": 375.6,
+        "fedFunds": 1.01,
+        "nominal10y": 4.45,
+        "real10y": 2.29
+      },
+      {
+        "date": "2003-09",
+        "gold": 388,
+        "fedFunds": 1.17,
+        "nominal10y": 3.96,
+        "real10y": 1.95
+      },
+      {
+        "date": "2003-10",
+        "gold": 386.25,
+        "fedFunds": 1.03,
+        "nominal10y": 4.33,
+        "real10y": 1.93
+      },
+      {
+        "date": "2003-11",
+        "gold": 398.35,
+        "fedFunds": 1.01,
+        "nominal10y": 4.34,
+        "real10y": 2.03
+      },
+      {
+        "date": "2003-12",
+        "gold": 416.25,
+        "fedFunds": 0.94,
+        "nominal10y": 4.27,
+        "real10y": 2
+      },
+      {
+        "date": "2004-01",
+        "gold": 399.75,
+        "fedFunds": 1.03,
+        "nominal10y": 4.16,
+        "real10y": 1.85
+      },
+      {
+        "date": "2004-02",
+        "gold": 395.85,
+        "fedFunds": 1.04,
+        "nominal10y": 3.99,
+        "real10y": 1.61
+      },
+      {
+        "date": "2004-03",
+        "gold": 423.7,
+        "fedFunds": 1.05,
+        "nominal10y": 3.86,
+        "real10y": 1.48
+      },
+      {
+        "date": "2004-04",
+        "gold": 388.5,
+        "fedFunds": 1.03,
+        "nominal10y": 4.53,
+        "real10y": 2.11
+      },
+      {
+        "date": "2004-05",
+        "gold": 393.25,
+        "fedFunds": 1.02,
+        "nominal10y": 4.66,
+        "real10y": 2
+      },
+      {
+        "date": "2004-06",
+        "gold": 395.8,
+        "fedFunds": 1.38,
+        "nominal10y": 4.62,
+        "real10y": 2.1
+      },
+      {
+        "date": "2004-07",
+        "gold": 391.4,
+        "fedFunds": 1.29,
+        "nominal10y": 4.5,
+        "real10y": 2.01
+      },
+      {
+        "date": "2004-08",
+        "gold": 407.25,
+        "fedFunds": 1.55,
+        "nominal10y": 4.13,
+        "real10y": 1.78
+      },
+      {
+        "date": "2004-09",
+        "gold": 415.65,
+        "fedFunds": 1.94,
+        "nominal10y": 4.14,
+        "real10y": 1.77
+      },
+      {
+        "date": "2004-10",
+        "gold": 425.55,
+        "fedFunds": 1.79,
+        "nominal10y": 4.05,
+        "real10y": 1.63
+      },
+      {
+        "date": "2004-11",
+        "gold": 453.4,
+        "fedFunds": 2.02,
+        "nominal10y": 4.36,
+        "real10y": 1.75
+      },
+      {
+        "date": "2004-12",
+        "gold": 435.6,
+        "fedFunds": 1.97,
+        "nominal10y": 4.24,
+        "real10y": 1.68
+      },
+      {
+        "date": "2005-01",
+        "gold": 422.15,
+        "fedFunds": 2.5,
+        "nominal10y": 4.14,
+        "real10y": 1.65
+      },
+      {
+        "date": "2005-02",
+        "gold": 435.45,
+        "fedFunds": 2.52,
+        "nominal10y": 4.36,
+        "real10y": 1.7
+      },
+      {
+        "date": "2005-03",
+        "gold": 427.5,
+        "fedFunds": 2.96,
+        "nominal10y": 4.5,
+        "real10y": 1.79
+      },
+      {
+        "date": "2005-04",
+        "gold": 435.7,
+        "fedFunds": 2.97,
+        "nominal10y": 4.21,
+        "real10y": 1.61
+      },
+      {
+        "date": "2005-05",
+        "gold": 414.45,
+        "fedFunds": 3.09,
+        "nominal10y": 4,
+        "real10y": 1.63
+      },
+      {
+        "date": "2005-06",
+        "gold": 437.1,
+        "fedFunds": 3.35,
+        "nominal10y": 3.94,
+        "real10y": 1.67
+      },
+      {
+        "date": "2005-07",
+        "gold": 429,
+        "fedFunds": 3.31,
+        "nominal10y": 4.28,
+        "real10y": 1.92
+      },
+      {
+        "date": "2005-08",
+        "gold": 433.25,
+        "fedFunds": 3.63,
+        "nominal10y": 4.02,
+        "real10y": 1.65
+      },
+      {
+        "date": "2005-09",
+        "gold": 473.25,
+        "fedFunds": 3.93,
+        "nominal10y": 4.34,
+        "real10y": 1.78
+      },
+      {
+        "date": "2005-10",
+        "gold": 470.75,
+        "fedFunds": 4.02,
+        "nominal10y": 4.57,
+        "real10y": 2
+      },
+      {
+        "date": "2005-11",
+        "gold": 495.65,
+        "fedFunds": 4.03,
+        "nominal10y": 4.49,
+        "real10y": 2.12
+      },
+      {
+        "date": "2005-12",
+        "gold": 513,
+        "fedFunds": 4.09,
+        "nominal10y": 4.39,
+        "real10y": 2.06
+      },
+      {
+        "date": "2006-01",
+        "gold": 568.75,
+        "fedFunds": 4.47,
+        "nominal10y": 4.53,
+        "real10y": 2
+      },
+      {
+        "date": "2006-02",
+        "gold": 556,
+        "fedFunds": 4.52,
+        "nominal10y": 4.55,
+        "real10y": 2.02
+      },
+      {
+        "date": "2006-03",
+        "gold": 582,
+        "fedFunds": 5,
+        "nominal10y": 4.86,
+        "real10y": 2.35
+      },
+      {
+        "date": "2006-04",
+        "gold": 644,
+        "fedFunds": 4.86,
+        "nominal10y": 5.07,
+        "real10y": 2.39
+      },
+      {
+        "date": "2006-05",
+        "gold": 653,
+        "fedFunds": 5.05,
+        "nominal10y": 5.12,
+        "real10y": 2.48
+      },
+      {
+        "date": "2006-06",
+        "gold": 613.5,
+        "fedFunds": 5.05,
+        "nominal10y": 5.15,
+        "real10y": 2.54
+      },
+      {
+        "date": "2006-07",
+        "gold": 632.5,
+        "fedFunds": 5.31,
+        "nominal10y": 4.99,
+        "real10y": 2.41
+      },
+      {
+        "date": "2006-08",
+        "gold": 623.5,
+        "fedFunds": 5.31,
+        "nominal10y": 4.74,
+        "real10y": 2.24
+      },
+      {
+        "date": "2006-09",
+        "gold": 599.25,
+        "fedFunds": 5.34,
+        "nominal10y": 4.64,
+        "real10y": 2.27
+      },
+      {
+        "date": "2006-10",
+        "gold": 603.75,
+        "fedFunds": 5.31,
+        "nominal10y": 4.61,
+        "real10y": 2.34
+      },
+      {
+        "date": "2006-11",
+        "gold": 646.7,
+        "fedFunds": 5.31,
+        "nominal10y": 4.46,
+        "real10y": 2.16
+      },
+      {
+        "date": "2006-12",
+        "gold": 632,
+        "fedFunds": 5.17,
+        "nominal10y": 4.71,
+        "real10y": 2.41
+      },
+      {
+        "date": "2007-01",
+        "gold": 650.5,
+        "fedFunds": 5.33,
+        "nominal10y": 4.83,
+        "real10y": 2.4
+      },
+      {
+        "date": "2007-02",
+        "gold": 664.2,
+        "fedFunds": 5.41,
+        "nominal10y": 4.56,
+        "real10y": 2.2
+      },
+      {
+        "date": "2007-03",
+        "gold": 661.75,
+        "fedFunds": 5.3,
+        "nominal10y": 4.65,
+        "real10y": 2.21
+      },
+      {
+        "date": "2007-04",
+        "gold": 677,
+        "fedFunds": 5.29,
+        "nominal10y": 4.63,
+        "real10y": 2.2
+      },
+      {
+        "date": "2007-05",
+        "gold": 659.1,
+        "fedFunds": 5.28,
+        "nominal10y": 4.9,
+        "real10y": 2.54
+      },
+      {
+        "date": "2007-06",
+        "gold": 650.5,
+        "fedFunds": 5.31,
+        "nominal10y": 5.03,
+        "real10y": 2.65
+      },
+      {
+        "date": "2007-07",
+        "gold": 665.5,
+        "fedFunds": 5.28,
+        "nominal10y": 4.78,
+        "real10y": 2.44
+      },
+      {
+        "date": "2007-08",
+        "gold": 672,
+        "fedFunds": 4.96,
+        "nominal10y": 4.54,
+        "real10y": 2.34
+      },
+      {
+        "date": "2007-09",
+        "gold": 743,
+        "fedFunds": 4.58,
+        "nominal10y": 4.59,
+        "real10y": 2.27
+      },
+      {
+        "date": "2007-10",
+        "gold": 789.5,
+        "fedFunds": 4.6,
+        "nominal10y": 4.48,
+        "real10y": 2.14
+      },
+      {
+        "date": "2007-11",
+        "gold": 783.5,
+        "fedFunds": 4.66,
+        "nominal10y": 3.97,
+        "real10y": 1.63
+      },
+      {
+        "date": "2007-12",
+        "gold": 833.75,
+        "fedFunds": 3.06,
+        "nominal10y": 4.04,
+        "real10y": 1.73
+      },
+      {
+        "date": "2008-01",
+        "gold": 923.25,
+        "fedFunds": 3.22,
+        "nominal10y": 3.67,
+        "real10y": 1.33
+      },
+      {
+        "date": "2008-02",
+        "gold": 971.5,
+        "fedFunds": 3.01,
+        "nominal10y": 3.53,
+        "real10y": 1.1
+      },
+      {
+        "date": "2008-03",
+        "gold": 933.5,
+        "fedFunds": 2.51,
+        "nominal10y": 3.45,
+        "real10y": 1.11
+      },
+      {
+        "date": "2008-04",
+        "gold": 871,
+        "fedFunds": 2.37,
+        "nominal10y": 3.77,
+        "real10y": 1.5
+      },
+      {
+        "date": "2008-05",
+        "gold": 885.75,
+        "fedFunds": 1.98,
+        "nominal10y": 4.06,
+        "real10y": 1.58
+      },
+      {
+        "date": "2008-06",
+        "gold": 930.25,
+        "fedFunds": 2.47,
+        "nominal10y": 3.99,
+        "real10y": 1.48
+      },
+      {
+        "date": "2008-07",
+        "gold": 918,
+        "fedFunds": 2.09,
+        "nominal10y": 3.99,
+        "real10y": 1.65
+      },
+      {
+        "date": "2008-08",
+        "gold": 833,
+        "fedFunds": 1.94,
+        "nominal10y": 3.83,
+        "real10y": 1.68
+      },
+      {
+        "date": "2008-09",
+        "gold": 884.5,
+        "fedFunds": 2.03,
+        "nominal10y": 3.85,
+        "real10y": 2.25
+      },
+      {
+        "date": "2008-10",
+        "gold": 730.75,
+        "fedFunds": 0.22,
+        "nominal10y": 4.01,
+        "real10y": 3.14
+      },
+      {
+        "date": "2008-11",
+        "gold": 814.5,
+        "fedFunds": 0.52,
+        "nominal10y": 2.93,
+        "real10y": 2.6
+      },
+      {
+        "date": "2008-12",
+        "gold": 869.75,
+        "fedFunds": 0.14,
+        "nominal10y": 2.25,
+        "real10y": 2.14
+      },
+      {
+        "date": "2009-01",
+        "gold": 919.5,
+        "fedFunds": 0.23,
+        "nominal10y": 2.87,
+        "real10y": 1.73
+      },
+      {
+        "date": "2009-02",
+        "gold": 952,
+        "fedFunds": 0.22,
+        "nominal10y": 3.02,
+        "real10y": 2.06
+      },
+      {
+        "date": "2009-03",
+        "gold": 916.5,
+        "fedFunds": 0.16,
+        "nominal10y": 2.71,
+        "real10y": 1.43
+      },
+      {
+        "date": "2009-04",
+        "gold": 883.25,
+        "fedFunds": 0.2,
+        "nominal10y": 3.16,
+        "real10y": 1.69
+      },
+      {
+        "date": "2009-05",
+        "gold": 975.5,
+        "fedFunds": 0.19,
+        "nominal10y": 3.47,
+        "real10y": 1.67
+      },
+      {
+        "date": "2009-06",
+        "gold": 934.5,
+        "fedFunds": 0.22,
+        "nominal10y": 3.53,
+        "real10y": 1.78
+      },
+      {
+        "date": "2009-07",
+        "gold": 939,
+        "fedFunds": 0.18,
+        "nominal10y": 3.52,
+        "real10y": 1.71
+      },
+      {
+        "date": "2009-08",
+        "gold": 955.5,
+        "fedFunds": 0.15,
+        "nominal10y": 3.4,
+        "real10y": 1.76
+      },
+      {
+        "date": "2009-09",
+        "gold": 995.75,
+        "fedFunds": 0.07,
+        "nominal10y": 3.31,
+        "real10y": 1.56
+      },
+      {
+        "date": "2009-10",
+        "gold": 1040,
+        "fedFunds": 0.11,
+        "nominal10y": 3.41,
+        "real10y": 1.41
+      },
+      {
+        "date": "2009-11",
+        "gold": 1175.75,
+        "fedFunds": 0.13,
+        "nominal10y": 3.21,
+        "real10y": 1.13
+      },
+      {
+        "date": "2009-12",
+        "gold": 1087.5,
+        "fedFunds": 0.05,
+        "nominal10y": 3.85,
+        "real10y": 1.48
+      },
+      {
+        "date": "2010-01",
+        "gold": 1078.5,
+        "fedFunds": 0.12,
+        "nominal10y": 3.63,
+        "real10y": 1.3
+      },
+      {
+        "date": "2010-02",
+        "gold": 1108.25,
+        "fedFunds": 0.13,
+        "nominal10y": 3.61,
+        "real10y": 1.48
+      },
+      {
+        "date": "2010-03",
+        "gold": 1115.5,
+        "fedFunds": 0.09,
+        "nominal10y": 3.84,
+        "real10y": 1.6
+      },
+      {
+        "date": "2010-04",
+        "gold": 1179.25,
+        "fedFunds": 0.2,
+        "nominal10y": 3.69,
+        "real10y": 1.29
+      },
+      {
+        "date": "2010-05",
+        "gold": 1207.5,
+        "fedFunds": 0.19,
+        "nominal10y": 3.31,
+        "real10y": 1.32
+      },
+      {
+        "date": "2010-06",
+        "gold": 1244,
+        "fedFunds": 0.09,
+        "nominal10y": 2.97,
+        "real10y": 1.15
+      },
+      {
+        "date": "2010-07",
+        "gold": 1169,
+        "fedFunds": 0.18,
+        "nominal10y": 2.94,
+        "real10y": 1.14
+      },
+      {
+        "date": "2010-08",
+        "gold": 1246,
+        "fedFunds": 0.21,
+        "nominal10y": 2.47,
+        "real10y": 0.95
+      },
+      {
+        "date": "2010-09",
+        "gold": 1307,
+        "fedFunds": 0.15,
+        "nominal10y": 2.53,
+        "real10y": 0.75
+      },
+      {
+        "date": "2010-10",
+        "gold": 1346.75,
+        "fedFunds": 0.2,
+        "nominal10y": 2.63,
+        "real10y": 0.5
+      },
+      {
+        "date": "2010-11",
+        "gold": 1383.5,
+        "fedFunds": 0.2,
+        "nominal10y": 2.81,
+        "real10y": 0.74
+      },
+      {
+        "date": "2010-12",
+        "gold": 1405.5,
+        "fedFunds": 0.13,
+        "nominal10y": 3.3,
+        "real10y": 1
+      },
+      {
+        "date": "2011-01",
+        "gold": 1327,
+        "fedFunds": 0.17,
+        "nominal10y": 3.42,
+        "real10y": 1.08
+      },
+      {
+        "date": "2011-02",
+        "gold": 1411,
+        "fedFunds": 0.16,
+        "nominal10y": 3.42,
+        "real10y": 1.03
+      },
+      {
+        "date": "2011-03",
+        "gold": 1439,
+        "fedFunds": 0.1,
+        "nominal10y": 3.47,
+        "real10y": 0.99
+      },
+      {
+        "date": "2011-04",
+        "gold": 1535.5,
+        "fedFunds": 0.09,
+        "nominal10y": 3.32,
+        "real10y": 0.75
+      },
+      {
+        "date": "2011-05",
+        "gold": 1536.5,
+        "fedFunds": 0.1,
+        "nominal10y": 3.05,
+        "real10y": 0.8
+      },
+      {
+        "date": "2011-06",
+        "gold": 1505.5,
+        "fedFunds": 0.07,
+        "nominal10y": 3.18,
+        "real10y": 0.75
+      },
+      {
+        "date": "2011-07",
+        "gold": 1628.5,
+        "fedFunds": 0.11,
+        "nominal10y": 2.82,
+        "real10y": 0.38
+      },
+      {
+        "date": "2011-08",
+        "gold": 1813.5,
+        "fedFunds": 0.08,
+        "nominal10y": 2.23,
+        "real10y": 0.18
+      },
+      {
+        "date": "2011-09",
+        "gold": 1620,
+        "fedFunds": 0.06,
+        "nominal10y": 1.92,
+        "real10y": 0.17
+      },
+      {
+        "date": "2011-10",
+        "gold": 1722,
+        "fedFunds": 0.09,
+        "nominal10y": 2.17,
+        "real10y": 0.08
+      },
+      {
+        "date": "2011-11",
+        "gold": 1746,
+        "fedFunds": 0.1,
+        "nominal10y": 2.08,
+        "real10y": 0.03
+      },
+      {
+        "date": "2011-12",
+        "gold": 1531,
+        "fedFunds": 0.04,
+        "nominal10y": 1.89,
+        "real10y": -0.07
+      },
+      {
+        "date": "2012-01",
+        "gold": 1744,
+        "fedFunds": 0.11,
+        "nominal10y": 1.83,
+        "real10y": -0.28
+      },
+      {
+        "date": "2012-02",
+        "gold": 1770,
+        "fedFunds": 0.1,
+        "nominal10y": 1.98,
+        "real10y": -0.28
+      },
+      {
+        "date": "2012-03",
+        "gold": 1662.5,
+        "fedFunds": 0.09,
+        "nominal10y": 2.23,
+        "real10y": -0.09
+      },
+      {
+        "date": "2012-04",
+        "gold": 1651.25,
+        "fedFunds": 0.16,
+        "nominal10y": 1.95,
+        "real10y": -0.3
+      },
+      {
+        "date": "2012-05",
+        "gold": 1558,
+        "fedFunds": 0.16,
+        "nominal10y": 1.59,
+        "real10y": -0.5
+      },
+      {
+        "date": "2012-06",
+        "gold": 1598.5,
+        "fedFunds": 0.09,
+        "nominal10y": 1.67,
+        "real10y": -0.46
+      },
+      {
+        "date": "2012-07",
+        "gold": 1622,
+        "fedFunds": 0.13,
+        "nominal10y": 1.51,
+        "real10y": -0.69
+      },
+      {
+        "date": "2012-08",
+        "gold": 1648.5,
+        "fedFunds": 0.13,
+        "nominal10y": 1.57,
+        "real10y": -0.68
+      },
+      {
+        "date": "2012-09",
+        "gold": 1776,
+        "fedFunds": 0.09,
+        "nominal10y": 1.65,
+        "real10y": -0.77
+      },
+      {
+        "date": "2012-10",
+        "gold": 1719,
+        "fedFunds": 0.18,
+        "nominal10y": 1.72,
+        "real10y": -0.78
+      },
+      {
+        "date": "2012-11",
+        "gold": 1726,
+        "fedFunds": 0.16,
+        "nominal10y": 1.62,
+        "real10y": -0.79
+      },
+      {
+        "date": "2012-12",
+        "gold": 1657.5,
+        "fedFunds": 0.09,
+        "nominal10y": 1.78,
+        "real10y": -0.67
+      },
+      {
+        "date": "2013-01",
+        "gold": 1664.75,
+        "fedFunds": 0.15,
+        "nominal10y": 2.02,
+        "real10y": -0.57
+      },
+      {
+        "date": "2013-02",
+        "gold": 1588.5,
+        "fedFunds": 0.14,
+        "nominal10y": 1.89,
+        "real10y": -0.64
+      },
+      {
+        "date": "2013-03",
+        "gold": 1598.25,
+        "fedFunds": 0.09,
+        "nominal10y": 1.87,
+        "real10y": -0.64
+      },
+      {
+        "date": "2013-04",
+        "gold": 1469,
+        "fedFunds": 0.14,
+        "nominal10y": 1.7,
+        "real10y": -0.64
+      },
+      {
+        "date": "2013-05",
+        "gold": 1394.5,
+        "fedFunds": 0.09,
+        "nominal10y": 2.16,
+        "real10y": -0.05
+      },
+      {
+        "date": "2013-06",
+        "gold": 1192,
+        "fedFunds": 0.07,
+        "nominal10y": 2.52,
+        "real10y": 0.53
+      },
+      {
+        "date": "2013-07",
+        "gold": 1314.5,
+        "fedFunds": 0.09,
+        "nominal10y": 2.6,
+        "real10y": 0.38
+      },
+      {
+        "date": "2013-08",
+        "gold": 1394.75,
+        "fedFunds": 0.07,
+        "nominal10y": 2.78,
+        "real10y": 0.68
+      },
+      {
+        "date": "2013-09",
+        "gold": 1326.5,
+        "fedFunds": 0.06,
+        "nominal10y": 2.64,
+        "real10y": 0.45
+      },
+      {
+        "date": "2013-10",
+        "gold": 1324,
+        "fedFunds": 0.07,
+        "nominal10y": 2.57,
+        "real10y": 0.4
+      },
+      {
+        "date": "2013-11",
+        "gold": 1253,
+        "fedFunds": 0.07,
+        "nominal10y": 2.75,
+        "real10y": 0.6
+      },
+      {
+        "date": "2013-12",
+        "gold": 1204.5,
+        "fedFunds": 0.07,
+        "nominal10y": 3.04,
+        "real10y": 0.8
+      },
+      {
+        "date": "2014-01",
+        "gold": 1251,
+        "fedFunds": 0.07,
+        "nominal10y": 2.67,
+        "real10y": 0.53
+      },
+      {
+        "date": "2014-02",
+        "gold": 1326.5,
+        "fedFunds": 0.06,
+        "nominal10y": 2.66,
+        "real10y": 0.49
+      },
+      {
+        "date": "2014-03",
+        "gold": 1291.75,
+        "fedFunds": 0.06,
+        "nominal10y": 2.73,
+        "real10y": 0.6
+      },
+      {
+        "date": "2014-04",
+        "gold": 1288.5,
+        "fedFunds": 0.09,
+        "nominal10y": 2.67,
+        "real10y": 0.49
+      },
+      {
+        "date": "2014-05",
+        "gold": 1250.5,
+        "fedFunds": 0.08,
+        "nominal10y": 2.48,
+        "real10y": 0.26
+      },
+      {
+        "date": "2014-06",
+        "gold": 1315,
+        "fedFunds": 0.09,
+        "nominal10y": 2.53,
+        "real10y": 0.27
+      },
+      {
+        "date": "2014-07",
+        "gold": 1285.25,
+        "fedFunds": 0.08,
+        "nominal10y": 2.58,
+        "real10y": 0.29
+      },
+      {
+        "date": "2014-08",
+        "gold": 1285.75,
+        "fedFunds": 0.07,
+        "nominal10y": 2.35,
+        "real10y": 0.23
+      },
+      {
+        "date": "2014-09",
+        "gold": 1216.5,
+        "fedFunds": 0.07,
+        "nominal10y": 2.52,
+        "real10y": 0.55
+      },
+      {
+        "date": "2014-10",
+        "gold": 1164.25,
+        "fedFunds": 0.07,
+        "nominal10y": 2.35,
+        "real10y": 0.43
+      },
+      {
+        "date": "2014-11",
+        "gold": 1182.75,
+        "fedFunds": 0.08,
+        "nominal10y": 2.18,
+        "real10y": 0.39
+      },
+      {
+        "date": "2014-12",
+        "gold": 1206,
+        "fedFunds": 0.06,
+        "nominal10y": 2.17,
+        "real10y": 0.49
+      },
+      {
+        "date": "2015-01",
+        "gold": 1260.25,
+        "fedFunds": 0.06,
+        "nominal10y": 1.68,
+        "real10y": 0.03
+      },
+      {
+        "date": "2015-02",
+        "gold": 1214,
+        "fedFunds": 0.06,
+        "nominal10y": 2,
+        "real10y": 0.17
+      },
+      {
+        "date": "2015-03",
+        "gold": 1187,
+        "fedFunds": 0.06,
+        "nominal10y": 1.94,
+        "real10y": 0.18
+      },
+      {
+        "date": "2015-04",
+        "gold": 1180.25,
+        "fedFunds": 0.08,
+        "nominal10y": 2.05,
+        "real10y": 0.11
+      },
+      {
+        "date": "2015-05",
+        "gold": 1191.4,
+        "fedFunds": 0.08,
+        "nominal10y": 2.12,
+        "real10y": 0.32
+      },
+      {
+        "date": "2015-06",
+        "gold": 1171,
+        "fedFunds": 0.08,
+        "nominal10y": 2.35,
+        "real10y": 0.48
+      },
+      {
+        "date": "2015-07",
+        "gold": 1098.4,
+        "fedFunds": 0.08,
+        "nominal10y": 2.2,
+        "real10y": 0.46
+      },
+      {
+        "date": "2015-08",
+        "gold": 1135,
+        "fedFunds": 0.08,
+        "nominal10y": 2.21,
+        "real10y": 0.58
+      },
+      {
+        "date": "2015-09",
+        "gold": 1114,
+        "fedFunds": 0.07,
+        "nominal10y": 2.06,
+        "real10y": 0.65
+      },
+      {
+        "date": "2015-10",
+        "gold": 1142.35,
+        "fedFunds": 0.07,
+        "nominal10y": 2.16,
+        "real10y": 0.63
+      },
+      {
+        "date": "2015-11",
+        "gold": 1061.9,
+        "fedFunds": 0.08,
+        "nominal10y": 2.21,
+        "real10y": 0.62
+      },
+      {
+        "date": "2015-12",
+        "gold": 1060,
+        "fedFunds": 0.2,
+        "nominal10y": 2.27,
+        "real10y": 0.73
+      },
+      {
+        "date": "2016-01",
+        "gold": 1111.8,
+        "fedFunds": 0.29,
+        "nominal10y": 1.94,
+        "real10y": 0.53
+      },
+      {
+        "date": "2016-02",
+        "gold": 1234.9,
+        "fedFunds": 0.29,
+        "nominal10y": 1.74,
+        "real10y": 0.32
+      },
+      {
+        "date": "2016-03",
+        "gold": 1237,
+        "fedFunds": 0.25,
+        "nominal10y": 1.78,
+        "real10y": 0.16
+      },
+      {
+        "date": "2016-04",
+        "gold": 1285.65,
+        "fedFunds": 0.3,
+        "nominal10y": 1.83,
+        "real10y": 0.12
+      },
+      {
+        "date": "2016-05",
+        "gold": 1212.1,
+        "fedFunds": 0.29,
+        "nominal10y": 1.84,
+        "real10y": 0.3
+      },
+      {
+        "date": "2016-06",
+        "gold": 1320.75,
+        "fedFunds": 0.3,
+        "nominal10y": 1.49,
+        "real10y": 0.09
+      },
+      {
+        "date": "2016-07",
+        "gold": 1342,
+        "fedFunds": 0.3,
+        "nominal10y": 1.46,
+        "real10y": -0.03
+      },
+      {
+        "date": "2016-08",
+        "gold": 1309.25,
+        "fedFunds": 0.3,
+        "nominal10y": 1.58,
+        "real10y": 0.11
+      },
+      {
+        "date": "2016-09",
+        "gold": 1322.5,
+        "fedFunds": 0.29,
+        "nominal10y": 1.6,
+        "real10y": 0
+      },
+      {
+        "date": "2016-10",
+        "gold": 1272,
+        "fedFunds": 0.31,
+        "nominal10y": 1.84,
+        "real10y": 0.11
+      },
+      {
+        "date": "2016-11",
+        "gold": 1178.1,
+        "fedFunds": 0.31,
+        "nominal10y": 2.37,
+        "real10y": 0.43
+      },
+      {
+        "date": "2016-12",
+        "gold": 1145.9,
+        "fedFunds": 0.55,
+        "nominal10y": 2.45,
+        "real10y": 0.5
+      },
+      {
+        "date": "2017-01",
+        "gold": 1212.8,
+        "fedFunds": 0.56,
+        "nominal10y": 2.45,
+        "real10y": 0.4
+      },
+      {
+        "date": "2017-02",
+        "gold": 1255.6,
+        "fedFunds": 0.57,
+        "nominal10y": 2.36,
+        "real10y": 0.34
+      },
+      {
+        "date": "2017-03",
+        "gold": 1244.85,
+        "fedFunds": 0.82,
+        "nominal10y": 2.4,
+        "real10y": 0.43
+      },
+      {
+        "date": "2017-04",
+        "gold": 1266.45,
+        "fedFunds": 0.83,
+        "nominal10y": 2.29,
+        "real10y": 0.37
+      },
+      {
+        "date": "2017-05",
+        "gold": 1266.2,
+        "fedFunds": 0.83,
+        "nominal10y": 2.21,
+        "real10y": 0.4
+      },
+      {
+        "date": "2017-06",
+        "gold": 1242.25,
+        "fedFunds": 1.06,
+        "nominal10y": 2.31,
+        "real10y": 0.58
+      },
+      {
+        "date": "2017-07",
+        "gold": 1267.55,
+        "fedFunds": 1.07,
+        "nominal10y": 2.3,
+        "real10y": 0.48
+      },
+      {
+        "date": "2017-08",
+        "gold": 1311.75,
+        "fedFunds": 1.07,
+        "nominal10y": 2.12,
+        "real10y": 0.36
+      },
+      {
+        "date": "2017-09",
+        "gold": 1283.1,
+        "fedFunds": 1.06,
+        "nominal10y": 2.33,
+        "real10y": 0.49
+      },
+      {
+        "date": "2017-10",
+        "gold": 1270.15,
+        "fedFunds": 1.07,
+        "nominal10y": 2.38,
+        "real10y": 0.5
+      },
+      {
+        "date": "2017-11",
+        "gold": 1280.2,
+        "fedFunds": 1.07,
+        "nominal10y": 2.42,
+        "real10y": 0.56
+      },
+      {
+        "date": "2017-12",
+        "gold": 1291,
+        "fedFunds": 1.33,
+        "nominal10y": 2.4,
+        "real10y": 0.44
+      },
+      {
+        "date": "2018-01",
+        "gold": 1345.05,
+        "fedFunds": 1.34,
+        "nominal10y": 2.72,
+        "real10y": 0.61
+      },
+      {
+        "date": "2018-02",
+        "gold": 1317.85,
+        "fedFunds": 1.35,
+        "nominal10y": 2.87,
+        "real10y": 0.75
+      },
+      {
+        "date": "2018-03",
+        "gold": 1323.85,
+        "fedFunds": 1.67,
+        "nominal10y": 2.74,
+        "real10y": 0.69
+      },
+      {
+        "date": "2018-04",
+        "gold": 1313.2,
+        "fedFunds": 1.69,
+        "nominal10y": 2.95,
+        "real10y": 0.78
+      },
+      {
+        "date": "2018-05",
+        "gold": 1305.35,
+        "fedFunds": 1.7,
+        "nominal10y": 2.83,
+        "real10y": 0.76
+      },
+      {
+        "date": "2018-06",
+        "gold": 1250.45,
+        "fedFunds": 1.91,
+        "nominal10y": 2.85,
+        "real10y": 0.74
+      },
+      {
+        "date": "2018-07",
+        "gold": 1220.95,
+        "fedFunds": 1.91,
+        "nominal10y": 2.96,
+        "real10y": 0.84
+      },
+      {
+        "date": "2018-08",
+        "gold": 1202.45,
+        "fedFunds": 1.91,
+        "nominal10y": 2.86,
+        "real10y": 0.78
+      },
+      {
+        "date": "2018-09",
+        "gold": 1187.25,
+        "fedFunds": 2.18,
+        "nominal10y": 3.05,
+        "real10y": 0.91
+      },
+      {
+        "date": "2018-10",
+        "gold": 1214.95,
+        "fedFunds": 2.2,
+        "nominal10y": 3.15,
+        "real10y": 1.1
+      },
+      {
+        "date": "2018-11",
+        "gold": 1217.55,
+        "fedFunds": 2.2,
+        "nominal10y": 3.01,
+        "real10y": 1.04
+      },
+      {
+        "date": "2018-12",
+        "gold": 1279,
+        "fedFunds": 2.4,
+        "nominal10y": 2.69,
+        "real10y": 0.98
+      },
+      {
+        "date": "2019-01",
+        "gold": 1323.25,
+        "fedFunds": 2.4,
+        "nominal10y": 2.63,
+        "real10y": 0.78
+      },
+      {
+        "date": "2019-02",
+        "gold": 1319.15,
+        "fedFunds": 2.4,
+        "nominal10y": 2.73,
+        "real10y": 0.78
+      },
+      {
+        "date": "2019-03",
+        "gold": 1295.4,
+        "fedFunds": 2.43,
+        "nominal10y": 2.41,
+        "real10y": 0.53
+      },
+      {
+        "date": "2019-04",
+        "gold": 1282.3,
+        "fedFunds": 2.45,
+        "nominal10y": 2.51,
+        "real10y": 0.56
+      },
+      {
+        "date": "2019-05",
+        "gold": 1295.55,
+        "fedFunds": 2.4,
+        "nominal10y": 2.14,
+        "real10y": 0.4
+      },
+      {
+        "date": "2019-06",
+        "gold": 1409,
+        "fedFunds": 2.4,
+        "nominal10y": 2,
+        "real10y": 0.31
+      },
+      {
+        "date": "2019-07",
+        "gold": 1427.55,
+        "fedFunds": 2.4,
+        "nominal10y": 2.02,
+        "real10y": 0.26
+      },
+      {
+        "date": "2019-08",
+        "gold": 1528.4,
+        "fedFunds": 2.13,
+        "nominal10y": 1.5,
+        "real10y": -0.05
+      },
+      {
+        "date": "2019-09",
+        "gold": 1485.3,
+        "fedFunds": 1.9,
+        "nominal10y": 1.68,
+        "real10y": 0.15
+      },
+      {
+        "date": "2019-10",
+        "gold": 1510.95,
+        "fedFunds": 1.58,
+        "nominal10y": 1.69,
+        "real10y": 0.15
+      },
+      {
+        "date": "2019-11",
+        "gold": 1460.15,
+        "fedFunds": 1.56,
+        "nominal10y": 1.78,
+        "real10y": 0.17
+      },
+      {
+        "date": "2019-12",
+        "gold": 1514.75,
+        "fedFunds": 1.55,
+        "nominal10y": 1.92,
+        "real10y": 0.15
+      },
+      {
+        "date": "2020-01",
+        "gold": 1584.2,
+        "fedFunds": 1.59,
+        "nominal10y": 1.51,
+        "real10y": -0.14
+      },
+      {
+        "date": "2020-02",
+        "gold": 1609.85,
+        "fedFunds": 1.58,
+        "nominal10y": 1.13,
+        "real10y": -0.28
+      },
+      {
+        "date": "2020-03",
+        "gold": 1608.95,
+        "fedFunds": 0.08,
+        "nominal10y": 0.7,
+        "real10y": -0.17
+      },
+      {
+        "date": "2020-04",
+        "gold": 1702.75,
+        "fedFunds": 0.05,
+        "nominal10y": 0.64,
+        "real10y": -0.43
+      },
+      {
+        "date": "2020-05",
+        "gold": 1728.7,
+        "fedFunds": 0.05,
+        "nominal10y": 0.65,
+        "real10y": -0.5
+      },
+      {
+        "date": "2020-06",
+        "gold": 1768.1,
+        "fedFunds": 0.08,
+        "nominal10y": 0.66,
+        "real10y": -0.68
+      },
+      {
+        "date": "2020-07",
+        "gold": 1964.9,
+        "fedFunds": 0.1,
+        "nominal10y": 0.55,
+        "real10y": -1
+      },
+      {
+        "date": "2020-08",
+        "gold": 1957.35,
+        "fedFunds": 0.09,
+        "nominal10y": 0.72,
+        "real10y": -1.08
+      },
+      {
+        "date": "2020-09",
+        "gold": 1886.9,
+        "fedFunds": 0.09,
+        "nominal10y": 0.69,
+        "real10y": -0.94
+      },
+      {
+        "date": "2020-10",
+        "gold": 1881.85,
+        "fedFunds": 0.09,
+        "nominal10y": 0.88,
+        "real10y": -0.82
+      },
+      {
+        "date": "2020-11",
+        "gold": 1762.55,
+        "fedFunds": 0.09,
+        "nominal10y": 0.84,
+        "real10y": -0.93
+      },
+      {
+        "date": "2020-12",
+        "gold": 1887.6,
+        "fedFunds": 0.09,
+        "nominal10y": 0.93,
+        "real10y": -1.06
+      },
+      {
+        "date": "2021-01",
+        "gold": 1863.8,
+        "fedFunds": 0.07,
+        "nominal10y": 1.11,
+        "real10y": -1.02
+      },
+      {
+        "date": "2021-02",
+        "gold": 1742.85,
+        "fedFunds": 0.07,
+        "nominal10y": 1.44,
+        "real10y": -0.71
+      },
+      {
+        "date": "2021-03",
+        "gold": 1691.05,
+        "fedFunds": 0.06,
+        "nominal10y": 1.74,
+        "real10y": -0.63
+      },
+      {
+        "date": "2021-04",
+        "gold": 1767.65,
+        "fedFunds": 0.05,
+        "nominal10y": 1.65,
+        "real10y": -0.76
+      },
+      {
+        "date": "2021-05",
+        "gold": 1899.95,
+        "fedFunds": 0.05,
+        "nominal10y": 1.58,
+        "real10y": -0.84
+      },
+      {
+        "date": "2021-06",
+        "gold": 1763.15,
+        "fedFunds": 0.08,
+        "nominal10y": 1.45,
+        "real10y": -0.87
+      },
+      {
+        "date": "2021-07",
+        "gold": 1825.75,
+        "fedFunds": 0.07,
+        "nominal10y": 1.24,
+        "real10y": -1.16
+      },
+      {
+        "date": "2021-08",
+        "gold": 1814.85,
+        "fedFunds": 0.06,
+        "nominal10y": 1.3,
+        "real10y": -1.03
+      },
+      {
+        "date": "2021-09",
+        "gold": 1742.8,
+        "fedFunds": 0.06,
+        "nominal10y": 1.52,
+        "real10y": -0.85
+      },
+      {
+        "date": "2021-10",
+        "gold": 1769.15,
+        "fedFunds": 0.07,
+        "nominal10y": 1.55,
+        "real10y": -0.96
+      },
+      {
+        "date": "2021-11",
+        "gold": 1804.4,
+        "fedFunds": 0.07,
+        "nominal10y": 1.43,
+        "real10y": -1.07
+      },
+      {
+        "date": "2021-12",
+        "gold": 1805.85,
+        "fedFunds": 0.07,
+        "nominal10y": 1.52,
+        "real10y": -1.04
+      },
+      {
+        "date": "2022-01",
+        "gold": 1795.25,
+        "fedFunds": 0.08,
+        "nominal10y": 1.79,
+        "real10y": -0.65
+      },
+      {
+        "date": "2022-02",
+        "gold": 1909.85,
+        "fedFunds": 0.08,
+        "nominal10y": 1.83,
+        "real10y": -0.79
+      },
+      {
+        "date": "2022-03",
+        "gold": 1942.15,
+        "fedFunds": 0.33,
+        "nominal10y": 2.32,
+        "real10y": -0.52
+      },
+      {
+        "date": "2022-04",
+        "gold": 1911.3,
+        "fedFunds": 0.33,
+        "nominal10y": 2.89,
+        "real10y": 0.01
+      },
+      {
+        "date": "2022-05",
+        "gold": 1838.7,
+        "fedFunds": 0.83,
+        "nominal10y": 2.85,
+        "real10y": 0.21
+      },
+      {
+        "date": "2022-06",
+        "gold": 1817,
+        "fedFunds": 1.58,
+        "nominal10y": 2.98,
+        "real10y": 0.65
+      },
+      {
+        "date": "2022-07",
+        "gold": 1753.4,
+        "fedFunds": 2.32,
+        "nominal10y": 2.67,
+        "real10y": 0.14
+      },
+      {
+        "date": "2022-08",
+        "gold": 1715.9,
+        "fedFunds": 2.33,
+        "nominal10y": 3.15,
+        "real10y": 0.67
+      },
+      {
+        "date": "2022-09",
+        "gold": 1671.75,
+        "fedFunds": 3.08,
+        "nominal10y": 3.83,
+        "real10y": 1.68
+      },
+      {
+        "date": "2022-10",
+        "gold": 1639,
+        "fedFunds": 3.08,
+        "nominal10y": 4.1,
+        "real10y": 1.58
+      },
+      {
+        "date": "2022-11",
+        "gold": 1753.5,
+        "fedFunds": 3.83,
+        "nominal10y": 3.68,
+        "real10y": 1.34
+      },
+      {
+        "date": "2022-12",
+        "gold": 1813.75,
+        "fedFunds": 4.33,
+        "nominal10y": 3.88,
+        "real10y": 1.58
+      },
+      {
+        "date": "2023-01",
+        "gold": 1923.9,
+        "fedFunds": 4.33,
+        "nominal10y": 3.52,
+        "real10y": 1.28
+      },
+      {
+        "date": "2023-02",
+        "gold": 1824.6,
+        "fedFunds": 4.57,
+        "nominal10y": 3.92,
+        "real10y": 1.49
+      },
+      {
+        "date": "2023-03",
+        "gold": 1979.7,
+        "fedFunds": 4.83,
+        "nominal10y": 3.48,
+        "real10y": 1.16
+      },
+      {
+        "date": "2023-04",
+        "gold": 1982.55,
+        "fedFunds": 4.83,
+        "nominal10y": 3.44,
+        "real10y": 1.26
+      },
+      {
+        "date": "2023-05",
+        "gold": 1964.4,
+        "fedFunds": 5.08,
+        "nominal10y": 3.64,
+        "real10y": 1.46
+      },
+      {
+        "date": "2023-06",
+        "gold": 1912.25,
+        "fedFunds": 5.08,
+        "nominal10y": 3.81,
+        "real10y": 1.59
+      },
+      {
+        "date": "2023-07",
+        "gold": 1970.65,
+        "fedFunds": 5.33,
+        "nominal10y": 3.97,
+        "real10y": 1.6
+      },
+      {
+        "date": "2023-08",
+        "gold": 1942.3,
+        "fedFunds": 5.33,
+        "nominal10y": 4.09,
+        "real10y": 1.85
+      },
+      {
+        "date": "2023-09",
+        "gold": 1870.5,
+        "fedFunds": 5.33,
+        "nominal10y": 4.59,
+        "real10y": 2.24
+      },
+      {
+        "date": "2023-10",
+        "gold": 1996.9,
+        "fedFunds": 5.33,
+        "nominal10y": 4.88,
+        "real10y": 2.46
+      },
+      {
+        "date": "2023-11",
+        "gold": 2035.45,
+        "fedFunds": 5.33,
+        "nominal10y": 4.37,
+        "real10y": 2.14
+      },
+      {
+        "date": "2023-12",
+        "gold": 2078.4,
+        "fedFunds": 5.33,
+        "nominal10y": 3.88,
+        "real10y": 1.72
+      },
+      {
+        "date": "2024-01",
+        "gold": 2053.25,
+        "fedFunds": 5.33,
+        "nominal10y": 3.99,
+        "real10y": 1.73
+      },
+      {
+        "date": "2024-02",
+        "gold": 2048.05,
+        "fedFunds": 5.33,
+        "nominal10y": 4.25,
+        "real10y": 1.92
+      },
+      {
+        "date": "2024-03",
+        "gold": 2214.35,
+        "fedFunds": 5.33,
+        "nominal10y": 4.2,
+        "real10y": 1.88
+      },
+      {
+        "date": "2024-04",
+        "gold": 2307,
+        "fedFunds": 5.33,
+        "nominal10y": 4.69,
+        "real10y": 2.28
+      },
+      {
+        "date": "2024-05",
+        "gold": 2348.25,
+        "fedFunds": 5.33,
+        "nominal10y": 4.51,
+        "real10y": 2.16
+      },
+      {
+        "date": "2024-06",
+        "gold": 2330.9,
+        "fedFunds": 5.33,
+        "nominal10y": 4.36,
+        "real10y": 2.08
+      },
+      {
+        "date": "2024-07",
+        "gold": 2426.3,
+        "fedFunds": 5.33,
+        "nominal10y": 4.09,
+        "real10y": 1.85
+      },
+      {
+        "date": "2024-08",
+        "gold": 2513.35,
+        "fedFunds": 5.33,
+        "nominal10y": 3.91,
+        "real10y": 1.76
+      },
+      {
+        "date": "2024-09",
+        "gold": 2629.95,
+        "fedFunds": 4.83,
+        "nominal10y": 3.81,
+        "real10y": 1.63
+      },
+      {
+        "date": "2024-10",
+        "gold": 2734.15,
+        "fedFunds": 4.83,
+        "nominal10y": 4.28,
+        "real10y": 1.95
+      },
+      {
+        "date": "2024-11",
+        "gold": 2651.05,
+        "fedFunds": 4.58,
+        "nominal10y": 4.18,
+        "real10y": 1.92
+      },
+      {
+        "date": "2024-12",
+        "gold": 2609.1,
+        "fedFunds": 4.33,
+        "nominal10y": 4.58,
+        "real10y": 2.24
+      },
+      {
+        "date": "2025-01",
+        "gold": 2812.05,
+        "fedFunds": 4.33,
+        "nominal10y": 4.58,
+        "real10y": 2.16
+      },
+      {
+        "date": "2025-02",
+        "gold": 2834.55,
+        "fedFunds": 4.33,
+        "nominal10y": 4.24,
+        "real10y": 1.86
+      },
+      {
+        "date": "2025-03",
+        "gold": 3115.1,
+        "fedFunds": 4.33,
+        "nominal10y": 4.23,
+        "real10y": 1.85
+      },
+      {
+        "date": "2025-04",
+        "gold": 3302.05,
+        "fedFunds": 4.33,
+        "nominal10y": 4.17,
+        "real10y": 1.94
+      },
+      {
+        "date": "2025-05",
+        "gold": 3277.55,
+        "fedFunds": 4.33,
+        "nominal10y": 4.41,
+        "real10y": 2.07
+      },
+      {
+        "date": "2025-06",
+        "gold": 3287.45,
+        "fedFunds": 4.33,
+        "nominal10y": 4.24,
+        "real10y": 1.95
+      },
+      {
+        "date": "2025-07",
+        "gold": 3298.85,
+        "fedFunds": 4.33,
+        "nominal10y": 4.37,
+        "real10y": 1.98
+      },
+      {
+        "date": "2025-08",
+        "gold": 3429.15,
+        "fedFunds": 4.33,
+        "nominal10y": 4.23,
+        "real10y": 1.82
+      },
+      {
+        "date": "2025-09",
+        "gold": 3825.3,
+        "fedFunds": 4.09,
+        "nominal10y": 4.16,
+        "real10y": 1.8
+      },
+      {
+        "date": "2025-10",
+        "gold": 4011.5,
+        "fedFunds": 3.86,
+        "nominal10y": 4.11,
+        "real10y": 1.81
+      },
+      {
+        "date": "2025-11",
+        "gold": 4191.05,
+        "fedFunds": 3.89,
+        "nominal10y": 4.02,
+        "real10y": 1.79
+      },
+      {
+        "date": "2025-12",
+        "gold": 4367.8,
+        "fedFunds": 3.64,
+        "nominal10y": 4.18,
+        "real10y": 1.93
+      },
+      {
+        "date": "2026-01",
+        "gold": 4981.85,
+        "fedFunds": 3.64,
+        "nominal10y": 4.26,
+        "real10y": 1.9
+      },
+      {
+        "date": "2026-02",
+        "gold": 5222.3,
+        "fedFunds": 3.64,
+        "nominal10y": 3.97,
+        "real10y": 1.72
+      },
+      {
+        "date": "2026-03",
+        "gold": 4608.35,
+        "fedFunds": 3.64,
+        "nominal10y": 4.3,
+        "real10y": 2
+      },
+      {
+        "date": "2026-04",
+        "gold": 4611.35,
+        "fedFunds": 3.64,
+        "nominal10y": 4.4,
+        "real10y": 1.94
+      },
+      {
+        "date": "2026-05",
+        "gold": 4545.95,
+        "fedFunds": 3.62,
+        "nominal10y": 4.45,
+        "real10y": 2.07
+      },
+      {
+        "date": "2026-06",
+        "gold": 4026.05,
+        "fedFunds": 3.63,
+        "nominal10y": 4.44,
+        "real10y": 2.2
+      },
+      {
+        "date": "2026-07",
+        "gold": 4026.6,
+        "fedFunds": 3.63,
+        "nominal10y": 4.75,
+        "real10y": 2.47
+      },
+      {
+        "date": "2026-08",
+        "gold": 4562.75,
+        "fedFunds": 3.63,
+        "nominal10y": 4.75,
+        "real10y": 2.44
+      },
+      {
+        "date": "2026-09",
+        "gold": 4144.55,
+        "fedFunds": 3.88,
+        "nominal10y": 5.29,
+        "real10y": 2.93
+      }
+    ],
+    "latest": {
+      "date": "2026-09",
+      "gold": 4144.55,
+      "fedFunds": 3.88,
+      "nominal10y": 5.29,
+      "real10y": 2.93
+    },
+    "annotations": [
+      {
+        "date": "2009-03",
+        "id": "1",
+        "title": "2008年Q4—2011年Q3",
+        "text": "次贷危机、欧债危机与降息/QE共同抬升避险需求，实际利率下行，黄金进入主升段。"
+      },
+      {
+        "date": "2019-08",
+        "id": "2",
+        "title": "2018年Q3—2020年Q3",
+        "text": "低利率与QE宽松交易重启，黄金在美联储正式降息前已提前启动。"
+      },
+      {
+        "date": "2022-03",
+        "id": "3",
+        "title": "2021年Q4—2022年Q4",
+        "text": "加息预期压制黄金，但能源通胀与俄乌冲突提供避险支撑，金价表现出韧性。"
+      },
+      {
+        "date": "2024-10",
+        "id": "4",
+        "title": "2024年9月下旬—11月初",
+        "text": "大选避险一度使美债收益率与黄金同涨；再通胀预期升温后黄金短暂回落。"
+      },
+      {
+        "date": "2025-03",
+        "id": "5",
+        "title": "2025年3月中旬",
+        "text": "关税与增长不确定性推升避险需求，国际金价突破3000美元关口。"
+      },
+      {
+        "date": "2003-03",
+        "id": "6",
+        "title": "2000年—2006年Q2",
+        "text": "互联网泡沫破裂、股市调整、紧急降息与伊拉克战争共同推动黄金上行。"
+      },
+      {
+        "date": "2007-09",
+        "id": "7",
+        "title": "2006年Q2—2008年Q1",
+        "text": "加息周期结束并转向降息，TIPS实际利率回落，黄金加速上行。"
+      },
+      {
+        "date": "2014-06",
+        "id": "8",
+        "title": "2012年Q1—2015年Q4",
+        "text": "经济修复与紧缩预期推高实际利率，黄金经历一轮深度回撤。"
+      },
+      {
+        "date": "2022-11",
+        "id": "9",
+        "title": "2022年Q4至今",
+        "text": "央行购金、去美元化、避险需求与降息交易叠加，黄金对美国实际利率的敏感度阶段性下降。"
+      },
+      {
+        "date": "2024-01",
+        "id": "10",
+        "title": "2022年11月 / 2024年",
+        "text": "2022年11月后，中国央行开启新一轮连续增持；2024年后，中国ETF增量资金定价权提升。"
+      }
+    ],
+    "sources": [
+      {
+        "label": "LBMA Gold Price PM",
+        "url": "https://prices.lbma.org.uk/json/gold_pm.json"
+      },
+      {
+        "label": "FRED DFF",
+        "url": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=DFF&cosd=2001-01-01"
+      },
+      {
+        "label": "FRED DGS10",
+        "url": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=DGS10&cosd=2001-01-01"
+      },
+      {
+        "label": "FRED DFII10",
+        "url": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=DFII10&cosd=2003-01-01"
+      },
+      {
+        "label": "世界黄金协会：中国黄金市场",
+        "url": "https://www.gold.org/goldhub/gold-focus/2025/01/chinas-gold-market-update-seasonal-strength-december"
+      }
+    ],
+    "note": "月末最新可得值。DFF为有效联邦基金利率，DGS10为10年期美债名义收益率，DFII10为10年期TIPS实际收益率；2024年中国黄金ETF资金变化依据世界黄金协会公开资料。"
+  },
+  "dollarIndex": {
+    "rows": [
+      {
+        "date": "2006-01",
+        "gold": 568.75,
+        "dollar": 99.43
+      },
+      {
+        "date": "2006-02",
+        "gold": 556,
+        "dollar": 99.77
+      },
+      {
+        "date": "2006-03",
+        "gold": 582,
+        "dollar": 100.56
+      },
+      {
+        "date": "2006-04",
+        "gold": 644,
+        "dollar": 98.14
+      },
+      {
+        "date": "2006-05",
+        "gold": 653,
+        "dollar": 97.77
+      },
+      {
+        "date": "2006-06",
+        "gold": 613.5,
+        "dollar": 98.25
+      },
+      {
+        "date": "2006-07",
+        "gold": 632.5,
+        "dollar": 98
+      },
+      {
+        "date": "2006-08",
+        "gold": 623.5,
+        "dollar": 97.64
+      },
+      {
+        "date": "2006-09",
+        "gold": 599.25,
+        "dollar": 98.11
+      },
+      {
+        "date": "2006-10",
+        "gold": 603.75,
+        "dollar": 97.39
+      },
+      {
+        "date": "2006-11",
+        "gold": 646.7,
+        "dollar": 96.58
+      },
+      {
+        "date": "2006-12",
+        "gold": 632,
+        "dollar": 97.03
+      },
+      {
+        "date": "2007-01",
+        "gold": 650.5,
+        "dollar": 97.96
+      },
+      {
+        "date": "2007-02",
+        "gold": 664.2,
+        "dollar": 97.24
+      },
+      {
+        "date": "2007-03",
+        "gold": 661.75,
+        "dollar": 96.32
+      },
+      {
+        "date": "2007-04",
+        "gold": 677,
+        "dollar": 94.84
+      },
+      {
+        "date": "2007-05",
+        "gold": 659.1,
+        "dollar": 94.32
+      },
+      {
+        "date": "2007-06",
+        "gold": 650.5,
+        "dollar": 94.14
+      },
+      {
+        "date": "2007-07",
+        "gold": 665.5,
+        "dollar": 93.43
+      },
+      {
+        "date": "2007-08",
+        "gold": 672,
+        "dollar": 93.67
+      },
+      {
+        "date": "2007-09",
+        "gold": 743,
+        "dollar": 90.94
+      },
+      {
+        "date": "2007-10",
+        "gold": 789.5,
+        "dollar": 89.14
+      },
+      {
+        "date": "2007-11",
+        "gold": 783.5,
+        "dollar": 89.62
+      },
+      {
+        "date": "2007-12",
+        "gold": 833.75,
+        "dollar": 89.63
+      },
+      {
+        "date": "2008-01",
+        "gold": 923.25,
+        "dollar": 88.65
+      },
+      {
+        "date": "2008-02",
+        "gold": 971.5,
+        "dollar": 87.17
+      },
+      {
+        "date": "2008-03",
+        "gold": 933.5,
+        "dollar": 86.69
+      },
+      {
+        "date": "2008-04",
+        "gold": 871,
+        "dollar": 86.89
+      },
+      {
+        "date": "2008-05",
+        "gold": 885.75,
+        "dollar": 86.55
+      },
+      {
+        "date": "2008-06",
+        "gold": 930.25,
+        "dollar": 86.76
+      },
+      {
+        "date": "2008-07",
+        "gold": 918,
+        "dollar": 86.86
+      },
+      {
+        "date": "2008-08",
+        "gold": 833,
+        "dollar": 90.06
+      },
+      {
+        "date": "2008-09",
+        "gold": 884.5,
+        "dollar": 92.38
+      },
+      {
+        "date": "2008-10",
+        "gold": 730.75,
+        "dollar": 99.77
+      },
+      {
+        "date": "2008-11",
+        "gold": 814.5,
+        "dollar": 101.65
+      },
+      {
+        "date": "2008-12",
+        "gold": 869.75,
+        "dollar": 98.65
+      },
+      {
+        "date": "2009-01",
+        "gold": 919.5,
+        "dollar": 102.12
+      },
+      {
+        "date": "2009-02",
+        "gold": 952,
+        "dollar": 104.93
+      },
+      {
+        "date": "2009-03",
+        "gold": 916.5,
+        "dollar": 102.38
+      },
+      {
+        "date": "2009-04",
+        "gold": 883.25,
+        "dollar": 100.1
+      },
+      {
+        "date": "2009-05",
+        "gold": 975.5,
+        "dollar": 95.27
+      },
+      {
+        "date": "2009-06",
+        "gold": 934.5,
+        "dollar": 96.38
+      },
+      {
+        "date": "2009-07",
+        "gold": 939,
+        "dollar": 94.25
+      },
+      {
+        "date": "2009-08",
+        "gold": 955.5,
+        "dollar": 94.62
+      },
+      {
+        "date": "2009-09",
+        "gold": 995.75,
+        "dollar": 93.19
+      },
+      {
+        "date": "2009-10",
+        "gold": 1040,
+        "dollar": 92.62
+      },
+      {
+        "date": "2009-11",
+        "gold": 1175.75,
+        "dollar": 91.37
+      },
+      {
+        "date": "2009-12",
+        "gold": 1087.5,
+        "dollar": 92.91
+      },
+      {
+        "date": "2010-01",
+        "gold": 1078.5,
+        "dollar": 93.76
+      },
+      {
+        "date": "2010-02",
+        "gold": 1108.25,
+        "dollar": 93.66
+      },
+      {
+        "date": "2010-03",
+        "gold": 1115.5,
+        "dollar": 92.9
+      },
+      {
+        "date": "2010-04",
+        "gold": 1179.25,
+        "dollar": 92.84
+      },
+      {
+        "date": "2010-05",
+        "gold": 1207.5,
+        "dollar": 96.31
+      },
+      {
+        "date": "2010-06",
+        "gold": 1244,
+        "dollar": 95.99
+      },
+      {
+        "date": "2010-07",
+        "gold": 1169,
+        "dollar": 93.28
+      },
+      {
+        "date": "2010-08",
+        "gold": 1246,
+        "dollar": 94.72
+      },
+      {
+        "date": "2010-09",
+        "gold": 1307,
+        "dollar": 91.34
+      },
+      {
+        "date": "2010-10",
+        "gold": 1346.75,
+        "dollar": 90.09
+      },
+      {
+        "date": "2010-11",
+        "gold": 1383.5,
+        "dollar": 92.15
+      },
+      {
+        "date": "2010-12",
+        "gold": 1405.5,
+        "dollar": 90.51
+      },
+      {
+        "date": "2011-01",
+        "gold": 1327,
+        "dollar": 89.69
+      },
+      {
+        "date": "2011-02",
+        "gold": 1411,
+        "dollar": 88.94
+      },
+      {
+        "date": "2011-03",
+        "gold": 1439,
+        "dollar": 88.03
+      },
+      {
+        "date": "2011-04",
+        "gold": 1535.5,
+        "dollar": 85.6
+      },
+      {
+        "date": "2011-05",
+        "gold": 1536.5,
+        "dollar": 86.66
+      },
+      {
+        "date": "2011-06",
+        "gold": 1505.5,
+        "dollar": 86.48
+      },
+      {
+        "date": "2011-07",
+        "gold": 1628.5,
+        "dollar": 85.73
+      },
+      {
+        "date": "2011-08",
+        "gold": 1813.5,
+        "dollar": 86.77
+      },
+      {
+        "date": "2011-09",
+        "gold": 1620,
+        "dollar": 92
+      },
+      {
+        "date": "2011-10",
+        "gold": 1722,
+        "dollar": 89.21
+      },
+      {
+        "date": "2011-11",
+        "gold": 1746,
+        "dollar": 91.47
+      },
+      {
+        "date": "2011-12",
+        "gold": 1531,
+        "dollar": 92.43
+      },
+      {
+        "date": "2012-01",
+        "gold": 1744,
+        "dollar": 90.55
+      },
+      {
+        "date": "2012-02",
+        "gold": 1770,
+        "dollar": 89.75
+      },
+      {
+        "date": "2012-03",
+        "gold": 1662.5,
+        "dollar": 90.46
+      },
+      {
+        "date": "2012-04",
+        "gold": 1651.25,
+        "dollar": 90.36
+      },
+      {
+        "date": "2012-05",
+        "gold": 1558,
+        "dollar": 94.69
+      },
+      {
+        "date": "2012-06",
+        "gold": 1598.5,
+        "dollar": 92.91
+      },
+      {
+        "date": "2012-07",
+        "gold": 1622,
+        "dollar": 92.84
+      },
+      {
+        "date": "2012-08",
+        "gold": 1648.5,
+        "dollar": 92.17
+      },
+      {
+        "date": "2012-09",
+        "gold": 1776,
+        "dollar": 90.83
+      },
+      {
+        "date": "2012-10",
+        "gold": 1719,
+        "dollar": 91.16
+      },
+      {
+        "date": "2012-11",
+        "gold": 1726,
+        "dollar": 91.1
+      },
+      {
+        "date": "2012-12",
+        "gold": 1657.5,
+        "dollar": 91.08
+      },
+      {
+        "date": "2013-01",
+        "gold": 1664.75,
+        "dollar": 90.8
+      },
+      {
+        "date": "2013-02",
+        "gold": 1588.5,
+        "dollar": 92.3
+      },
+      {
+        "date": "2013-03",
+        "gold": 1598.25,
+        "dollar": 92.3
+      },
+      {
+        "date": "2013-04",
+        "gold": 1469,
+        "dollar": 91.37
+      },
+      {
+        "date": "2013-05",
+        "gold": 1394.5,
+        "dollar": 93.61
+      },
+      {
+        "date": "2013-06",
+        "gold": 1192,
+        "dollar": 94.3
+      },
+      {
+        "date": "2013-07",
+        "gold": 1314.5,
+        "dollar": 93.57
+      },
+      {
+        "date": "2013-08",
+        "gold": 1394.75,
+        "dollar": 94.75
+      },
+      {
+        "date": "2013-09",
+        "gold": 1326.5,
+        "dollar": 92.92
+      },
+      {
+        "date": "2013-10",
+        "gold": 1324,
+        "dollar": 92.73
+      },
+      {
+        "date": "2013-11",
+        "gold": 1253,
+        "dollar": 93.63
+      },
+      {
+        "date": "2013-12",
+        "gold": 1204.5,
+        "dollar": 93.56
+      },
+      {
+        "date": "2014-01",
+        "gold": 1251,
+        "dollar": 95.18
+      },
+      {
+        "date": "2014-02",
+        "gold": 1326.5,
+        "dollar": 94.39
+      },
+      {
+        "date": "2014-03",
+        "gold": 1291.75,
+        "dollar": 94.24
+      },
+      {
+        "date": "2014-04",
+        "gold": 1288.5,
+        "dollar": 93.89
+      },
+      {
+        "date": "2014-05",
+        "gold": 1250.5,
+        "dollar": 93.76
+      },
+      {
+        "date": "2014-06",
+        "gold": 1315,
+        "dollar": 93.21
+      },
+      {
+        "date": "2014-07",
+        "gold": 1285.25,
+        "dollar": 94.45
+      },
+      {
+        "date": "2014-08",
+        "gold": 1285.75,
+        "dollar": 94.73
+      },
+      {
+        "date": "2014-09",
+        "gold": 1216.5,
+        "dollar": 97.53
+      },
+      {
+        "date": "2014-10",
+        "gold": 1164.25,
+        "dollar": 98.12
+      },
+      {
+        "date": "2014-11",
+        "gold": 1182.75,
+        "dollar": 100.07
+      },
+      {
+        "date": "2014-12",
+        "gold": 1206,
+        "dollar": 102.28
+      },
+      {
+        "date": "2015-01",
+        "gold": 1260.25,
+        "dollar": 105.59
+      },
+      {
+        "date": "2015-02",
+        "gold": 1214,
+        "dollar": 105.6
+      },
+      {
+        "date": "2015-03",
+        "gold": 1187,
+        "dollar": 107.44
+      },
+      {
+        "date": "2015-04",
+        "gold": 1180.25,
+        "dollar": 105.31
+      },
+      {
+        "date": "2015-05",
+        "gold": 1191.4,
+        "dollar": 106.74
+      },
+      {
+        "date": "2015-06",
+        "gold": 1171,
+        "dollar": 106.52
+      },
+      {
+        "date": "2015-07",
+        "gold": 1098.4,
+        "dollar": 108.78
+      },
+      {
+        "date": "2015-08",
+        "gold": 1135,
+        "dollar": 110.56
+      },
+      {
+        "date": "2015-09",
+        "gold": 1114,
+        "dollar": 111.33
+      },
+      {
+        "date": "2015-10",
+        "gold": 1142.35,
+        "dollar": 110.21
+      },
+      {
+        "date": "2015-11",
+        "gold": 1061.9,
+        "dollar": 112.34
+      },
+      {
+        "date": "2015-12",
+        "gold": 1060,
+        "dollar": 113.34
+      },
+      {
+        "date": "2016-01",
+        "gold": 1111.8,
+        "dollar": 115.57
+      },
+      {
+        "date": "2016-02",
+        "gold": 1234.9,
+        "dollar": 114.24
+      },
+      {
+        "date": "2016-03",
+        "gold": 1237,
+        "dollar": 109.92
+      },
+      {
+        "date": "2016-04",
+        "gold": 1285.65,
+        "dollar": 108.83
+      },
+      {
+        "date": "2016-05",
+        "gold": 1212.1,
+        "dollar": 112.43
+      },
+      {
+        "date": "2016-06",
+        "gold": 1320.75,
+        "dollar": 112.16
+      },
+      {
+        "date": "2016-07",
+        "gold": 1342,
+        "dollar": 111.87
+      },
+      {
+        "date": "2016-08",
+        "gold": 1309.25,
+        "dollar": 112.4
+      },
+      {
+        "date": "2016-09",
+        "gold": 1322.5,
+        "dollar": 112.28
+      },
+      {
+        "date": "2016-10",
+        "gold": 1272,
+        "dollar": 114.02
+      },
+      {
+        "date": "2016-11",
+        "gold": 1178.1,
+        "dollar": 117.76
+      },
+      {
+        "date": "2016-12",
+        "gold": 1145.9,
+        "dollar": 118.35
+      },
+      {
+        "date": "2017-01",
+        "gold": 1212.8,
+        "dollar": 116.22
+      },
+      {
+        "date": "2017-02",
+        "gold": 1255.6,
+        "dollar": 116
+      },
+      {
+        "date": "2017-03",
+        "gold": 1244.85,
+        "dollar": 114.79
+      },
+      {
+        "date": "2017-04",
+        "gold": 1266.45,
+        "dollar": 114.79
+      },
+      {
+        "date": "2017-05",
+        "gold": 1266.2,
+        "dollar": 113.3
+      },
+      {
+        "date": "2017-06",
+        "gold": 1242.25,
+        "dollar": 111.99
+      },
+      {
+        "date": "2017-07",
+        "gold": 1267.55,
+        "dollar": 109.82
+      },
+      {
+        "date": "2017-08",
+        "gold": 1311.75,
+        "dollar": 109.37
+      },
+      {
+        "date": "2017-09",
+        "gold": 1283.1,
+        "dollar": 110.09
+      },
+      {
+        "date": "2017-10",
+        "gold": 1270.15,
+        "dollar": 111.81
+      },
+      {
+        "date": "2017-11",
+        "gold": 1280.2,
+        "dollar": 110.46
+      },
+      {
+        "date": "2017-12",
+        "gold": 1291,
+        "dollar": 110.08
+      },
+      {
+        "date": "2018-01",
+        "gold": 1345.05,
+        "dollar": 106.77
+      },
+      {
+        "date": "2018-02",
+        "gold": 1317.85,
+        "dollar": 108.39
+      },
+      {
+        "date": "2018-03",
+        "gold": 1323.85,
+        "dollar": 107.48
+      },
+      {
+        "date": "2018-04",
+        "gold": 1313.2,
+        "dollar": 109.34
+      },
+      {
+        "date": "2018-05",
+        "gold": 1305.35,
+        "dollar": 111.99
+      },
+      {
+        "date": "2018-06",
+        "gold": 1250.45,
+        "dollar": 113.26
+      },
+      {
+        "date": "2018-07",
+        "gold": 1220.95,
+        "dollar": 112.73
+      },
+      {
+        "date": "2018-08",
+        "gold": 1202.45,
+        "dollar": 114.28
+      },
+      {
+        "date": "2018-09",
+        "gold": 1187.25,
+        "dollar": 113.81
+      },
+      {
+        "date": "2018-10",
+        "gold": 1214.95,
+        "dollar": 116.53
+      },
+      {
+        "date": "2018-11",
+        "gold": 1217.55,
+        "dollar": 116.41
+      },
+      {
+        "date": "2018-12",
+        "gold": 1279,
+        "dollar": 115.57
+      },
+      {
+        "date": "2019-01",
+        "gold": 1323.25,
+        "dollar": 113.55
+      },
+      {
+        "date": "2019-02",
+        "gold": 1319.15,
+        "dollar": 114.2
+      },
+      {
+        "date": "2019-03",
+        "gold": 1295.4,
+        "dollar": 115.14
+      },
+      {
+        "date": "2019-04",
+        "gold": 1282.3,
+        "dollar": 115.33
+      },
+      {
+        "date": "2019-05",
+        "gold": 1295.55,
+        "dollar": 116.73
+      },
+      {
+        "date": "2019-06",
+        "gold": 1409,
+        "dollar": 114.58
+      },
+      {
+        "date": "2019-07",
+        "gold": 1427.55,
+        "dollar": 115.49
+      },
+      {
+        "date": "2019-08",
+        "gold": 1528.4,
+        "dollar": 118.16
+      },
+      {
+        "date": "2019-09",
+        "gold": 1485.3,
+        "dollar": 117.95
+      },
+      {
+        "date": "2019-10",
+        "gold": 1510.95,
+        "dollar": 115.91
+      },
+      {
+        "date": "2019-11",
+        "gold": 1460.15,
+        "dollar": 117.12
+      },
+      {
+        "date": "2019-12",
+        "gold": 1514.75,
+        "dollar": 114.67
+      },
+      {
+        "date": "2020-01",
+        "gold": 1584.2,
+        "dollar": 115.73
+      },
+      {
+        "date": "2020-02",
+        "gold": 1609.85,
+        "dollar": 117.66
+      },
+      {
+        "date": "2020-03",
+        "gold": 1608.95,
+        "dollar": 122.53
+      },
+      {
+        "date": "2020-04",
+        "gold": 1702.75,
+        "dollar": 122.33
+      },
+      {
+        "date": "2020-05",
+        "gold": 1728.7,
+        "dollar": 120.95
+      },
+      {
+        "date": "2020-06",
+        "gold": 1768.1,
+        "dollar": 120.46
+      },
+      {
+        "date": "2020-07",
+        "gold": 1964.9,
+        "dollar": 117.21
+      },
+      {
+        "date": "2020-08",
+        "gold": 1957.35,
+        "dollar": 115.76
+      },
+      {
+        "date": "2020-09",
+        "gold": 1886.9,
+        "dollar": 116.95
+      },
+      {
+        "date": "2020-10",
+        "gold": 1881.85,
+        "dollar": 116.14
+      },
+      {
+        "date": "2020-11",
+        "gold": 1762.55,
+        "dollar": 113.23
+      },
+      {
+        "date": "2020-12",
+        "gold": 1887.6,
+        "dollar": 111.32
+      },
+      {
+        "date": "2021-01",
+        "gold": 1863.8,
+        "dollar": 111.95
+      },
+      {
+        "date": "2021-02",
+        "gold": 1742.85,
+        "dollar": 112.83
+      },
+      {
+        "date": "2021-03",
+        "gold": 1691.05,
+        "dollar": 113.82
+      },
+      {
+        "date": "2021-04",
+        "gold": 1767.65,
+        "dollar": 112.08
+      },
+      {
+        "date": "2021-05",
+        "gold": 1899.95,
+        "dollar": 110.76
+      },
+      {
+        "date": "2021-06",
+        "gold": 1763.15,
+        "dollar": 112.55
+      },
+      {
+        "date": "2021-07",
+        "gold": 1825.75,
+        "dollar": 112.67
+      },
+      {
+        "date": "2021-08",
+        "gold": 1814.85,
+        "dollar": 113.11
+      },
+      {
+        "date": "2021-09",
+        "gold": 1742.8,
+        "dollar": 114.64
+      },
+      {
+        "date": "2021-10",
+        "gold": 1769.15,
+        "dollar": 114.13
+      },
+      {
+        "date": "2021-11",
+        "gold": 1804.4,
+        "dollar": 116.21
+      },
+      {
+        "date": "2021-12",
+        "gold": 1805.85,
+        "dollar": 115.28
+      },
+      {
+        "date": "2022-01",
+        "gold": 1795.25,
+        "dollar": 115.57
+      },
+      {
+        "date": "2022-02",
+        "gold": 1909.85,
+        "dollar": 115.22
+      },
+      {
+        "date": "2022-03",
+        "gold": 1942.15,
+        "dollar": 115.22
+      },
+      {
+        "date": "2022-04",
+        "gold": 1911.3,
+        "dollar": 119.49
+      },
+      {
+        "date": "2022-05",
+        "gold": 1838.7,
+        "dollar": 118.07
+      },
+      {
+        "date": "2022-06",
+        "gold": 1817,
+        "dollar": 120.97
+      },
+      {
+        "date": "2022-07",
+        "gold": 1753.4,
+        "dollar": 121.77
+      },
+      {
+        "date": "2022-08",
+        "gold": 1715.9,
+        "dollar": 123.53
+      },
+      {
+        "date": "2022-09",
+        "gold": 1671.75,
+        "dollar": 127.51
+      },
+      {
+        "date": "2022-10",
+        "gold": 1639,
+        "dollar": 127.62
+      },
+      {
+        "date": "2022-11",
+        "gold": 1753.5,
+        "dollar": 123.52
+      },
+      {
+        "date": "2022-12",
+        "gold": 1813.75,
+        "dollar": 121.43
+      },
+      {
+        "date": "2023-01",
+        "gold": 1923.9,
+        "dollar": 118.98
+      },
+      {
+        "date": "2023-02",
+        "gold": 1824.6,
+        "dollar": 121.33
+      },
+      {
+        "date": "2023-03",
+        "gold": 1979.7,
+        "dollar": 119.36
+      },
+      {
+        "date": "2023-04",
+        "gold": 1982.55,
+        "dollar": 119.22
+      },
+      {
+        "date": "2023-05",
+        "gold": 1964.4,
+        "dollar": 120.97
+      },
+      {
+        "date": "2023-06",
+        "gold": 1912.25,
+        "dollar": 119.36
+      },
+      {
+        "date": "2023-07",
+        "gold": 1970.65,
+        "dollar": 117.82
+      },
+      {
+        "date": "2023-08",
+        "gold": 1942.3,
+        "dollar": 120.22
+      },
+      {
+        "date": "2023-09",
+        "gold": 1870.5,
+        "dollar": 122.31
+      },
+      {
+        "date": "2023-10",
+        "gold": 1996.9,
+        "dollar": 123.84
+      },
+      {
+        "date": "2023-11",
+        "gold": 2035.45,
+        "dollar": 120.24
+      },
+      {
+        "date": "2023-12",
+        "gold": 2078.4,
+        "dollar": 118.42
+      },
+      {
+        "date": "2024-01",
+        "gold": 2053.25,
+        "dollar": 120.43
+      },
+      {
+        "date": "2024-02",
+        "gold": 2048.05,
+        "dollar": 121.18
+      },
+      {
+        "date": "2024-03",
+        "gold": 2214.35,
+        "dollar": 121.02
+      },
+      {
+        "date": "2024-04",
+        "gold": 2307,
+        "dollar": 122.99
+      },
+      {
+        "date": "2024-05",
+        "gold": 2348.25,
+        "dollar": 122.1
+      },
+      {
+        "date": "2024-06",
+        "gold": 2330.9,
+        "dollar": 124.21
+      },
+      {
+        "date": "2024-07",
+        "gold": 2426.3,
+        "dollar": 123.64
+      },
+      {
+        "date": "2024-08",
+        "gold": 2513.35,
+        "dollar": 122.33
+      },
+      {
+        "date": "2024-09",
+        "gold": 2629.95,
+        "dollar": 121.29
+      },
+      {
+        "date": "2024-10",
+        "gold": 2734.15,
+        "dollar": 124.8
+      },
+      {
+        "date": "2024-11",
+        "gold": 2651.05,
+        "dollar": 126.58
+      },
+      {
+        "date": "2024-12",
+        "gold": 2609.1,
+        "dollar": 129.28
+      },
+      {
+        "date": "2025-01",
+        "gold": 2812.05,
+        "dollar": 128.48
+      },
+      {
+        "date": "2025-02",
+        "gold": 2834.55,
+        "dollar": 128.28
+      },
+      {
+        "date": "2025-03",
+        "gold": 3115.1,
+        "dollar": 126.71
+      },
+      {
+        "date": "2025-04",
+        "gold": 3302.05,
+        "dollar": 122.59
+      },
+      {
+        "date": "2025-05",
+        "gold": 3277.55,
+        "dollar": 121.77
+      },
+      {
+        "date": "2025-06",
+        "gold": 3287.45,
+        "dollar": 119.41
+      },
+      {
+        "date": "2025-07",
+        "gold": 3298.85,
+        "dollar": 121.72
+      },
+      {
+        "date": "2025-08",
+        "gold": 3429.15,
+        "dollar": 120.21
+      },
+      {
+        "date": "2025-09",
+        "gold": 3825.3,
+        "dollar": 120.14
+      },
+      {
+        "date": "2025-10",
+        "gold": 4011.5,
+        "dollar": 121.39
+      },
+      {
+        "date": "2025-11",
+        "gold": 4191.05,
+        "dollar": 121.05
+      },
+      {
+        "date": "2025-12",
+        "gold": 4367.8,
+        "dollar": 119.75
+      },
+      {
+        "date": "2026-01",
+        "gold": 4981.85,
+        "dollar": 117.9
+      },
+      {
+        "date": "2026-02",
+        "gold": 5222.3,
+        "dollar": 117.82
+      },
+      {
+        "date": "2026-03",
+        "gold": 4608.35,
+        "dollar": 121.03
+      },
+      {
+        "date": "2026-04",
+        "gold": 4611.35,
+        "dollar": 118.67
+      },
+      {
+        "date": "2026-05",
+        "gold": 4545.95,
+        "dollar": 118.88
+      },
+      {
+        "date": "2026-06",
+        "gold": 4026.05,
+        "dollar": 120.92
+      },
+      {
+        "date": "2026-07",
+        "gold": 4026.6,
+        "dollar": 119.7
+      },
+      {
+        "date": "2026-08",
+        "gold": 4562.75,
+        "dollar": 118.57
+      },
+      {
+        "date": "2026-09",
+        "gold": 4144.55,
+        "dollar": 120.97
+      }
+    ],
+    "latest": {
+      "date": "2026-09",
+      "gold": 4144.55,
+      "dollar": 120.97
+    },
+    "sources": [
+      {
+        "label": "LBMA Gold Price PM",
+        "url": "https://prices.lbma.org.uk/json/gold_pm.json"
+      },
+      {
+        "label": "FRED DTWEXBGS",
+        "url": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=DTWEXBGS&cosd=2006-01-01"
+      }
+    ],
+    "note": "月末最新可得值。美元曲线采用美联储广义美元指数DTWEXBGS（2020年1月=100），口径覆盖主要贸易伙伴，比单一期货合约更适合长期比较。"
+  },
+  "vix": {
+    "rows": [
+      {
+        "date": "2001-01",
+        "gold": 264.5,
+        "vix": 22.02
+      },
+      {
+        "date": "2001-02",
+        "gold": 266.7,
+        "vix": 28.35
+      },
+      {
+        "date": "2001-03",
+        "gold": 257.7,
+        "vix": 28.64
+      },
+      {
+        "date": "2001-04",
+        "gold": 263.15,
+        "vix": 25.48
+      },
+      {
+        "date": "2001-05",
+        "gold": 267.5,
+        "vix": 22.64
+      },
+      {
+        "date": "2001-06",
+        "gold": 270.6,
+        "vix": 19.06
+      },
+      {
+        "date": "2001-07",
+        "gold": 265.9,
+        "vix": 21.62
+      },
+      {
+        "date": "2001-08",
+        "gold": 273,
+        "vix": 24.92
+      },
+      {
+        "date": "2001-09",
+        "gold": 293.1,
+        "vix": 31.93
+      },
+      {
+        "date": "2001-10",
+        "gold": 278.75,
+        "vix": 33.56
+      },
+      {
+        "date": "2001-11",
+        "gold": 275.5,
+        "vix": 23.84
+      },
+      {
+        "date": "2001-12",
+        "gold": 276.5,
+        "vix": 23.8
+      },
+      {
+        "date": "2002-01",
+        "gold": 282.3,
+        "vix": 21.09
+      },
+      {
+        "date": "2002-02",
+        "gold": 296.85,
+        "vix": 21.59
+      },
+      {
+        "date": "2002-03",
+        "gold": 301.4,
+        "vix": 17.4
+      },
+      {
+        "date": "2002-04",
+        "gold": 308.2,
+        "vix": 21.91
+      },
+      {
+        "date": "2002-05",
+        "gold": 326.6,
+        "vix": 19.98
+      },
+      {
+        "date": "2002-06",
+        "gold": 318.5,
+        "vix": 25.4
+      },
+      {
+        "date": "2002-07",
+        "gold": 304.65,
+        "vix": 32.03
+      },
+      {
+        "date": "2002-08",
+        "gold": 312.8,
+        "vix": 32.64
+      },
+      {
+        "date": "2002-09",
+        "gold": 323.7,
+        "vix": 39.69
+      },
+      {
+        "date": "2002-10",
+        "gold": 316.9,
+        "vix": 31.14
+      },
+      {
+        "date": "2002-11",
+        "gold": 319.05,
+        "vix": 27.5
+      },
+      {
+        "date": "2002-12",
+        "gold": 347.2,
+        "vix": 28.62
+      },
+      {
+        "date": "2003-01",
+        "gold": 367.5,
+        "vix": 31.17
+      },
+      {
+        "date": "2003-02",
+        "gold": 347.45,
+        "vix": 29.63
+      },
+      {
+        "date": "2003-03",
+        "gold": 334.85,
+        "vix": 29.15
+      },
+      {
+        "date": "2003-04",
+        "gold": 336.75,
+        "vix": 21.21
+      },
+      {
+        "date": "2003-05",
+        "gold": 361.4,
+        "vix": 19.47
+      },
+      {
+        "date": "2003-06",
+        "gold": 346,
+        "vix": 19.52
+      },
+      {
+        "date": "2003-07",
+        "gold": 354.75,
+        "vix": 19.49
+      },
+      {
+        "date": "2003-08",
+        "gold": 375.6,
+        "vix": 18.63
+      },
+      {
+        "date": "2003-09",
+        "gold": 388,
+        "vix": 22.72
+      },
+      {
+        "date": "2003-10",
+        "gold": 386.25,
+        "vix": 16.1
+      },
+      {
+        "date": "2003-11",
+        "gold": 398.35,
+        "vix": 16.32
+      },
+      {
+        "date": "2003-12",
+        "gold": 416.25,
+        "vix": 18.31
+      },
+      {
+        "date": "2004-01",
+        "gold": 399.75,
+        "vix": 16.63
+      },
+      {
+        "date": "2004-02",
+        "gold": 395.85,
+        "vix": 14.55
+      },
+      {
+        "date": "2004-03",
+        "gold": 423.7,
+        "vix": 16.74
+      },
+      {
+        "date": "2004-04",
+        "gold": 388.5,
+        "vix": 17.19
+      },
+      {
+        "date": "2004-05",
+        "gold": 393.25,
+        "vix": 15.5
+      },
+      {
+        "date": "2004-06",
+        "gold": 395.8,
+        "vix": 14.34
+      },
+      {
+        "date": "2004-07",
+        "gold": 391.4,
+        "vix": 15.32
+      },
+      {
+        "date": "2004-08",
+        "gold": 407.25,
+        "vix": 15.29
+      },
+      {
+        "date": "2004-09",
+        "gold": 415.65,
+        "vix": 13.34
+      },
+      {
+        "date": "2004-10",
+        "gold": 425.55,
+        "vix": 16.27
+      },
+      {
+        "date": "2004-11",
+        "gold": 453.4,
+        "vix": 13.24
+      },
+      {
+        "date": "2004-12",
+        "gold": 435.6,
+        "vix": 13.29
+      },
+      {
+        "date": "2005-01",
+        "gold": 422.15,
+        "vix": 12.82
+      },
+      {
+        "date": "2005-02",
+        "gold": 435.45,
+        "vix": 12.08
+      },
+      {
+        "date": "2005-03",
+        "gold": 427.5,
+        "vix": 14.02
+      },
+      {
+        "date": "2005-04",
+        "gold": 435.7,
+        "vix": 15.31
+      },
+      {
+        "date": "2005-05",
+        "gold": 414.45,
+        "vix": 13.29
+      },
+      {
+        "date": "2005-06",
+        "gold": 437.1,
+        "vix": 12.04
+      },
+      {
+        "date": "2005-07",
+        "gold": 429,
+        "vix": 11.57
+      },
+      {
+        "date": "2005-08",
+        "gold": 433.25,
+        "vix": 12.6
+      },
+      {
+        "date": "2005-09",
+        "gold": 473.25,
+        "vix": 11.92
+      },
+      {
+        "date": "2005-10",
+        "gold": 470.75,
+        "vix": 15.32
+      },
+      {
+        "date": "2005-11",
+        "gold": 495.65,
+        "vix": 12.06
+      },
+      {
+        "date": "2005-12",
+        "gold": 513,
+        "vix": 12.07
+      },
+      {
+        "date": "2006-01",
+        "gold": 568.75,
+        "vix": 12.95
+      },
+      {
+        "date": "2006-02",
+        "gold": 556,
+        "vix": 12.34
+      },
+      {
+        "date": "2006-03",
+        "gold": 582,
+        "vix": 11.39
+      },
+      {
+        "date": "2006-04",
+        "gold": 644,
+        "vix": 11.59
+      },
+      {
+        "date": "2006-05",
+        "gold": 653,
+        "vix": 16.44
+      },
+      {
+        "date": "2006-06",
+        "gold": 613.5,
+        "vix": 13.08
+      },
+      {
+        "date": "2006-07",
+        "gold": 632.5,
+        "vix": 14.95
+      },
+      {
+        "date": "2006-08",
+        "gold": 623.5,
+        "vix": 12.31
+      },
+      {
+        "date": "2006-09",
+        "gold": 599.25,
+        "vix": 11.98
+      },
+      {
+        "date": "2006-10",
+        "gold": 603.75,
+        "vix": 11.1
+      },
+      {
+        "date": "2006-11",
+        "gold": 646.7,
+        "vix": 10.91
+      },
+      {
+        "date": "2006-12",
+        "gold": 632,
+        "vix": 11.56
+      },
+      {
+        "date": "2007-01",
+        "gold": 650.5,
+        "vix": 10.42
+      },
+      {
+        "date": "2007-02",
+        "gold": 664.2,
+        "vix": 15.42
+      },
+      {
+        "date": "2007-03",
+        "gold": 661.75,
+        "vix": 14.64
+      },
+      {
+        "date": "2007-04",
+        "gold": 677,
+        "vix": 14.22
+      },
+      {
+        "date": "2007-05",
+        "gold": 659.1,
+        "vix": 13.05
+      },
+      {
+        "date": "2007-06",
+        "gold": 650.5,
+        "vix": 16.23
+      },
+      {
+        "date": "2007-07",
+        "gold": 665.5,
+        "vix": 23.52
+      },
+      {
+        "date": "2007-08",
+        "gold": 672,
+        "vix": 23.38
+      },
+      {
+        "date": "2007-09",
+        "gold": 743,
+        "vix": 18
+      },
+      {
+        "date": "2007-10",
+        "gold": 789.5,
+        "vix": 18.53
+      },
+      {
+        "date": "2007-11",
+        "gold": 783.5,
+        "vix": 22.87
+      },
+      {
+        "date": "2007-12",
+        "gold": 833.75,
+        "vix": 22.5
+      },
+      {
+        "date": "2008-01",
+        "gold": 923.25,
+        "vix": 26.2
+      },
+      {
+        "date": "2008-02",
+        "gold": 971.5,
+        "vix": 26.54
+      },
+      {
+        "date": "2008-03",
+        "gold": 933.5,
+        "vix": 25.61
+      },
+      {
+        "date": "2008-04",
+        "gold": 871,
+        "vix": 20.79
+      },
+      {
+        "date": "2008-05",
+        "gold": 885.75,
+        "vix": 17.83
+      },
+      {
+        "date": "2008-06",
+        "gold": 930.25,
+        "vix": 23.95
+      },
+      {
+        "date": "2008-07",
+        "gold": 918,
+        "vix": 22.94
+      },
+      {
+        "date": "2008-08",
+        "gold": 833,
+        "vix": 20.65
+      },
+      {
+        "date": "2008-09",
+        "gold": 884.5,
+        "vix": 39.39
+      },
+      {
+        "date": "2008-10",
+        "gold": 730.75,
+        "vix": 59.89
+      },
+      {
+        "date": "2008-11",
+        "gold": 814.5,
+        "vix": 55.84
+      },
+      {
+        "date": "2008-12",
+        "gold": 869.75,
+        "vix": 40
+      },
+      {
+        "date": "2009-01",
+        "gold": 919.5,
+        "vix": 44.84
+      },
+      {
+        "date": "2009-02",
+        "gold": 952,
+        "vix": 46.35
+      },
+      {
+        "date": "2009-03",
+        "gold": 916.5,
+        "vix": 44.14
+      },
+      {
+        "date": "2009-04",
+        "gold": 883.25,
+        "vix": 36.5
+      },
+      {
+        "date": "2009-05",
+        "gold": 975.5,
+        "vix": 28.92
+      },
+      {
+        "date": "2009-06",
+        "gold": 934.5,
+        "vix": 26.35
+      },
+      {
+        "date": "2009-07",
+        "gold": 939,
+        "vix": 25.92
+      },
+      {
+        "date": "2009-08",
+        "gold": 955.5,
+        "vix": 26.01
+      },
+      {
+        "date": "2009-09",
+        "gold": 995.75,
+        "vix": 25.61
+      },
+      {
+        "date": "2009-10",
+        "gold": 1040,
+        "vix": 30.69
+      },
+      {
+        "date": "2009-11",
+        "gold": 1175.75,
+        "vix": 24.51
+      },
+      {
+        "date": "2009-12",
+        "gold": 1087.5,
+        "vix": 21.68
+      },
+      {
+        "date": "2010-01",
+        "gold": 1078.5,
+        "vix": 24.62
+      },
+      {
+        "date": "2010-02",
+        "gold": 1108.25,
+        "vix": 19.5
+      },
+      {
+        "date": "2010-03",
+        "gold": 1115.5,
+        "vix": 17.59
+      },
+      {
+        "date": "2010-04",
+        "gold": 1179.25,
+        "vix": 22.05
+      },
+      {
+        "date": "2010-05",
+        "gold": 1207.5,
+        "vix": 32.07
+      },
+      {
+        "date": "2010-06",
+        "gold": 1244,
+        "vix": 34.54
+      },
+      {
+        "date": "2010-07",
+        "gold": 1169,
+        "vix": 23.5
+      },
+      {
+        "date": "2010-08",
+        "gold": 1246,
+        "vix": 26.05
+      },
+      {
+        "date": "2010-09",
+        "gold": 1307,
+        "vix": 23.7
+      },
+      {
+        "date": "2010-10",
+        "gold": 1346.75,
+        "vix": 21.2
+      },
+      {
+        "date": "2010-11",
+        "gold": 1383.5,
+        "vix": 23.54
+      },
+      {
+        "date": "2010-12",
+        "gold": 1405.5,
+        "vix": 17.75
+      },
+      {
+        "date": "2011-01",
+        "gold": 1327,
+        "vix": 19.53
+      },
+      {
+        "date": "2011-02",
+        "gold": 1411,
+        "vix": 18.35
+      },
+      {
+        "date": "2011-03",
+        "gold": 1439,
+        "vix": 17.74
+      },
+      {
+        "date": "2011-04",
+        "gold": 1535.5,
+        "vix": 14.75
+      },
+      {
+        "date": "2011-05",
+        "gold": 1536.5,
+        "vix": 15.45
+      },
+      {
+        "date": "2011-06",
+        "gold": 1505.5,
+        "vix": 16.52
+      },
+      {
+        "date": "2011-07",
+        "gold": 1628.5,
+        "vix": 25.25
+      },
+      {
+        "date": "2011-08",
+        "gold": 1813.5,
+        "vix": 31.62
+      },
+      {
+        "date": "2011-09",
+        "gold": 1620,
+        "vix": 42.96
+      },
+      {
+        "date": "2011-10",
+        "gold": 1722,
+        "vix": 29.96
+      },
+      {
+        "date": "2011-11",
+        "gold": 1746,
+        "vix": 27.8
+      },
+      {
+        "date": "2011-12",
+        "gold": 1531,
+        "vix": 23.4
+      },
+      {
+        "date": "2012-01",
+        "gold": 1744,
+        "vix": 19.44
+      },
+      {
+        "date": "2012-02",
+        "gold": 1770,
+        "vix": 18.43
+      },
+      {
+        "date": "2012-03",
+        "gold": 1662.5,
+        "vix": 15.5
+      },
+      {
+        "date": "2012-04",
+        "gold": 1651.25,
+        "vix": 17.15
+      },
+      {
+        "date": "2012-05",
+        "gold": 1558,
+        "vix": 24.06
+      },
+      {
+        "date": "2012-06",
+        "gold": 1598.5,
+        "vix": 17.08
+      },
+      {
+        "date": "2012-07",
+        "gold": 1622,
+        "vix": 18.93
+      },
+      {
+        "date": "2012-08",
+        "gold": 1648.5,
+        "vix": 17.47
+      },
+      {
+        "date": "2012-09",
+        "gold": 1776,
+        "vix": 15.73
+      },
+      {
+        "date": "2012-10",
+        "gold": 1719,
+        "vix": 18.6
+      },
+      {
+        "date": "2012-11",
+        "gold": 1726,
+        "vix": 15.87
+      },
+      {
+        "date": "2012-12",
+        "gold": 1657.5,
+        "vix": 18.02
+      },
+      {
+        "date": "2013-01",
+        "gold": 1664.75,
+        "vix": 14.28
+      },
+      {
+        "date": "2013-02",
+        "gold": 1588.5,
+        "vix": 15.51
+      },
+      {
+        "date": "2013-03",
+        "gold": 1598.25,
+        "vix": 12.7
+      },
+      {
+        "date": "2013-04",
+        "gold": 1469,
+        "vix": 13.52
+      },
+      {
+        "date": "2013-05",
+        "gold": 1394.5,
+        "vix": 16.3
+      },
+      {
+        "date": "2013-06",
+        "gold": 1192,
+        "vix": 16.86
+      },
+      {
+        "date": "2013-07",
+        "gold": 1314.5,
+        "vix": 13.45
+      },
+      {
+        "date": "2013-08",
+        "gold": 1394.75,
+        "vix": 17.01
+      },
+      {
+        "date": "2013-09",
+        "gold": 1326.5,
+        "vix": 16.6
+      },
+      {
+        "date": "2013-10",
+        "gold": 1324,
+        "vix": 13.75
+      },
+      {
+        "date": "2013-11",
+        "gold": 1253,
+        "vix": 13.7
+      },
+      {
+        "date": "2013-12",
+        "gold": 1204.5,
+        "vix": 13.72
+      },
+      {
+        "date": "2014-01",
+        "gold": 1251,
+        "vix": 18.41
+      },
+      {
+        "date": "2014-02",
+        "gold": 1326.5,
+        "vix": 14
+      },
+      {
+        "date": "2014-03",
+        "gold": 1291.75,
+        "vix": 13.88
+      },
+      {
+        "date": "2014-04",
+        "gold": 1288.5,
+        "vix": 13.41
+      },
+      {
+        "date": "2014-05",
+        "gold": 1250.5,
+        "vix": 11.4
+      },
+      {
+        "date": "2014-06",
+        "gold": 1315,
+        "vix": 11.57
+      },
+      {
+        "date": "2014-07",
+        "gold": 1285.25,
+        "vix": 16.95
+      },
+      {
+        "date": "2014-08",
+        "gold": 1285.75,
+        "vix": 11.98
+      },
+      {
+        "date": "2014-09",
+        "gold": 1216.5,
+        "vix": 16.31
+      },
+      {
+        "date": "2014-10",
+        "gold": 1164.25,
+        "vix": 14.03
+      },
+      {
+        "date": "2014-11",
+        "gold": 1182.75,
+        "vix": 13.33
+      },
+      {
+        "date": "2014-12",
+        "gold": 1206,
+        "vix": 19.2
+      },
+      {
+        "date": "2015-01",
+        "gold": 1260.25,
+        "vix": 20.97
+      },
+      {
+        "date": "2015-02",
+        "gold": 1214,
+        "vix": 13.34
+      },
+      {
+        "date": "2015-03",
+        "gold": 1187,
+        "vix": 15.29
+      },
+      {
+        "date": "2015-04",
+        "gold": 1180.25,
+        "vix": 14.55
+      },
+      {
+        "date": "2015-05",
+        "gold": 1191.4,
+        "vix": 13.84
+      },
+      {
+        "date": "2015-06",
+        "gold": 1171,
+        "vix": 18.23
+      },
+      {
+        "date": "2015-07",
+        "gold": 1098.4,
+        "vix": 12.12
+      },
+      {
+        "date": "2015-08",
+        "gold": 1135,
+        "vix": 28.43
+      },
+      {
+        "date": "2015-09",
+        "gold": 1114,
+        "vix": 24.5
+      },
+      {
+        "date": "2015-10",
+        "gold": 1142.35,
+        "vix": 15.07
+      },
+      {
+        "date": "2015-11",
+        "gold": 1061.9,
+        "vix": 16.13
+      },
+      {
+        "date": "2015-12",
+        "gold": 1060,
+        "vix": 18.21
+      },
+      {
+        "date": "2016-01",
+        "gold": 1111.8,
+        "vix": 20.2
+      },
+      {
+        "date": "2016-02",
+        "gold": 1234.9,
+        "vix": 20.55
+      },
+      {
+        "date": "2016-03",
+        "gold": 1237,
+        "vix": 13.95
+      },
+      {
+        "date": "2016-04",
+        "gold": 1285.65,
+        "vix": 15.7
+      },
+      {
+        "date": "2016-05",
+        "gold": 1212.1,
+        "vix": 14.19
+      },
+      {
+        "date": "2016-06",
+        "gold": 1320.75,
+        "vix": 15.63
+      },
+      {
+        "date": "2016-07",
+        "gold": 1342,
+        "vix": 11.87
+      },
+      {
+        "date": "2016-08",
+        "gold": 1309.25,
+        "vix": 13.42
+      },
+      {
+        "date": "2016-09",
+        "gold": 1322.5,
+        "vix": 13.29
+      },
+      {
+        "date": "2016-10",
+        "gold": 1272,
+        "vix": 17.06
+      },
+      {
+        "date": "2016-11",
+        "gold": 1178.1,
+        "vix": 13.33
+      },
+      {
+        "date": "2016-12",
+        "gold": 1145.9,
+        "vix": 14.04
+      },
+      {
+        "date": "2017-01",
+        "gold": 1212.8,
+        "vix": 11.99
+      },
+      {
+        "date": "2017-02",
+        "gold": 1255.6,
+        "vix": 12.92
+      },
+      {
+        "date": "2017-03",
+        "gold": 1244.85,
+        "vix": 12.37
+      },
+      {
+        "date": "2017-04",
+        "gold": 1266.45,
+        "vix": 10.82
+      },
+      {
+        "date": "2017-05",
+        "gold": 1266.2,
+        "vix": 10.41
+      },
+      {
+        "date": "2017-06",
+        "gold": 1242.25,
+        "vix": 11.18
+      },
+      {
+        "date": "2017-07",
+        "gold": 1267.55,
+        "vix": 10.26
+      },
+      {
+        "date": "2017-08",
+        "gold": 1311.75,
+        "vix": 10.59
+      },
+      {
+        "date": "2017-09",
+        "gold": 1283.1,
+        "vix": 9.51
+      },
+      {
+        "date": "2017-10",
+        "gold": 1270.15,
+        "vix": 10.18
+      },
+      {
+        "date": "2017-11",
+        "gold": 1280.2,
+        "vix": 11.28
+      },
+      {
+        "date": "2017-12",
+        "gold": 1291,
+        "vix": 11.04
+      },
+      {
+        "date": "2018-01",
+        "gold": 1345.05,
+        "vix": 13.54
+      },
+      {
+        "date": "2018-02",
+        "gold": 1317.85,
+        "vix": 19.85
+      },
+      {
+        "date": "2018-03",
+        "gold": 1323.85,
+        "vix": 19.97
+      },
+      {
+        "date": "2018-04",
+        "gold": 1313.2,
+        "vix": 15.93
+      },
+      {
+        "date": "2018-05",
+        "gold": 1305.35,
+        "vix": 15.43
+      },
+      {
+        "date": "2018-06",
+        "gold": 1250.45,
+        "vix": 16.09
+      },
+      {
+        "date": "2018-07",
+        "gold": 1220.95,
+        "vix": 12.83
+      },
+      {
+        "date": "2018-08",
+        "gold": 1202.45,
+        "vix": 12.86
+      },
+      {
+        "date": "2018-09",
+        "gold": 1187.25,
+        "vix": 12.12
+      },
+      {
+        "date": "2018-10",
+        "gold": 1214.95,
+        "vix": 21.23
+      },
+      {
+        "date": "2018-11",
+        "gold": 1217.55,
+        "vix": 18.07
+      },
+      {
+        "date": "2018-12",
+        "gold": 1279,
+        "vix": 25.42
+      },
+      {
+        "date": "2019-01",
+        "gold": 1323.25,
+        "vix": 16.57
+      },
+      {
+        "date": "2019-02",
+        "gold": 1319.15,
+        "vix": 14.78
+      },
+      {
+        "date": "2019-03",
+        "gold": 1295.4,
+        "vix": 13.71
+      },
+      {
+        "date": "2019-04",
+        "gold": 1282.3,
+        "vix": 13.12
+      },
+      {
+        "date": "2019-05",
+        "gold": 1295.55,
+        "vix": 18.71
+      },
+      {
+        "date": "2019-06",
+        "gold": 1409,
+        "vix": 15.08
+      },
+      {
+        "date": "2019-07",
+        "gold": 1427.55,
+        "vix": 16.12
+      },
+      {
+        "date": "2019-08",
+        "gold": 1528.4,
+        "vix": 18.98
+      },
+      {
+        "date": "2019-09",
+        "gold": 1485.3,
+        "vix": 16.24
+      },
+      {
+        "date": "2019-10",
+        "gold": 1510.95,
+        "vix": 13.22
+      },
+      {
+        "date": "2019-11",
+        "gold": 1460.15,
+        "vix": 12.62
+      },
+      {
+        "date": "2019-12",
+        "gold": 1514.75,
+        "vix": 13.78
+      },
+      {
+        "date": "2020-01",
+        "gold": 1584.2,
+        "vix": 18.84
+      },
+      {
+        "date": "2020-02",
+        "gold": 1609.85,
+        "vix": 40.11
+      },
+      {
+        "date": "2020-03",
+        "gold": 1608.95,
+        "vix": 53.54
+      },
+      {
+        "date": "2020-04",
+        "gold": 1702.75,
+        "vix": 34.15
+      },
+      {
+        "date": "2020-05",
+        "gold": 1728.7,
+        "vix": 27.51
+      },
+      {
+        "date": "2020-06",
+        "gold": 1768.1,
+        "vix": 30.43
+      },
+      {
+        "date": "2020-07",
+        "gold": 1964.9,
+        "vix": 24.46
+      },
+      {
+        "date": "2020-08",
+        "gold": 1957.35,
+        "vix": 26.41
+      },
+      {
+        "date": "2020-09",
+        "gold": 1886.9,
+        "vix": 26.37
+      },
+      {
+        "date": "2020-10",
+        "gold": 1881.85,
+        "vix": 38.02
+      },
+      {
+        "date": "2020-11",
+        "gold": 1762.55,
+        "vix": 20.57
+      },
+      {
+        "date": "2020-12",
+        "gold": 1887.6,
+        "vix": 22.75
+      },
+      {
+        "date": "2021-01",
+        "gold": 1863.8,
+        "vix": 33.09
+      },
+      {
+        "date": "2021-02",
+        "gold": 1742.85,
+        "vix": 27.95
+      },
+      {
+        "date": "2021-03",
+        "gold": 1691.05,
+        "vix": 19.4
+      },
+      {
+        "date": "2021-04",
+        "gold": 1767.65,
+        "vix": 18.61
+      },
+      {
+        "date": "2021-05",
+        "gold": 1899.95,
+        "vix": 16.76
+      },
+      {
+        "date": "2021-06",
+        "gold": 1763.15,
+        "vix": 15.83
+      },
+      {
+        "date": "2021-07",
+        "gold": 1825.75,
+        "vix": 18.24
+      },
+      {
+        "date": "2021-08",
+        "gold": 1814.85,
+        "vix": 16.48
+      },
+      {
+        "date": "2021-09",
+        "gold": 1742.8,
+        "vix": 23.14
+      },
+      {
+        "date": "2021-10",
+        "gold": 1769.15,
+        "vix": 16.26
+      },
+      {
+        "date": "2021-11",
+        "gold": 1804.4,
+        "vix": 27.19
+      },
+      {
+        "date": "2021-12",
+        "gold": 1805.85,
+        "vix": 17.22
+      },
+      {
+        "date": "2022-01",
+        "gold": 1795.25,
+        "vix": 24.83
+      },
+      {
+        "date": "2022-02",
+        "gold": 1909.85,
+        "vix": 30.15
+      },
+      {
+        "date": "2022-03",
+        "gold": 1942.15,
+        "vix": 20.56
+      },
+      {
+        "date": "2022-04",
+        "gold": 1911.3,
+        "vix": 33.4
+      },
+      {
+        "date": "2022-05",
+        "gold": 1838.7,
+        "vix": 26.19
+      },
+      {
+        "date": "2022-06",
+        "gold": 1817,
+        "vix": 28.71
+      },
+      {
+        "date": "2022-07",
+        "gold": 1753.4,
+        "vix": 21.33
+      },
+      {
+        "date": "2022-08",
+        "gold": 1715.9,
+        "vix": 25.87
+      },
+      {
+        "date": "2022-09",
+        "gold": 1671.75,
+        "vix": 31.62
+      },
+      {
+        "date": "2022-10",
+        "gold": 1639,
+        "vix": 25.88
+      },
+      {
+        "date": "2022-11",
+        "gold": 1753.5,
+        "vix": 20.58
+      },
+      {
+        "date": "2022-12",
+        "gold": 1813.75,
+        "vix": 21.67
+      },
+      {
+        "date": "2023-01",
+        "gold": 1923.9,
+        "vix": 19.4
+      },
+      {
+        "date": "2023-02",
+        "gold": 1824.6,
+        "vix": 20.7
+      },
+      {
+        "date": "2023-03",
+        "gold": 1979.7,
+        "vix": 18.7
+      },
+      {
+        "date": "2023-04",
+        "gold": 1982.55,
+        "vix": 15.78
+      },
+      {
+        "date": "2023-05",
+        "gold": 1964.4,
+        "vix": 17.94
+      },
+      {
+        "date": "2023-06",
+        "gold": 1912.25,
+        "vix": 13.59
+      },
+      {
+        "date": "2023-07",
+        "gold": 1970.65,
+        "vix": 13.63
+      },
+      {
+        "date": "2023-08",
+        "gold": 1942.3,
+        "vix": 13.57
+      },
+      {
+        "date": "2023-09",
+        "gold": 1870.5,
+        "vix": 17.52
+      },
+      {
+        "date": "2023-10",
+        "gold": 1996.9,
+        "vix": 18.14
+      },
+      {
+        "date": "2023-11",
+        "gold": 2035.45,
+        "vix": 12.92
+      },
+      {
+        "date": "2023-12",
+        "gold": 2078.4,
+        "vix": 12.45
+      },
+      {
+        "date": "2024-01",
+        "gold": 2053.25,
+        "vix": 14.35
+      },
+      {
+        "date": "2024-02",
+        "gold": 2048.05,
+        "vix": 13.4
+      },
+      {
+        "date": "2024-03",
+        "gold": 2214.35,
+        "vix": 13.01
+      },
+      {
+        "date": "2024-04",
+        "gold": 2307,
+        "vix": 15.65
+      },
+      {
+        "date": "2024-05",
+        "gold": 2348.25,
+        "vix": 12.92
+      },
+      {
+        "date": "2024-06",
+        "gold": 2330.9,
+        "vix": 12.44
+      },
+      {
+        "date": "2024-07",
+        "gold": 2426.3,
+        "vix": 16.36
+      },
+      {
+        "date": "2024-08",
+        "gold": 2513.35,
+        "vix": 15
+      },
+      {
+        "date": "2024-09",
+        "gold": 2629.95,
+        "vix": 16.73
+      },
+      {
+        "date": "2024-10",
+        "gold": 2734.15,
+        "vix": 23.16
+      },
+      {
+        "date": "2024-11",
+        "gold": 2651.05,
+        "vix": 13.51
+      },
+      {
+        "date": "2024-12",
+        "gold": 2609.1,
+        "vix": 17.35
+      },
+      {
+        "date": "2025-01",
+        "gold": 2812.05,
+        "vix": 16.43
+      },
+      {
+        "date": "2025-02",
+        "gold": 2834.55,
+        "vix": 19.63
+      },
+      {
+        "date": "2025-03",
+        "gold": 3115.1,
+        "vix": 22.28
+      },
+      {
+        "date": "2025-04",
+        "gold": 3302.05,
+        "vix": 24.7
+      },
+      {
+        "date": "2025-05",
+        "gold": 3277.55,
+        "vix": 18.57
+      },
+      {
+        "date": "2025-06",
+        "gold": 3287.45,
+        "vix": 16.73
+      },
+      {
+        "date": "2025-07",
+        "gold": 3298.85,
+        "vix": 16.72
+      },
+      {
+        "date": "2025-08",
+        "gold": 3429.15,
+        "vix": 15.36
+      },
+      {
+        "date": "2025-09",
+        "gold": 3825.3,
+        "vix": 16.28
+      },
+      {
+        "date": "2025-10",
+        "gold": 4011.5,
+        "vix": 17.44
+      },
+      {
+        "date": "2025-11",
+        "gold": 4191.05,
+        "vix": 16.35
+      },
+      {
+        "date": "2025-12",
+        "gold": 4367.8,
+        "vix": 14.95
+      },
+      {
+        "date": "2026-01",
+        "gold": 4981.85,
+        "vix": 17.44
+      },
+      {
+        "date": "2026-02",
+        "gold": 5222.3,
+        "vix": 19.86
+      },
+      {
+        "date": "2026-03",
+        "gold": 4608.35,
+        "vix": 25.25
+      },
+      {
+        "date": "2026-04",
+        "gold": 4611.35,
+        "vix": 16.89
+      },
+      {
+        "date": "2026-05",
+        "gold": 4545.95,
+        "vix": 15.32
+      },
+      {
+        "date": "2026-06",
+        "gold": 4026.05,
+        "vix": 16.45
+      },
+      {
+        "date": "2026-07",
+        "gold": 4026.6,
+        "vix": 15.99
+      },
+      {
+        "date": "2026-08",
+        "gold": 4562.75,
+        "vix": 14.92
+      },
+      {
+        "date": "2026-09",
+        "gold": 4144.55,
+        "vix": 16.34
+      }
+    ],
+    "latest": {
+      "date": "2026-09",
+      "gold": 4144.55,
+      "vix": 16.34
+    },
+    "annotations": [
+      {
+        "date": "2001-09",
+        "label": "“9·11”事件"
+      },
+      {
+        "date": "2008-10",
+        "label": "全球金融危机"
+      },
+      {
+        "date": "2011-08",
+        "label": "欧美债务危机"
+      },
+      {
+        "date": "2015-08",
+        "label": "人民币汇改与全球股市波动"
+      },
+      {
+        "date": "2018-03",
+        "label": "中美贸易摩擦升温"
+      },
+      {
+        "date": "2020-03",
+        "label": "新冠疫情冲击"
+      },
+      {
+        "date": "2022-03",
+        "label": "俄乌冲突"
+      },
+      {
+        "date": "2023-03",
+        "label": "美国区域银行风险"
+      },
+      {
+        "date": "2024-08",
+        "label": "日元套息交易逆转"
+      }
+    ],
+    "sources": [
+      {
+        "label": "LBMA Gold Price PM",
+        "url": "https://prices.lbma.org.uk/json/gold_pm.json"
+      },
+      {
+        "label": "FRED VIXCLS",
+        "url": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=VIXCLS&cosd=2001-01-01"
+      }
+    ],
+    "note": "月末最新可得值。VIXCLS为CBOE波动率指数日收盘值；风险事件只用于定位市场阶段，不表示VIX单独决定黄金走势。"
+  },
+  "inflation": {
+    "rows": [
+      {
+        "year": 2001,
+        "inflation": 3.8,
+        "gold": 271.04
+      },
+      {
+        "year": 2002,
+        "inflation": 2.9,
+        "gold": 309.68
+      },
+      {
+        "year": 2003,
+        "inflation": 3,
+        "gold": 363.32
+      },
+      {
+        "year": 2004,
+        "inflation": 3.5,
+        "gold": 409.17
+      },
+      {
+        "year": 2005,
+        "inflation": 4.1,
+        "gold": 444.45
+      },
+      {
+        "year": 2006,
+        "inflation": 4.3,
+        "gold": 603.77
+      },
+      {
+        "year": 2007,
+        "inflation": 4.8,
+        "gold": 695.39
+      },
+      {
+        "year": 2008,
+        "inflation": 8.9,
+        "gold": 871.96
+      },
+      {
+        "year": 2009,
+        "inflation": 2.9,
+        "gold": 972.35
+      },
+      {
+        "year": 2010,
+        "inflation": 3.3,
+        "gold": 1224.52
+      },
+      {
+        "year": 2011,
+        "inflation": 4.8,
+        "gold": 1571.52
+      },
+      {
+        "year": 2012,
+        "inflation": 3.7,
+        "gold": 1668.98
+      },
+      {
+        "year": 2013,
+        "inflation": 2.6,
+        "gold": 1411.23
+      },
+      {
+        "year": 2014,
+        "inflation": 2.4,
+        "gold": 1266.4
+      },
+      {
+        "year": 2015,
+        "inflation": 1.4,
+        "gold": 1160.06
+      },
+      {
+        "year": 2016,
+        "inflation": 1.6,
+        "gold": 1250.8
+      },
+      {
+        "year": 2017,
+        "inflation": 2.3,
+        "gold": 1257.15
+      },
+      {
+        "year": 2018,
+        "inflation": 2.5,
+        "gold": 1268.49
+      },
+      {
+        "year": 2019,
+        "inflation": 2.2,
+        "gold": 1392.6
+      },
+      {
+        "year": 2020,
+        "inflation": 1.9,
+        "gold": 1769.59
+      },
+      {
+        "year": 2021,
+        "inflation": 3.5,
+        "gold": 1798.61
+      },
+      {
+        "year": 2022,
+        "inflation": 8,
+        "gold": 1800.09
+      },
+      {
+        "year": 2023,
+        "inflation": 5.7,
+        "gold": 1940.54
+      },
+      {
+        "year": 2024,
+        "inflation": 3,
+        "gold": 2386.2
+      },
+      {
+        "year": 2025,
+        "inflation": 3,
+        "gold": 3431.54
+      }
+    ],
+    "latest": {
+      "year": 2025,
+      "inflation": 3,
+      "gold": 3431.54
+    },
+    "sources": [
+      {
+        "label": "World Bank 全球CPI同比",
+        "url": "https://api.worldbank.org/v2/country/WLD/indicator/FP.CPI.TOTL.ZG?format=json&per_page=100"
+      },
+      {
+        "label": "LBMA Gold Price PM",
+        "url": "https://prices.lbma.org.uk/json/gold_pm.json"
+      }
+    ],
+    "note": "全球CPI同比采用世界银行FP.CPI.TOTL.ZG年度口径，存在发布滞后；黄金采用同年LBMA Gold Price PM日价的算术平均。两者仅作长期对照。"
+  },
+  "usdCredit": {
+    "rows": [
+      {
+        "year": 1914,
+        "dollarPower": 100,
+        "goldPower": 100
+      },
+      {
+        "year": 1915,
+        "dollarPower": 99.1,
+        "goldPower": 99.1
+      },
+      {
+        "year": 1916,
+        "dollarPower": 92,
+        "goldPower": 92
+      },
+      {
+        "year": 1917,
+        "dollarPower": 78.1,
+        "goldPower": 78.1
+      },
+      {
+        "year": 1918,
+        "dollarPower": 66.6,
+        "goldPower": 66.6
+      },
+      {
+        "year": 1919,
+        "dollarPower": 57.8,
+        "goldPower": 57.8
+      },
+      {
+        "year": 1920,
+        "dollarPower": 50,
+        "goldPower": 50
+      },
+      {
+        "year": 1921,
+        "dollarPower": 56.1,
+        "goldPower": 56.1
+      },
+      {
+        "year": 1922,
+        "dollarPower": 59.8,
+        "goldPower": 59.8
+      },
+      {
+        "year": 1923,
+        "dollarPower": 58.7,
+        "goldPower": 58.7
+      },
+      {
+        "year": 1924,
+        "dollarPower": 58.5,
+        "goldPower": 58.5
+      },
+      {
+        "year": 1925,
+        "dollarPower": 57.1,
+        "goldPower": 57.1
+      },
+      {
+        "year": 1926,
+        "dollarPower": 56.6,
+        "goldPower": 56.6
+      },
+      {
+        "year": 1927,
+        "dollarPower": 57.7,
+        "goldPower": 57.7
+      },
+      {
+        "year": 1928,
+        "dollarPower": 58.4,
+        "goldPower": 58.4
+      },
+      {
+        "year": 1929,
+        "dollarPower": 58.4,
+        "goldPower": 58.4
+      },
+      {
+        "year": 1930,
+        "dollarPower": 60,
+        "goldPower": 60
+      },
+      {
+        "year": 1931,
+        "dollarPower": 65.9,
+        "goldPower": 65.9
+      },
+      {
+        "year": 1932,
+        "dollarPower": 73.4,
+        "goldPower": 73.4
+      },
+      {
+        "year": 1933,
+        "dollarPower": 77.4,
+        "goldPower": 77.4
+      },
+      {
+        "year": 1934,
+        "dollarPower": 74.8,
+        "goldPower": 126.7
+      },
+      {
+        "year": 1935,
+        "dollarPower": 73,
+        "goldPower": 123.6
+      },
+      {
+        "year": 1936,
+        "dollarPower": 72.2,
+        "goldPower": 122.3
+      },
+      {
+        "year": 1937,
+        "dollarPower": 69.6,
+        "goldPower": 117.9
+      },
+      {
+        "year": 1938,
+        "dollarPower": 71.1,
+        "goldPower": 120.4
+      },
+      {
+        "year": 1939,
+        "dollarPower": 72,
+        "goldPower": 121.9
+      },
+      {
+        "year": 1940,
+        "dollarPower": 71.5,
+        "goldPower": 121.1
+      },
+      {
+        "year": 1941,
+        "dollarPower": 68,
+        "goldPower": 115.2
+      },
+      {
+        "year": 1942,
+        "dollarPower": 61.3,
+        "goldPower": 103.8
+      },
+      {
+        "year": 1943,
+        "dollarPower": 57.9,
+        "goldPower": 98
+      },
+      {
+        "year": 1944,
+        "dollarPower": 56.9,
+        "goldPower": 96.4
+      },
+      {
+        "year": 1945,
+        "dollarPower": 55.7,
+        "goldPower": 94.3
+      },
+      {
+        "year": 1946,
+        "dollarPower": 51.3,
+        "goldPower": 86.9
+      },
+      {
+        "year": 1947,
+        "dollarPower": 44.9,
+        "goldPower": 76
+      },
+      {
+        "year": 1948,
+        "dollarPower": 41.7,
+        "goldPower": 70.5
+      },
+      {
+        "year": 1949,
+        "dollarPower": 42.1,
+        "goldPower": 71.2
+      },
+      {
+        "year": 1950,
+        "dollarPower": 41.6,
+        "goldPower": 70.5
+      },
+      {
+        "year": 1951,
+        "dollarPower": 38.6,
+        "goldPower": 65.3
+      },
+      {
+        "year": 1952,
+        "dollarPower": 37.7,
+        "goldPower": 63.9
+      },
+      {
+        "year": 1953,
+        "dollarPower": 37.4,
+        "goldPower": 63.4
+      },
+      {
+        "year": 1954,
+        "dollarPower": 37.3,
+        "goldPower": 63.2
+      },
+      {
+        "year": 1955,
+        "dollarPower": 37.4,
+        "goldPower": 63.3
+      },
+      {
+        "year": 1956,
+        "dollarPower": 36.8,
+        "goldPower": 62.4
+      },
+      {
+        "year": 1957,
+        "dollarPower": 35.7,
+        "goldPower": 60.4
+      },
+      {
+        "year": 1958,
+        "dollarPower": 34.7,
+        "goldPower": 58.8
+      },
+      {
+        "year": 1959,
+        "dollarPower": 34.4,
+        "goldPower": 58.2
+      },
+      {
+        "year": 1960,
+        "dollarPower": 33.9,
+        "goldPower": 57.3
+      },
+      {
+        "year": 1961,
+        "dollarPower": 33.5,
+        "goldPower": 56.7
+      },
+      {
+        "year": 1962,
+        "dollarPower": 33.1,
+        "goldPower": 56.1
+      },
+      {
+        "year": 1963,
+        "dollarPower": 32.7,
+        "goldPower": 55.4
+      },
+      {
+        "year": 1964,
+        "dollarPower": 32.3,
+        "goldPower": 54.7
+      },
+      {
+        "year": 1965,
+        "dollarPower": 31.8,
+        "goldPower": 53.8
+      },
+      {
+        "year": 1966,
+        "dollarPower": 30.9,
+        "goldPower": 52.3
+      },
+      {
+        "year": 1967,
+        "dollarPower": 30,
+        "goldPower": 50.8
+      },
+      {
+        "year": 1970,
+        "dollarPower": 25.8,
+        "goldPower": 44.9
+      },
+      {
+        "year": 1971,
+        "dollarPower": 24.7,
+        "goldPower": 48.9
+      },
+      {
+        "year": 1972,
+        "dollarPower": 24,
+        "goldPower": 67.5
+      },
+      {
+        "year": 1973,
+        "dollarPower": 22.6,
+        "goldPower": 106.2
+      },
+      {
+        "year": 1974,
+        "dollarPower": 20.3,
+        "goldPower": 156.1
+      },
+      {
+        "year": 1975,
+        "dollarPower": 18.6,
+        "goldPower": 144.9
+      },
+      {
+        "year": 1976,
+        "dollarPower": 17.6,
+        "goldPower": 106.2
+      },
+      {
+        "year": 1977,
+        "dollarPower": 16.5,
+        "goldPower": 118.2
+      },
+      {
+        "year": 1978,
+        "dollarPower": 15.4,
+        "goldPower": 143.7
+      },
+      {
+        "year": 1979,
+        "dollarPower": 13.8,
+        "goldPower": 203.4
+      },
+      {
+        "year": 1980,
+        "dollarPower": 12.2,
+        "goldPower": 361.4
+      },
+      {
+        "year": 1981,
+        "dollarPower": 11,
+        "goldPower": 244.8
+      },
+      {
+        "year": 1982,
+        "dollarPower": 10.4,
+        "goldPower": 188.5
+      },
+      {
+        "year": 1983,
+        "dollarPower": 10.1,
+        "goldPower": 206.1
+      },
+      {
+        "year": 1984,
+        "dollarPower": 9.6,
+        "goldPower": 168.3
+      },
+      {
+        "year": 1985,
+        "dollarPower": 9.3,
+        "goldPower": 142.9
+      },
+      {
+        "year": 1986,
+        "dollarPower": 9.1,
+        "goldPower": 162.6
+      },
+      {
+        "year": 1987,
+        "dollarPower": 8.8,
+        "goldPower": 190.3
+      },
+      {
+        "year": 1988,
+        "dollarPower": 8.5,
+        "goldPower": 179
+      },
+      {
+        "year": 1989,
+        "dollarPower": 8.1,
+        "goldPower": 148.9
+      },
+      {
+        "year": 1990,
+        "dollarPower": 7.7,
+        "goldPower": 142.3
+      },
+      {
+        "year": 1991,
+        "dollarPower": 7.4,
+        "goldPower": 128.9
+      },
+      {
+        "year": 1992,
+        "dollarPower": 7.1,
+        "goldPower": 118.8
+      },
+      {
+        "year": 1993,
+        "dollarPower": 6.9,
+        "goldPower": 120.7
+      },
+      {
+        "year": 1994,
+        "dollarPower": 6.8,
+        "goldPower": 125.6
+      },
+      {
+        "year": 1995,
+        "dollarPower": 6.6,
+        "goldPower": 122.1
+      },
+      {
+        "year": 1996,
+        "dollarPower": 6.4,
+        "goldPower": 119.8
+      },
+      {
+        "year": 1997,
+        "dollarPower": 6.2,
+        "goldPower": 100
+      },
+      {
+        "year": 1998,
+        "dollarPower": 6.1,
+        "goldPower": 87.4
+      },
+      {
+        "year": 1999,
+        "dollarPower": 6,
+        "goldPower": 81
+      },
+      {
+        "year": 2000,
+        "dollarPower": 5.8,
+        "goldPower": 78.5
+      },
+      {
+        "year": 2001,
+        "dollarPower": 5.7,
+        "goldPower": 74.2
+      },
+      {
+        "year": 2002,
+        "dollarPower": 5.6,
+        "goldPower": 83.4
+      },
+      {
+        "year": 2003,
+        "dollarPower": 5.4,
+        "goldPower": 95.7
+      },
+      {
+        "year": 2004,
+        "dollarPower": 5.3,
+        "goldPower": 105
+      },
+      {
+        "year": 2005,
+        "dollarPower": 5.1,
+        "goldPower": 110.3
+      },
+      {
+        "year": 2006,
+        "dollarPower": 5,
+        "goldPower": 145.1
+      },
+      {
+        "year": 2007,
+        "dollarPower": 4.8,
+        "goldPower": 162.5
+      },
+      {
+        "year": 2008,
+        "dollarPower": 4.7,
+        "goldPower": 196.3
+      },
+      {
+        "year": 2009,
+        "dollarPower": 4.7,
+        "goldPower": 219.6
+      },
+      {
+        "year": 2010,
+        "dollarPower": 4.6,
+        "goldPower": 272.1
+      },
+      {
+        "year": 2011,
+        "dollarPower": 4.5,
+        "goldPower": 338.6
+      },
+      {
+        "year": 2012,
+        "dollarPower": 4.4,
+        "goldPower": 352.3
+      },
+      {
+        "year": 2013,
+        "dollarPower": 4.3,
+        "goldPower": 293.6
+      },
+      {
+        "year": 2014,
+        "dollarPower": 4.2,
+        "goldPower": 259.2
+      },
+      {
+        "year": 2015,
+        "dollarPower": 4.2,
+        "goldPower": 237.2
+      },
+      {
+        "year": 2016,
+        "dollarPower": 4.2,
+        "goldPower": 252.5
+      },
+      {
+        "year": 2017,
+        "dollarPower": 4.1,
+        "goldPower": 248.5
+      },
+      {
+        "year": 2018,
+        "dollarPower": 4,
+        "goldPower": 244.8
+      },
+      {
+        "year": 2019,
+        "dollarPower": 3.9,
+        "goldPower": 264
+      },
+      {
+        "year": 2020,
+        "dollarPower": 3.9,
+        "goldPower": 331.3
+      },
+      {
+        "year": 2021,
+        "dollarPower": 3.7,
+        "goldPower": 321.7
+      },
+      {
+        "year": 2022,
+        "dollarPower": 3.4,
+        "goldPower": 298.1
+      },
+      {
+        "year": 2023,
+        "dollarPower": 3.3,
+        "goldPower": 308.6
+      },
+      {
+        "year": 2024,
+        "dollarPower": 3.2,
+        "goldPower": 368.6
+      },
+      {
+        "year": 2025,
+        "dollarPower": 3.1,
+        "goldPower": 516.5
+      },
+      {
+        "year": 2026,
+        "dollarPower": 3,
+        "goldPower": 664.6
+      }
+    ],
+    "latest": {
+      "year": 2026,
+      "dollarPower": 3,
+      "goldPower": 664.6
+    },
+    "sources": [
+      {
+        "label": "FRED CPIAUCNS",
+        "url": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=CPIAUCNS&cosd=1914-01-01"
+      },
+      {
+        "label": "LBMA Gold Price PM",
+        "url": "https://prices.lbma.org.uk/json/gold_pm.json"
+      }
+    ],
+    "note": "指数均以1914年=100。美元购买力按美国CPI倒数计算；黄金购买力按金价除以美国CPI计算。1934年前采用20.67美元官价，1934—1967年采用35美元官价，1968年后采用LBMA年度均价。"
+  },
+  "usDebt": {
+    "rows": [
+      {
+        "date": "1970-01",
+        "gold": 34.99,
+        "debt": 0.37
+      },
+      {
+        "date": "1970-02",
+        "gold": 35.02,
+        "debt": 0.37
+      },
+      {
+        "date": "1970-03",
+        "gold": 35.3,
+        "debt": 0.37
+      },
+      {
+        "date": "1970-04",
+        "gold": 35.85,
+        "debt": 0.37
+      },
+      {
+        "date": "1970-05",
+        "gold": 35.45,
+        "debt": 0.37
+      },
+      {
+        "date": "1970-06",
+        "gold": 35.49,
+        "debt": 0.37
+      },
+      {
+        "date": "1970-07",
+        "gold": 35.3,
+        "debt": 0.38
+      },
+      {
+        "date": "1970-08",
+        "gold": 35.8,
+        "debt": 0.38
+      },
+      {
+        "date": "1970-09",
+        "gold": 36.4,
+        "debt": 0.38
+      },
+      {
+        "date": "1970-10",
+        "gold": 37.25,
+        "debt": 0.39
+      },
+      {
+        "date": "1970-11",
+        "gold": 37.54,
+        "debt": 0.39
+      },
+      {
+        "date": "1970-12",
+        "gold": 37.38,
+        "debt": 0.39
+      },
+      {
+        "date": "1971-01",
+        "gold": 38.05,
+        "debt": 0.39
+      },
+      {
+        "date": "1971-02",
+        "gold": 38.8,
+        "debt": 0.39
+      },
+      {
+        "date": "1971-03",
+        "gold": 38.88,
+        "debt": 0.39
+      },
+      {
+        "date": "1971-04",
+        "gold": 39.7,
+        "debt": 0.4
+      },
+      {
+        "date": "1971-05",
+        "gold": 40.84,
+        "debt": 0.4
+      },
+      {
+        "date": "1971-06",
+        "gold": 40.1,
+        "debt": 0.4
+      },
+      {
+        "date": "1971-07",
+        "gold": 42.4,
+        "debt": 0.41
+      },
+      {
+        "date": "1971-08",
+        "gold": 40.65,
+        "debt": 0.41
+      },
+      {
+        "date": "1971-09",
+        "gold": 42.6,
+        "debt": 0.41
+      },
+      {
+        "date": "1971-10",
+        "gold": 42.34,
+        "debt": 0.42
+      },
+      {
+        "date": "1971-11",
+        "gold": 43.6,
+        "debt": 0.42
+      },
+      {
+        "date": "1971-12",
+        "gold": 43.63,
+        "debt": 0.42
+      },
+      {
+        "date": "1972-01",
+        "gold": 47.15,
+        "debt": 0.43
+      },
+      {
+        "date": "1972-02",
+        "gold": 48.2,
+        "debt": 0.43
+      },
+      {
+        "date": "1972-03",
+        "gold": 48.38,
+        "debt": 0.43
+      },
+      {
+        "date": "1972-04",
+        "gold": 49.6,
+        "debt": 0.43
+      },
+      {
+        "date": "1972-05",
+        "gold": 59.45,
+        "debt": 0.43
+      },
+      {
+        "date": "1972-06",
+        "gold": 64.65,
+        "debt": 0.43
+      },
+      {
+        "date": "1972-07",
+        "gold": 68.3,
+        "debt": 0.43
+      },
+      {
+        "date": "1972-08",
+        "gold": 66.88,
+        "debt": 0.43
+      },
+      {
+        "date": "1972-09",
+        "gold": 64.2,
+        "debt": 0.43
+      },
+      {
+        "date": "1972-10",
+        "gold": 64.39,
+        "debt": 0.45
+      },
+      {
+        "date": "1972-11",
+        "gold": 63.6,
+        "debt": 0.45
+      },
+      {
+        "date": "1972-12",
+        "gold": 64.9,
+        "debt": 0.45
+      },
+      {
+        "date": "1973-01",
+        "gold": 66,
+        "debt": 0.46
+      },
+      {
+        "date": "1973-02",
+        "gold": 85,
+        "debt": 0.46
+      },
+      {
+        "date": "1973-03",
+        "gold": 90,
+        "debt": 0.46
+      },
+      {
+        "date": "1973-04",
+        "gold": 90.73,
+        "debt": 0.46
+      },
+      {
+        "date": "1973-05",
+        "gold": 114.75,
+        "debt": 0.46
+      },
+      {
+        "date": "1973-06",
+        "gold": 123.25,
+        "debt": 0.46
+      },
+      {
+        "date": "1973-07",
+        "gold": 115.6,
+        "debt": 0.46
+      },
+      {
+        "date": "1973-08",
+        "gold": 103.5,
+        "debt": 0.46
+      },
+      {
+        "date": "1973-09",
+        "gold": 100,
+        "debt": 0.46
+      },
+      {
+        "date": "1973-10",
+        "gold": 98,
+        "debt": 0.47
+      },
+      {
+        "date": "1973-11",
+        "gold": 101,
+        "debt": 0.47
+      },
+      {
+        "date": "1973-12",
+        "gold": 112.25,
+        "debt": 0.47
+      },
+      {
+        "date": "1974-01",
+        "gold": 132.5,
+        "debt": 0.47
+      },
+      {
+        "date": "1974-02",
+        "gold": 162.5,
+        "debt": 0.47
+      },
+      {
+        "date": "1974-03",
+        "gold": 173,
+        "debt": 0.47
+      },
+      {
+        "date": "1974-04",
+        "gold": 169.25,
+        "debt": 0.47
+      },
+      {
+        "date": "1974-05",
+        "gold": 156.75,
+        "debt": 0.47
+      },
+      {
+        "date": "1974-06",
+        "gold": 144.25,
+        "debt": 0.47
+      },
+      {
+        "date": "1974-07",
+        "gold": 156,
+        "debt": 0.48
+      },
+      {
+        "date": "1974-08",
+        "gold": 156,
+        "debt": 0.48
+      },
+      {
+        "date": "1974-09",
+        "gold": 151.25,
+        "debt": 0.48
+      },
+      {
+        "date": "1974-10",
+        "gold": 167,
+        "debt": 0.49
+      },
+      {
+        "date": "1974-11",
+        "gold": 184,
+        "debt": 0.49
+      },
+      {
+        "date": "1974-12",
+        "gold": 186.5,
+        "debt": 0.49
+      },
+      {
+        "date": "1975-01",
+        "gold": 175.8,
+        "debt": 0.51
+      },
+      {
+        "date": "1975-02",
+        "gold": 181.75,
+        "debt": 0.51
+      },
+      {
+        "date": "1975-03",
+        "gold": 177.25,
+        "debt": 0.51
+      },
+      {
+        "date": "1975-04",
+        "gold": 167,
+        "debt": 0.53
+      },
+      {
+        "date": "1975-05",
+        "gold": 167,
+        "debt": 0.53
+      },
+      {
+        "date": "1975-06",
+        "gold": 166.25,
+        "debt": 0.53
+      },
+      {
+        "date": "1975-07",
+        "gold": 166.7,
+        "debt": 0.55
+      },
+      {
+        "date": "1975-08",
+        "gold": 159.8,
+        "debt": 0.55
+      },
+      {
+        "date": "1975-09",
+        "gold": 141.25,
+        "debt": 0.55
+      },
+      {
+        "date": "1975-10",
+        "gold": 142.9,
+        "debt": 0.58
+      },
+      {
+        "date": "1975-11",
+        "gold": 138.15,
+        "debt": 0.58
+      },
+      {
+        "date": "1975-12",
+        "gold": 140.25,
+        "debt": 0.58
+      },
+      {
+        "date": "1976-01",
+        "gold": 128.15,
+        "debt": 0.6
+      },
+      {
+        "date": "1976-02",
+        "gold": 132.3,
+        "debt": 0.6
+      },
+      {
+        "date": "1976-03",
+        "gold": 129.6,
+        "debt": 0.6
+      },
+      {
+        "date": "1976-04",
+        "gold": 128.4,
+        "debt": 0.62
+      },
+      {
+        "date": "1976-05",
+        "gold": 125.5,
+        "debt": 0.62
+      },
+      {
+        "date": "1976-06",
+        "gold": 123.8,
+        "debt": 0.62
+      },
+      {
+        "date": "1976-07",
+        "gold": 112.5,
+        "debt": 0.63
+      },
+      {
+        "date": "1976-08",
+        "gold": 104,
+        "debt": 0.63
+      },
+      {
+        "date": "1976-09",
+        "gold": 116,
+        "debt": 0.63
+      },
+      {
+        "date": "1976-10",
+        "gold": 123.15,
+        "debt": 0.65
+      },
+      {
+        "date": "1976-11",
+        "gold": 130.25,
+        "debt": 0.65
+      },
+      {
+        "date": "1976-12",
+        "gold": 134.5,
+        "debt": 0.65
+      },
+      {
+        "date": "1977-01",
+        "gold": 132.3,
+        "debt": 0.67
+      },
+      {
+        "date": "1977-02",
+        "gold": 142.75,
+        "debt": 0.67
+      },
+      {
+        "date": "1977-03",
+        "gold": 148.9,
+        "debt": 0.67
+      },
+      {
+        "date": "1977-04",
+        "gold": 147.25,
+        "debt": 0.67
+      },
+      {
+        "date": "1977-05",
+        "gold": 142.95,
+        "debt": 0.67
+      },
+      {
+        "date": "1977-06",
+        "gold": 143,
+        "debt": 0.67
+      },
+      {
+        "date": "1977-07",
+        "gold": 144.1,
+        "debt": 0.7
+      },
+      {
+        "date": "1977-08",
+        "gold": 146,
+        "debt": 0.7
+      },
+      {
+        "date": "1977-09",
+        "gold": 154.05,
+        "debt": 0.7
+      },
+      {
+        "date": "1977-10",
+        "gold": 161.5,
+        "debt": 0.72
+      },
+      {
+        "date": "1977-11",
+        "gold": 160.05,
+        "debt": 0.72
+      },
+      {
+        "date": "1977-12",
+        "gold": 164.95,
+        "debt": 0.72
+      },
+      {
+        "date": "1978-01",
+        "gold": 175.75,
+        "debt": 0.74
+      },
+      {
+        "date": "1978-02",
+        "gold": 182.25,
+        "debt": 0.74
+      },
+      {
+        "date": "1978-03",
+        "gold": 181.6,
+        "debt": 0.74
+      },
+      {
+        "date": "1978-04",
+        "gold": 170.85,
+        "debt": 0.75
+      },
+      {
+        "date": "1978-05",
+        "gold": 184.15,
+        "debt": 0.75
+      },
+      {
+        "date": "1978-06",
+        "gold": 183.05,
+        "debt": 0.75
+      },
+      {
+        "date": "1978-07",
+        "gold": 200.25,
+        "debt": 0.77
+      },
+      {
+        "date": "1978-08",
+        "gold": 208.7,
+        "debt": 0.77
+      },
+      {
+        "date": "1978-09",
+        "gold": 217.1,
+        "debt": 0.77
+      },
+      {
+        "date": "1978-10",
+        "gold": 242.6,
+        "debt": 0.79
+      },
+      {
+        "date": "1978-11",
+        "gold": 193.4,
+        "debt": 0.79
+      },
+      {
+        "date": "1978-12",
+        "gold": 226,
+        "debt": 0.79
+      },
+      {
+        "date": "1979-01",
+        "gold": 233.7,
+        "debt": 0.8
+      },
+      {
+        "date": "1979-02",
+        "gold": 251.3,
+        "debt": 0.8
+      },
+      {
+        "date": "1979-03",
+        "gold": 240.1,
+        "debt": 0.8
+      },
+      {
+        "date": "1979-04",
+        "gold": 245.3,
+        "debt": 0.8
+      },
+      {
+        "date": "1979-05",
+        "gold": 274.6,
+        "debt": 0.8
+      },
+      {
+        "date": "1979-06",
+        "gold": 277.5,
+        "debt": 0.8
+      },
+      {
+        "date": "1979-07",
+        "gold": 296.45,
+        "debt": 0.83
+      },
+      {
+        "date": "1979-08",
+        "gold": 315.1,
+        "debt": 0.83
+      },
+      {
+        "date": "1979-09",
+        "gold": 397.25,
+        "debt": 0.83
+      },
+      {
+        "date": "1979-10",
+        "gold": 382,
+        "debt": 0.85
+      },
+      {
+        "date": "1979-11",
+        "gold": 415.65,
+        "debt": 0.85
+      },
+      {
+        "date": "1979-12",
+        "gold": 512,
+        "debt": 0.85
+      },
+      {
+        "date": "1980-01",
+        "gold": 653,
+        "debt": 0.86
+      },
+      {
+        "date": "1980-02",
+        "gold": 637,
+        "debt": 0.86
+      },
+      {
+        "date": "1980-03",
+        "gold": 494.5,
+        "debt": 0.86
+      },
+      {
+        "date": "1980-04",
+        "gold": 518,
+        "debt": 0.88
+      },
+      {
+        "date": "1980-05",
+        "gold": 535.5,
+        "debt": 0.88
+      },
+      {
+        "date": "1980-06",
+        "gold": 653.5,
+        "debt": 0.88
+      },
+      {
+        "date": "1980-07",
+        "gold": 614.25,
+        "debt": 0.91
+      },
+      {
+        "date": "1980-08",
+        "gold": 631.25,
+        "debt": 0.91
+      },
+      {
+        "date": "1980-09",
+        "gold": 666.75,
+        "debt": 0.91
+      },
+      {
+        "date": "1980-10",
+        "gold": 629,
+        "debt": 0.93
+      },
+      {
+        "date": "1980-11",
+        "gold": 619.75,
+        "debt": 0.93
+      },
+      {
+        "date": "1980-12",
+        "gold": 589.75,
+        "debt": 0.93
+      },
+      {
+        "date": "1981-01",
+        "gold": 506.5,
+        "debt": 0.96
+      },
+      {
+        "date": "1981-02",
+        "gold": 489,
+        "debt": 0.96
+      },
+      {
+        "date": "1981-03",
+        "gold": 513.75,
+        "debt": 0.96
+      },
+      {
+        "date": "1981-04",
+        "gold": 482.75,
+        "debt": 0.97
+      },
+      {
+        "date": "1981-05",
+        "gold": 479.25,
+        "debt": 0.97
+      },
+      {
+        "date": "1981-06",
+        "gold": 426,
+        "debt": 0.97
+      },
+      {
+        "date": "1981-07",
+        "gold": 406,
+        "debt": 1
+      },
+      {
+        "date": "1981-08",
+        "gold": 425,
+        "debt": 1
+      },
+      {
+        "date": "1981-09",
+        "gold": 428.75,
+        "debt": 1
+      },
+      {
+        "date": "1981-10",
+        "gold": 427,
+        "debt": 1.03
+      },
+      {
+        "date": "1981-11",
+        "gold": 414.5,
+        "debt": 1.03
+      },
+      {
+        "date": "1981-12",
+        "gold": 397.5,
+        "debt": 1.03
+      },
+      {
+        "date": "1982-01",
+        "gold": 387,
+        "debt": 1.06
+      },
+      {
+        "date": "1982-02",
+        "gold": 362.6,
+        "debt": 1.06
+      },
+      {
+        "date": "1982-03",
+        "gold": 320,
+        "debt": 1.06
+      },
+      {
+        "date": "1982-04",
+        "gold": 361.25,
+        "debt": 1.08
+      },
+      {
+        "date": "1982-05",
+        "gold": 325.25,
+        "debt": 1.08
+      },
+      {
+        "date": "1982-06",
+        "gold": 317.5,
+        "debt": 1.08
+      },
+      {
+        "date": "1982-07",
+        "gold": 342.9,
+        "debt": 1.14
+      },
+      {
+        "date": "1982-08",
+        "gold": 411.5,
+        "debt": 1.14
+      },
+      {
+        "date": "1982-09",
+        "gold": 397,
+        "debt": 1.14
+      },
+      {
+        "date": "1982-10",
+        "gold": 423.25,
+        "debt": 1.2
+      },
+      {
+        "date": "1982-11",
+        "gold": 436,
+        "debt": 1.2
+      },
+      {
+        "date": "1982-12",
+        "gold": 456.9,
+        "debt": 1.2
+      },
+      {
+        "date": "1983-01",
+        "gold": 499.5,
+        "debt": 1.24
+      },
+      {
+        "date": "1983-02",
+        "gold": 408.5,
+        "debt": 1.24
+      },
+      {
+        "date": "1983-03",
+        "gold": 414.75,
+        "debt": 1.24
+      },
+      {
+        "date": "1983-04",
+        "gold": 429.25,
+        "debt": 1.32
+      },
+      {
+        "date": "1983-05",
+        "gold": 437.5,
+        "debt": 1.32
+      },
+      {
+        "date": "1983-06",
+        "gold": 416,
+        "debt": 1.32
+      },
+      {
+        "date": "1983-07",
+        "gold": 422,
+        "debt": 1.38
+      },
+      {
+        "date": "1983-08",
+        "gold": 414.25,
+        "debt": 1.38
+      },
+      {
+        "date": "1983-09",
+        "gold": 405,
+        "debt": 1.38
+      },
+      {
+        "date": "1983-10",
+        "gold": 382,
+        "debt": 1.41
+      },
+      {
+        "date": "1983-11",
+        "gold": 405,
+        "debt": 1.41
+      },
+      {
+        "date": "1983-12",
+        "gold": 382.4,
+        "debt": 1.41
+      },
+      {
+        "date": "1984-01",
+        "gold": 373.75,
+        "debt": 1.46
+      },
+      {
+        "date": "1984-02",
+        "gold": 394.25,
+        "debt": 1.46
+      },
+      {
+        "date": "1984-03",
+        "gold": 388.5,
+        "debt": 1.46
+      },
+      {
+        "date": "1984-04",
+        "gold": 375.8,
+        "debt": 1.51
+      },
+      {
+        "date": "1984-05",
+        "gold": 384.25,
+        "debt": 1.51
+      },
+      {
+        "date": "1984-06",
+        "gold": 373.05,
+        "debt": 1.51
+      },
+      {
+        "date": "1984-07",
+        "gold": 342.35,
+        "debt": 1.57
+      },
+      {
+        "date": "1984-08",
+        "gold": 348.25,
+        "debt": 1.57
+      },
+      {
+        "date": "1984-09",
+        "gold": 343.75,
+        "debt": 1.57
+      },
+      {
+        "date": "1984-10",
+        "gold": 333.5,
+        "debt": 1.66
+      },
+      {
+        "date": "1984-11",
+        "gold": 329,
+        "debt": 1.66
+      },
+      {
+        "date": "1984-12",
+        "gold": 308.3,
+        "debt": 1.66
+      },
+      {
+        "date": "1985-01",
+        "gold": 306.65,
+        "debt": 1.71
+      },
+      {
+        "date": "1985-02",
+        "gold": 287.75,
+        "debt": 1.71
+      },
+      {
+        "date": "1985-03",
+        "gold": 329.25,
+        "debt": 1.71
+      },
+      {
+        "date": "1985-04",
+        "gold": 321.35,
+        "debt": 1.77
+      },
+      {
+        "date": "1985-05",
+        "gold": 314,
+        "debt": 1.77
+      },
+      {
+        "date": "1985-06",
+        "gold": 317.75,
+        "debt": 1.77
+      },
+      {
+        "date": "1985-07",
+        "gold": 327.5,
+        "debt": 1.82
+      },
+      {
+        "date": "1985-08",
+        "gold": 333.25,
+        "debt": 1.82
+      },
+      {
+        "date": "1985-09",
+        "gold": 325.75,
+        "debt": 1.82
+      },
+      {
+        "date": "1985-10",
+        "gold": 325.1,
+        "debt": 1.95
+      },
+      {
+        "date": "1985-11",
+        "gold": 325.3,
+        "debt": 1.95
+      },
+      {
+        "date": "1985-12",
+        "gold": 326.8,
+        "debt": 1.95
+      },
+      {
+        "date": "1986-01",
+        "gold": 350.5,
+        "debt": 1.99
+      },
+      {
+        "date": "1986-02",
+        "gold": 338.15,
+        "debt": 1.99
+      },
+      {
+        "date": "1986-03",
+        "gold": 344,
+        "debt": 1.99
+      },
+      {
+        "date": "1986-04",
+        "gold": 345.75,
+        "debt": 2.06
+      },
+      {
+        "date": "1986-05",
+        "gold": 343.2,
+        "debt": 2.06
+      },
+      {
+        "date": "1986-06",
+        "gold": 346.75,
+        "debt": 2.06
+      },
+      {
+        "date": "1986-07",
+        "gold": 357.5,
+        "debt": 2.13
+      },
+      {
+        "date": "1986-08",
+        "gold": 384.7,
+        "debt": 2.13
+      },
+      {
+        "date": "1986-09",
+        "gold": 423.2,
+        "debt": 2.13
+      },
+      {
+        "date": "1986-10",
+        "gold": 401,
+        "debt": 2.21
+      },
+      {
+        "date": "1986-11",
+        "gold": 389.5,
+        "debt": 2.21
+      },
+      {
+        "date": "1986-12",
+        "gold": 388.75,
+        "debt": 2.21
+      },
+      {
+        "date": "1987-01",
+        "gold": 400.5,
+        "debt": 2.25
+      },
+      {
+        "date": "1987-02",
+        "gold": 405.85,
+        "debt": 2.25
+      },
+      {
+        "date": "1987-03",
+        "gold": 421,
+        "debt": 2.25
+      },
+      {
+        "date": "1987-04",
+        "gold": 453.25,
+        "debt": 2.31
+      },
+      {
+        "date": "1987-05",
+        "gold": 451,
+        "debt": 2.31
+      },
+      {
+        "date": "1987-06",
+        "gold": 447.3,
+        "debt": 2.31
+      },
+      {
+        "date": "1987-07",
+        "gold": 462.5,
+        "debt": 2.35
+      },
+      {
+        "date": "1987-08",
+        "gold": 453.4,
+        "debt": 2.35
+      },
+      {
+        "date": "1987-09",
+        "gold": 459.5,
+        "debt": 2.35
+      },
+      {
+        "date": "1987-10",
+        "gold": 468.8,
+        "debt": 2.43
+      },
+      {
+        "date": "1987-11",
+        "gold": 492.5,
+        "debt": 2.43
+      },
+      {
+        "date": "1987-12",
+        "gold": 484.1,
+        "debt": 2.43
+      },
+      {
+        "date": "1988-01",
+        "gold": 458,
+        "debt": 2.49
+      },
+      {
+        "date": "1988-02",
+        "gold": 426.15,
+        "debt": 2.49
+      },
+      {
+        "date": "1988-03",
+        "gold": 456.95,
+        "debt": 2.49
+      },
+      {
+        "date": "1988-04",
+        "gold": 449,
+        "debt": 2.55
+      },
+      {
+        "date": "1988-05",
+        "gold": 455.5,
+        "debt": 2.55
+      },
+      {
+        "date": "1988-06",
+        "gold": 436.55,
+        "debt": 2.55
+      },
+      {
+        "date": "1988-07",
+        "gold": 436.8,
+        "debt": 2.6
+      },
+      {
+        "date": "1988-08",
+        "gold": 427.75,
+        "debt": 2.6
+      },
+      {
+        "date": "1988-09",
+        "gold": 396.7,
+        "debt": 2.6
+      },
+      {
+        "date": "1988-10",
+        "gold": 412.4,
+        "debt": 2.68
+      },
+      {
+        "date": "1988-11",
+        "gold": 422.6,
+        "debt": 2.68
+      },
+      {
+        "date": "1988-12",
+        "gold": 410.25,
+        "debt": 2.68
+      },
+      {
+        "date": "1989-01",
+        "gold": 394,
+        "debt": 2.74
+      },
+      {
+        "date": "1989-02",
+        "gold": 387,
+        "debt": 2.74
+      },
+      {
+        "date": "1989-03",
+        "gold": 383.2,
+        "debt": 2.74
+      },
+      {
+        "date": "1989-04",
+        "gold": 377.55,
+        "debt": 2.8
+      },
+      {
+        "date": "1989-05",
+        "gold": 361.8,
+        "debt": 2.8
+      },
+      {
+        "date": "1989-06",
+        "gold": 373,
+        "debt": 2.8
+      },
+      {
+        "date": "1989-07",
+        "gold": 368.3,
+        "debt": 2.86
+      },
+      {
+        "date": "1989-08",
+        "gold": 359.8,
+        "debt": 2.86
+      },
+      {
+        "date": "1989-09",
+        "gold": 366.5,
+        "debt": 2.86
+      },
+      {
+        "date": "1989-10",
+        "gold": 375.3,
+        "debt": 2.95
+      },
+      {
+        "date": "1989-11",
+        "gold": 408.15,
+        "debt": 2.95
+      },
+      {
+        "date": "1989-12",
+        "gold": 398.6,
+        "debt": 2.95
+      },
+      {
+        "date": "1990-01",
+        "gold": 415.05,
+        "debt": 3.05
+      },
+      {
+        "date": "1990-02",
+        "gold": 407.7,
+        "debt": 3.05
+      },
+      {
+        "date": "1990-03",
+        "gold": 368.5,
+        "debt": 3.05
+      },
+      {
+        "date": "1990-04",
+        "gold": 367.75,
+        "debt": 3.14
+      },
+      {
+        "date": "1990-05",
+        "gold": 363.05,
+        "debt": 3.14
+      },
+      {
+        "date": "1990-06",
+        "gold": 352.2,
+        "debt": 3.14
+      },
+      {
+        "date": "1990-07",
+        "gold": 372.3,
+        "debt": 3.23
+      },
+      {
+        "date": "1990-08",
+        "gold": 387.75,
+        "debt": 3.23
+      },
+      {
+        "date": "1990-09",
+        "gold": 408.4,
+        "debt": 3.23
+      },
+      {
+        "date": "1990-10",
+        "gold": 379.5,
+        "debt": 3.36
+      },
+      {
+        "date": "1990-11",
+        "gold": 384.85,
+        "debt": 3.36
+      },
+      {
+        "date": "1990-12",
+        "gold": 386.2,
+        "debt": 3.36
+      },
+      {
+        "date": "1991-01",
+        "gold": 366,
+        "debt": 3.47
+      },
+      {
+        "date": "1991-02",
+        "gold": 362.7,
+        "debt": 3.47
+      },
+      {
+        "date": "1991-03",
+        "gold": 355.65,
+        "debt": 3.47
+      },
+      {
+        "date": "1991-04",
+        "gold": 357.75,
+        "debt": 3.54
+      },
+      {
+        "date": "1991-05",
+        "gold": 360.4,
+        "debt": 3.54
+      },
+      {
+        "date": "1991-06",
+        "gold": 368.35,
+        "debt": 3.54
+      },
+      {
+        "date": "1991-07",
+        "gold": 362.85,
+        "debt": 3.67
+      },
+      {
+        "date": "1991-08",
+        "gold": 347.4,
+        "debt": 3.67
+      },
+      {
+        "date": "1991-09",
+        "gold": 354.9,
+        "debt": 3.67
+      },
+      {
+        "date": "1991-10",
+        "gold": 357.45,
+        "debt": 3.8
+      },
+      {
+        "date": "1991-11",
+        "gold": 366.3,
+        "debt": 3.8
+      },
+      {
+        "date": "1991-12",
+        "gold": 353.15,
+        "debt": 3.8
+      },
+      {
+        "date": "1992-01",
+        "gold": 354.1,
+        "debt": 3.88
+      },
+      {
+        "date": "1992-02",
+        "gold": 353.1,
+        "debt": 3.88
+      },
+      {
+        "date": "1992-03",
+        "gold": 341.7,
+        "debt": 3.88
+      },
+      {
+        "date": "1992-04",
+        "gold": 336.35,
+        "debt": 3.98
+      },
+      {
+        "date": "1992-05",
+        "gold": 337.5,
+        "debt": 3.98
+      },
+      {
+        "date": "1992-06",
+        "gold": 343.4,
+        "debt": 3.98
+      },
+      {
+        "date": "1992-07",
+        "gold": 357.85,
+        "debt": 4.06
+      },
+      {
+        "date": "1992-08",
+        "gold": 340,
+        "debt": 4.06
+      },
+      {
+        "date": "1992-09",
+        "gold": 349,
+        "debt": 4.06
+      },
+      {
+        "date": "1992-10",
+        "gold": 339.25,
+        "debt": 4.18
+      },
+      {
+        "date": "1992-11",
+        "gold": 334.2,
+        "debt": 4.18
+      },
+      {
+        "date": "1992-12",
+        "gold": 332.9,
+        "debt": 4.18
+      },
+      {
+        "date": "1993-01",
+        "gold": 330.45,
+        "debt": 4.23
+      },
+      {
+        "date": "1993-02",
+        "gold": 327.6,
+        "debt": 4.23
+      },
+      {
+        "date": "1993-03",
+        "gold": 337.8,
+        "debt": 4.23
+      },
+      {
+        "date": "1993-04",
+        "gold": 354.3,
+        "debt": 4.35
+      },
+      {
+        "date": "1993-05",
+        "gold": 377.45,
+        "debt": 4.35
+      },
+      {
+        "date": "1993-06",
+        "gold": 378.45,
+        "debt": 4.35
+      },
+      {
+        "date": "1993-07",
+        "gold": 401.75,
+        "debt": 4.41
+      },
+      {
+        "date": "1993-08",
+        "gold": 371.55,
+        "debt": 4.41
+      },
+      {
+        "date": "1993-09",
+        "gold": 355.5,
+        "debt": 4.41
+      },
+      {
+        "date": "1993-10",
+        "gold": 369.6,
+        "debt": 4.54
+      },
+      {
+        "date": "1993-11",
+        "gold": 370.9,
+        "debt": 4.54
+      },
+      {
+        "date": "1993-12",
+        "gold": 391.75,
+        "debt": 4.54
+      },
+      {
+        "date": "1994-01",
+        "gold": 377.9,
+        "debt": 4.58
+      },
+      {
+        "date": "1994-02",
+        "gold": 381.55,
+        "debt": 4.58
+      },
+      {
+        "date": "1994-03",
+        "gold": 389.2,
+        "debt": 4.58
+      },
+      {
+        "date": "1994-04",
+        "gold": 376.45,
+        "debt": 4.65
+      },
+      {
+        "date": "1994-05",
+        "gold": 387.6,
+        "debt": 4.65
+      },
+      {
+        "date": "1994-06",
+        "gold": 388.25,
+        "debt": 4.65
+      },
+      {
+        "date": "1994-07",
+        "gold": 384,
+        "debt": 4.69
+      },
+      {
+        "date": "1994-08",
+        "gold": 385.75,
+        "debt": 4.69
+      },
+      {
+        "date": "1994-09",
+        "gold": 394.85,
+        "debt": 4.69
+      },
+      {
+        "date": "1994-10",
+        "gold": 383.85,
+        "debt": 4.8
+      },
+      {
+        "date": "1994-11",
+        "gold": 383.1,
+        "debt": 4.8
+      },
+      {
+        "date": "1994-12",
+        "gold": 383.25,
+        "debt": 4.8
+      },
+      {
+        "date": "1995-01",
+        "gold": 374.9,
+        "debt": 4.86
+      },
+      {
+        "date": "1995-02",
+        "gold": 376.4,
+        "debt": 4.86
+      },
+      {
+        "date": "1995-03",
+        "gold": 392,
+        "debt": 4.86
+      },
+      {
+        "date": "1995-04",
+        "gold": 389.75,
+        "debt": 4.95
+      },
+      {
+        "date": "1995-05",
+        "gold": 384.3,
+        "debt": 4.95
+      },
+      {
+        "date": "1995-06",
+        "gold": 387.05,
+        "debt": 4.95
+      },
+      {
+        "date": "1995-07",
+        "gold": 383.35,
+        "debt": 4.97
+      },
+      {
+        "date": "1995-08",
+        "gold": 382.35,
+        "debt": 4.97
+      },
+      {
+        "date": "1995-09",
+        "gold": 384,
+        "debt": 4.97
+      },
+      {
+        "date": "1995-10",
+        "gold": 382.65,
+        "debt": 4.99
+      },
+      {
+        "date": "1995-11",
+        "gold": 387.8,
+        "debt": 4.99
+      },
+      {
+        "date": "1995-12",
+        "gold": 387,
+        "debt": 4.99
+      },
+      {
+        "date": "1996-01",
+        "gold": 405.55,
+        "debt": 5.12
+      },
+      {
+        "date": "1996-02",
+        "gold": 400.65,
+        "debt": 5.12
+      },
+      {
+        "date": "1996-03",
+        "gold": 396.35,
+        "debt": 5.12
+      },
+      {
+        "date": "1996-04",
+        "gold": 391.3,
+        "debt": 5.16
+      },
+      {
+        "date": "1996-05",
+        "gold": 390.55,
+        "debt": 5.16
+      },
+      {
+        "date": "1996-06",
+        "gold": 382,
+        "debt": 5.16
+      },
+      {
+        "date": "1996-07",
+        "gold": 385.3,
+        "debt": 5.22
+      },
+      {
+        "date": "1996-08",
+        "gold": 386.45,
+        "debt": 5.22
+      },
+      {
+        "date": "1996-09",
+        "gold": 379,
+        "debt": 5.22
+      },
+      {
+        "date": "1996-10",
+        "gold": 379.5,
+        "debt": 5.32
+      },
+      {
+        "date": "1996-11",
+        "gold": 371.3,
+        "debt": 5.32
+      },
+      {
+        "date": "1996-12",
+        "gold": 369.25,
+        "debt": 5.32
+      },
+      {
+        "date": "1997-01",
+        "gold": 345.5,
+        "debt": 5.38
+      },
+      {
+        "date": "1997-02",
+        "gold": 358.6,
+        "debt": 5.38
+      },
+      {
+        "date": "1997-03",
+        "gold": 348.15,
+        "debt": 5.38
+      },
+      {
+        "date": "1997-04",
+        "gold": 340.15,
+        "debt": 5.38
+      },
+      {
+        "date": "1997-05",
+        "gold": 345.6,
+        "debt": 5.38
+      },
+      {
+        "date": "1997-06",
+        "gold": 334.55,
+        "debt": 5.38
+      },
+      {
+        "date": "1997-07",
+        "gold": 326.35,
+        "debt": 5.41
+      },
+      {
+        "date": "1997-08",
+        "gold": 325.35,
+        "debt": 5.41
+      },
+      {
+        "date": "1997-09",
+        "gold": 332.1,
+        "debt": 5.41
+      },
+      {
+        "date": "1997-10",
+        "gold": 311.4,
+        "debt": 5.5
+      },
+      {
+        "date": "1997-11",
+        "gold": 296.8,
+        "debt": 5.5
+      },
+      {
+        "date": "1997-12",
+        "gold": 290.2,
+        "debt": 5.5
+      },
+      {
+        "date": "1998-01",
+        "gold": 304.85,
+        "debt": 5.54
+      },
+      {
+        "date": "1998-02",
+        "gold": 297.4,
+        "debt": 5.54
+      },
+      {
+        "date": "1998-03",
+        "gold": 301,
+        "debt": 5.54
+      },
+      {
+        "date": "1998-04",
+        "gold": 310.7,
+        "debt": 5.55
+      },
+      {
+        "date": "1998-05",
+        "gold": 293.6,
+        "debt": 5.55
+      },
+      {
+        "date": "1998-06",
+        "gold": 296.3,
+        "debt": 5.55
+      },
+      {
+        "date": "1998-07",
+        "gold": 288.85,
+        "debt": 5.53
+      },
+      {
+        "date": "1998-08",
+        "gold": 273.4,
+        "debt": 5.53
+      },
+      {
+        "date": "1998-09",
+        "gold": 293.85,
+        "debt": 5.53
+      },
+      {
+        "date": "1998-10",
+        "gold": 292.3,
+        "debt": 5.61
+      },
+      {
+        "date": "1998-11",
+        "gold": 294.7,
+        "debt": 5.61
+      },
+      {
+        "date": "1998-12",
+        "gold": 287.8,
+        "debt": 5.61
+      },
+      {
+        "date": "1999-01",
+        "gold": 285.4,
+        "debt": 5.65
+      },
+      {
+        "date": "1999-02",
+        "gold": 287.05,
+        "debt": 5.65
+      },
+      {
+        "date": "1999-03",
+        "gold": 279.45,
+        "debt": 5.65
+      },
+      {
+        "date": "1999-04",
+        "gold": 286.6,
+        "debt": 5.64
+      },
+      {
+        "date": "1999-05",
+        "gold": 268.6,
+        "debt": 5.64
+      },
+      {
+        "date": "1999-06",
+        "gold": 261,
+        "debt": 5.64
+      },
+      {
+        "date": "1999-07",
+        "gold": 255.6,
+        "debt": 5.66
+      },
+      {
+        "date": "1999-08",
+        "gold": 254.8,
+        "debt": 5.66
+      },
+      {
+        "date": "1999-09",
+        "gold": 299,
+        "debt": 5.66
+      },
+      {
+        "date": "1999-10",
+        "gold": 299.1,
+        "debt": 5.78
+      },
+      {
+        "date": "1999-11",
+        "gold": 291.35,
+        "debt": 5.78
+      },
+      {
+        "date": "1999-12",
+        "gold": 290.25,
+        "debt": 5.78
+      },
+      {
+        "date": "2000-01",
+        "gold": 283.3,
+        "debt": 5.77
+      },
+      {
+        "date": "2000-02",
+        "gold": 293.65,
+        "debt": 5.77
+      },
+      {
+        "date": "2000-03",
+        "gold": 276.75,
+        "debt": 5.77
+      },
+      {
+        "date": "2000-04",
+        "gold": 275.05,
+        "debt": 5.69
+      },
+      {
+        "date": "2000-05",
+        "gold": 272.25,
+        "debt": 5.69
+      },
+      {
+        "date": "2000-06",
+        "gold": 288.15,
+        "debt": 5.69
+      },
+      {
+        "date": "2000-07",
+        "gold": 276.75,
+        "debt": 5.67
+      },
+      {
+        "date": "2000-08",
+        "gold": 277,
+        "debt": 5.67
+      },
+      {
+        "date": "2000-09",
+        "gold": 273.65,
+        "debt": 5.67
+      },
+      {
+        "date": "2000-10",
+        "gold": 264.5,
+        "debt": 5.66
+      },
+      {
+        "date": "2000-11",
+        "gold": 269.1,
+        "debt": 5.66
+      },
+      {
+        "date": "2000-12",
+        "gold": 274.45,
+        "debt": 5.66
+      },
+      {
+        "date": "2001-01",
+        "gold": 264.5,
+        "debt": 5.77
+      },
+      {
+        "date": "2001-02",
+        "gold": 266.7,
+        "debt": 5.77
+      },
+      {
+        "date": "2001-03",
+        "gold": 257.7,
+        "debt": 5.77
+      },
+      {
+        "date": "2001-04",
+        "gold": 263.15,
+        "debt": 5.73
+      },
+      {
+        "date": "2001-05",
+        "gold": 267.5,
+        "debt": 5.73
+      },
+      {
+        "date": "2001-06",
+        "gold": 270.6,
+        "debt": 5.73
+      },
+      {
+        "date": "2001-07",
+        "gold": 265.9,
+        "debt": 5.81
+      },
+      {
+        "date": "2001-08",
+        "gold": 273,
+        "debt": 5.81
+      },
+      {
+        "date": "2001-09",
+        "gold": 293.1,
+        "debt": 5.81
+      },
+      {
+        "date": "2001-10",
+        "gold": 278.75,
+        "debt": 5.94
+      },
+      {
+        "date": "2001-11",
+        "gold": 275.5,
+        "debt": 5.94
+      },
+      {
+        "date": "2001-12",
+        "gold": 276.5,
+        "debt": 5.94
+      },
+      {
+        "date": "2002-01",
+        "gold": 282.3,
+        "debt": 6.01
+      },
+      {
+        "date": "2002-02",
+        "gold": 296.85,
+        "debt": 6.01
+      },
+      {
+        "date": "2002-03",
+        "gold": 301.4,
+        "debt": 6.01
+      },
+      {
+        "date": "2002-04",
+        "gold": 308.2,
+        "debt": 6.13
+      },
+      {
+        "date": "2002-05",
+        "gold": 326.6,
+        "debt": 6.13
+      },
+      {
+        "date": "2002-06",
+        "gold": 318.5,
+        "debt": 6.13
+      },
+      {
+        "date": "2002-07",
+        "gold": 304.65,
+        "debt": 6.23
+      },
+      {
+        "date": "2002-08",
+        "gold": 312.8,
+        "debt": 6.23
+      },
+      {
+        "date": "2002-09",
+        "gold": 323.7,
+        "debt": 6.23
+      },
+      {
+        "date": "2002-10",
+        "gold": 316.9,
+        "debt": 6.41
+      },
+      {
+        "date": "2002-11",
+        "gold": 319.05,
+        "debt": 6.41
+      },
+      {
+        "date": "2002-12",
+        "gold": 347.2,
+        "debt": 6.41
+      },
+      {
+        "date": "2003-01",
+        "gold": 367.5,
+        "debt": 6.46
+      },
+      {
+        "date": "2003-02",
+        "gold": 347.45,
+        "debt": 6.46
+      },
+      {
+        "date": "2003-03",
+        "gold": 334.85,
+        "debt": 6.46
+      },
+      {
+        "date": "2003-04",
+        "gold": 336.75,
+        "debt": 6.67
+      },
+      {
+        "date": "2003-05",
+        "gold": 361.4,
+        "debt": 6.67
+      },
+      {
+        "date": "2003-06",
+        "gold": 346,
+        "debt": 6.67
+      },
+      {
+        "date": "2003-07",
+        "gold": 354.75,
+        "debt": 6.78
+      },
+      {
+        "date": "2003-08",
+        "gold": 375.6,
+        "debt": 6.78
+      },
+      {
+        "date": "2003-09",
+        "gold": 388,
+        "debt": 6.78
+      },
+      {
+        "date": "2003-10",
+        "gold": 386.25,
+        "debt": 7
+      },
+      {
+        "date": "2003-11",
+        "gold": 398.35,
+        "debt": 7
+      },
+      {
+        "date": "2003-12",
+        "gold": 416.25,
+        "debt": 7
+      },
+      {
+        "date": "2004-01",
+        "gold": 399.75,
+        "debt": 7.13
+      },
+      {
+        "date": "2004-02",
+        "gold": 395.85,
+        "debt": 7.13
+      },
+      {
+        "date": "2004-03",
+        "gold": 423.7,
+        "debt": 7.13
+      },
+      {
+        "date": "2004-04",
+        "gold": 388.5,
+        "debt": 7.27
+      },
+      {
+        "date": "2004-05",
+        "gold": 393.25,
+        "debt": 7.27
+      },
+      {
+        "date": "2004-06",
+        "gold": 395.8,
+        "debt": 7.27
+      },
+      {
+        "date": "2004-07",
+        "gold": 391.4,
+        "debt": 7.38
+      },
+      {
+        "date": "2004-08",
+        "gold": 407.25,
+        "debt": 7.38
+      },
+      {
+        "date": "2004-09",
+        "gold": 415.65,
+        "debt": 7.38
+      },
+      {
+        "date": "2004-10",
+        "gold": 425.55,
+        "debt": 7.6
+      },
+      {
+        "date": "2004-11",
+        "gold": 453.4,
+        "debt": 7.6
+      },
+      {
+        "date": "2004-12",
+        "gold": 435.6,
+        "debt": 7.6
+      },
+      {
+        "date": "2005-01",
+        "gold": 422.15,
+        "debt": 7.78
+      },
+      {
+        "date": "2005-02",
+        "gold": 435.45,
+        "debt": 7.78
+      },
+      {
+        "date": "2005-03",
+        "gold": 427.5,
+        "debt": 7.78
+      },
+      {
+        "date": "2005-04",
+        "gold": 435.7,
+        "debt": 7.84
+      },
+      {
+        "date": "2005-05",
+        "gold": 414.45,
+        "debt": 7.84
+      },
+      {
+        "date": "2005-06",
+        "gold": 437.1,
+        "debt": 7.84
+      },
+      {
+        "date": "2005-07",
+        "gold": 429,
+        "debt": 7.93
+      },
+      {
+        "date": "2005-08",
+        "gold": 433.25,
+        "debt": 7.93
+      },
+      {
+        "date": "2005-09",
+        "gold": 473.25,
+        "debt": 7.93
+      },
+      {
+        "date": "2005-10",
+        "gold": 470.75,
+        "debt": 8.17
+      },
+      {
+        "date": "2005-11",
+        "gold": 495.65,
+        "debt": 8.17
+      },
+      {
+        "date": "2005-12",
+        "gold": 513,
+        "debt": 8.17
+      },
+      {
+        "date": "2006-01",
+        "gold": 568.75,
+        "debt": 8.37
+      },
+      {
+        "date": "2006-02",
+        "gold": 556,
+        "debt": 8.37
+      },
+      {
+        "date": "2006-03",
+        "gold": 582,
+        "debt": 8.37
+      },
+      {
+        "date": "2006-04",
+        "gold": 644,
+        "debt": 8.42
+      },
+      {
+        "date": "2006-05",
+        "gold": 653,
+        "debt": 8.42
+      },
+      {
+        "date": "2006-06",
+        "gold": 613.5,
+        "debt": 8.42
+      },
+      {
+        "date": "2006-07",
+        "gold": 632.5,
+        "debt": 8.51
+      },
+      {
+        "date": "2006-08",
+        "gold": 623.5,
+        "debt": 8.51
+      },
+      {
+        "date": "2006-09",
+        "gold": 599.25,
+        "debt": 8.51
+      },
+      {
+        "date": "2006-10",
+        "gold": 603.75,
+        "debt": 8.68
+      },
+      {
+        "date": "2006-11",
+        "gold": 646.7,
+        "debt": 8.68
+      },
+      {
+        "date": "2006-12",
+        "gold": 632,
+        "debt": 8.68
+      },
+      {
+        "date": "2007-01",
+        "gold": 650.5,
+        "debt": 8.85
+      },
+      {
+        "date": "2007-02",
+        "gold": 664.2,
+        "debt": 8.85
+      },
+      {
+        "date": "2007-03",
+        "gold": 661.75,
+        "debt": 8.85
+      },
+      {
+        "date": "2007-04",
+        "gold": 677,
+        "debt": 8.87
+      },
+      {
+        "date": "2007-05",
+        "gold": 659.1,
+        "debt": 8.87
+      },
+      {
+        "date": "2007-06",
+        "gold": 650.5,
+        "debt": 8.87
+      },
+      {
+        "date": "2007-07",
+        "gold": 665.5,
+        "debt": 9.01
+      },
+      {
+        "date": "2007-08",
+        "gold": 672,
+        "debt": 9.01
+      },
+      {
+        "date": "2007-09",
+        "gold": 743,
+        "debt": 9.01
+      },
+      {
+        "date": "2007-10",
+        "gold": 789.5,
+        "debt": 9.23
+      },
+      {
+        "date": "2007-11",
+        "gold": 783.5,
+        "debt": 9.23
+      },
+      {
+        "date": "2007-12",
+        "gold": 833.75,
+        "debt": 9.23
+      },
+      {
+        "date": "2008-01",
+        "gold": 923.25,
+        "debt": 9.44
+      },
+      {
+        "date": "2008-02",
+        "gold": 971.5,
+        "debt": 9.44
+      },
+      {
+        "date": "2008-03",
+        "gold": 933.5,
+        "debt": 9.44
+      },
+      {
+        "date": "2008-04",
+        "gold": 871,
+        "debt": 9.49
+      },
+      {
+        "date": "2008-05",
+        "gold": 885.75,
+        "debt": 9.49
+      },
+      {
+        "date": "2008-06",
+        "gold": 930.25,
+        "debt": 9.49
+      },
+      {
+        "date": "2008-07",
+        "gold": 918,
+        "debt": 10.02
+      },
+      {
+        "date": "2008-08",
+        "gold": 833,
+        "debt": 10.02
+      },
+      {
+        "date": "2008-09",
+        "gold": 884.5,
+        "debt": 10.02
+      },
+      {
+        "date": "2008-10",
+        "gold": 730.75,
+        "debt": 10.7
+      },
+      {
+        "date": "2008-11",
+        "gold": 814.5,
+        "debt": 10.7
+      },
+      {
+        "date": "2008-12",
+        "gold": 869.75,
+        "debt": 10.7
+      },
+      {
+        "date": "2009-01",
+        "gold": 919.5,
+        "debt": 11.13
+      },
+      {
+        "date": "2009-02",
+        "gold": 952,
+        "debt": 11.13
+      },
+      {
+        "date": "2009-03",
+        "gold": 916.5,
+        "debt": 11.13
+      },
+      {
+        "date": "2009-04",
+        "gold": 883.25,
+        "debt": 11.55
+      },
+      {
+        "date": "2009-05",
+        "gold": 975.5,
+        "debt": 11.55
+      },
+      {
+        "date": "2009-06",
+        "gold": 934.5,
+        "debt": 11.55
+      },
+      {
+        "date": "2009-07",
+        "gold": 939,
+        "debt": 11.91
+      },
+      {
+        "date": "2009-08",
+        "gold": 955.5,
+        "debt": 11.91
+      },
+      {
+        "date": "2009-09",
+        "gold": 995.75,
+        "debt": 11.91
+      },
+      {
+        "date": "2009-10",
+        "gold": 1040,
+        "debt": 12.31
+      },
+      {
+        "date": "2009-11",
+        "gold": 1175.75,
+        "debt": 12.31
+      },
+      {
+        "date": "2009-12",
+        "gold": 1087.5,
+        "debt": 12.31
+      },
+      {
+        "date": "2010-01",
+        "gold": 1078.5,
+        "debt": 12.77
+      },
+      {
+        "date": "2010-02",
+        "gold": 1108.25,
+        "debt": 12.77
+      },
+      {
+        "date": "2010-03",
+        "gold": 1115.5,
+        "debt": 12.77
+      },
+      {
+        "date": "2010-04",
+        "gold": 1179.25,
+        "debt": 13.2
+      },
+      {
+        "date": "2010-05",
+        "gold": 1207.5,
+        "debt": 13.2
+      },
+      {
+        "date": "2010-06",
+        "gold": 1244,
+        "debt": 13.2
+      },
+      {
+        "date": "2010-07",
+        "gold": 1169,
+        "debt": 13.56
+      },
+      {
+        "date": "2010-08",
+        "gold": 1246,
+        "debt": 13.56
+      },
+      {
+        "date": "2010-09",
+        "gold": 1307,
+        "debt": 13.56
+      },
+      {
+        "date": "2010-10",
+        "gold": 1346.75,
+        "debt": 14.03
+      },
+      {
+        "date": "2010-11",
+        "gold": 1383.5,
+        "debt": 14.03
+      },
+      {
+        "date": "2010-12",
+        "gold": 1405.5,
+        "debt": 14.03
+      },
+      {
+        "date": "2011-01",
+        "gold": 1327,
+        "debt": 14.27
+      },
+      {
+        "date": "2011-02",
+        "gold": 1411,
+        "debt": 14.27
+      },
+      {
+        "date": "2011-03",
+        "gold": 1439,
+        "debt": 14.27
+      },
+      {
+        "date": "2011-04",
+        "gold": 1535.5,
+        "debt": 14.34
+      },
+      {
+        "date": "2011-05",
+        "gold": 1536.5,
+        "debt": 14.34
+      },
+      {
+        "date": "2011-06",
+        "gold": 1505.5,
+        "debt": 14.34
+      },
+      {
+        "date": "2011-07",
+        "gold": 1628.5,
+        "debt": 14.79
+      },
+      {
+        "date": "2011-08",
+        "gold": 1813.5,
+        "debt": 14.79
+      },
+      {
+        "date": "2011-09",
+        "gold": 1620,
+        "debt": 14.79
+      },
+      {
+        "date": "2011-10",
+        "gold": 1722,
+        "debt": 15.22
+      },
+      {
+        "date": "2011-11",
+        "gold": 1746,
+        "debt": 15.22
+      },
+      {
+        "date": "2011-12",
+        "gold": 1531,
+        "debt": 15.22
+      },
+      {
+        "date": "2012-01",
+        "gold": 1744,
+        "debt": 15.61
+      },
+      {
+        "date": "2012-02",
+        "gold": 1770,
+        "debt": 15.61
+      },
+      {
+        "date": "2012-03",
+        "gold": 1662.5,
+        "debt": 15.61
+      },
+      {
+        "date": "2012-04",
+        "gold": 1651.25,
+        "debt": 15.86
+      },
+      {
+        "date": "2012-05",
+        "gold": 1558,
+        "debt": 15.86
+      },
+      {
+        "date": "2012-06",
+        "gold": 1598.5,
+        "debt": 15.86
+      },
+      {
+        "date": "2012-07",
+        "gold": 1622,
+        "debt": 16.07
+      },
+      {
+        "date": "2012-08",
+        "gold": 1648.5,
+        "debt": 16.07
+      },
+      {
+        "date": "2012-09",
+        "gold": 1776,
+        "debt": 16.07
+      },
+      {
+        "date": "2012-10",
+        "gold": 1719,
+        "debt": 16.43
+      },
+      {
+        "date": "2012-11",
+        "gold": 1726,
+        "debt": 16.43
+      },
+      {
+        "date": "2012-12",
+        "gold": 1657.5,
+        "debt": 16.43
+      },
+      {
+        "date": "2013-01",
+        "gold": 1664.75,
+        "debt": 16.77
+      },
+      {
+        "date": "2013-02",
+        "gold": 1588.5,
+        "debt": 16.77
+      },
+      {
+        "date": "2013-03",
+        "gold": 1598.25,
+        "debt": 16.77
+      },
+      {
+        "date": "2013-04",
+        "gold": 1469,
+        "debt": 16.74
+      },
+      {
+        "date": "2013-05",
+        "gold": 1394.5,
+        "debt": 16.74
+      },
+      {
+        "date": "2013-06",
+        "gold": 1192,
+        "debt": 16.74
+      },
+      {
+        "date": "2013-07",
+        "gold": 1314.5,
+        "debt": 16.74
+      },
+      {
+        "date": "2013-08",
+        "gold": 1394.75,
+        "debt": 16.74
+      },
+      {
+        "date": "2013-09",
+        "gold": 1326.5,
+        "debt": 16.74
+      },
+      {
+        "date": "2013-10",
+        "gold": 1324,
+        "debt": 17.16
+      },
+      {
+        "date": "2013-11",
+        "gold": 1253,
+        "debt": 17.16
+      },
+      {
+        "date": "2013-12",
+        "gold": 1204.5,
+        "debt": 17.16
+      },
+      {
+        "date": "2014-01",
+        "gold": 1251,
+        "debt": 17.6
+      },
+      {
+        "date": "2014-02",
+        "gold": 1326.5,
+        "debt": 17.6
+      },
+      {
+        "date": "2014-03",
+        "gold": 1291.75,
+        "debt": 17.6
+      },
+      {
+        "date": "2014-04",
+        "gold": 1288.5,
+        "debt": 17.63
+      },
+      {
+        "date": "2014-05",
+        "gold": 1250.5,
+        "debt": 17.63
+      },
+      {
+        "date": "2014-06",
+        "gold": 1315,
+        "debt": 17.63
+      },
+      {
+        "date": "2014-07",
+        "gold": 1285.25,
+        "debt": 17.82
+      },
+      {
+        "date": "2014-08",
+        "gold": 1285.75,
+        "debt": 17.82
+      },
+      {
+        "date": "2014-09",
+        "gold": 1216.5,
+        "debt": 17.82
+      },
+      {
+        "date": "2014-10",
+        "gold": 1164.25,
+        "debt": 18.14
+      },
+      {
+        "date": "2014-11",
+        "gold": 1182.75,
+        "debt": 18.14
+      },
+      {
+        "date": "2014-12",
+        "gold": 1206,
+        "debt": 18.14
+      },
+      {
+        "date": "2015-01",
+        "gold": 1260.25,
+        "debt": 18.15
+      },
+      {
+        "date": "2015-02",
+        "gold": 1214,
+        "debt": 18.15
+      },
+      {
+        "date": "2015-03",
+        "gold": 1187,
+        "debt": 18.15
+      },
+      {
+        "date": "2015-04",
+        "gold": 1180.25,
+        "debt": 18.15
+      },
+      {
+        "date": "2015-05",
+        "gold": 1191.4,
+        "debt": 18.15
+      },
+      {
+        "date": "2015-06",
+        "gold": 1171,
+        "debt": 18.15
+      },
+      {
+        "date": "2015-07",
+        "gold": 1098.4,
+        "debt": 18.15
+      },
+      {
+        "date": "2015-08",
+        "gold": 1135,
+        "debt": 18.15
+      },
+      {
+        "date": "2015-09",
+        "gold": 1114,
+        "debt": 18.15
+      },
+      {
+        "date": "2015-10",
+        "gold": 1142.35,
+        "debt": 18.92
+      },
+      {
+        "date": "2015-11",
+        "gold": 1061.9,
+        "debt": 18.92
+      },
+      {
+        "date": "2015-12",
+        "gold": 1060,
+        "debt": 18.92
+      },
+      {
+        "date": "2016-01",
+        "gold": 1111.8,
+        "debt": 19.26
+      },
+      {
+        "date": "2016-02",
+        "gold": 1234.9,
+        "debt": 19.26
+      },
+      {
+        "date": "2016-03",
+        "gold": 1237,
+        "debt": 19.26
+      },
+      {
+        "date": "2016-04",
+        "gold": 1285.65,
+        "debt": 19.38
+      },
+      {
+        "date": "2016-05",
+        "gold": 1212.1,
+        "debt": 19.38
+      },
+      {
+        "date": "2016-06",
+        "gold": 1320.75,
+        "debt": 19.38
+      },
+      {
+        "date": "2016-07",
+        "gold": 1342,
+        "debt": 19.57
+      },
+      {
+        "date": "2016-08",
+        "gold": 1309.25,
+        "debt": 19.57
+      },
+      {
+        "date": "2016-09",
+        "gold": 1322.5,
+        "debt": 19.57
+      },
+      {
+        "date": "2016-10",
+        "gold": 1272,
+        "debt": 19.98
+      },
+      {
+        "date": "2016-11",
+        "gold": 1178.1,
+        "debt": 19.98
+      },
+      {
+        "date": "2016-12",
+        "gold": 1145.9,
+        "debt": 19.98
+      },
+      {
+        "date": "2017-01",
+        "gold": 1212.8,
+        "debt": 19.85
+      },
+      {
+        "date": "2017-02",
+        "gold": 1255.6,
+        "debt": 19.85
+      },
+      {
+        "date": "2017-03",
+        "gold": 1244.85,
+        "debt": 19.85
+      },
+      {
+        "date": "2017-04",
+        "gold": 1266.45,
+        "debt": 19.84
+      },
+      {
+        "date": "2017-05",
+        "gold": 1266.2,
+        "debt": 19.84
+      },
+      {
+        "date": "2017-06",
+        "gold": 1242.25,
+        "debt": 19.84
+      },
+      {
+        "date": "2017-07",
+        "gold": 1267.55,
+        "debt": 20.24
+      },
+      {
+        "date": "2017-08",
+        "gold": 1311.75,
+        "debt": 20.24
+      },
+      {
+        "date": "2017-09",
+        "gold": 1283.1,
+        "debt": 20.24
+      },
+      {
+        "date": "2017-10",
+        "gold": 1270.15,
+        "debt": 20.49
+      },
+      {
+        "date": "2017-11",
+        "gold": 1280.2,
+        "debt": 20.49
+      },
+      {
+        "date": "2017-12",
+        "gold": 1291,
+        "debt": 20.49
+      },
+      {
+        "date": "2018-01",
+        "gold": 1345.05,
+        "debt": 21.09
+      },
+      {
+        "date": "2018-02",
+        "gold": 1317.85,
+        "debt": 21.09
+      },
+      {
+        "date": "2018-03",
+        "gold": 1323.85,
+        "debt": 21.09
+      },
+      {
+        "date": "2018-04",
+        "gold": 1313.2,
+        "debt": 21.2
+      },
+      {
+        "date": "2018-05",
+        "gold": 1305.35,
+        "debt": 21.2
+      },
+      {
+        "date": "2018-06",
+        "gold": 1250.45,
+        "debt": 21.2
+      },
+      {
+        "date": "2018-07",
+        "gold": 1220.95,
+        "debt": 21.52
+      },
+      {
+        "date": "2018-08",
+        "gold": 1202.45,
+        "debt": 21.52
+      },
+      {
+        "date": "2018-09",
+        "gold": 1187.25,
+        "debt": 21.52
+      },
+      {
+        "date": "2018-10",
+        "gold": 1214.95,
+        "debt": 21.97
+      },
+      {
+        "date": "2018-11",
+        "gold": 1217.55,
+        "debt": 21.97
+      },
+      {
+        "date": "2018-12",
+        "gold": 1279,
+        "debt": 21.97
+      },
+      {
+        "date": "2019-01",
+        "gold": 1323.25,
+        "debt": 22.03
+      },
+      {
+        "date": "2019-02",
+        "gold": 1319.15,
+        "debt": 22.03
+      },
+      {
+        "date": "2019-03",
+        "gold": 1295.4,
+        "debt": 22.03
+      },
+      {
+        "date": "2019-04",
+        "gold": 1282.3,
+        "debt": 22.02
+      },
+      {
+        "date": "2019-05",
+        "gold": 1295.55,
+        "debt": 22.02
+      },
+      {
+        "date": "2019-06",
+        "gold": 1409,
+        "debt": 22.02
+      },
+      {
+        "date": "2019-07",
+        "gold": 1427.55,
+        "debt": 22.72
+      },
+      {
+        "date": "2019-08",
+        "gold": 1528.4,
+        "debt": 22.72
+      },
+      {
+        "date": "2019-09",
+        "gold": 1485.3,
+        "debt": 22.72
+      },
+      {
+        "date": "2019-10",
+        "gold": 1510.95,
+        "debt": 23.2
+      },
+      {
+        "date": "2019-11",
+        "gold": 1460.15,
+        "debt": 23.2
+      },
+      {
+        "date": "2019-12",
+        "gold": 1514.75,
+        "debt": 23.2
+      },
+      {
+        "date": "2020-01",
+        "gold": 1584.2,
+        "debt": 23.22
+      },
+      {
+        "date": "2020-02",
+        "gold": 1609.85,
+        "debt": 23.22
+      },
+      {
+        "date": "2020-03",
+        "gold": 1608.95,
+        "debt": 23.22
+      },
+      {
+        "date": "2020-04",
+        "gold": 1702.75,
+        "debt": 26.48
+      },
+      {
+        "date": "2020-05",
+        "gold": 1728.7,
+        "debt": 26.48
+      },
+      {
+        "date": "2020-06",
+        "gold": 1768.1,
+        "debt": 26.48
+      },
+      {
+        "date": "2020-07",
+        "gold": 1964.9,
+        "debt": 26.95
+      },
+      {
+        "date": "2020-08",
+        "gold": 1957.35,
+        "debt": 26.95
+      },
+      {
+        "date": "2020-09",
+        "gold": 1886.9,
+        "debt": 26.95
+      },
+      {
+        "date": "2020-10",
+        "gold": 1881.85,
+        "debt": 27.75
+      },
+      {
+        "date": "2020-11",
+        "gold": 1762.55,
+        "debt": 27.75
+      },
+      {
+        "date": "2020-12",
+        "gold": 1887.6,
+        "debt": 27.75
+      },
+      {
+        "date": "2021-01",
+        "gold": 1863.8,
+        "debt": 28.13
+      },
+      {
+        "date": "2021-02",
+        "gold": 1742.85,
+        "debt": 28.13
+      },
+      {
+        "date": "2021-03",
+        "gold": 1691.05,
+        "debt": 28.13
+      },
+      {
+        "date": "2021-04",
+        "gold": 1767.65,
+        "debt": 28.53
+      },
+      {
+        "date": "2021-05",
+        "gold": 1899.95,
+        "debt": 28.53
+      },
+      {
+        "date": "2021-06",
+        "gold": 1763.15,
+        "debt": 28.53
+      },
+      {
+        "date": "2021-07",
+        "gold": 1825.75,
+        "debt": 28.43
+      },
+      {
+        "date": "2021-08",
+        "gold": 1814.85,
+        "debt": 28.43
+      },
+      {
+        "date": "2021-09",
+        "gold": 1742.8,
+        "debt": 28.43
+      },
+      {
+        "date": "2021-10",
+        "gold": 1769.15,
+        "debt": 29.62
+      },
+      {
+        "date": "2021-11",
+        "gold": 1804.4,
+        "debt": 29.62
+      },
+      {
+        "date": "2021-12",
+        "gold": 1805.85,
+        "debt": 29.62
+      },
+      {
+        "date": "2022-01",
+        "gold": 1795.25,
+        "debt": 30.4
+      },
+      {
+        "date": "2022-02",
+        "gold": 1909.85,
+        "debt": 30.4
+      },
+      {
+        "date": "2022-03",
+        "gold": 1942.15,
+        "debt": 30.4
+      },
+      {
+        "date": "2022-04",
+        "gold": 1911.3,
+        "debt": 30.57
+      },
+      {
+        "date": "2022-05",
+        "gold": 1838.7,
+        "debt": 30.57
+      },
+      {
+        "date": "2022-06",
+        "gold": 1817,
+        "debt": 30.57
+      },
+      {
+        "date": "2022-07",
+        "gold": 1753.4,
+        "debt": 30.93
+      },
+      {
+        "date": "2022-08",
+        "gold": 1715.9,
+        "debt": 30.93
+      },
+      {
+        "date": "2022-09",
+        "gold": 1671.75,
+        "debt": 30.93
+      },
+      {
+        "date": "2022-10",
+        "gold": 1639,
+        "debt": 31.42
+      },
+      {
+        "date": "2022-11",
+        "gold": 1753.5,
+        "debt": 31.42
+      },
+      {
+        "date": "2022-12",
+        "gold": 1813.75,
+        "debt": 31.42
+      },
+      {
+        "date": "2023-01",
+        "gold": 1923.9,
+        "debt": 31.46
+      },
+      {
+        "date": "2023-02",
+        "gold": 1824.6,
+        "debt": 31.46
+      },
+      {
+        "date": "2023-03",
+        "gold": 1979.7,
+        "debt": 31.46
+      },
+      {
+        "date": "2023-04",
+        "gold": 1982.55,
+        "debt": 32.33
+      },
+      {
+        "date": "2023-05",
+        "gold": 1964.4,
+        "debt": 32.33
+      },
+      {
+        "date": "2023-06",
+        "gold": 1912.25,
+        "debt": 32.33
+      },
+      {
+        "date": "2023-07",
+        "gold": 1970.65,
+        "debt": 33.17
+      },
+      {
+        "date": "2023-08",
+        "gold": 1942.3,
+        "debt": 33.17
+      },
+      {
+        "date": "2023-09",
+        "gold": 1870.5,
+        "debt": 33.17
+      },
+      {
+        "date": "2023-10",
+        "gold": 1996.9,
+        "debt": 34
+      },
+      {
+        "date": "2023-11",
+        "gold": 2035.45,
+        "debt": 34
+      },
+      {
+        "date": "2023-12",
+        "gold": 2078.4,
+        "debt": 34
+      },
+      {
+        "date": "2024-01",
+        "gold": 2053.25,
+        "debt": 34.59
+      },
+      {
+        "date": "2024-02",
+        "gold": 2048.05,
+        "debt": 34.59
+      },
+      {
+        "date": "2024-03",
+        "gold": 2214.35,
+        "debt": 34.59
+      },
+      {
+        "date": "2024-04",
+        "gold": 2307,
+        "debt": 34.83
+      },
+      {
+        "date": "2024-05",
+        "gold": 2348.25,
+        "debt": 34.83
+      },
+      {
+        "date": "2024-06",
+        "gold": 2330.9,
+        "debt": 34.83
+      },
+      {
+        "date": "2024-07",
+        "gold": 2426.3,
+        "debt": 35.46
+      },
+      {
+        "date": "2024-08",
+        "gold": 2513.35,
+        "debt": 35.46
+      },
+      {
+        "date": "2024-09",
+        "gold": 2629.95,
+        "debt": 35.46
+      },
+      {
+        "date": "2024-10",
+        "gold": 2734.15,
+        "debt": 36.22
+      },
+      {
+        "date": "2024-11",
+        "gold": 2651.05,
+        "debt": 36.22
+      },
+      {
+        "date": "2024-12",
+        "gold": 2609.1,
+        "debt": 36.22
+      },
+      {
+        "date": "2025-01",
+        "gold": 2812.05,
+        "debt": 36.21
+      },
+      {
+        "date": "2025-02",
+        "gold": 2834.55,
+        "debt": 36.21
+      },
+      {
+        "date": "2025-03",
+        "gold": 3115.1,
+        "debt": 36.21
+      },
+      {
+        "date": "2025-04",
+        "gold": 3302.05,
+        "debt": 36.21
+      },
+      {
+        "date": "2025-05",
+        "gold": 3277.55,
+        "debt": 36.21
+      },
+      {
+        "date": "2025-06",
+        "gold": 3287.45,
+        "debt": 36.21
+      },
+      {
+        "date": "2025-07",
+        "gold": 3298.85,
+        "debt": 37.64
+      },
+      {
+        "date": "2025-08",
+        "gold": 3429.15,
+        "debt": 37.64
+      },
+      {
+        "date": "2025-09",
+        "gold": 3825.3,
+        "debt": 37.64
+      },
+      {
+        "date": "2025-10",
+        "gold": 4011.5,
+        "debt": 38.51
+      },
+      {
+        "date": "2025-11",
+        "gold": 4191.05,
+        "debt": 38.51
+      },
+      {
+        "date": "2025-12",
+        "gold": 4367.8,
+        "debt": 38.51
+      },
+      {
+        "date": "2026-01",
+        "gold": 4981.85,
+        "debt": 39.07
+      },
+      {
+        "date": "2026-02",
+        "gold": 5222.3,
+        "debt": 39.07
+      },
+      {
+        "date": "2026-03",
+        "gold": 4608.35,
+        "debt": 39.07
+      },
+      {
+        "date": "2026-04",
+        "gold": 4611.35,
+        "debt": 39.46
+      },
+      {
+        "date": "2026-05",
+        "gold": 4545.95,
+        "debt": 39.46
+      },
+      {
+        "date": "2026-06",
+        "gold": 4026.05,
+        "debt": 39.46
+      },
+      {
+        "date": "2026-07",
+        "gold": 4026.6,
+        "debt": 39.46
+      },
+      {
+        "date": "2026-08",
+        "gold": 4562.75,
+        "debt": 39.46
+      },
+      {
+        "date": "2026-09",
+        "gold": 4144.55,
+        "debt": 39.46
+      }
+    ],
+    "latest": {
+      "date": "2026-09",
+      "gold": 4144.55,
+      "debt": 39.46
+    },
+    "sources": [
+      {
+        "label": "FRED GFDEBTN",
+        "url": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=GFDEBTN&cosd=1966-01-01"
+      },
+      {
+        "label": "LBMA Gold Price PM",
+        "url": "https://prices.lbma.org.uk/json/gold_pm.json"
+      }
+    ],
+    "note": "美国联邦政府总债务采用FRED GFDEBTN季度数据并换算为万亿美元，季度间沿用最近已发布值；黄金采用LBMA月末最新可得值。"
+  },
+  "goldDebtScale": {
+    "rows": [
+      {
+        "year": 1970,
+        "date": "1970",
+        "goldStockTonnes": 90901.5,
+        "goldPrice": 36,
+        "goldValue": 105.1,
+        "debt": 390,
+        "ratio": 0.27,
+        "isCurrentYear": false
+      },
+      {
+        "year": 1971,
+        "date": "1971",
+        "goldStockTonnes": 92504.5,
+        "goldPrice": 40.8,
+        "goldValue": 121.4,
+        "debt": 420,
+        "ratio": 0.29,
+        "isCurrentYear": false
+      },
+      {
+        "year": 1972,
+        "date": "1972",
+        "goldStockTonnes": 94067.1,
+        "goldPrice": 58.2,
+        "goldValue": 176.1,
+        "debt": 450,
+        "ratio": 0.39,
+        "isCurrentYear": false
+      },
+      {
+        "year": 1973,
+        "date": "1973",
+        "goldStockTonnes": 95587.5,
+        "goldPrice": 97.3,
+        "goldValue": 299.1,
+        "debt": 470,
+        "ratio": 0.64,
+        "isCurrentYear": false
+      },
+      {
+        "year": 1974,
+        "date": "1974",
+        "goldStockTonnes": 96902.8,
+        "goldPrice": 158.8,
+        "goldValue": 494.9,
+        "debt": 490,
+        "ratio": 1.01,
+        "isCurrentYear": false
+      },
+      {
+        "year": 1975,
+        "date": "1975",
+        "goldStockTonnes": 98106.3,
+        "goldPrice": 160.9,
+        "goldValue": 507.4,
+        "debt": 580,
+        "ratio": 0.87,
+        "isCurrentYear": false
+      },
+      {
+        "year": 1976,
+        "date": "1976",
+        "goldStockTonnes": 99319.4,
+        "goldPrice": 124.8,
+        "goldValue": 398.4,
+        "debt": 650,
+        "ratio": 0.61,
+        "isCurrentYear": false
+      },
+      {
+        "year": 1977,
+        "date": "1977",
+        "goldStockTonnes": 100547.1,
+        "goldPrice": 147.8,
+        "goldValue": 477.8,
+        "debt": 720,
+        "ratio": 0.66,
+        "isCurrentYear": false
+      },
+      {
+        "year": 1978,
+        "date": "1978",
+        "goldStockTonnes": 101784,
+        "goldPrice": 193.4,
+        "goldValue": 633,
+        "debt": 790,
+        "ratio": 0.8,
+        "isCurrentYear": false
+      },
+      {
+        "year": 1979,
+        "date": "1979",
+        "goldStockTonnes": 103012.8,
+        "goldPrice": 304.7,
+        "goldValue": 1009.1,
+        "debt": 850,
+        "ratio": 1.19,
+        "isCurrentYear": false
+      },
+      {
+        "year": 1980,
+        "date": "1980",
+        "goldStockTonnes": 104243.8,
+        "goldPrice": 614.5,
+        "goldValue": 2059.5,
+        "debt": 930,
+        "ratio": 2.21,
+        "isCurrentYear": false
+      },
+      {
+        "year": 1981,
+        "date": "1981",
+        "goldStockTonnes": 105505.5,
+        "goldPrice": 459.3,
+        "goldValue": 1557.8,
+        "debt": 1030,
+        "ratio": 1.51,
+        "isCurrentYear": false
+      },
+      {
+        "year": 1982,
+        "date": "1982",
+        "goldStockTonnes": 106825.2,
+        "goldPrice": 375.3,
+        "goldValue": 1289,
+        "debt": 1200,
+        "ratio": 1.07,
+        "isCurrentYear": false
+      },
+      {
+        "year": 1983,
+        "date": "1983",
+        "goldStockTonnes": 108271.3,
+        "goldPrice": 423.7,
+        "goldValue": 1474.8,
+        "debt": 1410,
+        "ratio": 1.05,
+        "isCurrentYear": false
+      },
+      {
+        "year": 1984,
+        "date": "1984",
+        "goldStockTonnes": 109730.6,
+        "goldPrice": 360.8,
+        "goldValue": 1272.8,
+        "debt": 1660,
+        "ratio": 0.77,
+        "isCurrentYear": false
+      },
+      {
+        "year": 1985,
+        "date": "1985",
+        "goldStockTonnes": 111222.1,
+        "goldPrice": 317.3,
+        "goldValue": 1134.6,
+        "debt": 1950,
+        "ratio": 0.58,
+        "isCurrentYear": false
+      },
+      {
+        "year": 1986,
+        "date": "1986",
+        "goldStockTonnes": 112782.6,
+        "goldPrice": 367.9,
+        "goldValue": 1333.9,
+        "debt": 2210,
+        "ratio": 0.6,
+        "isCurrentYear": false
+      },
+      {
+        "year": 1987,
+        "date": "1987",
+        "goldStockTonnes": 114391.7,
+        "goldPrice": 446.2,
+        "goldValue": 1641.1,
+        "debt": 2430,
+        "ratio": 0.68,
+        "isCurrentYear": false
+      },
+      {
+        "year": 1988,
+        "date": "1988",
+        "goldStockTonnes": 116185.3,
+        "goldPrice": 436.9,
+        "goldValue": 1631.9,
+        "debt": 2680,
+        "ratio": 0.61,
+        "isCurrentYear": false
+      },
+      {
+        "year": 1989,
+        "date": "1989",
+        "goldStockTonnes": 118147.7,
+        "goldPrice": 380.8,
+        "goldValue": 1446.6,
+        "debt": 2950,
+        "ratio": 0.49,
+        "isCurrentYear": false
+      },
+      {
+        "year": 1990,
+        "date": "1990",
+        "goldStockTonnes": 120280.4,
+        "goldPrice": 383.6,
+        "goldValue": 1483.3,
+        "debt": 3360,
+        "ratio": 0.44,
+        "isCurrentYear": false
+      },
+      {
+        "year": 1991,
+        "date": "1991",
+        "goldStockTonnes": 122427.6,
+        "goldPrice": 362.3,
+        "goldValue": 1425.9,
+        "debt": 3800,
+        "ratio": 0.38,
+        "isCurrentYear": false
+      },
+      {
+        "year": 1992,
+        "date": "1992",
+        "goldStockTonnes": 124667.7,
+        "goldPrice": 343.9,
+        "goldValue": 1378.6,
+        "debt": 4180,
+        "ratio": 0.33,
+        "isCurrentYear": false
+      },
+      {
+        "year": 1993,
+        "date": "1993",
+        "goldStockTonnes": 126919.2,
+        "goldPrice": 359.8,
+        "goldValue": 1468.2,
+        "debt": 4540,
+        "ratio": 0.32,
+        "isCurrentYear": false
+      },
+      {
+        "year": 1994,
+        "date": "1994",
+        "goldStockTonnes": 129141.7,
+        "goldPrice": 384.2,
+        "goldValue": 1595,
+        "debt": 4800,
+        "ratio": 0.33,
+        "isCurrentYear": false
+      },
+      {
+        "year": 1995,
+        "date": "1995",
+        "goldStockTonnes": 131306.3,
+        "goldPrice": 384.1,
+        "goldValue": 1621.3,
+        "debt": 4990,
+        "ratio": 0.32,
+        "isCurrentYear": false
+      },
+      {
+        "year": 1996,
+        "date": "1996",
+        "goldStockTonnes": 133568,
+        "goldPrice": 387.9,
+        "goldValue": 1665.6,
+        "debt": 5320,
+        "ratio": 0.31,
+        "isCurrentYear": false
+      },
+      {
+        "year": 1997,
+        "date": "1997",
+        "goldStockTonnes": 135984.7,
+        "goldPrice": 331.3,
+        "goldValue": 1448.4,
+        "debt": 5500,
+        "ratio": 0.26,
+        "isCurrentYear": false
+      },
+      {
+        "year": 1998,
+        "date": "1998",
+        "goldStockTonnes": 138439,
+        "goldPrice": 294.1,
+        "goldValue": 1309,
+        "debt": 5610,
+        "ratio": 0.23,
+        "isCurrentYear": false
+      },
+      {
+        "year": 1999,
+        "date": "1999",
+        "goldStockTonnes": 140947.2,
+        "goldPrice": 278.6,
+        "goldValue": 1262.4,
+        "debt": 5780,
+        "ratio": 0.22,
+        "isCurrentYear": false
+      },
+      {
+        "year": 2000,
+        "date": "2000",
+        "goldStockTonnes": 143502.3,
+        "goldPrice": 279.1,
+        "goldValue": 1287.7,
+        "debt": 5660,
+        "ratio": 0.23,
+        "isCurrentYear": false
+      },
+      {
+        "year": 2001,
+        "date": "2001",
+        "goldStockTonnes": 146035.5,
+        "goldPrice": 271,
+        "goldValue": 1272.6,
+        "debt": 5940,
+        "ratio": 0.21,
+        "isCurrentYear": false
+      },
+      {
+        "year": 2002,
+        "date": "2002",
+        "goldStockTonnes": 148564.6,
+        "goldPrice": 309.7,
+        "goldValue": 1479.2,
+        "debt": 6410,
+        "ratio": 0.23,
+        "isCurrentYear": false
+      },
+      {
+        "year": 2003,
+        "date": "2003",
+        "goldStockTonnes": 151114.1,
+        "goldPrice": 363.3,
+        "goldValue": 1765.2,
+        "debt": 7000,
+        "ratio": 0.25,
+        "isCurrentYear": false
+      },
+      {
+        "year": 2004,
+        "date": "2004",
+        "goldStockTonnes": 153530.3,
+        "goldPrice": 409.2,
+        "goldValue": 2019.7,
+        "debt": 7600,
+        "ratio": 0.27,
+        "isCurrentYear": false
+      },
+      {
+        "year": 2005,
+        "date": "2005",
+        "goldStockTonnes": 156034.6,
+        "goldPrice": 444.4,
+        "goldValue": 2229.6,
+        "debt": 8170,
+        "ratio": 0.27,
+        "isCurrentYear": false
+      },
+      {
+        "year": 2006,
+        "date": "2006",
+        "goldStockTonnes": 158401.8,
+        "goldPrice": 603.8,
+        "goldValue": 3074.9,
+        "debt": 8680,
+        "ratio": 0.35,
+        "isCurrentYear": false
+      },
+      {
+        "year": 2007,
+        "date": "2007",
+        "goldStockTonnes": 160749.1,
+        "goldPrice": 695.4,
+        "goldValue": 3593.9,
+        "debt": 9230,
+        "ratio": 0.39,
+        "isCurrentYear": false
+      },
+      {
+        "year": 2008,
+        "date": "2008",
+        "goldStockTonnes": 163049.8,
+        "goldPrice": 872,
+        "goldValue": 4571,
+        "debt": 10700,
+        "ratio": 0.43,
+        "isCurrentYear": false
+      },
+      {
+        "year": 2009,
+        "date": "2009",
+        "goldStockTonnes": 165554.9,
+        "goldPrice": 972.3,
+        "goldValue": 5175.5,
+        "debt": 12310,
+        "ratio": 0.42,
+        "isCurrentYear": false
+      },
+      {
+        "year": 2010,
+        "date": "2010",
+        "goldStockTonnes": 168426.9,
+        "goldPrice": 1224.5,
+        "goldValue": 6630.8,
+        "debt": 14030,
+        "ratio": 0.47,
+        "isCurrentYear": false
+      },
+      {
+        "year": 2011,
+        "date": "2011",
+        "goldStockTonnes": 171421.4,
+        "goldPrice": 1571.5,
+        "goldValue": 8661.2,
+        "debt": 15220,
+        "ratio": 0.57,
+        "isCurrentYear": false
+      },
+      {
+        "year": 2012,
+        "date": "2012",
+        "goldStockTonnes": 174496.2,
+        "goldPrice": 1669,
+        "goldValue": 9363.3,
+        "debt": 16430,
+        "ratio": 0.57,
+        "isCurrentYear": false
+      },
+      {
+        "year": 2013,
+        "date": "2013",
+        "goldStockTonnes": 177778.3,
+        "goldPrice": 1411.2,
+        "goldValue": 8066.1,
+        "debt": 17160,
+        "ratio": 0.47,
+        "isCurrentYear": false
+      },
+      {
+        "year": 2014,
+        "date": "2014",
+        "goldStockTonnes": 181167.4,
+        "goldPrice": 1266.4,
+        "goldValue": 7376.4,
+        "debt": 18140,
+        "ratio": 0.41,
+        "isCurrentYear": false
+      },
+      {
+        "year": 2015,
+        "date": "2015",
+        "goldStockTonnes": 184644,
+        "goldPrice": 1160.1,
+        "goldValue": 6886.6,
+        "debt": 18920,
+        "ratio": 0.36,
+        "isCurrentYear": false
+      },
+      {
+        "year": 2016,
+        "date": "2016",
+        "goldStockTonnes": 188320.3,
+        "goldPrice": 1250.8,
+        "goldValue": 7573.1,
+        "debt": 19980,
+        "ratio": 0.38,
+        "isCurrentYear": false
+      },
+      {
+        "year": 2017,
+        "date": "2017",
+        "goldStockTonnes": 192084.1,
+        "goldPrice": 1257.1,
+        "goldValue": 7763.7,
+        "debt": 20490,
+        "ratio": 0.38,
+        "isCurrentYear": false
+      },
+      {
+        "year": 2018,
+        "date": "2018",
+        "goldStockTonnes": 195920.4,
+        "goldPrice": 1268.5,
+        "goldValue": 7990.2,
+        "debt": 21970,
+        "ratio": 0.36,
+        "isCurrentYear": false
+      },
+      {
+        "year": 2019,
+        "date": "2019",
+        "goldStockTonnes": 199696,
+        "goldPrice": 1392.6,
+        "goldValue": 8941,
+        "debt": 23200,
+        "ratio": 0.39,
+        "isCurrentYear": false
+      },
+      {
+        "year": 2020,
+        "date": "2020",
+        "goldStockTonnes": 203309.1,
+        "goldPrice": 1769.6,
+        "goldValue": 11567,
+        "debt": 27750,
+        "ratio": 0.42,
+        "isCurrentYear": false
+      },
+      {
+        "year": 2021,
+        "date": "2021",
+        "goldStockTonnes": 207041.9,
+        "goldPrice": 1798.6,
+        "goldValue": 11972.6,
+        "debt": 29620,
+        "ratio": 0.4,
+        "isCurrentYear": false
+      },
+      {
+        "year": 2022,
+        "date": "2022",
+        "goldStockTonnes": 210862.2,
+        "goldPrice": 1800.1,
+        "goldValue": 12203.5,
+        "debt": 31420,
+        "ratio": 0.39,
+        "isCurrentYear": false
+      },
+      {
+        "year": 2023,
+        "date": "2023",
+        "goldStockTonnes": 214690,
+        "goldPrice": 1940.5,
+        "goldValue": 13394.4,
+        "debt": 34000,
+        "ratio": 0.39,
+        "isCurrentYear": false
+      },
+      {
+        "year": 2024,
+        "date": "2024",
+        "goldStockTonnes": 218550.1,
+        "goldPrice": 2386.2,
+        "goldValue": 16766.7,
+        "debt": 36220,
+        "ratio": 0.46,
+        "isCurrentYear": false
+      },
+      {
+        "year": 2025,
+        "date": "2025",
+        "goldStockTonnes": 222482.4,
+        "goldPrice": 3431.5,
+        "goldValue": 24545.7,
+        "debt": 38510,
+        "ratio": 0.64,
+        "isCurrentYear": false
+      },
+      {
+        "year": 2026,
+        "date": "2026",
+        "goldStockTonnes": 222600,
+        "goldPrice": 4548.5,
+        "goldValue": 32552.8,
+        "debt": 39460,
+        "ratio": 0.82,
+        "isCurrentYear": true
+      }
+    ],
+    "latest": {
+      "year": 2026,
+      "date": "2026",
+      "goldStockTonnes": 222600,
+      "goldPrice": 4548.5,
+      "goldValue": 32552.8,
+      "debt": 39460,
+      "ratio": 0.82,
+      "isCurrentYear": true
+    },
+    "sources": [
+      {
+        "label": "FRED GFDEBTN",
+        "url": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=GFDEBTN&cosd=1966-01-01"
+      },
+      {
+        "label": "LBMA Gold Price PM",
+        "url": "https://prices.lbma.org.uk/json/gold_pm.json"
+      },
+      {
+        "label": "世界黄金协会地上黄金存量",
+        "url": "https://www.gold.org/goldhub/data/how-much-gold"
+      },
+      {
+        "label": "Perth Mint/WGC 2009存量表",
+        "url": "https://www.perthmint.com/news/investor/market-research-and-analysis/what-are-smsf-trustees-saying-about-gold/"
+      },
+      {
+        "label": "BGS金矿产量（KAPSARC）",
+        "url": "https://datasource.kapsarc.org/api/v2/catalog/datasets/production-of-gold-mine/exports/csv"
+      },
+      {
+        "label": "世界黄金协会年度供给",
+        "url": "https://fsapi-china.gold.org/api/v11/charts/supply-and-demand/41"
+      }
+    ],
+    "note": "存量黄金规模=全球地上黄金存量×LBMA Gold Price PM年度均价，统一换算为十亿美元；美国债务采用FRED GFDEBTN季度期末值并取各年最后一期。2009年采用Perth Mint/WGC公开存量锚点，1970—2008年按BGS年度金矿产量回推，2010—2025年按WGC年度矿产量累计并校准到WGC end-Q2 2026 的222,600吨锚点；2026年沿用该存量锚点并使用截至当前的年度黄金均价，属于年内快照，WGC按季度更新后自动滚动。"
+  },
+  "dollarReserves": {
+    "rows": [
+      {
+        "period": "2001",
+        "share": 71.5,
+        "gold": 271.04
+      },
+      {
+        "period": "2002",
+        "share": 67.1,
+        "gold": 309.68
+      },
+      {
+        "period": "2003",
+        "share": 65.9,
+        "gold": 363.32
+      },
+      {
+        "period": "2004",
+        "share": 65.5,
+        "gold": 409.17
+      },
+      {
+        "period": "2005",
+        "share": 66.5,
+        "gold": 444.45
+      },
+      {
+        "period": "2006",
+        "share": 65.3,
+        "gold": 603.77
+      },
+      {
+        "period": "2007",
+        "share": 64.1,
+        "gold": 695.39
+      },
+      {
+        "period": "2008",
+        "share": 63.8,
+        "gold": 871.96
+      },
+      {
+        "period": "2009",
+        "share": 62.1,
+        "gold": 972.35
+      },
+      {
+        "period": "2010",
+        "share": 61.8,
+        "gold": 1224.52
+      },
+      {
+        "period": "2011",
+        "share": 62.6,
+        "gold": 1571.52
+      },
+      {
+        "period": "2012",
+        "share": 61.5,
+        "gold": 1668.98
+      },
+      {
+        "period": "2013",
+        "share": 61.2,
+        "gold": 1411.23
+      },
+      {
+        "period": "2014",
+        "share": 63.3,
+        "gold": 1266.4
+      },
+      {
+        "period": "2015",
+        "share": 65.7,
+        "gold": 1160.06
+      },
+      {
+        "period": "2016",
+        "share": 65.4,
+        "gold": 1250.8
+      },
+      {
+        "period": "2017",
+        "share": 62.7,
+        "gold": 1257.15
+      },
+      {
+        "period": "2018",
+        "share": 61.8,
+        "gold": 1268.49
+      },
+      {
+        "period": "2019",
+        "share": 60.7,
+        "gold": 1392.6
+      },
+      {
+        "period": "2020",
+        "share": 58.9,
+        "gold": 1769.59
+      },
+      {
+        "period": "2021",
+        "share": 58.8,
+        "gold": 1798.61
+      },
+      {
+        "period": "2022",
+        "share": 58.4,
+        "gold": 1800.09
+      },
+      {
+        "period": "2023",
+        "share": 58.4,
+        "gold": 1940.54
+      },
+      {
+        "period": "2024",
+        "share": 58,
+        "gold": 2386.2
+      },
+      {
+        "period": "2025Q4",
+        "share": 56.42,
+        "gold": 4135.24
+      },
+      {
+        "period": "2026Q1",
+        "share": 57.13,
+        "gold": 4872.89
+      }
+    ],
+    "latest": {
+      "period": "2026Q1",
+      "share": 57.13,
+      "gold": 4872.89
+    },
+    "sources": [
+      {
+        "label": "IMF COFER",
+        "url": "https://data.imf.org/Datasets/COFER"
+      },
+      {
+        "label": "IMF 2026Q1 Data Brief",
+        "url": "https://data.imf.org/en/news/imf%20data%20brief%20july%201"
+      },
+      {
+        "label": "LBMA Gold Price PM",
+        "url": "https://prices.lbma.org.uk/json/gold_pm.json"
+      }
+    ],
+    "note": "美元份额采用IMF COFER期末口径；2025Q3起IMF取消“未分配储备”并将新口径追溯修订至2000Q1。最新值为2026Q1的57.13%，黄金采用对应年度或季度LBMA Gold Price PM均价。"
+  }
+}
