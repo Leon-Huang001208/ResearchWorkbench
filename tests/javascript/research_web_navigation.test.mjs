@@ -85,7 +85,7 @@ test('recent conversation rows omit leading dot markers without discarding nativ
   assert.doesNotMatch(idle, /tiny-dot/);
   assert.doesNotMatch(running, /tiny-dot/);
   assert.match(running, /title="运行会话 · 运行中"/);
-  assert.match(running, /class="sr-only" role="status" aria-label="运行中"/);
+  assert.match(running, /class="session-row-status is-executing" role="status" aria-label="运行中"/);
 });
 
 
@@ -183,6 +183,44 @@ test('conversation body keeps real status and context controls without repeating
   const page = app.slice(app.indexOf('function researchPage()'), app.indexOf('function settingsPage()'));
   assert.doesNotMatch(page, /<h1>|AGENT RESEARCH|RESEARCH SESSION|detail\.title/);
   assert.match(page, /class="session-toolbar" aria-label="会话状态与资料"/);
-  assert.match(page, /detail\.questions\?\.length \? 'waiting_input' : detail\.status/);
+  assert.doesNotMatch(page, /badge\(detail\./);
   assert.match(page, /data-toggle-context/);
+});
+
+
+test('sidebar row places native status after the title and never animates a waiting question', async () => {
+  const { renderSessionRow } = await import('../../app/research_web/ui/shell.mjs');
+  for (const [status, label] of [['running', '运行中'], ['waiting_input', '等待回复'], ['completed', '执行已结束'], ['failed', '失败'], ['cancelled', '已取消']]) {
+    const html = renderSessionRow({ id: 's', mode: 'claw', title: '会话名', status });
+    assert.match(html, new RegExp(`role="status" aria-label="${label}"`));
+    assert.ok(html.indexOf('session-row-status') > html.indexOf('session-row-title'));
+    if (status !== 'running') assert.doesNotMatch(html, /session-row-status is-executing/);
+  }
+  const waiting = renderSessionRow({ id: 's', mode: 'fingpt', title: '问题', status: 'running', waitingForAnswer: true });
+  assert.match(waiting, /aria-label="等待回复"/);
+  assert.doesNotMatch(waiting, /session-row-status is-executing/);
+});
+
+
+test('conversation scroll and bottom composer are sibling regions with independent saved scroll positions', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const app = await readFile(new URL('../../app/research_web/ui/app.mjs', import.meta.url), 'utf8');
+  const css = await readFile(new URL('../../app/research_web/ui/conversation-navigation.css', import.meta.url), 'utf8');
+  assert.match(app, /class="conversation-scroll" data-conversation-scroll=/);
+  assert.match(app, /conversationScrollPositions\.set\(conversationScroller\.dataset\.conversationScroll, conversationScroller\.scrollTop\)/);
+  assert.match(app, /freshConversationScroller\.scrollTop = conversationScrollPositions\.get/);
+  assert.match(css, /\.conversation-scroll \{[^}]*flex: 1 1 auto;[^}]*overflow-y: auto/);
+  assert.match(css, /:has\(> \.conversation-scroll\) > \.composer-dock \{[^}]*flex: 0 0 auto/);
+});
+
+
+test('search popover exposes a close button and outside dismissal without requiring another search toggle', async () => {
+  const { renderTopbar } = await import('../../app/research_web/ui/shell.mjs');
+  const html = renderTopbar({ searchOpen: true });
+  assert.match(html, /role="dialog" aria-label="搜索会话与能力"/);
+  assert.match(html, /data-close-search aria-label="关闭搜索"/);
+  const { readFile } = await import('node:fs/promises');
+  const app = await readFile(new URL('../../app/research_web/ui/app.mjs', import.meta.url), 'utf8');
+  assert.match(app, /event\.target\.closest\?\.\('\.search-popover, \[data-toggle-search\]'\)/);
+  assert.match(app, /event\.stopPropagation\(\); closeGlobalSearch\(\)/);
 });

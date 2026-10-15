@@ -14,7 +14,10 @@ const submitOnly = process.argv.includes('--focus-submit');
 const menusOnly = process.argv.includes('--focus-menus');
 const dialogsOnly = process.argv.includes('--focus-project-dialog');
 const membershipOnly = process.argv.includes('--focus-project-membership');
-const receiptName = preview ? 'preview-receipt.json' : membershipOnly ? 'project-membership-receipt.json' : dialogsOnly ? 'project-dialog-receipt.json' : menusOnly ? 'menus-receipt.json' : submitOnly ? 'submit-receipt.json' : forwardOnly ? 'forward-receipt.json' : 'receipt.json';
+const statusOnly = process.argv.includes('--focus-session-status');
+const composerOnly = process.argv.includes('--focus-bottom-composer');
+const searchOnly = process.argv.includes('--focus-search-close');
+const receiptName = preview ? 'preview-receipt.json' : searchOnly ? 'search-close-receipt.json' : composerOnly ? 'bottom-composer-receipt.json' : statusOnly ? 'session-status-receipt.json' : membershipOnly ? 'project-membership-receipt.json' : dialogsOnly ? 'project-dialog-receipt.json' : menusOnly ? 'menus-receipt.json' : submitOnly ? 'submit-receipt.json' : forwardOnly ? 'forward-receipt.json' : 'receipt.json';
 const report = { status: 'running', environment: 'isolated Chrome synthetic API; no resident HTTP or model calls', checks: [], failures: [], writes: [], screenshots: [] };
 const modes = ['fingpt', 'claw'];
 const metadata = Object.fromEntries(modes.map(mode => [mode, { mode, revision: 0, pinned: [], project_order: ['default', 'p1', 'p2'] }]));
@@ -30,6 +33,9 @@ let failMove = false;
 let holdProjectCreate = false;
 let releaseProjectCreate;
 let projectCreateStarted;
+let holdSearch = false;
+let releaseSearch;
+let searchStarted;
 const send = (response, status, payload) => response.writeHead(status, { 'content-type': 'application/json', 'cache-control': 'no-store' }).end(JSON.stringify(payload));
 const broadcast = id => { for (const response of streams.get(id) || []) response.write(`event: snapshot\ndata: ${JSON.stringify(details[id])}\n\n`); };
 const server = http.createServer(async (request, response) => {
@@ -44,6 +50,10 @@ const server = http.createServer(async (request, response) => {
         report.writes.push({ method: request.method, endpoint, query: url.search, body });
       }
       const nav = endpoint.match(/^\/navigation\/(claw|fingpt)$/);
+      if (endpoint === '/sessions/search' && request.method === 'POST') {
+        if (holdSearch && body.query === '迟到验收') { holdSearch = false; await new Promise(resolve => { releaseSearch = resolve; searchStarted?.(); }); }
+        return send(response, 200, { source: 'native_dsh', items: sessions.filter(s => s.mode === body.mode).slice(0, 3).map(s => ({ id: s.id, mode: s.mode, title: s.title, snippet: body.query === '迟到验收' ? '迟到响应片段' : '合成原生正文片段' })), has_more: false, unavailable_count: 0 });
+      }
       if (nav) {
         const mode = nav[1];
         if (request.method === 'PATCH') {
@@ -127,7 +137,120 @@ try {
   const page = await context.newPage();
   page.setDefaultTimeout(5000);
   page.on('pageerror', error => { report.failures.push(`pageerror:${error.message}`); console.log(`PAGEERROR ${error.message}`); });
-  if (membershipOnly) {
+  if (searchOnly) {
+    report.searchCoverage = [];
+    for (const theme of ['light', 'dark']) for (const width of [390, 1440]) for (const mode of modes) await check(`${theme}/${width}/${mode}: search close, focus, no click-through, draft and result navigation`, async () => {
+      const id = `${mode}-6`; const route = `${origin}/#/${mode}?session=${id}`; const draft = `搜索关闭后保留 ${theme} ${width} ${mode} 草稿`;
+      await page.setViewportSize({ width, height: 900 }); await page.goto(route);
+      await page.evaluate(value => { localStorage.setItem('research-web.appearance.v1', value); for (const m of ['claw', 'fingpt']) localStorage.setItem(`research-web.navigation.v1.${m}`, JSON.stringify({ collapsed: false, collapsedSections: [], expanded: [], limit: 10 })); }, theme);
+      await page.reload({ waitUntil: 'domcontentloaded' }); await page.locator(`[data-conversation-scroll="${id}"]`).waitFor();
+      await page.waitForFunction(value => ['models', 'workspaces', 'report-workflows', `navigation/${value}`].every(endpoint => performance.getEntriesByType('resource').some(entry => entry.name.includes(`/api/research/${endpoint}`))), mode);
+      await page.locator('#prompt').fill(draft);
+      const popover = page.getByRole('dialog', { name: '搜索会话与能力', exact: true });
+      const open = async () => { if (width <= 1050 && !await page.locator('.primary-rail').isVisible()) await page.locator('.topbar .menu-toggle').click(); await page.locator('.primary-rail [data-toggle-search]').click(); await popover.waitFor(); };
+      const closed = async () => {
+        assert.equal(await popover.isVisible(), false); assert.equal(await page.locator('#global-search').inputValue(), '');
+        assert.equal(await page.evaluate(value => document.activeElement.matches(value), width <= 1050 ? '.topbar .menu-toggle' : '.primary-rail .search-trigger'), true);
+        assert.equal(await page.locator('#prompt').inputValue(), draft);
+      };
+      await open(); await page.locator('#global-search').fill(`${mode} 会话 1 `); await page.locator('#global-search').click(); assert.equal(await popover.isVisible(), true);
+      await shot(page, `search-close-${theme}-${width}-${mode}`);
+      await page.locator(width <= 1050 ? '.topbar .menu-toggle' : '.new-research').click(); await closed(); assert.equal(page.url(), route);
+      if (width <= 1050) assert.equal(await page.locator('.app-shell.navigation-open').count(), 0, 'outside click closes search without opening underlying drawer');
+      await open(); await page.locator('#global-search').fill('会话'); await page.locator('[data-close-search]').click(); await closed();
+      await open(); await page.locator('#global-search').fill('会话'); await page.keyboard.press('Escape'); await closed();
+      if (width > 1050) { await open(); await page.locator('#global-search').fill('会话'); await page.locator('.primary-rail [data-toggle-search]').click(); await closed(); }
+      await open(); await page.locator('#global-search').fill(`${mode} 会话 1 `); await page.locator(`[data-global-result="session"][data-session-id="${mode}-1"]`).click();
+      await page.locator(`[data-conversation-scroll="${mode}-1"]`).waitFor(); assert.equal(await popover.isVisible(), false);
+      await page.goto(route); await page.locator(`[data-conversation-scroll="${id}"]`).waitFor(); assert.equal(await page.locator('#prompt').inputValue(), draft);
+      if (mode === 'claw') {
+        holdSearch = true; const started = new Promise(resolve => { searchStarted = resolve; });
+        const response = page.waitForResponse(r => r.url().endsWith('/sessions/search') && r.request().postDataJSON()?.query === '迟到验收');
+        await open(); await page.locator('#global-search').fill('迟到验收'); await started; await page.locator('[data-close-search]').click(); await closed();
+        releaseSearch(); searchStarted = null; await (await response).finished(); await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+        await closed(); assert.equal(await page.getByText('迟到响应片段', { exact: true }).count(), 0);
+      }
+      assert.equal(report.writes.filter(w => w.endpoint === '/sessions' || w.endpoint.endsWith('/messages')).length, 0, 'search closure never creates sessions or sends messages');
+      report.searchCoverage.push({ theme, width, mode, close: width > 1050 ? ['outside-new-chat', 'explicit-close', 'Escape', 'same-search-toggle'] : ['outside-visible-menu-no-click-through', 'explicit-close', 'Escape'], lateNativeResponse: mode === 'claw' ? 'ignored-after-close' : 'not-applicable-local-search' });
+    });
+  } else if (composerOnly) {
+    report.composerGeometry = [];
+    const longMessages = Array.from({ length: 50 }, (_, index) => ({ id: `message-${index}`, seq: index + 1, role: index % 2 ? 'assistant' : 'user', text: `第 ${index + 1} 条合成消息。\n\n${'这是供滚动和布局验收使用的正文内容。'.repeat(12)}` }));
+    for (const mode of modes) {
+      details[`${mode}-6`].messages = [{ id: 'short-user', role: 'user', seq: 1, text: '短会话' }, { id: 'short-answer', role: 'assistant', seq: 2, text: '简短回答。' }];
+      details[`${mode}-7`].messages = structuredClone(longMessages);
+      details[`${mode}-0`].messages = structuredClone(longMessages); details[`${mode}-0`].questions = [{ ...structuredClone(group), seq: 1001 }];
+    }
+    for (const theme of ['light', 'dark']) for (const width of [390, 820, 1440, 1920]) for (const mode of modes) await check(`${theme}/${width}/${mode}: bottom composer, message scroll, width expansion, snapshot and session draft retention`, async () => {
+      const shortId = `${mode}-6`; const longId = `${mode}-7`; const draft = `保留 ${theme} ${width} ${mode} 草稿`;
+      await page.setViewportSize({ width, height: 900 }); await page.goto(`${origin}/#/${mode}?session=${shortId}`);
+      await page.evaluate(value => { localStorage.setItem('research-web.appearance.v1', value); for (const m of ['claw', 'fingpt']) localStorage.setItem(`research-web.navigation.v1.${m}`, JSON.stringify({ collapsed: false, collapsedSections: [], expanded: [], limit: 10 })); }, theme);
+      await page.reload({ waitUntil: 'domcontentloaded' }); await page.locator(`[data-conversation-scroll="${shortId}"]`).waitFor();
+      await page.waitForFunction(value => ['models', 'workspaces', 'report-workflows', `navigation/${value}`].every(endpoint => performance.getEntriesByType('resource').some(entry => entry.name.includes(`/api/research/${endpoint}`))), mode);
+      const shortBox = await page.locator('.composer-dock').boundingBox(); assert.ok(Math.abs(shortBox.y + shortBox.height - 900) <= 1, JSON.stringify({ shortBox }));
+      const connected = page.waitForResponse(r => r.url().includes(`/sessions/${longId}/events`));
+      await page.goto(`${origin}/#/${mode}?session=${longId}`); await page.locator(`[data-conversation-scroll="${longId}"]`).waitFor(); await connected;
+      const scroller = page.locator(`[data-conversation-scroll="${longId}"]`); assert.equal(await scroller.evaluate(el => el.scrollHeight > el.clientHeight + 100), true, 'long conversation has independent scroll extent');
+      const fixedBefore = await page.locator('.composer-dock').boundingBox(); await scroller.evaluate(el => { el.scrollTop = 220; });
+      const fixedAfter = await page.locator('.composer-dock').boundingBox(); assert.ok(Math.abs(fixedBefore.y - fixedAfter.y) <= 1 && Math.abs(fixedAfter.y + fixedAfter.height - 900) <= 1, JSON.stringify({ fixedBefore, fixedAfter }));
+      await page.locator('#prompt').fill(draft);
+      if (width > 1050) {
+        const expanded = await page.locator('#composer').boundingBox(); await page.locator('[data-collapse-sidebar]').click();
+        const collapsed = await page.locator('#composer').boundingBox(); assert.ok(Math.abs(collapsed.width - expanded.width - 280) <= 1, JSON.stringify({ expanded, collapsed }));
+        assert.ok(Math.abs(collapsed.y + collapsed.height - expanded.y - expanded.height) <= 1, 'composer bottom stays fixed when sidebar collapses');
+        assert.equal(await page.locator('#prompt').inputValue(), draft); assert.equal(await page.evaluate(() => document.activeElement.matches('.primary-rail .rail-toggle')), true, 'collapse focuses reopen control');
+        await page.locator('.primary-rail .rail-toggle').click(); assert.equal(await page.evaluate(() => document.activeElement.matches('[data-collapse-sidebar]')), true, 'reopen focuses collapse control');
+      } else { await page.locator('.topbar .menu-toggle').click(); await page.locator('.rail-mobile-close').click(); }
+      assert.equal(await scroller.evaluate(el => el.scrollTop), 220); assert.equal(await page.locator('#prompt').inputValue(), draft);
+      await page.locator('#prompt').focus(); await page.locator('#prompt').evaluate(el => el.setSelectionRange(3, 7));
+      const marker = `后台 snapshot ${theme} ${width} ${mode}`; details[longId].messages.push({ id: `snapshot-${theme}-${width}`, role: 'assistant', seq: 500 + width, text: marker });
+      broadcast(longId); await page.getByText(marker, { exact: true }).waitFor({ state: 'attached' });
+      assert.equal(await scroller.evaluate(el => el.scrollTop), 220); assert.equal(await page.locator('#prompt').inputValue(), draft);
+      assert.deepEqual(await page.locator('#prompt').evaluate(el => ({ focused: el === document.activeElement, start: el.selectionStart, end: el.selectionEnd })), { focused: true, start: 3, end: 7 });
+      await page.goto(`${origin}/#/${mode}?session=${shortId}`); await page.locator(`[data-conversation-scroll="${shortId}"]`).waitFor();
+      await page.goto(`${origin}/#/${mode}?session=${longId}`); await page.locator(`[data-conversation-scroll="${longId}"]`).waitFor();
+      await check(`${theme}/${width}/${mode}: returning session restores scroll and draft`, async () => {
+        assert.equal(await scroller.evaluate(el => el.scrollTop), 220); assert.equal(await page.locator('#prompt').inputValue(), draft);
+      });
+      await page.goto(`${origin}/#/${mode}?session=${mode}-0`); await page.locator('.question-form').waitFor();
+      await page.locator('.codex-question-arrow[data-q-page="next"]').click(); const submit = page.locator('.question-form [type="submit"]'); await submit.click({ trial: true });
+      const question = await page.evaluate(() => { const button = document.querySelector('.question-form [type="submit"]').getBoundingClientRect(); const scroll = document.querySelector('.conversation-scroll').getBoundingClientRect(); const dock = document.querySelector('.composer-dock').getBoundingClientRect(); return { top: button.top, bottom: button.bottom, scrollTop: scroll.top, scrollBottom: scroll.bottom, dockTop: dock.top, dockBottom: dock.bottom }; });
+      assert.ok(question.top >= question.scrollTop - 1 && question.bottom <= question.scrollBottom + 1 && question.bottom <= question.dockTop + 1 && Math.abs(question.dockBottom - 900) <= 1, JSON.stringify(question));
+      report.composerGeometry.push({ theme, width, mode, shortBox, fixedBefore, fixedAfter, question }); await shot(page, `bottom-composer-${theme}-${width}-${mode}`);
+    });
+  } else if (statusOnly) {
+    report.statusGeometry = [];
+    for (const mode of modes) {
+      for (const [index, status] of [[1, 'waiting_input'], [2, 'completed'], [3, 'running'], [4, 'failed'], [5, 'cancelled']]) { sessions.find(s => s.id === `${mode}-${index}`).status = status; details[`${mode}-${index}`].status = status; }
+      details[`${mode}-0`].model = 'fixture-model';
+    }
+    for (const theme of ['light', 'dark']) for (const width of [390, 1440]) for (const mode of modes) await check(`${theme}/${width}/${mode}: trailing session status, pending priority and reduced motion`, async () => {
+      await page.setViewportSize({ width, height: 900 }); await page.goto(`${origin}/#/${mode}?session=${mode}-0`);
+      await page.evaluate(value => { localStorage.setItem('research-web.appearance.v1', value); for (const m of ['claw', 'fingpt']) localStorage.setItem(`research-web.navigation.v1.${m}`, JSON.stringify({ collapsed: false, collapsedSections: [], expanded: [], limit: 10 })); }, theme);
+      await page.reload({ waitUntil: 'domcontentloaded' }); await page.locator('.question-form').waitFor();
+      await page.waitForFunction(value => ['models', 'workspaces', 'report-workflows', `navigation/${value}`].every(endpoint => performance.getEntriesByType('resource').some(entry => entry.name.includes(`/api/research/${endpoint}`))), mode);
+      if (width <= 1050) await page.locator('.topbar .menu-toggle').click();
+      assert.equal(await page.locator('.session-toolbar .badge').count(), 0); assert.equal(await page.locator('.session-toolbar').getByText('fixture-model', { exact: true }).count(), 1);
+      assert.equal(await page.locator('.question-form').getByText('正在询问问题', { exact: true }).count(), 1);
+      const labels = ['等待回复', '等待回复', '执行已结束', '运行中', '失败', '已取消'];
+      for (const [index, label] of labels.entries()) {
+        const row = page.locator(`[data-session-menu="${mode}-${index}"]`).locator('..'); const marker = row.locator('.session-row-status');
+        assert.equal(await marker.getAttribute('role'), 'status'); assert.equal(await marker.getAttribute('aria-label'), label); assert.equal(await marker.getAttribute('title'), label);
+        const metrics = await row.evaluate(el => { const title = el.querySelector('.session-row-title').getBoundingClientRect(); const marker = el.querySelector('.session-row-status').getBoundingClientRect(); const icon = el.querySelector('.session-row-status svg').getBoundingClientRect(); const link = el.querySelector('.recent-item').getBoundingClientRect(); return { titleWidth: title.width, titleRight: title.right, markerLeft: marker.left, markerRight: marker.right, linkRight: link.right, iconWidth: icon.width, iconHeight: icon.height }; });
+        assert.ok(metrics.titleWidth > 0 && metrics.markerLeft >= metrics.titleRight - .5 && metrics.markerRight <= metrics.linkRight + .5, JSON.stringify(metrics));
+        assert.ok(Math.abs(metrics.iconWidth - 14) <= .5 && Math.abs(metrics.iconHeight - 14) <= .5, JSON.stringify(metrics));
+        if (index < 2) { assert.equal(await marker.locator('circle[r="9"]').count(), 1); assert.equal(await marker.evaluate(el => el.classList.contains('is-executing')), false); }
+        if (index === 2) assert.equal(await marker.locator('path').getAttribute('d'), 'm5 12 4 4L19 6');
+        if (index === 3) { assert.equal(await marker.locator('circle[r="8"]').count(), 1); assert.equal(await marker.evaluate(el => el.classList.contains('is-executing')), true); }
+        if (index > 3) assert.equal(await marker.locator('path').getAttribute('d'), 'm6 6 12 12M6 18 18 6');
+        report.statusGeometry.push({ theme, width, mode, index, label, ...metrics });
+      }
+      const running = page.locator(`[data-session-menu="${mode}-3"]`).locator('..').locator('.session-row-status svg'); const waiting = page.locator(`[data-session-menu="${mode}-0"]`).locator('..').locator('.session-row-status svg');
+      await page.emulateMedia({ reducedMotion: 'no-preference' }); assert.notEqual(await running.evaluate(el => getComputedStyle(el).animationName), 'none'); assert.equal(await waiting.evaluate(el => getComputedStyle(el).animationName), 'none');
+      await page.emulateMedia({ reducedMotion: 'reduce' }); assert.equal(await running.evaluate(el => getComputedStyle(el).animationName), 'none'); assert.equal(await waiting.evaluate(el => getComputedStyle(el).animationName), 'none');
+      assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true); await shot(page, `session-status-${theme}-${width}-${mode}`);
+    });
+  } else if (membershipOnly) {
     for (const mode of modes) await check(`${mode}: unique pinned/project/recent priority, persistence, default return and failure retention`, async () => {
       const id = `${mode}-1`; const row = `[data-session-menu="${id}"]`; const recent = page.locator('.nav-section[aria-label="最近"]'); const pinned = page.locator('.nav-section[aria-label="置顶"]'); const member = page.locator(`.nav-project[data-nav-id="p1"] .nav-project-members ${row}`);
       metadata[mode].pinned.push({ kind: 'session', id: `${mode}-26` });

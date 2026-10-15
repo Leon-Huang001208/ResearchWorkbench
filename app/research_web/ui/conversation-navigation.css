@@ -108,3 +108,22 @@
 .session-toolbar .session-meta, .session-toolbar .button-row { margin: 0; }
 .session-toolbar .session-meta { min-width: 0; flex-wrap: wrap; }
 @media (max-width: 600px) { .session-toolbar .button { min-height: 44px; } }
+
+.codex-sidebar .recent-item { display: flex; align-items: center; gap: 8px; }
+.codex-sidebar .session-row-title { flex: 1 1 auto; }
+.session-row-status { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 16px; width: 16px; height: 16px; margin-left: auto; color: var(--muted); }
+.codex-sidebar .session-row-status .ui-icon { width: 14px; height: 14px; flex: 0 0 14px; }
+.session-row-status.is-executing .ui-icon { animation: conversation-status-spin 1.2s linear infinite; }
+@keyframes conversation-status-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .session-row-status.is-executing .ui-icon { animation: none; } }
+
+/* Conversation messages scroll independently; the draft stays at the bottom. */
+#app #main:has(> .page-content > .conversation-scroll) { overflow: hidden; min-height: 0; }
+#app .page-content:has(> .conversation-scroll) { display: flex; flex-direction: column; width: 100%; max-width: none; height: 100%; min-height: 0; padding-bottom: 0; }
+.conversation-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; scrollbar-width: thin; }
+#app .page-content:has(> .conversation-scroll) > .composer-dock { position: relative; flex: 0 0 auto; width: 100%; max-width: none; margin: 0 auto; padding: 12px 0 16px; background: var(--canvas); }
+.conversation-scroll .messages { width: 100%; }
+
+.search-popover .search-close { position: absolute; top: 8px; right: 8px; z-index: 2; width: 32px; min-height: 32px; padding: 8px; color: var(--muted); background: transparent; border: 0; }
+.topbar .search-popover .global-search { padding-right: 32px; z-index: auto; }
+@media (max-width: 1050px) { .search-popover .search-close { width: 44px; min-height: 44px; top: 2px; right: 4px; padding: 14px; } .topbar .search-popover .global-search { padding-right: 40px; } }

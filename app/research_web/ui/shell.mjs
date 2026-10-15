@@ -1,7 +1,7 @@
 import { renderConversationNavigation } from './conversation-navigation.mjs';
 import { escapeHTML as e } from './markdown.mjs';
 import { sessionHash, isRunning } from './core.mjs';
-import { renderActivities, renderDatasets, renderDelivery, renderFiles } from './views.mjs';
+import { renderActivities, renderDatasets, renderDelivery, renderFiles, statusText } from './views.mjs';
 import { icon } from './icons.mjs';
 import { renderResearchPanel } from './research-report.mjs';
 import { renderWorkflowPlan } from './capabilities.mjs';
@@ -115,10 +115,13 @@ export function renderLockedWorkflowSummary(detail) {
 
 export function renderSessionRow(session, currentSessionId = null, openMenuId = null) {
   const active = currentSessionId === session.id;
-  const busy = isRunning(session.status);
+  const busy = ['running', 'busy'].includes(session.status);
   const title = session.title || '未命名会话';
-  const statusLabel = session.waitingForAnswer ? '等待你的回答' : busy ? '运行中' : '';
-  return `<div class="session-row ${active ? 'active' : ''} ${openMenuId === session.id ? 'menu-open' : ''}"><a href="${sessionHash(session)}" class="recent-item ${active ? 'active' : ''}" title="${e(title)}${statusLabel ? ` · ${statusLabel}` : ''}" ${active ? 'aria-current="page"' : ''}><span class="session-row-title">${e(title)}</span>${statusLabel ? `<span class="sr-only" role="status" aria-label="${statusLabel}">${statusLabel}</span>` : ''}</a><button type="button" class="session-actions-trigger" data-session-menu="${e(session.id)}" aria-label="${e(title)}的更多操作" aria-haspopup="menu" aria-expanded="${openMenuId === session.id}">${icon('more')}</button>${session.history_warning ? `<span class="session-history-warning small" role="status">历史受限：${e(session.history_warning)}</span>` : ''}</div>`;
+  const status = session.waitingForAnswer ? 'waiting_input' : session.status;
+  const statusLabel = statusText(status);
+  const glyph = status === 'waiting_input' || ['waiting_approval', 'awaiting_approval'].includes(status) ? 'question' : busy ? 'spinner' : status === 'completed' ? 'check' : ['failed', 'cancelled', 'interrupted'].includes(status) ? 'close' : 'history';
+  const statusMarker = `<span class="session-row-status ${busy && status !== 'waiting_input' ? 'is-executing' : ''}" role="status" aria-label="${e(statusLabel)}" title="${e(statusLabel)}">${icon(glyph)}</span>`;
+  return `<div class="session-row ${active ? 'active' : ''} ${openMenuId === session.id ? 'menu-open' : ''}"><a href="${sessionHash(session)}" class="recent-item ${active ? 'active' : ''}" title="${e(title)}${statusLabel ? ` · ${statusLabel}` : ''}" ${active ? 'aria-current="page"' : ''}><span class="session-row-title">${e(title)}</span>${statusMarker}</a><button type="button" class="session-actions-trigger" data-session-menu="${e(session.id)}" aria-label="${e(title)}的更多操作" aria-haspopup="menu" aria-expanded="${openMenuId === session.id}">${icon('more')}</button>${session.history_warning ? `<span class="session-history-warning small" role="status">历史受限：${e(session.history_warning)}</span>` : ''}</div>`;
 }
 
 export function renderSidebar(options = {}) {
@@ -142,5 +145,5 @@ export function renderTopbar({ page = 'fingpt', section = '', frameworkSlug = ''
         : ['研究服务不可用', 'danger'];
     runtimeAttention = `<div class="topbar-right"><a href="#/settings/model" class="runtime-status ${tone}" title="${e(runtime.message || runtimeLabel || label)}"><span class="tiny-dot" aria-hidden="true"></span>${label}</a></div>`;
   }
-  return `<header class="topbar ${searchOpen ? 'search-open' : ''}"><button class="icon-button menu-toggle" data-toggle-sidebar aria-label="打开导航">${icon('sidebar')}</button><div class="search-popover" ${searchOpen ? '' : 'hidden'}>${renderGlobalSearch(search, sessions, skills, { native: nativeSearch })}</div>${runtimeAttention}</header>`;
+  return `<header class="topbar ${searchOpen ? 'search-open' : ''}"><button class="icon-button menu-toggle" data-toggle-sidebar aria-label="打开导航">${icon('sidebar')}</button><div class="search-popover" role="dialog" aria-label="搜索会话与能力" ${searchOpen ? '' : 'hidden'}><button type="button" class="icon-button search-close" data-close-search aria-label="关闭搜索">${icon('close')}</button>${renderGlobalSearch(search, sessions, skills, { native: nativeSearch })}</div>${runtimeAttention}</header>`;
 }
