@@ -1,5 +1,7 @@
 # Agent 任务路由指南
 
+固定 DSH 搜索升级的 macOS Bootstrap 沿用既有空搜索 HTTP 冒烟，并核对 unavailable_count=0；部分覆盖、原生不可见范围与真实工具/文件由本机独立候选验证，不新增平台 dispatch。
+
 macOS迭代若供resident自动部署，仍须完成受管delivery和独立review，确保最新master与
 Project Constraints/Research Web Checks/macOS Bootstrap实际checkout树匹配。缺失Mac门时补齐同候选证据；
 不因部署紧迫跳过CI、不从本机dispatch其他平台。未知/依赖/迁移变化交给明确授权的专项升级。

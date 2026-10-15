@@ -1,5 +1,7 @@
 # Research Web 能力与平台证据
 
+本轮固定 DSH 搜索候选由 macOS 验收；Windows/Linux 与 Docker 产品安装尚未执行，保持 NOT_RUN。通用 Ubuntu 检查不替代其他产品宿主证据。
+
 macOS resident 为显式选择的登录后 Native 管理功能；保留 FileVault，不承诺登录前启动。
 Windows/Linux、Docker resident 均不启用；未执行的平台验收保持 NOT_RUN。
 本轮不重启或注销用户，真实重启登录恢复须另记现场证据；启动项加载与当前进程健康分别验收。

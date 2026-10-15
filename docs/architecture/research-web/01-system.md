@@ -1,5 +1,7 @@
 # 部署与模块职责
 
+正文搜索沿唯一 DSH 和现有 session-controller；Host 传产品/模式会话范围，原生层求可见范围交集，返回显式不完整计数。不新增正文库、执行服务或调度器。
+
 macOS可选登录项每60秒以短时管理进程监督既有Native Web/DSH，不新增产品常驻引擎。
 同一生产checkout/venv和8088/3081保留；控制器artifact固定，候选通过GitHub精确树与本机交付准入。
 FileVault解锁并登录后才启动，Tailscale Serve仍由原配置提供私网入口。
