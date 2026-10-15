@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "updated",
-  "summary": "修复从外部网页点击私网首页链接被跨站校验拒绝。",
-  "reason": "README说明仅用户触发顶层GET首页导航获得例外；跨站API、Host/HTTPS、内部认证与CSP保持。安装、安全、接口及模块文档同步，无新依赖或配置。"
+  "disposition": "unchanged",
+  "summary": "Claw执行流、深色输入表面与发送上传竞态修复。",
+  "reason": "README已说明Claw唯一研究引擎、显式确认与工作区边界；本次仅调整现有前端呈现和会话内材料归属，不新增产品入口、依赖、安装配置或发布功能。详细交互与主题合同同步至UI/外观文档。"
 }

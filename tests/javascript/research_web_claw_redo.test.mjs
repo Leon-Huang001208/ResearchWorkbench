@@ -102,9 +102,11 @@ test('execution followup payload ignores restored selections and binds exact imm
   control.setCapability({id:'extra',enabled:true,version:1});control.setTools(['unapproved']);control.setMethods(['extra-method']);control.setFormats([]);
   control.state.tabbitTabs=[{tab_id:'tab',instance_id:'browser'}];control.addAttachments([{id:'unapproved-file'}]);control.setDraft('补充说明');await control.send();
   assert.deepEqual(writes,[{text:'补充说明',tool_ids:['web_search'],expected_formats:['md']}]);assert.equal(confirmations,0);
+  assert.equal('attachment_ids' in writes[0],false);assert.deepEqual(control.state.attachments,[{id:'unapproved-file'}]);
+  // A separately changed approval snapshot permits uploads; previously excluded selections remain in the next draft.
   detail.execution_context.definition_snapshot.research_task.approved_data_sources=['uploads'];
   control.addAttachments([{id:'approved-file'}]);control.setDraft('参考附件');await control.send();
-  assert.deepEqual(writes[1],{text:'参考附件',tool_ids:['web_search'],expected_formats:['md'],attachment_ids:['approved-file']});
+  assert.deepEqual(writes[1],{text:'参考附件',tool_ids:['web_search'],expected_formats:['md'],attachment_ids:['unapproved-file','approved-file']});
   delete detail.execution_context.definition_snapshot.output_formats;
   control.setDraft('缺失快照不能发送');await control.send();
   assert.equal(writes.length,2);assert.equal(control.state.draft,'缺失快照不能发送');assert.match(control.state.error,/缺少批准范围/);

@@ -1,5 +1,7 @@
 import { createAPI, createController, prepareClawExampleDraft, parseRoute, legacyRouteTarget, isRunning, safeLog, collectQuestionAnswers, reconcileSessionSummary, waitForDataProbe, waitForIntegrationBatch, waitForLocalIntegrationProbe, waitForLocalIntegrationVerification } from './core.mjs';
 import { escapeHTML as e } from './markdown.mjs';
+import { createDisclosureState } from './disclosures.mjs';
+import { createUploadHandler } from './uploads.mjs';
 import { badge, empty, renderConversation, copyResearchText, renderDeleteConfirm, renderHistory, renderPurgeConfirm, renderRename, renderDocumentEditor, documentTargets, documentEditValue, documentCreationPayload } from './views.mjs';
 import { icon } from './icons.mjs';
 import { researchRecipes, renderResearchRecipes } from './research-report.mjs';
@@ -41,6 +43,7 @@ const api = createAPI();
 const clawWorkspace = { projects: [], detail: null, busy: false, error: '', newName: '', targetSession: '', renameEdits: new Map() };
 const clawDraftEdits = new Map();
 const root = document.querySelector('#app');
+const disclosureState = createDisclosureState({ logger: safeLog });
 const defaultCatalogNames = ['runtime', 'models', 'workspaces', 'sessions', 'capabilities', 'tools', 'reportWorkflows'];
 const catalog = { runtime: null, tabbit: null, integrations: { summary: {}, items: [], latest_batch: null }, localIntegrations: { categories: [], items: [], summary: {}, service: {} }, connections: { groups: [], sources: [], platform: {}, migration: {} }, models: [], sessions: [], deletedSessions: [], workspaces: [], capabilities: [], tools: [], reportWorkflows: [], automations: [], automationRuns: [], deliveryChannels: [], artifacts: [], dataCatalog: { summary: {}, capabilities: [], sources: [], bindings: [] }, errors: {}, modelFailures: [], pending: new Set(defaultCatalogNames) };
 const catalogPendingCounts = new Map();
@@ -431,6 +434,7 @@ function render() {
   const dirtyHotForms=[...root.querySelectorAll('[data-hot-form][data-hot-dirty]')];
   const documentForm = root.querySelector('#document-edit-form');
   const active = document.activeElement; const focusId = active?.id;
+  disclosureState.capture(root, active);
   const selection = active && ['TEXTAREA', 'INPUT'].includes(active.tagName) && active.type !== 'password' ? { start: active.selectionStart, end: active.selectionEnd } : null;
   const mainScroll = document.querySelector('#main')?.scrollTop || 0;
   const research = ['fingpt', 'claw'].includes(state.route.page);
@@ -474,6 +478,7 @@ function render() {
     if(fresh){const blocked=form.dataset.hotForm==='filters'?hotController.state.loading:hotController.state.busy||hotController.state.pending;form.querySelectorAll('button').forEach(button=>{button.disabled=Boolean(blocked);});fresh.replaceWith(form);}
   }
   document.querySelector('#main').scrollTop = mainScroll;
+  disclosureState.restore(root);
   if (focusId) {
     const replacement = document.getElementById(focusId);
     if (replacement && !replacement.disabled) { replacement.focus({ preventScroll: true }); if (selection && selection.start !== null) replacement.setSelectionRange?.(selection.start, selection.end); }
@@ -1267,7 +1272,7 @@ async function ensureSession() {
   const result = await controller.create(state.route.page, selectedWorkspace);
   if (!result?.id) return false;
   await showRoute(); await loadCatalog(['sessions']);
-  return Boolean(state.detail);
+  return state.detail?.id === result.id;
 }
 
 async function loadTabbitCandidates(query) {
@@ -1608,13 +1613,13 @@ root.addEventListener('toggle', (event) => {
   if (event.target.matches?.('.method-picker')) methodPickerOpen = event.target.open;
 }, true);
 
-async function uploadFiles(files) {
-  if (!files.length || state.busy || state.loading || !(await ensureSession())) return;
-  const id = state.detail?.id;
-  if (!id) return;
-  const result = await controller.action(() => api.upload(id, files));
-  if (result?.items && state.detail?.id === id) controller.addAttachments(result.items);
-}
+const uploadFiles = createUploadHandler({
+  state, ensureSession,
+  upload: (id, files) => controller.action(() => api.upload(id, files)),
+  accept: (id, files) => controller.addAttachmentsForSession(id, files),
+  notify: message => { state.error = message; render(); },
+  logger: safeLog,
+});
 
 root.addEventListener('dragover', (event) => {
   if (!event.target.closest('[data-dropzone]')) return;

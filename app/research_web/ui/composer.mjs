@@ -1,4 +1,5 @@
 import { escapeHTML as e } from './markdown.mjs';
+import { canUploadToSession } from './uploads.mjs';
 import { isRunning } from './core.mjs';
 import { icon } from './icons.mjs';
 import { renderFormatPicker, modelOptions } from './views.mjs';
@@ -78,7 +79,7 @@ export function renderComposer({ models = [], model = '', modelEndpoint = '', pa
   const claw = page === 'claw';
   const execution = claw ? detail?.execution_context : null;
   const definition = execution?.definition_snapshot || {};
-  const uploadsAllowed = !execution || definition.research_task?.approved_data_sources?.includes('uploads') === true;
+  const uploadsAllowed = canUploadToSession(detail, sourceScope);
   const task = definition.research_task || {};
   const executionScope = execution ? `<section class="execution-scope" aria-label="日程执行定义"><strong>${e(definition.name || '研究任务')} · 定义 v${e(execution.definition_version || '—')}</strong><dl><div><dt>模型</dt><dd>${e(task.model_provider || '')} / ${e(task.model_id || detail.model || '未提供')}</dd></div><div><dt>批准数据</dt><dd>${e(Array.isArray(task.approved_data_sources) ? task.approved_data_sources.join('、') || '无额外数据' : '未提供范围快照')}</dd></div><div><dt>批准工具</dt><dd>${e(Array.isArray(task.approved_tools) ? task.approved_tools.join('、') || '无额外工具' : '未提供工具快照')}</dd></div><div><dt>输出</dt><dd>${e(Array.isArray(definition.output_formats) ? definition.output_formats.map(value=>String(value).toUpperCase()).join(' / ') || '文本' : '未提供格式快照')} · ${e(task.output_requirements || '')}</dd></div></dl><p class="muted small">来源：Automation ${e(execution.automation_id)} · Run ${e(execution.run_id || '—')}。追问不会修改日程定义、模型和批准范围。</p></section>` : '';
   const enabledSkills = skillMatches('', skills);
