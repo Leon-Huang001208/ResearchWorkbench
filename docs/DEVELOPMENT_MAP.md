@@ -1,5 +1,7 @@
 # Research Workbench Development Map
 
+固定 DSH 搜索覆盖字段由 session-controller 显式 report 返回，Web service 求产品 scope 并校验计数，session-search/shell 显示受限状态；macOS Bootstrap 原空搜索步骤核对 unavailable_count，仍使用既有 workflow。
+
 `research_workbench_entrypoint/resident/` 为 macOS 登录监督器：controller 管 LaunchAgent、
 暂存/回滚；evidence 绑定本地交付与 GitHub 实际 checkout tree；admission 为 HTTP、send/approve/answer
 及 Automation 共享栅栏。`test_resident.py` 覆盖跨进程锁、排队延后、故障恢复、CI 与来源绑定。

@@ -138,7 +138,7 @@ jobs:
           curl --fail --silent http://127.0.0.1:8088/api/research/data/connections > connections.json
           .venv/bin/python -c "import json; data=json.load(open('connections.json', encoding='utf-8')); item=next(x for x in data['sources'] if x['id']=='tinysoft'); assert item['configured'] is False and item['callable'] is False and item['restart_required'] is False, item"
           curl --noproxy '*' --fail --silent --show-error --max-time 45 -H 'Origin: http://127.0.0.1:8088' -H 'Content-Type: application/json' --data '{"query":"bootstrap-search-smoke","mode":"claw"}' http://127.0.0.1:8088/api/research/sessions/search > native-search-smoke.json
-          .venv/bin/python -c "import json; data=json.load(open('native-search-smoke.json', encoding='utf-8')); assert data['source'] == 'native_dsh' and data['items'] == [] and data['has_more'] is False, data"
+          .venv/bin/python -c "import json; data=json.load(open('native-search-smoke.json', encoding='utf-8')); assert data['source'] == 'native_dsh' and data['items'] == [] and data['has_more'] is False and data['unavailable_count'] == 0, data"
 
       - name: Stop macOS services
         if: always()

@@ -1,5 +1,7 @@
 # Mac mini Docker 开发与独立部署
 
+固定 DSH 查询升级同时适用于容器安装合同，但本轮只执行 macOS Native 候选；Docker/Linux 产品验收留给对应设备，不能将 Native 通过标为容器通过。旧源日志不迁移，部分搜索计数仅用于真实覆盖说明。
+
 resident仅适用于已明确安装的macOS Native，不管理Docker容器、镜像、卷或Docker模式；
 发现模式/归属不符时保留blocked，不跨模式启动第二实例。
 
