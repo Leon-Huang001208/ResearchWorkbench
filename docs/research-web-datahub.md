@@ -1,5 +1,11 @@
 # Research Web DataHub
 
+Broker在没有已适配的候选来源时返回`data_capability_not_integrated`，已适配但配置/依赖/授权/健康条件未满足时返回`data_capability_unavailable`，均为503；非法来源或参数保留原校验。模型工具说明要求说明缺口，不能通过改写同一查询重复尝试，也不授予其他工具或供应商权限。当前`search_web`的Tavily/Bing绑定仍未完成适配；本轮未接入新供应商，不把已注册称为可调用。
+
+原生桥的 manifest 摘要保留 query/provider_query/coverage，便于核对标的、日期与统计范围；行数及哈希一致不能证明单一证券等于市场汇总。工具注册描述明确来源须逐次验证。Wind index_data 的 quotes 是当前快照，不接受历史 date；错误不静默改写，桥接仅返回受限业务代码。
+
+Claw 日程研究在独立 DSH 会话锁定 approved_data_sources 与 approved_tools，仍由原 DataHub/原生准入校验。资料未就绪时保留缺口，定时定义不证明金融来源可调用；试跑文件也不能把合成数据作为真实市场数据。
+
 Claw 项目只聚合成员会话的 DataHub 快照摘要与来源链接；文件引用独立复制已显式选择的附件，不扩大新会话 DataHub 准入或自动复制源会话快照。日程草稿沿既有私有控制认证，不触发数据查询。
 
 DataHub 内部控制 reader 复用 `control_origin.py` 的纯 JSON/回环 URL parser，原错误与

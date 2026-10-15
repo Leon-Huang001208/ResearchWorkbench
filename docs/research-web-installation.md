@@ -27,8 +27,13 @@ ETF工程模拟使用现有Pydantic/FastAPI及stdlib SQLite，无新增Python/No
 凭据或启用算法。数据/能力缺口由模拟页readiness显示，不能把Doctor的服务健康视作策略可运行。
 本切片的干净macOS安装CI与Docker开发/镜像验收尚待执行，现有环境聚焦通过不替代这些门。
 
+Claw 回答工具卡、保存回执、显式格式助手与会话工具目录收窄均复用固定 DSH 和现有依赖；web.in/web.lock、setup_web.py 与 Bootstrap workflow 未增加依赖或安装参数。Native 候选已通过公开安装器 repair/no-start 更新，必须使用安装器选择的受管 Node 启动。模式记录的共享祖先目录允许无关同级活动，私有 install 父目录与记录仍严格验证；Windows/Linux 验收由对应设备执行。
+
 Claw 项目与日程入口使用既有 Web/DSH 依赖，无新增产品包或安装步骤。旧数据根可直接读取，缺少 project_id 的 Claw 会话归入默认“我的研究”，不移动文件。
-Automation 被显式关闭时，聊天日程草稿也不可用；提出草稿不等于保存或启用。日程需实际能力版本，数据/模型/工具的可调用性继续由现有设置与 Doctor 分层诊断。
+Claw 接入固定 DSH 已存在的 ask_user_question 插件，无新增 Python/Node 依赖，公开安装入口、web.in/web.lock/setup_web.py/Bootstrap workflow 保持原锁。
+Automation 被显式关闭时，聊天日程草稿也不可用；提出草稿不等于保存或启用。直接 research_task 无需 Skill；旧目标仍需实际能力版本，数据/模型/工具的可调用性继续由现有设置与 Doctor 分层诊断。
+
+固定 Native/Docker 启动 overlay 的 DeepSeek 单次输出上限为 16384 tokens；不修改模型凭据、DSH pin 或锁定依赖。截断仍是 incomplete，文件验收必须核对原生完成事件及实际非空产物。
 
 ## 中文 PDF 依赖与验收
 

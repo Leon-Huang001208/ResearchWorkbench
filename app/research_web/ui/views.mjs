@@ -1,11 +1,23 @@
 import { escapeHTML as e, renderMarkdown, safeURL } from './markdown.mjs';
-import { sessionHash, isRunning } from './core.mjs';
+import { sessionHash, isRunning, safeLog } from './core.mjs';
 import { icon } from './icons.mjs';
 import localModels from './local-models.json' with { type: 'json' };
 
 export const statusText = (status) => ({ idle: '待命', running: '运行中', queued: '排队中', completed: '执行已结束', failed: '失败', cancelled: '已取消', waiting_approval: '等待授权', awaiting_approval: '等待授权', waiting_input: '等待回复', cancelling: '取消中' })[status] || status || '未知';
 export const badge = (status) => `<span class="badge ${isRunning(status) ? 'live' : ['failed', 'error'].includes(status) ? 'danger' : ''}">${e(statusText(status))}</span>`;
 export const empty = (title, description = '') => `<div class="empty"><span class="empty-symbol" aria-hidden="true">◇</span><h3>${e(title)}</h3>${description ? `<p>${e(description)}</p>` : ''}</div>`;
+
+export async function copyResearchText(text, { clipboard = globalThis.navigator?.clipboard, logger = safeLog } = {}) {
+  if (typeof text !== 'string' || !text.trim()) throw new Error('没有可复制的回复。');
+  try {
+    if (typeof clipboard?.writeText !== 'function') throw new Error('clipboard_unavailable');
+    await clipboard.writeText(text);
+    logger('research_text_copied');
+  } catch {
+    logger('research_text_copy_failed');
+    throw new Error('无法复制，请检查浏览器剪贴板权限或手动选择回复。');
+  }
+}
 
 const stepStatusText = (status) => ({ running: '进行中', queued: '排队中', pending: '排队中', completed: '已完成', failed: '失败', cancelled: '已取消', interrupted: '已中断', blocked: '已阻断', incomplete: '不完整' })[status] || statusText(status);
 
@@ -75,31 +87,75 @@ function renderAnswerActions(round, message, { feedback = null, copied = '', ret
 }
 
 export function renderConversation(detail, questionDrafts = new Map(), options = {}) {
+  options = Array.isArray(options) ? { extraEntries: options } : options;
+  const extraEntries = Array.isArray(options.extraEntries) ? options.extraEntries : [];
   if (!detail) return '';
+  const resolveLink = artifactLinkResolver(detail);
   const assistantLabel = detail.mode === 'fingpt' ? 'FinGPT 回复' : detail.mode === 'claw' ? 'Claw 回复' : '助手回复';
-  const running = isRunning(detail.status);
-  const rounds = researchRounds(detail.messages || [], detail.activities || []);
-  const lastRound = rounds[rounds.length - 1];
-  const messages = rounds.map((round) => {
-    const isLast = round === lastRound;
-    const parts = [];
-    if (round.user) parts.push(`<article class="message user" aria-label="用户消息"><div class="markdown">${renderMarkdown(round.user.text)}</div></article>`);
-    if (!round.assistants.length && isLast && running) parts.push(renderRoundProcess(round.activities, { running: true, toolNames: options.toolNames }));
-    round.assistants.forEach((message, index) => {
-      if (index === 0 && (round.activities.length || (isLast && running))) parts.push(renderRoundProcess(round.activities, { running: isLast && running, toolNames: options.toolNames }));
-      const label = message.role === 'assistant' ? assistantLabel : `${message.role || '未知角色'}消息`;
-      parts.push(renderThinking(message, { live: isLast && running }));
-      parts.push(`<article class="message assistant" aria-label="${e(label)}"><div class="markdown">${renderMarkdown(message.text)}</div></article>`);
-      if (index === round.assistants.length - 1 && !running) parts.push(renderAnswerActions(round, message, { feedback: options.feedback?.[message.id], copied: options.copied, retryAllowed: options.retryAllowed !== false && !detail.can_cancel && !['pending', 'admission_unknown'].includes(detail.delivery?.status) }));
-    });
-    return parts.join('');
-  }).join('');
+  let researchMessages = '';
+  if (detail.mode !== 'claw') {
+    const running = isRunning(detail.status);
+    const rounds = researchRounds(detail.messages || [], detail.activities || []);
+    const lastRound = rounds[rounds.length - 1];
+    researchMessages = rounds.map((round) => {
+      const isLast = round === lastRound;
+      const parts = [];
+      if (round.user) parts.push(`<article class="message user" aria-label="用户消息"><div class="markdown">${renderMarkdown(round.user.text, { resolveLink })}</div></article>`);
+      if (!round.assistants.length && isLast && running) parts.push(renderRoundProcess(round.activities, { running: true, toolNames: options.toolNames }));
+      round.assistants.forEach((message, index) => {
+        if (index === 0 && (round.activities.length || (isLast && running))) parts.push(renderRoundProcess(round.activities, { running: isLast && running, toolNames: options.toolNames }));
+        const label = message.role === 'assistant' ? assistantLabel : `${message.role || '未知角色'}消息`;
+        parts.push(renderThinking(message, { live: isLast && running }));
+        parts.push(`<article class="message assistant" aria-label="${e(label)}"><div class="markdown">${renderMarkdown(message.text, { resolveLink })}</div></article>`);
+        if (index === round.assistants.length - 1 && !running) parts.push(renderAnswerActions(round, message, { feedback: options.feedback?.[message.id], copied: options.copied, retryAllowed: options.retryAllowed !== false && !detail.can_cancel && !['pending', 'admission_unknown'].includes(detail.delivery?.status) }));
+      });
+      return parts.join('');
+    }).join('');
+  }
+  const messageEntries = (detail.messages || []).map((message, index) => {
+    const label = message.role === 'user' ? '用户消息' : message.role === 'assistant' ? assistantLabel : `${message.role || '未知角色'}消息`;
+    const thinking = message.role === 'assistant' ? renderThinking(message, { live: isRunning(detail.status) && index === detail.messages.length - 1 }) : '';
+    return { seq: Number.isFinite(message.seq) ? message.seq : Infinity, index, html: `${thinking}<article class="message ${message.role === 'user' ? 'user' : 'assistant'}" aria-label="${e(label)}"><div class="markdown">${renderMarkdown(message.text, { resolveLink })}</div>${detail.mode === 'claw' && message.role === 'assistant' && message.text ? `<button type="button" class="text-button" data-copy-message="${index}" data-copy-session="${e(detail.id || '')}" aria-label="复制这条回复">复制回复</button>` : ''}</article>` };
+  });
+  const questionEntries = (Array.isArray(detail.question_history) ? detail.question_history : []).filter(question => Number.isFinite(question?.seq) && Array.isArray(question.items) && Array.isArray(question.answers)).map((question, index) => ({
+    seq: question.seq, index: messageEntries.length + index, html: `<section class="decision-card question-history" aria-label="已确认的原生提问参数"><div class="eyebrow">已确认参数</div><p class="muted small">来源：DSH 原生提问</p><dl>${question.items.map((item, itemIndex) => {
+      const answer = item.id != null ? question.answers.find(value => value.id === item.id) : question.answers[itemIndex];
+      const selected = Array.isArray(answer?.selected) ? answer.selected.filter(value => typeof value === 'string') : [];
+      const custom = typeof answer?.custom === 'string' ? answer.custom : '';
+      return `<div><dt>${e(item.question || '')}</dt><dd>${selected.length ? `<p>${selected.map(value => e(value)).join('、')}</p>` : ''}${custom ? `<p>${e(custom)}</p>` : ''}${!selected.length && !custom ? '<p class="muted">未记录回答</p>' : ''}</dd></div>`;
+    }).join('')}</dl></section>`,
+  }));
+  const nativeQuestionIDs = new Set([...(detail.question_history || []), ...(detail.questions || [])].map(question => question.id));
+  const activities = detail.mode === 'claw' ? (detail.activities || []).filter(activity => !nativeQuestionIDs.has(activity.id)) : [];
+  const activityEntries = activities.filter(activity => Number.isFinite(activity.seq)).map((activity,index) => ({seq:activity.seq,index:messageEntries.length + questionEntries.length + index,html:`<section class="conversation-activity" aria-label="原生执行活动">${renderActivityCard(activity,detail.subagents || [],{compact:true})}</section>`}));
+  const unpositioned = activities.filter(activity => !Number.isFinite(activity.seq));
   const approvals = (detail.approvals || []).map((approval) => `<section class="decision-card"><div class="eyebrow">需要你的授权</div><h3>${e(approval.title)}</h3><div class="markdown">${renderMarkdown(approval.detail)}</div><div class="button-row"><button class="button primary" data-approval="${e(approval.id)}" data-decision="approve">允许</button><button class="button danger-outline" data-approval="${e(approval.id)}" data-decision="deny">拒绝</button></div></section>`).join('');
-  const questions = (detail.questions || []).map((question) => {
+  const pendingQuestionEntries = (detail.questions || []).map((question,index) => {
     const draft = questionDrafts.get(question.id) || [];
-    return `<form class="decision-card question-form" data-question-form="${e(question.id)}"><div class="eyebrow">DSH 需要补充信息</div>${question.items?.length ? question.items.map((item, index) => `<fieldset><legend>${e(item.question)}</legend>${(item.options || []).map((option) => `<label class="check-label"><input type="${item.multiSelect === true ? 'checkbox' : 'radio'}" name="selection-${index}" value="${e(option.label)}" ${draft[index]?.selected?.includes(option.label) ? 'checked' : ''}>${e(option.label)}${option.description ? `<span class="muted">${e(option.description)}</span>` : ''}</label>`).join('')}<label for="question-${e(encodeURIComponent(question.id))}-${index}">补充回答</label><textarea id="question-${e(encodeURIComponent(question.id))}-${index}" name="custom-${index}" maxlength="10000" rows="2">${e(draft[index]?.custom || '')}</textarea></fieldset>`).join('') : `<div class="markdown">${renderMarkdown(question.text)}</div>`}<button type="submit" class="button primary">提交回答</button></form>`;
-  }).join('');
-  return `${messages || empty('尚无消息', '输入问题，开始这个会话。所有回答和活动均来自 DSH。')}${approvals}${questions}${detail.error ? `<div class="notice error" role="alert">${e(failureText(detail.error))}</div>` : ''}`;
+    const html = `<form class="decision-card question-form" data-question-form="${e(question.id)}"><div class="eyebrow">DSH 需要补充信息</div>${question.items?.length ? question.items.map((item, index) => `<fieldset><legend>${e(item.question)}</legend>${(item.options || []).map((option) => `<label class="check-label"><input type="${item.multiSelect === true ? 'checkbox' : 'radio'}" name="selection-${index}" value="${e(option.label)}" ${draft[index]?.selected?.includes(option.label) ? 'checked' : ''}>${e(option.label)}${option.description ? `<span class="muted">${e(option.description)}</span>` : ''}</label>`).join('')}<label for="question-${e(encodeURIComponent(question.id))}-${index}">补充回答</label><textarea id="question-${e(encodeURIComponent(question.id))}-${index}" name="custom-${index}" maxlength="10000" rows="2">${e(draft[index]?.custom || '')}</textarea></fieldset>`).join('') : `<div class="markdown">${renderMarkdown(question.text)}</div>`}<button type="submit" class="button primary">提交回答</button></form>`;
+    return {seq:question.seq,index:messageEntries.length + questionEntries.length + activityEntries.length + index,html};
+  });
+  const positionedQuestions = detail.mode === 'claw' ? pendingQuestionEntries.filter(question=>Number.isFinite(question.seq)) : [];
+  const questions = pendingQuestionEntries.filter(question=>!positionedQuestions.includes(question)).map(question=>question.html).join('');
+  const anchoredCards = detail.mode === 'claw' ? extraEntries.filter(entry=>Number.isFinite(entry.seq) && typeof entry.html === 'string').map((entry,index)=>({...entry,index:messageEntries.length + questionEntries.length + activityEntries.length + pendingQuestionEntries.length + index})) : [];
+  const messages = detail.mode !== 'claw' ? researchMessages + questionEntries.map(entry => entry.html).join('') : [...messageEntries, ...questionEntries, ...activityEntries, ...positionedQuestions, ...anchoredCards].sort((a,b) => a.seq - b.seq || a.index - b.index).map(entry => entry.html).join('');
+  return `${activities.length ? `<p class="muted small conversation-tool-summary">${e(activitySummary(activities))}</p>` : ''}${messages || empty('尚无消息', '输入问题，开始这个会话。所有回答和活动均来自 DSH。')}${unpositioned.length ? `<section class="conversation-activity"><p class="muted small">以下活动缺少原生事件位置，未推断其回答顺序。</p>${unpositioned.map(activity=>renderActivityCard(activity,detail.subagents || [],{compact:true})).join('')}</section>` : ''}${approvals}${questions}${detail.error ? `<div class="notice error" role="alert">${e(failureText(detail.error))}</div>` : ''}`;
+}
+
+export function activitySummary(activities = []) {
+  const tools = activities.filter(activity => activity.type === 'tool');
+  const success = tools.filter(activity => activity.status === 'completed').length;
+  const failed = tools.filter(activity => ['failed','error'].includes(activity.status)).length;
+  const pending = tools.length - success - failed;
+  return `工具 ${tools.length} 项 · 成功 ${success} · 失败 ${failed}${pending ? ` · 其他状态 ${pending}` : ''}`;
+}
+
+export function renderActivityCard(activity, agents = [], {compact = false} = {}) {
+  const failed = ['failed','error'].includes(activity.status);
+  const duration = Number.isFinite(activity.duration_ms) && activity.duration_ms >= 0 ? ` · ${(activity.duration_ms / 1000).toFixed(1)} 秒` : '';
+  const payload = value => `<pre class="activity-payload">${e(typeof value === 'string' ? value : JSON.stringify(value,null,2))}</pre>`;
+  const separate = Object.hasOwn(activity,'arguments') || Object.hasOwn(activity,'result');
+  return `<details ${failed && !compact ? 'open' : ''}><summary><span class="activity-dot ${isRunning(activity.status) ? 'active' : ''}"></span><span><strong>${e(activity.title || activity.tool || activity.type || '活动')}</strong><small>${e(statusText(activity.status))}${activity.agent_id ? ` · ${e(agents.find(agent=>agent.id===activity.agent_id)?.name || activity.agent_id)}` : ''}${duration}</small></span></summary>${activity.error ? `<p class="notice error activity-error" role="alert">${e(activity.error)}</p>` : ''}${Object.hasOwn(activity,'arguments') ? `<section><h4>参数</h4>${payload(activity.arguments)}</section>` : ''}${Object.hasOwn(activity,'result') ? `<section><h4>结果</h4>${payload(activity.result)}</section>` : ''}${!separate && activity.detail ? `<div class="markdown activity-detail">${renderMarkdown(typeof activity.detail === 'string' ? activity.detail : JSON.stringify(activity.detail,null,2))}</div>` : ''}</details>`;
 }
 
 export function renderRename(title, error = '', busy = false) {
@@ -191,7 +247,7 @@ export function renderResearchPlan(detail) {
 export function renderActivities(detail) {
   const activities = detail?.activities || []; const agents = detail?.subagents || [];
   const duration = (value) => Number.isFinite(value) && value >= 0 ? ` · ${(value / 1000).toFixed(1)} 秒` : '';
-  return `${agents.length ? `<section class="context-section"><div class="section-heading"><h3>Agent 协作</h3><span class="count">${agents.length}</span></div>${agents.map((agent) => `<div class="agent-card"><span class="agent-mark">◇</span><div><strong>${e(agent.name || agent.id)}</strong><div>${badge(agent.status)}</div><small>${Number.isFinite(agent.usage?.tokens) ? `${agent.usage.tokens} tokens` : ''}${duration(agent.duration_ms)}</small>${agent.error ? `<p class="small">${e(agent.error)}</p>` : ''}${agent.history_truncated ? '<p class="small muted">历史已截断；用量与耗时仅覆盖已读取记录。</p>' : ''}</div></div>`).join('')}</section>` : ''}<section class="context-section"><div class="section-heading"><h3>运行活动</h3><span class="count">${activities.length}</span></div>${activities.length ? `<ol class="activity-list">${activities.map((activity) => { const failed = ['failed', 'error'].includes(activity.status); return `<li><details ${failed ? 'open' : ''}><summary><span class="activity-dot ${isRunning(activity.status) ? 'active' : ''}"></span><span><strong>${e(activity.title || activity.type)}</strong><small>${e(statusText(activity.status))}${activity.agent_id ? ` · ${e(agents.find((agent) => agent.id === activity.agent_id)?.name || activity.agent_id)}` : ''}${duration(activity.duration_ms)}</small></span></summary>${activity.error ? `<p class="notice error activity-error" role="alert">${e(activity.error)}</p>` : ''}${activity.detail ? `<div class="markdown activity-detail">${renderMarkdown(typeof activity.detail === 'string' ? activity.detail : JSON.stringify(activity.detail, null, 2))}</div>` : ''}</details></li>`; }).join('')}</ol>` : '<p class="muted small">尚无运行活动。开始研究后，工具调用与任务状态将在这里显示。</p>'}</section>`;
+  return `${agents.length ? `<section class="context-section"><div class="section-heading"><h3>Agent 协作</h3><span class="count">${agents.length}</span></div>${agents.map((agent) => `<div class="agent-card"><span class="agent-mark">◇</span><div><strong>${e(agent.name || agent.id)}</strong><div>${badge(agent.status)}</div><small>${Number.isFinite(agent.usage?.tokens) ? `${agent.usage.tokens} tokens` : ''}${duration(agent.duration_ms)}</small>${agent.error ? `<p class="small">${e(agent.error)}</p>` : ''}${agent.history_truncated ? '<p class="small muted">历史已截断；用量与耗时仅覆盖已读取记录。</p>' : ''}</div></div>`).join('')}</section>` : ''}<section class="context-section"><div class="section-heading"><h3>运行活动</h3><span class="count">${activities.length}</span></div>${activities.length ? `<ol class="activity-list">${activities.map(activity => `<li>${renderActivityCard(activity,agents)}</li>`).join('')}</ol>` : '<p class="muted small">尚无运行活动。开始研究后，工具调用与任务状态将在这里显示。</p>'}</section>`;
 }
 
 export function fileURL(value) {
@@ -200,6 +256,28 @@ export function fileURL(value) {
   const path = url.split('?')[0];
   if (/%(?:2e|2f|5c)/i.test(path) || path.split('/').some((part) => ['.', '..'].includes(part))) return null;
   return /^\/api\/research\/sessions\/[^/]+\/files\/[^/]+(?:\/(?:preview|download))?(?:\?[^#]*)?$/.test(url) ? url : null;
+}
+
+// Resolve model-authored relative links through the verified, current-session catalog only.
+function artifactLinkResolver(detail) {
+  const registered = Array.isArray(detail.files) ? detail.files : [];
+  const delivery = Array.isArray(detail.delivery?.files) ? detail.delivery.files : [];
+  const links = new Map();
+  const counts = new Map();
+  for (const file of delivery) {
+    if (typeof file?.path === 'string') counts.set(file.path, (counts.get(file.path) || 0) + 1);
+  }
+  if (typeof detail.id !== 'string' || !detail.id) return () => null;
+  const prefix = `/api/research/sessions/${encodeURIComponent(detail.id)}/files/`;
+  for (const file of delivery) {
+    const path = file?.path;
+    if (file?.valid !== true || typeof path !== 'string' || !path.startsWith('outputs/') || /[%\\\s<>\u0000-\u001f\u007f]/.test(path) || path.split('/').some(part => !part || part === '.' || part === '..') || counts.get(path) !== 1) continue;
+    const url = fileURL(file.url);
+    if (!/^[0-9a-f]{24}$/.test(file.id || '') || !url?.startsWith(prefix) || url !== `${prefix}${file.id}/download`) continue;
+    if (registered.filter(row => row?.id === file.id && row?.url === url).length !== 1) continue;
+    links.set(path, url);
+  }
+  return (path) => links.get(path) || null;
 }
 
 export function formatSize(size) {
@@ -296,7 +374,7 @@ export function renderHistory(sessions, filter = '', mode = null, view = 'active
   if (view === 'deleted') {
     return `<div class="history-list deleted-history">${visible.map((session) => `<article class="history-row deleted-row"><span class="session-mark ${session.mode === 'claw' ? 'claw' : ''}">${session.mode === 'claw' ? 'C' : 'F'}</span><div><strong>${e(session.title || '未命名会话')}</strong><span class="muted small">${e(session.mode === 'claw' ? 'Claw · 多 Agent' : 'FinGPT · 即时研究')} · ${e(retentionText(session.purge_at))}</span></div><time>${formatTime(session.deleted_at)}</time><div class="history-actions"><button type="button" class="button small" data-restore-session="${e(session.id)}">恢复</button><button type="button" class="button small danger-outline" data-purge-session="${e(session.id)}">永久删除</button></div></article>`).join('')}</div>`;
   }
-  return `<div class="history-list">${visible.map((session) => `<article class="history-row"><a class="history-link" href="${sessionHash(session)}"><span class="session-mark ${session.mode === 'claw' ? 'claw' : ''}">${session.mode === 'claw' ? 'C' : 'F'}</span><div><strong>${e(session.title || '未命名会话')}</strong><span class="muted small">${e(session.mode === 'claw' ? 'Claw · 多 Agent' : 'FinGPT · 即时研究')}${session.model ? ` · ${e(session.model)}` : ''}</span></div>${badge(session.status)}<time>${formatTime(session.updated_at)}</time><span aria-hidden="true">↗</span></a><div class="history-actions"><button type="button" class="button small" data-rename-history="${e(session.id)}" title="重命名">重命名</button><button type="button" class="button small danger-outline" data-delete-history="${e(session.id)}" title="移至已删除">删除</button></div></article>`).join('')}</div>`;
+  return `<div class="history-list">${visible.map((session) => `<article class="history-row"><a class="history-link" href="${sessionHash(session)}"><span class="session-mark ${session.mode === 'claw' ? 'claw' : ''}">${session.mode === 'claw' ? 'C' : 'F'}</span><div><strong>${e(session.title || '未命名会话')}</strong><span class="muted small">${e(session.mode === 'claw' ? 'Claw · 多 Agent' : 'FinGPT · 即时研究')}${session.model ? ` · ${e(session.model)}` : ''}</span>${session.history_warning ? `<span class="session-history-warning small" role="status">历史受限：${e(session.history_warning)}</span>` : ''}</div>${badge(session.status)}<time>${formatTime(session.updated_at)}</time><span aria-hidden="true">↗</span></a><div class="history-actions"><button type="button" class="button small" data-rename-history="${e(session.id)}" title="重命名">重命名</button><button type="button" class="button small danger-outline" data-delete-history="${e(session.id)}" title="移至已删除">删除</button></div></article>`).join('')}</div>`;
 }
 
 function retentionText(value) {

@@ -848,3 +848,21 @@ textarea { resize: vertical; }
 .embedded-framework .framework-hero-meta .negative { color: var(--red); }
 .embedded-framework .framework-hero-meta .neutral { color: var(--muted); }
 
+
+
+/* Native events retain chronological reading without exposing executable payloads. */
+.conversation-activity { min-width: 0; margin: 12px 0; padding: 12px 16px; border: 1px solid var(--line); border-radius: 12px; }
+.conversation-activity summary { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+.conversation-activity summary small { display: block; color: var(--muted); margin-top: 4px; }
+.activity-payload { max-width: 100%; max-height: 320px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; padding: 10px; background: var(--surface); border-radius: 8px; }
+.execution-scope { padding: 12px; margin-bottom: 12px; border: 1px solid var(--line); border-radius: 10px; overflow-wrap: anywhere; }
+.execution-scope dl { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; margin: 10px 0; }
+.execution-scope dt { font-size: 11px; color: var(--muted); }
+.execution-scope dd { margin: 3px 0; font-size: 12px; }
+.claw-run-result { min-width: 0; overflow-wrap: anywhere; }
+.claw-inline-report { min-width: 0; margin: 10px 0; }
+.claw-confirm-receipt { padding: 16px; margin: 12px 0; border: 1px solid var(--line); border-radius: 12px; overflow-wrap: anywhere; }
+.claw-confirm-receipt h3 { margin: 0 0 8px; }
+.claw-inline-report iframe { display: block; width: 100%; height: min(65vh,620px); min-height: 260px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+@media (max-width: 760px) { .claw-inline-report iframe { height: 55vh; min-height: 220px; } }
+@media (max-width: 760px) { .execution-scope dl { grid-template-columns: minmax(0,1fr); } }

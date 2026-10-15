@@ -21,6 +21,32 @@ from app.research_web.service import ResearchService
 from app.research_web.store import Store, StoreError
 
 
+@pytest.mark.parametrize("source", ["auto", "tavily", "bing"])
+def test_web_search_without_integrated_provider_is_unavailable_not_invalid_query(source):
+    from app.research_web.datahub.broker import resolve
+
+    with pytest.raises(StoreError) as caught:
+        resolve(
+            BusinessQuery(capability="search_web", source=source, parameters={"query": "CSV"}),
+            environ={},
+        )
+    assert caught.value.code == "data_capability_not_integrated"
+    assert caught.value.status == 503
+
+
+def test_integrated_provider_missing_configuration_is_unavailable():
+    from app.research_web.datahub.broker import resolve
+
+    with pytest.raises(StoreError) as caught:
+        resolve(
+            BusinessQuery(capability="database_schema", source="mysql", parameters={}),
+            environ={},
+            connection_statuses={},
+        )
+    assert caught.value.code == "data_capability_unavailable"
+    assert caught.value.status == 503
+
+
 def test_catalog_contains_all_declared_sources_without_constructing_connectors(
     monkeypatch,
 ):
@@ -1042,14 +1068,16 @@ def test_akshare_stock_snapshot_keeps_explicit_exchange_identity():
 
 
 @pytest.mark.parametrize(
-    "capability,parameters",
+    "capability,parameters,expected_code",
     [
-        ("trading_calendar", {"market": "CN"}),
-        ("index_data", {"index": "000300.SH", "dataset": "quotes"}),
-        ("factor_macro", {"series": "synthetic"}),
+        ("trading_calendar", {"market": "CN"}, "data_capability_unavailable"),
+        ("index_data", {"index": "000300.SH", "dataset": "quotes"}, "data_capability_unavailable"),
+        ("factor_macro", {"series": "synthetic"}, "data_capability_not_integrated"),
     ],
 )
-def test_unavailable_business_source_has_stable_code(capability, parameters, monkeypatch):
+def test_unavailable_business_source_has_stable_code(
+    capability, parameters, expected_code, monkeypatch
+):
     from app.research_web.datahub import catalog
     from app.research_web.datahub.broker import resolve
     from app.research_web.store import StoreError
@@ -1061,7 +1089,7 @@ def test_unavailable_business_source_has_stable_code(capability, parameters, mon
             environ={},
             connection_statuses={},
         )
-    assert failure.value.code == "data_source_unavailable" and failure.value.status == 400
+    assert failure.value.code == expected_code and failure.value.status == 503
 
 
 @pytest.mark.asyncio

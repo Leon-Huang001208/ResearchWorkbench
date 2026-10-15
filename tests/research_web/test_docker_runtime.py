@@ -1806,14 +1806,25 @@ def test_public_start_requires_accepted_manifest(runtime):
     assert not any("up" in argv for argv, _ in runner.calls)
 
 
-def test_start_waits_for_delayed_health(runtime, monkeypatch):
+@pytest.mark.parametrize("native_backoff", [False, True])
+def test_start_waits_for_delayed_health(runtime, monkeypatch, native_backoff):
+    from research_workbench_entrypoint import docker_runtime as control
     from research_workbench_entrypoint.bootstrap import NativeRuntime
 
     controller, runner, _ = runtime
-    monkeypatch.setattr(NativeRuntime, "status", lambda self: Native().status())
+
+    def native_status(_self):
+        # A separate runtime's backoff must not become a Docker health wait.
+        if native_backoff:
+            time.sleep(0.001)
+        return Native().status()
+
+    monkeypatch.setattr(NativeRuntime, "status", native_status)
     monkeypatch.setattr(controller, "_ports_free", lambda: None)
     sleeps = []
-    monkeypatch.setattr(time, "sleep", sleeps.append)
+    monkeypatch.setattr(
+        control, "time", SimpleNamespace(monotonic=time.monotonic, sleep=sleeps.append)
+    )
     health = iter(("starting", "starting", "healthy"))
 
     def launch(argv, **kwargs):

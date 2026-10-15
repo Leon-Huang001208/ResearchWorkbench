@@ -402,7 +402,25 @@ def test_setup_public_explicit_port_options():
 def test_public_docker_setup_preserves_safe_cli_proxy_at_real_popen_boundary(tmp_path, monkeypatch):
     import io
 
+    from research_workbench_entrypoint import bootstrap
     from scripts import setup_web
+
+    # Probe fixture-owned vacant ports; never classify resident 8088/3081 as ours.
+    listeners = [socket.socket(), socket.socket()]
+    try:
+        for listener in listeners:
+            listener.bind(("127.0.0.1", 0))
+        ports = tuple(listener.getsockname()[1] for listener in listeners)
+    finally:
+        for listener in listeners:
+            listener.close()
+    original_init = bootstrap.NativeRuntime.__init__
+
+    def native_init(self, *args, **kwargs):
+        kwargs.setdefault("ports", ports)
+        original_init(self, *args, **kwargs)
+
+    monkeypatch.setattr(bootstrap.NativeRuntime, "__init__", native_init)
 
     project = tmp_path / "project"
     (project / "requirements").mkdir(parents=True)

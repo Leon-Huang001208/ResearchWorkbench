@@ -804,7 +804,8 @@ def _prepare_runtime(
                 "  config:",
                 "    apiKeyEnv: RESEARCH_DSH_API_KEY",
                 "    thinking: disabled",
-                f"    maxTokens: {acceptance['maxOutputTokens'] if acceptance is not None and docker_text else 4096}",
+                # Preserve the explicit Docker acceptance budget; ordinary file research needs native script headroom.
+                f"    maxTokens: {acceptance['maxOutputTokens'] if acceptance is not None and docker_text else 16384}",
                 *(['    baseURL: "https://api.deepseek.com/anthropic"'] if docker_text else []),
                 *(
                     ["    retryPolicy:", "      mode: normal", "      maxRetries: 0"]

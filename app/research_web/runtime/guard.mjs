@@ -96,6 +96,7 @@ export const RESEARCH_TOOLS = new Set([
   'research_document_operation',
   'rwb_record_method_use',
   'rwb_prepare_automation',
+  'rwb_list_automations', 'rwb_prepare_automation_update', 'rwb_run_automation', 'ask_user_question',
   'datahub_search_assets', 'datahub_get_trading_calendar', 'datahub_get_market_bars',
   'datahub_get_market_snapshot', 'datahub_get_index_data', 'datahub_get_financials',
   'datahub_get_market_activity', 'datahub_get_factor_macro', 'datahub_get_fund_data',
@@ -107,6 +108,7 @@ export const RESEARCH_TOOLS = new Set([
 export function apply(ctx, config = {}) {
   if (config.researchRoot !== undefined) {
     if (typeof config.researchRoot !== 'string' || !isAbsolute(config.researchRoot)) throw Error('skill_admission_root_invalid');
+    const catalogScoped = new WeakSet();
     const pending = new Map();
     const registrations = new Map();
     const uncertain = new Set();
@@ -159,6 +161,17 @@ export function apply(ctx, config = {}) {
     // Upstream /skill-name user gestures inject instructions before any tool
     // invocation. Inspect the authoritative injected source, not user prose.
     ctx.on('agent/pre-step', async (options, next) => {
+      if (config.enabled && !catalogScoped.has(options.agent)) {
+        try {
+          const scope = await nativeAdmission(ctx, {name:'agent_step',agent:options.agent,signal:options.signal}, config);
+          if (!scope.admitted) return {kind:'reject'};
+          if (scope.visible_tools !== undefined) {
+            if (!Array.isArray(scope.visible_tools) || scope.visible_tools.some(name => typeof name !== 'string' || !RESEARCH_TOOLS.has(name))) throw Error('automation_catalog_invalid');
+            options.agent.ctx.tools.restrict({allow:scope.visible_tools});
+          }
+          catalogScoped.add(options.agent);
+        } catch {ctx.logger.warn('research_native_catalog_unverified');return {kind:'reject'};}
+      }
       const decision = await next();
       if (!config.enabled || decision.kind === 'reject') return decision;
       try {

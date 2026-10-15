@@ -241,7 +241,13 @@ def test_offline_seed_catalog_tools_and_workflows_without_session(api, monkeypat
         "report_pptx_assemble",
         "report_delivery_validate",
     }
-    added_tool_ids = {"datahub_get_external_data"}
+    added_tool_ids = {
+        "datahub_get_external_data",
+        "rwb_list_automations",
+        "rwb_prepare_automation_update",
+        "rwb_run_automation",
+        "ask_user_question",
+    }
     assert {tool["id"] for tool in tools} == baseline_tool_ids | added_tool_ids
     assert len(tools) == len(baseline_tool_ids | added_tool_ids)
     document_tool = next(tool for tool in tools if tool["id"] == "research_document_operation")

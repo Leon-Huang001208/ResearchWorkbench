@@ -640,6 +640,16 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
     @app.get("/api/research/sessions/{sid}/files/{fid}/{action}")
     async def file(sid: str, fid: str, action: Literal["download", "preview"], request: Request):
         stream, name = svc(request).store.open_file(sid, fid)
+        media_type = mimetypes.guess_type(name)[0] or "application/octet-stream"
+        if action == "preview" and media_type in {"text/markdown", "text/x-markdown"}:
+            media_type = "text/plain"
+        log.info(
+            "research_file_response",
+            session_id=sid,
+            file_id=fid,
+            action=action,
+            media_type=media_type,
+        )
 
         def chunks():
             try:
@@ -650,7 +660,7 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
 
         return StreamingResponse(
             chunks(),
-            media_type=mimetypes.guess_type(name)[0] or "application/octet-stream",
+            media_type=media_type,
             headers={
                 "Content-Security-Policy": "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:; frame-ancestors 'self'",
                 "X-Content-Type-Options": "nosniff",

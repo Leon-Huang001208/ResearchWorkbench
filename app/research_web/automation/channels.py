@@ -36,9 +36,7 @@ def _safe_endpoint(value: str) -> str:
 class DeliveryChannelStore:
     def __init__(self, store, *, keyring_backend=None) -> None:
         self.store = store
-        self.keyring = (
-            default_credential_backend() if keyring_backend is None else keyring_backend
-        )
+        self.keyring = default_credential_backend() if keyring_backend is None else keyring_backend
         self.store.data.setdefault("delivery_channels", {})
 
     _validated_endpoint = staticmethod(_safe_endpoint)

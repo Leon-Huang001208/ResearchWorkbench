@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "unchanged",
-  "summary": "Gold配置样例在当前嵌入看板和Bot消费边界标记未接入，README公开入口与产品边界保持。",
-  "reason": "无依赖、schema、评分、采集、部署或权限变化；模块文档、嵌入说明与任务报告说明来源缺口和历史兼容。"
+  "disposition": "updated",
+  "summary": "整合主线本地模型与研究框架和Claw交互候选，保留双方功能。",
+  "reason": "README保留现有模型/框架说明并区分研究日程确认启用与既有能力默认停用；安装依赖未新增。模块、API、文件、UI和安全文档同步；实际验证与未验证状态分别记录。"
 }

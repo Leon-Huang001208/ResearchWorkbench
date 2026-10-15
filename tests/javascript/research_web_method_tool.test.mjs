@@ -61,3 +61,35 @@ test('rwb_record_method_use writes only bounded method identity in the current s
   await symlink(join(cwd, '.rwb', 'retained.jsonl'), join(cwd, '.rwb', 'method-trace.jsonl'));
   await assert.rejects(() => tools.get('rwb_record_method_use').execute({ method_id: 'fact-checking', version: '1.0.0', source: 'required' }, exec));
 });
+
+test('script permission failure retains evidence and supplies relative-path recovery only for real PermissionError',async t=>{
+  const {EventEmitter}=await import('node:events');
+  const {rm}=await import('node:fs/promises');
+  const root=await realpath(await mkdtemp(join(tmpdir(),'rwb-permission-hint-')));
+  t.after(()=>rm(root,{recursive:true}));
+  const sid='01234567-89ab-4cde-8fab-0123456789ab'; const cwd=join(root,'sessions',sid);await mkdir(cwd,{recursive:true});
+  const tools=new Map(); let response;
+  const spawn=()=>{
+    const child=new EventEmitter();child.stdout=new EventEmitter();child.stderr=new EventEmitter();child.stdin=new EventEmitter();child.kill=()=>{};
+    child.stdin.end=()=>{child.stdout.emit('data',Buffer.from(JSON.stringify(response)));child.emit('close',0);};return child;
+  };
+  const ctx={tools:{register:tool=>tools.set(tool.name,tool)},sessions:{get(){}},logger:{info(){},warn(){},error(){}}};
+  apply(ctx,{python:'/usr/bin/python3',runnerPath:'/tmp/runner.py',researchRoot:root},spawn,async()=>({admitted:true,read_paths:[]}));
+  const tool=tools.get('research_run_script');
+  assert.match(tool.description,/os\.getcwd\(\)/);
+  assert.match(tool.description,/Path\.resolve\(\)/);
+  const exec={agent:{session:{header:{id:sid,cwd}}},signal:new AbortController().signal};
+  response={status:'failed',stdout:'',stderr:'Traceback (most recent call last):\nPermissionError: forbidden cwd',exit_code:1,error:null};
+  const denied=await tool.execute({code:'print(1)'},exec);
+  assert.equal(denied.status,'failed');assert.equal(denied.stderr,response.stderr);assert.equal(denied.exit_code,1);
+  assert.match(denied.error,/sandbox_permission_denied/);assert.match(denied.error,/相对路径/);assert.match(denied.error,/不要重试/);
+  assert.deepEqual(Object.keys(denied).sort(),['error','exit_code','status','stderr','stdout']);
+  response={...response,error:'original_diagnostic'};
+  const retained=await tool.execute({code:'print(1)'},exec);
+  assert.ok(retained.error.startsWith('original_diagnostic\n'));
+  assert.equal(retained.stderr,response.stderr);
+  response={status:'failed',stdout:'',stderr:'SyntaxError: bad code',exit_code:1,error:null};
+  assert.deepEqual(await tool.execute({code:'print(1)'},exec),response);
+  response={status:'completed',stdout:'PermissionError: quoted example',stderr:'',exit_code:0,error:null};
+  assert.deepEqual(await tool.execute({code:'print(1)'},exec),response);
+});

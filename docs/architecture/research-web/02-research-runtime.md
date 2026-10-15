@@ -34,9 +34,17 @@ ETF工程模拟不进入DSH会话循环；用户提交冻结输入，由Host同�
 回放与前向共用 `PaperEngine.step`，输入摘要绑定恢复/幂等，失败不产生部分资金账。
 尚不接Automation/Tool，真实运行BLOCKED；见[数据与文件](03-data-files.md#etf-工程模拟与真实准入边界)。
 
+每次成功受理的研究请求向原生prompt附加同一时刻的UTC及本机时间，明确它不是资料、交易日或网页访问证据；用户指定历史研究日期保留原意。时钟在幂等摘要和reserve之后生成，跨日重复请求仍只发送一次，不以新时钟重放旧任务。检索摘要与未访问链接必须区别于真实全文访问。
+
+工作区侧栏切换保留当前会话及待确认事项，文件预览只是既有Host文件读取响应，不触发新的研究、日程或模型调用。Markdown预览的纯文本MIME不改变DSH事件、Run版本、完成状态或文件字节。
+
+研究型 Automation 执行会话在原生 `agent/pre-step` 使用固定 DSH 的会话上下文 `tools.restrict({allow})`，目录范围来自认证的会话级 `visible_tools`，只包含任务批准工具与 todo 记录工具。目录核验失败拒绝当前 step，执行期全局 veto 仍保留；普通会话不套用研究任务工具清单，不改变全局目录。通用 persona 不强制派出两个子 Agent，委派须实际获准且可用。
+
+执行详情的 `execution_context` 来自唯一匹配 Run 的不可变定义快照；研究任务续答保持原批准工具、模型及输出格式。工具活动保留真实 call 序号、名称、独立 arguments/result 和实际错误；显示值递归脱敏并有共享大小、节点和深度上限，历史未定位记录不补造序号。DataHub 摘要保留 query/provider_query/coverage；已注册不等于来源当前可调用，错误仅返回受限业务代码。Wind 指数 quotes 是当前快照，不接受历史 date，不对错误参数静默改写。
+
 固定 DSH 的 `session/list` 通过 `parentSessionId` 暴露父子归属；SDK Session Header 内部仍叫 `parentSession`。
 Workbench 子 Agent 投影只使用已核实的 API 字段，继续交叉验证父目录、`origin=subagent` 和严格布尔 running；缺失、外来父会话、非子任务来源或未知活动仍失败关闭，不以空目录释放活动保护。
-模型设置的空闲检查采用内部 `activityOnly=true`：历史 `mode=unknown` 只可在父归属、subagent 来源和布尔运行状态全部验证后提供活动事实。默认详情与执行仍拒绝未知模式；不推断历史执行地址，不删改记录，也不把未知活动当作已结束。
+模型设置的空闲检查采用内部 `activityOnly=true`：历史 `mode=unknown` 只可在父归属、subagent 来源和布尔运行状态全部验证后提供活动事实。父会话列表与详情也可读取核实后的活动；unknown 子会话只显示受限提示，不读取历史或推断执行模式；不推断历史执行地址，不删改记录，也不把未知活动当作已结束。
 
 ## Docker 模型凭据绑定
 
@@ -49,9 +57,14 @@ Docker `describe/resolve` 的来源为 `docker-encrypted-file`，Host 仅投影 
 ## Claw 日程提出与确认
 
 `rwb_prepare_automation` 沿现有 research-tools 与最终 guard 注册，先核对原生会话范围，再通过实例私有控制通道提出日程草稿。
-模型须使用用户所选真实能力快照的 ID、类型与版本；目标、时间或时区缺失时提问，不猜测创建任务。
+普通日程直接承载 research_task；缺少研究内容、模型、时间、时区、输出或权限时通过既有 ask_user_question 提问。原生 rwb_list_automations 查询真实任务与最新运行结果；rwb_prepare_automation_update 提出同 ID/expected_version 的修改。
 工具只返回草稿，不创建、启用、执行或投递 Automation，也不授予 MCP 权限。
+Host 的确认卡明确创建并启用研究任务，启用失败保留停用任务，重试不重复创建。rwb_run_automation 只接受最新人的明确肯定试跑指令，绑定任务与单次请求，不把增加/否定/解释视为运行授权。独立执行会话锁定模型和工具，所有工具仍经过原 guard 与资料准入。
+每周 weekdays 支持多个星期日，旧 weekday 兼容，周一至周五不等于交易日历。
 Host 确认保存仍使用现有 AutomationService、版本哈希锁与日程校验；正文、研究循环和原生子 Agent 沿 DSH，不增加第二引擎。
+
+原生提问的试跑授权只接受完整匹配的肯定选择，并绑定问题、最新用户消息、任务 ID 和定义版本。试跑问题使用规范格式 `是否试跑「任务名称」（任务 完整任务ID，定义 v版本）？`，整串精确核对名称、ID、版本；名称子串、混合目标或模糊问题继续澄清。RPC 未确认、否定、解释或其他任务选项不能授予运行权限。
+owned launcher 将 DeepSeek 单次输出预算固定为 16384 tokens，避免复杂文件生成在原 4096 上限截断；这不是总执行预算或完成保证。原生 max-tokens 仍投影为 incomplete，Automation 保留失败运行，不自动重试或伪造文件交付。
 
 ## FinGPT 深度与计划
 

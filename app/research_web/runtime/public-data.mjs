@@ -12,7 +12,7 @@ const BUSINESS = {
   datahub_get_trading_calendar: ['trading_calendar','读取交易日历',{market:{type:'string'},start_date:{type:'string'},end_date:{type:'string'}},['market','start_date','end_date']],
   datahub_get_market_bars: ['market_bars','读取历史行情与复权口径；asset 采用明确市场代码，例如 000001.SH，并显式指定 asset_type，所选来源须支持对应类型与口径',{asset:{type:'string'},asset_type:{type:'string',enum:['stock','index','etf']},start_date:{type:'string'},end_date:{type:'string'},frequency:{type:'string'},adjustment:{type:'string'}},['asset','start_date','end_date']],
   datahub_get_market_snapshot: ['market_snapshot','读取当前或最近行情快照',{assets:{type:'array',items:{type:'string'}},asset_type:{type:'string',enum:['stock','index','etf']},fields:{type:'array',items:{type:'string'}}},['assets']],
-  datahub_get_index_data: ['index_data','读取指数行情、成分或估值',{index:{type:'string'},dataset:{type:'string'},date:{type:'string'}},['index','dataset']],
+  datahub_get_index_data: ['index_data','读取指数行情、成分或估值',{index:{type:'string'},dataset:{type:'string',description:'来源支持的精确 dataset；Wind 当前指数快照用 quotes（不是 quote），成分/估值须按来源契约核验'},date:{type:'string',description:'历史时点日期；Wind quotes 只支持当前快照，不接受 date，禁止当作历史收盘'}},['index','dataset']],
   datahub_get_financials: ['financials','读取财务报表与标准化指标',{asset:{type:'string'},statements:{type:'array',items:{type:'string'}},periods:{type:'array',items:{type:'string'}}},['asset']],
   datahub_get_market_activity: ['market_activity','读取资金与交易事件',{asset:{type:'string'},dataset:{type:'string'},start_date:{type:'string'},end_date:{type:'string'}},['asset','dataset']],
   datahub_get_factor_macro: ['factor_macro','读取因子、技术指标和宏观序列',{series:{type:'array',items:{type:'string'}},assets:{type:'array',items:{type:'string'}},start_date:{type:'string'},end_date:{type:'string'}},['series']],
@@ -35,6 +35,7 @@ const MAX_ERROR_BYTES = 4096;
 const SAFE_ERROR_CODES = new Set([
   'invalid_request', 'invalid_resource', 'internal_error',
   'data_source_unavailable', 'data_capability_unsupported', 'data_operation_unsupported',
+  'data_capability_not_integrated', 'data_capability_unavailable',
   'data_cache_authorization_changed',
   'data_not_equivalent', 'invalid_asset', 'invalid_adjustment', 'invalid_frequency',
   'data_contract_missing', 'data_contract_invalid', 'data_state_unknown',
@@ -212,7 +213,8 @@ async function boundedJson(response, signal) {
     while(true) {signal.throwIfAborted();const {done,value}=await readResponsePart(reader, signal);if(done)break;size+=value.byteLength;if(size>MAX_BYTES)throw Error('DataHub response size exceeds limit');chunks.push(value);}
   } finally {await reader.cancel();}
   signal.throwIfAborted();
-  return JSON.parse(Buffer.concat(chunks).toString('utf8'));
+  const value=JSON.parse(Buffer.concat(chunks).toString('utf8'));
+  return value;
 }
 
 /** Propose only over the existing authenticated instance-private channel. */
@@ -229,9 +231,23 @@ export async function executeAutomationDraft(ctx, exec, config, args) {
   return boundedJson(response, signal);
 }
 
+/** Act over the existing authenticated instance-private channel. */
+export async function executeAutomationAction(ctx, exec, config, args) {
+  const cwd = await trustedDirectory(ctx, exec, config);
+  exec.signal.throwIfAborted();
+  const control = await privateControl(config.researchRoot);
+  const signal = AbortSignal.any([exec.signal, AbortSignal.timeout(10000)]);
+  const response = await fetch(control.url + '/api/research/internal/data/automation-action', {
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Research-Data-Key': control.token },
+    body: JSON.stringify({ session_id: basename(cwd), ...args }),
+    redirect: 'error', credentials: 'omit', signal,
+  });
+  return boundedJson(response, signal);
+}
+
 function smallResult(value) {
   if (!value || typeof value.dataset_id !== 'string' || typeof value.source !== 'string' || !/^[a-z0-9_]{1,64}$/.test(value.source) || !['complete','snapshot','empty','partial','failed'].includes(value.status) || !Array.isArray(value.files) || !Array.isArray(value.sample) || value.sample.length > 3 || !Number.isSafeInteger(value.row_count)) throw Error('DataHub response schema is invalid');
-  const keys=['dataset_id','source','provider','capability','attempted_sources','source_url','schema_version','status','row_count','provider_total','pages_fetched','pagination_complete','requested_range','actual_range','retrieved_at','as_of','cache_hit','fields','missing','limitations','manifest_sha256'];
+  const keys=['dataset_id','source','provider','capability','attempted_sources','source_url','schema_version','status','row_count','provider_total','pages_fetched','pagination_complete','requested_range','actual_range','retrieved_at','as_of','cache_hit','fields','missing','limitations','manifest_sha256','query','provider_query','coverage'];
   return {dataset_id:value.dataset_id,source:value.source,status:value.status,
     manifest_json:JSON.stringify(Object.fromEntries(keys.filter(key=>key in value).map(key=>[key,value[key]]))),
     files_json:JSON.stringify(value.files.map(({name,path,sha256})=>({name,path,sha256}))),sample_json:JSON.stringify(value.sample)};
@@ -275,7 +291,7 @@ export function apply(ctx, config) {
     const common={source:{type:'string',description:'目录来源 ID；默认 auto'},allow_fallback:{type:'boolean'},refresh:{type:'boolean'}};
     ctx.tools.register({
       name:toolName,
-      description:`${description}。工具注册不代表当前来源可调用；每次由 DataHub 核对适配、配置、依赖及权限并保存会话隔离快照。遇到 data_source_unavailable、data_operation_unsupported 或 data_not_equivalent 时，报告限制并先核对来源与参数，不要重复相同请求。`,
+      description:`${description}。工具注册不代表当前来源可调用；每次由 DataHub 核对适配、配置、依赖及权限并保存会话隔离快照。data_source_unavailable、data_operation_unsupported 或 data_not_equivalent 时须核对来源与参数；data_capability_not_integrated 表示来源尚未适配；data_capability_unavailable 表示当前来源条件未满足，不要重复相同请求或改写查询反复尝试，须说明缺口。其他工具仍须符合本任务批准范围，不得隐式扩大权限。`,
       parameters:{type:'object',properties:{...properties,...common},required,additionalProperties:false},
       output:{schema:{type:'object',properties:Object.fromEntries(outputKeys.map(key=>[key,{type:'string'}])),required:outputKeys,additionalProperties:false},render(_args,value){return [{type:'text',text:JSON.stringify(value)}];}},
       async execute(args,exec) {

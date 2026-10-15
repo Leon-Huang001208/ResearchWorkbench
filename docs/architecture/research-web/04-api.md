@@ -36,14 +36,23 @@ POST须有 `X-Research-User-Action: ?1` 与 `Idempotency-Key`，流式输入≤8
 | GET | `/api/research/portfolio-decisions/runs/{run_id}` | `app/research_web/portfolio_decisions/routes.py` |
 | POST | `/api/research/portfolio-decisions/runs` | `app/research_web/portfolio_decisions/routes.py` |
 
+资料业务查询对未适配/当前不可用来源分别返回503 `data_capability_not_integrated`/`data_capability_unavailable`；请求字段、来源排序及显式fallback合同不变。研究发送的当前时钟由Host在受理后注入原生prompt，不新增客户端字段、不改变幂等请求摘要。
+
+`GET /api/research/sessions/{sid}/files/{fid}/preview`对Markdown返回`text/plain`供沙箱iframe显示原始字节；同一文件的`download`仍使用原Markdown类型。请求参数、归属/错误契约、CSP与nosniff保持原状，不增加API或转换执行。
+
+Session 详情与原生 snapshot 增量投影工具活动 `seq`、`tool`、`arguments`、`result`，保留旧 `detail` 兼容；参数、结果和错误使用限长脱敏后的显示值。研究型 Automation 执行详情增加 `execution_context={run_id,automation_id,definition_version,trigger,definition_snapshot}`，来源是该执行 Run，不是当前可修改的任务。旧 Skill/Workflow 执行保持原契约。研究型执行续答不接受新的能力、方法、额外工具或不同输出格式；未确认快照失败关闭。没有增加另一套调度或研究接口。
+
 ## Claw 项目与日程草稿 API
 
 `claw_routes.py` 提供 `/claw/projects` 列表/创建与 `/{project_id}` 查询/改名/归档，`/sessions/{sid}/project` 显式移组，`/sessions/{sid}/file-references` 显式复制所选同项目文件。
 `POST /sessions` 增加可选 `project_id`，仅允许在未归档项目创建 Claw；旧请求保持原默认研究空间。
-会话摘要增加 `project_id`，Claw 详情增加 `automation_drafts`。
+会话摘要包含 project_id 与可选 history_warning；Claw 详情包含原生已回答 question_history（仅成功且问答 ID 匹配）、automation_drafts、automation_runs（来源对话的 Run、原生结果、活动、文件）。
 `/internal/data/automation-draft` 继续使用现有实例私有认证，拒绝普通浏览器提交；它只生成经 AutomationCreate 校验的锁版本草稿。
-`/sessions/{sid}/automation-drafts` 查询、`/{draft_id}/confirm` 确认保存、`/{draft_id}/dismiss` 取消属于会话；确认可编辑名称、目标描述与日程，不可改换锁定能力或增加外发/MCP权限，且结果默认停用。
+`POST /internal/data/automation-action` 受既有私有实例认证，operation 为 list/prepare_update/run；list 可按 automation_id 查任务及最近 20 条 Run 的持久状态、摘要和产物，避免把 queued 当完成；执行会话禁止管理和递归试跑。prepare_update 使用 AutomationUpdate、同任务 ID 与 expected_version，run 额外核验最新真实用户指令。
+`/sessions/{sid}/automation-drafts` 查询、`/{draft_id}/confirm?enable=true` 明确创建并启用 research_task，旧目标省略 enable 仍只保存；update 草稿确认接收 AutomationUpdate、`/{draft_id}/dismiss` 取消属于会话；确认可编辑名称、目标描述与日程，不可改换锁定能力或增加外发/MCP权限，且结果默认停用。
 新增请求拒绝额外字段；非法归属、归档、失效版本和已取消草稿给出明确错误。API Atlas 由机器清单同步生成。
+
+创建后的启用失败重试仅能启用确认回执绑定的定义版本。Automation 在同一定义事务锁内校验 `expected_version` 后才启用；任务已改版时返回 `automation_version_conflict`（409），保留任务停用和旧确认快照。旧草稿缺少有效 `confirmed_version` / `confirmed_definition` 回执时返回 `draft_confirmation_receipt_invalid`（409），不从当前任务猜测版本。已完成启用的草稿重放不会重新启用用户后来停用的任务；删除重放仍拒绝。
 
 ## FinGPT 会话扩展
 
@@ -54,7 +63,7 @@ Prompt.expected_formats 与能力 default_formats 向后兼容接受 pdf。未�
 
 DSH 0.2.1 升级保持公开 HTTP 合同。内部 `subagent.list` 适配已移除的上游方法：读取权威父会话 `subagentCatalog` 投影，并与实时 `session/list` 的子会话归属、模式和 running 状态交叉核对；输出映射为既有 `kind=child` 与 `activity=running/inactive`，供详情、归属、取消及空闲保护共同消费；缺失或未知状态返回协议失败，不用空列表解除活动保护。空实例默认 `deepseek-flash`，已保存旧模型值继续保留。保存、应用、真实推理仍分别返回事实，不因默认值更新自动调用模型。
 
-Automation 本轮没有新增 HTTP 路由、请求字段或响应 schema。现有运行记录在执行中可返回已保存原生关联；failure_code 可报告 automation_reference_invalid、automation_reference_conflict、automation_reference_persistence_failed 或 native_submission_unconfirmed。关联错误不触发自动研究重试，报告成功仍取原报告校验/产物事实。
+Automation 兼容旧目标，新增 research_task 版本定义、weekdays、expected_version 与 Run 快照；本轮 Claw 控制接口见上节。现有运行记录在执行中可返回已保存原生关联；failure_code 可报告 automation_reference_invalid、automation_reference_conflict、automation_reference_persistence_failed 或 native_submission_unconfirmed。关联错误不触发自动研究重试，报告成功仍取原报告校验/产物事实。
 
 macOS 异根私有 Native pair 认证只修复公开 CLI 的后续生命周期准入：已有根的完整不同根
 pair 可继续 start/force restart，未知/变化/同根写者仍返回 `runtime_ownership_unknown`。

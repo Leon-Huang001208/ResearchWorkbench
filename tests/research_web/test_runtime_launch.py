@@ -169,6 +169,7 @@ def test_runtime_binds_model_system_store_and_separate_host_records(tmp_path, mo
     assert "model_credentials.py" in overlay
     assert ".browser-credentials.yaml" in overlay
     assert "default: research-web" in overlay
+    assert "maxTokens: 16384" in overlay
     assert "- id: agent-preset-registry" in overlay
     for name in ("research-web", "framework-explain", "framework-verify"):
         assert f"id: rwb-preset-{name}" in overlay

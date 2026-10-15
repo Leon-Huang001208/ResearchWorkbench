@@ -3020,7 +3020,7 @@ Imports:
 
 Classes:
 - `AutomationDrafts`
-  - methods: __init__, _session, list, _get, _no_external_permissions, prepare, confirm, dismiss
+  - methods: __init__, _session, list, _get, _no_external_permissions, prepare, _confirmation_receipt, confirm, _enable, prepare_update, confirm_update, dismiss
 
 
 ## `app/research_web/automation/models.py`
@@ -3047,6 +3047,9 @@ Classes:
   - methods: unattended_is_read_only
 - `DeliveryConfiguration`
   - methods: channel_ids_are_unique
+- `ResearchTaskDefinition`
+  - Explicit research intent and permission scope, independent of a Skill.
+  - methods: scopes_are_unique
 - `AutomationCreate`
   - methods: values_are_unique
 - `AutomationUpdate`
@@ -3118,22 +3121,27 @@ Imports:
 - `copy`
 - `core.observability`
 - `datetime`
+- `functools`
 - `hashlib`
 - `inspect`
 - `json`
 - `models`
 - `os`
 - `schedule`
+- `threading`
 - `time`
 - `typing`
 - `uuid`
+- `zoneinfo`
 
 Classes:
 - `AutomationService`
   - Keep Automation/Run JSON as the fact source and schedule only next fires.
-  - methods: __init__, _row, _run_row, _persist_native_reference, _checkpoint_report_reference, _public, list, get, list_runs, create, update, delete, enable, disable, _validate_lock, _active_run, _validate_delivery, _new_run, run, retry, _execute, _deliver, wait_for_idle, tick, start, close, _arm, _remove_job, _scheduled_fire, _next_iso, _resolve_target, _legacy_schedule, preview_report_schedule_migrations, apply_report_schedule_migrations, _resume, _resume_delivery, _session_summary, _monitor_session, _monitor_report_run, _bind_mcp, _execute_native
+  - methods: __init__, _row, _run_row, _notify_research, _persist_native_reference, _checkpoint_report_reference, _public, list, get, list_runs, create, _definition_snapshot, resolve_definition, _validate_research_tools, update, delete, enable, disable, _validate_lock, _active_run, _validate_delivery, _new_run, run, _admit_run, retry, _execute, _deliver, wait_for_idle, tick, start, close, _arm, _remove_job, _scheduled_fire, _next_iso, _resolve_target, _legacy_schedule, preview_report_schedule_migrations, apply_report_schedule_migrations, _resume, _resume_delivery, _session_summary, _monitor_session, _monitor_report_run, _bind_mcp, _execute_native
 
 Functions:
+- `_definition_transaction`
+  - Serialize synchronous definition CAS and snapshots, never native awaits.
 - `automation_feature_enabled`
 - `_canonical_sha`
 - `_id_digest`
@@ -3401,6 +3409,7 @@ Imports:
 - `automation.models`
 - `fastapi`
 - `pydantic`
+- `store`
 
 Classes:
 - `StrictBody`
@@ -3409,6 +3418,7 @@ Classes:
 - `ProjectMove`
 - `FileReference`
 - `DraftProposal`
+- `AutomationAction`
 
 Functions:
 - `projects`
@@ -3419,6 +3429,7 @@ Functions:
 - `reference_file`
 - `drafts`
 - `propose_draft`
+- `automation_action`
 - `confirm_draft`
 - `dismiss_draft`
 
@@ -6243,6 +6254,7 @@ Imports:
 - `core.observability`
 - `itertools`
 - `json`
+- `re`
 
 Functions:
 - `merge_event_records`
@@ -6251,6 +6263,10 @@ Functions:
   - Fold whole native snapshots; version identifies a write, never an item.
 - `content_text`
 - `content_reasoning`
+- `_activity_value`
+  - Bound public tool evidence and recursively remove credential fields.
+- `activity_value`
+- `activity_detail`
 - `project`
 
 
@@ -6792,6 +6808,7 @@ Functions:
 - `read_pdf`
 - `safe_cell`
 - `write_deliverables`
+  - Write selected formats; omitted selection preserves the legacy four files.
 
 
 ## `app/research_web/resources/research_report.py`
@@ -6983,6 +7000,7 @@ Imports:
 - `claw_projects`
 - `client`
 - `contextlib`
+- `copy`
 - `core.observability`
 - `credential_backend`
 - `datahub`
@@ -6996,21 +7014,24 @@ Imports:
 - `json`
 - `local_integrations`
 - `mcp_registry`
-- `mcp_runtime.authorization`
-- ... 23 more
+- ... 24 more
 
 Classes:
 - `_SessionOwnedMCPRuntime`
   - Enforce Research Store ownership before any session-scoped MCP operation.
   - methods: __init__, __getattr__, start, close, _owned, authorize_session, register_automation_session, read_resource, get_prompt, call_tool, approvals, decide_approval
 - `ResearchService`
-  - methods: __init__, _build_mcp_runtime, ensure_owned, start, close, _retention_loop, notify, _connect, _consume, _interaction_owner, _model_plane, compatible_connection, _require_model_credentials, runtime, configure_model, test_model, create, summary, list_sessions, soft_delete_session, restore_session, permanent_delete_session, purge_expired_sessions, _model_tools_verified, _task_capabilities, _effective_records, _task_readiness_context, native_admission, _data_query_admission, capability_readiness, detail, _cancel_observation, send, skill_catalog, _capability_idle, _mcp_idle_gate, _restart_mcp_runtime, change_capability, create_capability_session, capability_from_artifact, approve, cancel, _cancel, answer
+  - methods: __init__, _build_mcp_runtime, ensure_owned, start, close, _retention_loop, notify, _connect, _consume, _interaction_owner, _model_plane, compatible_connection, _require_model_credentials, runtime, configure_model, test_model, create, summary, create_automation_research_session, run_automation_from_chat, list_sessions, soft_delete_session, restore_session, permanent_delete_session, purge_expired_sessions, _model_tools_verified, _task_capabilities, _effective_records, _task_readiness_context, native_admission, _data_query_admission, capability_readiness, detail, _cancel_observation, send, skill_catalog, _capability_idle, _mcp_idle_gate, _restart_mcp_runtime, change_capability, create_capability_session, capability_from_artifact, approve, cancel, _cancel, answer
 
 Functions:
 - `_mcp_internal_url`
   - Resolve the manager-provided loopback origin for this Web process.
 - `_persistent_mcp_key`
   - Load one fixed-size Host key without ever persisting it in the data root.
+- `automation_execution_context`
+  - Return only the exact execution Run snapshot, never the mutable task.
+- `automation_followup_scope`
+  - A continuation keeps the original approved tools and delivery contract.
 
 
 ## `app/research_web/service_diagnostics.py`
