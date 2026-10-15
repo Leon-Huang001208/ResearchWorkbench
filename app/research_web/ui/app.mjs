@@ -3,7 +3,7 @@ import { escapeHTML as e } from './markdown.mjs';
 import { createDisclosureState } from './disclosures.mjs';
 import { createUploadHandler } from './uploads.mjs';
 import { createSessionSearch } from './session-search.mjs';
-import { downloadAnswer, speakAnswer } from './answer-actions.mjs';
+import { downloadAnswer } from './answer-actions.mjs';
 import { badge, empty, renderConversation, copyResearchText, renderDeleteConfirm, renderHistory, renderPurgeConfirm, renderRename, renderDocumentEditor, documentTargets, documentEditValue, documentCreationPayload } from './views.mjs';
 import { icon } from './icons.mjs';
 import { researchRecipes, renderResearchRecipes } from './research-report.mjs';
@@ -264,12 +264,12 @@ function composer() {
   const taskPending = state.detail && (isRunning(state.detail.status) || state.detail.can_cancel || ['pending', 'admission_unknown'].includes(state.detail.delivery?.status));
   const runtimePending = catalog.pending.has('runtime');
   const runtimeReady = !runtimePending && catalog.runtime?.connected === true && catalog.runtime?.credential_configured !== false;
-  return renderComposer({ models: catalog.models, model: catalog.runtime?.model, modelEndpoint: catalog.runtime?.connection?.base_url, page: state.route.page, draft: state.draft, attachments: state.attachments, tabbitTabs: state.tabbitTabs, tabbitCandidates, tabbitOpen, tabbitLoading, tabbitIndex, sourceScope: state.sourceScope, researchDepth: state.researchDepth, expectedFormats: state.expectedFormats, skills: catalog.capabilities, skillId: state.skillId, disabled, busy: state.busy, stopping: state.stopping, taskPending, detail: state.detail, slashOpen, slashIndex, capability: state.capability, toolIds: state.toolIds, tools: catalog.tools, methods: catalog.capabilities.filter(item => item.kind === 'method'), methodIds: state.methodIds, methodPickerOpen, runtimeReady, runtimePending });
+  return renderComposer({ models: catalog.models, model: catalog.runtime?.model, modelEndpoint: catalog.runtime?.connection?.base_url, modelProvider: catalog.runtime?.provider, page: state.route.page, draft: state.draft, attachments: state.attachments, tabbitTabs: state.tabbitTabs, tabbitCandidates, tabbitOpen, tabbitLoading, tabbitIndex, sourceScope: state.sourceScope, researchDepth: state.researchDepth, expectedFormats: state.expectedFormats, skills: catalog.capabilities, skillId: state.skillId, disabled, busy: state.busy, stopping: state.stopping, taskPending, detail: state.detail, slashOpen, slashIndex, capability: state.capability, toolIds: state.toolIds, tools: catalog.tools, methods: catalog.capabilities.filter(item => item.kind === 'method'), methodIds: state.methodIds, methodPickerOpen, runtimeReady, runtimePending });
 }
 
 function landing() {
   const claw = state.route.page === 'claw';
-  return `<div class="landing ${claw ? 'claw-landing' : 'fingpt-landing'}"><div class="greeting">${claw ? `<span class="mode-label">${icon('layers')}Claw</span>` : ''}<h1>${claw ? '把研究目标，变成可用成果。' : '从一个问题，开始研究。'}</h1><p class="landing-subtitle">${claw ? '说明目标、资料与交付要求，在一个空间推进研究。' : '读懂资料，比较公司，探索行业。'}</p></div>${!claw ? renderResearchRecipes({ busy: state.busy }) : ""}${composer()}${claw ? renderClawCases(quickCategory) + `<details class="claw-existing-templates"><summary>使用现有研究步骤模板</summary>${renderQuickSkills(catalog.capabilities, { page: state.route.page, category: quickCategory })}</details>` : renderQuickSkills(catalog.capabilities, { page: state.route.page, category: quickCategory })}</div>`;
+  return `<div class="landing ${claw ? 'claw-landing' : 'fingpt-landing'}"><div class="greeting">${claw ? `<span class="mode-label">${icon('layers')}Claw</span>` : ''}<h1>${claw ? '把研究目标，变成可用成果。' : '从一个问题，开始研究。'}</h1><p class="landing-subtitle">${claw ? '说明目标、资料与交付要求，在一个空间推进研究。' : '读懂资料，比较公司，探索行业。'}</p></div>${!claw ? renderResearchRecipes({ busy: state.busy }) : ""}${composer()}${claw ? renderClawCases(quickCategory) : renderQuickSkills(catalog.capabilities, { page: state.route.page, category: quickCategory })}</div>`;
 }
 
 function researchPage() {
@@ -1416,6 +1416,20 @@ root.addEventListener('compositionend', event => {
 
 root.addEventListener('keydown', (event) => {
   if (event.isComposing || event.keyCode === 229) return;
+  const modelMenu = root.querySelector('.composer-model-menu[open]');
+  if (event.key === 'Escape' && modelMenu) { event.preventDefault(); modelMenu.open = false; modelMenu.querySelector('summary')?.focus(); return; }
+  if (modelMenu && event.target.closest?.('.composer-model-menu') && ['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
+    const choices = [...modelMenu.querySelectorAll('[data-composer-model]:not(:disabled)')];
+    if (choices.length) {
+      event.preventDefault();
+      const current = choices.indexOf(document.activeElement);
+      const next = event.key === 'Home' ? 0 : event.key === 'End' ? choices.length - 1 : current < 0 ? (event.key === 'ArrowUp' ? choices.length - 1 : 0) : (current + (event.key === 'ArrowUp' ? -1 : 1) + choices.length) % choices.length;
+      choices[next].focus();
+    }
+    return;
+  }
+  const composerMenu = root.querySelector('.composer-more[open]');
+  if (event.key === 'Escape' && composerMenu) { event.preventDefault(); composerMenu.open = false; composerMenu.querySelector('summary')?.focus(); return; }
   if (state.route.page === 'intel' && event.key === 'Escape' && intelController.state.detailId) { event.preventDefault(); intelController.closeDetail(); document.querySelector('.intel-tabs [aria-current="page"]')?.focus({ preventScroll: true }); return; }
   if (mcpMarketplaceState.detail && event.key === 'Tab') {
     const dialog = document.querySelector('.mcp-server-dialog');
@@ -1528,6 +1542,20 @@ root.addEventListener('keydown', (event) => {
   }
 });
 
+async function configureComposerModel(value) {
+  if (state.busy || state.stopping) return;
+  try {
+    const selection = JSON.parse(value);
+    if (selection.provider === 'openai-compatible') {
+      const connection = catalog.runtime?.connection;
+      if (!connection) { safeLog('compatible_connection_missing'); return; }
+      for (const name of ['base_url', 'protocol', 'credential_mode']) selection[name] = connection[name];
+    }
+    const result = await controller.action(() => api.configure(selection), { refreshAfter: false });
+    if (result?.configured) { success = state.detail ? '默认模型已更新，下次新研究生效；当前会话仍使用原模型。' : '默认模型已更新，新研究将使用此模型。'; await loadCatalog(['runtime']); }
+  } catch { safeLog('composer_model_selection_failed'); state.error = '模型选择失败，请刷新模型目录后重试。'; render(); }
+}
+
 root.addEventListener('change', async (event) => {
   if (event.target.matches?.('[data-etf-run]')) {
     if (!event.target.value || workbenchBusy) return;
@@ -1618,14 +1646,7 @@ root.addEventListener('change', async (event) => {
     catch { safeLog('invalid_model_selection'); }
   }
   if (target.id === 'model-select' && target.value) {
-    const selection = JSON.parse(target.value);
-    if (selection.provider === 'openai-compatible') {
-      const connection = catalog.runtime?.connection;
-      if (!connection) { safeLog('compatible_connection_missing'); return; }
-      for (const name of ['base_url', 'protocol', 'credential_mode']) selection[name] = connection[name];
-    }
-    const result = await controller.action(() => api.configure(selection), { refreshAfter: false });
-    if (result?.configured) { success = state.detail ? '默认模型已更新，下次新研究生效；当前会话仍使用原模型。' : '默认模型已更新，新研究将使用此模型。'; await loadCatalog(['runtime']); }
+    await configureComposerModel(target.value);
   }
   if (target.id === 'file-input' && target.files?.length) await uploadFiles([...target.files]);
 });
@@ -2051,6 +2072,16 @@ root.addEventListener('submit', async (event) => {
 });
 
 root.addEventListener('click', async (event) => {
+  const modelMenu = root.querySelector('.composer-model-menu[open]');
+  if (modelMenu && !event.target.closest?.('.composer-model-menu')) modelMenu.open = false;
+  const composerMenu = root.querySelector('.composer-more[open]');
+  if (composerMenu && !event.target.closest?.('.composer-more')) composerMenu.open = false;
+  const modelChoice = event.target.closest?.('[data-composer-model]');
+  if (modelChoice && Object.hasOwn(modelChoice.dataset, 'composerModel')) {
+    if (modelChoice.disabled) return;
+    const picker = modelChoice.closest('.composer-model-menu'); if (picker) picker.open = false;
+    await configureComposerModel(modelChoice.dataset.composerModel); return;
+  }
   const answerAction = event.target.closest?.('[data-claw-answer-action]');
   if (answerAction && Object.hasOwn(answerAction.dataset, 'clawAnswerAction')) {
     const index = Number(answerAction.dataset.answerIndex);
@@ -2061,14 +2092,9 @@ root.addEventListener('click', async (event) => {
     const ticket = pageGeneration;
     try {
       if (action === 'download') downloadAnswer(message.text);
-      else if (action === 'speak') speakAnswer(message.text, { onError: error => { if (ticket === pageGeneration) { state.error = error; render(); } } });
       else if (action === 'share') {
         await copyResearchText(globalThis.location.href);
         if (ticket === pageGeneration && answerAction.isConnected) { answerAction.title = '已复制本机链接'; answerAction.setAttribute('aria-label', '已复制本机链接'); }
-      } else if (action === 'good' || action === 'bad') {
-        const key = message.id || `${detail.id}:${index}`;
-        answerFeedback.set(key, answerFeedback.get(key) === action ? null : action);
-        safeLog('claw_answer_feedback_changed'); render();
       } else if (['sources', 'files', 'process'].includes(action)) {
         contextTab = { sources: 'datasets', files: 'files', process: 'activity' }[action];
         contextCollapsed = false; contextOpen = window.matchMedia('(max-width: 1050px)').matches; sidebarOpen = false; render();
@@ -2606,7 +2632,7 @@ root.addEventListener('click', async (event) => {
   if ('contextTab' in data) { researchStage = null; contextTab = data.contextTab; render(); }
   if ('closeDrawers' in data) { const wasSidebarOpen = sidebarOpen; sidebarOpen = false; contextOpen = false; render(); if (wasSidebarOpen) focusSidebarControl(document, window.matchMedia('(max-width: 1050px)').matches); }
   if ('upload' in data) document.querySelector('#file-input')?.click();
-  if ('slashSearch' in data) { slashOpen = !slashOpen; tabbitOpen = false; tabbitCandidates = []; tabbitRequest += 1; slashIndex = 0; render(); document.querySelector('#prompt')?.focus(); }
+  if ('slashSearch' in data) { if (composerMenu) composerMenu.open = false; slashOpen = !slashOpen; tabbitOpen = false; tabbitCandidates = []; tabbitRequest += 1; slashIndex = 0; render(); document.querySelector('#prompt')?.focus(); }
   if ('removeAttachment' in data) controller.removeAttachment(data.removeAttachment);
   if ('noFormats' in data) { controller.setFormats([]); render(); }
   if ('documentCreate' in data && ['docx', 'xlsx', 'pptx'].includes(data.documentCreate) && state.detail?.id) {

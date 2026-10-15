@@ -113,9 +113,9 @@ test('Claw landing shows enabled catalog Workflow templates while FinGPT keeps i
   const workflow = { id: 'real-workflow', kind: 'workflow', name: '真实研究模板', enabled: true, metadata: { scenarios: ['资料研究'], inputs: [{ label: '主题', type: 'text', required: true }], default_formats: ['html'] } };
   const catalog = [...skills, workflow, { ...workflow, id: 'my-workflow', name: '我的模板' }, { ...workflow, id: 'disabled-workflow', enabled: false }, { ...workflow, id: 'draft-workflow', enabled: undefined }];
   const claw = renderQuickSkills(catalog, { page: 'claw' });
-  assert.match(claw, /<h2>研究步骤模板<\/h2>/);
+  assert.doesNotMatch(claw, /quick-directory|浏览研究入口与分类|id="quick-category"/);
   assert.deepEqual([...claw.matchAll(/data-skill-shortcut="([^"]+)"/g)].map(match => match[1]), ['real-workflow', 'my-workflow']);
-  for (const expected of ['场景：资料研究', '输入：主题（text · 必填）', '输出：html', '上方能力选择', 'Skill']) assert.ok(claw.includes(expected));
+  for (const expected of ['场景：资料研究', '输入：主题（text · 必填）', '输出：html']) assert.ok(claw.includes(expected));
   assert.doesNotMatch(claw, /type="submit"|data-run|已完成步骤/);
   assert.deepEqual([...renderQuickSkills(catalog).matchAll(/data-skill-shortcut="([^"]+)"/g)].map(match => match[1]), skills.map(skill => skill.id));
   assert.match(renderQuickSkills(skills, { page: 'claw' }), /尚无已启用的研究步骤模板/);
@@ -139,7 +139,7 @@ test('landing category filters derive from the displayed catalog kind and escape
   assert.match(html, /data-skill-shortcut="document-reading"/);
   assert.match(renderQuickSkills(catalog, { category: 'obsolete' }), /data-skill-shortcut="company-research"/);
   const claw = renderQuickSkills(catalog, { page: 'claw' });
-  assert.match(claw, /步骤分类/);
+  assert.doesNotMatch(claw, /步骤分类|quick-directory|id="quick-category"/);
   assert.doesNotMatch(claw, /value="资料研究"/);
 });
 

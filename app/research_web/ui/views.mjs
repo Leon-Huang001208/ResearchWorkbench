@@ -404,7 +404,7 @@ function matchesLocalGateway(endpoint) {
   } catch { return false; }
 }
 
-export function modelOptions(groups = [], current = '', endpoint = '') {
+export function modelGroups(groups = [], endpoint = '') {
   const presets = Array.isArray(localModels.models) ? localModels.models.filter(model =>
     typeof model?.id === 'string' && /^[a-zA-Z0-9._:/-]{1,100}$/.test(model.id) && typeof model.name === 'string') : [];
   const expanded = groups.map(group => {
@@ -414,5 +414,9 @@ export function modelOptions(groups = [], current = '', endpoint = '') {
     for (const model of group.models || []) if (!models.has(model.id)) models.set(model.id, model);
     return { ...group, models: [...models.values()] };
   });
-  return '<option value="">选择运行模型</option>' + expanded.map((group) => `<optgroup label="${e(group.provider)}">${(group.models || []).map((model) => `<option value="${e(JSON.stringify({ provider: group.provider, model: model.id }))}" ${model.id === current ? 'selected' : ''}>${e(model.name || model.id)}</option>`).join('')}</optgroup>`).join('');
+  return expanded;
+}
+
+export function modelOptions(groups = [], current = '', endpoint = '') {
+  return '<option value="">选择运行模型</option>' + modelGroups(groups, endpoint).map((group) => `<optgroup label="${e(group.provider)}">${(group.models || []).map((model) => `<option value="${e(JSON.stringify({ provider: group.provider, model: model.id }))}" ${model.id === current ? 'selected' : ''}>${e(model.name || model.id)}</option>`).join('')}</optgroup>`).join('');
 }

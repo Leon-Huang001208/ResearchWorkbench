@@ -68,3 +68,17 @@
 按用户截图新增 Codex 风格八入口图标栏，仅最终回答可见；复制与链接、Markdown 下载、仅本机语音及错误、反馈、受草稿/权限保护的重试、活动/文件/资料入口均有真实处理。新增 answer-actions.mjs，未增加 API、依赖或外发服务。功能单测及 Claw 执行流目标回归 9 项通过，正式实例未重启。浏览器与完整门禁另记，不以单测替代。
 
 操作栏追加验收：实际候选显示八个一级入口，过程内部操作栏为 0；更多菜单、文件及资料面板已点击核对，下载 research-answer.md 为 2506 字节。完整 JavaScript 回归 576/576 通过（logs/claw-dynamic-answer-actions-full.log）。评审发现主动停止语音可能误报失败，已忽略 canceled/interrupted 并补回归。正式 Web/DSH 监听 PID 2452/2370 未变。截图 .codex/acceptance/claw-dynamic-20261015/final-answer-toolbar.png。语音播放及重新研究未在真实浏览器发起，避免声音与额外模型调用，使用可控单测验证相应契约。
+
+用户后续明确取消朗读：已移除入口、speechSynthesis 实现与专属图标，最终保留七项操作。此前八项截图及语音测试仅为历史证据，不代表当前定义。
+
+用户进一步取消 Claw 回答反馈：移除反馈菜单及 Claw good/bad 处理，保留复制、链接、Markdown 下载、重新研究、更多、资料六项。旧 FinGPT 反馈不在本次范围内。
+
+按追加截图将输入选项收进 Codex 式全宽“＋”菜单，已实测展开、方法/格式列表、能力衔接和 Escape 焦点恢复；未发送研究或上传文件。输出栏取消朗读和反馈，下载/分享/重试改为对应箭头图标。快捷键提示与研究目标 placeholder 合并，运行时阻断提示保留。截图 composer-add-menu-codex.png；相关 UI 回归 logs/claw-dynamic-composer-more-ui.log。
+
+模型菜单追加：真实目录上浮列表/provider勾选/键盘移动与关闭已验证，未实测写入其他模型或额外推理。目标模型菜单测试2项通过，相关UI85项通过；截图 composer-model-picker-codex.png。目录展开 helper 与配置动作共用原语义，未新增配置API或处理密钥。
+
+主按钮追加：Claw 合并发送/停止状态，移除额外文字按钮，保留原取消协议、离线/重复停止及不确定状态核对。运行、停止中、完成、离线、提交等渲染状态和相关UI/交付回归通过；真实候选仅核对空闲主按钮与无额外停止入口，未为了截图启动/终止付费模型任务。证据 logs/claw-dynamic-primary-stop-ui.log。
+
+## 合并部署候选收口
+
+用户明确要求先合并 master 并部署。首页移除重复的研究入口分类及现有步骤模板块、案例草稿提示；能力仍从＋菜单选择。模型菜单、主按钮状态按追加截图实现。原生搜索在0176ed0af候选真实验收：POST匹配2项，包含v2执行会话，无命中返回空；首次检索0.25秒，未激活Agent。原固定provider的openAt=never为gateway/internal根因，现first-search派生内存索引已实测。0176候选14项本地Router门全通过，后续UI增量另做目标及完整JS验证。参考站实时HTTP/全部动态状态仍受观察通道限制，不能宣称全部调查完成。

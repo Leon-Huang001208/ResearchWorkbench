@@ -137,5 +137,5 @@ export const clawCases = [
 ];
 export function renderClawCases(category = '') {
   const items=clawCases.filter(c=>!category || category==='all' || c.category===category);
-  return `<section class="claw-cases" aria-label="研究案例草稿"><div class="claw-case-categories">${[['','全部'],['research','研究实战'],['agent','Agent 日程'],['capability','能力使用']].map(([id,name])=>`<button class="text-button ${category===id?'active':''}" data-claw-case-category="${id}" aria-pressed="${category===id}">${name}</button>`).join('')}</div><div class="claw-case-grid">${items.map(c=>`<button class="claw-case-card" data-claw-case="${c.id}"><strong>${c.name}</strong><span>${e(c.text)}</span></button>`).join('')}</div><p class="muted small">示例仅填入草稿；发送前可以修改。</p></section>`;
+  return `<section class="claw-cases" aria-label="研究案例草稿"><div class="claw-case-categories">${[['','全部'],['research','研究实战'],['agent','Agent 日程'],['capability','能力使用']].map(([id,name])=>`<button class="text-button ${category===id?'active':''}" data-claw-case-category="${id}" aria-pressed="${category===id}">${name}</button>`).join('')}</div><div class="claw-case-grid">${items.map(c=>`<button class="claw-case-card" data-claw-case="${c.id}"><strong>${c.name}</strong><span>${e(c.text)}</span></button>`).join('')}</div></section>`;
 }

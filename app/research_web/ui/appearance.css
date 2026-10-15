@@ -1659,6 +1659,46 @@ a.framework-card:hover, a.framework-card:focus-visible { border-color: var(--con
 .claw-shell .composer { border-radius:22px; }
 .claw-shell .composer textarea { padding:12px 18px; min-height:80px; }
 .claw-shell .composer-tools { padding:8px 12px 12px; }
+.claw-shell .composer { position:relative; }
+.claw-shell .composer textarea { resize:none; }
+.composer-button-spinner { display:block; width:16px; height:16px; border:2px solid currentColor; border-right-color:transparent; border-radius:50%; animation:composer-button-spin .8s linear infinite; }
+@keyframes composer-button-spin { to { transform:rotate(360deg); } }
+@media (prefers-reduced-motion:reduce) { .composer-button-spinner { animation:none; } }
+.composer-more { position:static; color:var(--muted); }
+.claw-shell .composer-tools #model-select { display:none; }
+.composer-model-menu { position:relative; min-width:0; color:var(--muted); }
+.composer-model-menu > summary { display:flex; align-items:center; gap:8px; min-height:32px; padding:6px 10px; border-radius:20px; font-size:12px; cursor:pointer; list-style:none; }
+.composer-model-menu > summary::-webkit-details-marker { display:none; }
+.composer-model-menu > summary .ui-icon { width:14px; height:14px; }
+.composer-model-menu > summary:hover, .composer-model-menu[open] > summary { color:var(--text); background:var(--surface); }
+.composer-model-menu > summary:focus-visible { outline:2px solid var(--focus); outline-offset:2px; }
+.composer-model-options { position:absolute; right:0; bottom:calc(100% + 12px); z-index:32; width:min(310px,calc(100vw - 48px)); max-height:min(480px,60vh); overflow:auto; padding:8px; border:1px solid var(--line); border-radius:18px; background:var(--surface); box-shadow:0 8px 30px #0002; color:var(--text); }
+.composer-model-heading { padding:6px 10px 2px; font-size:13px; color:var(--muted); }
+.composer-model-note { margin:0; padding:2px 10px 8px; font-size:11px; color:var(--muted); line-height:1.5; }
+.composer-model-provider { padding:8px 10px 4px; font-size:11px; color:var(--muted); }
+.composer-tools .composer-model-option { display:flex; align-items:center; justify-content:space-between; gap:12px; width:100%; min-height:40px; border:0; border-radius:10px; background:transparent; color:var(--text); padding:9px 10px; text-align:left; font-size:14px; cursor:pointer; }
+.composer-model-option:hover, .composer-model-option:focus-visible { background:var(--sidebar); }
+.composer-model-option:focus-visible { outline:2px solid var(--focus); outline-offset:-2px; }
+.composer-model-option .ui-icon { width:18px; height:18px; flex-shrink:0; }
+.composer-model-option:disabled { opacity:.4; cursor:not-allowed; }
+.composer-more > summary { display:flex; align-items:center; justify-content:center; width:32px; height:32px; padding:6px; border-radius:8px; cursor:pointer; list-style:none; }
+.composer-more > summary::-webkit-details-marker { display:none; }
+.composer-more > summary:hover, .composer-more[open] > summary { color:var(--text); background:var(--surface); }
+.composer-more > summary:focus-visible { outline:2px solid var(--focus); outline-offset:2px; }
+.composer-more-panel { position:absolute; bottom:calc(100% + 8px); left:0; right:0; z-index:30; max-height:min(420px,60vh); overflow:auto; display:grid; gap:3px; padding:8px; background:var(--surface); color:var(--text); border:1px solid var(--line); border-radius:20px; box-shadow:0 6px 24px #00000012; }
+.composer-more-heading { padding:4px 12px 6px; font-size:12px; color:var(--muted); }
+.composer-menu-description { color:var(--muted); font-weight:400; font-size:13px; }
+.composer-more-panel .ui-icon { width:18px; height:18px; flex-shrink:0; color:var(--muted); }
+.composer-tools .composer-more-panel > .button { justify-content:flex-start; width:100%; padding:10px 12px; gap:10px; min-height:40px; border:0; background:transparent; font-size:13px; }
+.composer-more-panel > .button:hover { background:var(--sidebar); }
+.composer-more-panel > .capability-picker:not(.method-picker) { display:none; }
+.composer-more-panel > .method-picker, .composer-more-panel > .format-picker { width:100%; margin:0; }
+.composer-more-panel > details > summary { display:flex; align-items:center; gap:10px; max-width:none; width:100%; padding:10px 12px; min-height:40px; border-radius:8px; font-size:13px; }
+.composer-more-panel > details > summary:hover { background:var(--sidebar); }
+@media (max-width:600px) { .composer-menu-description { font-size:11px; } .composer-more-panel > .button, .composer-more-panel > details > summary { flex-wrap:wrap; } }
+.composer-dock .composer-more-panel .format-options, .composer-dock .composer-more-panel .method-picker fieldset, .composer-more-panel .format-options, .composer-more-panel .method-picker fieldset { position:static; width:100%; max-height:240px; margin:2px 0 4px; box-shadow:none; border:0; padding:4px 8px; }
+@media (pointer:coarse) { .composer-more > summary { width:44px; height:44px; } }
+.claw-shell .composer .composer-caption-inside { margin:0; padding:0 18px 12px; font-size:11px; line-height:1.6; }
 .claw-process { min-width:0; margin:4px 0 20px; }
 .claw-process > summary { display:flex; align-items:center; gap:6px; cursor:pointer; list-style:none; padding:0 0 10px; border-bottom:1px solid var(--line); color:var(--muted); font-size:14px; }
 .claw-process > summary::-webkit-details-marker, .claw-step > summary::-webkit-details-marker { display:none; }
@@ -1719,7 +1759,6 @@ a.framework-card:hover, a.framework-card:focus-visible { border-color: var(--con
 .claw-answer-action:hover, .claw-answer-menu > summary:hover { background:var(--surface); color:var(--text); }
 .claw-answer-action:focus-visible, .claw-answer-menu > summary:focus-visible { outline:2px solid var(--muted); outline-offset:2px; }
 .claw-answer-action:disabled { opacity:.35; cursor:not-allowed; }
-.claw-answer-action[aria-pressed="true"] { color:var(--text); background:var(--surface); }
 .claw-answer-menu { position:relative; }
 .claw-answer-menu > summary { list-style:none; }
 .claw-answer-menu > summary::-webkit-details-marker { display:none; }
