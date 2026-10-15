@@ -1713,9 +1713,7 @@ a.framework-card:hover, a.framework-card:focus-visible { border-color: var(--con
 .claw-shell .question-history dt { font-weight:500; }
 .claw-shell .question-history dd { margin:6px 0 0; color:var(--muted); }
 .claw-shell .question-history dd p { margin:4px 0; }
-.claw-shell .message.assistant > [data-copy-message] { color:var(--muted); font-size:12px; opacity:0; }
-.claw-shell .message.assistant:hover > [data-copy-message], .claw-shell .message.assistant:focus-within > [data-copy-message] { opacity:1; }
-@media (hover:none) { .claw-shell .message.assistant > [data-copy-message] { opacity:1; } }
+.claw-shell .claw-answer-copy { align-self:flex-start; margin-top:-16px; padding:4px 0; color:var(--muted); font-size:12px; }
 @media (max-width:600px) { .claw-shell .message.user .markdown, .claw-shell .composer textarea { padding:12px 16px; } .claw-step > summary { min-height:44px; flex-wrap:wrap; } .claw-shell .composer-tools { padding:4px 10px 10px; flex-wrap:wrap; } }
 @media (max-width:1050px) {
   .app-shell, .app-shell.wide-page, .app-shell.has-secondary, .app-shell.has-secondary.wide-page,

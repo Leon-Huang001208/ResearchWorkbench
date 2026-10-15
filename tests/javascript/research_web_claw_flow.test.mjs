@@ -45,3 +45,13 @@ test('Claw questions keep native controls and answered receipts are independentl
   const answered = renderConversation({ id: 's', mode: 'claw', messages: [], question_history: [{ ...question, answers: [{ id: 'scope', selected: ['<script>'], custom: '<svg onload=alert(1)>' }] }] });
   assert.match(answered, /<details class="decision-card question-history"/); assert.match(answered, /已回答 1 个问题/); assert.match(answered, /s:question:q/); assert.match(answered, /&lt;svg onload/); assert.doesNotMatch(answered, /<svg onload|<script>|<img/);
 });
+
+
+test('copy action belongs only to the last actual answer of a finished Claw turn', () => {
+  const detail = { id: 's', mode: 'claw', status: 'completed', messages: [{ seq: 1, role: 'user', text: '开始' }, { seq: 2, role: 'assistant', text: '中间说明' }, { seq: 4, role: 'assistant', text: '最终回答' }], activities: [activity('a', 3)] };
+  const html = renderConversation(detail);
+  assert.equal((html.match(/data-copy-message=/g) || []).length, 1);
+  assert.doesNotMatch(html, /data-copy-message="1"/);
+  assert.match(html, /data-copy-message="2"/);
+  assert.doesNotMatch(renderConversation({ ...detail, status: 'running' }), /data-copy-message=/);
+});

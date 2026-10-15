@@ -27,7 +27,7 @@ export function renderClawStep(activity, { sessionId = '', statusLabel = '', age
 export function renderClawFlow(entries, detail) {
   const finalIndexes = new Set();
   let lastAssistant = -1;
-  const terminalState = ['completed', 'failed', 'cancelled', 'idle'].includes(detail.status);
+  const terminalState = detail.status == null || ['completed', 'failed', 'cancelled', 'idle'].includes(detail.status);
   entries.forEach((entry, index) => {
     if (entry.kind === 'user') {
       if (lastAssistant >= 0) finalIndexes.add(lastAssistant);
@@ -52,7 +52,7 @@ export function renderClawFlow(entries, detail) {
   };
   entries.forEach((entry, index) => {
     if (entry.kind === 'user' || entry.kind === 'decision' || !Number.isFinite(entry.seq) || finalIndexes.has(index)) {
-      flush(); parts.push(entry.html);
+      flush(); parts.push(entry.html + (finalIndexes.has(index) ? entry.copyHTML || '' : ''));
     } else segment.push(entry);
   });
   flush();
