@@ -1,5 +1,10 @@
 # Research Workbench
 
+macOS Native 可显式启用[登录后常驻与自动部署](docs/research-web-installation.md#macos-登录后常驻与自动部署)。
+保留 FileVault；仅接收已合并、评审和 exact-tree CI 均通过的受管交付，活动研究结束后再更新。
+失败恢复上一版本；数据、模型凭据与 Tailscale Serve 保留，敏感或未分类升级暂停人工处理。
+
+
 Native 可按[安装指南](docs/research-web-installation.md#可选tailscale-私网-https-访问native)
 显式启用单个 Tailscale 私网 HTTPS origin；默认仍只接受本机访问，不自动开放公网。
 浏览器点击外部链接可打开首页；例外仅限用户触发的顶层 GET 导航，不放开跨站 API。

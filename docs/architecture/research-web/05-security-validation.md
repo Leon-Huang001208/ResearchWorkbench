@@ -1,5 +1,13 @@
 # 安全边界与验证方法
 
+resident 仅在本机明确安装后生效。固定控制器 artifact/目录身份/进程归属与精确端口，
+按 EX admission → lifecycle lease 顺序切换；HTTP 用户写操作、研究提交及自动任务均参与共享锁。
+journal 存在时崩溃后仍拒绝新写入；恢复失败保留 blocked。日志不含凭据或提示词。
+GitHub 合并事实、matching review、本地完整交付及三个工作流实际 checkout tree 均须匹配；
+成功的旧 SHA、其他树、未分类路径、依赖/迁移/控制面变化均不放行。
+不改变 FileVault、Keychain、Tailscale 成员/ACL，不启用 Funnel，不自动安装新依赖或迁移数据。
+
+
 每轮资源收尾只接受同任务归属、已登记目录身份和白名单类型；删除前复查Git跟踪状态、inode、进程及容器引用。未知ignored数据/其他任务/未归并提交仍拒绝。构建器维护持有rwb-docker原操作锁，验证单节点/endpoint/卷与实例绑定；不得用同名Buildx重绑定清理远端或其他实例。in-use记录由BuildKit保护，内存门或恢复失败即blocked，不绕过原Git可恢复备份和审查门。
 
 Native 可通过 `RESEARCH_WEB_PRIVATE_ORIGIN` 显式信任单个精确 Tailscale HTTPS origin。

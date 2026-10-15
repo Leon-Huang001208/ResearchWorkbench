@@ -1,5 +1,10 @@
 # 研究协议、执行状态与恢复
 
+resident更新锁按研究准入EX→原lifecycle顺序持有。HTTP写操作、send/approve/answer、
+Automation准入/执行/恢复使用共享锁；已排队或运行研究使更新延期，native session.list含子会话。
+候选启动期间自动任务等待维护解除；失败或中断恢复旧代码后才释放栅栏，不触发新模型请求。
+
+
 工程资源收尾不是研究执行状态。交付入口确认候选合并及CI通过后才归档任务日志、回收依赖/退休测试对象和缓存，再走原Git安全清理；资源blocked不改变研究会话成功/失败或触发重试模型。复制失败保留证据原件，重放须逐文件验证；状态与证据保存在common Git私有目录，任务worktree删除后仍可审查。
 
 Native 私网 HTTPS opt-in 只改变浏览器到 Host 的精确 origin 准入；内部 DSH RPC、

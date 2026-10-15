@@ -12,12 +12,14 @@ import time
 from collections.abc import Sequence
 from datetime import UTC, datetime
 from functools import wraps
+from pathlib import Path
 from threading import RLock
 from typing import Any
 from uuid import uuid4
 from zoneinfo import ZoneInfo
 
 from core.observability import get_logger
+from research_workbench_entrypoint.resident.admission import research_admission
 
 from .models import AutomationCreate, AutomationError, AutomationUpdate
 from .schedule import next_occurrence
@@ -562,6 +564,7 @@ class AutomationService:
         self._notify_research()
         return row
 
+    @research_admission
     async def run(
         self,
         automation_id: str,
@@ -612,6 +615,7 @@ class AutomationService:
             raise AutomationError("运行仍在进行", "automation_run_busy", 409)
         return await self.run(run["automation_id"], trigger="retry", retry_of=run_id)
 
+    @research_admission
     async def _execute(self, run_id: str) -> None:
         row = self._run_row(run_id)
         automation = row.get("definition_snapshot") or self._row(row["automation_id"])
@@ -735,6 +739,7 @@ class AutomationService:
         if tasks:
             await asyncio.gather(*tasks)
 
+    @research_admission
     async def tick(self, now: datetime | None = None) -> None:
         now = now or self.now()
         due = [
@@ -780,7 +785,13 @@ class AutomationService:
                     updated_at=time.time(),
                 )
         self.store.save()
-        await self.tick(self.now())
+        resident = os.environ.get("RESEARCH_RESIDENT_HOME")
+        if resident and (Path(resident) / "transaction.json").exists():
+            # Candidate startup must become healthy before the updater releases
+            # admission. Retain this task so close() cancels it on rollback.
+            self.tasks["resident-startup-tick"] = asyncio.create_task(self.tick(self.now()))
+        else:
+            await self.tick(self.now())
         if self.scheduler is None:
             from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
@@ -977,6 +988,7 @@ class AutomationService:
         log.info("automation_schedule_migrated", count=len(migrated), status="completed")
         return {"migrated": migrated}
 
+    @research_admission
     async def _resume(self, run_id: str) -> None:
         row = self._run_row(run_id)
         automation = row.get("definition_snapshot") or self._row(row["automation_id"])

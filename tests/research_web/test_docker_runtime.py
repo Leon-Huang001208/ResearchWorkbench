@@ -2858,12 +2858,32 @@ def test_native_bridge_subprocess_with_temporary_home_does_not_write(tmp_path, a
     if product_writer:
         assert report["issues"] == ["runtime_ownership_unknown"], report
     else:
-        assert report["ok"], report
-        assert all(
-            report["services"][role]["port"] == port
-            and report["services"][role]["running"] is False
-            for role, port in zip(("web", "runtime"), available_ports)
+        # An absent endpoint ledger also probes the documented default pair.
+        # A resident instance on another checkout may be visible there while
+        # its private ledger is not reusable by this temporary product root.
+        # Preserve that fail-closed result; never stop the resident for a test.
+        defaults = [
+            probe_process(pid)
+            for port in {8088, 3081} - set(controller.ports)
+            for pid in listener_pids(port).pids
+        ]
+        default_product = any(
+            fact.argv
+            and any(
+                "app.research_web.main" in arg or "apps/cli/lib/bin.js" in arg for arg in fact.argv
+            )
+            for fact in defaults
         )
+        if not report["ok"] and default_product:
+            assert report["issues"] == ["runtime_ownership_unknown"], report
+        else:
+            assert report["ok"], report
+        if report["ok"]:
+            assert all(
+                report["services"][role]["port"] == port
+                and report["services"][role]["running"] is False
+                for role, port in zip(("web", "runtime"), available_ports)
+            )
     assert not home.exists()
 
 

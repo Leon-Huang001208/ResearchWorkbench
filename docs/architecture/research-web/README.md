@@ -1,5 +1,9 @@
 # Research Workbench Research Web 当前架构
 
+macOS登录常驻沿用同一Native部署节点与研究引擎；短时管理程序处理空闲切换和恢复，
+不增加第二Automation scheduler。操作与授权边界见[安装指南](../../research-web-installation.md#macos-登录后常驻与自动部署)。
+
+
 本轮融合外部来源、兼容模型协议与交互修复，仍以 DSH 为唯一执行循环。
 认证 HTTPS、秘密反射拒绝、明确脚本成功及精确工具准入见[安全边界](05-security-validation.md)；
 Claw 项目、研究深度/资料范围、原生 Todo 和 HTML/Word/中文 PDF 合同保持。

@@ -1,5 +1,9 @@
 # Research Web 能力包与版本
 
+可选resident维护栅栏覆盖已有Automation准入/执行/恢复。已接受任务保持等待，
+存在queued/running任务时延期部署；候选启动不因到期日程绕过维护或新增模型授权。
+
+
 新增 external_data 业务能力和 datahub_get_external_data 原生工具，沿用已有版本/会话准入。
 传输具备工具调用能力不表示所有兼容模型已验证；仍只准入有原生工具证据的精确组合。
 停止和重试不创建新 Automation，重试须满足普通发送的交付与运行时资格检查。

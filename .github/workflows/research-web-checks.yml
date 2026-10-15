@@ -74,6 +74,7 @@ jobs:
             tests/research_web/test_documentation.py \
             tests/research_web/test_doc_sync.py \
             tests/research_web/test_cli_lazy.py \
+            tests/research_web/test_resident.py \
             --confcutdir=tests/research_web -q
 
       - name: Run Research Web JavaScript contracts
