@@ -2923,6 +2923,28 @@ class WebServiceManager:
         stable_warnings = tuple(dict.fromkeys(warnings))
         return configured and credential_configured and catalog_ready, stable_warnings
 
+    def _web_access_diagnosis(self) -> dict[str, Any]:
+        """Read the running Host's actual access mode, never the CLI environment."""
+        try:
+            runtime = self._json_request(self.web_port, "GET", "/api/research/runtime")
+        except ServiceManagerError:
+            log.warning("research_web_access_diagnosis_unavailable")
+            return {"mode": "unknown", "origin": None}
+        access = runtime.get("web_access")
+        if isinstance(access, dict):
+            if access.get("mode") == "loopback" and access.get("origin") is None:
+                return {"mode": "loopback", "origin": None}
+            origin = access.get("origin")
+            if (
+                access.get("mode") == "tailscale"
+                and isinstance(origin, str)
+                and re.fullmatch(
+                    r"https://[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.tail[a-z0-9]+\.ts\.net", origin
+                )
+            ):
+                return {"mode": "tailscale", "origin": origin}
+        return {"mode": "unknown", "origin": None}
+
     def doctor(self) -> dict[str, Any]:
         """Return a path-free, credential-free Web installation diagnosis."""
         diagnosis = self._installation_diagnosis()
@@ -2980,6 +3002,11 @@ class WebServiceManager:
             "installation_ok": installation_ok,
             "product_ready": product_ready,
             "model_ready": model_ready,
+            "web_access": (
+                self._web_access_diagnosis()
+                if product_ready
+                else {"mode": "unknown", "origin": None}
+            ),
             "issues": list(dict.fromkeys([*installation_issues, *service_issues])),
             "warnings": warnings,
             "services": {probe.role: probe.public() for probe in probes},
@@ -3212,6 +3239,7 @@ def format_doctor_status(status: dict[str, Any]) -> str:
         + ("ready" if status.get("installation_ok", status.get("ok")) else "needs attention"),
         f"Product: {'ready' if status.get('product_ready') else 'not ready'}",
         f"Model: {'ready' if status.get('model_ready') else 'not ready'}",
+        f"Web access: {status.get('web_access', {}).get('mode', 'unknown')}",
         f"Python: {status.get('python', {}).get('version') or 'missing'}",
         "Web lock: "
         + ("verified" if status.get("python", {}).get("lock_matches_manifest") else "invalid"),

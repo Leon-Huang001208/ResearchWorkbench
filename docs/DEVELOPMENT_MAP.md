@@ -1,5 +1,10 @@
 # Research Workbench Development Map
 
+Native Tailscale 私网 opt-in 在 `main.py:create_app/local_boundary` 校验精确 HTTPS
+origin/Host，`service_manager.py` Doctor 读取运行中 `web_access` 投影。
+近处回归为 `test_api.py` 的 tailscale/invalid_private_origin 与 `test_service_manager.py`
+的 doctor_web_access。配置步骤、默认回环与多用户边界见安装文档、04-api 和安全清单。
+
 Hot关注位于follows.ts/migration0019；周期计划位于periodic-briefs.ts/migration0020和brief-control的内部租约准入。Host hot_routes/hot_manager与Automation routes管理适配；UI为hot-follows/hot-brief-plans。近处测试覆盖PG最小角色、回放、截止、慢写回滚及Host真实白名单。
 
 schema21的periodic_report_executions保存周期一次性报告原件和回执；periodic-report.ts通过

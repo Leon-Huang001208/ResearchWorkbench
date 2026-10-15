@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "updated",
-  "summary": "整合Claw、本地模型、研究框架与主线资讯雷达功能，保留双方合同。",
-  "reason": "README保留现有模型/框架说明并区分研究日程确认启用与既有能力默认停用；安装依赖未新增。模块、API、文件、UI和安全文档同步；实际验证与未验证状态分别记录。"
+  "summary": "Native新增显式精确Tailscale私网HTTPS origin配置与运行中访问模式诊断。",
+  "reason": "README链接安装指南，说明默认回环及私网边界；依赖与公开安装入口不变，Host/Origin安全和Doctor/API文档同步。"
 }

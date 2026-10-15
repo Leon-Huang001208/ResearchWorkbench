@@ -1,5 +1,31 @@
 # Research Web Native / Docker 安装与运行
 
+## 可选：Tailscale 私网 HTTPS 访问（Native）
+
+默认仍只接受回环 Host。已安装并登录 Tailscale 后，由操作员指定本设备的精确 HTTPS
+origin（示例域名必须换成 `tailscale status --json` 中本机的 DNSName，去掉结尾点）：
+
+```bash
+RESEARCH_WEB_PRIVATE_ORIGIN=https://research.tail123abc.ts.net ./rwb web restart
+tailscale serve --bg http://127.0.0.1:8088
+./rwb web doctor --json
+```
+
+首次启用 Serve/HTTPS 需在 Tailscale 管理页授权。若本机接受的 Web 端口不是 8088，代理目标
+使用 `rwb web status` 的实际端口。仅允许单个小写 `<device>.tail<id>.ts.net` HTTPS origin，
+不带端口、尾斜线、路径、查询、凭据或通配符；非法配置以 `private_origin_invalid` 拒绝启动。
+该变量是启动配置，下一次 start/restart 也需携带，可保存在本机私有启动脚本中；不会自动
+修改系统环境、登录项、网络成员或访问策略。Doctor 的 `web_access` 读取运行中 Host，
+不从当前 CLI 环境推断已应用。移除变量并重启后恢复回环访问。
+
+客户端必须登录获准的 Tailscale 网络。Serve 保持私网，不启用 Funnel；不要将此 opt-in
+视为公网身份认证或多用户隔离。Mac 必须开机联网；休眠、重启及 FileVault 解锁后的恢复
+需另验。浏览器或系统代理应绕过此精确私网域名，否则可能发生 TLS 连接失败。
+关闭本次入口使用 `tailscale serve --https=443 off`，不停止 RWB。
+
+此能力不新增依赖；已核对 web.in/web.lock、setup_web.py 与 Bootstrap workflow，保留原安装
+合同，由候选的干净 macOS Bootstrap CI 验证兼容性。Docker 不在本切片启用此宿主配置。
+
 ## 外部来源与兼容模型融合
 
 打包research_helpers新增chinese_font_path，仍复用现有中文字体和Matplotlib，无新产品依赖。

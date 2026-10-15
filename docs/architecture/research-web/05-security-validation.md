@@ -1,5 +1,13 @@
 # 安全边界与验证方法
 
+Native 可通过 `RESEARCH_WEB_PRIVATE_ORIGIN` 显式信任单个精确 Tailscale HTTPS origin。
+默认 Host 列表不变；指定域名仅接受 HTTPS、默认 443，Host 与 Origin 必须配对，跨站请求
+仍拒绝，X-Forwarded-Host 不授予信任；可信回环代理的协议由 Uvicorn 原有 proxy-header
+合同确定。无效配置仅记录稳定错误码，不回显输入。私有 DSH/DataHub 认证和 CSP 保持原门。
+操作安全清单：确认代理仅在 tailnet，Funnel 关闭、成员获准、客户端无私网域名代理劫持；
+单个 RWB 实例不提供按 tailnet 用户划分的研究/凭据权限，获准设备具有同一实例权限。
+配置、认证、证书、跨设备 HTTP 与真实 SSE/模型是分别验收的状态。
+
 数据型Word子执行不导入会初始化旧设置的日志facade，避免只读镜像根目录写入和开发.env
 读取；沿既有report_documents的标准日志进入父进程日志。隔离进程禁用core模块仍能
 生成并重开Word，这是无旧配置/模型环境依赖的反例测试，不是新增模型验收。
