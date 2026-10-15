@@ -310,6 +310,37 @@ test('unavailable capability codes use the same bounded allowlisted error projec
   } finally {globalThis.fetch=original;}
 });
 
+test('Automation actions preserve only bounded stable rejection codes without exposing error text or retrying', async () => {
+  const f = await fixture(); const original = globalThis.fetch;
+  const { executeAutomationAction } = await import(moduleURL);
+  try {
+    const codes = ['automation_trial_not_requested', 'automation_trial_scope_denied', 'automation_trial_conflict', 'automation_trial_unknown', 'automation_version_conflict', 'automation_busy', 'automation_run_busy', 'automation_control_denied'];
+    for (const code of codes) {
+      let calls = 0;
+      globalThis.fetch = async () => { calls++; return new Response(JSON.stringify({ error: { code, message: 'synthetic_secret', detail: 'private payload' } }), { status: 409, headers: { 'content-type': 'application/json' } }); };
+      await assert.rejects(executeAutomationAction(f.ctx, f.exec, { researchRoot: f.root }, { operation: 'run', automation_id: 'task' }), error => {
+        assert.equal(error.message, `DataHub request failed (HTTP 409): ${code}`); assert.doesNotMatch(error.message, /synthetic_secret|private payload/); return true;
+      });
+      assert.equal(calls, 1);
+    }
+    for (const [body, headers, status] of [
+      [JSON.stringify({ error: { code: 'automation_unlisted_secret' } }), { 'content-type': 'application/json' }, 409],
+      [JSON.stringify({ error: { code: 'automation_trial_not_requested%0Asecret' } }), { 'content-type': 'application/json' }, 409],
+      [JSON.stringify({ error: { code: 'automation_trial_not_requested' }, padding: 'x'.repeat(4096) }), { 'content-type': 'application/json' }, 409],
+      ['{"error":', { 'content-type': 'application/json' }, 409],
+      [JSON.stringify({ error: { code: 'automation_trial_not_requested' } }), { 'content-type': 'text/html' }, 409],
+      [JSON.stringify({ error: { code: 'automation_trial_not_requested' } }), { 'content-type': 'application/json', location: 'https://example.com' }, 302],
+    ]) {
+      let calls = 0;
+      globalThis.fetch = async () => { calls++; return new Response(body, { status, headers }); };
+      await assert.rejects(executeAutomationAction(f.ctx, f.exec, { researchRoot: f.root }, { operation: 'run', automation_id: 'task' }), error => {
+        assert.doesNotMatch(error.message, /synthetic_secret|private payload|automation_unlisted|%0A|automation_trial_not_requested/); return true;
+      });
+      assert.equal(calls, 1);
+    }
+  } finally { globalThis.fetch = original; }
+});
+
 test('tool descriptions separate registration from current readiness and identify asset notation', async () => {
   const f = await fixture();
   for (const tool of f.tools.values()) {

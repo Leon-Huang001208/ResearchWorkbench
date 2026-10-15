@@ -1680,6 +1680,39 @@ a.framework-card:hover, a.framework-card:focus-visible { border-color: var(--con
 .claw-step-body .activity-payload { margin:0 0 10px; padding:0; font-size:12px; line-height:1.6; }
 .claw-step-body summary { min-height:32px; cursor:pointer; color:var(--muted); font-size:12px; }
 .claw-step-exit { text-align:right; font-size:12px; color:var(--muted); }
+.claw-shell .question-form, .claw-shell .question-history { background:var(--canvas); color:var(--text); border:1px solid var(--line); border-radius:16px; padding:18px 20px; }
+.claw-shell .question-form > .eyebrow, .claw-shell .question-history > .eyebrow { color:var(--muted); font-size:12px; letter-spacing:0; }
+.claw-shell .question-form fieldset { padding:14px 0 18px; }
+.claw-shell .question-form fieldset + fieldset { border-top:1px solid var(--line); }
+.claw-shell .question-form legend { float:left; width:100%; margin-bottom:12px; font-size:15px; line-height:1.65; font-weight:550; }
+.claw-shell .question-form legend + .check-label { clear:both; }
+.claw-shell .question-form .check-label { gap:12px; align-items:flex-start; min-height:48px; padding:12px 14px; margin:8px 0; border:1px solid var(--line); border-radius:12px; font-size:14px; cursor:pointer; }
+.claw-shell .question-form .check-label:hover { background:var(--surface); }
+.claw-shell .question-form .check-label:has(input:checked) { border-color:var(--text); background:var(--surface); }
+.claw-shell .question-form .check-label:focus-within { outline:2px solid var(--focus); outline-offset:2px; }
+.claw-shell .question-form .check-label input { appearance:none; position:relative; flex:none; margin:3px 0 0; width:18px; height:18px; border:1px solid var(--control-line); border-radius:5px; background:transparent; }
+.claw-shell .question-form .check-label input[type='radio'] { border-radius:50%; }
+.claw-shell .question-form .check-label input:checked { background:var(--text); border-color:var(--text); }
+.claw-shell .question-form .check-label input:checked::after { content:''; position:absolute; left:5px; top:2px; width:5px; height:9px; border:solid var(--canvas); border-width:0 2px 2px 0; transform:rotate(45deg); }
+.claw-shell .question-form .check-label input[type='radio']:checked::after { left:5px; top:5px; width:6px; height:6px; border:0; border-radius:50%; background:var(--canvas); transform:none; }
+.claw-shell select { color-scheme:inherit; border-color:var(--control-line); border-radius:9px; }
+.question-option-copy { display:grid; gap:4px; min-width:0; line-height:1.6; overflow-wrap:anywhere; }
+.question-option-copy strong { font-weight:500; }
+.question-option-copy .muted { font-size:12px; }
+.claw-shell .question-form fieldset > label:not(.check-label) { display:block; clear:both; margin-top:12px; color:var(--muted); font-size:12px; }
+.claw-shell .question-form textarea { background:var(--surface); border-color:var(--line); padding:10px 12px; font-family:inherit; font-size:14px; line-height:1.65; resize:vertical; }
+.claw-shell .question-form > .button { display:flex; margin-left:auto; min-height:36px; border-radius:20px; padding:8px 18px; }
+.claw-shell .question-history { padding:0; background:transparent; border:0; border-radius:0; }
+.claw-shell .question-history > summary { display:flex; align-items:center; gap:8px; list-style:none; min-height:36px; cursor:pointer; color:var(--muted); font-size:13px; }
+.claw-shell .question-history > summary::-webkit-details-marker { display:none; }
+.question-receipt-toggle .ui-icon { width:14px; height:14px; }
+.question-history:not([open]) .question-receipt-toggle { transform:rotate(-90deg); }
+.claw-shell .question-history > .eyebrow { margin-top:10px; }
+.claw-shell .question-history dl { margin:8px 0; font-size:13px; line-height:1.7; }
+.claw-shell .question-history dl > div { padding:10px 0; border-bottom:1px solid var(--line); }
+.claw-shell .question-history dt { font-weight:500; }
+.claw-shell .question-history dd { margin:6px 0 0; color:var(--muted); }
+.claw-shell .question-history dd p { margin:4px 0; }
 .claw-shell .message.assistant > [data-copy-message] { color:var(--muted); font-size:12px; opacity:0; }
 .claw-shell .message.assistant:hover > [data-copy-message], .claw-shell .message.assistant:focus-within > [data-copy-message] { opacity:1; }
 @media (hover:none) { .claw-shell .message.assistant > [data-copy-message] { opacity:1; } }

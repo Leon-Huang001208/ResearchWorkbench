@@ -1,5 +1,7 @@
 # Research Web 接口清单
 
+既有 POST `/api/research/internal/data/automation-action` 的run接受绑定真实任务名/精确ID的有限明确长句及可选版本；没有新增请求字段。旧版本409 automation_version_conflict，含混/否定/条件/引用仍拒绝。Runtime仅保留8个既有Automation稳定拒绝码，继续丢弃message/detail、未知或非法码、非JSON、超过4KiB及重定向响应，不自动重试。
+
 `GET /` 接受用户触发的跨站顶层文档导航（navigate/document/?1，Origin 缺失或同源）。
 例外只返回静态应用壳；`/api/research/**`、静态资源和其他路径不继承此入口例外。
 

@@ -1,5 +1,7 @@
 # 部署与模块职责
 
+Claw 执行流改造和明确长句试跑识别沿既有浏览器→Host→唯一DSH及Automation链路。候选运行与正式进程隔离；原生工具错误仅补充有限稳定码，不新增服务、端口暴露或外发配置。
+
 迭代收尾属于现有Mac管理员控制平面：`iteration_resources`复用Docker资源退休/归档和Git安全入口，`iteration_cache`负责明确受管构建器合计20GiB的GC。不新增容器常驻服务、产品API或调度器；服务容器没有获得Docker socket，当前/上一接受镜像和运行数据仍受保护。
 
 Native 可显式将单个 Tailscale Serve HTTPS origin 加入 Host/Origin 精确准入。

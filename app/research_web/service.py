@@ -219,6 +219,64 @@ def automation_followup_scope(
     return list(scope["approved_tools"]), list(locked_formats)
 
 
+def _explicit_automation_trial(text, automation, context):
+    """Accept a bounded imperative grammar, never quoted or inferred permission."""
+    compact = re.sub(r"\s", "", text)
+    if not compact or len(compact) > 12000:
+        return False
+    name = re.escape(re.sub(r"\s", "", automation["name"]))
+    aid = re.escape(automation["id"])
+    quoted_name = (
+        "(?:"
+        + "|".join(
+            opening + name + closing
+            for opening, closing in [("", ""), ("「", "」"), ("“", "”"), ('"', '"'), ("'", "'")]
+        )
+        + ")"
+    )
+    named = quoted_name + r"(?:[（(]" + aid + r"[）)])?"
+    target = r"(?P<target>" + named + "|" + aid + r"|这个任务|该任务)?"
+    match = re.fullmatch(
+        r"(?:请|帮我)?(?:先|再|立即)?(?:试跑(?:一次)?|跑一次|运行一次|运行一遍|执行一次)"
+        r"(?:(?:刚|刚才)(?:创建|修改|更新)的)?"
+        + target
+        + r"(?:(?:[vV]|版本)(?P<version>[1-9]\d{0,8}))?(?:看看)?"
+        r"(?P<constraints>[。.!！；;，,\n].*)?",
+        compact,
+    )
+    if not match:
+        return False
+    target_text = match["target"] or ""
+    if (
+        target_text in {"", "这个任务", "该任务"}
+        and context.get("automation_id") != automation["id"]
+    ):
+        return False
+    # Every continuation is a complete finite phrase. A harmless prefix must
+    # never turn arbitrary appended prose into execution authorization.
+    conjunction = r"(?:和|与|及)"
+    verb = r"(?:写入|读回|生成|保存|交付)"
+    document = r"(?:真实)?(?:MD|Markdown|markdown)(?:文件|报告)?"
+    output_action = verb + "(?:" + conjunction + verb + ")*" + document
+    unchanged_object = r"(?:日程|任务定义|下次执行时间|下次计划时间|模型|权限|批准范围|输出要求|输出格式|时间|时区)"
+    unchanged = unchanged_object + "(?:" + conjunction + unchanged_object + ")*"
+    constraint = (
+        r"(?:只(?:运行|执行|试跑)(?:这一任务|这个任务|该任务)"
+        r"|按(?:已批准|批准的|既有|当前)(?:定义|要求|范围)"
+        + output_action
+        + r"|(?:不|不要)联网|(?:不|不要)(?:修改|改变)"
+        + unchanged
+        + r"|(?:不|不要)(?:创建|新增)(?:日程|定时任务|新任务|其他任务))"
+    )
+    for clause in re.split(r"[。.!！；;，,、]", match["constraints"] or ""):
+        if clause and not re.fullmatch(constraint, clause):
+            return False
+    if match["version"] and int(match["version"]) != automation.get("definition_version", 1):
+        log.warning("automation_explicit_trial_version_conflict")
+        raise StoreError("明确试跑的定义版本已变化", "automation_version_conflict", 409)
+    return True
+
+
 class ResearchService:
     def __init__(
         self,
@@ -1224,16 +1282,7 @@ class ResearchService:
         automation = self.automations.get(automation_id)
         normalized = re.sub(r"[\s，,。！!：:]", "", text)
         name = re.escape(automation["name"])
-        explicit = bool(
-            re.fullmatch(
-                r"(?:请|帮我)?(?:先|再|立即)?(?:试跑(?:一次)?|跑一次|运行一次|运行一遍|执行一次)(?:这个任务|该任务|"
-                + name
-                + r")?(?:看看)?",
-                normalized,
-            )
-        )
-        named = automation["name"] in normalized
-        explicit = explicit and (context.get("automation_id") == automation_id or named)
+        explicit = _explicit_automation_trial(text, automation, context)
         pending_question = (
             previous
             and previous["role"] == "assistant"

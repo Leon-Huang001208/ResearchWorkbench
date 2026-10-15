@@ -31,3 +31,17 @@ test('Claw disclosures are scoped to session and failed status is visible when c
   assert.match(renderConversation({ ...detail, id: 'two' }), /two:tool:bad/);
   assert.doesNotMatch(renderConversation({ ...detail, mode: 'fingpt' }), /claw-step|claw-process/);
 });
+test('tool icons use the shared unfilled outline contract in both themes', () => {
+  const html = renderConversation({ id: 's', mode: 'claw', messages: [], activities: [activity('list', 1, { tool: 'rwb_list_automations', title: 'rwb_list_automations' })] });
+  const icons = html.match(/<svg\b[^>]*>/g) || [];
+  assert.ok(icons.length > 0);
+  for (const svg of icons) { assert.match(svg, /fill="none"/); assert.match(svg, /stroke="currentColor"/); }
+  assert.match(html, /查看日程/);
+});
+test('Claw questions keep native controls and answered receipts are independently expandable', () => {
+  const question = { id: 'q', seq: 2, items: [{ id: 'scope', question: '资料范围', multiSelect: true, options: [{ label: '<script>', description: '<img onerror=alert(1)>' }] }] };
+  const pending = renderConversation({ id: 's', mode: 'claw', messages: [], questions: [question] }, new Map([['q', [{ selected: ['<script>'], custom: '补充' }]]]));
+  assert.match(pending, /class="question-option-copy"/); assert.match(pending, /type="checkbox"/); assert.match(pending, / checked/); assert.match(pending, /&lt;script&gt;/); assert.match(pending, /&lt;img/); assert.doesNotMatch(pending, /<script>|<img/);
+  const answered = renderConversation({ id: 's', mode: 'claw', messages: [], question_history: [{ ...question, answers: [{ id: 'scope', selected: ['<script>'], custom: '<svg onload=alert(1)>' }] }] });
+  assert.match(answered, /<details class="decision-card question-history"/); assert.match(answered, /已回答 1 个问题/); assert.match(answered, /s:question:q/); assert.match(answered, /&lt;svg onload/); assert.doesNotMatch(answered, /<svg onload|<script>|<img/);
+});

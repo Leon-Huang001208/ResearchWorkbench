@@ -31,3 +31,18 @@ v0：使用现有正式验收会话的真实历史回放，静态页面不会调
 隔离实际组件回放验证：深色消息与编辑器computed背景rgb(48,48,48)；输入文字padding12px18px；390px下12px16px且文档不横向溢出；展开原始结果后测试重绘保留结果展开及摘要键盘焦点；最终回复在过程details外。历史记录回放不等于本候选再次运行了真实模型；未发送新模型请求。
 
 <!-- architecture-review {"group":"ui","structure":"unchanged","reason":"沿现有原生Web渲染器拆出Claw事件呈现、展开状态和上传守卫，保留原Host接口、唯一DSH执行与Automation调度、既有模型和框架准入，无新服务或数据库结构。","diagrams":[]} -->
+
+
+## 真实候选中发现并修复的问题
+
+公开安装API以显式 data_home 复用此前授权的18190/13190候选；仅任务worktree创建受管.venv，固定web.lock和DSH未改变，未复制或读取秘密。启动前通过AutomationService暂停一个遗留测试日程并保留私有原状态，未启动正式实例。
+
+真实原生澄清→草稿→确认创建并启用成功；创建时Run数量为0。第一次含引号、刚创建限定、精确ID和约束后句的明确试跑命令被旧fullmatch拒绝，原生重试提问也未授予受理，均返回409、0 Run/0文件。保留失败记录，不把该过程称为成功试跑。最小修复仅接受绑定真实任务的有界祈使语法，后续约束白名单、版本检查和既有负例/幂等保持；不进行模型授权判断。
+
+Runtime此前把具体拒绝码裁掉，只剩“DataHub request failed (HTTP 409)”，导致模型不能判断未授权与运行占用。增加8个实际Host Automation稳定码白名单，仍丢弃错误正文、未知码/格式/超4KiB及重定向，不自动重试。对应真实动作桥接回归RED→GREEN。
+
+新增问题与回执视觉纠偏：中性选择卡片与原生radio/checkbox、补充输入、已回答可展开回执；仅Claw增强布局，FinGPT仍保留section及原选项。工具小图标黑块是新增SVG缺fill/stroke契约，改为共享icon注册器并补RED→GREEN回归，实际候选computed fill为none、stroke跟随主题。
+
+<!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"仅在既有聊天试跑准入内扩展有界且任务绑定的明确祈使语法，沿原定义版本、权限和幂等Run，不增加接口字段、持久结构或运行节点。","diagrams":[]} -->
+<!-- architecture-review {"group":"automations","structure":"unchanged","reason":"继续复用唯一Automation调度及Run快照；修复明确命令被误拒绝，保留原生确认、同任务更新、定义版本和权限拒绝，不新增调度实现。","diagrams":[]} -->
+<!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"固定DSH和内部认证链不变，只在既有受限错误投影白名单加入真实Automation稳定拒绝码，4KiB脱敏与零自动重试不变。","diagrams":[]} -->

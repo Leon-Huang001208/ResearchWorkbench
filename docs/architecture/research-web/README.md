@@ -1,5 +1,7 @@
 # Research Workbench Research Web 当前架构
 
+Claw 的 Codex 式执行流仍只投影原生消息、活动与 Automation Run。显式试跑语法修复与有界错误码传播不增加调度器、研究引擎、接口或数据库；提问回执、输入表面及逐步详情见[UI合同](../../research-web-ui.md)。
+
 本轮融合外部来源、兼容模型协议与交互修复，仍以 DSH 为唯一执行循环。
 认证 HTTPS、秘密反射拒绝、明确脚本成功及精确工具准入见[安全边界](05-security-validation.md)；
 Claw 项目、研究深度/资料范围、原生 Todo 和 HTML/Word/中文 PDF 合同保持。

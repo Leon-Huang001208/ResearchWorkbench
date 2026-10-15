@@ -1,12 +1,12 @@
 import { escapeHTML as e, renderMarkdown } from './markdown.mjs';
 import { icon } from './icons.mjs';
 
-const terminal = '<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="m7 9 3 3-3 3m6 0h4"/></svg>';
+const terminal = icon('terminal');
 const elapsed = ms => !Number.isFinite(ms) || ms < 0 ? '' : ms < 1000 ? `${Math.round(ms)}ms` : `${(ms / 1000).toFixed(1)} 秒`;
 const payload = value => `<pre class="activity-payload">${e(typeof value === 'string' ? value : JSON.stringify(value, null, 2))}</pre>`;
 
 // These are presentation labels, never evidence that the named action succeeded.
-const labels = { research_run_script: '运行 Python 脚本', read_file: '读取文件', write_file: '写入文件', web_search: '搜索网页' };
+const labels = { research_run_script: '运行 Python 脚本', read_file: '读取文件', write_file: '写入文件', web_search: '搜索网页', rwb_list_automations: '查看日程', rwb_prepare_automation: '准备日程草稿', rwb_prepare_automation_update: '准备日程修改', rwb_run_automation: '启动日程试跑' };
 export function renderClawStep(activity, { sessionId = '', statusLabel = '', agents = [] } = {}) {
   const name = activity.tool || activity.title || activity.type || '活动';
   const title = labels[name] || activity.title || name;
