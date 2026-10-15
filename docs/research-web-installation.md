@@ -1,5 +1,50 @@
 # Research Web Native / Docker 安装与运行
 
+## macOS 登录后常驻与自动部署
+
+适用于已安装 Native 的 Mac mini，保留 FileVault。开机解锁并登录安装用户后，
+LaunchAgent 自动启动/恢复 Web 8088 与 DSH 3081，每60秒只读检查 GitHub master。
+关浏览器或聊天不影响服务；关机/休眠/断网期间不能远程访问。不修改 Tailscale Serve。
+
+在已验证、已部署且带 resident 准入的固定生产 checkout 中显式安装（参数换成本机路径与域名）：
+
+```bash
+./rwb resident install --project /absolute/production-checkout \
+  --source-repository /absolute/development-checkout \
+  --private-origin https://research.tail123abc.ts.net
+./rwb resident status --json
+./rwb resident tick
+./rwb web doctor --json
+```
+
+安装不新增依赖。Node使用现有固定toolchain，GitHub使用现有gh认证；不会保存新token。
+私有配置/journal/控制器artifact放在 `~/.research-workbench/resident/`，日志在产品 `logs/resident.log`
+（滚动保留）；启动项为 `~/Library/LaunchAgents/com.research-workbench.resident.plist`。
+`resident status` 不启动服务；Doctor的resident只读本地状态，不等同登录项/外网/模型验收。
+
+自动候选须为最新master且已有本机受管delivery完成记录、matching独立review、GitHub merged PR，
+以及Project Constraints、Research Web Checks、macOS Bootstrap的成功实际checkout与master树相等。
+缺Mac CI的迭代保留waiting，需按原交付流程补齐对应候选CI。
+先准备新旧wheel，空闲后才持有研究EX栅栏及原lifecycle lease切换；
+原生会话含子会话、已接受的排队/运行Automation均阻止切换。保留同一数据根与凭据，固定8088/3081，
+不抢未知进程/端口。候选HTTP/私网HTTPS/实际进程revision失败则重装精确旧wheel并恢复旧源码和manifest。
+journal同步落盘先于停服务；中断后先恢复旧版本，失败时blocked且新写入继续拒绝。
+
+自动兼容范围采用显式路径清单：静态UI、文档/测试及已登记的无持久化启动变更模块。
+依赖锁、DSH、打包/安装器、Store、研究/自动化生命周期、Hot及未分类模块变化暂停为
+`resident_compatibility_review_required`，须完成专门升级并刷新基线；不自动安装依赖或执行迁移。
+控制器不会自己更新，不能用普通代码更新扩大既有准入。更换生产目录/Node/gh需重新核对身份。
+
+```bash
+./rwb resident rollback   # 同样先核对空闲；只回退代码/安装包，不覆盖研究数据
+./rwb resident retry      # 显式允许再次尝试已隔离的失败候选
+./rwb resident disable    # 停用登录监督；不停止现有Web/DSH或Tailscale
+```
+
+首次把旧安装引导到带准入的新版本需操作员安排维护窗口；旧版本没有准入锁，不能把一次空闲快照
+当作已关闭并发竞态。真实重启登录、另一设备和付费生成是独立验收，不由启动项加载或健康检查替代。
+
+
 工程交付结束后由原Git安全入口执行资源收尾，规则见Docker手册和AGENT_WORKFLOW：仅删除本任务已登记的再生依赖，并保护应用现有安装、业务数据、凭据、报告和恢复归档。受管构建缓存合计20GiB，临时维护完恢复构建器原资源限制/停止状态，不重启产品服务。本轮没有新增安装依赖、公开setup参数或用户模型配置；干净安装兼容性仍由既有Mac Bootstrap证明。
 
 ## 可选：Tailscale 私网 HTTPS 访问（Native）

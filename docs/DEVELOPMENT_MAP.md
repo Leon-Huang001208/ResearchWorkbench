@@ -1,5 +1,11 @@
 # Research Workbench Development Map
 
+`research_workbench_entrypoint/resident/` 为 macOS 登录监督器：controller 管 LaunchAgent、
+暂存/回滚；evidence 绑定本地交付与 GitHub 实际 checkout tree；admission 为 HTTP、send/approve/answer
+及 Automation 共享栅栏。`test_resident.py` 覆盖跨进程锁、排队延后、故障恢复、CI 与来源绑定。
+`main.py` 的只读 resident 投影核对实际进程 revision；Doctor 只读本地状态，不发起网络或更新。
+
+
 `main.py:local_boundary` 的 `entry_navigation` 仅允许用户触发的根路径 GET 顶层文档导航。
 `test_api.py` 的 `clicked_entry` 覆盖本机/私网链接、哈希路由、API/资源/iframe/Origin
 拒绝及 Host/HTTPS 保留；权威合同见接口清单、安全清单与安装文档。

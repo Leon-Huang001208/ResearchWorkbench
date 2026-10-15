@@ -1,5 +1,10 @@
 # 部署与模块职责
 
+macOS可选登录项每60秒以短时管理进程监督既有Native Web/DSH，不新增产品常驻引擎。
+同一生产checkout/venv和8088/3081保留；控制器artifact固定，候选通过GitHub精确树与本机交付准入。
+FileVault解锁并登录后才启动，Tailscale Serve仍由原配置提供私网入口。
+
+
 迭代收尾属于现有Mac管理员控制平面：`iteration_resources`复用Docker资源退休/归档和Git安全入口，`iteration_cache`负责明确受管构建器合计20GiB的GC。不新增容器常驻服务、产品API或调度器；服务容器没有获得Docker socket，当前/上一接受镜像和运行数据仍受保护。
 
 Native 可显式将单个 Tailscale Serve HTTPS origin 加入 Host/Origin 精确准入。

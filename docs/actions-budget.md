@@ -1,5 +1,9 @@
 # GitHub Actions 免费额度治理
 
+resident只读轮询GitHub，不创建workflow或runner。新增resident离线安全用例复用既有Research Web
+Checks标准Ubuntu job；macOS安装验证仍用原Bootstrap，不新增Windows/Linux产品dispatch或模型成本。
+
+
 迭代资源收尾的纯stdlib安全测试复用Project Constraints现有标准Ubuntu job，JS身份修补回归复用同一Git safety步骤，不新增workflow或Docker/Windows dispatch。真实受管GC仅在Mac Docker Desktop本机执行并保留证据；CI不访问宿主卷、服务或模型。现有10分钟job上限、concurrency及public/private额度门保持。
 
 Hot 安装器变更进入既有 Mac Bootstrap；该 job 使用 Node 24.19.0，并只验证安装后的

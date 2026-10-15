@@ -1,5 +1,11 @@
 # Research Web 接口清单
 
+`GET /api/research/resident` 返回运行中 Host 的 `enabled`、启动时绑定的 `revision`（完整 SHA 或 null）、
+`maintenance`、`active`（Host待处理研究/审批/问题/Automation；未知为null）；只读且不访问 GitHub、凭据或模型。保留原 Host/Origin 校验。
+显式启用 resident 后，维护期间用户写请求返回 503 `deployment_busy` / Retry-After=5；
+已认证 internal callbacks 继续原认证，不被维护栅栏阻塞。默认未启用时行为不变。
+
+
 `GET /` 接受用户触发的跨站顶层文档导航（navigate/document/?1，Origin 缺失或同源）。
 例外只返回静态应用壳；`/api/research/**`、静态资源和其他路径不继承此入口例外。
 

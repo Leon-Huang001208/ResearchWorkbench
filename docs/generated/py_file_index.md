@@ -3131,6 +3131,8 @@ Imports:
 - `json`
 - `models`
 - `os`
+- `pathlib`
+- `research_workbench_entrypoint.resident.admission`
 - `schedule`
 - `threading`
 - `time`
@@ -5495,7 +5497,7 @@ Imports:
 - `mcp_runtime.routes`
 - `mimetypes`
 - `operations`
-- ... 18 more
+- ... 19 more
 
 Classes:
 - `NewSession`
@@ -7235,7 +7237,7 @@ Imports:
 - `json`
 - `local_integrations`
 - `mcp_registry`
-- ... 24 more
+- ... 25 more
 
 Classes:
 - `_SessionOwnedMCPRuntime`

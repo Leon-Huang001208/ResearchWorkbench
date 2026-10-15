@@ -46,7 +46,11 @@
         "research_workbench_entrypoint/hot_postgres.py",
         "research_workbench_entrypoint/docker_resources.py",
         "research_workbench_entrypoint/iteration_resources.py",
-        "research_workbench_entrypoint/iteration_cache.py"
+        "research_workbench_entrypoint/iteration_cache.py",
+        "research_workbench_entrypoint/resident/__init__.py",
+        "research_workbench_entrypoint/resident/controller.py",
+        "research_workbench_entrypoint/resident/evidence.py",
+        "research_workbench_entrypoint/resident/admission.py"
       ],
       "documents": [
         "docs/research-web-installation.md",
@@ -79,7 +83,8 @@
         "tests/research_web/test_hot_research_evidence.py",
         "tests/research_web/test_docker_resources.py",
         "tests/research_web/test_docker_resources_live.py",
-        "tests/research_web/test_iteration_resources.py"
+        "tests/research_web/test_iteration_resources.py",
+        "tests/research_web/test_resident.py"
       ]
     },
     {
@@ -3426,6 +3431,13 @@
       "source": "app/research_web/hot_routes.py",
       "declaredPath": "/periodic/runs/{run_id}/report",
       "prefix": "/api/research/hot"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/resident",
+      "source": "app/research_web/main.py",
+      "declaredPath": "/api/research/resident",
+      "prefix": ""
     }
   ],
   "visualReview": "docs/architecture/research-web/visual-review.json",

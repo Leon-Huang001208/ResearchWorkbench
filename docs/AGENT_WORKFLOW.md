@@ -1,5 +1,10 @@
 # Agent 任务路由指南
 
+macOS迭代若供resident自动部署，仍须完成受管delivery和独立review，确保最新master与
+Project Constraints/Research Web Checks/macOS Bootstrap实际checkout树匹配。缺失Mac门时补齐同候选证据；
+不因部署紧迫跳过CI、不从本机dispatch其他平台。未知/依赖/迁移变化交给明确授权的专项升级。
+
+
 Hot 安装变更沿既有 Mac Bootstrap 验收：公开安装器运行后，在 Node 24.19.0 下
 验证 Hot 生产依赖导入。此步骤不连接 PG/模型，不替代真实 worker、模式切换或付费
 研究证据；Windows/Linux 产品 dispatch 仍由对应真机执行。CI 的受管停止错误保留

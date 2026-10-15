@@ -2943,6 +2943,8 @@ class WebServiceManager:
 
     def doctor(self) -> dict[str, Any]:
         """Return a path-free, credential-free Web installation diagnosis."""
+        from research_workbench_entrypoint.resident.admission import diagnostic
+
         diagnosis = self._installation_diagnosis()
         probes = self._service_probes()
         installation_issues = diagnosis.get("issues", [])
@@ -3001,6 +3003,7 @@ class WebServiceManager:
             "product_ready": product_ready,
             "model_ready": model_ready,
             "web_access": self._diagnostic_web_access,
+            "resident": diagnostic(self.data_root.parent),
             "issues": list(dict.fromkeys([*installation_issues, *service_issues])),
             "warnings": warnings,
             "services": {probe.role: probe.public() for probe in probes},

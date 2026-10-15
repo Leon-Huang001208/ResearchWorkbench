@@ -20,6 +20,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from core.observability import get_logger, setup_logging
+from research_workbench_entrypoint.resident.admission import MaintenanceBusy, admission
 
 from .asset_routes import router as asset_router
 from .asset_workspace import AssetWorkspaceError
@@ -319,7 +320,23 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
             return JSONResponse(
                 {"error": {"code": "origin_denied", "message": "跨站请求被拒绝"}}, status_code=403
             )
-        response = await call_next(request)
+        try:
+            # Internal plugin callbacks remain authenticated above and must not
+            # deadlock startup while the updater holds the exclusive fence.
+            if request.method not in {"GET", "HEAD", "OPTIONS"} and not request.url.path.startswith(
+                "/api/research/internal/"
+            ):
+                with admission():
+                    response = await call_next(request)
+            else:
+                response = await call_next(request)
+        except MaintenanceBusy:
+            log.info("research_web_resident_maintenance")
+            return JSONResponse(
+                {"error": {"code": "deployment_busy", "message": "正在安全更新，请稍后重试"}},
+                status_code=503,
+                headers={"Retry-After": "5"},
+            )
         if (
             entry_navigation
             and request.headers.get("sec-fetch-site") == "cross-site"
@@ -341,6 +358,29 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
             )
         response.headers["Cache-Control"] = "no-store"
         return response
+
+    @app.get("/api/research/resident")
+    async def resident_status(request: Request):
+        setting = os.environ.get("RESEARCH_RESIDENT_HOME")
+        revision = os.environ.get("RESEARCH_RESIDENT_REVISION", "")
+        research = getattr(request.app.state, "research", None)
+        active = None
+        if research is not None:
+            active = bool(
+                any(research.running.values())
+                or research.approvals
+                or research.questions
+                or any(
+                    row.get("research_status") in {"queued", "running"}
+                    for row in research.store.data.get("automation_runs", {}).values()
+                )
+            )
+        return {
+            "enabled": bool(setting),
+            "revision": revision if re.fullmatch(r"[a-f0-9]{40}", revision) else None,
+            "maintenance": bool(setting and (Path(setting) / "transaction.json").exists()),
+            "active": active,
+        }
 
     @app.exception_handler(RuntimeFailure)
     async def runtime_error(request, exc):
