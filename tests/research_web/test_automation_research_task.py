@@ -729,3 +729,166 @@ def test_legacy_confirmed_receipt_never_guesses_definition_from_current_task(tmp
     drafts.confirm(sid, draft["id"], body, enable=True)
     assert "confirmed_definition" not in drafts.list(sid)["items"][0]
     assert "confirmed_version" not in drafts.list(sid)["items"][0]
+
+
+def chat_trial_fixture(tmp_path, text, *, version=1, context=False):
+    """Exercise the real admission method without starting a scheduler or model."""
+    from app.research_web.service import ResearchService
+
+    store = Store(tmp_path)
+    sid = store.create("claw", "试跑授权")["id"]
+    aid = "automation-" + "3a" * 32
+    definition = {"id": aid, "name": "每日收盘点评·执行流验收", "definition_version": version}
+    if context:
+        store.session(sid)["automation_trial_context"] = {"automation_id": aid}
+    runs = {}
+
+    async def history(_sid):
+        return [
+            {
+                "event": {
+                    "seq": 1,
+                    "type": "user/message",
+                    "time": 1,
+                    "data": {"content": [{"type": "text", "text": text.replace("TASK_ID", aid)}]},
+                }
+            }
+        ]
+
+    async def run(task_id, **kwargs):
+        assert task_id == aid and kwargs == {"trigger": "manual"}
+        runs["run"] = {"id": "run", "automation_id": aid}
+        return runs["run"]
+
+    owner = SimpleNamespace(
+        store=store,
+        client=SimpleNamespace(history=history),
+        automations=SimpleNamespace(
+            get=lambda _id: definition, run=run, _run_row=lambda rid: runs[rid], _public=dict
+        ),
+        notify=lambda: None,
+    )
+    return lambda: ResearchService.run_automation_from_chat(owner, sid, aid), runs, store
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "text",
+    [
+        "先跑一次刚创建的「每日收盘点评·执行流验收」（TASK_ID）v1。只运行这一任务，按已批准定义写入和读回真实MD；不要联网、不修改日程和下次执行时间。",
+        "请再试跑一次刚修改的“每日收盘点评·执行流验收” v1。不要联网。",
+        "帮我运行一次 TASK_ID v1。按已批准定义生成 Markdown 文件。",
+        "先跑一次每日收盘点评·执行流验收。",
+    ],
+)
+async def test_named_trial_first_sentence_with_constraints_is_explicit_and_idempotent(
+    tmp_path, text
+):
+    invoke, runs, _store = chat_trial_fixture(tmp_path, text)
+    first = await invoke()
+    assert first["id"] == "run"
+    assert await invoke() == first
+    assert len(runs) == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "text",
+    [
+        "解释一下先跑一次「每日收盘点评·执行流验收」",
+        "“先跑一次每日收盘点评·执行流验收”",
+        "请解释“先跑一次每日收盘点评·执行流验收”的含义。",
+        "不要先跑一次每日收盘点评·执行流验收。",
+        "如果资料齐全，先跑一次每日收盘点评·执行流验收。",
+        "先跑一次每日收盘点评·执行流验收，如果资料齐全。",
+        "先跑一次每日收盘点评·执行流验收。若需要则运行。",
+        "先跑一次每日收盘点评·执行流验收。不要真正运行。",
+        "先跑一次每日收盘点评·执行流验收。然后运行另一个任务。",
+        "先跑一次另一个任务（TASK_ID）v1。",
+        "先跑一次「每日收盘点评·执行流验收」（automation-wrong）v1。",
+        "先跑一次TASK_ID-other v1。",
+        "增加",
+        "需要",
+    ],
+)
+async def test_long_trial_explanation_negation_condition_or_mismatched_target_denied(
+    tmp_path, text
+):
+    invoke, runs, store = chat_trial_fixture(tmp_path, text, context=True)
+    with pytest.raises(StoreError) as failure:
+        await invoke()
+    assert failure.value.code == "automation_trial_not_requested"
+    assert runs == {} and not store.data.get("automation_trial_requests")
+
+
+@pytest.mark.asyncio
+async def test_explicit_trial_version_mismatch_never_runs_newer_definition(tmp_path):
+    invoke, runs, store = chat_trial_fixture(
+        tmp_path, "先跑一次刚修改的「每日收盘点评·执行流验收」v1。不要联网。", version=2
+    )
+    with pytest.raises(StoreError) as failure:
+        await invoke()
+    assert failure.value.code == "automation_version_conflict"
+    assert runs == {} and not store.data.get("automation_trial_requests")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "constraint",
+    [
+        "按已批准定义等待我确认后再启动",
+        "按已批准定义暂时不要启动",
+        "按已批准定义只是说明上述命令的意思",
+        "不要修改日程且必须获得我的确认后才启动",
+    ],
+)
+async def test_trial_constraint_prefix_cannot_hide_waiting_negation_or_explanation(
+    tmp_path, constraint
+):
+    invoke, runs, store = chat_trial_fixture(
+        tmp_path, "先跑一次每日收盘点评·执行流验收。" + constraint
+    )
+    with pytest.raises(StoreError) as failure:
+        await invoke()
+    assert failure.value.code == "automation_trial_not_requested"
+    assert runs == {} and not store.data.get("automation_trial_requests")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "constraint",
+    [
+        "按已批准定义写入和读回真实MD",
+        "按当前要求生成Markdown文件",
+        "不要改变模型和权限",
+        "不修改日程和下次执行时间",
+        "不要创建定时任务",
+    ],
+)
+async def test_trial_accepts_only_complete_finite_constraints(tmp_path, constraint):
+    invoke, runs, _store = chat_trial_fixture(
+        tmp_path, "先跑一次每日收盘点评·执行流验收。" + constraint
+    )
+    assert (await invoke())["id"] == "run"
+    assert len(runs) == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "constraint",
+    [
+        "按当前要求生成Markdown文件后等待确认",
+        "不要联网但暂不启动",
+        "不修改模型与权限直到我允许",
+        "不要新增定时任务并等待用户确认",
+        "按既有范围保存报告但只需解释",
+    ],
+)
+async def test_trial_finite_constraint_rejects_unknown_or_appended_prose(tmp_path, constraint):
+    invoke, runs, store = chat_trial_fixture(
+        tmp_path, "先跑一次每日收盘点评·执行流验收。" + constraint
+    )
+    with pytest.raises(StoreError) as failure:
+        await invoke()
+    assert failure.value.code == "automation_trial_not_requested"
+    assert runs == {} and not store.data.get("automation_trial_requests")

@@ -2958,6 +2958,13 @@
     },
     {
       "method": "POST",
+      "path": "/api/research/sessions/search",
+      "source": "app/research_web/main.py",
+      "declaredPath": "/api/research/sessions/search",
+      "prefix": ""
+    },
+    {
+      "method": "POST",
       "path": "/api/research/sessions/{session_id}/document-operations",
       "source": "app/research_web/report_routes.py",
       "declaredPath": "/sessions/{session_id}/document-operations",

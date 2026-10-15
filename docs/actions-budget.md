@@ -3,6 +3,7 @@
 resident只读轮询GitHub，不创建workflow或runner。新增resident离线安全用例复用既有Research Web
 Checks标准Ubuntu job；macOS安装验证仍用原Bootstrap，不新增Windows/Linux产品dispatch或模型成本。
 
+Claw原生正文搜索的轻量HTTP/协议回归加入既有Research Web Checks Python清单，不新增job、runner或重试。2026-10-15最近五次成功run为38710196645/38708612897/38698113287/38696606443/38692832055，创建至结束约221/232/241/247/236秒；早期搜索回归29项与协议合跑110项本机7.73秒，不将完整API长套件扩入CI。当前仓库public，仍保持原concurrency、超时与平台dispatch边界。
 
 迭代资源收尾的纯stdlib安全测试复用Project Constraints现有标准Ubuntu job，JS身份修补回归复用同一Git safety步骤，不新增workflow或Docker/Windows dispatch。真实受管GC仅在Mac Docker Desktop本机执行并保留证据；CI不访问宿主卷、服务或模型。现有10分钟job上限、concurrency及public/private额度门保持。
 

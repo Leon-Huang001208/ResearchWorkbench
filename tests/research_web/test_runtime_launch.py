@@ -1331,3 +1331,31 @@ def test_docker_text_overlay_caps_official_model_and_disables_optional_tabbit(
     assert "budgetBridge:" in overlay
     assert "tabbitBrowserEnabled: false" in overlay
     assert "tabbitWebFetchEnabled: false" in overlay
+
+
+@pytest.mark.parametrize("research_tools", [False, True])
+def test_native_search_reuses_base_provider_with_lazy_memory_override(
+    tmp_path, monkeypatch, research_tools
+):
+    import yaml
+
+    source = make_source(tmp_path)
+    data = tmp_path / "data"
+    monkeypatch.setattr(
+        launch_runtime.subprocess,
+        "check_output",
+        lambda *_args, **_kwargs: launch_runtime.PINNED_COMMIT,
+    )
+    for _ in range(2):
+        launch_runtime.prepare(source, data, "/node", 13081, research_tools=research_tools)
+        overlay = yaml.safe_load((data / "runtime/overlay.yml").read_text())
+        overrides = [row for row in overlay if row.get("id") == "session-query-sqlite"]
+        assert overrides == [
+            {"id": "session-query-sqlite", "config": {"path": ":memory:", "openAt": "first-search"}}
+        ]
+        inserted = [plugin for row in overlay for plugin in row.get("insert", [])]
+        assert not any(
+            plugin.get("id") == "session-query-sqlite"
+            or plugin.get("name") == "@deepseek-ai/dsh-session-query-sqlite"
+            for plugin in inserted
+        )

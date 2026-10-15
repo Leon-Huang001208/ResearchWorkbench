@@ -133,6 +133,8 @@ node scripts/git_safety.mjs delivery --project /absolute/RWB --task-id TASK --cl
 
 ## 最小验收规划（Verification planning）
 
+Claw正文搜索的快速HTTP/私有RPC边界使用`test_session_search.py`，与既有协议合同一起进入Research Web Checks；查询须走JSON POST，浏览器验收另检查模式/归属、错误重试与迟到响应。新增只读搜索不替代完整本地API回归、Native候选与exact-SHA Mac安装CI，也不扩大Windows/Linux dispatch授权。
+
 双运行时 Web 改动仍使用下方同一 changed-file 规划器：Dockerfile/Compose、bootstrap、runtime contract、凭据后端与 Docker CI 命中各自策略规则；不因 Web Docker 部署自动引入 Tauri/sidecar/桌面门。`--runtime` 无参数默认 Native，真实 Docker 构建/健康与 Native 安装分别保留证据；没有镜像或平台回执时必须写 `not_run`/`blocked`，不能用模拟测试替代。模式切换需确认旧模式所有权并顺序停用，共享产品数据不能被两个模式同时写入。安装/依赖操作仍按原审批边界执行。
 
 在决定具体测试和交付范围前，用项目内只读规划器为全部改动路径生成机器可读计划：

@@ -137,6 +137,8 @@ jobs:
           .venv/bin/python -c "from pathlib import Path; assert 'Research Workbench · Research' in Path('root.html').read_text(encoding='utf-8'); assert 'const defaultCatalogNames =' in Path('app.mjs').read_text(encoding='utf-8')"
           curl --fail --silent http://127.0.0.1:8088/api/research/data/connections > connections.json
           .venv/bin/python -c "import json; data=json.load(open('connections.json', encoding='utf-8')); item=next(x for x in data['sources'] if x['id']=='tinysoft'); assert item['configured'] is False and item['callable'] is False and item['restart_required'] is False, item"
+          curl --noproxy '*' --fail --silent --show-error --max-time 45 -H 'Origin: http://127.0.0.1:8088' -H 'Content-Type: application/json' --data '{"query":"bootstrap-search-smoke","mode":"claw"}' http://127.0.0.1:8088/api/research/sessions/search > native-search-smoke.json
+          .venv/bin/python -c "import json; data=json.load(open('native-search-smoke.json', encoding='utf-8')); assert data['source'] == 'native_dsh' and data['items'] == [] and data['has_more'] is False, data"
 
       - name: Stop macOS services
         if: always()
@@ -153,6 +155,7 @@ jobs:
             root.html
             app.mjs
             connections.json
+            native-search-smoke.json
           if-no-files-found: ignore
           retention-days: 3
 
@@ -166,6 +169,7 @@ jobs:
             root.html
             app.mjs
             connections.json
+            native-search-smoke.json
             logs/setup-web.log
           if-no-files-found: ignore
           retention-days: 3

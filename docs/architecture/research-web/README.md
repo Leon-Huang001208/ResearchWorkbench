@@ -3,6 +3,9 @@
 macOS登录常驻沿用同一Native部署节点与研究引擎；短时管理程序处理空闲切换和恢复，
 不增加第二Automation scheduler。操作与授权边界见[安装指南](../../research-web-installation.md#macos-登录后常驻与自动部署)。
 
+Claw 的 Codex 式执行流仍只投影原生消息、活动与 Automation Run。显式试跑语法修复与有界错误码传播不增加调度器、研究引擎、接口或数据库；提问回执、输入表面及逐步详情见[UI合同](../../research-web-ui.md)。
+
+正文搜索通过只读 Host POST 接口复用固定 DSH 的 `session.search` 与首次搜索打开的派生内存索引；只返回本产品已成功创建且未删除的会话片段，不将结果自动注入其他研究。协议与归属边界见[研究运行时](02-research-runtime.md)和[接口清单](04-api.md)。
 
 本轮融合外部来源、兼容模型协议与交互修复，仍以 DSH 为唯一执行循环。
 认证 HTTPS、秘密反射拒绝、明确脚本成功及精确工具准入见[安全边界](05-security-validation.md)；

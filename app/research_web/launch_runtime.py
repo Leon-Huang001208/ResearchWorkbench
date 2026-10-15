@@ -824,6 +824,12 @@ def _prepare_runtime(
             [
                 "- id: credentials",
                 "  disabled: true",
+                # The fixed base mounts this provider with search disabled. Reuse
+                # it lazily; its disposable index must never become a second store.
+                "- id: session-query-sqlite",
+                "  config:",
+                "    path: ':memory:'",
+                "    openAt: first-search",
                 "- insert:",
                 "    - id: research-model-credentials",
                 f"      name: {json.dumps(str(package / 'model-credentials.mjs'))}",
@@ -918,6 +924,7 @@ def _prepare_runtime(
         + "\n",
         encoding="utf-8",
     )
+    log.info("research_runtime_search_configured", open_at="first-search", storage="memory")
     # Pin the actual JS/config closure, not just the top-level CLI version.
     if staged_source is None:
         closure_sha256, closure_files = calculate_build_closure(source)

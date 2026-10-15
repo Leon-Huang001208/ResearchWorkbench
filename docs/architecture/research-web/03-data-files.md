@@ -4,6 +4,7 @@ resident管理记录位于产品home/resident，config/state/candidate/transacti
 均为用户私有JSON；artifact与wheel记录hash/来源SHA。journal先于停服务同步文件及目录。
 回滚只恢复源码、wheel和安装manifest，不还原PID/auth、不覆盖研究data或Keychain；敏感持久化变化暂停。
 
+Claw 步骤展开显示实际参数、结果、错误、已知退出码与耗时；回答可折叠回执不改变文件身份、哈希或来源。聊天试跑继续用独立执行会话及Run定义快照；执行结束、文件实际交付和金融数据缺口分别核验，纯执行流文件不得冒充真实收盘研究。
 
 任务资源ledger与回执位于Git common directory的`leon-engineering/resource-closeout/<task-id>/`；日志证据逐文件hash复核后保存到其私有evidence目录。node_modules、.venv等可再生依赖不进入永久证据；业务数据、凭据及恢复归档均保留。卷清理继续使用原docker_resources的归档、SHA和真实恢复比较。宿主df增量与缓存逻辑容量分开记录，不重复累计共享层。
 
