@@ -1898,13 +1898,19 @@ def test_mode_projects_and_navigation_api_persist_without_model_calls(api):
     assert client.patch(endpoint, json=body).status_code == 409
     assert client.get(endpoint).json() == saved.json()
     assert Store(service.store.root).data["session_navigation"]["fingpt"]["revision"] == 1
-    assert client.put(
-        f"/api/research/sessions/{session['id']}/project", json={"project_id": "default"}
-    ).status_code == 200
+    assert (
+        client.put(
+            f"/api/research/sessions/{session['id']}/project", json={"project_id": "default"}
+        ).status_code
+        == 200
+    )
     assert client.patch(detail, json={"archived": True}).status_code == 200
-    assert client.post(
-        "/api/research/sessions", json={"mode": "fingpt", "project_id": project["id"]}
-    ).status_code == 409
+    assert (
+        client.post(
+            "/api/research/sessions", json={"mode": "fingpt", "project_id": project["id"]}
+        ).status_code
+        == 409
+    )
     assert client.get("/api/research/navigation/claw").json()["pinned"] == []
     assert client.get("/api/research/navigation/unknown").status_code == 422
     assert client.get("/api/research/projects?mode=unknown").status_code == 422
@@ -2601,3 +2607,31 @@ def test_named_human_trial_prompt_directs_run_without_repeated_confirmation(api)
     assert "不能只把规范问题写在聊天正文" in prompt
     assert "不得先问是否允许提问或是否要我提出问题" in prompt
     assert "需要澄清或邀请试跑就直接调用 ask_user_question" in prompt
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("mode", ["claw", "fingpt"])
+async def test_pending_native_question_overrides_running_summary_without_opening_session(
+    tmp_path, mode
+):
+    native = NativeFixture()
+    service = ResearchService(native, Store(tmp_path))
+    first = await service.create(mode, "等待回答")
+    other = await service.create(mode, "正在执行")
+    native.running.update([first["id"], other["id"]])
+    service.questions["native-question"] = {
+        "sessionId": "native-child",
+        "ownerSessionId": first["id"],
+        "questions": [{"id": "parameter", "question": "研究参数？", "options": []}],
+    }
+    rows = {row["id"]: row for row in await service.list_sessions()}
+    assert rows[first["id"]]["status"] == "waiting_input"
+    assert rows[other["id"]]["status"] == "running"
+    service.connected = {"host", "mux"}
+    detail = await service.detail(first["id"])
+    assert detail["status"] == "waiting_input"
+    assert detail["questions"][0]["items"][0]["id"] == "parameter"
+    assert detail["can_cancel"] is True
+    service.questions.clear()
+    rows = {row["id"]: row for row in await service.list_sessions()}
+    assert rows[first["id"]]["status"] == "running"

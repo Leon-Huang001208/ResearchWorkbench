@@ -1574,6 +1574,16 @@ class ResearchService:
                 result["status"] = "running"
             elif row["id"] in reconciled_statuses:
                 result["status"] = reconciled_statuses[row["id"]]
+            if any(
+                value.get("ownerSessionId", value.get("sessionId")) == row["id"]
+                for value in self.questions.values()
+            ):
+                result["status"] = "waiting_input"
+            elif any(
+                value.get("ownerSessionId", value.get("sessionId")) == row["id"]
+                for value in self.approvals.values()
+            ):
+                result["status"] = "awaiting_approval"
             results.append(result)
         return results
 
@@ -2256,6 +2266,8 @@ class ResearchService:
         result["can_cancel"] = bool(self.running.get(sid) or child_running)
         if child_running and not result["approvals"]:
             result["status"] = "running"
+        if result["questions"]:
+            result["status"] = "waiting_input"
         if self.connected != {"mux", "host"}:
             result.update(
                 status="disconnected", error="DSH 事件连接已断开；未重发请求，也未判定任务完成"

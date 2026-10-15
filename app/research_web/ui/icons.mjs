@@ -1,5 +1,6 @@
 /* UI glyphs from the approved local v2 sample; the brand remains the original PNG. */
 const paths = {
+  completedCircle: '<circle cx="12" cy="12" r="8"/>',
   spinner: '<circle cx="12" cy="12" r="8" opacity=".25"/><path d="M12 4a8 8 0 0 1 8 8"/>',
   pin: '<path d="m8 3 8 0-1 6 4 4v2H5v-2l4-4-1-6ZM12 15v7"/>',
   arrowUp: '<path d="M12 20V4m-6 6 6-6 6 6"/>',

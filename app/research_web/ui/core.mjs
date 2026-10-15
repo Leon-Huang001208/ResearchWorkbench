@@ -96,7 +96,7 @@ export const isRunning = (status) => ['running', 'queued', 'pending', 'waiting',
 export function reconcileSessionSummary(sessions, detail) {
   if (!detail?.id) return sessions;
   const { id, title, mode, status, can_cancel } = detail;
-  return sessions.map(session => session.id === id ? { ...session, title, mode, status, can_cancel } : session);
+  return sessions.map(session => session.id === id ? { ...session, title, mode, status, can_cancel, ...(detail.updated_at !== undefined ? { updated_at: detail.updated_at } : {}), ...(Array.isArray(detail.questions) ? { waitingForAnswer: detail.questions.length > 0 } : {}) } : session);
 }
 
 export function collectQuestionAnswers(values, items) {

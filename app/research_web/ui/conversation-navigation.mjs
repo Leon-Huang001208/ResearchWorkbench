@@ -6,13 +6,14 @@ import { safeLog, isRunning } from './core.mjs';
 const modes = new Set(['claw', 'fingpt']);
 const key = item => `${item.kind}:${item.id}`;
 const emptyMetadata = mode => ({ mode, revision: 0, pinned: [], project_order: [] });
+export const completionStamp = session => String(session?.updated_at ?? 'completed');
 const storageKey = mode => `research-web.navigation.v1.${mode}`;
 export function readNavigationView(mode, storage) {
   try {
     storage ??= globalThis.localStorage;
     const value = JSON.parse(storage?.getItem(storageKey(mode)) || '{}');
-    return { collapsed: value.collapsed === true, collapsedSections: Array.isArray(value.collapsedSections) ? value.collapsedSections.filter(id => ['pinned', 'projects', 'recent'].includes(id)) : [], expanded: Array.isArray(value.expanded) ? value.expanded.filter(id => typeof id === 'string') : [], limit: Number.isInteger(value.limit) && value.limit >= 10 ? value.limit : 10 };
-  } catch { safeLog('navigation_view_read_failed'); return { collapsed: false, collapsedSections: [], expanded: [], limit: 10 }; }
+    return { seenCompletions: value.seenCompletions && typeof value.seenCompletions === 'object' && !Array.isArray(value.seenCompletions) ? Object.fromEntries(Object.entries(value.seenCompletions).filter(([id, stamp]) => id.length <= 255 && typeof stamp === 'string' && stamp.length <= 128)) : {}, collapsed: value.collapsed === true, collapsedSections: Array.isArray(value.collapsedSections) ? value.collapsedSections.filter(id => ['pinned', 'projects', 'recent'].includes(id)) : [], expanded: Array.isArray(value.expanded) ? value.expanded.filter(id => typeof id === 'string') : [], limit: Number.isInteger(value.limit) && value.limit >= 10 ? value.limit : 10 };
+  } catch { safeLog('navigation_view_read_failed'); return { seenCompletions: {}, collapsed: false, collapsedSections: [], expanded: [], limit: 10 }; }
 }
 export function saveNavigationView(mode, view, storage) {
   try { storage ??= globalThis.localStorage; storage?.setItem(storageKey(mode), JSON.stringify(view)); }
@@ -55,6 +56,13 @@ export function createConversationNavigation({ api, notify = () => {}, changed =
     })(); return s.loading;
   }
   function view(mode, patch) { if (!state(mode)) return; Object.assign(state(mode).view, patch); saveNavigationView(mode, state(mode).view); }
+  function markSeen(session) {
+    const s = state(session?.mode);
+    if (!s || session.status !== 'completed' || session.questions?.length) return;
+    const stamp = completionStamp(session);
+    if (s.view.seenCompletions?.[session.id] === stamp) return;
+    view(session.mode, { seenCompletions: { ...(s.view.seenCompletions || {}), [session.id]: stamp } });
+  }
   async function save(mode, metadata) {
     const s = state(mode); if (s.busy || !s.loaded) return false;
     s.busy = true; s.error = ''; notify();
@@ -105,7 +113,7 @@ export function createConversationNavigation({ api, notify = () => {}, changed =
     catch (error) { s.error = error.message; safeLog('navigation_session_move_failed', { status: error.code || 'request_failed' }); return false; }
     finally { s.busy = false; notify(); }
   }
-  return { state, load, view, pin, reorder, projectSave, moveSession, revealSession, async archive(mode, id) {
+  return { state, load, view, markSeen, pin, reorder, projectSave, moveSession, revealSession, async archive(mode, id) {
     const s = state(mode); if (s.busy) return; s.busy = true; notify();
     try { await api.updateProject(mode, id, { archived: true }); s.menu = null; await load(mode, true); }
     catch (error) { s.error = error.message; safeLog('navigation_project_archive_failed', { status: error.code || 'request_failed' }); }
@@ -117,7 +125,10 @@ export function renderConversationNavigation({ page, sessionId, clawView = 'sess
   if (!modes.has(page)) return '';
   const s = navigation || { metadata: emptyMetadata(page), projects: [], view: { expanded: [], limit: 10 }, loaded: false };
   const hidden = collapsed && !mobileOpen; const label = page === 'claw' ? 'Claw' : 'FinGPT';
-  const rows = sessions.filter(row => row.mode === page && !row.deleted_at).map(row => row.id === detail?.id && detail.questions?.length ? { ...row, waitingForAnswer: true } : row);
+  const rows = sessions.filter(row => row.mode === page && !row.deleted_at).map(row => {
+    const current = row.id === detail?.id ? { ...row, status: detail.status || row.status, updated_at: detail.updated_at ?? row.updated_at, waitingForAnswer: Boolean(detail.questions?.length) } : row;
+    return { ...current, completionSeen: s.view.seenCompletions?.[row.id] === completionStamp(current) };
+  });
   const projects = orderedProjects(s.projects || [], s.metadata);
   const pinned = (s.metadata?.pinned || []).filter(item => item.kind === 'session' ? rows.some(row => row.id === item.id) : projects.some(row => row.id === item.id));
   const pinnedSessions = new Set(pinned.filter(p => p.kind === 'session').map(p => p.id));

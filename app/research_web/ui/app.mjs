@@ -509,6 +509,7 @@ function searchableCapabilityList() {
 
 function render() {
   if (composingInput?.isConnected !== false && composingInput) { renderAfterComposition = true; return; }
+  if (!document.hidden && state.route.sessionId === state.detail?.id) conversationNavigation.markSeen(state.detail);
   // Keep the user's own dirty DOM form through unrelated catalog renders.
   // Secrets never enter application state or a server-provided refill.
   const modelForm = root.querySelector('#settings-form[data-dirty]');
@@ -3239,6 +3240,7 @@ async function handleCapabilityClick(data) {
 controller.subscribe(() => { catalog.sessions = reconcileSessionSummary(catalog.sessions, state.detail); render(); void loadWorkflowVersion(); });
 window.addEventListener('hashchange', () => { clearTimeout(localStatusExpiryTimer); void showRoute(); });
 window.addEventListener('visibilitychange', () => {
+  if (!document.hidden && state.detail?.status === 'completed') render();
   if (!document.hidden && state.route.page === 'settings' && currentSettingsSection() === 'local') void loadCatalog(['localIntegrations']);
 }, true);
 window.addEventListener('resize', () => { const nav = conversationNavigation.state(state.route.page); if (sessionMenu || nav?.menu) { sessionMenu = null; if (nav) nav.menu = null; render(); } });

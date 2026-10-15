@@ -224,3 +224,22 @@ test('search popover exposes a close button and outside dismissal without requir
   assert.match(app, /event\.target\.closest\?\.\('\.search-popover, \[data-toggle-search\]'\)/);
   assert.match(app, /event\.stopPropagation\(\); closeGlobalSearch\(\)/);
 });
+
+
+test('completed rings are unread per mode and disappear after viewing the exact completion', () => {
+  const nav = createConversationNavigation({ api: {} });
+  const first = { id: 'same', mode: 'claw', title: '会话', status: 'completed', updated_at: 'v1' };
+  nav.markSeen(first);
+  assert.equal(nav.state('claw').view.seenCompletions.same, 'v1');
+  assert.equal(nav.state('fingpt').view.seenCompletions.same, undefined);
+  const html = renderSidebar({ page: 'claw', sessions: [first], navigation: nav.state('claw') });
+  assert.doesNotMatch(html, /session-row-status/);
+  const newer = renderSidebar({ page: 'claw', sessions: [{ ...first, updated_at: 'v2' }], navigation: nav.state('claw') });
+  assert.match(newer, /session-row-status/);
+  assert.match(newer, /circle cx="12" cy="12" r="8"/);
+  assert.doesNotMatch(newer, /m5 12 4 4L19 6/);
+  nav.markSeen({ ...first, status: 'running', updated_at: 'v2' });
+  assert.equal(nav.state('claw').view.seenCompletions.same, 'v1');
+  const storage = { getItem: () => JSON.stringify(nav.state('claw').view) };
+  assert.equal(readNavigationView('claw', storage).seenCompletions.same, 'v1');
+});

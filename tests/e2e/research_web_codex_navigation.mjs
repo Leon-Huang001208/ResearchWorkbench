@@ -26,6 +26,11 @@ const sessions = modes.flatMap(mode => Array.from({ length: 27 }, (_, i) => ({ i
 const group = { id: 'q-native', seq: 2, items: [{ id: 'one', question: '请选择研究方向', options: [{ label: '基本面（推荐）', description: '比较企业经营' }, { label: '技术面' }] }, { id: 'two', question: '请选择需要的资料', multiSelect: true, options: [{ label: '公告' }, { label: '财务' }, { label: '新闻' }] }] };
 const details = Object.fromEntries(sessions.map(s => [s.id, { ...s, messages: [{ id: 'user', role: 'user', text: '请先确认研究参数', seq: 1 }], questions: s.id.endsWith('-0') ? [structuredClone(group)] : [], question_history: [], activities: [], approvals: [], files: [{ id: 'current-file', name: '当前会话资料.md', kind: 'outputs', url: '/fixture-file', preview_url: '/fixture-file' }], datasets: [], subagents: [], can_cancel: false }]));
 const streams = new Map();
+const sessionState = id => {
+  const detail = details[id]; const waitingForAnswer = Boolean(detail?.questions?.length);
+  return { status: waitingForAnswer ? 'waiting_input' : detail?.status === 'waiting_input' ? 'running' : detail?.status || sessions.find(s => s.id === id)?.status || 'idle', waitingForAnswer };
+};
+const fixtureDetail = id => ({ ...details[id], ...sessionState(id) });
 let failNavigation = 0;
 let failAnswer = false;
 let failProjectCreate = false;
@@ -37,7 +42,7 @@ let holdSearch = false;
 let releaseSearch;
 let searchStarted;
 const send = (response, status, payload) => response.writeHead(status, { 'content-type': 'application/json', 'cache-control': 'no-store' }).end(JSON.stringify(payload));
-const broadcast = id => { for (const response of streams.get(id) || []) response.write(`event: snapshot\ndata: ${JSON.stringify(details[id])}\n\n`); };
+const broadcast = id => { for (const response of streams.get(id) || []) response.write(`event: snapshot\ndata: ${JSON.stringify(fixtureDetail(id))}\n\n`); };
 const server = http.createServer(async (request, response) => {
   try {
     const url = new URL(request.url, 'http://127.0.0.1');
@@ -87,9 +92,9 @@ const server = http.createServer(async (request, response) => {
           details[id].question_history = [{ ...group, answers: body.answers }]; details[id].questions = []; return send(response, 200, { ok: true });
         }
         if (suffix === '/project' && request.method === 'PUT') { if (failMove) { failMove = false; return send(response, 500, { error: { code: 'fixture_move_failed', message: '夹具移动失败，原项目位置保留' } }); } details[id].project_id = body.project_id; sessions.find(s => s.id === id).project_id = body.project_id; return send(response, 200, details[id]); }
-        return send(response, 200, suffix === '/files' ? { items: details[id].files } : details[id]);
+        return send(response, 200, suffix === '/files' ? { items: details[id].files } : fixtureDetail(id));
       }
-      if (endpoint === '/sessions') return send(response, 200, { items: sessions });
+      if (endpoint === '/sessions') return send(response, 200, { items: sessions.map(item => ({ ...item, updated_at: details[item.id]?.updated_at ?? item.updated_at, ...sessionState(item.id) })) });
       if (endpoint === '/runtime') return send(response, 200, { connected: true, credential_configured: true, provider: 'fixture' });
       if (endpoint === '/models') return send(response, 200, { groups: [], failures: [] });
       return send(response, 200, { items: [] });
@@ -123,11 +128,25 @@ async function assertSquareIcons(page, selector, { centeredButtons = false } = {
 }
 try {
   await mkdir(output, { recursive: true });
-  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  if (preview && process.env.RWB_PREVIEW_STATE_PATH) {
+    let restored;
+    try { restored = JSON.parse(await readFile(process.env.RWB_PREVIEW_STATE_PATH, 'utf8')); }
+    catch (error) { if (error.code !== 'ENOENT') throw error; report.previewRestore = { restored: false, reason: 'state_file_missing' }; }
+    if (restored) {
+      if (!Array.isArray(restored.sessions) || !restored.details || typeof restored.details !== 'object' || Array.isArray(restored.details) || modes.some(mode => !Array.isArray(restored.projects?.[mode]) || restored.metadata?.[mode]?.mode !== mode || !Number.isInteger(restored.metadata[mode].revision) || !Array.isArray(restored.metadata[mode].pinned) || !Array.isArray(restored.metadata[mode].project_order)) || restored.sessions.some(item => !item || typeof item.id !== 'string' || !modes.includes(item.mode) || !Object.hasOwn(restored.details, item.id))) throw new Error('invalid synthetic preview state');
+      for (const mode of modes) { metadata[mode] = restored.metadata[mode]; projects[mode] = restored.projects[mode]; }
+      sessions.splice(0, sessions.length, ...restored.sessions); for (const id of Object.keys(details)) delete details[id];
+      for (const [id, detail] of Object.entries(restored.details)) Object.defineProperty(details, id, { value: detail, configurable: true, enumerable: true, writable: true });
+      report.previewRestore = { restored: true, sessions: sessions.length, projects: modes.reduce((sum, mode) => sum + projects[mode].length, 0) };
+    }
+  }
+  const previewPort = preview && process.env.RWB_PREVIEW_PORT ? Number(process.env.RWB_PREVIEW_PORT) : 0;
+  if (!Number.isInteger(previewPort) || previewPort < 0 || previewPort > 65535) throw new Error('invalid isolated preview port');
+  await new Promise((resolve, reject) => { server.once('error', reject); server.listen(previewPort, '127.0.0.1', resolve); });
   const origin = `http://127.0.0.1:${server.address().port}`;
   if (preview) {
     report.status = 'preview';
-    console.log(JSON.stringify({ status: 'preview', origin, routes: [`${origin}/#/fingpt`, `${origin}/#/claw`, `${origin}/#/claw?session=claw-0`, `${origin}/#/fingpt?session=fingpt-0`], environment: report.environment }));
+    console.log(JSON.stringify({ status: 'preview', origin, routes: [`${origin}/#/fingpt`, `${origin}/#/claw`, `${origin}/#/claw?session=claw-0`, `${origin}/#/fingpt?session=fingpt-0`], environment: report.environment, ...(report.previewRestore ? { previewRestore: report.previewRestore } : {}) }));
     await new Promise(resolve => { process.once('SIGTERM', resolve); process.once('SIGINT', resolve); });
   } else {
   const { chromium } = await import(pathToFileURL(process.env.PLAYWRIGHT_CORE_PATH || '/Users/leon/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright-core/index.mjs'));
@@ -221,17 +240,18 @@ try {
   } else if (statusOnly) {
     report.statusGeometry = [];
     for (const mode of modes) {
-      for (const [index, status] of [[1, 'waiting_input'], [2, 'completed'], [3, 'running'], [4, 'failed'], [5, 'cancelled']]) { sessions.find(s => s.id === `${mode}-${index}`).status = status; details[`${mode}-${index}`].status = status; }
+      for (const [index, status] of [[1, 'running'], [2, 'completed'], [3, 'running'], [4, 'failed'], [5, 'cancelled']]) { sessions.find(s => s.id === `${mode}-${index}`).status = status; details[`${mode}-${index}`].status = status; }
+      details[`${mode}-1`].questions = [structuredClone(group)];
       details[`${mode}-0`].model = 'fixture-model';
     }
-    for (const theme of ['light', 'dark']) for (const width of [390, 1440]) for (const mode of modes) await check(`${theme}/${width}/${mode}: trailing session status, pending priority and reduced motion`, async () => {
-      await page.setViewportSize({ width, height: 900 }); await page.goto(`${origin}/#/${mode}?session=${mode}-0`);
-      await page.evaluate(value => { localStorage.setItem('research-web.appearance.v1', value); for (const m of ['claw', 'fingpt']) localStorage.setItem(`research-web.navigation.v1.${m}`, JSON.stringify({ collapsed: false, collapsedSections: [], expanded: [], limit: 10 })); }, theme);
-      await page.reload({ waitUntil: 'domcontentloaded' }); await page.locator('.question-form').waitFor();
+    for (const theme of ['light', 'dark']) for (const width of [390, 1440]) for (const mode of modes) await check(`${theme}/${width}/${mode}: actual waiting, unread circle, seen persistence, new revision and mode isolation`, async () => {
+      const completedId = `${mode}-2`; details[completedId].updated_at = 1998; sessions.find(s => s.id === completedId).updated_at = 1998;
+      await page.setViewportSize({ width, height: 900 }); await page.goto(`${origin}/#/${mode}`);
+      await page.evaluate(value => { localStorage.setItem('research-web.appearance.v1', value); for (const m of ['claw', 'fingpt']) localStorage.setItem(`research-web.navigation.v1.${m}`, JSON.stringify({ seenCompletions: {}, collapsed: false, collapsedSections: [], expanded: [], limit: 10 })); }, theme);
+      await page.reload({ waitUntil: 'domcontentloaded' }); await page.locator('#prompt').waitFor();
       await page.waitForFunction(value => ['models', 'workspaces', 'report-workflows', `navigation/${value}`].every(endpoint => performance.getEntriesByType('resource').some(entry => entry.name.includes(`/api/research/${endpoint}`))), mode);
-      if (width <= 1050) await page.locator('.topbar .menu-toggle').click();
-      assert.equal(await page.locator('.session-toolbar .badge').count(), 0); assert.equal(await page.locator('.session-toolbar').getByText('fixture-model', { exact: true }).count(), 1);
-      assert.equal(await page.locator('.question-form').getByText('正在询问问题', { exact: true }).count(), 1);
+      const ensureSidebar = async () => { if (width <= 1050 && !await page.locator('.codex-sidebar').isVisible()) await page.locator('.topbar .menu-toggle').click(); };
+      await ensureSidebar();
       const labels = ['等待回复', '等待回复', '执行已结束', '运行中', '失败', '已取消'];
       for (const [index, label] of labels.entries()) {
         const row = page.locator(`[data-session-menu="${mode}-${index}"]`).locator('..'); const marker = row.locator('.session-row-status');
@@ -240,15 +260,35 @@ try {
         assert.ok(metrics.titleWidth > 0 && metrics.markerLeft >= metrics.titleRight - .5 && metrics.markerRight <= metrics.linkRight + .5, JSON.stringify(metrics));
         assert.ok(Math.abs(metrics.iconWidth - 14) <= .5 && Math.abs(metrics.iconHeight - 14) <= .5, JSON.stringify(metrics));
         if (index < 2) { assert.equal(await marker.locator('circle[r="9"]').count(), 1); assert.equal(await marker.evaluate(el => el.classList.contains('is-executing')), false); }
-        if (index === 2) assert.equal(await marker.locator('path').getAttribute('d'), 'm5 12 4 4L19 6');
+        if (index === 2) { assert.equal(await marker.locator('circle[r="8"]').count(), 1); assert.equal(await marker.locator('path').count(), 0); assert.equal(await marker.evaluate(el => el.classList.contains('is-executing')), false); }
         if (index === 3) { assert.equal(await marker.locator('circle[r="8"]').count(), 1); assert.equal(await marker.evaluate(el => el.classList.contains('is-executing')), true); }
         if (index > 3) assert.equal(await marker.locator('path').getAttribute('d'), 'm6 6 12 12M6 18 18 6');
         report.statusGeometry.push({ theme, width, mode, index, label, ...metrics });
       }
-      const running = page.locator(`[data-session-menu="${mode}-3"]`).locator('..').locator('.session-row-status svg'); const waiting = page.locator(`[data-session-menu="${mode}-0"]`).locator('..').locator('.session-row-status svg');
-      await page.emulateMedia({ reducedMotion: 'no-preference' }); assert.notEqual(await running.evaluate(el => getComputedStyle(el).animationName), 'none'); assert.equal(await waiting.evaluate(el => getComputedStyle(el).animationName), 'none');
-      await page.emulateMedia({ reducedMotion: 'reduce' }); assert.equal(await running.evaluate(el => getComputedStyle(el).animationName), 'none'); assert.equal(await waiting.evaluate(el => getComputedStyle(el).animationName), 'none');
+      const waiting = page.locator(`[data-session-menu="${mode}-0"]`).locator('..').locator('.session-row-status svg');
+      const animationName = index => page.evaluate(id => getComputedStyle(document.querySelector(`[data-session-menu="${id}"]`).parentElement.querySelector('.session-row-status svg')).animationName, `${mode}-${index}`);
+      await page.emulateMedia({ reducedMotion: 'no-preference' }); assert.notEqual(await animationName(3), 'none'); assert.equal(await animationName(0), 'none');
+      await page.emulateMedia({ reducedMotion: 'reduce' }); assert.equal(await animationName(3), 'none'); assert.equal(await animationName(0), 'none');
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true); await shot(page, `session-status-${theme}-${width}-${mode}`);
+      await page.locator(`.recent-item[href="#/${mode}?session=${mode}-0"]`).click(); await page.locator('.question-form').waitFor(); await ensureSidebar();
+      assert.equal(await waiting.locator('circle[r="9"]').count(), 1); assert.equal(await animationName(0), 'none');
+      assert.equal(await page.locator('.session-toolbar .badge').count(), 0); assert.equal(await page.locator('.session-toolbar').getByText('fixture-model', { exact: true }).count(), 1);
+      assert.equal(await page.locator('.question-form').getByText('正在询问问题', { exact: true }).count(), 1);
+      await page.locator(`.recent-item[href="#/${mode}?session=${completedId}"]`).click(); await page.locator(`[data-conversation-scroll="${completedId}"]`).waitFor();
+      await page.waitForFunction(([m, id]) => JSON.parse(localStorage.getItem(`research-web.navigation.v1.${m}`)).seenCompletions[id] === '1998', [mode, completedId]); await ensureSidebar();
+      const completionMarker = page.locator(`[data-session-menu="${completedId}"]`).locator('..').locator('.session-row-status'); assert.equal(await completionMarker.count(), 0);
+      await page.reload({ waitUntil: 'domcontentloaded' }); await page.locator(`[data-conversation-scroll="${completedId}"]`).waitFor(); await ensureSidebar(); assert.equal(await completionMarker.count(), 0);
+      await shot(page, `session-status-seen-${theme}-${width}-${mode}`);
+      const other = mode === 'claw' ? 'fingpt' : 'claw'; await page.goto(`${origin}/#/${other}`); await page.locator('.landing').waitFor(); await ensureSidebar();
+      assert.equal(await page.locator(`[data-session-menu="${other}-2"]`).locator('..').locator('.session-row-status circle[r="8"]').count(), 1);
+      assert.deepEqual(await page.evaluate(m => JSON.parse(localStorage.getItem(`research-web.navigation.v1.${m}`)).seenCompletions, other), {});
+      assert.equal(await page.evaluate(([m, id]) => JSON.parse(localStorage.getItem(`research-web.navigation.v1.${m}`)).seenCompletions[id], [mode, completedId]), '1998');
+      await page.goto(`${origin}/#/${mode}`); await page.locator('.landing').waitFor();
+      details[completedId].updated_at = 2998; sessions.find(s => s.id === completedId).updated_at = 2998;
+      await page.reload({ waitUntil: 'domcontentloaded' }); await page.locator('.landing').waitFor(); await ensureSidebar();
+      await completionMarker.waitFor(); assert.equal(await completionMarker.locator('circle[r="8"]').count(), 1); assert.equal(await animationName(2), 'none');
+      assert.equal(await page.evaluate(([m, id]) => JSON.parse(localStorage.getItem(`research-web.navigation.v1.${m}`)).seenCompletions[id], [mode, completedId]), '1998');
+      await shot(page, `session-status-unread-again-${theme}-${width}-${mode}`);
     });
   } else if (membershipOnly) {
     for (const mode of modes) await check(`${mode}: unique pinned/project/recent priority, persistence, default return and failure retention`, async () => {

@@ -59,3 +59,8 @@ macOS Web功能开发，源代码交付；本轮不更新生产、依赖、常�
 用户追加：搜索支持外部点击关闭和显式关闭，保留Esc。根点击处理器优先消费真正outside点击，避免关闭重绘后底层旧DOM动作；结果操作与搜索toggle豁免，退出取消请求并回焦。
 
 末轮验收：状态专项8/8、底部输入与折叠扩宽32/32、搜索关闭8/8均PASS，独立回执/截图保存在logs/codex-navigation-browser。最终JS/治理641项：639通过、2既有跳过。搜索移动关闭按钮曾被既有mobile global-search z60遮挡，现只重置popover内部z-index，真实无force点击通过。跨会话仅认证滚动/草稿恢复，输入焦点保留认证限于侧栏/后台重绘，不声称跨路由自动聚焦。
+
+用户最终状态规则：待答?，运行spin，执行结束未查看静止圆环，已查看不显示。Host列表/详情从原生questions按owner投影waiting_input，修复未打开会话仍显示运行。浏览器seenCompletions按模式及updated_at记录已打开且可见的完成详情，刷新保留，新完成重新未读，不动服务器数据。
+用户随后明确授权本轮完成后push/PR合并master并更新部署；部署仍保留必需CI、兼容、空闲、健康与回滚门，不中断活动研究。
+
+状态最终追加验收8/8组PASS：未打开列表即可待答问号、未读圆环、打开后隐藏/刷新保持、下次updated_at重新未读、跨模式隔离；JS642项640通过2既有跳过，待答Python聚焦2项通过。旧受管记录remote_moved且安全入口拒绝原地替换，保留旧工作区和全部提交，使用最新master02c086b16创建受管ship任务codex-navigation-questions-ship-20261016继续PR交付，未修改受管回执或工具准入。新授权部署前只读确认生产已在02c086b16且resident ready，最终目标另以合并master绑定CI验收。

@@ -119,8 +119,8 @@ export function renderSessionRow(session, currentSessionId = null, openMenuId = 
   const title = session.title || '未命名会话';
   const status = session.waitingForAnswer ? 'waiting_input' : session.status;
   const statusLabel = statusText(status);
-  const glyph = status === 'waiting_input' || ['waiting_approval', 'awaiting_approval'].includes(status) ? 'question' : busy ? 'spinner' : status === 'completed' ? 'check' : ['failed', 'cancelled', 'interrupted'].includes(status) ? 'close' : 'history';
-  const statusMarker = `<span class="session-row-status ${busy && status !== 'waiting_input' ? 'is-executing' : ''}" role="status" aria-label="${e(statusLabel)}" title="${e(statusLabel)}">${icon(glyph)}</span>`;
+  const glyph = status === 'waiting_input' || ['waiting_approval', 'awaiting_approval'].includes(status) ? 'question' : busy ? 'spinner' : status === 'completed' ? 'completedCircle' : ['failed', 'cancelled', 'interrupted'].includes(status) ? 'close' : 'history';
+  const statusMarker = status === 'completed' && session.completionSeen ? '' : `<span class="session-row-status ${busy && status !== 'waiting_input' ? 'is-executing' : ''}" role="status" aria-label="${e(statusLabel)}" title="${e(statusLabel)}">${icon(glyph)}</span>`;
   return `<div class="session-row ${active ? 'active' : ''} ${openMenuId === session.id ? 'menu-open' : ''}"><a href="${sessionHash(session)}" class="recent-item ${active ? 'active' : ''}" title="${e(title)}${statusLabel ? ` · ${statusLabel}` : ''}" ${active ? 'aria-current="page"' : ''}><span class="session-row-title">${e(title)}</span>${statusMarker}</a><button type="button" class="session-actions-trigger" data-session-menu="${e(session.id)}" aria-label="${e(title)}的更多操作" aria-haspopup="menu" aria-expanded="${openMenuId === session.id}">${icon('more')}</button>${session.history_warning ? `<span class="session-history-warning small" role="status">历史受限：${e(session.history_warning)}</span>` : ''}</div>`;
 }
 
