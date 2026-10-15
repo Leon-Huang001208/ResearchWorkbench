@@ -21,6 +21,7 @@ from .iteration_cache import GIB, ManagedCaches, cache_budget, operation_lock
 
 log = logging.getLogger(__name__)
 DEPENDENCIES = ("node_modules", "services/hot/node_modules", ".venv", ".validation-tools", ".pytest_cache")
+EMPTY_DIRECTORIES = ("data/markdown", "data/objects", "data/raw_text")
 
 
 def dependency_path(relative):
@@ -41,8 +42,17 @@ def occupied(path):
     if result.returncode != 1 or result.stderr.strip():
         raise ResourceError("closeout_process_check_failed")
     # mmap/package files may be closed; also protect cwd and executable arguments.
-    commands = subprocess.run(["ps", "-axo", "command="], capture_output=True, text=True, check=True).stdout
-    return str(path) in commands
+    commands = subprocess.run(["ps", "-axo", "pid=,ppid=,command="], capture_output=True, text=True, check=True).stdout
+    rows = [line.strip().split(None, 2) for line in commands.splitlines()]
+    processes = {int(row[0]): (int(row[1]), row[2]) for row in rows if len(row) == 3}
+    ancestors = set()
+    pid = os.getpid()
+    while pid in processes and pid not in ancestors:
+        ancestors.add(pid)
+        pid = processes[pid][0]
+    # lsof above still protects ancestor cwd/FDs; only the controller's own
+    # command-line source path is exempt from the additional argv heuristic.
+    return any(str(path) in command for pid, (_, command) in processes.items() if pid not in ancestors)
 
 
 def register_directory(root, path, kind):
@@ -53,8 +63,10 @@ def register_directory(root, path, kind):
         relative = path.relative_to(root).as_posix()
     except ValueError:
         raise ResourceError("closeout_directory_outside_task") from None
-    if (kind == "dependency" and not dependency_path(relative)) or (kind == "evidence" and relative != "logs") or kind not in {"dependency", "evidence"}:
+    if (kind == "dependency" and not dependency_path(relative)) or (kind == "evidence" and relative != "logs") or (kind == "empty-directory" and relative not in EMPTY_DIRECTORIES) or kind not in {"dependency", "evidence", "empty-directory"}:
         raise ResourceError("closeout_directory_not_allowed")
+    if kind == "empty-directory" and next(path.iterdir(), None) is not None:
+        raise ResourceError("closeout_directory_not_empty")
     stat = path.stat()
     return {"root": str(root), "path": str(path), "kind": kind, "device": stat.st_dev, "inode": stat.st_ino}
 
@@ -63,7 +75,7 @@ def clean_dependencies(records, *, occupied=occupied, tracked=None, journal=None
     tracked = tracked or (lambda row: bool(git(row["root"], "ls-files", "--", str(Path(row["path"]).relative_to(row["root"])))))
     result = {"ok": True, "items": []}
     for row in records:
-        if row["kind"] != "dependency":
+        if row["kind"] not in {"dependency", "empty-directory"}:
             continue
         path = Path(row["path"])
         item = {"path": str(path), "status": "pending"}
@@ -72,14 +84,17 @@ def clean_dependencies(records, *, occupied=occupied, tracked=None, journal=None
             if not path.exists() and not path.is_symlink():
                 item["status"] = "already_absent"
             else:
-                current = register_directory(Path(row["root"]), path, "dependency")
+                current = register_directory(Path(row["root"]), path, row["kind"])
                 if current != row or occupied(path) or tracked(row):
                     raise ResourceError("closeout_dependency_changed_or_in_use")
                 item["allocatedBytesBefore"] = int(subprocess.check_output(["du", "-sk", str(path)], text=True).split()[0]) * 1024
                 if journal:
                     journal(result)
                 # rmtree never follows internal symlinks; unknown sibling paths are untouched.
-                shutil.rmtree(path)
+                if row["kind"] == "empty-directory":
+                    path.rmdir()  # Atomic refusal if a file appeared after inspection.
+                else:
+                    shutil.rmtree(path)
                 if path.exists():
                     raise ResourceError("closeout_dependency_deletion_unverified")
                 item["status"] = "reclaimed"
@@ -233,6 +248,14 @@ def record_task(project, task):
             path = root / relative
             if path.exists():
                 row = register_directory(root, path, "evidence" if relative == "logs" else "dependency")
+                if str(path) in known and known[str(path)] != row:
+                    raise ResourceError("closeout_registered_directory_changed")
+                if str(path) not in known:
+                    old["directories"].append(row)
+        for relative in EMPTY_DIRECTORIES:
+            path = root / relative
+            if path.is_dir() and not path.is_symlink() and next(path.iterdir(), None) is None:
+                row = register_directory(root, path, "empty-directory")
                 if str(path) in known and known[str(path)] != row:
                     raise ResourceError("closeout_registered_directory_changed")
                 if str(path) not in known:
