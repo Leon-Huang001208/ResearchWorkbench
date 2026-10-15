@@ -53,17 +53,28 @@ export function filterGlobalSearch(query, sessions = [], skills = []) {
   return [...work, ...capabilities].slice(0, 8);
 }
 
-export function renderGlobalSearch(query, sessions, skills) {
-  return `<div class="global-search"><label class="sr-only" for="global-search">搜索会话标题和能力名称或简介</label>${icon('search')}<input id="global-search" data-global-search type="search" value="${e(query || '')}" placeholder="搜索会话标题、能力名称或简介…" autocomplete="off" role="combobox" aria-expanded="${query ? 'true' : 'false'}" aria-controls="global-search-results">` +
-    `<div class="global-results" id="global-search-results" role="listbox" aria-label="搜索结果">${renderGlobalResults(query, sessions, skills)}</div></div>`;
+export function renderGlobalSearch(query, sessions, skills, options = {}) {
+  const native = options.native;
+  const label = native ? "搜索Claw会话标题、正文和能力" : "搜索会话标题和能力名称或简介";
+  return `<div class="global-search"><label class="sr-only" for="global-search">${label}</label>${icon('search')}<input id="global-search" data-global-search type="search" value="${e(query || '')}" placeholder="${native ? "搜索Claw标题、正文或能力…" : "搜索会话标题、能力名称或简介…"}" ${native ? 'maxlength="500"' : ""} autocomplete="off" role="combobox" aria-expanded="${query || native?.mode === 'claw' ? 'true' : 'false'}" aria-controls="global-search-results">` +
+    `<div class="global-results" id="global-search-results" role="listbox" aria-label="搜索结果">${renderGlobalResults(query, sessions, skills, options)}</div></div>`;
 }
 
-export function renderGlobalResults(query, sessions, skills) {
-  if (!String(query || '').trim()) return '';
-  const results = filterGlobalSearch(query, sessions, skills);
+export function renderGlobalResults(query, sessions, skills, { native = null } = {}) {
+  const queryText = String(query || '').trim();
+  if (!queryText && native?.mode !== 'claw') return '';
+  const current = native?.query === queryText && native.mode === 'claw';
+  const nativeItems = current ? native.items || [] : [];
+  const snippets = new Map(nativeItems.map(item => [item.id, item.snippet]));
+  const results = queryText ? filterGlobalSearch(query, native ? (sessions || []).filter(item => item.mode === 'claw') : sessions, skills) : (sessions || []).filter(item => item.mode === 'claw').slice(0, 8).map(item => ({ kind: 'session', item }));
+  const known = new Set(results.filter(row => row.kind === 'session').map(row => row.item.id));
+  for (const item of nativeItems) if (!known.has(item.id)) { results.push({ kind: 'session', item }); known.add(item.id); }
+  const status = current ? `${native.pending ? '<p class="small muted" role="status">正在搜索 Claw 正文…</p>' : ''}${native.error ? `<p class="small muted" role="status">${e(native.error)} <button type="button" class="text-button" data-retry-native-search>重试正文搜索</button></p>` : ''}${native.has_more ? '<p class="small muted">结果可能不完整，请缩小关键词。</p>' : ''}` : '';
+  const heading = !queryText && results.length ? '<p class="small muted">最近 Claw 会话</p>' : '';
+
   const attribute = (kind, item) => ({ tool: 'data-tool-detail', data: 'data-data-capability-detail', 'report-workflow': 'data-report-workflow-detail' })[kind] || (item.enabled === false ? 'data-skill-detail' : 'data-skill-shortcut');
-  if (!results.length) return '<p class="muted small">没有匹配的真实会话或能力。</p>';
-  return results.map(({ kind, item }) => kind === 'session' ? `<a role="option" href="${sessionHash(item)}" data-global-result="session" data-session-id="${e(item.id)}"><strong>${e(item.title || '未命名会话')}</strong><span>会话 · ${e({ fingpt: 'FinGPT', claw: 'Claw' }[item.mode] || '研究')}</span></a>` : `<button type="button" role="option" data-global-result="${kind}" ${attribute(kind, item)}="${e(item.id)}"><strong>${e(item.name)}</strong><span>${e(item.description || '此能力未提供描述。')}</span></button>`).join('');
+  if (!results.length) return status || '<p class="muted small">没有匹配的真实会话或能力。</p>';
+  return heading + status + results.map(({ kind, item }) => kind === 'session' ? `<a role="option" href="${sessionHash(item)}" data-global-result="session" data-global-result-key="session:${e(item.id)}" data-session-id="${e(item.id)}"><strong>${e(item.title || '未命名会话')}</strong><span>会话 · ${e({ fingpt: 'FinGPT', claw: 'Claw' }[item.mode] || '研究')}</span>${snippets.has(item.id) ? `<span class="native-search-snippet">${e(snippets.get(item.id))}</span>` : ''}</a>` : `<button type="button" role="option" data-global-result="${kind}" data-global-result-key="${kind}:${e(item.id)}" ${attribute(kind, item)}="${e(item.id)}"><strong>${e(item.name)}</strong><span>${e(item.description || '此能力未提供描述。')}</span></button>`).join('');
 }
 
 export function renderPrimaryRail({ page, section = '', secondaryOpen = false } = {}) {
@@ -118,7 +129,7 @@ export function renderSidebar({ page, sessionId, sessions = [], workspaces = [],
   const clawTabs = page === 'claw' ? `<div class="claw-sidebar-tabs" role="tablist" aria-label="Claw 侧栏视图"><button type="button" role="tab" class="${clawSidebarView === 'sessions' ? 'active' : ''}" aria-selected="${clawSidebarView === 'sessions'}" data-claw-sidebar-view="sessions">会话</button><button type="button" role="tab" class="${clawSidebarView === 'workspace' ? 'active' : ''}" aria-selected="${clawSidebarView === 'workspace'}" data-claw-sidebar-view="workspace">工作区</button></div>` : '';
   const sessionsView = `<div class="secondary-session-view"><button class="new-research" data-new aria-label="新建 ${modeLabel} 研究">${icon('compose')}<span>新研究</span></button><div class="recent-section"><div class="running-heading recent-heading ${running.length ? '' : 'no-running'}"><span class="eyebrow">运行任务</span><span class="count">${running.length}</span></div>${running.length ? running.map((session) => renderSessionRow(session, sessionId, openMenuId)).join('') : ''}<div class="recent-heading"><span class="eyebrow">最近研究</span><a href="${historyHref}" aria-label="查看全部 ${modeLabel} 研究">查看全部</a></div><div class="recent-sessions">${recent.length ? recent.map((session) => renderSessionRow(session, sessionId, openMenuId)).join('') : `<p class="muted small sidebar-empty">开始第一项 ${modeLabel} 研究后，会话将显示在这里。</p>`}</div></div></div>`;
   const clawLinks = page === 'claw' ? `<nav class="claw-sidebar-links" aria-label="Claw 任务与能力"><a href="#/claw?view=plans">${icon('activity')}Agent 日程</a><a href="#/claw?view=skills">${icon('grid')}选择能力</a><a href="#/claw?view=projects&project=${encodeURIComponent(detail?.project_id || 'default')}">${icon('layers')}研究分组与项目</a><button class="text-button" data-toggle-search>${icon('search')}搜索对话</button></nav>` : '';
-  const groups = page === 'claw' ? `<section class="claw-sidebar-groups"><div class="recent-heading"><span>研究分组</span><a href="#/claw?view=projects&project=default">新建分组</a></div>${projects.filter(p=>!p.archived).map(p=>`<details><summary>${e(p.name)}</summary><a href="#/claw?view=projects&project=${encodeURIComponent(p.id)}">查看项目资料与产物</a>${modeSessions.filter(s=>(s.project_id || 'default')===p.id).map(s=>renderSessionRow(s,sessionId,openMenuId)).join('')}</details>`).join('')}</section>` : '';
+  const groups = page === 'claw' ? `<section class="claw-sidebar-groups"><div class="recent-heading"><span>研究分组</span><a href="#/claw?view=projects&project=default">新建分组</a></div>${projects.filter(p=>!p.archived).map(p=>`<details data-disclosure-key="claw:project:${e(p.id)}"><summary>${e(p.name)}</summary><a href="#/claw?view=projects&project=${encodeURIComponent(p.id)}">查看项目资料与产物</a>${modeSessions.filter(s=>(s.project_id || 'default')===p.id).map(s=>renderSessionRow(s,sessionId,openMenuId)).join('')}</details>`).join('')}</section>` : '';
   const body = page === 'claw' && clawSidebarView === 'workspace' ? renderClawWorkspace(detail, workspaces, selectedWorkspace) : sessionsView;
   const hidden = collapsed && !mobileOpen;
   const ariaLabel = page === 'claw' ? 'Claw 会话与工作空间侧栏' : 'FinGPT 会话侧栏';
@@ -132,7 +143,7 @@ export function renderContextPanel({ detail, selectedTab = 'activity', mobileOpe
   return `<aside class="context-panel ${mobileOpen ? 'mobile-open' : ''}" aria-label="研究活动、资料与文件"><header class="context-header"><div><h2>研究空间</h2><span class="badge">${detail?.mode === 'claw' ? 'CLAW' : 'FINGPT'}</span></div><button class="icon-button context-close" data-toggle-context aria-label="关闭研究空间">×</button></header><div class="context-tabs" role="tablist">${tabs.map(([id, label]) => `<button type="button" role="tab" class="context-tab ${selectedTab === id ? 'active' : ''}" aria-selected="${selectedTab === id}" data-context-tab="${id}">${label}</button>`).join('')}</div><div class="context-tab-panel">${panel}</div></aside>`;
 }
 
-export function renderTopbar({ page = 'fingpt', section = '', frameworkSlug = '', settingsSection = '', detail = null, runtimeLabel, runtime, search = '', sessions = [], skills = [], searchOpen = false } = {}) {
+export function renderTopbar({ page = 'fingpt', section = '', frameworkSlug = '', settingsSection = '', detail = null, runtimeLabel, runtime, search = '', sessions = [], skills = [], searchOpen = false, nativeSearch = null } = {}) {
   let runtimeAttention = '';
   if (runtime && (!runtime.connected || runtime.credential_configured === false)) {
     const [label, tone] = runtime.connected
@@ -142,5 +153,5 @@ export function renderTopbar({ page = 'fingpt', section = '', frameworkSlug = ''
         : ['研究服务不可用', 'danger'];
     runtimeAttention = `<div class="topbar-right"><a href="#/settings/model" class="runtime-status ${tone}" title="${e(runtime.message || runtimeLabel || label)}"><span class="tiny-dot" aria-hidden="true"></span>${label}</a></div>`;
   }
-  return `<header class="topbar ${searchOpen ? 'search-open' : ''}"><button class="icon-button menu-toggle" data-toggle-sidebar aria-label="打开导航">${icon('sidebar')}</button><div class="search-popover" ${searchOpen ? '' : 'hidden'}>${renderGlobalSearch(search, sessions, skills)}</div>${runtimeAttention}</header>`;
+  return `<header class="topbar ${searchOpen ? 'search-open' : ''}"><button class="icon-button menu-toggle" data-toggle-sidebar aria-label="打开导航">${icon('sidebar')}</button><div class="search-popover" ${searchOpen ? '' : 'hidden'}>${renderGlobalSearch(search, sessions, skills, { native: nativeSearch })}</div>${runtimeAttention}</header>`;
 }

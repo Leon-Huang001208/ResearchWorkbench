@@ -42,6 +42,9 @@ const SAFE_ERROR_CODES = new Set([
   'data_dependency_unavailable', 'data_semantics_not_equivalent', 'data_semantics_unverified',
   'capability_data_unavailable', 'model_tool_capability_unverified',
   'capability_disabled', 'source_scope_excluded',
+  'automation_trial_not_requested', 'automation_trial_scope_denied',
+  'automation_trial_conflict', 'automation_trial_unknown', 'automation_version_conflict',
+  'automation_busy', 'automation_run_busy', 'automation_control_denied',
 ]);
 
 function isDenseStringArray(value) {

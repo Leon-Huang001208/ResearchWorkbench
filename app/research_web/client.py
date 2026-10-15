@@ -27,6 +27,7 @@ METHODS = frozenset(
         "llm.models",
         "session.create",
         "session.list",
+        "session.search",
         "session.history",
         "session.rename",
         "session.delete",
@@ -163,6 +164,9 @@ class DSHClient:
             return "session/modelCatalog", {}
         if method == "session.list":
             return "session/list", {"_request": payload}
+        if method == "session.search":
+            # Fixed session-controller uses search(request, signal), unlike list(_request, signal).
+            return "session/search", {"request": payload}
         if method in {
             "session.create",
             "session.rename",

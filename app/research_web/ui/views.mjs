@@ -1,6 +1,8 @@
 import { escapeHTML as e, renderMarkdown, safeURL } from './markdown.mjs';
 import { sessionHash, isRunning, safeLog } from './core.mjs';
 import { icon } from './icons.mjs';
+import { renderClawFlow, renderClawStep } from './claw-flow.mjs';
+import { renderClawAnswerActions } from './answer-actions.mjs';
 import localModels from './local-models.json' with { type: 'json' };
 
 export const statusText = (status) => ({ idle: '待命', running: '运行中', queued: '排队中', completed: '执行已结束', failed: '失败', cancelled: '已取消', waiting_approval: '等待授权', awaiting_approval: '等待授权', waiting_input: '等待回复', cancelling: '取消中' })[status] || status || '未知';
@@ -115,30 +117,31 @@ export function renderConversation(detail, questionDrafts = new Map(), options =
   const messageEntries = (detail.messages || []).map((message, index) => {
     const label = message.role === 'user' ? '用户消息' : message.role === 'assistant' ? assistantLabel : `${message.role || '未知角色'}消息`;
     const thinking = message.role === 'assistant' ? renderThinking(message, { live: isRunning(detail.status) && index === detail.messages.length - 1 }) : '';
-    return { seq: Number.isFinite(message.seq) ? message.seq : Infinity, index, html: `${thinking}<article class="message ${message.role === 'user' ? 'user' : 'assistant'}" aria-label="${e(label)}"><div class="markdown">${renderMarkdown(message.text, { resolveLink })}</div>${detail.mode === 'claw' && message.role === 'assistant' && message.text ? `<button type="button" class="text-button" data-copy-message="${index}" data-copy-session="${e(detail.id || '')}" aria-label="复制这条回复">复制回复</button>` : ''}</article>` };
+    return { kind: message.role === 'user' ? 'user' : 'assistant', seq: Number.isFinite(message.seq) ? message.seq : Infinity, index, html: `${thinking}<article class="message ${message.role === 'user' ? 'user' : 'assistant'}" aria-label="${e(label)}"><div class="markdown">${renderMarkdown(message.text, { resolveLink })}</div></article>`, copyHTML: detail.mode === 'claw' && message.role === 'assistant' && message.text ? renderClawAnswerActions(detail, index, options) : '' };
   });
+  const historyTag = detail.mode === "claw" ? "details" : "section";
   const questionEntries = (Array.isArray(detail.question_history) ? detail.question_history : []).filter(question => Number.isFinite(question?.seq) && Array.isArray(question.items) && Array.isArray(question.answers)).map((question, index) => ({
-    seq: question.seq, index: messageEntries.length + index, html: `<section class="decision-card question-history" aria-label="已确认的原生提问参数"><div class="eyebrow">已确认参数</div><p class="muted small">来源：DSH 原生提问</p><dl>${question.items.map((item, itemIndex) => {
+    kind: 'decision', seq: question.seq, index: messageEntries.length + index, html: `<${historyTag} class="decision-card question-history" ${detail.mode === "claw" ? `data-disclosure-key="${e(`${detail.id || ""}:question:${question.id}`)}"` : ""} aria-label="已确认的原生提问参数">${detail.mode === "claw" ? `<summary><span>已回答 ${question.items.length} 个问题</span><span class="question-receipt-toggle" aria-hidden="true">${icon("chevron")}</span></summary>` : ""}<div class="eyebrow">已确认参数</div><p class="muted small">来源：DSH 原生提问</p><dl>${question.items.map((item, itemIndex) => {
       const answer = item.id != null ? question.answers.find(value => value.id === item.id) : question.answers[itemIndex];
       const selected = Array.isArray(answer?.selected) ? answer.selected.filter(value => typeof value === 'string') : [];
       const custom = typeof answer?.custom === 'string' ? answer.custom : '';
       return `<div><dt>${e(item.question || '')}</dt><dd>${selected.length ? `<p>${selected.map(value => e(value)).join('、')}</p>` : ''}${custom ? `<p>${e(custom)}</p>` : ''}${!selected.length && !custom ? '<p class="muted">未记录回答</p>' : ''}</dd></div>`;
-    }).join('')}</dl></section>`,
+    }).join('')}</dl></${historyTag}>`,
   }));
   const nativeQuestionIDs = new Set([...(detail.question_history || []), ...(detail.questions || [])].map(question => question.id));
   const activities = detail.mode === 'claw' ? (detail.activities || []).filter(activity => !nativeQuestionIDs.has(activity.id)) : [];
-  const activityEntries = activities.filter(activity => Number.isFinite(activity.seq)).map((activity,index) => ({seq:activity.seq,index:messageEntries.length + questionEntries.length + index,html:`<section class="conversation-activity" aria-label="原生执行活动">${renderActivityCard(activity,detail.subagents || [],{compact:true})}</section>`}));
+  const activityEntries = activities.filter(activity => Number.isFinite(activity.seq)).map((activity,index) => ({kind:'activity',status:activity.status,seq:activity.seq,index:messageEntries.length + questionEntries.length + index,html:renderClawStep(activity,{sessionId:detail.id,statusLabel:statusText(activity.status),agents:detail.subagents || []})}));
   const unpositioned = activities.filter(activity => !Number.isFinite(activity.seq));
   const approvals = (detail.approvals || []).map((approval) => `<section class="decision-card"><div class="eyebrow">需要你的授权</div><h3>${e(approval.title)}</h3><div class="markdown">${renderMarkdown(approval.detail)}</div><div class="button-row"><button class="button primary" data-approval="${e(approval.id)}" data-decision="approve">允许</button><button class="button danger-outline" data-approval="${e(approval.id)}" data-decision="deny">拒绝</button></div></section>`).join('');
   const pendingQuestionEntries = (detail.questions || []).map((question,index) => {
     const draft = questionDrafts.get(question.id) || [];
-    const html = `<form class="decision-card question-form" data-question-form="${e(question.id)}"><div class="eyebrow">DSH 需要补充信息</div>${question.items?.length ? question.items.map((item, index) => `<fieldset><legend>${e(item.question)}</legend>${(item.options || []).map((option) => `<label class="check-label"><input type="${item.multiSelect === true ? 'checkbox' : 'radio'}" name="selection-${index}" value="${e(option.label)}" ${draft[index]?.selected?.includes(option.label) ? 'checked' : ''}>${e(option.label)}${option.description ? `<span class="muted">${e(option.description)}</span>` : ''}</label>`).join('')}<label for="question-${e(encodeURIComponent(question.id))}-${index}">补充回答</label><textarea id="question-${e(encodeURIComponent(question.id))}-${index}" name="custom-${index}" maxlength="10000" rows="2">${e(draft[index]?.custom || '')}</textarea></fieldset>`).join('') : `<div class="markdown">${renderMarkdown(question.text)}</div>`}<button type="submit" class="button primary">提交回答</button></form>`;
-    return {seq:question.seq,index:messageEntries.length + questionEntries.length + activityEntries.length + index,html};
+    const html = `<form class="decision-card question-form" data-question-form="${e(question.id)}"><div class="eyebrow">DSH 需要补充信息</div>${question.items?.length ? question.items.map((item, index) => `<fieldset><legend>${e(item.question)}</legend>${(item.options || []).map((option) => `<label class="check-label"><input type="${item.multiSelect === true ? 'checkbox' : 'radio'}" name="selection-${index}" value="${e(option.label)}" ${draft[index]?.selected?.includes(option.label) ? 'checked' : ''}>${detail.mode === "claw" ? `<span class="question-option-copy"><strong>${e(option.label)}</strong>${option.description ? `<span class="muted">${e(option.description)}</span>` : ""}</span>` : `${e(option.label)}${option.description ? `<span class="muted">${e(option.description)}</span>` : ""}`}</label>`).join('')}<label for="question-${e(encodeURIComponent(question.id))}-${index}">补充回答</label><textarea id="question-${e(encodeURIComponent(question.id))}-${index}" name="custom-${index}" maxlength="10000" rows="2">${e(draft[index]?.custom || '')}</textarea></fieldset>`).join('') : `<div class="markdown">${renderMarkdown(question.text)}</div>`}<button type="submit" class="button primary">提交回答</button></form>`;
+    return {kind:'decision',seq:question.seq,index:messageEntries.length + questionEntries.length + activityEntries.length + index,html};
   });
   const positionedQuestions = detail.mode === 'claw' ? pendingQuestionEntries.filter(question=>Number.isFinite(question.seq)) : [];
   const questions = pendingQuestionEntries.filter(question=>!positionedQuestions.includes(question)).map(question=>question.html).join('');
-  const anchoredCards = detail.mode === 'claw' ? extraEntries.filter(entry=>Number.isFinite(entry.seq) && typeof entry.html === 'string').map((entry,index)=>({...entry,index:messageEntries.length + questionEntries.length + activityEntries.length + pendingQuestionEntries.length + index})) : [];
-  const messages = detail.mode !== 'claw' ? researchMessages + questionEntries.map(entry => entry.html).join('') : [...messageEntries, ...questionEntries, ...activityEntries, ...positionedQuestions, ...anchoredCards].sort((a,b) => a.seq - b.seq || a.index - b.index).map(entry => entry.html).join('');
+  const anchoredCards = detail.mode === 'claw' ? extraEntries.filter(entry=>Number.isFinite(entry.seq) && typeof entry.html === 'string').map((entry,index)=>({...entry,kind:'decision',index:messageEntries.length + questionEntries.length + activityEntries.length + pendingQuestionEntries.length + index})) : [];
+  const messages = detail.mode !== 'claw' ? researchMessages + questionEntries.map(entry => entry.html).join('') : renderClawFlow([...messageEntries, ...questionEntries, ...activityEntries, ...positionedQuestions, ...anchoredCards].sort((a,b) => a.seq - b.seq || a.index - b.index), detail);
   return `${activities.length ? `<p class="muted small conversation-tool-summary">${e(activitySummary(activities))}</p>` : ''}${messages || empty('尚无消息', '输入问题，开始这个会话。所有回答和活动均来自 DSH。')}${unpositioned.length ? `<section class="conversation-activity"><p class="muted small">以下活动缺少原生事件位置，未推断其回答顺序。</p>${unpositioned.map(activity=>renderActivityCard(activity,detail.subagents || [],{compact:true})).join('')}</section>` : ''}${approvals}${questions}${detail.error ? `<div class="notice error" role="alert">${e(failureText(detail.error))}</div>` : ''}`;
 }
 
@@ -401,7 +404,7 @@ function matchesLocalGateway(endpoint) {
   } catch { return false; }
 }
 
-export function modelOptions(groups = [], current = '', endpoint = '') {
+export function modelGroups(groups = [], endpoint = '') {
   const presets = Array.isArray(localModels.models) ? localModels.models.filter(model =>
     typeof model?.id === 'string' && /^[a-zA-Z0-9._:/-]{1,100}$/.test(model.id) && typeof model.name === 'string') : [];
   const expanded = groups.map(group => {
@@ -411,5 +414,9 @@ export function modelOptions(groups = [], current = '', endpoint = '') {
     for (const model of group.models || []) if (!models.has(model.id)) models.set(model.id, model);
     return { ...group, models: [...models.values()] };
   });
-  return '<option value="">选择运行模型</option>' + expanded.map((group) => `<optgroup label="${e(group.provider)}">${(group.models || []).map((model) => `<option value="${e(JSON.stringify({ provider: group.provider, model: model.id }))}" ${model.id === current ? 'selected' : ''}>${e(model.name || model.id)}</option>`).join('')}</optgroup>`).join('');
+  return expanded;
+}
+
+export function modelOptions(groups = [], current = '', endpoint = '') {
+  return '<option value="">选择运行模型</option>' + modelGroups(groups, endpoint).map((group) => `<optgroup label="${e(group.provider)}">${(group.models || []).map((model) => `<option value="${e(JSON.stringify({ provider: group.provider, model: model.id }))}" ${model.id === current ? 'selected' : ''}>${e(model.name || model.id)}</option>`).join('')}</optgroup>`).join('');
 }

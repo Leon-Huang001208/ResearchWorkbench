@@ -138,16 +138,17 @@ export function safeLog(event, metadata = {}) {
 }
 
 export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSourceClass = globalThis.EventSource, logger = safeLog, requestTimeoutMs = 120000 } = {}) {
-  async function request(path, { method = 'GET', body, key, userAction = false } = {}) {
+  async function request(path, { method = 'GET', body, key, userAction = false, readOnly = false } = {}) {
+    const reading = method === 'GET' || readOnly;
     const abort = new AbortController();
     let timer;
     const timeout = new Promise((_, reject) => {
       timer = setTimeout(() => {
         abort.abort();
         logger('request_timeout', { method });
-        const error = new Error(method === 'GET' ? '读取超时，请刷新重试。' : '请求超时，操作结果尚未确认；请核对会话状态。草稿已保留，不会自动重发。');
+        const error = new Error(reading ? '读取超时，请刷新重试。' : '请求超时，操作结果尚未确认；请核对会话状态。草稿已保留，不会自动重发。');
         error.code = 'request_timeout'; reject(error);
-      }, method === 'GET' ? Math.min(requestTimeoutMs, 30000) : requestTimeoutMs);
+      }, reading ? Math.min(requestTimeoutMs, 30000) : requestTimeoutMs);
     });
     try { return await Promise.race([performRequest(path, { method, body, key, userAction, signal: abort.signal }), timeout]); }
     finally { clearTimeout(timer); }
@@ -212,6 +213,7 @@ export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSo
     etfReplay: (body, key) => request('/portfolio-decisions/runs', { method: 'POST', body, key, userAction: true }),
     runtime: () => request('/runtime'), models: () => request('/models'), workspaces: () => request('/workspaces'),
     sessions: (view = 'active') => request(`/sessions?view=${segment(view)}`), skills: () => request('/skills'),
+    searchSessions: (query, mode = 'claw') => request('/sessions/search', { method: 'POST', body: { query, mode }, readOnly: true }),
     documentOperation: (id, body) => request(`${sessionPath(id)}/document-operations`, { method: 'POST', body }),
     capabilities: () => request('/capabilities'), tools: () => request('/tools'),
     mcpRegistries: () => request('/mcp/registries'),
@@ -383,7 +385,7 @@ export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSo
 
 export function createController({ api, draftStorage, logger = safeLog, makeID = () => globalThis.crypto.randomUUID(), onNavigate = () => {}, confirmTabbit = async () => globalThis.confirm?.('所选标签页将临时移入代理任务，标签分组可能改变。继续发送？') !== false }) {
   const state = { route: { page: 'fingpt', sessionId: null }, detail: null, draft: '', attachments: [], tabbitTabs: [], skillId: '', capability: null, toolIds: [], methodIds: [], sourceScope: ['datahub', 'web', 'uploads'], researchDepth: 'instant', expectedFormats: null, error: '', streamError: '', loading: false, busy: false, stopping: false };
-  const listeners = new Set(); const drafts = new Map(); const pending = new Map(); const createdDraftOrigins = new Map();
+  const listeners = new Set(); const drafts = new Map(); const pending = new Map(); const createdDraftOrigins = new Map(); const sendingSessions = new Set();
   let generation = 0; let snapshotRevision = 0; let closeStream = () => {}; let hasOpened = false;
   const emit = () => listeners.forEach((listener) => listener(state));
   const draftKey = () => state.route.sessionId || `new:${state.route.page}`;
@@ -460,12 +462,9 @@ export function createController({ api, draftStorage, logger = safeLog, makeID =
   }
   async function send() {
     if (state.busy || state.stopping || !state.detail || !state.draft.trim()) return;
-    const execution = state.detail.execution_context;
-    if (!execution && state.tabbitTabs.length) {
-      try { if (!await confirmTabbit()) return; }
-      catch (error) { fail(error); emit(); return; }
-    }
     const id = state.detail.id; const ticket = generation; const text = state.draft;
+    if (sendingSessions.has(id)) return;
+    const execution = state.detail.execution_context;
     let body;
     if (execution) {
       const definition = execution.definition_snapshot;
@@ -473,11 +472,24 @@ export function createController({ api, draftStorage, logger = safeLog, makeID =
       if (!Array.isArray(definition?.output_formats) || !Array.isArray(task?.approved_tools) || !Array.isArray(task?.approved_data_sources)) { fail(new Error('日程执行定义缺少批准范围，无法发送追问；请刷新会话。')); emit(); return; }
       body = {text:text.trim(),tool_ids:[...task.approved_tools],expected_formats:[...definition.output_formats],...(task.approved_data_sources.includes('uploads') && state.attachments.length ? {attachment_ids:state.attachments.map(file=>file.id)} : {})};
       logger('execution_followup_scope_locked');
-    } else body = { text: text.trim(), ...(state.capability ? { capability_id: state.capability.id, capability_version: state.capability.version } : state.skillId ? { skill_id: state.skillId } : {}), ...(state.toolIds.length ? { tool_ids: state.toolIds } : {}), ...(state.methodIds.length ? { method_ids: state.methodIds } : {}), ...(state.expectedFormats !== null ? { expected_formats: state.expectedFormats } : {}), ...(state.attachments.length ? { attachment_ids: state.attachments.map((file) => file.id) } : {}), ...(state.tabbitTabs.length ? { tabbit_tabs: state.tabbitTabs.map(({ tab_id, instance_id }) => ({ tab_id, instance_id })), tabbit_live_confirmed: true } : {}) };
-    const signature = JSON.stringify(body); const previous = pending.get(id);
-    const attempt = previous?.signature === signature ? previous : { signature, key: makeID() };
-    pending.set(id, attempt); state.busy = true; state.error = ''; emit();
+    } else body = { text: text.trim(), ...(state.capability ? { capability_id: state.capability.id, capability_version: state.capability.version } : state.skillId ? { skill_id: state.skillId } : {}), ...(state.toolIds.length ? { tool_ids: [...state.toolIds] } : {}), ...(state.methodIds.length ? { method_ids: [...state.methodIds] } : {}), ...(state.expectedFormats !== null ? { expected_formats: [...state.expectedFormats] } : {}), ...(state.attachments.length ? { attachment_ids: state.attachments.map((file) => file.id) } : {}), ...(state.tabbitTabs.length ? { tabbit_tabs: state.tabbitTabs.map(({ tab_id, instance_id }) => ({ tab_id, instance_id })), tabbit_live_confirmed: true } : {}) };
+    // Bind confirmation and accepted cleanup to the submitted snapshot, never the next draft.
+    const attachmentIds = new Set(body.attachment_ids || []);
+    const tabIdentity = tab => JSON.stringify([tab.instance_id, tab.tab_id]);
+    const tabIds = new Set((body.tabbit_tabs || []).map(tabIdentity));
+    const acceptedDraft = value => ({ ...value, draft: value.draft === text ? '' : value.draft,
+      attachments: value.attachments.filter(file => !attachmentIds.has(file.id)),
+      tabbitTabs: (value.tabbitTabs || []).filter(tab => !tabIds.has(tabIdentity(tab))) });
+    sendingSessions.add(id); state.busy = true; state.error = ''; emit();
     try {
+      if (tabIds.size) {
+        const confirmed = await confirmTabbit();
+        if (ticket !== generation) { logger('send_confirmation_navigation_cancelled'); return; }
+        if (!confirmed) return;
+      }
+      const signature = JSON.stringify(body); const previous = pending.get(id);
+      const attempt = previous?.signature === signature ? previous : { signature, key: makeID() };
+      pending.set(id, attempt);
       const response = await api.message(id, body, attempt.key);
       if (response.accepted !== true) throw new Error('运行时未确认接收，请检查会话后重试。');
       pending.delete(id);
@@ -491,14 +503,14 @@ export function createController({ api, draftStorage, logger = safeLog, makeID =
           logger('accepted_initial_draft_cleared');
         }
       }
-      if (ticket === generation) {
-        if (state.draft === text) state.draft = '';
-        state.attachments = []; state.tabbitTabs = []; saveDraft(); await refresh();
+      if (state.route.sessionId === id) {
+        Object.assign(state, acceptedDraft(draftState())); saveDraft(); await refresh();
       } else {
-        const saved = readDraft(id); if (saved?.draft === text) putDraft(id, { ...saved, draft: '', attachments: [], tabbitTabs: [] });
+        const saved = readDraft(id); if (saved) putDraft(id, acceptedDraft(saved));
       }
-    } catch (error) { if (ticket === generation) fail(error); }
-    finally { if (ticket === generation) { state.busy = false; emit(); } }
+      logger('submitted_materials_accepted');
+    } catch (error) { logger('message_submit_failed'); if (ticket === generation) fail(error); }
+    finally { sendingSessions.delete(id); if (ticket === generation) { state.busy = false; emit(); } }
   }
   async function action(operation, { refreshAfter = true } = {}) {
     if (state.busy || state.stopping) return null;

@@ -1,5 +1,7 @@
 # Research Web DataHub
 
+原生日程动作复用的DataHub内部桥只补充Automation稳定拒绝码白名单；具体拒绝原因可被模型识别，错误message/detail与未知、超界响应仍不透传。全文会话搜索走DSH既有session.search，不通过DataHub注册新来源或复制聊天正文。
+
 Broker在没有已适配的候选来源时返回`data_capability_not_integrated`，已适配但配置/依赖/授权/健康条件未满足时返回`data_capability_unavailable`，均为503；非法来源或参数保留原校验。模型工具说明要求说明缺口，不能通过改写同一查询重复尝试，也不授予其他工具或供应商权限。当前`search_web`的Tavily/Bing绑定仍未完成适配；本轮未接入新供应商，不把已注册称为可调用。
 
 原生桥的 manifest 摘要保留 query/provider_query/coverage，便于核对标的、日期与统计范围；行数及哈希一致不能证明单一证券等于市场汇总。工具注册描述明确来源须逐次验证。Wind index_data 的 quotes 是当前快照，不接受历史 date；错误不静默改写，桥接仅返回受限业务代码。

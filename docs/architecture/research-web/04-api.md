@@ -5,6 +5,9 @@
 显式启用 resident 后，维护期间用户写请求返回 503 `deployment_busy` / Retry-After=5；
 已认证 internal callbacks 继续原认证，不被维护栅栏阻塞。默认未启用时行为不变。
 
+POST `/api/research/sessions/search` 使用严格JSON `{query,mode?}` 进行只读原生全文搜索；查询不放入URL，避免出现在正常访问日志。query trim后1–500 UTF-16单元，无NUL/孤立代理；mode可选。通过既有私有 session.search RPC返回最多20项{id,title,mode,snippet}、has_more和source=native_dsh，过滤未知/未成功创建/已删除/模式不符会话；标题缺失或无效时返回“未命名会话”。无原生支持时明确503，不降级伪称正文成功；不提供cursor、角色筛选或命中消息ID。
+
+既有 POST `/api/research/internal/data/automation-action` 的run接受绑定真实任务名/精确ID的有限明确长句及可选版本；没有新增请求字段。旧版本409 automation_version_conflict，含混/否定/条件/引用仍拒绝。Runtime仅保留8个既有Automation稳定拒绝码，继续丢弃message/detail、未知或非法码、非JSON、超过4KiB及重定向响应，不自动重试。
 
 `GET /` 接受用户触发的跨站顶层文档导航（navigate/document/?1，Origin 缺失或同源）。
 例外只返回静态应用壳；`/api/research/**`、静态资源和其他路径不继承此入口例外。
