@@ -70,7 +70,7 @@
 
 @media (max-width: 1050px) { #app > .app-shell.navigation-open:not(:has(.codex-sidebar)) .navigation-column { width: 68px; } }
 
-.nav-section-toggle { display: flex; align-items: center; justify-content: space-between; gap: 7px; min-width: 0; flex: 1; min-height: 28px; margin: -3px 0 -3px -4px; padding: 3px 4px; border: 0; border-radius: 5px; background: transparent; color: var(--muted); text-align: left; font-size: 12px; cursor: pointer; }
+.nav-section-toggle { display: flex; align-items: center; justify-content: flex-start; gap: 7px; min-width: 0; flex: 1; min-height: 28px; margin: -3px 0 -3px -4px; padding: 3px 4px; border: 0; border-radius: 5px; background: transparent; color: var(--muted); text-align: left; font-size: 12px; cursor: pointer; }
 .nav-section-toggle:hover { background: var(--hover); color: var(--text); }
 .nav-section-chevron { display: flex; opacity: .55; }
 .codex-sidebar .nav-section-chevron .ui-icon { width: 10px; height: 10px; transform: rotate(-90deg); }
