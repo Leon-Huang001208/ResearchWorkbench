@@ -2,6 +2,10 @@
 
 工程资源收尾不是研究执行状态。交付入口确认候选合并及CI通过后才归档任务日志、回收依赖/退休测试对象和缓存，再走原Git安全清理；资源blocked不改变研究会话成功/失败或触发重试模型。复制失败保留证据原件，重放须逐文件验证；状态与证据保存在common Git私有目录，任务worktree删除后仍可审查。
 
+Native 私网 HTTPS opt-in 只改变浏览器到 Host 的精确 origin 准入；内部 DSH RPC、
+DataHub 认证、会话协议、SSE 流与研究预算保持原实现。不因 HTTP/TLS 连通宣称模型
+推理或流式输出已验收；跨设备与真实任务证据单独记录。
+
 周期简报的一次性Word子执行是既有report_documents投影，不进入DSH session.prompt。
 其固定执行身份绑定periodic run与brief hash，先存不可变原件/回执，再条件提交任务完成。
 正式研究的run/session/deliveryKey映射保持；报告可用与研究failed仍分开，不追加模型预算。

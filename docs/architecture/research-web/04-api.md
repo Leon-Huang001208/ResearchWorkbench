@@ -1,5 +1,10 @@
 # Research Web 接口清单
 
+`GET /api/research/runtime` 新增只读 `web_access: {mode, origin}`，mode 为 `loopback`
+或 `tailscale`；默认 origin 为 null，启用后为操作员指定的精确 HTTPS origin。
+Native Doctor 同名投影取运行中 Host，未就绪或旧 Host 无此字段时为 `unknown`/null；
+不表示 Serve、远端设备或真实研究已验证。启动配置与安全边界见安装文档及安全清单。
+
 `GET /api/research/hot/periodic/runs/{run_id}/report`下载PG中已保存的一次性Word子执行。
 固定run ID沿reader签名分块读取，Host核对完整hash/长度/身份；GET不渲染、不启动研究，
 响应带X-Hot-Execution-Id、X-Hot-Content-Hash和X-Hot-Artifact-Hash。
