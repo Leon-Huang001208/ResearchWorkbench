@@ -743,6 +743,7 @@ test('real retry events preserve drafts and never send behind task, delivery, or
       ['delivery-pending', { delivery: { status: 'pending' } }, { connected: true }],
       ['admission-unknown', { delivery: { status: 'admission_unknown' } }, { connected: true }],
       ['cancel-unconfirmed', { can_cancel: true }, { connected: true }],
+      ['stop-status-unknown', { mode: 'claw', status: 'idle', can_recheck_stop: true }, { connected: true }],
       ['runtime-offline', {}, { connected: false }],
       ['runtime-unconfigured', {}, { connected: true, credential_configured: false }],
       ['ready-with-draft', {}, { connected: true }],
@@ -754,7 +755,7 @@ test('real retry events preserve drafts and never send behind task, delivery, or
       const detail = { id: 'retry-session', mode: 'fingpt', status: 'completed', messages: [{ id: 'u', role: 'user', text: '旧问题', seq: 1 }, { id: 'a', role: 'assistant', text: '既有正文', seq: 2 }], ...extra };
       Object.defineProperty(globalThis, 'document', { configurable: true, value: { querySelector: key => selectors[key] || null, getElementById: () => null, activeElement: null, title: '' } });
       Object.defineProperty(globalThis, 'window', { configurable: true, value: { matchMedia: () => ({ matches: false }), addEventListener() {} } });
-      Object.defineProperty(globalThis, 'location', { configurable: true, value: { hash: '#/fingpt?session=retry-session' } });
+      Object.defineProperty(globalThis, 'location', { configurable: true, value: { hash: `#/${detail.mode}?session=retry-session` } });
       Object.defineProperty(globalThis, 'history', { configurable: true, value: { pushState() {} } });
       Object.defineProperty(globalThis, 'EventSource', { configurable: true, value: class { addEventListener() {} close() {} } });
       Object.defineProperty(globalThis, 'fetch', { configurable: true, value: async (url, options) => {
@@ -769,7 +770,12 @@ test('real retry events preserve drafts and never send behind task, delivery, or
       assert.equal(calls.filter(([, method]) => method !== 'GET').length, name === 'ready-empty' ? 1 : 0, name);
       if (name !== 'ready-empty') {
         assert.match(rootElement.innerHTML, /保留现有草稿/, name);
-        assert.match(rootElement.innerHTML, /data-retry-round="u"[^>]*disabled/, name);
+        if (name === 'stop-status-unknown') {
+          assert.match(rootElement.innerHTML, /data-claw-answer-action="retry"[^>]*disabled/);
+          await handlers.get('submit')({ preventDefault() {}, target: { id: 'composer', dataset: {}, matches: () => false } });
+          assert.equal(calls.filter(([, method]) => method !== 'GET').length, 0, 'unknown stop must block native form submission');
+          assert.match(rootElement.innerHTML, /保留现有草稿/);
+        } else assert.match(rootElement.innerHTML, /data-retry-round="u"[^>]*disabled/, name);
         if (name === 'ready-with-draft') {
           await handlers.get('submit')({ preventDefault() {}, target: { id: 'composer', dataset: {}, matches: () => false } });
           assert.equal(calls.filter(([, method]) => method !== 'GET').length, 1, 'ordinary send still accepts the current draft');
