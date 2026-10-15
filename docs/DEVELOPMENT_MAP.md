@@ -1,5 +1,9 @@
 # Research Workbench Development Map
 
+`main.py:local_boundary` 的 `entry_navigation` 仅允许用户触发的根路径 GET 顶层文档导航。
+`test_api.py` 的 `clicked_entry` 覆盖本机/私网链接、哈希路由、API/资源/iframe/Origin
+拒绝及 Host/HTTPS 保留；权威合同见接口清单、安全清单与安装文档。
+
 Native Tailscale 私网 opt-in 在 `main.py:create_app/local_boundary` 校验精确 HTTPS
 origin/Host，`service_manager.py` Doctor 读取运行中 `web_access` 投影。
 近处回归为 `test_api.py` 的 tailscale/invalid_private_origin 与 `test_service_manager.py`

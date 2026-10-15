@@ -791,6 +791,80 @@ def test_tailscale_origin_is_opt_in_and_exact(monkeypatch):
     )
 
 
+@pytest.mark.parametrize("base", ["http://localhost", "https://research.tail123abc.ts.net"])
+@pytest.mark.parametrize("path", ["/", "/#/fingpt", "/#/claw", "/?source=link"])
+def test_clicked_entry_navigation_loads_shell_only(monkeypatch, base, path):
+    monkeypatch.setenv("RESEARCH_WEB_PRIVATE_ORIGIN", "https://research.tail123abc.ts.net")
+    client = TestClient(create_app(), base_url=base)
+    response = client.get(
+        path,
+        headers={
+            "Sec-Fetch-Site": "cross-site",
+            "Sec-Fetch-Mode": "navigate",
+            "Sec-Fetch-Dest": "document",
+            "Sec-Fetch-User": "?1",
+            "Referer": "https://external.example/article",
+        },
+    )
+    assert response.status_code == 200
+    assert 'src="/static/app.mjs"' in response.text
+    assert "frame-ancestors 'none'" in response.headers["content-security-policy"]
+    assert response.headers["cache-control"] == "no-store"
+    assert "access-control-allow-origin" not in response.headers
+
+
+@pytest.mark.parametrize(
+    "method,path,override",
+    [
+        ("POST", "/", {}),
+        ("GET", "/api/research/runtime", {}),
+        ("POST", "/api/research/sessions", {}),
+        ("GET", "/static/app.mjs", {}),
+        ("GET", "/", {"Sec-Fetch-Mode": "cors"}),
+        ("GET", "/", {"Sec-Fetch-Mode": "no-cors", "Sec-Fetch-Dest": "empty"}),
+        ("GET", "/", {"Sec-Fetch-Dest": "iframe"}),
+        ("GET", "/", {"Sec-Fetch-Dest": "frame"}),
+        ("GET", "/", {"Sec-Fetch-User": None}),
+        ("GET", "/", {"Sec-Fetch-User": "?0"}),
+        ("GET", "/", {"Origin": "https://external.example"}),
+        ("GET", "/", {"Origin": "null"}),
+    ],
+)
+def test_clicked_entry_exception_does_not_admit_cross_site_api_or_embedding(
+    monkeypatch, method, path, override
+):
+    monkeypatch.setenv("RESEARCH_WEB_PRIVATE_ORIGIN", "https://research.tail123abc.ts.net")
+    client = TestClient(create_app(), base_url="https://research.tail123abc.ts.net")
+    headers = {
+        "Sec-Fetch-Site": "cross-site",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-User": "?1",
+    }
+    headers.update(override)
+    response = client.request(
+        method, path, headers={k: v for k, v in headers.items() if v is not None}
+    )
+    assert response.status_code == 403
+    assert response.json()["error"]["code"] == "origin_denied"
+
+
+def test_clicked_entry_still_requires_trusted_host_and_https(monkeypatch):
+    monkeypatch.setenv("RESEARCH_WEB_PRIVATE_ORIGIN", "https://research.tail123abc.ts.net")
+    headers = {
+        "Sec-Fetch-Site": "cross-site",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-User": "?1",
+    }
+    for base in (
+        "https://evil.test",
+        "http://research.tail123abc.ts.net",
+        "https://research.tail123abc.ts.net:444",
+    ):
+        assert TestClient(create_app(), base_url=base).get("/", headers=headers).status_code == 400
+
+
 @pytest.mark.parametrize(
     "origin",
     [

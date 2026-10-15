@@ -5,6 +5,7 @@
 Native 可显式将单个 Tailscale Serve HTTPS origin 加入 Host/Origin 精确准入。
 Web/DSH 仍监听原回环端口，无新增产品进程；Serve 由操作员独立配置且仅限 tailnet。
 Doctor 的 web_access 是 Host 已应用配置的投影，不认证隧道或远端设备连通。
+Host 的入口导航例外仅返回原静态首页，不增加运行节点、代理权限或 API 跨站访问。
 
 Hot周期任务在原唯一worker中调用既有报告投影的短时Python子进程，固定模块/解释器、
 有界stdin/输出/取消，无新常驻节点或调度器。产物原件与子执行回执属于Hot PG；Host只读
