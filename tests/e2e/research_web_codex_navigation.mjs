@@ -11,7 +11,9 @@ const output = path.join(root, 'logs/codex-navigation-browser');
 const preview = process.argv.includes('--preview');
 const forwardOnly = process.argv.includes('--focus-forward');
 const submitOnly = process.argv.includes('--focus-submit');
-const receiptName = preview ? 'preview-receipt.json' : submitOnly ? 'submit-receipt.json' : forwardOnly ? 'forward-receipt.json' : 'receipt.json';
+const menusOnly = process.argv.includes('--focus-menus');
+const dialogsOnly = process.argv.includes('--focus-project-dialog');
+const receiptName = preview ? 'preview-receipt.json' : dialogsOnly ? 'project-dialog-receipt.json' : menusOnly ? 'menus-receipt.json' : submitOnly ? 'submit-receipt.json' : forwardOnly ? 'forward-receipt.json' : 'receipt.json';
 const report = { status: 'running', environment: 'isolated Chrome synthetic API; no resident HTTP or model calls', checks: [], failures: [], writes: [], screenshots: [] };
 const modes = ['fingpt', 'claw'];
 const metadata = Object.fromEntries(modes.map(mode => [mode, { mode, revision: 0, pinned: [], project_order: ['default', 'p1', 'p2'] }]));
@@ -22,6 +24,7 @@ const details = Object.fromEntries(sessions.map(s => [s.id, { ...s, messages: [{
 const streams = new Map();
 let failNavigation = 0;
 let failAnswer = false;
+let failProjectCreate = false;
 const send = (response, status, payload) => response.writeHead(status, { 'content-type': 'application/json', 'cache-control': 'no-store' }).end(JSON.stringify(payload));
 const broadcast = id => { for (const response of streams.get(id) || []) response.write(`event: snapshot\ndata: ${JSON.stringify(details[id])}\n\n`); };
 const server = http.createServer(async (request, response) => {
@@ -47,7 +50,7 @@ const server = http.createServer(async (request, response) => {
       }
       if (endpoint === '/projects' || endpoint === '/claw/projects') {
         const mode = url.searchParams.get('mode') || 'claw';
-        if (request.method === 'POST') { const item = { id: `${mode}-created`, name: body.name, archived: false }; projects[mode].push(item); return send(response, 201, item); }
+        if (request.method === 'POST') { if (failProjectCreate) { failProjectCreate = false; return send(response, 500, { error: { code: 'fixture_project_failed', message: '夹具创建失败，请保留草稿重试' } }); } const item = { id: `${mode}-created`, name: body.name, archived: false }; projects[mode].push(item); return send(response, 201, item); }
         return send(response, 200, { items: projects[mode] });
       }
       const projectMatch = endpoint.match(/^\/projects\/([^/]+)$/);
@@ -114,7 +117,99 @@ try {
   const page = await context.newPage();
   page.setDefaultTimeout(5000);
   page.on('pageerror', error => { report.failures.push(`pageerror:${error.message}`); console.log(`PAGEERROR ${error.message}`); });
-  if (submitOnly) {
+  if (dialogsOnly) {
+    for (const theme of ['light', 'dark']) for (const width of [390, 1440]) for (const mode of modes) await check(`${theme}/${width}/${mode}: centered project modal, cancel/Escape, focus trap, failed draft and retry`, async () => {
+      await page.setViewportSize({ width, height: 900 }); await page.goto(`${origin}/#/${mode}`);
+      await page.evaluate(value => { localStorage.setItem('research-web.appearance.v1', value); for (const m of ['claw', 'fingpt']) localStorage.setItem(`research-web.navigation.v1.${m}`, JSON.stringify({ collapsed: false, collapsedSections: [], expanded: [], limit: 10 })); }, theme);
+      await page.reload({ waitUntil: 'domcontentloaded' }); await page.locator('[data-nav-project-create]').waitFor({ state: 'attached' });
+      await page.waitForFunction(value => ['models', 'workspaces', 'report-workflows', `navigation/${value}`].every(endpoint => performance.getEntriesByType('resource').some(entry => entry.name.includes(`/api/research/${endpoint}`))), mode);
+      if (width <= 1050) await page.locator('.topbar .menu-toggle').click();
+      const open = page.locator('[data-nav-project-create]'); const dialog = page.getByRole('dialog', { name: '创建项目', exact: true }); const start = report.writes.length;
+      await open.click(); await dialog.waitFor(); assert.equal(await page.locator('#nav-project-name').evaluate(el => document.activeElement === el), true);
+      assert.equal(await dialog.getAttribute('aria-modal'), 'true'); const bounds = await dialog.boundingBox();
+      assert.ok(Math.abs(bounds.x + bounds.width / 2 - width / 2) <= 1 && Math.abs(bounds.y + bounds.height / 2 - 450) <= 1, JSON.stringify(bounds));
+      assert.ok(bounds.x >= 0 && bounds.x + bounds.width <= width && bounds.y >= 0 && bounds.y + bounds.height <= 900, JSON.stringify(bounds));
+      const controls = dialog.locator('input,button'); await controls.last().focus(); await page.keyboard.press('Tab'); assert.equal(await controls.first().evaluate(el => document.activeElement === el), true);
+      await page.keyboard.press('Shift+Tab'); assert.equal(await controls.last().evaluate(el => document.activeElement === el), true);
+      await page.locator('#nav-project-name').fill('取消草稿'); await dialog.getByRole('button', { name: '取消', exact: true }).click(); assert.equal(await dialog.count(), 0); assert.equal(await open.evaluate(el => document.activeElement === el), true);
+      await open.click(); await page.locator('#nav-project-name').fill('Esc草稿'); await page.keyboard.press('Escape'); assert.equal(await dialog.count(), 0); assert.equal(await open.evaluate(el => document.activeElement === el), true);
+      await open.click(); await dialog.getByRole('button', { name: '关闭创建项目', exact: true }).click(); assert.equal(await dialog.count(), 0); assert.equal(await open.evaluate(el => document.activeElement === el), true); assert.equal(report.writes.length, start);
+      await open.click(); const name = `${mode} ${theme} ${'长标题项目'.repeat(20)}`.slice(0, 120); await page.locator('#nav-project-name').fill(name);
+      assert.equal(await dialog.evaluate(el => el.scrollWidth <= el.clientWidth), true); assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+      await shot(page, `project-dialog-${theme}-${width}-${mode}`);
+      failProjectCreate = true; await dialog.getByRole('button', { name: '创建项目', exact: true }).click(); await dialog.getByRole('alert').waitFor();
+      assert.equal(await page.locator('#nav-project-name').inputValue(), name); assert.equal(await dialog.getByRole('button', { name: '创建项目', exact: true }).isEnabled(), true);
+      await shot(page, `project-dialog-${theme}-${width}-${mode}-failed`);
+      await dialog.getByRole('button', { name: '创建项目', exact: true }).click(); await dialog.waitFor({ state: 'detached' });
+      assert.deepEqual(report.writes.slice(start).map(w => ({ method: w.method, endpoint: w.endpoint, query: w.query, body: w.body })), [0, 1].map(() => ({ method: 'POST', endpoint: '/projects', query: `?mode=${mode}`, body: { name } })));
+    });
+  } else if (menusOnly) {
+    for (const mode of modes) projects[mode].push(...Array.from({ length: 15 }, (_, i) => ({ id: `project-${String(i).padStart(32, '0')}`, name: `${mode} 长项目 ${i} ${'不能把菜单撑出浏览器'.repeat(12)}`, archived: false })));
+    report.menuGeometry = [];
+    for (const theme of ['light', 'dark']) for (const width of [390, 820, 1440]) for (const mode of modes) await check(`${theme}/${width}/${mode}: compact project submenu, keyboard move and scoped state`, async () => {
+      const id = `${mode}-0`; details[id].project_id = 'default'; sessions.find(s => s.id === id).project_id = 'default';
+      await page.setViewportSize({ width, height: 900 }); await page.goto(`${origin}/#/${mode}`);
+      await page.evaluate(value => { localStorage.setItem('research-web.appearance.v1', value); for (const m of ['claw', 'fingpt']) localStorage.setItem(`research-web.navigation.v1.${m}`, JSON.stringify({ collapsed: false, collapsedSections: [], expanded: [], limit: 10 })); }, theme);
+      await page.reload({ waitUntil: 'domcontentloaded' }); await page.locator(`[data-session-menu="${id}"]`).waitFor({ state: 'attached' });
+      await page.waitForFunction(value => ['models', 'workspaces', 'report-workflows', `navigation/${value}`].every(endpoint => performance.getEntriesByType('resource').some(entry => entry.name.includes(`/api/research/${endpoint}`))), mode);
+      await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+      if (width <= 1050) await page.locator('.topbar .menu-toggle').click();
+      const sourceRect = await page.locator(`[data-session-menu="${id}"]`).locator('..').boundingBox();
+      await page.locator(`[data-session-menu="${id}"]`).click(); await page.locator('.session-action-menu').waitFor();
+      const parentRect = await page.locator('.session-action-menu').boundingBox();
+      assert.ok(parentRect.x >= sourceRect.x + sourceRect.width || parentRect.x + parentRect.width <= sourceRect.x || parentRect.y >= sourceRect.y + sourceRect.height || parentRect.y + parentRect.height <= sourceRect.y, JSON.stringify({ sourceRect, parentRect }));
+      if (width >= 820) assert.ok(parentRect.x >= sourceRect.x + sourceRect.width, 'roomy viewport puts menu right of source row');
+      assert.equal(await page.locator(`[data-menu-delete="${id}"]`).isDisabled(), true, 'running session remains protected');
+      const move = page.locator(`[data-nav-move-menu="${id}"]`); await move.hover();
+      const submenu = page.getByRole('menu', { name: '选择项目', exact: true }); await submenu.waitFor();
+      await submenu.locator('[data-nav-move-target="default"]').hover(); await page.waitForTimeout(260); assert.equal(await submenu.isVisible(), true, 'crossing parent-child gap retains menu');
+      await page.mouse.move(width - 2, 2); await submenu.waitFor({ state: 'detached' }); assert.equal(await page.locator('.session-action-menu').isVisible(), true);
+      await move.focus(); await move.press('ArrowRight'); await submenu.waitFor();
+      assert.equal(await submenu.locator('.session-project-menu-header').count(), 0);
+      assert.equal(await submenu.locator('select, option').count(), 0);
+      assert.equal(await submenu.locator('[role="menuitemradio"][aria-checked="true"]').count(), 1);
+      assert.equal(await submenu.locator('[data-nav-move-target="default"]').getAttribute('aria-checked'), 'true');
+      assert.equal(await submenu.locator('[data-nav-move-target="default"] svg').count(), 2);
+      const boxes = await page.evaluate(() => [...document.querySelectorAll('.session-action-menu, .session-project-menu')].map(el => { const r = el.getBoundingClientRect(); return { width: r.width, height: r.height, left: r.left, right: r.right, top: r.top, bottom: r.bottom, viewport: innerWidth }; }));
+      for (const box of boxes) { assert.ok(box.left >= 0 && box.right <= width && box.top >= 0 && box.bottom <= 900, JSON.stringify(box)); assert.ok(box.width <= 232, JSON.stringify(box)); }
+      assert.equal(Math.round(boxes[0].width), 208); assert.equal(Math.round(boxes[1].width), 232);
+      const long = submenu.locator('[data-nav-move-target="p1"]');
+      assert.equal(await long.getAttribute('title'), projects[mode].find(p => p.id === 'p1').name);
+      const clipped = await long.locator('.conversation-menu-label').evaluate(el => ({ ellipsis: getComputedStyle(el).textOverflow, whiteSpace: getComputedStyle(el).whiteSpace, truncated: el.scrollWidth > el.clientWidth }));
+      assert.deepEqual(clipped, { ellipsis: 'ellipsis', whiteSpace: 'nowrap', truncated: true });
+      await submenu.locator('.session-project-menu-list').evaluate(el => { el.scrollTop = 90; });
+      await page.evaluate(() => new Promise(resolve => requestAnimationFrame(resolve)));
+      assert.equal(await submenu.isVisible(), true, 'menu scrolling must retain nested menu');
+      await page.keyboard.press('End'); assert.equal(await page.evaluate(() => document.activeElement.dataset.navMoveTarget), 'project-00000000000000000000000000000014');
+      const keyboardBounds = await page.evaluate(() => { const selected = document.activeElement.getBoundingClientRect(); const list = document.querySelector('.session-project-menu-list').getBoundingClientRect(); return { selectedTop: selected.top, selectedBottom: selected.bottom, listTop: list.top, listBottom: list.bottom }; });
+      await check(`${theme}/${width}/${mode}: End keeps focused project visible`, async () => { assert.ok(keyboardBounds.selectedTop >= keyboardBounds.listTop - .5 && keyboardBounds.selectedBottom <= keyboardBounds.listBottom + .5, JSON.stringify(keyboardBounds)); });
+      await page.keyboard.press('ArrowUp'); assert.equal(await page.evaluate(() => document.activeElement.dataset.navMoveTarget), 'project-00000000000000000000000000000013');
+      await page.keyboard.press('Home'); assert.equal(await page.evaluate(() => document.activeElement.dataset.navMoveTarget), 'default');
+      await page.keyboard.press('ArrowDown'); assert.equal(await page.evaluate(() => document.activeElement.dataset.navMoveTarget), 'p1');
+      await page.keyboard.press('ArrowLeft'); assert.equal(await submenu.count(), 0); assert.equal(await page.locator('.session-action-menu').isVisible(), true);
+      assert.equal(await move.evaluate(el => document.activeElement === el), true);
+      await move.press('ArrowRight'); await page.keyboard.press('Escape'); assert.equal(await submenu.count(), 0); assert.equal(await page.locator('.session-action-menu').isVisible(), true);
+      if (width <= 1050) assert.equal(await page.locator('.app-shell.navigation-open').count(), 1);
+      await move.press('ArrowRight'); await submenu.locator('.session-project-menu-list').evaluate(el => { el.scrollTop = 0; });
+      await shot(page, `menus-${theme}-${width}-${mode}`); report.menuGeometry.push({ theme, width, mode, boxes, clipped });
+      await page.keyboard.press('Home'); await page.keyboard.press('ArrowDown');
+      assert.equal(await page.evaluate(() => document.activeElement.dataset.navMoveTarget), 'p1');
+      const other = mode === 'fingpt' ? 'claw' : 'fingpt'; const untouched = sessions.find(s => s.id === `${other}-0`).project_id; const start = report.writes.length;
+      await Promise.all([page.waitForResponse(r => r.request().method() === 'PUT' && r.url().includes(`/sessions/${id}/project`)), page.keyboard.press('Enter')]);
+      await page.waitForFunction(value => !document.querySelector('.session-action-menu') && document.activeElement?.dataset.sessionMenu === value, id);
+      assert.deepEqual(report.writes.slice(start).map(w => ({ method: w.method, endpoint: w.endpoint, body: w.body })), [{ method: 'PUT', endpoint: `/sessions/${id}/project`, body: { project_id: 'p1' } }]);
+      assert.equal(sessions.find(s => s.id === `${other}-0`).project_id, untouched);
+      await page.locator(`[data-session-menu="${id}"]`).click(); await page.keyboard.press('Escape'); assert.equal(await page.locator('.session-action-menu').count(), 0);
+      assert.equal(await page.locator(`[data-session-menu="${id}"]`).evaluate(el => document.activeElement === el), true);
+      if (width <= 1050) assert.equal(await page.locator('.app-shell.navigation-open').count(), 1);
+      await page.locator('[data-nav-project-menu="p1"]').click(); const projectMenu = page.getByRole('menu', { name: '项目操作', exact: true }); await projectMenu.waitFor();
+      const rect = await projectMenu.boundingBox(); assert.equal(Math.round(rect.width), 208); assert.ok(rect.x >= 0 && rect.x + rect.width <= width && rect.y + rect.height <= 900);
+      await page.keyboard.press('End'); assert.equal(await page.evaluate(() => document.activeElement.dataset.navProjectArchive), 'p1');
+      await page.keyboard.press('Home'); assert.equal(await page.evaluate(() => document.activeElement.dataset.navPin), 'project');
+      await shot(page, `project-menu-${theme}-${width}-${mode}`);
+      await page.keyboard.press('Escape'); assert.equal(await projectMenu.count(), 0); assert.equal(await page.locator('[data-nav-project-menu="p1"]').evaluate(el => document.activeElement === el), true);
+    });
+  } else if (submitOnly) {
     report.contrast = [];
     for (const theme of ['light', 'dark']) for (const mode of modes) for (const width of [1440, 390]) await check(`${theme}/${mode}/${width}: last question submit contrast, visibility and send guard`, async () => {
       await page.setViewportSize({ width, height: 900 }); await page.goto(`${origin}/#/${mode}?session=${mode}-0`);
@@ -283,7 +378,7 @@ try {
   await check('project create and session move', async () => {
     await page.locator('[data-nav-project-create]').click(); await page.locator('#nav-project-name').fill('浏览器新项目'); await page.locator('[data-nav-project-form] [type=submit]').click();
     await page.locator('[data-nav-project-toggle="fingpt-created"]').waitFor();
-    await sessionMenu('fingpt-2'); await page.locator('[data-nav-move-session]').selectOption('fingpt-created');
+    await sessionMenu('fingpt-2'); await page.locator('[data-nav-move-menu="fingpt-2"]').click(); await page.locator('[data-nav-move-target="fingpt-created"]').click();
     await page.waitForResponse(r => r.url().includes('/navigation/fingpt') && r.request().method() === 'GET');
     assert.equal(sessions.find(s => s.id === 'fingpt-2').project_id, 'fingpt-created');
   });

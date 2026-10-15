@@ -130,6 +130,7 @@
         "tests/javascript/research_web_hot_reader.test.mjs",
         "tests/javascript/research_web_claw_workspace.test.mjs",
         "tests/javascript/research_web_navigation.test.mjs",
+        "tests/javascript/research_web_navigation_menus.test.mjs",
         "tests/javascript/research_web_questionnaire.test.mjs",
         "tests/e2e/research_web_codex_navigation.mjs"
       ]

@@ -50,9 +50,6 @@
 .nav-project-menu { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px; padding: 6px; margin: 3px 2px 6px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
 .nav-project-menu button, .nav-project-menu a { min-height: 30px; padding: 5px; border: 0; border-radius: 5px; background: transparent; color: var(--text); text-align: left; font-size: 12px; }
 .nav-project-menu button:hover, .nav-project-menu a:hover { background: var(--hover); }
-.nav-project-editor { display: grid; gap: 6px; padding: 8px; margin-bottom: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
-.nav-project-editor input { width: 100%; }
-.nav-project-editor > div { display: flex; gap: 8px; }
 .nav-show-more { margin: 4px 8px; font-size: 12px; color: var(--muted); }
 .session-action-menu .nav-menu-select { display: grid; gap: 4px; padding: 6px 9px; font-size: 12px; color: var(--muted); }
 .session-action-menu .nav-menu-select select { max-width: 100%; font-size: 12px; }
@@ -82,3 +79,19 @@
 .codex-sidebar .nav-section-chevron .ui-icon, .codex-sidebar .nav-chevron .ui-icon, .nav-mode-menu > summary > .ui-icon { width: 14px; height: 14px; min-width: 14px; min-height: 14px; flex: 0 0 14px; }
 
 .codex-sidebar .recent-item > .session-row-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Project creation shares the centered, quiet dialog surface in both modes. */
+.nav-project-backdrop { position: fixed; inset: 0; z-index: 120; display: grid; place-items: center; padding: 20px; background: rgb(0 0 0 / 24%); }
+.nav-project-dialog { width: min(520px, 100%); max-height: calc(100dvh - 40px); overflow: auto; display: grid; gap: 18px; margin: 0; padding: 20px; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); color: var(--text); box-shadow: 0 12px 45px rgb(0 0 0 / 14%); }
+.nav-project-dialog header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.nav-project-dialog h2 { margin: 0; font-size: 20px; line-height: 1.4; font-weight: 600; }
+.nav-project-dialog header .icon-button { width: 28px; min-height: 28px; padding: 6px; background: transparent; border: 0; color: var(--muted); }
+.nav-project-name-field { display: flex; align-items: center; gap: 12px; border: 1px solid var(--line); border-radius: 12px; padding: 0 12px; min-width: 0; }
+.nav-project-name-field:focus-within { border-color: var(--focus); box-shadow: 0 0 0 1px var(--focus); }
+.nav-project-name-field > .ui-icon { width: 16px; height: 16px; flex: 0 0 16px; }
+.nav-project-name-field input { flex: 1; width: 0; min-width: 0; min-height: 40px; padding: 10px 0; border: 0; border-radius: 0; background: transparent; color: var(--text); box-shadow: none; outline: none; }
+.nav-project-dialog footer { display: flex; justify-content: flex-end; align-items: center; gap: 18px; margin-top: 46px; }
+.nav-project-dialog footer button { min-height: 34px; font-size: 13px; }
+.nav-project-dialog footer .text-button { color: var(--muted); background: transparent; }
+.nav-project-dialog footer .primary { padding: 7px 18px; border-radius: 10px; background: var(--text); color: var(--canvas); border-color: var(--text); }
+@media (max-width: 600px) { .nav-project-dialog { padding: 20px; } .nav-project-dialog button, .nav-project-dialog footer button { min-height: 44px; } }

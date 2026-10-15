@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createConversationNavigation, readNavigationView, saveNavigationView, moveNavigationItem } from '../../app/research_web/ui/conversation-navigation.mjs';
+import { createConversationNavigation, renderProjectEditor, readNavigationView, saveNavigationView, moveNavigationItem } from '../../app/research_web/ui/conversation-navigation.mjs';
 import { renderSidebar } from '../../app/research_web/ui/shell.mjs';
 
 const metadata = mode => ({ mode, revision: 1, pinned: [], project_order: [] });
@@ -86,4 +86,23 @@ test('recent conversation rows omit leading dot markers without discarding nativ
   assert.doesNotMatch(running, /tiny-dot/);
   assert.match(running, /title="运行会话 · 运行中"/);
   assert.match(running, /class="sr-only" role="status" aria-label="运行中"/);
+});
+
+
+test('project editor is a centered accessible create and rename dialog with safe drafts and busy errors', () => {
+  assert.equal(renderProjectEditor({ editor: null }), '');
+  const creating = renderProjectEditor({ editor: { name: '<草稿>' }, busy: false, error: '' });
+  assert.match(creating, /role="dialog" aria-modal="true" aria-labelledby="nav-project-heading"/);
+  assert.match(creating, /创建项目/);
+  assert.match(creating, /value="&lt;草稿&gt;"/);
+  assert.match(creating, /data-nav-editor-close aria-label="关闭创建项目"/);
+  assert.doesNotMatch(creating, /type="file"|添加文件夹/);
+  const failed = renderProjectEditor({ editor: { id: 'p1', name: '保留的项目名' }, error: '<保存失败>', busy: false });
+  assert.match(failed, /重命名项目/);
+  assert.match(failed, /role="alert">&lt;保存失败&gt;/);
+  assert.match(failed, /value="保留的项目名"/);
+  const busy = renderProjectEditor({ editor: { name: '项目' }, busy: true });
+  assert.match(busy, /aria-busy="true"/);
+  assert.match(busy, /正在保存…/);
+  assert.equal((busy.match(/disabled/g) || []).length, 4);
 });

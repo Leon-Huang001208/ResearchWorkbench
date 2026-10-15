@@ -1,4 +1,5 @@
-import { createConversationNavigation } from './conversation-navigation.mjs';
+import { renderSessionMenu, projectMenuPosition, sessionMenuPosition } from './conversation-menus.mjs';
+import { createConversationNavigation, renderProjectEditor } from './conversation-navigation.mjs';
 import { captureQuestionForm, actionQuestion, collectQuestionGroup, questionStateKey } from './questionnaire.mjs';
 import { createAPI, createController, prepareClawExampleDraft, parseRoute, legacyRouteTarget, isRunning, safeLog, collectQuestionAnswers, reconcileSessionSummary, waitForDataProbe, waitForIntegrationBatch, waitForLocalIntegrationProbe, waitForLocalIntegrationVerification } from './core.mjs';
 import { escapeHTML as e } from './markdown.mjs';
@@ -414,9 +415,17 @@ function sidebar() {
   return renderSidebar({ page: state.route.page, sessionId: state.route.sessionId, sessions: catalog.sessions, workspaces: catalog.workspaces, selectedWorkspace, collapsed: sidebarCollapsed, mobileOpen: sidebarOpen, detail: state.detail, clawSidebarView, projects: clawWorkspace.projects, navigation: conversationNavigation.state(state.route.page), openMenuId: sessionMenu?.id });
 }
 
+function closeProjectEditor() {
+  const nav = conversationNavigation.state(state.route.page);
+  if (!nav?.editor || nav.busy) return;
+  const id = nav.editor.id; nav.editor = null; render();
+  const trigger = id ? [...root.querySelectorAll('[data-nav-project-menu]')].find(node => node.dataset.navProjectMenu === id) : root.querySelector('[data-nav-project-create]');
+  trigger?.focus({ preventScroll: true });
+}
+
 function sessionActionsLayer() {
   const menuSession = sessionMenu ? catalog.sessions.find(item => item.id === sessionMenu.id) : null;
-  const menu = menuSession ? `<div class="session-action-menu" role="menu" aria-label="会话操作" style="--menu-top:${sessionMenu.top}px;--menu-left:${sessionMenu.left}px"><button type="button" role="menuitem" data-menu-rename="${e(menuSession.id)}">${icon('rename')}<span>重命名</span></button><button type="button" role="menuitem" class="danger-item" data-menu-delete="${e(menuSession.id)}" ${isRunning(menuSession.status) ? 'disabled aria-describedby="session-delete-reason"' : ''}>${icon('trash')}<span>删除</span></button>${(() => { const nav = conversationNavigation.state(menuSession.mode); const pinned = nav?.metadata.pinned.some(p => p.kind === 'session' && p.id === menuSession.id); return nav ? `<button type="button" role="menuitem" data-nav-pin="session" data-nav-id="${e(menuSession.id)}" ${nav.busy || !nav.loaded ? 'disabled' : ''}>${pinned ? '取消置顶' : '置顶'}</button>${pinned ? `<button type="button" role="menuitem" data-nav-order="-1" data-nav-group="pinned" data-nav-entity="session" data-nav-id="${e(menuSession.id)}">上移</button><button type="button" role="menuitem" data-nav-order="1" data-nav-group="pinned" data-nav-entity="session" data-nav-id="${e(menuSession.id)}">下移</button>` : ''}<label class="nav-menu-select">移动到项目<select data-nav-move-session="${e(menuSession.id)}" ${nav.busy ? 'disabled' : ''}>${nav.projects.filter(p => !p.archived).map(p => `<option value="${e(p.id)}" ${(menuSession.project_id || 'default') === p.id ? 'selected' : ''}>${e(p.name)}</option>`).join('')}</select></label>` : ''; })()}${isRunning(menuSession.status) ? '<p id="session-delete-reason" class="menu-reason">任务运行或等待处理时不能删除</p>' : ''}</div>` : '';
+  const menu = menuSession ? renderSessionMenu({ session: menuSession, position: sessionMenu, navigation: conversationNavigation.state(menuSession.mode), move: sessionMenu.move || null }) : '';
   const dialog = renameSession
     ? renderRename(renameDraft || '', sessionActionError, sessionActionBusy)
     : deleteSession
@@ -424,7 +433,7 @@ function sessionActionsLayer() {
       : purgeSession
         ? renderPurgeConfirm(purgeSession, sessionActionError, sessionActionBusy)
         : '';
-  return menu + dialog;
+  return menu + dialog + renderProjectEditor(conversationNavigation.state(state.route.page));
 }
 
 function primaryRail() {
@@ -439,6 +448,50 @@ function primaryRail() {
 function contextPanel() {
   return renderContextPanel({ detail: state.detail, selectedTab: contextTab, researchStage, mobileOpen: contextOpen, selectedPreview, busy: state.busy, workflow: state.detail?.capability ? workflowVersions.get(`${state.detail.capability.id}:${state.detail.capability.version}`) : null });
 }
+
+let projectMenuOpenTimer = null;
+let projectMenuCloseTimer = null;
+function cancelProjectMenuTimers() { clearTimeout(projectMenuOpenTimer); clearTimeout(projectMenuCloseTimer); }
+function paintSessionMenu({ focusProjects = false, focusParent = false } = {}) {
+  const old = root.querySelector('.session-action-menu');
+  const session = catalog.sessions.find(row => row.id === sessionMenu?.id);
+  if (!old || !session || !sessionMenu) return;
+  const active = document.activeElement; const hadFocus = old.contains(active);
+  const identity = Object.entries(active?.dataset || {});
+  const holder = document.createElement('div');
+  holder.innerHTML = renderSessionMenu({ session, position: sessionMenu, navigation: conversationNavigation.state(session.mode), move: sessionMenu.move || null });
+  old.replaceWith(holder.firstElementChild);
+  const menu = root.querySelector('.session-action-menu');
+  if (focusProjects) menu.querySelector('.session-project-menu [role="menuitemradio"]')?.focus({ preventScroll: true });
+  else if (focusParent) menu.querySelector('[data-nav-move-menu]')?.focus({ preventScroll: true });
+  else if (hadFocus) ([...menu.querySelectorAll('button,a')].find(node => identity.length && identity.every(([key, value]) => node.dataset[key] === value)) || menu.querySelector('[data-nav-move-menu]'))?.focus?.({ preventScroll: true });
+}
+function openProjectMenu(button, focusProjects = false) {
+  if (!sessionMenu || sessionMenu.id !== button.dataset.navMoveMenu || button.disabled) return;
+  cancelProjectMenuTimers();
+  const rect = button.getBoundingClientRect(); const owner = button.closest('.session-action-menu')?.getBoundingClientRect() || rect;
+  sessionMenu.move = projectMenuPosition({ left: owner.left, right: owner.right, top: rect.top }, { width: window.innerWidth, height: window.innerHeight });
+  paintSessionMenu({ focusProjects });
+}
+function deferProjectMenuClose() {
+  clearTimeout(projectMenuCloseTimer); const id = sessionMenu?.id;
+  projectMenuCloseTimer = setTimeout(() => { if (sessionMenu?.id === id && sessionMenu.move) { sessionMenu.move = null; paintSessionMenu(); } }, 220);
+}
+root.addEventListener('pointerover', event => {
+  if (event.pointerType !== 'mouse') return;
+  const child = event.target.closest?.('.session-project-menu');
+  if (child) { cancelProjectMenuTimers(); return; }
+  const button = event.target.closest?.('[data-nav-move-menu]');
+  if (button && sessionMenu?.id === button.dataset.navMoveMenu && !button.disabled) {
+    clearTimeout(projectMenuCloseTimer);
+    if (!sessionMenu.move) { clearTimeout(projectMenuOpenTimer); const id = sessionMenu.id; projectMenuOpenTimer = setTimeout(() => { if (sessionMenu?.id === id && button.isConnected) openProjectMenu(button); }, 120); }
+  } else if (event.target.closest?.('.session-action-menu')) { clearTimeout(projectMenuOpenTimer); if (sessionMenu?.move) deferProjectMenuClose(); }
+});
+root.addEventListener('pointerout', event => {
+  if (event.pointerType !== 'mouse') return;
+  const menu = event.target.closest?.('.session-action-menu');
+  if (menu && !menu.contains(event.relatedTarget)) { clearTimeout(projectMenuOpenTimer); if (sessionMenu?.move) deferProjectMenuClose(); }
+});
 
 let documentEditor = null;
 let composingInput = null;
@@ -1213,6 +1266,8 @@ async function showRoute() {
   if (!requestedMarket) invalidateMCPRequests();
   const ticket = ++pageGeneration; nativeSessionSearch.close(); success = ''; selectedPreview = null; sidebarOpen = false; clawSidebarView = 'sessions'; contextOpen = false; contextTab = 'activity'; researchStage = null; slashOpen = false; slashIndex = 0; tabbitOpen = false; tabbitLoading = false; tabbitIndex = 0; tabbitCandidates = []; tabbitRequest += 1; globalSearch = ''; searchOpen = false; renameDraft = null; renameSession = null; deleteSession = null; purgeSession = null; sessionMenu = null; sessionActionBusy = false; sessionActionError = ''; answerFeedback.clear(); copiedTransient = '';
   if (['claw', 'fingpt'].includes(requestedRoute.page)) sidebarCollapsed = conversationNavigation.state(requestedRoute.page).view.collapsed;
+  if (conversationNavigation.state(requestedRoute.page)) conversationNavigation.state(requestedRoute.page).menu = null;
+  cancelProjectMenuTimers();
   await controller.open(requestedRoute);
   if (ticket !== pageGeneration) return;
   if (state.route.settingsSectionFallback) safeLog('settings_section_fallback');
@@ -1428,6 +1483,40 @@ root.addEventListener('compositionend', event => {
 
 root.addEventListener('keydown', (event) => {
   if (event.isComposing || event.keyCode === 229) return;
+  const projectDialog = event.target.closest?.('.nav-project-dialog');
+  const projectEditorState = conversationNavigation.state(state.route.page);
+  if (projectDialog && projectEditorState?.editor) {
+    if (event.key === 'Escape') { event.preventDefault(); closeProjectEditor(); return; }
+    if (event.key === 'Tab') {
+      const controls = [...projectDialog.querySelectorAll('input:not(:disabled),button:not(:disabled)')];
+      const first = controls[0], last = controls.at(-1);
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+      return;
+    }
+  }
+  const activeMenu = event.target.closest?.('.conversation-action-menu[role="menu"]');
+  if (activeMenu && ['ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) {
+    const choices = [...activeMenu.querySelectorAll('button[role="menuitem"]:not(:disabled),button[role="menuitemradio"]:not(:disabled),a[role="menuitem"]')].filter(node => node.closest('[role="menu"]') === activeMenu);
+    if (choices.length) {
+      event.preventDefault(); const current = choices.indexOf(event.target.closest('button,a'));
+      const next = event.key === 'Home' ? 0 : event.key === 'End' ? choices.length - 1 : (current + (event.key === 'ArrowDown' ? 1 : -1) + choices.length) % choices.length;
+      choices[next].focus({ preventScroll: true }); choices[next].scrollIntoView?.({ block: 'nearest', inline: 'nearest' }); return;
+    }
+  }
+  if (event.key === 'ArrowRight' && event.target.matches?.('[data-nav-move-menu]')) { event.preventDefault(); event.target.click(); return; }
+  if (sessionMenu?.move && ['Escape', 'ArrowLeft'].includes(event.key)) {
+    event.preventDefault(); cancelProjectMenuTimers(); sessionMenu.move = null; paintSessionMenu({ focusParent: true }); return;
+  }
+  const projectMenuState = conversationNavigation.state(state.route.page);
+  if (projectMenuState?.menu && event.key === 'Escape') {
+    event.preventDefault(); const id = projectMenuState.menu; projectMenuState.menu = null; render();
+    [...root.querySelectorAll('[data-nav-project-menu]')].find(node => node.dataset.navProjectMenu === id)?.focus?.({ preventScroll: true }); return;
+  }
+  if (sessionMenu && event.key === 'Escape') {
+    event.preventDefault(); const id = sessionMenu.id; sessionMenu = null; render();
+    [...root.querySelectorAll('[data-session-menu]')].find(node => node.dataset.sessionMenu === id)?.focus?.({ preventScroll: true }); return;
+  }
   const modelMenu = root.querySelector('.composer-model-menu[open]');
   if (event.key === 'Escape' && modelMenu) { event.preventDefault(); modelMenu.open = false; modelMenu.querySelector('summary')?.focus(); return; }
   if (modelMenu && event.target.closest?.('.composer-model-menu') && ['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
@@ -1736,7 +1825,14 @@ root.addEventListener('submit', async (event) => {
   event.preventDefault();
   if(event.target.matches('[data-hot-form]')){await hotController.submit(event.target);return;}
   safeLog('document_form_dispatch', { status: event.target.id === 'document-edit-form' ? 'document' : 'other' });
-  if (event.target.matches('[data-nav-project-form]')) { const mode = state.route.page; const editor = conversationNavigation.state(mode).editor; if (editor) await conversationNavigation.projectSave(mode, String(new FormData(event.target).get('name') || ''), editor.id); return; }
+  if (event.target.matches('[data-nav-project-form]')) {
+    const mode = state.route.page; const editor = conversationNavigation.state(mode).editor;
+    if (editor) {
+      const saved = await conversationNavigation.projectSave(mode, String(new FormData(event.target).get('name') || ''), editor.id);
+      if (saved && state.route.page === mode) root.querySelector('[data-nav-project-create]')?.focus({ preventScroll: true });
+    }
+    return;
+  }
   if (event.target.matches('[data-claw-project-create]')) {
     const name = String(new FormData(event.target).get('name') || '');
     const ticket = pageGeneration;
@@ -2196,6 +2292,7 @@ root.addEventListener('click', async (event) => {
     requestAnimationFrame(() => scrollFrameworkTarget(anchor, matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'));
     return;
   }
+  if (clickTarget?.matches?.('[data-nav-project-backdrop]')) { closeProjectEditor(); return; }
   if (clickTarget?.matches?.('[data-mcp-dialog-backdrop]')) {
     closeMCPServerDialog(); return;
   }
@@ -2206,6 +2303,8 @@ root.addEventListener('click', async (event) => {
     renameDraft = null; renameSession = null; deleteSession = null; purgeSession = null; sessionActionError = ''; render();
     return;
   }
+  const modeMenuState = conversationNavigation.state(state.route.page);
+  if (modeMenuState?.menu && !clickTarget?.closest?.('.nav-project-menu') && !clickTarget?.closest?.('[data-nav-project-menu]')) { modeMenuState.menu = null; render(); }
   if (sessionMenu && !clickTarget?.closest?.('.session-action-menu') && !clickTarget?.closest?.('[data-session-menu]')) {
     sessionMenu = null; render();
   }
@@ -2223,6 +2322,16 @@ root.addEventListener('click', async (event) => {
     const nextForm = [...root.querySelectorAll('[data-question-form]')].find(f => f.dataset.questionForm === question.id);
     nextForm?.querySelector('legend, [data-q-open], textarea')?.focus?.({ preventScroll: true }); return;
   }
+  if (nav && 'navMoveMenu' in data && sessionMenu?.id === data.navMoveMenu) {
+    openProjectMenu(button, true); return;
+  }
+  if (nav && 'navMoveClose' in data && sessionMenu) { sessionMenu.move = null; render(); document.querySelector('[data-nav-move-menu]')?.focus({ preventScroll: true }); return; }
+  if (nav && 'navMoveTarget' in data) {
+    const row = catalog.sessions.find(item => item.id === data.navSession && item.mode === mode);
+    if (!row || sessionMenu?.id !== row.id || !nav.projects.some(item => item.id === data.navMoveTarget && !item.archived)) return;
+    if ((row.project_id || 'default') !== data.navMoveTarget) await conversationNavigation.moveSession(mode, row.id, data.navMoveTarget);
+    sessionMenu = null; render(); [...root.querySelectorAll('[data-session-menu]')].find(node => node.dataset.sessionMenu === row.id)?.focus?.({ preventScroll: true }); return;
+  }
   if (nav && 'navRetry' in data) { await conversationNavigation.load(mode, true); return; }
   if (nav && 'navSection' in data) {
     const sections = new Set(nav.view.collapsedSections || []);
@@ -2234,11 +2343,15 @@ root.addEventListener('click', async (event) => {
     const expanded = new Set(nav.view.expanded); if (expanded.has(data.navProjectToggle)) expanded.delete(data.navProjectToggle); else expanded.add(data.navProjectToggle);
     conversationNavigation.view(mode, { expanded: [...expanded] }); render(); return;
   }
-  if (nav && 'navProjectMenu' in data) { nav.menu = nav.menu === data.navProjectMenu ? null : data.navProjectMenu; render(); return; }
-  if (nav && 'navEditorClose' in data) { nav.editor = null; render(); return; }
+  if (nav && 'navProjectMenu' in data) {
+    nav.menu = nav.menu === data.navProjectMenu ? null : data.navProjectMenu;
+    const rect = button.closest('.nav-project-row')?.getBoundingClientRect() || button.getBoundingClientRect(); nav.menuPosition = sessionMenuPosition(rect, { width: window.innerWidth, height: window.innerHeight });
+    render(); document.querySelector('.nav-project-menu [role="menuitem"]')?.focus({ preventScroll: true }); return;
+  }
+  if (nav && 'navEditorClose' in data) { closeProjectEditor(); return; }
   if (nav && ('navProjectCreate' in data || 'navProjectRename' in data)) {
     const project = nav.projects.find(p => p.id === data.navProjectRename);
-    nav.editor = project ? { id: project.id, name: project.name } : { name: '' }; nav.menu = null; render(); document.querySelector('#nav-project-name')?.focus(); return;
+    nav.editor = project ? { id: project.id, name: project.name } : { name: '' }; nav.error = ''; nav.menu = null; sessionMenu = null; render(); document.querySelector('#nav-project-name')?.focus(); return;
   }
   if (nav && 'navPin' in data) {
     await conversationNavigation.pin(mode, { kind: data.navPin, id: data.navId });
@@ -2527,14 +2640,9 @@ root.addEventListener('click', async (event) => {
   if ('sessionMenu' in data) {
     const id = data.sessionMenu;
     if (sessionMenu?.id === id) { sessionMenu = null; render(); return; }
-    const rect = button.getBoundingClientRect(); const width = 156;
-    const mobile = window.matchMedia('(max-width: 1050px)').matches;
-    const drawerRight = Math.min(window.innerWidth, 68 + 248);
-    const minLeft = mobile ? 76 : 8;
-    const maxLeft = (mobile ? drawerRight : window.innerWidth) - width - 8;
-    const preferredLeft = rect.right + 8;
-    const left = Math.max(minLeft, Math.min(maxLeft, preferredLeft));
-    const top = Math.max(8, Math.min(window.innerHeight - 112, rect.top));
+    cancelProjectMenuTimers();
+    const rect = button.closest('.session-row')?.getBoundingClientRect() || button.getBoundingClientRect();
+    const { left, top } = sessionMenuPosition(rect, { width: window.innerWidth, height: window.innerHeight });
     sessionMenu = { id, left, top }; sessionActionError = ''; render();
     document.querySelector('.session-action-menu [role="menuitem"]')?.focus({ preventScroll: true });
     return;
@@ -3100,12 +3208,13 @@ window.addEventListener('hashchange', () => { clearTimeout(localStatusExpiryTime
 window.addEventListener('visibilitychange', () => {
   if (!document.hidden && state.route.page === 'settings' && currentSettingsSection() === 'local') void loadCatalog(['localIntegrations']);
 }, true);
-window.addEventListener('resize', () => { if (sessionMenu) { sessionMenu = null; render(); } });
+window.addEventListener('resize', () => { const nav = conversationNavigation.state(state.route.page); if (sessionMenu || nav?.menu) { sessionMenu = null; if (nav) nav.menu = null; render(); } });
 window.addEventListener('scroll', event => {
   if (!sessionMenu) return;
   // Rebuilding the sidebar restores its scrollTop asynchronously. That is not
   // a user scroll and must not immediately dismiss the menu just opened.
   const list = event.target;
+  if (list?.closest?.('[role="menu"]')) return;
   const mode = list?.closest?.('[data-nav-mode]')?.dataset.navMode;
   if (list?.matches?.('.nav-scroll') && list.scrollTop === (conversationNavigation.state(mode)?.scrollTop || 0)) return;
   sessionMenu = null; render();
