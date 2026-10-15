@@ -177,7 +177,15 @@ def stage(home: Path, config: dict, target: str, proof: dict) -> dict:
     if manifest.get("code_commit") != previous or manifest.get("status") != "installed":
         raise UpdateBlocked("resident_installation_mismatch")
     clean(project, previous)
-    git(project, "fetch", "--no-auto-maintenance", "origin", "master")
+    # Login jobs do not inherit the interactive SSH agent. This public GitHub
+    # fetch needs no SSH key and does not change the user's origin configuration.
+    git(
+        project,
+        "fetch",
+        "--no-auto-maintenance",
+        f"https://github.com/{config['repository']}.git",
+        "master",
+    )
     if git(project, "rev-parse", "FETCH_HEAD") != target:
         raise UpdateBlocked("resident_master_moved")
     git(project, "merge-base", "--is-ancestor", previous, target)
