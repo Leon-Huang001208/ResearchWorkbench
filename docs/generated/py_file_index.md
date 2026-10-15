@@ -4841,11 +4841,11 @@ Module docstring:
 > Project an authenticated, immutable Hot brief to the existing report DOCX writer.
 
 Imports:
-- `core.observability`
 - `datetime`
 - `hashlib`
 - `io`
 - `json`
+- `logging`
 - `os`
 - `pathlib`
 - `re`

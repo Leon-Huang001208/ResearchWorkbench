@@ -2,6 +2,7 @@
 import io
 import hashlib
 import json
+import logging
 import os
 import re
 import stat
@@ -10,10 +11,9 @@ from datetime import date, datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from core.observability import get_logger
 from .report_documents import build_docx_document
 
-log = get_logger(__name__)
+log = logging.getLogger(__name__)
 
 
 def retain_brief_docx(home: Path, saved: dict, data: bytes) -> Path:

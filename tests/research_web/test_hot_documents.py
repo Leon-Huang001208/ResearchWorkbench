@@ -20,6 +20,19 @@ def saved():
 
 
 class BriefDocxTests(unittest.TestCase):
+    def test_one_shot_projection_does_not_load_legacy_settings_or_model_environment(self):
+        import json
+        import os
+        from pathlib import Path
+        import subprocess
+        import sys
+        code = "import json,sys;sys.modules['core']=None;from app.research_web.hot_periodic_report import render;r=render(json.load(sys.stdin));print(r['state'])"
+        result = subprocess.run([sys.executable, '-c', code], input=json.dumps({"protocol": "rwb-hot-report/v1", "saved": saved()}),
+                                text=True, capture_output=True, timeout=25, cwd=Path(__file__).resolve().parents[2],
+                                env={key: value for key, value in os.environ.items() if key in {"PATH", "HOME", "TMPDIR", "TMP", "TEMP"}})
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout.strip(), 'completed')
+
     def test_one_shot_report_uses_existing_word_mechanism_without_runtime(self):
         import base64
         import hashlib

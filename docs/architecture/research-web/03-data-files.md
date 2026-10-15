@@ -1,5 +1,9 @@
 # DataHub、研究资料与实际文件
 
+Hot Word投影与既有report_documents共用标准日志，导入不初始化旧core.settings或读取
+开发.env，不创建项目根的旧存储目录。单次报告在Docker只读根内仅用内存生成，原件
+由Hot持久表保存；Host明确保留副本时仍只写其受控私有资料根。
+
 AKShare不支持的northbound/money_flow资金口径及index/ETF股票feed快照在选择、缓存和SDK前
 失败关闭，不把个股资金流或股票价格冒充目标数据。fund_flow按日期裁剪再限行数，股票后缀保持。
 Provider semantics revision纳入非秘密授权摘要；旧cache不能复用，新调用可重新取数，历史raw/rows保留。

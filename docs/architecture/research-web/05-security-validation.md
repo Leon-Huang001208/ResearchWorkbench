@@ -1,5 +1,9 @@
 # 安全边界与验证方法
 
+数据型Word子执行不导入会初始化旧设置的日志facade，避免只读镜像根目录写入和开发.env
+读取；沿既有report_documents的标准日志进入父进程日志。隔离进程禁用core模块仍能
+生成并重开Word，这是无旧配置/模型环境依赖的反例测试，不是新增模型验收。
+
 schema21周期报告由唯一Hot任务领取：私有bootstrap选择已安装产品Python，只执行固定
 hot_periodic_report模块，以有界stdin传冻结资料；25秒、SIGKILL/取消与8MiB输出硬门。
 该模块复用brief_docx/report_documents，不加载DSH、读取模型凭据或对外发送。子执行MD/DOCX

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "updated",
-  "summary": "研究情报恢复精度、报告完整核验与周期一次性报告合同同步。",
-  "reason": "公开安装入口保持；schema21需停机setup，Hot唯一调度复用无模型Word投影，旧归档需原库重备份。最新候选重做恢复、Docker、Mac CI，不增加模型预算或删除旧卷/镜像。"
+  "disposition": "reviewed_no_update",
+  "summary": "周期报告数据投影移除旧日志设置副作用。",
+  "reason": "README已说明schema21与无模型单次报告；本修复只纠正只读镜像中的日志依赖，不改变公开命令、预算、配置或部署权限，模块与安全文档同步。"
 }

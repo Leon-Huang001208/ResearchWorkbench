@@ -16,6 +16,12 @@ An empty period stays empty; historical completed runs without a report receipt
 remain explicitly unverified for that additional output. No paid study or external
 delivery is automatically enabled.
 
+The data-only Word projection uses the existing standard report logger. Importing
+the legacy `core.observability` facade would initialize legacy settings and create
+default project directories, which fails in a read-only Docker image and can read a
+development `.env`. The one-shot path does neither; stderr belongs to the bounded
+adapter and parent Hot events are recorded in the managed runtime log.
+
 The product entry is **研究情报**, combining local events and eight existing external
 news columns. Native configuration, signed worker lifecycle, source/channel editing,
 follows, periodic briefs, frozen research handoff and Markdown/DOCX are implemented.
