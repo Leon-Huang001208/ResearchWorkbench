@@ -1375,6 +1375,74 @@ class ResearchService:
         log.info("automation_chat_trial_accepted")
         return self.automations._public(run)
 
+    async def search_sessions(self, query, mode=None):
+        """Project bounded native text matches through this product's session ownership."""
+        if (
+            not isinstance(query, str)
+            or "\x00" in query
+            or any(0xD800 <= ord(char) <= 0xDFFF for char in query)
+            or mode not in (None, "claw", "fingpt")
+        ):
+            raise StoreError("搜索参数无效", "invalid_request", 422)
+        query = query.strip()
+        if not query or len(query.encode("utf-16-le")) // 2 > 500:
+            raise StoreError("搜索内容须为 1–500 个 UTF-16 单元", "invalid_request", 422)
+        await self.ensure_owned()
+        try:
+            response = await self.client.rpc("session.search", {"query": query})
+        except RuntimeFailure:
+            log.warning("research_session_search_unavailable")
+            raise RuntimeFailure(
+                "原生正文搜索不可用，请稍后重试", "session_search_unavailable"
+            ) from None
+
+        def invalid_response():
+            log.warning("research_session_search_invalid_response")
+            raise RuntimeFailure("原生搜索响应格式无效", "session_search_invalid_response")
+
+        if (
+            not isinstance(response, dict)
+            or set(response) != {"items", "hasMore"}
+            or not isinstance(response["items"], list)
+            or len(response["items"]) > 20
+            or type(response["hasMore"]) is not bool
+        ):
+            invalid_response()
+        for item in response["items"]:
+            if (
+                not isinstance(item, dict)
+                or set(item) != {"sessionId", "snippet"}
+                or not isinstance(item["sessionId"], str)
+                or not re.fullmatch(r"[A-Za-z0-9_-]{1,255}", item["sessionId"])
+                or not isinstance(item["snippet"], str)
+                or len(item["snippet"]) > 240
+                or "\x00" in item["snippet"]
+                or any(0xD800 <= ord(char) <= 0xDFFF for char in item["snippet"])
+            ):
+                invalid_response()
+        items = []
+        seen = set()
+        for item in response["items"]:
+            sid = item["sessionId"]
+            row = self.store.data["sessions"].get(sid)
+            if (
+                not isinstance(row, dict)
+                or row.get("created") is not True
+                or row.get("deleted_at") is not None
+                or row.get("mode") not in {"claw", "fingpt"}
+                or (mode is not None and row["mode"] != mode)
+                or sid in seen
+            ):
+                continue
+            seen.add(sid)
+            title = row.get("title")
+            title = title if isinstance(title, str) and title.strip() else "未命名会话"
+            items.append(
+                {"id": sid, "title": title, "mode": row["mode"], "snippet": item["snippet"]}
+            )
+        log.info("research_session_search_completed", count=len(items))
+        return {"items": items, "has_more": response["hasMore"], "source": "native_dsh"}
+
     async def list_sessions(self, view="active"):
         if view not in {"active", "deleted", "all"}:
             raise StoreError("未知的会话列表视图", "invalid_session_view", 422)

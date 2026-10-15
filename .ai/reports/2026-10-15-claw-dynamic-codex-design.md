@@ -8,7 +8,7 @@ Design Read：研究对话；桌面与手机；克制的Codex式操作记录；�
 
 系统：复用canvas/surface/text/muted/line及主题变量，系统字体16px、行高1.65、4/8/16/24间距。工具默认灰色单行与类型图标，hover轻微表面变化，键盘焦点可见；展开后显示实际输入/输出、错误及已知耗时。失败始终有文字标识，不以颜色或工具执行结束冒充成功。无耗时不补造。
 
-相邻原生工具可聚合，遇用户消息、助手说明、提问、确认卡或运行回执立即分组截断，严格保留seq顺序。总括仅展示记录的执行活动，不把工具累计耗时叫真实墙钟或思考时间。未定位活动独立标未知；含混历史不猜测。
+阶段说明与逐步工具按原生seq穿插于可折叠过程分段；遇用户消息、提问、确认卡或运行回执立即截断，最后实际回答留在过程外。总括仅展示记录的执行活动，不把工具累计耗时叫真实墙钟或思考时间。未定位活动独立标未知；含混历史不猜测。
 
 展开状态以会话+活动ID、项目ID等稳定键恢复，重绘保留用户展开与焦点；提问/授权/日程确认不能被默认折叠过程隐藏。FinGPT既有行为不在视觉重做范围。
 
@@ -43,6 +43,18 @@ Runtime此前把具体拒绝码裁掉，只剩“DataHub request failed (HTTP 40
 
 新增问题与回执视觉纠偏：中性选择卡片与原生radio/checkbox、补充输入、已回答可展开回执；仅Claw增强布局，FinGPT仍保留section及原选项。工具小图标黑块是新增SVG缺fill/stroke契约，改为共享icon注册器并补RED→GREEN回归，实际候选computed fill为none、stroke跟随主题。
 
-<!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"仅在既有聊天试跑准入内扩展有界且任务绑定的明确祈使语法，沿原定义版本、权限和幂等Run，不增加接口字段、持久结构或运行节点。","diagrams":[]} -->
+<!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"仅在既有聊天试跑准入内扩展有界且任务绑定的明确祈使语法，沿原定义版本、权限和幂等Run，并复用原生搜索薄代理，不增加持久正文库或运行节点。","diagrams":[]} -->
 <!-- architecture-review {"group":"automations","structure":"unchanged","reason":"继续复用唯一Automation调度及Run快照；修复明确命令被误拒绝，保留原生确认、同任务更新、定义版本和权限拒绝，不新增调度实现。","diagrams":[]} -->
 <!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"固定DSH和内部认证链不变，只在既有受限错误投影白名单加入真实Automation稳定拒绝码，4KiB脱敏与零自动重试不变。","diagrams":[]} -->
+
+
+## 搜索与后续实测补充
+
+发现固定DSH已有session.search，只读请求返回最多20个current用户/助手正文的会话片段和hasMore，没有cursor/messageId。新增严格JSON POST /api/research/sessions/search（避免查询进入访问URL）；固定RPC白名单与原认证保持，owner/created/删除/模式过滤，标题异常fallback，严格响应长度与结构，原生失败明确503。UI串行防抖读、过期响应丢弃、关闭清空、标题/能力合并、明示重试；不伪造分页、角色过滤或精准消息定位。查询和片段不写应用日志，不启动研究或保存第二正文库。
+
+真实候选已完成同任务创建v1→原生澄清修改→确认v2→两次独立手动Run。v1 session d3fb6514-58e8-4adf-9a10-afbdeca5a5f2 原生turn/end seq34 completed，MD3156字节；v2 session 5ceaf8c5-d93c-45a0-8f10-be66c93f0166 原生turn/end seq25 completed，MD3211字节。真实下载hash与交付快照一致，v2含版本2标记；同一任务ID，时间/时区/模型/批准范围/输出格式与next_run_at保持。Run的delivery_status=not_requested指无外发渠道，文件交付另由执行会话delivery.completed证实；二者不混用。全部内容明确行情尚未接入，不作真实收盘研究结论。
+
+用户要求移除中间复制入口：只在每轮最后实际回答保留复制，过程节点无复制按钮，RED→GREEN覆盖。跨1050px实测发现aria展开状态在CSS断点变化后未刷新，补MQL change重绘与焦点交还；现有真实app事件回归先RED后GREEN。全文搜索/问题/侧栏最终浏览器验收待最终候选加载后收口。
+
+<!-- architecture-review {"group":"datahub","structure":"unchanged","reason":"只扩展既有内部日程动作的稳定错误码白名单，不改变DataHub来源、供应商凭据、适配器或集成协调，原脱敏和错误边界保持。","diagrams":[]} -->
+<!-- architecture-review {"group":"verification-workflow","structure":"unchanged","reason":"在既有Research Web Checks清单加入快速正文搜索回归，参考最近五次实际成功耗时，不增加job、runner或自动Windows/Linux dispatch，保留平台验收职责。","diagrams":[]} -->

@@ -138,16 +138,17 @@ export function safeLog(event, metadata = {}) {
 }
 
 export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSourceClass = globalThis.EventSource, logger = safeLog, requestTimeoutMs = 120000 } = {}) {
-  async function request(path, { method = 'GET', body, key, userAction = false } = {}) {
+  async function request(path, { method = 'GET', body, key, userAction = false, readOnly = false } = {}) {
+    const reading = method === 'GET' || readOnly;
     const abort = new AbortController();
     let timer;
     const timeout = new Promise((_, reject) => {
       timer = setTimeout(() => {
         abort.abort();
         logger('request_timeout', { method });
-        const error = new Error(method === 'GET' ? '读取超时，请刷新重试。' : '请求超时，操作结果尚未确认；请核对会话状态。草稿已保留，不会自动重发。');
+        const error = new Error(reading ? '读取超时，请刷新重试。' : '请求超时，操作结果尚未确认；请核对会话状态。草稿已保留，不会自动重发。');
         error.code = 'request_timeout'; reject(error);
-      }, method === 'GET' ? Math.min(requestTimeoutMs, 30000) : requestTimeoutMs);
+      }, reading ? Math.min(requestTimeoutMs, 30000) : requestTimeoutMs);
     });
     try { return await Promise.race([performRequest(path, { method, body, key, userAction, signal: abort.signal }), timeout]); }
     finally { clearTimeout(timer); }
@@ -212,6 +213,7 @@ export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSo
     etfReplay: (body, key) => request('/portfolio-decisions/runs', { method: 'POST', body, key, userAction: true }),
     runtime: () => request('/runtime'), models: () => request('/models'), workspaces: () => request('/workspaces'),
     sessions: (view = 'active') => request(`/sessions?view=${segment(view)}`), skills: () => request('/skills'),
+    searchSessions: (query, mode = 'claw') => request('/sessions/search', { method: 'POST', body: { query, mode }, readOnly: true }),
     documentOperation: (id, body) => request(`${sessionPath(id)}/document-operations`, { method: 'POST', body }),
     capabilities: () => request('/capabilities'), tools: () => request('/tools'),
     mcpRegistries: () => request('/mcp/registries'),

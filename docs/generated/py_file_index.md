@@ -5499,6 +5499,7 @@ Imports:
 
 Classes:
 - `NewSession`
+- `SessionSearch`
 - `TabbitTabRef`
 - `Prompt`
 - `TabbitConfig`
@@ -7242,7 +7243,7 @@ Classes:
   - Enforce Research Store ownership before any session-scoped MCP operation.
   - methods: __init__, __getattr__, start, close, _owned, authorize_session, register_automation_session, read_resource, get_prompt, call_tool, approvals, decide_approval
 - `ResearchService`
-  - methods: __init__, _build_mcp_runtime, ensure_owned, start, close, _retention_loop, notify, _connect, _consume, _interaction_owner, _model_plane, compatible_connection, _require_model_credentials, runtime, configure_model, test_model, create, ensure_hot_session, summary, create_automation_research_session, run_automation_from_chat, list_sessions, soft_delete_session, restore_session, permanent_delete_session, purge_expired_sessions, _model_tools_verified, _task_capabilities, _effective_records, _task_readiness_context, native_admission, _data_query_admission, capability_readiness, detail, _cancel_observation, send, skill_catalog, _capability_idle, _mcp_idle_gate, _restart_mcp_runtime, change_capability, create_capability_session, capability_from_artifact, approve, cancel, _cancel, answer
+  - methods: __init__, _build_mcp_runtime, ensure_owned, start, close, _retention_loop, notify, _connect, _consume, _interaction_owner, _model_plane, compatible_connection, _require_model_credentials, runtime, configure_model, test_model, create, ensure_hot_session, summary, create_automation_research_session, run_automation_from_chat, search_sessions, list_sessions, soft_delete_session, restore_session, permanent_delete_session, purge_expired_sessions, _model_tools_verified, _task_capabilities, _effective_records, _task_readiness_context, native_admission, _data_query_admission, capability_readiness, detail, _cancel_observation, send, skill_catalog, _capability_idle, _mcp_idle_gate, _restart_mcp_runtime, change_capability, create_capability_session, capability_from_artifact, approve, cancel, _cancel, answer
 
 Functions:
 - `_mcp_internal_url`
@@ -7253,6 +7254,8 @@ Functions:
   - Return only the exact execution Run snapshot, never the mutable task.
 - `automation_followup_scope`
   - A continuation keeps the original approved tools and delivery contract.
+- `_explicit_automation_trial`
+  - Accept a bounded imperative grammar, never quoted or inferred permission.
 
 
 ## `app/research_web/service_diagnostics.py`

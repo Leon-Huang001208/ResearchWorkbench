@@ -2,6 +2,8 @@ import { createAPI, createController, prepareClawExampleDraft, parseRoute, legac
 import { escapeHTML as e } from './markdown.mjs';
 import { createDisclosureState } from './disclosures.mjs';
 import { createUploadHandler } from './uploads.mjs';
+import { createSessionSearch } from './session-search.mjs';
+import { downloadAnswer, speakAnswer } from './answer-actions.mjs';
 import { badge, empty, renderConversation, copyResearchText, renderDeleteConfirm, renderHistory, renderPurgeConfirm, renderRename, renderDocumentEditor, documentTargets, documentEditValue, documentCreationPayload } from './views.mjs';
 import { icon } from './icons.mjs';
 import { researchRecipes, renderResearchRecipes } from './research-report.mjs';
@@ -44,6 +46,15 @@ const clawWorkspace = { projects: [], detail: null, busy: false, error: '', newN
 const clawDraftEdits = new Map();
 const root = document.querySelector('#app');
 const disclosureState = createDisclosureState({ logger: safeLog });
+const nativeSessionSearch = createSessionSearch({ search: (query, mode) => api.searchSessions(query, mode), notify: updateGlobalSearchResults, logger: safeLog });
+
+function updateGlobalSearchResults() {
+  const results = document.getElementById('global-search-results');
+  if (!results) return;
+  const focused = results.contains?.(document.activeElement) ? document.activeElement?.dataset?.globalResultKey : null;
+  results.innerHTML = renderGlobalResults(globalSearch, catalog.sessions, searchableCapabilityList(), { native: state.route.page === 'claw' ? nativeSessionSearch.state : null });
+  if (focused) ([...results.querySelectorAll('[data-global-result-key]')].find(item => item.dataset.globalResultKey === focused) || document.getElementById('global-search'))?.focus({ preventScroll: true });
+}
 const defaultCatalogNames = ['runtime', 'models', 'workspaces', 'sessions', 'capabilities', 'tools', 'reportWorkflows'];
 const catalog = { runtime: null, tabbit: null, integrations: { summary: {}, items: [], latest_batch: null }, localIntegrations: { categories: [], items: [], summary: {}, service: {} }, connections: { groups: [], sources: [], platform: {}, migration: {} }, models: [], sessions: [], deletedSessions: [], workspaces: [], capabilities: [], tools: [], reportWorkflows: [], automations: [], automationRuns: [], deliveryChannels: [], artifacts: [], dataCatalog: { summary: {}, capabilities: [], sources: [], bindings: [] }, errors: {}, modelFailures: [], pending: new Set(defaultCatalogNames) };
 const catalogPendingCounts = new Map();
@@ -100,6 +111,13 @@ let mcpMarketplaceState = { registries: [], installations: [], approvals: [], ap
 const questionDrafts = new Map();
 const controller = createController({ api, onNavigate: (hash) => { history.pushState(null, '', hash); } });
 const state = controller.state;
+window.matchMedia('(max-width: 1050px)').addEventListener?.('change', event => {
+  const sidebarFocused = document.activeElement?.matches?.('[data-toggle-sidebar], [data-collapse-sidebar]');
+  sidebarOpen = false; contextOpen = false;
+  safeLog('research_navigation_viewport_changed');
+  render();
+  if (sidebarFocused) focusSidebarControl(document, event.matches);
+});
 const hotController = createHotController({api,onChange:()=>render(),isActive:()=>state.route.page==='intel'&&state.route.intelTab==='hot'||state.route.page==='settings'&&state.route.settingsSection==='hot'});
 const intelController = createIntelController({ onChange: () => { if (state.route.page === 'intel') render(); } });
 const capabilityController = createCapabilityController({ api, onChange: () => render(), onCatalogChange: () => loadCatalog(['capabilities']) });
@@ -434,6 +452,7 @@ function render() {
   const dirtyHotForms=[...root.querySelectorAll('[data-hot-form][data-hot-dirty]')];
   const documentForm = root.querySelector('#document-edit-form');
   const active = document.activeElement; const focusId = active?.id;
+  const focusedSearchResult = active?.dataset?.globalResultKey;
   disclosureState.capture(root, active);
   const selection = active && ['TEXTAREA', 'INPUT'].includes(active.tagName) && active.type !== 'password' ? { start: active.selectionStart, end: active.selectionEnd } : null;
   const mainScroll = document.querySelector('#main')?.scrollTop || 0;
@@ -444,7 +463,7 @@ function render() {
   const visibleErrors = Object.entries(catalog.errors).filter(([name]) => (
     name !== 'artifacts' || (state.route.page === 'workbench' && state.route.section !== 'assets')
   ));
-  root.innerHTML = `<div class="app-shell ${state.route.page === 'claw' ? 'claw-shell' : ''} ${hasContext ? '' : 'wide-page'} ${hasSecondary ? 'has-secondary' : ''} ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${sidebarOpen ? 'navigation-open' : ''} ${hasContext ? 'context-open' : ''}">${renderTopbar({ page: state.route.page, section: state.route.section, frameworkSlug: state.route.frameworkSlug, settingsSection: state.route.page === 'settings' ? currentSettingsSection() : '', detail: state.detail, runtimeLabel: runtimeLabel(), runtime: catalog.runtime, models: catalog.models, busy: state.busy, search: globalSearch, sessions: catalog.sessions, skills: searchableCapabilities, searchOpen })}<div class="navigation-column">${primaryRail()}${sidebar()}</div><main id="main" tabindex="-1"><div class="page-content">${notice(state.error)}${visibleErrors.map(([name, error]) => notice(`${({ runtime: '运行时', models: '模型目录', workspaces: '工作空间', sessions: '会话历史', deletedSessions: '已删除会话', capabilities: '能力目录', tools: '工具目录', reportWorkflows: '报告 Workflow', automations: '运行计划', automationRuns: 'Automation 运行', deliveryChannels: '交付渠道', dataCatalog: '数据目录', connections: '连接中心', localIntegrations: '本机集成诊断', connectionConfiguration: '来源配置', migration: '旧配置迁移' })[name] || name}：${error}`)).join('')}${notice(success, 'success')}${mainPage()}</div></main>${hasContext || contextOpen ? contextPanel() : ''}</div>${sidebarOpen || contextOpen ? '<button class="mobile-backdrop" data-close-drawers aria-label="关闭面板"></button>' : ''}${sessionActionsLayer()}${documentEditor?.sessionId === state.detail?.id ? renderDocumentEditor(documentEditor) : ""}`;
+  root.innerHTML = `<div class="app-shell ${state.route.page === 'claw' ? 'claw-shell' : ''} ${hasContext ? '' : 'wide-page'} ${hasSecondary ? 'has-secondary' : ''} ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${sidebarOpen ? 'navigation-open' : ''} ${hasContext ? 'context-open' : ''}">${renderTopbar({ page: state.route.page, section: state.route.section, frameworkSlug: state.route.frameworkSlug, settingsSection: state.route.page === 'settings' ? currentSettingsSection() : '', detail: state.detail, runtimeLabel: runtimeLabel(), runtime: catalog.runtime, models: catalog.models, busy: state.busy, search: globalSearch, sessions: catalog.sessions, skills: searchableCapabilities, searchOpen, nativeSearch: state.route.page === 'claw' ? nativeSessionSearch.state : null })}<div class="navigation-column">${primaryRail()}${sidebar()}</div><main id="main" tabindex="-1"><div class="page-content">${notice(state.error)}${visibleErrors.map(([name, error]) => notice(`${({ runtime: '运行时', models: '模型目录', workspaces: '工作空间', sessions: '会话历史', deletedSessions: '已删除会话', capabilities: '能力目录', tools: '工具目录', reportWorkflows: '报告 Workflow', automations: '运行计划', automationRuns: 'Automation 运行', deliveryChannels: '交付渠道', dataCatalog: '数据目录', connections: '连接中心', localIntegrations: '本机集成诊断', connectionConfiguration: '来源配置', migration: '旧配置迁移' })[name] || name}：${error}`)).join('')}${notice(success, 'success')}${mainPage()}</div></main>${hasContext || contextOpen ? contextPanel() : ''}</div>${sidebarOpen || contextOpen ? '<button class="mobile-backdrop" data-close-drawers aria-label="关闭面板"></button>' : ''}${sessionActionsLayer()}${documentEditor?.sessionId === state.detail?.id ? renderDocumentEditor(documentEditor) : ""}`;
   const newFrameworkFrame = root.querySelector('iframe[data-native-framework]');
   frameworkEmbedFrame = newFrameworkFrame;
   frameworkEmbedBridge.clear();
@@ -482,6 +501,9 @@ function render() {
   if (focusId) {
     const replacement = document.getElementById(focusId);
     if (replacement && !replacement.disabled) { replacement.focus({ preventScroll: true }); if (selection && selection.start !== null) replacement.setSelectionRange?.(selection.start, selection.end); }
+  }
+  else if (focusedSearchResult && searchOpen) {
+    ([...root.querySelectorAll('[data-global-result-key]')].find(item => item.dataset.globalResultKey === focusedSearchResult) || document.getElementById('global-search'))?.focus({ preventScroll: true });
   }
   if (state.busy) root.querySelectorAll('[data-approval], [data-upload], .question-form button, #rename-form button').forEach((button) => { button.disabled = true; });
   document.title = `${state.detail?.title || (state.route.page === 'workbench' && state.route.section === 'hot' ? '热点与事件' : state.route.page === 'workbench' && state.route.section === 'assets' ? '资产观察' : ({ fingpt: 'FinGPT', claw: 'Claw', workbench: '研究台', frameworks: '研究框架', history: '研究历史', skills: '能力中心', operations: '运行与用量', intel: '研究情报', settings: '设置' })[state.route.page])} · Research Workbench`;
@@ -1181,7 +1203,7 @@ async function showRoute() {
   }
   const requestedMarket = requestedRoute.page === 'skills' && requestedRoute.capabilityKind === 'tool' && requestedRoute.capabilityView === 'market';
   if (!requestedMarket) invalidateMCPRequests();
-  const ticket = ++pageGeneration; success = ''; selectedPreview = null; sidebarOpen = false; clawSidebarView = 'sessions'; contextOpen = false; contextTab = 'activity'; researchStage = null; slashOpen = false; slashIndex = 0; tabbitOpen = false; tabbitLoading = false; tabbitIndex = 0; tabbitCandidates = []; tabbitRequest += 1; globalSearch = ''; searchOpen = false; renameDraft = null; renameSession = null; deleteSession = null; purgeSession = null; sessionMenu = null; sessionActionBusy = false; sessionActionError = ''; questionDrafts.clear(); answerFeedback.clear(); copiedTransient = '';
+  const ticket = ++pageGeneration; nativeSessionSearch.close(); success = ''; selectedPreview = null; sidebarOpen = false; clawSidebarView = 'sessions'; contextOpen = false; contextTab = 'activity'; researchStage = null; slashOpen = false; slashIndex = 0; tabbitOpen = false; tabbitLoading = false; tabbitIndex = 0; tabbitCandidates = []; tabbitRequest += 1; globalSearch = ''; searchOpen = false; renameDraft = null; renameSession = null; deleteSession = null; purgeSession = null; sessionMenu = null; sessionActionBusy = false; sessionActionError = ''; questionDrafts.clear(); answerFeedback.clear(); copiedTransient = '';
   await controller.open(requestedRoute);
   if (ticket !== pageGeneration) return;
   if (state.route.settingsSectionFallback) safeLog('settings_section_fallback');
@@ -1366,9 +1388,8 @@ function handleInput(event) {
     globalSearch = event.target.value;
     if (event.isComposing) return;
     event.target.setAttribute?.('aria-expanded', globalSearch.trim() ? 'true' : 'false');
-    const globalResults = document.getElementById?.('global-search-results');
-    if (globalResults) globalResults.innerHTML = renderGlobalResults(globalSearch, catalog.sessions, searchableCapabilityList());
-    else render();
+    if (state.route.page === 'claw') nativeSessionSearch.update(globalSearch, 'claw');
+    else updateGlobalSearchResults();
   }
   if (event.target.id === 'rename-title') renameDraft = event.target.value;
   if ('connectionSearch' in (event.target.dataset || {})) applyConnectionWorkspaceFilters(event.target.closest('[data-connection-workbench]'));
@@ -1495,7 +1516,7 @@ root.addEventListener('keydown', (event) => {
     const workbench = event.target.closest?.('[data-connection-workbench]') || document.querySelector('[data-connection-workbench]');
     if (closeConnectionDrawer(workbench)) { event.preventDefault(); return; }
     event.preventDefault();
-    const wasSearchOpen = searchOpen;
+    const wasSearchOpen = searchOpen; nativeSessionSearch.close();
     const focusSession = sessionMenu?.id || renameSession?.id || deleteSession?.id || purgeSession?.id;
     const wasSidebarOpen = sidebarOpen;
     sidebarOpen = false; contextOpen = false; slashOpen = false; tabbitOpen = false; tabbitCandidates = []; tabbitRequest += 1; globalSearch = ''; searchOpen = false;
@@ -2030,13 +2051,44 @@ root.addEventListener('submit', async (event) => {
 });
 
 root.addEventListener('click', async (event) => {
+  const answerAction = event.target.closest?.('[data-claw-answer-action]');
+  if (answerAction && Object.hasOwn(answerAction.dataset, 'clawAnswerAction')) {
+    const index = Number(answerAction.dataset.answerIndex);
+    const detail = state.detail;
+    if (answerAction.disabled || detail?.mode !== 'claw' || answerAction.dataset.answerSession !== detail.id || !Number.isInteger(index) || index < 0 || detail.messages?.[index]?.role !== 'assistant') return;
+    const message = detail.messages[index];
+    const action = answerAction.dataset.clawAnswerAction;
+    const ticket = pageGeneration;
+    try {
+      if (action === 'download') downloadAnswer(message.text);
+      else if (action === 'speak') speakAnswer(message.text, { onError: error => { if (ticket === pageGeneration) { state.error = error; render(); } } });
+      else if (action === 'share') {
+        await copyResearchText(globalThis.location.href);
+        if (ticket === pageGeneration && answerAction.isConnected) { answerAction.title = '已复制本机链接'; answerAction.setAttribute('aria-label', '已复制本机链接'); }
+      } else if (action === 'good' || action === 'bad') {
+        const key = message.id || `${detail.id}:${index}`;
+        answerFeedback.set(key, answerFeedback.get(key) === action ? null : action);
+        safeLog('claw_answer_feedback_changed'); render();
+      } else if (['sources', 'files', 'process'].includes(action)) {
+        contextTab = { sources: 'datasets', files: 'files', process: 'activity' }[action];
+        contextCollapsed = false; contextOpen = window.matchMedia('(max-width: 1050px)').matches; sidebarOpen = false; render();
+        root.querySelector('.context-tabs [aria-selected="true"]')?.focus();
+      } else if (action === 'retry') {
+        const blocked = retryBlockReason();
+        if (detail.execution_restricted || blocked) throw new Error(blocked || '此执行会话不能重新发起研究，请返回原对话操作。');
+        const source = detail.messages.slice(0, index).findLast(item => item.role === 'user');
+        if (source?.text) { controller.setDraft(source.text); await controller.send(); }
+      }
+    } catch (error) { safeLog('claw_answer_action_failed'); if (ticket === pageGeneration) { state.error = error.message || '操作失败，请重试。'; render(); } }
+    return;
+  }
   const copy = event.target.closest?.('[data-copy-message]');
   if (copy && Object.hasOwn(copy.dataset,'copyMessage')) {
     const index = Number(copy.dataset.copyMessage);
     const detail = state.detail;
     if (copy.dataset.copySession !== detail?.id || !Number.isInteger(index) || index < 0 || detail.messages?.[index]?.role !== 'assistant') return;
     const ticket = pageGeneration;
-    try { await copyResearchText(detail.messages[index].text); if (ticket === pageGeneration && copy.isConnected) copy.textContent = '已复制'; }
+    try { await copyResearchText(detail.messages[index].text); if (ticket === pageGeneration && copy.isConnected) { copy.title = '已复制'; copy.setAttribute('aria-label', '已复制回复'); } }
     catch (error) { if (ticket === pageGeneration) { state.error = error.message; render(); } }
     return;
   }
@@ -2422,7 +2474,8 @@ root.addEventListener('click', async (event) => {
   if ('tabbitRefresh' in data) { await loadCatalog(['tabbit']); return; }
   if ('tabbitSelect' in data) { selectTabbit(data.tabbitSelect); return; }
   if ('removeTabbit' in data) { controller.removeTabbit(data.removeTabbit); render(); return; }
-  if ('toggleSearch' in data) { searchOpen = !searchOpen; sidebarOpen = false; contextOpen = false; if (!searchOpen) globalSearch = ''; render(); if (searchOpen) document.querySelector('#global-search')?.focus(); }
+  if ('retryNativeSearch' in data && state.route.page === 'claw') { nativeSessionSearch.update(globalSearch, 'claw'); return; }
+  if ('toggleSearch' in data) { searchOpen = !searchOpen; sidebarOpen = false; contextOpen = false; if (!searchOpen) { globalSearch = ''; nativeSessionSearch.close(); } else if (state.route.page === 'claw') nativeSessionSearch.update(globalSearch, 'claw'); render(); if (searchOpen) document.querySelector('#global-search')?.focus(); }
   if ('clearCapability' in data) { controller.setCapability(null); render(); }
   if ('removeTool' in data) { controller.setTools(state.toolIds.filter(id => id !== data.removeTool)); render(); }
   if ('removeMethod' in data) { controller.setMethods(state.methodIds.filter(id => id !== data.removeMethod)); render(); }
@@ -2686,7 +2739,7 @@ async function selectCapability(id) {
   await goToResearchDraft();
   controller.setCapability(eligibility.report ? { ...item, version: eligibility.version } : item);
   if (state.draft.trimStart().startsWith('/')) controller.setDraft('');
-  slashOpen = false; globalSearch = ''; searchOpen = false; render();
+  slashOpen = false; globalSearch = ''; searchOpen = false; nativeSessionSearch.close(); render();
   document.querySelector('#prompt')?.focus();
 }
 

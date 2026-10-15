@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "unchanged",
-  "summary": "Claw执行流、深色输入表面与发送上传竞态修复。",
-  "reason": "README已说明Claw唯一研究引擎、显式确认与工作区边界；本次仅调整现有前端呈现和会话内材料归属，不新增产品入口、依赖、安装配置或发布功能。详细交互与主题合同同步至UI/外观文档。"
+  "disposition": "updated",
+  "summary": "Claw执行流、确认选择控件、原生正文搜索和任务绑定试跑修复。",
+  "reason": "README补充原生正文匹配、归属过滤和无自动跨会话上下文；执行流、试跑授权与细节见UI/API/安全文档，固定依赖和安装入口保持。"
 }

@@ -1,5 +1,7 @@
 # Research Workbench Development Map
 
+Claw执行流定位为`ui/claw-flow.mjs`、`disclosures.mjs`、`uploads.mjs`及原`core/app/views/shell`；正文搜索为`service.search_sessions`、`main`的严格JSON POST和`client`固定`session.search`映射，UI由`session-search.mjs`串行消费。近处测试为`research_web_claw_flow/send_races/disclosures/uploads/session_search.test.mjs`、`test_session_search.py`与`test_automation_research_task.py`。不新增正文库、调度器或依赖；搜索与长试跑句的权限/失败契约同步UI、API、安全及原生文档，安装CI仍须绑定新候选。
+
 `main.py:local_boundary` 的 `entry_navigation` 仅允许用户触发的根路径 GET 顶层文档导航。
 `test_api.py` 的 `clicked_entry` 覆盖本机/私网链接、哈希路由、API/资源/iframe/Origin
 拒绝及 Host/HTTPS 保留；权威合同见接口清单、安全清单与安装文档。

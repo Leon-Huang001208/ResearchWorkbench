@@ -1,5 +1,9 @@
 # 研究协议、执行状态与恢复
 
+只读session.search映射固定session/search {request:{query}}，复用原认证并保留其他RPC拒绝。原生provider不可用不回退为假全文；hasMore原样作为缩小关键词提示，不生成cursor或messageId。搜索不恢复/启动Agent，Host不直接读取原生数据库或维护第二份正文库。
+
+固定 DSH base 已挂载 `session-query-sqlite`，其默认 `openAt: never` 禁用全文搜索。Research Web 启动 overlay 只覆盖同一插件的 `openAt: first-search` 与 `path: ':memory:'`，不重复挂载。首次搜索才由原生 provider 打开已有派生内存索引，重启后按原生历史重新派生；不新建持久搜索库、不更改固定 DSH、依赖锁或研究工具权限。生成配置回归不等于真实正文命中，仍须在隔离候选核对原生 RPC 与产品归属过滤。
+
 显式试跑可用真实任务名或精确ID，含配对引号、刚创建/修改限定及版本号；后续仅白名单约束句，不是通用自然语言授权。版本不符返回 automation_version_conflict，未知/含混仍拒绝；原提问上下文、幂等Run及手动运行不改下一计划时间保持。Runtime将允许的Automation拒绝码加入原4KiB脱敏投影，不自动重试。
 
 工程资源收尾不是研究执行状态。交付入口确认候选合并及CI通过后才归档任务日志、回收依赖/退休测试对象和缓存，再走原Git安全清理；资源blocked不改变研究会话成功/失败或触发重试模型。复制失败保留证据原件，重放须逐文件验证；状态与证据保存在common Git私有目录，任务worktree删除后仍可审查。

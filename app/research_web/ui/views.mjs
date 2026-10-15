@@ -2,6 +2,7 @@ import { escapeHTML as e, renderMarkdown, safeURL } from './markdown.mjs';
 import { sessionHash, isRunning, safeLog } from './core.mjs';
 import { icon } from './icons.mjs';
 import { renderClawFlow, renderClawStep } from './claw-flow.mjs';
+import { renderClawAnswerActions } from './answer-actions.mjs';
 import localModels from './local-models.json' with { type: 'json' };
 
 export const statusText = (status) => ({ idle: '待命', running: '运行中', queued: '排队中', completed: '执行已结束', failed: '失败', cancelled: '已取消', waiting_approval: '等待授权', awaiting_approval: '等待授权', waiting_input: '等待回复', cancelling: '取消中' })[status] || status || '未知';
@@ -116,7 +117,7 @@ export function renderConversation(detail, questionDrafts = new Map(), options =
   const messageEntries = (detail.messages || []).map((message, index) => {
     const label = message.role === 'user' ? '用户消息' : message.role === 'assistant' ? assistantLabel : `${message.role || '未知角色'}消息`;
     const thinking = message.role === 'assistant' ? renderThinking(message, { live: isRunning(detail.status) && index === detail.messages.length - 1 }) : '';
-    return { kind: message.role === 'user' ? 'user' : 'assistant', seq: Number.isFinite(message.seq) ? message.seq : Infinity, index, html: `${thinking}<article class="message ${message.role === 'user' ? 'user' : 'assistant'}" aria-label="${e(label)}"><div class="markdown">${renderMarkdown(message.text, { resolveLink })}</div></article>`, copyHTML: detail.mode === 'claw' && message.role === 'assistant' && message.text ? `<button type="button" class="text-button claw-answer-copy" data-copy-message="${index}" data-copy-session="${e(detail.id || '')}" aria-label="复制这条回复">复制回复</button>` : '' };
+    return { kind: message.role === 'user' ? 'user' : 'assistant', seq: Number.isFinite(message.seq) ? message.seq : Infinity, index, html: `${thinking}<article class="message ${message.role === 'user' ? 'user' : 'assistant'}" aria-label="${e(label)}"><div class="markdown">${renderMarkdown(message.text, { resolveLink })}</div></article>`, copyHTML: detail.mode === 'claw' && message.role === 'assistant' && message.text ? renderClawAnswerActions(detail, index, options) : '' };
   });
   const historyTag = detail.mode === "claw" ? "details" : "section";
   const questionEntries = (Array.isArray(detail.question_history) ? detail.question_history : []).filter(question => Number.isFinite(question?.seq) && Array.isArray(question.items) && Array.isArray(question.answers)).map((question, index) => ({

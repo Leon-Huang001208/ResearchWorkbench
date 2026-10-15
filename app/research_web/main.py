@@ -85,6 +85,12 @@ class NewSession(BaseModel):
     project_id: str | None = Field(default=None, pattern=r"^(default|project-[a-f0-9]{32})$")
 
 
+class SessionSearch(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    query: str
+    mode: Literal["claw", "fingpt"] | None = None
+
+
 class TabbitTabRef(BaseModel):
     tab_id: int = Field(ge=0, strict=True)
     instance_id: str = Field(pattern=r"^[A-F0-9]{16}$")
@@ -497,6 +503,10 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
             research_depth=body.research_depth,
             source_scope=body.source_scope,
         )
+
+    @app.post("/api/research/sessions/search")
+    async def search_sessions(body: SessionSearch, request: Request):
+        return await svc(request).search_sessions(body.query, mode=body.mode)
 
     @app.get("/api/research/sessions/{sid}")
     async def session(sid: str, request: Request):
