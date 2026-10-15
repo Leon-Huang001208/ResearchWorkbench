@@ -1496,7 +1496,7 @@ root.addEventListener('keydown', (event) => {
     sidebarOpen = false; contextOpen = false; slashOpen = false; tabbitOpen = false; tabbitCandidates = []; tabbitRequest += 1; globalSearch = ''; searchOpen = false;
     renameDraft = null; renameSession = null; deleteSession = null; purgeSession = null; sessionMenu = null; sessionActionError = '';
     render();
-    if (wasSearchOpen) document.querySelector('.mobile-search-toggle[data-toggle-search]')?.focus({ preventScroll: true });
+    if (wasSearchOpen) document.querySelector(window.matchMedia('(max-width: 1050px)').matches ? '.topbar .menu-toggle' : '.primary-rail .search-trigger')?.focus({ preventScroll: true });
     if (focusSession) document.querySelector(`[data-session-menu="${focusSession}"]`)?.focus({ preventScroll: true });
     else if (wasSidebarOpen) focusSidebarControl(document, window.matchMedia('(max-width: 1050px)').matches);
   }

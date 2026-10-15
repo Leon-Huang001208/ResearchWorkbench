@@ -37,9 +37,20 @@ test('product shell keeps the compact product navigation, real recent work and s
   const matches = shell.filterGlobalSearch('公司研究', sessions, skills);
   assert.deepEqual(matches.map((item) => item.kind), ['skill']);
   assert.match(shell.renderGlobalSearch('', sessions, skills), /data-global-search/);
-  const styles = await readFile(new URL('styles.css', root), 'utf8');
-  assert.match(styles, /\.mobile-search-toggle\s*\{\s*display:\s*inline-flex;/);
-  assert.doesNotMatch(styles, /\.mobile-search-toggle[^\{]*\{\s*display:\s*none;/);
+  assert.match(rail, /class="search-trigger"[^>]*data-toggle-search/);
+});
+
+test('every function page omits breadcrumb and topbar search while retaining navigation and search content', async () => {
+  const shell = await import(new URL('shell.mjs', root));
+  for (const page of ['fingpt', 'claw', 'workbench', 'intel', 'frameworks', 'skills', 'operations', 'settings', 'history']) {
+    for (const section of ['', 'assets', 'hot']) {
+      const html = shell.renderTopbar({ page, section, detail: { title: '独立会话标题样例' }, searchOpen: true });
+      assert.doesNotMatch(html, /topbar-title|title-separator|page-subtitle|mobile-search-toggle|data-toggle-search|独立会话标题样例/);
+      assert.match(html, /data-toggle-sidebar/);
+      assert.match(html, /search-popover/);
+      assert.match(html, /id="global-search"/);
+    }
+  }
 });
 
 test('topbar hides healthy runtime chrome and only surfaces actionable runtime states', async () => {
@@ -62,7 +73,7 @@ test('topbar hides healthy runtime chrome and only surfaces actionable runtime s
   const unloaded = shell.renderTopbar({ runtime: null, runtimeLabel: 'DSH 未连接' });
   assert.doesNotMatch(unloaded, /runtime-status|DSH 未连接/);
   for (const html of [needsModel, connecting, unavailable, unloaded]) {
-    assert.match(html, /href="#\/settings"|topbar-title/);
+    assert.match(html, /data-toggle-sidebar/);
     assert.doesNotMatch(html, /data-refresh|刷新服务状态/);
   }
 });
