@@ -5,7 +5,7 @@ import { renderGlobalResults, renderGlobalSearch } from '../../app/research_web/
 import { createAPI } from '../../app/research_web/ui/core.mjs';
 
 const deferred = () => { let resolve; const promise = new Promise(r => { resolve = r; }); return { promise, resolve }; };
-const result = id => ({ source: 'native_dsh', items: [{ id, mode: 'claw', title: id, snippet: '原生正文片段' }], has_more: false });
+const result = id => ({ source: 'native_dsh', items: [{ id, mode: 'claw', title: id, snippet: '原生正文片段' }], has_more: false, unavailable_count: 0 });
 const tick = () => new Promise(resolve => setImmediate(resolve));
 test('native search serializes explicit queries and drops superseded or closed results', async () => {
   const first = deferred(), second = deferred(), calls = []; const timers = [];
@@ -52,4 +52,14 @@ test('native query API keeps text in a JSON body outside access-log URLs without
 test('a native-search POST timeout remains a read failure and never retries', async () => {
   let calls = 0; const api = createAPI({ logger() {}, requestTimeoutMs: 2, fetcher: async () => { calls++; return new Promise(() => {}); } });
   await assert.rejects(api.searchSessions('正文'), /读取超时/); assert.equal(calls, 1);
+});
+
+test('partial coverage is visible even with zero hits and is cleared on close', async () => {
+  const c = createSessionSearch({ search: async () => ({ ...result('s'), items: [], unavailable_count: 2 }), schedule: fn => { fn(); return null; } });
+  c.update('正文', 'claw'); await tick();
+  assert.equal(c.state.error, ''); assert.equal(c.state.unavailable_count, 2);
+  const html = renderGlobalResults('正文', [], [], { native: c.state });
+  assert.match(html, /部分历史未搜索/); assert.match(html, /2 个会话/);
+  assert.doesNotMatch(html, /没有匹配/);
+  c.close(); assert.equal(c.state.unavailable_count, 0);
 });

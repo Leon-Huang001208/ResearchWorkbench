@@ -1,5 +1,7 @@
 # GitHub Actions 免费额度治理
 
+固定 DSH 搜索升级沿用既有 macOS Bootstrap，只在原生空搜索冒烟中核对 unavailable_count=0；不新增 job、runner 或 Windows/Linux 产品 dispatch。通用检查继续使用既有清单。
+
 resident只读轮询GitHub，不创建workflow或runner。新增resident离线安全用例复用既有Research Web
 Checks标准Ubuntu job；macOS安装验证仍用原Bootstrap，不新增Windows/Linux产品dispatch或模型成本。
 
