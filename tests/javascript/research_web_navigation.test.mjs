@@ -76,3 +76,14 @@ test('three sidebar sections expose keyboard buttons and remembered independent 
   assert.deepEqual(readNavigationView('fingpt', storage).collapsedSections, ['recent']);
   assert.deepEqual(readNavigationView('claw', storage).collapsedSections, []);
 });
+
+
+test('recent conversation rows omit leading dot markers without discarding native running status', async () => {
+  const { renderSessionRow } = await import('../../app/research_web/ui/shell.mjs');
+  const idle = renderSessionRow({ id: 'i', mode: 'claw', title: '普通会话', status: 'completed' });
+  const running = renderSessionRow({ id: 'r', mode: 'claw', title: '运行会话', status: 'running' });
+  assert.doesNotMatch(idle, /tiny-dot/);
+  assert.doesNotMatch(running, /tiny-dot/);
+  assert.match(running, /title="运行会话 · 运行中"/);
+  assert.match(running, /class="sr-only" role="status" aria-label="运行中"/);
+});

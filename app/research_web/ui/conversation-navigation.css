@@ -80,3 +80,5 @@
 
 .codex-sidebar .ui-icon { aspect-ratio: 1; flex-shrink: 0; }
 .codex-sidebar .nav-section-chevron .ui-icon, .codex-sidebar .nav-chevron .ui-icon, .nav-mode-menu > summary > .ui-icon { width: 14px; height: 14px; min-width: 14px; min-height: 14px; flex: 0 0 14px; }
+
+.codex-sidebar .recent-item > .session-row-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
