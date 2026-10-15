@@ -12,7 +12,7 @@ try {
   page.on('pageerror', error => receipt.errors.push(error.message));
   await page.goto(`${origin}/#/fingpt`);
   await page.waitForFunction(() => document.querySelector('#model-select')?.options.length > 1);
-  await page.locator('.mobile-search-toggle').click();
+  await page.locator('.primary-rail .search-trigger').click();
   const input = page.locator('#global-search');
   await input.fill('研究');
   await page.locator('[data-global-result]').first().waitFor();
@@ -33,7 +33,7 @@ try {
   await page.keyboard.press('ArrowDown');
   assert.equal(await page.evaluate(() => document.activeElement === document.querySelectorAll('[data-global-result]')[1]), true);
   await page.keyboard.press('Escape');
-  assert.equal(await page.evaluate(() => document.activeElement.matches('.mobile-search-toggle')), true);
+  assert.equal(await page.evaluate(() => document.activeElement.matches('.primary-rail .search-trigger')), true);
   receipt.checks.push('Chinese composition, stable input DOM, keyboard navigation, Escape focus');
   await page.goto(`${origin}/#/history`);
   await page.locator('#history-search').fill('不存在的研究标题');

@@ -468,9 +468,6 @@ body { line-height: 1.5; }
 .sidebar-collapsed .new-research, .sidebar-collapsed .search-trigger { justify-content: center; padding-inline: 0; }
 .sidebar-collapsed .new-research span, .sidebar-collapsed .search-trigger span { display: none; }
 .topbar { padding: 0 30px; border-bottom: 0; }
-.topbar-title { display: flex; align-items: center; gap: 13px; min-width: 0; font-size: 13px; font-weight: 540; }
-.title-separator { color: var(--muted); }
-.page-subtitle { color: var(--muted); font-weight: 400; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 350px; }
 .runtime-status { font-size: 11px; }
 .search-popover { position: fixed; left: max(16px, calc(50vw - 260px)); top: 70px; width: min(520px, calc(100vw - 32px)); padding: 12px; border: 1px solid var(--control-line); border-radius: 12px; background: var(--surface); box-shadow: var(--shadow); z-index: 60; }
 .topbar .search-popover .global-search { display: flex; position: relative; inset: auto; width: 100%; padding: 0; background: transparent; border: 0; }
@@ -598,7 +595,6 @@ body { line-height: 1.5; }
 @media (max-width: 600px) {
   .appearance-options { grid-template-columns: 1fr; max-width: 280px; }
   .topbar { padding-inline: 12px; gap: 8px; }
-  .topbar-title { gap: 8px; font-size: 12px; }
   .page-subtitle { max-width: 95px; }
   .landing { width: calc(100% - 32px); margin: 66px auto 32px; }
   .landing h1 { font-size: 27px; }
@@ -1682,3 +1678,10 @@ a.framework-card:hover, a.framework-card:focus-visible { border-color: var(--con
 .claw-weekdays { grid-column:1 / -1; display:flex; gap:14px; flex-wrap:wrap; padding:12px; border:1px solid var(--line); border-radius:8px; }
 .claw-weekdays label { display:inline-flex; align-items:center; gap:7px; min-height:36px; }
 .claw-weekdays input { width:auto; }
+
+/* Desktop chrome occupies space only when a runtime warning needs attention. */
+@media (min-width: 1051px) {
+  .app-shell:has(> .topbar) { grid-template-rows: auto minmax(0, 1fr); }
+  .topbar .menu-toggle { display: none; }
+  .topbar:has(.runtime-status) { min-height: 64px; }
+}

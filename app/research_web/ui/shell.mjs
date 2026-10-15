@@ -3,7 +3,6 @@ import { sessionHash, isRunning } from './core.mjs';
 import { renderActivities, renderDatasets, renderDelivery, renderFiles } from './views.mjs';
 import { icon } from './icons.mjs';
 import { renderResearchPanel } from './research-report.mjs';
-import { frameworkName } from './frameworks.mjs';
 import { renderWorkflowPlan } from './capabilities.mjs';
 
 const navItems = [
@@ -134,8 +133,6 @@ export function renderContextPanel({ detail, selectedTab = 'activity', mobileOpe
 }
 
 export function renderTopbar({ page = 'fingpt', section = '', frameworkSlug = '', settingsSection = '', detail = null, runtimeLabel, runtime, search = '', sessions = [], skills = [], searchOpen = false } = {}) {
-  const title = page === 'workbench' && section === 'hot' ? '热点与事件' : page === 'workbench' && section === 'assets' ? '资产观察' : ({ fingpt: 'FinGPT', claw: 'Claw', workbench: '研究台', frameworks: '研究框架', skills: '能力中心', history: '研究历史', operations: '运行与用量', intel: '研究情报', settings: '设置' })[page] || 'FinGPT';
-  const settingsSubtitle = ({ general: '通用', model: '模型服务', data: '数据源', local: '本机集成', docs: '架构文档', hot: '热点与事件' })[settingsSection];
   let runtimeAttention = '';
   if (runtime && (!runtime.connected || runtime.credential_configured === false)) {
     const [label, tone] = runtime.connected
@@ -145,6 +142,5 @@ export function renderTopbar({ page = 'fingpt', section = '', frameworkSlug = ''
         : ['研究服务不可用', 'danger'];
     runtimeAttention = `<div class="topbar-right"><a href="#/settings/model" class="runtime-status ${tone}" title="${e(runtime.message || runtimeLabel || label)}"><span class="tiny-dot" aria-hidden="true"></span>${label}</a></div>`;
   }
-  const pageSubtitle = page === 'frameworks' ? (frameworkSlug ? frameworkName(frameworkSlug) : '框架中心') : ['fingpt', 'claw'].includes(page) ? '新研究' : '工作台';
-  return `<header class="topbar ${searchOpen ? 'search-open' : ''}"><div class="topbar-title"><button class="icon-button menu-toggle" data-toggle-sidebar aria-label="打开导航">${icon('sidebar')}</button><span>${e(title)}</span><span class="title-separator">/</span><span class="page-subtitle">${e(detail?.title || settingsSubtitle || pageSubtitle)}</span></div><button type="button" class="icon-button mobile-search-toggle" data-toggle-search aria-label="${searchOpen ? '关闭全局搜索' : '打开全局搜索'}" aria-expanded="${searchOpen}">${icon('search')}</button><div class="search-popover" ${searchOpen ? '' : 'hidden'}>${renderGlobalSearch(search, sessions, skills)}</div>${runtimeAttention}</header>`;
+  return `<header class="topbar ${searchOpen ? 'search-open' : ''}"><button class="icon-button menu-toggle" data-toggle-sidebar aria-label="打开导航">${icon('sidebar')}</button><div class="search-popover" ${searchOpen ? '' : 'hidden'}>${renderGlobalSearch(search, sessions, skills)}</div>${runtimeAttention}</header>`;
 }

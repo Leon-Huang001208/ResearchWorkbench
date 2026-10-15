@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "updated",
-  "summary": "新增 macOS 登录后 Native 常驻与受管自动部署。",
-  "reason": "README与安装/安全/API/架构同步说明空闲准入、精确CI、失败回滚及FileVault登录边界；依赖与迁移不自动授权。"
+  "disposition": "unchanged",
+  "summary": "所有功能页统一移除共用顶栏面包屑及独立搜索图标，保留侧栏搜索与异常提示。",
+  "reason": "本轮只调整现有原生Web展示与焦点回退，安装入口、公开API、依赖和运行方式不变；README无需修改，UI与外观文档已同步。"
 }
