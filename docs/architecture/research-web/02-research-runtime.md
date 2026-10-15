@@ -5,6 +5,8 @@
 Native 私网 HTTPS opt-in 只改变浏览器到 Host 的精确 origin 准入；内部 DSH RPC、
 DataHub 认证、会话协议、SSE 流与研究预算保持原实现。不因 HTTP/TLS 连通宣称模型
 推理或流式输出已验收；跨设备与真实任务证据单独记录。
+点击外站链接的根路径 GET 文档导航只加载原浏览器壳；后续 API/SSE 仍由同源浏览器
+请求，未放宽运行时协议、内部认证、会话权限或模型执行准入。
 
 周期简报的一次性Word子执行是既有report_documents投影，不进入DSH session.prompt。
 其固定执行身份绑定periodic run与brief hash，先存不可变原件/回执，再条件提交任务完成。

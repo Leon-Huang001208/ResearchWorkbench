@@ -4,6 +4,11 @@
 
 ## 可选：Tailscale 私网 HTTPS 访问（Native）
 
+可从聊天或其他网页直接点击入口链接。浏览器须发送用户触发的顶层文档 GET 导航
+（Sec-Fetch-Mode=navigate、Dest=document、User=?1），且 HTTP 路径仅为 `/`；
+`/#/fingpt`、`/#/claw` 的片段仍由浏览器路由。缺失/不符的导航元数据、iframe、
+跨站 API/资源请求、显式外站或 null Origin 仍拒绝；Host/HTTPS 准入和 CSP 不变。
+
 默认仍只接受回环 Host。已安装并登录 Tailscale 后，由操作员指定本设备的精确 HTTPS
 origin（示例域名必须换成 `tailscale status --json` 中本机的 DNSName，去掉结尾点）：
 

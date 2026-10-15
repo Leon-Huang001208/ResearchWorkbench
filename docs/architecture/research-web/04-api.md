@@ -1,5 +1,8 @@
 # Research Web 接口清单
 
+`GET /` 接受用户触发的跨站顶层文档导航（navigate/document/?1，Origin 缺失或同源）。
+例外只返回静态应用壳；`/api/research/**`、静态资源和其他路径不继承此入口例外。
+
 `GET /api/research/runtime` 新增只读 `web_access: {mode, origin}`，mode 为 `loopback`
 或 `tailscale`；默认 origin 为 null，启用后为操作员指定的精确 HTTPS origin。
 Native Doctor 同名投影取运行中 Host，未就绪或旧 Host 无此字段时为 `unknown`/null；
