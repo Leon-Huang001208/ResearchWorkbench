@@ -5,9 +5,9 @@
   "status": "pass",
   "visualReview": "pending",
   "artifact": {
-    "path": "/Users/leon/ResearchWorkbench-worktrees/task-20260911-phase2c-automations/outputs/research-web-architecture/02-module-dependencies.html",
-    "sha256": "01aed4e526e3876396e5b3575f4836623f5c57a74e005c3974e52b734ccff803",
-    "bytes": 657296
+    "path": "/Users/leon/.codex/worktrees/hot-events-system/ResearchWorkbench/outputs/research-web-architecture/02-module-dependencies.html",
+    "sha256": "14312c6a90944b4efe0ce0a063df699a4c1229869d7a1cd668fba24ab5b21fef",
+    "bytes": 659289
   },
   "state": {
     "detail": "read",

@@ -1,5 +1,18 @@
 # 安全边界与验证方法
 
+数据型Word子执行不导入会初始化旧设置的日志facade，避免只读镜像根目录写入和开发.env
+读取；沿既有report_documents的标准日志进入父进程日志。隔离进程禁用core模块仍能
+生成并重开Word，这是无旧配置/模型环境依赖的反例测试，不是新增模型验收。
+
+schema21周期报告由唯一Hot任务领取：私有bootstrap选择已安装产品Python，只执行固定
+hot_periodic_report模块，以有界stdin传冻结资料；25秒、SIGKILL/取消与8MiB输出硬门。
+该模块复用brief_docx/report_documents，不加载DSH、读取模型凭据或对外发送。子执行MD/DOCX
+与hash先存不可变PG表，再由hot.brief专用controller事务与领取/队列共同完成；其他任务继续
+使用worker角色。未知完成恢复复用既有子执行回执，旧租约、计划改版或停用拒绝晚到提交。
+reader只能有界分块读已保存报告，Host复验固定metadata、完整长度和hash；GET不重新执行。
+研究联合ZIP同时限制含metadata的展开总量与实际ZIP大小。新PG inventory哈希直接使用
+数据库JSONB精确文本；未标记的旧JS数值hash无法证明精度，保留旧档并明确要求原库重备份。
+
 字体兼容不扩大sandbox：getcwd、network connect和未准入资源依然拒绝。chinese_font_path
 仅由模块绝对__file__定位打包字体，缺失或alias固定错误退出，不扫描其他宿主文件。
 非2xx错误摘要只取4KiB JSON中白名单code，redirect立即拒绝，流读取/清理不超过原超时信号；
@@ -11,6 +24,81 @@ HTTP 认证来源保留目录和 `credential_transport_blocked`，不以配置�
 兼容模型的传输实现不替代 endpoint/model 的工具验证，未知组合保留未验证准入。
 脚本结果仅在可解析且明确 status=completed 时标为完成，未知和损坏结果失败关闭。
 推理块必须在正文或工具块开始前结束，取消和后续非法推理保持原失败语义。
+
+评价器不信材料hash格式或自报official：核对完整冻结row、目录主体/origin、packet完整材料字段与response/packet指纹；跨partition主事件/ID/URL及参考URL泄漏拒绝。生产候选历史重叠单独披露，不改真实回执以制造独立性。没有独立人工金标准，不输出accuracy；source-review-only案例模型NOT_RUN保留。
+
+日期纠错使用原同源/显式动作/UUID/expectedRevision及签名controller权限。Python发送前验证真实日期、时区、精度与引用shape；Node核对版本在当前事件并与原文quote字面匹配，权限/owner和旧PIT合同不弱化。日期依据文本转义，日志不记录正文。真实PG覆盖worker拒绝、旧版未知、自动保护、撤回解锁和无效引用不落盘。
+
+分页拒绝跨origin、非HTTPS、凭据、fragment、循环、多next和重定向；三页各4MiB、整轮25秒，不复制SDK/Key，不增预算。真实PG测试覆盖后页HTTP失败/水位保留、顺序排空和事务中断回滚。
+
+来源UI的permission旗标只作提示，Node在新激活写入前核对实际config列UPDATE权限；真实PG revoke反例确认拒绝新请求且保留旧回执读。表单不接受URL/凭据，文本转义，显式checkbox+有界理由才激活；SDK/model权限不变。真实组件浏览器保存及审计核对、错误console0通过，不替代完整安装/镜像验收。
+
+source.configure的useCatalog只接受严格true及非空有界理由，绑定DataHub同ID/同operator，拒绝URL和其他adapter。controller新增sources.config列UPDATE，普通worker仍无该权限；条件版本/审计/owner双检保持。真实PG覆盖错误operator、旧owner、UUID重放、目录不可读时缓存复用、落库指纹与大整数/旧版本不变。升级先停止setup，新镜像和MacCI须另验。
+
+Hot周期aliases去除旧Automation feature guard后仍调用相同Hot query/body/user-action及签名controller合同。关闭旧Automation时GET/POST Hot适配不访问旧服务，原Automation GET仍404；无动作POST403、明确动作POST200和Hot503传播均有回归。不得为修复Hot页面而启用旧scheduler或扩大预算。
+
+pre-AES例外只在显式stage replace的两次owned验证内使用，要求ready账本、停止原容器、精确四挂载、无RWB_MODEL_环境和旧镜像无加密标签；新镜像须AES。普通owned继续拒绝缺密钥挂载。运行中、已AES镜像、模型环境、projection变化及initializing反例均拒绝并且没有Docker rm调用；26项本地回归通过，不冒充实际容器验收。
+
+处理选择接受最多20个唯一材料UUID并小写归一化；省略/空列表保持默认范围，不授权费用。现有预算、发送回执、owner/领取租约仍为硬门；旧代次不能调度，超过正int32优先级范围拒绝。真实PG测试核对未选择积压原ID/状态保留、重启仅领取所选材料和零模型调用。真实Native处理沿已明确使用的原安装固定凭据桥接，不复制密钥，隔离home未配置的失败单独保留；不外推为Docker模型验收。
+
+关注和周期计划仅controller获得INSERT/有限列UPDATE权限，worker只读这些表。计划不接受模型、工具或外发配置，周期run不接收用户SQL。固定输入/选材与审计不可改，发布前后核对当前claim和计划，慢写期间租约过期须整体回滚；空窗口/取消终态也复核领取。非法日期偏移、时间下溢、未知配置和非严格布尔/整数拒绝，凭据与控制key不进入页面、审计或产物。
+
+研究页面prepare/execute经现有同源API及X-Research-User-Action提交；GET不调用执行。选材必须属于当前冻结简报且唯一、有界。缺失/未知响应不清除原请求，过期响应不覆盖新视图提示；服务仍校验会话归属、快照hash和固定问题绑定。接口替身测试不算真实付费执行。
+
+已启用Hot模型的同项目私有配置才选择官方零重试；非法配置不探测凭据或阻断基础Web。
+正式执行先PG登记、再既有send，失去受理回执只查原生marker。未发送取消必须停止态、
+迁移owner、匹配instance/token和无发送/回执证据；未知发送不退款。真实PG和否定用例覆盖。
+
+Hot流桥核对私有key、owned Runtime和Store/PG归属。prepared单发、未知发送不退款，
+回执先存后输出，迟到取消及逐块回放检查signal。大帧/HMAC/稳定错误码有真实loopback测试；
+真实厂商研究和安装CI尚未执行。
+
+AIHOT阅读组件继续转义标题、理由、标识和版本文本；快捷频道/排序校验现有范围后仅GET。
+新筛选请求清空旧列表/分页，过期成功与失败都由generation隔离；没有可续页时拒绝more。
+视图不获得控制key、不创建任务或研究。外部页面模型榜等非开源模块不伪造可用状态，
+原站blocked/567记录为未取得视觉证据，不通过绕过浏览器/网站保护补造验收。
+
+研究预算预留与不可变 call/attempt 映射在同一 owner fence 和 PG 事务内提交；只由
+控制角色插入映射。已有结果按原 attempt 复用，不受后续日期或 run 终态影响；取消或
+缓存指向其他 attempt 时拒绝，不通过相同 callId 再扣费。实际 LLM 流尚未接入该边界，
+因此不宣称已约束正式研究费用。Native route 继续经固定 ref 的只读凭据 seam 解析。
+
+research.model五项私有操作只接受控制key，核对run/session/call/ticket/scoped budget；
+发送前的运行状态与价目检查和预算dispatch处于同一owner事务，终态竞争不能准入新发送。
+回执可跨日恢复，费用由服务按冻结价目计算；实际DSH流桥尚未装配。大帧只用于receipt输入
+与reserve缓存返回，仍受签名、权限、实例/模式/代次、连接、时限及1MiB业务回执上限控制。
+
+Hot 阶段一内部服务使用仅回环可达的签名消息：请求/响应均以 HMAC 验证，key 不进入消息；
+校验当前实例、模式、代次和操作权限，并在真实数据库代次变化后拒绝旧端点。响应在编码前
+检查凭据反射，限制绝对时限、帧大小、连接与在途数量。读取入口暴露状态/来源/任务投影，
+不暴露 SQL 或凭据管理。配置入口拒绝 alias、FIFO 和非私有存储；未知参数不回显输入。
+Native 管理器在发信号前核对 PID 启动身份与 launch nonce；受管 PG 恢复前核对标签、卷、
+固定镜像和回环端口。角色不得重叠，已有 schema 所有权先于迁移检查。Keychain 持久化、
+完整产品安全与跨模式验收仍待验证，测试通过不表示跨平台已验证。
+归档按当前实例 key 认证，并验证实际传入恢复工具的 Buffer；禁止覆盖现有 schema。
+容器内工具具有 deadline，失败后按唯一 application_name 取消对应 backend；无法确认的
+结果保留 outcome_unknown，不能伪称已回滚。Python 中断也信号回收独立 Node session。
+HTTP 采集限固定 DataHub catalog 来源、禁止重定向、限制时限与字节；解析不获取原文中的链接。
+pg-boss 监督仅由控制角色执行，增加 job_dependency DELETE 与 version.monitor_backoff_on
+列更新权限，并在启动前检查。普通 worker 不能修改版本编号、迁移或运行身份。
+Native stop 识别 zombie，TERM 后 argv 暂变只观察，最终再核对身份，拒绝对变更 PID 升级信号。
+新增 `source.configure` 仅允许控制 key，拒绝读取 key；校验请求 UUID、配置版本和固定参数。
+普通 worker 无 enabled/frequency/config_revision 更新和 source audit 插入权限；审计不能覆盖。
+客户端不能认证或完整解析操作回执时显示 outcome_unknown 并保留原 ID，禁止伪报成功。
+累计模型额度由迁移所有者显式授权；worker 只更新计费字段/尝试状态，无授权插入或额度改写权限。
+预算、发送和回执已做真实 PG 竞争验证；实际 provider 上限、秘密反射防护及真实费用未验收。
+DSH text adapter 必须使用零重试 prepared call，并在保存前做同步秘密安全过滤。
+固定验收入口已装配每日准入与任务累计额度；正式 Web/worker/研究装配仍未完成。
+Native credential 服务只允许固定模型 ref，拒绝写入/记录操作与环境回退；解析后 JSON 字符串和键也检查反射。
+验收先核对原 PG 容器/卷/实例身份，再迁移，不能接管同名的外部 schema。
+Native CLI事件查询只用reader key，配置/纠错只用controller key。廉价结构、字段范围、UUID与
+JSON非有限数/编码/大小校验先于控制凭据查询；Node仍负责版本、归属、来源和图完整性。
+回执须确认标题锁、频道集合、合并canonical目标、移动材料移出/移入和保护，不能只凭revision
+宣称成功。不可信、不完整或迟到响应保留UUID为outcome_unknown；已知版本冲突明确拒绝。
+测试父Python退出后通过独立身份核验的Manager.stop回收Node；不是系统Keychain或跨平台证据。
+Hot Web复用本地Origin边界；控制正文必须有明确动作标记且先过字节/类型门。桥接不开放任意
+操作/SQL/路径，凭据按当前模式选择。超时线程保持容量，关闭后二次检查拒绝等待中的写入。
+UI转义原文并限制外链协议/无userinfo，持久选择与详情cutoff防跨页混合；未知写入原参数重放。
 
 预算新增不可退款预留：调用失败或预先取消仍扣票，迟到响应不能延长期限。旧政策 2026-10-10 到期，当前真实时钟拒绝；不得自动刷新费用、日期或旧账本。截止通过固定 SDK 公开 Agent.cancel 中止已绑定的原 transport signal；原生 loop marker、会话身份和当前 owner signal 均校验，陈旧 timer 不能取消下一轮。供应商远端计算是否停止仍不由本地 abort 认证。历史时钟夹具只验证机制，真实模型和其他平台仍未运行。
 
@@ -420,6 +508,22 @@ Windows 停止仍先验证产品状态文件、PID 存活与命令签名，绝�
 
 Docker Desktop 初始化在固定 bind 私有叶的原完整 guard 内，用 O_DIRECTORY/O_NOFOLLOW 固定描述符对父根执行不跟随链接的相对属性同步；前后 dev/inode/mode/uid/gid 和父别名/叶替换仍完整复核。同步不 chmod/chown、不读取秘密、不增加 owner 例外；自定义目录仍使用原严格边界。
 
+Native Hot 模型加载只引用已有持久授权范围；配置本身不能建额或重置。初始化前通过现有受控凭据桥检查 configured，缺失时不注册付费 handler。跨日定价检查在运行、预留和派发前重复执行；旧价格回执/未知尝试的兼容查询和新预留与迟到回执持同一 schema 栅栏，避免读 miss 导致重复收费。正常研究 handoff 与用户授权/价格刷新 CLI 仍待完成。
+
+模型管理不开放 worker/Agent RPC：迁移身份、实例控制 hash、停机/过期归属与同 schema 栅栏共同准入。普通 worker 不能授权或终止，也不能把 abandoned/unknown 退回 reserved/cancelled 来退款；收到 receipt 后的 received 转换和派发后的 day_key 受数据库状态门保护。
+
+model-pricing-import 要求显式官方核对标记和停机；不读取凭据或授予额度。只接受固定官方模型/币种及已知保守费率下限，私有定价加载不允许symlink、多链接、外部实例或坏记录回退；运行指纹阻断旧费用派发。核对标记是操作者声明，不是厂商账单认证。
+
+浏览器真实数据验收仅使用任务原schema与预算；模型关闭、来源临时暂停和恢复都有真实状态。临时控制角色退出后NOLOGIN；元数据与凭据来源在报告标注，未据此认证SystemKeychain完整生命周期。
+
+Hot简报冻结核心使用只读repeatable-read事务与精确版本引用；有界规范JSON摘要只用于完整性检查，不充当身份认证。Markdown转义发布者HTML与块级标记，外链仅允许无userinfo的HTTP(S)，原始判断与继承后应用版本分别呈现。日志只记固定事件类别/数量，不写原文；当前不开放浏览器导出或研究创建路由。
+
+持久简报写仅controller可用；request与version不可变，输入严格字段白名单，发布时间窗口和资料校验在冻结核心执行。发布保留owner/代次检查，读取复验hash；350000字节输入限制为现有1MiB签名帧留余量。公开Host导出与研究受理边界尚未实现。
+
+Hot简报Host输入在读key前验证身份、严格版本和选材边界，Node仍是窗口/归组/预算权威。预览转义发布者文本并限定HTTP(S)无userinfo外链；下载只返回经固定版本分块与最终SHA256验证的Markdown附件，无缓存。块offset/大小/总长/哈希/identity一致才接收；Unicode字节边界和后续version0拒绝有回归。
+
+浏览器fixture在迁移/创建role前拒绝已有基线，恢复先绑定实例/role再产生效果。NOLOGIN独立于来源恢复与预算核对，即使注入审计失败也运行；收尾后的receipt保留FAIL与实际权限清理状态。实际浏览器使用临时Hot凭据backend和offline研究，不能证明完整系统凭据生命周期。
+
 ## Office 自动验证同意
 
 设置 → 本机集成的 Office 开关默认关闭，仅明确同意后允许所属实例的 Word/Excel/PowerPoint。授权仍要求精确同源及用户动作头，只扩展三个精确 local:* 目标，其他本机目标拒绝；厂商调用仍单独确认。同意绑定私有状态根，不跨实例继承。会创建、保存、重开并清理本轮登记测试文稿，保留验证账本与阶段诊断（沙箱文件经归档后精确删除，合成副本由私有run目录按原容量/期限保留）；不会扫描用户文档或关闭用户文稿。系统权限提示必须人工处理，不reset TCC、不修改沙箱/目录权限。超时、拒绝、人工处理或清理未知停止该目标自动尝试，关闭开关取消所属任务，冷启动不重放历史任务。Doctor只读取安全开关投影，不执行验证。
@@ -427,6 +531,29 @@ Docker Desktop 初始化在固定 bind 私有叶的原完整 guard 内，用 O_D
 本机scope和Office同意的持久状态恢复不触及DataHub连接配置/凭据元数据；没有明确confirmed清理诊断的Office历史成功也不提升可调用，保持人工处理与停止标记。
 
 2026-10-09追加授权收口：Office成功且关闭确认后，仅归档登记的合成文稿到既有私有验证run目录，再清理沙箱副本；成功marker移除，仍沿原16项/512MiB/24小时有界保留策略回收，不新增执行器或任意路径接口。Office开启改用页内说明、确认/取消按钮，系统权限弹窗仍由人工处理。
+
+
+## 研究情报统一入口 · 2026-10-12
+
+主导航统一为“研究情报”，本地热点与事件在 `#/intel/hot`，现有外部8栏目仍在 `#/intel/*`。旧 `#/workbench/hot` 链接保留视图/事件参数后转入本地页。两类页面共用栏目导航、主题与Host；本地版本证据和Golddata外部只读数据保持身份与覆盖来源区分，外部读取不写Hot、领取任务或调用模型。Hot未启用时，外部栏目与设置继续可用。
+
+恢复的DOCX切片通过 `GET /api/research/hot/briefs/{brief_id}/docx?version=<固定版本>` 从签名/哈希核对的冻结输入生成并保留私有产物，复用报告DOCX生成器；导出不创建会话、不调用模型、不外发。该路径尚需完整产品/恢复验收，局部测试不代表研究闭环完成。
+
+
+## Hot冻结原件的读取边界 · 2026-10-12
+
+`research.evidence` / `research.original`仅在当前签名reader权限、实例/模式/代次和活跃owner fence内读取。请求只能指定已保存简报的正版本及1–20个明确材料ID，不能选择schema、地址、SQL或任意文件。原件必须属于该固定选择；哈希变化、失效代次和未选择原件拒绝。Host不解析原文为代码或指令，不领取任务或调用模型。清单700000字节、单原件8MiB、总量32MiB；每页最多32KiB，校验完整后才交给未来会话发布流程。
+
+本轮真实PG/签名RPC、Host重建及DOCX HTTP是隔离凭据fixture；原两份真实简报的DOCX内核输出已验证。两者不认证实际安装的SystemKeychain、研究受理或生产部署。累计授权账本继续沿用原scope，不因接续worktree或恢复而重置。
+
+
+Hot研究映射prepare/advance为controller-only，所有变更仍受实例/模式/代次与CAS；原件和状态为reader-only。预留session身份先持久化，未知结果不能自动创建另一个会话或重发付费执行。原生ID存在但cwd/本次归属不一致时拒绝采用。DataHub只允许已原生确认的匹配目标会话导入固定bundle，校验原件键/文件名/字节数/SHA与清单、截止时点；不会把材料解释成代码或用户授权。跨会话复制保留独立字节，未知暂存内容与已存在不同快照拒绝覆盖。
+
+
+2026-10-13续跑：migration18允许不可变amend-tokens审计；仅停机迁移Owner及匹配实例凭据可增加已有scope两token列，次数/费用/已用值/authorization hash不变。冻结快照仅在既有capability准入通过且本会话归属/全hash核对后只读。
+
+
+报告GET不创建运行、请求模型或改变预算。显式refresh须原user-action/header，匹配run/session/instance/manifest并只观察原Native回合。PG不可用仅展示未核验状态和已保存文件；旧成功回执不能认证当前变更字节。
 
 ## FinGPT 研究融合 · 2026-10-13
 

@@ -1,0 +1,716 @@
+{
+  "version": 1,
+  "cutoff": "2026-10-14T14:20:00.000Z",
+  "reviewAuthority": "engineering_source_review",
+  "independentLabels": false,
+  "blindedHoldout": false,
+  "retrospective": true,
+  "scopeId": "hot_events_goal_01a11684",
+  "channelConfigs": [
+    {
+      "id": "ai",
+      "version": 1,
+      "config": {
+        "name": "AI 科技",
+        "rules": [
+          {
+            "id": "models",
+            "keywords": [
+              "model",
+              "模型",
+              "GPT",
+              "Gemini"
+            ],
+            "relevance": 95,
+            "importance": 80,
+            "requireOfficial": true
+          },
+          {
+            "id": "research",
+            "keywords": [
+              "science",
+              "scientists",
+              "research",
+              "科学"
+            ],
+            "relevance": 80,
+            "importance": 65,
+            "requireOfficial": true
+          }
+        ],
+        "topics": [
+          "AI",
+          "artificial intelligence",
+          "人工智能",
+          "OpenAI",
+          "DeepMind"
+        ],
+        "sourceIds": [
+          "openai",
+          "deepmind"
+        ],
+        "importanceRules": [
+          "官方模型、产品、算力与科研进展独立于转载数评估。"
+        ]
+      }
+    },
+    {
+      "id": "gold",
+      "version": 1,
+      "config": {
+        "name": "黄金",
+        "rules": [
+          {
+            "id": "rates",
+            "keywords": [
+              "interest rate",
+              "monetary policy",
+              "inflation",
+              "通胀"
+            ],
+            "relevance": 85,
+            "importance": 85,
+            "requireOfficial": true
+          },
+          {
+            "id": "bank-stability",
+            "keywords": [
+              "resolution",
+              "bank"
+            ],
+            "relevance": 40,
+            "importance": 35,
+            "requireOfficial": true
+          }
+        ],
+        "topics": [
+          "gold",
+          "黄金",
+          "interest rate",
+          "dollar",
+          "通胀"
+        ],
+        "sourceIds": [
+          "fed",
+          "ecb"
+        ],
+        "importanceRules": [
+          "利率、货币政策与通胀作为直接研究线索；银行处置仅列为较低相关性的金融稳定线索。"
+        ]
+      }
+    },
+    {
+      "id": "macro",
+      "version": 1,
+      "config": {
+        "name": "宏观政策",
+        "rules": [
+          {
+            "id": "policy",
+            "keywords": [
+              "monetary policy",
+              "interest rate",
+              "inflation",
+              "货币政策"
+            ],
+            "relevance": 95,
+            "importance": 90,
+            "requireOfficial": true
+          },
+          {
+            "id": "stability",
+            "keywords": [
+              "resolution",
+              "regulation",
+              "supervision",
+              "监管"
+            ],
+            "relevance": 90,
+            "importance": 80,
+            "requireOfficial": true
+          }
+        ],
+        "topics": [
+          "monetary policy",
+          "interest rate",
+          "inflation",
+          "resolution planning",
+          "货币政策",
+          "监管"
+        ],
+        "sourceIds": [
+          "fed",
+          "ecb"
+        ],
+        "importanceRules": [
+          "官方政策、监管与金融稳定文件即使传播较少，也可以进入重点研究。"
+        ]
+      }
+    }
+  ],
+  "samples": [
+    {
+      "id": "macro-supervision",
+      "split": "holdout",
+      "eventGroups": [
+        "ecb-supervision-remediation"
+      ],
+      "material": {
+        "material_id": "4b919949-c1be-4d65-b79d-9fe23aed0202",
+        "revision": 1,
+        "content_hash": "7613c304a2173493087f6120e73929a597e433654eb9af18f79ccfa16a89bacc",
+        "title": "Frank Elderson: Effective supervision through timely remediation",
+        "excerpt": "",
+        "published_at": "2026-10-06T13:00:00.000Z",
+        "published_raw": "Tue, 06 Oct 2026 15:00:00 +0200",
+        "acquired_at": "2026-10-14T01:49:39.631Z",
+        "original_url": "https://www.ecb.europa.eu//press/key/date/2026/html/ecb.sp261006_1~0df91e4e44.en.html",
+        "state": "active",
+        "source_id": "ecb",
+        "operator": "ECB",
+        "body_hash": "e2c0f2a4c8ac12002efc06818da62a87530db9bae15449a2569b9bfe2061a965"
+      },
+      "expectedScores": {
+        "ai": {
+          "relevance": 0,
+          "importance": 0,
+          "heat": 0
+        },
+        "macro": {
+          "relevance": 90,
+          "importance": 80,
+          "heat": 0
+        },
+        "gold": {
+          "relevance": 0,
+          "importance": 0,
+          "heat": 0
+        }
+      },
+      "tags": [
+        "macro",
+        "official",
+        "different_operator",
+        "low_heat_important",
+        "title_only"
+      ],
+      "reviewBasis": "工程来源核对；规则分数按冻结频道规则验证。未进行独立标注或概率校准。",
+      "inputCoverage": "feed_title_or_excerpt_not_full_article",
+      "materialSnapshotHash": "5cec8c4cca72a7726717c2df816a6f22d848e2867f6c20d997764c1a57a6bd6f"
+    },
+    {
+      "id": "ai-science-jam",
+      "split": "development",
+      "eventGroups": [
+        "ai-science-jam"
+      ],
+      "material": {
+        "material_id": "5c3ca92f-fba7-4b44-8fbc-4e933f46afba",
+        "revision": 1,
+        "content_hash": "b0b8c6543a6f02dfc83a79d840138d3862c58f36be9379e40af7f80b15921eeb",
+        "title": "1,000 Scientist AI Jam Session",
+        "excerpt": "OpenAI and nine national labs bring together leading scientists for first-of-its kind event.",
+        "published_at": "2025-02-28T08:00:00.000Z",
+        "published_raw": "Fri, 28 Feb 2025 08:00:00 GMT",
+        "acquired_at": "2026-10-08T01:37:03.423Z",
+        "original_url": "https://openai.com/global-affairs/1000-scientist-ai-jam-session",
+        "state": "active",
+        "source_id": "openai",
+        "operator": "OpenAI",
+        "body_hash": "5efbe1e31bdadbdae3edc9fcf5b2315713ee1e1dac3e9a162f7f80b35356338a"
+      },
+      "expectedScores": {
+        "ai": {
+          "relevance": 80,
+          "importance": 65,
+          "heat": 0
+        },
+        "macro": {
+          "relevance": 0,
+          "importance": 0,
+          "heat": 0
+        },
+        "gold": {
+          "relevance": 0,
+          "importance": 0,
+          "heat": 0
+        }
+      },
+      "tags": [
+        "ai",
+        "official",
+        "historical_import",
+        "cross_channel_irrelevant"
+      ],
+      "reviewBasis": "工程来源核对；规则分数按冻结频道规则验证。未进行独立标注或概率校准。",
+      "inputCoverage": "feed_title_or_excerpt_not_full_article",
+      "receipt": {
+        "packet": {
+          "material": {
+            "id": "5c3ca92f-fba7-4b44-8fbc-4e933f46afba",
+            "url": "https://openai.com/global-affairs/1000-scientist-ai-jam-session",
+            "title": "1,000 Scientist AI Jam Session",
+            "excerpt": "OpenAI and nine national labs bring together leading scientists for first-of-its kind event.",
+            "partial": false,
+            "revision": 1,
+            "acquiredAt": "2026-10-08T01:37:03.423Z",
+            "contentHash": "b0b8c6543a6f02dfc83a79d840138d3862c58f36be9379e40af7f80b15921eeb",
+            "publishedAt": "2025-02-28T08:00:00.000Z"
+          },
+          "candidates": [],
+          "promptVersion": "hot-group-v1",
+          "candidateLimit": 20,
+          "candidateSearch": "bounded_all_history"
+        },
+        "packetHash": "eeb0125e1e77d00575e41768c9aab0afbb1d040dfd35d132eba849af740f09a6",
+        "response": {
+          "text": "{\"parts\":[{\"relation\":\"different_event\",\"candidateId\":null,\"title\":\"OpenAI与九家国家实验室举办千人科学家AI Jam Session\",\"reason\":\"候选列表为空，未检索到已有候选事件；材料描述的是OpenAI与九家国家实验室共同举办的首届千人科学家AI Jam Session，属于新事件。\"}]}",
+          "usage": {
+            "inputTokens": 385,
+            "totalTokens": 455,
+            "outputTokens": 70,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0
+          },
+          "provider": "deepseek-official",
+          "requestedModel": "deepseek-v4-flash"
+        },
+        "responseHash": "17859a7d32e8cb4ec3177c87895b5d5732db2ece38652270d98a28184bf391cd",
+        "decision": {
+          "parts": [
+            {
+              "title": "OpenAI与九家国家实验室举办千人科学家AI Jam Session",
+              "reason": "候选列表为空，未检索到已有候选事件；材料描述的是OpenAI与九家国家实验室共同举办的首届千人科学家AI Jam Session，属于新事件。",
+              "relation": "different_event",
+              "candidateId": null
+            }
+          ]
+        },
+        "expectedRelations": [
+          "different_event"
+        ],
+        "attemptId": "596059fa-4412-4924-966b-5d08daaa6fa8",
+        "tokens": "455",
+        "costMicros": "200",
+        "eventIds": [
+          "40368bfd-7601-5644-a067-a94717af766a"
+        ]
+      },
+      "materialSnapshotHash": "b0eb9498fa4c10bd7de16d397857a1fd143f257f0cd6b9c4aeb32f4135c1697f"
+    },
+    {
+      "id": "ai-embeddinggemma",
+      "split": "holdout",
+      "eventGroups": [
+        "ai-embeddinggemma"
+      ],
+      "material": {
+        "material_id": "898cd9c2-6444-484e-a4e1-fab174353f3c",
+        "revision": 1,
+        "content_hash": "6bbfd6037a3dea8a47213125d6f67e659f9f8b4bbc138242274163946891acc8",
+        "title": "EmbeddingGemma 2: an open, lightweight multimodal embedding model",
+        "excerpt": "",
+        "published_at": "2026-10-06T19:57:04.000Z",
+        "published_raw": "Tue, 06 Oct 2026 19:57:04 +0000",
+        "acquired_at": "2026-10-14T07:50:58.370Z",
+        "original_url": "https://deepmind.google/blog/embeddinggemma-2-an-open-lightweight-multimodal-embedding-model/",
+        "state": "active",
+        "source_id": "deepmind",
+        "operator": "Google",
+        "body_hash": "dfd9dd64a4bc161a3a708109814be5890d1bf30a4817e980df83fcdd58a18310"
+      },
+      "expectedScores": {
+        "ai": {
+          "relevance": 95,
+          "importance": 80,
+          "heat": 0
+        },
+        "macro": {
+          "relevance": 0,
+          "importance": 0,
+          "heat": 0
+        },
+        "gold": {
+          "relevance": 0,
+          "importance": 0,
+          "heat": 0
+        }
+      },
+      "tags": [
+        "ai",
+        "official",
+        "different_operator",
+        "title_only"
+      ],
+      "reviewBasis": "工程来源核对；规则分数按冻结频道规则验证。未进行独立标注或概率校准。",
+      "inputCoverage": "feed_title_or_excerpt_not_full_article",
+      "receipt": {
+        "packet": {
+          "material": {
+            "id": "898cd9c2-6444-484e-a4e1-fab174353f3c",
+            "url": "https://deepmind.google/blog/embeddinggemma-2-an-open-lightweight-multimodal-embedding-model/",
+            "title": "EmbeddingGemma 2: an open, lightweight multimodal embedding model",
+            "excerpt": "",
+            "partial": false,
+            "revision": 1,
+            "acquiredAt": "2026-10-14T07:50:58.370Z",
+            "contentHash": "6bbfd6037a3dea8a47213125d6f67e659f9f8b4bbc138242274163946891acc8",
+            "publishedAt": "2026-10-06T19:57:04.000Z"
+          },
+          "candidates": [
+            {
+              "id": "40368bfd-7601-5644-a067-a94717af766a",
+              "reports": [
+                {
+                  "url": "https://openai.com/global-affairs/1000-scientist-ai-jam-session",
+                  "title": "1,000 Scientist AI Jam Session",
+                  "publishedAt": "2025-02-28T08:00:00+00:00"
+                }
+              ],
+              "revision": 1,
+              "snapshot": {
+                "links": [],
+                "state": "active",
+                "title": "OpenAI与九家国家实验室举办千人科学家AI Jam Session",
+                "manual": {
+                  "title": false,
+                  "channels": null,
+                  "excluded": [],
+                  "protected": []
+                },
+                "materials": [
+                  {
+                    "id": "5c3ca92f-fba7-4b44-8fbc-4e933f46afba",
+                    "relation": "same_occurrence",
+                    "revision": 1
+                  }
+                ],
+                "occurredAt": null,
+                "canonicalId": null,
+                "effectiveAt": null
+              }
+            }
+          ],
+          "promptVersion": "hot-group-v1",
+          "candidateLimit": 20,
+          "candidateSearch": "bounded_all_history"
+        },
+        "packetHash": "afa16cf5c37e3440bfc1c0af920547fa8591e03cf84925a74e7b9a0cc7a5fb82",
+        "response": {
+          "text": "{\"parts\":[{\"relation\":\"different_event\",\"candidateId\":null,\"title\":\"EmbeddingGemma 2：开放轻量级多模态嵌入模型\",\"reason\":\"候选事件为OpenAI与九家国家实验室举办千人科学家AI Jam Session，材料为DeepMind发布EmbeddingGemma 2嵌入模型，主体、主题与事件均不同，非同一发生，也无直接后续关系。\"}]}",
+          "usage": {
+            "inputTokens": 358,
+            "totalTokens": 571,
+            "outputTokens": 85,
+            "cacheReadTokens": 128,
+            "cacheWriteTokens": 0
+          },
+          "provider": "deepseek-official",
+          "requestedModel": "deepseek-flash"
+        },
+        "responseHash": "5110af20ce3d54f4904242decfa1637046c2576d8c97f84ce708fd2ed9465733",
+        "decision": {
+          "parts": [
+            {
+              "title": "EmbeddingGemma 2：开放轻量级多模态嵌入模型",
+              "reason": "候选事件为OpenAI与九家国家实验室举办千人科学家AI Jam Session，材料为DeepMind发布EmbeddingGemma 2嵌入模型，主体、主题与事件均不同，非同一发生，也无直接后续关系。",
+              "relation": "different_event",
+              "candidateId": null
+            }
+          ]
+        },
+        "expectedRelations": [
+          "different_event"
+        ],
+        "attemptId": "46f8e210-dc28-4fce-bf40-769254db7455",
+        "tokens": "571",
+        "costMicros": "211",
+        "eventIds": [
+          "110b3a68-9688-51fe-a182-13e2e5ae7929"
+        ]
+      },
+      "materialSnapshotHash": "faaae88f9c2fe20994254b23b8146fe8495a9145643ad909a5bd72eb97f2ff42"
+    },
+    {
+      "id": "macro-account",
+      "split": "holdout",
+      "eventGroups": [
+        "ecb-account-september-2026"
+      ],
+      "material": {
+        "material_id": "9548f0d7-0fc5-4566-92b9-80a704a22e35",
+        "revision": 1,
+        "content_hash": "0a241f4de2167725a3d6d1e6ea3699c269f8f499f1f9faecf1e76a0e9ccbb5ff",
+        "title": "Meeting of 9-10 September 2026",
+        "excerpt": "",
+        "published_at": "2026-10-08T11:30:00.000Z",
+        "published_raw": "Thu, 08 Oct 2026 13:30:00 +0200",
+        "acquired_at": "2026-10-14T01:49:39.631Z",
+        "original_url": "https://www.ecb.europa.eu//press/accounts/2026/html/ecb.mg261008~a10153d090.en.html",
+        "state": "active",
+        "source_id": "ecb",
+        "operator": "ECB",
+        "body_hash": "e2c0f2a4c8ac12002efc06818da62a87530db9bae15449a2569b9bfe2061a965"
+      },
+      "expectedScores": {
+        "ai": {
+          "relevance": 0,
+          "importance": 0,
+          "heat": 0
+        },
+        "macro": {
+          "relevance": 0,
+          "importance": 0,
+          "heat": 0
+        },
+        "gold": {
+          "relevance": 0,
+          "importance": 0,
+          "heat": 0
+        }
+      },
+      "tags": [
+        "macro",
+        "official",
+        "insufficient_title_context",
+        "pending_review"
+      ],
+      "reviewBasis": "工程来源核对；规则分数按冻结频道规则验证。未进行独立标注或概率校准。",
+      "inputCoverage": "feed_title_or_excerpt_not_full_article",
+      "materialSnapshotHash": "4e32bbe67aa9ba9a79f4c88ab94cb7cecbd8175aed581b7cd305a63837be9ff7"
+    },
+    {
+      "id": "macro-feedback",
+      "split": "development",
+      "eventGroups": [
+        "macro-feedback-2026",
+        "bnp-resolution-chain"
+      ],
+      "material": {
+        "material_id": "affec1f5-963c-4290-b74f-8ed5eb6bcb7c",
+        "revision": 1,
+        "content_hash": "ad3b5f1d14b7298d6495f1d16afc84b7ceeb31cf8f79af995b1b982916eace5d",
+        "title": "Agencies publish resolution plan feedback letters for 15 banking organizations",
+        "excerpt": "Agencies publish resolution plan feedback letters for 15 banking organizations",
+        "published_at": "2026-09-29T20:00:00.000Z",
+        "published_raw": "Tue, 29 Sep 2026 20:00:00 GMT",
+        "acquired_at": "2026-10-08T01:38:06.584Z",
+        "original_url": "https://www.federalreserve.gov/newsevents/pressreleases/bcreg20260929a.htm",
+        "state": "active",
+        "source_id": "fed",
+        "operator": "Federal Reserve",
+        "body_hash": "5338aea5dadd6cab09377d222a527577e332bf45d66c6900063934abdd099d2b"
+      },
+      "expectedScores": {
+        "ai": {
+          "relevance": 0,
+          "importance": 0,
+          "heat": 0
+        },
+        "macro": {
+          "relevance": 90,
+          "importance": 80,
+          "heat": 0
+        },
+        "gold": {
+          "relevance": 40,
+          "importance": 35,
+          "heat": 0
+        }
+      },
+      "tags": [
+        "macro",
+        "official",
+        "low_heat_important",
+        "cross_channel_irrelevant"
+      ],
+      "reviewBasis": "工程来源核对；规则分数按冻结频道规则验证。未进行独立标注或概率校准。",
+      "inputCoverage": "feed_title_or_excerpt_not_full_article",
+      "receipt": {
+        "packet": {
+          "material": {
+            "id": "affec1f5-963c-4290-b74f-8ed5eb6bcb7c",
+            "url": "https://www.federalreserve.gov/newsevents/pressreleases/bcreg20260929a.htm",
+            "title": "Agencies publish resolution plan feedback letters for 15 banking organizations",
+            "excerpt": "Agencies publish resolution plan feedback letters for 15 banking organizations",
+            "partial": false,
+            "revision": 1,
+            "acquiredAt": "2026-10-08T01:38:06.584Z",
+            "contentHash": "ad3b5f1d14b7298d6495f1d16afc84b7ceeb31cf8f79af995b1b982916eace5d",
+            "publishedAt": "2026-09-29T20:00:00.000Z"
+          },
+          "candidates": [
+            {
+              "id": "40368bfd-7601-5644-a067-a94717af766a",
+              "reports": [
+                {
+                  "url": "https://openai.com/global-affairs/1000-scientist-ai-jam-session",
+                  "title": "1,000 Scientist AI Jam Session",
+                  "publishedAt": "2025-02-28T08:00:00+00:00"
+                }
+              ],
+              "revision": 1,
+              "snapshot": {
+                "links": [],
+                "state": "active",
+                "title": "OpenAI与九家国家实验室举办千人科学家AI Jam Session",
+                "manual": {
+                  "title": false,
+                  "channels": null,
+                  "excluded": [],
+                  "protected": []
+                },
+                "materials": [
+                  {
+                    "id": "5c3ca92f-fba7-4b44-8fbc-4e933f46afba",
+                    "relation": "same_occurrence",
+                    "revision": 1
+                  }
+                ],
+                "occurredAt": null,
+                "canonicalId": null,
+                "effectiveAt": null
+              }
+            }
+          ],
+          "promptVersion": "hot-group-v1",
+          "candidateLimit": 20,
+          "candidateSearch": "bounded_all_history"
+        },
+        "packetHash": "f7d697118e02236a10245eb7a0703130f2b3ed2dbef743012236c58bdf43f3d5",
+        "response": {
+          "text": "{\"parts\":[{\"relation\":\"different_event\",\"candidateId\":null,\"title\":\"美国机构发布15家银行组织处置计划反馈函\",\"reason\":\"材料为美联储等机构发布银行处置计划反馈函，候选事件为OpenAI与国家实验室举办AI Jam Session，主体、主题和事实均不同，且无直接后续关系。\"}]}",
+          "usage": {
+            "inputTokens": 505,
+            "totalTokens": 576,
+            "outputTokens": 71,
+            "cacheReadTokens": 0,
+            "cacheWriteTokens": 0
+          },
+          "provider": "deepseek-official",
+          "requestedModel": "deepseek-v4-flash"
+        },
+        "responseHash": "241582560bf6bc51d25eb25cb507d855ec517d6e6f839e63ee1ab8aecfbd3aba",
+        "decision": {
+          "parts": [
+            {
+              "title": "美国机构发布15家银行组织处置计划反馈函",
+              "reason": "材料为美联储等机构发布银行处置计划反馈函，候选事件为OpenAI与国家实验室举办AI Jam Session，主体、主题和事实均不同，且无直接后续关系。",
+              "relation": "different_event",
+              "candidateId": null
+            }
+          ]
+        },
+        "expectedRelations": [
+          "different_event"
+        ],
+        "attemptId": "a99f6985-2c39-4bf5-aa7e-6e415502f63e",
+        "tokens": "576",
+        "costMicros": "237",
+        "eventIds": [
+          "517a96f2-03ef-5b00-a68d-3a552447dd18"
+        ]
+      },
+      "materialSnapshotHash": "fc65c1d07d8dc1474183f3ca0731485d782618ce38830b82baa725de13101bc7"
+    }
+  ],
+  "referenceCases": [
+    {
+      "id": "macro-repost",
+      "split": "development",
+      "eventGroups": [
+        "macro-feedback-2026",
+        "bnp-resolution-chain"
+      ],
+      "expected": "same_occurrence",
+      "sourceUrls": [
+        "https://www.federalreserve.gov/newsevents/pressreleases/bcreg20260929a.htm",
+        "https://thefile.news/story/fed-resolution-plans-15-banks-sept29"
+      ],
+      "basis": "The File报道明确追溯9月29日联合发布，属于同一反馈函发布事件；不能把报道9月30日当作新发生。",
+      "modelStatus": "NOT_RUN"
+    },
+    {
+      "id": "macro-long-followup",
+      "split": "development",
+      "eventGroups": [
+        "bnp-resolution-chain"
+      ],
+      "expected": "direct_followup",
+      "sourceUrls": [
+        "https://www.federalreserve.gov/newsevents/pressreleases/bcreg20221216b.htm",
+        "https://www.federalreserve.gov/newsevents/pressreleases/bcreg20260929a.htm"
+      ],
+      "basis": "2022官方反馈指出BNP 2021计划缺口；2026官方文明确认该缺口已解决。是同一整改事项后续，不能按同主题直接归为同一次发生。相隔多年，不能只检索最近14天。",
+      "modelStatus": "NOT_RUN"
+    },
+    {
+      "id": "macro-composite",
+      "split": "development",
+      "eventGroups": [
+        "bnp-resolution-chain",
+        "credit-suisse-resolution-2021"
+      ],
+      "expected": "composite",
+      "sourceUrls": [
+        "https://www.federalreserve.gov/newsevents/pressreleases/bcreg20221216b.htm"
+      ],
+      "basis": "同一联合通告分别说明Credit Suisse两项缺陷和BNP一项缺口；逐银行事项可分别关联，不把它们串成同一银行事件。",
+      "modelStatus": "NOT_RUN"
+    },
+    {
+      "id": "macro-uncertainty",
+      "split": "holdout",
+      "eventGroups": [
+        "ecb-account-september-2026"
+      ],
+      "expected": "pending_review",
+      "sourceUrls": [
+        "https://www.ecb.europa.eu//press/accounts/2026/html/ecb.mg261008~a10153d090.en.html"
+      ],
+      "basis": "保存的标题只有会议日期且摘要为空，不足以建立直接后续或政策重要性判断；规则零分不等于事实不重要。",
+      "modelStatus": "NOT_RUN"
+    }
+  ],
+  "limitations": [
+    "事件分离但属于回执生成后的回顾性检查，不是盲测。",
+    "真实模型回执覆盖different_event；其他关系仅有来源核对/既有工程回归，不能声称已真实模型验证。",
+    "没有独立人工金标准，不报告准确率。",
+    "所有材料仅为feed标题/摘要，空摘要及实际覆盖边界保留。",
+    "FDIC列表本轮403，不据镜像页面或搜索摘要登记新采集来源。",
+    "仅目标发生/材料分离；原生产回执候选历史跨分区共享，不能称完整上下文独立。"
+  ],
+  "sourceCatalog": {
+    "version": 1,
+    "sources": [
+      {
+        "id": "openai",
+        "operator": "OpenAI",
+        "channelHint": "ai",
+        "official": true,
+        "url": "https://openai.com/news/rss.xml"
+      },
+      {
+        "id": "deepmind",
+        "operator": "Google",
+        "channelHint": "ai",
+        "official": true,
+        "url": "https://deepmind.google/blog/rss.xml"
+      },
+      {
+        "id": "fed",
+        "operator": "Federal Reserve",
+        "channelHint": "macro",
+        "official": true,
+        "url": "https://www.federalreserve.gov/feeds/press_all.xml"
+      },
+      {
+        "id": "ecb",
+        "operator": "ECB",
+        "channelHint": "macro",
+        "official": true,
+        "url": "https://www.ecb.europa.eu/rss/press.html"
+      }
+    ]
+  }
+}

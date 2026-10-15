@@ -11,7 +11,7 @@ const navItems = [
   { page: 'claw', glyph: 'layers', title: 'Claw', href: '#/claw' },
   { page: 'workbench', section: 'assets', glyph: 'chart', title: '资产观察', href: '#/workbench/assets' },
   { page: 'workbench', glyph: 'chart', title: '研究台', href: '#/workbench' },
-  { page: 'intel', glyph: 'activity', title: '资讯雷达', href: '#/intel/overview' },
+  { page: 'intel', glyph: 'activity', title: '研究情报', href: '#/intel/overview' },
   { page: 'frameworks', glyph: 'grid', title: '研究框架', href: '#/frameworks' },
   { page: 'skills', glyph: 'grid', title: '能力中心', href: '#/skills' },
   { page: 'operations', glyph: 'activity', title: '运行与用量', href: '#/operations' },
@@ -64,7 +64,7 @@ export function renderGlobalResults(query, sessions, skills) {
 export function renderPrimaryRail({ page, section = '', secondaryOpen = false } = {}) {
   const researchPage = ['fingpt', 'claw'].includes(page);
   const links = navItems.map((item) => {
-    const active = page === item.page && (item.section ? section === item.section : !(item.page === 'workbench' && section === 'assets'));
+    const active = page === item.page && (item.section ? section === item.section : !(item.page === 'workbench' && ['assets','hot'].includes(section)));
     return `<a href="${item.href}" class="rail-link ${active ? 'active' : ''}" ${active ? 'aria-current="page"' : ''} title="${e(item.title)}"><span class="rail-icon" aria-hidden="true">${icon(item.glyph)}</span><span class="rail-label">${e(item.title)}</span></a>`;
   }).join('');
   const sidebarToggle = researchPage ? `<button class="rail-link rail-toggle ${secondaryOpen ? 'active' : ''}" data-toggle-sidebar aria-label="${secondaryOpen ? '关闭会话侧栏' : '打开会话侧栏'}" aria-expanded="${secondaryOpen}">☰</button>` : '';
@@ -126,8 +126,8 @@ export function renderContextPanel({ detail, selectedTab = 'activity', mobileOpe
 }
 
 export function renderTopbar({ page = 'fingpt', section = '', frameworkSlug = '', settingsSection = '', detail = null, runtimeLabel, runtime, search = '', sessions = [], skills = [], searchOpen = false } = {}) {
-  const title = page === 'workbench' && section === 'assets' ? '资产观察' : ({ fingpt: 'FinGPT', claw: 'Claw', workbench: '研究台', frameworks: '研究框架', skills: '能力中心', history: '研究历史', operations: '运行与用量', intel: '资讯雷达', settings: '设置' })[page] || 'FinGPT';
-  const settingsSubtitle = ({ general: '通用', model: '模型服务', data: '数据源', local: '本机集成', docs: '架构文档' })[settingsSection];
+  const title = page === 'workbench' && section === 'hot' ? '热点与事件' : page === 'workbench' && section === 'assets' ? '资产观察' : ({ fingpt: 'FinGPT', claw: 'Claw', workbench: '研究台', frameworks: '研究框架', skills: '能力中心', history: '研究历史', operations: '运行与用量', intel: '研究情报', settings: '设置' })[page] || 'FinGPT';
+  const settingsSubtitle = ({ general: '通用', model: '模型服务', data: '数据源', local: '本机集成', docs: '架构文档', hot: '热点与事件' })[settingsSection];
   let runtimeAttention = '';
   if (runtime && (!runtime.connected || runtime.credential_configured === false)) {
     const [label, tone] = runtime.connected

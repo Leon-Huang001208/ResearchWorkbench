@@ -1,0 +1,21 @@
+{
+  "name": "@rwb/hot",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=24.11 <25" },
+  "scripts": {
+    "test": "node --test tests/*.test.ts",
+    "proof": "node scripts/stage-zero.ts",
+    "test:postgres": "node --test tests/*.integration.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "postgres": "3.4.9",
+    "pg-boss": "12.34.0",
+    "fast-xml-parser": "5.11.1"
+  },
+  "devDependencies": {
+    "@types/node": "24.10.0",
+    "typescript": "7.0.2"
+  }
+}

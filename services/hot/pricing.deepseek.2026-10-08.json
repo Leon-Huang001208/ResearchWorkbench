@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "verifiedOn": "2026-10-08",
+  "source": "https://api-docs.deepseek.com/quick_start/pricing/",
+  "provider": "deepseek-official",
+  "requestedModel": "deepseek-v4-flash",
+  "documentedAlias": "deepseek-flash",
+  "documentedBackend": "DeepSeek-V4.1-Flash",
+  "currency": "USD",
+  "basis": "conservative_peak_tariff_ceiling_not_invoice",
+  "inputMicrosPerMillion": 300000,
+  "cacheReadMicrosPerMillion": 6000,
+  "cacheWriteMicrosPerMillion": 300000,
+  "outputMicrosPerMillion": 1200000,
+  "cacheWriteBasis": "conservative_uncached_input_ceiling",
+  "automaticallyActive": false
+}
