@@ -1,5 +1,20 @@
 # Hot / 研究情报接续记录
 
+## 当前状态：2026-10-15 周期报告与最终验收
+
+本段优先于下方历史记录。完整Goal仍ACTIVE，替代交付PR114；PR113保留历史且不合并。
+运行候选3182d0a2已完成schema21周期一次性报告子执行、Docker与同库Native切换，以及59表联合恢复。
+Docker新周期run8ead2654生成Word38933bytes，SHA196c779734b049b3277396b980f3be7fbadede662f93e916fdc4f46f42eab171；
+原Native报告跨模式读取字节不变。镜像afd1dc1938e383255bb70a57587c3fd00da1aae6b89d47d8a7a4cdc63610ccfd保留，
+stage停止；原库generation139暂停，恢复库hot_joint_final_3182_20261015 generation141暂停。恢复worker五源配置保留，
+ECB/Fed/OpenAI/The File四源本轮新成功，DeepMind保留旧成功及连接重置错误；Native执行历史明确NOT_RESTORED。
+dev/g2b同CID/image恢复运行，旧镜像及stage全部五卷保留。Docker模型如实blocked_model。
+模型账本20calls/79894tokens/11501microUSD保守上界不变（非发票）；cap20/100000/USD1，不再发送模型请求。
+当前受管task hot-periodic-docker-projection-20261015，feature与integration位于本continuation相邻ResearchWorkbench-worktrees/。
+证据在integration logs/docker-final及logs/recovery-final。后续仅文档对齐，不改运行代码；必须逐字节比较并记录复用范围。
+3182已推送，三项CI运行；本地必需Python回归仍运行，Node完整集首轮唯一README摘要长度失败已以82项原测试修复验证。
+下一步：最终文档候选检查/回执，最新Mac CI及merge-preview身份、最终独立评审，然后按规则合并；未执行的他平台保留NOT_RUN。
+
 最新受管集成：task hot-intel-goal-final-20261015，worktree /Users/leon/.codex/worktrees/hot-intel-managed/hot-intel-goal-final-20261015，base97b7b64，三方合入原321818fb5。23冲突已解，源码两处保留主线字体/EmbedBridge/IME及Hot证据/dirty处理；索引和API图册重建。Python166及运行路由1356PASS/1SKIP、JS769PASS/2SKIP、类型/架构/文档/完整299文件约束及独立审查通过。首次SHIM_INVALID是工具Node路径不同，改用现有shim绑定解释器成功，未改shim或全局工具/产品Node24。新候选还需prepare、隔离Mac安装/当前CI及最终镜像；旧7010镜像不认证新merge。旧worktree/PR106/数据及scope18/77375/10464microUSD保留，不增20/100000/USD1。困难关系模型/TLS gap保持，Goal INCOMPLETE。
 
 最新实际验收：源7010a2bd4，新joint-final-7010归档/隔离恢复DB保留旧库，58表/原件/预算/日期/简报及选定真实报告2734bytes同SHA核验，恢复正常worker四源新采集与inbox0、clone101暂停。完整image7800f8dd…实际build/替换stage/up/Doctor/日期与MD-DOCX读取通过；原库Docker100→暂停101→Native102→暂停103，旧Docker签名拒绝。Docker3源成功、DeepMind connection_reset真实保留；验收only TCP relay不认证生产TLS。五个stage卷/旧images/原dev容器image及卷running全部保留，预算仍18/77375/10464microUSD、caps20/100000/USD1。当前远端PUBLIC/master e45d3bc，PR106仍head3233da967 draft/DIRTY；下一步受管主线集成、缺口审计和最终Mac安装CI/可审查交付，不增加预算。困难关系真模型覆盖及外部TLS保留缺口，完整Goal INCOMPLETE。
