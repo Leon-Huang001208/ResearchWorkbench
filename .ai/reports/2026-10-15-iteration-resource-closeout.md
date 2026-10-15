@@ -41,5 +41,11 @@ ignored数据/占用检查均保留。证据与回执位于common Git私有目�
 Git最终化分别持久化；pending审计恢复，complete之后只校验本任务持久化成功证据，不要求
 其他任务历史分支/worktree永久存在；重复status/cleanup不重新删除或因瞬态查询错误污染完成回执。
 
+最终Git safety与新身份测试47项完整通过（34.45秒）；原275项集合中其余模块没有新源码变化。
+初次prepare的控制器merge非零被标为integration_conflict，但工作区没有未解决路径；原生Git
+完成同一feature的三方merge后，按既有冲突恢复prepare正式记录59fc7cf5，未删除锁、重置计数
+或跳过验证。随后仅此报告补充是一次受控晚到feature提交，用于实测publish自动同步已包含
+候选的feature身份；代码和真实GC源保持相同。失败记录保留在任务交付日志。
+
 <!-- architecture-review {"group":"dual-runtime","structure":"unchanged","reason":"仅在既有管理员资源控制和Git交付边界补任务归属、缓存预算与收尾回执，不新增产品服务、数据库或Web接口；既有部署拓扑保持。","diagrams":[]} -->
 <!-- architecture-review {"group":"verification-workflow","structure":"unchanged","reason":"在现有Project Constraints job加入无Docker的stdlib回归和同一步骤JS身份验证，不新增workflow或runner；真实Mac卷验收保持本机证据。","diagrams":[]} -->
