@@ -1,5 +1,11 @@
 # Research Workbench 架构总览
 
+macOS 可选 resident 管理平面在用户登录后监督既有 Native Web/DSH，不增加研究引擎。
+控制器使用固定 artifact、GitHub exact-tree 验证、同根 wheel 切换和原生命周期 lease；
+研究准入共享锁先于生命周期锁，事务 journal 保证恢复优先。依赖/持久化/未知路径不自动升级。
+配置与操作见[安装指南](research-web-installation.md#macos-登录后常驻与自动部署)。
+
+
 本页只维护系统级边界。Research Web 的模块、协议、数据文件、安全和接口细节统一从 [Research Web 当前架构](architecture/research-web/README.md) 进入；旧平台的完整历史说明已归档。
 
 ## 当前产品边界

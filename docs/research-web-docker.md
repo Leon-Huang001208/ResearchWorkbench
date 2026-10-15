@@ -1,5 +1,9 @@
 # Mac mini Docker 开发与独立部署
 
+resident仅适用于已明确安装的macOS Native，不管理Docker容器、镜像、卷或Docker模式；
+发现模式/归属不符时保留blocked，不跨模式启动第二实例。
+
+
 Hot schema21的周期Word报告在既有容器产品Python中做单次投影，产物/回执存同一PG，
 不启动额外常驻服务、DSH研究或外发。切换后只读同一已保存报告，旧租约拒绝晚到完成。
 当前源修复后须重建候选并重验；旧image与全部卷保留，不以旧821d镜像认证新源。

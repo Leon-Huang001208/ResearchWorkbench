@@ -1,5 +1,10 @@
 # Research Web 能力与平台证据
 
+macOS resident 为显式选择的登录后 Native 管理功能；保留 FileVault，不承诺登录前启动。
+Windows/Linux、Docker resident 均不启用；未执行的平台验收保持 NOT_RUN。
+本轮不重启或注销用户，真实重启登录恢复须另记现场证据；启动项加载与当前进程健康分别验收。
+
+
 迭代资源自动收尾属于Mac管理平面功能。Windows/Linux产品真机及同平台CI不从本机GC或Ubuntu通用安全单元测试推导；缺失仍为NOT_RUN交接。本轮应取得Mac Docker Desktop的真实缓存/实例状态恢复证据，未运行则不标PASS；无产品HTTP接口、桌面安装包或平台支持承诺新增。
 
 Hot schema21增加周期无模型Word投影及原件PG保存；最新源必须单独绑定Mac Native、

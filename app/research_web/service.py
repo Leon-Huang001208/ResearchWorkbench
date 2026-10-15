@@ -17,6 +17,7 @@ from pathlib import Path
 from websockets.exceptions import WebSocketException
 
 from core.observability import get_logger
+from research_workbench_entrypoint.resident.admission import research_admission
 
 from . import PINNED_DSH_COMMIT
 from .asset_workspace import AssetWorkspace
@@ -2156,6 +2157,7 @@ class ResearchService:
     def _cancel_observation(self, sid):
         return self.event_revision, max(self.events.get(sid, {}), default=-1), self.running.get(sid)
 
+    @research_admission
     async def send(
         self,
         sid,
@@ -2750,6 +2752,7 @@ class ResearchService:
                 name, raw, source="conversation", origin={"session_id": sid, "file_id": fid}
             )
 
+    @research_admission
     async def approve(self, sid, aid, decision):
         await self.ensure_owned()
         self.store.session(sid)
@@ -2826,6 +2829,7 @@ class ResearchService:
         self.store.audit("research", "cancelled", session_id=sid)
         return result
 
+    @research_admission
     async def answer(self, sid, qid, answers):
         await self.ensure_owned()
         async with self.lock:
