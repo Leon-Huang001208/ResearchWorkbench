@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "updated",
-  "summary": "保留macOS常驻管理与共用产品壳事实，合并Claw执行流、确认控件、原生正文搜索和任务绑定试跑说明。",
-  "reason": "README同时保留同一Native部署节点、唯一研究引擎及常驻管理边界，补充Claw执行流与有限试跑授权；共用顶栏简化保留侧栏搜索和异常提示，搜索API、原生内存索引与安全边界由对应模块文档说明。"
+  "summary": "统一Claw与FinGPT的Codex式会话导航、项目与逐题原生问题交互，README已同步功能和权限边界。",
+  "reason": "新增本实例模式隔离的导航元数据接口及FinGPT项目，保留唯一DSH、原生问答和安装入口；没有新增依赖、执行器或自动化授权。"
 }

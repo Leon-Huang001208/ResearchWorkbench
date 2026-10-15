@@ -255,14 +255,14 @@ test('run cards use real definition names, safe delivered files and restricted r
 test('confirmed native answers replay between messages by event sequence and stay read-only',async()=>{
   const { renderConversation }=await import('../../app/research_web/ui/views.mjs');
   const html=renderConversation({mode:'claw',messages:[{role:'user',text:'开始任务',seq:1},{role:'assistant',text:'日程草稿已提出',seq:9}],question_history:[{id:'call-1',seq:5,items:[{id:'time',question:'执行时间？'}],answers:[{id:'time',selected:['15:30'],custom:'周一到周五'}]}]});
-  assert.ok(html.indexOf('开始任务')<html.indexOf('已确认参数')); assert.ok(html.indexOf('已确认参数')<html.indexOf('日程草稿已提出'));
-  assert.match(html,/来源：DSH 原生提问/); assert.match(html,/执行时间？/); assert.match(html,/15:30/); assert.match(html,/周一到周五/);
+  assert.ok(html.indexOf('开始任务')<html.indexOf('已询问 1 个问题')); assert.ok(html.indexOf('已询问 1 个问题')<html.indexOf('日程草稿已提出'));
+  assert.match(html,/aria-label="已确认的原生提问参数"/); assert.match(html,/执行时间？/); assert.match(html,/15:30/); assert.match(html,/周一到周五/);
   assert.doesNotMatch(html,/<form|<input|<textarea|data-question-form/);
 });
 test('question replay escapes native labels and cannot invent omitted answers',async()=>{
   const { renderConversation }=await import('../../app/research_web/ui/views.mjs');
   const html=renderConversation({messages:[],question_history:[{id:'q',seq:3,items:[{id:'scope',question:'<img src=x onerror=alert(1)>'},{id:'model',question:'模型？'}],answers:[{id:'scope',selected:['<script>'],custom:'<svg onload=alert(1)>'}]}]});
-  assert.match(html,/&lt;img/); assert.match(html,/&lt;script&gt;/); assert.match(html,/&lt;svg/); assert.doesNotMatch(html,/<img|<script|<svg/);
+  assert.match(html,/&lt;img/); assert.match(html,/&lt;script&gt;/); assert.match(html,/&lt;svg/); assert.doesNotMatch(html,/<(?:img|script)\b|<svg[^>]*\bonload\s*=/i);
   assert.match(html,/未记录回答/); assert.doesNotMatch(html,/尚无消息/);
   assert.doesNotMatch(renderConversation({messages:[{role:'user',text:'旧会话'}]}),/已确认参数/);
 });

@@ -1,5 +1,7 @@
 # Research Workbench Development Map
 
+Codex式导航为ui/conversation-navigation.mjs/css，逐题问答为ui/questionnaire.mjs/css；app/core/shell/views只做既有协议接线。Host navigation.py与claw_projects/claw_routes管理模式隔离的导航revision/项目，旧Claw API兼容；近处回归为test_navigation.py、research_web_navigation/questionnaire.test.mjs与research_web_codex_navigation.mjs。
+
 `research_workbench_entrypoint/resident/` 为 macOS 登录监督器：controller 管 LaunchAgent、
 暂存/回滚；evidence 绑定本地交付与 GitHub 实际 checkout tree；admission 为 HTTP、send/approve/answer
 及 Automation 共享栅栏。`test_resident.py` 覆盖跨进程锁、排队延后、故障恢复、CI 与来源绑定。

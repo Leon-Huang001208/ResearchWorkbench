@@ -154,9 +154,11 @@ Claw 原对话运行卡显示真实执行会话的文件和版本来源，不复
 
 ## Claw 本地研究项目
 
-`claw_projects.py` 只管理索引中的 `claw_projects` 与会话 `project_id`；旧会话归入默认项目，执行 `workspace_id=research` 不变，项目归档不删除会话或文件。
+`claw_projects.py` 按 mode 管理索引中的 `claw_projects`（原键保留）与新增 `fingpt_projects`，及所属模式会话的 `project_id`；旧会话归入各模式默认项目，不迁移历史数据，执行 `workspace_id=research` 不变，项目归档不删除会话或文件。成员聚合、移组、会话创建及显式文件引用均验证同模式项目归属。
+
+`navigation.py` 在同一 Store 的新增 `session_navigation` 键下按 claw/fingpt 保存 `{revision,pinned,project_order}`，缺省 revision=0、列表为空。导航只是元数据，不复制正文、产物或研究事实。写入沿 ResearchService.lock 和 Store.save 的原子替换，并在失败时恢复旧内存对象；冲突拒绝且不覆盖原状态。读取过滤已删除会话、归档项目及其会话的失效导航引用，不清理源记录、不写索引。项目排序可为有效 ID 子集，新项目由客户端追加；两模式的默认项目 ID 均为 default，但对应独立成员及导航。
 项目文件列表保留来源会话和 SHA-256；跨会话文件引用须显式选择，同项目归属、普通文件身份、允许附件格式与 30 MiB 上限逐项校验，读取源文件使用既有 descriptor-relative `Store.open_file`。
-复制生成独立附件，并在 `file_references` 保存来源与内容哈希；来源后续修改不改变已经引用的副本。
+复制生成独立附件，并在 `file_references` 保存来源与内容哈希；来源后续修改不改变已经引用的副本。附件索引与来源记录通过一次 Store.save 发布，避免扫描附件时提前保存；包含临时索引创建失败在内的 OSError 会恢复旧索引/来源记录，并移除本次新副本，既有附件保持原样。项目保存与移组也在裸 OSError 时恢复原内存状态并返回领域错误。
 DataHub 资料快照仍属于原会话，项目仅聚合摘要和来源链接，不隐式复制或混入新会话数据准入范围。
 
 `automation_drafts` 保存提出、取消与确认状态；原生工具只提出草稿，不写可执行 `automations`。

@@ -1,0 +1,117 @@
+import { escapeHTML as e } from './markdown.mjs';
+import { icon } from './icons.mjs';
+import { safeLog, isRunning } from './core.mjs';
+
+const modes = new Set(['claw', 'fingpt']);
+const key = item => `${item.kind}:${item.id}`;
+const emptyMetadata = mode => ({ mode, revision: 0, pinned: [], project_order: [] });
+const storageKey = mode => `research-web.navigation.v1.${mode}`;
+export function readNavigationView(mode, storage) {
+  try {
+    storage ??= globalThis.localStorage;
+    const value = JSON.parse(storage?.getItem(storageKey(mode)) || '{}');
+    return { collapsed: value.collapsed === true, collapsedSections: Array.isArray(value.collapsedSections) ? value.collapsedSections.filter(id => ['pinned', 'projects', 'recent'].includes(id)) : [], expanded: Array.isArray(value.expanded) ? value.expanded.filter(id => typeof id === 'string') : [], limit: Number.isInteger(value.limit) && value.limit >= 10 ? value.limit : 10 };
+  } catch { safeLog('navigation_view_read_failed'); return { collapsed: false, collapsedSections: [], expanded: [], limit: 10 }; }
+}
+export function saveNavigationView(mode, view, storage) {
+  try { storage ??= globalThis.localStorage; storage?.setItem(storageKey(mode), JSON.stringify(view)); }
+  catch { safeLog('navigation_view_write_failed'); }
+}
+export function orderedProjects(projects, metadata) {
+  const rows = projects.filter(item => !item.archived);
+  const order = metadata?.project_order || [];
+  return [...rows].sort((a, b) => {
+    const ai = order.indexOf(a.id), bi = order.indexOf(b.id);
+    return (ai < 0 ? order.length : ai) - (bi < 0 ? order.length : bi);
+  });
+}
+export function moveNavigationItem(items, from, to) {
+  const result = [...items]; const index = result.findIndex(item => key(item) === key(from));
+  if (index < 0 || !Number.isInteger(to) || to < 0 || to >= result.length) return result;
+  result.splice(to, 0, result.splice(index, 1)[0]); return result;
+}
+
+export function createConversationNavigation({ api, notify = () => {}, changed = async () => {} }) {
+  const states = Object.fromEntries([...modes].map(mode => [mode, { metadata: emptyMetadata(mode), projects: [], loaded: false, loading: null, busy: false, error: '', editor: null, menu: null, view: readNavigationView(mode) }]));
+  const state = mode => states[mode];
+  async function load(mode, force = false) {
+    if (!modes.has(mode)) return;
+    const s = state(mode); if (s.loading) return s.loading; if (s.loaded && !force) return;
+    s.loading = (async () => {
+      try {
+        const [metadata, projects] = await Promise.all([api.navigation(mode), api.projects(mode)]);
+        if (metadata?.mode !== mode || !Number.isInteger(metadata.revision) || !Array.isArray(metadata.pinned) || !Array.isArray(metadata.project_order)) throw new Error('会话导航状态不可读取，请重试。');
+        s.metadata = metadata; s.projects = projects.items || []; s.loaded = true; s.error = '';
+      } catch (error) { s.error = error.message || '会话导航加载失败'; safeLog('navigation_load_failed', { status: error.code || 'request_failed' }); }
+      finally { s.loading = null; notify(); }
+    })(); return s.loading;
+  }
+  function view(mode, patch) { if (!state(mode)) return; Object.assign(state(mode).view, patch); saveNavigationView(mode, state(mode).view); }
+  async function save(mode, metadata) {
+    const s = state(mode); if (s.busy || !s.loaded) return false;
+    s.busy = true; s.error = ''; notify();
+    try { s.metadata = await api.saveNavigation(mode, { revision: s.metadata.revision, pinned: metadata.pinned, project_order: metadata.project_order }); return true; }
+    catch (error) {
+      if (error.code === 'navigation_changed' || error.status === 409) await load(mode, true);
+      s.error = error.message || '保存失败，已保留原有排序。'; safeLog('navigation_save_failed', { status: error.code || 'request_failed' }); return false;
+    } finally { s.busy = false; notify(); }
+  }
+  async function pin(mode, entity) {
+    const s = state(mode); const pinned = s.metadata.pinned; const exists = pinned.some(item => key(item) === key(entity));
+    return save(mode, { ...s.metadata, pinned: exists ? pinned.filter(item => key(item) !== key(entity)) : [...pinned, entity] });
+  }
+  async function reorder(mode, group, entity, directionOrTarget) {
+    const s = state(mode); const items = group === 'pinned' ? s.metadata.pinned : orderedProjects(s.projects, s.metadata).map(p => ({ kind: 'project', id: p.id }));
+    const index = items.findIndex(item => key(item) === key(entity));
+    const target = typeof directionOrTarget === 'number' ? index + directionOrTarget : items.findIndex(item => key(item) === key(directionOrTarget));
+    if (index < 0 || target < 0 || target >= items.length || index === target) return;
+    const next = moveNavigationItem(items, entity, target);
+    await save(mode, { ...s.metadata, ...(group === 'pinned' ? { pinned: next } : { project_order: next.map(item => item.id) }) });
+  }
+  async function projectSave(mode, name, id = null) {
+    const s = state(mode); if (s.busy) return;
+    s.busy = true; s.error = ''; notify();
+    try { if (id) await api.updateProject(mode, id, { name }); else await api.createProject(mode, { name }); s.editor = null; await load(mode, true); }
+    catch (error) { s.error = error.message; safeLog('navigation_project_save_failed', { status: error.code || 'request_failed' }); }
+    finally { s.busy = false; notify(); }
+  }
+  async function moveSession(mode, id, projectId) {
+    const s = state(mode); if (s.busy) return;
+    s.busy = true; s.error = ''; notify();
+    try { await api.moveClawSession(id, projectId); await changed(); await load(mode, true); }
+    catch (error) { s.error = error.message; safeLog('navigation_session_move_failed', { status: error.code || 'request_failed' }); }
+    finally { s.busy = false; notify(); }
+  }
+  return { state, load, view, pin, reorder, projectSave, moveSession, async archive(mode, id) {
+    const s = state(mode); if (s.busy) return; s.busy = true; notify();
+    try { await api.updateProject(mode, id, { archived: true }); s.menu = null; await load(mode, true); }
+    catch (error) { s.error = error.message; safeLog('navigation_project_archive_failed', { status: error.code || 'request_failed' }); }
+    finally { s.busy = false; notify(); }
+  } };
+}
+
+export function renderConversationNavigation({ page, sessionId, sessions = [], collapsed, mobileOpen, detail, workspaces = [], selectedWorkspace = '', openMenuId, navigation, renderSessionRow }) {
+  if (!modes.has(page)) return '';
+  const s = navigation || { metadata: emptyMetadata(page), projects: [], view: { expanded: [], limit: 10 }, loaded: false };
+  const hidden = collapsed && !mobileOpen; const label = page === 'claw' ? 'Claw' : 'FinGPT';
+  const rows = sessions.filter(row => row.mode === page && !row.deleted_at).map(row => row.id === detail?.id && detail.questions?.length ? { ...row, waitingForAnswer: true } : row);
+  const projects = orderedProjects(s.projects || [], s.metadata);
+  const pinned = (s.metadata?.pinned || []).filter(item => item.kind === 'session' ? rows.some(row => row.id === item.id) : projects.some(row => row.id === item.id));
+  const pinnedSessions = new Set(pinned.filter(p => p.kind === 'session').map(p => p.id));
+  const recent = rows.filter(row => !pinnedSessions.has(row.id)).sort((a, b) => {
+    const timestamp = value => typeof value === 'number' ? value : Date.parse(value) || 0;
+    return timestamp(b.updated_at) - timestamp(a.updated_at);
+  });
+  const drag = (group, entity) => `draggable="${!s.busy}" data-nav-sortable="${group}" data-nav-entity="${entity.kind}" data-nav-id="${e(entity.id)}"`;
+  const pinButton = entity => `<button type="button" data-nav-pin="${entity.kind}" data-nav-id="${e(entity.id)}" ${s.busy ? 'disabled' : ''}>${pinned.some(p => key(p) === key(entity)) ? '取消置顶' : '置顶'}</button>`;
+  const movement = (group, entity) => `<button type="button" data-nav-order="-1" data-nav-group="${group}" data-nav-entity="${entity.kind}" data-nav-id="${e(entity.id)}" ${s.busy ? 'disabled' : ''}>上移</button><button type="button" data-nav-order="1" data-nav-group="${group}" data-nav-entity="${entity.kind}" data-nav-id="${e(entity.id)}" ${s.busy ? 'disabled' : ''}>下移</button>`;
+  function projectRow(project, group) {
+    const expanded = s.view.expanded.includes(project.id); const members = rows.filter(row => (row.project_id || 'default') === project.id);
+    return `<div class="nav-project" ${drag(group, { kind: 'project', id: project.id })}><div class="nav-project-row"><button type="button" class="nav-project-toggle" data-nav-project-toggle="${e(project.id)}" aria-expanded="${expanded}" title="${e(project.name)}">${icon('folder')}<span>${e(project.name)}</span><span class="nav-chevron ${expanded ? 'expanded' : ''}" aria-hidden="true">${icon('chevron')}</span></button><button type="button" class="session-actions-trigger" data-nav-project-menu="${e(project.id)}" aria-label="${e(project.name)}的项目操作" aria-expanded="${s.menu === project.id}">${icon('more')}</button></div>${s.menu === project.id ? `<div class="nav-project-menu" role="group" aria-label="项目操作">${pinButton({ kind: 'project', id: project.id })}${movement(group, { kind: 'project', id: project.id })}${project.id !== 'default' ? `<button type="button" data-nav-project-rename="${e(project.id)}">重命名</button><button type="button" data-nav-project-archive="${e(project.id)}" ${s.busy ? 'disabled' : ''}>归档项目</button>` : ''}<button type="button" data-nav-new-in-project="${e(project.id)}">在项目中新聊天</button>${page === 'claw' ? `<a href="#/claw?view=projects&project=${encodeURIComponent(project.id)}">项目资料与产物</a>` : ''}</div>` : ''}${expanded ? `<div class="nav-project-members">${members.length ? members.map(row => renderSessionRow(row, sessionId, openMenuId)).join('') : '<p class="sidebar-empty muted">暂无会话</p>'}</div>` : ''}</div>`;
+  }
+  const folded = section => (s.view.collapsedSections || []).includes(section);
+  const sectionToggle = (section, text) => `<button type="button" id="nav-section-toggle-${page}-${section}" class="nav-section-toggle" data-nav-section="${section}" aria-expanded="${!folded(section)}" aria-controls="nav-section-${page}-${section}"><span>${text}</span><span class="nav-section-chevron ${folded(section) ? '' : 'expanded'}" aria-hidden="true">${icon('chevron')}</span></button>`;
+  const sectionBody = section => `id="nav-section-${page}-${section}" class="nav-section-body" ${folded(section) ? 'hidden' : ''}`;
+  const editor = s.editor ? `<form class="nav-project-editor" data-nav-project-form><label for="nav-project-name">${s.editor.id ? '项目名称' : '新项目'}</label><input id="nav-project-name" name="name" value="${e(s.editor.name || '')}" maxlength="120" required ${s.busy ? 'disabled' : ''}><div><button type="submit" class="button small" ${s.busy ? 'disabled' : ''}>保存</button><button type="button" class="text-button" data-nav-editor-close ${s.busy ? 'disabled' : ''}>取消</button></div></form>` : '';
+  return `<aside class="sidebar secondary-sidebar ${mobileOpen ? 'mobile-open' : ''} ${collapsed ? 'collapsed' : ''} codex-sidebar" data-nav-mode="${page}" aria-label="${page === 'claw' ? 'Claw 会话与项目侧栏' : 'FinGPT 会话侧栏'}" ${hidden ? 'aria-hidden="true"' : ''}><header class="sidebar-top"><details class="nav-mode-menu" data-disclosure-key="${page}:nav-mode"><summary><h2>${label}</h2>${icon('chevron')}</summary><nav aria-label="研究模式与操作"><a href="#/fingpt">FinGPT</a><a href="#/claw">Claw</a>${page === 'claw' ? '<a href="#/claw?view=plans">Agent 日程</a>' : ''}<a href="#/skills">选择能力</a><a href="#/${page}?view=projects&project=default">管理项目</a>${detail ? '<button type="button" data-toggle-context>会话资料与文件</button>' : ''}${workspaces.length ? `<label for="workspace-select">新会话工作空间</label><select id="workspace-select"><option value="">默认工作空间</option>${workspaces.map(w => `<option value="${e(w.id)}" ${w.id === selectedWorkspace ? 'selected' : ''}>${e(w.name)}</option>`).join('')}</select>` : ''}</nav></details><div class="nav-header-actions"><button type="button" class="icon-button" data-toggle-search aria-label="搜索会话">${icon('search')}</button><button type="button" class="icon-button sidebar-collapse" data-collapse-sidebar aria-label="折叠 ${label} 二级侧栏">${icon('sidebar')}</button></div></header><button type="button" class="new-research" data-new aria-label="新建 ${label} 研究">${icon('compose')}<span>新聊天</span></button><div class="nav-scroll">${s.error ? `<p class="notice error" role="alert">${e(s.error)} <button type="button" data-nav-retry>重试</button></p>` : ''}${!s.loaded && !s.error ? '<p class="muted small" role="status">正在加载会话导航…</p>' : ''}${editor}<section class="nav-section" aria-label="置顶"><div class="nav-section-heading">${sectionToggle('pinned', '置顶')}</div><div ${sectionBody('pinned')}>${pinned.length ? pinned.map(item => item.kind === 'project' ? projectRow(projects.find(p => p.id === item.id), 'pinned') : `<div ${drag('pinned', item)}>${renderSessionRow(rows.find(row => row.id === item.id), sessionId, openMenuId)}</div>`).join('') : '<p class="muted sidebar-empty">将常用会话或项目置顶</p>'}</div></section><section class="nav-section" aria-label="项目"><div class="nav-section-heading">${sectionToggle('projects', '项目')}<button type="button" class="icon-button" data-nav-project-create aria-label="新建项目" ${s.busy ? 'disabled' : ''}>+</button></div><div ${sectionBody('projects')}>${projects.filter(p => !pinned.some(item => item.kind === 'project' && item.id === p.id)).map(p => projectRow(p, 'project')).join('')}</div></section><section class="nav-section" aria-label="最近"><div class="nav-section-heading">${sectionToggle('recent', '最近')}<a href="#/history?mode=${page}">查看全部</a></div><div ${sectionBody('recent')}>${recent.filter((row, index) => index < s.view.limit || isRunning(row.status)).map(row => renderSessionRow(row, sessionId, openMenuId)).join('')}${!recent.length ? '<p class="muted sidebar-empty">开始新聊天后会显示在这里</p>' : ''}${recent.length > s.view.limit ? '<button type="button" class="text-button nav-show-more" data-nav-more>展开显示</button>' : ''}</div></section></div></aside>`;
+}

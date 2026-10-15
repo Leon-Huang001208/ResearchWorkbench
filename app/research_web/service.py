@@ -1042,9 +1042,9 @@ class ResearchService:
         await self.ensure_owned()
         async with self.lock:
             if project_id is not None:
-                project = self.claw_projects.get(project_id)
-                if mode != "claw" or project["archived"]:
-                    raise StoreError("只能在未归档的项目中新建 Claw 研究", "project_archived", 409)
+                project = ClawProjects(self, mode).get(project_id)
+                if project["archived"]:
+                    raise StoreError("只能在本模式未归档的项目中新建研究", "project_archived", 409)
             if research_depth not in {"instant", "deep"}:
                 raise StoreError("不支持的研究深度")
             sources = ["datahub", "web", "uploads"] if source_scope is None else source_scope

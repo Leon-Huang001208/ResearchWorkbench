@@ -1,3 +1,5 @@
+import { createConversationNavigation } from './conversation-navigation.mjs';
+import { captureQuestionForm, actionQuestion, collectQuestionGroup, questionStateKey } from './questionnaire.mjs';
 import { createAPI, createController, prepareClawExampleDraft, parseRoute, legacyRouteTarget, isRunning, safeLog, collectQuestionAnswers, reconcileSessionSummary, waitForDataProbe, waitForIntegrationBatch, waitForLocalIntegrationProbe, waitForLocalIntegrationVerification } from './core.mjs';
 import { escapeHTML as e } from './markdown.mjs';
 import { createDisclosureState } from './disclosures.mjs';
@@ -42,6 +44,7 @@ window.addEventListener('message', event => {
 import { createHotController, renderHotWorkspace } from './hot-workspace.mjs';
 
 const api = createAPI();
+const conversationNavigation = createConversationNavigation({ api, notify: () => render(), changed: () => loadCatalog(['sessions']) });
 const clawWorkspace = { projects: [], detail: null, busy: false, error: '', newName: '', targetSession: '', renameEdits: new Map() };
 const clawDraftEdits = new Map();
 const root = document.querySelector('#app');
@@ -283,7 +286,7 @@ function researchPage() {
   const sourceLabels = { required: '能力必需', 'user-selected': '用户选择', recommended: '能力推荐', 'model-supplemented': '模型补选' };
   const methodSummary = (detail.methods || []).length ? `<p class="small muted" data-method-adoption>采用方法：${detail.methods.map(item => `${e(item.title || item.method_id)} · ${e(sourceLabels[item.source] || item.source)}`).join('；')}</p>` : '';
   const methodWarning = detail.method_trace_incomplete ? notice('部分推荐或模型补选方法缺少调用证据；本次结果已降级标记 method_trace_incomplete。', 'warning') : '';
-  return `<header class="page-header"><div class="session-title"><div class="eyebrow">${detail.mode === 'claw' ? 'CLAW · AGENT RESEARCH' : 'FINGPT · RESEARCH SESSION'}</div><h1>${e(detail.title || '未命名会话')}</h1><div class="session-meta">${badge(detail.status)}${detail.model ? `<span>${e(detail.model)}</span>` : ''}</div></div><div class="button-row">${detail.mode !== 'claw' ? `<button class="button small" data-upgrade ${state.busy || isRunning(detail.status) ? 'disabled' : ''}>升级为 Claw ↗</button>` : ''}<button class="button small context-toggle" data-toggle-context aria-expanded="${window.matchMedia('(max-width: 1050px)').matches ? contextOpen : !contextCollapsed}">活动与文件</button></div></header>${notice(state.streamError, 'warning')}${renderCreationArtifacts(detail, state.busy || isRunning(detail.status))}${detail.capability ? `<p class="small muted">所选能力版本：${e(detail.capability.id)} · v${e(detail.capability.version)}（选择记录，不代表每个工具已执行）</p>` : ''}${methodSummary}${methodWarning}${renderResearchAttention(detail)}${canvas}${detail.mode === 'claw' ? (cards.unpositionedDrafts.length || cards.unpositionedRuns.length ? '<p class="muted small">以下日程记录缺少唯一原生调用位置，未推断其回答顺序。</p>' : '') + renderAutomationDrafts(cards.unpositionedDrafts,clawDraftEdits,clawWorkspace.busy) + (cards.unpositionedRuns.length ? renderClawRunCards(cards.unpositionedRuns) : '') : ''}<div class="composer-dock">${composer()}</div>`;
+  return `<header class="page-header"><div class="session-title"><div class="eyebrow">${detail.mode === 'claw' ? 'CLAW · AGENT RESEARCH' : 'FINGPT · RESEARCH SESSION'}</div><h1>${e(detail.title || '未命名会话')}</h1><div class="session-meta">${badge(detail.questions?.length ? 'waiting_input' : detail.status)}${detail.model ? `<span>${e(detail.model)}</span>` : ''}</div></div><div class="button-row">${detail.mode !== 'claw' ? `<button class="button small" data-upgrade ${state.busy || isRunning(detail.status) ? 'disabled' : ''}>升级为 Claw ↗</button>` : ''}<button class="button small context-toggle" data-toggle-context aria-expanded="${window.matchMedia('(max-width: 1050px)').matches ? contextOpen : !contextCollapsed}">活动与文件</button></div></header>${notice(state.streamError, 'warning')}${renderCreationArtifacts(detail, state.busy || isRunning(detail.status))}${detail.capability ? `<p class="small muted">所选能力版本：${e(detail.capability.id)} · v${e(detail.capability.version)}（选择记录，不代表每个工具已执行）</p>` : ''}${methodSummary}${methodWarning}${renderResearchAttention(detail)}${canvas}${detail.mode === 'claw' ? (cards.unpositionedDrafts.length || cards.unpositionedRuns.length ? '<p class="muted small">以下日程记录缺少唯一原生调用位置，未推断其回答顺序。</p>' : '') + renderAutomationDrafts(cards.unpositionedDrafts,clawDraftEdits,clawWorkspace.busy) + (cards.unpositionedRuns.length ? renderClawRunCards(cards.unpositionedRuns) : '') : ''}<div class="composer-dock">${composer()}</div>`;
 }
 
 function settingsPage() {
@@ -321,7 +324,7 @@ function mainPage() {
   if (state.route.page === 'claw') {
     return clawMainPage();
   }
-  if (state.route.page === 'fingpt') return researchPage();
+  if (state.route.page === 'fingpt') return state.route.clawView === 'projects' ? renderClawProject(clawWorkspace, 'fingpt') : researchPage();
   if (state.route.page === 'settings') return settingsPage();
   if (state.route.page === 'workbench') return workbenchPage();
   if (state.route.page === 'frameworks') return renderFrameworks({ slug: state.route.frameworkSlug, anchor: state.route.frameworkTab, catalog: frameworkState.catalog, data: frameworkState.data, status: frameworkState.status, error: frameworkState.error, bot: { ...frameworkBot, bridgeReady: frameworkEmbedBridge.ready(state.route.frameworkSlug, frameworkState.data?.snapshot?.revision) } });
@@ -353,9 +356,10 @@ async function loadClawProjects() {
   if (clawWorkspace.detail?.id !== projectId) clawWorkspace.targetSession = '';
   clawWorkspace.error = ''; clawWorkspace.detail = null; render();
   try {
-    const projects = await api.clawProjects();
-    const detail = await api.clawProject(projectId);
-    if (ticket !== pageGeneration || state.route.page !== 'claw' || state.route.clawView !== 'projects') return;
+    const mode = state.route.page;
+    const projects = await api.projects(mode);
+    const detail = await api.project(mode, projectId);
+    if (ticket !== pageGeneration || !['claw', 'fingpt'].includes(state.route.page) || state.route.clawView !== 'projects') return;
     clawWorkspace.projects = projects.items; clawWorkspace.detail = detail;
     if (!detail.sessions.some(s => s.id === clawWorkspace.targetSession)) clawWorkspace.targetSession = '';
   } catch (error) {
@@ -407,12 +411,12 @@ function capabilityPage() {
 }
 
 function sidebar() {
-  return renderSidebar({ page: state.route.page, sessionId: state.route.sessionId, sessions: catalog.sessions, workspaces: catalog.workspaces, selectedWorkspace, collapsed: sidebarCollapsed, mobileOpen: sidebarOpen, detail: state.detail, clawSidebarView, projects: clawWorkspace.projects, openMenuId: sessionMenu?.id });
+  return renderSidebar({ page: state.route.page, sessionId: state.route.sessionId, sessions: catalog.sessions, workspaces: catalog.workspaces, selectedWorkspace, collapsed: sidebarCollapsed, mobileOpen: sidebarOpen, detail: state.detail, clawSidebarView, projects: clawWorkspace.projects, navigation: conversationNavigation.state(state.route.page), openMenuId: sessionMenu?.id });
 }
 
 function sessionActionsLayer() {
   const menuSession = sessionMenu ? catalog.sessions.find(item => item.id === sessionMenu.id) : null;
-  const menu = menuSession ? `<div class="session-action-menu" role="menu" aria-label="会话操作" style="--menu-top:${sessionMenu.top}px;--menu-left:${sessionMenu.left}px"><button type="button" role="menuitem" data-menu-rename="${e(menuSession.id)}">${icon('rename')}<span>重命名</span></button><button type="button" role="menuitem" class="danger-item" data-menu-delete="${e(menuSession.id)}" ${isRunning(menuSession.status) ? 'disabled aria-describedby="session-delete-reason"' : ''}>${icon('trash')}<span>删除</span></button>${isRunning(menuSession.status) ? '<p id="session-delete-reason" class="menu-reason">任务运行或等待处理时不能删除</p>' : ''}</div>` : '';
+  const menu = menuSession ? `<div class="session-action-menu" role="menu" aria-label="会话操作" style="--menu-top:${sessionMenu.top}px;--menu-left:${sessionMenu.left}px"><button type="button" role="menuitem" data-menu-rename="${e(menuSession.id)}">${icon('rename')}<span>重命名</span></button><button type="button" role="menuitem" class="danger-item" data-menu-delete="${e(menuSession.id)}" ${isRunning(menuSession.status) ? 'disabled aria-describedby="session-delete-reason"' : ''}>${icon('trash')}<span>删除</span></button>${(() => { const nav = conversationNavigation.state(menuSession.mode); const pinned = nav?.metadata.pinned.some(p => p.kind === 'session' && p.id === menuSession.id); return nav ? `<button type="button" role="menuitem" data-nav-pin="session" data-nav-id="${e(menuSession.id)}" ${nav.busy || !nav.loaded ? 'disabled' : ''}>${pinned ? '取消置顶' : '置顶'}</button>${pinned ? `<button type="button" role="menuitem" data-nav-order="-1" data-nav-group="pinned" data-nav-entity="session" data-nav-id="${e(menuSession.id)}">上移</button><button type="button" role="menuitem" data-nav-order="1" data-nav-group="pinned" data-nav-entity="session" data-nav-id="${e(menuSession.id)}">下移</button>` : ''}<label class="nav-menu-select">移动到项目<select data-nav-move-session="${e(menuSession.id)}" ${nav.busy ? 'disabled' : ''}>${nav.projects.filter(p => !p.archived).map(p => `<option value="${e(p.id)}" ${(menuSession.project_id || 'default') === p.id ? 'selected' : ''}>${e(p.name)}</option>`).join('')}</select></label>` : ''; })()}${isRunning(menuSession.status) ? '<p id="session-delete-reason" class="menu-reason">任务运行或等待处理时不能删除</p>' : ''}</div>` : '';
   const dialog = renameSession
     ? renderRename(renameDraft || '', sessionActionError, sessionActionBusy)
     : deleteSession
@@ -456,6 +460,9 @@ function render() {
   disclosureState.capture(root, active);
   const selection = active && ['TEXTAREA', 'INPUT'].includes(active.tagName) && active.type !== 'password' ? { start: active.selectionStart, end: active.selectionEnd } : null;
   const mainScroll = document.querySelector('#main')?.scrollTop || 0;
+  const navigationList = root.querySelector('.nav-scroll');
+  const renderedMode = root.querySelector('[data-nav-mode]')?.dataset.navMode;
+  if (navigationList?.clientHeight > 0 && conversationNavigation.state(renderedMode)) conversationNavigation.state(renderedMode).scrollTop = navigationList.scrollTop;
   const research = ['fingpt', 'claw'].includes(state.route.page);
   const hasSecondary = research && !sidebarCollapsed;
   const hasContext = research && Boolean(state.detail) && !contextCollapsed;
@@ -497,6 +504,7 @@ function render() {
     if(fresh){const blocked=form.dataset.hotForm==='filters'?hotController.state.loading:hotController.state.busy||hotController.state.pending;form.querySelectorAll('button').forEach(button=>{button.disabled=Boolean(blocked);});fresh.replaceWith(form);}
   }
   document.querySelector('#main').scrollTop = mainScroll;
+  if (root.querySelector('.nav-scroll')) root.querySelector('.nav-scroll').scrollTop = conversationNavigation.state(state.route.page)?.scrollTop || 0;
   disclosureState.restore(root);
   if (focusId) {
     const replacement = document.getElementById(focusId);
@@ -1203,13 +1211,15 @@ async function showRoute() {
   }
   const requestedMarket = requestedRoute.page === 'skills' && requestedRoute.capabilityKind === 'tool' && requestedRoute.capabilityView === 'market';
   if (!requestedMarket) invalidateMCPRequests();
-  const ticket = ++pageGeneration; nativeSessionSearch.close(); success = ''; selectedPreview = null; sidebarOpen = false; clawSidebarView = 'sessions'; contextOpen = false; contextTab = 'activity'; researchStage = null; slashOpen = false; slashIndex = 0; tabbitOpen = false; tabbitLoading = false; tabbitIndex = 0; tabbitCandidates = []; tabbitRequest += 1; globalSearch = ''; searchOpen = false; renameDraft = null; renameSession = null; deleteSession = null; purgeSession = null; sessionMenu = null; sessionActionBusy = false; sessionActionError = ''; questionDrafts.clear(); answerFeedback.clear(); copiedTransient = '';
+  const ticket = ++pageGeneration; nativeSessionSearch.close(); success = ''; selectedPreview = null; sidebarOpen = false; clawSidebarView = 'sessions'; contextOpen = false; contextTab = 'activity'; researchStage = null; slashOpen = false; slashIndex = 0; tabbitOpen = false; tabbitLoading = false; tabbitIndex = 0; tabbitCandidates = []; tabbitRequest += 1; globalSearch = ''; searchOpen = false; renameDraft = null; renameSession = null; deleteSession = null; purgeSession = null; sessionMenu = null; sessionActionBusy = false; sessionActionError = ''; answerFeedback.clear(); copiedTransient = '';
+  if (['claw', 'fingpt'].includes(requestedRoute.page)) sidebarCollapsed = conversationNavigation.state(requestedRoute.page).view.collapsed;
   await controller.open(requestedRoute);
   if (ticket !== pageGeneration) return;
   if (state.route.settingsSectionFallback) safeLog('settings_section_fallback');
   if (['fingpt', 'claw'].includes(state.route.page)) researchDraftRoute = { ...state.route };
   document.querySelector('#main')?.scrollTo({ top: 0 });
   await loadWorkflowVersion();
+  if (['claw', 'fingpt'].includes(state.route.page)) { sidebarCollapsed = conversationNavigation.state(state.route.page).view.collapsed; await conversationNavigation.load(state.route.page, true); }
   if (state.route.page === 'history') await loadCatalog([state.route.historyView === 'deleted' ? 'deletedSessions' : 'sessions']);
   if (state.route.page === 'frameworks') await loadFrameworkPage(ticket);
   if (state.route.page === 'settings') {
@@ -1257,7 +1267,7 @@ async function showRoute() {
     catch (error) { if (ticket === pageGeneration) clawWorkspace.error = error.message; safeLog('claw_project_index_failed', { status: error.code || 'request_failed' }); }
   }
   if (state.route.page === 'claw' && !state.route.sessionId) await loadCatalog(['reportWorkflows']);
-  if (state.route.page === 'claw' && state.route.clawView === 'projects') await loadClawProjects();
+  if (['claw', 'fingpt'].includes(state.route.page) && state.route.clawView === 'projects') await loadClawProjects();
   if (state.route.page === 'claw' && state.route.clawView === 'plans') await loadCatalog(['automations', 'automationRuns']);
   if (state.route.page === 'claw' && state.route.clawView === 'skills') await loadCatalog(['capabilities', 'tools']);
   if (state.route.page === 'workbench') await loadWorkbench();
@@ -1291,7 +1301,7 @@ async function loadConnectionConfiguration(sourceId) {
 async function ensureSession() {
   if (state.detail) return true;
   if (state.route.sessionId) return false;
-  const result = await controller.create(state.route.page, selectedWorkspace);
+  const result = await controller.create(state.route.page, selectedWorkspace, state.route.projectId);
   if (!result?.id) return false;
   await showRoute(); await loadCatalog(['sessions']);
   return state.detail?.id === result.id;
@@ -1393,10 +1403,12 @@ function handleInput(event) {
   }
   if (event.target.id === 'rename-title') renameDraft = event.target.value;
   if ('connectionSearch' in (event.target.dataset || {})) applyConnectionWorkspaceFilters(event.target.closest('[data-connection-workbench]'));
+  const projectEditor = event.target.closest?.('[data-nav-project-form]');
+  if (projectEditor && conversationNavigation.state(state.route.page)?.editor) { conversationNavigation.state(state.route.page).editor.name = event.target.value; return; }
   const form = event.target.closest('[data-question-form]');
   if (form) {
     const question = state.detail?.questions?.find((item) => item.id === form.dataset.questionForm);
-    if (question) { const answers = collectAnswers(form, question); if (answers) questionDrafts.set(question.id, answers); }
+    if (question) captureQuestionForm(form, questionDrafts, state.detail.id, question);
   }
   if (event.target.id === 'history-search') {
     historyFilter = event.target.value;
@@ -1567,10 +1579,13 @@ root.addEventListener('change', async (event) => {
   }
   if (event.target.closest?.('.intel-page') && await intelController.handle(event)) return;
   const target = event.target;
+  const questionForm = target.closest?.('[data-question-form]');
+  if (questionForm) { const question = state.detail?.questions?.find(q => q.id === questionForm.dataset.questionForm); if (question) captureQuestionForm(questionForm, questionDrafts, state.detail.id, question); }
+  if (target.matches?.('[data-nav-move-session]')) { const mode = state.route.page; sessionMenu = null; await conversationNavigation.moveSession(mode, target.dataset.navMoveSession, target.value); return; }
   if('hotMaterial' in (target.dataset||{})){hotController.selectMaterial(target.value,target.checked);return;}
 
   if (target.matches?.('[data-claw-project-select]')) {
-    history.pushState(null, '', `#/claw?view=projects&project=${encodeURIComponent(target.value)}`);
+    history.pushState(null, '', `#/${state.route.page}?view=projects&project=${encodeURIComponent(target.value)}`);
     await showRoute(); return;
   }
   if (target.matches?.('[data-claw-session-project]') && target.value) {
@@ -1663,6 +1678,25 @@ const uploadFiles = createUploadHandler({
   logger: safeLog,
 });
 
+root.addEventListener('dragstart', event => {
+  const row = event.target.closest?.('[data-nav-sortable]');
+  if (!row || event.target.closest?.('button') || conversationNavigation.state(state.route.page)?.busy) return;
+  event.dataTransfer?.setData('application/x-rwb-navigation', JSON.stringify({ mode: state.route.page, group: row.dataset.navSortable, entity: { kind: row.dataset.navEntity, id: row.dataset.navId } }));
+});
+root.addEventListener('dragover', event => {
+  const row = event.target.closest?.('[data-nav-sortable]'); if (!row || ![...(event.dataTransfer?.types || [])].includes('application/x-rwb-navigation')) return;
+  event.preventDefault(); event.dataTransfer.dropEffect = 'move'; row.classList.add('nav-drop-target');
+});
+root.addEventListener('dragleave', event => event.target.closest?.('[data-nav-sortable]')?.classList.remove('nav-drop-target'));
+root.addEventListener('drop', async event => {
+  const row = event.target.closest?.('[data-nav-sortable]'); if (!row || ![...(event.dataTransfer?.types || [])].includes('application/x-rwb-navigation')) return;
+  event.preventDefault(); row.classList.remove('nav-drop-target');
+  try {
+    const source = JSON.parse(event.dataTransfer.getData('application/x-rwb-navigation'));
+    if (source.mode !== state.route.page || source.group !== row.dataset.navSortable) return;
+    await conversationNavigation.reorder(source.mode, source.group, source.entity, { kind: row.dataset.navEntity, id: row.dataset.navId });
+  } catch { safeLog('navigation_drop_rejected'); }
+});
 root.addEventListener('dragover', (event) => {
   if (!event.target.closest('[data-dropzone]')) return;
   event.preventDefault();
@@ -1702,18 +1736,19 @@ root.addEventListener('submit', async (event) => {
   event.preventDefault();
   if(event.target.matches('[data-hot-form]')){await hotController.submit(event.target);return;}
   safeLog('document_form_dispatch', { status: event.target.id === 'document-edit-form' ? 'document' : 'other' });
+  if (event.target.matches('[data-nav-project-form]')) { const mode = state.route.page; const editor = conversationNavigation.state(mode).editor; if (editor) await conversationNavigation.projectSave(mode, String(new FormData(event.target).get('name') || ''), editor.id); return; }
   if (event.target.matches('[data-claw-project-create]')) {
     const name = String(new FormData(event.target).get('name') || '');
     const ticket = pageGeneration;
     await clawAction(async () => {
-      const project = await api.createClawProject({ name }); clawWorkspace.newName = '';
+      const project = await api.createProject(state.route.page, { name }); clawWorkspace.newName = '';
       if (!clawNavigationCurrent(ticket, pageGeneration)) return;
-      history.pushState(null, '', `#/claw?view=projects&project=${encodeURIComponent(project.id)}`); await showRoute();
+      history.pushState(null, '', `#/${state.route.page}?view=projects&project=${encodeURIComponent(project.id)}`); await showRoute();
     }); return;
   }
   if (event.target.matches('[data-claw-project-update]')) {
     const projectId = event.target.dataset.clawProjectUpdate; const name = String(new FormData(event.target).get('name') || '');
-    await clawAction(async () => { await api.updateClawProject(projectId, { name }); clawWorkspace.renameEdits.delete(projectId); await loadClawProjects(); }); return;
+    await clawAction(async () => { await api.updateProject(state.route.page, projectId, { name }); clawWorkspace.renameEdits.delete(projectId); await loadClawProjects(); }); return;
   }
   if (event.target.matches('[data-claw-draft-form]')) {
     const sid = state.detail?.id; const draftId = event.target.dataset.clawDraftForm;
@@ -2005,12 +2040,13 @@ root.addEventListener('submit', async (event) => {
   if (event.target.dataset.questionForm) {
     const id = state.detail?.id; const question = state.detail?.questions?.find((item) => item.id === event.target.dataset.questionForm);
     if (!id || !question?.items?.length) return;
-    const answers = collectAnswers(event.target, question);
-    if (!answers) return;
-    questionDrafts.set(question.id, answers);
-    if (answers.some((answer) => !answer.custom.trim() && !answer.selected.length)) { state.error = '请完整回答这组问题。'; render(); return; }
+    if (state.busy) return;
+    captureQuestionForm(event.target, questionDrafts, id, question);
+    let answers;
+    try { answers = collectQuestionGroup(questionDrafts, id, question); }
+    catch (error) { state.error = error.message; render(); return; }
     const result = await controller.action(() => api.answer(id, question.id, answers));
-    if (result) { questionDrafts.delete(question.id); render(); }
+    if (result) { questionDrafts.delete(questionStateKey(id, question.id)); render(); }
   }
   if (event.target.id === 'composer') {
     if (state.draft.trimStart().startsWith('/')) { slashOpen = true; slashIndex = 0; render(); return; }
@@ -2175,16 +2211,61 @@ root.addEventListener('click', async (event) => {
   }
   const button = clickTarget?.closest?.('button'); if (!button || button.disabled || button.getAttribute?.('aria-disabled') === 'true') return;
   const data = button.dataset;
+  const mode = state.route.page;
+  const nav = conversationNavigation.state(mode);
+  if (['qPage', 'qClose', 'qOpen', 'qSkip'].some(name => name in data)) {
+    const form = button.closest('[data-question-form]');
+    const question = state.detail?.questions?.find(q => q.id === form?.dataset.questionForm);
+    if (!question || form.dataset.qSession !== state.detail.id || state.busy) return;
+    captureQuestionForm(form, questionDrafts, state.detail.id, question);
+    actionQuestion(questionDrafts, state.detail.id, question, data.qPage || ('qClose' in data ? 'close' : 'qOpen' in data ? 'open' : 'skip'));
+    state.error = ''; render();
+    const nextForm = [...root.querySelectorAll('[data-question-form]')].find(f => f.dataset.questionForm === question.id);
+    nextForm?.querySelector('legend, [data-q-open], textarea')?.focus?.({ preventScroll: true }); return;
+  }
+  if (nav && 'navRetry' in data) { await conversationNavigation.load(mode, true); return; }
+  if (nav && 'navSection' in data) {
+    const sections = new Set(nav.view.collapsedSections || []);
+    if (sections.has(data.navSection)) sections.delete(data.navSection); else sections.add(data.navSection);
+    conversationNavigation.view(mode, { collapsedSections: [...sections] }); render(); return;
+  }
+  if (nav && 'navMore' in data) { conversationNavigation.view(mode, { limit: nav.view.limit + 10 }); render(); return; }
+  if (nav && 'navProjectToggle' in data) {
+    const expanded = new Set(nav.view.expanded); if (expanded.has(data.navProjectToggle)) expanded.delete(data.navProjectToggle); else expanded.add(data.navProjectToggle);
+    conversationNavigation.view(mode, { expanded: [...expanded] }); render(); return;
+  }
+  if (nav && 'navProjectMenu' in data) { nav.menu = nav.menu === data.navProjectMenu ? null : data.navProjectMenu; render(); return; }
+  if (nav && 'navEditorClose' in data) { nav.editor = null; render(); return; }
+  if (nav && ('navProjectCreate' in data || 'navProjectRename' in data)) {
+    const project = nav.projects.find(p => p.id === data.navProjectRename);
+    nav.editor = project ? { id: project.id, name: project.name } : { name: '' }; nav.menu = null; render(); document.querySelector('#nav-project-name')?.focus(); return;
+  }
+  if (nav && 'navPin' in data) {
+    await conversationNavigation.pin(mode, { kind: data.navPin, id: data.navId });
+    sessionMenu = null; nav.menu = null; render();
+    const selector = data.navPin === 'session' ? '[data-session-menu]' : '[data-nav-project-menu]';
+    [...root.querySelectorAll(selector)].find(node => (node.dataset.sessionMenu || node.dataset.navProjectMenu) === data.navId)?.focus?.({ preventScroll: true });
+    return;
+  }
+  if (nav && 'navOrder' in data) {
+    await conversationNavigation.reorder(mode, data.navGroup, { kind: data.navEntity, id: data.navId }, Number(data.navOrder));
+    sessionMenu = null; nav.menu = null; render();
+    const selector = data.navEntity === 'session' ? '[data-session-menu]' : '[data-nav-project-menu]';
+    [...root.querySelectorAll(selector)].find(node => (node.dataset.sessionMenu || node.dataset.navProjectMenu) === data.navId)?.focus?.({ preventScroll: true }); return;
+  }
+  if (nav && 'navProjectArchive' in data) { await conversationNavigation.archive(mode, data.navProjectArchive); return; }
+  if (nav && 'navNewInProject' in data) { history.pushState(null, '', `#/${mode}?project=${encodeURIComponent(data.navNewInProject)}`); await showRoute(); controller.setDraft(''); render(); document.querySelector('#prompt')?.focus(); return; }
+
   if ('clawProjectRefresh' in data) { await loadClawProjects(); return; }
   if ('clawProjectArchive' in data) {
-    await clawAction(async () => { await api.updateClawProject(data.clawProjectArchive, { archived: data.archived === 'true' }); await loadClawProjects(); }); return;
+    await clawAction(async () => { await api.updateProject(state.route.page, data.clawProjectArchive, { archived: data.archived === 'true' }); await loadClawProjects(); }); return;
   }
   if ('clawNewSession' in data) {
     const ticket = pageGeneration;
     await clawAction(async () => {
-      const created = await api.create({ mode: 'claw', project_id: data.clawNewSession });
+      const created = await api.create({ mode: state.route.page, project_id: data.clawNewSession });
       if (!clawNavigationCurrent(ticket, pageGeneration)) return;
-      history.pushState(null, '', `#/claw?session=${encodeURIComponent(created.id)}`); await showRoute(); await loadCatalog(['sessions']);
+      history.pushState(null, '', `#/${state.route.page}?session=${encodeURIComponent(created.id)}`); await showRoute(); await loadCatalog(['sessions']);
     }); return;
   }
   if ('clawReference' in data) {
@@ -2195,7 +2276,7 @@ root.addEventListener('click', async (event) => {
       const file = await api.referenceClawFile(target, { source_session_id: data.sourceSession, file_id: data.clawReference, expected_sha256: data.sha256 });
       controller.addAttachmentsForSession(target, [file]);
       if (!clawNavigationCurrent(ticket, pageGeneration)) return;
-      history.pushState(null, '', `#/claw?session=${encodeURIComponent(target)}`); await showRoute();
+      history.pushState(null, '', `#/${state.route.page}?session=${encodeURIComponent(target)}`); await showRoute();
       if (state.detail?.id === target) success = '已复制所选文件并加入当前会话草稿；尚未发送研究。';
     }); return;
   }
@@ -2587,12 +2668,14 @@ root.addEventListener('click', async (event) => {
     const narrow = window.matchMedia('(max-width: 1050px)').matches;
     if (narrow) sidebarOpen = !sidebarOpen;
     else sidebarCollapsed = !sidebarCollapsed;
-    contextOpen = false; render(); focusSidebarControl(document, narrow, sidebarOpen);
+    conversationNavigation.view(state.route.page, { collapsed: sidebarCollapsed });
+    contextOpen = false; render(); focusSidebarControl(document, narrow, narrow ? sidebarOpen : !sidebarCollapsed);
   }
   if ('toggleContext' in data) { if (window.matchMedia('(max-width: 1050px)').matches) contextOpen = !contextOpen; else contextCollapsed = !contextCollapsed; sidebarOpen = false; render(); }
   if ('collapseSidebar' in data) {
     if (window.matchMedia('(max-width: 1050px)').matches) sidebarOpen = false;
     else sidebarCollapsed = true;
+    conversationNavigation.view(state.route.page, { collapsed: sidebarCollapsed });
     render(); focusSidebarControl(document, window.matchMedia('(max-width: 1050px)').matches);
   }
   if ('clawSidebarView' in data) {
@@ -3018,7 +3101,15 @@ window.addEventListener('visibilitychange', () => {
   if (!document.hidden && state.route.page === 'settings' && currentSettingsSection() === 'local') void loadCatalog(['localIntegrations']);
 }, true);
 window.addEventListener('resize', () => { if (sessionMenu) { sessionMenu = null; render(); } });
-window.addEventListener('scroll', () => { if (sessionMenu) { sessionMenu = null; render(); } }, true);
+window.addEventListener('scroll', event => {
+  if (!sessionMenu) return;
+  // Rebuilding the sidebar restores its scrollTop asynchronously. That is not
+  // a user scroll and must not immediately dismiss the menu just opened.
+  const list = event.target;
+  const mode = list?.closest?.('[data-nav-mode]')?.dataset.navMode;
+  if (list?.matches?.('.nav-scroll') && list.scrollTop === (conversationNavigation.state(mode)?.scrollTop || 0)) return;
+  sessionMenu = null; render();
+}, true);
 document.querySelector('.skip-link').addEventListener('click', (event) => { event.preventDefault(); document.querySelector('#main')?.focus(); });
 window.addEventListener('unhandledrejection', (event) => { event.preventDefault(); safeLog('unhandled_async_error'); state.error = '操作出现异常，请刷新状态后重试。'; render(); });
 await showRoute();
