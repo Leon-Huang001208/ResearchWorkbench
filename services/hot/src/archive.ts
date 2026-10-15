@@ -12,13 +12,15 @@ export interface ArchiveManifest {
   version:1;schema:string;instanceId:string;createdAt:string;scope:'hot_schema';
   rawObjects:'database_bytea';researchSnapshots:'not_integrated';
   archiveSha256:string;inventorySha256:string;tables:Record<string,number>;proof:string;
+  inventoryEncoding?:'postgres-jsonb-text-v1';
 }
 async function inventory(db:Sql,schema:string){
   const names=await db`select tablename from pg_tables where schemaname=${schema} order by tablename`;
   const records:Record<string,unknown[]>={};
   for(const {tablename}of names){
-    const rows=await db`select to_jsonb(t) as row from ${db(schema)}.${db(tablename)} t order by to_jsonb(t)::text`;
-    records[tablename]=rows.map(item=>item.row);
+    const rows=await db`select to_jsonb(t)::text as row_text from ${db(schema)}.${db(tablename)} t order by to_jsonb(t)::text`;
+    const texts=rows.map(item=>item.row_text as string);
+    records[tablename]=texts;
   }
   return {inventorySha256:sha256(JSON.stringify(records)),tables:Object.fromEntries(Object.entries(records).map(([name,rows])=>[name,rows.length]))};
 }
@@ -47,6 +49,7 @@ export async function backupSchema(db:Sql,schema:string,identity:ArchiveIdentity
     await connection`select pg_advisory_lock(hashtextextended(${schema},231501))`;
     locked=true;
     await connection.unsafe('begin isolation level repeatable read');transaction=true;
+    await connection.unsafe("set local timezone='UTC'");
     const tx=connection;
     manifest=await (async()=>{
       const [owner]=await tx`select instance_id,controller_token_hash,paused from ${tx(schema)}.runtime_identity where singleton`;
@@ -60,7 +63,7 @@ export async function backupSchema(db:Sql,schema:string,identity:ArchiveIdentity
       try{await file.writeFile(bytes);await file.sync();}finally{await file.close();}
       const body={version:1 as const,schema,instanceId:identity.instanceId,createdAt:new Date().toISOString(),
         scope:'hot_schema' as const,rawObjects:'database_bytea' as const,researchSnapshots:'not_integrated' as const,
-        archiveSha256:sha256(bytes),...before};
+        archiveSha256:sha256(bytes),inventoryEncoding:'postgres-jsonb-text-v1' as const,...before};
       return {...body,proof:seal(body,identity.controllerToken)};
     })();
     await connection.unsafe('commit');transaction=false;
@@ -87,9 +90,14 @@ export async function verifyArchive(directory:string,identity:ArchiveIdentity):P
   const value=JSON.parse(bytes.toString('utf8')) as ArchiveManifest;
   const {proof,...body}=value;
   if(value.version!==1||value.scope!=='hot_schema'||value.instanceId!==identity.instanceId||
+     (value.inventoryEncoding!==undefined&&value.inventoryEncoding!=='postgres-jsonb-text-v1')||
      typeof proof!=='string'||!/^[a-f0-9]{64}$/.test(proof))throw Error('hot_archive_identity_denied');
   const actual=seal(body,identity.controllerToken);
   if(!timingSafeEqual(Buffer.from(proof,'hex'),Buffer.from(actual,'hex')))throw Error('hot_archive_signature_invalid');
+  if(value.inventoryEncoding===undefined){
+    console.error(JSON.stringify({subsystem:'hot',event:'legacy_inventory_rebackup_required'}));
+    throw Error('hot_archive_inventory_rebackup_required');
+  }
   schemaName(value.schema);
   const file=await lstat(join(directory,'hot.dump'));
   if(file.size>256*1024*1024)throw Error('hot_archive_size_limit');
@@ -99,6 +107,8 @@ export async function verifyArchive(directory:string,identity:ArchiveIdentity):P
 export async function verifyRestoredSchema(db:Sql,manifest:ArchiveManifest):Promise<void>{
   schemaName(manifest.schema);
   await db.begin('isolation level repeatable read',async tx=>{
+    await tx.unsafe("set local timezone='UTC'");
+    if(manifest.inventoryEncoding!=='postgres-jsonb-text-v1')throw Error('hot_archive_inventory_rebackup_required');
     const actual=await inventory(tx as unknown as Sql,manifest.schema);
     if(actual.inventorySha256!==manifest.inventorySha256)throw Error('hot_archive_inventory_mismatch');
     const [owner]=await tx`select paused from ${tx(manifest.schema)}.runtime_identity where singleton`;

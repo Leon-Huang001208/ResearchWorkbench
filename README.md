@@ -4,21 +4,25 @@
 外部资料源由连接中心显示配置与准入状态，失败会保留明确状态；已保存或已配置不代表实际调用通过。
 详见[连接中心](docs/research-web-datahub.md)与[能力合同](docs/research-web-capabilities.md)。
 
-Hot已保存两领域回顾性真实样本及离线回执/规则一致性检查。目标事件分区但候选历史有共享，明确非盲测/无独立准确率；困难关系真实模型仍有NOT_RUN项，不能据此宣称完整Goal完成。
+“研究情报”统一本地热点与事件、现有八个外部栏目，沿AIHOT开源阅读模式适配主题、
+日期时间轴和来源卡片，保留工作台品牌。Hot来源配置、频道、关注和周期计划由原PG引擎负责，
+与旧Automation开关独立；页面刷新不发起付费请求。
 
-研究情报可在人工纠错中核验发生/生效日期：日精度不补午夜，UTC确切时刻单独记录；绑定原材料版本和摘录，未知保持null。实际原PG/组件页面已保存官方反馈函发布日期并生成可下载MD/DOCX，最终镜像/安装CI仍另验。
+官方来源支持同源声明next的三页有界补抓，部分失败保留原页与待处理材料，覆盖如实显示。
+来源页提供启停、间隔与明确目录接入；旧冻结源可经`rwb hot source-configure SOURCE
+--expected-revision REV --use-catalog --reason "恢复官方采集"`激活，先停机setup刷新权限。
+事件发生/生效日期绑定原材料版本与摘录，未知保持null，日精度不补午夜。
 
-Hot公开源支持同源声明next的三页有界补抓，范围/缺口明确；部分网络失败保留已取得页与待处理材料，不推进成功水位。此切片的最终镜像与MacCI仍待验收。
+schema21的周期任务会冻结简报，调用既有报告机制生成一次性站内MD/Word，先保存原件及
+回执再完成任务；恢复复用回执，下载只读已存字节。升级先停止Hot并setup，保留所有卷。
+研究报告、执行终态和报告交付分别显示：已有真实报告的执行仍可因预算终止而failed。
+当前验收scope达20calls/79894tokens，100000tokens/USD1上限保持，不再追加模型调用。
 
-“研究情报”的来源页可设置启停、采集间隔和明确目录接入；Doctor会核对目录控制权限，冻结样本不会显示为采集中。来源组件保存/审计已在Native原PG验证，新源码完整镜像和Mac安装CI仍待验收。
-
-接续旧冻结来源可用`rwb hot source-configure SOURCE --expected-revision REV --use-catalog --reason "恢复官方采集"`，先停止Hot并setup更新controller列权限。此操作仅激活固定目录的同运营主体源，保留旧资料；当前Native四源实采、OpenAI/Fed双轮排空通过，新字段Docker/安装CI仍待验收。
-
-“研究情报”已按 AIHOT 开源阅读模式适配纸面主题、日期时间轴、热度条和来源卡片，保留
-八个外部栏目及工作台品牌。此界面迭代不表示 Hot 后台完整研究、定时任务或安装验收已完成。
-Hot 已有 Native 真实研究报告、联合恢复、Docker组件顺序模式切换和 Mac 安装 CI 证据。
-页面支持冻结简报选材准备会话，再明确提交研究问题；不提高预算。近期AI事件已真实处理，两频道周期MD/DOCX、schema20联合恢复、候选整镜像读取/采集及顺序模式切换已有证据。
-Hot周期管理独立于旧Automation开关；该修复的新镜像回归及当前Mac CI仍待验收，完整Goal状态见[权威进度](.ai/reports/2026-10-12-hot-intel-resume-PROGRESS.md)。
+真实关系运行包含误判保留、人工纠错、same_occurrence/direct_followup及综合稿跨年关联；
+旧v1样本的四条NOT_RUN参考不篡改。回顾留出有候选上下文交叉，不声称独立盲测准确率。
+新PG备份按精确数据库文本核验；旧未标记归档保留但须从原库重备份，不改签名绕过。
+Native/Docker、联合恢复与干净Mac CI分别绑定候选，旧证据不认证新源；完整交付状态见
+[权威进度](.ai/reports/2026-10-12-hot-intel-resume-PROGRESS.md)及[完整合同审计](.ai/reports/2026-10-15-hot-final-contract-audit.md)。
 
 持久文本验收预算仅供显式受管 AES 候选：最多 3 次、每次 512 输出 tokens。旧政策已过期，当前不会启动真实验收或续期；普通运行不发现账本。见[预算设计](docs/superpowers/specs/2026-10-14-pr88-budget-port-design.md)。
 

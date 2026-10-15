@@ -9,7 +9,7 @@ import { schemaName } from './config.ts';
 
 type Sql = ReturnType<typeof postgres>;
 type Tx = postgres.TransactionSql;
-export const SCHEMA_VERSION = 20;
+export const SCHEMA_VERSION = 21;
 type Page = { source: string; raw: string; acquiredAt: Date; materials: FeedMaterial[];
   cursor: Record<string, postgres.JSONValue>; metadata?: Record<string, postgres.JSONValue>; existingPageId?: string };
 
@@ -42,7 +42,7 @@ export async function migrate(db: Sql, schema = 'hot'): Promise<void> {
       if(live?.active)throw Error('hot_migration_requires_stopped');
     }
     await tx`create table if not exists ${tx(schema)}.migrations (version integer primary key, checksum text not null, applied_at timestamptz not null default now())`;
-    for (const [version, file] of [[1, '0001-materials.sql'], [2, '0002-acquisition-watermark.sql'], [3, '0003-runtime-fences.sql'], [4, '0004-queue-binding.sql'], [5,'0005-collection-inbox.sql'],[6,'0006-source-control.sql'],[7,'0007-model-budget.sql'],[8,'0008-provider-receipt-id.sql'],[9,'0009-model-daily-admission.sql'],[10,'0010-events-channels.sql'],[11,'0011-material-processing.sql'],[12,'0012-channel-rule-evidence.sql'],[13,'0013-channel-control.sql'],[14,'0014-model-controls.sql'],[15,'0015-brief-versions.sql'],[16,'0016-research-runs.sql'],[17,'0017-research-model-calls.sql'],[18,'0018-model-token-amendment.sql'],[19,'0019-follows.sql'],[20,'0020-periodic-briefs.sql']] as const) {
+    for (const [version, file] of [[1, '0001-materials.sql'], [2, '0002-acquisition-watermark.sql'], [3, '0003-runtime-fences.sql'], [4, '0004-queue-binding.sql'], [5,'0005-collection-inbox.sql'],[6,'0006-source-control.sql'],[7,'0007-model-budget.sql'],[8,'0008-provider-receipt-id.sql'],[9,'0009-model-daily-admission.sql'],[10,'0010-events-channels.sql'],[11,'0011-material-processing.sql'],[12,'0012-channel-rule-evidence.sql'],[13,'0013-channel-control.sql'],[14,'0014-model-controls.sql'],[15,'0015-brief-versions.sql'],[16,'0016-research-runs.sql'],[17,'0017-research-model-calls.sql'],[18,'0018-model-token-amendment.sql'],[19,'0019-follows.sql'],[20,'0020-periodic-briefs.sql'],[21,'0021-periodic-report-executions.sql']] as const) {
     const raw = await readFile(new URL(`../migrations/${file}`, import.meta.url), 'utf8');
     const checksum = sha256(raw);
     const rows = await tx`select checksum from ${tx(schema)}.migrations where version=${version}`;

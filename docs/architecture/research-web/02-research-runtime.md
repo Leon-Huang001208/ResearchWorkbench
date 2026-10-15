@@ -1,5 +1,9 @@
 # 研究协议、执行状态与恢复
 
+周期简报的一次性Word子执行是既有report_documents投影，不进入DSH session.prompt。
+其固定执行身份绑定periodic run与brief hash，先存不可变原件/回执，再条件提交任务完成。
+正式研究的run/session/deliveryKey映射保持；报告可用与研究failed仍分开，不追加模型预算。
+
 普通任务现在附带当前能力admitted/status/missing_codes与数据工具可调用性提示；这是规划事实，
 不是授权，执行前仍走实时nativeAdmission。缺合约或来源的能力不应反复加载，不能改用脚本绕过。
 非2xx DataHub响应只提取4KiB以内JSON的稳定error.code白名单，不向模型回传message或供应商原文。

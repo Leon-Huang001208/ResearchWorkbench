@@ -17,6 +17,21 @@ from app.research_web.hot_service import HotWebError, HotWebService
 
 
 class FollowBoundaryTests(unittest.TestCase):
+    def test_periodic_report_get_reads_saved_execution_without_render_or_send(self):
+        identifier = "11111111-1111-4111-8111-111111111111"
+        seen = []
+        class Bridge:
+            async def call(self, operation, *args, **kwargs):
+                seen.append((operation, args))
+                return {"data": b"saved fixture", "executionId": "a" * 64, "inputHash": "b" * 64, "artifactHash": "c" * 64}
+        app = FastAPI(); app.include_router(router); app.state.hot = Bridge()
+        with TestClient(app) as client:
+            response = client.get(f"/api/research/hot/periodic/runs/{identifier}/report")
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.content, b"saved fixture")
+            self.assertEqual(response.headers["x-hot-execution-id"], "a" * 64)
+        self.assertEqual(seen, [("periodic_report", (identifier,))])
+
     def test_source_catalog_activation_requires_typed_action_and_reason(self):
         seen = []
         class Bridge:
@@ -133,7 +148,11 @@ class BridgeTests(unittest.IsolatedAsyncioTestCase):
             with self.assertRaisesRegex(HotWebError, "请求较多"):
                 await bridge.call("events", {})
             release.set()
-            await asyncio.sleep(0.02)
+            for _ in range(100):
+                if not bridge._inflight:
+                    break
+                await asyncio.sleep(0.01)
+            self.assertFalse(bridge._inflight)
             self.assertEqual(await bridge.call("events", {}), {"items": []})
         finally:
             release.set()

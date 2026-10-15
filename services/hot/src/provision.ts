@@ -47,6 +47,7 @@ export async function grantWorker(db: Sql, schema: string, role: string): Promis
 
 export async function grantController(db: Sql, schema: string, role: string): Promise<void> {
   await grantWorker(db,schema,role);
+  await db`grant insert on ${db(schema)}.periodic_report_executions to ${db(role)}`;
   await db`grant update(mode,generation,paused,owner_until) on ${db(schema)}.runtime_identity to ${db(role)}`;
   await db`grant delete on ${db(schema)}.job_dependency to ${db(role)}`;
   await db`grant update(monitor_backoff_on) on ${db(schema)}.version to ${db(role)}`;

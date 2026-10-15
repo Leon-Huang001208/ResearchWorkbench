@@ -1,5 +1,48 @@
 # Hot internal engine
 
+## Current delivery scope (2026-10-15)
+
+Schema21 adds immutable `periodic_report_executions`. Stop Hot and run the existing
+setup to migrate and refresh scoped grants. A periodic job freezes the brief, then
+calls the existing Python `brief_docx`/`report_documents` mechanism once without DSH
+or model credentials. The private bootstrap selects the installed product Python;
+the fixed module has a 25-second/8-MiB bound and cancellation kills its owned child.
+Markdown/DOCX bytes and input/output hashes persist in PostgreSQL before task
+completion. Recovery reuses that execution; only the current owner/claim can atomically
+finish the run and pg-boss job. The brief queue's completion uses its existing
+controller role; collection/model lanes retain the worker role. The reader can
+download the saved Word report through bounded chunks, never a fresh rendering.
+An empty period stays empty; historical completed runs without a report receipt
+remain explicitly unverified for that additional output. No paid study or external
+delivery is automatically enabled.
+
+The product entry is **研究情报**, combining local events and eight existing external
+news columns. Native configuration, signed worker lifecycle, source/channel editing,
+follows, periodic briefs, frozen research handoff and Markdown/DOCX are implemented.
+The dated checkpoints below record how these were introduced; their initial proof
+limitations do not describe a later checkpoint's capabilities. The authoritative
+continuation record and per-candidate verification receipts distinguish implementation,
+real model acceptance, Mac Docker Desktop and clean macOS CI. Windows/Linux product
+acceptance remains a handoff, not a claim of support from Mac evidence.
+
+The real research produced a verified report even though its execution ended at the
+model budget boundary: execution `failed` and delivery `completed` remain separate.
+The approved scope is exhausted at 20 calls / 79,894 tokens / 11,501 microUSD tariff
+ceiling (not a supplier invoice); no further paid request is authorized by this state.
+
+Schema archives now hash exact PostgreSQL JSONB text, tagged
+`inventoryEncoding: postgres-jsonb-text-v1`, including arbitrary precision numbers.
+Legacy untagged inventories cannot prove exact recovery because their JS number
+hash could collide; restore rejects them with `hot_archive_inventory_rebackup_required`
+before creating a restore target. Preserve the old dump and database; take a new
+paused backup from the original database with this version, then restore into a new
+database. Do not relabel or re-sign an old manifest to bypass this check.
+Selected research ZIP backups count metadata in the 64 MiB payload limit and also
+check the finished ZIP against 64 MiB before publishing a successful signed manifest.
+Report verification streams all saved eligible files, up to the existing Delivery
+contract of 100 files / 16 MiB per file; it never treats a truncated display scan as
+proof of failed research.
+
 Grouping now prioritizes literal source citations against normalized material
 identities before keyword matches, with the same 20-candidate/all-history bound.
 The immutable packet/business contract remains `hot-group-v1`; generation uses
@@ -33,7 +76,7 @@ Its private test CA is supplied only to the test Node process with
 The production default uses Node's trusted CAs. This fixture proves the external
 TLS path, not connectivity to an unspecified user's remote database.
 
-Offline real-corpus review is available with `node services/hot/scripts/evaluate-corpus.ts`. Five real source materials, three paid receipt replays and frozen domain rules are integrity checked. Primary events are partitioned 2 development/3 retrospective holdout, but candidate history overlaps and is explicitly reported; no independent accuracy or blinded benchmark is claimed. Four source-reviewed difficult relation references remain model NOT_RUN. Details and provenance are in evaluation/README.md; execution adds no model calls or database writes.
+Offline real-corpus review is available with `node services/hot/scripts/evaluate-corpus.ts`. Five real source materials, three paid receipt replays and frozen domain rules are integrity checked. Primary events are partitioned 2 development/3 retrospective holdout, but candidate history overlaps and is explicitly reported; no independent accuracy or blinded benchmark is claimed. Four source-reviewed references remain model NOT_RUN **in the immutable v1 corpus**. The separate 2026-10-15 real relation run above does not rewrite those historical records. Details and provenance are in evaluation/README.md; replay adds no model calls or database writes.
 
 Event `times` correction accepts both nullable occurred/effective claims: `{value,precision:"day"|"instant",timezone,evidence:{id,revision,quote}}`. Days use YYYY-MM-DD; instants use canonical UTC ISO with milliseconds. Evidence must be a current event material revision and a literal title/excerpt quote. No date is guessed from acquisition or publication alone. Claims append immutable event versions and controller audit; old as-of reads stay unchanged. Automatic reruns preserve active claims and reject removing their evidence. Withdrawing a claim releases only its date-specific restriction, leaving other manual protections intact. Before split/reassign removes evidence, explicitly clear that claim; merges retain target dates and source historical versions. Frozen brief webpage/Markdown/DOCX retain precision, source timezone, quote and revision; day precision never renders midnight. Schema remains20 and no new model call is authorized.
 
@@ -92,10 +135,10 @@ then admits an explicit question through the existing execution API. Preparation
 and reads do not execute research. Unknown responses retain the exact original
 run/question/formats for user-requested reconciliation; incomplete responses do
 not certify acceptance. The existing paid report and the isolated browser UI
-fixture have separate evidence. Follows and periodic brief adaptation remain
-outstanding; this does not declare the full Goal complete.
+fixture have separate evidence. Follows and periodic brief adaptation are described
+in their later sections; none of these individual checkpoints certifies the full Goal.
 
-This package is under implementation. It is not yet a supported product entry.
+This is an internal component of the RWB product, not a separate public application.
 The authoritative continuation record is `.ai/reports/2026-10-12-hot-intel-resume-PROGRESS.md`;
 the original `.ai/reports/2026-10-07-hot-events-PROGRESS.md` preserves earlier evidence.
 
@@ -239,8 +282,8 @@ factory and Web Host/UI mounting are implemented; grouping follows below.
 Migration 11 registers one processing item per immutable material revision and
 group prompt version in the same parse transaction. `src/processing.ts` schedules
 the existing `hot.process` queue only when a grouping capability is available.
-The service accepts that capability internally; public Native bootstrap/Settings
-wiring is still pending. Without it, status reports `blocked_model`, collection
+The service accepts that capability internally; Native bootstrap uses the configured
+scope and dated pricing. Without an authorized capability, status reports `blocked_model`, collection
 continues and pending materials remain visible. Budget-blocked, unknown, rejected
 and stale inputs are retained and never automatically requeued.
 
@@ -307,7 +350,8 @@ grouped frozen AI/macro events in the fixed acceptance schema, loads the same JS
 channel configuration and records six real-event judgments. It starts no model,
 checks cumulative budget unchanged and preserves existing different configs.
 Gold's bank-stability example is explicitly indirect (40/35); it does not claim
-direct Gold-price evidence. Public CLI/Settings channel editing is still pending.
+direct Gold-price evidence. Public CLI and workspace configuration use the signed
+channel control interface; the original proof did not certify that later UI.
 
 ## Continuous public collection
 
@@ -366,7 +410,8 @@ exit status. Retry the same request with --request-id and identical parameters.
 Pause cancels registered acquisition, blocks subsequent parse commits and retains
 the inbox for resume. The cancellation registration exists before preflight;
 the in-flight test deliberately simulates slow HTTP on a real service/PG instance,
-and does not replace live-source acceptance. Web Settings wiring is still pending.
+and does not replace live-source acceptance. Source settings are now exposed in the
+workspace and verified separately by the real source-configuration UI proof.
 
 Same-content duplicate feed listings are coalesced into one material. Contradictory
 timestamp declarations remain in the raw response and as a sorted JSON array in
@@ -438,7 +483,7 @@ certified by the stage-zero probe. No paid calls or external messages are sent.
 
 See `THIRD_PARTY_NOTICES.md` for upstream commit, license and modification scope.
 
-## Implemented stage-one substrate
+## Storage, lifecycle and recovery contract
 
 `config.example.json` is a non-secret example for `parseConfig`. `rwb hot configure
 --file services/hot/config.example.json` now saves the normalized non-secret
@@ -470,8 +515,11 @@ outer timeouts signal and reap the owned child. Archives are limited to 256 MiB;
 larger datasets fail explicitly, with streaming archives still pending.
 After a verified restore, configure database.name to the returned target before
 starting it; sources remain disabled until explicitly re-enabled by future source
-configuration. Research snapshots are not integrated and cannot be claimed restored.
-Settings and Docker product lifecycle remain unfinished.
+configuration. `--include-session` adds selected authenticated research
+snapshots to a joint archive; the restored copies retain their original identity and
+remain paused. Native execution history is explicitly not restored. Settings and
+Mac Docker Desktop lifecycle are implemented and have separate real acceptance
+receipts; a schema-only stage-one archive does not certify those later capabilities.
 Disabled Hot performs no credential lookup or DB connection. Secrets are passed
 only by an authorized Host resolver; the JSON schema rejects passwords and DSNs.
 Managed connections are restricted to loopback or the fixed private service
@@ -494,15 +542,17 @@ joins lanes on cancellation. Completion and business writes share a transaction.
 Commit/claim/failure operations verify current runtime and attempt leases. Only
 the valid generation supervises expired pg-boss jobs; stale generations cannot
 settle them. Public outcomes reuse the same stage/input identity across restarts.
-Paid processing/research queues have no automatic retries; budgeted unknown-call
-resolution is a later stage and remains unimplemented.
+Paid processing/research queues have no automatic retries; explicit model-attempt
+inspection, result registration, bounded retry authorization and termination preserve
+unknown reservations and immutable audit records.
 
 AbortSignal is passed to each handler and waiting is bounded even if a handler
 ignores it. A late returned commit callback is never executed. This does not
 forcibly stop arbitrary network side effects already started inside a handler;
 future adapters must implement cancellation and their receipt contracts. The
 Native manager verifies PID start identity and a launch nonce before signalling
-its process. Actual Native/Docker switching still requires integration and acceptance.
+its process. Sequential Native/Docker activation is fenced by the same database
+generation; stale owners are rejected. Mac Docker acceptance is recorded separately.
 
 After `npm run proof`, `npm run test:postgres` executes the real PostgreSQL
 schema, restricted-role, runtime-generation, queue transaction/crash and worker
@@ -724,7 +774,7 @@ The source response is the complete stored response: a saved RSS page is not the
 HTML page at its article URL. Same-page unselected entries do not enlarge research
 selection or source coverage. These calls do not create a session, invoke a model,
 change the queue or send anything externally. DataHub-owned session publication and
-PG research-run/session mappings remain the next required integration.
+PG research-run/session mappings are implemented in the migration16 section below.
 
 Local tests use an explicitly selected, owned isolated PG fixture; set
 `RWB_HOT_TEST_FIXTURE_DIR` to its private stage-zero directory and
@@ -732,8 +782,8 @@ Local tests use an explicitly selected, owned isolated PG fixture; set
 `RWB_HOT_TEST_PYTHON` enables the actual Host→signed Node/PG reconstruction and DOCX
 HTTP/retained-file assertions. This is fixture credentials, not installed Keychain
 or paid DSH acceptance. Two original real AI/macro brief versions have separately
-produced parsed, hash-checked DOCX artifacts; product install/browser DOCX and full
-research acceptance are still pending.
+produced parsed, hash-checked DOCX artifacts; later browser/real report/recovery and
+clean Mac install receipts supply their own evidence rather than inheriting this proof.
 
 
 ## Durable research preparation (migration16)

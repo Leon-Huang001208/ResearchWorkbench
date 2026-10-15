@@ -250,6 +250,20 @@ async def brief_plan_runs(plan_id: str, request: Request):
     return await request.app.state.hot.call("periodic_runs", str(UUID(plan_id)))
 
 
+@router.get("/periodic/runs/{run_id}/report")
+async def periodic_report(run_id: str, request: Request):
+    query(request, set())
+    if not re.fullmatch(UUID_PATTERN, run_id):
+        raise HotWebError("hot_periodic_request_invalid", "运行标识不正确。", 400)
+    run_id = str(UUID(run_id))
+    result = await request.app.state.hot.call("periodic_report", run_id)
+    return Response(result["data"], media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document", headers={
+        "Content-Disposition": f'attachment; filename="hot-periodic-{run_id}.docx"', "Cache-Control": "no-store",
+        "X-Hot-Execution-Id": result["executionId"], "X-Hot-Content-Hash": result["inputHash"],
+        "X-Hot-Artifact-Hash": result["artifactHash"],
+    })
+
+
 @router.post("/brief-plans/configure")
 async def configure_brief_plan(request: Request):
     value = await body(request, BriefPlanRequest)

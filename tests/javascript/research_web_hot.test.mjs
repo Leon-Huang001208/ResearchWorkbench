@@ -6,6 +6,16 @@ import {hotResearchSubmission,renderHotPreparation,renderHotExecution} from '../
 import {renderHotFollows} from '../../app/research_web/ui/hot-follows.mjs';
 import {renderHotBriefPlans,hotPlanSubmission} from '../../app/research_web/ui/hot-brief-plans.mjs';
 
+test('periodic Word link reads the saved run and never certifies legacy missing receipts',()=>{
+  const row={runId:'unsafe/<img src=x>',planId:'plan',planVersion:1,dueAt:'2026-10-15T00:00:00Z',missedPeriods:0,state:'completed',queueState:'completed'};
+  const state={channels:[],plans:[],selectedPlan:'plan',planRuns:[row]};
+  assert.doesNotMatch(renderHotBriefPlans(state),/一次性报告已保存|下载本次报告 Word/);
+  const html=renderHotBriefPlans({...state,planRuns:[{...row,report:{state:'completed',executionId:'<img src=y>'}}]});
+  assert.match(html,/一次性报告已保存/);
+  assert.ok(html.includes('/api/research/hot/periodic/runs/'+encodeURIComponent(row.runId)+'/report'));
+  assert.doesNotMatch(html,/<img src=/);
+});
+
 test('periodic plan creation is disabled and rendering/reading cannot enable a schedule',()=>{
   assert.equal(parseRoute('#/intel/hot?view=plans').hotView,'plans');
   const fields={name:'Macro',channelId:'macro',firstRunAt:'2026-10-14T08:00:00Z',intervalSeconds:'86400',windowSeconds:'86400',maxEvents:'10',timezone:'Asia/Shanghai',sort:'importance',reason:'test'};

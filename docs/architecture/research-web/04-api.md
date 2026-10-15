@@ -1,5 +1,9 @@
 # Research Web 接口清单
 
+`GET /api/research/hot/periodic/runs/{run_id}/report`下载PG中已保存的一次性Word子执行。
+固定run ID沿reader签名分块读取，Host核对完整hash/长度/身份；GET不渲染、不启动研究，
+响应带X-Hot-Execution-Id、X-Hot-Content-Hash和X-Hot-Artifact-Hash。
+
 DataHub无可调用来源仍返回400，但稳定error.code为data_source_unavailable；
 不等价AKShare查询为data_not_equivalent，旧授权摘要缓存为data_cache_authorization_changed。
 Runtime仅传播受限code，不传播错误message/原始上游数据。GET会话活动会把DataHub failed结果

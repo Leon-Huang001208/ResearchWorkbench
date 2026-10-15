@@ -19,6 +19,33 @@ class MemoryCredentials:
 
 
 class HotManagerTests(unittest.TestCase):
+    def test_periodic_report_reassembles_exact_hash_and_rejects_changed_chunks(self):
+        import base64
+        import hashlib
+        identifier = "11111111-1111-4111-8111-111111111111"
+        raw = b"x" * 40000
+        self.manager._state = lambda: {"port": 1234, "owner": {"instanceId": identifier}}
+        self.manager._secret = lambda key: "reader-fixture"
+        def reply(port, owner, key, operation, params):
+            self.assertEqual(operation, "periodic.report")
+            self.assertEqual(key, "reader-fixture")
+            offset = params["offset"]
+            next_offset = min(offset + 32768, len(raw))
+            return {"runId": identifier, "executionId": "a" * 64, "briefId": identifier, "briefVersion": 1,
+                    "inputHash": "b" * 64, "artifactHash": hashlib.sha256(raw).hexdigest(), "format": "docx",
+                    "totalBytes": len(raw), "offset": offset, "nextOffset": None if next_offset == len(raw) else next_offset,
+                    "data": base64.b64encode(raw[offset:next_offset]).decode()}
+        with patch("research_workbench_entrypoint.hot_manager.rpc", side_effect=reply):
+            self.assertEqual(self.manager.periodic_report(identifier)["data"], raw)
+        def changed(*args):
+            result = reply(*args)
+            if args[-1]["offset"]:
+                result["inputHash"] = "c" * 64
+            return result
+        with patch("research_workbench_entrypoint.hot_manager.rpc", side_effect=changed):
+            with self.assertRaisesRegex(HotError, "hot_rpc_invalid"):
+                self.manager.periodic_report(identifier)
+
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory()
         self.home = Path(self.temporary.name).resolve()

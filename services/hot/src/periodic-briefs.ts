@@ -7,7 +7,9 @@ import {publicationTime,sha256} from './material.ts';
 import {canonicalGroupingInput} from './processing.ts';
 import {eventsList} from './projections.ts';
 import {enqueueTransaction,type JobOutput} from './queue.ts';
-import {createBriefRequest} from './brief-control.ts';
+import {createBriefRequest,briefGet} from './brief-control.ts';
+import {briefMarkdown,type BriefPayload} from './briefs.ts';
+import type {PeriodicReportRenderer} from './periodic-report.ts';
 import {logEvent} from './log.ts';
 type Sql=ReturnType<typeof postgres>;
 interface PeriodicConfig {name:string;channelId:string;enabled:boolean;firstRunAt:string;intervalSeconds:number;windowSeconds:number;maxEvents:number;timezone:string;sort:'importance'|'heat'|'recent'}
@@ -77,9 +79,12 @@ export async function periodicPlans(db:Sql,schema:string,params:Record<string,po
 export async function periodicRuns(db:Sql,schema:string,params:Record<string,postgres.JSONValue>){
   schemaName(schema);if(Object.keys(params).some(key=>key!=='planId')||typeof params.planId!=='string'||!uuid.test(params.planId))throw Error('hot_periodic_request_invalid');
   const [{cutoff}]=await db`select clock_timestamp() cutoff`;
-  const rows=await db`select r.*,(select j.state from ${db(schema)}.job j where j.name='hot.brief' and j.data->'payload'->>'runId'=r.id::text order by j.created_on desc limit 1) queue_state
-    from ${db(schema)}.periodic_runs r where r.plan_id=${params.planId.toLowerCase()} order by r.due_at desc,r.id limit 50`;
-  return json({cutoff,items:rows.map(row=>({runId:row.id,planId:row.plan_id,planVersion:row.plan_version,dueAt:row.due_at,missedPeriods:row.missed_periods,state:row.state,queueState:row.queue_state,errorCode:row.error_code,briefId:row.brief_version?row.brief_id:null,briefVersion:row.brief_version,contentHash:row.content_hash,createdAt:row.created_at,finishedAt:row.finished_at}))});
+  const rows=await db`select r.*,e.execution_id,e.docx_hash,e.input_hash,octet_length(e.docx)::int report_bytes,
+    (select j.state from ${db(schema)}.job j where j.name='hot.brief' and j.data->'payload'->>'runId'=r.id::text order by j.created_on desc limit 1) queue_state
+    from ${db(schema)}.periodic_runs r left join ${db(schema)}.periodic_report_executions e on e.run_id=r.id
+    where r.plan_id=${params.planId.toLowerCase()} order by r.due_at desc,r.id limit 50`;
+  return json({cutoff,items:rows.map(row=>({runId:row.id,planId:row.plan_id,planVersion:row.plan_version,dueAt:row.due_at,missedPeriods:row.missed_periods,state:row.state,queueState:row.queue_state,errorCode:row.error_code,briefId:row.brief_version?row.brief_id:null,briefVersion:row.brief_version,contentHash:row.content_hash,createdAt:row.created_at,finishedAt:row.finished_at,
+    report:row.execution_id?{state:'completed',executionId:row.execution_id,inputHash:row.input_hash,artifactHash:row.docx_hash,bytes:row.report_bytes}:null}))});
 }
 export async function schedulePeriodicBriefs(db:Sql,boss:PgBoss,schema:string,owner:RuntimeOwner){
   try{return await withOwnerTransaction(db,schema,owner,async tx=>{
@@ -96,7 +101,7 @@ export async function schedulePeriodicBriefs(db:Sql,boss:PgBoss,schema:string,ow
     }logEvent('periodic_scheduled',rows.length);return rows.length;
   });}catch(error){logEvent('periodic_failed');if(error instanceof Error&&/^hot_[a-z_]+$/.test(error.message))throw error;throw Error('hot_periodic_schedule_failed');}
 }
-export function periodicBriefHandler(db:Sql,schema:string,owner:RuntimeOwner){
+export function periodicBriefHandler(db:Sql,schema:string,owner:RuntimeOwner,renderer?:PeriodicReportRenderer){
   const execute=async(payload:postgres.JSONValue,signal:AbortSignal,claim:Claim):Promise<JobOutput>=>{
     const input:unknown=payload;
     if(!plain(input)||Object.keys(input).some(key=>key!=='runId')||typeof input.runId!=='string'||!uuid.test(input.runId)||claim.inputKey!=='hot.brief:'+input.runId)throw Error('hot_periodic_request_invalid');
@@ -137,8 +142,32 @@ export function periodicBriefHandler(db:Sql,schema:string,owner:RuntimeOwner){
       logEvent('periodic_completed');return {result:{runId:id,state:'empty',briefId:null}};
     }
     const saved=await createBriefRequest(db,schema,owner,run.request_id,selection,signal,{actor:'hot_scheduler',selection:{kind:'periodic',planId:run.plan_id,planVersion:run.plan_version,runId:id,missedPeriods:run.missed_periods},fence,
-      saved:async(tx,result)=>{await tx`update ${tx(schema)}.periodic_runs set state='completed',error_code=null,brief_version=${Number(result.version)},content_hash=${String(result.contentHash)},finished_at=clock_timestamp() where id=${id}`;}});
-    logEvent('periodic_completed');return {result:json({runId:id,state:'completed',...JSON.parse(JSON.stringify(saved))})};
+      saved:async(tx,result)=>{await tx`update ${tx(schema)}.periodic_runs set brief_version=${Number(result.version)},content_hash=${String(result.contentHash)} where id=${id}`;}});
+    const meta=saved as Record<string,postgres.JSONValue>;
+    const existing=await withOwnerTransaction(db,schema,owner,async tx=>{
+      await fence(tx);const [row]=await tx`select execution_id,docx_hash,input_hash from ${tx(schema)}.periodic_report_executions where run_id=${id}`;return row;
+    });
+    let report=existing;
+    if(!report){
+      if(!renderer)throw Error('hot_periodic_report_unavailable');
+      const frozen=await briefGet(db,schema,{briefId:String(meta.briefId),version:Number(meta.version)});
+      const body=frozen as Record<string,postgres.JSONValue>;
+      if(body.contentHash!==meta.contentHash)throw Error('hot_brief_integrity_invalid');
+      const markdown=briefMarkdown({payload:body.payload as unknown as BriefPayload,contentHash:String(body.contentHash)});
+      const data=await renderer(frozen,signal);signal.throwIfAborted();
+      if(!Buffer.isBuffer(data)||data.length<1||data.length>5242880||Buffer.byteLength(markdown)>4000000)throw Error('hot_periodic_report_limit');
+      const executionId=sha256('rwb-report-documents-v1:'+id+':'+String(meta.contentHash));
+      report=await withOwnerTransaction(db,schema,owner,async tx=>{
+        await fence(tx);
+        await tx`insert into ${tx(schema)}.periodic_report_executions(run_id,execution_id,brief_id,brief_version,input_hash,renderer,markdown,markdown_hash,docx,docx_hash)
+          values(${id},${executionId},${String(meta.briefId)},${Number(meta.version)},${String(meta.contentHash)},'rwb-report-documents-v1',${markdown},${sha256(markdown)},${data},${sha256(data)}) on conflict(run_id) do nothing`;
+        const [row]=await tx`select execution_id,docx_hash,input_hash from ${tx(schema)}.periodic_report_executions where run_id=${id}`;
+        await fence(tx);return row;
+      });
+    }
+    if(report.input_hash!==meta.contentHash)throw Error('hot_periodic_report_conflict');
+    return {result:json({runId:id,state:'completed',...JSON.parse(JSON.stringify(saved)),report:{executionId:report.execution_id,artifactHash:report.docx_hash,inputHash:report.input_hash,state:'completed'}}),
+      commit:async tx=>{await fence(tx);await tx`update ${tx(schema)}.periodic_runs set state='completed',error_code=null,finished_at=clock_timestamp() where id=${id}`;await fence(tx);logEvent('periodic_completed');}};
   };
   return async(payload:postgres.JSONValue,signal:AbortSignal,claim:Claim):Promise<JobOutput>=>{
     try{return await execute(payload,signal,claim);}

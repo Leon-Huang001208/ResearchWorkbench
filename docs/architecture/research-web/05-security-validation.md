@@ -1,5 +1,14 @@
 # 安全边界与验证方法
 
+schema21周期报告由唯一Hot任务领取：私有bootstrap选择已安装产品Python，只执行固定
+hot_periodic_report模块，以有界stdin传冻结资料；25秒、SIGKILL/取消与8MiB输出硬门。
+该模块复用brief_docx/report_documents，不加载DSH、读取模型凭据或对外发送。子执行MD/DOCX
+与hash先存不可变PG表，再由hot.brief专用controller事务与领取/队列共同完成；其他任务继续
+使用worker角色。未知完成恢复复用既有子执行回执，旧租约、计划改版或停用拒绝晚到提交。
+reader只能有界分块读已保存报告，Host复验固定metadata、完整长度和hash；GET不重新执行。
+研究联合ZIP同时限制含metadata的展开总量与实际ZIP大小。新PG inventory哈希直接使用
+数据库JSONB精确文本；未标记的旧JS数值hash无法证明精度，保留旧档并明确要求原库重备份。
+
 字体兼容不扩大sandbox：getcwd、network connect和未准入资源依然拒绝。chinese_font_path
 仅由模块绝对__file__定位打包字体，缺失或alias固定错误退出，不扫描其他宿主文件。
 非2xx错误摘要只取4KiB JSON中白名单code，redirect立即拒绝，流读取/清理不超过原超时信号；

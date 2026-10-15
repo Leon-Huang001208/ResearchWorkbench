@@ -232,15 +232,33 @@ fixture 证明；Windows/Linux 本轮未验收。
 
 ## 支持范围
 
-### Hot 实施中的入口
+### Hot 配置与运行入口
+
+schema21版本升级先 `./rwb hot stop`，再 `./rwb hot setup` 更新迁移和角色授权，最后启动。
+周期简报使用一键安装中的产品Python与既有python-docx生成一次性报告，不新增依赖。
+报告原件和回执保存在同一Hot PG，重启/模式切换从既有回执恢复；缺投影条件时保持
+待处理和明确错误，不偷偷启动付费研究。旧周期无报告回执不追认新能力。
 
 本轮增加可选 Hot 的独立 PostgreSQL/Node 组件；基础 Web 仍不要求数据库。
-当前 `rwb hot` 已提供非秘密配置、Native 独立服务生命周期与受管 PG 配置；Docker 产品装配、
-Settings 和研究交接尚在实施，不能作为成品安装说明。Hot Node 组件要求 Node 24.11+ 的 24 系列。
-Native 启动后由受限 worker 持续采集已登记的四个官方 feed；`./rwb hot sources --json`
+当前 `rwb hot` 提供非秘密配置、Native 服务生命周期、受管/外部 PG、Settings 和研究交接。
+Mac Docker Desktop 复用相同逻辑数据库与代次租约；其模型能力仍受Native凭据/平台限制，
+不能把采集健康作为模型可用。Hot Node 组件要求 Node 24.11+ 的 24 系列。
+Native 启动后由受限 worker 持续采集明确启用的公开 feed；目录含四个官方来源和默认禁用的The File；`./rwb hot sources --json`
 查询来源成功时间、错误、待解析条目和覆盖区间。采集器只跟随来源声明的同源HTTPS next链接，每轮最多三页、每页4MiB、整轮25秒。
 `collection.backfillDays`为0时不翻下一页；全部已知发布时间早于范围下界时停止继续，未知时间不推造日期。
 状态返回 `backfill: publisher_next_links`、范围和3页硬门；没有next仍是最新快照，有界补抓不表示完整历史。启用 Hot 不触发付费模型或研究。
+
+干净安装仍从本页公开setup入口执行，再用 `./rwb hot configure --file services/hot/config.example.json`
+保存非秘密配置、`./rwb hot setup` 初始化所选实例、`./rwb hot start` 启动、
+`./rwb hot doctor --json` 检查真实状态；数据库凭据仅由受控设置/凭据后端接收。
+停止不删卷，升级先停止再setup，不改旧迁移checksum。联合备份使用 `backup --include-session <UUID>`；
+恢复目标必须是新库，选定快照不恢复Native执行历史。新版PG归档标记精确inventory编码；
+旧未标记归档要求从保留原库重新backup，不能改manifest绕过，旧文件及卷均保留。
+
+以下追加的阶段说明保留各阶段验收边界；例如“当时未产出报告”不是当前最终状态。
+当前真实报告已验证、执行因预算结束，交付状态与执行状态分开；模型验收scope已达20次上限，
+不得因刷新/安装/恢复再发付费请求。Mac干净安装与Docker实际能力以候选SHA的独立回执为准，
+Linux/Windows产品验收由对应真机接手。
 
 来源配置无需修改代码。先用 `sources --json` 取得当前 `config_revision`，然后执行：
 
