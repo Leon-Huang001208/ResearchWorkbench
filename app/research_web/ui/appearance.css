@@ -1677,6 +1677,7 @@ a.framework-card:hover, a.framework-card:focus-visible { border-color: var(--con
 .composer-model-option:focus-visible { outline:2px solid var(--focus); outline-offset:-2px; }
 .composer-model-option .ui-icon { width:18px; height:18px; flex-shrink:0; }
 .composer-model-option:disabled { opacity:.4; cursor:not-allowed; }
+@media (max-width:600px) { .composer-model-menu { position:static; } .composer-model-options { left:0; right:0; width:auto; bottom:calc(100% + 8px); } }
 .composer-more > summary { display:flex; align-items:center; justify-content:center; width:32px; height:32px; padding:6px; border-radius:8px; cursor:pointer; list-style:none; }
 .composer-more > summary::-webkit-details-marker { display:none; }
 .composer-more > summary:hover, .composer-more[open] > summary { color:var(--text); background:var(--surface); }
