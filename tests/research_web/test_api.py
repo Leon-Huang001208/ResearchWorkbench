@@ -1872,6 +1872,48 @@ def test_claw_project_api_preserves_workspace_and_requires_explicit_reference(ap
     assert len(client.get(f"/api/research/claw/projects/{project['id']}").json()["sessions"]) == 2
 
 
+def test_mode_projects_and_navigation_api_persist_without_model_calls(api):
+    client, native, service = api
+    url = "/api/research/projects?mode=fingpt"
+    project = client.post(url, json={"name": "独立项目"}).json()
+    assert project["id"] not in {
+        row["id"] for row in client.get("/api/research/claw/projects").json()["items"]
+    }
+    session = client.post(
+        "/api/research/sessions", json={"mode": "fingpt", "project_id": project["id"]}
+    ).json()
+    assert session["mode"] == "fingpt"
+    assert session["project_id"] == project["id"]
+    detail = f"/api/research/projects/{project['id']}?mode=fingpt"
+    assert client.get(detail).json()["sessions"][0]["id"] == session["id"]
+    endpoint = "/api/research/navigation/fingpt"
+    body = {
+        "revision": 0,
+        "pinned": [{"kind": "session", "id": session["id"]}],
+        "project_order": [project["id"]],
+    }
+    saved = client.patch(endpoint, json=body)
+    assert saved.status_code == 200
+    assert saved.json()["revision"] == 1
+    assert client.patch(endpoint, json=body).status_code == 409
+    assert client.get(endpoint).json() == saved.json()
+    assert Store(service.store.root).data["session_navigation"]["fingpt"]["revision"] == 1
+    assert client.put(
+        f"/api/research/sessions/{session['id']}/project", json={"project_id": "default"}
+    ).status_code == 200
+    assert client.patch(detail, json={"archived": True}).status_code == 200
+    assert client.post(
+        "/api/research/sessions", json={"mode": "fingpt", "project_id": project["id"]}
+    ).status_code == 409
+    assert client.get("/api/research/navigation/claw").json()["pinned"] == []
+    assert client.get("/api/research/navigation/unknown").status_code == 422
+    assert client.get("/api/research/projects?mode=unknown").status_code == 422
+    assert client.patch(endpoint, json={**body, "revision": True}).status_code == 422
+    assert client.patch(endpoint, json={**body, "extra": True}).status_code == 422
+    assert client.patch(endpoint, json={"revision": 1, "pinned": []}).status_code == 422
+    assert not [call for call in native.calls if call[0] == "session.prompt"]
+
+
 def test_native_automation_proposal_is_authenticated_and_user_confirmation_is_disabled(api):
     client, _, service = api
     sid = client.post("/api/research/sessions", json={"mode": "claw"}).json()["id"]

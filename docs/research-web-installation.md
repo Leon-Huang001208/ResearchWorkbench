@@ -1,5 +1,7 @@
 # Research Web Native / Docker 安装与运行
 
+会话导航的项目/置顶/排序保存在既有产品数据根的Host索引，FinGPT与Claw分别管理；显示折叠偏好按模式保存于浏览器。不新增依赖或配置步骤，原公开安装入口和固定DSH保持。本轮元数据/API变更仍须独立部署兼容复核，不能自动扩大resident白名单。
+
 ## macOS 登录后常驻与自动部署
 
 适用于已安装 Native 的 Mac mini，保留 FileVault。开机解锁并登录安装用户后，
