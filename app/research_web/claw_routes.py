@@ -1,9 +1,13 @@
 """Claw project and schedule-draft API over the existing product data root."""
 
+from typing import Literal
+
 from fastapi import APIRouter, Request
 from pydantic import BaseModel, ConfigDict, Field
 
 from .automation.models import AutomationCreate, AutomationUpdate
+from .claw_projects import ClawProjects
+from .navigation import Navigation
 from .store import StoreError
 
 router = APIRouter(prefix="/api/research")
@@ -24,6 +28,17 @@ class ProjectUpdate(StrictBody):
 
 class ProjectMove(StrictBody):
     project_id: str = Field(min_length=1, max_length=64)
+
+
+class NavigationPin(StrictBody):
+    kind: Literal["session", "project"]
+    id: str = Field(min_length=1, max_length=64)
+
+
+class NavigationUpdate(StrictBody):
+    revision: int = Field(ge=0)
+    pinned: list[NavigationPin] = Field(max_length=10000)
+    project_order: list[str] = Field(max_length=10000)
 
 
 class FileReference(StrictBody):
@@ -76,7 +91,9 @@ async def update_project(project_id: str, body: ProjectUpdate, request: Request)
 async def move_session(sid: str, body: ProjectMove, request: Request):
     service = request.app.state.research
     async with service.lock:
-        result = service.claw_projects.move(sid, body.project_id)
+        result = ClawProjects(service, service.store.session(sid)["mode"]).move(
+            sid, body.project_id
+        )
     service.notify()
     return result
 
@@ -85,11 +102,59 @@ async def move_session(sid: str, body: ProjectMove, request: Request):
 async def reference_file(sid: str, body: FileReference, request: Request):
     service = request.app.state.research
     async with service.lock:
-        result = service.claw_projects.reference(
+        result = ClawProjects(service, service.store.session(sid)["mode"]).reference(
             sid, body.source_session_id, body.file_id, body.expected_sha256
         )
     service.notify()
     return result
+
+
+@router.get("/projects")
+async def mode_projects(request: Request, mode: Literal["claw", "fingpt"]):
+    service = request.app.state.research
+    async with service.lock:
+        return ClawProjects(service, mode).list()
+
+
+@router.post("/projects", status_code=201)
+async def create_mode_project(
+    body: ProjectCreate, request: Request, mode: Literal["claw", "fingpt"]
+):
+    service = request.app.state.research
+    async with service.lock:
+        return ClawProjects(service, mode).create(body.name)
+
+
+@router.get("/projects/{project_id}")
+async def mode_project(project_id: str, request: Request, mode: Literal["claw", "fingpt"]):
+    service = request.app.state.research
+    async with service.lock:
+        return ClawProjects(service, mode).detail(project_id)
+
+
+@router.patch("/projects/{project_id}")
+async def update_mode_project(
+    project_id: str, body: ProjectUpdate, request: Request, mode: Literal["claw", "fingpt"]
+):
+    service = request.app.state.research
+    async with service.lock:
+        return ClawProjects(service, mode).update(project_id, **body.model_dump())
+
+
+@router.get("/navigation/{mode}")
+async def navigation(mode: Literal["claw", "fingpt"], request: Request):
+    service = request.app.state.research
+    async with service.lock:
+        return Navigation(service, mode).get()
+
+
+@router.patch("/navigation/{mode}")
+async def update_navigation(
+    mode: Literal["claw", "fingpt"], body: NavigationUpdate, request: Request
+):
+    service = request.app.state.research
+    async with service.lock:
+        return Navigation(service, mode).update(**body.model_dump())
 
 
 @router.get("/sessions/{sid}/automation-drafts")

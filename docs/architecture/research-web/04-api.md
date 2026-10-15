@@ -96,7 +96,9 @@ Session 详情与原生 snapshot 增量投影工具活动 `seq`、`tool`、`argu
 ## Claw 项目与日程草稿 API
 
 `claw_routes.py` 提供 `/claw/projects` 列表/创建与 `/{project_id}` 查询/改名/归档，`/sessions/{sid}/project` 显式移组，`/sessions/{sid}/file-references` 显式复制所选同项目文件。
-`POST /sessions` 增加可选 `project_id`，仅允许在未归档项目创建 Claw；旧请求保持原默认研究空间。
+`GET/POST /projects?mode=claw|fingpt` 与 `GET/PATCH /projects/{project_id}?mode=claw|fingpt` 提供相同项目合同，模式参数必填且严格校验；旧 `/claw/projects` 路由保持 Claw 语义。`POST /sessions` 的可选 `project_id` 只接受当前模式的未归档项目；旧请求保持各模式原默认研究空间。移组和显式文件引用从所属会话的 mode 选择项目服务，拒绝跨模式或跨项目引用。
+
+`GET/PATCH /navigation/{mode}` 管理 Claw/FinGPT 独立的置顶及项目排序，返回 `{mode, revision, pinned:[{kind:'session'|'project',id}], project_order:[project_id]}`。初始 revision 为 0；PATCH 必须提交 revision、pinned 与 project_order，拒绝额外字段、类型错误、重复项、其他模式/已删除会话和归档项目。project_order 可为当前有效项目的子集，客户端追加未列出的项目。成功持久化后 revision 加一；版本冲突返回 409 `navigation_changed`，源状态不变。GET 过滤已失效 ID，不写回索引；存储失败恢复原内存状态。导航更新不调用模型或创建执行会话。
 会话摘要包含 project_id 与可选 history_warning；Claw 详情包含原生已回答 question_history（仅成功且问答 ID 匹配）、automation_drafts、automation_runs（来源对话的 Run、原生结果、活动、文件）。
 `/internal/data/automation-draft` 继续使用现有实例私有认证，拒绝普通浏览器提交；它只生成经 AutomationCreate 校验的锁版本草稿。
 `POST /internal/data/automation-action` 受既有私有实例认证，operation 为 list/prepare_update/run；list 可按 automation_id 查任务及最近 20 条 Run 的持久状态、摘要和产物，避免把 queued 当完成；执行会话禁止管理和递归试跑。prepare_update 使用 AutomationUpdate、同任务 ID 与 expected_version，run 额外核验最新真实用户指令。
@@ -492,3 +494,5 @@ GET会话列表及父详情不因已验证活动的历史子mode=unknown整体�
 ## 框架展示元数据 · 2026-10-14
 
 框架目录 item 和 data 响应中的 framework 附加 display：kind 为 native-embed 或 static-embed，url 为本站 /frameworks-embed/{slug}/，imported_at 为资产导入日期，bot_enabled 表示本站框架 Bot 是否接入。Gold／Dollar 的定义字段与 snapshot 保持原合同；该附加对象不参与快照 revision。九个静态看板 Bot API 返回 409 framework_bot_unavailable，不发起 DSH 会话。
+
+会话列表/详情已有status枚举继续使用waiting_input：原生未决提问（包括映射父会话的子研究提问）优先显示待答，原生仍运行不把待答伪装为转圈执行中。无需读取每个会话详情，问题解除后恢复真实执行状态；已读完成圈为本浏览器显示偏好，不增加写API。

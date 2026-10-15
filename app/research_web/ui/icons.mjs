@@ -1,5 +1,17 @@
 /* UI glyphs from the approved local v2 sample; the brand remains the original PNG. */
 const paths = {
+  completedCircle: '<circle cx="12" cy="12" r="8"/>',
+  spinner: '<circle cx="12" cy="12" r="8" opacity=".25"/><path d="M12 4a8 8 0 0 1 8 8"/>',
+  pin: '<path d="m8 3 8 0-1 6 4 4v2H5v-2l4-4-1-6ZM12 15v7"/>',
+  arrowUp: '<path d="M12 20V4m-6 6 6-6 6 6"/>',
+  arrowDown: '<path d="M12 4v16m-6-6 6 6 6-6"/>',
+  archive: '<rect x="3" y="3" width="18" height="5" rx="1"/><path d="M5 8v13h14V8M9 12h6"/>',
+  question: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 5 0c0 1.8-2.5 2-2.5 4M12 16h.01"/>',
+  listChecks: '<path d="m3 6 1.5 1.5L7 4M10 6h11M3 12h4M10 12h11M3 18h4M10 18h11"/>',
+  chevronLeft: '<path d="m14 6-6 6 6 6"/>',
+  chevronRight: '<path d="m10 6 6 6-6 6"/>',
+  arrowRight: '<path d="M5 12h14m-6-6 6 6-6 6"/>',
+  pencil: '<path d="m16 3 5 5M4 20l4-1L21 6l-4-4L4 15v5Z"/>',
   stop: '<rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor" stroke="none"/>',
   check: '<path d="m5 12 4 4L19 6"/>',
   refresh: '<path d="M20 4v6h-6M4 20v-6h6M5.6 8a7 7 0 0 1 11.6-3L20 10M4 14l2.8 5A7 7 0 0 0 18.4 16"/>',

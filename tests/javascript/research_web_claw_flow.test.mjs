@@ -43,7 +43,7 @@ test('Claw questions keep native controls and answered receipts are independentl
   const pending = renderConversation({ id: 's', mode: 'claw', messages: [], questions: [question] }, new Map([['q', [{ selected: ['<script>'], custom: '补充' }]]]));
   assert.match(pending, /class="question-option-copy"/); assert.match(pending, /type="checkbox"/); assert.match(pending, / checked/); assert.match(pending, /&lt;script&gt;/); assert.match(pending, /&lt;img/); assert.doesNotMatch(pending, /<script>|<img/);
   const answered = renderConversation({ id: 's', mode: 'claw', messages: [], question_history: [{ ...question, answers: [{ id: 'scope', selected: ['<script>'], custom: '<svg onload=alert(1)>' }] }] });
-  assert.match(answered, /<details class="decision-card question-history"/); assert.match(answered, /已回答 1 个问题/); assert.match(answered, /s:question:q/); assert.match(answered, /&lt;svg onload/); assert.doesNotMatch(answered, /<svg onload|<script>|<img/);
+  assert.match(answered, /<details class="decision-card question-history"/); assert.match(answered, /已询问 1 个问题/); assert.match(answered, /s:question:q/); assert.match(answered, /&lt;svg onload/); assert.doesNotMatch(answered, /<svg onload|<script>|<img/);
 });
 
 

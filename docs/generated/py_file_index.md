@@ -3389,12 +3389,13 @@ Functions:
 ## `app/research_web/claw_projects.py`
 
 Module docstring:
-> Local project metadata and explicit, provenance-bound Claw file references.
+> Mode-scoped local projects and explicit, provenance-bound file references.
 
 Imports:
 - `copy`
 - `core.observability`
 - `hashlib`
+- `mimetypes`
 - `os`
 - `pathlib`
 - `store`
@@ -3413,15 +3414,20 @@ Module docstring:
 
 Imports:
 - `automation.models`
+- `claw_projects`
 - `fastapi`
+- `navigation`
 - `pydantic`
 - `store`
+- `typing`
 
 Classes:
 - `StrictBody`
 - `ProjectCreate`
 - `ProjectUpdate`
 - `ProjectMove`
+- `NavigationPin`
+- `NavigationUpdate`
 - `FileReference`
 - `DraftProposal`
 - `AutomationAction`
@@ -3433,6 +3439,12 @@ Functions:
 - `update_project`
 - `move_session`
 - `reference_file`
+- `mode_projects`
+- `create_mode_project`
+- `mode_project`
+- `update_mode_project`
+- `navigation`
+- `update_navigation`
 - `drafts`
 - `propose_draft`
 - `automation_action`
@@ -6277,6 +6289,23 @@ Functions:
 - `execute`
   - Operate only on this canonical data home's two fixed model accounts.
 - `main`
+
+
+## `app/research_web/navigation.py`
+
+Module docstring:
+> Mode-scoped local navigation metadata, without changing research ownership.
+
+Imports:
+- `claw_projects`
+- `copy`
+- `core.observability`
+- `store`
+
+Classes:
+- `Navigation`
+  - Callers hold ResearchService.lock for the entire read/update operation.
+  - methods: __init__, _live_ids, get, update
 
 
 ## `app/research_web/operations.py`
