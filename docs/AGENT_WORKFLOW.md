@@ -27,7 +27,8 @@ master
   → PR
   → routed CI
   → merge master
-  → safe cleanup
+  → preserve evidence and reclaim task resources/cache within aggregate20GiB
+  → restore-verified safe Git cleanup and disk receipt
 ```
 
 短期分支使用 `feat/*`、`fix/*`、`refactor/*`、`codex/*`、`platform/windows/*` 或 `platform/macos/*`。Mac 是主要开发机，负责功能、架构、重构和 macOS 本地验证；Windows 默认运行 `git switch master` 与 `git pull --ff-only` 后验证最新集成版本，验证成功不创建分支。只有 Windows-only 缺陷才从最新 `master` 建立 `platform/windows/*`，并通过 PR 回到 `master`。需要 GitHub Windows CI 时，Windows 真机先 checkout 待验 ref、读取 `git rev-parse HEAD`，再从该机 dispatch workflow 并传入 `expected_sha`；Mac 不发送 Windows dispatch。禁止长期维护 `windows`、`macos`、`develop` 或设备专属代码线。
@@ -71,6 +72,16 @@ node scripts/git_safety.mjs delivery --project /absolute/RWB --task-id TASK --cl
 备份的全仓引用与其他 worktree 注册是捕获时的快照，不表示其他任务被冻结。导出并在临时仓库校验所捕获 SHA 的完整对象闭包后，其他聊天可继续新增或更新 Codex tree 引用；本任务目标 worktree 的 HEAD、分支、索引、补丁和文件仍必须在备份前后完全一致。清理保留性检查记录其他任务的合法提交快进；Codex 快照指针更新仅在旧对象已保存于认证备份、新对象仍完整时记录，不回退当前指针、不执行过期清理。其他非任务引用消失或非快进变化仍停止验收。
 
 ## 任务路由（Routing rules）
+
+### 自动资源收尾
+
+项目规则固定`.agents/resource-closeout.json`的两个受管构建器合计20 GiB。Git入口在start/prepare/publish登记任务目录身份；publish修补只允许把已完整包含在候选中的干净feature tip更新到受管记录，保留CI计数和基线，不接受未提交或其他分支身份。资源登记/回执保存在Git common directory的`leon-engineering/resource-closeout/<task-id>/`，不放在将删除的worktree中。
+
+`status`确认已审查候选实际合并且CI通过后，释放仓库锁再进入既有`cleanup`流程。它自动移除已登记的再生依赖，将日志证据逐文件校验保存到私有证据目录，复用`docker_resources`归档/恢复/删除当前任务退休对象，再经原Git备份和安全条件移除已归并worktree。未知ignored数据、进程占用和未归并提交仍拒绝，不能用清理授权绕过。
+
+临时测试资源用`RWB_DELIVERY_TASK_ID`或`ResourceSession(delivery_task=...)`关联交付；没有关联的历史资源保留。缓存维护与`rwb-docker`共用操作锁，验证Buildx节点、context、容器/卷和本机内存门，仅对已停止构建器临时使用2 GiB限额，完成后恢复原容器限额和停止状态。BuildKit自行保护in-use记录并LRU回收；总量仍超20 GiB或恢复失败，回执为blocked。
+
+每次验收在回执列出reclaimed/retained/blocked、缓存前后总量和宿主df实测；逻辑镜像容量或du累计不能冒充宿主实际释放。`cleaned`必须同时代表资源及Git收尾成功。重复status对已cleaned交付复核，不重新删除。原有Git安全备份至少30天保留。
 
 先按下列优先级路由，而不是只凭任务大小选择。后台/远程是执行通道，worktree 是本地仓库修改隔离；二者可以组合，长时本身不要求 worktree。选择最小但足够的方式，不因任务看似复杂而跳过验证。
 

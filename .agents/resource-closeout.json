@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "cacheBudgetBytes": 21474836480,
+  "archiveHelperImage": "sha256:3645570cccdfa447589da9f57dd740faa29b30938e861289a5574b6ca6b03826",
+  "managedBuilders": ["desktop-linux", "rwb-dev-builder"],
+  "acceptedImageRetention": 2,
+  "automaticAfterAcceptedMerge": true
+}

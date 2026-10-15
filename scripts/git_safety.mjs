@@ -427,10 +427,113 @@ function occupied(directory) {
 function managed(receipt) {
   return [{branch: receipt.featureBranch, worktree: receipt.featureWorktree, commit: receipt.featureCommit}, ...(receipt.integrationHistory ?? []).map(item => ({branch: item.branch, worktree: item.worktree, commit: item.commit, worktreeRemoved: item.worktreeRemoved})), {branch: receipt.integrationBranch, worktree: receipt.integrationWorktree, commit: receipt.integrationCommit}].filter((item, index, all) => all.findIndex(other => other.worktree === item.worktree) === index);
 }
+
+/** A repair may advance its feature tip, but only commits in the actual candidate qualify. */
+export function verifiedFeatureRepair({projectRoot, receipt}, options = {}) {
+  const repository = discover(projectRoot, options);
+  if (!ID.test(receipt.taskId ?? '') || !receipt.featureBranch?.startsWith(`codex/${receipt.taskId}-`)) fail('FEATURE_REPAIR_UNVERIFIED');
+  for (const directory of [receipt.featureWorktree, receipt.integrationWorktree]) {
+    if (!directory || discover(directory, options).commonDirectory !== repository.commonDirectory || output(git(directory, ['status', '--porcelain', '--untracked-files=all'], options))) fail('FEATURE_REPAIR_UNVERIFIED');
+  }
+  const head = output(git(receipt.featureWorktree, ['rev-parse', 'HEAD'], options));
+  if (output(git(receipt.featureWorktree, ['symbolic-ref', '--short', 'HEAD'], options)) !== receipt.featureBranch ||
+      git(projectRoot, ['merge-base', '--is-ancestor', receipt.featureCommit, head], options, {allowFailure:true}).status !== 0 ||
+      git(receipt.integrationWorktree, ['merge-base', '--is-ancestor', head, 'HEAD'], options, {allowFailure:true}).status !== 0) fail('FEATURE_REPAIR_UNVERIFIED');
+  return head;
+}
+
+function closeoutEnabled(repository) {
+  const source = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+  return fs.existsSync(path.join(source, '.agents/resource-closeout.json')) && discover(source).commonDirectory === repository.commonDirectory;
+}
+
+function resourcePhase(repository, taskId, phase, options) {
+  if (!closeoutEnabled(repository)) return;
+  const source = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+  const installedPython = path.join(repository.repositoryRoot, '.venv/bin/python');
+  const python = fs.existsSync(installedPython) ? installedPython : 'python3.12';
+  const result = command(python, ['-P', '-m', 'research_workbench_entrypoint.iteration_resources', '--project', repository.repositoryRoot, '--task-id', taskId, '--phase', phase], {
+    cwd: repository.repositoryRoot,
+    env: {...process.env, PYTHONPATH:source, PYTHONDONTWRITEBYTECODE:'1'}, allowFailure:true,
+  });
+  if (result.status !== 0) {
+    let code = 'RESOURCE_CLOSEOUT_BLOCKED';
+    try { const detail=JSON.parse(result.stdout.toString('utf8')); if (/^[a-z_]{1,80}$/.test(detail.code ?? '')) code=detail.code; } catch { /* bounded stable fallback; never echo subprocess output */ }
+    fail(code);
+  }
+  log(repository, 'resource-' + phase, 'PASS', undefined, {}, options);
+}
+
+function refreshFeatureRecord(repository, receipt, options) {
+  const head = verifiedFeatureRepair({projectRoot:repository.repositoryRoot, receipt}, options);
+  if (head === receipt.featureCommit) return;
+  const lock=path.join(repository.commonDirectory,'leon-engineering/locks/integration.lock');
+  try { privateWrite(lock,String(process.pid)+'\n'); } catch(error) { if(error.code==='EEXIST') fail('TASK_LOCKED'); throw error; }
+  const lockIdentity=fs.lstatSync(lock);
+  try {
+  if (verifiedFeatureRepair({projectRoot:repository.repositoryRoot,receipt},options)!==head) fail('FEATURE_REPAIR_UNVERIFIED');
+  const destination = path.join(repository.commonDirectory, 'leon-engineering/deliveries', receipt.taskId + '.json');
+  assertNoSymlinkAncestors(path.dirname(destination));
+  if (fs.lstatSync(destination).isSymbolicLink()) fail('DELIVERY_RECORD_INVALID');
+  const before = fs.readFileSync(destination, 'utf8');
+  const current = JSON.parse(before);
+  if (current.featureCommit !== receipt.featureCommit || current.integrationCommit !== receipt.integrationCommit) fail('DELIVERY_RECORD_CHANGED');
+  const updated = {...current, featureCommit:head};
+  const temporary = destination + '.' + crypto.randomUUID() + '.tmp';
+  privateWrite(temporary, JSON.stringify(updated, null, 2) + '\n');
+  if (fs.readFileSync(destination, 'utf8') !== before) fail('DELIVERY_RECORD_CHANGED');
+  fs.renameSync(temporary, destination);
+  log(repository, 'feature-repair-identity', 'PASS', undefined, {head}, options);
+  } finally {
+    const current=fs.lstatSync(lock);
+    if (current.isSymbolicLink() || current.dev!==lockIdentity.dev || current.ino!==lockIdentity.ino) fail('LOCK_OWNERSHIP_CHANGED');
+    fs.unlinkSync(lock);
+  }
+}
+function closeoutFinalization(repository, taskId) {
+  return path.join(repository.commonDirectory,'leon-engineering/resource-closeout',taskId,'git-finalization.json');
+}
+function writePrivateJson(destination, value) {
+  const temporary=destination+'.'+crypto.randomUUID()+'.tmp';
+  privateWrite(temporary,JSON.stringify(value,null,2)+'\n');
+  if (fs.existsSync(destination) && fs.lstatSync(destination).isSymbolicLink()) fail('CLOSEOUT_RECEIPT_INVALID');
+  fs.renameSync(temporary,destination);
+}
+function finishResourceReceipt(repository, taskId, required=closeoutEnabled(repository)) {
+  const filename=path.join(repository.commonDirectory,'leon-engineering/resource-closeout',taskId,'receipt.json');
+  if (!fs.existsSync(filename)) { if (required) fail('RESOURCE_CLOSEOUT_MISSING'); return; }
+  if (fs.lstatSync(filename).isSymbolicLink()) fail('CLOSEOUT_RECEIPT_INVALID');
+  const value=JSON.parse(fs.readFileSync(filename,'utf8'));
+  if (value.taskId!==taskId || !value.ok || !value.cache?.ok) fail('RESOURCE_CLOSEOUT_BLOCKED');
+  writePrivateJson(filename,{...value,status:'complete',gitCleanup:true,restoreVerified:true,blocked:(value.blocked??[]).filter(row=>row.phase!=='git')});
+}
+function validateCompletedCloseout(repository,taskId,receipt,options) {
+  const pending=closeoutFinalization(repository,taskId);
+  if (!fs.existsSync(pending)) { if(closeoutEnabled(repository)) fail('CLOSEOUT_FINALIZATION_MISSING'); return; }
+  if (fs.lstatSync(pending).isSymbolicLink()) fail('CLOSEOUT_RECEIPT_INVALID');
+  const proof=JSON.parse(fs.readFileSync(pending,'utf8'));
+  if (proof.taskId!==taskId || proof.candidateCommit!==receipt.integrationCommit || !proof.restoreVerified) fail('CLOSEOUT_FINALIZATION_UNVERIFIED');
+  if (proof.status === 'complete') {
+    const filename=path.join(path.dirname(pending),'receipt.json');
+    if (!fs.existsSync(filename) || fs.lstatSync(filename).isSymbolicLink()) fail('CLOSEOUT_FINALIZATION_UNVERIFIED');
+    const completed=JSON.parse(fs.readFileSync(filename,'utf8'));
+    if (completed.taskId!==taskId || completed.status!=='complete' || !completed.ok || !completed.cache?.ok || !completed.gitCleanup || !completed.restoreVerified) fail('CLOSEOUT_FINALIZATION_UNVERIFIED');
+  } else {
+    preservationAudit(repository,proof.beforeRefs,proof.beforeWorktrees,proof.managed,options,proof.verifiedPreservationRefs);
+    finishResourceReceipt(repository,taskId,proof.resourceContractRequired);
+    writePrivateJson(pending,{...proof,status:'complete'});
+  }
+}
 function assertNoIgnoredData(directory, options) {
   if (paths(directory, ['ls-files', '--others', '--ignored', '--exclude-standard', '--directory', '-z'], options).length) fail('WORKTREE_IGNORED_DATA');
 }
 export function validateCleanup({projectRoot, receipt}, options = {}) {
+  return cleanupPreflight({projectRoot, receipt}, options, false);
+}
+export function validateResourceCleanup({projectRoot, receipt}, options = {}) {
+  return cleanupPreflight({projectRoot, receipt}, options, true);
+}
+function cleanupPreflight({projectRoot, receipt}, options, beforeResources) {
   const repository = discover(projectRoot, options);
   if (receipt.repositoryRoot !== repository.repositoryRoot || !ID.test(receipt.taskId ?? '') || receipt.defaultBranch !== 'master' || receipt.remote !== 'origin') fail('TASK_OWNERSHIP_MISMATCH');
   if (receipt.status !== 'ci_passed' || receipt.ci?.status !== 'passed') fail('CI_NOT_PASSED');
@@ -447,7 +550,7 @@ export function validateCleanup({projectRoot, receipt}, options = {}) {
     const entry = registered.find(entry => entry.worktree === fs.realpathSync(item.worktree));
     if (!entry || entry.branch !== branch || discover(item.worktree, options).commonDirectory !== repository.commonDirectory) fail('TASK_OWNERSHIP_MISMATCH');
     if (output(git(item.worktree, ['status', '--porcelain', '--untracked-files=all'], options))) fail('WORKTREE_DIRTY');
-    assertNoIgnoredData(item.worktree, options);
+    if (!beforeResources) assertNoIgnoredData(item.worktree, options);
     if ((options.processProbe ?? occupied)(item.worktree)) fail('WORKTREE_OCCUPIED');
   }
   if (git(projectRoot, ['merge-base', '--is-ancestor', receipt.integrationCommit, 'refs/remotes/origin/master'], options, {allowFailure: true}).status !== 0) fail('BRANCH_UNMERGED');
@@ -617,7 +720,7 @@ export async function runDelivery({projectRoot, taskId, action, reviewedCommit, 
   options = {...options, startedAt: Date.now()};
   selectGitPath({...options, mutate: true});
   if (!ID.test(taskId ?? '') || !['start', 'prepare', 'publish', 'status', 'cleanup'].includes(action)) fail('DELIVERY_ARGUMENT_INVALID');
-  return withRepositoryLock({projectRoot}, async repository => {
+  const result = await withRepositoryLock({projectRoot}, async repository => {
     fsck(repository, options);
     const directory = installShim(repository, options);
     const previousPath = process.env.PATH;
@@ -635,12 +738,14 @@ export async function runDelivery({projectRoot, taskId, action, reviewedCommit, 
         const remoteHead = output(git(projectRoot, ['ls-remote', '--symref', 'origin', 'HEAD'], options));
         if (!/^ref:\s+refs\/heads\/master\s+HEAD$/m.test(remoteHead)) fail('DELIVERY_BRANCH_INVALID');
         result = controller.startDelivery({...common, slug: params.slug ?? taskId, remote: 'origin', worktreeRoot: params.worktreeRoot});
+        resourcePhase(repository, taskId, 'record', options);
       }
       if (action === 'prepare') {
         if (params.replacePrepared) fail('PREPARE_REMOVAL_BLOCKED');
         const receipt = controller.readDeliveryReceipt(common);
         if (['remote_moved', 'ci_passed'].includes(receipt.status)) fail('PREPARE_REMOVAL_BLOCKED');
         result = controller.prepareDelivery({...common, integrationWorktreeRoot: params.worktreeRoot, replacePrepared: false});
+        resourcePhase(repository, taskId, 'record', options);
       }
       if (action === 'publish') {
         quota(repository, options);
@@ -649,18 +754,36 @@ export async function runDelivery({projectRoot, taskId, action, reviewedCommit, 
         const repo = githubRepo(receipt);
         const settings = githubJson(['api', `repos/${repo}`], repository, options);
         if (settings.allow_auto_merge !== false) fail('REPO_AUTO_MERGE_ENABLED');
+        if (closeoutEnabled(repository)) refreshFeatureRecord(repository, receipt, options);
+        resourcePhase(repository, taskId, 'record', options);
         result = {...controller.publishDelivery({...common, verification: params.verification, repair: params.repair ?? false, pushDefault: () => ({status: 'protected'}), githubRunner: publicationRunner(repository, receipt, options, params.verification)}), safetyAutoMergeDeferred: true};
       }
       if (action === 'status') {
         const receipt = controller.readDeliveryReceipt(common);
         if (receipt.mode !== 'pr' || !receipt.pullRequest?.url) fail('PR_DELIVERY_REQUIRED');
-        result = controller.refreshDeliveryStatus({...common, resolveCiStatus: (_repository, record) => reviewedStatus(repository, record, reviewedCommit, options)});
+        if (receipt.status === 'cleaned') {
+          assertReviewed(repository, receipt); result=controller.validateCleanedDelivery(common);
+          validateCompletedCloseout(repository,taskId,receipt,options);
+        }
+        else result = controller.refreshDeliveryStatus({...common, resolveCiStatus: (_repository, record) => reviewedStatus(repository, record, reviewedCommit, options)});
       }
       if (action === 'cleanup') {
+        const resourceContractRequired=closeoutEnabled(repository);
         quota(repository, options);
         const receipt = controller.readDeliveryReceipt(common);
         assertReviewed(repository, receipt);
+        if(receipt.status==='cleaned') {
+          result=controller.validateCleanedDelivery(common);
+          validateCompletedCloseout(repository,taskId,receipt,options);
+          log(repository,'delivery-cleanup','PASS',undefined,{},options);
+          return result;
+        }
         git(projectRoot, ['fetch', 'origin', 'refs/heads/master:refs/remotes/origin/master'], options);
+        validateResourceCleanup({projectRoot, receipt}, options);
+        // Record late test outputs before preserving them, then retain every Git
+        // cleanup guard (merged tip, restore-verified backup, ignored data, occupancy).
+        resourcePhase(repository, taskId, 'record', options);
+        resourcePhase(repository, taskId, 'cleanup', options);
         const validated = validateCleanup({projectRoot, receipt}, options);
         for (const item of validated.managed) {
           const advertised = output(git(projectRoot, ['ls-remote', 'origin', `refs/heads/${item.branch}`], options));
@@ -681,21 +804,41 @@ export async function runDelivery({projectRoot, taskId, action, reviewedCommit, 
           if (fs.existsSync(item.worktree)) { assertNoIgnoredData(item.worktree, options); git(projectRoot, ['worktree', 'remove', item.worktree], options); }
         }
         for (const item of validated.managed) if (fs.existsSync(item.worktree)) assertNoIgnoredData(item.worktree, options);
+        if (resourceContractRequired) writePrivateJson(closeoutFinalization(repository,taskId),{taskId,candidateCommit:receipt.integrationCommit,status:'pending',resourceContractRequired,restoreVerified:backup.restoreVerified,beforeRefs,beforeWorktrees,managed:validated.managed,verifiedPreservationRefs:backup.verifiedPreservationRefs});
         result = controller.cleanupDelivery(common);
         fsck(repository, options);
         const concurrentRefAdvances = preservationAudit(repository, beforeRefs, beforeWorktrees, validated.managed, options, backup.verifiedPreservationRefs);
         result = {...result, safetyBackup: backup.directory, safetyFsck: 'PASS', concurrentRefAdvances};
+        finishResourceReceipt(repository,taskId,resourceContractRequired);
+        const finalization=closeoutFinalization(repository,taskId);
+        if (fs.existsSync(finalization)) writePrivateJson(finalization,{...JSON.parse(fs.readFileSync(finalization,'utf8')),status:'complete'});
       }
       log(repository, 'delivery-' + action, 'PASS', undefined, result?.safetyBackup ? {backup: result.safetyBackup, concurrentRefAdvances: result.concurrentRefAdvances} : {}, options);
       return result;
     } catch (error) {
       const code = error.code ?? (/delivery task is locked:/.test(error.message ?? '') ? 'TASK_LOCKED' : 'DELIVERY_FAILED');
+      if (action==='cleanup' || action==='status') {
+        const directory=path.join(repository.commonDirectory,'leon-engineering/resource-closeout',taskId);
+        if (fs.existsSync(directory)) {
+          const filename=path.join(directory,'receipt.json');
+          if (fs.existsSync(filename) && fs.lstatSync(filename).isSymbolicLink()) fail('CLOSEOUT_RECEIPT_INVALID');
+          const record=fs.existsSync(filename)?JSON.parse(fs.readFileSync(filename,'utf8')):{taskId,ok:false};
+          if(record.taskId!==taskId) fail('CLOSEOUT_RECEIPT_INVALID');
+          if (record.status!=='complete') writePrivateJson(filename,{...record,status:'blocked',blocked:[...(record.blocked??[]),{phase:'git',code}]});
+        }
+      }
       log(repository, 'delivery-' + action, 'FAIL', code, {}, options);
       if (!error.code) fail(code);
       throw error;
     }
     finally { if (previousPath === undefined) delete process.env.PATH; else process.env.PATH = previousPath; }
   }, options);
+  // Finish resource/Git cleanup only after releasing the repository lock; recursive
+  // cleanup must not deadlock or run while CI/merge is still pending.
+  if (action === 'status' && result.status === 'ci_passed' && closeoutEnabled(discover(projectRoot, options))) {
+    return runDelivery({projectRoot, taskId, action:'cleanup'}, options);
+  }
+  return result;
 }
 export function parseCli(args) {
   const [subcommand, ...rest] = args;

@@ -1,5 +1,7 @@
 # DataHub、研究资料与实际文件
 
+任务资源ledger与回执位于Git common directory的`leon-engineering/resource-closeout/<task-id>/`；日志证据逐文件hash复核后保存到其私有evidence目录。node_modules、.venv等可再生依赖不进入永久证据；业务数据、凭据及恢复归档均保留。卷清理继续使用原docker_resources的归档、SHA和真实恢复比较。宿主df增量与缓存逻辑容量分开记录，不重复累计共享层。
+
 Hot Word投影与既有report_documents共用标准日志，导入不初始化旧core.settings或读取
 开发.env，不创建项目根的旧存储目录。单次报告在Docker只读根内仅用内存生成，原件
 由Hot持久表保存；Host明确保留副本时仍只写其受控私有资料根。

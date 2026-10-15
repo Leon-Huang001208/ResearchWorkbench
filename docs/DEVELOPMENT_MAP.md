@@ -23,6 +23,8 @@ model-control.ts取消明确未发送reserved，hot_model_controls.py复验known
 
 本文件只回答四个问题：改哪片源码、先读哪份权威文档、跑哪些测试、什么变化需要同步文档。文件和公开符号的机械清单由 [生成索引](generated/py_file_index.md) 负责。
 
+每轮资源收尾由`iteration_resources.py`/`iteration_cache.py`复用`docker_resources.py`及`git_safety.mjs`：任务归属/证据保存、全项目20GiB受管缓存预算、合并后自动清理与修补feature身份认证。权威规则见AGENTS、AGENT_WORKFLOW和Docker手册；近处测试为`test_iteration_resources.py`、`test_docker_resources.py`、`iteration_closeout.test.mjs`及`git_safety.test.mjs`。不新增产品API或调度器，风险为管理平面与安全清理。
+
 ## 当前 Research Web
 
 Hot 的阶段一入口位于 `research_workbench_entrypoint/hot.py`（配置、诊断与 Native 生命周期），

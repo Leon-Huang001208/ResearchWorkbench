@@ -1,5 +1,7 @@
 # 部署与模块职责
 
+迭代收尾属于现有Mac管理员控制平面：`iteration_resources`复用Docker资源退休/归档和Git安全入口，`iteration_cache`负责明确受管构建器合计20GiB的GC。不新增容器常驻服务、产品API或调度器；服务容器没有获得Docker socket，当前/上一接受镜像和运行数据仍受保护。
+
 Hot周期任务在原唯一worker中调用既有报告投影的短时Python子进程，固定模块/解释器、
 有界stdin/输出/取消，无新常驻节点或调度器。产物原件与子执行回执属于Hot PG；Host只读
 下载，同一逻辑数据库的Native/Docker切换复用回执，不重复发起研究。
