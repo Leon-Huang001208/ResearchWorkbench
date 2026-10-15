@@ -1986,7 +1986,7 @@ def test_install_manifest_is_an_allowlist_and_never_serializes_secrets(tmp_path:
         dsh_state={
             "commit": "commit",
             "closure_sha256": "closure",
-            "closure_files": 16097,
+            "closure_files": 16098,
             "secret": "must-not-escape",
         },
         status="installed",
@@ -2086,7 +2086,7 @@ def test_install_refreshes_runtime_build_lock_from_verified_dsh_state(
         "remote": DSH_REMOTE,
         "pnpm": "11.7.0",
         "closure_sha256": "b" * 64,
-        "closure_files": 16097,
+        "closure_files": 16098,
     }
     monkeypatch.setattr(installer, "check", lambda: {"ok": True, "issues": []})
     monkeypatch.setattr(installer, "prepare_environment", lambda repair=False: environment_python)
@@ -2112,7 +2112,7 @@ def test_install_refreshes_runtime_build_lock_from_verified_dsh_state(
     assert json.loads(runtime_lock.read_text(encoding="utf-8")) == {
         "source_commit": DSH_COMMIT,
         "closure_sha256": "b" * 64,
-        "closure_files": 16097,
+        "closure_files": 16098,
         "mode": "build",
     }
     if os.name != "nt":
@@ -2135,7 +2135,7 @@ def test_runtime_build_lock_writer_rejects_a_linked_runtime_directory(
             dsh_state={
                 "commit": DSH_COMMIT,
                 "closure_sha256": "b" * 64,
-                "closure_files": 16097,
+                "closure_files": 16098,
             }
         )
 
@@ -2157,7 +2157,7 @@ def test_runtime_build_lock_writer_rejects_a_preexisting_data_home_alias(
             dsh_state={
                 "commit": DSH_COMMIT,
                 "closure_sha256": "b" * 64,
-                "closure_files": 16097,
+                "closure_files": 16098,
             }
         )
 
@@ -2176,7 +2176,7 @@ def test_runtime_build_lock_writer_makes_the_owned_data_home_private(
         dsh_state={
             "commit": DSH_COMMIT,
             "closure_sha256": "b" * 64,
-            "closure_files": 16097,
+            "closure_files": 16098,
         }
     )
 
@@ -2191,7 +2191,7 @@ def test_runtime_build_lock_writer_requires_an_integer_file_count(tmp_path: Path
             dsh_state={
                 "commit": DSH_COMMIT,
                 "closure_sha256": "b" * 64,
-                "closure_files": 16097.0,
+                "closure_files": 16098.0,
             }
         )
 
@@ -2199,7 +2199,7 @@ def test_runtime_build_lock_writer_requires_an_integer_file_count(tmp_path: Path
 def test_owned_dsh_source_requires_a_well_formed_local_closure_attestation(
     tmp_path: Path,
 ) -> None:
-    source = tmp_path / "data" / "runtime" / "dsh" / ("48504f07f217f9fd45a4f6d8fca4b1ed35c2d4b0")
+    source = tmp_path / "data" / "runtime" / "dsh" / ("7ecf564f2e09b829240c5553687223bdd1e2df73")
     source.mkdir(parents=True)
     marker = source / ".rwb-dsh-source.json"
     marker.write_text(
@@ -2208,9 +2208,9 @@ def test_owned_dsh_source_requires_a_well_formed_local_closure_attestation(
                 "schema_version": 1,
                 "owner": "research-workbench-web-installer",
                 "remote": "https://github.com/Leon-Huang001208/deepseek-harness.git",
-                "commit": "48504f07f217f9fd45a4f6d8fca4b1ed35c2d4b0",
+                "commit": "7ecf564f2e09b829240c5553687223bdd1e2df73",
                 "closure_sha256": "a" * 64,
-                "closure_files": 16097,
+                "closure_files": 16098,
             }
         ),
         encoding="utf-8",
@@ -2230,15 +2230,15 @@ def test_provision_dsh_recovers_a_completed_installer_staging_directory(
 ) -> None:
     installer = SetupWebInstaller(project_root=tmp_path, data_home=tmp_path / "data")
     staging = installer.dsh_root / (
-        ".48504f07f217f9fd45a4f6d8fca4b1ed35c2d4b0.staging-" "0123456789abcdef0123456789abcdef"
+        ".7ecf564f2e09b829240c5553687223bdd1e2df73.staging-" "0123456789abcdef0123456789abcdef"
     )
     staging.mkdir(parents=True)
     verified = {
-        "commit": "48504f07f217f9fd45a4f6d8fca4b1ed35c2d4b0",
+        "commit": "7ecf564f2e09b829240c5553687223bdd1e2df73",
         "remote": "https://github.com/Leon-Huang001208/deepseek-harness.git",
         "pnpm": "11.7.0",
         "closure_sha256": "b" * 64,
-        "closure_files": 16097,
+        "closure_files": 16098,
     }
     monkeypatch.setattr(installer, "verify_dsh_source", lambda _source: verified)
 
@@ -2248,7 +2248,7 @@ def test_provision_dsh_recovers_a_completed_installer_staging_directory(
     assert installer.dsh_source.is_dir()
     marker = json.loads((installer.dsh_source / ".rwb-dsh-source.json").read_text(encoding="utf-8"))
     assert marker["closure_sha256"] == "b" * 64
-    assert marker["closure_files"] == 16097
+    assert marker["closure_files"] == 16098
 
 
 def test_dsh_checkout_enables_git_long_paths_for_windows_compatible_source(
@@ -2261,11 +2261,11 @@ def test_dsh_checkout_enables_git_long_paths_for_windows_compatible_source(
     )
     commands: list[list[str]] = []
     verified = {
-        "commit": "48504f07f217f9fd45a4f6d8fca4b1ed35c2d4b0",
+        "commit": "7ecf564f2e09b829240c5553687223bdd1e2df73",
         "remote": "https://github.com/Leon-Huang001208/deepseek-harness.git",
         "pnpm": "11.7.0",
         "closure_sha256": "b" * 64,
-        "closure_files": 16097,
+        "closure_files": 16098,
     }
 
     def record(command, **_kwargs):

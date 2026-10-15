@@ -2,6 +2,8 @@
 
 会话侧栏和逐题问答统一到现有原生UI；导航元数据只由Host按模式隔离保存。日程/自动化执行仍走原DSH与显式授权，置顶、项目排序或跳过问题不授权试跑。
 
+搜索继续由原生 DSH 派生索引处理，Host 限定授权范围，UI 明示未搜索记录计数；保持唯一 Automation 调度层。
+
 macOS登录常驻沿用同一Native部署节点与研究引擎；短时管理程序处理空闲切换和恢复，
 不增加第二Automation scheduler。操作与授权边界见[安装指南](../../research-web-installation.md#macos-登录后常驻与自动部署)。
 

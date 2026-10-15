@@ -1,5 +1,7 @@
 # DataHub、研究资料与实际文件
 
+旧格式历史保持原始字节和文件时间，不发布迁移 successor。搜索只删除陈旧派生索引，不修改用户原文或文件产物；未搜索会话数量和片段只在当前搜索响应中返回。
+
 resident管理记录位于产品home/resident，config/state/candidate/transaction/accepted及失败SHA隔离
 均为用户私有JSON；artifact与wheel记录hash/来源SHA。journal先于停服务同步文件及目录。
 回滚只恢复源码、wheel和安装manifest，不还原PID/auth、不覆盖研究data或Keychain；敏感持久化变化暂停。

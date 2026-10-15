@@ -34,6 +34,7 @@ def search_fixture(tmp_path, *, response=None, owned=True):
                 {"sessionId": "unknown-child", "snippet": "禁止泄露子会话正文"},
             ],
             "hasMore": True,
+            "coverage": {"unavailableSessionCount": 0, "unlistedSessionCount": 0},
         }
     )
 
@@ -67,8 +68,18 @@ async def test_search_filters_owned_active_modes_without_creating_or_sending(tmp
         ],
         "has_more": True,
         "source": "native_dsh",
+        "unavailable_count": 0,
     }
-    assert calls == [("session.search", {"query": "正文关键词"})]
+    assert calls == [
+        (
+            "session.search",
+            {
+                "query": "正文关键词",
+                "sessionIds": [claw["id"]],
+                "unsupportedSessionPolicy": "report",
+            },
+        )
+    ]
     assert owner.store.data == before
     result = await owner.search_sessions("内容")
     assert [item["mode"] for item in result["items"]] == ["claw", "fingpt"]
@@ -92,7 +103,11 @@ async def test_search_query_utf16_boundary_and_snippet_codepoints(tmp_path):
 
     async def rpc(method, payload):
         calls.append((method, payload))
-        return {"items": [{"sessionId": claw["id"], "snippet": "😀" * 240}], "hasMore": False}
+        return {
+            "items": [{"sessionId": claw["id"], "snippet": "😀" * 240}],
+            "hasMore": False,
+            "coverage": {"unavailableSessionCount": 0, "unlistedSessionCount": 0},
+        }
 
     owner.client.rpc = rpc
     assert len((await owner.search_sessions("😀" * 250))["items"][0]["snippet"]) == 240
@@ -119,6 +134,11 @@ async def test_search_query_utf16_boundary_and_snippet_codepoints(tmp_path):
 )
 async def test_search_malformed_native_schema_fails_closed(tmp_path, response):
     owner, calls, *_ = search_fixture(tmp_path)
+    if isinstance(response, dict) and "items" in response:
+        response = {
+            **response,
+            "coverage": {"unavailableSessionCount": 0, "unlistedSessionCount": 0},
+        }
 
     async def rpc(method, payload):
         calls.append((method, payload))
@@ -128,7 +148,9 @@ async def test_search_malformed_native_schema_fails_closed(tmp_path, response):
     with pytest.raises(RuntimeFailure) as failure:
         await owner.search_sessions("内容")
     assert failure.value.code == "session_search_invalid_response"
-    assert calls == [("session.search", {"query": "内容"})]
+    assert len(calls) == 1
+    assert calls[0][0] == "session.search" and calls[0][1]["query"] == "内容"
+    assert calls[0][1]["unsupportedSessionPolicy"] == "report"
 
 
 @pytest.mark.asyncio
@@ -160,7 +182,12 @@ def test_search_static_route_precedes_session_id_and_rejects_invalid_mode(tmp_pa
         )
         assert result.status_code == 200
         assert result.json()["items"][0]["id"] == claw["id"]
-        assert calls == [("session.search", {"query": "正文"})]
+        assert calls == [
+            (
+                "session.search",
+                {"query": "正文", "sessionIds": [claw["id"]], "unsupportedSessionPolicy": "report"},
+            )
+        ]
         for body in [
             {},
             {"query": " "},
@@ -210,13 +237,18 @@ async def test_search_mode_filter_and_empty_native_page_do_not_forge_pagination(
     assert [item["id"] for item in result["items"]] == [fingpt["id"]]
 
     async def foreign_page(*_args):
-        return {"items": [{"sessionId": "foreign", "snippet": "private"}], "hasMore": True}
+        return {
+            "items": [{"sessionId": "foreign", "snippet": "private"}],
+            "hasMore": True,
+            "coverage": {"unavailableSessionCount": 0, "unlistedSessionCount": 0},
+        }
 
     owner.client.rpc = foreign_page
     assert await owner.search_sessions("内容") == {
         "items": [],
         "has_more": True,
         "source": "native_dsh",
+        "unavailable_count": 0,
     }
     with pytest.raises(StoreError):
         await owner.search_sessions("内容", mode="unknown")
@@ -266,7 +298,9 @@ def test_search_http_native_failure_is_sanitized(tmp_path):
         assert response.status_code == 503
         assert response.json()["error"]["code"] == "session_search_unavailable"
         assert "sensitive" not in response.text
-        assert calls == [("session.search", {"query": "sensitive-query"})]
+        assert len(calls) == 1
+        assert calls[0][0] == "session.search" and calls[0][1]["query"] == "sensitive-query"
+        assert calls[0][1]["unsupportedSessionPolicy"] == "report"
     finally:
         client.close()
 
@@ -316,6 +350,106 @@ def test_search_post_keeps_query_out_of_access_url_and_get_does_not_search(tmp_p
         assert "private-body-query" not in str(response.request.url)
         assert "private-body-query" not in caplog.text
         assert client.get("/api/research/sessions/search").status_code == 404
-        assert calls == [("session.search", {"query": "private-body-query"})]
+        assert len(calls) == 1
+        assert calls[0][0] == "session.search" and calls[0][1]["query"] == "private-body-query"
+        assert calls[0][1]["unsupportedSessionPolicy"] == "report"
     finally:
         client.close()
+
+
+@pytest.mark.asyncio
+async def test_partial_search_reports_real_count_and_rejects_unscoped_counts(tmp_path):
+    owner, calls, claw, _ = search_fixture(tmp_path)
+
+    async def partial(method, payload):
+        calls.append((method, payload))
+        return {
+            "items": [],
+            "hasMore": False,
+            "coverage": {"unavailableSessionCount": 1, "unlistedSessionCount": 0},
+        }
+
+    owner.client.rpc = partial
+    result = await owner.search_sessions("无命中", mode="claw")
+    assert result["items"] == [] and result["unavailable_count"] == 1
+    assert calls[0][1]["sessionIds"] == [claw["id"]]
+
+    async def invalid(method, payload):
+        return {
+            "items": [],
+            "hasMore": False,
+            "coverage": {"unavailableSessionCount": 2, "unlistedSessionCount": 0},
+        }
+
+    owner.client.rpc = invalid
+    with pytest.raises(RuntimeFailure) as failure:
+        await owner.search_sessions("无命中", mode="claw")
+    assert failure.value.code == "session_search_invalid_response"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("transition", ["complete", "restore", "delete"])
+async def test_search_late_response_intersects_requested_scope_and_current_state(
+    tmp_path, transition
+):
+    owner, calls, claw, _ = search_fixture(tmp_path)
+    row = owner.store.create("claw", "late")
+    row["created"] = transition != "complete"
+    if transition == "restore":
+        row["deleted_at"] = 1
+
+    async def delayed(method, payload):
+        calls.append((method, payload))
+        row["created"] = True
+        row["deleted_at"] = 1 if transition == "delete" else None
+        return {
+            "items": [{"sessionId": row["id"], "snippet": "must not leak"}],
+            "hasMore": False,
+            "coverage": {"unavailableSessionCount": 0, "unlistedSessionCount": 0},
+        }
+
+    owner.client.rpc = delayed
+    result = await owner.search_sessions("late", mode="claw")
+    assert result["items"] == []
+    assert (row["id"] in calls[0][1]["sessionIds"]) is (transition == "delete")
+    assert claw["id"] in calls[0][1]["sessionIds"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "coverage",
+    [
+        None,
+        {},
+        {"unavailableSessionCount": True, "unlistedSessionCount": 0},
+        {"unavailableSessionCount": -1, "unlistedSessionCount": 0},
+        {"unavailableSessionCount": 2, "unlistedSessionCount": 0},
+        {"unavailableSessionCount": 0, "unlistedSessionCount": 0, "extra": "private"},
+    ],
+)
+async def test_search_invalid_coverage_is_rejected(tmp_path, coverage):
+    owner, _, *_ = search_fixture(tmp_path)
+
+    async def invalid(*_):
+        return {"items": [], "hasMore": False, "coverage": coverage}
+
+    owner.client.rpc = invalid
+    with pytest.raises(RuntimeFailure) as failure:
+        await owner.search_sessions("needle", mode="claw")
+    assert failure.value.code == "session_search_invalid_response"
+
+
+@pytest.mark.asyncio
+async def test_native_unlisted_requested_session_is_reported_as_not_searched(tmp_path):
+    owner, *_ = search_fixture(tmp_path)
+
+    async def unlisted(*_):
+        return {
+            "items": [],
+            "hasMore": False,
+            "coverage": {"unavailableSessionCount": 0, "unlistedSessionCount": 1},
+        }
+
+    owner.client.rpc = unlisted
+    result = await owner.search_sessions("needle", mode="claw")
+    assert result["items"] == [] and result["unavailable_count"] == 1

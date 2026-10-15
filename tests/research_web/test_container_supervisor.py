@@ -137,7 +137,7 @@ if role == "runtime":
         target.write_text(json.dumps({
             "authority": "127.0.0.1:" + port,
             "cwd": str((Path(os.environ["RESEARCH_DATA_HOME"]) / "runtime/work").resolve()),
-            "source_commit": "48504f07f217f9fd45a4f6d8fca4b1ed35c2d4b0",
+            "source_commit": "7ecf564f2e09b829240c5553687223bdd1e2df73",
             "pid": os.getpid(), "version": "fixture", "bootstrap_token": "x" * 43,
         }))
         target.chmod(0o600)

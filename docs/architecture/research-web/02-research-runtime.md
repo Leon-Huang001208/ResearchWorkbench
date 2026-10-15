@@ -2,13 +2,15 @@
 
 Codex式提问卡只维护浏览器逐题草稿，最终仍经原生问题事件和既有answer通道提交整组答案。明确跳过使用原custom字段记录用户未提供答案，不改变工具/日程授权；收起不答复、不取消，待答问题仍阻止空闲部署。两模式项目与导航元数据不复制原生会话正文。
 
+正文搜索使用固定 DSH `7ecf564f2e09b829240c5553687223bdd1e2df73` 的显式部分搜索接口：Host 将 RWB 已创建、未删除且符合当前模式的 ID 范围传给原生层，再与原生列表可见范围取交集。响应必须包含完整范围内的 `unavailableSessionCount`；Web 返回 `unavailable_count` 并在零命中时仍提示部分历史未搜索。旧格式源记录保持不变，不授予恢复执行；I/O、损坏及取消仍失败。未升级的旧接口缺少覆盖信息时明确报错，不假称搜索完整。
+
 resident更新锁按研究准入EX→原lifecycle顺序持有。HTTP写操作、send/approve/answer、
 Automation准入/执行/恢复使用共享锁；已排队或运行研究使更新延期，native session.list含子会话。
 候选启动期间自动任务等待维护解除；失败或中断恢复旧代码后才释放栅栏，不触发新模型请求。
 
-只读session.search映射固定session/search {request:{query}}，复用原认证并保留其他RPC拒绝。原生provider不可用不回退为假全文；hasMore原样作为缩小关键词提示，不生成cursor或messageId。搜索不恢复/启动Agent，Host不直接读取原生数据库或维护第二份正文库。
+只读session.search映射固定session/search {request:{query,sessionIds,unsupportedSessionPolicy:"report"}}，复用原认证并保留其他RPC拒绝。原生provider不可用不回退为假全文；hasMore原样作为缩小关键词提示，不生成cursor或messageId。搜索不恢复/启动Agent，Host不直接读取原生数据库或维护第二份正文库。
 
-固定 DSH base 已挂载 `session-query-sqlite`，其默认 `openAt: never` 禁用全文搜索。Research Web 启动 overlay 只覆盖同一插件的 `openAt: first-search` 与 `path: ':memory:'`，不重复挂载。首次搜索才由原生 provider 打开已有派生内存索引，重启后按原生历史重新派生；不新建持久搜索库、不更改固定 DSH、依赖锁或研究工具权限。本轮隔离 macOS Native 候选已验证该 overlay 的原生 RPC 与真实正文搜索；生成配置回归和原生命中各自留证，产品归属过滤由 Host 继续校验。Windows/Linux 原生验收保持 NOT_RUN，不从本机结果推断跨平台通过。
+固定 DSH base 已挂载 `session-query-sqlite`，其默认 `openAt: never` 禁用全文搜索。Research Web 启动 overlay 只覆盖同一插件的 `openAt: first-search` 与 `path: ':memory:'`，不重复挂载。首次搜索才由原生 provider 打开已有派生内存索引，重启后按原生历史重新派生；不新建持久搜索库；本轮仅升级固定 DSH 查询代码，不改变依赖锁或研究工具权限。本轮隔离 macOS Native 候选已验证该 overlay 的原生 RPC 与真实正文搜索；生成配置回归和原生命中各自留证，产品归属过滤由 Host 继续校验。Windows/Linux 原生验收保持 NOT_RUN，不从本机结果推断跨平台通过。
 
 显式试跑可用真实任务名或精确ID，含配对引号、刚创建/修改限定及版本号；后续仅白名单约束句，不是通用自然语言授权。版本不符返回 automation_version_conflict，未知/含混仍拒绝；原提问上下文、幂等Run及手动运行不改下一计划时间保持。Runtime将允许的Automation拒绝码加入原4KiB脱敏投影，不自动重试。
 

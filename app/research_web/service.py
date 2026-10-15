@@ -1389,8 +1389,23 @@ class ResearchService:
         if not query or len(query.encode("utf-16-le")) // 2 > 500:
             raise StoreError("搜索内容须为 1–500 个 UTF-16 单元", "invalid_request", 422)
         await self.ensure_owned()
+        scope_ids = sorted(
+            sid
+            for sid, row in self.store.data["sessions"].items()
+            if isinstance(row, dict)
+            and row.get("created") is True
+            and row.get("deleted_at") is None
+            and row.get("mode") in {"claw", "fingpt"}
+            and (mode is None or row["mode"] == mode)
+        )
+        if len(scope_ids) > 10000:
+            raise StoreError("正文搜索会话范围超过上限", "session_search_scope_exceeded", 422)
+        scope_set = set(scope_ids)
         try:
-            response = await self.client.rpc("session.search", {"query": query})
+            response = await self.client.rpc(
+                "session.search",
+                {"query": query, "sessionIds": scope_ids, "unsupportedSessionPolicy": "report"},
+            )
         except RuntimeFailure:
             log.warning("research_session_search_unavailable")
             raise RuntimeFailure(
@@ -1403,10 +1418,19 @@ class ResearchService:
 
         if (
             not isinstance(response, dict)
-            or set(response) != {"items", "hasMore"}
+            or set(response) != {"items", "hasMore", "coverage"}
             or not isinstance(response["items"], list)
             or len(response["items"]) > 20
             or type(response["hasMore"]) is not bool
+            or not isinstance(response["coverage"], dict)
+            or set(response["coverage"]) != {"unavailableSessionCount", "unlistedSessionCount"}
+            or type(response["coverage"]["unavailableSessionCount"]) is not int
+            or type(response["coverage"]["unlistedSessionCount"]) is not int
+            or response["coverage"]["unavailableSessionCount"] < 0
+            or response["coverage"]["unlistedSessionCount"] < 0
+            or response["coverage"]["unavailableSessionCount"]
+            + response["coverage"]["unlistedSessionCount"]
+            > len(scope_ids)
         ):
             invalid_response()
         for item in response["items"]:
@@ -1427,7 +1451,8 @@ class ResearchService:
             sid = item["sessionId"]
             row = self.store.data["sessions"].get(sid)
             if (
-                not isinstance(row, dict)
+                sid not in scope_set
+                or not isinstance(row, dict)
                 or row.get("created") is not True
                 or row.get("deleted_at") is not None
                 or row.get("mode") not in {"claw", "fingpt"}
@@ -1442,7 +1467,13 @@ class ResearchService:
                 {"id": sid, "title": title, "mode": row["mode"], "snippet": item["snippet"]}
             )
         log.info("research_session_search_completed", count=len(items))
-        return {"items": items, "has_more": response["hasMore"], "source": "native_dsh"}
+        return {
+            "items": items,
+            "has_more": response["hasMore"],
+            "source": "native_dsh",
+            "unavailable_count": response["coverage"]["unavailableSessionCount"]
+            + response["coverage"]["unlistedSessionCount"],
+        }
 
     async def list_sessions(self, view="active"):
         if view not in {"active", "deleted", "all"}:
@@ -1681,7 +1712,7 @@ class ResearchService:
         # A transport implementation is not evidence for every endpoint/model.
         # Keep admission bound to the independently observed native tool round.
         return (
-            PINNED_DSH_COMMIT == "48504f07f217f9fd45a4f6d8fca4b1ed35c2d4b0"
+            PINNED_DSH_COMMIT == "7ecf564f2e09b829240c5553687223bdd1e2df73"
             and model.get("model_provider", "deepseek-official") == "deepseek-official"
             and model.get("model") == "deepseek-flash"
         )

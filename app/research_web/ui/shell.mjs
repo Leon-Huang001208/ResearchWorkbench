@@ -70,7 +70,7 @@ export function renderGlobalResults(query, sessions, skills, { native = null } =
   const results = queryText ? filterGlobalSearch(query, native ? (sessions || []).filter(item => item.mode === 'claw') : sessions, skills) : (sessions || []).filter(item => item.mode === 'claw').slice(0, 8).map(item => ({ kind: 'session', item }));
   const known = new Set(results.filter(row => row.kind === 'session').map(row => row.item.id));
   for (const item of nativeItems) if (!known.has(item.id)) { results.push({ kind: 'session', item }); known.add(item.id); }
-  const status = current ? `${native.pending ? '<p class="small muted" role="status">正在搜索 Claw 正文…</p>' : ''}${native.error ? `<p class="small muted" role="status">${e(native.error)} <button type="button" class="text-button" data-retry-native-search>重试正文搜索</button></p>` : ''}${native.has_more ? '<p class="small muted">结果可能不完整，请缩小关键词。</p>' : ''}` : '';
+  const status = current ? `${native.pending ? '<p class="small muted" role="status">正在搜索 Claw 正文…</p>' : ''}${native.error ? `<p class="small muted" role="status">${e(native.error)} <button type="button" class="text-button" data-retry-native-search>重试正文搜索</button></p>` : ''}${!native.pending && native.unavailable_count > 0 ? `<p class="small muted" role="status">部分历史未搜索：${e(native.unavailable_count)} 个会话格式暂不支持或原生不可见；当前结果不代表全部历史。</p>` : ''}${native.has_more ? '<p class="small muted">结果可能不完整，请缩小关键词。</p>' : ''}` : '';
   const heading = !queryText && results.length ? '<p class="small muted">最近 Claw 会话</p>' : '';
 
   const attribute = (kind, item) => ({ tool: 'data-tool-detail', data: 'data-data-capability-detail', 'report-workflow': 'data-report-workflow-detail' })[kind] || (item.enabled === false ? 'data-skill-detail' : 'data-skill-shortcut');
