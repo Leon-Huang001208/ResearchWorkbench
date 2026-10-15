@@ -1,7 +1,64 @@
 # 部署与模块职责
 
+Hot周期任务在原唯一worker中调用既有报告投影的短时Python子进程，固定模块/解释器、
+有界stdin/输出/取消，无新常驻节点或调度器。产物原件与子执行回执属于Hot PG；Host只读
+下载，同一逻辑数据库的Native/Docker切换复用回执，不重复发起研究。
+
 外部来源适配器、模型预设和独立停止 UI 均留在既有 Web Host/DSH 边界内；
 不新增进程、端口或调度器。安装包继续包含固定目录资产，秘密只进入本实例凭据库。
+
+事件日期继续由Hot现有controller纠错事务及event_versions负责；Host核对签名回执，原文/版本/队列和研究引擎归属保持。没有新增服务、迁移或日期抽取模型。
+
+来源状态投影在现有Hot Node中读取目录绑定与controller config列权限；前端不读取数据库或凭据。Source表单沿已有Host API与source.configure，未新增Provider、服务或调度器。
+
+来源激活继续由现有source.configure/controller和Hot PG负责。DataHub固定目录决定endpoint/operator，CLI和Host仅传source ID、期望版本、明确catalog标志及理由；不新增来源服务、研究会话或模型调用。
+
+Automation命名空间内Hot周期管理aliases直接委派Hot，旧Automation feature flag只控制旧Automation。该适配不访问其Store或启动其scheduler；PG/Hot worker仍独占周期事实。
+
+管理平面显式stage镜像替换可退休身份完全匹配的停止pre-AES容器，保留其已有五卷；模型就绪账本不证明旧容器具有密钥挂载。例外仅为已授权升级，普通运行身份门和业务容器无Docker socket边界保持。Native/Docker产品节点及唯一DSH归属不变。
+
+Hot Node现有heartbeat向同一pg-boss hot.brief队列登记周期运行；controller负责计划授权和冻结简报发布，普通worker只处理已有领取/确认。Automation提供管理适配，不在旧Store写第二套计划或周期调度。关注、计划、运行和选材在指定PG schema持久化；ResearchService/DSH仍只承担用户明确提交的正式研究。
+
+Hot 的 Docker 镜像已包含锁定生产依赖和迁移。HotManager 在 Supervisor Web 内识别
+Docker 模式，子进程沿 Web 角色归属，写日志到数据目录；不引入新队列或 Docker socket。
+实际容器运行与同逻辑 PG 顺序切换仍须独立证据，不从镜像构建推定通过。
+
+Hot/model明确启用的同项目实例在Web Runtime准备时把官方provider重试设为零；该设置
+作用于本Runtime的官方模型，未配置实例保留原策略。正式执行API沿ResearchService.send及
+原PG运行映射，不创建第二执行器；实际产物完成与UI动作接入仍待验。
+
+Hot流预算插件随现有Runtime overlay装配，借既有私有Host通道连接同一PG模型账本。
+当前验证为源码与离线SDK；正常Runtime零重试策略、真实研究及产品安装尚未验收。
+
+## Hot 阶段一组件
+
+`services/hot/` 已有独立 Node/PostgreSQL 控制与读取进程，使用私有 stdin 接收宿主解析后的
+凭据，内部接口仅绑定回环并验证签名、实例、模式与代次。它不启动 ResearchService、完整 DSH 研究 Runtime 或旧
+Store。`rwb hot` 已接入独立 Native 启停与受管 PG；Web 生命周期与 Docker 产品装配仍待完成。
+因此下述基础 Web 部署图仍描述现有 Web/DSH；Hot 的最终部署图将在实际产品装配后同步。
+Native 归档入口复用这个独立组件及 PG 工具；恢复只进入不同目标库的不存在 schema。
+独立服务现已运行持久 feed scheduler 与受限 worker；它只读 DataHub 的共享公开目录，
+不为采集启动 Web、DSH 或旧 Store。Web 生命周期和 Docker 产品装配仍待集成。
+来源控制复用当前 Host 签名桥接；只有控制 key 可以在同一运行代次内提交条件配置与审计。
+Hot 的共享事件、版本化频道和人工修正现已作为同一 PG schema 的内部业务持久层实现，
+不是新的研究引擎或第二套队列。事件/评分历史按截止时间读取；人工评分升版继承保留原出处。
+第三频道已验证配置与真实事件规则判断；界面已挂载。Native 模型 factory 在已有预算和受控凭据下
+由同一 worker 装配最小 DSH 文本上下文；新授权/价格刷新 CLI、安装级 worker 与领域模型判断仍待验收。
+正常 Hot worker 现有可选归组能力端口，parse 事务登记处理项，模型就绪才向同一
+`hot.process` 队列调度。未装配时状态为 `blocked_model`，采集与读取继续，待处理项保留。
+DSH 模型适配仍无研究会话/工具；事件发布和队列确认共用原 claim 事务，已知拒绝保留回执。
+公开 Native bootstrap/Settings 模型激活、模型频道判断和产品界面仍待装配。
+领域规则现已接入同一 Hot worker 的 heartbeat，以持久游标有界评价已存在的事件/频道，
+不新建调度器或研究会话。评分与不可变依据在原 owner 事务中保存，未知/旧发布时间不增热。
+三个频道由非秘密 JSON 配置；公开配置入口与产品页面仍待集成。
+内部签名桥现提供有界事件/频道历史读取、频道配置和既有人工纠错，分别使用read/control权限。
+读取截止时间与原文/配置/判断版本固定，分页需保留cutoff；入口不采集、不调度、不调用模型。
+频道变更保存UUID条件重放审计。Web Host及浏览器页面的挂载仍待完成。
+Native `rwb hot` 现已挂载事件/频道读与条件控制，复用同一签名进程身份、系统凭据机制与审计。
+输入和操作回执在Python边界验证；不明结果保留UUID且非零退出。Web Host和浏览器挂载仍待完成。
+Web Host已新增惰性有界Hot桥与页面入口；其lifespan不启动Hot/PG/model。条件修改显式提交，
+读取/超时不会接管基础设置。部署图与Hot专项图记录Node/PG当前实现，Docker产品切换、
+真实事件浏览/研究和同SHA干净安装仍须各自验收。
 
 持久验收预算仍在现有Web/DSH部署内，通过受管AES身份和私有Python管道消费；没有新进程或自动激活。默认运行不读账本，过期控制拒绝。
 
@@ -340,9 +397,31 @@ Doctor 以安全固定字段投影平台能力；available 只描述实现，不
 
 Docker `/state` 使用 UID/GID 10001、0700 的 Linux 私有 tmpfs；临时认证、build lock 和内部日志随重启重建。持久研究数据与凭据继续独立 bind，不通过放宽身份检查处理 Desktop 属性映射。单容器、两服务、端口与产品数据拓扑保持。
 
+独立 rwb hot 模型管理 CLI 通过同包 Node 脚本直接进入指定 PG；只有迁移身份和控制实例可在停机/过期归属下授权或终止。只读尝试使用普通角色，不启动服务/数据库/模型。11 专项图分别表达此管理路径和 Web 签名 worker 路径，不增加第二队列或研究引擎。
+
+定价配置沿现有模型管理 CLI 的私有校验进程保存，不连接 PG 或模型；正常 worker 从实例/项目绑定的数据目录读取，仍不增加调度器或研究引擎。
+
+Hot Native数据边界现在包含不可变简报版本/审计，Web Host经controller显式发布、reader签名分块读取。简报预览和Markdown沿同一数据库冻结证据，不创建新研究引擎；正式ResearchService/DSH交接、DOCX和完整恢复仍待完成。部署/模块图同步此边界，不用于认证未执行平台。
+
 ## 本机状态投影
 
 Office自动验证只复用Host内既有集成批次和受管验证器，不增加进程或守护服务。实例同意、同快照汇总及真实证据/清理的条件见[集成协调器](09-integration-coordinator.md)。Doctor仅投影所属实例开关，不调用Office，也不改变安装或服务就绪。
+
+
+## 研究情报统一入口 · 2026-10-12
+
+主导航统一为“研究情报”，本地热点与事件在 `#/intel/hot`，现有外部8栏目仍在 `#/intel/*`。旧 `#/workbench/hot` 链接保留视图/事件参数后转入本地页。两类页面共用栏目导航、主题与Host；本地版本证据和Golddata外部只读数据保持身份与覆盖来源区分，外部读取不写Hot、领取任务或调用模型。Hot未启用时，外部栏目与设置继续可用。
+
+恢复的DOCX切片通过 `GET /api/research/hot/briefs/{brief_id}/docx?version=<固定版本>` 从签名/哈希核对的冻结输入生成并保留私有产物，复用报告DOCX生成器；导出不创建会话、不调用模型、不外发。该路径尚需完整产品/恢复验收，局部测试不代表研究闭环完成。
+
+
+Hot完整原件读取继续复用独立Node/PostgreSQL与Host reader通道，没有新服务、队列或研究引擎。逻辑数据库实例与材料版本绑定在冻结清单中，切换运行代次不更改历史证据；真实Native/Docker切换仍待验收。
+
+
+研究准备源码链为Hot PG运行映射→Host ResearchService原生会话→DataHub会话原件快照。Hot worker仍不写旧Store，不启动第二研究引擎；既有DSH继续负责研究执行。原生会话故障注入及签名Node/PG→Host→快照组合已验证，真实DSH创建/付费研究与安装仍需实际验收。
+
+
+2026-10-13续跑：Hot预算管理追加token-only停机修订；现有Host脚本准入可验证并读取当前Hot研究的冻结快照。服务、队列与研究引擎拓扑保持；研究实际调用不等于报告已完成。
 
 ## FinGPT 研究融合 · 2026-10-13
 

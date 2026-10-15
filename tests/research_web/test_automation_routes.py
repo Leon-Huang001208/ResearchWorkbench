@@ -142,3 +142,45 @@ def test_delivery_channel_routes_and_feature_flag(monkeypatch):
     assert response.status_code == 200
     disabled, _ = client(monkeypatch, "0")
     assert disabled.get("/api/research/automations").status_code == 404
+
+
+def test_hot_periodic_adapter_remains_owned_by_hot_when_legacy_automation_disabled(monkeypatch):
+    from app.research_web.hot_service import HotWebError
+
+    web, legacy = client(monkeypatch, "0")
+    seen = []
+
+    class HotBridge:
+        async def call(self, operation, *args, **kwargs):
+            seen.append(operation)
+            return {"items": []}
+
+    web.app.state.hot = HotBridge()
+
+    @web.app.exception_handler(HotWebError)
+    async def hot_error(_request, exc):
+        return JSONResponse({"error": {"code": exc.code}}, status_code=exc.status)
+
+    identifier = "11111111-1111-4111-8111-111111111111"
+    base = "/api/research/automations/hot-brief-plans"
+    assert web.get(base).status_code == 200
+    assert web.get(f"{base}/{identifier}/runs").status_code == 200
+    body = {"planId": identifier, "requestId": identifier, "expectedVersion": 0,
+            "reason": "test", "config": {"name": "Macro", "channelId": "macro",
+            "enabled": False, "firstRunAt": "2026-10-14T08:00:00Z",
+            "intervalSeconds": 86400, "windowSeconds": 86400, "maxEvents": 10,
+            "timezone": "Asia/Shanghai", "sort": "importance"}}
+    assert web.post(base + "/configure", json=body).status_code == 403
+    assert web.post(base + "/configure", json=body,
+                    headers={"X-Research-User-Action": "?1"}).status_code == 200
+    assert seen == ["periodic_plans", "periodic_runs", "configure_periodic_plan"]
+    assert web.get("/api/research/automations").status_code == 404
+    assert legacy.calls == []
+
+    class UnavailableHot:
+        async def call(self, *args, **kwargs):
+            raise HotWebError("hot_disabled", "Hot is unavailable", 503)
+
+    web.app.state.hot = UnavailableHot()
+    failed = web.get(base)
+    assert failed.status_code == 503 and failed.json()["error"]["code"] == "hot_disabled"

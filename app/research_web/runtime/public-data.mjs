@@ -94,7 +94,7 @@ function stableBusinessQuery(capability, args, properties, required) {
   return {capability,source:source || 'auto',allow_fallback:allowFallback || false,parameters,refresh:refresh || false};
 }
 
-async function privateControl(root) {
+export async function privateControl(root) {
   const canonical = await realpath(root);
   const dir = join(canonical,'.control');
   const parent = await lstat(dir);

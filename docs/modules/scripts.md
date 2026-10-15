@@ -21,6 +21,17 @@
 
 ### `scripts/setup_web.py`
 
+Optional Hot installation consumes only `services/hot/package-lock.json` using the
+selected product Node/npm and `npm ci --omit=dev --ignore-scripts --no-audit --no-fund`.
+Missing locks or a failed install retain explicit failure; this step neither starts
+PostgreSQL nor creates model authorization. It runs inside the existing installation
+scope before publishing the manifest. Hot's one-shot report module uses the same
+installed Web Python dependencies; schema upgrades remain an explicit stopped Hot setup.
+
+`scripts/build_research_web_api_atlas.mjs` includes the signed-reader periodic report
+download in the current API inventory. Regeneration binds the source/map inputs;
+generated HTML is navigation evidence, not acceptance of a live report or platform.
+
 Internal `_NativePortOptions` describes only the existing explicit port keywords. Type casts reuse
 validated facts; they do not create defaults, broaden accepted input, or change installer errors.
 

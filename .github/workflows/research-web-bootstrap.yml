@@ -107,14 +107,21 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Setup Node 22.19
+      - name: Setup Node 24.19
         uses: actions/setup-node@v4
         with:
-          node-version: "22.19.0"
+          node-version: "24.19.0"
 
       - name: Install Web stack on macOS
         shell: bash
         run: ./setup-web.sh --no-start
+
+      - name: Verify installed Hot production dependencies
+        shell: bash
+        working-directory: services/hot
+        run: |
+          set -euo pipefail
+          node --input-type=module -e 'import {assertNodeRuntime} from "./src/config.ts"; assertNodeRuntime(); for (const name of ["postgres", "pg-boss", "fast-xml-parser"]) await import(name);'
 
       - name: Verify macOS environment and start services
         shell: bash
@@ -134,7 +141,7 @@ jobs:
       - name: Stop macOS services
         if: always()
         shell: bash
-        run: ./rwb web stop || true
+        run: ./rwb web stop
 
       - name: Upload minimal successful bootstrap evidence
         if: success()

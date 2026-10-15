@@ -1,0 +1,13 @@
+# Hot 最新恢复与当前镜像
+
+macOS功能开发，源候选7010a2bd41ac87aa43adc9399bca45d1d0c21f3c。模型budget18calls/77375tokens/10464microUSD，上限20/100000/USD1，新增付费0。
+
+使用新的私有joint-final-7010归档及隔离DB hot_joint_final_7010_20261014，旧归档/库保留。58表、原件/预算/关注/计划/日期/新简报全清单与hash恢复核验；选定真实研究报告2734bytes SHA e98d29acfddc3e9e2b9c54cd6844d06b8de22146dd3d7146db0ca1e56caaf976一致，Native执行历史NOT_RESTORED。恢复默认暂停后正常startService运行，四源真实新采集/全部inbox排空/旧材料版本保留；clone Native100→暂停101。另只读审计确认原库仍Native99暂停，新日期和简报保存，budget完整不变。runtime旧helper的ready引用不适用于返回结构，未用于认证；以数据库真实generation100新runs/不可变版本及audit核验。见joint-final-7010-receipt/runtime-audit。
+
+受管临停已明确授权dev/g2b完成构建，保留原容器d812b263…/image612067…/全部卷并恢复running。当前完整runtime image sha256:7800f8dd23466763b8b2e2f026bba1dfeae1a0d2fb7a11c10a3e4cca8c3a45b1绑定源7010；明确replace-image只替换已停stage/candidate的容器，旧image042602…和全部五卷保留。实际up无需再次停dev便通过资源门，Supervisor/DSH/Web/Hot健康，schema20日期详情和冻结简报读取、MD及DOCX下载200，Word保留日精度/来源时区。两次便利检查器误用全局Python缺docx，改用既有项目venv核验，无新包安装。
+
+Hot model.enabled=true，但现有factory先拒绝Docker平台，明确hot_dsh_native_platform_required，不读取/复制供应商Key、不发模型。三源实际新采集成功，DeepMind本轮connection_reset/两次退避保留，pending0，不宣称四源Docker全成功。正常停止后原库Docker100→暂停101→正常Native102→暂停103；旧Docker owner签名在新Native实际拒绝。候选已停止，原dev仍原身份running；SDK预算复审18/77375/10464及caps20/100000/USD1一致。
+
+传输为已有验收专用本地TCP relay，不能用它证明用户外部TLS产品连接。构建有ENV RESEARCH_CREDENTIAL_HOME路径命名启发式warning，日志保留，非Key值输入。macOS安装与当前候选MacCI尚NOT_RUN；远端fresh PUBLIC、master e45d3bc…，PR106 head3233da967仍draft/DIRTY，旧成功CI不能认证本源。后续必须受管集成最新主线和最终验收，不能直接merge当前Goal。
+
+证据：logs/hot-resume/final-7010-image-build-receipt.json、final-7010-docker-mode-summary.json、final-7010-budget-receipt.json；参考关系真模型覆盖仍gap，完整Goal INCOMPLETE，Windows/Linux设备交接NOT_RUN。未部署生产，未清理旧数据库、镜像或任何卷。

@@ -6,6 +6,9 @@ Broker在没有已适配的候选来源时返回`data_capability_not_integrated`
 
 Claw 日程研究在独立 DSH 会话锁定 approved_data_sources 与 approved_tools，仍由原 DataHub/原生准入校验。资料未就绪时保留缺口，定时定义不证明金融来源可调用；试跑文件也不能把合成数据作为真实市场数据。
 
+Hot模型预算HTTP复用既有实例私有控制文件和key；只核对根研究归属及同一Hot账本。
+公开Provider能力和查询合同保持，模型回执不能证明来源/厂商可调用。
+
 Claw 项目只聚合成员会话的 DataHub 快照摘要与来源链接；文件引用独立复制已显式选择的附件，不扩大新会话 DataHub 准入或自动复制源会话快照。日程草稿沿既有私有控制认证，不触发数据查询。
 
 DataHub 内部控制 reader 复用 `control_origin.py` 的纯 JSON/回环 URL parser，原错误与
@@ -23,6 +26,13 @@ DSH仍是唯一研究引擎；Web只读资料，原生插件通过受控回环�
 不导入旧Connector.run、AKShare生命周期或旧报告编译链。通用 MySQL Provider 使用项目依赖 PyMySQL 与当前模式的凭据后端；它不是固定阿里云账号适配器。
 
 ## 当前定位与命名
+
+Hot 的公开后台来源扩展目录为 `datahub/hot_public_sources.json`：OpenAI、Google DeepMind、
+Federal Reserve 与 ECB 四个固定官方 RSS/Atom 来源。不保存凭据，不导入 ResearchService。
+Hot Node 适配器读取这个目录并持久采集到独立 PG schema；原文和待解析条目先入库，
+然后按单轮上限分批生成不可变材料版本。此目录尚未注册到既有 Broker 的 15 项业务 Tool
+或来源设置页，不能把四个后台来源的实测提升为全部 DataHub 已连通。
+`channelHint` 仅帮助后续频道配置，当前尚无事件或频道模型判断。
 
 DataHub 是后台数据总机：统一描述“能查什么”、选择“从哪里查”、把供应商参数翻译成稳定业务参数、标准化结果，并把本次研究使用的数据保存为会话隔离快照。它不替代 DSH、Skill 或 Tool，也不是前端直接执行的能力类型。
 
@@ -300,3 +310,9 @@ AKShare `market_activity` 当前只实现个股 `fund_flow`；`northbound`、`mo
 旧缓存并按新口径取数。历史快照和 raw 保留供审计，不删除、不改写，也不恢复新查询授权。
 无任何可用来源时保留 HTTP 400 与原中文说明，稳定代码为 `data_source_unavailable`。
 这些修复只经离线 Mock 回归，不证明真实供应商、收费数据或其他平台已验证。
+
+
+Hot原件导入属于frozen_evidence/hot_evidence会话快照，不宣称为新的可查询市场Provider，也不伪造业务查询。实际选定的规范清单、完整存储材料JSON和原始响应按哈希独立复制到已确认目标会话；现有私有manifest、dataset读取、copy_selected和升级路径核验并支持它。取得/发表/来源更新与本次快照准备时间区分，显式选材不是来源全量覆盖。
+
+
+2026-10-13续跑：Hot研究脚本现在可读取本会话授权的冻结资料：创建回执、hot_research目的、run/instance/manifest匹配及所有原件hash必须通过。普通Provider选源/查询仍走原合同；本次仅修复快照只读权限。

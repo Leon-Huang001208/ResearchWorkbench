@@ -109,7 +109,9 @@ class Snapshots:
                 if read_file(fd, "manifest.json") != raw:
                     raise StoreError("资料manifest校验失败")
                 for item in manifest["files"]:
-                    if item["name"] not in {"rows.json", "rows.csv"}:
+                    from .frozen_archive import OBJECT_FILE
+                    archive_file = manifest.get("snapshot_kind") == "hot_evidence" and (item["name"] == "evidence-manifest.json" or OBJECT_FILE.fullmatch(item["name"]))
+                    if item["name"] not in {"rows.json", "rows.csv"} and not archive_file:
                         raise StoreError("资料文件引用非法")
                     if sha(read_file(fd, item["name"])) != item["sha256"]:
                         raise StoreError("资料文件hash校验失败")
@@ -217,48 +219,137 @@ class Snapshots:
         public_files = {**parsed, "manifest.json": json_bytes(manifest)}
         private_files = {f"raw-{index:04d}.bin": raw for index, raw in enumerate(result.raw, 1)}
         private_files["manifest.json"] = public_files["manifest.json"]
+        return self._publish_files(sid, did, manifest, public_files, private_files)
+
+    def _publish_files(self, sid, did, manifest, public_files, private_files, *, recover=False):
+        temporary = ".pending-" + did
         created = []
+        published = set()
+        owned_temporary = set()
+        committed = False
         try:
-            for parts, files, private in [
-                (self._private(sid), private_files, True),
-                (self._public(sid), public_files, False),
-            ]:
+            for parts, files, private in [(self._private(sid), private_files, True), (self._public(sid), public_files, False)]:
                 with directory(self.store.root, parts, create=True, private=private) as parent:
-                    make_directory(parent, temporary)
+                    if temporary not in os.listdir(parent):
+                        make_directory(parent, temporary)
+                        owned_temporary.add(parts)
+                    elif not recover:
+                        raise StoreError("资料暂存目录已存在")
                 created.append((parts, files, private))
                 with directory(self.store.root, (*parts, temporary), private=private) as fd:
+                    entries = set(os.listdir(fd))
+                    if entries - files.keys():
+                        raise StoreError("资料暂存目录内容未知")
                     for name, content in files.items():
+                        if name in entries:
+                            existing = read_file(fd, name, private=private)
+                            if existing == content:
+                                continue
+                            if not recover or len(existing) >= len(content) or not content.startswith(existing):
+                                raise StoreError("资料暂存内容校验失败")
+                            unlink_file(fd, name)
                         write_new(fd, name, content)
                     sync_directory(fd)
-            # No await within publication; cancellation is checked immediately before it.
-            # Publish public inputs first; the private UUID is the catalog commit marker.
-            # A process exit between renames leaves only ignored, uncommitted inputs.
-            for parts, _, private in reversed(created):
-                with directory(self.store.root, parts, private=private) as fd:
-                    rename_directory(fd, temporary, did)
-                    sync_directory(fd)
-            log.info(
-                "datahub_snapshot_published",
-                session_id=sid,
-                dataset_id=did,
-                status=result.status,
-                rows=len(result.rows),
-            )
+            # Public bytes first; the private UUID is the only catalog commit marker.
+            for parts, files, private in reversed(created):
+                with directory(self.store.root, parts, private=private) as parent:
+                    if did in os.listdir(parent):
+                        if not recover:
+                            raise StoreError("资料标识已存在")
+                        with directory(self.store.root, (*parts, did), private=private) as fd:
+                            if set(os.listdir(fd)) != set(files) or any(read_file(fd, name, private=private) != content for name, content in files.items()):
+                                raise StoreError("已有资料与固定选材不一致")
+                        with directory(self.store.root, (*parts, temporary), private=private) as fd:
+                            for name in files:
+                                unlink_file(fd, name)
+                        remove_directory(parent, temporary)
+                    else:
+                        rename_directory(parent, temporary, did)
+                        published.add(parts)
+                    if private:
+                        committed = True
+                    sync_directory(parent)
+            log.info("datahub_snapshot_published", session_id=sid, dataset_id=did, status=manifest["status"], rows=manifest["row_count"])
             return self.detail(sid, did)
         except (OSError, StoreError):
             log.error("datahub_snapshot_publish_failed", session_id=sid, dataset_id=did)
-            # Exact newly-created snapshot only; never remove a pre-existing dataset.
+            # Recovery may encounter somebody else's conflicting bytes. Keep all
+            # staged bytes for inspection/retry; the private marker is irreversible.
+            if recover or committed:
+                raise
             for parts, files, private in created:
                 with directory(self.store.root, parts, private=private) as parent:
-                    for name in (temporary, did):
+                    for name in [*([temporary] if parts in owned_temporary else []), *([did] if parts in published else [])]:
                         if name not in os.listdir(parent):
                             continue
                         with directory(self.store.root, (*parts, name), private=private) as fd:
-                            for filename in files:
-                                if filename in os.listdir(fd):
-                                    unlink_file(fd, filename)
+                            entries = set(os.listdir(fd))
+                            if entries - files.keys():
+                                raise StoreError("未知暂存内容保留，无法自动清理")
+                            for filename in entries:
+                                unlink_file(fd, filename)
                         remove_directory(parent, name)
             raise
+
+    def admit_hot_script(self, sid, did):
+        """Grant only this owned Hot run's fully verified, immutable evidence copy."""
+        from .frozen_archive import OBJECT_FILE, validate_bundle
+        row = self.store.session(sid)
+        origin = row.get("hot_origin")
+        snapshot = self.detail(sid, did)
+        binding = snapshot.get("hot")
+        if (row.get("created") is not True or row.get("purpose") != "hot_research"
+                or not isinstance(origin, dict) or snapshot.get("snapshot_kind") != "hot_evidence"
+                or not isinstance(binding, dict) or binding.get("runId") != origin.get("runId")
+                or binding.get("instanceId") != origin.get("instanceId")
+                or binding.get("manifestHash") != origin.get("manifestHash")):
+            raise StoreError("冻结资料不属于当前Hot研究会话")
+        try:
+            # detail already verified the private manifest and all public hashes.
+            # One safe directory read avoids revalidating the entire archive per file.
+            with directory(self.store.root, ("sessions", sid, "inputs", "datasets", did)) as fd:
+                canonical = read_file(fd, "evidence-manifest.json")
+                frozen = json.loads(canonical)
+                if frozen["instanceId"] != origin["instanceId"]:
+                    raise ValueError("hot_instance_mismatch")
+                if not isinstance(frozen["objects"], list) or len(frozen["objects"]) > 40:
+                    raise ValueError("hot_object_limit")
+                values = {}
+                for item in frozen["objects"]:
+                    if not OBJECT_FILE.fullmatch(item["filename"]):
+                        raise ValueError("hot_object_name")
+                    values[item["key"]] = read_file(fd, item["filename"])
+            validate_bundle({"manifest": frozen, "manifestBytes": canonical,
+                             "manifestHash": origin["manifestHash"], "objects": values})
+        except (ValueError, KeyError, TypeError) as exc:
+            log.warning("hot_script_snapshot_denied")
+            raise StoreError("冻结资料校验失败") from exc
+        log.info("hot_script_snapshot_admitted", session_id=sid, dataset_id=did)
+        return f"inputs/datasets/{did}"
+
+    def publish_hot(self, sid, run_id, bundle, *, origin=None):
+        from .frozen_archive import build_archive, validate_bundle
+        row = self.store.session(sid)
+        if row.get("created") is not True:
+            raise StoreError("目标研究会话尚未获得原生创建回执")
+        frozen, _, _ = validate_bundle(bundle)
+        expected = {"runId": run_id, "instanceId": frozen["instanceId"], "manifestHash": bundle["manifestHash"]}
+        if origin is None and row.get("hot_origin") != expected:
+            raise StoreError("冻结证据不属于目标研究交接")
+        key = "hot-publication:" + run_id + ":" + bundle["manifestHash"]
+        prepared = self.receipt(sid, key)
+        if prepared is None:
+            prepared = {"manifestHash": bundle["manifestHash"], "at": datetime.now(UTC).isoformat()}
+            self.receipt(sid, key, prepared)
+        if prepared.get("manifestHash") != bundle["manifestHash"]:
+            raise StoreError("资料准备记录与选材不一致")
+        did, manifest, public, private = build_archive(sid, run_id, bundle, prepared["at"], origin=origin)
+        if did in self.ids(sid):
+            found = self.detail(sid, did)
+            if found.get("hot") != manifest["hot"]:
+                raise StoreError("已有资料与固定交接不一致")
+            return found
+        return self._publish_files(sid, did, manifest, public, private, recover=True)
 
     def copy_for_upgrade(self, old_sid, new_sid):
         """User-triggered copy only, never cross-session caching or file links."""
@@ -277,6 +368,13 @@ class Snapshots:
         copied = []
         for did in requested:
             original = self.detail(old_sid, did)
+            if original.get("snapshot_kind") == "hot_evidence":
+                canonical = self.read(old_sid, did, "evidence-manifest.json")
+                frozen = json.loads(canonical)
+                values = {item["key"]: self.read(old_sid, did, item["filename"]) for item in frozen["objects"]}
+                copied.append(self.publish_hot(new_sid, original["hot"]["runId"], {"manifest": frozen,
+                    "manifestBytes": canonical, "manifestHash": original["hot"]["manifestHash"], "objects": values}, origin=original))
+                continue
             raw = []
             with directory(self.store.root, (*self._private(old_sid), did), private=True) as fd:
                 for item in original["raw_files"]:

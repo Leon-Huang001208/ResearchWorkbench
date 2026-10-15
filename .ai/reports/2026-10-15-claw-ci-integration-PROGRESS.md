@@ -38,3 +38,11 @@ DataHub 保留主线的错误体大小/类型/超时/取消/重定向和固定�
 - 新整合提交的独立Native安装、真实模型/文件与CI仍待执行，不能移用e44证明。
 
 日志：logs/claw-integration-python-{target,router,closure,install}.log、logs/claw-integration-js-final.log、logs/claw-reasoning-{red,green}.log及.codex/acceptance/claw-ci-integration-20261015/。
+
+## 最新主线交叉整合
+
+主线随后合入PR114，更新为e0132d2624cd764c75e19000418547f090c1be26。继续合入功能分支，源码自动合并，仅8项文档/生成索引冲突，保留双方内容并重建索引。交叉审查发现旧Hot查询路由不能激活，新增回归先失败后修复；完整JS572通过，无跳过。28项Python文件Ruff/Black/isort与15源码mypy通过。新的共享Python回归和最终绑定CI待完成。
+
+768f14efd中间候选通过公开安装API独立安装与Doctor，真实DSH turn/end seq26 reason=completed，非空回复及2683字节Markdown sha256 abcba8335e9cab106d9dc6663128752d3f6ab5de4e2cf4b011aafa7eace99ac7；1440/1050/390键盘展开、无溢出、工作区保留URL/草稿、预览开关和刷新草稿通过。该证据保留为中间候选，最终源码须重新验收。
+
+共享Git库有历史孤立commit6177e7f6缺失tree2637406d，GitHub不可恢复；没有删除、隔离或重写旧对象。通过完整Git bundle在独立checkout恢复同一768候选，完整fsck通过；最终候选也须完整对象校验后再发布。HTTPS clone曾early EOF，未作为验证结果；发布沿已有SSH通道。原候选、所有失败日志与源资料保留，不合并PR、不部署、不清理。

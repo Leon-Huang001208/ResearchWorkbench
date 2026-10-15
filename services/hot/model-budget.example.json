@@ -1,0 +1,12 @@
+{
+  "scopeId": "hot",
+  "maxCalls": 0,
+  "maxTokens": 0,
+  "maxCostMicros": 0,
+  "daily": {
+    "maxCalls": 0,
+    "maxTokens": 0,
+    "maxCostMicros": 0,
+    "timezone": "Asia/Shanghai"
+  }
+}

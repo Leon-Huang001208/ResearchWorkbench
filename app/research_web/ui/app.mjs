@@ -35,6 +35,7 @@ window.addEventListener('message', event => {
     updateFrameworkBotSlot();
   }
 });
+import { createHotController, renderHotWorkspace } from './hot-workspace.mjs';
 
 const api = createAPI();
 const clawWorkspace = { projects: [], detail: null, busy: false, error: '', newName: '', targetSession: '', renameEdits: new Map() };
@@ -96,6 +97,7 @@ let mcpMarketplaceState = { registries: [], installations: [], approvals: [], ap
 const questionDrafts = new Map();
 const controller = createController({ api, onNavigate: (hash) => { history.pushState(null, '', hash); } });
 const state = controller.state;
+const hotController = createHotController({api,onChange:()=>render(),isActive:()=>state.route.page==='intel'&&state.route.intelTab==='hot'||state.route.page==='settings'&&state.route.settingsSection==='hot'});
 const intelController = createIntelController({ onChange: () => { if (state.route.page === 'intel') render(); } });
 const capabilityController = createCapabilityController({ api, onChange: () => render(), onCatalogChange: () => loadCatalog(['capabilities']) });
 const capabilityState = capabilityController.state;
@@ -282,6 +284,7 @@ function settingsPage() {
     migrationOpen,
     connectionDetailOpen,
     hash: location.hash,
+    hotHTML: renderHotWorkspace(hotController.state,{settings:true}),
   });
 }
 
@@ -302,7 +305,7 @@ function mainPage() {
   if (state.route.page === 'workbench') return workbenchPage();
   if (state.route.page === 'frameworks') return renderFrameworks({ slug: state.route.frameworkSlug, anchor: state.route.frameworkTab, catalog: frameworkState.catalog, data: frameworkState.data, status: frameworkState.status, error: frameworkState.error, bot: { ...frameworkBot, bridgeReady: frameworkEmbedBridge.ready(state.route.frameworkSlug, frameworkState.data?.snapshot?.revision) } });
   if (state.route.page === 'operations') return operationsPage();
-  if (state.route.page === 'intel') return renderIntel(intelController.state);
+  if (state.route.page === 'intel') return state.route.intelTab === 'hot' ? renderHotWorkspace(hotController.state) : renderIntel(intelController.state);
   if (state.route.page === 'history') {
     const mode = state.route.historyMode;
     const view = state.route.historyView || 'active';
@@ -352,6 +355,7 @@ async function clawAction(action) {
 }
 
 function workbenchPage() {
+  if(state.route.section==='hot')return renderHotWorkspace(hotController.state);
   return renderWorkbench({ section: state.route.section || 'market', catalog: catalog.dataCatalog, queries: workbenchQueries, artifacts: catalog.artifacts, busy: workbenchBusy, assetState, etfState });
 }
 
@@ -424,6 +428,7 @@ function render() {
   // Keep the user's own dirty DOM form through unrelated catalog renders.
   // Secrets never enter application state or a server-provided refill.
   const modelForm = root.querySelector('#settings-form[data-dirty]');
+  const dirtyHotForms=[...root.querySelectorAll('[data-hot-form][data-hot-dirty]')];
   const documentForm = root.querySelector('#document-edit-form');
   const active = document.activeElement; const focusId = active?.id;
   const selection = active && ['TEXTAREA', 'INPUT'].includes(active.tagName) && active.type !== 'password' ? { start: active.selectionStart, end: active.selectionEnd } : null;
@@ -464,13 +469,17 @@ function render() {
     freshModelForm.replaceWith(modelForm);
     syncModelForm(modelForm, { busy: state.busy });
   }
+  for(const form of dirtyHotForms){
+    const fresh=[...root.querySelectorAll('[data-hot-form]')].find(item=>item.dataset.hotFormKey===form.dataset.hotFormKey);
+    if(fresh){const blocked=form.dataset.hotForm==='filters'?hotController.state.loading:hotController.state.busy||hotController.state.pending;form.querySelectorAll('button').forEach(button=>{button.disabled=Boolean(blocked);});fresh.replaceWith(form);}
+  }
   document.querySelector('#main').scrollTop = mainScroll;
   if (focusId) {
     const replacement = document.getElementById(focusId);
     if (replacement && !replacement.disabled) { replacement.focus({ preventScroll: true }); if (selection && selection.start !== null) replacement.setSelectionRange?.(selection.start, selection.end); }
   }
   if (state.busy) root.querySelectorAll('[data-approval], [data-upload], .question-form button, #rename-form button').forEach((button) => { button.disabled = true; });
-  document.title = `${state.detail?.title || (state.route.page === 'workbench' && state.route.section === 'assets' ? '资产观察' : ({ fingpt: 'FinGPT', claw: 'Claw', workbench: '研究台', frameworks: '研究框架', history: '研究历史', skills: '能力中心', operations: '运行与用量', intel: '资讯雷达', settings: '设置' })[state.route.page])} · Research Workbench`;
+  document.title = `${state.detail?.title || (state.route.page === 'workbench' && state.route.section === 'hot' ? '热点与事件' : state.route.page === 'workbench' && state.route.section === 'assets' ? '资产观察' : ({ fingpt: 'FinGPT', claw: 'Claw', workbench: '研究台', frameworks: '研究框架', history: '研究历史', skills: '能力中心', operations: '运行与用量', intel: '研究情报', settings: '设置' })[state.route.page])} · Research Workbench`;
 }
 
 async function loadCatalog(names = defaultCatalogNames) {
@@ -1063,6 +1072,8 @@ async function loadOperations() {
 
 async function loadWorkbench() {
   const section = state.route.section || 'market';
+  if(section==='hot'){await hotController.activate(state.route);return;}
+
   if (section === 'etf-paper') {
     try {
       const [readiness, runs] = await Promise.all([api.etfReadiness(), api.etfRuns()]);
@@ -1158,6 +1169,7 @@ async function showRoute() {
   }
   quickCategory = '';
   const requestedRoute = parseRoute(location.hash);
+  if(!(requestedRoute.page==='intel'&&requestedRoute.intelTab==='hot'||requestedRoute.page==='settings'&&requestedRoute.settingsSection==='hot'))hotController.deactivate();
   if (requestedRoute.page !== 'frameworks' || requestedRoute.frameworkSlug !== state.route.frameworkSlug) {
     closeFrameworkStream(); closeFrameworkStream = () => {};
     frameworkBot = { open: false, mode: 'explain', sessionId: '', detail: null, draft: '', busy: false, error: '', errorCode: '' };
@@ -1190,6 +1202,7 @@ async function showRoute() {
       const selectedId = currentSettingsConnectionId();
       if (selectedId) await loadConnectionConfiguration(selectedId);
     }
+    if(section==='hot')await hotController.activate(state.route);
   }
   if (state.route.page === 'skills') {
     const previousKind = capabilityState.kindFilter;
@@ -1222,7 +1235,10 @@ async function showRoute() {
   if (state.route.page === 'claw' && state.route.clawView === 'skills') await loadCatalog(['capabilities', 'tools']);
   if (state.route.page === 'workbench') await loadWorkbench();
   if (state.route.page === 'operations') await loadOperations();
-  if (state.route.page === 'intel') await intelController.activate(state.route.intelTab);
+  if (state.route.page === 'intel') {
+    if (state.route.intelTab === 'hot') await hotController.activate(state.route);
+    else await intelController.activate(state.route.intelTab);
+  }
   if (ticket === pageGeneration && pendingMCPMarketTabFocus) {
     const expected = pendingMCPMarketTabFocus;
     pendingMCPMarketTabFocus = '';
@@ -1291,6 +1307,8 @@ function selectTabbit(tabId) {
 }
 
 function handleInput(event) {
+  const hotForm=event.target.closest?.('[data-hot-form]');
+  if(hotForm)hotForm.dataset.hotDirty='true';
   const draftForm = event.target.closest?.('[data-claw-draft-form]');
   if (draftForm) { clawDraftEdits.set(draftForm.dataset.clawDraftForm, captureAutomationDraftEdits(new FormData(draftForm), clawDraftEdits.get(draftForm.dataset.clawDraftForm))); return; }
   if (event.target.closest?.('[data-claw-project-create]')) { clawWorkspace.newName = event.target.value; return; }
@@ -1495,6 +1513,8 @@ root.addEventListener('change', async (event) => {
   }
   if (event.target.closest?.('.intel-page') && await intelController.handle(event)) return;
   const target = event.target;
+  if('hotMaterial' in (target.dataset||{})){hotController.selectMaterial(target.value,target.checked);return;}
+
   if (target.matches?.('[data-claw-project-select]')) {
     history.pushState(null, '', `#/claw?view=projects&project=${encodeURIComponent(target.value)}`);
     await showRoute(); return;
@@ -1633,6 +1653,7 @@ root.addEventListener('submit', async (event) => {
   }
   if (event.target.closest?.('.intel-page') && await intelController.handle(event)) return;
   event.preventDefault();
+  if(event.target.matches('[data-hot-form]')){await hotController.submit(event.target);return;}
   safeLog('document_form_dispatch', { status: event.target.id === 'document-edit-form' ? 'document' : 'other' });
   if (event.target.matches('[data-claw-project-create]')) {
     const name = String(new FormData(event.target).get('name') || '');
@@ -2025,6 +2046,8 @@ root.addEventListener('click', async (event) => {
   const recipe = event.target.closest?.('[data-research-recipe]')?.dataset.researchRecipe;
   if (recipe && researchRecipes[recipe]) { if (state.busy) return; controller.setDraft(researchRecipes[recipe] + '\n' + state.draft); render(); root.querySelector('#prompt')?.focus(); return; }
   const clickTarget = event.target;
+  const hotAction=clickTarget?.closest?.('[data-hot-action]');
+  if(hotAction?.dataset?.hotAction){await hotController.action(hotAction);return;}
   const modelAction = clickTarget?.closest?.('[data-model-clear], [data-model-test]')?.dataset;
   if (modelAction && 'modelClear' in modelAction) {
     if (!catalog.runtime?.model) { state.error = '当前模型未知，请先刷新 Runtime 状态。'; render(); return; }

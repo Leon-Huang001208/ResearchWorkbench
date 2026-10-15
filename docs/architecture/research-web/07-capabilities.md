@@ -7,6 +7,9 @@
 external_data 通过原 DataHub bridge 注册，来源目录不赋予 Skill、MCP 或深入研究准入。
 兼容模型工具流只能提供协议能力，现有精确模型验证门和锁版本日程草稿合同保留。
 
+Hot预算adapter复用public-data的私有控制读取器，调用根Hot研究账本。
+它未注册MCP/Skill工具或扩大厂商/文件权限，Store与PG仍共同核对归属。
+
 `rwb_prepare_automation` 在原生 research-tools 中注册并受最终 guard 与会话准入保护。Claw 只投影真实能力目录；日程草稿锁定选定 Skill/Workflow/报告版本，确认不发布新能力，版本失效明确拒绝。保存后默认停用，执行与投递仍由现有 Automation 管理。
 
 `rwb_prepare_automation` 在原生 research-tools 中注册并受最终 guard 与会话准入保护。Claw 只投影真实能力目录；日程支持直接 research_task，或锁定选定 Skill/Workflow/报告版本，确认不发布新能力，版本失效明确拒绝。旧目标保存默认停用；直接研究任务经明确确认卡创建并启用，创建不运行。执行与投递仍由现有 Automation 管理。
@@ -259,6 +262,13 @@ MCP 市场、MCP Runtime 与 Automation 默认启用后仍是 Tool/Workflow 内�
 ## 设置闭环阶段3：当前能力范围
 
 Metadata增加严格data_requirements：能力/dataset、硬/可选、频率、复权、历史时点、单位/币种及省略章节。仅fund-evaluation（公开NAV有限评价）、industry-research（公开快讯+可选财务）、chanlun（Wind前复权日线+独立比较回执）声明本轮合同；精确原始builtin才发布继任版本，保留历史/自定义草稿，chanlun新版本仍disabled待独立证据。旧数据依赖声明不足保留unverified，不推断注册工具代表专业数据可用。
+
+
+## Hot / 研究情报接续边界 · 2026-10-12
+
+主线Mac mini Docker基座和兼容Native保持既有运行合同。可选Hot依旧是独立Node/PostgreSQL组件，尚未认证Docker产品装配或跨模式切换；基础研究与外部资讯不依赖Hot。研究情报统一导航不授予采集或模型权限。
+
+Hot冻结简报DOCX与报告沙箱共用 `report_documents.py` 中的纯数据生成函数；模板替换、原文标识、内容哈希和来源观点分别保留，导出不创建研究/模型执行。共享生成器新增局部测试，完整报告/产品验收按接续记录报告实际状态。
 
 ## FinGPT 研究融合 · 2026-10-13
 

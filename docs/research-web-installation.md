@@ -20,6 +20,54 @@ AKShare缓存语义版本升级只失效复用，不删除历史数据；首次�
 深入研究或受验证能力准入；既有验证门保持。自动压缩使用已固定 DSH 插件，
 不改 DSH pin。安装和 Bootstrap 继续验证实际固定构建与 3081/8088/Doctor。
 
+可在完成既有Hot Node依赖安装后运行node services/hot/scripts/evaluate-corpus.ts离线复核；无新增依赖、数据库或凭据要求。该命令不证明完整安装、Docker镜像或真实模型全关系通过。
+
+事件日期可从研究情报人工纠错配置，或用已有rwb hot event-correct CHANGE.json --reason传times变更；引用当前事件材料版本/非空原文摘录，格式day=YYYY-MM-DD、instant=UTC ISO毫秒，timezone为来源IANA时区。occurred/effective两项必给，null表示未知/撤回；无需改源码、依赖或迁移。新镜像/干净Mac安装CI仍需匹配当前候选。
+
+升级来源界面后，Doctor的checks.source_catalog仅核对目录控制列权限，ready不代表模型调用或完整历史覆盖。setup_required时停止Hot并执行原setup更新权限，再启动。来源页可设置默认间隔0或60–86400秒，并显式目录接入；无新依赖/迁移。新静态模块hot-sources.mjs随现有ui包数据安装，当前候选干净Mac安装CI与新镜像仍须取得。
+
+接续旧冻结来源时，先停止Hot并运行`rwb hot setup`重授controller的sources.config列权限（schema仍20、无依赖改变），再启动。`rwb hot source-configure fed --expected-revision 4 --use-catalog --reason "恢复官方持续采集"`明确按固定DataHub目录激活；只能绑定已有同运营主体公开源，不接受URL。配置字段与旧材料保留，预算不变。普通worker没有config写权限；源码新字段尚需当前安装CI和新镜像验证。
+
+已有停止stage的pre-AES容器与已初始化model_key账本可经显式不可变镜像替换升级：严格核对旧容器归属及停止态，仅退休没有模型环境的旧四挂载容器，下一次up挂载既有只读密钥卷。普通操作不接受缺挂载；不初始化新密钥、不删除五卷、不更新prod，无新增依赖。
+
+Hot非秘密配置可指定`model.materialIds`（最多20个唯一材料UUID）进行有界处理；省略或空数组处理普通积压。先停止Hot、修改既有配置、再启动，凭据仍来自该模式的受控桥接；字段不创建预算、不提高限额、不增加依赖或迁移。重启保留未选择任务。当前真实Native组件已处理近期AI材料并生成两频道周期产物，schema20联合恢复已验证；最终完整镜像及同候选干净Mac安装仍须独立通过。
+
+Hot升级关注和周期简报需要先停止原worker，再通过既有 rwb hot setup 的迁移所有者升级schema19/20并重授最小角色权限，最后启动。公开安装依赖锁与安装入口未新增包；干净Mac安装CI须绑定最终候选。新计划保存为停用，启用为单独明确动作；默认首次时间在未来，频率/窗口/事件上限/显示时区通过页面配置。Doctor状态和周期运行记录分别核对，不用配置成功代替实际冻结简报。
+
+Hot研究页面动作只使用随现有静态UI安装的原生模块与已有API，不新增依赖或迁移。候选341000f7的Mac公开安装CI已通过；随后UI增量仍须绑定自己的检查，不能借旧CI认证新增源码。Docker组件24060ee3与最终整镜像341000f7的证据分开。
+
+可选 Hot 服务要求 Node 24.11+，Mac 安装 CI 使用与当前 Docker 镜像一致的 Node
+24.19.0，并在公开安装器运行后直接导入 Hot 的三个生产依赖、核验 Node 版本。
+该步骤不连接 PG 或模型；数据库配置、真实采集和模式切换仍须各自实机证据。
+
+Hot 的生产 Node 依赖现在由 Native 一键安装器按组件锁文件安装，使用受管 Node/npm，
+执行 `npm ci --omit=dev --ignore-scripts --no-audit --no-fund`。Docker 镜像也包含相同锁定
+依赖、Hot 源码和迁移文件；PostgreSQL 仍是显式配置的外部数据库。
+容器内 Hot 配置/运行日志写入私有数据目录的 `hot/logs/`，不写只读源码根。
+Docker 不装配 Native 模型凭据，模型不可用状态保留为 `blocked_model`。
+这些安装契约变更仍需干净 Mac 安装、真实容器运行及候选 macOS CI 分层验收。
+
+所选研究资料可随暂停的 PG 备份联合封存：`rwb hot backup --include-session <UUID>`。
+联合 `restore` 需传 `--research-data-home <全新目录>`；恢复前核验双方清单、签名与哈希，
+恢复后保持暂停，不恢复凭据或 Native 执行历史。PG 已恢复但文件复制中断时，可用
+`restore-research-snapshots` 重试同一封存档，避免再次恢复 PG。详见 Hot 组件 README。
+
+Hot/model启用后重启Web Runtime以生成本实例官方provider零重试配置；配置本身不授予
+预算。修改后实际重启与模型研究仍需验收。model-terminate现在可明确取消DB证明未发送的
+reserved预留；已发送/未知仍不退款，先停止Hot并保留相同操作UUID恢复未知管理回执。
+
+Hot流插件随已有app/runtime安装，无新包或迁移；发送需要当前价目、原授权及零重试。
+正常official默认5次重试目前被桥拒绝，专用策略装配待验。离线SDK通过不认证干净安装或Mac CI。
+
+2026-10-13 阅读界面新增本仓原生 `hot-reader.mjs/css` 静态资源，沿已有FastAPI/static与
+Web包数据路径安装，没有新增React/Tailwind运行依赖或CDN。Native/Docker的完整安装兼容性
+仍须由候选Mac Bootstrap证明；源码/隔离预览不替代干净安装。原Hot数据库未因界面迭代迁移。
+
+Hot Native 模型上下文与 Web 共用 `runtimes/research_web.json` 的固定 DSH，装配新版
+`llm-deepseek-api-key` 官方路由；旧提交与修改过的 tracked checkout 被拒绝。日期价目
+仍须当前有效并绑定已授权累计 scope。migration17 的研究预算/调用映射只在停机迁移
+后启用；当前原验收库仍 schema15/paused，新 schema 的随机测试不认证干净安装或正式研究。
+
 本轮预算适配不改变依赖、公开安装入口或固定 DSH；常规安装不初始化/激活预算。显式候选验收只接入已认证的受管 AES 模型实例，Fernet/Native 正常安装不受影响。旧政策过期，新的真实窗口需另外授权及政策复核。
 
 ETF工程模拟使用现有Pydantic/FastAPI及stdlib SQLite，无新增Python/Node产品依赖或安装参数。
@@ -188,6 +236,112 @@ macOS 公开安装、start/restart 已接入私有端点记录与成对内部 or
 fixture 证明；Windows/Linux 本轮未验收。
 
 ## 支持范围
+
+### Hot 配置与运行入口
+
+Word数据投影仅使用现有Web依赖和标准报告日志；不要求旧core配置或可写镜像项目根，
+不读取开发.env。无需为此新增依赖、修改容器权限或准备模型凭据。
+
+schema21版本升级先 `./rwb hot stop`，再 `./rwb hot setup` 更新迁移和角色授权，最后启动。
+周期简报使用一键安装中的产品Python与既有python-docx生成一次性报告，不新增依赖。
+报告原件和回执保存在同一Hot PG，重启/模式切换从既有回执恢复；缺投影条件时保持
+待处理和明确错误，不偷偷启动付费研究。旧周期无报告回执不追认新能力。
+
+本轮增加可选 Hot 的独立 PostgreSQL/Node 组件；基础 Web 仍不要求数据库。
+当前 `rwb hot` 提供非秘密配置、Native 服务生命周期、受管/外部 PG、Settings 和研究交接。
+Mac Docker Desktop 复用相同逻辑数据库与代次租约；其模型能力仍受Native凭据/平台限制，
+不能把采集健康作为模型可用。Hot Node 组件要求 Node 24.11+ 的 24 系列。
+Native 启动后由受限 worker 持续采集明确启用的公开 feed；目录含四个官方来源和默认禁用的The File；`./rwb hot sources --json`
+查询来源成功时间、错误、待解析条目和覆盖区间。采集器只跟随来源声明的同源HTTPS next链接，每轮最多三页、每页4MiB、整轮25秒。
+`collection.backfillDays`为0时不翻下一页；全部已知发布时间早于范围下界时停止继续，未知时间不推造日期。
+状态返回 `backfill: publisher_next_links`、范围和3页硬门；没有next仍是最新快照，有界补抓不表示完整历史。启用 Hot 不触发付费模型或研究。
+
+干净安装仍从本页公开setup入口执行，再用 `./rwb hot configure --file services/hot/config.example.json`
+保存非秘密配置、`./rwb hot setup` 初始化所选实例、`./rwb hot start` 启动、
+`./rwb hot doctor --json` 检查真实状态；数据库凭据仅由受控设置/凭据后端接收。
+停止不删卷，升级先停止再setup，不改旧迁移checksum。联合备份使用 `backup --include-session <UUID>`；
+恢复目标必须是新库，选定快照不恢复Native执行历史。新版PG归档标记精确inventory编码；
+旧未标记归档要求从保留原库重新backup，不能改manifest绕过，旧文件及卷均保留。
+
+以下追加的阶段说明保留各阶段验收边界；例如“当时未产出报告”不是当前最终状态。
+当前真实报告已验证、执行因预算结束，交付状态与执行状态分开；模型验收scope已达20次上限，
+不得因刷新/安装/恢复再发付费请求。Mac干净安装与Docker实际能力以候选SHA的独立回执为准，
+Linux/Windows产品验收由对应真机接手。
+
+来源配置无需修改代码。先用 `sources --json` 取得当前 `config_revision`，然后执行：
+
+```bash
+./rwb hot source-configure fed --expected-revision 0 --disable --json
+./rwb hot source-configure fed --expected-revision 1 --enable --frequency-seconds 600 --json
+```
+
+上面的 revision 仅为示例，应使用实际列表值。频率允许 60–86400 秒；0 恢复全局默认值。
+修改立即写入 PG 的不可变审计并保存新版本，服务重启保留配置；暂停不会删除原文或待解析材料。
+读取密钥不能执行修改。若返回 `outcome_unknown`，保留返回的 `requestId`，
+用 `--request-id <同一个ID>` 和完全相同参数重试；不同参数会拒绝复用。版本冲突时先刷新来源。
+
+事件与频道也有 Native CLI 入口（Hot 服务须已启动）：
+
+```bash
+./rwb hot channels --json
+./rwb hot events --channel macro --sort importance --json
+./rwb hot event <事件ID> --json
+./rwb hot channel-configure gold --expected-version 0 --file services/hot/channels.example.json --json
+./rwb hot event-correct --file correction.json --reason "核对原文后修正" --json
+```
+
+频道文件支持单个配置对象或示例中的 version-1 频道集合；命令选择对应频道。新增频道使用
+version 0，已有频道使用实际返回的版本。纠错文件含操作 type、事件 id、expected revision，
+合并/重新归属还含目标版本；完整合同见 `services/hot/README.md`。它们不接收秘密。
+分页应保留第一次返回的 cutoff，再传 --offset 或 --report-offset。读取不启动模型/采集；
+修改只用控制凭据并保存审计。超时/不可信或不完整回执返回 outcome_unknown、原 UUID 与
+非零退出码，使用 --request-id 和原参数重放。Web Settings/页面挂载仍待实现。
+Hot页面现提供 `#/workbench/hot` 和 `#/settings/hot`，后者编辑非秘密配置并显式启停已有服务。
+首次依赖/数据库准备仍走上述CLI；浏览器读写不安装依赖、不接收数据库密码。Host有界惰性
+桥不会在Web启动时启动Hot或查询其秘密。当前浏览器只验证未配置状态/设置可访问；真实事件
+浏览、正常模型激活、完整研究、干净安装与同提交Mac CI仍须单独验证。
+
+```bash
+./rwb hot --help
+./rwb hot status --json
+./rwb hot doctor --json
+./rwb hot configure --file services/hot/config.example.json --json
+```
+
+配置保存于产品数据根的 `hot/settings.json`；示例默认关闭、预算为零，不接收密码或 DSN。
+`--data-home` 可指定隔离验证数据根，必须使用无 alias 的规范路径。状态/Doctor 不创建目录、
+不触发采集或模型；未启动时不查询凭据，已启动时通过系统凭据库和签名协议查询实时状态。
+数据库和模型未验证时保留 `NOT_RUN`。示例默认关闭，启用前在配置文件设置 `enabled: true`。
+基础 Native 安装完成后，可在终端执行下列命令；`setup` 按锁文件安装项目内 Node 依赖，
+受管模式拉取固定 PG 17 镜像、创建独立卷和受限角色，生成凭据保存于系统凭据库。
+
+```bash
+./rwb hot setup --json
+./rwb hot start --json
+./rwb hot status --json
+./rwb hot restart --json
+./rwb hot stop --json
+```
+
+`stop` 只停止经身份核对的 Hot Node 进程，不删除卷，也不停止数据库。受管数据库停止后，
+`start` 会核对镜像、实例标签、数据卷和回环绑定，再恢复它。控制日志在 `logs/hot/`。
+外部模式先由数据库管理员准备不同的 worker/controller/migration 角色，再在交互终端
+分别执行 `./rwb hot credential worker`、`./rwb hot credential controller` 和
+`./rwb hot credential migration`。默认迁移秘密引用为 `hot-migration-database`，
+用 `setup --migration-user <角色>` 指定迁移账号。外部数据库只处理明确指定 schema；
+Native 可执行 `./rwb hot stop --json` 后执行 `./rwb hot backup --json`，在配置的
+`retention.backupDirectory` 下生成新目录。恢复命令为
+`./rwb hot restore --from <备份目录> --target-database <不同的目标库> --json`。
+目标 schema 必须不存在；不会删除或覆盖原库。恢复校验 SHA-256、签名及全表内容，
+保持运行和来源暂停；随后通过配置文件将 `database.name` 指向返回目标库再启动。
+受管模式使用镜像内 PG17 工具；外部模式需已安装 PG17 的 `pg_dump/pg_restore`，不会自动安装。
+当前归档上限 256 MiB；超限明确失败，研究快照尚未纳入。`archive-attempt.json` 保存归档状态，
+未知结果禁止重复执行，自动核验/解除路径待实现。完整安装 CI 仍待完成。
+当前进程与 PG 验证使用隔离凭据 backend；
+系统 Keychain 持久化尚未实测，详见任务报告。
+
+内部服务使用仅绑定 `127.0.0.1` 的签名协议，校验实例、模式、代次和操作权限，消息不携带
+原始控制 key，响应也验证签名。它不暴露 SQL、路径或凭据管理给浏览器或模型。
 
 当前是本地 Web 产品，支持 Native 与 Docker 两条安装路径；不安装 Tauri、桌面 sidecar、数据库或桌面安装包。两种模式使用同一源码、`runtimes/research_web.json`、Web 依赖锁、固定 DSH 与顺序共享的产品数据目录。前置条件按模式区分：
 
@@ -519,6 +673,22 @@ Docker Engine 可只在 `HostConfig.Tmpfs` 中表示 tmpfs，不将它们列入 
 
 macOS Docker 停止后回环端口的非监听绑定保留可能延迟释放；默认最多等待120秒，其余宿主默认10秒，显式等待参数保持。仍必须实际释放IPv4/IPv6绑定，超时失败关闭；不使用SO_REUSEADDR或只做连接探测来绕过占用。具体内核延迟原因未独立证实。
 
+Hot 模型默认关闭；现有 Native 启动桥可按 model.enabled/scopeId 装配固定 DSH 文本能力，只有指定 schema 的既有预算授权、每日限额、当日定价和受控凭据都就绪才激活。配置并不授予付费额度。缺条件时模型 blocked_model，公开来源和读取继续可用。创建新授权范围及当日定价刷新的一键流程、授权 worker 的干净安装验收仍待补齐；现有 Web Node22 CI 不能替代 Hot Node24 安装验证。
+
+应用升级到包含迁移14的版本后，先停止 Hot 并运行 rwb hot setup，再用 model-authorize 明确付费授权；配置本身不创建额度。model-attempts 可用普通角色读取额度/尝试，model-terminate 保留未知预留，未确认的操作阻止启动。受管冷库仅由明确管理操作验证后恢复；只读查询不启动数据库。定价刷新入口和授权 worker 干净安装仍待验收。
+
+当日费率可通过 model-pricing-import --file pricing.json --verify-official-pricing --reason "已核对官方峰值费率" 配置，无须改源码；停止Hot、用户核对官方页面后导入并重启。默认不自动下载或确认价格；同值重放补验耐久性，非零 durability unavailable 不代表当前文件未可见。
+
+实际两事件浏览器验收通过已有开发环境和隔离凭据/离线研究客户端，不能代替干净安装或系统凭据完整链路；所有安装/正式模型/研究门仍以支持矩阵和任务证据为准。
+
+Hot简报冻结核心不引入新依赖或schema迁移；只读取得截止时点版本并内部导出Markdown。当前没有公开简报命令或DOCX安装能力，干净安装及定时/研究链路仍按原验收计划保持待验证。
+
+Hot迁移15增加持久简报版本与请求审计；升级时先停止Hot并执行既有setup，再启动。版本数据随Hot数据库归档，既有预算不重置；当前公共简报命令、网页生成、DOCX和研究快照联合恢复仍未提供。
+
+迁移15之后可从Web事件详情生成简报，在简报页预览并下载固定版本Markdown。沿既有Web依赖与HotNode，不新增包；RWB_HOT_TEST_PYTHON仅测试夹具选用已安装Web解释器，不是产品配置。当前干净Mac安装、DOCX、真实模型worker及研究联合恢复仍按原计划待验收。
+
+原验收库已由停机fixture迁移至15，实际浏览器完成AI/宏观简报与固定版本Markdown。该夹具保留原实例/预算账本，modeldisabled且研究offline；角色收尾独立于恢复审计。此证据不替代干净安装、正常Keychain生命周期、DOCX或正式研究。
+
 ## 可选 Office 自动验证
 
 安装/启动成功不代表 Office 可调用。默认不开启真实验证；在设置 → 本机集成一次开启所属实例的Word、Excel、PowerPoint自动验证，或逐项开启/关闭。会创建、保存、重开并清理登记的测试文稿，保留验证记录（沙箱文件经归档后精确删除，合成副本由私有run目录按原容量/期限保留），可能出现系统提示；提示只能人工处理。有效24小时证据复用，失败不自动重试，关闭后不再启动，冷启动不重放旧任务。Wind最多5分钟，厂商调用不在此开关内。
@@ -526,6 +696,25 @@ macOS Docker 停止后回环端口的非监听绑定保留可能延迟释放；�
 `rwb web doctor --json`的office_auto_verification仅显示所属实例开关/未知状态、应用范围、人工提示与关闭位置，不发起真实操作，不影响主体安装就绪。未知、未发现、失效及不适用不会提升为可调用或一概归为系统故障。本轮不改安装依赖或一键启动逻辑。
 
 2026-10-09追加授权收口：Office成功且关闭确认后，仅归档登记的合成文稿到既有私有验证run目录，再清理沙箱副本；成功marker移除，仍沿原16项/512MiB/24小时有界保留策略回收，不新增执行器或任意路径接口。Office开启改用页内说明、确认/取消按钮，系统权限弹窗仍由人工处理。
+
+
+Hot原件冻结新增同包读取方法，不增加产品依赖或数据库迁移（仍schema15）。Node仍要求24系列，原Web干净安装/Hot Node装配问题未因此解决；必须按Hot安装入口和同候选Mac CI继续验收。冻结原件与DOCX内核成功不证明干净安装、实际凭据或Docker产品可用。
+
+
+包含schema16的Hot版本需在停止Hot后通过同一rwb hot setup迁移并重新核对角色授予；不得修改旧迁移checksum或删除数据卷。新迁移追加研究固定输入、映射与审计，不迁移其他RWB业务。当前快照/故障注入成功不替代干净安装及同候选Mac CI，付费DSH执行仍未由本轮认证。
+
+schema17的研究模型私有RPC桥不新增依赖或迁移；它继续要求既有Hot Node24、当前Native价目
+及原预算授权。只有完整流回执/缓存返回允许2MiB签名帧，普通请求保留原上限。DSH流消费者
+尚未装配，因此该桥的本机PG回归不替代干净安装、Mac CI或正式研究产物验收。
+
+
+2026-10-13续跑：停机执行 `rwb hot setup` 追加migration18后，可用 `model-amend-tokens` 明确提高已有scope的累计/单日token限额。原计费历史及次数/费用上限保持；另把本实例budget.maxTokensPerDay设为批准值。无新增依赖。原验收库现schema18；研究已真实调用但未生成报告，干净安装CI仍待执行。
+
+Hot冻结FinGPT的research-hot-frozen声明随现有runtime YAML包数据安装，无新依赖；
+仍需候选Mac Bootstrap干净安装验证。普通研究/Claw不换preset，已存在Hot会话保持其原组合。
+
+
+Hot报告列表/显式核对/Word下载复用现有app与python-docx，无新依赖。模型预算不变；源码本地回归和隔离浏览器不替代候选Mac干净安装CI。
 
 AES 载入进一步认证全部既有模型记录；错误密文树/实例绑定明确拒绝，安装依赖和正确旧记录格式不变，不自动转换或生成替代主密钥。
 

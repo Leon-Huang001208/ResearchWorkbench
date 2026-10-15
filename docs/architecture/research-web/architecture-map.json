@@ -15,7 +15,6 @@
         "app/research_web/control_origin.py",
         "app/research_web/lifecycle_lock.py",
         "research_workbench_entrypoint/docker_runtime.py",
-        "research_workbench_entrypoint/docker_resources.py",
         "research_workbench_entrypoint/bootstrap.py",
         "app/research_web/runtime_contract.py",
         "app/research_web/process_spec.py",
@@ -41,7 +40,11 @@
         "Dockerfile",
         "compose.yaml",
         ".dockerignore",
-        "research_workbench_entrypoint/platform_capabilities.py"
+        "research_workbench_entrypoint/platform_capabilities.py",
+        "research_workbench_entrypoint/hot.py",
+        "research_workbench_entrypoint/hot_manager.py",
+        "research_workbench_entrypoint/hot_postgres.py",
+        "research_workbench_entrypoint/docker_resources.py"
       ],
       "documents": [
         "docs/research-web-installation.md",
@@ -61,8 +64,6 @@
         "tests/research_web/test_runtime_endpoints.py",
         "tests/research_web/test_control_origin.py",
         "tests/research_web/test_docker_runtime.py",
-        "tests/research_web/test_docker_resources.py",
-        "tests/research_web/test_docker_resources_live.py",
         "tests/research_web/test_setup_web.py",
         "tests/research_web/test_docker_packaging.py",
         "tests/research_web/test_docker_manager.py",
@@ -70,7 +71,12 @@
         "tests/research_web/test_staged_runtime.py",
         "tests/research_web/test_credential_backend.py",
         "tests/javascript/docker_runtime_contract.test.mjs",
-        "tests/research_web/test_platform_capabilities.py"
+        "tests/research_web/test_platform_capabilities.py",
+        "tests/research_web/test_hot_entrypoint.py",
+        "tests/research_web/test_hot_manager.py",
+        "tests/research_web/test_hot_research_evidence.py",
+        "tests/research_web/test_docker_resources.py",
+        "tests/research_web/test_docker_resources_live.py"
       ]
     },
     {
@@ -112,6 +118,8 @@
         "tests/e2e/research_web_mcp_marketplace.mjs",
         "tests/e2e/research_web_mcp_runtime.mjs",
         "tests/javascript/research_web_intel.test.mjs",
+        "tests/javascript/research_web_hot.test.mjs",
+        "tests/javascript/research_web_hot_reader.test.mjs",
         "tests/javascript/research_web_claw_workspace.test.mjs"
       ]
     },
@@ -143,7 +151,8 @@
         "01-deployment",
         "02-module-dependencies",
         "03-research-sequence",
-        "06-run-state"
+        "06-run-state",
+        "11-hot-events"
       ],
       "tests": [
         "tests/research_web/test_api.py",
@@ -159,6 +168,7 @@
         "tests/research_web/test_cli_lazy.py",
         "tests/research_web/test_model_connections.py",
         "tests/research_web/test_intel.py",
+        "tests/research_web/test_hot_session_recovery.py",
         "tests/research_web/test_claw_projects.py"
       ]
     },
@@ -200,17 +210,20 @@
       "diagrams": [
         "02-module-dependencies",
         "03-research-sequence",
-        "04-data-file-flow"
+        "04-data-file-flow",
+        "11-hot-events"
       ],
       "tests": [
         "tests/research_web/test_datahub.py",
         "tests/research_web/test_datahub_catalog.py",
         "tests/research_web/test_external_sources.py",
+        "services/hot/tests/collection.integration.ts",
         "tests/research_web/test_integration_coordinator.py",
         "tests/research_web/test_mysql_configuration.py",
         "tests/research_web/test_mysql_provider.py",
         "tests/javascript/research_web_capabilities_ui.test.mjs",
-        "tests/javascript/research_web_public_data.test.mjs"
+        "tests/javascript/research_web_public_data.test.mjs",
+        "tests/research_web/test_hot_snapshot_publication.py"
       ]
     },
     {
@@ -376,7 +389,8 @@
         "app/research_web/office-template.pptx",
         "app/research_web/report_routes.py",
         "app/research_web/report_studio.py",
-        "app/research_web/ui/report-workflows.mjs"
+        "app/research_web/ui/report-workflows.mjs",
+        "app/research_web/report_documents.py"
       ],
       "documents": [
         "docs/research-web-ui.md",
@@ -589,6 +603,52 @@
       "tests": [
         "tests/research_web/test_frameworks.py",
         "tests/research_web/test_integration_coordinator.py"
+      ]
+    },
+    {
+      "id": "hot",
+      "sources": [
+        "app/research_web/hot_routes.py",
+        "app/research_web/hot_service.py",
+        "services/hot/",
+        "app/research_web/hot_documents.py",
+        "app/research_web/hot_handoff.py",
+        "app/research_web/hot_results.py",
+        "research_workbench_entrypoint/hot_joint_archive.py",
+        "app/research_web/hot_periodic_report.py"
+      ],
+      "documents": [
+        "services/hot/README.md",
+        "docs/research-web-ui.md",
+        "docs/architecture/research-web/03-data-files.md",
+        "docs/research-web-installation.md",
+        "docs/architecture/research-web/05-security-validation.md"
+      ],
+      "diagrams": [
+        "01-deployment",
+        "02-module-dependencies",
+        "11-hot-events"
+      ],
+      "tests": [
+        "tests/research_web/test_hot_web.py",
+        "services/hot/tests/event-rpc.integration.ts",
+        "tests/javascript/research_web_hot.test.mjs",
+        "tests/research_web/test_hot_documents.py",
+        "services/hot/tests/research-evidence.test.ts",
+        "services/hot/tests/research-evidence.integration.ts",
+        "services/hot/tests/research-run.test.ts",
+        "services/hot/tests/research-model-rpc.test.ts",
+        "tests/research_web/test_hot_model_bridge.py",
+        "tests/research_web/test_hot_execution.py",
+        "tests/research_web/test_hot_retry_policy.py",
+        "tests/javascript/research_web_hot_model_stream.test.mjs",
+        "services/hot/tests/native-research-stream.integration.mjs",
+        "services/hot/tests/transport.test.ts",
+        "services/hot/tests/native-dsh.integration.ts",
+        "services/hot/tests/model-budget.integration.ts",
+        "services/hot/tests/pricing.test.ts",
+        "tests/research_web/test_hot_results.py",
+        "tests/research_web/test_hot_joint_archive.py"
       ]
     }
   ],
@@ -865,6 +925,13 @@
             "automationApi"
           ],
           "source": "app/research_web/automation/routes.py"
+        },
+        {
+          "subjects": [
+            "hotSubsystem",
+            "hotBridge"
+          ],
+          "source": "app/research_web/hot_service.py"
         }
       ],
       "level": "subsystems",
@@ -972,6 +1039,20 @@
             "dockerCredential"
           ],
           "source": "compose.yaml"
+        },
+        {
+          "subjects": [
+            "hotNode",
+            "hotSigned"
+          ],
+          "source": "app/research_web/hot_service.py"
+        },
+        {
+          "subjects": [
+            "hotPg",
+            "hotPersistence"
+          ],
+          "source": "services/hot/src/database.ts"
         }
       ],
       "level": "deployment",
@@ -1519,6 +1600,77 @@
       ],
       "level": "details",
       "summary": "源码、图文、测试和离线门禁。"
+    },
+    {
+      "id": "11-hot-events",
+      "source": "docs/architecture/research-web/diagrams/11-hot-events.json",
+      "artifact": "outputs/research-web-architecture/11-hot-events.html",
+      "receipt": "outputs/research-web-architecture/11-hot-events.receipt.json",
+      "visualReceipt": "outputs/research-web-architecture/11-hot-events.visual-check.json",
+      "level": "subsystems",
+      "summary": "Hot共享原文与唯一PG队列、签名Host桥、独立停机模型管理及待实现研究交接。",
+      "evidence": [
+        {
+          "subjects": [
+            "hotUi",
+            "hotHttp"
+          ],
+          "source": "app/research_web/ui/hot-workspace.mjs"
+        },
+        {
+          "subjects": [
+            "hotHost",
+            "hotPrivate"
+          ],
+          "source": "app/research_web/hot_service.py"
+        },
+        {
+          "subjects": [
+            "hotWorker",
+            "hotSql"
+          ],
+          "source": "services/hot/src/service.ts"
+        },
+        {
+          "subjects": [
+            "hotDatabase"
+          ],
+          "source": "services/hot/src/database.ts"
+        },
+        {
+          "subjects": [
+            "publicFeeds",
+            "hotFetch"
+          ],
+          "source": "services/hot/src/collection.ts"
+        },
+        {
+          "subjects": [
+            "modelAcceptance",
+            "hotModel"
+          ],
+          "source": "services/hot/src/native-model.ts"
+        },
+        {
+          "subjects": [
+            "futureResearch",
+            "hotHandoffPending"
+          ],
+          "source": ".ai/reports/2026-10-07-hot-events-PLAN.md"
+        },
+        {
+          "subjects": [
+            "modelAdmin"
+          ],
+          "source": "research_workbench_entrypoint/hot_model_controls.py"
+        },
+        {
+          "subjects": [
+            "modelAdminDb"
+          ],
+          "source": "services/hot/scripts/model-control.ts"
+        }
+      ]
     }
   ],
   "apis": [
@@ -3047,6 +3199,230 @@
       "source": "app/research_web/main.py",
       "declaredPath": "/api/research/workspaces",
       "prefix": ""
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/hot/research-runs/{run_id}/execute",
+      "source": "app/research_web/hot_routes.py",
+      "declaredPath": "/research-runs/{run_id}/execute",
+      "prefix": "/api/research/hot"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/internal/data/hot-model",
+      "source": "app/research_web/hot_routes.py",
+      "declaredPath": "/hot-model",
+      "prefix": "/api/research/internal/data"
+    },
+    {
+      "source": "app/research_web/hot_routes.py",
+      "method": "GET",
+      "path": "/api/research/hot/status",
+      "declaredPath": "/status",
+      "prefix": "/api/research/hot"
+    },
+    {
+      "source": "app/research_web/hot_routes.py",
+      "method": "GET",
+      "path": "/api/research/hot/configuration",
+      "declaredPath": "/configuration",
+      "prefix": "/api/research/hot"
+    },
+    {
+      "source": "app/research_web/hot_routes.py",
+      "method": "PUT",
+      "path": "/api/research/hot/configuration",
+      "declaredPath": "/configuration",
+      "prefix": "/api/research/hot"
+    },
+    {
+      "source": "app/research_web/hot_routes.py",
+      "method": "POST",
+      "path": "/api/research/hot/lifecycle",
+      "declaredPath": "/lifecycle",
+      "prefix": "/api/research/hot"
+    },
+    {
+      "source": "app/research_web/hot_routes.py",
+      "method": "GET",
+      "path": "/api/research/hot/channels",
+      "declaredPath": "/channels",
+      "prefix": "/api/research/hot"
+    },
+    {
+      "source": "app/research_web/hot_routes.py",
+      "method": "GET",
+      "path": "/api/research/hot/events",
+      "declaredPath": "/events",
+      "prefix": "/api/research/hot"
+    },
+    {
+      "source": "app/research_web/hot_routes.py",
+      "method": "GET",
+      "path": "/api/research/hot/events/{event_id}",
+      "declaredPath": "/events/{event_id}",
+      "prefix": "/api/research/hot"
+    },
+    {
+      "source": "app/research_web/hot_routes.py",
+      "method": "GET",
+      "path": "/api/research/hot/sources",
+      "declaredPath": "/sources",
+      "prefix": "/api/research/hot"
+    },
+    {
+      "source": "app/research_web/hot_routes.py",
+      "method": "GET",
+      "path": "/api/research/hot/briefs",
+      "declaredPath": "/briefs",
+      "prefix": "/api/research/hot"
+    },
+    {
+      "source": "app/research_web/hot_routes.py",
+      "method": "POST",
+      "path": "/api/research/hot/briefs",
+      "declaredPath": "/briefs",
+      "prefix": "/api/research/hot"
+    },
+    {
+      "source": "app/research_web/hot_routes.py",
+      "method": "GET",
+      "path": "/api/research/hot/briefs/{brief_id}",
+      "declaredPath": "/briefs/{brief_id}",
+      "prefix": "/api/research/hot"
+    },
+    {
+      "source": "app/research_web/hot_routes.py",
+      "method": "GET",
+      "path": "/api/research/hot/briefs/{brief_id}/markdown",
+      "declaredPath": "/briefs/{brief_id}/markdown",
+      "prefix": "/api/research/hot"
+    },
+    {
+      "source": "app/research_web/hot_routes.py",
+      "method": "POST",
+      "path": "/api/research/hot/channels/configure",
+      "declaredPath": "/channels/configure",
+      "prefix": "/api/research/hot"
+    },
+    {
+      "source": "app/research_web/hot_routes.py",
+      "method": "POST",
+      "path": "/api/research/hot/events/correct",
+      "declaredPath": "/events/correct",
+      "prefix": "/api/research/hot"
+    },
+    {
+      "source": "app/research_web/hot_routes.py",
+      "method": "POST",
+      "path": "/api/research/hot/sources/configure",
+      "declaredPath": "/sources/configure",
+      "prefix": "/api/research/hot"
+    },
+    {
+      "source": "app/research_web/hot_routes.py",
+      "method": "GET",
+      "path": "/api/research/hot/briefs/{brief_id}/docx",
+      "declaredPath": "/briefs/{brief_id}/docx",
+      "prefix": "/api/research/hot"
+    },
+    {
+      "source": "app/research_web/hot_routes.py",
+      "method": "POST",
+      "path": "/api/research/hot/research/handoffs",
+      "declaredPath": "/research/handoffs",
+      "prefix": "/api/research/hot"
+    },
+    {
+      "source": "app/research_web/hot_routes.py",
+      "method": "GET",
+      "path": "/api/research/hot/research/runs/{run_id}",
+      "declaredPath": "/research/runs/{run_id}",
+      "prefix": "/api/research/hot"
+    },
+    {
+      "source": "app/research_web/hot_routes.py",
+      "method": "GET",
+      "path": "/api/research/hot/research/runs",
+      "declaredPath": "/research/runs",
+      "prefix": "/api/research/hot"
+    },
+    {
+      "source": "app/research_web/hot_routes.py",
+      "method": "POST",
+      "path": "/api/research/hot/research/runs/{run_id}/refresh",
+      "declaredPath": "/research/runs/{run_id}/refresh",
+      "prefix": "/api/research/hot"
+    },
+    {
+      "source": "app/research_web/hot_routes.py",
+      "method": "GET",
+      "path": "/api/research/hot/research/runs/{run_id}/docx",
+      "declaredPath": "/research/runs/{run_id}/docx",
+      "prefix": "/api/research/hot"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/hot/follows",
+      "source": "app/research_web/hot_routes.py",
+      "declaredPath": "/follows",
+      "prefix": "/api/research/hot"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/hot/follows/configure",
+      "source": "app/research_web/hot_routes.py",
+      "declaredPath": "/follows/configure",
+      "prefix": "/api/research/hot"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/hot/brief-plans",
+      "source": "app/research_web/hot_routes.py",
+      "declaredPath": "/brief-plans",
+      "prefix": "/api/research/hot"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/hot/brief-plans/{plan_id}/runs",
+      "source": "app/research_web/hot_routes.py",
+      "declaredPath": "/brief-plans/{plan_id}/runs",
+      "prefix": "/api/research/hot"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/hot/brief-plans/configure",
+      "source": "app/research_web/hot_routes.py",
+      "declaredPath": "/brief-plans/configure",
+      "prefix": "/api/research/hot"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/automations/hot-brief-plans",
+      "source": "app/research_web/automation/routes.py",
+      "declaredPath": "/automations/hot-brief-plans",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/automations/hot-brief-plans/{plan_id}/runs",
+      "source": "app/research_web/automation/routes.py",
+      "declaredPath": "/automations/hot-brief-plans/{plan_id}/runs",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/automations/hot-brief-plans/configure",
+      "source": "app/research_web/automation/routes.py",
+      "declaredPath": "/automations/hot-brief-plans/configure",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/hot/periodic/runs/{run_id}/report",
+      "source": "app/research_web/hot_routes.py",
+      "declaredPath": "/periodic/runs/{run_id}/report",
+      "prefix": "/api/research/hot"
     }
   ],
   "visualReview": "docs/architecture/research-web/visual-review.json",
@@ -3249,6 +3625,18 @@
         "title": "接口与安全契约",
         "summary": "对外路由、协调与授权文件有额外的精确协议/安全说明义务，采集叶节点保持窄范围。",
         "category": "研究会话与 Runtime"
+      },
+      {
+        "id": "hot",
+        "title": "热点与事件",
+        "group": "hot",
+        "summary": "可选Hot服务、共享原文和事件、频道规则与条件纠错；正式研究交接仍待实现。",
+        "category": "热点与事件",
+        "diagrams": [
+          "11-hot-events",
+          "01-deployment",
+          "02-module-dependencies"
+        ]
       }
     ],
     "generator": {

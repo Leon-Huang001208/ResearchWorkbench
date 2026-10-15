@@ -1,5 +1,9 @@
 # Research Web 接口清单
 
+`GET /api/research/hot/periodic/runs/{run_id}/report`下载PG中已保存的一次性Word子执行。
+固定run ID沿reader签名分块读取，Host核对完整hash/长度/身份；GET不渲染、不启动研究，
+响应带X-Hot-Execution-Id、X-Hot-Content-Hash和X-Hot-Artifact-Hash。
+
 DataHub无可调用来源仍返回400，但稳定error.code为data_source_unavailable；
 不等价AKShare查询为data_not_equivalent，旧授权摘要缓存为data_cache_authorization_changed。
 Runtime仅传播受限code，不传播错误message/原始上游数据。GET会话活动会把DataHub failed结果
@@ -10,6 +14,34 @@ source=auto 只读取外部总目录，具名查询使用登记端点且禁止�
 连接 API 同步四类外部来源凭据，HTTP认证返回 credential_transport_blocked。
 会话详情的 assistant 消息可增加 reasoning，活动可增加原生 seq；原有计划、来源、报告字段保留。
 写请求前端超时表示结果未确认，不改变 API 幂等键或后台任务的实际状态。
+
+离线真实样本检查无HTTP接口或写操作；只通过显式Node命令读取版本化artifact。页面刷新/模型路由/预算授权合同保持。输出NOT_RUN关系与候选上下文重叠，不把评价状态映射为产品ready。
+
+现有events/correct的change可为type=times，除id/expected外必须同时给occurred/effective nullable严格日期主张；没有新endpoint。Manager核对manual.times、完整dateEvidence及两个值，不匹配保留原UUID。Node稳定time_invalid/time_evidence_invalid拒绝非法日期或未关联/不匹配原文；读取详情携带dateEvidence。
+
+Hot status增加backfill=publisher_next_links、backfillDays及maxPages=3；来源覆盖沿已有raw_page的partial/gap投影。没有新增公开写接口或自定义URL输入。
+
+来源GET新增collection_state、catalog_activation_allowed/code及adapter/catalog_id；status新增sourceControl.catalogActivation权限诊断。字段缺失不能推断ready。POST目录激活新增稳定hot_source_catalog_permission_missing错误，读路径不授予控制权限，旧URI/参数/UUID合同保持。
+
+POST `/api/research/hot/sources/configure`可显式带严格bool useCatalog=true及1–1000字符非空reason，沿同源/user-action/UUID和expectedRevision合同激活固定目录源。旧调用省略新字段保持原参数及重放哈希。reason不能单独提交；缺动作403、非法字段/URL400，旧owner/运营主体冲突拒绝。成功含catalogActivation审计指纹；不增加付费许可。
+
+`/api/research/automations/hot-brief-plans`三个管理aliases不受旧`RESEARCH_AUTOMATIONS_ENABLED`控制，直接使用Hot列表、运行读取、条件配置合同；缺显式动作403、非法输入400、Hot不可用503保持。旧`/automations`与投递接口仍沿原开关拒绝，路径/参数和公开符号未变化。
+
+关注入口为GET /api/research/hot/follows及POST /api/research/hot/follows/configure。周期计划为GET /api/research/hot/brief-plans、GET /api/research/hot/brief-plans/{plan_id}/runs、POST /api/research/hot/brief-plans/configure；Automation路径 /api/research/automations/hot-brief-plans 提供相同list/configure/runs适配。GET只读；POST沿同源、明确动作、64KiB body、严格版本/布尔类型和UUID重放合同。新计划必须停用创建，再显式启用。
+
+新增POST `/api/research/hot/research-runs/{run_id}/execute`，要求同源明确用户动作，
+JSON question及md/docx formats；复用准备好的根会话和快照。deliveryKey不可绑定另一问题。
+executionStarted为true/false/null，分别表示已受理、确定未提交、证据不明；不以受理证明报告完成。
+
+新增POST `/api/research/internal/data/hot-model`，只接受既有DataHub私有key和owned Runtime。
+operation为binding/reserve/dispatch/unknown/cancel/receipt；根session/run/instance/manifest
+同时核对Store和PG。请求/返回有界，browser user-action不能授权预算票据。
+
+Hot接口统一在 `/api/research/hot`：status/configuration/channels/events/events/{id}/sources只读，
+PUT configuration及POST lifecycle/channels/configure/events/correct/sources/configure为明确操作。
+后者要求同源、X-Research-User-Action、JSON <=64KiB；条件配置/纠错有规范UUID。查询字段沿用
+受控投影合同，未知字段拒绝。版本/参数冲突409、未授权403、格式400、过大413、服务故障503。
+Host桥有界，业务写入未知时返回原UUID；声明来自实际源码清单，不能推导研究交接已实现。
 
 文本验收预算没有新增公开 HTTP API；只通过显式 launcher 控制和内部 Linux Python stdio RPC 读取/扣票。stdin 仅操作与输出上限，不包含 prompt 或 Key；固定错误码区分过期、耗尽、不确定提交。
 
@@ -420,6 +452,19 @@ GET `/api/research/local-integrations`附带`integration_status`，其中`scope=
 | `/news`、`/announcements` | `/news`、`/announcements` | code 必须为六位数字 |
 
 参数不合法返回 422；上游内容不存在返回 404；连接、状态、格式异常返回 502；超时返回 504。错误响应 `detail` 包含固定 `code/message`，不暴露上游正文。无任意 URL、POST、模型调用或采集触发入口。事件概率不提供数据接口。
+
+
+## 研究情报统一入口 · 2026-10-12
+
+主导航统一为“研究情报”，本地热点与事件在 `#/intel/hot`，现有外部8栏目仍在 `#/intel/*`。旧 `#/workbench/hot` 链接保留视图/事件参数后转入本地页。两类页面共用栏目导航、主题与Host；本地版本证据和Golddata外部只读数据保持身份与覆盖来源区分，外部读取不写Hot、领取任务或调用模型。Hot未启用时，外部栏目与设置继续可用。
+
+恢复的DOCX切片通过 `GET /api/research/hot/briefs/{brief_id}/docx?version=<固定版本>` 从签名/哈希核对的冻结输入生成并保留私有产物，复用报告DOCX生成器；导出不创建会话、不调用模型、不外发。该路径尚需完整产品/恢复验收，局部测试不代表研究闭环完成。
+
+
+`POST /api/research/hot/research/handoffs`要求同源、显式动作和有界JSON，字段为runId/requestId/briefId/正version/materialIds(1–20)/targetMode(fingpt|claw)。相同固定请求准备同一目标会话和快照，返回snapshot_ready与研究草稿；不提交付费研究。`GET /api/research/hot/research/runs/{run_id}`只读映射与真实状态，不创建或执行任务。未知会话创建与未知研究执行分别保留状态。
+
+
+2026-10-13续跑：新增Native管理CLI model-amend-tokens（scope、max-tokens、daily-max-tokens、authorize-paid、reason、可复用request-id），通过既有私有stdin管理进程；不新增浏览器付费管理API。
 
 ## 历史子会话模式兼容 · 2026-10-13
 

@@ -620,6 +620,34 @@ def live_acceptance_control(
     return {"modelCalls": value["modelCalls"], "tool": value["tool"]}
 
 
+def hot_zero_retry(data: Path, project: Path | None = None) -> bool:
+    """Read a private local model-enable intent; never authorizes calls or loads Node."""
+    from research_workbench_entrypoint.hot import HotError, _read
+
+    file = data / "hot/settings.json"
+    try:
+        if not file.exists():
+            return False
+        value = _read(file, private=True)
+        expected = (project or Path(__file__).resolve().parents[2]).resolve()
+        if value.get("schemaVersion") != 1 or value.get("projectRoot") != str(expected):
+            raise ValueError()
+        config = value["config"]
+        model = config.get("model", {})
+        if not isinstance(config, dict) or not isinstance(model, dict):
+            raise TypeError()
+        enabled, paid = config.get("enabled", False), model.get("enabled", False)
+        if type(enabled) is not bool or type(paid) is not bool:
+            raise ValueError()
+        active = enabled and paid
+        if active:
+            log.info("hot_research_zero_retry_enabled")
+        return active
+    except (HotError, OSError, ValueError, KeyError, TypeError, AttributeError):
+        log.warning("hot_research_retry_configuration_unavailable")
+        return False
+
+
 def prepare(
     source: Path,
     data: Path,
@@ -665,6 +693,7 @@ def _prepare_runtime(
 ) -> tuple[list[str], dict, Path]:
     source, data = source.resolve(), data.resolve()
     acceptance = live_acceptance_control(data, port, staged=staged_source is not None)
+    zero_retry = acceptance is not None or hot_zero_retry(data)
     docker_text = acceptance is not None and acceptance.get("profile") == "docker-text"
     tabbit_config: dict[str, object] = (
         {"browser_enabled": False, "web_fetch_enabled": False}
@@ -690,7 +719,8 @@ def _prepare_runtime(
     preset = preset_root / "research-web"
     explain_preset = preset_root / "framework-explain"
     verify_preset = preset_root / "framework-verify"
-    for path in (preset, explain_preset, verify_preset):
+    hot_preset = preset_root / "research-hot-frozen"
+    for path in (preset, explain_preset, verify_preset, hot_preset):
         path.mkdir(parents=True, exist_ok=True, mode=0o700)
     package = Path(__file__).parent / "runtime"
     explain_content = (package / "framework-explain.cordis.yml").read_text(encoding="utf-8")
@@ -705,6 +735,15 @@ def _prepare_runtime(
         if not runner.exists() or not (package / "research-tools.mjs").exists():
             raise RuntimeError("安全脚本运行器尚未完成，禁止启用研究工具")
         content = (package / "research.cordis.yml").read_text(encoding="utf-8")
+        hot_content = (package / "hot-frozen.cordis.yml").read_text(encoding="utf-8")
+        for key, value in {
+            "__TOOLS_MODULE__": package / "research-tools.mjs",
+            "__PYTHON__": Path(sys.executable),
+            "__RUNNER__": runner,
+            "__RESEARCH_ROOT__": data,
+        }.items():
+            hot_content = hot_content.replace(key, json.dumps(str(value)))
+        (hot_preset / "agent.cordis.yml").write_text(hot_content, encoding="utf-8")
         for key, value in {
             "__SKILL_ROOT__": CapabilityCatalog(data).prepare_native_root(),
             "__TOOLS_MODULE__": package / "research-tools.mjs",
@@ -740,6 +779,7 @@ def _prepare_runtime(
         )
         log.info("mcp_runtime_tools_prepared", enabled_tool_count=len(mcp_bindings))
     else:
+        (hot_preset / "agent.cordis.yml").write_text(explain_content, encoding="utf-8")
         content = (package / "agent.cordis.yml").read_text(encoding="utf-8")
         if tabbit_config["browser_enabled"] is True:
             content = content.replace(
@@ -765,6 +805,7 @@ def _prepare_runtime(
         ("research-web", preset),
         ("framework-explain", explain_preset),
         ("framework-verify", verify_preset),
+        ("research-hot-frozen", hot_preset),
     ):
         rows = (folder / "agent.cordis.yml").read_text(encoding="utf-8")
         if not rows.strip():
@@ -776,7 +817,7 @@ def _prepare_runtime(
             f"        id: {identity}\n"
             "        plugins:\n" + "".join("          " + line + "\n" for line in rows.splitlines())
         )
-    log.info("research_runtime_presets_declared", count=3)
+    log.info("research_runtime_presets_declared", count=4)
     adapter = home / "profiles" / "node_modules" / "research-tabbit-adapter" / "index.mjs"
     overlay.write_text(
         "\n".join(
@@ -809,7 +850,7 @@ def _prepare_runtime(
                 *(['    baseURL: "https://api.deepseek.com/anthropic"'] if docker_text else []),
                 *(
                     ["    retryPolicy:", "      mode: normal", "      maxRetries: 0"]
-                    if acceptance
+                    if zero_retry
                     else []
                 ),
                 *(["- id: llm-retry", "  disabled: true"] if acceptance else []),
@@ -864,6 +905,11 @@ def _prepare_runtime(
                 f"        tabbitBrowserEnabled: {'true' if tabbit_config['browser_enabled'] is True else 'false'}",
                 f"        tabbitWebFetchEnabled: {'true' if tabbit_config['web_fetch_enabled'] is True else 'false'}",
                 f"        mcpTools: {json.dumps([item['name'] for item in mcp_bindings])}",
+                "- insert:",
+                "    - id: research-hot-model",
+                f"      name: {json.dumps(str(package / 'hot-model.mjs'))}",
+                "      config:",
+                f"        researchRoot: {json.dumps(str(data))}",
                 "",
             ]
         )

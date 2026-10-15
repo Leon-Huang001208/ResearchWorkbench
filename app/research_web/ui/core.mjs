@@ -1,8 +1,8 @@
 const API_ROOT = '/api/research';
 const segment = (value) => encodeURIComponent(value);
 const pages = new Set(['fingpt', 'claw', 'workbench', 'frameworks', 'skills', 'history', 'operations', 'settings', 'intel']);
-const workbenchSections = new Set(['market', 'assets', 'funds', 'industry', 'documents', 'etf-paper']);
-const settingsSections = new Set(['general', 'model', 'data', 'local', 'docs']);
+const workbenchSections = new Set(['market', 'assets', 'funds', 'industry', 'documents', 'hot', 'etf-paper']);
+const settingsSections = new Set(['general', 'model', 'data', 'local', 'docs', 'hot']);
 const capabilityViews = new Set(['library', 'mine', 'plans', 'connections', 'market']);
 const capabilityKinds = new Set(['skill', 'method', 'tool', 'workflow', 'data']);
 const frameworkTabs = new Set(['overview', 'drivers', 'supply', 'cycle', 'positioning', 'allocation', 'quantity', 'price', 'fiscal', 'plumbing', 'cross-border', 'evidence']);
@@ -17,8 +17,12 @@ export function parseRoute(hash = '') {
     sessionId: ['fingpt', 'claw'].includes(page) ? params.get('session') : null,
   };
   if (page === 'intel') {
-    const tabs = new Set(['overview', 'research-reports', 'investment-news', 'wsc', 'social', 'news', 'filings', 'events']);
+    const tabs = new Set(['hot', 'overview', 'research-reports', 'investment-news', 'wsc', 'social', 'news', 'filings', 'events']);
     route.intelTab = !extraSegments.length && tabs.has(sectionSegment) ? sectionSegment : 'overview';
+    if (route.intelTab === 'hot') {
+      route.hotView = ['events', 'sources', 'channels', 'briefs', 'research', 'follows', 'plans'].includes(params.get('view')) ? params.get('view') : 'events';
+      route.hotEventId = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(params.get('event') || '') ? params.get('event') : null;
+    }
   }
   if (page === 'claw' && (params.has('view') || params.has('project'))) {
     route.clawView = ['projects','plans','skills'].includes(params.get('view')) ? params.get('view') : 'sessions';
@@ -52,6 +56,10 @@ export function parseRoute(hash = '') {
   if (page === 'workbench') {
     const requestedSection = sectionSegment || params.get('section');
     route.section = workbenchSections.has(requestedSection) ? requestedSection : 'market';
+    if (route.section === 'hot') {
+      route.hotView = ['events', 'sources', 'channels', 'briefs', 'research', 'follows', 'plans'].includes(params.get('view')) ? params.get('view') : 'events';
+      route.hotEventId = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(params.get('event') || '') ? params.get('event') : null;
+    }
   }
   if (page === 'frameworks') {
     route.frameworkSlug = !extraSegments.length && /^[a-z0-9-]+$/.test(sectionSegment || '') ? sectionSegment : null;
@@ -61,6 +69,14 @@ export function parseRoute(hash = '') {
 }
 
 export function legacyRouteTarget(hash = '') {
+  if (/^#\/workbench\/hot(?:\?|$)/.test(String(hash))) return String(hash).replace('#/workbench/hot', '#/intel/hot');
+  if (/^#\/workbench\?/.test(String(hash))) {
+    const params = new URLSearchParams(String(hash).split('?')[1]);
+    if (params.get('section') === 'hot') {
+      params.delete('section');
+      return `#/intel/hot${params.size ? `?${params}` : ''}`;
+    }
+  }
   return /^#\/reports\/?$/.test(String(hash)) ? '#/skills?kind=workflow' : null;
 }
 export async function prepareClawExampleDraft(controller, prompt, { navigate, currentGeneration }) {
@@ -164,7 +180,32 @@ export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSo
   const sessionPath = (id) => `/sessions/${segment(id)}`;
   const capabilityPath = (id) => `/capabilities/${segment(id)}`;
   const mcpRegistryPath = (id) => `/mcp/registries/${segment(id)}`;
+  const hotQuery = (params = {}) => {
+    const query = new URLSearchParams(Object.entries(params).filter(([, value]) => value !== undefined && value !== null && value !== '').map(([key, value]) => [key, String(value)]));
+    return query.size ? `?${query}` : '';
+  };
   return {
+    hotStatus: () => request('/hot/status'), hotConfiguration: () => request('/hot/configuration'),
+    hotConfigure: (body) => request('/hot/configuration', { method: 'PUT', body, userAction: true }),
+    hotLifecycle: (action) => request('/hot/lifecycle', { method: 'POST', body: { action }, userAction: true }),
+    hotChannels: (params) => request(`/hot/channels${hotQuery(params)}`), hotEvents: (params) => request(`/hot/events${hotQuery(params)}`),
+    hotEvent: (id, params) => request(`/hot/events/${segment(id)}${hotQuery(params)}`), hotSources: () => request('/hot/sources'),
+    hotChannelConfigure: (body) => request('/hot/channels/configure', { method: 'POST', body, userAction: true }),
+    hotCorrect: (body) => request('/hot/events/correct', { method: 'POST', body, userAction: true }),
+    hotSourceConfigure: (body) => request('/hot/sources/configure', { method: 'POST', body, userAction: true }),
+    hotResearchResults: (params) => request(`/hot/research/runs${hotQuery(params)}`),
+    hotResearchRefresh: (id) => request(`/hot/research/runs/${segment(id)}/refresh`, {method:'POST',body:{},userAction:true}),
+    hotResearchPrepare: (body) => request('/hot/research/handoffs', {method:'POST',body,userAction:true}),
+    hotFollows: () => request('/hot/follows'),
+    hotBriefPlans: () => request('/automations/hot-brief-plans'),
+    hotPlanRuns: (id) => request(`/automations/hot-brief-plans/${segment(id)}/runs`),
+    hotPlanConfigure: (body) => request('/automations/hot-brief-plans/configure', {method:'POST',body,userAction:true}),
+    hotFollowConfigure: (body) => request('/hot/follows/configure', {method:'POST',body,userAction:true}),
+    hotResearchExecute: (body) => request(`/hot/research-runs/${segment(body.runId)}/execute`, {method:'POST',body:{question:body.question,formats:body.formats},userAction:true}),
+    hotBriefs: (params) => request(`/hot/briefs${hotQuery(params)}`),
+    hotBrief: (id, params) => request(`/hot/briefs/${segment(id)}${hotQuery(params)}`),
+    hotBriefCreate: (body) => request('/hot/briefs', { method: 'POST', body, userAction: true }),
+
     etfReadiness: () => request('/portfolio-decisions/readiness'),
     etfRuns: () => request('/portfolio-decisions/runs'),
     etfRun: (id) => request(`/portfolio-decisions/runs/${segment(id)}`),

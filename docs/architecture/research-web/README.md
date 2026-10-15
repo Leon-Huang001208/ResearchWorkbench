@@ -4,6 +4,17 @@
 认证 HTTPS、秘密反射拒绝、明确脚本成功及精确工具准入见[安全边界](05-security-validation.md)；
 Claw 项目、研究深度/资料范围、原生 Todo 和 HTML/Word/中文 PDF 合同保持。
 
+Hot周期简报的Automation管理aliases由Hot自己的配置/签名权限控制，独立于旧`RESEARCH_AUTOMATIONS_ENABLED`开关。关闭旧调度不隐藏Hot计划，也不启动旧Store、付费研究或外发；站内唯一Hot scheduler与原ResearchService/DSH归属保持。
+
+Hot关注/周期计划复用现有Node、PostgreSQL与唯一队列。Automation仅适配用户管理入口；周期调度不写旧Store，也不创建第二研究引擎。schema19/20、权限、回放与截止资料合同见Hot组件README；正常Native已产出宏观周期简报，AI旧材料超窗如实为空；完整Goal仍须当前AI事件、恢复复验、最终Docker与当前候选Mac CI/完整审核证据。
+
+Hot模型流预算桥已接入overlay和私有Host API，准备会话与预算准入分开。
+离线SSE只证明SDK机制与回执顺序；正常Runtime零重试及真实研究尚未跑通，完整Goal继续。
+
+Hot 的持久研究映射与受控交接准备现在适配同一 ResearchService/DataHub：固定目标身份、
+完整原件副本及目录核验可恢复。它尚不启动付费研究或报告；既有 Automation 调度与
+create/send 路径保持，Hot 周期任务的 Automation 适配仍待实现，见图11和权威进度报告。
+
 显式文本验收预算复用已有私有模型桥与受管 AES 身份，持久票据不退款。旧政策过期，真实验收未启用；预算不是运行实例管理或产品推理 PASS。
 
 原生研究计划复用既有 DSH 与 FinGPT 计划标签；历史分页和 SSE 缓存保留同序号冲突证据，
@@ -107,6 +118,8 @@ Docker 模型凭据由 owned overlay 显式绑定加密文件桥，固定 ref、
 ## 单一兼容模型连接
 
 单一兼容文本/流式模型适配位于既有Runtime，私有非秘密配置沿同一Host/DataHub通道读取，系统ref仍沿原进程桥接；没有新增研究引擎、模型代理daemon或Vault。Native macOS合成冷启动与真实供应商验收分别记录；本模型连接任务未执行其他平台验收，项目总平台范围以支持矩阵为准。
+
+Hot FinGPT冻结研究采用research-hot-frozen的轻量DSH composition，仅本地脚本/文档工具；Claw与普通研究保持research-web。原预算/guard/沙箱/回执不变，不新增研究引擎或Automation调度。
 
 ## FinGPT 研究融合 · 2026-10-13
 

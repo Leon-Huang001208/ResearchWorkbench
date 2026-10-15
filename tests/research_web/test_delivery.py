@@ -17,7 +17,7 @@ from app.research_web.store import Store
 
 
 @pytest.fixture
-def delivery_api(tmp_path):
+def delivery_api(tmp_path, monkeypatch):
     native = NativeFixture()
     original = native.rpc
 
