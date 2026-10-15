@@ -3,8 +3,11 @@
 每轮资源收尾只接受同任务归属、已登记目录身份和白名单类型；删除前复查Git跟踪状态、inode、进程及容器引用。未知ignored数据/其他任务/未归并提交仍拒绝。构建器维护持有rwb-docker原操作锁，验证单节点/endpoint/卷与实例绑定；不得用同名Buildx重绑定清理远端或其他实例。in-use记录由BuildKit保护，内存门或恢复失败即blocked，不绕过原Git可恢复备份和审查门。
 
 Native 可通过 `RESEARCH_WEB_PRIVATE_ORIGIN` 显式信任单个精确 Tailscale HTTPS origin。
-默认 Host 列表不变；指定域名仅接受 HTTPS、默认 443，Host 与 Origin 必须配对，跨站请求
-仍拒绝，X-Forwarded-Host 不授予信任；可信回环代理的协议由 Uvicorn 原有 proxy-header
+默认 Host 列表不变；指定域名仅接受 HTTPS、默认 443，Host 与 Origin 必须配对。
+仅根路径 `/` 的用户触发顶层 GET 文档导航可从外站进入：mode=navigate、dest=document、
+user=?1，且 Origin 缺失或与本站一致。显式外站/null Origin、跨站 API/静态资源、
+iframe/后台请求不获得此例外；原文档/OAuth 专属导航例外保持各自边界。
+X-Forwarded-Host 不授予信任；可信回环代理的协议由 Uvicorn 原有 proxy-header
 合同确定。无效配置仅记录稳定错误码，不回显输入。私有 DSH/DataHub 认证和 CSP 保持原门。
 操作安全清单：确认代理仅在 tailnet，Funnel 关闭、成员获准、客户端无私网域名代理劫持；
 单个 RWB 实例不提供按 tailnet 用户划分的研究/凭据权限，获准设备具有同一实例权限。

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "updated",
-  "summary": "Native新增显式精确Tailscale私网HTTPS origin配置与运行中访问模式诊断。",
-  "reason": "README链接安装指南，说明默认回环及私网边界；依赖与公开安装入口不变，Host/Origin安全和Doctor/API文档同步。"
+  "summary": "修复从外部网页点击私网首页链接被跨站校验拒绝。",
+  "reason": "README说明仅用户触发顶层GET首页导航获得例外；跨站API、Host/HTTPS、内部认证与CSP保持。安装、安全、接口及模块文档同步，无新依赖或配置。"
 }

@@ -285,6 +285,17 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
             log.warning("research_web_private_transport_denied")
             return JSONResponse({"error": {"code": "private_transport_denied"}}, status_code=400)
         own = private_origin if remote_host else f"{request.url.scheme}://{host}"
+        # A user-activated top-level GET may load only the static app shell.
+        # Fetch Metadata is browser-controlled; API/resource/iframe requests and
+        # explicit foreign Origins never inherit this navigation exception.
+        entry_navigation = (
+            request.url.path == "/"
+            and request.method == "GET"
+            and request.headers.get("sec-fetch-mode") == "navigate"
+            and request.headers.get("sec-fetch-dest") == "document"
+            and request.headers.get("sec-fetch-user") == "?1"
+            and origin in {None, own}
+        )
         documentation_path = request.url.path in {
             f"/api/research/documentation/{name}" for name in DOCUMENT_NAMES
         }
@@ -302,13 +313,19 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
             and request.headers.get("sec-fetch-mode") == "navigate"
             and request.headers.get("sec-fetch-dest") == "document"
         )
-        if not (public_document_navigation or oauth_callback_navigation) and (
+        if not (entry_navigation or public_document_navigation or oauth_callback_navigation) and (
             (origin and origin != own) or request.headers.get("sec-fetch-site") == "cross-site"
         ):
             return JSONResponse(
                 {"error": {"code": "origin_denied", "message": "跨站请求被拒绝"}}, status_code=403
             )
         response = await call_next(request)
+        if (
+            entry_navigation
+            and request.headers.get("sec-fetch-site") == "cross-site"
+            and response.status_code == 200
+        ):
+            log.info("research_web_entry_navigation_allowed")
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["Referrer-Policy"] = "no-referrer"
         documentation_response = documentation_path and response.status_code == 200

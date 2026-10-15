@@ -2,6 +2,7 @@
 
 Native 可按[安装指南](docs/research-web-installation.md#可选tailscale-私网-https-访问native)
 显式启用单个 Tailscale 私网 HTTPS origin；默认仍只接受本机访问，不自动开放公网。
+浏览器点击外部链接可打开首页；例外仅限用户触发的顶层 GET 导航，不放开跨站 API。
 
 模型设置支持兼容服务的 Base URL 与模型 ID；凭据仍只进入本实例的既有私有存储。
 外部资料源由连接中心显示配置与准入状态，失败会保留明确状态；已保存或已配置不代表实际调用通过。
