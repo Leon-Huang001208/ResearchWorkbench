@@ -291,7 +291,9 @@ test('application controller no longer loads DataHub connections for the local p
   assert.doesNotMatch(app, /waitForIntegrationBatch[^\n]+maxAttempts:\s*80/);
   assert.match(app, /completed\.status === 'completed_with_failures'/);
   assert.match(app, /全量检测已完成，但部分项目失败/);
-  assert.doesNotMatch(app, /scrollIntoView/);
+  const categoryHandler = app.match(/if \('localCategoryTarget' in data\) \{[^]*?(?=\n  if \('officeAutoCancel')/)?.[0];
+  assert.ok(categoryHandler, 'local category handler remains covered');
+  assert.doesNotMatch(categoryHandler, /scrollIntoView/);
   assert.doesNotMatch(app, /sourceId === 'local_cache'/);
 });
 

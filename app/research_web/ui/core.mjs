@@ -24,8 +24,8 @@ export function parseRoute(hash = '') {
       route.hotEventId = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(params.get('event') || '') ? params.get('event') : null;
     }
   }
-  if (page === 'claw' && (params.has('view') || params.has('project'))) {
-    route.clawView = ['projects','plans','skills'].includes(params.get('view')) ? params.get('view') : 'sessions';
+  if (['claw', 'fingpt'].includes(page) && (params.has('view') || params.has('project'))) {
+    route.clawView = (page === 'claw' ? ['projects','plans','skills'] : ['projects']).includes(params.get('view')) ? params.get('view') : 'sessions';
     route.projectId = /^(default|project-[a-f0-9]{32})$/.test(params.get('project') || '') ? params.get('project') : 'default';
   }
   if (page === 'history') {
@@ -96,7 +96,7 @@ export const isRunning = (status) => ['running', 'queued', 'pending', 'waiting',
 export function reconcileSessionSummary(sessions, detail) {
   if (!detail?.id) return sessions;
   const { id, title, mode, status, can_cancel } = detail;
-  return sessions.map(session => session.id === id ? { ...session, title, mode, status, can_cancel } : session);
+  return sessions.map(session => session.id === id ? { ...session, title, mode, status, can_cancel, ...(detail.updated_at !== undefined ? { updated_at: detail.updated_at } : {}), ...(Array.isArray(detail.questions) ? { waitingForAnswer: detail.questions.length > 0 } : {}) } : session);
 }
 
 export function collectQuestionAnswers(values, items) {
@@ -345,6 +345,12 @@ export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSo
     clawProject: (id) => request(`/claw/projects/${segment(id)}`),
     createClawProject: (body) => request('/claw/projects', { method: 'POST', body }),
     updateClawProject: (id, body) => request(`/claw/projects/${segment(id)}`, { method: 'PATCH', body }),
+    navigation: mode => request(`/navigation/${segment(mode)}`),
+    saveNavigation: (mode, body) => request(`/navigation/${segment(mode)}`, { method: 'PATCH', body }),
+    projects: mode => request(`/projects?mode=${segment(mode)}`),
+    project: (mode, id) => request(`/projects/${segment(id)}?mode=${segment(mode)}`),
+    createProject: (mode, body) => request(`/projects?mode=${segment(mode)}`, { method: 'POST', body }),
+    updateProject: (mode, id, body) => request(`/projects/${segment(id)}?mode=${segment(mode)}`, { method: 'PATCH', body }),
     moveClawSession: (id, projectId) => request(`${sessionPath(id)}/project`, { method: 'PUT', body: { project_id: projectId } }),
     referenceClawFile: (id, body) => request(`${sessionPath(id)}/file-references`, { method: 'POST', body }),
     confirmAutomationDraft: (id, draftId, body, enable = false) => request(`${sessionPath(id)}/automation-drafts/${segment(draftId)}/confirm${enable ? "?enable=true" : ""}`, { method: 'POST', body }),
@@ -565,11 +571,11 @@ export function createController({ api, draftStorage, logger = safeLog, makeID =
       state.tabbitTabs = [...state.tabbitTabs, structuredClone(item)]; saveDraft(); emit();
     },
     removeTabbit: (tabId) => { state.tabbitTabs = state.tabbitTabs.filter((item) => item.tab_id !== Number(tabId)); saveDraft(); emit(); },
-    create: async (mode, workspaceId) => {
+    create: async (mode, workspaceId, projectId) => {
       const ticket = generation;
       const previousDraft = { ...draftState(), attachments: [] };
       const origin = !state.route.sessionId ? {key:draftKey(),draft:previousDraft.draft} : null;
-      const result = await action(() => api.create({ mode, research_depth: state.researchDepth, source_scope: state.sourceScope, ...(workspaceId ? { workspace_id: workspaceId } : {}) }), { refreshAfter: false });
+      const result = await action(() => api.create({ mode, research_depth: state.researchDepth, source_scope: state.sourceScope, ...(workspaceId ? { workspace_id: workspaceId } : {}), ...(projectId ? { project_id: projectId } : {}) }), { refreshAfter: false });
       if (ticket !== generation) return null;
       if (result?.id) { drafts.set(result.id, previousDraft); if (origin) createdDraftOrigins.set(result.id,origin); onNavigate(sessionHash(result)); }
       return result;

@@ -1042,9 +1042,9 @@ class ResearchService:
         await self.ensure_owned()
         async with self.lock:
             if project_id is not None:
-                project = self.claw_projects.get(project_id)
-                if mode != "claw" or project["archived"]:
-                    raise StoreError("只能在未归档的项目中新建 Claw 研究", "project_archived", 409)
+                project = ClawProjects(self, mode).get(project_id)
+                if project["archived"]:
+                    raise StoreError("只能在本模式未归档的项目中新建研究", "project_archived", 409)
             if research_depth not in {"instant", "deep"}:
                 raise StoreError("不支持的研究深度")
             sources = ["datahub", "web", "uploads"] if source_scope is None else source_scope
@@ -1574,6 +1574,16 @@ class ResearchService:
                 result["status"] = "running"
             elif row["id"] in reconciled_statuses:
                 result["status"] = reconciled_statuses[row["id"]]
+            if any(
+                value.get("ownerSessionId", value.get("sessionId")) == row["id"]
+                for value in self.questions.values()
+            ):
+                result["status"] = "waiting_input"
+            elif any(
+                value.get("ownerSessionId", value.get("sessionId")) == row["id"]
+                for value in self.approvals.values()
+            ):
+                result["status"] = "awaiting_approval"
             results.append(result)
         return results
 
@@ -2256,6 +2266,8 @@ class ResearchService:
         result["can_cancel"] = bool(self.running.get(sid) or child_running)
         if child_running and not result["approvals"]:
             result["status"] = "running"
+        if result["questions"]:
+            result["status"] = "waiting_input"
         if self.connected != {"mux", "host"}:
             result.update(
                 status="disconnected", error="DSH 事件连接已断开；未重发请求，也未判定任务完成"
