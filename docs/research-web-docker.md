@@ -182,6 +182,8 @@ docker stats --no-stream
 
 ### 每轮交付资源预算与自动收尾
 
+测试产生的`data/markdown`、`data/objects`、`data/raw_text`仅在登记时和删除时都为空、身份仍一致的情况下使用原子`rmdir`；出现任何文件立即保留并blocked，从不递归删除数据目录。控制器自身祖先argv中的源码路径不等于业务占用，真实FD/cwd和其他进程引用仍拒绝；收尾命令从账本主checkout运行。
+
 `iteration_resources.py`在原Git交付入口合并验收后执行，不新增Web API或定时任务。两个明确受管构建器`desktop-linux`/`rwb-dev-builder`**合计20 GiB**，策略为`.agents/resource-closeout.json`。`iteration_cache.py`通过BuildKit API取得引用/租约投影并调用LRU GC，不删除卷、snapshot/blob或Docker.raw。共享操作锁、Buildx节点/endpoint绑定和实例身份复查保护其他任务；已运行构建器直接blocked，不中断其工作。
 
 缓存维护在8GiB VM的现有预算内，临时将已停止的受管构建器内存限制为2GiB，验证运行服务预留加1GiB余量后启动，完成后停回原状态并恢复原memory/swap值。没有新增VM、资源池或模型预算；未知预留/并发/身份变化/在途构建导致blocked，不能认证已回收。CLI先由应用现有Python运行，仅使用stdlib与原资源控制器。

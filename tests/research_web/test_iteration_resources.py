@@ -5,6 +5,7 @@ import copy
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from research_workbench_entrypoint.iteration_resources import (
@@ -15,6 +16,7 @@ from research_workbench_entrypoint.iteration_resources import (
     register_directory,
     preserve_evidence,
     task_resource_plan,
+    occupied,
 )
 from research_workbench_entrypoint.iteration_cache import ManagedCaches
 
@@ -35,6 +37,27 @@ class CacheDriver:
 
 
 class IterationResourceTests(unittest.TestCase):
+    def test_controller_argv_is_exempt_but_other_process_and_cwd_remain_protected(self):
+        clear=SimpleNamespace(returncode=1,stderr='',stdout='')
+        own=SimpleNamespace(stdout='100 99 python -m controller\n99 1 node /task/scripts/git_safety.mjs\n1 0 init\n')
+        other=SimpleNamespace(stdout=own.stdout+'200 1 node /task/service.mjs\n')
+        with patch('research_workbench_entrypoint.iteration_resources.os.getpid',return_value=100):
+            with patch('research_workbench_entrypoint.iteration_resources.subprocess.run',side_effect=[clear,own]):self.assertFalse(occupied(Path('/task')))
+            with patch('research_workbench_entrypoint.iteration_resources.subprocess.run',side_effect=[clear,other]):self.assertTrue(occupied(Path('/task')))
+            with patch('research_workbench_entrypoint.iteration_resources.subprocess.run',return_value=SimpleNamespace(returncode=0)):
+                self.assertTrue(occupied(Path('/task')))
+
+    def test_only_registered_empty_generated_directories_use_rmdir(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory).resolve();empty=root/'data/markdown';empty.mkdir(parents=True)
+            record=register_directory(root,empty,'empty-directory')
+            (empty/'business.md').write_text('must keep')
+            result=clean_dependencies([record],occupied=lambda _:False,tracked=lambda _:False)
+            self.assertFalse(result['ok']);self.assertEqual((empty/'business.md').read_text(),'must keep')
+            (empty/'business.md').unlink()
+            self.assertTrue(clean_dependencies([record],occupied=lambda _:False,tracked=lambda _:False)['ok'])
+            self.assertFalse(empty.exists())
+
     def test_other_task_unknown_and_rollback_images_are_protected(self):
         def row(identity, task, project=True):
             labels={'io.research-workbench.delivery-task':task,'io.research-workbench.lifetime':'temporary','io.research-workbench.completed':'true'}
