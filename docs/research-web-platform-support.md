@@ -1,5 +1,7 @@
 # Research Web 能力与平台证据
 
+迭代资源自动收尾属于Mac管理平面功能。Windows/Linux产品真机及同平台CI不从本机GC或Ubuntu通用安全单元测试推导；缺失仍为NOT_RUN交接。本轮应取得Mac Docker Desktop的真实缓存/实例状态恢复证据，未运行则不标PASS；无产品HTTP接口、桌面安装包或平台支持承诺新增。
+
 Hot schema21增加周期无模型Word投影及原件PG保存；最新源必须单独绑定Mac Native、
 Mac Docker Desktop和Mac CI的验收。旧候选的PASS不认证新修改，Windows/Linux保持原交接，
 不因Python/TypeScript可运行推导其他平台已通过。全部旧镜像与卷保留。

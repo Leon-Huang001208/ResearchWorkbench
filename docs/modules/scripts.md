@@ -390,6 +390,8 @@ Update this section when:
 
 ### Other `scripts/*.py`
 
+`scripts/git_safety.mjs`同时拥有项目受管交付与资源收尾编排：修补feature tip须证明其干净、同任务且已进入候选；合并及CI通过后调用`research_workbench_entrypoint/iteration_resources.py`与`iteration_cache.py`，复用原Docker资源清理和原Git安全备份。资源ledger/证据/回执保留在common Git私有目录，受管缓存合计20GiB，状态失败不冒充cleaned。近处回归为`iteration_closeout.test.mjs`与`test_iteration_resources.py`；无产品路由、依赖或后台定时器变更。
+
 Purpose:
 - Database bootstrap and migration
 - Backup and restore operations

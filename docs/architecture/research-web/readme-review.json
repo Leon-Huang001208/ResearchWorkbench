@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "updated",
-  "summary": "整合Claw、本地模型、研究框架与主线资讯雷达功能，保留双方合同。",
-  "reason": "README保留现有模型/框架说明并区分研究日程确认启用与既有能力默认停用；安装依赖未新增。模块、API、文件、UI和安全文档同步；实际验证与未验证状态分别记录。"
+  "disposition": "unchanged",
+  "summary": "本轮仅将资源归档、20GiB总缓存预算与安全清理接入既有工程交付流程，用户研究功能与产品入口保持兼容。",
+  "reason": "无产品API、新运行服务或依赖变化；维护规则已写入AGENTS、任务工作流和Docker手册，README现有产品说明无需改动。"
 }
