@@ -4,13 +4,35 @@
 外部资料源由连接中心显示配置与准入状态，失败会保留明确状态；已保存或已配置不代表实际调用通过。
 详见[连接中心](docs/research-web-datahub.md)与[能力合同](docs/research-web-capabilities.md)。
 
+“研究情报”统一本地热点与事件、现有八个外部栏目，沿AIHOT开源阅读模式适配主题、
+日期时间轴和来源卡片，保留工作台品牌。Hot来源配置、频道、关注和周期计划由原PG引擎负责，
+与旧Automation开关独立；页面刷新不发起付费请求。
+
+官方来源支持同源声明next的三页有界补抓，部分失败保留原页与待处理材料，覆盖如实显示。
+来源页提供启停、间隔与明确目录接入；旧冻结源可经`rwb hot source-configure SOURCE
+--expected-revision REV --use-catalog --reason "恢复官方采集"`激活，先停机setup刷新权限。
+事件发生/生效日期绑定原材料版本与摘录，未知保持null，日精度不补午夜。
+
+schema21的周期任务会冻结简报，调用既有报告机制生成一次性站内MD/Word，先保存原件及
+回执再完成任务；恢复复用回执，下载只读已存字节。升级先停止Hot并setup，保留所有卷。
+研究报告、执行终态和报告交付分别显示：已有真实报告的执行仍可因预算终止而failed。
+当前验收scope达20calls/79894tokens，100000tokens/USD1上限保持，不再追加模型调用。
+
+真实关系运行包含误判保留、人工纠错、same_occurrence/direct_followup及综合稿跨年关联；
+旧v1样本的四条NOT_RUN参考不篡改。回顾留出有候选上下文交叉，不声称独立盲测准确率。
+新PG备份按精确数据库文本核验；旧未标记归档保留但须从原库重备份，不改签名绕过。
+Native/Docker、联合恢复与干净Mac CI分别绑定候选，旧证据不认证新源；完整交付状态见
+[权威进度](.ai/reports/2026-10-12-hot-intel-resume-PROGRESS.md)及[完整合同审计](.ai/reports/2026-10-15-hot-final-contract-audit.md)。
+
 持久文本验收预算仅供显式受管 AES 候选：最多 3 次、每次 512 输出 tokens。旧政策已过期，当前不会启动真实验收或续期；普通运行不发现账本。见[预算设计](docs/superpowers/specs/2026-10-14-pr88-budget-port-design.md)。
 
 Research Workbench 当前交付的是本地优先的 **Research Web**：一个由 FinGPT、Claw、数据能力和研究框架组成的研究工作台。
 
 Claw 在同一研究引擎上组织本地项目、成员会话、带来源的文件与显式引用，并提供日程、技能和 MCP 入口；聊天提出的日程须用户确认保存，默认停用，之后另行启用。见[Claw 页面合同](docs/research-web-ui.md#claw-项目与日程)。
 
-当前 Web 入口为 `app.research_web.main:app`。Research Web 通过 FastAPI 轻量适配层连接专属 DSH；**DSH 是唯一的研究引擎**，负责研究执行循环、会话历史、Skill 与子 Agent。Research Web 不启动旧 API 生命周期，也不要求 PostgreSQL、pgvector 或桌面预览。
+当前 Web 入口为 `app.research_web.main:app`。Research Web 通过 FastAPI 轻量适配层连接专属 DSH；**DSH 是唯一的研究引擎**，负责研究执行循环、会话历史、Skill 与子 Agent。基础 Research Web 不启动旧 API 生命周期，也不要求 PostgreSQL、pgvector 或桌面预览。
+
+统一「研究情报」入口包含本地热点与事件及外部只读资讯，保留资讯雷达的八个栏目。本地部分连接独立 Hot Node 服务及指定 PostgreSQL，提供事件、来源覆盖、频道和人工纠错；Hot 设置仍在设置页。未配置时显示真实状态，页面读取不启动服务或模型。Native 模型工厂支持已有预算下的受控装配与原回执复用；模型默认关闭，配置不能创建付费授权。预算授权、尝试查询及未知尝试终止通过独立 CLI 明确操作，终止不退款。当前实现与配置命令见 [Hot 组件说明](services/hot/README.md)；冻结简报支持固定版本 Markdown/DOCX，继续研究的会话及快照准备已有本地证据。已有真实报告、安装及恢复证据见权威记录；关注、周期简报和最终整镜像仍在验收中，完整 Hot 产品尚未交付。
 
 > 当前产品阶段为 **Web-only**。桌面打包历史仍被保留，但桌面 sidecar、Tauri、安装包和原生桌面 CI 不属于普通 Research Web 的安装或验收前提。
 
@@ -190,7 +212,7 @@ Research Web 使用用户私有目录保存运行状态与数据：
 - **Asset Observation（资产观察）**：按需查看资产相关数据。
 - **Research Workbench（研究台）**：市场、资产、基金、行业与文档的工作台入口。
 - **Capability Center（能力中心）**：Skill、Method、Tool、Workflow 与数据能力目录。
-- **资讯雷达**：事件、研报、赛道资讯、快讯与社交内容的原生只读页面；使用 Golddata 现成接口，支持原文阅读与 A 股代码查询。
+- **研究情报**：事件、研报、赛道资讯、快讯与社交内容的原生只读页面；使用 Golddata 现成接口，支持原文阅读与 A 股代码查询。
 - **Research Frameworks（研究框架）**：独立的研究框架与快照驱动分析。
 - **Operations and Usage（运行与用量）**：只读聚合模型用量、Agent、工具、DataHub、服务健康与存储情况。
 - **Settings（设置）**：通用、模型服务、数据源、本机集成与架构文档。
@@ -225,3 +247,11 @@ MIT License
 ### 框架核心看板
 
 Gold／Dollar 使用同源嵌入页面，共用本站原生数据快照和 Bot 版本绑定；其余九套框架明确为静态导入快照。回测、策略和模型拟合未接入，不能由页面可见推断实时数据或模型验证已完成。
+
+研究情报包含本地热点与事件（`#/intel/hot`，需配置Hot/PostgreSQL）及外部只读资讯；状态、版本和覆盖范围分别展示，已取得材料的完整存储版本/原始响应冻结与DOCX内核已有本地证据；完整Hot研究会话、恢复和安装闭环仍在验收中。
+
+Hot研究交接已具备固定PG运行映射、原生会话恢复与DataHub原件副本的准备接口；当前返回草稿，正式付费研究及其验收仍在实施。
+
+Hot冻结FinGPT研究现使用轻量DSH组合并有界核验原件；真实Markdown报告已生成且通过文件交付核验。累计scope限额保持100k tokens／20次／USD1；收尾请求被预留上限拒绝的原生failed状态保留，不能据文件存在认证完整运行或安装交付。
+
+研究情报新增“研究与报告”，可读取真实报告、核对原运行状态及下载MD/Word。运行失败但报告已生成的状态并列保留；页面刷新与导出不发送模型请求。

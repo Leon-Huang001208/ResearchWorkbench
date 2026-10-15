@@ -23,6 +23,7 @@ Research Workbench 当前交付的是本地优先的 Research Web，Native 与 D
     ↓ 同源 HTTP / SSE
 Research Web FastAPI Host（8088）
     ├─ 会话、文件、能力、DataHub、框架、集成与运维投影
+    ├─ 按需签名桥 → 可选 Hot Node / PostgreSQL（原文、事件、唯一队列）
     └─ 私有 RPC / WebSocket
          ↓
 项目专属 DSH Runtime（3081）
@@ -38,7 +39,7 @@ Research Web FastAPI Host（8088）
   Docker 内部端口固定，只有宿主 Web 端口参与分配；可信控制 origin 的成对变更保留原 token。
 - Docker 安装摘要绑定不可变 image ID、依赖锁、DSH/CJPY 与 Compose；公开启动和 Doctor 必须验证该已接受构建。构建候选使用独立 tag，启动等待真实健康后才发布选择；失败只回滚本次创建且再次确认归属的容器。
 - Docker `/state` 使用私有 tmpfs，`/state/runtime` 在每次启动/重启由原认证链重建；日志单独持久绑定到 `/state/logs`，凭据仍为 `/run/rwb-secrets/private`。旧宿主状态保留，不迁移或自动清理；共享数据与 Native 路径不变。
-- 当前产品不要求 PostgreSQL、pgvector、Tauri、桌面 sidecar 或旧 `app/api` 生命周期。
+- 基础研究不要求 PostgreSQL；启用 Hot 时，独立 PostgreSQL schema 承载原文、事件、预算和唯一持久队列。Host 桥是惰性、有界的，Hot 故障不接管基础设置或研究启动。pgvector、Tauri、桌面 sidecar 和旧 `app/api` 生命周期不进入本次 Web 交付。
 - 当前阶段为 Web-only；只有修改桌面专属路径或用户重新开启桌面工作时，才应用桌面原生 CI 和安装级烟测。
 
 ## 主要子系统

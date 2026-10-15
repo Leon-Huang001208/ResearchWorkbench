@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "unchanged",
-  "summary": "Gold配置样例在当前嵌入看板和Bot消费边界标记未接入，README公开入口与产品边界保持。",
-  "reason": "无依赖、schema、评分、采集、部署或权限变化；模块文档、嵌入说明与任务报告说明来源缺口和历史兼容。"
+  "disposition": "reviewed_no_update",
+  "summary": "周期报告数据投影移除旧日志设置副作用。",
+  "reason": "README已说明schema21与无模型单次报告；本修复只纠正只读镜像中的日志依赖，不改变公开命令、预算、配置或部署权限，模块与安全文档同步。"
 }

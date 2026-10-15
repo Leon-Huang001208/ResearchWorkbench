@@ -15,6 +15,10 @@ Web 安装契约另由 `.github/workflows/research-web-bootstrap.yml` 提供 Git
 
 ## 模块边界
 
+Hot已登记独立模块与11-hot-events专项图；部署/模块图同步可选Node/PG，API Atlas增加Hot分类。
+HTML固定白名单只增加登记视图，不接受任意路径。图与截图回执必须绑定最新字节；自动捕获
+的pending状态不代替控制器实际查看小/大视口明暗截图，也不认证功能或安装已通过。
+
 `scripts/check_research_architecture.mjs` 是 Research Web 图文映射的离线检查核心；
 `scripts/check_documentation_governance.mjs` 校验全部 Markdown 的状态分类、主题权威、当前链接和退役命令。
 `scripts/check_doc_sync.py` 组合上述检查与 Python 生成索引校验；`.agents/project-constraints.mjs` 保留架构与平台约束。现有

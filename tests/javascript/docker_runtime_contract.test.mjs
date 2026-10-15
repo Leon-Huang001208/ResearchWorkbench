@@ -40,7 +40,7 @@ test('image bases and stage boundaries match the shared runtime contract', () =>
   assert.ok(lines.includes(`ARG NODE_IMAGE=${contract.node.docker_image}`));
   assert.ok(lines.includes(`ARG PYTHON_IMAGE=${contract.python.docker_image}`));
   assert.deepEqual(lines.filter((line) => line.startsWith('FROM ')), [
-    'FROM ${NODE_IMAGE} AS node-runtime', 'FROM ${PYTHON_IMAGE} AS python-builder',
+    'FROM ${NODE_IMAGE} AS node-runtime', 'FROM node-runtime AS hot-builder', 'FROM ${PYTHON_IMAGE} AS python-builder',
     'FROM python-builder AS dsh-builder', 'FROM ${PYTHON_IMAGE} AS runtime',
   ]);
 });
@@ -102,7 +102,7 @@ test('runtime copies a bounded application set and uses the non-root PID1 superv
     '/opt/rwb/app', '/opt/rwb/core', '/opt/rwb/data_layer', '/opt/rwb/research_workbench_entrypoint',
     '/opt/rwb/runtimes', '/opt/rwb/vendor/dsh-tabbit', '/opt/rwb/docker/entrypoint.sh',
     '/opt/rwb/docker/supervisor.py', '/opt/rwb/docker/healthcheck.py', '/opt/rwb/pyproject.toml',
-    'outputs/research-web-architecture', 'docker/credential_probe.mjs', '/opt/rwb/dsh-runtime',
+    '/opt/rwb/services/hot', 'outputs/research-web-architecture', 'docker/credential_probe.mjs', '/opt/rwb/dsh-runtime',
   ]);
   assert.doesNotMatch(read('Dockerfile'), /^COPY \.\s|^(ARG|ENV) .*?(?:KEY|TOKEN|PASSWORD)=/m);
   assert.match(read('docker/entrypoint.sh'), /exec \/opt\/rwb\/venv\/bin\/python \/opt\/rwb\/docker\/supervisor\.py/);
@@ -165,7 +165,11 @@ test('build context denies local state and allows only runtime packaging inputs'
   assert.equal(patterns[0], '**');
   const allowed = patterns.filter((line) => line.startsWith('!'));
   assert.deepEqual(allowed, [
-    '!Dockerfile', '!pyproject.toml', '!app/', '!app/__init__.py', '!app/research_web/', '!app/research_web/**',
+    '!Dockerfile', '!services/', '!services/hot/', '!services/hot/package.json', '!services/hot/package-lock.json',
+    '!services/hot/*.json', '!services/hot/README.md', '!services/hot/THIRD_PARTY_NOTICES.md',
+    '!services/hot/src/', '!services/hot/src/**', '!services/hot/scripts/', '!services/hot/scripts/**',
+    '!services/hot/migrations/', '!services/hot/migrations/**',
+    '!pyproject.toml', '!app/', '!app/__init__.py', '!app/research_web/', '!app/research_web/**',
     '!app/cli/', '!app/cli/**', '!core/', '!core/__init__.py', '!core/settings/', '!core/settings/**',
     '!core/observability/', '!core/observability/**',
     '!data_layer/', '!data_layer/__init__.py', '!data_layer/adapters/', '!data_layer/adapters/__init__.py',

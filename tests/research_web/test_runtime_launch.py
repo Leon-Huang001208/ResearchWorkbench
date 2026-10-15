@@ -170,13 +170,22 @@ def test_runtime_binds_model_system_store_and_separate_host_records(tmp_path, mo
     assert ".browser-credentials.yaml" in overlay
     assert "default: research-web" in overlay
     assert "- id: agent-preset-registry" in overlay
-    for name in ("research-web", "framework-explain", "framework-verify"):
+    for name in ("research-web", "framework-explain", "framework-verify", "research-hot-frozen"):
         assert f"id: rwb-preset-{name}" in overlay
     assert "@deepseek-ai/dsh-agent-preset" in overlay
     assert "plugins:" in overlay
     assert "synthetic-ambient" not in overlay
     assert "RESEARCH_DSH_API_KEY" not in env
 
+
+def test_hot_frozen_composition_is_local_and_keeps_normal_research_tools():
+    import yaml
+    package = Path(launch_runtime.__file__).parent / "runtime"
+    plugins = yaml.safe_load((package / "hot-frozen.cordis.yml").read_text())
+    assert {row["id"] for row in plugins} == {"persona", "tool-presentation", "research-tools"}
+    assert "research_run_script" in plugins[0]["config"]["prefix"]
+    normal = yaml.safe_load((package / "research.cordis.yml").read_text())
+    assert {"public-data", "tool-skill", "tool-subagent"} <= {row["id"] for row in normal}
 
 def test_staged_docker_overlay_binds_model_storage_without_inheriting_secrets(
     tmp_path, monkeypatch
@@ -258,13 +267,19 @@ launcher.main()
 
 
 @pytest.mark.parametrize("separate_state", [False, True])
+@pytest.mark.parametrize("hot_model", [False, True])
 def test_prepare_separates_persistent_data_from_runtime_state(
-    tmp_path, monkeypatch, separate_state
+    tmp_path, monkeypatch, separate_state, hot_model
 ):
     from app.research_web.client import _default_auth_path
 
     source = make_source(tmp_path)
     data = tmp_path / "data"
+    if hot_model:
+        settings = data / "hot/settings.json"
+        settings.parent.mkdir(parents=True)
+        settings.write_text(json.dumps({"schemaVersion": 1, "projectRoot": str(Path(launch_runtime.__file__).resolve().parents[2]), "config": {"enabled": True, "model": {"enabled": True, "scopeId": "existing_authorization"}}}))
+        settings.chmod(0o600)
     state = tmp_path / "state" if separate_state else data / "runtime"
     monkeypatch.setattr(
         launch_runtime.subprocess,
@@ -282,6 +297,13 @@ def test_prepare_separates_persistent_data_from_runtime_state(
     assert env["RESEARCH_RUNTIME_AUTH"] == str(state.resolve() / "auth.json")
     assert env["RWB_RUNTIME_STATE"] == str(state.resolve())
     assert (state / "build-lock.json").is_file()
+    import yaml
+    overlay = yaml.safe_load((state / "overlay.yml").read_text())
+    official = next(item for item in overlay if item.get("id") == "llm-deepseek")["config"]
+    if hot_model:
+        assert official["retryPolicy"] == {"mode": "normal", "maxRetries": 0}
+    else:
+        assert "retryPolicy" not in official
     assert _default_auth_path() == state / "auth.json"
     if separate_state:
         assert not (data / "runtime/overlay.yml").exists()

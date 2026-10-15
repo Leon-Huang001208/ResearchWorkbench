@@ -67,6 +67,10 @@ def identity_projection(container: dict) -> dict:
         # Null and false have identical policy; true remains a mismatch.
         if host.get("OomKillDisable") is None:
             host["OomKillDisable"] = False
+        # The Engine also materializes the unset default DNS list as [].
+        # Nonempty DNS lists retain their exact values and still fail closed.
+        if host.get("Dns") is None:
+            host["Dns"] = []
         projection["HostConfig"] = host
     return projection
 
@@ -121,7 +125,7 @@ class Manager:
         if inspect("network", record["network"]).get("Labels") != record["labels"]:
             raise Refusal("network_ownership_mismatch")
 
-    def owned(self, record: dict) -> dict:
+    def owned(self, record: dict, *, replacing_pre_model: bool = False) -> dict:
         self.verify_resources(record)
         container = inspect("container", record["container_id"])
         if identity_projection(container) != identity_projection(record["projection"]):
@@ -147,7 +151,25 @@ class Manager:
                 master.get("Name") != record["volumes"]["model_key"]
                 or master.get("RW") is not False
             ):
-                raise Refusal("model_master_mount_mismatch")
+                # Explicit replacement may retire an exactly registered, stopped
+                # pre-AES container. Ordinary status/up/stop retain strict mounts.
+                old_image = inspect("image", container["Image"]) if replacing_pre_model else None
+                environment = container["Config"].get("Env", [])
+                legacy = (
+                    replacing_pre_model
+                    and record["environment"] == "stage"
+                    and record.get("model_store_state") == "ready"
+                    and container["State"].get("Running") is False
+                    and container["State"].get("Status") in {"created", "exited"}
+                    and container["Image"] == record["image"]
+                    and old_image["Config"].get("Labels", {}).get(PREFIX + "model-credentials") is None
+                    and set(mounts) == {"/data/research-web", "/state/logs", "/run/rwb-secrets", "/cache"}
+                    and isinstance(environment, list)
+                    and all(isinstance(value, str) and not value.startswith("RWB_MODEL_") for value in environment)
+                )
+                if not legacy:
+                    raise Refusal("model_master_mount_mismatch")
+                LOG.info("stopped_pre_model_candidate_verified")
         host = container["HostConfig"]
         if (host["Memory"], host["MemorySwap"], host["NanoCpus"], host["PidsLimit"]) != (
             record["memory"],
@@ -504,9 +526,9 @@ class Manager:
             raise Refusal("encrypted_model_image_required")
         self.verify_resources(record)
         if record["container_id"]:
-            if self.owned(record)["State"]["Running"]:
+            if self.owned(record, replacing_pre_model=True)["State"]["Running"]:
                 raise Refusal("stop_stage_before_replace")
-            self.owned(record)
+            self.owned(record, replacing_pre_model=True)
             command("docker", "rm", record["container_id"])
         else:
             self.stop(record)
