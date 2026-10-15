@@ -31,7 +31,7 @@ test('product shell keeps the compact product navigation, real recent work and s
   assert.doesNotMatch(rail, /data-collapse-sidebar/);
   assert.match(html, /data-collapse-sidebar/);
   assert.doesNotMatch(rail, /data-theme-(?:select|option)/);
-  for (const expected of ['FinGPT', '新研究', '半导体设备需求', '运行任务']) assert.match(html, new RegExp(expected));
+  for (const expected of ['FinGPT', '新聊天', '半导体设备需求', '最近']) assert.match(html, new RegExp(expected));
   assert.ok(html.includes('#/history?mode=fingpt'));
   assert.doesNotMatch(html, /Claw 不应混入|工作空间/);
   const matches = shell.filterGlobalSearch('公司研究', sessions, skills);
@@ -204,14 +204,14 @@ test('a collapsed desktop secondary sidebar becomes an exposed narrow-screen dra
   assert.doesNotMatch(drawer.match(/<aside[^>]*>/)[0], /aria-hidden="true"/);
 });
 
-test('Claw switches session and current-workspace projections without mixing other sessions', async () => {
+test('both modes expose current-session files through the existing context panel, without workspace tabs', async () => {
   const shell = await import(new URL('shell.mjs', root));
-  const detail = { id: 'claw-current', mode: 'claw', datasets: [{ name: '当前资料' }], files: [{ name: '当前产物.docx' }] };
-  const workspace = shell.renderSidebar({ page: 'claw', detail, clawSidebarView: 'workspace', sessions: [{ id: 'other', title: '其他会话' }] });
-  assert.match(workspace, /data-claw-sidebar-view="workspace"/);
-  assert.match(workspace, /当前资料/);
-  assert.match(workspace, /当前产物\.docx/);
-  assert.doesNotMatch(workspace, /href="#\/fingpt\?session=other"/);
+  for (const mode of ['claw', 'fingpt']) {
+    const html = shell.renderSidebar({ page: mode, detail: { id: 'current', mode } });
+    assert.match(html, /data-toggle-context/);
+    assert.doesNotMatch(html, /data-claw-sidebar-view/);
+    assert.match(html, /管理项目/);
+  }
 });
 
 test('research sidebars own their mode-specific new action and recent sessions', async () => {
@@ -228,7 +228,7 @@ test('research sidebars own their mode-specific new action and recent sessions',
   assert.doesNotMatch(fingpt, /Claw 最近研究|data-claw-sidebar-view|workspace-select/);
 
   const claw = shell.renderSidebar({ page: 'claw', sessionId: 'claw-1', sessions });
-  assert.match(claw, /aria-label="Claw 会话与工作空间侧栏"/);
+  assert.match(claw, /aria-label="Claw 会话与项目侧栏"/);
   assert.match(claw, /data-new/);
   assert.match(claw, /Claw 最近研究/);
   assert.match(claw, /#\/history\?mode=claw/);
@@ -240,20 +240,15 @@ test('research sidebars own their mode-specific new action and recent sessions',
   }
 });
 
-test('Claw workspace sidebar offers current-session file previews and a separate project entry', async () => {
+test('workspace files keep existing real preview controls in the context panel', async () => {
   const shell = await import(new URL('shell.mjs', root));
-  const detail = {
-    id: 'claw-current', mode: 'claw', title: '当前 Claw',
-    datasets: [{ id: 'dataset-1', name: '当前资料', status: 'complete', files: [] }],
-    files: [{ id: 'file-1', name: '当前产物.docx', size: 10, url: '/api/research/sessions/claw-current/files/file-1/download', preview_url: '/api/research/sessions/claw-current/files/file-1/preview' }],
-  };
-  const workspace = shell.renderSidebar({ page: 'claw', detail, clawSidebarView: 'workspace' });
-  assert.match(workspace, /当前资料/);
-  assert.match(workspace, /当前产物\.docx/);
-  assert.match(workspace, /data-workspace-preview="file-1"/);
-  assert.match(workspace, /研究分组与项目/);
-  const empty = shell.renderSidebar({ page: 'claw', detail: { ...detail, files: [] }, clawSidebarView: 'workspace' });
-  assert.doesNotMatch(empty, /data-workspace-preview=/);
+  const detail = { id: 'claw-current', mode: 'claw', title: '当前 Claw', files: [{ id: 'file-1', name: '当前产物.docx', size: 10, url: '/api/research/sessions/claw-current/files/file-1/download', preview_url: '/api/research/sessions/claw-current/files/file-1/preview' }] };
+  const sidebar = shell.renderSidebar({ page: 'claw', detail });
+  assert.match(sidebar, /data-toggle-context/);
+  assert.doesNotMatch(sidebar, /data-claw-sidebar-view/);
+  const context = shell.renderContextPanel({ detail, selectedTab: 'files', selectedPreview: 'file-1' });
+  assert.match(context, /当前产物\.docx/);
+  assert.match(context, /file-1\/preview/);
 });
 
 test('a lone slash lists every enabled real Skill without submitting a model request', async () => {
@@ -271,7 +266,7 @@ test('running tasks are selected from the complete real session catalog before r
   const sessions = Array.from({ length: 11 }, (_, index) => ({ id: `session-${index}`, title: `会话 ${index}`, status: index === 10 ? 'running' : 'idle', mode: 'fingpt' }));
   const html = shell.renderSidebar({ page: 'fingpt', sessions });
   assert.match(html, /会话 10/);
-  assert.match(html, /运行任务[\s\S]*会话 10/);
+  assert.match(html, /aria-label="运行中"/);
 });
 
 test('session rows keep the link and menu trigger as sibling controls', async () => {

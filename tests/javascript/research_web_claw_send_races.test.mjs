@@ -8,7 +8,7 @@ const tab = (id, instance = 'browser') => ({ tab_id: id, instance_id: instance }
 const storage = () => { const values = new Map(); return { getItem: key => values.get(key), setItem: (key, value) => values.set(key, value) }; };
 async function setup(options = {}) {
   const writes = [];
-  const controller = createController({ logger() {}, makeID: () => 'stable-key', ...options,
+  const controller = createController({ draftStorage: storage(), logger() {}, makeID: () => 'stable-key', ...options,
     api: { detail: async id => ({ id, mode: 'claw', messages: [], status: 'idle' }), message: async (...args) => { writes.push(args); return { accepted: true }; }, ...options.api } });
   await controller.open({ page: 'claw', sessionId: 'origin' });
   controller.setDraft('submitted');

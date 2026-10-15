@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "unchanged",
-  "summary": "复核现有产品入口和常驻说明，本轮只更换固定查询实现并显式展示部分搜索覆盖。",
-  "reason": "README既有研究引擎、部署节点与常驻边界仍准确；细化的会话授权范围、覆盖计数、源文件不迁移及平台验收状态由本轮同步更新的安装/API/安全文档承担，无须重复改动产品总入口。"
+  "disposition": "updated",
+  "summary": "统一Claw与FinGPT的Codex式会话导航、项目与逐题原生问题交互，README已同步功能和权限边界。",
+  "reason": "新增本实例模式隔离的导航元数据接口及FinGPT项目，保留唯一DSH、原生问答和安装入口；没有新增依赖、执行器或自动化授权。"
 }

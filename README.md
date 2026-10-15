@@ -1,5 +1,8 @@
 # Research Workbench
 
+Claw 与 FinGPT 共用 Codex 式会话导航：各自保存项目、置顶和排序，支持会话菜单与顶部折叠。
+原生提问逐题回答，可明确跳过；收起问题不取消研究，成功答复后保留可展开的问答摘要。
+
 macOS Native 可显式启用[登录后常驻与自动部署](docs/research-web-installation.md#macos-登录后常驻与自动部署)。
 保留 FileVault；仅接收已合并、评审和 exact-tree CI 均通过的受管交付，活动研究结束后再更新。
 失败恢复上一版本；数据、模型凭据与 Tailscale Serve 保留，敏感或未分类升级暂停人工处理。
