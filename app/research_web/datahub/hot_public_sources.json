@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "sources": [
+    {"id":"openai","operator":"OpenAI","channelHint":"ai","official":true,"url":"https://openai.com/news/rss.xml"},
+    {"id":"deepmind","operator":"Google","channelHint":"ai","official":true,"url":"https://deepmind.google/blog/rss.xml"},
+    {"id":"fed","operator":"Federal Reserve","channelHint":"macro","official":true,"url":"https://www.federalreserve.gov/feeds/press_all.xml"},
+    {"id":"ecb","operator":"ECB","channelHint":"macro","official":true,"url":"https://www.ecb.europa.eu/rss/press.html"},
+    {"id":"thefile","operator":"The File","channelHint":"macro","official":false,"url":"https://thefile.news/feed.xml"}
+  ]
+}

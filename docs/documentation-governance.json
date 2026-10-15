@@ -84,6 +84,11 @@
       "purpose": "runtime plugin documentation"
     },
     {
+      "prefix": "services/hot/",
+      "status": "package-internal",
+      "purpose": "Hot internal engine contract and upstream license attribution"
+    },
+    {
       "prefix": "vendor/",
       "status": "package-internal",
       "purpose": "vendored package documentation"

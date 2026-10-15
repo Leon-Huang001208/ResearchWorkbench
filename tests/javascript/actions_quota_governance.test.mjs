@@ -335,6 +335,13 @@ test('Windows verification executes the public installer and launcher contract',
   assert.match(workflows.windows, /tests\/research_web\/test_setup_web\.py/);
 });
 
+test('Mac clean installation verifies the installed Hot runtime without database or model calls', () => {
+  assert.match(workflows.bootstrap, /node-version: "24\.19\.0"/);
+  assert.match(workflows.bootstrap, /working-directory: services\/hot/);
+  assert.match(workflows.bootstrap, /assertNodeRuntime\(\)/);
+  assert.match(workflows.bootstrap, /"postgres", "pg-boss", "fast-xml-parser"/);
+});
+
 test('automatic workflows cancel stale runs and use bounded jobs', () => {
   for (const source of [workflows.bootstrap, workflows.checks, workflows.constraints, workflows.windows]) {
     assert.match(source, /concurrency:/);

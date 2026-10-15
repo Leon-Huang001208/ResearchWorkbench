@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "channels": {
+    "ai": {
+      "name": "AI 科技",
+      "topics": ["AI", "artificial intelligence", "人工智能", "OpenAI", "DeepMind"],
+      "sourceIds": ["openai", "deepmind"],
+      "importanceRules": ["官方模型、产品、算力与科研进展独立于转载数评估。"],
+      "rules": [
+        {"id":"models","keywords":["model","模型","GPT","Gemini"],"requireOfficial":true,"relevance":95,"importance":80},
+        {"id":"research","keywords":["science","scientists","research","科学"],"requireOfficial":true,"relevance":80,"importance":65}
+      ]
+    },
+    "macro": {
+      "name": "宏观政策",
+      "topics": ["monetary policy", "interest rate", "inflation", "resolution planning", "货币政策", "监管"],
+      "sourceIds": ["fed", "ecb"],
+      "importanceRules": ["官方政策、监管与金融稳定文件即使传播较少，也可以进入重点研究。"],
+      "rules": [
+        {"id":"policy","keywords":["monetary policy","interest rate","inflation","货币政策"],"requireOfficial":true,"relevance":95,"importance":90},
+        {"id":"stability","keywords":["resolution","regulation","supervision","监管"],"requireOfficial":true,"relevance":90,"importance":80}
+      ]
+    },
+    "gold": {
+      "name": "黄金",
+      "topics": ["gold", "黄金", "interest rate", "dollar", "通胀"],
+      "sourceIds": ["fed", "ecb"],
+      "importanceRules": ["利率、货币政策与通胀作为直接研究线索；银行处置仅列为较低相关性的金融稳定线索。"],
+      "rules": [
+        {"id":"rates","keywords":["interest rate","monetary policy","inflation","通胀"],"requireOfficial":true,"relevance":85,"importance":85},
+        {"id":"bank-stability","keywords":["resolution","bank"],"requireOfficial":true,"relevance":40,"importance":35}
+      ]
+    }
+  }
+}

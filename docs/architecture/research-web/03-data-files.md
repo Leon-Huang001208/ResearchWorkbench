@@ -12,6 +12,78 @@ Matplotlib字体使用research_helpers.chinese_font_path()的打包绝对路径�
 指数价格使用 points，不猜测换算。模型面对的前三行样例按 UTF-8 字节裁剪，完整数据仍在
 会话 inputs/datasets 的 JSON/CSV 中；不能用截断样例认证历史完整性。
 
+services/hot/evaluation/real-corpus-v1.json为可版本化公开样本，保留不可变材料版本/原页/完整材料快照hash和三份模型packet/response hash。不是生产数据备份或秘密载体；外部参考文章未冒充已入PG。2开发/3回顾留出仅主样本分离，真实候选上下文重叠原样保留并在回执列出。
+
+事件快照occurredAt/effectiveAt支持null、YYYY-MM-DD日精度和UTC毫秒时刻，新增可选dateEvidence两项nullable引用与manual.times；仍append-only/schema20，旧snapshot兼容。日期依据为材料id/revision/quote与来源时区，不能用取得时间补空。旧截止/旧简报/研究快照不回填，新冻结版本携带日期依据。
+
+schema20原raw_pages metadata保存runId/pageIndex/url/stop/backfillDays，已有partial/gap枚举记录边界。每轮原件和inbox同事务先于水位；晚页失败仍保留早页但不发布成功水位，已存页解析不清除错误或回退水位。
+
+sources只读返回adapter/catalog_id、绑定状态与激活许可，不回传完整config或秘密。来源表单期望版本来自最新config_revision，保存与审计沿原表；频率0由Host转为默认null，不增加数据文件或复制旧原文。
+
+公开目录激活用JSONB合并只更新adapter/catalogId，旧配置额外字段和大整数原样保留；materials/material_versions/raw_pages及研究快照不改。审计追加理由、旧adapter和前后配置SHA，编码postgres-jsonb-text-v1对应实际SQL config::text，不把原配置或秘密复制到回执。
+
+Hot周期aliases在旧Automation关闭时继续仅访问Hot PG和其已冻结简报，旧Automation Store没有读取或写入。已有计划/运行/选材不复制到旧调度存储；无新增schema、秘密或目录。
+
+显式stage升级只更新固定image/source SHA及清空原容器projection，previous_image与data/logs/credentials/cache/model_key五卷保持。停止pre-AES兼容判断不读取密钥，不更改model_instance/model_store_state，不迁移业务数据。
+
+可选`model.materialIds`只限定处理范围，不复制材料、事件或预算。明确选择的排队任务在同一hot.process队列按当前owner generation精确优先级领取；重启只取消/重新入队这些已选择的created/retry任务，不改其他任务ID/排队状态或活动尝试。schema20联合恢复已核验58表全量清单及所选真实研究报告字节哈希；恢复目标暂停，原生执行历史不恢复。
+
+schema19保存follows、不可变follow_versions和follow_requests（理由/操作者/前后状态）。schema20保存periodic_plans、不可变计划版本/请求、periodic_runs和不可变选材。简报及周期run回执同事务发布；迟到领取回滚整个发布。每份周期简报包含planId/planVersion/runId、固定cutoff、窗口、跳过周期数、来源覆盖限制；网页/Markdown/DOCX沿同一冻结版本。关注中的旧事件ID沿既有别名解析，不复制事件或原件。
+
+研究页面从不可变简报的报告集合中选择1–20个唯一材料ID，连同简报ID/版本准备已有Hot运行。原件及会话快照由既有Host校验发布；浏览器不复制可变原件。未知执行保留runId、问题、格式，核对不生成新runId或改变原deliveryKey。
+
+Hot正式研究固定deliveryKey绑定问题和输出格式，并复验会话快照/manifest哈希。
+只对数据库证明reserved、dispatched_at为空且无回执的尝试允许停止后显式取消/归还预留；
+dispatching/outcome_unknown费用保留，操作审计和UUID重放避免重复退款。
+
+Hot流回执复用原PG model_receipts；Host只透传绑定根Hot会话的预算操作，费用由Hot计算。
+hot-context内容不授予权限。请求含完整messages/tools/toolHistory，以UTF8字节加余量登记；
+未知结果保留额度，未保存回执不输出。
+
+AIHOT阅读界面适配只读取原事件、频道和材料投影；列表日期明确是观察日期，展示层不重写
+原文/版本/发布时间、不搬运Golddata记录进Hot。新版快捷筛选开始时清空旧分页与cutoff，
+失败后不能用新条件续接旧频道资料；本页热度不是完整来源覆盖或全榜。
+
+schema17 在同一 Hot PG 增加不可变 research_model_calls，关联现有 model_attempts、
+研究 run/session、请求哈希和固定价目；与预算预留原子提交。它不保存凭据，也不新建
+快照目录或付费队列。归档现有全 schema 清单会包含该表，研究文件联合恢复仍待验。
+
+私有research.model接口复用该call映射及同一model账本。完整流回执最多1MiB/8192块；
+服务按固定价目和标准usage计算费用，不接收调用方费用。已知失败保留rejected缓存标记；
+缺usage或结束标记不能冒充完成。完整回执的签名帧及缓存返回最多2MiB，普通帧范围不变。
+
+Hot 非秘密配置位于产品数据根的 `hot/settings.json`，采用 0600 原子替换并绑定当前项目根；
+未启动时诊断不创建目录或查询凭据；实时状态通过系统库解析签名 key。`identity.json` 与
+`process.json` 绑定项目与进程身份；受管 PG 使用独立实例卷和私有密码文件导出，秘密权威仍为系统库。
+Hot 业务材料、版本和任务由独立 PostgreSQL schema 持有，不让
+后台进程写现有 Store。研究快照联合恢复尚未实现；当前最小库恢复不能证明会话恢复。
+Hot 私有归档包含 `hot.dump` 和认证清单，原文 bytea 随库保存；`archive-attempt.json`
+记录非秘密执行状态，未知结果阻止自动重复恢复。当前归档上限为 256 MiB。
+`collection_runs` 关联准确领取尝试；`material_inbox` 保存不可变解析输入及单向处理标记。
+原文、全页 inbox、水位和 parse 入队原子提交；解析批次共享原文 ID，材料版本不会覆盖。
+来源为最新快照，不能推断历史完整覆盖；无效编码或 XML 保留原文与错误，成功水位不前移。
+`source_control_requests` 保存不可变前后状态、请求 hash、操作者类别、时间与代次；
+来源 `config_revision` 条件更新避免并发覆盖，`frequency_seconds` 可空以继承全局周期。
+同内容重复条目的原始时间可能保存为排序 JSON 数组字符串；可信瞬时冲突时 parsed time 为 null，
+完整原文和页 metadata/gap 保留声明。材料身份不会因来源列举重复而增加，也不猜测发布时间。
+Hot model_budgets 保存累计授权与收费预留，model_attempts 保存发送状态和令牌 hash；
+model_receipts/model_results 不可变并按输入/模型参数 hash 复用。未知发送不退款，
+迟到回执可保留，但不能绕过业务任务的代次/租约提交门。
+固定 DSH 成功流不提供 HTTP request ID，provider_request_id 可为 NULL；不能伪造本地 UUID。
+记录请求模型名与报价 hash，不把旧模型别名冒充为已验证后端版本或账单费用。
+day_key 属于发送/预留所在日，派发跨日必须重验；未知尝试继续占额。cost_basis 明确计费来源。
+频道条件配置保存在 channel_versions 与 channel_control_requests，纠错保存在 event_versions/
+event_corrections；CLI不写旧Store或改动原文。配置/纠错输入为有界、无alias的JSON普通文件，
+不接收凭据字段。频道集合可按ID选择；控制结果未知时，调用方须保存UUID和原参数用于重放。
+Web输入为有界JSON正文而非本机路径；配置只在当前项目绑定的数据根保存。浏览器只保留
+非秘密视图、已选材料ID和待确认控制参数，不复制原文或凭据，也不把Hot数据写回旧Store。
+验收控制身份位于私有 hot/acceptance/model-identity.json，控制/worker 秘密只存系统凭据库。
+真实模型回执与缓存留在持久 hot_acceptance_model schema，不能因重跑验收丢弃账本。
+Hot内部简报冻结核心在同一只读repeatable-read事务中取得截止时点的频道配置、事件和
+全部关联材料版本，保存原判断覆盖依据并生成有界、规范JSON哈希。Markdown区分归组摘要、
+来源陈述与规则/模型/人工判断；不把旧判断覆盖写成当前采集健康。当前仅内部返回与验收导出，
+尚无简报表、公开路由、DOCX或研究冻结原文副本，不能据此认证阶段四完成。
+
 验收 control/ledger 位于实例私有 live-acceptance/<身份> 叶中，控制摘要、永久锁、FD 复核、原子替换和读回绑定票据。describe/reserve 不创建；init 拒绝已有或中断初始化的实例，不修复、不退款或重置。最多3票、512输出/票、1536累计；旧费用政策仅为已过期历史字段。
 
 原生事件仍由 DSH 日志保存；历史/分页/SSE 归并的同序号冲突标记只保留在 Host 内存记录外层，不新增正文库、持久 schema 或写回日志。Automation 草稿及文件交付不能从计划项完成推导。
@@ -382,11 +454,56 @@ Word单文件交接沿已有PowerPoint模式通过正常LaunchServices打开受�
 Word目标段落/单元格的多run只有rPr规范化字节完全一致时允许编辑，真正混合格式继续拒绝，不忽略字体、语言或其他属性。Word段落集合计入表格行结束段落，映射同时计数XML段落与表格行；段落写入范围排除结束标记，以保留后续表格和段落边界。标题读回从段落取得样式对象，与该文稿内置Title的本地化名称及built-in标志比较；区分大小写的比较在Word tell之外，原加粗及全量内容校验保留。
 staging 修复只作用于镜像只读发布资产，不删除或迁移产品数据、凭据及 Native 目录。包根开发目录与深层运行时代码区分，文件内容和 manifest 哈希继续逐项绑定。
 
+正常 Hot Native 模型使用配置指定的已有 model_budgets scope，累计额度不会随重启/日期改变。input-v2 缓存身份仅绑定模型参数、输入和提示版本；旧价格身份的回执和未知尝试在同一 schema 栅栏查询，预留前原子复查。历史回执 resultKey 和原费用记录保持原值，不转写或退款。当前联合研究快照备份仍未完成。
+
+迁移14新增不可变 model_control_requests，保存 UUID、操作者、理由、输入 hash、前后状态与响应。模型尝试增加 abandoned；保留费用和唯一输入阻断，只有已有 receipt 才可进入 received。累计预算不因重复授权而重置。定价配置、研究快照联合恢复及恢复后的预算核对仍待完成。
+
+用户定价保存 hot/pricing/YYYY-MM-DD.json 与内容hash归档；原记录保留，当前指针原子发布。目录/文件 private 属性及实例/项目绑定校验；已可见但目录fsync失败的回执带hash和durability unavailable，重放补验。其备份/恢复整合仍待完成。
+
+浏览器旅程读取原PG不可变版本而非复制数据，展示发布时间与取得时间分离、未知发生/生效时间、原文hash与频道判断。准备/恢复保存非秘密来源基线、预算快照和清理回执；不把临时框架采集输出计为Hot原文或研究快照。
+
+Migration15增加briefs head、不可变brief_versions与brief_requests。版本保存冻结输入/哈希，UUID参数hash与版本映射同事务发布；既有材料/原文/模型账本不变。内部signed读取复验完整性，后续仍需研究原文副本与联合恢复。
+
+简报网页预览只读取保存的payload。Markdown文本哈希不同于冻结payload哈希；Node分块读取精确正版本，Host有界组装/核验后才发送完整附件，失败不发送部分文件。导出不写Store、不生成研究会话、不改Hot原文，未知创建仍重放原UUID。
+
+原验收库现保存浏览器生成的两份真实简报version1，内容hash与实际下载字节分别核对，刷新不会新建版本。测试基线按proofId隔离且写一次；失败恢复保留FAIL与独立角色收尾状态，实际预算账本不因故障注入或重跑重置。
+
 ### Office 两条能力与任务清理的页面投影
 
 本机设置页在 Word、Excel、PowerPoint 各自行内分别显示文件处理和本机操作。文件处理的固定 capability 标记仅表达 Mac 文件业务所需的项目依赖/内置模板就绪，操作仍受既有文件身份、有限内容、版本检查及沙箱约束；不从 Office 安装、授权或模型生成结果推导。其他平台保持未验证，不新建后端或文件回退。
 
 本机操作沿既有显式验证与有效期判断；过期或实例状态变化保留最近时间和失效说明，不提升授权或可调用。最近有效验证只将既有安全诊断的最后完成步骤、功能和清理结果投影到现有 detail，不增加持久协议、路径或秘密。普通刷新不启动 Office。文档业务结果同时显示清理已确认/未确认/失败/未创建，下载产物和功能状态独立保留；没有清理证据时明确未确认。该展示不更改原生执行、保存重开、取消或归属边界。
+
+
+## 研究情报统一入口 · 2026-10-12
+
+主导航统一为“研究情报”，本地热点与事件在 `#/intel/hot`，现有外部8栏目仍在 `#/intel/*`。旧 `#/workbench/hot` 链接保留视图/事件参数后转入本地页。两类页面共用栏目导航、主题与Host；本地版本证据和Golddata外部只读数据保持身份与覆盖来源区分，外部读取不写Hot、领取任务或调用模型。Hot未启用时，外部栏目与设置继续可用。
+
+恢复的DOCX切片通过 `GET /api/research/hot/briefs/{brief_id}/docx?version=<固定版本>` 从签名/哈希核对的冻结输入生成并保留私有产物，复用报告DOCX生成器；导出不创建会话、不调用模型、不外发。该路径尚需完整产品/恢复验收，局部测试不代表研究闭环完成。
+
+
+## Hot完整已存储原件冻结 · 2026-10-12
+
+研究输入先固定简报ID、正版本及所选材料ID。Node在只读一致快照中取得对应不可变材料版本及原始响应，核对版本内容哈希、原URL身份和截止时点，并保存完整存储文本；后续更正不回填旧输入。清单绑定逻辑实例、简报哈希、频道判断和截止时间，每个原件有独立字节数与SHA256。RSS响应不等于链接网页全文，同页其他条目不扩充选材。
+
+私有签名RPC的清单和原件均按32KiB分块。Host保留生产者规范JSON字节，避免Python/JavaScript小数重序列化差异；另核对原简报锚、实例、材料选择、文件名、偏移和最终哈希，整个重建有15秒期限。超限/取消/缺页失败，不发布部分文件。当前产物仍为内部冻结输入，尚未放进DataHub会话目录；接下来必须使用真实目标会话及既有私有快照目录校验，不能虚构来源会话或引用可变库记录。
+
+
+## Hot会话原件副本与运行映射（schema16）
+
+PG research_inputs在任何原生副作用前保存固定输入、规范清单字节/哈希和预留session UUID；research_runs仅按版本CAS推进，research_operations保留请求/前后状态/代次/回执，输入与审计不可改写。唯一迁移/业务写入所有者仍为Node，worker无这些映射写权限。
+
+Host在既有Store保留匹配的hot_origin，再调用现有DSH session.create/selectModel/rename。创建未知时先查固定原生ID；存在且归属一致才确认，未知缺席不自动重发。只有取得原生创建确认的目标会话可发布Hot证据。DataHub以hot_evidence快照种类直接保存固定原件；不伪造Provider查询或来源研究会话。
+
+public inputs完整写入并fsync后，private快照UUID目录才作为目录提交标记。确定性dataset ID、固定准备记录和逐文件哈希支持同请求重放与公开目录已发布/私有未发布的中断恢复；错误/异名内容拒绝，不覆盖既有资料。普通copy_selected/升级也复制这些独立原件，取得时间不改成复制时间。Hot原库不依赖研究会话存活，删除会话不删除Hot原件。
+
+
+2026-10-13续跑：Snapshots.admit_hot_script核对created/purpose、run/instance/manifest和私有快照文件hash，安全FD有界读取最多40个原件后validate_bundle；仅许可会话所属资料副本，不引用可变Hot对象。
+
+
+Hot报告固定绑定PG deliveryKey，核对读取原RWB_HOT_EXECUTION回合，不使用会话后续任务的交付或终态。当前文件SHA须在完成状态条件提交前核验；pending通过原严格沙箱校验，未核对不能判失败。Word由已校验MD确定性转换并复验来源hash。
+
+当前报告核验沿用Delivery的最多100文件、每文件16MiB合同，64KiB分块哈希；不按5文件或累计16MiB截断后推导失败。联合归档的选定会话metadata计入64MiB展开总量，最终ZIP也须在同上限内才签成功manifest。PG inventory直接保存规范JSONB文本的哈希，encoding为postgres-jsonb-text-v1；旧JS数值inventory存在不可逆碰撞，旧档保留但自动恢复拒绝认证，要求从原库用新版重新备份，不能仅重签旧manifest。
 
 ReportLab 初始化需读取当前目录；PDF helper 在已授权输出目录初始化，再恢复工作目录，未增加沙箱目录授权。底稿 JSON 在三份唯一产物生成并重开后以临时文件替换发布；质量还要求独立交付验证哈希一致。
 

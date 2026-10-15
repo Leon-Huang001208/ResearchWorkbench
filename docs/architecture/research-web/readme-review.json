@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "unchanged",
-  "summary": "Gold配置样例在当前嵌入看板和Bot消费边界标记未接入，README公开入口与产品边界保持。",
-  "reason": "无依赖、schema、评分、采集、部署或权限变化；模块文档、嵌入说明与任务报告说明来源缺口和历史兼容。"
+  "disposition": "updated",
+  "summary": "研究情报恢复精度、报告完整核验与周期一次性报告合同同步。",
+  "reason": "公开安装入口保持；schema21需停机setup，Hot唯一调度复用无模型Word投影，旧归档需原库重备份。最新候选重做恢复、Docker、Mac CI，不增加模型预算或删除旧卷/镜像。"
 }

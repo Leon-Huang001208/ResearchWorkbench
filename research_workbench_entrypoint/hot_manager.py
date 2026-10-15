@@ -1,0 +1,1292 @@
+"""Owned Native Hot process lifecycle. Credentials stay in backend and private stdin."""
+
+from __future__ import annotations
+
+import base64
+import hashlib
+import hmac
+import json
+import logging
+import os
+import selectors
+import signal
+import socket
+import re
+import secrets
+import subprocess
+import sys
+import time
+import stat
+try:
+    import fcntl
+except ImportError:
+    fcntl = None
+import shutil
+from contextlib import contextmanager
+from pathlib import Path
+from uuid import UUID, uuid4
+
+from .hot import HotError, _node, _no_alias, _read, normalize, save_settings
+
+log = logging.getLogger(__name__)
+
+
+def rpc(port: int, owner: dict, key: str, operation: str, params: dict | None = None,
+        request_id: str | None = None) -> dict | list:
+    request_id = request_id or str(uuid4())
+    body = {"protocol": "rwb-hot/v1", "id": request_id, **owner, "op": operation, "params": params or {}, "sentAt": int(time.time() * 1000)}
+    try:
+        data = base64.urlsafe_b64encode(json.dumps(body, ensure_ascii=False, separators=(",", ":"), allow_nan=False).encode()).decode().rstrip("=")
+    except (ValueError, TypeError):
+        raise HotError("hot_rpc_request_invalid") from None
+    proof = hmac.new(key.encode(), data.encode(), hashlib.sha256).hexdigest()
+    payload = json.dumps({"data": data, "proof": proof}).encode() + b"\n"
+    if len(payload) > (2097152 if operation == "research.model.receipt" else 65536):
+        raise HotError("hot_rpc_request_limit")
+    try:
+        deadline = time.monotonic() + 5
+        with socket.create_connection(("127.0.0.1", port), timeout=5) as peer:
+            peer.sendall(payload)
+            received = b""
+            while b"\n" not in received:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise HotError("hot_rpc_timeout")
+                peer.settimeout(remaining)
+                chunk = peer.recv(65536)
+                if not chunk or len(received) + len(chunk) > (2097152 if operation == "research.model.reserve" else 1048576):
+                    raise HotError("hot_rpc_incomplete")
+                received += chunk
+        frame = json.loads(received.split(b"\n")[0])
+        if not isinstance(frame, dict) or not isinstance(frame.get("data"), str) or not isinstance(frame.get("proof"), str):
+            raise HotError("hot_rpc_response_untrusted")
+        expected = hmac.new(key.encode(), frame["data"].encode(), hashlib.sha256).hexdigest()
+        if not hmac.compare_digest(expected, frame["proof"]):
+            raise HotError("hot_rpc_response_untrusted")
+        result = json.loads(base64.urlsafe_b64decode(frame["data"] + "=" * (-len(frame["data"]) % 4)))
+        if not isinstance(result, dict) or type(result.get("ok")) is not bool:
+            raise HotError("hot_rpc_response_untrusted")
+        if result.get("id") != request_id or result.get("protocol") != "rwb-hot/v1":
+            raise HotError("hot_rpc_response_untrusted")
+        if not result.get("ok"):
+            code = result.get("code")
+            known = ("hot_periodic_config_invalid", "hot_periodic_due_invalid", "hot_periodic_request_invalid", "hot_periodic_enable_required", "hot_periodic_control_denied", "hot_periodic_request_conflict", "hot_periodic_version_conflict", "hot_periodic_channel_invalid", "hot_periodic_limit", "hot_periodic_save_failed", "hot_periodic_read_failed", "hot_periodic_schedule_failed", "hot_periodic_run_invalid", "hot_periodic_plan_changed", "hot_periodic_brief_failed", "hot_follow_request_invalid", "hot_follow_control_denied", "hot_follow_version_conflict", "hot_follow_target_conflict", "hot_follow_target_invalid", "hot_follow_request_conflict", "hot_follow_limit", "hot_follow_read_failed", "hot_follow_save_failed", "hot_source_config_invalid", "hot_source_request_invalid", "hot_source_revision_conflict",
+                     "hot_source_request_conflict", "hot_source_unknown", "hot_source_catalog_permission_missing", "hot_owner_stale", "hot_rpc_denied",
+                     "hot_channel_request_invalid", "hot_channel_request_conflict", "hot_channel_revision_conflict", "hot_channel_control_denied",
+                     "hot_channel_invalid", "hot_channel_rule_invalid", "hot_channel_source_unknown", "hot_channel_unknown",
+                     "hot_event_identity_invalid", "hot_event_revision_invalid", "hot_event_revision_conflict", "hot_event_unknown",
+                     "hot_event_correction_invalid", "hot_event_request_conflict", "hot_event_control_denied", "hot_event_text_invalid", "hot_event_time_invalid", "hot_event_time_evidence_invalid",
+                     "hot_event_split_invalid", "hot_event_merge_invalid", "hot_event_reassign_invalid", "hot_event_manual_conflict",
+                     "hot_event_link_cycle", "hot_event_link_depth", "hot_event_graph_limit", "hot_event_alias_requires_canonical",
+                     "hot_projection_params_invalid", "hot_projection_cutoff_invalid", "hot_projection_cutoff_required",
+                     "hot_projection_sort_invalid", "hot_projection_channel_invalid", "hot_projection_channel_unknown",
+                     "hot_projection_event_invalid", "hot_projection_event_unknown",
+                     "hot_brief_identity_invalid", "hot_brief_params_invalid", "hot_brief_limit", "hot_brief_persist_limit",
+                     "hot_brief_window_invalid", "hot_brief_timezone_invalid", "hot_brief_unknown", "hot_brief_channel_unknown",
+                     "hot_brief_selection_invalid", "hot_brief_selection_alias_duplicate", "hot_brief_selection_outside_window",
+                     "hot_brief_evidence_missing", "hot_brief_integrity_invalid", "hot_brief_request_conflict", "hot_brief_version_conflict",
+                     "hot_brief_control_denied", "hot_brief_cutoff_required", "hot_brief_cutoff_invalid", "hot_brief_cancelled",
+                     "hot_research_selection_invalid", "hot_research_offset_invalid", "hot_research_evidence_invalid",
+                     "hot_research_evidence_conflict", "hot_research_evidence_changed", "hot_research_evidence_limit",
+                     "hot_research_material_not_selected", "hot_research_original_integrity_invalid", "hot_research_instance_invalid",
+                     "hot_research_manifest_limit", "hot_research_manifest_changed", "hot_research_cancelled",
+                     "hot_research_object_invalid", "hot_research_object_not_selected", "hot_research_evidence_failed",
+                     "hot_research_original_failed", "hot_research_run_invalid", "hot_research_run_unknown", "hot_research_run_failed",
+                     "hot_research_control_denied", "hot_research_request_conflict", "hot_research_revision_conflict",
+                     "hot_research_transition_invalid", "hot_research_mapping_conflict", "hot_research_snapshot_required",
+                     "hot_research_delivery_required", "hot_research_input_integrity_invalid")
+            model_codes = {
+                "hot_research_model_invalid", "hot_research_control_denied", "hot_research_session_invalid",
+                "hot_research_request_conflict", "hot_research_model_attempt_changed", "hot_research_execution_not_active",
+                "hot_research_model_denied", "hot_research_model_failed", "hot_research_model_binding_denied",
+                "hot_research_receipt_invalid", "hot_pricing_invalid", "hot_model_budget_invalid",
+                "hot_model_spec_invalid", "hot_model_scope_invalid", "hot_model_ticket_invalid",
+                "hot_model_authorization_missing", "hot_model_budget_exhausted", "hot_model_daily_budget_exhausted",
+                "hot_model_dispatch_denied", "hot_model_attempt_state_conflict", "hot_model_cancel_denied",
+                "hot_model_receipt_invalid", "hot_model_ticket_denied", "hot_model_receipt_conflict",
+            }
+            raise HotError(code if code in known or operation.startswith("research.model.") and code in model_codes else "hot_rpc_unavailable")
+        return result["result"]
+    except HotError:
+        raise
+    except (OSError, ValueError, KeyError, TypeError):
+        raise HotError("hot_rpc_unavailable") from None
+
+
+class HotManager:
+    """One project-owned process. Never stops a database or deletes a volume."""
+
+    def __init__(self, project: Path, home: Path, credentials):
+        self.project = project
+        self.home = home
+        self.credentials = credentials
+        self.directory = home / "hot"
+        self.state_path = self.directory / "process.json"
+        self.service = "ResearchWorkbench.Hot." + hashlib.sha256(str(home).encode()).hexdigest()[:24]
+
+    def _config(self) -> dict:
+        record = _read(self.directory / "settings.json", private=True)
+        if record.get("projectRoot") != str(self.project):
+            raise HotError("hot_foreign_config")
+        return normalize(self.project, record["config"])
+
+    def _secret(self, account: str) -> str:
+        try:
+            value = self.credentials.get_password(self.service, account)
+        except Exception:
+            raise HotError("hot_credentials_unavailable") from None
+        if not isinstance(value, str) or not value or len(value) > 4096:
+            raise HotError("hot_credentials_missing")
+        return value
+
+    def _ensure_secret(self, account: str) -> str:
+        try:
+            value = self.credentials.get_password(self.service, account)
+            if value is None:
+                value = secrets.token_hex(32)
+                self.credentials.set_password(self.service, account, value)
+            if not isinstance(value, str) or not re.fullmatch(r"[a-f0-9]{64}", value):
+                raise HotError("hot_generated_secret_invalid")
+            return value
+        except HotError:
+            raise
+        except Exception:
+            raise HotError("hot_credentials_unavailable") from None
+
+    def setup(self, migration_user: str = "postgres", migration_account: str = "hot-migration-database") -> dict:
+        with self._lock():
+            if self._state() is not None:
+                raise HotError("hot_setup_requires_stopped")
+            config = self._config()
+            self._dependencies()
+            identity_path = self.directory / "identity.json"
+            _no_alias(identity_path)
+            if identity_path.exists():
+                identity = _read(identity_path, private=True)
+                if identity.get("projectRoot") != str(self.project):
+                    raise HotError("hot_process_foreign")
+            else:
+                identity = {"projectRoot": str(self.project), "instanceId": str(uuid4())}
+                descriptor = os.open(identity_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+                with os.fdopen(descriptor, "w") as stream:
+                    json.dump(identity, stream)
+                    stream.flush()
+                    os.fsync(stream.fileno())
+            controller_key = self._ensure_secret("rpc-controller")
+            self._ensure_secret("rpc-reader")
+            managed = config["database"]["mode"] == "managed"
+            if managed:
+                from .hot_postgres import ManagedPostgres
+
+                admin_password = self._ensure_secret("hot-postgres-admin")
+                server = ManagedPostgres(self.home, identity["instanceId"]).start(admin_password)
+                config["database"].update({key: server[key] for key in ("host", "port")})
+                worker_password = self._ensure_secret(config["database"]["secretRef"])
+                controller_password = self._ensure_secret(config["database"]["controllerSecretRef"])
+                migration_user = "postgres"
+            else:
+                admin_password = self._secret(migration_account)
+                worker_password = self._secret(config["database"]["secretRef"])
+                controller_password = self._secret(config["database"]["controllerSecretRef"])
+            payload = {"config": config, "instanceId": identity["instanceId"], "controllerToken": controller_key,
+                       "migrationUser": migration_user, "migrationPassword": admin_password,
+                       "createRoles": managed, "workerPassword": worker_password, "controllerPassword": controller_password}
+            try:
+                result = subprocess.run([_node(), str(self.project / "services/hot/scripts/setup.ts")], input=json.dumps(payload),
+                                        capture_output=True, text=True, timeout=60, cwd=self.project)
+                value = json.loads(result.stdout)
+                if result.returncode or value.get("state") != "configured":
+                    phase = value.get("phase")
+                    raise HotError("hot_setup_failed_" + phase if phase in ("input", "ownership", "roles", "migration", "identity", "queue", "grants") else "hot_setup_failed")
+            except (OSError, ValueError, subprocess.SubprocessError):
+                raise HotError("hot_setup_failed") from None
+            saved = save_settings(self.project, self.home, config)
+            if saved.get("logging") == "unavailable":
+                raise HotError("hot_config_saved_log_unavailable")
+            log.info("hot_setup_completed")
+            return {"state": "configured", "databaseMode": config["database"]["mode"], "schema": config["database"]["schema"]}
+
+    def _dependencies(self) -> None:
+        package = self.project / "services" / "hot"
+        expected = {"postgres": "3.4.9", "pg-boss": "12.34.0", "fast-xml-parser": "5.11.1"}
+        try:
+            ready = all(_read(package / "node_modules" / name / "package.json").get("version") == version for name, version in expected.items())
+        except HotError:
+            ready = False
+        if ready:
+            return
+        npm = shutil.which("npm")
+        if not npm:
+            raise HotError("hot_dependency_installer_missing")
+        environment = {key: value for key, value in os.environ.items() if key in {"HOME", "PATH", "TMPDIR", "TEMP", "TMP", "http_proxy", "https_proxy", "HTTP_PROXY", "HTTPS_PROXY"}}
+        environment["PATH"] = str(Path(_node()).parent) + os.pathsep + environment.get("PATH", "")
+        try:
+            result = subprocess.run([npm, "ci", "--ignore-scripts", "--no-fund", "--no-audit"], cwd=package,
+                                    env=environment, capture_output=True, timeout=180)
+            if result.returncode:
+                raise HotError("hot_dependencies_failed")
+        except (OSError, subprocess.SubprocessError):
+            raise HotError("hot_dependencies_failed") from None
+        log.info("hot_dependencies_installed")
+
+    def _fingerprint(self, pid: int) -> str | None:
+        if self._runtime_mode() == "docker":
+            return self._docker_fingerprint(pid)
+        try:
+            result = subprocess.run(["ps", "-ww", "-p", str(pid), "-o", "stat=", "-o", "lstart=", "-o", "command="], capture_output=True, text=True, timeout=3)
+            fields = result.stdout.strip().split(maxsplit=1)
+            output = fields[1] if len(fields) == 2 and "Z" not in fields[0] else ""
+            return output if result.returncode == 0 and output and "<defunct>" not in output else None
+        except (OSError, subprocess.SubprocessError):
+            raise HotError("hot_process_probe_failed") from None
+
+    def _docker_fingerprint(self, pid: int, root: Path = Path("/proc")) -> str | None:
+        """Bind the guest process to kernel birth, UID and exact argv without ps."""
+        process = root / str(pid)
+
+        def read(name: Path, limit: int) -> bytes:
+            descriptor = os.open(name, os.O_RDONLY | os.O_NOFOLLOW)
+            with os.fdopen(descriptor, "rb") as stream:
+                value = stream.read(limit + 1)
+            if len(value) > limit:
+                raise ValueError()
+            return value
+
+        def identity() -> tuple[str, str]:
+            if process.stat().st_uid != os.getuid():
+                raise HotError("hot_process_identity_mismatch")
+            raw = read(process / "stat", 4096)
+            split = raw.rfind(b") ")
+            if split < 0 or raw.split(b" ", 1)[0] != str(pid).encode():
+                raise ValueError()
+            fields = raw[split + 2:].split()
+            if len(fields) < 20 or not fields[19].isdigit():
+                raise ValueError()
+            return fields[0].decode("ascii"), fields[19].decode("ascii")
+
+        try:
+            state, birth = identity()
+            if state in ("Z", "X"):
+                return None
+            boot = read(root / "sys/kernel/random/boot_id", 64).decode("ascii").strip()
+            if not re.fullmatch(r"[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}", boot):
+                raise ValueError()
+            command = read(process / "cmdline", 32768)
+            if not command or not command.endswith(b"\0"):
+                raise ValueError()
+            argv = command[:-1].decode("utf-8").split("\0")
+            if not all(argv):
+                raise ValueError()
+            final_state, final_birth = identity()
+            if final_state in ("Z", "X"):
+                return None
+            if final_birth != birth or read(process / "cmdline", 32768) != command:
+                raise HotError("hot_process_identity_mismatch")
+            digest = hashlib.sha256(command).hexdigest()
+            return f"linux:{boot}:{birth}:{os.getuid()}:{digest} " + " ".join(argv)
+        except FileNotFoundError:
+            if process.exists():
+                log.warning("hot_process_probe_failed")
+                raise HotError("hot_process_probe_failed") from None
+            return None
+        except HotError:
+            log.warning("hot_process_identity_mismatch")
+            raise
+        except (OSError, ValueError, UnicodeError):
+            log.warning("hot_process_probe_failed")
+            raise HotError("hot_process_probe_failed") from None
+
+    def _state(self) -> dict | None:
+        _no_alias(self.state_path)
+        if not self.state_path.exists():
+            return None
+        state = _read(self.state_path, private=True)
+        if state.get("projectRoot") != str(self.project) or state.get("version") != 1:
+            raise HotError("hot_process_foreign")
+        if not isinstance(state.get("pid"), int) or state["pid"] <= 1 or not isinstance(state.get("fingerprint"), str):
+            raise HotError("hot_process_invalid")
+        current = self._fingerprint(state["pid"])
+        if current is None:
+            return None
+        launch_id = state.get("launchId")
+        expected = str(self.project / "services/hot/scripts/serve.ts")
+        if not isinstance(launch_id, str) or not re.fullmatch(r"[0-9a-f]{32}", launch_id):
+            raise HotError("hot_process_invalid")
+        if current != state["fingerprint"] or not current.endswith(" " + expected + " " + launch_id):
+            raise HotError("hot_process_identity_mismatch")
+        return state
+
+    def status(self) -> dict:
+        state = self._state()
+        if state is None:
+            return {"state": "stopped"}
+        value = rpc(state["port"], state["owner"], self._secret("rpc-reader"), "status")
+        if not isinstance(value, dict):
+            raise HotError("hot_rpc_invalid")
+        return {"state": "initialized", "pid": state["pid"], **value}
+
+    def sources(self) -> list:
+        """Read source coverage without scheduling or launching collection."""
+        state = self._state()
+        if state is None:
+            raise HotError("hot_service_stopped")
+        value = rpc(state["port"], state["owner"], self._secret("rpc-reader"), "sources")
+        if not isinstance(value, list):
+            raise HotError("hot_rpc_invalid")
+        return value
+
+    def _read_projection(self, operation: str, params: dict) -> dict:
+        if operation not in ("channels", "events.list", "event.detail", "brief.list", "follow.list", "periodic.list", "periodic.runs"):
+            raise HotError("hot_projection_operation_invalid")
+        state = self._state()
+        if state is None:
+            raise HotError("hot_service_stopped")
+        value = rpc(state["port"], state["owner"], self._secret("rpc-reader"), operation, params)
+        list_key = "reports" if operation == "event.detail" else "items"
+        if not isinstance(value, dict) or not isinstance(value.get("cutoff"), str) or not isinstance(value.get(list_key), list):
+            raise HotError("hot_rpc_invalid")
+        log.info("hot_projection_read")
+        return value
+
+    def channels(self, cutoff: str | None = None) -> dict:
+        return self._read_projection("channels", {"cutoff": cutoff} if cutoff else {})
+
+    def events(self, filters: dict | None = None) -> dict:
+        return self._read_projection("events.list", filters or {})
+
+    def event_detail(self, event_id: str, cutoff: str | None = None, report_offset: int = 0, report_limit: int = 20) -> dict:
+        params = {"eventId": event_id, "reportOffset": report_offset, "reportLimit": report_limit}
+        if cutoff:
+            params["cutoff"] = cutoff
+        return self._read_projection("event.detail", params)
+
+    @staticmethod
+    def _brief_id(value):
+        if not isinstance(value, str) or not re.fullmatch(r"[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}", value):
+            raise HotError("hot_brief_identity_invalid")
+        return str(UUID(value))
+
+    def briefs(self, filters: dict | None = None) -> dict:
+        return self._read_projection("brief.list", filters or {})
+
+    def follows(self) -> dict:
+        return self._read_projection("follow.list", {})
+
+    def periodic_plans(self) -> dict:
+        return self._read_projection("periodic.list", {})
+
+    def periodic_runs(self, plan_id: str) -> dict:
+        return self._read_projection("periodic.runs", {"planId": self._brief_id(plan_id)})
+
+    def periodic_report(self, run_id: str) -> dict:
+        """Read immutable one-shot bytes through bounded authenticated chunks."""
+        import base64
+        run_id = self._brief_id(run_id)
+        state = self._state()
+        if state is None:
+            raise HotError("hot_service_stopped")
+        reader = self._secret("rpc-reader")
+        first, data, offset = None, bytearray(), 0
+        deadline = time.monotonic() + 20
+        for _ in range(160):
+            if time.monotonic() >= deadline:
+                raise HotError("hot_periodic_report_deadline")
+            value = rpc(state["port"], state["owner"], reader, "periodic.report", {"runId": run_id, "offset": offset})
+            if (not isinstance(value, dict) or value.get("runId") != run_id or value.get("format") != "docx"
+                    or value.get("offset") != offset or type(value.get("totalBytes")) is not int
+                    or not 1 <= value["totalBytes"] <= 5242880 or not isinstance(value.get("data"), str)
+                    or len(value["data"]) > 43692 or any(not isinstance(value.get(key), str)
+                    or not re.fullmatch(r"[a-f0-9]{64}", value[key]) for key in ("executionId", "inputHash", "artifactHash"))):
+                raise HotError("hot_rpc_invalid")
+            if first is None:
+                first = value
+            if any(value.get(key) != first.get(key) for key in ("executionId", "briefId", "briefVersion", "inputHash", "artifactHash", "totalBytes")):
+                raise HotError("hot_rpc_invalid")
+            try:
+                chunk = base64.b64decode(value["data"], validate=True)
+            except ValueError:
+                raise HotError("hot_rpc_invalid") from None
+            if not 1 <= len(chunk) <= 32768:
+                raise HotError("hot_rpc_invalid")
+            data.extend(chunk); offset += len(chunk)
+            if offset > first["totalBytes"] or value.get("nextOffset") != (None if offset == first["totalBytes"] else offset):
+                raise HotError("hot_rpc_invalid")
+            if offset == first["totalBytes"]:
+                if hashlib.sha256(data).hexdigest() != first["artifactHash"]:
+                    raise HotError("hot_rpc_invalid")
+                return {**{key: first[key] for key in ("runId", "executionId", "briefId", "briefVersion", "inputHash", "artifactHash")}, "data": bytes(data)}
+        raise HotError("hot_periodic_report_limit")
+
+    def configure_periodic_plan(self, params: dict, request_id: str | None = None) -> dict:
+        from datetime import datetime, timezone
+        from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+        fields = {"name", "channelId", "enabled", "firstRunAt", "intervalSeconds", "windowSeconds", "maxEvents", "timezone", "sort"}
+        if not isinstance(params, dict) or set(params) != {"planId", "expectedVersion", "config", "reason"}:
+            raise HotError("hot_periodic_request_invalid")
+        params = dict(params)
+        params["planId"] = self._brief_id(params["planId"])
+        config = params["config"]
+        if (type(params["expectedVersion"]) is not int or not 0 <= params["expectedVersion"] < 1000000
+                or not isinstance(params["reason"], str) or not params["reason"].strip() or len(params["reason"]) > 1000
+                or not isinstance(config, dict) or set(config) != fields):
+            raise HotError("hot_periodic_request_invalid")
+        config = dict(config)
+        for key, maximum in [("name", 120), ("channelId", 48), ("firstRunAt", 100), ("timezone", 80), ("sort", 20)]:
+            if not isinstance(config[key], str) or not config[key].strip() or len(config[key]) > maximum:
+                raise HotError("hot_periodic_config_invalid")
+        if (type(config["enabled"]) is not bool or not re.fullmatch(r"[a-z][a-z0-9_-]{0,47}", config["channelId"])
+                or config["sort"] not in {"importance", "heat", "recent"}
+                or any(type(config[key]) is not int or not low <= config[key] <= high for key, low, high in
+                       [("intervalSeconds", 60, 604800), ("windowSeconds", 60, 31622400), ("maxEvents", 1, 20)])):
+            raise HotError("hot_periodic_config_invalid")
+        try:
+            if not re.fullmatch(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{1,3})?(?:Z|[+-]\d\d:\d\d)", config["firstRunAt"]):
+                raise ValueError()
+            offset = re.search(r"[+-](\d{2}):(\d{2})$", config["firstRunAt"])
+            if offset and (int(offset[1]) > 23 or int(offset[2]) > 59):
+                raise ValueError()
+            config["firstRunAt"] = datetime.fromisoformat(config["firstRunAt"]).astimezone(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+            ZoneInfo(config["timezone"])
+        except (ValueError, OverflowError, ZoneInfoNotFoundError):
+            raise HotError("hot_periodic_config_invalid") from None
+        if params["expectedVersion"] == 0 and config["enabled"]:
+            raise HotError("hot_periodic_enable_required")
+        params["config"] = config
+        def receipt(value, request):
+            return (isinstance(value, dict) and value.get("planId") == params["planId"]
+                    and type(value.get("version")) is int and value["version"] == params["expectedVersion"] + 1
+                    and value.get("requestId") == request and value.get("config") == config and isinstance(value.get("nextDueAt"), str))
+        return self._control_projection("periodic.configure", params, request_id, receipt)
+
+    def configure_follow(self, params: dict, request_id: str | None = None) -> dict:
+        if not isinstance(params, dict) or set(params) != {"followId", "expectedVersion", "config", "reason"}:
+            raise HotError("hot_follow_request_invalid")
+        params = dict(params)
+        params["followId"] = self._brief_id(params["followId"])
+        config = params["config"]
+        if (type(params["expectedVersion"]) is not int or not 0 <= params["expectedVersion"] < 1000000
+                or not isinstance(config, dict) or set(config) != {"kind", "target", "name", "enabled"}
+                or not isinstance(config["kind"], str) or config["kind"] not in {"channel", "event", "keyword", "institution", "asset"}
+                or type(config["enabled"]) is not bool or any(not isinstance(value, str) or not value.strip() or len(value) > limit
+                    for value, limit in [(params["reason"], 1000), (config["target"], 200), (config["name"], 120)])):
+            raise HotError("hot_follow_request_invalid")
+        config = dict(config)
+        if config["kind"] == "event":
+            config["target"] = self._brief_id(config["target"])
+        if config["kind"] == "channel" and not re.fullmatch(r"[a-z][a-z0-9_-]{0,47}", config["target"]):
+            raise HotError("hot_follow_request_invalid")
+        params["config"] = config
+        def receipt(value, request):
+            return (isinstance(value, dict) and value.get("followId") == params["followId"]
+                    and type(value.get("version")) is int and value["version"] == params["expectedVersion"] + 1
+                    and value.get("requestId") == request and value.get("config") == config)
+        return self._control_projection("follow.configure", params, request_id, receipt)
+
+    def _brief_read(self, brief_id: str, version: int | None, export: bool = False) -> dict:
+        brief_id = self._brief_id(brief_id)
+        if version is not None and (type(version) is not int or not 1 <= version <= 1000000):
+            raise HotError("hot_brief_params_invalid")
+        state = self._state()
+        if state is None:
+            raise HotError("hot_service_stopped")
+        params = {"briefId": brief_id, **({"version": version} if version is not None else {})}
+        reader = self._secret("rpc-reader")
+        value = rpc(state["port"], state["owner"], reader, "brief.export" if export else "brief.get", params)
+        if (not isinstance(value, dict) or value.get("briefId") != brief_id or type(value.get("version")) is not int
+                or not 1 <= value["version"] <= 1000000 or (version is not None and value["version"] != version)
+                or not isinstance(value.get("contentHash"), str) or not re.fullmatch(r"[a-f0-9]{64}", value["contentHash"])):
+            raise HotError("hot_rpc_invalid")
+        if export:
+            first = value
+            if (type(first.get("totalBytes")) is not int or not 0 <= first["totalBytes"] <= 4000000
+                    or not isinstance(first.get("textHash"), str) or not re.fullmatch(r"[a-f0-9]{64}", first["textHash"])):
+                raise HotError("hot_rpc_invalid")
+            params["version"] = first["version"]
+            data, offset = bytearray(), 0
+            for _ in range(128):
+                if (not isinstance(value, dict) or value.get("briefId") != brief_id or value.get("version") != first["version"]
+                        or value.get("contentHash") != first["contentHash"] or value.get("textHash") != first["textHash"]
+                        or value.get("totalBytes") != first["totalBytes"] or value.get("offset") != offset
+                        or value.get("format") != "markdown" or not isinstance(value.get("text"), str)):
+                    raise HotError("hot_rpc_invalid")
+                chunk = value["text"].encode()
+                if len(chunk) > 32768 or (not chunk and offset < first["totalBytes"]):
+                    raise HotError("hot_rpc_invalid")
+                data.extend(chunk)
+                offset += len(chunk)
+                if offset > first["totalBytes"]:
+                    raise HotError("hot_rpc_invalid")
+                if offset == first["totalBytes"]:
+                    if value.get("nextOffset") is not None or hashlib.sha256(data).hexdigest() != first["textHash"]:
+                        raise HotError("hot_rpc_invalid")
+                    value = {**first, "text": data.decode(), "nextOffset": None}
+                    break
+                if type(value.get("nextOffset")) is not int or value["nextOffset"] != offset:
+                    raise HotError("hot_rpc_invalid")
+                value = rpc(state["port"], state["owner"], reader, "brief.export", {**params, "offset": offset})
+            else:
+                raise HotError("hot_rpc_invalid")
+        elif not isinstance(value.get("payload"), dict) or value["payload"].get("schemaVersion") != 1:
+            raise HotError("hot_rpc_invalid")
+        log.info("hot_brief_read")
+        return value
+
+    def brief_detail(self, brief_id: str, version: int | None = None) -> dict:
+        return self._brief_read(brief_id, version)
+
+    def brief_export(self, brief_id: str, version: int | None = None) -> dict:
+        return self._brief_read(brief_id, version, True)
+
+    def research_evidence(self, brief_id: str, version: int, material_ids: list[str]) -> dict:
+        """Reconstruct exact immutable originals privately; never create a session or dispatch."""
+        try:
+            brief_id = self._brief_id(brief_id)
+            if (type(version) is not int or not 1 <= version <= 1000000
+                    or not isinstance(material_ids, list) or not 1 <= len(material_ids) <= 20):
+                raise HotError("hot_research_selection_invalid")
+            material_ids = sorted(self._brief_id(value) for value in material_ids)
+            if len(set(material_ids)) != len(material_ids):
+                raise HotError("hot_research_selection_invalid")
+            state = self._state()
+            if state is None:
+                raise HotError("hot_service_stopped")
+            reader = self._secret("rpc-reader")
+            params = {"briefId": brief_id, "version": version, "materialIds": material_ids}
+            deadline = time.monotonic() + 15
+            saved = rpc(state["port"], state["owner"], reader, "research.evidence", params)
+            if (not isinstance(saved, dict) or not isinstance(saved.get("manifestHash"), str)
+                    or not re.fullmatch(r"[a-f0-9]{64}", saved["manifestHash"])
+                    or type(saved.get("totalBytes")) is not int or not 0 < saved["totalBytes"] <= 700000):
+                raise HotError("hot_research_response_invalid")
+            digest, manifest_size = saved["manifestHash"], saved["totalBytes"]
+            manifest_data, offset = bytearray(), 0
+            for _ in range(23):
+                if time.monotonic() >= deadline:
+                    raise HotError("hot_research_read_timeout")
+                if (not isinstance(saved, dict) or saved.get("manifestHash") != digest or saved.get("contentHash") != digest
+                        or type(saved.get("offset")) is not int or saved["offset"] != offset
+                        or type(saved.get("totalBytes")) is not int or saved["totalBytes"] != manifest_size
+                        or not isinstance(saved.get("dataBase64"), str) or len(saved["dataBase64"]) > 43692):
+                    raise HotError("hot_research_response_invalid")
+                part = base64.b64decode(saved["dataBase64"], validate=True)
+                if not 0 < len(part) <= 32768:
+                    raise HotError("hot_research_response_invalid")
+                manifest_data.extend(part)
+                offset += len(part)
+                if offset > manifest_size:
+                    raise HotError("hot_research_response_invalid")
+                if offset == manifest_size:
+                    if saved.get("nextOffset") is not None or hashlib.sha256(manifest_data).hexdigest() != digest:
+                        raise HotError("hot_research_response_invalid")
+                    break
+                if type(saved.get("nextOffset")) is not int or saved["nextOffset"] != offset:
+                    raise HotError("hot_research_response_invalid")
+                saved = rpc(state["port"], state["owner"], reader, "research.evidence",
+                            {**params, "offset": offset, "manifestHash": digest})
+            else:
+                raise HotError("hot_research_response_invalid")
+            manifest = json.loads(manifest_data)
+            anchor = self.brief_detail(brief_id, version)
+            if (not isinstance(manifest, dict) or type(manifest.get("schemaVersion")) is not int or manifest["schemaVersion"] != 1
+                    or manifest.get("instanceId") != state["owner"]["instanceId"]
+                    or manifest.get("briefId") != brief_id or type(manifest.get("version")) is not int
+                    or manifest["version"] != version or manifest.get("materialIds") != material_ids
+                    or not isinstance(manifest.get("briefContext"), dict)
+                    or manifest.get("briefContentHash") != anchor["contentHash"]
+                    or manifest["briefContext"] != anchor["payload"]
+                    or manifest.get("cutoff") != manifest["briefContext"].get("cutoff")
+                    or manifest.get("timezone") != manifest["briefContext"].get("timezone")
+                    or type(manifest.get("totalBytes")) is not int or not 0 <= manifest["totalBytes"] <= 32 * 1024 * 1024
+                    or not isinstance(manifest.get("objects"), list) or not 2 <= len(manifest["objects"]) <= 40
+                    or not isinstance(manifest.get("materials"), list)):
+                raise HotError("hot_research_response_invalid")
+            descriptors = {}
+            total = 0
+            uuid = r"[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}"
+            for item in manifest["objects"]:
+                if (not isinstance(item, dict) or type(item.get("bytes")) is not int
+                        or not 0 <= item["bytes"] <= 8 * 1024 * 1024
+                        or not isinstance(item.get("key"), str) or item["key"] in descriptors
+                        or not isinstance(item.get("contentHash"), str)
+                        or not re.fullmatch(r"[a-f0-9]{64}", item["contentHash"])):
+                    raise HotError("hot_research_response_invalid")
+                key = item["key"]
+                if re.fullmatch("raw:" + uuid, key):
+                    filename, format_ = "raw-" + key[4:] + ".bin", "application/octet-stream"
+                elif re.fullmatch("material:" + uuid + r":[1-9][0-9]{0,9}", key):
+                    _, identity, revision = key.split(":")
+                    filename, format_ = f"material-{identity}-r{revision}.json", "application/json"
+                else:
+                    raise HotError("hot_research_response_invalid")
+                if item.get("filename") != filename or item.get("format") != format_:
+                    raise HotError("hot_research_response_invalid")
+                descriptors[key] = item
+                total += item["bytes"]
+            if total != manifest["totalBytes"] or len(manifest["materials"]) != len(material_ids):
+                raise HotError("hot_research_response_invalid")
+            selected = set()
+            referenced = set()
+            for item in manifest["materials"]:
+                if (not isinstance(item, dict) or item.get("materialId") not in material_ids
+                        or item["materialId"] in selected or type(item.get("revision")) is not int or item["revision"] < 1
+                        or item.get("normalizedObject") != f"material:{item['materialId']}:{item['revision']}"
+                        or item.get("normalizedObject") not in descriptors or item.get("rawObject") not in descriptors
+                        or not item["rawObject"].startswith("raw:")):
+                    raise HotError("hot_research_response_invalid")
+                selected.add(item["materialId"])
+                referenced.update([item["normalizedObject"], item["rawObject"]])
+            if selected != set(material_ids) or referenced != set(descriptors):
+                raise HotError("hot_research_response_invalid")
+            originals = {}
+            for key, item in descriptors.items():
+                data, offset = bytearray(), 0
+                for _ in range(257):
+                    if time.monotonic() >= deadline:
+                        raise HotError("hot_research_read_timeout")
+                    value = rpc(state["port"], state["owner"], reader, "research.original",
+                                {**params, "objectKey": key, "manifestHash": digest, "offset": offset})
+                    if (not isinstance(value, dict) or value.get("manifestHash") != digest or value.get("objectKey") != key
+                            or type(value.get("offset")) is not int or value["offset"] != offset
+                            or type(value.get("totalBytes")) is not int or value["totalBytes"] != item["bytes"]
+                            or value.get("contentHash") != item["contentHash"]
+                            or not isinstance(value.get("dataBase64"), str) or len(value["dataBase64"]) > 43692):
+                        raise HotError("hot_research_response_invalid")
+                    part = base64.b64decode(value["dataBase64"], validate=True)
+                    if len(part) > 32768 or (not part and offset < item["bytes"]):
+                        raise HotError("hot_research_response_invalid")
+                    data.extend(part)
+                    offset += len(part)
+                    if offset > item["bytes"]:
+                        raise HotError("hot_research_response_invalid")
+                    if offset == item["bytes"]:
+                        if value.get("nextOffset") is not None or hashlib.sha256(data).hexdigest() != item["contentHash"]:
+                            raise HotError("hot_research_response_invalid")
+                        originals[key] = bytes(data)
+                        break
+                    if type(value.get("nextOffset")) is not int or value["nextOffset"] != offset:
+                        raise HotError("hot_research_response_invalid")
+                else:
+                    raise HotError("hot_research_response_invalid")
+            log.info("hot_research_evidence_received")
+            return {"manifest": manifest, "manifestBytes": bytes(manifest_data), "manifestHash": digest, "objects": originals}
+        except HotError:
+            log.warning("hot_research_evidence_rejected")
+            raise
+        except (OSError, ValueError, TypeError, KeyError):
+            log.warning("hot_research_evidence_invalid")
+            raise HotError("hot_research_response_invalid") from None
+
+    def _valid_research_run(self, value, run_id):
+        if (not isinstance(value, dict) or value.get("runId") != run_id
+                or type(value.get("revision")) is not int or value["revision"] < 1
+                or value.get("state") not in {"prepared", "session_creating", "session_outcome_unknown", "session_ready", "snapshot_ready", "execution_starting", "execution_outcome_unknown", "running", "completed", "failed", "abandoned"}
+                or value.get("targetMode") not in {"fingpt", "claw"}
+                or not isinstance(value.get("evidenceManifestHash"), str) or not re.fullmatch(r"[a-f0-9]{64}", value["evidenceManifestHash"])
+                or not isinstance(value.get("materialIds"), list) or not 1 <= len(value["materialIds"]) <= 20
+                or type(value.get("version")) is not int or value["version"] < 1):
+            return False
+        try:
+            for key in ["runId", "sessionId", "instanceId", "briefId", "requestId"]:
+                self._brief_id(value[key])
+            for identity in value["materialIds"]:
+                self._brief_id(identity)
+        except (HotError, KeyError):
+            return False
+        return True
+
+    def research_run(self, run_id: str) -> dict:
+        run_id = self._brief_id(run_id)
+        state = self._state()
+        if state is None:
+            raise HotError("hot_service_stopped")
+        value = rpc(state["port"], state["owner"], self._secret("rpc-reader"), "research.run", {"runId": run_id})
+        if not self._valid_research_run(value, run_id) or value["instanceId"] != state["owner"]["instanceId"]:
+            raise HotError("hot_research_response_invalid")
+        return value
+
+    def research_model(self, operation: str, params: dict) -> dict:
+        """Private Host bridge only; no credentials or caller-supplied costs are returned."""
+        if operation not in {"reserve", "dispatch", "unknown", "cancel", "receipt"} or not isinstance(params, dict):
+            raise HotError("hot_research_model_invalid")
+        state = self._state()
+        if state is None:
+            raise HotError("hot_not_running")
+        try:
+            result = rpc(state["port"], state["owner"], self._secret("rpc-controller"),
+                         "research.model." + operation, params)
+            if not isinstance(result, dict) or result.get("state") not in {
+                "reserved", "busy", "reused", "dispatching", "outcome_unknown", "cancelled", "received"
+            }:
+                raise HotError("hot_research_model_response_invalid")
+            log.info("hot_research_model_bridge", extra={"operation": operation, "state": result["state"]})
+            return result
+        except HotError:
+            log.warning("hot_research_model_bridge_failed")
+            raise
+
+    def prepare_research_run(self, params: dict, request_id: str) -> dict:
+        required = {"runId", "briefId", "version", "materialIds", "targetMode"}
+        if (not isinstance(params, dict) or set(params) != required or params.get("targetMode") not in {"fingpt", "claw"}
+                or type(params.get("version")) is not int or not 1 <= params["version"] <= 1000000
+                or not isinstance(params.get("materialIds"), list) or not 1 <= len(params["materialIds"]) <= 20):
+            raise HotError("hot_research_run_invalid")
+        params = {**params, "runId": self._brief_id(params["runId"]), "briefId": self._brief_id(params["briefId"]),
+                  "materialIds": sorted(self._brief_id(value) for value in params["materialIds"])}
+        if len(set(params["materialIds"])) != len(params["materialIds"]):
+            raise HotError("hot_research_run_invalid")
+        return self._control_projection("research.prepare", params, request_id,
+                                        lambda value, request: self._valid_research_run(value, params["runId"]) and value["requestId"] == request)
+
+    def advance_research_run(self, params: dict, request_id: str) -> dict:
+        if (not isinstance(params, dict) or not {"runId", "expectedRevision", "state"} <= params.keys()
+                or set(params) - {"runId", "expectedRevision", "state", "datasetId", "datasetManifestHash", "deliveryKey", "reportRunId", "errorCode"}
+                or type(params["expectedRevision"]) is not int or params["expectedRevision"] < 1):
+            raise HotError("hot_research_run_invalid")
+        params = {**params, "runId": self._brief_id(params["runId"])}
+        return self._control_projection("research.advance", params, request_id,
+                                        lambda value, request: self._valid_research_run(value, params["runId"]) and value["revision"] == params["expectedRevision"] + 1 and value["state"] == params["state"])
+
+    def create_brief(self, params: dict, request_id: str | None = None) -> dict:
+        required = {"briefId", "expectedVersion", "eventIds", "channelId", "cutoff"}
+        if not isinstance(params, dict) or not required <= params.keys() or set(params) - required - {"from", "to", "timezone"}:
+            raise HotError("hot_brief_params_invalid")
+        params = dict(params)
+        params["briefId"] = self._brief_id(params["briefId"])
+        if (type(params["expectedVersion"]) is not int or not 0 <= params["expectedVersion"] < 1000000
+                or not isinstance(params["eventIds"], list) or not 1 <= len(params["eventIds"]) <= 20
+                or not isinstance(params["channelId"], str) or not re.fullmatch(r"[a-z][a-z0-9_-]{0,47}", params["channelId"])
+                or any(not isinstance(params[key], str) or not params[key] or len(params[key]) > 100 for key in {"cutoff", "from", "to", "timezone"} & params.keys())):
+            raise HotError("hot_brief_params_invalid")
+        params["eventIds"] = [self._brief_id(value) for value in params["eventIds"]]
+        if len(set(params["eventIds"])) != len(params["eventIds"]):
+            raise HotError("hot_brief_params_invalid")
+        def receipt(value, request):
+            return (isinstance(value, dict) and value.get("briefId") == params["briefId"] and type(value.get("version")) is int
+                    and value["version"] == params["expectedVersion"] + 1 and value.get("requestId") == request
+                    and isinstance(value.get("contentHash"), str) and re.fullmatch(r"[a-f0-9]{64}", value["contentHash"])
+                    and isinstance(value.get("createdAt"), str))
+        return self._control_projection("brief.create", params, request_id, receipt)
+
+    def _control_projection(self, operation: str, params: dict, request_id: str | None, valid_receipt) -> dict:
+        if operation not in ("channel.configure", "event.correct", "brief.create", "research.prepare", "research.advance", "follow.configure", "periodic.configure"):
+            raise HotError("hot_control_operation_invalid")
+        if request_id is not None and (not isinstance(request_id, str) or not re.fullmatch(r"[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}", request_id)):
+            raise HotError("hot_control_request_invalid")
+        try:
+            if len(json.dumps(params, ensure_ascii=False, allow_nan=False).encode()) > 48000:
+                raise HotError("hot_control_request_limit")
+        except (ValueError, TypeError):
+            raise HotError("hot_control_request_invalid") from None
+        request_id = str(UUID(request_id)) if request_id else str(uuid4())
+        if self._state() is None:
+            raise HotError("hot_service_stopped")
+        with self._lock():
+            state = self._state()
+            if state is None:
+                raise HotError("hot_service_stopped")
+            try:
+                value = rpc(state["port"], state["owner"], self._secret("rpc-controller"), operation, params, request_id)
+                valid = valid_receipt(value, request_id)
+            except HotError as error:
+                if str(error) not in ("hot_rpc_unavailable", "hot_rpc_timeout", "hot_rpc_incomplete", "hot_rpc_response_untrusted", "hot_owner_stale"):
+                    raise
+                valid = False
+            except (KeyError, TypeError, ValueError):
+                valid = False
+            if not valid:
+                log.warning("hot_control_outcome_unknown")
+                return {"state": "outcome_unknown", "code": "hot_control_outcome_unknown", "operation": operation, "requestId": request_id}
+            log.info("hot_control_saved")
+            return {**value, "requestId": request_id}
+
+    def configure_channel(self, channel_id: str, expected_version: int, config: dict, request_id: str | None = None) -> dict:
+        if not isinstance(channel_id, str) or not re.fullmatch(r"[a-z][a-z0-9_-]{0,47}", channel_id) or type(expected_version) is not int or not 0 <= expected_version <= 1000000 or not isinstance(config, dict):
+            raise HotError("hot_channel_request_invalid")
+        def text(value, maximum):
+            return isinstance(value, str) and bool(value.strip()) and len(value) <= maximum
+        if set(config) - {"name", "topics", "sourceIds", "importanceRules", "rules"} or not text(config.get("name"), 100):
+            raise HotError("hot_channel_request_invalid")
+        for field in ("topics", "sourceIds", "importanceRules"):
+            if not isinstance(config.get(field), list) or len(config[field]) > 50 or any(not text(item, 500) for item in config[field]):
+                raise HotError("hot_channel_request_invalid")
+        if "rules" in config:
+            if not isinstance(config["rules"], list) or len(config["rules"]) > 30:
+                raise HotError("hot_channel_request_invalid")
+            seen = set()
+            for rule in config["rules"]:
+                if not isinstance(rule, dict) or set(rule) - {"id", "keywords", "requireOfficial", "relevance", "importance"} or not isinstance(rule.get("id"), str) or not re.fullmatch(r"[a-z][a-z0-9_-]{0,47}", rule["id"]) or rule["id"] in seen:
+                    raise HotError("hot_channel_request_invalid")
+                seen.add(rule["id"])
+                if not isinstance(rule.get("keywords"), list) or not 1 <= len(rule["keywords"]) <= 20 or any(not text(item, 80) for item in rule["keywords"]) or ("requireOfficial" in rule and type(rule["requireOfficial"]) is not bool):
+                    raise HotError("hot_channel_request_invalid")
+                if any(type(rule.get(field)) is not int or not 0 <= rule[field] <= 100 for field in ("relevance", "importance")):
+                    raise HotError("hot_channel_request_invalid")
+        def receipt(value, request):
+            return (isinstance(value, dict) and value.get("channelId") == channel_id and type(value.get("version")) is int
+                    and value["version"] == expected_version + 1 and value.get("requestId") == request and value.get("config") == config)
+        return self._control_projection("channel.configure", {"channelId": channel_id, "expectedVersion": expected_version, "config": config}, request_id, receipt)
+
+    def correct_event(self, change: dict, reason: str, request_id: str | None = None) -> dict:
+        fields = {"title": {"title"}, "merge": {"target", "targetExpected"}, "split": {"materialIds", "title"},
+                  "reassign": {"target", "targetExpected", "materialIds"}, "channels": {"channelIds"}, "times": {"occurred", "effective"}}
+        def uuid_value(value):
+            if not isinstance(value, str) or not re.fullmatch(r"[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}", value):
+                raise HotError("hot_event_correction_invalid")
+            return str(UUID(value))
+        if not isinstance(change, dict) or not isinstance(change.get("type"), str) or change["type"] not in fields or set(change) != fields[change["type"]] | {"id", "expected", "type"} or not isinstance(reason, str) or not reason.strip() or len(reason) > 2000:
+            raise HotError("hot_event_correction_invalid")
+        change = dict(change)
+        if change["type"] == "times":
+            from datetime import date, datetime, timezone
+            from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+            for field in ("occurred", "effective"):
+                value = change[field]
+                if value is None:
+                    continue
+                try:
+                    if not isinstance(value, dict) or set(value) != {"value", "precision", "timezone", "evidence"} or not isinstance(value["timezone"], str) or len(value["timezone"]) > 100:
+                        raise ValueError()
+                    ZoneInfo(value["timezone"])
+                    if value["precision"] == "day":
+                        if not isinstance(value["value"], str) or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", value["value"]) or date.fromisoformat(value["value"]).isoformat() != value["value"]:
+                            raise ValueError()
+                    elif value["precision"] == "instant":
+                        if not isinstance(value["value"], str) or not re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z", value["value"]) or datetime.fromisoformat(value["value"]).astimezone(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z") != value["value"]:
+                            raise ValueError()
+                    else:
+                        raise ValueError()
+                    ref = value["evidence"]
+                    if not isinstance(ref, dict) or set(ref) != {"id", "revision", "quote"} or type(ref["revision"]) is not int or not 1 <= ref["revision"] <= 1000000 or not isinstance(ref["quote"], str) or not ref["quote"].strip() or len(ref["quote"]) > 1000:
+                        raise ValueError()
+                    change[field] = {**value, "evidence": {**ref, "id": uuid_value(ref["id"])}}
+                except (ValueError, TypeError, KeyError, ZoneInfoNotFoundError):
+                    log.warning("hot_event_time_rejected")
+                    raise HotError("hot_event_time_invalid") from None
+        change["id"] = uuid_value(change["id"])
+        if type(change["expected"]) is not int or not 0 <= change["expected"] <= 1000000:
+            raise HotError("hot_event_correction_invalid")
+        if "target" in change:
+            change["target"] = uuid_value(change["target"])
+            if type(change["targetExpected"]) is not int or not 0 <= change["targetExpected"] <= 1000000:
+                raise HotError("hot_event_correction_invalid")
+            if change["target"] == change["id"]:
+                raise HotError("hot_event_correction_invalid")
+        if "title" in change and (not isinstance(change["title"], str) or not change["title"].strip() or len(change["title"]) > 500):
+            raise HotError("hot_event_correction_invalid")
+        if "materialIds" in change:
+            if not isinstance(change["materialIds"], list) or not 1 <= len(change["materialIds"]) <= 200:
+                raise HotError("hot_event_correction_invalid")
+            change["materialIds"] = sorted(uuid_value(item) for item in change["materialIds"])
+            if len(set(change["materialIds"])) != len(change["materialIds"]):
+                raise HotError("hot_event_correction_invalid")
+        if "channelIds" in change:
+            if not isinstance(change["channelIds"], list) or len(change["channelIds"]) > 50 or any(not isinstance(item, str) or not re.fullmatch(r"[a-z][a-z0-9_-]{0,47}", item) for item in change["channelIds"]) or len(set(change["channelIds"])) != len(change["channelIds"]):
+                raise HotError("hot_event_correction_invalid")
+            change["channelIds"] = sorted(change["channelIds"])
+        def material_refs(value):
+            if not isinstance(value, list):
+                return None
+            refs = set()
+            for item in value:
+                if not isinstance(item, dict) or not isinstance(item.get("id"), str) or not re.fullmatch(r"[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}", item["id"]) or type(item.get("revision")) is not int or item["revision"] < 1 or item.get("relation") not in ("same_occurrence", "composite"):
+                    return None
+                refs.add((item["id"], item["revision"], item["relation"]))
+            return refs
+        def receipt(value, _request):
+            if not isinstance(value, dict) or not isinstance(value.get("source"), dict):
+                return False
+            source = value["source"]
+            if source.get("id") != change["id"] or type(source.get("revision")) is not int or source["revision"] != change["expected"] + 1 or not isinstance(source.get("snapshot"), dict):
+                return False
+            snapshot = source["snapshot"]
+            if snapshot.get("state") != ("merged" if change["type"] == "merge" else "active"):
+                return False
+            manual = snapshot.get("manual")
+            if change["type"] == "times":
+                return (isinstance(manual, dict) and manual.get("times") is True
+                        and snapshot.get("dateEvidence") == {"occurred": change["occurred"], "effective": change["effective"]}
+                        and all(snapshot.get(field) == (change[key]["value"] if change[key] else None)
+                                for key, field in (("occurred", "occurredAt"), ("effective", "effectiveAt"))))
+            if change["type"] == "title":
+                return snapshot.get("title") == change["title"] and isinstance(manual, dict) and manual.get("title") is True
+            if change["type"] == "channels":
+                return isinstance(manual, dict) and manual.get("channels") == change["channelIds"]
+            if change["type"] in ("merge", "reassign", "split"):
+                target = value.get("target")
+                if not isinstance(target, dict) or not isinstance(target.get("snapshot"), dict) or target["snapshot"].get("state") != "active":
+                    return False
+                target_snapshot = target["snapshot"]
+                target_manual = target_snapshot.get("manual")
+                source_refs, target_refs = material_refs(snapshot.get("materials")), material_refs(target_snapshot.get("materials"))
+                protected = material_refs(target_manual.get("protected")) if isinstance(target_manual, dict) else None
+                if source_refs is None or target_refs is None or protected is None:
+                    return False
+                if change["type"] == "merge":
+                    if snapshot.get("canonicalId") != change["target"] or not source_refs <= target_refs or not source_refs <= protected:
+                        return False
+                else:
+                    moved = set(change["materialIds"])
+                    target_moved = {ref for ref in target_refs if ref[0] in moved}
+                    if any(ref[0] in moved for ref in source_refs) or {ref[0] for ref in target_moved} != moved or not target_moved <= protected or not isinstance(manual, dict) or not isinstance(manual.get("excluded"), list) or not moved <= set(manual["excluded"]):
+                        return False
+                if change["type"] == "split":
+                    target_id = target.get("id")
+                    return (isinstance(target_id, str) and re.fullmatch(r"[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}", target_id) is not None
+                            and type(target.get("revision")) is int and target["revision"] == 1 and target_snapshot.get("title") == change["title"] and target_manual.get("title") is True)
+                return target.get("id") == change["target"] and type(target.get("revision")) is int and target["revision"] == change["targetExpected"] + 1
+            return True
+        return self._control_projection("event.correct", {"change": change, "reason": reason}, request_id, receipt)
+
+    def configure_source(self, source: str, revision: str, enabled: bool | None = None,
+                         frequency: int | None = None, request_id: str | None = None,
+                         use_catalog: bool = False, reason: str | None = None) -> dict:
+        """Conditional source control; the reader key never authorizes this operation."""
+        with self._lock():
+            state = self._state()
+            if state is None:
+                raise HotError("hot_service_stopped")
+            if not re.fullmatch(r"[a-z][a-z0-9_-]{0,47}", source) or not re.fullmatch(r"[0-9]{1,18}", revision):
+                raise HotError("hot_source_config_invalid")
+            if enabled is not None and type(enabled) is not bool:
+                raise HotError("hot_source_config_invalid")
+            if type(use_catalog) is not bool or (use_catalog and (not isinstance(reason, str) or not reason.strip() or len(reason) > 1000)) or (not use_catalog and reason is not None):
+                raise HotError("hot_source_config_invalid")
+            if frequency is not None and (type(frequency) is not int or frequency != 0 and not 60 <= frequency <= 86400):
+                raise HotError("hot_source_config_invalid")
+            if request_id is not None and not re.fullmatch(r"[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}", request_id):
+                raise HotError("hot_source_request_invalid")
+            params = {"sourceId": source, "expectedRevision": revision}
+            if enabled is not None:
+                params["enabled"] = enabled
+            if frequency is not None:
+                params["frequencySeconds"] = None if frequency == 0 else frequency
+            if use_catalog:
+                params.update(useCatalog=True, reason=reason)
+            if len(params) == 2:
+                raise HotError("hot_source_config_invalid")
+            request_id = request_id or str(uuid4())
+            request_id = str(UUID(request_id))
+            try:
+                value = rpc(state["port"], state["owner"], self._secret("rpc-controller"), "source.configure", params, request_id)
+            except HotError as error:
+                if str(error) not in ("hot_rpc_unavailable", "hot_rpc_timeout", "hot_rpc_incomplete", "hot_rpc_response_untrusted", "hot_owner_stale"):
+                    raise
+                log.warning("hot_source_control_outcome_unknown")
+                return {"state": "outcome_unknown", "code": "hot_source_control_outcome_unknown",
+                        "sourceId": source, "requestId": request_id}
+            if not isinstance(value, dict) or value.get("sourceId") != source or value.get("requestId") != request_id or type(value.get("enabled")) is not bool or value.get("revision") != str(int(revision) + 1) or "frequencySeconds" not in value or (value["frequencySeconds"] is not None and (type(value["frequencySeconds"]) is not int or not 60 <= value["frequencySeconds"] <= 86400)):
+                log.warning("hot_source_control_outcome_unknown")
+                return {"state": "outcome_unknown", "code": "hot_source_control_outcome_unknown",
+                        "sourceId": source, "requestId": request_id}
+            if use_catalog:
+                activation = value.get("catalogActivation")
+                if not isinstance(activation, dict) or activation.get("adapter") != "public_feed" or activation.get("catalogId") != source or activation.get("reason") != reason or any(not isinstance(activation.get(key), str) or not re.fullmatch(r"[a-f0-9]{64}", activation[key]) for key in ("previousConfigSha256", "configSha256")):
+                    log.warning("hot_source_control_outcome_unknown")
+                    return {"state": "outcome_unknown", "code": "hot_source_control_outcome_unknown", "sourceId": source, "requestId": request_id}
+            log.info("hot_source_configuration_saved")
+            return value
+
+    @contextmanager
+    def _lock(self):
+        if fcntl is None:
+            raise HotError("hot_platform_not_verified")
+        path = self.directory / "lifecycle.lock"
+        _no_alias(path)
+        descriptor = os.open(path, os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW | os.O_NONBLOCK, 0o600)
+        try:
+            info = os.fstat(descriptor)
+            if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1 or info.st_uid != os.getuid() or stat.S_IMODE(info.st_mode) != 0o600:
+                raise HotError("hot_lock_unsafe")
+            deadline = time.monotonic() + 5
+            while True:
+                try:
+                    fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    break
+                except BlockingIOError:
+                    if time.monotonic() >= deadline:
+                        raise HotError("hot_lifecycle_busy") from None
+                    time.sleep(0.05)
+            yield
+        finally:
+            os.close(descriptor)
+
+    def start(self) -> dict:
+        with self._lock():
+            return self._start()
+
+    def model_operation(self, operation: str, parameters: dict, **options) -> dict:
+        from .hot_model_controls import run_model_operation
+
+        return run_model_operation(self, operation, parameters, **options)
+
+    def import_pricing(self, pricing: dict, *, verified: bool, reason: str) -> dict:
+        from .hot_pricing import import_pricing
+
+        return import_pricing(self, pricing, verified=verified, reason=reason)
+
+    def archive(self, operation: str, directory: Path | None = None, target_database: str | None = None,
+                migration_user: str = "postgres", migration_account: str = "hot-migration-database") -> dict:
+        """Backup a stopped installation; restore only into another database's absent schema."""
+        with self._lock():
+            if self._state() is not None:
+                raise HotError("hot_archive_requires_stopped")
+            journal = self.directory / "archive-attempt.json"
+            _no_alias(journal)
+            if journal.exists() and _read(journal, private=True).get("state") in ("running", "outcome_unknown"):
+                raise HotError("hot_archive_outcome_unknown")
+            config = self._config()
+            identity = _read(self.directory / "identity.json", private=True)
+            if identity.get("projectRoot") != str(self.project):
+                raise HotError("hot_process_foreign")
+            if config["database"]["mode"] == "managed":
+                from .hot_postgres import ManagedPostgres
+
+                password = self._secret("hot-postgres-admin")
+                server = ManagedPostgres(self.home, identity["instanceId"]).start(password)
+                config["database"].update({key: server[key] for key in ("host", "port")})
+                migration_user = "postgres"
+            else:
+                password = self._secret(migration_account)
+            if operation == "backup":
+                parent = self.home / config["retention"]["backupDirectory"]
+                _no_alias(parent)
+                parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+                info = parent.stat()
+                if info.st_uid != os.getuid() or stat.S_IMODE(info.st_mode) != 0o700:
+                    raise HotError("hot_archive_unsafe")
+                directory = parent / ("backup-" + uuid4().hex)
+            elif operation != "restore" or directory is None:
+                raise HotError("hot_archive_input_invalid")
+            _no_alias(directory)
+            payload = {"operation": operation, "config": config, "instanceId": identity["instanceId"],
+                       "controllerToken": self._secret("rpc-controller"), "directory": str(directory),
+                       "targetDatabase": target_database, "migrationUser": migration_user,
+                       "migrationPassword": password}
+            attempt = {"version": 1, "state": "running", "operation": operation,
+                       "targetDatabase": target_database, "directory": str(directory)}
+            def record(state):
+                attempt["state"] = state
+                fd = os.open(journal, os.O_WRONLY | os.O_CREAT | os.O_NOFOLLOW | os.O_NONBLOCK, 0o600)
+                with os.fdopen(fd, "w") as stream:
+                    info = os.fstat(stream.fileno())
+                    if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1 or info.st_uid != os.getuid() or stat.S_IMODE(info.st_mode) != 0o600:
+                        raise HotError("hot_archive_journal_unsafe")
+                    stream.truncate(0)
+                    json.dump(attempt, stream)
+                    stream.flush()
+                    os.fsync(stream.fileno())
+            record("running")
+            child = None
+            try:
+                child = subprocess.Popen([_node(), str(self.project / "services/hot/scripts/archive.ts")],
+                                         stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                         text=True, cwd=self.project, start_new_session=True)
+                try:
+                    output, _ = child.communicate(json.dumps(payload), timeout=240)
+                except subprocess.TimeoutExpired:
+                    child.send_signal(signal.SIGTERM)
+                    try:
+                        child.communicate(timeout=90)
+                    except subprocess.TimeoutExpired:
+                        os.killpg(child.pid, signal.SIGKILL)
+                        child.communicate(timeout=5)
+                    record("outcome_unknown")
+                    raise HotError("hot_archive_outcome_unknown") from None
+                value = json.loads(output)
+                if value.get("code") == "hot_archive_outcome_unknown":
+                    record("outcome_unknown")
+                    raise HotError("hot_archive_outcome_unknown")
+                record("completed" if child.returncode == 0 else "failed")
+                if child.returncode or value.get("state") not in ("backed_up", "restored_paused"):
+                    phase = value.get("phase")
+                    allowed = ("input", "tools", "backup", "verify", "target", "restore", "inventory")
+                    raise HotError("hot_archive_failed_" + phase if phase in allowed else "hot_archive_failed")
+            except (OSError, ValueError, subprocess.SubprocessError):
+                record("outcome_unknown")
+                raise HotError("hot_archive_outcome_unknown") from None
+            except BaseException:
+                # Ctrl-C must also cancel the independent Node session and wait for cleanup.
+                if child is not None and child.poll() is None:
+                    child.send_signal(signal.SIGTERM)
+                    try:
+                        child.communicate(timeout=90)
+                    except subprocess.TimeoutExpired:
+                        os.killpg(child.pid, signal.SIGKILL)
+                        child.communicate(timeout=5)
+                    record("outcome_unknown")
+                elif attempt["state"] == "running":
+                    record("outcome_unknown")
+                raise
+            finally:
+                if child is not None and child.poll() is None:
+                    child.send_signal(signal.SIGTERM)
+                    try:
+                        child.communicate(timeout=90)
+                    except subprocess.TimeoutExpired:
+                        os.killpg(child.pid, signal.SIGKILL)
+                        child.communicate(timeout=5)
+                    record("outcome_unknown")
+            log.info("hot_archive_completed operation=%s", operation)
+            return value
+
+    def _runtime_mode(self) -> str:
+        # Supervisor deliberately withholds RWB_DSH_STAGED from Web; it is DSH-only.
+        return "docker" if (os.path.isfile("/.dockerenv") and os.environ.get("RESEARCH_RUN_MODE") == "web-prod"
+                            and os.environ.get("RESEARCH_CREDENTIAL_HOME") is not None
+                            and os.environ.get("RWB_DATA_ROOT") == str(self.home)) else "native"
+
+    def _start(self) -> dict:
+        if os.name != "posix":
+            raise HotError("hot_platform_not_verified")
+        model_journal = self.directory / "model-operation.json"
+        if model_journal.exists():
+            model_record = _read(model_journal, private=True)
+            if model_record.get("projectRoot") != str(self.project):
+                raise HotError("hot_process_foreign")
+            if model_record.get("state") in ("running", "outcome_unknown"):
+                raise HotError("hot_model_previous_outcome_unknown")
+        if self._state() is not None:
+            return self.status()
+        config = self._config()
+        if not config["enabled"]:
+            raise HotError("hot_disabled")
+        identity = _read(self.directory / "identity.json", private=True)
+        if identity.get("projectRoot") != str(self.project):
+            raise HotError("hot_process_foreign")
+        if config["database"]["mode"] == "managed":
+            from .hot_postgres import ManagedPostgres
+
+            server = ManagedPostgres(self.home, identity["instanceId"]).start(self._secret("hot-postgres-admin"))
+            actual = {key: server[key] for key in ("host", "port")}
+            if any(config["database"][key] != value for key, value in actual.items()):
+                config["database"].update(actual)
+                save_settings(self.project, self.home, config)
+        docker_guest = self._runtime_mode() == "docker"
+        mode = "docker" if docker_guest else "native"
+        payload = {"config": config, "instanceId": identity["instanceId"], "mode": mode,
+                   "workerPassword": self._secret(config["database"]["secretRef"]),
+                   "controllerUser": config["database"]["controllerUser"],
+                   "controllerPassword": self._secret(config["database"]["controllerSecretRef"]),
+                   "controllerToken": self._secret("rpc-controller"), "readerToken": self._secret("rpc-reader")}
+        if config.get("model", {}).get("enabled") and mode == "native":
+            from .bootstrap import native_python
+            from app.research_web import PINNED_DSH_COMMIT
+
+            source = Path(os.environ.get("RESEARCH_DSH_SOURCE", str(self.home.parent / "runtime" / "dsh" / PINNED_DSH_COMMIT))).expanduser().resolve()
+            payload["nativeModel"] = {"source": str(source), "credentials": {
+                "python": str(native_python(self.project)),
+                "bridge": str(self.project / "app/research_web/model_credentials.py"),
+                "dataHome": str(self.home),
+            }}
+        launch_id = uuid4().hex
+        path = self.home / "hot" / "logs" / "runtime.log" if docker_guest else self.project / "logs" / "hot" / "runtime.log"
+        _no_alias(path)
+        path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_APPEND | os.O_NOFOLLOW | os.O_NONBLOCK, 0o600)
+        child = None
+        try:
+            with os.fdopen(descriptor, "wb") as errors:
+                info = os.fstat(errors.fileno())
+                if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1 or info.st_uid != os.getuid() or stat.S_IMODE(info.st_mode) != 0o600:
+                    raise HotError("hot_log_unsafe")
+                from .bootstrap import native_python
+                payload["reportPython"] = sys.executable if docker_guest else str(native_python(self.project))
+                child = subprocess.Popen([_node(), str(self.project / "services/hot/scripts/serve.ts"), launch_id],
+                                         stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=errors,
+                                         cwd=self.project, start_new_session=True,
+                                         **({"env": {**os.environ, "RWB_SUPERVISOR_ROLE": "web"}} if docker_guest else {}))
+                packet = json.dumps(payload).encode()
+                if len(packet) > 65536:
+                    raise HotError("hot_bootstrap_limit")
+                os.set_blocking(child.stdin.fileno(), False)
+                os.set_blocking(child.stdout.fileno(), False)
+                written = 0
+                received = b""
+                deadline = time.monotonic() + 15
+                with selectors.DefaultSelector() as selector:
+                    selector.register(child.stdout, selectors.EVENT_READ)
+                    selector.register(child.stdin, selectors.EVENT_WRITE)
+                    while b"\n" not in received:
+                        remaining = deadline - time.monotonic()
+                        if remaining <= 0:
+                            raise HotError("hot_start_timeout")
+                        events = selector.select(remaining)
+                        if not events:
+                            raise HotError("hot_start_timeout")
+                        for selected, _ in events:
+                            if selected.fileobj is child.stdin:
+                                try:
+                                    written += os.write(child.stdin.fileno(), packet[written:])
+                                except BlockingIOError:
+                                    continue
+                                if written == len(packet):
+                                    selector.unregister(child.stdin)
+                                    child.stdin.close()
+                            else:
+                                chunk = os.read(child.stdout.fileno(), 4096)
+                                if not chunk or len(received) + len(chunk) > 65536:
+                                    raise HotError("hot_start_failed")
+                                received += chunk
+                    ready = json.loads(received.split(b"\n")[0])
+                if ready.get("state") != "initialized" or ready.get("pid") != child.pid or ready.get("launchId") != launch_id:
+                    raise HotError("hot_start_failed")
+                state = {"version": 1, "projectRoot": str(self.project), "pid": child.pid, "port": ready["port"],
+                         "owner": ready["owner"], "launchId": launch_id, "fingerprint": self._fingerprint(child.pid)}
+                temporary = self.directory / ("process-" + uuid4().hex + ".tmp")
+                fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+                with os.fdopen(fd, "w") as output:
+                    json.dump(state, output)
+                    output.flush()
+                    os.fsync(output.fileno())
+                os.replace(temporary, self.state_path)
+                result = self.status()
+                child.stdout.close()
+                log.info("hot_process_started")
+                return result
+        except BaseException:
+            if child is not None:
+                # A ready worker owns a PG generation; SIGTERM lets it pause that
+                # generation even if writing or probing the host state failed.
+                if child.poll() is None:
+                    child.terminate()
+                    try:
+                        child.wait(timeout=5)
+                    except subprocess.TimeoutExpired:
+                        log.warning("hot_start_cleanup_forced")
+                        child.kill()
+                        child.wait(timeout=5)
+            raise HotError("hot_start_failed") from None
+
+    def stop(self) -> dict:
+        if not self.directory.exists():
+            return {"state": "stopped"}
+        with self._lock():
+            return self._stop()
+
+    def _stop(self) -> dict:
+        state = self._state()
+        if state is None:
+            return {"state": "stopped"}
+        os.kill(state["pid"], signal.SIGTERM)
+        for _ in range(100):
+            current = self._fingerprint(state["pid"])
+            if current is None:
+                log.info("hot_process_stopped")
+                return {"state": "stopped"}
+            # Exiting argv may briefly change before the PID vanishes. Do not signal
+            # a changed identity; only observe until the bounded escalation recheck.
+            time.sleep(0.05)
+        # Revalidate the exact original process immediately before escalation.
+        final = self._fingerprint(state["pid"])
+        if final is None:
+            log.info("hot_process_stopped")
+            return {"state": "stopped"}
+        if final != state["fingerprint"]:
+            raise HotError("hot_process_identity_mismatch")
+        os.kill(state["pid"], signal.SIGKILL)
+        raise HotError("hot_stop_requires_recheck")
+
+    def restart(self) -> dict:
+        with self._lock():
+            self._stop()
+            return self._start()

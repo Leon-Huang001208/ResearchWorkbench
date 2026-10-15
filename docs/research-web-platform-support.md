@@ -1,8 +1,61 @@
 # Research Web 能力与平台证据
 
+Hot schema21增加周期无模型Word投影及原件PG保存；最新源必须单独绑定Mac Native、
+Mac Docker Desktop和Mac CI的验收。旧候选的PASS不认证新修改，Windows/Linux保持原交接，
+不因Python/TypeScript可运行推导其他平台已通过。全部旧镜像与卷保留。
+
 PR #100 的隔离 Native 预览与 macOS Bootstrap 属于该候选的 Web 证据；源码更新后须重新绑定。
 运行时、共享 Wind 和日志的类型/离线回归不证明 Windows/Linux、真实 Wind 或桌面安装可用。
 策略所选而未执行的 Docker、Windows及桌面门保持NOT_RUN；不复用其他平台结果提升支持状态。
+
+最新联合恢复源7010a2bd4：58表/原件/日期与新简报校验，原2734字节真实报告SHA保持；新隔离恢复库正常worker四源实采并排空，最终暂停、执行历史NOT_RESTORED。当前整镜像7800f8dd生命周期/读取/日期MD-DOCX/原库顺序模式通过，DeepMind本轮连接重置，不宣称Docker四源全成功。原库Native103暂停、预算18/77375/10464microUSD不变。当前master已e45d3bc，PR106仍冲突草稿；旧CI不认证当前候选，Windows/Linux原生仍NOT_RUN。
+
+日期纠错和原PG/网页/MD/DOCX已有macOS Native组件证据，最终generation99暂停、预算18/77375/10464microUSD不变。新候选Docker整镜像/干净安装MacCI仍待验，Windows/Linux原生保持NOT_RUN。
+
+来源表单与Doctor已在正常Native worker/原PG/独立Host适配上实测保存、列权限与审计，结束后generation91暂停，预算未变。本范围为组件，不代表新源码Mac Bootstrap、完整镜像或Windows/Linux原生通过。
+
+Native原PG已明确激活OpenAI/Fed目录源，四源真实取数成功，OpenAI/Fed两轮计划采集及inbox排空通过，模型关闭。catalog新增接口/角色权限已有PG和Python回归，新源码的Docker/当前Mac安装CI仍未验证，Windows/Linux原生保持NOT_RUN。
+
+停止pre-AES stage显式升级的管理器兼容修复仅有macOS本地26项回归与独立Python审查证据；实际候选镜像重建、运行及新候选Mac CI仍待验收。不得由此宣称Windows/Linux原生或完整Docker模型处理通过。
+
+本轮macOS：schema19关注已通过正常Native worker、签名RPC、Host HTTP读写/重放/暂停。schema20周期流程有真实PG队列/权限/崩溃后复用与慢写租约反例，正常Native已取得宏观周期MD/DOCX并验证AI空窗口；真实组件浏览器操作通过，最终整镜像与当前Mac CI仍无证据。Windows/Linux产品适配与真机保持NOT_RUN，本机组件测试不冒充它们通过。
+
+2026-10-14：macOS 隔离实例已实际展示原 PG 研究状态和有效真实报告，核对与 Word 下载通过。
+所选研究文件/回执与 PG 50 表联合恢复已核验。Docker 生产依赖构建层与 Native 安装步骤已接入；
+容器采集/切换、干净安装及同候选 Mac CI 在获得各自回执前仍 NOT_RUN。
+原运行 failed 与有效报告 completed 分别保留，未因此增加或重置原累计预算。
+
+本轮Hot零重试配置生成、执行映射和未发送预留处理为macOS本地证据；尚未启动正式模型研究。
+Native干净安装/Mac CI、Docker和其他平台原生验证仍各自NOT_RUN。
+
+2026-10-13 Hot流桥只取得macOS离线SDK与HTTP协议证据；vendor发送为零。
+Mac安装/CI、Mac Docker及Windows/Linux原生证据仍未取得，不据本轮本地测试提升平台状态。
+
+2026-10-12 续跑增加研究交接准备接口、schema16 运行映射及目标会话冻结快照。
+随机测试 schema 中的真实 PG/签名服务/HTTP 往返和模拟 native 中断恢复已验证；
+它们不证明正式付费研究、生产迁移或当前候选安装 CI。原库仍 schema15/paused。
+所有平台的 Hot 正式研究、完整恢复与模式切换以权威进度报告的新证据为准。
+
+同日隔离 macOS Native 固定 DSH48504 实例已接受预留会话 ID，返回同一目标 cwd，
+完成两份真实存储原件的会话冻结副本与重复发布核对；付费调用为零。这认证会话/资料
+准备，仍不认证 PG 生产迁移、正式研究或完整安装。Tabbit 插件初始化报告 settings API
+不兼容，因此该实例不提供 Tabbit 工具通过证据。运行日志及回执见权威续跑报告。
+
+Hot 本轮状态单独记录：macOS 已执行核心、签名回环服务和真实子进程启停/重启的本地验证；
+`rwb hot` 已有 Native 独立进程生命周期与受管 PG 冷恢复证据（隔离凭据 backend），
+实际 Keychain 持久化未验证。Native 最小归档/恢复已在受管 PG 完成真实验证；
+这不是 Mac Docker 产品模式验收。完整 Hot Native 模型/研究、Mac Docker 装配与模式切换、
+同提交 macOS CI 均未完成；Windows/Linux 真机与相应 CI 保持 NOT_RUN。本页其他能力的旧
+验收证据不能用作 Hot 验收证据，详见 Hot 权威进度记录。
+本轮 Native 独立受限 worker 完成四个官方来源两轮真实采集，1389 材料/版本、8 份原文、
+待解析为零，覆盖标为 latest_snapshot；历史分页、事件频道、模型/研究和 Web UI 仍未验收。
+Native 来源控制有真实签名服务/PG 验证：读取权限拒绝写入、配置跨进程重启保留、暂停 inbox
+恢复，以及用模拟慢 HTTP 验证在途取消。该模拟验证不作为真实来源或模型的验收证据。
+最新 Hot 状态：Native 已有两条冻结真实 AI/宏观材料的模型抽取/归组及三个配置频道的六条
+规则判断；它不认证开放新闻准确率或完整研究。当前代码持续采集复验仍有连接超时 FAIL，
+不能用此前双轮 PASS 替代。事件/频道CLI已通过macOS真实Node/PG往返，但凭据backend与
+解释器选择为fixture；真实SystemKeychain生命周期、Web界面、正式研究、同SHA安装CI仍待验。
+Windows/Linux及Mac Docker产品切换保持各自NOT_RUN，不借用Native或容器化PG证明。
 
 G2A 的 Docker 模型加密后端由受管实例身份绑定，Mac Docker Desktop 的实际文本生成和
 重建证据另验；合成测试不等于供应商调用，Native Keychain 实机与各平台 CI 保留独立状态。
@@ -85,5 +138,19 @@ settings-model-loop在macOS Native正常受管fixed DSH中验证新增LlmAdapter
 独立回环端口18092/13086完成实际install、双服务认证ready、Doctor、root/static/index/Atlas HTTP200；最新host restart16.773秒、stop1.953秒，精确down/up后容器生成的非秘密文件SHA保持；真实Chrome架构入口/分类/图返回及文档、源码、测试固定链接均200。最终stop2.962秒、owned容器移除、两family端口释放；保留测试数据/凭据，未更新日常实例或操作foreign容器。构建使用本机既有无凭据代理作为运输条件，锁、CA与签名保持。CI与机器回执归档在阶段三报告，报告提交与验证候选身份分开。
 
 模型付费生成、厂商数据授权、真实产品升级、双已安装模式迁移、真实凭据存取仍NOT_RUN；非Mac严格脚本沙箱与宿主Office/Wind/Tabbit等保持明确不支持。Windows/Linux真机及其产品CI继续NOT_RUN，总体跨平台发布NOT_READY。
+
+Hot Native 模型工厂已在 macOS 经实际受控凭据/固定DSH目录、两个旧真实输入的只读缓存恢复验证；独立Node/PG确认缺授权时采集读取不受阻。此证据不代表完整安装或持续付费worker验收；Docker模型、完整模式切换与Windows/Linux Native仍保留各自待验状态。
+
+macOS 模型管理三条 CLI 已经现有解释器/配置桥、独立 Node 与真实 PG 验证，凭据和 interpreter 选择在测试中隔离。它不证明真实 SystemKeychain 管理完整生命周期、安装级授权 worker、Mac 干净 CI 或其他平台支持。
+
+macOS 定价 CLI 的真实校验/文件发布、重放及故障注入已本地验证；无模型/PG调用，测试不证明完整安装、SystemKeychain、事件浏览或其他平台支持。
+
+Hot本轮新增网页冻结简报和Markdown；macOS本地真实HTTP→Manager→Node/PG使用隔离凭据/合成内容验证，大文本文字转义导致的>1MiB导出通过分块解决。真实浏览器、原验收库迁移15、DOCX、Docker模式及同提交Mac安装CI仍待验收；不提升Windows/Linux支持声明。
+
+
+2026-10-12接续实测：原Hot schema15的两份AI/宏观简报哈希一致；完整存储版本与来源响应已实际读出并核验，两份DOCX用现有报告生成器生成、保留并解析通过。合成独立schema另完成Host→签名Node/PG重建和DOCX HTTP/保留文件验证。没有新付费调用/研究会话；正式研究、Docker产品切换、安装及当前候选Mac CI仍待验，Windows/Linux不提升状态。
+
+
+2026-10-13续跑：本轮Hot原scope预算修订和冻结资料读取仅有macOS Native证据；真实研究5次回执保存，报告仍incomplete。Docker及Windows/Linux尚无本轮对应验收，保持NOT_RUN。
 
 外来 AES 树绑定修复已用 macOS 临时合成文件证明四操作拒绝和正确旧树可读；本轮未运行真实 Docker、Linux/Windows、供应商或远端 CI，不提升这些层级状态。

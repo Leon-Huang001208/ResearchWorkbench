@@ -1,5 +1,9 @@
 # 研究协议、执行状态与恢复
 
+周期简报的一次性Word子执行是既有report_documents投影，不进入DSH session.prompt。
+其固定执行身份绑定periodic run与brief hash，先存不可变原件/回执，再条件提交任务完成。
+正式研究的run/session/deliveryKey映射保持；报告可用与研究failed仍分开，不追加模型预算。
+
 普通任务现在附带当前能力admitted/status/missing_codes与数据工具可调用性提示；这是规划事实，
 不是授权，执行前仍走实时nativeAdmission。缺合约或来源的能力不应反复加载，不能改用脚本绕过。
 非2xx DataHub响应只提取4KiB以内JSON的稳定error.code白名单，不向模型回传message或供应商原文。
@@ -9,6 +13,60 @@ DataHub领域status=failed投影为失败活动；complete/snapshot/partial/empt
 未明确披露容量时上下文压缩预算为32768，显式配置由范围校验后覆盖；预算不是能力证明。
 固定 DSH compaction 组在隔离域加载，persona 保留资料口径、文件验证、权限与四子任务约束。
 普通请求等待期间仍可独立停止；超时不自动重发，正文重试与普通发送共用交付/运行时门。
+
+Hot offline evaluation只读冻结原件/已计费响应及规则，不启动worker/DSH/SDK，不重发模型、不改变18/77375的正式scope。三个既有回执只覆盖different_event；四项其他关系参考保留模型NOT_RUN。
+
+times人工纠错不调用模型；已知日期需引用当前事件原材料版本及原文摘录，自动重跑保存日期主张并拒绝移出依据。撤回只释放日期专属限制，不解除已有其他人工保护；旧模型scope/预算保持。
+
+Hot分页仍由一个hot.collect claim执行，整轮25秒/三页；逐页hot.parse复用同一pg-boss和owner fence。没有新研究引擎或模型调用。
+
+首次目录激活在事务内重新检查实际列权限，不依赖UI缓存。已完成UUID重放仍先返回原回执，即使权限后来撤销也不重新写。已知permission_missing停止新提交并提示setup；提交未知沿既有UUID/body恢复，不发起第二请求。
+
+catalog激活在当前owner事务内核对旧运营主体、配置版本，更新adapter/catalogId并使next_due立即到期；暂停源仍暂停。相同UUID先复用原审计回执，不因后续目录不可读而重复激活；未知回执保留UUID。旧owner拒绝，停机不删除已有材料。
+
+stage默认关闭旧Automation不再阻止Hot计划管理：Hot列表/运行读取不调度，明确配置仍由Hot owner/controller执行。旧Automation关闭继续拒绝其create/send/投递；不因管理aliases可读而恢复旧执行。
+
+历史pre-AES stage替换仅接受created/exited且Running=false的原登记容器；两次核对后用固定ID普通rm，运行态变化会拒绝删除，不使用force。新container沿现有up流程挂载原model_key，旧Native/Docker任务和凭据不会转移或自动重新执行。
+
+周期简报的稳定身份由计划ID、配置版本和due时点派生。事务同时登记运行、入队和推进next_due；重复heartbeat不多触发。资料按固定due和发布时间窗口选择，选材先持久化；发布及终态回执写前/写后复核owner、claim、signal和有效计划版本。停用或版本变化取消尚未执行运行，PG错误保留errorCode/queueState；有限重试后仍显示失败，不生成模型执行。
+
+Hot guest 的进程身份由内核 boot ID、启动 ticks、UID 与精确 argv 双读固定；状态
+缺失拒绝，PID 复用拒绝，不依赖镜像中的 ps。初始化后宿主写状态失败时优先让
+原 worker 通过 SIGTERM 暂停自己代次；强退/缺回执仍须独立核对 PG 状态。
+
+联合封存只选 Hot 会话的输入、输出、冻结清单和原交付回执；HMAC 绑定 PG 清单与文件哈希。
+文件恢复要求新目标，同一签名日志只允许中断重试；不恢复模型凭据或 Native 执行历史。
+Docker Hot 子进程由 Web 角色监督，不接收 Native 模型 bootstrap，明确保留不可用状态。
+
+新增Hot正式执行API固定问题/格式的deliveryKey，PG先记录execution_starting再发送。
+回复丢失或重启只查根会话稳定原生marker，不重发；无Store receipt的确定前置失败标failed，
+未知是否已执行返回null。已接受后的failed保持True或未知，不冒充未提交。
+
+Hot模型流增加hot-model/hot-model-stream：请求冻结、prepared单发、预算登记、回执先存后输出。
+managed子会话沿祖先绑定根Hot run；普通外部会话透传。默认official retry=5会被拒绝，
+专用零重试装配与真实研究尚待验收。
+
+Hot 内部控制/读取服务与研究执行分离：`rwb hot setup/start/stop/restart` 管理独立进程和指定库，
+未启用模型时，启动、只读查询和 `rwb hot configure/status/doctor`
+不调用模型；所有 Hot 模型步骤都不创建研究会话。Native worker 现按显式 model 配置装配
+受控 DSH 文本上下文，仅绑定已有持久预算；研究交接仍未接入，不能从私有服务的
+`initialized` 推导研究可用。后续交接必须沿本页原有会话归属、幂等受理和原生回执规则实施。
+Hot 备份导出持有运行代次 fence 的一致快照，恢复默认暂停；当前不包含研究会话快照。
+采集与分批解析任务由同一 PG 后端持有；准确 claim 进入 handler，旧 attempt 不得认领新租约。
+来源级待执行/活动任务和未解析 inbox 会阻止重复获取，水位提交检查取得时间单调性。
+来源暂停在取得前登记取消信号，并在解析提交前检查真实 enabled；重新启用恢复保存的 inbox。
+配置请求 UUID 对相同参数幂等，响应未知保留 ID，不用新请求掩盖可能已提交的操作。
+Hot 模型预算先有持久预留和发送状态；scope 不随日期/重启重置。派发前再次检查预算暂停，
+回执与缓存可在旧运行代次失效后保存，但正式业务仍经当前 claim 提交。固定验收入口已做两次真实生成。
+Hot text adapter 复用 DSH prepareCall/stream，调用不创建 session 或 tools。
+完整截断/拒绝回复仍先保存计费事实；取消只禁止业务返回，不丢已取得的完整用量。
+模型 scope 同时保存累计/每日上限；日限额按数据库时钟和显式时区计算，跨日派发重新准入。
+固定 Native 验收与后续 DSH 研究使用同一个任务 scope；研究流程尚未接入，不能另开 scope 重置额度。
+Native Hot CLI 已增加事件/频道读取和条件配置/纠错；读取不创建研究任务或调用模型。
+控制回执验证请求的具体结果，不确定时保留原 UUID 和非零退出码，重启后用同一参数重放。
+Node/PG 往返与父 Python 退出后的独立 Manager.stop 已验证；凭据 backend/解释器选择为隔离fixture。
+Web Hot桥最多四个在途线程，超时/取消后容量直到实际线程完成才释放。关闭后待容量的请求
+不能继续获准执行。条件写入Host超时保留原UUID；普通导航/读取没有模型或研究调用。
 
 显式 docker-text 仅在已认证受管 AES 身份下读取已有预算；默认不发现账本。Fernet/Native 无认证实例身份时拒绝该模式，普通运行不变。固定 DSH 官方 Messages endpoint 为 https://api.deepseek.com/anthropic；此模式禁工具、附件、重试和 Tabbit，并绑定已授权输出上限。身份验证不认证 dev/stage/prod 角色。
 
@@ -450,6 +508,17 @@ PID 与命令签名归属核对的进程可进入该路径，强制失败仍返�
 Docker Engine 可只在 `HostConfig.Tmpfs` 中表示 tmpfs，不将它们列入 `Mounts`；控制器兼容列表完全省略或完整三项表示，仍强制 HostConfig 的固定路径、UID/GID、权限和安全选项。部分、重复、别名或额外挂载均拒绝。
 
 macOS Docker 停止后回环端口的非监听绑定保留可能延迟释放；默认最多等待120秒，其余宿主默认10秒，显式等待参数保持。仍必须实际释放IPv4/IPv6绑定，超时失败关闭；不使用SO_REUSEADDR或只做连接探测来绕过占用。具体内核延迟原因未独立证实。
+
+model-authorize/model-attempts/model-terminate 已接入 CLI；未知控制回执保留 UUID、阻止启动并允许同参数重放。终止可能已发送的尝试只标记 abandoned，不退款；迟到回执可 settled/received，业务结果仍受原有 owner/claim 条件保护。记录/日志失败不丢原 UUID。
+
+Native 定价加载支持私有当日记录；坏记录不回退包内文件。日期/指纹在处理、预留和派发前重查，变更后 blocked_model，重启加载新值。缓存身份和累计授权不随价格改变。
+
+真实两事件Host/Node/PG浏览器读取已由隔离凭据和离线研究客户端验收；未运行正式DSH研究。原任务额度仍4/1417/659，独立Node经自身Manager归属检查停止，來源开关恢复；Host退出不等于Hot进程退出。
+
+Hot内部持久简报使用现有签名传输与controller owner fence；准备资料只读，发布事务复验UUID缓存和expectedVersion，重启重放不多生成版本。迁移15要求先停Hot/setup，普通worker不获简报写权限；不新建调度器或研究执行。
+
+HotManager简报创建经过现有控制事务桥，HTTP显式动作/Origin门保持；列表、详情和Markdown只读且不启动服务。导出维持同owner/reader/版本和完整哈希，Host超时仍保持容量至真实线程结束。Node不新建简报调度器或研究运行；DOCX与正式handoff待接入。
+
 等待只覆盖已经由容器 inspect 验证的宿主 Web 映射；DSH 3081 为容器内部端口，不能将
 不同根 Native 的宿主监听纳入 Docker 停止等待。外来占用者保持原样，不停止或接管。
 停止前先沿原只读 status 校验映射，Legacy 无端点记录时恢复实际宿主端口；固定本次
@@ -459,6 +528,22 @@ ID/image 与端口观察，停止前及每轮等待重新核验。错误或变�
 ## 本机验证与研究 Runtime 边界
 
 Office受控自动验证在Host既有批次内串行执行，与DSH研究循环分离；同意仅限所属实例的三款Office，不向模型或厂商发送请求。读取本机状态和证据到期刷新不创建研究任务；取消/冷启动不重放旧验证。协议与进程管理保持原合同，详见[协调器](09-integration-coordinator.md)。
+
+
+## 研究情报统一入口 · 2026-10-12
+
+主导航统一为“研究情报”，本地热点与事件在 `#/intel/hot`，现有外部8栏目仍在 `#/intel/*`。旧 `#/workbench/hot` 链接保留视图/事件参数后转入本地页。两类页面共用栏目导航、主题与Host；本地版本证据和Golddata外部只读数据保持身份与覆盖来源区分，外部读取不写Hot、领取任务或调用模型。Hot未启用时，外部栏目与设置继续可用。
+
+恢复的DOCX切片通过 `GET /api/research/hot/briefs/{brief_id}/docx?version=<固定版本>` 从签名/哈希核对的冻结输入生成并保留私有产物，复用报告DOCX生成器；导出不创建会话、不调用模型、不外发。该路径尚需完整产品/恢复验收，局部测试不代表研究闭环完成。
+
+
+Hot研究交接的原件读取已进入既有reader签名桥；独立Node不创建DSH会话，Host只重建固定版本证据。正常ResearchService/DSH受理、Hot run→session映射和未知受理恢复尚待接入，当前读取成功不能被显示为研究已经启动。
+
+
+Hot交接准备已接入ResearchService与DataHub：PG先预留session ID，Host保留匹配归属并查询DSH已有会话；创建回执丢失时复用已存在会话，未知缺席保持待恢复。原件快照私有目录提交后CAS绑定dataset/manifest hash。snapshot_ready仅表示研究草稿与证据已准备，不表示session.prompt已受理。execution_starting/execution_outcome_unknown的恢复须查询既有Delivery/原生历史，禁止自动重发；本轮未新增正式付费执行。
+
+
+2026-10-13续跑：native_admission在既有capability/model工具许可后验证Hot冻结快照归属并提供单dataset只读路径；Seatbelt不开放datasets父目录、写入或网络。真实原会话读取已验证，模型报告仍未完成。
 
 当前固定 DSH 的 tool/result 使用 role=tool 消息、顶层 toolCallId/isError 和直接 content；投影兼容旧嵌套 tool-result，同时按脚本 JSON outcome 判定成功/失败。真实验收曾发现旧解析将成功脚本读为空而误报，现通过原生历史重放与协议回归核对，保留真实失败活动。
 

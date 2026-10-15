@@ -312,7 +312,8 @@ async def render_report_payload(
             "reason": "缺少有效的 report_payload.json",
         }
     script = Path(__file__).with_name("report_render_script.py").read_text()
-    source = "FORMATS = " + repr(formats) + "\n" + script
+    shared_docx = Path(__file__).with_name("report_documents.py").read_text()
+    source = shared_docx + "\nFORMATS = " + repr(formats) + "\n" + script
     config = sandbox.SandboxConfig(
         store.root,
         Path(python or __import__("sys").executable),
