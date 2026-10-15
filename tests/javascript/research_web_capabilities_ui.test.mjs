@@ -360,11 +360,12 @@ test('slash keyboard selection consumes arrows, Enter and Escape without acciden
   assert.deepEqual(composer.slashKey('Enter', 0, []), { handled: true });
 });
 
-test('shell has visible navigation, explicit mobile search/close and no empty landing panel', () => {
+test('shell has visible navigation, rail search and mobile close with no empty landing panel', () => {
   const rail = shell.renderPrimaryRail({ page: 'fingpt' });
   assert.match(rail, /class="rail-label">FinGPT/);
   assert.match(rail, /rail-mobile-close.*aria-label="关闭导航"/);
-  assert.match(shell.renderTopbar({}), /data-toggle-search/);
+  assert.doesNotMatch(shell.renderTopbar({}), /data-toggle-search/);
+  assert.match(rail, /data-toggle-search/);
   assert.match(shell.renderSidebar({ page: 'fingpt', collapsed: true, mobileOpen: true }), /sidebar-collapse.*aria-label="折叠 FinGPT 二级侧栏"/);
   assert.equal(shell.renderContextPanel({}), '');
 });
@@ -559,7 +560,7 @@ test('real app event handlers close/select slash, search and drawers without any
   const searchResults = { innerHTML: '' };
   const searchInput = { id: 'global-search', value: '', dataset: { globalSearch: '' }, closest: () => null, setAttribute() {}, focus() { focused = 'input'; } };
   const resultItems = [0, 1].map(index => ({ dataset: { globalResult: 'skill' }, matches: () => true, focus() { focused = index; }, click() { focused = 'clicked'; } }));
-  const selectors = { '#app': rootElement, '#main': main, '#prompt': prompt, '#global-search': searchInput, '#global-search-results [data-global-result]': resultItems[0], '.mobile-search-toggle[data-toggle-search]': { focus() { focused = 'toggle'; } }, '.skip-link': { addEventListener() {} } };
+  const selectors = { '#app': rootElement, '#main': main, '#prompt': prompt, '#global-search': searchInput, '#global-search-results [data-global-result]': resultItems[0], '.primary-rail .search-trigger': { focus() { focused = 'toggle'; } }, '.topbar .menu-toggle': { focus() { focused = 'toggle'; } }, '.skip-link': { addEventListener() {} } };
   const previous = new Map(['document', 'window', 'location', 'history', 'fetch'].map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
   const originalLog = console.info;
   const builtinResearchSkills = productBuiltinResearchSkills();

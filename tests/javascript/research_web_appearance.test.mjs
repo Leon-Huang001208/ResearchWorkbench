@@ -176,11 +176,11 @@ test('capability workspace has four-to-one responsive density and a full-screen 
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
 });
 
-test('approved v2 composition keeps title, sidebar actions and model inside composer', async () => {
+test('approved composition keeps sidebar actions and model inside composer', async () => {
   const shell = await import(new URL('shell.mjs', ui));
   const { renderComposer } = await import(new URL('composer.mjs', ui));
   const header = shell.renderTopbar({ page: 'fingpt' });
-  assert.match(header, /topbar-title/);
+  assert.doesNotMatch(header, /topbar-title|title-separator|mobile-search-toggle/);
   assert.doesNotMatch(header, /id="model-select"/);
   assert.doesNotMatch(shell.renderPrimaryRail({ page: 'fingpt' }), /data-new/);
   assert.match(shell.renderSidebar({ page: 'fingpt' }), /data-new/);
