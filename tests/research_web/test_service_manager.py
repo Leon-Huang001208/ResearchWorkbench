@@ -203,16 +203,18 @@ def test_doctor_web_access_reads_actual_running_configuration(
     manager, monkeypatch, access, expected
 ):
     monkeypatch.setenv("RESEARCH_WEB_PRIVATE_ORIGIN", "https://cli.tail123abc.ts.net")
-    monkeypatch.setattr(manager, "_json_request", lambda *args: {"web_access": access})
-    assert manager._web_access_diagnosis() == expected
+    assert manager._web_access_diagnosis({"web_access": access}) == expected
 
 
 def test_doctor_web_access_unavailable_is_unknown(manager, monkeypatch):
-    def unavailable(*args):
-        raise ServiceManagerError("unavailable")
-
-    monkeypatch.setattr(manager, "_json_request", unavailable)
-    assert manager._web_access_diagnosis() == {"mode": "unknown", "origin": None}
+    monkeypatch.setattr(manager, "_installation_diagnosis", lambda: {"ok": True, "issues": []})
+    monkeypatch.setattr(manager, "_service_probes", lambda: ())
+    monkeypatch.setattr(manager, "_model_diagnosis", lambda: (False, ()))
+    manager._diagnostic_web_access = {
+        "mode": "tailscale",
+        "origin": "https://old.tail123abc.ts.net",
+    }
+    assert manager.doctor()["web_access"] == {"mode": "unknown", "origin": None}
 
 
 def test_native_logs_tail_and_secret_line_redaction(manager, monkeypatch):

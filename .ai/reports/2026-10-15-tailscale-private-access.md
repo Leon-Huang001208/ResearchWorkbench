@@ -23,5 +23,13 @@ Existing Python 3.12 test tools reused read-only; no package installed or lock c
 Routed checks, independent review, Mac Bootstrap CI, merge, deployment and tailnet HTTP
 acceptance remain pending. Cross-device/external-network and real SSE/model are NOT_RUN.
 
+Full routed Python invocation: 600 PASS/7 FAIL in 445.57s; all seven were Doctor's extra
+HTTP read violating existing no-extra-request/error-response fixtures. Repaired production
+diagnostics to reuse its existing runtime read, reset unknown on every diagnosis, and preserve
+the model diagnostic return contract. Original failing tests unchanged. Entire service manager
+rerun: 348 PASS in 12.10s; API/protocol tests from the first run had no failures. Independent
+repair review APPROVE; Ruff and mypy silent-import check passed again. Original failure log
+and repaired run retained separately; no single all-green combined invocation is claimed.
+
 <!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"现有回环Host增加显式精确Tailscale origin并保留认证与同源门，无新运行节点或研究引擎；默认部署不变。","diagrams":[]} -->
 <!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"原Native进程与回环端口不变，Doctor增加运行中Host访问模式的只读投影。","diagrams":[]} -->

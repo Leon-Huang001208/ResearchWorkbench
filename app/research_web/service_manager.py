@@ -2896,6 +2896,7 @@ class WebServiceManager:
             runtime = self._json_request(self.web_port, "GET", "/api/research/runtime")
         except ServiceManagerError:
             return False, ("model_catalog_unavailable",)
+        self._diagnostic_web_access = self._web_access_diagnosis(runtime)
         provider = runtime.get("provider")
         model = runtime.get("model")
         configured = (
@@ -2923,13 +2924,8 @@ class WebServiceManager:
         stable_warnings = tuple(dict.fromkeys(warnings))
         return configured and credential_configured and catalog_ready, stable_warnings
 
-    def _web_access_diagnosis(self) -> dict[str, Any]:
-        """Read the running Host's actual access mode, never the CLI environment."""
-        try:
-            runtime = self._json_request(self.web_port, "GET", "/api/research/runtime")
-        except ServiceManagerError:
-            log.warning("research_web_access_diagnosis_unavailable")
-            return {"mode": "unknown", "origin": None}
+    def _web_access_diagnosis(self, runtime: dict[str, Any]) -> dict[str, Any]:
+        """Project the already-read Host status without extra HTTP requests."""
         access = runtime.get("web_access")
         if isinstance(access, dict):
             if access.get("mode") == "loopback" and access.get("origin") is None:
@@ -2955,6 +2951,8 @@ class WebServiceManager:
         service_issues = [issue for probe in probes for issue in probe.issues]
         installation_ok = bool(diagnosis.get("ok"))
         product_ready = all(probe.ready for probe in probes)
+        # A stopped/old Host must not inherit the previous diagnosis's state.
+        self._diagnostic_web_access = {"mode": "unknown", "origin": None}
         model_ready, model_warnings = self._model_diagnosis() if product_ready else (False, ())
         warnings = list(dict.fromkeys([*model_warnings, *proxy_warnings(os.environ)]))
         office_fact = read_private_json(
@@ -3002,11 +3000,7 @@ class WebServiceManager:
             "installation_ok": installation_ok,
             "product_ready": product_ready,
             "model_ready": model_ready,
-            "web_access": (
-                self._web_access_diagnosis()
-                if product_ready
-                else {"mode": "unknown", "origin": None}
-            ),
+            "web_access": self._diagnostic_web_access,
             "issues": list(dict.fromkeys([*installation_issues, *service_issues])),
             "warnings": warnings,
             "services": {probe.role: probe.public() for probe in probes},
