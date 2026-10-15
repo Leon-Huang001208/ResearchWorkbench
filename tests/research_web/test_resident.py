@@ -127,6 +127,48 @@ def test_compatibility_is_cumulative_and_unknown_paths_require_review():
         assert not evidence.compatible(["app/research_web/ui/app.mjs", path])
 
 
+def test_candidate_staging_uses_public_git_and_binds_both_wheel_versions(resident, monkeypatch):
+    home = resident.parent
+    project = home / "project"
+    project.mkdir()
+    (home / "install").mkdir(mode=0o700)
+    previous, target = "a" * 40, "b" * 40
+    controller.atomic(
+        home / "install/manifest.json", {"status": "installed", "code_commit": previous}
+    )
+    calls, builds = [], []
+
+    def git(_root, *args):
+        calls.append(args)
+        if args == ("rev-parse", "HEAD"):
+            return previous
+        if args == ("rev-parse", "FETCH_HEAD"):
+            return target
+        if args[0] == "diff":
+            return "app/research_web/ui/app.mjs"
+        return ""
+
+    monkeypatch.setattr(controller, "git", git)
+    monkeypatch.setattr(controller, "clean", lambda *_: None)
+    monkeypatch.setattr(
+        controller,
+        "build_wheel",
+        lambda _project, source, output: builds.append(output)
+        or {"path": str(output / "fixture.whl"), "sha256": "0" * 64},
+    )
+    result = controller.stage(
+        home, {"project": str(project), "repository": "owner/repo"}, target, {}
+    )
+    assert (
+        "fetch",
+        "--no-auto-maintenance",
+        "https://github.com/owner/repo.git",
+        "master",
+    ) in calls
+    assert builds[0].name == target and builds[1].name == previous
+    assert result["previous"] == previous and result["target"] == target
+
+
 def test_atomic_state_is_private_and_invalid_records_fail_closed(resident):
     path = resident / "state.json"
     controller.atomic(path, {"status": "ready"})
