@@ -12,6 +12,8 @@ Hot预算adapter复用public-data的私有控制读取器，调用根Hot研究�
 
 `rwb_prepare_automation` 在原生 research-tools 中注册并受最终 guard 与会话准入保护。Claw 只投影真实能力目录；日程草稿锁定选定 Skill/Workflow/报告版本，确认不发布新能力，版本失效明确拒绝。保存后默认停用，执行与投递仍由现有 Automation 管理。
 
+`rwb_prepare_automation` 在原生 research-tools 中注册并受最终 guard 与会话准入保护。Claw 只投影真实能力目录；日程支持直接 research_task，或锁定选定 Skill/Workflow/报告版本，确认不发布新能力，版本失效明确拒绝。旧目标保存默认停用；直接研究任务经明确确认卡创建并启用，创建不运行。执行与投递仍由现有 Automation 管理。
+
 MCP 控制 JSON/URL 的纯 parser 现供原 reader 与独立 origin helper 共享；原 reader 的
 额外字段、版本与异常语义保持，不改变 MCP 授权、审批、能力版本或秘密存储边界。
 
@@ -202,7 +204,7 @@ Phase 2B 的 staging、安装 payload、清单与确认令牌重放目录在 Win
 PyPI 安装器仅在当前解释器找不到 pip 时选择宿主已有的 uv，并强制当前解释器、staging 私有缓存、
 禁用用户配置及原离线参数；两者都不可用时明确拒绝安装。
 
-Workflow“运行计划”同时展示通用 Automation、最近 Run、下一次执行和旧报告日程。一次、每日、
+旧 Workflow“运行计划”链接导向 Claw 统一 Agent 日程，使用任务表格展示 Automation、最近 Run 与下一次执行；能力与连接仅在能力中心管理。旧报告日程迁移仍使用原显式 API。一次、每日、
 每周和每月日程使用 IANA 时区，月度缺失日期回落月末；DST 空缺顺延到首个有效分钟，重复时间只
 触发第一次。旧报告日程只有逐项确认且 Automation 成功保存后才停用，失败保持两边原状。
 

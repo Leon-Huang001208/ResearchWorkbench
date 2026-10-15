@@ -635,7 +635,7 @@ def hot_zero_retry(data: Path, project: Path | None = None) -> bool:
         config = value["config"]
         model = config.get("model", {})
         if not isinstance(config, dict) or not isinstance(model, dict):
-            raise ValueError()
+            raise TypeError()
         enabled, paid = config.get("enabled", False), model.get("enabled", False)
         if type(enabled) is not bool or type(paid) is not bool:
             raise ValueError()
@@ -845,7 +845,8 @@ def _prepare_runtime(
                 "  config:",
                 "    apiKeyEnv: RESEARCH_DSH_API_KEY",
                 "    thinking: disabled",
-                f"    maxTokens: {acceptance['maxOutputTokens'] if acceptance is not None and docker_text else 4096}",
+                # Preserve the explicit Docker acceptance budget; ordinary file research needs native script headroom.
+                f"    maxTokens: {acceptance['maxOutputTokens'] if acceptance is not None and docker_text else 16384}",
                 *(['    baseURL: "https://api.deepseek.com/anthropic"'] if docker_text else []),
                 *(
                     ["    retryPolicy:", "      mode: normal", "      maxRetries: 0"]

@@ -2,6 +2,7 @@
 
 import asyncio
 import base64
+import copy
 import hashlib
 import json
 import os
@@ -58,7 +59,13 @@ from .mcp_runtime.package_planner import PackagePlanner
 from .mcp_runtime.package_resolver import PackageResolver
 from .mcp_runtime.sdk_host import SDKHost
 from .mcp_runtime.service import MCPRuntimeService, runtime_feature_enabled
-from .projection import content_text, merge_event_records, project
+from .projection import (
+    activity_detail,
+    activity_value,
+    content_text,
+    merge_event_records,
+    project,
+)
 from .report_studio import ReportStudio
 from .report_workflows.manager import ReportWorkflowManager
 from .research_evidence import evidence_index, report_projection
@@ -174,6 +181,42 @@ class _SessionOwnedMCPRuntime:
             session_id=session_id,
             approve=approve,
         )
+
+
+def automation_execution_context(runs, sid):
+    """Return only the exact execution Run snapshot, never the mutable task."""
+    matches = [run for run in runs.values() if run.get("session_id") == sid]
+    if len(matches) != 1 or not matches[0].get("definition_snapshot"):
+        return None
+    run = matches[0]
+    snapshot = copy.deepcopy(run["definition_snapshot"])
+    return {
+        "run_id": run["id"],
+        "automation_id": run["automation_id"],
+        "definition_version": snapshot.get("definition_version"),
+        "trigger": run.get("trigger"),
+        "definition_snapshot": snapshot,
+    }
+
+
+def automation_followup_scope(
+    scope, context, skill_id, capability_id, capability_version, tool_ids, method_ids, formats
+):
+    """A continuation keeps the original approved tools and delivery contract."""
+    if context is None:
+        raise StoreError("执行快照未确认", "automation_execution_unverified", 409)
+    locked_formats = context["definition_snapshot"]["output_formats"]
+    if (
+        skill_id
+        or capability_id
+        or capability_version is not None
+        or method_ids
+        or set(tool_ids) - set(scope["approved_tools"])
+        or (formats is not None and formats != locked_formats)
+    ):
+        log.warning("automation_followup_scope_change_denied")
+        raise StoreError("执行会话不能更改批准范围或输出", "automation_scope_immutable", 409)
+    return list(scope["approved_tools"]), list(locked_formats)
 
 
 class ResearchService:
@@ -459,7 +502,11 @@ class ResearchService:
         for row in list(self.store.data["sessions"].values()):
             if not row["created"]:
                 continue
-            children = await self.client.rpc("subagent.list", {"parentSessionId": row["id"]})
+            try:
+                children = await self.client.rpc("subagent.list", {"parentSessionId": row["id"]})
+            except RuntimeFailure as exc:
+                log.warning("research_interaction_parent_unavailable", code=exc.code)
+                continue
             if any(c.get("kind") == "child" and c.get("id") == sid for c in children["entries"]):
                 self.child_parents[sid] = row["id"]
                 return row["id"]
@@ -930,7 +977,9 @@ class ResearchService:
         purpose=None,
         metadata=None,
         project_id=None,
+        model_selection=None,
     ):
+        selection = dict(self.default_model if model_selection is None else model_selection)
         await self.ensure_owned()
         async with self.lock:
             if project_id is not None:
@@ -976,26 +1025,28 @@ class ResearchService:
                     },
                 )
                 row["created"] = True
-                row["model"] = self.default_model["model"]
-                row["model_provider"] = self.default_model["provider"]
+                row["model"] = selection["model"]
+                row["model_provider"] = selection["provider"]
                 if row["model_provider"] == "openai-compatible":
                     connection = self.compatible_connection()
                     row["model_connection_binding"] = {
                         name: connection[name]
                         for name in ("base_url", "protocol", "credential_mode")
                     }
-                await self.client.rpc(
-                    "session.selectModel", {"sessionId": sid, **self.default_model}
-                )
-                self.store.data["model_application"] = {
-                    "selection": dict(self.default_model),
+                await self.client.rpc("session.selectModel", {"sessionId": sid, **selection})
+                application = {
+                    "selection": dict(selection),
                     "connection_revision": (
                         self.store.data.get("compatible_model_connection_revision")
-                        if self.default_model["provider"] == "openai-compatible"
+                        if selection["provider"] == "openai-compatible"
                         else None
                     ),
                     "runtime_instance": getattr(self.client, "runtime_instance_id", "fixture"),
                 }
+                if model_selection is None:
+                    self.store.data["model_application"] = application
+                else:
+                    row["model_application"] = application
                 await self.client.rpc("session.rename", {"sessionId": sid, "title": row["title"]})
                 self.store.save()
             except RuntimeFailure:
@@ -1007,14 +1058,23 @@ class ResearchService:
     async def ensure_hot_session(self, record: dict):
         """Reconcile Hot's reserved session after crash/reply loss before any new native create."""
         await self.ensure_owned()
-        origin = {"runId": record["runId"], "instanceId": record["instanceId"],
-                  "manifestHash": record["evidenceManifestHash"]}
+        origin = {
+            "runId": record["runId"],
+            "instanceId": record["instanceId"],
+            "manifestHash": record["evidenceManifestHash"],
+        }
         async with self.lock:
             row = self.store.reserve_hot_session(record["sessionId"], record["targetMode"], origin)
             sid = row["id"]
             native = await self.client.rpc("session.list", {})
-            if (not isinstance(native, dict) or not isinstance(native.get("items"), list)
-                    or any(not isinstance(item, dict) or not isinstance(item.get("sessionId"), str) for item in native["items"])):
+            if (
+                not isinstance(native, dict)
+                or not isinstance(native.get("items"), list)
+                or any(
+                    not isinstance(item, dict) or not isinstance(item.get("sessionId"), str)
+                    for item in native["items"]
+                )
+            ):
                 raise RuntimeFailure("原生会话列表不可核验，未创建", "hot_session_list_invalid")
             existing = next((item for item in native["items"] if item["sessionId"] == sid), None)
             phase = row.get("hot_creation_state")
@@ -1024,24 +1084,52 @@ class ResearchService:
                 if phase == "ready" and row["created"]:
                     return self.summary(row)
             elif phase != "reserved":
-                raise RuntimeFailure("会话创建结果仍未知；只查询恢复，不自动重发", "hot_session_outcome_unknown")
+                raise RuntimeFailure(
+                    "会话创建结果仍未知；只查询恢复，不自动重发", "hot_session_outcome_unknown"
+                )
             if row["model"] is None:
-                row["model"], row["model_provider"] = self.default_model["model"], self.default_model["provider"]
+                row["model"], row["model_provider"] = (
+                    self.default_model["model"],
+                    self.default_model["provider"],
+                )
                 if row["model_provider"] == "openai-compatible":
                     connection = self.compatible_connection()
-                    row["model_connection_binding"] = {name: connection[name] for name in ("base_url", "protocol", "credential_mode")}
+                    row["model_connection_binding"] = {
+                        name: connection[name]
+                        for name in ("base_url", "protocol", "credential_mode")
+                    }
                 self.store.save()
             if existing is None:
                 destination = self.store.directory(sid) / "resources"
                 from .datahub.security import _is_reparse_point
-                if _is_reparse_point(destination) or (destination.exists() and any(_is_reparse_point(path) or (path.is_file() and path.stat().st_nlink != 1) for path in destination.rglob("*"))):
+
+                if _is_reparse_point(destination) or (
+                    destination.exists()
+                    and any(
+                        _is_reparse_point(path) or (path.is_file() and path.stat().st_nlink != 1)
+                        for path in destination.rglob("*")
+                    )
+                ):
                     raise StoreError("研究资源目录类型非法")
-                shutil.copytree(Path(__file__).parent / "resources", destination,
-                                ignore=shutil.ignore_patterns("__pycache__"), dirs_exist_ok=True)
+                shutil.copytree(
+                    Path(__file__).parent / "resources",
+                    destination,
+                    ignore=shutil.ignore_patterns("__pycache__"),
+                    dirs_exist_ok=True,
+                )
                 row["hot_creation_state"] = "creating"
                 self.store.save()
                 try:
-                    await self.client.rpc("session.create", {"sessionId": sid, "cwd": str(self.store.directory(sid)), "agentPreset": "research-hot-frozen" if row["mode"] == "fingpt" else "research-web"})
+                    await self.client.rpc(
+                        "session.create",
+                        {
+                            "sessionId": sid,
+                            "cwd": str(self.store.directory(sid)),
+                            "agentPreset": (
+                                "research-hot-frozen" if row["mode"] == "fingpt" else "research-web"
+                            ),
+                        },
+                    )
                 except (RuntimeFailure, asyncio.CancelledError):
                     row.update(hot_creation_state="outcome_unknown", status="failed")
                     self.store.save()
@@ -1049,7 +1137,10 @@ class ResearchService:
                     raise
             row.update(created=True, hot_creation_state="configuring")
             self.store.save()
-            await self.client.rpc("session.selectModel", {"sessionId": sid, "provider": row["model_provider"], "model": row["model"]})
+            await self.client.rpc(
+                "session.selectModel",
+                {"sessionId": sid, "provider": row["model_provider"], "model": row["model"]},
+            )
             await self.client.rpc("session.rename", {"sessionId": sid, "title": row["title"]})
             row.update(hot_creation_state="ready", status="idle", updated_at=time.time())
             self.store.save()
@@ -1083,6 +1174,158 @@ class ResearchService:
                 result["purge_state"] = "pending"
         return result
 
+    async def create_automation_research_session(self, name, definition):
+        """Pin the approved model and scope to a fresh native execution session."""
+        from .automation.models import ResearchTaskDefinition
+
+        task = ResearchTaskDefinition.model_validate(definition)
+        if task.model_provider not in {"deepseek-official", "openai-compatible"}:
+            raise RuntimeFailure("任务模型服务不在受支持范围", "model_unavailable")
+        if any(tool not in SELECTABLE for tool in task.approved_tools):
+            raise StoreError("研究任务包含未批准的工具", "automation_tool_unavailable", 409)
+        catalog = await self.client.rpc("llm.models", {})
+        if not any(
+            group["id"] == task.model_provider
+            and any(model["id"] == task.model_id for model in group["models"])
+            for group in catalog["groups"]
+        ):
+            raise RuntimeFailure("任务锁定模型不可用", "model_unavailable")
+        await self._require_model_credentials(task.model_provider)
+        result = await self.create(
+            "claw",
+            f"{name} · Automation",
+            source_scope=task.approved_data_sources,
+            purpose="automation",
+            metadata={"automation_research_scope": task.model_dump(mode="json")},
+            model_selection={"provider": task.model_provider, "model": task.model_id},
+        )
+        log.info("automation_research_session_created")
+        return result
+
+    async def run_automation_from_chat(self, sid, automation_id):
+        """Only an actual human trial request can start an independent Run."""
+        row = self.store.session(sid)
+        if row["mode"] != "claw" or row.get("purpose") == "automation":
+            raise StoreError("试跑必须来自用户 Claw 对话", "automation_trial_scope_denied", 409)
+        entries = await self.client.history(sid)
+        messages = project(entries)["messages"]
+        latest_user = next((m for m in reversed(messages) if m["role"] == "user"), None)
+        if not latest_user:
+            raise StoreError("未找到明确试跑请求", "automation_trial_not_requested", 409)
+        text = latest_user["text"]
+        for key, receipt in self.store.data["receipts"].items():
+            if key.startswith(sid + ":") and receipt.get("delivery"):
+                text = text.split("\n\n" + receipt["delivery"]["marker"], 1)[0]
+        previous = next(
+            (m for m in reversed(messages) if m["seq"] < latest_user["seq"]),
+            None,
+        )
+        context = row.get("automation_trial_context", {})
+        automation = self.automations.get(automation_id)
+        normalized = re.sub(r"[\s，,。！!：:]", "", text)
+        name = re.escape(automation["name"])
+        explicit = bool(
+            re.fullmatch(
+                r"(?:请|帮我)?(?:先|再|立即)?(?:试跑(?:一次)?|跑一次|运行一次|运行一遍|执行一次)(?:这个任务|该任务|"
+                + name
+                + r")?(?:看看)?",
+                normalized,
+            )
+        )
+        named = automation["name"] in normalized
+        explicit = explicit and (context.get("automation_id") == automation_id or named)
+        pending_question = (
+            previous
+            and previous["role"] == "assistant"
+            and re.search(
+                r"(?:^|[。\n])\s*(?:你)?(?:是否(?:需要)?|要不要|需要|要)(?:现在|立即|再|先)?(?:手动)?(?:试跑(?:一次)?|跑一次|运行一次)(?:这个任务|该任务|"
+                + name
+                + r")?(?:吗)?[？?]\s*$",
+                previous["text"],
+            )
+        )
+        # A reply to a task-bound, explicit trial invitation is also contextual;
+        # explanation, negation and other-task invitations cannot grant execution.
+        invitation = previous["text"].rsplit("\n\n", 1)[-1] if previous else ""
+        pending_invitation = (
+            previous
+            and previous["role"] == "assistant"
+            and automation_id in previous["text"]
+            and not re.search(r"不需要|不要|取消|解释|为什么|另一|其他任务", invitation)
+            and re.search(
+                r"(?:若|如果)你(?:想|希望|需要).{0,100}(?:验证|试跑).{0,160}明确说一声.{0,100}(?:我再|我会).{0,100}(?:发起|触发)(?:手动)?试跑[。.!]?\s*$",
+                invitation,
+            )
+        )
+        contextual = (
+            normalized in {"需要", "是", "好的"}
+            and (pending_question or pending_invitation)
+            and context.get("automation_id") == automation_id
+        )
+        authorization = row.get("automation_question_authorization", {})
+        question_confirmed = False
+        if authorization.get("user_seq") == latest_user["seq"]:
+            if (
+                authorization.get("status") != "confirmed"
+                or authorization.get("approved") is not True
+            ):
+                raise StoreError(
+                    "后续回答未批准试跑；不能沿用此前请求", "automation_trial_not_requested", 409
+                )
+            if authorization.get("automation_id") != automation_id:
+                raise StoreError("提问确认属于另一任务", "automation_trial_conflict", 409)
+            if authorization.get("definition_version") not in (
+                None,
+                automation.get("definition_version", 1),
+            ):
+                raise StoreError("提问确认的定义版本已变化", "automation_version_conflict", 409)
+            question_confirmed = True
+        if not explicit and not contextual and not question_confirmed:
+            raise StoreError(
+                "请明确说明要试跑哪个任务；增加等回复不能触发运行",
+                "automation_trial_not_requested",
+                409,
+            )
+        self.automations.get(automation_id)
+        key = (
+            f"{sid}:question:{authorization['question_id']}"
+            if question_confirmed
+            else f"{sid}:{latest_user['seq']}"
+        )
+        requests = self.store.data.setdefault("automation_trial_requests", {})
+        if key in requests:
+            record = requests[key]
+            if record.get("automation_id") != automation_id:
+                raise StoreError("同一试跑请求不能运行另一任务", "automation_trial_conflict", 409)
+            if not record.get("run_id"):
+                raise StoreError(
+                    "上次试跑受理结果未知，请核对运行记录", "automation_trial_unknown", 409
+                )
+            return self.automations._public(self.automations._run_row(record["run_id"]))
+        requests[key] = {"status": "submitting", "automation_id": automation_id}
+        try:
+            self.store.save()
+        except StoreError:
+            requests.pop(key, None)
+            raise
+        result = await self.automations.run(automation_id, trigger="manual")
+        run = self.automations._run_row(result["id"])
+        run["source_session_id"] = sid
+        requests[key] = {
+            "status": "accepted",
+            "run_id": result["id"],
+            "automation_id": automation_id,
+        }
+        row["automation_trial_context"] = {
+            "automation_id": automation_id,
+            "run_id": result["id"],
+            "definition_version": automation.get("definition_version", 1),
+        }
+        self.store.save()
+        self.notify()
+        log.info("automation_chat_trial_accepted")
+        return self.automations._public(run)
+
     async def list_sessions(self, view="active"):
         if view not in {"active", "deleted", "all"}:
             raise StoreError("未知的会话列表视图", "invalid_session_view", 422)
@@ -1109,9 +1352,13 @@ class ResearchService:
             if row.get("deleted_at") is not None or not row["created"]:
                 return {"entries": []}
             async with semaphore:
-                return await self.client.rpc(
-                    "subagent.list", {"parentSessionId": row["id"], "activityOnly": True}
-                )
+                try:
+                    return await self.client.rpc(
+                        "subagent.list", {"parentSessionId": row["id"], "activityOnly": True}
+                    )
+                except RuntimeFailure as exc:
+                    log.warning("research_history_row_unavailable", code=exc.code)
+                    return {"entries": [], "warning": "子会话状态无法验证；执行权限保持受限"}
 
         child_tasks = [asyncio.create_task(children_for(row)) for row in rows]
         try:
@@ -1128,6 +1375,7 @@ class ResearchService:
             if row.get("deleted_at") is None
             and row["created"]
             and not running.get(row["id"])
+            and not children.get("warning")
             and not any(child.get("activity") == "running" for child in children["entries"])
             and row["status"] == "running"
         ]
@@ -1136,7 +1384,14 @@ class ResearchService:
             # Recover completion during BFF downtime from the authoritative log.
             self.loaded.discard(row["id"])
             async with semaphore:
-                return await self.detail(row["id"])
+                try:
+                    return await self.detail(row["id"])
+                except (RuntimeFailure, StoreError) as exc:
+                    log.warning("research_history_reconcile_unavailable", code=exc.code)
+                    return {
+                        "status": row["status"],
+                        "history_warning": "会话状态无法验证；保留原记录",
+                    }
 
         detail_tasks = [asyncio.create_task(reconcile_detail(row)) for row in stale_rows]
         try:
@@ -1151,12 +1406,20 @@ class ResearchService:
             row["id"]: detail["status"]
             for row, detail in zip(stale_rows, stale_details, strict=True)
         }
+        warnings = {
+            row["id"]: detail.get("history_warning")
+            for row, detail in zip(stale_rows, stale_details, strict=True)
+        }
         results = []
         for row, children in zip(rows, children_by_row, strict=True):
             result = self.summary(row)
             if row.get("deleted_at") is not None:
                 results.append(result)
                 continue
+            warning = children.get("warning") or warnings.get(row["id"])
+            if warning:
+                result["history_warning"] = warning
+                result["execution_restricted"] = True
             child_running = any(child.get("activity") == "running" for child in children["entries"])
             if running.get(row["id"]) or child_running:
                 result["status"] = "running"
@@ -1441,6 +1704,18 @@ class ResearchService:
             ),
         }
         allowed_sources = self.store.session(sid).get("source_scope", ["datahub", "web", "uploads"])
+        automation_scope = self.store.session(sid).get("automation_research_scope")
+        if (
+            automation_scope
+            and tool_name not in {None, "agent_step", "todo_write"}
+            and tool_name not in automation_scope["approved_tools"]
+        ):
+            scope.update(status="unavailable", admitted=False)
+            scope["missing"].append({"code": "automation_tool_not_approved"})
+        if automation_scope:
+            scope["visible_tools"] = list(
+                dict.fromkeys(["todo_write", *automation_scope["approved_tools"]])
+            )
         web_tools = {"web_search", "web_fetch", "tabbit_browser", "datahub_search_web"}
         excluded_source = (
             tool_name
@@ -1479,7 +1754,9 @@ class ResearchService:
                 try:
                     manifest = self.datahub.detail(sid, did)
                     if manifest.get("snapshot_kind") == "hot_evidence":
-                        scope["read_paths"].append(self.datahub.snapshots.admit_hot_script(sid, did))
+                        scope["read_paths"].append(
+                            self.datahub.snapshots.admit_hot_script(sid, did)
+                        )
                         continue
                     source = next(
                         (
@@ -1690,11 +1967,38 @@ class ResearchService:
                 status="interrupted", error="原生执行已不在运行，但历史未记录完成；请补充指令继续"
             )
         if sid in self.errors:
-            result.update(status="failed", error=self.errors[sid])
+            result.update(status="failed", error=activity_detail(activity_value(self.errors[sid])))
+        if row.get("automation_research_scope"):
+            result["execution_context"] = automation_execution_context(
+                self.store.data.get("automation_runs", {}), sid
+            )
         result["files"] = self.store.files(sid)
         result["datasets"] = self.datahub.summaries(sid)
         if row["mode"] == "claw" and automation_feature_enabled():
             result["automation_drafts"] = self.automation_drafts.list(sid)["items"]
+            result["automation_runs"] = []
+            for run in self.store.data.get("automation_runs", {}).values():
+                if run.get("source_session_id") != sid:
+                    continue
+                view = self.automations._public(run)
+                execution_id = run.get("session_id")
+                if (
+                    execution_id
+                    and execution_id != sid
+                    and execution_id in self.store.data["sessions"]
+                ):
+                    try:
+                        execution = await self.detail(execution_id)
+                        view.update(
+                            result_text="\n\n".join(
+                                m["text"] for m in execution["messages"] if m["role"] == "assistant"
+                            ),
+                            activities=execution["activities"],
+                            files=execution["files"],
+                        )
+                    except (RuntimeFailure, StoreError) as exc:
+                        view["result_error"] = exc.code
+                result["automation_runs"].append(view)
         result["research_sources"] = evidence_index(
             result["files"], result["datasets"], result["activities"]
         )
@@ -1708,32 +2012,58 @@ class ResearchService:
                 "id": key,
                 "text": "\n\n".join(question["question"] for question in value["questions"]),
                 "items": value["questions"],
+                **(
+                    {
+                        "seq": next(
+                            activity["seq"]
+                            for activity in result["activities"]
+                            if activity["id"] == value.get("callId") and "seq" in activity
+                        )
+                    }
+                    if any(
+                        activity["id"] == value.get("callId") and "seq" in activity
+                        for activity in result["activities"]
+                    )
+                    else {}
+                ),
             }
             for key, value in self.questions.items()
             if value.get("ownerSessionId", value["sessionId"]) == sid
         ]
         if result["approvals"]:
             result["status"] = "awaiting_approval"
-        children = await self.client.rpc(
-            "subagent.list", {"parentSessionId": sid, "activityOnly": True}
-        )
+        try:
+            children = await self.client.rpc(
+                "subagent.list", {"parentSessionId": sid, "activityOnly": True}
+            )
+        except RuntimeFailure as exc:
+            log.warning("research_parent_history_children_unavailable", code=exc.code)
+            children = {"entries": [], "warning": "子会话状态无法验证；不能执行或继续未知子会话"}
+            result["history_warning"] = children["warning"]
         result["subagents"] = []
+        result["execution_restricted"] = bool(children.get("warning")) or any(
+            child.get("mode") == "unknown" for child in children["entries"]
+        )
+        if result["execution_restricted"]:
+            result.setdefault("history_warning", "历史子会话状态受限；可阅读记录，请新建研究继续")
         for child in children["entries"]:
             view = {
                 "id": child["id"],
                 "name": child.get("label", child["id"]),
                 "status": child.get("reason", "unknown"),
             }
+            if child.get("mode") == "unknown":
+                log.info("research_historical_child_mode_unavailable")
+                view.update(
+                    status="running" if child["activity"] == "running" else "unavailable",
+                    mode="unknown",
+                    error="历史子会话模式未知；保留记录，禁止读取和继续",
+                    activity=child.get("activity"),
+                )
+                result["subagents"].append(view)
+                continue
             if child["kind"] == "child":
                 self.child_parents[child["id"]] = sid
-                if child["mode"] == "unknown":
-                    log.info("research_historical_child_mode_unavailable")
-                    view.update(
-                        status="running" if child["activity"] == "running" else "unavailable",
-                        error="历史子会话执行模式未知，暂不能读取子会话历史；未猜测执行模式。",
-                    )
-                    result["subagents"].append(view)
-                    continue
                 try:
                     cached = self.child_views.get(child["id"])
                     if cached and time.monotonic() - cached[0] < 1:
@@ -1844,6 +2174,14 @@ class ResearchService:
     ):
         await self.ensure_owned()
         async with self.lock:
+            # Display tolerance never becomes permission to continue a native
+            # session whose child modes, ownership or activity are unverified.
+            row = self.store.session(sid)
+            if not row["created"]:
+                raise StoreError("会话尚未创建")
+            children = await self.client.rpc("subagent.list", {"parentSessionId": sid})
+            if any(child.get("activity") == "running" for child in children["entries"]):
+                raise StoreError("子会话仍在运行，请等待结束", "session_busy", 409)
             source_scope = self.store.session(sid).get(
                 "source_scope", ["datahub", "web", "uploads"]
             )
@@ -1886,6 +2224,17 @@ class ResearchService:
                     )
             if not row["created"]:
                 raise StoreError("会话尚未创建")
+            if row.get("automation_research_scope"):
+                tool_ids, formats = automation_followup_scope(
+                    row["automation_research_scope"],
+                    automation_execution_context(self.store.data.get("automation_runs", {}), sid),
+                    skill_id,
+                    capability_id,
+                    capability_version,
+                    tool_ids,
+                    method_ids,
+                    formats,
+                )
             existing = self.store.data["receipts"].get(f"{sid}:{key}")
             if (
                 existing
@@ -2081,6 +2430,15 @@ class ResearchService:
             if tabbit_markers:
                 prompt += "\n\nTabbit 标签页引用：" + " ".join(tabbit_markers)
             prompt += "\n\n" + delivery["marker"]
+            clock = datetime.now(UTC)
+            prompt += (
+                "\n\n本次执行时钟（不是资料证据）：UTC="
+                + clock.isoformat(timespec="seconds")
+                + "；本机="
+                + clock.astimezone().isoformat(timespec="seconds")
+                + "。用户指定的历史研究日期保持原意；本时钟不证明交易日、行情日期或网页已被访问。"
+                "访问日期只写本次真实访问的时间；检索摘要与未访问的建议链接须分别说明，不能编造访问日期。"
+            )
             prompt += "\n本会话允许的资料范围：" + ", ".join(source_scope)
             prompt += "\n本次工具与能力准入快照：" + json.dumps(
                 self._task_readiness_context(sid, capability_snapshots),
@@ -2150,12 +2508,29 @@ class ResearchService:
                     "调用 rwb_record_method_use，参数必须与 method_id/version/source 完全一致。"
                     "该记录只证明方法被采用，不得包含 Prompt、文档正文或隐藏思维链。"
                 )
-            if row["mode"] == "claw":
+            if row["mode"] == "claw" and row.get("purpose") != "automation":
                 prompt += (
                     "\n\n使用 DSH 原生子 Agent 分工研究；只使用实际可用工具，不虚构执行或产物。"
-                    "若用户明确要求定时研究，可通过 rwb_prepare_automation 提出日程草稿；"
-                    "仅使用用户所选能力快照的实际 ID、类型与版本。缺少能力目标、时间或时区时先询问。"
-                    "工具仅提出草稿，用户在页面确认后才保存，随后仍需显式启用；不得宣称日程已生效。"
+                    "日程交互：先用 rwb_list_automations 查询真实任务。缺少名称、研究内容、时间、时区、模型、输出或权限时用 ask_user_question 澄清。"
+                    "普通研究使用 target_kind=research_task，无需伪造 Skill；model_provider/model_id 使用当前会话模型，资料范围沿用当前允许范围，工具必须逐项列入确认卡。"
+                    + "当前会话模型="
+                    + json.dumps(
+                        {
+                            "model_provider": row.get("model_provider", "deepseek-official"),
+                            "model_id": row["model"],
+                        },
+                        ensure_ascii=False,
+                    )
+                    + "，当前资料范围="
+                    + json.dumps(source_scope, ensure_ascii=False)
+                    + "。"
+                    "rwb_prepare_automation 仅提出草稿，用户点击确认创建并启用后才生效，创建不立即执行。每周多个执行日用 weekdays；周一至周五不等同交易日历。"
+                    "用户明确要求先跑一次、再跑一次且点名任务，目标唯一且任务已保存时直接调用 rwb_run_automation，复用真实任务 ID，不重复要求确认；查询只用于核对真实 ID 和版本，不代替运行。返回只证明受理，不证明完成。"
+                    "增加、需要等简短回复结合当前待确认事项，不能猜测修改或运行。含混回复必须调用 ask_user_question 提供可选项，由原生问题卡收集回答；不能仅在正文列选项或要求用户复制格式。明确的当前问题肯定答复按已绑定的事项继续，不重新提问。"
+                    "仅在目标任务不明确或主动询问用户是否要试跑时，先通过 ask_user_question 澄清目标，再用 ask_user_question 提出规范试跑问题，不能只把规范问题写在聊天正文：是否试跑「任务名称」（任务 完整任务ID，定义 v当前版本）？只替换名称、ID和版本，其他说明放在提问前。用户回答需要等肯定回复只能绑定当前这一待确认问题，不能把其他任务或版本的回答沿用；已经明确点名要求运行时不再提出这次确认问题。"
+                    "不得先问是否允许提问或是否要我提出问题；需要澄清或邀请试跑就直接调用 ask_user_question，一次性绑定目标任务和定义版本。该问题本身不授权运行，仍须等待用户对当前问题明确回答。"
+                    "修改前查询任务定义版本，rwb_prepare_automation_update 只提出变更草稿，必须 expected_version，同一 ID；未明确修改的时间、模型、权限保持原值。"
+                    "用户确认卡后再查询验证结果，不得提前声称创建或更新成功。"
                 )
             prompt += (
                 "\n\n语言契约：除非用户在当前请求中明确要求其他语言，"
@@ -2453,21 +2828,111 @@ class ResearchService:
 
     async def answer(self, sid, qid, answers):
         await self.ensure_owned()
-        self.store.session(sid)
-        request = self.questions.get(qid)
-        if not request or request.get("ownerSessionId", request["sessionId"]) != sid:
-            raise StoreError("提问已失效或不属于该会话")
-        expected = {question["id"] for question in request["questions"]}
-        if {answer["id"] for answer in answers} != expected or len(answers) != len(expected):
-            raise StoreError("请完整回答该组问题")
-        questions = {question["id"]: question for question in request["questions"]}
-        for answer in answers:
-            if (
-                questions[answer["id"]].get("multiSelect") is not True
-                and len(answer.get("selected", [])) > 1
-            ):
-                log.warning("research_question_single_selection_rejected")
-                raise StoreError("单选问题只能选择一个选项")
-        return await self.client.respond(
-            qid, {"sessionId": request["sessionId"], "answer": {"answers": answers}}
-        )
+        async with self.lock:
+            row = self.store.session(sid)
+            request = self.questions.get(qid)
+            if not request or request.get("ownerSessionId", request["sessionId"]) != sid:
+                raise StoreError("提问已失效或不属于该会话")
+            expected = {question["id"] for question in request["questions"]}
+            if {answer["id"] for answer in answers} != expected or len(answers) != len(expected):
+                raise StoreError("请完整回答该组问题")
+            questions = {question["id"]: question for question in request["questions"]}
+            for answer in answers:
+                if (
+                    questions[answer["id"]].get("multiSelect") is not True
+                    and len(answer.get("selected", [])) > 1
+                ):
+                    log.warning("research_question_single_selection_rejected")
+                    raise StoreError("单选问题只能选择一个选项")
+            authorization = None
+            if row["mode"] == "claw":
+                messages = project(await self.client.history(sid))["messages"]
+                user_seq = max(
+                    (message["seq"] for message in messages if message["role"] == "user"),
+                    default=-1,
+                )
+                context = row.get("automation_trial_context", {})
+                definition_version = context.get("definition_version")
+                if definition_version is None and context.get("run_id"):
+                    referenced = self.automations._run_row(context["run_id"])
+                    if referenced.get("source_session_id") == sid and referenced.get(
+                        "automation_id"
+                    ) == context.get("automation_id"):
+                        definition_version = referenced.get("definition_version")
+                question_text = " ".join(question["question"] for question in request["questions"])
+                # Only one unambiguous affirmative choice can grant execution.
+                # A question's mention of trial/explanation never grants it.
+                selected = answers[0].get("selected", []) if len(answers) == 1 else []
+                custom = answers[0].get("custom", "").strip() if len(answers) == 1 else ""
+                choice = (
+                    selected[0]
+                    if len(selected) == 1 and not custom
+                    else custom if not selected else ""
+                )
+                choice = re.sub(r"[（(](?:Recommended|推荐)[）)]", "", choice, flags=re.IGNORECASE)
+                choice = re.sub(r"[\s，,。！!]", "", choice)
+                trial_name = ""
+                target_matches = False
+                if context.get("automation_id"):
+                    try:
+                        current_task = self.automations.get(context["automation_id"])
+                        trial_name = re.escape(current_task["name"])
+                        target_matches = (
+                            current_task.get("definition_version", 1) == definition_version
+                            and len(request["questions"]) == 1
+                            and re.fullmatch(
+                                r"是否试跑「"
+                                + trial_name
+                                + r"」[（(]任务\s+"
+                                + re.escape(current_task["id"])
+                                + r"[，,]\s*定义\s+[vV]"
+                                + str(definition_version)
+                                + r"[）)][？?]",
+                                question_text.strip(),
+                            )
+                        )
+                    except StoreError:
+                        log.warning("research_question_trial_target_unavailable")
+                affirmative = re.fullmatch(
+                    r"(?:照旧|按原定义|现在|立即|请)?(?:先|再)?(?:试跑(?:一次)?|跑一次|运行一次|重跑一次)(?:v(?P<version>[1-9][0-9]*)|这个任务|该任务|"
+                    + trial_name
+                    + r")?",
+                    choice,
+                )
+                short_answer = choice in {"需要", "是", "好的", "确认"} and bool(target_matches)
+                approved = (
+                    target_matches
+                    and type(definition_version) is int
+                    and bool(
+                        (
+                            affirmative
+                            and (
+                                affirmative.group("version") is None
+                                or int(affirmative.group("version")) == definition_version
+                            )
+                        )
+                        or short_answer
+                    )
+                    and bool(re.search(r"试跑|再跑|运行一次|重跑", question_text))
+                )
+                authorization = {
+                    "question_id": qid,
+                    "user_seq": user_seq,
+                    "automation_id": context.get("automation_id"),
+                    "definition_version": definition_version,
+                    "approved": approved,
+                    "status": "pending",
+                }
+                row["automation_question_authorization"] = authorization
+                self.store.save()
+            result = await self.client.respond(
+                qid, {"sessionId": request["sessionId"], "answer": {"answers": answers}}
+            )
+            if result.get("accepted") is True and self.questions.get(qid) is request:
+                if authorization is not None:
+                    authorization["status"] = "confirmed"
+                    self.store.save()
+                self.questions.pop(qid, None)
+                self.notify()
+                log.info("research_question_answer_confirmed")
+            return result

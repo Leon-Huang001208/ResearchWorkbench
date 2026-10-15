@@ -49,7 +49,9 @@ def next_occurrence(schedule: AutomationSchedule, after: datetime) -> datetime |
     start = local_after.date()
     for offset in range(370):
         current = start + timedelta(days=offset)
-        if schedule.kind == "weekly" and current.weekday() != schedule.weekday:
+        if schedule.kind == "weekly" and current.weekday() not in (
+            schedule.weekdays if schedule.weekdays is not None else [schedule.weekday]
+        ):
             continue
         if schedule.kind == "monthly":
             last = calendar.monthrange(current.year, current.month)[1]

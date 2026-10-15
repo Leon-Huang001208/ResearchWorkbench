@@ -402,7 +402,25 @@ def test_setup_public_explicit_port_options():
 def test_public_docker_setup_preserves_safe_cli_proxy_at_real_popen_boundary(tmp_path, monkeypatch):
     import io
 
+    from research_workbench_entrypoint import bootstrap
     from scripts import setup_web
+
+    # Probe fixture-owned vacant ports; never classify resident 8088/3081 as ours.
+    listeners = [socket.socket(), socket.socket()]
+    try:
+        for listener in listeners:
+            listener.bind(("127.0.0.1", 0))
+        ports = tuple(listener.getsockname()[1] for listener in listeners)
+    finally:
+        for listener in listeners:
+            listener.close()
+    original_init = bootstrap.NativeRuntime.__init__
+
+    def native_init(self, *args, **kwargs):
+        kwargs.setdefault("ports", ports)
+        original_init(self, *args, **kwargs)
+
+    monkeypatch.setattr(bootstrap.NativeRuntime, "__init__", native_init)
 
     project = tmp_path / "project"
     (project / "requirements").mkdir(parents=True)
@@ -2316,16 +2334,27 @@ def test_windows_dsh_verification_uses_the_checkout_worktree_semantics(
 
 def test_hot_install_uses_locked_node_and_disables_scripts(tmp_path, monkeypatch):
     from scripts.setup_web import SetupWebInstaller
-    project=tmp_path/'project';component=project/'services/hot';component.mkdir(parents=True)
-    (component/'package.json').write_text('{}');(component/'package-lock.json').write_text('{}')
-    node=tmp_path/'node';node.write_text('node fixture');npm=tmp_path/'npm.js';npm.write_text('npm fixture')
-    installer=SetupWebInstaller(project_root=project,data_home=tmp_path/'data',node_executable=node,npm_executable=npm)
-    calls=[]
-    monkeypatch.setenv('SECRET_CANARY','must-not-be-inherited')
-    monkeypatch.setattr(installer,'_run_checked',lambda command,**kwargs:calls.append((command,kwargs)))
-    assert installer.install_hot_dependencies()['state']=='installed'
-    command,options=calls[0]
-    assert command[:3]==[str(node.resolve()),str(npm.resolve()),'ci']
-    assert '--ignore-scripts' in command and '--omit=dev' in command
-    assert 'SECRET_CANARY' not in options['environment']
-    assert options['cwd']==component and options['timeout']==180
+
+    project = tmp_path / "project"
+    component = project / "services/hot"
+    component.mkdir(parents=True)
+    (component / "package.json").write_text("{}")
+    (component / "package-lock.json").write_text("{}")
+    node = tmp_path / "node"
+    node.write_text("node fixture")
+    npm = tmp_path / "npm.js"
+    npm.write_text("npm fixture")
+    installer = SetupWebInstaller(
+        project_root=project, data_home=tmp_path / "data", node_executable=node, npm_executable=npm
+    )
+    calls = []
+    monkeypatch.setenv("SECRET_CANARY", "must-not-be-inherited")
+    monkeypatch.setattr(
+        installer, "_run_checked", lambda command, **kwargs: calls.append((command, kwargs))
+    )
+    assert installer.install_hot_dependencies()["state"] == "installed"
+    command, options = calls[0]
+    assert command[:3] == [str(node.resolve()), str(npm.resolve()), "ci"]
+    assert "--ignore-scripts" in command and "--omit=dev" in command
+    assert "SECRET_CANARY" not in options["environment"]
+    assert options["cwd"] == component and options["timeout"] == 180

@@ -5,10 +5,12 @@ import sys
 import zipfile
 from pathlib import Path
 
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 from test_api import NativeFixture
 
+from app.research_web.client import DSHClient
 from app.research_web.main import create_app
 from app.research_web.service import ResearchService
 from app.research_web.store import Store
@@ -433,26 +435,68 @@ def test_historical_completion_without_current_marker_cannot_finalize(delivery_a
     assert submit(delivery_api, [], key="delivery-two").status_code == 503
 
 
-def test_running_child_prevents_finalization_after_parent_ends(delivery_api):
-    _, native, _, _ = delivery_api
+@pytest.mark.parametrize("child_mode", ["continuable", "unknown"])
+def test_running_child_prevents_finalization_after_parent_ends(delivery_api, child_mode):
+    _, native, service, sid = delivery_api
     assert submit(delivery_api, ["md"]).status_code == 202
     finish(delivery_api)
     original = native.rpc
+    adapter = DSHClient("http://127.0.0.1:13190", transport=httpx.MockTransport(lambda _: None))
+    child_directory = service.store.directory(sid) / "subagents" / "child"
+    child_directory.mkdir(parents=True)
+    wire_calls = []
+
+    async def wire(endpoint, payload):
+        wire_calls.append((endpoint, payload))
+        assert endpoint == "session/list"
+        return {
+            "items": [
+                {
+                    "sessionId": sid,
+                    "directory": str(service.store.directory(sid)),
+                    "running": False,
+                    "projections": {
+                        "values": {"subagentCatalog": [{"id": "child", "mode": child_mode}]}
+                    },
+                },
+                {
+                    "sessionId": "child",
+                    "parentSessionId": sid,
+                    "origin": "subagent",
+                    "directory": str(child_directory),
+                    "running": True,
+                },
+            ]
+        }
+
+    adapter._rpc_wire = wire
 
     async def rpc(method, payload):
         if method == "subagent.list":
-            return {
-                "entries": [
-                    {"id": "child", "kind": "child", "activity": "running", "mode": "continuable"}
-                ]
-            }
+            assert payload["parentSessionId"] == sid
+            return await adapter.rpc(method, payload)
         if method == "subagent.history":
+            assert child_mode == "continuable"
+            assert payload["parentSessionId"] == sid
+            assert payload["childSessionId"] == "child"
             return {"events": [], "hasMore": False}
         return await original(method, payload)
 
     native.rpc = rpc
-    assert detail(delivery_api)["delivery"]["status"] == "pending"
-    assert submit(delivery_api, [], key="delivery-two").status_code == 503
+    try:
+        state = detail(delivery_api)
+        assert state["delivery"]["status"] == "pending"
+        assert state["subagents"][0]["status"] == "running"
+        assert state["execution_restricted"] is (child_mode == "unknown")
+        response = submit(delivery_api, [], key="delivery-two")
+        expected_code = "session_busy" if child_mode == "continuable" else "protocol_error"
+        assert response.status_code == (409 if child_mode == "continuable" else 503)
+        assert response.json()["error"]["code"] == expected_code
+        assert len([call for call in native.calls if call[0] == "session.prompt"]) == 1
+        assert service.store.session(sid)["delivery_key"] == "delivery-one"
+        assert wire_calls
+    finally:
+        asyncio.run(adapter.http.aclose())
 
 
 def test_verifier_failure_is_not_success_and_is_not_retried_implicitly(delivery_api, monkeypatch):

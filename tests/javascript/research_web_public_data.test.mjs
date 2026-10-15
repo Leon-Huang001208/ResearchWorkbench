@@ -297,6 +297,19 @@ test('non-2xx DataHub responses expose only allowlisted stable codes within a sm
   } finally { globalThis.fetch = original; }
 });
 
+test('unavailable capability codes use the same bounded allowlisted error projection', async () => {
+  const f=await fixture();const original=globalThis.fetch;
+  try {
+    for(const code of ['data_capability_not_integrated','data_capability_unavailable']) {
+      globalThis.fetch=async()=>new Response(JSON.stringify({error:{code,message:'synthetic secret'}}),{status:503,headers:{'content-type':'application/json'}});
+      await assert.rejects(f.tool.execute({dataset:'nav',code:'000001'},f.exec),error=>{
+        assert.equal(error.message,`DataHub request failed (HTTP 503): ${code}`);
+        assert.doesNotMatch(error.message,/secret/);return true;
+      });
+    }
+  } finally {globalThis.fetch=original;}
+});
+
 test('tool descriptions separate registration from current readiness and identify asset notation', async () => {
   const f = await fixture();
   for (const tool of f.tools.values()) {
@@ -406,4 +419,27 @@ test('unsettled error-body cleanup stays within the existing deadline', async ()
     await assert.rejects(executeDocumentTool(f.ctx, f.exec, { researchRoot: f.root }, { mode: 'file' }), error => error.name === 'TimeoutError');
     assert.equal(requestedTimeout, 35000);
   } finally { clearTimeout(keepAlive); globalThis.fetch = original; AbortSignal.timeout = originalTimeout; }
+});
+
+test('index schema states exact provider semantics and does not claim live availability', async()=>{
+  const f=await fixture();
+  const tool=f.tools.get('datahub_get_index_data');
+  assert.match(tool.parameters.properties.dataset.description,/quotes/);
+  assert.match(tool.parameters.properties.date.description,/历史/);
+  assert.doesNotMatch(tool.description,/目录可调用/);
+});
+
+test('manifest keeps query identity and bounded business error code',async()=>{
+  const f=await fixture(); const original=globalThis.fetch;
+  try {
+    globalThis.fetch=async()=>reply({...dataset,query:{capability:'fund_data'},provider_query:{code:'000001'},coverage:{asset_type:'fund'}});
+    const result=await f.tool.execute({dataset:'nav',code:'000001'},f.exec);
+    const manifest=JSON.parse(result.manifest_json);
+    assert.equal(manifest.provider_query.code,'000001'); assert.equal(manifest.coverage.asset_type,'fund');
+    globalThis.fetch=async()=>new Response(JSON.stringify({error:{code:'dataset_invalid',message:'secret'}}),{status:400,headers:{'content-type':'application/json'}});
+    await assert.rejects(f.tool.execute({dataset:'nav',code:'000001'},f.exec),error=>{
+      assert.equal(error.message,'DataHub request failed (HTTP 400)');
+      assert.doesNotMatch(error.message,/dataset_invalid|secret/);return true;
+    });
+  } finally {globalThis.fetch=original;}
 });

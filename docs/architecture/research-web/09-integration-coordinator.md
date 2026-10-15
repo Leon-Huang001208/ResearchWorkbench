@@ -4,6 +4,12 @@
 认证 HTTP 入口显示 credential_transport_blocked；已配置不提升为厂商真实健康。
 连接中心可配置四类外部凭据，实际取数仍由已有 DataHub 入口验证和审计。
 
+DataHub Broker的未适配与当前不可用来源分别投影为`data_capability_not_integrated`/`data_capability_unavailable`，不因改写查询而提升就绪状态。当前搜索绑定缺少适配仍须显示缺口；已有原生web_search与Tabbit继续各自核验，不把另一条通道的成功移作DataHub成功。
+
+Claw 原生工具目录存在只证明注册，实际来源配置、授权、适配和可调用状态继续由既有协调器与 DataHub 核验。回答工具卡、报告文件与执行完成不提升集成状态；参考浏览器无法连接也不自动改变模型或浏览器集成设置。
+
+Claw 日程研究在独立 DSH 会话锁定 approved_data_sources 与 approved_tools，仍由原 DataHub/原生准入校验。资料未就绪时保留缺口，定时定义不证明金融来源可调用；试跑文件也不能把合成数据作为真实市场数据。
+
 Hot流归属与账本借既有私有数据通道；连接探测和集成五阶段状态保持原合同。
 合成SDK回执不能提升DataHub厂商的可调用状态。
 

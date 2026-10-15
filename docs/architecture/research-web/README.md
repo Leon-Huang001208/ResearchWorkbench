@@ -26,6 +26,13 @@ G2A 为受管 Docker 增加固定模型 ref 的实例加密后端及主密钥只
 研究台增加ETF工程模拟切片，确定性策略、约束、事务账本及回放均在同一Host内，真实链路保持BLOCKED。
 合同见[数据与文件](03-data-files.md#etf-工程模拟与真实准入边界)。
 
+Claw工作区只替换侧栏，中央聊天/草稿保持；文件MD预览复用Host原端点并以纯文本供沙箱显示。Host受理后附加当前时钟但不作为来源/交易日证据；DataHub未适配来源返回明确503。它们不新增服务、调度层、存储schema或研究执行器，详细合同见下列UI、运行时、文件和API模块。
+
+Claw 全页面调查与回答修复继续复用原生事件、版本化 Run 与能力中心。工具目录、执行快照和安全活动投影见[运行时](02-research-runtime.md)、[API](04-api.md)与[安全](05-security-validation.md)；参考站点未观察的接口和状态单独保留未知，不构成本产品行为证据。
+
+本轮 Claw 日程采用直接 `research_task`（schema_version=1），锁定研究描述、模型、输出要求、资料与工具白名单。用户确认创建并启用后才生效，创建不立即运行；旧 Skill/Workflow/报告任务保持兼容。修改以同一 ID、expected_version 和变更确认卡生成新定义版本，Run 保留不可变 definition_snapshot；手动试跑与 schedule 触发分别记录，不改下一次计划时间。能力与连接管理统一在能力中心，Claw 仅选择能力，Agent 日程使用独立表格。DSH 仍是唯一研究引擎，Automation 仍是唯一调度层。
+
+
 模型空闲检查区分已核实活动与历史执行模式；详情/执行仍按原严格模式校验。内部查询范围及失败关闭条件见[运行时](02-research-runtime.md)与[安全验证](05-security-validation.md)，无公开协议或持久格式变化。
 
 Claw 本地研究项目和可确认日程草稿复用现有 Host 索引、文件目录、Automation 与 DSH。项目归属不改变执行目录，跨会话文件必须显式引用；详见[文件](03-data-files.md)、[API](04-api.md)和[UI](../../research-web-ui.md)。

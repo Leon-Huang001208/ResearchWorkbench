@@ -132,19 +132,36 @@ def api(tmp_path):
         yield client, native, service
 
 
-def test_create_submit_duplicate_never_replays(api):
+def test_create_submit_duplicate_never_replays(api, monkeypatch):
+    from datetime import UTC, datetime
+
+    class Clock(datetime):
+        current = datetime(2026, 10, 14, 16, 0, tzinfo=UTC)
+
+        @classmethod
+        def now(cls, tz=None):
+            return cls.current.astimezone(tz)
+
+    monkeypatch.setattr("app.research_web.service.datetime", Clock)
     client, native, _ = api
     created = client.post("/api/research/sessions", json={"mode": "fingpt"})
     assert created.status_code == 201
     sid = created.json()["id"]
     assert created.json()["research_depth"] == "instant"
     endpoint = f"/api/research/sessions/{sid}/messages"
-    for _ in range(2):
+    for day in (14, 15):
+        Clock.current = datetime(2026, 10, day, 16, 0, tzinfo=UTC)
         response = client.post(
             endpoint, json={"text": "你好"}, headers={"Idempotency-Key": "abcdefgh"}
         )
         assert response.status_code == 202, response.text
     assert len([call for call in native.calls if call[0] == "session.prompt"]) == 1
+    prompt = next(payload for method, payload in native.calls if method == "session.prompt")
+    sent_text = prompt["content"][0]["text"]
+    assert "UTC=2026-10-14T16:00:00+00:00" in sent_text
+    assert "不是资料证据" in sent_text
+    assert "不证明交易日、行情日期或网页已被访问" in sent_text
+    assert sent_text.index("[RESEARCH_TASK:") < sent_text.index("本次执行时钟")
     assert (
         client.post(
             endpoint, json={"text": "别的问题"}, headers={"Idempotency-Key": "abcdefgh"}
@@ -600,17 +617,37 @@ def test_office_document_upload_preserves_bytes_and_session_ownership(api, exten
     assert client.get(item["url"].replace(sid, other)).status_code == 400
 
 
-def test_upload_ownership_and_preview_sandbox(api):
-    client, _, _ = api
+@pytest.mark.parametrize(
+    ("extension", "preview_type", "download_type"),
+    [
+        ("md", "text/plain", "text/markdown"),
+        ("html", "text/html", "text/html"),
+        ("txt", "text/plain", "text/plain"),
+    ],
+)
+def test_upload_ownership_and_preview_sandbox(api, extension, preview_type, download_type):
+    client, _, service = api
     sid = client.post("/api/research/sessions", json={}).json()["id"]
     uploaded = client.post(
         f"/api/research/sessions/{sid}/uploads",
-        files=[("files", ("../note.md", b"# Notes", "text/markdown"))],
+        files=[("files", (f"../note.{extension}", b"# Notes", download_type))],
     )
-    assert uploaded.status_code == 200, uploaded.text
-    file = uploaded.json()["items"][0]
+    if extension == "md":
+        assert uploaded.status_code == 200, uploaded.text
+        file = uploaded.json()["items"][0]
+    else:
+        # HTML/TXT are output formats, not permitted research uploads.
+        assert uploaded.status_code == 400, uploaded.text
+        output = service.store.directory(sid) / "outputs" / f"note.{extension}"
+        output.write_bytes(b"# Notes")
+        file = service.store.files(sid)[0]
     preview = client.get(file["preview_url"])
     assert preview.status_code == 200
+    assert preview.headers["content-type"].startswith(preview_type)
+    assert preview.content == b"# Notes"
+    download = client.get(file["url"])
+    assert download.headers["content-type"].startswith(download_type)
+    assert download.content == preview.content
     assert "sandbox" in preview.headers["content-security-policy"]
     assert "allow-same-origin" not in preview.headers["content-security-policy"]
     other = client.post("/api/research/sessions", json={}).json()["id"]
@@ -1010,9 +1047,7 @@ async def test_session_list_reconciles_stale_running_details_concurrently_in_ord
 
 
 @pytest.mark.asyncio
-async def test_session_list_cancels_stale_detail_tasks_before_reconciliation_failure(
-    tmp_path, monkeypatch
-):
+async def test_session_list_isolates_stale_detail_reconciliation_failure(tmp_path, monkeypatch):
     native = NativeFixture()
     service = ResearchService(native, Store(tmp_path))
     rows = [service.store.create("fingpt", f"陈旧运行会话 {index}") for index in range(10)]
@@ -1046,21 +1081,21 @@ async def test_session_list_cancels_stale_detail_tasks_before_reconciliation_fai
             active -= 1
 
     monkeypatch.setattr(service, "detail", failing_detail)
-    with pytest.raises(RuntimeFailure, match="detail reconciliation failed"):
-        await service.list_sessions()
+    summaries = await service.list_sessions()
+    assert next(row for row in summaries if row["id"] == failed_sid)["history_warning"]
     active_after_failure = active
     completed_after_failure = set(completed)
     await asyncio.sleep(0.3)
 
     assert len(started) > 1
     assert active_after_failure == 0
-    assert completed_after_failure == set()
+    assert completed_after_failure == {row["id"] for row in rows} - {failed_sid}
     assert active == 0
-    assert completed == set()
-    assert cancelled == started - {failed_sid}
+    assert completed == completed_after_failure
+    assert cancelled == set()
 
 
-def test_session_list_cancels_slow_child_lookups_before_runtime_failure_response(api):
+def test_session_list_isolates_slow_child_lookup_failure(api):
     client, native, service = api
     rows = [service.store.create("fingpt", f"研究 {index}") for index in range(20)]
     for index, row in enumerate(rows):
@@ -1096,14 +1131,14 @@ def test_session_list_cancels_slow_child_lookups_before_runtime_failure_response
     completed_after_response = list(completed)
     time.sleep(0.4)
 
-    assert response.status_code == 503
-    assert response.json() == {
-        "error": {"code": "child_lookup_failed", "message": "child lookup failed"}
-    }
+    assert response.status_code == 200
+    summaries = response.json()["items"]
+    assert len(summaries) == len(rows)
+    assert next(row for row in summaries if row["id"] == failed_parent)["history_warning"]
     assert active_after_response == 0
-    assert completed_after_response == []
+    assert set(completed_after_response) == {row["id"] for row in rows} - {failed_parent}
     assert active == 0
-    assert completed == []
+    assert completed == completed_after_response
 
 
 @pytest.mark.asyncio
@@ -1342,6 +1377,8 @@ async def test_credential_value_selection_clear_and_cold_recovery_are_instance_l
     a = settings_service(tmp_path / "a", native_a)
     b = settings_service(tmp_path / "b", native_b)
     old_sid = a.store.create("fingpt", "fixture old session")["id"]
+    a.store.session(old_sid)["created"] = True
+    a.store.save()
     await a.configure_model("deepseek-official", "deepseek-flash", "synthetic-a")
     await b.configure_model("deepseek-official", "deepseek-flash", "synthetic-b")
     await a.configure_model("deepseek-official", "deepseek-flash")
@@ -1360,6 +1397,8 @@ async def test_credential_value_selection_clear_and_cold_recovery_are_instance_l
     assert native_a.value is None and native_b.value == "synthetic-b"
     cold = settings_service(tmp_path / "a", native_a)
     new_sid = cold.store.create("fingpt", "fixture new session")["id"]
+    cold.store.session(new_sid)["created"] = True
+    cold.store.save()
     for sid in (old_sid, new_sid):
         with pytest.raises(RuntimeFailure) as error:
             await cold.send(sid, "fixture", "new-submission")
@@ -1588,6 +1627,8 @@ def test_native_question_reply_requires_ownership_and_complete_answers(api):
     assert not replies
     assert client.post(endpoint, json=body).status_code == 200
     assert replies == [("question-rpc", {"sessionId": sid, "answer": body})]
+    assert "question-rpc" not in service.questions
+    assert client.post(endpoint, json=body).status_code == 400
 
 
 def test_image_attachment_is_forwarded_as_native_image_not_just_a_path(api):
@@ -1790,6 +1831,496 @@ def test_deep_options_survive_reload_and_require_verified_tool_model(api, monkey
     assert not any(call[0] == "session.prompt" for call in native.calls)
 
 
+@pytest.mark.asyncio
+async def test_claw_history_failure_isolated_and_unknown_child_never_read(tmp_path):
+    native = NativeFixture()
+    service = ResearchService(native, Store(tmp_path))
+    service.connected = {"mux", "host"}
+    parent = await service.create("claw", "可读父对话")
+    other = await service.create("claw", "目录异常")
+    original = native.rpc
+
+    async def catalog(method, payload):
+        if method == "subagent.list":
+            assert payload.get("activityOnly") is True
+            if payload["parentSessionId"] == other["id"]:
+                raise RuntimeFailure("目录异常", "protocol_error")
+            return {
+                "entries": [
+                    {"id": "old-child", "kind": "child", "mode": "unknown", "activity": "inactive"}
+                ]
+            }
+        if method == "subagent.history":
+            raise AssertionError("未知模式不得读取子会话")
+        return await original(method, payload)
+
+    native.rpc = catalog
+    summaries = await service.list_sessions()
+    assert len(summaries) == 2
+    assert next(row for row in summaries if row["id"] == other["id"])["history_warning"]
+    detail = await service.detail(parent["id"])
+    assert detail["subagents"][0]["status"] == "unavailable"
+    assert detail["subagents"][0]["mode"] == "unknown"
+
+
+@pytest.mark.asyncio
+async def test_research_task_selects_model_without_changing_global_application(tmp_path):
+    native = NativeFixture()
+    service = ResearchService(native, Store(tmp_path))
+    await service.create("claw")
+    application = dict(service.store.data["model_application"])
+    result = await service.create_automation_research_session(
+        "每日收盘点评",
+        {
+            "schema_version": 1,
+            "description": "核对缺失并交付",
+            "model_provider": "deepseek-official",
+            "model_id": "new-model",
+            "output_requirements": "真实 Markdown 文件",
+            "approved_data_sources": ["uploads"],
+            "approved_tools": ["research_run_script"],
+        },
+    )
+    assert result["model"] == "new-model"
+    assert service.default_model["model"] == "deepseek-flash"
+    assert service.store.data["model_application"] == application
+    scope = service.native_admission(result["id"], tool_name="rwb_run_automation")
+    assert scope["visible_tools"] == ["todo_write", "research_run_script"]
+    assert not scope["admitted"]
+    assert {"code": "automation_tool_not_approved"} in scope["missing"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "text", ["增加", "不要先跑一次", "解释一下试跑功能", "我不需要试跑", "先跑一次另一个任务"]
+)
+async def test_trial_rejects_ambiguous_negated_and_wrong_task_requests(tmp_path, text):
+    from app.research_web.store import StoreError
+
+    native = NativeFixture()
+    service = ResearchService(native, Store(tmp_path))
+    session = await service.create("claw")
+    sid = session["id"]
+    service.store.session(sid)["automation_trial_context"] = {"automation_id": "task-a"}
+    service.automations.get = lambda _id: {"id": "task-a", "name": "每日收盘点评"}
+
+    async def history(_sid):
+        return [
+            {
+                "event": {
+                    "seq": 1,
+                    "type": "user/message",
+                    "time": 1,
+                    "data": {"content": [{"type": "text", "text": text}]},
+                }
+            }
+        ]
+
+    native.history = history
+    with pytest.raises(StoreError, match="明确"):
+        await service.run_automation_from_chat(sid, "task-a")
+    assert not service.store.data.get("automation_trial_requests")
+
+
+@pytest.mark.asyncio
+async def test_trial_replay_single_run_and_wrong_task_cannot_reuse_request(tmp_path):
+    from app.research_web.store import StoreError
+
+    native = NativeFixture()
+    service = ResearchService(native, Store(tmp_path))
+    sid = (await service.create("claw"))["id"]
+    service.store.session(sid)["automation_trial_context"] = {"automation_id": "task-a"}
+    service.automations.get = lambda aid: {"id": aid, "name": "每日收盘点评"}
+    runs = {}
+
+    async def run(aid, **kwargs):
+        assert kwargs["trigger"] == "manual"
+        runs["run-a"] = {"id": "run-a", "automation_id": aid}
+        return runs["run-a"]
+
+    service.automations.run = run
+    service.automations._run_row = lambda rid: runs[rid]
+    service.automations._public = lambda row: dict(row)
+
+    async def history(_sid):
+        return [
+            {
+                "event": {
+                    "seq": 2,
+                    "type": "user/message",
+                    "time": 1,
+                    "data": {"content": [{"type": "text", "text": "先跑一次"}]},
+                }
+            }
+        ]
+
+    native.history = history
+    first = await service.run_automation_from_chat(sid, "task-a")
+    assert first["source_session_id"] == sid
+    assert (await service.run_automation_from_chat(sid, "task-a"))["id"] == first["id"]
+    assert len(runs) == 1
+    with pytest.raises(StoreError):
+        await service.run_automation_from_chat(sid, "task-b")
+
+
+def test_confirmation_union_schema_and_malformed_json_fail_closed(api):
+    from app.research_web.automation.models import AutomationCreate, AutomationUpdate
+
+    client, _native, service = api
+    sid = client.post("/api/research/sessions", json={"mode": "claw"}).json()["id"]
+    body = AutomationCreate(
+        name="研究",
+        target_kind="skill",
+        target_id="company-research",
+        target_version=1,
+        input_template="研究目标",
+        schedule={"kind": "daily", "timezone": "Asia/Shanghai", "hour": 9, "minute": 0},
+    )
+    create = service.automation_drafts.prepare(sid, body)
+    saved = service.automations.create(body)
+    update = service.automation_drafts.prepare_update(
+        sid, saved["id"], AutomationUpdate(expected_version=1, name="更新")
+    )
+    for draft in (create, update):
+        endpoint = f"/api/research/sessions/{sid}/automation-drafts/{draft['id']}/confirm"
+        assert (
+            client.post(
+                endpoint, content="{", headers={"Content-Type": "application/json"}
+            ).status_code
+            == 422
+        )
+        assert client.post(endpoint, json={"unexpected": True}).status_code == 422
+        assert service.automation_drafts._get(sid, draft["id"])["status"] == "proposed"
+    schema = client.get("/openapi.json").json()["paths"][
+        "/api/research/sessions/{sid}/automation-drafts/{draft_id}/confirm"
+    ]["post"]["requestBody"]["content"]["application/json"]["schema"]
+    assert {item["$ref"].rsplit("/", 1)[-1] for item in schema["anyOf"]} == {
+        "AutomationCreate",
+        "AutomationUpdate",
+    }
+
+
+@pytest.mark.asyncio
+async def test_source_conversation_survives_soft_deleted_trial_execution(tmp_path):
+    native = NativeFixture()
+    service = ResearchService(native, Store(tmp_path))
+    source = (await service.create("claw"))["id"]
+    execution = (await service.create("claw"))["id"]
+    service.store.data["automation_runs"]["run-retained"] = {
+        "id": "run-retained",
+        "source_session_id": source,
+        "session_id": execution,
+        "research_status": "completed",
+        "summary": "已保存摘要",
+    }
+    service.store.soft_delete(execution)
+    result = await service.detail(source)
+    assert result["id"] == source
+    assert result["automation_runs"][0]["summary"] == "已保存摘要"
+    assert result["automation_runs"][0]["result_error"] == "session_deleted"
+
+
+def test_question_failed_reply_keeps_pending_then_success_clears_and_rejects_replay(api):
+    client, native, service = api
+    sid = client.post("/api/research/sessions", json={"mode": "claw"}).json()["id"]
+    request = {"sessionId": sid, "questions": [{"id": "time", "question": "时间？"}]}
+    service.questions["question-retry"] = request
+    replies = []
+
+    async def respond(qid, value):
+        replies.append((qid, value))
+        if len(replies) == 1:
+            raise RuntimeFailure("暂时不可用", "reply_unavailable")
+        return {"accepted": True}
+
+    native.respond = respond
+    endpoint = f"/api/research/sessions/{sid}/questions/question-retry"
+    body = {"answers": [{"id": "time", "custom": "15:30", "selected": []}]}
+    assert client.post(endpoint, json=body).status_code == 503
+    assert service.questions["question-retry"] is request
+    assert client.post(endpoint, json=body).status_code == 200
+    assert "question-retry" not in service.questions
+    assert client.post(endpoint, json=body).status_code == 400
+    assert len(replies) == 2
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "prior,context,allowed",
+    [
+        ("是否先跑一次？", "task-a", True),
+        ("是否先跑一次？", "task-b", False),
+        ("解释试跑功能需要注意什么？", "task-a", False),
+        ("你要了解为什么不需要试跑吗？", "task-a", False),
+        ("是否试跑另一项任务？", "task-a", False),
+    ],
+)
+async def test_contextual_trial_answer_requires_pending_matching_question(
+    tmp_path, prior, context, allowed
+):
+    from app.research_web.store import StoreError
+
+    native = NativeFixture()
+    service = ResearchService(native, Store(tmp_path))
+    sid = (await service.create("claw"))["id"]
+    service.store.session(sid)["automation_trial_context"] = {"automation_id": context}
+    service.automations.get = lambda aid: {"id": aid, "name": "每日收盘点评"}
+
+    async def history(_sid):
+        return [
+            {
+                "event": {
+                    "seq": 1,
+                    "type": "assistant/message",
+                    "time": 1,
+                    "data": {
+                        "turn": 1,
+                        "step": 1,
+                        "message": {"content": [{"type": "text", "text": prior}]},
+                    },
+                }
+            },
+            {
+                "event": {
+                    "seq": 2,
+                    "type": "user/message",
+                    "time": 2,
+                    "data": {"content": [{"type": "text", "text": "需要"}]},
+                }
+            },
+        ]
+
+    native.history = history
+    runs = {}
+
+    async def run(aid, **kwargs):
+        runs["run-context"] = {"id": "run-context", "automation_id": aid}
+        return runs["run-context"]
+
+    service.automations.run = run
+    service.automations._run_row = lambda rid: runs[rid]
+    if allowed:
+        assert (await service.run_automation_from_chat(sid, "task-a"))["source_session_id"] == sid
+    else:
+        with pytest.raises(StoreError):
+            await service.run_automation_from_chat(sid, "task-a")
+        assert not runs
+
+
+@pytest.mark.asyncio
+async def test_needs_cannot_answer_trial_question_after_intervening_user_cancel(tmp_path):
+    from app.research_web.store import StoreError
+
+    native = NativeFixture()
+    service = ResearchService(native, Store(tmp_path))
+    sid = (await service.create("claw"))["id"]
+    service.store.session(sid)["automation_trial_context"] = {"automation_id": "task-a"}
+    service.automations.get = lambda aid: {"id": aid, "name": "每日收盘点评"}
+
+    async def history(_sid):
+        return [
+            {
+                "event": {
+                    "seq": 1,
+                    "type": "assistant/message",
+                    "time": 1,
+                    "data": {
+                        "turn": 1,
+                        "step": 1,
+                        "message": {"content": [{"type": "text", "text": "是否先跑一次？"}]},
+                    },
+                }
+            },
+            {
+                "event": {
+                    "seq": 2,
+                    "type": "user/message",
+                    "time": 2,
+                    "data": {"content": [{"type": "text", "text": "取消试跑，先讨论模型"}]},
+                }
+            },
+            {
+                "event": {
+                    "seq": 3,
+                    "type": "user/message",
+                    "time": 3,
+                    "data": {"content": [{"type": "text", "text": "需要"}]},
+                }
+            },
+        ]
+
+    native.history = history
+
+    async def run(*_args, **_kwargs):
+        pytest.fail("stale question must not authorize a run")
+
+    service.automations.run = run
+    with pytest.raises(StoreError):
+        await service.run_automation_from_chat(sid, "task-a")
+
+
+@pytest.mark.asyncio
+async def test_history_tolerance_never_authorizes_unverified_child_execution(tmp_path):
+    native = NativeFixture()
+    service = ResearchService(native, Store(tmp_path))
+    service.connected = {"mux", "host"}
+    sid = (await service.create("claw"))["id"]
+    original = native.rpc
+
+    async def broken(method, payload):
+        if method == "subagent.list":
+            raise RuntimeFailure("目录无法验证", "protocol_error")
+        return await original(method, payload)
+
+    native.rpc = broken
+    detail = await service.detail(sid)
+    assert detail["history_warning"] and detail["execution_restricted"] is True
+    with pytest.raises(RuntimeFailure):
+        await service.send(sid, "继续研究", "unsafe", formats=[])
+    assert not any(method == "session.prompt" for method, _ in native.calls)
+
+
+@pytest.mark.asyncio
+async def test_needs_answers_task_bound_explicit_trial_invitation(tmp_path):
+    native = NativeFixture()
+    service = ResearchService(native, Store(tmp_path))
+    sid = (await service.create("claw"))["id"]
+    service.store.session(sid)["automation_trial_context"] = {"automation_id": "task-a"}
+    service.automations.get = lambda aid: {"id": aid, "name": "每日收盘点评"}
+    runs = {}
+
+    async def run(aid, **_):
+        runs["r"] = {"id": "r", "automation_id": aid}
+        return runs["r"]
+
+    service.automations.run = run
+    service.automations._run_row = lambda rid: runs[rid]
+    service.automations._public = lambda row: dict(row)
+
+    async def history(_):
+        return [
+            {
+                "event": {
+                    "seq": 1,
+                    "type": "assistant/message",
+                    "time": 1,
+                    "data": {
+                        "turn": 1,
+                        "step": 1,
+                        "message": {
+                            "content": [
+                                {
+                                    "type": "text",
+                                    "text": "同一任务 task-a 的更新草稿。\n\n若你想改完立刻验证新要求是否被正确执行，明确说一声，我再复用真实任务 ID 发起手动试跑。",
+                                }
+                            ]
+                        },
+                    },
+                }
+            },
+            {
+                "event": {
+                    "seq": 2,
+                    "type": "user/message",
+                    "time": 2,
+                    "data": {"content": [{"type": "text", "text": "需要"}]},
+                }
+            },
+        ]
+
+    native.history = history
+    assert (await service.run_automation_from_chat(sid, "task-a"))["id"] == "r"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "choice,accepted",
+    [
+        ("照旧再跑一次 v2（Recommended）", True),
+        ("需要", True),
+        ("暂停手动重跑，等计划执行", False),
+        ("先把 v2 要求改简，再跑", False),
+        ("不试跑", False),
+        ("只解释试跑机制", False),
+        ("先讨论试跑，不执行", False),
+        ("需要修改后再试跑", False),
+        ("照旧再跑一次 v3（Recommended）", False),
+    ],
+)
+@pytest.mark.parametrize(
+    "question,bound",
+    [
+        ("是否试跑「每日收盘点评」（任务 task-a，定义 v2）？", True),
+        ("是否试跑「每日收盘点评」（任务 task-b，定义 v2）？", False),
+        ("是否试跑「每日收盘点评」（任务 task-a，定义 v3）？", False),
+        ("每日收盘点评（新版） v2试跑失败，接下来怎么做？", False),
+        ("每日收盘点评保持停用；现在仅试跑周报 v2，是否继续？", False),
+        ("是否运行一次 task-b（另一个任务）？", False),
+        ("每日收盘点评 v3试跑失败，接下来怎么做？", False),
+        ("每日收盘点评V3试跑失败，接下来怎么做？", False),
+        ("v2试跑失败，接下来怎么做？", False),
+    ],
+)
+async def test_native_question_answer_supersedes_earlier_trial_request(
+    tmp_path, choice, accepted, question, bound
+):
+    from app.research_web.store import StoreError
+
+    native = NativeFixture()
+    service = ResearchService(native, Store(tmp_path))
+    sid = (await service.create("claw"))["id"]
+    service.store.session(sid)["automation_trial_context"] = {
+        "automation_id": "task-a",
+        "definition_version": 2,
+    }
+    service.questions["q"] = {
+        "sessionId": sid,
+        "questions": [{"id": "next", "question": question, "options": []}],
+    }
+
+    async def history(_):
+        return [
+            {
+                "event": {
+                    "seq": 3,
+                    "type": "user/message",
+                    "time": 1,
+                    "data": {"content": [{"type": "text", "text": "再跑一次"}]},
+                }
+            }
+        ]
+
+    native.history = history
+
+    async def respond(*_):
+        return {"accepted": True}
+
+    native.respond = respond
+    service.automations.get = lambda aid: {
+        "id": aid,
+        "name": "每日收盘点评",
+        "definition_version": 2,
+    }
+    await service.answer(sid, "q", [{"id": "next", "selected": [choice], "custom": ""}])
+    runs = {}
+
+    async def run(aid, **_):
+        runs["r"] = {"id": "r", "automation_id": aid}
+        return runs["r"]
+
+    service.automations.run = run
+    service.automations._run_row = lambda rid: runs[rid]
+    service.automations._public = lambda row: dict(row)
+    if accepted and bound:
+        assert (await service.run_automation_from_chat(sid, "task-a"))["id"] == "r"
+        assert (await service.run_automation_from_chat(sid, "task-a"))["id"] == "r"
+        assert len(runs) == 1
+    else:
+        with pytest.raises(StoreError):
+            await service.run_automation_from_chat(sid, "task-a")
+        assert not runs
+
+
 @pytest.mark.parametrize("running", [False, True])
 def test_history_read_keeps_unknown_child_mode_without_guessing_execution(api, running):
     client, native, _ = api
@@ -1825,3 +2356,48 @@ def test_history_read_keeps_unknown_child_mode_without_guessing_execution(api, r
     child = detail.json()["subagents"][0]
     assert child["status"] == ("running" if running else "unavailable")
     assert "模式未知" in child["error"]
+
+
+@pytest.mark.asyncio
+async def test_legacy_automation_detail_keeps_existing_context_contract(tmp_path):
+    service = ResearchService(NativeFixture(), Store(tmp_path))
+    legacy = await service.create("claw", purpose="automation")
+    detail = await service.detail(legacy["id"])
+    assert "execution_context" not in detail
+
+
+@pytest.mark.asyncio
+async def test_service_error_override_is_redacted_in_public_detail(tmp_path):
+    service = ResearchService(NativeFixture(), Store(tmp_path))
+    session = await service.create("claw")
+    service.errors[session["id"]] = (
+        'Authorization: Basic c3VwZXJzZWNyZXQ=\nCookie: session=supersecret; csrf=othersecret\npassword="two word secret" credentials=supersecret'
+    )
+    detail = await service.detail(session["id"])
+    for secret in ("c3VwZXJzZWNyZXQ=", "supersecret", "othersecret", "two word secret"):
+        assert secret not in detail["error"]
+
+
+def test_named_human_trial_prompt_directs_run_without_repeated_confirmation(api):
+    client, native, _service = api
+    session = client.post("/api/research/sessions", json={"mode": "claw"}).json()
+    text = "先跑一次每日收盘点评·全页面验收"
+    response = client.post(
+        f"/api/research/sessions/{session['id']}/messages",
+        headers={"Idempotency-Key": "named-human-trial"},
+        json={"text": text},
+    )
+    assert response.status_code == 202, response.text
+    prompt = next(
+        payload for method, payload in reversed(native.calls) if method == "session.prompt"
+    )["content"][0]["text"]
+    assert text in prompt
+    assert "目标唯一且任务已保存时直接调用 rwb_run_automation" in prompt
+    assert "不重复要求确认" in prompt
+    assert "仅在目标任务不明确或主动询问用户是否要试跑时" in prompt
+    assert "是否试跑「任务名称」（任务 完整任务ID，定义 v当前版本）？" in prompt
+    assert "含混回复必须调用 ask_user_question 提供可选项" in prompt
+    assert "不能仅在正文列选项或要求用户复制格式" in prompt
+    assert "不能只把规范问题写在聊天正文" in prompt
+    assert "不得先问是否允许提问或是否要我提出问题" in prompt
+    assert "需要澄清或邀请试跑就直接调用 ask_user_question" in prompt

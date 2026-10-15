@@ -136,6 +136,12 @@ SQLite位于产品根 `portfolio-decisions/paper.sqlite3`；完整请求、结�
 参数试验随规则保存，未认证真实固定样本/样本外区间时研究状态为`NOT_VALIDATED`。
 毛收益只加入已支付费用，不代表另一成交路径的反事实回测。
 
+会话文件的 Markdown 预览响应使用 `text/plain`，让浏览器在既有 sandbox iframe 内显示原始内容；下载仍按原始 Markdown 类型和字节返回。此处不执行Markdown中的HTML，不改变归属校验、CSP或下载路径；格式化报告仍由安全Markdown渲染器展示。
+
+`write_deliverables(..., formats=['md'])` 只生成所选格式，按需导入 Office/PDF 依赖；默认调用继续生成原四格式，旧 pdf=True 继续兼容。空、非法或矛盾选择在创建目录前拒绝并记录日志，Path 返回值保持兼容；对话工具打印路径时先转为字符串。原对话可在禁脚本的沙箱 iframe 内展开同一 Run 执行会话的真实 MD 预览，不复制到来源会话输入，也不授权模型跨会话引用。
+
+Claw 原对话运行卡显示真实执行会话的文件和版本来源，不复制或合并其他会话产物。执行要求由历史 Run 快照恢复，正文完成不替代文件校验；DataHub 查询身份、实际日期、单位及覆盖口径保留在模型摘要，不把单一未识别标的当作指数或全市场。
+
 历史子 Agent 的原生 catalog 与正文保持原状。模型设置可以读取已核实的 inactive 活动而不恢复 unknown 执行模式；不清理、转换或重写历史记录，也不改产品索引 schema。
 
 ## Claw 本地研究项目
@@ -146,7 +152,8 @@ SQLite位于产品根 `portfolio-decisions/paper.sqlite3`；完整请求、结�
 DataHub 资料快照仍属于原会话，项目仅聚合摘要和来源链接，不隐式复制或混入新会话数据准入范围。
 
 `automation_drafts` 保存提出、取消与确认状态；原生工具只提出草稿，不写可执行 `automations`。
-确认调用原 Automation 创建逻辑，稳定创建键与内容绑定处理重复请求及确认检查点失败；创建结果默认停用。
+确认调用原 Automation 创建逻辑，稳定创建键与内容绑定处理重复请求及确认检查点失败。旧目标保持默认停用；research_task 明确确认创建并启用，失败保留已创建停用任务。
+任务保留 definition_version/definition_revisions，Run 保留 definition_snapshot/version 和 source_session_id。automation_tombstones 仅保存已删除稳定 ID 的拒绝重放索引；automation_trial_requests 保存用户请求序号到 Run 的受理指针，不保存第二份正文。历史研究与数据不迁移。执行会话删除或单条历史异常只显示受限结果，不阻断来源对话。
 
 ## 会话研究底稿与中文 PDF
 

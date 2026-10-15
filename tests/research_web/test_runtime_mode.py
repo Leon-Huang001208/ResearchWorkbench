@@ -889,6 +889,73 @@ def test_public_windows_read_write_does_not_treat_mode_bits_as_acl(
 
 
 @pytest.mark.skipif(os.name != "posix", reason="Exercises POSIX retained directory descriptors")
+def test_shared_ancestor_sibling_mutation_during_open_preserves_private_record(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    shared = tmp_path / "shared"
+    home = shared / "home"
+    path = _write_payload(home, _payload())
+    original = os.open
+    attacked: list[bool] = []
+
+    def add_sibling(candidate, flags, *args, **kwargs):
+        if candidate == shared.name and not attacked:
+            sibling = shared / "unrelated"
+            sibling.mkdir(mode=0o700)
+            sibling.rmdir()
+            attacked.append(True)
+        return original(candidate, flags, *args, **kwargs)
+
+    before = path.read_bytes()
+    monkeypatch.setattr(os, "open", add_sibling)
+    assert RuntimeModeStore(home).read().mode == "native"
+    assert path.read_bytes() == before
+    assert attacked == [True]
+
+
+@pytest.mark.skipif(os.name != "posix", reason="Exercises POSIX retained directory descriptors")
+@pytest.mark.parametrize("attack", ["ancestor_replace", "ancestor_symlink", "private_metadata"])
+def test_parent_traversal_open_races_reject_identity_or_private_metadata_changes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, attack: str
+) -> None:
+    shared = tmp_path / "shared"
+    home = shared / "home"
+    path = _write_payload(home, _payload())
+    original = os.open
+    attacked: list[bool] = []
+    moved = tmp_path / "moved-shared"
+
+    def mutate_parent(candidate, flags, *args, **kwargs):
+        target = path.parent.name if attack == "private_metadata" else shared.name
+        if candidate == target and not attacked:
+            attacked.append(True)
+            if attack == "private_metadata":
+                sibling = path.parent / "unrelated"
+                sibling.mkdir(mode=0o700)
+                sibling.rmdir()
+            else:
+                shared.rename(moved)
+                if attack == "ancestor_symlink":
+                    shared.symlink_to(moved, target_is_directory=True)
+                else:
+                    shared.mkdir(mode=0o700)
+        return original(candidate, flags, *args, **kwargs)
+
+    monkeypatch.setattr(os, "open", mutate_parent)
+    try:
+        with pytest.raises(RuntimeModeError):
+            RuntimeModeStore(home).read()
+        assert attacked == [True]
+    finally:
+        if attack == "ancestor_symlink" and shared.is_symlink():
+            shared.unlink()
+        elif attack == "ancestor_replace" and moved.exists():
+            shared.rmdir()
+        if moved.exists():
+            moved.rename(shared)
+
+
+@pytest.mark.skipif(os.name != "posix", reason="Exercises POSIX retained directory descriptors")
 def test_rejects_parent_replacement_race(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     home = tmp_path / "home"
     path = _write_payload(home, _payload())

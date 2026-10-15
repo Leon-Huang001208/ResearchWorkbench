@@ -113,9 +113,13 @@ def resolve(
     if selected is None:
         if unsupported_code is not None:
             raise StoreError("AKShare 请求口径不受支持", unsupported_code, 400)
-        raise StoreError(
-            "当前没有完成 DataHub 适配且满足配置的数据来源", "data_source_unavailable", 400
+        code = (
+            "data_capability_unavailable"
+            if any(binding_by_source[source_id]["implemented"] for source_id in ordered)
+            else "data_capability_not_integrated"
         )
+        log.warning("datahub_source_selection_unavailable", capability=query.capability, code=code)
+        raise StoreError("当前没有完成 DataHub 适配且满足配置的数据来源", code, 503)
 
     parameters = query.parameters
     if query.capability == "fund_data" and selected == "eastmoney_fund":

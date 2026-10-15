@@ -6,16 +6,20 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
 BRIDGE = Path(__file__).resolve().parents[2] / "app/research_web/model_credentials.py"
 
 
-def load_bridge():
+def load_bridge(*, platform=None):
     spec = importlib.util.spec_from_file_location("model_credentials_tested", BRIDGE)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
+    if platform is not None:
+        # Unit platform simulation is local to this module, never the host sys.
+        module.sys = SimpleNamespace(**{**vars(sys), "platform": platform})
     return module
 
 
@@ -72,7 +76,7 @@ def test_namespace_lifecycle_ignores_legacy_values(tmp_path, monkeypatch):
 
 def test_other_platform_fails_without_importing_macos_backend(monkeypatch):
     bridge = load_bridge()
-    monkeypatch.setattr(bridge.sys, "platform", "linux")
+    monkeypatch.setattr(bridge, "sys", SimpleNamespace(**{**vars(sys), "platform": "linux"}))
     with pytest.raises(RuntimeError, match="model_credential_backend_unavailable"):
         bridge.system_backend()
 
@@ -262,9 +266,8 @@ def test_compatible_reference_is_independent_and_has_no_legacy_fallback(tmp_path
 def test_docker_model_store_encrypts_and_preserves_existing_host_credentials(tmp_path, monkeypatch):
     from app.research_web.credential_backend import PrivateFileCredentialBackend
 
-    bridge = load_bridge()
+    bridge = load_bridge(platform="linux")
     # Synthetic POSIX storage coverage; real Linux bridge acceptance is separate.
-    monkeypatch.setattr(bridge.sys, "platform", "linux")
     home = tmp_path / "data"
     home.mkdir(mode=0o700)
     root = tmp_path / "credentials"
@@ -298,10 +301,9 @@ def test_docker_model_store_encrypts_and_preserves_existing_host_credentials(tmp
     assert call("resolve", ref=bridge.COMPATIBLE_REF)["value"] == "synthetic-compatible-independent"
 
 
-def test_docker_model_key_loss_never_replaces_key_or_existing_ciphertext(tmp_path, monkeypatch):
-    bridge = load_bridge()
+def test_docker_model_key_loss_never_replaces_key_or_existing_ciphertext(tmp_path):
+    bridge = load_bridge(platform="linux")
     # Synthetic POSIX storage coverage; real Linux bridge acceptance is separate.
-    monkeypatch.setattr(bridge.sys, "platform", "linux")
     store = bridge.DockerModelStore(tmp_path / "credentials")
     store.set_password("test-namespace", bridge.MODEL_REF, "synthetic-preserved")
     key = store.backend.root / store.backend._name(store.KEY_SERVICE, store.KEY_ACCOUNT)
@@ -316,10 +318,9 @@ def test_docker_model_key_loss_never_replaces_key_or_existing_ciphertext(tmp_pat
     assert record.read_bytes() == before
 
 
-def test_docker_ciphertext_is_bound_to_model_reference(tmp_path, monkeypatch):
-    bridge = load_bridge()
+def test_docker_ciphertext_is_bound_to_model_reference(tmp_path):
+    bridge = load_bridge(platform="linux")
     # Synthetic POSIX storage coverage; real Linux bridge acceptance is separate.
-    monkeypatch.setattr(bridge.sys, "platform", "linux")
     store = bridge.DockerModelStore(tmp_path / "credentials")
     store.set_password("test-namespace", bridge.MODEL_REF, "synthetic-one")
     encoded = store.backend.get_password("test-namespace", bridge.MODEL_REF)
@@ -332,9 +333,8 @@ def test_docker_ciphertext_is_bound_to_model_reference(tmp_path, monkeypatch):
 def test_docker_master_key_first_write_is_process_serialized(tmp_path, monkeypatch):
     from concurrent.futures import ThreadPoolExecutor
 
-    bridge = load_bridge()
+    bridge = load_bridge(platform="linux")
     # Synthetic POSIX storage coverage; real Linux bridge acceptance is separate.
-    monkeypatch.setattr(bridge.sys, "platform", "linux")
     root = tmp_path / "credentials"
     root.mkdir(mode=0o700)
 
@@ -373,6 +373,18 @@ def test_docker_isolated_stdio_bridge_persists_without_secret_diagnostics(tmp_pa
             "--credential-home",
             str(root),
         ]
+        if sys.platform != "linux":
+            # Cross-process crypto unit coverage only: this is not Linux or
+            # container acceptance. Keep the real Linux CLI branch unchanged.
+            wrapper = (
+                "import importlib.util,sys;from types import SimpleNamespace;"
+                "path=sys.argv[1];sys.argv=sys.argv[1:];"
+                "spec=importlib.util.spec_from_file_location('bridge_unit',path);"
+                "module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module);"
+                "module.sys=SimpleNamespace(**{**vars(sys),'platform':'linux'});"
+                "raise SystemExit(module.main())"
+            )
+            command = [sys.executable, "-I", "-B", "-c", wrapper, *command[3:]]
         result = subprocess.run(
             command,
             input=json.dumps({"op": op, "ref": "RESEARCH_DSH_API_KEY", **values}),
@@ -397,6 +409,15 @@ def test_docker_isolated_stdio_bridge_persists_without_secret_diagnostics(tmp_pa
 def test_native_nonlinux_docker_store_rejects_without_creating_directory(tmp_path):
     bridge = load_bridge()
     root = tmp_path / "must-remain-absent"
+    with pytest.raises(RuntimeError, match="model_credential_backend_unavailable"):
+        bridge.DockerModelStore(root)
+    assert not root.exists()
+
+
+def test_macos_docker_model_backend_refuses_without_creating_secret_records(tmp_path):
+    # Actual macOS gate when hosted on Mac; a local module proxy elsewhere.
+    bridge = load_bridge(platform=None if sys.platform == "darwin" else "darwin")
+    root = tmp_path / "must-not-exist"
     with pytest.raises(RuntimeError, match="model_credential_backend_unavailable"):
         bridge.DockerModelStore(root)
     assert not root.exists()

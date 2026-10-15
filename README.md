@@ -28,7 +28,7 @@ Native/Docker、联合恢复与干净Mac CI分别绑定候选，旧证据不认�
 
 Research Workbench 当前交付的是本地优先的 **Research Web**：一个由 FinGPT、Claw、数据能力和研究框架组成的研究工作台。
 
-Claw 在同一研究引擎上组织本地项目、成员会话、带来源的文件与显式引用，并提供日程、技能和 MCP 入口；聊天提出的日程须用户确认保存，默认停用，之后另行启用。见[Claw 页面合同](docs/research-web-ui.md#claw-项目与日程)。
+Claw 在同一研究引擎上组织本地项目、成员会话、带来源的文件与显式引用，并提供日程、技能和 MCP 入口；研究任务须用户“确认创建并启用”后保存生效，创建不立即运行。既有能力任务确认保存后默认停用，另行启用。工作区侧栏保留当前聊天，项目聚合有独立入口。见[Claw 页面合同](docs/research-web-ui.md#claw-项目与日程)。
 
 当前 Web 入口为 `app.research_web.main:app`。Research Web 通过 FastAPI 轻量适配层连接专属 DSH；**DSH 是唯一的研究引擎**，负责研究执行循环、会话历史、Skill 与子 Agent。基础 Research Web 不启动旧 API 生命周期，也不要求 PostgreSQL、pgvector 或桌面预览。
 

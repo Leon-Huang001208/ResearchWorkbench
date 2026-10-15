@@ -19,6 +19,14 @@ Hot流预算插件与Tabbit共用既有Runtime，保留原浏览器审批、clai
 
 Docker 模型主密钥与密文不用于 Tabbit Cookie、claim 或浏览器授权；文本凭据闭环不证明
 宿主浏览器可调用，现有 Native 授权和一次性 token 语义保持。
+
+研究prompt中的当前时钟不证明Tabbit标签页被选择、访问或已提取全文；来源仍须实际marker与执行证据。DataHub搜索不可用时不能隐式获得Tabbit权限。Claw侧栏/底部菜单/文件预览修复未增加浏览器授权，Tabbit运行配置与安装步骤保持原合同。
+
+研究型 Automation 执行追问复用保存的工具/来源范围，不携带普通草稿恢复的 Tabbit 选择或授权。Claw 回答过程调查不能作为复制 Chrome 登录态、读取 Cookie、修改扩展或开放调试端口的许可；参考观察通道失败按独立证据缺口记录。
+
+本轮 Claw 日程采用直接 `research_task`（schema_version=1），锁定研究描述、模型、输出要求、资料与工具白名单。用户确认创建并启用后才生效，创建不立即运行；旧 Skill/Workflow/报告任务保持兼容。修改以同一 ID、expected_version 和变更确认卡生成新定义版本，Run 保留不可变 definition_snapshot；手动试跑与 schedule 触发分别记录，不改下一次计划时间。能力与连接管理统一在能力中心，Claw 仅选择能力，Agent 日程使用独立表格。DSH 仍是唯一研究引擎，Automation 仍是唯一调度层。
+
+
 显式 Docker 模型加密文件桥继续与 Tabbit/Host 浏览器认证分离。模型 ref 不进入
 `.browser-credentials.yaml` 或 readRecord/modifyRecord；模型配置、清除和生成测试不会
 迁移 Cookie、打开浏览器权限或将 Docker 中不可用的宿主 Tabbit 提升为可调用。

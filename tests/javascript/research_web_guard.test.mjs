@@ -398,3 +398,20 @@ test('docker text denies unowned and unmarked streams before spending or dispatc
   await f.c.listeners.get('agent/request')({ agent, signal: controller.signal }, async () => ({}));
   await assert.rejects(deny({ ...f.options, sessionId: agent.session.id, signal: controller.signal }), /acceptance_transport_abort_unverified/);
 });
+
+test('automation visible catalog is isolated to exact agent context, once per immutable scope', async t=>{
+  const f=await admissionFixture(t); const original=globalThis.fetch; t.after(()=>{globalThis.fetch=original;});
+  let restrictions=0;
+  f.exec.agent.ctx={tools:{restrict(value){assert.deepEqual(value.allow,['todo_write','research_run_script']);restrictions++;}}};
+  globalThis.fetch=async()=>new Response(JSON.stringify({status:'available',admitted:true,missing:[],omitted_sections:[],visible_tools:['todo_write','research_run_script']}),{headers:{'content-type':'application/json'}});
+  const pre=f.handlers.get('agent/pre-step'); const options={agent:f.exec.agent,signal:f.exec.signal,messages:[]};
+  const next=async()=>({kind:'continue',messages:[]});
+  assert.equal((await pre(options,next)).kind,'continue');
+  assert.equal((await pre(options,next)).kind,'continue'); assert.equal(restrictions,1);
+  const other={...options,agent:{session:f.exec.agent.session}};
+  globalThis.fetch=async()=>new Response(JSON.stringify({status:'available',admitted:true,missing:[],omitted_sections:[]}),{headers:{'content-type':'application/json'}});
+  assert.equal((await pre(other,next)).kind,'continue'); assert.equal(restrictions,1);
+  const invalid={...options,agent:{session:f.exec.agent.session,ctx:f.exec.agent.ctx}};
+  globalThis.fetch=async()=>new Response(JSON.stringify({status:'available',admitted:true,missing:[],omitted_sections:[],visible_tools:['shell']}),{headers:{'content-type':'application/json'}});
+  assert.equal((await pre(invalid,next)).kind,'reject'); assert.equal(restrictions,1);
+});

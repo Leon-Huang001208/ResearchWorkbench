@@ -12,7 +12,7 @@ export function safeURL(value) {
   } catch { return null; }
 }
 
-function inline(value) {
+function inline(value, resolveLink) {
   // [docN] / [资料N] render as clickable reference tags; N follows the order of
   // the session dataset list (研究空间 · 资料); a tag does not verify the claim.
   const pattern = /(`+)([^`]+)\1|\[([^\]\n]+)\]\(([^)\s]+)\)|\*\*([^*\n]+)\*\*|\*([^*\n]+)\*|\[(?:doc|资料)(\d{1,4})\]/g;
@@ -21,7 +21,8 @@ function inline(value) {
     result += escapeHTML(value.slice(start, match.index));
     if (match[2]) result += `<code>${escapeHTML(match[2])}</code>`;
     else if (match[3]) {
-      const url = safeURL(match[4]);
+      const destination = /^<[^<>]+>$/.test(match[4]) ? match[4].slice(1, -1) : match[4];
+      const url = safeURL(destination) || (resolveLink ? safeURL(resolveLink(destination)) : null);
       result += url ? `<a href="${escapeHTML(url)}" target="_blank" rel="noopener noreferrer">${escapeHTML(match[3])}</a>` : escapeHTML(match[0]);
     } else if (match[5]) result += `<strong>${escapeHTML(match[5])}</strong>`;
     else if (match[6]) result += `<em>${escapeHTML(match[6])}</em>`;
@@ -31,10 +32,11 @@ function inline(value) {
   return result + escapeHTML(value.slice(start));
 }
 
-export function renderMarkdown(value = '') {
+export function renderMarkdown(value = '', { resolveLink } = {}) {
+  const renderInline = (text) => inline(text, resolveLink);
   const lines = String(value ?? '').replace(/\r\n?/g, '\n').split('\n');
   const output = []; let i = 0;
-  const cells = (line) => line.trim().replace(/^\||\|$/g, '').split('|').map((cell) => inline(cell.trim()));
+  const cells = (line) => line.trim().replace(/^\||\|$/g, '').split('|').map((cell) => renderInline(cell.trim()));
   while (i < lines.length) {
     const line = lines[i];
     if (!line.trim()) { i++; continue; }
@@ -46,7 +48,7 @@ export function renderMarkdown(value = '') {
       output.push(`<pre><code${fence[2] ? ` class="language-${escapeHTML(fence[2])}"` : ''}>${escapeHTML(content.join('\n'))}</code></pre>`); continue;
     }
     const heading = line.match(/^(#{1,6})\s+(.+)$/);
-    if (heading) { output.push(`<h${heading[1].length}>${inline(heading[2])}</h${heading[1].length}>`); i++; continue; }
+    if (heading) { output.push(`<h${heading[1].length}>${renderInline(heading[2])}</h${heading[1].length}>`); i++; continue; }
     if (/^\s*([-*_])(?:\s*\1){2,}\s*$/.test(line)) { output.push('<hr>'); i++; continue; }
     if (line.includes('|') && /^\s*\|?\s*:?-{3,}:?\s*(?:\|\s*:?-{3,}:?\s*)+\|?\s*$/.test(lines[i + 1] ?? '')) {
       const header = cells(line); i += 2; const rows = [];
@@ -56,16 +58,16 @@ export function renderMarkdown(value = '') {
     if (/^\s*([-+*]|\d+\.)\s+/.test(line)) {
       const ordered = /^\s*\d+\./.test(line); const rows = [];
       const listPattern = ordered ? /^\s*\d+\.\s+(.*)$/ : /^\s*[-+*]\s+(.*)$/;
-      while (i < lines.length && listPattern.test(lines[i])) rows.push(`<li>${inline(lines[i++].replace(listPattern, '$1'))}</li>`);
+      while (i < lines.length && listPattern.test(lines[i])) rows.push(`<li>${renderInline(lines[i++].replace(listPattern, '$1'))}</li>`);
       output.push(`<${ordered ? 'ol' : 'ul'}>${rows.join('')}</${ordered ? 'ol' : 'ul'}>`); continue;
     }
     if (/^>\s?/.test(line)) {
       const quotes = [];
-      while (i < lines.length && /^>\s?/.test(lines[i])) quotes.push(inline(lines[i++].replace(/^>\s?/, '')));
+      while (i < lines.length && /^>\s?/.test(lines[i])) quotes.push(renderInline(lines[i++].replace(/^>\s?/, '')));
       output.push(`<blockquote>${quotes.join('<br>')}</blockquote>`); continue;
     }
-    const paragraph = [inline(line)]; i++;
-    while (i < lines.length && lines[i].trim() && !/^(?:#{1,6}\s|\s*(?:`{3,}|~{3,}|[-+*]\s|\d+\.\s)|>)/.test(lines[i]) && !(lines[i].includes('|') && /---/.test(lines[i + 1] ?? ''))) paragraph.push(inline(lines[i++]));
+    const paragraph = [renderInline(line)]; i++;
+    while (i < lines.length && lines[i].trim() && !/^(?:#{1,6}\s|\s*(?:`{3,}|~{3,}|[-+*]\s|\d+\.\s)|>)/.test(lines[i]) && !(lines[i].includes('|') && /---/.test(lines[i + 1] ?? ''))) paragraph.push(renderInline(lines[i++]));
     output.push(`<p>${paragraph.join('<br>')}</p>`);
   }
   return output.join('\n');
