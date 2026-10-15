@@ -44,7 +44,9 @@
         "research_workbench_entrypoint/hot.py",
         "research_workbench_entrypoint/hot_manager.py",
         "research_workbench_entrypoint/hot_postgres.py",
-        "research_workbench_entrypoint/docker_resources.py"
+        "research_workbench_entrypoint/docker_resources.py",
+        "research_workbench_entrypoint/iteration_resources.py",
+        "research_workbench_entrypoint/iteration_cache.py"
       ],
       "documents": [
         "docs/research-web-installation.md",
@@ -76,7 +78,8 @@
         "tests/research_web/test_hot_manager.py",
         "tests/research_web/test_hot_research_evidence.py",
         "tests/research_web/test_docker_resources.py",
-        "tests/research_web/test_docker_resources_live.py"
+        "tests/research_web/test_docker_resources_live.py",
+        "tests/research_web/test_iteration_resources.py"
       ]
     },
     {

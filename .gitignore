@@ -10,6 +10,7 @@ rag/cache/
 # Python
 __pycache__/
 .venv*/
+.validation-tools/
 *.pyc
 *.pyo
 *.egg-info/

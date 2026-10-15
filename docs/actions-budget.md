@@ -1,5 +1,7 @@
 # GitHub Actions 免费额度治理
 
+迭代资源收尾的纯stdlib安全测试复用Project Constraints现有标准Ubuntu job，JS身份修补回归复用同一Git safety步骤，不新增workflow或Docker/Windows dispatch。真实受管GC仅在Mac Docker Desktop本机执行并保留证据；CI不访问宿主卷、服务或模型。现有10分钟job上限、concurrency及public/private额度门保持。
+
 Hot 安装器变更进入既有 Mac Bootstrap；该 job 使用 Node 24.19.0，并只验证安装后的
 Hot 生产依赖导入，不启动数据库或付费模型。Windows/Linux 产品 dispatch 仍由对应
 真机负责，Mac 任务不借新增 Hot 检查扩大它们的自动触发面。

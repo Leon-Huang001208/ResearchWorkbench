@@ -1,5 +1,7 @@
 # Research Web Native / Docker 安装与运行
 
+工程交付结束后由原Git安全入口执行资源收尾，规则见Docker手册和AGENT_WORKFLOW：仅删除本任务已登记的再生依赖，并保护应用现有安装、业务数据、凭据、报告和恢复归档。受管构建缓存合计20GiB，临时维护完恢复构建器原资源限制/停止状态，不重启产品服务。本轮没有新增安装依赖、公开setup参数或用户模型配置；干净安装兼容性仍由既有Mac Bootstrap证明。
+
 ## 外部来源与兼容模型融合
 
 打包research_helpers新增chinese_font_path，仍复用现有中文字体和Matplotlib，无新产品依赖。

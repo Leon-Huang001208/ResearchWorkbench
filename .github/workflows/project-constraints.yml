@@ -29,7 +29,10 @@ jobs:
         run: node --test tests/javascript/research_web_architecture.test.mjs tests/javascript/documentation_governance.test.mjs tests/javascript/research_web_tabbit_workflow.test.mjs tests/javascript/actions_quota_governance.test.mjs
 
       - name: Test Git safety with temporary repositories
-        run: node --test tests/javascript/git_safety.test.mjs
+        run: node --test tests/javascript/git_safety.test.mjs tests/javascript/iteration_closeout.test.mjs
+
+      - name: Test iteration resource safety without Docker
+        run: python3 -m unittest discover -s tests/research_web -p 'test_iteration_resources.py' -q
 
       - name: Verify documentation governance and generated index
         run: |

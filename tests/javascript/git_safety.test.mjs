@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import {spawnSync} from 'node:child_process';
-import {backupRepository, checkRepository, configureRepository, selectGitPath, withRepositoryLock, validateCleanup, runDelivery, parseCli} from '../../scripts/git_safety.mjs';
+import {backupRepository, checkRepository, configureRepository, selectGitPath, withRepositoryLock, validateCleanup, validateResourceCleanup, runDelivery, parseCli} from '../../scripts/git_safety.mjs';
 
 const gitPath = '/usr/bin/git';
 function git(root, args) {
@@ -738,4 +738,38 @@ test('cleanup preserves concurrent Codex tree pointers and verifies old snapshot
   assert.equal(git(projectRoot, ['rev-parse', ref]), newer.tree);
   assert.equal(JSON.parse(fs.readFileSync(path.join(result.safetyBackup, 'manifest.json'))).preservationRefs[ref], old.tree);
   verifyPackedBlob(projectRoot, root, result.safetyBackup, old.blob, 'CLEANUP_OLD_BLOB');
+});
+
+test('resource preflight rejects switched task branches before any generated data removal', t => {
+  const {projectRoot, options, receipt} = cleanupFixture(t);
+  const dependencies=path.join(receipt.featureWorktree,'node_modules');
+  fs.mkdirSync(dependencies); fs.writeFileSync(path.join(dependencies,'proof'),'keep');
+  fs.writeFileSync(path.join(projectRoot,'.git/info/exclude'),'/node_modules/\n');
+  const safe={...options,processProbe:()=>false};
+  assert.equal(validateResourceCleanup({projectRoot,receipt},safe).valid,true);
+  assert.throws(()=>validateCleanup({projectRoot,receipt},safe),{code:'WORKTREE_IGNORED_DATA'});
+  git(receipt.featureWorktree,['switch','-c','codex/other-task']);
+  assert.throws(()=>validateResourceCleanup({projectRoot,receipt},safe),{code:'TASK_OWNERSHIP_MISMATCH'});
+  assert.equal(fs.readFileSync(path.join(dependencies,'proof'),'utf8'),'keep');
+});
+
+test('cleaned controller state cannot hide incomplete safety finalization', async t => {
+  const {projectRoot,options,receipt}=cleanupFixture(t);
+  Object.assign(receipt,{status:'cleaned',mode:'pr',pullRequest:{url:'https://github.com/fixture/repo/pull/1'}});
+  const state=path.join(projectRoot,'.git/leon-engineering/resource-closeout/task');fs.mkdirSync(state,{recursive:true});
+  fs.writeFileSync(path.join(state,'git-finalization.json'),JSON.stringify({taskId:'task',candidateCommit:receipt.integrationCommit,restoreVerified:false,status:'pending'}));
+  const controller={readDeliveryReceipt:()=>receipt,validateCleanedDelivery:()=>receipt};
+  await assert.rejects(runDelivery({projectRoot,taskId:'task',action:'status'},{...options,controller}),{code:'CLOSEOUT_FINALIZATION_UNVERIFIED'});
+});
+
+test('completed closeout survives a later task removing its own refs and worktrees', async t => {
+  const {projectRoot,options,receipt}=cleanupFixture(t);
+  Object.assign(receipt,{status:'cleaned',mode:'pr',pullRequest:{url:'https://github.com/fixture/repo/pull/1'}});
+  const state=path.join(projectRoot,'.git/leon-engineering/resource-closeout/task');fs.mkdirSync(state,{recursive:true});
+  // This older snapshot contained a different task, which has since legitimately retired.
+  fs.writeFileSync(path.join(state,'git-finalization.json'),JSON.stringify({taskId:'task',candidateCommit:receipt.integrationCommit,restoreVerified:true,status:'complete',resourceContractRequired:true,beforeRefs:{'refs/heads/other-completed-task':receipt.featureCommit},beforeWorktrees:[],managed:[],verifiedPreservationRefs:{}}));
+  fs.writeFileSync(path.join(state,'receipt.json'),JSON.stringify({taskId:'task',ok:true,cache:{ok:true},status:'complete',gitCleanup:true,restoreVerified:true}));
+  const controller={readDeliveryReceipt:()=>receipt,validateCleanedDelivery:()=>receipt};
+  assert.equal((await runDelivery({projectRoot,taskId:'task',action:'status'},{...options,controller})).status,'cleaned');
+  assert.equal((await runDelivery({projectRoot,taskId:'task',action:'cleanup'},{...options,controller,quotaProbe:()=>({allowed:true})})).status,'cleaned');
 });

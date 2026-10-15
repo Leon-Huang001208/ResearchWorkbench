@@ -94,6 +94,7 @@ def plan_resources(inventory, protected, retired):
                     "action": action,
                     "reason": reason,
                     "references": refs,
+                    "bytes": row.get("size_bytes"),
                     "fingerprint": fingerprint(row),
                 }
             )
@@ -367,24 +368,30 @@ class DockerResources:
 class ResourceSession:
     """One task owns exact helper IDs; always use with/finally for cleanup."""
 
-    def __init__(self, driver, purpose):
+    def __init__(self, driver, purpose, *, delivery_task=None):
         if not re.fullmatch(r"[a-z0-9-]+", purpose):
             raise ResourceError("resource_purpose_invalid")
         self.driver = driver
         self.purpose = purpose
         self.task = uuid4().hex
+        self.delivery_task = delivery_task or os.environ.get("RWB_DELIVERY_TASK_ID")
+        if self.delivery_task and not re.fullmatch(r"[a-z0-9][a-z0-9-]{0,79}", self.delivery_task):
+            raise ResourceError("resource_delivery_task_invalid")
         self.resources = []
         self.pending = set()
         log.info("resource_session task=%s purpose=%s", self.task, self.purpose)
 
     @property
     def labels(self):
-        return {
+        labels = {
             PREFIX + "project": "research-workbench",
             PREFIX + "purpose": self.purpose,
             PREFIX + "task": self.task,
             PREFIX + "lifetime": "temporary",
         }
+        if self.delivery_task:
+            labels[PREFIX + "delivery-task"] = self.delivery_task
+        return labels
 
     @property
     def flags(self):
