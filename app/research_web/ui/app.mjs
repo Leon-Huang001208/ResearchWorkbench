@@ -287,7 +287,7 @@ function researchPage() {
   const sourceLabels = { required: '能力必需', 'user-selected': '用户选择', recommended: '能力推荐', 'model-supplemented': '模型补选' };
   const methodSummary = (detail.methods || []).length ? `<p class="small muted" data-method-adoption>采用方法：${detail.methods.map(item => `${e(item.title || item.method_id)} · ${e(sourceLabels[item.source] || item.source)}`).join('；')}</p>` : '';
   const methodWarning = detail.method_trace_incomplete ? notice('部分推荐或模型补选方法缺少调用证据；本次结果已降级标记 method_trace_incomplete。', 'warning') : '';
-  return `<header class="page-header"><div class="session-title"><div class="eyebrow">${detail.mode === 'claw' ? 'CLAW · AGENT RESEARCH' : 'FINGPT · RESEARCH SESSION'}</div><h1>${e(detail.title || '未命名会话')}</h1><div class="session-meta">${badge(detail.questions?.length ? 'waiting_input' : detail.status)}${detail.model ? `<span>${e(detail.model)}</span>` : ''}</div></div><div class="button-row">${detail.mode !== 'claw' ? `<button class="button small" data-upgrade ${state.busy || isRunning(detail.status) ? 'disabled' : ''}>升级为 Claw ↗</button>` : ''}<button class="button small context-toggle" data-toggle-context aria-expanded="${window.matchMedia('(max-width: 1050px)').matches ? contextOpen : !contextCollapsed}">活动与文件</button></div></header>${notice(state.streamError, 'warning')}${renderCreationArtifacts(detail, state.busy || isRunning(detail.status))}${detail.capability ? `<p class="small muted">所选能力版本：${e(detail.capability.id)} · v${e(detail.capability.version)}（选择记录，不代表每个工具已执行）</p>` : ''}${methodSummary}${methodWarning}${renderResearchAttention(detail)}${canvas}${detail.mode === 'claw' ? (cards.unpositionedDrafts.length || cards.unpositionedRuns.length ? '<p class="muted small">以下日程记录缺少唯一原生调用位置，未推断其回答顺序。</p>' : '') + renderAutomationDrafts(cards.unpositionedDrafts,clawDraftEdits,clawWorkspace.busy) + (cards.unpositionedRuns.length ? renderClawRunCards(cards.unpositionedRuns) : '') : ''}<div class="composer-dock">${composer()}</div>`;
+  return `<header class="session-toolbar" aria-label="会话状态与资料"><div class="session-meta">${badge(detail.questions?.length ? 'waiting_input' : detail.status)}${detail.model ? `<span>${e(detail.model)}</span>` : ''}</div><div class="button-row">${detail.mode !== 'claw' ? `<button class="button small" data-upgrade ${state.busy || isRunning(detail.status) ? 'disabled' : ''}>升级为 Claw ↗</button>` : ''}<button class="button small context-toggle" data-toggle-context aria-expanded="${window.matchMedia('(max-width: 1050px)').matches ? contextOpen : !contextCollapsed}">活动与文件</button></div></header>${notice(state.streamError, 'warning')}${renderCreationArtifacts(detail, state.busy || isRunning(detail.status))}${detail.capability ? `<p class="small muted">所选能力版本：${e(detail.capability.id)} · v${e(detail.capability.version)}（选择记录，不代表每个工具已执行）</p>` : ''}${methodSummary}${methodWarning}${renderResearchAttention(detail)}${canvas}${detail.mode === 'claw' ? (cards.unpositionedDrafts.length || cards.unpositionedRuns.length ? '<p class="muted small">以下日程记录缺少唯一原生调用位置，未推断其回答顺序。</p>' : '') + renderAutomationDrafts(cards.unpositionedDrafts,clawDraftEdits,clawWorkspace.busy) + (cards.unpositionedRuns.length ? renderClawRunCards(cards.unpositionedRuns) : '') : ''}<div class="composer-dock">${composer()}</div>`;
 }
 
 function settingsPage() {
@@ -412,7 +412,7 @@ function capabilityPage() {
 }
 
 function sidebar() {
-  return renderSidebar({ page: state.route.page, sessionId: state.route.sessionId, sessions: catalog.sessions, workspaces: catalog.workspaces, selectedWorkspace, collapsed: sidebarCollapsed, mobileOpen: sidebarOpen, detail: state.detail, clawSidebarView, projects: clawWorkspace.projects, navigation: conversationNavigation.state(state.route.page), openMenuId: sessionMenu?.id });
+  return renderSidebar({ page: state.route.page, clawView: state.route.clawView, sessionId: state.route.sessionId, sessions: catalog.sessions, workspaces: catalog.workspaces, selectedWorkspace, collapsed: sidebarCollapsed, mobileOpen: sidebarOpen, detail: state.detail, clawSidebarView, projects: clawWorkspace.projects, navigation: conversationNavigation.state(state.route.page), openMenuId: sessionMenu?.id });
 }
 
 function closeProjectEditor() {
@@ -567,6 +567,11 @@ function render() {
     ([...root.querySelectorAll('[data-global-result-key]')].find(item => item.dataset.globalResultKey === focusedSearchResult) || document.getElementById('global-search'))?.focus({ preventScroll: true });
   }
   if (state.busy) root.querySelectorAll('[data-approval], [data-upload], .question-form button, #rename-form button').forEach((button) => { button.disabled = true; });
+  const projectDialog = root.querySelector('.nav-project-dialog');
+  if (projectDialog) {
+    for (const sibling of root.children) if (!sibling.contains(projectDialog)) sibling.inert = true;
+    if (!projectDialog.contains(document.activeElement) || document.activeElement?.disabled) (projectDialog.querySelector('input:not(:disabled)') || projectDialog).focus({ preventScroll: true });
+  }
   document.title = `${state.detail?.title || (state.route.page === 'workbench' && state.route.section === 'hot' ? '热点与事件' : state.route.page === 'workbench' && state.route.section === 'assets' ? '资产观察' : ({ fingpt: 'FinGPT', claw: 'Claw', workbench: '研究台', frameworks: '研究框架', history: '研究历史', skills: '能力中心', operations: '运行与用量', intel: '研究情报', settings: '设置' })[state.route.page])} · Research Workbench`;
 }
 
@@ -1489,6 +1494,7 @@ root.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') { event.preventDefault(); closeProjectEditor(); return; }
     if (event.key === 'Tab') {
       const controls = [...projectDialog.querySelectorAll('input:not(:disabled),button:not(:disabled)')];
+      if (!controls.length) { event.preventDefault(); projectDialog.focus({ preventScroll: true }); return; }
       const first = controls[0], last = controls.at(-1);
       if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
       else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
@@ -2261,6 +2267,7 @@ root.addEventListener('click', async (event) => {
   const recipe = event.target.closest?.('[data-research-recipe]')?.dataset.researchRecipe;
   if (recipe && researchRecipes[recipe]) { if (state.busy) return; controller.setDraft(researchRecipes[recipe] + '\n' + state.draft); render(); root.querySelector('#prompt')?.focus(); return; }
   const clickTarget = event.target;
+  const clickedNavigationRect = clickTarget?.closest?.('.session-row, .nav-project-row')?.getBoundingClientRect?.();
   const hotAction=clickTarget?.closest?.('[data-hot-action]');
   if(hotAction?.dataset?.hotAction){await hotController.action(hotAction);return;}
   const modelAction = clickTarget?.closest?.('[data-model-clear], [data-model-test]')?.dataset;
@@ -2329,7 +2336,10 @@ root.addEventListener('click', async (event) => {
   if (nav && 'navMoveTarget' in data) {
     const row = catalog.sessions.find(item => item.id === data.navSession && item.mode === mode);
     if (!row || sessionMenu?.id !== row.id || !nav.projects.some(item => item.id === data.navMoveTarget && !item.archived)) return;
-    if ((row.project_id || 'default') !== data.navMoveTarget) await conversationNavigation.moveSession(mode, row.id, data.navMoveTarget);
+    if ((row.project_id || 'default') !== data.navMoveTarget) {
+      const moved = await conversationNavigation.moveSession(mode, row.id, data.navMoveTarget);
+      if (moved) conversationNavigation.revealSession(mode, row.id, catalog.sessions);
+    }
     sessionMenu = null; render(); [...root.querySelectorAll('[data-session-menu]')].find(node => node.dataset.sessionMenu === row.id)?.focus?.({ preventScroll: true }); return;
   }
   if (nav && 'navRetry' in data) { await conversationNavigation.load(mode, true); return; }
@@ -2345,7 +2355,7 @@ root.addEventListener('click', async (event) => {
   }
   if (nav && 'navProjectMenu' in data) {
     nav.menu = nav.menu === data.navProjectMenu ? null : data.navProjectMenu;
-    const rect = button.closest('.nav-project-row')?.getBoundingClientRect() || button.getBoundingClientRect(); nav.menuPosition = sessionMenuPosition(rect, { width: window.innerWidth, height: window.innerHeight });
+    const rect = clickedNavigationRect || button.getBoundingClientRect(); nav.menuPosition = sessionMenuPosition(rect, { width: window.innerWidth, height: window.innerHeight });
     render(); document.querySelector('.nav-project-menu [role="menuitem"]')?.focus({ preventScroll: true }); return;
   }
   if (nav && 'navEditorClose' in data) { closeProjectEditor(); return; }
@@ -2354,7 +2364,14 @@ root.addEventListener('click', async (event) => {
     nav.editor = project ? { id: project.id, name: project.name } : { name: '' }; nav.error = ''; nav.menu = null; sessionMenu = null; render(); document.querySelector('#nav-project-name')?.focus(); return;
   }
   if (nav && 'navPin' in data) {
-    await conversationNavigation.pin(mode, { kind: data.navPin, id: data.navId });
+    const saved = await conversationNavigation.pin(mode, { kind: data.navPin, id: data.navId });
+    if (saved) {
+      if (data.navPin === 'session') conversationNavigation.revealSession(mode, data.navId, catalog.sessions);
+      else {
+        const section = nav.metadata.pinned.some(item => item.kind === 'project' && item.id === data.navId) ? 'pinned' : 'projects';
+        conversationNavigation.view(mode, { collapsedSections: (nav.view.collapsedSections || []).filter(item => item !== section) });
+      }
+    }
     sessionMenu = null; nav.menu = null; render();
     const selector = data.navPin === 'session' ? '[data-session-menu]' : '[data-nav-project-menu]';
     [...root.querySelectorAll(selector)].find(node => (node.dataset.sessionMenu || node.dataset.navProjectMenu) === data.navId)?.focus?.({ preventScroll: true });
@@ -2641,7 +2658,7 @@ root.addEventListener('click', async (event) => {
     const id = data.sessionMenu;
     if (sessionMenu?.id === id) { sessionMenu = null; render(); return; }
     cancelProjectMenuTimers();
-    const rect = button.closest('.session-row')?.getBoundingClientRect() || button.getBoundingClientRect();
+    const rect = clickedNavigationRect || button.getBoundingClientRect();
     const { left, top } = sessionMenuPosition(rect, { width: window.innerWidth, height: window.innerHeight });
     sessionMenu = { id, left, top }; sessionActionError = ''; render();
     document.querySelector('.session-action-menu [role="menuitem"]')?.focus({ preventScroll: true });

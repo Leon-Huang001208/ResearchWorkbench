@@ -13,7 +13,8 @@ const forwardOnly = process.argv.includes('--focus-forward');
 const submitOnly = process.argv.includes('--focus-submit');
 const menusOnly = process.argv.includes('--focus-menus');
 const dialogsOnly = process.argv.includes('--focus-project-dialog');
-const receiptName = preview ? 'preview-receipt.json' : dialogsOnly ? 'project-dialog-receipt.json' : menusOnly ? 'menus-receipt.json' : submitOnly ? 'submit-receipt.json' : forwardOnly ? 'forward-receipt.json' : 'receipt.json';
+const membershipOnly = process.argv.includes('--focus-project-membership');
+const receiptName = preview ? 'preview-receipt.json' : membershipOnly ? 'project-membership-receipt.json' : dialogsOnly ? 'project-dialog-receipt.json' : menusOnly ? 'menus-receipt.json' : submitOnly ? 'submit-receipt.json' : forwardOnly ? 'forward-receipt.json' : 'receipt.json';
 const report = { status: 'running', environment: 'isolated Chrome synthetic API; no resident HTTP or model calls', checks: [], failures: [], writes: [], screenshots: [] };
 const modes = ['fingpt', 'claw'];
 const metadata = Object.fromEntries(modes.map(mode => [mode, { mode, revision: 0, pinned: [], project_order: ['default', 'p1', 'p2'] }]));
@@ -25,6 +26,10 @@ const streams = new Map();
 let failNavigation = 0;
 let failAnswer = false;
 let failProjectCreate = false;
+let failMove = false;
+let holdProjectCreate = false;
+let releaseProjectCreate;
+let projectCreateStarted;
 const send = (response, status, payload) => response.writeHead(status, { 'content-type': 'application/json', 'cache-control': 'no-store' }).end(JSON.stringify(payload));
 const broadcast = id => { for (const response of streams.get(id) || []) response.write(`event: snapshot\ndata: ${JSON.stringify(details[id])}\n\n`); };
 const server = http.createServer(async (request, response) => {
@@ -50,7 +55,7 @@ const server = http.createServer(async (request, response) => {
       }
       if (endpoint === '/projects' || endpoint === '/claw/projects') {
         const mode = url.searchParams.get('mode') || 'claw';
-        if (request.method === 'POST') { if (failProjectCreate) { failProjectCreate = false; return send(response, 500, { error: { code: 'fixture_project_failed', message: '夹具创建失败，请保留草稿重试' } }); } const item = { id: `${mode}-created`, name: body.name, archived: false }; projects[mode].push(item); return send(response, 201, item); }
+        if (request.method === 'POST') { if (holdProjectCreate) { holdProjectCreate = false; await new Promise(resolve => { releaseProjectCreate = resolve; projectCreateStarted?.(); }); } if (failProjectCreate) { failProjectCreate = false; return send(response, 500, { error: { code: 'fixture_project_failed', message: '夹具创建失败，请保留草稿重试' } }); } const item = { id: `${mode}-created`, name: body.name, archived: false }; projects[mode].push(item); return send(response, 201, item); }
         return send(response, 200, { items: projects[mode] });
       }
       const projectMatch = endpoint.match(/^\/projects\/([^/]+)$/);
@@ -71,7 +76,7 @@ const server = http.createServer(async (request, response) => {
           if (failAnswer) { failAnswer = false; return send(response, 500, { error: { code: 'fixture_failed', message: '夹具原生回答失败，可重试' } }); }
           details[id].question_history = [{ ...group, answers: body.answers }]; details[id].questions = []; return send(response, 200, { ok: true });
         }
-        if (suffix === '/project' && request.method === 'PUT') { details[id].project_id = body.project_id; sessions.find(s => s.id === id).project_id = body.project_id; return send(response, 200, details[id]); }
+        if (suffix === '/project' && request.method === 'PUT') { if (failMove) { failMove = false; return send(response, 500, { error: { code: 'fixture_move_failed', message: '夹具移动失败，原项目位置保留' } }); } details[id].project_id = body.project_id; sessions.find(s => s.id === id).project_id = body.project_id; return send(response, 200, details[id]); }
         return send(response, 200, suffix === '/files' ? { items: details[id].files } : details[id]);
       }
       if (endpoint === '/sessions') return send(response, 200, { items: sessions });
@@ -91,11 +96,16 @@ let browser;
 const check = async (name, fn) => { try { await fn(); report.checks.push(name); console.log(`PASS ${name}`); } catch (error) { report.failures.push({ name, error: error.message }); console.log(`FAIL ${name}: ${error.message}`); } };
 const shot = async (page, name) => { const target = path.join(output, `${name}.png`); await page.screenshot({ path: target }); report.screenshots.push(target); };
 async function assertSquareIcons(page, selector, { centeredButtons = false } = {}) {
-  const metrics = await page.locator(selector).evaluateAll(elements => elements.map(element => {
+  const metrics = await page.evaluate(value => [...document.querySelectorAll(value)].map(element => {
     const rect = element.getBoundingClientRect(); const button = element.closest('button'); const parent = button?.getBoundingClientRect();
     return { width: rect.width, height: rect.height, visible: !!element.getClientRects().length && getComputedStyle(element).visibility !== 'hidden', button: !!button, centerX: parent ? Math.abs(rect.x + rect.width / 2 - parent.x - parent.width / 2) : 0, centerY: parent ? Math.abs(rect.y + rect.height / 2 - parent.y - parent.height / 2) : 0, inside: !parent || (rect.left >= parent.left - .5 && rect.right <= parent.right + .5 && rect.top >= parent.top - .5 && rect.bottom <= parent.bottom + .5) };
-  }));
-  const visible = metrics.filter(item => item.visible); assert.ok(visible.length > 0, `no visible icons: ${selector}`);
+  }), selector);
+  const visible = metrics.filter(item => item.visible);
+  if (!visible.length) {
+    const state = await page.evaluate(() => ({ hash: location.hash, sidebar: document.querySelector('.codex-sidebar')?.className, sidebarDisplay: document.querySelector('.codex-sidebar') && getComputedStyle(document.querySelector('.codex-sidebar')).display, mode: document.querySelector('.codex-sidebar')?.dataset.navMode, shell: document.querySelector('.app-shell')?.className, width: innerWidth }));
+    await writeFile(path.join(output, 'icon-visibility-failure.json'), JSON.stringify({ selector, metrics, state }, null, 2)); await shot(page, 'icon-visibility-failure');
+  }
+  assert.ok(visible.length > 0, `no visible icons: ${selector}`);
   for (const item of visible) {
     assert.ok(item.width > 0 && item.height > 0 && Math.abs(item.width - item.height) <= .5, JSON.stringify(item));
     if (centeredButtons && item.button) assert.ok(item.inside && item.centerX <= .5 && item.centerY <= .5, JSON.stringify(item));
@@ -117,7 +127,57 @@ try {
   const page = await context.newPage();
   page.setDefaultTimeout(5000);
   page.on('pageerror', error => { report.failures.push(`pageerror:${error.message}`); console.log(`PAGEERROR ${error.message}`); });
-  if (dialogsOnly) {
+  if (membershipOnly) {
+    for (const mode of modes) await check(`${mode}: unique pinned/project/recent priority, persistence, default return and failure retention`, async () => {
+      const id = `${mode}-1`; const row = `[data-session-menu="${id}"]`; const recent = page.locator('.nav-section[aria-label="最近"]'); const pinned = page.locator('.nav-section[aria-label="置顶"]'); const member = page.locator(`.nav-project[data-nav-id="p1"] .nav-project-members ${row}`);
+      metadata[mode].pinned.push({ kind: 'session', id: `${mode}-26` });
+      projects[mode].push({ id: 'archived-project', name: '已归档项目', archived: true });
+      for (const [index, projectId] of [[2, 'archived-project'], [3, 'missing-project'], [4, null]]) { sessions.find(s => s.id === `${mode}-${index}`).project_id = projectId; details[`${mode}-${index}`].project_id = projectId; }
+      await page.setViewportSize({ width: 1440, height: 900 }); await page.goto(`${origin}/#/${mode}`);
+      await page.evaluate(() => { for (const m of ['claw', 'fingpt']) localStorage.setItem(`research-web.navigation.v1.${m}`, JSON.stringify({ collapsed: false, collapsedSections: [], expanded: [], limit: 10 })); });
+      await page.reload({ waitUntil: 'domcontentloaded' }); await page.locator(row).waitFor();
+      await page.waitForFunction(value => ['models', 'workspaces', 'report-workflows', `navigation/${value}`].every(endpoint => performance.getEntriesByType('resource').some(entry => entry.name.includes(`/api/research/${endpoint}`))), mode);
+      const moveTo = async projectId => {
+        await page.locator(row).last().click(); await page.locator(`[data-nav-move-menu="${id}"]`).click();
+        await Promise.all([page.waitForResponse(r => r.request().method() === 'PUT' && r.url().includes(`/sessions/${id}/project`)), page.locator(`[data-nav-move-target="${projectId}"]`).click()]);
+        await page.waitForFunction(value => !document.querySelector('.session-action-menu') && document.activeElement?.dataset.sessionMenu === value, id);
+      };
+      const pin = async () => {
+        await page.locator(row).last().click(); await Promise.all([page.waitForResponse(r => r.request().method() === 'PATCH' && r.url().includes(`/navigation/${mode}`)), page.locator('[data-nav-pin="session"]').click()]);
+        await page.waitForFunction(value => !document.querySelector('.session-action-menu') && document.activeElement?.dataset.sessionMenu === value, id);
+      };
+      await page.locator('[data-nav-section="projects"]').click(); await moveTo('p1');
+      assert.equal(await page.locator('[data-nav-section="projects"]').getAttribute('aria-expanded'), 'true'); assert.equal(await page.locator('[data-nav-project-toggle="p1"]').getAttribute('aria-expanded'), 'true');
+      assert.equal(await recent.locator(row).count(), 0); assert.equal(await member.count(), 1); assert.equal(await page.locator(row).count(), 1);
+      for (const index of [2, 3, 4]) assert.equal(await recent.locator(`[data-session-menu="${mode}-${index}"]`).count(), 1, 'archived, missing and ungrouped stay recent');
+      await page.reload({ waitUntil: 'domcontentloaded' }); await member.waitFor(); assert.equal(await recent.locator(row).count(), 0); assert.equal(await member.count(), 1);
+      await pin(); assert.equal(await pinned.locator(row).count(), 1); assert.equal(await member.count(), 0); assert.equal(await recent.locator(row).count(), 0); assert.equal(await page.locator(row).count(), 1);
+      await shot(page, `membership-${mode}-pinned-project`);
+      await pin(); await page.locator('[data-nav-section="recent"]').click(); await moveTo('default');
+      assert.equal(await page.locator('[data-nav-section="recent"]').getAttribute('aria-expanded'), 'true'); assert.equal(await recent.locator(row).count(), 1); assert.equal(await member.count(), 0);
+      await page.locator('[data-nav-project-toggle="default"]').click(); assert.equal(await page.locator('.nav-project[data-nav-id="default"] .nav-project-members [data-session-menu]').count(), 0); assert.equal(await page.locator(row).count(), 1);
+      await page.reload({ waitUntil: 'domcontentloaded' }); await recent.locator(row).waitFor();
+      await page.locator('[data-nav-project-toggle="p1"]').click(); await page.locator('[data-nav-section="projects"]').click();
+      failMove = true; await moveTo('p1'); await page.locator('.nav-scroll [role="alert"]').waitFor();
+      assert.equal(await recent.locator(row).count(), 1); assert.equal(await member.count(), 0); assert.equal(sessions.find(s => s.id === id).project_id, 'default');
+      assert.equal(await page.locator('[data-nav-section="projects"]').getAttribute('aria-expanded'), 'false'); assert.equal(await page.locator('[data-nav-project-toggle="p1"]').getAttribute('aria-expanded'), 'false');
+      await shot(page, `membership-${mode}-failed-preserved`);
+      await page.locator('[data-nav-section="projects"]').click();
+      if (await page.locator('[data-nav-section="pinned"]').getAttribute('aria-expanded') === 'true') await page.locator('[data-nav-section="pinned"]').click();
+      await page.locator('[data-nav-project-menu="p1"]').click();
+      await Promise.all([page.waitForResponse(r => r.request().method() === 'PATCH' && r.url().includes(`/navigation/${mode}`)), page.locator('.nav-project-menu [data-nav-pin="project"]').click()]);
+      await page.waitForFunction(() => document.querySelector('[data-nav-section="pinned"]')?.getAttribute('aria-expanded') === 'true');
+      assert.equal(await pinned.locator('.nav-project[data-nav-id="p1"]').count(), 1);
+      await page.locator('[data-nav-section="recent"]').click();
+      await page.locator(`[data-session-menu="${mode}-26"]`).click();
+      await Promise.all([page.waitForResponse(r => r.request().method() === 'PATCH' && r.url().includes(`/navigation/${mode}`)), page.locator('[data-nav-pin="session"]').click()]);
+      await recent.locator(`[data-session-menu="${mode}-26"]`).waitFor();
+      assert.equal(await page.locator('[data-nav-section="recent"]').getAttribute('aria-expanded'), 'true');
+      assert.ok(await page.evaluate(value => JSON.parse(localStorage.getItem(`research-web.navigation.v1.${value}`)).limit, mode) >= 30, 'unpin old session expands recent limit to include it');
+      assert.equal(await page.locator(`[data-session-menu="${mode}-26"]`).count(), 1);
+      await page.reload({ waitUntil: 'domcontentloaded' }); await recent.locator(`[data-session-menu="${mode}-26"]`).waitFor();
+    });
+  } else if (dialogsOnly) {
     for (const theme of ['light', 'dark']) for (const width of [390, 1440]) for (const mode of modes) await check(`${theme}/${width}/${mode}: centered project modal, cancel/Escape, focus trap, failed draft and retry`, async () => {
       await page.setViewportSize({ width, height: 900 }); await page.goto(`${origin}/#/${mode}`);
       await page.evaluate(value => { localStorage.setItem('research-web.appearance.v1', value); for (const m of ['claw', 'fingpt']) localStorage.setItem(`research-web.navigation.v1.${m}`, JSON.stringify({ collapsed: false, collapsedSections: [], expanded: [], limit: 10 })); }, theme);
@@ -140,7 +200,16 @@ try {
       failProjectCreate = true; await dialog.getByRole('button', { name: '创建项目', exact: true }).click(); await dialog.getByRole('alert').waitFor();
       assert.equal(await page.locator('#nav-project-name').inputValue(), name); assert.equal(await dialog.getByRole('button', { name: '创建项目', exact: true }).isEnabled(), true);
       await shot(page, `project-dialog-${theme}-${width}-${mode}-failed`);
-      await dialog.getByRole('button', { name: '创建项目', exact: true }).click(); await dialog.waitFor({ state: 'detached' });
+      holdProjectCreate = true; const started = new Promise(resolve => { projectCreateStarted = resolve; });
+      await dialog.getByRole('button', { name: '创建项目', exact: true }).click(); await started;
+      await check(`${theme}/${width}/${mode}: saving modal keeps inert background and trapped focus`, async () => {
+        await page.waitForFunction(() => document.querySelector('.nav-project-dialog')?.getAttribute('aria-busy') === 'true');
+        assert.equal(await page.evaluate(() => { const d = document.querySelector('.nav-project-dialog'); return [...document.querySelector('#app').children].filter(el => !el.contains(d)).every(el => el.inert); }), true);
+        assert.equal(await dialog.evaluate(el => el.contains(document.activeElement)), true);
+        await page.keyboard.press('Tab'); assert.equal(await dialog.evaluate(el => el.contains(document.activeElement)), true, 'Tab cannot leave saving dialog');
+        await page.keyboard.press('Shift+Tab'); assert.equal(await dialog.evaluate(el => el.contains(document.activeElement)), true, 'Shift+Tab cannot leave saving dialog');
+      });
+      releaseProjectCreate(); projectCreateStarted = null; await dialog.waitFor({ state: 'detached' });
       assert.deepEqual(report.writes.slice(start).map(w => ({ method: w.method, endpoint: w.endpoint, query: w.query, body: w.body })), [0, 1].map(() => ({ method: 'POST', endpoint: '/projects', query: `?mode=${mode}`, body: { name } })));
     });
   } else if (menusOnly) {
@@ -208,6 +277,17 @@ try {
       await page.keyboard.press('Home'); assert.equal(await page.evaluate(() => document.activeElement.dataset.navPin), 'project');
       await shot(page, `project-menu-${theme}-${width}-${mode}`);
       await page.keyboard.press('Escape'); assert.equal(await projectMenu.count(), 0); assert.equal(await page.locator('[data-nav-project-menu="p1"]').evaluate(el => document.activeElement === el), true);
+      const assertAnchored = async (menuSelector, triggerSelector) => {
+        const geometry = await page.evaluate(([menu, trigger]) => { const m = document.querySelector(menu).getBoundingClientRect(); const r = document.querySelector(trigger).closest('.session-row,.nav-project-row').getBoundingClientRect(); return { left: m.left, right: m.right, top: m.top, bottom: m.bottom, rowLeft: r.left, rowRight: r.right, rowTop: r.top, rowBottom: r.bottom }; }, [menuSelector, triggerSelector]);
+        assert.ok(geometry.top >= 8 && geometry.left >= 8, JSON.stringify(geometry));
+        assert.ok(geometry.left >= geometry.rowRight || geometry.right <= geometry.rowLeft || geometry.top >= geometry.rowBottom || geometry.bottom <= geometry.rowTop, JSON.stringify(geometry));
+        if (width >= 820) assert.ok(geometry.left >= geometry.rowRight, JSON.stringify(geometry));
+      };
+      await page.locator(`[data-session-menu="${id}"]`).click(); await page.locator('.session-action-menu').waitFor();
+      await page.locator('[data-nav-project-menu="p1"]').click(); await projectMenu.waitFor(); assert.equal(await page.locator('.session-action-menu').count(), 0);
+      await assertAnchored('.nav-project-menu', '[data-nav-project-menu="p1"]');
+      await page.locator(`[data-session-menu="${id}"]`).click(); await page.locator('.session-action-menu').waitFor(); assert.equal(await projectMenu.count(), 0);
+      await assertAnchored('.session-action-menu', `[data-session-menu="${id}"]`); await page.keyboard.press('Escape');
     });
   } else if (submitOnly) {
     report.contrast = [];
@@ -286,6 +366,18 @@ try {
         else if (!await page.locator('.codex-sidebar').isVisible()) await page.locator('.primary-rail .rail-toggle').click();
         const sidebar = page.locator('.codex-sidebar');
         assert.equal(Math.round((await sidebar.boundingBox()).width), 280);
+        assert.equal(await page.locator('.new-research').evaluate(el => el.nextElementSibling.matches('.nav-shortcuts')), true);
+        const shortcuts = page.locator('.nav-shortcuts a');
+        assert.deepEqual(await shortcuts.allTextContents().then(items => items.map(item => item.trim())), mode === 'claw' ? ['Agent 日程', '管理项目'] : ['管理项目']);
+        assert.equal(await page.locator('.nav-mode-menu a[href="#/skills"]').count(), 0);
+        for (const href of mode === 'claw' ? ['#/claw?view=plans', '#/claw?view=projects&project=default'] : ['#/fingpt?view=projects&project=default']) {
+          const shortcut = page.locator(`.nav-shortcuts a[href="${href}"]`); if (width <= 1050) assert.ok((await shortcut.boundingBox()).height >= 44);
+          await shortcut.click(); await page.waitForFunction(value => [...document.querySelectorAll('.nav-shortcuts a')].find(el => el.getAttribute('href') === value)?.getAttribute('aria-current') === 'page', href);
+          if (width <= 1050 && !await sidebar.isVisible()) await page.locator('.topbar .menu-toggle').click();
+        }
+        await page.goto(`${origin}/#/${mode}`); await page.locator('#prompt').waitFor();
+        if (width <= 1050 && !await sidebar.isVisible()) await page.locator('.topbar .menu-toggle').click();
+        await sidebar.waitFor({ state: 'visible' }); await page.locator('[data-nav-section] svg').first().waitFor();
         await assertSquareIcons(page, '[data-nav-section] svg, .nav-project-toggle svg');
         assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
         if (width === 1440 || width === 390) await shot(page, `${theme}-${width}-${mode}`);
@@ -397,6 +489,8 @@ try {
   });
   for (const mode of modes) await check(`${mode}: question paging, IME, fold, skip, failure retry, native history`, async () => {
     await page.goto(`${origin}/#/${mode}?session=${mode}-0`); await page.locator('[data-question-form]').waitFor();
+    assert.equal(await page.locator('#main h1, #main .session-title, #main .page-header .eyebrow').count(), 0, 'session omits large title and mode eyebrow');
+    assert.equal(await page.locator('#main .session-toolbar').count(), 1);
     for (const width of [1440, 820, 390]) await check(`${mode}: question card unobstructed at ${width}`, async () => {
       await page.setViewportSize({ width, height: 900 }); await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
       await page.locator('.question-form').waitFor(); await page.evaluate(() => document.querySelector('.question-form').scrollIntoView({ block: 'nearest' }));

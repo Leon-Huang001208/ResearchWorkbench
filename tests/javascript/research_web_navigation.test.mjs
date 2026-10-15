@@ -106,3 +106,83 @@ test('project editor is a centered accessible create and rename dialog with safe
   assert.match(busy, /正在保存…/);
   assert.equal((busy.match(/disabled/g) || []).length, 4);
 });
+
+
+test('project members only appear in their project while default and unavailable project rows remain recent', () => {
+  for (const mode of ['claw', 'fingpt']) {
+    const rows = [
+      { id: 'member', mode, project_id: 'p1', title: '项目成员', status: 'running' },
+      { id: 'default-member', mode, project_id: 'default', title: '未分组', status: 'completed' },
+      { id: 'legacy', mode, project_id: 'archived', title: '已归档项目会话', status: 'completed' },
+    ];
+    const nav = { metadata: metadata(mode), projects: [{ id: 'p1', name: '项目一' }, { id: 'archived', archived: true }], loaded: true, view: { expanded: ['p1'], limit: 10 } };
+    const html = renderSidebar({ page: mode, sessions: rows, navigation: nav });
+    const recent = html.slice(html.indexOf('<section class="nav-section" aria-label="最近">'));
+    assert.doesNotMatch(recent, /data-session-menu="member"/);
+    assert.match(recent, /data-session-menu="default-member"/);
+    assert.match(recent, /data-session-menu="legacy"/);
+    assert.equal((html.match(/data-session-menu="member"/g) || []).length, 1);
+    nav.view.expanded = [];
+    assert.doesNotMatch(renderSidebar({ page: mode, sessions: rows, navigation: nav }), /data-session-menu="member"/);
+  }
+});
+
+
+test('pinned project members render only in pinned without changing their project membership', () => {
+  for (const mode of ['claw', 'fingpt']) {
+    const row = { id: 'pinned-member', mode, project_id: 'p1', title: '置顶成员', status: 'running' };
+    const nav = { metadata: { ...metadata(mode), pinned: [{ kind: 'session', id: row.id }] }, projects: [{ id: 'p1', name: '项目一' }], loaded: true, view: { expanded: ['p1'], limit: 10 } };
+    const html = renderSidebar({ page: mode, sessions: [row], navigation: nav });
+    assert.equal((html.match(/data-session-menu="pinned-member"/g) || []).length, 1);
+    const projectStart = html.indexOf('<section class="nav-section" aria-label="项目">');
+    assert.doesNotMatch(html.slice(projectStart), /data-session-menu="pinned-member"/);
+    assert.equal(row.project_id, 'p1');
+  }
+});
+
+
+test('sidebar puts schedules then project management below new chat without duplicate capability menu entry', () => {
+  for (const page of ['claw', 'fingpt']) {
+    const html = renderSidebar({ page, clawView: 'projects' });
+    const menu = html.match(/<details class="nav-mode-menu"[^]*?<\/details>/)[0];
+    assert.doesNotMatch(menu, /Agent 日程|选择能力|管理项目/);
+    const shortcuts = html.match(/<nav class="nav-shortcuts"[^]*?<\/nav>/)[0];
+    assert.ok(html.indexOf('nav-shortcuts') > html.indexOf('data-new'));
+    assert.match(shortcuts, new RegExp(`href="#/${page}\\?view=projects&project=default" aria-current="page"`));
+    if (page === 'claw') assert.ok(shortcuts.indexOf('Agent 日程') < shortcuts.indexOf('管理项目'));
+    else assert.doesNotMatch(shortcuts, /Agent 日程/);
+  }
+});
+
+
+test('default project expansion explains recent location without repeating ungrouped conversations', () => {
+  const html = renderSidebar({ page: 'claw', sessions: [{ id: 'unassigned', mode: 'claw', project_id: 'default', title: '未分组' }], navigation: { metadata: metadata('claw'), projects: [{ id: 'default', name: '默认项目' }], loaded: true, view: { expanded: ['default'], limit: 10 } } });
+  assert.equal((html.match(/data-session-menu="unassigned"/g) || []).length, 1);
+  assert.match(html, /未分组会话显示在最近/);
+});
+
+
+test('revealing a moved or unpinned session opens its real section and includes old recent rows', () => {
+  const nav = createConversationNavigation({ api: {} }); const s = nav.state('claw');
+  const rows = Array.from({ length: 27 }, (_, index) => ({ id: `s${index}`, mode: 'claw', project_id: 'default', updated_at: 100 - index }));
+  s.view.collapsedSections = ['pinned', 'projects', 'recent'];
+  nav.revealSession('claw', 's26', rows);
+  assert.equal(s.view.limit, 30); assert.ok(!s.view.collapsedSections.includes('recent'));
+  s.projects = [{ id: 'p1' }]; rows[26].project_id = 'p1'; s.metadata.pinned = [{ kind: 'project', id: 'p1' }];
+  nav.revealSession('claw', 's26', rows);
+  assert.ok(!s.view.collapsedSections.includes('pinned')); assert.ok(s.view.expanded.includes('p1'));
+  s.view.collapsedSections = ['pinned', 'projects', 'recent']; s.metadata.pinned = [{ kind: 'session', id: 's26' }];
+  nav.revealSession('claw', 's26', rows); assert.ok(!s.view.collapsedSections.includes('pinned'));
+  assert.ok(s.view.collapsedSections.includes('projects'));
+});
+
+
+test('conversation body keeps real status and context controls without repeating its sidebar title', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const app = await readFile(new URL('../../app/research_web/ui/app.mjs', import.meta.url), 'utf8');
+  const page = app.slice(app.indexOf('function researchPage()'), app.indexOf('function settingsPage()'));
+  assert.doesNotMatch(page, /<h1>|AGENT RESEARCH|RESEARCH SESSION|detail\.title/);
+  assert.match(page, /class="session-toolbar" aria-label="会话状态与资料"/);
+  assert.match(page, /detail\.questions\?\.length \? 'waiting_input' : detail\.status/);
+  assert.match(page, /data-toggle-context/);
+});
