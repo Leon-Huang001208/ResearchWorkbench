@@ -1,5 +1,9 @@
 # Mac mini Docker 开发与独立部署
 
+Hot schema21的周期Word报告在既有容器产品Python中做单次投影，产物/回执存同一PG，
+不启动额外常驻服务、DSH研究或外发。切换后只读同一已保存报告，旧租约拒绝晚到完成。
+当前源修复后须重建候选并重验；旧image与全部卷保留，不以旧821d镜像认证新源。
+
 共享控制器类型维护保留 manifest/镜像归属、pipe清理、目录身份与回滚顺序。
 候选 Native 预览使用独立目录和38188/33181，不修改 Docker 实例或日常服务；
 此预览及离线控制器测试不替代 Linux exact-SHA Docker CI 与 Mac Docker Desktop 真机验收。

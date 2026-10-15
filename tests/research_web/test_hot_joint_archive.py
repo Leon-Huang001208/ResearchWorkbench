@@ -5,6 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from uuid import uuid4
+from unittest.mock import patch
 
 from app.research_web.store import Store
 from research_workbench_entrypoint.hot import HotError
@@ -52,6 +53,29 @@ class JointArchiveTests(unittest.TestCase):
         with self.assertRaisesRegex(HotError, 'hot_joint_selection_invalid'):
             backup_research(self.home, self.archive, ['invalid'], self.token)
         self.assertFalse((self.archive / 'research.zip').exists())
+
+    def test_metadata_counts_toward_uncompressed_limit_before_success(self):
+        # The selected bytes fit, but the session metadata does not.
+        with patch('research_workbench_entrypoint.hot_joint_archive.LIMIT', 100):
+            with self.assertRaisesRegex(HotError, 'hot_joint_archive_limit'):
+                backup_research(self.home, self.archive, [self.sid], self.token)
+        self.assertFalse((self.archive / 'research-manifest.json').exists())
+
+    def test_zip_overhead_cannot_publish_an_unrestorable_manifest(self):
+        # A stored ZIP is larger than its payload even when the payload fits.
+        import zipfile
+        backup_research(self.home, self.archive, [self.sid], self.token)
+        with zipfile.ZipFile(self.archive / 'research.zip') as package:
+            limit = sum(entry.file_size for entry in package.infolist())
+        second = self.root / 'zip-limit'; second.mkdir(mode=0o700)
+        (second / 'manifest.json').write_bytes((self.archive / 'manifest.json').read_bytes())
+        original = zipfile.ZipFile
+        def stored(raw, mode, compression):
+            return original(raw, mode, zipfile.ZIP_STORED)
+        with patch('research_workbench_entrypoint.hot_joint_archive.LIMIT', limit), patch.object(zipfile, 'ZipFile', side_effect=stored):
+            with self.assertRaisesRegex(HotError, 'hot_joint_archive_limit'):
+                backup_research(self.home, second, [self.sid], self.token)
+        self.assertFalse((second / 'research-manifest.json').exists())
 
     def test_interrupted_copy_resumes_only_its_sealed_attempt(self):
         from unittest.mock import patch

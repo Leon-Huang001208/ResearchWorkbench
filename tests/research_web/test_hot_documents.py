@@ -20,6 +20,19 @@ def saved():
 
 
 class BriefDocxTests(unittest.TestCase):
+    def test_one_shot_report_uses_existing_word_mechanism_without_runtime(self):
+        import base64
+        import hashlib
+        from app.research_web.hot_periodic_report import render
+        value = saved()
+        result = render({"protocol": "rwb-hot-report/v1", "saved": value})
+        raw = base64.b64decode(result["data"], validate=True)
+        self.assertEqual((result["state"], result["inputHash"]), ("completed", value["contentHash"]))
+        self.assertEqual(result["sha256"], hashlib.sha256(raw).hexdigest())
+        self.assertIn("Policy <literal>", "\n".join(p.text for p in Document(io.BytesIO(raw)).paragraphs))
+        with self.assertRaisesRegex(ValueError, "hot_periodic_report_invalid"):
+            render({"protocol": "invalid", "saved": value})
+
     def test_day_precision_and_date_source_evidence_are_exported_without_midnight(self):
         value = saved()
         event = value["payload"]["events"][0]

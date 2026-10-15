@@ -14,6 +14,7 @@ import socket
 import re
 import secrets
 import subprocess
+import sys
 import time
 import stat
 try:
@@ -376,6 +377,45 @@ class HotManager:
 
     def periodic_runs(self, plan_id: str) -> dict:
         return self._read_projection("periodic.runs", {"planId": self._brief_id(plan_id)})
+
+    def periodic_report(self, run_id: str) -> dict:
+        """Read immutable one-shot bytes through bounded authenticated chunks."""
+        import base64
+        run_id = self._brief_id(run_id)
+        state = self._state()
+        if state is None:
+            raise HotError("hot_service_stopped")
+        reader = self._secret("rpc-reader")
+        first, data, offset = None, bytearray(), 0
+        deadline = time.monotonic() + 20
+        for _ in range(160):
+            if time.monotonic() >= deadline:
+                raise HotError("hot_periodic_report_deadline")
+            value = rpc(state["port"], state["owner"], reader, "periodic.report", {"runId": run_id, "offset": offset})
+            if (not isinstance(value, dict) or value.get("runId") != run_id or value.get("format") != "docx"
+                    or value.get("offset") != offset or type(value.get("totalBytes")) is not int
+                    or not 1 <= value["totalBytes"] <= 5242880 or not isinstance(value.get("data"), str)
+                    or len(value["data"]) > 43692 or any(not isinstance(value.get(key), str)
+                    or not re.fullmatch(r"[a-f0-9]{64}", value[key]) for key in ("executionId", "inputHash", "artifactHash"))):
+                raise HotError("hot_rpc_invalid")
+            if first is None:
+                first = value
+            if any(value.get(key) != first.get(key) for key in ("executionId", "briefId", "briefVersion", "inputHash", "artifactHash", "totalBytes")):
+                raise HotError("hot_rpc_invalid")
+            try:
+                chunk = base64.b64decode(value["data"], validate=True)
+            except ValueError:
+                raise HotError("hot_rpc_invalid") from None
+            if not 1 <= len(chunk) <= 32768:
+                raise HotError("hot_rpc_invalid")
+            data.extend(chunk); offset += len(chunk)
+            if offset > first["totalBytes"] or value.get("nextOffset") != (None if offset == first["totalBytes"] else offset):
+                raise HotError("hot_rpc_invalid")
+            if offset == first["totalBytes"]:
+                if hashlib.sha256(data).hexdigest() != first["artifactHash"]:
+                    raise HotError("hot_rpc_invalid")
+                return {**{key: first[key] for key in ("runId", "executionId", "briefId", "briefVersion", "inputHash", "artifactHash")}, "data": bytes(data)}
+        raise HotError("hot_periodic_report_limit")
 
     def configure_periodic_plan(self, params: dict, request_id: str | None = None) -> dict:
         from datetime import datetime, timezone
@@ -1149,6 +1189,8 @@ class HotManager:
                 info = os.fstat(errors.fileno())
                 if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1 or info.st_uid != os.getuid() or stat.S_IMODE(info.st_mode) != 0o600:
                     raise HotError("hot_log_unsafe")
+                from .bootstrap import native_python
+                payload["reportPython"] = sys.executable if docker_guest else str(native_python(self.project))
                 child = subprocess.Popen([_node(), str(self.project / "services/hot/scripts/serve.ts"), launch_id],
                                          stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=errors,
                                          cwd=self.project, start_new_session=True,

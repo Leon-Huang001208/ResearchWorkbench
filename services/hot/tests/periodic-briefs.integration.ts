@@ -15,6 +15,7 @@ import {briefGet,briefExport} from '../src/brief-control.ts';
 import {openQueue,processOne,transactionAdapter,enqueue} from '../src/queue.ts';
 import {grantWorker,grantController} from '../src/provision.ts';
 import {sha256} from '../src/material.ts';
+import {periodicReportChunk} from '../src/periodic-report.ts';
 
 test('real PG scheduler freezes once with queue claims, persists error/cancel/replay and excludes paid calls',{timeout:30000},async()=>{
   const dir=process.env.RWB_HOT_PROOF_DIR?resolve(process.env.RWB_HOT_PROOF_DIR):resolve(import.meta.dirname,'../../../logs/hot-stage-zero');
@@ -50,10 +51,20 @@ test('real PG scheduler freezes once with queue claims, persists error/cancel/re
     await delay(600);
     await assert.rejects(schedulePeriodicBriefs(worker,boss,schema,owner),/hot_periodic_schedule_failed/);
     assert.equal((await Promise.all([schedulePeriodicBriefs(controller,boss,schema,owner),schedulePeriodicBriefs(controller,boss,schema,owner)])).reduce((a,b)=>a+b,0),1);
-    const handler=periodicBriefHandler(controller,schema,owner);
-    assert.equal(await processOne(boss,worker,schema,owner,'hot.brief',handler), 'completed');
+    let rendered=0;const artifact=Buffer.alloc(40000,100); // Synthetic renderer; real Word checked separately.
+    const handler=periodicBriefHandler(controller,schema,owner,async()=>{rendered++;return artifact;});
+    assert.equal(await processOne(boss,controller,schema,owner,'hot.brief',async(...args)=>{
+      await handler(...args); // Receipt persisted, job completion not yet committed.
+      return handler(...args); // Recovery reuses it without a second report execution.
+    }), 'completed');
+    assert.equal(rendered,1);
     const runs=JSON.parse(JSON.stringify(await periodicRuns(worker,schema,{planId})));assert.equal(runs.items.length,1);const run=runs.items[0];assert.equal(run.state,'completed');assert.equal(run.queueState,'completed');assert.equal(run.briefVersion,1);
     const brief=JSON.parse(JSON.stringify(await briefGet(worker,schema,{briefId:run.briefId,version:1})));assert.equal(brief.payload.selection.runId,run.runId);assert.equal(brief.payload.selection.planVersion,2);
+    assert.equal(run.report.state,'completed');assert.equal(run.report.inputHash,brief.contentHash);assert.equal(run.report.artifactHash,sha256(artifact));
+    const chunk=await periodicReportChunk(worker,schema,{runId:run.runId});assert.equal(chunk.nextOffset,32768);
+    const last=await periodicReportChunk(worker,schema,{runId:run.runId,offset:32768});
+    assert.equal(last.nextOffset,null);assert.deepEqual(Buffer.concat([Buffer.from(chunk.data,'base64'),Buffer.from(last.data,'base64')]),artifact);
+    await assert.rejects(db`update ${db(schema)}.periodic_report_executions set docx=${Buffer.from('changed')}`,/hot_immutable_evidence/);
     const exportBefore=JSON.parse(JSON.stringify(await briefExport(worker,schema,{briefId:run.briefId,version:1})));assert.match(exportBefore.text,/Original policy evidence/);assert.match(exportBefore.text,/周期计划/);
     await ingestPage(db,{source:'source',raw:'synthetic periodic later correction',acquiredAt:new Date(),materials:[{...item,excerpt:'Later correction'}],cursor:{}},schema);
     assert.deepEqual(await briefExport(worker,schema,{briefId:run.briefId,version:1}),exportBefore);
@@ -65,18 +76,18 @@ test('real PG scheduler freezes once with queue claims, persists error/cancel/re
     await assert.rejects(schedulePeriodicBriefs(controller,boss,schema,oldOwner),/hot_owner_stale/);
     assert.equal(JSON.parse(JSON.stringify(await periodicPlans(worker,schema,{}))).items[0].config.enabled,true);
     await enqueue(boss,controller,schema,owner,'hot.brief',run.runId,{runId:run.runId});
-    assert.equal(await processOne(boss,worker,schema,owner,'hot.brief',periodicBriefHandler(controller,schema,owner)), 'reused');
+    assert.equal(await processOne(boss,controller,schema,owner,'hot.brief',periodicBriefHandler(controller,schema,owner)), 'reused');
     const canceledId=randomUUID(),canceled={...params,planId:canceledId,config:{...config,firstRunAt:new Date(Date.now()-10).toISOString()}};
     await configurePeriodicPlan(controller,schema,owner,randomUUID(),canceled);
     await configurePeriodicPlan(controller,schema,owner,randomUUID(),{...canceled,expectedVersion:1,config:{...canceled.config,enabled:true}});
     assert.equal(await schedulePeriodicBriefs(controller,boss,schema,owner),1);
     await configurePeriodicPlan(controller,schema,owner,randomUUID(),{...canceled,expectedVersion:2,config:{...canceled.config,enabled:false},reason:'cancel queued'});
-    assert.equal(await processOne(boss,worker,schema,owner,'hot.brief',periodicBriefHandler(controller,schema,owner)), 'completed');
+    assert.equal(await processOne(boss,controller,schema,owner,'hot.brief',periodicBriefHandler(controller,schema,owner)), 'completed');
     assert.equal(JSON.parse(JSON.stringify(await periodicRuns(worker,schema,{planId:canceledId}))).items[0].state,'cancelled');
     const badId=randomUUID(),bad={...params,planId:badId,config:{...config,firstRunAt:'2026-01-01T00:00:00.000Z'}};
     await configurePeriodicPlan(controller,schema,owner,randomUUID(),bad);await configurePeriodicPlan(controller,schema,owner,randomUUID(),{...bad,expectedVersion:1,config:{...bad.config,enabled:true}});
     assert.equal(await schedulePeriodicBriefs(controller,boss,schema,owner),1);
-    assert.equal(await processOne(boss,worker,schema,owner,'hot.brief',periodicBriefHandler(controller,schema,owner)), 'failed');
+    assert.equal(await processOne(boss,controller,schema,owner,'hot.brief',periodicBriefHandler(controller,schema,owner)), 'failed');
     const failed=JSON.parse(JSON.stringify(await periodicRuns(worker,schema,{planId:badId}))).items[0];assert.equal(failed.errorCode,'hot_projection_channel_unknown');assert.ok(failed.missedPeriods>0);assert.ok(['retry','failed'].includes(failed.queueState));
     const lateId=randomUUID(),late={...params,planId:lateId,config:{...config,firstRunAt:new Date(Date.now()-10).toISOString()}};
     await configurePeriodicPlan(controller,schema,owner,randomUUID(),late);await configurePeriodicPlan(controller,schema,owner,randomUUID(),{...late,expectedVersion:1,config:{...late.config,enabled:true}});

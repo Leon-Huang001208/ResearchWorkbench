@@ -1,5 +1,9 @@
 # Research Web 能力与平台证据
 
+Hot schema21增加周期无模型Word投影及原件PG保存；最新源必须单独绑定Mac Native、
+Mac Docker Desktop和Mac CI的验收。旧候选的PASS不认证新修改，Windows/Linux保持原交接，
+不因Python/TypeScript可运行推导其他平台已通过。全部旧镜像与卷保留。
+
 PR #100 的隔离 Native 预览与 macOS Bootstrap 属于该候选的 Web 证据；源码更新后须重新绑定。
 运行时、共享 Wind 和日志的类型/离线回归不证明 Windows/Linux、真实 Wind 或桌面安装可用。
 策略所选而未执行的 Docker、Windows及桌面门保持NOT_RUN；不复用其他平台结果提升支持状态。

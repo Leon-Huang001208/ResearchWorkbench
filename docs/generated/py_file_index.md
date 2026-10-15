@@ -4885,6 +4885,24 @@ Functions:
   - Only Host writes existing Store; Hot workers never mutate session metadata.
 
 
+## `app/research_web/hot_periodic_report.py`
+
+Module docstring:
+> One-shot deterministic report projection on private stdin; no Runtime or model.
+
+Imports:
+- `base64`
+- `contextlib`
+- `hashlib`
+- `json`
+- `logging`
+- `sys`
+
+Functions:
+- `render`
+- `main`
+
+
 ## `app/research_web/hot_results.py`
 
 Module docstring:
@@ -4953,6 +4971,7 @@ Functions:
 - `configure_follow`
 - `brief_plans`
 - `brief_plan_runs`
+- `periodic_report`
 - `configure_brief_plan`
 - `research_handoff`
 - `research_run`

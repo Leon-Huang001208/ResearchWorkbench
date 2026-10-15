@@ -2,6 +2,12 @@
 
 Hot关注位于follows.ts/migration0019；周期计划位于periodic-briefs.ts/migration0020和brief-control的内部租约准入。Host hot_routes/hot_manager与Automation routes管理适配；UI为hot-follows/hot-brief-plans。近处测试覆盖PG最小角色、回放、截止、慢写回滚及Host真实白名单。
 
+schema21的periodic_report_executions保存周期一次性报告原件和回执；periodic-report.ts通过
+私有bootstrap的产品Python执行hot_periodic_report.py，复用hot_documents/report_documents，
+不启动DSH。periodic handler先保存可复用产物，再在hot.brief的controller队列事务完成。
+periodic.report签名读取32KiB块，Manager复验全部hash；GET和UI只下载既存字节。
+测试为periodic-report.test.ts、periodic-briefs.integration.ts及test_hot_documents/manager/web。
+
 Hot零重试准备位于launch_runtime.hot_zero_retry，私有同项目启用配置只影响本实例官方route。
 正式执行为hot_handoff.execute_hot_handoff/hot_routes execute，复用send及原生marker恢复；
 test_hot_execution覆盖丢失/重启/失败真值，test_hot_retry_policy/runtime_launch覆盖配置与overlay。
@@ -23,12 +29,14 @@ Hot 的阶段一入口位于 `research_workbench_entrypoint/hot.py`（配置、�
 `hot_manager.py`（签名进程管理）、`hot_postgres.py`（实例归属与受管 PG）和
 `services/hot/`（PostgreSQL、私有签名回环协议与独立 Node 服务）。对应文档为
 `services/hot/README.md` 与安装指南 Hot 小节；测试为 `test_hot_entrypoint.py`、`test_hot_manager.py` 及
-`services/hot/tests/`。当前尚未接入 Web 生命周期、Settings 和研究链路，不把基础测试
-写成完整功能验收。新增入口属于 dual-runtime 清单；它不创建第二个研究引擎。
+`services/hot/tests/`。Web 生命周期、Settings、研究交接与结果页已装配；实现入口和
+真实链路验收仍分别取证。新增入口属于 dual-runtime 清单；它不创建第二个研究引擎。
 
 归档核心为 `services/hot/src/archive.ts`，受控命令为 `scripts/archive.ts`；对应真实测试
 `archive.integration.ts`、`managed-archive.integration.ts`。Native CLI 经 HotManager 管理
-私有归档、恢复目标和未知结果日志；阶段一 schema 恢复不等同于后续研究快照联合恢复。
+私有归档、恢复目标和未知结果日志。hot_joint_archive.py 追加选定会话快照的签名联合恢复，
+不恢复 Native 执行历史。新 inventory 直接哈希 PostgreSQL JSONB 文本，旧未标记编码要求
+从原库重备份；研究 ZIP 的 payload（含 metadata）及实际 ZIP 各受 64 MiB 上限约束。
 Hot 持久采集位于 `services/hot/src/collection.ts`，共享源目录为
 `app/research_web/datahub/hot_public_sources.json`。migration 5 的原文/inbox/水位提交、
 分批解析、限定来源调度、重领与取消由 `collection.integration.ts` 验证；
@@ -38,39 +46,39 @@ Hot 持久采集位于 `services/hot/src/collection.ts`，共享源目录为
 及真实 service integration 测试负责。
 模型累计预算核心为 `services/hot/src/model-budget.ts` 与 migration 7，测试为
 `model-budget.integration.ts`。migration17 / `research-model.ts` 在相同 owner 事务中预留
-研究预算和不可变 call/attempt 映射，已存结果终态/跨日复用。实际 DSH 流的私有
-预算桥与发送仍待接入，不能把该内核测试当成真实研究验收。
+研究预算和不可变 call/attempt 映射，已存结果终态/跨日复用。实际 DSH 流经
+runtime/hot-model.mjs 的私有预算桥发送；内核测试和真实研究回执分别认证。
 模型接入契约为 `services/hot/src/dsh-text.ts`，使用固定 DSH prepared-call API，
-对应 `dsh-text.test.ts` / `dsh-receipt.test.ts`；它尚未装配进正常产品 worker 或研究入口。
+对应 `dsh-text.test.ts` / `dsh-receipt.test.ts`；正常 worker 经 native-model.ts 装配。
 固定 Native 验收入口为 `scripts/model-live-proof.ts`，其 `src/native-dsh.mjs` 复用固定
 DSH 服务与现有 Keychain bridge；版本来自共用 runtime 合同，新官方路由为
 `llm-deepseek-api-key`，真实目录/零重试prepared-call见 `native-dsh.integration.ts`。
 migration 9 做每日准入/跨日重验，credential-safety
-测试覆盖转义后的秘密反射。正式 Web/worker/研究装配仍待完成。
+测试覆盖转义后的秘密反射。Hot 处理与正式研究共用授权 scope，装配入口见后文。
 事件与频道持久层为 `services/hot/src/events.ts` 与 migration 10，测试为
 `events.integration.ts`。共享身份、不可变材料关联、直接后续图、第三频道配置、
 合并/拆分/重新归属/标题/频道人工纠错、历史投影和人工判断继承在此验证。
 模型评分须绑定已有回执；正向测试为 synthetic，不等于真实归组/规则质量验收。
-普通 worker、签名产品 RPC、Web 页面和正式研究接入仍待装配。
+普通 worker、签名产品 RPC、Web 页面和正式研究使用此持久层。
 材料归组工作流为 `services/hot/src/processing.ts` / `dsh-grouping.ts` 与 migration 11；
 采集 parse 事务注册不可变版本的处理项，可选模型能力接入同一 worker 的 `hot.process`。
 `processing.integration.ts` / `dsh-grouping.test.ts` 验证冻结输入、跨语言候选、回执复用、
 迟到/拒绝/预算终态和精确版本投影。`model-live-proof.ts group` 沿用固定验收 scope，
-不增加新额度。公开 Native bootstrap/Settings 激活、领域规则和产品读取仍待实现。
+不增加新额度。Native bootstrap、领域规则和产品读取入口见以下各项。
 领域规则为 `services/hot/src/channel-rules.ts`、migration 12 与 `channels.example.json`；
 同一 worker heartbeat 有界轮询并持久保存评分依据、覆盖状态、独立运营主体和时点。
 `channel-rules.test.ts` / `.integration.ts` 覆盖旧文/未知时间不增热、官方低热度重要政策、
 来源变更/旧历史及人工评分优先。真实样本入口 `scripts/channel-live-proof.ts` 不调用模型；
-公开频道配置、读写 RPC/CLI/UI 和真正的研究交接仍待装配。
+公开频道配置、读写 RPC/CLI/UI 和研究交接均复用此领域合同。
 内部签名事件/频道 RPC 在 `services/hot/src/projections.ts`、`channel-control.ts` 与
 `service.ts`，migration 13 保存频道条件配置审计。`event-rpc.integration.ts` 通过真实
 service/PG/scoped roles 验证历史投影、固定 cutoff 分页、字面筛选、继承评分、权限和UUID重放。
-这些读取不调度或调用模型；Python CLI/Host/UI 入口、会话跟踪与研究交接仍待实现。
+这些读取不调度或调用模型；Python CLI/Host/UI、关注与研究交接使用此签名接口。
 Native CLI projections/control 在 `hot.py` / `hot_manager.py`，新命令为 channels/events/event/
 channel-configure/event-correct；Python stdlib 测试验证参数映射、读写key分离、回执/输入门
 与outcome_unknown UUID保留。event-rpc integration 中真实 Python dispatch/owned Node/PG
 往返隔离凭据backend和解释器选择，并验证父进程消失后的独立回收；不是系统Keychain证明。
-Web Host/UI、正式模型激活与研究快照交接仍待实现。
+Web Host/UI、正式模型激活与研究快照交接由下列模块连接。
 Hot Host为 `app/research_web/hot_service.py` / `hot_routes.py`，前端为 `ui/hot-workspace.mjs`；
 main挂载惰性有界桥，core/app/shell/settings保留既有路由并新增工作区/设置。对应std测试
 `test_hot_web.py`与`research_web_hot.test.mjs`验证关闭竞态、超时容量、明确动作、UUID重试、
@@ -250,7 +258,7 @@ overlay装配；private hot-model HTTP路由经HotWebService/HotManager转入签
 签名大帧/归属见test_hot_model_bridge.py；真实SDK离线SSE见native-research-stream.integration.mjs。
 `model-budget.ts` 的事务内dispatch helper与run/价目校验共享owner fence。标准流usage由服务计算
 费用并保存完整回放；transport只为回执/缓存开放有界大帧。测试为research-model-rpc/transport
-单元及research-evidence真实PG/RPC。DSH流消费者及正式研究执行仍待装配。
+单元及research-evidence真实PG/RPC。正式研究执行复用hot_handoff与已有DSH send。
 
 Hot 模型管理由 hot_model_controls.py / scripts/model-control.ts 连接 model-control.ts；0014-model-controls.sql 添加不可变审计和状态保护。model-control.integration.ts 覆盖普通角色拒绝、活动归属拒绝迁移、迟到回执和真实三条 CLI；test_hot_model_controls.py 覆盖 pre-key、UUID、记录失败与冷库恢复。
 
@@ -260,19 +268,20 @@ browser-dataset-proof.ts 是有界真实事件读取验收准备/恢复脚本：
 
 Hot简报冻结核心为 `services/hot/src/briefs.ts`，验收为 `briefs.test.ts` 和
 `briefs.integration.ts`；同一只读事务冻结全部关联版本、频道配置、原判断与覆盖依据，
-校验规范JSON哈希并导出安全Markdown。当前不创建持久简报记录或研究会话；公开入口、
-DOCX、原文研究副本与调度映射仍待实现。合同见 `services/hot/README.md` 简报小节。
+校验规范JSON哈希并导出安全Markdown。该内核只负责冻结；持久记录、公开入口、
+DOCX、原文副本和调度映射由下列适配负责。合同见 `services/hot/README.md` 简报小节。
 
-持久简报为 `services/hot/src/brief-control.ts` / migration15，service签名接口brief.create/get/list；controller条件版本发布与UUID重放，读取复验冻结哈希。`event-rpc.integration.ts`真实Node/PG验证旧版保持、重启重放、权限与不可变性。公开Host/UI/CLI、DOCX及调度研究映射仍待接入。
+持久简报为 `services/hot/src/brief-control.ts` / migration15，service签名接口brief.create/get/list；controller条件版本发布与UUID重放，读取复验冻结哈希。`event-rpc.integration.ts`真实Node/PG验证旧版保持、重启重放、权限与不可变性。公开Host/UI/CLI、DOCX及调度研究映射复用固定版本。
 
-Hot简报Host为hot_routes/hot_service与HotManager，网页core/hot-workspace新增briefs视图和详情显式生成；brief.export按32KiB UTF8分块，Host固定版本并校验完整哈希。相关test_hot_manager/test_hot_web、research_web_hot与event-rpc integration覆盖只读权限、未知UUID、晚到预览和真实HTTP→Node/PG。完整浏览器旅程与DOCX仍待验收。
+Hot简报Host为hot_routes/hot_service与HotManager，网页core/hot-workspace新增briefs视图和详情显式生成；brief.export按32KiB UTF8分块，Host固定版本并校验完整哈希。相关test_hot_manager/test_hot_web、research_web_hot与event-rpc integration覆盖只读权限、未知UUID、晚到预览和真实HTTP→Node/PG。浏览器/MD-DOCX真实验收另存任务报告。
 
-浏览器简报验收使用原hot_acceptance_model schema15，保存真实AI/宏观两份version1简报并从浏览器下载；browser-dataset-proof.ts使用独立proofId写一次基线，恢复失败也独立禁用已绑定临时角色，失败/权限清理状态分开记录。真实Keychain生命周期、DOCX与研究仍待验收。
+早期浏览器简报验收使用原hot_acceptance_model schema15，保存真实AI/宏观两份version1简报并从浏览器下载；browser-dataset-proof.ts使用独立proofId写一次基线，恢复失败也独立禁用已绑定临时角色，失败/权限清理状态分开记录。当前schema20，真实Keychain/DSH报告及联合恢复的后续证据不由该旧证明替代。
 
 Hot token限额修订为migration18/model-control.ts `amend-tokens`及Native
 `model-amend-tokens`，仅停机migration-owner增加已有scope的两个token列并保留原费用审计。
 冻结Hot快照的脚本准入在Snapshots.admit_hot_script与ResearchService.native_admission；
 既有capability准入后验证本会话Hot归属和所有原件哈希，仅返回该dataset只读目录。
-真实研究5次回执已保存但100k预留上限导致未产出报告；读资料的Seatbelt验收不等于报告完成。
+初期研究曾因预留上限无报告；后续已生成并核验真实报告，执行最终因预算终止。
+hot_results分别显示执行failed与交付completed；读资料的Seatbelt验收不等于报告完成。
 
-Hot研究结果读取/原回合核对为hot_results.py与hot_routes，测试test_hot_results/test_delivery及research_web_hot；Delivery.refresh新增可选不可变key，旧调用默认保持。
+Hot研究结果读取/原回合核对为hot_results.py与hot_routes，测试test_hot_results/test_delivery及research_web_hot；Delivery.refresh新增可选不可变key，旧调用默认保持。结果按Delivery原合同完整流式SHA核验，100文件/每文件16MiB，超限明确不可核验，不以展示截断写入failed。

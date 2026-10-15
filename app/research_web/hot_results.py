@@ -25,22 +25,27 @@ def artifacts(service, sid, key=None):
     recorded = {item["id"]: item for item in delivery.get("files", []) if item.get("valid") is True}
     files = []
     # Recheck current bytes; a saved successful receipt cannot certify later edits.
-    total = 0
     for item in service.store.files(sid):
         extension = Path(item["name"]).suffix.lower().lstrip(".")
         if item["kind"] != "outputs" or extension not in {"md", "docx"}:
             continue
         if key and item["id"] not in recorded:
             continue
-        if len(files) >= 5 or item["size"] + total > 16 * 1024 * 1024:
-            break
+        if len(files) >= 100 or item["size"] > 16 * 1024 * 1024:
+            log.warning("hot_result_verification_limit")
+            raise StoreError("报告核验超过每文件 16 MiB 或 100 个文件上限")
         stream, _ = service.store.open_file(sid, item["id"])
+        digest = hashlib.sha256()
+        size = 0
         with stream:
-            raw = stream.read(min(16 * 1024 * 1024 - total, item["size"]) + 1)
-        if len(raw) != item["size"]:
+            while chunk := stream.read(64 * 1024):
+                size += len(chunk)
+                if size > 16 * 1024 * 1024:
+                    raise StoreError("报告超过每文件 16 MiB 上限")
+                digest.update(chunk)
+        if size != item["size"]:
             raise StoreError("报告大小已变化")
-        total += len(raw)
-        item = {**item, "format": extension, "sha256": hashlib.sha256(raw).hexdigest()}
+        item = {**item, "format": extension, "sha256": digest.hexdigest()}
         saved = recorded.get(item["id"])
         verified = bool(saved and saved.get("sha256") == item.get("sha256"))
         files.append({name: item[name] for name in ("id", "name", "format", "sha256", "url", "size")})

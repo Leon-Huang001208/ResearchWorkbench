@@ -503,6 +503,8 @@ public inputs完整写入并fsync后，private快照UUID目录才作为目录提
 
 Hot报告固定绑定PG deliveryKey，核对读取原RWB_HOT_EXECUTION回合，不使用会话后续任务的交付或终态。当前文件SHA须在完成状态条件提交前核验；pending通过原严格沙箱校验，未核对不能判失败。Word由已校验MD确定性转换并复验来源hash。
 
+当前报告核验沿用Delivery的最多100文件、每文件16MiB合同，64KiB分块哈希；不按5文件或累计16MiB截断后推导失败。联合归档的选定会话metadata计入64MiB展开总量，最终ZIP也须在同上限内才签成功manifest。PG inventory直接保存规范JSONB文本的哈希，encoding为postgres-jsonb-text-v1；旧JS数值inventory存在不可逆碰撞，旧档保留但自动恢复拒绝认证，要求从原库用新版重新备份，不能仅重签旧manifest。
+
 ReportLab 初始化需读取当前目录；PDF helper 在已授权输出目录初始化，再恢复工作目录，未增加沙箱目录授权。底稿 JSON 在三份唯一产物生成并重开后以临时文件替换发布；质量还要求独立交付验证哈希一致。
 
 ## 历史子会话模式兼容 · 2026-10-13

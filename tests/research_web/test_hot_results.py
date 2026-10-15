@@ -10,7 +10,7 @@ from uuid import uuid4
 
 from app.research_web.store import Store, StoreError
 from app.research_web.delivery import Delivery
-from app.research_web.hot_results import research_results, refresh_research_result
+from app.research_web.hot_results import artifacts, research_results, refresh_research_result
 from app.research_web.hot_service import HotWebError
 
 class HotResultsTests(unittest.IsolatedAsyncioTestCase):
@@ -50,6 +50,29 @@ class HotResultsTests(unittest.IsolatedAsyncioTestCase):
         row=(await research_results(self.service,self.hot))['items'][0]
         self.assertEqual(row['deliveryState'],'available')
         self.assertTrue(row['artifacts'][0]['changed'])
+
+    async def test_valid_reports_over_aggregate_display_limit_remain_completed(self):
+        self.path.write_bytes(b'x' * (12 * 1024 * 1024))
+        docx = self.path.with_suffix('.docx')
+        docx.write_bytes(b'y' * (8 * 1024 * 1024))
+        delivery = self.service.delivery.current(self.row['id'])
+        delivery.update(required_formats=['md', 'docx'], files=[
+            {**item, 'valid': True, 'sha256': hashlib.sha256(
+                (self.service.store.directory(self.row['id']) / 'outputs' / item['name']).read_bytes()).hexdigest()}
+            for item in self.service.store.files(self.row['id']) if item['kind'] == 'outputs'])
+        self.assertEqual(artifacts(self.service, self.row['id'], self.key)['deliveryState'], 'completed')
+
+    async def test_sixth_saved_file_can_satisfy_required_format(self):
+        self.path.unlink()
+        for i in range(5):
+            (self.path.parent / f'{i}.md').write_text('small markdown')
+        (self.path.parent / 'z.docx').write_bytes(b'prevalidated receipt fixture')
+        delivery = self.service.delivery.current(self.row['id'])
+        delivery.update(required_formats=['md', 'docx'], files=[
+            {**item, 'valid': True, 'sha256': hashlib.sha256(
+                (self.path.parent / item['name']).read_bytes()).hexdigest()}
+            for item in self.service.store.files(self.row['id']) if item['kind'] == 'outputs'])
+        self.assertEqual(artifacts(self.service, self.row['id'], self.key)['deliveryState'], 'completed')
     async def test_foreign_pg_mapping_not_shown_as_owned_execution(self):
         self.hot.call.return_value={**self.run,'instanceId':str(uuid4())}
         row=(await research_results(self.service,self.hot))['items'][0]

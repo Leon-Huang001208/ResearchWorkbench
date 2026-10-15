@@ -1,5 +1,8 @@
 # 研究框架
 
+周期简报的站内Word报告复用既有报告投影，不激活Gold/Dollar框架或DSH研究preset，
+不将报告生成当作新增领域数据可调用。用户继续研究仍走原框架准入与冻结证据合同。
+
 当前内置 framework-research 缺少可验证的 DataHub data_requirements 时，显式验证保持
 capability_data_unavailable（readiness 中 data_contract_missing），不提交原生 prompt。
 解释 preset 不替代验证准入。两条成功链的离线回归使用正规发布的合成 web-only v2，

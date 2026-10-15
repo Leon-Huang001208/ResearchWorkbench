@@ -23,14 +23,16 @@ import {readFollows,configureFollow} from './follows.ts';
 import {periodicPlans,periodicRuns,configurePeriodicPlan,schedulePeriodicBriefs,periodicBriefHandler} from './periodic-briefs.ts';
 import {correctEvent,type Correction} from './events.ts';
 import {loadNativeModel,type NativeModelBootstrap,type ModelCapability} from './native-model.ts';
+import {periodicReportRenderer,periodicReportChunk,type PeriodicReportRenderer} from './periodic-report.ts';
 
 export interface ServiceBootstrap {
   config: unknown; port?: number; instanceId: string; mode: 'native' | 'docker';
   workerPassword: string; controllerUser: string; controllerPassword: string;
   controllerToken: string; readerToken: string;
   nativeModel?:NativeModelBootstrap;
+  reportPython?:string;
 }
-export async function startService(input: ServiceBootstrap,capabilities:{groupingModel?:GroupingModel}={}) {
+export async function startService(input: ServiceBootstrap,capabilities:{groupingModel?:GroupingModel;periodicReport?:PeriodicReportRenderer}={}) {
   assertNodeRuntime();
   const config = parseConfig(input.config);
   if (!config.enabled) throw Error('hot_disabled');
@@ -125,6 +127,7 @@ export async function startService(input: ServiceBootstrap,capabilities:{groupin
       ['follow.list',{permission:'read',run:params=>readFollows(reader,config.database.schema,params)}],
       ['periodic.list',{permission:'read',run:params=>periodicPlans(reader,config.database.schema,params)}],
       ['periodic.runs',{permission:'read',run:params=>periodicRuns(reader,config.database.schema,params)}],
+      ['periodic.report',{permission:'read',run:params=>periodicReportChunk(reader,config.database.schema,params)}],
       ['periodic.configure',{permission:'control',run:(params,id,signal)=>{
         signal.throwIfAborted();return configurePeriodicPlan(controller,config.database.schema,current,id,params);
       }}],
@@ -169,7 +172,8 @@ export async function startService(input: ServiceBootstrap,capabilities:{groupin
     workerTask=runWorker({db,controllerDb:controller,boss:queue,schema:config.database.schema,owner:current,config,
       processingPriority:processingPriority(current,config.model.materialIds),
       handlers:{...collectionHandlers(db,queue,config.database.schema,current,config,fetch,sourceControllers),
-        'hot.brief':periodicBriefHandler(controller,config.database.schema,current),
+        'hot.brief':periodicBriefHandler(controller,config.database.schema,current,
+          capabilities.periodicReport??(input.reportPython?periodicReportRenderer(input.reportPython):undefined)),
         ...(groupingModel?{'hot.process':processingHandler(db,config.database.schema,current,groupingModel)}:{})},signal:workerStop.signal,
       heartbeat:async()=>{
         await heartbeatRuntime(controller,config.database.schema,current,input.controllerToken);

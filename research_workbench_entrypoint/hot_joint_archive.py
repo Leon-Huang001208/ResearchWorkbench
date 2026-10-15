@@ -80,12 +80,18 @@ def backup_research(home, archive, session_ids, token):
         if len(metadata)>700000:
             raise HotError('hot_joint_archive_limit')
         content['session-data.json'] = metadata
+        if sum(map(len, content.values())) > LIMIT:
+            log.warning('hot_joint_archive_payload_limit')
+            raise HotError('hot_joint_archive_limit')
         target = archive/'research.zip'
         with target.open('xb') as raw:
             os.chmod(target,0o600)
             with zipfile.ZipFile(raw,'w',zipfile.ZIP_DEFLATED) as package:
                 for name,data in content.items():
                     package.writestr(name,data)
+        if target.stat().st_size > LIMIT:
+            log.warning('hot_joint_archive_zip_limit')
+            raise HotError('hot_joint_archive_limit')
         body = {'version':1,'scope':'selected_research_snapshots','sessionIds':ids,
                 'postgresManifestSha256':hashlib.sha256((archive/'manifest.json').read_bytes()).hexdigest(),
                 'archiveSha256':hashlib.sha256(target.read_bytes()).hexdigest(),

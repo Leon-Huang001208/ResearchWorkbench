@@ -41,7 +41,7 @@ export async function runWorker(options: WorkerOptions): Promise<void> {
       let progressed = false;
       for (const name of names) {
         if (signal.aborted) break;
-        const state = await processOne(options.boss, options.db, options.schema, options.owner, name,
+        const state = await processOne(options.boss, name==='hot.brief'?options.controllerDb:options.db, options.schema, options.owner, name,
           options.handlers[name]!, workerId, options.config.worker.leaseSeconds, signal,name==='hot.process'?options.processingPriority:undefined);
         progressed ||= state !== 'idle';
       }

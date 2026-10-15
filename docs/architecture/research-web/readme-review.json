@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "updated",
-  "summary": "保留Gold未接入配置数据修复，并融合Hot研究情报。",
-  "reason": "主线无来源的Gold配置仍显示未接入；Hot回执/原件/预算和当前验收边界保持，旧CI/镜像不认证新候选。"
+  "summary": "研究情报恢复精度、报告完整核验与周期一次性报告合同同步。",
+  "reason": "公开安装入口保持；schema21需停机setup，Hot唯一调度复用无模型Word投影，旧归档需原库重备份。最新候选重做恢复、Docker、Mac CI，不增加模型预算或删除旧卷/镜像。"
 }

@@ -614,7 +614,8 @@
         "app/research_web/hot_documents.py",
         "app/research_web/hot_handoff.py",
         "app/research_web/hot_results.py",
-        "research_workbench_entrypoint/hot_joint_archive.py"
+        "research_workbench_entrypoint/hot_joint_archive.py",
+        "app/research_web/hot_periodic_report.py"
       ],
       "documents": [
         "services/hot/README.md",
@@ -3408,6 +3409,13 @@
       "source": "app/research_web/automation/routes.py",
       "declaredPath": "/automations/hot-brief-plans/configure",
       "prefix": "/api/research"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/hot/periodic/runs/{run_id}/report",
+      "source": "app/research_web/hot_routes.py",
+      "declaredPath": "/periodic/runs/{run_id}/report",
+      "prefix": "/api/research/hot"
     }
   ],
   "visualReview": "docs/architecture/research-web/visual-review.json",
