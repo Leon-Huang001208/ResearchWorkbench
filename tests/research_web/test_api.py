@@ -746,6 +746,90 @@ def test_cross_origin_and_invalid_credentials_do_not_leak_input(api):
     assert "secret-canary" not in response.text
 
 
+def test_tailscale_origin_is_opt_in_and_exact(monkeypatch):
+    origin = "https://research.tail123abc.ts.net"
+    monkeypatch.delenv("RESEARCH_WEB_PRIVATE_ORIGIN", raising=False)
+    assert TestClient(create_app(), base_url=origin).get("/").status_code == 400
+    monkeypatch.setenv("RESEARCH_WEB_PRIVATE_ORIGIN", origin)
+    # No lifespan: these static and rejection checks must not start a runtime.
+    client = TestClient(create_app(), base_url=origin)
+    assert client.get("/").status_code == 200
+    assert client.get("/", headers={"Origin": origin}).status_code == 200
+    for host in ("other.tail123abc.ts.net", "research.tail123abc.ts.net.evil.test"):
+        assert client.get("/", headers={"Host": host}).status_code == 400
+    for foreign in ("https://evil.test", "http://localhost", "null"):
+        assert (
+            client.post("/api/research/sessions", json={}, headers={"Origin": foreign}).status_code
+            == 403
+        )
+    assert (
+        client.get("/", headers={"Origin": origin, "Sec-Fetch-Site": "cross-site"}).status_code
+        == 403
+    )
+    assert (
+        client.get(
+            "/", headers={"Host": "evil.test", "X-Forwarded-Host": "research.tail123abc.ts.net"}
+        ).status_code
+        == 400
+    )
+    assert client.get("/", headers={"Host": "research.tail123abc.ts.net:444"}).status_code == 400
+    assert (
+        client.get(
+            "/", headers={"Host": "research.tail123abc.ts.net:443", "Origin": origin}
+        ).status_code
+        == 200
+    )
+    assert client.get("/", headers={"Host": "localhost", "Origin": origin}).status_code == 403
+    assert (
+        client.get("/", headers={"Host": "localhost", "Origin": "https://localhost"}).status_code
+        == 200
+    )
+    assert client.get("/", headers={"Origin": origin}, follow_redirects=False).status_code == 200
+    assert (
+        TestClient(create_app(), base_url="http://research.tail123abc.ts.net").get("/").status_code
+        == 400
+    )
+
+
+@pytest.mark.parametrize(
+    "origin",
+    [
+        "*",
+        "https://*.ts.net",
+        "http://research.tail123abc.ts.net",
+        "https://evil.test",
+        "https://research.tail123abc.ts.net/",
+        "https://research.tail123abc.ts.net:443",
+        "https://user@research.tail123abc.ts.net",
+        "https://research.tail123abc.ts.net?token=secret-canary",
+        " https://research.tail123abc.ts.net",
+    ],
+)
+def test_invalid_private_origin_fails_closed(monkeypatch, origin):
+    monkeypatch.setenv("RESEARCH_WEB_PRIVATE_ORIGIN", origin)
+    with pytest.raises(ValueError, match="private_origin_invalid") as error:
+        create_app()
+    assert "secret-canary" not in str(error.value)
+
+
+def test_tailscale_same_origin_api_and_local_runtime_still_work(tmp_path, monkeypatch):
+    origin = "https://research.tail123abc.ts.net"
+    monkeypatch.setenv("RESEARCH_WEB_PRIVATE_ORIGIN", origin)
+    native = NativeFixture()
+    service = ResearchService(native, Store(tmp_path))
+    with TestClient(create_app(service), base_url=origin) as client:
+        service.connected = {"mux", "host"}
+        created = client.post("/api/research/sessions", json={}, headers={"Origin": origin})
+        assert created.status_code == 201
+        runtime = client.get("/api/research/runtime").json()
+        assert runtime["web_access"] == {"mode": "tailscale", "origin": origin}
+        assert client.get("http://127.0.0.1:8088/api/research/runtime").status_code == 200
+        denied = client.post(
+            "/api/research/sessions", json={}, headers={"Origin": "https://evil.test"}
+        )
+        assert denied.status_code == 403
+
+
 def test_no_dsh_connection_no_fake_success(api):
     client, _, service = api
     sid = client.post("/api/research/sessions", json={}).json()["id"]

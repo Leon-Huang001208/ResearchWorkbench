@@ -196,6 +196,21 @@ class ModelConfig(BaseModel):
 
 
 def create_app(service: ResearchService | None = None) -> FastAPI:
+    # Operator opt-in for one authenticated Tailscale Serve HTTPS origin only.
+    # Never derive trust from Host, X-Forwarded-Host, or a wildcard suffix.
+    private_origin = os.environ.get("RESEARCH_WEB_PRIVATE_ORIGIN", "")
+    if private_origin and not re.fullmatch(
+        r"https://[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.tail[a-z0-9]+\.ts\.net",
+        private_origin,
+    ):
+        log.error("research_web_private_origin_invalid")
+        raise ValueError("private_origin_invalid")
+    private_host = urlsplit(private_origin).hostname if private_origin else None
+    access = {
+        "mode": "tailscale" if private_origin else "loopback",
+        "origin": private_origin or None,
+    }
+
     @asynccontextmanager
     async def lifespan(app):
         setup_logging()
@@ -209,7 +224,9 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
         app.state.research = active
         app.state.hot = HotWebService(Path(__file__).resolve().parents[2], active.store.root)
         await active.start()
-        log.info("research_web_started", engine="dsh", legacy_services=False)
+        log.info(
+            "research_web_started", engine="dsh", legacy_services=False, web_access=access["mode"]
+        )
         try:
             yield
         finally:
@@ -241,7 +258,9 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
     # runtime owns overlapping /report-runs paths.
     app.include_router(report_router)
     app.add_middleware(
-        TrustedHostMiddleware, allowed_hosts=["127.0.0.1", "localhost", "[::1]", "testserver"]
+        TrustedHostMiddleware,
+        allowed_hosts=["127.0.0.1", "localhost", "[::1]", "testserver"]
+        + ([private_host] if private_host else []),
     )
 
     @app.middleware("http")
@@ -257,7 +276,15 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
             )
         # Loopback app, no CORS. Stop drive-by requests / opaque sandbox origins.
         origin = request.headers.get("origin")
-        own = f"{request.url.scheme}://{request.headers.get('host', '')}"
+        host = request.headers.get("host", "")
+        remote_host = private_host and host.split(":", 1)[0].casefold() == private_host
+        if remote_host and (
+            host.casefold() not in {private_host, f"{private_host}:443"}
+            or request.url.scheme != "https"
+        ):
+            log.warning("research_web_private_transport_denied")
+            return JSONResponse({"error": {"code": "private_transport_denied"}}, status_code=400)
+        own = private_origin if remote_host else f"{request.url.scheme}://{host}"
         documentation_path = request.url.path in {
             f"/api/research/documentation/{name}" for name in DOCUMENT_NAMES
         }
@@ -390,7 +417,7 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
 
     @app.get("/api/research/runtime")
     async def runtime(request: Request):
-        return await svc(request).runtime()
+        return {**await svc(request).runtime(), "web_access": access}
 
     @app.get("/api/research/models")
     async def models(request: Request):

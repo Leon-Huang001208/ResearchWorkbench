@@ -184,6 +184,39 @@ def test_native_doctor_adds_mode_without_changing_previous_payload(manager, monk
     assert all(report[key] == previous[key] for key in ("python", "node", "cjpy", "dsh", "data"))
 
 
+@pytest.mark.parametrize(
+    "access, expected",
+    [
+        ({"mode": "loopback", "origin": None}, {"mode": "loopback", "origin": None}),
+        (
+            {"mode": "tailscale", "origin": "https://research.tail123abc.ts.net"},
+            {"mode": "tailscale", "origin": "https://research.tail123abc.ts.net"},
+        ),
+        (
+            {"mode": "tailscale", "origin": "https://user:secret-canary@evil.test"},
+            {"mode": "unknown", "origin": None},
+        ),
+        (None, {"mode": "unknown", "origin": None}),
+    ],
+)
+def test_doctor_web_access_reads_actual_running_configuration(
+    manager, monkeypatch, access, expected
+):
+    monkeypatch.setenv("RESEARCH_WEB_PRIVATE_ORIGIN", "https://cli.tail123abc.ts.net")
+    assert manager._web_access_diagnosis({"web_access": access}) == expected
+
+
+def test_doctor_web_access_unavailable_is_unknown(manager, monkeypatch):
+    monkeypatch.setattr(manager, "_installation_diagnosis", lambda: {"ok": True, "issues": []})
+    monkeypatch.setattr(manager, "_service_probes", lambda: ())
+    monkeypatch.setattr(manager, "_model_diagnosis", lambda: (False, ()))
+    manager._diagnostic_web_access = {
+        "mode": "tailscale",
+        "origin": "https://old.tail123abc.ts.net",
+    }
+    assert manager.doctor()["web_access"] == {"mode": "unknown", "origin": None}
+
+
 def test_native_logs_tail_and_secret_line_redaction(manager, monkeypatch):
     output_stream = io.StringIO()
     monkeypatch.setattr(sys, "stdout", output_stream)
