@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "unchanged",
-  "summary": "本轮仅将资源归档、20GiB总缓存预算与安全清理接入既有工程交付流程，用户研究功能与产品入口保持兼容。",
-  "reason": "无产品API、新运行服务或依赖变化；维护规则已写入AGENTS、任务工作流和Docker手册，README现有产品说明无需改动。"
+  "disposition": "updated",
+  "summary": "Native新增显式精确Tailscale私网HTTPS origin配置与运行中访问模式诊断。",
+  "reason": "README链接安装指南，说明默认回环及私网边界；依赖与公开安装入口不变，Host/Origin安全和Doctor/API文档同步。"
 }
