@@ -1,5 +1,9 @@
 # Research Web 接口清单
 
+FinGPT 的既有 sessions/messages API 可携带 research_mode=quick|deep|agent，旧 research_depth=instant|deep 保持兼容。messages 另接受可选 research_requirements（最多30项，每项4000字符）和 research_as_of（ISO日期）；后续用户要求累积保留。详情新增 research_quality、execution_status、research_accepted 与 research_report_versions，原生状态语义保留。
+
+POST /api/research/internal/data/research-quality 仅接受可信插件私有认证，严格 JSON 为 {session_id,operation:"check"}。调用方不能写通过状态、补查次数或合同；返回状态、缺口和一次补查许可，同任务同报告重放不重复授权。浏览器 GET 不执行补查或模型请求；当前报告完整性无效时输出下载/预览返回409，输入附件仍可读。
+
 正文搜索使用固定 DSH `7ecf564f2e09b829240c5553687223bdd1e2df73` 的显式部分搜索接口：Host 将 RWB 已创建、未删除且符合当前模式的 ID 范围传给原生层，再与原生列表可见范围取交集。响应必须包含完整范围内的 `unavailableSessionCount`；Web 返回 `unavailable_count` 并在零命中时仍提示部分历史未搜索。旧格式源记录保持不变，不授予恢复执行；I/O、损坏及取消仍失败。未升级的旧接口缺少覆盖信息时明确报错，不假称搜索完整。
 
 `GET /api/research/resident` 返回运行中 Host 的 `enabled`、启动时绑定的 `revision`（完整 SHA 或 null）、

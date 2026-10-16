@@ -7,6 +7,7 @@ import re
 from datetime import date
 from urllib.parse import urlsplit
 
+from .research_quality import assess_quality
 from .resources.research_report import source_id, validate_payload
 from .store import StoreError
 
@@ -82,13 +83,35 @@ def evidence_index(files, datasets, activities):
     return list(sources.values())[:300]
 
 
-def report_projection(store, sid, files, sources, task_id, delivery=None):
+def report_projection(
+    store, sid, files, sources, task_id, delivery=None, contract=None, observations=None
+):
     candidates = [
         f for f in files if f.get("kind") == "outputs" and f.get("name") == "research-report.json"
     ]
     if not candidates:
+        if contract is not None:
+            assessment = assess_quality(contract, None, sources, observations)
+            return {
+                "quality": assessment["status"],
+                "issues": assessment["issues"],
+                "assessment": assessment,
+                "file_state": "missing",
+            }
         return None
     if len(candidates) != 1:
+        if contract is not None:
+            assessment = {
+                "status": "invalid",
+                "issues": ["report_identity_ambiguous"],
+                "coverage": [],
+            }
+            return {
+                "quality": "invalid",
+                "issues": assessment["issues"],
+                "assessment": assessment,
+                "file_state": "invalid",
+            }
         return {"quality": "invalid", "issues": ["report_identity_ambiguous"]}
     try:
         stream, _ = store.open_file(sid, candidates[0]["id"])
@@ -98,6 +121,16 @@ def report_projection(store, sid, files, sources, task_id, delivery=None):
             raise ValueError("report_size")
         payload = validate_payload(json.loads(raw))
         if not task_id or payload["task_id"] != task_id:
+            if contract is not None:
+                assessment = assess_quality(contract, None, sources, observations)
+                assessment["issues"].append("previous_task_report")
+                return {
+                    "quality": assessment["status"],
+                    "issues": assessment["issues"],
+                    "assessment": assessment,
+                    "file_state": "missing",
+                    "prior_task_id": payload["task_id"],
+                }
             return {"quality": "stale", "issues": ["report_task_mismatch"]}
         known = {s["id"]: s for s in sources}
         issues = list(payload.get("missing", []))
@@ -192,6 +225,38 @@ def report_projection(store, sid, files, sources, task_id, delivery=None):
                 except ValueError:
                     issues.append("source_date_unknown:" + source["id"])
         log.info("research_report_projected issues=%d", len(issues))
+        if contract is not None:
+            assessment = assess_quality(contract, payload, sources, observations)
+            # Byte corruption and identity conflicts cannot become an ordinary
+            # missing-evidence partial delivery. Missing files remain gaps.
+            integrity = [
+                issue
+                for issue in issues
+                if issue.startswith(
+                    (
+                        "report_artifact_changed:",
+                        "report_artifact_formats_invalid",
+                        "report_artifact_invalid",
+                    )
+                )
+            ]
+            delivery_issues = [issue for issue in issues if issue.startswith("report_artifact")]
+            assessment["issues"] = list(dict.fromkeys(assessment["issues"] + delivery_issues))
+            if integrity:
+                assessment["status"] = "invalid"
+            elif delivery_issues and assessment["status"] == "passed":
+                assessment["status"] = "incomplete"
+            return {
+                **payload,
+                "quality": assessment["status"],
+                "issues": assessment["issues"],
+                "assessment": assessment,
+                "coverage_scope": assessment.get("coverage_scope"),
+                "file_state": (
+                    "invalid" if integrity else "incomplete" if delivery_issues else "available"
+                ),
+                "file_id": candidates[0]["id"],
+            }
         return {
             **payload,
             "quality": "incomplete" if issues else "checked",
@@ -201,4 +266,12 @@ def report_projection(store, sid, files, sources, task_id, delivery=None):
         }
     except (OSError, ValueError, TypeError, KeyError, StoreError, RecursionError) as exc:
         log.warning("research_report_projection_invalid type=%s", type(exc).__name__)
+        if contract is not None:
+            assessment = {"status": "invalid", "issues": ["report_invalid"], "coverage": []}
+            return {
+                "quality": "invalid",
+                "issues": assessment["issues"],
+                "assessment": assessment,
+                "file_state": "invalid",
+            }
         return {"quality": "invalid", "issues": ["report_invalid"]}

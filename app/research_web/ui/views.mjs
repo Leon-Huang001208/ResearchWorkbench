@@ -138,7 +138,19 @@ export function renderConversation(detail, questionDrafts = new Map(), options =
   const questions = pendingQuestionEntries.filter(question=>!positionedQuestions.includes(question)).map(question=>question.html).join('');
   const anchoredCards = detail.mode === 'claw' ? extraEntries.filter(entry=>Number.isFinite(entry.seq) && typeof entry.html === 'string').map((entry,index)=>({...entry,kind:'decision',index:messageEntries.length + questionEntries.length + activityEntries.length + pendingQuestionEntries.length + index})) : [];
   const messages = detail.mode !== 'claw' ? researchMessages + questionEntries.map(entry => entry.html).join('') : renderClawFlow([...messageEntries, ...questionEntries, ...activityEntries, ...positionedQuestions, ...anchoredCards].sort((a,b) => a.seq - b.seq || a.index - b.index), detail);
-  return `${activities.length ? `<p class="muted small conversation-tool-summary">${e(activitySummary(activities))}</p>` : ''}${messages || empty('尚无消息', '输入问题，开始这个会话。所有回答和活动均来自 DSH。')}${unpositioned.length ? `<section class="conversation-activity"><p class="muted small">以下活动缺少原生事件位置，未推断其回答顺序。</p>${unpositioned.map(activity=>renderActivityCard(activity,detail.subagents || [],{compact:true})).join('')}</section>` : ''}${approvals}${questions}${detail.error ? `<div class="notice error" role="alert">${e(failureText(detail.error))}</div>` : ''}`;
+  const html = `${activities.length ? `<p class="muted small conversation-tool-summary">${e(activitySummary(activities))}</p>` : ''}${messages || empty('尚无消息', '输入问题，开始这个会话。所有回答和活动均来自 DSH。')}${unpositioned.length ? `<section class="conversation-activity"><p class="muted small">以下活动缺少原生事件位置，未推断其回答顺序。</p>${unpositioned.map(activity=>renderActivityCard(activity,detail.subagents || [],{compact:true})).join('')}</section>` : ''}${approvals}${questions}${detail.error ? `<div class="notice error" role="alert">${e(failureText(detail.error))}</div>` : ''}`;
+  return restrictInvalidReportLinks(html, detail);
+}
+
+function restrictInvalidReportLinks(html, detail) {
+  if (detail.research_quality?.status !== 'invalid' || !detail.id) return html;
+  const prefix = `/api/research/sessions/${encodeURIComponent(detail.id)}/files/`;
+  const outputs = new Set((detail.files || []).filter(file => file.kind === 'outputs').map(file => file.id));
+  return html.replace(/<a\b([^>]*)>([\s\S]*?)<\/a>/g, (link, attributes, text) => {
+    const url = attributes.match(/\bhref="([^"]*)"/)?.[1];
+    if (!url?.startsWith(prefix) || !outputs.has(url.slice(prefix.length).split(/[/?#]/)[0])) return link;
+    return `<span class="report-export-blocked">${text}（报告完整性未通过）</span>`;
+  });
 }
 
 export function activitySummary(activities = []) {
@@ -259,6 +271,7 @@ export function fileURL(value) {
 
 // Resolve model-authored relative links through the verified, current-session catalog only.
 function artifactLinkResolver(detail) {
+  if (detail.research_quality?.status === 'invalid') return () => null;
   const registered = Array.isArray(detail.files) ? detail.files : [];
   const delivery = Array.isArray(detail.delivery?.files) ? detail.delivery.files : [];
   const links = new Map();
@@ -284,14 +297,15 @@ export function formatSize(size) {
   return size < 1024 ? `${size} B` : size < 1048576 ? `${(size / 1024).toFixed(1)} KB` : `${(size / 1048576).toFixed(1)} MB`;
 }
 
-export function renderFiles(files = [], selected = null) {
+export function renderFiles(files = [], selected = null, { blockReportExports = false } = {}) {
+  const blocked = file => blockReportExports && file?.kind === 'outputs';
   const current = files.find((file) => file.id === selected);
   const rows = files.map((file) => {
-    const url = fileURL(file.url); const preview = fileURL(file.preview_url);
-    const office = /\.(docx|xlsx|pptx)$/i.test(file.name) && /^[0-9a-f]{24}$/.test(file.id || '');
-    return `<div class="file-card"><div class="file-icon" aria-hidden="true">▤</div><div class="file-info"><strong>${e(file.name)}</strong><small>${e(formatSize(file.size))}</small><div class="file-actions">${preview ? `<button data-preview="${e(file.id)}" class="text-button">预览</button>` : ''}${office ? `<button data-document-open="${e(file.id)}" class="text-button">读取与修改</button>` : ''}${url ? `<a href="${e(url)}" download="${e(file.name)}" class="text-button">下载</a>` : '<span class="muted small">文件链接不可用</span>'}</div></div></div>`;
+    const url = !blocked(file) && fileURL(file.url); const preview = !blocked(file) && fileURL(file.preview_url);
+    const office = !blocked(file) && /\.(docx|xlsx|pptx)$/i.test(file.name) && /^[0-9a-f]{24}$/.test(file.id || '');
+    return `<div class="file-card"><div class="file-icon" aria-hidden="true">▤</div><div class="file-info"><strong>${e(file.name)}</strong><small>${e(formatSize(file.size))}</small><div class="file-actions">${preview ? `<button data-preview="${e(file.id)}" class="text-button">预览</button>` : ''}${office ? `<button data-document-open="${e(file.id)}" class="text-button">读取与修改</button>` : ''}${url ? `<a href="${e(url)}" download="${e(file.name)}" class="text-button">下载</a>` : `<span class="muted small">${blocked(file) ? '报告完整性未通过，暂不可导出' : '文件链接不可用'}</span>`}</div></div></div>`;
   }).join('');
-  const previewURL = current && fileURL(current.preview_url);
+  const previewURL = current && !blocked(current) && fileURL(current.preview_url);
   const preview = previewURL ? `<section class="preview-panel"><div class="section-heading"><strong>${e(current.name)}</strong><button class="icon-button" data-close-preview aria-label="关闭文件预览">×</button></div><iframe title="${e(current.name)} 文件预览" src="${e(previewURL)}" sandbox="" referrerpolicy="no-referrer" loading="lazy"></iframe><p class="muted small">隔离预览：脚本、表单与外部导航已禁用。</p></section>` : '';
   return `<div class="button-row"><button type="button" data-document-create="docx" class="button small">新建 Word 文件</button><button type="button" data-document-create="xlsx" class="button small">新建 Excel 文件</button><button type="button" data-document-create="pptx" class="button small">新建 PowerPoint 文件</button></div>${rows || '<p class="muted small">尚无文件。上传附件或生成文档后，真实文件将显示于此。</p>'}${preview}`;
 }
