@@ -1,5 +1,17 @@
 # Research Web 接口清单
 
+AI资讯读取原站公开页面API，通过固定 `/api/research/aihot/pages/hot` 和
+`/api/research/aihot/reports/{kind}` 接入；kind只允许daily/weekly/monthly。
+报刊支持 `/latest-page`、`/{key}`、`/navigation/{key}`，日报另有 `/months/{month}`。
+原站分别为 `https://aihot.news/api/site/hot` 与 `/api/site/reports/...`。
+这些是页面级合同而非精简v1：保留真实期号、指标、看点、关联、封面、头像、热度和走势；
+来源改版/响应身份不匹配明确502，不以精简数据伪造完整页面。旧三个v1阅读路由仍兼容。
+日期/ISO周/月严格验证，404保持404；429/503保留秒数或HTTP-date等待期，超时504，
+重定向/格式/大小异常502。JSON解压后2MiB、总期限20秒、最多64份内存LRU、至少60秒TTL，
+过期带ETag复验；缓存命中不等待另一端点的网络锁。
+图片仅将已返回的固定img-proxy签名路径登记为不透明 `/media/{sha256}`，不接受用户URL；
+每次缓存读取重新登记映射。图片无凭据、不跟随重定向，最多4并发、总期限12秒、4MiB及栅格MIME白名单。
+
 正文搜索使用固定 DSH `7ecf564f2e09b829240c5553687223bdd1e2df73` 的显式部分搜索接口：Host 将 RWB 已创建、未删除且符合当前模式的 ID 范围传给原生层，再与原生列表可见范围取交集。响应必须包含完整范围内的 `unavailableSessionCount`；Web 返回 `unavailable_count` 并在零命中时仍提示部分历史未搜索。旧格式源记录保持不变，不授予恢复执行；I/O、损坏及取消仍失败。未升级的旧接口缺少覆盖信息时明确报错，不假称搜索完整。
 
 `GET /api/research/resident` 返回运行中 Host 的 `enabled`、启动时绑定的 `revision`（完整 SHA 或 null）、

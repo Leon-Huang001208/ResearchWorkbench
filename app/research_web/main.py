@@ -22,6 +22,8 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 from core.observability import get_logger, setup_logging
 from research_workbench_entrypoint.resident.admission import MaintenanceBusy, admission
 
+from .aihot_routes import AihotReader
+from .aihot_routes import router as aihot_router
 from .asset_routes import router as asset_router
 from .asset_workspace import AssetWorkspaceError
 from .automation.routes import router as automation_router
@@ -229,6 +231,7 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
             auto_probe_on_start=True,
         )
         app.state.research = active
+        app.state.aihot = AihotReader()
         app.state.hot = HotWebService(Path(__file__).resolve().parents[2], active.store.root)
         await active.start()
         log.info(
@@ -243,6 +246,7 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
                 await active.close()
 
     app = FastAPI(title="Research Workbench Research Web", lifespan=lifespan)
+    app.include_router(aihot_router)
     app.include_router(datahub_router)
     app.include_router(asset_router)
     app.include_router(intel_router)

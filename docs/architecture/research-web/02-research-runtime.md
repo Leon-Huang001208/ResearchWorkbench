@@ -1,5 +1,9 @@
 # 研究协议、执行状态与恢复
 
+AI 资讯的 AIHOT 只读请求不进入 DSH：它不创建会话、调用模型或触发 Hot worker。
+现有唯一研究引擎、凭据和研究任务生命周期保持；失败只影响该阅读模块。
+
+
 Host元数据专项升级通过显式 `resident upgrade-host-metadata` 入口执行；自动兼容清单与固定登录控制器artifact保持。专项只接受预期旧版02c086b16、PR122四个已审Host Git blob及同一受管Git源中的精确最新master。控制源必须干净且通过merged PR/独立评审/三CI实际tree核验；未知模块、依赖、Store或Host内容变化仍拒绝。既有bridge完成空闲栅栏、lifecycle lease、journal-before-stop、健康和回滚；成功后才记录baseline审核并刷新安装基线，不搬迁数据或凭据。
 
 Codex式提问卡只维护浏览器逐题草稿，最终仍经原生问题事件和既有answer通道提交整组答案。明确跳过使用原custom字段记录用户未提供答案，不改变工具/日程授权；收起不答复、不取消，待答问题仍阻止空闲部署。两模式项目与导航元数据不复制原生会话正文。
