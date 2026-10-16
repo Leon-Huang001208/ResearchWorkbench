@@ -59,10 +59,23 @@ test('revisiting the same article from a story returns to that story and restore
  const story={publicId:id,title:'事件',timeline:[],developments:[],officialReports:[],related:[],topics:[],heat:[],whyHot:{}};
  const controller=createAihotController({fetcher:async url=>({ok:true,json:async()=>url.includes('/stories/')?story:url.includes('/items/')?article:{report:null,index:[]}})});
  await controller.activate(parseRoute('#/aihot/daily'));
- controller.prepareLink();await controller.activate(parseRoute('#/aihot/item/abc'));
- controller.prepareLink();await controller.activate(parseRoute(`#/aihot/story/${id}`));controller.setStoryView({filter:'official'});
- controller.prepareLink();await controller.activate(parseRoute('#/aihot/item/abc'));
+ controller.prepareLink('#/aihot/item/abc');await controller.activate(parseRoute('#/aihot/item/abc'));
+ controller.prepareLink(`#/aihot/story/${id}`);await controller.activate(parseRoute(`#/aihot/story/${id}`));controller.setStoryView({filter:'official'});
+ controller.prepareLink('#/aihot/item/abc');await controller.activate(parseRoute('#/aihot/item/abc'));
  assert.equal(controller.state.backHash,`#/aihot/story/${id}`);
  const back=controller.back();await controller.activate(parseRoute(back));assert.equal(controller.state.filter,'official');
  assert.equal(controller.back(),'#/aihot/item/abc');
+});
+test('direct detail entry returns to a safe local landing page',async()=>{
+ const controller=createAihotController({fetcher:async()=>({ok:true,json:async()=>article})});
+ await controller.activate(parseRoute('#/aihot/item/abc'));assert.equal(controller.back(),'#/aihot/daily');
+ await controller.activate(parseRoute(`#/aihot/story/${id}`));assert.equal(controller.back(),'#/aihot/hot');
+});
+test('reselecting the current language cannot turn native Back into forward navigation',async()=>{
+ const controller=createAihotController({fetcher:async()=>({ok:true,json:async()=>article})});
+ await controller.activate(parseRoute('#/aihot/daily'));
+ controller.prepareLink('#/aihot/item/abc');await controller.activate(parseRoute('#/aihot/item/abc'));
+ controller.prepareLink('#/aihot/item/abc?lang=original');await controller.activate(parseRoute('#/aihot/item/abc?lang=original'));
+ controller.prepareLink('#/aihot/item/abc?lang=original');
+ await controller.activate(parseRoute('#/aihot/item/abc'));assert.equal(controller.state.backHash,'#/aihot/daily');
 });
