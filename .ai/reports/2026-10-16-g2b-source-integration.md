@@ -24,3 +24,16 @@ RED：4 failed/14 passed，复现DSH与Hot发布合同缺口。GREEN：23 passed
 Docker只读预算：VM8319238144 bytes，其他运行实例限额合计3724541952 bytes，所需builder5368709120 bytes，余量不足，当前新镜像/真实演练BLOCKED。没有创建容器、卷或镜像。Compose初次缺少显式安装路径变量，随后仅用合成临时路径完成config --quiet PASS；不使用现有实例数据。
 
 独立Python复核当前树无已证实P1/P2，最终commit绑定复核待源码提交。历史报告文件保留原内容，当前receipt不得复用其PASS。
+
+## 最终可执行本地结果
+
+源码候选580a7ea9823e13aa3e9499143fdb05e851b4ca7b，tree89c12ef8bd5e443c5309ef45adf317838f9be13e，独立Python复核无已证实P1/P2。最终报告检查点仅修改本文，不改变产品源码。
+
+- 13个Python模块完整收集765，762 PASS、3明确opt-in/platform SKIP，476.24秒；JUnit为logs/g2b-source-integration/python-closure.xml。跳过项：真实Keychain跨进程、owned固定DSH冷恢复、原生Linux私有stdio桥，不认证这些能力。
+- 该闭包启动后仅将release.py归档读取循环改为语义等价while以消除新增类型诊断；最终源码SHA另补跑全部发布/维护和相关API：31 PASS、201 deselected，13.06秒，final-sha-targeted.xml。未重复未改动的大套件，来源与定点补跑分别留证。
+- JavaScript治理与Docker合同129 PASS；完整changed-set项目约束、文档治理、生成API Atlas/索引通过。变更Python的Ruff/Black/isort通过；mypy 15项与master逐条相同，新增0，整体类型检查保持FAIL。无规则或测试削弱。
+- Compose使用合成临时路径只读校验PASS；sh -n通过。没有创建/启动/停止Docker资源，也没有连接PG或真实模型。
+
+源码本地集成完成；当前新镜像构建、stage及晋级/回退演练为BLOCKED（构建内存窗口不足）；CI、Native干净安装、真实DSH/Keychain与Windows/Linux分别NOT_RUN。整体mergeReady=false、releaseReady=false。Hot存在状态目录（包括停止/未知/alias）继续拒绝发布，未来Hot停写/回滚证明不在本次迁移或授权范围。
+
+当前任务不push、不更新/合并PR104，不改g2b-base或任何旧worktree、历史报告、五卷、镜像和封存制品；保留本任务本地分支/worktree以便后续资源窗口验收。正式Git绑定计划/回执保存在logs/g2b-source-integration/，不得把receipt结构有效误称产品通过。
