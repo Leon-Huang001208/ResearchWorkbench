@@ -2298,6 +2298,12 @@ root.addEventListener('click', async (event) => {
   }
   if (state.route.page === 'aihot') {
     root.querySelectorAll('.aihot-faces[open]').forEach(item => { if (!item.contains(event.target)) item.open = false; });
+    const readingAnchor=event.target.closest?.('.aihot-page a[href^="#/aihot/"]');
+    if(readingAnchor && !event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey && event.button===0) {
+      if(readingAnchor.hasAttribute('data-aihot-back')) { event.preventDefault();location.hash=aihotController.back(); }
+      else aihotController.prepareLink();
+      return;
+    }
     if (event.target.closest?.('[data-aihot-group]')) { await aihotController.loadGroup(); return; }
     const copyKind = event.target.closest?.('[data-aihot-copy]')?.dataset.aihotCopy;
     if (copyKind) { await aihotController.copy(copyKind); return; }

@@ -8,6 +8,7 @@ export function createAihotController({ fetcher = (...args) => fetch(...args), o
   const state = { tab: 'daily', kind: 'daily', date: '', editions: [], report: null, hot: null, loading: false, error: '', months: {}, openMonths: new Map(), detail: null, filter: 'all', order: 'desc', viewCache: new Map() };
   let generation = 0, abort, route = {};
   const readingHistory=[];
+  let linkIntent=false;
   function routeHash(value) {
     const tab=value.aihotTab || 'daily';
     if (['item','story','topic'].includes(tab)) return `#/aihot/${tab}/${value.aihotId}${tab==='item' && value.aihotLanguage==='original' ? '?lang=original' : tab==='topic' ? `?page=${value.aihotPage || 1}` : ''}`;
@@ -23,8 +24,9 @@ export function createAihotController({ fetcher = (...args) => fetch(...args), o
   async function activate(nextRoute) {
     route = { ...nextRoute }; cancel();
     const hash=routeHash(route);
-    if (readingHistory.at(-2)===hash) readingHistory.pop();
+    if (!linkIntent && readingHistory.at(-2)===hash) readingHistory.pop();
     else if(readingHistory.at(-1)!==hash) {readingHistory.push(hash);if(readingHistory.length>50)readingHistory.shift();}
+    linkIntent=false;
     state.backHash=readingHistory.at(-2) || (route.aihotTab==='story' ? '#/aihot/hot' : '#/aihot/daily');
     const ticket = generation;
     const currentAbort = new AbortController(); abort = currentAbort;
@@ -104,6 +106,8 @@ export function createAihotController({ fetcher = (...args) => fetch(...args), o
     state.openMonths.set(month, open);
     if (open && !state.loading && !state.months[month]?.items && !state.months[month]?.error && state.editions.some(item => item.key?.startsWith(month) && item.title === undefined)) void loadMonth(month);
   }
+  function prepareLink() { linkIntent=true; }
+  function back() { if(readingHistory.length>1)readingHistory.pop();linkIntent=false;return readingHistory.at(-1) || '#/aihot/daily'; }
   async function loadGroup() {
     const item = state.detail, ticket = generation;
     if (state.tab !== 'item' || !item?.group?.factId || item.groupLoading) return;
@@ -146,14 +150,14 @@ export function createAihotController({ fetcher = (...args) => fetch(...args), o
     catch { state.detail.actionNotice='导出失败，请重试。';safeLog('aihot_export_failed',{status:'failed'});onChange(); }
     finally { setTimeout(()=>URL.revokeObjectURL(url),1000); }
   }
-  return { state, activate, cancel, loadMonth, toggleMonth, loadGroup, setStoryView, copy, download, refresh: () => activate(route) };
+  return { state, activate, cancel, loadMonth, toggleMonth, prepareLink, back, loadGroup, setStoryView, copy, download, refresh: () => activate(route) };
 }
 
 export function renderAihot(state) {
   const hot = state.tab === 'hot';
   if (['item','story','topic'].includes(state.tab)) {
     const content = state.loading ? '<p class="aihot-empty" role="status">正在读取全文…</p>' : state.error ? `<div class="notice danger" role="alert">${e(state.error)}<button data-aihot-refresh>重试</button></div>` : state.detail ? state.tab === 'item' ? renderArticle(state.detail) : state.tab === 'story' ? renderStory(state.detail,state) : renderTopic(state.detail) : '<p>内容暂未提供。</p>';
-    return `<section class="aihot-page aihot-full-reading" aria-busy="${Boolean(state.loading)}"><nav class="aihot-module-bar" aria-label="AI资讯阅读导航"><div><a href="${e(state.backHash || '#/aihot/daily')}">← 返回</a><a href="#/aihot/daily">日报</a><a href="#/aihot/hot">热点榜</a></div><button data-aihot-refresh ${state.loading ? 'disabled' : ''}>刷新</button></nav>${content}<footer class="aihot-footer">数据来源 AIHOT · 内容、译文与评分由原站提供</footer></section>`;
+    return `<section class="aihot-page aihot-full-reading" aria-busy="${Boolean(state.loading)}"><nav class="aihot-module-bar" aria-label="AI资讯阅读导航"><div><a data-aihot-back href="${e(state.backHash || '#/aihot/daily')}">← 返回</a><a href="#/aihot/daily">日报</a><a href="#/aihot/hot">热点榜</a></div><button data-aihot-refresh ${state.loading ? 'disabled' : ''}>刷新</button></nav>${content}<footer class="aihot-footer">数据来源 AIHOT · 内容、译文与评分由原站提供</footer></section>`;
   }
   const outline = state.report ? pagesOf(state.report).pages : [];
   const outlineLinks = outline.map((page, i) => `<button data-aihot-jump="${page.id}">${String(i + 1).padStart(2, '0')} ${e(page.label)}</button>`).join('') + (state.report?.flashes?.length ? '<button data-aihot-jump="aihot-s-flash">快讯</button>' : '');
