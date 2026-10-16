@@ -116,9 +116,12 @@ def upgrade(home: Path, previous: str, target: str) -> dict:
             github.qualify(target)
             result = c.bridge(home, config, "deploy")
             if result.get("status") != "deployed":
-                return c.record(
-                    root, result["status"], deployed=result.get("sha"), candidate=target
-                )
+                fields = {"deployed": result.get("sha"), "candidate": target}
+                if result["status"] == "deferred":
+                    fields["deployed"] = result.get("sha", current["sha"])
+                if result.get("reason"):
+                    fields["reason"] = result["reason"]
+                return c.record(root, result["status"], **fields)
         accepted = read_json(root / "accepted.json")
         if accepted.get("target") != target or accepted.get("previous") != previous:
             raise UpdateBlocked("resident_host_metadata_acceptance_missing")

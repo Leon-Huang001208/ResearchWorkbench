@@ -13,3 +13,5 @@ macOS功能开发与本机Native部署；用户明确授权专项升级，不绕
 <!-- architecture-review {"group":"dual-runtime","structure":"unchanged","reason":"专项入口只使用原macOS Native resident bridge与固定生产根；没有模式切换、容器或共享数据迁移，Docker和其他平台保持独立验收，新增baseline审核仅属于控制平面。","diagrams":[]} -->
 
 本机初步验收：resident专项35项通过（既有Starlette弃用告警1），治理/架构JavaScript111项通过，Ruff/Black/isort目标文件通过；架构完整性和文档治理通过。未知代码、Host内容变化、错误common/dirty源、隔离候选、恢复journal、迟到master、deferred/rollback基线不变均覆盖。独立Python审查当前无具体P1/P2，最终SHA待绑定。
+
+补强：bridge在锁忙时可能只返回deferred/reason而无sha；专项记录现在保留已确认旧revision与延期原因，仅deferred可回退已确认版本，未知blocked不伪造健康版本。新增回归后resident37项通过。

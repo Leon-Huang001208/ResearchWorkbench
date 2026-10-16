@@ -639,6 +639,8 @@ def host_upgrade(resident, monkeypatch):
                 resident / "accepted.json",
                 {"previous": h.PREVIOUS, "target": target, "compatibility_review": reviewed},
             )
+        if state.get("busy_without_sha"):
+            return {"status": "deferred", "reason": "resident_busy"}
         return {"status": state["status"], "sha": state["sha"]}
 
     monkeypatch.setattr(controller, "bridge", bridge)
@@ -761,3 +763,12 @@ def test_staging_never_builds_wheels_until_explicit_profile_review_passes(reside
 def test_expected_upgrade_revisions_cannot_be_silently_ignored_by_automatic_tick(resident):
     with pytest.raises(SystemExit):
         controller.main(["tick", "--home", str(resident.parent), "--expected-target", "b" * 40])
+
+
+def test_busy_bridge_keeps_confirmed_previous_revision_and_deferral_reason(host_upgrade):
+    h, home, root, target, state, config, _calls = host_upgrade
+    state.update(status="deferred", busy_without_sha=True)
+    result = h.upgrade(home, h.PREVIOUS, target)
+    assert result["deployed"] == h.PREVIOUS
+    assert result["reason"] == "resident_busy"
+    assert evidence.read_json(root / "config.json") == config
