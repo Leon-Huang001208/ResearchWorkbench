@@ -1,4 +1,4 @@
-import { safeLog } from './core.mjs';
+import { safeLog, parseRoute } from './core.mjs';
 import { e, list, kinds, reportHash, external } from './aihot-common.mjs';
 import { renderArchive, renderArchiveBook, renderPaper, kindSwitch, pagesOf } from './aihot-report.mjs';
 import { renderArticle, renderStory, renderTopic, articleMarkdown } from './aihot-reading.mjs';
@@ -8,7 +8,7 @@ export function createAihotController({ fetcher = (...args) => fetch(...args), o
   const state = { tab: 'daily', kind: 'daily', date: '', editions: [], report: null, hot: null, loading: false, error: '', months: {}, openMonths: new Map(), detail: null, filter: 'all', order: 'desc', viewCache: new Map() };
   let generation = 0, abort, route = {};
   const readingHistory=[];
-  let linkIntent=false;
+  let linkIntent='';
   function routeHash(value) {
     const tab=value.aihotTab || 'daily';
     if (['item','story','topic'].includes(tab)) return `#/aihot/${tab}/${value.aihotId}${tab==='item' && value.aihotLanguage==='original' ? '?lang=original' : tab==='topic' ? `?page=${value.aihotPage || 1}` : ''}`;
@@ -24,9 +24,9 @@ export function createAihotController({ fetcher = (...args) => fetch(...args), o
   async function activate(nextRoute) {
     route = { ...nextRoute }; cancel();
     const hash=routeHash(route);
-    if (!linkIntent && readingHistory.at(-2)===hash) readingHistory.pop();
+    if (linkIntent !== hash && readingHistory.at(-2)===hash) readingHistory.pop();
     else if(readingHistory.at(-1)!==hash) {readingHistory.push(hash);if(readingHistory.length>50)readingHistory.shift();}
-    linkIntent=false;
+    linkIntent='';
     state.backHash=readingHistory.at(-2) || (route.aihotTab==='story' ? '#/aihot/hot' : '#/aihot/daily');
     const ticket = generation;
     const currentAbort = new AbortController(); abort = currentAbort;
@@ -106,8 +106,12 @@ export function createAihotController({ fetcher = (...args) => fetch(...args), o
     state.openMonths.set(month, open);
     if (open && !state.loading && !state.months[month]?.items && !state.months[month]?.error && state.editions.some(item => item.key?.startsWith(month) && item.title === undefined)) void loadMonth(month);
   }
-  function prepareLink() { linkIntent=true; }
-  function back() { if(readingHistory.length>1)readingHistory.pop();linkIntent=false;return readingHistory.at(-1) || '#/aihot/daily'; }
+  function prepareLink(hash) { const target=typeof hash==='string' ? routeHash(parseRoute(hash)) : '';linkIntent=target !== routeHash(route) ? target : ''; }
+  function back() {
+    linkIntent='';
+    if(readingHistory.length>1){readingHistory.pop();return readingHistory.at(-1);}
+    const destination=state.backHash || '#/aihot/daily';readingHistory.length=0;return destination;
+  }
   async function loadGroup() {
     const item = state.detail, ticket = generation;
     if (state.tab !== 'item' || !item?.group?.factId || item.groupLoading) return;

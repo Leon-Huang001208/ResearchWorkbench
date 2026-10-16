@@ -2301,7 +2301,7 @@ root.addEventListener('click', async (event) => {
     const readingAnchor=event.target.closest?.('.aihot-page a[href^="#/aihot/"]');
     if(readingAnchor && !event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey && event.button===0) {
       if(readingAnchor.hasAttribute('data-aihot-back')) { event.preventDefault();location.hash=aihotController.back(); }
-      else aihotController.prepareLink();
+      else aihotController.prepareLink(readingAnchor.getAttribute('href'));
       return;
     }
     if (event.target.closest?.('[data-aihot-group]')) { await aihotController.loadGroup(); return; }
