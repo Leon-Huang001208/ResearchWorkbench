@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "updated",
-  "summary": "统一Claw与FinGPT的Codex式会话导航、项目与逐题原生问题交互，README已同步功能和权限边界。",
-  "reason": "新增本实例模式隔离的导航元数据接口及FinGPT项目，保留唯一DSH、原生问答和安装入口；没有新增依赖、执行器或自动化授权。"
+  "summary": "补充Host元数据专项兼容升级入口与自动准入不扩大的边界。",
+  "reason": "显式CLI绑定已审Host内容和最新master，继续原固定生产根/唯一DSH/空闲栅栏/回滚，不增加依赖或数据迁移。"
 }

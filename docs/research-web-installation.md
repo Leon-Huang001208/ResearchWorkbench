@@ -39,6 +39,23 @@ journal同步落盘先于停服务；中断后先恢复旧版本，失败时bloc
 `resident_compatibility_review_required`，须完成专门升级并刷新基线；不自动安装依赖或执行迁移。
 控制器不会自己更新，不能用普通代码更新扩大既有准入。更换生产目录/Node/gh需重新核对身份。
 
+经单独授权的Host元数据专项：先完成源代码交付、独立评审及三CI，从同一受管Git仓库创建最新master的干净工具worktree，再显式执行：
+
+```bash
+/absolute/verified-tool-checkout/rwb resident upgrade-host-metadata \
+  --expected-previous 02c086b168e62723887c7a778f716f6146595b6d \
+  --expected-target EXACT_VERIFIED_MASTER_SHA --json
+```
+
+工具代码必须来自精确目标checkout，不能使用dirty开发目录；业务仍只在原固定生产根启动。
+该入口不接受force、不扩大自动清单，不支持任意升级或迁移：固定PR122四个Host文件内容，
+其余仅允许原静态范围、两份生成文档和已验收专项工具自身。它只读检查现有元数据容器，
+保留Claw原项目及所有会话；排队/活动/未知研究延后，候选失败沿原事务恢复旧代码和wheel，
+不恢复或回写业务数据。仅目标健康、accepted记录和配置身份复核成功后更新baseline并保存审核记录。
+延后时保留已验证候选，原监督器继续原空闲门；成功后可使用同一精确命令补完基线，避免二次重启。
+目标master或Host内容变化、隔离候选、遗留事务、未知路径/元数据类型必须停止并报告。
+
+
 ```bash
 ./rwb resident rollback   # 同样先核对空闲；只回退代码/安装包，不覆盖研究数据
 ./rwb resident retry      # 显式允许再次尝试已隔离的失败候选

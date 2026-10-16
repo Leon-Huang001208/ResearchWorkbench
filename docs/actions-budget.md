@@ -109,3 +109,5 @@ artifact storage：____ / 0.5 GB
 当前状态：public-standard | normal | watch | constrained | critical | frozen
 决定与原因：____
 ```
+
+Host元数据专项升级测试复用Research Web Checks现有test_resident.py；resident路径由现有Mac Bootstrap自动选中，不新增job或平台dispatch。只校验macOS清洁安装/固定DSH/健康/Doctor，不调用模型。
