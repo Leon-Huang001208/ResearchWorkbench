@@ -519,3 +519,256 @@ def test_interrupted_update_recovers_previous_without_starting_candidate(transac
     assert controller.bridge_main(home, "recover")["status"] == "rolled_back"
     assert "start:" + candidate["target"] not in events
     assert state["sha"] == candidate["previous"]
+
+
+@pytest.fixture
+def host_review(tmp_path, monkeypatch):
+    from research_workbench_entrypoint.resident import host_metadata
+
+    actual_common = str(tmp_path / "common")
+    config = {"source_common": actual_common}
+    target = "b" * 40
+    blobs = dict(host_metadata.HOST_BLOBS)
+    blobs.update({path: "c" * 40 for path in host_metadata.CONTROL_FILES})
+    calls = []
+
+    def git(_root, *args):
+        calls.append(args)
+        if args == ("rev-parse", "--path-format=absolute", "--git-common-dir"):
+            return actual_common
+        if args[0] == "rev-parse":
+            return blobs[args[1].split(":", 1)[1]]
+        return ""
+
+    monkeypatch.setattr(controller, "git", git)
+    monkeypatch.setattr(controller, "clean", lambda *args: calls.append(("clean", *args)))
+    return host_metadata, config, target, blobs, calls
+
+
+def test_explicit_host_review_binds_approved_blobs_without_expanding_auto_policy(host_review):
+    module, config, target, blobs, calls = host_review
+    paths = [*module.HOST_BLOBS, *module.CONTROL_FILES, "docs/review.md"]
+    result = module.review(Path("fixture"), config, module.PREVIOUS, target, paths)
+    assert result["profile"] == module.PROFILE and result["target"] == target
+    assert result["blobs"] == blobs
+    assert ("merge-base", "--is-ancestor", module.REVIEWED_HOST, target) in calls
+    assert not evidence.compatible(paths)
+
+
+@pytest.mark.parametrize(
+    "path", ["requirements/web.lock", "app/research_web/store.py", "unknown.py"]
+)
+def test_host_review_rejects_unknown_mutations(host_review, path):
+    module, config, target, _blobs, _calls = host_review
+    with pytest.raises(evidence.UpdateBlocked, match="resident_host_metadata_scope_changed"):
+        module.review(Path("fixture"), config, module.PREVIOUS, target, [path])
+
+
+def test_host_review_rejects_new_host_content_or_wrong_source_common(host_review):
+    module, config, target, blobs, _calls = host_review
+    blobs[next(iter(module.HOST_BLOBS))] = "d" * 40
+    with pytest.raises(evidence.UpdateBlocked, match="resident_host_metadata_content_changed"):
+        module.review(Path("fixture"), config, module.PREVIOUS, target, list(module.HOST_BLOBS))
+    with pytest.raises(evidence.UpdateBlocked, match="resident_host_metadata_base_mismatch"):
+        module.review(Path("fixture"), config, "e" * 40, target, [])
+    config["source_common"] = "/another-repository"
+    with pytest.raises(evidence.UpdateBlocked, match="resident_host_metadata_base_mismatch"):
+        module.review(Path("fixture"), config, module.PREVIOUS, target, [])
+
+
+@pytest.fixture
+def host_upgrade(resident, monkeypatch):
+    from research_workbench_entrypoint.resident import host_metadata as h
+
+    home = resident.parent
+    target = "b" * 40
+    config = {
+        "project": str(home / "production"),
+        "source_common": str(home / "common"),
+        "repository": "owner/repo",
+        "gh": "/usr/bin/true",
+        "baseline": "a" * 40,
+        "artifact_sha256": "f" * 64,
+    }
+    controller.atomic(resident / "config.json", config)
+    (home / "research-web").mkdir(mode=0o700)
+    controller.atomic(home / "research-web/index.json", {"sessions": {}, "claw_projects": {}})
+    state = {"sha": h.PREVIOUS, "status": "deployed", "latest": target, "qualified": 0}
+    reviewed = {"profile": h.PROFILE, "previous": h.PREVIOUS, "target": target, "blobs": {}}
+    calls = []
+    monkeypatch.setattr(sys, "platform", "darwin")
+    monkeypatch.setattr(
+        controller, "configured", lambda _: (resident, evidence.read_json(resident / "config.json"))
+    )
+    monkeypatch.setattr(controller, "environment", lambda *_: None)
+    monkeypatch.setattr(h, "review", lambda *_: reviewed)
+    monkeypatch.setattr(
+        controller,
+        "git",
+        lambda _root, *args: target if args == ("rev-parse", "FETCH_HEAD") else "",
+    )
+
+    class Github:
+        def __init__(self, *_):
+            pass
+
+        def latest(self):
+            return state["latest"]
+
+        def qualify(self, sha):
+            assert sha == target
+            state["qualified"] += 1
+            return {"sha": sha, "head": "c" * 40, "pull_request": 123}
+
+    monkeypatch.setattr(h, "GitHubEvidence", Github)
+
+    def stage(_home, _config, sha, _proof, *, compatibility_profile):
+        assert sha == target and compatibility_profile == h.PROFILE
+        calls.append("stage")
+        return {}
+
+    monkeypatch.setattr(controller, "stage", stage)
+
+    def bridge(_home, _config, operation):
+        calls.append(operation)
+        if operation == "ensure":
+            return {"status": "ready", "sha": state["sha"]}
+        if state["status"] == "deployed":
+            state["sha"] = target
+            controller.atomic(
+                resident / "accepted.json",
+                {"previous": h.PREVIOUS, "target": target, "compatibility_review": reviewed},
+            )
+        if state.get("busy_without_sha"):
+            return {"status": "deferred", "reason": "resident_busy"}
+        return {"status": state["status"], "sha": state["sha"]}
+
+    monkeypatch.setattr(controller, "bridge", bridge)
+    return h, home, resident, target, state, config, calls
+
+
+def test_host_upgrade_reuses_qualified_transaction_then_refreshes_only_baseline(host_upgrade):
+    h, home, root, target, state, config, calls = host_upgrade
+    assert h.upgrade(home, h.PREVIOUS, target)["status"] == "deployed"
+    assert calls == ["ensure", "stage", "deploy", "ensure"]
+    assert state["qualified"] == 2
+    assert evidence.read_json(root / "config.json") == {**config, "baseline": target}
+    audit = evidence.read_json(root / "baseline-reviews" / f"{target}.json")
+    assert audit["previous_baseline"] == config["baseline"]
+    # Resume after a successful transaction must not stop or deploy a second time.
+    calls.clear()
+    assert h.upgrade(home, h.PREVIOUS, target)["status"] == "deployed"
+    assert calls == ["ensure", "ensure"]
+
+
+@pytest.mark.parametrize("status", ["deferred", "rolled_back"])
+def test_host_upgrade_does_not_refresh_baseline_when_transaction_not_deployed(host_upgrade, status):
+    h, home, root, target, state, config, calls = host_upgrade
+    state["status"] = status
+    assert h.upgrade(home, h.PREVIOUS, target)["status"] == status
+    assert evidence.read_json(root / "config.json") == config
+    assert not (root / "baseline-reviews").exists()
+    assert calls == ["ensure", "stage", "deploy"]
+
+
+def test_host_upgrade_rejects_master_movement_or_pending_recovery(host_upgrade):
+    h, home, root, target, state, config, calls = host_upgrade
+    state["latest"] = "d" * 40
+    with pytest.raises(evidence.UpdateBlocked, match="resident_master_moved"):
+        h.upgrade(home, h.PREVIOUS, target)
+    assert "stage" not in calls and "deploy" not in calls
+    controller.atomic(root / "transaction.json", {"phase": "switching"})
+    with pytest.raises(evidence.UpdateBlocked, match="resident_recovery_required"):
+        h.upgrade(home, h.PREVIOUS, target)
+    assert evidence.read_json(root / "config.json") == config
+
+
+def test_host_upgrade_rejects_quarantine_and_no_force_option(host_upgrade):
+    h, home, root, target, _state, _config, calls = host_upgrade
+    controller.atomic(root / "quarantine.json", {"sha": target})
+    with pytest.raises(evidence.UpdateBlocked, match="resident_failed_candidate_requires_retry"):
+        h.upgrade(home, h.PREVIOUS, target)
+    assert "stage" not in calls
+    with pytest.raises(SystemExit):
+        controller.main(["upgrade-host-metadata", "--force"])
+
+
+def test_metadata_shape_is_read_only_and_rejects_non_dictionary_namespaces(resident):
+    from research_workbench_entrypoint.resident import host_metadata as h
+
+    path = resident.parent / "research-web/index.json"
+    controller.atomic(path, {"sessions": {"original": {}}, "claw_projects": {"keep": {}}})
+    before = path.read_bytes()
+    assert h.metadata_shape(resident.parent)["claw_projects"] == 1
+    assert path.read_bytes() == before
+    controller.atomic(
+        path,
+        {"session_navigation": {"claw": {"revision": True, "pinned": [], "project_order": []}}},
+    )
+    with pytest.raises(evidence.UpdateBlocked, match="resident_host_metadata_shape_changed"):
+        h.metadata_shape(resident.parent)
+    controller.atomic(path, {"sessions": {}, "fingpt_projects": []})
+    with pytest.raises(evidence.UpdateBlocked, match="resident_host_metadata_shape_changed"):
+        h.metadata_shape(resident.parent)
+
+
+def test_host_review_rejects_dirty_unqualified_control_source(host_review, monkeypatch):
+    module, config, target, _blobs, _calls = host_review
+
+    def dirty(*_):
+        raise evidence.UpdateBlocked("resident_checkout_changed")
+
+    monkeypatch.setattr(controller, "clean", dirty)
+    with pytest.raises(evidence.UpdateBlocked, match="resident_checkout_changed"):
+        module.review(Path("fixture"), config, module.PREVIOUS, target, [])
+
+
+def test_staging_never_builds_wheels_until_explicit_profile_review_passes(resident, monkeypatch):
+    from research_workbench_entrypoint.resident import host_metadata as h
+
+    home = resident.parent
+    config = {"project": str(home / "production"), "repository": "owner/repo"}
+    controller.atomic(
+        home / "install/manifest.json", {"status": "installed", "code_commit": h.PREVIOUS}
+    )
+    calls = []
+
+    def git(_root, *args):
+        if args == ("rev-parse", "HEAD"):
+            return h.PREVIOUS
+        if args == ("rev-parse", "FETCH_HEAD"):
+            return "b" * 40
+        if args[0] == "diff":
+            return "app/research_web/navigation.py"
+        return ""
+
+    monkeypatch.setattr(controller, "git", git)
+    monkeypatch.setattr(controller, "clean", lambda *_: None)
+    monkeypatch.setattr(controller, "build_wheel", lambda *_: calls.append("wheel"))
+    with pytest.raises(evidence.UpdateBlocked, match="resident_compatibility_review_required"):
+        controller.stage(home, config, "b" * 40, {})
+    with pytest.raises(evidence.UpdateBlocked, match="resident_compatibility_profile_unknown"):
+        controller.stage(home, config, "b" * 40, {}, compatibility_profile="all-files")
+
+    def reject(*_):
+        raise evidence.UpdateBlocked("resident_host_metadata_content_changed")
+
+    monkeypatch.setattr(h, "review", reject)
+    with pytest.raises(evidence.UpdateBlocked, match="resident_host_metadata_content_changed"):
+        controller.stage(home, config, "b" * 40, {}, compatibility_profile=h.PROFILE)
+    assert calls == []
+    assert not (resident / "candidate.json").exists()
+
+
+def test_expected_upgrade_revisions_cannot_be_silently_ignored_by_automatic_tick(resident):
+    with pytest.raises(SystemExit):
+        controller.main(["tick", "--home", str(resident.parent), "--expected-target", "b" * 40])
+
+
+def test_busy_bridge_keeps_confirmed_previous_revision_and_deferral_reason(host_upgrade):
+    h, home, root, target, state, config, _calls = host_upgrade
+    state.update(status="deferred", busy_without_sha=True)
+    result = h.upgrade(home, h.PREVIOUS, target)
+    assert result["deployed"] == h.PREVIOUS
+    assert result["reason"] == "resident_busy"
+    assert evidence.read_json(root / "config.json") == config
