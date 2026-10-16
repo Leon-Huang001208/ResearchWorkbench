@@ -1,5 +1,7 @@
 # Research Workbench Development Map
 
+G2B 管理平面为 docker/release.py、docker/Dockerfile.release、release-schema.json 与 rwb-docker release；维护为 app/research_web/maintenance.py 和 ResearchService.release_idle。回归为 test_docker_release/test_release_maintenance/test_api，并保留 resident、报告与 Automation 闭包；Hot 状态暂以不可证实空闲为拒绝条件。
+
 Host元数据专项升级通过显式 `resident upgrade-host-metadata` 入口执行；自动兼容清单与固定登录控制器artifact保持。专项只接受预期旧版02c086b16、PR122四个已审Host Git blob及同一受管Git源中的精确最新master。控制源必须干净且通过merged PR/独立评审/三CI实际tree核验；未知模块、依赖、Store或Host内容变化仍拒绝。既有bridge完成空闲栅栏、lifecycle lease、journal-before-stop、健康和回滚；成功后才记录baseline审核并刷新安装基线，不搬迁数据或凭据。
 
 Codex式导航为ui/conversation-navigation.mjs/css，逐题问答为ui/questionnaire.mjs/css；app/core/shell/views只做既有协议接线。Host navigation.py与claw_projects/claw_routes管理模式隔离的导航revision/项目，旧Claw API兼容；近处回归为test_navigation.py、research_web_navigation/questionnaire.test.mjs与research_web_codex_navigation.mjs。

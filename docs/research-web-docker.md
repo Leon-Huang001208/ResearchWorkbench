@@ -283,3 +283,20 @@ Hot原件冻结的本轮PG容器仅为既有项目隔离验证资源：启动前
 两种已存在的密文格式保持独立：常规 staged launcher 默认 `docker-encrypted-file`（Fernet，同卷主密钥）；管理器显式 `RWB_MODEL_BACKEND=docker-encrypted` 绑定 AES-GCM 与独立只读主密钥卷。桥接拒绝混用参数和外来密文格式；无自动转换、回退、旧 Key 删除或重新生成主密钥。来源分别报告 `docker-encrypted-file` 与 `docker-encrypted`，配置不认证真实生成。
 
 AES 构造时在原锁内核验既有树的实例、固定 namespace/ref 文件名及完整 AEAD；A 树配 B 完整密钥/身份不会成为未配置的新写目标，修复不执行卷迁移或清理。
+
+
+## G2B 冻结制品与受管切换
+
+2026-10-16 候选从最新 master 整合旧 PR104；仅源码集成与本地验证，不更新 PR104、不合并、不部署。
+`rwb-docker release <id>` 分离 prepare/build/seal/verify/import/accept/deploy-plan/rollback-plan/apply，
+控制器与制品身份封存，stage 与晋级使用同一 image ID。plan 绑定目标账本、期限、旧版与候选；
+异常或未知事务必须恢复，不强停已接纳工作，不重建五卷或密钥。GHCR 发布需另行授权。
+
+固定 DSH 来自 runtimes/research_web.json，同一文件封存为控制器 runtime-contract.json；
+Hot 代码和锁定依赖封入镜像，SQL migration 只计算哈希，不运行。格式源与全部 Hot SQL 内容
+不同仍拒绝 release_format_compatibility_unknown，不能修改旧 seal 绕门。存在 Hot 状态目录时
+尚无停写/回滚证书，release_idle 返回 false；这包括停止实例和符号链接，不把状态缺失当空闲。
+
+本任务不创建运行实例、不迁移数据库、不调用真实模型。Mac Docker Desktop 约7.75GiB
+VM 中其他开发/probe实例保持；5GiB冷构建窗口不足就记录 BLOCKED，等待自然可用。
+旧 r0d/r1a/r2、五卷、日志和 PR104 保留；旧验收不计入当前候选。

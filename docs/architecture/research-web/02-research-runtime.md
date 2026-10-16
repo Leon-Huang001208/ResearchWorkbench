@@ -1,5 +1,7 @@
 # 研究协议、执行状态与恢复
 
+G2B 的 task_admission 与 resident research_admission 共同保留：已受理工作继续，新的后台执行等待维护结束且不重复提交。私有 Unix 控制查询主/子 Agent、报告与 Automation；未知结果拒绝切换。
+
 Host元数据专项升级通过显式 `resident upgrade-host-metadata` 入口执行；自动兼容清单与固定登录控制器artifact保持。专项只接受预期旧版02c086b16、PR122四个已审Host Git blob及同一受管Git源中的精确最新master。控制源必须干净且通过merged PR/独立评审/三CI实际tree核验；未知模块、依赖、Store或Host内容变化仍拒绝。既有bridge完成空闲栅栏、lifecycle lease、journal-before-stop、健康和回滚；成功后才记录baseline审核并刷新安装基线，不搬迁数据或凭据。
 
 Codex式提问卡只维护浏览器逐题草稿，最终仍经原生问题事件和既有answer通道提交整组答案。明确跳过使用原custom字段记录用户未提供答案，不改变工具/日程授权；收起不答复、不取消，待答问题仍阻止空闲部署。两模式项目与导航元数据不复制原生会话正文。
@@ -157,8 +159,9 @@ NewSession 的 research_depth 默认为 instant，deep 启用完整研究底稿�
 
 Mac mini 的 dev/stage/prod 使用同一既有 Web＋DSH 协议，各实例独立 data/runtime 工作目录、
 认证 tmpfs 和身份账本；stage/prod 在固定镜像内执行，不读编辑中的worktree。
-管理员入口只管理容器生命周期，不创建第二套研究任务、调度、恢复或自动重试事实源。
-stage/dev 关闭 Automation；任务排空、全机重研究配额和 Linux 严格沙箱留给G3，
+管理员入口不创建第二研究任务事实源。G2B 发布维护共用原有任务事实：Web/Automation/报告
+准入门、DSH 主/子任务和本地 worker 空闲；未知或等待超时拒绝，不强制取消。
+stage/dev 关闭 Automation；全机重研究配额和 Linux 严格沙箱留给G3，
 不能从候选健康推出真实模型/研究已验收。操作见 [Docker 手册](../../research-web-docker.md)。
 
 Docker 资源生命周期由 host 标准库 `docker_resources.py` 提供只读预览、精确清理和离线卷备份恢复校验。

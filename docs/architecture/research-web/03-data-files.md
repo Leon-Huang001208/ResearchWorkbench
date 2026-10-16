@@ -1,5 +1,7 @@
 # DataHub、研究资料与实际文件
 
+G2B seal 包含冻结源码、当前 runtime JSON、Hot 锁文件和全部 SQL migration 的内容哈希；读取迁移身份不会应用迁移。存在 hot 状态目录（含符号链接）时没有停写/回滚证书，release_idle 固定拒绝，不迁移 PostgreSQL 或重新初始化凭据。
+
 Host专项升级只读检查index中sessions/项目/导航命名空间类型，不迁移或回写数据；原Claw项目和凭据保留。成功健康后baseline审核位于私有resident/baseline-reviews/<target>.json并原子更新config.baseline，固定controller artifact、工具路径、生产目录及端口不变；候选/accepted/transaction仍由原事务维护，回滚不覆盖研究数据。
 
 旧格式历史保持原始字节和文件时间，不发布迁移 successor。搜索只删除陈旧派生索引，不修改用户原文或文件产物；未搜索会话数量和片段只在当前搜索响应中返回。

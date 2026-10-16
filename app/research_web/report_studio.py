@@ -21,6 +21,7 @@ from core.observability import get_logger
 
 from .datahub import BusinessQuery, DataHub
 from .delivery import FINAL
+from .maintenance import task_admission
 from .store import Store, StoreError
 
 
@@ -749,6 +750,7 @@ class ReportStudio:
                 log.error("report_scheduler_tick_failed", error_type=type(exc).__name__)
             await asyncio.sleep(15)
 
+    @task_admission(background=True)
     async def tick(self, now: datetime | None = None) -> None:
         now = now or datetime.now(UTC)
         for project in list(self.store.data["report_projects"].values()):
@@ -766,6 +768,7 @@ class ReportStudio:
                 schedule["next_run_at"] = self._next_run(schedule, now)
             self.store.save()
 
+    @task_admission()
     async def start_run(self, project_id: str, *, trigger: str = "manual") -> dict:
         async with self.lock:
             project = self._project(project_id)
@@ -813,6 +816,7 @@ class ReportStudio:
             "updated_at": _now(),
         }
 
+    @task_admission(background=True)
     async def _execute(self, run_id: str) -> None:
         run = self._run(run_id)
         try:

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "updated",
-  "summary": "补充Host元数据专项兼容升级入口与自动准入不扩大的边界。",
-  "reason": "显式CLI绑定已审Host内容和最新master，继续原固定生产根/唯一DSH/空闲栅栏/回滚，不增加依赖或数据迁移。"
+  "summary": "保留G2B入口并标明当前仅本地源码集成与阻断状态。",
+  "reason": "现有Docker入口增加封存与维护合同；当前DSH和Hot源码兼容，未部署、未迁移，历史PR104证据不认证新候选。"
 }

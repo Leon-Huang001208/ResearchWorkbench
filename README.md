@@ -56,6 +56,8 @@ Claw 搜索可读取原生 DSH 的会话正文匹配片段，仅展示本产品�
 
 平台能力及实际证据见[支持矩阵](docs/research-web-platform-support.md)。非 macOS 研究脚本沙箱、Windows Native 架构阅读和 Windows Docker 凭据 ACL 目前存在明确安全边界；Doctor 的实现状态与真机验收分别记录。
 
+Docker 冻结制品、受管 stage 验收、维护晋级和回退从[Docker 手册](docs/research-web-docker.md#g2b-冻结制品与受管切换)进入。本轮仅演练独立回环目标，不自动更新日常生产。
+
 ## 快速开始
 
 ### 前置条件

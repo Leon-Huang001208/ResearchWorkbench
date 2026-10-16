@@ -51,7 +51,10 @@
         "research_workbench_entrypoint/resident/controller.py",
         "research_workbench_entrypoint/resident/host_metadata.py",
         "research_workbench_entrypoint/resident/evidence.py",
-        "research_workbench_entrypoint/resident/admission.py"
+        "research_workbench_entrypoint/resident/admission.py",
+        "docker/release.py",
+        "docker/Dockerfile.release",
+        "docker/release-schema.json"
       ],
       "documents": [
         "docs/research-web-installation.md",
@@ -153,7 +156,8 @@
         "app/research_web/intel_routes.py",
         "app/research_web/claw_projects.py",
         "app/research_web/claw_routes.py",
-        "app/research_web/navigation.py"
+        "app/research_web/navigation.py",
+        "app/research_web/maintenance.py"
       ],
       "documents": [
         "docs/architecture/research-web/01-system.md",
@@ -3492,6 +3496,13 @@
       "path": "/api/research/workspaces",
       "source": "app/research_web/main.py",
       "declaredPath": "/api/research/workspaces",
+      "prefix": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/release",
+      "source": "app/research_web/main.py",
+      "declaredPath": "/api/research/release",
       "prefix": ""
     }
   ],
