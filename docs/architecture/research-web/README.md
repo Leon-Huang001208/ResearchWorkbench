@@ -1,5 +1,7 @@
 # Research Workbench Research Web 当前架构
 
+FinGPT 快速/深入/Agent 共用原生 DSH、模型设置及历史，Host 质量回执与报告版本仍属于既有会话文件和验收边界。执行、质量及文件状态分别呈现；Claw/Automation 执行机制保持原合同。
+
 Host元数据专项升级通过显式 `resident upgrade-host-metadata` 入口执行；自动兼容清单与固定登录控制器artifact保持。专项只接受预期旧版02c086b16、PR122四个已审Host Git blob及同一受管Git源中的精确最新master。控制源必须干净且通过merged PR/独立评审/三CI实际tree核验；未知模块、依赖、Store或Host内容变化仍拒绝。既有bridge完成空闲栅栏、lifecycle lease、journal-before-stop、健康和回滚；成功后才记录baseline审核并刷新安装基线，不搬迁数据或凭据。
 
 会话侧栏和逐题问答统一到现有原生UI；导航元数据只由Host按模式隔离保存。日程/自动化执行仍走原DSH与显式授权，置顶、项目排序或跳过问题不授权试跑。

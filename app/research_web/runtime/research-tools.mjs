@@ -76,8 +76,8 @@ function acquireScriptSlot(signal, waitSeconds, logger) {
   });
 }
 
-/** Validate immutable DSH lineage; a cold/missing ancestor fails closed. */
-export async function trustedDirectory(ctx, exec, config) {
+/** Resolve immutable DSH lineage; a cold/missing ancestor fails closed. */
+async function trustedSession(ctx, exec, config) {
   let session = exec.agent?.session;
   if (!session?.header?.cwd || !session.header.id) throw new Error('trusted agent session is required');
   const cwd = session.header.cwd;
@@ -95,7 +95,12 @@ export async function trustedDirectory(ctx, exec, config) {
     if (!parent || parent.header.cwd !== cwd) throw new Error('trusted child session does not share its ancestor workspace');
     session = parent;
   }
-  return cwd;
+  return { cwd, session };
+}
+
+/** Validate immutable DSH lineage without accepting model-provided paths. */
+export async function trustedDirectory(ctx, exec, config) {
+  return (await trustedSession(ctx, exec, config)).cwd;
 }
 
 /** Register a bounded, kernel-confined native tool without widening host tools. */
@@ -141,6 +146,36 @@ export function apply(ctx, config, spawnProcess = spawn, admissionClient = defau
   if (!Number.isFinite(timeoutSeconds) || timeoutSeconds <= 0 || timeoutSeconds > 60 || !Number.isFinite(queueWaitSeconds) || queueWaitSeconds <= 0 || queueWaitSeconds > 60 || !Number.isSafeInteger(maxOutputBytes) || maxOutputBytes < 1 || maxOutputBytes > 1048576) {
     throw new Error('research-tools execution limits are invalid');
   }
+  // The Host persists repair allowance. This only avoids repeating its repair
+  // instruction in a single native turn, including calls from native children.
+  const qualityRepairOffers = new WeakMap();
+  ctx.tools.register({
+    name: 'research_check_quality',
+    description: 'Check the current research report against the Host-frozen user requirements, cutoff and observed evidence. Call after writing a report and before claiming completion. No caller status, requirements, session, path or repair allowance is accepted. Follow repair_instructions at most once in this same native turn under the existing budget, then recheck. An incomplete report remains downloadable with explicit gaps; invalid integrity must be fixed, never claimed as passed.',
+    parameters: { type: 'object', properties: { operation: { type: 'string', enum: ['check'] } }, additionalProperties: false },
+    output: { schema: { type: 'object', properties: { result_json: { type: 'string' } }, required: ['result_json'], additionalProperties: false }, render(_args, value) { return [{ type: 'text', text: value.result_json }]; } },
+    async execute(args, exec) {
+      if (!args || typeof args !== 'object' || Array.isArray(args) || Object.keys(args).some(key => key !== 'operation') ||
+          (Object.hasOwn(args, 'operation') && args.operation !== 'check')) throw Error('research_quality_arguments_invalid');
+      exec.signal.throwIfAborted();
+      try {
+        const trusted = await trustedSession(ctx, exec, config);
+        if (!(await admissionClient(ctx, { ...exec, name: 'research_check_quality' }, config)).admitted) throw Error('research_quality_scope_unverified');
+        const { executeResearchQuality } = await import('./public-data.mjs');
+        const result = await executeResearchQuality(ctx, exec, config);
+        const turn = trusted.session.snapshotEvents?.().findLast(event => event.type === 'turn/start')?.data.turn;
+        if (result.status === 'incomplete' && result.may_repair && turn !== undefined && qualityRepairOffers.get(trusted.session) !== turn) {
+          qualityRepairOffers.set(trusted.session, turn);
+          result.repair_instructions = 'Supplement the reported evidence and coverage gaps once in this same native turn under the existing execution budget. Keep the frozen user requirements and cutoff; adjust or replan research steps as needed. Write a new report version and call research_check_quality again. If still incomplete, deliver the usable report with explicit gaps and an unpassed quality state; do not start another engine, session or automatic repair loop.';
+        }
+        ctx.logger.info('research_quality_check_returned status=%s', result.status);
+        return { result_json: JSON.stringify(result) };
+      } catch (error) {
+        ctx.logger.warn('research_quality_check_failed');
+        throw error;
+      }
+    },
+  });
   ctx.tools.register({
     name: 'rwb_prepare_automation',
     description: 'Propose a research_task schedule without selecting a Skill, or an existing locked capability schedule. For research_task omit input_template: the Host derives it from research_task.description; if supplied it must match that description exactly. NEVER saves, enables or runs. Use ask_user_question for missing details; the confirmation card creates and enables research tasks only after a human click. List tasks first. Weekdays 0-4 means Monday-Friday, not a trading calendar.',

@@ -38,9 +38,13 @@ export function renderResearchAttention(detail) {
   const abnormalSubagents = abnormal(detail?.subagents);
   const errors = failedActivities + abnormalSubagents;
   const incomplete = ['incomplete', 'verification_failed'].includes(detail?.delivery?.status);
-  if (!errors && !incomplete) return restriction;
+  const quality = detail?.research_quality;
+  const qualityLabels = { passed: '已通过', incomplete: '未通过', invalid: '完整性未通过' };
+  const qualitySummary = quality ? `<section class="research-state-summary" aria-label="研究执行与验收状态"><span>执行：${e(statusText(detail.status))}</span><span>质量：${e(qualityLabels[quality.status] || '未确认')}</span><span>文件：${e(({ completed: '已检查', complete: '已检查', not_required: '无需文件', pending: '待检查', validating: '检查中', incomplete: '不完整', verification_failed: '检查失败', admission_unknown: '受理未知' })[detail.delivery?.status] || '未确认')}</span></section>` : '';
+  if (!errors && !incomplete && !['incomplete', 'invalid'].includes(quality?.status)) return restriction + qualitySummary;
   const summary = [failedActivities ? `${failedActivities} 项活动失败` : '', abnormalSubagents ? `${abnormalSubagents} 个子 Agent 异常` : ''].filter(Boolean).join('，');
-  return `${restriction}<div class="notice warning research-attention" role="status"><span>${summary ? `${summary}。` : ''}${incomplete ? '文件交付尚未完成。' : ''}</span><button type="button" class="text-button" data-show-attention>查看详情</button></div>`;
+  const canContinue = quality?.status === 'incomplete' && detail.mode === 'fingpt' && !isRunning(detail.status) && !detail.can_cancel && !detail.can_recheck_stop && !detail.execution_restricted;
+  return `${restriction}${qualitySummary}<div class="notice warning research-attention" role="status"><span>${summary ? `${summary}。` : ''}${incomplete ? '文件交付尚未完成。' : ''}${quality?.status === 'incomplete' ? '研究存在缺口，可查看现有成果并补充资料。' : quality?.status === 'invalid' ? '报告完整性未通过，导出已暂停。' : ''}</span><button type="button" class="text-button" ${quality ? 'data-context-tab="report"' : 'data-show-attention'}>查看详情</button>${canContinue ? '<button type="button" class="text-button" data-continue-research>补充资料继续研究</button>' : ''}</div>`;
 }
 
 export function filterGlobalSearch(query, sessions = [], skills = []) {
@@ -131,7 +135,7 @@ export function renderSidebar(options = {}) {
 export function renderContextPanel({ detail, selectedTab = 'activity', mobileOpen = false, selectedPreview = null, busy = false, workflow = null, researchStage = null } = {}) {
   if (!detail) return '';
   const tabs = [['activity', '活动'], ['plan', '计划'], ['evidence', '证据'], ['notes', '笔记'], ['report', '报告'], ['datasets', '资料'], ['files', '文件']];
-  const panel = ['plan', 'evidence', 'notes', 'report'].includes(selectedTab) ? renderResearchPanel(detail, selectedTab, researchStage) : selectedTab === 'datasets' ? renderDatasets(detail?.id, detail?.datasets) || '<p class="muted small context-empty">本会话暂无研究资料。</p>' : selectedTab === 'files' ? `<section class="context-section"><div class="section-heading"><h3>文件</h3>${detail ? `<button class="text-button" data-refresh-files ${busy ? 'disabled' : ''}>刷新</button>` : ''}</div>${renderFiles(detail?.files || [], selectedPreview)}</section>` : `${renderLockedWorkflowSummary(detail)}${renderDelivery(detail?.delivery)}${renderWorkflowPlan(workflow || detail.capability)}${renderActivities(detail)}`;
+  const panel = ['plan', 'evidence', 'notes', 'report'].includes(selectedTab) ? renderResearchPanel(detail, selectedTab, researchStage) : selectedTab === 'datasets' ? renderDatasets(detail?.id, detail?.datasets) || '<p class="muted small context-empty">本会话暂无研究资料。</p>' : selectedTab === 'files' ? `<section class="context-section"><div class="section-heading"><h3>文件</h3>${detail ? `<button class="text-button" data-refresh-files ${busy ? 'disabled' : ''}>刷新</button>` : ''}</div>${renderFiles(detail?.files || [], selectedPreview, { blockReportExports: detail.research_quality?.status === 'invalid' })}</section>` : `${renderLockedWorkflowSummary(detail)}${renderDelivery(detail?.delivery)}${renderWorkflowPlan(workflow || detail.capability)}${renderActivities(detail)}`;
   return `<aside class="context-panel ${mobileOpen ? 'mobile-open' : ''}" aria-label="研究活动、资料与文件"><header class="context-header"><div><h2>研究空间</h2><span class="badge">${detail?.mode === 'claw' ? 'CLAW' : 'FINGPT'}</span></div><button class="icon-button context-close" data-toggle-context aria-label="关闭研究空间">×</button></header><div class="context-tabs" role="tablist">${tabs.map(([id, label]) => `<button type="button" role="tab" class="context-tab ${selectedTab === id ? 'active' : ''}" aria-selected="${selectedTab === id}" data-context-tab="${id}">${label}</button>`).join('')}</div><div class="context-tab-panel">${panel}</div></aside>`;
 }
 

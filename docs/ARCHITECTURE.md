@@ -1,5 +1,7 @@
 # Research Workbench 架构总览
 
+FinGPT 三策略复用唯一 DSH loop、原生历史及现有模型凭据。Host 仅冻结每轮要求、检查实际证据与文件并保存质量回执；补查沿当前原生回合，报告版本保留在会话 outputs，不增加研究引擎或正文库。
+
 Host元数据专项升级通过显式 `resident upgrade-host-metadata` 入口执行；自动兼容清单与固定登录控制器artifact保持。专项只接受预期旧版02c086b16、PR122四个已审Host Git blob及同一受管Git源中的精确最新master。控制源必须干净且通过merged PR/独立评审/三CI实际tree核验；未知模块、依赖、Store或Host内容变化仍拒绝。既有bridge完成空闲栅栏、lifecycle lease、journal-before-stop、健康和回滚；成功后才记录baseline审核并刷新安装基线，不搬迁数据或凭据。
 
 macOS 可选 resident 管理平面在用户登录后监督既有 Native Web/DSH，不增加研究引擎。

@@ -45,6 +45,12 @@ class SkillAdmissionRequest(BaseModel):
     )
 
 
+class QualityCheckRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    session_id: str = Field(pattern=r"^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$")
+    operation: Literal["check"] = "check"
+
+
 def _credential_error(exc: CredentialStoreError):
     code = str(exc)
     if code == "credential_store_unavailable":
@@ -214,6 +220,15 @@ async def skill_preflight(body: SkillAdmissionRequest, request: Request):
         return service.native_admission(
             body.session_id, body.native_name, body.tool_name, loaded=body.loaded
         )
+
+
+@router.post("/internal/data/research-quality")
+async def research_quality(body: QualityCheckRequest, request: Request):
+    from ..research_quality_service import check_quality
+
+    service = request.app.state.research
+    await service.ensure_owned()
+    return await check_quality(service, body.session_id)
 
 
 @router.post("/internal/data/cancel")

@@ -390,12 +390,14 @@ export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSo
 }
 
 export function createController({ api, draftStorage, logger = safeLog, makeID = () => globalThis.crypto.randomUUID(), onNavigate = () => {}, confirmTabbit = async () => globalThis.confirm?.('所选标签页将临时移入代理任务，标签分组可能改变。继续发送？') !== false }) {
-  const state = { route: { page: 'fingpt', sessionId: null }, detail: null, draft: '', attachments: [], tabbitTabs: [], skillId: '', capability: null, toolIds: [], methodIds: [], sourceScope: ['datahub', 'web', 'uploads'], researchDepth: 'instant', expectedFormats: null, error: '', streamError: '', loading: false, busy: false, stopping: false };
+  const state = { route: { page: 'fingpt', sessionId: null }, detail: null, draft: '', attachments: [], tabbitTabs: [], skillId: '', capability: null, toolIds: [], methodIds: [], sourceScope: ['datahub', 'web', 'uploads'], researchDepth: 'instant', researchMode: 'quick', researchAsOf: '', expectedFormats: null, error: '', streamError: '', loading: false, busy: false, stopping: false };
   const listeners = new Set(); const drafts = new Map(); const pending = new Map(); const createdDraftOrigins = new Map(); const sendingSessions = new Set();
   let generation = 0; let snapshotRevision = 0; let closeStream = () => {}; let hasOpened = false;
   const emit = () => listeners.forEach((listener) => listener(state));
   const draftKey = () => state.route.sessionId || `new:${state.route.page}`;
-  const draftState = () => ({ draft: state.draft, attachments: state.attachments, tabbitTabs: state.tabbitTabs, skillId: state.skillId, capability: state.capability, toolIds: state.toolIds, methodIds: state.methodIds, sourceScope: state.sourceScope, researchDepth: state.researchDepth, expectedFormats: state.expectedFormats });
+  const researchMode = (value, depth) => ['quick', 'deep', 'agent'].includes(value) ? value : depth === 'deep' ? 'deep' : 'quick';
+  const validResearchAsOf = value => value === '' || (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) && !value.startsWith('0000-') && Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value);
+  const draftState = () => ({ draft: state.draft, attachments: state.attachments, tabbitTabs: state.tabbitTabs, skillId: state.skillId, capability: state.capability, toolIds: state.toolIds, methodIds: state.methodIds, sourceScope: state.sourceScope, researchDepth: state.researchDepth, researchMode: state.researchMode, researchAsOf: state.researchAsOf, expectedFormats: state.expectedFormats });
   if (draftStorage === undefined) {
     try { draftStorage = globalThis.sessionStorage; } catch { logger('draft_storage_unavailable', {}); }
   }
@@ -415,26 +417,67 @@ export function createController({ api, draftStorage, logger = safeLog, makeID =
     }
     return result;
   };
+  const pendingSelection = value => ({
+    skillId: value.skillId || '',
+    capability: value.capability ? { id: value.capability.id, version: value.capability.version, name: value.capability.name || value.capability.id } : null,
+    toolIds: value.toolIds || [], methodIds: value.methodIds || [], expectedFormats: value.expectedFormats ?? null,
+    ...(value.researchAsOf !== undefined ? { researchAsOf: value.researchAsOf } : {}),
+    tabbitTabs: (value.tabbitTabs || []).map(({ tab_id, instance_id, title }) => ({ tab_id, instance_id, ...(typeof title === 'string' ? { title: title.slice(0, 500) } : {}) })),
+  });
+  const restorePending = (id, value) => {
+    const attempt = value.pending;
+    if (!attempt) return {};
+    try {
+      const identifier = value => typeof value === 'string' && /^[A-Za-z0-9_.:-]{1,255}$/.test(value);
+      if (attempt.session_id !== id || !identifier(attempt.key) || typeof attempt.signature !== 'string' || attempt.signature.length > 200000) throw new Error('pending_identity_invalid');
+      const request = JSON.parse(attempt.signature);
+      if (typeof request?.text !== 'string' || (request.research_as_of !== undefined && !validResearchAsOf(request.research_as_of))) throw new Error('pending_request_invalid');
+      const selection = attempt.selection;
+      const identifiers = (value, max) => Array.isArray(value) && value.length <= max && value.every(identifier);
+      if (!selection || (selection.skillId !== '' && !identifier(selection.skillId)) || !identifiers(selection.toolIds, 3) || !identifiers(selection.methodIds, 3)) throw new Error('pending_selection_invalid');
+      if (selection.researchAsOf !== undefined && !validResearchAsOf(selection.researchAsOf)) throw new Error('pending_cutoff_invalid');
+      if (selection.capability && (!identifier(selection.capability.id) || !Number.isInteger(selection.capability.version) || selection.capability.version < 1)) throw new Error('pending_capability_invalid');
+      if (selection.expectedFormats !== null && (!Array.isArray(selection.expectedFormats) || selection.expectedFormats.length > 7 || selection.expectedFormats.some(format => !['md', 'html', 'docx', 'xlsx', 'pptx', 'png', 'pdf'].includes(format)))) throw new Error('pending_formats_invalid');
+      if (!Array.isArray(selection.tabbitTabs) || selection.tabbitTabs.length > 8 || selection.tabbitTabs.some(tab => !Number.isInteger(tab?.tab_id) || tab.tab_id < 0 || !identifier(tab.instance_id))) throw new Error('pending_tabs_invalid');
+      pending.set(id, { signature: attempt.signature, key: attempt.key, durable: true });
+      logger('pending_submission_restored', {});
+      return { researchAsOf: request.research_as_of ?? '', ...pendingSelection(selection) };
+    } catch {
+      logger('pending_submission_restore_failed', {});
+      state.error = '未能恢复上次提交的重试凭据；草稿已保留，请先核对会话记录。';
+      return {};
+    }
+  };
   const persistDraft = (id, value) => {
-    if (!draftStorage) return;
+    if (!draftStorage) return true;
     try {
       if (!validDraft(value)) throw new Error('draft_invalid');
-      const serialized = JSON.stringify({ draft: value.draft, attachments: value.attachments.map(draftAttachment) });
-      if (serialized.length > 200000) throw new Error('draft_too_large');
+      if (!validResearchAsOf(value.researchAsOf ?? '')) throw new Error('draft_cutoff_invalid');
+      const record = { draft: value.draft, attachments: value.attachments.map(draftAttachment), researchMode: researchMode(value.researchMode, value.researchDepth), researchAsOf: value.researchAsOf ?? '' };
+      if (JSON.stringify(record).length > 200000) throw new Error('draft_too_large');
+      const attempt = pending.get(id);
+      if (attempt?.durable) record.pending = { session_id: id, signature: attempt.signature, key: attempt.key, selection: pendingSelection(value) };
+      const serialized = JSON.stringify(record);
+      if (serialized.length > 400000) throw new Error('draft_too_large');
       draftStorage.setItem(storageKey(id), serialized);
-    } catch { logger('draft_storage_write_failed', {}); state.error = '草稿仍保留在页面中，但无法保存刷新恢复副本。'; }
+      return true;
+    } catch { logger('draft_storage_write_failed', {}); state.error = '草稿仍保留在页面中，但无法保存刷新恢复副本。'; return false; }
   };
-  const putDraft = (id, value) => { drafts.set(id, value); persistDraft(id, value); };
+  const putDraft = (id, value) => { drafts.set(id, value); return persistDraft(id, value); };
   const readDraft = id => {
     if (drafts.has(id)) return drafts.get(id);
     if (!draftStorage) return undefined;
     try {
       const raw = draftStorage.getItem(storageKey(id));
       if (!raw) return undefined;
-      if (raw.length > 200000) throw new Error('draft_too_large');
+      if (raw.length > 400000) throw new Error('draft_too_large');
       const value = JSON.parse(raw);
       if (!validDraft(value)) throw new Error('draft_invalid');
-      return { draft: value.draft, attachments: value.attachments.map(draftAttachment), tabbitTabs: [], skillId: '', methodIds: [] };
+      const mode = researchMode(value.researchMode, value.researchDepth);
+      const savedDate = Object.hasOwn(value, 'researchAsOf') ? { researchAsOf: validResearchAsOf(value.researchAsOf) ? value.researchAsOf : '' } : {};
+      if (Object.hasOwn(value, 'researchAsOf') && !validResearchAsOf(value.researchAsOf)) { logger('draft_cutoff_restore_failed', {}); state.error = '草稿截止日期无效，已保留问题和附件，请重新选择日期。'; }
+      if (JSON.stringify({ draft: value.draft, attachments: value.attachments }).length > 200000) throw new Error('draft_too_large');
+      return { draft: value.draft, attachments: value.attachments.map(draftAttachment), tabbitTabs: [], skillId: '', methodIds: [], ...restorePending(id, value), ...savedDate, ...(value.researchMode !== undefined || value.researchDepth !== undefined ? { researchMode: mode, researchDepth: mode === 'quick' ? 'instant' : 'deep' } : {}) };
     } catch { logger('draft_storage_read_failed', {}); state.error = '草稿恢复副本无效；请重新选择附件。'; return undefined; }
   };
   const saveDraft = () => putDraft(draftKey(), draftState());
@@ -452,12 +495,18 @@ export function createController({ api, draftStorage, logger = safeLog, makeID =
   async function open(route) {
     if (hasOpened) saveDraft(); hasOpened = true; const ticket = ++generation; closeStream(); closeStream = () => {};
     state.route = route; state.detail = null; state.error = ''; state.streamError = ''; state.loading = Boolean(route.sessionId); state.busy = false; state.stopping = false;
-    Object.assign(state, { sourceScope: ["datahub", "web", "uploads"], researchDepth: "instant", expectedFormats: null, capability: null, toolIds: [], methodIds: [], tabbitTabs: [] }, readDraft(draftKey()) || { draft: '', attachments: [], tabbitTabs: [], skillId: '', methodIds: [] }); emit();
+    const savedDraft = readDraft(draftKey());
+    Object.assign(state, { sourceScope: ["datahub", "web", "uploads"], researchDepth: "instant", researchMode: 'quick', researchAsOf: '', expectedFormats: null, capability: null, toolIds: [], methodIds: [], tabbitTabs: [] }, savedDraft || { draft: '', attachments: [], tabbitTabs: [], skillId: '', methodIds: [] }); emit();
     if (!route.sessionId) return;
     try {
       const data = await api.detail(route.sessionId);
       if (ticket !== generation) return;
       snapshot(data);
+      if (!savedDraft?.researchMode) {
+        state.researchMode = researchMode(data.research_mode, data.research_depth);
+        state.researchDepth = state.researchMode === 'quick' ? 'instant' : 'deep';
+      }
+      if (data.mode === 'fingpt' && !Object.hasOwn(savedDraft || {}, 'researchAsOf') && data.research_quality?.as_of && validResearchAsOf(data.research_quality.as_of)) state.researchAsOf = data.research_quality.as_of;
       if (api.events) closeStream = api.events(route.sessionId, {
         snapshot: (next) => { if (ticket === generation) { try { snapshot(next); state.streamError = ''; emit(); } catch (error) { fail(error); emit(); } } },
         error: (message) => { if (ticket === generation) { state.streamError = message; emit(); } },
@@ -479,6 +528,10 @@ export function createController({ api, draftStorage, logger = safeLog, makeID =
       body = {text:text.trim(),tool_ids:[...task.approved_tools],expected_formats:[...definition.output_formats],...(task.approved_data_sources.includes('uploads') && state.attachments.length ? {attachment_ids:state.attachments.map(file=>file.id)} : {})};
       logger('execution_followup_scope_locked');
     } else body = { text: text.trim(), ...(state.capability ? { capability_id: state.capability.id, capability_version: state.capability.version } : state.skillId ? { skill_id: state.skillId } : {}), ...(state.toolIds.length ? { tool_ids: [...state.toolIds] } : {}), ...(state.methodIds.length ? { method_ids: [...state.methodIds] } : {}), ...(state.expectedFormats !== null ? { expected_formats: [...state.expectedFormats] } : {}), ...(state.attachments.length ? { attachment_ids: state.attachments.map((file) => file.id) } : {}), ...(state.tabbitTabs.length ? { tabbit_tabs: state.tabbitTabs.map(({ tab_id, instance_id }) => ({ tab_id, instance_id })), tabbit_live_confirmed: true } : {}) };
+    if (!execution && state.detail.mode === 'fingpt') {
+      body.research_mode = state.researchMode;
+      if (state.researchAsOf) body.research_as_of = state.researchAsOf;
+    }
     // Bind confirmation and accepted cleanup to the submitted snapshot, never the next draft.
     const attachmentIds = new Set(body.attachment_ids || []);
     const tabIdentity = tab => JSON.stringify([tab.instance_id, tab.tab_id]);
@@ -494,8 +547,9 @@ export function createController({ api, draftStorage, logger = safeLog, makeID =
         if (!confirmed) return;
       }
       const signature = JSON.stringify(body); const previous = pending.get(id);
-      const attempt = previous?.signature === signature ? previous : { signature, key: makeID() };
+      const attempt = previous?.signature === signature ? previous : { signature, key: makeID(), durable: !execution && state.detail.mode === 'fingpt' };
       pending.set(id, attempt);
+      if (attempt.durable && !putDraft(id, draftState())) throw new Error('无法保存提交重试凭据，本次问题尚未发送；请恢复浏览器存储后重试。');
       const response = await api.message(id, body, attempt.key);
       if (response.accepted !== true) throw new Error('运行时未确认接收，请检查会话后重试。');
       pending.delete(id);
@@ -540,7 +594,9 @@ export function createController({ api, draftStorage, logger = safeLog, makeID =
   return {
     state, subscribe: (listener) => { listeners.add(listener); return () => listeners.delete(listener); }, open, refresh, send, action, cancel,
     setSourceScope: (value) => { if (!Array.isArray(value) || !value.length || value.some(s => !["datahub", "web", "uploads"].includes(s))) throw new Error("至少选择一个资料范围"); state.sourceScope = [...new Set(value)]; saveDraft(); emit(); },
-    setResearchDepth: (value) => { if (!["instant", "deep"].includes(value)) throw new Error("不支持的研究深度"); state.researchDepth = value; saveDraft(); emit(); },
+    setResearchDepth: (value) => { if (!["instant", "deep"].includes(value)) throw new Error("不支持的研究深度"); state.researchDepth = value; state.researchMode = value === 'deep' ? 'deep' : 'quick'; saveDraft(); emit(); },
+    setResearchMode: (value) => { if (!['quick', 'deep', 'agent'].includes(value)) throw new Error('不支持的研究模式'); state.researchMode = value; state.researchDepth = value === 'quick' ? 'instant' : 'deep'; logger('research_mode_selected', { mode: value }); saveDraft(); emit(); },
+    setResearchAsOf: (value) => { if (!validResearchAsOf(value)) throw new Error('研究截止日期须为有效的 YYYY-MM-DD 日期；留空时新研究默认今日，续研沿用原截止日期。'); state.researchAsOf = value; logger('research_cutoff_selected', { configured: Boolean(value) }); saveDraft(); emit(); },
     setDraft: (value) => { state.draft = value; saveDraft(); },
     setSkill: (value) => { state.skillId = value; state.capability = null; saveDraft(); },
     setCapability: (value) => {
@@ -575,7 +631,7 @@ export function createController({ api, draftStorage, logger = safeLog, makeID =
       const ticket = generation;
       const previousDraft = { ...draftState(), attachments: [] };
       const origin = !state.route.sessionId ? {key:draftKey(),draft:previousDraft.draft} : null;
-      const result = await action(() => api.create({ mode, research_depth: state.researchDepth, source_scope: state.sourceScope, ...(workspaceId ? { workspace_id: workspaceId } : {}), ...(projectId ? { project_id: projectId } : {}) }), { refreshAfter: false });
+      const result = await action(() => api.create({ mode, research_depth: state.researchDepth, ...(mode === 'fingpt' ? { research_mode: state.researchMode } : {}), source_scope: state.sourceScope, ...(workspaceId ? { workspace_id: workspaceId } : {}), ...(projectId ? { project_id: projectId } : {}) }), { refreshAfter: false });
       if (ticket !== generation) return null;
       if (result?.id) { drafts.set(result.id, previousDraft); if (origin) createdDraftOrigins.set(result.id,origin); onNavigate(sessionHash(result)); }
       return result;
