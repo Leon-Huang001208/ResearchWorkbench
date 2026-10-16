@@ -4329,6 +4329,65 @@ Functions:
 - `architecture_document`
 
 
+## `app/research_web/fingpt/__init__.py`
+
+Module docstring:
+> FinGPT three-mode financial research; Claw retains DSH task execution.
+
+
+## `app/research_web/fingpt/routes.py`
+
+Module docstring:
+> Same-origin FinGPT browser ingress; no provider credential in responses.
+
+Imports:
+- `asyncio`
+- `fastapi`
+- `fastapi.responses`
+- `json`
+- `pydantic`
+- `service`
+- `store`
+- `typing`
+
+Classes:
+- `Create`
+- `Ask`
+
+Functions:
+- `engine`
+- `tiers`
+- `create`
+- `ask`
+- `events`
+
+
+## `app/research_web/fingpt/service.py`
+
+Module docstring:
+> Host-owned FinGPT execution, session-local receipts and bounded stdio events.
+
+Imports:
+- `__future__`
+- `asyncio`
+- `claw_projects`
+- `contextlib`
+- `core.observability`
+- `json`
+- `os`
+- `pathlib`
+- `re`
+- `shutil`
+- `store`
+- `tempfile`
+- `time`
+- `uuid`
+
+Classes:
+- `FinGPTQA`
+  - methods: __init__, owns, _path, _read, _save, _spawn, tiers, create, detail, _context, _extract, submit, _submit, _run, _artifact, _append, _notify, cancel, close
+
+
 ## `app/research_web/frameworks/__init__.py`
 
 Module docstring:
@@ -5495,6 +5554,8 @@ Imports:
 - `fastapi.exceptions`
 - `fastapi.responses`
 - `fastapi.staticfiles`
+- `fingpt.routes`
+- `fingpt.service`
 - `frameworks.base`
 - `frameworks.routes`
 - `hot_routes`
@@ -5507,9 +5568,7 @@ Imports:
 - `mcp_registry`
 - `mcp_registry.routes`
 - `mcp_runtime.routes`
-- `mimetypes`
-- `operations`
-- ... 19 more
+- ... 21 more
 
 Classes:
 - `NewSession`
@@ -8075,7 +8134,7 @@ Functions:
 ## `app/research_web/store.py`
 
 Module docstring:
-> Atomic single-process product ownership index. DSH owns all transcripts.
+> Atomic single-process product ownership index. DSH owns native transcripts; FinGPT owns scoped QA receipts.
 
 Imports:
 - `core.observability`

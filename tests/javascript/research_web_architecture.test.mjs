@@ -52,7 +52,7 @@ function fixture(t) {
   const visualReview='docs/architecture/research-web/visual-review.json';
   write(visualReview,{schemaVersion:1,diagrams:human});
   write(mapPath,{schemaVersion:1,canonicalEntry:'docs/architecture/research-web/README.md',reviewRecord:review,visualReview,artifactRoot,groups:[{id:'runtime',sources:[source],documents:[document],diagrams:ids,tests:['tests/check.py']}],diagrams,apis:[{method:'GET',path:'/api/research/runtime',declaredPath:'/api/research/runtime',prefix:'',source}]});
-  const built=spawnSync(process.execPath,[atlasURL.pathname,root],{encoding:'utf8'});
+  const built=spawnSync(process.execPath,[fileURLToPath(atlasURL),root],{encoding:'utf8'});
   assert.equal(built.status,0,built.stderr);
   return {root,write,read};
 }
@@ -73,7 +73,7 @@ test('reading modules cannot silently deep link to an absent API category', t =>
   map.diagrams[0].level='overview';
   map.reading={levels:[{id:'overview',title:'Overview'},{id:'details',title:'Details'}],modules:[{id:'runtime',group:'runtime',title:'Runtime',category:'absent-category'}]};
   f.write(mapPath,map);
-  const result=spawnSync(process.execPath,[atlasURL.pathname,f.root],{encoding:'utf8'});
+  const result=spawnSync(process.execPath,[fileURLToPath(atlasURL),f.root],{encoding:'utf8'});
   assert.notEqual(result.status,0);assert.match(result.stderr,/unknown module API category/);
 });
 
@@ -84,7 +84,7 @@ test('narrow source owners require their own docs without unrelated protocol chu
   map.groups.push({id:'frameworks',sources:['app/research_web/frameworks/'],documents:[owner],diagrams:['03-research-sequence'],tests:['tests/check.py']});
   f.write(mapPath,map);
   f.write(review,'<!-- architecture-review {"group":"frameworks","structure":"unchanged","reason":"Only framework leaf data changes, runtime topology remains unchanged.","diagrams":[]} -->');
-  const built=spawnSync(process.execPath,[atlasURL.pathname,f.root],{encoding:'utf8'});assert.equal(built.status,0,built.stderr);
+  const built=spawnSync(process.execPath,[fileURLToPath(atlasURL),f.root],{encoding:'utf8'});assert.equal(built.status,0,built.stderr);
   assert.deepEqual((await check(f,[framework,owner,review])).violations,[]);
   assert.ok((await check(f,[framework,review])).violations.some(x=>x.code==='module_document_not_changed'&&x.path===owner));
   f.write(review,'<!-- architecture-review {"group":"frameworks","structure":"changed","reason":"Framework runtime relationships now require a corresponding graph change.","diagrams":["03-research-sequence"]} -->');
@@ -104,7 +104,7 @@ test('actual framework route owners retain API/security obligations while collec
   }
   const map=f.read(mapPath);map.groups.push(...groups);f.write(mapPath,map);
   f.write(review,groups.map(g=>`<!-- architecture-review ${JSON.stringify({group:g.id,structure:'unchanged',reason:'Only leaf behavior changes; runtime topology and safety boundaries remain unchanged.',diagrams:[]})} -->`).join('\n'));
-  const built=spawnSync(process.execPath,[atlasURL.pathname,f.root],{encoding:'utf8'});assert.equal(built.status,0,built.stderr);
+  const built=spawnSync(process.execPath,[fileURLToPath(atlasURL),f.root],{encoding:'utf8'});assert.equal(built.status,0,built.stderr);
   const owner='docs/architecture/research-web/08-research-frameworks.md';
   assert.deepEqual((await check(f,[leaf,owner,review])).violations,[]);
   const missing=(await check(f,[route,owner,review])).violations.filter(x=>x.code==='module_document_not_changed').map(x=>x.path);
@@ -241,7 +241,7 @@ test('API Atlas distinguishes unique operations from overlapping source declarat
   map.apis.push({...map.apis[0],source:'app/research_web/compat.py'});
   f.write('app/research_web/compat.py','@router.get("/runtime")\nasync def compatibility_runtime(): pass\n');
   f.write(mapPath,map);
-  const result=spawnSync(process.execPath,[atlasURL.pathname,f.root],{encoding:'utf8'});
+  const result=spawnSync(process.execPath,[fileURLToPath(atlasURL),f.root],{encoding:'utf8'});
   assert.equal(result.status,0,result.stderr);
   const html=fs.readFileSync(path.join(f.root,'outputs/research-web-architecture/api-atlas.html'),'utf8');
   assert.match(html,/<span><b>1<\/b>唯一接口<\/span>/);
@@ -250,7 +250,7 @@ test('API Atlas distinguishes unique operations from overlapping source declarat
 
 test('generated pages detect API set drift, regenerate deterministically, and check without writes', t => {
   const f=fixture(t);
-  const run=(...args)=>spawnSync(process.execPath,[atlasURL.pathname,f.root,...args],{encoding:'utf8'});
+  const run=(...args)=>spawnSync(process.execPath,[fileURLToPath(atlasURL),f.root,...args],{encoding:'utf8'});
   const artifact='outputs/research-web-architecture/api-atlas.html';
   const initial=fs.readFileSync(path.join(f.root,artifact),'utf8');
   const log=fs.readFileSync(path.join(f.root,'logs/research-api-atlas.jsonl'),'utf8');
@@ -303,7 +303,7 @@ test('reading controls are driven by escaped inventory rather than hardcoded mod
   const f=fixture(t), map=f.read(mapPath);
   map.reading={levels:[{id:'overview',title:'总览'},{id:'details',title:'细节'}],modules:[{id:'runtime',group:'runtime',title:'<img src=x onerror=bad()>',summary:'"<script>bad()</script>',category:'研究会话与 Runtime'}]};
   map.diagrams[0].level='overview';f.write(mapPath,map);
-  assert.equal(spawnSync(process.execPath,[atlasURL.pathname,f.root],{encoding:'utf8'}).status,0);
+  assert.equal(spawnSync(process.execPath,[fileURLToPath(atlasURL),f.root],{encoding:'utf8'}).status,0);
   const index=fs.readFileSync(path.join(f.root,'outputs/research-web-architecture/index.html'),'utf8');
   assert.match(index,/data-reading-search="[^"]*app\/research_web\/main\.py/);
   assert.match(index,/&lt;img src=x/);
@@ -315,7 +315,7 @@ test('reading controls are driven by escaped inventory rather than hardcoded mod
 test('product brand is embedded as its original bounded PNG bytes and rejects aliases', t => {
   const f=fixture(t), asset='app/research_web/ui/assets/brand/brand-mark.png';
   f.write('app/research_web/ui/shell.mjs','// product brand consumer');
-  const run=()=>spawnSync(process.execPath,[atlasURL.pathname,f.root],{encoding:'utf8'});
+  const run=()=>spawnSync(process.execPath,[fileURLToPath(atlasURL),f.root],{encoding:'utf8'});
   assert.notEqual(run().status,0,'a product shell without its approved asset must fail');
   const bytes=fs.readFileSync(new URL('../../app/research_web/ui/assets/brand/brand-mark.png',import.meta.url));
   fs.mkdirSync(path.dirname(path.join(f.root,asset)),{recursive:true});fs.writeFileSync(path.join(f.root,asset),bytes);
@@ -370,7 +370,7 @@ test('architecture gate detects equal-count stale Atlas entries', async t => {
 test('removing one API from a nonempty inventory detects residual output', t => {
   const f=fixture(t);const map=f.read(mapPath);
   map.apis.push({...map.apis[0],path:'/api/research/obsolete'});f.write(mapPath,map);
-  const run=(...args)=>spawnSync(process.execPath,[atlasURL.pathname,f.root,...args],{encoding:'utf8'});
+  const run=(...args)=>spawnSync(process.execPath,[fileURLToPath(atlasURL),f.root,...args],{encoding:'utf8'});
   assert.equal(run().status,0);map.apis.pop();f.write(mapPath,map);
   assert.notEqual(run('--check').status,0);assert.equal(run().status,0);
   assert.doesNotMatch(fs.readFileSync(path.join(f.root,'outputs/research-web-architecture/api-atlas.html'),'utf8'),/obsolete/);
@@ -379,7 +379,7 @@ test('removing one API from a nonempty inventory detects residual output', t => 
 
 test('API display text is escaped and unsafe methods or source paths are rejected', t => {
   const f=fixture(t);const map=f.read(mapPath);
-  const run=()=>spawnSync(process.execPath,[atlasURL.pathname,f.root],{encoding:'utf8'});
+  const run=()=>spawnSync(process.execPath,[fileURLToPath(atlasURL),f.root],{encoding:'utf8'});
   map.apis[0].path='/api/research/<img src=x onerror=alert(1)>';f.write(mapPath,map);
   assert.equal(run().status,0);
   const html=fs.readFileSync(path.join(f.root,'outputs/research-web-architecture/api-atlas.html'),'utf8');
@@ -407,7 +407,7 @@ test('generator rejects dangling output and log symlinks without writing outside
     const target=path.join(outside,'not-created');
     const output=path.join(f.root,file);
     fs.unlinkSync(output);fs.symlinkSync(target,output);
-    const result=spawnSync(process.execPath,[atlasURL.pathname,f.root],{encoding:'utf8'});
+    const result=spawnSync(process.execPath,[fileURLToPath(atlasURL),f.root],{encoding:'utf8'});
     assert.notEqual(result.status,0,file);
     assert.equal(fs.existsSync(target),false,file);
   }
@@ -432,7 +432,7 @@ test('product overview cannot disappear with the optional legacy fixture reading
 
 test('product documentation cannot lose the layered reading metadata', t => {
   const f=fixture(t);f.write('app/research_web/documentation.py','# production document surface fixture');
-  const result=spawnSync(process.execPath,[atlasURL.pathname,f.root,'--check'],{encoding:'utf8'});
+  const result=spawnSync(process.execPath,[fileURLToPath(atlasURL),f.root,'--check'],{encoding:'utf8'});
   assert.notEqual(result.status,0);assert.match(result.stderr,/product reading metadata is required/);
 });
 
@@ -516,7 +516,7 @@ for (const value of [null, false, 0, '', [], 'not a map']) {
   test(`invalid top-level map fails closed: ${JSON.stringify(value)}`, async t => {
     const f=fixture(t);f.write(mapPath,JSON.stringify(value));
     assert.ok((await check(f)).violations.some(item=>item.code==='map_schema'));
-    const result=spawnSync(process.execPath,[checkerURL.pathname,'--project',f.root,'--changed-file',source],{encoding:'utf8'});
+    const result=spawnSync(process.execPath,[fileURLToPath(checkerURL),'--project',f.root,'--changed-file',source],{encoding:'utf8'});
     assert.equal(result.status,1);
   });
 }

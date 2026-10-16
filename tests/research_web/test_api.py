@@ -123,6 +123,22 @@ class NativeFixture:
         await asyncio.Event().wait()
 
 
+@pytest.fixture(autouse=True)
+def native_contract_engine(monkeypatch):
+    """Keep this module's DSH contract fixtures separate from FinGPT paid calls.
+
+    The new default ingress is covered by test_fingpt_qa using an offline Node
+    process. Explicit capability/automation purposes keep their own semantics.
+    """
+    create = ResearchService.create
+
+    async def native_create(self, *args, **kwargs):
+        kwargs.setdefault("purpose", "native_contract_fixture")
+        return await create(self, *args, **kwargs)
+
+    monkeypatch.setattr(ResearchService, "create", native_create)
+
+
 @pytest.fixture
 def api(tmp_path):
     native = NativeFixture()

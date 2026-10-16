@@ -1038,6 +1038,25 @@ class ResearchService:
         project_id=None,
         model_selection=None,
     ):
+        if (
+            mode == "fingpt"
+            and purpose is None
+            and agent_preset == "research-web"
+            and hasattr(self, "fingpt")
+        ):
+            sources = ["datahub", "web", "uploads"] if source_scope is None else source_scope
+            if (
+                research_depth not in {"instant", "deep"}
+                or not isinstance(sources, list)
+                or not sources
+                or any(x not in {"datahub", "web", "uploads"} for x in sources)
+            ):
+                raise StoreError("研究深度或资料范围无效")
+            result = self.fingpt.create(title or "新研究", project_id or "default")
+            row = self.store.session(result["id"])
+            row.update(research_depth=research_depth, source_scope=sources)
+            self.store.save()
+            return self.summary(row)
         selection = dict(self.default_model if model_selection is None else model_selection)
         await self.ensure_owned()
         async with self.lock:
@@ -1213,6 +1232,7 @@ class ResearchService:
             key: row[key]
             for key in ("id", "mode", "title", "workspace_id", "status", "model", "updated_at")
         }
+        result["engine"] = row.get("engine", "dsh")
         result["research_depth"] = row.get("research_depth", "instant")
         result["source_scope"] = row.get("source_scope", ["datahub", "web", "uploads"])
         if isinstance(result["updated_at"], (int, float)):
@@ -1492,13 +1512,21 @@ class ResearchService:
             or (view == "deleted" and row.get("deleted_at") is not None)
             or (view == "active" and row.get("deleted_at") is None)
         ]
-        active_rows = [row for row in rows if row.get("deleted_at") is None]
+        active_rows = [
+            row
+            for row in rows
+            if row.get("deleted_at") is None and row.get("engine") != "fingpt-qa-v1"
+        ]
         native = await self.client.rpc("session.list", {}) if active_rows else {"items": []}
         running = {item["sessionId"]: item["running"] for item in native["items"]}
         semaphore = asyncio.Semaphore(SUBAGENT_LIST_CONCURRENCY)
 
         async def children_for(row):
-            if row.get("deleted_at") is not None or not row["created"]:
+            if (
+                row.get("engine") == "fingpt-qa-v1"
+                or row.get("deleted_at") is not None
+                or not row["created"]
+            ):
                 return {"entries": []}
             async with semaphore:
                 try:
@@ -1521,7 +1549,8 @@ class ResearchService:
         stale_rows = [
             row
             for row, children in zip(rows, children_by_row, strict=True)
-            if row.get("deleted_at") is None
+            if row.get("engine") != "fingpt-qa-v1"
+            and row.get("deleted_at") is None
             and row["created"]
             and not running.get(row["id"])
             and not children.get("warning")
@@ -1588,6 +1617,11 @@ class ResearchService:
         return results
 
     async def soft_delete_session(self, sid: str):
+        row = self.store.session(sid, include_deleted=True)
+        if row.get("engine") == "fingpt-qa-v1":
+            if sid in self.fingpt.running:
+                raise StoreError("请先停止回答", "session_busy", 409)
+            return self.summary(self.store.soft_delete(sid))
         await self.ensure_owned()
         async with self.lock:
             row = self.store.session(sid, include_deleted=True)
@@ -1633,7 +1667,8 @@ class ResearchService:
             return self.summary(self.store.soft_delete(sid))
 
     async def restore_session(self, sid: str):
-        await self.ensure_owned()
+        if self.store.session(sid, include_deleted=True).get("engine") != "fingpt-qa-v1":
+            await self.ensure_owned()
         async with self.lock:
             row = self.store.session(sid, include_deleted=True)
             deleted_at = row.get("deleted_at")
@@ -1649,6 +1684,14 @@ class ResearchService:
 
     async def permanent_delete_session(self, sid: str):
         """Delete the DSH transcript first, then all Workbench-owned session data."""
+        row = self.store.session(sid, include_deleted=True)
+        if row.get("engine") == "fingpt-qa-v1":
+            if row.get("deleted_at") is None:
+                raise StoreError("会话必须先移至已删除", "session_not_deleted", 409)
+            row["engine_deleted_at"] = time.time()
+            self.store.save()
+            self.store.purge(sid)
+            return {"id": sid, "deleted": True}
         await self.ensure_owned()
         async with self.lock:
             row = self.store.session(sid, include_deleted=True)
@@ -2063,6 +2106,8 @@ class ResearchService:
 
     async def detail(self, sid):
         row = self.store.session(sid)
+        if row.get("engine") == "fingpt-qa-v1":
+            return self.fingpt.detail(sid)
         if not row["created"]:
             raise RuntimeFailure("该会话未成功创建，请新建研究", "session_create_failed")
         observed = self._cancel_observation(sid)
@@ -2334,6 +2379,22 @@ class ResearchService:
         tabbit_tabs=(),
         tabbit_live_confirmed=False,
     ):
+        if self.store.session(sid).get("engine") == "fingpt-qa-v1":
+            from .fingpt.routes import Ask
+
+            if skill_id or capability_id or tool_ids or method_ids or tabbit_tabs:
+                raise StoreError("指定能力与任务请使用 Claw", "fingpt_task_requires_claw", 409)
+            row = self.store.session(sid)
+            rid = await self.fingpt.submit(
+                sid,
+                Ask(
+                    msg=text,
+                    mode="deep" if row.get("research_depth") == "deep" else "quick",
+                    attachment_ids=list(attachments),
+                ),
+                key,
+            )
+            return {"accepted": True, "round_id": rid}
         await self.ensure_owned()
         async with self.lock:
             # Display tolerance never becomes permission to continue a native
@@ -2798,7 +2859,11 @@ class ResearchService:
             return result
 
     async def create_capability_session(self, kind, goal):
-        session = await self.create("fingpt", "创建 Skill" if kind == "skill" else "创建 Workflow")
+        session = await self.create(
+            "fingpt",
+            "创建 Skill" if kind == "skill" else "创建 Workflow",
+            purpose="capability_creation",
+        )
         row = self.store.session(session["id"])
         row["purpose"] = "capability_creation"
         row["creation_kind"] = kind
@@ -2944,6 +3009,8 @@ class ResearchService:
         return result
 
     async def cancel(self, sid):
+        if self.store.session(sid).get("engine") == "fingpt-qa-v1":
+            return await self.fingpt.cancel(sid)
         await self.ensure_owned()
         async with self.lock:
             return await self._cancel(sid)

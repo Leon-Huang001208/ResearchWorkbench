@@ -44,7 +44,7 @@ Claw 在同一研究引擎上组织本地项目、成员会话、带来源的文
 
 Claw 搜索可读取原生 DSH 的会话正文匹配片段，仅展示本产品持有的未删除会话；搜索不会启动研究或将其他会话内容自动加入当前问题。原生匹配较多时需缩小关键词，不提供虚构分页。
 
-当前 Web 入口为 `app.research_web.main:app`。Research Web 通过 FastAPI 轻量适配层连接专属 DSH；**DSH 是唯一的研究引擎**，负责研究执行循环、会话历史、Skill 与子 Agent。基础 Research Web 不启动旧 API 生命周期，也不要求 PostgreSQL、pgvector 或桌面预览。
+当前 Web 入口为 `app.research_web.main:app`。FinGPT 的 quick / deep / agent 由 FastAPI 所有的 Node 流式问答引擎执行；Claw 的任务、Skill、Workflow 与子 Agent 继续由专属 DSH 执行。旧 FinGPT 会话仍可阅读，继续研究时创建新版会话并显式保留项目及资料引用。基础 Research Web 不启动旧 API 生命周期，也不要求 PostgreSQL、pgvector 或桌面预览。
 
 统一「研究情报」入口包含本地热点与事件及外部只读资讯，保留资讯雷达的八个栏目。本地部分连接独立 Hot Node 服务及指定 PostgreSQL，提供事件、来源覆盖、频道和人工纠错；Hot 设置仍在设置页。未配置时显示真实状态，页面读取不启动服务或模型。Native 模型工厂支持已有预算下的受控装配与原回执复用；模型默认关闭，配置不能创建付费授权。预算授权、尝试查询及未知尝试终止通过独立 CLI 明确操作，终止不退款。当前实现与配置命令见 [Hot 组件说明](services/hot/README.md)；冻结简报支持固定版本 Markdown/DOCX，继续研究的会话及快照准备已有本地证据。已有真实报告、安装及恢复证据见权威记录；关注、周期简报和最终整镜像仍在验收中，完整 Hot 产品尚未交付。
 
@@ -269,3 +269,5 @@ Hot研究交接已具备固定PG运行映射、原生会话恢复与DataHub原�
 Hot冻结FinGPT研究现使用轻量DSH组合并有界核验原件；真实Markdown报告已生成且通过文件交付核验。累计scope限额保持100k tokens／20次／USD1；收尾请求被预留上限拒绝的原生failed状态保留，不能据文件存在认证完整运行或安装交付。
 
 研究情报新增“研究与报告”，可读取真实报告、核对原运行状态及下载MD/Word。运行失败但报告已生成的状态并列保留；页面刷新与导出不发送模型请求。
+
+FinGPT 新版包含 Lite / Ultra / Frontier 与可选 Kimi 档位、引用联动、工作笔记和最终报告；快速与 Agent 共用同一个实时思考面板，逐块显示完整推理过程与检索步骤。任务案例入口在 Claw。配置、安全和事件协议见 [FinGPT 问答接入](docs/research-web-fingpt.md)。

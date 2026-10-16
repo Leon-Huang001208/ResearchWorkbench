@@ -152,13 +152,15 @@
         "app/research_web/intel_routes.py",
         "app/research_web/claw_projects.py",
         "app/research_web/claw_routes.py",
-        "app/research_web/navigation.py"
+        "app/research_web/navigation.py",
+        "app/research_web/fingpt/"
       ],
       "documents": [
         "docs/architecture/research-web/01-system.md",
         "docs/architecture/research-web/02-research-runtime.md",
         "docs/architecture/research-web/04-api.md",
-        "docs/architecture/research-web/05-security-validation.md"
+        "docs/architecture/research-web/05-security-validation.md",
+        "docs/research-web-fingpt.md"
       ],
       "diagrams": [
         "01-deployment",
@@ -182,7 +184,8 @@
         "tests/research_web/test_model_connections.py",
         "tests/research_web/test_intel.py",
         "tests/research_web/test_hot_session_recovery.py",
-        "tests/research_web/test_claw_projects.py"
+        "tests/research_web/test_claw_projects.py",
+        "tests/research_web/test_fingpt_qa.py"
       ]
     },
     {
@@ -3492,6 +3495,34 @@
       "source": "app/research_web/main.py",
       "declaredPath": "/api/research/workspaces",
       "prefix": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/fingpt/tiers",
+      "source": "app/research_web/fingpt/routes.py",
+      "declaredPath": "/tiers",
+      "prefix": "/api/research/fingpt"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/fingpt/sessions",
+      "source": "app/research_web/fingpt/routes.py",
+      "declaredPath": "/sessions",
+      "prefix": "/api/research/fingpt"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/fingpt/sessions/{sid}/ask",
+      "source": "app/research_web/fingpt/routes.py",
+      "declaredPath": "/sessions/{sid}/ask",
+      "prefix": "/api/research/fingpt"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/fingpt/sessions/{sid}/rounds/{rid}/events",
+      "source": "app/research_web/fingpt/routes.py",
+      "declaredPath": "/sessions/{sid}/rounds/{rid}/events",
+      "prefix": "/api/research/fingpt"
     }
   ],
   "visualReview": "docs/architecture/research-web/visual-review.json",

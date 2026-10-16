@@ -16,6 +16,9 @@ from fastapi import FastAPI, Header, Query, Request, UploadFile
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
+
+from .fingpt.routes import router as fingpt_qa_router
+from .fingpt.service import FinGPTQA
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
@@ -228,6 +231,7 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
             expected_cwd=ROOT / "runtime" / "work",
             auto_probe_on_start=True,
         )
+        active.fingpt = FinGPTQA(active)
         app.state.research = active
         app.state.hot = HotWebService(Path(__file__).resolve().parents[2], active.store.root)
         await active.start()
@@ -240,9 +244,11 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
             try:
                 await app.state.hot.close()
             finally:
+                await active.fingpt.close()
                 await active.close()
 
     app = FastAPI(title="Research Workbench Research Web", lifespan=lifespan)
+    app.include_router(fingpt_qa_router)
     app.include_router(datahub_router)
     app.include_router(asset_router)
     app.include_router(intel_router)
@@ -569,9 +575,10 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
     @app.patch("/api/research/sessions/{sid}")
     async def rename(sid: str, body: Rename, request: Request):
         service = svc(request)
-        await service.ensure_owned()
         row = service.store.session(sid)
-        await service.client.rpc("session.rename", {"sessionId": sid, "title": body.title})
+        if row.get("engine") != "fingpt-qa-v1":
+            await service.ensure_owned()
+            await service.client.rpc("session.rename", {"sessionId": sid, "title": body.title})
         row["title"] = body.title
         service.store.save()
         return service.summary(row)

@@ -139,3 +139,5 @@ FinGPT 研究深度、原生计划与会话底稿参见 02-research-runtime、03
 ## 历史子会话模式兼容 · 2026-10-13
 
 历史子模式兼容只调整读取投影，原生协议与控制边界见02-research-runtime和05-security-validation；服务与模块结构不变。
+
+FinGPT 三模式问答由 Host 所有的 Node 有界子进程执行并写会话事件；日程与自动化执行仍由 Claw / DSH 负责，FinGPT 问答会话不进入调度队列。事件协议与验证边界见 [FinGPT 问答接入](../../research-web-fingpt.md)。

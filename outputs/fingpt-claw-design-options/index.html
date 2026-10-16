@@ -1,0 +1,85 @@
+<!doctype html><html lang="zh-CN"><meta charset="utf-8"><title>FinGPT / Claw 界面方案对比</title>
+<style>
+:root{--canvas:#fff;--surface:#fafaf9;--sidebar:#f5f5f3;--text:#242424;--muted:#686860;--line:#e8e8e5;--hover:#ececea;--blue:#086aa6;--blue-soft:#f0f6fa;--action:#272725;--on-action:#fff}
+*{box-sizing:border-box}
+body{margin:0;background:#f4f4f2;color:var(--text);font:14px/1.6 -apple-system,"SF Pro Text","Helvetica Neue","PingFang SC",sans-serif}
+.page{max-width:1480px;margin:0 auto;padding:32px 24px 64px}
+h1{font-size:22px;margin:0 0 6px}.lede{color:var(--muted);margin:0 0 28px;max-width:760px}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px;align-items:start}
+.opt{background:var(--canvas);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column}
+.opt>header{padding:14px 16px;border-bottom:1px solid var(--line);background:var(--surface)}
+.opt h2{margin:0;font-size:15px}.opt header p{margin:4px 0 0;color:var(--muted);font-size:12px}
+.opt .why{padding:10px 16px;border-top:1px solid var(--line);color:var(--muted);font-size:12px}
+.mock{padding:18px 16px 22px;display:flex;flex-direction:column;gap:14px}
+.q{align-self:flex-end;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 12px;max-width:78%;font-size:13px}
+.think{border-radius:10px;padding:10px 12px}
+.think .head{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--muted)}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--blue);flex:none}
+.steps{margin:8px 0 0;font-size:12px;color:var(--muted)}
+.rep{font-size:13px}
+.rep h3{margin:0 0 6px;font-size:15px;letter-spacing:-.01em}
+.rep ul{margin:6px 0 10px;padding-left:18px}.rep li{margin:3px 0}
+.cite{font-size:10px;vertical-align:super;color:var(--blue);text-decoration:none}
+.tbl{width:100%;border-collapse:collapse;font-size:12px;margin:8px 0}
+.tbl th,.tbl td{border-bottom:1px solid var(--line);padding:5px 6px;text-align:left;font-weight:400}
+.tbl th{color:var(--muted)}
+.foot{display:flex;gap:14px;font-size:12px;color:var(--muted)}
+.side{border-top:1px solid var(--line);padding-top:10px;font-size:12px;color:var(--muted)}
+.side b{display:block;color:var(--text);font-weight:500;font-size:12.5px;margin-top:8px}
+.claw{border:1px solid var(--line);border-radius:10px;padding:12px}
+.claw .hero{font-size:17px;font-weight:600;letter-spacing:-.01em}
+.claw .sub{color:var(--muted);font-size:12px;margin:4px 0 10px}
+.claw .row{display:flex;gap:8px;flex-wrap:wrap}
+.chip{border:1px solid var(--line);border-radius:999px;padding:4px 10px;font-size:12px;color:var(--muted)}
+.card{border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:12.5px}
+.card b{display:block;font-weight:600;margin-bottom:3px}.card span{color:var(--muted)}
+/* A 编辑台 */
+.a .think{background:transparent;border:0;border-left:2px solid var(--blue);border-radius:0;padding:2px 0 2px 12px}
+.a .rep{border:0;padding:0}.a .rep h3{font-size:17px;margin-bottom:10px}
+.a .foot{border-top:1px solid var(--line);padding-top:8px}
+/* B 静默卡片 */
+.b .think{background:var(--surface);border:1px solid var(--line)}
+.b .rep{border:1px solid var(--line);border-radius:10px;padding:14px}
+.b .foot{gap:10px}.b .btn{border:1px solid var(--line);border-radius:8px;padding:3px 10px;color:var(--text)}
+/* C 双栏工作台 */
+.c{display:grid;grid-template-columns:minmax(0,1fr) 152px;gap:14px}
+.c .rep{border:0;padding:0;max-width:34em}
+.c .side{border-top:0;border-left:1px solid var(--line);padding:0 0 0 12px}
+.c .foot{position:sticky;bottom:0;background:var(--canvas);border-top:1px solid var(--line);padding-top:8px}
+.c .steps{display:grid;gap:4px}
+.c .claw .row{gap:6px}
+</style>
+<div class="page">
+<h1>FinGPT / Claw 界面方向对比</h1>
+<p class="lede">三个方向共用现有 token（暖灰底、#086aa6 单一强调色、1px 发丝线、8px 节奏），差别在排版重心与信息层级。请挑一个，我按它改 FinGPT 与 Claw 两个页面。</p>
+<div class="grid">
+  <section class="opt a"><header><h2>方案 A · 编辑台</h2><p>排版主导，卡片退场</p></header><div class="mock">
+    <div class="q">宁德时代现在贵吗？给出现价、PE、PB 和来源。</div>
+    <div class="think"><div class="head"><span class="dot"></span>思考分析</div><div class="steps">◇ 正在检索「金融数据库」实时行情 300750 ｜ 历史K线 ｜ 指数估值</div></div>
+    <div class="rep"><h3>宁德时代（300750）估值与风险速览</h3><ul><li>现价 277.71 元，日内 -0.28%<a class="cite" href="#">1</a></li><li>PE(TTM) 15.12 倍，两源一致<a class="cite" href="#">1 3</a></li><li>PB(LF) 3.39 倍，口径接近<a class="cite" href="#">1</a></li></ul><table class="tbl"><tr><th>指标</th><th>数值</th><th>口径</th></tr><tr><td>总市值</td><td>12,850 亿</td><td>实时</td></tr></table></div>
+    <div class="foot"><span>参考 3 篇文档</span><span>重试</span><span>复制</span></div>
+  </div><div class="why">去掉面板底色与边框，用二级标题、留白和表格承担层次；思考流用左侧细线，像研究笔记的时间轴。</div></section>
+
+  <section class="opt b"><header><h2>方案 B · 静默卡片</h2><p>结构不变，节奏收紧（推荐）</p></header><div class="mock">
+    <div class="q">宁德时代现在贵吗？给出现价、PE、PB 和来源。</div>
+    <div class="think"><div class="head"><span class="dot"></span>思考分析 · 完成检索「金融数据库」3 项</div><div class="steps">实时行情 300750 · 历史K线 60 日 · 指数估值 399006</div></div>
+    <div class="rep"><h3>宁德时代（300750）估值与风险速览</h3><ul><li>现价 277.71 元，日内 -0.28%<a class="cite" href="#">1</a></li><li>PE(TTM) 15.12 倍，两源交叉一致<a class="cite" href="#">1 3</a></li></ul><table class="tbl"><tr><th>指标</th><th>数值</th></tr><tr><td>PE(TTM)</td><td>15.12 倍</td></tr></table></div>
+    <div class="foot"><span>参考 3 篇文档</span><span class="btn">重试</span><span class="btn">复制</span></div>
+  </div><div class="why">保留现有骨架，把间距统一到 8px 节奏、圆角统一 10px、状态改用圆点而不是色块，一屏只留一个强调色。</div></section>
+
+  <section class="opt c"><header><h2>方案 C · 双栏工作台</h2><p>正文收窄，右侧常驻</p></header><div class="mock"><div class="c"><div>
+    <div class="q">宁德时代现在贵吗？给出现价、PE、PB 和来源。</div>
+    <div class="think"><div class="head"><span class="dot"></span>思考分析</div><div class="steps"><span>✓ 实时行情 300750</span><span>✓ 历史K线 60 日</span><span>◌ 指数估值 399006</span></div></div>
+    <div class="rep"><h3>宁德时代（300750）估值与风险速览</h3><ul><li>现价 277.71 元<a class="cite" href="#">1</a></li><li>PE(TTM) 15.12 倍<a class="cite" href="#">1 3</a></li></ul></div>
+    <div class="foot"><span>参考 3 篇文档 · 生成 2 篇笔记</span><span>重试</span><span>复制</span></div></div>
+    <div class="side">参考文件 / 工作笔记<b>S1 实时行情</b><b>S2 指数估值</b><b>S3 财务摘要</b></div></div>
+  </div><div class="why">正文限制在约 34em，右侧参考栏常驻可折叠，步骤行做成紧凑时间线；Claw 用同一套左树＋中列表＋右详情。</div></section>
+</div>
+
+<h1 style="margin:36px 0 6px;font-size:18px">Claw 入口在三个方向里的样子</h1>
+<div class="grid">
+  <section class="opt a"><header><h2>A · 编辑台</h2><p>标题左对齐，入口像目录</p></header><div class="mock"><div class="claw"><div class="hero">把研究目标，变成可用成果。</div><div class="sub">描述目标、资料与交付要求，在一个空间推进研究。</div><div class="row"><span class="chip">盘前早报</span><span class="chip">持仓技术扫描</span><span class="chip">行业一页纸</span></div></div><div class="card"><b>每日收盘点评</b><span>先澄清研究内容、模型、执行时间与数据范围。</span></div><div class="card"><b>跟踪自选股动态</b><span>区分已核实来源与缺失数据，交付带来源的报告。</span></div></div></section>
+  <section class="opt b"><header><h2>B · 静默卡片</h2><p>保留居中标题，卡片统一</p></header><div class="mock"><div class="claw"><div class="hero" style="text-align:center">把研究目标，变成可用成果。</div><div class="sub" style="text-align:center">描述目标、资料与交付要求，在一个空间推进研究。</div><div class="row" style="justify-content:center"><span class="chip">全部</span><span class="chip">研究实战</span><span class="chip">Agent 日程</span></div></div><div class="card"><b>每日收盘点评</b><span>先澄清研究内容、模型、执行时间与数据范围。</span></div><div class="card"><b>研究行业与公司</b><span>先确认对象与时间范围，再分析行业变化与公司影响。</span></div></div></section>
+  <section class="opt c"><header><h2>C · 双栏工作台</h2><p>左树＋中列表＋右详情</p></header><div class="mock"><div class="c"><div><div class="claw"><div class="hero" style="font-size:15px">研究实战</div><div class="sub">按目标直接开一个研究空间。</div></div><div class="card"><b>每日收盘点评</b><span>定时任务 · 待确认日程</span></div><div class="card"><b>跟踪自选股动态</b><span>报告 · 带来源引用</span></div></div><div class="side">会话 / 项目 / 日程 / 能力<b>Agent 日程</b><b>选择能力</b></div></div></div></section>
+</div>
+</div></html>

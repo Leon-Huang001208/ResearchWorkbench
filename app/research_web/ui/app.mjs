@@ -1,3 +1,4 @@
+import { createFinGPT, renderMigratedTasks, FINGPT_ENGINE } from './fingpt.mjs';
 import { renderSessionMenu, projectMenuPosition, sessionMenuPosition } from './conversation-menus.mjs';
 import { createConversationNavigation, renderProjectEditor } from './conversation-navigation.mjs';
 import { captureQuestionForm, actionQuestion, collectQuestionGroup, questionStateKey } from './questionnaire.mjs';
@@ -116,6 +117,11 @@ let mcpMarketplaceState = { registries: [], installations: [], approvals: [], ap
 const questionDrafts = new Map();
 const controller = createController({ api, onNavigate: (hash) => { history.pushState(null, '', hash); } });
 const state = controller.state;
+const fingptQA = createFinGPT({getState:()=>state,onChange:()=>render(),
+  onSession:async id=>{history.pushState(null,'',`#/fingpt?session=${encodeURIComponent(id)}`);await showRoute();await loadCatalog(['sessions']);},
+  onTask:async prompt=>{history.pushState(null,'','#/claw');await showRoute();controller.setDraft(prompt);render();},
+  onRefresh:()=>loadCatalog(['sessions'])});
+for(const eventName of ['click','input','change','submit','keydown']) root.addEventListener(eventName,event=>{fingptQA.handle(event).catch(()=>safeLog('fingpt_event_failed'));},true);
 window.matchMedia('(max-width: 1050px)').addEventListener?.('change', event => {
   const sidebarFocused = document.activeElement?.matches?.('[data-toggle-sidebar], [data-collapse-sidebar]');
   sidebarOpen = false; contextOpen = false;
@@ -274,10 +280,11 @@ function composer() {
 
 function landing() {
   const claw = state.route.page === 'claw';
-  return `<div class="landing ${claw ? 'claw-landing' : 'fingpt-landing'}"><div class="greeting">${claw ? `<span class="mode-label">${icon('layers')}Claw</span>` : ''}<h1>${claw ? '把研究目标，变成可用成果。' : '从一个问题，开始研究。'}</h1><p class="landing-subtitle">${claw ? '说明目标、资料与交付要求，在一个空间推进研究。' : '读懂资料，比较公司，探索行业。'}</p></div>${!claw ? renderResearchRecipes({ busy: state.busy }) : ""}${composer()}${claw ? renderClawCases(quickCategory) : renderQuickSkills(catalog.capabilities, { page: state.route.page, category: quickCategory })}</div>`;
+  return `<div class="landing ${claw ? 'claw-landing' : 'fingpt-landing'}"><div class="greeting">${claw ? `<span class="mode-label">${icon('layers')}Claw</span>` : ''}<h1>${claw ? '把研究目标，变成可用成果。' : '从一个问题，开始研究。'}</h1><p class="landing-subtitle">${claw ? '说明目标、资料与交付要求，在一个空间推进研究。' : '读懂资料，比较公司，探索行业。'}</p></div>${!claw ? renderResearchRecipes({ busy: state.busy }) : ""}${composer()}${claw ? renderMigratedTasks() : ""}${claw ? renderClawCases(quickCategory) : renderQuickSkills(catalog.capabilities, { page: state.route.page, category: quickCategory })}</div>`;
 }
 
 function researchPage() {
+  if(state.route.page==='fingpt' && !state.loading){const page=fingptQA.render(state.detail);if(page!==null)return page;}
   if (state.loading) return `<div class="loading-state" role="status">正在读取会话…</div>`;
   if (state.route.sessionId && !state.detail) return `${empty('暂时无法读取这个会话', '检查连接后重试，输入内容仍会保留。')}<button class="button" data-reload-session>重新读取</button>`;
   if (!state.detail) return landing();
@@ -527,7 +534,7 @@ function render() {
   if (navigationList?.clientHeight > 0 && conversationNavigation.state(renderedMode)) conversationNavigation.state(renderedMode).scrollTop = navigationList.scrollTop;
   const research = ['fingpt', 'claw'].includes(state.route.page);
   const hasSecondary = research && !sidebarCollapsed;
-  const hasContext = research && Boolean(state.detail) && !contextCollapsed;
+  const hasContext = research && Boolean(state.detail) && state.detail?.engine!==FINGPT_ENGINE && !contextCollapsed;
   const searchableCapabilities = searchableCapabilityList();
   const visibleErrors = Object.entries(catalog.errors).filter(([name]) => (
     name !== 'artifacts' || (state.route.page === 'workbench' && state.route.section !== 'assets')
@@ -1286,6 +1293,7 @@ async function showRoute() {
   cancelProjectMenuTimers();
   await controller.open(requestedRoute);
   if (ticket !== pageGeneration) return;
+  if(state.route.page==='fingpt')fingptQA.activate(state.detail);
   if (state.route.settingsSectionFallback) safeLog('settings_section_fallback');
   if (['fingpt', 'claw'].includes(state.route.page)) researchDraftRoute = { ...state.route };
   document.querySelector('#main')?.scrollTo({ top: 0 });

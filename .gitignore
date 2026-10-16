@@ -94,3 +94,9 @@ initial-page-load.png
 
 # Debug test files
 tests/debug_*.py
+
+# FinGPT local model credentials and test replays
+*.env
+.env*.local
+.env.enc
+.replays/

@@ -1,4 +1,4 @@
-"""Atomic single-process product ownership index. DSH owns all transcripts."""
+"""Atomic single-process product ownership index. DSH owns native transcripts; FinGPT owns scoped QA receipts."""
 
 import hashlib
 import json
@@ -124,11 +124,21 @@ class Store:
     def reserve_hot_session(self, sid: str, mode: str, origin: dict) -> dict:
         """Persist the preallocated identity before native creation; never adopt another row."""
         from .datahub.security import directory, make_directory
-        if (not isinstance(sid, str) or not re.fullmatch(r"[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}", sid)
-                or mode not in {"fingpt", "claw"} or not isinstance(origin, dict)
-                or set(origin) != {"runId", "instanceId", "manifestHash"}
-                or any(not isinstance(origin[k], str) or not re.fullmatch(r"[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}", origin[k]) for k in ["runId", "instanceId"])
-                or not isinstance(origin["manifestHash"], str) or not re.fullmatch(r"[a-f0-9]{64}", origin["manifestHash"])):
+
+        if (
+            not isinstance(sid, str)
+            or not re.fullmatch(r"[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}", sid)
+            or mode not in {"fingpt", "claw"}
+            or not isinstance(origin, dict)
+            or set(origin) != {"runId", "instanceId", "manifestHash"}
+            or any(
+                not isinstance(origin[k], str)
+                or not re.fullmatch(r"[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}", origin[k])
+                for k in ["runId", "instanceId"]
+            )
+            or not isinstance(origin["manifestHash"], str)
+            or not re.fullmatch(r"[a-f0-9]{64}", origin["manifestHash"])
+        ):
             raise StoreError("研究交接保留身份非法")
         if sid in self.data["sessions"]:
             row = self.session(sid)
@@ -138,9 +148,20 @@ class Store:
             with directory(self.root, ("sessions",), create=True) as parent:
                 if sid in os.listdir(parent):
                     raise StoreError("目标会话目录已存在但没有归属")
-            row = {"id": sid, "mode": mode, "title": "热点与事件研究", "workspace_id": "research",
-                   "status": "idle", "model": None, "updated_at": time.time(), "files": {}, "created": False,
-                   "purpose": "hot_research", "hot_origin": dict(origin), "hot_creation_state": "reserved"}
+            row = {
+                "id": sid,
+                "mode": mode,
+                "title": "热点与事件研究",
+                "workspace_id": "research",
+                "status": "idle",
+                "model": None,
+                "updated_at": time.time(),
+                "files": {},
+                "created": False,
+                "purpose": "hot_research",
+                "hot_origin": dict(origin),
+                "hot_creation_state": "reserved",
+            }
             self.data["sessions"][sid] = row
             self.save()
             log.info("hot_session_reserved", session_id=sid)
@@ -256,8 +277,10 @@ class Store:
         row = self.session(sid, include_deleted=True)
         if row.get("deleted_at") is None:
             raise StoreError("会话必须先移至已删除", "session_not_deleted", 409)
-        if row.get("native_deleted_at") is None:
-            raise StoreError("DSH 原生日志尚未删除", "native_session_not_deleted", 409)
+        if row.get("native_deleted_at") is None and not (
+            row.get("engine") == "fingpt-qa-v1" and row.get("engine_deleted_at") is not None
+        ):
+            raise StoreError("研究引擎记录尚未确认删除", "native_session_not_deleted", 409)
 
         paths = [
             self.root / "sessions" / sid,

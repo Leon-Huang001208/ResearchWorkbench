@@ -2889,6 +2889,25 @@ class WebServiceManager:
             "data": {"ready": self.data_root.is_dir()},
         }
 
+    def _fingpt_diagnosis(self) -> dict[str, Any]:
+        """Read labels/configuration flags only; never invoke generation."""
+        try:
+            value = self._json_request(self.web_port, "GET", "/api/research/fingpt/tiers")
+            tiers = value.get("tiers", {})
+            if set(tiers) != {"lite", "ultra", "frontier", "kimi"}:
+                raise ValueError("invalid tiers")
+            return {
+                "state": (
+                    "configured"
+                    if tiers["lite"].get("configured") is True
+                    else "missing_configuration"
+                ),
+                "tiers": {k: {"configured": v.get("configured") is True} for k, v in tiers.items()},
+                "generation_verified": False,
+            }
+        except (ServiceManagerError, ValueError, AttributeError, TypeError):
+            return {"state": "unavailable", "tiers": {}, "generation_verified": False}
+
     def _model_diagnosis(self) -> tuple[bool, tuple[str, ...]]:
         """Read safe model configuration/catalog facts without generation calls."""
         warnings: list[str] = []
@@ -3008,6 +3027,11 @@ class WebServiceManager:
             "warnings": warnings,
             "services": {probe.role: probe.public() for probe in probes},
             "office_auto_verification": office_auto,
+            "fingpt": (
+                self._fingpt_diagnosis()
+                if product_ready
+                else {"state": "host_not_ready", "tiers": {}, "generation_verified": False}
+            ),
         }
 
     def _validate_log_ownership(self) -> dict[str, tuple[bytes, tuple[int, ...]]]:

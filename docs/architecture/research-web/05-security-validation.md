@@ -611,3 +611,7 @@ AES 专用模型后端在构造器的既有文件锁内核验全部现有 JSON�
 ## 框架嵌入核心闭环 · 2026-10-14
 
 嵌入资源使用 /frameworks-embed/ 路由级同源 CSP，不放宽宿主 CSP。宿主与子窗口桥接校验 origin、source、slug、revision 与本次 token，重新挂载必须重新确认；过时回执不能解锁 Bot。原生快照不回退静态 JSON；来源缺口、数据准入和固定 DSH 权限门保留。真实模型、供应商和跨平台证据独立记录。
+
+## FinGPT 问答更新（2026-10-16）
+
+FinGPT 三模式改用 Host 所有的流式引擎；任务预设进入 Claw。会话事件、模型配置、资料范围与验证边界见 [FinGPT 接入合同](../../research-web-fingpt.md)。

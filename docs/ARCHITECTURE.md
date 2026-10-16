@@ -37,7 +37,7 @@ Research Web FastAPI Host（8088）
 ```
 
 - 入口：`app.research_web.main:app`。
-- DSH 是唯一研究引擎；Research Web 不创建第二套 Agent 编排、聊天正文库或研究事实库。
+- Claw 的任务执行由 DSH 所有；FinGPT 三模式改为 Host 所有的 Node 问答引擎，明确更新原唯一 DSH 边界。问答事件存在会话目录 fingpt.json，报告和笔记进入既有 outputs 文件交付；不复制到 DSH 日志。
 - Native 以两个宿主进程运行 Web 与 DSH；Docker 以一个非 root 容器运行两者，仅向宿主回环发布 Web 8088，DSH 3081 留在容器内。`rwb runtime` 先按私有模式记录选择，再由 `rwb web` 按进程或容器归属管理；同一数据目录只允许顺序使用。
 - Host 与 Runtime 保持回环访问边界；两种模式都不接管未知进程、容器或端口。
 - macOS 启动链用私有 `install/endpoints.json` 记录健康后接受的实际回环端口。
@@ -70,7 +70,7 @@ ETF工程模拟由Host内 `portfolio_decisions/` 完成确定性信号、组合�
 
 ## 数据与信任边界
 
-- DSH 原生日志持有研究正文和执行事件；产品索引只保存归属、状态、版本、文件和审计指针。
+- DSH 原生日志持有 Claw / 旧研究正文；新版 FinGPT 的事件及回答由 Host 会话目录持有。产品索引保存归属、状态、版本、文件和审计指针。
 - 用户上传、DataHub 快照、能力资源和产物使用产品数据根内的受控相对路径；普通 API 不接受任意本机路径。
 - Native 密钥只进入产品设置和宿主凭据库；Docker 使用独立私有容器凭据目录，不自动跨模式迁移。迁移、日志、快照和浏览器响应均不得回填秘密。
 - DataHub 的登记、配置、授权、探测、适配和当前可调用是不同事实；目录存在不等于真实连接已验证。
@@ -89,3 +89,5 @@ ETF工程模拟由Host内 `portfolio_decisions/` 完成确定性信号、组合�
 - [Development Map](DEVELOPMENT_MAP.md) 映射源码区域、权威文档和测试。
 - [文档门禁](research-web-documentation.md) 校验文档分类、权威唯一性、链接、退役命令、生成索引和 Research Web 架构清单。
 - `.ai/reports/` 保存每次任务的真实命令、结果和架构影响；`CHANGELOG.md` 只保留用户可见变化。
+
+FinGPT 引擎边界与持久化合同见 [新版问答接入](research-web-fingpt.md)。Node 每次回答一个受管子进程，无独立端口；浏览器只连接现有 FastAPI。

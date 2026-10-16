@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "updated",
-  "summary": "统一Claw与FinGPT的Codex式会话导航、项目与逐题原生问题交互，README已同步功能和权限边界。",
-  "reason": "新增本实例模式隔离的导航元数据接口及FinGPT项目，保留唯一DSH、原生问答和安装入口；没有新增依赖、执行器或自动化授权。"
+  "summary": "FinGPT 三模式接入 Host 原生问答，快速与 Agent 共用实时思考面板，任务迁移至 Claw，README 已同步。",
+  "reason": "按用户明确选择更新唯一 DSH 边界并复刻 AlphaDesk 展示；新增 Node 有界子进程、分块实时推理与会话事件，私有配置仅在 .env.local，无产品依赖新增。"
 }

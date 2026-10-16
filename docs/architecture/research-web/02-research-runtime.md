@@ -599,3 +599,7 @@ AES 绑定先验证已有树及两个固定 ref 的完整认证，不允许外�
 Gold／Dollar 看板确认宿主已读 snapshot revision 后，Bot 才沿原解释／显式深度验证 preset 请求 DSH；已有会话仍绑定旧 revision，刷新不改变绑定。静态九项拒绝框架 Bot，不生成第二套执行链。
 
 会话列表和详情把本机持有的原生未决question按ownerSessionId投影为waiting_input（优先于运行标记），解除提问后回到原生运行状态；不改调度、取消能力或执行器。浏览器查看完成标记仅关联该会话updated_at，未查看显示圆环，查看后隐藏。
+
+## FinGPT 问答更新（2026-10-16）
+
+FinGPT 三模式改用 Host 所有的流式引擎；任务预设进入 Claw。会话事件、模型配置、资料范围与验证边界见 [FinGPT 接入合同](../../research-web-fingpt.md)。
