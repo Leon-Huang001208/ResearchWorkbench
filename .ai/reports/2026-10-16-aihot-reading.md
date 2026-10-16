@@ -15,3 +15,5 @@
 独立评审发现并已用反例修复：embed无闭合标签吞掉后文、剪贴板异步完成误写新页面、Markdown漏掉图片/内部引用/引文。扩展后24项JS、43项Python通过；无skip/todo。真实隔离浏览器已见英文全文5407可见字符/7章节、同新闻23篇来源、事件全文/10篇官方筛选、主题第二页20篇/四页、所查页面无控制台错误。
 
 本地Router完整影响29文件、L4；logs/reading-local-results.json记录11项exit0（含架构/文档/索引/JS/Python/Project Constraints/Ruff/Black/isort/mypy/git diff）；新增docs08纳入完整changed-set再次Constraints通过。新依赖仅为先前已授权的任务隔离测试工具，无产品依赖变化。
+
+实现源码检查点80c0eab8f70c8a7a63fbfd18c3a1f6596f4ad099；架构源码链接绑定此点，生成物交付提交另记。完整本地JS220/220、Python73/73通过，目标43项覆盖AIHOT；其余30项为相邻intel。Windows/Linux原生NOT_RUN，未调用模型、未改常驻。
