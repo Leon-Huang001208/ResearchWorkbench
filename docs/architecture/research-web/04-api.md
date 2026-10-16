@@ -1,5 +1,7 @@
 # Research Web 接口清单
 
+新增匿名GET：`/api/research/aihot/items/{item_id}`、`/items/{item_id}/original`、`/stories/{story_id}`、`/topics/{slug}?page=1`、`/groups/{fact_id}/reports`，均在相同前缀内。标识/页码严格限定，响应校验身份；专题308仅接受UUID合并目标，由浏览器在本地路由内最多跟进四次，不跟随HTTP跳转。正文以body.content惰性阅读树替代上游HTML。no-store来源清单不缓存。
+
 AI资讯读取原站公开页面API，通过固定 `/api/research/aihot/pages/hot` 和
 `/api/research/aihot/reports/{kind}` 接入；kind只允许daily/weekly/monthly。
 报刊支持 `/latest-page`、`/{key}`、`/navigation/{key}`，日报另有 `/months/{month}`。

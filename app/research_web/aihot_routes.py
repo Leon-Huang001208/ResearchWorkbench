@@ -12,10 +12,11 @@ from email.utils import parsedate_to_datetime
 from typing import Annotated, Literal
 
 import httpx
-from fastapi import APIRouter, HTTPException, Path, Request
+from fastapi import APIRouter, HTTPException, Path, Query, Request
 
 from core.observability import get_logger
 
+from .aihot_content import reading_tree
 from .aihot_media import AihotMedia
 
 router = APIRouter(prefix="/api/research/aihot", tags=["aihot"])
@@ -60,17 +61,31 @@ class AihotReader:
         try:
             cached = self._fresh(endpoint)
             if cached is not None:
-                return self.media.project(cached) if endpoint.startswith("/site/") else cached
+                return self._project(endpoint, cached)
             async with asyncio.timeout(20):
                 async with self.lock:
                     payload = await self._read(endpoint)
-            return self.media.project(payload) if endpoint.startswith("/site/") else payload
+            return self._project(endpoint, payload)
         except (httpx.TimeoutException, TimeoutError) as exc:
             raise _failure("aihot_timeout", "AIHOT 读取超时，请重试。", 504) from exc
         except httpx.HTTPError as exc:
             raise _failure("aihot_unavailable", "无法连接 AIHOT，请稍后重试。") from exc
         except (ValueError, TypeError, UnicodeError, RecursionError) as exc:
             raise _failure("aihot_invalid_response", "AIHOT 返回了异常数据。") from exc
+
+    def _project(self, endpoint: str, payload: dict) -> dict:
+        if not endpoint.startswith("/site/"):
+            return payload
+        result = self.media.project(payload)
+        if endpoint.startswith("/site/items/") and isinstance(result.get("body"), dict):
+            body = result["body"]
+            html = body.get("original") if endpoint.endswith("/original") else body.get("zh")
+            html = html or body.get("original") or body.get("zh") or ""
+            result["body"] = {
+                key: value for key, value in body.items() if key not in {"zh", "original"}
+            }
+            result["body"]["content"] = reading_tree(html, self.media._image)
+        return result
 
     def _fresh(self, endpoint: str) -> dict | None:
         previous = self.cache.get(endpoint)
@@ -129,8 +144,10 @@ class AihotReader:
                 )
                 raise _failure("aihot_retry_later", message, response.status_code, retry)
             if response.status_code == 404:
-                raise _failure("aihot_not_found", "该日期暂无可用日报。", 404)
-            if response.status_code != 200:
+                raise _failure("aihot_not_found", "该内容不存在、已撤回或暂不可用。", 404)
+            if response.status_code not in (
+                {200, 308} if endpoint.startswith("/site/stories/") else {200}
+            ):
                 raise _failure("aihot_unavailable", "AIHOT 暂不可用，请稍后重试。")
             mime = response.headers.get("content-type", "").split(";", 1)[0].strip()
             if mime != "application/json":
@@ -162,6 +179,9 @@ class AihotReader:
             ):
                 raise ValueError("invalid AIHOT collection")
             ttl = _ttl(response.headers)
+            if "no-store" in response.headers.get("cache-control", "").lower():
+                log.info("aihot_read_completed", kind="related")
+                return payload
             self._remember(
                 endpoint,
                 {
@@ -179,7 +199,59 @@ class AihotReader:
 
     @staticmethod
     def _validate_page(endpoint: str, payload: dict) -> None:
-        if endpoint == "/site/hot":
+        if endpoint.startswith("/site/items/"):
+            if (
+                payload.get("id") != endpoint.split("/")[3]
+                or not isinstance(payload.get("title"), str)
+                or not all(
+                    isinstance(payload.get(key), list)
+                    for key in ("outline", "relatedStories", "topics")
+                )
+                or (payload.get("body") is not None and not isinstance(payload.get("body"), dict))
+            ):
+                raise ValueError("invalid article identity")
+        elif endpoint.startswith("/site/stories/"):
+            merged = payload.get("mergedInto")
+            if merged is not None:
+                if not isinstance(merged, str) or not re.fullmatch(
+                    r"[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}", merged
+                ):
+                    raise ValueError("invalid merged story")
+            elif (
+                payload.get("publicId") != endpoint.rsplit("/", 1)[1]
+                or not isinstance(payload.get("title"), str)
+                or not all(
+                    isinstance(payload.get(key), list)
+                    for key in (
+                        "timeline",
+                        "developments",
+                        "officialReports",
+                        "heat",
+                        "related",
+                        "topics",
+                    )
+                )
+                or not isinstance(payload.get("whyHot"), dict)
+            ):
+                raise ValueError("invalid story identity")
+        elif endpoint.startswith("/site/groups/"):
+            if payload.get("factId") != endpoint.split("/")[3] or not isinstance(
+                payload.get("reports"), list
+            ):
+                raise ValueError("invalid reading group")
+        elif endpoint.startswith("/site/topics/"):
+            identity = endpoint.split("?")[0].rsplit("/", 1)[1]
+            page = int(endpoint.rsplit("=", 1)[1])
+            if (
+                not isinstance(payload.get("topic"), dict)
+                or payload["topic"].get("slug") != identity
+                or not isinstance(payload.get("items"), list)
+                or payload.get("page") != page
+                or type(payload.get("pageCount")) is not int
+                or payload["pageCount"] < 0
+            ):
+                raise ValueError("invalid topic identity")
+        elif endpoint == "/site/hot":
             if not isinstance(payload.get("entries"), list) or not all(
                 isinstance(item, dict)
                 and isinstance(item.get("rank"), int)
@@ -299,3 +371,35 @@ async def report_detail(request: Request, kind: ReportKind, key: ReportKey):
 @router.get("/media/{key}")
 async def media(request: Request, key: Annotated[str, Path(pattern=r"^[a-f0-9]{64}$")]):
     return await request.app.state.aihot.media.read(key)
+
+
+ItemId = Annotated[str, Path(pattern=r"^[A-Za-z0-9_-]{1,80}$")]
+StoryId = Annotated[str, Path(pattern=r"^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$")]
+TopicSlug = Annotated[str, Path(pattern=r"^[a-z0-9][a-z0-9_-]{0,79}$")]
+
+
+@router.get("/items/{item_id}")
+async def item_detail(request: Request, item_id: ItemId):
+    return await request.app.state.aihot.read("/site/items/" + item_id)
+
+
+@router.get("/items/{item_id}/original")
+async def item_original(request: Request, item_id: ItemId):
+    return await request.app.state.aihot.read("/site/items/" + item_id + "/original")
+
+
+@router.get("/stories/{story_id}")
+async def story_detail(request: Request, story_id: StoryId):
+    return await request.app.state.aihot.read("/site/stories/" + story_id)
+
+
+@router.get("/topics/{slug}")
+async def topic_detail(
+    request: Request, slug: TopicSlug, page: Annotated[int, Query(ge=1, le=10000)] = 1
+):
+    return await request.app.state.aihot.read(f"/site/topics/{slug}?page={page}")
+
+
+@router.get("/groups/{fact_id}/reports")
+async def group_reports(request: Request, fact_id: ItemId):
+    return await request.app.state.aihot.read(f"/site/groups/{fact_id}/reports")

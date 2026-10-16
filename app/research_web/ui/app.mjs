@@ -2298,6 +2298,13 @@ root.addEventListener('click', async (event) => {
   }
   if (state.route.page === 'aihot') {
     root.querySelectorAll('.aihot-faces[open]').forEach(item => { if (!item.contains(event.target)) item.open = false; });
+    if (event.target.closest?.('[data-aihot-group]')) { await aihotController.loadGroup(); return; }
+    const copyKind = event.target.closest?.('[data-aihot-copy]')?.dataset.aihotCopy;
+    if (copyKind) { await aihotController.copy(copyKind); return; }
+    if (event.target.closest?.('[data-aihot-download]')) { aihotController.download(); return; }
+    const storyFilter = event.target.closest?.('[data-aihot-filter]')?.dataset.aihotFilter;
+    const storyOrder = event.target.closest?.('[data-aihot-order]')?.dataset.aihotOrder;
+    if (storyFilter || storyOrder) { aihotController.setStoryView({filter:storyFilter,order:storyOrder}); return; }
     if (event.target.closest?.('[data-aihot-refresh]')) { await aihotController.refresh(); return; }
     const jump = event.target.closest?.('[data-aihot-jump]');
     if (jump) {

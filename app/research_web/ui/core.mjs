@@ -18,6 +18,14 @@ export function parseRoute(hash = '') {
   };
   if (page === 'aihot') {
     route.aihotTab = !extraSegments.length && ['hot', 'archive', 'weekly', 'monthly'].includes(sectionSegment) ? sectionSegment : 'daily';
+    const identity = extraSegments.length === 1 ? extraSegments[0] : '';
+    const validDetail = sectionSegment === 'item' ? /^[A-Za-z0-9_-]{1,80}$/.test(identity) : sectionSegment === 'story' ? /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(identity) : sectionSegment === 'topic' && /^[a-z0-9][a-z0-9_-]{0,79}$/.test(identity);
+    if (validDetail) {
+      route.aihotTab = sectionSegment; route.aihotId = identity;
+      route.aihotLanguage = params.get('lang') === 'original' ? 'original' : 'zh';
+      const requestedPage = params.get('page') || '1';
+      route.aihotPage = /^\d{1,5}$/.test(requestedPage) && Number(requestedPage) >= 1 && Number(requestedPage) <= 10000 ? Number(requestedPage) : 1;
+    }
     const datePattern = route.aihotTab === 'weekly' ? /^\d{4}-W\d{2}$/ : route.aihotTab === 'monthly' ? /^\d{4}-\d{2}$/ : /^\d{4}-\d{2}-\d{2}$/;
     route.aihotDate = datePattern.test(params.get('date') || '') ? params.get('date') : null;
   }
