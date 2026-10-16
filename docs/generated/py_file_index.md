@@ -2884,6 +2884,26 @@ Imports:
 - `runtime_contract`
 
 
+## `app/research_web/aihot_content.py`
+
+Module docstring:
+> Convert publisher HTML into inert reading nodes; never forward executable HTML.
+
+Imports:
+- `core.observability`
+- `html.parser`
+- `re`
+- `urllib.parse`
+
+Classes:
+- `ReadingParser`
+  - methods: __init__, append, handle_starttag, handle_endtag, handle_startendtag, handle_data
+
+Functions:
+- `reading_href`
+- `reading_tree`
+
+
 ## `app/research_web/aihot_media.py`
 
 Module docstring:
@@ -2912,6 +2932,7 @@ Module docstring:
 > Anonymous AIHOT reading adapter; no collection, credentials or model calls.
 
 Imports:
+- `aihot_content`
 - `aihot_media`
 - `asyncio`
 - `collections`
@@ -2930,7 +2951,7 @@ Imports:
 Classes:
 - `AihotReader`
   - Per-app bounded LRU with conditional revalidation and shared cooldowns.
-  - methods: __init__, read, _fresh, _read, _validate_page, _remember
+  - methods: __init__, read, _project, _fresh, _read, _validate_page, _remember
 
 Functions:
 - `_failure`
@@ -2946,6 +2967,11 @@ Functions:
 - `report_navigation`
 - `report_detail`
 - `media`
+- `item_detail`
+- `item_original`
+- `story_detail`
+- `topic_detail`
+- `group_reports`
 
 
 ## `app/research_web/asset_routes.py`

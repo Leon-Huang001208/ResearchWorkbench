@@ -55,11 +55,11 @@ class AihotMedia:
             return value
         result = {}
         for key, item in value.items():
-            if key in {"sourceIconUrl", "iconUrl"} or (
+            if key in {"sourceIconUrl", "iconUrl", "avatarUrl", "fullUrl", "poster"} or (
                 key == "url" and isinstance(item, str) and "/api/img-proxy?" in item
             ):
                 result[key] = self._image(item)
-            elif key in {"srcSet", "iconSrcSet", "sourceIconSrcSet"}:
+            elif key in {"srcSet", "iconSrcSet", "sourceIconSrcSet", "avatarSrcSet"}:
                 choices = []
                 if isinstance(item, str):
                     for choice in item.split(","):

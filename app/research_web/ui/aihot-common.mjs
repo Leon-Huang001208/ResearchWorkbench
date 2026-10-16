@@ -8,7 +8,17 @@ export function external(value, label, className = '') {
   const url = safeURL(value);
   return url && /^https?:\/\//.test(url) ? `<a class="${e(className)}" href="${e(url)}" target="_blank" rel="noopener noreferrer">${e(label)}</a>` : e(label);
 }
-export const itemLink = (item, label = item.title) => item.available === false ? `<span class="aihot-withdrawn">${e(label)}</span>` : external(item.itemId ? `https://aihot.news/items/${encodeURIComponent(item.itemId)}` : item.sourceUrl, label);
+export function readingLink(value, label, className = '') {
+  if (typeof value === 'string') {
+    try {
+      const url = new URL(value, 'https://aihot.news');
+      const match = url.origin === 'https://aihot.news' && url.pathname.match(/^\/(items|story|topics)\/([A-Za-z0-9_-]{1,80})(\/original)?\/?$/);
+      if (match) return `<a class="${e(className)}" href="#/aihot/${({items:'item',story:'story',topics:'topic'})[match[1]]}/${e(match[2])}${match[3] ? '?lang=original' : ''}">${e(label)}</a>`;
+    } catch { /* Invalid publisher destinations remain inert. */ }
+  }
+  return external(value, label, className);
+}
+export const itemLink = (item, label = item.title) => item.available === false ? `<span class="aihot-withdrawn">${e(label)}</span>` : readingLink((item.itemId || item.id) ? `https://aihot.news/items/${encodeURIComponent(item.itemId || item.id)}` : item.sourceUrl, label);
 export const imageURL = value => typeof value === 'string' && /^\/api\/research\/aihot\/media\/[a-f0-9]{64}$/.test(value) ? value : null;
 export function image(value, alt = '', className = '', eager = false) {
   const url = imageURL(value?.url || value);
