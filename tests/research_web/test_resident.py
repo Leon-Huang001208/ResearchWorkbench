@@ -756,3 +756,9 @@ def test_staging_never_builds_wheels_until_explicit_profile_review_passes(reside
         controller.stage(home, config, "b" * 40, {}, compatibility_profile=h.PROFILE)
     assert calls == []
     assert not (resident / "candidate.json").exists()
+
+
+
+def test_expected_upgrade_revisions_cannot_be_silently_ignored_by_automatic_tick(resident):
+    with pytest.raises(SystemExit):
+        controller.main(["tick", "--home", str(resident.parent), "--expected-target", "b" * 40])

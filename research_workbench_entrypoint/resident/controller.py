@@ -562,6 +562,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--operation", choices=("ensure", "deploy", "recover", "rollback"))
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
+    if args.command != "upgrade-host-metadata" and (
+        args.expected_previous is not None or args.expected_target is not None
+    ):
+        parser.error("expected revision arguments require upgrade-host-metadata")
     root = args.home / "resident"
     try:
         if args.command == "status":
