@@ -34,3 +34,14 @@ Windows/Linux原生NOT_RUN；不发送其他平台dispatch，不宣称跨平台�
 
 <!-- architecture-review {"group": "research-api", "structure": "unchanged", "reason": "在既有Host匿名HTTP读取和浏览器模块边界内增加固定来源阅读页面，不新增部署节点、存储schema、研究引擎或调度器。", "diagrams": []} -->
 
+## 已授权的项目内交付恢复修复
+
+2026-10-16用户明确授权修复基线推进恢复并完成同一PR126交付；不改全局框架、不强推、不删除旧工作树。
+原候选a1a5b7265aebc599de328ac8f5858622751daed4的Mac Bootstrap38872423852已成功，实际checkout相同；Doctor installation_ok/product_ready、runtime/web ready和原生空搜索覆盖均通过。
+等待期间PR125推进master至1566973375ecb28a5298b356fc7cd28ad2727445；已原位合并并解决15处文档/生成物冲突，保留双方功能。
+该合并候选75ec5ac389125747d4db92033581debd57c9a132本地236项JS、105项Python通过，独立评审未发现功能合并问题；这些不认证后续恢复代码或新候选CI。
+失败证据：受管publish记录remote_moved，prepare旧实现禁止删除重建路径。新回归首次4项RED均触发PREPARE_REMOVAL_BLOCKED。
+修复将remote_moved已发布PR的prepare转为原位候选认证：旧候选/feature/新基线祖先、所有权、干净状态、PR与远端实时身份、双次候选/回执核对；旧回执先归档，CI/验证清空。
+旧prepared未发布的再次推进只接受明确钉住的published tip；发布成功后推进该tip，拒绝任意祖先和更老head回退。无push/删引用/删工作树，原修补计数及全部全局策略保持。
+独立审查指出的head任意祖先及发布后残留问题均已补反例和修复。完整最终测试、实际原位恢复、最终候选Mac CI、合并与资源回执待下列交付证据补充；不能复用旧候选Mac结果冒充通过。
+完整Git安全测试54/54通过（34.14秒，无skip/todo），另验证发布身份门拒绝时不会先改写pin。文档治理与Node语法检查通过；最终候选CI仍待运行。

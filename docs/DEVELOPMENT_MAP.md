@@ -1,5 +1,7 @@
 # Research Workbench Development Map
 
+Git基线恢复由git_safety.mjs的remote_moved原位prepare认证，保留原PR/工作树和旧回执，重置CI/验证并推进已发布tip绑定。近处git_safety.test.mjs覆盖所有权、祖先、并发变化、重复准备、发布后回退及锁保护；共享框架不修改。
+
 AI资讯：aihot_routes.py管理v1兼容和完整site报刊/热点合同、LRU/ETag/限流；aihot_media.py
 只读取上游已签发图片。ui/aihot.mjs负责代次/取消/归档状态，aihot-report/hot/common.mjs
 负责原页面完整阅读结构、趋势几何与安全渲染。独立路由#/aihot/{daily,weekly,monthly,archive,hot}。

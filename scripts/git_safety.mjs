@@ -490,6 +490,109 @@ function refreshFeatureRecord(repository, receipt, options) {
     fs.unlinkSync(lock);
   }
 }
+function refreshPublishedBase(repository, receipt, taskId, options) {
+  // The shared controller rebuilds worktrees for remote_moved. RWB instead admits
+  // an already committed descendant, preserving the existing PR and every ref.
+  if (receipt.mode !== 'pr' || receipt.status !== 'remote_moved' || !receipt.integrationCommit) fail('PREPARE_REMOVAL_BLOCKED');
+  if (receipt.taskId !== taskId || receipt.repositoryRoot !== repository.repositoryRoot || receipt.remote !== 'origin' || receipt.defaultBranch !== 'master' || !new RegExp(`^codex/integrate-${taskId}(?:-r[0-9]+)?$`).test(receipt.integrationBranch ?? '')) fail('TASK_OWNERSHIP_MISMATCH');
+  const repo = githubRepo(receipt);
+  if (!Number.isSafeInteger(receipt.pullRequest?.number) || receipt.pullRequest.number < 1 || receipt.pullRequest.url !== `https://github.com/${repo}/pull/${receipt.pullRequest.number}`) fail('TASK_OWNERSHIP_MISMATCH');
+  if ([receipt.baseCommit, receipt.integrationCommit, receipt.featureCommit].some(value => !/^[a-f0-9]{40}$/.test(value ?? ''))) fail('BASE_REFRESH_ANCESTRY_INVALID');
+  const destination = path.join(repository.commonDirectory, 'leon-engineering/deliveries', taskId + '.json');
+  const lock = path.join(repository.commonDirectory, 'leon-engineering/locks/integration.lock');
+  try { privateWrite(lock, String(process.pid) + '\n'); } catch (error) { if (error.code === 'EEXIST') fail('TASK_LOCKED'); throw error; }
+  const lockIdentity = fs.lstatSync(lock);
+  let temporary;
+  try {
+    assertNoSymlinkAncestors(path.dirname(destination));
+    const recordIdentity = fs.lstatSync(destination);
+    if (!recordIdentity.isFile() || recordIdentity.isSymbolicLink() || recordIdentity.nlink !== 1) fail('DELIVERY_RECORD_INVALID');
+    const before = fs.readFileSync(destination, 'utf8');
+    if (JSON.stringify(JSON.parse(before)) !== JSON.stringify(receipt)) fail('DELIVERY_RECORD_CHANGED');
+    const readBase = () => {
+      const base = githubJson(['api', `repos/${repo}/git/ref/heads/master`], repository, options)?.object?.sha;
+      if (!/^[a-f0-9]{40}$/.test(base ?? '')) fail('REMOTE_BASE_UNPROVEN');
+      return base;
+    };
+    const checkPR = () => {
+      const pr = githubJson(['pr', 'view', receipt.pullRequest.url, '--repo', repo, '--json', 'state,headRefOid,headRefName,baseRefName'], repository, options);
+      // A second advance may happen before the newly prepared tip is pushed.
+      // Admit only that explicitly recorded published tip, never an arbitrary ancestor.
+      const allowed = [receipt.integrationCommit, receipt.baseRefreshPublishedHead].filter(Boolean);
+      if (allowed.some(value => !/^[a-f0-9]{40}$/.test(value)) || pr.state !== 'OPEN' || !allowed.includes(pr.headRefOid) || pr.headRefName !== receipt.integrationBranch || pr.baseRefName !== 'master' || git(repository.repositoryRoot, ['merge-base', '--is-ancestor', pr.headRefOid, receipt.integrationCommit], options, {allowFailure: true}).status !== 0) fail('PR_HEAD_MISMATCH');
+      return pr.headRefOid;
+    };
+    const base = readBase();
+    if (base === receipt.baseCommit) fail('BASE_REFRESH_NOT_NEEDED');
+    if (output(git(repository.repositoryRoot, ['rev-parse', 'refs/remotes/origin/master'], options)) !== base) fail('REMOTE_BASE_NOT_FETCHED');
+    const checkCandidate = () => {
+      assertNoSymlinkAncestors(receipt.integrationWorktree);
+      const directory = fs.realpathSync(receipt.integrationWorktree);
+      const registered = worktrees(repository, options).find(item => item.worktree === directory);
+      if (directory === repository.repositoryRoot || !registered || registered.branch !== `refs/heads/${receipt.integrationBranch}` || discover(directory, options).commonDirectory !== repository.commonDirectory) fail('TASK_OWNERSHIP_MISMATCH');
+      if (output(git(directory, ['status', '--porcelain', '--untracked-files=all'], options))) fail('WORKTREE_DIRTY');
+      for (const operation of ['MERGE_HEAD', 'CHERRY_PICK_HEAD', 'REVERT_HEAD']) {
+        if (git(directory, ['rev-parse', '-q', '--verify', operation], options, {allowFailure: true}).status === 0) fail('INTEGRATION_NOT_COMMITTED');
+      }
+      const head = output(git(directory, ['rev-parse', 'HEAD'], options));
+      if (head === receipt.integrationCommit || [receipt.integrationCommit, base].some(commit => git(directory, ['merge-base', '--is-ancestor', commit, head], options, {allowFailure: true}).status !== 0) || git(directory, ['merge-base', '--is-ancestor', receipt.baseCommit, base], options, {allowFailure: true}).status !== 0) fail('BASE_REFRESH_ANCESTRY_INVALID');
+      verifiedFeatureRepair({projectRoot: repository.repositoryRoot, receipt}, options);
+      return head;
+    };
+    const candidate = checkCandidate();
+    const publishedHead = checkPR();
+    if (readBase() !== base) fail('REMOTE_BASE_CHANGED');
+    if (checkPR() !== publishedHead) fail('PR_HEAD_MISMATCH');
+    if (checkCandidate() !== candidate) fail('DELIVERY_RECORD_CHANGED');
+    const unchanged = () => {
+      const stat = fs.lstatSync(destination);
+      if (stat.isSymbolicLink() || !stat.isFile() || stat.nlink !== 1 || stat.dev !== recordIdentity.dev || stat.ino !== recordIdentity.ino || fs.readFileSync(destination, 'utf8') !== before) fail('DELIVERY_RECORD_CHANGED');
+    };
+    unchanged();
+    const snapshot = path.join(state(repository), 'base-refresh', taskId, crypto.randomUUID() + '.json');
+    privateWrite(snapshot, before);
+    const updated = {...receipt, baseCommit: base, remoteCommit: base, integrationCommit: candidate, baseRefreshPublishedHead: publishedHead, verification: null, ci: {status: 'pending', runs: []}, status: 'prepared', updatedAt: new Date().toISOString()};
+    temporary = destination + '.' + crypto.randomUUID() + '.tmp';
+    privateWrite(temporary, JSON.stringify(updated, null, 2) + '\n');
+    unchanged();
+    fs.renameSync(temporary, destination);
+    log(repository, 'delivery-base-refresh', 'PASS', undefined, {previousBase: receipt.baseCommit, base, previousCandidate: receipt.integrationCommit, publishedHead, candidate, receiptSnapshot: snapshot}, options);
+    return updated;
+  } finally {
+    if (temporary && fs.existsSync(temporary)) fs.unlinkSync(temporary);
+    const current = fs.lstatSync(lock);
+    if (current.isSymbolicLink() || current.dev !== lockIdentity.dev || current.ino !== lockIdentity.ino) fail('LOCK_OWNERSHIP_CHANGED');
+    fs.unlinkSync(lock);
+  }
+}
+function advancePublishedHead(repository, receipt, options) {
+  if (!receipt.baseRefreshPublishedHead || receipt.baseRefreshPublishedHead === receipt.integrationCommit || receipt.mode !== 'pr' || !['awaiting_ci', 'pushed', 'ci_failed'].includes(receipt.status)) return receipt;
+  const lock = path.join(repository.commonDirectory, 'leon-engineering/locks/integration.lock');
+  try { privateWrite(lock, String(process.pid) + '\n'); } catch (error) { if (error.code === 'EEXIST') fail('TASK_LOCKED'); throw error; }
+  const lockIdentity = fs.lstatSync(lock);
+  const destination = path.join(repository.commonDirectory, 'leon-engineering/deliveries', receipt.taskId + '.json');
+  let temporary;
+  try {
+    assertNoSymlinkAncestors(path.dirname(destination));
+    const stat = fs.lstatSync(destination);
+    if (stat.isSymbolicLink() || !stat.isFile() || stat.nlink !== 1) fail('DELIVERY_RECORD_INVALID');
+    const before = fs.readFileSync(destination, 'utf8');
+    if (JSON.stringify(JSON.parse(before)) !== JSON.stringify(receipt)) fail('DELIVERY_RECORD_CHANGED');
+    const updated = {...receipt, baseRefreshPublishedHead: receipt.integrationCommit};
+    temporary = destination + '.' + crypto.randomUUID() + '.tmp';
+    privateWrite(temporary, JSON.stringify(updated, null, 2) + '\n');
+    const current = fs.lstatSync(destination);
+    if (current.isSymbolicLink() || current.dev !== stat.dev || current.ino !== stat.ino || current.nlink !== 1 || fs.readFileSync(destination, 'utf8') !== before) fail('DELIVERY_RECORD_CHANGED');
+    fs.renameSync(temporary, destination);
+    log(repository, 'published-head-confirmed', 'PASS', undefined, {candidate: receipt.integrationCommit}, options);
+    return updated;
+  } finally {
+    if (temporary && fs.existsSync(temporary)) fs.unlinkSync(temporary);
+    const current = fs.lstatSync(lock);
+    if (current.isSymbolicLink() || current.dev !== lockIdentity.dev || current.ino !== lockIdentity.ino) fail('LOCK_OWNERSHIP_CHANGED');
+    fs.unlinkSync(lock);
+  }
+}
 function closeoutFinalization(repository, taskId) {
   return path.join(repository.commonDirectory,'leon-engineering/resource-closeout',taskId,'git-finalization.json');
 }
@@ -743,20 +846,24 @@ export async function runDelivery({projectRoot, taskId, action, reviewedCommit, 
       if (action === 'prepare') {
         if (params.replacePrepared) fail('PREPARE_REMOVAL_BLOCKED');
         const receipt = controller.readDeliveryReceipt(common);
-        if (['remote_moved', 'ci_passed'].includes(receipt.status)) fail('PREPARE_REMOVAL_BLOCKED');
-        result = controller.prepareDelivery({...common, integrationWorktreeRoot: params.worktreeRoot, replacePrepared: false});
+        if (receipt.status === 'ci_passed') fail('PREPARE_REMOVAL_BLOCKED');
+        result = receipt.status === 'remote_moved'
+          ? refreshPublishedBase(repository, receipt, taskId, options)
+          : controller.prepareDelivery({...common, integrationWorktreeRoot: params.worktreeRoot, replacePrepared: false});
         resourcePhase(repository, taskId, 'record', options);
       }
       if (action === 'publish') {
         quota(repository, options);
-        const receipt = controller.readDeliveryReceipt(common);
+        let receipt = controller.readDeliveryReceipt(common);
         if (receipt.defaultBranch !== 'master' || receipt.remote !== 'origin') fail('DELIVERY_BRANCH_INVALID');
         const repo = githubRepo(receipt);
         const settings = githubJson(['api', `repos/${repo}`], repository, options);
         if (settings.allow_auto_merge !== false) fail('REPO_AUTO_MERGE_ENABLED');
         if (closeoutEnabled(repository)) refreshFeatureRecord(repository, receipt, options);
         resourcePhase(repository, taskId, 'record', options);
-        result = {...controller.publishDelivery({...common, verification: params.verification, repair: params.repair ?? false, pushDefault: () => ({status: 'protected'}), githubRunner: publicationRunner(repository, receipt, options, params.verification)}), safetyAutoMergeDeferred: true};
+        receipt = advancePublishedHead(repository, controller.readDeliveryReceipt(common), options);
+        result = advancePublishedHead(repository, controller.publishDelivery({...common, verification: params.verification, repair: params.repair ?? false, pushDefault: () => ({status: 'protected'}), githubRunner: publicationRunner(repository, receipt, options, params.verification)}), options);
+        result = {...result, safetyAutoMergeDeferred: true};
       }
       if (action === 'status') {
         const receipt = controller.readDeliveryReceipt(common);
