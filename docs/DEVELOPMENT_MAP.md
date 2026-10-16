@@ -1,5 +1,10 @@
 # Research Workbench Development Map
 
+AI资讯：aihot_routes.py管理v1兼容和完整site报刊/热点合同、LRU/ETag/限流；aihot_media.py
+只读取上游已签发图片。ui/aihot.mjs负责代次/取消/归档状态，aihot-report/hot/common.mjs
+负责原页面完整阅读结构、趋势几何与安全渲染。独立路由#/aihot/{daily,weekly,monthly,archive,hot}。
+近处测试test_aihot.py和research_web_aihot.test.mjs覆盖完整字段、图片边界及交互竞态。
+
 Host元数据专项升级通过显式 `resident upgrade-host-metadata` 入口执行；自动兼容清单与固定登录控制器artifact保持。专项只接受预期旧版02c086b16、PR122四个已审Host Git blob及同一受管Git源中的精确最新master。控制源必须干净且通过merged PR/独立评审/三CI实际tree核验；未知模块、依赖、Store或Host内容变化仍拒绝。既有bridge完成空闲栅栏、lifecycle lease、journal-before-stop、健康和回滚；成功后才记录baseline审核并刷新安装基线，不搬迁数据或凭据。
 
 Codex式导航为ui/conversation-navigation.mjs/css，逐题问答为ui/questionnaire.mjs/css；app/core/shell/views只做既有协议接线。Host navigation.py与claw_projects/claw_routes管理模式隔离的导航revision/项目，旧Claw API兼容；近处回归为test_navigation.py、research_web_navigation/questionnaire.test.mjs与research_web_codex_navigation.mjs。

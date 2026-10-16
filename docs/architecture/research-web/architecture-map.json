@@ -133,7 +133,8 @@
         "tests/javascript/research_web_navigation.test.mjs",
         "tests/javascript/research_web_navigation_menus.test.mjs",
         "tests/javascript/research_web_questionnaire.test.mjs",
-        "tests/e2e/research_web_codex_navigation.mjs"
+        "tests/e2e/research_web_codex_navigation.mjs",
+        "tests/javascript/research_web_aihot.test.mjs"
       ]
     },
     {
@@ -153,7 +154,9 @@
         "app/research_web/intel_routes.py",
         "app/research_web/claw_projects.py",
         "app/research_web/claw_routes.py",
-        "app/research_web/navigation.py"
+        "app/research_web/navigation.py",
+        "app/research_web/aihot_routes.py",
+        "app/research_web/aihot_media.py"
       ],
       "documents": [
         "docs/architecture/research-web/01-system.md",
@@ -183,7 +186,8 @@
         "tests/research_web/test_model_connections.py",
         "tests/research_web/test_intel.py",
         "tests/research_web/test_hot_session_recovery.py",
-        "tests/research_web/test_claw_projects.py"
+        "tests/research_web/test_claw_projects.py",
+        "tests/research_web/test_aihot.py"
       ]
     },
     {
@@ -1694,6 +1698,76 @@
       "source": "app/research_web/main.py",
       "declaredPath": "/",
       "prefix": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/aihot/dailies",
+      "source": "app/research_web/aihot_routes.py",
+      "declaredPath": "/dailies",
+      "prefix": "/api/research/aihot"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/aihot/dailies/{edition_date}",
+      "source": "app/research_web/aihot_routes.py",
+      "declaredPath": "/dailies/{edition_date}",
+      "prefix": "/api/research/aihot"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/aihot/hot-topics",
+      "source": "app/research_web/aihot_routes.py",
+      "declaredPath": "/hot-topics",
+      "prefix": "/api/research/aihot"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/aihot/media/{key}",
+      "source": "app/research_web/aihot_routes.py",
+      "declaredPath": "/media/{key}",
+      "prefix": "/api/research/aihot"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/aihot/pages/hot",
+      "source": "app/research_web/aihot_routes.py",
+      "declaredPath": "/pages/hot",
+      "prefix": "/api/research/aihot"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/aihot/reports/daily/months/{month}",
+      "source": "app/research_web/aihot_routes.py",
+      "declaredPath": "/reports/daily/months/{month}",
+      "prefix": "/api/research/aihot"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/aihot/reports/{kind}",
+      "source": "app/research_web/aihot_routes.py",
+      "declaredPath": "/reports/{kind}",
+      "prefix": "/api/research/aihot"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/aihot/reports/{kind}/latest-page",
+      "source": "app/research_web/aihot_routes.py",
+      "declaredPath": "/reports/{kind}/latest-page",
+      "prefix": "/api/research/aihot"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/aihot/reports/{kind}/navigation/{key}",
+      "source": "app/research_web/aihot_routes.py",
+      "declaredPath": "/reports/{kind}/navigation/{key}",
+      "prefix": "/api/research/aihot"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/aihot/reports/{kind}/{key}",
+      "source": "app/research_web/aihot_routes.py",
+      "declaredPath": "/reports/{kind}/{key}",
+      "prefix": "/api/research/aihot"
     },
     {
       "method": "GET",

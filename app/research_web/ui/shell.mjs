@@ -12,6 +12,7 @@ const navItems = [
   { page: 'workbench', section: 'assets', glyph: 'chart', title: '资产观察', href: '#/workbench/assets' },
   { page: 'workbench', glyph: 'chart', title: '研究台', href: '#/workbench' },
   { page: 'intel', glyph: 'activity', title: '研究情报', href: '#/intel/overview' },
+  { page: 'aihot', glyph: 'activity', title: 'AI 资讯', href: '#/aihot/daily' },
   { page: 'frameworks', glyph: 'grid', title: '研究框架', href: '#/frameworks' },
   { page: 'skills', glyph: 'grid', title: '能力中心', href: '#/skills' },
   { page: 'operations', glyph: 'activity', title: '运行与用量', href: '#/operations' },

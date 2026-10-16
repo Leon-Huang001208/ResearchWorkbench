@@ -1,5 +1,9 @@
 # Research Workbench
 
+“AI资讯”提供独立AIHOT阅读模块：日报/周报/月报、完整归档与热点榜，保留原页面
+报纸结构、封面来源、真实热度/趋势和参与者交互。无需模型、Hot或PostgreSQL；详见
+[前端说明](docs/research-web-ui.md)与[安装指南](docs/research-web-installation.md)。
+
 Claw 与 FinGPT 共用 Codex 式会话导航：各自保存项目、置顶和排序，支持会话菜单与顶部折叠。
 原生提问逐题回答，可明确跳过；收起问题不取消研究，成功答复后保留可展开的问答摘要。
 

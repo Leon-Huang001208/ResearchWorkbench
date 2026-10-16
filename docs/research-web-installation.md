@@ -1,5 +1,12 @@
 # Research Web Native / Docker 安装与运行
 
+AI资讯提供原页面的日报、周报、月报、完整日报合订本与热点榜阅读能力。
+主导航“AI资讯”通过AIHOT匿名公开页面API获取完整页面字段，图片经有界同源适配读取。
+不新增产品依赖、API Key、Hot、PostgreSQL、模型调用或迁移；网络、限流和数据合同变化明确失败。
+现有requirements/web.in、web.lock、setup_web.py与Bootstrap依赖合同保持，干净安装由Mac CI另验。
+接入用于本机个人/内部阅读；线上数据规则独立于MIT代码许可，公开镜像或外部商业再分发须遵守
+[原站公开使用规则](https://aihot.news/terms)。
+
 会话导航的项目/置顶/排序保存在既有产品数据根的Host索引，FinGPT与Claw分别管理；显示折叠偏好按模式保存于浏览器。不新增依赖或配置步骤，原公开安装入口和固定DSH保持。本轮元数据/API变更仍须独立部署兼容复核，不能自动扩大resident白名单。
 
 正文搜索使用固定 DSH `7ecf564f2e09b829240c5553687223bdd1e2df73` 的显式部分搜索接口：Host 将 RWB 已创建、未删除且符合当前模式的 ID 范围传给原生层，再与原生列表可见范围取交集。响应必须包含完整范围内的 `unavailableSessionCount`；Web 返回 `unavailable_count` 并在零命中时仍提示部分历史未搜索。旧格式源记录保持不变，不授予恢复执行；I/O、损坏及取消仍失败。未升级的旧接口缺少覆盖信息时明确报错，不假称搜索完整。
