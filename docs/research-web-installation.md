@@ -1,5 +1,7 @@
 # Research Web Native / Docker 安装与运行
 
+G2B Dockerfile.release 按主线 Hot-builder 封入已有锁定依赖、源码和迁移文件，构建不启动 Hot/PG 或应用迁移。公开安装入口和当前 DSH 锁保持；没有执行安装、常驻更新或真实模型调用。
+
 会话导航的项目/置顶/排序保存在既有产品数据根的Host索引，FinGPT与Claw分别管理；显示折叠偏好按模式保存于浏览器。不新增依赖或配置步骤，原公开安装入口和固定DSH保持。本轮元数据/API变更仍须独立部署兼容复核，不能自动扩大resident白名单。
 
 正文搜索使用固定 DSH `7ecf564f2e09b829240c5553687223bdd1e2df73` 的显式部分搜索接口：Host 将 RWB 已创建、未删除且符合当前模式的 ID 范围传给原生层，再与原生列表可见范围取交集。响应必须包含完整范围内的 `unavailableSessionCount`；Web 返回 `unavailable_count` 并在零命中时仍提示部分历史未搜索。旧格式源记录保持不变，不授予恢复执行；I/O、损坏及取消仍失败。未升级的旧接口缺少覆盖信息时明确报错，不假称搜索完整。
@@ -196,6 +198,9 @@ Web 锁新增 ReportLab（reportlab>=4.5,<5），使用原 Python3.12 universal/
 随后 `./rwb docker stage local doctor`。宿主只需 shell、Docker CLI/Engine 和 buildx，
 不探测宿主 Python/Node。Native 无参数入口、Windows cmd 及
 `python scripts/setup_web.py --runtime docker` 的 legacy 合同保留；它们不管理新实例账本。
+
+G2B release 从完整 Git SHA 冻结构建，stage 接受后的同一 image archive 晋级到独立演练目标；
+维护、故障恢复、五卷与凭据初始化见 Docker 手册，不自动替换日常生产或重跑收费模型。
 
 ## Docker 资源命名与收尾
 

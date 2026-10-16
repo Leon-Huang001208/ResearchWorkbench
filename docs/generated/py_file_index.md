@@ -3129,6 +3129,7 @@ Imports:
 - `hashlib`
 - `inspect`
 - `json`
+- `maintenance`
 - `models`
 - `os`
 - `pathlib`
@@ -3480,7 +3481,7 @@ Classes:
   - methods: __init__
 - `DSHClient`
   - Translate the stable Workbench call surface to slash-namespaced Typert RPC.
-  - methods: __init__, __aenter__, __aexit__, close, _wire_call, _rpc_wire, rpc, plugin_json, respond, _stream, _event_envelope, frames, _history_opening, history
+  - methods: __init__, __aenter__, __aexit__, close, _wire_call, _rpc_wire, rpc, _admitted_rpc, plugin_json, respond, _stream, _event_envelope, frames, _history_opening, history
 
 Functions:
 - `_default_auth_path`
@@ -5529,6 +5530,37 @@ Functions:
 - `create_app`
 
 
+## `app/research_web/maintenance.py`
+
+Module docstring:
+> Durable release maintenance and task admission; private Unix control only.
+
+Imports:
+- `__future__`
+- `app.research_web.client`
+- `asyncio`
+- `collections.abc`
+- `contextlib`
+- `contextvars`
+- `functools`
+- `json`
+- `logging`
+- `os`
+- `pathlib`
+- `re`
+- `socket`
+- `sys`
+- `typing`
+
+Classes:
+- `MaintenanceGate`
+  - methods: __init__, admit, begin, _sync_root, end, start_control, close
+
+Functions:
+- `task_admission`
+- `control_main`
+
+
 ## `app/research_web/mcp_registry/__init__.py`
 
 Module docstring:
@@ -6633,6 +6665,7 @@ Imports:
 - `delivery`
 - `hashlib`
 - `json`
+- `maintenance`
 - `pathlib`
 - `re`
 - `shutil`
@@ -6882,6 +6915,7 @@ Imports:
 - `delivery`
 - `inspect`
 - `json`
+- `maintenance`
 - `models`
 - `pathlib`
 - `re`
@@ -7266,15 +7300,15 @@ Imports:
 - `integrations`
 - `json`
 - `local_integrations`
-- `mcp_registry`
-- ... 25 more
+- `maintenance`
+- ... 26 more
 
 Classes:
 - `_SessionOwnedMCPRuntime`
   - Enforce Research Store ownership before any session-scoped MCP operation.
   - methods: __init__, __getattr__, start, close, _owned, authorize_session, register_automation_session, read_resource, get_prompt, call_tool, approvals, decide_approval
 - `ResearchService`
-  - methods: __init__, _build_mcp_runtime, ensure_owned, start, close, _retention_loop, notify, _connect, _consume, _interaction_owner, _model_plane, compatible_connection, _require_model_credentials, runtime, configure_model, test_model, create, ensure_hot_session, summary, create_automation_research_session, run_automation_from_chat, search_sessions, list_sessions, soft_delete_session, restore_session, permanent_delete_session, purge_expired_sessions, _model_tools_verified, _task_capabilities, _effective_records, _task_readiness_context, native_admission, _data_query_admission, capability_readiness, detail, _cancel_observation, send, skill_catalog, _capability_idle, _mcp_idle_gate, _restart_mcp_runtime, change_capability, create_capability_session, capability_from_artifact, approve, cancel, _cancel, answer
+  - methods: __init__, _build_mcp_runtime, ensure_owned, start, close, _retention_loop, notify, _connect, _consume, _interaction_owner, _model_plane, compatible_connection, _require_model_credentials, runtime, configure_model, test_model, create, ensure_hot_session, summary, create_automation_research_session, run_automation_from_chat, search_sessions, list_sessions, soft_delete_session, restore_session, permanent_delete_session, purge_expired_sessions, _model_tools_verified, _task_capabilities, _effective_records, _task_readiness_context, native_admission, _data_query_admission, capability_readiness, detail, _cancel_observation, send, skill_catalog, _capability_idle, release_idle, _mcp_idle_gate, _restart_mcp_runtime, change_capability, create_capability_session, capability_from_artifact, approve, cancel, _cancel, answer
 
 Functions:
 - `_mcp_internal_url`

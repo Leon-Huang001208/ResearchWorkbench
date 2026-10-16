@@ -1,5 +1,7 @@
 # 部署与模块职责
 
+G2B 在既有管理员容器、Web 与唯一 DSH 边界内增加不可变制品、维护窗口和晋级/回退事务，不新增常驻服务。Native resident 栅栏继续保留；Docker 维护不得覆盖或绕过它。
+
 Host元数据专项升级通过显式 `resident upgrade-host-metadata` 入口执行；自动兼容清单与固定登录控制器artifact保持。专项只接受预期旧版02c086b16、PR122四个已审Host Git blob及同一受管Git源中的精确最新master。控制源必须干净且通过merged PR/独立评审/三CI实际tree核验；未知模块、依赖、Store或Host内容变化仍拒绝。既有bridge完成空闲栅栏、lifecycle lease、journal-before-stop、健康和回滚；成功后才记录baseline审核并刷新安装基线，不搬迁数据或凭据。
 
 会话导航与逐题问答仍在原浏览器原生UI和Host之间工作。导航只保存本实例模式隔离的项目/置顶/顺序元数据，不引入执行器、正文数据库或部署节点；研究与提问终态仍来自唯一DSH。

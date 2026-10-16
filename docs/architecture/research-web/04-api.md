@@ -1,5 +1,7 @@
 # Research Web 接口清单
 
+`GET /api/research/release` 只读返回镜像内封存身份；未启用受管发布返回 managed=false，文件不可确认返回503 release_identity_unavailable。维护控制仅经私有 Unix socket，不新增公共部署写接口；维护期间新的写请求返回503 release_maintenance。
+
 正文搜索使用固定 DSH `7ecf564f2e09b829240c5553687223bdd1e2df73` 的显式部分搜索接口：Host 将 RWB 已创建、未删除且符合当前模式的 ID 范围传给原生层，再与原生列表可见范围取交集。响应必须包含完整范围内的 `unavailableSessionCount`；Web 返回 `unavailable_count` 并在零命中时仍提示部分历史未搜索。旧格式源记录保持不变，不授予恢复执行；I/O、损坏及取消仍失败。未升级的旧接口缺少覆盖信息时明确报错，不假称搜索完整。
 
 `GET /api/research/resident` 返回运行中 Host 的 `enabled`、启动时绑定的 `revision`（完整 SHA 或 null）、
@@ -496,3 +498,5 @@ GET会话列表及父详情不因已验证活动的历史子mode=unknown整体�
 框架目录 item 和 data 响应中的 framework 附加 display：kind 为 native-embed 或 static-embed，url 为本站 /frameworks-embed/{slug}/，imported_at 为资产导入日期，bot_enabled 表示本站框架 Bot 是否接入。Gold／Dollar 的定义字段与 snapshot 保持原合同；该附加对象不参与快照 revision。九个静态看板 Bot API 返回 409 framework_bot_unavailable，不发起 DSH 会话。
 
 会话列表/详情已有status枚举继续使用waiting_input：原生未决提问（包括映射父会话的子研究提问）优先显示待答，原生仍运行不把待答伪装为转圈执行中。无需读取每个会话详情，问题解除后恢复真实执行状态；已读完成圈为本浏览器显示偏好，不增加写API。
+
+| GET | `/api/research/release` | `app/research_web/main.py` |

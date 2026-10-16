@@ -21,6 +21,7 @@ from zoneinfo import ZoneInfo
 from core.observability import get_logger
 from research_workbench_entrypoint.resident.admission import research_admission
 
+from ..maintenance import task_admission
 from .models import AutomationCreate, AutomationError, AutomationUpdate
 from .schedule import next_occurrence
 
@@ -565,6 +566,7 @@ class AutomationService:
         return row
 
     @research_admission
+    @task_admission()
     async def run(
         self,
         automation_id: str,
@@ -616,6 +618,7 @@ class AutomationService:
         return await self.run(run["automation_id"], trigger="retry", retry_of=run_id)
 
     @research_admission
+    @task_admission(background=True)
     async def _execute(self, run_id: str) -> None:
         row = self._run_row(run_id)
         automation = row.get("definition_snapshot") or self._row(row["automation_id"])
@@ -741,6 +744,8 @@ class AutomationService:
 
     @research_admission
     async def tick(self, now: datetime | None = None) -> None:
+        if getattr(getattr(self.research, "maintenance", None), "transaction", None):
+            return
         now = now or self.now()
         due = [
             row

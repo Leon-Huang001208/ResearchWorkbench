@@ -231,6 +231,13 @@ class DSHClient:
             raise RuntimeFailure("DSH 连接失败；请求未自动重发，请先检查历史再重试") from exc
 
     async def rpc(self, method: str, payload: dict) -> dict:
+        gate = getattr(self, "maintenance", None)
+        if method == "session.prompt" and gate is not None:
+            async with gate.admit(background=True):
+                return await self._admitted_rpc(method, payload)
+        return await self._admitted_rpc(method, payload)
+
+    async def _admitted_rpc(self, method: str, payload: dict) -> dict:
         if method not in METHODS:
             raise RuntimeFailure("未授权的 DSH 方法", "forbidden")
         if method == "host.describe":

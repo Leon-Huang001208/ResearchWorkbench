@@ -48,8 +48,15 @@ def atomic_json(path: Path, value: dict) -> None:
         raise Refusal("ledger_alias")
     with temporary.open("w", encoding="utf-8") as stream:
         json.dump(value, stream, sort_keys=True, indent=2)
-    temporary.chmod(0o600)
+        stream.flush()
+        os.fchmod(stream.fileno(), 0o600)
+        os.fsync(stream.fileno())
     temporary.replace(path)
+    descriptor = os.open(path.parent, os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
 
 
 def validate_name(value: str) -> str:
@@ -162,10 +169,15 @@ class Manager:
                     and container["State"].get("Running") is False
                     and container["State"].get("Status") in {"created", "exited"}
                     and container["Image"] == record["image"]
-                    and old_image["Config"].get("Labels", {}).get(PREFIX + "model-credentials") is None
-                    and set(mounts) == {"/data/research-web", "/state/logs", "/run/rwb-secrets", "/cache"}
+                    and old_image["Config"].get("Labels", {}).get(PREFIX + "model-credentials")
+                    is None
+                    and set(mounts)
+                    == {"/data/research-web", "/state/logs", "/run/rwb-secrets", "/cache"}
                     and isinstance(environment, list)
-                    and all(isinstance(value, str) and not value.startswith("RWB_MODEL_") for value in environment)
+                    and all(
+                        isinstance(value, str) and not value.startswith("RWB_MODEL_")
+                        for value in environment
+                    )
                 )
                 if not legacy:
                     raise Refusal("model_master_mount_mismatch")
@@ -301,6 +313,7 @@ class Manager:
             )["dsh"]["commit"],
             "container_id": None,
             "projection": None,
+            "purpose": getattr(arguments, "purpose", None),
         }
         atomic_json(path, record)
         return record
@@ -369,6 +382,13 @@ class Manager:
                 f"RWB_MODEL_INSTANCE_ID={record['model_instance']}",
             ]
         args += ["--env", "PIP_CACHE_DIR=/cache/pip", "--env", "XDG_CACHE_HOME=/cache"]
+        if (
+            inspect("image", record["image"])["Config"]
+            .get("Labels", {})
+            .get(PREFIX + "release-control")
+            == "release-v1"
+        ):
+            args += ["--env", "RWB_RELEASE_MANAGED=1"]
         if record["environment"] != "prod":
             args += ["--env", "RESEARCH_AUTOMATIONS_ENABLED=0"]
         if record["environment"] == "dev":
@@ -403,6 +423,12 @@ class Manager:
         atomic_json(self.path(record["environment"], record["instance"]), record)
 
     def up(self, record: dict) -> dict:
+        if (
+            record.get("purpose") == "rehearsal"
+            and not record.get("accepted_release")
+            and not record.get("deployment")
+        ):
+            raise Refusal("managed_deploy_required")
         if record.get("retired"):
             raise Refusal("instance_retired_register_first")
         if record["environment"] == "stage" and command(
@@ -543,7 +569,9 @@ class Manager:
 
     def enable_model_credentials(self, record: dict) -> None:
         """Explicit one-time stage provisioning; never regenerate existing secrets."""
-        if record["environment"] != "stage":
+        if record["environment"] != "stage" and not (
+            record["environment"] == "prod" and record.get("purpose") == "rehearsal"
+        ):
             raise Refusal("model_credentials_stage_only")
         self.verify_resources(record)
         if record["container_id"] and self.owned(record)["State"]["Running"]:
@@ -789,8 +817,11 @@ def main() -> int:
     )
     parser.add_argument("--image")
     parser.add_argument("--port", type=int)
+    parser.add_argument("--purpose", choices=("rehearsal",))
     arguments, extra = parser.parse_known_args()
     arguments.command = extra
+    if arguments.purpose and (arguments.action != "register" or arguments.environment != "prod"):
+        parser.error("purpose_is_prod_registration_only")
     if extra and arguments.action != "exec":
         parser.error("unexpected_arguments")
     if arguments.port is not None and arguments.action != "register":

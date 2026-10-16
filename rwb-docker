@@ -122,7 +122,78 @@ ensure_builder() {
   fi
   docker buildx inspect "$BUILDER" --bootstrap
 }
+release_tool() {
+  RWB_RELEASE_SCRIPT=$1
+  shift
+  test -f "$ROOT/control.image" || fail run_bootstrap_first
+  RWB_CONTROL_IMAGE=$(cat "$ROOT/control.image")
+  docker run --rm --read-only --memory 256m --memory-swap 256m --cpus .5 --pids-limit 64 \
+    --log-driver json-file --log-opt max-size=10m --log-opt max-file=3 \
+    --tmpfs /tmp:rw,nosuid,nodev,size=64m \
+    --mount type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock \
+    --mount "type=bind,src=$ROOT,dst=/ledger" \
+    --mount "type=bind,src=$PROJECT,dst=$PROJECT,readonly" \
+    --mount "type=bind,src=$GIT_COMMON,dst=$GIT_COMMON,readonly" \
+    --entrypoint python -e "RWB_MANAGER_ROOT=$ROOT" -e "RWB_WORKTREE=$PROJECT" -e "RWB_CONTROL_IMAGE_ID=$RWB_CONTROL_IMAGE" \
+    "$RWB_CONTROL_IMAGE" "$RWB_RELEASE_SCRIPT" "$@"
+}
 case "${1:-help}" in
+  release)
+    shift
+    RWB_RELEASE_ID=${1:-}
+    case "$RWB_RELEASE_ID" in ''|*[!a-z0-9-]*) fail release_id_invalid;; esac
+    shift
+    RWB_RELEASE_ACTION=${1:-}
+    shift
+    if [ "$RWB_RELEASE_ACTION" = create ]; then
+      admit_cold_build
+      release_tool "$PROJECT/docker/release.py" "$RWB_RELEASE_ID" prepare "$@" > "$ROOT/logs/release-prepare-$RWB_RELEASE_ID.json"
+      RWB_RELEASE_ROOT="$ROOT/releases/$RWB_RELEASE_ID"
+      BUILDING=1
+      ensure_builder
+      docker buildx imagetools inspect python:3.12.13-slim-bookworm --format '{{json .Manifest}}' > "$RWB_RELEASE_ROOT/base-python.json"
+      docker buildx imagetools inspect node:24.19.0-bookworm-slim --format '{{json .Manifest}}' > "$RWB_RELEASE_ROOT/base-node.json"
+      RWB_PYTHON_DIGEST=$(docker buildx imagetools inspect python:3.12.13-slim-bookworm --format '{{json .Manifest.Digest}}' | tr -d '"')
+      RWB_NODE_DIGEST=$(docker buildx imagetools inspect node:24.19.0-bookworm-slim --format '{{json .Manifest.Digest}}' | tr -d '"')
+      case "$RWB_PYTHON_DIGEST:$RWB_NODE_DIGEST" in sha256:*:sha256:*) ;; *) fail base_digest_unavailable;; esac
+      RWB_SOURCE_SHA=$(sed -n 's/.*"source_sha": "\([0-9a-f]*\)".*/\1/p' "$RWB_RELEASE_ROOT/prepared.json")
+      RWB_CONTROLLER_HASH=$(sed -n 's/.*"controller_hash": "\(sha256:[0-9a-f]*\)".*/\1/p' "$RWB_RELEASE_ROOT/prepared.json")
+      BUILDX_METADATA_PROVENANCE=max docker buildx build --builder "$BUILDER" --platform linux/arm64 \
+        --provenance=false --sbom=false \
+        --build-arg "PYTHON_IMAGE=python:3.12.13-slim-bookworm@$RWB_PYTHON_DIGEST" \
+        --build-arg "NODE_IMAGE=node:24.19.0-bookworm-slim@$RWB_NODE_DIGEST" \
+        --build-arg "SOURCE_SHA=$RWB_SOURCE_SHA" --build-arg "RELEASE_ID=$RWB_RELEASE_ID" \
+        --build-arg "CONTROLLER_HASH=$RWB_CONTROLLER_HASH" \
+        --build-context "dsh-payload=$RWB_RELEASE_ROOT/dsh" \
+        --metadata-file "$RWB_RELEASE_ROOT/build-metadata.json" \
+        --output "type=docker,dest=$RWB_RELEASE_ROOT/image.tar" -t "rwb-release:$RWB_RELEASE_ID" \
+        -f "$RWB_RELEASE_ROOT/source/docker/Dockerfile.release" "$RWB_RELEASE_ROOT/source"
+      docker load --input "$RWB_RELEASE_ROOT/image.tar" >> "$ROOT/logs/release-load-$RWB_RELEASE_ID.log"
+      release_tool "/ledger/releases/$RWB_RELEASE_ID/control/release.py" "$RWB_RELEASE_ID" seal
+    else
+      case "$RWB_RELEASE_ACTION" in inspect|verify|import|accept|deploy-plan|rollback-plan|apply|status|resume|registry-plan|publish) ;; *) fail release_action_invalid;; esac
+      test -f "$ROOT/releases/$RWB_RELEASE_ID/seal.json" || fail sealed_release_required
+      cmp -s "$PROJECT/rwb-docker" "$ROOT/releases/$RWB_RELEASE_ID/control/rwb-docker" || fail sealed_launcher_version_required
+      if [ "$RWB_RELEASE_ACTION" = publish ]; then
+        test "$#:$(printf '%s' "${1:-}")" = '1:--confirm-publish' || fail explicit_registry_publish_required
+        release_tool "/ledger/releases/$RWB_RELEASE_ID/control/release.py" "$RWB_RELEASE_ID" registry-plan > "$ROOT/logs/registry-plan-$RWB_RELEASE_ID.json"
+        RWB_REGISTRY_IMAGE=$(sed -n 's/.*"local_image_id": "\(sha256:[0-9a-f]*\)".*/\1/p' "$ROOT/releases/$RWB_RELEASE_ID/release.json")
+        RWB_REGISTRY_REFERENCE="ghcr.io/leon-huang001208/researchworkbench:$RWB_RELEASE_ID-${RWB_REGISTRY_IMAGE#sha256:}"
+        docker tag "$RWB_REGISTRY_IMAGE" "$RWB_REGISTRY_REFERENCE"
+        docker push "$RWB_REGISTRY_REFERENCE" > "$ROOT/logs/registry-push-$RWB_RELEASE_ID.log" 2>&1
+        docker buildx imagetools inspect "$RWB_REGISTRY_REFERENCE" --format '{{json .Manifest}}' > "$ROOT/releases/$RWB_RELEASE_ID/registry-descriptor.json"
+        docker buildx imagetools inspect "$RWB_REGISTRY_REFERENCE" --raw > "$ROOT/releases/$RWB_RELEASE_ID/registry-raw-manifest.json"
+        release_tool "/ledger/releases/$RWB_RELEASE_ID/control/release.py" "$RWB_RELEASE_ID" registry-selection > "$ROOT/logs/registry-selection-$RWB_RELEASE_ID.json"
+        RWB_PULL_REFERENCE=$(sed -n 's/.*"pull_reference": "\([^"]*\)".*/\1/p' "$ROOT/releases/$RWB_RELEASE_ID/registry-selection.json")
+        case "$RWB_PULL_REFERENCE" in ghcr.io/leon-huang001208/researchworkbench@sha256:*) ;; *) fail registry_pull_reference_invalid;; esac
+        docker pull --platform linux/arm64 "$RWB_PULL_REFERENCE" > "$ROOT/logs/registry-pull-$RWB_RELEASE_ID.log" 2>&1
+        docker image inspect "$RWB_PULL_REFERENCE" --format '{"image_id":"{{.Id}}","os":"{{.Os}}","architecture":"{{.Architecture}}"}' > "$ROOT/releases/$RWB_RELEASE_ID/registry-pulled-image.json"
+        release_tool "/ledger/releases/$RWB_RELEASE_ID/control/release.py" "$RWB_RELEASE_ID" registry-record
+      else
+        release_tool "/ledger/releases/$RWB_RELEASE_ID/control/release.py" "$RWB_RELEASE_ID" "$RWB_RELEASE_ACTION" "$@"
+      fi
+    fi
+    exit 0;;
   builder-cold-budget)
     admit_cold_build
     BUILDING=1
@@ -168,6 +239,7 @@ case "${1:-help}" in
     docker image inspect --format '{{.Id}}' rwb-development:g01 > "$ROOT/dev.image"
     echo "candidate_image=$IMAGE"; exit 0;;
   help)
+    echo './rwb-docker release ID create|inspect|verify|import|accept|deploy-plan|rollback-plan|apply|status [options]'
     echo './rwb-docker bootstrap | build | dev|stage|prod INSTANCE register|up|status|doctor|stop|rebuild|exec|cleanup|replace-image|enable-model-credentials|credential-probe [options]'
     exit 0;;
 esac

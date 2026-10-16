@@ -1,5 +1,7 @@
 # Research Web 能力与平台证据
 
+G2B 当前工作限于 macOS 的源码集成和离线本地合同；真实 linux/arm64 发布镜像、Mac Docker Desktop 演练尚未取得新候选证据。Windows/Linux 原生与对应产品 CI 分别交接，NOT_RUN 不冒充 PASS。
+
 Host元数据专项兼容升级仅在macOS Native验收：精确候选、Mac Bootstrap、原空闲/事务/健康/回滚。Ubuntu纯合同测试不代表Linux产品适配；Windows/Linux原生及Docker专项仍NOT_RUN，不从Mac发起产品dispatch。
 
 本轮固定 DSH 搜索候选由 macOS 验收；Windows/Linux 与 Docker 产品安装尚未执行，保持 NOT_RUN。通用 Ubuntu 检查不替代其他产品宿主证据。
