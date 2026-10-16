@@ -1,5 +1,17 @@
 # Research Web 接口清单
 
+AI资讯读取原站公开页面API，通过固定 `/api/research/aihot/pages/hot` 和
+`/api/research/aihot/reports/{kind}` 接入；kind只允许daily/weekly/monthly。
+报刊支持 `/latest-page`、`/{key}`、`/navigation/{key}`，日报另有 `/months/{month}`。
+原站分别为 `https://aihot.news/api/site/hot` 与 `/api/site/reports/...`。
+这些是页面级合同而非精简v1：保留真实期号、指标、看点、关联、封面、头像、热度和走势；
+来源改版/响应身份不匹配明确502，不以精简数据伪造完整页面。旧三个v1阅读路由仍兼容。
+日期/ISO周/月严格验证，404保持404；429/503保留秒数或HTTP-date等待期，超时504，
+重定向/格式/大小异常502。JSON解压后2MiB、总期限20秒、最多64份内存LRU、至少60秒TTL，
+过期带ETag复验；缓存命中不等待另一端点的网络锁。
+图片仅将已返回的固定img-proxy签名路径登记为不透明 `/media/{sha256}`，不接受用户URL；
+每次缓存读取重新登记映射。图片无凭据、不跟随重定向，最多4并发、总期限12秒、4MiB及栅格MIME白名单。
+
 FinGPT 的既有 sessions/messages API 可携带 research_mode=quick|deep|agent，旧 research_depth=instant|deep 保持兼容。messages 另接受可选 research_requirements（最多30项，每项4000字符）和 research_as_of（ISO日期）；后续用户要求累积保留。详情新增 research_quality、execution_status、research_accepted 与 research_report_versions，原生状态语义保留。
 
 POST /api/research/internal/data/research-quality 仅接受可信插件私有认证，严格 JSON 为 {session_id,operation:"check"}。调用方不能写通过状态、补查次数或合同；返回状态、缺口和一次补查许可，同任务同报告重放不重复授权。浏览器 GET 不执行补查或模型请求；当前报告完整性无效时输出下载/预览返回409，输入附件仍可读。

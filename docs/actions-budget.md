@@ -1,5 +1,7 @@
 # GitHub Actions 免费额度治理
 
+Git主线推进后的原位恢复不触发新workflow或runner；新安全回归沿现有Project Constraints执行。恢复清空旧候选CI/评审资格，必须对最终候选重验；macOS Bootstrap的手动触发及预算门保持。
+
 FinGPT 质量门离线回归进入既有 Research Web Checks Python job；JS 延用 research_web*.test.mjs 清单，仍只有既有标准 runner，不新增 job、Docker/Windows dispatch 或模型费用。Mac 安装沿原 Bootstrap 验证，其他平台交接保持独立。
 
 固定 DSH 搜索升级沿用既有 macOS Bootstrap，只在原生空搜索冒烟中核对 unavailable_count=0；不新增 job、runner 或 Windows/Linux 产品 dispatch。通用检查继续使用既有清单。

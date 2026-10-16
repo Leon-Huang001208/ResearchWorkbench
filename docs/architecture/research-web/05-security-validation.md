@@ -1,5 +1,14 @@
 # 安全边界与验证方法
 
+AIHOT模块只允许固定匿名GET：页面数据来自aihot.news的公开site API，精简v1路由仅保留兼容。
+Cookie、Authorization和环境代理不转发，重定向不跟随；JSON期限20秒、解压后2MiB、LRU64项。
+图片只接受上游已签发的固定 `/api/img-proxy` 路径，登记在最多4096项的SHA-256 allowlist，
+浏览器只传opaque key，不能传URL；4并发、12秒、4MiB，SVG/HTML与重定向拒绝。
+浏览器继续同源CSP、文本转义、无凭据HTTP(S)外链和noopener/noreferrer，加载失败图片可收起。
+日志使用项目设施进入logs/，不记录正文或本机秘密。近处测试覆盖匿名传输、缓存、HTTP-date限流、
+身份/日期/格式/大小、图片准入、丢失映射恢复、迟到响应、归档取消恢复与恶意内容。
+真实页面和API证据单独记录，不冒充DSH模型或其他平台验收。
+
 质量工具复用内部 DataHub token、可信原生会话血缘及原工具预算；普通网页不能伪造观察证据或授权补查。Host 冻结用户要求，模型 coverage 仅提出定位。来源身份与内容分别核验；无法独立验证的定性陈述、数字期间/单位冲突保留未通过。损坏/错配产物为invalid并拒绝正式导出；旧版本以 Host 哈希锚定，不把任意自建输出目录当认证历史。离线测试不证明真实模型或供应商可用性。
 
 Host元数据专项升级通过显式 `resident upgrade-host-metadata` 入口执行；自动兼容清单与固定登录控制器artifact保持。专项只接受预期旧版02c086b16、PR122四个已审Host Git blob及同一受管Git源中的精确最新master。控制源必须干净且通过merged PR/独立评审/三CI实际tree核验；未知模块、依赖、Store或Host内容变化仍拒绝。既有bridge完成空闲栅栏、lifecycle lease、journal-before-stop、健康和回滚；成功后才记录baseline审核并刷新安装基线，不搬迁数据或凭据。

@@ -1,5 +1,18 @@
 # Research Web 前端
 
+## AI 资讯（AIHOT）
+
+独立主导航提供日报、周报、月报、日报合订本和热点榜。
+按原开源页面保留：报头/期号/日期点阵、统计/阅读时长、封面/图注、头条/看点/版面目录、
+双栏正文/分栏导读、来源头像/一手/跟进/关联报道、快讯、前后期、按月折叠归档和历史报刊。
+热点保留前三卡片、后七名、真实热度指数/24小时曲线、趋势/爆/新/发酵中标签、最新进展、
+来源与参与者分组名单、热度说明。没有可比历史不画线，缺失时段断线，不从来源数推算热度。
+移动端保留报刊切换、近期chips、目录dialog和当前类型的更早历史。取消后的月份可以重试，
+失败月份仅显式重试，不因重绘自动循环取数；迟到请求不能覆盖新栏目/日期。
+文章、事件、原文和RSS链接打开原站对应详情；本模块覆盖用户指定两页的阅读功能，不另建采编后台。
+所有页面数据真实来自公开site API；当前原站周报/月报也能匿名读取，不使用样例补齐。
+正文转义，图片只用Host签发的不透明地址；外链仅无凭据HTTP(S)，保持同源CSP。
+
 FinGPT 三策略统一使用已有 DSH controller，模式可随草稿保存，未知受理与停止窗口仍阻止新提交。研究工作区展示真实思考、工具、计划、来源、笔记和报告，不补造百分比。执行结束、质量通过和文件交付分别显示；缺口报告可查看、下载并准备同会话续研草稿。完整性无效时暂停输出导出，输入资料保持可读；历史报告保留原版本与原检查结果。
 
 ## Codex 式会话导航与原生问答
@@ -462,6 +475,35 @@ Claw 首页不再展示“浏览研究入口与分类”或“使用现有研究
 搜索浮层支持点击外部、右上关闭按钮及Esc关闭，取消未完成的原生搜索并清空查询；关闭焦点桌面回全局搜索、窄屏回导航展开按钮，搜索结果自身操作不误关。外部关闭点击不穿透触发底层操作。
 
 原生待答问题由Host会话摘要直接显示waiting_input，子会话提问映射所属父会话，不依赖先打开详情。已查看完成标记按模式保存在浏览器，绑定本次updated_at；只在会话详情成功打开且页面可见时记录，刷新后保持，下次完成时重新显示未读圆环。该显示偏好不更改原生执行、项目排序或服务器研究数据。
+
+## AIHOT 原页面源码复用与许可
+
+参考 https://github.com/KKKKhazix/AIHOT ，固定提交 `c8704e5313e6b051560365226b3919d7e0ada5ea`。
+15个参考文件均已逐文件SHA-256核对；原始源码与摘要在本任务私有logs/aihot-reference归档。
+适配 ReportPaper/ReportNav/IssueDots 的页面组织、hot卡片/参与者/趋势和curve单调曲线几何，
+实现为RWB原生JS模块，不执行上游React脚本、不复制品牌Logo/字体，不引入第二个Web服务。
+源代码许可不覆盖线上内容的再分发权；数据用于本机个人/内部阅读。
+
+
+Copyright (c) 2026 数字生命卡兹克
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 
 普通FinGPT未确认受理的待发送请求在既有会话草稿记录中保留会话绑定、请求签名、幂等键和已提交选择。刷新不自动重发；显式重试相同请求复用原键，改变正文或会话后重新生成，存储失败时不发送。已确认受理后清除该待处理记录。
 

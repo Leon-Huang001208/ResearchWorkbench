@@ -2884,6 +2884,70 @@ Imports:
 - `runtime_contract`
 
 
+## `app/research_web/aihot_media.py`
+
+Module docstring:
+> Bounded, credential-free images explicitly issued by AIHOT page responses.
+
+Imports:
+- `asyncio`
+- `collections`
+- `core.observability`
+- `fastapi`
+- `fastapi.responses`
+- `hashlib`
+- `httpx`
+- `re`
+- `urllib.parse`
+
+Classes:
+- `AihotMedia`
+  - Project upstream signed image paths into an opaque same-origin allowlist.
+  - methods: __init__, _image, project, read
+
+
+## `app/research_web/aihot_routes.py`
+
+Module docstring:
+> Anonymous AIHOT reading adapter; no collection, credentials or model calls.
+
+Imports:
+- `aihot_media`
+- `asyncio`
+- `collections`
+- `collections.abc`
+- `core.observability`
+- `datetime`
+- `email.utils`
+- `fastapi`
+- `httpx`
+- `json`
+- `math`
+- `re`
+- `time`
+- `typing`
+
+Classes:
+- `AihotReader`
+  - Per-app bounded LRU with conditional revalidation and shared cooldowns.
+  - methods: __init__, read, _fresh, _read, _validate_page, _remember
+
+Functions:
+- `_failure`
+- `_ttl`
+- `dailies`
+- `daily`
+- `hot_topics`
+- `_report_key`
+- `hot_page`
+- `latest_report`
+- `report_index`
+- `report_month`
+- `report_navigation`
+- `report_detail`
+- `media`
+
+
 ## `app/research_web/asset_routes.py`
 
 Module docstring:
@@ -5481,6 +5545,7 @@ Module docstring:
 > Web-only startup: python -m uvicorn app.research_web.main:app --port 8088.
 
 Imports:
+- `aihot_routes`
 - `asset_routes`
 - `asset_workspace`
 - `asyncio`
@@ -5510,8 +5575,7 @@ Imports:
 - `local_integrations.routes`
 - `mcp_registry`
 - `mcp_registry.routes`
-- `mcp_runtime.routes`
-- ... 21 more
+- ... 22 more
 
 Classes:
 - `NewSession`

@@ -24,6 +24,7 @@ import { readWorkbenchQuery, renderWorkbench } from './workbench.mjs';
 import { readAssetObservation } from './asset-workspace.mjs';
 import { renderOperations } from './operations.mjs';
 import { createIntelController, renderIntel } from './intel.mjs';
+import { createAihotController, renderAihot } from './aihot.mjs';
 import { renderReportWorkflowDetail, renderReportWorkflowShelf } from './report-workflows.mjs';
 import { buildConfigurationPayload, confirmAutoProbeConsent, createLocalIntegrationPollingGuard, createOfficeConsentQueue, invalidateLocalIntegrationSnapshot, nextLocalStatusExpiry, mergeIntegrationStatuses } from './connections.mjs';
 import { modelConfigurationPayload, syncModelForm, renderSettingsPage, resolveSettingsSection, settingsConnectionId, settingsRefreshCatalogs } from './settings.mjs';
@@ -125,6 +126,7 @@ window.matchMedia('(max-width: 1050px)').addEventListener?.('change', event => {
 });
 const hotController = createHotController({api,onChange:()=>render(),isActive:()=>state.route.page==='intel'&&state.route.intelTab==='hot'||state.route.page==='settings'&&state.route.settingsSection==='hot'});
 const intelController = createIntelController({ onChange: () => { if (state.route.page === 'intel') render(); } });
+const aihotController = createAihotController({ onChange: () => { if (state.route.page === 'aihot') render(); } });
 const capabilityController = createCapabilityController({ api, onChange: () => render(), onCatalogChange: () => loadCatalog(['capabilities']) });
 const capabilityState = capabilityController.state;
 const localIntegrationPollingGuard = createLocalIntegrationPollingGuard(
@@ -332,6 +334,7 @@ function mainPage() {
   if (state.route.page === 'frameworks') return renderFrameworks({ slug: state.route.frameworkSlug, anchor: state.route.frameworkTab, catalog: frameworkState.catalog, data: frameworkState.data, status: frameworkState.status, error: frameworkState.error, bot: { ...frameworkBot, bridgeReady: frameworkEmbedBridge.ready(state.route.frameworkSlug, frameworkState.data?.snapshot?.revision) } });
   if (state.route.page === 'operations') return operationsPage();
   if (state.route.page === 'intel') return state.route.intelTab === 'hot' ? renderHotWorkspace(hotController.state) : renderIntel(intelController.state);
+  if (state.route.page === 'aihot') return renderAihot(aihotController.state);
   if (state.route.page === 'history') {
     const mode = state.route.historyMode;
     const view = state.route.historyView || 'active';
@@ -520,6 +523,7 @@ function render() {
   disclosureState.capture(root, active);
   const selection = active && ['TEXTAREA', 'INPUT'].includes(active.tagName) && active.type !== 'password' ? { start: active.selectionStart, end: active.selectionEnd } : null;
   const mainScroll = document.querySelector('#main')?.scrollTop || 0;
+  const aihotArchiveScroll = root.querySelector('.aihot-archive-scroll')?.scrollTop || 0;
   const conversationScroller = root.querySelector('[data-conversation-scroll]');
   if (conversationScroller) conversationScrollPositions.set(conversationScroller.dataset.conversationScroll, conversationScroller.scrollTop);
   const navigationList = root.querySelector('.nav-scroll');
@@ -541,6 +545,8 @@ function render() {
     catch (error) { safeLog('framework_embed_bind_failed', { error: error.name }); }
   }
   updateFrameworkBotSlot();
+  const freshAihotArchive = root.querySelector('.aihot-archive-scroll');
+  if (freshAihotArchive) freshAihotArchive.scrollTop = aihotArchiveScroll;
   window.ResearchWebTheme?.syncControls();
   const freshDocumentForm = root.querySelector('#document-edit-form');
   if (documentForm && freshDocumentForm && documentForm.dataset.documentBusy !== "true" && !documentEditor?.busy && documentForm.dataset.documentRevision === freshDocumentForm.dataset.documentRevision) freshDocumentForm.replaceWith(documentForm);
@@ -583,7 +589,7 @@ function render() {
     for (const sibling of root.children) if (!sibling.contains(projectDialog)) sibling.inert = true;
     if (!projectDialog.contains(document.activeElement) || document.activeElement?.disabled) (projectDialog.querySelector('input:not(:disabled)') || projectDialog).focus({ preventScroll: true });
   }
-  document.title = `${state.detail?.title || (state.route.page === 'workbench' && state.route.section === 'hot' ? '热点与事件' : state.route.page === 'workbench' && state.route.section === 'assets' ? '资产观察' : ({ fingpt: 'FinGPT', claw: 'Claw', workbench: '研究台', frameworks: '研究框架', history: '研究历史', skills: '能力中心', operations: '运行与用量', intel: '研究情报', settings: '设置' })[state.route.page])} · Research Workbench`;
+  document.title = `${state.detail?.title || (state.route.page === 'workbench' && state.route.section === 'hot' ? '热点与事件' : state.route.page === 'workbench' && state.route.section === 'assets' ? '资产观察' : ({ fingpt: 'FinGPT', claw: 'Claw', workbench: '研究台', frameworks: '研究框架', history: '研究历史', skills: '能力中心', operations: '运行与用量', intel: '研究情报', aihot: 'AI 资讯', settings: '设置' })[state.route.page])} · Research Workbench`;
 }
 
 async function loadCatalog(names = defaultCatalogNames) {
@@ -1264,6 +1270,7 @@ async function showRoute() {
     history.replaceState(null, '', '#/claw?view=plans');
   }
   intelController.cancel();
+  aihotController.cancel();
   localIntegrationPollingGuard.invalidate(); officeAutoPollingGuard.invalidate(); officeConsentConfirmation = '';
   localVerificationTarget = '';
   const legacyTarget = legacyRouteTarget(location.hash);
@@ -1343,6 +1350,7 @@ async function showRoute() {
   if (state.route.page === 'claw' && state.route.clawView === 'skills') await loadCatalog(['capabilities', 'tools']);
   if (state.route.page === 'workbench') await loadWorkbench();
   if (state.route.page === 'operations') await loadOperations();
+  if (state.route.page === 'aihot') await aihotController.activate(state.route);
   if (state.route.page === 'intel') {
     if (state.route.intelTab === 'hot') await hotController.activate(state.route);
     else await intelController.activate(state.route.intelTab);
@@ -1498,6 +1506,7 @@ root.addEventListener('compositionend', event => {
 });
 
 root.addEventListener('keydown', (event) => {
+  if (state.route.page === 'aihot' && event.key === 'Escape') root.querySelectorAll('.aihot-faces[open]').forEach(item => { item.open = false; });
   if (event.isComposing || event.keyCode === 229) return;
   if (searchOpen && event.key === 'Escape') { event.preventDefault(); closeGlobalSearch(); return; }
   const projectDialog = event.target.closest?.('.nav-project-dialog');
@@ -1775,7 +1784,20 @@ root.addEventListener('change', async (event) => {
 });
 
 root.addEventListener('toggle', (event) => {
+  if (state.route.page === 'aihot' && event.target.isConnected && event.target.dataset?.aihotMonth) aihotController.toggleMonth(event.target.dataset.aihotMonth, event.target.open);
+  if (state.route.page === 'aihot' && event.target.isConnected && event.target.matches?.('.aihot-faces[open]')) {
+    const popup = event.target.querySelector('.aihot-participants');
+    const box = event.target.querySelector('summary').getBoundingClientRect();
+    if (popup) {
+      const width = Math.min(280, window.innerWidth - 16);
+      Object.assign(popup.style, { position: 'fixed', width: `${width}px`, left: `${Math.min(Math.max(8, box.left), window.innerWidth - width - 8)}px`, top: `${window.innerHeight - box.bottom > 260 ? box.bottom + 6 : Math.max(8, box.top - 266)}px` });
+    }
+  }
   if (event.target.matches?.('.method-picker')) methodPickerOpen = event.target.open;
+}, true);
+
+root.addEventListener('error', (event) => {
+  if (event.target.matches?.('.aihot-page img')) event.target.hidden = true;
 }, true);
 
 const uploadFiles = createUploadHandler({
@@ -2273,6 +2295,23 @@ root.addEventListener('click', async (event) => {
     try { await copyResearchText(detail.messages[index].text); if (ticket === pageGeneration && copy.isConnected) { copy.title = '已复制'; copy.setAttribute('aria-label', '已复制回复'); } }
     catch (error) { if (ticket === pageGeneration) { state.error = error.message; render(); } }
     return;
+  }
+  if (state.route.page === 'aihot') {
+    root.querySelectorAll('.aihot-faces[open]').forEach(item => { if (!item.contains(event.target)) item.open = false; });
+    if (event.target.closest?.('[data-aihot-refresh]')) { await aihotController.refresh(); return; }
+    const jump = event.target.closest?.('[data-aihot-jump]');
+    if (jump) {
+      event.preventDefault();
+      const target = document.getElementById(jump.dataset.aihotJump);
+      if (target?.tagName === 'DETAILS') target.open = true;
+      document.querySelector('.aihot-outline-dialog')?.close();
+      target?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+      return;
+    }
+    if (event.target.closest?.('[data-aihot-outline]')) { document.querySelector('.aihot-outline-dialog')?.showModal(); return; }
+    if (event.target.closest?.('[data-aihot-outline-close]')) { document.querySelector('.aihot-outline-dialog')?.close(); return; }
+    const month = event.target.closest?.('[data-aihot-month-retry]')?.dataset.aihotMonthRetry;
+    if (month) { await aihotController.loadMonth(month); return; }
   }
   if (event.target.closest?.('.intel-page')) {
     const action = event.target.closest?.('[data-intel-action]')?.dataset.intelAction;
@@ -3250,8 +3289,9 @@ window.addEventListener('visibilitychange', () => {
   if (!document.hidden && state.detail?.status === 'completed') render();
   if (!document.hidden && state.route.page === 'settings' && currentSettingsSection() === 'local') void loadCatalog(['localIntegrations']);
 }, true);
-window.addEventListener('resize', () => { const nav = conversationNavigation.state(state.route.page); if (sessionMenu || nav?.menu) { sessionMenu = null; if (nav) nav.menu = null; render(); } });
+window.addEventListener('resize', () => { if (state.route.page === 'aihot') root.querySelectorAll('.aihot-faces[open]').forEach(item => { item.open = false; }); const nav = conversationNavigation.state(state.route.page); if (sessionMenu || nav?.menu) { sessionMenu = null; if (nav) nav.menu = null; render(); } });
 window.addEventListener('scroll', event => {
+  if (state.route.page === 'aihot' && !event.target?.closest?.('.aihot-participants')) root.querySelectorAll('.aihot-faces[open]').forEach(item => { item.open = false; });
   if (!sessionMenu) return;
   // Rebuilding the sidebar restores its scrollTop asynchronously. That is not
   // a user scroll and must not immediately dismiss the menu just opened.

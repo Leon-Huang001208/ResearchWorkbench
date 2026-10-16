@@ -1,5 +1,12 @@
 # Research Web Native / Docker 安装与运行
 
+AI资讯提供原页面的日报、周报、月报、完整日报合订本与热点榜阅读能力。
+主导航“AI资讯”通过AIHOT匿名公开页面API获取完整页面字段，图片经有界同源适配读取。
+不新增产品依赖、API Key、Hot、PostgreSQL、模型调用或迁移；网络、限流和数据合同变化明确失败。
+现有requirements/web.in、web.lock、setup_web.py与Bootstrap依赖合同保持，干净安装由Mac CI另验。
+接入用于本机个人/内部阅读；线上数据规则独立于MIT代码许可，公开镜像或外部商业再分发须遵守
+[原站公开使用规则](https://aihot.news/terms)。
+
 FinGPT 单引擎融合不新增 npm/Python 产品依赖，不增加供应商环境文件或秘密配置入口；沿用公开安装器、固定 DSH 和既有凭据存储。requirements/web.in、web.lock、setup_web.py 无需修改，兼容性仍须由本地回归与 macOS 干净安装 CI 认证。没有启用或部署新引擎；常驻服务切换需另行明确授权。
 
 会话导航的项目/置顶/排序保存在既有产品数据根的Host索引，FinGPT与Claw分别管理；显示折叠偏好按模式保存于浏览器。不新增依赖或配置步骤，原公开安装入口和固定DSH保持。本轮元数据/API变更仍须独立部署兼容复核，不能自动扩大resident白名单。

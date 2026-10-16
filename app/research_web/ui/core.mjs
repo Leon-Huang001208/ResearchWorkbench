@@ -1,6 +1,6 @@
 const API_ROOT = '/api/research';
 const segment = (value) => encodeURIComponent(value);
-const pages = new Set(['fingpt', 'claw', 'workbench', 'frameworks', 'skills', 'history', 'operations', 'settings', 'intel']);
+const pages = new Set(['fingpt', 'claw', 'workbench', 'frameworks', 'skills', 'history', 'operations', 'settings', 'intel', 'aihot']);
 const workbenchSections = new Set(['market', 'assets', 'funds', 'industry', 'documents', 'hot', 'etf-paper']);
 const settingsSections = new Set(['general', 'model', 'data', 'local', 'docs', 'hot']);
 const capabilityViews = new Set(['library', 'mine', 'plans', 'connections', 'market']);
@@ -16,6 +16,11 @@ export function parseRoute(hash = '') {
     page,
     sessionId: ['fingpt', 'claw'].includes(page) ? params.get('session') : null,
   };
+  if (page === 'aihot') {
+    route.aihotTab = !extraSegments.length && ['hot', 'archive', 'weekly', 'monthly'].includes(sectionSegment) ? sectionSegment : 'daily';
+    const datePattern = route.aihotTab === 'weekly' ? /^\d{4}-W\d{2}$/ : route.aihotTab === 'monthly' ? /^\d{4}-\d{2}$/ : /^\d{4}-\d{2}-\d{2}$/;
+    route.aihotDate = datePattern.test(params.get('date') || '') ? params.get('date') : null;
+  }
   if (page === 'intel') {
     const tabs = new Set(['hot', 'overview', 'research-reports', 'investment-news', 'wsc', 'social', 'news', 'filings', 'events']);
     route.intelTab = !extraSegments.length && tabs.has(sectionSegment) ? sectionSegment : 'overview';
