@@ -169,7 +169,9 @@ def build_wheel(project: Path, source: Path, output: Path) -> dict:
     return {"path": str(wheel), "sha256": digest(wheel)}
 
 
-def stage(home: Path, config: dict, target: str, proof: dict) -> dict:
+def stage(
+    home: Path, config: dict, target: str, proof: dict, *, compatibility_profile: str | None = None
+) -> dict:
     root = home / "resident"
     project = Path(config["project"])
     previous = git(project, "rev-parse", "HEAD")
@@ -190,7 +192,14 @@ def stage(home: Path, config: dict, target: str, proof: dict) -> dict:
         raise UpdateBlocked("resident_master_moved")
     git(project, "merge-base", "--is-ancestor", previous, target)
     paths = git(project, "diff", "--name-only", previous, target).splitlines()
-    if not compatible(paths):
+    review = None
+    if compatibility_profile is not None:
+        from . import host_metadata
+
+        if compatibility_profile != host_metadata.PROFILE:
+            raise UpdateBlocked("resident_compatibility_profile_unknown")
+        review = host_metadata.review(project, config, previous, target, paths)
+    elif not compatible(paths):
         raise UpdateBlocked("resident_compatibility_review_required")
     directory = root / "artifacts" / target
     private_root(directory)
@@ -208,6 +217,8 @@ def stage(home: Path, config: dict, target: str, proof: dict) -> dict:
         "manifest": manifest,
         "proof": proof,
     }
+    if review is not None:
+        candidate["compatibility_review"] = review
     atomic(root / "candidate.json", candidate)
     return candidate
 
@@ -530,15 +541,31 @@ def install(home: Path, project: Path, source_repository: Path, origin: str) -> 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="rwb resident")
     parser.add_argument(
-        "command", choices=("install", "tick", "status", "disable", "rollback", "retry", "bridge")
+        "command",
+        choices=(
+            "install",
+            "tick",
+            "status",
+            "disable",
+            "rollback",
+            "retry",
+            "bridge",
+            "upgrade-host-metadata",
+        ),
     )
     parser.add_argument("--home", type=Path, default=Path.home() / ".research-workbench")
     parser.add_argument("--project", type=Path)
     parser.add_argument("--source-repository", type=Path)
     parser.add_argument("--private-origin")
+    parser.add_argument("--expected-previous")
+    parser.add_argument("--expected-target")
     parser.add_argument("--operation", choices=("ensure", "deploy", "recover", "rollback"))
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
+    if args.command != "upgrade-host-metadata" and (
+        args.expected_previous is not None or args.expected_target is not None
+    ):
+        parser.error("expected revision arguments require upgrade-host-metadata")
     root = args.home / "resident"
     try:
         if args.command == "status":
@@ -570,6 +597,10 @@ def main(argv: list[str] | None = None) -> int:
                         args.source_repository.resolve(),
                         args.private_origin,
                     )
+            elif args.command == "upgrade-host-metadata":
+                from .host_metadata import upgrade
+
+                value = upgrade(args.home, args.expected_previous, args.expected_target)
             elif args.command == "bridge":
                 value = bridge_main(args.home, args.operation)
             elif args.command == "disable":

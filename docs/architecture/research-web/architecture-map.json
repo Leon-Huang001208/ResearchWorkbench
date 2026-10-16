@@ -49,6 +49,7 @@
         "research_workbench_entrypoint/iteration_cache.py",
         "research_workbench_entrypoint/resident/__init__.py",
         "research_workbench_entrypoint/resident/controller.py",
+        "research_workbench_entrypoint/resident/host_metadata.py",
         "research_workbench_entrypoint/resident/evidence.py",
         "research_workbench_entrypoint/resident/admission.py"
       ],

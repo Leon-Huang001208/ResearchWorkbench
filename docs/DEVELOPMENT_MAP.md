@@ -1,5 +1,7 @@
 # Research Workbench Development Map
 
+Host元数据专项升级通过显式 `resident upgrade-host-metadata` 入口执行；自动兼容清单与固定登录控制器artifact保持。专项只接受预期旧版02c086b16、PR122四个已审Host Git blob及同一受管Git源中的精确最新master。控制源必须干净且通过merged PR/独立评审/三CI实际tree核验；未知模块、依赖、Store或Host内容变化仍拒绝。既有bridge完成空闲栅栏、lifecycle lease、journal-before-stop、健康和回滚；成功后才记录baseline审核并刷新安装基线，不搬迁数据或凭据。
+
 Codex式导航为ui/conversation-navigation.mjs/css，逐题问答为ui/questionnaire.mjs/css；app/core/shell/views只做既有协议接线。Host navigation.py与claw_projects/claw_routes管理模式隔离的导航revision/项目，旧Claw API兼容；近处回归为test_navigation.py、research_web_navigation/questionnaire.test.mjs与research_web_codex_navigation.mjs。
 
 固定 DSH 搜索覆盖字段由 session-controller 显式 report 返回，Web service 求产品 scope 并校验计数，session-search/shell 显示受限状态；macOS Bootstrap 原空搜索步骤核对 unavailable_count，仍使用既有 workflow。

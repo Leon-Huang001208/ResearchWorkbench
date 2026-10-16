@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "updated",
-  "summary": "FinGPT 三模式接入 Host 原生问答，快速与 Agent 共用实时思考面板，任务迁移至 Claw，README 已同步。",
-  "reason": "按用户明确选择更新唯一 DSH 边界并复刻 AlphaDesk 展示；新增 Node 有界子进程、分块实时推理与会话事件，私有配置仅在 .env.local，无产品依赖新增。"
+  "summary": "FinGPT 三模式接入 Host 原生问答，快速与 Agent 共用实时思考面板，任务迁移至 Claw；并补充 Host 元数据专项兼容升级入口与自动准入边界。",
+  "reason": "按用户明确选择更新唯一 DSH 边界并复刻 AlphaDesk 展示：新增 Node 有界子进程、分块实时推理与会话事件，私有配置仅在 .env.local；Host 显式 CLI 绑定已审 Host 内容和最新 master，继续原固定生产根/唯一 DSH/空闲栅栏/回滚，不增加依赖或数据迁移。"
 }

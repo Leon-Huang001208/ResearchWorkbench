@@ -1,5 +1,7 @@
 # Research Workbench 架构总览
 
+Host元数据专项升级通过显式 `resident upgrade-host-metadata` 入口执行；自动兼容清单与固定登录控制器artifact保持。专项只接受预期旧版02c086b16、PR122四个已审Host Git blob及同一受管Git源中的精确最新master。控制源必须干净且通过merged PR/独立评审/三CI实际tree核验；未知模块、依赖、Store或Host内容变化仍拒绝。既有bridge完成空闲栅栏、lifecycle lease、journal-before-stop、健康和回滚；成功后才记录baseline审核并刷新安装基线，不搬迁数据或凭据。
+
 macOS 可选 resident 管理平面在用户登录后监督既有 Native Web/DSH，不增加研究引擎。
 控制器使用固定 artifact、GitHub exact-tree 验证、同根 wheel 切换和原生命周期 lease；
 研究准入共享锁先于生命周期锁，事务 journal 保证恢复优先。依赖/持久化/未知路径不自动升级。

@@ -271,3 +271,5 @@ Hot冻结FinGPT研究现使用轻量DSH组合并有界核验原件；真实Markd
 研究情报新增“研究与报告”，可读取真实报告、核对原运行状态及下载MD/Word。运行失败但报告已生成的状态并列保留；页面刷新与导出不发送模型请求。
 
 FinGPT 新版包含 Lite / Ultra / Frontier 与可选 Kimi 档位、引用联动、工作笔记和最终报告；快速与 Agent 共用同一个实时思考面板，逐块显示完整推理过程与检索步骤。任务案例入口在 Claw。配置、安全和事件协议见 [FinGPT 问答接入](docs/research-web-fingpt.md)。
+
+Host元数据专项升级在用户单独授权后走显式、精确候选的兼容复核入口；原自动升级清单不变，活动研究延后，失败回滚且保留数据。命令与边界见[安装指南](docs/research-web-installation.md#macos-登录后常驻与自动部署)。

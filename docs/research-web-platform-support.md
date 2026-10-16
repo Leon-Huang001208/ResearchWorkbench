@@ -1,5 +1,7 @@
 # Research Web 能力与平台证据
 
+Host元数据专项兼容升级仅在macOS Native验收：精确候选、Mac Bootstrap、原空闲/事务/健康/回滚。Ubuntu纯合同测试不代表Linux产品适配；Windows/Linux原生及Docker专项仍NOT_RUN，不从Mac发起产品dispatch。
+
 本轮固定 DSH 搜索候选由 macOS 验收；Windows/Linux 与 Docker 产品安装尚未执行，保持 NOT_RUN。通用 Ubuntu 检查不替代其他产品宿主证据。
 
 macOS resident 为显式选择的登录后 Native 管理功能；保留 FileVault，不承诺登录前启动。
