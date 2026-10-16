@@ -113,3 +113,5 @@ artifact storage：____ / 0.5 GB
 ```
 
 Host元数据专项升级测试复用Research Web Checks现有test_resident.py；resident路径由现有Mac Bootstrap自动选中，不新增job或平台dispatch。只校验macOS清洁安装/固定DSH/健康/Doctor，不调用模型。
+
+通用Python回归的报告渲染器依赖直接抽取现有 requirements/web.lock 中的 ReportLab 固定版本及哈希，仅补足原通用 dev 环境缺项；不新增产品依赖或 runner。测试凭据使用进程内夹具，不依赖Linux系统凭据库。

@@ -39,3 +39,7 @@ Full mypy currently FAILS with 14 diagnostics identical to unmodified master (ne
 Full JavaScript Research Web/governance run: 665 PASS / 2 existing SKIP / 0 failures, 667 collected, 5.63s. Includes actual-shaped passed/history/input rendering, ordinary FinGPT persistent idempotency, unchanged Claw follow-up, optional historical cutoff and original tool budgets. Browser historical cutoff survives refresh and mobile has no overflow. Final quality-only Python closure: 50 PASS; complete API/protocol/event recovery closure: 347 PASS. Independent Python and JavaScript review repaired concrete findings and then approved their scoped source; final integration SHA review and CI are recorded in the delivery receipt.
 
 Supplier models NOT_RUN; no budget spent. Windows-native runner test and two fixed-DSH source-validation opt-ins remain skipped with explicit reasons. The unchanged local runtime/source pin is built and health-checked independently by macOS Bootstrap CI; unit mocks do not substitute that evidence.
+
+## CI repair 1
+
+Research Web Checks run38866406000 failed: generic dev install omitted ReportLab already declared in web.in/web.lock; new ingress fixtures also consulted unavailable Linux keyring. Fixed CI to install only the existing locked renderer block with hashes/no-deps, and isolated keyring via the established test boundary. No product dependency, runtime behavior, skip or assertion changed. Failed CI log remains local evidence. Repair checkpoint must receive new exact-SHA checks; old CI cannot certify it.

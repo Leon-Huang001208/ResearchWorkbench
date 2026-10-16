@@ -65,6 +65,21 @@ jobs:
         run: |
           python -m venv .venv
           .venv/bin/python -m pip install -e ".[dev]"
+          # The renderer is already a locked Web product dependency, not a new extra.
+          .venv/bin/python - <<'PY'
+          import os
+          from pathlib import Path
+          lines = Path("requirements/web.lock").read_text().splitlines()
+          start = next(i for i, line in enumerate(lines) if line.startswith("reportlab=="))
+          block = [lines[start]]
+          for line in lines[start + 1:]:
+              if line and not line[0].isspace():
+                  break
+              block.append(line)
+          target = Path(os.environ["RUNNER_TEMP"]) / "rwb-reportlab.lock"
+          target.write_text("\n".join(block) + "\n")
+          PY
+          .venv/bin/python -m pip install --require-hashes --no-deps -r "$RUNNER_TEMP/rwb-reportlab.lock"
 
       - name: Run Research Web Python contracts
         run: |
