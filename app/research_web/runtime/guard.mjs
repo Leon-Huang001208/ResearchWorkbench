@@ -94,6 +94,7 @@ export const RESEARCH_TOOLS = new Set([
   'todo_write',
   'research_run_script',
   'research_document_operation',
+  'research_check_quality',
   'rwb_record_method_use',
   'rwb_prepare_automation',
   'rwb_list_automations', 'rwb_prepare_automation_update', 'rwb_run_automation', 'ask_user_question',

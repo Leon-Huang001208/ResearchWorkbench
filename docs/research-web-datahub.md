@@ -1,5 +1,7 @@
 # Research Web DataHub
 
+FinGPT 数值验收读取本会话真实 DataHub 快照及上传文本，不复制候选分支的直接腾讯/东财/iFinD 调用路径。未经现有 Provider 合同和环境验收的来源继续未接入。检索摘要不作为全文证据，缺口不伪装成可调用或已核实。
+
 原生日程动作复用的DataHub内部桥只补充Automation稳定拒绝码白名单；具体拒绝原因可被模型识别，错误message/detail与未知、超界响应仍不透传。全文会话搜索走DSH既有session.search，不通过DataHub注册新来源或复制聊天正文。
 
 Broker在没有已适配的候选来源时返回`data_capability_not_integrated`，已适配但配置/依赖/授权/健康条件未满足时返回`data_capability_unavailable`，均为503；非法来源或参数保留原校验。模型工具说明要求说明缺口，不能通过改写同一查询重复尝试，也不授予其他工具或供应商权限。当前`search_web`的Tavily/Bing绑定仍未完成适配；本轮未接入新供应商，不把已注册称为可调用。

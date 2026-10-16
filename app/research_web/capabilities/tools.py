@@ -60,6 +60,13 @@ DECLARATIONS = {
         ["questions"],
         "原生用户提问；不授予执行权限",
     ),
+    "research_check_quality": (
+        "检查研究质量",
+        "runtime/research-tools.mjs",
+        {"operation": "string"},
+        [],
+        "本轮冻结要求与已取得证据；最多一次补查，不改变研究权限",
+    ),
     "research_document_operation": (
         "Office 文档操作",
         "runtime/research-tools.mjs",
