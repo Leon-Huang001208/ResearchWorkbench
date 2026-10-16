@@ -139,6 +139,6 @@ test('periodical earlier navigation stays in current kind history', () => {
 test('highlights outside the printed sections still open their report', () => {
   const r = report(); r.highlights = [citation('outside', '外部看点')];
   const html = renderPaper(r, []);
-  assert.match(html, /https:\/\/aihot.news\/items\/outside/);
+  assert.match(html, /#\/aihot\/item\/outside/);
   assert.doesNotMatch(html, /data-aihot-jump="aihot-r-outside"/);
 });

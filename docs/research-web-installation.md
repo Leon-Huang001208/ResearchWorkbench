@@ -1,5 +1,7 @@
 # Research Web Native / Docker 安装与运行
 
+AI资讯新增文章全文、事件专题和主题分页，沿用同一Host、现有依赖和公开安装链，无迁移、后台采集或模型调用。web.in/web.lock/setup_web.py/Bootstrap合同保持，最终候选仍须Mac干净安装CI；常驻更新沿单独授权及现有事务。
+
 AI资讯提供原页面的日报、周报、月报、完整日报合订本与热点榜阅读能力。
 主导航“AI资讯”通过AIHOT匿名公开页面API获取完整页面字段，图片经有界同源适配读取。
 不新增产品依赖、API Key、Hot、PostgreSQL、模型调用或迁移；网络、限流和数据合同变化明确失败。

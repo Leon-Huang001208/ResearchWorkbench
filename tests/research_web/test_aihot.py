@@ -10,6 +10,90 @@ from fastapi.testclient import TestClient
 from app.research_web import aihot_routes
 
 
+def test_article_body_preserves_reading_structure_without_active_html():
+    from app.research_web.aihot_content import reading_tree
+
+    nodes = reading_tree(
+        '<h2 id="sec-1" onclick="evil()">章节</h2><p>全文<strong>重点</strong><a href="/items/abc">下一篇</a></p><script>evil()</script><img src="https://evil.test/pixel"><iframe src="https://evil.test"></iframe>',
+        lambda value: None,
+    )
+    assert nodes[0] == {"tag": "h2", "attrs": {"id": "sec-1"}, "children": [{"text": "章节"}]}
+    assert nodes[1]["children"][-1]["attrs"]["href"] == "#/aihot/item/abc"
+    encoded = str(nodes)
+    assert "evil" not in encoded and "iframe" not in encoded and "onclick" not in encoded
+
+
+def test_blocked_void_media_does_not_swallow_later_body():
+    from app.research_web.aihot_content import reading_tree
+
+    nodes = reading_tree('<p>before</p><embed src="movie.swf"><p>after</p>', lambda _: None)
+    assert [row["children"][0]["text"] for row in nodes] == ["before", "after"]
+
+
+def test_related_source_list_respects_no_store(adapter):
+    browser, calls, replies, _ = adapter
+    replies[:] = [
+        httpx.Response(
+            200, json={"factId": "fact_1", "reports": []}, headers={"cache-control": "no-store"}
+        )
+        for _ in range(2)
+    ]
+    for _ in range(2):
+        assert browser.get("/api/research/aihot/groups/fact_1/reports").status_code == 200
+    assert len(calls) == 2
+
+
+@pytest.mark.parametrize(
+    "suffix,endpoint",
+    [
+        ("items/article_1", "/api/site/items/article_1"),
+        ("items/article_1/original", "/api/site/items/article_1/original"),
+    ],
+)
+def test_article_detail_projects_html_and_verifies_identity(adapter, suffix, endpoint):
+    browser, calls, replies, _ = adapter
+    replies[:] = [
+        httpx.Response(
+            200,
+            json={
+                "id": "article_1",
+                "title": "正文",
+                "readingMode": "full",
+                "body": {"zh": "<p>真实正文</p>", "original": None, "complete": True},
+                "outline": [],
+                "relatedStories": [],
+                "topics": [],
+            },
+        )
+    ]
+    result = browser.get("/api/research/aihot/" + suffix)
+    assert result.status_code == 200
+    assert calls[0].url.path == endpoint
+    assert result.json()["body"]["content"][0]["children"] == [{"text": "真实正文"}]
+    assert "zh" not in result.json()["body"]
+
+
+def test_story_and_topic_contracts_and_merge_are_local(adapter):
+    browser, calls, replies, _ = adapter
+    identity = "2f0270d6-fc22-4747-af7c-a4f488d3cd16"
+    replies[:] = [
+        httpx.Response(308, json={"mergedInto": identity}),
+        httpx.Response(
+            200, json={"topic": {"slug": "meta"}, "items": [], "page": 2, "pageCount": 4}
+        ),
+    ]
+    assert browser.get("/api/research/aihot/stories/" + identity).json() == {"mergedInto": identity}
+    assert browser.get("/api/research/aihot/topics/meta?page=2").json()["page"] == 2
+    assert str(calls[-1].url).endswith("/api/site/topics/meta?page=2")
+    assert browser.get("/api/research/aihot/topics/meta?page=0").status_code == 422
+
+
+def test_detail_identity_mismatch_fails_closed(adapter):
+    browser, _, replies, _ = adapter
+    replies[:] = [httpx.Response(200, json={"id": "other", "title": "wrong"})]
+    assert browser.get("/api/research/aihot/items/article_1").status_code == 502
+
+
 @pytest.fixture
 def adapter(monkeypatch):
     calls = []

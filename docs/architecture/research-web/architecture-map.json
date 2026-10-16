@@ -135,7 +135,8 @@
         "tests/javascript/research_web_questionnaire.test.mjs",
         "tests/e2e/research_web_codex_navigation.mjs",
         "tests/javascript/research_web_fingpt_dsh_fusion.test.mjs",
-        "tests/javascript/research_web_aihot.test.mjs"
+        "tests/javascript/research_web_aihot.test.mjs",
+        "tests/javascript/research_web_aihot_reading.test.mjs"
       ]
     },
     {
@@ -157,7 +158,8 @@
         "app/research_web/claw_routes.py",
         "app/research_web/navigation.py",
         "app/research_web/aihot_routes.py",
-        "app/research_web/aihot_media.py"
+        "app/research_web/aihot_media.py",
+        "app/research_web/aihot_content.py"
       ],
       "documents": [
         "docs/architecture/research-web/01-system.md",
@@ -1721,9 +1723,30 @@
     },
     {
       "method": "GET",
+      "path": "/api/research/aihot/groups/{fact_id}/reports",
+      "source": "app/research_web/aihot_routes.py",
+      "declaredPath": "/groups/{fact_id}/reports",
+      "prefix": "/api/research/aihot"
+    },
+    {
+      "method": "GET",
       "path": "/api/research/aihot/hot-topics",
       "source": "app/research_web/aihot_routes.py",
       "declaredPath": "/hot-topics",
+      "prefix": "/api/research/aihot"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/aihot/items/{item_id}",
+      "source": "app/research_web/aihot_routes.py",
+      "declaredPath": "/items/{item_id}",
+      "prefix": "/api/research/aihot"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/aihot/items/{item_id}/original",
+      "source": "app/research_web/aihot_routes.py",
+      "declaredPath": "/items/{item_id}/original",
       "prefix": "/api/research/aihot"
     },
     {
@@ -1773,6 +1796,20 @@
       "path": "/api/research/aihot/reports/{kind}/{key}",
       "source": "app/research_web/aihot_routes.py",
       "declaredPath": "/reports/{kind}/{key}",
+      "prefix": "/api/research/aihot"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/aihot/stories/{story_id}",
+      "source": "app/research_web/aihot_routes.py",
+      "declaredPath": "/stories/{story_id}",
+      "prefix": "/api/research/aihot"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/aihot/topics/{slug}",
+      "source": "app/research_web/aihot_routes.py",
+      "declaredPath": "/topics/{slug}",
       "prefix": "/api/research/aihot"
     },
     {
@@ -3586,7 +3623,7 @@
   "reading": {
     "repository": {
       "url": "https://github.com/Leon-Huang001208/ResearchWorkbench",
-      "revision": "0dc88ef3437b2d0be0c2675bdb5efee021ad3a40"
+      "revision": "80c0eab8f70c8a7a63fbfd18c3a1f6596f4ad099"
     },
     "levels": [
       {

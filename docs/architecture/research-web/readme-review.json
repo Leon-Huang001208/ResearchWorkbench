@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "updated",
-  "summary": "保留FinGPT原生DSH质量核验说明，补充独立AI资讯原页面阅读模块。",
-  "reason": "最新master的FinGPT证据门和本次AIHOT匿名阅读共同保留；无新产品依赖、数据库或常驻服务变更。 项目Git交付补原位基线恢复，管理员行为与安全硬门见AGENT_WORKFLOW，不改变产品安装或研究契约。"
+  "summary": "AI资讯补充文章全文、事件与主题站内阅读，保留已交付报刊和热点。",
+  "reason": "README同步入口；无新产品依赖、持久化或研究引擎。"
 }
