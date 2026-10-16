@@ -13,6 +13,7 @@
 所有页面数据真实来自公开site API；当前原站周报/月报也能匿名读取，不使用样例补齐。
 正文转义，图片只用Host签发的不透明地址；外链仅无凭据HTTP(S)，保持同源CSP。
 
+FinGPT 三策略统一使用已有 DSH controller，模式可随草稿保存，未知受理与停止窗口仍阻止新提交。研究工作区展示真实思考、工具、计划、来源、笔记和报告，不补造百分比。执行结束、质量通过和文件交付分别显示；缺口报告可查看、下载并准备同会话续研草稿。完整性无效时暂停输出导出，输入资料保持可读；历史报告保留原版本与原检查结果。
 
 ## Codex 式会话导航与原生问答
 
@@ -503,3 +504,7 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+普通FinGPT未确认受理的待发送请求在既有会话草稿记录中保留会话绑定、请求签名、幂等键和已提交选择。刷新不自动重发；显式重试相同请求复用原键，改变正文或会话后重新生成，存储失败时不发送。已确认受理后清除该待处理记录。
+
+研究截止日期可选；新研究留空默认Host当日，续研留空沿用原冻结日期，显式日期随草稿及待确认请求保存。历史研究应明确选择截止日，不能用访问时钟冒充资料时间。

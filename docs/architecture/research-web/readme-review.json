@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "updated",
-  "summary": "补充独立AI资讯模块的AIHOT日报和热点榜阅读入口。",
-  "reason": "匿名公开API用于本机个人或内部阅读，无新增产品依赖、模型、数据库或常驻服务；安装和数据使用边界已链接。"
+  "summary": "保留FinGPT原生DSH质量核验说明，补充独立AI资讯原页面阅读模块。",
+  "reason": "最新master的FinGPT证据门和本次AIHOT匿名阅读共同保留；无新产品依赖、数据库或常驻服务变更。"
 }

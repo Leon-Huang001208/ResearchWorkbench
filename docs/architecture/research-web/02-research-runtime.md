@@ -3,6 +3,11 @@
 AI 资讯的 AIHOT 只读请求不进入 DSH：它不创建会话、调用模型或触发 Hot worker。
 现有唯一研究引擎、凭据和研究任务生命周期保持；失败只影响该阅读模块。
 
+## FinGPT 三策略与固定质量门
+
+quick/deep/agent 均复用唯一 DSH loop、已保存模型与凭据，旧 instant/deep 深度参数保持兼容。Agent 是动态规划策略，不承诺每次并行或固定步骤。research_check_quality 通过既有私有认证桥核对本轮冻结要求、截止时点、报告与实际证据，不启动另一个引擎或回合。同报告重查复用回执，最多一次补查，仍受原工具/子任务预算约束。
+
+执行状态、质量 passed/incomplete/invalid 和文件状态分别显示。补查仍缺证据时保留可用报告与缺口；补资料在同会话新回合继续并保留新增要求和旧版本。通过范围仅限实际来源摘录与确定性数值检查，无法验证的语义改写保持未核验。只在聊天回答而未提交可验证底稿时不伪造质量通过或文件。
 
 Host元数据专项升级通过显式 `resident upgrade-host-metadata` 入口执行；自动兼容清单与固定登录控制器artifact保持。专项只接受预期旧版02c086b16、PR122四个已审Host Git blob及同一受管Git源中的精确最新master。控制源必须干净且通过merged PR/独立评审/三CI实际tree核验；未知模块、依赖、Store或Host内容变化仍拒绝。既有bridge完成空闲栅栏、lifecycle lease、journal-before-stop、健康和回滚；成功后才记录baseline审核并刷新安装基线，不搬迁数据或凭据。
 

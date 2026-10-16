@@ -134,6 +134,7 @@
         "tests/javascript/research_web_navigation_menus.test.mjs",
         "tests/javascript/research_web_questionnaire.test.mjs",
         "tests/e2e/research_web_codex_navigation.mjs",
+        "tests/javascript/research_web_fingpt_dsh_fusion.test.mjs",
         "tests/javascript/research_web_aihot.test.mjs"
       ]
     },
@@ -314,7 +315,9 @@
         "app/research_web/delivery.py",
         "app/research_web/delivery_validation.py",
         "app/research_web/resources/",
-        "app/research_web/research_evidence.py"
+        "app/research_web/research_evidence.py",
+        "app/research_web/research_quality.py",
+        "app/research_web/research_quality_service.py"
       ],
       "documents": [
         "docs/architecture/research-web/03-data-files.md"
@@ -334,7 +337,9 @@
         "tests/research_web/test_artifacts.py",
         "tests/research_web/test_fingpt_research.py",
         "tests/research_web/test_research_report.py",
-        "tests/javascript/research_web_fingpt.test.mjs"
+        "tests/javascript/research_web_fingpt.test.mjs",
+        "tests/research_web/test_research_quality.py",
+        "tests/research_web/test_fingpt_dsh_fusion.py"
       ]
     },
     {
@@ -373,7 +378,8 @@
         "tests/javascript/research_web_compatible_model.test.mjs",
         "tests/javascript/research_web_automation_draft_tool.test.mjs",
         "tests/research_web/test_encrypted_model_credentials.py",
-        "tests/research_web/test_live_acceptance_budget.py"
+        "tests/research_web/test_live_acceptance_budget.py",
+        "tests/javascript/research_web_quality_tool.test.mjs"
       ]
     },
     {
@@ -2600,6 +2606,13 @@
       "path": "/api/research/internal/data/model-connection",
       "source": "app/research_web/datahub/routes.py",
       "declaredPath": "/internal/data/model-connection",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/internal/data/research-quality",
+      "source": "app/research_web/datahub/routes.py",
+      "declaredPath": "/internal/data/research-quality",
       "prefix": "/api/research"
     },
     {

@@ -1,12 +1,14 @@
 """Web-only startup: python -m uvicorn app.research_web.main:app --port 8088."""
 
 import asyncio
+import hashlib
 import json
 import mimetypes
 import os
 import re
 import shutil
 from contextlib import asynccontextmanager
+from datetime import date
 from pathlib import Path
 from typing import Literal
 from urllib.parse import quote, urlsplit
@@ -80,6 +82,7 @@ UPLOAD_EXTENSIONS = {
 class NewSession(BaseModel):
     mode: Literal["fingpt", "claw"] = "fingpt"
     research_depth: Literal["instant", "deep"] = "instant"
+    research_mode: Literal["quick", "deep", "agent"] | None = None
     source_scope: list[Literal["datahub", "web", "uploads"]] = Field(
         default=["datahub", "web", "uploads"], min_length=1, max_length=3
     )
@@ -101,6 +104,17 @@ class TabbitTabRef(BaseModel):
 
 class Prompt(BaseModel):
     text: str = Field(min_length=1, max_length=100000)
+    research_mode: Literal["quick", "deep", "agent"] | None = None
+    research_requirements: list[str] | None = Field(default=None, min_length=1, max_length=30)
+    research_as_of: date | None = None
+
+    @field_validator("research_requirements")
+    @classmethod
+    def bounded_requirements(cls, value):
+        if value is not None and any(not item.strip() or len(item) > 4000 for item in value):
+            raise ValueError("研究要求须为非空且不超过4000字符")
+        return value
+
     attachment_ids: list[str] = Field(default_factory=list, max_length=20)
     skill_id: str | None = None
     capability_id: str | None = None
@@ -545,6 +559,7 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
             body.title,
             project_id=body.project_id,
             research_depth=body.research_depth,
+            research_mode=body.research_mode,
             source_scope=body.source_scope,
         )
 
@@ -614,6 +629,9 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
             method_ids=body.method_ids,
             tabbit_tabs=[item.model_dump() for item in body.tabbit_tabs],
             tabbit_live_confirmed=body.tabbit_live_confirmed,
+            research_mode=body.research_mode,
+            research_requirements=body.research_requirements,
+            research_as_of=body.research_as_of.isoformat() if body.research_as_of else None,
         )
 
     @app.post("/api/research/sessions/{sid}/cancel")
@@ -753,7 +771,30 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
 
     @app.get("/api/research/sessions/{sid}/files/{fid}/{action}")
     async def file(sid: str, fid: str, action: Literal["download", "preview"], request: Request):
+        service = svc(request)
+        relative = service.store.session(sid).get("files", {}).get(fid, "")
+        receipt = service.store.data["receipts"].get(
+            f"{sid}:{service.store.session(sid).get('delivery_key', '')}", {}
+        )
+        if relative.startswith("outputs/") and receipt.get("research_contract"):
+            detail = await service.detail(sid)
+            if (detail.get("research_quality") or {}).get("status") == "invalid":
+                raise StoreError("报告完整性检查未通过，暂不能交付", "research_report_invalid", 409)
         stream, name = svc(request).store.open_file(sid, fid)
+        if relative.startswith("outputs/report-versions/"):
+            from .research_quality_service import archive_digest
+
+            try:
+                expected = archive_digest(service, sid, relative)
+                raw = stream.read(16 * 1024 * 1024 + 1)
+                if len(raw) > 16 * 1024 * 1024 or hashlib.sha256(raw).hexdigest() != expected:
+                    raise StoreError(
+                        "历史报告完整性检查未通过", "research_report_version_changed", 409
+                    )
+                stream.seek(0)
+            except Exception:
+                stream.close()
+                raise
         media_type = mimetypes.guess_type(name)[0] or "application/octet-stream"
         if action == "preview" and media_type in {"text/markdown", "text/x-markdown"}:
             media_type = "text/plain"

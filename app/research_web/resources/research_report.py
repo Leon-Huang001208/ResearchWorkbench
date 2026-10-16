@@ -6,6 +6,9 @@ import json
 import logging
 import os
 import re
+import shutil
+import stat
+import tempfile
 from pathlib import Path
 from urllib.parse import urlsplit
 from uuid import uuid4
@@ -99,9 +102,285 @@ def validate_payload(value):
             not isinstance(ref, str) or ref not in ids for ref in refs
         ):
             raise ValueError("research_report_note_citation_unknown")
+    coverage = value.get("coverage", [])
+    if not isinstance(coverage, list) or len(coverage) > 100:
+        raise ValueError("research_report_coverage_invalid")
+    for row in coverage:
+        if (
+            not isinstance(row, dict)
+            or not isinstance(row.get("requirement_id"), str)
+            or not re.fullmatch(r"[a-zA-Z0-9_-]{1,80}", row["requirement_id"])
+            or not isinstance(row.get("section_ids"), list)
+            or len(row["section_ids"]) > 50
+            or any(not isinstance(s, str) or s not in stage_ids for s in row["section_ids"])
+            or not isinstance(row.get("excerpt"), str)
+            or not 1 <= len(row["excerpt"]) <= 10000
+        ):
+            raise ValueError("research_report_coverage_invalid")
+    claims = value.get("numeric_claims", [])
+    if not isinstance(claims, list) or len(claims) > 200:
+        raise ValueError("research_report_numeric_claim_invalid")
+    claim_ids = set()
+    for claim in claims:
+        if (
+            not isinstance(claim, dict)
+            or not isinstance(claim.get("id"), str)
+            or not re.fullmatch(r"[a-zA-Z0-9_-]{1,80}", claim["id"])
+            or claim["id"] in claim_ids
+            or claim.get("section_id") not in stage_ids
+            or any(
+                not isinstance(claim.get(key), str) or not 1 <= len(claim[key]) <= 10000
+                for key in ("text", "unit", "period")
+            )
+            or isinstance(claim.get("value"), bool)
+            or not isinstance(claim.get("value"), (str, int, float))
+            or claim.get("operation", "identity")
+            not in {"identity", "sum", "difference", "ratio", "percent_change"}
+            or not isinstance(claim.get("operands"), list)
+            or not 1 <= len(claim["operands"]) <= 50
+        ):
+            raise ValueError("research_report_numeric_claim_invalid")
+        claim_ids.add(claim["id"])
+        for operand in claim["operands"]:
+            if (
+                not isinstance(operand, dict)
+                or any(
+                    not isinstance(operand.get(key), str) or not 1 <= len(operand[key]) <= 10000
+                    for key in ("observation_id", "quote", "period", "unit")
+                )
+                or isinstance(operand.get("value"), bool)
+                or not isinstance(operand.get("value"), (str, int, float))
+            ):
+                raise ValueError("research_report_numeric_claim_operand_invalid")
     if len(json.dumps(value, ensure_ascii=False).encode()) > 2_000_000:
         raise ValueError("research_report_size")
     return value
+
+
+def _bounded_bytes(path, maximum=16 * 1024 * 1024):
+    if path.is_symlink() or not path.is_file():
+        raise ValueError("research_report_archive_alias_or_missing")
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+    fd = os.open(path, flags)
+    with os.fdopen(fd, "rb") as stream:
+        opened = os.fstat(stream.fileno())
+        original = path.lstat()
+        if not stat.S_ISREG(opened.st_mode) or (opened.st_dev, opened.st_ino) != (
+            original.st_dev,
+            original.st_ino,
+        ):
+            raise ValueError("research_report_archive_alias")
+        body = stream.read(maximum + 1)
+    if len(body) > maximum:
+        raise ValueError("research_report_archive_size")
+    return body
+
+
+def _version_read(directory):
+    if directory.is_symlink() or not directory.is_dir():
+        raise ValueError("research_report_archive_alias")
+    version = json.loads(_bounded_bytes(directory / "version.json", 2_000_000))
+    if not isinstance(version, dict):
+        raise TypeError("research_report_archive_changed")
+    rows = version.get("files", [])
+    if (
+        not isinstance(rows, list)
+        or not 1 <= len(rows) <= 4
+        or any(not isinstance(row, dict) for row in rows)
+    ):
+        raise ValueError("research_report_archive_changed")
+    for row in rows:
+        name = row.get("stored_name")
+        if not isinstance(name, str) or not re.fullmatch(r"[a-zA-Z0-9._-]{1,240}", name):
+            raise ValueError("research_report_archive_changed")
+        if hashlib.sha256(_bounded_bytes(directory / name)).hexdigest() != row.get("sha256"):
+            raise ValueError("research_report_archive_changed")
+    manifest = next((row for row in rows if row.get("name") == "research-report.json"), None)
+    if not manifest:
+        raise ValueError("research_report_archive_changed")
+    raw = _bounded_bytes(directory / manifest["stored_name"], 2_000_000)
+    report = validate_payload(json.loads(raw))
+    archived_hashes = {row.get("name"): row.get("sha256") for row in rows}
+    artifacts = report.get("artifacts", [])
+    if not isinstance(artifacts, list) or any(not isinstance(row, dict) for row in artifacts):
+        raise ValueError("research_report_archive_changed")
+    missing = [row.get("name") for row in artifacts if row.get("name") not in archived_hashes]
+    missing_formats = sorted(
+        {"html", "docx", "pdf"}
+        - {name.rsplit(".", 1)[-1] for name in archived_hashes if name != "research-report.json"}
+    )
+    snapshot = _snapshot_digest(archived_hashes, missing, missing_formats)
+    identity = report["task_id"] + "-" + hashlib.sha256(raw).hexdigest()[:24] + "-" + snapshot[:12]
+    if (
+        report["task_id"] != version.get("task_id")
+        or version.get("version_id") != identity
+        or version.get("directory") != "report-versions/" + identity
+        or (not directory.name.startswith(".pending-") and directory.name != identity)
+        or version.get("missing_artifacts") != missing
+        or version.get("missing_formats") != missing_formats
+        or any(
+            archived_hashes.get(row.get("name")) != row.get("sha256")
+            for row in artifacts
+            if row.get("name") not in missing
+        )
+    ):
+        raise ValueError("research_report_archive_changed")
+    return version
+
+
+def _snapshot_digest(hashes, missing, formats):
+    return hashlib.sha256(
+        json.dumps(
+            {"hashes": hashes, "missing_artifacts": missing, "missing_formats": formats},
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode()
+    ).hexdigest()
+
+
+def archive_report_version(output, expected_task_id=None):
+    """Verify and atomically retain the current payload and all published bytes."""
+    output = Path(output)
+    if output.is_symlink():
+        raise ValueError("research_report_archive_alias")
+    current = output / "research-report.json"
+    if not current.exists() and not current.is_symlink():
+        return None
+    try:
+        raw = _bounded_bytes(current, 2_000_000)
+        payload = validate_payload(json.loads(raw))
+        if expected_task_id is not None and payload["task_id"] != expected_task_id:
+            raise ValueError("research_report_archive_task_mismatch")
+        artifacts = payload.get("artifacts", [])
+        if (
+            not isinstance(artifacts, list)
+            or len(artifacts) > 3
+            or any(
+                not isinstance(row, dict) or not isinstance(row.get("name"), str)
+                for row in artifacts
+            )
+            or len({row["name"].rsplit(".", 1)[-1] for row in artifacts}) != len(artifacts)
+            or not {row["name"].rsplit(".", 1)[-1] for row in artifacts}.issubset(
+                {"html", "docx", "pdf"}
+            )
+        ):
+            raise ValueError("research_report_archive_artifact_invalid")
+        bodies = {"research-report.json": raw}
+        missing = []
+        for artifact in artifacts:
+            name = artifact.get("name")
+            if not isinstance(name, str) or not re.fullmatch(
+                r"[a-zA-Z0-9][a-zA-Z0-9._-]{0,149}", name
+            ):
+                raise ValueError("research_report_archive_artifact_invalid")
+            if not (output / name).exists() and not (output / name).is_symlink():
+                missing.append(name)
+                continue
+            body = _bounded_bytes(output / name)
+            if hashlib.sha256(body).hexdigest() != artifact.get("sha256"):
+                raise ValueError("research_report_archive_artifact_changed")
+            bodies[name] = body
+        digest = hashlib.sha256(raw).hexdigest()
+        hashes = {name: hashlib.sha256(body).hexdigest() for name, body in bodies.items()}
+        missing_formats = sorted(
+            {"html", "docx", "pdf"}
+            - {name.rsplit(".", 1)[-1] for name in bodies if name != "research-report.json"}
+        )
+        snapshot = _snapshot_digest(hashes, missing, missing_formats)
+        version_id = payload["task_id"] + "-" + digest[:24] + "-" + snapshot[:12]
+        archive = output / "report-versions"
+        if archive.is_symlink():
+            raise ValueError("research_report_archive_alias")
+        archive.mkdir(exist_ok=True)
+        target = archive / version_id
+        version = {
+            "task_id": payload["task_id"],
+            "version_id": version_id,
+            "directory": "report-versions/" + version_id,
+            "missing_artifacts": missing,
+            "missing_formats": missing_formats,
+            "files": [
+                {
+                    "name": name,
+                    "stored_name": version_id + "-" + name,
+                    "sha256": hashlib.sha256(body).hexdigest(),
+                }
+                for name, body in bodies.items()
+            ],
+        }
+        if target.exists() or target.is_symlink():
+            existing = _version_read(target)
+            if existing != version:
+                raise ValueError("research_report_archive_changed")
+            return existing
+        pending = Path(tempfile.mkdtemp(prefix=".pending-", dir=archive))
+        try:
+            for row in version["files"]:
+                destination = pending / row["stored_name"]
+                with destination.open("xb") as stream:
+                    stream.write(bodies[row["name"]])
+                    stream.flush()
+                    os.fsync(stream.fileno())
+                destination.chmod(0o444)
+            (pending / "version.json").write_text(json.dumps(version), encoding="utf-8")
+            (pending / "version.json").chmod(0o444)
+            _version_read(pending)
+            try:
+                pending.rename(target)
+            except OSError:
+                if not target.exists() or _version_read(target) != version:
+                    raise
+        finally:
+            if pending.exists():
+                shutil.rmtree(pending)
+        log.info("research_report_version_archived files=%d", len(version["files"]))
+        return version
+    except OSError as exc:
+        log.warning("research_report_archive_failed type=%s", type(exc).__name__)
+        raise ValueError("research_report_archive_io_failed") from None
+    except (ValueError, TypeError, KeyError, RecursionError) as exc:
+        log.warning("research_report_archive_failed type=%s", type(exc).__name__)
+        raise
+
+
+def list_report_versions(output, limit=20):
+    """Project bounded verified versions; never treat old quality claims as trusted."""
+    output = Path(output)
+    archive = output / "report-versions"
+    if archive.is_symlink() or output.is_symlink():
+        raise ValueError("research_report_archive_alias")
+    if not archive.exists():
+        return []
+    if not isinstance(limit, int) or not 1 <= limit <= 20:
+        raise ValueError("research_report_archive_limit_invalid")
+    versions = []
+    for path in sorted(archive.iterdir(), key=lambda item: item.name, reverse=True):
+        if path.name.startswith("."):
+            continue
+        try:
+            version = _version_read(path)
+            manifest = next(
+                row for row in version["files"] if row["name"] == "research-report.json"
+            )
+            versions.append(
+                {
+                    **version,
+                    "report": json.loads(_bounded_bytes(path / manifest["stored_name"], 2_000_000)),
+                    "quality": "incomplete",
+                }
+            )
+        except (OSError, ValueError, TypeError, KeyError, RecursionError) as exc:
+            log.warning("research_report_version_invalid type=%s", type(exc).__name__)
+            versions.append(
+                {
+                    "version_id": path.name,
+                    "quality": "invalid",
+                    "issues": ["report_archive_invalid"],
+                }
+            )
+        if len(versions) >= limit:
+            break
+    return versions
 
 
 def report_blocks(payload):
@@ -212,6 +491,7 @@ def write_research_report(output, payload):
         paths["json"] = output / "research-report.json"
         if any(p.is_symlink() for p in paths.values()):
             raise ValueError("research_report_output_alias")
+        archive_report_version(output)
         blocks = report_blocks(payload)
         doc = Document()
         for text, heading in blocks:

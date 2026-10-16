@@ -45,6 +45,7 @@ const SAFE_ERROR_CODES = new Set([
   'automation_trial_not_requested', 'automation_trial_scope_denied',
   'automation_trial_conflict', 'automation_trial_unknown', 'automation_version_conflict',
   'automation_busy', 'automation_run_busy', 'automation_control_denied',
+  'research_quality_contract_missing', 'research_quality_check_limit',
 ]);
 
 function isDenseStringArray(value) {
@@ -157,6 +158,25 @@ export async function executeDocumentTool(ctx, exec, config, args) {
     redirect: 'error', credentials: 'omit', signal,
   });
   return boundedJson(response, signal);
+}
+
+/** Check Host-observed evidence; model arguments cannot control quality state. */
+export async function executeResearchQuality(ctx, exec, config) {
+  const cwd = await trustedDirectory(ctx, exec, config);
+  exec.signal.throwIfAborted();
+  const control = await privateControl(config.researchRoot);
+  const signal = AbortSignal.any([exec.signal, AbortSignal.timeout(10000)]);
+  const response = await fetch(control.url + '/api/research/internal/data/research-quality', {
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Research-Data-Key': control.token },
+    body: JSON.stringify({ session_id: basename(cwd), operation: 'check' }),
+    redirect: 'error', credentials: 'omit', signal,
+  });
+  const value = await boundedJson(response, signal);
+  if (!value || !['passed', 'incomplete', 'invalid'].includes(value.status) || !Array.isArray(value.issues) ||
+      !Number.isSafeInteger(value.repair_count) || value.repair_count < 0 || value.repair_count > 1 ||
+      typeof value.may_repair !== 'boolean' || !value.contract || typeof value.contract !== 'object' || Array.isArray(value.contract) ||
+      (value.may_repair && (value.status !== 'incomplete' || value.repair_count !== 1))) throw Error('research_quality_response_invalid');
+  return value;
 }
 
 async function waitForResponse(operation, signal) {

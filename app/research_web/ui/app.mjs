@@ -271,7 +271,7 @@ function composer() {
   const taskPending = state.detail && (isRunning(state.detail.status) || state.detail.can_cancel || state.detail.can_recheck_stop || ['pending', 'admission_unknown'].includes(state.detail.delivery?.status));
   const runtimePending = catalog.pending.has('runtime');
   const runtimeReady = !runtimePending && catalog.runtime?.connected === true && catalog.runtime?.credential_configured !== false;
-  return renderComposer({ models: catalog.models, model: catalog.runtime?.model, modelEndpoint: catalog.runtime?.connection?.base_url, modelProvider: catalog.runtime?.provider, page: state.route.page, draft: state.draft, attachments: state.attachments, tabbitTabs: state.tabbitTabs, tabbitCandidates, tabbitOpen, tabbitLoading, tabbitIndex, sourceScope: state.sourceScope, researchDepth: state.researchDepth, expectedFormats: state.expectedFormats, skills: catalog.capabilities, skillId: state.skillId, disabled, busy: state.busy, stopping: state.stopping, taskPending, detail: state.detail, slashOpen, slashIndex, capability: state.capability, toolIds: state.toolIds, tools: catalog.tools, methods: catalog.capabilities.filter(item => item.kind === 'method'), methodIds: state.methodIds, methodPickerOpen, runtimeReady, runtimePending });
+  return renderComposer({ models: catalog.models, model: catalog.runtime?.model, modelEndpoint: catalog.runtime?.connection?.base_url, modelProvider: catalog.runtime?.provider, page: state.route.page, draft: state.draft, attachments: state.attachments, tabbitTabs: state.tabbitTabs, tabbitCandidates, tabbitOpen, tabbitLoading, tabbitIndex, sourceScope: state.sourceScope, researchDepth: state.researchDepth, researchMode: state.researchMode, researchAsOf: state.researchAsOf, expectedFormats: state.expectedFormats, skills: catalog.capabilities, skillId: state.skillId, disabled, busy: state.busy, stopping: state.stopping, taskPending, detail: state.detail, slashOpen, slashIndex, capability: state.capability, toolIds: state.toolIds, tools: catalog.tools, methods: catalog.capabilities.filter(item => item.kind === 'method'), methodIds: state.methodIds, methodPickerOpen, runtimeReady, runtimePending });
 }
 
 function landing() {
@@ -1724,7 +1724,8 @@ root.addEventListener('change', async (event) => {
   }
   if ('connectionStatus' in (target.dataset || {})) applyConnectionWorkspaceFilters(target.closest('[data-connection-workbench]'));
   if ('researchSource' in target.dataset) { const values = target.checked ? [...state.sourceScope, target.dataset.researchSource] : state.sourceScope.filter(s => s !== target.dataset.researchSource); if (values.length) controller.setSourceScope(values); render(); }
-  if (target.id === 'research-depth') { controller.setResearchDepth(target.value); render(); }
+  if (target.id === 'research-depth') { controller.setResearchMode(target.value); render(); }
+  if (target.id === 'research-as-of') { controller.setResearchAsOf(target.value); render(); }
   if (target.id === 'workspace-select') selectedWorkspace = target.value;
   if ('quickCategory' in target.dataset) { quickCategory = target.value; render(); }
   if (target.id === 'skill-select') { if (target.value) await selectCapability(target.value); else { controller.setCapability(null); render(); } }
@@ -2892,8 +2893,14 @@ root.addEventListener('click', async (event) => {
     }
   }
   if ('showAttention' in data) { contextOpen = window.matchMedia('(max-width: 1050px)').matches; contextCollapsed = false; contextTab = 'activity'; render(); }
+  if ('continueResearch' in data && state.detail?.mode === 'fingpt' && state.detail.research_quality?.status === 'incomplete') {
+    if (state.busy || state.stopping || isRunning(state.detail.status) || state.detail.can_cancel || state.detail.can_recheck_stop || state.detail.execution_restricted) return;
+    if (!state.draft.trim()) controller.setDraft('请基于本会话已有研究和新补充资料，继续核验尚未通过的质量检查项；保留原报告并生成新版本。');
+    safeLog('research_continuation_draft_prepared', {});
+    render(); document.querySelector('#prompt')?.focus(); return;
+  }
   if ('reportStage' in data && state.detail?.research_report?.sections?.some(section => section.id === data.reportStage)) { researchStage = data.reportStage; contextTab = 'notes'; render(); }
-  if ('contextTab' in data) { researchStage = null; contextTab = data.contextTab; render(); }
+  if ('contextTab' in data) { researchStage = null; contextTab = data.contextTab; contextOpen = window.matchMedia('(max-width: 1050px)').matches; contextCollapsed = false; render(); }
   if ('closeDrawers' in data) { const wasSidebarOpen = sidebarOpen; sidebarOpen = false; contextOpen = false; render(); if (wasSidebarOpen) focusSidebarControl(document, window.matchMedia('(max-width: 1050px)').matches); }
   if ('upload' in data) document.querySelector('#file-input')?.click();
   if ('slashSearch' in data) { if (composerMenu) composerMenu.open = false; slashOpen = !slashOpen; tabbitOpen = false; tabbitCandidates = []; tabbitRequest += 1; slashIndex = 0; render(); document.querySelector('#prompt')?.focus(); }

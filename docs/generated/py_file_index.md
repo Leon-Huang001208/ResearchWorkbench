@@ -4217,6 +4217,7 @@ Classes:
 - `MySQLConfigurationUpdate`
 - `MigrationRequest`
 - `SkillAdmissionRequest`
+- `QualityCheckRequest`
 
 Functions:
 - `_credential_error`
@@ -4237,6 +4238,7 @@ Functions:
 - `download`
 - `business_query`
 - `skill_preflight`
+- `research_quality`
 - `cancel`
 - `model_connection`
   - Instance-private public facts; credentials never cross this HTTP channel.
@@ -5555,6 +5557,7 @@ Imports:
 - `contextlib`
 - `core.observability`
 - `datahub.routes`
+- `datetime`
 - `documentation`
 - `fastapi`
 - `fastapi.exceptions`
@@ -5562,6 +5565,7 @@ Imports:
 - `fastapi.staticfiles`
 - `frameworks.base`
 - `frameworks.routes`
+- `hashlib`
 - `hot_routes`
 - `hot_service`
 - `integrations.routes`
@@ -5571,15 +5575,14 @@ Imports:
 - `local_integrations.routes`
 - `mcp_registry`
 - `mcp_registry.routes`
-- `mcp_runtime.routes`
-- `mimetypes`
-- ... 20 more
+- ... 22 more
 
 Classes:
 - `NewSession`
 - `SessionSearch`
 - `TabbitTabRef`
 - `Prompt`
+  - methods: bounded_requirements
 - `TabbitConfig`
 - `TabbitAccess`
 - `Rename`
@@ -7091,6 +7094,7 @@ Imports:
 - `json`
 - `logging`
 - `re`
+- `research_quality`
 - `resources.research_report`
 - `store`
 - `urllib.parse`
@@ -7098,6 +7102,68 @@ Imports:
 Functions:
 - `evidence_index`
 - `report_projection`
+
+
+## `app/research_web/research_quality.py`
+
+Module docstring:
+> Deterministic quality gates over frozen Host requirements and observed bytes.
+
+Imports:
+- `datetime`
+- `decimal`
+- `hashlib`
+- `json`
+- `logging`
+- `re`
+- `resources.research_report`
+
+Functions:
+- `_digest`
+- `_cutoff`
+- `make_contract`
+  - Copy and hash Host-frozen requirements before accepting a DSH turn.
+- `_valid_contract`
+- `_decimal`
+- `_numbers`
+- `_quantity_matches`
+- `_numeric_label_matches`
+  - Only a source-backed metric plus the declared calculation may be elided.
+- `_observed_parts`
+- `_narrative_matches`
+- `_observations`
+- `_verified_claim`
+- `assess_quality`
+  - Check structural coverage and evidence; unverified facts remain gaps.
+
+
+## `app/research_web/research_quality_service.py`
+
+Module docstring:
+> Host-owned quality receipts around the single DSH research loop.
+
+Imports:
+- `core.observability`
+- `datetime`
+- `hashlib`
+- `json`
+- `research_evidence`
+- `research_quality`
+- `resources.research_report`
+- `store`
+
+Functions:
+- `latest_receipt`
+- `prepare_contract`
+  - Freeze requirements before sending; continuation preserves original obligations.
+- `observations`
+  - Only actual session input/snapshot bytes become numeric evidence.
+- `quality_result`
+- `quality_versions`
+- `archive_digest`
+  - Resolve a download against Host-owned hashes, never a model manifest.
+- `check_quality`
+  - Authenticated native check, with one durable repair authorization per task.
 
 
 ## `app/research_web/resources/__init__.py`
@@ -7141,12 +7207,22 @@ Imports:
 - `os`
 - `pathlib`
 - `re`
+- `shutil`
+- `stat`
+- `tempfile`
 - `urllib.parse`
 - `uuid`
 
 Functions:
 - `source_id`
 - `validate_payload`
+- `_bounded_bytes`
+- `_version_read`
+- `_snapshot_digest`
+- `archive_report_version`
+  - Verify and atomically retain the current payload and all published bytes.
+- `list_report_versions`
+  - Project bounded verified versions; never treat old quality claims as trusted.
 - `report_blocks`
   - The same text/version is consumed by all three renderers.
 - `render_pdf`
@@ -7331,7 +7407,7 @@ Imports:
 - `json`
 - `local_integrations`
 - `mcp_registry`
-- ... 25 more
+- ... 26 more
 
 Classes:
 - `_SessionOwnedMCPRuntime`

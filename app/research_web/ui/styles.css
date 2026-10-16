@@ -2,6 +2,14 @@
 .native-todo-list li { display: grid; grid-template-columns: 5em minmax(0, 1fr); gap: 10px; overflow-wrap: anywhere; }
 .native-todo-status { color: var(--muted); font-size: .85em; }
 .research-plan .count { overflow-wrap: anywhere; }
+.research-state-summary { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--muted); font-size: 12px; margin: 8px 0; }
+.research-quality, .research-report-versions { overflow-wrap: anywhere; }
+.research-quality-issues { padding-left: 20px; }
+.research-requirements summary, .research-report-versions summary { cursor: pointer; padding: 8px 0; }
+.research-report-versions > details { border-top: 1px solid var(--line); }
+.report-export-blocked { color: var(--muted); }
+.research-as-of { display: flex; align-items: center; gap: 5px; color: var(--muted); font-size: 11px; }
+.research-as-of input { max-width: 136px; }
 :root {
   --navy: #061b2e;
   --navy-light: #16334d;
