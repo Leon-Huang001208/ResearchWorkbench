@@ -2884,6 +2884,57 @@ Imports:
 - `runtime_contract`
 
 
+## `app/research_web/ai_news_routes.py`
+
+Module docstring:
+> Finite AI news admin requests under the existing Host authentication boundary.
+
+Imports:
+- `ai_news_service`
+- `fastapi`
+- `fastapi.responses`
+- `pydantic`
+
+Classes:
+- `ControlRequest`
+
+Functions:
+- `status`
+- `control`
+- `feed`
+
+
+## `app/research_web/ai_news_service.py`
+
+Module docstring:
+> Bounded same-origin management bridge for the owned original AIHOT engine.
+
+Imports:
+- `__future__`
+- `aihot_routes`
+- `asyncio`
+- `core.observability`
+- `fastapi`
+- `httpx`
+- `json`
+- `pathlib`
+- `re`
+- `research_workbench_entrypoint.ai_news_manager`
+- `research_workbench_entrypoint.ai_news_transport`
+- `typing`
+- `urllib.parse`
+
+Classes:
+- `AiNewsService`
+  - methods: __init__, _request, read, feed, status, control
+
+Functions:
+- `redact`
+  - Remove backend secrets and local paths before public management projection.
+- `create_ai_news_service`
+  - No I/O, credentials access, subprocesses or database connection at startup.
+
+
 ## `app/research_web/aihot_content.py`
 
 Module docstring:
@@ -2907,7 +2958,7 @@ Functions:
 ## `app/research_web/aihot_media.py`
 
 Module docstring:
-> Bounded, credential-free images explicitly issued by AIHOT page responses.
+> Bounded images from the owned AIHOT engine; browser credentials stay local.
 
 Imports:
 - `asyncio`
@@ -2918,6 +2969,7 @@ Imports:
 - `hashlib`
 - `httpx`
 - `re`
+- `research_workbench_entrypoint.ai_news_transport`
 - `urllib.parse`
 
 Classes:
@@ -2929,7 +2981,7 @@ Classes:
 ## `app/research_web/aihot_routes.py`
 
 Module docstring:
-> Anonymous AIHOT reading adapter; no collection, credentials or model calls.
+> Owned local AIHOT reading adapter; no public-site fallback or model calls.
 
 Imports:
 - `aihot_content`
@@ -2941,10 +2993,12 @@ Imports:
 - `datetime`
 - `email.utils`
 - `fastapi`
+- `hashlib`
 - `httpx`
 - `json`
 - `math`
 - `re`
+- `research_workbench_entrypoint.ai_news_transport`
 - `time`
 - `typing`
 
@@ -5571,6 +5625,8 @@ Module docstring:
 > Web-only startup: python -m uvicorn app.research_web.main:app --port 8088.
 
 Imports:
+- `ai_news_routes`
+- `ai_news_service`
 - `aihot_routes`
 - `asset_routes`
 - `asset_workspace`
@@ -5582,6 +5638,7 @@ Imports:
 - `client`
 - `contextlib`
 - `core.observability`
+- `credential_backend`
 - `datahub.routes`
 - `datetime`
 - `documentation`
@@ -5598,10 +5655,7 @@ Imports:
 - `intel_routes`
 - `json`
 - `local_integrations`
-- `local_integrations.routes`
-- `mcp_registry`
-- `mcp_registry.routes`
-- ... 23 more
+- ... 26 more
 
 Classes:
 - `NewSession`
@@ -6488,6 +6542,9 @@ Module docstring:
 Imports:
 - `__future__`
 - `accounts`
+- `ai_news_routes`
+- `ai_news_service`
+- `aihot_routes`
 - `asyncio`
 - `contextlib`
 - `core.observability`
@@ -6499,6 +6556,7 @@ Imports:
 - `origin`
 - `pathlib`
 - `pydantic`
+- `re`
 - `runtime`
 - `urllib.parse`
 
@@ -6511,6 +6569,9 @@ Classes:
 
 Functions:
 - `error`
+- `ai_path`
+- `page_matches`
+  - Keep an old tab from submitting to a newly logged-in account.
 - `create_gateway`
   - Build one gateway without starting tenant processes or reading model secrets.
 
@@ -7814,7 +7875,7 @@ Classes:
   - methods: __bool__
 - `WebServiceManager`
   - Start and stop only processes whose private state and command both match.
-  - methods: __init__, _lifecycle_lock, _processes, _prepare_private_directories, _state_path, _runtime_auth_path, _fingerprint, _write_state, _read_state, _probe_state, _probe_pid_and_ownership, _runtime_protocol_healthy, _protocol_health, _probe_service, _service_probes, _pid_exists, _command_line, _terminate_pid, _owned_state, _port_open, _text_request, _json_request, _read_runtime_auth, _runtime_launch_token, _exchange_runtime_cookie, _write_runtime_auth, _write_runtime_auth_record, _runtime_sessions_authenticated, _runtime_sessions, _runtime_healthy, _media_type, _web_ready, _web_healthy, _wait, _terminate_failed_spawn, _spawn, _spawn_owned_process, _ensure_startable, _require_installation_ready, _probe_refusal_code, _is_owned_alive, _is_safe_absent, _probe_action, _state_file_identity, _remove_exact_state, _quarantine_invalid_state, _normalize_absent_probe, _clear_runtime_auth, _spawned_process_pending, _wait_for_ready, _stop_transition_pending, _stop_owned_probe, _rollback_spawned, _spawn_and_wait, _record_attempt_spawn, _confirmed_bind_failure, _start_locked, start, _installation_start_scope, _installation_root_matches, _assert_installation_scope, _start_installed, _fresh_root_proven, _native_quiescent, _listener_recovery_fact, _capture_fresh_recovery, _fresh_recovery_proven, _absent_listener_safe, _assert_foreign_observation, _foreign_spawn_current, _other_runtime_quiescent, _start_with_endpoints, _start_endpoint_attempt, _active_research, _active_research_read_only, _stop_one, _stop_locked, _probe_stop_action, stop, restart, restart_runtime, status, _executable_version, _installed_package_versions, _node_diagnosis, _read_install_manifest, _runtime_build_lock_matches, _read_runtime_build_lock_matches, _dsh_build_status, _installation_diagnosis, _model_diagnosis, _web_access_diagnosis, doctor, _validate_log_ownership, logs, tabbit_status
+  - methods: __init__, _lifecycle_lock, _processes, _prepare_private_directories, _state_path, _runtime_auth_path, _fingerprint, _write_state, _read_state, _probe_state, _probe_pid_and_ownership, _runtime_protocol_healthy, _protocol_health, _probe_service, _service_probes, _pid_exists, _command_line, _terminate_pid, _owned_state, _port_open, _text_request, _json_request, _read_runtime_auth, _runtime_launch_token, _exchange_runtime_cookie, _write_runtime_auth, _write_runtime_auth_record, _runtime_sessions_authenticated, _runtime_sessions, _runtime_healthy, _media_type, _web_ready, _web_healthy, _wait, _terminate_failed_spawn, _spawn, _spawn_owned_process, _ensure_startable, _require_installation_ready, _probe_refusal_code, _is_owned_alive, _is_safe_absent, _probe_action, _state_file_identity, _remove_exact_state, _quarantine_invalid_state, _normalize_absent_probe, _clear_runtime_auth, _spawned_process_pending, _wait_for_ready, _stop_transition_pending, _stop_owned_probe, _rollback_spawned, _spawn_and_wait, _record_attempt_spawn, _confirmed_bind_failure, _start_locked, start, _installation_start_scope, _installation_root_matches, _assert_installation_scope, _start_installed, _fresh_root_proven, _native_quiescent, _listener_recovery_fact, _capture_fresh_recovery, _fresh_recovery_proven, _absent_listener_safe, _assert_foreign_observation, _foreign_spawn_current, _other_runtime_quiescent, _start_with_endpoints, _start_endpoint_attempt, _active_research, _active_research_read_only, _stop_one, _stop_locked, _probe_stop_action, stop, restart, restart_runtime, status, _executable_version, _installed_package_versions, _node_diagnosis, _read_install_manifest, _runtime_build_lock_matches, _read_runtime_build_lock_matches, _dsh_build_status, _installation_diagnosis, _model_diagnosis, _web_access_diagnosis, doctor, _ai_news_diagnostic, _validate_log_ownership, logs, tabbit_status
 
 Functions:
 - `calculate_build_closure`
@@ -18891,6 +18952,90 @@ Functions:
   - Main function.
 
 
+## `scripts/ai_news_eval.py`
+
+Module docstring:
+> Zero-inference AIHOT evaluation preparation; Python standard library only.
+
+Imports:
+- `__future__`
+- `argparse`
+- `collections.abc`
+- `datetime`
+- `decimal`
+- `email.utils`
+- `hashlib`
+- `html`
+- `html.parser`
+- `http.client`
+- `ipaddress`
+- `json`
+- `logging`
+- `os`
+- `pathlib`
+- `re`
+- `shutil`
+- `socket`
+- `ssl`
+- `sys`
+- `typing`
+- `urllib.error`
+- `urllib.parse`
+- `urllib.request`
+- `xml.etree.ElementTree`
+- `zoneinfo`
+
+Classes:
+- `ArticleText`
+  - Version 1 deterministic visible text extraction; never executes HTML.
+  - methods: __init__, handle_starttag, handle_endtag, handle_data
+- `PublicRedirect`
+  - methods: redirect_request
+- `PinnedHTTPSConnection`
+  - Connect to one validated numeric address while verifying the original SNI host.
+  - methods: __init__, connect
+
+Functions:
+- `extracted_text`
+- `balance`
+  - Freeze a new bilingual version without mutating any original source bytes.
+- `digest`
+- `input_identity`
+- `write_json`
+- `read_json`
+- `public_url`
+- `fetch`
+- `artifact`
+- `prepare`
+- `feed_links`
+- `freeze`
+- `verify_artifact`
+- `validate`
+- `evidence_reference`
+  - Return a short exact title/paragraph span, not a semantic relationship label.
+- `literal_span`
+  - Locate a manually selected literal, retaining exact frozen UTF-8 bytes.
+- `selected_claim`
+- `proposed_references`
+- `reference`
+- `template`
+- `canonical`
+- `pinned_prompt`
+  - Expand only hash-verified partials from the exact vendored upstream pin.
+- `check_endpoint`
+- `document_title_time`
+- `task_payload`
+  - Original editor field shapes with explicitly untruncated frozen text.
+- `prepare_request`
+  - Freeze one bounded request. This function has no inference transport.
+- `compatible_http_transport`
+  - Only called after durable single-request authorization; never retries.
+- `durable_receipt`
+- `execute_request`
+  - Execute at most once; a durable UNKNOWN receipt permanently fences retries.
+- `main`
+
+
 ## `scripts/backfill_from_objects.py`
 
 Module docstring:
@@ -20253,7 +20398,7 @@ Imports:
 Classes:
 - `SetupWebInstaller`
   - Public bootstrap API used by the shell wrappers and contract tests.
-  - methods: __init__, _git_worktree_options, _python_supported, _node_supported, check, _is_reparse_point, _reject_alias, _atomic_json, _prepare_data_home, _runtime_lock_directory, _write_runtime_lock_json, _subprocess_environment, _node_subprocess_environment, _python_subprocess_environment, _macos_cpp_include, _run_checked, verify_cjpy_bundle, dependency_install_commands, install_python_dependencies, verify_web_import, _corepack_prefix, dsh_build_commands, prepare_pnpm_shims, _environment_python, _environment_pip_ready, _owned_environment, prepare_environment, calculate_dsh_closure, verify_dsh_source, _owned_dsh_source, _publish_dsh_build, _recover_completed_dsh_staging, provision_dsh, _code_commit, write_install_manifest, write_install_transaction_state, write_runtime_build_lock, install_hot_dependencies, install
+  - methods: __init__, _git_worktree_options, _python_supported, _node_supported, check, _is_reparse_point, _reject_alias, _atomic_json, _prepare_data_home, _runtime_lock_directory, _write_runtime_lock_json, _subprocess_environment, _node_subprocess_environment, _python_subprocess_environment, _macos_cpp_include, _run_checked, verify_cjpy_bundle, dependency_install_commands, install_python_dependencies, verify_web_import, _corepack_prefix, dsh_build_commands, prepare_pnpm_shims, _environment_python, _environment_pip_ready, _owned_environment, prepare_environment, calculate_dsh_closure, verify_dsh_source, _owned_dsh_source, _publish_dsh_build, _recover_completed_dsh_staging, provision_dsh, _code_commit, write_install_manifest, write_install_transaction_state, write_runtime_build_lock, install_hot_dependencies, install_ai_news_dependencies, install
 - `DockerRuntime`
   - Public installer adapter around the stdlib Docker lifecycle controller.
   - methods: _verify_selection_safe, install, _publish_selection

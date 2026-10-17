@@ -1850,6 +1850,9 @@ root.addEventListener('paste', (event) => {
 });
 
 root.addEventListener('submit', async (event) => {
+  if(event.target.matches?.('[data-news-form]')) {
+    event.preventDefault(); await aihotController.management.submit(event.target,event.submitter);return;
+  }
   if (event.target.matches?.('[data-etf-replay]')) {
     event.preventDefault();
     if (workbenchBusy) return;
@@ -2299,6 +2302,9 @@ root.addEventListener('click', async (event) => {
     return;
   }
   if (state.route.page === 'aihot') {
+    const sourceEdit=event.target.closest?.('[data-news-source]');
+    if(sourceEdit){await aihotController.management.action('source.detail',{id:sourceEdit.dataset.newsSource});return;}
+    if(event.target.closest?.('[data-news-new]')){aihotController.management.state.selection=null;aihotController.management.state.draft=null;aihotController.management.state.preview=null;render();return;}
     root.querySelectorAll('.aihot-faces[open]').forEach(item => { if (!item.contains(event.target)) item.open = false; });
     const readingAnchor=event.target.closest?.('.aihot-page a[href^="#/aihot/"]');
     if(readingAnchor && !event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey && event.button===0) {

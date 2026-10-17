@@ -1,0 +1,16 @@
+{
+  "lane": "local",
+  "endpoint": "http://127.0.0.1:1234/v1/chat/completions",
+  "model_id": null,
+  "model_revision": null,
+  "model_file_sha256": null,
+  "quantization": null,
+  "runtime_version": null,
+  "hardware": null,
+  "max_output_tokens": 512,
+  "max_input_bytes": 100000,
+  "input_usd_per_million": null,
+  "output_usd_per_million": null,
+  "pricing_date": null,
+  "max_cost_usd": "0"
+}

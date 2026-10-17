@@ -10,6 +10,8 @@
 
 后续独立评审发现扫描根及父目录符号链接遗漏，现逐级 lstat 拒绝，并补充10种存在/悬空根及index链接用例。最终定向27项通过；前次完整相关Python158项、JavaScript233项通过。Ruff/Black/isort及multiuser mypy通过，文档同步与Project Constraints无违规；最终集成候选须重新执行相关闭环并等待三项CI。机器阶段与Windows/Linux缺证保持。
 
+第一候选94ba3e7的三项CI实际通过；等待期间PR129先合并为8a2071b。原集成分支保留祖先合入新主线，两侧文档说明均保留，README遵循上游对旧资讯段落的替换。为避免隐式切换primary现有资讯功能，认证后的primary界面/静态资源与原AIHOT只读API绑定原backend版本；新用户维持最新独立实例和共享资讯合同，不配置资讯库或worker。新增回归先失败再修复，resident与共享资讯49项通过；新候选重新验证与独立评审。
+
 <!-- architecture-review {"group":"private-multiuser","structure":"unchanged","reason":"复用既有部署图网关按账号路由到Native Web及DSH的同一边界，primary仅绑定已有pair的身份与生命周期所有者；不增加图中节点、网络路径或执行引擎。","diagrams":[]} -->
-<!-- architecture-review {"group":"ui","structure":"unchanged","reason":"仅在既有账号表单按primary标记隐藏受保护按钮，登录和研究页面路由及组件关系保持。","diagrams":[]} -->
+<!-- architecture-review {"group":"ui","structure":"unchanged","reason":"在既有登录与研究路由内按已认证primary绑定原界面版本，并隐藏受保护按钮；组件和网络边界保持。","diagrams":[]} -->
 <!-- architecture-review {"group":"verification-workflow","structure":"unchanged","reason":"仅向已有Research Web Checks相同Python步骤加入有界离线测试，没有新增job、runner、依赖或平台dispatch。","diagrams":[]} -->

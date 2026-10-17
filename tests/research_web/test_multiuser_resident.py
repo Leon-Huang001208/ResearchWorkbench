@@ -4,6 +4,7 @@ import asyncio
 import json
 from uuid import uuid4
 
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 
@@ -40,6 +41,12 @@ def attached(tmp_path, monkeypatch):
     binding = LegacyBinding(
         admin.id, tmp_path / "legacy", "a" * 40, 8088, 3081, tmp_path / "production", (1, 2), (3, 4)
     )
+    legacy_ui = binding.project / "app/research_web/ui"
+    legacy_ui.mkdir(parents=True)
+    (legacy_ui / "index.html").write_text(
+        '<p>original UI</p><script src="/static/app.mjs"></script>'
+    )
+    (legacy_ui / "original-only.mjs").write_text("original asset")
     monkeypatch.setattr(
         LegacyBinding, "verify", lambda self: {"revision": self.revision, "active": False}
     )
@@ -137,6 +144,43 @@ def test_primary_protection_and_cutover_fence_are_enforced_by_http(attached, tmp
         )
         assert result.status_code == 503
         assert pool.accounts.get_user(admin.id).enabled is True
+
+
+def test_primary_keeps_original_ui_assets_and_ai_reading_backend(attached):
+    pool, _private, _admin, _user = attached
+    forwarded = []
+
+    async def upstream(request):
+        forwarded.append(request)
+        return httpx.Response(200, json={"original_backend": True})
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(upstream))
+    app = create_gateway(pool.accounts, pool, origin="http://localhost", upstream=client)
+    with TestClient(app, base_url="http://localhost") as browser:
+        assert browser.get("/static/original-only.mjs").status_code == 404
+        assert (
+            browser.post(
+                "/api/server/login",
+                headers={"Origin": "http://localhost"},
+                json={"username": "admin", "password": "a private test password"},
+            ).status_code
+            == 200
+        )
+        page = browser.get("/").text
+        assert "original UI" in page and "/server-static/session.mjs" in page
+        assert browser.get("/static/original-only.mjs").text == "original asset"
+        response = browser.get("/api/research/aihot/featured")
+        assert response.status_code == 200 and response.json() == {"original_backend": True}
+        assert forwarded[-1].url.port == 8088
+        assert "x-rwb-tenant-gateway-key" not in forwarded[-1].headers
+        browser.post("/api/server/logout", headers={"Origin": "http://localhost"})
+        browser.post(
+            "/api/server/login",
+            headers={"Origin": "http://localhost"},
+            json={"username": "userone", "password": "a private user password"},
+        )
+        assert browser.get("/static/original-only.mjs").status_code == 404
+        assert "original UI" not in browser.get("/").text
 
 
 @pytest.mark.parametrize("name", ["outputs/tmp/report.md", "outputs/report.lock"])

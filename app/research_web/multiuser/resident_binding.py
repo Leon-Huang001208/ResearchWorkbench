@@ -187,6 +187,7 @@ class AttachedPool:
         if primary.role != "admin" or not primary.enabled:
             raise RuntimeErrorSafe("legacy_owner_account_invalid")
         self.primary_user_id = primary.id
+        self.primary_ui = binding.project / "app/research_web/ui"
         self._verification_lock = asyncio.Lock()
         self._verified_at = 0.0
 

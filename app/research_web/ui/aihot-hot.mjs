@@ -45,7 +45,7 @@ function faces(entry, rank) {
   const group = (items, title) => items.length ? `<h4>${title}</h4><ul>${items.map(p => `<li>${image(p.iconUrl, '', 'aihot-avatar')}<span>${e(text(p.name))}</span></li>`).join('')}</ul>` : '';
   return `<details class="aihot-faces"><summary aria-label="${total}位参与者，查看名单" title="${e(people.map(p => p.name).join('、'))}">${shown.map(p => `<span class="aihot-face"><b>${e(text(p.name).slice(0, 1))}</b>${image(p.iconUrl, '', 'aihot-avatar')}</span>`).join('')}${total > shown.length ? `<span class="aihot-face-more">+${total - shown.length}</span>` : ''}</summary><div class="aihot-participants" role="region" aria-label="第${rank}名参与者名单">${group(editorial, '报道来源 · 精选组')}${group(signal, '讨论参与者 · 氛围组')}${total > people.length ? `<p>另外 ${total - people.length} 位参与者</p>` : ''}</div></details>`;
 }
-const storyTitle = entry => readingLink(entry.story?.publicId ? `https://aihot.news/story/${encodeURIComponent(entry.story.publicId)}` : null, text(entry.story?.title), 'aihot-story-link');
+const storyTitle = entry => readingLink(entry.story?.publicId ? `/story/${encodeURIComponent(entry.story.publicId)}` : null, text(entry.story?.title), 'aihot-story-link');
 const heat = entry => Number.isFinite(entry.heat) ? Math.round(entry.heat) : '—';
 function voices(entry, long = false) {
   const names = (Array.isArray(entry.sourceNames) ? entry.sourceNames : []).slice(0, 2).map(text);

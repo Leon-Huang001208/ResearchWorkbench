@@ -1,10 +1,16 @@
 # DataHub、研究资料与实际文件
 
+primary UI 文件只从已验证的旧 project/app/research_web/ui 读取；数据与源码根均不能由浏览器传入。静态响应不缓存，原研究文件与模型命名空间不搬移。
+
 显式附接不搬移原 `research-web`：primary 继续使用原 index、会话文件和模型凭据命名空间。私有 server/resident.json 记录非秘密绑定与源码 SHA；run/cutover.json 是切换写入栅栏，run/recovery 保存前一 boot 的控制记录。保全摘要覆盖全部原会话文件（包括业务 tmp 和 .lock），只记录内容哈希与计数；原模型密钥值不读取。账号库和生产验收证据不进入 Git。
+
+AI资讯自主化本轮在隔离实例接入原版API/worker与独立库，保持DSH研究执行及当前常驻内容。零调用和后续切换边界见[自主资讯合同](../../research-web-ai-news.md)。
 
 ## 服务器账号与用户数据
 
 可选服务器根默认为 `~/.research-workbench/server/`，与原 `research-web/` 个人数据根分离。`accounts.sqlite3` 只保存账号、scrypt 密码摘要、登录令牌哈希、过期与限速事实；不保存研究正文。服务端生成的 UUID 对应 `users/{uuid}/research-web/`，其 Store 索引、`sessions/{session_id}/inputs|outputs` 和 `runtime/home/sessions/` DSH 历史各自独立；`users/{uuid}/state/` 保存该实例私有认证及所有权记录。`logs/server.jsonl`、`logs/runtime.jsonl` 记录非秘密审计；用户 pair 日志在其数据根 `logs/`。
+
+全局资讯单独使用 `server_root/shared/ai-news` 的原API/worker配置、私有token与独立PostgreSQL；不存入任何用户Store、DSH HOME或个人凭据命名空间。成员共享公开阅读投影，管理和状态仅admin；tenant后端无法代理全局AI路径。默认bridge不创建该目录，备份账号或用户研究根不能替代独立资讯库的备份与恢复核验。
 
 服务器目录权限为 0700、私有文件 0600，拒绝符号链接、硬链接及未知归属；凭据继续按用户 data home 命名空间进入既有系统凭据设施，不复制管理员密钥。账号密码重置或停用撤销所有登录态，停用账号不删除其历史和文件。只备份账号 SQLite 不能恢复聊天：完整服务备份须包括所有用户数据、DSH 历史及经独立授权的凭据恢复方案。首版不自动迁移原个人数据或清理用户历史；同 UID 后端本身仍受信任，文件目录分离不是 OS 隔离。
 

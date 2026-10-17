@@ -1,5 +1,7 @@
 # Research Web Native / Docker 安装与运行
 
+primary 的 index.html、/static 资源及原 /api/research/aihot/ 阅读请求继续使用其已验证旧实例版本；/auth、/account 与账号包装脚本来自新网关。静态响应 no-store，身份来自 Cookie，浏览器不能指定源码根。这样部署登录网关不会隐式切换原资讯后端；不在本任务启动资讯数据库或 worker。
+
 ### 显式保留既有常驻实例
 
 已安装的 Mac 可在单独授权部署后，由操作员将唯一 primary 管理员绑定到经过目录身份、安装 SHA、进程归属和实际健康核验的原 Web/DSH。原数据根、模型配置及 Keychain 命名空间原位保留；原监督器继续拥有其生命周期。primary 不能被账号页停用或停止，其他用户仍使用新用户根；原实例占用两个总槽中的一个。此绑定仅限可信的服务器所有者管理员，原个人实例保持原能力，不能绑定普通受邀用户。
@@ -8,9 +10,13 @@
 
 初始管理员密码可由已授权操作员随机生成并只写入 macOS Keychain，配置只记录服务名/账号引用；不得出现在 argv、环境、日志、报告或聊天中。用户登录后可在账号页设置新密码。匿名 `/api/server/health` 只显示网关就绪及 primary 先前核验标记，不探测模型、不反复启动子进程；认证主账号的深度核验采用单飞与三秒缓存。正常退出只回收新用户 pair；登录启动等待原监督器恢复。仅在内核 boot UUID 已变化且旧 owner 完整、账号已知、权限与目录安全时，归档并退休旧控制元数据；同 boot 崩溃及未知归属仍拒绝启动。登录后启动与完整重启实测分别记录，FileVault 与系统登录策略不改变。
 
+AI资讯自主化本轮在隔离实例接入原版API/worker与独立库，保持DSH研究执行及当前常驻内容。零调用和后续切换边界见[自主资讯合同](research-web-ai-news.md)。
+
 ## 私网邀请制多用户（macOS Native）
 
 此模式是显式选择的独立服务器入口：Mac mini 保存所有账号的研究数据；用户通过浏览器登录，管理员在账号页创建/停用用户、重置密码和停止用户实例。没有开放注册。默认原单用户入口、个人数据、resident 与 Docker 实例均不转换为服务器；不自动部署 Tailscale、迁移数据或复制原模型密钥。
+
+AI资讯由网关使用 `server_root/shared/ai-news` 全局库：已登录成员阅读正文/专题/图片/RSS，status/control仅管理员可用。共享库不放入用户DSH根；逐用户tenant后端封禁全局AI路径，资讯请求不启动研究实例。默认未配置不创建目录或数据库、不调用模型；首次共享库初始化与服务启动仍须单独授权，详见[多用户资讯合同](research-web-ai-news.md#私网多用户权限与共享目录)。
 
 先用公开 `./setup-web.sh --runtime native --no-start` 从干净 checkout 安装已有锁定 Web 环境并构建固定 DSH；无新增依赖。随后在有 TTY 的 Mac 终端初始化全新私有服务器根，密码交互输入，不放命令参数或环境变量：
 
@@ -29,14 +35,11 @@
 
 每位用户使用独立模型凭据命名空间，首版只开放官方 DeepSeek，不读取管理员个人密钥、不接受自定义模型目标。服务器 profile 关闭宿主浏览器、Office/Wind、本机连接配置、MCP、Hot、日程/自动化、报告 Workflow 和运维接口；文件式文档仍按用户根操作。模型、来源与报告的真实可用性保留独立状态，不因登录成功宣称研究通过。此首版信任同 UID 后端及固定工具实现，不提供恶意同 UID 进程/任意插件的 OS 租户隔离；Windows/Linux 与 Docker 多用户均未接入。安全及数据位置见[安全边界](architecture/research-web/05-security-validation.md#私网邀请制账号与执行边界)和[数据与文件](architecture/research-web/03-data-files.md#服务器账号与用户数据)。
 
-AI资讯新增文章全文、事件专题和主题分页，沿用同一Host、现有依赖和公开安装链，无迁移、后台采集或模型调用。web.in/web.lock/setup_web.py/Bootstrap合同保持，最终候选仍须Mac干净安装CI；常驻更新沿单独授权及现有事务。
+AI资讯文章全文、事件专题和主题分页沿用同一Host与公开安装链；自主库未配置时诚实503，不调用模型或回退外站。可选Node依赖、独立库迁移及采编生命周期按下列合同分别验收；最终候选仍须Mac干净安装CI，常驻更新沿单独授权及现有事务。
 
-AI资讯提供原页面的日报、周报、月报、完整日报合订本与热点榜阅读能力。
-主导航“AI资讯”通过AIHOT匿名公开页面API获取完整页面字段，图片经有界同源适配读取。
-不新增产品依赖、API Key、Hot、PostgreSQL、模型调用或迁移；网络、限流和数据合同变化明确失败。
-现有requirements/web.in、web.lock、setup_web.py与Bootstrap依赖合同保持，干净安装由Mac CI另验。
-接入用于本机个人/内部阅读；线上数据规则独立于MIT代码许可，公开镜像或外部商业再分发须遵守
-[原站公开使用规则](https://aihot.news/terms)。
+AI资讯自主引擎使用已固定上游Node锁文件。公开安装入口安装依赖时使用 `npm ci --ignore-scripts`，不创建数据库、不启用采集、不调用模型。Python产品依赖沿用 requirements/web.in 与 web.lock。Doctor新增可选 ai_news 就绪事实，模型质量始终单列。
+
+首次独立数据库初始化、60份固定迁移、凭据和服务生命周期必须单独授权；`rwb ai-news status --json` 与 `doctor --json` 只读，显式 `setup --authorized` 仅作用于已验证的本机新库。备份、恢复与故障续跑合同见[自主资讯](research-web-ai-news.md)。不复用Hot业务库，不导入线上历史，不自动升级当前常驻服务。Mac干净安装CI仍核对固定DSH、3081/8088与Doctor；Windows/Linux原生保持独立交接。
 
 FinGPT 单引擎融合不新增 npm/Python 产品依赖，不增加供应商环境文件或秘密配置入口；沿用公开安装器、固定 DSH 和既有凭据存储。requirements/web.in、web.lock、setup_web.py 无需修改，兼容性仍须由本地回归与 macOS 干净安装 CI 认证。没有启用或部署新引擎；常驻服务切换需另行明确授权。
 

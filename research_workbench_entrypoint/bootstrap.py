@@ -500,6 +500,31 @@ def dispatch(argv: list[str], project_root: Path) -> int | None:
     store = RuntimeModeStore(home)
     try:
         command_argv = _command_arguments(argv)
+        if command_argv[:1] == ["ai-news"]:
+            if command_argv[1:2] == ["setup"]:
+                # Setup uses the declared keyring dependency, never host-global packages.
+                python = native_python(project_root)
+                issue = classify_python_environment(python.parent.parent.parent).issue
+                if issue is not None:
+                    raise ControlError(issue)
+                if Path(sys.executable).absolute() != python.absolute():
+                    log.info("ai_news_setup_native_python")
+                    return subprocess.call(
+                        [str(python), "-m", "research_workbench_entrypoint", *argv],
+                        cwd=project_root,
+                        env=native_environment(project_root),
+                    )
+            from app.research_web.credential_backend import default_credential_backend
+
+            from .ai_news import run_ai_news
+
+            return run_ai_news(
+                command_argv[1:],
+                project_root,
+                Path(os.environ.get("RESEARCH_DATA_HOME", str(home / "research-web"))),
+                credentials=default_credential_backend,
+            )
+
         if command_argv[:1] == ["server"]:
             from .server import dispatch as server_dispatch
 

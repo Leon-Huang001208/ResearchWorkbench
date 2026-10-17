@@ -27,6 +27,8 @@ _CALLBACKS = frozenset(
     }
 )
 _BLOCKED = (
+    "/api/research/ai-news",
+    "/api/research/aihot",
     "/api/research/runtime/tabbit",
     "/api/research/local-integrations",
     "/api/research/integrations",

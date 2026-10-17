@@ -4,6 +4,7 @@ const identity = await originalFetch('/api/server/me', { credentials: 'same-orig
 if (!identity.ok) { location.replace('/auth'); throw Error('login_required'); }
 const user = (await identity.json()).user;
 globalThis.__RWB_USER_ID__ = user.id;
+globalThis.__RWB_USER_ROLE__ = user.role;
 const profileStyle = document.createElement('link');
 profileStyle.rel = 'stylesheet'; profileStyle.href = '/server-static/profile.css'; document.head.append(profileStyle);
 const restrictModelOptions = () => {

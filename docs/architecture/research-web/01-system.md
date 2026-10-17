@@ -1,19 +1,22 @@
 # 部署与模块职责
 
+primary 继续配对原后端与原 UI/静态资源，原 AIHOT 阅读路径仍走原实例；新用户沿现有共享资讯入口。认证网关部署不改变原账号资讯执行与数据边界。
+
 显式常驻绑定复用部署图中网关→Native Web 路由：唯一 primary 管理员指向仍由原监督器持有的旧 pair，新用户使用独立 pair。两个总槽中旧实例占一个；只新增网关 LaunchAgent，不增加执行引擎，原服务、数据与模型命名空间保持。绑定与 Tailscale 切换须单独部署授权；参见安装指南的保留既有常驻实例合同。
+
+AI资讯自主化本轮在隔离实例接入原版API/worker与独立库，保持DSH研究执行及当前常驻内容。零调用和后续切换边界见[自主资讯合同](../../research-web-ai-news.md)。
 
 ## 可选私网用户网关
 
 `rwb server serve` 独立启动回环 8089 登录网关，外层仅接受操作员指定的一个 Tailscale HTTPS origin（本地开发可用明确回环 HTTP origin）。管理员账号来自交互式 `server init`，无公开注册。每个用户首次研究请求惰性启动独立、单 worker 的 Web/DSH pair，端口、数据和内部令牌均由服务端选择；仅登录或管理账号不启动研究。
 
+全局AI资讯是网关直接提供的独立共享能力：home为 `server_root/shared`，已登录成员阅读，status/control仅admin；未知AI路径不转入逐用户pair。tenant后端封禁全局AI路径，不构造共享资讯服务；既有单用户Host保留自身资讯桥。网关构造不创建目录、数据库或进程，见[图12](../../../outputs/research-web-architecture/12-ai-news.html)。
+
 默认最多两个驻留实例，可选一或二；容量满返回 `runtime_capacity_exceeded`，不驱逐现有用户或停止研究。管理员“停止实例”释放容量；停用账号同时撤销登录态并停止其受管实例，重置密码只撤销登录态。浏览器断开不停止研究，网关正常退出才关闭本进程持有的 pair。进程归属不明或崩溃遗留 `owner.json` 时失败关闭，不能按端口认领或清理未知进程。此入口不接入 resident，也不迁移原个人数据。
 
 该模式仅启用 macOS Native：固定受信工具实现、Seatbelt 研究脚本和用户私有 HOME/TMP 共同收窄访问；同 UID 的 Web/DSH 本身仍受信任，不能宣称 OS 安全租户隔离。首版禁用 Hot、MCP、自动化/日程、报告 Workflow、Office/Wind、宿主浏览器及服务器运维能力，模型连接限定官方 DeepSeek。原 Native/Docker 单用户路径保持独立。
 
-AIHOT全文、事件与主题继续沿同一Host/浏览器读取边界；HTML仅转换为惰性阅读树，不执行上游脚本，不新增数据存储或研究引擎。
-
-AI资讯在既有Host/浏览器边界内读取AIHOT公开页面API，完整保留报刊与热点阅读字段。
-图片仅经上游签发路径的有界同源适配；没有新增常驻服务、数据库、研究执行器或调度层。
+AI资讯全文、事件和主题在既有Host/浏览器内阅读，HTML转换为惰性树。新增固定原版API与采编worker、独立PostgreSQL及持久队列，见[图12](../../../outputs/research-web-architecture/12-ai-news.html)。没有独立SSR网站；研究仍由唯一DSH执行。未配置时诚实503，且没有外站内容后备。
 
 FinGPT 三策略继续由唯一 DSH 执行。Host 质量工具复用现有私有桥、receipt 和会话输出，Native/Docker 部署节点与端口不增加；不合入候选分支的独立 Node 问答引擎。
 

@@ -18,6 +18,7 @@ on:
       - "**/*.lock"
       - "rwb"
       - "research_workbench_entrypoint/**"
+      - "services/ai_news/**"
       - "runtimes/**"
       - "app/research_web/runtime_contract.py"
       - "app/research_web/process_spec.py"
@@ -122,6 +123,14 @@ jobs:
         run: |
           set -euo pipefail
           node --input-type=module -e 'import {assertNodeRuntime} from "./src/config.ts"; assertNodeRuntime(); for (const name of ["postgres", "pg-boss", "fast-xml-parser"]) await import(name);'
+
+      - name: Verify optional editorial engine without initializing a database
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --test services/ai_news/tests/*.test.mjs
+          ./rwb ai-news doctor --json > "$RUNNER_TEMP/ai-news-doctor.json"
+          .venv/bin/python -c 'import json,os; from pathlib import Path; d=json.loads((Path(os.environ["RUNNER_TEMP"])/"ai-news-doctor.json").read_text()); assert d["state"] == "not_configured" and d["readOnly"] is True and d["pinIntegrity"] is True and d["dependenciesInstalled"] is True and d["modelAcceptance"] == "NOT_RUN"'
 
       - name: Verify macOS environment and start services
         shell: bash

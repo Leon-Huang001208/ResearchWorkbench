@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "updated",
-  "summary": "补充显式常驻附接可保留所有者原会话及模型命名空间。",
-  "reason": "原README多用户入口保持，新增保留既有实例的单独授权部署说明；不改变默认安装。"
+  "summary": "整合AI资讯自主引擎与显式常驻附接、原会话和模型保留",
+  "reason": "保留上游共享资讯及零调用边界，补充primary原实例保留；不在本任务部署资讯数据库或worker。"
 }

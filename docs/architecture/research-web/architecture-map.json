@@ -63,7 +63,8 @@
         "docs/research-web-platform-support.md"
       ],
       "diagrams": [
-        "01-deployment"
+        "01-deployment",
+        "12-ai-news"
       ],
       "tests": [
         "tests/research_web/test_runtime_contract.py",
@@ -101,7 +102,8 @@
       "diagrams": [
         "01-deployment",
         "02-module-dependencies",
-        "03-research-sequence"
+        "03-research-sequence",
+        "12-ai-news"
       ],
       "tests": [
         "tests/javascript/research_web_ui.test.mjs",
@@ -172,7 +174,8 @@
         "02-module-dependencies",
         "03-research-sequence",
         "06-run-state",
-        "11-hot-events"
+        "11-hot-events",
+        "12-ai-news"
       ],
       "tests": [
         "tests/research_web/test_api.py",
@@ -678,6 +681,37 @@
       ]
     },
     {
+      "id": "ai-news",
+      "sources": [
+        "services/ai_news/",
+        "app/research_web/ai_news_routes.py",
+        "app/research_web/ai_news_service.py",
+        "research_workbench_entrypoint/ai_news.py",
+        "research_workbench_entrypoint/ai_news_manager.py",
+        "research_workbench_entrypoint/ai_news_postgres.py",
+        "research_workbench_entrypoint/ai_news_transport.py",
+        "scripts/ai_news_eval.py",
+        "evals/ai_news/"
+      ],
+      "documents": [
+        "docs/research-web-ai-news.md",
+        "docs/ai-news-model-evaluation.md",
+        "docs/research-web-installation.md"
+      ],
+      "diagrams": [
+        "12-ai-news"
+      ],
+      "tests": [
+        "tests/research_web/test_ai_news_host.py",
+        "tests/research_web/test_ai_news_eval.py",
+        "tests/research_web/test_ai_news_multiuser.py",
+        "tests/javascript/research_web_ai_news_manage.test.mjs",
+        "services/ai_news/tests/runtime.test.mjs",
+        "services/ai_news/tests/engine.test.mjs",
+        "services/ai_news/tests/chronicle.test.mjs"
+      ]
+    },
+    {
       "id": "private-multiuser",
       "sources": [
         "app/research_web/multiuser/",
@@ -685,6 +719,7 @@
         "research_workbench_entrypoint/server.py"
       ],
       "documents": [
+        "docs/research-web-ai-news.md",
         "docs/research-web-installation.md",
         "docs/architecture/research-web/01-system.md",
         "docs/architecture/research-web/02-research-runtime.md",
@@ -694,6 +729,7 @@
       ],
       "tests": [
         "tests/research_web/test_multiuser_accounts.py",
+        "tests/research_web/test_ai_news_multiuser.py",
         "tests/research_web/test_multiuser_gateway.py",
         "tests/research_web/test_multiuser_runtime.py",
         "tests/research_web/test_multiuser_cli.py",
@@ -702,7 +738,8 @@
         "tests/research_web/test_multiuser_resident.py"
       ],
       "diagrams": [
-        "01-deployment"
+        "01-deployment",
+        "12-ai-news"
       ]
     }
   ],
@@ -1730,6 +1767,85 @@
             "modelAdminDb"
           ],
           "source": "services/hot/scripts/model-control.ts"
+        }
+      ]
+    },
+    {
+      "id": "12-ai-news",
+      "source": "docs/architecture/research-web/diagrams/12-ai-news.json",
+      "artifact": "outputs/research-web-architecture/12-ai-news.html",
+      "receipt": "outputs/research-web-architecture/12-ai-news.receipt.json",
+      "visualReceipt": "outputs/research-web-architecture/12-ai-news.visual-check.json",
+      "level": "details",
+      "summary": "固定原版自主采编、独立数据库、私网共享资讯的成员阅读与管理员管理，以及零模型调用验收边界。",
+      "evidence": [
+        {
+          "subjects": [
+            "reader",
+            "read"
+          ],
+          "source": "app/research_web/ui/aihot.mjs"
+        },
+        {
+          "subjects": [
+            "host",
+            "bridge"
+          ],
+          "source": "app/research_web/ai_news_service.py"
+        },
+        {
+          "subjects": [
+            "host",
+            "bridge"
+          ],
+          "source": "app/research_web/multiuser/gateway.py"
+        },
+        {
+          "subjects": [
+            "api",
+            "apiDb"
+          ],
+          "source": "services/ai_news/server.mjs"
+        },
+        {
+          "subjects": [
+            "sources",
+            "feed"
+          ],
+          "source": "services/ai_news/source-presets.json"
+        },
+        {
+          "subjects": [
+            "worker",
+            "jobs"
+          ],
+          "source": "services/ai_news/runtime.mjs"
+        },
+        {
+          "subjects": [
+            "pg"
+          ],
+          "source": "research_workbench_entrypoint/ai_news_postgres.py"
+        },
+        {
+          "subjects": [
+            "eval",
+            "evalInput"
+          ],
+          "source": "scripts/ai_news_eval.py"
+        },
+        {
+          "subjects": [
+            "grant",
+            "guard"
+          ],
+          "source": "services/ai_news/activation.mjs"
+        },
+        {
+          "subjects": [
+            "dsh"
+          ],
+          "source": "app/research_web/client.py"
         }
       ]
     }
@@ -3655,6 +3771,27 @@
     },
     {
       "method": "POST",
+      "path": "/api/research/ai-news/control",
+      "source": "app/research_web/ai_news_routes.py",
+      "declaredPath": "/control",
+      "prefix": "/api/research/ai-news"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/ai-news/feeds/{kind}.xml",
+      "source": "app/research_web/ai_news_routes.py",
+      "declaredPath": "/feeds/{kind}.xml",
+      "prefix": "/api/research/ai-news"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/ai-news/status",
+      "source": "app/research_web/ai_news_routes.py",
+      "declaredPath": "/status",
+      "prefix": "/api/research/ai-news"
+    },
+    {
+      "method": "POST",
       "path": "/api/server/login",
       "source": "app/research_web/multiuser/gateway.py",
       "declaredPath": "/api/server/login",
@@ -3784,7 +3921,7 @@
   "reading": {
     "repository": {
       "url": "https://github.com/Leon-Huang001208/ResearchWorkbench",
-      "revision": "c5b1fb1caeffa0c34de35ce1bb0cc31caccf7a9a"
+      "revision": "c0b50dd549d51cbb9223b4819234e1378bd0160d"
     },
     "levels": [
       {
@@ -3814,13 +3951,6 @@
         "group": "dual-runtime",
         "title": "部署与安装",
         "summary": "Native / Docker 共用产品合同，服务和数据归属明确。",
-        "category": "研究会话与 Runtime"
-      },
-      {
-        "id": "private-multiuser",
-        "group": "private-multiuser",
-        "title": "私网邀请制用户",
-        "summary": "显式 macOS 账号网关、SQLite 登录态和逐用户 Web/DSH；同 UID 后端受信任。",
         "category": "研究会话与 Runtime"
       },
       {
@@ -3999,6 +4129,23 @@
           "01-deployment",
           "02-module-dependencies"
         ]
+      },
+      {
+        "id": "ai-news",
+        "group": "ai-news",
+        "title": "AI资讯自主采编",
+        "summary": "本机原版引擎与独立库；私网成员共享阅读、管理员管理，零调用评测与生产切换分别验收。",
+        "category": "AI资讯",
+        "diagrams": [
+          "12-ai-news"
+        ]
+      },
+      {
+        "id": "private-multiuser",
+        "group": "private-multiuser",
+        "title": "私网邀请制用户",
+        "summary": "显式 macOS 账号网关、SQLite 登录态和逐用户 Web/DSH；共享资讯由网关限制成员阅读及管理员管理，tenant 后端禁用全局 AI 路径；同 UID 后端受信任。",
+        "category": "研究会话与 Runtime"
       }
     ],
     "generator": {
