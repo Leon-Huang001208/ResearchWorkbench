@@ -721,3 +721,85 @@ def test_recovery_actions_use_finite_bridge_and_do_not_enable_paid_calls(tmp_pat
         service.control("processing.requeue", {"group": None, "reason": "checked"})
     ) == {"ok": True}
     assert all(path == "/internal/rwb/control" for path, body in calls)
+
+
+def test_public_setup_cli_uses_installed_python_for_declared_keyring_dependency(
+    tmp_path, monkeypatch
+):
+    from types import SimpleNamespace
+
+    from research_workbench_entrypoint import ai_news, bootstrap
+
+    python = tmp_path / ".venv/bin/python"
+    calls = []
+    monkeypatch.setattr(bootstrap, "native_python", lambda _: python)
+    monkeypatch.setattr(
+        bootstrap, "classify_python_environment", lambda _: SimpleNamespace(issue=None)
+    )
+    monkeypatch.setattr(
+        bootstrap,
+        "native_environment",
+        lambda *_args, **_kwargs: {"RWB_PROJECT_ROOT": str(tmp_path)},
+    )
+    monkeypatch.setattr(
+        bootstrap.subprocess,
+        "call",
+        lambda command, **kwargs: calls.append((command, kwargs)) or 17,
+    )
+    monkeypatch.setattr(ai_news, "run_ai_news", lambda *_args, **_kwargs: 0)
+    assert bootstrap.dispatch(["ai-news", "setup", "--authorized"], tmp_path) == 17
+    assert calls[0][0][:3] == [str(python), "-m", "research_workbench_entrypoint"]
+    assert calls[0][0][3:] == ["ai-news", "setup", "--authorized"]
+
+
+def test_public_setup_cli_refuses_unusable_installed_environment(tmp_path, monkeypatch):
+    from contextlib import redirect_stdout
+    from io import StringIO
+    from types import SimpleNamespace
+
+    from research_workbench_entrypoint import ai_news, bootstrap
+
+    monkeypatch.setattr(bootstrap, "native_python", lambda _: tmp_path / ".venv/bin/python")
+    monkeypatch.setattr(
+        bootstrap,
+        "classify_python_environment",
+        lambda _: SimpleNamespace(issue="python_environment_unusable"),
+    )
+    monkeypatch.setattr(
+        ai_news, "run_ai_news", lambda *_args, **_kwargs: pytest.fail("host-global setup")
+    )
+    output = StringIO()
+    with redirect_stdout(output):
+        assert bootstrap.dispatch(["ai-news", "setup", "--authorized"], tmp_path) == 1
+    assert json.loads(output.getvalue())["code"] == "python_environment_unusable"
+
+
+def test_public_doctor_cli_needs_no_installed_environment_or_credentials(tmp_path, monkeypatch):
+    from research_workbench_entrypoint import ai_news, bootstrap
+
+    monkeypatch.setattr(
+        bootstrap, "native_python", lambda _: pytest.fail("read-only native environment lookup")
+    )
+    monkeypatch.setattr(
+        ai_news,
+        "run_ai_news",
+        lambda *_args, **kwargs: 13 if callable(kwargs["credentials"]) else 1,
+    )
+    assert bootstrap.dispatch(["ai-news", "doctor", "--json"], tmp_path) == 13
+
+
+def test_public_setup_in_owned_python_does_not_reexec_recursively(tmp_path, monkeypatch):
+    import sys
+    from types import SimpleNamespace
+
+    from research_workbench_entrypoint import ai_news, bootstrap
+
+    monkeypatch.setattr(bootstrap, "native_python", lambda _: Path(sys.executable).absolute())
+    monkeypatch.setattr(
+        bootstrap, "classify_python_environment", lambda _: SimpleNamespace(issue=None)
+    )
+    monkeypatch.setattr(
+        bootstrap.subprocess, "call", lambda *_args, **_kwargs: pytest.fail("recursive bootstrap")
+    )
+    monkeypatch.setattr(ai_news, "run_ai_news", lambda *_args, **_kwargs: 19)
+    assert bootstrap.dispatch(["ai-news", "setup", "--authorized"], tmp_path) == 19
