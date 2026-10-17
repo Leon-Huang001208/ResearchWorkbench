@@ -771,7 +771,7 @@ def test_public_setup_cli_refuses_unusable_installed_environment(tmp_path, monke
     output = StringIO()
     with redirect_stdout(output):
         assert bootstrap.dispatch(["ai-news", "setup", "--authorized"], tmp_path) == 1
-    assert json.loads(output.getvalue())["code"] == "python_environment_unusable"
+    assert "python_environment_unusable" in json.loads(output.getvalue())["issues"]
 
 
 def test_public_doctor_cli_needs_no_installed_environment_or_credentials(tmp_path, monkeypatch):
