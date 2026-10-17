@@ -1,13 +1,10 @@
 # Research Web Native / Docker 安装与运行
 
-AI资讯新增文章全文、事件专题和主题分页，沿用同一Host、现有依赖和公开安装链，无迁移、后台采集或模型调用。web.in/web.lock/setup_web.py/Bootstrap合同保持，最终候选仍须Mac干净安装CI；常驻更新沿单独授权及现有事务。
+AI资讯自主化本轮在隔离实例接入原版API/worker与独立库，保持DSH研究执行及当前常驻内容。零调用和后续切换边界见[自主资讯合同](research-web-ai-news.md)。
 
-AI资讯提供原页面的日报、周报、月报、完整日报合订本与热点榜阅读能力。
-主导航“AI资讯”通过AIHOT匿名公开页面API获取完整页面字段，图片经有界同源适配读取。
-不新增产品依赖、API Key、Hot、PostgreSQL、模型调用或迁移；网络、限流和数据合同变化明确失败。
-现有requirements/web.in、web.lock、setup_web.py与Bootstrap依赖合同保持，干净安装由Mac CI另验。
-接入用于本机个人/内部阅读；线上数据规则独立于MIT代码许可，公开镜像或外部商业再分发须遵守
-[原站公开使用规则](https://aihot.news/terms)。
+AI资讯自主引擎使用已固定上游Node锁文件。公开安装入口安装依赖时使用 `npm ci --ignore-scripts`，不创建数据库、不启用采集、不调用模型。Python产品依赖沿用 requirements/web.in 与 web.lock。Doctor新增可选 ai_news 就绪事实，模型质量始终单列。
+
+首次独立数据库初始化、60份固定迁移、凭据和服务生命周期必须单独授权；`rwb ai-news status --json` 与 `doctor --json` 只读，显式 `setup --authorized` 仅作用于已验证的本机新库。备份、恢复与故障续跑合同见[自主资讯](research-web-ai-news.md)。不复用Hot业务库，不导入线上历史，不自动升级当前常驻服务。Mac干净安装CI仍核对固定DSH、3081/8088与Doctor；Windows/Linux原生保持独立交接。
 
 FinGPT 单引擎融合不新增 npm/Python 产品依赖，不增加供应商环境文件或秘密配置入口；沿用公开安装器、固定 DSH 和既有凭据存储。requirements/web.in、web.lock、setup_web.py 无需修改，兼容性仍须由本地回归与 macOS 干净安装 CI 认证。没有启用或部署新引擎；常驻服务切换需另行明确授权。
 

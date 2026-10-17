@@ -1,5 +1,7 @@
 # Mac mini Docker 开发与独立部署
 
+AI资讯自主化本轮在隔离实例接入原版API/worker与独立库，保持DSH研究执行及当前常驻内容。零调用和后续切换边界见[自主资讯合同](research-web-ai-news.md)。
+
 Host元数据专项入口仅限已安装resident的macOS Native固定生产根；不切换Native/Docker、不接管容器、镜像、卷或其他部署。Docker及其他平台的安装/健康合同继续独立验收，不能把本次macOS专项当作Docker升级许可。
 
 固定 DSH 查询升级同时适用于容器安装合同，但本轮只执行 macOS Native 候选；Docker/Linux 产品验收留给对应设备，不能将 Native 通过标为容器通过。旧源日志不迁移，部分搜索计数仅用于真实覆盖说明。

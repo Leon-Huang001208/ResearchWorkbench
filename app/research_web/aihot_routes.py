@@ -1,6 +1,7 @@
-"""Anonymous AIHOT reading adapter; no collection, credentials or model calls."""
+"""Owned local AIHOT reading adapter; no public-site fallback or model calls."""
 
 import asyncio
+import hashlib
 import json
 import math
 import re
@@ -15,13 +16,13 @@ import httpx
 from fastapi import APIRouter, HTTPException, Path, Query, Request
 
 from core.observability import get_logger
+from research_workbench_entrypoint.ai_news_transport import AiNewsConnection, AiNewsError
 
 from .aihot_content import reading_tree
 from .aihot_media import AihotMedia
 
 router = APIRouter(prefix="/api/research/aihot", tags=["aihot"])
 log = get_logger(__name__)
-UPSTREAM = "https://aihot.news/api/v1"
 RESPONSE_LIMIT = 2 * 1024 * 1024
 EditionDate = Annotated[str, Path(pattern=r"^\d{4}-\d{2}-\d{2}$")]
 
@@ -50,15 +51,30 @@ class AihotReader:
         self,
         clock: Callable[[], float] = time.monotonic,
         wall_clock: Callable[[], float] = time.time,
+        connection: Callable[[], AiNewsConnection] | None = None,
     ):
         self.clock = clock
         self.wall_clock = wall_clock
+        self.connection = connection
+        self._transport_identity = None
         self.cache: OrderedDict[str, dict] = OrderedDict()
         self.lock = asyncio.Lock()
-        self.media = AihotMedia()
+        self.media = AihotMedia(connection=connection)
 
     async def read(self, endpoint: str) -> dict:
         try:
+            if self.connection is None:
+                raise AiNewsError("ai_news_not_configured")
+            connection = self.connection()
+            headers = connection.headers()
+            identity = (
+                connection.endpoint,
+                hashlib.sha256(headers["x-rwb-ai-news-token"].encode()).hexdigest(),
+            )
+            if self._transport_identity is not None and self._transport_identity != identity:
+                self.cache.clear()
+                self.media.urls.clear()
+            self._transport_identity = identity
             cached = self._fresh(endpoint)
             if cached is not None:
                 return self._project(endpoint, cached)
@@ -66,6 +82,8 @@ class AihotReader:
                 async with self.lock:
                     payload = await self._read(endpoint)
             return self._project(endpoint, payload)
+        except AiNewsError as exc:
+            raise _failure(str(exc), "AI 资讯自主服务尚未配置或未启动。", 503) from None
         except (httpx.TimeoutException, TimeoutError) as exc:
             raise _failure("aihot_timeout", "AIHOT 读取超时，请重试。", 504) from exc
         except httpx.HTTPError as exc:
@@ -84,7 +102,12 @@ class AihotReader:
             result["body"] = {
                 key: value for key, value in body.items() if key not in {"zh", "original"}
             }
-            result["body"]["content"] = reading_tree(html, self.media._image)
+            result["body"]["content"] = reading_tree(
+                html,
+                self.media._image,
+                source_base=(result.get("links") or {}).get("original"),
+                local_origin=self.connection().endpoint if self.connection else None,
+            )
         return result
 
     def _fresh(self, endpoint: str) -> dict | None:
@@ -104,14 +127,19 @@ class AihotReader:
         if cached is not None:
             return cached
         previous = self.cache.get(endpoint)
+        if self.connection is None:
+            raise AiNewsError("ai_news_not_configured")
+        connection = self.connection()
         headers = {"User-Agent": "ResearchWorkbench-AIHOT/1.0", "Accept": "application/json"}
+        headers.update(connection.headers())
         if previous and previous.get("etag"):
             headers["If-None-Match"] = previous["etag"]
         async with (
             httpx.AsyncClient(timeout=20, follow_redirects=False, trust_env=False) as client,
             client.stream(
                 "GET",
-                ("https://aihot.news/api" if endpoint.startswith("/site/") else UPSTREAM)
+                connection.endpoint
+                + ("/api" if endpoint.startswith("/site/") else "/api/v1")
                 + endpoint,
                 headers=headers,
             ) as response,

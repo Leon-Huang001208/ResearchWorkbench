@@ -9,6 +9,16 @@
   ],
   "rules": [
     {
+      "prefix": "services/ai_news/",
+      "status": "package-internal",
+      "purpose": "pinned original AI news engine license and adaptation contracts"
+    },
+    {
+      "prefix": "evals/",
+      "status": "package-internal",
+      "purpose": "frozen evaluation source and reference annotation manifests"
+    },
+    {
       "prefix": "docs/archive/",
       "status": "historical",
       "purpose": "superseded plans, implementation records, acceptance snapshots and legacy manuals"
@@ -115,23 +125,74 @@
     }
   ],
   "authorities": [
-    {"topic": "product-overview", "path": "README.md"},
-    {"topic": "documentation-index", "path": "docs/README.md"},
-    {"topic": "system-architecture", "path": "docs/ARCHITECTURE.md"},
-    {"topic": "research-web-architecture", "path": "docs/architecture/research-web/README.md", "purpose": "Current layered reading entry; map-derived index and API Atlas; diagram, documentation, source and test navigation"},
-    {"topic": "research-web-installation", "path": "docs/research-web-installation.md", "purpose": "Public setup, status and Doctor recovery, macOS clean-install readiness, and Windows verification boundary"},
-    {"topic": "development-map", "path": "docs/DEVELOPMENT_MAP.md"},
-    {"topic": "reference-entry", "path": "docs/REFERENCE.md"},
-    {"topic": "research-web-data", "path": "docs/research-web-datahub.md"},
-    {"topic": "backup-restore", "path": "docs/backup_restore.md"},
-    {"topic": "change-history", "path": "docs/CHANGELOG.md"},
-    {"topic": "agent-rules", "path": "AGENTS.md"},
-    {"topic": "actions-budget-policy", "path": "docs/actions-budget.md", "purpose": "Actions budget, automatic macOS verification, Windows-machine-dispatched GitHub CI, real-machine evidence, and desktop gate separation"}
+    {
+      "topic": "product-overview",
+      "path": "README.md"
+    },
+    {
+      "topic": "documentation-index",
+      "path": "docs/README.md"
+    },
+    {
+      "topic": "system-architecture",
+      "path": "docs/ARCHITECTURE.md"
+    },
+    {
+      "topic": "research-web-architecture",
+      "path": "docs/architecture/research-web/README.md",
+      "purpose": "Current layered reading entry; map-derived index and API Atlas; diagram, documentation, source and test navigation"
+    },
+    {
+      "topic": "research-web-installation",
+      "path": "docs/research-web-installation.md",
+      "purpose": "Public setup, status and Doctor recovery, macOS clean-install readiness, and Windows verification boundary"
+    },
+    {
+      "topic": "development-map",
+      "path": "docs/DEVELOPMENT_MAP.md"
+    },
+    {
+      "topic": "reference-entry",
+      "path": "docs/REFERENCE.md"
+    },
+    {
+      "topic": "research-web-data",
+      "path": "docs/research-web-datahub.md"
+    },
+    {
+      "topic": "backup-restore",
+      "path": "docs/backup_restore.md"
+    },
+    {
+      "topic": "change-history",
+      "path": "docs/CHANGELOG.md"
+    },
+    {
+      "topic": "agent-rules",
+      "path": "AGENTS.md"
+    },
+    {
+      "topic": "actions-budget-policy",
+      "path": "docs/actions-budget.md",
+      "purpose": "Actions budget, automatic macOS verification, Windows-machine-dispatched GitHub CI, real-machine evidence, and desktop gate separation"
+    }
   ],
   "forbiddenCurrentPatterns": [
-    {"id": "root-auto-ingest", "text": "python auto_ingest_service.py"},
-    {"id": "root-view-db", "text": "python view_db.py"},
-    {"id": "retired-af-console", "text": "`af` console-script"},
-    {"id": "stale-web-consolidation-branch", "text": "当前实施分支为 `codex/web-consolidation`"}
+    {
+      "id": "root-auto-ingest",
+      "text": "python auto_ingest_service.py"
+    },
+    {
+      "id": "root-view-db",
+      "text": "python view_db.py"
+    },
+    {
+      "id": "retired-af-console",
+      "text": "`af` console-script"
+    },
+    {
+      "id": "stale-web-consolidation-branch",
+      "text": "当前实施分支为 `codex/web-consolidation`"
+    }
   ]
 }

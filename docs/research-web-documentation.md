@@ -1,5 +1,7 @@
 # Research Web 文档门禁与安全入口
 
+AI资讯自主化本轮在隔离实例接入原版API/worker与独立库，保持DSH研究执行及当前常驻内容。零调用和后续切换边界见[自主资讯合同](research-web-ai-news.md)。
+
 Native/Docker 的当前部署拓扑由 `01-deployment` 和架构清单记录，详细安装身份、镜像接受、
 健康等待与平台限制以[安装契约](research-web-installation.md)为准。模块文档应同步说明凭据
 后端选择与不变的 API/Provider/能力合同。完整分支约束检查需覆盖基线到 HEAD 以及暂存、

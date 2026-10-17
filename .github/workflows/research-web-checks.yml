@@ -56,10 +56,10 @@ jobs:
           cache: pip
           cache-dependency-path: pyproject.toml
 
-      - name: Setup Node 22.19
+      - name: Setup Node 24.19
         uses: actions/setup-node@v4
         with:
-          node-version: "22.19.0"
+          node-version: "24.19.0"
 
       - name: Install declared test dependencies
         run: |
@@ -93,9 +93,17 @@ jobs:
             tests/research_web/test_documentation.py \
             tests/research_web/test_doc_sync.py \
             tests/research_web/test_cli_lazy.py \
+            tests/research_web/test_ai_news_host.py \
+            tests/research_web/test_ai_news_eval.py \
+            tests/research_web/test_aihot.py \
             tests/research_web/test_resident.py \
             --confcutdir=tests/research_web -q
 
       - name: Run Research Web JavaScript contracts
         shell: bash
         run: RWB_TEST_PYTHON="$PWD/.venv/bin/python" node --test tests/javascript/research_web*.test.mjs
+
+      - name: Verify pinned editorial engine without model or paid requests
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund --prefix services/ai_news/vendor/aihot
+          node --test services/ai_news/tests/*.test.mjs

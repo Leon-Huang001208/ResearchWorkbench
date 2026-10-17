@@ -500,6 +500,17 @@ def dispatch(argv: list[str], project_root: Path) -> int | None:
     store = RuntimeModeStore(home)
     try:
         command_argv = _command_arguments(argv)
+        if command_argv[:1] == ["ai-news"]:
+            from app.research_web.credential_backend import default_credential_backend
+
+            from .ai_news import run_ai_news
+
+            return run_ai_news(
+                command_argv[1:],
+                project_root,
+                Path(os.environ.get("RESEARCH_DATA_HOME", str(home / "research-web"))),
+                credentials=default_credential_backend,
+            )
         if command_argv[:1] == ["resident"]:
             from .resident.controller import main as resident_main
 

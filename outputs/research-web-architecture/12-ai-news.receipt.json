@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "deliver",
+  "type": "architecture",
+  "input": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/ai-news-autonomous-20261017/docs/architecture/research-web/diagrams/12-ai-news.json",
+  "output": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/ai-news-autonomous-20261017/outputs/research-web-architecture/12-ai-news.html",
+  "specification": {
+    "sha256": "96ee9500ddfa56797538a38266a0cb4dad72d4c98de01175277848dc87fd423a",
+    "bytes": 3505
+  },
+  "artifact": {
+    "sha256": "0e7cd099d8a0453ff3b8178c68a6541d82ae8f6cf59518080b3392527a79467b",
+    "bytes": 636051
+  },
+  "validation": {
+    "checksPassed": 9,
+    "checkCount": 9,
+    "compositionProfile": "showcase",
+    "compositionStatus": "pass",
+    "errors": 0,
+    "warnings": 0
+  }
+}

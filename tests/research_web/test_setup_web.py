@@ -2358,3 +2358,43 @@ def test_hot_install_uses_locked_node_and_disables_scripts(tmp_path, monkeypatch
     assert "--ignore-scripts" in command and "--omit=dev" in command
     assert "SECRET_CANARY" not in options["environment"]
     assert options["cwd"] == component and options["timeout"] == 180
+
+
+def test_ai_news_install_verifies_pin_and_disables_scripts_without_initializing_db(
+    tmp_path, monkeypatch
+):
+    component = tmp_path / "project/services/ai_news"
+    vendor = component / "vendor/aihot"
+    vendor.mkdir(parents=True)
+    lock = b'{"lockfileVersion":3}'
+    (vendor / "package-lock.json").write_bytes(lock)
+    manifest = {
+        "commit": "26d436497d9ddba9e7dd88eed255cfe0105ce368",
+        "files": {"package-lock.json": hashlib.sha256(lock).hexdigest()},
+    }
+    (component / "upstream.json").write_text(json.dumps(manifest))
+    node, npm = tmp_path / "node", tmp_path / "npm.js"
+    node.write_text("node fixture")
+    npm.write_text("npm fixture")
+    installer = SetupWebInstaller(
+        project_root=tmp_path / "project",
+        data_home=tmp_path / "data",
+        node_executable=node,
+        npm_executable=npm,
+    )
+    calls = []
+    monkeypatch.setenv("SECRET_CANARY", "must-not-be-inherited")
+    monkeypatch.setattr(
+        installer, "_run_checked", lambda command, **kwargs: calls.append((command, kwargs))
+    )
+    assert installer.install_ai_news_dependencies() == {"state": "installed_disabled"}
+    assert len(calls) == 1
+    command, options = calls[0]
+    assert command[:3] == [str(node.resolve()), str(npm.resolve()), "ci"]
+    assert "--ignore-scripts" in command and options["cwd"] == vendor
+    assert "SECRET_CANARY" not in options["environment"]
+    assert not (tmp_path / "data/research-web/ai-news").exists()
+    (vendor / "package-lock.json").write_bytes(b"changed")
+    with pytest.raises(RuntimeError, match="integrity_failed"):
+        installer.install_ai_news_dependencies()
+    assert len(calls) == 1

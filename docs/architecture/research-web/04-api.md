@@ -1,12 +1,10 @@
 # Research Web 接口清单
 
+AI资讯自主化本轮在隔离实例接入原版API/worker与独立库，保持DSH研究执行及当前常驻内容。零调用和后续切换边界见[自主资讯合同](../../research-web-ai-news.md)。
+
 新增匿名GET：`/api/research/aihot/items/{item_id}`、`/items/{item_id}/original`、`/stories/{story_id}`、`/topics/{slug}?page=1`、`/groups/{fact_id}/reports`，均在相同前缀内。标识/页码严格限定，响应校验身份；专题308仅接受UUID合并目标，由浏览器在本地路由内最多跟进四次，不跟随HTTP跳转。正文以body.content惰性阅读树替代上游HTML。no-store来源清单不缓存。
 
-AI资讯读取原站公开页面API，通过固定 `/api/research/aihot/pages/hot` 和
-`/api/research/aihot/reports/{kind}` 接入；kind只允许daily/weekly/monthly。
-报刊支持 `/latest-page`、`/{key}`、`/navigation/{key}`，日报另有 `/months/{month}`。
-原站分别为 `https://aihot.news/api/site/hot` 与 `/api/site/reports/...`。
-这些是页面级合同而非精简v1：保留真实期号、指标、看点、关联、封面、头像、热度和走势；
+AI资讯保持 `/api/research/aihot/…` 阅读合同，由Host读取本机原版API，无外站回退。新增 `/api/research/ai-news/status`、`POST /control` 和同源 `/feeds/{kind}.xml`；管理采用有限动作，不提供任意URL/SQL或秘密输入。未配置真实503；内容与日期身份仍严格校验。
 来源改版/响应身份不匹配明确502，不以精简数据伪造完整页面。旧三个v1阅读路由仍兼容。
 日期/ISO周/月严格验证，404保持404；429/503保留秒数或HTTP-date等待期，超时504，
 重定向/格式/大小异常502。JSON解压后2MiB、总期限20秒、最多64份内存LRU、至少60秒TTL，

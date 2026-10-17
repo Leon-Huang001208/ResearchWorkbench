@@ -3008,7 +3008,23 @@ class WebServiceManager:
             "warnings": warnings,
             "services": {probe.role: probe.public() for probe in probes},
             "office_auto_verification": office_auto,
+            "ai_news": self._ai_news_diagnostic(),
         }
+
+    def _ai_news_diagnostic(self) -> dict:
+        """Optional editorial readiness never grants model or collection acceptance."""
+        from research_workbench_entrypoint.ai_news_manager import AiNewsManager
+        from research_workbench_entrypoint.ai_news_transport import AiNewsError
+
+        try:
+            return AiNewsManager(self.project_root, self.data_root).doctor()
+        except (AiNewsError, OSError, ValueError, RuntimeError):
+            log.warning("ai_news_doctor_failed")
+            return {
+                "state": "invalid",
+                "code": "ai_news_diagnostic_failed",
+                "modelAcceptance": "NOT_RUN",
+            }
 
     def _validate_log_ownership(self) -> dict[str, tuple[bytes, tuple[int, ...]]]:
         """Read exact Native state without deleting stale state or probing Docker."""

@@ -1,0 +1,84 @@
+{
+  "version": 1,
+  "policy": "Sources are candidates, never claims of a configured account or accepted data. Original 18 source seeds are disabled; operator selection is required.",
+  "kinds": [
+    {
+      "kind": "rss",
+      "status": "candidate",
+      "seed": "industry/sources.json",
+      "credentialsRequired": false
+    },
+    {
+      "kind": "web_list",
+      "status": "candidate",
+      "credentialsRequired": false,
+      "requires": "Operator supplies listing URL, selectors and date rules; Jina disabled"
+    },
+    {
+      "kind": "json_list",
+      "status": "candidate",
+      "credentialsRequired": false,
+      "requires": "Operator supplies JSON endpoint and field paths"
+    },
+    {
+      "kind": "x_search",
+      "status": "configured-pending",
+      "credentialsRequired": true,
+      "accounts": [
+        {
+          "handle": "OpenAI",
+          "status": "pending_operator_selection",
+          "publicProfile": "https://x.com/OpenAI"
+        },
+        {
+          "handle": "AnthropicAI",
+          "status": "pending_operator_selection",
+          "publicProfile": "https://x.com/AnthropicAI"
+        },
+        {
+          "handle": "GoogleDeepMind",
+          "status": "pending_operator_selection",
+          "publicProfile": "https://x.com/GoogleDeepMind"
+        },
+        {
+          "handle": "Qwen",
+          "status": "pending_operator_selection",
+          "publicProfile": "https://x.com/Qwen"
+        }
+      ],
+      "requires": "Operator chooses real account/query, SocialData key and budget before activation"
+    },
+    {
+      "kind": "mp_account",
+      "status": "configured-pending",
+      "credentialsRequired": true,
+      "accounts": [
+        {
+          "name": "机器之心",
+          "status": "pending_identity_verification",
+          "wxid": null,
+          "ghid": null
+        },
+        {
+          "name": "量子位",
+          "status": "pending_identity_verification",
+          "wxid": null,
+          "ghid": null
+        },
+        {
+          "name": "通义千问",
+          "status": "pending_identity_verification",
+          "wxid": null,
+          "ghid": null
+        }
+      ],
+      "requires": "Operator chooses real WeChat account identity, Dajiala key and budget before activation"
+    },
+    {
+      "kind": "external",
+      "status": "candidate",
+      "credentialsRequired": true,
+      "requires": "Operator creates source identity and authenticated ingest key; no fabricated inbound data"
+    }
+  ]
+}

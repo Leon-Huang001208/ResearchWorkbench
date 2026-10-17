@@ -17,7 +17,8 @@ export function parseRoute(hash = '') {
     sessionId: ['fingpt', 'claw'].includes(page) ? params.get('session') : null,
   };
   if (page === 'aihot') {
-    route.aihotTab = !extraSegments.length && ['hot', 'archive', 'weekly', 'monthly'].includes(sectionSegment) ? sectionSegment : 'daily';
+    route.aihotTab = !extraSegments.length && ['hot', 'archive', 'weekly', 'monthly', 'manage'].includes(sectionSegment) ? sectionSegment : 'daily';
+    route.aiNewsSection = params.get('section') || 'sources';
     const identity = extraSegments.length === 1 ? extraSegments[0] : '';
     const validDetail = sectionSegment === 'item' ? /^[A-Za-z0-9_-]{1,80}$/.test(identity) : sectionSegment === 'story' ? /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(identity) : sectionSegment === 'topic' && /^[a-z0-9][a-z0-9_-]{0,79}$/.test(identity);
     if (validDetail) {
