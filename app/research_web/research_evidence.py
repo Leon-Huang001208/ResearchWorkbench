@@ -7,6 +7,7 @@ import re
 from datetime import date
 from urllib.parse import urlsplit
 
+from .research_calculations import CalculationError, observe_calculations
 from .research_quality import assess_quality
 from .resources.research_report import source_id, validate_payload
 from .store import StoreError
@@ -120,6 +121,8 @@ def report_projection(
         if len(raw) > 2_000_000:
             raise ValueError("report_size")
         payload = validate_payload(json.loads(raw))
+        payload.pop("calculation_observations", None)
+        payload.pop("evidence_context", None)
         if not task_id or payload["task_id"] != task_id:
             if contract is not None:
                 assessment = assess_quality(contract, None, sources, observations)
@@ -132,6 +135,12 @@ def report_projection(
                     "prior_task_id": payload["task_id"],
                 }
             return {"quality": "stale", "issues": ["report_task_mismatch"]}
+        calculation_observations = []
+        if contract is not None and payload.get("calculations"):
+            calculation_observations = observe_calculations(
+                store, sid, files, sources, payload["calculations"], task_id=contract["task_id"]
+            )
+            observations = [*(observations or []), *calculation_observations]
         known = {s["id"]: s for s in sources}
         issues = list(payload.get("missing", []))
         verified = {
@@ -246,8 +255,14 @@ def report_projection(
                 assessment["status"] = "invalid"
             elif delivery_issues and assessment["status"] == "passed":
                 assessment["status"] = "incomplete"
+            stream, _ = store.open_file(sid, candidates[0]["id"])
+            with stream:
+                current = stream.read(2_000_001)
+            if hashlib.sha256(current).digest() != hashlib.sha256(raw).digest():
+                raise ValueError("report_changed_during_verification")
             return {
                 **payload,
+                "calculation_observations": calculation_observations,
                 "quality": assessment["status"],
                 "issues": assessment["issues"],
                 "assessment": assessment,
@@ -263,6 +278,20 @@ def report_projection(
             "issues": issues,
             "coverage_scope": "declared_sections",
             "file_id": candidates[0]["id"],
+        }
+    except CalculationError as exc:
+        code = (
+            str(exc)
+            if re.fullmatch(r"calculation_[a-z_]{1,80}", str(exc))
+            else "calculation_invalid"
+        )
+        log.warning("research_report_calculation_rejected code=%s", code)
+        assessment = {"status": "invalid", "issues": [code], "coverage": []}
+        return {
+            "quality": "invalid",
+            "issues": [code],
+            "assessment": assessment,
+            "file_state": "invalid",
         }
     except (OSError, ValueError, TypeError, KeyError, StoreError, RecursionError) as exc:
         log.warning("research_report_projection_invalid type=%s", type(exc).__name__)
