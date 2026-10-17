@@ -6529,6 +6529,103 @@ Functions:
   - Accept one exact HTTPS tailnet origin or a loopback development origin.
 
 
+## `app/research_web/multiuser/preservation.py`
+
+Module docstring:
+> Content-only preservation proofs; never read a model credential value.
+
+Imports:
+- `__future__`
+- `core.observability`
+- `hashlib`
+- `json`
+- `pathlib`
+- `stat`
+
+Functions:
+- `_digest`
+- `snapshot`
+  - Hash existing session bytes and non-secret model settings under admission.
+- `compare_snapshot`
+  - New verification sessions are allowed; every original object must remain.
+
+
+## `app/research_web/multiuser/resident.py`
+
+Module docstring:
+> Explicit macOS LaunchAgent runner for an attached private multiuser gateway.
+
+Imports:
+- `__future__`
+- `argparse`
+- `asyncio`
+- `functools`
+- `os`
+- `pathlib`
+- `platform`
+- `subprocess`
+- `sys`
+
+Functions:
+- `run`
+- `main`
+
+
+## `app/research_web/multiuser/resident_binding.py`
+
+Module docstring:
+> Read-only attachment of exactly one administrator to the original resident.
+
+Imports:
+- `__future__`
+- `accounts`
+- `asyncio`
+- `core.observability`
+- `dataclasses`
+- `json`
+- `os`
+- `pathlib`
+- `runtime`
+- `stat`
+- `subprocess`
+- `time`
+- `uuid`
+
+Classes:
+- `LegacyBinding`
+  - methods: data_root, public_config, from_config, discover, verify
+- `AttachedPool`
+  - Primary keeps its original directory and key namespace; others use the private pool.
+  - methods: __init__, _verify, start, backend_for, health, stop, close
+
+Functions:
+- `read_json`
+  - Configuration records are private, bounded, regular and never symlinked.
+- `get_json`
+  - Only fixed owned loopback endpoints; proxy environment and redirects excluded.
+
+
+## `app/research_web/multiuser/resident_boot.py`
+
+Module docstring:
+> Retire old control metadata only after a proved macOS kernel boot change.
+
+Imports:
+- `__future__`
+- `core.observability`
+- `json`
+- `pathlib`
+- `re`
+- `runtime`
+- `subprocess`
+- `uuid`
+
+Functions:
+- `boot_identity`
+- `retire_previous_boot`
+  - No PID is signalled. A same-boot crash or unsigned old record stays blocked.
+
+
 ## `app/research_web/multiuser/runtime.py`
 
 Module docstring:

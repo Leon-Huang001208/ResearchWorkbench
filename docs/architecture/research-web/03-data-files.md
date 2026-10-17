@@ -1,5 +1,7 @@
 # DataHub、研究资料与实际文件
 
+显式附接不搬移原 `research-web`：primary 继续使用原 index、会话文件和模型凭据命名空间。私有 server/resident.json 记录非秘密绑定与源码 SHA；run/cutover.json 是切换写入栅栏，run/recovery 保存前一 boot 的控制记录。保全摘要覆盖全部原会话文件（包括业务 tmp 和 .lock），只记录内容哈希与计数；原模型密钥值不读取。账号库和生产验收证据不进入 Git。
+
 ## 服务器账号与用户数据
 
 可选服务器根默认为 `~/.research-workbench/server/`，与原 `research-web/` 个人数据根分离。`accounts.sqlite3` 只保存账号、scrypt 密码摘要、登录令牌哈希、过期与限速事实；不保存研究正文。服务端生成的 UUID 对应 `users/{uuid}/research-web/`，其 Store 索引、`sessions/{session_id}/inputs|outputs` 和 `runtime/home/sessions/` DSH 历史各自独立；`users/{uuid}/state/` 保存该实例私有认证及所有权记录。`logs/server.jsonl`、`logs/runtime.jsonl` 记录非秘密审计；用户 pair 日志在其数据根 `logs/`。

@@ -1,5 +1,7 @@
 # Research Web 接口清单
 
+常驻附接模式增加匿名 `GET /api/server/health`，廉价返回网关 status/revision/primary_last_verified，后者只是先前验证标记，不表示当前模型可调用；独立 serve 返回 runtime=not_started_by_health。me 增加 primary，users 增加 primary_user_id。primary 停用/停止返回 409 primary_account_protected。切换 journal 存在时业务写操作返回 503 server_maintenance，登录和退出仍可用。
+
 ## 可选服务器账号 API
 
 以下接口只由显式 `rwb server serve` 的独立网关提供，原单用户 Host 不挂载。`/auth` 为登录页、`/account` 为已登录账号页、`/` 为现有研究 UI。所有请求固定精确 Host/origin；写请求要求同源 Origin，无 CORS。HTTPS 登录使用 12 小时 `rwb_session` HttpOnly、Secure、SameSite=Strict Cookie，数据库仅保存令牌哈希。

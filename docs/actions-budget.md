@@ -1,5 +1,7 @@
 # GitHub Actions 免费额度治理
 
+常驻附接回归仅向既有 Research Web Checks Python 步骤增加 test_multiuser_resident.py，无新 job、runner、依赖或 Windows/Linux dispatch。2026-10-17核验仓库 public；最近五个成功 run：39003657366、39002959434、38888413591、38887241312、38886120274（约402/446/404/486/519秒）。
+
 Git主线推进后的原位恢复不触发新workflow或runner；新安全回归沿现有Project Constraints执行。恢复清空旧候选CI/评审资格，必须对最终候选重验；macOS Bootstrap的手动触发及预算门保持。
 
 FinGPT 质量门离线回归进入既有 Research Web Checks Python job；JS 延用 research_web*.test.mjs 清单，仍只有既有标准 runner，不新增 job、Docker/Windows dispatch 或模型费用。Mac 安装沿原 Bootstrap 验证，其他平台交接保持独立。

@@ -1,5 +1,7 @@
 # Agent 任务路由指南
 
+多用户常驻附接的离线绑定、保全及 kernel boot 恢复测试复用既有 Research Web Checks 同一 Python 步骤；精确源码交付之后另做 Mac mini 私有部署与真实双账号隔离验收，不把 CI 或登录成功等同模型生成。
+
 私网多用户的账号、网关、运行池和CLI安全合同加入既有Research Web Checks四个定点测试文件；
 只增加当前安全边界的回归，不扩大为全目录pytest，也不增加runner或平台dispatch。
 变更前五次成功运行与新增时间预算记录在actions-budget；Mac仍承担本地Native和macOS安装CI，
