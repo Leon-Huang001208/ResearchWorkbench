@@ -8,6 +8,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.research_web import aihot_routes
+from research_workbench_entrypoint.ai_news_transport import AiNewsConnection
 
 
 def test_article_body_preserves_reading_structure_without_active_html():
@@ -28,6 +29,26 @@ def test_blocked_void_media_does_not_swallow_later_body():
 
     nodes = reading_tree('<p>before</p><embed src="movie.swf"><p>after</p>', lambda _: None)
     assert [row["children"][0]["text"] for row in nodes] == ["before", "after"]
+
+
+def test_body_links_resolve_to_publisher_or_owned_module_never_external_aihot():
+    from app.research_web.aihot_content import reading_href
+
+    assert (
+        reading_href("/research/model", "https://publisher.test/news/post")
+        == "https://publisher.test/research/model"
+    )
+    assert (
+        reading_href("../paper", "https://publisher.test/news/post")
+        == "https://publisher.test/paper"
+    )
+    assert (
+        reading_href("http://127.0.0.1:3099/items/abc", local_origin="http://127.0.0.1:3099")
+        == "#/aihot/item/abc"
+    )
+    assert reading_href("/unknown-relative") is None
+    assert reading_href("https://aihot.news/daily") is None
+    assert reading_href("https://api.aihot.news/data") is None
 
 
 def test_related_source_list_respects_no_store(adapter):
@@ -95,7 +116,7 @@ def test_detail_identity_mismatch_fails_closed(adapter):
 
 
 @pytest.fixture
-def adapter(monkeypatch):
+def adapter(monkeypatch, tmp_path):
     calls = []
     replies = [httpx.Response(200, json={"schemaVersion": 1, "items": [], "count": 0})]
     real_client = httpx.AsyncClient
@@ -115,7 +136,13 @@ def adapter(monkeypatch):
     monkeypatch.setattr(aihot_routes.httpx, "AsyncClient", client)
     clock = [0.0]
     app = FastAPI()
-    app.state.aihot = aihot_routes.AihotReader(clock=lambda: clock[0])
+    token = tmp_path / "token"
+    token.write_text("a" * 64)
+    token.chmod(0o600)
+    connection = AiNewsConnection("http://127.0.0.1:18081", token)
+    app.state.aihot = aihot_routes.AihotReader(
+        clock=lambda: clock[0], connection=lambda: connection
+    )
     app.include_router(aihot_routes.router)
     with TestClient(app) as browser:
         yield browser, calls, replies, clock
@@ -129,7 +156,8 @@ def test_fixed_get_and_cache_do_not_forward_credentials(adapter, path):
     assert response.status_code == 200
     assert browser.get(url).json() == response.json()
     assert len(calls) == 1
-    assert calls[0].url.host == "aihot.news"
+    assert calls[0].url.host == "127.0.0.1"
+    assert calls[0].headers["x-rwb-ai-news-token"] == "a" * 64
     assert calls[0].url.path == "/api/v1/" + path
     assert "authorization" not in calls[0].headers
     assert "cookie" not in calls[0].headers
@@ -221,8 +249,13 @@ def test_retry_after_http_date_is_honoured(adapter):
 
 
 @pytest.mark.asyncio
-async def test_cached_endpoint_does_not_wait_on_other_network_reads():
-    reader = aihot_routes.AihotReader(clock=lambda: 0.0)
+async def test_cached_endpoint_does_not_wait_on_other_network_reads(tmp_path):
+    token = tmp_path / "token"
+    token.write_text("a" * 64)
+    token.chmod(0o600)
+    reader = aihot_routes.AihotReader(
+        clock=lambda: 0.0, connection=lambda: AiNewsConnection("http://127.0.0.1:18081", token)
+    )
     payload = {"schemaVersion": 1, "items": []}
     reader.cache["/hot-topics"] = {"until": 60.0, "payload": payload}
     async with reader.lock:
@@ -268,7 +301,7 @@ def test_full_site_page_routes(adapter, local, remote, payload):
     response = browser.get("/api/research/aihot/" + local)
     assert response.status_code == 200
     assert response.json() == payload
-    assert str(calls[0].url) == "https://aihot.news/api" + remote
+    assert str(calls[0].url) == "http://127.0.0.1:18081/api" + remote
 
 
 @pytest.mark.parametrize(
@@ -331,7 +364,8 @@ def test_only_upstream_issued_images_are_read_and_no_credentials_forwarded(adapt
         ).status_code
         == 200
     )
-    assert calls[1].url.host == "aihot.news"
+    assert calls[1].url.host == "127.0.0.1"
+    assert calls[1].headers["x-rwb-ai-news-token"] == "a" * 64
     assert calls[1].url.path == "/api/img-proxy"
     assert "authorization" not in calls[1].headers
     assert "cookie" not in calls[1].headers

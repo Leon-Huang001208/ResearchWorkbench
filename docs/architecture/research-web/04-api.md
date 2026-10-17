@@ -1,5 +1,7 @@
 # Research Web 接口清单
 
+AI资讯自主化本轮在隔离实例接入原版API/worker与独立库，保持DSH研究执行及当前常驻内容。零调用和后续切换边界见[自主资讯合同](../../research-web-ai-news.md)。
+
 ## 可选服务器账号 API
 
 以下接口只由显式 `rwb server serve` 的独立网关提供，原单用户 Host 不挂载。`/auth` 为登录页、`/account` 为已登录账号页、`/` 为现有研究 UI。所有请求固定精确 Host/origin；写请求要求同源 Origin，无 CORS。HTTPS 登录使用 12 小时 `rwb_session` HttpOnly、Secure、SameSite=Strict Cookie，数据库仅保存令牌哈希。
@@ -15,17 +17,15 @@
 | `POST /api/server/users/{user_id}/password` | 管理员，`{password}` | 撤销该账号全部登录态，研究继续 |
 | `POST /api/server/users/{user_id}/stop` | 管理员 | 只停止该账号的受管 pair，释放实例槽 |
 
-请求体拒绝多余字段；密码最少 12 字符，账号 UUID 由服务端生成，最后一个活动管理员不能停用。未登录 401、管理员权限不足 403，失败只返回稳定错误码。`/api/research/**` 和框架嵌入请求按已认证用户绑定固定回环 backend，不接受 owner、上游 URL 或外部内部认证标头；网关剥离浏览器 Cookie/Authorization/代理标头，拒绝 internal、编码路径及上游重定向。后端再验证私有逐实例网关令牌；内部回调仅走既有白名单与独立数据密钥，不对浏览器转发。
+请求体拒绝多余字段；密码最少 12 字符，账号 UUID 由服务端生成，最后一个活动管理员不能停用。未登录 401、管理员权限不足 403，失败只返回稳定错误码。除下述共享AI资讯外，`/api/research/**` 和框架嵌入请求按已认证用户绑定固定回环 backend，不接受 owner、上游 URL 或外部内部认证标头；网关剥离浏览器 Cookie/Authorization/代理标头，拒绝 internal、编码路径及上游重定向。后端再验证私有逐实例网关令牌；内部回调仅走既有白名单与独立数据密钥，不对浏览器转发。
+
+`/api/research/aihot/*` 阅读与 `/api/research/ai-news/feeds/{kind}.xml` 六种RSS由网关的共享service直接提供，所有已登录成员可读；`GET /api/research/ai-news/status`、`POST /api/research/ai-news/control`仅admin。control先流式限制64KiB，再重验登录态/admin和页面账号；读取返回前也重验撤销。未知AI路径/方法不落入用户backend；tenant profile连有效实例key也拒绝全部全局AI路径。共享home为server_root/shared，原Node认证不对浏览器暴露，不新增CSRF协议。
 
 页面身份头 `X-RWB-Page-User`、SSE 的 `rwb_user` 只用于拒绝换账号后仍打开的旧页面，不授予用户选择权限；读取可省略，产品写请求必须至少携带一项且所有提供值均匹配当前账号。登录撤销后正在进行的流按一秒间隔重验后停止交付字节；后端研究不因此自动取消。容量满返回 503 `runtime_capacity_exceeded`，不创建队列或驱逐实例。服务器 profile 的禁用接口返回 403 `server_capability_disabled`，官方模型连接限制也在后端执行；网关登录成功不证明模型或研究可用。
 
-新增匿名GET：`/api/research/aihot/items/{item_id}`、`/items/{item_id}/original`、`/stories/{story_id}`、`/topics/{slug}?page=1`、`/groups/{fact_id}/reports`，均在相同前缀内。标识/页码严格限定，响应校验身份；专题308仅接受UUID合并目标，由浏览器在本地路由内最多跟进四次，不跟随HTTP跳转。正文以body.content惰性阅读树替代上游HTML。no-store来源清单不缓存。
+新增阅读GET（服务器须登录）：`/api/research/aihot/items/{item_id}`、`/items/{item_id}/original`、`/stories/{story_id}`、`/topics/{slug}?page=1`、`/groups/{fact_id}/reports`，均在相同前缀内。标识/页码严格限定，响应校验身份；专题308仅接受UUID合并目标，由浏览器在本地路由内最多跟进四次，不跟随HTTP跳转。正文以body.content惰性阅读树替代上游HTML。no-store来源清单不缓存。
 
-AI资讯读取原站公开页面API，通过固定 `/api/research/aihot/pages/hot` 和
-`/api/research/aihot/reports/{kind}` 接入；kind只允许daily/weekly/monthly。
-报刊支持 `/latest-page`、`/{key}`、`/navigation/{key}`，日报另有 `/months/{month}`。
-原站分别为 `https://aihot.news/api/site/hot` 与 `/api/site/reports/...`。
-这些是页面级合同而非精简v1：保留真实期号、指标、看点、关联、封面、头像、热度和走势；
+AI资讯保持 `/api/research/aihot/…` 阅读合同，由Host读取本机原版API，无外站回退。新增 `/api/research/ai-news/status`、`POST /control` 和同源 `/feeds/{kind}.xml`；管理采用有限动作，不提供任意URL/SQL或秘密输入。未配置真实503；内容与日期身份仍严格校验。
 来源改版/响应身份不匹配明确502，不以精简数据伪造完整页面。旧三个v1阅读路由仍兼容。
 日期/ISO周/月严格验证，404保持404；429/503保留秒数或HTTP-date等待期，超时504，
 重定向/格式/大小异常502。JSON解压后2MiB、总期限20秒、最多64份内存LRU、至少60秒TTL，

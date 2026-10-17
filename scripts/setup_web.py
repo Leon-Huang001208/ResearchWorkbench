@@ -1124,12 +1124,61 @@ class SetupWebInstaller:
             return {"state": "not_included"}
         if not (component / "package-lock.json").is_file() or self.npm_executable is None:
             raise RuntimeError("hot_dependency_lock_missing")
-        self._run_checked([str(self.node_executable), str(self.npm_executable), "ci", "--omit=dev",
-                           "--ignore-scripts", "--no-audit", "--no-fund"], cwd=component,
-                          environment=self._node_subprocess_environment(), timeout=180,
-                          failure_code="hot_dependency_install_failed")
+        self._run_checked(
+            [
+                str(self.node_executable),
+                str(self.npm_executable),
+                "ci",
+                "--omit=dev",
+                "--ignore-scripts",
+                "--no-audit",
+                "--no-fund",
+            ],
+            cwd=component,
+            environment=self._node_subprocess_environment(),
+            timeout=180,
+            failure_code="hot_dependency_install_failed",
+        )
         self.log.info("hot_dependencies_installed")
         return {"state": "installed"}
+
+    def install_ai_news_dependencies(self) -> dict[str, str]:
+        """Install the pinned optional editorial engine without enabling it or migrating data."""
+        component = self.project_root / "services" / "ai_news"
+        manifest = component / "upstream.json"
+        if not manifest.is_file():
+            return {"state": "not_included"}
+        upstream = json.loads(manifest.read_text(encoding="utf-8"))
+        if upstream.get("commit") != "26d436497d9ddba9e7dd88eed255cfe0105ce368":
+            raise RuntimeError("ai_news_upstream_pin_invalid")
+        vendor = component / "vendor" / "aihot"
+        hashes = upstream.get("files", {})
+        if not hashes or self.npm_executable is None:
+            raise RuntimeError("ai_news_dependency_lock_missing")
+        for name, expected in hashes.items():
+            path = vendor / name
+            if (
+                path.is_symlink()
+                or not path.is_file()
+                or hashlib.sha256(path.read_bytes()).hexdigest() != expected
+            ):
+                raise RuntimeError("ai_news_upstream_integrity_failed")
+        self._run_checked(
+            [
+                str(self.node_executable),
+                str(self.npm_executable),
+                "ci",
+                "--ignore-scripts",
+                "--no-audit",
+                "--no-fund",
+            ],
+            cwd=vendor,
+            environment=self._node_subprocess_environment(),
+            timeout=240,
+            failure_code="ai_news_dependency_install_failed",
+        )
+        self.log.info("ai_news_dependencies_installed_disabled")
+        return {"state": "installed_disabled"}
 
     def install(self, *, repair: bool = False, start: bool = True) -> dict[str, object]:
         """Install the Web stack and optionally start both loopback services."""
@@ -1162,6 +1211,8 @@ class SetupWebInstaller:
             self.write_runtime_build_lock(dsh_state=dsh_state)
             check_scope()
             self.install_hot_dependencies()
+            check_scope()
+            self.install_ai_news_dependencies()
             check_scope()
             manifest = self.write_install_manifest(
                 python_state=python_state,

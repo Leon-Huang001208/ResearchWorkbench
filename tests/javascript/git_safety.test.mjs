@@ -950,3 +950,110 @@ test('published-head bookkeeping cannot mutate a receipt rejected by the branch 
   await assert.rejects(runDelivery({projectRoot: f.projectRoot, taskId: 'task', action: 'publish', repair: true}, f.safe), {code: 'DELIVERY_BRANCH_INVALID'});
   assert.deepEqual(fs.readFileSync(f.filename), before);
 });
+
+function unpublishedBaseRefreshFixture(t, settings = {}) {
+  const f = baseRefreshFixture(t, settings);
+  f.receipt = {...f.receipt, mode: null, pullRequest: null, remoteCommit: null};
+  fs.writeFileSync(f.filename, JSON.stringify(f.receipt), {mode: 0o600});
+  return f;
+}
+
+test('unpublished remote advance preserves all refs and null publication identity, snapshots privately and invalidates evidence', async t => {
+  const f = unpublishedBaseRefreshFixture(t);
+  fs.writeFileSync(path.join(f.receipt.featureWorktree, 'repair.txt'), 'latest feature repair\n');
+  git(f.receipt.featureWorktree, ['add', '.']); git(f.receipt.featureWorktree, ['commit', '-m', 'feature repair']);
+  const feature = git(f.receipt.featureWorktree, ['rev-parse', 'HEAD']);
+  git(f.receipt.integrationWorktree, ['merge', '--no-ff', '--no-edit', feature]);
+  const candidate = git(f.receipt.integrationWorktree, ['rev-parse', 'HEAD']);
+  const refs = git(f.projectRoot, ['show-ref']);
+  const result = await runDelivery({projectRoot: f.projectRoot, taskId: 'task', action: 'prepare'}, f.safe);
+  assert.equal(result.status, 'prepared'); assert.equal(result.baseCommit, f.latest);
+  assert.equal(result.integrationCommit, candidate); assert.equal(result.featureCommit, feature);
+  for (const field of ['mode', 'pullRequest', 'remoteCommit']) assert.equal(result[field], null);
+  assert.equal(result.baseRefreshPublishedHead, undefined);
+  assert.equal(result.verification, null); assert.deepEqual(result.ci, {status: 'pending', runs: []});
+  assert.equal(git(f.projectRoot, ['show-ref']), refs);
+  assert.ok(f.calls.length >= 3); assert.ok(f.calls.every(args => args[0] === 'api'));
+  const snapshots = path.join(f.projectRoot, '.git/leon-engineering/git-safety/base-refresh/task');
+  const file = path.join(snapshots, fs.readdirSync(snapshots)[0]);
+  assert.deepEqual(JSON.parse(fs.readFileSync(file)), f.receipt); assert.equal(fs.statSync(file).mode & 0o777, 0o600);
+  assert.deepEqual(JSON.parse(fs.readFileSync(f.filename)), result);
+});
+
+test('unpublished recovery refuses incomplete or unknown publication identities, while pr mode still requires its PR', async t => {
+  const f = unpublishedBaseRefreshFixture(t);
+  for (const patch of [{mode: 'direct'}, {mode: undefined}, {pullRequest: {}}, {remoteCommit: f.latest}, {baseRefreshPublishedHead: f.receipt.integrationCommit}, {publishedAt: null}, {pushResult: {}}, {mode: 'pr', pullRequest: null}]) {
+    const record = {...f.receipt, ...patch}; fs.writeFileSync(f.filename, JSON.stringify(record)); const before = fs.readFileSync(f.filename);
+    await assert.rejects(runDelivery({projectRoot: f.projectRoot, taskId: 'task', action: 'prepare'}, f.safe));
+    assert.deepEqual(fs.readFileSync(f.filename), before);
+  }
+  assert.equal(f.calls.length, 0);
+});
+
+test('unpublished recovery requires both recorded candidate and fetched descendant base, clean exact feature ownership', async t => {
+  for (const settings of [{includeBase: false}, {includePrevious: false}]) {
+    const f = unpublishedBaseRefreshFixture(t, settings), before = fs.readFileSync(f.filename);
+    await assert.rejects(runDelivery({projectRoot: f.projectRoot, taskId: 'task', action: 'prepare'}, f.safe), {code: 'BASE_REFRESH_ANCESTRY_INVALID'});
+    assert.deepEqual(fs.readFileSync(f.filename), before);
+  }
+  const f = unpublishedBaseRefreshFixture(t), before = fs.readFileSync(f.filename);
+  fs.writeFileSync(path.join(f.receipt.featureWorktree, 'dirty.txt'), 'preserve');
+  await assert.rejects(runDelivery({projectRoot: f.projectRoot, taskId: 'task', action: 'prepare'}, f.safe), {code: 'FEATURE_REPAIR_UNVERIFIED'});
+  assert.deepEqual(fs.readFileSync(f.filename), before);
+  fs.unlinkSync(path.join(f.receipt.featureWorktree, 'dirty.txt'));
+  git(f.receipt.featureWorktree, ['switch', '-c', 'codex/other-feature']);
+  await assert.rejects(runDelivery({projectRoot: f.projectRoot, taskId: 'task', action: 'prepare'}, f.safe), {code: 'TASK_OWNERSHIP_MISMATCH'});
+  assert.deepEqual(fs.readFileSync(f.filename), before);
+});
+
+test('unpublished recovery rejects concurrent record, candidate, feature and remote changes without overwriting them', async t => {
+  for (const kind of ['record', 'candidate', 'feature', 'remote', 'remote-ref', 'remote-url']) {
+    const f = unpublishedBaseRefreshFixture(t), before = fs.readFileSync(f.filename);
+    let reads = 0;
+    f.onRead(() => {
+      if (++reads !== 2) return;
+      if (kind === 'record') fs.writeFileSync(f.filename, JSON.stringify({...f.receipt, repairAttempts: 3}));
+      if (kind === 'remote') f.setRemoteBase('1'.repeat(40));
+      if (kind === 'remote-ref') git(f.projectRoot, ['update-ref', 'refs/remotes/origin/master', f.receipt.baseCommit]);
+      if (kind === 'remote-url') git(f.projectRoot, ['remote', 'set-url', 'origin', 'https://github.com/fixture/other.git']);
+      if (kind === 'candidate' || kind === 'feature') {
+        const directory = kind === 'candidate' ? f.receipt.integrationWorktree : f.receipt.featureWorktree;
+        fs.writeFileSync(path.join(directory, 'concurrent.txt'), 'preserve concurrent');
+        git(directory, ['add', '.']); git(directory, ['commit', '-m', 'concurrent advance']);
+      }
+    });
+    await assert.rejects(runDelivery({projectRoot: f.projectRoot, taskId: 'task', action: 'prepare'}, f.safe));
+    if (kind === 'record') assert.equal(JSON.parse(fs.readFileSync(f.filename)).repairAttempts, 3);
+    else assert.deepEqual(fs.readFileSync(f.filename), before);
+    assert.ok(fs.existsSync(f.receipt.featureWorktree)); assert.ok(fs.existsSync(f.receipt.integrationWorktree));
+  }
+});
+
+test('unpublished recovery supports repeated new master advances before any publication and preserves an existing task lock', async t => {
+  const f = unpublishedBaseRefreshFixture(t);
+  const first = await runDelivery({projectRoot: f.projectRoot, taskId: 'task', action: 'prepare'}, f.safe);
+  fs.writeFileSync(path.join(f.projectRoot, 'later-master.txt'), 'later\n');
+  git(f.projectRoot, ['add', '.']); git(f.projectRoot, ['commit', '-m', 'master advances again']);
+  const latest = git(f.projectRoot, ['rev-parse', 'HEAD']);
+  git(f.projectRoot, ['update-ref', 'refs/remotes/origin/master', latest]);
+  git(f.receipt.integrationWorktree, ['merge', '--no-ff', '--no-edit', latest]);
+  fs.writeFileSync(f.filename, JSON.stringify({...first, status: 'remote_moved'})); f.setRemoteBase(latest);
+  const lock = path.join(f.projectRoot, '.git/leon-engineering/locks/integration.lock'); fs.writeFileSync(lock, '99999999');
+  const before = fs.readFileSync(f.filename);
+  await assert.rejects(runDelivery({projectRoot: f.projectRoot, taskId: 'task', action: 'prepare'}, f.safe), {code: 'TASK_LOCKED'});
+  assert.equal(fs.readFileSync(lock, 'utf8'), '99999999'); assert.deepEqual(fs.readFileSync(f.filename), before); fs.unlinkSync(lock);
+  const second = await runDelivery({projectRoot: f.projectRoot, taskId: 'task', action: 'prepare'}, f.safe);
+  assert.equal(second.baseCommit, latest); assert.equal(second.mode, null); assert.equal(second.remoteCommit, null); assert.equal(second.pullRequest, null);
+  assert.equal(fs.readdirSync(path.join(f.projectRoot, '.git/leon-engineering/git-safety/base-refresh/task')).length, 2);
+  assert.ok(f.calls.every(args => args[0] === 'api'));
+});
+
+test('unpublished recovery rechecks a last-moment remote advance after its private snapshot', async t => {
+  const f = unpublishedBaseRefreshFixture(t), before = fs.readFileSync(f.filename);
+  let reads = 0; f.onRead(() => { if (++reads === 3) f.setRemoteBase('1'.repeat(40)); });
+  await assert.rejects(runDelivery({projectRoot: f.projectRoot, taskId: 'task', action: 'prepare'}, f.safe), {code: 'REMOTE_BASE_CHANGED'});
+  assert.deepEqual(fs.readFileSync(f.filename), before);
+  const snapshots = path.join(f.projectRoot, '.git/leon-engineering/git-safety/base-refresh/task');
+  assert.deepEqual(JSON.parse(fs.readFileSync(path.join(snapshots, fs.readdirSync(snapshots)[0]))), f.receipt);
+  assert.ok(fs.existsSync(f.receipt.integrationWorktree));
+});

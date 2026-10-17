@@ -1,5 +1,7 @@
 # Agent 任务路由指南
 
+AI资讯自主化本轮在隔离实例接入原版API/worker与独立库，保持DSH研究执行及当前常驻内容。零调用和后续切换边界见[自主资讯合同](research-web-ai-news.md)。
+
 私网多用户的账号、网关、运行池和CLI安全合同加入既有Research Web Checks四个定点测试文件；
 只增加当前安全边界的回归，不扩大为全目录pytest，也不增加runner或平台dispatch。
 变更前五次成功运行与新增时间预算记录在actions-budget；Mac仍承担本地Native和macOS安装CI，
@@ -77,12 +79,13 @@ node scripts/git_safety.mjs delivery --project /absolute/RWB --task-id TASK --cl
 
 发布必须走 PR；检查、评审和分支保护通过后才合并。`--reviewed-commit` 是操作者对独立评审候选的明确声明，必须绑定当前 PR head，不能用旧 SHA 或仅看测试通过代替评审。入口在 common directory 的私有任务记录中持久保存该声明；已被外部合并的 PR 也不能在缺少 matching 声明时认证完成，清理前必须再次核对。仓库未开启 GitHub Auto-merge 时，由入口在后续 `status` 检查中执行普通 Merge；不启用仓库设置、不使用管理员绕过。private／billable 仓库没有当前额度证明时停止远端操作，不能从历史 public 状态推导权限。
 
-已发布的本任务 PR 因 `master` 前进进入 `remote_moved` 时，先在原集成工作树合入
+本任务因 `master` 前进进入 `remote_moved` 时，先在原集成工作树合入
 最新 `origin/master`、解决冲突并提交，再运行原 `--prepare`。入口仅认证已提交候选：
 当前候选必须包含旧候选、新基线和已登记feature；仓库、工作树/分支、原PR、GitHub实时
 master及PR head须匹配，并在写入前再次核对。脏目录、未提交合并、改动中的回执、未知PR
 head或既有锁均拒绝。支持旧prepared尚未发布时主线再次前进；只接受明确登记的已发布tip，
 不接受任意祖先。成功发布后会把该tip推进到实际发布候选，禁止沿用更老的tip。
+首次发布前恢复要求 `mode`、`pullRequest`、`remoteCommit` 三项明确为 null；不查询不存在的 PR。已发布任务继续验证原 PR 身份，不接受部分发布字段或未知远端 tip。
 恢复将旧完整回执以0600存于Git common dir的 `leon-engineering/git-safety/base-refresh/TASK/`，
 保留原PR、原工作树、所有引用和修补计数；不调用共享控制器的删除/重建分支，也不执行push。
 新回执回到prepared并清空verification/CI，旧评审因候选SHA不同而失效；须重新完成本地验证、

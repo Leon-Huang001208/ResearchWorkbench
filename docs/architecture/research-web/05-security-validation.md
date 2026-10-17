@@ -1,10 +1,14 @@
 # 安全边界与验证方法
 
+AI资讯自主化本轮在隔离实例接入原版API/worker与独立库，保持DSH研究执行及当前常驻内容。零调用和后续切换边界见[自主资讯合同](../../research-web-ai-news.md)。
+
 ## 私网邀请制账号与执行边界
 
 服务器模式仅在 macOS Native 显式启用，固定一个 Tailscale HTTPS origin/Host；回环 HTTP 仅供本机开发。Tailscale 网络准入和产品账号登录分别验证，无公网注册或 CORS。账号库用 scrypt 密码摘要、随机 Cookie 令牌的哈希和到期时间；密码不进入参数、日志或浏览器持久存储。HTTPS Cookie 为 HttpOnly/Secure/SameSite=Strict，12 小时过期；未知账号与错误密码同样失败，登录失败有界限速。停用、密码重置和退出登录即时撤销对应登录态；最后一个活动管理员受保护。
 
 认证用户 UUID 由网关决定唯一 backend 和文件根，浏览器的 owner、目标地址、Cookie、Authorization、代理头或伪造内部密钥不能选择其他实例。逐实例私有令牌保护后端直连；DSH 的允许内部回调另验数据密钥，浏览器不能经网关访问 internal。下载、搜索、SSE、取消和审批复用该用户既有会话与文件校验；SSE 与流式下载在撤销后停止交付，换账号旧页由页面身份标记拒绝。代理请求体有界，同源响应使用 no-store；上游重定向拒绝。
+
+全局AI资讯不选择用户backend：gateway固定使用 `server_root/shared/ai-news`，成员仅阅读，status/control仅admin；tenant后端完整拒绝全局AI路径，即使实例key有效也不放行。未知AI路径不会启动DSH。管理复用精确Origin和页面身份，64KiB流式限额后重验有效admin，读取返回前复查撤销；浏览器凭据和伪造Node key不转发，原Node session/CSRF保持私有。共享目录与用户研究根分开，不扩大同UID隔离承诺。
 
 每用户 Web、DSH、HOME/TMP、端口、数据、状态和系统凭据命名空间分开，不继承管理员 HOME 或密钥。服务器 profile 在 UI、API 和原生 guard 禁用宿主浏览器、Office/Wind、MCP、Hot、日程/自动化、报告 Workflow、本机连接配置和运维；文件式文档仍可用，native 文档必须在实际执行及签名回调入口拒绝。模型只允许官方 DeepSeek，不接受任意 Base URL。
 
@@ -12,14 +16,9 @@
 
 全文HTML转为白名单阅读树，丢弃脚本/样式/iframe/SVG/表单和事件属性，节点30000/嵌套64上限；正文图片仍只能使用上游签发路径。前端独立限定标签/链接、转义文本、仅本地sec目录跳转，不插入原始HTML。详情身份不匹配或专题合并环明确失败；摘要/部分正文如实标注。
 
-AIHOT模块只允许固定匿名GET：页面数据来自aihot.news的公开site API，精简v1路由仅保留兼容。
-Cookie、Authorization和环境代理不转发，重定向不跟随；JSON期限20秒、解压后2MiB、LRU64项。
-图片只接受上游已签发的固定 `/api/img-proxy` 路径，登记在最多4096项的SHA-256 allowlist，
-浏览器只传opaque key，不能传URL；4并发、12秒、4MiB，SVG/HTML与重定向拒绝。
-浏览器继续同源CSP、文本转义、无凭据HTTP(S)外链和noopener/noreferrer，加载失败图片可收起。
-日志使用项目设施进入logs/，不记录正文或本机秘密。近处测试覆盖匿名传输、缓存、HTTP-date限流、
-身份/日期/格式/大小、图片准入、丢失映射恢复、迟到响应、归档取消恢复与恶意内容。
-真实页面和API证据单独记录，不冒充DSH模型或其他平台验收。
+AI资讯Host只访问已归属本机API，所有私有请求使用token，不转发浏览器Cookie/Authorization或环境代理，不跟随重定向。原引擎API额外要求原管理员session/CSRF；浏览器只可使用有限管理动作，秘密只在本机凭据库或600私有文件中接收。零调用默认关闭模型、付费源、通知，逐次预算及持久授权到期失败关闭；未知付费结果等待人工账单核对，决不自动超时释放。
+
+正文保持惰性树与同源CSP；图片只接受本机API签发的不透明映射，有界大小、并发、时间与MIME。原采集逐跳SSRF规则保留，并拒绝aihot.news及其子域；没有外站故障回退。备份/恢复仅作用于身份核实的新独立库，进程与资源使用任务归属和锁。真实模型及生产切换验收独立，未执行为NOT_RUN。
 
 质量工具复用内部 DataHub token、可信原生会话血缘及原工具预算；普通网页不能伪造观察证据或授权补查。Host 冻结用户要求，模型 coverage 仅提出定位。来源身份与内容分别核验；无法独立验证的定性陈述、数字期间/单位冲突保留未通过。损坏/错配产物为invalid并拒绝正式导出；旧版本以 Host 哈希锚定，不把任意自建输出目录当认证历史。离线测试不证明真实模型或供应商可用性。
 

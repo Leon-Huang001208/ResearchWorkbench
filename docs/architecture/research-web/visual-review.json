@@ -170,6 +170,19 @@
       ],
       "findings": [],
       "notes": "已实际查看当前哈希1440浅色与2048深色截图；新增私网登录网关、逐用户Native pair/数据根、原Docker与单用户Hot边界可读，无遮挡、裁剪或无关穿线。四视口包含性通过；图形不证明账号、真实研究、模型或平台产品验收。"
+    },
+    {
+      "id": "12-ai-news",
+      "artifactSha256": "dd289388969b326ee18c89a0cccc7d12f4d0e4e5a6c411d501595ac18e1b1cb4",
+      "specificationSha256": "7741dde3b7496296fe892452e783e9923fb6b3593c09b0fe1bf69850a4cad8a8",
+      "status": "reviewed",
+      "reviewer": "controller",
+      "date": "2026-10-17",
+      "notes": "实际查看当前1440浅色及深色截图：共享网关成员阅读和管理员采编边界、独立DSH与零调用说明清晰，无新增遮挡或裁剪。四视口检查通过；不替代产品和模型验收。",
+      "captures": [
+        "12-ai-news.visual-check.1440x900.light.png",
+        "12-ai-news.visual-check.1440x900.dark.png"
+      ]
     }
   ]
 }

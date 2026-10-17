@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "updated",
-  "summary": "补充可选私网邀请制服务器、逐用户会话与两实例准入入口。",
-  "reason": "新增显式 macOS Native 账号入口；README 链接安装及边界说明，原单用户数据与部署保留。"
+  "summary": "整合邀请制多用户与AI资讯自主引擎、零调用评测准备",
+  "reason": "保留用户隔离研究和共享只读资讯；采编管理仅admin，模型与常驻切换单独验收。"
 }

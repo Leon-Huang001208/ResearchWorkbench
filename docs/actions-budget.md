@@ -1,5 +1,9 @@
 # GitHub Actions 免费额度治理
 
+AI资讯零调用测试沿用既有Research Web Checks，固定Node24.19验证原引擎；不新增workflow/job/模型或付费源请求。macOS Bootstrap安装固定锁依赖但不创建数据库；模型与生产切换单独授权。
+
+AI资讯自主化本轮在隔离实例接入原版API/worker与独立库，保持DSH研究执行及当前常驻内容。零调用和后续切换边界见[自主资讯合同](research-web-ai-news.md)。
+
 Git主线推进后的原位恢复不触发新workflow或runner；新安全回归沿现有Project Constraints执行。恢复清空旧候选CI/评审资格，必须对最终候选重验；macOS Bootstrap的手动触发及预算门保持。
 
 FinGPT 质量门离线回归进入既有 Research Web Checks Python job；JS 延用 research_web*.test.mjs 清单，仍只有既有标准 runner，不新增 job、Docker/Windows dispatch 或模型费用。Mac 安装沿原 Bootstrap 验证，其他平台交接保持独立。
