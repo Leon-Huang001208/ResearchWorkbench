@@ -46,6 +46,37 @@ def test_resume_reuses_trusted_port_and_never_rewrites_control(tmp_path):
         reserved.close()
 
 
+def test_resume_rebinds_closed_http_connections_without_waiting_for_time_wait(tmp_path):
+    listener = socket.socket()
+    listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    listener.bind(("127.0.0.1", 0))
+    listener.listen(1)
+    port = listener.getsockname()[1]
+    control = saved_control(tmp_path, port)
+    before = control.read_bytes()
+    with socket.create_connection(("127.0.0.1", port), timeout=2) as client:
+        peer, _ = listener.accept()
+        peer.close()
+        assert client.recv(1) == b""
+    listener.close()
+    reserved = runtime._reserve_web_port(tmp_path)
+    try:
+        assert reserved.getsockname()[1] == port
+        assert control.read_bytes() == before
+    finally:
+        reserved.close()
+
+
+def test_resume_never_reuses_an_existing_reusable_listener(tmp_path):
+    with socket.socket() as listener:
+        listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        listener.bind(("127.0.0.1", 0))
+        listener.listen(1)
+        saved_control(tmp_path, listener.getsockname()[1])
+        with pytest.raises(runtime.RuntimeErrorSafe, match="runtime_port_unavailable"):
+            runtime._reserve_web_port(tmp_path)
+
+
 @pytest.mark.parametrize(
     "case", ["foreign", "token", "permissions", "link", "directory_link", "pending", "mismatch"]
 )
