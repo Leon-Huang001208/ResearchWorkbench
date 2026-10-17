@@ -2,11 +2,107 @@
 
 import argparse
 import json
+import subprocess
+import sys
 from copy import deepcopy
 
 import pytest
 
 from docker import manage
+
+
+def release_fixture(tmp_path, monkeypatch):
+    manager = manage.Manager(tmp_path, "/admin", "/worktree")
+    record = {"environment": "stage", "instance": "candidate", "container_id": "a" * 64,
+              "image": "sha256:" + "b" * 64, "source_sha": "c" * 40,
+              "memory": 2 * manage.GIB, "labels": manager.labels("stage", "candidate"),
+              "volumes": {"data": "preserved-data", "credentials": "preserved-secret"}}
+    manage.atomic_json(manager.path("stage", "candidate"), record)
+    monkeypatch.setattr(manager, "owned", lambda _: {"State": {"Running": False, "Status": "exited"}})
+    calls = []
+    monkeypatch.setattr(manage, "command", lambda *args: calls.append(args) or record["container_id"])
+    expected = (record["container_id"], record["image"], record["source_sha"])
+    return manager, record, expected, calls
+
+
+def test_stage_release_preserves_container_volumes_and_original_record(tmp_path, monkeypatch):
+    manager, record, expected, calls = release_fixture(tmp_path, monkeypatch)
+    result = manager.release_stage(record, expected, "completed-hot-task")
+    saved = manager.read("stage", "candidate")
+    assert saved["retired"] is True
+    assert saved["container_id"] == record["container_id"]
+    assert saved["volumes"] == record["volumes"]
+    assert json.loads((tmp_path / "releases" / result["archive"]).read_text()) == record
+    assert all(call[:3] == ("docker", "ps", "-aq") for call in calls)
+    assert (tmp_path / "releases" / result["archive"]).stat().st_mode & 0o777 == 0o600
+
+
+@pytest.mark.parametrize("case,code", [
+    ("running", "stage_release_requires_stopped_container"),
+    ("identity", "stage_release_identity_mismatch"),
+    ("production", "only_stage_reservation_release_allowed"),
+    ("shared", "stage_release_volume_in_use"),
+    ("archive_alias", "stage_release_archive_alias"),
+    ("changed_ledger", "stage_release_ledger_changed"),
+])
+def test_stage_release_refuses_unsafe_target(tmp_path, monkeypatch, case, code):
+    manager, record, expected, calls = release_fixture(tmp_path, monkeypatch)
+    before = manager.path("stage", "candidate").read_bytes()
+    if case == "running":
+        monkeypatch.setattr(manager, "owned", lambda _: {"State": {"Running": True}})
+    elif case == "identity":
+        expected = ("other", expected[1], expected[2])
+    elif case == "production":
+        record["environment"] = "prod"
+    elif case == "shared":
+        monkeypatch.setattr(manage, "command", lambda *args: "another-container")
+    elif case == "archive_alias":
+        (tmp_path / "releases").symlink_to(tmp_path / "outside")
+    elif case == "changed_ledger":
+        record["memory"] = 1
+    with pytest.raises(manage.Refusal, match=code):
+        manager.release_stage(record, expected, "completed-hot-task")
+    assert manager.path("stage", "candidate").read_bytes() == before
+    assert all(call[:3] == ("docker", "ps", "-aq") for call in calls)
+
+
+def test_stage_release_archive_failure_keeps_reservation(tmp_path, monkeypatch):
+    manager, record, expected, calls = release_fixture(tmp_path, monkeypatch)
+    before = manager.path("stage", "candidate").read_bytes()
+    monkeypatch.setattr(manage, "atomic_json", lambda *args: (_ for _ in ()).throw(OSError("archive failed")))
+    with pytest.raises(OSError, match="archive failed"):
+        manager.release_stage(record, expected, "completed-hot-task")
+    assert manager.path("stage", "candidate").read_bytes() == before
+    assert all(call[:3] == ("docker", "ps", "-aq") for call in calls)
+
+
+def test_stage_release_replay_is_refused_without_changing_archive(tmp_path, monkeypatch):
+    manager, record, expected, _calls = release_fixture(tmp_path, monkeypatch)
+    result = manager.release_stage(record, expected, "completed-hot-task")
+    archive = tmp_path / "releases" / result["archive"]
+    original = archive.read_bytes()
+    with pytest.raises(manage.Refusal, match="stage_reservation_already_released"):
+        manager.release_stage(manager.read("stage", "candidate"), expected, "completed-hot-task")
+    assert archive.read_bytes() == original
+    assert len(list((tmp_path / "releases").iterdir())) == 1
+
+
+def test_stage_release_rechecks_running_state_before_commit(tmp_path, monkeypatch):
+    manager, record, expected, _calls = release_fixture(tmp_path, monkeypatch)
+    states = iter([False, False, True])
+    monkeypatch.setattr(manager, "owned", lambda _: {"State": {"Running": next(states), "Status": "exited"}})
+    with pytest.raises(manage.Refusal, match="stage_release_requires_stopped_container"):
+        manager.release_stage(record, expected, "completed-hot-task")
+    assert "retired" not in manager.read("stage", "candidate")
+
+
+def test_stage_release_cli_requires_explicit_identity():
+    result = subprocess.run(
+        [sys.executable, manage.__file__, "stage", "candidate", "release-reservation"],
+        capture_output=True, text=True, timeout=10, check=False,
+    )
+    assert result.returncode == 2
+    assert "release_identity_and_completed_task_required" in result.stderr
 
 
 def test_model_provisioning_rejects_running_stage_without_secret_operations(tmp_path, monkeypatch):

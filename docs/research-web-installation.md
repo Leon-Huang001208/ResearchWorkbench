@@ -1,5 +1,7 @@
 # Research Web Native / Docker 安装与运行
 
+管理员 stage 停止仍保留容量；已完成任务仅通过 Docker 手册的 release-reservation 精确身份入口释放预留，容器和卷保留。公开安装与凭据初始化合同不变。
+
 用户实例重启后只读验证.control中的DataHub/MCP回环URL并复用原Web端口；没有记录才新分配。已有端口被占用、原址不一致或控制记录异常时明确失败，不改内部token、不接管未知进程。该恢复不需要迁移旧会话、模型配置或原primary实例。
 
 primary 的 index.html、/static 资源及原 /api/research/aihot/ 阅读请求继续使用其已验证旧实例版本；/auth、/account 与账号包装脚本来自新网关。静态响应 no-store，身份来自 Cookie，浏览器不能指定源码根。这样部署登录网关不会隐式切换原资讯后端；不在本任务启动资讯数据库或 worker。

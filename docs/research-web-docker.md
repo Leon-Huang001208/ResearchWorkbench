@@ -192,6 +192,23 @@ docker stats --no-stream
 
 ## Legacy 安装与任务资源清理
 
+### 已完成任务的 stage 预留释放
+
+`stop` 保留实例预留，不会自动释放 stage 池。原任务验收及交付完成、确认不再需要
+该候选后，管理员可通过同一个 `rwb-docker` 操作锁执行：
+
+```sh
+./rwb-docker stage candidate release-reservation \
+  --expected-container FULL_CONTAINER_ID --expected-image sha256:IMAGE_ID \
+  --expected-source FULL_SOURCE_SHA --completed-task COMPLETED_TASK_ID
+```
+
+入口核对账本、完整容器身份、停止状态及所有卷引用；运行中、身份变化或其他容器引用
+任一卷均拒绝。先将原账本归档到私有 `releases/` 并回读比对，再退休预留。
+容器、网络、数据、日志、凭据和模型密钥卷以及已有恢复证据全部保留；入口不执行
+stop/rm/卷删除。重复释放明确拒绝。恢复旧实例须显式 register 并重新通过容量准入。
+新任务使用独立实例名称和新卷，不继承旧任务数据或秘密。
+
 ### 每轮交付资源预算与自动收尾
 
 测试产生的`data/markdown`、`data/objects`、`data/raw_text`仅在登记时和删除时都为空、身份仍一致的情况下使用原子`rmdir`；出现任何文件立即保留并blocked，从不递归删除数据目录。控制器自身祖先argv中的源码路径不等于业务占用，真实FD/cwd和其他进程引用仍拒绝；收尾命令从账本主checkout运行。
