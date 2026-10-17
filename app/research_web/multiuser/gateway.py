@@ -33,7 +33,14 @@ AI_PREFIXES = ("/api/research/ai-news", "/api/research/aihot")
 AI_FEED = re.compile(
     r"/api/research/ai-news/feeds/(?:selected|selected-full|all|daily|weekly|monthly)\.xml\Z"
 )
-REQUEST_HEADERS = {"accept", "accept-encoding", "content-type", "range", "if-none-match"}
+REQUEST_HEADERS = {
+    "accept",
+    "accept-encoding",
+    "content-type",
+    "range",
+    "if-none-match",
+    "idempotency-key",
+}
 RESPONSE_HEADERS = {
     "content-type",
     "content-length",

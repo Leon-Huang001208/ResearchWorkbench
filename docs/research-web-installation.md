@@ -41,7 +41,7 @@ AI资讯由网关使用 `server_root/shared/ai-news` 全局库：已登录成员
 
 `./rwb server reset-admin --username admin` 交互重置既有管理员密码并撤销该账号所有登录态；不会创建新的管理员或搬移会话。密码至少 12 字符。`server doctor` 只读检查账号库、源码构建文件及解释器/已有模块，输出 runtime/model `not_checked`；`build_present` 不代表固定 SHA、运行健康、Tailscale、真实研究或模型通过。尚未安装时 help/doctor 仍可用；服务启动只用安装后的 Web Python。
 
-每位用户使用独立模型凭据命名空间，首版只开放官方 DeepSeek，不读取管理员个人密钥、不接受自定义模型目标。服务器 profile 关闭宿主浏览器、Office/Wind、本机连接配置、MCP、Hot、日程/自动化、报告 Workflow 和运维接口；文件式文档仍按用户根操作。模型、来源与报告的真实可用性保留独立状态，不因登录成功宣称研究通过。此首版信任同 UID 后端及固定工具实现，不提供恶意同 UID 进程/任意插件的 OS 租户隔离；Windows/Linux 与 Docker 多用户均未接入。安全及数据位置见[安全边界](architecture/research-web/05-security-validation.md#私网邀请制账号与执行边界)和[数据与文件](architecture/research-web/03-data-files.md#服务器账号与用户数据)。
+每位用户使用独立模型凭据命名空间，首版只开放官方 DeepSeek，不读取管理员个人密钥、不接受自定义模型目标。服务器 profile 关闭宿主浏览器、Office/Wind、本机连接配置、MCP、Hot、日程/自动化、报告 Workflow 和运维接口；文件式文档仍按用户根操作。私网网关透传研究接口必需的幂等请求头，登录和列表可用不能替代实际提交验收。模型、来源与报告的真实可用性保留独立状态，不因登录成功宣称研究通过。此首版信任同 UID 后端及固定工具实现，不提供恶意同 UID 进程/任意插件的 OS 租户隔离；Windows/Linux 与 Docker 多用户均未接入。安全及数据位置见[安全边界](architecture/research-web/05-security-validation.md#私网邀请制账号与执行边界)和[数据与文件](architecture/research-web/03-data-files.md#服务器账号与用户数据)。
 
 AI资讯文章全文、事件专题和主题分页沿用同一Host与公开安装链；自主库未配置时诚实503，不调用模型或回退外站。可选Node依赖、独立库迁移及采编生命周期按下列合同分别验收；最终候选仍须Mac干净安装CI，常驻更新沿单独授权及现有事务。
 
