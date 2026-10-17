@@ -500,6 +500,10 @@ def dispatch(argv: list[str], project_root: Path) -> int | None:
     store = RuntimeModeStore(home)
     try:
         command_argv = _command_arguments(argv)
+        if command_argv[:1] == ["server"]:
+            from .server import dispatch as server_dispatch
+
+            return server_dispatch(command_argv[1:], project_root)
         if command_argv[:1] == ["resident"]:
             from .resident.controller import main as resident_main
 

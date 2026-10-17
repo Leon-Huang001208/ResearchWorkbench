@@ -15,6 +15,7 @@ from core.observability import get_logger
 
 from . import sandbox
 from .store import StoreError
+from .tenant_policy import enforce_document_mode
 
 log = get_logger(__name__)
 
@@ -39,6 +40,7 @@ async def execute_document_operation(
         raise StoreError("文档操作无效")
     if request.get("mode") not in {"file", "native"}:
         raise StoreError("必须明确文件或原生执行模式")
+    enforce_document_mode(request["mode"])
     store.session(session_id)
     if request["mode"] == "native" and (
         native_manager is None

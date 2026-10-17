@@ -362,6 +362,10 @@ test('automatic workflows cancel stale runs and use bounded jobs', () => {
     'test_documentation.py',
     'test_doc_sync.py',
     'test_cli_lazy.py',
+    'test_multiuser_accounts.py',
+    'test_multiuser_gateway.py',
+    'test_multiuser_runtime.py',
+    'test_multiuser_cli.py',
   ]) {
     assert.match(workflows.checks, new RegExp(contract.replace('.', '\\.')));
   }

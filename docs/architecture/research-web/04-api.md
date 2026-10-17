@@ -1,5 +1,24 @@
 # Research Web 接口清单
 
+## 可选服务器账号 API
+
+以下接口只由显式 `rwb server serve` 的独立网关提供，原单用户 Host 不挂载。`/auth` 为登录页、`/account` 为已登录账号页、`/` 为现有研究 UI。所有请求固定精确 Host/origin；写请求要求同源 Origin，无 CORS。HTTPS 登录使用 12 小时 `rwb_session` HttpOnly、Secure、SameSite=Strict Cookie，数据库仅保存令牌哈希。
+
+| 方法与路径 | 输入与权限 | 结果 |
+| --- | --- | --- |
+| `POST /api/server/login` | `{username,password}`，限速 | 设置 Cookie，返回非秘密 `user` |
+| `POST /api/server/logout` | 当前 Cookie | 撤销当前登录态并清除 Cookie |
+| `GET /api/server/me` | 已登录 | 当前账号的非秘密投影 |
+| `GET /api/server/users` | 管理员 | `items` 账号投影 |
+| `POST /api/server/users` | 管理员，`{username,password,role?}`，默认 role=user | 201 `user`；无公开注册 |
+| `PATCH /api/server/users/{user_id}` | 管理员，`{enabled:boolean}` | 账号投影；停用即时撤销登录并停止受管实例 |
+| `POST /api/server/users/{user_id}/password` | 管理员，`{password}` | 撤销该账号全部登录态，研究继续 |
+| `POST /api/server/users/{user_id}/stop` | 管理员 | 只停止该账号的受管 pair，释放实例槽 |
+
+请求体拒绝多余字段；密码最少 12 字符，账号 UUID 由服务端生成，最后一个活动管理员不能停用。未登录 401、管理员权限不足 403，失败只返回稳定错误码。`/api/research/**` 和框架嵌入请求按已认证用户绑定固定回环 backend，不接受 owner、上游 URL 或外部内部认证标头；网关剥离浏览器 Cookie/Authorization/代理标头，拒绝 internal、编码路径及上游重定向。后端再验证私有逐实例网关令牌；内部回调仅走既有白名单与独立数据密钥，不对浏览器转发。
+
+页面身份头 `X-RWB-Page-User`、SSE 的 `rwb_user` 只用于拒绝换账号后仍打开的旧页面，不授予用户选择权限；读取可省略，产品写请求必须至少携带一项且所有提供值均匹配当前账号。登录撤销后正在进行的流按一秒间隔重验后停止交付字节；后端研究不因此自动取消。容量满返回 503 `runtime_capacity_exceeded`，不创建队列或驱逐实例。服务器 profile 的禁用接口返回 403 `server_capability_disabled`，官方模型连接限制也在后端执行；网关登录成功不证明模型或研究可用。
+
 新增匿名GET：`/api/research/aihot/items/{item_id}`、`/items/{item_id}/original`、`/stories/{story_id}`、`/topics/{slug}?page=1`、`/groups/{fact_id}/reports`，均在相同前缀内。标识/页码严格限定，响应校验身份；专题308仅接受UUID合并目标，由浏览器在本地路由内最多跟进四次，不跟随HTTP跳转。正文以body.content惰性阅读树替代上游HTML。no-store来源清单不缓存。
 
 AI资讯读取原站公开页面API，通过固定 `/api/research/aihot/pages/hot` 和

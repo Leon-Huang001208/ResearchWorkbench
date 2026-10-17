@@ -117,3 +117,9 @@ artifact storage：____ / 0.5 GB
 Host元数据专项升级测试复用Research Web Checks现有test_resident.py；resident路径由现有Mac Bootstrap自动选中，不新增job或平台dispatch。只校验macOS清洁安装/固定DSH/健康/Doctor，不调用模型。
 
 通用Python回归的报告渲染器依赖直接抽取现有 requirements/web.lock 中的 ReportLab 固定版本及哈希，仅补足原通用 dev 环境缺项；不新增产品依赖或 runner。测试凭据使用进程内夹具，不依赖Linux系统凭据库。
+
+2026-10-17私网多用户增加四个定点身份/网关/运行池/CLI测试文件到原Research Web Checks步骤，
+不增加job、runner、依赖或平台dispatch。变更前实时仓库PUBLIC；最近五次成功run
+38888413591、38887241312、38886120274、38878187740、38876906340的总时长分别
+404、486、519、442、510秒（含准备/安装，均值472.2秒）。本地四个新模块约8秒，
+预算预留新增30秒，沿用20分钟超时及既有concurrency；实际CI时长仍由候选run记录。

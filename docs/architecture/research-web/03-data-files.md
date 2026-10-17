@@ -1,5 +1,13 @@
 # DataHub、研究资料与实际文件
 
+## 服务器账号与用户数据
+
+可选服务器根默认为 `~/.research-workbench/server/`，与原 `research-web/` 个人数据根分离。`accounts.sqlite3` 只保存账号、scrypt 密码摘要、登录令牌哈希、过期与限速事实；不保存研究正文。服务端生成的 UUID 对应 `users/{uuid}/research-web/`，其 Store 索引、`sessions/{session_id}/inputs|outputs` 和 `runtime/home/sessions/` DSH 历史各自独立；`users/{uuid}/state/` 保存该实例私有认证及所有权记录。`logs/server.jsonl`、`logs/runtime.jsonl` 记录非秘密审计；用户 pair 日志在其数据根 `logs/`。
+
+服务器目录权限为 0700、私有文件 0600，拒绝符号链接、硬链接及未知归属；凭据继续按用户 data home 命名空间进入既有系统凭据设施，不复制管理员密钥。账号密码重置或停用撤销所有登录态，停用账号不删除其历史和文件。只备份账号 SQLite 不能恢复聊天：完整服务备份须包括所有用户数据、DSH 历史及经独立授权的凭据恢复方案。首版不自动迁移原个人数据或清理用户历史；同 UID 后端本身仍受信任，文件目录分离不是 OS 隔离。
+
+报告 Workflow 在服务器 profile 禁用；FinGPT/Claw 的原会话文件和文件式文档继续按用户根校验。浏览器草稿用账号 UUID 命名空间的 sessionStorage，导航偏好用相同账号空间的 localStorage，避免恢复其他账号状态；Cookie 不进入这些存储。同一浏览器 profile 的本地存储仍由该 profile 持有，命名空间不是本地数据保密边界；浏览器下载副本由用户自行保管。
+
 ## FinGPT 证据与报告版本
 
 每轮用户要求、截止时点、模式、前轮身份及质量回执复用 Host receipt；DSH 继续保存原生正文。模型只能提出报告、覆盖定位和数值主张，不能修改冻结要求或自证通过。Host 有界读取文本附件及 DataHub 快照真实字节，将数值、期间、单位绑定后复算；无法确定的结论保留未核验。
