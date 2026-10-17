@@ -104,6 +104,10 @@ def test_only_pinned_ai_news_dependency_directory_can_be_registered_for_closeout
     owned.mkdir(parents=True)
     record = register_directory(tmp_path.resolve(), owned, "dependency")
     assert record["path"] == str(owned)
+    for name in (".mypy_cache", ".ruff_cache"):
+        cache = tmp_path / name
+        cache.mkdir()
+        assert register_directory(tmp_path.resolve(), cache, "dependency")["path"] == str(cache)
     unrelated = tmp_path / "services/ai_news/vendor/unrelated/node_modules"
     unrelated.mkdir(parents=True)
     with pytest.raises(ResourceError):

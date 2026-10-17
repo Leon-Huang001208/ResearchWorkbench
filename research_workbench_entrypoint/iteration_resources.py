@@ -32,6 +32,8 @@ DEPENDENCIES = (
     ".venv",
     ".validation-tools",
     ".pytest_cache",
+    ".mypy_cache",
+    ".ruff_cache",
 )
 EMPTY_DIRECTORIES = ("data/markdown", "data/objects", "data/raw_text")
 
