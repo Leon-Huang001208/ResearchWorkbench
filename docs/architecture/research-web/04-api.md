@@ -1,5 +1,7 @@
 # Research Web 接口清单
 
+不新增HTTP端点。满槽仍返回503 runtime_capacity_exceeded，已驻留用户仍可访问；容量只由管理员私有配置/CLI指定，浏览器不能通过owner或header提高上限。Doctor JSON增加capacity配置事实（additional_instances/total_instances），不认证模型与重型研究容量。
+
 用户实例恢复若原回调端口被占用，返回503 runtime_port_unavailable；不安全或不一致的控制记录为runtime_control_invalid（权限类仍保留runtime_path_unsafe）。不自动改址或驱逐其他实例；匿名健康不触发这些恢复操作。
 
 附接 primary 的原 /api/research/aihot/ 只读请求沿认证代理送原 backend，避免升级网关时改变其资讯响应合同；新用户共享资讯 API 保持，管理接口仍验 admin。/static 按认证 UUID 选择固定界面版本并 no-store。

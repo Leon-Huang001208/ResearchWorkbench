@@ -1,5 +1,7 @@
 # DataHub、研究资料与实际文件
 
+常驻私有resident.json增加可选整数max_additional_instances（1至4），缺失保留额外1；不改变SQLite、会话、文件、模型及控制token格式。容量修改与版本路径一起通过已审操作事务保全、回滚及重启，不迁移用户数据。
+
 不新增端口账本或schema：用户.control/datahub.json及可选mcp-runtime.json继续是可信回调地址权威；恢复只读其原址，不重写token。原址事务journal存在时不启动用户pair。
 
 primary UI 文件只从已验证的旧 project/app/research_web/ui 读取；数据与源码根均不能由浏览器传入。静态响应不缓存，原研究文件与模型命名空间不搬移。
