@@ -46,3 +46,5 @@
 该增量使用注入的fake资讯service及临时账号库验证，无产品数据库/进程启动、模型或付费调用。新增test_ai_news_multiuser与原test_multiuser_gateway合计36项通过；Ruff/Black/isort三个Python文件通过，mypy两个源文件通过。日志位于任务feature worktree的logs/ai-news-autonomous-20261017/multiuser-tests.log，不累计为此前不同测试项。map已登记两组共享测试、chronicle测试及图12 gateway证据；最终生成物、revision、CI和合并状态由主会话统一绑定，未在该增量生成atlas/index或提交。
 
 登记后的架构检查实际执行 `node scripts/check_research_architecture.mjs --project . --base c034be7355fbcd1cfb15bf84da671d1ad8f55355`：检查792项，退出1，唯一违例为生成的outputs/research-web-architecture/index.html尚未反映新登记，代码generated_artifact_stale。日志architecture-private-integration.json保留完整结果；主会话生成最终atlas/index并重新检查前，不把此项记为PASS。未改reading revision或擅自生成产物。
+
+最新主线 c034be7 多用户集成源码检查点 `c0b50dd549d51cbb9223b4819234e1378bd0160d`：共享网关提供成员阅读与管理员采编；tenant后端拒绝AI路由。独立Python/JS增量评审未发现P1/P2；原位未发布基线恢复真实prepare成功，保留原工作树和所有提交。合并后854项JS通过；17项CLI重检通过，完整Python与最终候选CI待完成。
