@@ -1,5 +1,7 @@
 # 部署与模块职责
 
+报告来源身份由Host提供规范ID/标题与全文SHA；全量CSV派生数值在Host有界工作线程独立复算，仍走原research_check_quality及严格交付链。无新服务、数据库或模型执行循环。
+
 网关在既有逐用户代理路径透传研究必需的 Idempotency-Key；部署节点、实例归属与认证边界不变。
 
 管理员 release-reservation 沿原 operation.lock 退休已停止 stage 的容量预留；业务容器、卷、网络和生产生命周期不变。

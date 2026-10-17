@@ -68,6 +68,57 @@ def prepare_contract(service, sid, receipt, question, requirements, as_of, mode)
     return contract
 
 
+def ensure_quality_scope(service, sid, key, contract):
+    """A read-only worker cannot publish a verdict for a superseded task."""
+    current = service.store.session(sid).get("delivery_key")
+    receipt = service.store.data["receipts"].get(f"{sid}:{current}", {})
+    if current != key or receipt.get("research_contract") != contract:
+        log.warning("research_quality_scope_changed")
+        raise StoreError(
+            "研究回合已切换，请重新读取当前状态", "research_quality_scope_changed", 409
+        )
+
+
+def source_context(service, sid, files, sources=()):
+    """Return canonical owned identities and whole-file hashes, not guessed aliases."""
+    identities = []
+    total = 0
+    for item in files:
+        if item.get("kind") != "inputs":
+            continue
+        if len(identities) >= 20:
+            break
+        row = {"id": "file:" + item["id"], "title": item["name"], "digest_scope": "full_file"}
+        try:
+            stream, _ = service.store.open_file(sid, item["id"])
+            with stream:
+                raw = stream.read(16 * 1024 * 1024 + 1)
+            total += len(raw)
+            if len(raw) > 16 * 1024 * 1024 or total > 64 * 1024 * 1024:
+                row.update(sha256=None, unavailable="input_observation_limit")
+            else:
+                row["sha256"] = hashlib.sha256(raw).hexdigest()
+        except (OSError, StoreError):
+            row.update(sha256=None, unavailable="input_unavailable")
+            log.warning("research_source_context_unavailable")
+        identities.append(row)
+    for source in sources:
+        if len(identities) >= 20 or source.get("id", "").startswith("file:"):
+            continue
+        row = {
+            name: source[name]
+            for name in ("id", "title", "url", "as_of")
+            if source.get(name) is not None
+        }
+        if len(json.dumps([*identities, row], ensure_ascii=False).encode()) <= 16384:
+            identities.append(row)
+    return {
+        "sources": identities,
+        "digest_scope": "full_file_for_inputs_only",
+        "excerpt_bytes_limit": 12000,
+    }
+
+
 def observations(service, sid, files, sources):
     """Only actual session input/snapshot bytes become numeric evidence."""
     result = []
@@ -126,6 +177,13 @@ def quality_result(service, sid, receipt, files, sources, delivery=None):
     evidence_files = (
         files if "uploads" in scope else [item for item in files if item.get("kind") != "inputs"]
     )
+    observation_error = False
+    try:
+        actual_observations = observations(service, sid, evidence_files, sources)
+    except (OSError, StoreError) as exc:
+        log.warning("research_quality_input_observation_unavailable", error_type=type(exc).__name__)
+        actual_observations = []
+        observation_error = True
     report = report_projection(
         service.store,
         sid,
@@ -134,9 +192,20 @@ def quality_result(service, sid, receipt, files, sources, delivery=None):
         contract["task_id"],
         delivery,
         contract=contract,
-        observations=observations(service, sid, evidence_files, sources),
+        observations=actual_observations,
     )
     assessment = (report or {}).get("assessment", {})
+    if observation_error:
+        assessment = {
+            **assessment,
+            "status": "invalid",
+            "issues": list(
+                dict.fromkeys([*assessment.get("issues", []), "input_observation_unavailable"])
+            ),
+        }
+        if report is not None:
+            report.update(quality="invalid", assessment=assessment, issues=assessment["issues"])
+
     status = assessment.get("status", "incomplete")
     issues = assessment.get("issues", ["report_missing"])
     return {
@@ -148,6 +217,10 @@ def quality_result(service, sid, receipt, files, sources, delivery=None):
         "repair_count": receipt.get("quality_repair_count", 0),
         "contract": contract,
         "report": report,
+        "evidence_context": {
+            **source_context(service, sid, evidence_files, sources),
+            "calculation_observations": (report or {}).get("calculation_observations", []),
+        },
     }
 
 

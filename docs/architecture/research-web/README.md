@@ -1,5 +1,7 @@
 # Research Workbench Research Web 当前架构
 
+质量核验仍由同一Host和DSH研究回合完成：规范来源元数据、受限全量CSV独立复算和输出变化后的严格重验不增加执行引擎。Automation、公开安装入口和模型配置合同保持。
+
 可选[私网邀请制多用户](../../research-web-installation.md#私网邀请制多用户macos-native)在原研究 UI 前增加账号网关；每个已认证用户独立 Web/DSH、文件和凭据，账号数据库不保存聊天正文。首版仅 macOS Native、管理员开账号、默认两实例；同 UID 后端仍受信任，不宣称公网或 OS 多租户隔离。详细授权、账号 API 和存储分别见 05、04、03 章。
 
 FinGPT 快速/深入/Agent 共用原生 DSH、模型设置及历史，Host 质量回执与报告版本仍属于既有会话文件和验收边界。执行、质量及文件状态分别呈现；Claw/Automation 执行机制保持原合同。

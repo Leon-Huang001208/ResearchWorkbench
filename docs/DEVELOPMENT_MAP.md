@@ -327,3 +327,5 @@ Hot token限额修订为migration18/model-control.ts `amend-tokens`及Native
 hot_results分别显示执行failed与交付completed；读资料的Seatbelt验收不等于报告完成。
 
 Hot研究结果读取/原回合核对为hot_results.py与hot_routes，测试test_hot_results/test_delivery及research_web_hot；Delivery.refresh新增可选不可变key，旧调用默认保持。结果按Delivery原合同完整流式SHA核验，100文件/每文件16MiB，超限明确不可核验，不以展示截断写入failed。
+
+报告质量的全量 CSV 复算由 research_calculations.py 提供，研究质量服务绑定来源、文件 SHA 与当前回合；test_research_calculations.py、test_delivery_cache.py、test_research_quality_scope.py 复用现有 Research Web Checks Python 步骤，新增测试预算 15 秒，不新增 job/runner。Mac 干净安装及真实模型并发交付单独验收。

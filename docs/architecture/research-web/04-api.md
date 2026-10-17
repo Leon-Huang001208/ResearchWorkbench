@@ -1,5 +1,7 @@
 # Research Web 接口清单
 
+HTTP端点不增加。research_check_quality返回有界evidence_context（规范sources及Host独立计算observations）；旧错误身份、伪造数值和谱系缺口仍拒绝。研究回合切换时返回409 research_quality_scope_changed；invalid报告下载仍409 research_report_invalid。
+
 POST /api/research/sessions/{sid}/messages 的必需 Idempotency-Key 由私网网关透传；不提供时仍由后端422拒绝。Cookie、Authorization不转发，内部用户密钥仍由认证网关生成。
 
 不新增HTTP端点。满槽仍返回503 runtime_capacity_exceeded，已驻留用户仍可访问；容量只由管理员私有配置/CLI指定，浏览器不能通过owner或header提高上限。Doctor JSON增加capacity配置事实（additional_instances/total_instances），不认证模型与重型研究容量。

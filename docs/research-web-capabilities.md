@@ -1,5 +1,7 @@
 # Research Web 能力包与版本
 
+research_check_quality沿原权限与一次补查预算返回规范来源及独立计算观察，不增加可选能力或模型重试。data-only配方由Host复算后才可用于原identity数值验证；模型自写observations没有信任效力。Skill/Workflow/Automation准入保持。
+
 research_check_quality 是非用户可选的原生内部控制工具，仅核对 Host 冻结要求与实际资料；不能从工具参数修改验收标准、补查次数或执行预算。它不改动已批准 Skill/Workflow/Automation 的版本与权限，也不替代来源准入。
 
 两模式会话侧栏统一后，Claw Agent日程位于新聊天下方，管理项目紧接其后；模式菜单不再展示重复的选择能力入口，能力从全局能力中心进入；原Skill/Workflow版本与原生调用不变。逐题卡片的“跳过”仅提供明确未回答记录，不能代替自动化或厂商权限授权。
