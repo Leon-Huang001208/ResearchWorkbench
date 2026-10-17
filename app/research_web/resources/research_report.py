@@ -20,6 +20,66 @@ def source_id(url):
     return "web:" + hashlib.sha256(url.encode()).hexdigest()[:24]
 
 
+def validate_calculation_recipes(recipes):
+    """Validate data-only calculation requests; never accept paths or executable code."""
+    from decimal import Context, Decimal, InvalidOperation, localcontext
+
+    if not isinstance(recipes, list) or len(recipes) > 4:
+        raise ValueError("research_calculation_recipes_invalid")
+    ids = set()
+    for row in recipes:
+        if (
+            not isinstance(row, dict)
+            or set(row)
+            != {"id", "source_id", "source_sha256", "operation", "weights", "terminal_shocks"}
+            or not isinstance(row["id"], str)
+            or not re.fullmatch(r"[a-zA-Z][a-zA-Z0-9_-]{0,31}", row["id"])
+            or row["id"] in ids
+            or row["operation"] != "buy_and_hold"
+            or not isinstance(row["source_id"], str)
+            or not re.fullmatch(r"file:[a-f0-9]{24}", row["source_id"])
+            or not isinstance(row["source_sha256"], str)
+            or not re.fullmatch(r"[a-f0-9]{64}", row["source_sha256"])
+            or not isinstance(row["weights"], dict)
+            or not 1 <= len(row["weights"]) <= 8
+            or not isinstance(row["terminal_shocks"], dict)
+            or not set(row["terminal_shocks"]).issubset(row["weights"])
+        ):
+            raise ValueError("research_calculation_recipe_invalid")
+        ids.add(row["id"])
+        try:
+            weights = []
+            for kind in ("weights", "terminal_shocks"):
+                for name, value in row[kind].items():
+                    if (
+                        not isinstance(name, str)
+                        or not 1 <= len(name) <= 80
+                        or isinstance(value, bool)
+                        or not isinstance(value, (str, int, float))
+                        or len(str(value)) > 64
+                    ):
+                        raise ValueError("research_calculation_number_invalid")
+                    if not re.fullmatch(
+                        r"[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]{1,3})?", str(value)
+                    ):
+                        raise ValueError("research_calculation_number_invalid")
+                    number = Decimal(str(value))
+                    if not number.is_finite() or abs(number.as_tuple().exponent) > 30:
+                        raise ValueError("research_calculation_number_invalid")
+                    if kind == "weights":
+                        if not 0 <= number <= 1:
+                            raise ValueError("research_calculation_weight_invalid")
+                        weights.append(number)
+                    elif not -1 <= number <= 1:
+                        raise ValueError("research_calculation_shock_invalid")
+            with localcontext(Context(prec=128)):
+                if sum(weights) != Decimal(1):
+                    raise ValueError("research_calculation_weights_invalid")
+        except (InvalidOperation, ArithmeticError) as exc:
+            raise ValueError("research_calculation_number_invalid") from exc
+    return recipes
+
+
 def validate_payload(value):
     if not isinstance(value, dict) or not re.fullmatch(
         r"[a-f0-9]{24}", str(value.get("task_id", ""))
@@ -117,6 +177,7 @@ def validate_payload(value):
             or not 1 <= len(row["excerpt"]) <= 10000
         ):
             raise ValueError("research_report_coverage_invalid")
+    validate_calculation_recipes(value.get("calculations", []))
     claims = value.get("numeric_claims", [])
     if not isinstance(claims, list) or len(claims) > 200:
         raise ValueError("research_report_numeric_claim_invalid")

@@ -87,6 +87,9 @@ jobs:
             tests/research_web/test_protocol.py \
             tests/research_web/test_fingpt_dsh_fusion.py \
             tests/research_web/test_research_quality.py \
+            tests/research_web/test_research_calculations.py \
+            tests/research_web/test_research_quality_scope.py \
+            tests/research_web/test_delivery_cache.py \
             tests/research_web/test_research_report.py \
             tests/research_web/test_session_search.py \
             tests/research_web/test_integration_coordinator.py \

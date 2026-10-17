@@ -1,5 +1,7 @@
 # DataHub、研究资料与实际文件
 
+可选calculations是数据配方，不是脚本或可信结果；Host只读取本会话允许inputs的实际全文字节并核对SHA，生成绑定用户根/session/task/算法/输入与配方摘要的观测。模型sources/coverage/notes仍由原门逐项核验，不自动改写。
+
 幂等请求头透传不改变账号库、会话及模型配置格式，不搬移历史或凭据；原后端继续维护请求幂等性。
 
 stage 释放仅归档原私有身份账本并退休容量；全部数据、日志、缓存、凭据和模型密钥卷以及恢复档保持原样，不迁移或删除。
@@ -569,3 +571,13 @@ ReportLab 初始化需读取当前目录；PDF helper 在已授权输出目录�
 PR96 与既有 Fernet 模型桥共用唯一私有 stdio 接口；默认 `native-keychain`、常规 staged `docker-encrypted-file` 语义保留，管理器仅显式绑定 `docker-encrypted` 选择 AES-GCM。两种 Docker 格式与主密钥布局独立，混合绑定或外来格式失败关闭，不转换密文、不删除旧 Key、不回退。四操作与固定 ref 保持；来源如实区分，configured/Doctor 不证明真实生成。
 
 AES 载入检查每个 JSON 的 canonical 外层记录、完整封装、版本/实例及固定 namespace/ref 文件名，并认证密文；正确旧树只读通过，外来/未知记录拒绝且保留原字节。
+
+## 受限CSV计算证据
+
+结构化research-report.json可选calculations，最多4项，每项精确包含id、source_id、source_sha256、operation、weights、terminal_shocks。source_id为当前允许input的file:ID，source_sha256为完整实际文件摘要，不是12KB摘录摘要。operation目前仅buy_and_hold。权重列1至8个，非负且精确和为1；冲击列必须属于权重列，区间[-1,1]。不接受其他字段、路径或代码。
+
+Host按CSV行序（不推断日期）归一化首行价格，计算静态初始持仓组合收益、路径最大回撤、仅修改末值价格的情景收益及行数。固定规范列序，Decimal精度34、ROUND_HALF_EVEN，比例结果固定10位小数，period为完整输入样本，单位ratio；行数单位行。正有限价格在1e-18至1e18，数字最多64字符且指数绝对值不超过30；超出计算可表达范围失败关闭，不截断输入。
+
+Host观测ID由隔离scope及输入/配方SHA生成；模型不能声明可信观测。research_check_quality返回真实quote、value、period、unit和来源绑定，模型在原补查预算内据此完成自己的numeric_claims、notes、coverage与有证据的叙述；不自动替模型填写或消除缺口。原严格验收器保持。
+
+Delivery先检查当前key；FINAL输出集合或字节变化后重新走原sandbox和发布后字节复验。不变的失败不隐式重试，取消/原生执行证明失败不能靠改文件恢复成功。report-versions只属于历史归档，不满足当前任务格式要求；解析中集合改变保留未验证/incomplete，绝不复用旧通过。

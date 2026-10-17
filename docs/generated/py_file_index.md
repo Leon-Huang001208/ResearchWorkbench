@@ -4418,7 +4418,7 @@ Imports:
 
 Classes:
 - `Delivery`
-  - methods: __init__, snapshot, current, begin, public, reconcile_cancel, refresh
+  - methods: __init__, snapshot, _candidates, _signature, _unverified_scope, current, begin, public, reconcile_cancel, refresh
 
 Functions:
 - `expected_formats`
@@ -7470,6 +7470,36 @@ Functions:
 - `_validate_values`
 
 
+## `app/research_web/research_calculations.py`
+
+Module docstring:
+> Bounded independent calculations from actual owned input bytes, never model output.
+
+Imports:
+- `__future__`
+- `collections`
+- `core.observability`
+- `csv`
+- `decimal`
+- `hashlib`
+- `io`
+- `json`
+- `re`
+- `resources.research_report`
+- `store`
+- `threading`
+
+Classes:
+- `CalculationError`
+  - A stable error code; input values and paths never enter error messages.
+
+Functions:
+- `_price`
+- `_calculate`
+- `observe_calculations`
+  - Recheck whole bytes before a scoped result-cache lookup; no status is cached.
+
+
 ## `app/research_web/research_evidence.py`
 
 Module docstring:
@@ -7481,6 +7511,7 @@ Imports:
 - `json`
 - `logging`
 - `re`
+- `research_calculations`
 - `research_quality`
 - `resources.research_report`
 - `store`
@@ -7543,6 +7574,10 @@ Functions:
 - `latest_receipt`
 - `prepare_contract`
   - Freeze requirements before sending; continuation preserves original obligations.
+- `ensure_quality_scope`
+  - A read-only worker cannot publish a verdict for a superseded task.
+- `source_context`
+  - Return canonical owned identities and whole-file hashes, not guessed aliases.
 - `observations`
   - Only actual session input/snapshot bytes become numeric evidence.
 - `quality_result`
@@ -7602,6 +7637,8 @@ Imports:
 
 Functions:
 - `source_id`
+- `validate_calculation_recipes`
+  - Validate data-only calculation requests; never accept paths or executable code.
 - `validate_payload`
 - `_bounded_bytes`
 - `_version_read`

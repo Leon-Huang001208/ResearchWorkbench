@@ -41,7 +41,12 @@ class Delivery:
         items: dict[str, dict] = {}
         for item in self.store.files(sid):
             extension = Path(item["name"]).suffix.lower().lstrip(".")
-            if item["kind"] != "outputs" or extension not in FORMATS:
+            relative = self.store.session(sid)["files"].get(item["id"], "")
+            if (
+                item["kind"] != "outputs"
+                or extension not in FORMATS
+                or Path(relative).parts[:2] == ("outputs", "report-versions")
+            ):
                 continue
             if len(items) >= 100:
                 raise StoreError("交付检查最多支持每会话 100 个输出文件")
@@ -62,6 +67,29 @@ class Delivery:
                 row.update(sha256=None, reason="文件无法安全读取或超过 16 MiB 上限", valid=False)
             items[item["id"]] = row
         return items
+
+    def _candidates(self, sid, delivery):
+        return [
+            row
+            for fid, row in self.snapshot(sid).items()
+            if fid not in delivery["baseline"] or row["sha256"] != delivery["baseline"][fid]
+        ]
+
+    @staticmethod
+    def _signature(files):
+        return sorted((row["id"], row["path"], row.get("sha256"), row["format"]) for row in files)
+
+    def _unverified_scope(self, delivery):
+        return self.public(
+            {
+                **delivery,
+                "status": "verification_failed",
+                "files": [],
+                "missing_formats": delivery["required_formats"].copy(),
+                "failure_code": "delivery_scope_unconfirmed",
+                "reasons": ["交付任务归属未确认，旧回执不代表当前任务"],
+            }
+        )
 
     def current(self, sid):
         key = self.store.session(sid).get("delivery_key")
@@ -168,11 +196,33 @@ class Delivery:
             delivery = receipt.get("delivery")
             if not delivery:
                 return None
-            if delivery["status"] in FINAL:
-                return self.public(delivery)
             if self.store.session(sid).get("delivery_key") != key:
                 log.warning("research_delivery_scope_unconfirmed")
-                return self.public(delivery)
+                return self._unverified_scope(delivery)
+            current_candidates = None
+            if delivery["status"] in FINAL:
+                if (
+                    delivery["status"] not in {"completed", "incomplete", "verification_failed"}
+                    or delivery.get("failure_code")
+                    or not delivery["required_formats"]
+                ):
+                    return self.public(delivery)
+                try:
+                    current_candidates = self._candidates(sid, delivery)
+                except (OSError, ValueError, StoreError, KeyError, TypeError) as exc:
+                    log.warning(
+                        "research_delivery_final_snapshot_failed", error_type=type(exc).__name__
+                    )
+                    delivery.update(
+                        status="verification_failed",
+                        reasons=["当前输出不能安全核验；旧交付回执已失效"],
+                    )
+                    self.store.save()
+                    return self.public(delivery)
+                if self._signature(current_candidates) == self._signature(delivery["files"]):
+                    return self.public(delivery)
+                log.info("research_delivery_outputs_changed")
+                delivery["status"] = "pending"
             marker_seq = next(
                 (
                     entry["event"]["seq"]
@@ -202,12 +252,11 @@ class Delivery:
                 if not delivery["required_formats"]:
                     delivery["status"] = "not_required"
                 else:
-                    files = [
-                        row
-                        for fid, row in self.snapshot(sid).items()
-                        if fid not in delivery["baseline"]
-                        or row["sha256"] != delivery["baseline"][fid]
-                    ]
+                    files = (
+                        current_candidates
+                        if current_candidates is not None
+                        else self._candidates(sid, delivery)
+                    )
                     delivery["files"] = files
                     candidates = [row for row in files if row.get("sha256")]
                     if candidates:
@@ -220,6 +269,9 @@ class Delivery:
                         result = await asyncio.to_thread(
                             sandbox.run_script, self.config, self.store.directory(sid), code
                         )
+                        if self.store.data["sessions"].get(sid, {}).get("delivery_key") != key:
+                            log.warning("research_delivery_scope_changed_during_validation")
+                            return self._unverified_scope(delivery)
                         if result.status != "completed":
                             raise StoreError("严格沙箱验证未完成：" + result.status)
                         checks = json.loads(result.stdout)
@@ -256,6 +308,14 @@ class Delivery:
                                     valid=False,
                                     reason="文件在解析后发生变化、消失或无法安全读取，未确认交付",
                                 )
+                    if self._signature(self._candidates(sid, delivery)) != self._signature(files):
+                        log.warning("research_delivery_manifest_changed_during_validation")
+                        for item in files:
+                            if item.get("valid"):
+                                item.update(
+                                    valid=False,
+                                    reason="输出集合或字节在严格验证期间变化，未确认交付",
+                                )
                     valid = {row["format"] for row in files if row.get("valid")}
                     delivery["missing_formats"] = [
                         fmt for fmt in delivery["required_formats"] if fmt not in valid
@@ -273,6 +333,9 @@ class Delivery:
                     status="verification_failed",
                     reasons=["交付验证失败；严格沙箱不可用、文件过多或检查结果不完整"],
                 )
+            if self.store.data["sessions"].get(sid, {}).get("delivery_key") != key:
+                log.warning("research_delivery_scope_changed_before_publish")
+                return self._unverified_scope(delivery)
             delivery["checked_at"] = time.time()
             self.store.save()
             log.info(
