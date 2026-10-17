@@ -68,34 +68,45 @@ BLOCKED = frozenset(
 )
 
 
-def reading_href(value: str) -> str | None:
+def reading_href(
+    value: str, source_base: str | None = None, local_origin: str | None = None
+) -> str | None:
     if not isinstance(value, str) or re.search(r"[\s\\\x00-\x1f\x7f]", value):
         return None
     if re.fullmatch(r"#sec-\d{1,5}", value):
         return value
     try:
-        parsed = urlsplit(urljoin("https://aihot.news/", value))
+        base = urlsplit(source_base or "https://rwb.invalid/")
+        if base.scheme not in {"http", "https"} or base.username or base.password:
+            base = urlsplit("https://rwb.invalid/")
+        parsed = urlsplit(urljoin(base.geturl(), value))
     except ValueError:
         return None
     if parsed.scheme not in {"https", "http"} or parsed.username or parsed.password:
         return None
-    if parsed.netloc == "aihot.news":
+    if parsed.netloc in {"rwb.invalid", "aihot.news", urlsplit(local_origin or "").netloc}:
         match = re.fullmatch(
             r"/(items|story|topics)/([A-Za-z0-9_-]{1,80})(/original)?/?", parsed.path
         )
         if match:
             kind = {"items": "item", "story": "story", "topics": "topic"}[match[1]]
             return f"#/aihot/{kind}/{match[2]}" + ("?lang=original" if match[3] else "")
+        return None
+    hostname = (parsed.hostname or "").lower().rstrip(".")
+    if hostname == "aihot.news" or hostname.endswith(".aihot.news"):
+        return None
     return parsed.geturl()
 
 
 class ReadingParser(HTMLParser):
-    def __init__(self, image):
+    def __init__(self, image, source_base=None, local_origin=None):
         super().__init__(convert_charrefs=True)
         self.root: list[dict] = []
         self.stack: list[tuple[str, list[dict]]] = [("", self.root)]
         self.blocked: list[str] = []
         self.image = image
+        self.source_base = source_base
+        self.local_origin = local_origin
         self.count = 0
 
     def append(self, node):
@@ -115,7 +126,7 @@ class ReadingParser(HTMLParser):
         raw = dict(attributes)
         attrs = {}
         if tag == "a":
-            href = reading_href(raw.get("href"))
+            href = reading_href(raw.get("href"), self.source_base, self.local_origin)
             if href:
                 attrs["href"] = href
         if re.fullmatch(r"sec-\d{1,5}", raw.get("id") or ""):
@@ -149,8 +160,8 @@ class ReadingParser(HTMLParser):
             self.append({"text": data})
 
 
-def reading_tree(value: str, image) -> list[dict]:
-    parser = ReadingParser(image)
+def reading_tree(value: str, image, *, source_base=None, local_origin=None) -> list[dict]:
+    parser = ReadingParser(image, source_base, local_origin)
     try:
         parser.feed(value)
         parser.close()

@@ -1,5 +1,9 @@
 # Research Workbench Development Map
 
+AI资讯自主化本轮在隔离实例接入原版API/worker与独立库，保持DSH研究执行及当前常驻内容。零调用和后续切换边界见[自主资讯合同](research-web-ai-news.md)。
+
+AI资讯采用固定原版AIHOT API与worker、独立PostgreSQL和Host私有桥；默认关闭采集、推理和付费源，从自主库重新起刊。隔离验收不导入线上历史，不更新常驻内容；DSH继续是唯一研究执行引擎，Hot宏观及研究证据保留，重叠AI信源在未来真实闭环验收后的显式切换事务中交接。详见[自主资讯合同](research-web-ai-news.md)。
+
 Git基线恢复由git_safety.mjs的remote_moved原位prepare认证，保留原PR/工作树和旧回执，重置CI/验证并推进已发布tip绑定。近处git_safety.test.mjs覆盖所有权、祖先、并发变化、重复准备、发布后回退及锁保护；共享框架不修改。
 
 AI资讯：aihot_routes.py管理v1兼容和完整site报刊/热点合同、LRU/ETag/限流；aihot_media.py

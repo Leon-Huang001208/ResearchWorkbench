@@ -1,9 +1,8 @@
 # 部署与模块职责
 
-AIHOT全文、事件与主题继续沿同一Host/浏览器读取边界；HTML仅转换为惰性阅读树，不执行上游脚本，不新增数据存储或研究引擎。
+AI资讯自主化本轮在隔离实例接入原版API/worker与独立库，保持DSH研究执行及当前常驻内容。零调用和后续切换边界见[自主资讯合同](../../research-web-ai-news.md)。
 
-AI资讯在既有Host/浏览器边界内读取AIHOT公开页面API，完整保留报刊与热点阅读字段。
-图片仅经上游签发路径的有界同源适配；没有新增常驻服务、数据库、研究执行器或调度层。
+AI资讯全文、事件和主题在既有Host/浏览器内阅读，HTML转换为惰性树。新增固定原版API与采编worker、独立PostgreSQL及持久队列，见[图12](../../../outputs/research-web-architecture/12-ai-news.html)。没有独立SSR网站；研究仍由唯一DSH执行。未配置时诚实503，且没有外站内容后备。
 
 FinGPT 三策略继续由唯一 DSH 执行。Host 质量工具复用现有私有桥、receipt 和会话输出，Native/Docker 部署节点与端口不增加；不合入候选分支的独立 Node 问答引擎。
 

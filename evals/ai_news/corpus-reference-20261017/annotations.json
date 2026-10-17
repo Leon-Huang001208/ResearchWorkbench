@@ -1,0 +1,2977 @@
+{
+  "status": "needs_review",
+  "gold_approved": false,
+  "reference_status": "proposed_reference",
+  "articles": [
+    {
+      "article_id": "article-zh-001",
+      "sha256": "b2cfc6af71f6ab3c30d9a102ce391e5c60367115d8c09084b51993429606596c",
+      "split": "tuning",
+      "entities": [
+        {
+          "name": "Qwen3Guard",
+          "entity_type": "named_subject",
+          "text_sha256": "4148c2c49a35a8146f1f94ca4b9fa3c99b35ed900541370a7f0a4ff50ce84b6d",
+          "byte_span": [
+            79,
+            89
+          ],
+          "status": "proposed_reference"
+        }
+      ],
+      "events": [
+        {
+          "event_type": "source_reported_claim",
+          "fact_id": "fact-article-zh-001",
+          "status": "proposed_reference"
+        }
+      ],
+      "fact_spans": [
+        {
+          "id": "fact-article-zh-001",
+          "text": "该模型基于强大的 Qwen3 基础架构打造",
+          "text_sha256": "4148c2c49a35a8146f1f94ca4b9fa3c99b35ed900541370a7f0a4ff50ce84b6d",
+          "byte_span": [
+            159,
+            208
+          ],
+          "attribution": "source_reported_claim_not_independently_verified",
+          "status": "proposed_reference"
+        }
+      ],
+      "summary_factuality": null,
+      "status": "needs_review"
+    },
+    {
+      "article_id": "article-zh-002",
+      "sha256": "21cfdac632640a3893a27fdca237d48352b971607d99423561c28537507ae09f",
+      "split": "holdout",
+      "entities": [
+        {
+          "name": "Qwen-Image-Edit",
+          "entity_type": "named_subject",
+          "text_sha256": "f5b092db648c56d47743a67ea0ff2f75b72450d75747984f05a7c7f8fc7344e8",
+          "byte_span": [
+            71,
+            86
+          ],
+          "status": "proposed_reference"
+        }
+      ],
+      "events": [
+        {
+          "event_type": "source_reported_claim",
+          "fact_id": "fact-article-zh-002",
+          "status": "proposed_reference"
+        }
+      ],
+      "fact_spans": [
+        {
+          "id": "fact-article-zh-002",
+          "text": "Qwen-Image-Edit基于我们20B的 Qwen-Image 模型进一步训练",
+          "text_sha256": "f5b092db648c56d47743a67ea0ff2f75b72450d75747984f05a7c7f8fc7344e8",
+          "byte_span": [
+            123,
+            189
+          ],
+          "attribution": "source_reported_claim_not_independently_verified",
+          "status": "proposed_reference"
+        }
+      ],
+      "summary_factuality": null,
+      "status": "needs_review"
+    },
+    {
+      "article_id": "article-zh-003",
+      "sha256": "034bd76b9bcc813e62b60aa5c37c1240be1a457b5cd701c284fb6a6370feef16",
+      "split": "holdout",
+      "entities": [
+        {
+          "name": "Qwen-Image",
+          "entity_type": "named_subject",
+          "text_sha256": "84a2ca2a2b6098f5476a9fec6e3d5bebb574f228e2c736b5dee76e07789b0852",
+          "byte_span": [
+            66,
+            76
+          ],
+          "status": "proposed_reference"
+        }
+      ],
+      "events": [
+        {
+          "event_type": "source_reported_claim",
+          "fact_id": "fact-article-zh-003",
+          "status": "proposed_reference"
+        }
+      ],
+      "fact_spans": [
+        {
+          "id": "fact-article-zh-003",
+          "text": "我们很高兴推出 Qwen-Image，一个20B的MMDiT模型",
+          "text_sha256": "84a2ca2a2b6098f5476a9fec6e3d5bebb574f228e2c736b5dee76e07789b0852",
+          "byte_span": [
+            44,
+            102
+          ],
+          "attribution": "source_reported_claim_not_independently_verified",
+          "status": "proposed_reference"
+        }
+      ],
+      "summary_factuality": null,
+      "status": "needs_review"
+    },
+    {
+      "article_id": "article-zh-004",
+      "sha256": "0c6618af2355ea11847dbdcd01acdc57348cec0e2921b6be2f0eeee1b3689a9f",
+      "split": "tuning",
+      "entities": [
+        {
+          "name": "GSPO",
+          "entity_type": "named_subject",
+          "text_sha256": "dbf07c883be66a6c3b9084f8b1f83f1a6df11142112e88b0a6c5137919af6377",
+          "byte_span": [
+            542,
+            546
+          ],
+          "status": "proposed_reference"
+        }
+      ],
+      "events": [
+        {
+          "event_type": "source_reported_claim",
+          "fact_id": "fact-article-zh-004",
+          "status": "proposed_reference"
+        }
+      ],
+      "fact_spans": [
+        {
+          "id": "fact-article-zh-004",
+          "text": "我们提出了\nGroup Sequence Policy Optimization (GSPO)\n算法",
+          "text_sha256": "dbf07c883be66a6c3b9084f8b1f83f1a6df11142112e88b0a6c5137919af6377",
+          "byte_span": [
+            490,
+            554
+          ],
+          "attribution": "source_reported_claim_not_independently_verified",
+          "status": "proposed_reference"
+        }
+      ],
+      "summary_factuality": null,
+      "status": "needs_review"
+    },
+    {
+      "article_id": "article-zh-005",
+      "sha256": "fc5d73b67057b06c6ebdea13509d2169cfebbc9fcf9a7abc9688f31c2589feb2",
+      "split": "tuning",
+      "entities": [
+        {
+          "name": "Qwen-MT",
+          "entity_type": "named_subject",
+          "text_sha256": "794a77e2f36603ef825e383ac1287b74b45410d56ded4b77ecd197e7859109e5",
+          "byte_span": [
+            58,
+            65
+          ],
+          "status": "proposed_reference"
+        }
+      ],
+      "events": [
+        {
+          "event_type": "source_reported_claim",
+          "fact_id": "fact-article-zh-005",
+          "status": "proposed_reference"
+        }
+      ],
+      "fact_spans": [
+        {
+          "id": "fact-article-zh-005",
+          "text": "本次更新基于强大的 Qwen3 模型",
+          "text_sha256": "794a77e2f36603ef825e383ac1287b74b45410d56ded4b77ecd197e7859109e5",
+          "byte_span": [
+            108,
+            148
+          ],
+          "attribution": "source_reported_claim_not_independently_verified",
+          "status": "proposed_reference"
+        }
+      ],
+      "summary_factuality": null,
+      "status": "needs_review"
+    },
+    {
+      "article_id": "article-zh-006",
+      "sha256": "056010073aec4d01e52c552ea8cdfbdd5072b647826df93d11842fbd3a492315",
+      "split": "tuning",
+      "entities": [
+        {
+          "name": "Qwen3-Coder",
+          "entity_type": "named_subject",
+          "text_sha256": "d906a7eca4c7e92acb72c0caf554e93926eca40f65cfdc4b69341331f96e1ef0",
+          "byte_span": [
+            64,
+            75
+          ],
+          "status": "proposed_reference"
+        }
+      ],
+      "events": [
+        {
+          "event_type": "source_reported_claim",
+          "fact_id": "fact-article-zh-006",
+          "status": "proposed_reference"
+        }
+      ],
+      "fact_spans": [
+        {
+          "id": "fact-article-zh-006",
+          "text": "今天我们正式发布 Qwen3-Coder",
+          "text_sha256": "d906a7eca4c7e92acb72c0caf554e93926eca40f65cfdc4b69341331f96e1ef0",
+          "byte_span": [
+            39,
+            75
+          ],
+          "attribution": "source_reported_claim_not_independently_verified",
+          "status": "proposed_reference"
+        }
+      ],
+      "summary_factuality": null,
+      "status": "needs_review"
+    },
+    {
+      "article_id": "article-zh-007",
+      "sha256": "9afd1a0c1a713b6d35454ce9f74b97dbaee1fdcbe5567ae17fe3ba9f88d54f97",
+      "split": "tuning",
+      "entities": [
+        {
+          "name": "Qwen-TTS",
+          "entity_type": "named_subject",
+          "text_sha256": "eabfdc4e912ff88233012622190d7b41b3e75b91205ae1efc159f3ac4ea7a61c",
+          "byte_span": [
+            45,
+            53
+          ],
+          "status": "proposed_reference"
+        }
+      ],
+      "events": [
+        {
+          "event_type": "source_reported_claim",
+          "fact_id": "fact-article-zh-007",
+          "status": "proposed_reference"
+        }
+      ],
+      "fact_spans": [
+        {
+          "id": "fact-article-zh-007",
+          "text": "Qwen-TTS 支持生成三种中文方言，包括北京话、上海话和四川话",
+          "text_sha256": "eabfdc4e912ff88233012622190d7b41b3e75b91205ae1efc159f3ac4ea7a61c",
+          "byte_span": [
+            354,
+            435
+          ],
+          "attribution": "source_reported_claim_not_independently_verified",
+          "status": "proposed_reference"
+        }
+      ],
+      "summary_factuality": null,
+      "status": "needs_review"
+    },
+    {
+      "article_id": "article-zh-008",
+      "sha256": "d9efcd096f8f1ae801f4485a694cb982ba63a6856503bb8359bfa85ca30840c5",
+      "split": "tuning",
+      "entities": [
+        {
+          "name": "Qwen VLo",
+          "entity_type": "named_subject",
+          "text_sha256": "b478f34276978c049f1a684654ce5846c231fa417573cf5221a7f8e32c26a03e",
+          "byte_span": [
+            261,
+            269
+          ],
+          "status": "proposed_reference"
+        }
+      ],
+      "events": [
+        {
+          "event_type": "source_reported_claim",
+          "fact_id": "fact-article-zh-008",
+          "status": "proposed_reference"
+        }
+      ],
+      "fact_spans": [
+        {
+          "id": "fact-article-zh-008",
+          "text": "今天，我们正式推出 Qwen VLo",
+          "text_sha256": "b478f34276978c049f1a684654ce5846c231fa417573cf5221a7f8e32c26a03e",
+          "byte_span": [
+            233,
+            269
+          ],
+          "attribution": "source_reported_claim_not_independently_verified",
+          "status": "proposed_reference"
+        }
+      ],
+      "summary_factuality": null,
+      "status": "needs_review"
+    },
+    {
+      "article_id": "article-zh-009",
+      "sha256": "7872c1a071ace274a4defb24bc1b78b91f1741737974f22d2ed25af771b73e2c",
+      "split": "tuning",
+      "entities": [
+        {
+          "name": "Qwen3 Embedding",
+          "entity_type": "named_subject",
+          "text_sha256": "3363e26005f9d55337fee2419a7bfa84a5588194aa5311157501cf9db91a61dd",
+          "byte_span": [
+            58,
+            73
+          ],
+          "status": "proposed_reference"
+        }
+      ],
+      "events": [
+        {
+          "event_type": "source_reported_claim",
+          "fact_id": "fact-article-zh-009",
+          "status": "proposed_reference"
+        }
+      ],
+      "fact_spans": [
+        {
+          "id": "fact-article-zh-009",
+          "text": "基于 Qwen3 基础模型进行训练",
+          "text_sha256": "3363e26005f9d55337fee2419a7bfa84a5588194aa5311157501cf9db91a61dd",
+          "byte_span": [
+            186,
+            223
+          ],
+          "attribution": "source_reported_claim_not_independently_verified",
+          "status": "proposed_reference"
+        }
+      ],
+      "summary_factuality": null,
+      "status": "needs_review"
+    },
+    {
+      "article_id": "article-zh-010",
+      "sha256": "137b31e161d4f96a2d59ffb9c15a57af62b6210ff442ddb23d156f3c426e046a",
+      "split": "tuning",
+      "entities": [
+        {
+          "name": "Qwen3",
+          "entity_type": "named_subject",
+          "text_sha256": "5e6d92b653c029ba296c2606eae74e98459d33936d7f062144eae5eb48e7588f",
+          "byte_span": [
+            98,
+            103
+          ],
+          "status": "proposed_reference"
+        }
+      ],
+      "events": [
+        {
+          "event_type": "source_reported_claim",
+          "fact_id": "fact-article-zh-010",
+          "status": "proposed_reference"
+        }
+      ],
+      "fact_spans": [
+        {
+          "id": "fact-article-zh-010",
+          "text": "今天，我们宣布推出\nQwen3",
+          "text_sha256": "5e6d92b653c029ba296c2606eae74e98459d33936d7f062144eae5eb48e7588f",
+          "byte_span": [
+            70,
+            103
+          ],
+          "attribution": "source_reported_claim_not_independently_verified",
+          "status": "proposed_reference"
+        }
+      ],
+      "summary_factuality": null,
+      "status": "needs_review"
+    },
+    {
+      "article_id": "article-001",
+      "sha256": "a218eaf7f1ba32ea2029ced5f95b8979f91a320622de865e868c3bb9186a253e",
+      "split": "tuning",
+      "entities": [
+        {
+          "name": "Google Research",
+          "entity_type": "named_subject",
+          "text_sha256": "708fad3e3d2495f3d777d47d7ecca740079a99581e03fe41cfaf5e762978877b",
+          "byte_span": [
+            266,
+            281
+          ],
+          "status": "proposed_reference"
+        }
+      ],
+      "events": [
+        {
+          "event_type": "source_reported_claim",
+          "fact_id": "fact-article-001",
+          "status": "proposed_reference"
+        }
+      ],
+      "fact_spans": [
+        {
+          "id": "fact-article-001",
+          "text": "We are bringing AI agents to the wet-lab bench at Google Research",
+          "text_sha256": "708fad3e3d2495f3d777d47d7ecca740079a99581e03fe41cfaf5e762978877b",
+          "byte_span": [
+            216,
+            281
+          ],
+          "attribution": "source_reported_claim_not_independently_verified",
+          "status": "proposed_reference"
+        }
+      ],
+      "summary_factuality": null,
+      "status": "needs_review"
+    },
+    {
+      "article_id": "article-002",
+      "sha256": "17238963428ddb57082439745b49ffcd0547a028d046c2583ea4a3fe43cd3607",
+      "split": "tuning",
+      "entities": [
+        {
+          "name": "Indic",
+          "entity_type": "named_subject",
+          "text_sha256": "10a1ab0d117ffe834fd4edba723a4d7c49c034a4ecd4aa665c310b791a322e83",
+          "byte_span": [
+            25,
+            30
+          ],
+          "status": "proposed_reference"
+        }
+      ],
+      "events": [
+        {
+          "event_type": "source_reported_claim",
+          "fact_id": "fact-article-002",
+          "status": "proposed_reference"
+        }
+      ],
+      "fact_spans": [
+        {
+          "id": "fact-article-002",
+          "text": "Scaling Indic Pretraining: 2.8 Trillion Tokens and an Open Data Generation Pipeline",
+          "text_sha256": "10a1ab0d117ffe834fd4edba723a4d7c49c034a4ecd4aa665c310b791a322e83",
+          "byte_span": [
+            17,
+            100
+          ],
+          "attribution": "source_reported_claim_not_independently_verified",
+          "status": "proposed_reference"
+        }
+      ],
+      "summary_factuality": null,
+      "status": "needs_review"
+    },
+    {
+      "article_id": "article-003",
+      "sha256": "3662040130478f5b87d7da31a360143e82a59796bbb4c22023b3e3f38acb1e04",
+      "split": "tuning",
+      "entities": [
+        {
+          "name": "NVIDIA RTX Spark",
+          "entity_type": "named_subject",
+          "text_sha256": "219ec85137ec09acc39646e18e3f006747dc5cffa53ca6de4ee11b2d144ddf92",
+          "byte_span": [
+            67,
+            83
+          ],
+          "status": "proposed_reference"
+        }
+      ],
+      "events": [
+        {
+          "event_type": "source_reported_claim",
+          "fact_id": "fact-article-003",
+          "status": "proposed_reference"
+        }
+      ],
+      "fact_spans": [
+        {
+          "id": "fact-article-003",
+          "text": "A new beginning for Windows PCs starts tomorrow with the launch of\nNVIDIA RTX Spark",
+          "text_sha256": "219ec85137ec09acc39646e18e3f006747dc5cffa53ca6de4ee11b2d144ddf92",
+          "byte_span": [
+            0,
+            83
+          ],
+          "attribution": "source_reported_claim_not_independently_verified",
+          "status": "proposed_reference"
+        }
+      ],
+      "summary_factuality": null,
+      "status": "needs_review"
+    },
+    {
+      "article_id": "article-004",
+      "sha256": "fe7b9c49cf562cc959ae257199c75eaae38ccfffa3ff96667be6477cd5399618",
+      "split": "tuning",
+      "entities": [
+        {
+          "name": "Amazon Bedrock AgentCore",
+          "entity_type": "named_subject",
+          "text_sha256": "77dc8ad860b7b54b69337cd154872a6efb7226814cecbac3179d8c41c7dbad51",
+          "byte_span": [
+            98,
+            122
+          ],
+          "status": "proposed_reference"
+        }
+      ],
+      "events": [
+        {
+          "event_type": "source_reported_claim",
+          "fact_id": "fact-article-004",
+          "status": "proposed_reference"
+        }
+      ],
+      "fact_spans": [
+        {
+          "id": "fact-article-004",
+          "text": "Building trust in AI agents: A production-ready evaluation framework with Amazon Bedrock AgentCore",
+          "text_sha256": "77dc8ad860b7b54b69337cd154872a6efb7226814cecbac3179d8c41c7dbad51",
+          "byte_span": [
+            24,
+            122
+          ],
+          "attribution": "source_reported_claim_not_independently_verified",
+          "status": "proposed_reference"
+        }
+      ],
+      "summary_factuality": null,
+      "status": "needs_review"
+    },
+    {
+      "article_id": "article-005",
+      "sha256": "bb16eb2d4f339537185c435d970ef40e3dbc705058e5af221ab8a080bee18fc3",
+      "split": "holdout",
+      "entities": [
+        {
+          "name": "GitHub",
+          "entity_type": "named_subject",
+          "text_sha256": "715e9cb1fb4ca42b4573a4350f55e0f339b7077fa68b876ae9d3cd4c9bfab639",
+          "byte_span": [
+            769,
+            775
+          ],
+          "status": "proposed_reference"
+        }
+      ],
+      "events": [
+        {
+          "event_type": "source_reported_claim",
+          "fact_id": "fact-article-005",
+          "status": "proposed_reference"
+        }
+      ],
+      "fact_spans": [
+        {
+          "id": "fact-article-005",
+          "text": "we trained a secret classifier specifically for GitHub’s product needs",
+          "text_sha256": "715e9cb1fb4ca42b4573a4350f55e0f339b7077fa68b876ae9d3cd4c9bfab639",
+          "byte_span": [
+            721,
+            793
+          ],
+          "attribution": "source_reported_claim_not_independently_verified",
+          "status": "proposed_reference"
+        },
+        {
+          "id": "fact-article-005-extra-1",
+          "text": "companion post,\nSecret protection must scale with software",
+          "text_sha256": "715e9cb1fb4ca42b4573a4350f55e0f339b7077fa68b876ae9d3cd4c9bfab639",
+          "byte_span": [
+            924,
+            982
+          ],
+          "attribution": "source_reported_claim_not_independently_verified",
+          "status": "proposed_reference"
+        }
+      ],
+      "summary_factuality": null,
+      "status": "needs_review"
+    },
+    {
+      "article_id": "article-006",
+      "sha256": "fe33ca32bfa7cc7478278752586934e9fad4e6bbda3cd8a348b027584d6f1eb8",
+      "split": "tuning",
+      "entities": [
+        {
+          "name": "Timestral",
+          "entity_type": "named_subject",
+          "text_sha256": "52afdbebe38fd98e24be9a7ddc1dceeeccf78052dd898e4dbbf59486898806db",
+          "byte_span": [
+            21,
+            30
+          ],
+          "status": "proposed_reference"
+        }
+      ],
+      "events": [
+        {
+          "event_type": "source_reported_claim",
+          "fact_id": "fact-article-006",
+          "status": "proposed_reference"
+        }
+      ],
+      "fact_spans": [
+        {
+          "id": "fact-article-006",
+          "text": "Today, we’re releasing Timestral, our first family of time-series foundation models.",
+          "text_sha256": "52afdbebe38fd98e24be9a7ddc1dceeeccf78052dd898e4dbbf59486898806db",
+          "byte_span": [
+            735,
+            821
+          ],
+          "attribution": "source_reported_claim_not_independently_verified",
+          "status": "proposed_reference"
+        }
+      ],
+      "summary_factuality": null,
+      "status": "needs_review"
+    },
+    {
+      "article_id": "article-007",
+      "sha256": "248b40605f668c1458c5c208918cfe82d567dd55c2a5bc03793af41de1165ffb",
+      "split": "tuning",
+      "entities": [
+        {
+          "name": "RTX Spark",
+          "entity_type": "named_subject",
+          "text_sha256": "0e2206a8360caa92231ef52b753272345f9ecd9e64e6e50313cf30c52d776030",
+          "byte_span": [
+            366,
+            375
+          ],
+          "status": "proposed_reference"
+        }
+      ],
+      "events": [
+        {
+          "event_type": "source_reported_claim",
+          "fact_id": "fact-article-007",
+          "status": "proposed_reference"
+        }
+      ],
+      "fact_spans": [
+        {
+          "id": "fact-article-007",
+          "text": "Nvidia’s RTX Spark N1X processor is finally here",
+          "text_sha256": "0e2206a8360caa92231ef52b753272345f9ecd9e64e6e50313cf30c52d776030",
+          "byte_span": [
+            1462,
+            1512
+          ],
+          "attribution": "source_reported_claim_not_independently_verified",
+          "status": "proposed_reference"
+        }
+      ],
+      "summary_factuality": null,
+      "status": "needs_review"
+    },
+    {
+      "article_id": "article-008",
+      "sha256": "56fb878de3fe23080bf07321b1b12d3e8ab987407e63f42aa18bb518443cb423",
+      "split": "tuning",
+      "entities": [
+        {
+          "name": "Replit",
+          "entity_type": "named_subject",
+          "text_sha256": "b683e2f7701f39ca58281d5380d4cfc5acdbe4cd06d966a2690646ee11e0a433",
+          "byte_span": [
+            0,
+            6
+          ],
+          "status": "proposed_reference"
+        }
+      ],
+      "events": [
+        {
+          "event_type": "source_reported_claim",
+          "fact_id": "fact-article-008",
+          "status": "proposed_reference"
+        }
+      ],
+      "fact_spans": [
+        {
+          "id": "fact-article-008",
+          "text": "is no longer working with Anthropic",
+          "text_sha256": "b683e2f7701f39ca58281d5380d4cfc5acdbe4cd06d966a2690646ee11e0a433",
+          "byte_span": [
+            94,
+            129
+          ],
+          "attribution": "source_reported_claim_not_independently_verified",
+          "status": "proposed_reference"
+        }
+      ],
+      "summary_factuality": null,
+      "status": "needs_review"
+    },
+    {
+      "article_id": "article-009",
+      "sha256": "dd4afd25055a4d532927d6595327095dc49799cd933031d9c63221d48a767dcd",
+      "split": "tuning",
+      "entities": [
+        {
+          "name": "OpenAI",
+          "entity_type": "named_subject",
+          "text_sha256": "003f4fc95235365497b6c8d1406c7d59bbb312c9eac873fc7b56677e6f805bb7",
+          "byte_span": [
+            149,
+            155
+          ],
+          "status": "proposed_reference"
+        }
+      ],
+      "events": [
+        {
+          "event_type": "source_reported_claim",
+          "fact_id": "fact-article-009",
+          "status": "proposed_reference"
+        }
+      ],
+      "fact_spans": [
+        {
+          "id": "fact-article-009",
+          "text": "used exposed credentials to draw cryptocurrency",
+          "text_sha256": "003f4fc95235365497b6c8d1406c7d59bbb312c9eac873fc7b56677e6f805bb7",
+          "byte_span": [
+            255,
+            302
+          ],
+          "attribution": "source_reported_claim_not_independently_verified",
+          "status": "proposed_reference"
+        }
+      ],
+      "summary_factuality": null,
+      "status": "needs_review"
+    },
+    {
+      "article_id": "article-010",
+      "sha256": "42af6a74fae4138c8f4142c73f4ba6bbadc4faccf48839839f0051a45d2eeb03",
+      "split": "holdout",
+      "entities": [
+        {
+          "name": "Samuel King",
+          "entity_type": "named_subject",
+          "text_sha256": "9527a0fab8f1b98da7c00b84a0a9e9092e9eac0bf494adbc13b285bec9e249e8",
+          "byte_span": [
+            162,
+            173
+          ],
+          "status": "proposed_reference"
+        }
+      ],
+      "events": [
+        {
+          "event_type": "source_reported_claim",
+          "fact_id": "fact-article-010",
+          "status": "proposed_reference"
+        }
+      ],
+      "fact_spans": [
+        {
+          "id": "fact-article-010",
+          "text": "used a generative AI model to propose genetic blueprints",
+          "text_sha256": "9527a0fab8f1b98da7c00b84a0a9e9092e9eac0bf494adbc13b285bec9e249e8",
+          "byte_span": [
+            216,
+            272
+          ],
+          "attribution": "source_reported_claim_not_independently_verified",
+          "status": "proposed_reference"
+        }
+      ],
+      "summary_factuality": null,
+      "status": "needs_review"
+    },
+    {
+      "article_id": "article-011",
+      "sha256": "0fa3c7534aa8daf97f5412fd2c5a9add73b1647b26eae8c858ddc767455aba4f",
+      "split": "tuning",
+      "entities": [
+        {
+          "name": "Addy Osmani",
+          "entity_type": "named_subject",
+          "text_sha256": "a65009c6d423ecc56660fe2ab5c3af190d250580169d75de501b0928c66c53a1",
+          "byte_span": [
+            875,
+            886
+          ],
+          "status": "proposed_reference"
+        }
+      ],
+      "events": [
+        {
+          "event_type": "source_reported_claim",
+          "fact_id": "fact-article-011",
+          "status": "proposed_reference"
+        }
+      ],
+      "fact_spans": [
+        {
+          "id": "fact-article-011",
+          "text": "We think \"did a human read the code?\" is an imprecise proxy",
+          "text_sha256": "a65009c6d423ecc56660fe2ab5c3af190d250580169d75de501b0928c66c53a1",
+          "byte_span": [
+            271,
+            330
+          ],
+          "attribution": "source_reported_claim_not_independently_verified",
+          "status": "proposed_reference"
+        }
+      ],
+      "summary_factuality": null,
+      "status": "needs_review"
+    },
+    {
+      "article_id": "article-012",
+      "sha256": "c9b466acc2b253cb8870c20535afcb3b28b42a9c40c32c494c224be1c4cde064",
+      "split": "tuning",
+      "entities": [
+        {
+          "name": "Scale AI",
+          "entity_type": "named_subject",
+          "text_sha256": "a175e790157da6d5eef2521290f8e41569c399e2a722e704ece268770f028753",
+          "byte_span": [
+            510,
+            518
+          ],
+          "status": "proposed_reference"
+        }
+      ],
+      "events": [
+        {
+          "event_type": "source_reported_claim",
+          "fact_id": "fact-article-012",
+          "status": "proposed_reference"
+        }
+      ],
+      "fact_spans": [
+        {
+          "id": "fact-article-012",
+          "text": "AI startups Elorian and Scale AI have built and released Humanity’s Sixth Sense",
+          "text_sha256": "a175e790157da6d5eef2521290f8e41569c399e2a722e704ece268770f028753",
+          "byte_span": [
+            486,
+            567
+          ],
+          "attribution": "source_reported_claim_not_independently_verified",
+          "status": "proposed_reference"
+        }
+      ],
+      "summary_factuality": null,
+      "status": "needs_review"
+    },
+    {
+      "article_id": "article-013",
+      "sha256": "aaf3089ce87704b3f7419b3e95db602d1f87d3a9afbaa8eb785fc287af176451",
+      "split": "tuning",
+      "entities": [
+        {
+          "name": "Muse Spark Open",
+          "entity_type": "named_subject",
+          "text_sha256": "5325f659ed7816470783e9169801332f21dd243a1a7d99835b6029c8684e4199",
+          "byte_span": [
+            210,
+            225
+          ],
+          "status": "proposed_reference"
+        }
+      ],
+      "events": [
+        {
+          "event_type": "source_reported_claim",
+          "fact_id": "fact-article-013",
+          "status": "proposed_reference"
+        }
+      ],
+      "fact_spans": [
+        {
+          "id": "fact-article-013",
+          "text": "A version of\nMuse Spark Open\nwas released today",
+          "text_sha256": "5325f659ed7816470783e9169801332f21dd243a1a7d99835b6029c8684e4199",
+          "byte_span": [
+            197,
+            244
+          ],
+          "attribution": "source_reported_claim_not_independently_verified",
+          "status": "proposed_reference"
+        }
+      ],
+      "summary_factuality": null,
+      "status": "needs_review"
+    },
+    {
+      "article_id": "article-014",
+      "sha256": "ed6b43d0188f548fd2cb8e3192c667dac8a2a8e107b178f58ff8c6f799e8b50e",
+      "split": "tuning",
+      "entities": [
+        {
+          "name": "Earth AI",
+          "entity_type": "named_subject",
+          "text_sha256": "03bf164f4ee31fe1f151c903fbb1bea4d02664dc7801145e67c64560212c8f1d",
+          "byte_span": [
+            8,
+            16
+          ],
+          "status": "proposed_reference"
+        }
+      ],
+      "events": [
+        {
+          "event_type": "source_reported_claim",
+          "fact_id": "fact-article-014",
+          "status": "proposed_reference"
+        }
+      ],
+      "fact_spans": [
+        {
+          "id": "fact-article-014",
+          "text": "we’re also expanding experimental agent access via Ask Google Earth",
+          "text_sha256": "03bf164f4ee31fe1f151c903fbb1bea4d02664dc7801145e67c64560212c8f1d",
+          "byte_span": [
+            490,
+            559
+          ],
+          "attribution": "source_reported_claim_not_independently_verified",
+          "status": "proposed_reference"
+        }
+      ],
+      "summary_factuality": null,
+      "status": "needs_review"
+    },
+    {
+      "article_id": "article-015",
+      "sha256": "895f5303e9edad61c0336136dc0e310cddc3dda1ae2b3525e107cf534d475ceb",
+      "split": "holdout",
+      "entities": [
+        {
+          "name": "Beam",
+          "entity_type": "named_subject",
+          "text_sha256": "3d6f75024fb61e9c3c5bc737d055e8e7d9a5ec230508b6c69149af1f4abf182c",
+          "byte_span": [
+            25,
+            29
+          ],
+          "status": "proposed_reference"
+        }
+      ],
+      "events": [
+        {
+          "event_type": "source_reported_claim",
+          "fact_id": "fact-article-015",
+          "status": "proposed_reference"
+        }
+      ],
+      "fact_spans": [
+        {
+          "id": "fact-article-015",
+          "text": "Beam by Reflection is out on Hugging Face!",
+          "text_sha256": "3d6f75024fb61e9c3c5bc737d055e8e7d9a5ec230508b6c69149af1f4abf182c",
+          "byte_span": [
+            224,
+            266
+          ],
+          "attribution": "source_reported_claim_not_independently_verified",
+          "status": "proposed_reference"
+        }
+      ],
+      "summary_factuality": null,
+      "status": "needs_review"
+    },
+    {
+      "article_id": "article-016",
+      "sha256": "601a5d90f7ad9981ea10365eef55f335931065e99f719463ba89b6b2a83a9bbc",
+      "split": "tuning",
+      "entities": [
+        {
+          "name": "Nemotron",
+          "entity_type": "named_subject",
+          "text_sha256": "6cf332383d8a6837cfd881cf127de5ff717dc867e121f5dd3e3fe24dad270589",
+          "byte_span": [
+            22,
+            30
+          ],
+          "status": "proposed_reference"
+        }
+      ],
+      "events": [
+        {
+          "event_type": "source_reported_claim",
+          "fact_id": "fact-article-016",
+          "status": "proposed_reference"
+        }
+      ],
+      "fact_spans": [
+        {
+          "id": "fact-article-016",
+          "text": "NVIDIA today released Nemotron 3.5 Super VL",
+          "text_sha256": "6cf332383d8a6837cfd881cf127de5ff717dc867e121f5dd3e3fe24dad270589",
+          "byte_span": [
+            0,
+            43
+          ],
+          "attribution": "source_reported_claim_not_independently_verified",
+          "status": "proposed_reference"
+        }
+      ],
+      "summary_factuality": null,
+      "status": "needs_review"
+    },
+    {
+      "article_id": "article-017",
+      "sha256": "b4976c8dca510f5eb149d1ba92a95675a324545cc2c7d42d77c59e3b5eb6a7d8",
+      "split": "holdout",
+      "entities": [
+        {
+          "name": "Reflection AI",
+          "entity_type": "named_subject",
+          "text_sha256": "ed9af381105eb6d5a3a4ba39ccb4ecc1c055cd89493968250080ecb136020b21",
+          "byte_span": [
+            100,
+            113
+          ],
+          "status": "proposed_reference"
+        }
+      ],
+      "events": [
+        {
+          "event_type": "source_reported_claim",
+          "fact_id": "fact-article-017",
+          "status": "proposed_reference"
+        }
+      ],
+      "fact_spans": [
+        {
+          "id": "fact-article-017",
+          "text": "Reflection AI\nintroduced Beam",
+          "text_sha256": "ed9af381105eb6d5a3a4ba39ccb4ecc1c055cd89493968250080ecb136020b21",
+          "byte_span": [
+            100,
+            129
+          ],
+          "attribution": "source_reported_claim_not_independently_verified",
+          "status": "proposed_reference"
+        }
+      ],
+      "summary_factuality": null,
+      "status": "needs_review"
+    },
+    {
+      "article_id": "article-018",
+      "sha256": "7fdaaeeb293514206de50ca250f2818915f5056be99377a1eb0bf340dc8cca9e",
+      "split": "tuning",
+      "entities": [
+        {
+          "name": "Copilot",
+          "entity_type": "named_subject",
+          "text_sha256": "bd7f5e6cab802e5850643d6cda205e7a283927deb3cdae206655d216bd824bca",
+          "byte_span": [
+            281,
+            288
+          ],
+          "status": "proposed_reference"
+        }
+      ],
+      "events": [
+        {
+          "event_type": "source_reported_claim",
+          "fact_id": "fact-article-018",
+          "status": "proposed_reference"
+        }
+      ],
+      "fact_spans": [
+        {
+          "id": "fact-article-018",
+          "text": "Copilot can help you make changes across a project",
+          "text_sha256": "bd7f5e6cab802e5850643d6cda205e7a283927deb3cdae206655d216bd824bca",
+          "byte_span": [
+            281,
+            331
+          ],
+          "attribution": "source_reported_claim_not_independently_verified",
+          "status": "proposed_reference"
+        }
+      ],
+      "summary_factuality": null,
+      "status": "needs_review"
+    },
+    {
+      "article_id": "article-019",
+      "sha256": "713be8a3a6bfed049d078935dcb964c392be405d329f96b5ec531b5c7bc47b53",
+      "split": "tuning",
+      "entities": [
+        {
+          "name": "Mistral Large 4",
+          "entity_type": "named_subject",
+          "text_sha256": "d5a607e46294698d0fec82e0a6ab0b7da3516ad7e377f889235fabade61003f0",
+          "byte_span": [
+            21,
+            36
+          ],
+          "status": "proposed_reference"
+        }
+      ],
+      "events": [
+        {
+          "event_type": "source_reported_claim",
+          "fact_id": "fact-article-019",
+          "status": "proposed_reference"
+        }
+      ],
+      "fact_spans": [
+        {
+          "id": "fact-article-019",
+          "text": "Today, we’re launching a\npublic preview\nof Mistral Large 4",
+          "text_sha256": "d5a607e46294698d0fec82e0a6ab0b7da3516ad7e377f889235fabade61003f0",
+          "byte_span": [
+            144,
+            204
+          ],
+          "attribution": "source_reported_claim_not_independently_verified",
+          "status": "proposed_reference"
+        }
+      ],
+      "summary_factuality": null,
+      "status": "needs_review"
+    },
+    {
+      "article_id": "article-020",
+      "sha256": "32b755b1ec1836bd336d8c8f7a4610ae2263ad3b97846eb1aa370fe9e53947ed",
+      "split": "holdout",
+      "entities": [
+        {
+          "name": "Meta",
+          "entity_type": "named_subject",
+          "text_sha256": "61d05e161f4792252bc3d1632dd952d7f66fea814e9e3b48a4060ca5d63aefe2",
+          "byte_span": [
+            345,
+            349
+          ],
+          "status": "proposed_reference"
+        }
+      ],
+      "events": [
+        {
+          "event_type": "source_reported_claim",
+          "fact_id": "fact-article-020",
+          "status": "proposed_reference"
+        }
+      ],
+      "fact_spans": [
+        {
+          "id": "fact-article-020",
+          "text": "Meta’s new terms appear to give it permission to crawl and scrape websites",
+          "text_sha256": "61d05e161f4792252bc3d1632dd952d7f66fea814e9e3b48a4060ca5d63aefe2",
+          "byte_span": [
+            1088,
+            1164
+          ],
+          "attribution": "source_reported_claim_not_independently_verified",
+          "status": "proposed_reference"
+        }
+      ],
+      "summary_factuality": null,
+      "status": "needs_review"
+    },
+    {
+      "article_id": "article-021",
+      "sha256": "1e32712100f5c0b9232d0fdaab9bc8e6ba48b1c7954e85211f63b0de1a1eb4f7",
+      "split": "tuning",
+      "entities": [
+        {
+          "name": "CERT-In",
+          "entity_type": "named_subject",
+          "text_sha256": "90dd0e2ba9cf4a040189537d14024f8a6f0713c8077177dc4a29df5800dfa69b",
+          "byte_span": [
+            227,
+            234
+          ],
+          "status": "proposed_reference"
+        }
+      ],
+      "events": [
+        {
+          "event_type": "source_reported_claim",
+          "fact_id": "fact-article-021",
+          "status": "proposed_reference"
+        }
+      ],
+      "fact_spans": [
+        {
+          "id": "fact-article-021",
+          "text": "AI agents from multiple providers accessed personal data and confidential material at Indian organizations",
+          "text_sha256": "90dd0e2ba9cf4a040189537d14024f8a6f0713c8077177dc4a29df5800dfa69b",
+          "byte_span": [
+            0,
+            106
+          ],
+          "attribution": "source_reported_claim_not_independently_verified",
+          "status": "proposed_reference"
+        }
+      ],
+      "summary_factuality": null,
+      "status": "needs_review"
+    },
+    {
+      "article_id": "article-022",
+      "sha256": "948fb7193fd2b942bb6ae6200bdd11ca8abeb26d09130c847618756bd09f66b4",
+      "split": "tuning",
+      "entities": [
+        {
+          "name": "Brian Richard Fitzgerald",
+          "entity_type": "named_subject",
+          "text_sha256": "a02d97dc6b81a3ef9446dc9af27487755aeb485f687c53c55fa070a3f864fcae",
+          "byte_span": [
+            189,
+            213
+          ],
+          "status": "proposed_reference"
+        }
+      ],
+      "events": [
+        {
+          "event_type": "source_reported_claim",
+          "fact_id": "fact-article-022",
+          "status": "proposed_reference"
+        }
+      ],
+      "fact_spans": [
+        {
+          "id": "fact-article-022",
+          "text": "New Jersey’s deputy attorney general, Brian Richard Fitzgerald, was arrested",
+          "text_sha256": "a02d97dc6b81a3ef9446dc9af27487755aeb485f687c53c55fa070a3f864fcae",
+          "byte_span": [
+            149,
+            227
+          ],
+          "attribution": "source_reported_claim_not_independently_verified",
+          "status": "proposed_reference"
+        }
+      ],
+      "summary_factuality": null,
+      "status": "needs_review"
+    },
+    {
+      "article_id": "article-023",
+      "sha256": "60eb448c356cbde3e90179775f642d7f9c52c20617417c918bab74b20364f7ba",
+      "split": "tuning",
+      "entities": [
+        {
+          "name": "Anthropic",
+          "entity_type": "named_subject",
+          "text_sha256": "3a376a37279c6dd925eeb3fc275b65e4f7fe422bac1fc4314a1558a5b10331ca",
+          "byte_span": [
+            211,
+            220
+          ],
+          "status": "proposed_reference"
+        }
+      ],
+      "events": [
+        {
+          "event_type": "source_reported_claim",
+          "fact_id": "fact-article-023",
+          "status": "proposed_reference"
+        }
+      ],
+      "fact_spans": [
+        {
+          "id": "fact-article-023",
+          "text": "Anthropic released a\nreport\narguing that the model GLM-5.3 poses a major cyberattack risk",
+          "text_sha256": "3a376a37279c6dd925eeb3fc275b65e4f7fe422bac1fc4314a1558a5b10331ca",
+          "byte_span": [
+            211,
+            300
+          ],
+          "attribution": "source_reported_claim_not_independently_verified",
+          "status": "proposed_reference"
+        }
+      ],
+      "summary_factuality": null,
+      "status": "needs_review"
+    },
+    {
+      "article_id": "article-en-qwen-image",
+      "sha256": "b8c051118ba09f9a85dd67320b870e9124630565f4ab829c6b4b65a0babf42a4",
+      "split": "holdout",
+      "entities": [
+        {
+          "name": "Qwen-Image",
+          "entity_type": "named_subject",
+          "text_sha256": "5f8115f1196e29973c3c68b09b8d7bf5634ae92ab3ee6ba074693b2a32040613",
+          "byte_span": [
+            71,
+            81
+          ],
+          "status": "proposed_reference"
+        }
+      ],
+      "events": [
+        {
+          "event_type": "source_reported_claim",
+          "fact_id": "fact-article-en-qwen-image",
+          "status": "proposed_reference"
+        }
+      ],
+      "fact_spans": [
+        {
+          "id": "fact-article-en-qwen-image",
+          "text": "We are thrilled to release\nQwen-Image",
+          "text_sha256": "5f8115f1196e29973c3c68b09b8d7bf5634ae92ab3ee6ba074693b2a32040613",
+          "byte_span": [
+            44,
+            81
+          ],
+          "attribution": "source_reported_claim_not_independently_verified",
+          "status": "proposed_reference"
+        }
+      ],
+      "summary_factuality": null,
+      "status": "needs_review"
+    },
+    {
+      "article_id": "article-025",
+      "sha256": "15548eb9f35eef3681643bb875e6463cd45ff1615fad4b4bf2146150c71aedeb",
+      "split": "tuning",
+      "entities": [
+        {
+          "name": "Toby Ord",
+          "entity_type": "named_subject",
+          "text_sha256": "0cedeef1d5f02f836975086bf7a06f9110933939214bbff95126d31a2c77a062",
+          "byte_span": [
+            430,
+            438
+          ],
+          "status": "proposed_reference"
+        }
+      ],
+      "events": [
+        {
+          "event_type": "source_reported_claim",
+          "fact_id": "fact-article-025",
+          "status": "proposed_reference"
+        }
+      ],
+      "fact_spans": [
+        {
+          "id": "fact-article-025",
+          "text": "Toby Ord has a nice, short post about how to think about swarms",
+          "text_sha256": "0cedeef1d5f02f836975086bf7a06f9110933939214bbff95126d31a2c77a062",
+          "byte_span": [
+            430,
+            493
+          ],
+          "attribution": "source_reported_claim_not_independently_verified",
+          "status": "proposed_reference"
+        }
+      ],
+      "summary_factuality": null,
+      "status": "needs_review"
+    },
+    {
+      "article_id": "article-026",
+      "sha256": "e06fbfb8b888e95fd9b8c3a9aaa6ddb295fe2325c871472b2d5309db7b23e142",
+      "split": "tuning",
+      "entities": [
+        {
+          "name": "Modal",
+          "entity_type": "named_subject",
+          "text_sha256": "8e7bc55bb22d98e5d3e7f7eb3ed13e9e22f7de4de9f9a840251d7af02fff47e3",
+          "byte_span": [
+            34,
+            39
+          ],
+          "status": "proposed_reference"
+        }
+      ],
+      "events": [
+        {
+          "event_type": "source_reported_claim",
+          "fact_id": "fact-article-026",
+          "status": "proposed_reference"
+        }
+      ],
+      "fact_spans": [
+        {
+          "id": "fact-article-026",
+          "text": "Today we're announcing that Modal has crossed $1B in annualized run rate",
+          "text_sha256": "8e7bc55bb22d98e5d3e7f7eb3ed13e9e22f7de4de9f9a840251d7af02fff47e3",
+          "byte_span": [
+            1086,
+            1158
+          ],
+          "attribution": "source_reported_claim_not_independently_verified",
+          "status": "proposed_reference"
+        }
+      ],
+      "summary_factuality": null,
+      "status": "needs_review"
+    },
+    {
+      "article_id": "article-027",
+      "sha256": "f7f0e13a29f16e8593cdf249e1885bed08db199dc7545028d02347831c164db0",
+      "split": "tuning",
+      "entities": [
+        {
+          "name": "Deep Review",
+          "entity_type": "named_subject",
+          "text_sha256": "a24989effa68efc25afffda5fdbcc0d222ddcf0b6ac51e40083c8d10f33bb482",
+          "byte_span": [
+            35,
+            46
+          ],
+          "status": "proposed_reference"
+        }
+      ],
+      "events": [
+        {
+          "event_type": "source_reported_claim",
+          "fact_id": "fact-article-027",
+          "status": "proposed_reference"
+        }
+      ],
+      "fact_spans": [
+        {
+          "id": "fact-article-027",
+          "text": "Deep Review is launching publicly",
+          "text_sha256": "a24989effa68efc25afffda5fdbcc0d222ddcf0b6ac51e40083c8d10f33bb482",
+          "byte_span": [
+            235,
+            268
+          ],
+          "attribution": "source_reported_claim_not_independently_verified",
+          "status": "proposed_reference"
+        }
+      ],
+      "summary_factuality": null,
+      "status": "needs_review"
+    },
+    {
+      "article_id": "article-028",
+      "sha256": "0802e3a30820c586ffb58927da9c721e5b18e819aaed6740f3f0fbe9475b8257",
+      "split": "tuning",
+      "entities": [
+        {
+          "name": "Granite Switch 4.1",
+          "entity_type": "named_subject",
+          "text_sha256": "1b39e3d48f11d8ba367d6d27b17515af898d9fd860474e274212ac17fa4b76ff",
+          "byte_span": [
+            17,
+            35
+          ],
+          "status": "proposed_reference"
+        }
+      ],
+      "events": [
+        {
+          "event_type": "source_reported_claim",
+          "fact_id": "fact-article-028",
+          "status": "proposed_reference"
+        }
+      ],
+      "fact_spans": [
+        {
+          "id": "fact-article-028",
+          "text": "project enables a modular approach to model development.",
+          "text_sha256": "1b39e3d48f11d8ba367d6d27b17515af898d9fd860474e274212ac17fa4b76ff",
+          "byte_span": [
+            367,
+            423
+          ],
+          "attribution": "source_reported_claim_not_independently_verified",
+          "status": "proposed_reference"
+        }
+      ],
+      "summary_factuality": null,
+      "status": "needs_review"
+    },
+    {
+      "article_id": "article-029",
+      "sha256": "1fa0d3e8254c3cee9dc8452ba0ef61045a141d040bdc3ce017f2583a7c624ad9",
+      "split": "tuning",
+      "entities": [
+        {
+          "name": "GeForce NOW",
+          "entity_type": "named_subject",
+          "text_sha256": "97742fab8b9a95d88af327003a40528ffeef878dd125d9c14eb1063533c6b69b",
+          "byte_span": [
+            85,
+            96
+          ],
+          "status": "proposed_reference"
+        }
+      ],
+      "events": [
+        {
+          "event_type": "source_reported_claim",
+          "fact_id": "fact-article-029",
+          "status": "proposed_reference"
+        }
+      ],
+      "fact_spans": [
+        {
+          "id": "fact-article-029",
+          "text": "New NVIDIA DLSS 4.5 controls give\nGeForce NOW\nmembers\nmore choice",
+          "text_sha256": "97742fab8b9a95d88af327003a40528ffeef878dd125d9c14eb1063533c6b69b",
+          "byte_span": [
+            51,
+            116
+          ],
+          "attribution": "source_reported_claim_not_independently_verified",
+          "status": "proposed_reference"
+        }
+      ],
+      "summary_factuality": null,
+      "status": "needs_review"
+    },
+    {
+      "article_id": "article-030",
+      "sha256": "4bb0b582049fda5860f0ee662a68a202b0420b0264900812c34eae6f52bb2f4b",
+      "split": "tuning",
+      "entities": [
+        {
+          "name": "Muse Spark Open",
+          "entity_type": "named_subject",
+          "text_sha256": "3a2faca1fce3e81446140dacb61fae1ecb6178ba8b9e88682a38d9196f918731",
+          "byte_span": [
+            33,
+            48
+          ],
+          "status": "proposed_reference"
+        }
+      ],
+      "events": [
+        {
+          "event_type": "source_reported_claim",
+          "fact_id": "fact-article-030",
+          "status": "proposed_reference"
+        }
+      ],
+      "fact_spans": [
+        {
+          "id": "fact-article-030",
+          "text": "Muse Spark Open, Meta’s coding-optimized open-weight model, is now available in",
+          "text_sha256": "3a2faca1fce3e81446140dacb61fae1ecb6178ba8b9e88682a38d9196f918731",
+          "byte_span": [
+            93,
+            174
+          ],
+          "attribution": "source_reported_claim_not_independently_verified",
+          "status": "proposed_reference"
+        }
+      ],
+      "summary_factuality": null,
+      "status": "needs_review"
+    },
+    {
+      "article_id": "article-031",
+      "sha256": "a21546b3f44b1ff1ccf9dd99eb7328af1fa0c35d42dbe764b142318b9f78e5cf",
+      "split": "holdout",
+      "entities": [
+        {
+          "name": "GitHub",
+          "entity_type": "named_subject",
+          "text_sha256": "eb3990d8c40ca941d56a8645a771695832ba73f50c5c48a38b337659e767318a",
+          "byte_span": [
+            96,
+            102
+          ],
+          "status": "proposed_reference"
+        }
+      ],
+      "events": [
+        {
+          "event_type": "source_reported_claim",
+          "fact_id": "fact-article-031",
+          "status": "proposed_reference"
+        }
+      ],
+      "fact_spans": [
+        {
+          "id": "fact-article-031",
+          "text": "introduce the fine-tuned classifier we built with Microsoft Applied Sciences",
+          "text_sha256": "eb3990d8c40ca941d56a8645a771695832ba73f50c5c48a38b337659e767318a",
+          "byte_span": [
+            906,
+            982
+          ],
+          "attribution": "source_reported_claim_not_independently_verified",
+          "status": "proposed_reference"
+        }
+      ],
+      "summary_factuality": null,
+      "status": "needs_review"
+    },
+    {
+      "article_id": "article-032",
+      "sha256": "f77f7d1bbb27ea7b25768a9e43dfad28b829cd6d14f6635056d3f60025091c92",
+      "split": "tuning",
+      "entities": [
+        {
+          "name": "Mistral",
+          "entity_type": "named_subject",
+          "text_sha256": "be0ba3f7af5c67482c197cab3bb8a422bc24e412a7c92b91da1f62ef6f1887b2",
+          "byte_span": [
+            50,
+            57
+          ],
+          "status": "proposed_reference"
+        }
+      ],
+      "events": [
+        {
+          "event_type": "source_reported_claim",
+          "fact_id": "fact-article-032",
+          "status": "proposed_reference"
+        }
+      ],
+      "fact_spans": [
+        {
+          "id": "fact-article-032",
+          "text": "Mistral Opens German Hub in Munich",
+          "text_sha256": "be0ba3f7af5c67482c197cab3bb8a422bc24e412a7c92b91da1f62ef6f1887b2",
+          "byte_span": [
+            128,
+            162
+          ],
+          "attribution": "source_reported_claim_not_independently_verified",
+          "status": "proposed_reference"
+        }
+      ],
+      "summary_factuality": null,
+      "status": "needs_review"
+    },
+    {
+      "article_id": "article-033",
+      "sha256": "7ee91c102a660a9300ee174c778766b59e3eb5c0964b84f30d536521af1e64e8",
+      "split": "tuning",
+      "entities": [
+        {
+          "name": "ChatGPT",
+          "entity_type": "named_subject",
+          "text_sha256": "ab406b6732d0a86f0291e650d8eaf2c65b211bb454ba1fc64993c8a9c0c72617",
+          "byte_span": [
+            345,
+            352
+          ],
+          "status": "proposed_reference"
+        }
+      ],
+      "events": [
+        {
+          "event_type": "source_reported_claim",
+          "fact_id": "fact-article-033",
+          "status": "proposed_reference"
+        }
+      ],
+      "fact_spans": [
+        {
+          "id": "fact-article-033",
+          "text": "ChatGPT can peek at your Chrome tabs now",
+          "text_sha256": "ab406b6732d0a86f0291e650d8eaf2c65b211bb454ba1fc64993c8a9c0c72617",
+          "byte_span": [
+            345,
+            385
+          ],
+          "attribution": "source_reported_claim_not_independently_verified",
+          "status": "proposed_reference"
+        }
+      ],
+      "summary_factuality": null,
+      "status": "needs_review"
+    },
+    {
+      "article_id": "article-034",
+      "sha256": "a5241d240346e96a337e97fc18ba3d979f710ef3a9e8593c502c8b6d09b26bf7",
+      "split": "tuning",
+      "entities": [
+        {
+          "name": "Amulya Vishwanath",
+          "entity_type": "named_subject",
+          "text_sha256": "ef3f765f0459e0e48c09f48be0776250358eb593ae5ba00a291d1dea32a9d26c",
+          "byte_span": [
+            22,
+            39
+          ],
+          "status": "proposed_reference"
+        }
+      ],
+      "events": [
+        {
+          "event_type": "source_reported_claim",
+          "fact_id": "fact-article-034",
+          "status": "proposed_reference"
+        }
+      ],
+      "fact_spans": [
+        {
+          "id": "fact-article-034",
+          "text": "robotics is currently in its “Lego era,”",
+          "text_sha256": "ef3f765f0459e0e48c09f48be0776250358eb593ae5ba00a291d1dea32a9d26c",
+          "byte_span": [
+            130,
+            174
+          ],
+          "attribution": "source_reported_claim_not_independently_verified",
+          "status": "proposed_reference"
+        }
+      ],
+      "summary_factuality": null,
+      "status": "needs_review"
+    },
+    {
+      "article_id": "article-035",
+      "sha256": "4feb9349a44c4c45dc5f0c269f5291023e1694b053a33d20b564bb8af8da370c",
+      "split": "holdout",
+      "entities": [
+        {
+          "name": "Meta",
+          "entity_type": "named_subject",
+          "text_sha256": "89a77db0d0e3de2c3e7b51cbde3bca721a0fe7beb422fb4b912519fec5ccc76b",
+          "byte_span": [
+            188,
+            192
+          ],
+          "status": "proposed_reference"
+        }
+      ],
+      "events": [
+        {
+          "event_type": "source_reported_claim",
+          "fact_id": "fact-article-035",
+          "status": "proposed_reference"
+        }
+      ],
+      "fact_spans": [
+        {
+          "id": "fact-article-035",
+          "text": "Meta will soon update its commercial terms to require business accounts",
+          "text_sha256": "89a77db0d0e3de2c3e7b51cbde3bca721a0fe7beb422fb4b912519fec5ccc76b",
+          "byte_span": [
+            188,
+            259
+          ],
+          "attribution": "source_reported_claim_not_independently_verified",
+          "status": "proposed_reference"
+        }
+      ],
+      "summary_factuality": null,
+      "status": "needs_review"
+    },
+    {
+      "article_id": "article-036",
+      "sha256": "06f0293ec6039cbcc9d9c5a6e688dbabd2fb5144e41a551734e46d93506d32a7",
+      "split": "tuning",
+      "entities": [
+        {
+          "name": "Keelan Miskell",
+          "entity_type": "named_subject",
+          "text_sha256": "334c346fda27faf92d85f80bb29a071c183c5d4ed0487ba70db220d93acb296c",
+          "byte_span": [
+            5,
+            19
+          ],
+          "status": "proposed_reference"
+        }
+      ],
+      "events": [
+        {
+          "event_type": "source_reported_claim",
+          "fact_id": "fact-article-036",
+          "status": "proposed_reference"
+        }
+      ],
+      "fact_spans": [
+        {
+          "id": "fact-article-036",
+          "text": "He’s netted roughly $25,000 for his code base",
+          "text_sha256": "334c346fda27faf92d85f80bb29a071c183c5d4ed0487ba70db220d93acb296c",
+          "byte_span": [
+            243,
+            290
+          ],
+          "attribution": "source_reported_claim_not_independently_verified",
+          "status": "proposed_reference"
+        }
+      ],
+      "summary_factuality": null,
+      "status": "needs_review"
+    },
+    {
+      "article_id": "article-037",
+      "sha256": "a310e8b0e84a42bdf45dfab69aa65544f353844049ef6b82bbec20ed4fe12a09",
+      "split": "tuning",
+      "entities": [
+        {
+          "name": "Anthropic",
+          "entity_type": "named_subject",
+          "text_sha256": "64b5ab690d29896a24f13f50bacc9ebbd56f08560efb1c4c5c936150b45be880",
+          "byte_span": [
+            283,
+            292
+          ],
+          "status": "proposed_reference"
+        }
+      ],
+      "events": [
+        {
+          "event_type": "source_reported_claim",
+          "fact_id": "fact-article-037",
+          "status": "proposed_reference"
+        }
+      ],
+      "fact_spans": [
+        {
+          "id": "fact-article-037",
+          "text": "Anthropic tells investors quarterly revenue up nearly 50% to $16.8bn ahead of IPO",
+          "text_sha256": "64b5ab690d29896a24f13f50bacc9ebbd56f08560efb1c4c5c936150b45be880",
+          "byte_span": [
+            283,
+            364
+          ],
+          "attribution": "source_reported_claim_not_independently_verified",
+          "status": "proposed_reference"
+        }
+      ],
+      "summary_factuality": null,
+      "status": "needs_review"
+    },
+    {
+      "article_id": "article-en-qwen3",
+      "sha256": "e94e989ce505fe3f83bf891f70a7e00d1ae3e7b560dd99fdd0d6249d933d6ace",
+      "split": "tuning",
+      "entities": [
+        {
+          "name": "Qwen3",
+          "entity_type": "named_subject",
+          "text_sha256": "afa6a2f1adfd997ed76f53b77c93f7c5ed47c437586887bb5a8e8cae1e23b435",
+          "byte_span": [
+            125,
+            130
+          ],
+          "status": "proposed_reference"
+        }
+      ],
+      "events": [
+        {
+          "event_type": "source_reported_claim",
+          "fact_id": "fact-article-en-qwen3",
+          "status": "proposed_reference"
+        }
+      ],
+      "fact_spans": [
+        {
+          "id": "fact-article-en-qwen3",
+          "text": "Today, we are excited to announce the release of\nQwen3",
+          "text_sha256": "afa6a2f1adfd997ed76f53b77c93f7c5ed47c437586887bb5a8e8cae1e23b435",
+          "byte_span": [
+            76,
+            130
+          ],
+          "attribution": "source_reported_claim_not_independently_verified",
+          "status": "proposed_reference"
+        }
+      ],
+      "summary_factuality": null,
+      "status": "needs_review"
+    },
+    {
+      "article_id": "article-039",
+      "sha256": "5d3bd4a20b7949b76fb5b93be90d4380e98fc9c12d4d2e8322d0c4a552524b48",
+      "split": "tuning",
+      "entities": [
+        {
+          "name": "OpenAI",
+          "entity_type": "named_subject",
+          "text_sha256": "af7851c6ead92d15445e2b08e2f51957ffde49af552251bf6c703837db6dc38c",
+          "byte_span": [
+            28,
+            34
+          ],
+          "status": "proposed_reference"
+        }
+      ],
+      "events": [
+        {
+          "event_type": "source_reported_claim",
+          "fact_id": "fact-article-039",
+          "status": "proposed_reference"
+        }
+      ],
+      "fact_spans": [
+        {
+          "id": "fact-article-039",
+          "text": "frontier labs and financial firms explored how to give agents useful autonomy",
+          "text_sha256": "af7851c6ead92d15445e2b08e2f51957ffde49af552251bf6c703837db6dc38c",
+          "byte_span": [
+            123,
+            200
+          ],
+          "attribution": "source_reported_claim_not_independently_verified",
+          "status": "proposed_reference"
+        }
+      ],
+      "summary_factuality": null,
+      "status": "needs_review"
+    },
+    {
+      "article_id": "article-040",
+      "sha256": "90016899bcfb33ae502cecbf29e1b14e598a29b1a22ac2b39e56df0371cf5934",
+      "split": "tuning",
+      "entities": [
+        {
+          "name": "Google Research",
+          "entity_type": "named_subject",
+          "text_sha256": "45c83000e2df32051b1f34b96308b45df91652a92fc40aafc8306b092f62fcd9",
+          "byte_span": [
+            194,
+            209
+          ],
+          "status": "proposed_reference"
+        }
+      ],
+      "events": [
+        {
+          "event_type": "source_reported_claim",
+          "fact_id": "fact-article-040",
+          "status": "proposed_reference"
+        }
+      ],
+      "fact_spans": [
+        {
+          "id": "fact-article-040",
+          "text": "we're sharing research breakthroughs that amplify human ingenuity",
+          "text_sha256": "45c83000e2df32051b1f34b96308b45df91652a92fc40aafc8306b092f62fcd9",
+          "byte_span": [
+            250,
+            315
+          ],
+          "attribution": "source_reported_claim_not_independently_verified",
+          "status": "proposed_reference"
+        }
+      ],
+      "summary_factuality": null,
+      "status": "needs_review"
+    }
+  ],
+  "relationships": [
+    {
+      "id": "relation-001",
+      "split": "holdout",
+      "evidence": [
+        {
+          "article_id": "article-020",
+          "sha256": "32b755b1ec1836bd336d8c8f7a4610ae2263ad3b97846eb1aa370fe9e53947ed",
+          "excerpt": "Meta’s",
+          "excerpt_byte_span": [
+            1699,
+            1707
+          ],
+          "excerpt_kind": "title_or_paragraph_candidate",
+          "byte_spans": [],
+          "fact_id": "fact-article-020",
+          "text_evidence": {
+            "text_sha256": "61d05e161f4792252bc3d1632dd952d7f66fea814e9e3b48a4060ca5d63aefe2",
+            "byte_span": [
+              1088,
+              1164
+            ]
+          }
+        },
+        {
+          "article_id": "article-035",
+          "sha256": "4feb9349a44c4c45dc5f0c269f5291023e1694b053a33d20b564bb8af8da370c",
+          "excerpt": "Meta",
+          "excerpt_byte_span": [
+            164,
+            168
+          ],
+          "excerpt_kind": "title_or_paragraph_candidate",
+          "byte_spans": [],
+          "fact_id": "fact-article-035",
+          "text_evidence": {
+            "text_sha256": "89a77db0d0e3de2c3e7b51cbde3bca721a0fe7beb422fb4b912519fec5ccc76b",
+            "byte_span": [
+              188,
+              259
+            ]
+          }
+        }
+      ],
+      "relationship_label": "same_event",
+      "engine_relation": "SAME_OCCURRENCE",
+      "label_status": "proposed_reference",
+      "status": "needs_review",
+      "reviewer": null,
+      "rationale": "两文均报道Meta同一次商业条款更新及关联网站抓取权限；主体、政策对象和10月30日生效时间一致。"
+    },
+    {
+      "id": "relation-002",
+      "split": "tuning",
+      "evidence": [
+        {
+          "article_id": "article-zh-010",
+          "sha256": "137b31e161d4f96a2d59ffb9c15a57af62b6210ff442ddb23d156f3c426e046a",
+          "excerpt": "Qwen3：思深，行速",
+          "excerpt_byte_span": [
+            318,
+            341
+          ],
+          "excerpt_kind": "title_or_paragraph_candidate",
+          "byte_spans": [],
+          "fact_id": "fact-article-zh-010",
+          "text_evidence": {
+            "text_sha256": "5e6d92b653c029ba296c2606eae74e98459d33936d7f062144eae5eb48e7588f",
+            "byte_span": [
+              70,
+              103
+            ]
+          }
+        },
+        {
+          "article_id": "article-en-qwen3",
+          "sha256": "e94e989ce505fe3f83bf891f70a7e00d1ae3e7b560dd99fdd0d6249d933d6ace",
+          "excerpt": "Qwen3:",
+          "excerpt_byte_span": [
+            318,
+            324
+          ],
+          "excerpt_kind": "title_or_paragraph_candidate",
+          "byte_spans": [],
+          "fact_id": "fact-article-en-qwen3",
+          "text_evidence": {
+            "text_sha256": "afa6a2f1adfd997ed76f53b77c93f7c5ed47c437586887bb5a8e8cae1e23b435",
+            "byte_span": [
+              76,
+              130
+            ]
+          }
+        }
+      ],
+      "relationship_label": "same_event",
+      "engine_relation": "SAME_OCCURRENCE",
+      "label_status": "proposed_reference",
+      "status": "needs_review",
+      "reviewer": null,
+      "rationale": "同一官方Qwen3发布的中文/英文原文，均宣布Qwen3并列举Qwen3-235B-A22B与Qwen3-30B-A3B，同一发布对象。"
+    },
+    {
+      "id": "relation-003",
+      "split": "holdout",
+      "evidence": [
+        {
+          "article_id": "article-zh-003",
+          "sha256": "034bd76b9bcc813e62b60aa5c37c1240be1a457b5cd701c284fb6a6370feef16",
+          "excerpt": "Qwen-Image：擅长文字渲染的创作利器",
+          "excerpt_byte_span": [
+            323,
+            369
+          ],
+          "excerpt_kind": "title_or_paragraph_candidate",
+          "byte_spans": [],
+          "fact_id": "fact-article-zh-003",
+          "text_evidence": {
+            "text_sha256": "84a2ca2a2b6098f5476a9fec6e3d5bebb574f228e2c736b5dee76e07789b0852",
+            "byte_span": [
+              44,
+              102
+            ]
+          }
+        },
+        {
+          "article_id": "article-en-qwen-image",
+          "sha256": "b8c051118ba09f9a85dd67320b870e9124630565f4ab829c6b4b65a0babf42a4",
+          "excerpt": "Qwen-Image:",
+          "excerpt_byte_span": [
+            323,
+            334
+          ],
+          "excerpt_kind": "title_or_paragraph_candidate",
+          "byte_spans": [],
+          "fact_id": "fact-article-en-qwen-image",
+          "text_evidence": {
+            "text_sha256": "5f8115f1196e29973c3c68b09b8d7bf5634ae92ab3ee6ba074693b2a32040613",
+            "byte_span": [
+              44,
+              81
+            ]
+          }
+        }
+      ],
+      "relationship_label": "same_event",
+      "engine_relation": "SAME_OCCURRENCE",
+      "label_status": "proposed_reference",
+      "status": "needs_review",
+      "reviewer": null,
+      "rationale": "同一官方Qwen-Image发布的中英文原文，均声明20B MMDiT图像基础模型；语言不同不改变发生身份。"
+    },
+    {
+      "id": "relation-004",
+      "split": "tuning",
+      "evidence": [
+        {
+          "article_id": "article-003",
+          "sha256": "3662040130478f5b87d7da31a360143e82a59796bbb4c22023b3e3f38acb1e04",
+          "excerpt": "Celebrate",
+          "excerpt_byte_span": [
+            1646,
+            1655
+          ],
+          "excerpt_kind": "title_or_paragraph_candidate",
+          "byte_spans": [],
+          "fact_id": "fact-article-003",
+          "text_evidence": {
+            "text_sha256": "219ec85137ec09acc39646e18e3f006747dc5cffa53ca6de4ee11b2d144ddf92",
+            "byte_span": [
+              0,
+              83
+            ]
+          }
+        },
+        {
+          "article_id": "article-007",
+          "sha256": "248b40605f668c1458c5c208918cfe82d567dd55c2a5bc03793af41de1165ffb",
+          "excerpt": "A",
+          "excerpt_byte_span": [
+            1699,
+            1700
+          ],
+          "excerpt_kind": "title_or_paragraph_candidate",
+          "byte_spans": [],
+          "fact_id": "fact-article-007",
+          "text_evidence": {
+            "text_sha256": "0e2206a8360caa92231ef52b753272345f9ecd9e64e6e50313cf30c52d776030",
+            "byte_span": [
+              1462,
+              1512
+            ]
+          }
+        }
+      ],
+      "relationship_label": "follow_up",
+      "engine_relation": "SAME_STORY",
+      "label_status": "proposed_reference",
+      "status": "needs_review",
+      "reviewer": null,
+      "rationale": "NVIDIA RTX Spark发布之后的Verge实际体验/评测明确针对同一RTX Spark N1X电脑平台，按原引擎定义发布与评测为SAME_STORY。"
+    },
+    {
+      "id": "relation-005",
+      "split": "holdout",
+      "evidence": [
+        {
+          "article_id": "article-015",
+          "sha256": "895f5303e9edad61c0336136dc0e310cddc3dda1ae2b3525e107cf534d475ceb",
+          "excerpt": "Welcome",
+          "excerpt_byte_span": [
+            3953,
+            3960
+          ],
+          "excerpt_kind": "title_or_paragraph_candidate",
+          "byte_spans": [],
+          "fact_id": "fact-article-015",
+          "text_evidence": {
+            "text_sha256": "3d6f75024fb61e9c3c5bc737d055e8e7d9a5ec230508b6c69149af1f4abf182c",
+            "byte_span": [
+              224,
+              266
+            ]
+          }
+        },
+        {
+          "article_id": "article-017",
+          "sha256": "b4976c8dca510f5eb149d1ba92a95675a324545cc2c7d42d77c59e3b5eb6a7d8",
+          "excerpt": "Introducing",
+          "excerpt_byte_span": [
+            332,
+            343
+          ],
+          "excerpt_kind": "title_or_paragraph_candidate",
+          "byte_spans": [],
+          "fact_id": "fact-article-017",
+          "text_evidence": {
+            "text_sha256": "ed9af381105eb6d5a3a4ba39ccb4ecc1c055cd89493968250080ecb136020b21",
+            "byte_span": [
+              100,
+              129
+            ]
+          }
+        }
+      ],
+      "relationship_label": "follow_up",
+      "engine_relation": "SAME_STORY",
+      "label_status": "proposed_reference",
+      "status": "needs_review",
+      "reviewer": null,
+      "rationale": "Reflection Beam开放权重模型发布与在AWS上接入介绍，按原引擎定义发布→第三方平台接入是SAME_STORY；需人工确认上架与发布边界。"
+    },
+    {
+      "id": "relation-006",
+      "split": "holdout",
+      "evidence": [
+        {
+          "article_id": "article-031",
+          "sha256": "a21546b3f44b1ff1ccf9dd99eb7328af1fa0c35d42dbe764b142318b9f78e5cf",
+          "excerpt": "Secret",
+          "excerpt_byte_span": [
+            29461,
+            29467
+          ],
+          "excerpt_kind": "title_or_paragraph_candidate",
+          "byte_spans": [],
+          "fact_id": "fact-article-031",
+          "text_evidence": {
+            "text_sha256": "eb3990d8c40ca941d56a8645a771695832ba73f50c5c48a38b337659e767318a",
+            "byte_span": [
+              906,
+              982
+            ]
+          }
+        },
+        {
+          "article_id": "article-005",
+          "sha256": "bb16eb2d4f339537185c435d970ef40e3dbc705058e5af221ab8a080bee18fc3",
+          "excerpt": "GitHub’s",
+          "excerpt_byte_span": [
+            561,
+            571
+          ],
+          "excerpt_kind": "title_or_paragraph_candidate",
+          "byte_spans": [],
+          "fact_id": "fact-article-005",
+          "text_evidence": {
+            "text_sha256": "715e9cb1fb4ca42b4573a4350f55e0f339b7077fa68b876ae9d3cd4c9bfab639",
+            "byte_span": [
+              721,
+              793
+            ]
+          }
+        }
+      ],
+      "relationship_label": "follow_up",
+      "engine_relation": "SAME_STORY",
+      "label_status": "proposed_reference",
+      "status": "needs_review",
+      "reviewer": null,
+      "rationale": "10月7日GitHub秘密保护文章介绍分类器；10月13日技术文章明确链接前文为companion post并解释同一分类器设计训练，是具直接引用的后续解读。"
+    },
+    {
+      "id": "relation-007",
+      "split": "tuning",
+      "evidence": [
+        {
+          "article_id": "article-zh-010",
+          "sha256": "137b31e161d4f96a2d59ffb9c15a57af62b6210ff442ddb23d156f3c426e046a",
+          "excerpt": "Qwen3：思深，行速",
+          "excerpt_byte_span": [
+            318,
+            341
+          ],
+          "excerpt_kind": "title_or_paragraph_candidate",
+          "byte_spans": [],
+          "fact_id": "fact-article-zh-010",
+          "text_evidence": {
+            "text_sha256": "5e6d92b653c029ba296c2606eae74e98459d33936d7f062144eae5eb48e7588f",
+            "byte_span": [
+              70,
+              103
+            ]
+          }
+        },
+        {
+          "article_id": "article-zh-001",
+          "sha256": "b2cfc6af71f6ab3c30d9a102ce391e5c60367115d8c09084b51993429606596c",
+          "excerpt": "Qwen3Guard:",
+          "excerpt_byte_span": [
+            323,
+            334
+          ],
+          "excerpt_kind": "title_or_paragraph_candidate",
+          "byte_spans": [],
+          "fact_id": "fact-article-zh-001",
+          "text_evidence": {
+            "text_sha256": "4148c2c49a35a8146f1f94ca4b9fa3c99b35ed900541370a7f0a4ff50ce84b6d",
+            "byte_span": [
+              159,
+              208
+            ]
+          }
+        }
+      ],
+      "relationship_label": "unrelated",
+      "engine_relation": "UNRELATED",
+      "label_status": "proposed_reference",
+      "status": "needs_review",
+      "reviewer": null,
+      "rationale": "Qwen3基础模型发布与Qwen3Guard安全护栏模型是不同具体产品/更新的独立发布；正文虽明确基于Qwen3，不能仅凭家族或时间先后归并，按固定group-definitions为UNRELATED。"
+    },
+    {
+      "id": "relation-008",
+      "split": "tuning",
+      "evidence": [
+        {
+          "article_id": "article-zh-010",
+          "sha256": "137b31e161d4f96a2d59ffb9c15a57af62b6210ff442ddb23d156f3c426e046a",
+          "excerpt": "Qwen3：思深，行速",
+          "excerpt_byte_span": [
+            318,
+            341
+          ],
+          "excerpt_kind": "title_or_paragraph_candidate",
+          "byte_spans": [],
+          "fact_id": "fact-article-zh-010",
+          "text_evidence": {
+            "text_sha256": "5e6d92b653c029ba296c2606eae74e98459d33936d7f062144eae5eb48e7588f",
+            "byte_span": [
+              70,
+              103
+            ]
+          }
+        },
+        {
+          "article_id": "article-zh-009",
+          "sha256": "7872c1a071ace274a4defb24bc1b78b91f1741737974f22d2ed25af771b73e2c",
+          "excerpt": "Qwen3",
+          "excerpt_byte_span": [
+            328,
+            333
+          ],
+          "excerpt_kind": "title_or_paragraph_candidate",
+          "byte_spans": [],
+          "fact_id": "fact-article-zh-009",
+          "text_evidence": {
+            "text_sha256": "3363e26005f9d55337fee2419a7bfa84a5588194aa5311157501cf9db91a61dd",
+            "byte_span": [
+              186,
+              223
+            ]
+          }
+        }
+      ],
+      "relationship_label": "unrelated",
+      "engine_relation": "UNRELATED",
+      "label_status": "proposed_reference",
+      "status": "needs_review",
+      "reviewer": null,
+      "rationale": "Qwen3基础模型发布与Qwen3 Embedding表征排序模型是不同具体产品/更新的独立发布；正文虽明确基于Qwen3，不能仅凭家族或时间先后归并，按固定group-definitions为UNRELATED。"
+    },
+    {
+      "id": "relation-009",
+      "split": "tuning",
+      "evidence": [
+        {
+          "article_id": "article-zh-010",
+          "sha256": "137b31e161d4f96a2d59ffb9c15a57af62b6210ff442ddb23d156f3c426e046a",
+          "excerpt": "Qwen3：思深，行速",
+          "excerpt_byte_span": [
+            318,
+            341
+          ],
+          "excerpt_kind": "title_or_paragraph_candidate",
+          "byte_spans": [],
+          "fact_id": "fact-article-zh-010",
+          "text_evidence": {
+            "text_sha256": "5e6d92b653c029ba296c2606eae74e98459d33936d7f062144eae5eb48e7588f",
+            "byte_span": [
+              70,
+              103
+            ]
+          }
+        },
+        {
+          "article_id": "article-zh-005",
+          "sha256": "fc5d73b67057b06c6ebdea13509d2169cfebbc9fcf9a7abc9688f31c2589feb2",
+          "excerpt": "Qwen-MT：速度与智能翻译的完美融合",
+          "excerpt_byte_span": [
+            320,
+            366
+          ],
+          "excerpt_kind": "title_or_paragraph_candidate",
+          "byte_spans": [],
+          "fact_id": "fact-article-zh-005",
+          "text_evidence": {
+            "text_sha256": "794a77e2f36603ef825e383ac1287b74b45410d56ded4b77ecd197e7859109e5",
+            "byte_span": [
+              108,
+              148
+            ]
+          }
+        }
+      ],
+      "relationship_label": "unrelated",
+      "engine_relation": "UNRELATED",
+      "label_status": "proposed_reference",
+      "status": "needs_review",
+      "reviewer": null,
+      "rationale": "Qwen3基础模型发布与Qwen-MT翻译升级是不同具体产品/更新的独立发布；正文虽明确基于Qwen3，不能仅凭家族或时间先后归并，按固定group-definitions为UNRELATED。"
+    },
+    {
+      "id": "relation-010",
+      "split": "tuning",
+      "evidence": [
+        {
+          "article_id": "article-zh-001",
+          "sha256": "b2cfc6af71f6ab3c30d9a102ce391e5c60367115d8c09084b51993429606596c",
+          "excerpt": "Qwen3Guard:",
+          "excerpt_byte_span": [
+            323,
+            334
+          ],
+          "excerpt_kind": "title_or_paragraph_candidate",
+          "byte_spans": [],
+          "fact_id": "fact-article-zh-001",
+          "text_evidence": {
+            "text_sha256": "4148c2c49a35a8146f1f94ca4b9fa3c99b35ed900541370a7f0a4ff50ce84b6d",
+            "byte_span": [
+              159,
+              208
+            ]
+          }
+        },
+        {
+          "article_id": "article-001",
+          "sha256": "a218eaf7f1ba32ea2029ced5f95b8979f91a320622de865e868c3bb9186a253e",
+          "excerpt": "Grounding",
+          "excerpt_byte_span": [
+            855,
+            864
+          ],
+          "excerpt_kind": "title_or_paragraph_candidate",
+          "byte_spans": [],
+          "fact_id": "fact-article-001",
+          "text_evidence": {
+            "text_sha256": "708fad3e3d2495f3d777d47d7ecca740079a99581e03fe41cfaf5e762978877b",
+            "byte_span": [
+              216,
+              281
+            ]
+          }
+        }
+      ],
+      "relationship_label": "unrelated",
+      "engine_relation": "UNRELATED",
+      "label_status": "proposed_reference",
+      "status": "needs_review",
+      "reviewer": null,
+      "rationale": "前者为Qwen3Guard安全模型架构，后者为Google湿实验室代理；来源事实的主体和被报道动作均不同。"
+    },
+    {
+      "id": "relation-011",
+      "split": "tuning",
+      "evidence": [
+        {
+          "article_id": "article-zh-004",
+          "sha256": "0c6618af2355ea11847dbdcd01acdc57348cec0e2921b6be2f0eeee1b3689a9f",
+          "excerpt": "GSPO：迈向持续拓展的语言模型强化学习",
+          "excerpt_byte_span": [
+            317,
+            369
+          ],
+          "excerpt_kind": "title_or_paragraph_candidate",
+          "byte_spans": [],
+          "fact_id": "fact-article-zh-004",
+          "text_evidence": {
+            "text_sha256": "dbf07c883be66a6c3b9084f8b1f83f1a6df11142112e88b0a6c5137919af6377",
+            "byte_span": [
+              490,
+              554
+            ]
+          }
+        },
+        {
+          "article_id": "article-006",
+          "sha256": "fe33ca32bfa7cc7478278752586934e9fad4e6bbda3cd8a348b027584d6f1eb8",
+          "excerpt": "Timestral:",
+          "excerpt_byte_span": [
+            119,
+            129
+          ],
+          "excerpt_kind": "title_or_paragraph_candidate",
+          "byte_spans": [],
+          "fact_id": "fact-article-006",
+          "text_evidence": {
+            "text_sha256": "52afdbebe38fd98e24be9a7ddc1dceeeccf78052dd898e4dbbf59486898806db",
+            "byte_span": [
+              735,
+              821
+            ]
+          }
+        }
+      ],
+      "relationship_label": "unrelated",
+      "engine_relation": "UNRELATED",
+      "label_status": "proposed_reference",
+      "status": "needs_review",
+      "reviewer": null,
+      "rationale": "前者提出GSPO强化学习算法，后者发布Timestral时间序列模型，未构成同一事件或有证据的后续。"
+    },
+    {
+      "id": "relation-012",
+      "split": "tuning",
+      "evidence": [
+        {
+          "article_id": "article-zh-006",
+          "sha256": "056010073aec4d01e52c552ea8cdfbdd5072b647826df93d11842fbd3a492315",
+          "excerpt": "Qwen3-Coder:",
+          "excerpt_byte_span": [
+            324,
+            336
+          ],
+          "excerpt_kind": "title_or_paragraph_candidate",
+          "byte_spans": [],
+          "fact_id": "fact-article-zh-006",
+          "text_evidence": {
+            "text_sha256": "d906a7eca4c7e92acb72c0caf554e93926eca40f65cfdc4b69341331f96e1ef0",
+            "byte_span": [
+              39,
+              75
+            ]
+          }
+        },
+        {
+          "article_id": "article-003",
+          "sha256": "3662040130478f5b87d7da31a360143e82a59796bbb4c22023b3e3f38acb1e04",
+          "excerpt": "Celebrate",
+          "excerpt_byte_span": [
+            1646,
+            1655
+          ],
+          "excerpt_kind": "title_or_paragraph_candidate",
+          "byte_spans": [],
+          "fact_id": "fact-article-003",
+          "text_evidence": {
+            "text_sha256": "219ec85137ec09acc39646e18e3f006747dc5cffa53ca6de4ee11b2d144ddf92",
+            "byte_span": [
+              0,
+              83
+            ]
+          }
+        }
+      ],
+      "relationship_label": "unrelated",
+      "engine_relation": "UNRELATED",
+      "label_status": "proposed_reference",
+      "status": "needs_review",
+      "reviewer": null,
+      "rationale": "前者发布Qwen3-Coder代码模型，后者发布NVIDIA RTX Spark电脑平台，主体和事件不同。"
+    },
+    {
+      "id": "relation-013",
+      "split": "tuning",
+      "evidence": [
+        {
+          "article_id": "article-zh-007",
+          "sha256": "9afd1a0c1a713b6d35454ce9f74b97dbaee1fdcbe5567ae17fe3ba9f88d54f97",
+          "excerpt": "Time",
+          "excerpt_byte_span": [
+            321,
+            325
+          ],
+          "excerpt_kind": "title_or_paragraph_candidate",
+          "byte_spans": [],
+          "fact_id": "fact-article-zh-007",
+          "text_evidence": {
+            "text_sha256": "eabfdc4e912ff88233012622190d7b41b3e75b91205ae1efc159f3ac4ea7a61c",
+            "byte_span": [
+              354,
+              435
+            ]
+          }
+        },
+        {
+          "article_id": "article-008",
+          "sha256": "56fb878de3fe23080bf07321b1b12d3e8ab987407e63f42aa18bb518443cb423",
+          "excerpt": "Replit",
+          "excerpt_byte_span": [
+            854,
+            860
+          ],
+          "excerpt_kind": "title_or_paragraph_candidate",
+          "byte_spans": [],
+          "fact_id": "fact-article-008",
+          "text_evidence": {
+            "text_sha256": "b683e2f7701f39ca58281d5380d4cfc5acdbe4cd06d966a2690646ee11e0a433",
+            "byte_span": [
+              94,
+              129
+            ]
+          }
+        }
+      ],
+      "relationship_label": "unrelated",
+      "engine_relation": "UNRELATED",
+      "label_status": "proposed_reference",
+      "status": "needs_review",
+      "reviewer": null,
+      "rationale": "前者是Qwen-TTS方言能力，后者是Replit与Anthropic停止合作，事件对象不同。"
+    },
+    {
+      "id": "relation-014",
+      "split": "tuning",
+      "evidence": [
+        {
+          "article_id": "article-zh-008",
+          "sha256": "d9efcd096f8f1ae801f4485a694cb982ba63a6856503bb8359bfa85ca30840c5",
+          "excerpt": "Qwen",
+          "excerpt_byte_span": [
+            321,
+            325
+          ],
+          "excerpt_kind": "title_or_paragraph_candidate",
+          "byte_spans": [],
+          "fact_id": "fact-article-zh-008",
+          "text_evidence": {
+            "text_sha256": "b478f34276978c049f1a684654ce5846c231fa417573cf5221a7f8e32c26a03e",
+            "byte_span": [
+              233,
+              269
+            ]
+          }
+        },
+        {
+          "article_id": "article-014",
+          "sha256": "ed6b43d0188f548fd2cb8e3192c667dac8a2a8e107b178f58ff8c6f799e8b50e",
+          "excerpt": "Putting",
+          "excerpt_byte_span": [
+            849,
+            856
+          ],
+          "excerpt_kind": "title_or_paragraph_candidate",
+          "byte_spans": [],
+          "fact_id": "fact-article-014",
+          "text_evidence": {
+            "text_sha256": "03bf164f4ee31fe1f151c903fbb1bea4d02664dc7801145e67c64560212c8f1d",
+            "byte_span": [
+              490,
+              559
+            ]
+          }
+        }
+      ],
+      "relationship_label": "unrelated",
+      "engine_relation": "UNRELATED",
+      "label_status": "proposed_reference",
+      "status": "needs_review",
+      "reviewer": null,
+      "rationale": "前者发布Qwen VLo图像模型，后者介绍Earth AI地理空间应用，不是同一事件。"
+    },
+    {
+      "id": "relation-015",
+      "split": "tuning",
+      "evidence": [
+        {
+          "article_id": "article-zh-009",
+          "sha256": "7872c1a071ace274a4defb24bc1b78b91f1741737974f22d2ed25af771b73e2c",
+          "excerpt": "Qwen3",
+          "excerpt_byte_span": [
+            328,
+            333
+          ],
+          "excerpt_kind": "title_or_paragraph_candidate",
+          "byte_spans": [],
+          "fact_id": "fact-article-zh-009",
+          "text_evidence": {
+            "text_sha256": "3363e26005f9d55337fee2419a7bfa84a5588194aa5311157501cf9db91a61dd",
+            "byte_span": [
+              186,
+              223
+            ]
+          }
+        },
+        {
+          "article_id": "article-021",
+          "sha256": "1e32712100f5c0b9232d0fdaab9bc8e6ba48b1c7954e85211f63b0de1a1eb4f7",
+          "excerpt": "India",
+          "excerpt_byte_span": [
+            854,
+            859
+          ],
+          "excerpt_kind": "title_or_paragraph_candidate",
+          "byte_spans": [],
+          "fact_id": "fact-article-021",
+          "text_evidence": {
+            "text_sha256": "90dd0e2ba9cf4a040189537d14024f8a6f0713c8077177dc4a29df5800dfa69b",
+            "byte_span": [
+              0,
+              106
+            ]
+          }
+        }
+      ],
+      "relationship_label": "unrelated",
+      "engine_relation": "UNRELATED",
+      "label_status": "proposed_reference",
+      "status": "needs_review",
+      "reviewer": null,
+      "rationale": "前者是Qwen3 Embedding训练说明，后者是印度组织数据访问安全通报，没有同事件依据。"
+    },
+    {
+      "id": "relation-016",
+      "split": "tuning",
+      "evidence": [
+        {
+          "article_id": "article-zh-010",
+          "sha256": "137b31e161d4f96a2d59ffb9c15a57af62b6210ff442ddb23d156f3c426e046a",
+          "excerpt": "Qwen3：思深，行速",
+          "excerpt_byte_span": [
+            318,
+            341
+          ],
+          "excerpt_kind": "title_or_paragraph_candidate",
+          "byte_spans": [],
+          "fact_id": "fact-article-zh-010",
+          "text_evidence": {
+            "text_sha256": "5e6d92b653c029ba296c2606eae74e98459d33936d7f062144eae5eb48e7588f",
+            "byte_span": [
+              70,
+              103
+            ]
+          }
+        },
+        {
+          "article_id": "article-027",
+          "sha256": "f7f0e13a29f16e8593cdf249e1885bed08db199dc7545028d02347831c164db0",
+          "excerpt": "Analyzing",
+          "excerpt_byte_span": [
+            749,
+            758
+          ],
+          "excerpt_kind": "title_or_paragraph_candidate",
+          "byte_spans": [],
+          "fact_id": "fact-article-027",
+          "text_evidence": {
+            "text_sha256": "a24989effa68efc25afffda5fdbcc0d222ddcf0b6ac51e40083c8d10f33bb482",
+            "byte_span": [
+              235,
+              268
+            ]
+          }
+        }
+      ],
+      "relationship_label": "unrelated",
+      "engine_relation": "UNRELATED",
+      "label_status": "proposed_reference",
+      "status": "needs_review",
+      "reviewer": null,
+      "rationale": "前者发布Qwen3，后者公开Deep Review技术文档审阅系统；任务主体和发布动作不同。"
+    },
+    {
+      "id": "relation-017",
+      "split": "tuning",
+      "evidence": [
+        {
+          "article_id": "article-016",
+          "sha256": "601a5d90f7ad9981ea10365eef55f335931065e99f719463ba89b6b2a83a9bbc",
+          "excerpt": "Open",
+          "excerpt_byte_span": [
+            1612,
+            1616
+          ],
+          "excerpt_kind": "title_or_paragraph_candidate",
+          "byte_spans": [],
+          "fact_id": "fact-article-016",
+          "text_evidence": {
+            "text_sha256": "6cf332383d8a6837cfd881cf127de5ff717dc867e121f5dd3e3fe24dad270589",
+            "byte_span": [
+              0,
+              43
+            ]
+          }
+        },
+        {
+          "article_id": "article-036",
+          "sha256": "06f0293ec6039cbcc9d9c5a6e688dbabd2fb5144e41a551734e46d93506d32a7",
+          "excerpt": "AI",
+          "excerpt_byte_span": [
+            322,
+            324
+          ],
+          "excerpt_kind": "title_or_paragraph_candidate",
+          "byte_spans": [],
+          "fact_id": "fact-article-036",
+          "text_evidence": {
+            "text_sha256": "334c346fda27faf92d85f80bb29a071c183c5d4ed0487ba70db220d93acb296c",
+            "byte_span": [
+              243,
+              290
+            ]
+          }
+        }
+      ],
+      "relationship_label": "unrelated",
+      "engine_relation": "UNRELATED",
+      "label_status": "proposed_reference",
+      "status": "needs_review",
+      "reviewer": null,
+      "rationale": "前者发布NVIDIA Nemotron模型，后者报道关闭初创企业的数据售卖，不是同一事件。"
+    },
+    {
+      "id": "relation-018",
+      "split": "tuning",
+      "evidence": [
+        {
+          "article_id": "article-018",
+          "sha256": "7fdaaeeb293514206de50ca250f2818915f5056be99377a1eb0bf340dc8cca9e",
+          "excerpt": "GitHub",
+          "excerpt_byte_span": [
+            561,
+            567
+          ],
+          "excerpt_kind": "title_or_paragraph_candidate",
+          "byte_spans": [],
+          "fact_id": "fact-article-018",
+          "text_evidence": {
+            "text_sha256": "bd7f5e6cab802e5850643d6cda205e7a283927deb3cdae206655d216bd824bca",
+            "byte_span": [
+              281,
+              331
+            ]
+          }
+        },
+        {
+          "article_id": "article-029",
+          "sha256": "1fa0d3e8254c3cee9dc8452ba0ef61045a141d040bdc3ce017f2583a7c624ad9",
+          "excerpt": "GFN",
+          "excerpt_byte_span": [
+            1646,
+            1649
+          ],
+          "excerpt_kind": "title_or_paragraph_candidate",
+          "byte_spans": [],
+          "fact_id": "fact-article-029",
+          "text_evidence": {
+            "text_sha256": "97742fab8b9a95d88af327003a40528ffeef878dd125d9c14eb1063533c6b69b",
+            "byte_span": [
+              51,
+              116
+            ]
+          }
+        }
+      ],
+      "relationship_label": "unrelated",
+      "engine_relation": "UNRELATED",
+      "label_status": "proposed_reference",
+      "status": "needs_review",
+      "reviewer": null,
+      "rationale": "前者讲解Copilot项目上下文，后者更新GeForce NOW DLSS控制，功能对象不同。"
+    },
+    {
+      "id": "relation-019",
+      "split": "holdout",
+      "evidence": [
+        {
+          "article_id": "article-015",
+          "sha256": "895f5303e9edad61c0336136dc0e310cddc3dda1ae2b3525e107cf534d475ceb",
+          "excerpt": "Welcome",
+          "excerpt_byte_span": [
+            3953,
+            3960
+          ],
+          "excerpt_kind": "title_or_paragraph_candidate",
+          "byte_spans": [],
+          "fact_id": "fact-article-015",
+          "text_evidence": {
+            "text_sha256": "3d6f75024fb61e9c3c5bc737d055e8e7d9a5ec230508b6c69149af1f4abf182c",
+            "byte_span": [
+              224,
+              266
+            ]
+          }
+        },
+        {
+          "article_id": "article-zh-003",
+          "sha256": "034bd76b9bcc813e62b60aa5c37c1240be1a457b5cd701c284fb6a6370feef16",
+          "excerpt": "Qwen-Image：擅长文字渲染的创作利器",
+          "excerpt_byte_span": [
+            323,
+            369
+          ],
+          "excerpt_kind": "title_or_paragraph_candidate",
+          "byte_spans": [],
+          "fact_id": "fact-article-zh-003",
+          "text_evidence": {
+            "text_sha256": "84a2ca2a2b6098f5476a9fec6e3d5bebb574f228e2c736b5dee76e07789b0852",
+            "byte_span": [
+              44,
+              102
+            ]
+          }
+        }
+      ],
+      "relationship_label": "unrelated",
+      "engine_relation": "UNRELATED",
+      "label_status": "proposed_reference",
+      "status": "needs_review",
+      "reviewer": null,
+      "rationale": "Reflection Beam代码模型发布与Qwen-Image图像模型发布是不同具体产品事件，同属AI不是归并依据。"
+    },
+    {
+      "id": "relation-020",
+      "split": "holdout",
+      "evidence": [
+        {
+          "article_id": "article-020",
+          "sha256": "32b755b1ec1836bd336d8c8f7a4610ae2263ad3b97846eb1aa370fe9e53947ed",
+          "excerpt": "Meta’s",
+          "excerpt_byte_span": [
+            1699,
+            1707
+          ],
+          "excerpt_kind": "title_or_paragraph_candidate",
+          "byte_spans": [],
+          "fact_id": "fact-article-020",
+          "text_evidence": {
+            "text_sha256": "61d05e161f4792252bc3d1632dd952d7f66fea814e9e3b48a4060ca5d63aefe2",
+            "byte_span": [
+              1088,
+              1164
+            ]
+          }
+        },
+        {
+          "article_id": "article-005",
+          "sha256": "bb16eb2d4f339537185c435d970ef40e3dbc705058e5af221ab8a080bee18fc3",
+          "excerpt": "GitHub’s",
+          "excerpt_byte_span": [
+            561,
+            571
+          ],
+          "excerpt_kind": "title_or_paragraph_candidate",
+          "byte_spans": [],
+          "fact_id": "fact-article-005",
+          "text_evidence": {
+            "text_sha256": "715e9cb1fb4ca42b4573a4350f55e0f339b7077fa68b876ae9d3cd4c9bfab639",
+            "byte_span": [
+              721,
+              793
+            ]
+          }
+        }
+      ],
+      "relationship_label": "unrelated",
+      "engine_relation": "UNRELATED",
+      "label_status": "proposed_reference",
+      "status": "needs_review",
+      "reviewer": null,
+      "rationale": "Meta商业条款与GitHub秘密识别分类器是不同主体、对象与动作，不是同一次发生或后续。"
+    }
+  ],
+  "allowed_relationship_labels": [
+    "same_event",
+    "follow_up",
+    "related_topic",
+    "unrelated"
+  ],
+  "required_review": "Source-grounded proposed references require independent human review and adjudication; they are not approved gold."
+}

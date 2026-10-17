@@ -63,7 +63,8 @@
         "docs/research-web-platform-support.md"
       ],
       "diagrams": [
-        "01-deployment"
+        "01-deployment",
+        "12-ai-news"
       ],
       "tests": [
         "tests/research_web/test_runtime_contract.py",
@@ -101,7 +102,8 @@
       "diagrams": [
         "01-deployment",
         "02-module-dependencies",
-        "03-research-sequence"
+        "03-research-sequence",
+        "12-ai-news"
       ],
       "tests": [
         "tests/javascript/research_web_ui.test.mjs",
@@ -172,7 +174,8 @@
         "02-module-dependencies",
         "03-research-sequence",
         "06-run-state",
-        "11-hot-events"
+        "11-hot-events",
+        "12-ai-news"
       ],
       "tests": [
         "tests/research_web/test_api.py",
@@ -675,6 +678,35 @@
         "services/hot/tests/pricing.test.ts",
         "tests/research_web/test_hot_results.py",
         "tests/research_web/test_hot_joint_archive.py"
+      ]
+    },
+    {
+      "id": "ai-news",
+      "sources": [
+        "services/ai_news/",
+        "app/research_web/ai_news_routes.py",
+        "app/research_web/ai_news_service.py",
+        "research_workbench_entrypoint/ai_news.py",
+        "research_workbench_entrypoint/ai_news_manager.py",
+        "research_workbench_entrypoint/ai_news_postgres.py",
+        "research_workbench_entrypoint/ai_news_transport.py",
+        "scripts/ai_news_eval.py",
+        "evals/ai_news/"
+      ],
+      "documents": [
+        "docs/research-web-ai-news.md",
+        "docs/ai-news-model-evaluation.md",
+        "docs/research-web-installation.md"
+      ],
+      "diagrams": [
+        "12-ai-news"
+      ],
+      "tests": [
+        "tests/research_web/test_ai_news_host.py",
+        "tests/research_web/test_ai_news_eval.py",
+        "tests/javascript/research_web_ai_news_manage.test.mjs",
+        "services/ai_news/tests/runtime.test.mjs",
+        "services/ai_news/tests/engine.test.mjs"
       ]
     }
   ],
@@ -1695,6 +1727,78 @@
             "modelAdminDb"
           ],
           "source": "services/hot/scripts/model-control.ts"
+        }
+      ]
+    },
+    {
+      "id": "12-ai-news",
+      "source": "docs/architecture/research-web/diagrams/12-ai-news.json",
+      "artifact": "outputs/research-web-architecture/12-ai-news.html",
+      "receipt": "outputs/research-web-architecture/12-ai-news.receipt.json",
+      "visualReceipt": "outputs/research-web-architecture/12-ai-news.visual-check.json",
+      "level": "details",
+      "summary": "固定原版自主采编、独立数据库和零模型调用验收边界。",
+      "evidence": [
+        {
+          "subjects": [
+            "reader",
+            "read"
+          ],
+          "source": "app/research_web/ui/aihot.mjs"
+        },
+        {
+          "subjects": [
+            "host",
+            "bridge"
+          ],
+          "source": "app/research_web/ai_news_service.py"
+        },
+        {
+          "subjects": [
+            "api",
+            "apiDb"
+          ],
+          "source": "services/ai_news/server.mjs"
+        },
+        {
+          "subjects": [
+            "sources",
+            "feed"
+          ],
+          "source": "services/ai_news/source-presets.json"
+        },
+        {
+          "subjects": [
+            "worker",
+            "jobs"
+          ],
+          "source": "services/ai_news/runtime.mjs"
+        },
+        {
+          "subjects": [
+            "pg"
+          ],
+          "source": "research_workbench_entrypoint/ai_news_postgres.py"
+        },
+        {
+          "subjects": [
+            "eval",
+            "evalInput"
+          ],
+          "source": "scripts/ai_news_eval.py"
+        },
+        {
+          "subjects": [
+            "grant",
+            "guard"
+          ],
+          "source": "services/ai_news/activation.mjs"
+        },
+        {
+          "subjects": [
+            "dsh"
+          ],
+          "source": "app/research_web/client.py"
         }
       ]
     }
@@ -3617,6 +3721,27 @@
       "source": "app/research_web/main.py",
       "declaredPath": "/api/research/workspaces",
       "prefix": ""
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/ai-news/control",
+      "source": "app/research_web/ai_news_routes.py",
+      "declaredPath": "/control",
+      "prefix": "/api/research/ai-news"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/ai-news/feeds/{kind}.xml",
+      "source": "app/research_web/ai_news_routes.py",
+      "declaredPath": "/feeds/{kind}.xml",
+      "prefix": "/api/research/ai-news"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/ai-news/status",
+      "source": "app/research_web/ai_news_routes.py",
+      "declaredPath": "/status",
+      "prefix": "/api/research/ai-news"
     }
   ],
   "visualReview": "docs/architecture/research-web/visual-review.json",
@@ -3830,6 +3955,16 @@
           "11-hot-events",
           "01-deployment",
           "02-module-dependencies"
+        ]
+      },
+      {
+        "id": "ai-news",
+        "group": "ai-news",
+        "title": "AI资讯自主采编",
+        "summary": "本机原版引擎、独立库与零调用评测；生产内容尚未切换。",
+        "category": "AI资讯",
+        "diagrams": [
+          "12-ai-news"
         ]
       }
     ],

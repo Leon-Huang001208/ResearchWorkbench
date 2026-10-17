@@ -32,6 +32,7 @@ DOCUMENT_NAMES = frozenset(
         "09-report-workflow-sequence",
         "10-excel-report-dataflow",
         "11-hot-events",
+        "12-ai-news",
     )
 )
 DOCUMENT_CSP = (

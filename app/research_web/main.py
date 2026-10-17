@@ -24,7 +24,8 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 from core.observability import get_logger, setup_logging
 from research_workbench_entrypoint.resident.admission import MaintenanceBusy, admission
 
-from .aihot_routes import AihotReader
+from .ai_news_routes import router as ai_news_router
+from .ai_news_service import create_ai_news_service
 from .aihot_routes import router as aihot_router
 from .asset_routes import router as asset_router
 from .asset_workspace import AssetWorkspaceError
@@ -33,6 +34,7 @@ from .capabilities.models import CapabilityError
 from .capabilities.routes import router as capabilities_router
 from .claw_routes import router as claw_router
 from .client import DSHClient, RuntimeFailure
+from .credential_backend import default_credential_backend
 from .datahub.routes import router as datahub_router
 from .documentation import DOCUMENT_NAMES
 from .documentation import router as documentation_router
@@ -245,7 +247,12 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
             auto_probe_on_start=True,
         )
         app.state.research = active
-        app.state.aihot = AihotReader()
+        app.state.ai_news = create_ai_news_service(
+            Path(__file__).resolve().parents[2],
+            active.store.root,
+            credentials=default_credential_backend,
+        )
+        app.state.aihot = app.state.ai_news.reader
         app.state.hot = HotWebService(Path(__file__).resolve().parents[2], active.store.root)
         await active.start()
         log.info(
@@ -261,6 +268,7 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
 
     app = FastAPI(title="Research Workbench Research Web", lifespan=lifespan)
     app.include_router(aihot_router)
+    app.include_router(ai_news_router)
     app.include_router(datahub_router)
     app.include_router(asset_router)
     app.include_router(intel_router)

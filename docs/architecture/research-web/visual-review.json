@@ -170,6 +170,19 @@
       ],
       "findings": [],
       "notes": "Codex已查看本次生成1440浅色与2048深色截图；Hot可选Node/PG和Mac mini隔离Docker/Native路径清晰，未见遮挡/裁剪。自动容纳四视口通过；本图不认证产品模式切换或真实模型研究。"
+    },
+    {
+      "id": "12-ai-news",
+      "artifactSha256": "0e7cd099d8a0453ff3b8178c68a6541d82ae8f6cf59518080b3392527a79467b",
+      "specificationSha256": "96ee9500ddfa56797538a38266a0cb4dad72d4c98de01175277848dc87fd423a",
+      "status": "reviewed",
+      "reviewer": "controller",
+      "date": "2026-10-17",
+      "notes": "实际查看1440浅色及2048深色截图：文字、连线、图例和验收边界清晰；既有DSH节点独立显示，没有误连资讯执行。",
+      "captures": [
+        "12-ai-news.visual-check.1440x900.light.png",
+        "12-ai-news.visual-check.2048x1320.dark.png"
+      ]
     }
   ]
 }

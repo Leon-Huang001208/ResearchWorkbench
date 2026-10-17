@@ -1,4 +1,4 @@
-"""Bounded, credential-free images explicitly issued by AIHOT page responses."""
+"""Bounded images from the owned AIHOT engine; browser credentials stay local."""
 
 import asyncio
 import hashlib
@@ -11,6 +11,7 @@ from fastapi import HTTPException
 from fastapi.responses import Response
 
 from core.observability import get_logger
+from research_workbench_entrypoint.ai_news_transport import AiNewsConnection, AiNewsError
 
 log = get_logger(__name__)
 IMAGE_LIMIT = 4 * 1024 * 1024
@@ -19,20 +20,26 @@ IMAGE_LIMIT = 4 * 1024 * 1024
 class AihotMedia:
     """Project upstream signed image paths into an opaque same-origin allowlist."""
 
-    def __init__(self):
+    def __init__(self, connection=None):
+        self.connection = connection
         self.urls: OrderedDict[str, str] = OrderedDict()
         self.slots = asyncio.Semaphore(4)
 
     def _image(self, value: str) -> str | None:
-        if not isinstance(value, str) or len(value) > 8192:
+        if self.connection is None or not isinstance(value, str) or len(value) > 8192:
+            return None
+        try:
+            connection: AiNewsConnection = self.connection()
+        except AiNewsError:
             return None
         parsed = urlsplit(value)
         if (
             parsed.path != "/api/img-proxy"
+            or (parsed.scheme and parsed.scheme != "http")
             or parsed.fragment
             or parsed.username
             or parsed.password
-            or (parsed.netloc and (parsed.scheme != "https" or parsed.netloc != "aihot.news"))
+            or (parsed.netloc and value.split("/api/", 1)[0] != connection.endpoint)
         ):
             return None
         query = parse_qs(parsed.query)
@@ -40,7 +47,7 @@ class AihotMedia:
             return None
         if not re.fullmatch(r"[a-f0-9]{16,128}", query["sig"][0]) or not query["exp"][0].isdigit():
             return None
-        url = "https://aihot.news" + parsed.path + "?" + parsed.query
+        url = connection.endpoint + parsed.path + "?" + parsed.query
         key = hashlib.sha256(url.encode()).hexdigest()
         self.urls[key] = url
         self.urls.move_to_end(key)
@@ -79,15 +86,19 @@ class AihotMedia:
             raise HTTPException(404, detail={"code": "aihot_image_not_found"})
         self.urls.move_to_end(key)
         try:
+            if self.connection is None:
+                raise AiNewsError("ai_news_not_configured")
+            connection = self.connection()
+            if not url.startswith(connection.endpoint + "/api/img-proxy?"):
+                raise AiNewsError("ai_news_endpoint_changed")
+            headers = {"User-Agent": "ResearchWorkbench-AIHOT/1.0", **connection.headers()}
             async with asyncio.timeout(12):
                 async with (
                     self.slots,
                     httpx.AsyncClient(
                         timeout=12, follow_redirects=False, trust_env=False
                     ) as client,
-                    client.stream(
-                        "GET", url, headers={"User-Agent": "ResearchWorkbench-AIHOT/1.0"}
-                    ) as response,
+                    client.stream("GET", url, headers=headers) as response,
                 ):
                     mime = response.headers.get("content-type", "").split(";", 1)[0]
                     if response.status_code != 200 or mime not in {
@@ -114,6 +125,6 @@ class AihotMedia:
                             "X-Content-Type-Options": "nosniff",
                         },
                     )
-        except (httpx.HTTPError, TimeoutError, ValueError) as exc:
+        except (httpx.HTTPError, TimeoutError, ValueError, AiNewsError) as exc:
             log.warning("aihot_image_read_failed", code="image_unavailable")
             raise HTTPException(502, detail={"code": "aihot_image_unavailable"}) from exc

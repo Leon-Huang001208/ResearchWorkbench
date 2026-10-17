@@ -40,7 +40,7 @@ test('controller handles original body, merge chains and late responses safely',
 });
 test('Markdown export retains body images, internal references and quoted text',()=>{
  const item={...article,body:{content:[{tag:'img',attrs:{src:'/api/research/aihot/media/'+'a'.repeat(64),alt:'关键图'}},{tag:'a',attrs:{href:'#/aihot/item/source'},children:[{text:'全文依据'}]}]},x:{quoted:{authorName:'作者',text:'关键引文'}}};
- const md=articleMarkdown(item);assert.match(md,/!\[关键图\]/);assert.match(md,/\[全文依据\]\([^)]*items\/source\)/);assert.match(md,/关键引文/);
+ const md=articleMarkdown(item);assert.match(md,/!\[关键图\]/);assert.match(md,/\[全文依据\]\([^)]*#\/aihot\/item\/source\)/);assert.match(md,/关键引文/);
 });
 test('late clipboard completion never mutates another page',async()=>{
  const oldNavigator=Object.getOwnPropertyDescriptor(globalThis,'navigator');let finish;
