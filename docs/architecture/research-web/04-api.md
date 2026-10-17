@@ -1,5 +1,7 @@
 # Research Web 接口清单
 
+用户实例恢复若原回调端口被占用，返回503 runtime_port_unavailable；不安全或不一致的控制记录为runtime_control_invalid（权限类仍保留runtime_path_unsafe）。不自动改址或驱逐其他实例；匿名健康不触发这些恢复操作。
+
 附接 primary 的原 /api/research/aihot/ 只读请求沿认证代理送原 backend，避免升级网关时改变其资讯响应合同；新用户共享资讯 API 保持，管理接口仍验 admin。/static 按认证 UUID 选择固定界面版本并 no-store。
 
 常驻附接模式增加匿名 `GET /api/server/health`，廉价返回网关 status/revision/primary_last_verified，后者只是先前验证标记，不表示当前模型可调用；独立 serve 返回 runtime=not_started_by_health。me 增加 primary，users 增加 primary_user_id。primary 停用/停止返回 409 primary_account_protected。切换 journal 存在时业务写操作返回 503 server_maintenance，登录和退出仍可用。

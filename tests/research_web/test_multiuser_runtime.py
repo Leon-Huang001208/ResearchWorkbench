@@ -3,9 +3,11 @@
 import asyncio
 import json
 import os
+import socket
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from types import SimpleNamespace
+from urllib.parse import urlsplit
 from uuid import uuid4
 
 import pytest
@@ -14,6 +16,94 @@ from starlette.requests import Request
 from app.research_web import tenant_policy
 from app.research_web.multiuser import runtime
 from app.research_web.store import StoreError
+
+
+def saved_control(root, port, *, name="datahub.json", **overrides):
+    folder = root / ".control"
+    folder.mkdir(mode=0o700, parents=True, exist_ok=True)
+    value = {"url": f"http://127.0.0.1:{port}", "token": "T" * 43, **overrides}
+    if name == "mcp-runtime.json":
+        value["version"] = 1
+    path = folder / name
+    runtime._create_private(path, json.dumps(value).encode())
+    return path
+
+
+def test_resume_reuses_trusted_port_and_never_rewrites_control(tmp_path):
+    probe = socket.socket()
+    probe.bind(("127.0.0.1", 0))
+    port = probe.getsockname()[1]
+    probe.close()
+    path = saved_control(tmp_path, port)
+    before = path.read_bytes()
+    reserved = runtime._reserve_web_port(tmp_path)
+    try:
+        assert reserved.getsockname()[1] == port
+        with pytest.raises(runtime.RuntimeErrorSafe, match="runtime_port_unavailable"):
+            runtime._reserve_web_port(tmp_path)
+        assert path.read_bytes() == before
+    finally:
+        reserved.close()
+
+
+def test_resume_rebinds_closed_http_connections_without_waiting_for_time_wait(tmp_path):
+    listener = socket.socket()
+    listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    listener.bind(("127.0.0.1", 0))
+    listener.listen(1)
+    port = listener.getsockname()[1]
+    control = saved_control(tmp_path, port)
+    before = control.read_bytes()
+    with socket.create_connection(("127.0.0.1", port), timeout=2) as client:
+        peer, _ = listener.accept()
+        peer.close()
+        assert client.recv(1) == b""
+    listener.close()
+    reserved = runtime._reserve_web_port(tmp_path)
+    try:
+        assert reserved.getsockname()[1] == port
+        assert control.read_bytes() == before
+    finally:
+        reserved.close()
+
+
+def test_resume_never_reuses_an_existing_reusable_listener(tmp_path):
+    with socket.socket() as listener:
+        listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        listener.bind(("127.0.0.1", 0))
+        listener.listen(1)
+        saved_control(tmp_path, listener.getsockname()[1])
+        with pytest.raises(runtime.RuntimeErrorSafe, match="runtime_port_unavailable"):
+            runtime._reserve_web_port(tmp_path)
+
+
+@pytest.mark.parametrize(
+    "case", ["foreign", "token", "permissions", "link", "directory_link", "pending", "mismatch"]
+)
+def test_resume_rejects_unverified_control_without_modifying_it(tmp_path, case):
+    path = saved_control(tmp_path, 23888)
+    if case == "foreign":
+        path.write_text(json.dumps({"url": "http://192.0.2.1:23888", "token": "T" * 43}))
+    elif case == "token":
+        path.write_text(json.dumps({"url": "http://127.0.0.1:23888", "token": "bad"}))
+    elif case == "permissions":
+        path.chmod(0o644)
+    elif case == "link":
+        target = tmp_path / "outside"
+        path.rename(target)
+        path.symlink_to(target)
+    elif case == "directory_link":
+        target = tmp_path / "outside"
+        path.parent.rename(target)
+        path.parent.symlink_to(target)
+    elif case == "pending":
+        (path.parent / "origin-transaction.json").write_text("{}")
+    elif case == "mismatch":
+        saved_control(tmp_path, 23889, name="mcp-runtime.json")
+    before = path.read_bytes()
+    with pytest.raises(runtime.RuntimeErrorSafe):
+        runtime._reserve_web_port(tmp_path)
+    assert path.read_bytes() == before
 
 
 def config(tmp_path):
@@ -54,6 +144,28 @@ def fake_processes(monkeypatch):
     monkeypatch.setattr(runtime.RuntimePool, "_wait_backend", ready)
     monkeypatch.setattr(runtime.RuntimePool, "_stop_child", staticmethod(stop))
     return children
+
+
+@pytest.mark.asyncio
+async def test_resume_across_pool_recreation_preserves_callback_and_rotates_gateway_key(
+    tmp_path, fake_processes
+):
+    settings = config(tmp_path)
+    user = str(uuid4())
+    first_pool = runtime.RuntimePool(settings)
+    first = await first_pool.backend_for(user)
+    data = settings.root / "users" / user / "research-web"
+    control = saved_control(data, urlsplit(first.url).port)
+    before = control.read_bytes()
+    await first_pool.close()
+    second_pool = runtime.RuntimePool(settings)
+    try:
+        second = await second_pool.backend_for(user)
+        assert second.url == first.url
+        assert second.key != first.key
+        assert control.read_bytes() == before
+    finally:
+        await second_pool.close()
 
 
 @pytest.mark.asyncio

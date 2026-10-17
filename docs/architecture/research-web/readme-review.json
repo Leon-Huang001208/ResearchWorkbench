@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "updated",
-  "summary": "整合AI资讯自主引擎与显式常驻附接、原会话和模型保留",
-  "reason": "保留上游共享资讯及零调用边界，补充primary原实例保留；不在本任务部署资讯数据库或worker。"
+  "disposition": "unchanged",
+  "summary": "复核私网多用户网关正常重启后的可信回调端口复用和已有会话恢复合同",
+  "reason": "修复内部端口选择，不新增入口、依赖或部署模式；README现有隔离和保留说明继续适用，安装及运行时文档补充失败关闭合同。"
 }
