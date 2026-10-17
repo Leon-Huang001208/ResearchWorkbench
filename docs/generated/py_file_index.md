@@ -6482,6 +6482,10 @@ Functions:
 - `_inspect_accounts`
   - Read DELETE-journal SQLite only; WAL/active journals remain unknown.
 - `_source_status`
+- `_configured_capacity`
+  - Explicit private pair limit; older installations retain one extra pair.
+- `_inspect_capacity`
+  - Inspect private configuration without importing or starting a runtime.
 - `_doctor`
 - `_confirmed_password`
 - `_server_context`

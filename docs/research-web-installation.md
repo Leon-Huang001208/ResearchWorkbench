@@ -16,6 +16,10 @@ AI资讯自主化本轮在隔离实例接入原版API/worker与独立库，保�
 
 ## 私网邀请制多用户（macOS Native）
 
+独立 `serve --max-instances` 支持1至4个Web/DSH pair，默认仍为2。附接原实例的常驻入口另从私有 `server/resident.json` 读取 `max_additional_instances`（整数1至4，省略仍为1）；它只计额外用户，原primary另占1个实例。因此配置3表示总计4个，配置4表示总计5个，并不代表所有宿主均已验证该最大值。`rwb server doctor --json` 的 `capacity` 只读显示配置的额外及总上限，非法/非私有记录显示invalid；不是硬件或真实模型压力验收。
+
+本次24GiB/12核Mac mini实测3个额外pair约1.06GiB RSS，60个并发列表请求通过，swap未增长，生产选择额外3（加原primary共4）。保留约6GiB工作波动预算及主机余量；RSS是轻量下界，重型研究、长上下文/大量文件及真实模型并发尚未验证。满槽拒绝新实例，不驱逐既有用户；减少配置只在受控重启后生效，仍须先确认无活跃研究，保全数据及模型。没有自动回收或硬性内存配额，额外用户的退出登录也不释放实例槽。
+
 此模式是显式选择的独立服务器入口：Mac mini 保存所有账号的研究数据；用户通过浏览器登录，管理员在账号页创建/停用用户、重置密码和停止用户实例。没有开放注册。默认原单用户入口、个人数据、resident 与 Docker 实例均不转换为服务器；不自动部署 Tailscale、迁移数据或复制原模型密钥。
 
 AI资讯由网关使用 `server_root/shared/ai-news` 全局库：已登录成员阅读正文/专题/图片/RSS，status/control仅管理员可用。共享库不放入用户DSH根；逐用户tenant后端封禁全局AI路径，资讯请求不启动研究实例。默认未配置不创建目录或数据库、不调用模型；首次共享库初始化与服务启动仍须单独授权，详见[多用户资讯合同](research-web-ai-news.md#私网多用户权限与共享目录)。
@@ -31,7 +35,7 @@ AI资讯由网关使用 `server_root/shared/ai-news` 全局库：已登录成员
 
 示例域名必须替换成已获准设备的精确、小写 Tailscale HTTPS origin，不能有路径、查询、尾部斜线或用户信息；`--node` 指向已有、匹配固定 DSH 的 Node 可执行文件。Serve 只监听 `127.0.0.1:8089`；操作员另行明确授权后配置 Tailscale Serve 将该精确私网域名代理到此端口，不使用 Funnel，不覆盖原个人实例代理。测试可显式使用 `--origin http://127.0.0.1:8089`；此时 Cookie 不带 Secure，仅用于本机开发。
 
-所有命令可选 `--root /absolute/private/server-root`，默认为 `~/.research-workbench/server`。`serve` 可选 `--port`（默认 8089）及 `--max-instances 1|2`（默认 2），不接受多 worker；首次研究才占用实例槽，容量满明确返回 busy，不自动驱逐。管理员在 `/account` 的“停止实例”释放槽位，停用账号会撤销登录并停止其受管实例；仅退出登录、关闭页面或重置密码不停止研究。网关前台正常退出会关闭本进程创建的实例；崩溃残留身份未知时失败关闭，需要操作员核查，不能自动终止未知进程。
+所有命令可选 `--root /absolute/private/server-root`，默认为 `~/.research-workbench/server`。`serve` 可选 `--port`（默认 8089）及 `--max-instances 1|2|3|4`（默认 2），不接受多 worker；首次研究才占用实例槽，容量满明确返回 busy，不自动驱逐。管理员在 `/account` 的“停止实例”释放槽位，停用账号会撤销登录并停止其受管实例；仅退出登录、关闭页面或重置密码不停止研究。网关前台正常退出会关闭本进程创建的实例；崩溃残留身份未知时失败关闭，需要操作员核查，不能自动终止未知进程。
 
 `./rwb server reset-admin --username admin` 交互重置既有管理员密码并撤销该账号所有登录态；不会创建新的管理员或搬移会话。密码至少 12 字符。`server doctor` 只读检查账号库、源码构建文件及解释器/已有模块，输出 runtime/model `not_checked`；`build_present` 不代表固定 SHA、运行健康、Tailscale、真实研究或模型通过。尚未安装时 help/doctor 仍可用；服务启动只用安装后的 Web Python。
 

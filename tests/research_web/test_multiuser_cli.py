@@ -17,6 +17,59 @@ from app.research_web.multiuser.accounts import AccountStore
 PASSWORD = "long private admin password"
 
 
+@pytest.mark.parametrize("value", [0, 5, True, False, "3", None, 2.5])
+def test_resident_capacity_rejects_invalid_or_unbounded_settings(value):
+    with pytest.raises(cli.ServerCommandError, match="server_capacity_invalid"):
+        cli._configured_capacity({"max_additional_instances": value})
+
+
+def test_resident_capacity_preserves_default_and_doctor_reports_explicit_limit(tmp_path, output):
+    assert cli._configured_capacity({}) == 1
+    root = tmp_path / "server"
+    root.mkdir(mode=0o700)
+    path = root / "resident.json"
+    path.write_text(json.dumps({"max_additional_instances": 3}))
+    path.chmod(0o600)
+    before = path.read_bytes(), path.stat().st_mtime_ns
+    assert cli.main(["doctor", "--root", str(root), "--json"]) == 0
+    report = json.loads(output.readouterr().out)
+    assert report["capacity"] == {
+        "status": "configured",
+        "additional_instances": 3,
+        "total_instances": 4,
+    }
+    assert (path.read_bytes(), path.stat().st_mtime_ns) == before
+
+
+@pytest.mark.parametrize("case", ["permissions", "link", "large", "invalid", "boolean"])
+def test_doctor_capacity_rejects_unsafe_config_without_exposing_contents(tmp_path, output, case):
+    root = tmp_path / "server"
+    root.mkdir(mode=0o700)
+    path = root / "resident.json"
+    path.write_text(
+        json.dumps({"max_additional_instances": 3, "private_marker": "never-print-this"})
+    )
+    path.chmod(0o600)
+    if case == "permissions":
+        path.chmod(0o644)
+    elif case == "link":
+        target = tmp_path / "target"
+        path.rename(target)
+        path.symlink_to(target)
+    elif case == "large":
+        path.write_text("never-print-this" * 5000)
+    elif case == "invalid":
+        path.write_text("never-print-this")
+    else:
+        path.write_text(json.dumps({"max_additional_instances": True}))
+    before = path.read_bytes()
+    assert cli.main(["doctor", "--root", str(root), "--json"]) == 0
+    result = output.readouterr()
+    assert json.loads(result.out)["capacity"] == {"status": "invalid"}
+    assert "never-print-this" not in result.out + result.err
+    assert path.read_bytes() == before
+
+
 @pytest.fixture
 def output(monkeypatch):
     """The project intentionally disables pytest's global capture plugin."""

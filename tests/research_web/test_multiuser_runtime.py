@@ -112,6 +112,26 @@ def config(tmp_path):
     )
 
 
+@pytest.mark.asyncio
+async def test_explicit_four_pair_capacity_retains_existing_users_at_limit(
+    tmp_path, fake_processes
+):
+    from dataclasses import replace
+
+    pool = runtime.RuntimePool(replace(config(tmp_path), max_instances=4))
+    users = [str(uuid4()) for _ in range(4)]
+    try:
+        backends = await asyncio.gather(*(pool.backend_for(user) for user in users))
+        assert len({backend.url for backend in backends}) == 4
+        with pytest.raises(runtime.RuntimeErrorSafe, match="runtime_capacity_exceeded"):
+            await pool.backend_for(str(uuid4()))
+        assert await pool.backend_for(users[0]) == backends[0]
+        await pool.stop(users[-1])
+        assert await pool.backend_for(str(uuid4()))
+    finally:
+        await pool.close()
+
+
 class Child:
     serial = 10000
 
