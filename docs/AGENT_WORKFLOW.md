@@ -1,5 +1,10 @@
 # Agent 任务路由指南
 
+私网多用户的账号、网关、运行池和CLI安全合同加入既有Research Web Checks四个定点测试文件；
+只增加当前安全边界的回归，不扩大为全目录pytest，也不增加runner或平台dispatch。
+变更前五次成功运行与新增时间预算记录在actions-budget；Mac仍承担本地Native和macOS安装CI，
+Windows/Linux任务交接保持独立。真实模型、管理员初始化、用户迁移与常驻部署不由这些fixture授权。
+
 FinGPT 单引擎质量门变更使用离线来源/数值/续研与原生工具回归；macOS 安装沿既有 Bootstrap。无真实模型调用，未获预算不做付费对比；Windows/Linux 验收交接保持 NOT_RUN，不从 Mac dispatch。
 
 固定 DSH 搜索升级的 macOS Bootstrap 沿用既有空搜索 HTTP 冒烟，并核对 unavailable_count=0；部分覆盖、原生不可见范围与真实工具/文件由本机独立候选验证，不新增平台 dispatch。

@@ -47,3 +47,4 @@ Router为L4，完整改动集合约束PASS；最终候选/CI/收尾仍待受管�
 <!-- architecture-review {"group":"runtime","structure":"changed","reason":"原Native DSH按用户私有HOME和状态惰性运行，原生guard增加profile拒绝而无第二执行引擎。","diagrams":["01-deployment"]} -->
 <!-- architecture-review {"group":"report-workflows","structure":"unchanged","reason":"仅在既有文档执行入口增加服务器native模式拒绝，报告组装与原Workflow拓扑及持久合同不改变。","diagrams":[]} -->
 <!-- architecture-review {"group":"documentation","structure":"unchanged","reason":"原离线HTTP扫描器仅增加有实际CLI装配证明的独立gateway入口，图文与Atlas生成拓扑不改变。","diagrams":[]} -->
+<!-- architecture-review {"group":"verification-workflow","structure":"unchanged","reason":"仅向原Research Web Checks同一Python步骤加入四个有界安全测试文件，无新增job、runner、依赖、触发面或平台dispatch；运行拓扑保持。","diagrams":[]} -->
