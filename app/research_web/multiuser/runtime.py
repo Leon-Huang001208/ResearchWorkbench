@@ -115,7 +115,13 @@ def _create_private(path: Path, raw: bytes) -> None:
 def _reserve_port(preferred: int = 0) -> socket.socket:
     reserved = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
+        if preferred:
+            reserved.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         reserved.bind(("127.0.0.1", preferred))
+        if preferred:
+            # TIME_WAIT may outlive a graceful Web shutdown. Listening also
+            # excludes a second reusable reservation on platforms allowing it.
+            reserved.listen(1)
         return reserved
     except OSError as exc:
         reserved.close()

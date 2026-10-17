@@ -10,4 +10,6 @@
 
 回归8项先因缺少helper失败；随后运行时21项通过，新增跨pool重建验证原端口/控制字节保持且gateway私钥轮换。完整当前候选验收与部署后真实重启仍须完成，不冒充通过；不进行模型生成。
 
+追加真实临时TCP回归：HTTP连接主动关闭后的TIME_WAIT会使未设置SO_REUSEADDR的同端口重绑失败（errno48），新用例先红后绿。只在已有可信端口预留启用SO_REUSEADDR且listen占住端口；SO_REUSEPORT保持关闭，仍拒绝已存在的可复用listener或另一个预留socket。此检查不连接生产端口。
+
 <!-- architecture-review {"group":"private-multiuser","structure":"unchanged","reason":"只在既有逐用户Web/DSH pair内复用已认证的回调端口，组件、存储schema、执行引擎和网络边界不增加。","diagrams":[]} -->
