@@ -1,5 +1,7 @@
 # DataHub、研究资料与实际文件
 
+不新增端口账本或schema：用户.control/datahub.json及可选mcp-runtime.json继续是可信回调地址权威；恢复只读其原址，不重写token。原址事务journal存在时不启动用户pair。
+
 primary UI 文件只从已验证的旧 project/app/research_web/ui 读取；数据与源码根均不能由浏览器传入。静态响应不缓存，原研究文件与模型命名空间不搬移。
 
 显式附接不搬移原 `research-web`：primary 继续使用原 index、会话文件和模型凭据命名空间。私有 server/resident.json 记录非秘密绑定与源码 SHA；run/cutover.json 是切换写入栅栏，run/recovery 保存前一 boot 的控制记录。保全摘要覆盖全部原会话文件（包括业务 tmp 和 .lock），只记录内容哈希与计数；原模型密钥值不读取。账号库和生产验收证据不进入 Git。

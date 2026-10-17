@@ -417,7 +417,9 @@ def create_gateway(
         try:
             backend = await pool.backend_for(user.id)
         except RuntimeErrorSafe as exc:
-            log.warning("multiuser_backend_unavailable", error_type=type(exc).__name__)
+            log.warning(
+                "multiuser_backend_unavailable", error_type=type(exc).__name__, code=exc.code
+            )
             return error(getattr(exc, "code", "runtime_unavailable"), getattr(exc, "status", 503))
         # Never forward browser cookies, Authorization, proxy headers or a chosen tenant key.
         headers = {k: v for k, v in request.headers.items() if k.lower() in REQUEST_HEADERS}
