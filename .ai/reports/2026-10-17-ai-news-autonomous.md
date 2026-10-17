@@ -36,3 +36,5 @@
 源码检查点：`c38582fd827b36bc20a321eb4e4777143c7825f8`。图源12已9/9 showcase、零错误与警告，四视口包含检查通过，实际查看1440浅色与2048深色截图。源码链接绑定此检查点，最终生成物交付提交另记。
 
 交付前公开CLI复核补充：已用反例先红证明setup早期分派误留宿主Python，会依赖全局keyring；改为复用既有Native环境归属校验与受控reexec，并覆盖无效环境拒绝、Native内部不递归、doctor无需venv/凭据。新增4项public CLI回归通过；测试使用stdlib输出捕获，尊重pytest.ini既有no:capture设置。首次集成候选7bcf8d2本地848JS、1281Python/7subtests通过（Windows-only一项保留skip），其后源码修补需对最终候选重新验收。
+
+最终公开CLI修复后的源码检查点 `4b1fc631df582c9d20f00eca2f31f68888396f79`；Host43项全通过，含4个公开CLI环境分支；拒绝测试遵循原bootstrap的issues数组合同，不改变产品响应。图册源码链接更新到此检查点。
