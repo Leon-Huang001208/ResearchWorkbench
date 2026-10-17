@@ -1,5 +1,7 @@
 # Research Web 能力与平台证据
 
+stage 预留保全释放属于 Mac mini 管理平面，本机 Docker Desktop 单独验收；不认证 Windows/Linux 产品或跨平台原生支持。
+
 AI资讯自主化本轮在隔离实例接入原版API/worker与独立库，保持DSH研究执行及当前常驻内容。零调用和后续切换边界见[自主资讯合同](research-web-ai-news.md)。
 
 私网邀请制多用户首版限定 macOS Native：显式账号网关、逐用户 Web/DSH/data root 和两实例准入。Windows/Linux 原生、Docker 多用户与公网均未接入；本地账号/代理模拟测试不能作为真实 DSH、Seatbelt、浏览器、模型或干净 macOS CI 的证据，必须分别记录实际结果。现有单用户平台支持矩阵不因新增账号提升；同 UID 后端仍受信任，不宣称 OS 租户隔离。

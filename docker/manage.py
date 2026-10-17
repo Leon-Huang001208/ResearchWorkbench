@@ -492,6 +492,59 @@ class Manager:
         if self.owned(record)["State"]["Running"]:
             raise Refusal("container_stop_unverified")
 
+    def release_stage(self, record: dict, expected: tuple[str, str, str], task: str) -> dict:
+        """Release only the reservation; retain the stopped container and every volume."""
+        if record["environment"] != "stage":
+            raise Refusal("only_stage_reservation_release_allowed")
+        if not re.fullmatch(r"[a-z][a-z0-9-]{0,95}", task):
+            raise Refusal("completed_task_required")
+        if not record.get("container_id") or expected != (
+            record["container_id"], record["image"], record["source_sha"]
+        ):
+            raise Refusal("stage_release_identity_mismatch")
+        original = self.read("stage", record["instance"])
+        if original != record:
+            raise Refusal("stage_release_ledger_changed")
+        if record.get("retired"):
+            raise Refusal("stage_reservation_already_released")
+        for _ in range(2):
+            container = self.owned(record)
+            state = container["State"]
+            if state.get("Running") is not False or state.get("Status") not in {"exited", "created"}:
+                raise Refusal("stage_release_requires_stopped_container")
+            for volume in record["volumes"].values():
+                users = command("docker", "ps", "-aq", "--no-trunc", "--filter", f"volume={volume}")
+                if set(users.splitlines()) - {record["container_id"]}:
+                    raise Refusal("stage_release_volume_in_use")
+        # The enclosing administrator entrypoint holds operation.lock throughout.
+        # Archive the exact original record before changing its reservation flag.
+        archive_root = self.ledger / "releases"
+        if archive_root.is_symlink():
+            raise Refusal("stage_release_archive_alias")
+        archive_root.mkdir(mode=0o700, exist_ok=True)
+        digest = hashlib.sha256(json.dumps(original, sort_keys=True).encode()).hexdigest()
+        archive = archive_root / f"stage-{record['instance']}-{digest}.json"
+        if archive.is_symlink():
+            raise Refusal("stage_release_archive_alias")
+        if archive.exists():
+            if json.loads(archive.read_text()) != original:
+                raise Refusal("stage_release_archive_mismatch")
+        else:
+            atomic_json(archive, original)
+        if json.loads(archive.read_text()) != original or self.read("stage", record["instance"]) != original:
+            raise Refusal("stage_release_archive_or_ledger_changed")
+        # Recheck live identity immediately before committing the ledger update.
+        if self.owned(record)["State"].get("Running") is not False:
+            raise Refusal("stage_release_requires_stopped_container")
+        record = dict(record, retired=True, reservation_release={
+            "completed_task": task, "archive": archive.name,
+            "container_and_volumes_preserved": True,
+        })
+        atomic_json(self.path("stage", record["instance"]), record)
+        LOG.info("stage_reservation_released instance=%s completed_task=%s", record["instance"], task)
+        return {"retired": True, "container_id": record["container_id"],
+                "archive": archive.name, "container_and_volumes_preserved": True}
+
     def cleanup(self, record: dict) -> None:
         if record["environment"] != "dev":
             raise Refusal("only_dev_cleanup_allowed")
@@ -785,12 +838,24 @@ def main() -> int:
             "replace-image",
             "enable-model-credentials",
             "credential-probe",
+            "release-reservation",
         ),
     )
     parser.add_argument("--image")
     parser.add_argument("--port", type=int)
+    parser.add_argument("--expected-container")
+    parser.add_argument("--expected-image")
+    parser.add_argument("--expected-source")
+    parser.add_argument("--completed-task")
     arguments, extra = parser.parse_known_args()
     arguments.command = extra
+    release_options = (arguments.expected_container, arguments.expected_image,
+                       arguments.expected_source, arguments.completed_task)
+    if arguments.action == "release-reservation":
+        if not all(release_options):
+            parser.error("release_identity_and_completed_task_required")
+    elif any(release_options):
+        parser.error("release_options_only")
     if extra and arguments.action != "exec":
         parser.error("unexpected_arguments")
     if arguments.port is not None and arguments.action != "register":
@@ -875,6 +940,8 @@ def main() -> int:
         elif arguments.action == "cleanup":
             manager.cleanup(record)
             output = manager.status(record)
+        elif arguments.action == "release-reservation":
+            output = manager.release_stage(record, release_options[:3], arguments.completed_task)
         elif arguments.action == "replace-image":
             if not arguments.image:
                 raise Refusal("explicit_image_required")
