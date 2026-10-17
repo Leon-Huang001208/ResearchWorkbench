@@ -492,11 +492,14 @@ function refreshFeatureRecord(repository, receipt, options) {
 }
 function refreshPublishedBase(repository, receipt, taskId, options) {
   // The shared controller rebuilds worktrees for remote_moved. RWB instead admits
-  // an already committed descendant, preserving the existing PR and every ref.
-  if (receipt.mode !== 'pr' || receipt.status !== 'remote_moved' || !receipt.integrationCommit) fail('PREPARE_REMOVAL_BLOCKED');
+  // an already committed descendant, preserving every ref and any existing PR.
+  // A never-published candidate must retain explicit null publication identities.
+  const unpublished = receipt.mode === null && receipt.pullRequest === null && receipt.remoteCommit === null;
+  if ((!unpublished && receipt.mode !== 'pr') || receipt.status !== 'remote_moved' || !receipt.integrationCommit) fail('PREPARE_REMOVAL_BLOCKED');
+  if (unpublished && (receipt.baseRefreshPublishedHead != null || Object.keys(receipt).some(key => /publish|publication|push|pull.?request|remote.?commit/i.test(key) && !['pullRequest', 'remoteCommit', 'baseRefreshPublishedHead'].includes(key)) || receipt.cleanup?.remoteBranchDeleted === true || receipt.rollback && receipt.rollback.status !== 'not_run')) fail('UNPUBLISHED_STATE_INVALID');
   if (receipt.taskId !== taskId || receipt.repositoryRoot !== repository.repositoryRoot || receipt.remote !== 'origin' || receipt.defaultBranch !== 'master' || !new RegExp(`^codex/integrate-${taskId}(?:-r[0-9]+)?$`).test(receipt.integrationBranch ?? '')) fail('TASK_OWNERSHIP_MISMATCH');
   const repo = githubRepo(receipt);
-  if (!Number.isSafeInteger(receipt.pullRequest?.number) || receipt.pullRequest.number < 1 || receipt.pullRequest.url !== `https://github.com/${repo}/pull/${receipt.pullRequest.number}`) fail('TASK_OWNERSHIP_MISMATCH');
+  if (!unpublished && (!Number.isSafeInteger(receipt.pullRequest?.number) || receipt.pullRequest.number < 1 || receipt.pullRequest.url !== `https://github.com/${repo}/pull/${receipt.pullRequest.number}`)) fail('TASK_OWNERSHIP_MISMATCH');
   if ([receipt.baseCommit, receipt.integrationCommit, receipt.featureCommit].some(value => !/^[a-f0-9]{40}$/.test(value ?? ''))) fail('BASE_REFRESH_ANCESTRY_INVALID');
   const destination = path.join(repository.commonDirectory, 'leon-engineering/deliveries', taskId + '.json');
   const lock = path.join(repository.commonDirectory, 'leon-engineering/locks/integration.lock');
@@ -525,24 +528,39 @@ function refreshPublishedBase(repository, receipt, taskId, options) {
     const base = readBase();
     if (base === receipt.baseCommit) fail('BASE_REFRESH_NOT_NEEDED');
     if (output(git(repository.repositoryRoot, ['rev-parse', 'refs/remotes/origin/master'], options)) !== base) fail('REMOTE_BASE_NOT_FETCHED');
+    let latestFeature;
     const checkCandidate = () => {
+      if (unpublished) {
+        if (output(git(repository.repositoryRoot, ['remote', 'get-url', 'origin'], options)) !== receipt.remoteUrl) fail('REMOTE_IDENTITY_CHANGED');
+        if (output(git(repository.repositoryRoot, ['rev-parse', 'refs/remotes/origin/master'], options)) !== base) fail('REMOTE_BASE_NOT_FETCHED');
+        assertNoSymlinkAncestors(receipt.featureWorktree);
+        const featureDirectory = fs.realpathSync(receipt.featureWorktree);
+        const feature = worktrees(repository, options).find(item => item.worktree === featureDirectory);
+        if (featureDirectory !== receipt.featureWorktree || featureDirectory === repository.repositoryRoot || !feature || feature.branch !== `refs/heads/${receipt.featureBranch}`) fail('TASK_OWNERSHIP_MISMATCH');
+        for (const operation of ['MERGE_HEAD', 'CHERRY_PICK_HEAD', 'REVERT_HEAD']) {
+          if (git(featureDirectory, ['rev-parse', '-q', '--verify', operation], options, {allowFailure: true}).status === 0) fail('FEATURE_REPAIR_UNVERIFIED');
+        }
+        if (git(repository.repositoryRoot, ['merge-base', '--is-ancestor', receipt.baseCommit, receipt.integrationCommit], options, {allowFailure: true}).status !== 0) fail('BASE_REFRESH_ANCESTRY_INVALID');
+      }
       assertNoSymlinkAncestors(receipt.integrationWorktree);
       const directory = fs.realpathSync(receipt.integrationWorktree);
       const registered = worktrees(repository, options).find(item => item.worktree === directory);
-      if (directory === repository.repositoryRoot || !registered || registered.branch !== `refs/heads/${receipt.integrationBranch}` || discover(directory, options).commonDirectory !== repository.commonDirectory) fail('TASK_OWNERSHIP_MISMATCH');
+      if ((unpublished && directory !== receipt.integrationWorktree) || directory === repository.repositoryRoot || !registered || registered.branch !== `refs/heads/${receipt.integrationBranch}` || discover(directory, options).commonDirectory !== repository.commonDirectory) fail('TASK_OWNERSHIP_MISMATCH');
       if (output(git(directory, ['status', '--porcelain', '--untracked-files=all'], options))) fail('WORKTREE_DIRTY');
       for (const operation of ['MERGE_HEAD', 'CHERRY_PICK_HEAD', 'REVERT_HEAD']) {
         if (git(directory, ['rev-parse', '-q', '--verify', operation], options, {allowFailure: true}).status === 0) fail('INTEGRATION_NOT_COMMITTED');
       }
       const head = output(git(directory, ['rev-parse', 'HEAD'], options));
       if (head === receipt.integrationCommit || [receipt.integrationCommit, base].some(commit => git(directory, ['merge-base', '--is-ancestor', commit, head], options, {allowFailure: true}).status !== 0) || git(directory, ['merge-base', '--is-ancestor', receipt.baseCommit, base], options, {allowFailure: true}).status !== 0) fail('BASE_REFRESH_ANCESTRY_INVALID');
-      verifiedFeatureRepair({projectRoot: repository.repositoryRoot, receipt}, options);
+      const feature = verifiedFeatureRepair({projectRoot: repository.repositoryRoot, receipt}, options);
+      if (unpublished && latestFeature && feature !== latestFeature) fail('DELIVERY_RECORD_CHANGED');
+      latestFeature = feature;
       return head;
     };
     const candidate = checkCandidate();
-    const publishedHead = checkPR();
+    const publishedHead = unpublished ? null : checkPR();
     if (readBase() !== base) fail('REMOTE_BASE_CHANGED');
-    if (checkPR() !== publishedHead) fail('PR_HEAD_MISMATCH');
+    if (!unpublished && checkPR() !== publishedHead) fail('PR_HEAD_MISMATCH');
     if (checkCandidate() !== candidate) fail('DELIVERY_RECORD_CHANGED');
     const unchanged = () => {
       const stat = fs.lstatSync(destination);
@@ -551,9 +569,13 @@ function refreshPublishedBase(repository, receipt, taskId, options) {
     unchanged();
     const snapshot = path.join(state(repository), 'base-refresh', taskId, crypto.randomUUID() + '.json');
     privateWrite(snapshot, before);
-    const updated = {...receipt, baseCommit: base, remoteCommit: base, integrationCommit: candidate, baseRefreshPublishedHead: publishedHead, verification: null, ci: {status: 'pending', runs: []}, status: 'prepared', updatedAt: new Date().toISOString()};
+    const updated = {...receipt, baseCommit: base, remoteCommit: unpublished ? null : base, integrationCommit: candidate, ...(unpublished ? {featureCommit: latestFeature} : {baseRefreshPublishedHead: publishedHead}), verification: null, ci: {status: 'pending', runs: []}, status: 'prepared', updatedAt: new Date().toISOString()};
     temporary = destination + '.' + crypto.randomUUID() + '.tmp';
     privateWrite(temporary, JSON.stringify(updated, null, 2) + '\n');
+    if (unpublished) {
+      if (readBase() !== base) fail('REMOTE_BASE_CHANGED');
+      if (checkCandidate() !== candidate) fail('DELIVERY_RECORD_CHANGED');
+    }
     unchanged();
     fs.renameSync(temporary, destination);
     log(repository, 'delivery-base-refresh', 'PASS', undefined, {previousBase: receipt.baseCommit, base, previousCandidate: receipt.integrationCommit, publishedHead, candidate, receiptSnapshot: snapshot}, options);
