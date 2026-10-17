@@ -5,12 +5,13 @@ import { renderArticle, renderStory, renderTopic, articleMarkdown } from './aiho
 import { renderHot } from './aihot-hot.mjs';
 import { createNewsManagement, renderNewsManagement } from './ai-news-manage.mjs';
 
-export function createAihotController({ fetcher = (...args) => fetch(...args), onChange = () => {} } = {}) {
+export function createAihotController({ fetcher = (...args) => fetch(...args), onChange = () => {}, canManage = () => !globalThis.__RWB_USER_ID__ || globalThis.__RWB_USER_ROLE__ === 'admin' } = {}) {
   const state = { tab: 'daily', kind: 'daily', date: '', editions: [], report: null, hot: null, loading: false, error: '', months: {}, openMonths: new Map(), detail: null, filter: 'all', order: 'desc', viewCache: new Map() };
   let generation = 0, abort, route = {};
   const readingHistory=[];
   const management = createNewsManagement({fetcher,onChange});
   state.management = management.state;
+  state.canManage=Boolean(canManage());
   let linkIntent='';
   function routeHash(value) {
     const tab=value.aihotTab || 'daily';
@@ -26,7 +27,12 @@ export function createAihotController({ fetcher = (...args) => fetch(...args), o
   }
   async function activate(nextRoute) {
     route = { ...nextRoute }; cancel();
-    if(route.aihotTab==='manage') {state.tab='manage';return management.activate(route.aiNewsSection);}
+    state.canManage=Boolean(canManage());management.state.accessDenied=!state.canManage;
+    if(route.aihotTab==='manage') {
+      state.tab='manage';
+      if(!state.canManage){Object.assign(management.state,{data:null,status:null,error:'',loading:false});onChange();return;}
+      return management.activate(route.aiNewsSection);
+    }
     const hash=routeHash(route);
     if (linkIntent !== hash && readingHistory.at(-2)===hash) readingHistory.pop();
     else if(readingHistory.at(-1)!==hash) {readingHistory.push(hash);if(readingHistory.length>50)readingHistory.shift();}
@@ -172,5 +178,5 @@ export function renderAihot(state) {
   const outlineLinks = outline.map((page, i) => `<button data-aihot-jump="${page.id}">${String(i + 1).padStart(2, '0')} ${e(page.label)}</button>`).join('') + (state.report?.flashes?.length ? '<button data-aihot-jump="aihot-s-flash">快讯</button>' : '');
   const body = state.loading ? '<p class="aihot-empty" role="status">正在读取 AIHOT…</p>' : state.error ? `<div class="notice danger" role="alert">${e(state.error)}<button class="text-button" data-aihot-refresh>重试</button></div>` : hot ? renderHot(state.hot || {}) : state.tab === 'archive' ? renderArchiveBook(state) : state.report ? renderPaper(state.report, state.editions) : `<p class="aihot-empty">当前暂无可用${kinds[state.kind] || '日报'}。</p>`;
   const recent = list(state.editions).slice(0, 3);
-  return `<section class="aihot-page ${hot ? 'aihot-hot' : 'aihot-reports'}" aria-busy="${Boolean(state.loading)}"><div class="aihot-module-bar"><nav aria-label="AIHOT 栏目"><a href="#/aihot/daily" ${!hot ? 'aria-current="page"' : ''}>日报</a><a href="#/aihot/hot" ${hot ? 'aria-current="page"' : ''}>热点榜</a></nav><div><a href="#/aihot/manage">采编管理</a><button type="button" data-aihot-refresh ${state.loading ? 'disabled' : ''}>刷新</button></div></div><div class="aihot-layout">${!hot ? renderArchive(state) : ''}<div class="aihot-reading">${!hot ? `<div class="aihot-phone-bar">${kindSwitch(state.kind)}<button data-aihot-outline aria-label="本期目录">☷ 本期目录</button></div><nav class="aihot-recent" aria-label="最近期次">${recent.map((item, i) => `<a href="${reportHash(state.kind, item.key)}" ${item.key === state.date ? 'aria-current="date"' : ''}>${i === 0 ? '最新一期' : e(item.key)}</a>`).join('')}${state.kind === 'daily' ? '<a href="#/aihot/archive">更早</a>' : '<button data-aihot-jump="aihot-report-history">更早</button>'}</nav>` : ''}${body}</div></div><dialog class="aihot-outline-dialog" aria-labelledby="aihot-outline-title"><header><h2 id="aihot-outline-title">本期目录</h2><button data-aihot-outline-close aria-label="关闭目录">×</button></header><button data-aihot-jump="aihot-report-start">头版</button>${outlineLinks}</dialog><footer class="aihot-footer"><span>本机自主资讯库</span>${!hot ? `<a href="/api/research/ai-news/feeds/${state.kind}.xml">RSS 订阅</a>` : ''}<span>时间按北京时间显示 · 从自主材料重新起刊</span></footer></section>`;
+  return `<section class="aihot-page ${hot ? 'aihot-hot' : 'aihot-reports'}" aria-busy="${Boolean(state.loading)}"><div class="aihot-module-bar"><nav aria-label="AIHOT 栏目"><a href="#/aihot/daily" ${!hot ? 'aria-current="page"' : ''}>日报</a><a href="#/aihot/hot" ${hot ? 'aria-current="page"' : ''}>热点榜</a></nav><div>${state.canManage !== false ? '<a href="#/aihot/manage">采编管理</a>' : ''}<button type="button" data-aihot-refresh ${state.loading ? 'disabled' : ''}>刷新</button></div></div><div class="aihot-layout">${!hot ? renderArchive(state) : ''}<div class="aihot-reading">${!hot ? `<div class="aihot-phone-bar">${kindSwitch(state.kind)}<button data-aihot-outline aria-label="本期目录">☷ 本期目录</button></div><nav class="aihot-recent" aria-label="最近期次">${recent.map((item, i) => `<a href="${reportHash(state.kind, item.key)}" ${item.key === state.date ? 'aria-current="date"' : ''}>${i === 0 ? '最新一期' : e(item.key)}</a>`).join('')}${state.kind === 'daily' ? '<a href="#/aihot/archive">更早</a>' : '<button data-aihot-jump="aihot-report-history">更早</button>'}</nav>` : ''}${body}</div></div><dialog class="aihot-outline-dialog" aria-labelledby="aihot-outline-title"><header><h2 id="aihot-outline-title">本期目录</h2><button data-aihot-outline-close aria-label="关闭目录">×</button></header><button data-aihot-jump="aihot-report-start">头版</button>${outlineLinks}</dialog><footer class="aihot-footer"><span>本机自主资讯库</span>${!hot ? `<a href="/api/research/ai-news/feeds/${state.kind}.xml">RSS 订阅</a>` : ''}<span>时间按北京时间显示 · 从自主材料重新起刊</span></footer></section>`;
 }

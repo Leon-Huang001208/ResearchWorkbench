@@ -19,6 +19,32 @@ AI 资讯使用 `services/ai_news/vendor/aihot` 固定的原始 AIHOT Node API�
 
 ## Host 接口
 
+### 私网多用户权限与共享目录
+
+多用户服务器在认证 gateway 内挂同一组 AI 阅读和管理路由，使用唯一共享 service。
+服务 home 为 `server_root/shared`，实际资讯目录为 `server_root/shared/ai-news`，独立于
+`server_root/users/<uuid>/research-web` 的 DSH、会话、文件与个人模型凭据。构造 bridge
+不创建共享目录、不连接数据库、不读 Keychain，也不自动安装或启动 AI/DSH 进程；首次
+共享库 setup 仍须操作员明确授权。没有配置时管理员看到 not_configured，成员阅读得到 503。
+
+| 路径 | 权限 |
+| --- | --- |
+| 原 `/api/research/aihot/*` 阅读、正文、专题与图片 | 已登录成员 |
+| `/api/research/ai-news/feeds/{kind}.xml` 六种 RSS | 已登录成员 |
+| `GET /api/research/ai-news/status` | admin |
+| `POST /api/research/ai-news/control` | admin |
+
+未知 AI 子路由、未知 feed 和不适用 HTTP 方法直接拒绝，绝不转发到逐用户 Web/DSH 后端，
+因此资讯阅读不占用研究实例槽。tenant profile 同时封禁所有 `/aihot` 和 `/ai-news` 路径，
+即使调用者持有某个用户后端的实例 key，也不能借用户 Host 访问全局资讯。原单用户权限不变。
+
+沿用既有 gateway 的精确 Host/Origin、Strict/HttpOnly Cookie 及页面账号绑定，不增加第二套
+浏览器 CSRF 协议。控制请求必须匹配 `X-RWB-Page-User` 或 `rwb_user`；GET 如携带这些字段
+也必须匹配当前账号。control 在 JSON 解析前流式限制 64 KiB，慢 body 结束后重新确认有效
+账号和 admin；共享读取返回前再次检查撤销。账号切换、密码重置或停用不能让旧页面继续读取
+或提交管理。浏览器 Cookie、Authorization、伪造的私有 Node/tenant key 不传入原 AIHOT 引擎；
+原 Node admin session 与 CSRF 仍只由 Host 私有桥处理。
+
 `create_ai_news_service(project, home, credentials=None)` 仅构造对象，不做 I/O。
 `service.reader` 注入现有 `app.state.aihot`；原 `/api/research/aihot/*` 阅读、专题、分组、
 日报/周报/月报、原文和图片路由保持原合同。传输改为私有回环 API，地址仅从本机私有配置取得，

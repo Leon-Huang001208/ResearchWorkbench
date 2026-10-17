@@ -20,6 +20,8 @@
 
 <!-- architecture-review {"group": "ai-news", "structure": "changed", "reason": "新增本机原版资讯采编引擎、私有Host桥和独立数据库，部署关系由新图12记录；研究引擎与现有平台归属保留。", "diagrams": ["12-ai-news"]} -->
 
+<!-- architecture-review {"group": "private-multiuser", "structure": "changed", "reason": "认证网关直接承载独立shared home中的全局AI资讯，成员阅读和管理员管理分离；tenant后端封禁全局AI路径，资讯请求不启动逐用户DSH，图12记录该网关边界。", "diagrams": ["12-ai-news"]} -->
+
 
 独立评审反例已修复：初始化中断续跑、进程指纹稳定性、Popen失败清理、migrate/seed超时整组终止与不确定恢复栅栏；标注重复覆盖、混合split请求与云端传输仍在最后评审；管理草稿/连续保存/迟到响应/重复创建反馈与历史显示。新增自主chronicle经原Module扩展重新检查当前主题归属、撤回与修订，明确三种日期及80条证据范围。
 
@@ -38,3 +40,9 @@
 交付前公开CLI复核补充：已用反例先红证明setup早期分派误留宿主Python，会依赖全局keyring；改为复用既有Native环境归属校验与受控reexec，并覆盖无效环境拒绝、Native内部不递归、doctor无需venv/凭据。新增4项public CLI回归通过；测试使用stdlib输出捕获，尊重pytest.ini既有no:capture设置。首次集成候选7bcf8d2本地848JS、1281Python/7subtests通过（Windows-only一项保留skip），其后源码修补需对最终候选重新验收。
 
 最终公开CLI修复后的源码检查点 `4b1fc631df582c9d20f00eca2f31f68888396f79`；Host43项全通过，含4个公开CLI环境分支；拒绝测试遵循原bootstrap的issues数组合同，不改变产品响应。图册源码链接更新到此检查点。
+
+合并PR128（基线 `c034be7355fbcd1cfb15bf84da671d1ad8f55355`）后的多用户集成增量：gateway直接挂原AI阅读/管理routers，共享home为server_root/shared，不把全局资讯放进逐用户DSH数据根。已登录成员可读正文/专题/图片/六种RSS，status/control仅admin；未知AI路径不占用用户实例槽，tenant_policy即使接收有效实例key仍拒绝全局AI路径。沿用精确Host/Origin、页面账号绑定及登录撤销，control流式64KiB并在慢body后重验admin；读取结束前重查撤销。Node原认证保持私有，TLS终止后的RSS使用已验证HTTPS origin。
+
+该增量使用注入的fake资讯service及临时账号库验证，无产品数据库/进程启动、模型或付费调用。新增test_ai_news_multiuser与原test_multiuser_gateway合计36项通过；Ruff/Black/isort三个Python文件通过，mypy两个源文件通过。日志位于任务feature worktree的logs/ai-news-autonomous-20261017/multiuser-tests.log，不累计为此前不同测试项。map已登记两组共享测试、chronicle测试及图12 gateway证据；最终生成物、revision、CI和合并状态由主会话统一绑定，未在该增量生成atlas/index或提交。
+
+登记后的架构检查实际执行 `node scripts/check_research_architecture.mjs --project . --base c034be7355fbcd1cfb15bf84da671d1ad8f55355`：检查792项，退出1，唯一违例为生成的outputs/research-web-architecture/index.html尚未反映新登记，代码generated_artifact_stale。日志architecture-private-integration.json保留完整结果；主会话生成最终atlas/index并重新检查前，不把此项记为PASS。未改reading revision或擅自生成产物。

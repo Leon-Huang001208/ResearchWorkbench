@@ -59,6 +59,8 @@ from .report_workflows.models import WorkflowError
 from .service import ResearchService
 from .store import Store, StoreError
 from .tabbit import TabbitError
+from .tenant_policy import check_request as check_tenant_request
+from .tenant_policy import enabled as tenant_mode_enabled
 from .workbench import router as workbench_router
 
 log = get_logger(__name__)
@@ -244,15 +246,16 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
             Store(ROOT),
             owned=False,
             expected_cwd=ROOT / "runtime" / "work",
-            auto_probe_on_start=True,
+            auto_probe_on_start=not tenant_mode_enabled(),
         )
         app.state.research = active
-        app.state.ai_news = create_ai_news_service(
-            Path(__file__).resolve().parents[2],
-            active.store.root,
-            credentials=default_credential_backend,
-        )
-        app.state.aihot = app.state.ai_news.reader
+        if not tenant_mode_enabled():
+            app.state.ai_news = create_ai_news_service(
+                Path(__file__).resolve().parents[2],
+                active.store.root,
+                credentials=default_credential_backend,
+            )
+            app.state.aihot = app.state.ai_news.reader
         app.state.hot = HotWebService(Path(__file__).resolve().parents[2], active.store.root)
         await active.start()
         log.info(
@@ -298,6 +301,9 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
 
     @app.middleware("http")
     async def local_boundary(request, call_next):
+        tenant_denial = await check_tenant_request(request)
+        if tenant_denial is not None:
+            return tenant_denial
         if request.url.path.startswith(
             "/api/research/internal/data/"
         ) and not request.app.state.research.datahub.authenticate(

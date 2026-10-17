@@ -63,6 +63,17 @@ async function check(f, changedFiles=[]) {
   return checkResearchArchitecture({projectRoot:f.root,changedFiles});
 }
 
+test('private gateway APIs require a verified independent CLI factory-to-server chain', async t => {
+  const f = fixture(t);
+  const gateway = 'app/research_web/multiuser/gateway.py';
+  const command = 'app/research_web/multiuser/__main__.py';
+  f.write(gateway, '@app.get("/api/server/me")\nasync def me(): pass\n');
+  f.write(command, 'from .gateway import create_gateway\napp = create_gateway(store, pool, origin=origin)\nuvicorn.run(app, host="127.0.0.1")\n');
+  assert.equal((await check(f)).violations.some(v => v.code === 'api_unmounted' && v.path === gateway), false);
+  f.write(command, 'from .gateway import create_gateway\napp = create_gateway(store, pool, origin=origin)\nprint(app)\n');
+  assert.equal((await check(f)).violations.some(v => v.code === 'api_unmounted' && v.path === gateway), true);
+});
+
 test('local integration API deep links select their own real Atlas category', async () => {
   const {category}=await import(atlasURL);
   assert.equal(category({path:'/api/research/local-integrations/status'}),'本机集成');

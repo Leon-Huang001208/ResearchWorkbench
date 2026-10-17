@@ -5,9 +5,9 @@
   "status": "pass",
   "visualReview": "pending",
   "artifact": {
-    "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/ai-news-autonomous-20261017/outputs/research-web-architecture/12-ai-news.html",
-    "sha256": "0e7cd099d8a0453ff3b8178c68a6541d82ae8f6cf59518080b3392527a79467b",
-    "bytes": 636051
+    "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/ai-news-autonomous-20261017-integration/outputs/research-web-architecture/12-ai-news.html",
+    "sha256": "dd289388969b326ee18c89a0cccc7d12f4d0e4e5a6c411d501595ac18e1b1cb4",
+    "bytes": 636136
   },
   "state": {
     "detail": "read",

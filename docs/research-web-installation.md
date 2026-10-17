@@ -2,6 +2,31 @@
 
 AI资讯自主化本轮在隔离实例接入原版API/worker与独立库，保持DSH研究执行及当前常驻内容。零调用和后续切换边界见[自主资讯合同](research-web-ai-news.md)。
 
+## 私网邀请制多用户（macOS Native）
+
+此模式是显式选择的独立服务器入口：Mac mini 保存所有账号的研究数据；用户通过浏览器登录，管理员在账号页创建/停用用户、重置密码和停止用户实例。没有开放注册。默认原单用户入口、个人数据、resident 与 Docker 实例均不转换为服务器；不自动部署 Tailscale、迁移数据或复制原模型密钥。
+
+AI资讯由网关使用 `server_root/shared/ai-news` 全局库：已登录成员阅读正文/专题/图片/RSS，status/control仅管理员可用。共享库不放入用户DSH根；逐用户tenant后端封禁全局AI路径，资讯请求不启动研究实例。默认未配置不创建目录或数据库、不调用模型；首次共享库初始化与服务启动仍须单独授权，详见[多用户资讯合同](research-web-ai-news.md#私网多用户权限与共享目录)。
+
+先用公开 `./setup-web.sh --runtime native --no-start` 从干净 checkout 安装已有锁定 Web 环境并构建固定 DSH；无新增依赖。随后在有 TTY 的 Mac 终端初始化全新私有服务器根，密码交互输入，不放命令参数或环境变量：
+
+```bash
+./rwb server init --username admin
+./rwb server doctor --source "$HOME/.research-workbench/dsh-source" --json
+./rwb server serve --origin https://mac-mini.tailXXXX.ts.net \
+  --source "$HOME/.research-workbench/dsh-source" --node /absolute/path/to/node
+```
+
+示例域名必须替换成已获准设备的精确、小写 Tailscale HTTPS origin，不能有路径、查询、尾部斜线或用户信息；`--node` 指向已有、匹配固定 DSH 的 Node 可执行文件。Serve 只监听 `127.0.0.1:8089`；操作员另行明确授权后配置 Tailscale Serve 将该精确私网域名代理到此端口，不使用 Funnel，不覆盖原个人实例代理。测试可显式使用 `--origin http://127.0.0.1:8089`；此时 Cookie 不带 Secure，仅用于本机开发。
+
+所有命令可选 `--root /absolute/private/server-root`，默认为 `~/.research-workbench/server`。`serve` 可选 `--port`（默认 8089）及 `--max-instances 1|2`（默认 2），不接受多 worker；首次研究才占用实例槽，容量满明确返回 busy，不自动驱逐。管理员在 `/account` 的“停止实例”释放槽位，停用账号会撤销登录并停止其受管实例；仅退出登录、关闭页面或重置密码不停止研究。网关前台正常退出会关闭本进程创建的实例；崩溃残留身份未知时失败关闭，需要操作员核查，不能自动终止未知进程。
+
+`./rwb server reset-admin --username admin` 交互重置既有管理员密码并撤销该账号所有登录态；不会创建新的管理员或搬移会话。密码至少 12 字符。`server doctor` 只读检查账号库、源码构建文件及解释器/已有模块，输出 runtime/model `not_checked`；`build_present` 不代表固定 SHA、运行健康、Tailscale、真实研究或模型通过。尚未安装时 help/doctor 仍可用；服务启动只用安装后的 Web Python。
+
+每位用户使用独立模型凭据命名空间，首版只开放官方 DeepSeek，不读取管理员个人密钥、不接受自定义模型目标。服务器 profile 关闭宿主浏览器、Office/Wind、本机连接配置、MCP、Hot、日程/自动化、报告 Workflow 和运维接口；文件式文档仍按用户根操作。模型、来源与报告的真实可用性保留独立状态，不因登录成功宣称研究通过。此首版信任同 UID 后端及固定工具实现，不提供恶意同 UID 进程/任意插件的 OS 租户隔离；Windows/Linux 与 Docker 多用户均未接入。安全及数据位置见[安全边界](architecture/research-web/05-security-validation.md#私网邀请制账号与执行边界)和[数据与文件](architecture/research-web/03-data-files.md#服务器账号与用户数据)。
+
+AI资讯文章全文、事件专题和主题分页沿用同一Host与公开安装链；自主库未配置时诚实503，不调用模型或回退外站。可选Node依赖、独立库迁移及采编生命周期按下列合同分别验收；最终候选仍须Mac干净安装CI，常驻更新沿单独授权及现有事务。
+
 AI资讯自主引擎使用已固定上游Node锁文件。公开安装入口安装依赖时使用 `npm ci --ignore-scripts`，不创建数据库、不启用采集、不调用模型。Python产品依赖沿用 requirements/web.in 与 web.lock。Doctor新增可选 ai_news 就绪事实，模型质量始终单列。
 
 首次独立数据库初始化、60份固定迁移、凭据和服务生命周期必须单独授权；`rwb ai-news status --json` 与 `doctor --json` 只读，显式 `setup --authorized` 仅作用于已验证的本机新库。备份、恢复与故障续跑合同见[自主资讯](research-web-ai-news.md)。不复用Hot业务库，不导入线上历史，不自动升级当前常驻服务。Mac干净安装CI仍核对固定DSH、3081/8088与Doctor；Windows/Linux原生保持独立交接。

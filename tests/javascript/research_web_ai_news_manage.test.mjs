@@ -67,3 +67,9 @@ test('navigation cannot relabel an edited source draft as a new source',async()=
  manager.state.selection={id:'existing'};manager.state.draft={id:'existing'};manager.state.preview={items:[]};
  await manager.activate('sources');assert.equal(manager.state.draft,null);assert.equal(manager.state.preview,null);assert.equal(manager.state.selection,null);
 });
+test('server members retain reading but never load or see global administration',async()=>{
+ const calls=[];const controller=createAihotController({canManage:()=>false,fetcher:async url=>{calls.push(url);return {ok:true,json:async()=>({report:null,index:[]})};}});
+ await controller.activate(parseRoute('#/aihot/manage?section=models'));
+ assert.equal(calls.length,0);const html=renderAihot(controller.state);assert.match(html,/仅管理员/);assert.doesNotMatch(html,/data-news-form/);
+ await controller.activate(parseRoute('#/aihot/daily'));assert.equal(calls.length,1);assert.doesNotMatch(renderAihot(controller.state),/>采编管理<\/a>/);
+});

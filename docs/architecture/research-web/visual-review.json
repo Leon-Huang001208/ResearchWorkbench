@@ -159,29 +159,29 @@
     },
     {
       "id": "01-deployment",
-      "artifactSha256": "9e9888bc16924b8c752b064f795f6a4d8056ab5a0be9f5e9f8b6918b5c11369e",
-      "specificationSha256": "6549f68baf2dfd588b0e3ec0163cd9dd687b3cf1e0b9b1280461c58d7b17c899",
+      "artifactSha256": "2165d5676562e0dfcc2d2163b4d69a8f70f690e002e73d518aed5cd1355a854b",
+      "specificationSha256": "c7fc5ce5b96d1ba59496cafeec2af8989685c7658c42f1d08c6409989dc42b64",
       "status": "reviewed",
       "reviewer": "controller",
-      "date": "2026-10-12",
+      "date": "2026-10-17",
       "captures": [
         "01-deployment.visual-check.1440x900.light.png",
         "01-deployment.visual-check.2048x1320.dark.png"
       ],
       "findings": [],
-      "notes": "Codex已查看本次生成1440浅色与2048深色截图；Hot可选Node/PG和Mac mini隔离Docker/Native路径清晰，未见遮挡/裁剪。自动容纳四视口通过；本图不认证产品模式切换或真实模型研究。"
+      "notes": "已实际查看当前哈希1440浅色与2048深色截图；新增私网登录网关、逐用户Native pair/数据根、原Docker与单用户Hot边界可读，无遮挡、裁剪或无关穿线。四视口包含性通过；图形不证明账号、真实研究、模型或平台产品验收。"
     },
     {
       "id": "12-ai-news",
-      "artifactSha256": "0e7cd099d8a0453ff3b8178c68a6541d82ae8f6cf59518080b3392527a79467b",
-      "specificationSha256": "96ee9500ddfa56797538a38266a0cb4dad72d4c98de01175277848dc87fd423a",
+      "artifactSha256": "dd289388969b326ee18c89a0cccc7d12f4d0e4e5a6c411d501595ac18e1b1cb4",
+      "specificationSha256": "7741dde3b7496296fe892452e783e9923fb6b3593c09b0fe1bf69850a4cad8a8",
       "status": "reviewed",
       "reviewer": "controller",
       "date": "2026-10-17",
-      "notes": "实际查看1440浅色及2048深色截图：文字、连线、图例和验收边界清晰；既有DSH节点独立显示，没有误连资讯执行。",
+      "notes": "实际查看当前1440浅色及深色截图：共享网关成员阅读和管理员采编边界、独立DSH与零调用说明清晰，无新增遮挡或裁剪。四视口检查通过；不替代产品和模型验收。",
       "captures": [
         "12-ai-news.visual-check.1440x900.light.png",
-        "12-ai-news.visual-check.2048x1320.dark.png"
+        "12-ai-news.visual-check.1440x900.dark.png"
       ]
     }
   ]

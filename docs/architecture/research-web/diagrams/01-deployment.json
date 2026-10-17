@@ -2,7 +2,7 @@
   "schema_version": 1,
   "diagram_type": "architecture",
   "meta": {
-    "title": "Research Web · Mac mini Docker 与兼容部署",
+    "title": "Research Web · Native 私网用户与 Docker 部署",
     "quality_profile": "showcase"
   },
   "layout": {
@@ -45,8 +45,8 @@
     {
       "id": "nativeWeb",
       "type": "backend",
-      "label": "Native Web 进程",
-      "sublabel": "FastAPI · 宿主 :8088",
+      "label": "Native Web / 用户 Web",
+      "sublabel": "单用户或每账号独立回环",
       "row": 2,
       "col": 0,
       "size": [
@@ -57,8 +57,8 @@
     {
       "id": "nativeDsh",
       "type": "backend",
-      "label": "Native DSH 进程",
-      "sublabel": "唯一研究引擎 · 宿主 :3081",
+      "label": "Native DSH / 用户 DSH",
+      "sublabel": "唯一研究引擎 · 逐账号独立",
       "row": 2,
       "col": 1,
       "size": [
@@ -93,8 +93,8 @@
     {
       "id": "sharedData",
       "type": "database",
-      "label": "各自的数据根与卷",
-      "sublabel": "新实例隔离 · legacy 保留",
+      "label": "产品根 / 用户独立根",
+      "sublabel": "正文 · 附件 · 产物 · 日志",
       "row": 3,
       "col": 2,
       "size": [
@@ -149,6 +149,18 @@
         205,
         78
       ]
+    },
+    {
+      "id": "privateGateway",
+      "type": "security",
+      "label": "可选私网登录网关",
+      "sublabel": "macOS · SQLite 账号 · :8089",
+      "row": 0,
+      "col": 0,
+      "size": [
+        205,
+        78
+      ]
     }
   ],
   "connections": [
@@ -167,7 +179,11 @@
       "label": "legacy Native",
       "variant": "emphasis",
       "fromSide": "left",
-      "toSide": "top"
+      "toSide": "top",
+      "labelAt": [
+        250,
+        241
+      ]
     },
     {
       "id": "selectDocker",
@@ -195,7 +211,7 @@
       "id": "nativeData",
       "from": "nativeDsh",
       "to": "sharedData",
-      "label": "legacy 数据根",
+      "label": "独立产品数据根",
       "variant": "emphasis"
     },
     {
@@ -224,38 +240,49 @@
       "id": "hotSigned",
       "from": "nativeWeb",
       "to": "hotNode",
-      "label": "按需签名请求"
+      "label": "单用户签名请求"
     },
     {
       "id": "hotPersistence",
       "from": "hotNode",
       "to": "hotPg",
       "label": "指定 schema"
+    },
+    {
+      "id": "authenticatedUserRoute",
+      "from": "privateGateway",
+      "to": "nativeWeb",
+      "label": "按登录账号路由",
+      "variant": "security",
+      "labelAt": [
+        138,
+        164
+      ]
     }
   ],
   "cards": [
     {
       "dot": "cyan",
-      "title": "Mac mini 主开发与常驻",
+      "title": "显式选择与兼容",
       "items": [
-        "MacBook 远程操作；工具与计算在 Docker",
-        "dev 挂 worktree；stage/prod 固定镜像"
+        "原 Native / Docker 单用户入口保留",
+        "server serve 独立启动；不迁移原个人数据"
       ]
     },
     {
       "dot": "rose",
-      "title": "管理员构建与隔离边界",
+      "title": "邀请制私网边界",
       "items": [
-        "冷构建5GiB借stage预算，结束停止builder",
-        "各实例四卷/网络/账本独立，业务无socket"
+        "网关固定 Tailscale HTTPS；每用户 Web＋DSH",
+        "最多2个实例；信任同 UID 后端，非 OS 租户隔离"
       ]
     },
     {
       "dot": "amber",
-      "title": "验证边界",
+      "title": "验证与部署边界",
       "items": [
-        "Mac Docker 本轮真机；新候选CI仍待执行",
-        "模型后端/多人鉴权/严格沙箱/公网待后续"
+        "首版仅 macOS Native；Docker 多用户未接入",
+        "无公网注册、宿主工具、MCP、Hot 或日程"
       ]
     }
   ]

@@ -704,9 +704,41 @@
       "tests": [
         "tests/research_web/test_ai_news_host.py",
         "tests/research_web/test_ai_news_eval.py",
+        "tests/research_web/test_ai_news_multiuser.py",
         "tests/javascript/research_web_ai_news_manage.test.mjs",
         "services/ai_news/tests/runtime.test.mjs",
-        "services/ai_news/tests/engine.test.mjs"
+        "services/ai_news/tests/engine.test.mjs",
+        "services/ai_news/tests/chronicle.test.mjs"
+      ]
+    },
+    {
+      "id": "private-multiuser",
+      "sources": [
+        "app/research_web/multiuser/",
+        "app/research_web/tenant_policy.py",
+        "research_workbench_entrypoint/server.py"
+      ],
+      "documents": [
+        "docs/research-web-ai-news.md",
+        "docs/research-web-installation.md",
+        "docs/architecture/research-web/01-system.md",
+        "docs/architecture/research-web/02-research-runtime.md",
+        "docs/architecture/research-web/03-data-files.md",
+        "docs/architecture/research-web/04-api.md",
+        "docs/architecture/research-web/05-security-validation.md"
+      ],
+      "tests": [
+        "tests/research_web/test_multiuser_accounts.py",
+        "tests/research_web/test_ai_news_multiuser.py",
+        "tests/research_web/test_multiuser_gateway.py",
+        "tests/research_web/test_multiuser_runtime.py",
+        "tests/research_web/test_multiuser_cli.py",
+        "tests/javascript/research_web_multiuser_storage.test.mjs",
+        "tests/javascript/research_web_multiuser_policy.test.mjs"
+      ],
+      "diagrams": [
+        "01-deployment",
+        "12-ai-news"
       ]
     }
   ],
@@ -1111,10 +1143,17 @@
             "hotPersistence"
           ],
           "source": "services/hot/src/database.ts"
+        },
+        {
+          "subjects": [
+            "privateGateway",
+            "authenticatedUserRoute"
+          ],
+          "source": "app/research_web/multiuser/gateway.py"
         }
       ],
       "level": "deployment",
-      "summary": "Native / Docker 互斥部署、服务职责与存储归属。"
+      "summary": "Native / Docker 单用户与可选 macOS 私网账号网关、逐用户运行时和数据归属。"
     },
     {
       "id": "03-research-sequence",
@@ -1737,7 +1776,7 @@
       "receipt": "outputs/research-web-architecture/12-ai-news.receipt.json",
       "visualReceipt": "outputs/research-web-architecture/12-ai-news.visual-check.json",
       "level": "details",
-      "summary": "固定原版自主采编、独立数据库和零模型调用验收边界。",
+      "summary": "固定原版自主采编、独立数据库、私网共享资讯的成员阅读与管理员管理，以及零模型调用验收边界。",
       "evidence": [
         {
           "subjects": [
@@ -1752,6 +1791,13 @@
             "bridge"
           ],
           "source": "app/research_web/ai_news_service.py"
+        },
+        {
+          "subjects": [
+            "host",
+            "bridge"
+          ],
+          "source": "app/research_web/multiuser/gateway.py"
         },
         {
           "subjects": [
@@ -3742,6 +3788,125 @@
       "source": "app/research_web/ai_news_routes.py",
       "declaredPath": "/status",
       "prefix": "/api/research/ai-news"
+    },
+    {
+      "method": "POST",
+      "path": "/api/server/login",
+      "source": "app/research_web/multiuser/gateway.py",
+      "declaredPath": "/api/server/login",
+      "prefix": ""
+    },
+    {
+      "method": "POST",
+      "path": "/api/server/logout",
+      "source": "app/research_web/multiuser/gateway.py",
+      "declaredPath": "/api/server/logout",
+      "prefix": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/server/me",
+      "source": "app/research_web/multiuser/gateway.py",
+      "declaredPath": "/api/server/me",
+      "prefix": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/server/users",
+      "source": "app/research_web/multiuser/gateway.py",
+      "declaredPath": "/api/server/users",
+      "prefix": ""
+    },
+    {
+      "method": "POST",
+      "path": "/api/server/users",
+      "source": "app/research_web/multiuser/gateway.py",
+      "declaredPath": "/api/server/users",
+      "prefix": ""
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/server/users/{user_id}",
+      "source": "app/research_web/multiuser/gateway.py",
+      "declaredPath": "/api/server/users/{user_id}",
+      "prefix": ""
+    },
+    {
+      "method": "POST",
+      "path": "/api/server/users/{user_id}/password",
+      "source": "app/research_web/multiuser/gateway.py",
+      "declaredPath": "/api/server/users/{user_id}/password",
+      "prefix": ""
+    },
+    {
+      "method": "POST",
+      "path": "/api/server/users/{user_id}/stop",
+      "source": "app/research_web/multiuser/gateway.py",
+      "declaredPath": "/api/server/users/{user_id}/stop",
+      "prefix": ""
+    },
+    {
+      "method": "GET",
+      "path": "/auth",
+      "source": "app/research_web/multiuser/gateway.py",
+      "declaredPath": "/auth",
+      "prefix": ""
+    },
+    {
+      "method": "GET",
+      "path": "/account",
+      "source": "app/research_web/multiuser/gateway.py",
+      "declaredPath": "/account",
+      "prefix": ""
+    },
+    {
+      "method": "GET",
+      "path": "/",
+      "source": "app/research_web/multiuser/gateway.py",
+      "declaredPath": "/",
+      "prefix": ""
+    },
+    {
+      "method": "GET",
+      "path": "/{path:path}",
+      "source": "app/research_web/multiuser/gateway.py",
+      "declaredPath": "/{path:path}",
+      "prefix": ""
+    },
+    {
+      "method": "POST",
+      "path": "/{path:path}",
+      "source": "app/research_web/multiuser/gateway.py",
+      "declaredPath": "/{path:path}",
+      "prefix": ""
+    },
+    {
+      "method": "PUT",
+      "path": "/{path:path}",
+      "source": "app/research_web/multiuser/gateway.py",
+      "declaredPath": "/{path:path}",
+      "prefix": ""
+    },
+    {
+      "method": "PATCH",
+      "path": "/{path:path}",
+      "source": "app/research_web/multiuser/gateway.py",
+      "declaredPath": "/{path:path}",
+      "prefix": ""
+    },
+    {
+      "method": "DELETE",
+      "path": "/{path:path}",
+      "source": "app/research_web/multiuser/gateway.py",
+      "declaredPath": "/{path:path}",
+      "prefix": ""
+    },
+    {
+      "method": "HEAD",
+      "path": "/{path:path}",
+      "source": "app/research_web/multiuser/gateway.py",
+      "declaredPath": "/{path:path}",
+      "prefix": ""
     }
   ],
   "visualReview": "docs/architecture/research-web/visual-review.json",
@@ -3961,11 +4126,18 @@
         "id": "ai-news",
         "group": "ai-news",
         "title": "AI资讯自主采编",
-        "summary": "本机原版引擎、独立库与零调用评测；生产内容尚未切换。",
+        "summary": "本机原版引擎与独立库；私网成员共享阅读、管理员管理，零调用评测与生产切换分别验收。",
         "category": "AI资讯",
         "diagrams": [
           "12-ai-news"
         ]
+      },
+      {
+        "id": "private-multiuser",
+        "group": "private-multiuser",
+        "title": "私网邀请制用户",
+        "summary": "显式 macOS 账号网关、SQLite 登录态和逐用户 Web/DSH；共享资讯由网关限制成员阅读及管理员管理，tenant 后端禁用全局 AI 路径；同 UID 后端受信任。",
+        "category": "研究会话与 Runtime"
       }
     ],
     "generator": {

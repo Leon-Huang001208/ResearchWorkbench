@@ -4,6 +4,8 @@
 
 AI资讯自主化本轮在隔离实例接入原版API/worker与独立库，保持DSH研究执行及当前常驻内容。零调用和后续切换边界见[自主资讯合同](research-web-ai-news.md)。
 
+私网邀请制服务器从[安装说明](research-web-installation.md#私网邀请制多用户macos-native)进入，账号/代理 API、逐用户存储和同 UID 信任边界均复用现有架构章节。该显式 macOS Native 入口拥有独立网关，架构门禁会验证实际 CLI 装配后收录其声明；不能仅将任意未挂载路由加入清单绕过检查。
+
 本页是仓库文档的唯一人工导航入口。项目当前交付面是 Research Web；旧 FastAPI／PostgreSQL、桌面壳和历史实施方案仍可检索，但不会与现役产品并列。
 
 Research Web 当前安装说明区分 Native 与 Docker：两者复用产品数据与研究接口，安装身份、

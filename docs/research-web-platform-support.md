@@ -2,6 +2,8 @@
 
 AI资讯自主化本轮在隔离实例接入原版API/worker与独立库，保持DSH研究执行及当前常驻内容。零调用和后续切换边界见[自主资讯合同](research-web-ai-news.md)。
 
+私网邀请制多用户首版限定 macOS Native：显式账号网关、逐用户 Web/DSH/data root 和两实例准入。Windows/Linux 原生、Docker 多用户与公网均未接入；本地账号/代理模拟测试不能作为真实 DSH、Seatbelt、浏览器、模型或干净 macOS CI 的证据，必须分别记录实际结果。现有单用户平台支持矩阵不因新增账号提升；同 UID 后端仍受信任，不宣称 OS 租户隔离。
+
 Host元数据专项兼容升级仅在macOS Native验收：精确候选、Mac Bootstrap、原空闲/事务/健康/回滚。Ubuntu纯合同测试不代表Linux产品适配；Windows/Linux原生及Docker专项仍NOT_RUN，不从Mac发起产品dispatch。
 
 本轮固定 DSH 搜索候选由 macOS 验收；Windows/Linux 与 Docker 产品安装尚未执行，保持 NOT_RUN。通用 Ubuntu 检查不替代其他产品宿主证据。

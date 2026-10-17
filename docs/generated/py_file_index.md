@@ -5655,7 +5655,7 @@ Imports:
 - `intel_routes`
 - `json`
 - `local_integrations`
-- ... 25 more
+- ... 26 more
 
 Classes:
 - `NewSession`
@@ -6438,6 +6438,208 @@ Functions:
 - `main`
 
 
+## `app/research_web/multiuser/__init__.py`
+
+Module docstring:
+> Opt-in private multiuser gateway; the single-user runtime remains the default.
+
+
+## `app/research_web/multiuser/__main__.py`
+
+Module docstring:
+> Explicit private-server entry point; help and doctor use only the stdlib.
+
+Imports:
+- `__future__`
+- `argparse`
+- `asyncio`
+- `collections.abc`
+- `contextlib`
+- `getpass`
+- `importlib.util`
+- `json`
+- `logging`
+- `os`
+- `pathlib`
+- `platform`
+- `re`
+- `sqlite3`
+- `stat`
+- `sys`
+- `time`
+- `urllib.parse`
+
+Classes:
+- `ServerCommandError`
+  - methods: __init__
+- `_SafeFormatter`
+  - methods: format
+
+Functions:
+- `parser`
+- `_directory`
+- `_private_file`
+- `_inspect_accounts`
+  - Read DELETE-journal SQLite only; WAL/active journals remain unknown.
+- `_source_status`
+- `_doctor`
+- `_confirmed_password`
+- `_server_context`
+- `_require_accounts`
+- `_administration_lock`
+  - Serialize first-admin initialization without placing credentials on disk.
+- `_origin`
+- `_serve`
+- `main`
+
+
+## `app/research_web/multiuser/accounts.py`
+
+Module docstring:
+> Private SQLite accounts and revocable opaque browser sessions.
+
+Imports:
+- `__future__`
+- `collections.abc`
+- `contextlib`
+- `core.observability`
+- `dataclasses`
+- `hashlib`
+- `hmac`
+- `math`
+- `os`
+- `pathlib`
+- `re`
+- `secrets`
+- `sqlite3`
+- `stat`
+- `time`
+- `urllib.parse`
+- `uuid`
+
+Classes:
+- `AccountError`
+  - An API-safe error without database paths or submitted credentials.
+  - methods: __init__
+- `Account`
+  - methods: public
+- `AccountStore`
+  - One server's private account database; never stores research transcripts.
+  - methods: __init__, _identity, _failed, _prepare_root, _validate_paths, _connection, _rollback, _now, _find, create_user, list_users, get_user, set_enabled, reset_password, _bucket, _token_hash, _verify, login, authenticate, logout
+
+Functions:
+- `_username`
+- `_password`
+- `_derive`
+- `_account`
+
+
+## `app/research_web/multiuser/gateway.py`
+
+Module docstring:
+> Authenticated, fixed-target gateway for private per-user Research Web stacks.
+
+Imports:
+- `__future__`
+- `accounts`
+- `ai_news_routes`
+- `ai_news_service`
+- `aihot_routes`
+- `asyncio`
+- `contextlib`
+- `core.observability`
+- `fastapi`
+- `fastapi.exceptions`
+- `fastapi.responses`
+- `fastapi.staticfiles`
+- `httpx`
+- `origin`
+- `pathlib`
+- `pydantic`
+- `re`
+- `runtime`
+- `urllib.parse`
+
+Classes:
+- `StrictBody`
+- `Login`
+- `NewUser`
+- `UserStatus`
+- `NewPassword`
+
+Functions:
+- `error`
+- `ai_path`
+- `page_matches`
+  - Keep an old tab from submitting to a newly logged-in account.
+- `create_gateway`
+  - Build one gateway without starting tenant processes or reading model secrets.
+
+
+## `app/research_web/multiuser/origin.py`
+
+Module docstring:
+> One stdlib-only origin contract shared by CLI preflight and HTTP boundary.
+
+Imports:
+- `re`
+- `urllib.parse`
+
+Functions:
+- `validate_origin`
+  - Accept one exact HTTPS tailnet origin or a loopback development origin.
+
+
+## `app/research_web/multiuser/runtime.py`
+
+Module docstring:
+> Bounded, privately authenticated Web/DSH pairs owned by this server process.
+
+Imports:
+- `__future__`
+- `asyncio`
+- `core.observability`
+- `dataclasses`
+- `fcntl`
+- `http.client`
+- `httpx`
+- `json`
+- `os`
+- `pathlib`
+- `process_spec`
+- `re`
+- `runtime_auth`
+- `secrets`
+- `signal`
+- `socket`
+- `stat`
+- `subprocess`
+- `tenant_policy`
+- `time`
+- `uuid`
+
+Classes:
+- `RuntimeErrorSafe`
+  - Stable status without raw subprocess output, paths or credentials.
+  - methods: __init__
+- `RuntimeConfig`
+- `Backend`
+- `_Instance`
+- `RuntimePool`
+  - Never adopt old processes or evict an active user's research for capacity.
+  - methods: __init__, _assert_pool, _audit, _user, _record, _environment, backend_for, _start, _spawn, _wait_runtime, _wait_backend, _stop_child, _dispose, stop, close, _close_owned
+
+Functions:
+- `_directory`
+- `_read_private`
+- `_create_private`
+- `_reserve_port`
+- `_group_retired`
+- `_probe_backend`
+- `_exchange_auth`
+  - Use stdlib HTTP so a startup URL containing a token never enters HTTP logs.
+
+
 ## `app/research_web/navigation.py`
 
 Module docstring:
@@ -6714,6 +6916,7 @@ Imports:
 - `re`
 - `stat`
 - `store`
+- `tenant_policy`
 - `uuid`
 
 Functions:
@@ -8345,6 +8548,35 @@ Classes:
 - `TabbitIntegration`
   - Persist non-secret settings and mediate reviewed DSH plugin routes.
   - methods: __init__, config, _validate_config, configure, status, access, _require_grant, tabs, live_markers
+
+
+## `app/research_web/tenant_policy.py`
+
+Module docstring:
+> Fail-closed execution profile for private, authenticated user backends.
+
+Imports:
+- `__future__`
+- `core.observability`
+- `hmac`
+- `json`
+- `os`
+- `pathlib`
+- `starlette.responses`
+- `stat`
+- `store`
+
+Functions:
+- `enabled`
+  - Only a manager-supplied explicit profile activates this boundary.
+- `enforce_document_mode`
+  - Guard the execution entry point, including independently signed callbacks.
+- `enforce_model_configuration`
+  - The initial server profile never accepts user-selected upstream endpoints.
+- `_gateway_key`
+- `_denied`
+- `check_request`
+  - Authenticate every backend route before product handlers see the request.
 
 
 ## `app/research_web/workbench.py`

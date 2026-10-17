@@ -107,6 +107,11 @@ export const RESEARCH_TOOLS = new Set([
 ]);
 
 export function apply(ctx, config = {}) {
+  if (config.tenantMode === true && (config.tenantSkillNames !== undefined &&
+      (!Array.isArray(config.tenantSkillNames) || config.tenantSkillNames.some(name => typeof name !== 'string' || !/^[a-z0-9][a-z0-9_-]{0,159}$/.test(name))))) {
+    throw Error('tenant_skill_allowlist_invalid');
+  }
+  const tenantSkillNames = new Set(config.tenantSkillNames || []);
   if (config.researchRoot !== undefined) {
     if (typeof config.researchRoot !== 'string' || !isAbsolute(config.researchRoot)) throw Error('skill_admission_root_invalid');
     const catalogScoped = new WeakSet();
@@ -182,6 +187,10 @@ export function apply(ctx, config = {}) {
         if (!(await nativeAdmission(ctx, exec, config)).admitted) return { kind: 'reject' };
         const priorMessages = new Set(options.messages || []);
         const names = new Set(decision.messages.filter(message => !priorMessages.has(message) && message.source?.kind === 'skill-invocation' && message.source.form === 'instructions').map(message => message.source.name));
+        if (config.tenantMode === true && [...names].some(name => !tenantSkillNames.has(name))) {
+          ctx.logger.warn('research_tenant_skill_injection_denied');
+          return { kind: 'reject' };
+        }
         for (const name of names) {
           const invocation = { ...exec, nativeSkillName: name };
           if (!(await nativeAdmission(ctx, invocation, config)).admitted) return { kind: 'reject' };
@@ -307,6 +316,17 @@ export function apply(ctx, config = {}) {
     mcpTools.add(name);
   }
   ctx.tools.guard((execution) => {
+    if (config.tenantMode === true) {
+      const denied = typeof execution.name !== 'string' ||
+        (execution.name === 'skill' && !tenantSkillNames.has(execution.arguments?.name)) || execution.name.startsWith('mcp__') ||
+        ['tabbit_browser', 'web_fetch', 'rwb_prepare_automation', 'rwb_list_automations',
+         'rwb_prepare_automation_update', 'rwb_run_automation'].includes(execution.name) ||
+        (execution.name === 'research_document_operation' && execution.arguments?.mode !== 'file');
+      if (denied) {
+        ctx.logger.warn('research_tenant_tool_denied');
+        return 'server_capability_disabled';
+      }
+    }
     if (acceptance !== undefined) {
       if (dockerText) {
         ctx.logger.warn('research_acceptance_tool_denied');
