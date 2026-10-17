@@ -1,5 +1,7 @@
 # DataHub、研究资料与实际文件
 
+stage 释放仅归档原私有身份账本并退休容量；全部数据、日志、缓存、凭据和模型密钥卷以及恢复档保持原样，不迁移或删除。
+
 常驻私有resident.json增加可选整数max_additional_instances（1至4），缺失保留额外1；不改变SQLite、会话、文件、模型及控制token格式。容量修改与版本路径一起通过已审操作事务保全、回滚及重启，不迁移用户数据。
 
 不新增端口账本或schema：用户.control/datahub.json及可选mcp-runtime.json继续是可信回调地址权威；恢复只读其原址，不重写token。原址事务journal存在时不启动用户pair。
