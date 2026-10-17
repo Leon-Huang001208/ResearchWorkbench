@@ -1,5 +1,13 @@
 # 部署与模块职责
 
+## 可选私网用户网关
+
+`rwb server serve` 独立启动回环 8089 登录网关，外层仅接受操作员指定的一个 Tailscale HTTPS origin（本地开发可用明确回环 HTTP origin）。管理员账号来自交互式 `server init`，无公开注册。每个用户首次研究请求惰性启动独立、单 worker 的 Web/DSH pair，端口、数据和内部令牌均由服务端选择；仅登录或管理账号不启动研究。
+
+默认最多两个驻留实例，可选一或二；容量满返回 `runtime_capacity_exceeded`，不驱逐现有用户或停止研究。管理员“停止实例”释放容量；停用账号同时撤销登录态并停止其受管实例，重置密码只撤销登录态。浏览器断开不停止研究，网关正常退出才关闭本进程持有的 pair。进程归属不明或崩溃遗留 `owner.json` 时失败关闭，不能按端口认领或清理未知进程。此入口不接入 resident，也不迁移原个人数据。
+
+该模式仅启用 macOS Native：固定受信工具实现、Seatbelt 研究脚本和用户私有 HOME/TMP 共同收窄访问；同 UID 的 Web/DSH 本身仍受信任，不能宣称 OS 安全租户隔离。首版禁用 Hot、MCP、自动化/日程、报告 Workflow、Office/Wind、宿主浏览器及服务器运维能力，模型连接限定官方 DeepSeek。原 Native/Docker 单用户路径保持独立。
+
 AIHOT全文、事件与主题继续沿同一Host/浏览器读取边界；HTML仅转换为惰性阅读树，不执行上游脚本，不新增数据存储或研究引擎。
 
 AI资讯在既有Host/浏览器边界内读取AIHOT公开页面API，完整保留报刊与热点阅读字段。
@@ -370,7 +378,7 @@ Windows 读取 DSH 认证文件、DataHub 私有控制/收据/快照和会话下
 
 ## 并发与部署限制
 
-当前索引和锁按**单 Web worker**实现，不能启动多个 Uvicorn worker 共写一个数据根。`rwb web start` 默认从 `~/.research-workbench/dsh-source/` 启动经过固定提交构建的项目私有 DSH，只管理 3081/8088；`RESEARCH_DSH_SOURCE` 仅用于显式覆盖。状态文件保存 PID、命令指纹、项目路径和数据根；运行监控和停止命令都要求状态内容与实际 PID 命令签名一致，绝不把任意存活 PID 当成受管进程，也绝不操作用户原有 3080。服务仅回环；无多人权限体系，不应直接暴露公网。
+当前索引和锁按**单 Web worker**实现，不能启动多个 Uvicorn worker 共写一个数据根。`rwb web start` 默认从 `~/.research-workbench/dsh-source/` 启动经过固定提交构建的项目私有 DSH，只管理 3081/8088；`RESEARCH_DSH_SOURCE` 仅用于显式覆盖。状态文件保存 PID、命令指纹、项目路径和数据根；运行监控和停止命令都要求状态内容与实际 PID 命令签名一致，绝不把任意存活 PID 当成受管进程，也绝不操作用户原有 3080。原单用户服务仅回环；可选服务器模式另用本页账号网关，不能将原单用户入口直接暴露为多人服务或公网入口。
 
 只验证当前 macOS 脚本隔离；不把 Web 本地成功当作 Linux/Windows/桌面支持证据。DSH 固定源码提交为 `48504f07f217f9fd45a4f6d8fca4b1ed35c2d4b0`，基于官方最新版并包含会话原生永久删除协议与持久层实现。
 

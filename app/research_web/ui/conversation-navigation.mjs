@@ -7,7 +7,7 @@ const modes = new Set(['claw', 'fingpt']);
 const key = item => `${item.kind}:${item.id}`;
 const emptyMetadata = mode => ({ mode, revision: 0, pinned: [], project_order: [] });
 export const completionStamp = session => String(session?.updated_at ?? 'completed');
-const storageKey = mode => `research-web.navigation.v1.${mode}`;
+const storageKey = mode => `research-web.navigation.v1.${/^[a-f0-9-]{36}$/.test(globalThis.__RWB_USER_ID__ || '') ? `user.${globalThis.__RWB_USER_ID__}.` : ''}${mode}`;
 export function readNavigationView(mode, storage) {
   try {
     storage ??= globalThis.localStorage;

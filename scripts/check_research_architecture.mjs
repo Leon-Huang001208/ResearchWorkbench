@@ -184,6 +184,16 @@ export function checkResearchArchitecture({projectRoot,changedFiles=[]}) {
   const mainSource='app/research_web/main.py';
   const mainCode=read(mainSource)?.toString('utf8') || '';
   const mountedSources=new Set([mainSource]);
+  // The opt-in private server is a second entrypoint, never an implicit router
+  // mounted into the default single-user application. Verify its actual CLI
+  // factory-to-server chain before accepting its independently inventoried APIs.
+  const gatewaySource='app/research_web/multiuser/gateway.py';
+  if(researchFiles.includes(gatewaySource)) {
+    const command=read('app/research_web/multiuser/__main__.py')?.toString('utf8') || '';
+    if (/from\s+\.gateway\s+import\s+create_gateway/.test(command) &&
+        /app\s*=\s*create_gateway\s*\(/.test(command) &&
+        /uvicorn\.run\s*\(\s*app\s*,/.test(command)) mountedSources.add(gatewaySource);
+  }
   for (const match of mainCode.matchAll(/^from\s+\.(\w+(?:\.\w+)*)\s+import\s+router(?:\s+as\s+(\w+))?\s*$/gm)) {
     const alias=match[2] || 'router';
     if (new RegExp(`app\\.include_router\\(\\s*${alias}\\s*\\)`).test(mainCode)) mountedSources.add(`app/research_web/${match[1].replaceAll('.','/')}.py`);

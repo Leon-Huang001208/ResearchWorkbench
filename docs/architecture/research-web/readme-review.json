@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "updated",
-  "summary": "AI资讯补充文章全文、事件与主题站内阅读，保留已交付报刊和热点。",
-  "reason": "README同步入口；无新产品依赖、持久化或研究引擎。"
+  "summary": "补充可选私网邀请制服务器、逐用户会话与两实例准入入口。",
+  "reason": "新增显式 macOS Native 账号入口；README 链接安装及边界说明，原单用户数据与部署保留。"
 }

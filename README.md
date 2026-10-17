@@ -1,5 +1,7 @@
 # Research Workbench
 
+macOS Native 新增显式选择的[私网邀请制多用户模式](docs/research-web-installation.md#私网邀请制多用户macos-native)：管理员开账号，Tailscale HTTPS 登录；每位用户独立保存 FinGPT/Claw 会话、附件、产物和模型凭据，研究继续使用唯一 DSH 引擎。首版最多两个同时驻留的用户实例，关闭浏览器后研究继续运行。原单用户入口保留；不自动迁移数据或部署常驻服务。
+
 “AI资讯”提供独立AIHOT阅读模块：日报/周报/月报、完整归档与热点榜，文章全文/事件专题/主题分页均可站内阅读，保留原页面
 报纸结构、封面来源、真实热度/趋势和参与者交互。无需模型、Hot或PostgreSQL；详见
 [前端说明](docs/research-web-ui.md)与[安装指南](docs/research-web-installation.md)。

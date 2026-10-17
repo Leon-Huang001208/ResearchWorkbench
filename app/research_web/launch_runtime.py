@@ -80,6 +80,8 @@ def validate_research_python(python: Path) -> None:
 
 
 def mcp_runtime_enabled() -> bool:
+    if os.environ.get("RWB_TENANT_MODE") == "1":
+        return False
     return os.environ.get("RESEARCH_MCP_RUNTIME_ENABLED", "1").strip().lower() in {
         "1",
         "true",
@@ -175,6 +177,8 @@ def load_mcp_runtime_bindings(data: Path) -> list[dict[str, object]]:
 
 def load_tabbit_config(data: Path) -> dict[str, object]:
     """Read the non-secret Tabbit switches used for the next Runtime start."""
+    if os.environ.get("RWB_TENANT_MODE") == "1":
+        return {"browser_enabled": False, "web_fetch_enabled": False, "instance_id": None}
     defaults: dict[str, object] = {
         "browser_enabled": True,
         "web_fetch_enabled": False,
@@ -726,11 +730,18 @@ def _prepare_runtime(
     explain_content = (package / "framework-explain.cordis.yml").read_text(encoding="utf-8")
     (explain_preset / "agent.cordis.yml").write_text(explain_content, encoding="utf-8")
     mcp_bindings: list[dict[str, object]] = []
+    tenant_skill_names: list[str] = []
     if research_tools:
         validate_research_python(Path(sys.executable))
         load_control(data, datahub_url)
         public_data_tools = enabled_datahub_tools(data)
         mcp_bindings = load_mcp_runtime_bindings(data)
+        if os.environ.get("RWB_TENANT_MODE") == "1":
+            tenant_skill_names = [
+                row["native_name"]
+                for row in CapabilityCatalog(data).list()["items"]
+                if row["builtin"] and row["enabled"] and row["native_name"]
+            ]
         runner = package.parent / "sandbox.py"
         if not runner.exists() or not (package / "research-tools.mjs").exists():
             raise RuntimeError("安全脚本运行器尚未完成，禁止启用研究工具")
@@ -880,6 +891,8 @@ def _prepare_runtime(
                 f"      name: {json.dumps(str(guard))}",
                 "      config:",
                 f"        enabled: {'true' if research_tools else 'false'}",
+                f"        tenantMode: {'true' if os.environ.get('RWB_TENANT_MODE') == '1' else 'false'}",
+                f"        tenantSkillNames: {json.dumps(tenant_skill_names)}",
                 f"        researchRoot: {json.dumps(str(data))}",
                 *(
                     [
@@ -944,7 +957,7 @@ def _prepare_runtime(
     env = {
         "PATH": "/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin",
         "LANG": "en_US.UTF-8",
-        "HOME": str(Path.home()),
+        "HOME": str(home if os.environ.get("RWB_TENANT_MODE") == "1" else Path.home()),
         "DSH_HOME": str(home),
         "DSH_TELEMETRY_DISABLED": "1",
         "TMPDIR": str(temp),
