@@ -37,6 +37,11 @@ def server(tmp_path):
 
     async def upstream(request):
         forwarded.append(request)
+        if request.url.path.endswith("/messages"):
+            return httpx.Response(
+                202 if request.headers.get("idempotency-key") else 422,
+                json={"accepted": bool(request.headers.get("idempotency-key"))},
+            )
         if request.url.path.endswith("/preview"):
             return httpx.Response(
                 200,
@@ -110,6 +115,40 @@ def test_two_users_route_from_cookie_not_owner_or_headers(server):
     assert login(browser, "bobby", "a safe bobby password").status_code == 200
     assert browser.get("/api/research/sessions").json()["owner"] == bob.id
     assert "cookie" not in forwarded[-1].headers
+
+
+@pytest.mark.parametrize("header", ["Idempotency-Key", "idempotency-key"])
+def test_research_submission_forwards_idempotency_without_browser_credentials(server, header):
+    browser, _, _, (_, alice, bob), forwarded = server
+    assert login(browser).status_code == 200
+    response = browser.post(
+        "/api/research/sessions/test-session/messages",
+        json={"text": "synthetic test"},
+        headers={
+            "Origin": "http://localhost",
+            header: "test-round-unique-key",
+            "Authorization": "Bearer browser-secret",
+            "X-RWB-Tenant-Gateway-Key": bob.id,
+        },
+    )
+    assert response.status_code == 202
+    upstream = forwarded[-1]
+    assert upstream.headers["idempotency-key"] == "test-round-unique-key"
+    assert upstream.headers["x-rwb-tenant-gateway-key"] == alice.id
+    assert "cookie" not in upstream.headers
+    assert "authorization" not in upstream.headers
+
+
+def test_gateway_does_not_invent_a_missing_idempotency_key(server):
+    browser, _, _, _, forwarded = server
+    login(browser)
+    response = browser.post(
+        "/api/research/sessions/test-session/messages",
+        json={"text": "synthetic test"},
+        headers={"Origin": "http://localhost"},
+    )
+    assert response.status_code == 422
+    assert "idempotency-key" not in forwarded[-1].headers
 
 
 def test_private_callbacks_and_proxy_targets_are_not_browser_routes(server):

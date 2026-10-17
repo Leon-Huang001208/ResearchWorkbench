@@ -16,7 +16,7 @@ AI资讯自主化本轮在隔离实例接入原版API/worker与独立库，保�
 
 服务器模式仅在 macOS Native 显式启用，固定一个 Tailscale HTTPS origin/Host；回环 HTTP 仅供本机开发。Tailscale 网络准入和产品账号登录分别验证，无公网注册或 CORS。账号库用 scrypt 密码摘要、随机 Cookie 令牌的哈希和到期时间；密码不进入参数、日志或浏览器持久存储。HTTPS Cookie 为 HttpOnly/Secure/SameSite=Strict，12 小时过期；未知账号与错误密码同样失败，登录失败有界限速。停用、密码重置和退出登录即时撤销对应登录态；最后一个活动管理员受保护。
 
-认证用户 UUID 由网关决定唯一 backend 和文件根，浏览器的 owner、目标地址、Cookie、Authorization、代理头或伪造内部密钥不能选择其他实例。逐实例私有令牌保护后端直连；DSH 的允许内部回调另验数据密钥，浏览器不能经网关访问 internal。下载、搜索、SSE、取消和审批复用该用户既有会话与文件校验；SSE 与流式下载在撤销后停止交付，换账号旧页由页面身份标记拒绝。代理请求体有界，同源响应使用 no-store；上游重定向拒绝。
+认证用户 UUID 由网关决定唯一 backend 和文件根，浏览器的 owner、目标地址、Cookie、Authorization、代理头或伪造内部密钥不能选择其他实例。研究提交所需的 `Idempotency-Key` 按原值透传到已认证用户的 backend；网关不生成缺失键，也不从键选择用户或扩大请求权限。逐实例私有令牌保护后端直连；DSH 的允许内部回调另验数据密钥，浏览器不能经网关访问 internal。下载、搜索、SSE、取消和审批复用该用户既有会话与文件校验；SSE 与流式下载在撤销后停止交付，换账号旧页由页面身份标记拒绝。代理请求体有界，同源响应使用 no-store；上游重定向拒绝。
 
 全局AI资讯不选择用户backend：gateway固定使用 `server_root/shared/ai-news`，成员仅阅读，status/control仅admin；tenant后端完整拒绝全局AI路径，即使实例key有效也不放行。未知AI路径不会启动DSH。管理复用精确Origin和页面身份，64KiB流式限额后重验有效admin，读取返回前复查撤销；浏览器凭据和伪造Node key不转发，原Node session/CSRF保持私有。共享目录与用户研究根分开，不扩大同UID隔离承诺。
 

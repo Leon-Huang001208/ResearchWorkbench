@@ -1,5 +1,7 @@
 # 部署与模块职责
 
+网关在既有逐用户代理路径透传研究必需的 Idempotency-Key；部署节点、实例归属与认证边界不变。
+
 管理员 release-reservation 沿原 operation.lock 退休已停止 stage 的容量预留；业务容器、卷、网络和生产生命周期不变。
 
 独立私有pool支持显式1至4个pair，默认2；附接常驻按私有max_additional_instances计额外用户（默认1，primary另算1）。本机容量配置选择3额外、4总实例，不增加组件或部署节点；旧“两槽”部署保持默认兼容，显式配置后才提高上限。
