@@ -6713,6 +6713,7 @@ Imports:
 - `subprocess`
 - `tenant_policy`
 - `time`
+- `urllib.parse`
 - `uuid`
 
 Classes:
@@ -6731,6 +6732,8 @@ Functions:
 - `_read_private`
 - `_create_private`
 - `_reserve_port`
+- `_reserve_web_port`
+  - Reuse the authoritative callback origin without rotating any control token.
 - `_group_retired`
 - `_probe_backend`
 - `_exchange_auth`

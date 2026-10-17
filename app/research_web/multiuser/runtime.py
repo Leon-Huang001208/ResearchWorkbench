@@ -16,6 +16,7 @@ import subprocess
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
+from urllib.parse import urlsplit
 from uuid import UUID, uuid4
 
 import httpx
@@ -111,14 +112,59 @@ def _create_private(path: Path, raw: bytes) -> None:
         os.close(descriptor)
 
 
-def _reserve_port() -> socket.socket:
+def _reserve_port(preferred: int = 0) -> socket.socket:
     reserved = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
-        reserved.bind(("127.0.0.1", 0))
+        reserved.bind(("127.0.0.1", preferred))
         return reserved
+    except OSError as exc:
+        reserved.close()
+        raise RuntimeErrorSafe("runtime_port_unavailable") from exc
     except BaseException:
         reserved.close()
         raise
+
+
+def _reserve_web_port(root: Path) -> socket.socket:
+    """Reuse the authoritative callback origin without rotating any control token."""
+    from ..control_origin import ControlOriginError, _decode
+
+    control = root / ".control"
+    if not control.exists() and not control.is_symlink():
+        return _reserve_port()
+    try:
+        _directory(control, create=False)
+        journal = control / "origin-transaction.json"
+        if journal.exists() or journal.is_symlink():
+            raise ValueError("pending_control_transaction")
+        origins: list[str] = []
+        for name in ("datahub.json", "mcp-runtime.json"):
+            path = control / name
+            if not path.exists() and not path.is_symlink():
+                continue
+            raw = _read_private(path)
+            value = json.loads(raw)
+            if not isinstance(value, dict):
+                raise TypeError
+            origin = value.get("url")
+            if not isinstance(origin, str):
+                raise TypeError
+            _decode(name, raw, origin)
+            origins.append(origin)
+        if not origins:
+            return _reserve_port()
+        if len(set(origins)) != 1:
+            raise ValueError("control_origins_differ")
+        parsed = urlsplit(origins[0])
+        port = parsed.port
+        if port is None or origins[0] != f"http://127.0.0.1:{port}":
+            raise ValueError("control_origin_not_ipv4")
+        return _reserve_port(port)
+    except RuntimeErrorSafe:
+        raise
+    except (OSError, ValueError, TypeError, ControlOriginError) as exc:
+        log.warning("multiuser_runtime_control_rejected", error_type=type(exc).__name__)
+        raise RuntimeErrorSafe("runtime_control_invalid") from exc
 
 
 def _group_retired(pid: int) -> bool:
@@ -373,7 +419,8 @@ class RuntimePool:
                 root / "logs",
             ):
                 _directory(path)
-            sockets = [_reserve_port(), _reserve_port()]
+            sockets.append(_reserve_web_port(root))
+            sockets.append(_reserve_port())
             web_port, runtime_port = [item.getsockname()[1] for item in sockets]
             entry = _Instance(
                 user, state, Backend(f"http://127.0.0.1:{web_port}", secrets.token_urlsafe(32)), []
