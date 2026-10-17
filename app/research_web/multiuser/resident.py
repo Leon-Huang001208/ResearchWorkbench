@@ -17,7 +17,7 @@ from pathlib import Path
 
 
 def run(root: Path) -> int:
-    from .__main__ import PROJECT, _server_context
+    from .__main__ import PROJECT, _configured_capacity, _server_context
 
     with _server_context(root):
         import uvicorn
@@ -40,6 +40,7 @@ def run(root: Path) -> int:
             raise RuntimeErrorSafe("server_revision_mismatch")
         if config.get("project") != str(PROJECT) or config.get("port") != 8089:
             raise RuntimeErrorSafe("server_configuration_invalid")
+        capacity = _configured_capacity(config)
         accounts = AccountStore(root)
         binding = LegacyBinding.from_config(config["binding"])
         original = read_json(binding.home / "resident/config.json")
@@ -59,7 +60,7 @@ def run(root: Path) -> int:
                 source=Path(config["source"]),
                 python=sys.executable,
                 node=config["node"],
-                max_instances=1,
+                max_instances=capacity,
             ),
             recover=recover,
             boot_id=boot,

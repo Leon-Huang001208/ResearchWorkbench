@@ -230,7 +230,7 @@ class RuntimePool:
     """Never adopt old processes or evict an active user's research for capacity."""
 
     def __init__(self, config: RuntimeConfig, *, recover=None, boot_id: str | None = None):
-        if type(config.max_instances) is not int or not 1 <= config.max_instances <= 2:
+        if type(config.max_instances) is not int or not 1 <= config.max_instances <= 4:
             raise RuntimeErrorSafe("runtime_capacity_invalid", 400)
         if any(
             not Path(value).is_absolute()

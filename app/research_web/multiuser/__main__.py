@@ -58,7 +58,7 @@ def parser() -> argparse.ArgumentParser:
             command.add_argument("--source", type=Path, required=True)
             command.add_argument("--node", type=Path, required=True)
             command.add_argument("--port", type=int, default=8089)
-            command.add_argument("--max-instances", type=int, choices=(1, 2), default=2)
+            command.add_argument("--max-instances", type=int, choices=(1, 2, 3, 4), default=2)
         else:
             command.add_argument("--source", type=Path)
             command.add_argument("--json", action="store_true")
@@ -169,6 +169,53 @@ def _source_status(source: Path | None) -> dict:
         return {"status": "not_configured", "pinned_revision": "not_verified"}
 
 
+def _configured_capacity(config: dict) -> int:
+    """Explicit private pair limit; older installations retain one extra pair."""
+    value = config.get("max_additional_instances", 1)
+    if type(value) is not int or not 1 <= value <= 4:
+        log.warning("server_capacity_invalid")
+        raise ServerCommandError("server_capacity_invalid")
+    return value
+
+
+def _inspect_capacity(root: Path) -> dict:
+    """Inspect private configuration without importing or starting a runtime."""
+    descriptor = None
+    try:
+        if not _directory(root):
+            return {"status": "not_configured"}
+        path = root / "resident.json"
+        if not path.exists() and not path.is_symlink():
+            return {"status": "not_configured"}
+        before = _private_file(path)
+        descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+        actual = os.fstat(descriptor)
+        if (
+            (actual.st_dev, actual.st_ino) != (before.st_dev, before.st_ino)
+            or actual.st_size > 65536
+            or not stat.S_ISREG(actual.st_mode)
+            or actual.st_nlink != 1
+            or os.name == "posix"
+            and (actual.st_uid != os.getuid() or stat.S_IMODE(actual.st_mode) != 0o600)
+        ):
+            raise ServerCommandError("server_path_unsafe")
+        config = json.loads(os.read(descriptor, 65537))
+        if not isinstance(config, dict):
+            raise ServerCommandError("server_capacity_invalid")
+        additional = _configured_capacity(config)
+        return {
+            "status": "configured",
+            "additional_instances": additional,
+            "total_instances": additional + 1,
+        }
+    except (OSError, ValueError, RecursionError, ServerCommandError):
+        log.warning("server_capacity_inspection_failed")
+        return {"status": "invalid"}
+    finally:
+        if descriptor is not None:
+            os.close(descriptor)
+
+
 def _doctor(arguments: argparse.Namespace, root: Path) -> int:
     accounts = _inspect_accounts(root)
     source = _source_status(arguments.source)
@@ -185,6 +232,7 @@ def _doctor(arguments: argparse.Namespace, root: Path) -> int:
         "status": "not_configured",
         "platform": "supported" if platform.system() == "Darwin" else "not_supported",
         "accounts": accounts,
+        "capacity": _inspect_capacity(root),
         "source": source,
         "interpreter": {
             "status": "available" if python_matches and all(modules.values()) else "not_configured",
