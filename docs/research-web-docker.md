@@ -1,5 +1,7 @@
 # Mac mini Docker 开发与独立部署
 
+私网邀请制多用户的 `rwb server` 首版只运行 macOS Native，不装入本页 Docker 管理链，也不复用 dev/stage/prod 卷、身份账本或 Native 个人数据。Docker 原单用户安装/健康/凭据合同保留；本轮账号或隔离测试不认证 Docker 多用户与 Linux 原生支持。服务器使用方式及同 UID 信任限制见[安装指南](research-web-installation.md#私网邀请制多用户macos-native)。
+
 Host元数据专项入口仅限已安装resident的macOS Native固定生产根；不切换Native/Docker、不接管容器、镜像、卷或其他部署。Docker及其他平台的安装/健康合同继续独立验收，不能把本次macOS专项当作Docker升级许可。
 
 固定 DSH 查询升级同时适用于容器安装合同，但本轮只执行 macOS Native 候选；Docker/Linux 产品验收留给对应设备，不能将 Native 通过标为容器通过。旧源日志不迁移，部分搜索计数仅用于真实覆盖说明。

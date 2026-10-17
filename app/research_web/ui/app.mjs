@@ -61,6 +61,8 @@ function updateGlobalSearchResults() {
   if (focused) ([...results.querySelectorAll('[data-global-result-key]')].find(item => item.dataset.globalResultKey === focused) || document.getElementById('global-search'))?.focus({ preventScroll: true });
 }
 const defaultCatalogNames = ['runtime', 'models', 'workspaces', 'sessions', 'capabilities', 'tools', 'reportWorkflows'];
+// The private server profile does not execute host report Workflows.
+if (globalThis.__RWB_USER_ID__) defaultCatalogNames.splice(defaultCatalogNames.indexOf('reportWorkflows'), 1);
 const catalog = { runtime: null, tabbit: null, integrations: { summary: {}, items: [], latest_batch: null }, localIntegrations: { categories: [], items: [], summary: {}, service: {} }, connections: { groups: [], sources: [], platform: {}, migration: {} }, models: [], sessions: [], deletedSessions: [], workspaces: [], capabilities: [], tools: [], reportWorkflows: [], automations: [], automationRuns: [], deliveryChannels: [], artifacts: [], dataCatalog: { summary: {}, capabilities: [], sources: [], bindings: [] }, errors: {}, modelFailures: [], pending: new Set(defaultCatalogNames) };
 const catalogPendingCounts = new Map();
 const catalogRequestGenerations = new Map();
@@ -1344,7 +1346,7 @@ async function showRoute() {
     try { const projects = await api.clawProjects(); if (ticket === pageGeneration) clawWorkspace.projects = projects.items || []; }
     catch (error) { if (ticket === pageGeneration) clawWorkspace.error = error.message; safeLog('claw_project_index_failed', { status: error.code || 'request_failed' }); }
   }
-  if (state.route.page === 'claw' && !state.route.sessionId) await loadCatalog(['reportWorkflows']);
+  if (state.route.page === 'claw' && !state.route.sessionId && !globalThis.__RWB_USER_ID__) await loadCatalog(['reportWorkflows']);
   if (['claw', 'fingpt'].includes(state.route.page) && state.route.clawView === 'projects') await loadClawProjects();
   if (state.route.page === 'claw' && state.route.clawView === 'plans') await loadCatalog(['automations', 'automationRuns']);
   if (state.route.page === 'claw' && state.route.clawView === 'skills') await loadCatalog(['capabilities', 'tools']);

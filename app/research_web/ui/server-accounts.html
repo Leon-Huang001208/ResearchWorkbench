@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>账号 · Research Workbench</title>
+  <link rel="icon" href="/static/assets/brand/favicon-32.png">
+  <link rel="stylesheet" href="/server-static/accounts.css">
+</head>
+<body>
+  <main class="account-panel">
+    <a class="brand" href="/">Research Workbench</a>
+    <h1 id="heading">登录研究工作台</h1>
+    <p id="description">请使用管理员为你创建的账号。会话和文件保存在服务器的个人空间。</p>
+    <p id="message" role="status" aria-live="polite"></p>
+    <form id="login-form">
+      <label>账号<input name="username" autocomplete="username" required maxlength="64"></label>
+      <label>密码<input name="password" type="password" autocomplete="current-password" required maxlength="1024"></label>
+      <button type="submit">登录</button>
+    </form>
+    <section id="signed-in" hidden>
+      <a class="button" href="/">进入 FinGPT / Claw</a>
+      <button type="button" id="logout">退出登录</button>
+    </section>
+    <section id="administration" hidden>
+      <h2>邀请用户</h2>
+      <form id="create-form">
+        <label>账号<input name="username" autocomplete="off" pattern="[a-zA-Z][a-zA-Z0-9_.\-]{2,63}" required maxlength="64"></label>
+        <label>初始密码（至少12个字符）<input name="password" type="password" autocomplete="new-password" required minlength="12" maxlength="1024"></label>
+        <button type="submit">创建账号</button>
+      </form>
+      <h2>用户管理</h2>
+      <p>停用会撤销登录并停止该用户的研究。停止实例会结束任务并释放容量，数据保留。</p>
+      <div id="user-list"></div>
+      <form id="reset-form" hidden>
+        <h3 id="reset-title">重置密码</h3>
+        <label>新密码<input name="password" type="password" autocomplete="new-password" required minlength="12" maxlength="1024"></label>
+        <button type="submit">保存并撤销该用户的所有登录</button>
+        <button type="button" id="cancel-reset">取消</button>
+      </form>
+    </section>
+  </main>
+  <script type="module" src="/server-static/accounts.mjs"></script>
+</body>
+</html>

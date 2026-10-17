@@ -1,5 +1,7 @@
 # 图文更新清单契约与门禁
 
+可选私网服务器的独立网关只有在 `multiuser/__main__.py` 实际 import `create_gateway`、构造 app 并 `uvicorn.run(app, ...)` 时进入 HTTP 扫描挂载集合；未挂载模块仍失败，`api_route` 等不支持声明仍拒绝。账号 API 和六个普通 catchall 方法均逐项写入清单，生成 Atlas 不过滤服务器接口。private-multiuser 组与更新后的部署图分别记录新入口与逐用户边界，同 UID 信任限制由安全文档维护。
+
 Native/Docker 是既有 Research Web 的部署选择。部署拓扑以 `01-deployment` 图、
 `architecture-map.json` 和当前安装说明为准；模块文档记录原有 API、Provider、能力与文档治理
 边界。完整变更集检查必须包括基线至 HEAD、暂存、未暂存和新报告；`--no-start`、模拟健康测试或

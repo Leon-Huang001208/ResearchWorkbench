@@ -1,5 +1,7 @@
 # Research Web 文档门禁与安全入口
 
+新增 private-multiuser 组映射独立服务器账号网关、逐用户 runtime 与后端 profile，部署图展示其可选入口。HTTP 清单除原 `main.py` 路由外，仅接受经 `multiuser/__main__.py` 明确导入、装配并交给 uvicorn 的独立 gateway；仍要求字面量路径及普通方法装饰器，catchall 六种方法逐项登记。此检查证明源码接线和清单完整，不证明登录、隔离、模型或平台实际验收。
+
 Native/Docker 的当前部署拓扑由 `01-deployment` 和架构清单记录，详细安装身份、镜像接受、
 健康等待与平台限制以[安装契约](research-web-installation.md)为准。模块文档应同步说明凭据
 后端选择与不变的 API/Provider/能力合同。完整分支约束检查需覆盖基线到 HEAD 以及暂存、

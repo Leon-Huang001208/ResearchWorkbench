@@ -414,7 +414,8 @@ export function createController({ api, draftStorage, logger = safeLog, makeID =
   if (draftStorage === undefined) {
     try { draftStorage = globalThis.sessionStorage; } catch { logger('draft_storage_unavailable', {}); }
   }
-  const storageKey = id => `research-web:explicit-draft:v1:${id}`;
+  const userNamespace = /^[a-f0-9-]{36}$/.test(globalThis.__RWB_USER_ID__ || '') ? `user:${globalThis.__RWB_USER_ID__}:` : '';
+  const storageKey = id => `research-web:${userNamespace}explicit-draft:v1:${id}`;
   const validDraft = value => typeof value?.draft === 'string' && Array.isArray(value.attachments) && value.attachments.length <= 100 && value.attachments.every(file => typeof file?.id === 'string' && /^[A-Za-z0-9_-]{1,255}$/.test(file.id) && typeof file.name === 'string' && file.name.length <= 500);
   const draftAttachment = file => {
     const result = { id: file.id, name: file.name };
