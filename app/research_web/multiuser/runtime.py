@@ -177,7 +177,7 @@ def _exchange_auth(port: int, token: str) -> str | None:
 class RuntimePool:
     """Never adopt old processes or evict an active user's research for capacity."""
 
-    def __init__(self, config: RuntimeConfig):
+    def __init__(self, config: RuntimeConfig, *, recover=None, boot_id: str | None = None):
         if type(config.max_instances) is not int or not 1 <= config.max_instances <= 2:
             raise RuntimeErrorSafe("runtime_capacity_invalid", 400)
         if any(
@@ -186,6 +186,7 @@ class RuntimePool:
         ):
             raise RuntimeErrorSafe("runtime_configuration_invalid", 400)
         self.config, self.instance = config, uuid4().hex
+        self.boot_id = boot_id
         self._lock = asyncio.Lock()
         self._instances: dict[str, _Instance] = {}
         self._closed = False
@@ -224,7 +225,11 @@ class RuntimePool:
                 if (user_root / "state/owner.json").exists() or (
                     user_root / "state/owner.json"
                 ).is_symlink():
-                    raise RuntimeErrorSafe("runtime_stale_owner")
+                    if recover is None:
+                        raise RuntimeErrorSafe("runtime_stale_owner")
+                    recover(user_root)
+                    if (user_root / "state/owner.json").exists():
+                        raise RuntimeErrorSafe("runtime_stale_owner")
         except BaseException:
             if self._lock_fd is not None:
                 os.close(self._lock_fd)
@@ -283,6 +288,7 @@ class RuntimePool:
                 "instance": self.instance,
                 "user": instance.user,
                 "pids": [child.pid for child in instance.children],
+                **({"boot_id": self.boot_id} if self.boot_id else {}),
             }
         ).encode()
         if create:

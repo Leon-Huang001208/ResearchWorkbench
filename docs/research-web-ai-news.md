@@ -1,5 +1,7 @@
 # AI 资讯自主引擎与本机桥接
 
+常驻附接保持 primary 所有者原版 UI、静态资源与原 AIHOT 阅读 API 成对路由到旧实例；不会因登录网关部署切换其资讯内容或启动自主库/worker。新用户沿既有服务器共享只读资讯合同，未配置时明确显示未接入，采编管理仍仅管理员。资讯部署与真实模型预算验收继续独立。
+
 AI资讯自主化本轮在隔离实例接入原版API/worker与独立库，保持DSH研究执行及当前常驻内容。零调用和后续切换边界见[自主资讯合同](research-web-ai-news.md)。
 
 AI 资讯使用 `services/ai_news/vendor/aihot` 固定的原始 AIHOT Node API、worker 与 PostgreSQL

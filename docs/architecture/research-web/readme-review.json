@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "updated",
-  "summary": "整合邀请制多用户与AI资讯自主引擎、零调用评测准备",
-  "reason": "保留用户隔离研究和共享只读资讯；采编管理仅admin，模型与常驻切换单独验收。"
+  "summary": "整合AI资讯自主引擎与显式常驻附接、原会话和模型保留",
+  "reason": "保留上游共享资讯及零调用边界，补充primary原实例保留；不在本任务部署资讯数据库或worker。"
 }

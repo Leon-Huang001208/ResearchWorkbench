@@ -1,5 +1,7 @@
 # Research Workbench Development Map
 
+多用户常驻入口在 app/research_web/multiuser/resident.py；resident_binding 保留 primary 原实例，preservation 生成内容摘要，resident_boot 只恢复已证明跨 boot 的控制元数据。测试 test_multiuser_resident.py 沿现有 Python 合同检查。
+
 AI资讯自主化本轮在隔离实例接入原版API/worker与独立库，保持DSH研究执行及当前常驻内容。零调用和后续切换边界见[自主资讯合同](research-web-ai-news.md)。
 
 AI资讯采用固定原版AIHOT API与worker、独立PostgreSQL和Host私有桥；默认关闭采集、推理和付费源，从自主库重新起刊。隔离验收不导入线上历史，不更新常驻内容；DSH继续是唯一研究执行引擎，Hot宏观及研究证据保留，重叠AI信源在未来真实闭环验收后的显式切换事务中交接。详见[自主资讯合同](research-web-ai-news.md)。

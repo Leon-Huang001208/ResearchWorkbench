@@ -5,6 +5,7 @@ const messages = {
   username_exists: '这个账号已存在。', invalid_username: '账号需为3—64位字母、数字、下划线、点或短横线，并以字母开头。',
   invalid_password: '密码至少需要12个字符。', last_active_admin: '不能停用最后一个管理员。',
   runtime_capacity: '服务器正在处理其他研究，请稍后再试。', login_required: '登录已过期，请重新登录。',
+  primary_account_protected: '原常驻实例由原监督器管理，不能从账号页停止或停用。',
 };
 let me;
 let resetUser;
@@ -29,7 +30,7 @@ async function action(form, callback) {
 }
 
 async function loadUsers() {
-  const { items } = await api('users');
+  const { items, primary_user_id: primaryUserId } = await api('users');
   const list = select('user-list');
   list.replaceChildren();
   for (const user of items) {
@@ -41,7 +42,7 @@ async function loadUsers() {
       const element = document.createElement('button'); element.type = 'button'; element.textContent = text;
       element.addEventListener('click', () => action(row, callback)); row.append(element);
     };
-    if (user.id !== me.id) button(user.enabled ? '停用' : '启用', async () => {
+    if (user.id !== me.id && user.id !== primaryUserId) button(user.enabled ? '停用' : '启用', async () => {
       if (user.enabled && !confirm(`停用 ${user.username} 并停止其研究？`)) return;
       await api(`users/${user.id}`, 'PATCH', { enabled: !user.enabled }); await loadUsers();
     });
@@ -49,7 +50,7 @@ async function loadUsers() {
       resetUser = user.id; select('reset-title').textContent = `重置 ${user.username} 的密码`;
       select('reset-form').hidden = false; select('reset-form').elements.password.focus();
     });
-    button('停止实例', async () => {
+    if (user.id !== primaryUserId) button('停止实例', async () => {
       if (!confirm(`停止 ${user.username} 的实例和运行中的任务？会话文件保留。`)) return;
       await api(`users/${user.id}/stop`, 'POST'); select('message').textContent = '实例已停止，数据已保留。';
     });

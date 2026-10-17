@@ -1,5 +1,7 @@
 # Agent 任务路由指南
 
+多用户常驻附接的离线绑定、保全及 kernel boot 恢复测试复用既有 Research Web Checks 同一 Python 步骤；精确源码交付之后另做 Mac mini 私有部署与真实双账号隔离验收，不把 CI 或登录成功等同模型生成。
+
 AI资讯自主化本轮在隔离实例接入原版API/worker与独立库，保持DSH研究执行及当前常驻内容。零调用和后续切换边界见[自主资讯合同](research-web-ai-news.md)。
 
 私网多用户的账号、网关、运行池和CLI安全合同加入既有Research Web Checks四个定点测试文件；

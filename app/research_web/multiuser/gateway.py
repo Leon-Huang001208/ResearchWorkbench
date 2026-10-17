@@ -104,6 +104,8 @@ def create_gateway(
     @asynccontextmanager
     async def lifespan(app):
         try:
+            if hasattr(pool, "start"):
+                await pool.start()
             yield
         finally:
             await pool.close()
@@ -121,6 +123,14 @@ def create_gateway(
     app.include_router(aihot_router)
     app.include_router(ai_news_router)
 
+    def original_reading(request: Request) -> bool:
+        user = request.state.user
+        return (
+            user is not None
+            and user.id == getattr(pool, "primary_user_id", None)
+            and request.url.path.startswith("/api/research/aihot/")
+        )
+
     @app.exception_handler(AccountError)
     async def account_error(request, exc):
         return error(exc.code, exc.status)
@@ -136,6 +146,14 @@ def create_gateway(
 
     @app.middleware("http")
     async def boundary(request: Request, call_next):
+        maintenance = getattr(pool, "maintenance_path", None)
+        if (
+            maintenance is not None
+            and (maintenance.exists() or maintenance.is_symlink())
+            and request.method not in {"GET", "HEAD"}
+            and request.url.path not in {"/api/server/login", "/api/server/logout"}
+        ):
+            return error("server_maintenance", 503)
         if request.headers.get("host", "").lower() != authority:
             return error("server_host_denied", 403)
         supplied_origin = request.headers.get("origin")
@@ -160,6 +178,7 @@ def create_gateway(
             "/auth",
             "/api/server/login",
             "/api/server/logout",
+            "/api/server/health",
         } or request.url.path.startswith(("/static/", "/server-static/"))
         try:
             user = await asyncio.to_thread(accounts.authenticate, request.cookies.get(COOKIE, ""))
@@ -225,7 +244,13 @@ def create_gateway(
                         return error("administrator_required", 403)
                     if news_admin:
                         log.info("multiuser_ai_news_control_admitted", user_id=fresh.id)
-            response = await call_next(request)
+            # Preserve the attached owner's original UI/API version pair. Shared
+            # news rollout remains independent from this authentication cutover.
+            response = (
+                await proxy(request.url.path.lstrip("/"), request)
+                if original_reading(request)
+                else await call_next(request)
+            )
             if news:
                 # AI responses are bounded complete JSON/XML/image reads, not tenant SSE.
                 fresh = await asyncio.to_thread(
@@ -281,12 +306,27 @@ def create_gateway(
 
     @app.get("/api/server/me")
     async def me(request: Request):
-        return {"user": request.state.user.public()}
+        return {
+            "user": request.state.user.public(),
+            "primary": request.state.user.id == getattr(pool, "primary_user_id", None),
+        }
+
+    @app.get("/api/server/health")
+    async def health():
+        if hasattr(pool, "health"):
+            try:
+                return await pool.health()
+            except RuntimeErrorSafe as exc:
+                return error(exc.code, exc.status)
+        return {"status": "ready", "runtime": "not_started_by_health"}
 
     @app.get("/api/server/users")
     async def users(request: Request):
         admin(request)
-        return {"items": [u.public() for u in await asyncio.to_thread(accounts.list_users)]}
+        return {
+            "items": [u.public() for u in await asyncio.to_thread(accounts.list_users)],
+            "primary_user_id": getattr(pool, "primary_user_id", None),
+        }
 
     @app.post("/api/server/users", status_code=201)
     async def create_user(body: NewUser, request: Request):
@@ -299,6 +339,8 @@ def create_gateway(
     @app.patch("/api/server/users/{user_id}")
     async def set_enabled(user_id: str, body: UserStatus, request: Request):
         admin(request)
+        if not body.enabled and user_id == getattr(pool, "primary_user_id", None):
+            raise AccountError("primary_account_protected", 409)
         user = await asyncio.to_thread(accounts.set_enabled, user_id, body.enabled)
         if not user.enabled:
             await pool.stop(user.id)
@@ -328,13 +370,30 @@ def create_gateway(
         return HTMLResponse((UI / "server-accounts.html").read_text(encoding="utf-8"))
 
     @app.get("/")
-    async def research_page():
-        source = (UI / "index.html").read_text(encoding="utf-8")
+    async def research_page(request: Request):
+        ui = (
+            getattr(pool, "primary_ui", UI)
+            if request.state.user.id == getattr(pool, "primary_user_id", None)
+            else UI
+        )
+        source = (ui / "index.html").read_text(encoding="utf-8")
         return HTMLResponse(
             source.replace('src="/static/app.mjs"', 'src="/server-static/session.mjs"')
         )
 
-    app.mount("/static", StaticFiles(directory=UI), name="research-static")
+    current_static = StaticFiles(directory=UI)
+    primary_static = StaticFiles(directory=getattr(pool, "primary_ui", UI))
+
+    async def user_static(scope, receive, send):
+        user = scope.get("state", {}).get("user")
+        target = (
+            primary_static
+            if user is not None and user.id == getattr(pool, "primary_user_id", None)
+            else current_static
+        )
+        await target(scope, receive, send)
+
+    app.mount("/static", user_static, name="research-static")
     app.mount("/server-static", StaticFiles(directory=UI / "server"), name="server-static")
 
     @app.get("/{path:path}")
@@ -344,7 +403,7 @@ def create_gateway(
     @app.delete("/{path:path}")
     @app.head("/{path:path}")
     async def proxy(path: str, request: Request):
-        if ai_path(request.url.path):
+        if ai_path(request.url.path) and not original_reading(request):
             # Unknown shared-news routes never allocate a per-user Web/DSH instance.
             return error("not_found", 404)
         if not path.startswith("api/research/") and not path.startswith("frameworks-embed/"):
@@ -362,7 +421,8 @@ def create_gateway(
             return error(getattr(exc, "code", "runtime_unavailable"), getattr(exc, "status", 503))
         # Never forward browser cookies, Authorization, proxy headers or a chosen tenant key.
         headers = {k: v for k, v in request.headers.items() if k.lower() in REQUEST_HEADERS}
-        headers[KEY_HEADER] = backend.key
+        if backend.key:
+            headers[KEY_HEADER] = backend.key
         headers["Origin"] = backend.url
         parts = []
         size = 0

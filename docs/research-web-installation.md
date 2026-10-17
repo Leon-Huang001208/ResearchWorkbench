@@ -1,5 +1,15 @@
 # Research Web Native / Docker 安装与运行
 
+primary 的 index.html、/static 资源及原 /api/research/aihot/ 阅读请求继续使用其已验证旧实例版本；/auth、/account 与账号包装脚本来自新网关。静态响应 no-store，身份来自 Cookie，浏览器不能指定源码根。这样部署登录网关不会隐式切换原资讯后端；不在本任务启动资讯数据库或 worker。
+
+### 显式保留既有常驻实例
+
+已安装的 Mac 可在单独授权部署后，由操作员将唯一 primary 管理员绑定到经过目录身份、安装 SHA、进程归属和实际健康核验的原 Web/DSH。原数据根、模型配置及 Keychain 命名空间原位保留；原监督器继续拥有其生命周期。primary 不能被账号页停用或停止，其他用户仍使用新用户根；原实例占用两个总槽中的一个。此绑定仅限可信的服务器所有者管理员，原个人实例保持原能力，不能绑定普通受邀用户。
+
+独立 `com.research-workbench.multiuser-server` 用户 LaunchAgent 用已审核的精确源码 SHA 执行 `python -m app.research_web.multiuser.resident --root <private-root>`；解释器、Node 与固定 DSH 复用已安装环境，无新依赖。私有 `resident.json` 保存绑定身份及部署 SHA。先验证回环 8089，再持有原 supervisor/admission/lifecycle 锁复查空闲，在路由切换前写 `run/cutover.json`，检查原会话文件与模型配置摘要后，才把既有 Tailscale HTTPS 根代理 8088 改为 8089。该 journal 存在时拒绝业务写入；原实例不停止，不改变自动兼容白名单。失败仅恢复本次拥有的原路由并停用新网关，不覆盖研究数据。安装日志与保全证据仅存本机私有目录。
+
+初始管理员密码可由已授权操作员随机生成并只写入 macOS Keychain，配置只记录服务名/账号引用；不得出现在 argv、环境、日志、报告或聊天中。用户登录后可在账号页设置新密码。匿名 `/api/server/health` 只显示网关就绪及 primary 先前核验标记，不探测模型、不反复启动子进程；认证主账号的深度核验采用单飞与三秒缓存。正常退出只回收新用户 pair；登录启动等待原监督器恢复。仅在内核 boot UUID 已变化且旧 owner 完整、账号已知、权限与目录安全时，归档并退休旧控制元数据；同 boot 崩溃及未知归属仍拒绝启动。登录后启动与完整重启实测分别记录，FileVault 与系统登录策略不改变。
+
 AI资讯自主化本轮在隔离实例接入原版API/worker与独立库，保持DSH研究执行及当前常驻内容。零调用和后续切换边界见[自主资讯合同](research-web-ai-news.md)。
 
 ## 私网邀请制多用户（macOS Native）

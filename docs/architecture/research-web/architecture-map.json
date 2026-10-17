@@ -734,7 +734,8 @@
         "tests/research_web/test_multiuser_runtime.py",
         "tests/research_web/test_multiuser_cli.py",
         "tests/javascript/research_web_multiuser_storage.test.mjs",
-        "tests/javascript/research_web_multiuser_policy.test.mjs"
+        "tests/javascript/research_web_multiuser_policy.test.mjs",
+        "tests/research_web/test_multiuser_resident.py"
       ],
       "diagrams": [
         "01-deployment",
@@ -3906,6 +3907,13 @@
       "path": "/{path:path}",
       "source": "app/research_web/multiuser/gateway.py",
       "declaredPath": "/{path:path}",
+      "prefix": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/server/health",
+      "source": "app/research_web/multiuser/gateway.py",
+      "declaredPath": "/api/server/health",
       "prefix": ""
     }
   ],
