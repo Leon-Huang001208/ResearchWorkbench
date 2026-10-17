@@ -79,6 +79,8 @@ def create_gateway(
     @asynccontextmanager
     async def lifespan(app):
         try:
+            if hasattr(pool, "start"):
+                await pool.start()
             yield
         finally:
             await pool.close()
@@ -103,6 +105,14 @@ def create_gateway(
 
     @app.middleware("http")
     async def boundary(request: Request, call_next):
+        maintenance = getattr(pool, "maintenance_path", None)
+        if (
+            maintenance is not None
+            and (maintenance.exists() or maintenance.is_symlink())
+            and request.method not in {"GET", "HEAD"}
+            and request.url.path not in {"/api/server/login", "/api/server/logout"}
+        ):
+            return error("server_maintenance", 503)
         if request.headers.get("host", "").lower() != authority:
             return error("server_host_denied", 403)
         supplied_origin = request.headers.get("origin")
@@ -127,6 +137,7 @@ def create_gateway(
             "/auth",
             "/api/server/login",
             "/api/server/logout",
+            "/api/server/health",
         } or request.url.path.startswith(("/static/", "/server-static/"))
         try:
             user = await asyncio.to_thread(accounts.authenticate, request.cookies.get(COOKIE, ""))
@@ -202,12 +213,27 @@ def create_gateway(
 
     @app.get("/api/server/me")
     async def me(request: Request):
-        return {"user": request.state.user.public()}
+        return {
+            "user": request.state.user.public(),
+            "primary": request.state.user.id == getattr(pool, "primary_user_id", None),
+        }
+
+    @app.get("/api/server/health")
+    async def health():
+        if hasattr(pool, "health"):
+            try:
+                return await pool.health()
+            except RuntimeErrorSafe as exc:
+                return error(exc.code, exc.status)
+        return {"status": "ready", "runtime": "not_started_by_health"}
 
     @app.get("/api/server/users")
     async def users(request: Request):
         admin(request)
-        return {"items": [u.public() for u in await asyncio.to_thread(accounts.list_users)]}
+        return {
+            "items": [u.public() for u in await asyncio.to_thread(accounts.list_users)],
+            "primary_user_id": getattr(pool, "primary_user_id", None),
+        }
 
     @app.post("/api/server/users", status_code=201)
     async def create_user(body: NewUser, request: Request):
@@ -220,6 +246,8 @@ def create_gateway(
     @app.patch("/api/server/users/{user_id}")
     async def set_enabled(user_id: str, body: UserStatus, request: Request):
         admin(request)
+        if not body.enabled and user_id == getattr(pool, "primary_user_id", None):
+            raise AccountError("primary_account_protected", 409)
         user = await asyncio.to_thread(accounts.set_enabled, user_id, body.enabled)
         if not user.enabled:
             await pool.stop(user.id)
@@ -284,7 +312,8 @@ def create_gateway(
             return error(getattr(exc, "code", "runtime_unavailable"), getattr(exc, "status", 503))
         # Never forward browser cookies, Authorization, proxy headers or a chosen tenant key.
         headers = {k: v for k, v in request.headers.items() if k.lower() in REQUEST_HEADERS}
-        headers[KEY_HEADER] = backend.key
+        if backend.key:
+            headers[KEY_HEADER] = backend.key
         headers["Origin"] = backend.url
         parts = []
         size = 0

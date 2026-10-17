@@ -97,6 +97,7 @@ jobs:
             tests/research_web/test_multiuser_accounts.py \
             tests/research_web/test_multiuser_gateway.py \
             tests/research_web/test_multiuser_runtime.py \
+            tests/research_web/test_multiuser_resident.py \
             tests/research_web/test_multiuser_cli.py \
             --confcutdir=tests/research_web -q
 

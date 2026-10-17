@@ -1,5 +1,7 @@
 # 部署与模块职责
 
+显式常驻绑定复用部署图中网关→Native Web 路由：唯一 primary 管理员指向仍由原监督器持有的旧 pair，新用户使用独立 pair。两个总槽中旧实例占一个；只新增网关 LaunchAgent，不增加执行引擎，原服务、数据与模型命名空间保持。绑定与 Tailscale 切换须单独部署授权；参见安装指南的保留既有常驻实例合同。
+
 ## 可选私网用户网关
 
 `rwb server serve` 独立启动回环 8089 登录网关，外层仅接受操作员指定的一个 Tailscale HTTPS origin（本地开发可用明确回环 HTTP origin）。管理员账号来自交互式 `server init`，无公开注册。每个用户首次研究请求惰性启动独立、单 worker 的 Web/DSH pair，端口、数据和内部令牌均由服务端选择；仅登录或管理账号不启动研究。

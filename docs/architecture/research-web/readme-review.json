@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "updated",
-  "summary": "补充可选私网邀请制服务器、逐用户会话与两实例准入入口。",
-  "reason": "新增显式 macOS Native 账号入口；README 链接安装及边界说明，原单用户数据与部署保留。"
+  "summary": "补充显式常驻附接可保留所有者原会话及模型命名空间。",
+  "reason": "原README多用户入口保持，新增保留既有实例的单独授权部署说明；不改变默认安装。"
 }
