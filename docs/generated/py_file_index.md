@@ -7637,6 +7637,8 @@ Imports:
 
 Functions:
 - `source_id`
+- `calculation_evidence`
+  - Serialize one calculation's evidence; only the independent Host can verify it.
 - `validate_calculation_recipes`
   - Validate data-only calculation requests; never accept paths or executable code.
 - `validate_payload`

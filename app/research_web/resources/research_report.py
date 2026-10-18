@@ -19,6 +19,121 @@ def source_id(url):
     return "web:" + hashlib.sha256(url.encode()).hexdigest()[:24]
 
 
+def calculation_evidence(observations, requirement_ids, *, methods_requirement_ids=()):
+    """Serialize one calculation's evidence; only the independent Host can verify it.
+
+    Pass the actual four calculation_observations from research_check_quality.
+    This creates sections/claims/notes/coverage, never missing or quality status.
+    Requirement mappings express the author's intent, not verified coverage.
+    """
+    metrics = ("total_return", "max_drawdown", "terminal_scenario_return", "row_count")
+
+    def ids(value):
+        return (
+            isinstance(value, (list, tuple))
+            and len(value) <= 40
+            and all(isinstance(v, str) and re.fullmatch(r"[A-Za-z0-9_-]{1,80}", v) for v in value)
+            and len(set(value)) == len(value)
+        )
+
+    try:
+        if (
+            not isinstance(observations, list)
+            or len(observations) != 4
+            or not isinstance(requirement_ids, dict)
+            or not set(requirement_ids).issubset(metrics)
+            or not all(ids(value) for value in requirement_ids.values())
+            or not ids(methods_requirement_ids)
+        ):
+            raise ValueError("research_calculation_evidence_invalid")
+        rows, scope, methods = {}, None, None
+        for row in observations:
+            if not isinstance(row, dict):
+                raise TypeError("research_calculation_evidence_invalid")
+            for key in (
+                "id",
+                "source_id",
+                "calculation_id",
+                "metric",
+                "value",
+                "period",
+                "unit",
+                "content",
+                "input_sha256",
+                "recipe_sha256",
+            ):
+                if not isinstance(row.get(key), str) or not 1 <= len(row[key]) <= (
+                    8192 if key == "content" else 256
+                ):
+                    raise ValueError("research_calculation_evidence_invalid")
+            current_scope = tuple(
+                row[k] for k in ("source_id", "calculation_id", "input_sha256", "recipe_sha256")
+            )
+            lines = row["content"].split("\n", 1)
+            if (
+                row["metric"] not in metrics
+                or row["metric"] in rows
+                or not re.fullmatch(r"[A-Za-z][A-Za-z0-9_-]{0,31}", row["calculation_id"])
+                or len(lines) != 2
+                or not all(line.strip() for line in lines)
+                or (scope is not None and scope != current_scope)
+                or (methods is not None and methods != lines[1])
+            ):
+                raise ValueError("research_calculation_evidence_invalid")
+            rows[row["metric"]] = row
+            scope, methods = current_scope, lines[1]
+        result = {"sections": [], "notes": [], "numeric_claims": [], "coverage": []}
+
+        def section(identifier, heading, text, refs, requirements):
+            result["sections"].append(
+                {"id": identifier, "heading": heading, "text": text, "citations": list(refs)}
+            )
+            result["notes"].append({"stage_id": identifier, "text": text, "citations": list(refs)})
+            result["coverage"].extend(
+                {"requirement_id": rid, "section_ids": [identifier], "excerpt": text}
+                for rid in requirements
+            )
+
+        prefix = "calc_" + rows[metrics[0]]["calculation_id"]
+        for metric in metrics:
+            row = rows[metric]
+            text = row["content"].split("\n", 1)[0]
+            identifier = prefix + "_" + metric
+            section(identifier, metric, text, [row["source_id"]], requirement_ids.get(metric, []))
+            result["numeric_claims"].append(
+                {
+                    "id": "claim_" + rows[metric]["calculation_id"] + "_" + metric,
+                    "section_id": identifier,
+                    "text": text,
+                    "value": row["value"],
+                    "period": row["period"],
+                    "unit": row["unit"],
+                    "operation": "identity",
+                    "operands": [
+                        {
+                            "observation_id": row["id"],
+                            "value": row["value"],
+                            "period": row["period"],
+                            "unit": row["unit"],
+                            "quote": text,
+                        }
+                    ],
+                }
+            )
+        section(
+            prefix + "_methods",
+            "计算方法与验证范围",
+            methods,
+            [rows[metrics[0]]["source_id"]],
+            methods_requirement_ids,
+        )
+        log.info("research_calculation_evidence_assembled metrics=%d", len(metrics))
+        return result
+    except (ValueError, TypeError, KeyError) as exc:
+        log.warning("research_calculation_evidence_failed type=%s", type(exc).__name__)
+        raise ValueError("research_calculation_evidence_invalid") from exc
+
+
 def validate_calculation_recipes(recipes):
     """Validate data-only calculation requests; never accept paths or executable code."""
     from decimal import Context, Decimal, InvalidOperation, localcontext
