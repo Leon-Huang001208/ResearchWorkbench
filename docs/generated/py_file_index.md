@@ -7510,6 +7510,7 @@ Imports:
 - `hashlib`
 - `json`
 - `logging`
+- `pathlib`
 - `re`
 - `research_calculations`
 - `research_quality`
@@ -7631,7 +7632,6 @@ Imports:
 - `re`
 - `shutil`
 - `stat`
-- `tempfile`
 - `urllib.parse`
 - `uuid`
 

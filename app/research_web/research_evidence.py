@@ -5,6 +5,7 @@ import json
 import logging
 import re
 from datetime import date
+from pathlib import Path
 from urllib.parse import urlsplit
 
 from .research_calculations import CalculationError, observe_calculations
@@ -87,10 +88,16 @@ def evidence_index(files, datasets, activities):
 def report_projection(
     store, sid, files, sources, task_id, delivery=None, contract=None, observations=None
 ):
-    candidates = [
+    named_candidates = [
         f for f in files if f.get("kind") == "outputs" and f.get("name") == "research-report.json"
     ]
-    if not candidates:
+    paths = store.session(sid).get("files", {})
+    current_path = str(Path("outputs") / "research-report.json")
+    candidates = [f for f in named_candidates if paths.get(f.get("id")) == current_path]
+    identity_issue = (
+        "report_identity_noncanonical" if not candidates else "report_identity_ambiguous"
+    )
+    if not named_candidates:
         if contract is not None:
             assessment = assess_quality(contract, None, sources, observations)
             return {
@@ -101,10 +108,11 @@ def report_projection(
             }
         return None
     if len(candidates) != 1:
+        log.warning("research_report_identity_unconfirmed issue=%s", identity_issue)
         if contract is not None:
             assessment = {
                 "status": "invalid",
-                "issues": ["report_identity_ambiguous"],
+                "issues": [identity_issue],
                 "coverage": [],
             }
             return {
@@ -113,7 +121,7 @@ def report_projection(
                 "assessment": assessment,
                 "file_state": "invalid",
             }
-        return {"quality": "invalid", "issues": ["report_identity_ambiguous"]}
+        return {"quality": "invalid", "issues": [identity_issue]}
     try:
         stream, _ = store.open_file(sid, candidates[0]["id"])
         with stream:
