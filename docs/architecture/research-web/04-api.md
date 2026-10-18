@@ -1,5 +1,7 @@
 # Research Web 接口清单
 
+业务证据预检查仅增加沙箱报告Python函数，HTTP/RPC端点、请求字段、Host可信观测和质量返回不变。numeric_summary是独立验收器，不接受浏览器配置来放宽Host判定；原invalid下载409保持。
+
 calculation_evidence仅是沙箱内报告Python格式helper，不新增HTTP/RPC入口。模型输出仍由原research_check_quality独立校验；伪造观测、悬空数值claim和真实缺口不获passed，原报告下载409规则保持。
 
 HTTP端点不增加。research_check_quality返回有界evidence_context（规范sources及Host独立计算observations）；旧错误身份、伪造数值和谱系缺口仍拒绝。研究回合切换时返回409 research_quality_scope_changed；invalid报告下载仍409 research_report_invalid。

@@ -134,6 +134,291 @@ def calculation_evidence(observations, requirement_ids, *, methods_requirement_i
         raise ValueError("research_calculation_evidence_invalid") from exc
 
 
+def _evidence_decimal(value):
+    from decimal import Decimal
+
+    if isinstance(value, bool) or not isinstance(value, (str, int, float)) or len(str(value)) > 128:
+        raise ValueError("research_evidence_number_invalid")
+    number = Decimal(str(value).replace(",", ""))
+    if not number.is_finite() or abs(number.adjusted()) > 100:
+        raise ValueError("research_evidence_number_invalid")
+    return number
+
+
+def canonical_source(sources, identity):
+    """Resolve an exact Host ID/title; uploaded filenames are never source IDs."""
+    try:
+        if (
+            not isinstance(sources, list)
+            or not 1 <= len(sources) <= 200
+            or not isinstance(identity, str)
+        ):
+            raise ValueError("research_evidence_sources_invalid")
+        if any(
+            not isinstance(s, dict)
+            or not isinstance(s.get("id"), str)
+            or not re.fullmatch(r"(?:file|web|dataset):[A-Za-z0-9_-]{1,80}", s["id"])
+            or not isinstance(s.get("title"), str)
+            for s in sources
+        ):
+            raise ValueError("research_evidence_sources_invalid")
+        if len({s["id"] for s in sources}) != len(sources):
+            raise ValueError("research_evidence_source_ambiguous")
+        matches = [
+            s
+            for s in sources
+            if (
+                s["id"] == identity
+                if identity.startswith(("file:", "web:", "dataset:"))
+                else s["title"] == identity
+            )
+        ]
+        if len(matches) != 1:
+            raise ValueError("research_evidence_source_missing_or_ambiguous")
+        result = {k: matches[0][k] for k in ("id", "title", "url", "as_of") if k in matches[0]}
+        log.info("research_evidence_source_resolved")
+        return result
+    except (ValueError, TypeError, KeyError):
+        log.warning("research_evidence_source_rejected")
+        raise
+
+
+def evidence_section(identifier, heading, text, citations, requirement_ids):
+    """Copy author-nominated text/lineage, never certify it or create observations."""
+    try:
+        if (
+            not isinstance(identifier, str)
+            or not re.fullmatch(r"[A-Za-z0-9_-]{1,80}", identifier)
+            or not isinstance(heading, str)
+            or not 1 <= len(heading) <= 200
+            or not isinstance(text, str)
+            or not 1 <= len(text) <= 10000
+        ):
+            raise ValueError("research_evidence_section_invalid")
+        for values, pattern in (
+            (citations, r"(?:file|web|dataset):[A-Za-z0-9_-]{1,80}"),
+            (requirement_ids, r"[A-Za-z0-9_-]{1,80}"),
+        ):
+            if (
+                not isinstance(values, list)
+                or not 1 <= len(values) <= 100
+                or any(not isinstance(v, str) or not re.fullmatch(pattern, v) for v in values)
+                or len(set(values)) != len(values)
+            ):
+                raise ValueError("research_evidence_lineage_invalid")
+        return {
+            "sections": [
+                {"id": identifier, "heading": heading, "text": text, "citations": list(citations)}
+            ],
+            "notes": [{"stage_id": identifier, "text": text, "citations": list(citations)}],
+            "coverage": [
+                {"requirement_id": rid, "section_ids": [identifier], "excerpt": text}
+                for rid in requirement_ids
+            ],
+        }
+    except (ValueError, TypeError):
+        log.warning("research_evidence_section_rejected")
+        raise
+
+
+def build_numeric_claim(identifier, section_id, text, period, unit, operation, operands):
+    """Preflight exact arithmetic and serialization; Host still verifies source bytes."""
+    from decimal import Context, InvalidOperation, localcontext
+
+    try:
+        if not all(
+            isinstance(v, str) and re.fullmatch(r"[A-Za-z0-9_-]{1,80}", v)
+            for v in (identifier, section_id)
+        ) or not all(isinstance(v, str) and 1 <= len(v) <= 10000 for v in (text, period, unit)):
+            raise ValueError("research_evidence_claim_invalid")
+        arities = {
+            "identity": (1,),
+            "difference": (2,),
+            "ratio": (2,),
+            "percent_change": (2,),
+            "sum": tuple(range(1, 51)),
+        }
+        if (
+            operation not in arities
+            or not isinstance(operands, list)
+            or len(operands) not in arities[operation]
+        ):
+            raise ValueError("research_evidence_claim_arity")
+        number_pattern = re.compile(r"(?<![\w])[-+]?\d+(?:,\d{3})*(?:\.\d+)?|[-+]?\d+(?:\.\d+)?")
+        values = []
+        for operand in operands:
+            if (
+                not isinstance(operand, dict)
+                or set(operand) != {"observation_id", "value", "quote", "period", "unit"}
+                or not isinstance(operand["observation_id"], str)
+                or not re.fullmatch(
+                    r"(?:[A-Za-z0-9_-]{1,80}|(?:file|web|dataset):[A-Za-z0-9_-]{1,80})",
+                    operand["observation_id"],
+                )
+            ):
+                raise ValueError("research_evidence_operand_invalid")
+            if (
+                not all(
+                    isinstance(operand[k], str) and 1 <= len(operand[k]) <= 10000
+                    for k in ("quote", "period", "unit")
+                )
+                or operand["period"] not in operand["quote"]
+            ):
+                raise ValueError("research_evidence_operand_context")
+            quantity = list(
+                number_pattern.finditer(operand["quote"].replace(operand["period"], "", 1))
+            )
+            value = _evidence_decimal(operand["value"])
+            context = operand["quote"].replace(operand["period"], "", 1)
+            if (
+                len(quantity) != 1
+                or _evidence_decimal(quantity[0].group()) != value
+                or not re.match(
+                    r"\s*" + re.escape(operand["unit"]) + r"(?=$|[\s,，;；。.!！？?、)\]】])",
+                    context[quantity[0].end() :],
+                )
+            ):
+                raise ValueError("research_evidence_operand_quantity")
+            values.append(value)
+        units = {o["unit"] for o in operands}
+        if len(units) != 1 or period != operands[0]["period"]:
+            raise ValueError("research_evidence_operand_units_or_period")
+        if operation in {"identity", "difference", "sum"} and (
+            unit not in units or any(o["period"] != period for o in operands)
+        ):
+            raise ValueError("research_evidence_operand_units_or_period")
+        if (
+            operation == "ratio"
+            and unit not in {"ratio", "倍", "%"}
+            or operation == "percent_change"
+            and unit != "%"
+        ):
+            raise ValueError("research_evidence_claim_unit")
+        with localcontext(Context(prec=28)):
+            if operation == "identity":
+                value = values[0]
+            elif operation == "sum":
+                value = sum(values)
+            elif operation == "difference":
+                value = values[0] - values[1]
+            elif operation == "ratio":
+                value = values[0] / values[1] * (100 if unit == "%" else 1)
+            else:
+                value = (values[0] - values[1]) / values[1] * 100
+        if unit not in text or [
+            _evidence_decimal(m.group())
+            for m in number_pattern.finditer(text.replace(period, "", 1))
+        ] != [value]:
+            raise ValueError("research_evidence_claim_text_or_rounding")
+        log.info("research_evidence_claim_built operation=%s", operation)
+        return {
+            "id": identifier,
+            "section_id": section_id,
+            "text": text,
+            "value": format(value, "f"),
+            "period": period,
+            "unit": unit,
+            "operation": operation,
+            "operands": [dict(o) for o in operands],
+        }
+    except (ValueError, TypeError, KeyError, ArithmeticError, InvalidOperation) as exc:
+        log.warning("research_evidence_claim_rejected type=%s", type(exc).__name__)
+        raise ValueError("research_evidence_claim_invalid") from exc
+
+
+def reconcile_amounts(reported_total, components):
+    """Exact reported-total minus all provided signed components, not inferred gaps."""
+    from decimal import Context, Inexact, InvalidOperation, localcontext
+
+    try:
+        if not isinstance(components, list) or not 1 <= len(components) <= 1000:
+            raise ValueError("research_evidence_components_invalid")
+        values = [_evidence_decimal(v) for v in components]
+        with localcontext(Context(prec=512)) as context:
+            context.traps[Inexact] = True
+            total = sum(values)
+            gap = _evidence_decimal(reported_total) - total
+        log.info("research_evidence_reconciliation_calculated components=%d", len(values))
+        return {"component_sum": format(total, "f"), "difference": format(gap, "f")}
+    except (ValueError, TypeError, ArithmeticError, InvalidOperation):
+        log.warning("research_evidence_reconciliation_rejected")
+        raise
+
+
+def rate_difference(before_pct, after_pct):
+    """Signed cut magnitude: percentage-point change and basis-point conversion."""
+    from decimal import Context, Inexact, InvalidOperation, localcontext
+
+    try:
+        with localcontext(Context(prec=512)) as context:
+            context.traps[Inexact] = True
+            difference = _evidence_decimal(before_pct) - _evidence_decimal(after_pct)
+            bps = difference * 100
+        log.info("research_evidence_rate_difference_calculated")
+        return {"percentage_points": format(difference, "f"), "basis_points": format(bps, "f")}
+    except (ValueError, TypeError, ArithmeticError, InvalidOperation):
+        log.warning("research_evidence_rate_difference_rejected")
+        raise
+
+
+def numeric_summary(rows, expected, *, decimal_places=None):
+    """Independent acceptance oracle; explicit display rounding never changes Host gates."""
+    from decimal import ROUND_HALF_UP, InvalidOperation
+
+    try:
+        if not isinstance(expected, dict) or not 1 <= len(expected) <= 256:
+            raise ValueError("research_summary_expected_invalid")
+        places = {} if decimal_places is None else decimal_places
+        if (
+            not isinstance(places, dict)
+            or not set(places).issubset(expected)
+            or any(
+                isinstance(p, bool) or not isinstance(p, int) or not 0 <= p <= 12
+                for p in places.values()
+            )
+        ):
+            raise ValueError("research_summary_precision_invalid")
+        iterator = iter(rows)
+        header = tuple(next(iterator, ()))
+        if header[:2] != ("metric", "value") or any(v is not None for v in header[2:]):
+            raise ValueError("research_summary_header_invalid")
+        actual = {}
+        for row in iterator:
+            if len(row) < 2 or any(v is not None for v in row[2:]):
+                raise ValueError("research_summary_columns_invalid")
+            key, value = row[:2]
+            if key is None and value is None:
+                break
+            if (
+                not isinstance(key, str)
+                or not 1 <= len(key) <= 80
+                or key in actual
+                or len(actual) >= 256
+                or isinstance(value, bool)
+                or not isinstance(value, (float, int))
+            ):
+                raise ValueError("research_summary_value_invalid")
+            _evidence_decimal(value)
+            actual[key] = value
+        if not set(expected).issubset(actual):
+            raise ValueError("research_summary_metric_missing")
+        for key, value in expected.items():
+            wanted = _evidence_decimal(value)
+            if _evidence_decimal(actual[key]) == wanted:
+                continue
+            if key in places:
+                from decimal import Decimal
+
+                wanted = wanted.quantize(Decimal(1).scaleb(-places[key]), rounding=ROUND_HALF_UP)
+            if _evidence_decimal(actual[key]) != wanted:
+                raise ValueError("research_summary_numeric_mismatch")
+        log.info("research_summary_verified metrics=%d", len(expected))
+        return actual
+    except (ValueError, TypeError, KeyError, ArithmeticError, InvalidOperation) as exc:
+        log.warning("research_summary_rejected type=%s", type(exc).__name__)
+        raise ValueError("research_summary_invalid") from exc
+
+
 def validate_calculation_recipes(recipes):
     """Validate data-only calculation requests; never accept paths or executable code."""
     from decimal import Context, Decimal, InvalidOperation, localcontext

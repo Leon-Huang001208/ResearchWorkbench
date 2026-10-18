@@ -7639,6 +7639,19 @@ Functions:
 - `source_id`
 - `calculation_evidence`
   - Serialize one calculation's evidence; only the independent Host can verify it.
+- `_evidence_decimal`
+- `canonical_source`
+  - Resolve an exact Host ID/title; uploaded filenames are never source IDs.
+- `evidence_section`
+  - Copy author-nominated text/lineage, never certify it or create observations.
+- `build_numeric_claim`
+  - Preflight exact arithmetic and serialization; Host still verifies source bytes.
+- `reconcile_amounts`
+  - Exact reported-total minus all provided signed components, not inferred gaps.
+- `rate_difference`
+  - Signed cut magnitude: percentage-point change and basis-point conversion.
+- `numeric_summary`
+  - Independent acceptance oracle; explicit display rounding never changes Host gates.
 - `validate_calculation_recipes`
   - Validate data-only calculation requests; never accept paths or executable code.
 - `validate_payload`

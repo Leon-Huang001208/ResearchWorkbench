@@ -1,5 +1,7 @@
 # Research Workbench Development Map
 
+实际业务报告的来源解析、claim算术预检查、同节笔记/coverage、对账和利率单位工具仍在 resources/research_report.py；numeric_summary只修独立验收器的展示舍入及尾部空列误报，不参与Host判定。test_report_revision.py覆盖原四用户故障类别与伪造观测仍被Host拒绝；service.py只引导唯一DSH循环使用这些工具。
+
 报告二次写入由 resources/research_report.py 在原输出能力内创建排他临时目录并归档；research_evidence.py 从 Store 的规范 outputs/research-report.json 映射核验当前报告。test_report_revision.py 覆盖真实 macOS 沙箱二次写入、getcwd 拒绝、同名备份及非规范/重复身份拒绝。
 
 多用户常驻入口在 app/research_web/multiuser/resident.py；resident_binding 保留 primary 原实例，preservation 生成内容摘要，resident_boot 只恢复已证明跨 boot 的控制元数据。测试 test_multiuser_resident.py 沿现有 Python 合同检查。

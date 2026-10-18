@@ -586,4 +586,16 @@ Host观测ID由隔离scope及输入/配方SHA生成；模型不能声明可信�
 
 该纯格式helper不读取文件、不生成可信观测、不写missing/quality/research_accepted，不改变Host检查或409下载门。伪造ID、数值、外来会话观测、缺失需求或真实missing仍不能通过。`missing`仅记录真实未完成/未验证事项；合成数据、未年化等既定范围限制应保留在报告说明，不混作已完成要求的缺口，亦不得以此删除真实缺口。
 
+### 实际业务证据预检查
+
+报告资源提供纯 Python helper，不增加信任来源或模型循环：
+
+- `canonical_source(host_sources, identity)` 只接受 Host 的准确 ID 或唯一准确标题，返回规范 id/title 和实际提供的 url/as_of；不把上传文件名拼成 file:ID。Facts、Controls、Timeline 的 source_ref 复用规范 ID。
+- `evidence_section(id, heading, text, citations, requirement_ids)` 复制作者提供的原文、完整引用、同节 notes 与 coverage，避免漏掉节内来源；不写 numeric_claims、missing 或通过状态。作者仍须覆盖全部冻结要求。
+- `build_numeric_claim(id, section_id, text, period, unit, operation, operands)` 按原精确算术计算 value，并提前拒绝错误操作数数量、期间/单位、同句多数量、舍入冒充精确结果。identity 为一个操作数，difference/ratio/percent_change 为两个，sum 逐项列实际操作数。helper 不读取资料或证明引文真实；Host 始终独立核验实际字节、指标标签及笔记血缘。
+- `reconcile_amounts(total, signed_components)` 返回有符号子项合计和真实差额；`rate_difference(before_pct, after_pct)` 分别返回 percentage_points 和 basis_points。它们是底稿计算工具，不能把生成文字当成可信观测。
+- `numeric_summary(rows, expected, decimal_places={metric: digits})` 仅用于独立验收器：读取 Summary 首个连续数值表，允许全空尾列，拒绝重复键、公式、布尔、字符串数字、非有限值和带数据的额外列；空行后的说明不能覆盖指标。默认精确比较，只有显式登记的展示位数可使用 ROUND_HALF_UP，且仍接受独立期望精确值。此展示规则不传入 Host，不改变研究质量的精确算术门。
+
+原材料无法提供可核验的期间、单位、唯一数量（例如跨列表格、分数利率或文字计数）时，预检查不能把它们伪装成合格 quote。应保留未核验状态与真实缺口。宏观季调口径需同时读取表头，百分比水平与百分点变动分开；政策工具方向不得无依据扩写；治理建议和 not_assessed 不冒充组织实施证据。真实模型的内容、来源和计算声明仍需独立审查，文件下载 200 不是研究通过。
+
 Delivery先检查当前key；FINAL输出集合或字节变化后重新走原sandbox和发布后字节复验。不变的失败不隐式重试，取消/原生执行证明失败不能靠改文件恢复成功。report-versions只属于历史归档，不满足当前任务格式要求；解析中集合改变保留未验证/incomplete，绝不复用旧通过。
