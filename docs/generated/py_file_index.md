@@ -7631,7 +7631,6 @@ Imports:
 - `re`
 - `shutil`
 - `stat`
-- `tempfile`
 - `urllib.parse`
 - `uuid`
 

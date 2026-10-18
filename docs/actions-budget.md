@@ -1,5 +1,7 @@
 # GitHub Actions 免费额度治理
 
+2026-10-18原生报告修订：test_report_revision.py 加入既有 Research Web Checks Python 步骤，不新增 job、runner 或依赖。当前 PUBLIC；最近五次成功39052893314/39052053211/39046323748/39045609664/39044959112，创建至结束533/637/540/521/523秒，均值550.8秒；新增定点模块本机约0.6秒，预留5秒。Ubuntu仅跳过真实macOS内核例，该例由本机实测，候选安装另经原macOS Bootstrap；不发送Windows/Linux产品验收。
+
 常驻附接回归仅向既有 Research Web Checks Python 步骤增加 test_multiuser_resident.py，无新 job、runner、依赖或 Windows/Linux dispatch。2026-10-17核验仓库 public；最近五个成功 run：39003657366、39002959434、38888413591、38887241312、38886120274（约402/446/404/486/519秒）。
 
 AI资讯零调用测试沿用既有Research Web Checks，固定Node24.19验证原引擎；不新增workflow/job/模型或付费源请求。macOS Bootstrap安装固定锁依赖但不创建数据库；模型与生产切换单独授权。

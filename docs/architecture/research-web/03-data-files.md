@@ -32,6 +32,8 @@ AI资讯自主化本轮在隔离实例接入原版API/worker与独立库，保�
 
 新报告替换前将上一版 JSON/HTML/DOCX/PDF 的可用字节归档至会话 outputs/report-versions，原本缺失的产物继续标缺失，Host 保存哈希锚点。当前报告完整性无效时停止报告导出，原始输入附件保留可读。历史版本按原检查结果展示；版本保留不等于恢复执行，续研仍为新的原生回合。
 
+原生沙箱内的归档临时目录以 UUID 名称在同一输出目录排他创建，不调用会解析相对路径并访问 getcwd 的 tempfile.mkdtemp。字节复验、只读归档、原子发布与错误清理保持；沙箱权限不扩大。当前质量投影只接收会话文件映射中的 outputs/research-report.json；同名备份不覆盖当前报告，只有非规范副本或重复规范身份时仍判 invalid。
+
 Host专项升级只读检查index中sessions/项目/导航命名空间类型，不迁移或回写数据；原Claw项目和凭据保留。成功健康后baseline审核位于私有resident/baseline-reviews/<target>.json并原子更新config.baseline，固定controller artifact、工具路径、生产目录及端口不变；候选/accepted/transaction仍由原事务维护，回滚不覆盖研究数据。
 
 旧格式历史保持原始字节和文件时间，不发布迁移 successor。搜索只删除陈旧派生索引，不修改用户原文或文件产物；未搜索会话数量和片段只在当前搜索响应中返回。
