@@ -91,6 +91,7 @@ jobs:
             tests/research_web/test_research_quality_scope.py \
             tests/research_web/test_delivery_cache.py \
             tests/research_web/test_research_report.py \
+            tests/research_web/test_report_revision.py \
             tests/research_web/test_session_search.py \
             tests/research_web/test_integration_coordinator.py \
             tests/research_web/test_documentation.py \

@@ -1,5 +1,7 @@
 # Research Workbench Development Map
 
+报告二次写入由 resources/research_report.py 在原输出能力内创建排他临时目录并归档；research_evidence.py 从 Store 的规范 outputs/research-report.json 映射核验当前报告。test_report_revision.py 覆盖真实 macOS 沙箱二次写入、getcwd 拒绝、同名备份及非规范/重复身份拒绝。
+
 多用户常驻入口在 app/research_web/multiuser/resident.py；resident_binding 保留 primary 原实例，preservation 生成内容摘要，resident_boot 只恢复已证明跨 boot 的控制元数据。测试 test_multiuser_resident.py 沿现有 Python 合同检查。
 
 AI资讯自主化本轮在隔离实例接入原版API/worker与独立库，保持DSH研究执行及当前常驻内容。零调用和后续切换边界见[自主资讯合同](research-web-ai-news.md)。

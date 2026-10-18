@@ -348,7 +348,8 @@
         "tests/research_web/test_fingpt_dsh_fusion.py",
         "tests/research_web/test_research_calculations.py",
         "tests/research_web/test_delivery_cache.py",
-        "tests/research_web/test_research_quality_scope.py"
+        "tests/research_web/test_research_quality_scope.py",
+        "tests/research_web/test_report_revision.py"
       ]
     },
     {

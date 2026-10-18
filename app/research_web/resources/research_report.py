@@ -8,7 +8,6 @@ import os
 import re
 import shutil
 import stat
-import tempfile
 from pathlib import Path
 from urllib.parse import urlsplit
 from uuid import uuid4
@@ -374,7 +373,10 @@ def archive_report_version(output, expected_task_id=None):
             if existing != version:
                 raise ValueError("research_report_archive_changed")
             return existing
-        pending = Path(tempfile.mkdtemp(prefix=".pending-", dir=archive))
+        # mkdtemp resolves relative directories through getcwd on Python 3.12.
+        # Keep the existing session-relative capability without requiring it.
+        pending = archive / (".pending-" + uuid4().hex)
+        pending.mkdir(mode=0o700)
         try:
             for row in version["files"]:
                 destination = pending / row["stored_name"]
