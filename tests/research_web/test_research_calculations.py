@@ -355,9 +355,22 @@ def test_assembler_cannot_make_foreign_observations_trusted(tmp_path):
     for row in foreign:
         row["id"] = row["id"].replace("calc_", "calc_foreign_")
     report.update(
-        calculation_evidence(foreign, {"total_return": ["r1"]}, methods_requirement_ids=["r4"])
+        calculation_evidence(
+            foreign,
+            {"total_return": ["r1"], "max_drawdown": ["r2"], "terminal_scenario_return": ["r3"]},
+            methods_requirement_ids=["r4"],
+        )
     )
-    assert assess_quality(contract, report, sources, observed)["status"] != "passed"
+    assert assess_quality(contract, report, sources, foreign)["status"] == "passed"
+    rejected = assess_quality(contract, report, sources, observed)
+    assert rejected["status"] == "incomplete"
+    assert all(row["status"] == "covered" for row in rejected["coverage"])
+    assert (
+        len(
+            [issue for issue in rejected["issues"] if issue.startswith("numeric_claim_unverified:")]
+        )
+        == 4
+    )
 
 
 @pytest.mark.parametrize(
