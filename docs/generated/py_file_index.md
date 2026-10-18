@@ -7615,6 +7615,8 @@ Functions:
 - `latest_receipt`
 - `prepare_contract`
   - Freeze requirements before sending; continuation preserves original obligations.
+- `write_business_snapshot`
+  - Publish a read-only convenience projection; scoring always rereads inputs.
 - `ensure_quality_scope`
   - A read-only worker cannot publish a verdict for a superseded task.
 - `source_context`
@@ -7677,9 +7679,13 @@ Imports:
 
 Functions:
 - `source_id`
+- `load_business_evidence`
+  - Read this turn's convenience snapshot; it is never a Host verdict.
 - `calculation_evidence`
   - Serialize one calculation's evidence; only the independent Host can verify it.
 - `_evidence_decimal`
+- `source_references`
+  - Resolve IDs or an explicit ID/title/locator, never infer identity from prose.
 - `canonical_source`
   - Resolve an exact Host ID/title; uploaded filenames are never source IDs.
 - `evidence_section`

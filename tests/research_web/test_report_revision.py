@@ -5,6 +5,7 @@ import json
 import os
 import shutil
 import sys
+from decimal import Decimal
 from pathlib import Path, PureWindowsPath
 from types import SimpleNamespace
 
@@ -14,6 +15,49 @@ from test_research_quality import example, saved_report
 from app.research_web.research_evidence import report_projection
 from app.research_web.resources.research_report import archive_report_version, write_research_report
 from app.research_web.store import Store
+
+
+def test_decimal_rate_arguments_retain_exact_financial_arithmetic():
+    from app.research_web.resources.research_report import rate_difference
+
+    assert rate_difference(Decimal("5.25"), Decimal("4.75"))["basis_points"] == "50.00"
+    with pytest.raises(ValueError):
+        rate_difference(Decimal("NaN"), Decimal("4.75"))
+
+
+def test_decimal_claim_operands_remain_exact_json_data():
+    from app.research_web.resources.research_report import build_numeric_claim
+
+    row = {
+        "observation_id": "file:" + "a" * 24,
+        "quote": "2024 Revenue 2 count",
+        "value": Decimal(2),
+        "period": "2024",
+        "unit": "count",
+    }
+    claim = build_numeric_claim(
+        "claim", "section", row["quote"], "2024", "count", "identity", [row]
+    )
+    assert json.loads(json.dumps(claim))["operands"][0]["value"] == "2"
+
+
+def test_source_reference_locator_requires_actual_host_identity_and_title():
+    from app.research_web.resources.research_report import source_references
+
+    sources = [{"id": "file:" + "a" * 24, "title": "owned-controls.md"}]
+    identity = sources[0]["id"]
+    assert source_references(identity + " · owned-controls.md · 第1段 Govern 1.1", sources) == [
+        identity
+    ]
+    assert source_references(identity, sources) == [identity]
+    for value in [
+        "file:owned-controls.md",
+        identity + " · different.md · 第1段",
+        identity + " · owned-controls.md · file:" + "b" * 24,
+        identity + " file:" + "b" * 24,
+    ]:
+        with pytest.raises(ValueError):
+            source_references(value, sources)
 
 
 def test_relative_archive_does_not_require_getcwd(tmp_path, monkeypatch):

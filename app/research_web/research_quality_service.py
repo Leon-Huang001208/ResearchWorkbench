@@ -65,9 +65,50 @@ def prepare_contract(service, sid, receipt, question, requirements, as_of, mode)
     receipt["research_contract"] = contract
     receipt["quality_checks"] = {}
     receipt["quality_repair_count"] = 0
+    write_business_snapshot(service, sid, contract)
     service.store.save()
     log.info("research_quality_contract_frozen", session_id=sid, requirement_count=len(wanted))
     return contract
+
+
+def write_business_snapshot(service, sid, contract):
+    """Publish a read-only convenience projection; scoring always rereads inputs."""
+    from .datahub.security import atomic_json, directory, json_bytes
+
+    try:
+        scope = service.store.session(sid).get("source_scope", ["uploads", "datahub", "web"])
+        files = service.store.files(sid) if "uploads" in scope else []
+        rows = observations(
+            service, sid, files, [], task_id=contract["task_id"], contract_sha=contract["sha256"]
+        )
+        business = [
+            row for row in rows if row.get("kind") in {"business_numeric", "business_quote"}
+        ]
+        sources = source_context(service, sid, files)["sources"]
+        digests = {source["id"]: source.get("sha256") for source in sources}
+        if any(
+            digests.get(proof["source_id"]) != proof["sha256"]
+            for row in business
+            for proof in row["proofs"]
+        ):
+            raise StoreError("输入在证据准备时发生变化", "research_evidence_snapshot_changed", 409)
+        payload = {
+            "schema_version": 1,
+            "task_id": contract["task_id"],
+            "contract_sha256": contract["sha256"],
+            "sources": sources,
+            "observations": business,
+        }
+        if len(json_bytes(payload)) > 256000:
+            raise StoreError("证据投影超过上限", "research_evidence_snapshot_limit", 409)
+        with directory(service.store.directory(sid), ("resources",), create=True) as folder:
+            atomic_json(folder, "research_evidence.json", payload)
+        log.info("research_evidence_snapshot_prepared", observation_count=len(business))
+    except (OSError, ValueError, KeyError, StoreError) as exc:
+        log.warning("research_evidence_snapshot_failed", error_type=type(exc).__name__)
+        raise StoreError(
+            "研究证据投影暂不能安全准备", "research_evidence_snapshot_failed", 409
+        ) from None
 
 
 def ensure_quality_scope(service, sid, key, contract):

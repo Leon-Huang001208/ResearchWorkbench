@@ -1,5 +1,7 @@
 # Research Web 能力包与版本
 
+报告资源新增load_business_evidence读取当前task/contract的便利投影，避免手抄大段观测；并不签发质量结论。Decimal计算结果和claim操作数保存为精确JSON字符串；来源定位格式只在真实ID和准确标题核对后接受。无新工具权限或模型重试。
+
 实际业务证据的canonical_source、build_numeric_claim与evidence_section复用已打包报告资源，没有新Skill、Workflow、权限或Automation节点。对账/利率算术工具不是可信来源，调用成功不等于研究通过。
 
 business_evidence只格式化原research_check_quality返回的受限Host业务观测；观测产生仍在原私有桥/允许来源/冻结任务内，不增加工具权限或补查轮数。输入未知、否定/条件、单位/表头不明确时保持未核验，不由模型提交观察获得信任。

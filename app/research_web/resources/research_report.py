@@ -19,6 +19,48 @@ def source_id(url):
     return "web:" + hashlib.sha256(url.encode()).hexdigest()[:24]
 
 
+def load_business_evidence(task_id, contract_sha256):
+    """Read this turn's convenience snapshot; it is never a Host verdict."""
+    try:
+        if (
+            not isinstance(task_id, str)
+            or not re.fullmatch(r"[a-f0-9]{24}", task_id)
+            or not isinstance(contract_sha256, str)
+            or not re.fullmatch(r"[a-f0-9]{64}", contract_sha256)
+        ):
+            raise ValueError("research_evidence_snapshot_binding")
+        descriptor = os.open(
+            "resources/research_evidence.json",
+            os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0),
+        )
+        with os.fdopen(descriptor, "rb") as stream:
+            info = os.fstat(stream.fileno())
+            if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1 or info.st_size > 256000:
+                raise ValueError("research_evidence_snapshot_file")
+            raw = stream.read(256001)
+        if len(raw) > 256000:
+            raise ValueError("research_evidence_snapshot_limit")
+        value = json.loads(raw)
+        if (
+            not isinstance(value, dict)
+            or set(value)
+            != {"schema_version", "task_id", "contract_sha256", "sources", "observations"}
+            or value["schema_version"] != 1
+            or value["task_id"] != task_id
+            or value["contract_sha256"] != contract_sha256
+            or not isinstance(value["sources"], list)
+            or len(value["sources"]) > 20
+            or not isinstance(value["observations"], list)
+            or len(value["observations"]) > 200
+        ):
+            raise ValueError("research_evidence_snapshot_binding")
+        log.info("research_evidence_snapshot_loaded observations=%d", len(value["observations"]))
+        return value
+    except (OSError, ValueError, TypeError, KeyError) as exc:
+        log.warning("research_evidence_snapshot_rejected type=%s", type(exc).__name__)
+        raise ValueError("research_evidence_snapshot_invalid") from exc
+
+
 def calculation_evidence(observations, requirement_ids, *, methods_requirement_ids=()):
     """Serialize one calculation's evidence; only the independent Host can verify it.
 
@@ -137,12 +179,49 @@ def calculation_evidence(observations, requirement_ids, *, methods_requirement_i
 def _evidence_decimal(value):
     from decimal import Decimal
 
-    if isinstance(value, bool) or not isinstance(value, (str, int, float)) or len(str(value)) > 128:
+    if (
+        isinstance(value, bool)
+        or not isinstance(value, (str, int, float, Decimal))
+        or len(str(value)) > 128
+    ):
         raise ValueError("research_evidence_number_invalid")
     number = Decimal(str(value).replace(",", ""))
     if not number.is_finite() or abs(number.adjusted()) > 100:
         raise ValueError("research_evidence_number_invalid")
     return number
+
+
+def source_references(value, sources):
+    """Resolve IDs or an explicit ID/title/locator, never infer identity from prose."""
+    try:
+        if not isinstance(value, str) or not 1 <= len(value) <= 2000:
+            raise ValueError("research_source_reference_invalid")
+        value = value.strip()
+        if " · " in value:
+            parts = value.split(" · ")
+            if (
+                len(parts) != 3
+                or not parts[2].strip()
+                or len(parts[2]) > 256
+                or "file:" in parts[2]
+            ):
+                raise ValueError("research_source_reference_invalid")
+            row = canonical_source(sources, parts[0])
+            if row["id"] != parts[0] or row["title"] != parts[1]:
+                raise ValueError("research_source_reference_invalid")
+            refs = [row["id"]]
+        else:
+            refs = json.loads(value) if value.startswith("[") else re.split(r"[;,，；\s]+", value)
+            if not isinstance(refs, list) or not refs or len(refs) > 20:
+                raise ValueError("research_source_reference_invalid")
+            for ref in refs:
+                if not isinstance(ref, str) or canonical_source(sources, ref)["id"] != ref:
+                    raise ValueError("research_source_reference_invalid")
+        log.info("research_source_references_resolved count=%d", len(refs))
+        return refs
+    except (ValueError, TypeError, KeyError) as exc:
+        log.warning("research_source_reference_rejected type=%s", type(exc).__name__)
+        raise ValueError("research_source_reference_invalid") from exc
 
 
 def canonical_source(sources, identity):
@@ -319,7 +398,10 @@ def build_numeric_claim(identifier, section_id, text, period, unit, operation, o
             "period": period,
             "unit": unit,
             "operation": operation,
-            "operands": [dict(o) for o in operands],
+            "operands": [
+                {**operand, "value": format(number, "f")}
+                for operand, number in zip(operands, values)
+            ],
         }
     except (ValueError, TypeError, KeyError, ArithmeticError, InvalidOperation) as exc:
         log.warning("research_evidence_claim_rejected type=%s", type(exc).__name__)
