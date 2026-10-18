@@ -5,6 +5,7 @@ import json
 import logging
 import re
 from datetime import date
+from pathlib import Path
 from urllib.parse import urlsplit
 
 from .research_calculations import CalculationError, observe_calculations
@@ -91,9 +92,8 @@ def report_projection(
         f for f in files if f.get("kind") == "outputs" and f.get("name") == "research-report.json"
     ]
     paths = store.session(sid).get("files", {})
-    candidates = [
-        f for f in named_candidates if paths.get(f.get("id")) == "outputs/research-report.json"
-    ]
+    current_path = str(Path("outputs") / "research-report.json")
+    candidates = [f for f in named_candidates if paths.get(f.get("id")) == current_path]
     identity_issue = (
         "report_identity_noncanonical" if not candidates else "report_identity_ambiguous"
     )
