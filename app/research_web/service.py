@@ -2732,6 +2732,13 @@ class ResearchService:
                     "宏观表格核对跨行表头、季调与未季调、环比与同比，不能只读摘要就宣称口径未说明；政策工具资金方向没有原文依据不扩写。"
                     "治理控制计数实际distinct记录；官方原文、建议和组织落地证据分开，未提供组织材料保持not_assessed；所有事实表来源逐项核对canonical_source。"
                     "校验器只读取Host已取得的实际字节；不得自行编写observation或把检索摘要宣称为全文。"
+                    "实际业务先完整读输入、独立生成工作簿和草稿，再调用research_check_quality。受支持的完整财务表/CPI表头/FOMC分数利率/NIST摘录会在evidence_context.business_observations返回Host从真实输入独立解析/复算的规范事实和原文片段。"
+                    "这些观测绑定当前用户/会话/任务、原文件全文SHA、原文位置和算法；source_ids是全部父来源。它们不是外部真实性、中文推断或组织落地认证；未支持的来源保持缺口。"
+                    "在原一次补查预算内按metric和period选取实际需要的观测，最多40项，用from research_report import business_evidence；blocks=business_evidence(选中的实际Host观测,{观测id或metric:[冻结要求ID]})组装sections/notes/coverage/numeric_claims。"
+                    "脚本只复制所需真实观测的id/source_id/source_ids/metric/heading/kind/period/unit/value/content/sha256；proofs由Host持有，无须把整份context嵌入脚本或输出，避免超出原工具字节限额。"
+                    "将blocks各列表合入payload，sources继续使用Host规范id/title，required_sections按实际heading填写；numeric identity逐字引用Host真实规范句，方法/限制可引用同一观测中的真实范围说明。引用和notes必须保留全部source_ids，不省略跨文件计算的任何父来源。"
+                    "可用实际规范观测替换草稿中对应事实/方法的错误原句和claim（旧版自动归档），不要只追加新证据又保留已知错误。所有冻结要求仍逐项保留；真正无法完成的分析或论断仍写missing，不靠删除缺口、误称覆盖或隐藏另一个文件的错误来过门。"
+                    "不要把资料的非核验中文改写、模型建议或其他额外数字混入这些证据原句；独立解释仍需真实支撑，不能用纯证据节伪称完成尚未完成的分析要求，不得清空真实missing。原文只支持历史/所选样本，不宣称完整框架、预测或企业实施。"
                     "上传CSV的全量静态初始持仓计算可声明calculations配方；Host独立重算，不接受自写observation。"
                     '配方格式示例：{"id":"portfolio","source_id":"file:实际ID","source_sha256":"Host提供全文SHA","operation":"buy_and_hold","weights":{"实际价格列A":"0.6","实际价格列B":"0.4"},"terminal_shocks":{"实际价格列A":"-0.1","实际价格列B":"0.05"}}。'
                     "仅支持最多4配方/8价格列/100000行/16MiB、正有限价格、非负权重和为1、冲击[-1,1]。按行序用首行归一化；末值冲击不重算中间路径。"

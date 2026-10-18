@@ -323,7 +323,8 @@
         "app/research_web/research_evidence.py",
         "app/research_web/research_quality.py",
         "app/research_web/research_quality_service.py",
-        "app/research_web/research_calculations.py"
+        "app/research_web/research_calculations.py",
+        "app/research_web/research_business_evidence.py"
       ],
       "documents": [
         "docs/architecture/research-web/03-data-files.md"
@@ -347,6 +348,7 @@
         "tests/research_web/test_research_quality.py",
         "tests/research_web/test_fingpt_dsh_fusion.py",
         "tests/research_web/test_research_calculations.py",
+        "tests/research_web/test_research_business_evidence.py",
         "tests/research_web/test_delivery_cache.py",
         "tests/research_web/test_research_quality_scope.py",
         "tests/research_web/test_report_revision.py"

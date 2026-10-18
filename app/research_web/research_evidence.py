@@ -8,6 +8,7 @@ from datetime import date
 from pathlib import Path
 from urllib.parse import urlsplit
 
+from .research_business_evidence import business_lineage_issues
 from .research_calculations import CalculationError, observe_calculations
 from .research_quality import assess_quality
 from .resources.research_report import source_id, validate_payload
@@ -130,6 +131,7 @@ def report_projection(
             raise ValueError("report_size")
         payload = validate_payload(json.loads(raw))
         payload.pop("calculation_observations", None)
+        payload.pop("business_observations", None)
         payload.pop("evidence_context", None)
         if not task_id or payload["task_id"] != task_id:
             if contract is not None:
@@ -244,6 +246,10 @@ def report_projection(
         log.info("research_report_projected issues=%d", len(issues))
         if contract is not None:
             assessment = assess_quality(contract, payload, sources, observations)
+            parent_issues = business_lineage_issues(payload, observations)
+            if parent_issues:
+                assessment["status"] = "invalid"
+                assessment["issues"] = list(dict.fromkeys([*assessment["issues"], *parent_issues]))
             # Byte corruption and identity conflicts cannot become an ordinary
             # missing-evidence partial delivery. Missing files remain gaps.
             integrity = [

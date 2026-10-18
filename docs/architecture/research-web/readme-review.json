@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "unchanged",
-  "summary": "复核实际业务报告证据预检查与独立Summary验收；README公开入口保持",
-  "reason": "现有报告资源增加规范来源、算术、引用辅助和独立验收器展示规则，无依赖/安装命令或用户配置变化；Host严格门保持，合同见03-data-files。"
+  "summary": "复核受限Host业务观测、报告证据组装和独立Summary验收；README公开入口保持",
+  "reason": "在原Host证据适配和报告资源内加入实际字节规范化及父源重验，无新依赖/安装命令/用户配置；逐句及精确算术门保持，边界见03-data-files。"
 }

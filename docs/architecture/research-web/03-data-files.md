@@ -588,6 +588,12 @@ Host观测ID由隔离scope及输入/配方SHA生成；模型不能声明可信�
 
 ### 实际业务证据预检查
 
+Host还可从本会话实际完整、严格UTF-8、单个不超过12000字节的允许输入生成`business_observations`。它是原observations路径内的有界适配，不读取报告自写观测，不增加网络/表达式求值/路径能力。封闭支持同一年度百万口径/XBRL行表、CPI Table A明确SA月列及NSA十二月列、完整受支持的FOMC官方声明/实施说明版式及肯定决议、显式公告/生效日、完整可枚举的NIST所选记录与功能标题。歧义、缺列、季度冒充年度、交换表头、重复、未知发布前后文、否定/提案/条件、超长或截断均不产生新可信事实。
+
+每条观测保留源文件完整SHA、原文字符位置与原文、算法/字段/值及当前用户根/会话/任务/冻结合同绑定的ID。金额不猜测美元币种；财务cashflow phase和有符号子项须一致，派生公式封闭；CPI不混用季调/未季调；分数利率转换与日期分开。计数仅表示完整所供摘录内的记录或标题，不是完整框架或组织认证。最多200条、180000字节，不能唯一解析时保持未核验。
+
+`business_evidence(selected_observations, requirement_ids)`与既有CSV格式helper一样，只序列化所选真实Host规范句/方法、全部父来源、notes/coverage及identity claims；需求映射仍由作者提出并接受原Host检查，不写missing/quality。模型可在原一次补查内修正草稿对应事实，不用原文外中文推断冒充可核验结论。跨文件claim遗漏任一父来源会判invalid；评分后原文件SHA变化也判invalid且不返回旧观测。质量检查缓存绑定实际证据context，不能因相同缺口重放旧数值。`research_quality.py`的原精确数值/逐句检查保持，不把新规范化当外部真实性、预测或语义评审认证。
+
 报告资源提供纯 Python helper，不增加信任来源或模型循环：
 
 - `canonical_source(host_sources, identity)` 只接受 Host 的准确 ID 或唯一准确标题，返回规范 id/title 和实际提供的 url/as_of；不把上传文件名拼成 file:ID。Facts、Controls、Timeline 的 source_ref 复用规范 ID。

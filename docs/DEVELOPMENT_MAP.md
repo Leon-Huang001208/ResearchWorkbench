@@ -1,5 +1,7 @@
 # Research Workbench Development Map
 
+research_business_evidence.py是原Host观测路径内的受限业务摘录规范化与复算；quality_service读取实际输入/重验SHA与缓存身份，research_evidence校验所有父来源，resources/research_report.py只序列化实际返回观测。近处test_research_business_evidence.py覆盖肯定句、表头结构、精确解析、真Store链与隔离负例；质量算法仍在原research_quality.py，不以规范句自动认证中文推断。
+
 实际业务报告的来源解析、claim算术预检查、同节笔记/coverage、对账和利率单位工具仍在 resources/research_report.py；numeric_summary只修独立验收器的展示舍入及尾部空列误报，不参与Host判定。test_report_revision.py覆盖原四用户故障类别与伪造观测仍被Host拒绝；service.py只引导唯一DSH循环使用这些工具。
 
 报告二次写入由 resources/research_report.py 在原输出能力内创建排他临时目录并归档；research_evidence.py 从 Store 的规范 outputs/research-report.json 映射核验当前报告。test_report_revision.py 覆盖真实 macOS 沙箱二次写入、getcwd 拒绝、同名备份及非规范/重复身份拒绝。

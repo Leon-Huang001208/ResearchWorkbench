@@ -419,6 +419,73 @@ def numeric_summary(rows, expected, *, decimal_places=None):
         raise ValueError("research_summary_invalid") from exc
 
 
+def business_evidence(observations, requirement_ids):
+    """Serialize selected actual Host business observations, never grant them trust."""
+    try:
+        if (
+            not isinstance(observations, list)
+            or not 1 <= len(observations) <= 40
+            or not isinstance(requirement_ids, dict)
+        ):
+            raise ValueError("research_business_evidence_invalid")
+        result = {"sections": [], "notes": [], "coverage": [], "numeric_claims": []}
+        seen = set()
+        used = set()
+        for row in observations:
+            if (
+                not isinstance(row, dict)
+                or not isinstance(row.get("id"), str)
+                or not re.fullmatch(r"business_[a-f0-9]{32}", row["id"])
+                or row["id"] in seen
+                or row.get("kind") not in {"business_numeric", "business_quote"}
+                or not isinstance(row.get("content"), str)
+                or hashlib.sha256(row["content"].encode()).hexdigest() != row.get("sha256")
+            ):
+                raise ValueError("research_business_evidence_invalid")
+            seen.add(row["id"])
+            key = row["id"] if row["id"] in requirement_ids else row.get("metric")
+            used.add(key)
+            requirements = requirement_ids.get(key)
+            refs = row.get("source_ids")
+            if not isinstance(refs, list) or row.get("source_id") not in refs:
+                raise ValueError("research_business_evidence_invalid")
+            heading = row.get("heading", row.get("metric", ""))
+            if row.get("period"):
+                heading += " (" + row["period"] + ")"
+            blocks = evidence_section(row["id"], heading, row["content"], refs, requirements)
+            for name in blocks:
+                result[name].extend(blocks[name])
+            if row["kind"] == "business_numeric":
+                quote = row["content"].split("\n", 1)[0]
+                operand = {
+                    "observation_id": row["id"],
+                    "value": row["value"],
+                    "period": row["period"],
+                    "unit": row["unit"],
+                    "quote": quote,
+                }
+                result["numeric_claims"].append(
+                    build_numeric_claim(
+                        "claim_" + row["id"],
+                        row["id"],
+                        quote,
+                        row["period"],
+                        row["unit"],
+                        "identity",
+                        [operand],
+                    )
+                )
+            elif re.search(r"\d", row["content"]):
+                raise ValueError("research_business_quote_needs_numeric_evidence")
+        if set(requirement_ids) != used:
+            raise ValueError("research_business_evidence_mapping_unused")
+        log.info("research_business_evidence_assembled observations=%d", len(seen))
+        return result
+    except (ValueError, TypeError, KeyError, ArithmeticError) as exc:
+        log.warning("research_business_evidence_rejected type=%s", type(exc).__name__)
+        raise ValueError("research_business_evidence_invalid") from exc
+
+
 def validate_calculation_recipes(recipes):
     """Validate data-only calculation requests; never accept paths or executable code."""
     from decimal import Context, Decimal, InvalidOperation, localcontext

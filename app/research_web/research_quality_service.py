@@ -2,10 +2,12 @@
 
 import hashlib
 import json
+import re
 from datetime import UTC, datetime
 
 from core.observability import get_logger
 
+from .research_business_evidence import business_observations
 from .research_evidence import report_projection
 from .research_quality import make_contract
 from .resources.research_report import archive_report_version, list_report_versions
@@ -119,9 +121,9 @@ def source_context(service, sid, files, sources=()):
     }
 
 
-def observations(service, sid, files, sources):
+def observations(service, sid, files, sources, *, task_id="", contract_sha=""):
     """Only actual session input/snapshot bytes become numeric evidence."""
-    result = []
+    result, complete = [], []
     for item in files:
         if item.get("kind") != "inputs" or not item.get("name", "").endswith(
             (".txt", ".md", ".csv", ".json")
@@ -129,7 +131,8 @@ def observations(service, sid, files, sources):
             continue
         stream, _name = service.store.open_file(sid, item["id"])
         with stream:
-            content = stream.read(12000).decode("utf-8", errors="replace")
+            raw = stream.read(12001)
+            content = raw[:12000].decode("utf-8", errors="replace")
         result.append(
             {
                 "id": "file:" + item["id"],
@@ -138,8 +141,27 @@ def observations(service, sid, files, sources):
                 "sha256": hashlib.sha256(content.encode()).hexdigest(),
             }
         )
+        if len(raw) <= 12000:
+            try:
+                raw.decode("utf-8", errors="strict")
+                complete.append(result[-1])
+            except UnicodeDecodeError:
+                log.warning("research_business_input_encoding_unsupported")
         if len(result) >= 20:
             break
+    if (
+        complete
+        and isinstance(contract_sha, str)
+        and re.fullmatch(r"[a-f0-9]{64}", contract_sha)
+        and isinstance(task_id, str)
+        and re.fullmatch(r"[a-f0-9]{24}", task_id)
+    ):
+        result.extend(
+            business_observations(
+                complete,
+                scope=str(service.store.root) + ":" + sid + ":" + task_id + ":" + contract_sha,
+            )
+        )
     for source in sources[:40]:
         if not source.get("id", "").startswith("dataset:"):
             continue
@@ -179,7 +201,14 @@ def quality_result(service, sid, receipt, files, sources, delivery=None):
     )
     observation_error = False
     try:
-        actual_observations = observations(service, sid, evidence_files, sources)
+        actual_observations = observations(
+            service,
+            sid,
+            evidence_files,
+            sources,
+            task_id=contract["task_id"],
+            contract_sha=contract.get("sha256", ""),
+        )
     except (OSError, StoreError) as exc:
         log.warning("research_quality_input_observation_unavailable", error_type=type(exc).__name__)
         actual_observations = []
@@ -206,6 +235,31 @@ def quality_result(service, sid, receipt, files, sources, delivery=None):
         if report is not None:
             report.update(quality="invalid", assessment=assessment, issues=assessment["issues"])
 
+    context = source_context(service, sid, evidence_files, sources)
+    business = [
+        row
+        for row in actual_observations
+        if row.get("kind") in {"business_numeric", "business_quote"}
+    ]
+    fresh = {row["id"]: row.get("sha256") for row in context["sources"]}
+    if any(
+        fresh.get(proof["source_id"]) != proof["sha256"]
+        for row in business
+        for proof in row["proofs"]
+    ):
+        assessment = {
+            **assessment,
+            "status": "invalid",
+            "issues": list(
+                dict.fromkeys(
+                    [*assessment.get("issues", []), "business_input_changed_during_verification"]
+                )
+            ),
+        }
+        business = []
+        if report is not None:
+            report.update(quality="invalid", assessment=assessment, issues=assessment["issues"])
+        log.warning("research_business_input_changed_during_verification")
     status = assessment.get("status", "incomplete")
     issues = assessment.get("issues", ["report_missing"])
     return {
@@ -218,7 +272,8 @@ def quality_result(service, sid, receipt, files, sources, delivery=None):
         "contract": contract,
         "report": report,
         "evidence_context": {
-            **source_context(service, sid, evidence_files, sources),
+            "business_observations": business,
+            **context,
             "calculation_observations": (report or {}).get("calculation_observations", []),
         },
     }
@@ -280,7 +335,13 @@ async def check_quality(service, sid):
         report = detail.get("research_report")
         identity = hashlib.sha256(
             json.dumps(
-                {"report": report, "issues": result["issues"]}, ensure_ascii=False, sort_keys=True
+                {
+                    "report": report,
+                    "issues": result["issues"],
+                    "evidence_context": result.get("evidence_context"),
+                },
+                ensure_ascii=False,
+                sort_keys=True,
             ).encode()
         ).hexdigest()
         checks = receipt.setdefault("quality_checks", {})
