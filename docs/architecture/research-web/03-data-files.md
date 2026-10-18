@@ -582,4 +582,8 @@ Host按CSV行序（不推断日期）归一化首行价格，计算静态初始�
 
 Host观测ID由隔离scope及输入/配方SHA生成；模型不能声明可信观测。research_check_quality返回真实quote、value、period、unit和来源绑定，模型在原补查预算内据此完成自己的numeric_claims、notes、coverage与有证据的叙述；不自动替模型填写或消除缺口。原严格验收器保持。
 
+模型可显式调用 `research_report.calculation_evidence(observations, requirement_ids, methods_requirement_ids=[])`，将同一配方四项实际Host观测序列化为sections、notes、numeric_claims和coverage。指标到冻结要求的映射由作者提供，例如 `{"total_return":["r1"],"max_drawdown":["r2"],"terminal_scenario_return":["r3"]}`，方法要求另传 `["r4"]`。每个指标包含独立章节，claim、operand.quote和正文逐字引用观测第一行，方法节引用原换行后的说明，避免行数claim悬空或拼接改写引文。多配方须先选取同一calculation_id的四项；混合来源/配方/输入、重复或缺少指标拒绝。
+
+该纯格式helper不读取文件、不生成可信观测、不写missing/quality/research_accepted，不改变Host检查或409下载门。伪造ID、数值、外来会话观测、缺失需求或真实missing仍不能通过。`missing`仅记录真实未完成/未验证事项；合成数据、未年化等既定范围限制应保留在报告说明，不混作已完成要求的缺口，亦不得以此删除真实缺口。
+
 Delivery先检查当前key；FINAL输出集合或字节变化后重新走原sandbox和发布后字节复验。不变的失败不隐式重试，取消/原生执行证明失败不能靠改文件恢复成功。report-versions只属于历史归档，不满足当前任务格式要求；解析中集合改变保留未验证/incomplete，绝不复用旧通过。

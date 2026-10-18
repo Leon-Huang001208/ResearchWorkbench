@@ -1,5 +1,7 @@
 # Research Workbench Research Web 当前架构
 
+CSV报告可在原DSH回合使用显式证据格式helper，章节/claim/notes/coverage按实际观测组装；验收、缺口和原文件交付仍由既有Host独立负责，见[数据合同](03-data-files.md#受限csv计算证据)。Automation不增加执行节点或权限。
+
 报告修订沿原会话归档与质量边界运行：相对输出路径无需 getcwd，当前报告由规范文件映射确定，备用同名文件与历史归档分别保留。
 
 质量核验仍由同一Host和DSH研究回合完成：规范来源元数据、受限全量CSV独立复算和输出变化后的严格重验不增加执行引擎。Automation、公开安装入口和模型配置合同保持。

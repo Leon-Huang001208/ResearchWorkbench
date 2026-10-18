@@ -1,5 +1,7 @@
 # Research Web 接口清单
 
+calculation_evidence仅是沙箱内报告Python格式helper，不新增HTTP/RPC入口。模型输出仍由原research_check_quality独立校验；伪造观测、悬空数值claim和真实缺口不获passed，原报告下载409规则保持。
+
 HTTP端点不增加。research_check_quality返回有界evidence_context（规范sources及Host独立计算observations）；旧错误身份、伪造数值和谱系缺口仍拒绝。研究回合切换时返回409 research_quality_scope_changed；invalid报告下载仍409 research_report_invalid。
 
 POST /api/research/sessions/{sid}/messages 的必需 Idempotency-Key 由私网网关透传；不提供时仍由后端422拒绝。Cookie、Authorization不转发，内部用户密钥仍由认证网关生成。

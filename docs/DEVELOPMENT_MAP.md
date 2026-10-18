@@ -62,6 +62,8 @@ model-control.ts取消明确未发送reserved，hot_model_controls.py复验known
 
 原生计划由 projection.py、runtime/research.cordis.yml 和 guard.mjs 处理；research_evidence.py 管理会话来源与底稿质量投影；resources/research_report.py 管理确定性中文报告。UI 的 research-report.mjs 复用当前研究空间与草稿控制器。近处用例为 test_fingpt_research.py、test_research_report.py 与 research_web_fingpt.test.mjs；改变引用/格式合同须同步 API、文件、UI、安装文档和架构清单。
 
+CSV证据的显式格式辅助函数 `resources/research_report.py:calculation_evidence` 只组装章节/claim/notes/coverage；service.py 提示模型使用实际Host观测及冻结要求映射。真伪仍由 research_quality.py 独立判断，缺口与409门不变。回归复用 test_research_calculations.py，涵盖行数章节、逐字引用、真实缺口与外来观测拒绝。
+
 
 本文件只回答四个问题：改哪片源码、先读哪份权威文档、跑哪些测试、什么变化需要同步文档。文件和公开符号的机械清单由 [生成索引](generated/py_file_index.md) 负责。
 

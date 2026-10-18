@@ -1,5 +1,7 @@
 # 研究协议、执行状态与恢复
 
+FinGPT提示可使用calculation_evidence组装同配方四项实际观测的原句、章节、笔记与需求映射；helper没有验收权，不增加补查次数。真实missing继续incomplete，明确的研究范围限制另如实说明；Automation授权、调度与恢复保持原合同。
+
 FinGPT发送与质量返回只提供允许资料范围内的规范来源身份；校验工作线程读取冻结contract/files/sources/delivery副本，返回前重验当前delivery key和完整合同，过期结果409拒绝，不能发布旧passed或续领补查预算。
 
 研究提交的幂等键沿认证网关原值传给用户后端；缺失键继续拒绝，网关不生成键、不重试模型研究。
