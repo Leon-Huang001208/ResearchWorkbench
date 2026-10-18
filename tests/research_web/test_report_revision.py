@@ -5,7 +5,8 @@ import json
 import os
 import shutil
 import sys
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
+from types import SimpleNamespace
 
 import pytest
 from test_research_quality import example, saved_report
@@ -110,8 +111,35 @@ def test_duplicate_canonical_identity_still_fails_closed(tmp_path):
     canonical = next(
         file
         for file in files
-        if store.session(sid)["files"][file["id"]] == "outputs/research-report.json"
+        if store.session(sid)["files"][file["id"]] == str(Path("outputs") / "research-report.json")
     )
     result = project(store, sid, contract, sources, delivery, [*files, canonical])
     assert result["quality"] == "invalid"
     assert "report_identity_ambiguous" in result["issues"]
+
+
+@pytest.mark.parametrize(
+    "relative,status",
+    [
+        ("outputs\\research-report.json", "passed"),
+        ("outputs\\..\\outputs\\research-report.json", "invalid"),
+    ],
+)
+def test_windows_path_selector_requires_exact_native_mapping(
+    tmp_path, monkeypatch, relative, status
+):
+    import app.research_web.research_evidence as evidence
+
+    store, sid, contract, sources, delivery, _ = projection_case(tmp_path)
+    files = store.files(sid)
+    row = store.session(sid)
+    mapped = {fid: path.replace("/", "\\") for fid, path in row["files"].items()}
+    canonical = next(fid for fid, path in mapped.items() if path == "outputs\\research-report.json")
+    mapped[canonical] = relative
+    windows_store = SimpleNamespace(
+        session=lambda requested: {**store.session(requested), "files": mapped},
+        open_file=store.open_file,
+    )
+    monkeypatch.setattr(evidence, "Path", PureWindowsPath)
+    result = project(windows_store, sid, contract, sources, delivery, files)
+    assert result["quality"] == status

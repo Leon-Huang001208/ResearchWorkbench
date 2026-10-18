@@ -7510,6 +7510,7 @@ Imports:
 - `hashlib`
 - `json`
 - `logging`
+- `pathlib`
 - `re`
 - `research_calculations`
 - `research_quality`
