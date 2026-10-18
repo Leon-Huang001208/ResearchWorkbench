@@ -7470,6 +7470,43 @@ Functions:
 - `_validate_values`
 
 
+## `app/research_web/research_business_evidence.py`
+
+Module docstring:
+> Bounded Host projections from complete owned excerpts, never model report fields.
+
+Imports:
+- `datetime`
+- `decimal`
+- `hashlib`
+- `html`
+- `itertools`
+- `json`
+- `logging`
+- `re`
+
+Functions:
+- `_clean`
+- `_number`
+- `_proof`
+- `_emit`
+- `_annual`
+- `_cpi`
+- `_rate`
+- `_date`
+- `_sentences`
+- `_prose_pattern`
+- `_statement_layout`
+  - A complete supported publication grammar, not a negation keyword blacklist.
+- `_implementation_layout`
+- `_fomc`
+- `_quotes`
+- `business_observations`
+  - Project full owned excerpts in a required session/task namespace; fail closed.
+- `business_lineage_issues`
+  - Every actual parent of a Host-derived fact must be cited in report and notes.
+
+
 ## `app/research_web/research_calculations.py`
 
 Module docstring:
@@ -7512,6 +7549,7 @@ Imports:
 - `logging`
 - `pathlib`
 - `re`
+- `research_business_evidence`
 - `research_calculations`
 - `research_quality`
 - `resources.research_report`
@@ -7566,6 +7604,8 @@ Imports:
 - `datetime`
 - `hashlib`
 - `json`
+- `re`
+- `research_business_evidence`
 - `research_evidence`
 - `research_quality`
 - `resources.research_report`
@@ -7639,6 +7679,21 @@ Functions:
 - `source_id`
 - `calculation_evidence`
   - Serialize one calculation's evidence; only the independent Host can verify it.
+- `_evidence_decimal`
+- `canonical_source`
+  - Resolve an exact Host ID/title; uploaded filenames are never source IDs.
+- `evidence_section`
+  - Copy author-nominated text/lineage, never certify it or create observations.
+- `build_numeric_claim`
+  - Preflight exact arithmetic and serialization; Host still verifies source bytes.
+- `reconcile_amounts`
+  - Exact reported-total minus all provided signed components, not inferred gaps.
+- `rate_difference`
+  - Signed cut magnitude: percentage-point change and basis-point conversion.
+- `numeric_summary`
+  - Independent acceptance oracle; explicit display rounding never changes Host gates.
+- `business_evidence`
+  - Serialize selected actual Host business observations, never grant them trust.
 - `validate_calculation_recipes`
   - Validate data-only calculation requests; never accept paths or executable code.
 - `validate_payload`

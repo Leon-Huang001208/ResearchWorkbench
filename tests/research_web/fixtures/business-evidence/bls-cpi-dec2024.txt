@@ -1,0 +1,50 @@
+CONSUMER PRICE INDEX - DECEMBER 2024
+
+The Consumer Price Index for All Urban Consumers (CPI-U) increased 0.4 percent on a seasonally adjusted basis
+in December, after rising 0.3 percent in November, the U.S. Bureau of Labor Statistics reported today. Over the
+last 12 months, the all items index increased 2.9 percent before seasonal adjustment.
+
+The index for energy rose 2.6 percent in December, accounting for over forty percent of the monthly all items
+increase. The gasoline index increased 4.4 percent over the month. The index for food also increased in December,
+rising 0.3 percent as both the index for food at home and the index for food away from home increased 0.3
+percent each.
+
+The index for all items less food and energy rose 0.2 percent in December, after increasing 0.3 percent in each
+of the previous 4 months. Indexes that increased in December include shelter, airline fares, used cars and trucks,
+new vehicles, motor vehicle insurance, and medical care. The indexes for personal care, communication, and
+alcoholic beverages were among the few major indexes that decreased over the month.
+
+The all items index rose 2.9 percent for the 12 months ending December, after rising 2.7 percent over the 12
+months ending November. The all items less food and energy index rose 3.2 percent over the last 12 months. The
+energy index decreased 0.5 percent for the 12 months ending December. The food index increased 2.5 percent over
+the last year.
+```
+
+|  | Seasonally adjusted changes from preceding month | Un-<br>adjusted<br>12-mos.<br>ended<br>Dec. 2024 |
+| --- | --- | --- |
+| Jun.<br>2024 | Jul.<br>2024 | Aug.<br>2024 | Sep.<br>2024 | Oct.<br>2024 | Nov.<br>2024 | Dec.<br>2024 |
+| --- | --- | --- | --- | --- | --- | --- |
+| All items | -0.1 | 0.2 | 0.2 | 0.2 | 0.2 | 0.3 | 0.4 | 2.9 |
+| Food | 0.2 | 0.2 | 0.1 | 0.4 | 0.2 | 0.4 | 0.3 | 2.5 |
+| Food at home | 0.1 | 0.1 | 0.0 | 0.4 | 0.1 | 0.5 | 0.3 | 1.8 |
+| Food away from home( [1](https://www.bls.gov/news.release/archives/cpi_01152025.htm#cpi_pressa.f.1 "Click to jump to footnotes at bottom of the table")) | 0.4 | 0.2 | 0.3 | 0.3 | 0.2 | 0.3 | 0.3 | 3.6 |
+| Energy | -2.0 | 0.0 | -0.8 | -1.9 | 0.0 | 0.2 | 2.6 | -0.5 |
+| Energy commodities | -3.7 | 0.1 | -0.6 | -4.0 | -1.0 | 0.5 | 4.3 | -3.9 |
+| Gasoline (all types) | -3.8 | 0.0 | -0.6 | -4.1 | -0.9 | 0.6 | 4.4 | -3.4 |
+| Fuel oil | -2.4 | 0.9 | -1.9 | -6.0 | -4.6 | 0.6 | 4.4 | -13.1 |
+| Energy services | -0.1 | -0.1 | -0.9 | 0.7 | 1.0 | -0.1 | 0.8 | 3.3 |
+| Electricity | -0.7 | 0.1 | -0.7 | 0.7 | 1.2 | -0.4 | 0.3 | 2.8 |
+| Utility (piped) gas service | 2.4 | -0.7 | -1.9 | 0.7 | 0.3 | 1.0 | 2.4 | 4.9 |
+| All items less food and energy | 0.1 | 0.2 | 0.3 | 0.3 | 0.3 | 0.3 | 0.2 | 3.2 |
+| Commodities less food and energy commodities | -0.1 | -0.3 | -0.2 | 0.2 | 0.0 | 0.3 | 0.1 | -0.5 |
+| New vehicles | -0.2 | -0.2 | 0.0 | 0.2 | 0.0 | 0.6 | 0.5 | -0.4 |
+| Used cars and trucks | -1.5 | -2.3 | -1.0 | 0.3 | 2.7 | 2.0 | 1.2 | -3.3 |
+| Apparel | 0.1 | -0.4 | 0.3 | 1.1 | -1.5 | 0.2 | 0.1 | 1.2 |
+| Medical care commodities( [1](https://www.bls.gov/news.release/archives/cpi_01152025.htm#cpi_pressa.f.1 "Click to jump to footnotes at bottom of the table")) | 0.2 | 0.2 | -0.2 | -0.7 | -0.2 | -0.1 | 0.0 | 0.5 |
+| Services less energy services | 0.1 | 0.3 | 0.4 | 0.4 | 0.3 | 0.3 | 0.3 | 4.4 |
+| Shelter | 0.2 | 0.4 | 0.5 | 0.2 | 0.4 | 0.3 | 0.3 | 4.6 |
+| Transportation services | -0.5 | 0.4 | 0.9 | 1.4 | 0.4 | 0.0 | 0.5 | 7.3 |
+| Medical care services | 0.2 | -0.3 | -0.1 | 0.7 | 0.4 | 0.4 | 0.2 | 3.4 |
+| Footnotes<br>(1) Not seasonally adjusted. |
+
+Table A. Percent changes in CPI for All Urban Consumers (CPI-U): U.S. city average

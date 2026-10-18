@@ -1,0 +1,27 @@
+| (In millions, except per share amounts) | **Year Ended June 30,** |
+| --- | --- |
+| **2024** | **2023** | **2022** |
+| --- | --- | --- |
+| Revenue: | Revenue: |  |  |  |
+| us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax<br/>us-gaap:ProductMember | Product | **$64,773** | $64,699 | $72,732 |
+| us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax<br/>us-gaap:ServiceOtherMember | Service and other | **180,349** | 147,216 | 125,538 |
+| us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax | [Total revenue](https://www.microsoft.com/www.microsoft.com/en-us/Investor/earnings/FY-2024-Q4/performance) | **245,122** | 211,915 | 198,270 |
+| Cost of revenue: | Cost of revenue: |  |  |  |
+| us-gaap:CostOfGoodsAndServicesSold<br/>us-gaap:ProductMember | Product | **15,272** | 17,804 | 19,064 |
+| us-gaap:CostOfGoodsAndServicesSold<br/>us-gaap:ServiceOtherMember | Service and other | **58,842** | 48,059 | 43,586 |
+| us-gaap:CostOfGoodsAndServicesSold | [Total cost of revenue](https://www.microsoft.com/www.microsoft.com/en-us/Investor/earnings/FY-2024-Q4/performance) | **74,114** | 65,863 | 62,650 |
+| us-gaap:GrossProfit | Gross margin | **171,008** | 146,052 | 135,620 |
+| us-gaap:ResearchAndDevelopmentExpense | Research and development | **29,510** | 27,195 | 24,512 |
+| us-gaap:SellingAndMarketingExpense | Sales and marketing | **24,456** | 22,759 | 21,825 |
+| us-gaap:GeneralAndAdministrativeExpense | General and administrative | **7,609** | 7,575 | 5,900 |
+| us-gaap:OperatingIncomeLoss | [Operating income](https://www.microsoft.com/www.microsoft.com/en-us/Investor/earnings/FY-2024-Q4/performance) | **109,433** | 88,523 | 83,383 |
+| us-gaap:NonoperatingIncomeExpense | [Other income (expense), net](https://www.microsoft.com/en-us/investor/earnings/fy-2024-q4/IRFinancialStatementsPopups?tag=us-gaap:OtherNonoperatingIncomeAndExpenseTextBlock&title=Other%20income%20(expense),%20net) | **(1,646)** | 788 | 333 |
+| us-gaap:IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest | Income before income taxes | **107,787** | 89,311 | 83,716 |
+| us-gaap:IncomeTaxExpenseBenefit | [Provision for income taxes](https://www.microsoft.com/en-us/investor/earnings/fy-2024-q4/IRFinancialStatementsPopups?tag=us-gaap:IncomeTaxDisclosureTextBlock&title=Provision%20for%20income%20taxes) | **19,651** | 16,950 | 10,978 |
+| us-gaap:NetIncomeLoss | Net income | **$88,136** | $72,361 | $72,738 |
+| Earnings per share: | [Earnings per share:](https://www.microsoft.com/en-us/investor/earnings/fy-2024-q4/IRFinancialStatementsPopups?tag=us-gaap:EarningsPerShareTextBlock&title=Earnings%20per%20share:) |  |  |  |
+| us-gaap:EarningsPerShareBasic | Basic | **$11.86** | $9.72 | $9.70 |
+| us-gaap:EarningsPerShareDiluted | Diluted | **$11.80** | $9.68 | $9.65 |
+| Weighted average shares outstanding: | [Weighted average shares outstanding:](https://www.microsoft.com/en-us/investor/earnings/fy-2024-q4/IRFinancialStatementsPopups?tag=us-gaap:EarningsPerShareTextBlock&title=Weighted%20average%20shares%20outstanding:) |  |  |  |
+| us-gaap:WeightedAverageNumberOfSharesOutstandingBasic | Basic | **7,431** | 7,446 | 7,496 |
+| us-gaap:WeightedAverageNumberOfDilutedSharesOutstanding | Diluted | **7,469** | 7,472 | 7,540 |

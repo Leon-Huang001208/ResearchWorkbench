@@ -1,5 +1,9 @@
 # 研究协议、执行状态与恢复
 
+DSH实际业务提示要求规范来源ID、原文期间/单位、精确算术和完整同节引用；可用报告helper提前拒绝错误arity、虚构计数或舍入冒充精确claim。不能表达的证据保持未核验，不增加补查/模型循环；Automation授权和恢复不变。
+
+模型先独立读输入并生成底稿/草稿，原research_check_quality再返回business_observations的Host解析/复算和原文位置；原一次补查中可按真实metric/period选择观测，用business_evidence替换对应错误事实/方法，保留全部冻结要求及真实missing。不能把原文外推断伪装成规范句，也不能省掉跨文件父来源。未支持布局仍未核验；没有自动续领补查或新回合。
+
 FinGPT提示可使用calculation_evidence组装同配方四项实际观测的原句、章节、笔记与需求映射；helper没有验收权，不增加补查次数。真实missing继续incomplete，明确的研究范围限制另如实说明；Automation授权、调度与恢复保持原合同。
 
 FinGPT发送与质量返回只提供允许资料范围内的规范来源身份；校验工作线程读取冻结contract/files/sources/delivery副本，返回前重验当前delivery key和完整合同，过期结果409拒绝，不能发布旧passed或续领补查预算。

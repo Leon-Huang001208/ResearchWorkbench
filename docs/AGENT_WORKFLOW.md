@@ -1,5 +1,7 @@
 # Agent 任务路由指南
 
+业务摘录证据回归复用 Research Web Checks 现有 Python 步骤，新增 test_research_business_evidence.py；无新 job、runner、依赖或平台 dispatch。真实四用户模型复验独立于离线及安装检查，按授权冻结版本与任务，保留原质量门和会话配置。
+
 多用户常驻附接的离线绑定、保全及 kernel boot 恢复测试复用既有 Research Web Checks 同一 Python 步骤；精确源码交付之后另做 Mac mini 私有部署与真实双账号隔离验收，不把 CI 或登录成功等同模型生成。
 
 AI资讯自主化本轮在隔离实例接入原版API/worker与独立库，保持DSH研究执行及当前常驻内容。零调用和后续切换边界见[自主资讯合同](research-web-ai-news.md)。

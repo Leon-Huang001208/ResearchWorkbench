@@ -143,3 +143,143 @@ def test_windows_path_selector_requires_exact_native_mapping(
     monkeypatch.setattr(evidence, "Path", PureWindowsPath)
     result = project(windows_store, sid, contract, sources, delivery, files)
     assert result["quality"] == status
+
+
+def test_business_source_identity_uses_host_id_not_uploaded_name():
+    from app.research_web.resources.research_report import canonical_source
+
+    sources = [{"id": "file:abc", "title": "f614-nist-controls.md", "sha256": "a" * 64}]
+    assert canonical_source(sources, "f614-nist-controls.md") == {
+        "id": "file:abc",
+        "title": "f614-nist-controls.md",
+    }
+    with pytest.raises(ValueError):
+        canonical_source(sources, "file:f614-nist-controls.md")
+    with pytest.raises(ValueError):
+        canonical_source(
+            sources + [{"id": "file:other", "title": sources[0]["title"]}], sources[0]["title"]
+        )
+
+
+def test_business_evidence_section_retains_all_note_sources_and_requirements():
+    from app.research_web.resources.research_report import evidence_section
+
+    blocks = evidence_section(
+        "future", "政策限制", "未来取决于实际数据。", ["file:july", "file:sep"], ["r4"]
+    )
+    assert blocks["notes"][0]["citations"] == ["file:july", "file:sep"]
+    assert blocks["coverage"][0]["excerpt"] == blocks["sections"][0]["text"]
+    assert set(blocks) == {"sections", "notes", "coverage"}
+
+
+def test_business_numeric_claim_rejects_previous_bad_arities_and_count():
+    from app.research_web.resources.research_report import build_numeric_claim
+
+    row = {
+        "observation_id": "file:abc",
+        "value": "1",
+        "period": "input",
+        "unit": "count",
+        "quote": "input 1 count",
+    }
+    for operation, operands, text in [
+        ("identity", [row, row], "input Count 1 count"),
+        ("ratio", [row] * 4, "input Count 1 ratio"),
+        ("sum", [row], "input Count 8 count"),
+        ("identity", [{**row, "period": "invented"}], "invented Count 1 count"),
+    ]:
+        with pytest.raises(ValueError):
+            build_numeric_claim("count", "s1", text, "input", "count", operation, operands)
+
+
+def test_business_numeric_claim_calculates_exact_value_and_preserves_gate():
+    from test_research_quality import numeric_example
+
+    from app.research_web.research_quality import assess_quality
+    from app.research_web.resources.research_report import build_numeric_claim
+
+    contract, payload, sources, observations = numeric_example()
+    prior = payload["numeric_claims"][0]
+    claim = build_numeric_claim(
+        prior["id"],
+        prior["section_id"],
+        prior["text"],
+        prior["period"],
+        prior["unit"],
+        prior["operation"],
+        prior["operands"],
+    )
+    payload["numeric_claims"] = [claim]
+    assert assess_quality(contract, payload, sources, observations)["status"] == "passed"
+    observations[0]["content"] = "不同内容"
+    observations[0]["sha256"] = hashlib.sha256("不同内容".encode()).hexdigest()
+    assert assess_quality(contract, payload, sources, observations)["status"] != "passed"
+
+
+def test_business_rate_and_cashflow_math_are_explicit():
+    from app.research_web.resources.research_report import rate_difference, reconcile_amounts
+
+    assert rate_difference("5.50", "5.00") == {"percentage_points": "0.50", "basis_points": "50.00"}
+    result = reconcile_amounts("-37757", ["294", "-2907", "-17254", "-21771", "3881"])
+    assert result["component_sum"] == "-37757"
+    assert result["difference"] == "0"
+    assert reconcile_amounts("10", ["3", "6"])["difference"] == "1"
+    with pytest.raises(ValueError):
+        rate_difference(True, "1")
+
+
+def test_business_summary_accepts_explicit_rounding_and_padded_nulls_only():
+    from app.research_web.resources.research_report import numeric_summary
+
+    rows = [
+        ("metric", "value", None, None),
+        ("growth", 15.67, None, None),
+        (None,) * 4,
+        ("growth", "notes", "unit", "period"),
+    ]
+    assert numeric_summary(rows, {"growth": "15.66996201307127"}, decimal_places={"growth": 2}) == {
+        "growth": 15.67
+    }
+    assert (
+        numeric_summary(
+            [("metric", "value"), ("growth", 15.66996201307127)],
+            {"growth": "15.66996201307127"},
+            decimal_places={"growth": 2},
+        )["growth"]
+        == 15.66996201307127
+    )
+    for bad_rows in [
+        [("metric", "value"), ("growth", 15.68)],
+        [("metric", "value"), ("growth", 15.67), ("growth", 15.67)],
+        [("metric", "value"), ("growth", "=15.67")],
+        [("metric", "value"), ("growth", "15.67")],
+        [("metric", "value"), ("growth", True)],
+        [("metric", "value"), ("growth", float("nan"))],
+        [("metric", "value"), (None, None), ("growth", 15.67)],
+        [("metric", "value"), ("growth", 15.67, "unexpected")],
+    ]:
+        with pytest.raises(ValueError):
+            numeric_summary(bad_rows, {"growth": "15.66996201307127"}, decimal_places={"growth": 2})
+    with pytest.raises(ValueError):
+        numeric_summary(rows, {"growth": "15.66996201307127"})
+
+
+def test_business_exact_math_does_not_hide_low_order_reconciliation_gap():
+    from decimal import Context, Decimal, localcontext
+
+    from app.research_web.resources.research_report import rate_difference, reconcile_amounts
+
+    tiny = "1." + "0" * 110 + "1e-100"
+    result = reconcile_amounts("1e100", ["1e100", tiny, "-1e-100"])
+    assert Decimal(result["difference"]) == Decimal("-1e-211")
+    with localcontext(Context(prec=512)):
+        expected = Decimal("1e100") - Decimal(tiny)
+    assert Decimal(rate_difference("1e100", tiny)["percentage_points"]) == expected
+
+
+@pytest.mark.parametrize("heading,text", [("h" * 201, "text"), ("heading", "t" * 10001)])
+def test_business_section_never_builds_an_invalid_coverage_excerpt(heading, text):
+    from app.research_web.resources.research_report import evidence_section
+
+    with pytest.raises(ValueError):
+        evidence_section("s1", heading, text, ["file:abc"], ["r1"])

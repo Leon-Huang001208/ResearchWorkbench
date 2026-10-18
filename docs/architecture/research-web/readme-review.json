@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "unchanged",
-  "summary": "复核数值证据序列化helper与missing说明；公开安装与研究执行边界保持",
-  "reason": "仅在既有报告resources增加显式格式辅助，原Host独立验收及下载门保持；无新依赖、部署模式或用户配置，合同见03-data-files。"
+  "summary": "复核受限Host业务观测、报告证据组装和独立Summary验收；README公开入口保持",
+  "reason": "在原Host证据适配和报告资源内加入实际字节规范化及父源重验，无新依赖/安装命令/用户配置；逐句及精确算术门保持，边界见03-data-files。"
 }

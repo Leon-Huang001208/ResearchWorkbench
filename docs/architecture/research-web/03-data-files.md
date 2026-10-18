@@ -586,4 +586,22 @@ Host观测ID由隔离scope及输入/配方SHA生成；模型不能声明可信�
 
 该纯格式helper不读取文件、不生成可信观测、不写missing/quality/research_accepted，不改变Host检查或409下载门。伪造ID、数值、外来会话观测、缺失需求或真实missing仍不能通过。`missing`仅记录真实未完成/未验证事项；合成数据、未年化等既定范围限制应保留在报告说明，不混作已完成要求的缺口，亦不得以此删除真实缺口。
 
+### 实际业务证据预检查
+
+Host还可从本会话实际完整、严格UTF-8、单个不超过12000字节的允许输入生成`business_observations`。它是原observations路径内的有界适配，不读取报告自写观测，不增加网络/表达式求值/路径能力。封闭支持同一年度百万口径/XBRL行表、CPI Table A明确SA月列及NSA十二月列、完整受支持的FOMC官方声明/实施说明版式及肯定决议、显式公告/生效日、完整可枚举的NIST所选记录与功能标题。歧义、缺列、季度冒充年度、交换表头、重复、未知发布前后文、否定/提案/条件、超长或截断均不产生新可信事实。
+
+每条观测保留源文件完整SHA、原文字符位置与原文、算法/字段/值及当前用户根/会话/任务/冻结合同绑定的ID。金额不猜测美元币种；财务cashflow phase和有符号子项须一致，派生公式封闭；CPI不混用季调/未季调；分数利率转换与日期分开。计数仅表示完整所供摘录内的记录或标题，不是完整框架或组织认证。最多200条、180000字节，不能唯一解析时保持未核验。
+
+`business_evidence(selected_observations, requirement_ids)`与既有CSV格式helper一样，只序列化所选真实Host规范句/方法、全部父来源、notes/coverage及identity claims；需求映射仍由作者提出并接受原Host检查，不写missing/quality。模型可在原一次补查内修正草稿对应事实，不用原文外中文推断冒充可核验结论。跨文件claim遗漏任一父来源会判invalid；评分后原文件SHA变化也判invalid且不返回旧观测。质量检查缓存绑定实际证据context，不能因相同缺口重放旧数值。`research_quality.py`的原精确数值/逐句检查保持，不把新规范化当外部真实性、预测或语义评审认证。
+
+报告资源提供纯 Python helper，不增加信任来源或模型循环：
+
+- `canonical_source(host_sources, identity)` 只接受 Host 的准确 ID 或唯一准确标题，返回规范 id/title 和实际提供的 url/as_of；不把上传文件名拼成 file:ID。Facts、Controls、Timeline 的 source_ref 复用规范 ID。
+- `evidence_section(id, heading, text, citations, requirement_ids)` 复制作者提供的原文、完整引用、同节 notes 与 coverage，避免漏掉节内来源；不写 numeric_claims、missing 或通过状态。作者仍须覆盖全部冻结要求。
+- `build_numeric_claim(id, section_id, text, period, unit, operation, operands)` 按原精确算术计算 value，并提前拒绝错误操作数数量、期间/单位、同句多数量、舍入冒充精确结果。identity 为一个操作数，difference/ratio/percent_change 为两个，sum 逐项列实际操作数。helper 不读取资料或证明引文真实；Host 始终独立核验实际字节、指标标签及笔记血缘。
+- `reconcile_amounts(total, signed_components)` 返回有符号子项合计和真实差额；`rate_difference(before_pct, after_pct)` 分别返回 percentage_points 和 basis_points。它们是底稿计算工具，不能把生成文字当成可信观测。
+- `numeric_summary(rows, expected, decimal_places={metric: digits})` 仅用于独立验收器：读取 Summary 首个连续数值表，允许全空尾列，拒绝重复键、公式、布尔、字符串数字、非有限值和带数据的额外列；空行后的说明不能覆盖指标。默认精确比较，只有显式登记的展示位数可使用 ROUND_HALF_UP，且仍接受独立期望精确值。此展示规则不传入 Host，不改变研究质量的精确算术门。
+
+原材料无法提供可核验的期间、单位、唯一数量（例如跨列表格、分数利率或文字计数）时，预检查不能把它们伪装成合格 quote。应保留未核验状态与真实缺口。宏观季调口径需同时读取表头，百分比水平与百分点变动分开；政策工具方向不得无依据扩写；治理建议和 not_assessed 不冒充组织实施证据。真实模型的内容、来源和计算声明仍需独立审查，文件下载 200 不是研究通过。
+
 Delivery先检查当前key；FINAL输出集合或字节变化后重新走原sandbox和发布后字节复验。不变的失败不隐式重试，取消/原生执行证明失败不能靠改文件恢复成功。report-versions只属于历史归档，不满足当前任务格式要求；解析中集合改变保留未验证/incomplete，绝不复用旧通过。
