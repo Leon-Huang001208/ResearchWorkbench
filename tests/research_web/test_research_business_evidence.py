@@ -20,6 +20,84 @@ def observed(text, name="a"):
     }
 
 
+def test_initial_business_snapshot_is_readable_without_literal_copying(tmp_path, monkeypatch):
+    import json
+    from types import SimpleNamespace
+
+    from app.research_web.research_quality import make_contract
+    from app.research_web.research_quality_service import write_business_snapshot
+    from app.research_web.resources.research_report import load_business_evidence
+    from app.research_web.store import Store
+
+    store = Store(tmp_path / "data")
+    sid = store.create("fingpt", "initial projection")["id"]
+    (store.directory(sid) / "inputs" / "annual.md").write_text(ANNUAL)
+    contract = make_contract("a" * 24, "Cash flow", ["Cash flow"], "2026-10-19", "quick")
+    write_business_snapshot(SimpleNamespace(store=store), sid, contract)
+    monkeypatch.chdir(store.directory(sid))
+    result = load_business_evidence(contract["task_id"], contract["sha256"])
+    assert any(row["metric"] == "task_defined_fcf" for row in result["observations"])
+    assert not {"status", "quality", "research_accepted"} & set(result)
+    with pytest.raises(ValueError):
+        load_business_evidence("b" * 24, contract["sha256"])
+    from app.research_web.research_evidence import evidence_index
+    from app.research_web.research_quality_service import quality_result
+    from app.research_web.resources.research_report import business_evidence, write_research_report
+
+    projected = next(row for row in result["observations"] if row["metric"] == "task_defined_fcf")
+    projected["content"] = projected["content"].replace(projected["value"], "123456", 1)
+    projected["value"] = "123456"
+    projected["sha256"] = hashlib.sha256(projected["content"].encode()).hexdigest()
+    forged = {
+        "task_id": contract["task_id"],
+        "title": "Forged snapshot",
+        "as_of": contract["as_of"],
+        "sources": result["sources"],
+        **business_evidence([projected], {projected["id"]: ["r1"]}),
+    }
+    write_research_report(store.directory(sid) / "outputs", forged)
+    assert (
+        quality_result(
+            SimpleNamespace(store=store),
+            sid,
+            {"research_contract": contract},
+            store.files(sid),
+            evidence_index(store.files(sid), [], []),
+        )["status"]
+        != "passed"
+    )
+    store.session(sid)["source_scope"] = ["web"]
+    write_business_snapshot(SimpleNamespace(store=store), sid, contract)
+    assert load_business_evidence(contract["task_id"], contract["sha256"])["observations"] == []
+    path = store.directory(sid) / "resources" / "research_evidence.json"
+    raw = json.loads(path.read_text())
+    raw["quality"] = "passed"
+    path.write_text(json.dumps(raw))
+    with pytest.raises(ValueError):
+        load_business_evidence(contract["task_id"], contract["sha256"])
+
+
+def test_business_snapshot_refuses_linked_resource_directory(tmp_path):
+    from types import SimpleNamespace
+
+    from app.research_web.research_quality import make_contract
+    from app.research_web.research_quality_service import write_business_snapshot
+    from app.research_web.store import Store, StoreError
+
+    store = Store(tmp_path / "data")
+    sid = store.create("fingpt", "linked resource")["id"]
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    resource = store.directory(sid) / "resources"
+    if resource.exists():
+        resource.rmdir()
+    resource.symlink_to(outside, target_is_directory=True)
+    contract = make_contract("a" * 24, "Facts", ["Facts"], "2026-10-19", "quick")
+    with pytest.raises(StoreError):
+        write_business_snapshot(SimpleNamespace(store=store), sid, contract)
+    assert not list(outside.iterdir())
+
+
 def metrics(rows):
     return {
         (r["metric"], r.get("period")): r["value"] for r in rows if r["kind"] == "business_numeric"

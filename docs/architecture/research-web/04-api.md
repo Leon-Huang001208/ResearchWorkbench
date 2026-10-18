@@ -1,5 +1,7 @@
 # Research Web 接口清单
 
+load_business_evidence(task_id,contract_sha256)与source_references(value,Host sources)只是已打包Python资源函数，不增加HTTP/RPC。前者读取本回合便利投影，后者接受规范ID或“规范ID · 准确Host标题 · 定位”，不从文件名/定位猜来源。Host评分不读取投影文件。
+
 HTTP/RPC端点和check请求不变；质量返回evidence_context增加business_observations，包含规范句、metric/period/unit/value、全部source_ids、原文spans/full SHA、算法及作用域摘要。该字段只由Host从实际允许输入产生，不接受报告/工具参数传入。SDK只是格式辅助；numeric_summary仅为独立验收器的显式展示精度，不放宽Host判定，原invalid下载409保持。
 
 calculation_evidence仅是沙箱内报告Python格式helper，不新增HTTP/RPC入口。模型输出仍由原research_check_quality独立校验；伪造观测、悬空数值claim和真实缺口不获passed，原报告下载409规则保持。
