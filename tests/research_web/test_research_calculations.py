@@ -2,6 +2,10 @@
 
 import hashlib
 import json
+import shutil
+import sys
+from copy import deepcopy
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -284,3 +288,125 @@ def test_canonical_weight_order_has_identical_results_and_cache_identity(tmp_pat
     from app.research_web.research_calculations import _calculate
 
     assert _calculate(raw, recipe)["total_return"] == "-0.5000000000"
+
+
+def assembled_case(tmp_path):
+    from app.research_web.resources.research_report import calculation_evidence
+
+    store, sid, files, sources, recipe = calculation_case(tmp_path)
+    contract = make_contract(
+        "a" * 24, "计算", ["收益", "回撤", "情景", "方法"], "2026-10-18", "quick"
+    )
+    observed = observe_calculations(
+        store, sid, files, sources, [recipe], task_id=contract["task_id"]
+    )
+    blocks = calculation_evidence(
+        observed,
+        {"total_return": ["r1"], "max_drawdown": ["r2"], "terminal_scenario_return": ["r3"]},
+        methods_requirement_ids=["r4"],
+    )
+    assert set(blocks) == {"sections", "notes", "numeric_claims", "coverage"}
+    report = {
+        "task_id": contract["task_id"],
+        "title": "计算报告",
+        "as_of": contract["as_of"],
+        "sources": [{"id": sources[0]["id"], "title": sources[0]["title"]}],
+        "calculations": [recipe],
+        "missing": [],
+        **blocks,
+    }
+    return contract, report, sources, observed
+
+
+def test_assembler_keeps_each_claim_in_its_actual_section_and_verifies_all_metrics(tmp_path):
+    contract, report, sources, observed = assembled_case(tmp_path)
+    assert len(report["numeric_claims"]) == 4
+    assert len(report["sections"]) == 5
+    for claim, row in zip(report["numeric_claims"], observed, strict=True):
+        section = next(s for s in report["sections"] if s["id"] == claim["section_id"])
+        assert claim["text"] == section["text"] == row["content"].splitlines()[0]
+        assert claim["operands"][0]["quote"] == claim["text"]
+    assert assess_quality(contract, report, sources, observed)["status"] == "passed"
+
+
+@pytest.mark.parametrize("corruption", ["value", "quote", "id", "missing", "coverage", "section"])
+def test_assembler_never_certifies_untrusted_or_unfinished_evidence(tmp_path, corruption):
+    contract, report, sources, observed = assembled_case(tmp_path)
+    if corruption == "value":
+        report["numeric_claims"][0]["value"] = "99"
+    elif corruption == "quote":
+        report["numeric_claims"][0]["operands"][0]["quote"] += " 改写"
+    elif corruption == "id":
+        report["numeric_claims"][0]["operands"][0]["observation_id"] = "calc_forged"
+    elif corruption == "missing":
+        report["missing"] = ["仍有未完成事项"]
+    elif corruption == "coverage":
+        report["coverage"] = [r for r in report["coverage"] if r["requirement_id"] != "r4"]
+    else:
+        report["sections"][0]["text"] = "模型未放入实际引用"
+    assert assess_quality(contract, report, sources, observed)["status"] != "passed"
+
+
+def test_assembler_cannot_make_foreign_observations_trusted(tmp_path):
+    from app.research_web.resources.research_report import calculation_evidence
+
+    contract, report, sources, observed = assembled_case(tmp_path)
+    foreign = deepcopy(observed)
+    for row in foreign:
+        row["id"] = row["id"].replace("calc_", "calc_foreign_")
+    report.update(
+        calculation_evidence(foreign, {"total_return": ["r1"]}, methods_requirement_ids=["r4"])
+    )
+    assert assess_quality(contract, report, sources, observed)["status"] != "passed"
+
+
+@pytest.mark.parametrize(
+    "bad", ["duplicate", "missing_metric", "mixed_scope", "no_method", "bad_requirements"]
+)
+def test_assembler_rejects_ambiguous_or_incomplete_inputs(tmp_path, bad):
+    from app.research_web.resources.research_report import calculation_evidence
+
+    _, _, _, observed = assembled_case(tmp_path)
+    mapping = {"total_return": ["r1"]}
+    if bad == "duplicate":
+        observed.append(deepcopy(observed[0]))
+    elif bad == "missing_metric":
+        observed.pop()
+    elif bad == "mixed_scope":
+        observed[0]["recipe_sha256"] = "0" * 64
+    elif bad == "no_method":
+        observed[0]["content"] = observed[0]["content"].splitlines()[0]
+    else:
+        mapping = {"unknown_metric": ["r1"]}
+    with pytest.raises(ValueError, match="research_calculation_evidence_invalid"):
+        calculation_evidence(observed, mapping, methods_requirement_ids=["r4"])
+
+
+@pytest.mark.skipif(sys.platform != "darwin", reason="requires the original macOS kernel sandbox")
+def test_assembler_writes_actual_native_artifacts_with_unchanged_quality_gate(tmp_path):
+    from app.research_web.sandbox import SandboxConfig, run_script
+
+    contract, report, sources, observed = assembled_case(tmp_path / "expected")
+    store = Store(tmp_path / "native")
+    sid = store.create("fingpt", "证据格式原生验收")["id"]
+    directory = store.directory(sid)
+    shutil.copytree(
+        Path(__file__).parents[2] / "app/research_web/resources", directory / "resources"
+    )
+    code = (
+        "from research_report import calculation_evidence, write_research_report\n"
+        f"payload = {report!r}\n"
+        f"actual = {observed!r}\n"
+        "payload.update(calculation_evidence(actual, {'total_return':['r1'], 'max_drawdown':['r2'], 'terminal_scenario_return':['r3']}, methods_requirement_ids=['r4']))\n"
+        "paths = write_research_report('outputs', payload)\n"
+        "assert all(p.stat().st_size > 0 for p in paths.values())\n"
+        "print('NATIVE_EVIDENCE_ASSEMBLY_OK')\n"
+    )
+    result = run_script(SandboxConfig(store.root, Path(sys.executable)), directory, code)
+    assert result.status == "completed", result.stderr
+    assert "NATIVE_EVIDENCE_ASSEMBLY_OK" in result.stdout
+    actual = json.loads((directory / "outputs/research-report.json").read_text())
+    # The sandbox serializer has no authority: the original Host verifies actual observations.
+    assert assess_quality(contract, actual, sources, observed)["status"] == "passed"
+    actual["missing"] = ["真实未完成事项"]
+    assert assess_quality(contract, actual, sources, observed)["status"] == "incomplete"

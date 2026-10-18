@@ -1,5 +1,7 @@
 # 安全边界与验证方法
 
+calculation_evidence不建立信任，只序列化调用者提供的观测；Host仍从本会话实际输入独立复算并核对ID、数值、原句及冻结要求。伪造/外来观测、真实missing和缺失覆盖负向测试仍拒绝；helper不读写凭据或自动改写旧报告。
+
 CSV复算只接收受限data-only配方，无eval/exec/网络/任意路径。最多4配方、8价格列、100000行、每输入16MiB；拒绝bool、非有限/极端数字、非法UTF-8、宽松截断CSV、重复表头、缺失单元格与未知字段。按规范列序用固定Decimal精度复算；每次重验全文SHA，缓存仅有界结果，隔离用户根/session/task/算法。
 
 stage release-reservation 要求指定完整 CID/image/source 和已完成任务标识，复查原归属、停止状态与卷无其他容器引用。先归档回读原账本，失败保留预留；禁止用于 prod。
