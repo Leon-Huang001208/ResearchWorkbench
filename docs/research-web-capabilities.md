@@ -1,5 +1,7 @@
 # Research Web 能力包与版本
 
+实际业务证据的canonical_source、build_numeric_claim与evidence_section复用已打包报告资源，没有新Skill、Workflow、权限或Automation节点。对账/利率算术工具不是可信来源，调用成功不等于研究通过。
+
 calculation_evidence属于已打包的报告格式工具，模型在research_check_quality返回实际Host观测后显式调用；不新增可选能力、Skill/Workflow版本、Automation权限或模型补查预算，不把调用成功当质量通过。
 
 research_check_quality沿原权限与一次补查预算返回规范来源及独立计算观察，不增加可选能力或模型重试。data-only配方由Host复算后才可用于原identity数值验证；模型自写observations没有信任效力。Skill/Workflow/Automation准入保持。
