@@ -1,5 +1,7 @@
 # Changelog
 
+- 2026-10-19 报告恢复：支持精确Decimal参数和JSON操作数、准确来源定位，增加task/contract绑定的只读证据便利投影；Host独立评分及真实失败状态保持。
+
 本文件只记录用户可见的现役产品变化。实现过程、任务状态、架构评审流水和验收细节进入 `.ai/reports/`；2026-09-17 以前的完整历史流水保存在 [历史 Changelog](archive/history/changelog-through-2026-09-17.md)。
 
 格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)。仓库当前仍使用 `0.1.0` 包版本，因此未正式发布的变化统一记录在 `Unreleased`。

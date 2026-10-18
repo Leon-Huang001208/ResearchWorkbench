@@ -605,3 +605,10 @@ Host还可从本会话实际完整、严格UTF-8、单个不超过12000字节的
 原材料无法提供可核验的期间、单位、唯一数量（例如跨列表格、分数利率或文字计数）时，预检查不能把它们伪装成合格 quote。应保留未核验状态与真实缺口。宏观季调口径需同时读取表头，百分比水平与百分点变动分开；政策工具方向不得无依据扩写；治理建议和 not_assessed 不冒充组织实施证据。真实模型的内容、来源和计算声明仍需独立审查，文件下载 200 不是研究通过。
 
 Delivery先检查当前key；FINAL输出集合或字节变化后重新走原sandbox和发布后字节复验。不变的失败不隐式重试，取消/原生执行证明失败不能靠改文件恢复成功。report-versions只属于历史归档，不满足当前任务格式要求；解析中集合改变保留未验证/incomplete，绝不复用旧通过。
+
+
+### 受任务绑定的便利投影
+
+prepare_contract使用实际允许上传输入，在会话resources/research_evidence.json原子保存schema_version=1、task_id、contract_sha256、sources、observations；无quality、passed或模型设置，最大256000字节。未知资料可返回空观测。它可再生，不是业务数据迁移；旧会话文件不批量回写。SDK load_business_evidence要求固定合同标识并以相对路径只读，避免原生沙箱getcwd和手抄JSON错误。Host评分始终重读原始输入，不读取此副本；副本中伪造数据不能获得信任。
+
+source_references允许纯规范ID列表，或精确的“规范ID · 准确Host标题 · 定位”；定位不参与身份推断，错误标题/外来ID/file:文件名继续拒绝。定位本身的事实正确性仍需独立审查。Decimal参数的算术结果及claim操作数均序列化为精确字符串，不降低原数量、单位和quote约束。
