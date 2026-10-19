@@ -584,12 +584,17 @@
         ".github/workflows/research-web-bootstrap.yml",
         ".github/workflows/research-web-checks.yml",
         ".github/workflows/research-web-tabbit.yml",
-        ".github/workflows/research-web-windows-verify.yml"
+        ".github/workflows/research-web-windows-verify.yml",
+        "research_workbench_entrypoint/fingpt_compare.py",
+        "research_workbench_entrypoint/fingpt_compare_worker.py",
+        "research_workbench_entrypoint/fingpt_compare_node.mjs",
+        "research_workbench_entrypoint/fingpt_compare.html"
       ],
       "documents": [
         "docs/AGENT_WORKFLOW.md",
         "docs/DEVELOPMENT_MAP.md",
-        "docs/actions-budget.md"
+        "docs/actions-budget.md",
+        "docs/research-web-fingpt-comparison.md"
       ],
       "diagrams": [
         "08-iteration-docs"
@@ -599,7 +604,9 @@
         "tests/javascript/verification_receipt.test.mjs",
         "tests/javascript/verification_platform_task_entry.test.mjs",
         "tests/javascript/verification_delivery_summary.test.mjs",
-        "tests/javascript/actions_quota_governance.test.mjs"
+        "tests/javascript/actions_quota_governance.test.mjs",
+        "tests/research_web/test_fingpt_comparison.py",
+        "tests/javascript/research_web_fingpt_comparison.test.mjs"
       ]
     },
     {
@@ -3945,7 +3952,7 @@
   "reading": {
     "repository": {
       "url": "https://github.com/Leon-Huang001208/ResearchWorkbench",
-      "revision": "11c2b541aa03bd0eefd5e92921e0fd09b6ef94a5"
+      "revision": "977fe3bcd5af43f35f1f7c51e87a5ebff77a384c"
     },
     "levels": [
       {

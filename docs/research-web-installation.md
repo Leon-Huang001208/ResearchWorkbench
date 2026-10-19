@@ -4,6 +4,8 @@
 
 报告配方使用现有标准库及报告依赖，无新增安装项、用户配置、数据库迁移或模型配置格式。公开三入口和锁文件保持，最终候选仍需 macOS Bootstrap 干净安装证据；现有会话及模型凭据原位保留。
 
+FinGPT隔离比较不新增依赖或生产配置；测试模块随既有wheel携带但无自动启动入口。Lite设置仅写本次case的Keychain账户，Flash仅复用受管只读凭据调用；公开setup、锁文件、固定DSH和常驻服务保持。新控制器的打包/安装由同候选macOS Bootstrap验证。
+
 正文取证使用现有 Python 标准库及原私有回调，无新依赖或凭据设置。requirements/web.in、web.lock、setup_web.py 和 Mac Bootstrap 安装流程保持；新增模块须随 wheel 进入干净安装。正文读取与取消、版本回执元数据超出 resident 自动兼容范围，须经精确候选专项复核后在空闲门内切换，不扩大自动白名单或搬迁研究数据。
 
 本次质量修复只使用已具备的Python标准库及既有报告依赖，不新增依赖、数据库schema或模型配置。公开安装入口与requirements/web.in、web.lock、setup_web.py、Bootstrap保持；仍须由本机与最终候选macOS干净安装CI证明兼容，不能依赖开发环境推断。

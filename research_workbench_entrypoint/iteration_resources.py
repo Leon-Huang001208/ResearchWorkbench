@@ -4,11 +4,14 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.util
 import json
 import logging
+import marshal
 import os
 import re
 import shutil
+import struct
 import subprocess
 from pathlib import Path
 
@@ -126,7 +129,9 @@ def register_directory(root, path, kind):
     }
 
 
-def clean_dependencies(records, *, occupied=occupied, tracked=None, journal=None):
+def clean_dependencies(
+    records, *, occupied=occupied, tracked=None, journal=None, regenerations=None
+):
     tracked = tracked or (
         lambda row: bool(
             git(row["root"], "ls-files", "--", str(Path(row["path"]).relative_to(row["root"])))
@@ -146,6 +151,9 @@ def clean_dependencies(records, *, occupied=occupied, tracked=None, journal=None
                 current = register_directory(Path(row["root"]), path, row["kind"])
                 if current != row or occupied(path) or tracked(row):
                     raise ResourceError("closeout_dependency_changed_or_in_use")
+                regenerated = (regenerations or {}).get(str(path))
+                if regenerated and file_manifest(path) != regenerated["manifest"]:
+                    raise ResourceError("closeout_regenerated_contents_changed")
                 item["allocatedBytesBefore"] = (
                     int(subprocess.check_output(["du", "-sk", str(path)], text=True).split()[0])
                     * 1024
@@ -301,6 +309,120 @@ def task_resource_plan(inventory, protected, task):
     return plan
 
 
+def _private_proof(path):
+    info = path.lstat()
+    if (
+        path.is_symlink()
+        or not path.is_file()
+        or info.st_uid != os.getuid()
+        or info.st_mode & 0o077
+        or info.st_size > 16_000_000
+    ):
+        raise ResourceError("closeout_regeneration_proof_invalid")
+    return json.loads(path.read_text())
+
+
+def regenerated_directory(previous, current, state):
+    """Rebind only proven reclaimed bytecode or empty generated directories.
+
+    No general inode replacement or dependency adoption is permitted. The old
+    task journal remains the authority; the newly observed identity and every
+    bytecode hash are persisted before the normal cleanup performs any deletion.
+    """
+    if any(previous.get(key) != current.get(key) for key in ("root", "path", "kind")):
+        raise ResourceError("closeout_registered_directory_changed")
+    root, path = Path(current["root"]), Path(current["path"])
+    verified_manifest = {}
+    if occupied(root) or git(root, "status", "--porcelain", "--untracked-files=all"):
+        raise ResourceError("closeout_regenerated_root_changed_or_in_use")
+    if current["kind"] == "evidence":
+        target = state / "evidence" / hashlib.sha256(str(root).encode()).hexdigest()[:16]
+        manifest = _private_proof(target / "manifest.json")
+        if next(path.iterdir(), None) is not None or file_manifest(target / "logs") != manifest:
+            raise ResourceError("closeout_regenerated_evidence_unverified")
+        proof = target / "manifest.json"
+    else:
+        proof = state / "dependencies.json"
+        old = _private_proof(proof)
+        if not any(
+            item.get("path") == str(path) and item.get("status") == "reclaimed"
+            for item in old.get("items", [])
+        ):
+            raise ResourceError("closeout_regeneration_not_reclaimed")
+        if current["kind"] == "empty-directory":
+            if next(path.iterdir(), None) is not None:
+                raise ResourceError("closeout_regenerated_directory_not_empty")
+        elif current["kind"] == "dependency" and path.name == "__pycache__":
+            for cache in path.iterdir():
+                match = re.fullmatch(r"(.+)\.cpython-\d+(?:\.opt-([012]))?\.pyc", cache.name)
+                if cache.is_symlink() or not cache.is_file() or not match:
+                    raise ResourceError("closeout_regenerated_bytecode_unknown")
+                source = path.parent / (match.group(1) + ".py")
+                if (
+                    source.is_symlink()
+                    or not source.is_file()
+                    or not git(root, "ls-files", "--", str(source.relative_to(root)))
+                ):
+                    raise ResourceError("closeout_regenerated_source_untracked")
+                if cache.stat().st_size > 8_000_000 or source.stat().st_size > 2_000_000:
+                    raise ResourceError("closeout_regenerated_bytecode_invalid")
+                raw, original = cache.read_bytes(), source.read_bytes()
+                if len(raw) < 16 or raw[:4] != importlib.util.MAGIC_NUMBER:
+                    raise ResourceError("closeout_regenerated_bytecode_invalid")
+                flags = struct.unpack("<I", raw[4:8])[0]
+                if flags in (1, 3):
+                    valid = raw[8:16] == importlib.util.source_hash(original)
+                elif flags == 0:
+                    valid = struct.unpack("<II", raw[8:16]) == (
+                        int(source.stat().st_mtime) & 0xFFFFFFFF,
+                        len(original) & 0xFFFFFFFF,
+                    )
+                else:
+                    valid = False
+                if not valid:
+                    raise ResourceError("closeout_regenerated_bytecode_stale")
+                compiled = compile(
+                    original,
+                    str(source),
+                    "exec",
+                    dont_inherit=True,
+                    optimize=int(match.group(2) or 0),
+                )
+                expected = marshal.dumps(compiled)
+                if raw[16:] != expected:
+                    raise ResourceError("closeout_regenerated_bytecode_unknown")
+                verified_manifest[cache.name] = hashlib.sha256(raw).hexdigest()
+        else:
+            raise ResourceError("closeout_registered_directory_changed")
+    if file_manifest(path) != verified_manifest:
+        raise ResourceError("closeout_regenerated_contents_changed")
+    proof_bytes = proof.read_bytes()
+    digest = hashlib.sha256(proof_bytes).hexdigest()
+    directory = state / "regeneration-proofs"
+    directory.mkdir(mode=0o700, exist_ok=True)
+    if directory.is_symlink() or directory.stat().st_mode & 0o077:
+        raise ResourceError("closeout_regeneration_proof_invalid")
+    saved = directory / (digest + ".json")
+    if not saved.exists():
+        fd = os.open(saved, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+        with os.fdopen(fd, "wb") as stream:
+            stream.write(proof_bytes)
+            stream.flush()
+            os.fsync(stream.fileno())
+    _private_proof(saved)
+    if saved.read_bytes() != proof_bytes:
+        raise ResourceError("closeout_regeneration_proof_invalid")
+    value = {
+        "previous": previous,
+        "current": current,
+        "proof": str(saved),
+        "proof_sha256": digest,
+        "manifest": verified_manifest,
+    }
+    log.info("iteration_regenerated_directory_verified kind=%s", current["kind"])
+    return value
+
+
 def record_task(project, task):
     project, state, receipt = state_paths(project, task)
     ledger = state / "resources.json"
@@ -352,7 +474,11 @@ def record_task(project, task):
                     root, path, "evidence" if relative == "logs" else "dependency"
                 )
                 if str(path) in known and known[str(path)] != row:
-                    raise ResourceError("closeout_registered_directory_changed")
+                    binding = regenerated_directory(known[str(path)], row, state)
+                    old.setdefault("regenerations", {})[str(path)] = binding
+                    old.setdefault("regenerationHistory", []).append(binding)
+                    old["directories"][old["directories"].index(known[str(path)])] = row
+                    known[str(path)] = row
                 if str(path) not in known:
                     old["directories"].append(row)
         for relative in EMPTY_DIRECTORIES:
@@ -360,7 +486,11 @@ def record_task(project, task):
             if path.is_dir() and not path.is_symlink() and next(path.iterdir(), None) is None:
                 row = register_directory(root, path, "empty-directory")
                 if str(path) in known and known[str(path)] != row:
-                    raise ResourceError("closeout_registered_directory_changed")
+                    binding = regenerated_directory(known[str(path)], row, state)
+                    old.setdefault("regenerations", {})[str(path)] = binding
+                    old.setdefault("regenerationHistory", []).append(binding)
+                    old["directories"][old["directories"].index(known[str(path)])] = row
+                    known[str(path)] = row
                 if str(path) not in known:
                     old["directories"].append(row)
     write_receipt(ledger, old)
@@ -400,6 +530,7 @@ def closeout(project, task, policy):
         dependencies = clean_dependencies(
             ledger["directories"],
             journal=lambda result: write_receipt(state / "dependencies.json", result),
+            regenerations=ledger.get("regenerations", {}),
         )
         report["reclaimed"].extend(v for v in dependencies["items"] if v["status"] != "blocked")
         report["blocked"].extend(v for v in dependencies["items"] if v["status"] == "blocked")

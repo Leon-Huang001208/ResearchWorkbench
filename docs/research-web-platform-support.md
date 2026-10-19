@@ -1,5 +1,7 @@
 # Research Web 能力与平台证据
 
+FinGPT三组比较的真实模型、Keychain和进程组验证限定macOS；Linux通用离线夹具不等于Linux产品支持。Windows/Linux实际运行和CI交接保持NOT_RUN。本机实验不自动变更生产部署。
+
 stage 预留保全释放属于 Mac mini 管理平面，本机 Docker Desktop 单独验收；不认证 Windows/Linux 产品或跨平台原生支持。
 
 AI资讯自主化本轮在隔离实例接入原版API/worker与独立库，保持DSH研究执行及当前常驻内容。零调用和后续切换边界见[自主资讯合同](research-web-ai-news.md)。
