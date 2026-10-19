@@ -2,7 +2,7 @@
 import { constants } from 'node:fs';
 import { open, lstat, realpath } from 'node:fs/promises';
 import { basename, isAbsolute, join } from 'node:path';
-import { trustedDirectory } from './research-tools.mjs';
+import { trustedDirectory, trustedSearchActivities } from './research-tools.mjs';
 
 export const name = 'research-data-tools';
 export const inject = ['tools', 'sessions'];
@@ -46,6 +46,15 @@ const SAFE_ERROR_CODES = new Set([
   'automation_trial_conflict', 'automation_trial_unknown', 'automation_version_conflict',
   'automation_busy', 'automation_run_busy', 'automation_control_denied',
   'research_quality_contract_missing', 'research_quality_check_limit',
+  'research_report_version_binding_failed',
+  'research_source_target_denied', 'research_source_redirect_invalid',
+  'research_source_http_unavailable', 'research_source_content_unsupported',
+  'research_source_encoding_unsupported', 'research_source_size_limit',
+  'research_source_body_unavailable', 'research_source_redirect_limit',
+  'research_source_fetch_failed', 'research_source_integrity_failed',
+  'research_source_scope_denied', 'research_source_identity_unknown',
+  'research_source_count_limit', 'research_source_arguments_invalid',
+  'research_source_call_inactive',
 ]);
 
 function isDenseStringArray(value) {
@@ -158,6 +167,48 @@ export async function executeDocumentTool(ctx, exec, config, args) {
     redirect: 'error', credentials: 'omit', signal,
   });
   return boundedJson(response, signal);
+}
+
+/** Read only an identity registered by this native session's real search. */
+export async function executeResearchSource(ctx, exec, config, args) {
+  const cwd = await trustedDirectory(ctx, exec, config);
+  exec.signal.throwIfAborted();
+  const control = await privateControl(config.researchRoot);
+  if (!/^[a-zA-Z0-9_.-]{1,120}$/.test(exec.agent.session.header.id) || !/^[a-zA-Z0-9_.:-]{1,120}$/.test(exec.callId)) throw Error('Native call identity is invalid');
+  const identity = { session_id: basename(cwd), call_id: `${exec.agent.session.header.id}:${exec.callId}` };
+  const search_activities = await trustedSearchActivities(ctx, exec, config);
+  const signal = AbortSignal.any([exec.signal, AbortSignal.timeout(30000)]);
+  const headers = { 'Content-Type': 'application/json', 'X-Research-Data-Key': control.token };
+  let cancellation;
+  const cancel = () => cancellation ??= (async () => {
+    try {
+      const response = await fetch(control.url + '/api/research/internal/data/research-source/cancel', {
+        method: 'POST', headers, body: JSON.stringify(identity), redirect: 'error', credentials: 'omit', signal: AbortSignal.timeout(2500),
+      });
+      const result = await boundedJson(response, AbortSignal.timeout(2500));
+      if (result?.status !== 'cancelled') throw Error('cancel unverified');
+      return true;
+    } catch { ctx.logger.warn('research_source_cancel_unverified'); return false; }
+  })();
+  signal.addEventListener('abort', cancel, { once: true });
+  try {
+    signal.throwIfAborted();
+    const response = await fetch(control.url + '/api/research/internal/data/research-source', {
+      method: 'POST', headers, body: JSON.stringify({ ...args, ...identity, search_activities }),
+      redirect: 'error', credentials: 'omit', signal,
+    });
+    const value = await boundedJson(response, signal);
+    if (args.operation === 'list') {
+      if (!Array.isArray(value?.sources) || value.sources.length > 40) throw Error('research_source_response_invalid');
+    } else if (value?.source?.id !== args.source_id || value.observation_id !== args.source_id ||
+        typeof value.content !== 'string' || value.content.length > 24000 ||
+        !/^[a-f0-9]{64}$/.test(value.source.sha256 || '')) throw Error('research_source_response_invalid');
+    signal.throwIfAborted();
+    return value;
+  } catch (error) {
+    if (!(await cancel())) throw Error('research_source_cancel_unverified');
+    throw error;
+  } finally { signal.removeEventListener('abort', cancel); if (cancellation) await cancellation; }
 }
 
 /** Check Host-observed evidence; model arguments cannot control quality state. */

@@ -1,5 +1,9 @@
 # DataHub、研究资料与实际文件
 
+web_search 原生 Markdown Sources 清单与旧 JSON 均可登记，身份保持原始 title/url（含片段），state=search_summary 不含正文。Host 只按已登记 ID 读取公开 HTTPS，正文 inputs/web-<id>.txt 与会话 web_evidence 记录实际字节 SHA、最终URL和取得时间；模型不能写 inputs 或自报观测。质量检查重读并复验这些字节。
+
+每次检查把规范 outputs/research-report.json 的内容哈希与经核验的 JSON/HTML/DOCX/PDF 归档关联到具体检查 ID。同回合新版替换会产生新哈希和回执，旧版保持旧状态；历史 fallback 没有相符内容哈希时保持 incomplete，不借用最新报告的 passed。当前版不重复显示为历史，旁路 JSON 不成为规范报告。
+
 write_summary_workbook原子生成Summary的metric/value数值首表、完整空白分隔行及独立ExactValues；额外Facts/Notes等表不混入首表，列表单元格保存JSON且转义公式文本。CPI历史月值仅来自核对过的表头/同一行，百分点按Decimal复算；前月同比只接受完整肯定发布段落并核对本期表格。NIST仅提取原字节句，不认证译文/落地。
 
 可选calculations是数据配方，不是脚本或可信结果；Host只读取本会话允许inputs的实际全文字节并核对SHA，生成绑定用户根/session/task/算法/输入与配方摘要的观测。模型sources/coverage/notes仍由原门逐项核验，不自动改写。
