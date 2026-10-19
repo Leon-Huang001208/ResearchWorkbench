@@ -94,6 +94,7 @@ def test_actual_host_file_observations_reach_projection_and_verify_numeric_claim
 
     from app.research_web.research_evidence import evidence_index, report_projection
     from app.research_web.research_quality_service import observations
+    from app.research_web.store import Store
     from app.research_web.resources.research_report import write_research_report
     from app.research_web.store import Store
 
@@ -143,11 +144,15 @@ def test_actual_host_dataset_observation_identifier_is_accepted(tmp_path):
         detail=lambda sid, did: {"id": did},
         read=lambda sid, did, name: json.dumps({"quote": "存在经营不确定性。"}).encode(),
     )
-    actual = observations(
-        SimpleNamespace(datahub=SimpleNamespace(snapshots=snapshots)), "sid", [], [source]
-    )
+    store = Store(tmp_path / "data")
+    sid = store.create("fingpt", "Actual data scope")["id"]
+    store.session(sid)["source_scope"] = ["datahub"]
+    service = SimpleNamespace(store=store, datahub=SimpleNamespace(snapshots=snapshots))
+    actual = observations(service, sid, [], [source])
     assert actual[0]["id"] == "dataset:snapshot_abc"
     assert assess_quality(contract, report, [source], actual)["status"] == "passed"
+    store.session(sid)["source_scope"] = ["uploads"]
+    assert observations(service, sid, [], [source]) == []
 
 
 @pytest.mark.parametrize(
