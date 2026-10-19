@@ -13,6 +13,8 @@ from app.research_web import research_web_sources as reader
 from app.research_web.research_evidence import evidence_index
 from app.research_web.research_quality import assess_quality, make_contract
 from app.research_web.research_quality_service import observations
+from app.research_web.resources.research_report import source_id
+from app.research_web.store import Store, StoreError
 
 
 def test_web_provenance_classification_is_session_bound_and_rejects_changed_mapping(tmp_path):
@@ -41,10 +43,6 @@ def test_web_provenance_classification_is_session_bound_and_rejects_changed_mapp
     with pytest.raises(StoreError, match="公开来源正文暂不可核验") as exc:
         reader.upload_evidence_files(store, first, files)
     assert exc.value.code == "research_source_integrity_failed"
-
-
-from app.research_web.resources.research_report import source_id
-from app.research_web.store import Store, StoreError
 
 
 def test_actual_native_markdown_search_registers_exact_identity_without_certifying_body():
