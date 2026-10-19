@@ -6,6 +6,8 @@ research_web_sources.upload_evidence_files 依据 _stored_records 的会话登�
 
 本轮数据配方位于 resources/research_report_plan.py，经 runtime/research-tools.mjs 原 script 工具执行；service/quality_service 提供冻结绑定及有界实际观测索引。test_report_revision 覆盖旧 CPI 声明、NIST 真父来源、独立算术及双重恢复失败。research_quality.py 仅调整已核验原句与期间的删除顺序，判据保持。
 
+fingpt_compare.py/worker.py/node.mjs/html属于有限的隔离验收控制面：一次预约、受管凭据seam、48工具/6检索/900秒、逐组原始产物审计。测试test_fingpt_comparison.py及research_web_fingpt_comparison.test.mjs；不接入生产入口。iteration_resources只对有原回收证明、匹配tracked源码的真实pyc或空目录补登记新身份，保存旧新绑定及已验证manifest，未知内容阻止删除。
+
 公开正文入口为 research_web_sources.py、datahub/routes.py 的私有 research-source/list/read/cancel 与 runtime/research-tools.mjs；Markdown 检索身份解析在 research_evidence.py，真实输入字节观测和逐版本回执在 research_quality_service.py。定点回归 test_research_source_reading.py、test_research_report_binding.py 及 research_web_quality_tool.test.mjs 覆盖来源、取消、沙箱修订和旧版质量错绑；完整合同见 02–05 章。
 
 脚本故障回归：report_revision覆盖重复父来源、观测ID误用、完整斜杠来源与原子Summary写入；select_business_evidence将选择与映射合并且拒绝歧义。business_evidence覆盖CPI真实月列/百分点及完整肯定同比段落，NIST原文走原source_quote；service按冻结要求限定治理提示。research_quality.py规则未改。

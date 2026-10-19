@@ -1,0 +1,155 @@
+"""Regenerated dependency adoption remains derived, journaled and fail closed."""
+
+import tempfile
+import unittest
+from pathlib import Path
+from unittest.mock import patch
+
+from research_workbench_entrypoint.iteration_resources import (
+    ResourceError,
+    clean_dependencies,
+    regenerated_directory,
+    register_directory,
+)
+
+
+class RegenerationTests(unittest.TestCase):
+    def test_reclaimed_bytecode_can_rebind_but_new_contents_are_rechecked(self):
+        import py_compile
+
+        from research_workbench_entrypoint.docker_resources import write_receipt
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            state = root / "state"
+            state.mkdir(mode=0o700)
+            source = root / "example.py"
+            source.write_text("value=1\n")
+            py_compile.compile(str(source), doraise=True)
+            cache = root / "__pycache__"
+            before = register_directory(root, cache, "dependency")
+            clean_dependencies(
+                [before],
+                occupied=lambda _: False,
+                tracked=lambda _: False,
+                journal=lambda result: write_receipt(state / "dependencies.json", result),
+            )
+            py_compile.compile(str(source), doraise=True)
+            current = register_directory(root, cache, "dependency")
+            with (
+                patch(
+                    "research_workbench_entrypoint.iteration_resources.occupied", return_value=False
+                ),
+                patch(
+                    "research_workbench_entrypoint.iteration_resources.git",
+                    side_effect=lambda _, *args: "example.py" if args[0] == "ls-files" else "",
+                ),
+            ):
+                proof = regenerated_directory(before, current, state)
+            self.assertTrue(Path(proof["proof"]).is_file())
+            (cache / "business.txt").write_text("must keep")
+            result = clean_dependencies(
+                [current],
+                occupied=lambda _: False,
+                tracked=lambda _: False,
+                regenerations={str(cache): proof},
+            )
+            self.assertFalse(result["ok"])
+            self.assertTrue((cache / "business.txt").exists())
+
+    def test_rebinding_unknown_or_unreclaimed_dependency_remains_blocked(self):
+        from research_workbench_entrypoint.docker_resources import write_receipt
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            state = root / "state"
+            state.mkdir(mode=0o700)
+            dep = root / "node_modules"
+            dep.mkdir()
+            row = register_directory(root, dep, "dependency")
+            write_receipt(
+                state / "dependencies.json",
+                {"ok": True, "items": [{"path": str(dep), "status": "reclaimed"}]},
+            )
+            with (
+                patch(
+                    "research_workbench_entrypoint.iteration_resources.occupied", return_value=False
+                ),
+                patch("research_workbench_entrypoint.iteration_resources.git", return_value=""),
+                self.assertRaises(ResourceError),
+            ):
+                regenerated_directory(row, row, state)
+
+    def test_forged_bytecode_payload_is_preserved(self):
+        import py_compile
+
+        from research_workbench_entrypoint.docker_resources import write_receipt
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            state = root / "state"
+            state.mkdir(mode=0o700)
+            source = root / "example.py"
+            source.write_text("value=1\n")
+            filename = Path(py_compile.compile(str(source), doraise=True))
+            filename.write_bytes(filename.read_bytes()[:16] + b"not a derived bytecode payload")
+            cache = root / "__pycache__"
+            row = register_directory(root, cache, "dependency")
+            write_receipt(
+                state / "dependencies.json",
+                {"ok": True, "items": [{"path": str(cache), "status": "reclaimed"}]},
+            )
+            with (
+                patch(
+                    "research_workbench_entrypoint.iteration_resources.occupied", return_value=False
+                ),
+                patch(
+                    "research_workbench_entrypoint.iteration_resources.git",
+                    side_effect=lambda _, *args: "example.py" if args[0] == "ls-files" else "",
+                ),
+                self.assertRaisesRegex(ResourceError, "bytecode_unknown"),
+            ):
+                regenerated_directory(row, row, state)
+            self.assertTrue(filename.exists())
+
+    def test_new_unknown_file_cannot_enter_verified_regeneration_manifest(self):
+        import py_compile
+
+        from research_workbench_entrypoint.docker_resources import write_receipt
+        from research_workbench_entrypoint.iteration_resources import file_manifest
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            state = root / "state"
+            state.mkdir(mode=0o700)
+            source = root / "example.py"
+            source.write_text("value=1\n")
+            py_compile.compile(str(source), doraise=True)
+            cache = root / "__pycache__"
+            row = register_directory(root, cache, "dependency")
+            write_receipt(
+                state / "dependencies.json",
+                {"ok": True, "items": [{"path": str(cache), "status": "reclaimed"}]},
+            )
+
+            def raced_manifest(path):
+                if Path(path) == cache:
+                    (cache / "business.txt").write_text("must keep")
+                return file_manifest(path)
+
+            with (
+                patch(
+                    "research_workbench_entrypoint.iteration_resources.occupied", return_value=False
+                ),
+                patch(
+                    "research_workbench_entrypoint.iteration_resources.git",
+                    side_effect=lambda _, *args: "example.py" if args[0] == "ls-files" else "",
+                ),
+                patch(
+                    "research_workbench_entrypoint.iteration_resources.file_manifest",
+                    side_effect=raced_manifest,
+                ),
+                self.assertRaisesRegex(ResourceError, "contents_changed"),
+            ):
+                regenerated_directory(row, row, state)
+            self.assertTrue((cache / "business.txt").exists())
