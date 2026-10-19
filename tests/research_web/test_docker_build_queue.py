@@ -359,3 +359,35 @@ def test_success_requires_own_verified_cleanup_marker(manager):
     entry.chmod(0o755)
     job = {"job_id": "a" * 64, "task_id": "dsh-task", "source_sha": "a" * 40, "refresh": False}
     assert manager.run_build(job, manager.project) == (1, "builder_cleanup_incomplete")
+
+
+def test_archived_entry_script_is_used_instead_of_mutable_worktree(tmp_path, monkeypatch):
+    project = tmp_path / "project"
+    project.mkdir()
+    git = "/usr/bin/git" if sys.platform == "darwin" else "git"
+
+    def run(*args):
+        return subprocess.check_output([git, "-C", str(project), *args], text=True).strip()
+
+    run("init", "-q")
+    entry = project / "rwb-docker"
+    entry.write_text("#!/bin/sh\necho queue_builder_cleanup=stopped\nexit 0\n")
+    entry.chmod(0o755)
+    run("add", "rwb-docker")
+    run(
+        "-c",
+        "user.name=Queue Test",
+        "-c",
+        "user.email=queue@example.invalid",
+        "commit",
+        "-qm",
+        "fixture",
+    )
+    subject = queue.BuildQueue(tmp_path / "home", project)
+    subject.initialize()
+    sha = subject.source()
+    entry.write_text("#!/bin/sh\nexit 99\n")
+    monkeypatch.setattr(subject, "artifact_valid", lambda _: True)
+    assert subject.execute(
+        {"job_id": "a" * 64, "task_id": "dsh-task", "source_sha": sha, "refresh": False}
+    ) == (0, "completed")
