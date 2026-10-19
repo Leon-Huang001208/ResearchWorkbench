@@ -94,7 +94,6 @@ def test_actual_host_file_observations_reach_projection_and_verify_numeric_claim
 
     from app.research_web.research_evidence import evidence_index, report_projection
     from app.research_web.research_quality_service import observations
-    from app.research_web.store import Store
     from app.research_web.resources.research_report import write_research_report
     from app.research_web.store import Store
 
@@ -134,6 +133,7 @@ def test_actual_host_dataset_observation_identifier_is_accepted(tmp_path):
     from types import SimpleNamespace
 
     from app.research_web.research_quality_service import observations
+    from app.research_web.store import Store
 
     contract, report, _ = example()
     source = {"id": "dataset:snapshot_abc", "title": "经营资料"}
