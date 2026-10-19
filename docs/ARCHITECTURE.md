@@ -1,5 +1,9 @@
 # Research Workbench 架构总览
 
+管理员Docker构建队列复用原rwb-docker、operation.lock与既有心跳；它不属于业务API或新常驻调度器。
+容量观察与硬上限准入分离，提交归档固定构建输入，持久请求/完成回执支持中断对账；12GiB配置与实机负载验收独立。
+命令及安全边界见[Docker手册](research-web-docker.md#12-gib-与持久构建队列)。
+
 AI资讯采用固定原版AIHOT API与worker、独立PostgreSQL和Host私有桥；默认关闭采集、推理和付费源，从自主库重新起刊。隔离验收不导入线上历史，不更新常驻内容；DSH继续是唯一研究执行引擎，Hot宏观及研究证据保留，重叠AI信源在未来真实闭环验收后的显式切换事务中交接。详见[自主资讯合同](research-web-ai-news.md)。
 
 可选私网多用户模式由独立认证网关和 SQLite 账号库组成，管理员邀请用户通过固定 Tailscale HTTPS origin 登录。网关按已认证 UUID 惰性启动独立 Web/DSH pair，各自持有数据根、状态、端口、内部密钥及凭据命名空间；DSH 仍是唯一研究引擎。首版仅 macOS Native，默认最多两个驻留实例且不自动驱逐；同 UID 的受信后端不是 OS 租户安全边界。账号与部署合同见[安装指南](research-web-installation.md#私网邀请制多用户macos-native)及[安全边界](architecture/research-web/05-security-validation.md#私网邀请制账号与执行边界)。

@@ -1,5 +1,8 @@
 # Research Web 能力与平台证据
 
+Docker持久构建队列本轮负责macOS管理员入口；离线安全测试不表示Docker冷构建、12GiB配置或30分钟负载已通过。
+后者各自绑定实机证据；Windows/Linux原生及exact-SHA产品dispatch继续交接对应设备，不从Mac发起。
+
 stage 预留保全释放属于 Mac mini 管理平面，本机 Docker Desktop 单独验收；不认证 Windows/Linux 产品或跨平台原生支持。
 
 AI资讯自主化本轮在隔离实例接入原版API/worker与独立库，保持DSH研究执行及当前常驻内容。零调用和后续切换边界见[自主资讯合同](research-web-ai-news.md)。

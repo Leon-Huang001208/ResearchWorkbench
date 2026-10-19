@@ -1,5 +1,10 @@
 # Research Web Native / Docker 安装与运行
 
+可选Docker持久构建队列使用安装器已有Python3.12标准库和Git，不新增包或修改web.in/web.lock/setup_web.py。
+原纯Docker入口不依赖宿主Python；新增capacity/build --wait/resume缺少Python时明确queue_python_unavailable，不自动安装。
+Docker上限12GiB需独立授权和安全重启后实测，公开Native干净安装仍由原macOS Bootstrap验收。
+详见[Docker手册](research-web-docker.md#12-gib-与持久构建队列)。
+
 本次质量修复只使用已具备的Python标准库及既有报告依赖，不新增依赖、数据库schema或模型配置。公开安装入口与requirements/web.in、web.lock、setup_web.py、Bootstrap保持；仍须由本机与最终候选macOS干净安装CI证明兼容，不能依赖开发环境推断。
 
 管理员 stage 停止仍保留容量；已完成任务仅通过 Docker 手册的 release-reservation 精确身份入口释放预留，容器和卷保留。公开安装与凭据初始化合同不变。
