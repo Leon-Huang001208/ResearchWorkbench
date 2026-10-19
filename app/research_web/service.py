@@ -2201,10 +2201,13 @@ class ResearchService:
                     except (RuntimeFailure, StoreError) as exc:
                         view["result_error"] = exc.code
                 result["automation_runs"].append(view)
+        from .research_web_sources import stored_sources, upload_evidence_files
+
         result["research_sources"] = evidence_index(
-            result["files"], result["datasets"], result["activities"]
+            upload_evidence_files(self.store, sid, result["files"]),
+            result["datasets"],
+            result["activities"],
         )
-        from .research_web_sources import stored_sources
 
         indexed = result["research_sources"]
         source_map = {}

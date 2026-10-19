@@ -1,5 +1,9 @@
 # 脚本、数值声明与业务证据修复
 
+主线前进至 PR143 后，在本任务集成中保留其真实正文读取及逐版本质量绑定。交汇评审发现 P1：Host 网页落盘被再次登记成无日期上传别名，可丢失 web scope/截止日；新增真实 Host 落盘端到端用例先红，来源分类修复后通过。分类依据会话 web_evidence 的 id/path/file_id/Store 映射，不按文件名前缀；统一覆盖服务清单、上下文、观测、评分及业务索引/快照，保留真实日期及所有旧文件。跨会话同路径和损坏登记拒绝也已回归。
+
+旧候选636的 API 首轮900秒超时保留，随后完整202覆盖通过；主线刷新后436的四分片202也通过，但该候选仍因上述 P1 不批准。两次检查均只代表各自 SHA，不能替代新修复候选验证；新候选仍待完整验收、CI、合并、部署及新授权真实模型批次。
+
 <!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"互斥报告数据参数复用原DSH脚本准入及Host检查，无新服务或HTTP端点，严格质量判据保留","diagrams":[]} -->
 <!-- architecture-review {"group":"files","structure":"unchanged","reason":"原会话outputs内暂存六格式并保留旧版本与失败恢复副本，不迁移会话或改变下载校验链","diagrams":[]} -->
 <!-- architecture-review {"group":"automations","structure":"unchanged","reason":"数据配方只在原研究回合执行，无新增调度节点、模型循环、补查次数或日程权限","diagrams":[]} -->

@@ -7613,6 +7613,7 @@ Imports:
 - `research_business_evidence`
 - `research_evidence`
 - `research_quality`
+- `research_web_sources`
 - `resources.research_report`
 - `resources.research_report_plan`
 - `store`
@@ -7680,6 +7681,10 @@ Functions:
   - Validate every redirect and pin every returned address before connecting.
 - `fetch_document`
   - No proxy, credentials, cookies, executable content, or unbounded redirects.
+- `_stored_records`
+  - Validate Host provenance before classifying any input as an upload.
+- `upload_evidence_files`
+  - Host-fetched inputs keep their web identity, even when web scope is disabled.
 - `stored_sources`
   - Only Host metadata and unchanged owned input bytes can certify acquisition.
 - `fetch_owned_document`

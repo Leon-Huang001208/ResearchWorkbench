@@ -13,6 +13,36 @@ from app.research_web import research_web_sources as reader
 from app.research_web.research_evidence import evidence_index
 from app.research_web.research_quality import assess_quality, make_contract
 from app.research_web.research_quality_service import observations
+
+
+def test_web_provenance_classification_is_session_bound_and_rejects_changed_mapping(tmp_path):
+    store = Store(tmp_path / "data")
+    first = store.create("fingpt", "Host fetched source")["id"]
+    second = store.create("fingpt", "Unrelated upload")["id"]
+    wid = source_id("https://example.org/source")
+    relative = "inputs/web-" + wid[4:] + ".txt"
+    for sid in [first, second]:
+        (store.directory(sid) / relative).write_text("Actual source bytes", encoding="utf-8")
+        store.files(sid)
+    fid = hashlib.sha256(relative.encode()).hexdigest()[:24]
+    record = {
+        "id": wid,
+        "path": relative,
+        "file_id": fid,
+        "sha256": hashlib.sha256(b"Actual source bytes").hexdigest(),
+    }
+    store.session(first)["web_evidence"] = {wid: record}
+    assert reader.upload_evidence_files(store, first, store.files(first)) == []
+    assert [f["id"] for f in reader.upload_evidence_files(store, second, store.files(second))] == [
+        fid
+    ]
+    files = store.files(first)
+    store.session(first)["files"][fid] = "inputs/changed.txt"
+    with pytest.raises(StoreError, match="公开来源正文暂不可核验") as exc:
+        reader.upload_evidence_files(store, first, files)
+    assert exc.value.code == "research_source_integrity_failed"
+
+
 from app.research_web.resources.research_report import source_id
 from app.research_web.store import Store, StoreError
 
