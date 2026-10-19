@@ -323,6 +323,7 @@
         "app/research_web/research_evidence.py",
         "app/research_web/research_quality.py",
         "app/research_web/research_quality_service.py",
+        "app/research_web/research_web_sources.py",
         "app/research_web/research_calculations.py",
         "app/research_web/research_business_evidence.py"
       ],
@@ -351,7 +352,9 @@
         "tests/research_web/test_research_business_evidence.py",
         "tests/research_web/test_delivery_cache.py",
         "tests/research_web/test_research_quality_scope.py",
-        "tests/research_web/test_report_revision.py"
+        "tests/research_web/test_report_revision.py",
+        "tests/research_web/test_research_source_reading.py",
+        "tests/research_web/test_research_report_binding.py"
       ]
     },
     {
@@ -2812,6 +2815,20 @@
     },
     {
       "method": "POST",
+      "path": "/api/research/internal/data/research-source",
+      "source": "app/research_web/datahub/routes.py",
+      "declaredPath": "/internal/data/research-source",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/internal/data/research-source/cancel",
+      "source": "app/research_web/datahub/routes.py",
+      "declaredPath": "/internal/data/research-source/cancel",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "POST",
       "path": "/api/research/internal/data/skill-preflight",
       "source": "app/research_web/datahub/routes.py",
       "declaredPath": "/internal/data/skill-preflight",
@@ -3928,7 +3945,7 @@
   "reading": {
     "repository": {
       "url": "https://github.com/Leon-Huang001208/ResearchWorkbench",
-      "revision": "c0b50dd549d51cbb9223b4819234e1378bd0160d"
+      "revision": "11c2b541aa03bd0eefd5e92921e0fd09b6ef94a5"
     },
     "levels": [
       {

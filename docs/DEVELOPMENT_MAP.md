@@ -2,6 +2,8 @@
 
 本轮数据配方位于 resources/research_report_plan.py，经 runtime/research-tools.mjs 原 script 工具执行；service/quality_service 提供冻结绑定及有界实际观测索引。test_report_revision 覆盖旧 CPI 声明、NIST 真父来源、独立算术及双重恢复失败。research_quality.py 仅调整已核验原句与期间的删除顺序，判据保持。
 
+公开正文入口为 research_web_sources.py、datahub/routes.py 的私有 research-source/list/read/cancel 与 runtime/research-tools.mjs；Markdown 检索身份解析在 research_evidence.py，真实输入字节观测和逐版本回执在 research_quality_service.py。定点回归 test_research_source_reading.py、test_research_report_binding.py 及 research_web_quality_tool.test.mjs 覆盖来源、取消、沙箱修订和旧版质量错绑；完整合同见 02–05 章。
+
 脚本故障回归：report_revision覆盖重复父来源、观测ID误用、完整斜杠来源与原子Summary写入；select_business_evidence将选择与映射合并且拒绝歧义。business_evidence覆盖CPI真实月列/百分点及完整肯定同比段落，NIST原文走原source_quote；service按冻结要求限定治理提示。research_quality.py规则未改。
 
 Git安全备份：`scripts/git_safety.mjs`保持原Git交付、完整恢复及v1读取边界，`scripts/git_backup_store.mjs`提供独立v2共享pack/文件载荷、元数据seal、备份锁及原子迁移。普通恢复点按7天和最新2个有效点轮转，未归并/未提交/活动/隔离及独有锚点保留；不维护活动Git对象。恢复、复用、损坏拒绝、迁移中断与轮转回归位于`tests/javascript/git_safety.test.mjs`，仍由原Project Constraints步骤执行。入口与保留合同见[Agent任务指南](AGENT_WORKFLOW.md#去重备份迁移与自动轮转2026-10-19)。

@@ -1,5 +1,7 @@
 # Research Web 能力包与版本
 
+research_read_source 只暴露 list/read 与来源 ID，不接受调用方 URL、正文、会话或凭据。原生插件从本会话真实完成的搜索事件同步有界身份清单，Host 按来源范围核对；读取的实际正文保存在本会话只读 inputs，并绑定 SHA-256。继承原模型工具准入与48次工具硬预算，取消经同一原生 call_id 传达；不授予浏览器登录、DataHub 或任意宿主网络权限。
+
 脚本资源提供select_business_evidence(bundle,{准确id或唯一metric或metric@period:[要求ID]})，将选择与映射一起校验；evidence_section统一返回空numeric_claims，父来源重复项去重，business_观测ID不得冒充来源。write_summary_workbook分开数值Summary、ExactValues和说明表；render_markdown保留完整规范报告与缺口。所有函数仅格式化，不授予可信观察或质量结论。CPI可用真实历史月列/精确百分点；NIST可用实际原文句，中文推断仍独立核验。
 
 报告资源新增load_business_evidence读取当前task/contract的便利投影，避免手抄大段观测；并不签发质量结论。Decimal计算结果和claim操作数保存为精确JSON字符串；来源定位格式只在真实ID和准确标题核对后接受。无新工具权限或模型重试。

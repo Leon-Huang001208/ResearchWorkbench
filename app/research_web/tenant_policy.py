@@ -21,6 +21,8 @@ _CALLBACKS = frozenset(
         "/api/research/internal/data/business-query",
         "/api/research/internal/data/skill-preflight",
         "/api/research/internal/data/research-quality",
+        "/api/research/internal/data/research-source",
+        "/api/research/internal/data/research-source/cancel",
         "/api/research/internal/data/cancel",
         "/api/research/internal/data/model-connection",
         "/api/research/internal/data/document-operation",

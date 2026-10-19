@@ -241,6 +241,22 @@ def observations(service, sid, files, sources, *, task_id="", contract_sha=""):
                 scope=str(service.store.root) + ":" + sid + ":" + task_id + ":" + contract_sha,
             )
         )
+    for source in sources[:300]:
+        if source.get("id", "").startswith("web:") and source.get("file_id"):
+            stream, _ = service.store.open_file(sid, source["file_id"])
+            with stream:
+                raw = stream.read(800001)
+            if len(raw) > 800000 or hashlib.sha256(raw).hexdigest() != source.get("sha256"):
+                raise StoreError("来源正文完整性检查失败", "research_source_integrity_failed", 409)
+            result.append(
+                {
+                    "id": source["id"],
+                    "source_id": source["id"],
+                    "content": raw.decode("utf-8", errors="strict"),
+                    "sha256": source["sha256"],
+                }
+            )
+            continue
     for source in sources[:40]:
         if not source.get("id", "").startswith("dataset:"):
             continue
@@ -358,6 +374,52 @@ def quality_result(service, sid, receipt, files, sources, delivery=None):
     }
 
 
+def receipt_archives(receipt):
+    """Each same-turn revision keeps the quality checked by the Host for its bytes."""
+    result = []
+    for item in receipt.get("quality_archives", {}).values():
+        anchor = item["anchor"]
+        checked = receipt.get("quality_checks", {}).get(item.get("check_id"), {})
+        digest = next(
+            (f["sha256"] for f in anchor.get("files", []) if f["name"] == "research-report.json"),
+            None,
+        )
+        quality = (
+            checked
+            if digest and checked.get("report_content_sha256") == digest
+            else {"status": "incomplete", "issues": ["report_version_quality_unbound"]}
+        )
+        result.append((anchor, quality))
+    anchor = receipt.get("quality_archive")
+    if anchor and not any(a["version_id"] == anchor["version_id"] for a, _ in result):
+        digest = next(
+            (f["sha256"] for f in anchor.get("files", []) if f["name"] == "research-report.json"),
+            None,
+        )
+        checked = receipt.get("quality_last_result", {})
+        quality = (
+            checked
+            if digest and checked.get("report_content_sha256") == digest
+            else {"status": "incomplete", "issues": ["report_version_quality_unbound"]}
+        )
+        result.append((anchor, quality))
+    return result
+
+
+def current_report_digest(service, sid):
+    fid = hashlib.sha256(b"outputs/research-report.json").hexdigest()[:24]
+    if service.store.session(sid).get("files", {}).get(fid) != "outputs/research-report.json":
+        return None
+    try:
+        stream, _ = service.store.open_file(sid, fid)
+        with stream:
+            raw = stream.read(2_000_001)
+        return hashlib.sha256(raw).hexdigest() if len(raw) <= 2_000_000 else None
+    except (OSError, StoreError):
+        log.warning("research_current_report_digest_unavailable")
+        return None
+
+
 def quality_versions(service, sid):
     versions = list_report_versions(service.store.directory(sid) / "outputs")
     records = {
@@ -366,23 +428,36 @@ def quality_versions(service, sid):
         if key.startswith(sid + ":") and item.get("research_contract")
     }
     trusted = []
+    current_digest = current_report_digest(service, sid)
     for version in versions:
         if "task_id" not in version or version.get("quality") == "invalid":
             raise StoreError("历史报告完整性检查未通过", "research_report_version_changed", 409)
         receipt = records.get(version["task_id"], {})
-        anchor = receipt.get("quality_archive")
-        if not anchor or version.get("version_id") != anchor.get("version_id"):
+        matched = next(
+            (
+                (anchor, quality)
+                for anchor, quality in receipt_archives(receipt)
+                if version.get("version_id") == anchor.get("version_id")
+            ),
+            None,
+        )
+        if matched is None:
             continue
+        anchor, quality = matched
         if any(
             version.get(key) != anchor.get(key)
             for key in ("version_id", "directory", "files", "missing_artifacts", "missing_formats")
         ):
             raise StoreError("历史报告完整性检查未通过", "research_report_version_changed", 409)
-        version["quality"] = receipt.get("quality_last_result", {"status": "incomplete"})
+        if any(
+            item["name"] == "research-report.json" and item["sha256"] == current_digest
+            for item in version.get("files", [])
+        ):
+            continue
+        version["quality"] = quality
         trusted.append(version)
     for item in records.values():
-        anchor = item.get("quality_archive")
-        if anchor:
+        for anchor, _quality in receipt_archives(item):
             path = service.store.directory(sid) / "outputs" / anchor["directory"]
             if path.is_symlink() or not path.is_dir():
                 raise StoreError("历史报告版本缺失", "research_report_version_missing", 409)
@@ -394,10 +469,10 @@ def archive_digest(service, sid, relative):
     for key, receipt in service.store.data["receipts"].items():
         if not key.startswith(sid + ":"):
             continue
-        anchor = receipt.get("quality_archive") or {}
-        for item in anchor.get("files", []):
-            if relative == "outputs/" + anchor["directory"] + "/" + item["stored_name"]:
-                return item["sha256"]
+        for anchor, _quality in receipt_archives(receipt):
+            for item in anchor.get("files", []):
+                if relative == "outputs/" + anchor["directory"] + "/" + item["stored_name"]:
+                    return item["sha256"]
     raise StoreError("历史报告归属未确认", "research_report_version_unverified", 409)
 
 
@@ -436,17 +511,44 @@ async def check_quality(service, sid):
             and bool(substantive)
             and receipt.get("quality_repair_count", 0) == 0
         )
-        if may_repair:
-            receipt["quality_repair_count"] = 1
         result.update(
-            repair_count=receipt.get("quality_repair_count", 0),
+            repair_count=1 if may_repair else receipt.get("quality_repair_count", 0),
             may_repair=may_repair,
             report_sha256=identity,
+            report_content_sha256=(report or {}).get("content_sha256"),
         )
         # A bounded ledger cannot turn repeated checks into renewed repair grants.
         if len(checks) >= 32:
             raise StoreError("本轮质量检查次数已满", "research_quality_check_limit", 409)
+        anchor = None
+        if report and result["status"] != "invalid" and result["report_content_sha256"]:
+            try:
+                anchor = archive_report_version(
+                    service.store.directory(sid) / "outputs",
+                    receipt["research_contract"]["task_id"],
+                )
+                digest = next(
+                    item["sha256"]
+                    for item in anchor["files"]
+                    if item["name"] == "research-report.json"
+                )
+                if digest != result["report_content_sha256"]:
+                    raise ValueError("research_report_changed_during_binding")
+            except (OSError, ValueError, StopIteration, TypeError):
+                log.warning("research_report_version_binding_failed", session_id=sid)
+                raise StoreError(
+                    "报告版本绑定失败，未记录验收通过",
+                    "research_report_version_binding_failed",
+                    409,
+                ) from None
+        if may_repair:
+            receipt["quality_repair_count"] = 1
         checks[identity] = result
+        if anchor:
+            receipt.setdefault("quality_archives", {})[anchor["version_id"]] = {
+                "anchor": anchor,
+                "check_id": identity,
+            }
         receipt["quality_last_result"] = result
         service.store.save()
         log.info(

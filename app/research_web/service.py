@@ -1896,7 +1896,13 @@ class ResearchService:
             scope["visible_tools"] = list(
                 dict.fromkeys(["todo_write", *automation_scope["approved_tools"]])
             )
-        web_tools = {"web_search", "web_fetch", "tabbit_browser", "datahub_search_web"}
+        web_tools = {
+            "web_search",
+            "web_fetch",
+            "tabbit_browser",
+            "datahub_search_web",
+            "research_read_source",
+        }
         excluded_source = (
             tool_name
             and tool_name.startswith("datahub_")
@@ -1917,7 +1923,7 @@ class ResearchService:
             declared
             and tool_name
             and (
-                tool_name in {"web_search", "web_fetch", "tabbit_browser"}
+                tool_name in {"web_search", "web_fetch", "tabbit_browser", "research_read_source"}
                 or tool_name.startswith("mcp__")
             )
         ):
@@ -2198,6 +2204,18 @@ class ResearchService:
         result["research_sources"] = evidence_index(
             result["files"], result["datasets"], result["activities"]
         )
+        from .research_web_sources import stored_sources
+
+        indexed = result["research_sources"]
+        source_map = {}
+        for source in [
+            *stored_sources(self.store, sid),
+            *[source for source in indexed if not source["id"].startswith("web:")],
+            *reversed(row.get("web_search_sources", [])),
+            *indexed,
+        ]:
+            source_map.setdefault(source["id"], source)
+        result["research_sources"] = list(source_map.values())[:300]
         result["approvals"] = [
             {"id": key, "title": value["toolName"], "detail": value.get("reason", "需要授权")}
             for key, value in self.approvals.items()
@@ -2817,7 +2835,11 @@ class ResearchService:
             if (depth == "deep" or contract) and required:
                 prompt += (
                     "\n深入研究：先用 todo_write 建立并维护真实计划，先取证再写结论。"
-                    "仅复用可用 DataHub、web_search 和当前附件，未获取全文的网页只标为检索摘要。"
+                    "仅复用可用 DataHub、web_search 和当前附件，未获取正文的网页只标为检索摘要。"
+                    "网页检索后调用research_read_source(operation='list')取得Host登记的准确id/title/url，"
+                    "再用operation='read',source_id=准确id取得公开正文及只读inputs路径。"
+                    "禁止改写来源title/url或去掉URL片段后重算id；引用返回的准确身份。"
+                    "正文读取失败保留缺口，不能用搜索摘要或模型记忆替代。"
                     "通过 research_run_script 调用 resources 中的 from research_report import write_research_report, source_id。"
                     "write_research_report('outputs', payload) 生成页面/Word/PDF及结构化底稿。"
                     "payload 必须包含 task_id、title、as_of(YYYY-MM-DD)、required_sections(报告必须覆盖的标题列表)、"

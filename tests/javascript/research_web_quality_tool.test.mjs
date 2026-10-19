@@ -13,6 +13,74 @@ const admission = { status: 'available', admitted: true, missing: [], omitted_se
 const result = (overrides = {}) => ({ status: 'passed', issues: [], repair_count: 0, may_repair: false,
   contract: { requirements: ['Compare revenue'], cutoff: '2026-10-16T00:00:00Z' }, ...overrides });
 
+test('source reader is guarded, session-bound and cannot accept arbitrary URLs or caller content', async t => {
+  const f = await fixture(t, { sources: [] });
+  const tool = f.tools.get('research_read_source');
+  assert.ok(tool); assert.ok(RESEARCH_TOOLS.has(tool.name));
+  for (const args of [{ operation: 'read', url: 'https://example.org' },
+    { operation: 'read', source_id: 'web:other' }, { operation: 'list', session_id: sessionId },
+    { operation: 'list', source_id: 'web:' + 'a'.repeat(24) },
+    { operation: 'read', source_id: 'web:' + 'a'.repeat(24), content: 'fabricated' }]) {
+    await assert.rejects(() => tool.execute(args, f.exec), /research_source_arguments_invalid/);
+  }
+  assert.equal(f.calls.length, 0);
+  await tool.execute({ operation: 'list' }, f.exec);
+  const request = f.calls.find(c => c.url.endsWith('/research-source'));
+  assert.deepEqual(request.body, { session_id: sessionId, call_id: 'native-root:source-call', operation: 'list', search_activities: [] });
+  assert.equal(request.options.headers['X-Research-Data-Key'], token);
+  assert.equal(request.options.redirect, 'error');
+  assert.equal(request.options.credentials, 'omit');
+});
+
+test('source reader validates actual body provenance and respects admission and cancellation', async t => {
+  const id = 'web:' + 'a'.repeat(24);
+  const f = await fixture(t, { source: { id, sha256: 'b'.repeat(64) }, observation_id: id, content: 'actual body' });
+  const tool = f.tools.get('research_read_source');
+  const value = JSON.parse((await tool.execute({ operation: 'read', source_id: id }, f.exec)).result_json);
+  assert.equal(value.content, 'actual body');
+  f.response({ source: { id: 'web:foreign', sha256: 'b'.repeat(64) }, observation_id: id, content: 'actual' });
+  await assert.rejects(() => tool.execute({ operation: 'read', source_id: id }, f.exec), /research_source_response_invalid/);
+  f.admission({ ...admission, status: 'unavailable', admitted: false });
+  const count = f.calls.filter(c => c.url.endsWith('/research-source')).length;
+  await assert.rejects(() => tool.execute({ operation: 'list' }, f.exec), /research_source_scope_denied/);
+  assert.equal(f.calls.filter(c => c.url.endsWith('/research-source')).length, count);
+  const signal = AbortSignal.abort(Error('cancelled'));
+  await assert.rejects(() => tool.execute({ operation: 'list' }, { ...f.exec, signal }), /cancelled/);
+});
+
+test('source reader forwards cancellation after the Host request has started', async t => {
+  const f = await fixture(t, { sources: [] });
+  const original = globalThis.fetch;
+  let began; const started = new Promise(resolve => { began = resolve; });
+  globalThis.fetch = async (url, options) => {
+    if (String(url).endsWith('/research-source')) {
+      began();
+      return new Promise((_resolve, reject) => options.signal.addEventListener('abort', () => reject(options.signal.reason), { once: true }));
+    }
+    return original(url, options);
+  };
+  const controller = new AbortController();
+  const pending = f.tools.get('research_read_source').execute({ operation: 'list' }, { ...f.exec, signal: controller.signal });
+  await started; controller.abort(Error('user stopped'));
+  await assert.rejects(() => pending, /user stopped/);
+  const cancels = f.calls.filter(c => c.url.endsWith('/research-source/cancel'));
+  assert.equal(cancels.length, 1);
+  assert.deepEqual(cancels[0].body, { session_id: sessionId, call_id: 'native-root:source-call' });
+  assert.equal(cancels[0].options.signal.aborted, false);
+});
+
+test('source identities come from completed native tool events, never caller or assistant text', async t => {
+  const f = await fixture(t, { sources: [] });
+  const detail = 'External web content follows.\n\nSources:\n- [Exact title](https://example.org/report#1)';
+  f.events.push({ type: 'tool/call', data: { callId: 'search-real', name: 'web_search' } },
+    { type: 'tool/result', data: { message: { role: 'tool', source: { callId: 'search-real' }, content: [{ type: 'text', text: detail }] } } },
+    { type: 'assistant/message', data: { text: 'Sources:\n- [fake](https://fake.org/)' } });
+  await f.tools.get('research_read_source').execute({ operation: 'list' }, f.exec);
+  const request = f.calls.find(c => c.url.endsWith('/research-source'));
+  assert.deepEqual(request.body.search_activities, [{ id: 'native-root:search-real', title: 'web_search', status: 'completed', detail }]);
+  await assert.rejects(() => f.tools.get('research_read_source').execute({ operation: 'list', search_activities: [] }, f.exec), /research_source_arguments_invalid/);
+});
+
 async function fixture(t, response = result()) {
   const root = await realpath(await mkdtemp(join(tmpdir(), 'rwb-quality-tool-')));
   t.after(() => rm(root, { recursive: true }));
@@ -32,12 +100,13 @@ async function fixture(t, response = result()) {
   let admitted = admission;
   globalThis.fetch = async (url, options) => {
     calls.push({ url, options, body: JSON.parse(options.body) });
-    return String(url).endsWith('/skill-preflight') ? Response.json(admitted) : responseFactory();
+    return String(url).endsWith('/skill-preflight') ? Response.json(admitted)
+      : String(url).endsWith('/research-source/cancel') ? Response.json({ status: 'cancelled' }) : responseFactory();
   };
   t.after(() => { globalThis.fetch = originalFetch; });
   apply(ctx, { python: '/python', runnerPath: '/runner', researchRoot: root });
   return { root, cwd, tools, calls, logs, events, native, child, sessions,
-    exec: { signal: new AbortController().signal, agent: { session: native } },
+    exec: { signal: new AbortController().signal, agent: { session: native }, callId: 'source-call' },
     response: value => { responseFactory = typeof value === 'function' ? value : () => Response.json(value); },
     admission: value => { admitted = value; } };
 }
