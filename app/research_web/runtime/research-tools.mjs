@@ -13,6 +13,26 @@ let scriptRunning = false;
 let scriptPoisoned = false;
 const scriptWaiters = [];
 
+export function reportPlanCode(plan, context) {
+  if (!context || typeof context !== 'object' || Array.isArray(context) ||
+      Object.keys(context).sort().join(',') !== 'as_of,contract_sha256,requirement_ids,task_id' ||
+      typeof context.task_id !== 'string' || !/^[a-f0-9]{24}$/.test(context.task_id) ||
+      typeof context.contract_sha256 !== 'string' || !/^[a-f0-9]{64}$/.test(context.contract_sha256) ||
+      typeof context.as_of !== 'string' || !context.as_of || context.as_of.length > 100 ||
+      !Array.isArray(context.requirement_ids) || !context.requirement_ids.length || context.requirement_ids.length > 100 ||
+      new Set(context.requirement_ids).size !== context.requirement_ids.length ||
+      !context.requirement_ids.every(id => typeof id === 'string' && /^[A-Za-z0-9_-]{1,80}$/.test(id))) {
+    throw Error('research_report_contract_unverified');
+  }
+  if (!plan || typeof plan !== 'object' || Array.isArray(plan) || Buffer.byteLength(JSON.stringify(plan)) > 32000) {
+    throw Error('research_report_plan_limit');
+  }
+  const encode = value => Buffer.from(JSON.stringify(value), 'utf8').toString('base64');
+  const code = `import base64,json\nfrom research_report_plan import write_business_report_plan\n_context=json.loads(base64.b64decode('${encode(context)}'))\n_plan=json.loads(base64.b64decode('${encode(plan)}'))\nprint(json.dumps(write_business_report_plan(_context,_plan),ensure_ascii=False))\n`;
+  if (Buffer.byteLength(code) > 65536) throw Error('research_report_plan_limit');
+  return code;
+}
+
 function releaseScriptSlot() {
   if (!scriptRunning) return;
   scriptRunning = false;
@@ -259,14 +279,26 @@ export function apply(ctx, config, spawnProcess = spawn, admissionClient = defau
   });
   ctx.tools.register({
     name: 'research_run_script',
-    description: 'Run Python in this research session using known relative paths only: read inputs/resources; write outputs/tmp. Do not call os.getcwd(), Path.resolve(), Path.absolute(), absolute-path conversion, or directory enumeration. Network, host files, and subprocesses are unavailable. After PermissionError use known relative paths directly; never repeat denied directory introspection.',
-    parameters: { type: 'object', properties: { code: { type: 'string', description: 'Nonempty Python source, at most 65536 UTF-8 bytes; enforced before execution.' } }, required: ['code'], additionalProperties: false },
+    description: 'For business reports prefer report_plan: nominate actual business observation IDs or unique metric@period, requirement IDs, and explicit display precision. Fixed sandbox code assembles exact numeric claims, parent citations, notes, Markdown/HTML/Word/PDF and Summary/Controls; it never grants quality or hides analysis/missing. No task/hash/path/status arguments. Alternatively run bounded Python code using known relative inputs/resources and outputs/tmp. Do not call os.getcwd(), Path.resolve(), Path.absolute(), absolute-path conversion, or directory enumeration. Network, host files, and subprocesses are unavailable. After PermissionError use known relative paths directly; never repeat denied directory introspection.',
+    parameters: { type: 'object', properties: {
+      code: { type: 'string', description: 'Nonempty Python source, at most 65536 UTF-8 bytes; mutually exclusive with report_plan.' },
+      report_plan: { type: 'object', description: 'At most 32000 UTF-8 bytes and 40 total evidence references. Use actual evidence inventory; unknown/ambiguous references reject. Unverified analysis/proposals remain in Host-scored text.', properties: {
+        title: { type: 'string' },
+        sections: { type: 'array', maxItems: 40, items: { type: 'object', properties: { id: {type:'string'}, heading:{type:'string'}, evidence_ids:{type:'array',items:{type:'string'}}, requirement_ids:{type:'array',items:{type:'string'}}, analysis:{type:'string',description:'Optional author analysis; independent evidence still required.'} }, required:['id','heading','evidence_ids','requirement_ids'], additionalProperties:false } },
+        summary: { type:'array', items:{type:'object',properties:{metric:{type:'string',description:'Requested workbook metric alias.'},observation_id:{type:'string'},decimal_places:{type:'integer',minimum:0,maximum:12},calculation:{type:'array',description:'Required for derived metrics: independently recalculate from extracted primitive observation IDs, never reference the expected derived observation. Earlier steps use $id. Final result must match the Host target at declared display precision. Defaults only extract raw observations or recount records.',maxItems:16,items:{type:'object',properties:{id:{type:'string'},operation:{type:'string',enum:['identity','abs','sum','difference','ratio','percent_change','basis_points']},operands:{type:'array',maxItems:8,items:{type:'string'}}},required:['id','operation','operands'],additionalProperties:false}}},required:['metric','observation_id','decimal_places'],additionalProperties:false} },
+        controls: { type:'array', items:{type:'object',properties:{observation_id:{type:'string',description:'Selected actual control_text observation, not a source ID.'},evidence_needed:{type:'string'},proposed_owner:{type:'string'}},required:['observation_id','evidence_needed','proposed_owner'],additionalProperties:false} },
+        missing: {type:'array',items:{type:'string'},description:'Preserve actual unresolved work; never clear gaps to pass.'},
+      }, required:['title','sections','summary','missing'],additionalProperties:false },
+    }, oneOf:[{required:['code']},{required:['report_plan']}], additionalProperties: false },
     output: {
       schema: { type: 'object', properties: { status: { type: 'string' }, stdout: { type: 'string' }, stderr: { type: 'string' }, exit_code: { oneOf: [{ type: 'integer' }, { type: 'null' }] }, error: { oneOf: [{ type: 'string' }, { type: 'null' }] } }, required: ['status', 'stdout', 'stderr', 'exit_code', 'error'], additionalProperties: false },
       render(_args, value) { return [{ type: 'text', text: JSON.stringify(value) }]; },
     },
     async execute(args, exec) {
-      if (!args || Object.keys(args).length !== 1 || typeof args.code !== 'string' || !args.code.trim() || Buffer.byteLength(args.code) > 65536) throw new Error('research script accepts only bounded code');
+      const codeMode = args && Object.keys(args).length === 1 && typeof args.code === 'string' && args.code.trim() && Buffer.byteLength(args.code) <= 65536;
+      const planMode = args && Object.keys(args).length === 1 && args.report_plan && typeof args.report_plan === 'object' && !Array.isArray(args.report_plan);
+      if (!codeMode && !planMode) throw new Error('research script accepts only bounded code or a data report_plan');
+      let code = codeMode ? args.code : undefined;
       exec.signal.throwIfAborted();
       const release = await acquireScriptSlot(exec.signal, queueWaitSeconds, ctx.logger);
       if (release === null) return { status: 'failed', stdout: '', stderr: '', exit_code: null, error: 'runtime_busy' };
@@ -277,6 +309,10 @@ export function apply(ctx, config, spawnProcess = spawn, admissionClient = defau
         const scope = await admissionClient(ctx, { ...exec, name: 'research_run_script' }, config);
         if (!scope.admitted || !Array.isArray(scope.read_paths) || scope.read_paths.length > 320 ||
             !scope.read_paths.every(path => typeof path === 'string' && /^(resources\/capabilities\/[a-z0-9_-]+\/[1-9][0-9]*|inputs\/datasets\/[0-9a-f-]{36})$/.test(path))) throw Error('research_script_scope_unverified');
+        if (planMode) {
+          code = reportPlanCode(args.report_plan, scope.report_context);
+          ctx.logger.info('research_script_report_plan outcome=assembled');
+        }
         ctx.logger.info('research_script_run outcome=started');
         return await new Promise((resolveResult, reject) => {
         const child = spawnProcess(config.python, ['-I', '-S', '-B', config.runnerPath, '--research-root', config.researchRoot, '--python', config.python, '--session', cwd, '--timeout', String(timeoutSeconds), '--max-output', String(maxOutputBytes)], {
@@ -345,7 +381,7 @@ export function apply(ctx, config, spawnProcess = spawn, admissionClient = defau
             resolveResult(result);
           } catch { ctx.logger.error('research_script_protocol_failed'); reject(new Error('research supervisor returned an invalid response')); }
         });
-        child.stdin.end(JSON.stringify({ code: args.code, read_paths: scope.read_paths }));
+        child.stdin.end(JSON.stringify({ code, read_paths: scope.read_paths }));
         if (exec.signal.aborted) onAbort();
         });
       } finally {

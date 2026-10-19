@@ -20,6 +20,26 @@ def observed(text, name="a"):
     }
 
 
+def test_business_prompt_index_remains_bounded_and_obeys_source_scope(tmp_path):
+    import json
+    from types import SimpleNamespace
+
+    from app.research_web.research_quality import make_contract
+    from app.research_web.research_quality_service import business_prompt_index
+    from app.research_web.store import Store
+
+    store = Store(tmp_path / "data")
+    sid = store.create("fingpt", "business index")["id"]
+    (store.directory(sid) / "inputs/cpi.md").write_text(CPI)
+    contract = make_contract("a" * 24, "Actual CPI", ["Facts"], "2026-10-19", "quick")
+    result = business_prompt_index(SimpleNamespace(store=store), sid, contract)
+    assert result["total"] >= 40 and len(json.dumps(result, ensure_ascii=False).encode()) <= 24000
+    assert all(row["source_ids"] and "preview_truncated" in row for row in result["observations"])
+    assert not {"passed", "coverage", "quality"} & result.keys()
+    store.session(sid)["source_scope"] = ["datahub"]
+    assert business_prompt_index(SimpleNamespace(store=store), sid, contract)["observations"] == []
+
+
 def test_initial_business_snapshot_is_readable_without_literal_copying(tmp_path, monkeypatch):
     import json
     from types import SimpleNamespace

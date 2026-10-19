@@ -7609,6 +7609,7 @@ Imports:
 - `research_evidence`
 - `research_quality`
 - `resources.research_report`
+- `resources.research_report_plan`
 - `store`
 
 Functions:
@@ -7617,6 +7618,8 @@ Functions:
   - Freeze requirements before sending; continuation preserves original obligations.
 - `write_business_snapshot`
   - Publish a read-only convenience projection; scoring always rereads inputs.
+- `business_prompt_index`
+  - Bounded discovery data from permitted bytes, never a coverage verdict.
 - `ensure_quality_scope`
   - A read-only worker cannot publish a verdict for a superseded task.
 - `source_context`
@@ -7720,6 +7723,35 @@ Functions:
   - Render the complete canonical payload, including genuine gaps, as text.
 - `render_pdf`
 - `write_research_report`
+
+
+## `app/research_web/resources/research_report_plan.py`
+
+Module docstring:
+> Data-only report assembly in the original sandbox; never a quality verdict.
+
+Imports:
+- `decimal`
+- `hashlib`
+- `json`
+- `logging`
+- `os`
+- `pathlib`
+- `re`
+- `uuid`
+
+Functions:
+- `_object`
+- `_text`
+- `_resolve`
+- `_input_number`
+  - Use extracted primitives; independently recount the two bounded record sets.
+- `_summary_calculation`
+  - Independent bounded arithmetic from primitives, not the target derived value.
+- `build_business_report_plan`
+  - Assemble nominated evidence and unverified analysis, preserving every gap.
+- `write_business_report_plan`
+  - Stage all formats, preserve old canonical versions, publish JSON last.
 
 
 ## `app/research_web/runtime_auth.py`

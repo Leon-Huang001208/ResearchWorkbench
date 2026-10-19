@@ -11,6 +11,7 @@ from .research_business_evidence import business_observations
 from .research_evidence import report_projection
 from .research_quality import make_contract
 from .resources.research_report import archive_report_version, list_report_versions
+from .resources.research_report_plan import EXTRACTED_METRICS
 from .store import StoreError
 
 log = get_logger(__name__)
@@ -108,6 +109,43 @@ def write_business_snapshot(service, sid, contract):
         log.warning("research_evidence_snapshot_failed", error_type=type(exc).__name__)
         raise StoreError(
             "研究证据投影暂不能安全准备", "research_evidence_snapshot_failed", 409
+        ) from None
+
+
+def business_prompt_index(service, sid, contract):
+    """Bounded discovery data from permitted bytes, never a coverage verdict."""
+    from .research_quality import _valid_contract
+
+    try:
+        if not _valid_contract(contract):
+            raise ValueError("business_index_contract_changed")
+        scope = service.store.session(sid).get("source_scope", ["uploads", "datahub", "web"])
+        files = service.store.files(sid) if "uploads" in scope else []
+        rows = observations(
+            service, sid, files, [], task_id=contract["task_id"], contract_sha=contract["sha256"]
+        )
+        rows = [r for r in rows if r.get("kind") in {"business_numeric", "business_quote"}]
+        rows.sort(key=lambda r: r["kind"] != "business_numeric" and r["metric"] != "control_text")
+        result = {"observations": [], "total": len(rows), "omitted": 0}
+        for row in rows:
+            preview = row["content"].split("\n", 1)[0]
+            item = {k: row[k] for k in ("id", "metric", "period", "value", "heading", "kind")}
+            item["source_ids"] = row["source_ids"]
+            item["calculation_required"] = (
+                row["kind"] == "business_numeric" and row["metric"] not in EXTRACTED_METRICS
+            )
+            item.update(preview=preview[:160], preview_truncated=len(preview) > 160)
+            result["observations"].append(item)
+            if len(json.dumps(result, ensure_ascii=False).encode()) > 23900:
+                result["observations"].pop()
+                break
+        result["omitted"] = len(rows) - len(result["observations"])
+        log.info("research_business_index_prepared", observation_count=len(result["observations"]))
+        return result
+    except (OSError, ValueError, TypeError, KeyError, StoreError) as exc:
+        log.warning("research_business_index_failed", error_type=type(exc).__name__)
+        raise StoreError(
+            "研究证据索引暂不能安全准备", "research_business_index_failed", 409
         ) from None
 
 

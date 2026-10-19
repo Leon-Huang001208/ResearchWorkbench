@@ -1,5 +1,7 @@
 # DataHub、研究资料与实际文件
 
+resources/research_report_plan.py 在原沙箱将数据配方组装为 JSON、Markdown、HTML、Word、PDF、Summary 工作簿。Summary 派生值须从摘录原值独立按 Decimal 96 位执行有界步骤，显式展示精度只核对工作簿；ExactValues 与 Calc 保留原值/完整过程，不用 Host 派生参考值回填。NIST Controls 的 source_ref 仅取真实父文件 ID，建议及 not_assessed 不认证实施状态。六格式先暂存、归档旧版，再最后发布 JSON；回滚先撤下新 JSON，全部恢复后最后恢复旧 JSON，恢复失败保留私有恢复副本并保持 canonical 缺失。
+
 write_summary_workbook原子生成Summary的metric/value数值首表、完整空白分隔行及独立ExactValues；额外Facts/Notes等表不混入首表，列表单元格保存JSON且转义公式文本。CPI历史月值仅来自核对过的表头/同一行，百分点按Decimal复算；前月同比只接受完整肯定发布段落并核对本期表格。NIST仅提取原字节句，不认证译文/落地。
 
 可选calculations是数据配方，不是脚本或可信结果；Host只读取本会话允许inputs的实际全文字节并核对SHA，生成绑定用户根/session/task/算法/输入与配方摘要的观测。模型sources/coverage/notes仍由原门逐项核验，不自动改写。

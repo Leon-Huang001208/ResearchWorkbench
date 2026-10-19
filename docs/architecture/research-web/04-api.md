@@ -1,5 +1,7 @@
 # Research Web 接口清单
 
+research_run_script 接受且仅接受 code 或 report_plan 其中一项；report_plan 是有界 JSON，无任意代码、路径、来源身份或评分覆盖字段。既有 private nativeAdmission 仅对合法冻结合同返回 report_context（task_id、contract_sha256、as_of、requirement_ids），浏览器/模型不能提供可信绑定。不增加 HTTP 端点，research_check_quality 与 invalid 下载 409 不变。
+
 新增select_business_evidence、write_summary_workbook与render_markdown均为原沙箱Python资源函数，不新增API。source_references额外接受完整file:24位十六进制ID的斜杠连接，仍逐项核对Host身份；不接受路径、文件名或未知ID。evidence_section输出统一四列表，重复父来源去重且不修改正文可信状态。
 
 load_business_evidence(task_id,contract_sha256)与source_references(value,Host sources)只是已打包Python资源函数，不增加HTTP/RPC。前者读取本回合便利投影，后者接受规范ID或“规范ID · 准确Host标题 · 定位”，不从文件名/定位猜来源。Host评分不读取投影文件。
