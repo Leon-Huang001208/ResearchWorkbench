@@ -1,5 +1,7 @@
 # Research Workbench 架构总览
 
+三组FinGPT对照是默认关闭的本机验收控制器，源码快照、Host、凭据namespace及研究数据均隔离；仅测试侧适配模型接入和预算，不合并或部署原Node引擎。详见[实验合同](research-web-fingpt-comparison.md)。
+
 正文读取复用原生研究工具与私有 Host 回调：仅接受本会话登记来源 ID，固定公共 DNS 地址并验证 TLS，有限读取进程在取消或总时限到达时回收。它不执行研究计划；DSH 仍是唯一研究引擎。Host 对规范报告实际字节建立版本与检查结果的精确关联，不能把另一版本的 passed 沿用给当前或历史报告。
 
 AI资讯采用固定原版AIHOT API与worker、独立PostgreSQL和Host私有桥；默认关闭采集、推理和付费源，从自主库重新起刊。隔离验收不导入线上历史，不更新常驻内容；DSH继续是唯一研究执行引擎，Hot宏观及研究证据保留，重叠AI信源在未来真实闭环验收后的显式切换事务中交接。详见[自主资讯合同](research-web-ai-news.md)。

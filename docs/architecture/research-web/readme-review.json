@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "updated",
-  "summary": "公开来源正文读取、准确来源登记与报告版本回执绑定",
-  "reason": "README已补充来源正文和版本能力；两个私有回调、有限HTTP进程与来源/版本边界同步02至05，DSH唯一引擎及原质量门保持。"
+  "summary": "默认关闭的FinGPT隔离比较与可恢复资源收尾",
+  "reason": "README链接独立实验合同，明确不更改生产引擎及部署；未取得真实模型和跨平台证据不标通过。"
 }

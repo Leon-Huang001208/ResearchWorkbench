@@ -1,5 +1,7 @@
 # Mac mini Docker 开发与独立部署
 
+本轮FinGPT三组比较只在macOS隔离Native实例执行，不调整Docker服务、VM或生产数据。资源收尾仅在既有锁与任务证明下认领重新生成的匹配源码字节码或空目录；未知目录和正在运行的构建仍阻止回收。
+
 AI资讯自主化本轮在隔离实例接入原版API/worker与独立库，保持DSH研究执行及当前常驻内容。零调用和后续切换边界见[自主资讯合同](research-web-ai-news.md)。
 
 私网邀请制多用户的 `rwb server` 首版只运行 macOS Native，不装入本页 Docker 管理链，也不复用 dev/stage/prod 卷、身份账本或 Native 个人数据。Docker 原单用户安装/健康/凭据合同保留；本轮账号或隔离测试不认证 Docker 多用户与 Linux 原生支持。服务器使用方式及同 UID 信任限制见[安装指南](research-web-installation.md#私网邀请制多用户macos-native)。

@@ -1,0 +1,65 @@
+# FinGPT 三组隔离比较（macOS）
+
+这是经用户授权、有限次数的本机实验控制器，不是生产研究引擎、常驻更新器或自动模型探针。
+生产 FinGPT/Claw 继续使用 DSH；实验不合并原分支，不更改生产会话、设置、网关或 Tailscale。
+
+## 冻结的实验
+
+| 组 | 产品源码 | 执行方式与模型 |
+| --- | --- | --- |
+| A | `0c3391cc27784d4b820a910124c121bf9faf4fbd` | 原 DSH、现有 DeepSeek Flash |
+| B | `267a8b0b1e327a407595b35709055841edb53d75` | 原 FinGPT Node、同一 Flash；仅模型接入与实验限额适配 |
+| C | 同 B | 原 FinGPT Node、用户配置的 Lite MiMo |
+
+原题与 SHA 从本机旧实验的 `initial.json` 冻结，研究截止日为2026-10-16。
+每组仅一个初始请求，全部配置就绪后 A→B→C 串行执行。900秒上限内预留10秒退出窗口，
+最多48次实际工具执行、6次检索、一次补查；20次工具目标另行评估。
+原生 `datahub_search_*` 与原版新闻检索共享六次额度，不按不同工具名各给六次。
+原版提示词、规划、工具结果及输出格式保持；A/B不是纯引擎因果实验，接口协议、原生工具和提示词差异必须披露。
+
+## 准备与访问
+
+在已有产品 Python 和 Node24.19 环境运行，不安装新依赖：
+
+```sh
+python -m research_workbench_entrypoint.fingpt_compare prepare --root PRIVATE_CASE --project REPOSITORY
+python -m research_workbench_entrypoint.fingpt_compare serve --root PRIVATE_CASE --port 8097
+```
+
+`PRIVATE_CASE`必须是本任务私有目录，拒绝生产数据根和未知既有内容。prepare只从精确Git对象导出代码子树，
+不复制开发工作区、数据库或凭据；排除与执行无关的测试、文档和历史产物，记录提交和归档哈希。
+两个依赖锁必须完全相同。日志在该目录的logs/，结果在results/，研究数据在groups/A、B、C下。
+
+必须先完成离线验证与独立评审，将四个控制器文件的实际SHA256绑定到本机review.json，才能启动设置服务和真实序列。
+浏览器一次性grant由本机私有文件交给浏览器，在URL fragment中兑换HttpOnly、SameSite=Strict Cookie后立即清除地址片段。
+不在聊天中发送grant或模型key；不开放公网或改生产路由。未通过认证的访问只能读取静态设置页。
+
+Lite模型ID和key仅由用户在隔离设置页输入。key进入该case独立系统凭据命名空间；模型ID可持久化，
+响应只有脱敏状态，不生成明文.env.local。保存设置不调用模型。启动按钮只预约一次真实序列；刷新不补发。
+缺凭据、来源变动、评审不匹配、端口占用或活动归属未知均BLOCKED，不自动更换模型或重试研究。
+
+## 凭据和执行边界
+
+A保留原DeepSeek provider，隔离overlay仅将凭据入口绑定到测试只读shim：只允许固定Flash ref的describe/resolve，
+set/unset及任意namespace均拒绝。旧adapter的writable元数据保持协议兼容，实际写操作由shim硬拒绝。
+B/C的provider key只进入受管私有子进程管道与client内存配置，不进入process.env、工具子进程、argv、URL、日志或结果。
+只读取生产Keychain的固定Flash账户，不读取生产会话；Lite写入和读取的始终是独立case账户。
+
+隔离研究页面为只读查看用途，写请求必须有本任务私有runner认证；原生工具回调仍由原Host的Data key校验。
+端口先保留，随后验证监听PID确为本任务进程。进程组包括父进程已退出的后代，核验UID、Session和启动时间；
+deadline独立于主HTTP轮询，TERM后有界升级KILL并确认整个owned group退出。未知进程不接管、不强停。
+
+## 验收和展示
+
+模型事件、工具实际执行/拒绝、首次内容、耗时和供应商真实usage分开记录；usage缺失不能记为零或估算成功。
+fetch审计只克隆实际响应，不改返回给模型的数据；正文保留URL、取得时间、类型和内容哈希，超限及失败如实登记。
+统一外部验收只读原始产物，检查来源归属、发布日期、期间单位、Decimal复算、覆盖、笔记引用、实际文件和版本关系。
+原版缺HTML/DOCX、质量回执、版本绑定时记缺项；独立审查未执行保持NOT_RUN，旁路转换不能变成原生交付。
+提供真实页面截图、过程和原始报告；三组各一次只能作初步比较。质量未通过、不可得和完整性失败不得被页面“完成”覆盖。
+
+## 收尾
+
+原有备份迁移自然完成前不删锁或终止任务。管理入口只允许重新登记已证明被本任务回收、之后又生成的
+匹配tracked源码的字节码及空目录；原回收/归档证明、旧新身份和逐文件hash永久保留。
+非字节码内容、未知node_modules/venv、更改中的文件、未验证的旧证据和活跃进程继续阻止清理。
+实验研究数据、用户配置、报告和恢复材料保留；临时进程与可再生源码缓存按明确归属回收。

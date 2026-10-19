@@ -86,6 +86,7 @@ jobs:
           .venv/bin/python -m pytest \
             tests/research_web/test_protocol.py \
             tests/research_web/test_fingpt_dsh_fusion.py \
+            tests/research_web/test_fingpt_comparison.py \
             tests/research_web/test_research_quality.py \
             tests/research_web/test_research_calculations.py \
             tests/research_web/test_research_business_evidence.py \

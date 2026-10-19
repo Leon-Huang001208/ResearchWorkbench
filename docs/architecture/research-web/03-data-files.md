@@ -1,5 +1,7 @@
 # DataHub、研究资料与实际文件
 
+比较case的数据和产物不进入生产会话。只克隆实际取得的响应作审计，不回填模型证据；预览/下载和归档分别核对实际字节。缺原生格式、版本或质量回执保留缺项，辅助审计文件不冒充原生交付。
+
 web_search 原生 Markdown Sources 清单与旧 JSON 均可登记，身份保持原始 title/url（含片段），state=search_summary 不含正文。Host 只按已登记 ID 读取公开 HTTPS，正文 inputs/web-<id>.txt 与会话 web_evidence 记录实际字节 SHA、最终URL和取得时间；模型不能写 inputs 或自报观测。质量检查重读并复验这些字节。
 
 每次检查把规范 outputs/research-report.json 的内容哈希与经核验的 JSON/HTML/DOCX/PDF 归档关联到具体检查 ID。同回合新版替换会产生新哈希和回执，旧版保持旧状态；历史 fallback 没有相符内容哈希时保持 incomplete，不借用最新报告的 passed。当前版不重复显示为历史，旁路 JSON 不成为规范报告。
