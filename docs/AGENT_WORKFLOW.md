@@ -1,5 +1,10 @@
 # Agent 任务路由指南
 
+管理员长构建使用rwb-docker build --wait --task-id TASK（DSH冷刷新另加--refresh-dsh），exit75保留waiting_resources。
+既有15分钟续跑执行resume --next；只恢复同仓已登记请求，notify=false静默，不重建任务/worktree/PR或重复已验构建。
+capacity --json是真只读入口，禁止用build --help探测。清理、stage预留、未知锁和12GiB宿主维护边界保持。
+新增纯标准库队列测试进入现有Research Web Checks同一job，不扩平台dispatch；Mac实机与安装CI分别认证。
+
 业务摘录证据回归复用 Research Web Checks 现有 Python 步骤，新增 test_research_business_evidence.py；无新 job、runner、依赖或平台 dispatch。真实四用户模型复验独立于离线及安装检查，按授权冻结版本与任务，保留原质量门和会话配置。
 
 多用户常驻附接的离线绑定、保全及 kernel boot 恢复测试复用既有 Research Web Checks 同一 Python 步骤；精确源码交付之后另做 Mac mini 私有部署与真实双账号隔离验收，不把 CI 或登录成功等同模型生成。
