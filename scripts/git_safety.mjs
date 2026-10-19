@@ -6,6 +6,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import {spawnSync} from 'node:child_process';
 import {fileURLToPath, pathToFileURL} from 'node:url';
+import {withBackupLock, repositoryKey, fingerprint, findReusable, convertToV2, finishMigration, readManifest, materializeV2, hydrateV2, listPoints, sweepPayloads, fileHash} from './git_backup_store.mjs';
 
 const CONTROLLER = path.join(os.homedir(), '.agents/leon-engineering/runtime/iteration-delivery.mjs');
 const FORBIDDEN = new Set(['gc', 'prune', 'repack', 'maintenance', 'prune-packed']);
@@ -322,16 +323,21 @@ function restoreFileMode(scratch, restored, item, rawArtifact) {
     if (after.nlink !== 1 || (after.mode & 0o777) !== item.mode || !afterPath || afterPath.isSymbolicLink() || afterPath.nlink !== 1 || afterPath.ino !== after.ino || afterPath.dev !== after.dev) fail('RESTORE_FILE_INVALID');
   } finally { if (fd !== undefined) fs.closeSync(fd); }
 }
-function restoreBackup(directory, manifest, options) {
+function restoreBackup(directory, manifest, options, storedDirectory = directory) {
   const scratch = fs.mkdtempSync(path.join(directory, '.restore-'));
   const bare = path.join(scratch, 'restored.git');
   try {
     command(selectGitPath(options), ['-c', 'gc.auto=0', '-c', 'maintenance.auto=false', 'init', '--bare', bare]);
-    git(bare, ['bundle', 'verify', path.join(directory, 'commits.bundle')], options);
-    git(bare, ['bundle', 'unbundle', path.join(directory, 'commits.bundle')], options);
-    const packFd = fs.openSync(path.join(directory, 'objects.pack'), 'r');
-    try { git(bare, ['index-pack', '--stdin'], options, {inputFd: packFd}); }
-    finally { fs.closeSync(packFd); }
+    if(manifest.schemaVersion===2) hydrateV2(storedDirectory,manifest,bare);
+    else {
+      if(!manifest.objectOnly) {
+        git(bare, ['bundle', 'verify', path.join(directory, 'commits.bundle')], options);
+        git(bare, ['bundle', 'unbundle', path.join(directory, 'commits.bundle')], options);
+      }
+      const packFd = fs.openSync(path.join(directory, 'objects.pack'), 'r');
+      try { git(bare, ['index-pack', '--stdin'], options, {inputFd: packFd}); }
+      finally { fs.closeSync(packFd); }
+    }
     for (const [ref, oid] of Object.entries(manifest.refs)) git(bare, ['update-ref', ref, oid], options);
     for (let index = 0; index < manifest.worktrees.length; index++) {
       const saved = manifest.worktrees[index];
@@ -344,6 +350,8 @@ function restoreBackup(directory, manifest, options) {
       for (let itemIndex = 0; itemIndex < saved.untracked.length; itemIndex++) {
         const item = saved.untracked[itemIndex];
         const target = path.join(restored, item.path);
+        if(!target.startsWith(restored+path.sep))fail('RESTORE_FILE_INVALID');
+        assertNoSymlinkAncestors(path.dirname(target));
         fs.mkdirSync(path.dirname(target), {recursive: true, mode: 0o700});
         if (item.type === 'symlink') fs.symlinkSync(item.link, target);
         else { fs.copyFileSync(path.join(directory, `worktrees/${index}/untracked/${itemIndex}`), target); restoreFileMode(scratch, restored, item); }
@@ -352,18 +360,18 @@ function restoreBackup(directory, manifest, options) {
       const actualTracked = saved.tracked.map(item => fileRecord(restored, item.path));
       const actualUntracked = saved.untracked.map(item => fileRecord(restored, item.path));
       if (JSON.stringify(actualTracked) !== JSON.stringify(saved.tracked) || JSON.stringify(actualUntracked) !== JSON.stringify(saved.untracked)) fail('RESTORE_HASH_MISMATCH');
-      if (sha256(git(restored, ['ls-files', '--stage', '-z'], options).stdout) !== saved.index) fail('RESTORE_INDEX_MISMATCH');
+      if (saved.index!==undefined && sha256(git(restored, ['ls-files', '--stage', '-z'], options).stdout) !== saved.index) fail('RESTORE_INDEX_MISMATCH');
       if (sha256(git(restored, ['diff', '--cached', '--binary', '--full-index', 'HEAD', '--'], options).stdout) !== saved.staged || sha256(git(restored, ['diff', '--binary', '--full-index', '--'], options).stdout) !== saved.unstaged) fail('RESTORE_PATCH_MISMATCH');
     }
     if (git(bare, ['fsck', '--full', '--no-reflogs'], options, {allowFailure: true}).status !== 0) fail('RESTORE_FSCK_FAILED');
     for (const [ref, oid] of Object.entries(manifest.refs)) if (output(git(bare, ['rev-parse', ref], options)) !== oid) fail('RESTORE_REF_MISMATCH');
-    const anchors = [...new Set(Object.values(manifest.preservationRefs))];
+    const anchors = [...new Set([...Object.values(manifest.preservationRefs),...Object.values(manifest.additionalBundleRefs??{})])];
     for (const oid of anchors) if (git(bare, ['cat-file', '-e', oid], options, {allowFailure: true}).status !== 0) fail('RESTORE_REF_MISMATCH');
     if (anchors.length && git(bare, ['fsck', '--connectivity-only', '--no-reflogs', ...anchors], options, {allowFailure: true}).status !== 0) fail('RESTORE_FSCK_FAILED');
     for (const item of manifest.files) if (hashFile(path.join(directory, item.path)) !== item.sha256) fail('BACKUP_HASH_MISMATCH');
   } finally { fs.rmSync(scratch, {recursive: true, force: true}); }
 }
-function backupUnlocked(repository, options) {
+function backupLegacyUnlocked(repository, options) {
   assertNativeUnlocked(repository);
   fsck(repository, options);
   const before = capture(repository, options);
@@ -376,11 +384,13 @@ function backupUnlocked(repository, options) {
   privateDirectory(directory);
   const preservationRefs = {...(options.preservationRefs ?? {})};
   if (Object.entries(preservationRefs).some(([ref, oid]) => !ref.startsWith('refs/') || !/^[a-f0-9]{40,64}$/.test(oid))) fail('PRESERVATION_REFS_INVALID');
-  const manifest = {schemaVersion: 1, metadataSemantics: 'as-of-capture', restoreVerified: false, preservationRefs, refs: before.refs, registeredWorktrees: before.registeredWorktrees, worktrees: before.worktrees, files: []};
+  const manifest = {schemaVersion: 1, metadataSemantics: 'as-of-capture', restoreVerified: false, ...(options.stageV2 ? {objectOnly:true,createdAt:new Date(options.now??Date.now()).toISOString()} : {}), preservationRefs, refs: before.refs, registeredWorktrees: before.registeredWorktrees, worktrees: before.worktrees, files: []};
   try {
-    git(repository.repositoryRoot, ['bundle', 'create', path.join(directory, 'commits.bundle'), '--all', ...before.worktrees.map(item => item.head)], options);
-    fs.chmodSync(path.join(directory, 'commits.bundle'), 0o600);
-    manifest.files.push({path: 'commits.bundle', sha256: hashFile(path.join(directory, 'commits.bundle'))});
+    if(!options.stageV2) {
+      git(repository.repositoryRoot, ['bundle', 'create', path.join(directory, 'commits.bundle'), '--all', ...before.worktrees.map(item => item.head)], options);
+      fs.chmodSync(path.join(directory, 'commits.bundle'), 0o600);
+      manifest.files.push({path: 'commits.bundle', sha256: hashFile(path.join(directory, 'commits.bundle'))});
+    }
     const oids = [...new Set([...Object.values(before.refs), ...Object.values(preservationRefs), ...before.registeredWorktrees.map(item => item.HEAD).filter(Boolean)])];
     const packFile = path.join(directory, 'objects.pack');
     const packFd = fs.openSync(packFile, 'wx', 0o600);
@@ -413,6 +423,126 @@ function backupUnlocked(repository, options) {
     log(repository, 'backup', 'FAIL', error.code ?? 'BACKUP_FAILED', {backup: directory}, options);
     throw error;
   }
+}
+export function verifyBackupDirectory(directory, options = {}) {
+  const {manifest}=readManifest(directory);
+  for(const row of manifest.files) {
+    if(typeof row.path!=='string' || path.isAbsolute(row.path) || row.path.split('/').some(x=>!x || x==='.' || x==='..'))fail('BACKUP_PATH_INVALID');
+    if(manifest.schemaVersion===1 && fileHash(path.join(directory,row.path))!==row.sha256)fail('BACKUP_HASH_MISMATCH');
+  }
+  if(manifest.schemaVersion===2)materializeV2(directory,manifest,temporary=>restoreBackup(temporary,manifest,options,directory));
+  else restoreBackup(directory,manifest,options);
+  return {restoreVerified:true,fsck:'PASS'};
+}
+function backupUnlocked(repository,options) {
+  if(options.backupVersion===1)return backupLegacyUnlocked(repository,options);
+  assertNativeUnlocked(repository);fsck(repository,options);
+  const captured=capture(repository,options),preservationRefs={...(options.preservationRefs??{})};
+  const key=repositoryKey(repository.commonDirectory),protection=options.backupProtection??'ordinary';
+  const stateHash=fingerprint({...captured,preservationRefs},protection);
+  const root=options.backupRoot??path.join(os.homedir(),'.codex/backups/rwb-git-safety');
+  return withBackupLock(root,()=>{
+    const existing=findReusable(root,key,stateHash);
+    if(existing) {
+      verifyBackupDirectory(existing.directory,options);
+      if(JSON.stringify(targetFootprint(capture(repository,options)))!==JSON.stringify(targetFootprint(captured)))fail('BACKUP_RACE');
+      log(repository,'backup-reuse','PASS',undefined,{backup:existing.directory},options);
+      const reused={directory:existing.directory,reused:true,restoreVerified:true,fsck:'PASS',snapshotRefs:Object.fromEntries(Object.entries(captured.refs).filter(([ref])=>ref.startsWith('refs/codex/')))};
+      Object.defineProperty(reused,'verifiedPreservationRefs',{value:{...existing.manifest.preservationRefs}});
+      return reused;
+    }
+    const legacy=backupLegacyUnlocked(repository,{...options,stageV2:true});
+    const saved=readManifest(legacy.directory).manifest;
+    const savedHash=fingerprint(saved,protection);
+    const checkTarget=()=>{if(JSON.stringify(targetFootprint(capture(repository,options)))!==JSON.stringify(targetFootprint(saved)))fail('BACKUP_RACE');};
+    checkTarget();
+    const result=convertToV2(legacy.directory,key,{gitPath:selectGitPath(options),now:options.now,protection,stateHash:savedHash,verify:(dir,m)=>materializeV2(dir,m,tmp=>restoreBackup(tmp,m,options,dir)),afterVerified:checkTarget});
+    log(repository,'backup-v2','PASS',undefined,{backup:result.directory},options);
+    const completed={...legacy,...result};
+    Object.defineProperty(completed,'verifiedPreservationRefs',{value:legacy.verifiedPreservationRefs});
+    return completed;
+  });
+}
+
+/** Preview is read-only; apply serializes archive changes without maintaining the live Git database. */
+export function maintainBackups({projectRoot,action='backup-audit',apply=false},options={}) {
+  const repository=discover(projectRoot,options);assertRepositoryIdentity(repository,options);
+  if(!['backup-audit','backup-migrate','backup-prune'].includes(action) || action==='backup-audit'&&apply)fail('CLI_OPTION_INVALID');
+  const root=options.backupRoot??path.join(os.homedir(),'.codex/backups/rwb-git-safety'),key=repositoryKey(repository.commonDirectory),now=options.now??Date.now();
+  const run=()=>{
+    const points=listPoints(root),items=[];
+    const sameRepo=m=>m.schemaVersion===2 ? m.repositoryKey===key : m.registeredWorktrees?.some(x=>path.resolve(x.worktree)===repository.repositoryRoot);
+    const eligible=points.filter(x=>!x.error && sameRepo(x.manifest));
+    const newest=new Set(eligible.filter(x=>x.manifest.schemaVersion===2 && x.manifest.protection==='ordinary').sort((a,b)=>Date.parse(b.manifest.createdAt)-Date.parse(a.manifest.createdAt)).slice(0,2).map(x=>x.id));
+    // Validate all certified points before a deletion. No corrupted retained snapshot can be certified away.
+    if(apply && action==='backup-prune') {
+      if(points.some(p=>p.error && !p.protectedLegacyFailure))fail('BACKUP_UNCERTIFIED_POINT');
+      if(points.some(p=>fs.existsSync(path.join(p.directory,'manifest-v2.pending.json'))))fail('BACKUP_MIGRATION_PENDING');
+      for(const p of eligible)verifyBackupDirectory(p.directory,options);
+    }
+    for(const p of points) {
+      const item={id:p.id,status:'retained'};items.push(item);
+      if(p.error){item.reason=p.protectedLegacyFailure?'failed_v1_evidence':p.error;continue;}
+      const m=p.manifest;
+      if(!sameRepo(m)){item.reason='foreign_or_unknown_repository';continue;}
+      if(m.protection && m.protection!=='ordinary'){item.reason='protected';continue;}
+      if(fs.existsSync(path.join(p.directory,'failure-status.json'))){item.reason='failed_or_isolated';continue;}
+      if(action==='backup-migrate') {
+        if(m.schemaVersion===2) {
+          if(apply){verifyBackupDirectory(p.directory,options);finishMigration(p.directory,m);}
+          item.reason='already_v2';continue;
+        }
+        if(m.worktrees.some(saved=>saved.index===undefined)){item.reason='legacy_index_unrecorded';continue;}
+        item.status=apply?'migrated':'would_migrate';
+        if(apply) {
+          const converted=convertToV2(p.directory,key,{gitPath:selectGitPath(options),now,verify:(dir,manifest)=>materializeV2(dir,manifest,tmp=>restoreBackup(tmp,manifest,options,dir)),afterVerified:options.afterMigrationVerified,afterPendingWritten:options.afterMigrationPending});
+          item.restoreVerified=converted.restoreVerified;
+          log(repository,'backup-migrate','PASS',undefined,{backup:p.directory},options);
+        }
+        continue;
+      }
+      if(m.schemaVersion!==2){item.reason='migration_required';continue;}
+      let reason;
+      const roots=[...Object.values(m.refs),...Object.values(m.preservationRefs??{}),...Object.values(m.additionalBundleRefs??{}),...(m.registeredWorktrees??[]).map(x=>x.HEAD).filter(Boolean)];
+      const otherCertified=eligible.filter(x=>x.id!==p.id && newest.has(x.id));
+      for(const oid of new Set(roots)) {
+        const covered=otherCertified.some(x=>[...Object.values(x.manifest.refs),...Object.values(x.manifest.preservationRefs??{}),...Object.values(x.manifest.additionalBundleRefs??{}),...(x.manifest.registeredWorktrees??[]).map(w=>w.HEAD)].includes(oid));
+        if(covered)continue;
+        const type=output(git(repository.repositoryRoot,['cat-file','-t',oid],options,{allowFailure:true}));
+        if(type!=='commit' || git(repository.repositoryRoot,['merge-base','--is-ancestor',oid,'master'],options,{allowFailure:true}).status!==0){reason='unmerged_or_unique_anchor';break;}
+      }
+      for(const saved of m.worktrees) {
+        if(reason)break;
+        if(git(repository.repositoryRoot,['merge-base','--is-ancestor',saved.head,'master'],options,{allowFailure:true}).status!==0){reason='unmerged';break;}
+        if(saved.untracked?.length || saved.staged!==sha256(Buffer.alloc(0)) || saved.unstaged!==sha256(Buffer.alloc(0))){reason='uncommitted';break;}
+        if(fs.existsSync(saved.path)) {
+          const state=git(saved.path,['status','--porcelain'],options,{allowFailure:true});
+          if(state.status!==0 || state.stdout.length){reason='active_or_dirty';break;}
+          if((options.processProbe??occupied)(saved.path)){reason='active';break;}
+        }
+      }
+      if(reason){item.reason=reason;continue;}
+      if(newest.has(p.id)){item.reason='latest_two';continue;}
+      const created=Date.parse(m.createdAt);
+      if(!Number.isFinite(created) || created>now){item.reason='unknown_age';continue;}
+      if(now-created<=7*86400000){item.reason='seven_days';continue;}
+      item.status=action==='backup-prune'?(apply?'expired':'would_expire'):'retained';
+      if(item.status==='expired') {
+        if(readManifest(p.directory).hash!==p.hash)fail('BACKUP_MANIFEST_CHANGED');
+        fs.rmSync(p.directory,{recursive:true});
+        log(repository,'backup-expire','PASS',undefined,{backup:p.directory},options);
+      }
+    }
+    const result={status:apply?'complete':'preview',retentionDays:7,minimumRecoveryPoints:2,items};
+    if(apply && action==='backup-prune') {
+      result.collection=sweepPayloads(root,listPoints(root));
+      if(result.collection.status==='blocked')result.status='blocked';
+    }
+    return result;
+  };
+  if(!apply)return run();
+  assertNativeUnlocked(repository);fsck(repository,options);
+  try{return withBackupLock(root,run);}catch(error){log(repository,action,'FAIL',error.code??'BACKUP_MAINTENANCE_FAILED',{},options);throw error;}
 }
 export function backupRepository({projectRoot}, options = {}) {
   options = {...options, startedAt: Date.now()};
@@ -971,19 +1101,23 @@ export async function runDelivery({projectRoot, taskId, action, reviewedCommit, 
 }
 export function parseCli(args) {
   const [subcommand, ...rest] = args;
-  if (!['check', 'configure', 'backup', 'delivery'].includes(subcommand)) fail('CLI_SUBCOMMAND_INVALID');
+  if (!['check', 'configure', 'backup', 'delivery', 'backup-audit', 'backup-migrate', 'backup-prune'].includes(subcommand)) fail('CLI_SUBCOMMAND_INVALID');
   const options = {};
   const values = new Map([['--project', 'projectRoot'], ['--task-id', 'taskId'], ['--slug', 'slug'], ['--worktree-root', 'worktreeRoot'], ['--reviewed-commit', 'reviewedCommit'], ['--verification-command', 'verificationCommand'], ['--verification-status', 'verificationStatus'], ['--verification-duration-seconds', 'verificationDuration']]);
   for (let index = 0; index < rest.length; index++) {
     const item = rest[index];
     if (['--start', '--prepare', '--publish', '--status', '--cleanup'].includes(item)) { if (options.action) fail('CLI_ACTION_INVALID'); options.action = item.slice(2); }
+    else if (item === '--apply') options.apply = true;
     else if (item === '--repair') options.repair = true;
     else if (item === '--replace-prepared') options.replacePrepared = true;
     else if (values.has(item) && rest[index + 1] && !rest[index + 1].startsWith('--')) options[values.get(item)] = rest[++index];
     else fail('CLI_OPTION_INVALID');
   }
   if (!options.projectRoot || (subcommand === 'delivery' && (!options.taskId || !options.action))) fail('CLI_ARGUMENT_REQUIRED');
-  if (subcommand !== 'delivery' && Object.keys(options).some(key => key !== 'projectRoot')) fail('CLI_OPTION_INVALID');
+  const maintenance=['backup-audit','backup-migrate','backup-prune'].includes(subcommand);
+  if (subcommand !== 'delivery' && Object.keys(options).some(key => key !== 'projectRoot' && !(maintenance && key==='apply'))) fail('CLI_OPTION_INVALID');
+  if(options.apply && !['backup-migrate','backup-prune'].includes(subcommand))fail('CLI_OPTION_INVALID');
+  if(maintenance)options.action=subcommand;
   if (options.reviewedCommit && (options.action !== 'status' || !/^[a-f0-9]{40}$/.test(options.reviewedCommit))) fail('CLI_REVIEW_INVALID');
   if (options.replacePrepared && options.action !== 'prepare' || options.repair && options.action !== 'publish') fail('CLI_OPTION_INVALID');
   if (options.action === 'publish') {
@@ -997,7 +1131,7 @@ export function parseCli(args) {
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
     const {subcommand, options} = parseCli(process.argv.slice(2));
-    const result = subcommand === 'check' ? checkRepository(options) : subcommand === 'configure' ? configureRepository(options) : subcommand === 'backup' ? backupRepository(options) : await runDelivery(options);
+    const result = subcommand === 'check' ? checkRepository(options) : subcommand === 'configure' ? configureRepository(options) : subcommand === 'backup' ? backupRepository(options) : subcommand.startsWith('backup-') ? maintainBackups(options) : await runDelivery(options);
     const rendered = subcommand === 'delivery' ? Object.fromEntries([
       'taskId', 'status', 'mode', 'defaultBranch', 'baseCommit', 'featureBranch', 'featureWorktree', 'featureCommit',
       'integrationBranch', 'integrationWorktree', 'integrationCommit', 'remoteCommit', 'pullRequest', 'cleanup',
