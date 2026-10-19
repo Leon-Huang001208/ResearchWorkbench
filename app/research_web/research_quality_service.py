@@ -10,7 +10,9 @@ from core.observability import get_logger
 from .research_business_evidence import business_observations
 from .research_evidence import report_projection
 from .research_quality import make_contract
+from .research_web_sources import upload_evidence_files
 from .resources.research_report import archive_report_version, list_report_versions
+from .resources.research_report_plan import EXTRACTED_METRICS
 from .store import StoreError
 
 log = get_logger(__name__)
@@ -111,6 +113,43 @@ def write_business_snapshot(service, sid, contract):
         ) from None
 
 
+def business_prompt_index(service, sid, contract):
+    """Bounded discovery data from permitted bytes, never a coverage verdict."""
+    from .research_quality import _valid_contract
+
+    try:
+        if not _valid_contract(contract):
+            raise ValueError("business_index_contract_changed")
+        scope = service.store.session(sid).get("source_scope", ["uploads", "datahub", "web"])
+        files = service.store.files(sid) if "uploads" in scope else []
+        rows = observations(
+            service, sid, files, [], task_id=contract["task_id"], contract_sha=contract["sha256"]
+        )
+        rows = [r for r in rows if r.get("kind") in {"business_numeric", "business_quote"}]
+        rows.sort(key=lambda r: r["kind"] != "business_numeric" and r["metric"] != "control_text")
+        result = {"observations": [], "total": len(rows), "omitted": 0}
+        for row in rows:
+            preview = row["content"].split("\n", 1)[0]
+            item = {k: row[k] for k in ("id", "metric", "period", "value", "heading", "kind")}
+            item["source_ids"] = row["source_ids"]
+            item["calculation_required"] = (
+                row["kind"] == "business_numeric" and row["metric"] not in EXTRACTED_METRICS
+            )
+            item.update(preview=preview[:160], preview_truncated=len(preview) > 160)
+            result["observations"].append(item)
+            if len(json.dumps(result, ensure_ascii=False).encode()) > 23900:
+                result["observations"].pop()
+                break
+        result["omitted"] = len(rows) - len(result["observations"])
+        log.info("research_business_index_prepared", observation_count=len(result["observations"]))
+        return result
+    except (OSError, ValueError, TypeError, KeyError, StoreError) as exc:
+        log.warning("research_business_index_failed", error_type=type(exc).__name__)
+        raise StoreError(
+            "研究证据索引暂不能安全准备", "research_business_index_failed", 409
+        ) from None
+
+
 def ensure_quality_scope(service, sid, key, contract):
     """A read-only worker cannot publish a verdict for a superseded task."""
     current = service.store.session(sid).get("delivery_key")
@@ -126,7 +165,9 @@ def source_context(service, sid, files, sources=()):
     """Return canonical owned identities and whole-file hashes, not guessed aliases."""
     identities = []
     total = 0
-    for item in files:
+    files = upload_evidence_files(service.store, sid, files)
+    scope = service.store.session(sid).get("source_scope", ["uploads", "datahub", "web"])
+    for item in files if "uploads" in scope else []:
         if item.get("kind") != "inputs":
             continue
         if len(identities) >= 20:
@@ -148,6 +189,9 @@ def source_context(service, sid, files, sources=()):
     for source in sources:
         if len(identities) >= 20 or source.get("id", "").startswith("file:"):
             continue
+        kind = {"web": "web", "dataset": "datahub"}.get(source.get("id", "").split(":", 1)[0])
+        if kind not in scope:
+            continue
         row = {
             name: source[name]
             for name in ("id", "title", "url", "as_of")
@@ -165,7 +209,9 @@ def source_context(service, sid, files, sources=()):
 def observations(service, sid, files, sources, *, task_id="", contract_sha=""):
     """Only actual session input/snapshot bytes become numeric evidence."""
     result, complete = [], []
-    for item in files:
+    files = upload_evidence_files(service.store, sid, files)
+    scope = service.store.session(sid).get("source_scope", ["uploads", "datahub", "web"])
+    for item in files if "uploads" in scope else []:
         if item.get("kind") != "inputs" or not item.get("name", "").endswith(
             (".txt", ".md", ".csv", ".json")
         ):
@@ -204,7 +250,7 @@ def observations(service, sid, files, sources, *, task_id="", contract_sha=""):
             )
         )
     for source in sources[:300]:
-        if source.get("id", "").startswith("web:") and source.get("file_id"):
+        if "web" in scope and source.get("id", "").startswith("web:") and source.get("file_id"):
             stream, _ = service.store.open_file(sid, source["file_id"])
             with stream:
                 raw = stream.read(800001)
@@ -220,7 +266,7 @@ def observations(service, sid, files, sources, *, task_id="", contract_sha=""):
             )
             continue
     for source in sources[:40]:
-        if not source.get("id", "").startswith("dataset:"):
+        if "datahub" not in scope or not source.get("id", "").startswith("dataset:"):
             continue
         did = source["id"].split(":", 1)[1]
         try:
@@ -250,11 +296,18 @@ def quality_result(service, sid, receipt, files, sources, delivery=None):
         return None
     scope = service.store.session(sid).get("source_scope", ["uploads", "datahub", "web"])
     kinds = {"file": "uploads", "dataset": "datahub", "web": "web"}
+    upload_files = upload_evidence_files(service.store, sid, files)
+    web_ids = {item["id"] for item in files} - {item["id"] for item in upload_files}
     sources = [
-        source for source in sources if kinds.get(source.get("id", "").split(":", 1)[0]) in scope
+        source
+        for source in sources
+        if kinds.get(source.get("id", "").split(":", 1)[0]) in scope
+        and source.get("id") not in {"file:" + identifier for identifier in web_ids}
     ]
     evidence_files = (
-        files if "uploads" in scope else [item for item in files if item.get("kind") != "inputs"]
+        upload_files
+        if "uploads" in scope
+        else [item for item in upload_files if item.get("kind") != "inputs"]
     )
     observation_error = False
     try:

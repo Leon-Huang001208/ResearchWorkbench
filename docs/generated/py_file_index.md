@@ -7613,7 +7613,9 @@ Imports:
 - `research_business_evidence`
 - `research_evidence`
 - `research_quality`
+- `research_web_sources`
 - `resources.research_report`
+- `resources.research_report_plan`
 - `store`
 
 Functions:
@@ -7622,6 +7624,8 @@ Functions:
   - Freeze requirements before sending; continuation preserves original obligations.
 - `write_business_snapshot`
   - Publish a read-only convenience projection; scoring always rereads inputs.
+- `business_prompt_index`
+  - Bounded discovery data from permitted bytes, never a coverage verdict.
 - `ensure_quality_scope`
   - A read-only worker cannot publish a verdict for a superseded task.
 - `source_context`
@@ -7677,6 +7681,10 @@ Functions:
   - Validate every redirect and pin every returned address before connecting.
 - `fetch_document`
   - No proxy, credentials, cookies, executable content, or unbounded redirects.
+- `_stored_records`
+  - Validate Host provenance before classifying any input as an upload.
+- `upload_evidence_files`
+  - Host-fetched inputs keep their web identity, even when web scope is disabled.
 - `stored_sources`
   - Only Host metadata and unchanged owned input bytes can certify acquisition.
 - `fetch_owned_document`
@@ -7776,6 +7784,35 @@ Functions:
   - Render the complete canonical payload, including genuine gaps, as text.
 - `render_pdf`
 - `write_research_report`
+
+
+## `app/research_web/resources/research_report_plan.py`
+
+Module docstring:
+> Data-only report assembly in the original sandbox; never a quality verdict.
+
+Imports:
+- `decimal`
+- `hashlib`
+- `json`
+- `logging`
+- `os`
+- `pathlib`
+- `re`
+- `uuid`
+
+Functions:
+- `_object`
+- `_text`
+- `_resolve`
+- `_input_number`
+  - Use extracted primitives; independently recount the two bounded record sets.
+- `_summary_calculation`
+  - Independent bounded arithmetic from primitives, not the target derived value.
+- `build_business_report_plan`
+  - Assemble nominated evidence and unverified analysis, preserving every gap.
+- `write_business_report_plan`
+  - Stage all formats, preserve old canonical versions, publish JSON last.
 
 
 ## `app/research_web/runtime_auth.py`
@@ -7890,6 +7927,7 @@ Imports:
 - `re`
 - `selectors`
 - `signal`
+- `stat`
 - `subprocess`
 - `sys`
 - `time`
@@ -7913,6 +7951,8 @@ Functions:
   - Build a read-data allowlist and narrow mutation grants (metadata stays visible).
 - `_kill_group`
   - Stop every child; report incomplete kernel teardown rather than hanging forever.
+- `_report_sdk_scope`
+  - Read only the packaged SDK's fixed files; never overwrite legacy session copies.
 - `run_script`
   - Execute bounded Python source under kernel-enforced research capabilities.
 - `_request_cancel`

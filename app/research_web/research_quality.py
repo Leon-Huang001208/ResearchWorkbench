@@ -374,13 +374,18 @@ def assess_quality(contract, report, sources, observations=None):
             ):
                 issues.append("section_note_lineage_missing:" + section["heading"])
             remaining = section["text"]
+            verified_periods = []
             for claim in report.get("numeric_claims", []):
                 if claim["section_id"] == section.get("id"):
                     if _verified_claim(claim, section, observed):
                         remaining = remaining.replace(claim["text"], "", 1)
-                        remaining = remaining.replace(claim["period"], "", 1)
+                        verified_periods.append(claim["period"])
                     else:
                         issues.append("numeric_claim_unverified:" + claim["id"])
+            # Remove verified statements first: stripping a period earlier could
+            # mutate the next valid statement and manufacture unclaimed numbers.
+            for period in verified_periods:
+                remaining = remaining.replace(period, "", 1)
             if _NUMBER.search(remaining):
                 issues.append("numeric_claims_need_independent_review:" + section["heading"])
             contents = [

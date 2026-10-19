@@ -1,5 +1,11 @@
 # DataHub、研究资料与实际文件
 
+SDK 兼容读取不迁移数据：resources 中原 helper/字体保持原字节，新报告由当前 Host 包的固定 SDK 处理，所有输入、输出、谱系和模型设置仍归原会话。_SESSION_ROOT 只定位 PDF 输出/恢复 cwd，不是质量或路径授权。
+
+Host 抓取的 inputs/web-*.txt 按本会话 web_evidence 的真实 file_id/path 登记保持 web 来源身份；文件和历史仍原位可读，不再在来源清单、业务索引/快照或上传观测中产生无日期的 file 别名。普通用户上传的同前缀文件不凭名称排除。登记与 Store 路径不一致时拒绝分类，不回退为上传。
+
+resources/research_report_plan.py 在原沙箱将数据配方组装为 JSON、Markdown、HTML、Word、PDF、Summary 工作簿。Summary 派生值须从摘录原值独立按 Decimal 96 位执行有界步骤，显式展示精度只核对工作簿；ExactValues 与 Calc 保留原值/完整过程，不用 Host 派生参考值回填。NIST Controls 的 source_ref 仅取真实父文件 ID，建议及 not_assessed 不认证实施状态。六格式先暂存、归档旧版，再最后发布 JSON；回滚先撤下新 JSON，全部恢复后最后恢复旧 JSON，恢复失败保留私有恢复副本并保持 canonical 缺失。
+
 web_search 原生 Markdown Sources 清单与旧 JSON 均可登记，身份保持原始 title/url（含片段），state=search_summary 不含正文。Host 只按已登记 ID 读取公开 HTTPS，正文 inputs/web-<id>.txt 与会话 web_evidence 记录实际字节 SHA、最终URL和取得时间；模型不能写 inputs 或自报观测。质量检查重读并复验这些字节。
 
 每次检查把规范 outputs/research-report.json 的内容哈希与经核验的 JSON/HTML/DOCX/PDF 归档关联到具体检查 ID。同回合新版替换会产生新哈希和回执，旧版保持旧状态；历史 fallback 没有相符内容哈希时保持 incomplete，不借用最新报告的 passed。当前版不重复显示为历史，旁路 JSON 不成为规范报告。

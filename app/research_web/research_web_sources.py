@@ -194,24 +194,44 @@ def fetch_document(url):
         raise rejected("research_source_fetch_failed") from None
 
 
-def stored_sources(store, sid):
-    """Only Host metadata and unchanged owned input bytes can certify acquisition."""
-    result = []
-    records = store.session(sid).get("web_evidence", {})
-    if not isinstance(records, dict) or len(records) > 20:
+def _stored_records(store, sid):
+    """Validate Host provenance before classifying any input as an upload."""
+    session = store.session(sid)
+    records = session.get("web_evidence", {})
+    file_map = session.get("files", {})
+    if not isinstance(records, dict) or len(records) > 20 or not isinstance(file_map, dict):
+        log.warning("research_web_source_metadata_changed")
         raise rejected("research_source_integrity_failed")
     for identifier, source in records.items():
         if (
-            not isinstance(source, dict)
+            not isinstance(identifier, str)
+            or not isinstance(source, dict)
             or not re.fullmatch(r"web:[a-f0-9]{24}", identifier)
             or source.get("id") != identifier
             or source.get("path") != "inputs/web-" + identifier[4:] + ".txt"
             or source.get("file_id") != hashlib.sha256(source["path"].encode()).hexdigest()[:24]
+            or file_map.get(source["file_id"]) != source["path"]
             or not isinstance(source.get("sha256"), str)
             or not re.fullmatch(r"[a-f0-9]{64}", source["sha256"])
         ):
             log.warning("research_web_source_metadata_changed")
             raise rejected("research_source_integrity_failed")
+    return list(records.values())
+
+
+def upload_evidence_files(store, sid, files):
+    """Host-fetched inputs keep their web identity, even when web scope is disabled."""
+    web_ids = {source["file_id"] for source in _stored_records(store, sid)}
+    result = [item for item in files if item.get("id") not in web_ids]
+    if len(result) != len(files):
+        log.info("research_web_upload_alias_excluded", count=len(files) - len(result))
+    return result
+
+
+def stored_sources(store, sid):
+    """Only Host metadata and unchanged owned input bytes can certify acquisition."""
+    result = []
+    for source in _stored_records(store, sid):
         stream, _ = store.open_file(sid, source["file_id"])
         with stream:
             raw = stream.read(MAX_TEXT * 4 + 1)

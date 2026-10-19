@@ -1,5 +1,11 @@
 # Research Workbench Development Map
 
+sandbox._report_sdk_scope 精确列出当前包的四个只读 SDK/字体文件，并在 bootstrap 注入 session root；resources/research_report.render_pdf 保持原输出定位。test_sandbox 覆盖只读、未列文件和链接拒绝，test_report_revision 的 new/legacy-session 两参数覆盖原资源不改的生成及修订。
+
+research_web_sources.upload_evidence_files 依据 _stored_records 的会话登记分类 Host 网页，service.detail 和 quality_service 的来源上下文/观测/评分均复用；fusion_api 端到端及 source_reading 跨会话/损坏登记回归防止来源别名丢失 scope/日期。正文与原文件不迁移。
+
+本轮数据配方位于 resources/research_report_plan.py，经 runtime/research-tools.mjs 原 script 工具执行；service/quality_service 提供冻结绑定及有界实际观测索引。test_report_revision 覆盖旧 CPI 声明、NIST 真父来源、独立算术及双重恢复失败。research_quality.py 仅调整已核验原句与期间的删除顺序，判据保持。
+
 公开正文入口为 research_web_sources.py、datahub/routes.py 的私有 research-source/list/read/cancel 与 runtime/research-tools.mjs；Markdown 检索身份解析在 research_evidence.py，真实输入字节观测和逐版本回执在 research_quality_service.py。定点回归 test_research_source_reading.py、test_research_report_binding.py 及 research_web_quality_tool.test.mjs 覆盖来源、取消、沙箱修订和旧版质量错绑；完整合同见 02–05 章。
 
 脚本故障回归：report_revision覆盖重复父来源、观测ID误用、完整斜杠来源与原子Summary写入；select_business_evidence将选择与映射合并且拒绝歧义。business_evidence覆盖CPI真实月列/百分点及完整肯定同比段落，NIST原文走原source_quote；service按冻结要求限定治理提示。research_quality.py规则未改。

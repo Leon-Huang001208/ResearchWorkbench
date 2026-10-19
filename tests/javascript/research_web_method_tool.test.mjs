@@ -6,6 +6,45 @@ import { join } from 'node:path';
 
 import { apply } from '../../app/research_web/runtime/research-tools.mjs';
 
+test('report plans become fixed code with Host-only binding and inert JSON', async () => {
+  const mod = await import('../../app/research_web/runtime/research-tools.mjs');
+  assert.equal(typeof mod.reportPlanCode, 'function');
+  const context = {task_id:'a'.repeat(24),contract_sha256:'b'.repeat(64),as_of:'2026-10-19',requirement_ids:['r1']};
+  const plan = {title:"');__import__('os').system('unexpected')#中文",sections:[],summary:[],missing:[]};
+  const code = mod.reportPlanCode(plan, context);
+  assert.ok(code.split('\n').length >= 5);
+  assert.ok(Buffer.byteLength(code) <= 65536);
+  assert.doesNotMatch(code,/__import__|unexpected|eval\(/);
+  const values = [...code.matchAll(/b64decode\('([A-Za-z0-9+/=]+)'\)/g)].map(m=>JSON.parse(Buffer.from(m[1],'base64').toString('utf8')));
+  assert.deepEqual(values,[context,plan]);
+  assert.throws(()=>mod.reportPlanCode(plan,undefined),/contract/);
+  assert.throws(()=>mod.reportPlanCode(plan,{...context,task_id:'other-session'}),/contract/);
+  assert.throws(()=>mod.reportPlanCode({...plan,title:'x'.repeat(33000)},context),/limit/);
+});
+
+test('report plan keeps admission, bounded code transport and slot release',async t=>{
+  const {EventEmitter}=await import('node:events');const {rm}=await import('node:fs/promises');
+  const root=await realpath(await mkdtemp(join(tmpdir(),'rwb-plan-mode-')));t.after(()=>rm(root,{recursive:true}));
+  const sid='01234567-89ab-4cde-8fab-0123456789ab';const cwd=join(root,'sessions',sid);await mkdir(cwd,{recursive:true});
+  const context={task_id:'a'.repeat(24),contract_sha256:'b'.repeat(64),as_of:'2026-10-19',requirement_ids:['r1']};
+  let scope={admitted:true,read_paths:[],report_context:context};const sent=[];let spawned=0;
+  const spawn=()=>{spawned++;const child=new EventEmitter();child.stdout=new EventEmitter();child.stderr=new EventEmitter();child.stdin=new EventEmitter();child.kill=()=>{};child.stdin.end=raw=>{sent.push(JSON.parse(raw));child.stdout.emit('data',Buffer.from(JSON.stringify({status:'completed',stdout:'files only',stderr:'',exit_code:0,error:null})));child.emit('close',0);};return child;};
+  const tools=new Map();const ctx={tools:{register:x=>tools.set(x.name,x)},sessions:{get(){}},logger:{info(){},warn(){},error(){}}};
+  apply(ctx,{python:'/usr/bin/python3',runnerPath:'/tmp/runner.py',researchRoot:root},spawn,async()=>scope);
+  const exec={signal:new AbortController().signal,agent:{session:{header:{id:sid,cwd}}}};const tool=tools.get('research_run_script');
+  const plan={title:'Test',sections:[],summary:[],missing:[]};
+  await assert.rejects(()=>tool.execute({code:'print(1)',report_plan:plan},exec));
+  await assert.rejects(()=>tool.execute({report_plan:plan,report_context:context},exec));
+  scope={admitted:false,read_paths:[],report_context:context};await assert.rejects(()=>tool.execute({report_plan:plan},exec),/scope/);
+  scope={admitted:true,read_paths:[]};await assert.rejects(()=>tool.execute({report_plan:plan},exec),/contract/);
+  scope={admitted:true,read_paths:[],report_context:{...context,extra:'caller override'}};await assert.rejects(()=>tool.execute({report_plan:plan},exec),/contract/);
+  scope={admitted:true,read_paths:[],report_context:context};await assert.rejects(()=>tool.execute({report_plan:{...plan,title:'中'.repeat(11000)}},exec),/limit/);
+  assert.equal(spawned,0);
+  assert.equal((await tool.execute({report_plan:plan},exec)).status,'completed');
+  assert.match(sent[0].code,/write_business_report_plan/);assert.deepEqual(sent[0].read_paths,[]);
+  assert.equal((await tool.execute({code:'print(1)'},exec)).status,'completed');assert.equal(sent[1].code,'print(1)');
+});
+
 test('document business tool rejects host paths and unadmitted execution', async () => {
   const tools = new Map();
   const ctx = { tools: { register: tool => tools.set(tool.name, tool) }, logger: { info() {}, warn() {}, error() {} } };
