@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "unchanged",
-  "summary": "复核原资源内的任务绑定只读便利投影及来源定位解析",
-  "reason": "无新公开入口、依赖或用户配置；Host仍独立读取实际输入，原质量门保持，数据格式和边界同步03/05。"
+  "summary": "复核原DSH脚本资源、CPI计算和NIST原句投影修复",
+  "reason": "无新服务、API、依赖或用户配置；原Host独立质量门保持，脚本与文件边界已同步02至05。"
 }

@@ -1,5 +1,7 @@
 # 研究协议、执行状态与恢复
 
+每次research_run_script是独立进程，须重新导入并读取已成功保存的文件。select_business_evidence把实际记录选择和要求映射合并，未知/多期间歧义拒绝；business_仅作观测标识，citations填全部父source_ids。治理提示仅从冻结要求选择，不因共享任务描述把组织实施缺口加给财务研究。不增加工具、重试或补查预算。
+
 DSH实际业务提示要求规范来源ID、原文期间/单位、精确算术和完整同节引用；可用报告helper提前拒绝错误arity、虚构计数或舍入冒充精确claim。不能表达的证据保持未核验，不增加补查/模型循环；Automation授权和恢复不变。
 
 冻结合同后可先load_business_evidence(task_id,sha256)从本回合只读投影直接选取实际观测；模型仍须读输入并生成独立底稿/草稿，原research_check_quality再从实际输入独立评分并返回business_observations及原文位置；原一次补查中可按真实metric/period选择观测，用business_evidence替换对应错误事实/方法，保留全部冻结要求及真实missing。不能把原文外推断伪装成规范句，也不能省掉跨文件父来源。未支持布局仍未核验；没有自动续领补查或新回合。

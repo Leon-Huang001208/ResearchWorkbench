@@ -17,6 +17,88 @@ from app.research_web.resources.research_report import archive_report_version, w
 from app.research_web.store import Store
 
 
+def test_failed_fomc_parent_references_are_deduplicated_without_certifying_text():
+    from app.research_web.resources.research_report import evidence_section
+
+    ref = "file:" + "a" * 24
+    block = evidence_section(
+        "r1_range", "Decision", "unverified interpretation", [ref, ref], ["r1"]
+    )
+    assert block["sections"][0]["citations"] == [ref]
+    assert block["notes"][0]["citations"] == [ref]
+    assert block["numeric_claims"] == []
+    with pytest.raises(ValueError, match="observation"):
+        evidence_section("s", "Decision", "text", ["business_" + "b" * 32], ["r1"])
+
+
+def test_summary_writer_replays_actual_msft_values_with_real_empty_separator(tmp_path):
+    from openpyxl import load_workbook
+
+    from app.research_web.resources.research_report import numeric_summary, write_summary_workbook
+
+    metrics = {
+        "revenue_growth_pct": Decimal("15.66996201307127857867541231"),
+        "fcf_2024_usd_mn": 74071,
+        "fcf_capital_return_ratio_2024": Decimal("1.898039718129404228058936579"),
+    }
+    path = tmp_path / "summary.xlsx"
+    write_summary_workbook(
+        path,
+        metrics,
+        decimal_places={"revenue_growth_pct": 2, "fcf_capital_return_ratio_2024": 3},
+        sheets={
+            "Facts": [["metric", "source_ref"], ["fcf", ["file:" + "a" * 24]]],
+            "Notes": [["description"], ["=not a formula"]],
+        },
+    )
+    book = load_workbook(path, read_only=True, data_only=False)
+    assert list(book["Summary"].values)[4] == (None, None)
+    numeric_summary(
+        book["Summary"].values,
+        {
+            "revenue_growth_pct": 15.67,
+            "fcf_2024_usd_mn": 74071,
+            "fcf_capital_return_ratio_2024": 1.898,
+        },
+    )
+    assert json.loads(book["Facts"]["B2"].value) == ["file:" + "a" * 24]
+    assert book["Notes"]["A2"].data_type != "f"
+    book.close()
+    before = path.read_bytes()
+    with pytest.raises(ValueError):
+        write_summary_workbook(path, {"x": float("nan")})
+    assert path.read_bytes() == before
+    for value in (Decimal("1.00000000000000001"), Decimal("0.12345678901234560000001")):
+        with pytest.raises(ValueError):
+            write_summary_workbook(path, {"x": value})
+        assert path.read_bytes() == before
+
+
+def test_exact_slash_joined_sources_still_reject_foreign_or_guessed_ids():
+    from app.research_web.resources.research_report import source_references
+
+    first, second = "file:" + "a" * 24, "file:" + "b" * 24
+    sources = [{"id": first, "title": "july.md"}, {"id": second, "title": "september.md"}]
+    assert source_references(first + " / " + second, sources) == [first, second]
+    for bad in [
+        first + "/file:filename",
+        first + "/file:" + "c" * 24,
+        first + "/comment/" + second,
+    ]:
+        with pytest.raises(ValueError):
+            source_references(bad, sources)
+
+
+def test_markdown_renderer_preserves_canonical_text_and_missing():
+    from app.research_web.resources.research_report import render_markdown
+
+    _, payload, _ = example()
+    payload["missing"] = ["A real unsupported analysis remains missing"]
+    rendered = render_markdown(payload)
+    assert payload["missing"][0] in rendered
+    assert all(section["text"] in rendered for section in payload["sections"])
+
+
 def test_decimal_rate_arguments_retain_exact_financial_arithmetic():
     from app.research_web.resources.research_report import rate_difference
 
@@ -213,7 +295,8 @@ def test_business_evidence_section_retains_all_note_sources_and_requirements():
     )
     assert blocks["notes"][0]["citations"] == ["file:july", "file:sep"]
     assert blocks["coverage"][0]["excerpt"] == blocks["sections"][0]["text"]
-    assert set(blocks) == {"sections", "notes", "coverage"}
+    assert set(blocks) == {"sections", "notes", "coverage", "numeric_claims"}
+    assert blocks["numeric_claims"] == []
 
 
 def test_business_numeric_claim_rejects_previous_bad_arities_and_count():

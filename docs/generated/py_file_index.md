@@ -7698,6 +7698,10 @@ Functions:
   - Signed cut magnitude: percentage-point change and basis-point conversion.
 - `numeric_summary`
   - Independent acceptance oracle; explicit display rounding never changes Host gates.
+- `write_summary_workbook`
+  - Write the fixed numeric table and separate details atomically; never certify facts.
+- `select_business_evidence`
+  - Select exact records and their mappings together, rejecting ambiguous metrics.
 - `business_evidence`
   - Serialize selected actual Host business observations, never grant them trust.
 - `validate_calculation_recipes`
@@ -7712,6 +7716,8 @@ Functions:
   - Project bounded verified versions; never treat old quality claims as trusted.
 - `report_blocks`
   - The same text/version is consumed by all three renderers.
+- `render_markdown`
+  - Render the complete canonical payload, including genuine gaps, as text.
 - `render_pdf`
 - `write_research_report`
 
