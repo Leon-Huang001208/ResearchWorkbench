@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import {spawnSync} from 'node:child_process';
-import {backupRepository, checkRepository, configureRepository, selectGitPath, withRepositoryLock, validateCleanup, validateResourceCleanup, runDelivery, parseCli} from '../../scripts/git_safety.mjs';
+import {backupRepository, checkRepository, configureRepository, selectGitPath, withRepositoryLock, validateCleanup, validateResourceCleanup, runDelivery, parseCli, maintainBackups, verifyBackupDirectory} from '../../scripts/git_safety.mjs';
 
 const gitPath = '/usr/bin/git';
 function git(root, args) {
@@ -25,7 +25,7 @@ function fixture(t) {
   fs.writeFileSync(path.join(projectRoot, 'tracked.txt'), 'base\n');
   git(projectRoot, ['add', '.']);
   git(projectRoot, ['commit', '-m', 'base']);
-  return {root, projectRoot, options: {gitPath, platform: 'darwin', identityRoot: projectRoot, backupRoot: path.join(root, 'backups')}};
+  return {root, projectRoot, options: {gitPath, platform: 'darwin', identityRoot: projectRoot, backupRoot: path.join(root, 'backups'), backupVersion: 1}};
 }
 
 test('macOS always selects native Git; unsupported production mutations fail closed', () => {
@@ -1056,4 +1056,245 @@ test('unpublished recovery rechecks a last-moment remote advance after its priva
   const snapshots = path.join(f.projectRoot, '.git/leon-engineering/git-safety/base-refresh/task');
   assert.deepEqual(JSON.parse(fs.readFileSync(path.join(snapshots, fs.readdirSync(snapshots)[0]))), f.receipt);
   assert.ok(fs.existsSync(f.receipt.integrationWorktree));
+});
+
+function treeBytes(root) {
+  if (!fs.existsSync(root)) return 0;
+  return fs.readdirSync(root, {withFileTypes:true}).reduce((n,e) => n + (e.isDirectory() ? treeBytes(path.join(root,e.name)) : fs.lstatSync(path.join(root,e.name)).size),0);
+}
+function v2Fixture(t) {
+  const f=fixture(t);f.options.backupVersion=2;f.options.processProbe=()=>false;
+  // Match RWB's ignored operational logs; logging must not alter the captured working copy.
+  fs.appendFileSync(path.join(f.projectRoot,'.git/info/exclude'),'\nlogs/\n');
+  return f;
+}
+
+test('v2 reuses unchanged independent recovery point and stores content only once', t => {
+  const {projectRoot,options}=v2Fixture(t);
+  fs.writeFileSync(path.join(projectRoot,'untracked.txt'),'private work\n');
+  fs.chmodSync(path.join(projectRoot,'tracked.txt'),0o600);
+  const first=backupRepository({projectRoot},options);
+  const size=treeBytes(options.backupRoot);
+  for(let i=0;i<4;i++) {
+    const next=backupRepository({projectRoot},options);
+    assert.equal(next.directory,first.directory);
+    assert.equal(next.reused,true);
+  }
+  assert.equal(treeBytes(options.backupRoot),size);
+  const manifest=JSON.parse(fs.readFileSync(path.join(first.directory,'manifest.json')));
+  assert.equal(manifest.schemaVersion,2);
+  assert.equal(fs.existsSync(path.join(first.directory,'objects.pack')),false);
+  assert.equal(fs.existsSync(path.join(first.directory,'commits.bundle')),false);
+  fs.renameSync(projectRoot,projectRoot+'-offline');
+  assert.equal(verifyBackupDirectory(first.directory,options).restoreVerified,true);
+});
+
+test('v2 preserves binary index/worktree, non-Git permissions, missing and symlink records', t => {
+  const {projectRoot,options}=v2Fixture(t);
+  fs.writeFileSync(path.join(projectRoot,'tracked.txt'),Buffer.from([0,1,2]));
+  git(projectRoot,['add','tracked.txt']);
+  fs.writeFileSync(path.join(projectRoot,'tracked.txt'),Buffer.from([0,1,3]));
+  fs.chmodSync(path.join(projectRoot,'tracked.txt'),0o400);
+  fs.symlinkSync('tracked.txt',path.join(projectRoot,'new-link'));
+  fs.unlinkSync(path.join(projectRoot,'package.json'));
+  const point=backupRepository({projectRoot},options);
+  assert.equal(verifyBackupDirectory(point.directory,options).restoreVerified,true);
+});
+
+test('v1 migration previews without writes, preserves point path, verifies v2 and resumes', t => {
+  const {projectRoot,options}=fixture(t);
+  const old=backupRepository({projectRoot},options);
+  const before=treeBytes(options.backupRoot);
+  const preview=maintainBackups({projectRoot,action:'backup-migrate'},options);
+  assert.equal(preview.status,'preview');
+  assert.equal(treeBytes(options.backupRoot),before);
+  const migrated=maintainBackups({projectRoot,action:'backup-migrate',apply:true},options);
+  assert.equal(migrated.items.find(x=>x.id===path.basename(old.directory)).status,'migrated');
+  assert.equal(JSON.parse(fs.readFileSync(path.join(old.directory,'manifest.json'))).schemaVersion,2);
+  assert.equal(verifyBackupDirectory(old.directory,options).restoreVerified,true);
+  assert.equal(fs.existsSync(path.join(old.directory,'objects.pack')),false);
+  assert.doesNotThrow(()=>maintainBackups({projectRoot,action:'backup-migrate',apply:true},options));
+});
+
+test('rotation retains seven days and latest two points and does not mutate the live Git objects', t => {
+  const {projectRoot,options}=v2Fixture(t); const points=[];
+  const day=86400000, now=Date.now();
+  for(let i=0;i<4;i++) {
+    fs.writeFileSync(path.join(projectRoot,'tracked.txt'),'version '+i+'\n');
+    git(projectRoot,['add','.']);git(projectRoot,['commit','-m','change '+i]);
+    points.push(backupRepository({projectRoot},{...options,now:now-(10-i)*day}));
+  }
+  const before=fs.readFileSync(path.join(projectRoot,'.git/config'));
+  const result=maintainBackups({projectRoot,action:'backup-prune',apply:true},{...options,now});
+  assert.equal(result.items.filter(x=>x.status==='expired').length,2);
+  assert.equal(fs.existsSync(points[0].directory),false);
+  assert.equal(fs.existsSync(points[1].directory),false);
+  for(const p of points.slice(2))assert.equal(verifyBackupDirectory(p.directory,options).restoreVerified,true);
+  assert.deepEqual(fs.readFileSync(path.join(projectRoot,'.git/config')),before);
+  assert.doesNotThrow(()=>git(projectRoot,['fsck','--full']));
+});
+
+test('rotation protects dirty, unmerged and explicitly held recovery points', t => {
+  const {projectRoot,options}=v2Fixture(t);const now=Date.now();const old=now-20*86400000;
+  git(projectRoot,['checkout','-b','codex/unmerged']);
+  fs.writeFileSync(path.join(projectRoot,'tracked.txt'),'not on master');git(projectRoot,['add','.']);git(projectRoot,['commit','-m','unmerged']);
+  const p=backupRepository({projectRoot},{...options,now:old});
+  git(projectRoot,['checkout','master']);
+  const held=backupRepository({projectRoot},{...options,now:old,backupProtection:'object-repair'});
+  fs.writeFileSync(path.join(projectRoot,'dirty.txt'),'unsaved');
+  const dirty=backupRepository({projectRoot},{...options,now:old});
+  const result=maintainBackups({projectRoot,action:'backup-prune',apply:true},{...options,now});
+  for(const x of [p,held,dirty])assert.equal(fs.existsSync(x.directory),true);
+  assert.ok(result.items.some(x=>x.reason==='unmerged'));
+  assert.ok(result.items.some(x=>x.reason==='protected'));
+});
+
+test('corruption and lock conflicts fail closed without deleting originals', t => {
+  const {projectRoot,options}=v2Fixture(t);
+  const p=backupRepository({projectRoot},options);
+  const root=path.join(options.backupRoot,'.v2-store');
+  fs.mkdirSync(path.join(options.backupRoot,'.backup.lock'));
+  assert.throws(()=>backupRepository({projectRoot},options),{code:'BACKUP_STORE_LOCKED'});
+  fs.rmdirSync(path.join(options.backupRoot,'.backup.lock'));
+  const manifest=JSON.parse(fs.readFileSync(path.join(p.directory,'manifest.json')));
+  const blob=manifest.files[0].sha256;
+  fs.writeFileSync(path.join(root,'files',blob.slice(0,2),blob.slice(2)),'corrupt');
+  assert.throws(()=>verifyBackupDirectory(p.directory,options));
+  assert.throws(()=>maintainBackups({projectRoot,action:'backup-prune',apply:true},{...options,now:Date.now()+20*86400000}));
+  assert.equal(fs.existsSync(p.directory),true);
+});
+
+test('backup CLI maintenance defaults to preview and apply is restricted to maintenance', () => {
+  assert.equal(parseCli(['backup-prune','--project','/repo']).options.apply,undefined);
+  assert.equal(parseCli(['backup-migrate','--project','/repo','--apply']).options.apply,true);
+  assert.throws(()=>parseCli(['backup','--project','/repo','--apply']),{code:'CLI_OPTION_INVALID'});
+});
+
+test('migration resumes after a persisted pending commit with a different retry clock', t => {
+  const {projectRoot,options}=fixture(t);const point=backupRepository({projectRoot},options);
+  assert.throws(()=>maintainBackups({projectRoot,action:'backup-migrate',apply:true},{...options,afterMigrationPending:()=>{throw new Error('simulated interruption');}}));
+  assert.equal(fs.existsSync(path.join(point.directory,'objects.pack')),true);
+  assert.equal(fs.existsSync(path.join(point.directory,'manifest-v2.pending.json')),true);
+  assert.doesNotThrow(()=>maintainBackups({projectRoot,action:'backup-migrate',apply:true},{...options,now:Date.now()+1000}));
+  assert.equal(verifyBackupDirectory(point.directory,options).restoreVerified,true);
+});
+
+test('v2 certificate detects edited retention metadata without deleting any recovery point', t => {
+  const {projectRoot,options}=v2Fixture(t);const p=backupRepository({projectRoot},options);
+  const file=path.join(p.directory,'manifest.json');const original=fs.readFileSync(file);
+  for(const edit of [m=>m.worktrees=[],m=>m.protection='ordinary-other',m=>m.createdAt='2000-01-01T00:00:00Z']) {
+    const m=JSON.parse(original);edit(m);fs.writeFileSync(file,JSON.stringify(m));
+    assert.throws(()=>verifyBackupDirectory(p.directory,options),{code:'BACKUP_METADATA_MISMATCH'});
+    assert.throws(()=>maintainBackups({projectRoot,action:'backup-prune',apply:true},options));
+    assert.equal(fs.existsSync(p.directory),true);fs.writeFileSync(file,original);
+  }
+});
+
+test('v2 returns verified preservation proof on new and reused snapshots', t => {
+  const {projectRoot,options}=v2Fixture(t);const tree=git(projectRoot,['rev-parse','HEAD^{tree}']);
+  const preservationRefs={'refs/codex/turn-diffs/proof':tree};
+  for(let i=0;i<2;i++)assert.deepEqual(backupRepository({projectRoot},{...options,preservationRefs}).verifiedPreservationRefs,preservationRefs);
+});
+
+test('rotation protects deleted unmerged refs not belonging to the selected worktree', t => {
+  const {projectRoot,options}=v2Fixture(t);const now=Date.now();
+  git(projectRoot,['switch','-c','codex/orphan']);fs.writeFileSync(path.join(projectRoot,'orphan.txt'),'only old point');git(projectRoot,['add','.']);git(projectRoot,['commit','-m','orphan']);
+  git(projectRoot,['switch','master']);const old=backupRepository({projectRoot},{...options,now:now-20*86400000});
+  git(projectRoot,['branch','-D','codex/orphan']);
+  for(let i=0;i<2;i++){fs.writeFileSync(path.join(projectRoot,'tracked.txt'),'new '+i);git(projectRoot,['add','.']);git(projectRoot,['commit','-m','new '+i]);backupRepository({projectRoot},options);}
+  const result=maintainBackups({projectRoot,action:'backup-prune',apply:true},{...options,now});
+  assert.equal(result.items.find(x=>x.id===path.basename(old.directory)).reason,'unmerged_or_unique_anchor');
+  assert.equal(fs.existsSync(old.directory),true);
+});
+
+test('pending migration prevents rotation from collecting its shared payloads', t => {
+  const {projectRoot,options}=fixture(t);const p=backupRepository({projectRoot},options);
+  assert.throws(()=>maintainBackups({projectRoot,action:'backup-migrate',apply:true},{...options,afterMigrationPending:()=>{throw new Error('interrupted');}}));
+  const bytes=treeBytes(path.join(options.backupRoot,'.v2-store'));
+  assert.throws(()=>maintainBackups({projectRoot,action:'backup-prune',apply:true},options),{code:'BACKUP_MIGRATION_PENDING'});
+  assert.equal(treeBytes(path.join(options.backupRoot,'.v2-store')),bytes);
+  assert.equal(fs.existsSync(path.join(p.directory,'objects.pack')),true);
+  assert.doesNotThrow(()=>maintainBackups({projectRoot,action:'backup-migrate',apply:true},options));
+});
+
+test('earliest v1 points remain readable and protected when the index proof was never recorded', t => {
+  const {projectRoot,options}=fixture(t);const p=backupRepository({projectRoot},options);
+  const file=path.join(p.directory,'manifest.json'),m=JSON.parse(fs.readFileSync(file));
+  delete m.metadataSemantics;delete m.preservationRefs;for(const w of m.worktrees)delete w.index;
+  fs.writeFileSync(file,JSON.stringify(m));
+  assert.equal(verifyBackupDirectory(p.directory,options).restoreVerified,true);
+  const result=maintainBackups({projectRoot,action:'backup-migrate',apply:true},options);
+  assert.equal(result.items[0].reason,'legacy_index_unrecorded');
+  assert.equal(fs.existsSync(path.join(p.directory,'objects.pack')),true);
+});
+
+test('metadata partial-write failure keeps the original and resumes without a truncated seal', t => {
+  const {projectRoot,options}=fixture(t);const p=backupRepository({projectRoot},options);
+  const write=fs.writeFileSync;
+  fs.writeFileSync=function(target,value,...rest) {
+    if(typeof target==='number' && typeof value==='string' && value.startsWith('{"manifestSha256"')) {
+      write.call(fs,target,value.slice(0,5),...rest);throw new Error('simulated metadata I/O failure');
+    }
+    return write.call(fs,target,value,...rest);
+  };
+  try{assert.throws(()=>maintainBackups({projectRoot,action:'backup-migrate',apply:true},options));}finally{fs.writeFileSync=write;}
+  assert.equal(fs.existsSync(path.join(p.directory,'objects.pack')),true);
+  assert.equal(fs.existsSync(path.join(p.directory,'seal.json')),false);
+  assert.doesNotThrow(()=>maintainBackups({projectRoot,action:'backup-migrate',apply:true},options));
+  assert.equal(verifyBackupDirectory(p.directory,options).restoreVerified,true);
+});
+
+test('failed v1 diagnostic remains protected while independent expired v2 points can be collected', t => {
+  const {projectRoot,options}=v2Fixture(t);const now=Date.now();
+  for(let i=0;i<3;i++) {
+    fs.writeFileSync(path.join(projectRoot,'tracked.txt'),'version '+i);git(projectRoot,['add','.']);git(projectRoot,['commit','-m','version '+i]);
+    backupRepository({projectRoot},{...options,now:now-(20-i)*86400000});
+  }
+  const failed=path.join(options.backupRoot,crypto.randomUUID());fs.mkdirSync(failed,{mode:0o700});
+  fs.writeFileSync(path.join(failed,'manifest-draft.json'),JSON.stringify({schemaVersion:1,restoreVerified:false}),{mode:0o600});
+  fs.writeFileSync(path.join(failed,'failure-status.json'),JSON.stringify({status:'FAIL',restoreVerified:false}),{mode:0o600});
+  const result=maintainBackups({projectRoot,action:'backup-prune',apply:true},{...options,now});
+  assert.equal(result.collection.status,'complete');
+  assert.equal(result.items.filter(x=>x.status==='expired').length,1);
+  assert.equal(fs.existsSync(failed),true);
+});
+
+test('distinct v2 metadata points share identical payloads without growth or borrowing source objects', t => {
+  const {projectRoot,options}=v2Fixture(t);const first=backupRepository({projectRoot},options);
+  const store=path.join(options.backupRoot,'.v2-store'),bytes=treeBytes(store);
+  fs.chmodSync(path.join(projectRoot,'tracked.txt'),0o600);
+  const second=backupRepository({projectRoot},options);
+  assert.notEqual(second.directory,first.directory);assert.equal(treeBytes(store),bytes);
+  fs.renameSync(projectRoot,projectRoot+'-offline');
+  for(const p of [first,second])assert.equal(verifyBackupDirectory(p.directory,options).restoreVerified,true);
+});
+
+test('v2 preserves an as-of old tree while unrelated Codex refs and worktrees move during export', t => {
+  const {root,projectRoot,options}=v2Fixture(t),ref='refs/codex/turn-diffs/checkpoints/v2';
+  const old=snapshotTree(projectRoot,'old tree only'),next=snapshotTree(projectRoot,'new tree only');
+  git(projectRoot,['update-ref',ref,old.tree]);
+  const marker=path.join(root,'mutated'),other=path.join(root,'other'),wrapper=path.join(root,'snapshot-v2-git');
+  fs.writeFileSync(wrapper,`#!${process.execPath}\nconst fs=require('node:fs');const {spawnSync}=require('node:child_process');const a=process.argv.slice(2);const r=spawnSync('/usr/bin/git',a,{stdio:'inherit'});if(r.status===0&&a.includes('pack-objects')&&!fs.existsSync(${JSON.stringify(marker)})){fs.writeFileSync(${JSON.stringify(marker)},'done');for(const args of [['update-ref',${JSON.stringify(ref)},${JSON.stringify(next.tree)}],['worktree','add','-b','codex/other',${JSON.stringify(other)}]])if(spawnSync('/usr/bin/git',['-C',${JSON.stringify(projectRoot)},...args],{stdio:'ignore'}).status!==0)process.exit(79);}process.exit(r.status??1);\n`,{mode:0o700});
+  const p=backupRepository({projectRoot},{...options,gitPath:wrapper,preservationRefs:{[ref]:old.tree}});
+  const m=JSON.parse(fs.readFileSync(path.join(p.directory,'manifest.json')));
+  assert.equal(m.refs[ref],old.tree);assert.equal(git(projectRoot,['rev-parse',ref]),next.tree);
+  assert.equal(p.verifiedPreservationRefs[ref],old.tree);
+  assert.equal(verifyBackupDirectory(p.directory,options).restoreVerified,true);
+});
+
+test('v1 migration also preserves objects and refs present only in its concurrent full bundle', t => {
+  const {projectRoot,options}=fixture(t);const p=backupRepository({projectRoot},options);
+  const tree=git(projectRoot,['rev-parse','HEAD^{tree}']);
+  const result=spawnSync(gitPath,['-C',projectRoot,'commit-tree',tree,'-p','HEAD'],{input:'bundle-only recovery commit\n',encoding:'utf8'});
+  assert.equal(result.status,0);const oid=result.stdout.trim();
+  git(projectRoot,['update-ref','refs/heads/bundle-only',oid]);
+  const bundle=path.join(p.directory,'commits.bundle');fs.unlinkSync(bundle);
+  git(projectRoot,['bundle','create',bundle,'--all']);fs.chmodSync(bundle,0o600);
+  const file=path.join(p.directory,'manifest.json'),m=JSON.parse(fs.readFileSync(file));
+  m.files.find(x=>x.path==='commits.bundle').sha256=crypto.createHash('sha256').update(fs.readFileSync(bundle)).digest('hex');fs.writeFileSync(file,JSON.stringify(m));
+  git(projectRoot,['update-ref','-d','refs/heads/bundle-only']);
+  fs.unlinkSync(path.join(projectRoot,'.git/objects',oid.slice(0,2),oid.slice(2)));
+  assert.doesNotThrow(()=>maintainBackups({projectRoot,action:'backup-migrate',apply:true},options));
+  const migrated=JSON.parse(fs.readFileSync(file));assert.equal(migrated.additionalBundleRefs['refs/heads/bundle-only'],oid);
+  assert.equal(verifyBackupDirectory(p.directory,options).restoreVerified,true);
 });

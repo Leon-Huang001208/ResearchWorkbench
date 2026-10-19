@@ -67,7 +67,7 @@ node scripts/git_safety.mjs configure --project /absolute/RWB
 node scripts/git_safety.mjs delivery --project /absolute/RWB --task-id TASK --start --slug SLUG
 ```
 
-`configure` 先保存仓库本地 `gc.auto` 和 `maintenance.auto` 的原值（含原先不存在），再设置为 `0` 和 `false`；配置只留在本机 Git common directory，不进入代码包。回滚仅恢复这两个配置项，并确认它们没有被其他任务改动，禁止整体覆盖旧 `.git/config`。自动维护暂停期间对象库可能增长；本阶段不自动删除备份或执行 GC，后续维护需在停止并发写入、完成备份与完整性检查后另行安排。
+`configure` 先保存仓库本地 `gc.auto` 和 `maintenance.auto` 的原值（含原先不存在），再设置为 `0` 和 `false`；配置只留在本机 Git common directory，不进入代码包。回滚仅恢复这两个配置项，并确认它们没有被其他任务改动，禁止整体覆盖旧 `.git/config`。自动维护暂停期间对象库可能增长；活动Git对象库不执行GC；备份独立存储的迁移和7天轮转按下述专项入口执行，不能删改活动仓库对象。
 
 实现、提交和本地验收后，仍按完整 changed set 的 Router 结果执行所有必需检查：
 
@@ -96,9 +96,27 @@ head或既有锁均拒绝。支持旧prepared尚未发布时主线再次前进�
 对应候选的CI与独立评审，再用正常 `--publish` 更新同一PR。`--replace-prepared` 及已完成交付的
 重建仍拒绝。全局运行时、系统PATH、分支保护和资源/Git恢复备份硬门保持。
 
-`backup` 也可独立创建当前 checkout 的恢复证据；清理时捕获本任务受管 worktree 和调用 checkout，其他任务的工作区文件不被读取或导出，历史失效注册不被删除。备份位于 `~/.codex/backups/rwb-git-safety/`，目录 `0700`、普通文件 `0600`，包含提交 bundle、分开保存的暂存／未暂存二进制补丁、tracked 普通文件的原始工作副本字节、未被忽略的未跟踪文件、快照引用及其对象闭包。在自己的临时仓库中实际恢复并校验对象链、文件哈希和普通文件权限：Git 只记录 executable 位，还可能按属性转换换行，不能用 checkout 的默认字节或 `0644` 替代原本的 LF／CRLF 工作副本及 `0600` 等权限。恢复字节和权限只作用于临时恢复仓库中的已验证普通文件，不跟随符号链接或修改源文件。恢复前保存未认证的 draft metadata；失败备份保留诊断状态，不产生成功认证。发现备份期间目标变化、缺失对象、明确敏感文件或失败时停止，不能静默省略后继续清理。不读取凭据库或忽略的运行时秘密文件；合法报告名出现 token 不视为凭据文件。
+`backup` 也可独立创建当前 checkout 的恢复证据；清理时捕获本任务受管 worktree 和调用 checkout，其他任务的工作区文件不被读取或导出，历史失效注册不被删除。备份位于 `~/.codex/backups/rwb-git-safety/`，目录 `0700`、普通文件 `0600`，v2使用独立共享Git pack和按SHA-256寻址的文件内容，恢复点以seal绑定全部元数据，相同现场复用既有点；v1读取继续兼容。仍保存分开的暂存／未暂存二进制补丁、tracked 普通文件的原始工作副本字节、未被忽略的未跟踪文件、快照引用及其对象闭包。在自己的临时仓库中实际恢复并校验对象链、文件哈希和普通文件权限：Git 只记录 executable 位，还可能按属性转换换行，不能用 checkout 的默认字节或 `0644` 替代原本的 LF／CRLF 工作副本及 `0600` 等权限。恢复字节和权限只作用于临时恢复仓库中的已验证普通文件，不跟随符号链接或修改源文件。恢复前保存未认证的 draft metadata；失败备份保留诊断状态，不产生成功认证。发现备份期间目标变化、缺失对象、明确敏感文件或失败时停止，不能静默省略后继续清理。不读取凭据库或忽略的运行时秘密文件；合法报告名出现 token 不视为凭据文件。
 
 清理前必须确认所有拟处理的分支均已归并、worktree 共用同一 Git 目录且匹配任务账本、工作区干净、没有进程占用，并完成可恢复备份。ignored 文件不会因为 Git status 干净就变成可删除数据：只要拟删除工作区仍有 ignored 路径，入口就拒绝清理，且不读取或导出它们。操作者可将明确由本任务产生的验证日志保留到私有证据目录，其他缓存、数据和秘密必须保留并单独处理。清理后检查对象完整性和其他任务资源保留情况。遇到 Git 锁或仓库级入口锁时停止，不自动删除遗留锁。只允许移除本任务已归并资源，不接受任意 shell 命令，也不提供 GC／prune 接口。
+
+### 去重备份迁移与自动轮转（2026-10-19）
+
+普通恢复点7天到期后，只在不属于最新2个有效点且无保护内容时删除。共享存储位于备份根的`.v2-store/`，Git pack和文件内容只存一份；它没有指向活动仓库的alternates、符号链接或硬链接。恢复在自己的临时仓库中实际验证Git对象、refs、索引、补丁、原始工作副本字节及权限。v2的seal校验覆盖恢复和保留判断使用的完整元数据。新增pack仅导入共享存储尚缺的对象，不重复保留bundle和全量pack。
+
+```sh
+node scripts/git_safety.mjs backup-audit --project /absolute/RWB
+node scripts/git_safety.mjs backup-migrate --project /absolute/RWB
+node scripts/git_safety.mjs backup-migrate --project /absolute/RWB --apply
+node scripts/git_safety.mjs backup-prune --project /absolute/RWB
+node scripts/git_safety.mjs backup-prune --project /absolute/RWB --apply
+```
+
+默认预览不写文件；apply持备份根`.backup.lock`，不删除已有锁。迁移保留原UUID路径和原始创建时间，先核对v1文件哈希、合并保全objects.pack与bundle内的全部对象（含捕获期间额外出现的引用）、导入共享载荷并完整恢复，再原子切换认证元数据，最后复查并删除重复载荷。中断后重用已持久化pending元数据，重新恢复验证；失败保留原件。未认证、故障、隔离或其他仓库的恢复点不能冒充普通过期点。最早未记录索引摘要的v1仍按其原合同可读，但缺少升级认证所需证据，保留原件并报告legacy_index_unrecorded，不伪造索引摘要。修复隔离目录不进入扫描或迁移。
+
+轮转前重新恢复有效保留点，核对所有refs、已登记HEAD和保护锚点；独有未归并对象继续保留。只有不再被任何保留恢复点引用的共享pack或文件才可删除，含仍被引用对象的整个pack保留。未知恢复点会阻止共享载荷回收。全程不运行活动仓库的gc/repack/prune，不停止业务服务，不复制凭据。应用日志仍位于`logs/git-safety.jsonl`，只记录对象身份、阶段和稳定错误码。
+
+交付入口继续强制本任务资源与worktree收尾。每日维护先只读筛选未cleaned的已验收归并任务，复用正式入口；随后运行上述备份预览、迁移和轮转。已cleaned任务不重复生成安全备份，没有状态变化保持静默。备份保留条款不授权清理其他聊天持有的worktree；权限或占用受阻须记录对象和原因。
 
 锁仅串行化采用本入口的操作；Codex 内部和人工直接执行的 Git 命令仍可能并发。Ubuntu 临时仓库测试属于通用算法证据，不代表 Linux／Windows 宿主启用已验证。现有隔离备份永久保留至另行授权；原始对象删除者仍未确定。
 
@@ -114,7 +132,7 @@ head或既有锁均拒绝。支持旧prepared尚未发布时主线再次前进�
 
 临时测试资源用`RWB_DELIVERY_TASK_ID`或`ResourceSession(delivery_task=...)`关联交付；没有关联的历史资源保留。缓存维护与`rwb-docker`共用操作锁，验证Buildx节点、context、容器/卷和本机内存门，仅对已停止构建器临时使用2 GiB限额，完成后恢复原容器限额和停止状态。BuildKit自行保护in-use记录并LRU回收；总量仍超20 GiB或恢复失败，回执为blocked。
 
-每次验收在回执列出reclaimed/retained/blocked、缓存前后总量和宿主df实测；逻辑镜像容量或du累计不能冒充宿主实际释放。`cleaned`必须同时代表资源及Git收尾成功。重复status对已cleaned交付复核，不重新删除。原有Git安全备份至少30天保留。
+每次验收在回执列出reclaimed/retained/blocked、缓存前后总量和宿主df实测；逻辑镜像容量或du累计不能冒充宿主实际释放。`cleaned`必须同时代表资源及Git收尾成功。重复status对已cleaned交付复核，不重新删除。普通Git恢复点按用户2026-10-19授权保留7天及最新2个有效点；未提交、未归并、活动、未知归属和独有保护锚点不自动淘汰，修复隔离备份仍单独保护。
 
 先按下列优先级路由，而不是只凭任务大小选择。后台/远程是执行通道，worktree 是本地仓库修改隔离；二者可以组合，长时本身不要求 worktree。选择最小但足够的方式，不因任务看似复杂而跳过验证。
 
