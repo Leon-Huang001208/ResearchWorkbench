@@ -1,5 +1,7 @@
 # Research Web Native / Docker 安装与运行
 
+旧会话 SDK 兼容依赖包内既有三个报告 Python 文件与 Noto 字体，均随现有 wheel/资源合同交付；没有新依赖、设置或迁移。Host 沙箱固定只读这些文件，既有会话目录不覆盖；最终候选仍须 Mac 干净安装与本机 Native 验证。
+
 报告配方使用现有标准库及报告依赖，无新增安装项、用户配置、数据库迁移或模型配置格式。公开三入口和锁文件保持，最终候选仍需 macOS Bootstrap 干净安装证据；现有会话及模型凭据原位保留。
 
 正文取证使用现有 Python 标准库及原私有回调，无新依赖或凭据设置。requirements/web.in、web.lock、setup_web.py 和 Mac Bootstrap 安装流程保持；新增模块须随 wheel 进入干净安装。正文读取与取消、版本回执元数据超出 resident 自动兼容范围，须经精确候选专项复核后在空闲门内切换，不扩大自动白名单或搬迁研究数据。

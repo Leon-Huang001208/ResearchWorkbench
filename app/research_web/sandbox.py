@@ -14,6 +14,7 @@ import os
 import re
 import selectors
 import signal
+import stat
 import subprocess
 import sys
 import time
@@ -217,6 +218,41 @@ def _kill_group(process: subprocess.Popen[bytes]) -> bool:
         return False
 
 
+def _report_sdk_scope() -> tuple[str, tuple[str, ...]]:
+    """Read only the packaged SDK's fixed files; never overwrite legacy session copies."""
+    try:
+        root = Path(__file__).resolve(strict=True).parent / "resources"
+        if root.is_symlink() or not root.is_dir() or root.resolve(strict=True) != root:
+            raise SandboxError("bundled report SDK directory is unsafe")
+        fonts = root / "fonts"
+        if fonts.is_symlink() or not fonts.is_dir():
+            raise SandboxError("bundled report SDK fonts are unsafe")
+        files = [str(root), str(fonts)]
+        for name in (
+            "research_helpers.py",
+            "research_report.py",
+            "research_report_plan.py",
+            "fonts/NotoSansSC-Regular.ttf",
+        ):
+            target = root / name
+            info = target.lstat()
+            if (
+                not stat.S_ISREG(info.st_mode)
+                or info.st_nlink != 1
+                or target.resolve(strict=True) != target
+            ):
+                raise SandboxError("bundled report SDK file is unsafe")
+            files.append(str(target))
+        LOGGER.info("research_report_sdk_scope_verified files=4")
+        return str(root), tuple(files)
+    except SandboxError:
+        LOGGER.warning("research_report_sdk_scope_rejected")
+        raise
+    except OSError as exc:
+        LOGGER.warning("research_report_sdk_scope_unavailable")
+        raise SandboxError("bundled report SDK is unavailable") from exc
+
+
 def run_script(config: SandboxConfig, session: Path, code: str, *, read_paths=()) -> ScriptResult:
     """Execute bounded Python source under kernel-enforced research capabilities."""
     if sys.platform != "darwin" or not Path("/usr/bin/sandbox-exec").is_file():
@@ -233,6 +269,8 @@ def run_script(config: SandboxConfig, session: Path, code: str, *, read_paths=()
     try:
         session = validate_session(config, session)
         executable, reads, exec_paths, read_files = _runtime(str(config.python))
+        sdk_root, sdk_files = _report_sdk_scope()
+        read_files = (*read_files, *sdk_files)
     except OSError as exc:
         raise SandboxError("research sandbox directories are unavailable") from exc
     if not isinstance(read_paths, (list, tuple)) or len(read_paths) > 320:
@@ -253,10 +291,10 @@ def run_script(config: SandboxConfig, session: Path, code: str, *, read_paths=()
             raise SandboxError("unsafe script resource scope")
         permitted.append(str(target))
     # -I -S prevents user startup/.pth execution. Only the configured venv's
-    # site-packages and this session's reviewed resources use absolute paths.
-    # Relative imports require getcwd(), denied at the session root. Adding the
-    # already-readable resource directory needs no new filesystem permission.
-    site_paths = [path for path in reads if path.endswith("/site-packages")]
+    # site-packages, fixed packaged SDK literals and session resources use absolute
+    # paths. The current SDK precedes legacy copies; no session file is replaced.
+    # Only the four curated SDK files gain read-data, never their parent subtree.
+    site_paths = [sdk_root, *[path for path in reads if path.endswith("/site-packages")]]
     site_paths.append(str(session / "resources"))
     bootstrap = (
         "import sys,resource,mimetypes;"
@@ -265,6 +303,8 @@ def run_script(config: SandboxConfig, session: Path, code: str, *, read_paths=()
         "resource.setrlimit(resource.RLIMIT_NOFILE,(64,)*2);"
         "mimetypes.knownfiles=[];mimetypes.init();"
         f"sys.path.extend({site_paths!r});"
+        "import research_report;"
+        f"research_report._SESSION_ROOT={str(session)!r};"
         "exec(compile(sys.stdin.buffer.read(),'<research-script>','exec'),{'__name__':'__main__'})"
     )
     command = [

@@ -7927,6 +7927,7 @@ Imports:
 - `re`
 - `selectors`
 - `signal`
+- `stat`
 - `subprocess`
 - `sys`
 - `time`
@@ -7950,6 +7951,8 @@ Functions:
   - Build a read-data allowlist and narrow mutation grants (metadata stays visible).
 - `_kill_group`
   - Stop every child; report incomplete kernel teardown rather than hanging forever.
+- `_report_sdk_scope`
+  - Read only the packaged SDK's fixed files; never overwrite legacy session copies.
 - `run_script`
   - Execute bounded Python source under kernel-enforced research capabilities.
 - `_request_cancel`

@@ -248,7 +248,8 @@ def test_report_plan_repairs_real_cpi_claim_shape_without_certifying_analysis():
 
 
 @pytest.mark.skipif(sys.platform != "darwin", reason="requires original macOS kernel sandbox")
-def test_report_plan_generated_code_runs_in_original_native_sandbox(tmp_path):
+@pytest.mark.parametrize("legacy_resources", [False, True], ids=["new-session", "legacy-session"])
+def test_report_plan_generated_code_runs_in_original_native_sandbox(tmp_path, legacy_resources):
     import subprocess
 
     from test_research_business_evidence import CPI
@@ -264,6 +265,9 @@ def test_report_plan_generated_code_runs_in_original_native_sandbox(tmp_path):
     shutil.copytree(
         project / "app/research_web/resources", directory / "resources", dirs_exist_ok=True
     )
+    if legacy_resources:
+        (directory / "resources/research_report_plan.py").unlink()
+    prior_resource = (directory / "resources/research_report.py").read_bytes()
     (directory / "inputs/cpi.md").write_text(CPI)
     contract = make_contract("a" * 24, "Actual CPI", ["Actual facts"], "2026-10-19", "quick")
     write_business_snapshot(SimpleNamespace(store=store), sid, contract)
@@ -330,6 +334,8 @@ def test_report_plan_generated_code_runs_in_original_native_sandbox(tmp_path):
 
     versions = list_report_versions(directory / "outputs")
     assert len(versions) == 1 and versions[0]["report"]["title"] == "实际CPI数值"
+    assert (directory / "resources/research_report.py").read_bytes() == prior_resource
+    assert (directory / "resources/research_report_plan.py").exists() is not legacy_resources
 
 
 def test_report_plan_nist_derives_only_real_parents_and_exposes_proposals():
