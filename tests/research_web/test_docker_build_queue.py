@@ -391,3 +391,13 @@ def test_archived_entry_script_is_used_instead_of_mutable_worktree(tmp_path, mon
     assert subject.execute(
         {"job_id": "a" * 64, "task_id": "dsh-task", "source_sha": sha, "refresh": False}
     ) == (0, "completed")
+
+
+def test_context_failure_is_persisted_and_never_rebuilt(manager, monkeypatch):
+    def fail(_job):
+        raise OSError("private context failure")
+
+    monkeypatch.setattr(manager, "execute", fail)
+    assert manager.submit("dsh-task", False)["status"] == "blocked"
+    monkeypatch.setattr(manager, "execute", lambda _: pytest.fail("failed context rebuilt"))
+    assert manager.resume("dsh-task")["reason"] == "build_context_failed"

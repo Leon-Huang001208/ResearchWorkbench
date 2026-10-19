@@ -461,11 +461,21 @@ class BuildQueue:
             return self.report(job, "operation_busy", persist=False)
         # The legacy shell reacquires the SAME lock and checks capacity again.
         # A competing operation in this short handoff cannot bypass admission.
-        code, reason = self.execute(job)
+        try:
+            code, reason = self.execute(job)
+        except (QueueError, OSError, tarfile.TarError) as exc:
+            code, reason = 1, "build_context_failed"
+            LOG.error("queued_build_failed category=%s", type(exc).__name__)
+        except KeyboardInterrupt:
+            code, reason = 130, "cancelled"
         job.update(status="completed" if code == 0 else "failed", reason=reason)
         if reason in TRANSIENT:
             job.update(status="waiting_resources")
-        if reason == "builder_cleanup_incomplete":
+        if reason in {
+            "builder_cleanup_incomplete",
+            "context_cleanup_incomplete",
+            "build_context_failed",
+        }:
             job.update(status="blocked")
         # Persist completion before competing operations can delay finalization.
         # Resume consumes this result rather than starting a second build.
@@ -474,26 +484,37 @@ class BuildQueue:
 
     def execute(self, job: dict) -> tuple[int, str]:
         """Archive committed bytes; concurrent worktree edits cannot enter a build."""
-        with tempfile.TemporaryDirectory(
-            prefix=job["job_id"] + "-", dir=self.directory / "contexts"
-        ) as folder:
-            context = Path(folder)
-            archive = context / "source.tar"
-            git = "/usr/bin/git" if sys.platform == "darwin" else "git"
-            call(
-                git,
-                "-C",
-                str(self.project),
-                "archive",
-                "--format=tar",
-                "--output=" + str(archive),
-                job["source_sha"],
-            )
-            source = context / "source"
-            source.mkdir(mode=0o700)
-            with tarfile.open(archive) as bundle:
-                bundle.extractall(source, filter="data")
-            return self.run_build(job, source)
+        result = None
+        try:
+            with tempfile.TemporaryDirectory(
+                prefix=job["job_id"] + "-", dir=self.directory / "contexts"
+            ) as folder:
+                context = Path(folder)
+                archive = context / "source.tar"
+                git = "/usr/bin/git" if sys.platform == "darwin" else "git"
+                call(
+                    git,
+                    "-C",
+                    str(self.project),
+                    "archive",
+                    "--format=tar",
+                    "--output=" + str(archive),
+                    job["source_sha"],
+                )
+                source = context / "source"
+                source.mkdir(mode=0o700)
+                with tarfile.open(archive) as bundle:
+                    bundle.extractall(source, filter="data")
+                result = self.run_build(job, source)
+        except OSError:
+            if result is None:
+                raise
+            # A completed build followed by failed context cleanup must not be
+            # mistaken for a dead request and executed a second time.
+            return 1, "context_cleanup_incomplete"
+        if result is None:
+            raise QueueError("build_result_missing")
+        return result
 
     def run_build(self, job: dict, context: Path) -> tuple[int, str]:
         log = self.home / "logs" / ("build-" + job["job_id"] + "-" + uuid.uuid4().hex + ".log")
