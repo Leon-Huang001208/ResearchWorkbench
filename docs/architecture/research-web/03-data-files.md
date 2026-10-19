@@ -1,5 +1,7 @@
 # DataHub、研究资料与实际文件
 
+write_summary_workbook原子生成Summary的metric/value数值首表、完整空白分隔行及独立ExactValues；额外Facts/Notes等表不混入首表，列表单元格保存JSON且转义公式文本。CPI历史月值仅来自核对过的表头/同一行，百分点按Decimal复算；前月同比只接受完整肯定发布段落并核对本期表格。NIST仅提取原字节句，不认证译文/落地。
+
 可选calculations是数据配方，不是脚本或可信结果；Host只读取本会话允许inputs的实际全文字节并核对SHA，生成绑定用户根/session/task/算法/输入与配方摘要的观测。模型sources/coverage/notes仍由原门逐项核验，不自动改写。
 
 幂等请求头透传不改变账号库、会话及模型配置格式，不搬移历史或凭据；原后端继续维护请求幂等性。
