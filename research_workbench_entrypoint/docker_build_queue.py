@@ -497,7 +497,7 @@ class BuildQueue:
 
     def run_build(self, job: dict, context: Path) -> tuple[int, str]:
         log = self.home / "logs" / ("build-" + job["job_id"] + "-" + uuid.uuid4().hex + ".log")
-        args = [str(self.project / "rwb-docker"), "build"]
+        args = [str(context / "rwb-docker"), "build"]
         if job["refresh"]:
             args.append("--refresh-dsh")
         env = dict(
