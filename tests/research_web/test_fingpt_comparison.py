@@ -205,6 +205,34 @@ def test_loopback_auth_origin_redaction_and_one_use_grant(tmp_path):
         thread.join(timeout=3)
 
 
+def test_creation_handle_returned_before_fallible_identity_probe(monkeypatch):
+    import subprocess
+    import sys
+
+    from research_workbench_entrypoint import fingpt_compare_worker as worker
+
+    children = []
+    try:
+        with monkeypatch.context() as patch:
+
+            def unavailable(_child):
+                raise OSError("fixture_process_table_unavailable")
+
+            patch.setattr(worker, "owned_members", unavailable)
+            children.append(
+                worker.start_owned(
+                    [sys.executable, "-c", "import time;time.sleep(30)"],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+            )
+            assert children[0].poll() is None
+        worker.stop_owned(children)
+        assert children[0].poll() is not None
+    finally:
+        worker.stop_owned(children)
+
+
 def test_owned_group_retirement_includes_orphan_child_ignoring_term():
     import subprocess
     import sys

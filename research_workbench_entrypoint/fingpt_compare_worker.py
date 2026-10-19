@@ -404,9 +404,8 @@ def start_owned(command, **options):
     started = time.time()
     child = subprocess.Popen(command, start_new_session=True, **options)
     child.comparison_started = started
-    for item in owned_members(child):
-        if item["pid"] == child.pid:
-            child.comparison_birth = item["born"]
+    # Return the creation handle before any fallible process-table inspection.
+    # Callers register it immediately; retirement verifies UID/session/birth.
     return child
 
 
