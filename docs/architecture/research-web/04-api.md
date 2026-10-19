@@ -1,5 +1,9 @@
 # Research Web 接口清单
 
+新增内部 POST /api/research/internal/data/research-source 接受 {session_id,call_id,operation:list|read,source_id?,search_activities?}；身份和有界已完成搜索活动仅由可信原生插件提供，模型参数只允许 operation/source_id。list 返回真实来源身份，read 返回 source、observation_id、正文前24000字符及 truncated 和实际 inputs 路径。POST 同前缀 /research-source/cancel 只接受 session_id/call_id。两者须实例私有数据 key，浏览器和其他用户不可调用；普通研究 GET 不取正文或触发模型。
+
+质量回执新增 report_content_sha256 指向当前规范 JSON 实际字节；每版本引用 Host 已保存检查 ID，不由调用方写 passed。原有 research_quality、file_state、research_accepted 语义与损坏文件409门保持。
+
 新增select_business_evidence、write_summary_workbook与render_markdown均为原沙箱Python资源函数，不新增API。source_references额外接受完整file:24位十六进制ID的斜杠连接，仍逐项核对Host身份；不接受路径、文件名或未知ID。evidence_section输出统一四列表，重复父来源去重且不修改正文可信状态。
 
 load_business_evidence(task_id,contract_sha256)与source_references(value,Host sources)只是已打包Python资源函数，不增加HTTP/RPC。前者读取本回合便利投影，后者接受规范ID或“规范ID · 准确Host标题 · 定位”，不从文件名/定位猜来源。Host评分不读取投影文件。

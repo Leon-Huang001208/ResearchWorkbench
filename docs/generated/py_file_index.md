@@ -4298,6 +4298,9 @@ Classes:
 - `MigrationRequest`
 - `SkillAdmissionRequest`
 - `QualityCheckRequest`
+- `NativeSearchActivity`
+- `SourceReadRequest`
+- `SourceCancelRequest`
 
 Functions:
 - `_credential_error`
@@ -4319,6 +4322,8 @@ Functions:
 - `business_query`
 - `skill_preflight`
 - `research_quality`
+- `research_source`
+- `research_source_cancel`
 - `cancel`
 - `model_connection`
   - Instance-private public facts; credentials never cross this HTTP channel.
@@ -7624,11 +7629,62 @@ Functions:
 - `observations`
   - Only actual session input/snapshot bytes become numeric evidence.
 - `quality_result`
+- `receipt_archives`
+  - Each same-turn revision keeps the quality checked by the Host for its bytes.
+- `current_report_digest`
 - `quality_versions`
 - `archive_digest`
   - Resolve a download against Host-owned hashes, never a model manifest.
 - `check_quality`
   - Authenticated native check, with one durable repair authorization per task.
+
+
+## `app/research_web/research_web_sources.py`
+
+Module docstring:
+> Session-bound public HTTPS bodies, with pinned public DNS and immutable evidence.
+
+Imports:
+- `asyncio`
+- `contextlib`
+- `core.observability`
+- `datahub.security`
+- `datetime`
+- `hashlib`
+- `html.parser`
+- `http.client`
+- `ipaddress`
+- `json`
+- `os`
+- `re`
+- `socket`
+- `ssl`
+- `store`
+- `sys`
+- `threading`
+- `time`
+- `urllib.parse`
+
+Classes:
+- `PublicConnection`
+  - methods: __init__, connect
+- `BodyParser`
+  - methods: __init__, handle_starttag, handle_endtag, handle_data
+
+Functions:
+- `rejected`
+- `public_target`
+  - Validate every redirect and pin every returned address before connecting.
+- `fetch_document`
+  - No proxy, credentials, cookies, executable content, or unbounded redirects.
+- `stored_sources`
+  - Only Host metadata and unchanged owned input bytes can certify acquisition.
+- `fetch_owned_document`
+  - An owned finite worker makes DNS/header/body timeout and cancellation final.
+- `request_state`
+- `cancel_source`
+- `execute_source`
+- `read_source`
 
 
 ## `app/research_web/resources/__init__.py`
