@@ -1,5 +1,7 @@
 # Research Web 接口清单
 
+research_sources 对 Host 已抓取网页仅返回原 web 身份，不再同时给出 file 上传别名；实际文件列表及下载路径保留。无新增端点或用户字段，错误 provenance 以原 research_source_integrity_failed 拒绝，web 范围和截止日保持原规则。
+
 research_run_script 接受且仅接受 code 或 report_plan 其中一项；report_plan 是有界 JSON，无任意代码、路径、来源身份或评分覆盖字段。既有 private nativeAdmission 仅对合法冻结合同返回 report_context（task_id、contract_sha256、as_of、requirement_ids），浏览器/模型不能提供可信绑定。不增加 HTTP 端点，research_check_quality 与 invalid 下载 409 不变。
 
 新增内部 POST /api/research/internal/data/research-source 接受 {session_id,call_id,operation:list|read,source_id?,search_activities?}；身份和有界已完成搜索活动仅由可信原生插件提供，模型参数只允许 operation/source_id。list 返回真实来源身份，read 返回 source、observation_id、正文前24000字符及 truncated 和实际 inputs 路径。POST 同前缀 /research-source/cancel 只接受 session_id/call_id。两者须实例私有数据 key，浏览器和其他用户不可调用；普通研究 GET 不取正文或触发模型。

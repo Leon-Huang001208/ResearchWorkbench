@@ -10,6 +10,7 @@ from core.observability import get_logger
 from .research_business_evidence import business_observations
 from .research_evidence import report_projection
 from .research_quality import make_contract
+from .research_web_sources import upload_evidence_files
 from .resources.research_report import archive_report_version, list_report_versions
 from .resources.research_report_plan import EXTRACTED_METRICS
 from .store import StoreError
@@ -164,7 +165,9 @@ def source_context(service, sid, files, sources=()):
     """Return canonical owned identities and whole-file hashes, not guessed aliases."""
     identities = []
     total = 0
-    for item in files:
+    files = upload_evidence_files(service.store, sid, files)
+    scope = service.store.session(sid).get("source_scope", ["uploads", "datahub", "web"])
+    for item in files if "uploads" in scope else []:
         if item.get("kind") != "inputs":
             continue
         if len(identities) >= 20:
@@ -186,6 +189,9 @@ def source_context(service, sid, files, sources=()):
     for source in sources:
         if len(identities) >= 20 or source.get("id", "").startswith("file:"):
             continue
+        kind = {"web": "web", "dataset": "datahub"}.get(source.get("id", "").split(":", 1)[0])
+        if kind not in scope:
+            continue
         row = {
             name: source[name]
             for name in ("id", "title", "url", "as_of")
@@ -203,7 +209,9 @@ def source_context(service, sid, files, sources=()):
 def observations(service, sid, files, sources, *, task_id="", contract_sha=""):
     """Only actual session input/snapshot bytes become numeric evidence."""
     result, complete = [], []
-    for item in files:
+    files = upload_evidence_files(service.store, sid, files)
+    scope = service.store.session(sid).get("source_scope", ["uploads", "datahub", "web"])
+    for item in files if "uploads" in scope else []:
         if item.get("kind") != "inputs" or not item.get("name", "").endswith(
             (".txt", ".md", ".csv", ".json")
         ):
@@ -242,7 +250,7 @@ def observations(service, sid, files, sources, *, task_id="", contract_sha=""):
             )
         )
     for source in sources[:300]:
-        if source.get("id", "").startswith("web:") and source.get("file_id"):
+        if "web" in scope and source.get("id", "").startswith("web:") and source.get("file_id"):
             stream, _ = service.store.open_file(sid, source["file_id"])
             with stream:
                 raw = stream.read(800001)
@@ -258,7 +266,7 @@ def observations(service, sid, files, sources, *, task_id="", contract_sha=""):
             )
             continue
     for source in sources[:40]:
-        if not source.get("id", "").startswith("dataset:"):
+        if "datahub" not in scope or not source.get("id", "").startswith("dataset:"):
             continue
         did = source["id"].split(":", 1)[1]
         try:
@@ -288,11 +296,18 @@ def quality_result(service, sid, receipt, files, sources, delivery=None):
         return None
     scope = service.store.session(sid).get("source_scope", ["uploads", "datahub", "web"])
     kinds = {"file": "uploads", "dataset": "datahub", "web": "web"}
+    upload_files = upload_evidence_files(service.store, sid, files)
+    web_ids = {item["id"] for item in files} - {item["id"] for item in upload_files}
     sources = [
-        source for source in sources if kinds.get(source.get("id", "").split(":", 1)[0]) in scope
+        source
+        for source in sources
+        if kinds.get(source.get("id", "").split(":", 1)[0]) in scope
+        and source.get("id") not in {"file:" + identifier for identifier in web_ids}
     ]
     evidence_files = (
-        files if "uploads" in scope else [item for item in files if item.get("kind") != "inputs"]
+        upload_files
+        if "uploads" in scope
+        else [item for item in upload_files if item.get("kind") != "inputs"]
     )
     observation_error = False
     try:
