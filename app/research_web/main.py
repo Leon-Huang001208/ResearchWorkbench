@@ -408,6 +408,7 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
                 any(research.running.values())
                 or research.approvals
                 or research.questions
+                or getattr(research, "source_requests", {})
                 or any(
                     row.get("research_status") in {"queued", "running"}
                     for row in research.store.data.get("automation_runs", {}).values()

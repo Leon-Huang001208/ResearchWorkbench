@@ -50,8 +50,20 @@ def evidence_index(files, datasets, activities):
         try:
             result = json.loads(detail)
         except (ValueError, TypeError, RecursionError):
-            log.info("research_search_shape_unavailable")
-            continue
+            # Native DSH web_search renders its real identities as Markdown,
+            # rather than JSON. Only its explicit Sources list is an identity
+            # channel; ordinary result prose never becomes observed page text.
+            if "Sources:\n" not in detail:
+                log.info("research_search_shape_unavailable")
+                continue
+            result = []
+            for line in detail.split("Sources:\n", 1)[1].splitlines()[:201]:
+                match = re.fullmatch(
+                    r"[-*] \[([^\n]{1,1000}?)\]\((https?://[^\s]{1,4000}?)\)", line
+                )
+                if not match:
+                    break
+                result.append({"title": match[1], "url": match[2]})
         pending, inspected = [result], 0
         while pending and inspected < 1000 and len(sources) < 300:
             row = pending.pop()
@@ -276,6 +288,7 @@ def report_projection(
                 raise ValueError("report_changed_during_verification")
             return {
                 **payload,
+                "content_sha256": hashlib.sha256(raw).hexdigest(),
                 "calculation_observations": calculation_observations,
                 "quality": assessment["status"],
                 "issues": assessment["issues"],

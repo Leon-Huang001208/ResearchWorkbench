@@ -1,5 +1,7 @@
 # Research Web Native / Docker 安装与运行
 
+正文取证使用现有 Python 标准库及原私有回调，无新依赖或凭据设置。requirements/web.in、web.lock、setup_web.py 和 Mac Bootstrap 安装流程保持；新增模块须随 wheel 进入干净安装。正文读取与取消、版本回执元数据超出 resident 自动兼容范围，须经精确候选专项复核后在空闲门内切换，不扩大自动白名单或搬迁研究数据。
+
 本次质量修复只使用已具备的Python标准库及既有报告依赖，不新增依赖、数据库schema或模型配置。公开安装入口与requirements/web.in、web.lock、setup_web.py、Bootstrap保持；仍须由本机与最终候选macOS干净安装CI证明兼容，不能依赖开发环境推断。
 
 管理员 stage 停止仍保留容量；已完成任务仅通过 Docker 手册的 release-reservation 精确身份入口释放预留，容器和卷保留。公开安装与凭据初始化合同不变。

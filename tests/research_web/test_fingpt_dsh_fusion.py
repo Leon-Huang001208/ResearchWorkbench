@@ -100,6 +100,42 @@ def test_unknown_mode_does_not_register_a_session(tmp_path):
     assert not service.store.data["sessions"]
 
 
+def test_source_reader_callback_requires_private_auth_and_cannot_take_a_url(fusion_api):
+    client, native, service = fusion_api
+    sid = client.post("/api/research/sessions", json={}).json()["id"]
+    path = "/api/research/internal/data/research-source"
+    body = {"session_id": sid, "call_id": "native:read", "operation": "list"}
+    assert client.post(path, json=body).status_code == 403
+    headers = {"X-Research-Data-Key": service.datahub.control["token"]}
+    response = client.post(path, json=body, headers=headers)
+    assert response.status_code == 200 and response.json() == {"sources": []}
+    activity = {
+        "id": "native:search",
+        "title": "web_search",
+        "status": "completed",
+        "detail": "External web content follows.\n\nSources:\n- [Exact native title](https://example.org/report#1)",
+    }
+    response = client.post(
+        path,
+        json={**body, "call_id": "native:list2", "search_activities": [activity]},
+        headers=headers,
+    )
+    assert response.status_code == 200
+    assert response.json()["sources"][0]["title"] == "Exact native title"
+    assert response.json()["sources"][0]["state"] == "search_summary"
+    assert (
+        client.post(path, json={**body, "url": "https://example.org/"}, headers=headers).status_code
+        == 422
+    )
+    assert (
+        client.post(
+            path + "/cancel", json={"session_id": sid, "call_id": "native:read"}
+        ).status_code
+        == 403
+    )
+    assert not any(method == "session.prompt" for method, _ in native.calls)
+
+
 def test_contract_preflight_failure_does_not_reserve_unsent_request(fusion_api, monkeypatch):
     client, native, service = fusion_api
     sid = client.post("/api/research/sessions", json={}).json()["id"]

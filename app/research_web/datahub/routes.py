@@ -51,6 +51,29 @@ class QualityCheckRequest(BaseModel):
     operation: Literal["check"] = "check"
 
 
+class NativeSearchActivity(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    id: str = Field(min_length=1, max_length=241)
+    title: Literal["web_search", "datahub_search_web", "datahub_search_research"]
+    status: Literal["completed"]
+    detail: str = Field(max_length=16000)
+
+
+class SourceReadRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    session_id: str = Field(pattern=r"^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$")
+    call_id: str = Field(pattern=r"^[a-zA-Z0-9_.:-]{1,241}$")
+    operation: Literal["list", "read"]
+    source_id: str | None = Field(default=None, pattern=r"^web:[a-f0-9]{24}$")
+    search_activities: list[NativeSearchActivity] = Field(default_factory=list, max_length=16)
+
+
+class SourceCancelRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    session_id: str = Field(pattern=r"^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$")
+    call_id: str = Field(pattern=r"^[a-zA-Z0-9_.:-]{1,241}$")
+
+
 def _credential_error(exc: CredentialStoreError):
     code = str(exc)
     if code == "credential_store_unavailable":
@@ -229,6 +252,29 @@ async def research_quality(body: QualityCheckRequest, request: Request):
     service = request.app.state.research
     await service.ensure_owned()
     return await check_quality(service, body.session_id)
+
+
+@router.post("/internal/data/research-source")
+async def research_source(body: SourceReadRequest, request: Request):
+    from ..research_web_sources import execute_source
+
+    service = request.app.state.research
+    await service.ensure_owned()
+    return await execute_source(
+        service,
+        body.session_id,
+        body.call_id,
+        body.operation,
+        body.source_id,
+        [activity.model_dump() for activity in body.search_activities],
+    )
+
+
+@router.post("/internal/data/research-source/cancel")
+async def research_source_cancel(body: SourceCancelRequest, request: Request):
+    from ..research_web_sources import cancel_source
+
+    return cancel_source(request.app.state.research, body.session_id, body.call_id)
 
 
 @router.post("/internal/data/cancel")

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "unchanged",
-  "summary": "复核原DSH脚本资源、CPI计算和NIST原句投影修复",
-  "reason": "无新服务、API、依赖或用户配置；原Host独立质量门保持，脚本与文件边界已同步02至05。"
+  "disposition": "updated",
+  "summary": "公开来源正文读取、准确来源登记与报告版本回执绑定",
+  "reason": "README已补充来源正文和版本能力；两个私有回调、有限HTTP进程与来源/版本边界同步02至05，DSH唯一引擎及原质量门保持。"
 }
