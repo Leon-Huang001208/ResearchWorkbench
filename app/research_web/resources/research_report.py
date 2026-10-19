@@ -1192,12 +1192,13 @@ def render_markdown(payload):
 
 def render_pdf(path, payload):
     path = Path(path)
+    session_root = Path(globals().get("_SESSION_ROOT", Path(__file__).resolve().parent.parent))
     if not path.is_absolute():
-        path = Path(__file__).resolve().parent.parent / path
+        path = session_root / path
     try:
         previous_directory = os.getcwd()
     except PermissionError:
-        previous_directory = str(Path(__file__).resolve().parent.parent)
+        previous_directory = str(session_root)
     try:
         # ReportLab initializes paths from CWD. Only the already writable output
         # directory is readable under Seatbelt; session-root grants stay closed.

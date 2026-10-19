@@ -71,6 +71,67 @@ def prepared(tmp_path):
     return module, root, session, config
 
 
+@pytest.mark.parametrize("alias", ["symlink", "hardlink"])
+def test_packaged_sdk_scope_rejects_aliased_files(tmp_path, monkeypatch, alias):
+    module = load_runner()
+    package = tmp_path / "package"
+    package.mkdir()
+    source = package / "sandbox.py"
+    source.write_text("# trusted package fixture")
+    root = package / "resources"
+    (root / "fonts").mkdir(parents=True)
+    for name in [
+        "research_helpers.py",
+        "research_report.py",
+        "research_report_plan.py",
+        "fonts/NotoSansSC-Regular.ttf",
+    ]:
+        (root / name).write_bytes(b"fixture")
+    monkeypatch.setattr(module, "__file__", str(source))
+    sdk, files = module._report_sdk_scope()
+    assert sdk == str(root) and len(files) == 6
+    target = root / "research_report.py"
+    target.unlink()
+    outside = tmp_path / "outside.py"
+    outside.write_text("outside")
+    if alias == "symlink":
+        target.symlink_to(outside)
+    else:
+        os.link(outside, target)
+    with pytest.raises(module.SandboxError, match="SDK file is unsafe"):
+        module._report_sdk_scope()
+
+
+def test_packaged_sdk_is_read_only_and_excludes_unlisted_source_files(prepared):
+    module, _root, session, config = prepared
+    (session / "resources/research_report.py").write_text("raise RuntimeError('legacy copy')")
+    prior = (session / "resources/research_report.py").read_bytes()
+    code = """
+import os
+from pathlib import Path
+import research_report_plan
+import research_report
+assert research_report.__file__ == str(Path(research_report_plan.__file__).with_name('research_report.py'))
+def denied(action):
+    try:
+        action()
+    except PermissionError:
+        return
+    raise AssertionError('unlisted or write access was allowed')
+def write_open():
+    descriptor = os.open(research_report.__file__, os.O_WRONLY)
+    os.close(descriptor)
+denied(write_open)
+denied(lambda: Path(research_report.__file__).with_name('__init__.py').read_bytes())
+denied(lambda: Path(research_report.__file__).parent.parent.joinpath('service.py').read_bytes())
+print('fixed SDK only')
+"""
+    result = module.run_script(config, session, code)
+    assert result.status == "completed", result
+    assert result.stdout == "fixed SDK only\n"
+    assert (session / "resources/research_report.py").read_bytes() == prior
+
+
 def test_reads_inputs_resources_and_writes_only_outputs_tmp(prepared):
     module, _root, session, config = prepared
     (session / "inputs/a.txt").write_text("input")
