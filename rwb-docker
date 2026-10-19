@@ -11,6 +11,22 @@ else
 fi
 ROOT=${RWB_DOCKER_HOME:-"$HOME/.local/share/rwb-docker"}
 case "$ROOT" in /*) ;; *) echo 'docker_home_must_be_absolute' >&2; exit 1;; esac
+# Optional host-side stdlib commands reuse the public installer's Python.
+# Dispatch before mkdir/locks: capacity is a genuinely read-only operation.
+QUEUE_ACTION=
+case "${1:-}:${2:-}" in
+  capacity:--json) test "$#" = 2 || { echo capacity_arguments_invalid >&2; exit 1; }; QUEUE_ACTION=capacity; shift 2;;
+  build:--wait) QUEUE_ACTION=submit; shift 2;;
+  resume:*) QUEUE_ACTION=resume; shift;;
+esac
+if [ -n "$QUEUE_ACTION" ]; then
+  for QUEUE_PYTHON in "$PROJECT/.venv/bin/python" python3.12 python3; do
+    if command -v "$QUEUE_PYTHON" >/dev/null 2>&1 && "$QUEUE_PYTHON" -I -B -c 'import sys; sys.exit(sys.version_info < (3, 12))' >/dev/null 2>&1; then
+      exec "$QUEUE_PYTHON" -I -B "$PROJECT/research_workbench_entrypoint/docker_build_queue.py" "$QUEUE_ACTION" "$@" --project "$PROJECT" --home "$ROOT"
+    fi
+  done
+  echo queue_python_unavailable >&2; exit 1
+fi
 test ! -L "$ROOT" || { echo 'docker_home_alias' >&2; exit 1; }
 mkdir -p "$ROOT"
 ROOT=$(CDPATH= cd -- "$ROOT" && pwd -P)
@@ -34,9 +50,15 @@ finish() {
     RWB_RECORDED_ID=$(cut -d ' ' -f1 "$ROOT/builder.id")
     RWB_FINAL_CONFIG=$(docker inspect --format '{{.Id}} {{.Config.Image}} {{.HostConfig.Memory}} {{.HostConfig.MemorySwap}} {{.HostConfig.CpuQuota}} {{.HostConfig.CpuPeriod}} {{.HostConfig.PidsLimit}} {{.HostConfig.LogConfig.Type}} {{index .HostConfig.LogConfig.Config "max-size"}} {{index .HostConfig.LogConfig.Config "max-file"}} {{index .Config.Labels "io.research-workbench.manager"}}' buildx_buildkit_rwb-dev-builder0) || RWB_EXIT=1
     if [ "$RWB_FINAL_ID" = "$RWB_RECORDED_ID" ] && [ "$RWB_FINAL_CONFIG" = "$(cat "$ROOT/builder.id")" ]; then
-      docker stop "$RWB_FINAL_ID" >/dev/null || RWB_EXIT=1
+      if docker stop "$RWB_FINAL_ID" >/dev/null; then
+        if [ -n "${RWB_QUEUE_CONTEXT:-}" ]; then echo queue_builder_cleanup=stopped; fi
+      else
+        RWB_EXIT=1
+        if [ -n "${RWB_QUEUE_CONTEXT:-}" ]; then echo queue_builder_cleanup=blocked; fi
+      fi
     else
       echo builder_cleanup_ownership_mismatch >&2
+      if [ -n "${RWB_QUEUE_CONTEXT:-}" ]; then echo queue_builder_cleanup=blocked; fi
       RWB_EXIT=1
     fi
   fi
@@ -146,26 +168,41 @@ case "${1:-help}" in
       *) fail build_arguments_invalid ;;
     esac
     admit_cold_build
+    BUILD_CONTEXT=$PROJECT
+    if [ -n "${RWB_QUEUE_CONTEXT:-}" ]; then
+      case "$RWB_QUEUE_CONTEXT" in "$ROOT"/build-queue/contexts/*/source) ;; *) fail queue_context_invalid;; esac
+      test ! -L "$RWB_QUEUE_CONTEXT" && test -d "$RWB_QUEUE_CONTEXT" || fail queue_context_invalid
+      test "${#RWB_QUEUE_SOURCE_SHA}" = 40 || fail queue_source_sha_invalid
+      case "$RWB_QUEUE_SOURCE_SHA" in *[!a-f0-9]*) fail queue_source_sha_invalid;; esac
+      # Recheck stage reservations AND hard limits after the shared lock handoff.
+      "$RWB_QUEUE_PYTHON" -I -B "$RWB_QUEUE_CONTEXT/research_workbench_entrypoint/docker_build_queue.py" admit --home "$ROOT" --project "$PROJECT"
+      BUILD_CONTEXT=$RWB_QUEUE_CONTEXT
+    fi
     BUILDING=1
     test -f "$ROOT/control.image" || fail run_bootstrap_first
     ensure_builder
-    SOURCE_SHA=$(docker run --rm --read-only --network none --memory 128m --memory-swap 128m \
+    if [ -n "${RWB_QUEUE_CONTEXT:-}" ]; then
+      SOURCE_SHA=$RWB_QUEUE_SOURCE_SHA
+    else
+      SOURCE_SHA=$(docker run --rm --read-only --network none --memory 128m --memory-swap 128m \
       --cpus .5 --pids-limit 32 --log-opt max-size=10m --log-opt max-file=3 \
       --mount "type=bind,src=$PROJECT,dst=$PROJECT,readonly" \
       --mount "type=bind,src=$GIT_COMMON,dst=$GIT_COMMON,readonly" \
       --entrypoint git "$(cat "$ROOT/control.image")" \
       -c "safe.directory=$PROJECT" -C "$PROJECT" rev-parse HEAD)
+    fi
     docker buildx build --builder "$BUILDER" --platform linux/arm64 --load "$@" \
       --label "org.opencontainers.image.revision=$SOURCE_SHA" \
-      -t rwb-candidate:g01 "$PROJECT"
+      -t rwb-candidate:g01 "$BUILD_CONTEXT"
     IMAGE=$(docker image inspect --format '{{.Id}}' rwb-candidate:g01)
     printf '%s\n' "$IMAGE" > "$ROOT/runtime.image"
-    cat "$PROJECT/Dockerfile" "$PROJECT/docker/Dockerfile.dev" > "$ROOT/dev.Dockerfile"
+    cat "$BUILD_CONTEXT/Dockerfile" "$BUILD_CONTEXT/docker/Dockerfile.dev" > "$ROOT/dev.Dockerfile"
     docker buildx build --builder "$BUILDER" --platform linux/arm64 --load \
       --label "org.opencontainers.image.revision=$SOURCE_SHA" \
       -f "$ROOT/dev.Dockerfile" \
-      -t rwb-development:g01 "$PROJECT"
+      -t rwb-development:g01 "$BUILD_CONTEXT"
     docker image inspect --format '{{.Id}}' rwb-development:g01 > "$ROOT/dev.image"
+    if [ -n "${RWB_QUEUE_CONTEXT:-}" ]; then echo "development_image=$(cat "$ROOT/dev.image")"; fi
     echo "candidate_image=$IMAGE"; exit 0;;
   help)
     echo './rwb-docker bootstrap | build | dev|stage|prod INSTANCE register|up|status|doctor|stop|rebuild|exec|cleanup|replace-image|enable-model-credentials|credential-probe|release-reservation [options]'

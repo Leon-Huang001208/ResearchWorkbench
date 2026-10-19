@@ -1,5 +1,9 @@
 # Research Workbench Development Map
 
+Docker队列入口为rwb-docker的capacity/build --wait/resume；标准库实现位于research_workbench_entrypoint/docker_build_queue.py。
+原脚本持锁复核容量并清理自身builder，模块负责任务/SHA去重、提交归档、FIFO及完成回执；测试test_docker_build_queue.py。
+复用原心跳，不新建调度服务；12GiB生效与冷构建/30分钟观察独立留证。
+
 报告恢复：quality_service在冻结要求时由实际允许上传字节生成resources/research_evidence.json，SDK load_business_evidence按task/contract读取；它不参与Host评分。source_references核对规范ID、准确Host标题及明确定位；Decimal算术和claim操作数保持精确JSON字符串。近处原两个测试模块覆盖伪造副本仍拒绝。
 
 research_business_evidence.py是原Host观测路径内的受限业务摘录规范化与复算；quality_service读取实际输入/重验SHA与缓存身份，research_evidence校验所有父来源，resources/research_report.py只序列化实际返回观测。近处test_research_business_evidence.py覆盖肯定句、表头结构、精确解析、真Store链与隔离负例；质量算法仍在原research_quality.py，不以规范句自动认证中文推断。
