@@ -1,5 +1,7 @@
 # Research Web Native / Docker 安装与运行
 
+报告配方使用现有标准库及报告依赖，无新增安装项、用户配置、数据库迁移或模型配置格式。公开三入口和锁文件保持，最终候选仍需 macOS Bootstrap 干净安装证据；现有会话及模型凭据原位保留。
+
 本次质量修复只使用已具备的Python标准库及既有报告依赖，不新增依赖、数据库schema或模型配置。公开安装入口与requirements/web.in、web.lock、setup_web.py、Bootstrap保持；仍须由本机与最终候选macOS干净安装CI证明兼容，不能依赖开发环境推断。
 
 管理员 stage 停止仍保留容量；已完成任务仅通过 Docker 手册的 release-reservation 精确身份入口释放预留，容器和卷保留。公开安装与凭据初始化合同不变。

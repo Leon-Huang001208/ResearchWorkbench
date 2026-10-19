@@ -39,6 +39,36 @@ def fusion_api(tmp_path):
         yield client, native, service
 
 
+def test_script_report_context_comes_from_current_valid_frozen_contract(fusion_api, monkeypatch):
+    client, _, service = fusion_api
+    sid = client.post("/api/research/sessions", json={"mode": "fingpt"}).json()["id"]
+    monkeypatch.setattr(service, "_model_tools_verified", lambda _sid: True)
+    response = client.post(
+        f"/api/research/sessions/{sid}/messages",
+        json={
+            "text": "Compare actual CPI",
+            "expected_formats": [],
+            "research_requirements": ["Compare actual values"],
+        },
+        headers={"Idempotency-Key": "report-plan-binding"},
+    )
+    assert response.status_code == 202
+    receipt, _ = service._task_capabilities(sid)
+    contract = receipt["research_contract"]
+    context = service.native_admission(sid, tool_name="research_run_script")["report_context"]
+    assert context == {
+        "task_id": contract["task_id"],
+        "contract_sha256": contract["sha256"],
+        "as_of": contract["as_of"],
+        "requirement_ids": [r["id"] for r in contract["requirements"]],
+    }
+    contract["sha256"] = "0" * 64
+    assert "report_context" not in service.native_admission(sid, tool_name="research_run_script")
+    contract.pop("requirements")
+    scope = service.native_admission(sid, tool_name="research_run_script")
+    assert scope["admitted"] is True and "report_context" not in scope
+
+
 @pytest.mark.parametrize("mode,depth", [("quick", "instant"), ("deep", "deep"), ("agent", "deep")])
 def test_three_modes_still_create_owned_dsh_sessions(tmp_path, mode, depth):
     native = NativeFixture()

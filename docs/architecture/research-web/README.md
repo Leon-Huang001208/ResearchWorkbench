@@ -1,5 +1,7 @@
 # Research Workbench Research Web 当前架构
 
+报告数据配方沿同一 DSH research_run_script 与 Host 质量链执行，独立 Summary 算术、完整父来源和 NIST 控制表统一组装；模型分析仍须原门逐项核验。质量扫描仅修复同期间有效声明相互干扰，错误声明和真实缺口继续拒绝。离线四组业务资料回放不等于真实四用户研究通过。
+
 业务脚本修复仍沿同一DSH执行与Host质量链：选择器统一实际观测/要求映射，工作簿按固定Summary结构原子写入，CPI与NIST证据扩展只来自实际上传字节。脚本、文件与严格拒绝边界分别见02、03、05；离线回归不能代替真实四用户业务验收。
 
 实际报告恢复仍沿现有resources、冻结合同及Host独立评分链；派生只读投影格式见03-data-files，安全及来源定位边界见05-security-validation。
