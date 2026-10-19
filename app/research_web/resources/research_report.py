@@ -211,7 +211,12 @@ def source_references(value, sources):
                 raise ValueError("research_source_reference_invalid")
             refs = [row["id"]]
         else:
-            refs = json.loads(value) if value.startswith("[") else re.split(r"[;,，；\s]+", value)
+            if re.fullmatch(r"file:[a-f0-9]{24}(?:\s*/\s*file:[a-f0-9]{24})+", value):
+                refs = re.split(r"\s*/\s*", value)
+            else:
+                refs = (
+                    json.loads(value) if value.startswith("[") else re.split(r"[;,，；\s]+", value)
+                )
             if not isinstance(refs, list) or not refs or len(refs) > 20:
                 raise ValueError("research_source_reference_invalid")
             for ref in refs:
@@ -265,6 +270,10 @@ def canonical_source(sources, identity):
 def evidence_section(identifier, heading, text, citations, requirement_ids):
     """Copy author-nominated text/lineage, never certify it or create observations."""
     try:
+        if isinstance(citations, list) and any(
+            isinstance(v, str) and v.startswith("business_") for v in citations
+        ):
+            raise ValueError("research_evidence_observation_use_source_ids")
         if (
             not isinstance(identifier, str)
             or not re.fullmatch(r"[A-Za-z0-9_-]{1,80}", identifier)
@@ -282,10 +291,12 @@ def evidence_section(identifier, heading, text, citations, requirement_ids):
                 not isinstance(values, list)
                 or not 1 <= len(values) <= 100
                 or any(not isinstance(v, str) or not re.fullmatch(pattern, v) for v in values)
-                or len(set(values)) != len(values)
             ):
                 raise ValueError("research_evidence_lineage_invalid")
+        citations = list(dict.fromkeys(citations))
+        requirement_ids = list(dict.fromkeys(requirement_ids))
         return {
+            "numeric_claims": [],
             "sections": [
                 {"id": identifier, "heading": heading, "text": text, "citations": list(citations)}
             ],
@@ -499,6 +510,155 @@ def numeric_summary(rows, expected, *, decimal_places=None):
     except (ValueError, TypeError, KeyError, ArithmeticError, InvalidOperation) as exc:
         log.warning("research_summary_rejected type=%s", type(exc).__name__)
         raise ValueError("research_summary_invalid") from exc
+
+
+def write_summary_workbook(path, metrics, *, decimal_places=None, sheets=None):
+    """Write the fixed numeric table and separate details atomically; never certify facts."""
+    from decimal import ROUND_HALF_UP, Context, Decimal, localcontext
+
+    from openpyxl import Workbook, load_workbook
+
+    try:
+        from research_helpers import safe_cell
+    except ImportError:
+        from .research_helpers import safe_cell
+
+    temporary = None
+    book = None
+    try:
+        places = {} if decimal_places is None else decimal_places
+        details = {} if sheets is None else sheets
+        if (
+            not isinstance(metrics, dict)
+            or not 1 <= len(metrics) <= 256
+            or not isinstance(places, dict)
+            or not set(places).issubset(metrics)
+            or any(
+                isinstance(p, bool) or not isinstance(p, int) or not 0 <= p <= 12
+                for p in places.values()
+            )
+            or not isinstance(details, dict)
+            or len(details) > 12
+        ):
+            raise ValueError("research_summary_workbook_invalid")
+        path = Path(path)
+        if path.suffix.lower() != ".xlsx":
+            raise ValueError("research_summary_workbook_path")
+        if path.is_symlink() or (
+            path.exists() and (not path.is_file() or path.stat().st_nlink != 1)
+        ):
+            raise ValueError("research_summary_workbook_path")
+        book = Workbook()
+        summary = book.active
+        summary.title = "Summary"
+        summary.append(["metric", "value"])
+        precision = []
+        for key, value in metrics.items():
+            if not isinstance(key, str) or not re.fullmatch(r"[A-Za-z0-9_-]{1,80}", key):
+                raise ValueError("research_summary_workbook_metric")
+            number = _evidence_decimal(value)
+            with localcontext(Context(prec=512)):
+                rounded = (
+                    number.quantize(Decimal(1).scaleb(-places[key]), rounding=ROUND_HALF_UP)
+                    if key in places
+                    else number
+                )
+            numeric = int(rounded) if rounded == rounded.to_integral_value() else float(rounded)
+            _evidence_decimal(numeric)
+            summary.append([key, numeric])
+            if key in places:
+                summary.cell(summary.max_row, 2).number_format = "0" + (
+                    "." + "0" * places[key] if places[key] else ""
+                )
+            precision.append([key, format(number, "f")])
+        # Materialize a fully empty separator, followed by a second header so it survives save.
+        summary.append([None, None])
+        summary.append(["details", "See separate worksheets"])
+        book.create_sheet("ExactValues").append(["metric", "exact_decimal"])
+        for row in precision:
+            book["ExactValues"].append(row)
+        names = {"summary", "exactvalues"}
+        count = 0
+        for name, rows in details.items():
+            if (
+                not isinstance(name, str)
+                or not 1 <= len(name) <= 31
+                or re.search(r"[\\/*?:\[\]]", name)
+                or name.lower() in names
+                or not isinstance(rows, (list, tuple))
+                or len(rows) > 5000
+            ):
+                raise ValueError("research_summary_workbook_sheet")
+            names.add(name.lower())
+            sheet = book.create_sheet(name)
+            for row in rows:
+                if not isinstance(row, (list, tuple)) or len(row) > 40:
+                    raise ValueError("research_summary_workbook_row")
+                count += len(row)
+                if count > 40000:
+                    raise ValueError("research_summary_workbook_limit")
+                cells = []
+                for value in row:
+                    if isinstance(value, (dict, list, tuple)):
+                        value = json.dumps(value, ensure_ascii=False, allow_nan=False)
+                    elif isinstance(value, Decimal):
+                        value = format(_evidence_decimal(value), "f")
+                    elif isinstance(value, (int, float)) and not isinstance(value, bool):
+                        _evidence_decimal(value)
+                    if not isinstance(value, (str, int, float, bool, type(None))) or (
+                        isinstance(value, str) and len(value) > 32000
+                    ):
+                        raise ValueError("research_summary_workbook_cell")
+                    cells.append(safe_cell(value))
+                sheet.append(cells)
+        temporary = path.with_name("." + path.name + "." + uuid4().hex + ".xlsx")
+        book.save(temporary)
+        book.close()
+        book = load_workbook(temporary, read_only=True, data_only=False)
+        numeric_summary(book["Summary"].values, metrics, decimal_places=places)
+        book.close()
+        os.replace(temporary, path)
+        log.info("research_summary_workbook_written metrics=%d", len(metrics))
+        return path
+    except (OSError, ValueError, TypeError, ArithmeticError):
+        log.warning("research_summary_workbook_rejected")
+        raise
+    finally:
+        if book is not None:
+            book.close()
+        if temporary is not None and temporary.exists():
+            temporary.unlink()
+
+
+def select_business_evidence(bundle, requirement_ids):
+    """Select exact records and their mappings together, rejecting ambiguous metrics."""
+    try:
+        if not isinstance(bundle, dict) or not isinstance(bundle.get("observations"), list):
+            raise TypeError("research_business_selection_invalid")
+        if not isinstance(requirement_ids, dict) or not 1 <= len(requirement_ids) <= 40:
+            raise ValueError("research_business_selection_invalid")
+        selected, mapping = [], {}
+        for key, requirements in requirement_ids.items():
+            matches = [
+                row
+                for row in bundle["observations"]
+                if isinstance(row, dict)
+                and key
+                in (
+                    row.get("id"),
+                    row.get("metric"),
+                    str(row.get("metric")) + "@" + str(row.get("period")),
+                )
+            ]
+            if len(matches) != 1 or matches[0].get("id") in mapping:
+                raise ValueError("research_business_selection_missing_or_ambiguous")
+            row = matches[0]
+            selected.append(row)
+            mapping[row["id"]] = requirements
+        return business_evidence(selected, mapping)
+    except (ValueError, TypeError, KeyError):
+        log.warning("research_business_selection_rejected")
+        raise
 
 
 def business_evidence(observations, requirement_ids):
@@ -1018,6 +1178,16 @@ def report_blocks(payload):
         blocks.append(("缺口与限制（研究质量未通过）", True))
         blocks.extend((text, False) for text in missing)
     return blocks
+
+
+def render_markdown(payload):
+    """Render the complete canonical payload, including genuine gaps, as text."""
+    validate_payload(payload)
+    log.info("research_report_markdown_rendered sections=%d", len(payload["sections"]))
+    return (
+        "\n\n".join(("## " if heading else "") + text for text, heading in report_blocks(payload))
+        + "\n"
+    )
 
 
 def render_pdf(path, payload):

@@ -2724,7 +2724,6 @@ class ResearchService:
                     "首次脚本可from research_report import load_business_evidence；bundle=load_business_evidence(固定合同task_id,固定合同sha256)，从本回合resources/research_evidence.json直接读取真实sources和observations，勿把大段工具返回手抄为Python字面量。"
                     "该文件是当前上传资料的便利投影而非质量结论；仍须实际读输入、核对独立底稿、正常research_check_quality，Host评分从实际输入重算，不信任文件副本。"
                     "实际业务报告先用research_report中的canonical_source(Host sources,准确id或准确title)解析身份，所有Facts/Controls/Timeline表的source_ref也使用返回id，禁止file:文件名别名。"
-                    "Controls的control_id使用实际官方子类别标识，不能以C01等本地序号替代；official_requirement从实际控制观测content逐字保存，意图解释和建议另列，不改写成官方原文。"
                     "用evidence_section(id,heading,正文原句,完整citations,[冻结要求ID])组装每节notes和coverage，保留该节全部来源，不给自己判通过。"
                     "用build_numeric_claim(id,section_id,text,period,unit,operation,operands)先检查声明并独立计算value；identity恰1操作数，difference/ratio/percent_change恰2，sum逐项列全部操作数。"
                     "先查看所需metric/period的Host观测；已有规范观测直接用business_evidence组装，不要反复把多值原表、分数利率或缺期间的引文塞进build_numeric_claim。一次格式失败后核对实际函数签名与观测，不猜参数持续重试。"
@@ -2734,11 +2733,13 @@ class ResearchService:
                     "对账使用Decimal及reconcile_amounts(报表总额,全部有符号子项)，真实差额为零就不杜撰遗漏；额外计算和解释都必须有实际底稿。"
                     "利率变动用rate_difference(前值百分数,后值百分数)分别输出percentage_points和basis_points；百分比水平不叫百分点，基点为百分点乘100，负号方向须解释。"
                     "宏观表格核对跨行表头、季调与未季调、环比与同比，不能只读摘要就宣称口径未说明；政策工具资金方向没有原文依据不扩写。"
-                    "治理控制计数实际distinct记录；官方原文、建议和组织落地证据分开，未提供组织材料保持not_assessed；所有事实表来源逐项核对canonical_source。"
                     "校验器只读取Host已取得的实际字节；不得自行编写observation或把检索摘要宣称为全文。"
                     "实际业务先完整读输入、独立生成工作簿和草稿，再调用research_check_quality。受支持的完整财务表/CPI表头/FOMC分数利率/NIST摘录会在evidence_context.business_observations返回Host从真实输入独立解析/复算的规范事实和原文片段。"
                     "这些观测绑定当前用户/会话/任务、原文件全文SHA、原文位置和算法；source_ids是全部父来源。它们不是外部真实性、中文推断或组织落地认证；未支持的来源保持缺口。"
-                    "在原一次补查预算内按metric和period选取实际需要的观测，最多40项，用from research_report import business_evidence；blocks=business_evidence(选中的实际Host观测,{观测id或metric:[冻结要求ID]})组装sections/notes/coverage/numeric_claims。"
+                    "在原一次补查预算内用from research_report import select_business_evidence；blocks=select_business_evidence(bundle,{准确观测id或唯一metric或metric@period:[冻结要求ID]})同时选择实际记录和映射，最多40项。歧义或未知记录会拒绝，勿手抄两套不一致的列表。"
+                    "evidence_section的citations只填完整父来源source_ids，business_观测id仅用于数值operand，不能作为citations。所有脚本为独立Python进程，每次须重新import和读取已保存文件；先成功保存再引用，不依赖上一脚本变量。"
+                    "用write_summary_workbook('outputs/summary.xlsx',指标字典,decimal_places={指标名:展示小数位},sheets={表名:二维行列表})写工作簿；Summary首表固定metric/value且完全空白行结束，说明放独立Notes。精确原数自动另表保存，列表来源以JSON数据单元格保存。"
+                    "用write_research_report('outputs',payload)的实际返回路径读取Word/PDF，勿猜随机文件名；report.md可用render_markdown(payload)生成，保留同一payload全部章节和真实缺口。"
                     "脚本只复制所需真实观测的id/source_id/source_ids/metric/heading/kind/period/unit/value/content/sha256；proofs由Host持有，无须把整份context嵌入脚本或输出，避免超出原工具字节限额。"
                     "将blocks各列表合入payload，sources继续使用Host规范id/title，required_sections按实际heading填写；numeric identity逐字引用Host真实规范句，方法/限制可引用同一观测中的真实范围说明。引用和notes必须保留全部source_ids，不省略跨文件计算的任何父来源。"
                     "可用实际规范观测替换草稿中对应事实/方法的错误原句和claim（旧版自动归档），不要只追加新证据又保留已知错误。所有冻结要求仍逐项保留；真正无法完成的分析或论断仍写missing，不靠删除缺口、误称覆盖或隐藏另一个文件的错误来过门。"
@@ -2760,6 +2761,15 @@ class ResearchService:
                     "补查仍不通过，交付可用部分和缺口，不能宣称质量通过；完整性错误须先修复。"
                     "补充资料在同会话新回合继续，旧版本必须保留。模型自评或反思不证明事实核验通过。"
                 )
+                requirement_text = json.dumps(contract["requirements"], ensure_ascii=False)
+                if re.search(
+                    r"NIST|AI RMF|Govern|治理|控制子类别", requirement_text, re.IGNORECASE
+                ):
+                    prompt += (
+                        "\n本合同治理证据要求：Controls的control_id使用实际官方子类别标识，不能用C01；official_requirement逐字保存实际control_text原文。"
+                        "功能解释先选择实际source_quote和完整source_ids，引用原文的跨流程关系；中文解释或建议仍须独立支撑，不能因引用存在就视为验证。"
+                        "治理控制计数实际distinct记录；官方要求、建议与组织落地分开，缺组织材料保持not_assessed；没有要求组织实施评估时，将此列为范围限制，不冒充未完成的冻结要求。"
+                    )
             prompt += "\n本次工具与能力准入快照：" + json.dumps(
                 self._task_readiness_context(sid, capability_snapshots),
                 ensure_ascii=False,

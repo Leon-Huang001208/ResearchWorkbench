@@ -1,5 +1,7 @@
 # Research Web 能力包与版本
 
+脚本资源提供select_business_evidence(bundle,{准确id或唯一metric或metric@period:[要求ID]})，将选择与映射一起校验；evidence_section统一返回空numeric_claims，父来源重复项去重，business_观测ID不得冒充来源。write_summary_workbook分开数值Summary、ExactValues和说明表；render_markdown保留完整规范报告与缺口。所有函数仅格式化，不授予可信观察或质量结论。CPI可用真实历史月列/精确百分点；NIST可用实际原文句，中文推断仍独立核验。
+
 报告资源新增load_business_evidence读取当前task/contract的便利投影，避免手抄大段观测；并不签发质量结论。Decimal计算结果和claim操作数保存为精确JSON字符串；来源定位格式只在真实ID和准确标题核对后接受。无新工具权限或模型重试。
 
 实际业务证据的canonical_source、build_numeric_claim与evidence_section复用已打包报告资源，没有新Skill、Workflow、权限或Automation节点。对账/利率算术工具不是可信来源，调用成功不等于研究通过。
