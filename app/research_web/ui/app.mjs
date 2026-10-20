@@ -3154,7 +3154,7 @@ function collectAnswers(form, question) {
 
 function composerTaskPending() { return Boolean(state.detail && (isRunning(state.detail.status) || state.detail.can_cancel || state.detail.can_recheck_stop || ['pending', 'admission_unknown'].includes(state.detail.delivery?.status))); }
 function currentComposerRows() {
-  return composerMenuRows(composerMenu, { skills: catalog.capabilities, methods: catalog.capabilities.filter(item => item.kind === 'method'), methodIds: state.methodIds, expectedFormats: state.expectedFormats, models: catalog.models, model: catalog.runtime?.model, modelProvider: catalog.runtime?.provider, modelEndpoint: catalog.runtime?.connection?.base_url, disabled: Boolean(state.loading || state.route.sessionId && !state.detail || state.detail?.execution_restricted || state.detail?.execution_context), busy: state.busy || state.stopping || composerTaskPending(), uploadsAllowed: canUploadToSession(state.detail, state.sourceScope) });
+  return composerMenuRows(composerMenu, { skills: catalog.capabilities, methods: catalog.capabilities.filter(item => item.kind === 'method'), methodIds: state.methodIds, expectedFormats: state.expectedFormats, models: catalog.models, model: catalog.runtime?.model, modelProvider: catalog.runtime?.provider, modelEndpoint: catalog.runtime?.connection?.base_url, disabled: Boolean(state.busy || state.loading || state.route.sessionId && !state.detail || state.detail?.execution_restricted || state.detail?.execution_context), busy: state.busy || state.stopping || composerTaskPending(), uploadsAllowed: canUploadToSession(state.detail, state.sourceScope) });
 }
 function closeComposerMenu(consume = false) {
   const entry = composerMenu.entry;
@@ -3167,7 +3167,8 @@ function focusComposerMenu() {
   const rows = currentComposerRows();
   if (!rows[composerMenu.index] || rows[composerMenu.index].disabled) composerMenu.index = Math.max(0, rows.findIndex(row => !row.disabled));
   render();
-  (document.getElementById('composer-command-search') || document.getElementById(`composer-command-${composerMenu.index}`) || document.getElementById('claw-composer-menu'))?.focus({ preventScroll: true });
+  const row = document.getElementById(`composer-command-${composerMenu.index}`);
+  (document.getElementById('composer-command-search') || (row && !row.disabled ? row : null) || document.getElementById('claw-composer-menu'))?.focus({ preventScroll: true });
 }
 function backComposerMenu() {
   if (composerMenu.view === 'root') { closeComposerMenu(); return; }
