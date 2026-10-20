@@ -12,6 +12,7 @@ import re
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 
+from .research_arithmetic import check_arithmetic
 from .resources.research_report import validate_payload
 
 log = logging.getLogger(__name__)
@@ -356,7 +357,13 @@ def assess_quality(contract, report, sources, observations=None):
             )
             if not matched:
                 issues.append("requirement_uncovered:" + requirement["id"])
+        arithmetic_checks = []
         for section in sections:
+            checks = check_arithmetic(section["text"])
+            arithmetic_checks.extend({**item, "section_id": section.get("id")} for item in checks)
+            for state in ("mismatch", "unverified"):
+                if any(item["status"] == state for item in checks):
+                    issues.append("numeric_arithmetic_" + state + ":" + section.get("id", ""))
             if not section["text"].strip():
                 issues.append("section_empty:" + section["heading"])
             refs = section.get("citations", [])
@@ -404,6 +411,7 @@ def assess_quality(contract, report, sources, observations=None):
         return {
             "status": status,
             "issues": list(dict.fromkeys(invalid + issues)),
+            "arithmetic_checks": arithmetic_checks,
             "coverage": coverage,
             "coverage_scope": "host_requirements_with_report_evidence",
             "verification_scope": "observed_quotes_and_deterministic_numeric_claims",
