@@ -1,5 +1,7 @@
 # Research Web 接口清单
 
+现有来源 read 回包新增 numeric_observations/numeric_claim_guidance，来自 Host 完整字节；研究 detail 的版本项增加 is_current 和 quality_binding。网页来源 date_evidence/date_status 解释实际发布时间及冲突，未知不按搜索或 URL 补齐。无新端点、模型参数、凭据或执行授权。
+
 本轮不增加HTTP端点、工具或参数字段，仅统一有真实数值业务观测时的规范报告调用指令及一次补查说明。原code路径保留；report_context仍只在Host合同有效且为字典时提供，不信任模型提交绑定。
 
 GET session detail 新增 research_report_delivery（status/task_id/version_id/report_content_sha256/quality_status/files/aliases）；research_check_quality 结果的 report_delivery 使用同一Host投影。未绑定返回空files/aliases，accepted还要求当前检查绑定。arithmetic_checks含有界字面表达式、reported/expected/status和section_id；matching只证明该算术，不免除原数字、期间、单位和来源检查。原始消息保留，当前报告链接由UI核对并允许resolver拒绝直接API绕过。无新增端点、凭据或写参数。
@@ -565,3 +567,5 @@ GET会话列表及父详情不因已验证活动的历史子mode=unknown整体�
 框架目录 item 和 data 响应中的 framework 附加 display：kind 为 native-embed 或 static-embed，url 为本站 /frameworks-embed/{slug}/，imported_at 为资产导入日期，bot_enabled 表示本站框架 Bot 是否接入。Gold／Dollar 的定义字段与 snapshot 保持原合同；该附加对象不参与快照 revision。九个静态看板 Bot API 返回 409 framework_bot_unavailable，不发起 DSH 会话。
 
 会话列表/详情已有status枚举继续使用waiting_input：原生未决提问（包括映射父会话的子研究提问）优先显示待答，原生仍运行不把待答伪装为转圈执行中。无需读取每个会话详情，问题解除后恢复真实执行状态；已读完成圈为本浏览器显示偏好，不增加写API。
+
+旧网页记录只有as_of值、没有可追溯出版meta/header证据时，当前只读投影保守返回unknown；有正文header但与旧日期冲突时同样保留unknown。旧索引和原文不回写，此状态不能被当成来源已核验；新读取会保存实际出版证据，未来发布日期继续触发原截止日门。

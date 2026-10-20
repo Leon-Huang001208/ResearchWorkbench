@@ -1,5 +1,7 @@
 # Agent 任务路由指南
 
+本轮四项 FinGPT 缺陷先用真实原生 URL/正文/版本记录和反例回归；日期不从 URL/搜索摘要猜，GDP 数字只来自完整闭合布局。独立评审、Router 与同候选 Mac 安装后才按空闲事务部署；Flash 同题仅一次，质量门与既有预算不变。
+
 业务报告指令一致性修复复用现有 Research Web Checks 的 fusion/revision/quality-tool 回归及 Mac Bootstrap，无新增 job 或模型循环。真实 FOMC 六段错误脚本在原 Native 沙箱离线复现；真实模型验证与临时凭据单独授权，四报告 incomplete 不改判为 passed。
 
 数字与最终链接修复先用原GDP错算及旧友好文件回归；算术匹配不清除数值/来源未核验，当前交付必须绑定Host检查版。Mac本地、同候选CI和独立评审后才用精确SHA空闲事务部署；真实Flash复测另记一次提交与实际质量，活动或未知研究必须延后切换。

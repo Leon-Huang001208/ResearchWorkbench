@@ -323,6 +323,19 @@ function artifactLinkResolver(detail, reportDelivery) {
   const verified = new Set(checkedReportFiles(detail).map(file => file.url));
   const names = new Map(registered.map(file => [file.url, file.name]));
   return (path) => {
+    // The model sometimes prefixes a real Host file URL with the DSH origin.
+    // Repair only exact current checked archive paths on loopback; never fetch
+    // that origin, normalize traversal, or promote an old/unregistered file ID.
+    if (reportDelivery !== undefined && /^https?:\/\//i.test(path)) {
+      try {
+        const candidate = new URL(path);
+        if (['127.0.0.1', 'localhost', '[::1]'].includes(candidate.hostname) &&
+            !candidate.username && !candidate.password && !candidate.search && !candidate.hash &&
+            path === candidate.origin + candidate.pathname && fileURL(candidate.pathname)) {
+          if (verified.has(candidate.pathname)) return candidate.pathname;
+        }
+      } catch { return null; }
+    }
     // Classify browser/ASGI-equivalent paths before allowing ordinary navigation.
     // Only exact Host aliases can resolve; normalized/encoded variants cannot
     // fall back to safeURL and regain a link to a different report version.

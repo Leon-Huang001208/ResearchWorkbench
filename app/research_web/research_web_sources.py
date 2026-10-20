@@ -81,27 +81,84 @@ class PublicConnection(http.client.HTTPSConnection):
             raise
 
 
+def publication_evidence(text):
+    """Recognize publication-labelled header dates, never URL years or data periods."""
+    lines = text[:4000].splitlines()[:50]
+    found = []
+    stamp = r"(\d{4})[-/ ](\d{1,2})[-/](\d{1,2})"
+    for index, line in enumerate(lines):
+        labelled = re.fullmatch(
+            r"\s*发布时间[：:]\s*" + stamp + r"(?:\s+\d{2}:\d{2}(?::\d{2})?)?\s*", line
+        )
+        byline = re.fullmatch(
+            r"\s*" + stamp + r"\s+\d{2}:\d{2}(?::\d{2})?\s*(?:来源[：:].*)?", line
+        )
+        if (
+            byline
+            and "来源" not in line
+            and not any(re.match(r"\s*来源[：:]", value) for value in lines[index + 1 : index + 3])
+        ):
+            byline = None
+        match = labelled or byline
+        if match:
+            try:
+                found.append(
+                    {
+                        "date": date(*map(int, match.groups())).isoformat(),
+                        "kind": "publication_header",
+                        "text": line,
+                    }
+                )
+            except ValueError:
+                log.info("research_source_publication_date_unavailable")
+    return found
+
+
 class BodyParser(HTMLParser):
     def __init__(self):
         super().__init__(convert_charrefs=True)
         self.parts = []
         self.ignored = 0
-        self.published = None
+        self.date_evidence = []
+
+    @property
+    def published(self):
+        dates = {
+            row["date"] for row in [*self.date_evidence, *publication_evidence("".join(self.parts))]
+        }
+        if len(dates) > 1:
+            log.info("research_source_publication_date_conflict")
+        return next(iter(dates)) if len(dates) == 1 else None
 
     def handle_starttag(self, tag, attrs):
-        attributes = dict(attrs)
+        attributes = {key.lower(): value for key, value in attrs}
         if tag in {"script", "style", "noscript", "template"}:
             self.ignored += 1
         if tag in {"p", "div", "tr", "li", "h1", "h2", "h3", "br", "td", "th"}:
             self.parts.append("\n")
         if tag == "meta" and (
             attributes.get("name") or attributes.get("property") or ""
-        ).lower() in {"pubdate", "article:published_time", "date", "dc.date"}:
-            value = attributes.get("content", "")
+        ).lower() in {
+            "pubdate",
+            "publishdate",
+            "pubtime",
+            "article:published_time",
+            "date",
+            "dc.date",
+            "dcterms.issued",
+            "datepublished",
+        }:
+            value = attributes.get("content") or ""
             match = re.match(r"^(\d{4})([-/])(\d{2})\2(\d{2})(?:$|[ T])", value)
             if match:
                 try:
-                    self.published = date(int(match[1]), int(match[3]), int(match[4])).isoformat()
+                    self.date_evidence.append(
+                        {
+                            "date": date(int(match[1]), int(match[3]), int(match[4])).isoformat(),
+                            "kind": "publication_meta",
+                            "text": value,
+                        }
+                    )
                 except ValueError:
                     log.info("research_source_publication_date_unavailable")
 
@@ -181,6 +238,7 @@ def fetch_document(url):
                 return {
                     "content": text,
                     "as_of": parser.published,
+                    "date_evidence": [*parser.date_evidence, *publication_evidence(text)],
                     "final_url": current,
                     "response_sha256": hashlib.sha256(raw).hexdigest(),
                 }
@@ -238,7 +296,21 @@ def stored_sources(store, sid):
         if len(raw) > MAX_TEXT * 4 or hashlib.sha256(raw).hexdigest() != source["sha256"]:
             log.warning("research_web_source_bytes_changed")
             raise rejected("research_source_integrity_failed")
-        result.append(dict(source))
+        projected = dict(source)
+        evidence = [
+            *source.get("date_evidence", []),
+            *publication_evidence(raw.decode("utf-8", errors="strict")),
+        ]
+        dates = {row["date"] for row in evidence}
+        previous = source.get("as_of")
+        if dates and previous not in {None, "", "unknown"}:
+            dates.add(previous)
+        projected.update(
+            as_of=next(iter(dates)) if len(dates) == 1 else "unknown",
+            date_evidence=evidence,
+            date_status="conflict" if len(dates) > 1 else "known" if dates else "unknown",
+        )
+        result.append(projected)
     return result
 
 
@@ -377,7 +449,8 @@ async def read_source(service, sid, operation, source_id=None, search_activities
                 "path": relative,
                 "sha256": hashlib.sha256(raw).hexdigest(),
                 "fetched_at": datetime.now(UTC).isoformat(),
-                "as_of": document["as_of"] or selected.get("as_of") or "unknown",
+                "as_of": document["as_of"] or "unknown",
+                "date_evidence": document.get("date_evidence", []),
                 "final_url": document["final_url"],
                 "response_sha256": document["response_sha256"],
             }
@@ -389,11 +462,43 @@ async def read_source(service, sid, operation, source_id=None, search_activities
         stream, _ = service.store.open_file(sid, actual["file_id"])
         with stream:
             content = stream.read(MAX_TEXT * 4 + 1).decode("utf-8", errors="strict")
+        # Refresh the existing read-only SDK inventory from independently held bytes.
+        from .research_quality_service import latest_receipt, write_business_snapshot
+
+        contract = latest_receipt(service, sid).get("research_contract")
+        numeric = []
+        if contract:
+            from .research_web_numeric import web_numeric_observations
+
+            write_business_snapshot(service, sid, contract)
+            numeric = web_numeric_observations(
+                {
+                    "id": source_id,
+                    "source_id": source_id,
+                    "content": content,
+                    "sha256": actual["sha256"],
+                },
+                scope=str(service.store.root)
+                + ":"
+                + sid
+                + ":"
+                + contract["task_id"]
+                + ":"
+                + contract["sha256"],
+            )
         return {
             "source": actual,
             "observation_id": source_id,
             "content": content[:24000],
             "truncated": len(content) > 24000,
+            "numeric_observations": [
+                {
+                    key: row[key]
+                    for key in ("id", "metric", "period", "unit", "value", "source_ids", "content")
+                }
+                for row in numeric
+            ],
+            "numeric_claim_guidance": "实际提取结果也已写入resources/research_evidence.json；用load_business_evidence及select_business_evidence生成numeric_claims/notes/coverage，或report_plan选择这些id；派生计算用build_numeric_claim。未支持布局不产生声明；这些记录不代表质量通过。",
         }
 
 

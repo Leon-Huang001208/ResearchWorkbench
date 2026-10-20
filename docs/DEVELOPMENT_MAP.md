@@ -1,5 +1,7 @@
 # Research Workbench Development Map
 
+网页日期在 research_web_sources 的出版 meta/header 合并；数值闭合布局在 research_web_numeric，quality_service 刷新同一 SDK 快照并独立重读字节。test_fingpt_evidence_contract 覆盖错期、否定、冲突、20上传加网页及声明篡改；UI/fusion 与 report_delivery_links 覆盖误拼 URL 和当前/历史投影。
+
 service.py 按当前合法业务观测选择一致的报告提示；runtime/research-tools.mjs 在既有一次补查内提示同一 report_plan 路径。test_fingpt_dsh_fusion.py 覆盖真实 CPI 上传后的提示及一般研究兼容；test_report_revision.py 固定真实 FOMC 错字段/错误基点负例，quality_tool JS 覆盖补查不续授权。
 
 FinGPT 显式算式审计位于 research_arithmetic.py，接入 research_quality.py；报告链接投影位于 research_quality_service.report_delivery，detail 与 check_quality 共享。近处回归 test_research_arithmetic.py、test_report_delivery_links.py 和 research_web_ui.test.mjs 覆盖真实GDP错算、别名偏离、直接API绕过、附件保留及归档损坏。

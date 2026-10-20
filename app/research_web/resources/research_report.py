@@ -49,7 +49,7 @@ def load_business_evidence(task_id, contract_sha256):
             or value["task_id"] != task_id
             or value["contract_sha256"] != contract_sha256
             or not isinstance(value["sources"], list)
-            or len(value["sources"]) > 20
+            or len(value["sources"]) > 40
             or not isinstance(value["observations"], list)
             or len(value["observations"]) > 200
         ):

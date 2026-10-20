@@ -10,7 +10,8 @@ from core.observability import get_logger
 from .research_business_evidence import business_observations
 from .research_evidence import report_projection
 from .research_quality import make_contract
-from .research_web_sources import upload_evidence_files
+from .research_web_numeric import web_numeric_observations
+from .research_web_sources import stored_sources, upload_evidence_files
 from .resources.research_report import _version_read, archive_report_version, list_report_versions
 from .resources.research_report_plan import EXTRACTED_METRICS
 from .store import StoreError
@@ -80,13 +81,14 @@ def write_business_snapshot(service, sid, contract):
     try:
         scope = service.store.session(sid).get("source_scope", ["uploads", "datahub", "web"])
         files = service.store.files(sid) if "uploads" in scope else []
+        web = stored_sources(service.store, sid) if "web" in scope else []
         rows = observations(
-            service, sid, files, [], task_id=contract["task_id"], contract_sha=contract["sha256"]
+            service, sid, files, web, task_id=contract["task_id"], contract_sha=contract["sha256"]
         )
         business = [
             row for row in rows if row.get("kind") in {"business_numeric", "business_quote"}
         ]
-        sources = source_context(service, sid, files)["sources"]
+        sources = source_context(service, sid, files, web)["sources"]
         digests = {source["id"]: source.get("sha256") for source in sources}
         if any(
             digests.get(proof["source_id"]) != proof["sha256"]
@@ -186,18 +188,21 @@ def source_context(service, sid, files, sources=()):
             row.update(sha256=None, unavailable="input_unavailable")
             log.warning("research_source_context_unavailable")
         identities.append(row)
-    for source in sources:
-        if len(identities) >= 20 or source.get("id", "").startswith("file:"):
+    # Up to 20 uploads plus 20 acquired web bodies; summaries must not displace
+    # a numeric observation's actual parent in the SDK snapshot or Host context.
+    ordered = sorted(sources, key=lambda source: not bool(source.get("file_id")))
+    for source in ordered:
+        if len(identities) >= 40 or source.get("id", "").startswith("file:"):
             continue
         kind = {"web": "web", "dataset": "datahub"}.get(source.get("id", "").split(":", 1)[0])
         if kind not in scope:
             continue
         row = {
             name: source[name]
-            for name in ("id", "title", "url", "as_of")
+            for name in ("id", "title", "url", "as_of", "sha256")
             if source.get(name) is not None
         }
-        if len(json.dumps([*identities, row], ensure_ascii=False).encode()) <= 16384:
+        if len(json.dumps([*identities, row], ensure_ascii=False).encode()) <= 200000:
             identities.append(row)
     return {
         "sources": identities,
@@ -264,6 +269,19 @@ def observations(service, sid, files, sources, *, task_id="", contract_sha=""):
                     "sha256": source["sha256"],
                 }
             )
+            if task_id and contract_sha:
+                result.extend(
+                    web_numeric_observations(
+                        result[-1],
+                        scope=str(service.store.root)
+                        + ":"
+                        + sid
+                        + ":"
+                        + task_id
+                        + ":"
+                        + contract_sha,
+                    )
+                )
             continue
     for source in sources[:40]:
         if "datahub" not in scope or not source.get("id", "").startswith("dataset:"):
@@ -562,6 +580,27 @@ def quality_versions(service, sid):
             None,
         )
         if matched is None:
+            if version["task_id"] not in records:
+                continue
+            digest = next(
+                f["sha256"] for f in version["files"] if f["name"] == "research-report.json"
+            )
+            # Retained SDK revisions are visible, but cannot inherit a passed verdict.
+            checks = [
+                q
+                for q in receipt.get("quality_checks", {}).values()
+                if q.get("report_content_sha256") == digest and q.get("status") == "invalid"
+            ]
+            version["quality"] = {
+                "status": "invalid" if checks else "incomplete",
+                "issues": [
+                    "report_version_quality_unbound",
+                    *[issue for q in checks for issue in q.get("issues", [])],
+                ],
+            }
+            version["quality_binding"] = "unbound"
+            version["is_current"] = digest == current_digest
+            trusted.append(version)
             continue
         anchor, quality = matched
         if any(
@@ -569,12 +608,12 @@ def quality_versions(service, sid):
             for key in ("version_id", "directory", "files", "missing_artifacts", "missing_formats")
         ):
             raise StoreError("历史报告完整性检查未通过", "research_report_version_changed", 409)
-        if any(
+        version["is_current"] = any(
             item["name"] == "research-report.json" and item["sha256"] == current_digest
             for item in version.get("files", [])
-        ):
-            continue
+        )
         version["quality"] = quality
+        version["quality_binding"] = "host_check"
         trusted.append(version)
     for item in records.values():
         for anchor, _quality in receipt_archives(item):

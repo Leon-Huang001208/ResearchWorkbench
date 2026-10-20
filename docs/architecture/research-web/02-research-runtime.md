@@ -1,5 +1,7 @@
 # 研究协议、执行状态与恢复
 
+research_read_source 在正文落盘后刷新原 research_evidence.json 并返回实际 numeric_observations，模型可用既有 select_business_evidence/report_plan 组装声明。Host 检查时仍独立重读正文重算；补查、取消、原生历史和预算不变。
+
 具备实际数值业务观测时，首次执行与唯一补查均提示原 report_plan 参数；纯定性引文保留原生成路线，不编造数值Summary；Python仍支持独立计算、取证及绘图，避免同时下发另一套规范报告payload指令。原生预算、补查计数、模型配置与实际Host质量状态不变。
 
 research_check_quality返回具体算术mismatch与对应expected供原一次补查使用，同时给出Host report_delivery。模型最终消息须引用该版本URL；重写报告后重新检查，不创建友好别名绕过版本。研究预算、取消、耐久历史及原生工具边界不变。

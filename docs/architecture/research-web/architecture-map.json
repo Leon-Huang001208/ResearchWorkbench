@@ -326,7 +326,8 @@
         "app/research_web/research_web_sources.py",
         "app/research_web/research_calculations.py",
         "app/research_web/research_business_evidence.py",
-        "app/research_web/research_arithmetic.py"
+        "app/research_web/research_arithmetic.py",
+        "app/research_web/research_web_numeric.py"
       ],
       "documents": [
         "docs/architecture/research-web/03-data-files.md"
@@ -357,7 +358,8 @@
         "tests/research_web/test_research_source_reading.py",
         "tests/research_web/test_research_report_binding.py",
         "tests/research_web/test_research_arithmetic.py",
-        "tests/research_web/test_report_delivery_links.py"
+        "tests/research_web/test_report_delivery_links.py",
+        "tests/research_web/test_fingpt_evidence_contract.py"
       ]
     },
     {
