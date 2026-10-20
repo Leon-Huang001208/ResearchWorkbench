@@ -112,6 +112,7 @@ jobs:
             tests/research_web/test_ai_news_eval.py \
             tests/research_web/test_aihot.py \
             tests/research_web/test_resident.py \
+            tests/research_web/test_gateway_upgrade.py \
             tests/research_web/test_multiuser_accounts.py \
             tests/research_web/test_multiuser_gateway.py \
             tests/research_web/test_multiuser_runtime.py \

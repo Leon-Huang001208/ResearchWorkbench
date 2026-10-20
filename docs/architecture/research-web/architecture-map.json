@@ -739,6 +739,8 @@
     {
       "id": "private-multiuser",
       "sources": [
+        "research_workbench_entrypoint/resident/gateway_fence.py",
+        "research_workbench_entrypoint/resident/gateway_upgrade.py",
         "app/research_web/multiuser/",
         "app/research_web/tenant_policy.py",
         "research_workbench_entrypoint/server.py"

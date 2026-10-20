@@ -1,5 +1,9 @@
 # 安全边界与验证方法
 
+Mac的proc_pidpath把gateway PID实际映像与当前生产venv解释器映像精确绑定；argv0仅允许配置路径、其canonical路径或该映像路径，完整模块/root参数必须一致。发送SIGTERM前再次核验；未知PID、读取失败、foreign映像均拒绝。Mac Bootstrap执行同一原生探针，Ubuntu不冒充该证据。
+
+网关更新必须同时证明不能出生新私有实例、已接纳HTTP已优雅排空及primary Native/Host/自动化空闲；单次owner=0或active=false不能代替。目标持久gate在认证前拦GET与控制操作；未知owner/auth/key/进程、SQLite sidecar及版本不匹配均拒绝。失败先落rolling_back再恢复代码和匹配绑定，不恢复业务旧快照。详见[安全升级](../../research-web-gateway-upgrade.md)。
+
 日期合并出版 meta 与正文 header，冲突保持 unknown；只读缓存同样检查。GDP 只支持明确年度公报主段、核实完整肯定句和明确全年列/计价注释的表格；错列、否定、错期和互相冲突的值拒绝。完整性核对、结构化数值精确复算、覆盖与叙述核验原门不变。
 
 指令一致性回归以真实上传CPI驱动原API，兼测一般资料仍可用原payload；补查指令不续授权或改变Host状态。真实FOMC错字段/错误基点工作簿保持拒绝，沙箱错误不通过自动导入、猜参数或扩大权限掩盖。

@@ -2,6 +2,10 @@
 
 系统报告迭代先用已取得 GDP 字节的离线成功/恢复闭环验证，再执行完整Router、独立评审与同候选Mac安装。受控数字合同通过不表示原题分析通过；未核验叙述/口径限制照常保留。部署仅精确SHA空闲事务，原数据与模型保全；最后原题同Flash仅提交一次，预算与质量门不变。
 
+Homebrew Python映像回归先在Mac生产解释器下复现，再用内核proc_pidpath核验真实exec路径；既有Mac Bootstrap环境步骤增加同一只读探针，通用Checks保留跨PID拒绝负例。不新增job或模型调用。
+
+网关安全更新回归加入既有 Research Web Checks Python 步骤，覆盖出生竞争、冻结GET、无强杀排空和断点恢复；不新增job/依赖/平台dispatch。真实常驻操作另核对精确SHA、空池和主实例状态，不能用CI代替安全停机证据。macOS干净安装沿Bootstrap。
+
 本轮四项 FinGPT 缺陷先用真实原生 URL/正文/版本记录和反例回归；日期不从 URL/搜索摘要猜，GDP 数字只来自完整闭合布局。独立评审、Router 与同候选 Mac 安装后才按空闲事务部署；Flash 同题仅一次，质量门与既有预算不变。
 
 业务报告指令一致性修复复用现有 Research Web Checks 的 fusion/revision/quality-tool 回归及 Mac Bootstrap，无新增 job 或模型循环。真实 FOMC 六段错误脚本在原 Native 沙箱离线复现；真实模型验证与临时凭据单独授权，四报告 incomplete 不改判为 passed。

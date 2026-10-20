@@ -2,6 +2,10 @@
 
 系统报告流程：resources/research_report_calculations.py 只接收原始观测引用/操作/展示位数，SDK 与 research_evidence.py 的 Host 输入重建分别执行；research_report_plan.py 串起派生选择、claims/notes/coverage、暂存与归档。report.py 从冻结要求确定格式并以已评分声明生成真实HTML/Word表。test_report_calculations/formats/system_flow 覆盖成功、拒绝、写入回滚及原 macOS 沙箱；service/source/tool 保持统一 plan 指导。
 
+Mac网关Python映像定位在 `resident/gateway_upgrade.py:native_image`，由原网关回归和Mac Bootstrap原生只读探针验证；配置venv、内核映像、完整argv与listener是共同条件，不能按进程名或路径子串放宽。
+
+`resident/gateway_fence.py` 与 `gateway_upgrade.py` 是显式 Mac 空池网关更新器；`multiuser/resident.py` 绑定持久冻结路径，`gateway.py` 在认证及实例创建前阻断全请求。近处回归为 `test_gateway_upgrade.py`、`test_multiuser_resident.py`；合同见 `research-web-gateway-upgrade.md`。不得以改 baseline 或清理未知 owner 解锁部署。
+
 网页日期在 research_web_sources 的出版 meta/header 合并；数值闭合布局在 research_web_numeric，quality_service 刷新同一 SDK 快照并独立重读字节。test_fingpt_evidence_contract 覆盖错期、否定、冲突、20上传加网页及声明篡改；UI/fusion 与 report_delivery_links 覆盖误拼 URL 和当前/历史投影。
 
 service.py 按当前合法业务观测选择一致的报告提示；runtime/research-tools.mjs 在既有一次补查内提示同一 report_plan 路径。test_fingpt_dsh_fusion.py 覆盖真实 CPI 上传后的提示及一般研究兼容；test_report_revision.py 固定真实 FOMC 错字段/错误基点负例，quality_tool JS 覆盖补查不续授权。

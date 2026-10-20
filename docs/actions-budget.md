@@ -2,6 +2,10 @@
 
 2026-10-20系统报告成功/恢复路径复用Research Web Checks同一Python步骤，加入test_report_calculations/formats/system_flow；无新job/runner/依赖。实时PUBLIC；最近五次成功39368667046/39367566728/39366768433/39365305563/39361742325约561/564/532/770/504秒。新增三模块本机约1秒，含原revision组合113例2.80秒，预留20秒。Mac安装沿同候选原Bootstrap，Windows/Linux产品不由Mac dispatch。原题Flash仅一次，真实质量和usage另记。
 
+网关Python映像修复仅给既有macOS Bootstrap环境步骤增加一个stdlib只读进程映像断言，预计不足1秒；Checks复用原网关回归文件，无新增job/runner/依赖或他平台产品dispatch。PUBLIC/标准runner在PR151三项成功后重新核验。
+
+网关安全事务本轮只给原 Research Web Checks Python 清单增加 test_gateway_upgrade.py，预计新增不足20秒；无新job/runner/依赖/Windows或Linux产品dispatch。沿原Mac Bootstrap核对干净安装，真实停机与恢复由Mac mini本机另证。发布前重新核对PUBLIC与当前标准runner能启动。
+
 2026-10-20 来源/声明/版本修复只向既有 Research Web Checks Python 步骤新增 test_fingpt_evidence_contract.py，JS 复用原 UI/fusion。实时 PUBLIC；最近五次成功39360079476/39360079251/39360079204/39357592462/39357592409约467/805/68/428/55秒；定点预计不足2秒、预留20秒。无新job/runner/依赖或Windows/Linux产品dispatch，Mac Bootstrap沿原入口，真实Flash仅一次另记usage与质量。
 
 业务报告指令一致性本轮新增数值/纯引文/普通资料三条分流Python回归、一个真实FOMC Summary负例及两条原生补查JS回归，沿现有Research Web Checks清单与Mac Bootstrap，不加job/runner/模型循环。2026-10-20 API核对仓库public；最近五次成功Checks为39353126136/39238995582/39237621559/39230251649/39228257055（创建至结束约686/493/505/685/666秒）。最终三条分流用例本机13.35秒；付费并发与临时凭据不由CI或本回执授权。
