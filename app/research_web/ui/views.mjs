@@ -11,6 +11,16 @@ export const statusText = (status) => ({ idle: '待命', running: '运行中', q
 export const badge = (status) => `<span class="badge ${isRunning(status) ? 'live' : ['failed', 'error'].includes(status) ? 'danger' : ''}">${e(statusText(status))}</span>`;
 export const empty = (title, description = '') => `<div class="empty"><span class="empty-symbol" aria-hidden="true">◇</span><h3>${e(title)}</h3>${description ? `<p>${e(description)}</p>` : ''}</div>`;
 
+export function isClawWelcome(detail, { busy = false, extraEntries = [] } = {}) {
+  return detail?.mode === 'claw' && !busy && [undefined, 'idle'].includes(detail.status)
+    && !detail.error && !detail.can_cancel && !detail.can_recheck_stop
+    && !detail.delivery?.status
+    && !['messages', 'questions', 'question_history', 'activities', 'approvals', 'subagents'].some(key => detail[key]?.length)
+    && !extraEntries.length;
+}
+
+export const renderClawWelcome = () => `<div class="claw-welcome"><span class="claw-welcome-icon" aria-hidden="true">${icon('terminal')}</span><h1>今天想在 Research Workbench 中完成什么？</h1></div>`;
+
 export async function copyResearchText(text, { clipboard = globalThis.navigator?.clipboard, logger = safeLog } = {}) {
   if (typeof text !== 'string' || !text.trim()) throw new Error('没有可复制的回复。');
   try {
@@ -138,7 +148,8 @@ export function renderConversation(detail, questionDrafts = new Map(), options =
   const questions = pendingQuestionEntries.filter(question=>!positionedQuestions.includes(question)).map(question=>question.html).join('');
   const anchoredCards = detail.mode === 'claw' ? extraEntries.filter(entry=>Number.isFinite(entry.seq) && typeof entry.html === 'string').map((entry,index)=>({...entry,kind:'decision',index:messageEntries.length + questionEntries.length + activityEntries.length + pendingQuestionEntries.length + index})) : [];
   const messages = detail.mode !== 'claw' ? researchMessages + questionEntries.map(entry => entry.html).join('') : renderClawFlow([...messageEntries, ...questionEntries, ...activityEntries, ...positionedQuestions, ...anchoredCards].sort((a,b) => a.seq - b.seq || a.index - b.index), detail);
-  const html = `${activities.length ? `<p class="muted small conversation-tool-summary">${e(activitySummary(activities))}</p>` : ''}${messages || empty('尚无消息', '输入问题，开始这个会话。所有回答和活动均来自 DSH。')}${unpositioned.length ? `<section class="conversation-activity"><p class="muted small">以下活动缺少原生事件位置，未推断其回答顺序。</p>${unpositioned.map(activity=>renderActivityCard(activity,detail.subagents || [],{compact:true})).join('')}</section>` : ''}${approvals}${questions}${detail.error ? `<div class="notice error" role="alert">${e(failureText(detail.error))}</div>` : ''}`;
+  const fallback = detail.mode === 'claw' ? (isClawWelcome(detail, options) ? renderClawWelcome() : '') : empty('尚无消息', '输入问题，开始这个会话。所有回答和活动均来自 DSH。');
+  const html = `${activities.length ? `<p class="muted small conversation-tool-summary">${e(activitySummary(activities))}</p>` : ''}${messages || fallback}${unpositioned.length ? `<section class="conversation-activity"><p class="muted small">以下活动缺少原生事件位置，未推断其回答顺序。</p>${unpositioned.map(activity=>renderActivityCard(activity,detail.subagents || [],{compact:true})).join('')}</section>` : ''}${approvals}${questions}${detail.error ? `<div class="notice error" role="alert">${e(failureText(detail.error))}</div>` : ''}`;
   return restrictInvalidReportLinks(html, detail);
 }
 
