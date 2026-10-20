@@ -7,7 +7,7 @@ import { createDisclosureState } from './disclosures.mjs';
 import { createUploadHandler } from './uploads.mjs';
 import { createSessionSearch } from './session-search.mjs';
 import { downloadAnswer } from './answer-actions.mjs';
-import { badge, empty, renderConversation, copyResearchText, renderDeleteConfirm, renderHistory, renderPurgeConfirm, renderRename, renderDocumentEditor, documentTargets, documentEditValue, documentCreationPayload } from './views.mjs';
+import { badge, empty, isClawWelcome, renderClawWelcome, renderConversation, copyResearchText, renderDeleteConfirm, renderHistory, renderPurgeConfirm, renderRename, renderDocumentEditor, documentTargets, documentEditValue, documentCreationPayload } from './views.mjs';
 import { icon } from './icons.mjs';
 import { researchRecipes, renderResearchRecipes } from './research-report.mjs';
 import { renderComposer, renderQuickSkills, removeTabbitMentionQuery, slashKey, skillMatches, tabbitKey, tabbitMentionQuery } from './composer.mjs';
@@ -278,7 +278,8 @@ function composer() {
 
 function landing() {
   const claw = state.route.page === 'claw';
-  return `<div class="landing ${claw ? 'claw-landing' : 'fingpt-landing'}"><div class="greeting">${claw ? `<span class="mode-label">${icon('layers')}Claw</span>` : ''}<h1>${claw ? '把研究目标，变成可用成果。' : '从一个问题，开始研究。'}</h1><p class="landing-subtitle">${claw ? '说明目标、资料与交付要求，在一个空间推进研究。' : '读懂资料，比较公司，探索行业。'}</p></div>${!claw ? renderResearchRecipes({ busy: state.busy }) : ""}${composer()}${claw ? renderClawCases(quickCategory) : renderQuickSkills(catalog.capabilities, { page: state.route.page, category: quickCategory })}</div>`;
+  if (claw) return `<div class="landing claw-landing">${state.busy ? '<div class="claw-welcome-pending" role="status">正在连接会话…</div>' : state.error || state.streamError ? '<div class="claw-welcome-pending" aria-hidden="true"></div>' : renderClawWelcome()}<div class="claw-landing-editor">${composer()}<details class="claw-examples" data-disclosure-key="claw:examples"><summary>查看示例</summary>${renderClawCases(quickCategory)}</details></div></div>`;
+  return `<div class="landing fingpt-landing"><div class="greeting"><h1>从一个问题，开始研究。</h1><p class="landing-subtitle">读懂资料，比较公司，探索行业。</p></div>${renderResearchRecipes({ busy: state.busy })}${composer()}${renderQuickSkills(catalog.capabilities, { page: state.route.page, category: quickCategory })}</div>`;
 }
 
 function researchPage() {
@@ -287,8 +288,10 @@ function researchPage() {
   if (!state.detail) return landing();
   const detail = state.detail;
   const cards = detail.mode === 'claw' ? positionClawAutomationCards(detail,clawDraftEdits,clawWorkspace.busy) : {entries:[],unpositionedDrafts:[],unpositionedRuns:[]};
+  const welcomeBlocked = state.busy || state.stopping || Boolean(state.error || state.streamError);
+  if (isClawWelcome(detail, { busy: welcomeBlocked, extraEntries: cards.entries }) && !cards.unpositionedDrafts.length && !cards.unpositionedRuns.length) return landing();
   const toolNames = Object.fromEntries((catalog.tools || []).map((tool) => [tool.id, tool.name]).filter(([id, name]) => typeof id === 'string' && typeof name === 'string'));
-  const canvas = `<div id="messages" class="messages" aria-label="会话消息">${renderConversation(detail, questionDrafts, { toolNames, feedback: Object.fromEntries(answerFeedback), copied: copiedTransient, retryAllowed: !retryBlockReason(), extraEntries: cards.entries })}</div>`;
+  const canvas = `<div id="messages" class="messages" aria-label="会话消息">${renderConversation(detail, questionDrafts, { busy: welcomeBlocked || Boolean(cards.unpositionedDrafts.length || cards.unpositionedRuns.length), toolNames, feedback: Object.fromEntries(answerFeedback), copied: copiedTransient, retryAllowed: !retryBlockReason(), extraEntries: cards.entries })}</div>`;
   const sourceLabels = { required: '能力必需', 'user-selected': '用户选择', recommended: '能力推荐', 'model-supplemented': '模型补选' };
   const methodSummary = (detail.methods || []).length ? `<p class="small muted" data-method-adoption>采用方法：${detail.methods.map(item => `${e(item.title || item.method_id)} · ${e(sourceLabels[item.source] || item.source)}`).join('；')}</p>` : '';
   const methodWarning = detail.method_trace_incomplete ? notice('部分推荐或模型补选方法缺少调用证据；本次结果已降级标记 method_trace_incomplete。', 'warning') : '';
@@ -521,6 +524,8 @@ function render() {
   const dirtyHotForms=[...root.querySelectorAll('[data-hot-form][data-hot-dirty]')];
   const documentForm = root.querySelector('#document-edit-form');
   const active = document.activeElement; const focusId = active?.id;
+  const activeQuestion = active?.closest?.('[data-question-form]');
+  const questionFocus = activeQuestion ? { session: activeQuestion.dataset.qSession, id: activeQuestion.dataset.questionForm, index: activeQuestion.dataset.qIndex, legend: active.matches('legend'), name: active.name, value: active.value } : null;
   const focusedSearchResult = active?.dataset?.globalResultKey;
   disclosureState.capture(root, active);
   const selection = active && ['TEXTAREA', 'INPUT'].includes(active.tagName) && active.type !== 'password' ? { start: active.selectionStart, end: active.selectionEnd } : null;
@@ -584,6 +589,11 @@ function render() {
   }
   else if (focusedSearchResult && searchOpen) {
     ([...root.querySelectorAll('[data-global-result-key]')].find(item => item.dataset.globalResultKey === focusedSearchResult) || document.getElementById('global-search'))?.focus({ preventScroll: true });
+  }
+  else if (questionFocus) {
+    const form = [...root.querySelectorAll('[data-question-form]')].find(item => item.dataset.qSession === questionFocus.session && item.dataset.questionForm === questionFocus.id && item.dataset.qIndex === questionFocus.index);
+    const replacement = questionFocus.legend ? form?.querySelector('legend') : [...(form?.querySelectorAll('input') || [])].find(item => item.name === questionFocus.name && item.value === questionFocus.value);
+    replacement?.focus({ preventScroll: true });
   }
   if (state.busy) root.querySelectorAll('[data-approval], [data-upload], .question-form button, #rename-form button').forEach((button) => { button.disabled = true; });
   const projectDialog = root.querySelector('.nav-project-dialog');
@@ -1510,6 +1520,23 @@ root.addEventListener('compositionend', event => {
 root.addEventListener('keydown', (event) => {
   if (state.route.page === 'aihot' && event.key === 'Escape') root.querySelectorAll('.aihot-faces[open]').forEach(item => { item.open = false; });
   if (event.isComposing || event.keyCode === 229) return;
+  if (event.target.type === 'radio' && event.target.matches?.('.codex-question-option input') && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) {
+    event.preventDefault();
+    const form = event.target.closest('[data-question-form]');
+    const question = state.detail?.questions?.find(item => item.id === form.dataset.questionForm);
+    if (!question || form.dataset.qSession !== state.detail.id || state.busy) return;
+    const inputs = [...form.querySelectorAll('input[type="radio"]')];
+    const direction = ['ArrowUp', 'ArrowLeft'].includes(event.key) ? -1 : 1;
+    const next = inputs[(inputs.indexOf(event.target) + direction + inputs.length) % inputs.length];
+    try { next.checked = true; captureQuestionForm(form, questionDrafts, state.detail.id, question); next.focus(); }
+    catch (error) { safeLog('question_option_failed'); state.error = error.message || '无法保存选项，请重试。'; render(); }
+    return;
+  }
+  if (['radio', 'checkbox'].includes(event.target.type) && event.target.matches?.('.codex-question-option input') && ['Enter', ' '].includes(event.key)) {
+    event.preventDefault();
+    if (!event.repeat) event.target.click();
+    return;
+  }
   if (searchOpen && event.key === 'Escape') { event.preventDefault(); closeGlobalSearch(); return; }
   const projectDialog = event.target.closest?.('.nav-project-dialog');
   const projectEditorState = conversationNavigation.state(state.route.page);
@@ -2249,12 +2276,45 @@ root.addEventListener('submit', async (event) => {
   }
 });
 
+let questionAdvanceUntil = 0;
+let questionAdvanceKey = '';
+root.addEventListener('pointerdown', event => {
+  const form = event.target.closest?.('.codex-question-option')?.closest('[data-question-form]');
+  if (form && questionAdvanceKey === questionStateKey(form.dataset.qSession, form.dataset.questionForm) && (event.detail > 1 || performance.now() < questionAdvanceUntil)) event.preventDefault();
+});
 root.addEventListener('click', async (event) => {
   if (searchOpen && !event.target.closest?.('.search-popover, [data-toggle-search]')) {
     event.preventDefault(); event.stopPropagation(); closeGlobalSearch(); return;
   }
   const closeSearchButton = event.target.closest?.('[data-close-search]');
   if (closeSearchButton && Object.hasOwn(closeSearchButton.dataset, 'closeSearch')) { closeGlobalSearch(); return; }
+  const questionOption = event.target.closest?.('.codex-question-option');
+  const questionInput = questionOption?.querySelector?.('input');
+  if (questionInput) {
+    const input = questionInput;
+    const form = questionOption.closest('[data-question-form]');
+    const question = state.detail?.questions?.find(item => item.id === form?.dataset.questionForm);
+    const key = form && questionStateKey(form.dataset.qSession, form.dataset.questionForm);
+    if (!question || form.dataset.qSession !== state.detail.id || state.busy || event.detail > 1 || (event.detail > 0 && key === questionAdvanceKey && performance.now() < questionAdvanceUntil)) { event.preventDefault(); return; }
+    // Checkboxes keep native toggle/keyboard semantics; change captures their draft.
+    if (input?.type !== 'radio') return;
+    if (event.target !== input) { event.preventDefault(); input.checked = true; }
+    try {
+      captureQuestionForm(form, questionDrafts, state.detail.id, question);
+      const next = Number(form.dataset.qIndex) < question.items.length - 1;
+      if (next) {
+        actionQuestion(questionDrafts, state.detail.id, question, 'next');
+        questionAdvanceKey = key;
+        questionAdvanceUntil = performance.now() + 300;
+        safeLog('question_option_advanced');
+      }
+      state.error = ''; render();
+      const nextForm = [...root.querySelectorAll('[data-question-form]')].find(item => item.dataset.questionForm === question.id);
+      if (next) nextForm?.querySelector('legend')?.focus({ preventScroll: true });
+      else [...(nextForm?.querySelectorAll('input[type="radio"]') || [])].find(item => item.value === input.value)?.focus({ preventScroll: true });
+    } catch (error) { safeLog('question_option_failed'); state.error = error.message || '无法保存选项，请重试。'; render(); }
+    return;
+  }
   const modelMenu = root.querySelector('.composer-model-menu[open]');
   if (modelMenu && !event.target.closest?.('.composer-model-menu')) modelMenu.open = false;
   const composerMenu = root.querySelector('.composer-more[open]');
@@ -2401,6 +2461,7 @@ root.addEventListener('click', async (event) => {
     const form = button.closest('[data-question-form]');
     const question = state.detail?.questions?.find(q => q.id === form?.dataset.questionForm);
     if (!question || form.dataset.qSession !== state.detail.id || state.busy) return;
+    questionAdvanceUntil = 0; questionAdvanceKey = '';
     captureQuestionForm(form, questionDrafts, state.detail.id, question);
     actionQuestion(questionDrafts, state.detail.id, question, data.qPage || ('qClose' in data ? 'close' : 'qOpen' in data ? 'open' : 'skip'));
     state.error = ''; render();
