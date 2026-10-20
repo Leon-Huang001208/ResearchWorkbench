@@ -1,5 +1,7 @@
 # Research Workbench Development Map
 
+供应商参数根object回归位于test_sandbox.py::test_native_tool_schemas_match_pinned_dsh_converter：固定DSH转换、真实pi-ai序列化及fake fetch一并验证；research-tools.mjs保留执行时code/report_plan互斥和全部预算。
+
 自由分析绑定位于resources/research_report_plan.py（fact/formula模板、中文长度、审计core）与research_evidence.py（Host重建及真实产物核对）；resources/research_report.py生成去重中文表、独立审计附件和确定性PDF；research_quality_service.py冻结新轮次policy。test_bound_analysis.py回放真实两篇公报及错误平减指数，覆盖完整绑定、绕过拒绝、附件损坏与恢复；UI报告正文用presentation，原笔记保留底稿。
 
 Claw 统一添加/斜杠菜单定位 `ui/composer-menu.mjs`（目录行、键盘与格式纯函数）、`composer.mjs`（渲染）及 `app.mjs`（原控制器接线）；回归 `tests/javascript/research_web_composer_menu.test.mjs`。FinGPT 保持原布局，无后端/依赖/DSH协议变更。
