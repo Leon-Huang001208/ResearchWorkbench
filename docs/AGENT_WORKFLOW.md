@@ -1,5 +1,7 @@
 # Agent 任务路由指南
 
+恢复就绪性先复现真实延迟reap与超过1 MB保全摘要，再经正式recover和不可变artifact reader回归；Mac Bootstrap原步骤补临时子进程/大journal探针。身份、读取预算和超限停机前拒绝不得靠裁剪保全数据解决。
+
 Homebrew Python映像回归先在Mac生产解释器下复现，再用内核proc_pidpath核验真实exec路径；既有Mac Bootstrap环境步骤增加同一只读探针，通用Checks保留跨PID拒绝负例。不新增job或模型调用。
 
 网关安全更新回归加入既有 Research Web Checks Python 步骤，覆盖出生竞争、冻结GET、无强杀排空和断点恢复；不新增job/依赖/平台dispatch。真实常驻操作另核对精确SHA、空池和主实例状态，不能用CI代替安全停机证据。macOS干净安装沿Bootstrap。
