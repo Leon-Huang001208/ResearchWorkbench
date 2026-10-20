@@ -76,6 +76,7 @@ from .research_quality_service import (
     prepare_contract,
     quality_result,
     quality_versions,
+    report_delivery,
     source_context,
 )
 from .service_manager import WebServiceManager
@@ -2368,8 +2369,16 @@ class ResearchService:
                 result["research_report_versions"] = []
                 quality["status"] = "invalid"
                 quality["issues"].append("report_version_integrity_unverified")
+            result["research_report_delivery"] = report_delivery(
+                self,
+                sid,
+                latest_receipt,
+                (result.get("research_report") or {}).get("content_sha256"),
+            )
             result["research_accepted"] = (
-                quality["status"] == "passed" and result["status"] == "completed"
+                quality["status"] == "passed"
+                and result["status"] == "completed"
+                and result["research_report_delivery"]["status"] == "bound"
             )
         delivery = result["delivery"]
         result["can_recheck_stop"] = bool(
@@ -2833,6 +2842,8 @@ class ResearchService:
                     "missing只记录真实未完成或未核验的冻结要求，不能清除真实缺口换取passed。"
                     "外部真实性未核验、范围限制等仍须在正文如实说明；不因不在冻结要求内而隐去。"
                     "若唯一剩余问题为artifact_delivery_unverified，结束本回合让Host完成格式核验，不反复重写。"
+                    "正文中的显式算式及结果加括号运算会被Host确定性复算；arithmetic_checks只检查算术，不替代来源、期间和单位核验。发现mismatch必须在既有一次补查许可内修正，不得删去实际缺口换取通过。"
+                    "最终报告链接只使用research_check_quality返回的report_delivery.files中对应本轮最终版本的url；质量状态照实说明。不要另写友好别名报告或沿用之前版本的文件URL；重生成报告后须重新检查绑定。"
                     "补查仍不通过，保留可用部分与缺口；完整性错误必须修复，旧报告版本保留。"
                 )
                 requirement_text = json.dumps(contract["requirements"], ensure_ascii=False)

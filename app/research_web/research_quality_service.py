@@ -11,7 +11,7 @@ from .research_business_evidence import business_observations
 from .research_evidence import report_projection
 from .research_quality import make_contract
 from .research_web_sources import upload_evidence_files
-from .resources.research_report import archive_report_version, list_report_versions
+from .resources.research_report import _version_read, archive_report_version, list_report_versions
 from .resources.research_report_plan import EXTRACTED_METRICS
 from .store import StoreError
 
@@ -435,6 +435,111 @@ def current_report_digest(service, sid):
         return None
 
 
+def report_delivery(service, sid, receipt, expected_digest=None):
+    """Project immutable checked links; mutable aliases require equal actual bytes."""
+    empty = {"status": "unavailable", "files": [], "aliases": {}}
+    try:
+        archives = receipt_archives(receipt)
+        if not archives:
+            return empty
+        service.store.files(sid)
+        digest = current_report_digest(service, sid)
+        if not digest or (expected_digest is not None and digest != expected_digest):
+            return empty
+        matches = [
+            (anchor, quality)
+            for anchor, quality in archives
+            if quality.get("status") in {"passed", "incomplete"}
+            and quality.get("report_content_sha256") == digest
+        ]
+        if not matches:
+            return empty
+        anchor, quality = matches[-1]
+        output = service.store.directory(sid) / "outputs"
+        archive = output / "report-versions"
+        if (
+            output.is_symlink()
+            or archive.is_symlink()
+            or not re.fullmatch(r"[a-f0-9]{24}-[a-f0-9]{24}-[a-f0-9]{12}", anchor["version_id"])
+            or anchor["directory"] != "report-versions/" + anchor["version_id"]
+        ):
+            raise ValueError("report_delivery_archive_identity")
+        actual = _version_read(archive / anchor["version_id"])
+        if any(
+            actual.get(k) != anchor.get(k)
+            for k in ("task_id", "directory", "files", "missing_artifacts", "missing_formats")
+        ):
+            raise ValueError("report_delivery_archive_changed")
+        if anchor.get("task_id") != receipt["research_contract"]["task_id"]:
+            raise ValueError("report_delivery_task_mismatch")
+        catalog = dict(service.store.session(sid)["files"])
+        public, targets = [], {}
+        for item in anchor["files"]:
+            relative = "outputs/" + anchor["directory"] + "/" + item["stored_name"]
+            ids = [fid for fid, path in catalog.items() if path == relative]
+            if len(ids) != 1:
+                raise ValueError("report_delivery_file_unregistered")
+            fid = ids[0]
+            url = f"/api/research/sessions/{sid}/files/{fid}/download"
+            public.append(
+                {
+                    "id": fid,
+                    "name": item["name"],
+                    "path": relative,
+                    "sha256": item["sha256"],
+                    "url": url,
+                }
+            )
+            targets[item["sha256"]] = url
+        aliases = {}
+        for item in public:
+            aliases[item["path"]] = item["url"]
+            aliases[item["url"]] = item["url"]
+            aliases[item["url"].removesuffix("download") + "preview"] = item["url"]
+        inspected, total = 0, 0
+        for fid, relative in catalog.items():
+            if (
+                not relative.startswith("outputs/")
+                or not relative.lower().endswith((".html", ".docx", ".pdf", ".json"))
+                or relative.startswith("outputs/report-versions/")
+            ):
+                continue
+            inspected += 1
+            if inspected > 64:
+                log.info("research_report_alias_scope_limited")
+                break
+            try:
+                stream, _ = service.store.open_file(sid, fid)
+                with stream:
+                    raw = stream.read(16_000_001)
+            except (OSError, StoreError):
+                log.info("research_report_optional_alias_unavailable")
+                continue
+            total += len(raw)
+            if len(raw) > 16_000_000 or total > 32_000_000:
+                log.info("research_report_alias_scope_limited")
+                break
+            url = targets.get(hashlib.sha256(raw).hexdigest())
+            if url:
+                aliases[relative] = url
+                aliases[f"/api/research/sessions/{sid}/files/{fid}/download"] = url
+                aliases[f"/api/research/sessions/{sid}/files/{fid}/preview"] = url
+        if current_report_digest(service, sid) != digest:
+            raise ValueError("report_delivery_report_changed")
+        return {
+            "status": "bound",
+            "task_id": receipt["research_contract"]["task_id"],
+            "version_id": anchor["version_id"],
+            "report_content_sha256": digest,
+            "quality_status": quality["status"],
+            "files": public,
+            "aliases": aliases,
+        }
+    except (OSError, ValueError, KeyError, TypeError, StoreError):
+        log.warning("research_report_delivery_unavailable", session_id=sid)
+        return empty
+
+
 def quality_versions(service, sid):
     versions = list_report_versions(service.store.directory(sid) / "outputs")
     records = {
@@ -564,6 +669,9 @@ async def check_quality(service, sid):
                 "anchor": anchor,
                 "check_id": identity,
             }
+        result["report_delivery"] = report_delivery(
+            service, sid, receipt, result.get("report_content_sha256")
+        )
         receipt["quality_last_result"] = result
         service.store.save()
         log.info(
