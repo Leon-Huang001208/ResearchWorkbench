@@ -217,3 +217,20 @@ test('quality native tool shares the original 48 call and four child budgets', (
   assert.match(guard({ name: 'research_check_quality', agent }), /budget exhausted/i);
   assert.ok(guard({ name: 'research_check_quality_shadow', agent }));
 });
+
+
+test('business quality repair uses the data plan route without renewing repair or certifying claims', async t => {
+  const observation = { id: 'business_' + 'a'.repeat(32), kind: 'business_numeric' };
+  const f = await fixture(t, result({ status: 'incomplete', issues: ['numeric_claim_unverified'],
+    repair_count: 1, may_repair: true, evidence_context: { business_observations: [observation] } }));
+  const tool = f.tools.get('research_check_quality');
+  const first = JSON.parse((await tool.execute({}, f.exec)).result_json);
+  assert.match(first.repair_instructions, /report_plan/);
+  assert.match(first.repair_instructions, /exact user-requested Summary metric keys/);
+  assert.match(first.repair_instructions, /independent primitive calculation/);
+  assert.match(first.repair_instructions, /preserve genuine missing/);
+  assert.equal(first.status, 'incomplete');
+  assert.deepEqual(first.issues, ['numeric_claim_unverified']);
+  const replay = JSON.parse((await tool.execute({}, f.exec)).result_json);
+  assert.equal(Object.hasOwn(replay, 'repair_instructions'), false);
+});

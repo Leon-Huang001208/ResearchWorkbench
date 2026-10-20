@@ -1,5 +1,7 @@
 # Research Workbench Development Map
 
+service.py 按当前合法业务观测选择一致的报告提示；runtime/research-tools.mjs 在既有一次补查内提示同一 report_plan 路径。test_fingpt_dsh_fusion.py 覆盖真实 CPI 上传后的提示及一般研究兼容；test_report_revision.py 固定真实 FOMC 错字段/错误基点负例，quality_tool JS 覆盖补查不续授权。
+
 sandbox._report_sdk_scope 精确列出当前包的四个只读 SDK/字体文件，并在 bootstrap 注入 session root；resources/research_report.render_pdf 保持原输出定位。test_sandbox 覆盖只读、未列文件和链接拒绝，test_report_revision 的 new/legacy-session 两参数覆盖原资源不改的生成及修订。
 
 research_web_sources.upload_evidence_files 依据 _stored_records 的会话登记分类 Host 网页，service.detail 和 quality_service 的来源上下文/观测/评分均复用；fusion_api 端到端及 source_reading 跨会话/损坏登记回归防止来源别名丢失 scope/日期。正文与原文件不迁移。
