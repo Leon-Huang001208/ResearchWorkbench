@@ -31,3 +31,5 @@ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=. 主产品.venv/python 调用已存在私�
 <!-- architecture-review {"group": "runtime", "structure": "unchanged", "reason": "固定SDK与原DSH工具入口扩展引用和精确计算，schema兼容仅调整wire结构，实际预算和权限仍由原入口强制。", "diagrams": []} -->
 
 <!-- architecture-review {"group": "verification-workflow", "structure": "unchanged", "reason": "新真实失败离线模块复用原Checks步骤；Mac安装和单次真实研究分开，文档补齐不伪改已执行候选或重耗模型。", "diagrams": []} -->
+
+续研边界补充：required_body_target必须读取当前question和继承的冻结requirements；只扫描新问题会静默丢失原1200字目标。新增RED回归已复现，改为合并唯一目标、冲突拒绝；不修改原质量算法或预算。此前616候选CI不作为此修复的新候选部署依据，更新同一PR并重验。

@@ -154,12 +154,26 @@ def audit_content(payload):
 
 
 def required_body_target(contract):
-    question = contract.get("question", "") if isinstance(contract, dict) else ""
-    match = re.search(
-        r"约\s*([0-9]{3,4})\s*字(?:的)?中文|中文(?:正文|报告)?约\s*([0-9]{3,4})\s*字", question
-    )
-    value = int(match[1] or match[2]) if match else None
-    return value if value is not None and 300 <= value <= 5000 else None
+    """Continuation cannot silently discard an original frozen word target."""
+    if not isinstance(contract, dict):
+        return None
+    texts = [contract.get("question", "")]
+    requirements = contract.get("requirements", [])
+    if isinstance(requirements, list):
+        texts.extend(row.get("text", "") for row in requirements if isinstance(row, dict))
+    targets = {
+        int(match[1] or match[2])
+        for text in texts
+        if isinstance(text, str)
+        for match in re.finditer(
+            r"约\s*([0-9]{3,4})\s*字(?:的)?中文|中文(?:正文|报告)?约\s*([0-9]{3,4})\s*字", text
+        )
+        if 300 <= int(match[1] or match[2]) <= 5000
+    }
+    if len(targets) > 1:
+        log.warning("research_report_body_target_conflict")
+        raise ValueError("research_report_body_target_conflict")
+    return next(iter(targets), None)
 
 
 def verify_system_report(payload, bundle, context):

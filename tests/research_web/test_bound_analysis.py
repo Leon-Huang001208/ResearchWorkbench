@@ -347,3 +347,17 @@ def test_real_owned_bodies_to_host_binding_and_recovery(tmp_path, monkeypatch, t
         assert Path(repaired["written"]["audit"]).exists()
 
     asyncio.run(run())
+
+
+def test_continuation_preserves_frozen_body_target_and_conflicts_fail_closed():
+    from app.research_web.resources.research_report_plan import required_body_target
+
+    contract = {
+        "question": "补充最终核实资料，请继续研究。",
+        "requirements": [
+            {"id": "original", "text": "使用实际证据，生成约1200字中文HTML和Word报告。"}
+        ],
+    }
+    assert required_body_target(contract) == 1200
+    with pytest.raises(ValueError, match="research_report_body_target_conflict"):
+        required_body_target({**contract, "question": "改写为约2000字中文报告。"})

@@ -7897,6 +7897,7 @@ Functions:
 - `audit_content`
   - Bind the complete evidence draft to its semantic report without a hash cycle.
 - `required_body_target`
+  - Continuation cannot silently discard an original frozen word target.
 - `verify_system_report`
   - Host rebuilds the same plan from its own actual observations, not SDK cache.
 - `_object`
