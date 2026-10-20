@@ -1,8 +1,10 @@
 # Research Web 接口清单
 
+无新HTTP端点。原research_run_script(report_plan)新增可选calculations数组，元素为id/operation/operands/decimal_places，sections可选择$计算id；summary对无工作簿请求可省略。report_context新增Host冻结formats，不接收调用方task/hash/格式覆盖。规范JSON新增business_calculations及可读trace，Host独立重建并核对；report_formats记录所选交付，必需格式仍按冻结要求核对。旧参数和默认三格式兼容。
+
 现有来源 read 回包新增 numeric_observations/numeric_claim_guidance，来自 Host 完整字节；研究 detail 的版本项增加 is_current 和 quality_binding。网页来源 date_evidence/date_status 解释实际发布时间及冲突，未知不按搜索或 URL 补齐。无新端点、模型参数、凭据或执行授权。
 
-本轮不增加HTTP端点、工具或参数字段，仅统一有真实数值业务观测时的规范报告调用指令及一次补查说明。原code路径保留；report_context仍只在Host合同有效且为字典时提供，不信任模型提交绑定。
+原code路径继续保留；report_context仍只在Host合同有效且为字典时提供，不信任模型提交绑定。扩展仅在原工具数据参数内，补查许可由原Host回执管理。
 
 GET session detail 新增 research_report_delivery（status/task_id/version_id/report_content_sha256/quality_status/files/aliases）；research_check_quality 结果的 report_delivery 使用同一Host投影。未绑定返回空files/aliases，accepted还要求当前检查绑定。arithmetic_checks含有界字面表达式、reported/expected/status和section_id；matching只证明该算术，不免除原数字、期间、单位和来源检查。原始消息保留，当前报告链接由UI核对并允许resolver拒绝直接API绕过。无新增端点、凭据或写参数。
 

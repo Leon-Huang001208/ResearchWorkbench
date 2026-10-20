@@ -23,6 +23,7 @@ try:
         write_research_report,
         write_summary_workbook,
     )
+    from research_report_calculations import derive_business_observations
 except ImportError:
     from .research_report import (
         _bounded_bytes,
@@ -37,6 +38,7 @@ except ImportError:
         write_research_report,
         write_summary_workbook,
     )
+    from .research_report_calculations import derive_business_observations
 
 log = logging.getLogger("research_web.report_plan")
 EXTRACTED_METRICS = frozenset(
@@ -89,6 +91,7 @@ def _resolve(bundle, key):
         and key
         in (
             row.get("id"),
+            row.get("selection_id"),
             row.get("metric"),
             str(row.get("metric")) + "@" + str(row.get("period")),
         )
@@ -231,7 +234,7 @@ def _summary_calculation(bundle, target, steps, budget, used):
 def build_business_report_plan(context, plan, bundle):
     """Assemble nominated evidence and unverified analysis, preserving every gap."""
     try:
-        _object(context, {"task_id", "contract_sha256", "as_of", "requirement_ids"})
+        _object(context, {"task_id", "contract_sha256", "as_of", "requirement_ids"}, {"formats"})
         if (
             not re.fullmatch(r"[a-f0-9]{24}", str(context["task_id"]))
             or not re.fullmatch(r"[a-f0-9]{64}", str(context["contract_sha256"]))
@@ -249,19 +252,26 @@ def build_business_report_plan(context, plan, bundle):
         ):
             raise ValueError("research_report_plan_binding")
         _text(context["as_of"], 100)
-        _object(plan, {"title", "sections", "summary", "missing"}, {"controls"})
+        _object(plan, {"title", "sections", "missing"}, {"controls", "summary", "calculations"})
         if len(json.dumps(plan, ensure_ascii=False, allow_nan=False).encode()) > 32000:
             raise ValueError("research_report_plan_limit")
         _text(plan["title"], 200)
         if (
             not isinstance(plan["sections"], list)
             or not 1 <= len(plan["sections"]) <= 40
-            or not isinstance(plan["summary"], list)
-            or not 1 <= len(plan["summary"]) <= 256
+            or not isinstance(plan.get("summary", []), list)
+            or len(plan.get("summary", [])) > 256
             or not isinstance(plan["missing"], list)
             or len(plan["missing"]) > 100
         ):
             raise ValueError("research_report_plan_limit")
+        recipes = plan.get("calculations", [])
+        derived = derive_business_observations(
+            [r for r in bundle["observations"] if r.get("kind") == "business_numeric"],
+            recipes,
+            task_id=context["task_id"],
+        )
+        bundle = {**bundle, "observations": [*bundle["observations"], *derived]}
         sources = [canonical_source(bundle["sources"], s["id"]) for s in bundle["sources"]]
         result = {"sections": [], "notes": [], "coverage": [], "numeric_claims": []}
         selected, stage_ids, section_rows = {}, set(), {}
@@ -279,7 +289,7 @@ def build_business_report_plan(context, plan, bundle):
             refs, requirements = section["evidence_ids"], section["requirement_ids"]
             if (
                 not isinstance(refs, list)
-                or not 1 <= len(refs) <= 40
+                or len(refs) > 40
                 or not isinstance(requirements, list)
                 or not requirements
                 or any(r not in context["requirement_ids"] for r in requirements)
@@ -288,7 +298,13 @@ def build_business_report_plan(context, plan, bundle):
             total += len(refs)
             if total > 40:
                 raise ValueError("research_report_plan_evidence_limit")
-            blocks = select_business_evidence(bundle, {ref: requirements for ref in refs})
+            blocks = (
+                select_business_evidence(
+                    bundle, {_resolve(bundle, ref)["id"]: requirements for ref in refs}
+                )
+                if refs
+                else {"sections": [], "notes": [], "coverage": [], "numeric_claims": []}
+            )
             if len(blocks["sections"]) != len(refs):
                 raise ValueError("research_report_plan_duplicate_selection")
             rows = [_resolve(bundle, ref) for ref in refs]
@@ -301,7 +317,23 @@ def build_business_report_plan(context, plan, bundle):
             parents = list(dict.fromkeys(ref for s in blocks["sections"] for ref in s["citations"]))
             for ref in parents:
                 canonical_source(sources, ref)
-            group = evidence_section(sid, section["heading"], text, parents, requirements)
+            if not text.strip():
+                raise ValueError("research_report_plan_empty_section")
+            group = (
+                evidence_section(sid, section["heading"], text, parents, requirements)
+                if parents
+                else {
+                    "sections": [
+                        {"id": sid, "heading": section["heading"], "text": text, "citations": []}
+                    ],
+                    "notes": [{"stage_id": sid, "text": text, "citations": []}],
+                    "coverage": [
+                        {"requirement_id": rid, "section_ids": [sid], "excerpt": text}
+                        for rid in requirements
+                    ],
+                    "numeric_claims": [],
+                }
+            )
             for key, items in result.items():
                 items.extend(group[key])
             for claim in blocks["numeric_claims"]:
@@ -311,7 +343,7 @@ def build_business_report_plan(context, plan, bundle):
                 )
         metrics, places, calculation_rows, operands_used = {}, {}, [], {}
         calculation_budget = [0]
-        for row in plan["summary"]:
+        for row in plan.get("summary", []):
             _object(row, {"metric", "observation_id", "decimal_places"}, {"calculation"})
             key, precision = row["metric"], row["decimal_places"]
             observation = _resolve(bundle, row["observation_id"])
@@ -427,6 +459,9 @@ def build_business_report_plan(context, plan, bundle):
             "missing": list(plan["missing"]),
             **result,
         }
+        if recipes:
+            payload["business_calculations"] = recipes
+            payload["business_calculation_trace"] = [row["calculation_trace"] for row in derived]
         validate_payload(payload)
         log.info(
             "research_report_plan_assembled sections=%d claims=%d",
@@ -454,14 +489,17 @@ def write_business_report_plan(context, plan, *, output="outputs"):
         output.mkdir(parents=True, exist_ok=True)
         stage = output / (".report-plan-" + uuid4().hex)
         stage.mkdir(mode=0o700)
-        paths["xlsx"] = stage / "summary.xlsx"
-        write_summary_workbook(
-            paths["xlsx"],
-            result["metrics"],
-            decimal_places=result["decimal_places"],
-            sheets=result["sheets"],
+        if result["metrics"]:
+            paths["xlsx"] = stage / "summary.xlsx"
+            write_summary_workbook(
+                paths["xlsx"],
+                result["metrics"],
+                decimal_places=result["decimal_places"],
+                sheets=result["sheets"],
+            )
+        paths.update(
+            write_research_report(stage, result["payload"], formats=context.get("formats"))
         )
-        paths.update(write_research_report(stage, result["payload"]))
         paths["md"] = stage / "report.md"
         paths["md"].write_text(render_markdown(result["payload"]), encoding="utf-8")
         for key, path in paths.items():
@@ -472,6 +510,8 @@ def write_business_report_plan(context, plan, *, output="outputs"):
                 _bounded_bytes(path, 2_000_000 if key == "json" else 16 * 1024 * 1024)
             ).hexdigest()
         for key in ("xlsx", "md", "json"):
+            if key not in paths:
+                continue
             target = output / paths[key].name
             before[key] = _bounded_bytes(target) if target.exists() else None
             if before[key] is not None:
@@ -507,6 +547,8 @@ def write_business_report_plan(context, plan, *, output="outputs"):
             withheld = stage / "withheld-json"
             os.replace(output / paths["json"].name, withheld)
         for key in ["xlsx", "html", "docx", "pdf", "md", "json"]:
+            if key not in paths:
+                continue
             os.replace(paths[key], output / paths[key].name)
             published.append(key)
         descriptor = os.open(output, os.O_RDONLY)

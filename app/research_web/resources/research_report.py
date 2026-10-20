@@ -13,6 +13,54 @@ from urllib.parse import urlsplit
 from uuid import uuid4
 
 log = logging.getLogger("research_web.report")
+_REPORT_FORMATS = ("html", "docx", "pdf")
+
+
+def _report_formats(formats):
+    if (
+        not isinstance(formats, (list, tuple))
+        or not 1 <= len(formats) <= 3
+        or any(not isinstance(kind, str) or kind not in _REPORT_FORMATS for kind in formats)
+        or len(set(formats)) != len(formats)
+    ):
+        raise ValueError("research_report_formats_invalid")
+    return tuple(kind for kind in _REPORT_FORMATS if kind in formats)
+
+
+def required_report_formats(contract_or_question):
+    """Recognize only an explicit, bounded format list from the frozen question."""
+    question = (
+        contract_or_question.get("question")
+        if isinstance(contract_or_question, dict)
+        else contract_or_question
+    )
+    if not isinstance(question, str) or len(question) > 100000:
+        return _REPORT_FORMATS
+    declarations = []
+    pattern = re.compile(
+        r"(?:只|仅)生成\s*(?P<formats>(?:HTML|DOCX|PDF)"
+        r"(?:\s*(?:和|与|及|、|,|，|/|\+)\s*(?:HTML|DOCX|PDF)){0,2})"
+        r"\s*(?=$|[。；;！!\n\r]|[，,](?!\s*[A-Za-z]))",
+        re.IGNORECASE,
+    )
+    for match in pattern.finditer(question):
+        if re.search(
+            r"(?:不|不要|不能|不得|不应|并非|不是|无需|无须)\s*$", question[: match.start()]
+        ):
+            continue
+        try:
+            declarations.append(
+                _report_formats(re.findall(r"html|docx|pdf", match["formats"].lower()))
+            )
+            if len(declarations) > 1:
+                return _REPORT_FORMATS
+        except ValueError:
+            log.warning("research_report_format_declaration_rejected")
+            return _REPORT_FORMATS
+    if len(declarations) == 1:
+        log.info("research_report_formats_frozen count=%d", len(declarations[0]))
+        return declarations[0]
+    return _REPORT_FORMATS
 
 
 def source_id(url):
@@ -795,6 +843,8 @@ def validate_payload(value):
         raise ValueError("research_report_task_invalid")
     if not isinstance(value.get("title"), str) or not 1 <= len(value["title"]) <= 200:
         raise ValueError("research_report_title_invalid")
+    if "report_formats" in value:
+        _report_formats(value["report_formats"])
     sections, sources = value.get("sections"), value.get("sources", [])
     if not isinstance(sections, list) or not 1 <= len(sections) <= 50:
         raise ValueError("research_report_sections_invalid")
@@ -975,7 +1025,7 @@ def _version_read(directory):
         raise ValueError("research_report_archive_changed")
     missing = [row.get("name") for row in artifacts if row.get("name") not in archived_hashes]
     missing_formats = sorted(
-        {"html", "docx", "pdf"}
+        set(report.get("report_formats", _REPORT_FORMATS))
         - {name.rsplit(".", 1)[-1] for name in archived_hashes if name != "research-report.json"}
     )
     snapshot = _snapshot_digest(archived_hashes, missing, missing_formats)
@@ -1052,7 +1102,7 @@ def archive_report_version(output, expected_task_id=None):
         digest = hashlib.sha256(raw).hexdigest()
         hashes = {name: hashlib.sha256(body).hexdigest() for name, body in bodies.items()}
         missing_formats = sorted(
-            {"html", "docx", "pdf"}
+            set(payload.get("report_formats", _REPORT_FORMATS))
             - {name.rsplit(".", 1)[-1] for name in bodies if name != "research-report.json"}
         )
         snapshot = _snapshot_digest(hashes, missing, missing_formats)
@@ -1164,11 +1214,37 @@ def report_blocks(payload):
         blocks.extend([(section["heading"], True), (section["text"], False)])
         if section.get("citations"):
             blocks.append(("引用：" + ", ".join(section["citations"]), False))
+    traces = payload.get("business_calculation_trace", [])
+    if traces:
+        if not isinstance(traces, list) or len(traces) > 16:
+            raise ValueError("research_report_calculation_trace_invalid")
+        blocks.append(("计算底稿（系统生成）", True))
+        for trace in traces:
+            if (
+                not isinstance(trace, dict)
+                or not isinstance(trace.get("formula"), str)
+                or len(trace["formula"]) > 4096
+            ):
+                raise ValueError("research_report_calculation_trace_invalid")
+            blocks.append((trace["formula"], False))
+            for operand in trace.get("operands", []):
+                blocks.append(
+                    (
+                        " · ".join(
+                            str(operand.get(key, ""))
+                            for key in ("metric", "period", "value", "unit")
+                        ),
+                        False,
+                    )
+                )
+        blocks.append(("仅核对所列输入的计算与展示；来源真实性及跨版本可比性仍须核验。", False))
     blocks.append(("来源与证据", True))
     for source in payload.get("sources", []):
         blocks.append(
             (source["id"] + " · " + source["title"] + " " + str(source.get("url", "")), False)
         )
+        if source.get("as_of") is not None:
+            blocks.append(("来源记录发布日期：" + str(source["as_of"]), False))
     missing = list(payload.get("missing", []))
     headings = {s["heading"] for s in payload["sections"]}
     missing.extend(
@@ -1178,6 +1254,40 @@ def report_blocks(payload):
         blocks.append(("缺口与限制（研究质量未通过）", True))
         blocks.extend((text, False) for text in missing)
     return blocks
+
+
+def _numeric_table_rows(payload):
+    """Project only quantities already present in their canonical section text.
+
+    The table duplicates nominated claims; independent Host checks still decide
+    whether their evidence and arithmetic are valid. No display-only facts enter.
+    """
+    from decimal import InvalidOperation
+
+    sections = {section.get("id"): section for section in payload["sections"]}
+    number = re.compile(r"(?<![\w])[-+]?\d+(?:,\d{3})*(?:\.\d+)?|[-+]?\d+(?:\.\d+)?")
+    rows = []
+    for claim in payload.get("numeric_claims", []):
+        try:
+            section = sections[claim["section_id"]]
+            text, period, unit = claim["text"], claim["period"], claim["unit"]
+            context = text.replace(period, "", 1)
+            quantities = list(number.finditer(context))
+            if (
+                text not in section["text"]
+                or period not in text
+                or len(quantities) != 1
+                or _evidence_decimal(quantities[0].group()) != _evidence_decimal(claim["value"])
+                or not re.match(
+                    r"\s*" + re.escape(unit) + r"(?=$|[\s,，;；。.!！？?、)\]】])",
+                    context[quantities[0].end() :],
+                )
+            ):
+                raise ValueError("research_report_table_claim_inconsistent")
+            rows.append((text, period, str(claim["value"]), unit))
+        except (ValueError, TypeError, KeyError, InvalidOperation) as exc:
+            log.warning("research_report_table_claim_omitted type=%s", type(exc).__name__)
+    return rows
 
 
 def render_markdown(payload):
@@ -1261,53 +1371,82 @@ def render_pdf(path, payload):
         os.chdir(previous_directory)
 
 
-def write_research_report(output, payload):
-    import pdfplumber
-    from docx import Document
-
+def write_research_report(output, payload, *, formats=None):
     try:
         validate_payload(payload)
+        selected = _REPORT_FORMATS if formats is None else _report_formats(formats)
         output = Path(output)
         output.mkdir(parents=True, exist_ok=True)
         stem = "research-report-" + uuid4().hex[:12]
-        paths = {kind: output / (stem + "." + kind) for kind in ("html", "docx", "pdf")}
+        paths = {kind: output / (stem + "." + kind) for kind in selected}
         paths["json"] = output / "research-report.json"
         if any(p.is_symlink() for p in paths.values()):
             raise ValueError("research_report_output_alias")
         archive_report_version(output)
         blocks = report_blocks(payload)
-        doc = Document()
-        for text, heading in blocks:
-            doc.add_heading(text, level=1) if heading else doc.add_paragraph(text)
-        doc.save(paths["docx"])
-        body = "".join(
-            f'<{"h2" if heading else "p"}>{html.escape(text)}</{"h2" if heading else "p"}>'
-            for text, heading in blocks
-        )
-        paths["html"].write_text(
-            '<!doctype html><html lang="zh"><meta charset="utf-8"><title>'
-            + html.escape(payload["title"])
-            + "</title><body>"
-            + body
-            + "</body></html>",
-            encoding="utf-8",
-        )
-        render_pdf(paths["pdf"], payload)
-        Document(paths["docx"])
-        with pdfplumber.open(paths["pdf"]) as pdf:
-            if not pdf.pages or not any((p.extract_text() or "").strip() for p in pdf.pages):
-                raise ValueError("research_pdf_empty")
+        rows = _numeric_table_rows(payload)
+        headings = ("声明原文", "期间", "数值", "单位")
+        if "docx" in selected:
+            from docx import Document
+
+            doc = Document()
+            for text, heading in blocks:
+                doc.add_heading(text, level=1) if heading else doc.add_paragraph(text)
+            if rows:
+                table = doc.add_table(rows=1, cols=4)
+                for cell, text in zip(table.rows[0].cells, headings):
+                    cell.text = text
+                for row in rows:
+                    for cell, text in zip(table.add_row().cells, row):
+                        cell.text = text
+            doc.save(paths["docx"])
+            Document(paths["docx"])
+        if "html" in selected:
+            body = "".join(
+                f'<{"h2" if heading else "p"}>{html.escape(text)}</{"h2" if heading else "p"}>'
+                for text, heading in blocks
+            )
+            if rows:
+                body += (
+                    "<table><thead><tr>"
+                    + "".join("<th>" + html.escape(text) + "</th>" for text in headings)
+                    + "</tr></thead><tbody>"
+                    + "".join(
+                        "<tr>"
+                        + "".join("<td>" + html.escape(text) + "</td>" for text in row)
+                        + "</tr>"
+                        for row in rows
+                    )
+                    + "</tbody></table>"
+                )
+            paths["html"].write_text(
+                '<!doctype html><html lang="zh"><meta charset="utf-8"><title>'
+                + html.escape(payload["title"])
+                + "</title><body>"
+                + body
+                + "</body></html>",
+                encoding="utf-8",
+            )
+        if "pdf" in selected:
+            import pdfplumber
+
+            render_pdf(paths["pdf"], payload)
+            with pdfplumber.open(paths["pdf"]) as pdf:
+                if not pdf.pages or not any((p.extract_text() or "").strip() for p in pdf.pages):
+                    raise ValueError("research_pdf_empty")
         published = {
-            **payload,
+            **{key: value for key, value in payload.items() if key != "report_formats"},
             "artifacts": [
                 {"name": paths[k].name, "sha256": hashlib.sha256(paths[k].read_bytes()).hexdigest()}
-                for k in ("html", "docx", "pdf")
+                for k in selected
             ],
         }
+        if formats is not None:
+            published["report_formats"] = list(selected)
         manifest = output / (stem + ".json")
         manifest.write_text(json.dumps(published, ensure_ascii=False), encoding="utf-8")
         manifest.replace(paths["json"])
-        log.info("research_report_rendered formats=3")
+        log.info("research_report_rendered formats=%d", len(selected))
         return paths
     except Exception as exc:
         log.error("research_report_failed type=%s", type(exc).__name__)

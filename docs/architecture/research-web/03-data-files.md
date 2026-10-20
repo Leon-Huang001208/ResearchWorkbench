@@ -2,7 +2,7 @@
 
 研究版本列表包括当前检查归档和同任务旧稿，is_current/quality_binding 区分当前与未绑定检查；旧稿不能继承新版本 passed。SDK sources 有界覆盖最多20上传加20已取得网页；GDP 投影保留原文 span、全文 SHA、期间、单位及初步/最终版本。没有数据迁移或报告改写。
 
-报告配方与手工 payload 的数据格式均保持。Host 给出合法数值业务观测时，只下发配方的规范报告生成指令；独立 Python 计算、阅读与绘图仍可用。工作簿 metric 必须保留用户原键，计算和数值门不因字段改名或报告下载成功而通过。
+旧 payload 和 SDK 默认三格式保持兼容；允许网页取证的任务从首次空索引就统一 plan，独立 Python 仍用于计算/阅读/绘图。新增 calculations 只含id/operation/operands/decimal_places，sections以$计算id选择；数值、单位、引文、所有父来源、notes/coverage均由系统从实际观测构造。Host独立重读原始输入重算，派生scope绑定任务/配方/父观测，不能用模型副本或声明value认证。分析、缺口和跨版本可比性保留原检查。
 
 research_report_delivery 为动态只读投影，不迁移存储：files 指向当前规范JSON及其Host检查归档，aliases仅包含实际字节哈希相同的本会话路径。64文件/32MB是可选别名扫描上限，超限只禁用未检查别名，不影响已验证归档；旧版本与原生消息不改写。
 
@@ -10,7 +10,7 @@ SDK 兼容读取不迁移数据：resources 中原 helper/字体保持原字节�
 
 Host 抓取的 inputs/web-*.txt 按本会话 web_evidence 的真实 file_id/path 登记保持 web 来源身份；文件和历史仍原位可读，不再在来源清单、业务索引/快照或上传观测中产生无日期的 file 别名。普通用户上传的同前缀文件不凭名称排除。登记与 Store 路径不一致时拒绝分类，不回退为上传。
 
-resources/research_report_plan.py 在原沙箱将数据配方组装为 JSON、Markdown、HTML、Word、PDF、Summary 工作簿。Summary 派生值须从摘录原值独立按 Decimal 96 位执行有界步骤，显式展示精度只核对工作簿；ExactValues 与 Calc 保留原值/完整过程，不用 Host 派生参考值回填。NIST Controls 的 source_ref 仅取真实父文件 ID，建议及 not_assessed 不认证实施状态。六格式先暂存、归档旧版，再最后发布 JSON；回滚先撤下新 JSON，全部恢复后最后恢复旧 JSON，恢复失败保留私有恢复副本并保持 canonical 缺失。
+resources/research_report_plan.py 在原沙箱组装 JSON、Markdown及冻结要求中的HTML/Word/PDF；仅显式summary生成工作簿。只/仅生成的明确格式列表从冻结question推导，由受信上下文传入，Host独立核对；模型不能通过report_formats删减必需交付。原默认仍为三格式。数值表格只投影正文内一致声明，全文与缺口仍完整保留。calculations以精确有理数执行有界计算并只在最终展示时一次HALF_UP舍入，保留精确分数和操作数/公式trace；展示值由Host独立重算认证，绝不修改原质量门。旧Summary的ExactValues/Calc、真实父来源及建议不自动认证合同保持。所选格式先暂存、归档旧版，再最后发布JSON；回滚先撤下新JSON，全部恢复后最后恢复旧JSON，恢复失败保留私有恢复副本并保持canonical缺失。
 
 比较case的数据和产物不进入生产会话。只克隆实际取得的响应作审计，不回填模型证据；预览/下载和归档分别核对实际字节。缺原生格式、版本或质量回执保留缺项，辅助审计文件不冒充原生交付。
 

@@ -232,6 +232,7 @@ def _report_sdk_scope() -> tuple[str, tuple[str, ...]]:
             "research_helpers.py",
             "research_report.py",
             "research_report_plan.py",
+            "research_report_calculations.py",
             "fonts/NotoSansSC-Regular.ttf",
         ):
             target = root / name
@@ -243,7 +244,7 @@ def _report_sdk_scope() -> tuple[str, tuple[str, ...]]:
             ):
                 raise SandboxError("bundled report SDK file is unsafe")
             files.append(str(target))
-        LOGGER.info("research_report_sdk_scope_verified files=4")
+        LOGGER.info("research_report_sdk_scope_verified files=5")
         return str(root), tuple(files)
     except SandboxError:
         LOGGER.warning("research_report_sdk_scope_rejected")
