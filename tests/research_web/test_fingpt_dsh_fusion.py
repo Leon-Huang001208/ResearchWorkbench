@@ -444,6 +444,8 @@ def test_actual_business_input_gets_one_consistent_report_route(fusion_api, monk
     assert response.status_code == 202, response.text
     sent = next(payload for method, payload in native.calls if method == "session.prompt")
     prompt = sent["content"] if isinstance(sent.get("content"), str) else str(sent)
+    assert "arithmetic_checks只检查算术" in prompt
+    assert "report_delivery.files" in prompt
     if business == "numeric":
         assert "report_plan" in prompt and "业务观测索引" in prompt
         assert "numeric_claims逐项声明" not in prompt

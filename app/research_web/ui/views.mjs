@@ -11,6 +11,16 @@ export const statusText = (status) => ({ idle: '待命', running: '运行中', q
 export const badge = (status) => `<span class="badge ${isRunning(status) ? 'live' : ['failed', 'error'].includes(status) ? 'danger' : ''}">${e(statusText(status))}</span>`;
 export const empty = (title, description = '') => `<div class="empty"><span class="empty-symbol" aria-hidden="true">◇</span><h3>${e(title)}</h3>${description ? `<p>${e(description)}</p>` : ''}</div>`;
 
+export function isClawWelcome(detail, { busy = false, extraEntries = [] } = {}) {
+  return detail?.mode === 'claw' && !busy && [undefined, 'idle'].includes(detail.status)
+    && !detail.error && !detail.can_cancel && !detail.can_recheck_stop
+    && !detail.delivery?.status
+    && !['messages', 'questions', 'question_history', 'activities', 'approvals', 'subagents'].some(key => detail[key]?.length)
+    && !extraEntries.length;
+}
+
+export const renderClawWelcome = () => `<div class="claw-welcome"><span class="claw-welcome-icon" aria-hidden="true">${icon('terminal')}</span><h1>今天想在 Research Workbench 中完成什么？</h1></div>`;
+
 export async function copyResearchText(text, { clipboard = globalThis.navigator?.clipboard, logger = safeLog } = {}) {
   if (typeof text !== 'string' || !text.trim()) throw new Error('没有可复制的回复。');
   try {
@@ -103,6 +113,8 @@ export function renderConversation(detail, questionDrafts = new Map(), options =
     const lastRound = rounds[rounds.length - 1];
     researchMessages = rounds.map((round) => {
       const isLast = round === lastRound;
+      const reportScope = detail.mode === 'fingpt' && detail.research_quality;
+      const roundResolver = reportScope ? artifactLinkResolver(detail, isLast ? detail.research_report_delivery || {} : {}) : resolveLink;
       const parts = [];
       if (round.user) parts.push(`<article class="message user" aria-label="用户消息"><div class="markdown">${renderMarkdown(round.user.text, { resolveLink })}</div></article>`);
       if (!round.assistants.length && isLast && running) parts.push(renderRoundProcess(round.activities, { running: true, toolNames: options.toolNames }));
@@ -110,7 +122,8 @@ export function renderConversation(detail, questionDrafts = new Map(), options =
         if (index === 0 && (round.activities.length || (isLast && running))) parts.push(renderRoundProcess(round.activities, { running: isLast && running, toolNames: options.toolNames }));
         const label = message.role === 'assistant' ? assistantLabel : `${message.role || '未知角色'}消息`;
         parts.push(renderThinking(message, { live: isLast && running }));
-        parts.push(`<article class="message assistant" aria-label="${e(label)}"><div class="markdown">${renderMarkdown(message.text, { resolveLink })}</div></article>`);
+        parts.push(`<article class="message assistant" aria-label="${e(label)}"><div class="markdown">${renderMarkdown(message.text, { resolveLink: roundResolver })}</div></article>`);
+        if (isLast && index === round.assistants.length - 1 && !running && reportScope) parts.push(renderCheckedReportLinks(detail));
         if (index === round.assistants.length - 1 && !running) parts.push(renderAnswerActions(round, message, { feedback: options.feedback?.[message.id], copied: options.copied, retryAllowed: options.retryAllowed !== false && !detail.can_cancel && !['pending', 'admission_unknown'].includes(detail.delivery?.status) }));
       });
       return parts.join('');
@@ -138,7 +151,8 @@ export function renderConversation(detail, questionDrafts = new Map(), options =
   const questions = pendingQuestionEntries.filter(question=>!positionedQuestions.includes(question)).map(question=>question.html).join('');
   const anchoredCards = detail.mode === 'claw' ? extraEntries.filter(entry=>Number.isFinite(entry.seq) && typeof entry.html === 'string').map((entry,index)=>({...entry,kind:'decision',index:messageEntries.length + questionEntries.length + activityEntries.length + pendingQuestionEntries.length + index})) : [];
   const messages = detail.mode !== 'claw' ? researchMessages + questionEntries.map(entry => entry.html).join('') : renderClawFlow([...messageEntries, ...questionEntries, ...activityEntries, ...positionedQuestions, ...anchoredCards].sort((a,b) => a.seq - b.seq || a.index - b.index), detail);
-  const html = `${activities.length ? `<p class="muted small conversation-tool-summary">${e(activitySummary(activities))}</p>` : ''}${messages || empty('尚无消息', '输入问题，开始这个会话。所有回答和活动均来自 DSH。')}${unpositioned.length ? `<section class="conversation-activity"><p class="muted small">以下活动缺少原生事件位置，未推断其回答顺序。</p>${unpositioned.map(activity=>renderActivityCard(activity,detail.subagents || [],{compact:true})).join('')}</section>` : ''}${approvals}${questions}${detail.error ? `<div class="notice error" role="alert">${e(failureText(detail.error))}</div>` : ''}`;
+  const fallback = detail.mode === 'claw' ? (isClawWelcome(detail, options) ? renderClawWelcome() : '') : empty('尚无消息', '输入问题，开始这个会话。所有回答和活动均来自 DSH。');
+  const html = `${activities.length ? `<p class="muted small conversation-tool-summary">${e(activitySummary(activities))}</p>` : ''}${messages || fallback}${unpositioned.length ? `<section class="conversation-activity"><p class="muted small">以下活动缺少原生事件位置，未推断其回答顺序。</p>${unpositioned.map(activity=>renderActivityCard(activity,detail.subagents || [],{compact:true})).join('')}</section>` : ''}${approvals}${questions}${detail.error ? `<div class="notice error" role="alert">${e(failureText(detail.error))}</div>` : ''}`;
   return restrictInvalidReportLinks(html, detail);
 }
 
@@ -270,8 +284,25 @@ export function fileURL(value) {
 }
 
 // Resolve model-authored relative links through the verified, current-session catalog only.
-function artifactLinkResolver(detail) {
-  if (detail.research_quality?.status === 'invalid') return () => null;
+function checkedReportFiles(detail) {
+  const delivery = detail.research_report_delivery;
+  if (detail.research_quality?.status === 'invalid' || delivery?.status !== 'bound' || !delivery.version_id || !/^[a-f0-9]{64}$/.test(delivery.report_content_sha256 || '') || delivery.report_content_sha256 !== detail.research_report?.content_sha256) return [];
+  const prefix = `/api/research/sessions/${encodeURIComponent(detail.id)}/files/`;
+  return (Array.isArray(delivery.files) ? delivery.files : []).filter(file =>
+    /^[0-9a-f]{24}$/.test(file.id || '') && /^[0-9a-f]{64}$/.test(file.sha256 || '') &&
+    file.path?.startsWith(`outputs/report-versions/${delivery.version_id}/`) &&
+    fileURL(file.url) === `${prefix}${file.id}/download` &&
+    (detail.files || []).filter(row => row.id === file.id && row.url === file.url).length === 1);
+}
+
+function renderCheckedReportLinks(detail) {
+  const files = checkedReportFiles(detail).filter(file => /\.(html|docx|pdf)$/i.test(file.name || ''));
+  if (!files.length) return '';
+  const state = detail.research_quality?.status === 'passed' ? '质量通过' : '质量未通过';
+  return `<section aria-label="Host核对的报告文件"><p>本轮检查归档 · ${e(state)}。文件可用不等于研究验收通过。</p>${files.map(file => `<a href="${e(file.url)}" download="${e(file.name)}">${e(file.name)}</a>`).join(' · ')}</section>`;
+}
+
+function artifactLinkResolver(detail, reportDelivery) {
   const registered = Array.isArray(detail.files) ? detail.files : [];
   const delivery = Array.isArray(detail.delivery?.files) ? detail.delivery.files : [];
   const links = new Map();
@@ -289,7 +320,28 @@ function artifactLinkResolver(detail) {
     if (registered.filter(row => row?.id === file.id && row?.url === url).length !== 1) continue;
     links.set(path, url);
   }
-  return (path) => links.get(path) || null;
+  const verified = new Set(checkedReportFiles(detail).map(file => file.url));
+  const names = new Map(registered.map(file => [file.url, file.name]));
+  return (path) => {
+    // Classify browser/ASGI-equivalent paths before allowing ordinary navigation.
+    // Only exact Host aliases can resolve; normalized/encoded variants cannot
+    // fall back to safeURL and regain a link to a different report version.
+    let canonicalPath = path;
+    try {
+      for (let i=0;i<3;i++) canonicalPath = new URL(decodeURIComponent(new URL(canonicalPath, 'http://rwb.invalid').pathname), 'http://rwb.invalid').pathname;
+    } catch { return null; }
+    const local = path.startsWith('outputs/') || canonicalPath.startsWith('/outputs/') || canonicalPath.startsWith('/api/research/sessions/');
+    if (!local) return undefined;
+    if (path.startsWith(prefix) && registered.some(file => file.kind === 'inputs' && [file.url, file.preview_url].includes(path))) return fileURL(path);
+    if (detail.research_quality?.status === 'invalid') return null;
+    const report = /\.(html|docx|pdf)$/i.test(path) || /\.(html|docx|pdf)$/i.test(names.get(path) || '') || /research-report\.json$/.test(path) || /research-report\.json$/.test(names.get(path) || '');
+    if (reportDelivery !== undefined && report) {
+      const target = reportDelivery.aliases?.[path];
+      return typeof target === 'string' && verified.has(target) ? target : null;
+    }
+    if (path.startsWith('/api/')) return registered.some(file => file.url === path) ? path : null;
+    return links.get(path) || null;
+  };
 }
 
 export function formatSize(size) {

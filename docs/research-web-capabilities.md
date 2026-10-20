@@ -2,6 +2,8 @@
 
 本轮未增加能力包、工具或准入字段。实际数值业务观测已可用时，提示使用已有report_plan；脚本仍可做独立计算与取证，补查仅沿既有一次授权，不把说明文字当新权限。
 
+Host检查版链接及显式算式审计不增加能力、自动化动作或授权。Claw与旧能力流程沿原执行通道；只有带冻结研究合同的当前FinGPT报告启用检查链接约束，上传资料仍可下载。
+
 research_read_source 只暴露 list/read 与来源 ID，不接受调用方 URL、正文、会话或凭据。原生插件从本会话真实完成的搜索事件同步有界身份清单，Host 按来源范围核对；读取的实际正文保存在本会话只读 inputs，并绑定 SHA-256。继承原模型工具准入与48次工具硬预算，取消经同一原生 call_id 传达；不授予浏览器登录、DataHub 或任意宿主网络权限。
 
 脚本资源提供select_business_evidence(bundle,{准确id或唯一metric或metric@period:[要求ID]})，将选择与映射一起校验；evidence_section统一返回空numeric_claims，父来源重复项去重，business_观测ID不得冒充来源。write_summary_workbook分开数值Summary、ExactValues和说明表；render_markdown保留完整规范报告与缺口。所有函数仅格式化，不授予可信观察或质量结论。CPI可用真实历史月列/精确百分点；NIST可用实际原文句，中文推断仍独立核验。

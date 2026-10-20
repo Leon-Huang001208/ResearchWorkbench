@@ -22,7 +22,10 @@ function inline(value, resolveLink) {
     if (match[2]) result += `<code>${escapeHTML(match[2])}</code>`;
     else if (match[3]) {
       const destination = /^<[^<>]+>$/.test(match[4]) ? match[4].slice(1, -1) : match[4];
-      const url = safeURL(destination) || (resolveLink ? safeURL(resolveLink(destination)) : null);
+      // A resolver may veto even an otherwise safe local API URL. Undefined
+      // means ordinary navigation; null means an untrusted artifact must stay text.
+      const resolved = resolveLink?.(destination);
+      const url = safeURL(resolved === undefined ? destination : resolved);
       result += url ? `<a href="${escapeHTML(url)}" target="_blank" rel="noopener noreferrer">${escapeHTML(match[3])}</a>` : escapeHTML(match[0]);
     } else if (match[5]) result += `<strong>${escapeHTML(match[5])}</strong>`;
     else if (match[6]) result += `<em>${escapeHTML(match[6])}</em>`;
