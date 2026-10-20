@@ -7475,6 +7475,24 @@ Functions:
 - `_validate_values`
 
 
+## `app/research_web/research_arithmetic.py`
+
+Module docstring:
+> Bounded literal arithmetic audit, never a substitute for source verification.
+
+Imports:
+- `ast`
+- `decimal`
+- `logging`
+- `re`
+
+Functions:
+- `_normalize`
+- `_calculate`
+- `check_arithmetic`
+  - Check explicit equations and result-before-operands notation from the live report.
+
+
 ## `app/research_web/research_business_evidence.py`
 
 Module docstring:
@@ -7578,6 +7596,7 @@ Imports:
 - `json`
 - `logging`
 - `re`
+- `research_arithmetic`
 - `resources.research_report`
 
 Functions:
@@ -7636,6 +7655,8 @@ Functions:
 - `receipt_archives`
   - Each same-turn revision keeps the quality checked by the Host for its bytes.
 - `current_report_digest`
+- `report_delivery`
+  - Project immutable checked links; mutable aliases require equal actual bytes.
 - `quality_versions`
 - `archive_digest`
   - Resolve a download against Host-owned hashes, never a model manifest.

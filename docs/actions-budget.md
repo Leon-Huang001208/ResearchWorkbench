@@ -1,5 +1,7 @@
 # GitHub Actions 免费额度治理
 
+2026-10-20数字与最终链接回归只向既有Research Web Checks Python步骤增加两个定点模块，JS复用原UI测试；无新job/runner/依赖。仓库实时PUBLIC；同候选macOS Bootstrap按原workflow_dispatch从Mac执行，保留精确head/checkout证明，不触发Windows/Linux产品任务。真实Flash同题仅一次，单独记录usage与质量。
+
 2026-10-19正文与版本绑定回归只向既有 Research Web Checks Python 步骤加入两个定点文件，无新依赖/job/runner或跨平台 dispatch。实时 PUBLIC；最近五个成功 run 39207620402/39206680559/39205978082/39156583067/39155701211，创建至结束575/526/623/580/575秒。新增定点测试本机约2秒，预留20秒；保持原20分钟与同候选Mac安装门。真实 Flash 复测单独留存实际调用和质量状态。
 
 2026-10-19实际业务证据规范化仅向Research Web Checks既有Python步骤加入test_research_business_evidence.py；无新依赖/job/runner或付费模型调用。实时PUBLIC；最近五次成功run39145940523/39093595410/39092944306/39089784399/39089059111创建至结束574/447/586/578/564秒，均值549.8秒。新定点测试本机不足1秒，预留20秒；保留原20分钟、concurrency和同候选Mac Bootstrap，不发送Windows/Linux产品dispatch。

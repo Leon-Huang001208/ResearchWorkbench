@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "updated",
-  "summary": "默认关闭的FinGPT隔离比较与可恢复资源收尾",
-  "reason": "README链接独立实验合同，明确不更改生产引擎及部署；未取得真实模型和跨平台证据不标通过。"
+  "summary": "FinGPT确定性算式审计与最终检查版链接",
+  "reason": "保留DSH、原数字/来源门与旧产物；当前报告只按Host检查归档链接，不把可下载当质量通过。"
 }
