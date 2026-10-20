@@ -171,7 +171,8 @@ test('Chinese body target is Host-only bounded context and numeric templates are
   for(const body_target of [true,299,5001,'1200']) assert.throws(()=>reportPlanCode(plan,{...context,body_target}),/contract/);
   const registered=new Map();apply({tools:{register:t=>registered.set(t.name,t)},logger:{}},{python:'/usr/bin/python3',runnerPath:'/tmp/runner.py',researchRoot:'/tmp/research'});
   const tool=registered.get('research_run_script');
-  assert.match(tool.parameters.properties.report_plan.properties.sections.items.properties.analysis.description,/\{\{fact:/);
-  assert.equal(tool.parameters.properties.report_plan.properties.body_target,undefined);
-  assert.ok(tool.parameters.properties.report_plan.properties.calculations.items.properties.operation.enum.includes('gdp_implicit_deflator'));
+  const reportSchema = tool.parameters.oneOf.find(branch => branch.properties.report_plan).properties.report_plan;
+  assert.match(reportSchema.properties.sections.items.properties.analysis.description,/\{\{fact:/);
+  assert.equal(reportSchema.properties.body_target,undefined);
+  assert.ok(reportSchema.properties.calculations.items.properties.operation.enum.includes('gdp_implicit_deflator'));
 });

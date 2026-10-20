@@ -15,3 +15,5 @@ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=. 主产品.venv/python 调用已存在私�
 本次真实记录离线回放0模型调用，原题SHA81385dc8675d5f7c45fae311aa42ca3c1840fbadf84531ea7f9029438e9acd4c；中文正文1291字，所有数字声明通过，质量仍incomplete：解释性分析、最终核实/可比性缺口保留。已有正常通过及来源/声明/呈现/附件/渲染损坏后恢复测试；最终Router/独立评审/CI/部署/真实复测结果待本地私有证据完成后记录。
 
 私有证据：~/.research-workbench/acceptance/fingpt-bound-analysis-20261020/；离线只读效果页127.0.0.1:8102。不写业务数据、Keychain或生产模型配置，无安装新包。其他平台原生NOT_RUN交接，工程通过不替代研究质量。
+
+原生转换器检查发现原工具混用type/oneOf及不支持的边界关键字；wire改为独立互斥对象分支，所有16/40/8/0..12及32000字节等实际限制仍由原入口/SDK强制，未删除质量或执行预算。先前default dsh-source为陈旧c919b2a，实际固定runtime为7ecf564；两次失败日志保留，最终必须在固定runtime转换器重验通过。
