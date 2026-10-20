@@ -401,6 +401,9 @@ def quality_result(service, sid, receipt, files, sources, delivery=None):
         "report": report,
         "evidence_context": {
             "business_observations": business,
+            "business_calculation_observations": (report or {}).get(
+                "business_calculation_observations", []
+            ),
             **context,
             "calculation_observations": (report or {}).get("calculation_observations", []),
         },

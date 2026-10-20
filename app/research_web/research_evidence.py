@@ -11,7 +11,8 @@ from urllib.parse import urlsplit
 from .research_business_evidence import business_lineage_issues
 from .research_calculations import CalculationError, observe_calculations
 from .research_quality import assess_quality
-from .resources.research_report import source_id, validate_payload
+from .resources.research_report import required_report_formats, source_id, validate_payload
+from .resources.research_report_calculations import derive_business_observations
 from .store import StoreError
 
 log = logging.getLogger(__name__)
@@ -158,6 +159,19 @@ def report_projection(
                 }
             return {"quality": "stale", "issues": ["report_task_mismatch"]}
         calculation_observations = []
+        business_calculation_observations = []
+        if contract is not None and payload.get("business_calculations"):
+            # Rebuild from independently observed owned bytes, never SDK cache or model results.
+            business_calculation_observations = derive_business_observations(
+                [row for row in observations or [] if row.get("kind") == "business_numeric"],
+                payload["business_calculations"],
+                task_id=contract["task_id"],
+            )
+            observations = [*(observations or []), *business_calculation_observations]
+        if payload.get("business_calculation_trace", []) != [
+            row["calculation_trace"] for row in business_calculation_observations
+        ]:
+            raise ValueError("report_calculation_trace_changed")
         if contract is not None and payload.get("calculations"):
             calculation_observations = observe_calculations(
                 store, sid, files, sources, payload["calculations"], task_id=contract["task_id"]
@@ -171,7 +185,10 @@ def report_projection(
             if row.get("valid")
         }
         artifacts = payload.get("artifacts", [])
-        if not isinstance(artifacts, list) or len(artifacts) != 3:
+        formats = set(required_report_formats(contract)) if contract else {"html", "docx", "pdf"}
+        if payload.get("report_formats") is not None and set(payload["report_formats"]) != formats:
+            issues.append("report_artifact_formats_invalid:contract")
+        if not isinstance(artifacts, list) or len(artifacts) != len(formats):
             issues.append("report_artifacts_missing")
         else:
             names = [
@@ -179,11 +196,10 @@ def report_projection(
                 for a in artifacts
                 if isinstance(a, dict) and isinstance(a.get("name"), str)
             ]
-            if len(set(names)) != 3 or {name.rsplit(".", 1)[-1] for name in names} != {
-                "html",
-                "docx",
-                "pdf",
-            }:
+            if (
+                len(set(names)) != len(formats)
+                or {name.rsplit(".", 1)[-1] for name in names} != formats
+            ):
                 issues.append("report_artifact_formats_invalid")
             for artifact in artifacts:
                 if (
@@ -230,6 +246,12 @@ def report_projection(
                 issues.append("section_note_lineage_missing:" + section["heading"])
         for source in payload.get("sources", []):
             record = known.get(source["id"])
+            if (
+                record is not None
+                and source.get("as_of") is not None
+                and source["as_of"] != record.get("as_of", "unknown")
+            ):
+                raise ValueError("report_source_date_changed")
             if record is None or (source.get("url") and source["url"] != record.get("url")):
                 issues.append("source_unverified:" + source["id"])
             elif source.get("title") != record.get("title"):
@@ -290,6 +312,7 @@ def report_projection(
                 **payload,
                 "content_sha256": hashlib.sha256(raw).hexdigest(),
                 "calculation_observations": calculation_observations,
+                "business_calculation_observations": business_calculation_observations,
                 "quality": assessment["status"],
                 "issues": assessment["issues"],
                 "assessment": assessment,

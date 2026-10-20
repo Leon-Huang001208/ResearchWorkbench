@@ -498,7 +498,7 @@ async def read_source(service, sid, operation, source_id=None, search_activities
                 }
                 for row in numeric
             ],
-            "numeric_claim_guidance": "实际提取结果也已写入resources/research_evidence.json；用load_business_evidence及select_business_evidence生成numeric_claims/notes/coverage，或report_plan选择这些id；派生计算用build_numeric_claim。未支持布局不产生声明；这些记录不代表质量通过。",
+            "numeric_claim_guidance": "实际提取结果已写入resources/research_evidence.json。规范报告统一调用research_run_script(report_plan=数据配方)，不要手写Python payload/numeric_claims。sections的evidence_ids选本次实际id或唯一metric@period；派生值在calculations填写id、operation(percent_change/ratio/difference/sum/identity)、operands(实际观测id或metric@period)、decimal_places，章节以$计算id引用。系统独立计算并生成声明/笔记/coverage。summary仅在用户需要工作簿时提供，否则省略；格式由冻结用户要求确定。分析和跨版本可比性仍需证据，真实缺口保留missing，不支持布局不产生声明。",
         }
 
 

@@ -165,6 +165,7 @@ def test_script_report_context_comes_from_current_valid_frozen_contract(fusion_a
         "contract_sha256": contract["sha256"],
         "as_of": contract["as_of"],
         "requirement_ids": [r["id"] for r in contract["requirements"]],
+        "formats": ["html", "docx", "pdf"],
     }
     contract["sha256"] = "0" * 64
     assert "report_context" not in service.native_admission(sid, tool_name="research_run_script")
@@ -449,16 +450,14 @@ def test_actual_business_input_gets_one_consistent_report_route(fusion_api, monk
     prompt = sent["content"] if isinstance(sent.get("content"), str) else str(sent)
     assert "arithmetic_checks只检查算术" in prompt
     assert "report_delivery.files" in prompt
-    if business == "numeric":
-        assert "report_plan" in prompt and "业务观测索引" in prompt
+    if business in {"numeric", "quote", "empty"}:
+        assert "report_plan" in prompt
         assert "numeric_claims逐项声明" not in prompt
         assert "coverage填写" not in prompt
         assert "payload 必须包含" not in prompt
         assert "from research_report import write_research_report, source_id" not in prompt
         assert "工作簿键" in prompt and "missing" in prompt and "最多进行一次补查" in prompt
-    else:
-        assert "payload 必须包含" in prompt
-        assert "numeric_claims逐项声明" in prompt
+        assert "起初索引为空不切回手写payload" in prompt
 
     receipt, _ = service._task_capabilities(sid)
     from app.research_web.research_quality_service import business_prompt_index
@@ -466,4 +465,4 @@ def test_actual_business_input_gets_one_consistent_report_route(fusion_api, monk
     observed = business_prompt_index(service, sid, receipt["research_contract"])["observations"]
     if business == "quote":
         assert observed and all(row["kind"] == "business_quote" for row in observed)
-        assert "规范文件直接调用research_run_script(report_plan" not in prompt
+        assert "规范文件直接调用research_run_script(report_plan" in prompt

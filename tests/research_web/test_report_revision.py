@@ -18,8 +18,9 @@ from app.research_web.store import Store
 
 
 @pytest.mark.parametrize("failed_name", ["report.md", "research-report.json", "rollback-md"])
-def test_report_plan_late_publication_failure_restores_all_six_files(
-    tmp_path, monkeypatch, failed_name
+@pytest.mark.parametrize("formats", [None, ["html", "docx"]])
+def test_report_plan_late_publication_failure_restores_all_selected_files(
+    tmp_path, monkeypatch, failed_name, formats
 ):
     from test_research_business_evidence import CPI, business_observations, observed
 
@@ -34,6 +35,8 @@ def test_report_plan_late_publication_failure_restores_all_six_files(
         "as_of": "2026-10-19",
         "requirement_ids": ["r1"],
     }
+    if formats is not None:
+        context["formats"] = formats
     snapshot = {
         "schema_version": 1,
         "task_id": context["task_id"],

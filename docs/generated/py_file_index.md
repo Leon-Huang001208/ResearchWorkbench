@@ -7576,6 +7576,7 @@ Imports:
 - `research_calculations`
 - `research_quality`
 - `resources.research_report`
+- `resources.research_report_calculations`
 - `store`
 - `urllib.parse`
 
@@ -7783,6 +7784,9 @@ Imports:
 - `uuid`
 
 Functions:
+- `_report_formats`
+- `required_report_formats`
+  - Recognize only an explicit, bounded format list from the frozen question.
 - `source_id`
 - `load_business_evidence`
   - Read this turn's convenience snapshot; it is never a Host verdict.
@@ -7821,10 +7825,39 @@ Functions:
   - Project bounded verified versions; never treat old quality claims as trusted.
 - `report_blocks`
   - The same text/version is consumed by all three renderers.
+- `_numeric_table_rows`
+  - Project only quantities already present in their canonical section text.
 - `render_markdown`
   - Render the complete canonical payload, including genuine gaps, as text.
 - `render_pdf`
 - `write_research_report`
+
+
+## `app/research_web/resources/research_report_calculations.py`
+
+Module docstring:
+> Scoped, bounded report arithmetic from Host primitives, never a quality verdict.
+
+Imports:
+- `__future__`
+- `copy`
+- `decimal`
+- `fractions`
+- `hashlib`
+- `json`
+- `logging`
+- `re`
+- `typing`
+
+Functions:
+- `_encoded`
+- `_digest`
+- `_number`
+- `_primitive`
+- `_resolve`
+- `_derive`
+- `derive_business_observations`
+  - Derive scoped display quantities; callers independently repeat on Host bytes.
 
 
 ## `app/research_web/resources/research_report_plan.py`
