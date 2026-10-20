@@ -1,0 +1,12 @@
+{
+  "session_id": "4791a6a3-c613-47fd-994c-4055b983422c",
+  "report_sha256": "cceaa9ddc5581cfca361c25ff1e33794e134d1217d2b0987cdfa72e1e46afe7a",
+  "files": {
+    "web-128a97fdc58958ed38498f90.txt": "77cbc8ffc5360717fbaa353b806f3a49f9c0f3792c46c182420a4ddd0da79e91",
+    "web-e41c26fbbb39acc280743199.txt": "3cbce77589aadf755df7114bc6206f1430672ef5bdae0c1d87dd7ea4f1373ccf",
+    "research_evidence.json": "d1d9866f10f5b3df4cc57d13c17cf0f0b09e1b701c50ca927ee3d5f65b0bf224",
+    "failed-report.json": "39da07629f3f485b77e0a431f4114ec6acc72349caa7a9fa5a0fae1337f4933b",
+    "source-records.json": "9a55445007aa50ee8d444ca4f1314943f102af6fbdbacae4f9113bc018630885"
+  },
+  "purpose": "Exact acquired bodies and failed report; offline only, no new evidence or model calls"
+}

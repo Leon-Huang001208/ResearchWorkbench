@@ -662,3 +662,12 @@ test('restored reference display metadata is bounded and cannot carry URLs, path
   assert.deepEqual(controller.state.attachments,[{id:'copy',name:'copy.md'}]);assert.equal(controller.state.draft,'保留正文');
   assert.ok(events.includes('draft_attachment_source_invalid'));
 });
+
+test('audit download requires the same checked version and semantic attachment name', () => {
+  const prefix='/api/research/sessions/s/files/';
+  const audit={id:'a'.repeat(24),name:'research-report-abcdef123456-audit.json',path:'outputs/report-versions/v/audit.json',sha256:'1'.repeat(64),url:prefix+'a'.repeat(24)+'/download'};
+  const detail={id:'s',mode:'fingpt',status:'completed',files:[audit],research_quality:{status:'incomplete'},research_report:{content_sha256:'2'.repeat(64),audit_attachment:{name:audit.name}},research_report_delivery:{status:'bound',version_id:'v',report_content_sha256:'2'.repeat(64),files:[audit]},messages:[{role:'assistant',text:'部分交付'}]};
+  assert.match(views.renderConversation(detail),/同版本审计附件/);
+  assert.doesNotMatch(views.renderConversation({...detail,research_report:{content_sha256:'2'.repeat(64)}}),/同版本审计附件/);
+  assert.doesNotMatch(views.renderConversation({...detail,research_quality:{status:'invalid'}}),/同版本审计附件/);
+});

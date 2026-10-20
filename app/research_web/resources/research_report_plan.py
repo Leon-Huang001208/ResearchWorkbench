@@ -5,6 +5,7 @@ import json
 import logging
 import os
 import re
+import unicodedata
 from decimal import ROUND_HALF_UP, Context, Decimal, localcontext
 from pathlib import Path
 from uuid import uuid4
@@ -18,6 +19,7 @@ try:
         evidence_section,
         load_business_evidence,
         render_markdown,
+        report_body_characters,
         select_business_evidence,
         validate_payload,
         write_research_report,
@@ -33,6 +35,7 @@ except ImportError:
         evidence_section,
         load_business_evidence,
         render_markdown,
+        report_body_characters,
         select_business_evidence,
         validate_payload,
         write_research_report,
@@ -41,6 +44,137 @@ except ImportError:
     from .research_report_calculations import derive_business_observations
 
 log = logging.getLogger("research_web.report_plan")
+_TOKEN = re.compile(r"\{\{(fact|formula):([^{}\n]{1,200})\}\}")
+_CHINESE_QUANTITY = re.compile(
+    r"[零〇一二两三四五六七八九十百千万亿壹贰叁肆伍陆柒捌玖拾佰仟点负]+"
+    r"\s*(?:亿元|万元|元|美元|年|月|日|天|倍|个|项|成|半|次|笔|条|百分点|百分比|百分之|千分之|万分之|点|%)"
+    r"|(?:百分之|千分之|万分之)[零〇一二两三四五六七八九十百千万亿点负]+"
+    r"|[零〇一二两三四五六七八九十百千万亿壹贰叁肆伍陆柒捌玖拾佰仟]{2,}"
+    r"|[零〇一二两三四五六七八九十百千万亿]+分之[零〇一二两三四五六七八九十百千万亿]+"
+)
+_ENGLISH_QUANTITY = re.compile(
+    r"\b(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|million|billion|trillion|half|quarter|twice|thrice|double|doubled|triple|tripled|halved)\b",
+    re.IGNORECASE,
+)
+
+
+def _analysis_literals(text):
+    """Reject quantities/formulas in author prose, including Unicode disguises.
+
+    A reference inserts a complete labelled fact, never a naked value which an
+    author could relabel with a different period, metric or unit.
+    """
+    normalized = unicodedata.normalize("NFKC", text)
+    # These words contain numeral glyphs without making a numerical claim.
+    # Every remaining numeric glyph is rejected, including lone Chinese digits,
+    # fractions and unusual Unicode number forms, rather than guessing units.
+    idioms = r"一致|统一|唯一|进一步|一方面|另一方面|一定|一般|一旦|一律|一并|一贯|一体|一览|一同|万亿元|亿元|万元|美元"
+    literals = re.sub(idioms, "", normalized)
+    original = re.sub(idioms, "", text)
+    if (
+        any(c.isnumeric() or c in "两半双俩仨" for c in literals + original)
+        or re.search(r"[{}=≈÷×+−%‰<>*/^]|&#|翻番|翻倍|减半|腰斩|对半|加倍|对折|折半", normalized)
+        or _CHINESE_QUANTITY.search(normalized)
+        or _ENGLISH_QUANTITY.search(normalized)
+    ):
+        raise ValueError("research_report_analysis_unbound")
+
+
+def _fact_text(row):
+    labels = {
+        "gdp_current_price_preliminary": "国内生产总值现价总量（初步核算）",
+        "gdp_current_price_final": "国内生产总值现价总量（最终核实）",
+        "gdp_real_growth_preliminary": "国内生产总值实际同比增速（初步核算）",
+        "gdp_real_growth_final": "国内生产总值实际同比增速（最终核实）",
+        "gdp_current_price_percent_change": "国内生产总值名义增速（按所列输入推算，可比性未核验）",
+        "gdp_current_price_annual_change": "国内生产总值现价增量（按所列输入推算）",
+        "gdp_current_price_gdp_implicit_deflator": "隐含GDP平减指数变化（按未舍入输入推算，非官方公布值）",
+    }
+    if row.get("kind") != "business_numeric":
+        return "原文摘录保存在同版本审计附件，尚须逐项核验分析结论。"
+    return (
+        f"{row['period']}年{labels.get(row['metric'], row['metric'])}为{row['value']} {row['unit']}"
+    )
+
+
+def _bind_analysis(template, rows):
+    _text(template, 10000)
+    plain = _TOKEN.sub("", template)
+    _analysis_literals(plain)
+    quotes, display, cursor = [], [], 0
+    # Score a referenced quantity once via its nominated canonical claim. The
+    # rest of the author narrative remains unchanged and independently scored.
+    for match in _TOKEN.finditer(template):
+        candidates = [
+            row
+            for row in rows
+            if match[2]
+            in (
+                row["id"],
+                row.get("selection_id"),
+                row.get("metric", "") + "@" + row.get("period", ""),
+            )
+        ]
+        if len(candidates) != 1 or candidates[0].get("kind") != "business_numeric":
+            raise ValueError("research_report_analysis_reference")
+        row = candidates[0]
+        quotes.append(template[cursor : match.start()])
+        display.append(template[cursor : match.start()])
+        if match[1] == "formula":
+            if "calculation_trace" not in row:
+                raise ValueError("research_report_analysis_formula")
+            display.append(row["calculation_trace"]["formula"])
+        else:
+            display.append(_fact_text(row))
+        # Canonical evidence is already included exactly once in this section.
+        quotes.append("")
+        cursor = match.end()
+    quotes.append(template[cursor:])
+    display.append(template[cursor:])
+    return "".join(quotes), "".join(display)
+
+
+def audit_content(payload):
+    """Bind the complete evidence draft to its semantic report without a hash cycle."""
+    core = {
+        k: v
+        for k, v in payload.items()
+        if k not in {"artifacts", "audit_attachment", "report_formats"}
+    }
+    encoded = json.dumps(core, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()
+    return json.dumps(
+        {
+            "task_id": payload["task_id"],
+            "report_core_sha256": hashlib.sha256(encoded).hexdigest(),
+            "report": core,
+        },
+        ensure_ascii=False,
+        indent=2,
+    ).encode()
+
+
+def required_body_target(contract):
+    question = contract.get("question", "") if isinstance(contract, dict) else ""
+    match = re.search(
+        r"约\s*([0-9]{3,4})\s*字(?:的)?中文|中文(?:正文|报告)?约\s*([0-9]{3,4})\s*字", question
+    )
+    value = int(match[1] or match[2]) if match else None
+    return value if value is not None and 300 <= value <= 5000 else None
+
+
+def verify_system_report(payload, bundle, context):
+    """Host rebuilds the same plan from its own actual observations, not SDK cache."""
+    expected = build_business_report_plan(context, payload["system_plan"], bundle)["payload"]
+    actual = {
+        k: v
+        for k, v in payload.items()
+        if k not in {"artifacts", "audit_attachment", "report_formats"}
+    }
+    if actual != expected:
+        raise ValueError("research_report_system_binding_changed")
+    log.info("research_report_system_binding_verified")
+
+
 EXTRACTED_METRICS = frozenset(
     {
         "total_revenue",
@@ -234,7 +368,11 @@ def _summary_calculation(bundle, target, steps, budget, used):
 def build_business_report_plan(context, plan, bundle):
     """Assemble nominated evidence and unverified analysis, preserving every gap."""
     try:
-        _object(context, {"task_id", "contract_sha256", "as_of", "requirement_ids"}, {"formats"})
+        _object(
+            context,
+            {"task_id", "contract_sha256", "as_of", "requirement_ids"},
+            {"formats", "body_target"},
+        )
         if (
             not re.fullmatch(r"[a-f0-9]{24}", str(context["task_id"]))
             or not re.fullmatch(r"[a-f0-9]{64}", str(context["contract_sha256"]))
@@ -256,6 +394,7 @@ def build_business_report_plan(context, plan, bundle):
         if len(json.dumps(plan, ensure_ascii=False, allow_nan=False).encode()) > 32000:
             raise ValueError("research_report_plan_limit")
         _text(plan["title"], 200)
+        _analysis_literals(plan["title"])
         if (
             not isinstance(plan["sections"], list)
             or not 1 <= len(plan["sections"]) <= 40
@@ -266,6 +405,9 @@ def build_business_report_plan(context, plan, bundle):
         ):
             raise ValueError("research_report_plan_limit")
         recipes = plan.get("calculations", [])
+        for gap in plan["missing"]:
+            _text(gap, 10000)
+            _analysis_literals(gap)
         derived = derive_business_observations(
             [r for r in bundle["observations"] if r.get("kind") == "business_numeric"],
             recipes,
@@ -274,7 +416,7 @@ def build_business_report_plan(context, plan, bundle):
         bundle = {**bundle, "observations": [*bundle["observations"], *derived]}
         sources = [canonical_source(bundle["sources"], s["id"]) for s in bundle["sources"]]
         result = {"sections": [], "notes": [], "coverage": [], "numeric_claims": []}
-        selected, stage_ids, section_rows = {}, set(), {}
+        selected, stage_ids, section_rows, presentation = {}, set(), {}, []
         total = 0
         for section in plan["sections"]:
             _object(section, {"id", "heading", "evidence_ids", "requirement_ids"}, {"analysis"})
@@ -286,6 +428,8 @@ def build_business_report_plan(context, plan, bundle):
             ):
                 raise ValueError("research_report_plan_section")
             stage_ids.add(sid)
+            _text(section["heading"], 200)
+            _analysis_literals(section["heading"])
             refs, requirements = section["evidence_ids"], section["requirement_ids"]
             if (
                 not isinstance(refs, list)
@@ -311,12 +455,20 @@ def build_business_report_plan(context, plan, bundle):
             selected.update({row["id"]: row for row in rows})
             section_rows[sid] = {row["id"] for row in rows}
             text = "\n\n".join(s["text"] for s in blocks["sections"])
+            human_text = "\n".join(
+                _fact_text(row)
+                + ("\n" + row["calculation_trace"]["formula"] if "calculation_trace" in row else "")
+                for row in rows
+            )
             if "analysis" in section and section["analysis"] != "":
-                _text(section["analysis"], 10000)
-                text += "\n\n" + section["analysis"]
+                scored, human_text = _bind_analysis(section["analysis"], rows)
+                text += "\n\n" + scored
             parents = list(dict.fromkeys(ref for s in blocks["sections"] for ref in s["citations"]))
             for ref in parents:
                 canonical_source(sources, ref)
+            presentation.append(
+                {"id": sid, "heading": section["heading"], "text": human_text, "citations": parents}
+            )
             if not text.strip():
                 raise ValueError("research_report_plan_empty_section")
             group = (
@@ -431,8 +583,12 @@ def build_business_report_plan(context, plan, bundle):
             )
             # Never hide unverified proposals in a workbook outside Host-scored text.
             for name in ("evidence_needed", "proposed_owner"):
+                _analysis_literals(row[name])
                 if row[name] not in section["text"]:
                     section["text"] += "\n\n" + row[name]
+                    next(s for s in presentation if s["id"] == section["id"])["text"] += (
+                        "\n\n" + row[name]
+                    )
             for note in result["notes"]:
                 if note["stage_id"] == section["id"]:
                     note["text"] = section["text"]
@@ -458,7 +614,17 @@ def build_business_report_plan(context, plan, bundle):
             "sources": sources,
             "missing": list(plan["missing"]),
             **result,
+            "system_plan": plan,
+            "presentation": presentation,
         }
+        if context.get("body_target") is not None:
+            target = context["body_target"]
+            if isinstance(target, bool) or not isinstance(target, int) or not 300 <= target <= 5000:
+                raise ValueError("research_report_body_target")
+            count = report_body_characters(payload)
+            if not target * 0.8 <= count <= target * 1.2:
+                raise ValueError("research_report_chinese_body_length")
+            payload["body_target"] = target
         if recipes:
             payload["business_calculations"] = recipes
             payload["business_calculation_trace"] = [row["calculation_trace"] for row in derived]
@@ -504,7 +670,7 @@ def write_business_report_plan(context, plan, *, output="outputs"):
         paths["md"].write_text(render_markdown(result["payload"]), encoding="utf-8")
         for key, path in paths.items():
             target = output / path.name
-            if target.is_symlink() or (key in {"html", "docx", "pdf"} and target.exists()):
+            if target.is_symlink() or (key in {"html", "docx", "pdf", "audit"} and target.exists()):
                 raise ValueError("research_report_plan_output_alias")
             new_hashes[key] = hashlib.sha256(
                 _bounded_bytes(path, 2_000_000 if key == "json" else 16 * 1024 * 1024)
@@ -546,7 +712,7 @@ def write_business_report_plan(context, plan, *, output="outputs"):
         if before["json"] is not None:
             withheld = stage / "withheld-json"
             os.replace(output / paths["json"].name, withheld)
-        for key in ["xlsx", "html", "docx", "pdf", "md", "json"]:
+        for key in ["xlsx", "html", "docx", "pdf", "audit", "md", "json"]:
             if key not in paths:
                 continue
             os.replace(paths[key], output / paths[key].name)

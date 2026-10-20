@@ -41,3 +41,16 @@ test('depth selection and recipes prepare a draft without an implicit submission
   for (const label of ['一页纸', '主题选股', '画图', '调研清单']) assert.ok(html.includes(label));
   assert.doesNotMatch(html, /type="submit"/);
 });
+
+
+test('system report shows bound Chinese presentation while original notes remain auditable', () => {
+  const report = {quality:'incomplete',system_plan:{},sources:[{id:'web:actual',title:'公报'}],
+    sections:[{id:'s',heading:'数据',text:'Extracted from original technical draft',citations:['web:actual']}],
+    presentation:[{id:'s',heading:'数据',text:'系统绑定的中文分析',citations:['web:actual']}],
+    notes:[{stage_id:'s',text:'Extracted from original technical draft',citations:['web:actual']}]};
+  const html=renderResearchPanel({research_report:report},'report');
+  assert.match(html,/系统绑定的中文分析/);assert.match(html,/引用：来源1/);
+  assert.match(html,/同版本审计附件/);assert.doesNotMatch(html,/Extracted from/);
+  assert.match(renderResearchPanel({research_report:report},'notes'),/Extracted from/);
+  assert.doesNotMatch(renderResearchPanel({research_report:{...report,quality:'invalid'}},'report'),/系统绑定的中文分析/);
+});

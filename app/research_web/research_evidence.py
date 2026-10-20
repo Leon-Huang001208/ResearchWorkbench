@@ -11,8 +11,20 @@ from urllib.parse import urlsplit
 from .research_business_evidence import business_lineage_issues
 from .research_calculations import CalculationError, observe_calculations
 from .research_quality import assess_quality
-from .resources.research_report import required_report_formats, source_id, validate_payload
+from .resources.research_report import (
+    audit_descriptors,
+    canonical_source,
+    required_report_formats,
+    source_id,
+    validate_payload,
+    verify_rendered_artifact,
+)
 from .resources.research_report_calculations import derive_business_observations
+from .resources.research_report_plan import (
+    audit_content,
+    required_body_target,
+    verify_system_report,
+)
 from .store import StoreError
 
 log = logging.getLogger(__name__)
@@ -160,6 +172,52 @@ def report_projection(
             return {"quality": "stale", "issues": ["report_task_mismatch"]}
         calculation_observations = []
         business_calculation_observations = []
+        current_key = store.session(sid).get("delivery_key", "")
+        frozen_receipt = store.data.get("receipts", {}).get(f"{sid}:{current_key}", {})
+        binding_required = frozen_receipt.get("report_binding_policy") == "bound-analysis-v1"
+        if "system_plan" in payload:
+            if contract is None:
+                raise ValueError("research_report_system_contract_missing")
+            context = {
+                "task_id": contract["task_id"],
+                "contract_sha256": contract["sha256"],
+                "as_of": contract["as_of"],
+                "requirement_ids": [r["id"] for r in contract["requirements"]],
+            }
+            target = required_body_target(contract)
+            if target is not None:
+                context["body_target"] = target
+            bundle = {
+                "task_id": contract["task_id"],
+                "contract_sha256": contract["sha256"],
+                "sources": [canonical_source(sources, s["id"]) for s in payload["sources"]],
+                "observations": [
+                    r
+                    for r in observations or []
+                    if r.get("kind") in {"business_numeric", "business_quote"}
+                ],
+            }
+            verify_system_report(payload, bundle, context)
+            for attachment in audit_descriptors(payload):
+                owned = [
+                    f
+                    for f in files
+                    if f.get("kind") == "outputs" and f["name"] == attachment["name"]
+                ]
+                if len(owned) != 1:
+                    raise ValueError("research_report_audit_missing")
+                stream, _ = store.open_file(sid, owned[0]["id"])
+                with stream:
+                    body = stream.read(2_000_001)
+                if (
+                    body != audit_content(payload)
+                    or hashlib.sha256(body).hexdigest() != attachment["sha256"]
+                ):
+                    raise ValueError("research_report_audit_changed")
+        elif "presentation" in payload or "audit_attachment" in payload or binding_required:
+            # A new explicit Chinese-body request cannot downgrade to a hand-built
+            # payload to bypass quantity bindings or the frozen length requirement.
+            raise ValueError("research_report_system_plan_required")
         if contract is not None and payload.get("business_calculations"):
             # Rebuild from independently observed owned bytes, never SDK cache or model results.
             business_calculation_observations = derive_business_observations(
@@ -232,6 +290,8 @@ def report_projection(
                     issues.append("report_artifact_changed:" + artifact["name"])
                 if verified.get(artifact["name"]) != artifact.get("sha256"):
                     issues.append("report_artifact_delivery_unverified:" + artifact["name"])
+                if "system_plan" in payload:
+                    verify_rendered_artifact(payload, artifact["name"].rsplit(".", 1)[-1], body)
         if not payload.get("sources"):
             issues.append("sources_missing")
         issues.extend(
