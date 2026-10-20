@@ -153,6 +153,14 @@ def create_gateway(
 
     @app.middleware("http")
     async def boundary(request: Request, call_next):
+        deployment = getattr(pool, "deployment_path", None)
+        if (
+            deployment is not None
+            and (deployment.exists() or deployment.is_symlink())
+            and request.url.path != "/api/server/health"
+        ):
+            log.info("multiuser_deployment_fenced")
+            return error("server_maintenance", 503)
         maintenance = getattr(pool, "maintenance_path", None)
         if (
             maintenance is not None
@@ -322,7 +330,11 @@ def create_gateway(
     async def health():
         if hasattr(pool, "health"):
             try:
-                return await pool.health()
+                value = await pool.health()
+                deployment = getattr(pool, "deployment_path", None)
+                if deployment is not None:
+                    value["deployment_fenced"] = deployment.exists() or deployment.is_symlink()
+                return value
             except RuntimeErrorSafe as exc:
                 return error(exc.code, exc.status)
         return {"status": "ready", "runtime": "not_started_by_health"}

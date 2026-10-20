@@ -1,5 +1,7 @@
 # Research Web 接口清单
 
+显式常驻网关的廉价 `GET /api/server/health` 增加 `deployment_fenced` 布尔事实，不启动pair或探测primary。安全更新journal存在时，除该健康端点外全部请求（含GET与login）返回503 server_maintenance；旧cutover语义保留。真实primary验证由操作员入口执行，不把缓存的primary_last_verified当作即时空闲证明。
+
 现有来源 read 回包新增 numeric_observations/numeric_claim_guidance，来自 Host 完整字节；研究 detail 的版本项增加 is_current 和 quality_binding。网页来源 date_evidence/date_status 解释实际发布时间及冲突，未知不按搜索或 URL 补齐。无新端点、模型参数、凭据或执行授权。
 
 本轮不增加HTTP端点、工具或参数字段，仅统一有真实数值业务观测时的规范报告调用指令及一次补查说明。原code路径保留；report_context仍只在Host合同有效且为字典时提供，不信任模型提交绑定。

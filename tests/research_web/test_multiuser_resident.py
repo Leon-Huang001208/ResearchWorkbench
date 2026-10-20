@@ -106,6 +106,20 @@ def test_snapshot_detects_old_data_or_model_changes_but_allows_new_sessions(tmp_
     assert compare_snapshot(before, snapshot(root))["preserved"] is False
 
 
+def test_deployment_gate_blocks_get_birth_and_login_but_reports_fenced_health(attached, tmp_path):
+    pool, private, _admin, _user = attached
+    pool.deployment_path = tmp_path / "gateway-upgrade.json"
+    pool.deployment_path.write_text("{}")
+    with TestClient(
+        create_gateway(pool.accounts, pool, origin="http://localhost"), base_url="http://localhost"
+    ) as client:
+        assert client.get("/api/research/sessions").status_code == 503
+        assert client.post("/api/server/login").status_code == 503
+        health = client.get("/api/server/health")
+        assert health.status_code == 200 and health.json()["deployment_fenced"] is True
+        assert private.calls == []
+
+
 @pytest.mark.asyncio
 async def test_anonymous_health_is_cheap_and_primary_probes_single_flight(attached, monkeypatch):
     pool, _private, admin, _user = attached
