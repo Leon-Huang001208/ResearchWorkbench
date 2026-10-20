@@ -55,6 +55,10 @@ EXTRACTED_METRICS = frozenset(
         "primary_credit_rate_pct",
         "selected_control_count",
         "function_count",
+        "gdp_current_price_preliminary",
+        "gdp_current_price_final",
+        "gdp_real_growth_preliminary",
+        "gdp_real_growth_final",
     }
     | {
         category + "_" + suffix

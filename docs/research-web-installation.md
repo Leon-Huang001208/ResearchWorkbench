@@ -1,5 +1,7 @@
 # Research Web Native / Docker 安装与运行
 
+本轮网页日期、数字声明与历史/URL 修复没有新增依赖、设置、凭据或迁移；Web 锁、setup_web.py 和固定 DSH 保持，干净安装仍由同候选 macOS Bootstrap 核对。其他平台原生验收保持独立。
+
 本轮仅统一业务报告提示和原一次补查路径，现有会话、模型设置、依赖锁、安装入口与固定 DSH 均保持；由最终同候选 Mac Bootstrap 证明干净安装兼容，不安装新依赖。
 
 本轮数字与最终报告链接修复不增加依赖、凭据、设置或迁移；requirements/web.in、web.lock、setup_web.py和固定DSH不变。同候选macOS Bootstrap仍验证干净安装与健康；未执行的其他平台层保留NOT_RUN。

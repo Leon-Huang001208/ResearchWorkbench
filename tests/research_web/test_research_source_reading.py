@@ -132,7 +132,7 @@ def test_html_is_text_only_with_tables_and_publication_metadata():
     assert "ignore" not in text
     assert parser.published == "2026-01-20"
     parser.feed('<meta name="PubDate" content="2025/12/26 09:30">')
-    assert parser.published == "2025-12-26"
+    assert parser.published is None  # Conflicting publication evidence is not last-wins.
 
 
 def test_redirect_target_is_revalidated_and_private_hop_never_connects(monkeypatch):
@@ -195,6 +195,9 @@ def test_actual_body_cache_and_hash_are_required_without_relaxing_quality(tmp_pa
             return {
                 "content": "存在经营不确定性。",
                 "as_of": "2026-01-20",
+                "date_evidence": [
+                    {"date": "2026-01-20", "kind": "publication_meta", "text": "2026-01-20"}
+                ],
                 "final_url": url,
                 "response_sha256": "b" * 64,
             }

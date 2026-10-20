@@ -4,7 +4,7 @@ import hashlib
 import json
 from types import SimpleNamespace
 
-from app.research_web.research_quality_service import report_delivery
+from app.research_web.research_quality_service import quality_versions, report_delivery
 from app.research_web.resources.research_report import archive_report_version
 from app.research_web.store import Store
 
@@ -64,6 +64,29 @@ def test_tampered_archive_cannot_supply_links(tmp_path):
     path.chmod(0o600)
     path.write_bytes(b"changed")
     assert report_delivery(service, sid, receipt, digest)["files"] == []
+
+
+def test_version_list_includes_current_and_unbound_invalid_previous_draft(tmp_path):
+    service, sid, output, receipt, _digest = fixture(tmp_path)
+    old = next(iter(receipt["quality_archives"].values()))["anchor"]
+    receipt["quality_archives"] = {}
+    receipt["quality_checks"]["check"]["status"] = "invalid"
+    current = json.loads((output / "research-report.json").read_text())
+    current["title"] = "修订报告"
+    (output / "research-report.json").write_text(json.dumps(current))
+    new_digest = hashlib.sha256((output / "research-report.json").read_bytes()).hexdigest()
+    new = archive_report_version(output, "a" * 24)
+    receipt["quality_checks"]["new"] = {"status": "incomplete", "report_content_sha256": new_digest}
+    receipt["quality_archives"][new["version_id"]] = {"anchor": new, "check_id": "new"}
+    service.store.data["receipts"][sid + ":turn"] = receipt
+    service.store.files(sid)
+    versions = quality_versions(service, sid)
+    assert len(versions) == 2
+    prior = next(v for v in versions if v["version_id"] == old["version_id"])
+    assert prior["quality_binding"] == "unbound" and not prior["is_current"]
+    assert prior["quality"]["status"] == "invalid"
+    assert "report_version_quality_unbound" in prior["quality"]["issues"]
+    assert next(v for v in versions if v["is_current"])["quality"]["status"] == "incomplete"
 
 
 def test_old_alias_volume_does_not_hide_verified_current_archive(tmp_path):
