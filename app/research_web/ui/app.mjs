@@ -3199,7 +3199,9 @@ async function activateComposerRow(row) {
     } else if (row.action === 'format') controller.setFormats(nextComposerFormats(state.expectedFormats, row.value));
     else if (row.action === 'model') {
       const menu = composerMenu, generation = pageGeneration, draft = state.draft;
-      const configured = await configureComposerModel(row.value);
+      const pending = configureComposerModel(row.value);
+      document.getElementById('claw-composer-menu')?.focus({ preventScroll: true });
+      const configured = await pending;
       if (configured && generation === pageGeneration && menu === composerMenu && draft === state.draft) closeComposerMenu(true);
       return;
     }
