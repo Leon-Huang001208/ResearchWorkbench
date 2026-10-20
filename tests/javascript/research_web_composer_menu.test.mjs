@@ -15,7 +15,8 @@ test('add and slash roots expose only existing actions, slash searches every eli
   assert.equal(composerMenuRows(openComposerMenu('slash')).length, 5);
   const rows = composerMenuRows(openComposerMenu('slash', 'root', '研究能力'), { skills });
   assert.equal(rows.length, 12);
-  assert.deepEqual(new Set(rows.map(x => x.group)), new Set(['Skill', 'Workflow']));
+  assert.deepEqual(rows.map(x => x.group), [...Array(6).fill('Skill'), ...Array(6).fill('Workflow')]);
+  assert.equal(composerMenuRows(openComposerMenu('slash', 'root', 'model'))[0].value, 'models');
   assert.equal(composerMenuRows(openComposerMenu('add', 'capabilities'), { skills: null }).length, 0);
 });
 test('keyboard skips disabled items and never submits an empty result', () => {
