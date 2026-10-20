@@ -1,5 +1,11 @@
-import { escapeHTML as e } from './markdown.mjs';
-import { icon } from './icons.mjs';
+// Gateway-owned and dependency-free: protected primary UIs may predate this menu.
+const e = value => String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
+const paths = {
+  account: '<circle cx="12" cy="8" r="3.5"/><path d="M5 21v-2a7 7 0 0 1 14 0v2"/>',
+  settings: '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.09a2 2 0 0 1-1-1.74v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
+  logout: '<path d="M9 4H4v16h5M10 12h11M17 8l4 4-4 4"/>',
+};
+const icon = name => `<svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name]}</svg>`;
 
 const avatar = user => `<span class="account-avatar" aria-hidden="true">${e(Array.from(String(user.username || '账号').trim())[0]?.toLocaleUpperCase() || '账')}</span>`;
 
@@ -103,4 +109,21 @@ export function createAccountMenu({ root, user, document = globalThis.document, 
   window.addEventListener('resize', () => sync());
   document.addEventListener('scroll', () => sync(), true);
   return { sync };
+}
+
+/** New gateway sessions also support the deliberately preserved old primary shell. */
+export function mountLegacyAccountMenu({ root, user, document = globalThis.document, Observer = globalThis.MutationObserver, ...options } = {}) {
+  if (!root || !user || document.getElementById('account-menu') || root.querySelector('[data-account-trigger]')) return;
+  let controller;
+  const reconcile = () => {
+    const footer = root.querySelector('.navigation-footer');
+    if (footer && !footer.querySelector('[data-account-trigger]')) footer.innerHTML = renderAccountTrigger(user);
+    if (footer && !controller) {
+      controller = createAccountMenu({ root, user, document, ...options });
+      options.logger?.('account_legacy_navigation_mounted');
+    }
+    controller?.sync();
+  };
+  new Observer(reconcile).observe(root, { childList: true, subtree: true });
+  reconcile();
 }

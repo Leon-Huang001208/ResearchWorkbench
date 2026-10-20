@@ -2,9 +2,10 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
 import { runInNewContext } from 'node:vm';
+import { mountLegacyAccountMenu } from '../../app/research_web/ui/server/account-menu.mjs';
 
 test('server fetch wrapper preserves RequestInit overrides and binds requests and streams to the page account', async () => {
-  const source = fs.readFileSync(new URL('../../app/research_web/ui/server/session.mjs', import.meta.url), 'utf8').replace("await import('/static/app.mjs');", '');
+  const source = fs.readFileSync(new URL('../../app/research_web/ui/server/session.mjs', import.meta.url), 'utf8').replace(/^import .*;\n/gm, '').replace("await import('/static/app.mjs');", '');
   const userId = '11111111-1111-4111-8111-111111111111';
   const sent = [];
   const window = {
@@ -14,7 +15,7 @@ test('server fetch wrapper preserves RequestInit overrides and binds requests an
     },
     EventSource: class { constructor(url) { this.url = url; } },
   };
-  const context = { window, Request, URL, MutationObserver: class { observe() {} }, location: { href: 'https://unit.tailabc.ts.net/', origin: 'https://unit.tailabc.ts.net', replace() {} }, document: { createElement: () => ({ style: {}, setAttribute() {} }), body: { append() {} }, head: { append() {} }, querySelector: () => null } };
+  const context = { window, Request, URL, mountLegacyAccountMenu, safeLog() {}, MutationObserver: class { observe() {} }, location: { href: 'https://unit.tailabc.ts.net/', origin: 'https://unit.tailabc.ts.net', replace() {} }, document: { createElement: () => ({ style: {}, setAttribute() {} }), body: { append() {} }, head: { append() {} }, querySelector: () => null } };
   await runInNewContext(`(async () => {${source}\n})()`, context);
   assert.equal(context.__RWB_ACCOUNT__.username, 'alice');
   assert.equal(context.__RWB_ACCOUNT__.role, 'user');
