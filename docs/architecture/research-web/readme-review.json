@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "unchanged",
-  "summary": "删除Claw首页示例分类与案例卡片并保留日程新建草稿入口",
-  "reason": "README已概述Claw和原生提问；本次删除首页辅助示例，不改变产品能力、安装、运行时或执行契约，详细UI和外观文档已同步。"
+  "disposition": "updated",
+  "summary": "说明FinGPT系统报告配方、冻结格式和Host独立验收",
+  "reason": "README新增取证到交付的系统处理边界，明确DSH保留、版本绑定和缺口不放行；安装依赖和已有数据模型配置不改变。"
 }

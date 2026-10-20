@@ -27,8 +27,30 @@ def _report_formats(formats):
     return tuple(kind for kind in _REPORT_FORMATS if kind in formats)
 
 
-def required_report_formats(contract_or_question):
+def required_report_formats(contract_or_question, delivery=None):
     """Recognize only an explicit, bounded format list from the frozen question."""
+    if delivery is not None:
+        required = delivery.get("required_formats") if isinstance(delivery, dict) else None
+        if (
+            not isinstance(contract_or_question, dict)
+            or not isinstance(delivery, dict)
+            or not isinstance(contract_or_question.get("task_id"), str)
+            or not re.fullmatch(r"[a-f0-9]{24}", contract_or_question["task_id"])
+            or delivery.get("task_id") != contract_or_question.get("task_id")
+            or not isinstance(required, list)
+            or len(required) > 7
+            or any(
+                not isinstance(kind, str)
+                or kind not in {"md", "html", "docx", "xlsx", "pptx", "png", "pdf"}
+                for kind in required
+            )
+            or len(set(required)) != len(required)
+        ):
+            log.warning("research_report_delivery_binding_rejected")
+            raise ValueError("research_report_delivery_binding")
+        native = [kind for kind in required if kind in _REPORT_FORMATS]
+        if native:
+            return _report_formats(native)
     question = (
         contract_or_question.get("question")
         if isinstance(contract_or_question, dict)

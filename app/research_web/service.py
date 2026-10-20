@@ -1947,7 +1947,9 @@ class ResearchService:
                     "contract_sha256": contract["sha256"],
                     "as_of": contract["as_of"],
                     "requirement_ids": [row["id"] for row in contract["requirements"]],
-                    "formats": list(required_report_formats(contract)),
+                    "formats": list(
+                        required_report_formats(contract, (receipt or {}).get("delivery"))
+                    ),
                 }
             scope["read_paths"] = [
                 f"resources/capabilities/{record['id']}/{record['version']}" for record in records
@@ -2573,7 +2575,9 @@ class ResearchService:
                 user_selected=method_ids,
             )
             if formats is None and defaults is None and depth == "deep":
-                defaults = ["html", "docx", "pdf"]
+                from .resources.research_report import required_report_formats
+
+                defaults = list(required_report_formats(text))
             required = expected_formats(formats if formats is not None else defaults, skill_id)
             payload = {
                 "text": text,

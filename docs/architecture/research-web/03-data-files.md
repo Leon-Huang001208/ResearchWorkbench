@@ -634,3 +634,5 @@ prepare_contract使用实际允许上传输入，在会话resources/research_evi
 source_references允许纯规范ID列表，或精确的“规范ID · 准确Host标题 · 定位”；定位不参与身份推断，错误标题/外来ID/file:文件名继续拒绝。定位本身的事实正确性仍需独立审查。Decimal参数的算术结果及claim操作数均序列化为精确字符串，不降低原数量、单位和quote约束。
 
 旧网页记录只有as_of值、没有可追溯出版meta/header证据时，当前只读投影保守返回unknown；有正文header但与旧日期冲突时同样保留unknown。旧索引和原文不回写，此状态不能被当成来源已核验；新读取会保存实际出版证据，未来发布日期继续触发原截止日门。
+
+原交付层与报告格式器共用同一task_id的冻结required_formats；显式UI/能力选择优先，deep无选择时才从用户明确格式文本取默认。上下文和Host投影均读取Store中的同一回执，拒绝错任务和未知格式，不能由模型或传入的交付投影减项。

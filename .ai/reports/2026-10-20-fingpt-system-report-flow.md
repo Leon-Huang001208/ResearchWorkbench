@@ -42,3 +42,5 @@ PR149 的单次复测取得两篇正文及四条有全文 SHA/span 的 GDP 观�
 源码检查点：新增calculation/formats/system_flow加原revision合跑122 passed，2.96秒；原生JS工具23 passed；融合路由及受信context四例21.63秒。Ruff/Black/isort和SDK三模块mypy通过。定点命令为现有Python+已安装pytest运行器，带`--confcutdir=tests/research_web`，未安装依赖；详见任务logs。第一次旧模块组合139 passed/1 skipped/1旧指令断言失败，路由改为取证前统一plan后定点闭合；不隐去该次失败。
 
 原失败case完整两篇已取得正文（按原SHA读取）在独立Store离线回放：5条声明、3.99%、原生计算式及HTML/DOCX绑定成功；模型/网络调用均为零。原题完整要求和跨版本可比性缺口保留incomplete，数字/算术/笔记链不再出现原错误。受控成功测试的缩小数字合同不是原题全文验收通过。独立预审发现并修复空引用交付、非规范FOMC观测兼容、96位二次舍入三个问题；有理数边界正负测试和Host底稿篡改拒绝已补。
+
+集成补充：首轮完整API 202通过（1198.987秒），README复核回执缺失被本地约束拒绝，已更新README及回执。另补齐实际交付默认三格式与报告两格式的冻结一致性：service.send→同任务receipt/context→原macOS沙箱文件检查→Host归档的3项回归11.66秒通过，不再以valid=True夹具代替该步骤。新的冻结提交重新评审和验证；其他平台交接不冒充Mac证据。

@@ -71,6 +71,23 @@ def test_only_explicit_bounded_format_declaration_changes_legacy_default(questio
     assert required_report_formats(question) == expected
 
 
+def test_explicit_native_formats_only_from_the_same_frozen_delivery():
+    contract = {"task_id": "a" * 24, "question": "只生成HTML和DOCX。"}
+    delivery = {"task_id": contract["task_id"], "required_formats": ["html"]}
+    assert required_report_formats(contract, delivery) == ("html",)
+    assert required_report_formats(contract, {**delivery, "required_formats": []}) == (
+        "html",
+        "docx",
+    )
+    assert required_report_formats(contract) == ("html", "docx")
+    for changed in [
+        {**delivery, "task_id": "b" * 24},
+        {**delivery, "required_formats": ["html", "exe"]},
+    ]:
+        with pytest.raises(ValueError, match="research_report_delivery_binding"):
+            required_report_formats(contract, changed)
+
+
 def test_two_formats_native_table_preserves_canonical_text_and_evidence(tmp_path):
     value = payload()
     paths = write_research_report(tmp_path, value, formats=("html", "docx"))

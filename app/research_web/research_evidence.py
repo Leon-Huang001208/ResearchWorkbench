@@ -185,7 +185,15 @@ def report_projection(
             if row.get("valid")
         }
         artifacts = payload.get("artifacts", [])
-        formats = set(required_report_formats(contract)) if contract else {"html", "docx", "pdf"}
+        current_key = store.session(sid).get("delivery_key", "")
+        frozen_delivery = (
+            store.data.get("receipts", {}).get(f"{sid}:{current_key}", {}).get("delivery")
+        )
+        formats = (
+            set(required_report_formats(contract, frozen_delivery))
+            if contract
+            else {"html", "docx", "pdf"}
+        )
         if payload.get("report_formats") is not None and set(payload["report_formats"]) != formats:
             issues.append("report_artifact_formats_invalid:contract")
         if not isinstance(artifacts, list) or len(artifacts) != len(formats):

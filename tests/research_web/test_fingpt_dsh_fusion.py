@@ -174,6 +174,89 @@ def test_script_report_context_comes_from_current_valid_frozen_contract(fusion_a
     assert scope["admitted"] is True and "report_context" not in scope
 
 
+@pytest.mark.parametrize("explicit", [None, ["html"]])
+def test_frozen_formats_match_actual_native_delivery_and_checked_archive(
+    fusion_api, monkeypatch, explicit
+):
+    """Exercise real file inspection instead of manufacturing valid=True receipts."""
+    import json
+    import sys
+    from functools import partial
+
+    from app.research_web.research_quality_service import check_quality
+    from app.research_web.resources.research_report_plan import write_business_report_plan
+
+    if sys.platform != "darwin":
+        pytest.skip("actual file inspection belongs to the native Mac task")
+    client, native, service = fusion_api
+    sid = client.post("/api/research/sessions", json={"mode": "fingpt"}).json()["id"]
+    monkeypatch.setattr(service, "_model_tools_verified", lambda _sid: True)
+    payload = {
+        "text": "离线核验，只生成HTML和DOCX，不发送到外部。",
+        "research_mode": "deep",
+        "research_as_of": "2026-10-16",
+    }
+    if explicit is not None:
+        payload["expected_formats"] = explicit
+    headers = {"Idempotency-Key": "actual-two-format-delivery"}
+    response = client.post(f"/api/research/sessions/{sid}/messages", json=payload, headers=headers)
+    assert response.status_code == 202, response.text
+    receipt, _ = service._task_capabilities(sid)
+    expected = explicit if explicit is not None else ["html", "docx"]
+    assert receipt["delivery"]["required_formats"] == expected
+    context = service.native_admission(sid, tool_name="research_run_script")["report_context"]
+    assert context["formats"] == expected
+    plan = {
+        "title": "有缺口的可用报告",
+        "sections": [
+            {
+                "id": "gap",
+                "heading": "缺口",
+                "evidence_ids": [],
+                "requirement_ids": context["requirement_ids"],
+                "analysis": "所需事实证据尚未取得。",
+            }
+        ],
+        "missing": ["证据不足，不作事实结论。"],
+    }
+    with monkeypatch.context() as scoped:
+        scoped.chdir(service.store.directory(sid))
+        written = write_business_report_plan(context, plan)
+        assert set(written["written"]) == {"json", "md", *expected}
+    entries = [
+        {
+            "event": {
+                "seq": 1,
+                "type": "user/message",
+                "data": {"content": receipt["delivery"]["marker"]},
+            }
+        },
+        {"event": {"seq": 2, "type": "turn/end", "data": {}}},
+    ]
+    checked = client.portal.call(
+        partial(service.delivery.refresh, sid, entries, busy=False, connected=True)
+    )
+    assert checked["status"] == "completed", checked
+    assert checked["missing_formats"] == []
+    assert set(expected) <= {f["format"] for f in checked["files"] if f["valid"]}
+    assert "pdf" not in {f["format"] for f in checked["files"]}
+    quality = client.portal.call(check_quality, service, sid)
+    assert quality["status"] == "incomplete"  # Missing evidence is never waived by valid files.
+    assert quality["report_delivery"]["status"] == "bound"
+    assert not any(i.startswith("report_artifact") for i in quality["issues"])
+    assert (
+        client.post(
+            f"/api/research/sessions/{sid}/messages", json=payload, headers=headers
+        ).status_code
+        == 202
+    )
+    assert sum(method == "session.prompt" for method, _ in native.calls) == 1
+    manifest = json.loads(
+        (service.store.directory(sid) / "outputs/research-report.json").read_text()
+    )
+    assert manifest["report_formats"] == expected
+
+
 @pytest.mark.parametrize("mode,depth", [("quick", "instant"), ("deep", "deep"), ("agent", "deep")])
 def test_three_modes_still_create_owned_dsh_sessions(tmp_path, mode, depth):
     native = NativeFixture()
