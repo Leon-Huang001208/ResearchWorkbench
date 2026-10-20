@@ -37,6 +37,13 @@ def test_unsupported_or_unsafe_text_never_executes():
     assert any(row["status"] == "unverified" for row in check_arithmetic("1 / 0 = 9"))
 
 
+@pytest.mark.parametrize(
+    "text", ["GDP2025=1401879亿元", "变量x1=2", "1+foo2=3", "GDP2024=1349084", "x1+2=3", "1+2=3foo"]
+)
+def test_numeric_suffix_of_identifier_is_never_a_literal_equation(text):
+    assert check_arithmetic(text) == []
+
+
 def test_chain_checks_every_pair_and_sentence_punctuation_and_approximation():
     assert any(row["status"] == "mismatch" for row in check_arithmetic("1+1=4-1=3"))
     assert check_arithmetic("1/3≈33%")[0]["status"] == "matched"

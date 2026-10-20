@@ -72,13 +72,19 @@ def check_arithmetic(text):
             left -= 1
         while right < len(text) and text[right] in _CHARS and right - match.end() < 257:
             right += 1
+        if (left and (text[left - 1].isalpha() or text[left - 1] == "_")) or (
+            right < len(text) and re.match(r"[A-Za-z_]", text[right])
+        ):
+            continue
         expression, result = _normalize(text[left : match.start()]), _normalize(
             text[match.end() : right].rstrip().rstrip(".")
         )
         if re.fullmatch(_NUMBER, expression) and not re.fullmatch(_NUMBER, result):
             expression, result = result, expression
+        operation = re.search(r"[\d)）%％]\s*[+*/×÷−－-]", expression + " " + result)
         if (
-            expression
+            operation
+            and expression
             and result
             and any(c.isdigit() for c in expression)
             and any(c.isdigit() for c in result)
