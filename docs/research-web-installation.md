@@ -1,5 +1,7 @@
 # Research Web Native / Docker 安装与运行
 
+已验收UI的网关更新使用[显式apply-ui事务](research-web-gateway-upgrade.md#已验收界面的显式更新)：工具和产品各自核对资格，主实例不重装；恢复artifact有独立内容身份，不替换旧控制器。没有新依赖、凭据、数据库迁移或默认安装步骤，原锁与Mac Bootstrap安装/健康门保持。
+
 自由分析/中文报告修复沿用已锁定的stdlib、python-docx和ReportLab，无新增依赖、设置、凭据或迁移。公开安装入口、requirements/web.in/web.lock、setup_web.py保持；同候选macOS Bootstrap验证干净安装与固定DSH/健康。包内原四个SDK文件及字体白名单不扩大，旧会话和模型配置原位保留。
 
 网关安全更新在SIGTERM后等待PID真正消失，退出未回收或签名变化都不触发追加信号。完整保全journal专用读取上限16 MB，首次信号前检查实际序列化字节并保留4096字节阶段余量；通用配置读取上限保持1 MB。Mac Bootstrap用临时子进程和临时大journal验证这两条合同。
