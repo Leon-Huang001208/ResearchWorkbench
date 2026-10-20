@@ -1,6 +1,6 @@
 # Research Workbench 架构总览
 
-业务观测存在时，首次提示与同回合唯一补查统一使用原 research_run_script(report_plan) 规范报告路径；一般研究仍保留 Python payload 路径。两类指令不再同时下发；数据、沙箱、Host 质量门与模型预算均不变。
+数值业务观测存在时，首次提示与同回合唯一补查统一使用原 research_run_script(report_plan) 规范报告路径；一般研究仍保留 Python payload 路径。两类指令不再同时下发；数据、沙箱、Host 质量门与模型预算均不变。
 
 三组FinGPT对照是默认关闭的本机验收控制器，源码快照、Host、凭据namespace及研究数据均隔离；仅测试侧适配模型接入和预算，不合并或部署原Node引擎。详见[实验合同](research-web-fingpt-comparison.md)。
 
