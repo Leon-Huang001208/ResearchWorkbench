@@ -158,17 +158,25 @@ try {
   page.setDefaultTimeout(5000);
   page.on('pageerror', error => { report.failures.push(`pageerror:${error.message}`); console.log(`PAGEERROR ${error.message}`); });
   if (welcomeOnly) {
-    for (const theme of ['light', 'dark']) for (const width of [390, 1440]) await check(`${theme}/${width}: Claw welcome, folded examples, composer and active empty projections`, async () => {
+    for (const theme of ['light', 'dark']) for (const width of [390, 1440]) await check(`${theme}/${width}: Claw welcome without examples, composer and active empty projections`, async () => {
       await page.setViewportSize({ width, height: 900 }); await page.goto(`${origin}/#/claw`);
       await page.evaluate(value => localStorage.setItem('research-web.appearance.v1', value), theme); await page.reload();
       await page.locator('.claw-welcome h1').waitFor();
-      assert.equal(await page.locator('.claw-examples').getAttribute('open'), null);
-      assert.equal(await page.locator('.claw-case-card').first().isVisible(), false);
+      assert.equal(await page.locator('.claw-examples, .claw-cases, .claw-case-card, [data-claw-case-category]').count(), 0);
+      assert.equal(await page.getByText('查看示例', { exact: true }).count(), 0);
+      await page.locator('#prompt').fill('');
       const bounds = await page.evaluate(() => { const welcome = document.querySelector('.claw-welcome').getBoundingClientRect(); const editor = document.querySelector('#composer').getBoundingClientRect(); return { welcomeBottom: welcome.bottom, editorTop: editor.top, editorBottom: editor.bottom, height: innerHeight, overflow: document.documentElement.scrollWidth > innerWidth }; });
       assert.equal(bounds.overflow, false); assert.ok(bounds.welcomeBottom <= bounds.editorTop + 1); assert.ok(bounds.editorBottom <= bounds.height, JSON.stringify(bounds));
       await shot(page, `claw-welcome-${theme}-${width}`);
-      await page.locator('.claw-examples summary').click(); await page.locator('.claw-case-card').first().click();
-      assert.ok((await page.locator('#prompt').inputValue()).length > 0); assert.equal(report.writes.filter(w => w.endpoint === '/sessions').length, 0);
+      await page.goto(`${origin}/#/claw?view=plans`);
+      await page.locator('[data-claw-case="schedule"]').click();
+      await page.locator('.claw-welcome').waitFor();
+      await page.waitForFunction(() => document.querySelector('#prompt')?.value.includes('每日收盘点评'));
+      assert.ok((await page.locator('#prompt').inputValue()).includes('每日收盘点评'));
+      assert.equal(await page.locator('.claw-examples, .claw-cases').count(), 0);
+      await page.locator('#prompt').fill('保留编辑器草稿');
+      assert.equal(await page.locator('#prompt').inputValue(), '保留编辑器草稿');
+      assert.equal(report.writes.filter(w => w.endpoint === '/sessions').length, 0);
       const id = 'claw-8'; details[id] = { ...details[id], status: 'idle', messages: [], questions: [], activities: [], question_history: [], files: [] };
       await page.goto(`${origin}/#/claw?session=${id}`); await page.locator('.claw-welcome').waitFor();
       for (const status of ['running', 'failed', 'completed']) {

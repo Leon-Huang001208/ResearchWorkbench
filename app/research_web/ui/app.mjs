@@ -16,7 +16,7 @@ import { focusSidebarControl, renderGlobalResults, renderResearchAttention, rend
 import { createCapabilityController, refreshProbedSourceDetail } from './capability-controller.mjs';
 import { capabilityTabKey, reportWorkflowEligibility, renderCapabilityDetail, renderToolDetail, renderCreationArtifacts, creationArtifacts } from './capabilities.mjs';
 import { capabilityWorkspaceKindKey, renderCapabilityPreviewDialog, renderCapabilityWorkspace } from './capability-workspace.mjs';
-import { renderClawNavigation, renderClawProject, renderAutomationDrafts, automationDraftBody, renderClawConnections, clawNavigationCurrent, renderClawSchedules, renderClawRunCards, positionClawAutomationCards, renderClawCases, clawCases, captureAutomationDraftEdits } from './claw-workspace.mjs';
+import { renderClawNavigation, renderClawProject, renderAutomationDrafts, automationDraftBody, renderClawConnections, clawNavigationCurrent, renderClawSchedules, renderClawRunCards, positionClawAutomationCards, clawCases, captureAutomationDraftEdits } from './claw-workspace.mjs';
 import { mcpEnvironmentPayload, mcpInstallSelection, mcpMarketplaceTabKey, renderMCPServerDialog } from './mcp-marketplace.mjs';
 import { renderDataCapabilityDetail, renderDataSourceDetail } from './data-catalog.mjs';
 import { renderCapabilityEditor, renderCreationForm, renderCopyForm, readEditor, moveStepWithFeedback, newWorkflowStep } from './capability-editor.mjs';
@@ -278,7 +278,7 @@ function composer() {
 
 function landing() {
   const claw = state.route.page === 'claw';
-  if (claw) return `<div class="landing claw-landing">${state.busy ? '<div class="claw-welcome-pending" role="status">正在连接会话…</div>' : state.error || state.streamError ? '<div class="claw-welcome-pending" aria-hidden="true"></div>' : renderClawWelcome()}<div class="claw-landing-editor">${composer()}<details class="claw-examples" data-disclosure-key="claw:examples"><summary>查看示例</summary>${renderClawCases(quickCategory)}</details></div></div>`;
+  if (claw) return `<div class="landing claw-landing">${state.busy ? '<div class="claw-welcome-pending" role="status">正在连接会话…</div>' : state.error || state.streamError ? '<div class="claw-welcome-pending" aria-hidden="true"></div>' : renderClawWelcome()}<div class="claw-landing-editor">${composer()}</div></div>`;
   return `<div class="landing fingpt-landing"><div class="greeting"><h1>从一个问题，开始研究。</h1><p class="landing-subtitle">读懂资料，比较公司，探索行业。</p></div>${renderResearchRecipes({ busy: state.busy })}${composer()}${renderQuickSkills(catalog.capabilities, { page: state.route.page, category: quickCategory })}</div>`;
 }
 
@@ -2958,7 +2958,6 @@ root.addEventListener('click', async (event) => {
       safeLog('claw_workspace_preview_missing', {});
     }
   }
-  if ('clawCaseCategory' in data) { quickCategory = data.clawCaseCategory; render(); }
   if ('clawCase' in data || 'clawEditTask' in data) {
     const prompt = 'clawEditTask' in data ? `请查询任务 ID ${data.clawEditTask} 的当前定义。我想修改它，请先澄清修改内容，提出同一任务的待确认变更。` : clawCases.find(c => c.id === data.clawCase)?.text;
     if (prompt) {
