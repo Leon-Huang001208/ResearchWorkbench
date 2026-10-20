@@ -17,7 +17,8 @@ const membershipOnly = process.argv.includes('--focus-project-membership');
 const statusOnly = process.argv.includes('--focus-session-status');
 const composerOnly = process.argv.includes('--focus-bottom-composer');
 const searchOnly = process.argv.includes('--focus-search-close');
-const receiptName = preview ? 'preview-receipt.json' : searchOnly ? 'search-close-receipt.json' : composerOnly ? 'bottom-composer-receipt.json' : statusOnly ? 'session-status-receipt.json' : membershipOnly ? 'project-membership-receipt.json' : dialogsOnly ? 'project-dialog-receipt.json' : menusOnly ? 'menus-receipt.json' : submitOnly ? 'submit-receipt.json' : forwardOnly ? 'forward-receipt.json' : 'receipt.json';
+const welcomeOnly = process.argv.includes('--focus-claw-welcome');
+const receiptName = preview ? 'preview-receipt.json' : welcomeOnly ? 'claw-welcome-receipt.json' : searchOnly ? 'search-close-receipt.json' : composerOnly ? 'bottom-composer-receipt.json' : statusOnly ? 'session-status-receipt.json' : membershipOnly ? 'project-membership-receipt.json' : dialogsOnly ? 'project-dialog-receipt.json' : menusOnly ? 'menus-receipt.json' : submitOnly ? 'submit-receipt.json' : forwardOnly ? 'forward-receipt.json' : 'receipt.json';
 const report = { status: 'running', environment: 'isolated Chrome synthetic API; no resident HTTP or model calls', checks: [], failures: [], writes: [], screenshots: [] };
 const modes = ['fingpt', 'claw'];
 const metadata = Object.fromEntries(modes.map(mode => [mode, { mode, revision: 0, pinned: [], project_order: ['default', 'p1', 'p2'] }]));
@@ -108,7 +109,7 @@ const server = http.createServer(async (request, response) => {
 });
 
 let browser;
-const check = async (name, fn) => { try { await fn(); report.checks.push(name); console.log(`PASS ${name}`); } catch (error) { report.failures.push({ name, error: error.message }); console.log(`FAIL ${name}: ${error.message}`); } };
+const check = async (name, fn) => { try { await fn(); report.checks.push(name); console.log(`PASS ${name}`); } catch (error) { report.failures.push({ name, error: error.stack }); console.log(`FAIL ${name}: ${error.message}`); } };
 const shot = async (page, name) => { const target = path.join(output, `${name}.png`); await page.screenshot({ path: target }); report.screenshots.push(target); };
 async function assertSquareIcons(page, selector, { centeredButtons = false } = {}) {
   const metrics = await page.evaluate(value => [...document.querySelectorAll(value)].map(element => {
@@ -156,7 +157,59 @@ try {
   const page = await context.newPage();
   page.setDefaultTimeout(5000);
   page.on('pageerror', error => { report.failures.push(`pageerror:${error.message}`); console.log(`PAGEERROR ${error.message}`); });
-  if (searchOnly) {
+  if (welcomeOnly) {
+    for (const theme of ['light', 'dark']) for (const width of [390, 1440]) await check(`${theme}/${width}: Claw welcome, folded examples, composer and active empty projections`, async () => {
+      await page.setViewportSize({ width, height: 900 }); await page.goto(`${origin}/#/claw`);
+      await page.evaluate(value => localStorage.setItem('research-web.appearance.v1', value), theme); await page.reload();
+      await page.locator('.claw-welcome h1').waitFor();
+      assert.equal(await page.locator('.claw-examples').getAttribute('open'), null);
+      assert.equal(await page.locator('.claw-case-card').first().isVisible(), false);
+      const bounds = await page.evaluate(() => { const welcome = document.querySelector('.claw-welcome').getBoundingClientRect(); const editor = document.querySelector('#composer').getBoundingClientRect(); return { welcomeBottom: welcome.bottom, editorTop: editor.top, editorBottom: editor.bottom, height: innerHeight, overflow: document.documentElement.scrollWidth > innerWidth }; });
+      assert.equal(bounds.overflow, false); assert.ok(bounds.welcomeBottom <= bounds.editorTop + 1); assert.ok(bounds.editorBottom <= bounds.height, JSON.stringify(bounds));
+      await shot(page, `claw-welcome-${theme}-${width}`);
+      await page.locator('.claw-examples summary').click(); await page.locator('.claw-case-card').first().click();
+      assert.ok((await page.locator('#prompt').inputValue()).length > 0); assert.equal(report.writes.filter(w => w.endpoint === '/sessions').length, 0);
+      const id = 'claw-8'; details[id] = { ...details[id], status: 'idle', messages: [], questions: [], activities: [], question_history: [], files: [] };
+      await page.goto(`${origin}/#/claw?session=${id}`); await page.locator('.claw-welcome').waitFor();
+      for (const status of ['running', 'failed', 'completed']) {
+        details[id].status = status; broadcast(id); await page.locator('[data-conversation-scroll]').waitFor(); assert.equal(await page.locator('.claw-welcome, .empty-symbol').count(), 0);
+      }
+      details[id].questions = [{ ...group, seq: undefined }]; broadcast(id); await page.locator('.question-form').waitFor();
+      assert.equal(await page.locator('.claw-welcome, .empty-symbol').count(), 0); await shot(page, `claw-pending-${theme}-${width}`);
+    });
+    for (const mode of modes) await check(`${mode}: full-row single choices, double-click guard, keyboard, multiple choices and explicit final submit`, async () => {
+      const id = `${mode}-9`; const q = { id: `row-${mode}`, items: [
+        { id: 'one', question: '第一题', options: [{ label: '选项甲', description: '甲的说明' }, { label: '选项乙' }] },
+        { id: 'two', question: '第二题', options: [{ label: '选项丙', description: '丙的说明' }, { label: '选项丁' }] },
+        { id: 'multi', question: '第三题', multiSelect: true, options: [{ label: '多选甲' }, { label: '多选乙' }] },
+        { id: 'last', question: '最后一题', options: [{ label: '确认甲' }, { label: '确认乙' }] },
+      ] };
+      details[id] = { ...details[id], status: 'waiting_input', messages: [], questions: [q] };
+      await page.setViewportSize({ width: 1440, height: 900 }); await page.goto(`${origin}/#/${mode}?session=${id}`); await page.locator('[data-q-index="0"]').waitFor();
+      await page.locator('[name="custom-0"]').fill('保留补充');
+      await page.locator('.question-option-copy strong').first().dblclick(); await page.locator('[data-q-index="1"]').waitFor();
+      assert.equal(await page.evaluate(() => document.activeElement.matches('legend')), true);
+      assert.equal(await page.locator('[data-q-index="2"]').count(), 0, 'double click must not answer a second question');
+      await page.locator('[data-q-page="prev"]').click(); assert.equal(await page.locator('[name="custom-0"]').inputValue(), '保留补充');
+      await page.waitForTimeout(320); await page.locator('.codex-question-option .muted').first().click(); await page.locator('[data-q-index="1"]').waitFor();
+      await page.waitForTimeout(320); const row = page.locator('.codex-question-option').first(); const box = await row.boundingBox();
+      await row.click({ position: { x: box.width - 50, y: box.height / 2 } }); await page.locator('[data-q-index="2"]').waitFor();
+      await page.waitForTimeout(320); await page.locator('.question-option-copy strong').nth(0).click(); await page.locator('.question-option-copy strong').nth(1).click();
+      assert.equal(await page.locator('[data-q-index="2"]').count(), 1); assert.equal(await page.locator('.question-form input[type="checkbox"]:checked').count(), 2);
+      await page.locator('.codex-question-submit [data-q-page="next"]').click(); await page.locator('[data-q-index="3"]').waitFor();
+      await page.locator('input[type="radio"]').first().focus(); await page.keyboard.press('Enter');
+      assert.equal(await page.locator('[data-q-index="3"]').count(), 1);
+      assert.equal(report.writes.filter(w => w.endpoint.includes(`/sessions/${id}/questions/`)).length, 0);
+      assert.equal(await page.locator('input[type="radio"]:checked').count(), 1);
+      await page.locator('[data-q-page="prev"]').click(); await page.locator('[data-q-page="prev"]').click();
+      await page.locator('input[type="radio"]').first().focus(); await page.keyboard.press('Space'); await page.locator('[data-q-index="2"]').waitFor();
+      assert.equal(await page.locator('.question-form input[type="checkbox"]:checked').count(), 2);
+      await page.locator('.codex-question-submit [data-q-page="next"]').click();
+      await shot(page, `${mode}-row-choice-final`); await page.locator('.question-form [type="submit"]').click(); await page.locator('.question-history').waitFor();
+      const writes = report.writes.filter(w => w.endpoint.includes(`/sessions/${id}/questions/`));
+      assert.equal(writes.length, 1); assert.deepEqual(writes[0].body.answers.map(a => a.selected), [['选项甲'], ['选项丙'], ['多选甲', '多选乙'], ['确认甲']]);
+    });
+  } else if (searchOnly) {
     report.searchCoverage = [];
     for (const theme of ['light', 'dark']) for (const width of [390, 1440]) for (const mode of modes) await check(`${theme}/${width}/${mode}: search close, focus, no click-through, draft and result navigation`, async () => {
       const id = `${mode}-6`; const route = `${origin}/#/${mode}?session=${id}`; const draft = `搜索关闭后保留 ${theme} ${width} ${mode} 草稿`;
@@ -483,35 +536,19 @@ try {
       assert.equal(await page.locator('#prompt').inputValue(), '待答时仍保留普通草稿');
     });
   } else if (forwardOnly) {
-    for (const mode of modes) for (const width of [1440, 390]) await check(`${mode}/${width}: first selection, reselection, visible forward and click continue`, async () => {
+    for (const mode of modes) for (const width of [1440, 390]) await check(`${mode}/${width}: full row continues and keyboard reselection preserves drafts`, async () => {
       await page.setViewportSize({ width, height: 900 });
-      await page.goto(`${origin}/#/${mode}?session=${mode}-0`); await page.reload({ waitUntil: 'domcontentloaded' });
+      await page.goto(`${origin}/#/${mode}?session=${mode}-0`); await page.reload();
       await page.locator('[name="selection-0"]').first().waitFor();
-      await page.waitForFunction(value => ['models', 'workspaces', 'report-workflows', `navigation/${value}`].every(endpoint => performance.getEntriesByType('resource').some(entry => entry.name.includes(`/api/research/${endpoint}`))), mode);
-      await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
-      const rows = page.locator('.codex-question-option-row');
-      assert.equal(await rows.nth(0).locator('.codex-option-forward').isVisible(), false);
-      assert.equal(await rows.nth(1).locator('.codex-option-forward').isVisible(), false);
-      await rows.nth(0).locator('input').evaluate(element => { window.fixtureRadio = element; });
-      await rows.nth(0).locator('input').check();
-      assert.equal(await rows.nth(0).locator('.codex-option-forward').isVisible(), true);
-      assert.equal(await rows.nth(1).locator('.codex-option-forward').isVisible(), false);
-      await shot(page, `forward-${mode}-${width}-first`);
-      assert.equal(await page.evaluate(() => window.fixtureRadio.isConnected), true, 'radio DOM must survive capture');
-      await rows.nth(0).locator('input').press('ArrowDown');
-      assert.equal(await rows.nth(1).locator('input').isChecked(), true, 'ArrowDown selects B');
-      assert.equal(await rows.nth(1).locator('input').evaluate(element => document.activeElement === element), true, 'ArrowDown retains radio focus');
-      assert.equal(await rows.nth(0).locator('.codex-option-forward').isVisible(), false);
-      assert.equal(await rows.nth(1).locator('.codex-option-forward').isVisible(), true);
-      await check(`${mode}/${width}: forward SVG geometry`, () => assertSquareIcons(page, '.codex-option-forward:visible svg', { centeredButtons: true }));
+      const rows = page.locator('.codex-question-option');
+      await rows.nth(0).locator('input').focus(); await page.keyboard.press('ArrowDown');
+      assert.equal(await rows.nth(1).locator('input').isChecked(), true);
+      assert.equal(await page.locator('.question-form').getAttribute('data-q-index'), '0');
       await shot(page, `forward-${mode}-${width}-reselected`);
-      await rows.nth(1).getByRole('button', { name: '选择并继续', exact: true }).click();
-      assert.equal(await page.locator('.question-form').getAttribute('data-q-index'), '1');
+      await rows.nth(1).locator('.question-option-copy').click(); await page.locator('[data-q-index="1"]').waitFor();
       assert.equal(await page.evaluate(() => document.activeElement.matches('legend.codex-question-title')), true);
       await page.locator('[data-q-page="prev"]').click();
       assert.equal(await page.locator('[name="selection-0"]').nth(1).isChecked(), true);
-      assert.equal(await rows.nth(0).locator('.codex-option-forward').isVisible(), false);
-      assert.equal(await rows.nth(1).locator('.codex-option-forward').isVisible(), true);
     });
     assert.deepEqual(report.writes, [], 'forward navigation must never submit answers');
   } else {
@@ -678,9 +715,10 @@ try {
     await page.locator('.sidebar-top [data-toggle-search]').click(); await page.keyboard.press('Escape');
     assert.equal(await page.locator('[name="custom-0"]').inputValue(), `中文补充 ${mode}`);
     await page.locator('[name="custom-0"]').dispatchEvent('compositionend');
-    await page.locator('[name="selection-0"]').first().check();
+    await page.locator('.codex-question-option').first().click();
+    await page.locator('[name="selection-1"]').first().waitFor();
     await assertSquareIcons(page, '.question-form svg', { centeredButtons: true });
-    await page.locator('.codex-question-arrow[data-q-page="next"]').click();
+    await page.waitForTimeout(320);
     assert.equal(await page.evaluate(() => document.activeElement.matches('legend.codex-question-title[tabindex="-1"]')), true);
     await page.locator('[name="selection-1"]').nth(0).check(); await page.locator('[name="selection-1"]').nth(1).check();
     await page.locator('[data-q-page="prev"]').click(); assert.equal(await page.locator('[name="custom-0"]').inputValue(), `中文补充 ${mode}`);

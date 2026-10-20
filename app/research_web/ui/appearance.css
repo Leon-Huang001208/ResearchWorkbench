@@ -1799,6 +1799,22 @@ a.framework-card:hover, a.framework-card:focus-visible { border-color: var(--con
 .claw-weekdays input { width:auto; }
 
 /* Desktop chrome occupies space only when a runtime warning needs attention. */
+.landing.claw-landing { display: flex; flex-direction: column; width: min(850px, calc(100% - 48px)); max-width: 850px; min-height: calc(100dvh - 104px); margin: 0 auto; padding: 0; }
+.claw-welcome { display: flex; flex: 1; flex-direction: column; align-items: center; justify-content: center; gap: 24px; padding: 48px 0; text-align: center; }
+.claw-welcome-icon { display: inline-flex; color: var(--muted); opacity: .48; }
+.claw-welcome-icon .ui-icon { width: 48px; height: 48px; stroke-width: 1.3; }
+.claw-welcome h1, .claw-landing .claw-welcome h1 { margin: 0; font-size: clamp(24px, 2.4vw, 32px); font-weight: 450; line-height: 1.4; letter-spacing: -.025em; text-align: center; text-wrap: balance; }
+.claw-landing-editor { flex: 0 0 auto; padding-bottom: 12px; }
+.claw-landing-editor > .composer { margin: 0; }
+.claw-examples { margin: 12px 0 0; color: var(--muted); font-size: 13px; }
+.claw-examples > summary { width: fit-content; margin: 0 auto; cursor: pointer; padding: 6px 12px; }
+.claw-examples > summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 6px; }
+.claw-welcome-pending { flex: 1; display: grid; place-items: center; color: var(--muted); font-size: 14px; min-height: 180px; }
+@media (max-width: 600px) {
+  .landing.claw-landing { width: calc(100% - 24px); min-height: calc(100dvh - 88px); }
+  .claw-welcome { gap: 20px; padding: 32px 12px; }
+  .claw-welcome-icon .ui-icon { width: 40px; height: 40px; }
+}
 @media (min-width: 1051px) {
   .app-shell:has(> .topbar) { grid-template-rows: auto minmax(0, 1fr); }
   .topbar .menu-toggle { display: none; }
