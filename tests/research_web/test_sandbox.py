@@ -84,12 +84,13 @@ def test_packaged_sdk_scope_rejects_aliased_files(tmp_path, monkeypatch, alias):
         "research_helpers.py",
         "research_report.py",
         "research_report_plan.py",
+        "research_report_calculations.py",
         "fonts/NotoSansSC-Regular.ttf",
     ]:
         (root / name).write_bytes(b"fixture")
     monkeypatch.setattr(module, "__file__", str(source))
     sdk, files = module._report_sdk_scope()
-    assert sdk == str(root) and len(files) == 6
+    assert sdk == str(root) and len(files) == 7
     target = root / "research_report.py"
     target.unlink()
     outside = tmp_path / "outside.py"

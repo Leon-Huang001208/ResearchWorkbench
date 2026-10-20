@@ -1,5 +1,7 @@
 # Agent 任务路由指南
 
+系统报告迭代先用已取得 GDP 字节的离线成功/恢复闭环验证，再执行完整Router、独立评审与同候选Mac安装。受控数字合同通过不表示原题分析通过；未核验叙述/口径限制照常保留。部署仅精确SHA空闲事务，原数据与模型保全；最后原题同Flash仅提交一次，预算与质量门不变。
+
 恢复就绪性先复现真实延迟reap与超过1 MB保全摘要，再经正式recover和不可变artifact reader回归；Mac Bootstrap原步骤补临时子进程/大journal探针。身份、读取预算和超限停机前拒绝不得靠裁剪保全数据解决。
 
 Homebrew Python映像回归先在Mac生产解释器下复现，再用内核proc_pidpath核验真实exec路径；既有Mac Bootstrap环境步骤增加同一只读探针，通用Checks保留跨PID拒绝负例。不新增job或模型调用。

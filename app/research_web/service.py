@@ -1940,11 +1940,16 @@ class ResearchService:
                 log.warning("research_report_contract_unavailable")
                 valid_report_contract = False
             if valid_report_contract and isinstance(contract, dict):
+                from .resources.research_report import required_report_formats
+
                 scope["report_context"] = {
                     "task_id": contract["task_id"],
                     "contract_sha256": contract["sha256"],
                     "as_of": contract["as_of"],
                     "requirement_ids": [row["id"] for row in contract["requirements"]],
+                    "formats": list(
+                        required_report_formats(contract, (receipt or {}).get("delivery"))
+                    ),
                 }
             scope["read_paths"] = [
                 f"resources/capabilities/{record['id']}/{record['version']}" for record in records
@@ -2570,7 +2575,30 @@ class ResearchService:
                 user_selected=method_ids,
             )
             if formats is None and defaults is None and depth == "deep":
-                defaults = ["html", "docx", "pdf"]
+                from .resources.research_report import required_report_formats
+
+                if existing:
+                    frozen = existing.get("delivery")
+                    try:
+                        if not isinstance(frozen, dict):
+                            raise TypeError("delivery_missing")
+                        required_report_formats(
+                            {
+                                "task_id": hashlib.sha256(f"{sid}:{key}".encode()).hexdigest()[:24],
+                                "question": text,
+                            },
+                            frozen,
+                        )
+                    except (TypeError, ValueError) as exc:
+                        log.warning("research_replay_delivery_unconfirmed")
+                        raise RuntimeFailure(
+                            "历史交付要求未确认；请检查会话历史，不要重复发送", "admission_unknown"
+                        ) from exc
+                    # Defaults are part of the original digest. Reuse only their
+                    # frozen expansion; all request fields are still compared below.
+                    defaults = frozen["required_formats"].copy()
+                else:
+                    defaults = list(required_report_formats(text))
             required = expected_formats(formats if formats is not None else defaults, skill_id)
             payload = {
                 "text": text,
@@ -2758,8 +2786,12 @@ class ResearchService:
                     + json.dumps(context, ensure_ascii=False)
                 )
                 business_index = await asyncio.to_thread(business_prompt_index, self, sid, contract)
-                business_plan_available = any(
-                    row.get("kind") == "business_numeric" for row in business_index["observations"]
+                business_plan_available = (
+                    any(
+                        row.get("kind") == "business_numeric"
+                        for row in business_index["observations"]
+                    )
+                    or "web" in source_scope
                 )
                 log.info(
                     "research_report_route_selected",
@@ -2774,7 +2806,9 @@ class ResearchService:
                 if business_plan_available:
                     prompt += (
                         "\n当前业务报告使用research_run_script的report_plan参数生成规范报告，不手写Python解析、Decimal循环或numeric_claims。code仅用于独立复算、取证或绘图，不作为另一套规范报告拼装流程。"
-                        "plan含title、sections、summary、missing，可选controls。sections每项含id/heading/evidence_ids/requirement_ids，可选analysis；evidence_ids用索引id或唯一metric@period，整份最多40次引用，勿把全部观测直接传入。"
+                        "先实际取得证据，再调用plan；起初索引为空不切回手写payload。plan含title、sections、missing，可选calculations、summary、controls。sections每项含id/heading/evidence_ids/requirement_ids，可选analysis；evidence_ids用索引id或唯一metric@period，整份最多40次引用，勿把全部观测直接传入。"
+                        "新派生值用calculations数组，每项仅id、operation(identity/sum/difference/ratio/percent_change)、operands(原始观测id或metric@period)、decimal_places(0到12)。例如{id:nominal,operation:percent_change,operands:[gdp_current_price_preliminary@2025,gdp_current_price_final@2024],decimal_places:2}；章节evidence_ids写$nominal。模型不传value/quote/unit/结果，系统统一计算、舍入及生成声明/引用/笔记，Host重读输入独立复算；跨版本只算数不认证可比性。"
+                        "没有用户指定工作簿时省略summary，不创建额外XLSX。没有支持该章节的证据可用空evidence_ids加analysis明确缺口，并保留missing；不会因此通过质量门。交付格式由Host从冻结要求确定，不增减PDF等格式。"
                         "summary每项含metric（必须逐字保留用户规定的工作簿键，不增加前缀、不自改别名）、observation_id、decimal_places（用户明确展示精度）。对索引calculation_required=true的派生指标，必须提供calculation数组独立复算；每步id/operation/operands，operands引用原始观测id或此前步骤$id。支持identity/abs/sum/difference/ratio/percent_change/basis_points，整份最多64步。"
                         "例如FCF以abs(signed_cash_ppe)后用operating_cash_flow作difference；增长率用两期原始值percent_change，覆盖倍数先复算FCF和分配总额再ratio；降息基点先difference两期target_lower_pct再basis_points。派生观测不能当原始操作数，必须与目标的父来源一致。Calc保留未展示舍入的独立计算，错误结果拒绝，不替换为Host参考值。"
                         "工具从实际观测生成精确报告声明、完整父来源、notes/coverage及全部格式；plan只填requirement_ids，不手填派生字段，不产生验收结论。"
@@ -2845,7 +2879,7 @@ class ResearchService:
                     "正文中的显式算式及结果加括号运算会被Host确定性复算；arithmetic_checks只检查算术，不替代来源、期间和单位核验。发现mismatch必须在既有一次补查许可内修正，不得删去实际缺口换取通过。"
                     "最终报告链接只使用research_check_quality返回的report_delivery.files中对应本轮最终版本的url；质量状态照实说明。不要另写友好别名报告或沿用之前版本的文件URL；重生成报告后须重新检查绑定。"
                     "这些url是可直接复制的同源相对URL，严禁补写http/https、主机或DSH端口；不要把运行时API地址当成报告地址。"
-                    "网页research_read_source返回numeric_observations时，Host已将完整证据投影刷新至resources/research_evidence.json；重新load_business_evidence读取后用select_business_evidence或report_plan生成数值声明、笔记和覆盖，不要遗漏numeric_claims。"
+                    "网页research_read_source返回numeric_observations时，Host已将完整证据投影刷新至resources/research_evidence.json；规范报告仅用report_plan选择这些准确id/metric@period和calculations配方，不手写payload或numeric_claims，不用脚本探测内部函数、猜字段重试。"
                     "GDP观测metric区分现价总量/不变价增速和preliminary/final版本；只能比较真实同期间同单位数据，跨版本限制保留missing。未提供的观测不能手造，无法支持的数字继续未核验。"
                     "补查仍不通过，保留可用部分与缺口，不得声称质量通过；完整性错误必须修复，旧报告版本保留。"
                     "补充资料在同会话新回合继续，旧版本必须保留。模型自评或反思不证明事实核验通过。"

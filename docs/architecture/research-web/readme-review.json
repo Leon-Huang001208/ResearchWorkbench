@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "unchanged",
-  "summary": "Mac网关真实退出退休等待及完整大保全摘要恢复预算修复",
-  "reason": "README产品入口保持；本轮是单独授权的管理平面修复，不新增产品研究能力，操作及安全合同已在安装和架构文档同步。"
+  "disposition": "updated",
+  "summary": "说明FinGPT系统报告配方、冻结格式和Host独立验收",
+  "reason": "README新增取证到交付的系统处理边界，明确DSH保留、版本绑定和缺口不放行；安装依赖和已有数据模型配置不改变。"
 }

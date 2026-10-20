@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, readFile, realpath, rename, symlink } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, realpath, rename, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { spawnSync } from 'node:child_process';
 
 import { apply } from '../../app/research_web/runtime/research-tools.mjs';
 
@@ -20,6 +21,13 @@ test('report plans become fixed code with Host-only binding and inert JSON', asy
   assert.throws(()=>mod.reportPlanCode(plan,undefined),/contract/);
   assert.throws(()=>mod.reportPlanCode(plan,{...context,task_id:'other-session'}),/contract/);
   assert.throws(()=>mod.reportPlanCode({...plan,title:'x'.repeat(33000)},context),/limit/);
+  const fixedFormats = {...context,formats:['html','docx']};
+  const systemPlan = {title:'GDP',sections:[{id:'calc',heading:'Calculation',evidence_ids:['$nominal'],requirement_ids:['r1']}],calculations:[{id:'nominal',operation:'percent_change',operands:['gdp_current_price_preliminary@2025','gdp_current_price_final@2024'],decimal_places:2}],missing:[]};
+  const generated = mod.reportPlanCode(systemPlan,fixedFormats);
+  const bound = [...generated.matchAll(/b64decode\('([A-Za-z0-9+/=]+)'\)/g)].map(m=>JSON.parse(Buffer.from(m[1],'base64').toString('utf8')));
+  assert.deepEqual(bound,[fixedFormats,systemPlan]);
+  assert.match(generated,/available_evidence/);
+  for(const formats of [[],['html','html'],['exe'],'html']) assert.throws(()=>mod.reportPlanCode(plan,{...context,formats}),/contract/);
 });
 
 test('report plan keeps admission, bounded code transport and slot release',async t=>{
@@ -43,6 +51,28 @@ test('report plan keeps admission, bounded code transport and slot release',asyn
   assert.equal((await tool.execute({report_plan:plan},exec)).status,'completed');
   assert.match(sent[0].code,/write_business_report_plan/);assert.deepEqual(sent[0].read_paths,[]);
   assert.equal((await tool.execute({code:'print(1)'},exec)).status,'completed');assert.equal(sent[1].code,'print(1)');
+});
+
+test('executed plan rejection supplies unique IDs and corrected selection succeeds', async t => {
+  const {reportPlanCode} = await import('../../app/research_web/runtime/research-tools.mjs');
+  const {rm} = await import('node:fs/promises');
+  const root = await mkdtemp(join(tmpdir(),'rwb-plan-feedback-'));
+  t.after(()=>rm(root,{recursive:true}));
+  const inventory = [{id:'business_unique_a',metric:'gdp_current_price_final',period:'2024',unit:'亿元'},{id:'business_unique_b',metric:'gdp_current_price_final',period:'2024',unit:'亿元'}];
+  await writeFile(join(root,'research_report.py'),'def load_business_evidence(task, digest):\n return '+JSON.stringify({observations:inventory})+'\n');
+  await writeFile(join(root,'research_report_plan.py'),"def write_business_report_plan(context, plan):\n if plan['sections'][0]['evidence_ids'] != ['business_unique_a']: raise ValueError('research_report_plan_missing_or_ambiguous_observation')\n return {'quality_not_evaluated':True,'next':'research_check_quality'}\n");
+  const context={task_id:'a'.repeat(24),contract_sha256:'b'.repeat(64),as_of:'2026-10-16',requirement_ids:['r1'],formats:['html','docx']};
+  const plan={title:'Actual',sections:[{id:'facts',heading:'Facts',evidence_ids:['gdp_current_price_final@2024'],requirement_ids:['r1']}],missing:[]};
+  const execute = value => spawnSync('python3',['-c',reportPlanCode(value,context)],{cwd:root,encoding:'utf8',env:{...process.env,PYTHONPATH:root,PYTHONDONTWRITEBYTECODE:'1'}});
+  const failed=execute(plan);
+  assert.equal(failed.status,1,failed.stderr);
+  const feedback=JSON.parse(failed.stdout);
+  assert.equal(feedback.error,'research_report_plan_missing_or_ambiguous_observation');
+  assert.deepEqual(feedback.available_evidence,inventory);
+  const corrected={...plan,sections:[{...plan.sections[0],evidence_ids:[feedback.available_evidence[0].id]}]};
+  const success=execute(corrected);
+  assert.equal(success.status,0,success.stderr);
+  assert.equal(JSON.parse(success.stdout).quality_not_evaluated,true);
 });
 
 test('document business tool rejects host paths and unadmitted execution', async () => {

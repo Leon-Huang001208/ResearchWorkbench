@@ -359,7 +359,10 @@
         "tests/research_web/test_research_report_binding.py",
         "tests/research_web/test_research_arithmetic.py",
         "tests/research_web/test_report_delivery_links.py",
-        "tests/research_web/test_fingpt_evidence_contract.py"
+        "tests/research_web/test_fingpt_evidence_contract.py",
+        "tests/research_web/test_report_calculations.py",
+        "tests/research_web/test_report_formats.py",
+        "tests/research_web/test_report_system_flow.py"
       ]
     },
     {
