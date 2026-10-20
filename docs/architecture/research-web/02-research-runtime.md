@@ -1,5 +1,7 @@
 # 研究协议、执行状态与恢复
 
+空私有池网关更新只在primary Native、Host及自动化均空闲时请求旧网关优雅排空；私有owner/未知状态保留延后。DSH协议与原研究循环不变，任何超时不升级强杀。恢复沿持久阶段重入，目标全请求冻结解除前不得出生新研究pair。
+
 research_read_source 在正文落盘后刷新原 research_evidence.json 并返回实际 numeric_observations，模型可用既有 select_business_evidence/report_plan 组装声明。Host 检查时仍独立重读正文重算；补查、取消、原生历史和预算不变。
 
 具备实际数值业务观测时，首次执行与唯一补查均提示原 report_plan 参数；纯定性引文保留原生成路线，不编造数值Summary；Python仍支持独立计算、取证及绘图，避免同时下发另一套规范报告payload指令。原生预算、补查计数、模型配置与实际Host质量状态不变。

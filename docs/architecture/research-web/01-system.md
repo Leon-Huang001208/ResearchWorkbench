@@ -1,5 +1,7 @@
 # 部署与模块职责
 
+显式网关更新器属于既有 Mac 管理平面，使用 primary 的 supervisor/admission 锁，但不重启 primary。旧网关空池出生栅栏与优雅排空之后，目标通过同源全请求冻结启动；联合健康及保全通过才解冻，失败恢复匹配的网关代码与绑定。见[操作合同](../../research-web-gateway-upgrade.md)。
+
 网页数值投影和报告 URL 规范化属于原 Host/SDK/UI 路径。Native/Docker、Automation、多用户和 DSH 执行节点均不改变；静态证据不是外部真实性或模型验收结果。
 
 本轮只调整已有任务提示的报告生成路线：有数值业务观测时不再同时指示手写payload；一般资料保持原功能。原认证网关、用户数据根、DSH及常驻部署事务均未替换。
