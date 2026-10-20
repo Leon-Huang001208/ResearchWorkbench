@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "updated",
-  "summary": "融合主线业务报告配方闭环与FinGPT网页日期、数字声明、版本和URL修复",
-  "reason": "保留主线初次/唯一补查配方、一般脚本、Claw逐题草稿、DSH和安装合同；新增Host实际网页证据到声明、检查版同源链接及未绑定旧稿展示。质量门及数据模型配置不变。"
+  "disposition": "unchanged",
+  "summary": "删除Claw首页示例分类与案例卡片并保留日程新建草稿入口",
+  "reason": "README已概述Claw和原生提问；本次删除首页辅助示例，不改变产品能力、安装、运行时或执行契约，详细UI和外观文档已同步。"
 }

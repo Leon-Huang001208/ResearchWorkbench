@@ -1622,13 +1622,6 @@ a.framework-card:hover, a.framework-card:focus-visible { border-color: var(--con
 .claw-landing { max-width: 850px; margin:auto; padding-top:clamp(20px,6vh,70px); }
 .claw-landing .greeting { text-align:center; }
 .claw-landing .mode-label { justify-content:center; font-size:24px; }
-.claw-cases { margin-top:32px; }
-.claw-case-categories { display:flex; gap:16px; flex-wrap:wrap; justify-content:center; margin-bottom:20px; }
-.claw-case-categories .active { color:var(--text); background:var(--selected); border-radius:6px; }
-.claw-case-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; }
-.claw-case-card { display:flex; flex-direction:column; gap:10px; text-align:left; padding:20px; min-height:130px; border:1px solid var(--line); background:var(--surface); color:var(--text); border-radius:12px; }
-.claw-case-card span { color:var(--muted); font-size:12px; line-height:1.7; }
-.claw-case-card:hover { background:var(--hover); border-color:var(--control-line); }
 .claw-shell .composer-dock { position:sticky; bottom:0; z-index:5; padding:16px 0; background:var(--canvas); }
 .claw-table-scroll { overflow-x:auto; }
 .claw-schedules table { border-collapse:collapse; width:100%; min-width:760px; }
@@ -1778,13 +1771,10 @@ a.framework-card:hover, a.framework-card:focus-visible { border-color: var(--con
   .claw-shell.navigation-open .navigation-column .primary-rail { flex-basis:72px; }
   .navigation-open .navigation-column .secondary-sidebar { flex:1 1 auto; min-width:0; }
   .navigation-open .navigation-column .rail-toggle { display:flex; }
-  .claw-case-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
 }
 @media (max-width:600px) {
   .navigation-open .navigation-column { top:56px; }
-  .claw-case-grid { grid-template-columns:minmax(0,1fr); }
   .claw-landing { padding-top:20px; }
-  .claw-case-card { min-height:100px; }
 }
 .claw-sidebar-groups details { padding:8px; border-radius:8px; font-size:13px; }
 .claw-sidebar-groups details[open] { background:var(--surface); }
@@ -1806,9 +1796,6 @@ a.framework-card:hover, a.framework-card:focus-visible { border-color: var(--con
 .claw-welcome h1, .claw-landing .claw-welcome h1 { margin: 0; font-size: clamp(24px, 2.4vw, 32px); font-weight: 450; line-height: 1.4; letter-spacing: -.025em; text-align: center; text-wrap: balance; }
 .claw-landing-editor { flex: 0 0 auto; padding-bottom: 12px; }
 .claw-landing-editor > .composer { margin: 0; }
-.claw-examples { margin: 12px 0 0; color: var(--muted); font-size: 13px; }
-.claw-examples > summary { width: fit-content; margin: 0 auto; cursor: pointer; padding: 6px 12px; }
-.claw-examples > summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 6px; }
 .claw-welcome-pending { flex: 1; display: grid; place-items: center; color: var(--muted); font-size: 14px; min-height: 180px; }
 @media (max-width: 600px) {
   .landing.claw-landing { width: calc(100% - 24px); min-height: calc(100dvh - 88px); }
