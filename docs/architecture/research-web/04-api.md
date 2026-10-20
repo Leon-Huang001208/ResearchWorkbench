@@ -2,6 +2,8 @@
 
 无新HTTP端点。原research_run_script(report_plan)新增可选calculations数组，元素为id/operation/operands/decimal_places，sections可选择$计算id；summary对无工作簿请求可省略。report_context新增Host冻结formats，不接收调用方task/hash/格式覆盖。规范JSON新增business_calculations及可读trace，Host独立重建并核对；report_formats记录所选交付，必需格式仍按冻结要求核对。旧参数和默认三格式兼容。
 
+操作员新增稳定诊断gateway_journal_invalid/oversized；只用于私有升级journal读取或首个信号前预算拒绝，不增加HTTP接口。退休等待未知时仍deferred，不对变化后的PID追加信号。
+
 Mac内核映像核验仅作用于显式网关操作员入口，不新增HTTP端点或修改健康字段。无法读取PID映像或映像不符时，停止前拒绝，不放宽认证或参数匹配。
 
 显式常驻网关的廉价 `GET /api/server/health` 增加 `deployment_fenced` 布尔事实，不启动pair或探测primary。安全更新journal存在时，除该健康端点外全部请求（含GET与login）返回503 server_maintenance；旧cutover语义保留。真实primary验证由操作员入口执行，不把缓存的primary_last_verified当作即时空闲证明。

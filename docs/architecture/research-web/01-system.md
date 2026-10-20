@@ -2,6 +2,8 @@
 
 系统报告仍运行于原DSH工具和原Native沙箱；新增固定只读计算SDK不启动服务或循环。Host独立重建计算/来源日期/交付格式，归档与数据根保持，自动化和多用户拓扑不变。固定SDK现在为四个Python文件与一个字体。
 
+更新器的退休等待和大保全journal读取仍在原管理平面内，不新增节点。PID未消失时延后，恢复读写预算在停机前闭合；原primary和研究执行拓扑保持。
+
 网关更新器通过Mac内核实际可执行映像绑定受管Python；Homebrew framework的exec不增加部署节点或可停止对象，原primary及私有pair拓扑保持。
 
 显式网关更新器属于既有 Mac 管理平面，使用 primary 的 supervisor/admission 锁，但不重启 primary。旧网关空池出生栅栏与优雅排空之后，目标通过同源全请求冻结启动；联合健康及保全通过才解冻，失败恢复匹配的网关代码与绑定。见[操作合同](../../research-web-gateway-upgrade.md)。
