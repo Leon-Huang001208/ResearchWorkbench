@@ -19,3 +19,5 @@
 <!-- architecture-review {"group": "verification-workflow", "structure": "unchanged", "reason": "新定点测试加入既有Research Web Checks步骤，不新增job或runner；本机和Mac Bootstrap仍核对同候选，真实Flash另记一次。", "diagrams": []} -->
 
 扩展定点已实跑127项Python、65项UI/fusion、30项真实macOS沙箱报告修订通过。审查反例（错期、否定、单位否定、日期缓存冲突、20上传加网页）保留回归；完整Router/最终候选CI仍待运行。
+
+主线合入#148后已保留业务配方初次/唯一补查路由；集成发现未来日期fixture缺实际出版证据，补齐meta证据并保留2030日期及source_after_cutoff断言，不把失败断言降为unknown。旧日期无证明时只读投影保守unknown、原数据不改。最终候选还需集成回归与CI。

@@ -47,6 +47,9 @@ def test_host_web_input_retains_provenance_scope_and_cutoff(fusion_api, monkeypa
         return {
             "content": "存在经营不确定性。\n" + CPI,
             "as_of": "2030-01-01",
+            "date_evidence": [
+                {"date": "2030-01-01", "kind": "publication_meta", "text": "2030-01-01"}
+            ],
             "final_url": url,
             "response_sha256": "a" * 64,
         }

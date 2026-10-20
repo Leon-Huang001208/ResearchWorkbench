@@ -567,3 +567,5 @@ GET会话列表及父详情不因已验证活动的历史子mode=unknown整体�
 框架目录 item 和 data 响应中的 framework 附加 display：kind 为 native-embed 或 static-embed，url 为本站 /frameworks-embed/{slug}/，imported_at 为资产导入日期，bot_enabled 表示本站框架 Bot 是否接入。Gold／Dollar 的定义字段与 snapshot 保持原合同；该附加对象不参与快照 revision。九个静态看板 Bot API 返回 409 framework_bot_unavailable，不发起 DSH 会话。
 
 会话列表/详情已有status枚举继续使用waiting_input：原生未决提问（包括映射父会话的子研究提问）优先显示待答，原生仍运行不把待答伪装为转圈执行中。无需读取每个会话详情，问题解除后恢复真实执行状态；已读完成圈为本浏览器显示偏好，不增加写API。
+
+旧网页记录只有as_of值、没有可追溯出版meta/header证据时，当前只读投影保守返回unknown；有正文header但与旧日期冲突时同样保留unknown。旧索引和原文不回写，此状态不能被当成来源已核验；新读取会保存实际出版证据，未来发布日期继续触发原截止日门。
