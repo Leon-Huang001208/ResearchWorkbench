@@ -1,17 +1,17 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createAccountMenu, renderAccountMenu } from '../../app/research_web/ui/account-menu.mjs';
+import { createAccountMenu, mountLegacyAccountMenu, renderAccountMenu } from '../../app/research_web/ui/server/account-menu.mjs';
 import { renderPrimaryRail } from '../../app/research_web/ui/shell.mjs';
 
 const user = { username: 'leon', role: 'admin' };
 const settle = () => new Promise(resolve => setImmediate(resolve));
 
-function fixture(fetcher = async () => ({ ok: true })) {
+function fixture(fetcher = async () => ({ ok: true }), { legacy = false } = {}) {
   const events = new Map();
   const logs = [];
   const redirects = [];
   const requests = [];
-  const document = { activeElement: null, body: { children: [], append(element) { this.children.push(element); } }, addEventListener(name, fn) { events.set(name, fn); } };
+  const document = { activeElement: null, body: { children: [], append(element) { this.children.push(element); } }, getElementById(id) { return this.body.children.find(element => element.id === id); }, addEventListener(name, fn) { events.set(name, fn); } };
   const make = (kind, owner = null) => ({
     kind, owner, attributes: {}, style: {}, hidden: true, disabled: false,
     offsetWidth: 252, offsetHeight: 250,
@@ -31,14 +31,20 @@ function fixture(fetcher = async () => ({ ok: true })) {
     },
   });
   document.createElement = () => make('menu');
-  let anchor = make('trigger');
-  const root = { querySelector: () => anchor };
+  let anchor = legacy ? null : make('trigger');
+  const footer = { querySelector: () => anchor, set innerHTML(value) { this.html = value; anchor = make('trigger'); } };
+  const root = { querySelector: selector => selector === '.navigation-footer' ? footer : anchor };
   const windowEvents = new Map();
   const window = { innerWidth: 1280, innerHeight: 720, setTimeout, clearTimeout, location: { assign: url => redirects.push(url) }, addEventListener: (name, fn) => windowEvents.set(name, fn) };
-  const controller = createAccountMenu({ root, user, document, window, fetcher: async (...args) => { requests.push(args); return fetcher(...args); }, logger: (...args) => logs.push(args) });
+  const options = { root, user, document, window, fetcher: async (...args) => { requests.push(args); return fetcher(...args); }, logger: (...args) => logs.push(args) };
+  let reconcile;
+  const Observer = class { constructor(callback) { reconcile = callback; } observe() {} };
+  let controller;
+  if (legacy) { mountLegacyAccountMenu({ ...options, Observer }); controller = { sync: () => reconcile() }; }
+  else controller = createAccountMenu(options);
   const menu = document.body.children[0];
   const dispatch = (name, target, key) => { const event = { target, key, prevented: false, preventDefault() { this.prevented = true; } }; events.get(name)?.(event); return event; };
-  return { controller, menu, document, window, windowEvents, logs, requests, redirects, dispatch, anchor: () => anchor, redraw() { anchor = make('trigger'); controller.sync(); } };
+  return { controller, menu, root, footer, options, document, window, windowEvents, logs, requests, redirects, dispatch, anchor: () => anchor, redraw() { anchor = legacy ? null : make('trigger'); controller.sync(); } };
 }
 
 test('rail uses one real-account trigger or the original local settings entry', () => {
@@ -184,4 +190,26 @@ test('local mode does not mount a menu or register account handlers', () => {
   const controller = createAccountMenu({ document: { createElement: () => calls.push('unexpected') } });
   controller.sync();
   assert.deepEqual(calls, []);
+});
+
+test('new gateway mounts the full avatar menu into a protected old shell and restores it after redraw', () => {
+  const f = fixture(undefined, { legacy: true });
+  assert.ok(f.footer.html.includes('data-account-trigger'));
+  assert.ok(!f.footer.html.includes('rail-settings'));
+  assert.equal(f.document.body.children.length, 1);
+  f.dispatch('click', f.anchor());
+  assert.equal(f.menu.hidden, false);
+  f.redraw();
+  assert.equal(f.anchor().attributes['aria-expanded'], 'true');
+  assert.equal(f.document.body.children.length, 1);
+  assert.ok(f.menu.html.includes('href="/account"'));
+  assert.ok(f.menu.html.includes('data-account-logout'));
+  f.dispatch('keydown', f.menu.items[0], 'Escape');
+  assert.equal(f.document.activeElement, f.anchor());
+});
+
+test('legacy adapter does not duplicate a modern shell menu', () => {
+  const f = fixture();
+  mountLegacyAccountMenu({ ...f.options, Observer: class { constructor() { throw Error('unexpected legacy observer'); } } });
+  assert.equal(f.document.body.children.length, 1);
 });

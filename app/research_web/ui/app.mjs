@@ -5,7 +5,7 @@ import { captureQuestionForm, actionQuestion, collectQuestionGroup, questionStat
 import { createAPI, createController, prepareClawExampleDraft, parseRoute, legacyRouteTarget, isRunning, safeLog, collectQuestionAnswers, reconcileSessionSummary, waitForDataProbe, waitForIntegrationBatch, waitForLocalIntegrationProbe, waitForLocalIntegrationVerification } from './core.mjs';
 import { escapeHTML as e } from './markdown.mjs';
 import { createDisclosureState } from './disclosures.mjs';
-import { createAccountMenu } from './account-menu.mjs';
+import { createAccountMenu } from './server/account-menu.mjs';
 import { canUploadToSession, createUploadHandler } from './uploads.mjs';
 import { createSessionSearch } from './session-search.mjs';
 import { downloadAnswer } from './answer-actions.mjs';

@@ -5,7 +5,7 @@ import { renderActivities, renderDatasets, renderDelivery, renderFiles, statusTe
 import { icon } from './icons.mjs';
 import { renderResearchPanel } from './research-report.mjs';
 import { renderWorkflowPlan } from './capabilities.mjs';
-import { renderAccountTrigger } from './account-menu.mjs';
+import { renderAccountTrigger } from './server/account-menu.mjs';
 
 const navItems = [
   { page: 'fingpt', glyph: 'chat', title: 'FinGPT', href: '#/fingpt' },

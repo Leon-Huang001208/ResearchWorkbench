@@ -1,0 +1,18 @@
+/* Account overlay lives outside the clipped navigation column. */
+.navigation-footer .account-trigger { display: grid; place-items: center; width: 44px; min-height: 44px; margin: 0 auto; padding: 0; border: 0; border-radius: 10px; background: transparent; color: var(--text); cursor: pointer; }
+.account-trigger:hover, .account-trigger[aria-expanded='true'] { background: var(--hover); }
+.account-avatar { display: grid; place-items: center; flex: 0 0 30px; width: 30px; height: 30px; border: 1px solid var(--control-line); border-radius: 50%; background: var(--selected); color: var(--text); font-size: 13px; font-weight: 600; }
+.account-menu { position: fixed; z-index: 1100; width: min(252px, calc(100vw - 16px)); max-height: calc(100dvh - 16px); overflow: auto; padding: 6px; border: 1px solid var(--line); border-radius: 14px; background: var(--canvas); color: var(--text); box-shadow: 0 8px 28px color-mix(in srgb, var(--text) 9%, transparent); text-align: left; animation: account-menu-in 100ms ease-out; }
+.account-menu[hidden] { display: none; }
+.account-identity { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; padding: 10px 8px 14px; border-bottom: 1px solid var(--line); }
+.account-identity > span:last-child { display: grid; gap: 3px; min-width: 0; }
+.account-identity strong { overflow-wrap: anywhere; font-size: 13px; font-weight: 550; }
+.account-identity small { color: var(--muted); font-size: 11px; }
+.account-actions > a, .account-actions > button { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 10px; border: 0; border-radius: 7px; background: transparent; color: var(--text); font: inherit; font-size: 13px; text-decoration: none; cursor: pointer; }
+.account-actions .ui-icon { flex: 0 0 16px; width: 16px; height: 16px; color: var(--muted); }
+.account-actions > a:hover, .account-actions > button:not(:disabled):hover { background: var(--hover); }
+.account-actions > button:disabled { color: var(--disabled-text); cursor: wait; }
+.account-divider { margin: 4px 2px; border-top: 1px solid var(--line); }
+.account-error { margin: 6px 4px 4px; padding: 8px; border-radius: 6px; background: var(--danger-bg); color: var(--danger); font-size: 12px; line-height: 1.5; }
+@keyframes account-menu-in { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) { .account-menu { animation: none; } }
