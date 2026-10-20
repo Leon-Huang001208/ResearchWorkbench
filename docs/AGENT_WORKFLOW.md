@@ -1,5 +1,7 @@
 # Agent 任务路由指南
 
+Homebrew Python映像回归先在Mac生产解释器下复现，再用内核proc_pidpath核验真实exec路径；既有Mac Bootstrap环境步骤增加同一只读探针，通用Checks保留跨PID拒绝负例。不新增job或模型调用。
+
 网关安全更新回归加入既有 Research Web Checks Python 步骤，覆盖出生竞争、冻结GET、无强杀排空和断点恢复；不新增job/依赖/平台dispatch。真实常驻操作另核对精确SHA、空池和主实例状态，不能用CI代替安全停机证据。macOS干净安装沿Bootstrap。
 
 本轮四项 FinGPT 缺陷先用真实原生 URL/正文/版本记录和反例回归；日期不从 URL/搜索摘要猜，GDP 数字只来自完整闭合布局。独立评审、Router 与同候选 Mac 安装后才按空闲事务部署；Flash 同题仅一次，质量门与既有预算不变。

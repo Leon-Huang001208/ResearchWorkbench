@@ -7,6 +7,7 @@ immutable controller, and its baseline are deliberately not changed.
 from __future__ import annotations
 
 import argparse
+import ctypes
 import hashlib
 import http.client
 import inspect
@@ -40,6 +41,7 @@ CONTROL = {
     "research_workbench_entrypoint/resident/gateway_fence.py",
     "research_workbench_entrypoint/resident/gateway_upgrade.py",
     ".github/workflows/research-web-checks.yml",
+    ".github/workflows/research-web-bootstrap.yml",
     "outputs/research-web-architecture/index.html",
     "outputs/research-web-architecture/api-atlas.html",
 }
@@ -134,6 +136,26 @@ def listener_pids() -> set[int]:
     return {int(row[1:]) for row in result.stdout.splitlines() if row.startswith("p")}
 
 
+def native_image(pid: int) -> Path:
+    """Bind the kernel's executable image, including Homebrew's framework exec."""
+    if sys.platform != "darwin" or type(pid) is not int or not 0 < pid <= 0x7FFFFFFF:
+        raise UpdateBlocked("gateway_image_unverified")
+    try:
+        library = ctypes.CDLL("/usr/lib/libproc.dylib", use_errno=True)
+        probe = library.proc_pidpath
+        probe.argtypes = [ctypes.c_int, ctypes.c_void_p, ctypes.c_uint32]
+        probe.restype = ctypes.c_int
+        buffer = ctypes.create_string_buffer(4096)
+        if probe(pid, buffer, len(buffer)) <= 0:
+            raise ValueError
+        path = Path(os.fsdecode(buffer.value))
+        if not path.is_absolute() or not path.is_file():
+            raise ValueError
+        return path.resolve(strict=True)
+    except (OSError, ValueError, AttributeError) as exc:
+        raise UpdateBlocked("gateway_image_unverified") from exc
+
+
 def verify_signal_contract():
     import uvicorn
     from uvicorn.server import Server
@@ -150,6 +172,8 @@ def verify_signal_contract():
 
 def graceful_drain(pid: int, expected: str, command: str, timeout: float = 45):
     verify_signal_contract()
+    if native_image(pid) != native_image(os.getpid()):
+        raise UpdateBlocked("gateway_image_changed")
     if process(pid) != expected or expected.split(maxsplit=5)[-1] != command:
         raise UpdateBlocked("gateway_process_changed")
     if not listener_pids() <= {pid}:
@@ -379,7 +403,11 @@ def apply(home: Path, source: Path, primary: str, target: str):
             raise UpdateBlocked("gateway_interpreter_unverified")
         verify_signal_contract()
         argv = [python, "-m", "app.research_web.multiuser.resident", "--root", str(server)]
-        command = " ".join([str(Path(python).resolve()), *argv[1:]])
+        image = native_image(os.getpid())
+        commands = {
+            " ".join([executable, *argv[1:]])
+            for executable in {python, str(Path(python).resolve()), str(image)}
+        }
         if (
             payload.get("WorkingDirectory") != str(project)
             or payload.get("Label") != LABEL
@@ -388,7 +416,13 @@ def apply(home: Path, source: Path, primary: str, target: str):
             raise UpdateBlocked("gateway_job_identity_changed")
         pid = job_pid()
         signature = process(pid) if pid else None
-        if not signature or signature.split(maxsplit=5)[-1] != command or listener_pids() != {pid}:
+        command = signature.split(maxsplit=5)[-1] if signature else ""
+        if (
+            not signature
+            or command not in commands
+            or native_image(pid) != image
+            or listener_pids() != {pid}
+        ):
             raise UpdateBlocked("gateway_process_unknown")
         no_children(pid)
         no_private_processes(server)

@@ -1,5 +1,7 @@
 # DataHub、研究资料与实际文件
 
+进程映像修复只使既有升级journal的command记录已验证的实际argv0，journal/schema、账号库、模型设置及会话文件格式不变；内核探针不读取研究内容。
+
 网关升级仅新增私有 run/gateway-upgrade.json、birth-fence.json 及结果/恢复证据。owner.json 空槽的操作员占位是带inode/事务标记的目录，不伪造原生owner记录；原子no-replace发布，退休阶段持久化后只清理本事务对象。账号库只持EX查询并rollback，研究文件与模型设置不改写。
 
 研究版本列表包括当前检查归档和同任务旧稿，is_current/quality_binding 区分当前与未绑定检查；旧稿不能继承新版本 passed。SDK sources 有界覆盖最多20上传加20已取得网页；GDP 投影保留原文 span、全文 SHA、期间、单位及初步/最终版本。没有数据迁移或报告改写。

@@ -137,6 +137,7 @@ jobs:
         run: |
           set -euo pipefail
           test -x .venv/bin/python
+          "$PWD/.venv/bin/python" -c "import os,sys; from pathlib import Path; from research_workbench_entrypoint.resident.gateway_upgrade import native_image, process; command=process(os.getpid()).split(maxsplit=5)[-1]; assert any(command.startswith(str(p)+' ') for p in (native_image(os.getpid()),sys.executable,Path(sys.executable).resolve()))"
           .venv/bin/python -c "import importlib.metadata as m, cjpy, requests, urllib3; assert m.version('cjpy') == '0.5.2'"
           ./rwb web start --no-open
           ./rwb web doctor --json > doctor.json
