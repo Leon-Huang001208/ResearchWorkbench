@@ -1,5 +1,7 @@
 # Research Web 接口清单
 
+本轮不增加HTTP端点、工具或参数字段，仅统一有真实业务观测时的规范报告调用指令及一次补查说明。原code路径保留；report_context仍只在Host合同有效且为字典时提供，不信任模型提交绑定。
+
 research_sources 对 Host 已抓取网页仅返回原 web 身份，不再同时给出 file 上传别名；实际文件列表及下载路径保留。无新增端点或用户字段，错误 provenance 以原 research_source_integrity_failed 拒绝，web 范围和截止日保持原规则。
 
 research_run_script 接受且仅接受 code 或 report_plan 其中一项；report_plan 是有界 JSON，无任意代码、路径、来源身份或评分覆盖字段。既有 private nativeAdmission 仅对合法冻结合同返回 report_context（task_id、contract_sha256、as_of、requirement_ids），浏览器/模型不能提供可信绑定。不增加 HTTP 端点，research_check_quality 与 invalid 下载 409 不变。
