@@ -1,5 +1,7 @@
 # Research Web Native / Docker 安装与运行
 
+自由分析/中文报告修复沿用已锁定的stdlib、python-docx和ReportLab，无新增依赖、设置、凭据或迁移。公开安装入口、requirements/web.in/web.lock、setup_web.py保持；同候选macOS Bootstrap验证干净安装与固定DSH/健康。包内原四个SDK文件及字体白名单不扩大，旧会话和模型配置原位保留。
+
 网关安全更新在SIGTERM后等待PID真正消失，退出未回收或签名变化都不触发追加信号。完整保全journal专用读取上限16 MB，首次信号前检查实际序列化字节并保留4096字节阶段余量；通用配置读取上限保持1 MB。Mac Bootstrap用临时子进程和临时大journal验证这两条合同。
 
 Mac网关更新通过内核proc_pidpath核对实际Python映像，兼容Homebrew启动器exec到Python.app；argv0只接受该受管解释器的三个精确路径，完整参数、PID起始时间及8089 listener继续核对。Mac Bootstrap在原环境校验步骤执行原生探针，不增加依赖或安装流程。

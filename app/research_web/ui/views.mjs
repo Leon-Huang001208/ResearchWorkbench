@@ -296,10 +296,11 @@ function checkedReportFiles(detail) {
 }
 
 function renderCheckedReportLinks(detail) {
-  const files = checkedReportFiles(detail).filter(file => /\.(html|docx|pdf)$/i.test(file.name || ''));
+  const auditName = detail.research_report?.audit_attachment?.name;
+  const files = checkedReportFiles(detail).filter(file => /\.(html|docx|pdf)$/i.test(file.name || '') || file.name === auditName);
   if (!files.length) return '';
   const state = detail.research_quality?.status === 'passed' ? '质量通过' : '质量未通过';
-  return `<section aria-label="Host核对的报告文件"><p>本轮检查归档 · ${e(state)}。文件可用不等于研究验收通过。</p>${files.map(file => `<a href="${e(file.url)}" download="${e(file.name)}">${e(file.name)}</a>`).join(' · ')}</section>`;
+  return `<section aria-label="Host核对的报告文件"><p>本轮检查归档 · ${e(state)}。文件可用不等于研究验收通过。</p>${files.map(file => `<a href="${e(file.url)}" download="${e(file.name)}">${e(file.name === auditName ? '同版本审计附件' : file.name)}</a>`).join(' · ')}</section>`;
 }
 
 function artifactLinkResolver(detail, reportDelivery) {

@@ -125,7 +125,7 @@ def test_acquire_to_system_report_check_archive_and_restart(tmp_path, monkeypatc
     async def run():
         service, sid, receipt, context, plan = case(tmp_path, monkeypatch)
         written = write_business_report_plan(context, plan)
-        assert set(written["written"]) == {"html", "docx", "json", "md"}
+        assert set(written["written"]) == {"html", "docx", "json", "md", "audit"}
         payload = json.loads(Path(written["written"]["json"]).read_text())
         assert len(payload["numeric_claims"]) == 3
         assert payload["numeric_claims"][-1]["value"] == "3.99"
@@ -144,7 +144,7 @@ def test_acquire_to_system_report_check_archive_and_restart(tmp_path, monkeypatc
         first = await check_quality(service, sid)
         assert first["status"] == "passed", first
         assert first["report_delivery"]["status"] == "bound"
-        assert len(first["report_delivery"]["files"]) == 3
+        assert len(first["report_delivery"]["files"]) == 4
         assert await check_quality(service, sid) == first
         for f in first["report_delivery"]["files"]:
             assert (
@@ -213,7 +213,7 @@ def test_actual_source_callback_refreshes_empty_inventory_without_a_second_route
         write_business_report_plan(context, plan)
         result = await check_quality(service, sid)
         assert result["status"] == "passed", result
-        assert len(result["report_delivery"]["files"]) == 3
+        assert len(result["report_delivery"]["files"]) == 4
 
     asyncio.run(run())
 
@@ -346,7 +346,7 @@ def test_system_plan_executes_in_original_macos_sandbox(tmp_path, monkeypatch):
     code = (
         "import json\nfrom research_report_plan import write_business_report_plan\n"
         + f"result=write_business_report_plan({context!r},{plan!r})\n"
-        + "assert set(result['written']) == {'json','md','html','docx'}\n"
+        + "assert set(result['written']) == {'json','md','html','docx','audit'}\n"
         + "print('SYSTEM_REPORT_NATIVE_OK')\n"
     )
     result = run_script(

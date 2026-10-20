@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "unchanged",
-  "summary": "Claw 添加与斜杠菜单复用现有功能与控制器",
-  "reason": "只调整已有输入框菜单的布局、搜索和键盘交互；公开安装、产品能力、依赖、后端接口与DSH协议不变，用户操作合同已更新UI和外观文档。"
+  "disposition": "updated",
+  "summary": "同步FinGPT自由分析系统绑定、中文正文及同版本审计附件",
+  "reason": "README增加实际用户可见的报告行为；DSH、数据和模型配置保留，研究质量仍按证据判定，不将计算/文件成功等同验收通过。"
 }

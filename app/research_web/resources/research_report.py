@@ -1026,7 +1026,7 @@ def _version_read(directory):
     rows = version.get("files", [])
     if (
         not isinstance(rows, list)
-        or not 1 <= len(rows) <= 4
+        or not 1 <= len(rows) <= 5
         or any(not isinstance(row, dict) for row in rows)
     ):
         raise ValueError("research_report_archive_changed")
@@ -1042,10 +1042,12 @@ def _version_read(directory):
     raw = _bounded_bytes(directory / manifest["stored_name"], 2_000_000)
     report = validate_payload(json.loads(raw))
     archived_hashes = {row.get("name"): row.get("sha256") for row in rows}
-    artifacts = report.get("artifacts", [])
+    artifacts = report.get("artifacts", []) + audit_descriptors(report)
     if not isinstance(artifacts, list) or any(not isinstance(row, dict) for row in artifacts):
         raise ValueError("research_report_archive_changed")
     missing = [row.get("name") for row in artifacts if row.get("name") not in archived_hashes]
+    if any(row["name"] in missing for row in audit_descriptors(report)):
+        raise ValueError("research_report_audit_missing")
     missing_formats = sorted(
         set(report.get("report_formats", _REPORT_FORMATS))
         - {name.rsplit(".", 1)[-1] for name in archived_hashes if name != "research-report.json"}
@@ -1079,6 +1081,26 @@ def _snapshot_digest(hashes, missing, formats):
     ).hexdigest()
 
 
+def audit_descriptors(payload):
+    """A single auxiliary audit file is separate from required report formats."""
+    row = payload.get("audit_attachment")
+    if row is None:
+        if "system_plan" in payload:
+            raise ValueError("research_report_audit_missing")
+        return []
+    if (
+        not isinstance(row, dict)
+        or set(row) != {"name", "sha256"}
+        or not isinstance(row["name"], str)
+        or not re.fullmatch(r"research-report-[a-f0-9]{12}-audit\.json", row["name"])
+        or not isinstance(row["sha256"], str)
+        or not re.fullmatch(r"[a-f0-9]{64}", row["sha256"])
+        or "system_plan" not in payload
+    ):
+        raise ValueError("research_report_audit_invalid")
+    return [row]
+
+
 def archive_report_version(output, expected_task_id=None):
     """Verify and atomically retain the current payload and all published bytes."""
     output = Path(output)
@@ -1106,6 +1128,7 @@ def archive_report_version(output, expected_task_id=None):
             )
         ):
             raise ValueError("research_report_archive_artifact_invalid")
+        artifacts = artifacts + audit_descriptors(payload)
         bodies = {"research-report.json": raw}
         missing = []
         for artifact in artifacts:
@@ -1115,6 +1138,8 @@ def archive_report_version(output, expected_task_id=None):
             ):
                 raise ValueError("research_report_archive_artifact_invalid")
             if not (output / name).exists() and not (output / name).is_symlink():
+                if artifact in audit_descriptors(payload):
+                    raise ValueError("research_report_audit_missing")
                 missing.append(name)
                 continue
             body = _bounded_bytes(output / name)
@@ -1232,12 +1257,16 @@ def report_blocks(payload):
     blocks = [(payload["title"], True)]
     if payload.get("as_of"):
         blocks.append(("研究截止时间：" + str(payload["as_of"]), False))
-    for section in payload["sections"]:
+    for section in payload.get("presentation", payload["sections"]):
         blocks.extend([(section["heading"], True), (section["text"], False)])
         if section.get("citations"):
-            blocks.append(("引用：" + ", ".join(section["citations"]), False))
+            refs = section["citations"]
+            if "system_plan" in payload:
+                names = {s["id"]: f"来源{i}" for i, s in enumerate(payload["sources"], 1)}
+                refs = [names[ref] for ref in refs]
+            blocks.append(("引用：" + ", ".join(refs), False))
     traces = payload.get("business_calculation_trace", [])
-    if traces:
+    if traces and "system_plan" not in payload:
         if not isinstance(traces, list) or len(traces) > 16:
             raise ValueError("research_report_calculation_trace_invalid")
         blocks.append(("计算底稿（系统生成）", True))
@@ -1261,9 +1290,16 @@ def report_blocks(payload):
                 )
         blocks.append(("仅核对所列输入的计算与展示；来源真实性及跨版本可比性仍须核验。", False))
     blocks.append(("来源与证据", True))
-    for source in payload.get("sources", []):
+    for ordinal, source in enumerate(payload.get("sources", []), 1):
         blocks.append(
-            (source["id"] + " · " + source["title"] + " " + str(source.get("url", "")), False)
+            (
+                (f"来源{ordinal}" if "system_plan" in payload else source["id"])
+                + " · "
+                + source["title"]
+                + " "
+                + str(source.get("url", "")),
+                False,
+            )
         )
         if source.get("as_of") is not None:
             blocks.append(("来源记录发布日期：" + str(source["as_of"]), False))
@@ -1275,6 +1311,14 @@ def report_blocks(payload):
     if missing:
         blocks.append(("缺口与限制（研究质量未通过）", True))
         blocks.extend((text, False) for text in missing)
+    if "system_plan" in payload:
+        blocks.append(("审计附件", True))
+        blocks.append(
+            (
+                "原文摘录、逐项声明、来源定位、工作笔记及精确计算轨迹保存在同版本审计附件。计算核对不代表统计口径可比或研究质量已通过。",
+                False,
+            )
+        )
     return blocks
 
 
@@ -1306,10 +1350,37 @@ def _numeric_table_rows(payload):
                 )
             ):
                 raise ValueError("research_report_table_claim_inconsistent")
-            rows.append((text, period, str(claim["value"]), unit))
+            if "system_plan" in payload:
+                try:
+                    from research_report_plan import _fact_text
+                except ImportError:
+                    from .research_report_plan import _fact_text
+
+                metric = claim["operands"][0]["quote"].split(" ", 1)[0]
+                text = _fact_text(
+                    {
+                        "kind": "business_numeric",
+                        "metric": metric,
+                        "period": period,
+                        "value": str(claim["value"]),
+                        "unit": unit,
+                    }
+                )
+            entry = (text, period, str(claim["value"]), unit)
+            if "system_plan" not in payload or entry not in rows:
+                rows.append(entry)
         except (ValueError, TypeError, KeyError, InvalidOperation) as exc:
             log.warning("research_report_table_claim_omitted type=%s", type(exc).__name__)
     return rows
+
+
+def report_body_characters(payload):
+    """Count visible Chinese title/sections/table/gaps, excluding bibliography/audit."""
+    texts = [payload["title"], *payload.get("missing", [])]
+    for section in payload.get("presentation", payload["sections"]):
+        texts.extend([section["heading"], section["text"]])
+    texts.extend(cell for row in _numeric_table_rows(payload) for cell in row)
+    return sum(len(re.findall(r"[\u4e00-\u9fff]", text)) for text in texts)
 
 
 def render_markdown(payload):
@@ -1320,6 +1391,64 @@ def render_markdown(payload):
         "\n\n".join(("## " if heading else "") + text for text, heading in report_blocks(payload))
         + "\n"
     )
+
+
+def pdf_bytes(payload):
+    """Deterministic native PDF, including visible drawing operations and fonts."""
+    from io import BytesIO
+
+    output = BytesIO()
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
+
+    font = Path(__file__).with_name("fonts") / "NotoSansSC-Regular.ttf"
+    if font.is_symlink() or not font.is_file():
+        raise ValueError("research_pdf_font_missing")
+    pdfmetrics.registerFont(TTFont("ResearchCJK", str(font)))
+    styles = {
+        True: ParagraphStyle(
+            "heading",
+            fontName="ResearchCJK",
+            fontSize=15,
+            leading=22,
+            wordWrap="CJK",
+            spaceBefore=12,
+            keepWithNext=True,
+        ),
+        False: ParagraphStyle(
+            "body",
+            fontName="ResearchCJK",
+            fontSize=10,
+            leading=17,
+            wordWrap="CJK",
+            splitLongWords=True,
+        ),
+    }
+    story = []
+    for text, heading in report_blocks(payload):
+        if any(
+            ord(char) not in pdfmetrics.getFont("ResearchCJK").face.charToGlyph
+            for char in text
+            if char not in "\n\r\t"
+        ):
+            raise ValueError("research_pdf_glyph_missing")
+        story.extend(
+            [Paragraph(html.escape(text).replace("\n", "<br/>"), styles[heading]), Spacer(1, 6)]
+        )
+    SimpleDocTemplate(
+        output,
+        invariant=1,
+        pagesize=A4,
+        title=payload["title"],
+        leftMargin=42,
+        rightMargin=42,
+        topMargin=42,
+        bottomMargin=42,
+    ).build(story)
+    return output.getvalue()
 
 
 def render_pdf(path, payload):
@@ -1335,55 +1464,7 @@ def render_pdf(path, payload):
         # ReportLab initializes paths from CWD. Only the already writable output
         # directory is readable under Seatbelt; session-root grants stay closed.
         os.chdir(path.parent)
-        from reportlab.lib.pagesizes import A4
-        from reportlab.lib.styles import ParagraphStyle
-        from reportlab.pdfbase import pdfmetrics
-        from reportlab.pdfbase.ttfonts import TTFont
-        from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
-
-        font = Path(__file__).with_name("fonts") / "NotoSansSC-Regular.ttf"
-        if font.is_symlink() or not font.is_file():
-            raise ValueError("research_pdf_font_missing")
-        pdfmetrics.registerFont(TTFont("ResearchCJK", str(font)))
-        styles = {
-            True: ParagraphStyle(
-                "heading",
-                fontName="ResearchCJK",
-                fontSize=15,
-                leading=22,
-                wordWrap="CJK",
-                spaceBefore=12,
-                keepWithNext=True,
-            ),
-            False: ParagraphStyle(
-                "body",
-                fontName="ResearchCJK",
-                fontSize=10,
-                leading=17,
-                wordWrap="CJK",
-                splitLongWords=True,
-            ),
-        }
-        story = []
-        for text, heading in report_blocks(payload):
-            if any(
-                ord(char) not in pdfmetrics.getFont("ResearchCJK").face.charToGlyph
-                for char in text
-                if char not in "\n\r\t"
-            ):
-                raise ValueError("research_pdf_glyph_missing")
-            story.extend(
-                [Paragraph(html.escape(text).replace("\n", "<br/>"), styles[heading]), Spacer(1, 6)]
-            )
-        SimpleDocTemplate(
-            str(path),
-            pagesize=A4,
-            title=payload["title"],
-            leftMargin=42,
-            rightMargin=42,
-            topMargin=42,
-            bottomMargin=42,
-        ).build(story)
+        path.write_bytes(pdf_bytes(payload))
         log.info("research_pdf_rendered")
         return Path(path)
     except Exception as exc:
@@ -1391,6 +1472,97 @@ def render_pdf(path, payload):
         raise
     finally:
         os.chdir(previous_directory)
+
+
+def html_bytes(payload):
+    """Deterministic full HTML projection, also verified by the Host."""
+    blocks, rows = report_blocks(payload), _numeric_table_rows(payload)
+    headings = ("声明原文", "期间", "数值", "单位")
+    body = "".join(
+        f'<{"h2" if heading else "p"}>{html.escape(text)}</{"h2" if heading else "p"}>'
+        for text, heading in blocks
+    )
+    if rows:
+        body += (
+            "<table><thead><tr>"
+            + "".join("<th>" + html.escape(text) + "</th>" for text in headings)
+            + "</tr></thead><tbody>"
+            + "".join(
+                "<tr>" + "".join("<td>" + html.escape(text) + "</td>" for text in row) + "</tr>"
+                for row in rows
+            )
+            + "</tbody></table>"
+        )
+    return (
+        '<!doctype html><html lang="zh"><meta charset="utf-8"><title>'
+        + html.escape(payload["title"])
+        + "</title><body>"
+        + body
+        + "</body></html>"
+    ).encode()
+
+
+def docx_bytes(payload):
+    """Native Word projection with no caller-supplied extra XML or fields."""
+    from io import BytesIO
+
+    from docx import Document
+
+    doc = Document()
+    for text, heading in report_blocks(payload):
+        doc.add_heading(text, level=1) if heading else doc.add_paragraph(text)
+    rows = _numeric_table_rows(payload)
+    if rows:
+        table = doc.add_table(rows=1, cols=4)
+        for cell, text in zip(table.rows[0].cells, ("声明原文", "期间", "数值", "单位")):
+            cell.text = text
+        for row in rows:
+            for cell, text in zip(table.add_row().cells, row):
+                cell.text = text
+    output = BytesIO()
+    doc.save(output)
+    return output.getvalue()
+
+
+def verify_rendered_artifact(payload, kind, body):
+    """Reject self-consistent hashes on files containing a different analysis."""
+    import zlib
+    from io import BytesIO
+    from zipfile import BadZipFile, ZipFile
+
+    try:
+        if kind == "html":
+            valid = body == html_bytes(payload)
+        elif kind == "docx":
+            with (
+                ZipFile(BytesIO(body)) as actual,
+                ZipFile(BytesIO(docx_bytes(payload))) as expected,
+            ):
+                names = expected.namelist()
+                valid = (
+                    len(actual.infolist()) == len(names)
+                    and set(actual.namelist()) == set(names)
+                    and sum(row.file_size for row in actual.infolist()) <= 16 * 1024 * 1024
+                    and all(actual.read(name) == expected.read(name) for name in names)
+                )
+        elif kind == "pdf":
+            valid = body == pdf_bytes(payload)
+        else:
+            valid = False
+        if not valid:
+            raise ValueError("research_report_render_binding_changed")
+        log.info("research_report_render_binding_verified format=%s", kind)
+    except (
+        BadZipFile,
+        RuntimeError,
+        NotImplementedError,
+        zlib.error,
+        OSError,
+        ValueError,
+        KeyError,
+    ) as exc:
+        log.warning("research_report_render_binding_rejected type=%s", type(exc).__name__)
+        raise ValueError("research_report_render_binding_changed") from None
 
 
 def write_research_report(output, payload, *, formats=None):
@@ -1401,54 +1573,16 @@ def write_research_report(output, payload, *, formats=None):
         output.mkdir(parents=True, exist_ok=True)
         stem = "research-report-" + uuid4().hex[:12]
         paths = {kind: output / (stem + "." + kind) for kind in selected}
+        if "system_plan" in payload:
+            paths["audit"] = output / (stem + "-audit.json")
         paths["json"] = output / "research-report.json"
         if any(p.is_symlink() for p in paths.values()):
             raise ValueError("research_report_output_alias")
         archive_report_version(output)
-        blocks = report_blocks(payload)
-        rows = _numeric_table_rows(payload)
-        headings = ("声明原文", "期间", "数值", "单位")
         if "docx" in selected:
-            from docx import Document
-
-            doc = Document()
-            for text, heading in blocks:
-                doc.add_heading(text, level=1) if heading else doc.add_paragraph(text)
-            if rows:
-                table = doc.add_table(rows=1, cols=4)
-                for cell, text in zip(table.rows[0].cells, headings):
-                    cell.text = text
-                for row in rows:
-                    for cell, text in zip(table.add_row().cells, row):
-                        cell.text = text
-            doc.save(paths["docx"])
-            Document(paths["docx"])
+            paths["docx"].write_bytes(docx_bytes(payload))
         if "html" in selected:
-            body = "".join(
-                f'<{"h2" if heading else "p"}>{html.escape(text)}</{"h2" if heading else "p"}>'
-                for text, heading in blocks
-            )
-            if rows:
-                body += (
-                    "<table><thead><tr>"
-                    + "".join("<th>" + html.escape(text) + "</th>" for text in headings)
-                    + "</tr></thead><tbody>"
-                    + "".join(
-                        "<tr>"
-                        + "".join("<td>" + html.escape(text) + "</td>" for text in row)
-                        + "</tr>"
-                        for row in rows
-                    )
-                    + "</tbody></table>"
-                )
-            paths["html"].write_text(
-                '<!doctype html><html lang="zh"><meta charset="utf-8"><title>'
-                + html.escape(payload["title"])
-                + "</title><body>"
-                + body
-                + "</body></html>",
-                encoding="utf-8",
-            )
+            paths["html"].write_bytes(html_bytes(payload))
         if "pdf" in selected:
             import pdfplumber
 
@@ -1456,6 +1590,15 @@ def write_research_report(output, payload, *, formats=None):
             with pdfplumber.open(paths["pdf"]) as pdf:
                 if not pdf.pages or not any((p.extract_text() or "").strip() for p in pdf.pages):
                     raise ValueError("research_pdf_empty")
+        audit = None
+        if "system_plan" in payload:
+            try:
+                from research_report_plan import audit_content
+            except ImportError:
+                from .research_report_plan import audit_content
+            body = audit_content(payload)
+            paths["audit"].write_bytes(body)
+            audit = {"name": paths["audit"].name, "sha256": hashlib.sha256(body).hexdigest()}
         published = {
             **{key: value for key, value in payload.items() if key != "report_formats"},
             "artifacts": [
@@ -1465,6 +1608,8 @@ def write_research_report(output, payload, *, formats=None):
         }
         if formats is not None:
             published["report_formats"] = list(selected)
+        if audit is not None:
+            published["audit_attachment"] = audit
         manifest = output / (stem + ".json")
         manifest.write_text(json.dumps(published, ensure_ascii=False), encoding="utf-8")
         manifest.replace(paths["json"])

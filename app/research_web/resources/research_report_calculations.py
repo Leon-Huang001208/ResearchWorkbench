@@ -131,7 +131,32 @@ def _resolve(observations: list[dict[str, Any]], ref: Any) -> dict[str, Any]:
 def _derive(rows: list[dict[str, Any]], recipe: dict[str, Any], task_id: str) -> dict[str, Any]:
     operation = recipe["operation"]
     families = [re.sub(r"_(?:final|preliminary)$", "", row["metric"]) for row in rows]
-    if (
+    annual = operation in {"annual_change", "gdp_implicit_deflator"}
+    if annual:
+        levels = rows[:2]
+        if (
+            any(
+                r["metric"] not in {"gdp_current_price_preliminary", "gdp_current_price_final"}
+                for r in levels
+            )
+            or any(
+                r["unit"] != "亿元" or not re.fullmatch(r"[0-9]{4}", r["period"]) for r in levels
+            )
+            or int(levels[0]["period"]) != int(levels[1]["period"]) + 1
+            or (
+                operation == "gdp_implicit_deflator"
+                and (
+                    rows[2]["metric"]
+                    not in {"gdp_real_growth_preliminary", "gdp_real_growth_final"}
+                    or rows[2]["unit"] != "%"
+                    or rows[2]["period"] != rows[0]["period"]
+                    or rows[2]["source_ids"] != rows[0]["source_ids"]
+                    or rows[2]["metric"].rsplit("_", 1)[-1] != rows[0]["metric"].rsplit("_", 1)[-1]
+                )
+            )
+        ):
+            raise ValueError(ERROR)
+    elif (
         len({r["unit"] for r in rows}) != 1
         or (operation in {"sum", "difference"} and len({r["period"] for r in rows}) != 1)
         or len(set(families)) != 1
@@ -143,10 +168,14 @@ def _derive(rows: list[dict[str, Any]], recipe: dict[str, Any], task_id: str) ->
         exact = numbers[0]
     elif operation == "sum":
         exact = sum(numbers, Fraction(0))
-    elif operation == "difference":
+    elif operation in {"difference", "annual_change"}:
         exact = numbers[0] - numbers[1]
     elif operation == "ratio":
         exact = numbers[0] / numbers[1]
+    elif operation == "gdp_implicit_deflator":
+        if numbers[0] <= 0 or numbers[1] <= 0 or numbers[2] <= -100:
+            raise ValueError(ERROR)
+        exact = (numbers[0] / numbers[1] / (1 + numbers[2] / 100) - 1) * 100
     else:
         exact = (numbers[0] - numbers[1]) / numbers[1] * 100
     if abs(exact) > 10**30:
@@ -161,7 +190,7 @@ def _derive(rows: list[dict[str, Any]], recipe: dict[str, Any], task_id: str) ->
     metric, period = families[0] + "_" + operation, rows[0]["period"]
     unit = (
         "%"
-        if operation == "percent_change"
+        if operation in {"percent_change", "gdp_implicit_deflator"}
         else "ratio" if operation == "ratio" else rows[0]["unit"]
     )
     if operation == "difference" and unit == "%":
@@ -191,8 +220,14 @@ def _derive(rows: list[dict[str, Any]], recipe: dict[str, Any], task_id: str) ->
         "identity": values[0],
         "sum": " + ".join(values),
         "difference": " − ".join(values),
+        "annual_change": " − ".join(values),
         "ratio": " ÷ ".join(values),
         "percent_change": (f"({values[0]} − {values[-1]}) ÷ {values[-1]} × 100"),
+        "gdp_implicit_deflator": (
+            f"(({values[0]} ÷ {values[1]}) ÷ (1 + {values[-1]} ÷ 100) − 1) × 100"
+            if operation == "gdp_implicit_deflator"
+            else ""
+        ),
     }[operation]
     formula = expression + " ≈ " + rounded + " " + unit
     content = f"{metric} {period} {rounded} {unit}\n{METHOD}"
@@ -273,7 +308,16 @@ def derive_business_observations(
                 or not re.fullmatch(r"[A-Za-z0-9_-]{1,40}", identifier)
                 or identifier in seen
                 or not isinstance(operation, str)
-                or operation not in {"identity", "sum", "difference", "ratio", "percent_change"}
+                or operation
+                not in {
+                    "identity",
+                    "sum",
+                    "difference",
+                    "ratio",
+                    "percent_change",
+                    "annual_change",
+                    "gdp_implicit_deflator",
+                }
                 or not isinstance(refs, list)
                 or not 1 <= len(refs) <= 8
                 or isinstance(places, bool)
@@ -284,7 +328,14 @@ def derive_business_observations(
             # Unselected valid Host layouts may have non-canonical numeric prose;
             # validate only the exact operands, rather than disabling other plans.
             rows = [_primitive(_resolve(observations, ref)) for ref in refs]
-            arity = {"identity": 1, "difference": 2, "ratio": 2, "percent_change": 2}
+            arity = {
+                "identity": 1,
+                "difference": 2,
+                "ratio": 2,
+                "percent_change": 2,
+                "annual_change": 2,
+                "gdp_implicit_deflator": 3,
+            }
             if (operation in arity and len(rows) != arity[operation]) or len(
                 {r["id"] for r in rows}
             ) != len(rows):

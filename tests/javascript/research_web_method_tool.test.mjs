@@ -162,3 +162,17 @@ test('script permission failure retains evidence and supplies relative-path reco
   response={status:'completed',stdout:'PermissionError: quoted example',stderr:'',exit_code:0,error:null};
   assert.deepEqual(await tool.execute({code:'print(1)'},exec),response);
 });
+
+test('Chinese body target is Host-only bounded context and numeric templates are explicit', async () => {
+  const {reportPlanCode}=await import('../../app/research_web/runtime/research-tools.mjs');
+  const context={task_id:'a'.repeat(24),contract_sha256:'b'.repeat(64),as_of:'2026-10-16',requirement_ids:['r1'],body_target:1200};
+  const plan={title:'研究',sections:[],missing:[]};
+  assert.match(reportPlanCode(plan,context),/write_business_report_plan/);
+  for(const body_target of [true,299,5001,'1200']) assert.throws(()=>reportPlanCode(plan,{...context,body_target}),/contract/);
+  const registered=new Map();apply({tools:{register:t=>registered.set(t.name,t)},logger:{}},{python:'/usr/bin/python3',runnerPath:'/tmp/runner.py',researchRoot:'/tmp/research'});
+  const tool=registered.get('research_run_script');
+  const reportSchema = tool.parameters.oneOf.find(branch => branch.properties.report_plan).properties.report_plan;
+  assert.match(reportSchema.properties.sections.items.properties.analysis.description,/\{\{fact:/);
+  assert.equal(reportSchema.properties.body_target,undefined);
+  assert.ok(reportSchema.properties.calculations.items.properties.operation.enum.includes('gdp_implicit_deflator'));
+});

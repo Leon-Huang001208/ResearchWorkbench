@@ -7577,6 +7577,7 @@ Imports:
 - `research_quality`
 - `resources.research_report`
 - `resources.research_report_calculations`
+- `resources.research_report_plan`
 - `store`
 - `urllib.parse`
 
@@ -7819,6 +7820,8 @@ Functions:
 - `_bounded_bytes`
 - `_version_read`
 - `_snapshot_digest`
+- `audit_descriptors`
+  - A single auxiliary audit file is separate from required report formats.
 - `archive_report_version`
   - Verify and atomically retain the current payload and all published bytes.
 - `list_report_versions`
@@ -7827,9 +7830,19 @@ Functions:
   - The same text/version is consumed by all three renderers.
 - `_numeric_table_rows`
   - Project only quantities already present in their canonical section text.
+- `report_body_characters`
+  - Count visible Chinese title/sections/table/gaps, excluding bibliography/audit.
 - `render_markdown`
   - Render the complete canonical payload, including genuine gaps, as text.
+- `pdf_bytes`
+  - Deterministic native PDF, including visible drawing operations and fonts.
 - `render_pdf`
+- `html_bytes`
+  - Deterministic full HTML projection, also verified by the Host.
+- `docx_bytes`
+  - Native Word projection with no caller-supplied extra XML or fields.
+- `verify_rendered_artifact`
+  - Reject self-consistent hashes on files containing a different analysis.
 - `write_research_report`
 
 
@@ -7873,9 +7886,20 @@ Imports:
 - `os`
 - `pathlib`
 - `re`
+- `unicodedata`
 - `uuid`
 
 Functions:
+- `_analysis_literals`
+  - Reject quantities/formulas in author prose, including Unicode disguises.
+- `_fact_text`
+- `_bind_analysis`
+- `audit_content`
+  - Bind the complete evidence draft to its semantic report without a hash cycle.
+- `required_body_target`
+  - Continuation cannot silently discard an original frozen word target.
+- `verify_system_report`
+  - Host rebuilds the same plan from its own actual observations, not SDK cache.
 - `_object`
 - `_text`
 - `_resolve`

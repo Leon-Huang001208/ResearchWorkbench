@@ -1,0 +1,135 @@
+{
+  "title": "中国年度GDP现价总量与增速研究",
+  "sections": [
+    {
+      "id": "s0",
+      "heading": "结论与验收范围",
+      "evidence_ids": [
+        "gdp_current_price_preliminary@2025",
+        "gdp_current_price_preliminary@2024",
+        "gdp_real_growth_preliminary@2025",
+        "$nominal",
+        "$increment",
+        "$deflator"
+      ],
+      "requirement_ids": [
+        "r1"
+      ],
+      "analysis": "本报告以本轮实际取得的国家统计局年度统计公报为研究材料。现价总量反映当期价格下的经济规模，实际增速采用不变价格口径，不能把现价金额的变化直接当作实际增长。下列数值由系统从取得的正文提取，计算也由系统执行，并与声明、工作笔记及父来源绑定。当前仍缺最终核实资料和完整修订说明，因此这里只交付可复核的部分结果，不将文件生成成功或算术核对成功说成研究验收通过。阅读结论时，应同时查看数据版本与缺口。"
+    },
+    {
+      "id": "s1",
+      "heading": "已取得的数据",
+      "evidence_ids": [
+        "gdp_current_price_preliminary@2025",
+        "gdp_current_price_preliminary@2024",
+        "gdp_real_growth_preliminary@2025",
+        "$nominal",
+        "$increment",
+        "$deflator"
+      ],
+      "requirement_ids": [
+        "r1"
+      ],
+      "analysis": "基期现价总量：{{fact:gdp_current_price_preliminary@2024}}。本期现价总量：{{fact:gdp_current_price_preliminary@2025}}。本期实际增速：{{fact:gdp_real_growth_preliminary@2025}}。上述材料来自已取得的统计公报正文，搜索摘要只用于定位资料。原文的字节摘要、摘录位置、来源标题与网址均保留在同版本审计附件。表格与正文使用相同观测，不另行填写展示数值。不能因为公报属于官方来源就推断它包含所有后续修订，也不能把来源身份正确等同于跨期口径完全可比。"
+    },
+    {
+      "id": "s2",
+      "heading": "系统计算与精度",
+      "evidence_ids": [
+        "gdp_current_price_preliminary@2025",
+        "gdp_current_price_preliminary@2024",
+        "gdp_real_growth_preliminary@2025",
+        "$nominal",
+        "$increment",
+        "$deflator"
+      ],
+      "requirement_ids": [
+        "r1"
+      ],
+      "analysis": "按现价总量计算：{{fact:$nominal}}。计算式为{{formula:$nominal}}。现价增量为{{fact:$increment}}，计算式为{{formula:$increment}}。系统保存未舍入的精确计算值，只在最终展示时按声明位数舍入。复算时必须回到原始操作数，不应从已显示的近似增长率继续运算。这里的增量与增速仅说明所列现价输入之间的算术关系，不能据此断言数据已经获得最终核实或确认统计基准完全相同。"
+    },
+    {
+      "id": "s3",
+      "heading": "实际增速与价格解释",
+      "evidence_ids": [
+        "gdp_current_price_preliminary@2025",
+        "gdp_current_price_preliminary@2024",
+        "gdp_real_growth_preliminary@2025",
+        "$nominal",
+        "$increment",
+        "$deflator"
+      ],
+      "requirement_ids": [
+        "r1"
+      ],
+      "analysis": "实际增速与现价增速回答的问题不同：前者按不变价格衡量增长，后者包含数量和价格共同变化。若进一步估计价格因素，应使用显式系统配方，不能在自由分析中手写新结果。本轮补充的推算为{{fact:$deflator}}，其计算为{{formula:$deflator}}。该结果使用未舍入的现价比值和原始实际增速，属于条件推算，不能冒充统计局公布的平减指数。即使计算准确，关于价格变化原因、结构影响和经济含义的解释也仍需要独立材料支持。"
+    },
+    {
+      "id": "s4",
+      "heading": "版本与来源阅读",
+      "evidence_ids": [
+        "gdp_current_price_preliminary@2025",
+        "gdp_current_price_preliminary@2024",
+        "gdp_real_growth_preliminary@2025",
+        "$nominal",
+        "$increment",
+        "$deflator"
+      ],
+      "requirement_ids": [
+        "r1"
+      ],
+      "analysis": "本次采用的数值保留初步核算标签。基期最终核实值、后续修订以及与本期发布口径的衔接尚未在本轮材料中得到完整核验，不能静默替换或混合。来源发布日期由系统在文末显示，并与原始登记关联；数据期间由系统随观测展示，避免把发布时间误当统计期间。遇到原文取得失败、日期冲突或来源错配，应保留明确状态；完整性错误必须修复，不能作为普通资料缺口放行。"
+    },
+    {
+      "id": "s5",
+      "heading": "交付与后续研究",
+      "evidence_ids": [
+        "gdp_current_price_preliminary@2025",
+        "gdp_current_price_preliminary@2024",
+        "gdp_real_growth_preliminary@2025",
+        "$nominal",
+        "$increment",
+        "$deflator"
+      ],
+      "requirement_ids": [
+        "r1"
+      ],
+      "analysis": "本报告的中文正文用于阅读，重复英文取证句、机器指标、声明和精确计算轨迹移至审计附件。附件与正文共用报告内容绑定，随历史版本保留，后续修订不能覆盖旧检查回执。HTML与Word文件均由系统按相同内容生成，检查时重新核对实际字节和渲染内容。当前可查看和下载的结果属于部分交付；补充最终核实资料后，应在原研究上下文开启新回合，重新核验要求覆盖与可比性，生成可追溯的新版本，并保留本次未通过的原因。"
+    }
+  ],
+  "calculations": [
+    {
+      "id": "nominal",
+      "operation": "percent_change",
+      "operands": [
+        "gdp_current_price_preliminary@2025",
+        "gdp_current_price_preliminary@2024"
+      ],
+      "decimal_places": 2
+    },
+    {
+      "id": "increment",
+      "operation": "annual_change",
+      "operands": [
+        "gdp_current_price_preliminary@2025",
+        "gdp_current_price_preliminary@2024"
+      ],
+      "decimal_places": 0
+    },
+    {
+      "id": "deflator",
+      "operation": "gdp_implicit_deflator",
+      "operands": [
+        "gdp_current_price_preliminary@2025",
+        "gdp_current_price_preliminary@2024",
+        "gdp_real_growth_preliminary@2025"
+      ],
+      "decimal_places": 2
+    }
+  ],
+  "missing": [
+    "基期最终核实资料及修订衔接正文未完整取得，跨版本可比性未核验",
+    "解释性分析仍需独立证据，质量保持未通过"
+  ]
+}

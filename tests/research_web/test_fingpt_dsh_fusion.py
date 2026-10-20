@@ -222,7 +222,7 @@ def test_frozen_formats_match_actual_native_delivery_and_checked_archive(
     with monkeypatch.context() as scoped:
         scoped.chdir(service.store.directory(sid))
         written = write_business_report_plan(context, plan)
-        assert set(written["written"]) == {"json", "md", *expected}
+        assert set(written["written"]) == {"json", "md", "audit", *expected}
     entries = [
         {
             "event": {

@@ -66,6 +66,8 @@ def prepare_contract(service, sid, receipt, question, requirements, as_of, mode)
         previous_task_id=(previous or {}).get("task_id"),
     )
     receipt["research_contract"] = contract
+    if "web" in service.store.session(sid).get("source_scope", ["uploads", "datahub", "web"]):
+        receipt["report_binding_policy"] = "bound-analysis-v1"
     receipt["quality_checks"] = {}
     receipt["quality_repair_count"] = 0
     write_business_snapshot(service, sid, contract)

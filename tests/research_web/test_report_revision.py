@@ -316,7 +316,7 @@ def test_report_plan_generated_code_runs_in_original_native_sandbox(tmp_path, le
     result = run_script(SandboxConfig(store.root, Path(sys.executable)), directory, code)
     assert result.status == "completed", result.stderr
     written = json.loads(result.stdout)
-    assert written["quality_not_evaluated"] is True and len(written["written"]) == 6
+    assert written["quality_not_evaluated"] is True and len(written["written"]) == 7
     assert all((directory / p).is_file() for p in written["written"].values())
     plan["title"] = "修订后的CPI数值"
     revised_code = subprocess.check_output(
