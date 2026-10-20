@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "unchanged",
-  "summary": "Claw简洁欢迎页、严格空态条件与两模式整行逐题选择及草稿保留",
-  "reason": "README已说明两模式共用逐题问答、可跳过和可展开摘要；本次只修正空态与点击区域，详细交互已同步UI及外观文档，不改变安装、执行和部署合同。"
+  "disposition": "updated",
+  "summary": "FinGPT确定性算式与检查版链接，保留已合入Claw空态/问答修复",
+  "reason": "README新增报告核验/链接说明；原Claw欢迎页和整行问答合同保留，执行引擎与安装/数据根不变。"
 }

@@ -174,6 +174,26 @@ test('conversation artifact links resolve only exact verified files in the same 
   assert.doesNotMatch(markdown.renderMarkdown('[报告](outputs/report.md)'), /<a /);
 });
 
+test('research replies reject stale relative and API aliases and expose the exact checked version', () => {
+  const prefix='/api/research/sessions/s/files/';
+  const current={id:'a'.repeat(24),name:'checked.html',path:'outputs/report-versions/v/checked.html',sha256:'1'.repeat(64),url:prefix+'a'.repeat(24)+'/download'};
+  const stale={id:'b'.repeat(24),name:'friendly.html',path:'outputs/friendly.html',valid:true,url:prefix+'b'.repeat(24)+'/download'};
+  const detail={id:'s',mode:'fingpt',status:'completed',files:[current,stale],delivery:{files:[stale]},research_quality:{status:'incomplete'},research_report:{content_sha256:'2'.repeat(64)},research_report_delivery:{status:'bound',version_id:'v',report_content_sha256:'2'.repeat(64),files:[current],aliases:{[current.path]:current.url}},messages:[{role:'user',text:'研究'},{role:'assistant',text:`[旧版](outputs/friendly.html) [直接旧版](${stale.url}) [来源](https://example.com/source)`}]};
+  const rendered=views.renderConversation(detail);
+  assert.doesNotMatch(rendered,new RegExp(`href="${stale.url}"`));
+  assert.match(rendered,new RegExp(`href="${current.url}"`));
+  assert.match(rendered,/Host核对的报告文件/);
+  assert.match(rendered,/href="https:\/\/example.com\/source"/);
+  assert.doesNotMatch(views.renderConversation({...detail,research_report_delivery:{status:'unavailable',files:[],aliases:{}}}),/href="\/api\/research\/sessions/);
+  assert.doesNotMatch(views.renderConversation({...detail,research_report:{content_sha256:'3'.repeat(64)}}),/href="\/api\/research\/sessions/);
+  for (const path of [`/x/..${stale.url}`,`http://127.0.0.1:8088/x/..${stale.url}`,stale.url.replace('/api/','/%61pi/'),stale.url.replace('/api/','/%2561pi/')]) {
+    const attacked={...detail,research_report_delivery:{status:'unavailable',files:[],aliases:{}},messages:[{role:'assistant',text:`[旧版](${path})`}]};
+    assert.doesNotMatch(views.renderConversation(attacked),/<a /);
+  }
+  const jsonFile={...stale,name:'research-report.json'};
+  assert.doesNotMatch(views.renderConversation({...detail,files:[jsonFile],research_report_delivery:{},messages:[{role:'assistant',text:`[底稿](${stale.url})`}]}),/<a /);
+});
+
 test('routing accepts only product routes and safely round trips session identifiers', () => {
   assert.equal(typeof core.parseRoute, 'function');
   assert.deepEqual(core.parseRoute('#/claw?session=a%2Fb'), { page: 'claw', sessionId: 'a/b' });

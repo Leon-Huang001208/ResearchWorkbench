@@ -1,5 +1,7 @@
 # Research Workbench Development Map
 
+FinGPT 显式算式审计位于 research_arithmetic.py，接入 research_quality.py；报告链接投影位于 research_quality_service.report_delivery，detail 与 check_quality 共享。近处回归 test_research_arithmetic.py、test_report_delivery_links.py 和 research_web_ui.test.mjs 覆盖真实GDP错算、别名偏离、直接API绕过、附件保留及归档损坏。
+
 sandbox._report_sdk_scope 精确列出当前包的四个只读 SDK/字体文件，并在 bootstrap 注入 session root；resources/research_report.render_pdf 保持原输出定位。test_sandbox 覆盖只读、未列文件和链接拒绝，test_report_revision 的 new/legacy-session 两参数覆盖原资源不改的生成及修订。
 
 research_web_sources.upload_evidence_files 依据 _stored_records 的会话登记分类 Host 网页，service.detail 和 quality_service 的来源上下文/观测/评分均复用；fusion_api 端到端及 source_reading 跨会话/损坏登记回归防止来源别名丢失 scope/日期。正文与原文件不迁移。

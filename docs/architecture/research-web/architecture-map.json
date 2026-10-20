@@ -325,7 +325,8 @@
         "app/research_web/research_quality_service.py",
         "app/research_web/research_web_sources.py",
         "app/research_web/research_calculations.py",
-        "app/research_web/research_business_evidence.py"
+        "app/research_web/research_business_evidence.py",
+        "app/research_web/research_arithmetic.py"
       ],
       "documents": [
         "docs/architecture/research-web/03-data-files.md"
@@ -354,7 +355,9 @@
         "tests/research_web/test_research_quality_scope.py",
         "tests/research_web/test_report_revision.py",
         "tests/research_web/test_research_source_reading.py",
-        "tests/research_web/test_research_report_binding.py"
+        "tests/research_web/test_research_report_binding.py",
+        "tests/research_web/test_research_arithmetic.py",
+        "tests/research_web/test_report_delivery_links.py"
       ]
     },
     {
@@ -3952,7 +3955,7 @@
   "reading": {
     "repository": {
       "url": "https://github.com/Leon-Huang001208/ResearchWorkbench",
-      "revision": "977fe3bcd5af43f35f1f7c51e87a5ebff77a384c"
+      "revision": "bac4f3bfd122a6fe2d6afbc636172bb9fdf61c8b"
     },
     "levels": [
       {
