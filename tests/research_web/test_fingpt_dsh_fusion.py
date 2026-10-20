@@ -257,6 +257,68 @@ def test_frozen_formats_match_actual_native_delivery_and_checked_archive(
     assert manifest["report_formats"] == expected
 
 
+@pytest.mark.parametrize("status", ["accepted", "pending", "unknown"])
+def test_format_default_upgrade_replays_frozen_request_without_resubmission(
+    fusion_api, monkeypatch, status
+):
+    from app.research_web.resources import research_report
+
+    client, native, service = fusion_api
+    sid = client.post("/api/research/sessions", json={"mode": "fingpt"}).json()["id"]
+    monkeypatch.setattr(service, "_model_tools_verified", lambda _sid: True)
+    payload = {
+        "text": "离线核验，只生成HTML和DOCX，不发送到外部。",
+        "research_mode": "deep",
+        "research_as_of": "2026-10-16",
+        "research_requirements": ["核验全部数字"],
+    }
+    headers = {"Idempotency-Key": "before-format-upgrade"}
+    path = f"/api/research/sessions/{sid}/messages"
+    actual = research_report.required_report_formats
+    with monkeypatch.context() as old_version:
+        old_version.setattr(
+            research_report,
+            "required_report_formats",
+            lambda value, delivery=None: (
+                ("html", "docx", "pdf") if isinstance(value, str) else actual(value, delivery)
+            ),
+        )
+        initial = client.post(path, json=payload, headers=headers)
+    assert initial.status_code == 202, initial.text
+    receipt = service.store.receipt(sid, "before-format-upgrade")
+    digest = receipt["digest"]
+    receipt["status"] = status
+    service.store.save()
+    retry = client.post(path, json=payload, headers=headers)
+    if status == "accepted":
+        assert retry.status_code == 202, retry.text
+    else:
+        assert retry.status_code == 503 and retry.json()["error"]["code"] == "admission_unknown"
+    assert receipt["digest"] == digest and receipt["status"] == status
+    assert receipt["delivery"]["required_formats"] == ["html", "docx", "pdf"]
+    assert sum(method == "session.prompt" for method, _ in native.calls) == 1
+    for changes in (
+        {"text": payload["text"] + "不同问题"},
+        {"research_requirements": ["减少要求"]},
+        {"research_as_of": "2026-10-17"},
+        {"research_mode": "agent"},
+        {"expected_formats": ["html", "docx"]},
+    ):
+        changed = client.post(path, json={**payload, **changes}, headers=headers)
+        assert changed.status_code == 400 and changed.json()["error"]["code"] == "invalid_resource"
+    frozen = receipt["delivery"]
+    for invalid in (
+        None,
+        {**frozen, "task_id": "0" * 24},
+        {**frozen, "required_formats": ["html", "html"]},
+    ):
+        receipt["delivery"] = invalid
+        damaged = client.post(path, json=payload, headers=headers)
+        assert damaged.status_code == 503 and damaged.json()["error"]["code"] == "admission_unknown"
+    receipt["delivery"] = frozen
+    assert sum(method == "session.prompt" for method, _ in native.calls) == 1
+
+
 @pytest.mark.parametrize("mode,depth", [("quick", "instant"), ("deep", "deep"), ("agent", "deep")])
 def test_three_modes_still_create_owned_dsh_sessions(tmp_path, mode, depth):
     native = NativeFixture()

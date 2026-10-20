@@ -644,6 +644,7 @@ def test_windows_path_selector_requires_exact_native_mapping(
     canonical = next(fid for fid, path in mapped.items() if path == "outputs\\research-report.json")
     mapped[canonical] = relative
     windows_store = SimpleNamespace(
+        data=store.data,
         session=lambda requested: {**store.session(requested), "files": mapped},
         open_file=store.open_file,
     )

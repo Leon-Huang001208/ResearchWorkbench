@@ -2577,7 +2577,28 @@ class ResearchService:
             if formats is None and defaults is None and depth == "deep":
                 from .resources.research_report import required_report_formats
 
-                defaults = list(required_report_formats(text))
+                if existing:
+                    frozen = existing.get("delivery")
+                    try:
+                        if not isinstance(frozen, dict):
+                            raise TypeError("delivery_missing")
+                        required_report_formats(
+                            {
+                                "task_id": hashlib.sha256(f"{sid}:{key}".encode()).hexdigest()[:24],
+                                "question": text,
+                            },
+                            frozen,
+                        )
+                    except (TypeError, ValueError) as exc:
+                        log.warning("research_replay_delivery_unconfirmed")
+                        raise RuntimeFailure(
+                            "历史交付要求未确认；请检查会话历史，不要重复发送", "admission_unknown"
+                        ) from exc
+                    # Defaults are part of the original digest. Reuse only their
+                    # frozen expansion; all request fields are still compared below.
+                    defaults = frozen["required_formats"].copy()
+                else:
+                    defaults = list(required_report_formats(text))
             required = expected_formats(formats if formats is not None else defaults, skill_id)
             payload = {
                 "text": text,
