@@ -42,6 +42,7 @@ test('report plan keeps admission, bounded code transport and slot release',asyn
   const exec={signal:new AbortController().signal,agent:{session:{header:{id:sid,cwd}}}};const tool=tools.get('research_run_script');
   const plan={title:'Test',sections:[],summary:[],missing:[]};
   await assert.rejects(()=>tool.execute({code:'print(1)',report_plan:plan},exec));
+  await assert.rejects(()=>tool.execute({},exec),/only bounded code or a data report_plan/);
   await assert.rejects(()=>tool.execute({report_plan:plan,report_context:context},exec));
   scope={admitted:false,read_paths:[],report_context:context};await assert.rejects(()=>tool.execute({report_plan:plan},exec),/scope/);
   scope={admitted:true,read_paths:[]};await assert.rejects(()=>tool.execute({report_plan:plan},exec),/contract/);
@@ -171,7 +172,9 @@ test('Chinese body target is Host-only bounded context and numeric templates are
   for(const body_target of [true,299,5001,'1200']) assert.throws(()=>reportPlanCode(plan,{...context,body_target}),/contract/);
   const registered=new Map();apply({tools:{register:t=>registered.set(t.name,t)},logger:{}},{python:'/usr/bin/python3',runnerPath:'/tmp/runner.py',researchRoot:'/tmp/research'});
   const tool=registered.get('research_run_script');
-  const reportSchema = tool.parameters.oneOf.find(branch => branch.properties.report_plan).properties.report_plan;
+  assert.equal(tool.parameters.type,'object');
+  assert.equal(tool.parameters.oneOf,undefined);
+  const reportSchema = tool.parameters.properties.report_plan;
   assert.match(reportSchema.properties.sections.items.properties.analysis.description,/\{\{fact:/);
   assert.equal(reportSchema.properties.body_target,undefined);
   assert.ok(reportSchema.properties.calculations.items.properties.operation.enum.includes('gdp_implicit_deflator'));
