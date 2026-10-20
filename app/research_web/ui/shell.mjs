@@ -5,6 +5,7 @@ import { renderActivities, renderDatasets, renderDelivery, renderFiles, statusTe
 import { icon } from './icons.mjs';
 import { renderResearchPanel } from './research-report.mjs';
 import { renderWorkflowPlan } from './capabilities.mjs';
+import { renderAccountTrigger } from './account-menu.mjs';
 
 const navItems = [
   { page: 'fingpt', glyph: 'chat', title: 'FinGPT', href: '#/fingpt' },
@@ -83,14 +84,15 @@ export function renderGlobalResults(query, sessions, skills, { native = null } =
   return heading + status + results.map(({ kind, item }) => kind === 'session' ? `<a role="option" href="${sessionHash(item)}" data-global-result="session" data-global-result-key="session:${e(item.id)}" data-session-id="${e(item.id)}"><strong>${e(item.title || '未命名会话')}</strong><span>会话 · ${e({ fingpt: 'FinGPT', claw: 'Claw' }[item.mode] || '研究')}</span>${snippets.has(item.id) ? `<span class="native-search-snippet">${e(snippets.get(item.id))}</span>` : ''}</a>` : `<button type="button" role="option" data-global-result="${kind}" data-global-result-key="${kind}:${e(item.id)}" ${attribute(kind, item)}="${e(item.id)}"><strong>${e(item.name)}</strong><span>${e(item.description || '此能力未提供描述。')}</span></button>`).join('');
 }
 
-export function renderPrimaryRail({ page, section = '', secondaryOpen = false } = {}) {
+export function renderPrimaryRail({ page, section = '', secondaryOpen = false, account = null } = {}) {
   const researchPage = ['fingpt', 'claw'].includes(page);
   const links = navItems.map((item) => {
     const active = page === item.page && (item.section ? section === item.section : !(item.page === 'workbench' && ['assets','hot'].includes(section)));
     return `<a href="${item.href}" class="rail-link ${active ? 'active' : ''}" ${active ? 'aria-current="page"' : ''} title="${e(item.title)}"><span class="rail-icon" aria-hidden="true">${icon(item.glyph)}</span><span class="rail-label">${e(item.title)}</span></a>`;
   }).join('');
   const sidebarToggle = researchPage ? `<button class="rail-link rail-toggle ${secondaryOpen ? 'active' : ''}" data-toggle-sidebar aria-label="${secondaryOpen ? '关闭会话侧栏' : '打开会话侧栏'}" aria-expanded="${secondaryOpen}">${icon('sidebar')}</button>` : '';
-  return `<nav class="primary-rail" aria-label="产品主导航"><a class="rail-brand" href="#/fingpt" aria-label="Research Workbench Research">${renderBrandMark()}<span class="brand-name">Research Workbench</span></a>${sidebarToggle}<button class="icon-button rail-mobile-close" data-toggle-sidebar aria-label="关闭导航">×</button><button class="search-trigger" data-toggle-search aria-label="搜索会话与能力">${icon('search')}<span>搜索</span></button><div class="primary-nav">${links}</div><div class="navigation-footer"><a class="rail-link rail-settings ${page === 'settings' ? 'active' : ''}" href="#/settings/general" title="设置" ${page === 'settings' ? 'aria-current="page"' : ''}><span class="rail-icon" aria-hidden="true">${icon('settings')}</span><span class="rail-label">设置</span></a></div></nav>`;
+  const footer = account ? renderAccountTrigger(account) : `<a class="rail-link rail-settings ${page === 'settings' ? 'active' : ''}" href="#/settings/general" title="设置" ${page === 'settings' ? 'aria-current="page"' : ''}><span class="rail-icon" aria-hidden="true">${icon('settings')}</span><span class="rail-label">设置</span></a>`;
+  return `<nav class="primary-rail" aria-label="产品主导航"><a class="rail-brand" href="#/fingpt" aria-label="Research Workbench Research">${renderBrandMark()}<span class="brand-name">Research Workbench</span></a>${sidebarToggle}<button class="icon-button rail-mobile-close" data-toggle-sidebar aria-label="关闭导航">×</button><button class="search-trigger" data-toggle-search aria-label="搜索会话与能力">${icon('search')}<span>搜索</span></button><div class="primary-nav">${links}</div><div class="navigation-footer">${footer}</div></nav>`;
 }
 
 function renderClawWorkspace(detail, workspaces, selectedWorkspace) {
