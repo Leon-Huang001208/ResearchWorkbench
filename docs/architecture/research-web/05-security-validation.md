@@ -14,7 +14,7 @@ Mac的proc_pidpath把gateway PID实际映像与当前生产venv解释器映像�
 
 显式算式仅允许有界数值AST的加减乘除及百分数，无eval/名称/调用；整数精确、十进制按写明位数ROUND_HALF_UP展示核对，原结构化数值门仍精确。报告链接只由Host实际归档哈希生成，来源/数值未核验不被算术匹配覆盖；附件下载不受报告链接拒绝影响。
 
-当前 SDK 的新增 read-data 精确列出 research_helpers.py、research_report.py、research_report_plan.py、research_report_calculations.py 和 NotoSansSC-Regular.ttf；资源/字体目录只有literal列名权限，绝不添加包父目录或仓库subtree。拒绝软链、多链接和非规范路径；旧会话副本不写。Native回归验证新旧会话所选格式及旧默认六产物、SDK只读、未列__init__.py/父service.py拒绝以及既有网络/fork/文件/预算门。原venv读取合同保持，不能把固定SDK位置用作任意宿主路径参数。
+当前 SDK 的新增 read-data 精确列出 research_helpers.py、research_report.py、research_report_plan.py、research_report_calculations.py 和 NotoSansSC-Regular.ttf；资源/字体目录只有literal列名权限，绝不添加包父目录或仓库subtree。拒绝软链、多链接和非规范路径；旧会话副本不写。Native回归验证新旧会话所选格式及旧默认交付及新增独立审计附件、SDK只读、未列__init__.py/父service.py拒绝以及既有网络/fork/文件/预算门。原venv读取合同保持，不能把固定SDK位置用作任意宿主路径参数。
 
 派生配方不接受literal value/unit/quote/source；操作只取有界实际原始业务观测，单位/期间/同指标family、零分母与重放scope分别校验。Host评分不信任SDK缓存，独立从原始字节重算后才交原identity门。格式缩减由冻结要求确定，不信任模型metadata；可预览下载不等于通过。新成功测试只认证受控数字合同，原题全文的叙述/缺证据仍保持incomplete。
 

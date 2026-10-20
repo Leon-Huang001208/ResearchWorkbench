@@ -17,3 +17,17 @@ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=. 主产品.venv/python 调用已存在私�
 私有证据：~/.research-workbench/acceptance/fingpt-bound-analysis-20261020/；离线只读效果页127.0.0.1:8102。不写业务数据、Keychain或生产模型配置，无安装新包。其他平台原生NOT_RUN交接，工程通过不替代研究质量。
 
 原生转换器检查发现原工具混用type/oneOf及不支持的边界关键字；wire改为独立互斥对象分支，所有16/40/8/0..12及32000字节等实际限制仍由原入口/SDK强制，未删除质量或执行预算。先前default dsh-source为陈旧c919b2a，实际固定runtime为7ecf564；两次失败日志保留，最终必须在固定runtime转换器重验通过。
+
+最终源码候选4847a49e9的实际Native219项通过（161.76秒，无skip），含固定7ecf564 DSH converter；完整API202项在三个独立进程中无遗漏/重复/skip通过（368.8秒），源文件blob与基线保持。项目完整性门发现模块文档和架构复核回执缺项，本次补齐，不修改源代码或测试；后续新候选保留实际执行SHA并核对全部source/test/config blob映射。源码双评审APPROVE，JS80项本机通过，独立91项通过；独立Python94项通过。部署控制未知Automation状态改为已知终态白名单，并校验sessions结构/ID/created；65项私有离线夹具通过。部署/CI/真实复测仍以私有精确回执为准。
+
+<!-- architecture-review {"group": "ui", "structure": "unchanged", "reason": "原报告面板只显示Host绑定中文呈现，底稿保留原笔记和附件，复用原视图及状态，无新UI数据服务。", "diagrams": []} -->
+
+<!-- architecture-review {"group": "research-api", "structure": "unchanged", "reason": "原Host回调冻结策略并独立重建plan/文件，不新增HTTP端点、消息正文库或研究循环。", "diagrams": []} -->
+
+<!-- architecture-review {"group": "automations", "structure": "unchanged", "reason": "service报告指导与receipt字段沿原自动化调用，调度/取消/模型/凭据边界保持，没有新增任务执行器。", "diagrams": []} -->
+
+<!-- architecture-review {"group": "files", "structure": "unchanged", "reason": "原outputs和不可变归档增加独立审计JSON，语义core及完整版本SHA互相绑定，原原子发布/恢复链复用。", "diagrams": []} -->
+
+<!-- architecture-review {"group": "runtime", "structure": "unchanged", "reason": "固定SDK与原DSH工具入口扩展引用和精确计算，schema兼容仅调整wire结构，实际预算和权限仍由原入口强制。", "diagrams": []} -->
+
+<!-- architecture-review {"group": "verification-workflow", "structure": "unchanged", "reason": "新真实失败离线模块复用原Checks步骤；Mac安装和单次真实研究分开，文档补齐不伪改已执行候选或重耗模型。", "diagrams": []} -->
