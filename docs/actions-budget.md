@@ -1,5 +1,7 @@
 # GitHub Actions 免费额度治理
 
+网关Python映像修复仅给既有macOS Bootstrap环境步骤增加一个stdlib只读进程映像断言，预计不足1秒；Checks复用原网关回归文件，无新增job/runner/依赖或他平台产品dispatch。PUBLIC/标准runner在PR151三项成功后重新核验。
+
 网关安全事务本轮只给原 Research Web Checks Python 清单增加 test_gateway_upgrade.py，预计新增不足20秒；无新job/runner/依赖/Windows或Linux产品dispatch。沿原Mac Bootstrap核对干净安装，真实停机与恢复由Mac mini本机另证。发布前重新核对PUBLIC与当前标准runner能启动。
 
 2026-10-20 来源/声明/版本修复只向既有 Research Web Checks Python 步骤新增 test_fingpt_evidence_contract.py，JS 复用原 UI/fusion。实时 PUBLIC；最近五次成功39360079476/39360079251/39360079204/39357592462/39357592409约467/805/68/428/55秒；定点预计不足2秒、预留20秒。无新job/runner/依赖或Windows/Linux产品dispatch，Mac Bootstrap沿原入口，真实Flash仅一次另记usage与质量。

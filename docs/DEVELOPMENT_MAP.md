@@ -1,5 +1,7 @@
 # Research Workbench Development Map
 
+Mac网关Python映像定位在 `resident/gateway_upgrade.py:native_image`，由原网关回归和Mac Bootstrap原生只读探针验证；配置venv、内核映像、完整argv与listener是共同条件，不能按进程名或路径子串放宽。
+
 `resident/gateway_fence.py` 与 `gateway_upgrade.py` 是显式 Mac 空池网关更新器；`multiuser/resident.py` 绑定持久冻结路径，`gateway.py` 在认证及实例创建前阻断全请求。近处回归为 `test_gateway_upgrade.py`、`test_multiuser_resident.py`；合同见 `research-web-gateway-upgrade.md`。不得以改 baseline 或清理未知 owner 解锁部署。
 
 网页日期在 research_web_sources 的出版 meta/header 合并；数值闭合布局在 research_web_numeric，quality_service 刷新同一 SDK 快照并独立重读字节。test_fingpt_evidence_contract 覆盖错期、否定、冲突、20上传加网页及声明篡改；UI/fusion 与 report_delivery_links 覆盖误拼 URL 和当前/历史投影。
