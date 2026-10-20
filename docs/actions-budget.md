@@ -1,5 +1,7 @@
 # GitHub Actions 免费额度治理
 
+2026-10-20自由分析绑定修复向既有Research Web Checks Python步骤加入test_bound_analysis.py，JS复用原FinGPT/UI/tool清单；无新增job、runner或依赖。实时PUBLIC，最近五个成功run39406594559/39406594481/39404684360/39404572910/39404572884约81/873/629/61/868秒；新离线模块42项本机1.07秒，预留20秒。保留同候选Mac Bootstrap及现有超时，不从Mac触发Windows/Linux产品CI；真实Flash仅新增一次另记质量和usage。
+
 2026-10-20系统报告成功/恢复路径复用Research Web Checks同一Python步骤，加入test_report_calculations/formats/system_flow；无新job/runner/依赖。实时PUBLIC；最近五次成功39368667046/39367566728/39366768433/39365305563/39361742325约561/564/532/770/504秒。新增三模块本机约1秒，含原revision组合113例2.80秒，预留20秒。Mac安装沿同候选原Bootstrap，Windows/Linux产品不由Mac dispatch。原题Flash仅一次，真实质量和usage另记。
 
 恢复就绪性只在原Mac Bootstrap环境step增加临时子进程与1.1 MB临时journal探针（预计不足1秒），通用Checks复用原网关回归文件。无新job/runner/依赖或其他平台dispatch；PR152三标准runner成功后保持PUBLIC，真实研究模型不调用。

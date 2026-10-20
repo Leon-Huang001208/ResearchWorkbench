@@ -1,0 +1,36 @@
+[
+  {
+    "id": "web:128a97fdc58958ed38498f90",
+    "title": "中华人民共和国2025年国民经济和社会发展统计公报",
+    "url": "https://www.stats.gov.cn/sj/zxfb/202602/t20260228_1962662.html#1",
+    "state": "available",
+    "path": "inputs/web-128a97fdc58958ed38498f90.txt",
+    "file_id": "39039e711e54b1dc55fd85c8",
+    "sha256": "77cbc8ffc5360717fbaa353b806f3a49f9c0f3792c46c182420a4ddd0da79e91",
+    "as_of": "2026-02-28",
+    "date_evidence": [
+      {
+        "date": "2026-02-28",
+        "kind": "publication_meta",
+        "text": "2026/02/28 09:30"
+      }
+    ]
+  },
+  {
+    "id": "web:e41c26fbbb39acc280743199",
+    "title": "中华人民共和国2024年国民经济和社会发展统计公报 - 中华人民共和国2024年国民经济和社会发展统计公报",
+    "url": "https://www.stats.gov.cn/sj/zxfb/202502/t20250228_1958817.html?trk=article-ssr-frontend-pulse_little-text-block#1",
+    "state": "available",
+    "path": "inputs/web-e41c26fbbb39acc280743199.txt",
+    "file_id": "60a51fdb6357d2ed46e9245a",
+    "sha256": "3cbce77589aadf755df7114bc6206f1430672ef5bdae0c1d87dd7ea4f1373ccf",
+    "as_of": "2025-02-28",
+    "date_evidence": [
+      {
+        "date": "2025-02-28",
+        "kind": "publication_meta",
+        "text": "2025/02/28 09:30"
+      }
+    ]
+  }
+]

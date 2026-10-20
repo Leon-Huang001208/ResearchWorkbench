@@ -1,5 +1,7 @@
 # Research Web 接口清单
 
+不新增HTTP端点。新轮次网页研究receipt增加report_binding_policy；受信report_context按冻结问题可增加body_target，模型不能覆盖。report_plan.analysis使用{{fact:准确已选id或$计算id}}和{{formula:$计算id}}，全标签引用由系统展开；不能手写数值、日期或算式。规范JSON增加system_plan/presentation和可选body_target，audit_attachment指向同版本实际审计JSON；business_calculations新增annual_change/gdp_implicit_deflator。原生格式列表保持HTML/DOCX/PDF，审计附件是独立绑定文件，report_delivery.files及历史归档包含它。旧receipt和默认格式保持读取兼容。
+
 无新HTTP端点。原research_run_script(report_plan)新增可选calculations数组，元素为id/operation/operands/decimal_places，sections可选择$计算id；summary对无工作簿请求可省略。report_context新增Host冻结formats，不接收调用方task/hash/格式覆盖。规范JSON新增business_calculations及可读trace，Host独立重建并核对；report_formats记录所选交付，必需格式仍按冻结要求核对。旧参数和默认三格式兼容。
 
 操作员新增稳定诊断gateway_journal_invalid/oversized；只用于私有升级journal读取或首个信号前预算拒绝，不增加HTTP接口。退休等待未知时仍deferred，不对变化后的PID追加信号。

@@ -1,5 +1,7 @@
 # 安全边界与验证方法
 
+自由分析的数值绑定由系统入口和Host独立重建共同执行，不依赖提示词：拒绝Unicode/中文分数/英文数词、裸数字和手写算式；只接受同节所选观测或有界系统配方的完整事实/公式引用。新receipt policy阻止手写payload降级，旧报告不补写policy。Host重建声明、笔记、引用和presentation，并检查审计文件实际字节与语义core；自洽的伪造SHA不能认证文件内容：HTML逐字节重建、DOCX有界ZIP成员/内容逐一核对、PDF invariant确定性字节核对（含可见绘制，不能只查文字层）。解析错误归一为invalid，附件和内容错绑不作为资料缺口放行。原research_quality.py未修改；来源真实性、可比性和解释性分析仍可incomplete。
+
 恢复预算仅扩展专属journal到16 MB，保留通用配置1 MB门；同一O_NOFOLLOW fd有界读取并复查inode、UID、mode、nlink、size与时间。大manifest超过预算时在首个信号前撤本事务栅栏。退出后遇到zombie/签名变化/重用都只等待，不再向该PID发信号；超时延后而非当作退休。
 
 Mac的proc_pidpath把gateway PID实际映像与当前生产venv解释器映像精确绑定；argv0仅允许配置路径、其canonical路径或该映像路径，完整模块/root参数必须一致。发送SIGTERM前再次核验；未知PID、读取失败、foreign映像均拒绝。Mac Bootstrap执行同一原生探针，Ubuntu不冒充该证据。

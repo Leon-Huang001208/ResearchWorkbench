@@ -1,0 +1,677 @@
+{
+  "task_id": "c0849290c6aa53f085c1f16b",
+  "title": "中国2024、2025年全年GDP：现价总量、实际增速与名义增速",
+  "as_of": "2026-10-16",
+  "sources": [
+    {
+      "id": "web:128a97fdc58958ed38498f90",
+      "title": "中华人民共和国2025年国民经济和社会发展统计公报",
+      "url": "https://www.stats.gov.cn/sj/zxfb/202602/t20260228_1962662.html#1",
+      "as_of": "2026-02-28"
+    },
+    {
+      "id": "web:e41c26fbbb39acc280743199",
+      "title": "中华人民共和国2024年国民经济和社会发展统计公报 - 中华人民共和国2024年国民经济和社会发展统计公报",
+      "url": "https://www.stats.gov.cn/sj/zxfb/202502/t20250228_1958817.html?trk=article-ssr-frontend-pulse_little-text-block#1",
+      "as_of": "2025-02-28"
+    }
+  ],
+  "missing": [
+    "未取得国家统计局2024年GDP“最终核实”公告正文，无法给出最终核实版本现价总量与实际增速。",
+    "未取得国家统计局2025年GDP“最终核实”公告正文（截至研究截止日2026-10-16可能未发布或未检索到），2025年仅有初步核算版本。",
+    "未读取2025年全年国民经济运行情况新闻发布会正文，2025年初步核算数的发布会口径未独立核验。",
+    "2024年初次发布（修订前）GDP数值及五经普修订幅度未取得正文，无法量化版本修订影响。",
+    "统计局未直接公布2025年GDP名义增速，报告中的约3.91%为本文基于两年初步核算现价总量复算值，非官方指标；隐含GDP平减指数亦为推算，未经官方文本核验。",
+    "两年现价数据虽同属初步核算版本，但2025年公报未说明是否再次追溯修订2024年基数，完全口径一致性缺少官方明示证据。"
+  ],
+  "sections": [
+    {
+      "id": "conclusion",
+      "heading": "一、结论摘要",
+      "text": "gdp_current_price_preliminary 2024 1349084 亿元\nExtracted from the cited annual GDP preliminary layout; current-price level and constant-price growth retain separate units. Publisher authenticity and cross-version comparability are not certified.\n\ngdp_current_price_preliminary 2025 1401879 亿元\nExtracted from the cited annual GDP preliminary layout; current-price level and constant-price growth retain separate units. Publisher authenticity and cross-version comparability are not certified.\n\ngdp_real_growth_preliminary 2024 5.0 %\nExtracted from the cited annual GDP preliminary layout; current-price level and constant-price growth retain separate units. Publisher authenticity and cross-version comparability are not certified.\n\ngdp_real_growth_preliminary 2025 5.0 %\nExtracted from the cited annual GDP preliminary layout; current-price level and constant-price growth retain separate units. Publisher authenticity and cross-version comparability are not certified.\n\ngdp_current_price_percent_change 2025 3.91 %\nCalculated only from scoped primitive observations; source authenticity and cross-version comparability are not certified. Display rounding does not replace the retained exact calculation.\n\n以国家统计局两年《国民经济和社会发展统计公报》的“初步核算”口径为准：2024年全年GDP现价总量1349084亿元、实际同比增速5.0%；2025年分别为1401879亿元与5.0%。两年实际增速相同，现价增量52795亿元，用同口径现价复算的名义增速约3.91%，低于实际增速，差异反映GDP价格水平总体偏弱。由于本次未取得任何“最终核实”公告正文，全部结论仅适用于初步核算版本。",
+      "citations": [
+        "web:e41c26fbbb39acc280743199",
+        "web:128a97fdc58958ed38498f90"
+      ]
+    },
+    {
+      "id": "data_table",
+      "heading": "二、数据表：两年GDP现价总量与实际增速（初步核算版本）",
+      "text": "gdp_current_price_preliminary 2024 1349084 亿元\nExtracted from the cited annual GDP preliminary layout; current-price level and constant-price growth retain separate units. Publisher authenticity and cross-version comparability are not certified.\n\ngdp_real_growth_preliminary 2024 5.0 %\nExtracted from the cited annual GDP preliminary layout; current-price level and constant-price growth retain separate units. Publisher authenticity and cross-version comparability are not certified.\n\ngdp_current_price_preliminary 2025 1401879 亿元\nExtracted from the cited annual GDP preliminary layout; current-price level and constant-price growth retain separate units. Publisher authenticity and cross-version comparability are not certified.\n\ngdp_real_growth_preliminary 2025 5.0 %\nExtracted from the cited annual GDP preliminary layout; current-price level and constant-price growth retain separate units. Publisher authenticity and cross-version comparability are not certified.\n\n四个原始数值均实际读取自官方公报正文，已在表中按期间与版本列明。版本：两份公报均以“初步核算”表述，注释[1]注明“本公报中数据均为初步统计数”，属年度初步统计版本，非最终核实。单位与口径：现价总量单位为亿元，不含港澳台；实际增速为不变价同比（%）。",
+      "citations": [
+        "web:e41c26fbbb39acc280743199",
+        "web:128a97fdc58958ed38498f90"
+      ]
+    },
+    {
+      "id": "calc",
+      "heading": "三、名义增速复算：计算式、单位与期间",
+      "text": "gdp_current_price_preliminary 2024 1349084 亿元\nExtracted from the cited annual GDP preliminary layout; current-price level and constant-price growth retain separate units. Publisher authenticity and cross-version comparability are not certified.\n\ngdp_current_price_preliminary 2025 1401879 亿元\nExtracted from the cited annual GDP preliminary layout; current-price level and constant-price growth retain separate units. Publisher authenticity and cross-version comparability are not certified.\n\ngdp_current_price_percent_change 2025 3.91 %\nCalculated only from scoped primitive observations; source authenticity and cross-version comparability are not certified. Display rounding does not replace the retained exact calculation.\n\n计算式：（1401879亿元 − 1349084亿元）÷ 1349084亿元 × 100% = 52795 ÷ 1349084 × 100% ≈ 3.91%。期间：2025年全年相对2024年全年。单位：同量纲亿元相除，结果为百分数。限制：该值仅在同为初步核算、同为2026年公报所引用口径的两年数据间复算；统计局未直接公布该值，且全部为初步统计数，后续可能修订。",
+      "citations": [
+        "web:e41c26fbbb39acc280743199",
+        "web:128a97fdc58958ed38498f90"
+      ]
+    },
+    {
+      "id": "interpret",
+      "heading": "四、实际增速与名义增速的区别",
+      "text": "gdp_real_growth_preliminary 2024 5.0 %\nExtracted from the cited annual GDP preliminary layout; current-price level and constant-price growth retain separate units. Publisher authenticity and cross-version comparability are not certified.\n\ngdp_real_growth_preliminary 2025 5.0 %\nExtracted from the cited annual GDP preliminary layout; current-price level and constant-price growth retain separate units. Publisher authenticity and cross-version comparability are not certified.\n\ngdp_current_price_percent_change 2025 3.91 %\nCalculated only from scoped primitive observations; source authenticity and cross-version comparability are not certified. Display rounding does not replace the retained exact calculation.\n\n实际增速按不变价格计算，只反映实物与服务数量的变化；名义增速按当期价格计价，同时包含数量与价格变动。两者约关系：名义增速 ≈ 实际增速 + GDP平减指数变化率。2025年名义增速约3.91%低于实际增速5.0%，意味着GDP价格水平同比走弱；按 (1+3.91%)÷(1+5.0%)−1 推算隐含平减指数约−1.05%，为本文推算值，非统计局公布数。",
+      "citations": [
+        "web:e41c26fbbb39acc280743199",
+        "web:128a97fdc58958ed38498f90"
+      ]
+    },
+    {
+      "id": "versions",
+      "heading": "五、版本与口径管理：不能将初步核算与最终核实混用",
+      "text": "gdp_current_price_preliminary 2024 1349084 亿元\nExtracted from the cited annual GDP preliminary layout; current-price level and constant-price growth retain separate units. Publisher authenticity and cross-version comparability are not certified.\n\ngdp_current_price_preliminary 2025 1401879 亿元\nExtracted from the cited annual GDP preliminary layout; current-price level and constant-price growth retain separate units. Publisher authenticity and cross-version comparability are not certified.\n\n中国年度GDP按“初步核算—初步核实—最终核实”分步修订。本次两份公报均为初步核算，其中2024年公报注释[2]明确：据第五次全国经济普查结果并同步实施城镇居民自有住房服务核算方法改革，对GDP等历史数据进行了修订。因此不能将2024年更早发布的初值或不同版本数据与2025年公报值混用；最终核实值本次未取得，列为缺口。",
+      "citations": [
+        "web:e41c26fbbb39acc280743199",
+        "web:128a97fdc58958ed38498f90"
+      ]
+    },
+    {
+      "id": "sources",
+      "heading": "六、来源身份与原文摘录",
+      "text": "gdp_current_price_preliminary 2024 1349084 亿元\nExtracted from the cited annual GDP preliminary layout; current-price level and constant-price growth retain separate units. Publisher authenticity and cross-version comparability are not certified.\n\ngdp_real_growth_preliminary 2024 5.0 %\nExtracted from the cited annual GDP preliminary layout; current-price level and constant-price growth retain separate units. Publisher authenticity and cross-version comparability are not certified.\n\ngdp_current_price_preliminary 2025 1401879 亿元\nExtracted from the cited annual GDP preliminary layout; current-price level and constant-price growth retain separate units. Publisher authenticity and cross-version comparability are not certified.\n\ngdp_real_growth_preliminary 2025 5.0 %\nExtracted from the cited annual GDP preliminary layout; current-price level and constant-price growth retain separate units. Publisher authenticity and cross-version comparability are not certified.\n\n来源A：2024年公报，国家统计局，2025/02/28 09:30发布，URL https://www.stats.gov.cn/sj/zxfb/202502/t20250228_1958817.html ；正文：“初步核算，全年国内生产总值[2]1349084亿元，比上年增长5.0%。”来源B：2025年公报，国家统计局，2026/02/28 09:30发布，URL https://www.stats.gov.cn/sj/zxfb/202602/t20260228_1962662.html ；正文：“初步核算，全年国内生产总值[2]1401879亿元，比上年增长5.0%。”两篇正文均于2026-10-20实际读取并保存全文（sha256 已记录）。检索到的2025年经济运行发布会报道未读取正文，仅作线索。",
+      "citations": [
+        "web:e41c26fbbb39acc280743199",
+        "web:128a97fdc58958ed38498f90"
+      ]
+    },
+    {
+      "id": "limits",
+      "heading": "七、局限与缺口",
+      "text": "gdp_current_price_preliminary 2024 1349084 亿元\nExtracted from the cited annual GDP preliminary layout; current-price level and constant-price growth retain separate units. Publisher authenticity and cross-version comparability are not certified.\n\ngdp_current_price_preliminary 2025 1401879 亿元\nExtracted from the cited annual GDP preliminary layout; current-price level and constant-price growth retain separate units. Publisher authenticity and cross-version comparability are not certified.\n\n本报告仅使用初步核算版本；最终核实、2025年发布会口径、2024年修订前初值均未取得正文，无法核验。名义增速与隐含平减指数为复算/推算值。两年数值是否完全同口径仅有公报文本间接支持，缺少官方明示。",
+      "citations": [
+        "web:e41c26fbbb39acc280743199",
+        "web:128a97fdc58958ed38498f90"
+      ]
+    }
+  ],
+  "notes": [
+    {
+      "stage_id": "conclusion",
+      "text": "gdp_current_price_preliminary 2024 1349084 亿元\nExtracted from the cited annual GDP preliminary layout; current-price level and constant-price growth retain separate units. Publisher authenticity and cross-version comparability are not certified.\n\ngdp_current_price_preliminary 2025 1401879 亿元\nExtracted from the cited annual GDP preliminary layout; current-price level and constant-price growth retain separate units. Publisher authenticity and cross-version comparability are not certified.\n\ngdp_real_growth_preliminary 2024 5.0 %\nExtracted from the cited annual GDP preliminary layout; current-price level and constant-price growth retain separate units. Publisher authenticity and cross-version comparability are not certified.\n\ngdp_real_growth_preliminary 2025 5.0 %\nExtracted from the cited annual GDP preliminary layout; current-price level and constant-price growth retain separate units. Publisher authenticity and cross-version comparability are not certified.\n\ngdp_current_price_percent_change 2025 3.91 %\nCalculated only from scoped primitive observations; source authenticity and cross-version comparability are not certified. Display rounding does not replace the retained exact calculation.\n\n以国家统计局两年《国民经济和社会发展统计公报》的“初步核算”口径为准：2024年全年GDP现价总量1349084亿元、实际同比增速5.0%；2025年分别为1401879亿元与5.0%。两年实际增速相同，现价增量52795亿元，用同口径现价复算的名义增速约3.91%，低于实际增速，差异反映GDP价格水平总体偏弱。由于本次未取得任何“最终核实”公告正文，全部结论仅适用于初步核算版本。",
+      "citations": [
+        "web:e41c26fbbb39acc280743199",
+        "web:128a97fdc58958ed38498f90"
+      ]
+    },
+    {
+      "stage_id": "data_table",
+      "text": "gdp_current_price_preliminary 2024 1349084 亿元\nExtracted from the cited annual GDP preliminary layout; current-price level and constant-price growth retain separate units. Publisher authenticity and cross-version comparability are not certified.\n\ngdp_real_growth_preliminary 2024 5.0 %\nExtracted from the cited annual GDP preliminary layout; current-price level and constant-price growth retain separate units. Publisher authenticity and cross-version comparability are not certified.\n\ngdp_current_price_preliminary 2025 1401879 亿元\nExtracted from the cited annual GDP preliminary layout; current-price level and constant-price growth retain separate units. Publisher authenticity and cross-version comparability are not certified.\n\ngdp_real_growth_preliminary 2025 5.0 %\nExtracted from the cited annual GDP preliminary layout; current-price level and constant-price growth retain separate units. Publisher authenticity and cross-version comparability are not certified.\n\n四个原始数值均实际读取自官方公报正文，已在表中按期间与版本列明。版本：两份公报均以“初步核算”表述，注释[1]注明“本公报中数据均为初步统计数”，属年度初步统计版本，非最终核实。单位与口径：现价总量单位为亿元，不含港澳台；实际增速为不变价同比（%）。",
+      "citations": [
+        "web:e41c26fbbb39acc280743199",
+        "web:128a97fdc58958ed38498f90"
+      ]
+    },
+    {
+      "stage_id": "calc",
+      "text": "gdp_current_price_preliminary 2024 1349084 亿元\nExtracted from the cited annual GDP preliminary layout; current-price level and constant-price growth retain separate units. Publisher authenticity and cross-version comparability are not certified.\n\ngdp_current_price_preliminary 2025 1401879 亿元\nExtracted from the cited annual GDP preliminary layout; current-price level and constant-price growth retain separate units. Publisher authenticity and cross-version comparability are not certified.\n\ngdp_current_price_percent_change 2025 3.91 %\nCalculated only from scoped primitive observations; source authenticity and cross-version comparability are not certified. Display rounding does not replace the retained exact calculation.\n\n计算式：（1401879亿元 − 1349084亿元）÷ 1349084亿元 × 100% = 52795 ÷ 1349084 × 100% ≈ 3.91%。期间：2025年全年相对2024年全年。单位：同量纲亿元相除，结果为百分数。限制：该值仅在同为初步核算、同为2026年公报所引用口径的两年数据间复算；统计局未直接公布该值，且全部为初步统计数，后续可能修订。",
+      "citations": [
+        "web:e41c26fbbb39acc280743199",
+        "web:128a97fdc58958ed38498f90"
+      ]
+    },
+    {
+      "stage_id": "interpret",
+      "text": "gdp_real_growth_preliminary 2024 5.0 %\nExtracted from the cited annual GDP preliminary layout; current-price level and constant-price growth retain separate units. Publisher authenticity and cross-version comparability are not certified.\n\ngdp_real_growth_preliminary 2025 5.0 %\nExtracted from the cited annual GDP preliminary layout; current-price level and constant-price growth retain separate units. Publisher authenticity and cross-version comparability are not certified.\n\ngdp_current_price_percent_change 2025 3.91 %\nCalculated only from scoped primitive observations; source authenticity and cross-version comparability are not certified. Display rounding does not replace the retained exact calculation.\n\n实际增速按不变价格计算，只反映实物与服务数量的变化；名义增速按当期价格计价，同时包含数量与价格变动。两者约关系：名义增速 ≈ 实际增速 + GDP平减指数变化率。2025年名义增速约3.91%低于实际增速5.0%，意味着GDP价格水平同比走弱；按 (1+3.91%)÷(1+5.0%)−1 推算隐含平减指数约−1.05%，为本文推算值，非统计局公布数。",
+      "citations": [
+        "web:e41c26fbbb39acc280743199",
+        "web:128a97fdc58958ed38498f90"
+      ]
+    },
+    {
+      "stage_id": "versions",
+      "text": "gdp_current_price_preliminary 2024 1349084 亿元\nExtracted from the cited annual GDP preliminary layout; current-price level and constant-price growth retain separate units. Publisher authenticity and cross-version comparability are not certified.\n\ngdp_current_price_preliminary 2025 1401879 亿元\nExtracted from the cited annual GDP preliminary layout; current-price level and constant-price growth retain separate units. Publisher authenticity and cross-version comparability are not certified.\n\n中国年度GDP按“初步核算—初步核实—最终核实”分步修订。本次两份公报均为初步核算，其中2024年公报注释[2]明确：据第五次全国经济普查结果并同步实施城镇居民自有住房服务核算方法改革，对GDP等历史数据进行了修订。因此不能将2024年更早发布的初值或不同版本数据与2025年公报值混用；最终核实值本次未取得，列为缺口。",
+      "citations": [
+        "web:e41c26fbbb39acc280743199",
+        "web:128a97fdc58958ed38498f90"
+      ]
+    },
+    {
+      "stage_id": "sources",
+      "text": "gdp_current_price_preliminary 2024 1349084 亿元\nExtracted from the cited annual GDP preliminary layout; current-price level and constant-price growth retain separate units. Publisher authenticity and cross-version comparability are not certified.\n\ngdp_real_growth_preliminary 2024 5.0 %\nExtracted from the cited annual GDP preliminary layout; current-price level and constant-price growth retain separate units. Publisher authenticity and cross-version comparability are not certified.\n\ngdp_current_price_preliminary 2025 1401879 亿元\nExtracted from the cited annual GDP preliminary layout; current-price level and constant-price growth retain separate units. Publisher authenticity and cross-version comparability are not certified.\n\ngdp_real_growth_preliminary 2025 5.0 %\nExtracted from the cited annual GDP preliminary layout; current-price level and constant-price growth retain separate units. Publisher authenticity and cross-version comparability are not certified.\n\n来源A：2024年公报，国家统计局，2025/02/28 09:30发布，URL https://www.stats.gov.cn/sj/zxfb/202502/t20250228_1958817.html ；正文：“初步核算，全年国内生产总值[2]1349084亿元，比上年增长5.0%。”来源B：2025年公报，国家统计局，2026/02/28 09:30发布，URL https://www.stats.gov.cn/sj/zxfb/202602/t20260228_1962662.html ；正文：“初步核算，全年国内生产总值[2]1401879亿元，比上年增长5.0%。”两篇正文均于2026-10-20实际读取并保存全文（sha256 已记录）。检索到的2025年经济运行发布会报道未读取正文，仅作线索。",
+      "citations": [
+        "web:e41c26fbbb39acc280743199",
+        "web:128a97fdc58958ed38498f90"
+      ]
+    },
+    {
+      "stage_id": "limits",
+      "text": "gdp_current_price_preliminary 2024 1349084 亿元\nExtracted from the cited annual GDP preliminary layout; current-price level and constant-price growth retain separate units. Publisher authenticity and cross-version comparability are not certified.\n\ngdp_current_price_preliminary 2025 1401879 亿元\nExtracted from the cited annual GDP preliminary layout; current-price level and constant-price growth retain separate units. Publisher authenticity and cross-version comparability are not certified.\n\n本报告仅使用初步核算版本；最终核实、2025年发布会口径、2024年修订前初值均未取得正文，无法核验。名义增速与隐含平减指数为复算/推算值。两年数值是否完全同口径仅有公报文本间接支持，缺少官方明示。",
+      "citations": [
+        "web:e41c26fbbb39acc280743199",
+        "web:128a97fdc58958ed38498f90"
+      ]
+    }
+  ],
+  "coverage": [
+    {
+      "requirement_id": "r1",
+      "section_ids": [
+        "conclusion"
+      ],
+      "excerpt": "gdp_current_price_preliminary 2024 1349084 亿元\nExtracted from the cited annual GDP preliminary layout; current-price level and constant-price growth retain separate units. Publisher authenticity and cross-version comparability are not certified.\n\ngdp_current_price_preliminary 2025 1401879 亿元\nExtracted from the cited annual GDP preliminary layout; current-price level and constant-price growth retain separate units. Publisher authenticity and cross-version comparability are not certified.\n\ngdp_real_growth_preliminary 2024 5.0 %\nExtracted from the cited annual GDP preliminary layout; current-price level and constant-price growth retain separate units. Publisher authenticity and cross-version comparability are not certified.\n\ngdp_real_growth_preliminary 2025 5.0 %\nExtracted from the cited annual GDP preliminary layout; current-price level and constant-price growth retain separate units. Publisher authenticity and cross-version comparability are not certified.\n\ngdp_current_price_percent_change 2025 3.91 %\nCalculated only from scoped primitive observations; source authenticity and cross-version comparability are not certified. Display rounding does not replace the retained exact calculation.\n\n以国家统计局两年《国民经济和社会发展统计公报》的“初步核算”口径为准：2024年全年GDP现价总量1349084亿元、实际同比增速5.0%；2025年分别为1401879亿元与5.0%。两年实际增速相同，现价增量52795亿元，用同口径现价复算的名义增速约3.91%，低于实际增速，差异反映GDP价格水平总体偏弱。由于本次未取得任何“最终核实”公告正文，全部结论仅适用于初步核算版本。"
+    },
+    {
+      "requirement_id": "r1",
+      "section_ids": [
+        "data_table"
+      ],
+      "excerpt": "gdp_current_price_preliminary 2024 1349084 亿元\nExtracted from the cited annual GDP preliminary layout; current-price level and constant-price growth retain separate units. Publisher authenticity and cross-version comparability are not certified.\n\ngdp_real_growth_preliminary 2024 5.0 %\nExtracted from the cited annual GDP preliminary layout; current-price level and constant-price growth retain separate units. Publisher authenticity and cross-version comparability are not certified.\n\ngdp_current_price_preliminary 2025 1401879 亿元\nExtracted from the cited annual GDP preliminary layout; current-price level and constant-price growth retain separate units. Publisher authenticity and cross-version comparability are not certified.\n\ngdp_real_growth_preliminary 2025 5.0 %\nExtracted from the cited annual GDP preliminary layout; current-price level and constant-price growth retain separate units. Publisher authenticity and cross-version comparability are not certified.\n\n四个原始数值均实际读取自官方公报正文，已在表中按期间与版本列明。版本：两份公报均以“初步核算”表述，注释[1]注明“本公报中数据均为初步统计数”，属年度初步统计版本，非最终核实。单位与口径：现价总量单位为亿元，不含港澳台；实际增速为不变价同比（%）。"
+    },
+    {
+      "requirement_id": "r1",
+      "section_ids": [
+        "calc"
+      ],
+      "excerpt": "gdp_current_price_preliminary 2024 1349084 亿元\nExtracted from the cited annual GDP preliminary layout; current-price level and constant-price growth retain separate units. Publisher authenticity and cross-version comparability are not certified.\n\ngdp_current_price_preliminary 2025 1401879 亿元\nExtracted from the cited annual GDP preliminary layout; current-price level and constant-price growth retain separate units. Publisher authenticity and cross-version comparability are not certified.\n\ngdp_current_price_percent_change 2025 3.91 %\nCalculated only from scoped primitive observations; source authenticity and cross-version comparability are not certified. Display rounding does not replace the retained exact calculation.\n\n计算式：（1401879亿元 − 1349084亿元）÷ 1349084亿元 × 100% = 52795 ÷ 1349084 × 100% ≈ 3.91%。期间：2025年全年相对2024年全年。单位：同量纲亿元相除，结果为百分数。限制：该值仅在同为初步核算、同为2026年公报所引用口径的两年数据间复算；统计局未直接公布该值，且全部为初步统计数，后续可能修订。"
+    },
+    {
+      "requirement_id": "r1",
+      "section_ids": [
+        "interpret"
+      ],
+      "excerpt": "gdp_real_growth_preliminary 2024 5.0 %\nExtracted from the cited annual GDP preliminary layout; current-price level and constant-price growth retain separate units. Publisher authenticity and cross-version comparability are not certified.\n\ngdp_real_growth_preliminary 2025 5.0 %\nExtracted from the cited annual GDP preliminary layout; current-price level and constant-price growth retain separate units. Publisher authenticity and cross-version comparability are not certified.\n\ngdp_current_price_percent_change 2025 3.91 %\nCalculated only from scoped primitive observations; source authenticity and cross-version comparability are not certified. Display rounding does not replace the retained exact calculation.\n\n实际增速按不变价格计算，只反映实物与服务数量的变化；名义增速按当期价格计价，同时包含数量与价格变动。两者约关系：名义增速 ≈ 实际增速 + GDP平减指数变化率。2025年名义增速约3.91%低于实际增速5.0%，意味着GDP价格水平同比走弱；按 (1+3.91%)÷(1+5.0%)−1 推算隐含平减指数约−1.05%，为本文推算值，非统计局公布数。"
+    },
+    {
+      "requirement_id": "r1",
+      "section_ids": [
+        "versions"
+      ],
+      "excerpt": "gdp_current_price_preliminary 2024 1349084 亿元\nExtracted from the cited annual GDP preliminary layout; current-price level and constant-price growth retain separate units. Publisher authenticity and cross-version comparability are not certified.\n\ngdp_current_price_preliminary 2025 1401879 亿元\nExtracted from the cited annual GDP preliminary layout; current-price level and constant-price growth retain separate units. Publisher authenticity and cross-version comparability are not certified.\n\n中国年度GDP按“初步核算—初步核实—最终核实”分步修订。本次两份公报均为初步核算，其中2024年公报注释[2]明确：据第五次全国经济普查结果并同步实施城镇居民自有住房服务核算方法改革，对GDP等历史数据进行了修订。因此不能将2024年更早发布的初值或不同版本数据与2025年公报值混用；最终核实值本次未取得，列为缺口。"
+    },
+    {
+      "requirement_id": "r1",
+      "section_ids": [
+        "sources"
+      ],
+      "excerpt": "gdp_current_price_preliminary 2024 1349084 亿元\nExtracted from the cited annual GDP preliminary layout; current-price level and constant-price growth retain separate units. Publisher authenticity and cross-version comparability are not certified.\n\ngdp_real_growth_preliminary 2024 5.0 %\nExtracted from the cited annual GDP preliminary layout; current-price level and constant-price growth retain separate units. Publisher authenticity and cross-version comparability are not certified.\n\ngdp_current_price_preliminary 2025 1401879 亿元\nExtracted from the cited annual GDP preliminary layout; current-price level and constant-price growth retain separate units. Publisher authenticity and cross-version comparability are not certified.\n\ngdp_real_growth_preliminary 2025 5.0 %\nExtracted from the cited annual GDP preliminary layout; current-price level and constant-price growth retain separate units. Publisher authenticity and cross-version comparability are not certified.\n\n来源A：2024年公报，国家统计局，2025/02/28 09:30发布，URL https://www.stats.gov.cn/sj/zxfb/202502/t20250228_1958817.html ；正文：“初步核算，全年国内生产总值[2]1349084亿元，比上年增长5.0%。”来源B：2025年公报，国家统计局，2026/02/28 09:30发布，URL https://www.stats.gov.cn/sj/zxfb/202602/t20260228_1962662.html ；正文：“初步核算，全年国内生产总值[2]1401879亿元，比上年增长5.0%。”两篇正文均于2026-10-20实际读取并保存全文（sha256 已记录）。检索到的2025年经济运行发布会报道未读取正文，仅作线索。"
+    },
+    {
+      "requirement_id": "r1",
+      "section_ids": [
+        "limits"
+      ],
+      "excerpt": "gdp_current_price_preliminary 2024 1349084 亿元\nExtracted from the cited annual GDP preliminary layout; current-price level and constant-price growth retain separate units. Publisher authenticity and cross-version comparability are not certified.\n\ngdp_current_price_preliminary 2025 1401879 亿元\nExtracted from the cited annual GDP preliminary layout; current-price level and constant-price growth retain separate units. Publisher authenticity and cross-version comparability are not certified.\n\n本报告仅使用初步核算版本；最终核实、2025年发布会口径、2024年修订前初值均未取得正文，无法核验。名义增速与隐含平减指数为复算/推算值。两年数值是否完全同口径仅有公报文本间接支持，缺少官方明示。"
+    }
+  ],
+  "numeric_claims": [
+    {
+      "id": "claim_e2c34e8a6b2d1165891f5c6d79928cff",
+      "section_id": "conclusion",
+      "text": "gdp_current_price_preliminary 2024 1349084 亿元",
+      "value": "1349084",
+      "period": "2024",
+      "unit": "亿元",
+      "operation": "identity",
+      "operands": [
+        {
+          "observation_id": "business_9cd17607865d78068519ecddbd4e7d7a",
+          "value": "1349084",
+          "period": "2024",
+          "unit": "亿元",
+          "quote": "gdp_current_price_preliminary 2024 1349084 亿元"
+        }
+      ]
+    },
+    {
+      "id": "claim_2c4e2c7d252d674b24a26ce7e7f07c52",
+      "section_id": "conclusion",
+      "text": "gdp_current_price_preliminary 2025 1401879 亿元",
+      "value": "1401879",
+      "period": "2025",
+      "unit": "亿元",
+      "operation": "identity",
+      "operands": [
+        {
+          "observation_id": "business_32fee34c3eb81ce90b6cbc7277cf4321",
+          "value": "1401879",
+          "period": "2025",
+          "unit": "亿元",
+          "quote": "gdp_current_price_preliminary 2025 1401879 亿元"
+        }
+      ]
+    },
+    {
+      "id": "claim_b5d5a7559fafa9dadebc6bb277a32cb4",
+      "section_id": "conclusion",
+      "text": "gdp_real_growth_preliminary 2024 5.0 %",
+      "value": "5.0",
+      "period": "2024",
+      "unit": "%",
+      "operation": "identity",
+      "operands": [
+        {
+          "observation_id": "business_a10871c0b517bf690adabd5799f5ca85",
+          "value": "5.0",
+          "period": "2024",
+          "unit": "%",
+          "quote": "gdp_real_growth_preliminary 2024 5.0 %"
+        }
+      ]
+    },
+    {
+      "id": "claim_4555f27972c0041a4dd95d3e1391fb8f",
+      "section_id": "conclusion",
+      "text": "gdp_real_growth_preliminary 2025 5.0 %",
+      "value": "5.0",
+      "period": "2025",
+      "unit": "%",
+      "operation": "identity",
+      "operands": [
+        {
+          "observation_id": "business_d90ddbb2cee80120c3715a44a2ffde72",
+          "value": "5.0",
+          "period": "2025",
+          "unit": "%",
+          "quote": "gdp_real_growth_preliminary 2025 5.0 %"
+        }
+      ]
+    },
+    {
+      "id": "claim_eba192d8405deca31da2605af7d5f559",
+      "section_id": "conclusion",
+      "text": "gdp_current_price_percent_change 2025 3.91 %",
+      "value": "3.91",
+      "period": "2025",
+      "unit": "%",
+      "operation": "identity",
+      "operands": [
+        {
+          "observation_id": "business_4c128af4a20092c16c02026361169c33",
+          "value": "3.91",
+          "period": "2025",
+          "unit": "%",
+          "quote": "gdp_current_price_percent_change 2025 3.91 %"
+        }
+      ]
+    },
+    {
+      "id": "claim_b495755d967d18f534ecaad16717a40d",
+      "section_id": "data_table",
+      "text": "gdp_current_price_preliminary 2024 1349084 亿元",
+      "value": "1349084",
+      "period": "2024",
+      "unit": "亿元",
+      "operation": "identity",
+      "operands": [
+        {
+          "observation_id": "business_9cd17607865d78068519ecddbd4e7d7a",
+          "value": "1349084",
+          "period": "2024",
+          "unit": "亿元",
+          "quote": "gdp_current_price_preliminary 2024 1349084 亿元"
+        }
+      ]
+    },
+    {
+      "id": "claim_f9ea6877508293fe8f7734084ec64a0f",
+      "section_id": "data_table",
+      "text": "gdp_real_growth_preliminary 2024 5.0 %",
+      "value": "5.0",
+      "period": "2024",
+      "unit": "%",
+      "operation": "identity",
+      "operands": [
+        {
+          "observation_id": "business_a10871c0b517bf690adabd5799f5ca85",
+          "value": "5.0",
+          "period": "2024",
+          "unit": "%",
+          "quote": "gdp_real_growth_preliminary 2024 5.0 %"
+        }
+      ]
+    },
+    {
+      "id": "claim_d0ca9a5df29f521ccec3ccef86afe8d8",
+      "section_id": "data_table",
+      "text": "gdp_current_price_preliminary 2025 1401879 亿元",
+      "value": "1401879",
+      "period": "2025",
+      "unit": "亿元",
+      "operation": "identity",
+      "operands": [
+        {
+          "observation_id": "business_32fee34c3eb81ce90b6cbc7277cf4321",
+          "value": "1401879",
+          "period": "2025",
+          "unit": "亿元",
+          "quote": "gdp_current_price_preliminary 2025 1401879 亿元"
+        }
+      ]
+    },
+    {
+      "id": "claim_3e17a26cbb6d258f2f5393466e552877",
+      "section_id": "data_table",
+      "text": "gdp_real_growth_preliminary 2025 5.0 %",
+      "value": "5.0",
+      "period": "2025",
+      "unit": "%",
+      "operation": "identity",
+      "operands": [
+        {
+          "observation_id": "business_d90ddbb2cee80120c3715a44a2ffde72",
+          "value": "5.0",
+          "period": "2025",
+          "unit": "%",
+          "quote": "gdp_real_growth_preliminary 2025 5.0 %"
+        }
+      ]
+    },
+    {
+      "id": "claim_e93dc75fce5a64baac63716c7fded53d",
+      "section_id": "calc",
+      "text": "gdp_current_price_preliminary 2024 1349084 亿元",
+      "value": "1349084",
+      "period": "2024",
+      "unit": "亿元",
+      "operation": "identity",
+      "operands": [
+        {
+          "observation_id": "business_9cd17607865d78068519ecddbd4e7d7a",
+          "value": "1349084",
+          "period": "2024",
+          "unit": "亿元",
+          "quote": "gdp_current_price_preliminary 2024 1349084 亿元"
+        }
+      ]
+    },
+    {
+      "id": "claim_e964b175fc725dda55197236acc65c90",
+      "section_id": "calc",
+      "text": "gdp_current_price_preliminary 2025 1401879 亿元",
+      "value": "1401879",
+      "period": "2025",
+      "unit": "亿元",
+      "operation": "identity",
+      "operands": [
+        {
+          "observation_id": "business_32fee34c3eb81ce90b6cbc7277cf4321",
+          "value": "1401879",
+          "period": "2025",
+          "unit": "亿元",
+          "quote": "gdp_current_price_preliminary 2025 1401879 亿元"
+        }
+      ]
+    },
+    {
+      "id": "claim_32be6e42f0ecf5b22aaef7b36c8f21e9",
+      "section_id": "calc",
+      "text": "gdp_current_price_percent_change 2025 3.91 %",
+      "value": "3.91",
+      "period": "2025",
+      "unit": "%",
+      "operation": "identity",
+      "operands": [
+        {
+          "observation_id": "business_4c128af4a20092c16c02026361169c33",
+          "value": "3.91",
+          "period": "2025",
+          "unit": "%",
+          "quote": "gdp_current_price_percent_change 2025 3.91 %"
+        }
+      ]
+    },
+    {
+      "id": "claim_cd087a9ef82f8b2c4e231b0ef0be89df",
+      "section_id": "interpret",
+      "text": "gdp_real_growth_preliminary 2024 5.0 %",
+      "value": "5.0",
+      "period": "2024",
+      "unit": "%",
+      "operation": "identity",
+      "operands": [
+        {
+          "observation_id": "business_a10871c0b517bf690adabd5799f5ca85",
+          "value": "5.0",
+          "period": "2024",
+          "unit": "%",
+          "quote": "gdp_real_growth_preliminary 2024 5.0 %"
+        }
+      ]
+    },
+    {
+      "id": "claim_f2af3d43b68a019a936696d893c834aa",
+      "section_id": "interpret",
+      "text": "gdp_real_growth_preliminary 2025 5.0 %",
+      "value": "5.0",
+      "period": "2025",
+      "unit": "%",
+      "operation": "identity",
+      "operands": [
+        {
+          "observation_id": "business_d90ddbb2cee80120c3715a44a2ffde72",
+          "value": "5.0",
+          "period": "2025",
+          "unit": "%",
+          "quote": "gdp_real_growth_preliminary 2025 5.0 %"
+        }
+      ]
+    },
+    {
+      "id": "claim_27992fc11cee5a43cf279773792d4e80",
+      "section_id": "interpret",
+      "text": "gdp_current_price_percent_change 2025 3.91 %",
+      "value": "3.91",
+      "period": "2025",
+      "unit": "%",
+      "operation": "identity",
+      "operands": [
+        {
+          "observation_id": "business_4c128af4a20092c16c02026361169c33",
+          "value": "3.91",
+          "period": "2025",
+          "unit": "%",
+          "quote": "gdp_current_price_percent_change 2025 3.91 %"
+        }
+      ]
+    },
+    {
+      "id": "claim_47cb0853db0aaa7fa1b479352e6c46e8",
+      "section_id": "versions",
+      "text": "gdp_current_price_preliminary 2024 1349084 亿元",
+      "value": "1349084",
+      "period": "2024",
+      "unit": "亿元",
+      "operation": "identity",
+      "operands": [
+        {
+          "observation_id": "business_9cd17607865d78068519ecddbd4e7d7a",
+          "value": "1349084",
+          "period": "2024",
+          "unit": "亿元",
+          "quote": "gdp_current_price_preliminary 2024 1349084 亿元"
+        }
+      ]
+    },
+    {
+      "id": "claim_c0942d23c7dae57ec4d78bf09b75c7dc",
+      "section_id": "versions",
+      "text": "gdp_current_price_preliminary 2025 1401879 亿元",
+      "value": "1401879",
+      "period": "2025",
+      "unit": "亿元",
+      "operation": "identity",
+      "operands": [
+        {
+          "observation_id": "business_32fee34c3eb81ce90b6cbc7277cf4321",
+          "value": "1401879",
+          "period": "2025",
+          "unit": "亿元",
+          "quote": "gdp_current_price_preliminary 2025 1401879 亿元"
+        }
+      ]
+    },
+    {
+      "id": "claim_a1d7c0a146f3e84154ef35b04e6cd305",
+      "section_id": "sources",
+      "text": "gdp_current_price_preliminary 2024 1349084 亿元",
+      "value": "1349084",
+      "period": "2024",
+      "unit": "亿元",
+      "operation": "identity",
+      "operands": [
+        {
+          "observation_id": "business_9cd17607865d78068519ecddbd4e7d7a",
+          "value": "1349084",
+          "period": "2024",
+          "unit": "亿元",
+          "quote": "gdp_current_price_preliminary 2024 1349084 亿元"
+        }
+      ]
+    },
+    {
+      "id": "claim_74d3bfa52175b69495f2e277538ea4d4",
+      "section_id": "sources",
+      "text": "gdp_real_growth_preliminary 2024 5.0 %",
+      "value": "5.0",
+      "period": "2024",
+      "unit": "%",
+      "operation": "identity",
+      "operands": [
+        {
+          "observation_id": "business_a10871c0b517bf690adabd5799f5ca85",
+          "value": "5.0",
+          "period": "2024",
+          "unit": "%",
+          "quote": "gdp_real_growth_preliminary 2024 5.0 %"
+        }
+      ]
+    },
+    {
+      "id": "claim_bf1bb56c158f8ab979f2d990260617fb",
+      "section_id": "sources",
+      "text": "gdp_current_price_preliminary 2025 1401879 亿元",
+      "value": "1401879",
+      "period": "2025",
+      "unit": "亿元",
+      "operation": "identity",
+      "operands": [
+        {
+          "observation_id": "business_32fee34c3eb81ce90b6cbc7277cf4321",
+          "value": "1401879",
+          "period": "2025",
+          "unit": "亿元",
+          "quote": "gdp_current_price_preliminary 2025 1401879 亿元"
+        }
+      ]
+    },
+    {
+      "id": "claim_dbfab4970279885089a8e1723e765237",
+      "section_id": "sources",
+      "text": "gdp_real_growth_preliminary 2025 5.0 %",
+      "value": "5.0",
+      "period": "2025",
+      "unit": "%",
+      "operation": "identity",
+      "operands": [
+        {
+          "observation_id": "business_d90ddbb2cee80120c3715a44a2ffde72",
+          "value": "5.0",
+          "period": "2025",
+          "unit": "%",
+          "quote": "gdp_real_growth_preliminary 2025 5.0 %"
+        }
+      ]
+    },
+    {
+      "id": "claim_c4caa9fc71a6f9cc0bf13b31fa70d659",
+      "section_id": "limits",
+      "text": "gdp_current_price_preliminary 2024 1349084 亿元",
+      "value": "1349084",
+      "period": "2024",
+      "unit": "亿元",
+      "operation": "identity",
+      "operands": [
+        {
+          "observation_id": "business_9cd17607865d78068519ecddbd4e7d7a",
+          "value": "1349084",
+          "period": "2024",
+          "unit": "亿元",
+          "quote": "gdp_current_price_preliminary 2024 1349084 亿元"
+        }
+      ]
+    },
+    {
+      "id": "claim_4121da92b9bb898105db958d30959508",
+      "section_id": "limits",
+      "text": "gdp_current_price_preliminary 2025 1401879 亿元",
+      "value": "1401879",
+      "period": "2025",
+      "unit": "亿元",
+      "operation": "identity",
+      "operands": [
+        {
+          "observation_id": "business_32fee34c3eb81ce90b6cbc7277cf4321",
+          "value": "1401879",
+          "period": "2025",
+          "unit": "亿元",
+          "quote": "gdp_current_price_preliminary 2025 1401879 亿元"
+        }
+      ]
+    }
+  ],
+  "business_calculations": [
+    {
+      "decimal_places": 2,
+      "id": "nominal_growth_preliminary",
+      "operands": [
+        "business_32fee34c3eb81ce90b6cbc7277cf4321",
+        "business_9cd17607865d78068519ecddbd4e7d7a"
+      ],
+      "operation": "percent_change"
+    }
+  ],
+  "business_calculation_trace": [
+    {
+      "id": "nominal_growth_preliminary",
+      "operation": "percent_change",
+      "operands": [
+        {
+          "id": "business_32fee34c3eb81ce90b6cbc7277cf4321",
+          "metric": "gdp_current_price_preliminary",
+          "period": "2025",
+          "value": "1401879",
+          "unit": "亿元",
+          "source_ids": [
+            "web:128a97fdc58958ed38498f90"
+          ]
+        },
+        {
+          "id": "business_9cd17607865d78068519ecddbd4e7d7a",
+          "metric": "gdp_current_price_preliminary",
+          "period": "2024",
+          "value": "1349084",
+          "unit": "亿元",
+          "source_ids": [
+            "web:e41c26fbbb39acc280743199"
+          ]
+        }
+      ],
+      "exact_value": "1319875/337271",
+      "formula": "(1401879 − 1349084) ÷ 1349084 × 100 ≈ 3.91 %",
+      "display_value": "3.91",
+      "unit": "%",
+      "decimal_places": 2,
+      "rounding": "ROUND_HALF_UP",
+      "scope_sha256": "cc0411bf1576e45cba16a45ec9f5324580f9068f52f5b7bd1fe8c7b5d978d6e7"
+    }
+  ],
+  "artifacts": [
+    {
+      "name": "research-report-0f69187dc4cd.html",
+      "sha256": "377bd6fbe8268893ad6b37633715f19136923ce7d957028abd24ccfe6e94c466"
+    },
+    {
+      "name": "research-report-0f69187dc4cd.docx",
+      "sha256": "330345d8f944ebf7a71d703e12f8f131d68e41113f5bbdf61d3a37ac6257e02c"
+    }
+  ],
+  "report_formats": [
+    "html",
+    "docx"
+  ]
+}
