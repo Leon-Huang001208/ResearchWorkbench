@@ -544,3 +544,33 @@ async def test_leader_exit_during_stop_does_not_hide_live_descendants(monkeypatc
     monkeypatch.setattr(os, "killpg", lambda *_: None)
     with pytest.raises(runtime.RuntimeErrorSafe, match="runtime_stop_unverified"):
         await runtime.RuntimePool._stop_child(child)
+
+
+@pytest.mark.asyncio
+async def test_deployment_slot_wins_after_native_exists_check_without_spawn_or_dispose(
+    tmp_path, fake_processes, monkeypatch
+):
+    pool = runtime.RuntimePool(config(tmp_path))
+    uid = str(uuid4())
+    original = pool._record
+    owner = pool.config.root / "users" / uid / "state/owner.json"
+
+    def publish_before_record(entry, *, create=False):
+        if create:
+            owner.mkdir(mode=0o700)
+            (owner / "reservation").write_text("operator-owned test slot")
+        return original(entry, create=create)
+
+    async def forbidden_dispose(*_):
+        pytest.fail("native must not dispose an operator-owned slot")
+
+    monkeypatch.setattr(pool, "_record", publish_before_record)
+    monkeypatch.setattr(pool, "_dispose", forbidden_dispose)
+    try:
+        with pytest.raises(runtime.RuntimeErrorSafe, match="runtime_start_failed"):
+            await pool.backend_for(uid)
+        assert fake_processes == [] and not pool._instances
+        assert (owner / "reservation").read_text() == "operator-owned test slot"
+        assert not (owner.parent / "gateway.key").exists()
+    finally:
+        await pool.close()

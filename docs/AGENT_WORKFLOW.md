@@ -1,5 +1,7 @@
 # Agent 任务路由指南
 
+网关安全更新回归加入既有 Research Web Checks Python 步骤，覆盖出生竞争、冻结GET、无强杀排空和断点恢复；不新增job/依赖/平台dispatch。真实常驻操作另核对精确SHA、空池和主实例状态，不能用CI代替安全停机证据。macOS干净安装沿Bootstrap。
+
 本轮四项 FinGPT 缺陷先用真实原生 URL/正文/版本记录和反例回归；日期不从 URL/搜索摘要猜，GDP 数字只来自完整闭合布局。独立评审、Router 与同候选 Mac 安装后才按空闲事务部署；Flash 同题仅一次，质量门与既有预算不变。
 
 业务报告指令一致性修复复用现有 Research Web Checks 的 fusion/revision/quality-tool 回归及 Mac Bootstrap，无新增 job 或模型循环。真实 FOMC 六段错误脚本在原 Native 沙箱离线复现；真实模型验证与临时凭据单独授权，四报告 incomplete 不改判为 passed。
