@@ -405,7 +405,7 @@ def test_quality_cannot_use_upload_excluded_by_source_scope(tmp_path):
     assert any(issue.startswith("source_unverified:") for issue in result["issues"])
 
 
-@pytest.mark.parametrize("business", [True, False])
+@pytest.mark.parametrize("business", ["numeric", "quote", "empty"])
 def test_actual_business_input_gets_one_consistent_report_route(fusion_api, monkeypatch, business):
     """Real uploaded CPI previously received plan guidance and contradictory legacy instructions."""
     from test_research_business_evidence import CPI
@@ -414,10 +414,20 @@ def test_actual_business_input_gets_one_consistent_report_route(fusion_api, monk
     sid = client.post("/api/research/sessions", json={"mode": "fingpt"}).json()["id"]
     monkeypatch.setattr(service, "_model_tools_verified", lambda _sid: True)
     attachment_ids = []
-    if business:
+    if business != "empty":
         response = client.post(
             f"/api/research/sessions/{sid}/uploads",
-            files={"files": ("actual-cpi.md", CPI.encode(), "text/markdown")},
+            files={
+                "files": (
+                    "actual-evidence.md",
+                    (
+                        CPI
+                        if business == "numeric"
+                        else "AI RMF\n\nGovernance is a cross-cutting function that enables organizations to manage risks."
+                    ).encode(),
+                    "text/markdown",
+                )
+            },
         )
         assert response.status_code == 200
         attachment_ids = [response.json()["items"][0]["id"]]
@@ -434,12 +444,21 @@ def test_actual_business_input_gets_one_consistent_report_route(fusion_api, monk
     assert response.status_code == 202, response.text
     sent = next(payload for method, payload in native.calls if method == "session.prompt")
     prompt = sent["content"] if isinstance(sent.get("content"), str) else str(sent)
-    if business:
+    if business == "numeric":
         assert "report_plan" in prompt and "业务观测索引" in prompt
         assert "numeric_claims逐项声明" not in prompt
+        assert "coverage填写" not in prompt
         assert "payload 必须包含" not in prompt
         assert "from research_report import write_research_report, source_id" not in prompt
         assert "工作簿键" in prompt and "missing" in prompt and "最多进行一次补查" in prompt
     else:
         assert "payload 必须包含" in prompt
         assert "numeric_claims逐项声明" in prompt
+
+    receipt, _ = service._task_capabilities(sid)
+    from app.research_web.research_quality_service import business_prompt_index
+
+    observed = business_prompt_index(service, sid, receipt["research_contract"])["observations"]
+    if business == "quote":
+        assert observed and all(row["kind"] == "business_quote" for row in observed)
+        assert "规范文件直接调用research_run_script(report_plan" not in prompt

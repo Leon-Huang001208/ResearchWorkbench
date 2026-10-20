@@ -234,3 +234,17 @@ test('business quality repair uses the data plan route without renewing repair o
   const replay = JSON.parse((await tool.execute({}, f.exec)).result_json);
   assert.equal(Object.hasOwn(replay, 'repair_instructions'), false);
 });
+
+
+test('quote-only business evidence keeps the usable legacy repair route', async t => {
+  const f = await fixture(t, result({ status: 'incomplete', issues: ['narrative_unverified'],
+    repair_count: 1, may_repair: true,
+    evidence_context: { business_observations: [{ id: 'business_' + 'b'.repeat(32), kind: 'business_quote' }] } }));
+  const tool = f.tools.get('research_check_quality');
+  const first = JSON.parse((await tool.execute({}, f.exec)).result_json);
+  assert.equal(first.status, 'incomplete');
+  assert.doesNotMatch(first.repair_instructions, /report_plan/);
+  assert.match(first.repair_instructions, /once in this same native turn/);
+  const replay = JSON.parse((await tool.execute({}, f.exec)).result_json);
+  assert.equal(Object.hasOwn(replay, 'repair_instructions'), false);
+});
