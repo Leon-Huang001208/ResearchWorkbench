@@ -1,5 +1,7 @@
 # Research Workbench Development Map
 
+service.py 按当前合法业务观测选择一致的报告提示；runtime/research-tools.mjs 在既有一次补查内提示同一 report_plan 路径。test_fingpt_dsh_fusion.py 覆盖真实 CPI 上传后的提示及一般研究兼容；test_report_revision.py 固定真实 FOMC 错字段/错误基点负例，quality_tool JS 覆盖补查不续授权。
+
 FinGPT 显式算式审计位于 research_arithmetic.py，接入 research_quality.py；报告链接投影位于 research_quality_service.report_delivery，detail 与 check_quality 共享。近处回归 test_research_arithmetic.py、test_report_delivery_links.py 和 research_web_ui.test.mjs 覆盖真实GDP错算、别名偏离、直接API绕过、附件保留及归档损坏。
 
 sandbox._report_sdk_scope 精确列出当前包的四个只读 SDK/字体文件，并在 bootstrap 注入 session root；resources/research_report.render_pdf 保持原输出定位。test_sandbox 覆盖只读、未列文件和链接拒绝，test_report_revision 的 new/legacy-session 两参数覆盖原资源不改的生成及修订。

@@ -788,3 +788,23 @@ def test_business_section_never_builds_an_invalid_coverage_excerpt(heading, text
 
     with pytest.raises(ValueError):
         evidence_section("s1", heading, text, ["file:abc"], ["r1"])
+
+
+def test_real_failed_fomc_summary_cannot_pass_by_alias_or_wrong_basis_points():
+    from app.research_web.resources.research_report import numeric_summary
+
+    sample = json.loads(
+        (
+            Path(__file__).parent / "fixtures/business-evidence/failed-fomc-summary-20261020.json"
+        ).read_text()
+    )
+    assert dict(sample["rows"][1:])["target_cut_bps"] == 5
+    with pytest.raises(ValueError, match="research_summary_invalid") as caught:
+        numeric_summary(sample["rows"], sample["expected"])
+    assert str(caught.value.__cause__) == "research_summary_metric_missing"
+    renamed = [
+        ["cut_bps" if row[0] == "target_cut_bps" else row[0], row[1]] for row in sample["rows"]
+    ]
+    with pytest.raises(ValueError, match="research_summary_invalid") as caught:
+        numeric_summary(renamed, sample["expected"])
+    assert str(caught.value.__cause__) == "research_summary_numeric_mismatch"

@@ -1,5 +1,7 @@
 # Research Web Tabbit 集成
 
+报告提示分流不增加浏览器调用或授权，不把独立Python检查变成联网能力；服务器profile仍拒绝宿主Tabbit，业务观测须来自当前允许资料。
+
 原 script 工具的 report_plan 数据参数不获得浏览器能力，也不改变服务器 profile 对宿主 Tabbit 的拒绝；有界算术和报告组装不联网、不复用其他用户标签授权。
 
 research_read_source 不使用或启用 Tabbit，不改变既有浏览器授权和网页读取设置。它只在私有 Host 桥中读取已登记的公开 HTTPS 来源，拒绝私网和凭据；受信身份、有限网络进程、取消回收与实际字节保全见安全合同。
