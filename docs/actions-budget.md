@@ -1,5 +1,7 @@
 # GitHub Actions 免费额度治理
 
+恢复就绪性只在原Mac Bootstrap环境step增加临时子进程与1.1 MB临时journal探针（预计不足1秒），通用Checks复用原网关回归文件。无新job/runner/依赖或其他平台dispatch；PR152三标准runner成功后保持PUBLIC，真实研究模型不调用。
+
 网关Python映像修复仅给既有macOS Bootstrap环境步骤增加一个stdlib只读进程映像断言，预计不足1秒；Checks复用原网关回归文件，无新增job/runner/依赖或他平台产品dispatch。PUBLIC/标准runner在PR151三项成功后重新核验。
 
 网关安全事务本轮只给原 Research Web Checks Python 清单增加 test_gateway_upgrade.py，预计新增不足20秒；无新job/runner/依赖/Windows或Linux产品dispatch。沿原Mac Bootstrap核对干净安装，真实停机与恢复由Mac mini本机另证。发布前重新核对PUBLIC与当前标准runner能启动。
