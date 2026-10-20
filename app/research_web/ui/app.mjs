@@ -3173,7 +3173,9 @@ function focusComposerMenu() {
 function backComposerMenu() {
   if (composerMenu.view === 'root') { closeComposerMenu(); return; }
   composerMenu = openComposerMenu(composerMenu.entry, 'root', composerMenu.entry === 'slash' ? composerSlashQuery(state.draft) || '' : '');
-  if (composerMenu.entry === 'slash') { render(); document.getElementById('prompt')?.focus({ preventScroll: true }); }
+  render();
+  const prompt = document.getElementById('prompt');
+  if (composerMenu.entry === 'slash' && prompt && !prompt.disabled) prompt.focus({ preventScroll: true });
   else focusComposerMenu();
 }
 async function activateComposerRow(row) {
