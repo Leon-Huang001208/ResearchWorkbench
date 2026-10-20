@@ -1,5 +1,7 @@
 # Research Workbench 架构总览
 
+网关界面更新允许已审工具版本与已验收产品版本分离，复用原空池/排空/保全事务。新version 2恢复包从工具Git对象冻结，离线核对两段受限差异和实际primary；旧恢复合同、主研究进程与自动兼容白名单不变，详见[网关升级](research-web-gateway-upgrade.md)。
+
 研究工具向供应商发送根级object参数；code/report_plan互斥仍在执行边界强制。固定DSH的SDK转换成功不等于供应商接受schema，离线检查同时经过实际pi-ai上下文和HTTP请求序列化，不调用真实模型。
 
 系统报告进一步绑定自由分析：数值事实与公式用受控引用插入，Host从实际正文独立重建plan、声明、中文呈现及附件。新网页研究在原receipt冻结bound-analysis-v1，不能回退手工payload；旧receipt/旧报告不迁移。重复英文底稿保存于同版本审计JSON，正文与HTML/Word/PDF实际内容另核对，DSH及原research_quality判据不变。

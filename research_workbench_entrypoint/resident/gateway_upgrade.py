@@ -16,6 +16,7 @@ import json
 import logging
 import os
 import plistlib
+import re
 import signal
 import stat
 import subprocess
@@ -47,6 +48,9 @@ CONTROL = {
     "outputs/research-web-architecture/index.html",
     "outputs/research-web-architecture/api-atlas.html",
 }
+TOOL_PATH = "research_workbench_entrypoint/resident/gateway_upgrade.py"
+MODULE_ROOT = "research_workbench_entrypoint/resident/"
+RECOVERY_MAIN = "from resident.gateway_upgrade import main\nraise SystemExit(main())\n"
 
 
 def review(source: Path, target: str, primary: str):
@@ -61,6 +65,127 @@ def review(source: Path, target: str, primary: str):
     ):
         raise UpdateBlocked("gateway_upgrade_scope_changed")
     return {path: git(source, "rev-parse", f"{target}:{path}") for path in paths}
+
+
+def static_scopes(source: Path, previous: str, payload: str, tool: str):
+    """Keep reviewed operator changes outside the deployed product checkout."""
+    if not all(
+        isinstance(value, str) and SHA.fullmatch(value) for value in (previous, payload, tool)
+    ):
+        raise UpdateBlocked("gateway_static_revision_invalid")
+    scopes = {}
+    for name, start, end in (("payload", previous, payload), ("tool", payload, tool)):
+        git(source, "merge-base", "--is-ancestor", start, end)
+        paths = git(source, "diff", "--no-renames", "--name-only", start, end).splitlines()
+        prefixes = ("docs/", "tests/", ".ai/reports/")
+        if name == "payload":
+            prefixes += ("app/research_web/ui/",)
+        if any(
+            not path.startswith(prefixes) and not (name == "tool" and path == TOOL_PATH)
+            for path in paths
+        ):
+            raise UpdateBlocked("gateway_static_scope_changed")
+        scopes[name] = {path: git(source, "rev-parse", f"{end}:{path}") for path in paths}
+    return scopes
+
+
+def module_blobs(source: Path, revision: str):
+    rows = git(source, "ls-tree", "-r", revision, MODULE_ROOT).splitlines()
+    modules = {}
+    for row in rows:
+        metadata, path = row.split("\t", 1)
+        if not path.endswith(".py"):
+            continue
+        mode, kind, blob = metadata.split()
+        name = path.removeprefix(MODULE_ROOT)
+        if (
+            not path.startswith(MODULE_ROOT)
+            or mode not in {"100644", "100755"}
+            or kind != "blob"
+            or "/" in name
+            or not SHA.fullmatch(blob)
+        ):
+            raise UpdateBlocked("gateway_recovery_module_invalid")
+        modules[name] = blob
+    if not {"__init__.py", "gateway_upgrade.py"}.issubset(modules):
+        raise UpdateBlocked("gateway_recovery_module_missing")
+    return modules
+
+
+def git_bytes(source: Path, revision: str, name: str):
+    try:
+        result = subprocess.run(
+            ["/usr/bin/git", "-C", str(source), "show", f"{revision}:{MODULE_ROOT}{name}"],
+            capture_output=True,
+            timeout=30,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise UpdateBlocked("gateway_recovery_object_unavailable") from exc
+    if result.returncode or len(result.stdout) > 8_000_000:
+        raise UpdateBlocked("gateway_recovery_object_unavailable")
+    return result.stdout
+
+
+def static_recovery_identity(home: Path, state: dict):
+    if state.get("mode") != "static-ui" or state.get("primary") != state.get("target"):
+        raise UpdateBlocked("gateway_recovery_identity_changed")
+    tool = state.get("tool_revision", "")
+    project = Path(state["project"])
+    if [project.stat().st_dev, project.stat().st_ino] != state.get("project_identity"):
+        raise UpdateBlocked("gateway_source_identity_changed")
+    _, resident = configured(home)
+    if (
+        git(project, "rev-parse", "--path-format=absolute", "--git-common-dir")
+        != resident["source_common"]
+    ):
+        raise UpdateBlocked("gateway_source_identity_changed")
+    scopes = static_scopes(project, state["previous"], state["target"], tool)
+    if scopes != state.get("reviewed"):
+        raise UpdateBlocked("gateway_static_scope_changed")
+    identity = state["recovery"]
+    checksum = identity.get("artifact_sha256", "")
+    if (
+        not isinstance(checksum, str)
+        or not re.fullmatch(r"[a-f0-9]{64}", checksum)
+        or identity.get("tool_revision") != tool
+    ):
+        raise UpdateBlocked("gateway_recovery_identity_changed")
+    artifact = home / "server/run" / f"gateway-recovery-{checksum[:16]}.pyz"
+    if artifact.is_symlink() or digest(artifact) != checksum:
+        raise UpdateBlocked("gateway_recovery_identity_changed")
+    modules = module_blobs(project, tool)
+    try:
+        validate_recovery_manifest(artifact, tool, modules)
+    except (OSError, ValueError, KeyError, zipfile.BadZipFile) as exc:
+        raise UpdateBlocked("gateway_recovery_manifest_changed") from exc
+    return artifact
+
+
+def validate_recovery_manifest(artifact: Path, tool: str, modules: dict):
+    with zipfile.ZipFile(artifact) as archive:
+        names = archive.namelist()
+        expected = {"manifest.json", "__main__.py", *("resident/" + name for name in modules)}
+        if (
+            len(names) != len(expected)
+            or set(names) != expected
+            or sum(info.file_size for info in archive.infolist()) > 8_000_000
+        ):
+            raise UpdateBlocked("gateway_recovery_manifest_changed")
+        manifest = json.loads(archive.read("manifest.json"))
+        if (
+            manifest != {"tool_revision": tool, "modules": modules}
+            or archive.read("__main__.py") != RECOVERY_MAIN.encode()
+        ):
+            raise UpdateBlocked("gateway_recovery_manifest_changed")
+        for name, blob in modules.items():
+            raw = archive.read("resident/" + name)
+            # SHA-1 here is the repository's Git blob identifier, not an artifact signature.
+            actual = hashlib.sha1(
+                b"blob " + str(len(raw)).encode() + b"\0" + raw, usedforsecurity=False
+            ).hexdigest()
+            if actual != blob:
+                raise UpdateBlocked("gateway_recovery_manifest_changed")
 
 
 def process(pid: int) -> str | None:
@@ -358,19 +483,35 @@ def preserved(home: Path, before: dict):
         raise UpdateBlocked("gateway_preservation_failed")
 
 
-def install_recovery(home: Path, source: Path):
+def install_recovery(home: Path, source: Path, *, revision: str | None = None):
     """Separate immutable, reviewed artifact; never replace resident/controller.pyz."""
     root = home / "server/run"
-    artifact = root / "gateway-recovery.pyz"
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
-        for path in sorted((source / "research_workbench_entrypoint/resident").glob("*.py")):
-            archive.writestr(zipfile.ZipInfo("resident/" + path.name), path.read_bytes())
+        if revision is None:
+            for path in sorted((source / "research_workbench_entrypoint/resident").glob("*.py")):
+                archive.writestr(zipfile.ZipInfo("resident/" + path.name), path.read_bytes())
+        else:
+            if not SHA.fullmatch(revision):
+                raise UpdateBlocked("gateway_static_revision_invalid")
+            modules = module_blobs(source, revision)
+            for name in sorted(modules):
+                archive.writestr(
+                    zipfile.ZipInfo("resident/" + name), git_bytes(source, revision, name)
+                )
+            archive.writestr(
+                zipfile.ZipInfo("manifest.json"),
+                json.dumps({"tool_revision": revision, "modules": modules}, sort_keys=True),
+            )
         archive.writestr(
             zipfile.ZipInfo("__main__.py"),
-            "from resident.gateway_upgrade import main\nraise SystemExit(main())\n",
+            RECOVERY_MAIN,
         )
     raw = buffer.getvalue()
+    checksum = hashlib.sha256(raw).hexdigest()
+    suffix = "" if revision is None else "-" + checksum[:16]
+    artifact = root / f"gateway-recovery{suffix}.pyz"
+    label = RECOVERY if revision is None else RECOVERY + "." + checksum[:16]
     if artifact.exists() or artifact.is_symlink():
         if digest(artifact) != hashlib.sha256(raw).hexdigest():
             raise UpdateBlocked("gateway_recovery_artifact_changed")
@@ -381,10 +522,10 @@ def install_recovery(home: Path, source: Path):
             stream.flush()
             os.fsync(stream.fileno())
     sync_directory(root)
-    plist = Path.home() / "Library/LaunchAgents" / (RECOVERY + ".plist")
+    plist = Path.home() / "Library/LaunchAgents" / (label + ".plist")
     python = str(Path(read_json(home / "resident/config.json")["project"]) / ".venv/bin/python")
     payload = {
-        "Label": RECOVERY,
+        "Label": label,
         "ProgramArguments": [python, str(artifact), "recover", "--home", str(home)],
         "RunAtLoad": True,
         "StartInterval": 30,
@@ -407,28 +548,33 @@ def install_recovery(home: Path, source: Path):
     try:
         run(bootstrap_recovery)
     except UpdateBlocked:
-        registered = run(["/bin/launchctl", "print", f"gui/{os.getuid()}/{RECOVERY}"])
+        registered = run(["/bin/launchctl", "print", f"gui/{os.getuid()}/{label}"])
         if str(artifact) not in registered or python not in registered:
             raise UpdateBlocked("gateway_recovery_job_unknown") from None
-    return {"artifact_sha256": digest(artifact), "plist_sha256": digest(plist)}
+    result = {"artifact_sha256": digest(artifact), "plist_sha256": digest(plist)}
+    if revision is not None:
+        result["tool_revision"] = revision
+    return result
 
 
 def finish(root: Path, state: dict, result: str):
-    atomic(
-        root / "gateway-upgrade-result.json",
-        {
-            "status": result,
-            "target": state["target"],
-            "primary": state["primary"],
-            "previous": state["previous"],
-            "preserved": True,
-        },
-    )
+    record = {
+        "status": result,
+        "target": state["target"],
+        "primary": state["primary"],
+        "previous": state["previous"],
+        "preserved": True,
+    }
+    if state.get("version") == 2:
+        record.update(mode="static-ui", tool_revision=state["tool_revision"])
+    atomic(root / "gateway-upgrade-result.json", record)
     (root / "gateway-upgrade.json").unlink()
     sync_directory(root)
 
 
-def apply(home: Path, source: Path, primary: str, target: str):
+def apply(
+    home: Path, source: Path, primary: str, target: str, *, expected_gateway: str | None = None
+):
     if sys.platform != "darwin":
         raise UpdateBlocked("gateway_macos_only")
     root, resident = configured(home)
@@ -440,19 +586,35 @@ def apply(home: Path, source: Path, primary: str, target: str):
         stack.enter_context(file_lock(root, "admission.lock", exclusive=True))
         if (root / "transaction.json").exists() or (server / "run/gateway-upgrade.json").exists():
             raise UpdateBlocked("gateway_recovery_required")
-        reviewed = review(source, target, primary)
+        static_ui = expected_gateway is not None
+        tool_revision = git(source, "rev-parse", "HEAD") if static_ui else target
+        if static_ui:
+            if (
+                primary != target
+                or not isinstance(expected_gateway, str)
+                or not SHA.fullmatch(expected_gateway)
+            ):
+                raise UpdateBlocked("gateway_static_revision_invalid")
+            clean(source, tool_revision)
+        else:
+            reviewed = review(source, target, primary)
         github = GitHubEvidence(
             Path(resident["gh"]), resident["repository"], Path(resident["source_common"])
         )
-        if github.latest() != target:
+        if github.latest() != tool_revision:
             raise UpdateBlocked("resident_master_moved")
         proof = github.qualify(target)
+        tool_proof = github.qualify(tool_revision) if static_ui else proof
         config = read_json(server / "resident.json")
         project = Path(config["project"])
         previous = git(project, "rev-parse", "HEAD")
         clean(project, previous)
         if config["revision"] != previous:
             raise UpdateBlocked("gateway_source_revision_mismatch")
+        if static_ui:
+            if previous != expected_gateway:
+                raise UpdateBlocked("gateway_static_baseline_changed")
+            reviewed = static_scopes(source, previous, target, tool_revision)
         if (
             git(project, "rev-parse", "--path-format=absolute", "--git-common-dir")
             != resident["source_common"]
@@ -483,7 +645,8 @@ def apply(home: Path, source: Path, primary: str, target: str):
         signature = process(pid) if pid else None
         command = signature.split(maxsplit=5)[-1] if signature else ""
         if (
-            not signature
+            pid is None
+            or not signature
             or command not in commands
             or native_image(pid) != image
             or listener_pids() != {pid}
@@ -492,7 +655,11 @@ def apply(home: Path, source: Path, primary: str, target: str):
         no_children(pid)
         no_private_processes(server)
         # Install crash recovery before fencing or signalling any service.
-        recovery = install_recovery(home, source)
+        recovery = (
+            install_recovery(home, source, revision=tool_revision)
+            if static_ui
+            else install_recovery(home, source)
+        )
         state = {
             "version": 1,
             "phase": "preparing",
@@ -513,6 +680,11 @@ def apply(home: Path, source: Path, primary: str, target: str):
             "proof": proof,
             "recovery": recovery,
         }
+        if static_ui:
+            state.update(
+                version=2, mode="static-ui", tool_revision=tool_revision, tool_proof=tool_proof
+            )
+            static_recovery_identity(home, state)
         atomic(server / "run/gateway-upgrade-original.json", state)
         write_upgrade_journal(server / "run/gateway-upgrade.json", state)
         try:
@@ -522,7 +694,7 @@ def apply(home: Path, source: Path, primary: str, target: str):
             verify_primary(home, primary)
             state["before"] = preservation(home)
             journal_preflight(state)
-            if github.latest() != target:
+            if github.latest() != tool_revision:
                 raise UpdateBlocked("resident_master_moved")
         except Exception:
             BirthFence.recover(server, expected=state["transaction"])
@@ -572,11 +744,13 @@ def activate_gateway(home: Path, state: dict, plist: Path):
 def recover_locked(home: Path, state: dict):
     server, root = home / "server", home / "server/run"
     project = Path(state["project"])
-    if (
+    if not SHA.fullmatch(state.get("target", "")) or not SHA.fullmatch(state.get("previous", "")):
+        raise UpdateBlocked("gateway_recovery_identity_changed")
+    if state.get("version") == 2:
+        static_recovery_identity(home, state)
+    elif (
         state.get("version") != 1
         or state.get("primary") != PRODUCT
-        or not SHA.fullmatch(state.get("target", ""))
-        or not SHA.fullmatch(state.get("previous", ""))
         or digest(root / "gateway-recovery.pyz") != state["recovery"]["artifact_sha256"]
     ):
         raise UpdateBlocked("gateway_recovery_identity_changed")
@@ -621,7 +795,10 @@ def recover_locked(home: Path, state: dict):
             raise UpdateBlocked("gateway_fence_missing")
         current = job_pid()
         if current is not None:
-            graceful_drain(current, process(current), state["command"])
+            signature = process(current)
+            if signature is None:
+                raise MaintenanceBusy("gateway_candidate_state_unknown")
+            graceful_drain(current, signature, state["command"])
     elif state["phase"] == "draining":
         # A KeepAlive replacement may have started after a crash released SQLite;
         # re-acquire the birth fence or defer before touching it.
@@ -680,29 +857,55 @@ def recover(home: Path):
     journal = home / "server/run/gateway-upgrade.json"
     if not journal.exists():
         return {"status": "idle"}
+    state = read_upgrade_journal(journal)
+    helper = Path(sys.argv[0])
+    if helper.suffix == ".pyz" and helper.name.startswith("gateway-recovery-"):
+        checksum = state.get("recovery", {}).get("artifact_sha256", "")
+        if not isinstance(checksum, str):
+            return {"status": "other_recovery_version"}
+        expected = home / "server/run" / f"gateway-recovery-{checksum[:16]}.pyz"
+        if state.get("version") != 2 or helper.resolve() != expected.resolve():
+            return {"status": "other_recovery_version"}
     root, config = configured(home)
     sys.path.insert(0, config["project"])
     with (
         file_lock(root, "supervisor.lock", exclusive=True),
         file_lock(root, "admission.lock", exclusive=True),
     ):
-        return recover_locked(home, read_upgrade_journal(journal))
+        current = read_upgrade_journal(journal)
+        if current != state:
+            raise UpdateBlocked("gateway_journal_changed")
+        return recover_locked(home, current)
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=("apply", "recover", "status"))
+    parser.add_argument("command", choices=("apply", "apply-ui", "recover", "status"))
     parser.add_argument("--home", type=Path, default=Path.home() / ".research-workbench")
     parser.add_argument("--source", type=Path)
     parser.add_argument("--primary")
     parser.add_argument("--target")
+    parser.add_argument("--expected-gateway")
     args = parser.parse_args(argv)
     logging.basicConfig(filename=args.home / "logs/gateway-upgrade.log", level=logging.INFO)
     try:
-        if args.command == "apply":
+        if args.command in {"apply", "apply-ui"}:
             if not args.source or not args.primary or not args.target:
                 raise UpdateBlocked("gateway_upgrade_arguments_required")
-            value = apply(args.home, args.source, args.primary, args.target)
+            if args.command == "apply-ui":
+                if not args.expected_gateway:
+                    raise UpdateBlocked("gateway_upgrade_arguments_required")
+                value = apply(
+                    args.home,
+                    args.source,
+                    args.primary,
+                    args.target,
+                    expected_gateway=args.expected_gateway,
+                )
+            else:
+                if args.expected_gateway:
+                    raise UpdateBlocked("gateway_upgrade_arguments_required")
+                value = apply(args.home, args.source, args.primary, args.target)
         elif args.command == "recover":
             value = recover(args.home)
         else:
@@ -710,9 +913,24 @@ def main(argv=None):
             value = read_json(path) if path.exists() else {"status": "not_run"}
         print(json.dumps(value))
         return 0
-    except MaintenanceBusy:
-        print(json.dumps({"status": "deferred", "reason": "research_or_gateway_not_quiescent"}))
-        return 0
+    except MaintenanceBusy as exc:
+        journal = args.home / "server/run/gateway-upgrade.json"
+        pending = str(exc) == "gateway_draining"
+        try:
+            pending = pending or (
+                journal.exists() and read_upgrade_journal(journal).get("phase") != "preparing"
+            )
+        except UpdateBlocked:
+            pending = True
+        print(
+            json.dumps(
+                {
+                    "status": "recovery_required" if pending else "deferred",
+                    "reason": "research_or_gateway_not_quiescent",
+                }
+            )
+        )
+        return 1 if pending else 0
     except Exception as exc:
         log.exception("gateway_upgrade_failed")
         code = str(exc) if isinstance(exc, UpdateBlocked) else "gateway_upgrade_failed"
