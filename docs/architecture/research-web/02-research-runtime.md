@@ -1,5 +1,7 @@
 # 研究协议、执行状态与恢复
 
+research_read_source 在正文落盘后刷新原 research_evidence.json 并返回实际 numeric_observations，模型可用既有 select_business_evidence/report_plan 组装声明。Host 检查时仍独立重读正文重算；补查、取消、原生历史和预算不变。
+
 research_check_quality返回具体算术mismatch与对应expected供原一次补查使用，同时给出Host report_delivery。模型最终消息须引用该版本URL；重写报告后重新检查，不创建友好别名绕过版本。研究预算、取消、耐久历史及原生工具边界不变。
 
 旧会话无需重建：run_script 优先导入当前 Host 包的固定 SDK，而不是覆盖会话资源副本。Host 向 PDF helper 注入已验证 session 绝对根以保持相对输出及 cwd 恢复；字体仍来自已审包。模型没有 SDK 路径参数，代码/输出/时间、取消及网络/fork 禁令不变。

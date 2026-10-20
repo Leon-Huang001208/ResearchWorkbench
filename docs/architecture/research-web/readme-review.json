@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "updated",
-  "summary": "FinGPT确定性算式与检查版链接，保留已合入Claw空态/问答修复",
-  "reason": "README新增报告核验/链接说明；原Claw欢迎页和整行问答合同保留，执行引擎与安装/数据根不变。"
+  "summary": "FinGPT网页日期、数字声明、历史及URL四项修复",
+  "reason": "README说明原Host真实字节投影、未绑定旧稿与同源归档；DSH、数据根、质量门和安装入口不变。"
 }

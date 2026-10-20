@@ -1,5 +1,7 @@
 # Research Workbench 架构总览
 
+Host 复用已有来源读取和证据快照，从完整网页字节提取闭合年度 GDP 布局，并保存全文 SHA、原文 span、期间和初步/最终版本。它只扩展确定性证据，不新增模型循环；不支持的布局、日期冲突和未绑定版本继续保留未核验。
+
 数字与链接修复不新增执行循环：research_arithmetic 只复算有限字面算式，不能替代来源核验；report_delivery 由 Host 将当前规范内容哈希、检查回执和不可变归档绑定。UI 禁用不匹配别名并展示该检查版本，原生历史不改写。
 
 三组FinGPT对照是默认关闭的本机验收控制器，源码快照、Host、凭据namespace及研究数据均隔离；仅测试侧适配模型接入和预算，不合并或部署原Node引擎。详见[实验合同](research-web-fingpt-comparison.md)。

@@ -1,5 +1,7 @@
 # Research Web 接口清单
 
+现有来源 read 回包新增 numeric_observations/numeric_claim_guidance，来自 Host 完整字节；研究 detail 的版本项增加 is_current 和 quality_binding。网页来源 date_evidence/date_status 解释实际发布时间及冲突，未知不按搜索或 URL 补齐。无新端点、模型参数、凭据或执行授权。
+
 GET session detail 新增 research_report_delivery（status/task_id/version_id/report_content_sha256/quality_status/files/aliases）；research_check_quality 结果的 report_delivery 使用同一Host投影。未绑定返回空files/aliases，accepted还要求当前检查绑定。arithmetic_checks含有界字面表达式、reported/expected/status和section_id；matching只证明该算术，不免除原数字、期间、单位和来源检查。原始消息保留，当前报告链接由UI核对并允许resolver拒绝直接API绕过。无新增端点、凭据或写参数。
 
 research_sources 对 Host 已抓取网页仅返回原 web 身份，不再同时给出 file 上传别名；实际文件列表及下载路径保留。无新增端点或用户字段，错误 provenance 以原 research_source_integrity_failed 拒绝，web 范围和截止日保持原规则。

@@ -74,10 +74,13 @@ def test_repaired_version_binds_new_bytes_and_retains_previous_host_quality(tmp_
         assert second["repair_count"] == 1
         assert await check_quality(service, sid) == second
         versions = quality_versions(service, sid)
-        assert len(versions) == 1
-        assert versions[0]["quality"]["status"] == "incomplete"
+        assert len(versions) == 2
+        previous = next(v for v in versions if not v["is_current"])
+        current = next(v for v in versions if v["is_current"])
+        assert current["quality"]["status"] == "passed"
+        assert previous["quality"]["status"] == "incomplete"
         assert (
-            next(f for f in versions[0]["files"] if f["name"] == "research-report.json")["sha256"]
+            next(f for f in previous["files"] if f["name"] == "research-report.json")["sha256"]
             == first["report_content_sha256"]
         )
         # A model-written sidecar cannot replace the canonical report or receipt.

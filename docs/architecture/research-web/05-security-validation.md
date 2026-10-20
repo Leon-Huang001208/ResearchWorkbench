@@ -1,5 +1,7 @@
 # 安全边界与验证方法
 
+日期合并出版 meta 与正文 header，冲突保持 unknown；只读缓存同样检查。GDP 只支持明确年度公报主段、核实完整肯定句和明确全年列/计价注释的表格；错列、否定、错期和互相冲突的值拒绝。完整性核对、结构化数值精确复算、覆盖与叙述核验原门不变。
+
 显式算式仅允许有界数值AST的加减乘除及百分数，无eval/名称/调用；整数精确、十进制按写明位数ROUND_HALF_UP展示核对，原结构化数值门仍精确。报告链接只由Host实际归档哈希生成，来源/数值未核验不被算术匹配覆盖；附件下载不受报告链接拒绝影响。
 
 当前 SDK 的新增 read-data 精确列出 research_helpers.py、research_report.py、research_report_plan.py 和 NotoSansSC-Regular.ttf；资源/字体目录只有 literal 列名权限，绝不添加包父目录或仓库 subtree。拒绝软链、多链接和非规范路径；旧会话副本不写。Native 回归验证新旧会话六格式、SDK 只读、未列 __init__.py/父 service.py 拒绝以及既有网络/fork/文件/预算门。原 venv 读取合同保持，不能把固定 SDK 位置用作任意宿主路径参数。

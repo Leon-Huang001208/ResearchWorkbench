@@ -2819,6 +2819,9 @@ class ResearchService:
                     "若运行中的唯一剩余问题是artifact_delivery_unverified，结束当前回合让Host执行格式核验，不要反复重写或提前宣称passed。"
                     "正文中的显式算式及结果加括号运算会被Host确定性复算；arithmetic_checks只检查算术，不替代来源、期间和单位核验。发现mismatch必须在既有一次补查许可内修正，不得删去实际缺口换取通过。"
                     "最终报告链接只使用research_check_quality返回的report_delivery.files中对应本轮最终版本的url；质量状态照实说明。不要另写友好别名报告或沿用之前版本的文件URL；重生成报告后须重新检查绑定。"
+                    "这些url是可直接复制的同源相对URL，严禁补写http/https、主机或DSH端口；不要把运行时API地址当成报告地址。"
+                    "网页research_read_source返回numeric_observations时，Host已将完整证据投影刷新至resources/research_evidence.json；重新load_business_evidence读取后用select_business_evidence或report_plan生成数值声明、笔记和覆盖，不要遗漏numeric_claims。"
+                    "GDP观测metric区分现价总量/不变价增速和preliminary/final版本；只能比较真实同期间同单位数据，跨版本限制保留missing。未提供的观测不能手造，无法支持的数字继续未核验。"
                     "补查仍不通过，交付可用部分和缺口，不能宣称质量通过；完整性错误须先修复。"
                     "补充资料在同会话新回合继续，旧版本必须保留。模型自评或反思不证明事实核验通过。"
                 )

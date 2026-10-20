@@ -16,9 +16,9 @@ export function renderResearchQuality(detail = {}) {
 function renderReportVersions(detail) {
   const versions = Array.isArray(detail.research_report_versions) ? detail.research_report_versions : [];
   if (!versions.length) return '';
-  return `<section class="research-report-versions" aria-label="历史报告版本"><h3>历史报告版本</h3><p class="small muted">保留原研究回合的报告与检查结果。</p>${versions.map((version, index) => {
+  return `<section class="research-report-versions" aria-label="历史报告版本"><h3>历史报告版本</h3><p class="small muted">保留当前及历史报告；未绑定检查的旧稿保持未核验。</p>${versions.map((version, index) => {
     const previous = { research_report: version.report, research_quality: version.quality, historical: true };
-    return `<details><summary>${e(version.report?.title || `报告版本 ${index + 1}`)}${version.task_id ? ` · ${e(version.task_id)}` : ''}</summary>${renderResearchPanel(previous, 'report')}${version.report ? renderResearchPanel(previous, 'notes') : ''}</details>`;
+    return `<details><summary>${version.is_current ? '当前版本 · ' : '历史版本 · '}${e(version.report?.title || `报告版本 ${index + 1}`)}${version.version_id || version.task_id ? ` · ${e(version.version_id || version.task_id)}` : ''}${version.quality_binding === 'unbound' ? ' · 检查未绑定' : ''}</summary>${renderResearchPanel(previous, 'report')}${version.report ? renderResearchPanel(previous, 'notes') : ''}</details>`;
   }).join('')}</section>`;
 }
 

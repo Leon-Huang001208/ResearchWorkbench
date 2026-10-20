@@ -1,5 +1,7 @@
 # GitHub Actions 免费额度治理
 
+2026-10-20 来源/声明/版本修复只向既有 Research Web Checks Python 步骤新增 test_fingpt_evidence_contract.py，JS 复用原 UI/fusion。实时 PUBLIC；最近五次成功39360079476/39360079251/39360079204/39357592462/39357592409约467/805/68/428/55秒；定点预计不足2秒、预留20秒。无新job/runner/依赖或Windows/Linux产品dispatch，Mac Bootstrap沿原入口，真实Flash仅一次另记usage与质量。
+
 2026-10-20数字与最终链接回归只向既有Research Web Checks Python步骤增加两个定点模块，JS复用原UI测试；无新job/runner/依赖。仓库实时PUBLIC；同候选macOS Bootstrap按原workflow_dispatch从Mac执行，保留精确head/checkout证明，不触发Windows/Linux产品任务。真实Flash同题仅一次，单独记录usage与质量。最近5个成功run为39354395015/39353126136/39238995582/39237621559/39230251649，创建至结束520/686/493/505/685秒；新定点约1秒，预留20秒。
 
 2026-10-19正文与版本绑定回归只向既有 Research Web Checks Python 步骤加入两个定点文件，无新依赖/job/runner或跨平台 dispatch。实时 PUBLIC；最近五个成功 run 39207620402/39206680559/39205978082/39156583067/39155701211，创建至结束575/526/623/580/575秒。新增定点测试本机约2秒，预留20秒；保持原20分钟与同候选Mac安装门。真实 Flash 复测单独留存实际调用和质量状态。

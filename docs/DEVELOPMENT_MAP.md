@@ -1,5 +1,7 @@
 # Research Workbench Development Map
 
+网页日期在 research_web_sources 的出版 meta/header 合并；数值闭合布局在 research_web_numeric，quality_service 刷新同一 SDK 快照并独立重读字节。test_fingpt_evidence_contract 覆盖错期、否定、冲突、20上传加网页及声明篡改；UI/fusion 与 report_delivery_links 覆盖误拼 URL 和当前/历史投影。
+
 FinGPT 显式算式审计位于 research_arithmetic.py，接入 research_quality.py；报告链接投影位于 research_quality_service.report_delivery，detail 与 check_quality 共享。近处回归 test_research_arithmetic.py、test_report_delivery_links.py 和 research_web_ui.test.mjs 覆盖真实GDP错算、别名偏离、直接API绕过、附件保留及归档损坏。
 
 sandbox._report_sdk_scope 精确列出当前包的四个只读 SDK/字体文件，并在 bootstrap 注入 session root；resources/research_report.render_pdf 保持原输出定位。test_sandbox 覆盖只读、未列文件和链接拒绝，test_report_revision 的 new/legacy-session 两参数覆盖原资源不改的生成及修订。

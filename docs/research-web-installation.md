@@ -1,5 +1,7 @@
 # Research Web Native / Docker 安装与运行
 
+本轮网页日期、数字声明与历史/URL 修复没有新增依赖、设置、凭据或迁移；Web 锁、setup_web.py 和固定 DSH 保持，干净安装仍由同候选 macOS Bootstrap 核对。其他平台原生验收保持独立。
+
 本轮数字与最终报告链接修复不增加依赖、凭据、设置或迁移；requirements/web.in、web.lock、setup_web.py和固定DSH不变。同候选macOS Bootstrap仍验证干净安装与健康；未执行的其他平台层保留NOT_RUN。
 
 旧会话 SDK 兼容依赖包内既有三个报告 Python 文件与 Noto 字体，均随现有 wheel/资源合同交付；没有新依赖、设置或迁移。Host 沙箱固定只读这些文件，既有会话目录不覆盖；最终候选仍须 Mac 干净安装与本机 Native 验证。

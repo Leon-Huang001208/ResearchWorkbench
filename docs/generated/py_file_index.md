@@ -7632,6 +7632,7 @@ Imports:
 - `research_business_evidence`
 - `research_evidence`
 - `research_quality`
+- `research_web_numeric`
 - `research_web_sources`
 - `resources.research_report`
 - `resources.research_report_plan`
@@ -7664,6 +7665,23 @@ Functions:
   - Authenticated native check, with one durable repair authorization per task.
 
 
+## `app/research_web/research_web_numeric.py`
+
+Module docstring:
+> Closed GDP layouts from complete Host-owned web bodies, never search snippets.
+
+Imports:
+- `core.observability`
+- `decimal`
+- `hashlib`
+- `re`
+- `research_business_evidence`
+
+Functions:
+- `web_numeric_observations`
+  - Extract only supported unambiguous annual periods, versions and units.
+
+
 ## `app/research_web/research_web_sources.py`
 
 Module docstring:
@@ -7694,12 +7712,14 @@ Classes:
 - `PublicConnection`
   - methods: __init__, connect
 - `BodyParser`
-  - methods: __init__, handle_starttag, handle_endtag, handle_data
+  - methods: __init__, published, handle_starttag, handle_endtag, handle_data
 
 Functions:
 - `rejected`
 - `public_target`
   - Validate every redirect and pin every returned address before connecting.
+- `publication_evidence`
+  - Recognize publication-labelled header dates, never URL years or data periods.
 - `fetch_document`
   - No proxy, credentials, cookies, executable content, or unbounded redirects.
 - `_stored_records`

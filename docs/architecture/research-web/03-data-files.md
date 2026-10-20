@@ -1,5 +1,7 @@
 # DataHub、研究资料与实际文件
 
+研究版本列表包括当前检查归档和同任务旧稿，is_current/quality_binding 区分当前与未绑定检查；旧稿不能继承新版本 passed。SDK sources 有界覆盖最多20上传加20已取得网页；GDP 投影保留原文 span、全文 SHA、期间、单位及初步/最终版本。没有数据迁移或报告改写。
+
 research_report_delivery 为动态只读投影，不迁移存储：files 指向当前规范JSON及其Host检查归档，aliases仅包含实际字节哈希相同的本会话路径。64文件/32MB是可选别名扫描上限，超限只禁用未检查别名，不影响已验证归档；旧版本与原生消息不改写。
 
 SDK 兼容读取不迁移数据：resources 中原 helper/字体保持原字节，新报告由当前 Host 包的固定 SDK 处理，所有输入、输出、谱系和模型设置仍归原会话。_SESSION_ROOT 只定位 PDF 输出/恢复 cwd，不是质量或路径授权。

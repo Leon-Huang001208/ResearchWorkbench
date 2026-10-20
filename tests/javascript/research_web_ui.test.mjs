@@ -192,6 +192,16 @@ test('research replies reject stale relative and API aliases and expose the exac
   }
   const jsonFile={...stale,name:'research-report.json'};
   assert.doesNotMatch(views.renderConversation({...detail,files:[jsonFile],research_report_delivery:{},messages:[{role:'assistant',text:`[底稿](${stale.url})`}]}),/<a /);
+  const bound = {...detail.research_report_delivery, aliases:{[current.url]:current.url}};
+  for (const origin of ['https://127.0.0.1:13081','http://localhost:3081','https://[::1]:13081']) {
+    const repaired=views.renderConversation({...detail,research_report_delivery:bound,messages:[{role:'assistant',text:`[本轮报告](${origin}${current.url})`}]});
+    assert.match(repaired,new RegExp(`href="${current.url}"[^>]*>本轮报告</a>`));
+    assert.doesNotMatch(repaired,new RegExp(`href="${origin.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}`));
+  }
+  for (const path of [`https://evil.example${current.url}`,`https://user@localhost:3081${current.url}`,`https://localhost:3081/x/..${current.url}`,`https://localhost:3081${current.url}?download=1`,`https://localhost:3081${stale.url}`]) {
+    const rejected=views.renderConversation({...detail,research_report_delivery:bound,messages:[{role:'assistant',text:`[错误入口](${path})`}]});
+    assert.doesNotMatch(rejected,/>错误入口<\/a>/);
+  }
 });
 
 test('routing accepts only product routes and safely round trips session identifiers', () => {
