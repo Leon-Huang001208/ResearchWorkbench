@@ -1,10 +1,11 @@
+import { closedComposerMenu, openComposerMenu, composerMenuRows, composerMenuKey, composerSlashQuery, consumeComposerSlash, nextComposerFormats } from './composer-menu.mjs';
 import { renderSessionMenu, projectMenuPosition, sessionMenuPosition } from './conversation-menus.mjs';
 import { createConversationNavigation, renderProjectEditor } from './conversation-navigation.mjs';
 import { captureQuestionForm, actionQuestion, collectQuestionGroup, questionStateKey } from './questionnaire.mjs';
 import { createAPI, createController, prepareClawExampleDraft, parseRoute, legacyRouteTarget, isRunning, safeLog, collectQuestionAnswers, reconcileSessionSummary, waitForDataProbe, waitForIntegrationBatch, waitForLocalIntegrationProbe, waitForLocalIntegrationVerification } from './core.mjs';
 import { escapeHTML as e } from './markdown.mjs';
 import { createDisclosureState } from './disclosures.mjs';
-import { createUploadHandler } from './uploads.mjs';
+import { canUploadToSession, createUploadHandler } from './uploads.mjs';
 import { createSessionSearch } from './session-search.mjs';
 import { downloadAnswer } from './answer-actions.mjs';
 import { badge, empty, isClawWelcome, renderClawWelcome, renderConversation, copyResearchText, renderDeleteConfirm, renderHistory, renderPurgeConfirm, renderRename, renderDocumentEditor, documentTargets, documentEditValue, documentCreationPayload } from './views.mjs';
@@ -92,6 +93,7 @@ let searchOpen = false; let slashIndex = 0; let contextCollapsed = true;
 const answerFeedback = new Map(); let copiedTransient = '';
 let tabbitOpen = false; let tabbitLoading = false; let tabbitIndex = 0; let tabbitCandidates = []; let tabbitRequest = 0;
 let methodPickerOpen = false;
+let composerMenu = closedComposerMenu();
 const tabbitGrants = new Set();
 let quickCategory = '';
 let researchDraftRoute = { page: 'fingpt', sessionId: null };
@@ -273,7 +275,7 @@ function composer() {
   const taskPending = state.detail && (isRunning(state.detail.status) || state.detail.can_cancel || state.detail.can_recheck_stop || ['pending', 'admission_unknown'].includes(state.detail.delivery?.status));
   const runtimePending = catalog.pending.has('runtime');
   const runtimeReady = !runtimePending && catalog.runtime?.connected === true && catalog.runtime?.credential_configured !== false;
-  return renderComposer({ models: catalog.models, model: catalog.runtime?.model, modelEndpoint: catalog.runtime?.connection?.base_url, modelProvider: catalog.runtime?.provider, page: state.route.page, draft: state.draft, attachments: state.attachments, tabbitTabs: state.tabbitTabs, tabbitCandidates, tabbitOpen, tabbitLoading, tabbitIndex, sourceScope: state.sourceScope, researchDepth: state.researchDepth, researchMode: state.researchMode, researchAsOf: state.researchAsOf, expectedFormats: state.expectedFormats, skills: catalog.capabilities, skillId: state.skillId, disabled, busy: state.busy, stopping: state.stopping, taskPending, detail: state.detail, slashOpen, slashIndex, capability: state.capability, toolIds: state.toolIds, tools: catalog.tools, methods: catalog.capabilities.filter(item => item.kind === 'method'), methodIds: state.methodIds, methodPickerOpen, runtimeReady, runtimePending });
+  return renderComposer({ models: catalog.models, model: catalog.runtime?.model, modelEndpoint: catalog.runtime?.connection?.base_url, modelProvider: catalog.runtime?.provider, page: state.route.page, draft: state.draft, attachments: state.attachments, tabbitTabs: state.tabbitTabs, tabbitCandidates, tabbitOpen, tabbitLoading, tabbitIndex, sourceScope: state.sourceScope, researchDepth: state.researchDepth, researchMode: state.researchMode, researchAsOf: state.researchAsOf, expectedFormats: state.expectedFormats, skills: catalog.capabilities, skillId: state.skillId, disabled, busy: state.busy, stopping: state.stopping, taskPending, detail: state.detail, slashOpen, slashIndex, composerMenu, capability: state.capability, toolIds: state.toolIds, tools: catalog.tools, methods: catalog.capabilities.filter(item => item.kind === 'method'), methodIds: state.methodIds, methodPickerOpen, runtimeReady, runtimePending });
 }
 
 function landing() {
@@ -1299,6 +1301,7 @@ async function showRoute() {
   }
   const requestedMarket = requestedRoute.page === 'skills' && requestedRoute.capabilityKind === 'tool' && requestedRoute.capabilityView === 'market';
   if (!requestedMarket) invalidateMCPRequests();
+  composerMenu = closedComposerMenu();
   const ticket = ++pageGeneration; nativeSessionSearch.close(); success = ''; selectedPreview = null; sidebarOpen = false; clawSidebarView = 'sessions'; contextOpen = false; contextTab = 'activity'; researchStage = null; slashOpen = false; slashIndex = 0; tabbitOpen = false; tabbitLoading = false; tabbitIndex = 0; tabbitCandidates = []; tabbitRequest += 1; globalSearch = ''; searchOpen = false; renameDraft = null; renameSession = null; deleteSession = null; purgeSession = null; sessionMenu = null; sessionActionBusy = false; sessionActionError = ''; answerFeedback.clear(); copiedTransient = '';
   if (['claw', 'fingpt'].includes(requestedRoute.page)) sidebarCollapsed = conversationNavigation.state(requestedRoute.page).view.collapsed;
   if (conversationNavigation.state(requestedRoute.page)) conversationNavigation.state(requestedRoute.page).menu = null;
@@ -1457,16 +1460,23 @@ function handleInput(event) {
   const modelForm = event.target.closest?.('#settings-form');
   if (modelForm) modelForm.dataset.dirty = 'true';
   if (event.target.id === 'framework-bot-input') frameworkBot.draft = event.target.value;
+  if (event.target.id === 'composer-command-search') { composerMenu.query = event.target.value; composerMenu.index = 0; if (!event.isComposing) render(); return; }
   if (event.target.id === 'prompt') {
     controller.setDraft(event.target.value);
     for (const button of root.querySelectorAll('[data-retry-round]')) button.disabled = Boolean(retryBlockReason());
-    const wasOpen = slashOpen; slashOpen = event.target.value.trimStart().startsWith('/'); slashIndex = 0;
+    const wasCommandOpen = Boolean(composerMenu.entry);
+    if (state.route.page === 'claw' && !state.detail?.execution_context && !event.isComposing) {
+      const query = composerSlashQuery(event.target.value);
+      composerMenu = query === null ? closedComposerMenu() : openComposerMenu('slash', 'root', query);
+      if (composerMenu.entry) { tabbitOpen = false; tabbitCandidates = []; tabbitRequest += 1; }
+    }
+    const wasOpen = slashOpen; slashOpen = state.route.page !== 'claw' && event.target.value.trimStart().startsWith('/'); slashIndex = 0;
     const query = tabbitMentionQuery(event.target.value);
-    if (query !== null && !slashOpen) void loadTabbitCandidates(query);
+    if (query !== null && !slashOpen && !composerMenu.entry) void loadTabbitCandidates(query);
     else {
       const wasTabbitOpen = tabbitOpen;
       tabbitOpen = false; tabbitLoading = false; tabbitCandidates = []; tabbitRequest += 1;
-      if (slashOpen || wasOpen || wasTabbitOpen) render();
+      if (slashOpen || wasOpen || wasTabbitOpen || composerMenu.entry || wasCommandOpen) render();
     }
   }
   if (event.target.closest('#cap-editor-form')) captureEditor();
@@ -1518,6 +1528,26 @@ root.addEventListener('compositionend', event => {
 });
 
 root.addEventListener('keydown', (event) => {
+  if (state.route.page === 'claw' && composerMenu.entry && (event.target.id === 'prompt' || event.target.closest?.('#claw-composer-menu'))) {
+    if (event.isComposing || event.keyCode === 229) return;
+    if (event.key === 'Enter' && event.target.closest?.('[data-cm-back], [data-cm-done]')) return;
+    const rows = currentComposerRows();
+    const clickedIndex = event.target.dataset?.cmRow;
+    const index = clickedIndex === undefined ? composerMenu.index : Number(clickedIndex);
+    const result = composerMenuKey(event.key, index, rows);
+    if (result.handled) {
+      event.preventDefault();
+      if (result.back) backComposerMenu();
+      else if (result.select) void activateComposerRow(result.select);
+      else if (result.index !== undefined) {
+        composerMenu.index = result.index; render();
+        if (clickedIndex !== undefined) document.getElementById(`composer-command-${result.index}`)?.focus({ preventScroll: true });
+        document.getElementById(`composer-command-${result.index}`)?.scrollIntoView({ block: 'nearest' });
+      }
+      return;
+    }
+  }
+
   if (state.route.page === 'aihot' && event.key === 'Escape') root.querySelectorAll('.aihot-faces[open]').forEach(item => { item.open = false; });
   if (event.isComposing || event.keyCode === 229) return;
   if (event.target.type === 'radio' && event.target.matches?.('.codex-question-option input') && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) {
@@ -1585,8 +1615,8 @@ root.addEventListener('keydown', (event) => {
     }
     return;
   }
-  const composerMenu = root.querySelector('.composer-more[open]');
-  if (event.key === 'Escape' && composerMenu) { event.preventDefault(); composerMenu.open = false; composerMenu.querySelector('summary')?.focus(); return; }
+  const legacyComposerMenu = root.querySelector('.composer-more[open]');
+  if (event.key === 'Escape' && legacyComposerMenu) { event.preventDefault(); legacyComposerMenu.open = false; legacyComposerMenu.querySelector('summary')?.focus(); return; }
   if (state.route.page === 'intel' && event.key === 'Escape' && intelController.state.detailId) { event.preventDefault(); intelController.closeDetail(); document.querySelector('.intel-tabs [aria-current="page"]')?.focus({ preventScroll: true }); return; }
   if (mcpMarketplaceState.detail && event.key === 'Tab') {
     const dialog = document.querySelector('.mcp-server-dialog');
@@ -1661,7 +1691,7 @@ root.addEventListener('keydown', (event) => {
       return;
     }
   }
-  if (event.target.id === 'prompt' && (slashOpen || state.draft.trimStart().startsWith('/')) && !event.isComposing) {
+  if (state.route.page !== 'claw' && event.target.id === 'prompt' && (slashOpen || state.draft.trimStart().startsWith('/')) && !event.isComposing) {
     const result = slashKey(event.key, slashIndex, currentSlashMatches());
     if (result.handled) {
       event.preventDefault();
@@ -1710,6 +1740,7 @@ async function configureComposerModel(value) {
     }
     const result = await controller.action(() => api.configure(selection), { refreshAfter: false });
     if (result?.configured) { success = state.detail ? '默认模型已更新，下次新研究生效；当前会话仍使用原模型。' : '默认模型已更新，新研究将使用此模型。'; await loadCatalog(['runtime']); }
+    return Boolean(result?.configured);
   } catch { safeLog('composer_model_selection_failed'); state.error = '模型选择失败，请刷新模型目录后重试。'; render(); }
 }
 
@@ -2218,7 +2249,8 @@ root.addEventListener('submit', async (event) => {
     if (result) { questionDrafts.delete(questionStateKey(id, question.id)); render(); }
   }
   if (event.target.id === 'composer') {
-    if (state.draft.trimStart().startsWith('/')) { slashOpen = true; slashIndex = 0; render(); return; }
+    if (state.route.page === 'claw' && !state.detail?.execution_context && (composerMenu.entry || composerSlashQuery(state.draft) !== null)) { if (!composerMenu.entry) composerMenu = openComposerMenu('slash', 'root', composerSlashQuery(state.draft)); render(); return; }
+    if (state.route.page !== 'claw' && state.draft.trimStart().startsWith('/')) { slashOpen = true; slashIndex = 0; render(); return; }
     if (!state.draft.trim() || state.busy || slashOpen) return;
     const blocked = sendBlockReason();
     if (blocked) { state.error = blocked; render(); return; }
@@ -2283,6 +2315,30 @@ root.addEventListener('pointerdown', event => {
   if (form && questionAdvanceKey === questionStateKey(form.dataset.qSession, form.dataset.questionForm) && (event.detail > 1 || performance.now() < questionAdvanceUntil)) event.preventDefault();
 });
 root.addEventListener('click', async (event) => {
+  const commandTrigger = event.target.closest?.('[data-cm-open]');
+  if (state.route.page === 'claw' && commandTrigger && Object.hasOwn(commandTrigger.dataset, 'cmOpen')) {
+    if (commandTrigger.disabled || state.detail?.execution_restricted) return;
+    const view = commandTrigger.dataset.cmOpen;
+    if (composerMenu.entry && composerMenu.view === view) closeComposerMenu();
+    else {
+      composerMenu = openComposerMenu('add', view);
+      slashOpen = false; tabbitOpen = false; tabbitCandidates = []; tabbitRequest += 1;
+      root.querySelectorAll('.composer-model-menu[open], .composer-more[open]').forEach(item => { item.open = false; });
+      safeLog('claw_composer_menu_opened'); focusComposerMenu();
+    }
+    return;
+  }
+  if (state.route.page === 'claw' && event.target.closest?.('#claw-composer-menu')) {
+    if (event.target.closest('[data-cm-back]')) backComposerMenu();
+    else if (event.target.closest('[data-cm-done]')) closeComposerMenu(true);
+    else {
+      const button = event.target.closest('[data-cm-row]');
+      if (button && !button.disabled) { composerMenu.index = Number(button.dataset.cmRow); await activateComposerRow(currentComposerRows()[composerMenu.index]); }
+    }
+    return;
+  }
+  if (composerMenu.entry && !event.target.closest?.('#claw-composer-menu') && !(composerMenu.entry === 'slash' && event.target.id === 'prompt')) { composerMenu = closedComposerMenu(); render(); }
+
   if (searchOpen && !event.target.closest?.('.search-popover, [data-toggle-search]')) {
     event.preventDefault(); event.stopPropagation(); closeGlobalSearch(); return;
   }
@@ -2317,8 +2373,8 @@ root.addEventListener('click', async (event) => {
   }
   const modelMenu = root.querySelector('.composer-model-menu[open]');
   if (modelMenu && !event.target.closest?.('.composer-model-menu')) modelMenu.open = false;
-  const composerMenu = root.querySelector('.composer-more[open]');
-  if (composerMenu && !event.target.closest?.('.composer-more')) composerMenu.open = false;
+  const legacyComposerMenu = root.querySelector('.composer-more[open]');
+  if (legacyComposerMenu && !event.target.closest?.('.composer-more')) legacyComposerMenu.open = false;
   const modelChoice = event.target.closest?.('[data-composer-model]');
   if (modelChoice && Object.hasOwn(modelChoice.dataset, 'composerModel')) {
     if (modelChoice.disabled) return;
@@ -2984,7 +3040,7 @@ root.addEventListener('click', async (event) => {
   if ('contextTab' in data) { researchStage = null; contextTab = data.contextTab; contextOpen = window.matchMedia('(max-width: 1050px)').matches; contextCollapsed = false; render(); }
   if ('closeDrawers' in data) { const wasSidebarOpen = sidebarOpen; sidebarOpen = false; contextOpen = false; render(); if (wasSidebarOpen) focusSidebarControl(document, window.matchMedia('(max-width: 1050px)').matches); }
   if ('upload' in data) document.querySelector('#file-input')?.click();
-  if ('slashSearch' in data) { if (composerMenu) composerMenu.open = false; slashOpen = !slashOpen; tabbitOpen = false; tabbitCandidates = []; tabbitRequest += 1; slashIndex = 0; render(); document.querySelector('#prompt')?.focus(); }
+  if ('slashSearch' in data) { if (legacyComposerMenu) legacyComposerMenu.open = false; slashOpen = !slashOpen; tabbitOpen = false; tabbitCandidates = []; tabbitRequest += 1; slashIndex = 0; render(); document.querySelector('#prompt')?.focus(); }
   if ('removeAttachment' in data) controller.removeAttachment(data.removeAttachment);
   if ('noFormats' in data) { controller.setFormats([]); render(); }
   if ('documentCreate' in data && ['docx', 'xlsx', 'pptx'].includes(data.documentCreate) && state.detail?.id) {
@@ -3096,6 +3152,66 @@ function collectAnswers(form, question) {
   catch (error) { safeLog('invalid_question_selection'); state.error = error.message; render(); return null; }
 }
 
+function composerTaskPending() { return Boolean(state.detail && (isRunning(state.detail.status) || state.detail.can_cancel || state.detail.can_recheck_stop || ['pending', 'admission_unknown'].includes(state.detail.delivery?.status))); }
+function currentComposerRows() {
+  return composerMenuRows(composerMenu, { skills: catalog.capabilities, methods: catalog.capabilities.filter(item => item.kind === 'method'), methodIds: state.methodIds, expectedFormats: state.expectedFormats, models: catalog.models, model: catalog.runtime?.model, modelProvider: catalog.runtime?.provider, modelEndpoint: catalog.runtime?.connection?.base_url, disabled: Boolean(state.busy || state.loading || state.route.sessionId && !state.detail || state.detail?.execution_restricted || state.detail?.execution_context), busy: state.busy || state.stopping || composerTaskPending(), uploadsAllowed: canUploadToSession(state.detail, state.sourceScope) });
+}
+function closeComposerMenu(consume = false) {
+  const entry = composerMenu.entry;
+  const modelView = composerMenu.view === 'models';
+  if (consume && entry === 'slash') controller.setDraft(consumeComposerSlash(state.draft));
+  composerMenu = closedComposerMenu(); render();
+  document.getElementById(entry === 'slash' ? 'prompt' : modelView ? 'composer-model' : 'composer-add')?.focus({ preventScroll: true });
+}
+function focusComposerMenu() {
+  const rows = currentComposerRows();
+  if (!rows[composerMenu.index] || rows[composerMenu.index].disabled) composerMenu.index = Math.max(0, rows.findIndex(row => !row.disabled));
+  render();
+  const row = document.getElementById(`composer-command-${composerMenu.index}`);
+  (document.getElementById('composer-command-search') || (row && !row.disabled ? row : null) || document.getElementById('claw-composer-menu'))?.focus({ preventScroll: true });
+}
+function backComposerMenu() {
+  if (composerMenu.view === 'root') { closeComposerMenu(); return; }
+  composerMenu = openComposerMenu(composerMenu.entry, 'root', composerMenu.entry === 'slash' ? composerSlashQuery(state.draft) || '' : '');
+  render();
+  const prompt = document.getElementById('prompt');
+  if (composerMenu.entry === 'slash' && prompt && !prompt.disabled) prompt.focus({ preventScroll: true });
+  else focusComposerMenu();
+}
+async function activateComposerRow(row) {
+  if (!row || row.disabled || state.detail?.execution_restricted || state.detail?.execution_context) return;
+  try {
+    if (row.action === 'view') {
+      composerMenu = openComposerMenu(composerMenu.entry, row.value); focusComposerMenu(); return;
+    }
+    if (state.busy || state.stopping || composerTaskPending()) return;
+    if (row.action === 'upload') {
+      if (!canUploadToSession(state.detail, state.sourceScope)) return;
+      closeComposerMenu(true); document.getElementById('file-input')?.click(); return;
+    }
+    if (row.action === 'capability') {
+      await selectCapability(row.value);
+      if (state.capability?.id === row.value) closeComposerMenu();
+      return;
+    }
+    if (row.action === 'method') {
+      const ids = state.methodIds;
+      if (!ids.includes(row.value) && ids.length >= 3) return;
+      controller.setMethods(ids.includes(row.value) ? ids.filter(id => id !== row.value) : [...ids, row.value]);
+    } else if (row.action === 'format') controller.setFormats(nextComposerFormats(state.expectedFormats, row.value));
+    else if (row.action === 'model') {
+      const menu = composerMenu, generation = pageGeneration, draft = state.draft;
+      const pending = configureComposerModel(row.value);
+      document.getElementById('claw-composer-menu')?.focus({ preventScroll: true });
+      const configured = await pending;
+      if (configured && generation === pageGeneration && menu === composerMenu && draft === state.draft) closeComposerMenu(true);
+      return;
+    }
+    safeLog('claw_composer_selection_changed'); render();
+    document.getElementById(`composer-command-${composerMenu.index}`)?.focus({ preventScroll: true });
+  } catch { safeLog('claw_composer_selection_failed'); state.error = '无法应用所选选项，请刷新目录后重试。'; render(); }
+}
+
 function currentSlashMatches() {
   return skillMatches(state.draft.trimStart().replace(/^\//, ''), catalog.capabilities).slice(0, 6);
 }
@@ -3116,7 +3232,7 @@ async function selectCapability(id) {
   if (capabilityPreviewIsOpen()) capabilityController.close();
   await goToResearchDraft();
   controller.setCapability(eligibility.report ? { ...item, version: eligibility.version } : item);
-  if (state.draft.trimStart().startsWith('/')) controller.setDraft('');
+  if (state.draft.trimStart().startsWith('/')) controller.setDraft(state.route.page === 'claw' ? consumeComposerSlash(state.draft) : '');
   slashOpen = false; globalSearch = ''; searchOpen = false; nativeSessionSearch.close(); render();
   document.querySelector('#prompt')?.focus();
 }
