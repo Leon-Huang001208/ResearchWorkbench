@@ -138,6 +138,25 @@ jobs:
           set -euo pipefail
           test -x .venv/bin/python
           "$PWD/.venv/bin/python" -c "import os,sys; from pathlib import Path; from research_workbench_entrypoint.resident.gateway_upgrade import native_image, process; command=process(os.getpid()).split(maxsplit=5)[-1]; assert any(command.startswith(str(p)+' ') for p in (native_image(os.getpid()),sys.executable,Path(sys.executable).resolve()))"
+          "$PWD/.venv/bin/python" - <<'PY'
+          import json, subprocess, sys, tempfile, threading, time
+          from pathlib import Path
+          from research_workbench_entrypoint.resident.gateway_upgrade import read_upgrade_journal, wait_retired
+          child = subprocess.Popen([sys.executable, "-c", "pass"])
+          def reap():
+              time.sleep(0.3)
+              child.wait(timeout=5)
+          reaper = threading.Thread(target=reap)
+          reaper.start()
+          wait_retired(child.pid, timeout=5)
+          reaper.join(timeout=5)
+          assert child.returncode is not None
+          with tempfile.TemporaryDirectory() as folder:
+              record = Path(folder).resolve() / "gateway-upgrade.json"
+              record.write_text(json.dumps({"padding": "x" * 1_100_000}))
+              record.chmod(0o600)
+              assert len(read_upgrade_journal(record)["padding"]) == 1_100_000
+          PY
           .venv/bin/python -c "import importlib.metadata as m, cjpy, requests, urllib3; assert m.version('cjpy') == '0.5.2'"
           ./rwb web start --no-open
           ./rwb web doctor --json > doctor.json

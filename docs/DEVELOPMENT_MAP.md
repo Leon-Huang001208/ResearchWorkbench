@@ -1,5 +1,7 @@
 # Research Workbench Development Map
 
+网关退休与大保全摘要合同定位 `gateway_upgrade.py:wait_retired/read_upgrade_journal/journal_preflight`；近处回归覆盖真实延迟reap、正式recover、不可变artifact读取及读取替换/短读/边界。Mac安装CI在原step跑临时夹具，业务数据与全局reader不改。
+
 Mac网关Python映像定位在 `resident/gateway_upgrade.py:native_image`，由原网关回归和Mac Bootstrap原生只读探针验证；配置venv、内核映像、完整argv与listener是共同条件，不能按进程名或路径子串放宽。
 
 `resident/gateway_fence.py` 与 `gateway_upgrade.py` 是显式 Mac 空池网关更新器；`multiuser/resident.py` 绑定持久冻结路径，`gateway.py` 在认证及实例创建前阻断全请求。近处回归为 `test_gateway_upgrade.py`、`test_multiuser_resident.py`；合同见 `research-web-gateway-upgrade.md`。不得以改 baseline 或清理未知 owner 解锁部署。

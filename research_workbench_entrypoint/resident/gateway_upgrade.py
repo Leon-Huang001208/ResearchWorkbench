@@ -17,6 +17,7 @@ import logging
 import os
 import plistlib
 import signal
+import stat
 import subprocess
 import sys
 import time
@@ -35,6 +36,7 @@ log = logging.getLogger(__name__)
 LABEL = "com.research-workbench.multiuser-server"
 RECOVERY = "com.research-workbench.gateway-recovery"
 PRODUCT = "6c4ac79bcf03fb36ffbe9c1c40a647b8e8a34556"
+JOURNAL_MAX_BYTES = 16_000_000
 CONTROL = {
     "app/research_web/multiuser/gateway.py",
     "app/research_web/multiuser/resident.py",
@@ -170,6 +172,75 @@ def verify_signal_contract():
         raise UpdateBlocked("gateway_signal_contract_unknown")
 
 
+def read_upgrade_journal(path: Path) -> dict:
+    """Full preservation manifests have a separate, private bounded envelope."""
+    try:
+        if path.resolve(strict=True) != path.absolute():
+            raise ValueError
+        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+        with os.fdopen(fd, "rb") as stream:
+            before = os.fstat(stream.fileno())
+            if (
+                not stat.S_ISREG(before.st_mode)
+                or before.st_uid != os.getuid()
+                or stat.S_IMODE(before.st_mode) != 0o600
+                or before.st_nlink != 1
+                or before.st_size > JOURNAL_MAX_BYTES
+            ):
+                raise ValueError
+            raw = stream.read(JOURNAL_MAX_BYTES + 1)
+            after = os.fstat(stream.fileno())
+            current = path.lstat()
+            fields = (
+                "st_dev",
+                "st_ino",
+                "st_size",
+                "st_mtime_ns",
+                "st_ctime_ns",
+                "st_nlink",
+                "st_mode",
+                "st_uid",
+            )
+            if (
+                len(raw) != before.st_size
+                or len(raw) > JOURNAL_MAX_BYTES
+                or any(
+                    getattr(before, k) != getattr(after, k)
+                    or getattr(before, k) != getattr(current, k)
+                    for k in fields
+                )
+            ):
+                raise ValueError
+        value = json.loads(raw.decode("utf-8"))
+        if not isinstance(value, dict):
+            raise TypeError
+        return value
+    except (OSError, ValueError, TypeError) as exc:
+        raise UpdateBlocked("gateway_journal_invalid") from exc
+
+
+def journal_preflight(state: dict):
+    # Subsequent phases only replace the phase string. Reserve ample space before
+    # any signal so every recovery phase fits the exact same reader budget.
+    if len(json.dumps(state, indent=2).encode("utf-8")) > JOURNAL_MAX_BYTES - 4096:
+        raise UpdateBlocked("gateway_journal_oversized")
+
+
+def write_upgrade_journal(path: Path, state: dict):
+    if len(json.dumps(state, indent=2).encode("utf-8")) > JOURNAL_MAX_BYTES:
+        raise UpdateBlocked("gateway_journal_oversized")
+    atomic(path, state)
+
+
+def wait_retired(pid: int, *, timeout: float = 45):
+    """An exited but unreaped PID is not retirement; never signal it again here."""
+    deadline = time.monotonic() + timeout
+    while process(pid) is not None:
+        if time.monotonic() >= deadline:
+            raise MaintenanceBusy("gateway_draining")
+        time.sleep(0.1)
+
+
 def graceful_drain(pid: int, expected: str, command: str, timeout: float = 45):
     verify_signal_contract()
     if native_image(pid) != native_image(os.getpid()):
@@ -180,13 +251,7 @@ def graceful_drain(pid: int, expected: str, command: str, timeout: float = 45):
         raise UpdateBlocked("gateway_listener_unknown")
     no_children(pid)
     os.kill(pid, signal.SIGTERM)  # uvicorn waits for accepted HTTP tasks; no SIGKILL.
-    deadline = time.monotonic() + timeout
-    while process(pid) == expected:
-        if time.monotonic() >= deadline:
-            raise MaintenanceBusy("gateway_draining")
-        time.sleep(0.1)
-    if process(pid) is not None:
-        raise UpdateBlocked("gateway_pid_reused")
+    wait_retired(pid, timeout=timeout)
 
 
 def health(config: dict, *, fenced: bool | None):
@@ -449,13 +514,14 @@ def apply(home: Path, source: Path, primary: str, target: str):
             "recovery": recovery,
         }
         atomic(server / "run/gateway-upgrade-original.json", state)
-        atomic(server / "run/gateway-upgrade.json", state)
+        write_upgrade_journal(server / "run/gateway-upgrade.json", state)
         try:
             fence = stack.enter_context(
                 BirthFence(server, binding["primary_user_id"], transaction=state["transaction"])
             )
             verify_primary(home, primary)
             state["before"] = preservation(home)
+            journal_preflight(state)
             if github.latest() != target:
                 raise UpdateBlocked("resident_master_moved")
         except Exception:
@@ -464,7 +530,7 @@ def apply(home: Path, source: Path, primary: str, target: str):
             sync_directory(server / "run")
             raise
         state["phase"] = "draining"
-        atomic(server / "run/gateway-upgrade.json", state)
+        write_upgrade_journal(server / "run/gateway-upgrade.json", state)
         fence.retain = True  # Every failure after signal intent must remain recoverable.
         try:
             graceful_drain(pid, signature, command)
@@ -474,7 +540,7 @@ def apply(home: Path, source: Path, primary: str, target: str):
             raise
         bootout_after_drain(plist)
         state["phase"] = "stopped"
-        atomic(server / "run/gateway-upgrade.json", state)
+        write_upgrade_journal(server / "run/gateway-upgrade.json", state)
         fence.release_database()
         BirthFence.recover(server, expected=state["transaction"])
         return activate_gateway(home, state, plist)
@@ -486,7 +552,7 @@ def activate_gateway(home: Path, state: dict, plist: Path):
         git(project, "switch", "--detach", state["target"])
         write_config(server / "resident.json", state["updated"])
         state["phase"] = "starting"
-        atomic(server / "run/gateway-upgrade.json", state)
+        write_upgrade_journal(server / "run/gateway-upgrade.json", state)
         bootstrap(plist)
         wait_health(state["updated"], fenced=True)
         verify_primary(home, state["primary"])
@@ -580,7 +646,7 @@ def recover_locked(home: Path, state: dict):
             if job_state() is not None:
                 bootout_after_drain(plist)
             state["phase"] = "stopped"
-            atomic(root / "gateway-upgrade.json", state)
+            write_upgrade_journal(root / "gateway-upgrade.json", state)
     elif state["phase"] not in {"stopped", "rolling_back"}:
         raise UpdateBlocked("gateway_recovery_phase_unknown")
     if job_state() is not None:
@@ -589,7 +655,7 @@ def recover_locked(home: Path, state: dict):
         run(["/bin/launchctl", "bootout", f"gui/{os.getuid()}/{LABEL}"])
     BirthFence.recover(server, expected=state["transaction"])
     state["phase"] = "rolling_back"
-    atomic(root / "gateway-upgrade.json", state)
+    write_upgrade_journal(root / "gateway-upgrade.json", state)
     actual = git(project, "rev-parse", "HEAD")
     if actual not in {state["previous"], state["target"]}:
         raise UpdateBlocked("gateway_source_revision_mismatch")
@@ -598,7 +664,7 @@ def recover_locked(home: Path, state: dict):
     write_config(server / "resident.json", state["fallback"])
     preserved(home, state["before"])
     state["phase"] = "fallback_starting"
-    atomic(root / "gateway-upgrade.json", state)
+    write_upgrade_journal(root / "gateway-upgrade.json", state)
     bootstrap(plist)
     wait_health(state["fallback"], fenced=None)
     finish(root, state, "rolled_back")
@@ -620,7 +686,7 @@ def recover(home: Path):
         file_lock(root, "supervisor.lock", exclusive=True),
         file_lock(root, "admission.lock", exclusive=True),
     ):
-        return recover_locked(home, read_json(journal))
+        return recover_locked(home, read_upgrade_journal(journal))
 
 
 def main(argv=None):

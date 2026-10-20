@@ -1,5 +1,7 @@
 # Research Web Native / Docker 安装与运行
 
+网关安全更新在SIGTERM后等待PID真正消失，退出未回收或签名变化都不触发追加信号。完整保全journal专用读取上限16 MB，首次信号前检查实际序列化字节并保留4096字节阶段余量；通用配置读取上限保持1 MB。Mac Bootstrap用临时子进程和临时大journal验证这两条合同。
+
 Mac网关更新通过内核proc_pidpath核对实际Python映像，兼容Homebrew启动器exec到Python.app；argv0只接受该受管解释器的三个精确路径，完整参数、PID起始时间及8089 listener继续核对。Mac Bootstrap在原环境校验步骤执行原生探针，不增加依赖或安装流程。
 
 附接网关与主实例版本不一致时，使用显式[空私有池安全升级](research-web-gateway-upgrade.md)；不能只替换 binding 或放宽自动白名单。主实例继续运行，活动/未知延后，失败恢复网关的匹配绑定与旧源码。公开安装依赖、固定 DSH 和安装入口不变，兼容性由同候选 macOS Bootstrap 验证。

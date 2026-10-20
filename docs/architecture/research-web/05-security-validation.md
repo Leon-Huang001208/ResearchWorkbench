@@ -1,5 +1,7 @@
 # 安全边界与验证方法
 
+恢复预算仅扩展专属journal到16 MB，保留通用配置1 MB门；同一O_NOFOLLOW fd有界读取并复查inode、UID、mode、nlink、size与时间。大manifest超过预算时在首个信号前撤本事务栅栏。退出后遇到zombie/签名变化/重用都只等待，不再向该PID发信号；超时延后而非当作退休。
+
 Mac的proc_pidpath把gateway PID实际映像与当前生产venv解释器映像精确绑定；argv0仅允许配置路径、其canonical路径或该映像路径，完整模块/root参数必须一致。发送SIGTERM前再次核验；未知PID、读取失败、foreign映像均拒绝。Mac Bootstrap执行同一原生探针，Ubuntu不冒充该证据。
 
 网关更新必须同时证明不能出生新私有实例、已接纳HTTP已优雅排空及primary Native/Host/自动化空闲；单次owner=0或active=false不能代替。目标持久gate在认证前拦GET与控制操作；未知owner/auth/key/进程、SQLite sidecar及版本不匹配均拒绝。失败先落rolling_back再恢复代码和匹配绑定，不恢复业务旧快照。详见[安全升级](../../research-web-gateway-upgrade.md)。

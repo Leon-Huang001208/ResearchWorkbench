@@ -567,3 +567,220 @@ uvicorn.run(app,host="127.0.0.1",port=int(sys.argv[1]),log_config=None,access_lo
         if process.poll() is None:
             process.kill()  # Only this test-owned disposable subprocess, after failure.
             process.wait(timeout=5)
+
+
+def test_full_size_preservation_journal_uses_recovery_entrypoint(recovery, monkeypatch):
+    import json
+
+    g, home, root, state, _events, _live = recovery
+    state["before"]["files"] = {f"session/file-{n:05}.txt": "a" * 64 for n in range(14000)}
+    journal = root / "run/gateway-upgrade.json"
+    journal.write_text(json.dumps(state, indent=2))
+    journal.chmod(0o600)
+    assert journal.stat().st_size > 1_000_000
+    with pytest.raises(g.UpdateBlocked, match="resident_record_invalid"):
+        g.read_json(journal)  # The general configuration limit is unchanged.
+    resident = home / "resident"
+    resident.mkdir(mode=0o700)
+    monkeypatch.setattr(g, "configured", lambda _: (resident, {"project": state["project"]}))
+    assert g.recover(home)["status"] == "rolled_back"
+
+
+@pytest.mark.skipif(sys.platform != "darwin", reason="macOS delayed native reaping")
+def test_real_graceful_drain_waits_for_delayed_parent_reap(monkeypatch):
+    import subprocess
+    import threading
+    import time
+
+    from research_workbench_entrypoint.resident import gateway_upgrade as g
+
+    child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(30)"])
+    try:
+        deadline = time.monotonic() + 5
+        while g.native_image(child.pid) != g.native_image(os.getpid()):
+            assert time.monotonic() < deadline
+            time.sleep(0.01)
+        signature = g.process(child.pid)
+        command = signature.split(maxsplit=5)[-1]
+        monkeypatch.setattr(g, "listener_pids", lambda: set())
+
+        def reap():
+            time.sleep(0.6)
+            child.wait(timeout=5)
+
+        reaper = threading.Thread(target=reap)
+        reaper.start()
+        g.graceful_drain(child.pid, signature, command, timeout=5)
+        reaper.join(timeout=5)
+        assert child.returncode is not None
+    finally:
+        if child.poll() is None:
+            child.terminate()
+        child.wait(timeout=5)
+
+
+def test_journal_reader_exact_limit_and_over_limit(tmp_path, monkeypatch):
+    import json
+
+    from research_workbench_entrypoint.resident import gateway_upgrade as g
+
+    monkeypatch.setattr(g, "JOURNAL_MAX_BYTES", 1024)
+    empty = json.dumps({"padding": ""}, separators=(",", ":")).encode()
+    payload = "x" * (1024 - len(empty))
+    raw = json.dumps({"padding": payload}, separators=(",", ":")).encode()
+    path = tmp_path / "gateway-upgrade.json"
+    path.write_bytes(raw)
+    path.chmod(0o600)
+    assert len(raw) == 1024 and g.read_upgrade_journal(path)["padding"] == payload
+    path.write_bytes(raw + b" ")
+    with pytest.raises(g.UpdateBlocked, match="gateway_journal_invalid"):
+        g.read_upgrade_journal(path)
+
+
+@pytest.mark.parametrize("case", ["mode", "symlink", "hardlink", "replace", "short"])
+def test_journal_reader_rejects_untrusted_or_changing_file(tmp_path, monkeypatch, case):
+    from research_workbench_entrypoint.resident import gateway_upgrade as g
+
+    path = tmp_path / "gateway-upgrade.json"
+    path.write_bytes(b'{"a":1} ')
+    path.chmod(0o600)
+    if case == "mode":
+        path.chmod(0o644)
+    if case == "symlink":
+        other = tmp_path / "original"
+        path.rename(other)
+        path.symlink_to(other)
+    if case == "hardlink":
+        os.link(path, tmp_path / "other")
+    if case in {"replace", "short"}:
+        original = g.os.fdopen
+
+        class Reader:
+            def __init__(self, fd, *args):
+                self.stream = original(fd, *args)
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                self.stream.close()
+
+            def fileno(self):
+                return self.stream.fileno()
+
+            def read(self, limit):
+                raw = self.stream.read(limit)
+                if case == "short":
+                    return raw[:-1]
+                replacement = tmp_path / "replacement"
+                replacement.write_bytes(raw)
+                replacement.chmod(0o600)
+                replacement.replace(path)
+                return raw
+
+        monkeypatch.setattr(g.os, "fdopen", Reader)
+    with pytest.raises(g.UpdateBlocked, match="gateway_journal_invalid"):
+        g.read_upgrade_journal(path)
+
+
+def test_oversized_journal_is_rejected_before_signal_or_write(tmp_path, monkeypatch):
+    from research_workbench_entrypoint.resident import gateway_upgrade as g
+
+    monkeypatch.setattr(g, "JOURNAL_MAX_BYTES", 8192)
+    state = {"phase": "draining", "before": {"payload": "x" * 5000}}
+    monkeypatch.setattr(g.os, "kill", lambda *_: pytest.fail("must not signal"))
+    with pytest.raises(g.UpdateBlocked, match="gateway_journal_oversized"):
+        g.journal_preflight(state)
+    state["before"]["payload"] = "x" * 9000
+    path = tmp_path / "gateway-upgrade.json"
+    with pytest.raises(g.UpdateBlocked, match="gateway_journal_oversized"):
+        g.write_upgrade_journal(path, state)
+    assert not path.exists()
+
+
+def test_changed_pid_after_signal_stays_deferred_without_resignal(monkeypatch):
+    from research_workbench_entrypoint.resident import gateway_upgrade as g
+
+    monkeypatch.setattr(g, "process", lambda _: "changed or unreaped")
+    monkeypatch.setattr(g.os, "kill", lambda *_: pytest.fail("must not signal"))
+    from research_workbench_entrypoint.resident.admission import MaintenanceBusy
+
+    with pytest.raises(MaintenanceBusy, match="gateway_draining"):
+        g.wait_retired(123, timeout=0)
+
+
+def test_immutable_artifact_main_reads_large_recovery_input(tmp_path, monkeypatch):
+    import json
+    import subprocess
+    from pathlib import Path
+
+    from research_workbench_entrypoint.resident import gateway_upgrade as g
+
+    home = tmp_path / "home"
+    run = home / "server/run"
+    run.mkdir(parents=True, mode=0o700)
+    (home / "resident").mkdir(mode=0o700)
+    (home / "logs").mkdir(mode=0o700)
+    (home / "Library/LaunchAgents").mkdir(parents=True)
+    (home / "resident/config.json").write_text(json.dumps({"project": str(home / "project")}))
+    monkeypatch.setattr(Path, "home", classmethod(lambda cls: home))
+    monkeypatch.setattr(g, "run", lambda *_args, **_kwargs: "")
+    g.install_recovery(home, Path(g.__file__).resolve().parents[2])
+    journal = run / "gateway-upgrade.json"
+    journal.write_text(json.dumps({"padding": "x" * 1_100_000}))
+    journal.chmod(0o600)
+    script = """import sys,json
+from pathlib import Path
+sys.path.insert(0,sys.argv[1])
+from resident import gateway_upgrade as g
+h=Path(sys.argv[2])
+g.configured=lambda home:(h/'resident',{'project':str(h/'project')})
+# Only business/Git/launchd side effects are isolated; artifact main, recover,
+# admission locks and bounded reader remain the actual immutable implementations.
+g.recover_locked=lambda home,state:{'status':'fixture_input_checked','bytes':len(state['padding']),'module':g.__file__}
+raise SystemExit(g.main(['recover','--home',str(h)]))
+"""
+    process = subprocess.run(
+        [sys.executable, "-I", "-c", script, str(run / "gateway-recovery.pyz"), str(home)],
+        capture_output=True,
+        text=True,
+        timeout=10,
+        check=False,
+    )
+    assert process.returncode == 0, process.stderr
+    result = json.loads(process.stdout)
+    assert result["bytes"] == 1_100_000 and "gateway-recovery.pyz/" in result["module"]
+
+
+def test_fifo_journal_is_rejected_without_blocking(tmp_path):
+    import subprocess
+    from pathlib import Path
+
+    from research_workbench_entrypoint.resident import gateway_upgrade as g
+
+    path = tmp_path / "gateway-upgrade.json"
+    os.mkfifo(path, 0o600)
+    script = """import sys
+from pathlib import Path
+sys.path.insert(0,sys.argv[1])
+from research_workbench_entrypoint.resident.gateway_upgrade import read_upgrade_journal,UpdateBlocked
+try:read_upgrade_journal(Path(sys.argv[2]))
+except UpdateBlocked as error:print(str(error))
+else:raise SystemExit(2)
+"""
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-I",
+            "-B",
+            "-c",
+            script,
+            str(Path(g.__file__).resolve().parents[2]),
+            str(path),
+        ],
+        capture_output=True,
+        text=True,
+        timeout=3,
+        check=False,
+    )
+    assert result.returncode == 0 and result.stdout.strip() == "gateway_journal_invalid"

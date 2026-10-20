@@ -1,5 +1,7 @@
 # DataHub、研究资料与实际文件
 
+完整保全manifest可能超过1 MB。仅gateway-upgrade.json使用16 MB专属私有reader/writer，发送首个信号前按实际UTF-8编码预留4096字节phase余量。reader对同一fd核对uid/0600/nlink、前后身份/长度/时间和当前路径，拒绝替换、短读或超限；通用配置与业务数据格式不变。
+
 进程映像修复只使既有升级journal的command记录已验证的实际argv0，journal/schema、账号库、模型设置及会话文件格式不变；内核探针不读取研究内容。
 
 网关升级仅新增私有 run/gateway-upgrade.json、birth-fence.json 及结果/恢复证据。owner.json 空槽的操作员占位是带inode/事务标记的目录，不伪造原生owner记录；原子no-replace发布，退休阶段持久化后只清理本事务对象。账号库只持EX查询并rollback，研究文件与模型设置不改写。
