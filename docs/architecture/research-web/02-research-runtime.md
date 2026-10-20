@@ -1,8 +1,10 @@
 # 研究协议、执行状态与恢复
 
+允许web的研究在首次空证据时就采用plan；正文回调刷新后选择实际ID，原native admission每次提供最新受信context和冻结formats。calculations仅传原始引用/操作/展示位数；系统生成声明、笔记、底稿与格式，Host从实际字节重算。错误反馈返回有界唯一ID，修正不新增补查许可。原预算、取消、历史、幂等及JSON最后发布/失败恢复协议保持。
+
 research_read_source 在正文落盘后刷新原 research_evidence.json 并返回实际 numeric_observations，模型可用既有 select_business_evidence/report_plan 组装声明。Host 检查时仍独立重读正文重算；补查、取消、原生历史和预算不变。
 
-具备实际数值业务观测时，首次执行与唯一补查均提示原 report_plan 参数；纯定性引文保留原生成路线，不编造数值Summary；Python仍支持独立计算、取证及绘图，避免同时下发另一套规范报告payload指令。原生预算、补查计数、模型配置与实际Host质量状态不变。
+具备数值业务观测或允许后续网页取证时，首次执行与唯一补查均提示原report_plan；定性引文也可使用无Summary的配方，不编造数字。Python仍支持独立计算、取证及绘图，避免同时下发另一套规范报告payload指令。原生预算、补查计数、模型配置与实际Host质量状态不变。
 
 research_check_quality返回具体算术mismatch与对应expected供原一次补查使用，同时给出Host report_delivery。模型最终消息须引用该版本URL；重写报告后重新检查，不创建友好别名绕过版本。研究预算、取消、耐久历史及原生工具边界不变。
 

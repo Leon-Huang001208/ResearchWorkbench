@@ -31,6 +31,12 @@ PR149 的单次复测取得两篇正文及四条有全文 SHA/span 的 GDP 观�
 
 ## 证据
 
+<!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"扩展原report_plan数据配方和受信context字段，复用同一Host回调与DSH工具，不创建新HTTP端点或状态服务。","diagrams":[]} -->
+<!-- architecture-review {"group":"automations","structure":"unchanged","reason":"service内报告指导统一不改变Automation准入、调度、凭据与模型选择；仍经原预算及取消通道执行。","diagrams":[]} -->
+<!-- architecture-review {"group":"files","structure":"unchanged","reason":"固定SDK内系统组装及Host独立输入重算复用原文件/归档/回执路径，不新增数据库、正文库或迁移。","diagrams":[]} -->
+<!-- architecture-review {"group":"runtime","structure":"unchanged","reason":"原research_run_script保持native admission、runner、slot与预算，仅添加固定纯计算SDK只读文件，无新循环或进程。","diagrams":[]} -->
+<!-- architecture-review {"group":"verification-workflow","structure":"unchanged","reason":"成功和恢复测试加入原Research Web Checks同一步骤，无新job/runner/依赖；原Mac安装门与单次真实研究保持分开。","diagrams":[]} -->
+
 后续仅记录实际执行命令、结果与限制，不预填 PASS。原失败报告不改写，离线样本标明历史记录/受控夹具。
 
 源码检查点：新增calculation/formats/system_flow加原revision合跑122 passed，2.96秒；原生JS工具23 passed；融合路由及受信context四例21.63秒。Ruff/Black/isort和SDK三模块mypy通过。定点命令为现有Python+已安装pytest运行器，带`--confcutdir=tests/research_web`，未安装依赖；详见任务logs。第一次旧模块组合139 passed/1 skipped/1旧指令断言失败，路由改为取证前统一plan后定点闭合；不隐去该次失败。
