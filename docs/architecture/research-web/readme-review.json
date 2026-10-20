@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "unchanged",
-  "summary": "Claw简洁欢迎页与两模式整行逐题选择",
+  "summary": "Claw简洁欢迎页、严格空态条件与两模式整行逐题选择及草稿保留",
   "reason": "README已说明两模式共用逐题问答、可跳过和可展开摘要；本次只修正空态与点击区域，详细交互已同步UI及外观文档，不改变安装、执行和部署合同。"
 }

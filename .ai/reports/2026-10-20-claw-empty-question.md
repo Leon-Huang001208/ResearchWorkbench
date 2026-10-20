@@ -26,6 +26,7 @@
 
 - `node --test tests/javascript/research_web_questionnaire.test.mjs`：修改前新增回归 FAIL；修复后 PASS。
 - `node --test tests/javascript/research_web*.test.mjs`：692 项，690 PASS、2 SKIPPED、0 FAIL；早期夹具兼容失败已修复并重跑。
+- 加入项目规定的文档、额度及跨平台合同测试：721项，719 PASS、2 SKIPPED；集成后README复核摘要长度校验曾FAIL，补全摘要后重验。两项SKIPPED为需固定DSH Loader/业务schema环境的既有条件测试，不视为通过。
 - `node tests/e2e/research_web_codex_navigation.mjs --focus-claw-welcome`：6 组 PASS，覆盖浅/深主题与 390/1440、未开始/活动空快照、案例无提交、两模式整行文字/描述/空白、双击、返回重选、多选保留、键盘和显式末题提交。
 - `node tests/e2e/research_web_codex_navigation.mjs --focus-forward`：两模式 × 两宽度 4 组 PASS。
 - `node tests/e2e/research_web_codex_navigation.mjs`：完整既有浏览器矩阵 PASS。
