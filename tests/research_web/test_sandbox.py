@@ -378,6 +378,10 @@ def test_native_tool_schemas_match_pinned_dsh_converter(tmp_path):
         pytest.skip("set DSH_SOURCE_ROOT to the pinned built DSH checkout")
     converter = Path(dsh_source) / "packages/core/tools/lib/index.js"
     assert converter.is_file(), "explicit DSH_SOURCE_ROOT must contain the built schema converter"
+    pi_root = Path(dsh_source) / "packages/llm/llm-pi-ai"
+    context_module = pi_root / "src/context.ts"
+    wire_module = pi_root / "node_modules/@earendil-works/pi-ai/dist/api/openai-completions.js"
+    assert context_module.is_file() and wire_module.is_file()
     plugin = SOURCE.parent / "runtime/research-tools.mjs"
     config_json = json.dumps(
         {"python": str(PYTHON), "runnerPath": str(SOURCE), "researchRoot": str(tmp_path)}
@@ -385,11 +389,18 @@ def test_native_tool_schemas_match_pinned_dsh_converter(tmp_path):
     program = (
         f"import {{ apply }} from {json.dumps(plugin.as_uri())};\n"
         "import { assertSupportedJsonSchema, validateJsonSchemaValue, jsonSchemaToTs, jsonSchemaToPy } "
-        f"from {json.dumps(converter.as_uri())};\nconst config = {config_json};" + """
+        f"from {json.dumps(converter.as_uri())};\nconst config = {config_json};"
+        + """
 const tools = new Map();
 apply({tools:{register(t){tools.set(t.name,t);}},logger:{info(){},warn(){},error(){}}},config,undefined,async()=>({admitted:true,read_paths:[]}));
 const tool = tools.get('research_run_script');
 // Use the same implementation ToolRuntime.register invokes, not a local mock.
+// DeepSeek rejects a root union before any research execution (real request
+// 20261020): checking SDK conversion alone did not cover this provider contract.
+for (const registered of tools.values()) {
+  if(registered.parameters.type !== 'object') throw Error('provider tool parameters require root object: '+registered.name);
+  if(['oneOf','anyOf','allOf'].some(key=>key in registered.parameters)) throw Error('provider root composition rejected');
+}
 assertSupportedJsonSchema(tool.output.schema);
 assertSupportedJsonSchema(tool.parameters);
 const result = {status:'completed',stdout:'',stderr:'',exit_code:0,error:null};
@@ -403,6 +414,33 @@ for (const value of [{...result,exit_code:'0'}, {...result,error:1}]) {
 for(const schema of [tool.parameters,tool.output.schema]) {
   if(jsonSchemaToTs(schema)==='unknown') throw Error('TypeScript SDK schema degraded to unknown');
   if(jsonSchemaToPy(schema)==='Any') throw Error('Python SDK schema degraded to Any');
+}
+"""
+        + f"const {{toPiContext}} = await import({json.dumps(context_module.as_uri())});\n"
+        + f"const {{stream}} = await import({json.dumps(wire_module.as_uri())});\n"
+        + f"const {{normalizeContext}} = await import({json.dumps((wire_module.parent.parent / 'utils/transcript.js').as_uri())});\n"
+        + """
+// Exercise the actual pinned provider serializer, with a fake transport only.
+// No server, credentials, or paid model is involved. Reject a bad root exactly
+// where the real supplier rejected the recorded request.
+const declared = [...tools.values()].map(({name,description,parameters})=>({name,description,parameters}));
+const context = toPiContext({messages:[{role:'user',content:[{type:'text',text:'offline schema fixture'}]}],tools:declared});
+let requests=0, wirePayload;
+const model={id:'offline-fixture',name:'offline',api:'openai-completions',provider:'offline-fixture',baseUrl:'https://offline.invalid/v1',reasoning:false,input:['text'],cost:{input:0,output:0,cacheRead:0,cacheWrite:0},contextWindow:8192,maxTokens:32};
+const resultWire=await stream(model,normalizeContext(context),{apiKey:'offline-fixture-only',maxRetries:0,fetch:async (_url,init)=>{
+  requests++;
+  wirePayload=JSON.parse(init?.body ?? await _url.clone().text());
+  const chunk={id:'offline',object:'chat.completion.chunk',created:0,model:'offline-fixture',choices:[{index:0,delta:{role:'assistant',content:'fixture'},finish_reason:'stop'}],usage:{prompt_tokens:0,completion_tokens:0,total_tokens:0}};
+  const separator=String.fromCharCode(10,10);
+  return new Response('data: '+JSON.stringify(chunk)+separator+'data: [DONE]'+separator,{headers:{'Content-Type':'text/event-stream'}});
+}}).result();
+if(requests!==1||resultWire.stopReason==='error') throw Error('offline provider serialization failed: '+JSON.stringify({requests,error:resultWire.errorMessage}));
+if(wirePayload.tools.length!==declared.length) throw Error('wire tools lost');
+for(const row of wirePayload.tools) {
+  const schema=row.function.parameters;
+  if(schema.type!=='object'||['oneOf','anyOf','allOf'].some(key=>key in schema)) throw Error('supplier rejects root schema');
+  const original=declared.find(t=>t.name===row.function.name);
+  if(JSON.stringify(schema)!==JSON.stringify(original.parameters)) throw Error('wire schema changed');
 }
 console.log('pinned-dsh-schemas-ok');
 """

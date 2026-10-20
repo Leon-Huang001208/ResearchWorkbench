@@ -336,7 +336,9 @@ export function apply(ctx, config, spawnProcess = spawn, admissionClient = defau
       return { result_json: JSON.stringify(result) };
     },
   });
-  // The pinned DSH converter supports standalone oneOf object branches.
+  // Provider tool parameters require a root object. DSH accepting a root union
+  // for SDK generation does not make it a valid provider function schema.
+  // The execution boundary below enforces exactly one of code/report_plan.
   // Numeric/string limits remain mandatory in fixed code and the Python SDK;
   // unsupported validation keywords must not silently degrade SDK generation.
   const scriptFields = {
@@ -353,7 +355,7 @@ export function apply(ctx, config, spawnProcess = spawn, admissionClient = defau
   ctx.tools.register({
     name: 'research_run_script',
     description: 'Build canonical reports with report_plan after acquiring Host evidence, including when no evidence existed at turn start. Select actual IDs or unique metric@period; calculations accepts id, operation, operand observation references and decimal_places, never result/value/quote/unit. Reference derived rows as $calculation_id in sections. Fixed system code computes results, claims, citations, notes, real tables and Host-required file formats; it never grants quality or hides analysis/missing. Omit summary unless a workbook is requested. No task/hash/path/status/format arguments. Code remains available for independent checks, reading and plots; do not hand-serialize another report payload or probe helper signatures repeatedly. Use known relative inputs/resources and outputs/tmp. Network, host files, subprocesses, os.getcwd(), Path.resolve(), Path.absolute(), absolute conversion and directory enumeration are unavailable. After PermissionError do not repeat denied introspection.',
-    parameters: { oneOf: ['code','report_plan'].map(key => ({type:'object',properties:{[key]:scriptFields[key]},required:[key],additionalProperties:false})) },
+    parameters: { type: 'object', properties: scriptFields, additionalProperties: false },
     output: {
       schema: { type: 'object', properties: { status: { type: 'string' }, stdout: { type: 'string' }, stderr: { type: 'string' }, exit_code: { oneOf: [{ type: 'integer' }, { type: 'null' }] }, error: { oneOf: [{ type: 'string' }, { type: 'null' }] } }, required: ['status', 'stdout', 'stderr', 'exit_code', 'error'], additionalProperties: false },
       render(_args, value) { return [{ type: 'text', text: JSON.stringify(value) }]; },
