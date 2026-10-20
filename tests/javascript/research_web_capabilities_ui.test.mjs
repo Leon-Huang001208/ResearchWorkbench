@@ -651,9 +651,12 @@ test('real landing modes filter catalog categories and select Workflow or Skill 
     assert.doesNotMatch(rootElement.innerHTML, /claw-existing-templates|浏览研究入口与分类|claw-examples|claw-case-card|查看示例/);
     assert.deepEqual(quickIDs(), []);
     const reads = calls.length;
-    await handlers.get('click')({ target: { closest: () => ({ dataset: { slashSearch: '' }, disabled: false }) } });
-    assert.ok(quickIDs().includes('flow-one')); assert.equal(calls.length, reads);
-    await handlers.get('click')({ target: { closest: () => ({ dataset: { skillShortcut: 'flow-one' }, disabled: false }) } });
+    await handlers.get('click')({ target: { closest: selector => selector === '[data-cm-open]' ? { dataset: { cmOpen: 'capabilities' }, disabled: false } : null } });
+    assert.match(rootElement.innerHTML, /composer-command-panel/);
+    assert.match(rootElement.innerHTML, /公司研究步骤/); assert.equal(calls.length, reads);
+    const labels = [...rootElement.innerHTML.matchAll(/composer-command-label">([^<]+)</g)].map(match => match[1]);
+    const index = labels.indexOf('公司研究步骤'); assert.ok(index >= 0);
+    await handlers.get('click')({ target: { closest: selector => selector === '#claw-composer-menu' ? {} : selector === '[data-cm-row]' ? { dataset: { cmRow: String(index) }, disabled: false } : null } });
     assert.equal(globalThis.location.hash, '#/claw');
     assert.match(rootElement.innerHTML, /capability-chips.*公司研究步骤 · v2/s);
     await change('skill-select', 'document-reading');

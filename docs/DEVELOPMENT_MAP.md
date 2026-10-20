@@ -1,5 +1,7 @@
 # Research Workbench Development Map
 
+Claw 统一添加/斜杠菜单定位 `ui/composer-menu.mjs`（目录行、键盘与格式纯函数）、`composer.mjs`（渲染）及 `app.mjs`（原控制器接线）；回归 `tests/javascript/research_web_composer_menu.test.mjs`。FinGPT 保持原布局，无后端/依赖/DSH协议变更。
+
 系统报告流程：resources/research_report_calculations.py 只接收原始观测引用/操作/展示位数，SDK 与 research_evidence.py 的 Host 输入重建分别执行；research_report_plan.py 串起派生选择、claims/notes/coverage、暂存与归档。report.py 从冻结要求确定格式并以已评分声明生成真实HTML/Word表。test_report_calculations/formats/system_flow 覆盖成功、拒绝、写入回滚及原 macOS 沙箱；service/source/tool 保持统一 plan 指导。
 
 网关退休与大保全摘要合同定位 `gateway_upgrade.py:wait_retired/read_upgrade_journal/journal_preflight`；近处回归覆盖真实延迟reap、正式recover、不可变artifact读取及读取替换/短读/边界。Mac安装CI在原step跑临时夹具，业务数据与全局reader不改。

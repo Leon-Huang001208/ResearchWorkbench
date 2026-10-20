@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "updated",
-  "summary": "说明FinGPT系统报告配方、冻结格式和Host独立验收",
-  "reason": "README新增取证到交付的系统处理边界，明确DSH保留、版本绑定和缺口不放行；安装依赖和已有数据模型配置不改变。"
+  "disposition": "unchanged",
+  "summary": "Claw 添加与斜杠菜单复用现有功能与控制器",
+  "reason": "只调整已有输入框菜单的布局、搜索和键盘交互；公开安装、产品能力、依赖、后端接口与DSH协议不变，用户操作合同已更新UI和外观文档。"
 }
