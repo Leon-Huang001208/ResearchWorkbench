@@ -115,9 +115,18 @@ export function createAccountMenu({ root, user, document = globalThis.document, 
 export function mountLegacyAccountMenu({ root, user, document = globalThis.document, Observer = globalThis.MutationObserver, ...options } = {}) {
   if (!root || !user || document.getElementById('account-menu') || root.querySelector('[data-account-trigger]')) return;
   let controller;
+  let triggerFocused = false;
+  document.addEventListener('focusin', event => { triggerFocused = Boolean(event.target.closest?.('[data-account-trigger]')); });
+  document.addEventListener('pointerdown', event => {
+    if (!event.target.closest?.('[data-account-trigger]')) triggerFocused = false;
+  });
   const reconcile = () => {
     const footer = root.querySelector('.navigation-footer');
-    if (footer && !footer.querySelector('[data-account-trigger]')) footer.innerHTML = renderAccountTrigger(user);
+    if (footer && !footer.querySelector('[data-account-trigger]')) {
+      const restoreFocus = triggerFocused && (document.activeElement === document.body || !document.activeElement?.isConnected);
+      footer.innerHTML = renderAccountTrigger(user);
+      if (restoreFocus) root.querySelector('[data-account-trigger]')?.focus({ preventScroll: true });
+    }
     if (footer && !controller) {
       controller = createAccountMenu({ root, user, document, ...options });
       options.logger?.('account_legacy_navigation_mounted');

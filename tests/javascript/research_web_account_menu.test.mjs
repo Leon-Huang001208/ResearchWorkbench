@@ -11,12 +11,12 @@ function fixture(fetcher = async () => ({ ok: true }), { legacy = false } = {}) 
   const logs = [];
   const redirects = [];
   const requests = [];
-  const document = { activeElement: null, body: { children: [], append(element) { this.children.push(element); } }, getElementById(id) { return this.body.children.find(element => element.id === id); }, addEventListener(name, fn) { events.set(name, fn); } };
+  const document = { activeElement: null, body: { children: [], append(element) { this.children.push(element); } }, getElementById(id) { return this.body.children.find(element => element.id === id); }, addEventListener(name, fn) { const handlers = events.get(name) || []; handlers.push(fn); events.set(name, handlers); } };
   const make = (kind, owner = null) => ({
     kind, owner, attributes: {}, style: {}, hidden: true, disabled: false,
     offsetWidth: 252, offsetHeight: 250,
     setAttribute(name, value) { this.attributes[name] = value; },
-    focus() { document.activeElement = this; },
+    focus() { document.activeElement = this; for (const handler of events.get('focusin') || []) handler({ target: this }); },
     click() { this.clicks = (this.clicks || 0) + 1; },
     closest(selector) { return selector === '[data-account-trigger]' && kind === 'trigger' || selector === '[data-account-logout]' && kind === 'logout' || selector === 'a' && ['account', 'settings'].includes(kind) ? this : null; },
     contains(element) { return element === this || element.owner === this; },
@@ -43,8 +43,8 @@ function fixture(fetcher = async () => ({ ok: true }), { legacy = false } = {}) 
   if (legacy) { mountLegacyAccountMenu({ ...options, Observer }); controller = { sync: () => reconcile() }; }
   else controller = createAccountMenu(options);
   const menu = document.body.children[0];
-  const dispatch = (name, target, key) => { const event = { target, key, prevented: false, preventDefault() { this.prevented = true; } }; events.get(name)?.(event); return event; };
-  return { controller, menu, root, footer, options, document, window, windowEvents, logs, requests, redirects, dispatch, anchor: () => anchor, redraw() { anchor = legacy ? null : make('trigger'); controller.sync(); } };
+  const dispatch = (name, target, key) => { const event = { target, key, prevented: false, preventDefault() { this.prevented = true; } }; for (const handler of events.get(name) || []) handler(event); return event; };
+  return { controller, menu, root, footer, options, document, window, windowEvents, logs, requests, redirects, dispatch, anchor: () => anchor, redraw() { if (document.activeElement === anchor) document.activeElement = document.body; anchor = legacy ? null : make('trigger'); controller.sync(); } };
 }
 
 test('rail uses one real-account trigger or the original local settings entry', () => {
@@ -212,4 +212,15 @@ test('legacy adapter does not duplicate a modern shell menu', () => {
   const f = fixture();
   mountLegacyAccountMenu({ ...f.options, Observer: class { constructor() { throw Error('unexpected legacy observer'); } } });
   assert.equal(f.document.body.children.length, 1);
+});
+
+test('legacy redraw restores a focused closed avatar but never steals focus after an outside pointer action', () => {
+  const f = fixture(undefined, { legacy: true });
+  f.anchor().focus();
+  f.redraw();
+  assert.equal(f.document.activeElement, f.anchor());
+  assert.equal(f.menu.hidden, true);
+  f.dispatch('pointerdown', { closest: () => null });
+  f.redraw();
+  assert.equal(f.document.activeElement, f.document.body);
 });
