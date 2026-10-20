@@ -5,6 +5,7 @@ import { captureQuestionForm, actionQuestion, collectQuestionGroup, questionStat
 import { createAPI, createController, prepareClawExampleDraft, parseRoute, legacyRouteTarget, isRunning, safeLog, collectQuestionAnswers, reconcileSessionSummary, waitForDataProbe, waitForIntegrationBatch, waitForLocalIntegrationProbe, waitForLocalIntegrationVerification } from './core.mjs';
 import { escapeHTML as e } from './markdown.mjs';
 import { createDisclosureState } from './disclosures.mjs';
+import { createAccountMenu } from './server/account-menu.mjs';
 import { canUploadToSession, createUploadHandler } from './uploads.mjs';
 import { createSessionSearch } from './session-search.mjs';
 import { downloadAnswer } from './answer-actions.mjs';
@@ -51,6 +52,7 @@ const conversationNavigation = createConversationNavigation({ api, notify: () =>
 const clawWorkspace = { projects: [], detail: null, busy: false, error: '', newName: '', targetSession: '', renameEdits: new Map() };
 const clawDraftEdits = new Map();
 const root = document.querySelector('#app');
+const accountMenu = createAccountMenu({ root, user: globalThis.__RWB_ACCOUNT__, logger: safeLog });
 const disclosureState = createDisclosureState({ logger: safeLog });
 const nativeSessionSearch = createSessionSearch({ search: (query, mode) => api.searchSessions(query, mode), notify: updateGlobalSearchResults, logger: safeLog });
 
@@ -458,6 +460,7 @@ function primaryRail() {
     page: state.route.page,
     section: state.route.section,
     secondaryOpen: narrow ? sidebarOpen : !sidebarCollapsed,
+    account: globalThis.__RWB_ACCOUNT__,
   });
 }
 
@@ -585,6 +588,7 @@ function render() {
   if (freshConversationScroller) freshConversationScroller.scrollTop = conversationScrollPositions.get(freshConversationScroller.dataset.conversationScroll) || 0;
   if (root.querySelector('.nav-scroll')) root.querySelector('.nav-scroll').scrollTop = conversationNavigation.state(state.route.page)?.scrollTop || 0;
   disclosureState.restore(root);
+  accountMenu.sync();
   if (focusId) {
     const replacement = document.getElementById(focusId);
     if (replacement && !replacement.disabled) { replacement.focus({ preventScroll: true }); if (selection && selection.start !== null) replacement.setSelectionRange?.(selection.start, selection.end); }
