@@ -9,13 +9,17 @@ test('server fetch wrapper preserves RequestInit overrides and binds requests an
   const sent = [];
   const window = {
     fetch: async input => {
-      if (input === '/api/server/me') return { ok: true, json: async () => ({ user: { id: userId } }) };
+      if (input === '/api/server/me') return { ok: true, json: async () => ({ user: { id: userId, username: 'alice', role: 'user' } }) };
       sent.push(input); return { status: 200 };
     },
     EventSource: class { constructor(url) { this.url = url; } },
   };
   const context = { window, Request, URL, MutationObserver: class { observe() {} }, location: { href: 'https://unit.tailabc.ts.net/', origin: 'https://unit.tailabc.ts.net', replace() {} }, document: { createElement: () => ({ style: {}, setAttribute() {} }), body: { append() {} }, head: { append() {} }, querySelector: () => null } };
   await runInNewContext(`(async () => {${source}\n})()`, context);
+  assert.equal(context.__RWB_ACCOUNT__.username, 'alice');
+  assert.equal(context.__RWB_ACCOUNT__.role, 'user');
+  assert.equal(Object.isFrozen(context.__RWB_ACCOUNT__), true);
+  assert.ok(!source.includes('document.body.append'));
   const signal = AbortSignal.abort();
   const initial = new Request('https://unit.tailabc.ts.net/api/research/sessions', { method: 'POST', body: 'old' });
   await window.fetch(initial, { method: 'DELETE', headers: { 'X-Override': 'yes' }, body: 'new', signal });

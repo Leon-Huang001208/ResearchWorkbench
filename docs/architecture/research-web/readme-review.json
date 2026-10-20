@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "unchanged",
-  "summary": "复核供应商工具参数根object修复，无需改变README产品说明",
-  "reason": "仅修复实际请求schema兼容性；原code与report_plan入口、系统绑定、DSH和质量门均保持，没有新增用户配置或研究能力。"
+  "summary": "复核私网账号入口迁入左下角菜单，无需改变README安装与产品说明",
+  "reason": "仅整合既有账号页、设置和退出入口，复用原身份与退出接口；不新增依赖、配置、研究能力或安装步骤。"
 }

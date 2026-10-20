@@ -5,6 +5,7 @@ if (!identity.ok) { location.replace('/auth'); throw Error('login_required'); }
 const user = (await identity.json()).user;
 globalThis.__RWB_USER_ID__ = user.id;
 globalThis.__RWB_USER_ROLE__ = user.role;
+globalThis.__RWB_ACCOUNT__ = Object.freeze({ username: user.username, role: user.role });
 const profileStyle = document.createElement('link');
 profileStyle.rel = 'stylesheet'; profileStyle.href = '/server-static/profile.css'; document.head.append(profileStyle);
 const restrictModelOptions = () => {
@@ -12,10 +13,6 @@ const restrictModelOptions = () => {
   if (option) option.disabled = true;
 };
 new MutationObserver(restrictModelOptions).observe(document.body, { childList: true, subtree: true });
-const link = document.createElement('a');
-link.href = '/account'; link.textContent = '我的账号'; link.setAttribute('aria-label', '打开账号管理与退出登录');
-Object.assign(link.style, { position: 'fixed', right: '16px', bottom: '16px', zIndex: '1000', padding: '8px 14px', borderRadius: '18px', background: 'var(--surface, #edf4f1)', color: 'var(--text, #234f45)', border: '1px solid #9eb5aa', font: '14px system-ui', textDecoration: 'none' });
-document.body.append(link);
 window.fetch = async (...args) => {
   const target = new URL(args[0] instanceof Request ? args[0].url : String(args[0]), location.href);
   let response;
