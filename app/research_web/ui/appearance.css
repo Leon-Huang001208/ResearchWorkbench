@@ -1689,6 +1689,29 @@ a.framework-card:hover, a.framework-card:focus-visible { border-color: var(--con
 .composer-dock .composer-more-panel .format-options, .composer-dock .composer-more-panel .method-picker fieldset, .composer-more-panel .format-options, .composer-more-panel .method-picker fieldset { position:static; width:100%; max-height:240px; margin:2px 0 4px; box-shadow:none; border:0; padding:4px 8px; }
 @media (pointer:coarse) { .composer-more > summary { width:44px; height:44px; } }
 .claw-shell .composer .composer-caption-inside { margin:0; padding:0 18px 12px; font-size:11px; line-height:1.6; }
+.claw-shell .composer { position: relative; }
+.claw-shell .composer-add { width:32px; height:32px; color:var(--muted); }
+.claw-shell .composer-model-trigger { display:flex; align-items:center; gap:6px; border:0; background:transparent; color:var(--muted); font:inherit; font-size:13px; padding:6px; max-width:60%; }
+.claw-shell .composer-model-trigger .ui-icon { width:14px; height:14px; flex-shrink:0; }
+.claw-shell .composer-command-panel { position:absolute; bottom:calc(100% + 8px); left:0; right:0; z-index:30; display:flex; flex-direction:column; max-height:min(420px,55dvh); padding:6px; border:1px solid var(--control-line); border-radius:16px; background:var(--surface); color:var(--text); box-shadow:0 6px 24px #00000012; text-align:left; }
+.composer-command-heading { display:flex; align-items:center; gap:8px; min-height:28px; padding:2px 8px 5px; color:var(--muted); font-size:12px; }
+.composer-command-heading > span { flex:1; }
+.composer-command-heading button { display:flex; align-items:center; gap:3px; border:0; background:transparent; color:var(--text); border-radius:6px; padding:4px 6px; font:inherit; cursor:pointer; }
+.composer-command-heading [data-cm-back] .ui-icon { width:14px; height:14px; }
+.claw-shell #composer-command-search { width:calc(100% - 12px); margin:0 6px 5px; padding:6px 8px; min-height:32px; border:1px solid var(--control-line); border-radius:8px; background:var(--surface); color:var(--text); font:inherit; font-size:13px; }
+.composer-command-options { overflow-y:auto; overscroll-behavior:contain; min-height:0; }
+.composer-command-group { padding:7px 9px 3px; color:var(--muted); font-size:12px; }
+.claw-shell .composer-command-row { display:flex; align-items:center; gap:9px; width:100%; min-height:34px; padding:6px 9px; border:0; border-radius:8px; background:transparent; color:var(--text); text-align:left; font:inherit; font-size:13px; cursor:pointer; }
+.composer-command-row > .ui-icon { width:17px; height:17px; flex-shrink:0; color:var(--muted); }
+.composer-command-label { flex-shrink:0; max-width:55%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.composer-command-description { min-width:0; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--muted); }
+.composer-command-row > .ui-icon:last-child:not(:first-child) { margin-left:auto; width:14px; height:14px; }
+.claw-shell .composer-command-row:hover:not(:disabled), .claw-shell .composer-command-row.is-active:not(:disabled) { background:var(--hover); }
+.composer-command-row:focus-visible, .composer-command-heading button:focus-visible, .composer-model-trigger:focus-visible { outline:2px solid var(--focus); outline-offset:-2px; }
+.claw-shell .composer-command-row:disabled { opacity:.45; cursor:not-allowed; }
+.composer-command-empty { margin:8px; font-size:13px; color:var(--muted); }
+@media (pointer:coarse) { .claw-shell .composer-command-row, .claw-shell .composer-add { min-height:44px; } }
+@media (max-width:600px) { .claw-shell .composer-command-panel { max-height:min(380px,50dvh); border-radius:12px; } .composer-command-label { max-width:65%; } .composer-command-description { font-size:12px; } }
 .claw-process { min-width:0; margin:4px 0 20px; }
 .claw-process > summary { display:flex; align-items:center; gap:6px; cursor:pointer; list-style:none; padding:0 0 10px; border-bottom:1px solid var(--line); color:var(--muted); font-size:14px; }
 .claw-process > summary::-webkit-details-marker, .claw-step > summary::-webkit-details-marker { display:none; }
