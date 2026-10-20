@@ -1,5 +1,7 @@
 # Research Web 接口清单
 
+Mac内核映像核验仅作用于显式网关操作员入口，不新增HTTP端点或修改健康字段。无法读取PID映像或映像不符时，停止前拒绝，不放宽认证或参数匹配。
+
 显式常驻网关的廉价 `GET /api/server/health` 增加 `deployment_fenced` 布尔事实，不启动pair或探测primary。安全更新journal存在时，除该健康端点外全部请求（含GET与login）返回503 server_maintenance；旧cutover语义保留。真实primary验证由操作员入口执行，不把缓存的primary_last_verified当作即时空闲证明。
 
 现有来源 read 回包新增 numeric_observations/numeric_claim_guidance，来自 Host 完整字节；研究 detail 的版本项增加 is_current 和 quality_binding。网页来源 date_evidence/date_status 解释实际发布时间及冲突，未知不按搜索或 URL 补齐。无新端点、模型参数、凭据或执行授权。

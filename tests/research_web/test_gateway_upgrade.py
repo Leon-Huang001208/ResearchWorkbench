@@ -2,11 +2,46 @@
 
 import os
 import sqlite3
+import sys
 from uuid import uuid4
 
 import pytest
 
 from research_workbench_entrypoint.resident.gateway_fence import BirthFence, FenceBlocked
+
+
+@pytest.mark.skipif(sys.platform != "darwin", reason="macOS kernel process image")
+def test_native_python_image_matches_framework_exec_instead_of_launcher():
+    from pathlib import Path
+
+    from research_workbench_entrypoint.resident import gateway_upgrade as g
+
+    image = g.native_image(os.getpid())
+    command = g.process(os.getpid()).split(maxsplit=5)[-1]
+    assert any(
+        command.startswith(str(path) + " ")
+        for path in (image, sys.executable, Path(sys.executable).resolve())
+    )
+
+
+def test_foreign_kernel_image_is_never_signalled(monkeypatch):
+    from research_workbench_entrypoint.resident import gateway_upgrade as g
+
+    monkeypatch.setattr(g, "verify_signal_contract", lambda: None)
+    monkeypatch.setattr(g, "native_image", lambda pid: "own" if pid == os.getpid() else "foreign")
+    monkeypatch.setattr(
+        g.os, "kill", lambda *_: pytest.fail("foreign executable must not be signalled")
+    )
+    with pytest.raises(g.UpdateBlocked, match="gateway_image_changed"):
+        g.graceful_drain(2000000000, "signature", "command")
+
+
+@pytest.mark.parametrize("pid", [0, -1, True, 0x80000000])
+def test_invalid_kernel_pid_is_rejected(pid):
+    from research_workbench_entrypoint.resident import gateway_upgrade as g
+
+    with pytest.raises(g.UpdateBlocked, match="gateway_image_unverified"):
+        g.native_image(pid)
 
 
 @pytest.fixture
@@ -171,6 +206,7 @@ def test_graceful_timeout_never_escalates_signal(monkeypatch):
     signals = []
     monkeypatch.setattr(g, "process", lambda pid: signature)
     monkeypatch.setattr(g, "verify_signal_contract", lambda: None)
+    monkeypatch.setattr(g, "native_image", lambda _: "same-image")
     monkeypatch.setattr(g, "listener_pids", lambda: {123})
     monkeypatch.setattr(g, "no_children", lambda pid: None)
     monkeypatch.setattr(g.os, "kill", lambda pid, sig: signals.append(sig))
@@ -188,6 +224,7 @@ def test_changed_listener_never_receives_signal(monkeypatch):
     signature = "Tue Oct 20 12:00:00 2026 " + command
     monkeypatch.setattr(g, "process", lambda pid: signature)
     monkeypatch.setattr(g, "verify_signal_contract", lambda: None)
+    monkeypatch.setattr(g, "native_image", lambda _: "same-image")
     monkeypatch.setattr(g, "listener_pids", lambda: {999})
     monkeypatch.setattr(g.os, "kill", lambda *_: pytest.fail("unknown PID must not be signalled"))
     with pytest.raises(g.UpdateBlocked, match="gateway_listener_unknown"):
