@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "changed",
+  "disposition": "updated",
   "summary": "同步FinGPT自由分析系统绑定、中文正文及同版本审计附件",
   "reason": "README增加实际用户可见的报告行为；DSH、数据和模型配置保留，研究质量仍按证据判定，不将计算/文件成功等同验收通过。"
 }
