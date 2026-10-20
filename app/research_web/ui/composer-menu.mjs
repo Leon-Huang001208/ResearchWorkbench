@@ -26,15 +26,15 @@ export function consumeComposerSlash(draft) {
 const matches = (row, query) => `${row.label} ${row.description || ''} ${row.search || ''}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase());
 export function composerMenuRows(menu, context = {}) {
   const { skills = [], methods = [], methodIds = [], expectedFormats = null, models = [], model = '', modelProvider = '', modelEndpoint = '', disabled = false, busy = false, uploadsAllowed = true } = context;
-  const commandRows = commands.filter(([key]) => menu.entry === 'slash' || key !== 'models').map(([key, label, description, glyph]) => ({ key, label, description, glyph, action: key === 'upload' ? 'upload' : 'view', value: key, group: menu.query.trim() ? '操作' : '', disabled: disabled || (key === 'upload' && (!uploadsAllowed || busy)) }));
+  const commandRows = commands.filter(([key]) => menu.entry === 'slash' || key !== 'models').map(([key, label, description, glyph]) => ({ key, label, description, glyph, action: key === 'upload' ? 'upload' : 'view', value: key, search: key, group: menu.query.trim() ? '操作' : '', disabled: disabled || (key === 'upload' && (!uploadsAllowed || busy)) }));
   const capabilityRows = (Array.isArray(skills) ? skills : []).filter(item => {
     if (!item || item.kind && !['skill', 'workflow'].includes(item.kind)) return false;
     const report = reportWorkflowEligibility(item);
     return report.report ? report.eligible : item.enabled !== false;
-  }).map(item => ({ key: `cap:${item.id}`, action: 'capability', value: item.id, label: item.name || item.id, description: item.description || '', search: item.id, glyph: 'grid', group: item.kind === 'workflow' ? 'Workflow' : 'Skill', disabled: disabled || busy || !item.version && !reportWorkflowEligibility(item).report }));
+  }).map(item => ({ key: `cap:${item.id}`, action: 'capability', value: item.id, label: item.name || item.id, description: item.description || '', search: item.id, glyph: 'grid', group: item.kind === 'workflow' ? 'Workflow' : 'Skill', disabled: disabled || busy || !item.version && !reportWorkflowEligibility(item).report })).sort((a, b) => a.group.localeCompare(b.group));
   let rows;
   if (menu.view === 'root') rows = [...commandRows, ...(menu.entry === 'slash' && menu.query.trim() ? capabilityRows : [])];
-  else if (menu.view === 'capabilities') rows = capabilityRows.sort((a, b) => a.group.localeCompare(b.group));
+  else if (menu.view === 'capabilities') rows = capabilityRows;
   else if (menu.view === 'methods') rows = (Array.isArray(methods) ? methods : []).filter(item => item?.enabled && item.version).map(item => ({ key: `method:${item.id}`, action: 'method', value: item.id, label: item.name || item.id, description: item.description || `v${item.version}`, glyph: 'sliders', checked: methodIds.includes(item.id), disabled: disabled || busy || !methodIds.includes(item.id) && methodIds.length >= 3 }));
   else if (menu.view === 'formats') rows = [
     { key: 'auto', action: 'format', value: 'auto', label: '按 Skill 默认格式', description: '自动', checked: expectedFormats === null },
