@@ -648,7 +648,7 @@ test('real landing modes filter catalog categories and select Workflow or Skill 
     await load(`app.mjs?landing-integration=${Date.now()}`);
     const quickIDs = () => [...rootElement.innerHTML.matchAll(/data-skill-shortcut="([^"]+)"/g)].map(match => match[1]);
     const change = (id, value, dataset = {}) => handlers.get('change')({ target: { id, value, dataset, closest: () => null } });
-    assert.doesNotMatch(rootElement.innerHTML, /claw-existing-templates|浏览研究入口与分类/);
+    assert.doesNotMatch(rootElement.innerHTML, /claw-existing-templates|浏览研究入口与分类|claw-examples|claw-case-card|查看示例/);
     assert.deepEqual(quickIDs(), []);
     const reads = calls.length;
     await handlers.get('click')({ target: { closest: () => ({ dataset: { slashSearch: '' }, disabled: false }) } });

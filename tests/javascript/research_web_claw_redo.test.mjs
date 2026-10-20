@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { renderClawSchedules, renderClawRunCards, renderClawCases, renderAutomationDrafts, automationDraftBody, renderClawConnections } from '../../app/research_web/ui/claw-workspace.mjs';
+import { renderClawSchedules, renderClawRunCards, clawCases, renderAutomationDrafts, automationDraftBody, renderClawConnections } from '../../app/research_web/ui/claw-workspace.mjs';
 import { createAPI } from '../../app/research_web/ui/core.mjs';
 import { renderSidebar, renderPrimaryRail } from '../../app/research_web/ui/shell.mjs';
 import { renderConversation } from '../../app/research_web/ui/views.mjs';
@@ -168,8 +168,10 @@ test('Claw capability chooser only selects and links to centralized management',
   assert.match(html,/data-skill-shortcut="s"/); assert.match(html,/能力中心/);
   assert.doesNotMatch(html,/连接状态|数据源配置|MCP 市场与安装/);
 });
-test('Claw examples prepare drafts with no invented replay or success',()=>{
-  const html=renderClawCases('all'); assert.match(html,/每日收盘点评/); assert.match(html,/data-claw-case/);
+test('Claw schedule creation keeps its draft after homepage examples are removed',()=>{
+  const html=renderClawSchedules([]); assert.match(html,/新建任务/); assert.match(html,/data-claw-case="schedule"/);
+  assert.deepEqual(clawCases.map(item=>item.id),['schedule']);
+  assert.match(clawCases[0].text,/先澄清/);
   assert.doesNotMatch(html,/回放|工具成功|已完成/);
 });
 test('side navigation owns schedule and workspace while rail always offers reopening',()=>{
