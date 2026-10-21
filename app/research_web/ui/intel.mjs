@@ -5,7 +5,7 @@ import { icon } from './icons.mjs';
 export const intelTabs = [
   ['overview', '事件总览'], ['research-reports', '研究报告'],
   ['investment-news', 'Investment News'], ['wsc', '见闻快讯'],
-  ['social', '社交媒体监控'], ['news', '公开新闻'], ['filings', 'A 股公告'], ['events', '事件概率'],
+  ['social', '社交媒体监控'], ['events', '事件概率'],
 ];
 const list = value => Array.isArray(value) ? value : [];
 const text = value => typeof value === 'string' || typeof value === 'number' ? String(value) : '';

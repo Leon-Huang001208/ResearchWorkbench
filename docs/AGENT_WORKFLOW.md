@@ -205,6 +205,8 @@ node scripts/git_safety.mjs backup-prune --project /absolute/RWB --apply
 
 ## 最小验收规划（Verification planning）
 
+资产观察的观察创建、单区块刷新、持久化失败、取消/重启恢复与 Wind 财务语义由 `test_asset_workspace.py` / `test_datahub_wind.py` 加入既有 Research Web Checks Python 步骤；SVG 指标、专题切换、资讯兼容入口和迟到响应沿原 `research_web*.test.mjs` 通配符，浏览器另走 `research_web_asset_workspace.mjs`。新增后端 97 项最终本机复验约 57 秒，预留 90 秒；不新增 job、runner、依赖或 Windows/Linux dispatch，不触发真实厂商/模型调用。完整相关测试、原 macOS 干净安装与最终候选证据仍分别验收，截图和契约测试不代表真实数据源可调用。
+
 Claw正文搜索的快速HTTP/私有RPC边界使用`test_session_search.py`，与既有协议合同一起进入Research Web Checks；查询须走JSON POST，浏览器验收另检查模式/归属、错误重试与迟到响应。新增只读搜索不替代完整本地API回归、Native候选与exact-SHA Mac安装CI，也不扩大Windows/Linux dispatch授权。
 
 双运行时 Web 改动仍使用下方同一 changed-file 规划器：Dockerfile/Compose、bootstrap、runtime contract、凭据后端与 Docker CI 命中各自策略规则；不因 Web Docker 部署自动引入 Tauri/sidecar/桌面门。`--runtime` 无参数默认 Native，真实 Docker 构建/健康与 Native 安装分别保留证据；没有镜像或平台回执时必须写 `not_run`/`blocked`，不能用模拟测试替代。模式切换需确认旧模式所有权并顺序停用，共享产品数据不能被两个模式同时写入。安装/依赖操作仍按原审批边界执行。

@@ -220,31 +220,31 @@ test('asset workspace renders independent states, native chart and personal obse
     },
     watchlists: [{ id: 'w1', name: '核心观察', items: [] }], notes: [], alerts: [], notifications: [],
   });
-  for (const label of ['资产概览', '历史行情', '财务指标', '开盘', '最高', '成交量', '换手率', '52周高', 'K 线与技术指标', 'MACD', 'KDJ', 'RSI', 'BOLL', '同类比较', '主题暴露', '来源与口径', '自选与观察', '提醒规则', '交给 FinGPT', '交给 Claw']) assert.match(html, new RegExp(label));
-  assert.match(html, /akshare · 截止 2026-09-05/);
-  assert.match(html, /<svg[^>]+aria-label="包含 K 线、成交量、MACD、KDJ 和 RSI 的行情图"/);
+  for (const label of ['资产概览', '历史行情', '财务指标', '开盘', '最高', '成交量', '换手率', '区间最高', 'K 线与技术指标', 'MACD', 'KDJ', 'RSI', 'BOLL', '当前覆盖限制', '主题暴露', '来源与口径', '自选与观察', '提醒规则', '交给 FinGPT', '交给 Claw']) assert.match(html, new RegExp(label));
+  assert.match(html, /akshare/); assert.match(html, /2026-09-05/);
+  assert.match(html, /<svg[^>]+aria-label="包含 K 线、成交量、MACD、KDJ 和 RSI 的行情图[^"]*"/);
   assert.match(html, /class="asset-candle (?:up|down)"/);
-  assert.match(html, /换 <strong>0\.51%<\/strong>/);
+  assert.match(html, /换手率 <strong>0\.51%<\/strong>/);
   assert.match(html, /query_failed/);
   assert.doesNotMatch(html, /echarts|chart\.js|unpkg|演示/);
 });
 
 test('asset terminal derives technical indicators only from supplied market bars', async () => {
   const { enrichMarketBars } = await import(new URL('asset-workspace.mjs', root));
-  const rows = Array.from({ length: 30 }, (_, index) => ({
-    date: `2026-08-${String(index + 1).padStart(2, '0')}`,
+  const rows = Array.from({ length: 40 }, (_, index) => ({
+    date: new Date(Date.UTC(2026, 7, 1 + index)).toISOString().slice(0, 10),
     open: 100 + index, high: 102 + index, low: 99 + index, close: 101 + index,
     volume: 1000 + index * 10, turnover: 100000 + index * 1000,
     turnover_rate_pct: 1 + index / 100,
   }));
   const bars = enrichMarketBars(rows);
   const latest = bars.at(-1);
-  assert.equal(bars.length, 30);
+  assert.equal(bars.length, 40);
   for (const key of ['ma5', 'ma10', 'ma20', 'bollUpper', 'bollLower', 'dif', 'dea', 'macd', 'k', 'd', 'j', 'rsi']) {
     assert.equal(Number.isFinite(latest[key]), true, `${key} should be calculated`);
   }
-  assert.equal(latest.amount, 129000);
-  assert.equal(latest.turnover, 1.29);
+  assert.equal(latest.amount, 139000);
+  assert.ok(Math.abs(latest.turnover_rate_pct - 1.39) < 1e-12);
 });
 
 test('asset metrics keep canonical turnover amount separate from turnover rate', async () => {
@@ -264,7 +264,7 @@ test('asset workspace never turns absent market values into zero', async () => {
     observation: { asset: '600519', asset_type: 'stock', blocks: {} },
     rows: { overview: [], history: [] },
   });
-  for (const label of ['开盘', '最高', '最低', '成交量', '成交额', '换手率', '52周高', '52周低']) {
+  for (const label of ['开盘', '最高', '最低', '成交量', '成交额', '换手率', '区间最高', '区间最低']) {
     assert.match(html, new RegExp(`${label}</dt><dd>—</dd>`));
   }
 });
@@ -284,8 +284,8 @@ test('asset financial table renders legacy boolean missing sentinels as unknown'
       activity: [{ provider_boolean: false }],
     },
   });
-  const financials = html.slice(html.indexOf('FINANCIALS'), html.indexOf('ACTIVITY'));
-  const activity = html.slice(html.indexOf('ACTIVITY'));
+  const financials = assets.renderAssetWorkspace({ observation: { asset: '600519', asset_type: 'stock', blocks: { financials: { status: 'complete', dataset: { provider: 'akshare' } } } }, route: { assetView: 'financials' }, rows: { financials: [{ 报告期: '1998-12-31', 净利润: '1.47亿', 净利润同比增长率: false }] } });
+  const activity = assets.renderAssetWorkspace({ observation: { asset: '600519', asset_type: 'stock', blocks: { activity: { status: 'complete', dataset: { provider: 'custom' } } } }, route: { assetView: 'capital' }, rows: { activity: [{ provider_boolean: false }] } });
   assert.match(financials, /<td>—<\/td>/);
   assert.doesNotMatch(financials, /<td>false<\/td>/);
   assert.match(activity, /<td>false<\/td>/);

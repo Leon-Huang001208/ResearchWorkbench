@@ -1,5 +1,13 @@
 # Research Web 接口清单
 
+## 资产观察区块刷新
+
+`POST /api/research/assets/observations/{observation_id}/blocks/{block}/refresh` 使用 `Idempotency-Key` 头，无请求正文，受理返回 `202` 和观察的公开投影。目标必须是该观察已有的封闭区块：`overview/history/financials/activity/margin/holders/announcements/news/research`；沿原会话、资产、来源及日期参数，仅目标区块以 `refresh=true` 重新调用 DataHub。GET 观察和列表始终只读。
+
+同一观察、同一键和区块返回当前观察，不重复启动取数；同一键改区块、或观察仍有任一区块 `loading` 时返回 `409`。刷新保存失败返回 `503 asset_observation_save_failed` 且不启动查询。刷新中保留旧 dataset，失败/取消/中断同时保留旧快照与新失败码；客户端轮询状态，不把 `202` 或旧数据当作本次成功。键只保存 SHA-256 摘要，不向浏览器返回内部 request、refresh_keys 或 sample。旧 Golddata 新闻/公告 GET 接口保留，仅页面入口迁到资产观察，不新增采集或模型调用。
+
+## 接口与协议约定
+
 模型服务商联合部署仅新增本机 `model_provider_upgrade apply/recover --home [--source]` 显式入口，无新 HTTP/DSH 接口。只读 resident/runtime/model-profiles 与 server health 用于真实版本、活动及凭据是否配置核对，不发送模型请求或读出 Key。
 
 无新增CLI参数或HTTP接口；恢复任务工具缺失仍以既有blocked错误返回。优雅等待延长不改变deferred/recovery_required的语义。
@@ -380,6 +388,7 @@ MCP staging、安装 payload、清单与确认令牌目录的 Windows mode 修�
 | GET | `/api/research/assets/observations` | `app/research_web/asset_routes.py` |
 | POST | `/api/research/assets/observations` | `app/research_web/asset_routes.py` |
 | GET | `/api/research/assets/observations/{observation_id}` | `app/research_web/asset_routes.py` |
+| POST | `/api/research/assets/observations/{observation_id}/blocks/{block}/refresh` | `app/research_web/asset_routes.py` |
 | GET | `/api/research/watchlists` | `app/research_web/asset_routes.py` |
 | POST | `/api/research/watchlists` | `app/research_web/asset_routes.py` |
 | POST | `/api/research/watchlists/{watchlist_id}/items` | `app/research_web/asset_routes.py` |

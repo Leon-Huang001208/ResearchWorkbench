@@ -97,6 +97,86 @@ def test_business_query_accepts_market_snapshot_asset_type_context():
     assert query.parameters["asset_type"] == "stock"
 
 
+@pytest.fixture
+def financial_broker(monkeypatch):
+    from app.research_web.datahub import broker
+
+    monkeypatch.setattr(
+        broker,
+        "build_catalog",
+        lambda **kwargs: {
+            "sources": [
+                {
+                    "id": "wind",
+                    "readiness": {
+                        "integration_completed": True,
+                        "configured": True,
+                        "dependency_ready": True,
+                        "allowed": True,
+                        "health": "unknown",
+                    },
+                }
+            ],
+            "bindings": [
+                {
+                    "capability_id": "financials",
+                    "source_id": "wind",
+                    "implemented": True,
+                    "priority": 1,
+                }
+            ],
+        },
+    )
+    return broker
+
+
+@pytest.mark.parametrize("periods", [[], ["2026-06-30"]])
+def test_wind_broker_translates_financial_indicators_without_dropping_explicit_periods(
+    financial_broker, periods
+):
+    query = BusinessQuery(
+        capability="financials",
+        source="wind",
+        parameters={
+            "asset": "600519.SH",
+            "statements": ["indicators"],
+            "periods": periods,
+        },
+    )
+    resolved = financial_broker.resolve(query)
+    assert resolved.query.parameters == {
+        "asset": "600519.SH",
+        "statements": ["metrics"],
+        "periods": periods,
+    }
+    assert query.parameters["statements"] == ["indicators"]
+
+
+@pytest.mark.parametrize(
+    "parameters",
+    [
+        {"statements": ["balance_sheet"], "periods": []},
+        {"statements": "indicators", "periods": []},
+        {"statements": ["indicators"], "periods": 8},
+        {"statements": ["indicators"], "periods": "2026-06-30"},
+        {"statements": ["indicators"], "periods": ["2026-06-30", "2026-03-31"]},
+        {"statements": ["indicators"], "periods": ["2026-02-30"]},
+    ],
+)
+def test_wind_broker_rejects_financial_semantics_it_cannot_fulfill(financial_broker, parameters):
+    from app.research_web.store import StoreError
+
+    with pytest.raises(StoreError) as error:
+        financial_broker.resolve(
+            BusinessQuery(
+                capability="financials",
+                source="wind",
+                parameters={"asset": "600519.SH", **parameters},
+            )
+        )
+    assert error.value.code == "data_not_equivalent"
+
+
 @pytest.mark.asyncio
 async def test_wind_provider_uses_owned_isolated_adapter_and_closes_it(monkeypatch):
     from app.research_web.datahub.providers_wind import fetch

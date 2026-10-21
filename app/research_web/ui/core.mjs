@@ -1,4 +1,5 @@
 const API_ROOT = '/api/research';
+import { ASSET_VIEWS, ASSET_TYPES, cleanAsset } from './asset-navigation.mjs';
 const segment = (value) => encodeURIComponent(value);
 const pages = new Set(['fingpt', 'claw', 'assets', 'simulation', 'workbench', 'frameworks', 'skills', 'history', 'operations', 'settings', 'account', 'intel', 'aihot']);
 const workbenchSections = new Set(['market', 'assets', 'funds', 'industry', 'documents', 'hot', 'etf-paper']);
@@ -32,7 +33,7 @@ export function parseRoute(hash = '') {
     route.aihotDate = datePattern.test(params.get('date') || '') ? params.get('date') : null;
   }
   if (page === 'intel') {
-    const tabs = new Set(['hot', 'overview', 'search', 'research-reports', 'investment-news', 'wsc', 'social', 'news', 'filings', 'events']);
+    const tabs = new Set(['hot', 'overview', 'search', 'research-reports', 'investment-news', 'wsc', 'social', 'events']);
     route.intelTab = !extraSegments.length && tabs.has(sectionSegment) ? sectionSegment : 'overview';
     if (route.intelTab === 'search') {
       route.searchKind = Object.hasOwn(searchSections, params.get('kind')) ? params.get('kind') : 'news';
@@ -81,6 +82,11 @@ export function parseRoute(hash = '') {
     }
   }
   if (page === 'assets') route.section = !extraSegments.length && sectionSegment === 'funds' ? 'funds' : 'assets';
+  if (['assets', 'workbench'].includes(page) && route.section === 'assets') {
+    route.asset = cleanAsset(params.get('asset'));
+    route.assetType = ASSET_TYPES.includes(params.get('asset_type')) ? params.get('asset_type') : 'stock';
+    route.assetView = ASSET_VIEWS.includes(params.get('view')) ? params.get('view') : 'overview';
+  }
   if (page === 'simulation') route.section = 'etf-paper';
   if (page === 'frameworks') {
     route.frameworkSlug = !extraSegments.length && /^[a-z0-9-]+$/.test(sectionSegment || '') ? sectionSegment : null;
@@ -90,6 +96,13 @@ export function parseRoute(hash = '') {
 }
 
 export function legacyRouteTarget(hash = '') {
+  const oldAssetTopic = /^#\/intel\/(news|filings)(?:\?([^#]*))?$/.exec(String(hash));
+  if (oldAssetTopic) {
+    const params = new URLSearchParams({ view: oldAssetTopic[1] === 'news' ? 'news' : 'announcements' });
+    const code = new URLSearchParams(oldAssetTopic[2] || '').get('code');
+    if (/^\d{6}$/.test(code || '')) { params.set('asset', code); params.set('asset_type', 'stock'); }
+    return `#/assets?${params}`;
+  }
   if (/^#\/settings\/account(?:\?|$)/.test(String(hash))) return '#/account';
   if (/^#\/workbench(?:\/|\?|$)/.test(String(hash))) {
     const route = parseRoute(hash);
@@ -170,7 +183,7 @@ export function safeLog(event, metadata = {}) {
 }
 
 export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSourceClass = globalThis.EventSource, logger = safeLog, requestTimeoutMs = 120000 } = {}) {
-  async function request(path, { method = 'GET', body, key, userAction = false, readOnly = false } = {}) {
+  async function request(path, { method = 'GET', body, key, userAction = false, readOnly = false, signal } = {}) {
     const reading = method === 'GET' || readOnly;
     const abort = new AbortController();
     let timer;
@@ -182,7 +195,8 @@ export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSo
         error.code = 'request_timeout'; reject(error);
       }, reading ? Math.min(requestTimeoutMs, 30000) : requestTimeoutMs);
     });
-    try { return await Promise.race([performRequest(path, { method, body, key, userAction, signal: abort.signal }), timeout]); }
+    const combined = signal ? AbortSignal.any([signal, abort.signal]) : abort.signal;
+    try { return await Promise.race([performRequest(path, { method, body, key, userAction, signal: combined }), timeout]); }
     finally { clearTimeout(timer); }
   }
   async function performRequest(path, { method, body, key, userAction, signal }) {
@@ -194,7 +208,8 @@ export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSo
     let response;
     try {
       response = await fetcher(`${API_ROOT}${path}`, { method, signal, credentials: 'same-origin', cache: 'no-store', headers, body: body === undefined ? undefined : isForm ? body : JSON.stringify(body) });
-    } catch {
+    } catch (error) {
+      if (signal.aborted) throw new DOMException('读取已取消', 'AbortError');
       logger('request_failed', { method });
       throw new Error('网络连接失败，请检查服务后重试。未自动重新提交请求。');
     }
@@ -336,18 +351,19 @@ export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSo
     dataQueries: (section = '') => request(`/data/queries${section ? `?section=${segment(section)}` : ''}`),
     dataQuery: (id) => request(`/data/queries/${segment(id)}`),
     datasetManifest: (sid, did) => request(`/sessions/${segment(sid)}/datasets/${segment(did)}`),
-    datasetRows: (sid, did, offset = 0, limit = 200) => request(`/sessions/${segment(sid)}/datasets/${segment(did)}/rows?offset=${segment(offset)}&limit=${segment(limit)}`),
-    assetObservations: () => request('/assets/observations'),
-    assetObservation: (id) => request(`/assets/observations/${segment(id)}`),
+    datasetRows: (sid, did, offset = 0, limit = 200, options = {}) => request(`/sessions/${segment(sid)}/datasets/${segment(did)}/rows?offset=${segment(offset)}&limit=${segment(limit)}`, options),
+    assetObservations: (options = {}) => request('/assets/observations', options),
+    assetObservation: (id, options = {}) => request(`/assets/observations/${segment(id)}`, options),
     createAssetObservation: (body, key) => request('/assets/observations', { method: 'POST', body, key }),
-    watchlists: () => request('/watchlists'),
+    refreshAssetBlock: (id, block, key) => request(`/assets/observations/${segment(id)}/blocks/${segment(block)}/refresh`, { method: 'POST', body: {}, key }),
+    watchlists: (options = {}) => request('/watchlists', options),
     createWatchlist: (body) => request('/watchlists', { method: 'POST', body }),
     addWatchlistItem: (id, body) => request(`/watchlists/${segment(id)}/items`, { method: 'POST', body }),
-    assetNotes: () => request('/asset-notes'),
+    assetNotes: (options = {}) => request('/asset-notes', options),
     createAssetNote: (body) => request('/asset-notes', { method: 'POST', body }),
-    assetAlerts: () => request('/asset-alerts'),
+    assetAlerts: (options = {}) => request('/asset-alerts', options),
     createAssetAlert: (body) => request('/asset-alerts', { method: 'POST', body }),
-    assetNotifications: () => request('/asset-notifications'),
+    assetNotifications: (options = {}) => request('/asset-notifications', options),
     handoff: (body, key) => request('/handoffs', { method: 'POST', body, key }),
     artifacts: (sessionId = '') => request(`/artifacts${sessionId ? `?session_id=${segment(sessionId)}` : ''}`),
     operationsUsage: (range = '7d') => request(`/operations/usage?range=${segment(range)}`),

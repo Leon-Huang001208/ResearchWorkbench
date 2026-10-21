@@ -1,0 +1,61 @@
+@import url('./asset-chart.css');
+#main:has(.asset-observation-page) .page-content { max-width:1680px; width:100%; }
+.asset-observation-page { display:grid; grid-template-columns:220px minmax(0,1fr); gap:18px; align-items:start; }
+.asset-observation-main { min-width:0; }
+.asset-list-drawer { position:sticky; top:12px; border:1px solid var(--line); border-radius:10px; background:var(--surface); }
+.asset-list-drawer > summary { padding:14px; font-weight:650; cursor:pointer; }
+.asset-watch-rail { padding:0 12px 14px; }
+.asset-watch-rail form { display:grid; gap:8px; margin-bottom:15px; }
+.asset-watch-rail label { display:grid; gap:6px; font-size:11px; color:var(--muted); }
+.asset-watch-rail nav { display:grid; max-height:65vh; overflow:auto; }
+.asset-list-row { display:grid; padding:11px 8px; border-bottom:1px solid var(--line); gap:4px; color:var(--text); }
+.asset-list-row span { font-size:10px; color:var(--muted); }
+.asset-list-row[hidden] { display:none; }
+.asset-list-row.active { background:var(--canvas); border-left:3px solid var(--accent); }
+.asset-identity-select { display:flex; flex-wrap:wrap; align-items:end; gap:10px; margin-bottom:12px; }
+.asset-identity-select label { display:grid; gap:5px; color:var(--muted); font-size:11px; }
+.asset-identity-select input { min-width:190px; }
+.asset-observation-page .asset-identity { grid-template-columns:minmax(0,1fr) auto auto; padding:18px; gap:16px; margin-bottom:12px; }
+.asset-observation-page .asset-identity .button-row { justify-content:flex-end; }
+.asset-observation-page .asset-identity h1 { font-size:22px; }
+.asset-query-controls, .asset-personal-details, .asset-chart-details { margin-bottom:14px; min-width:0; }
+.asset-query-controls > summary, .asset-personal-details > summary, .asset-chart-details > summary { padding:10px 2px; cursor:pointer; color:var(--muted); font-size:12px; }
+.asset-observation-page .asset-search { grid-template-columns:repeat(4,minmax(0,1fr)); padding:14px; gap:10px; margin-bottom:8px; }
+.asset-observation-page .asset-search input, .asset-observation-page .asset-search select { width:100%; min-width:0; }
+.asset-market-layout { display:grid; grid-template-columns:minmax(0,1fr) 240px; gap:14px; align-items:start; }
+.asset-market-layout > div { min-width:0; }
+.asset-quote-panel { border:1px solid var(--line); border-radius:10px; background:var(--surface); padding:14px; }
+.asset-quote-panel h2 { font-size:13px; margin:0 0 10px; }
+.asset-observation-page .asset-market-metrics { grid-template-columns:repeat(2,minmax(0,1fr)); gap:0; border:0; margin-bottom:14px; background:transparent; }
+.asset-observation-page .asset-market-metrics div { padding:9px 3px; border-bottom:1px solid var(--line); }
+.asset-observation-page .asset-market-metrics dd { font-variant-numeric:tabular-nums; font-size:12px; }
+.asset-topic-tabs { display:flex; overflow-x:auto; gap:4px; padding:6px 0; margin-bottom:12px; border-bottom:1px solid var(--line); }
+.asset-topic-tabs a { white-space:nowrap; padding:10px 15px; border-radius:7px 7px 0 0; color:var(--muted); font-size:12px; }
+.asset-topic-tabs a.active { color:var(--text); background:var(--surface); box-shadow:inset 0 -2px var(--accent); font-weight:650; }
+.asset-topic-content { min-width:0; }
+.asset-topic-content .asset-block { margin-bottom:14px; }
+.asset-block > header { display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; align-items:center; }
+.asset-block > header h2 { margin:0; font-size:14px; }
+.asset-overview-links { display:flex; gap:12px; flex-wrap:wrap; padding:14px 0; }
+.asset-coverage-list { list-style:none; padding:0; }
+.asset-coverage-list li { display:grid; grid-template-columns:1fr 1fr 1.5fr; gap:12px; padding:10px 0; border-bottom:1px solid var(--line); font-size:11px; }
+.asset-table-wrap { max-height:65vh; overflow:auto; }
+.asset-table th { position:sticky; top:0; z-index:1; background:var(--surface); text-align:left; white-space:nowrap; }
+.asset-table td { font-variant-numeric:tabular-nums; }
+.asset-table small { display:block; font-weight:400; color:var(--muted); font-size:9px; }
+.asset-financial-table th:first-child { position:sticky; left:0; z-index:2; }
+.asset-financial-table td { text-align:right; min-width:125px; }
+.asset-personal-details { margin-top:18px; border-top:1px solid var(--line); }
+.asset-observation-page .asset-personal { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+.asset-news-grid { display:grid; grid-template-columns:minmax(220px, .8fr) minmax(0,1.2fr); gap:16px; align-items:start; }
+.asset-news-list { display:grid; gap:6px; max-height:65vh; overflow:auto; }
+.asset-news-row { display:grid; gap:8px; text-align:left; border:1px solid var(--line); background:var(--surface); color:var(--text); padding:12px; border-radius:7px; cursor:pointer; }
+.asset-news-row.active { border-color:var(--accent); background:var(--canvas); }
+.asset-news-row strong { font-size:12px; line-height:1.7; }
+.asset-news-reader { padding:18px; background:var(--surface); border:1px solid var(--line); border-radius:10px; overflow-wrap:anywhere; }
+.asset-news-reader h3 { font-size:18px; line-height:1.7; }
+.asset-reading-text { white-space:pre-wrap; line-height:1.9; margin:18px 0; font-size:13px; }
+.asset-topic-empty { padding:24px; border:1px dashed var(--line); border-radius:10px; }
+@media (max-width:1439px) { .asset-observation-page { grid-template-columns:minmax(0,1fr); } .asset-list-drawer { position:static; } .asset-watch-rail nav { grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); max-height:230px; } }
+@media (max-width:1050px) { .asset-market-layout { grid-template-columns:minmax(0,1fr); } .asset-quote-panel { padding:12px; } .asset-observation-page .asset-market-metrics { grid-template-columns:repeat(4,minmax(0,1fr)); } .asset-news-grid { grid-template-columns:minmax(0,1fr); } .asset-news-list { max-height:300px; } }
+@media (max-width:650px) { .asset-observation-page .asset-identity { grid-template-columns:minmax(0,1fr) auto; } .asset-observation-page .asset-identity .button-row { grid-column:1/-1; } .asset-observation-page .asset-search { grid-template-columns:repeat(2,minmax(0,1fr)); } .asset-observation-page .asset-personal { grid-template-columns:minmax(0,1fr); } .asset-identity-select { align-items:stretch; } .asset-identity-select label { flex:1; } .asset-identity-select input { min-width:0; width:100%; } .asset-coverage-list li { grid-template-columns:1fr; gap:4px; } .asset-observation-page .asset-market-metrics { grid-template-columns:repeat(2,minmax(0,1fr)); } .asset-topic-tabs a { padding:10px; } }

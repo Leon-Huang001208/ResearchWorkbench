@@ -1,5 +1,7 @@
 # Research Workbench 架构总览
 
+资产观察沿用 Host 内的 AssetWorkspace → DataHub Broker → 会话快照链路；A 股页面由原生 SVG 行情主图、证券身份/自选栏、报价栏和专题阅读区组成。显式单区块刷新通过既有观察记录的 POST 入口重新取数，旧快照与失败状态分别保留；研究情报的新闻/公告入口迁入资产观察，兼容原只读 Golddata API。没有新增行情服务、研究引擎、供应商或依赖，合同见[资产页面](research-web-ui.md#资产观察工作台)与[API](architecture/research-web/04-api.md#资产观察区块刷新)。
+
 模型服务商后端的显式联合部署通过 `resident/model_provider_upgrade.py` 同步主实例 wheel、源码和网关绑定；version 4 全局意图先于出生占槽及主实例 journal，保留原控制器和自动兼容清单。活动/未知等待，失败恢复两端且保全原数据；详见[联合升级合同](research-web-gateway-upgrade.md#模型服务商联合升级)。
 
 冻结恢复任务显式保留系统与既有Homebrew工具PATH，部署前验证Git LFS可用，保持原Git钩子和身份检查；不安装依赖或改变研究服务拓扑。
