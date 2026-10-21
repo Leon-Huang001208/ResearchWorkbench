@@ -1,7 +1,8 @@
 const API_ROOT = '/api/research';
 const segment = (value) => encodeURIComponent(value);
-const pages = new Set(['fingpt', 'claw', 'workbench', 'frameworks', 'skills', 'history', 'operations', 'settings', 'account', 'intel', 'aihot']);
+const pages = new Set(['fingpt', 'claw', 'assets', 'simulation', 'workbench', 'frameworks', 'skills', 'history', 'operations', 'settings', 'account', 'intel', 'aihot']);
 const workbenchSections = new Set(['market', 'assets', 'funds', 'industry', 'documents', 'hot', 'etf-paper']);
+const searchSections = { news: 'market', research: 'industry', announcements: 'documents' };
 const settingsSections = new Set(['general', 'model', 'data', 'local', 'docs', 'hot', 'users']);
 const capabilityViews = new Set(['library', 'mine', 'plans', 'connections', 'market']);
 const capabilityKinds = new Set(['skill', 'method', 'tool', 'workflow', 'data']);
@@ -31,8 +32,12 @@ export function parseRoute(hash = '') {
     route.aihotDate = datePattern.test(params.get('date') || '') ? params.get('date') : null;
   }
   if (page === 'intel') {
-    const tabs = new Set(['hot', 'overview', 'research-reports', 'investment-news', 'wsc', 'social', 'news', 'filings', 'events']);
+    const tabs = new Set(['hot', 'overview', 'search', 'research-reports', 'investment-news', 'wsc', 'social', 'news', 'filings', 'events']);
     route.intelTab = !extraSegments.length && tabs.has(sectionSegment) ? sectionSegment : 'overview';
+    if (route.intelTab === 'search') {
+      route.searchKind = Object.hasOwn(searchSections, params.get('kind')) ? params.get('kind') : 'news';
+      route.section = searchSections[route.searchKind];
+    }
     if (route.intelTab === 'hot') {
       route.hotView = ['events', 'sources', 'channels', 'briefs', 'research', 'follows', 'plans'].includes(params.get('view')) ? params.get('view') : 'events';
       route.hotEventId = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(params.get('event') || '') ? params.get('event') : null;
@@ -68,13 +73,15 @@ export function parseRoute(hash = '') {
     }
   }
   if (page === 'workbench') {
-    const requestedSection = sectionSegment || params.get('section');
-    route.section = workbenchSections.has(requestedSection) ? requestedSection : 'market';
+    const requestedSection = extraSegments.length ? '' : (sectionSegment || params.get('section'));
+    route.section = workbenchSections.has(requestedSection) ? requestedSection : 'assets';
     if (route.section === 'hot') {
       route.hotView = ['events', 'sources', 'channels', 'briefs', 'research', 'follows', 'plans'].includes(params.get('view')) ? params.get('view') : 'events';
       route.hotEventId = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(params.get('event') || '') ? params.get('event') : null;
     }
   }
+  if (page === 'assets') route.section = !extraSegments.length && sectionSegment === 'funds' ? 'funds' : 'assets';
+  if (page === 'simulation') route.section = 'etf-paper';
   if (page === 'frameworks') {
     route.frameworkSlug = !extraSegments.length && /^[a-z0-9-]+$/.test(sectionSegment || '') ? sectionSegment : null;
     route.frameworkTab = frameworkTabs.has(params.get('tab')) ? params.get('tab') : 'overview';
@@ -84,15 +91,25 @@ export function parseRoute(hash = '') {
 
 export function legacyRouteTarget(hash = '') {
   if (/^#\/settings\/account(?:\?|$)/.test(String(hash))) return '#/account';
-  if (/^#\/workbench\/hot(?:\?|$)/.test(String(hash))) return String(hash).replace('#/workbench/hot', '#/intel/hot');
-  if (/^#\/workbench\?/.test(String(hash))) {
-    const params = new URLSearchParams(String(hash).split('?')[1]);
-    if (params.get('section') === 'hot') {
-      params.delete('section');
-      return `#/intel/hot${params.size ? `?${params}` : ''}`;
+  if (/^#\/workbench(?:\/|\?|$)/.test(String(hash))) {
+    const route = parseRoute(hash);
+    const params = new URLSearchParams(String(hash).split('?')[1] || '');
+    params.delete('section');
+    const targets = { assets: '#/assets', funds: '#/assets/funds', market: '#/intel/search', industry: '#/intel/search', documents: '#/intel/search', 'etf-paper': '#/simulation/etf', hot: '#/intel/hot' };
+    const kind = Object.keys(searchSections).find(key => searchSections[key] === route.section);
+    if (kind) {
+      params.delete('kind');
+      const searchParams = new URLSearchParams({ kind });
+      for (const [key, value] of params) searchParams.append(key, value);
+      return `${targets[route.section]}?${searchParams}`;
     }
+    return `${targets[route.section]}${params.size ? `?${params}` : ''}`;
   }
   return /^#\/reports\/?$/.test(String(hash)) ? '#/skills?kind=workflow' : null;
+}
+
+export function isDataWorkspaceRoute(route) {
+  return ['assets', 'simulation', 'workbench'].includes(route?.page) || (route?.page === 'intel' && route?.intelTab === 'search');
 }
 export async function prepareClawExampleDraft(controller, prompt, { navigate, currentGeneration }) {
   const pending = navigate();
@@ -318,6 +335,7 @@ export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSo
     startDataQuery: (body, key) => request('/data/queries', { method: 'POST', body, key }),
     dataQueries: (section = '') => request(`/data/queries${section ? `?section=${segment(section)}` : ''}`),
     dataQuery: (id) => request(`/data/queries/${segment(id)}`),
+    datasetManifest: (sid, did) => request(`/sessions/${segment(sid)}/datasets/${segment(did)}`),
     datasetRows: (sid, did, offset = 0, limit = 200) => request(`/sessions/${segment(sid)}/datasets/${segment(did)}/rows?offset=${segment(offset)}&limit=${segment(limit)}`),
     assetObservations: () => request('/assets/observations'),
     assetObservation: (id) => request(`/assets/observations/${segment(id)}`),

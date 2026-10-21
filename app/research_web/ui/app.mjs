@@ -2,7 +2,7 @@ import { closedComposerMenu, openComposerMenu, composerMenuRows, composerMenuKey
 import { renderSessionMenu, projectMenuPosition, sessionMenuPosition } from './conversation-menus.mjs';
 import { createConversationNavigation, renderProjectEditor } from './conversation-navigation.mjs';
 import { captureQuestionForm, actionQuestion, collectQuestionGroup, questionStateKey } from './questionnaire.mjs';
-import { createAPI, createController, prepareClawExampleDraft, parseRoute, legacyRouteTarget, isRunning, safeLog, collectQuestionAnswers, reconcileSessionSummary, waitForDataProbe, waitForIntegrationBatch, waitForLocalIntegrationProbe, waitForLocalIntegrationVerification } from './core.mjs';
+import { createAPI, createController, prepareClawExampleDraft, parseRoute, legacyRouteTarget, isDataWorkspaceRoute, isRunning, safeLog, collectQuestionAnswers, reconcileSessionSummary, waitForDataProbe, waitForIntegrationBatch, waitForLocalIntegrationProbe, waitForLocalIntegrationVerification } from './core.mjs';
 import { escapeHTML as e } from './markdown.mjs';
 import { createDisclosureState } from './disclosures.mjs';
 import { createAccountMenu } from './server/account-menu.mjs';
@@ -105,6 +105,8 @@ const tabbitGrants = new Set();
 let quickCategory = '';
 let researchDraftRoute = { page: 'fingpt', sessionId: null };
 let workbenchQueries = []; let workbenchContext = {}; let workbenchBusy = false;
+let workbenchLoadGeneration = 0;
+const workbenchDrafts = new Map();
 let assetState = { observations: [], observation: null, rows: {}, watchlists: [], notes: [], alerts: [], notifications: [] };
 let etfState = { readiness: {}, runs: [], result: null };
 let operationsRange = '7d';
@@ -353,7 +355,7 @@ function mainPage() {
   }
   if (state.route.page === 'fingpt') return state.route.clawView === 'projects' ? renderClawProject(clawWorkspace, 'fingpt') : researchPage();
   if (state.route.page === 'settings') return settingsPage();
-  if (state.route.page === 'workbench') return workbenchPage();
+  if (isDataWorkspaceRoute(state.route)) return workbenchPage();
   if (state.route.page === 'frameworks') return renderFrameworks({ slug: state.route.frameworkSlug, anchor: state.route.frameworkTab, catalog: frameworkState.catalog, data: frameworkState.data, status: frameworkState.status, error: frameworkState.error, bot: { ...frameworkBot, bridgeReady: frameworkEmbedBridge.ready(state.route.frameworkSlug, frameworkState.data?.snapshot?.revision) } });
   if (state.route.page === 'operations') return operationsPage();
   if (state.route.page === 'intel') return state.route.intelTab === 'hot' ? renderHotWorkspace(hotController.state) : renderIntel(intelController.state);
@@ -409,7 +411,7 @@ async function clawAction(action) {
 
 function workbenchPage() {
   if(state.route.section==='hot')return renderHotWorkspace(hotController.state);
-  return renderWorkbench({ section: state.route.section || 'market', catalog: catalog.dataCatalog, queries: workbenchQueries, artifacts: catalog.artifacts, busy: workbenchBusy, assetState, etfState });
+  return renderWorkbench({ section: state.route.section || 'assets', catalog: catalog.dataCatalog, queries: workbenchQueries, queryDraft: workbenchDrafts.get(state.route.section), busy: workbenchBusy, assetState, etfState });
 }
 
 function operationsPage() {
@@ -561,9 +563,13 @@ function render() {
   const hasSecondary = research && !sidebarCollapsed;
   const hasContext = research && Boolean(state.detail) && !contextCollapsed;
   const searchableCapabilities = searchableCapabilityList();
-  const visibleErrors = Object.entries(catalog.errors).filter(([name]) => (
-    name !== 'artifacts' || (state.route.page === 'workbench' && state.route.section !== 'assets')
-  ));
+  const visibleErrors = Object.entries(catalog.errors).filter(([name]) => {
+    if (name === 'artifacts') return false;
+    if (name === 'assetWorkspace') return state.route.page === 'assets' && state.route.section === 'assets';
+    if (name === 'etfPaper') return state.route.page === 'simulation';
+    if (name === 'workbenchQueries') return isDataWorkspaceRoute(state.route) && !['assets', 'etf-paper'].includes(state.route.section);
+    return true;
+  });
   root.innerHTML = `<div class="app-shell ${state.route.page === 'claw' ? 'claw-shell' : ''} ${hasContext ? '' : 'wide-page'} ${hasSecondary ? 'has-secondary' : ''} ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${sidebarOpen ? 'navigation-open' : ''} ${hasContext ? 'context-open' : ''}">${renderTopbar({ page: state.route.page, section: state.route.section, frameworkSlug: state.route.frameworkSlug, settingsSection: state.route.page === 'settings' ? currentSettingsSection() : '', detail: state.detail, runtimeLabel: runtimeLabel(), runtime: catalog.runtime, models: catalog.models, busy: state.busy, search: globalSearch, sessions: catalog.sessions, skills: searchableCapabilities, searchOpen, nativeSearch: state.route.page === 'claw' ? nativeSessionSearch.state : null })}<div class="navigation-column">${primaryRail()}${sidebar()}</div><main id="main" tabindex="-1"><div class="page-content">${notice(state.error)}${visibleErrors.map(([name, error]) => notice(`${({ runtime: '运行时', models: '模型目录', workspaces: '工作空间', sessions: '会话历史', deletedSessions: '已删除会话', capabilities: '能力目录', tools: '工具目录', reportWorkflows: '报告 Workflow', automations: '运行计划', automationRuns: 'Automation 运行', deliveryChannels: '交付渠道', dataCatalog: '数据目录', connections: '连接中心', localIntegrations: '本机集成诊断', connectionConfiguration: '来源配置', migration: '旧配置迁移' })[name] || name}：${error}`)).join('')}${notice(success, 'success')}${mainPage()}</div></main>${hasContext || contextOpen ? contextPanel() : ''}</div>${sidebarOpen || contextOpen ? '<button class="mobile-backdrop" data-close-drawers aria-label="关闭面板"></button>' : ''}${sessionActionsLayer()}${documentEditor?.sessionId === state.detail?.id ? renderDocumentEditor(documentEditor) : ""}`;
   const newFrameworkFrame = root.querySelector('iframe[data-native-framework]');
   frameworkEmbedFrame = newFrameworkFrame;
@@ -635,7 +641,7 @@ function render() {
     for (const sibling of root.children) if (!sibling.contains(projectDialog)) sibling.inert = true;
     if (!projectDialog.contains(document.activeElement) || document.activeElement?.disabled) (projectDialog.querySelector('input:not(:disabled)') || projectDialog).focus({ preventScroll: true });
   }
-  document.title = `${state.detail?.title || (state.route.page === 'workbench' && state.route.section === 'hot' ? '热点与事件' : state.route.page === 'workbench' && state.route.section === 'assets' ? '资产观察' : ({ fingpt: 'FinGPT', claw: 'Claw', workbench: '研究台', frameworks: '研究框架', history: '研究历史', skills: '能力中心', operations: '运行与用量', intel: '研究情报', aihot: 'AI 资讯', settings: '设置', account: '账号资料' })[state.route.page])} · Research Workbench`;
+  document.title = `${state.detail?.title || ({ fingpt: 'FinGPT', claw: 'Claw', assets: '资产观察', simulation: '策略模拟', frameworks: '研究框架', history: '研究历史', skills: '能力中心', operations: '运行与用量', intel: '研究情报', aihot: 'AI 资讯', settings: '设置', account: '账号资料' })[state.route.page] || '资产观察'} · Research Workbench`;
 }
 
 async function loadCatalog(names = defaultCatalogNames) {
@@ -1226,41 +1232,57 @@ async function loadOperations() {
   render();
 }
 
+// A response belongs to the navigation that requested it, even after back/forward
+// returns to the same section. Server-side queries continue independently.
+function workbenchOwner() {
+  const ticket = pageGeneration;
+  const section = state.route.section;
+  return () => ticket === pageGeneration && isDataWorkspaceRoute(state.route) && state.route.section === section;
+}
+
 async function loadWorkbench() {
-  const section = state.route.section || 'market';
+  if (!isDataWorkspaceRoute(state.route)) return;
+  const owner = workbenchOwner();
+  const request = ++workbenchLoadGeneration;
+  const current = () => owner() && request === workbenchLoadGeneration;
+  const section = state.route.section || 'assets';
   if(section==='hot'){await hotController.activate(state.route);return;}
 
   if (section === 'etf-paper') {
     try {
       const [readiness, runs] = await Promise.all([api.etfReadiness(), api.etfRuns()]);
+      if (!current()) return;
       etfState = { ...etfState, readiness, runs: runs.items || [] };
       delete catalog.errors.etfPaper;
-    } catch (error) { catalog.errors.etfPaper = error.message; safeLog('etf_paper_load_failed'); }
-    render(); return;
+    } catch (error) { if (current()) catalog.errors.etfPaper = error.message; safeLog('etf_paper_load_failed'); }
+    if (current()) render(); return;
   }
   if (section === 'assets') {
     delete catalog.errors.artifacts;
-    await Promise.all([loadCatalog(['dataCatalog']), loadAssetWorkspace()]);
-    render();
+    await Promise.all([loadCatalog(['dataCatalog']), loadAssetWorkspace(current)]);
+    if (current()) render();
     return;
   }
   await Promise.all([
-    loadCatalog(['dataCatalog', 'artifacts']),
+    loadCatalog(['dataCatalog']),
     (async () => {
       try {
         const data = await api.dataQueries(section);
+        if (!current()) return;
         workbenchQueries = Array.isArray(data.items) ? data.items : [];
         delete catalog.errors.workbenchQueries;
       } catch (error) {
+        safeLog('business_query_index_failed', { section, code: error.code || 'request_failed' });
+        if (!current()) return;
         workbenchQueries = [];
         catalog.errors.workbenchQueries = error.message;
       }
     })(),
   ]);
-  render();
+  if (current()) render();
 }
 
-async function loadAssetWorkspace() {
+async function loadAssetWorkspace(current = workbenchOwner()) {
   try {
     const [observations, watchlists, notes, alerts, notifications] = await Promise.all([
       api.assetObservations(), api.watchlists(), api.assetNotes(), api.assetAlerts(), api.assetNotifications(),
@@ -1281,6 +1303,7 @@ async function loadAssetWorkspace() {
         }
       }));
     }
+    if (!current()) return;
     assetState = {
       observations: items,
       observation,
@@ -1306,6 +1329,8 @@ async function loadAssetWorkspace() {
     } : {};
     delete catalog.errors.assetWorkspace;
   } catch (error) {
+    safeLog('asset_workspace_load_failed', { code: error.code || 'request_failed' });
+    if (!current()) return;
     assetState = { ...assetState, observation: null, rows: {} };
     catalog.errors.assetWorkspace = error.message;
   }
@@ -1334,7 +1359,7 @@ async function showRoute() {
   const requestedMarket = requestedRoute.page === 'skills' && requestedRoute.capabilityKind === 'tool' && requestedRoute.capabilityView === 'market';
   if (!requestedMarket) invalidateMCPRequests();
   composerMenu = closedComposerMenu();
-  const ticket = ++pageGeneration; nativeSessionSearch.close(); success = ''; selectedPreview = null; sidebarOpen = false; clawSidebarView = 'sessions'; contextOpen = false; contextTab = 'activity'; researchStage = null; slashOpen = false; slashIndex = 0; tabbitOpen = false; tabbitLoading = false; tabbitIndex = 0; tabbitCandidates = []; tabbitRequest += 1; globalSearch = ''; searchOpen = false; renameDraft = null; renameSession = null; deleteSession = null; purgeSession = null; sessionMenu = null; sessionActionBusy = false; sessionActionError = ''; answerFeedback.clear(); copiedTransient = '';
+  const ticket = ++pageGeneration; workbenchBusy = false; nativeSessionSearch.close(); success = ''; selectedPreview = null; sidebarOpen = false; clawSidebarView = 'sessions'; contextOpen = false; contextTab = 'activity'; researchStage = null; slashOpen = false; slashIndex = 0; tabbitOpen = false; tabbitLoading = false; tabbitIndex = 0; tabbitCandidates = []; tabbitRequest += 1; globalSearch = ''; searchOpen = false; renameDraft = null; renameSession = null; deleteSession = null; purgeSession = null; sessionMenu = null; sessionActionBusy = false; sessionActionError = ''; answerFeedback.clear(); copiedTransient = '';
   if (['claw', 'fingpt'].includes(requestedRoute.page)) sidebarCollapsed = conversationNavigation.state(requestedRoute.page).view.collapsed;
   if (conversationNavigation.state(requestedRoute.page)) conversationNavigation.state(requestedRoute.page).menu = null;
   cancelProjectMenuTimers();
@@ -1395,12 +1420,13 @@ async function showRoute() {
   if (['claw', 'fingpt'].includes(state.route.page) && state.route.clawView === 'projects') await loadClawProjects();
   if (state.route.page === 'claw' && state.route.clawView === 'plans') await loadCatalog(['automations', 'automationRuns']);
   if (state.route.page === 'claw' && state.route.clawView === 'skills') await loadCatalog(['capabilities', 'tools']);
-  if (state.route.page === 'workbench') await loadWorkbench();
+  if (isDataWorkspaceRoute(state.route)) await loadWorkbench();
+  if (ticket !== pageGeneration) return;
   if (state.route.page === 'operations') await loadOperations();
   if (state.route.page === 'aihot') await aihotController.activate(state.route);
   if (state.route.page === 'intel') {
     if (state.route.intelTab === 'hot') await hotController.activate(state.route);
-    else await intelController.activate(state.route.intelTab);
+    else if (state.route.intelTab !== 'search') await intelController.activate(state.route.intelTab);
   }
   if (ticket === pageGeneration && pendingMCPMarketTabFocus) {
     const expected = pendingMCPMarketTabFocus;
@@ -1779,10 +1805,11 @@ async function configureComposerModel(value) {
 root.addEventListener('change', async (event) => {
   if (event.target.matches?.('[data-etf-run]')) {
     if (!event.target.value || workbenchBusy) return;
+    const current = workbenchOwner();
     workbenchBusy = true;
-    try { etfState.result = await api.etfRun(event.target.value); }
-    catch (error) { state.error = error.message; safeLog('etf_paper_detail_failed'); }
-    finally { workbenchBusy = false; render(); }
+    try { const result = await api.etfRun(event.target.value); if (current()) etfState.result = result; }
+    catch (error) { if (current()) state.error = error.message; safeLog('etf_paper_detail_failed'); }
+    finally { if (current()) { workbenchBusy = false; render(); } }
     return;
   }
   if (event.target.closest?.('.intel-page') && await intelController.handle(event)) return;
@@ -1948,13 +1975,17 @@ root.addEventListener('submit', async (event) => {
     if (workbenchBusy) return;
     const file = new FormData(event.target).get('snapshot');
     if (!file || file.size > 8 * 1024 * 1024) { state.error = '输入文件须小于 8 MiB'; render(); return; }
+    const current = workbenchOwner();
     workbenchBusy = true; state.error = ''; render();
     try {
       const body = JSON.parse(await file.text());
-      etfState.result = await api.etfReplay(body, crypto.randomUUID());
+      if (!current()) return;
+      const result = await api.etfReplay(body, crypto.randomUUID());
+      if (!current()) return;
+      etfState.result = result;
       await loadWorkbench();
-    } catch (error) { state.error = error.message; safeLog('etf_paper_replay_failed'); }
-    finally { workbenchBusy = false; render(); }
+    } catch (error) { if (current()) state.error = error.message; safeLog('etf_paper_replay_failed'); }
+    finally { if (current()) { workbenchBusy = false; render(); } }
     return;
   }
   if (event.target.closest?.('.intel-page') && await intelController.handle(event)) return;
@@ -2146,27 +2177,33 @@ root.addEventListener('submit', async (event) => {
   }
   if (event.target.matches('[data-asset-observation]')) {
     if (workbenchBusy) return;
+    const current = workbenchOwner();
     workbenchBusy = true; state.error = ''; render();
     try {
       const payload = readAssetObservation(event.target);
       let record = await api.createAssetObservation(payload, crypto.randomUUID());
+      if (!current()) return;
       assetState = { ...assetState, observation: record, observations: [record, ...assetState.observations.filter(item => item.id !== record.id)] };
       render();
-      for (let attempt = 0; attempt < 120 && record.status === 'running'; attempt++) {
+      for (let attempt = 0; attempt < 120 && record.status === 'running' && current(); attempt++) {
         await new Promise(resolve => setTimeout(resolve, 500));
+        if (!current()) return;
         record = await api.assetObservation(record.id);
+        if (!current()) return;
         assetState = { ...assetState, observation: record, observations: [record, ...assetState.observations.filter(item => item.id !== record.id)] };
         render();
       }
       await loadAssetWorkspace();
+      if (!current()) return;
       success = record.status === 'completed'
         ? '资产各区块已按真实数据源更新，可冻结快照并交给研究。'
         : '资产区块查询已结束；请查看各区块的失败或缺失状态。';
-    } catch (error) { state.error = error.message; }
-    finally { workbenchBusy = false; render(); }
+    } catch (error) { if (current()) state.error = error.message; safeLog('asset_observation_update_failed', { code: error.code || 'request_failed' }); }
+    finally { if (current()) { workbenchBusy = false; render(); } }
     return;
   }
   if (event.target.matches('[data-watchlist-item]')) {
+    const current = workbenchOwner();
     const values = new FormData(event.target);
     try {
       await api.addWatchlistItem(String(values.get('watchlist_id')), {
@@ -2174,19 +2211,23 @@ root.addEventListener('submit', async (event) => {
         asset_type: assetState.observation?.asset_type || 'stock',
         name: String(assetState.rows?.overview?.[0]?.name || values.get('asset')),
       });
+      if (!current()) return;
       success = '已加入本地自选列表。'; await loadAssetWorkspace(); render();
-    } catch (error) { state.error = error.message; render(); }
+    } catch (error) { if (current()) { state.error = error.message; render(); } safeLog('asset_watchlist_update_failed', { code: error.code || 'request_failed' }); }
     return;
   }
   if (event.target.matches('[data-asset-note]')) {
+    const current = workbenchOwner();
     const values = new FormData(event.target);
     try {
       await api.createAssetNote({ asset: String(values.get('asset')), text: String(values.get('text')).trim() });
+      if (!current()) return;
       success = '观察笔记已保存。'; await loadAssetWorkspace(); render();
-    } catch (error) { state.error = error.message; render(); }
+    } catch (error) { if (current()) { state.error = error.message; render(); } safeLog('asset_note_update_failed', { code: error.code || 'request_failed' }); }
     return;
   }
   if (event.target.matches('[data-asset-alert]')) {
+    const current = workbenchOwner();
     const values = new FormData(event.target);
     try {
       await api.createAssetAlert({
@@ -2196,29 +2237,34 @@ root.addEventListener('submit', async (event) => {
         threshold: Number(values.get('threshold')),
         cooldown_minutes: 60,
       });
+      if (!current()) return;
       success = '提醒规则已保存，将在新快照到达时评估。'; await loadAssetWorkspace(); render();
-    } catch (error) { state.error = error.message; render(); }
+    } catch (error) { if (current()) { state.error = error.message; render(); } safeLog('asset_alert_update_failed', { code: error.code || 'request_failed' }); }
     return;
   }
   if (event.target.matches('[data-workbench-query]')) {
     if (workbenchBusy) return;
+    const current = workbenchOwner();
+    const section = state.route.section;
+    const query = readWorkbenchQuery(event.target);
+    workbenchDrafts.set(section, query);
     workbenchBusy = true; state.error = ''; render();
     try {
-      const query = readWorkbenchQuery(event.target);
-      const section = state.route.section || 'market';
-      const previous = [...workbenchQueries].reverse().find(item => item.section === section);
-      workbenchContext = { section, source: query.source, parameters: query.parameters, requested_at: new Date().toISOString() };
+      const previous = workbenchQueries.filter(item => item.section === section).sort((a, b) => (b.created_at || 0) - (a.created_at || 0))[0];
       let record = await api.startDataQuery({ session_id: previous?.session_id || null, section, query }, crypto.randomUUID());
+      if (!current()) return;
       workbenchQueries = [...workbenchQueries.filter(item => item.id !== record.id), record]; render();
-      for (let attempt = 0; attempt < 80 && record.status === 'running'; attempt++) {
+      for (let attempt = 0; attempt < 80 && record.status === 'running' && current(); attempt++) {
         await new Promise(resolve => setTimeout(resolve, 500));
+        if (!current()) return;
         record = await api.dataQuery(record.id);
+        if (!current()) return;
         workbenchQueries = [...workbenchQueries.filter(item => item.id !== record.id), record]; render();
       }
       if (record.status === 'completed') success = '真实数据快照已生成，可交给 FinGPT 或 Claw。';
       else if (record.status === 'failed') state.error = `查询失败：${record.failure_code || '未知错误'}`;
-    } catch (error) { state.error = error.message; }
-    finally { workbenchBusy = false; render(); }
+    } catch (error) { if (current()) state.error = error.message; safeLog('business_query_failed', { section, code: error.code || 'request_failed' }); }
+    finally { if (current()) { workbenchBusy = false; render(); } }
     return;
   }
   if (event.target.id === 'cap-editor-form') { captureEditor(); await capabilityController.save(); return; }
@@ -2942,7 +2988,7 @@ root.addEventListener('click', async (event) => {
   if ('refresh' in data) {
     success = '';
     state.error = '';
-    if (state.route.page === 'workbench') await loadWorkbench();
+    if (isDataWorkspaceRoute(state.route)) await loadWorkbench();
     else if (state.route.page === 'operations') await loadOperations();
     else if (state.route.page === 'history' && state.route.historyView === 'deleted') await loadCatalog(['deletedSessions']);
     else if (state.route.page === 'settings') {
@@ -2991,22 +3037,38 @@ root.addEventListener('click', async (event) => {
   if ('operationsRange' in data) { operationsRange = data.operationsRange; await loadOperations(); }
   if ('workbenchHandoff' in data) {
     if (workbenchBusy || !data.sourceSession) return;
+    const current = workbenchOwner();
+    const section = state.route.section;
+    const assetContext = workbenchContext;
     workbenchBusy = true; state.error = ''; render();
     try {
+      const datasetIds = JSON.parse(data.datasetIds || '[]');
+      let context = assetContext;
+      if (section !== 'assets') {
+        if (datasetIds.length !== 1) throw new Error('请选择一个有效的查询快照。');
+        const manifest = await api.datasetManifest(data.sourceSession, datasetIds[0]);
+        if (!current()) return;
+        if (!manifest.query || !manifest.query.parameters) throw new Error('查询快照缺少原始参数，无法交接。');
+        context = { section, source: manifest.query.source, parameters: manifest.query.parameters, requested_at: manifest.retrieved_at, as_of: manifest.as_of };
+      }
       const result = await api.handoff({
         source_session_id: data.sourceSession,
         target_mode: data.workbenchHandoff,
-        section: state.route.section || 'market',
-        dataset_ids: JSON.parse(data.datasetIds || '[]'),
-        context: workbenchContext,
+        section,
+        dataset_ids: datasetIds,
+        context,
       }, crypto.randomUUID());
+      if (!current()) return;
       history.pushState(null, '', `#/${result.mode}?session=${encodeURIComponent(result.session_id)}`);
+      const targetTicket = pageGeneration + 1;
       await showRoute();
-      controller.setDraft(result.draft || '请基于研究台交接资料继续研究。');
-      await loadCatalog(['sessions']);
+      if (pageGeneration !== targetTicket || state.route.page !== result.mode || state.route.sessionId !== result.session_id) return;
+      controller.setDraft(result.draft || '请基于冻结的页面资料继续研究。');
       success = '页面参数和数据集已冻结到新会话，确认草稿后再发送。';
-    } catch (error) { state.error = error.message; }
-    finally { workbenchBusy = false; render(); }
+      await loadCatalog(['sessions']);
+      if (targetTicket === pageGeneration) render();
+    } catch (error) { if (current()) state.error = error.message; safeLog('business_handoff_failed', { section, code: error.code || 'request_failed' }); }
+    finally { if (current()) { workbenchBusy = false; render(); } }
   }
   if ('clawScheduleRefresh' in data) {
     if (state.route.page !== 'claw' || state.route.clawView !== 'plans' || catalog.pending.has('automations') || catalog.pending.has('automationRuns')) return;
