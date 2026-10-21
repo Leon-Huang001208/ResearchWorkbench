@@ -4,34 +4,198 @@ import { readFile } from 'node:fs/promises';
 
 const root = new URL('../../app/research_web/ui/', import.meta.url);
 
-test('routes and navigation expose research desk and read-only operations without a report studio', async () => {
-  const { parseRoute } = await import(new URL('core.mjs', root));
-  const shell = await import(new URL('shell.mjs', root));
+test('business routes retain backend sections and fall back within their module', async () => {
+  const { parseRoute, isDataWorkspaceRoute } = await import(new URL('core.mjs', root));
+  const cases = [
+    ['#/assets', 'assets', 'assets'], ['#/assets/funds', 'assets', 'funds'],
+    ['#/assets/unknown', 'assets', 'assets'], ['#/assets/funds/extra', 'assets', 'assets'],
+    ['#/intel/search?kind=news', 'intel', 'market'], ['#/intel/search?kind=research', 'intel', 'industry'],
+    ['#/intel/search?kind=announcements', 'intel', 'documents'], ['#/intel/search?kind=unknown', 'intel', 'market'],
+    ['#/simulation/etf', 'simulation', 'etf-paper'], ['#/simulation/unknown', 'simulation', 'etf-paper'],
+  ];
+  for (const [hash, page, section] of cases) {
+    const route = parseRoute(hash);
+    assert.equal(route.page, page, hash); assert.equal(route.section, section, hash);
+    assert.equal(isDataWorkspaceRoute(route), true, hash);
+  }
+  assert.equal(parseRoute('#/intel/search?kind=research').intelTab, 'search');
+  assert.equal(parseRoute('#/intel/search?kind=research').searchKind, 'research');
+  assert.equal(parseRoute('#/intel/search/unknown?kind=research').intelTab, 'overview');
+  assert.equal(isDataWorkspaceRoute(parseRoute('#/intel/overview')), false);
+  assert.equal(isDataWorkspaceRoute(parseRoute('#/frameworks/gold?tab=drivers')), false);
+  assert.equal(parseRoute('#/frameworks/gold?tab=drivers').frameworkTab, 'drivers');
+  assert.equal(parseRoute('#/workbench').section, 'assets');
   assert.equal(parseRoute('#/workbench?section=funds').page, 'workbench');
   assert.equal(parseRoute('#/workbench?section=funds').section, 'funds');
   assert.equal(parseRoute('#/workbench/funds').section, 'funds');
-  assert.equal(parseRoute('#/operations').page, 'operations');
-  const rail = shell.renderPrimaryRail({ page: 'workbench' });
-  for (const label of ['资产观察', '研究台', '运行与用量']) assert.match(rail, new RegExp(label));
-  const assetRail = shell.renderPrimaryRail({ page: 'workbench', section: 'assets' });
-  assert.match(assetRail, /href="#\/workbench\/assets" class="rail-link active"[^>]*aria-current="page"/);
-  assert.doesNotMatch(assetRail, /href="#\/workbench" class="rail-link active"/);
-  assert.doesNotMatch(rail, /报告工作室|#\/reports/);
 });
 
-test('research desk renders five real-state sections and gives reports a dedicated module', async () => {
+test('legacy research desk URLs redirect with unrelated parameters and hot identity intact', async () => {
+  const { legacyRouteTarget } = await import(new URL('core.mjs', root));
+  const targets = {
+    assets: '#/assets', funds: '#/assets/funds', market: '#/intel/search?kind=news',
+    industry: '#/intel/search?kind=research', documents: '#/intel/search?kind=announcements',
+    'etf-paper': '#/simulation/etf', hot: '#/intel/hot',
+  };
+  assert.equal(legacyRouteTarget('#/workbench'), '#/assets');
+  assert.equal(legacyRouteTarget('#/workbench/'), '#/assets');
+  assert.equal(legacyRouteTarget('#/workbench/unknown?source=public'), '#/assets?source=public');
+  assert.equal(legacyRouteTarget('#/workbench?section=unknown&source=public'), '#/assets?source=public');
+  for (const [section, target] of Object.entries(targets)) {
+    for (const old of [`#/workbench/${section}`, `#/workbench?section=${section}`]) {
+      assert.equal(legacyRouteTarget(old), target, old);
+      const oldWithParams = old + (old.includes('?') ? '&' : '?') + 'source=public&view=sources&event=known-event';
+      const expected = target + (target.includes('?') ? '&' : '?') + 'source=public&view=sources&event=known-event';
+      assert.equal(legacyRouteTarget(oldWithParams), expected, oldWithParams);
+    }
+  }
+  assert.equal(legacyRouteTarget('#/workbench/market?section=funds&kind=research&limit=15'), '#/intel/search?kind=news&limit=15');
+  assert.equal(legacyRouteTarget('#/assets'), null);
+  assert.equal(legacyRouteTarget('#/reports'), '#/skills?kind=workflow');
+});
+
+test('primary navigation exposes one active entry per business module in the agreed order', async () => {
+  const { parseRoute } = await import(new URL('core.mjs', root));
+  const shell = await import(new URL('shell.mjs', root));
+  assert.equal(parseRoute('#/operations').page, 'operations');
+  const labels = ['FinGPT', 'Claw', '资产观察', '研究情报', 'AI 资讯', '研究框架', '策略模拟', '能力中心', '运行与用量'];
+  const rail = shell.renderPrimaryRail(parseRoute('#/assets'));
+  assert.deepEqual([...rail.matchAll(/class="rail-label">([^<]+)<\/span>/g)].map(item => item[1]).slice(0, labels.length), labels);
+  for (const [hash, activeHref] of [
+    ['#/assets', '#/assets'], ['#/assets/funds', '#/assets'], ['#/intel/search?kind=research', '#/intel/overview'],
+    ['#/intel/hot', '#/intel/overview'], ['#/frameworks/gold', '#/frameworks'], ['#/simulation/etf', '#/simulation/etf'],
+    ['#/workbench/assets', '#/assets'], ['#/workbench/industry', '#/intel/overview'], ['#/workbench/etf-paper', '#/simulation/etf'],
+  ]) {
+    const html = shell.renderPrimaryRail(parseRoute(hash));
+    const active = [...html.matchAll(/href="([^"]+)" class="rail-link active"/g)].map(item => item[1]);
+    assert.deepEqual(active, [activeHref], hash);
+  }
+  assert.doesNotMatch(rail, /研究台|报告工作室|#\/reports|#\/workbench/);
+});
+
+test('asset module keeps only its two views and all four fund datasets with callable sources', async () => {
   const workbench = await import(new URL('workbench.mjs', root));
   const html = workbench.renderWorkbench({
     section: 'funds',
-    catalog: { capabilities: [], sources: [] },
-    queries: [],
-    artifacts: [],
+    catalog: {
+      capabilities: [{ id: 'fund_data', description: '基金真实数据', source_count: 2, callable_source_count: 1 }],
+      sources: [{ id: 'callable', name: '可调用来源', readiness: { callable: true } }, { id: 'pending', name: '待配置来源', readiness: { callable: false } }],
+      bindings: [{ capability_id: 'fund_data', source_id: 'callable' }, { capability_id: 'fund_data', source_id: 'pending' }],
+    },
   });
-  for (const label of ['市场', '资产', '基金', '产业链', '资料']) assert.match(html, new RegExp(label));
-  assert.doesNotMatch(html, />报告</);
+  for (const label of ['资产观察', '行情与基本面', '基金数据', '基本资料', '历史净值', '分红', '披露持仓']) assert.match(html, new RegExp(label));
+  for (const dataset of ['profile', 'nav', 'distributions', 'holdings']) assert.match(html, new RegExp(`option value="${dataset}"`));
+  assert.match(html, /name="source"/); assert.match(html, /option value="auto"/); assert.match(html, /option value="callable"/);
+  assert.doesNotMatch(html, /option value="pending"/);
+  assert.match(html, /name="start_date"/); assert.match(html, /name="end_date"/);
+  assert.match(html, /data-capability="fund_data"/);
+  assert.match(html, /href="#\/assets\/funds" class="active"[^>]+aria-current="page"/);
+  assert.doesNotMatch(html, /#\/intel\/|#\/simulation\/|#\/workbench\/|研究台|上下游结构/);
+  assert.match(html, /查询只在提交后联网/);
   assert.match(html, /data-workbench-handoff="fingpt"/);
   assert.match(html, /data-workbench-handoff="claw"/);
   assert.doesNotMatch(html, /演示|假数据|已完成/);
+  const assets = workbench.renderWorkbench({ section: 'assets' });
+  assert.match(assets, /href="#\/assets" class="active"[^>]+aria-current="page"/);
+  assert.match(assets, /基金数据/);
+});
+
+test('topic search has intelligence navigation, three query tabs and no cross-session artifacts', async () => {
+  const { renderWorkbench } = await import(new URL('workbench.mjs', root));
+  const artifact = { name: 'other-session.pdf', size: 100, url: '/files/other', preview_url: '/preview/other' };
+  for (const [section, kind, capability] of [['market', 'news', 'search_news'], ['industry', 'research', 'search_research'], ['documents', 'announcements', 'search_announcements']]) {
+    const html = renderWorkbench({ section, artifacts: [artifact], catalog: { capabilities: [{ id: capability, callable_source_count: 1 }] } });
+    assert.match(html, /研究情报/); assert.match(html, /主题检索/);
+    for (const label of ['新闻', '研报', '公告']) assert.match(html, new RegExp(`>${label}</a>`));
+    assert.match(html, new RegExp(`href="#/intel/search\\?kind=${kind}" class="active"[^>]+aria-current="page"`));
+    assert.match(html, /href="#\/intel\/search" class="active"/);
+    assert.doesNotMatch(html, /artifact-grid|other-session\.pdf|#\/assets\/|#\/workbench\/|上下游结构/);
+    assert.match(html, new RegExp(`data-capability="${capability}"`));
+    if (section === 'industry') assert.match(html, /行业与主题检索/);
+  }
+});
+
+test('query results keep cutoff, missing data, failure states and explicit handoff snapshots', async () => {
+  const { renderWorkbench } = await import(new URL('workbench.mjs', root));
+  const html = renderWorkbench({ section: 'funds', queries: [{ section: 'funds', session_id: 'source-session', created_at: 1, status: 'completed', dataset: { dataset_id: 'snapshot-1', provider: 'provider', status: 'partial', row_count: 4, as_of: '2026-10-20', missing: ['持仓披露日期'], limitations: ['报告期不等于披露日期'] } }] });
+  for (const text of ['provider', 'partial', '2026-10-20', '缺失：持仓披露日期', '限制：报告期不等于披露日期']) assert.ok(html.includes(text));
+  assert.match(html, /data-source-session="source-session"/);
+  assert.match(html, /data-dataset-ids="\[&quot;snapshot-1&quot;\]"/);
+  const failed = renderWorkbench({ section: 'documents', queries: [{ section: 'documents', status: 'failed', failure_code: 'source_unavailable' }] });
+  assert.match(failed, /查询失败：source_unavailable/);
+  const disabled = renderWorkbench({ section: 'funds', busy: true, catalog: { capabilities: [{ id: 'fund_data', callable_source_count: 0 }] } });
+  assert.match(disabled, /type="submit" disabled>当前没有可调用来源/);
+  assert.match(disabled, /data-workbench-handoff="claw"[^>]*disabled/);
+  const pending = renderWorkbench({ section: 'funds', queries: [{ section: 'funds', session_id: 'pending-session', status: 'running' }] });
+  assert.match(pending, /查询执行中/);
+  assert.match(pending, /data-workbench-handoff="claw"[^>]*disabled/);
+});
+
+test('snapshot manifest lookup is a read-only encoded request and propagates a missing snapshot', async () => {
+  const { createAPI } = await import(new URL('core.mjs', root));
+  const calls = [];
+  const api = createAPI({ logger: () => {}, fetcher: async (path, options) => {
+    calls.push({ path, options });
+    return { ok: true, status: 200, json: async () => ({ dataset_id: 'snapshot', query: { code: '000001', dataset: 'holdings' } }) };
+  } });
+  assert.deepEqual((await api.datasetManifest('source/session', 'snapshot?1')).query, { code: '000001', dataset: 'holdings' });
+  assert.equal(calls[0].path, '/api/research/sessions/source%2Fsession/datasets/snapshot%3F1');
+  assert.equal(calls[0].options.method, 'GET');
+  assert.equal(calls[0].options.body, undefined);
+  const failed = createAPI({ logger: () => {}, fetcher: async () => ({ ok: false, status: 404, json: async () => ({ error: { code: 'dataset_not_found', message: '快照不存在' } }) }) });
+  await assert.rejects(failed.datasetManifest('source', 'missing'), error => error.code === 'dataset_not_found' && error.message === '快照不存在');
+});
+
+test('query draft restores source, fund dataset and parameters after status rerenders', async () => {
+  const { renderWorkbench } = await import(new URL('workbench.mjs', root));
+  const catalog = {
+    capabilities: [{ id: 'fund_data', callable_source_count: 1 }, { id: 'search_research', callable_source_count: 1 }],
+    sources: [{ id: 'fund-source', name: '基金来源', readiness: { callable: true } }],
+    bindings: [{ capability_id: 'fund_data', source_id: 'fund-source' }],
+  };
+  const html = renderWorkbench({ section: 'funds', catalog, queryDraft: { source: 'fund-source', parameters: { code: '510300', dataset: 'holdings', start_date: '2026-01-01', end_date: '2026-10-20' } } });
+  assert.match(html, /option value="fund-source" selected/);
+  assert.match(html, /name="code"[^>]*value="510300"/);
+  assert.match(html, /option value="holdings" selected/);
+  assert.match(html, /name="start_date" value="2026-01-01"/);
+  assert.match(html, /name="end_date" value="2026-10-20"/);
+  const search = renderWorkbench({ section: 'industry', catalog, queryDraft: { source: 'auto', parameters: { query: '<光模块>', limit: 7 } } });
+  assert.match(search, /name="query"[^>]*value="&lt;光模块&gt;"/);
+  assert.match(search, /name="limit"[^>]*value="7"/);
+  const unavailable = renderWorkbench({ section: 'funds', catalog, queryDraft: { source: 'retired-source' } });
+  assert.match(unavailable, /此前选择的来源当前不可调用/);
+  assert.match(unavailable, /option value="auto" selected/);
+  assert.doesNotMatch(unavailable, /option value="retired-source"/);
+});
+
+test('fund query reads its capability attribute even when the dataset field shadows form.dataset', async () => {
+  const { readWorkbenchQuery } = await import(new URL('workbench.mjs', root));
+  const form = {
+    // Named form controls shadow built-in properties in the browser.
+    dataset: { name: 'dataset', value: 'holdings' },
+    getAttribute: name => name === 'data-capability' ? 'fund_data' : null,
+  };
+  const entries = [['source', 'fund-source'], ['code', '000001'], ['dataset', 'holdings'], ['start_date', '2026-01-01'], ['end_date', ''], ['limit', '20']];
+  const OriginalFormData = globalThis.FormData;
+  globalThis.FormData = class {
+    constructor(target) { assert.equal(target, form); }
+    entries() { return entries[Symbol.iterator](); }
+    get(key) { return entries.find(([name]) => name === key)?.[1] ?? null; }
+  };
+  try {
+    assert.deepEqual(readWorkbenchQuery(form), {
+      capability: 'fund_data', source: 'fund-source',
+      parameters: { code: '000001', dataset: 'holdings', start_date: '2026-01-01', limit: 20 },
+    });
+  } finally { globalThis.FormData = OriginalFormData; }
+});
+
+test('strategy simulation renders the existing ETF component without former research desk tabs', async () => {
+  const { renderWorkbench } = await import(new URL('workbench.mjs', root));
+  const html = renderWorkbench({ section: 'etf-paper', etfState: { readiness: { status: 'BLOCKED', gaps: ['真实数据待验证'] } } });
+  assert.match(html, /ETF/);
+  assert.match(html, /BLOCKED/);
+  assert.doesNotMatch(html, /workbench-tabs|研究台|#\/workbench\//);
 });
 
 test('asset workspace renders independent states, native chart and personal observation tools', async () => {
@@ -153,9 +317,12 @@ test('app uses dedicated workbench and operations modules without a report studi
   assert.ok(source.includes('api.operationsSummary(operationsRange)'));
 });
 
-test('asset observation neither loads nor displays stale artifacts errors', async () => {
+test('business pages never load or display the retired cross-session artifact catalog', async () => {
   const source = await readFile(new URL('app.mjs', root), 'utf8');
-  assert.match(source, /section === 'assets'[\s\S]+delete catalog\.errors\.artifacts;[\s\S]+loadAssetWorkspace\(\)/);
-  assert.match(source, /name !== 'artifacts' \|\| \(state\.route\.page === 'workbench' && state\.route\.section !== 'assets'\)/);
-  assert.doesNotMatch(source, /section === 'assets'[\s\S]{0,300}loadCatalog\(\['artifacts'/);
+  assert.match(source, /if \(name === 'artifacts'\) return false/);
+  assert.match(source, /if \(isDataWorkspaceRoute\(state\.route\)\) return workbenchPage\(\)/);
+  const loader = source.slice(source.indexOf('async function loadWorkbench('), source.indexOf('async function loadAssetWorkspace('));
+  assert.match(loader, /delete catalog\.errors\.artifacts/);
+  assert.match(loader, /loadAssetWorkspace\(current\)/);
+  assert.doesNotMatch(loader, /loadCatalog\(\['artifacts'|api\.artifacts\(/);
 });

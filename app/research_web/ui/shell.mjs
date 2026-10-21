@@ -10,11 +10,11 @@ import { renderAccountTrigger } from './server/account-menu.mjs';
 const navItems = [
   { page: 'fingpt', glyph: 'chat', title: 'FinGPT', href: '#/fingpt' },
   { page: 'claw', glyph: 'layers', title: 'Claw', href: '#/claw' },
-  { page: 'workbench', section: 'assets', glyph: 'chart', title: '资产观察', href: '#/workbench/assets' },
-  { page: 'workbench', glyph: 'chart', title: '研究台', href: '#/workbench' },
+  { page: 'assets', glyph: 'chart', title: '资产观察', href: '#/assets' },
   { page: 'intel', glyph: 'activity', title: '研究情报', href: '#/intel/overview' },
   { page: 'aihot', glyph: 'activity', title: 'AI 资讯', href: '#/aihot/daily' },
   { page: 'frameworks', glyph: 'grid', title: '研究框架', href: '#/frameworks' },
+  { page: 'simulation', glyph: 'chart', title: '策略模拟', href: '#/simulation/etf' },
   { page: 'skills', glyph: 'grid', title: '能力中心', href: '#/skills' },
   { page: 'operations', glyph: 'activity', title: '运行与用量', href: '#/operations' },
 ];
@@ -85,8 +85,9 @@ export function renderGlobalResults(query, sessions, skills, { native = null } =
 }
 
 export function renderPrimaryRail({ page, section = '', secondaryOpen = false, account = null } = {}) {
+  const primaryPage = page === 'workbench' ? ['market', 'industry', 'documents', 'hot'].includes(section) ? 'intel' : section === 'etf-paper' ? 'simulation' : 'assets' : page;
   const links = navItems.map((item) => {
-    const active = page === item.page && (item.section ? section === item.section : !(item.page === 'workbench' && ['assets','hot'].includes(section)));
+    const active = primaryPage === item.page;
     return `<a href="${item.href}" class="rail-link ${active ? 'active' : ''}" ${active ? 'aria-current="page"' : ''} title="${e(item.title)}"><span class="rail-icon" aria-hidden="true">${icon(item.glyph)}</span><span class="rail-label">${e(item.title)}</span></a>`;
   }).join('');
   const footer = account ? renderAccountTrigger(account) : `<a class="rail-link rail-settings ${page === 'settings' ? 'active' : ''}" href="#/settings/general" title="设置" ${page === 'settings' ? 'aria-current="page"' : ''}><span class="rail-icon" aria-hidden="true">${icon('settings')}</span><span class="rail-label">设置</span></a>`;

@@ -142,5 +142,5 @@ test('market confidence follows disclosed evidence mapping and preserves missing
 test('legacy hot query routes normalize before activating the research view',()=>{
  const id='12345678-1234-1234-1234-123456789abc';
  assert.equal(legacyRouteTarget(`#/workbench?section=hot&view=research&event=${id}`),`#/intel/hot?view=research&event=${id}`);
- assert.equal(legacyRouteTarget('#/workbench?section=market'),null);
+ assert.equal(legacyRouteTarget('#/workbench?section=market'),'#/intel/search?kind=news');
 });
