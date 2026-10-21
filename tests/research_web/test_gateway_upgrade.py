@@ -10,6 +10,44 @@ import pytest
 from research_workbench_entrypoint.resident.gateway_fence import BirthFence, FenceBlocked
 
 
+@pytest.mark.parametrize("bad_range", ["primary", "payload", "tool"])
+@pytest.mark.parametrize(
+    "path",
+    [
+        "requirements/web.lock",
+        "app/research_web/multiuser/gateway.py",
+        "research_workbench_entrypoint/resident/controller.py",
+    ],
+)
+def test_preserved_primary_scopes_reject_runtime_changes(monkeypatch, tmp_path, path, bad_range):
+    from research_workbench_entrypoint.resident import gateway_upgrade as g
+
+    def git(_source, *args):
+        if args[0] == "diff":
+            name = {"a": "primary", "b": "payload", "c": "tool"}[args[-2][0]]
+            return path if name == bad_range else "docs/fixture.md"
+        return "e" * 40
+
+    monkeypatch.setattr(g, "git", git)
+    with pytest.raises(g.UpdateBlocked, match="gateway_static_scope_changed"):
+        g.preserved_primary_scopes(tmp_path, "a" * 40, "b" * 40, "c" * 40, "d" * 40)
+
+
+def test_preserved_primary_scopes_bind_deployed_operator_to_frozen_tool(monkeypatch, tmp_path):
+    from research_workbench_entrypoint.resident import gateway_upgrade as g
+
+    def git(_source, *args):
+        if args[0] == "diff":
+            return g.TOOL_PATH
+        if args[0] == "rev-parse":
+            return ("f" if args[-1].startswith("d") else "e") * 40
+        return ""
+
+    monkeypatch.setattr(g, "git", git)
+    with pytest.raises(g.UpdateBlocked, match="gateway_static_operator_mismatch"):
+        g.preserved_primary_scopes(tmp_path, "a" * 40, "b" * 40, "c" * 40, "d" * 40)
+
+
 def test_static_scopes_separate_product_and_operator_code(monkeypatch, tmp_path):
     from research_workbench_entrypoint.resident import gateway_upgrade as g
 
@@ -199,6 +237,43 @@ def test_real_legacy_recovery_rejects_version_two_before_any_action(
     assert events == []
 
 
+def test_frozen_version_two_helper_ignores_version_three_before_native_actions(
+    tmp_path, monkeypatch
+):
+    import runpy
+    from pathlib import Path
+
+    from research_workbench_entrypoint.resident import gateway_upgrade as g
+
+    journal = tmp_path / "server/run/gateway-upgrade.json"
+    journal.parent.mkdir(parents=True)
+    journal.write_text("fixture")
+    state = {"version": 3, "recovery": {"artifact_sha256": "a" * 64}}
+    events = []
+    monkeypatch.setattr(g.sys, "argv", [str(journal.parent / "gateway-recovery-old.pyz")])
+    fixture = Path(__file__).parents[1] / "fixtures/research_web/gateway_recover_v2.py.txt"
+    namespace = runpy.run_path(
+        str(fixture),
+        init_globals={
+            **vars(g),
+            "read_upgrade_journal": lambda _: state,
+            "configured": lambda _: events.append("native"),
+        },
+    )
+    assert namespace["recover"](tmp_path) == {"status": "other_recovery_version"}
+    assert events == []
+
+
+def test_preserved_primary_real_git_three_distinct_baselines(static_artifact):
+    from research_workbench_entrypoint.resident import gateway_upgrade as g
+
+    source, _home, primary, previous, payload, _artifact, _installed, _git = static_artifact
+    assert len({primary, previous, payload}) == 3
+    scopes = g.preserved_primary_scopes(source, primary, previous, payload, payload)
+    assert g.TOOL_PATH in scopes["primary"] and g.TOOL_PATH in scopes["payload"]
+    assert scopes["tool"] == {}
+
+
 def test_static_artifact_loads_contract_in_fresh_interpreter(static_artifact):
     import os
     import subprocess
@@ -229,8 +304,9 @@ print('frozen_static_contract_passed')
 @pytest.mark.parametrize(
     "phase", ["preparing", "draining", "stopped", "starting", "rolling_back", "fallback_starting"]
 )
+@pytest.mark.parametrize("preserve_primary", [False, True])
 def test_frozen_artifact_recovers_each_phase_without_operator_contract_patches(
-    static_artifact, tmp_path, phase
+    static_artifact, tmp_path, phase, preserve_primary
 ):
     import os
     import subprocess
@@ -246,9 +322,10 @@ def test_frozen_artifact_recovers_each_phase_without_operator_contract_patches(
             str(source),
             str(tmp_path / "frozen-recovery"),
             previous,
-            payload,
+            tool if preserve_primary else payload,
             tool,
             phase,
+            "static-gateway" if preserve_primary else "static-ui",
         ],
         check=False,
         capture_output=True,
@@ -452,7 +529,7 @@ def ui_apply(server, monkeypatch):
         }
 
     def idle(*args):
-        assert args == (home, payload)
+        assert args == (home, previous if state.get("preserve_primary") else payload)
         events.append("primary_idle")
         if state["fail"] == "active":
             raise g.MaintenanceBusy("active")
@@ -471,7 +548,14 @@ def ui_apply(server, monkeypatch):
             record["tool_revision"],
             record["primary"],
             record["target"],
-        ) == (home, 2, "static-ui", tool, payload, payload)
+        ) == (
+            home,
+            3 if state.get("preserve_primary") else 2,
+            "static-gateway" if state.get("preserve_primary") else "static-ui",
+            tool,
+            previous if state.get("preserve_primary") else payload,
+            payload,
+        )
         events.append("recovery_verified")
 
     class Fence:
@@ -535,6 +619,11 @@ def ui_apply(server, monkeypatch):
     monkeypatch.setattr(g, "git", git)
     monkeypatch.setattr(g, "clean", lambda *_: None)
     monkeypatch.setattr(g, "static_scopes", scopes)
+    monkeypatch.setattr(
+        g,
+        "preserved_primary_scopes",
+        lambda src, primary, old, new, rev: scopes(src, old, new, rev),
+    )
     monkeypatch.setattr(g, "verify_primary", idle)
     monkeypatch.setattr(g, "verify_signal_contract", lambda: None)
     monkeypatch.setattr(g, "job_pid", lambda: 111)
@@ -585,6 +674,37 @@ def test_apply_ui_requires_payload_equal_to_actual_primary(ui_apply):
     assert not (root / "run/gateway-upgrade.json").exists()
 
 
+@pytest.mark.parametrize(
+    "failure", [None, "active", "scope", "qualify:b", "qualify:c", "moved", "drain"]
+)
+def test_preserved_primary_apply_retains_all_admission_and_drain_guards(ui_apply, failure):
+    import json
+
+    g, home, root, source, previous, payload, tool, state, events = ui_apply
+    state.update(preserve_primary=True, fail=failure)
+    if failure:
+        with pytest.raises((g.UpdateBlocked, g.MaintenanceBusy)):
+            g.apply(
+                home, source, previous, payload, expected_gateway=previous, preserve_primary=True
+            )
+        if failure != "drain":
+            assert "signal" not in events
+        else:
+            assert state["retained"]
+            assert (root / "run/gateway-upgrade.json").is_file()
+        assert state["sha"] == previous
+        return
+    result = g.apply(
+        home, source, previous, payload, expected_gateway=previous, preserve_primary=True
+    )
+    assert result["status"] == "deployed" and result["primary"] == previous
+    assert state["sha"] == payload
+    assert events.index("recovery_verified") < events.index("signal")
+    original = json.loads((root / "run/gateway-upgrade-original.json").read_text())
+    assert (original["version"], original["mode"]) == (3, "static-gateway")
+    assert original["tool_revision"] == tool
+
+
 @pytest.mark.parametrize("failure", ["qualify:b", "qualify:c", "scope", "baseline", "active"])
 def test_apply_ui_admission_failures_do_not_signal_or_write_journal(ui_apply, failure):
     g, home, root, source, previous, payload, _tool, state, events = ui_apply
@@ -619,11 +739,12 @@ def test_apply_ui_signal_timeout_retains_recoverable_journal(ui_apply):
 
 
 @pytest.mark.parametrize("failure", ["start", "health", "preservation"])
+@pytest.mark.parametrize("preserve_primary", [False, True])
 def test_apply_ui_candidate_failure_dispatches_exact_version_two_rollback(
-    ui_apply, monkeypatch, failure
+    ui_apply, monkeypatch, failure, preserve_primary
 ):
     g, home, _root, source, previous, payload, tool, state, _events = ui_apply
-    state["fail"] = failure
+    state.update(fail=failure, preserve_primary=preserve_primary)
     recovered = []
 
     def rollback(actual_home, record):
@@ -641,10 +762,26 @@ def test_apply_ui_candidate_failure_dispatches_exact_version_two_rollback(
 
     monkeypatch.setattr(g, "recover_locked", rollback)
     assert (
-        g.apply(home, source, payload, payload, expected_gateway=previous)["status"]
+        g.apply(
+            home,
+            source,
+            previous if preserve_primary else payload,
+            payload,
+            expected_gateway=previous,
+            preserve_primary=preserve_primary,
+        )["status"]
         == "rolled_back"
     )
-    assert recovered == [(home, 2, "static-ui", tool, payload, previous)]
+    assert recovered == [
+        (
+            home,
+            3 if preserve_primary else 2,
+            "static-gateway" if preserve_primary else "static-ui",
+            tool,
+            payload,
+            previous,
+        )
+    ]
 
 
 @pytest.mark.skipif(sys.platform != "darwin", reason="macOS kernel process image")

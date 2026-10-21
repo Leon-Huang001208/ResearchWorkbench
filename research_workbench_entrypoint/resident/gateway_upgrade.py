@@ -89,6 +89,37 @@ def static_scopes(source: Path, previous: str, payload: str, tool: str):
     return scopes
 
 
+def preserved_primary_scopes(source: Path, primary: str, previous: str, payload: str, tool: str):
+    """Prove both running baselines share the payload's runtime backend bytes."""
+    if not all(
+        isinstance(value, str) and SHA.fullmatch(value)
+        for value in (primary, previous, payload, tool)
+    ):
+        raise UpdateBlocked("gateway_static_revision_invalid")
+    scopes = {}
+    for name, start, end in (
+        ("primary", primary, payload),
+        ("payload", previous, payload),
+        ("tool", payload, tool),
+    ):
+        git(source, "merge-base", "--is-ancestor", start, end)
+        paths = git(source, "diff", "--no-renames", "--name-only", start, end).splitlines()
+        prefixes = ("docs/", "tests/", ".ai/reports/")
+        if name != "tool":
+            prefixes += ("app/research_web/ui/",)
+        if any(not path.startswith(prefixes) and path != TOOL_PATH for path in paths):
+            raise UpdateBlocked("gateway_static_scope_changed")
+        scopes[name] = {path: git(source, "rev-parse", f"{end}:{path}") for path in paths}
+        if (
+            name != "tool"
+            and TOOL_PATH in scopes[name]
+            and scopes[name][TOOL_PATH] != git(source, "rev-parse", f"{tool}:{TOOL_PATH}")
+        ):
+            raise UpdateBlocked("gateway_static_operator_mismatch")
+    log.info("gateway_preserved_primary_scope_verified")
+    return scopes
+
+
 def module_blobs(source: Path, revision: str):
     rows = git(source, "ls-tree", "-r", revision, MODULE_ROOT).splitlines()
     modules = {}
@@ -128,7 +159,17 @@ def git_bytes(source: Path, revision: str, name: str):
 
 
 def static_recovery_identity(home: Path, state: dict):
-    if state.get("mode") != "static-ui" or state.get("primary") != state.get("target"):
+    preserved_primary = (
+        state.get("version") == 3
+        and state.get("mode") == "static-gateway"
+        and state.get("primary") != state.get("target")
+    )
+    original_static = (
+        state.get("version") == 2
+        and state.get("mode") == "static-ui"
+        and state.get("primary") == state.get("target")
+    )
+    if not (preserved_primary or original_static):
         raise UpdateBlocked("gateway_recovery_identity_changed")
     tool = state.get("tool_revision", "")
     project = Path(state["project"])
@@ -140,7 +181,13 @@ def static_recovery_identity(home: Path, state: dict):
         != resident["source_common"]
     ):
         raise UpdateBlocked("gateway_source_identity_changed")
-    scopes = static_scopes(project, state["previous"], state["target"], tool)
+    scopes = (
+        preserved_primary_scopes(
+            project, state["primary"], state["previous"], state["target"], tool
+        )
+        if preserved_primary
+        else static_scopes(project, state["previous"], state["target"], tool)
+    )
     if scopes != state.get("reviewed"):
         raise UpdateBlocked("gateway_static_scope_changed")
     identity = state["recovery"]
@@ -565,15 +612,21 @@ def finish(root: Path, state: dict, result: str):
         "previous": state["previous"],
         "preserved": True,
     }
-    if state.get("version") == 2:
-        record.update(mode="static-ui", tool_revision=state["tool_revision"])
+    if state.get("version") in {2, 3}:
+        record.update(mode=state["mode"], tool_revision=state["tool_revision"])
     atomic(root / "gateway-upgrade-result.json", record)
     (root / "gateway-upgrade.json").unlink()
     sync_directory(root)
 
 
 def apply(
-    home: Path, source: Path, primary: str, target: str, *, expected_gateway: str | None = None
+    home: Path,
+    source: Path,
+    primary: str,
+    target: str,
+    *,
+    expected_gateway: str | None = None,
+    preserve_primary: bool = False,
 ):
     if sys.platform != "darwin":
         raise UpdateBlocked("gateway_macos_only")
@@ -587,10 +640,12 @@ def apply(
         if (root / "transaction.json").exists() or (server / "run/gateway-upgrade.json").exists():
             raise UpdateBlocked("gateway_recovery_required")
         static_ui = expected_gateway is not None
+        if preserve_primary and not static_ui:
+            raise UpdateBlocked("gateway_upgrade_arguments_required")
         tool_revision = git(source, "rev-parse", "HEAD") if static_ui else target
         if static_ui:
             if (
-                primary != target
+                (primary == target if preserve_primary else primary != target)
                 or not isinstance(expected_gateway, str)
                 or not SHA.fullmatch(expected_gateway)
             ):
@@ -614,7 +669,11 @@ def apply(
         if static_ui:
             if previous != expected_gateway:
                 raise UpdateBlocked("gateway_static_baseline_changed")
-            reviewed = static_scopes(source, previous, target, tool_revision)
+            reviewed = (
+                preserved_primary_scopes(source, primary, previous, target, tool_revision)
+                if preserve_primary
+                else static_scopes(source, previous, target, tool_revision)
+            )
         if (
             git(project, "rev-parse", "--path-format=absolute", "--git-common-dir")
             != resident["source_common"]
@@ -682,7 +741,10 @@ def apply(
         }
         if static_ui:
             state.update(
-                version=2, mode="static-ui", tool_revision=tool_revision, tool_proof=tool_proof
+                version=3 if preserve_primary else 2,
+                mode="static-gateway" if preserve_primary else "static-ui",
+                tool_revision=tool_revision,
+                tool_proof=tool_proof,
             )
             static_recovery_identity(home, state)
         atomic(server / "run/gateway-upgrade-original.json", state)
@@ -746,7 +808,7 @@ def recover_locked(home: Path, state: dict):
     project = Path(state["project"])
     if not SHA.fullmatch(state.get("target", "")) or not SHA.fullmatch(state.get("previous", "")):
         raise UpdateBlocked("gateway_recovery_identity_changed")
-    if state.get("version") == 2:
+    if state.get("version") in {2, 3}:
         static_recovery_identity(home, state)
     elif (
         state.get("version") != 1
@@ -864,7 +926,7 @@ def recover(home: Path):
         if not isinstance(checksum, str):
             return {"status": "other_recovery_version"}
         expected = home / "server/run" / f"gateway-recovery-{checksum[:16]}.pyz"
-        if state.get("version") != 2 or helper.resolve() != expected.resolve():
+        if state.get("version") not in {2, 3} or helper.resolve() != expected.resolve():
             return {"status": "other_recovery_version"}
     root, config = configured(home)
     sys.path.insert(0, config["project"])
@@ -886,9 +948,12 @@ def main(argv=None):
     parser.add_argument("--primary")
     parser.add_argument("--target")
     parser.add_argument("--expected-gateway")
+    parser.add_argument("--preserve-primary", action="store_true")
     args = parser.parse_args(argv)
     logging.basicConfig(filename=args.home / "logs/gateway-upgrade.log", level=logging.INFO)
     try:
+        if args.preserve_primary and args.command != "apply-ui":
+            raise UpdateBlocked("gateway_upgrade_arguments_required")
         if args.command in {"apply", "apply-ui"}:
             if not args.source or not args.primary or not args.target:
                 raise UpdateBlocked("gateway_upgrade_arguments_required")
@@ -901,6 +966,7 @@ def main(argv=None):
                     args.primary,
                     args.target,
                     expected_gateway=args.expected_gateway,
+                    preserve_primary=args.preserve_primary,
                 )
             else:
                 if args.expected_gateway:

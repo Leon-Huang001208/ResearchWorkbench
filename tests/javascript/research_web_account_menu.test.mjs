@@ -33,7 +33,7 @@ function fixture(fetcher = async () => ({ ok: true }), { legacy = false } = {}) 
   document.createElement = () => make('menu');
   let anchor = legacy ? null : make('trigger');
   const footer = { querySelector: () => anchor, set innerHTML(value) { this.html = value; anchor = make('trigger'); } };
-  const root = { querySelector: selector => selector === '.navigation-footer' ? footer : anchor };
+  const root = { dataset: legacy ? {} : { accountWorkspaceNative: '1' }, querySelector: selector => selector === '.navigation-footer' ? footer : anchor };
   const windowEvents = new Map();
   const window = { innerWidth: 1280, innerHeight: 720, setTimeout, clearTimeout, location: { assign: url => redirects.push(url) }, addEventListener: (name, fn) => windowEvents.set(name, fn) };
   const options = { root, user, document, window, fetcher: async (...args) => { requests.push(args); return fetcher(...args); }, logger: (...args) => logs.push(args) };
@@ -212,6 +212,18 @@ test('legacy adapter does not duplicate a modern shell menu', () => {
   const f = fixture();
   mountLegacyAccountMenu({ ...f.options, Observer: class { constructor() { throw Error('unexpected legacy observer'); } } });
   assert.equal(f.document.body.children.length, 1);
+});
+
+test('legacy existing menu upgrades identity once and preserves old first-item focus', () => {
+  let replacements=0, removed=false, focused=false, observers=0, reconcile;
+  const link={focus(){focused=true;},matches(){return true;}};
+  let identity={matches(){return false;},replaceWith(value){assert.equal(value,link);identity=link;replacements++;}};
+  const oldLink={remove(){removed=true;}};
+  const menu={dataset:{},querySelector(selector){return selector==='.account-identity'?identity:selector==='a[href="/account"]'?(removed?null:oldLink):link;}};
+  const document={activeElement:oldLink,getElementById(){return menu;},createElement(){return {content:{firstElementChild:link},set innerHTML(value){assert.ok(value.includes('href="#/account"'));}};}};
+  const options={root:{dataset:{}},user,document,Observer:class {constructor(callback){reconcile=callback;observers++;}observe(target){assert.equal(target,menu);}}};
+  mountLegacyAccountMenu(options);reconcile();mountLegacyAccountMenu(options);
+  assert.equal(replacements,1);assert.equal(observers,1);assert.ok(removed&&focused);
 });
 
 test('legacy redraw restores a focused closed avatar but never steals focus after an outside pointer action', () => {
