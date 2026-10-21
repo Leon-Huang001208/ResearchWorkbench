@@ -4,21 +4,24 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="referrer" content="no-referrer">
-  <title>账号 · Research Workbench</title>
+  <title>登录 · Research Workbench</title>
   <link rel="icon" href="/static/assets/brand/favicon-32.png">
+  <script src="/static/theme.js"></script>
+  <link rel="stylesheet" href="/static/appearance.css">
   <link rel="stylesheet" href="/server-static/accounts.css">
 </head>
 <body>
-  <main class="account-panel">
-    <a class="brand" href="/">Research Workbench</a>
+  <main class="account-panel" aria-labelledby="heading">
+    <a class="brand" href="/"><img src="/static/assets/brand/brand-mark.png" alt="" width="108" height="120">Research Workbench</a>
     <h1 id="heading">登录研究工作台</h1>
     <p id="description">请使用管理员为你创建的账号。会话和文件保存在服务器的个人空间。</p>
     <p id="message" role="status" aria-live="polite"></p>
-    <form id="login-form" hidden>
-      <label>账号<input name="username" autocomplete="username" required maxlength="64"></label>
-      <label>密码<input name="password" type="password" autocomplete="current-password" required maxlength="1024"></label>
+    <form id="login-form" aria-busy="false" hidden>
+      <label>账号<input name="username" autocomplete="username" placeholder="输入账号" required maxlength="64"></label>
+      <label>密码<input name="password" type="password" autocomplete="current-password" placeholder="输入密码" required maxlength="1024"></label>
       <button type="submit">登录</button>
     </form>
+    <noscript><p>请启用 JavaScript 后登录研究工作台。</p></noscript>
   </main>
   <script type="module" src="/server-static/accounts.mjs"></script>
 </body>
