@@ -1,5 +1,7 @@
 # Agent 任务路由指南
 
+模型服务商联合部署先验证真实旧 controller 合同、部分 BirthFence 中断与 finish 内部故障；新增定点测试加入原 Checks 步骤，无新 job/依赖。完成独立评审、Router 与同候选 Mac Bootstrap 后才部署；活动/未知等待，不用本地测试代替常驻证据。
+
 静态部署包含升级器自身时，先在干净且受审的精确目标checkout执行stage-primary-ui；核对现场冻结controller的candidate复用分支与摘要，原tick完成空闲切换及accepted/进程/会话模型保全后，再apply-ui更新网关。helper产品blob必须等于冻结工具blob；不临时patch白名单或恢复算法，候选冲突/活动/未知延后。回归沿原gateway升级模块和Mac Bootstrap，不新增依赖或他平台产品dispatch。
 
 自由分析修复先封存本次实际公报字节与错误报告，离线覆盖数词/推导绕过、原生文件、审计/版本错绑及恢复，再执行完整Router与固定DSH转换器。源码未变的已通过测试可用明确的Git blob/候选映射复核复用，保留真实执行SHA和日志，不伪改为新SHA执行。部署只允许实时空闲/已知状态；保留原研究和模型，最后同Flash原题新case仅一次。
