@@ -1,5 +1,7 @@
 # Research Web Native / Docker 安装与运行
 
+资产摘要布局与图表主题迭代只修改既有 Web 静态模块：紧凑交易／估值、来源纯投影、折叠状态及透明图表；继续使用已批准本地 ECharts 5.5.0／Chart.js 4.4.7，没有新 Python／Node 依赖、厂商 SDK、设置、秘密或数据库迁移。公开三入口、`requirements/web.in`／`web.lock`、`scripts/setup_web.py` 与 Bootstrap 工作流保持既有合同；最终候选仍须本地 macOS 验证及同候选 `macos-14` 干净安装、固定 DSH 构建、3081／8088 健康和 Doctor 证据。源码合并与浏览器结果不等于常驻更新；常驻切换须在产品版本冻结后另行交付绑定实际 previous 与精确 payload 的正式版本化封闭 profile，既有部署 profile 不自动兼容本轮资产摘要。
+
 macOS显式资产部署的CI日志复核使用120秒有界下载，普通资格命令仍30秒；读取器完整SHA256由已审操作员绑定。无需新依赖或安装参数，原干净安装、固定DSH、Doctor与恢复门保持，详见[部署合同](research-web-gateway-upgrade.md)。
 
 资产观察 AF 连续指标区随既有 Web 包安装，新增已独立授权的本地静态 ECharts 5.5.0 与 Chart.js 4.4.7，固定版本、许可及SHA-256，不依赖CDN或开发者全局包；无新Python包、厂商SDK、秘密或模型权限。公开 `./setup-web.sh`、`setup-web.cmd` 和 `python scripts/setup_web.py`、`requirements/web.in`／`web.lock`、固定DSH及原Bootstrap合同保持。交付须核对本地静态库、wheel及干净安装物逐字节一致，并由最终候选 `macos-14` 的3081／8088健康与Doctor证明安装兼容；核对文件无须修改的结论也须由安装CI验证。本机已有环境与浏览器夹具不能替代此门，真实CJPY冷启动首次查询、逐区刷新及Wind可用性另留证据。

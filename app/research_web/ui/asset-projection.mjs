@@ -2,17 +2,22 @@
 const missing = value => value === null || value === undefined || value === '';
 const numeric = value => !missing(value) && (typeof value === 'number' || typeof value === 'string' && value.trim() !== '') && Number.isFinite(Number(value)) ? Number(value) : null;
 const dateOf = row => row?.date || row?.['时间'] || row?.as_of || null;
+const reportPeriodOf = row => row?.report_period || row?.['报告期'] || row?.['截止日期'] || row?.['报告日期'] || null;
 const sourceOf = meta => meta?.provider || meta?.source || null;
 function fieldMeta(meta, key) {
+  if (missing(key)) return {};
   return Array.isArray(meta?.fields) ? meta.fields.find(item => item.name === key || item.field === key) || {} : meta?.fields?.[key] || {};
 }
+const nonCurrencyKeys = new Set(['pe', 'pe_ttm', 'pb', 'pb_mrq', 'ps', 'ps_ttm', 'industry_pe', 'industry_pb', 'total_shares', 'roe', '净资产收益率', 'change_pct', 'pct_chg', '涨跌幅', 'turnover_rate_pct', 'turnover_rate', '换手率', 'share_ratio', 'holding_ratio', 'change_ratio', 'holding_change_ratio', 'gross_margin', 'gross_profit_margin', '毛利率']);
 function cell(row, keys, meta = {}, block = {}, allowBoolean = false) {
   const key = keys.find(name => !missing(row?.[name]) && (allowBoolean || typeof row[name] !== 'boolean'));
   const field = fieldMeta(meta, key);
-  return { value: key ? row[key] : null, key: key || null, unit: field.unit || meta.units?.[key] || null, currency: field.currency || meta.currency || null, provider: sourceOf(meta), date: dateOf(row), reportPeriod: row?.report_period || row?.['报告期'] || row?.['截止日期'] || row?.['报告日期'] || null, state: block.status || (key ? 'partial' : 'unavailable') };
+  const unit = key ? field.unit || meta.units?.[key] || null : null;
+  const nonCurrency = nonCurrencyKeys.has(key) || ['ratio', 'percent', '%', '倍', 'share', 'shares', '股', '万股', '亿股'].includes(String(unit || '').toLowerCase());
+  return { value: key ? row[key] : null, key: key || null, unit, currency: key && !nonCurrency ? field.currency || meta.currency || null : null, provider: sourceOf(meta), date: dateOf(row), reportPeriod: reportPeriodOf(row), state: block.status || (key ? 'partial' : 'unavailable') };
 }
 function latest(rows = []) {
-  return rows.reduce((selected, row) => !selected || (String(dateOf(row) || row.report_period || '') > String(dateOf(selected) || selected.report_period || '')) ? row : selected, null) || {};
+  return rows.reduce((selected, row) => !selected || (String(dateOf(row) || reportPeriodOf(row) || '') > String(dateOf(selected) || reportPeriodOf(selected) || '')) ? row : selected, null) || {};
 }
 function asBlock(observation, name) {
   const block = observation?.blocks?.[name] || {};
@@ -20,6 +25,38 @@ function asBlock(observation, name) {
 }
 const shareUnit = unit => ['股', 'share', 'shares'].includes(String(unit || '').toLowerCase());
 const priceUnit = cell => ['currency_per_share', '元/股', 'CNY/股', 'CNY/share'].includes(cell.unit) && Boolean(cell.currency);
+function sharesCell(value) {
+  const unitVerified = value.provider !== 'wind' && shareUnit(value.unit);
+  return { ...value, unitVerified, unitNote: value.provider === 'wind' ? '单位为来源声明，尚未核验 Wind 原始返回数量级；不据此推导市值。' : unitVerified ? null : '来源未提供可核验的股本单位；不据此推导市值。' };
+}
+const COVERAGE_BLOCKS = [['overview', '资产概览'], ['history', '历史行情'], ['valuation', '估值'], ['financials', '财务指标'], ['activity', '资金流'], ['margin', '融资融券'], ['holders', '股东与机构持仓汇总'], ['research', '研究资料']];
+function rangeOf(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const range = Object.fromEntries(['start_date', 'end_date'].filter(key => !missing(value[key])).map(key => [key, value[key]]));
+  return Object.keys(range).length ? range : null;
+}
+function declaredFields(meta) {
+  const fields = Array.isArray(meta.fields) ? meta.fields.filter(field => field && typeof field === 'object').map(field => ({ ...field })) : Object.entries(meta.fields || {}).map(([name, field]) => ({ name, ...field }));
+  for (const [name, unit] of Object.entries(meta.units || {})) {
+    const field = fields.find(item => item.name === name || item.field === name);
+    if (field) { if (missing(field.unit)) field.unit = unit; }
+    else fields.push({ name, unit });
+  }
+  return fields;
+}
+function projectCoverage(rows, observation, blocks) {
+  const request = observation.request_parameters || {};
+  return COVERAGE_BLOCKS.map(([id, label]) => {
+    const block = blocks[id]; const meta = block.dataset; const loaded = Array.isArray(rows[id]) ? rows[id] : [];
+    const recorded = Object.hasOwn(observation.blocks || {}, id);
+    const dates = [...new Set(loaded.map(dateOf).filter(value => !missing(value)))].sort((a, b) => String(a).localeCompare(String(b)));
+    const periods = [...new Set(loaded.map(reportPeriodOf).filter(value => !missing(value)))].sort((a, b) => String(a).localeCompare(String(b)));
+    const status = block.status || meta.status || 'unavailable'; const datasetId = meta.dataset_id || null; const hasSnapshot = loaded.length > 0 && Boolean(datasetId);
+    const failureCode = block.failure_code || null;
+    const requestedRange = recorded ? rangeOf(block.requested_range) || rangeOf(request.section_ranges?.[id]) || rangeOf(meta.requested_range) || (['history', 'activity', 'margin'].includes(id) ? rangeOf(request) : null) : null;
+    return { id, label, status, requestedSource: recorded ? block.requested_source || request.section_sources?.[id] || observation.source || meta.query?.source || null : null, provider: sourceOf(meta), datasetId, loadedRowCount: loaded.length, hasSnapshot, asOf: meta.as_of || null, retrievedAt: meta.retrieved_at || null, dataDate: dates.at(-1) || null, reportPeriods: periods, requestedRange, actualRange: rangeOf(meta.actual_range), loadedRange: dates.length ? { start_date: dates[0], end_date: dates.at(-1) } : null, requestedFrequency: recorded && id === 'history' ? request.frequency || meta.query?.parameters?.frequency || null : null, requestedAdjustment: recorded && id === 'history' ? request.adjustment || meta.query?.parameters?.adjustment || null : null, fields: declaredFields(meta), limitations: Array.isArray(meta.limitations) ? [...meta.limitations] : [], failureCode, retainedSnapshot: hasSnapshot && failureCode !== 'snapshot_read_failed' && Boolean(failureCode || ['error', 'unavailable'].includes(status)) };
+  });
+}
 function qualifiedTTM(value, meta) {
   if (value.provider !== 'akshare') return value;
   const field = fieldMeta(meta, value.key);
@@ -55,15 +92,16 @@ export function projectAssetObservation(rows = {}, observation = {}) {
   const price = q(['price', 'last', 'close', 'nav', '收盘']); const previous = q(['yclose', 'pre_close', '昨收']);
   const change = q(['change', 'price_change', 'change_amount', '涨跌额']); const changePct = q(['change_pct', 'pct_chg', '涨跌幅']);
   if (numeric(price.value) !== null && numeric(previous.value) > 0) {
-    if (numeric(change.value) === null) { change.value = numeric(price.value) - numeric(previous.value); change.derived = true; }
-    if (numeric(changePct.value) === null) { changePct.value = (numeric(price.value) / numeric(previous.value) - 1) * 100; changePct.derived = true; }
+    if (numeric(change.value) === null) { change.value = numeric(price.value) - numeric(previous.value); change.unit = price.unit; change.currency = price.currency; change.derived = true; }
+    if (numeric(changePct.value) === null) { changePct.value = (numeric(price.value) / numeric(previous.value) - 1) * 100; changePct.unit = 'percent'; changePct.currency = null; changePct.derived = true; }
   }
   let marketCap = cell(overview, ['market_cap', 'total_market_cap'], blocks.overview.dataset, blocks.overview);
   if (missing(marketCap.value)) marketCap = v(['market_cap', 'total_market_cap']);
   if (missing(marketCap.value)) {
-    // Wind's canonical `price` field is the adapter's raw `close` mapping.
+    // Wind shares have no verified raw quantity scale, even when metadata says
+    // `share`. Retain their declared unit for display but never derive a cap.
     const close = v(sourceOf(blocks.valuation.dataset) === 'wind' ? ['close', 'price'] : ['close']); const shares = v(['total_shares']);
-    if (numeric(close.value) !== null && numeric(shares.value) !== null && priceUnit(close) && shareUnit(shares.unit) && close.date && close.date === shares.date && close.provider && close.provider === shares.provider) marketCap = { ...close, value: numeric(close.value) * numeric(shares.value), unit: close.unit === '元/股' ? '元' : 'currency', derived: true, derivation: '同来源同日收盘价 × 总股本' };
+    if (shares.provider !== 'wind' && numeric(close.value) !== null && numeric(shares.value) !== null && priceUnit(close) && shareUnit(shares.unit) && close.date && close.date === shares.date && close.provider && close.provider === shares.provider) marketCap = { ...close, value: numeric(close.value) * numeric(shares.value), unit: close.unit === '元/股' ? '元' : 'currency', derived: true, derivation: '同来源同日收盘价 × 总股本' };
   }
   const highs = history.map(row => numeric(row.high ?? row['最高'])).filter(value => value !== null); const lows = history.map(row => numeric(row.low ?? row['最低'])).filter(value => value !== null);
   const rangeStart = dateOf(history[0]); const rangeEnd = dateOf(history.at(-1)); const coverage = blocks.history.dataset.coverage;
@@ -78,5 +116,6 @@ export function projectAssetObservation(rows = {}, observation = {}) {
   const factors = [['interest', '利率'], ['inflation', '通胀'], ['fx', '汇率'], ['commodity', '大宗商品'], ['liquidity', '流动性']];
   const macro = factors.map(([id, label]) => { const row = (rows.macro || []).find(item => [id, label].includes(item.factor)) || {}; return { id, label, direction: cell(row, ['direction'], blocks.macro.dataset, blocks.macro), strength: cell(row, ['strength'], blocks.macro.dataset, blocks.macro) }; });
   const valuationPE = qualifiedTTM(v(['pe_ttm']), blocks.valuation.dataset); const financialPE = qualifiedTTM(f(['pe_ttm']), blocks.financials.dataset);
-  return { blocks, basic: { name: cell(overview, ['name', '简称'], blocks.overview.dataset, blocks.overview), code: observation.asset || null, price, change, changePct, quoteKind: hasQuote ? '来源快照' : '历史收盘', tradingDate: dateOf(trading), tradingProvider: sourceOf(tradingBlock.dataset), volume: t(['volume', 'vol', '成交量']), amount: t(['amount', 'turnover', '成交额']), turnover: t(['turnover_rate_pct', 'turnover_rate', '换手率']), open: t(['open', '开盘']), high: t(['high', '最高']), low: t(['low', '最低']), marketCap, rangeLabel: verifiedYear ? '52周' : '区间', rangeHigh: cell({ high: highs.length ? Math.max(...highs) : null }, ['high'], blocks.history.dataset, blocks.history), rangeLow: cell({ low: lows.length ? Math.min(...lows) : null }, ['low'], blocks.history.dataset, blocks.history), rangeStart, rangeEnd }, financial: { peTTM: valuationPE.value === null ? financialPE : valuationPE, pbMRQ: v(['pb_mrq']).value === null ? f(['pb_mrq']) : v(['pb_mrq']), roe: f(['roe', '净资产收益率']), revenue: f(['revenue', '营业收入', '营收']), netProfit: f(['net_profit', '净利润']), grossMargin: f(['gross_margin', 'gross_profit_margin', '毛利率']) }, capitalFlow: { mainInflow: a(['main_inflow']), mainOutflow: a(['main_outflow']), mainNet: a(['main_net', 'main_force_inflow']), superNet: a(['super_net', 'super_large_net']), largeNet: a(['large_net']), mediumNet: a(['medium_net']), smallNet: a(['small_net']), northbound: a(['northbound_flow', 'north_bound_flow']), northboundShares: a(['north_bound_shares']), pie: capitalPartition(activity, blocks.activity.dataset) }, shareholders, industry: { sw1: i(['sw_level_1']), sw2: i(['sw_level_2']), pe: i(['industry_pe']), pb: i(['industry_pb']) }, events, macro };
+  const peTTM = valuationPE.value === null ? financialPE : valuationPE;
+  return { blocks, coverageRows: projectCoverage(rows, observation, blocks), valuation: { peTTM, pb: v(['pb']), psTTM: v(['ps_ttm']), totalShares: sharesCell(v(['total_shares'])), marketCap }, basic: { name: cell(overview, ['name', '简称'], blocks.overview.dataset, blocks.overview), code: observation.asset || null, price, change, changePct, quoteKind: hasQuote ? '来源快照' : '历史收盘', tradingDate: dateOf(trading), tradingProvider: sourceOf(tradingBlock.dataset), volume: t(['volume', 'vol', '成交量']), amount: t(['amount', 'turnover', '成交额']), turnover: t(['turnover_rate_pct', 'turnover_rate', '换手率']), open: t(['open', '开盘']), high: t(['high', '最高']), low: t(['low', '最低']), marketCap, rangeLabel: verifiedYear ? '52周' : '区间', rangeHigh: cell({ high: highs.length ? Math.max(...highs) : null }, ['high'], blocks.history.dataset, blocks.history), rangeLow: cell({ low: lows.length ? Math.min(...lows) : null }, ['low'], blocks.history.dataset, blocks.history), rangeStart, rangeEnd }, financial: { peTTM, pbMRQ: v(['pb_mrq']).value === null ? f(['pb_mrq']) : v(['pb_mrq']), roe: f(['roe', '净资产收益率']), revenue: f(['revenue', '营业收入', '营收']), netProfit: f(['net_profit', '净利润']), grossMargin: f(['gross_margin', 'gross_profit_margin', '毛利率']) }, capitalFlow: { mainInflow: a(['main_inflow']), mainOutflow: a(['main_outflow']), mainNet: a(['main_net', 'main_force_inflow']), superNet: a(['super_net', 'super_large_net']), largeNet: a(['large_net']), mediumNet: a(['medium_net']), smallNet: a(['small_net']), northbound: a(['northbound_flow', 'north_bound_flow']), northboundShares: a(['north_bound_shares']), pie: capitalPartition(activity, blocks.activity.dataset) }, shareholders, industry: { sw1: i(['sw_level_1']), sw2: i(['sw_level_2']), pe: i(['industry_pe']), pb: i(['industry_pb']) }, events, macro };
 }
