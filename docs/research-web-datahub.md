@@ -1,8 +1,10 @@
 # Research Web DataHub
 
+资产页紧凑摘要新增的 `valuation` 与 `coverageRows` 仅为 `asset-projection.mjs` 浏览器 DTO，消费当前已载入行与既有 dataset 元数据，不扩展 DataHub、ObservationRequest、持久化格式或 HTTP 合同。“N/8 有快照”按八个既有区块的真实载入行及 dataset 身份计数，complete 但未载入不计入；新闻／公告仍走独立阅读。来源明细分开显示请求来源／实际 Provider、行内数据日、`as_of`、北京时间 `retrieved_at`、报告期、请求／实际／载入区间、字段单位与限制，不能把这些不同时间和范围合并为一个“最新”。
+
 资产观察继续经 AssetWorkspace → Broker → 现有 Provider，页面打开不取数；显式创建或刷新单一区块才提交查询。请求新增 `section_sources={}`：区块显式来源覆盖原 `source`，未覆盖仍沿原来源，专业来源失败不能隐式回退。新增 `section_ranges={}`：只接受 history／activity／margin 的完整 ISO 日期对，开始不晚于结束；缺省沿原全局日期，旧记录恢复为两个空映射。刷新沿保存的有效来源与日期执行，公开请求参数及各区块显示来源／范围，不能以全局来源掩盖差异。holders 的 `end_date` 仍是报告期，不参与历史日期覆盖。
 
-新增 `valuation` 区块复用原 `market_snapshot`，请求明确 `asset_type` 及 Wind 的 `close/pe_ttm/pb/total_shares`，不新增 API 路径或 Provider。市值只在同源同日且口径可确认时从 close × total_shares 派生；普通 PB 不升级为 PB-MRQ，TTM/MRQ 和未知单位继续显式保留。财务仍使用 `statements=["indicators"]`、`periods=[]` 读取最新一期，Broker 只映射等价指标，报表、多期或非法期间继续 `data_not_equivalent`，不能称为多年财务历史。
+已有 `valuation` 区块复用原 `market_snapshot`，请求明确 `asset_type` 及 Wind 的 `close/pe_ttm/pb/total_shares`，不新增 API 路径或 Provider。摘要 PS-TTM 只读取已取得的明确 `ps_ttm` 字段，不增加请求或用市值／单期营收补造。普通 PB 不升级为 PB-MRQ，TTM/MRQ 和未知单位继续显式保留；Wind 总股本原数显示但数量级未核验，即使来源声明 `share` 也不换算、不据此派生市值。其他来源仅在同源同日、股本与每股价格单位及币种均确认时可从 close × total_shares 派生；缺失显示 `—`，真实零值保留。财务仍使用 `statements=["indicators"]`、`periods=[]` 读取最新一期，Broker 只映射等价指标，报表、多期或非法期间继续 `data_not_equivalent`，不能称为多年财务历史。
 
 新页面显式行情 tinysoft、估值 wind、财务／资金／股东 auto；行情1Y与资金／两融近60个日历日（截止往前59天）分别传入。Wind 已有60天硬门保持，61天拒绝，不截断、不拆分；不能将其泛化为所有 Provider 的行情上限。派生图表只使用真实行，缺口不补成52周。真实 CJPY 冷启动、首次查询及逐区刷新须另留厂商证据，离线测试不证明已配置或可调用。
 

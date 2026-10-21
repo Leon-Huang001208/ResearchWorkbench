@@ -6,7 +6,8 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { startFixture } from './alphafoundry_fixture.mjs';
 
 const project = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
-const output = path.join(project, 'logs/alphafoundry-indicators-20261021', process.env.RWB_ASSET_REAL_PROOF || process.env.RWB_ASSET_READBACK_JSON ? 'real-readback' : '');
+const output = process.env.RWB_ASSET_E2E_OUTPUT ? path.resolve(project, process.env.RWB_ASSET_E2E_OUTPUT) : path.join(project, 'logs/alphafoundry-indicators-20261021', process.env.RWB_ASSET_REAL_PROOF || process.env.RWB_ASSET_READBACK_JSON ? 'real-readback' : '');
+const startedAt = new Date().toISOString(); const started = performance.now();
 await mkdir(output, { recursive: true });
 const fixture = await startFixture(project, output);
 const { state, origin } = fixture;
@@ -15,13 +16,14 @@ let browser;
 const results = []; const errors = []; const external = []; const screenshots = []; let page;
 const diagnosticsEnabled = process.env.RWB_ASSET_DIAGNOSTICS === '1';
 const check = async (name, fn) => {
-  try { const evidence = await fn(); results.push({ name, status: 'PASS', evidence }); }
+  const checkStarted = performance.now();
+  try { const evidence = await fn(); results.push({ name, status: 'PASS', durationMs: Math.round(performance.now() - checkStarted), evidence }); }
   catch (error) {
     const diagnostics = await page?.evaluate(() => {
       const node = document.querySelector('[data-asset-echarts]'); const main = node && window.echarts?.getInstanceByDom(node);
       return { chartErrors: window.fixtureChartErrors || [], calls: window.fixtureChartCalls || [], controls: window.fixtureControlTrace || [], dataset: { ...node?.dataset }, chartId: main?.id, seriesViews: main?.getModel()?.getSeries()?.map(series => ({ name: series.name, type: series.type, view: Boolean(main.getViewOfSeriesModel(series)) })) };
     }).catch(() => null);
-    results.push({ name, status: 'FAIL', error: error.message, diagnostics }); console.error(`${name}: ${error.stack}\n${JSON.stringify(diagnostics)}`);
+    results.push({ name, status: 'FAIL', durationMs: Math.round(performance.now() - checkStarted), error: error.message, diagnostics }); console.error(`${name}: ${error.stack}\n${JSON.stringify(diagnostics)}`);
   }
 };
 const assetURL = (asset = state.observation.asset, view = 'overview') => `${origin}/#/workbench/assets?view=${view}&asset=${encodeURIComponent(asset)}&asset_type=stock`;
@@ -34,6 +36,56 @@ const action = async name => {
   await page.evaluate(label => { const node = document.querySelector('[data-asset-echarts]'); const main = node && echarts.getInstanceByDom(node); window.fixtureControlTrace.push({ phase: 'after', label, id: main?.id, models: main?.getModel()?.getSeries().length, views: main?.getModel()?.getSeries().filter(series => main.getViewOfSeriesModel(series)).length }); }, name);
 };
 const stable = () => page.waitForFunction(() => { const node = document.querySelector('[data-asset-echarts]'); return node && window.echarts?.getInstanceByDom(node)?.getOption()?.grid?.length === 5 && node.dataset.visibleCount; });
+const sourceSummary = () => page.locator('details.asset-source-summary');
+const sourceKeys = ['overview', 'history', 'valuation', 'financials', 'activity', 'margin', 'holders', 'research'];
+const apiReads = () => state.reads.filter(read => read.includes('/api/')).length;
+async function sourceEvidence(expectedCount) {
+  assert.equal(await page.locator('details.asset-identity-switch').count(), 1);
+  assert.equal(await page.locator('.asset-identity-switch').getAttribute('open'), null);
+  assert.equal(await page.locator('[data-asset-select]').isHidden(), true);
+  assert.equal(await sourceSummary().count(), 1); assert.equal(await sourceSummary().getAttribute('open'), null);
+  assert.equal(await sourceSummary().locator('table').count(), 1);
+  assert.equal((await sourceSummary().locator(':scope > summary').innerText()).trim(), `来源与口径 · ${expectedCount}/8 区块有快照 · 查看详情`);
+  assert.equal(await sourceSummary().locator('[data-asset-source-row]').count(), 8);
+  for (const key of sourceKeys) {
+    const row = sourceSummary().locator(`[data-asset-source-row="${key}"]`);
+    assert.equal(await row.count(), 1); assert.equal(await row.locator('th').count(), 1); assert.equal(await row.locator('td').count(), 5);
+    for (const slot of [0, 1, 2, 3, 4]) assert.ok((await row.locator('td').nth(slot).textContent()).trim(), `${key} source field slot ${slot}`);
+    assert.match(await row.textContent(), /请求来源/); assert.match(await row.textContent(), /实际来源/);
+    assert.match(await row.textContent(), /数据日/); assert.match(await row.textContent(), /报告期/); assert.match(await row.textContent(), /读取于/);
+    const refresh = page.locator(`[data-asset-block-refresh="${key}"]`);
+    assert.equal(await refresh.count(), state.observation.blocks[key] ? 1 : 0, `${key} refresh must be unique`);
+    if (state.observation.blocks[key]) { assert.equal(await sourceSummary().locator(`[data-asset-block-refresh="${key}"]`).count(), 1); assert.equal(await refresh.isHidden(), true); }
+  }
+  const before = apiReads(); await sourceSummary().locator(':scope > summary').click(); await page.waitForTimeout(100);
+  assert.equal(await sourceSummary().getAttribute('open'), ''); assert.equal(apiReads(), before, 'Opening source disclosure must not fetch data');
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), true, 'Expanded source table must stay inside the viewport');
+  assert.equal(await page.locator('#main').evaluate(node => node.scrollWidth <= node.clientWidth + 1), true, 'Expanded source table must scroll inside its own wrapper');
+  const evidence = await sourceSummary().locator('[data-asset-source-row]').evaluateAll(rows => rows.map(row => ({ block: row.dataset.assetSourceRow, state: row.querySelector('.asset-source-state').textContent, fieldSlots: row.querySelectorAll('td').length })));
+  await sourceSummary().locator(':scope > summary').click(); return evidence;
+}
+async function themeEvidence(expectedTheme) {
+  assert.equal(await page.locator('html').getAttribute('data-theme'), expectedTheme);
+  const evidence = await page.evaluate(() => {
+    const mainNode = document.querySelector('[data-asset-echarts]'); const chipNode = document.querySelector('[data-asset-chip-chart]');
+    const main = echarts.getInstanceByDom(mainNode); const chip = echarts.getInstanceByDom(chipNode); const option = main.getOption(); const chipOption = chip.getOption();
+    const selectors = ['.kline-terminal-layout', '.kline-indicator-rail', '.asset-kline-stage', '[data-asset-echarts]', '.asset-chip-panel', '[data-asset-chip-chart]', '.asset-history-readout', '.asset-chip-stats div'];
+    const backgrounds = selectors.flatMap(selector => [...document.querySelectorAll(selector)].map(node => ({ selector, background: getComputedStyle(node).backgroundColor })));
+    let parent = mainNode; let surface = 'rgb(255, 255, 255)';
+    while (parent) { const bg = getComputedStyle(parent).backgroundColor; if (bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') { surface = bg; break; } parent = parent.parentElement; }
+    const rgb = color => { const canvas = document.createElement('canvas'); canvas.width = canvas.height = 1; const ctx = canvas.getContext('2d'); ctx.fillStyle = color; ctx.fillRect(0, 0, 1, 1); return [...ctx.getImageData(0, 0, 1, 1).data].slice(0, 3); };
+    const luminance = color => rgb(color).map(value => value / 255).map(value => value <= .04045 ? value / 12.92 : ((value + .055) / 1.055) ** 2.4).reduce((sum, value, index) => sum + value * [.2126, .7152, .0722][index], 0);
+    const contrast = color => { const values = [luminance(color), luminance(surface)].sort((a, b) => b - a); return (values[0] + .05) / (values[1] + .05); };
+    return { mainBackground: option.backgroundColor, chipBackground: chipOption.backgroundColor, backgrounds, surface, grids: option.grid.length, axes: option.yAxis.map(axis => axis.axisLabel.color), gridsColors: option.yAxis.map(axis => axis.splitLine.lineStyle.color), chipAxis: chipOption.yAxis[0].axisLabel.color, contrast: option.yAxis.map(axis => contrast(axis.axisLabel.color)), views: main.getModel().getSeries().filter(model => main.getViewOfSeriesModel(model)).length, models: main.getModel().getSeries().length, chipViews: chip.getModel().getSeries().filter(model => chip.getViewOfSeriesModel(model)).length };
+  });
+  assert.equal(evidence.mainBackground, 'transparent'); assert.equal(evidence.chipBackground, 'transparent');
+  assert.ok(evidence.backgrounds.length >= 13);
+  assert.ok(evidence.backgrounds.every(item => item.background === 'rgba(0, 0, 0, 0)' || item.background === 'transparent'), JSON.stringify(evidence.backgrounds));
+  assert.equal(evidence.grids, 5); assert.equal(evidence.views, evidence.models); assert.ok(evidence.views > 0); assert.ok(evidence.chipViews > 0);
+  assert.ok(evidence.contrast.every(ratio => ratio >= 3), JSON.stringify({ theme: expectedTheme, contrast: evidence.contrast, surface: evidence.surface }));
+  assert.ok(evidence.axes.every(color => color === evidence.chipAxis));
+  return evidence;
+}
 const renderedEvidence = () => page.evaluate(() => {
   const node = document.querySelector('[data-asset-echarts]'); const main = echarts.getInstanceByDom(node); const models = main.getModel().getSeries();
   const views = models.filter(model => main.getViewOfSeriesModel(model)).length;
@@ -91,10 +143,11 @@ try {
       assert.equal(await page.locator('[data-asset-identity]').getAttribute('data-asset-identity'), `stock:${state.observation.asset}`);
       assert.equal(await page.locator('#main').evaluate(node => node.scrollWidth <= node.clientWidth + 1), true);
       assert.equal(await page.locator('.capital-flow-card').count(), 1); assert.equal(await page.locator('.asset-five-panels .panel-card').count(), 5);
+      await page.waitForLoadState('networkidle'); const sources = await sourceEvidence(2); const theme = await themeEvidence(width === 1920 ? 'light' : 'dark');
       const before = await value('active-index'); await chart().focus(); await page.keyboard.press('ArrowLeft'); await page.waitForFunction(i => document.querySelector('[data-asset-echarts]').dataset.activeIndex !== i, before);
       await screenshot(page.locator('.asset-market-terminal'), `migrated-real-${width}-terminal.png`); await screenshot(page.locator('.asset-five-panels'), `migrated-real-${width}-cards.png`);
       await fullCanvasScreenshot(`migrated-real-${width}-full.png`);
-      const evidence = { rows: state.rows.history.length, identity: state.observation.asset, rendered, quote: await page.locator('#asset-price').innerText(), date: await page.locator('[data-asset-history]').innerText() };
+      const evidence = { rows: state.rows.history.length, identity: state.observation.asset, rendered, sources, theme, quote: await page.locator('#asset-price').innerText(), date: await page.locator('[data-asset-history]').innerText() };
       await page.context().close(); return evidence;
     });
     await check('real-snapshot-offline-health', async () => { assert.deepEqual(errors, []); assert.deepEqual(external, []); assert.equal(state.creates, 0); assert.equal(state.refreshes, 0); });
@@ -135,11 +188,38 @@ try {
   await check('complete-original-card-field-contract', async () => {
     for (const selector of ['.asset-basic-card', '.capital-flow-card', '#financial-panel', '#shareholder-panel', '#industry-panel', '#events-panel', '#macro-panel', '[data-asset-personal]', '[data-asset-news-slot]']) assert.equal(await page.locator(selector).count(), 1, selector);
     for (const id of ['asset-name', 'asset-code-display', 'asset-price', 'asset-change', 'asset-change-pct', 'asset-volume', 'asset-amount', 'asset-turnover', 'asset-market-cap', 'asset-high-52w', 'asset-low-52w', 'fin-pe', 'fin-pb', 'fin-roe', 'fin-revenue', 'fin-net-profit', 'fin-gross-margin']) assert.ok((await page.locator(`#${id}`).innerText()).trim(), id);
-    assert.match(await page.locator('#asset-market-cap').innerText(), /160,750,000|160750000/);
+    assert.equal(await page.locator('#asset-market-cap').innerText(), '—', 'Unverified Wind share scale must never produce a derived cap');
+    assert.deepEqual(await page.locator('.asset-valuation-group dt').allTextContents(), ['PE-TTM', 'PB', 'PS-TTM', '总股本', '市值']);
+    const valuation = await page.locator('.asset-valuation-group dd').allTextContents(); assert.match(valuation[1], /^0/); assert.match(valuation[2], /^0/); assert.match(await page.locator('#fin-pb').innerText(), /^2/);
+    assert.match(await page.locator('.asset-valuation-group').innerText(), /未经核实|单位未核实/);
+    assert.match(await page.locator('#asset-change-pct').innerText(), /1\.1\s*%/); assert.doesNotMatch(await page.locator('#asset-change-pct').innerText(), /CNY|股/);
     assert.match(await page.locator('#fin-revenue').innerText(), /^0/); assert.equal(await page.locator('#fin-net-profit').innerText(), '—');
     assert.match(await page.locator('#shareholder-panel').innerText(), /股东名单未取得/); assert.match(await page.locator('#industry-panel').innerText(), /暂无数据/);
     assert.equal(await page.locator('[data-capital-flow-canvas]').isHidden(), true); assert.match(await page.locator('.capital-flow-card').innerText(), /净额不能/);
     const labels = await page.locator('.asset-observation-main').innerText(); for (const label of ['利率', '通胀', '汇率', '大宗商品', '流动性', '主力流入', '主力流出', '北向资金']) assert.ok(labels.includes(label), label);
+  });
+  await check('collapsed-summary-complete-source-field-contract', async () => {
+    await page.waitForLoadState('networkidle'); const evidence = await sourceEvidence(7);
+    const valuation = sourceSummary().locator('[data-asset-source-row="valuation"]');
+    for (const field of ['pb', 'ps_ttm', 'total_shares']) assert.ok((await valuation.textContent()).includes(field), field);
+    assert.match(await valuation.textContent(), /离线 fixture · 非真实行情/);
+    assert.match(await sourceSummary().locator('[data-asset-source-row="history"]').textContent(), /daily.*qfq/);
+    await screenshot(page.locator('.asset-basic-card'), 'migrated-summary-1920-light.png');
+    await sourceSummary().locator(':scope > summary').click(); await screenshot(sourceSummary(), 'migrated-sources-1920-light.png'); await sourceSummary().locator(':scope > summary').click();
+    return evidence;
+  });
+  await check('live-theme-main-chips-transparent-no-network-or-series-loss', async () => {
+    await page.waitForLoadState('networkidle'); const before = apiReads(); const light = await themeEvidence('light');
+    const snapshot = { quote: await page.locator('#asset-price').innerText(), count: await value('visible-count'), width: await chart().evaluate(node => node.clientWidth), height: await chart().evaluate(node => node.clientHeight) };
+    await page.evaluate(() => { document.documentElement.dataset.theme = 'dark'; });
+    await page.waitForFunction(previous => { const color = echarts.getInstanceByDom(document.querySelector('[data-asset-echarts]'))?.getOption()?.yAxis?.[0]?.axisLabel?.color; return Boolean(color && color !== previous); }, light.axes[0]);
+    const dark = await themeEvidence('dark'); await renderedEvidence(); assert.notEqual(dark.axes[0], light.axes[0]); assert.notEqual(dark.gridsColors[0], light.gridsColors[0]);
+    await screenshot(page.locator('.asset-market-terminal'), 'migrated-live-dark-transparent-terminal.png');
+    await page.evaluate(() => { document.documentElement.dataset.theme = 'light'; });
+    await page.waitForFunction(expected => echarts.getInstanceByDom(document.querySelector('[data-asset-echarts]'))?.getOption()?.yAxis?.[0]?.axisLabel?.color === expected, light.axes[0]);
+    await themeEvidence('light'); await renderedEvidence(); assert.equal(apiReads(), before, 'Theme changes must not fetch data');
+    assert.deepEqual({ quote: await page.locator('#asset-price').innerText(), count: await value('visible-count'), width: await chart().evaluate(node => node.clientWidth), height: await chart().evaluate(node => node.clientHeight) }, snapshot);
+    return { light, dark, apiReadsUnchanged: true, snapshot };
   });
   await check('MA-BOLL-bare-period-and-all-controls', async () => {
     await action('ma-250'); await page.waitForFunction(() => !document.querySelector('[data-asset-echarts]').dataset.enabledMa.includes('250'));
@@ -180,7 +260,12 @@ try {
   });
   await check('anchors-preserve-chart-refresh-personal-and-news', async () => {
     for (const view of ['financials', 'capital', 'holders', 'news']) { const handle = await chart().elementHandle(); await page.locator(`.asset-topic-tabs a[href*="view=${view}"]`).click(); await stable(); assert.ok(await handle.evaluate(node => node.isConnected ? Boolean(echarts.getInstanceByDom(node)) : !echarts.getInstanceByDom(node))); assert.equal(await chart().count(), 1); }
-    await page.locator('[data-asset-block-refresh="financials"]').click(); await page.waitForFunction(() => { const button = document.querySelector('[data-asset-block-refresh="financials"]'); return button && !button.disabled; }); assert.equal(state.refreshes, 1);
+    await sourceSummary().locator(':scope > summary').click(); state.refreshDelay = 200;
+    await page.locator('[data-asset-block-refresh="financials"]').click();
+    assert.equal(await page.locator('[data-asset-block-refresh="financials"]').isDisabled(), true, 'In-flight refresh must disable its source-table control');
+    assert.equal(await sourceSummary().getAttribute('open'), '');
+    await page.waitForFunction(() => { const button = document.querySelector('[data-asset-block-refresh="financials"]'); return button && !button.disabled; }); assert.equal(state.refreshes, 1); state.refreshDelay = 0;
+    assert.equal(await sourceSummary().getAttribute('open'), '', 'Same-asset block refresh must preserve open source disclosure');
     await page.locator('[data-asset-personal] > summary').click(); await page.locator('[data-asset-note] textarea').fill('隔离测试保留笔记');
     await page.locator('.asset-news-row').first().waitFor(); assert.equal(await page.locator('[data-asset-note] textarea').inputValue(), '隔离测试保留笔记');
     await page.locator('[data-asset-news-select="1"]').focus(); await page.keyboard.press('Enter'); assert.ok(await page.locator('[data-asset-news-select="1"]').evaluate(node => document.activeElement === node));
@@ -189,10 +274,23 @@ try {
   });
   await check('rapid-A-to-B-late-A-and-create-idempotency', async () => {
     state.late = true; await page.goto(assetURL('600519.SH', 'news')); await page.locator('[data-asset-news-refresh]').click();
-    await page.locator('[data-asset-select] input').fill('603986.SH'); await page.locator('[data-asset-select] button').first().click(); await page.waitForFunction(() => document.querySelector('[data-asset-identity]')?.dataset.assetIdentity === 'stock:603986.SH');
+    await page.locator('.asset-identity-switch > summary').click(); await page.locator('[data-asset-select] input').fill('603986.SH'); await page.locator('[data-asset-select] button').first().click(); await page.waitForFunction(() => document.querySelector('[data-asset-identity]')?.dataset.assetIdentity === 'stock:603986.SH');
+    assert.equal(await sourceSummary().getAttribute('open'), null); assert.match(await sourceSummary().locator(':scope > summary').innerText(), /0\/8/);
     await page.waitForFunction(() => document.querySelector('.asset-news-row')?.textContent.includes('603986')); await page.waitForTimeout(850); assert.doesNotMatch(await page.locator('.asset-news-workspace').innerText(), /600519/); assert.doesNotMatch(await page.locator('.asset-basic-card').innerText(), /离线测试资产 A/);
     await page.locator('.asset-query-controls > summary').click(); await page.locator('[data-asset-observation] [name="asset"]').fill('000001.SZ'); await page.locator('[data-asset-observation] button').click(); await page.waitForFunction(() => document.querySelector('[data-asset-identity]')?.dataset.assetIdentity === 'stock:000001.SZ'); assert.equal(state.creates, 1);
     await page.waitForFunction(() => document.querySelector('.asset-news-row')?.textContent.includes('000001')); assert.doesNotMatch(await page.locator('.asset-news-workspace').innerText(), /603986/); state.late = false;
+  });
+  await check('source-disclosure-reset-asset-type-and-late-block-response', async () => {
+    await page.goto(assetURL()); await stable(); await sourceSummary().locator(':scope > summary').click(); state.refreshDelay = 700;
+    const expectedRefreshes = state.refreshes + 1; await page.locator('[data-asset-block-refresh="financials"]').click();
+    assert.equal(await page.locator('[data-asset-block-refresh="financials"]').isDisabled(), true, 'Delayed refresh must remain in flight before switching the asset type');
+    await page.locator('.asset-identity-switch > summary').click(); await page.locator('[data-asset-select] [name="asset_type"]').selectOption('etf'); await page.locator('[data-asset-select] button').first().click();
+    await page.waitForFunction(() => document.querySelector('[data-asset-identity]')?.dataset.assetIdentity === 'etf:600519.SH');
+    assert.equal(await sourceSummary().getAttribute('open'), null); assert.match(await sourceSummary().locator(':scope > summary').innerText(), /0\/8/);
+    await page.waitForTimeout(850); assert.equal(state.refreshes, expectedRefreshes); state.refreshDelay = 0;
+    assert.equal(await page.locator('[data-asset-identity]').getAttribute('data-asset-identity'), 'etf:600519.SH');
+    assert.match(await sourceSummary().locator(':scope > summary').innerText(), /0\/8/); assert.doesNotMatch(await page.locator('.asset-basic-card').innerText(), /离线测试资产 A/);
+    await page.goto(assetURL()); await stable(); assert.equal(await sourceSummary().getAttribute('open'), null);
   });
   await check('route-leave-disposes-instances-and-DOM-observers', async () => {
     await page.goto(assetURL()); await stable(); await page.evaluate(() => { window.retiredCharts = [...document.querySelectorAll('[data-asset-echarts],[data-asset-chip-chart]')]; window.retiredObservers = window.fixtureObservers.filter(o => [...o.targets].some(n => window.retiredCharts.includes(n))); });
@@ -204,6 +302,7 @@ try {
   for (const theme of ['light', 'dark']) for (const width of [1920, 1440, 1180, 900, 390]) await check(`responsive-${width}-${theme}`, async () => {
     page = await open(width, theme); await stable();
     await renderedEvidence();
+    await page.waitForLoadState('networkidle'); const sources = await sourceEvidence(7); const chartTheme = await themeEvidence(theme);
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), true);
     assert.equal(await page.locator('#main').evaluate(node => node.scrollWidth <= node.clientWidth + 1), true);
     const chip = await page.locator('.asset-chip-panel').boundingBox(); const main = await chart().boundingBox(); if (width <= 900) assert.ok(chip.y >= main.y + main.height - 1, JSON.stringify({ chip, main }));
@@ -214,12 +313,32 @@ try {
     const ref = await open(width, theme, `${origin}/reference/`); await ref.waitForFunction(() => window.referenceReady); const widths = await equalReferenceCanvas(ref); await screenshot(ref.locator('.kline-terminal-layout'), `reference-${width}-${theme}-terminal.png`); await screenshot(ref.locator('#asset-result'), `reference-${width}-${theme}-cards.png`); await ref.context().close();
     if ((width === 1920 && theme === 'light') || (width === 390 && theme === 'dark')) await fullCanvasScreenshot(`migrated-${width}-${theme}-full.png`);
     await page.context().close();
-    return widths;
+    return { ...widths, sources, chartTheme };
   });
-  for (const mode of ['partial', 'empty']) await check(`${mode}-snapshot-honesty`, async () => {
+  await check('first-paginated-snapshot-read-failure-keeps-current-partial-rows', async () => {
+    state.mode = 'read-short'; const readsBefore = state.reads.length; page = await open();
+    try {
+      await stable(); await page.waitForLoadState('networkidle'); await renderedEvidence();
+      assert.equal(await value('visible-end'), '200'); assert.equal(await value('active-index'), '199');
+      await sourceEvidence(7); await sourceSummary().locator(':scope > summary').click();
+      const row = sourceSummary().locator('[data-asset-source-row="history"]');
+      assert.match(await row.locator('.asset-source-state').innerText(), /部分记录已载入 · 读取未完成/);
+      assert.match(await row.innerText(), /200/); assert.match(await row.innerText(), /快照记录未完整读取，请重试/);
+      assert.doesNotMatch(await row.innerText(), /保留旧快照|下方保留上次快照/);
+      assert.ok(state.reads.slice(readsBefore).some(read => read.includes('history-fixture') && read.includes('offset=200')), 'Actual second-page read must reach the controller failure path');
+      await screenshot(sourceSummary(), 'migrated-first-paginated-read-failure-sources.png');
+      return { loadedRows: 200, declaredRows: state.rows.history.length, status: await row.locator('.asset-source-state').innerText() };
+    } finally { await page.context().close(); state.mode = 'normal'; }
+  });
+  for (const mode of ['partial', 'empty', 'failed']) await check(`${mode}-snapshot-honesty`, async () => {
     state.mode = mode; page = await open();
-    if (mode === 'partial') { await stable(); assert.match(await page.locator('#financial-panel').innerText(), /fixture_partial_snapshot/); assert.match(await page.locator('#fin-revenue').innerText(), /^0/); }
-    else { await page.locator('[data-asset-echarts]').waitFor(); assert.equal(await page.locator('[data-asset-echarts]').evaluate(node => Boolean(echarts.getInstanceByDom(node))), false); assert.equal(await page.locator('[data-asset-echarts]').getAttribute('data-visible-count'), '0'); }
+    if (mode === 'partial' || mode === 'failed') {
+      await stable(); const code = mode === 'partial' ? 'fixture_partial_snapshot' : 'fixture_refresh_failed'; assert.match(await page.locator('#financial-panel').innerText(), new RegExp(code)); assert.match(await page.locator('#fin-revenue').innerText(), /^0/);
+      await page.waitForLoadState('networkidle'); await sourceEvidence(7); await sourceSummary().locator(':scope > summary').click();
+      const row = sourceSummary().locator('[data-asset-source-row="financials"]'); assert.match(await row.innerText(), new RegExp(code));
+      if (mode === 'failed') { assert.match(await row.locator('.asset-source-state').innerText(), /失败 · 保留旧快照/); assert.match(await row.innerText(), /不表示刷新成功/); }
+      await screenshot(sourceSummary(), `migrated-${mode}-sources.png`);
+    } else { await page.locator('[data-asset-echarts]').waitFor(); assert.equal(await page.locator('[data-asset-echarts]').evaluate(node => Boolean(echarts.getInstanceByDom(node))), false); assert.equal(await page.locator('[data-asset-echarts]').getAttribute('data-visible-count'), '0'); await page.waitForLoadState('networkidle'); await sourceEvidence(6); }
     await screenshot(page.locator('.asset-market-terminal'), `migrated-${mode}.png`); await page.context().close(); state.mode = 'normal';
   });
   await check('offline-CSP-and-console-health', async () => { assert.deepEqual(errors, []); assert.deepEqual(external, []); assert.deepEqual(state.errors, []); assert.ok(!state.reads.some(r => /POST.*(?:sessions|research-runs)|\/artifacts/.test(r))); });
@@ -228,7 +347,8 @@ try {
 finally {
   await check('product-source-unchanged-during-browser-run', () => fixture.verifySourceUnchanged());
   const status = results.every(item => item.status === 'PASS') ? 'PASS' : 'FAIL';
-  await writeFile(path.join(output, 'summary.json'), JSON.stringify({ status, fixture: !state.saved, savedReadback: state.saved, modelCalls: 0, supplierCalls: 0, originalSourceHashes: state.hashes, migratedSourceHashes: state.migratedSourceHashes, referenceIndicatorProvenance: state.referenceIndicatorProvenance || { status: 'MISSING', note: 'Original backend indicator golden not provided; original JS main MA fallback remains authentic.' }, results, errors, external, screenshots, reads: state.reads }, null, 2));
-  console.log(JSON.stringify({ status, passed: results.filter(r => r.status === 'PASS').length, failed: results.filter(r => r.status === 'FAIL').map(r => ({ name: r.name, error: r.error })), output }));
+  const durationMs = Math.round(performance.now() - started);
+  await writeFile(path.join(output, 'summary.json'), JSON.stringify({ status, startedAt, durationMs, fixture: !state.saved, savedReadback: state.saved, modelCalls: 0, supplierCalls: 0, originalSourceHashes: state.hashes, migratedSourceHashes: state.migratedSourceHashes, referenceIndicatorProvenance: state.referenceIndicatorProvenance || { status: 'MISSING', note: 'Original backend indicator golden not provided; original JS main MA fallback remains authentic.' }, results, errors, external, screenshots, reads: state.reads }, null, 2));
+  console.log(JSON.stringify({ status, passed: results.filter(r => r.status === 'PASS').length, durationMs, failed: results.filter(r => r.status === 'FAIL').map(r => ({ name: r.name, error: r.error })), output }));
   try { await browser?.close(); } finally { await fixture.close(); } if (status === 'FAIL') process.exitCode = 1;
 }

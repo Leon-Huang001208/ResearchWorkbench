@@ -5,7 +5,7 @@ import { assetHref, selectAssetObservation } from '../../app/research_web/ui/ass
 import { createAssetNewsController, renderAssetNews } from '../../app/research_web/ui/asset-news.mjs';
 import { createAssetWorkspaceController } from '../../app/research_web/ui/asset-controller.mjs';
 import { renderAssetWorkspace, readAssetObservation, mountCapitalFlow } from '../../app/research_web/ui/asset-workspace.mjs';
-import { enrichMarketBars } from '../../app/research_web/ui/asset-chart.mjs';
+import { enrichMarketBars, renderMarketTerminal } from '../../app/research_web/ui/asset-chart.mjs';
 import { projectAssetObservation } from '../../app/research_web/ui/asset-projection.mjs';
 
 test('both asset input patterns compile under the browser Unicode v flag', () => {
@@ -30,11 +30,98 @@ test('original continuous indicators keep every card and missing slot on every l
     for (const attribute of ['data-asset-select', 'data-asset-observation', 'data-asset-note', 'data-asset-alert', 'data-workbench-handoff', 'data-asset-news-slot']) assert.ok(html.includes(attribute), attribute);
   }
 });
+test('compact hero groups all metrics in order and keeps native controls closed', () => {
+  const html = renderAssetWorkspace({ route: { asset: '600519.SH', assetType: 'stock' }, rows: { overview: [{ name: '贵州茅台', price: 10, open: 0, high: 11, low: 9, volume: 0, amount: 0, turnover_rate_pct: 0, date: '2026-10-21' }] } });
+  const hero = html.slice(html.indexOf('<section class="asset-basic-card'), html.indexOf('<section class="asset-market-full"'));
+  for (const className of ['asset-identity-switch', 'asset-query-controls']) assert.match(hero, new RegExp(`<details class="${className}">`));
+  const trading = hero.slice(hero.indexOf('class="asset-trading-group"'), hero.indexOf('class="asset-valuation-group"'));
+  let last = -1;
+  for (const label of ['开盘', '最高', '最低', '换手率', '成交量', '成交额', '区间最高', '区间最低']) { const index = trading.indexOf(`<dt>${label}</dt>`); assert.ok(index > last, label); last = index; }
+  const valuation = hero.slice(hero.indexOf('class="asset-valuation-group"'));
+  last = -1;
+  for (const label of ['PE-TTM', 'PB', 'PS-TTM', '总股本', '市值']) { const index = valuation.indexOf(`<dt>${label}</dt>`); assert.ok(index > last, label); last = index; }
+  assert.match(trading, /开盘<\/dt><dd[^>]*>0<\/dd>/);
+  assert.match(trading, /成交量<\/dt><dd id="asset-volume">0<\/dd>/);
+  assert.match(valuation, /市值<\/dt><dd id="asset-market-cap">—<\/dd>/);
+  assert.match(hero, /未取得的数据以 — 表示/);
+});
+test('source summary counts hydrated snapshot rows and distinguishes stale and unloaded states', () => {
+  const observation = { asset: '600519.SH', asset_type: 'stock', blocks: {
+    overview: { status: 'error', failure_code: 'refresh_failed', requested_source: 'auto', dataset: { dataset_id: 'old', provider: 'tinysoft' } },
+    history: { status: 'complete', dataset: { dataset_id: 'not-hydrated', provider: 'wind', row_count: 10 } },
+    valuation: { status: 'loading', dataset: { dataset_id: 'cached', provider: 'wind' } },
+  } };
+  const html = renderAssetWorkspace({ observation, rows: { overview: [{ price: 0, date: '2026-10-21' }], valuation: [{ pe_ttm: 0, date: '2026-10-20' }] } });
+  const summary = html.slice(html.indexOf('<details class="asset-source-summary"'), html.indexOf('<article class="asset-block capital-flow-card'));
+  assert.match(summary, /^<details class="asset-source-summary">/);
+  assert.match(summary, /来源与口径 · 2\/8 区块有快照 · 查看详情/);
+  assert.equal((summary.match(/data-asset-source-row=/g) || []).length, 8);
+  assert.match(summary, /失败 · 保留旧快照/); assert.match(summary, /加载中 · 显示上次快照/);
+  assert.match(summary, /完整 · 快照尚未载入/); assert.match(summary, /refresh_failed/);
+  assert.match(summary, /新闻与公告独立查询/);
+});
+test('source details preserve dates ranges field units and report periods separately', () => {
+  const observation = { asset: '600519.SH', asset_type: 'stock', request_parameters: { frequency: 'daily', adjustment: 'none' }, blocks: { financials: { status: 'partial', requested_source: 'auto', requested_range: { start_date: '2026-01-01', end_date: '2026-10-21' }, dataset: { dataset_id: 'finance', provider: 'wind', as_of: '2026-10-21', retrieved_at: '2026-10-21T08:00:00Z', actual_range: { start_date: '2026-06-30', end_date: '2026-10-21' }, fields: [{ name: 'revenue', unit: 'currency', currency: 'CNY', basis: 'reported' }], limitations: ['摘要口径'] } } } };
+  const html = renderAssetWorkspace({ observation, rows: { financials: [{ report_period: '2026-06-30', date: '2026-10-20', revenue: 0 }] } });
+  const source = html.slice(html.indexOf('data-asset-source-row="financials"'), html.indexOf('data-asset-source-row="activity"'));
+  for (const value of ['请求来源', '实际来源', 'auto', 'wind', '数据日', '2026-10-20', '截至', '2026-10-21', '北京时间', '16:00:00', '报告期', '2026-06-30', '请求区间', '实际区间', '已载入区间', '2026-01-01', 'revenue', 'currency', 'CNY', 'reported', '摘要口径']) assert.ok(source.includes(value), value);
+  assert.doesNotMatch(source, /报告期未提供/);
+});
+test('partially read new snapshots never claim old snapshots in source rows or local cards', () => {
+  const observation = { asset: '600519.SH', asset_type: 'stock', blocks: Object.fromEntries(['history', 'financials', 'margin', 'holders', 'research'].map(name => [name, { status: 'partial', failure_code: 'snapshot_read_failed', dataset: { dataset_id: `new-${name}`, provider: 'wind', row_count: 320 } }])) };
+  const rows = Object.fromEntries(['history', 'financials', 'margin', 'holders', 'research'].map(name => [name, [{ date: '2026-10-20', close: 10, revenue: 0 }]]));
+  const html = renderAssetWorkspace({ observation, rows });
+  for (const name of Object.keys(rows)) {
+    const source = html.match(new RegExp(`<tr data-asset-source-row="${name}">[\\s\\S]*?</tr>`))?.[0];
+    assert.ok(source, name); assert.match(source, /部分记录已载入 · 读取未完成/); assert.doesNotMatch(source, /保留旧快照|下方保留上次快照/);
+  }
+  assert.doesNotMatch(html, /下方保留上次快照/);
+  const empty = renderAssetWorkspace({ observation });
+  assert.match(empty, /快照读取失败/); assert.doesNotMatch(empty, /部分记录已载入|下方保留上次快照/);
+});
+test('actual provider refresh failures retain the old loaded snapshot notice in local cards', () => {
+  const observation = { asset: '600519.SH', asset_type: 'stock', blocks: { margin: { status: 'error', failure_code: 'provider_timeout', dataset: { dataset_id: 'old-margin', provider: 'wind' } }, financials: { status: 'error', failure_code: 'provider_timeout', dataset: { dataset_id: 'old-finance', provider: 'wind' } } } };
+  const html = renderAssetWorkspace({ observation, rows: { margin: [{ date: '2026-10-10', margin_balance: 0 }], financials: [{ report_period: '2026-06-30', revenue: 0 }] } });
+  assert.match(html.slice(html.indexOf('id="financial-panel"'), html.indexOf('id="shareholder-panel"')), /下方保留上次快照，不表示刷新成功/);
+  assert.match(html.slice(html.indexOf('<h2>融资融券</h2>')), /下方保留上次快照，不表示刷新成功/);
+});
+test('quote returns and dimensionless valuation metrics do not render price currency as their units', () => {
+  const meta = { provider: 'wind', currency: 'CNY', fields: [{ name: 'price', unit: 'currency_per_share', currency: 'CNY' }, { name: 'pb', unit: 'ratio', currency: 'CNY' }, { name: 'ps_ttm', unit: 'ratio' }, { name: 'total_shares', unit: 'share' }] };
+  const html = renderAssetWorkspace({ observation: { asset: '600519.SH', blocks: { overview: { dataset: meta }, valuation: { dataset: meta } } }, rows: { overview: [{ price: 10.11, yclose: 10 }], valuation: [{ pe_ttm: 9, pb: 2, ps_ttm: 3, total_shares: 0 }] } });
+  assert.match(html, /id="asset-change-pct">较昨收计算 1\.1%<\/span>/);
+  const valuation = html.slice(html.indexOf('class="asset-valuation-grid"'), html.indexOf('<p class="asset-group-note">估值'));
+  assert.match(valuation, /PE-TTM<\/dt><dd>9<\/dd>/); assert.match(valuation, /PB<\/dt><dd>2 倍<\/dd>/); assert.match(valuation, /PS-TTM<\/dt><dd>3 倍<\/dd>/);
+  assert.doesNotMatch(valuation, /CNY/);
+});
+test('valuation preserves zero and raw Wind shares without guessing a share scale', () => {
+  const observation = { asset: '600519.SH', asset_type: 'stock', blocks: { valuation: { status: 'complete', dataset: { dataset_id: 'v', provider: 'wind', fields: [{ name: 'total_shares', unit: 'share' }, { name: 'market_cap', unit: 'currency', currency: 'CNY' }] } } } };
+  const rows = { valuation: [{ date: '2026-10-20', pe_ttm: 0, pb: 0, ps_ttm: 0, total_shares: 100, close: 9 }] };
+  const html = renderAssetWorkspace({ observation, rows });
+  const valuation = html.slice(html.indexOf('class="asset-valuation-group"'), html.indexOf('<section class="asset-market-full"'));
+  for (const label of ['PE-TTM', 'PB', 'PS-TTM']) assert.ok(valuation.includes(`<dt>${label}</dt><dd>0</dd>`), label);
+  assert.match(valuation, /id="asset-total-shares">100<\/dd>/);
+  assert.match(valuation, /未经核实，不作换算/);
+  assert.match(valuation, /id="asset-market-cap">—<\/dd>/);
+  rows.valuation[0].market_cap = 0;
+  assert.match(renderAssetWorkspace({ observation, rows }), /id="asset-market-cap">0 CNY<\/dd>/);
+});
+test('summary leaves market terminal DOM intact and empty shareholders have no synthetic row', () => {
+  const rows = { history: [{ date: '2026-10-21', open: 10, high: 12, low: 9, close: 11, volume: 0 }] };
+  const observation = { asset: '600519.SH', asset_type: 'stock', blocks: { history: { dataset: { dataset_id: 'h', provider: 'tinysoft' } } } };
+  const p = projectAssetObservation(rows, observation);
+  const terminal = renderMarketTerminal(rows.history, {}, { ...p.blocks.history.dataset, frequency: 'daily', adjustment: 'none', asset: observation.asset, name: observation.asset, currentQuote: p.basic });
+  const html = renderAssetWorkspace({ observation, rows });
+  assert.ok(html.includes(`<div data-asset-chart-slot>${terminal}</div></section><details class="asset-source-summary">`));
+  const shareholder = html.slice(html.indexOf('id="shareholder-panel"'), html.indexOf('id="industry-panel"'));
+  assert.match(shareholder, /<tbody><\/tbody>/);
+  assert.match(shareholder, /股东名单未取得/);
+  assert.match(html, /capital-flow-card is-missing-pie/);
+});
 test('projection preserves zero and metadata without upgrading valuation or inventing flow', () => {
   const rows = { overview: [{ price: 10, date: '2026-10-21', volume: 0 }], valuation: [{ close: 9, date: '2026-10-20', total_shares: 100, pe: 12, pb: 3 }], activity: [{ date: '2026-10-20', main_force_inflow: -5, north_bound_shares: 123 }], financials: [{ report_period: '2026-06-30', revenue: 0, net_profit: null }] };
   const observation = { blocks: { overview: { dataset: { provider: 'tinysoft' } }, valuation: { dataset: { provider: 'wind', fields: [{ name: 'close', unit: '元/股', currency: 'CNY' }, { name: 'total_shares', unit: '股' }] } }, financials: { dataset: { provider: 'wind', fields: [{ name: 'revenue', unit: '元', currency: 'CNY' }] } } } };
   const frozen = JSON.stringify(rows); const p = projectAssetObservation(rows, observation);
-  assert.equal(p.basic.volume.value, 0); assert.equal(p.basic.marketCap.value, 900);
+  assert.equal(p.basic.volume.value, 0); assert.equal(p.basic.marketCap.value, null, 'unverified Wind share scale cannot derive market capitalization');
   assert.equal(p.financial.peTTM.value, null); assert.equal(p.financial.pbMRQ.value, null);
   assert.equal(p.financial.revenue.value, 0); assert.equal(p.financial.netProfit.value, null);
   assert.equal(p.financial.revenue.reportPeriod, '2026-06-30'); assert.equal(p.financial.revenue.currency, 'CNY');
@@ -48,7 +135,7 @@ test('market cap never combines quote and shares across sources or dates', () =>
   assert.equal(projectAssetObservation({ overview: [{ price: 10, date: '2026-10-21' }], valuation: [{ total_shares: 100, date: '2026-10-20' }] }).basic.marketCap.value, null);
   assert.equal(projectAssetObservation({ valuation: [{ close: 9, total_shares: 100, date: '2026-10-20' }] }).basic.marketCap.value, null, 'unknown share unit cannot imply shares');
   const wind = projectAssetObservation({ overview: [{ price: 999, date: '2026-10-21' }], valuation: [{ price: 9, total_shares: 100, as_of: '2026-10-20' }] }, { blocks: { valuation: { dataset: { provider: 'wind', fields: [{ name: 'price', unit: 'currency_per_share', currency: 'CNY' }, { name: 'total_shares', unit: 'share' }] } } } });
-  assert.equal(wind.basic.marketCap.value, 900); assert.equal(wind.basic.marketCap.date, '2026-10-20'); assert.equal(wind.basic.marketCap.unit, 'currency'); assert.equal(wind.basic.marketCap.currency, 'CNY');
+  assert.equal(wind.basic.marketCap.value, null, 'Wind source declarations do not verify raw total-share quantity scale');
   const unqualified = { blocks: { valuation: { dataset: { provider: 'wind', fields: [{ name: 'total_shares', unit: 'share' }] } } } };
   assert.equal(projectAssetObservation({ valuation: [{ close: 9, total_shares: 100, as_of: '2026-10-20' }] }, unqualified).basic.marketCap.value, null, 'unknown close units cannot become market capitalization');
 });
@@ -79,9 +166,32 @@ test('capital mount updates and disposes charts, net-only never invokes Chart', 
     assert.equal(created, 0); assert.equal(canvas.hidden, true); assert.match(state.textContent, /净额/);
     handle.update(projectAssetObservation({ activity: [{ date: '2026-10-20', flow_partition: partition() }] }));
     assert.equal(created, 1); assert.deepEqual(config.data.datasets[0].data, [0, 1, 2, 3]);
+    assert.equal(config.options.plugins.legend.labels.color, '#242424', 'non-DOM rendering has a stable theme fallback');
     handle.update(projectAssetObservation()); assert.equal(destroyed, 1); assert.equal(canvas.hidden, true);
     handle.dispose(); handle.dispose(); assert.equal(destroyed, 1);
   } finally { globalThis.window = originalWindow; }
+});
+test('capital legend and tooltip read the current theme while retaining transparent canvas and real partitions', () => {
+  const originalWindow = globalThis.window; const originalStyle = globalThis.getComputedStyle;
+  const configurations = []; const canvas = { nodeType: 1 }; const state = {};
+  let colors = { '--text': '#ecece7', '--surface': '#222220', '--line': '#343430' };
+  globalThis.getComputedStyle = () => ({ getPropertyValue: key => colors[key] || '' });
+  globalThis.window = { Chart: class { constructor(target, configuration) { configurations.push(configuration); } destroy() {} } };
+  const root = { querySelector: selector => selector === '[data-capital-flow-canvas]' ? canvas : state };
+  try {
+    const projection = projectAssetObservation({ activity: [{ date: '2026-10-20', flow_partition: partition() }] });
+    const handle = mountCapitalFlow(root, projection);
+    assert.equal(configurations[0].options.plugins.legend.labels.color, '#ecece7');
+    assert.equal(configurations[0].options.plugins.tooltip.backgroundColor, '#222220');
+    assert.equal(configurations[0].options.plugins.tooltip.bodyColor, '#ecece7');
+    colors = { '--text': '#242424', '--surface': '#fafaf9', '--line': '#e8e8e5' };
+    handle.update(projection);
+    assert.equal(configurations[1].options.plugins.legend.labels.color, '#242424');
+    assert.deepEqual(configurations[1].data.datasets[0].data, [0, 1, 2, 3]);
+    assert.equal(Object.hasOwn(configurations[1].options, 'backgroundColor'), false);
+    assert.equal(canvas.style, undefined, 'mounting never assigns a separate canvas background');
+    handle.dispose();
+  } finally { globalThis.window = originalWindow; globalThis.getComputedStyle = originalStyle; }
 });
 test('year coverage, shareholder summaries and unknown dates cannot become verified facts', () => {
   const rows = { history: [{ date: '2025-10-21', high: 2, low: 1 }, { date: '2026-10-21', high: 4, low: 0 }], holders: [{ name: '汇总公司名称', share_ratio: 20, top10_pct: 50 }], events: [{ title: '真实事件' }] };
@@ -122,7 +232,7 @@ test('CJPY original date, name and volume fields remain readable without guessin
 test('current quote changes use the same snapshot and never borrow historical trading fields', () => {
   const html = renderAssetWorkspace({ observation: { asset: '603986.SH', asset_type: 'stock', blocks: {} }, rows: { overview: [{ close: 11, yclose: 10, amount: 3000, 时间: '2026-10-21' }], history: [{ date: '2026-10-20', open: 9, high: 12, low: 8, close: 10 }] } });
   assert.match(html, /较昨收计算[^<]*10%/);
-  const quote = html.slice(html.indexOf('class="asset-basic-scope"'), html.indexOf('<section class="asset-market-full"'));
+  const quote = html.slice(html.indexOf('class="asset-trading-group"'), html.indexOf('class="asset-valuation-group"'));
   assert.match(quote, /开盘<\/dt><dd>—<\/dd>/);
   assert.match(quote, /交易数据日[^<]*2026-10-21/);
 });

@@ -246,6 +246,20 @@ test('asset terminal derives technical indicators only from supplied market bars
   assert.equal(latest.amount, 139000);
   assert.ok(Math.abs(latest.turnover_rate_pct - 1.39) < 1e-12);
 });
+test('asset refresh actions remain unique inside the native source disclosure', async () => {
+  const { renderAssetWorkspace } = await import(new URL('asset-workspace.mjs', root));
+  const names = ['overview', 'history', 'valuation', 'financials', 'activity', 'margin', 'holders', 'research'];
+  const observation = { asset: '600519.SH', asset_type: 'stock', blocks: Object.fromEntries(names.map(name => [name, { status: name === 'financials' ? 'loading' : 'complete', dataset: { dataset_id: name } }])) };
+  const html = renderAssetWorkspace({ observation });
+  const source = html.slice(html.indexOf('<details class="asset-source-summary">'), html.indexOf('<nav class="asset-topic-tabs"'));
+  assert.match(source, /0\/8 区块有快照/);
+  for (const name of names) {
+    assert.equal((html.match(new RegExp(`data-asset-block-refresh="${name}"`, 'g')) || []).length, 1, name);
+    assert.ok(source.includes(`data-asset-block-refresh="${name}"`), name);
+  }
+  assert.match(source, /data-asset-block-refresh="financials" disabled/);
+  assert.match(source, /加载中 · 尚无快照/);
+});
 
 test('asset metrics keep canonical turnover amount separate from turnover rate', async () => {
   const assets = await import(new URL('asset-workspace.mjs', root));

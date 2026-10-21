@@ -1,5 +1,7 @@
 # Research Workbench 架构总览
 
+资产摘要与主题迭代仍沿浏览器 AssetWorkspace → Host → DataHub Broker → Provider／会话快照链路：估值与八区来源表只投影当前载入行和既有元数据；原生折叠状态由当前资产身份管理。透明图表及主题同步继续由既有 ECharts／Chart.js 实例负责，不增加服务、数据库、Provider、HTTP字段或第二研究引擎，现有部署与数据流图拓扑仍准确。缺失口径不派生，Wind 未核验股本不用于市值；详细契约见[资产页面](research-web-ui.md#资产观察工作台)与[DataHub](research-web-datahub.md)。常驻应用需产品版本冻结后独立正式 profile，不由静态改动或原封闭部署 profile 自动覆盖。
+
 显式资产部署对 CI 大日志采用120秒有界读取，原API命令30秒与完整资格检查保留；证据读取器由操作员固定完整SHA256并进入同一恢复包，无新增节点、引擎或自动兼容范围，详见[部署合同](research-web-gateway-upgrade.md)。
 
 资产观察的显式联合部署沿既有 v4 主实例/网关事务，以封闭 profile 固定 c688 旧版与 PR171 产品；原不可变控制器、DSH、节点及恢复拓扑不变。部署空闲证明同时覆盖未完成的资产观察/DataHub 查询，部署合同见[固定版本部署](research-web-gateway-upgrade.md#资产观察固定版本联合部署)。
