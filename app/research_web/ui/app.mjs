@@ -6,6 +6,7 @@ import { createAPI, createController, prepareClawExampleDraft, parseRoute, legac
 import { escapeHTML as e } from './markdown.mjs';
 import { createDisclosureState } from './disclosures.mjs';
 import { createAccountMenu } from './server/account-menu.mjs';
+import { createAccountWorkspace, renderAccountProfile } from './server/account-workspace.mjs';
 import { canUploadToSession, createUploadHandler } from './uploads.mjs';
 import { createSessionSearch } from './session-search.mjs';
 import { downloadAnswer } from './answer-actions.mjs';
@@ -52,6 +53,8 @@ const conversationNavigation = createConversationNavigation({ api, notify: () =>
 const clawWorkspace = { projects: [], detail: null, busy: false, error: '', newName: '', targetSession: '', renameEdits: new Map() };
 const clawDraftEdits = new Map();
 const root = document.querySelector('#app');
+root.setAttribute?.('data-account-workspace-native', '1');
+const accountWorkspace = createAccountWorkspace({root,user:globalThis.__RWB_ACCOUNT__?{...globalThis.__RWB_ACCOUNT__,id:globalThis.__RWB_USER_ID__}:null,logger:safeLog});
 const accountMenu = createAccountMenu({ root, user: globalThis.__RWB_ACCOUNT__, logger: safeLog });
 const disclosureState = createDisclosureState({ logger: safeLog });
 const nativeSessionSearch = createSessionSearch({ search: (query, mode) => api.searchSessions(query, mode), notify: updateGlobalSearchResults, logger: safeLog });
@@ -311,6 +314,7 @@ function researchPage() {
 
 function settingsPage() {
   return renderSettingsPage({
+    account: globalThis.__RWB_ACCOUNT__,
     route: state.route,
     runtime: catalog.runtime,
     tabbit: catalog.tabbit,
@@ -333,7 +337,7 @@ function settingsPage() {
 }
 
 function currentSettingsSection() {
-  return resolveSettingsSection(state.route, catalog.connections.sources);
+  return resolveSettingsSection(state.route, catalog.connections.sources, globalThis.__RWB_ACCOUNT__);
 }
 
 function currentSettingsConnectionId() {
@@ -341,6 +345,7 @@ function currentSettingsConnectionId() {
 }
 
 function mainPage() {
+  if (state.route.page === 'account') return renderAccountProfile(globalThis.__RWB_ACCOUNT__);
   if (state.route.page === 'claw') {
     return clawMainPage();
   }
@@ -529,6 +534,7 @@ function searchableCapabilityList() {
 
 function render() {
   if (composingInput?.isConnected !== false && composingInput) { renderAfterComposition = true; return; }
+  accountWorkspace.captureFocus();
   if (!document.hidden && state.route.sessionId === state.detail?.id) conversationNavigation.markSeen(state.detail);
   // Keep the user's own dirty DOM form through unrelated catalog renders.
   // Secrets never enter application state or a server-provided refill.
@@ -596,6 +602,7 @@ function render() {
   if (root.querySelector('.nav-scroll')) root.querySelector('.nav-scroll').scrollTop = conversationNavigation.state(state.route.page)?.scrollTop || 0;
   disclosureState.restore(root);
   accountMenu.sync();
+  accountWorkspace.sync();
   if (focusId) {
     const replacement = document.getElementById(focusId);
     if (replacement && !replacement.disabled) { replacement.focus({ preventScroll: true }); if (selection && selection.start !== null) replacement.setSelectionRange?.(selection.start, selection.end); }
@@ -614,7 +621,7 @@ function render() {
     for (const sibling of root.children) if (!sibling.contains(projectDialog)) sibling.inert = true;
     if (!projectDialog.contains(document.activeElement) || document.activeElement?.disabled) (projectDialog.querySelector('input:not(:disabled)') || projectDialog).focus({ preventScroll: true });
   }
-  document.title = `${state.detail?.title || (state.route.page === 'workbench' && state.route.section === 'hot' ? '热点与事件' : state.route.page === 'workbench' && state.route.section === 'assets' ? '资产观察' : ({ fingpt: 'FinGPT', claw: 'Claw', workbench: '研究台', frameworks: '研究框架', history: '研究历史', skills: '能力中心', operations: '运行与用量', intel: '研究情报', aihot: 'AI 资讯', settings: '设置' })[state.route.page])} · Research Workbench`;
+  document.title = `${state.detail?.title || (state.route.page === 'workbench' && state.route.section === 'hot' ? '热点与事件' : state.route.page === 'workbench' && state.route.section === 'assets' ? '资产观察' : ({ fingpt: 'FinGPT', claw: 'Claw', workbench: '研究台', frameworks: '研究框架', history: '研究历史', skills: '能力中心', operations: '运行与用量', intel: '研究情报', aihot: 'AI 资讯', settings: '设置', account: '账号资料' })[state.route.page])} · Research Workbench`;
 }
 
 async function loadCatalog(names = defaultCatalogNames) {
