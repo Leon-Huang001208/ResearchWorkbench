@@ -79,3 +79,7 @@ test('leaving and returning during initial load reloads the new panel and ignore
 test('ordinary users never mount management DOM or fetch user data', () => {
   const f=deferredWorkspace('user');f.controller.sync();assert.equal(f.panels.length,0);assert.equal(f.pending.length,0);
 });
+test('missing primary identity fails closed rather than exposing unknown stop controls', async () => {
+  const f=deferredWorkspace();f.controller.sync();f.pending.shift()({ok:true,status:200,json:async()=>({items:[{id:'primary',username:'admin',role:'admin',enabled:true}]})});await flush();
+  assert.equal(f.panels[0].list.innerHTML,'');assert.match(f.panels[0].status.textContent,/返回异常/);
+});

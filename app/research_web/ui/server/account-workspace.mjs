@@ -19,19 +19,16 @@ export function createAccountWorkspace({root,user,document=globalThis.document,w
   if(!root||!user)return {captureFocus(){},sync(){}};
   if(root[key])return root[key];
   const request=createAccountAPI({fetcher,redirect:url=>window.location.assign(url),logger});
-  let panel=null,rows=[],primaryId=null,resetId=null,busy=false,epoch=0,focused=null,loading=false,reloadPending=false,pendingFocus=null;
+  let panel=null,rows=[],primaryId=null,resetId=null,busy=false,epoch=0,focused=null,loading=false,reloadPending=false;
   const active=()=>user.role==='admin'&&/^#\/settings\/users(?:\?|$)/.test(window.location.hash);
   const message=(text,error=false)=>{const el=panel?.querySelector('[data-user-message]');if(el){el.textContent=text;el.setAttribute('role',error?'alert':'status');}};
   function clearSecrets(){panel?.querySelectorAll('input[type="password"]').forEach(el=>{el.value='';});}
-  function deactivate(){epoch++;clearSecrets();panel?.replaceChildren();panel=null;rows=[];primaryId=null;resetId=null;focused=null;loading=false;reloadPending=false;pendingFocus=null;}
+  function deactivate(){epoch++;clearSecrets();panel?.replaceChildren();panel=null;rows=[];primaryId=null;resetId=null;focused=null;loading=false;reloadPending=false;}
   function setBusy(){panel?.querySelectorAll('button').forEach(button=>{button.disabled=busy;});panel?.querySelectorAll('input').forEach(el=>{el.readOnly=busy;});}
   function list(){
     const el=panel?.querySelector('[data-user-list]');if(!el)return;
-    const previous=el.contains?.(document.activeElement)?document.activeElement:null;
-    const restore=previous?.dataset?.userId?{id:previous.dataset.userId,action:previous.dataset.userAction}:null;
     el.innerHTML=rows.length?rows.map(item=>{const actions=userActions(item,user,primaryId);return `<div class="account-user-row"><div class="account-user-identity">${avatar(item)}<div><strong>${e(item.username)}</strong><small>${item.role==='admin'?'管理员':'用户'} · ${item.enabled?'启用':'停用'}${item.id===user.id?' · 当前账号':''}${item.id===primaryId?' · 原常驻实例':''}</small></div></div><div class="account-user-actions"><button class="button" type="button" data-user-action="reset" data-user-id="${e(item.id)}">重置密码</button>${actions.toggle?`<button class="button ${item.enabled?'account-danger':''}" type="button" data-user-action="toggle" data-user-id="${e(item.id)}">${item.enabled?'停用':'启用'}</button>`:''}${actions.stop?`<button class="button account-danger" type="button" data-user-action="stop" data-user-id="${e(item.id)}">停止实例</button>`:''}</div></div>`;}).join(''):'<p class="muted">暂无用户。</p>';
     setBusy();
-    if(restore&&document.activeElement===document.body){pendingFocus=[...el.querySelectorAll('[data-user-action]')].find(button=>button.dataset.userId===restore.id&&button.dataset.userAction===restore.action)||panel.querySelector('[data-user-reload]');}
   }
   async function load(ticket=epoch){
     loading=true;
@@ -44,10 +41,19 @@ export function createAccountWorkspace({root,user,document=globalThis.document,w
   }
   async function perform(callback){
     if(busy||!active())return;
+    const control=document.activeElement;
+    const restore=panel?.contains(control)&&control?.dataset?.userId?{id:control.dataset.userId,action:control.dataset.userAction}:null;
     busy=true;const ticket=epoch;message('');setBusy();
     try {await callback(ticket);}
     catch(error){if(ticket===epoch&&active()){if(['forbidden','login_required'].includes(error.code)){clearSecrets();rows=[];list();panel.querySelectorAll('form').forEach(form=>{form.hidden=true;});}message(error.message,true);}logger('account_management_failed',{status:error.status||0});}
-    finally {busy=false;if(active()){setBusy();if(pendingFocus?.isConnected&&document.activeElement===document.body)pendingFocus.focus({preventScroll:true});pendingFocus=null;if(reloadPending&&panel){reloadPending=false;initialLoad();}}}
+    finally {
+      busy=false;
+      if(active()){
+        setBusy();
+        if(restore&&ticket===epoch&&document.activeElement===document.body){const next=[...panel.querySelectorAll('[data-user-action]')].find(button=>button.dataset.userId===restore.id&&button.dataset.userAction===restore.action);(next||panel.querySelector('[data-user-reload]'))?.focus({preventScroll:true});}
+        if(reloadPending&&panel){reloadPending=false;initialLoad();}
+      }
+    }
   }
   function initialLoad(){void perform(async ticket=>{await load(ticket);if(ticket===epoch)message('');});}
   function cancelForms(){clearSecrets();resetId=null;panel?.querySelectorAll('form').forEach(form=>{form.reset();form.hidden=true;});}
