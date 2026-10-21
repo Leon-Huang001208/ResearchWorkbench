@@ -1,5 +1,7 @@
 # Research Workbench Development Map
 
+联合升级中的 `repository_identity/verify_release_repository` 分别验证主实例和网关的既有 GitHub origin、common directory 与 inode；独立 clone、来源变更及目录替换由 `test_model_provider_upgrade.py` 的真实临时 Git 仓库回归覆盖。
+
 `research_workbench_entrypoint/resident/model_provider_upgrade.py` 是模型服务商专项联合部署入口，复用 supervisor/admission 锁、BirthFence、服务管理器、保全摘要和独立恢复包；测试为 `test_model_provider_upgrade.py`，合同见 `research-web-gateway-upgrade.md`。不改变自动部署白名单或 DSH 协议。
 
 恢复环境回归使用真实Git LFS post-checkout钩子、受限launchd PATH和冻结恢复包，在临时Git仓库重现失败并验证恢复；部署前工具缺失须先失败，优雅排空预算为90秒。

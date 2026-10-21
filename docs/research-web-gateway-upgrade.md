@@ -2,6 +2,10 @@
 
 ## 模型服务商联合升级
 
+源码权威 `source_common` 与发布角色仓库身份分开：主实例可为独立 clone，网关可为开发仓库的 worktree。
+两角色分别记录并恢复校验原 Git common directory/inode 和精确 GitHub origin，源码冻结目录由受审 source 创建。
+停机前确认两角色拥有目标 commit；目录、origin 或 inode 变化仍拒绝，不能通过搬迁发布目录或改配置绕过。
+
 显式入口 `research_workbench_entrypoint.resident.model_provider_upgrade apply` 针对原主实例与网关
 `5df8e17e04f1b588f7e742423d81fb8e0ba34cb2`，只允许已审模型服务商产品
 `eb42682f22ab9629bfd5f677d8ed38ae0d0ebec0` 与已合并登录外观 PR166 的固定产品基线
