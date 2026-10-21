@@ -2,6 +2,8 @@
 
 v3 static-gateway在primary/旧网关到目标均限制UI及确切受审升级器，后者blob须等于冻结工具；工具段保持原限制。独立恢复重新核对三段离线身份，v1/v2 helper不接管v3，全部原安全门保留。
 
+静态产品携带网关升级器时，payload helper 必须与冻结 tool revision 的 Git blob 相同；删除、替换、未知后端、依赖和 controller 变化仍拒绝。stage-primary-ui 拒绝其他候选/恢复 journal，准备后仍须原不可变控制器执行空闲与回滚门；不使用临时 monkeypatch 放行部署或恢复。
+
 账号管理迁入设置不改变后端鉴权：浏览器普通用户拒绝挂载管理面板，API仍独立校验管理员。密码只存在当前表单DOM和必要的提交请求，重绘复用DOM，离开页、取消及请求结束清空，不写应用状态/存储/日志。写操作不自动重试，停用/停止/改密保留确认；重置自己密码后回到登录。浏览器验收使用隔离假接口，不能操作真实账号或研究实例。
 
 网关apply-ui为显式管理操作：旧网关→产品仅UI/docs/tests/report，产品→工具仅升级器及docs/tests/report；两段Git祖先、路径和blob及两份GitHub资格分别认证。version 2独立恢复包验证自身内容及实际primary，旧helper在副作用前拒绝该版本；不能以进程内临时放宽review替代恢复合同。原EX锁/出生栅栏/排空/保全不减，发信号后未完成必须保留recovery_required。
