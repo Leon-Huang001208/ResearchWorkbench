@@ -2217,6 +2217,8 @@ root.addEventListener('submit', async (event) => {
       Object.assign(state.route, { asset: payload.asset, assetType: payload.asset_type });
       history.replaceState(null, '', assetHref(payload.asset, payload.asset_type, state.route.assetView || 'overview'));
       assetState.observation = record; assetState.rows = {}; render();
+      // replaceState does not dispatch hashchange; keep topic reads bound to this asset.
+      void assetNews.activate(state.route);
       record = await pollAssetObservation(record, ticket);
       if (ticket !== pageGeneration || !current()) return;
       await loadAssetWorkspace();

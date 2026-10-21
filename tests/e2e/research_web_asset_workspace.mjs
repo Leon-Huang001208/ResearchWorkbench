@@ -16,7 +16,7 @@ let rows = { history, overview: [{ asset: '600519.SH', name: '隔离测试资产
 let observation = { id: '22222222-2222-4222-8222-222222222222', session_id: sid, asset: '600519.SH', asset_type: 'stock', source: 'auto', status: 'complete', dataset_ids: Object.keys(rows).map(did), request_parameters: { start_date: '2026-07-01', end_date: '2026-08-28', frequency: 'daily', adjustment: 'qfq' }, blocks: Object.fromEntries(Object.entries(rows).map(([name, data]) => [name, { status: data.length ? 'complete' : 'empty', dataset: { dataset_id: did(name), provider: 'fixture', as_of: '2026-08-28', row_count: data.length, fields: [{ name: 'revenue', unit: 'currency', currency: 'CNY' }] } }])) };
 const liveProof = process.env.RWB_ASSET_READBACK_JSON ? JSON.parse(await readFile(process.env.RWB_ASSET_READBACK_JSON, 'utf8')) : null;
 if (liveProof) { observation = liveProof.observation; rows = Object.fromEntries(Object.entries(liveProof.datasets).map(([name, data]) => [name, data.items])); }
-const reads = []; let refreshes = 0; let browser;
+const reads = []; let refreshes = 0; let creates = 0; let browser;
 const mime = { '.html': 'text/html', '.mjs': 'text/javascript', '.js': 'text/javascript', '.json': 'application/json', '.css': 'text/css', '.png': 'image/png', '.svg': 'image/svg+xml', '.woff2': 'font/woff2' };
 const server = http.createServer(async (request, response) => {
   try {
@@ -24,7 +24,14 @@ const server = http.createServer(async (request, response) => {
     if (url.pathname.startsWith('/api/research/')) {
       response.setHeader('Content-Type', 'application/json'); let data;
       if (request.method === 'POST') {
-        assert.match(url.pathname, /\/assets\/observations\/[^/]+\/blocks\/[^/]+\/refresh$/); assert.ok(request.headers['idempotency-key']); refreshes++; data = observation;
+        assert.ok(request.headers['idempotency-key']);
+        if (url.pathname.endsWith('/assets/observations')) {
+          let body = ''; for await (const chunk of request) body += chunk;
+          const payload = JSON.parse(body); creates++;
+          data = { ...observation, asset: payload.asset, asset_type: payload.asset_type, status: 'complete' };
+        } else {
+          assert.match(url.pathname, /\/assets\/observations\/[^/]+\/blocks\/[^/]+\/refresh$/); refreshes++; data = observation;
+        }
       } else if (url.pathname.endsWith('/assets/observations')) data = { items: [observation] };
       else if (url.pathname.includes('/datasets/')) { const id = url.pathname.split('/datasets/')[1].split('/')[0]; const name = liveProof ? Object.entries(liveProof.datasets).find(([, data]) => data.metadata.dataset_id === id)?.[0] : id.replace('-fixture', ''); data = { items: (rows[name] || []).slice(Number(url.searchParams.get('offset')), Number(url.searchParams.get('offset')) + Number(url.searchParams.get('limit'))) }; }
       else if (url.pathname.includes('/intel/news') || url.pathname.includes('/intel/announcements')) { await new Promise(resolve => setTimeout(resolve, 200)); data = Array.from({ length: 25 }, (_, i) => ({ title: `隔离资讯 ${url.searchParams.get('code')} ${i + 1}`, content: '这是隔离 fixture 返回的正文。<script>不可执行</script>', source: 'fixture', date: '2026-08-28', url: 'https://example.com/fixture' })); }
@@ -111,12 +118,20 @@ try {
     await page.waitForFunction(() => document.querySelector('.asset-news-workspace h2')?.textContent.includes('603986'));
     await page.locator('.asset-news-row').first().waitFor();
     assert.doesNotMatch(await page.locator('.asset-news-workspace').innerText(), /600519/);
+    // replaceState does not emit hashchange: submission must activate the new identity itself.
+    await page.locator('.asset-query-controls > summary').click();
+    await page.locator('[data-asset-observation] [name="asset"]').fill('000001.SZ');
+    await page.locator('[data-asset-observation] button').click();
+    await page.waitForFunction(() => document.querySelector('[data-asset-identity]')?.dataset.assetIdentity === 'stock:000001.SZ');
+    await page.waitForFunction(() => document.querySelector('.asset-news-row')?.textContent.includes('000001'));
+    assert.doesNotMatch(await page.locator('.asset-news-workspace').innerText(), /603986/);
     await page.screenshot({ path: path.join(output, `${width}-${theme}-news.png`), fullPage: true });
     assert.deepEqual(errors, []);
     await appendFile(log, JSON.stringify({ event: 'asset_browser_fixture', width, theme, status: 'PASS' }) + '\n');
     await context.close();
   }
   if (!liveProof) assert.ok(reads.some(value => /offset=200/.test(value)));
+  if (!liveProof) assert.equal(creates, 6);
   assert.ok(!reads.some(value => /POST.*(?:sessions|research-runs)|\/artifacts/.test(value)));
   await writeFile(path.join(output, liveProof ? 'cjpy-real-summary.json' : 'summary.json'), JSON.stringify({ status: 'PASS', scenarios: liveProof ? 2 : 6, fixture: !liveProof, savedRealData: Boolean(liveProof), rows: liveProof ? rows.history.length : null, supplierCallsDuringReadback: 0, modelCalls: 0, refreshes, reads: reads.length }, null, 2));
   console.log(JSON.stringify({ status: 'PASS', scenarios: liveProof ? 2 : 6, savedRealData: Boolean(liveProof), output }));
