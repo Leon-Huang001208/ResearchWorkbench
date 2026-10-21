@@ -112,7 +112,31 @@ export function createAccountMenu({ root, user, document = globalThis.document, 
 
 /** New gateway sessions also support the deliberately preserved old primary shell. */
 export function mountLegacyAccountMenu({ root, user, document = globalThis.document, Observer = globalThis.MutationObserver, ...options } = {}) {
-  if (!root || !user || document.getElementById('account-menu') || root.querySelector('[data-account-trigger]')) return;
+  if (!root || !user || root.dataset?.accountWorkspaceNative === '1') return;
+  const existing = document.getElementById('account-menu');
+  if (existing) {
+    // Keep the old controller's logout, keyboard and redraw ownership. Only
+    // normalize its rendered identity/link contract after each old paint.
+    if (existing.dataset.profileAdapter) return;
+    existing.dataset.profileAdapter = '1';
+    const reconcileExisting = () => {
+      const identity = existing.querySelector('.account-identity');
+      const oldLink = existing.querySelector('a[href="/account"]');
+      const restoreFocus = oldLink && oldLink === document.activeElement;
+      if (identity && !identity.matches('a.account-profile-link')) {
+        const template = document.createElement('template');
+        template.innerHTML = renderAccountMenu(user);
+        identity.replaceWith(template.content.firstElementChild);
+      }
+      oldLink?.remove();
+      if (restoreFocus) existing.querySelector('.account-profile-link')?.focus({ preventScroll: true });
+    };
+    new Observer(reconcileExisting).observe(existing, { childList: true, subtree: true });
+    reconcileExisting();
+    options.logger?.('account_legacy_menu_adapted');
+    return;
+  }
+  if (root.querySelector('[data-account-trigger]')) return;
   let controller;
   let triggerFocused = false;
   document.addEventListener('focusin', event => { triggerFocused = Boolean(event.target.closest?.('[data-account-trigger]')); });
