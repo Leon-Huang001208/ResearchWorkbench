@@ -137,6 +137,34 @@ test('five ECharts grids, cross-panel pointer, two linked zooms, all six MA and 
   assert.match(option.graphic[0].style.text, /VOL:.*MA5:.*MA10:/); assert.equal(option.series[0].data.length, 260);
 });
 
+test('both terminal canvases are transparent and explicit themes keep neutral labels readable', () => {
+  const bars = enrichMarketBars(rows(260)); const chip = estimateChipDistribution(bars, 140, 259);
+  const state = { start: 140, end: 260, overlay: 'ma' };
+  const fallback = buildMarketChartOption(bars, state);
+  assert.equal(fallback.xAxis[0].axisLabel.color, '#9ca3af');
+  for (const [theme, text, muted, grid] of [['light', '#242424', '#686860', '#e8e8e5'], ['dark', '#d1d5db', '#9ca3af', 'rgba(148,163,184,.18)']]) {
+    const option = buildMarketChartOption(bars, state, {}, theme); const chips = buildChipChartOption(chip, [90, 370], null, theme);
+    assert.equal(option.backgroundColor, 'transparent'); assert.equal(chips.backgroundColor, 'transparent');
+    assert.equal(option.xAxis[0].axisLabel.color, muted); assert.equal(option.yAxis[0].axisLabel.color, muted);
+    assert.equal(option.yAxis[0].splitLine.lineStyle.color, grid); assert.equal(option.graphic[0].style.fill, text);
+    assert.equal(option.tooltip.textStyle.color, text); assert.equal(chips.tooltip.textStyle.color, text);
+    assert.equal(option.axisPointer.label.color, text); assert.equal(option.dataZoom[1].textStyle.color, muted);
+    assert.equal(option.dataZoom[1].backgroundColor, 'transparent');
+    assert.equal(option.dataZoom[1].dataBackground.lineStyle.color, muted);
+    assert.equal(option.dataZoom[1].moveHandleStyle.color, muted);
+    assert.equal(option.dataZoom[1].emphasis.handleStyle.color, text);
+    assert.equal(chips.xAxis.axisLabel.color, muted); assert.equal(chips.yAxis.axisLabel.color, muted);
+    assert.equal(option.series.at(-1).markLine.label.color, muted);
+    assert.equal(chips.series[0].markLine.data[0].label.color, text);
+    assert.deepEqual(option.grid, fallback.grid); assert.deepEqual(option.legend, fallback.legend);
+    assert.deepEqual(option.series.map(s => s.data), fallback.series.map(s => s.data));
+    assert.deepEqual(option.series.filter(s => s.lineStyle).map(s => s.lineStyle), fallback.series.filter(s => s.lineStyle).map(s => s.lineStyle));
+    assert.deepEqual(option.series[0].itemStyle, fallback.series[0].itemStyle);
+    assert.ok(option.yAxis.slice(1).every(axis => !Object.hasOwn(axis, 'axisPointer')), 'non-price axes must omit axisPointer instead of setting undefined');
+  }
+  assert.equal(buildChipChartOption(estimateChipDistribution([], 0, 0), [0, 1], null, 'light').graphic[0].style.fill, '#686860');
+});
+
 test('visible price domain includes enabled overlays only', () => {
   const bars = enrichMarketBars(rows(260, i => i < 250 ? 1000 : 100));
   const enabled = buildMarketChartOption(bars, { start: 250, end: 260, overlay: 'ma', enabledMA: [250] });
@@ -237,6 +265,39 @@ function fakeDOM() {
   return { node, nodes, handlers, instances, observers, frames, flush: () => { const work = [...frames.values()]; frames.clear(); work.forEach(fn => fn()); } };
 }
 
+function pageTheme(f, mode) {
+  const values = mode === 'light' ? { '--text': '#242424', '--muted': '#686860', '--line': '#e8e8e5', '--surface': '#fafaf9', '--selected': '#e8e8e5' } : { '--text': '#ecece7', '--muted': '#aaa99f', '--line': '#343430', '--surface': '#222220', '--selected': '#30302c' };
+  f.node.ownerDocument.documentElement = { dataset: { theme: mode } };
+  f.node.ownerDocument.defaultView.getComputedStyle = () => ({ getPropertyValue: name => values[name] || '' });
+  return values;
+}
+
+test('theme remount reads page variables and preserves controls, range, history and series data', () => {
+  const f = fakeDOM(); pageTheme(f, 'dark'); const c = createAssetChartController(); c.configure(rows(320), 'one'); c.mount(f.node); f.flush();
+  c.handle(click('ma-250')); c.pan(-30); c.select(230); f.flush();
+  const state = c.getState(); const points = f.instances[1].option.series[0].data;
+  const light = pageTheme(f, 'light'); c.mount(f.node); f.flush();
+  assert.ok(f.instances.slice(0, 2).every(chart => chart.disposed));
+  assert.equal(f.instances[2].option.xAxis[0].axisLabel.color, light['--muted']);
+  assert.equal(f.instances[2].option.graphic[0].style.fill, light['--text']);
+  assert.equal(f.instances[3].option.tooltip.backgroundColor, light['--surface']);
+  assert.deepEqual(c.getState(), state); assert.deepEqual(f.instances[3].option.series[0].data, points);
+  c.select(231); f.flush(); assert.equal(f.instances[2].option.graphic[0].style.fill, light['--text']);
+  const dark = pageTheme(f, 'dark'); c.mount(f.node); f.flush();
+  assert.equal(f.instances[4].option.xAxis[0].axisLabel.color, dark['--muted']);
+  assert.equal(f.instances[5].option.yAxis.axisLine.lineStyle.color, dark['--line']);
+  assert.equal(c.getState().activeIndex, 231); c.dispose();
+});
+
+test('computed-theme failures use deterministic fallback and log only stable diagnostic codes', () => {
+  const f = fakeDOM(); pageTheme(f, 'light'); const errors = [];
+  f.node.ownerDocument.defaultView.getComputedStyle = () => { throw new Error('private page content'); };
+  const c = createAssetChartController({ logger: event => errors.push(event) }); c.configure(rows(30), 'one');
+  assert.equal(c.mount(f.node), true); f.flush();
+  assert.equal(f.instances[0].option.xAxis[0].axisLabel.color, '#686860');
+  assert.deepEqual(errors, ['asset_chart_theme_failed']); c.dispose();
+});
+
 test('mount keeps chart instances across pointer updates, coalesces frames and disposes every resource', () => {
   const f = fakeDOM(); let calls = 0; const c = createAssetChartController({ onChange: () => calls++ }); c.configure(rows(200), 'one'); c.mount(f.node); f.flush();
   assert.equal(f.instances.length, 2); const main = f.instances[0]; const oldMarkup = f.node.innerHTML;
@@ -333,22 +394,28 @@ test('real pinned ECharts creates every series view and survives controls, keybo
   const c = createAssetChartController({ logger: event => errors.push(event) });
   const viewsAreReady = () => {
     assert.deepEqual(errors, []);
-    const series = charts[0].getModel().getSeries();
+    const series = charts.at(-2).getModel().getSeries();
     assert.equal(series.length, 18);
-    assert.ok(series.every(model => charts[0].getViewOfSeriesModel(model)), 'every series must have an actual ECharts view');
+    assert.ok(series.every(model => charts.at(-2).getViewOfSeriesModel(model)), 'every series must have an actual ECharts view');
   };
   try {
-    c.configure(rows(320), 'one'); c.mount(f.node); f.flush(); viewsAreReady();
-    for (const action of ['ma-250', 'ma-250', 'overlay-boll', 'overlay-none', 'overlay-ma', 'period-week', 'period-month', 'period-day', 'all', 'reset']) {
-      c.cancel(); c.handle(click(action)); f.flush(); viewsAreReady();
+    c.configure(rows(320), 'one');
+    for (const mode of ['dark', 'light', 'dark']) {
+      const palette = pageTheme(f, mode); c.reset(); c.mount(f.node); f.flush(); viewsAreReady();
+      assert.equal(charts.at(-2).getOption().backgroundColor, 'transparent');
+      assert.equal(charts.at(-1).getOption().backgroundColor, 'transparent');
+      assert.equal(charts.at(-2).getOption().xAxis[0].axisLabel.color, palette['--muted']);
+      for (const action of ['ma-250', 'ma-250', 'overlay-boll', 'overlay-none', 'overlay-ma', 'period-week', 'period-month', 'period-day', 'all', 'reset']) {
+        c.cancel(); c.handle(click(action)); f.flush(); viewsAreReady();
+      }
+      c.handle({ type: 'keydown', key: 'ArrowLeft', target: { closest: () => ({}) } }); f.flush();
+      assert.equal(c.getState().activeIndex, 318);
+      assert.match(f.nodes.get('[data-asset-chip-window]').textContent, new RegExp(day(318)));
+      charts.at(-2).dispatchAction({ type: 'dataZoom', startValue: 200, endValue: 279 }); f.flush(); viewsAreReady();
+      assert.equal(c.getState().start, 200); assert.equal(c.getState().end, 280);
+      c.select(250); f.flush(); c.cancel(); viewsAreReady();
+      assert.equal(c.getState().activeIndex, 279);
+      assert.match(f.nodes.get('[data-asset-chip-window]').textContent, new RegExp(day(279)));
     }
-    c.handle({ type: 'keydown', key: 'ArrowLeft', target: { closest: () => ({}) } }); f.flush();
-    assert.equal(c.getState().activeIndex, 318);
-    assert.match(f.nodes.get('[data-asset-chip-window]').textContent, new RegExp(day(318)));
-    charts[0].dispatchAction({ type: 'dataZoom', startValue: 200, endValue: 279 }); f.flush(); viewsAreReady();
-    assert.equal(c.getState().start, 200); assert.equal(c.getState().end, 280);
-    c.select(250); f.flush(); c.cancel(); viewsAreReady();
-    assert.equal(c.getState().activeIndex, 279);
-    assert.match(f.nodes.get('[data-asset-chip-window]').textContent, new RegExp(day(279)));
   } finally { c.dispose(); for (const timer of timers) clearTimeout(timer); }
 });
