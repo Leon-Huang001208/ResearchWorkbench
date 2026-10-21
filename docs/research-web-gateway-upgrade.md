@@ -1,5 +1,7 @@
 # Mac mini 空私有池网关升级
 
+恢复LaunchAgent仅在自身EnvironmentVariables声明系统/Homebrew PATH；安装恢复包前用同一路径运行既有Git LFS版本检查。缺少工具在栅栏、journal和信号之前失败，不安装包、不禁用Git钩子、不修改全局PATH。SIGTERM优雅等待延至90秒；超时仍保留recovery_required，不强杀。旧恢复包和任务保持原样，新版本使用独立内容身份。
+
 ## 保留主实例版本的静态网关更新
 
 主实例无需更新研究进程时，显式使用 `apply-ui --preserve-primary`，`--primary` 固定实际主实例 SHA，

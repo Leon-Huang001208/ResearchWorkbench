@@ -36,6 +36,7 @@ from .gateway_fence import BirthFence
 log = logging.getLogger(__name__)
 LABEL = "com.research-workbench.multiuser-server"
 RECOVERY = "com.research-workbench.gateway-recovery"
+RECOVERY_PATH = "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 PRODUCT = "6c4ac79bcf03fb36ffbe9c1c40a647b8e8a34556"
 JOURNAL_MAX_BYTES = 16_000_000
 CONTROL = {
@@ -413,7 +414,7 @@ def wait_retired(pid: int, *, timeout: float = 45):
         time.sleep(0.1)
 
 
-def graceful_drain(pid: int, expected: str, command: str, timeout: float = 45):
+def graceful_drain(pid: int, expected: str, command: str, timeout: float = 90):
     verify_signal_contract()
     if native_image(pid) != native_image(os.getpid()):
         raise UpdateBlocked("gateway_image_changed")
@@ -532,6 +533,10 @@ def preserved(home: Path, before: dict):
 
 def install_recovery(home: Path, source: Path, *, revision: str | None = None):
     """Separate immutable, reviewed artifact; never replace resident/controller.pyz."""
+    # launchd does not inherit the operator shell's Homebrew path. Prove the
+    # existing checkout hook tool is available before any fencing or signalling.
+    run(["/usr/bin/env", f"PATH={RECOVERY_PATH}", "/usr/bin/git", "lfs", "version"])
+    log.info("gateway_recovery_checkout_tools_verified")
     root = home / "server/run"
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
@@ -579,7 +584,7 @@ def install_recovery(home: Path, source: Path, *, revision: str | None = None):
         "WorkingDirectory": str(home),
         "StandardOutPath": str(home / "logs/gateway-recovery.log"),
         "StandardErrorPath": str(home / "logs/gateway-recovery-error.log"),
-        "EnvironmentVariables": {"PYTHONDONTWRITEBYTECODE": "1"},
+        "EnvironmentVariables": {"PYTHONDONTWRITEBYTECODE": "1", "PATH": RECOVERY_PATH},
     }
     if plist.exists() or plist.is_symlink():
         if plist.is_symlink() or plist.read_bytes() != plistlib.dumps(payload):
