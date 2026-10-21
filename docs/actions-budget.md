@@ -2,6 +2,8 @@
 
 2026-10-21模型服务多连接只向原Checks Python步骤增加test_model_profiles.py，JS沿既有research_web通配符；不新增job/runner/依赖。当前API核验PUBLIC；最近五成功39531660218/39531626724/39519102659/39519102685/39519102794创建到结束约422/55/513/906/65秒。新增隔离模块16项本机约160秒、预留180秒，保留原20分钟超时及同候选Mac Bootstrap；Mac不触发Windows/Linux产品任务，无真实模型调用。
 
+2026-10-21 静态升级工具修复复用 Research Web Checks 原 test_gateway_upgrade.py 与原 macOS Bootstrap，不加 job/runner/依赖或模型调用。实时 PUBLIC；最近五次成功 run 为39536389107/39536343972/39536343791/39535496983/39535497053，创建至结束约661/55/565/64/892秒。新增 helper 同blob、候选保护及六阶段冻结恢复回归在现存环境约19秒，预留30秒；既有超时及Windows/Linux产品dispatch边界不变。真实常驻升级和UI保全另行取证。
+
 2026-10-20自由分析绑定修复向既有Research Web Checks Python步骤加入test_bound_analysis.py，JS复用原FinGPT/UI/tool清单；无新增job、runner或依赖。实时PUBLIC，最近五个成功run39406594559/39406594481/39404684360/39404572910/39404572884约81/873/629/61/868秒；新离线模块42项本机1.07秒，预留20秒。保留同候选Mac Bootstrap及现有超时，不从Mac触发Windows/Linux产品CI；真实Flash仅新增一次另记质量和usage。
 
 2026-10-20系统报告成功/恢复路径复用Research Web Checks同一Python步骤，加入test_report_calculations/formats/system_flow；无新job/runner/依赖。实时PUBLIC；最近五次成功39368667046/39367566728/39366768433/39365305563/39361742325约561/564/532/770/504秒。新增三模块本机约1秒，含原revision组合113例2.80秒，预留20秒。Mac安装沿同候选原Bootstrap，Windows/Linux产品不由Mac dispatch。原题Flash仅一次，真实质量和usage另记。
