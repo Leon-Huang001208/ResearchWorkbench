@@ -1,5 +1,7 @@
 # Research Workbench 架构总览
 
+保留主实例版本的显式静态网关更新使用 version 3 `static-gateway`，同时核对主实例/旧网关到目标的受限差异与冻结工具身份；不改变原研究进程、自动兼容清单或恢复保护。旧主实例菜单适配保持唯一控制器，详见[网关升级](research-web-gateway-upgrade.md)。
+
 账号资料与管理复用现有网关：菜单顶部身份进入应用内 `#/account`，管理员用户管理归入设置；登录入口保持独立。只改变浏览器路由和共用账号控制器，不新增执行服务、权限接口、数据格式或依赖。
 
 模型服务在既有 Host/Store/凭据桥内增加命名 profile 索引与独立账号映射；旧逻辑 ref、Keychain 命名空间和 DSH 协议保持。会话与 research_task 日程保存 profile 身份，换连接不静默改旧绑定；细则见[模型服务](research-web-ui.md#模型服务商与连接)。

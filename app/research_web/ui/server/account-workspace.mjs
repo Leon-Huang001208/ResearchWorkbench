@@ -114,7 +114,7 @@ export function mountLegacyAccountWorkspace(options={}) {
       if(!content.querySelector('[data-account-profile]'))content.innerHTML=renderAccountProfile(user);
     } else if(/^#\/settings(?:\/|$)/.test(window.location.hash)) {
       const nav=content.querySelector('.settings-navigation');
-      if(user.role==='admin'&&nav&&!nav.querySelector('[data-legacy-user-settings]')){let link=nav.querySelector('a[href="#/settings/users"]');if(!link){link=document.createElement('a');link.href='#/settings/users';link.className='settings-navigation-link';link.textContent='用户管理';nav.append(link);}link.dataset.legacyUserSettings='1';}
+      if(user.role==='admin'&&nav&&!nav.querySelector('[data-legacy-user-settings]')){let link=nav.querySelector('a[href="#/settings/users"]');if(!link){link=document.createElement('a');link.href='#/settings/users';link.className='settings-navigation-link';link.textContent='用户管理';const general=nav.querySelector('a[href="#/settings/general"]');if(general)general.after(link);else nav.append(link);}link.dataset.legacyUserSettings='1';}
       if(/^#\/settings\/users(?:\?|$)/.test(window.location.hash)&&user.role==='admin'){
         nav?.querySelectorAll('a').forEach(link=>{link.classList.toggle('active',link.hasAttribute('data-legacy-user-settings'));if(link.hasAttribute('data-legacy-user-settings'))link.setAttribute('aria-current','page');else link.removeAttribute('aria-current');});
         const page=content.querySelector('.settings-page');

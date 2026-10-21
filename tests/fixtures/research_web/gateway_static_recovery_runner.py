@@ -15,6 +15,8 @@ def main():
     os.umask(0o077)
     artifact, source, home = map(Path, sys.argv[1:4])
     previous, payload, tool, phase = sys.argv[4:8]
+    preserve_primary = len(sys.argv) > 8 and sys.argv[8] == "static-gateway"
+    primary_revision = previous if preserve_primary else payload
     if subprocess.check_output(["/usr/bin/git", "-C", str(source), "remote"], text=True).strip():
         raise RuntimeError("fixture_repository_has_remote")
     home.mkdir(mode=0o700)
@@ -79,10 +81,10 @@ def main():
     ).strip()
     before = g.preservation(home)
     state = {
-        "version": 2,
-        "mode": "static-ui",
+        "version": 3 if preserve_primary else 2,
+        "mode": "static-gateway" if preserve_primary else "static-ui",
         "phase": phase,
-        "primary": payload,
+        "primary": primary_revision,
         "target": payload,
         "previous": previous,
         "tool_revision": tool,
@@ -98,7 +100,11 @@ def main():
         "before": before,
         "plist_sha256": g.digest(plist),
         "recovery": {"artifact_sha256": checksum, "tool_revision": tool},
-        "reviewed": g.static_scopes(gateway, previous, payload, tool),
+        "reviewed": (
+            g.preserved_primary_scopes(gateway, primary_revision, previous, payload, tool)
+            if preserve_primary
+            else g.static_scopes(gateway, previous, payload, tool)
+        ),
     }
     g.write_upgrade_journal(home / "server/run/gateway-upgrade.json", state)
     events = []
@@ -108,7 +114,7 @@ def main():
     Path.home = classmethod(lambda cls: home)
 
     def primary_idle(_home, revision):
-        assert revision == payload
+        assert revision == primary_revision
         events.append("primary_idle")
 
     def no_signal(*_a, **_k):

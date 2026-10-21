@@ -1,5 +1,7 @@
 # Research Web 接口清单
 
+操作员apply-ui新增显式--preserve-primary，允许经三段受限差异证明的不同target；默认仍要求primary=target。HTTP身份、管理、退出和研究接口不变。
+
 新增浏览器路由 `#/account` 与管理员专属 `#/settings/users`，旧 `/account` 页面脚本及 `#/settings/account` 兼容到 `/#/account`。HTTP接口保持现有me/users/password/stop/logout；不新增参数、身份来源或后端接口。账号资料仅展示认证用户名/角色，普通用户不请求管理列表。
 
 操作员 CLI 新增 `apply-ui --expected-gateway SHA --primary SHA --target SHA`；primary 必须等于 target，工具 HEAD 必须为最新已验收 master。业务 HTTP 接口不变。停止前不确定返回 deferred；停止后待恢复返回 recovery_required，不能当作部署成功。
