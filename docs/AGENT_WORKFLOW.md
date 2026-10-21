@@ -1,5 +1,7 @@
 # Agent 任务路由指南
 
+旧5df常驻实例交付PR168导航时，联合操作员只接受五个已审UI blob及原模型基线；先验证实际拒绝与范围正反例，再走原model_provider升级回归、Router、独立评审和同候选Mac安装。实际切换继续取得空闲、冻结与保全证明；不临时patch操作员/自动白名单，不调用模型，不替代浏览器效果验收。
+
 模型服务商联合部署先验证真实旧 controller 合同、部分 BirthFence 中断与 finish 内部故障；新增定点测试加入原 Checks 步骤，无新 job/依赖。完成独立评审、Router 与同候选 Mac Bootstrap 后才部署；活动/未知等待，不用本地测试代替常驻证据。
 
 静态部署包含升级器自身时，先在干净且受审的精确目标checkout执行stage-primary-ui；核对现场冻结controller的candidate复用分支与摘要，原tick完成空闲切换及accepted/进程/会话模型保全后，再apply-ui更新网关。helper产品blob必须等于冻结工具blob；不临时patch白名单或恢复算法，候选冲突/活动/未知延后。回归沿原gateway升级模块和Mac Bootstrap，不新增依赖或他平台产品dispatch。
