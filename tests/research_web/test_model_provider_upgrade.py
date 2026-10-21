@@ -5,6 +5,7 @@ import plistlib
 import re
 import sqlite3
 import subprocess
+import sys
 from pathlib import Path
 from types import SimpleNamespace
 from uuid import uuid4
@@ -199,6 +200,28 @@ def test_asset_snapshot_rejects_unsafe_or_invalid_business_index(tmp_path, monke
         path.write_text("{" if bad == "malformed" else "[]")
     with pytest.raises(upgrade.UpdateBlocked, match="index_invalid"):
         upgrade.asset_index_snapshot(tmp_path)
+
+
+def test_asset_snapshot_rejects_fifo_without_blocking(tmp_path):
+    import os
+
+    (tmp_path / "server/users").mkdir(parents=True)
+    (tmp_path / "research-web").mkdir()
+    os.mkfifo(tmp_path / "research-web/index.json")
+    process = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "from pathlib import Path; import sys; from research_workbench_entrypoint.resident import model_provider_upgrade as u; u.asset_index_snapshot(Path(sys.argv[1]))",
+            str(tmp_path),
+        ],
+        cwd=Path(__file__).resolve().parents[2],
+        timeout=3,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert process.returncode != 0 and "asset_upgrade_index_invalid" in process.stderr
 
 
 @pytest.mark.parametrize(
