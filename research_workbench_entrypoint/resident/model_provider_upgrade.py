@@ -154,8 +154,8 @@ def asset_index_snapshot(home: Path):
                 raise ValueError("index_size_invalid")
             index = json.loads(raw)
             if not isinstance(index, dict):
-                raise ValueError("index_object_required")
-        except (OSError, ValueError) as exc:
+                raise TypeError("index_object_required")
+        except (OSError, ValueError, TypeError) as exc:
             log.error("asset_upgrade_index_read_failed", extra={"error_type": type(exc).__name__})
             raise UpdateBlocked("asset_upgrade_index_invalid") from exc
         return {
