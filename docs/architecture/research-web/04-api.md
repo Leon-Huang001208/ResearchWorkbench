@@ -1,5 +1,7 @@
 # Research Web 接口清单
 
+无新增CLI参数或HTTP接口；恢复任务工具缺失仍以既有blocked错误返回。优雅等待延长不改变deferred/recovery_required的语义。
+
 操作员apply-ui新增显式--preserve-primary，允许经三段受限差异证明的不同target；默认仍要求primary=target。HTTP身份、管理、退出和研究接口不变。
 
 新增浏览器路由 `#/account` 与管理员专属 `#/settings/users`，旧 `/account` 页面脚本及 `#/settings/account` 兼容到 `/#/account`。HTTP接口保持现有me/users/password/stop/logout；不新增参数、身份来源或后端接口。账号资料仅展示认证用户名/角色，普通用户不请求管理列表。
