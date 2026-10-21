@@ -1,5 +1,7 @@
 # 安全边界与验证方法
 
+部署前先验证恢复任务同一PATH下的既有Git LFS，工具不可用时不建恢复artifact、不进入栅栏或发送信号。受限launchd环境的真实Git钩子回归覆盖冻结包回滚；不绕过钩子、不修改全局环境，排空超时仍禁止强杀。
+
 v3 static-gateway在primary/旧网关到目标均限制UI及确切受审升级器，后者blob须等于冻结工具；工具段保持原限制。独立恢复重新核对三段离线身份，v1/v2 helper不接管v3，全部原安全门保留。
 
 静态产品携带网关升级器时，payload helper 必须与冻结 tool revision 的 Git blob 相同；删除、替换、未知后端、依赖和 controller 变化仍拒绝。stage-primary-ui 拒绝其他候选/恢复 journal，准备后仍须原不可变控制器执行空闲与回滚门；不使用临时 monkeypatch 放行部署或恢复。
