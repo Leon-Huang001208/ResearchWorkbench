@@ -2,7 +2,9 @@
 
 import json
 import plistlib
+import re
 import sqlite3
+import subprocess
 from pathlib import Path
 from types import SimpleNamespace
 from uuid import uuid4
@@ -12,6 +14,200 @@ import pytest
 from research_workbench_entrypoint.resident import model_provider_upgrade as upgrade
 from research_workbench_entrypoint.resident.admission import MaintenanceBusy
 from research_workbench_entrypoint.resident.gateway_fence import BirthFence
+
+
+def test_asset_profile_has_fixed_previous_and_rejects_unknown_mode():
+    assert upgrade.previous_for(upgrade.ASSET_MODE) == "c68814db170900688d6a799a241efc098eb83f32"
+    assert upgrade.previous_for(upgrade.MODE) == upgrade.PREVIOUS
+    with pytest.raises(upgrade.UpdateBlocked):
+        upgrade.previous_for("unreviewed")
+
+
+@pytest.mark.parametrize(
+    "bad", [None, "backend", "ui", "dependency", "mode", "reverted", "deleted", "extra", "ancestry"]
+)
+def test_asset_review_uses_real_git_and_frozen_product(tmp_path, monkeypatch, bad):
+    def git(*args):
+        return subprocess.check_output(
+            ["/usr/bin/git", "-C", str(tmp_path), *args], text=True
+        ).strip()
+
+    git("init", "-b", "master")
+    git("config", "user.name", "Fixture")
+    git("config", "user.email", "fixture@example.invalid")
+    files = {
+        upgrade.MODULE: "operator",
+        upgrade.TEST: "tests",
+        "app/research_web/asset_workspace.py": "before",
+        "app/research_web/ui/asset-workspace.mjs": "before",
+        "requirements/web.lock": "same",
+    }
+    for name, text in files.items():
+        p = tmp_path / name
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(text)
+    git("add", ".")
+    git("commit", "-m", "base")
+    base = git("rev-parse", "HEAD")
+    for name in ["app/research_web/asset_workspace.py", "app/research_web/ui/asset-workspace.mjs"]:
+        (tmp_path / name).write_text("reviewed")
+    git("add", ".")
+    git("commit", "-m", "payload")
+    payload = git("rev-parse", "HEAD")
+    monkeypatch.setattr(upgrade, "ASSET_PREVIOUS", base)
+    monkeypatch.setattr(upgrade, "ASSET_PAYLOAD", payload)
+    (tmp_path / upgrade.MODULE).write_text("reviewed operator")
+    name = "app/research_web/asset_workspace.py"
+    if bad == "backend":
+        (tmp_path / name).write_text("unreviewed")
+    if bad in {"ui", "reverted"}:
+        (tmp_path / "app/research_web/ui/asset-workspace.mjs").write_text(
+            "before" if bad == "reverted" else "unreviewed"
+        )
+    if bad == "dependency":
+        (tmp_path / "requirements/web.lock").write_text("unreviewed")
+    if bad == "mode":
+        (tmp_path / name).chmod(0o755)
+    if bad == "deleted":
+        (tmp_path / name).unlink()
+    if bad == "extra":
+        (tmp_path / "app/research_web/ui/extra.mjs").write_text("extra")
+    git("add", ".")
+    git("commit", "-m", "operator")
+    if bad == "ancestry":
+        git("checkout", "--orphan", "foreign")
+        git("commit", "-m", "foreign")
+    target = git("rev-parse", "HEAD")
+    if bad is None:
+        result = upgrade.review(tmp_path, target, upgrade.ASSET_MODE)
+        assert name in result and upgrade.MODULE in result
+    else:
+        with pytest.raises(upgrade.UpdateBlocked):
+            upgrade.review(tmp_path, target, upgrade.ASSET_MODE)
+
+
+@pytest.mark.parametrize(
+    "state,expected",
+    [
+        ({}, True),
+        (
+            {
+                "asset_observations": {
+                    "x": {"status": "partial", "blocks": {"x": {"status": "partial"}}}
+                }
+            },
+            True,
+        ),
+        (
+            {
+                "asset_observations": {
+                    "x": {"status": "partial", "blocks": {"x": {"status": "loading"}}}
+                }
+            },
+            False,
+        ),
+        (
+            {
+                "asset_observations": {
+                    "x": {"status": "partial", "blocks": {"x": {"status": "error"}}}
+                }
+            },
+            True,
+        ),
+        ({"asset_observations": {"x": {"status": "running"}}}, False),
+        ({"data_queries": {"x": {"status": "running"}}}, False),
+        ({"asset_observations": []}, False),
+        (
+            {
+                "asset_observations": {
+                    "x": {"status": "complete", "blocks": {"x": {"status": "loading"}}}
+                }
+            },
+            False,
+        ),
+    ],
+)
+def test_asset_activity_is_not_confused_with_native_idle(state, expected):
+    assert upgrade.asset_queries_idle(state) is expected
+
+
+@pytest.mark.parametrize("scope", ["primary", "private"])
+@pytest.mark.parametrize("change", ["delete", "modify", "empty", "remove_file"])
+def test_asset_business_index_preservation_covers_every_scope(tmp_path, scope, change):
+    root = tmp_path / "research-web"
+    user = tmp_path / "server/users" / str(uuid4()) / "research-web"
+    value = {
+        "asset_observations": {"a": {"status": "partial"}},
+        "notes": {"a": "private"},
+        "unknown_future_key": {"v": 0},
+    }
+    for folder in (root, user):
+        upgrade.c.atomic(folder / "index.json", value)
+    before = upgrade.asset_index_snapshot(tmp_path)
+    state = {"mode": upgrade.ASSET_MODE, "asset_index_before": before}
+    upgrade.verify_asset_index(tmp_path, state)
+    path = (root if scope == "primary" else user) / "index.json"
+    if change == "remove_file":
+        path.unlink()
+    else:
+        after = dict(value)
+        if change == "delete":
+            del after["asset_observations"]
+        elif change == "modify":
+            after["unknown_future_key"] = {"v": 1}
+        else:
+            after["notes"] = {}
+        upgrade.c.atomic(path, after)
+    with pytest.raises(upgrade.UpdateBlocked):
+        upgrade.verify_asset_index(tmp_path, state)
+
+
+def test_asset_snapshot_contains_digests_and_distinguishes_missing_from_empty(tmp_path):
+    (tmp_path / "server/users").mkdir(parents=True)
+    upgrade.c.atomic(
+        tmp_path / "research-web/index.json", {"notes": {"body": "secret-business-note"}, "zero": 0}
+    )
+    before = upgrade.asset_index_snapshot(tmp_path)
+    assert "secret-business-note" not in json.dumps(before)
+    assert all(re.fullmatch(r"[0-9a-f]{64}", value) for value in before["primary"].values())
+    upgrade.c.atomic(tmp_path / "research-web/index.json", {"notes": {}, "zero": 0})
+    empty = upgrade.asset_index_snapshot(tmp_path)
+    upgrade.c.atomic(tmp_path / "research-web/index.json", {"zero": 0})
+    assert empty != before and empty != upgrade.asset_index_snapshot(tmp_path)
+
+
+@pytest.mark.parametrize(
+    "command,profile",
+    [("apply", upgrade.MODE), ("apply-assets", upgrade.ASSET_MODE), ("recover", upgrade.MODE)],
+)
+def test_cli_selects_only_the_closed_profile(tmp_path, monkeypatch, command, profile):
+    (tmp_path / "logs").mkdir()
+    calls = []
+
+    def operate(*args, **kwargs):
+        calls.append(kwargs)
+        return {"status": "deployed"}
+
+    monkeypatch.setattr(upgrade, "operate", operate)
+    assert upgrade.main([command, "--home", str(tmp_path)]) == 0
+    assert calls == [{"recovering": command == "recover", "mode": profile}]
+
+
+def test_asset_journal_cannot_select_the_legacy_previous():
+    state = {
+        "transaction": str(uuid4()),
+        "version": 4,
+        "mode": upgrade.ASSET_MODE,
+        "previous": upgrade.PREVIOUS,
+        "model_before": {
+            "provider": "fixture",
+            "model": "fixture",
+            "credential_configured": True,
+            "credential_storage": "fixture",
+        },
+    }
+    with pytest.raises(upgrade.UpdateBlocked, match="journal_invalid"):
+        upgrade.validate_state(Path("/unused"), state)
 
 
 class Operations:
@@ -272,8 +468,9 @@ def test_actual_gateway_health_field_is_used(tmp_path, monkeypatch):
     ops.verify(False)
 
 
+@pytest.mark.parametrize("profile", [upgrade.MODE, upgrade.ASSET_MODE])
 def test_immutable_old_controller_cannot_clear_primary_journal_under_gateway_fence(
-    tmp_path, monkeypatch
+    tmp_path, monkeypatch, profile
 ):
     """Execute the actual installed controller module, not the mutable new source."""
     import contextlib
@@ -284,6 +481,7 @@ def test_immutable_old_controller_cannot_clear_primary_journal_under_gateway_fen
 
     import app.research_web.service_manager as manager_module
 
+    previous = upgrade.previous_for(profile)
     fixture = (
         Path(__file__).parents[1]
         / "fixtures/research_web/model_provider_original_controller.py.txt"
@@ -305,14 +503,14 @@ def test_immutable_old_controller_cannot_clear_primary_journal_under_gateway_fen
     wheel = root / "artifacts/old.whl"
     wheel.write_bytes(b"fixture")
     record = {
-        "previous": upgrade.PREVIOUS,
+        "previous": previous,
         "target": "b" * 40,
         "manifest": {"status": "installed", "code_commit": "b" * 40},
         "new_wheel": {"path": str(wheel), "sha256": original.digest(wheel)},
         "old_wheel": {"path": str(wheel), "sha256": original.digest(wheel)},
     }
     original.atomic(root / "transaction.json", record)
-    original.atomic(home / "server/run/gateway-upgrade.json", {"version": 4, "mode": upgrade.MODE})
+    original.atomic(home / "server/run/gateway-upgrade.json", {"version": 4, "mode": profile})
     code = {"revision": "b" * 40}
     events = []
 
@@ -388,7 +586,7 @@ def test_immutable_old_controller_cannot_clear_primary_journal_under_gateway_fen
     monkeypatch.setenv("RESEARCH_RESIDENT_REVISION", "test-sentinel")
     with pytest.raises(urllib.error.HTTPError):
         original.bridge_main(home, "recover")
-    assert code["revision"] == upgrade.PREVIOUS
+    assert code["revision"] == previous
     assert events == ["old-stop-primary", "old-start-primary"]
     assert (root / "transaction.json").exists()
     assert (home / "server/run/gateway-upgrade.json").exists()
@@ -438,12 +636,14 @@ def test_private_fence_accepts_only_503(monkeypatch):
 
 
 @pytest.fixture
-def real_operations(tmp_path, monkeypatch):
+def real_operations(tmp_path, monkeypatch, request):
     """Run real journals, reservations, configuration and operation methods; fake OS effects."""
     import hashlib
 
     import app.research_web.multiuser.resident_binding as binding_module
 
+    mode = getattr(request, "param", upgrade.MODE)
+    previous = upgrade.previous_for(mode)
     home = tmp_path.resolve()
     root, server = home / "resident", home / "server"
     primary, gateway = home / "primary", home / "gateway"
@@ -475,7 +675,7 @@ def real_operations(tmp_path, monkeypatch):
         "primary_user_id": uid,
         "home": str(home),
         "project": str(primary),
-        "revision": upgrade.PREVIOUS,
+        "revision": previous,
         "web_port": 8088,
         "runtime_port": 3081,
         "project_identity": [1, 2],
@@ -483,12 +683,12 @@ def real_operations(tmp_path, monkeypatch):
     }
     gw = {
         "project": str(gateway),
-        "revision": upgrade.PREVIOUS,
+        "revision": previous,
         "binding": binding,
         "origin": config["private_origin"],
     }
-    manifest = {"code_commit": upgrade.PREVIOUS, "status": "installed"}
-    accepted = {"target": upgrade.PREVIOUS, "sentinel": "previous-accepted"}
+    manifest = {"code_commit": previous, "status": "installed"}
+    accepted = {"target": previous, "sentinel": "previous-accepted"}
     for path, value in (
         (root / "config.json", config),
         (server / "resident.json", gw),
@@ -503,10 +703,10 @@ def real_operations(tmp_path, monkeypatch):
     wheel.write_bytes(b"fixture wheel")
     state = {
         "version": 4,
-        "mode": upgrade.MODE,
+        "mode": mode,
         "phase": "prepared",
         "transaction": str(uuid4()),
-        "previous": upgrade.PREVIOUS,
+        "previous": previous,
         "target": "b" * 40,
         "primary_project": str(primary),
         "gateway_project": str(gateway),
@@ -530,9 +730,11 @@ def real_operations(tmp_path, monkeypatch):
         "credential_configured": True,
         "credential_storage": "system_keychain",
     }
+    if mode == upgrade.ASSET_MODE:
+        state["asset_index_before"] = upgrade.asset_index_snapshot(home)
     system = {
-        "primary": upgrade.PREVIOUS,
-        "gateway": upgrade.PREVIOUS,
+        "primary": previous,
+        "gateway": previous,
         "running": True,
         "loaded": True,
         "pid": 900001,
@@ -728,6 +930,92 @@ def test_real_operation_methods_converge_and_preserve_data(real_operations, fail
     assert json.loads((home / "install/manifest.json").read_text())["code_commit"] == expected
 
 
+@pytest.mark.parametrize("real_operations", [upgrade.ASSET_MODE], indirect=True)
+@pytest.mark.parametrize("failed", [None, *upgrade.FORWARD])
+def test_asset_operation_methods_restore_the_asset_previous(real_operations, failed):
+    home, state, system, make, uid = real_operations
+    system["fail"] = failed
+    with BirthFence(home / "server", uid, transaction=state["transaction"]) as fence:
+        result = upgrade.execute(make(fence), state)
+    expected = state["target"] if failed is None else upgrade.ASSET_PREVIOUS
+    assert result["status"] == ("deployed" if failed is None else "rolled_back")
+    assert system["primary"] == system["gateway"] == expected
+    assert system["running"] and system["loaded"]
+    assert not (home / "resident/transaction.json").exists()
+    assert not (home / "server/run/gateway-upgrade.json").exists()
+    assert not (home / "server/run/birth-fence.json").exists()
+    if failed is None:
+        assert (
+            upgrade.read_json(home / "resident/accepted.json")["compatibility_review"]["profile"]
+            == upgrade.ASSET_MODE
+        )
+
+
+@pytest.mark.parametrize("real_operations", [upgrade.ASSET_MODE], indirect=True)
+@pytest.mark.parametrize("phase", [*upgrade.FORWARD, *upgrade.BACKWARD])
+def test_asset_interrupted_phase_recovers_the_known_asset_previous(real_operations, phase):
+    home, state, system, make, uid = real_operations
+    state["phase"] = phase
+    system["primary"] = system["gateway"] = state["target"]
+    upgrade.g.write_upgrade_journal(home / "server/run/gateway-upgrade.json", state)
+    with BirthFence(home / "server", uid, transaction=state["transaction"]) as fence:
+        result = upgrade.execute(make(fence), state, recovering=True)
+    assert result["status"] == "rolled_back"
+    assert system["primary"] == system["gateway"] == upgrade.ASSET_PREVIOUS
+    assert not (home / "server/run/gateway-upgrade.json").exists()
+
+
+@pytest.mark.parametrize("real_operations", [upgrade.ASSET_MODE], indirect=True)
+def test_asset_query_running_prevents_any_switch(real_operations):
+    home, state, system, make, _uid = real_operations
+    upgrade.c.atomic(
+        home / "research-web/index.json",
+        {"automation_runs": {}, "asset_observations": {"fixture": {"status": "running"}}},
+    )
+    assert upgrade.execute(make(None), state)["status"] == "deferred"
+    assert system["events"] == []
+    assert not (home / "resident/transaction.json").exists()
+    assert not (home / "server/run/gateway-upgrade.json").exists()
+
+
+@pytest.mark.parametrize("real_operations", [upgrade.ASSET_MODE], indirect=True)
+@pytest.mark.parametrize("boundary", ["verify_target", "finish"])
+def test_asset_index_loss_keeps_recovery_fenced_and_never_claims_preservation(
+    real_operations, boundary
+):
+    home, state, _system, make, uid = real_operations
+    with BirthFence(home / "server", uid, transaction=state["transaction"]) as fence:
+        ops = make(fence)
+        original_action, original_finish = ops.action, ops.finish
+
+        def action(name, value):
+            if name == boundary:
+                upgrade.c.atomic(home / "research-web/index.json", {})
+            return original_action(name, value)
+
+        def finish(value, result):
+            if boundary == "finish":
+                upgrade.c.atomic(home / "research-web/index.json", {})
+            return original_finish(value, result)
+
+        ops.action, ops.finish = action, finish
+        result = upgrade.execute(ops, state)
+    assert result["status"] in {"recovery_required", "completion_unknown"}
+    assert result.get("preserved") is not True
+    assert (home / "server/run/gateway-upgrade.json").exists()
+    assert not (home / "server/run/model-upgrade-result.json").exists()
+    assert upgrade.read_json(home / "research-web/index.json") == {}
+
+
+@pytest.mark.parametrize(
+    "value",
+    [None, {}, {"primary": {}, "private": []}, {"primary": {"notes": "raw"}, "private": {}}],
+)
+def test_asset_recovery_requires_valid_frozen_index_digests(value):
+    with pytest.raises(upgrade.UpdateBlocked, match="snapshot_invalid"):
+        upgrade.validate_asset_snapshot({"mode": upgrade.ASSET_MODE, "asset_index_before": value})
+
+
 def test_real_activity_in_gateway_only_window_blocks_all_effects(real_operations):
     home, state, system, make, _uid = real_operations
     upgrade.g.write_upgrade_journal(home / "server/run/gateway-upgrade.json", state)
@@ -804,7 +1092,8 @@ def test_release_repository_replacement_is_rejected(tmp_path, monkeypatch, chang
         upgrade.verify_release_repository(state, "primary")
 
 
-def test_validate_state_accepts_real_independent_release_clones(tmp_path, monkeypatch):
+@pytest.mark.parametrize("profile", [upgrade.MODE, upgrade.ASSET_MODE])
+def test_validate_state_accepts_real_independent_release_clones(tmp_path, monkeypatch, profile):
     import hashlib
     import subprocess
     import zipfile
@@ -830,7 +1119,9 @@ def test_validate_state_accepts_real_independent_release_clones(tmp_path, monkey
         "fixture",
     )
     target = git(authority, "rev-parse", "HEAD")
-    monkeypatch.setattr(upgrade, "PREVIOUS", target)
+    monkeypatch.setattr(
+        upgrade, "PREVIOUS" if profile == upgrade.MODE else "ASSET_PREVIOUS", target
+    )
     upgrade.g.private_root(home / "resident")
     source = home / "resident/artifacts" / target / "source"
     source.parent.mkdir(parents=True)
@@ -842,7 +1133,7 @@ def test_validate_state_accepts_real_independent_release_clones(tmp_path, monkey
     }
     state = {
         "version": 4,
-        "mode": upgrade.MODE,
+        "mode": profile,
         "phase": "prepared",
         "previous": target,
         "target": target,
@@ -883,6 +1174,11 @@ def test_validate_state_accepts_real_independent_release_clones(tmp_path, monkey
         "binding": {},
     }
     state["manifest"] = {"code_commit": target}
+    if profile == upgrade.ASSET_MODE:
+        upgrade.g.private_root(home / "server")
+        upgrade.g.private_root(home / "server/users")
+        upgrade.c.atomic(home / "research-web/index.json", {"notes": {}})
+        state["asset_index_before"] = upgrade.asset_index_snapshot(home)
     for path, value in [
         (home / "resident/config.json", config),
         (home / "server/resident.json", state["gateway_config"]),
