@@ -4,6 +4,8 @@
 
 v3 journal记录static-gateway模式、实际primary、两份资格及三段blob；保全摘要与旧业务文件格式不变。恢复仅回退网关，账号库、会话和模型设置不覆盖。
 
+显式静态准备只写私有 candidate/wheel 与 scope/blob 回执，不回写会话、附件、账号库或模型配置；旧 candidate 仅在已接受退休或同一审查身份时可处理。真实部署后的原文件/会话摘要及非秘密模型指纹继续独立核对。
+
 新网页研究在既有receipt冻结report_binding_policy=bound-analysis-v1，不回写旧receipt。中文字数目标同时读取当前问题及原冻结requirements，补资料新回合不得丢失；目标冲突时拒绝，不选择较宽松值。report_plan保存system_plan与由系统生成的presentation；analysis只允许{{fact:同节已选引用}}和{{formula:$计算id}}插入数字，完整指标/期间/单位一同生成，不接受裸value替换。标题、缺口及建议也拒绝作者手写数字/算式。annual_change和gdp_implicit_deflator仅接收真实年度GDP原始观测，按精确输入计算，仍不认证统计可比性。重复英文取证句、逐项声明/笔记/精确轨迹保存为research-report-<随机id>-audit.json；canonical的audit_attachment绑定文件SHA，附件内绑定报告语义core SHA，最终归档再绑定完整canonical SHA及全部文件，避免循环哈希。附件与原生格式分开计数，随JSON最后发布及回滚；缺失/损坏附件属于完整性失败。约中文字数从冻结问题识别（允许的/正文表述），按可见标题/章节/去重数据表/缺口汉字数±20%核对，不把来源目录或审计底稿算入正文。
 
 完整保全manifest可能超过1 MB。仅gateway-upgrade.json使用16 MB专属私有reader/writer，发送首个信号前按实际UTF-8编码预留4096字节phase余量。reader对同一fd核对uid/0600/nlink、前后身份/长度/时间和当前路径，拒绝替换、短读或超限；通用配置与业务数据格式不变。

@@ -28,6 +28,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 from uuid import uuid4
 
+from . import controller
 from .admission import MaintenanceBusy, file_lock, private_root
 from .controller import atomic, clean, configured, digest, git, sync_directory
 from .evidence import SHA, GitHubEvidence, UpdateBlocked, read_json, run
@@ -81,10 +82,15 @@ def static_scopes(source: Path, previous: str, payload: str, tool: str):
         prefixes = ("docs/", "tests/", ".ai/reports/")
         if name == "payload":
             prefixes += ("app/research_web/ui/",)
-        if any(
-            not path.startswith(prefixes) and not (name == "tool" and path == TOOL_PATH)
-            for path in paths
-        ):
+        if name == "payload" and TOOL_PATH in paths:
+            try:
+                payload_blob = git(source, "rev-parse", f"{end}:{TOOL_PATH}")
+                tool_blob = git(source, "rev-parse", f"{tool}:{TOOL_PATH}")
+            except UpdateBlocked as exc:
+                raise UpdateBlocked("gateway_static_scope_changed") from exc
+            if payload_blob != tool_blob:
+                raise UpdateBlocked("gateway_payload_tool_mismatch")
+        if any(not path.startswith(prefixes) and path != TOOL_PATH for path in paths):
             raise UpdateBlocked("gateway_static_scope_changed")
         scopes[name] = {path: git(source, "rev-parse", f"{end}:{path}") for path in paths}
     return scopes
@@ -119,6 +125,95 @@ def preserved_primary_scopes(source: Path, primary: str, previous: str, payload:
             raise UpdateBlocked("gateway_static_operator_mismatch")
     log.info("gateway_preserved_primary_scope_verified")
     return scopes
+
+
+def stage_primary_ui(home: Path, source: Path, previous: str, target: str):
+    """Prepare a qualified UI wheel; the immutable resident owns deploy/recover."""
+    if sys.platform != "darwin" or not all(SHA.fullmatch(v or "") for v in (previous, target)):
+        raise UpdateBlocked("gateway_static_revision_invalid")
+    root, config = configured(home)
+    with file_lock(root, "supervisor.lock", exclusive=True):
+        if (root / "transaction.json").exists() or (
+            home / "server/run/gateway-upgrade.json"
+        ).exists():
+            raise UpdateBlocked("gateway_recovery_required")
+        clean(source, target)
+        if (
+            source.resolve() != source
+            or Path(__file__).resolve() != source / TOOL_PATH
+            or git(source, "rev-parse", "--path-format=absolute", "--git-common-dir")
+            != config["source_common"]
+        ):
+            raise UpdateBlocked("gateway_source_identity_changed")
+        project = Path(config["project"])
+        if Path(sys.prefix).resolve() != (project / ".venv").resolve():
+            raise UpdateBlocked("gateway_interpreter_unverified")
+        quarantine = root / "quarantine.json"
+        if quarantine.exists() and read_json(quarantine).get("sha") == target:
+            raise UpdateBlocked("resident_failed_candidate_requires_retry")
+        clean(project, previous)
+        manifest = read_json(home / "install/manifest.json")
+        if manifest.get("code_commit") != previous or manifest.get("status") != "installed":
+            raise UpdateBlocked("resident_installation_mismatch")
+        review = {
+            "profile": "explicit-static-ui-v1",
+            "previous": previous,
+            "target": target,
+            "scopes": static_scopes(source, previous, target, target),
+            "controller_sha256": config["artifact_sha256"],
+        }
+        existing = (
+            read_json(root / "candidate.json") if (root / "candidate.json").exists() else None
+        )
+        retired = read_json(root / "accepted.json") if (root / "accepted.json").exists() else None
+        if (
+            existing
+            and existing != retired
+            and (
+                existing.get("previous") != previous
+                or existing.get("target") != target
+                or existing.get("compatibility_review") != review
+            )
+        ):
+            raise UpdateBlocked("resident_candidate_conflict")
+        github = GitHubEvidence(
+            Path(config["gh"]), config["repository"], Path(config["source_common"])
+        )
+        if github.latest() != target:
+            raise UpdateBlocked("resident_master_moved")
+        proof = github.qualify(target)
+        controller.environment(home, config)
+        if controller.bridge(home, config, "ensure") != {"status": "ready", "sha": previous}:
+            raise UpdateBlocked("resident_process_revision_mismatch")
+        directory = root / "artifacts" / target
+        private_root(directory)
+        new = controller.build_wheel(project, source, directory / "new" / target)
+        old = controller.build_wheel(project, project, directory / "old" / previous)
+        clean(source, target)
+        clean(project, previous)
+        if read_json(home / "install/manifest.json") != manifest or configured(home)[1] != config:
+            raise UpdateBlocked("resident_configuration_changed")
+        if github.latest() != target:
+            raise UpdateBlocked("resident_master_moved")
+        proof = github.qualify(target)
+        candidate = {
+            "previous": previous,
+            "target": target,
+            "new_wheel": new,
+            "old_wheel": old,
+            "manifest": manifest,
+            "proof": proof,
+            "compatibility_review": review,
+        }
+        # Do not replace another staged transaction or a changed idempotent candidate.
+        if existing and existing != retired and existing != candidate:
+            raise UpdateBlocked("resident_candidate_conflict")
+        current = read_json(root / "candidate.json") if (root / "candidate.json").exists() else None
+        if current != existing:
+            raise UpdateBlocked("resident_candidate_conflict")
+        atomic(root / "candidate.json", candidate)
+        log.info("primary_static_ui_staged")
+        return {"status": "staged", "previous": previous, "target": target}
 
 
 def module_blobs(source: Path, revision: str):
@@ -947,7 +1042,9 @@ def recover(home: Path):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=("apply", "apply-ui", "recover", "status"))
+    parser.add_argument(
+        "command", choices=("apply", "apply-ui", "stage-primary-ui", "recover", "status")
+    )
     parser.add_argument("--home", type=Path, default=Path.home() / ".research-workbench")
     parser.add_argument("--source", type=Path)
     parser.add_argument("--primary")
@@ -959,7 +1056,11 @@ def main(argv=None):
     try:
         if args.preserve_primary and args.command != "apply-ui":
             raise UpdateBlocked("gateway_upgrade_arguments_required")
-        if args.command in {"apply", "apply-ui"}:
+        if args.command == "stage-primary-ui":
+            if not args.source or not args.primary or not args.target or args.expected_gateway:
+                raise UpdateBlocked("gateway_upgrade_arguments_required")
+            value = stage_primary_ui(args.home, args.source, args.primary, args.target)
+        elif args.command in {"apply", "apply-ui"}:
             if not args.source or not args.primary or not args.target:
                 raise UpdateBlocked("gateway_upgrade_arguments_required")
             if args.command == "apply-ui":

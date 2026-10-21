@@ -68,6 +68,163 @@ def test_static_scopes_separate_product_and_operator_code(monkeypatch, tmp_path)
     assert "research_workbench_entrypoint/resident/gateway_upgrade.py" in scopes["tool"]
 
 
+def test_static_payload_tool_must_equal_the_frozen_operator_blob(monkeypatch, tmp_path):
+    from research_workbench_entrypoint.resident import gateway_upgrade as g
+
+    changed = False
+
+    def git(_source, *args):
+        if args[0] == "diff":
+            return g.TOOL_PATH if args[-2] == "a" * 40 else ""
+        if args[0] == "rev-parse":
+            return "e" * 40 if changed and args[-1].startswith("c" * 40) else "d" * 40
+        return ""
+
+    monkeypatch.setattr(g, "git", git)
+    scopes = g.static_scopes(tmp_path, "a" * 40, "b" * 40, "c" * 40)
+    assert scopes["payload"] == {g.TOOL_PATH: "d" * 40}
+    changed = True
+    with pytest.raises(g.UpdateBlocked, match="gateway_payload_tool_mismatch"):
+        g.static_scopes(tmp_path, "a" * 40, "b" * 40, "c" * 40)
+
+
+@pytest.fixture
+def primary_stage(monkeypatch, tmp_path):
+    import json
+    from contextlib import nullcontext
+
+    from research_workbench_entrypoint.resident import gateway_upgrade as g
+
+    home, source, project = (tmp_path / name for name in ("home", "source", "primary"))
+    root = home / "resident"
+    root.mkdir(parents=True, mode=0o700)
+    (home / "install").mkdir()
+    project.mkdir()
+    source.mkdir()
+    previous, target = "a" * 40, "b" * 40
+    manifest = {"code_commit": previous, "status": "installed"}
+    manifest_path = home / "install/manifest.json"
+    manifest_path.write_text(json.dumps(manifest))
+    retired = {"previous": "c" * 40, "target": previous}
+    for name in ("candidate.json", "accepted.json"):
+        (root / name).write_text(json.dumps(retired))
+    config = {
+        "project": str(project),
+        "source_common": "common",
+        "gh": "/gh",
+        "repository": "owner/repo",
+        "artifact_sha256": "f" * 64,
+    }
+    state = {"fail": None, "latest": target, "qualified": 0, "builds": [], "bridge": []}
+
+    class Evidence:
+        def latest(self):
+            return state["latest"]
+
+        def qualify(self, value):
+            state["qualified"] += 1
+            if state["fail"] == "qualification":
+                raise g.UpdateBlocked("resident_ci_unverified")
+            return {"sha": value}
+
+    def build(_project, checkout, output):
+        state["builds"].append(str(output))
+        if state["fail"] == "master_moved":
+            state["latest"] = "d" * 40
+        if state["fail"] == "manifest_changed":
+            manifest_path.write_text(json.dumps({**manifest, "changed": True}))
+        if state["fail"] == "candidate_changed":
+            (root / "candidate.json").write_text(json.dumps({"target": "e" * 40}))
+        return {"path": str(output / "product.whl"), "sha256": "e" * 64}
+
+    def bridge(_home, _config, operation):
+        state["bridge"].append(operation)
+        return {"status": "ready", "sha": previous}
+
+    monkeypatch.setattr(g.sys, "platform", "darwin")
+    monkeypatch.setattr(g.sys, "prefix", str(project / ".venv"))
+    monkeypatch.setattr(g, "__file__", str(source / g.TOOL_PATH))
+    monkeypatch.setattr(g, "configured", lambda *_: (root, config.copy()))
+    monkeypatch.setattr(g, "file_lock", lambda *_a, **_k: nullcontext())
+    monkeypatch.setattr(g, "clean", lambda *_: None)
+    monkeypatch.setattr(g, "git", lambda *_: "common")
+    monkeypatch.setattr(
+        g, "static_scopes", lambda *_: {"payload": {g.TOOL_PATH: "d" * 40}, "tool": {}}
+    )
+    monkeypatch.setattr(g, "GitHubEvidence", lambda *_: Evidence())
+    monkeypatch.setattr(g.controller, "environment", lambda *_: None)
+    monkeypatch.setattr(g.controller, "build_wheel", build)
+    monkeypatch.setattr(g.controller, "bridge", bridge)
+    return g, home, source, previous, target, root, state
+
+
+def test_primary_stage_only_prepares_bound_candidate_and_is_idempotent(primary_stage):
+    import json
+
+    g, home, source, previous, target, root, state = primary_stage
+    result = g.stage_primary_ui(home, source, previous, target)
+    candidate = json.loads((root / "candidate.json").read_text())
+    assert result == {"status": "staged", "previous": previous, "target": target}
+    assert candidate["compatibility_review"]["controller_sha256"] == "f" * 64
+    assert candidate["compatibility_review"]["scopes"]["payload"][g.TOOL_PATH] == "d" * 40
+    assert candidate["proof"] == {"sha": target}
+    assert state["bridge"] == ["ensure"]
+    assert not (root / "transaction.json").exists()
+    assert g.stage_primary_ui(home, source, previous, target) == result
+    assert json.loads((root / "candidate.json").read_text()) == candidate
+    assert state["qualified"] == 4
+
+
+@pytest.mark.parametrize(
+    "journal", ["resident/transaction.json", "server/run/gateway-upgrade.json"]
+)
+def test_primary_stage_refuses_pending_recovery(primary_stage, journal):
+    g, home, source, previous, target, _root, state = primary_stage
+    path = home / journal
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("{}")
+    with pytest.raises(g.UpdateBlocked, match="gateway_recovery_required"):
+        g.stage_primary_ui(home, source, previous, target)
+    assert state["builds"] == state["bridge"] == []
+
+
+@pytest.mark.parametrize(
+    "failure,code",
+    [
+        ("qualification", "resident_ci_unverified"),
+        ("master_moved", "resident_master_moved"),
+        ("manifest_changed", "resident_configuration_changed"),
+        ("candidate_changed", "resident_candidate_conflict"),
+    ],
+)
+def test_primary_stage_preserves_candidate_when_evidence_changes(primary_stage, failure, code):
+    g, home, source, previous, target, root, state = primary_stage
+    before = (root / "candidate.json").read_bytes()
+    state["fail"] = failure
+    with pytest.raises(g.UpdateBlocked, match=code):
+        g.stage_primary_ui(home, source, previous, target)
+    if failure != "candidate_changed":
+        assert (root / "candidate.json").read_bytes() == before
+    else:
+        assert '"e' in (root / "candidate.json").read_text()
+    assert all(operation == "ensure" for operation in state["bridge"])
+
+
+def test_primary_stage_does_not_replace_another_candidate_or_clear_quarantine(primary_stage):
+    import json
+
+    g, home, source, previous, target, root, state = primary_stage
+    other = {"previous": previous, "target": "e" * 40}
+    (root / "candidate.json").write_text(json.dumps(other))
+    with pytest.raises(g.UpdateBlocked, match="resident_candidate_conflict"):
+        g.stage_primary_ui(home, source, previous, target)
+    (root / "quarantine.json").write_text(json.dumps({"sha": target}))
+    with pytest.raises(g.UpdateBlocked, match="resident_failed_candidate_requires_retry"):
+        g.stage_primary_ui(home, source, previous, target)
+    assert state["builds"] == []
+    assert (root / "quarantine.json").exists()
+
+
 @pytest.mark.parametrize(
     "path",
     [
@@ -390,18 +547,45 @@ def test_recovery_checkout_tool_preflight_fails_before_artifact_creation(tmp_pat
     assert not (tmp_path / "server").exists()
 
 
+def test_frozen_artifact_accepts_its_own_exact_helper_in_product(static_artifact):
+    import subprocess
+
+    source, _home, previous, _payload, tool, artifact, _installed, _git = static_artifact
+    code = """import sys
+from pathlib import Path
+sys.path.insert(0,sys.argv[1])
+from resident import gateway_upgrade as g
+scopes=g.static_scopes(Path(sys.argv[2]),sys.argv[3],sys.argv[4],sys.argv[4])
+assert g.TOOL_PATH in scopes['payload'] and scopes['tool']=={}
+print('frozen_same_helper_passed')
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", code, str(artifact), str(source), previous, tool],
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "frozen_same_helper_passed" in result.stdout
+
+
 @pytest.mark.parametrize(
     "phase", ["preparing", "draining", "stopped", "starting", "rolling_back", "fallback_starting"]
 )
-@pytest.mark.parametrize("preserve_primary", [False, True])
+@pytest.mark.parametrize(
+    "preserve_primary,product_contains_helper", [(False, False), (False, True), (True, True)]
+)
 def test_frozen_artifact_recovers_each_phase_without_operator_contract_patches(
-    static_artifact, tmp_path, phase, preserve_primary
+    static_artifact, tmp_path, phase, preserve_primary, product_contains_helper
 ):
     import os
     import subprocess
     from pathlib import Path
 
     source, _home, previous, payload, tool, artifact, _installed, _git = static_artifact
+    if product_contains_helper:
+        payload = tool
     fixture = Path(__file__).parents[1] / "fixtures/research_web/gateway_static_recovery_runner.py"
     result = subprocess.run(
         [
