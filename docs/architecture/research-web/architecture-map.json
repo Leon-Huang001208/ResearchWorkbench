@@ -139,7 +139,10 @@
         "tests/e2e/research_web_codex_navigation.mjs",
         "tests/javascript/research_web_fingpt_dsh_fusion.test.mjs",
         "tests/javascript/research_web_aihot.test.mjs",
-        "tests/javascript/research_web_aihot_reading.test.mjs"
+        "tests/javascript/research_web_aihot_reading.test.mjs",
+        "tests/javascript/research_web_asset_chart.test.mjs",
+        "tests/javascript/research_web_asset_workspace.test.mjs",
+        "tests/e2e/research_web_asset_workspace.mjs"
       ]
     },
     {
@@ -248,7 +251,8 @@
         "tests/research_web/test_mysql_provider.py",
         "tests/javascript/research_web_capabilities_ui.test.mjs",
         "tests/javascript/research_web_public_data.test.mjs",
-        "tests/research_web/test_hot_snapshot_publication.py"
+        "tests/research_web/test_hot_snapshot_publication.py",
+        "tests/research_web/test_datahub_wind.py"
       ]
     },
     {
@@ -475,6 +479,12 @@
         "app/research_web/asset_routes.py",
         "app/research_web/asset_workspace.py",
         "app/research_web/ui/asset-workspace.mjs",
+        "app/research_web/ui/asset-workspace.css",
+        "app/research_web/ui/asset-chart.mjs",
+        "app/research_web/ui/asset-chart.css",
+        "app/research_web/ui/asset-controller.mjs",
+        "app/research_web/ui/asset-navigation.mjs",
+        "app/research_web/ui/asset-news.mjs",
         "app/research_web/portfolio_decisions/"
       ],
       "documents": [
@@ -491,7 +501,13 @@
         "tests/javascript/research_web_workbench.test.mjs",
         "tests/research_web/test_etf_decisions.py",
         "tests/research_web/test_etf_decision_routes.py",
-        "tests/javascript/research_web_etf_paper.test.mjs"
+        "tests/javascript/research_web_etf_paper.test.mjs",
+        "tests/research_web/test_asset_workspace.py",
+        "tests/research_web/test_datahub_wind.py",
+        "tests/javascript/research_web_asset_chart.test.mjs",
+        "tests/javascript/research_web_asset_workspace.test.mjs",
+        "tests/javascript/research_web_intel.test.mjs",
+        "tests/e2e/research_web_asset_workspace.mjs"
       ]
     },
     {
@@ -2076,6 +2092,13 @@
       "path": "/api/research/assets/observations/{observation_id}",
       "source": "app/research_web/asset_routes.py",
       "declaredPath": "/assets/observations/{observation_id}",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/assets/observations/{observation_id}/blocks/{block}/refresh",
+      "source": "app/research_web/asset_routes.py",
+      "declaredPath": "/assets/observations/{observation_id}/blocks/{block}/refresh",
       "prefix": "/api/research"
     },
     {

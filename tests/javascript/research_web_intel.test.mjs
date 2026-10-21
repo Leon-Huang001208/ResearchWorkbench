@@ -25,10 +25,11 @@ test('one research intelligence entry preserves external tabs and frozen Hot dee
   assert.match(external, /研究情报/);
   assert.match(external, /href="#\/intel\/hot"/);
   assert.match(external, /Golddata/);
-  assert.equal(intelTabs.length, 8);
+  assert.equal(intelTabs.length, 6);
+  assert.ok(!intelTabs.some(([tab]) => ['news', 'filings'].includes(tab)));
 });
 
-test('eight native routes and active navigation', () => {
+test('remaining native routes and active navigation', () => {
   for (const [tab] of intelTabs) assert.equal(parseRoute(`#/intel/${tab}`).intelTab, tab);
   for (const hash of ['#/intel', '#/intel/unknown', '#/intel/news/extra']) assert.equal(parseRoute(hash).intelTab, 'overview');
   assert.match(renderPrimaryRail({ page: 'intel' }), /href="#\/intel\/overview" class="rail-link active"/);

@@ -1,5 +1,7 @@
 # Research Web Native / Docker 安装与运行
 
+资产观察工作台的 SVG 图表、证券资讯和单区块刷新随既有 Web 包安装，不新增 Python/Node 包、厂商 SDK、配置项或模型权限。已核对 `requirements/web.in`、`requirements/web.lock`、`scripts/setup_web.py` 与原 Bootstrap：依赖锁、公开安装入口和固定 DSH 保持；兼容性仍须最终候选的 `macos-14` 干净安装、3081/8088 健康和 Doctor 证明。本机已有环境与隔离浏览器不替代该门，真实 Wind/Golddata 可用性另行取证。
+
 现有常驻的模型服务商后端更新使用[显式联合升级](research-web-gateway-upgrade.md#模型服务商联合升级)，须受审精确 SHA、Mac 干净安装证据、真实空闲及恢复准备；不替换原控制器、不安装新依赖、不迁移凭据/会话。公开安装入口和依赖锁保持。
 
 网关冻结恢复任务显式提供既有系统/Homebrew工具PATH，安装前核验Git LFS；本轮不安装新依赖、不修改公开安装入口或全局环境。干净Mac Bootstrap仍是必需门。

@@ -3053,6 +3053,7 @@ Functions:
 - `create_observation`
 - `list_observations`
 - `observation`
+- `refresh_observation_block`
 - `watchlists`
 - `create_watchlist`
 - `add_watchlist_item`
@@ -3082,16 +3083,19 @@ Imports:
 - `time`
 - `typing`
 - `uuid`
+- `weakref`
 
 Classes:
 - `AssetWorkspaceError`
   - methods: __init__
 - `AssetWorkspace`
-  - methods: __init__, public_observation, create_observation, _parameters, _run_block, _run, observation, list_observations, create_watchlist, add_watchlist_item, create_note, patch_note, create_alert, patch_alert, evaluate_alerts, close
+  - methods: __init__, _mark_cancelled, _track_task, public_observation, create_observation, refresh_block, _parameters, _run_block, _run, observation, list_observations, create_watchlist, add_watchlist_item, create_note, patch_note, create_alert, patch_alert, evaluate_alerts, close
 
 Functions:
 - `_uuid_record`
 - `_public_dataset`
+- `_failure_code`
+- `_observation_status`
 
 
 ## `app/research_web/automation/__init__.py`
@@ -3805,6 +3809,7 @@ Imports:
 - `contracts`
 - `core.observability`
 - `dataclasses`
+- `datetime`
 - `providers`
 - `providers_akshare`
 - `store`
@@ -3814,6 +3819,8 @@ Classes:
 
 Functions:
 - `_integer`
+- `_wind_financial_query`
+  - Translate equivalent indicator naming without reducing requested periods.
 - `resolve`
 
 

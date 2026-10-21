@@ -55,7 +55,7 @@ export function readWorkbenchQuery(form) {
 
 export function renderWorkbench({ section = 'market', catalog = {}, queries = [], artifacts = [], busy = false, assetState = {}, etfState = {} } = {}) {
   if (section === 'etf-paper') return `<nav class="workbench-tabs" aria-label="研究台页面">${SECTIONS.map(([id, label]) => `<a href="#/workbench/${id}" class="${section === id ? 'active' : ''}" ${section === id ? 'aria-current="page"' : ''}>${label}</a>`).join('')}</nav>${renderEtfPaper({ ...etfState, busy })}`;
-  if (section === 'assets') return `<nav class="workbench-tabs" aria-label="研究台页面">${SECTIONS.map(([id, label]) => `<a href="#/workbench/${id}" class="${section === id ? 'active' : ''}" ${section === id ? 'aria-current="page"' : ''}>${label}</a>`).join('')}</nav>${renderAssetWorkspace({ ...assetState, busy })}`;
+  if (section === 'assets') return renderAssetWorkspace({ ...assetState, busy });
   const definition = SECTIONS.find(item => item[0] === section) || SECTIONS[0];
   const capability = (catalog.capabilities || []).find(item => item.id === definition[3]);
   const query = latestQuery(queries, section);

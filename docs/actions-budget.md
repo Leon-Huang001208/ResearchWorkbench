@@ -1,5 +1,7 @@
 # GitHub Actions 免费额度治理
 
+2026-10-21 资产观察仅在原 Research Web Checks Python 步骤加入 `test_asset_workspace.py`、`test_datahub_wind.py`，JS 沿既有 `research_web*.test.mjs`；不新增 job、runner、依赖或真实厂商/模型调用。当前 API 已核验 PUBLIC；最近五个成功 run 39563022513/39563022538/39561481955/39561464796/39560282285 创建至结束约 46/574/655/64/565 秒。新增后端最终 100 项本机复验 14.88 秒（先前负载下 97 项为 57.30 秒），仍预留 90 秒，保留原 20 分钟上限、concurrency 和同候选 Mac Bootstrap；Mac 不发送 Windows/Linux 产品 dispatch。
+
 2026-10-21 模型服务商联合升级只在既有 Checks Python 步骤增加定点模块，不增 job/runner/依赖。
 实时 GitHub API 为 PUBLIC；最近五次成功 Checks 39549167378/39547002831/39545069609/39544089870/39542777784
 创建至结束约 856/1163/1197/858/830 秒。新增 99 项本机约 0.65 秒，预留 10 秒；Mac Bootstrap

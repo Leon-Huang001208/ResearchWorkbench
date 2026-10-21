@@ -1,162 +1,54 @@
 import { escapeHTML as e } from './markdown.mjs';
+import { renderMarketTerminal } from './asset-chart.mjs';
+import { assetHref, ASSET_VIEWS, selectAssetObservation } from './asset-navigation.mjs';
+import { renderAssetNews } from './asset-news.mjs';
+export { enrichMarketBars, renderMarketTerminal } from './asset-chart.mjs';
 
-const LABELS = {
-  overview: '资产概览', history: '历史行情', financials: '财务指标', activity: '资金与交易事件',
-  announcements: '公告', news: '新闻', research: '研究资料',
-};
-
-const STATE_LABELS = {
-  loading: '加载中', complete: '完整', partial: '部分', empty: '暂无数据', unavailable: '不可用', error: '失败',
-};
-
-const number = (value, digits = 2) => typeof value === 'number' && Number.isFinite(value) ? value.toLocaleString('zh-CN', { maximumFractionDigits: digits }) : '—';
-const finite = (value) => {
-  if (value === null || value === undefined || value === '' || typeof value === 'boolean') return null;
-  return Number.isFinite(Number(value)) ? Number(value) : null;
-};
-const firstValue = (source, keys) => keys.map(key => source?.[key]).find(value => finite(value) !== null);
-const metric = (label, value, suffix = '') => `<div><dt>${e(label)}</dt><dd>${finite(value) === null ? '—' : `${e(number(finite(value)))}${e(suffix)}`}</dd></div>`;
-
-const marketValue = (row, keys) => finite(firstValue(row, keys));
-const clamp = (value, minimum, maximum) => Math.min(maximum, Math.max(minimum, value));
-
-function average(values) {
-  const usable = values.filter(value => value !== null);
-  return usable.length ? usable.reduce((sum, value) => sum + value, 0) / usable.length : null;
+const LABELS = { overview: '资产概览', history: '历史行情', financials: '财务指标', activity: '资金流', margin: '融资融券', holders: '股东与机构持仓汇总', research: '研究资料' };
+const TYPE_LABELS = { stock: '股票', etf: 'ETF', index: '指数', fund: '基金', theme: '主题' };
+const TOPICS = ['概览', '财务', '资金与两融', '股东', '新闻', '公告', '资料'];
+const STATE_LABELS = { loading: '加载中', complete: '完整', partial: '部分', empty: '暂无数据', unavailable: '不可用', error: '失败' };
+const finite = value => value === null || value === undefined || value === '' || typeof value === 'boolean' || !Number.isFinite(Number(value)) ? null : Number(value);
+const number = (value, digits = 2) => finite(value) === null ? '—' : finite(value).toLocaleString('zh-CN', { maximumFractionDigits: digits });
+const firstValue = (source, keys) => keys.map(key => source?.[key]).find(value => finite(value) !== null) ?? null;
+const display = (value, booleanAsMissing = false) => value === null || value === undefined || value === '' || (booleanAsMissing && typeof value === 'boolean') ? '—' : typeof value === 'number' ? number(value) : typeof value === 'object' ? JSON.stringify(value) : String(value);
+const FIELD_LABELS = { asset: '证券代码', date: '日期', report_period: '报告期', revenue: '营业收入', net_profit: '净利润', eps: '每股收益', roe: '净资产收益率', total_assets: '总资产', operating_cost: '营业成本', gross_profit: '毛利润', gross_profit_ttm: '毛利润 TTM', gross_profit_margin: '毛利率', free_cf: '自由现金流', free_cf_per_share: '每股自由现金流', equity: '股东权益', main_force_inflow: '主力净流入', north_bound_shares: '北向持股数量', north_bound_pct: '北向持股比例', margin_balance: '融资余额', margin_buy: '融资买入', margin_repay: '融资偿还', short_balance: '融券余量', short_sell_vol: '融券卖出数量', short_repay_vol: '融券偿还数量', holder_count: '股东户数', average_holding: '户均持股', average_holding_pct: '户均持股比例', top10_pct: '前十大持股比例汇总', top10_quantity: '前十大持股数量汇总', institutional_holding: '机构持股数量', institutional_pct: '机构持股比例' };
+function fieldUnit(meta, key) {
+  const fields = meta?.fields;
+  const field = Array.isArray(fields) ? fields.find(item => item.name === key || item.field === key) : fields?.[key];
+  return [field?.unit, field?.currency].filter(Boolean).join(' · ');
 }
-
-function movingAverage(values, period, index) {
-  return average(values.slice(Math.max(0, index - period + 1), index + 1));
+function previewTable(rows = [], meta = {}) {
+  if (!rows.length) return '<p class="muted small">这个区块没有可显示的真实记录。</p>';
+  const columns = [...new Set(rows.flatMap(row => Object.keys(row)))];
+  return `<div class="asset-table-wrap"><table class="asset-table"><thead><tr>${columns.map(key => `<th>${e(FIELD_LABELS[key] || key)}${fieldUnit(meta, key) ? `<small>${e(fieldUnit(meta, key))}</small>` : ''}</th>`).join('')}</tr></thead><tbody>${rows.map(row => `<tr>${columns.map(key => `<td>${e(display(row[key]))}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
 }
-
-function exponentialAverage(values, period) {
-  const weight = 2 / (period + 1);
-  let previous = null;
-  return values.map((value) => {
-    if (value === null) return previous;
-    previous = previous === null ? value : value * weight + previous * (1 - weight);
-    return previous;
-  });
+function financialTable(rows, meta) {
+  if (!rows.length) return previewTable(rows, meta);
+  const periods = rows.map(row => row.report_period || row['报告期'] || row['截止日期'] || row['报告日期'] || row.date || '报告期未提供');
+  const fields = [...new Set(rows.flatMap(row => Object.keys(row)))].filter(key => !['asset', 'code', 'report_period', '报告期', '截止日期', '报告日期', 'date'].includes(key));
+  return `<p class="muted small">财务摘要指标；报告期、单位和币种按来源返回显示，不代表完整三大报表。</p><div class="asset-table-wrap"><table class="asset-table asset-financial-table"><thead><tr><th>指标 / 单位</th>${periods.map(period => `<th>${e(period)}</th>`).join('')}</tr></thead><tbody>${fields.map(key => `<tr><th>${e(FIELD_LABELS[key] || key)}<small>${e(fieldUnit(meta, key) || '单位未提供')}</small></th>${rows.map(row => `<td>${e(display(row[key], true))}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
 }
-
-export function enrichMarketBars(rows = []) {
-  const bars = rows.map(row => ({
-    date: String(row.date || row.trade_date || row.datetime || row.time || ''),
-    open: marketValue(row, ['open', '开盘']), high: marketValue(row, ['high', '最高']),
-    low: marketValue(row, ['low', '最低']), close: marketValue(row, ['close', '收盘', 'price', 'last']),
-    volume: marketValue(row, ['volume', 'vol', '成交量']),
-    amount: marketValue(row, ['amount', 'turnover', '成交额']),
-    turnover: marketValue(row, ['turnover_rate_pct', 'turnover_rate', '换手率']),
-  })).filter(bar => bar.close !== null).sort((left, right) => left.date.localeCompare(right.date));
-  const closes = bars.map(bar => bar.close);
-  const ema12 = exponentialAverage(closes, 12); const ema26 = exponentialAverage(closes, 26);
-  const dif = closes.map((_, index) => ema12[index] - ema26[index]); const dea = exponentialAverage(dif, 9);
-  let k = 50; let d = 50;
-  return bars.map((bar, index) => {
-    const window = bars.slice(Math.max(0, index - 8), index + 1);
-    const low9 = Math.min(...window.map(item => item.low ?? item.close));
-    const high9 = Math.max(...window.map(item => item.high ?? item.close));
-    const rsv = high9 === low9 ? 50 : ((bar.close - low9) / (high9 - low9)) * 100;
-    k = (2 * k + rsv) / 3; d = (2 * d + k) / 3;
-    const changeStart = Math.max(1, index - 13);
-    const changes = closes.slice(changeStart, index + 1).map((value, offset) => value - closes[changeStart + offset - 1]);
-    const gains = average(changes.map(value => Math.max(value, 0)));
-    const losses = average(changes.map(value => Math.max(-value, 0)));
-    const rsi = index === 0 ? null : losses === 0 ? 100 : 100 - (100 / (1 + gains / losses));
-    const ma20 = movingAverage(closes, 20, index);
-    const deviation = Math.sqrt(average(closes.slice(Math.max(0, index - 19), index + 1).map(value => (value - ma20) ** 2)) || 0);
-    return {
-      ...bar,
-      ma5: movingAverage(closes, 5, index), ma10: movingAverage(closes, 10, index), ma20,
-      bollUpper: ma20 + deviation * 2, bollLower: ma20 - deviation * 2,
-      dif: dif[index], dea: dea[index], macd: (dif[index] - dea[index]) * 2,
-      k, d, j: 3 * k - 2 * d, rsi,
-    };
-  });
+function blockCard(name, blocks, rows, errors, busy) {
+  const block = blocks[name] || { status: 'unavailable' }; const meta = block.dataset;
+  return `<article class="asset-block ${e(block.status)}"><header><h2>${e(LABELS[name] || name)}</h2><div class="button-row"><span class="badge">${e(STATE_LABELS[block.status] || block.status)}</span>${blocks[name] ? `<button class="button small" data-asset-block-refresh="${e(name)}" ${busy || block.status === 'loading' ? 'disabled' : ''}>重新取数</button>` : ''}</div></header>${meta ? `<p class="muted small">${e(meta.provider || meta.source || '未知来源')} · 截止 ${e(meta.as_of || meta.actual_range?.end_date || '来源未提供')}</p>` : ''}${block.failure_code || errors[name] ? `<p class="notice warning" role="status">${e(errors[name] || block.failure_code)}${meta ? ' · 下方保留上次快照，不表示刷新成功。' : ''}</p>` : ''}${meta?.limitations?.length ? `<p class="muted small">${e(meta.limitations.join('；'))}</p>` : ''}${block.status === 'loading' ? '<p role="status">正在查询这个区块…</p>' : ''}${rows[name]?.length ? name === 'financials' ? financialTable(rows[name], meta) : previewTable(rows[name], meta) : `<p class="muted small">${block.status === 'empty' ? '来源返回了空结果。' : blocks[name] ? '没有可显示的快照。' : '当前观察未采集本区块，可更新资产数据后查看。'}</p>`}</article>`;
 }
-
-function seriesPath(bars, key, xAt, yAt) {
-  let started = false;
-  return bars.map((bar, index) => {
-    if (finite(bar[key]) === null) return '';
-    const command = started ? 'L' : 'M'; started = true;
-    return `${command}${xAt(index).toFixed(1)},${yAt(bar[key]).toFixed(1)}`;
-  }).filter(Boolean).join(' ');
-}
-
-function panelGrid(y, height, width, label) {
-  return `<g class="asset-chart-grid"><line x1="54" y1="${y}" x2="${width - 12}" y2="${y}"/><line x1="54" y1="${y + height}" x2="${width - 12}" y2="${y + height}"/><text x="8" y="${y + 14}">${e(label)}</text></g>`;
-}
-
-export function renderMarketTerminal(rows = []) {
-  const bars = enrichMarketBars(rows).slice(-120);
-  if (bars.length < 2) return '<section class="asset-market-terminal"><div class="chart-empty">历史数据不足，无法绘制 K 线与技术指标。</div></section>';
-  const width = 980; const height = 590; const left = 54; const right = 12; const plotWidth = width - left - right;
-  const pricePanel = { y: 24, h: 220 }; const volumePanel = { y: 267, h: 54 };
-  const macdPanel = { y: 344, h: 64 }; const kdjPanel = { y: 431, h: 58 }; const rsiPanel = { y: 512, h: 58 };
-  const candleWidth = Math.max(1.5, Math.min(7, plotWidth / bars.length * 0.62));
-  const xAt = index => left + ((index + 0.5) / bars.length) * plotWidth;
-  const priceValues = bars.flatMap(bar => [bar.low, bar.high, bar.ma5, bar.ma10, bar.ma20, bar.bollUpper, bar.bollLower]).filter(value => value !== null);
-  const priceMin = Math.min(...priceValues); const priceMax = Math.max(...priceValues); const priceSpan = priceMax - priceMin || 1;
-  const priceY = value => pricePanel.y + ((priceMax - value) / priceSpan) * pricePanel.h;
-  const volumeMax = Math.max(...bars.map(bar => bar.volume || 0), 1);
-  const volumeY = value => volumePanel.y + volumePanel.h - ((value || 0) / volumeMax) * volumePanel.h;
-  const macdValues = bars.flatMap(bar => [bar.macd, bar.dif, bar.dea]); const macdMax = Math.max(...macdValues.map(Math.abs), 0.0001);
-  const macdY = value => macdPanel.y + macdPanel.h / 2 - (value / macdMax) * (macdPanel.h / 2);
-  const boundedY = panel => value => panel.y + ((100 - clamp(value, 0, 100)) / 100) * panel.h;
-  const kdjY = boundedY(kdjPanel); const rsiY = boundedY(rsiPanel);
-  const candles = bars.map((bar, index) => {
-    const open = bar.open ?? bar.close; const high = bar.high ?? Math.max(open, bar.close); const low = bar.low ?? Math.min(open, bar.close);
-    const direction = bar.close >= open ? 'up' : 'down'; const x = xAt(index); const top = Math.min(priceY(open), priceY(bar.close));
-    return `<g class="asset-candle ${direction}"><line x1="${x.toFixed(1)}" y1="${priceY(high).toFixed(1)}" x2="${x.toFixed(1)}" y2="${priceY(low).toFixed(1)}"/><rect x="${(x - candleWidth / 2).toFixed(1)}" y="${top.toFixed(1)}" width="${candleWidth.toFixed(1)}" height="${Math.max(1, Math.abs(priceY(open) - priceY(bar.close))).toFixed(1)}"/></g>`;
-  }).join('');
-  const volumes = bars.map((bar, index) => `<rect class="asset-volume ${bar.close >= (bar.open ?? bar.close) ? 'up' : 'down'}" x="${(xAt(index) - candleWidth / 2).toFixed(1)}" y="${volumeY(bar.volume).toFixed(1)}" width="${candleWidth.toFixed(1)}" height="${Math.max(1, volumePanel.y + volumePanel.h - volumeY(bar.volume)).toFixed(1)}"/>`).join('');
-  const histogram = bars.map((bar, index) => { const y = macdY(bar.macd); const zero = macdY(0); return `<rect class="asset-macd ${bar.macd >= 0 ? 'up' : 'down'}" x="${(xAt(index) - candleWidth / 2).toFixed(1)}" y="${Math.min(y, zero).toFixed(1)}" width="${candleWidth.toFixed(1)}" height="${Math.max(1, Math.abs(zero - y)).toFixed(1)}"/>`; }).join('');
-  const latest = bars.at(-1); const previous = bars.at(-2); const change = latest.close - previous.close; const changePct = previous.close ? change / previous.close * 100 : null;
-  const amplitude = latest.high !== null && latest.low !== null && previous.close ? (latest.high - latest.low) / previous.close * 100 : null;
-  const quote = [
-    ['日期', latest.date || '—'], ['收', number(latest.close)], ['幅', changePct === null ? '—' : `${changePct >= 0 ? '+' : ''}${number(changePct)}%`],
-    ['开', number(latest.open)], ['高', number(latest.high)], ['低', number(latest.low)], ['量', number(latest.volume, 0)],
-    ['换', latest.turnover === null ? '—' : `${number(latest.turnover)}%`], ['振', amplitude === null ? '—' : `${number(amplitude)}%`], ['额', number(latest.amount, 0)],
-  ];
-  return `<section class="asset-market-terminal" aria-label="K 线与技术指标"><header><div><span class="eyebrow">MARKET TERMINAL</span><h2>K 线与技术指标</h2></div><div class="asset-terminal-period" aria-label="行情周期说明"><span>日 / 周 / 月可在上方查询条件切换</span></div></header><div class="asset-terminal-quote">${quote.map(([label, value]) => `<span>${e(label)} <strong>${e(value)}</strong></span>`).join('')}</div><div class="asset-terminal-legend"><span class="ma5">MA5</span><span class="ma10">MA10</span><span class="ma20">MA20</span><span class="boll">BOLL</span><span class="up">上涨</span><span class="down">下跌</span></div><div class="asset-chart-scroll"><svg class="asset-terminal-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="包含 K 线、成交量、MACD、KDJ 和 RSI 的行情图" preserveAspectRatio="xMidYMid meet"><title>K 线、成交量、MACD、KDJ 与 RSI</title>${panelGrid(pricePanel.y, pricePanel.h, width, 'K线')}${panelGrid(volumePanel.y, volumePanel.h, width, '成交量')}${panelGrid(macdPanel.y, macdPanel.h, width, 'MACD')}${panelGrid(kdjPanel.y, kdjPanel.h, width, 'KDJ')}${panelGrid(rsiPanel.y, rsiPanel.h, width, 'RSI')}${candles}<path class="asset-series ma5" d="${seriesPath(bars, 'ma5', xAt, priceY)}"/><path class="asset-series ma10" d="${seriesPath(bars, 'ma10', xAt, priceY)}"/><path class="asset-series ma20" d="${seriesPath(bars, 'ma20', xAt, priceY)}"/><path class="asset-series boll" d="${seriesPath(bars, 'bollUpper', xAt, priceY)}"/><path class="asset-series boll" d="${seriesPath(bars, 'bollLower', xAt, priceY)}"/>${volumes}${histogram}<path class="asset-series dif" d="${seriesPath(bars, 'dif', xAt, macdY)}"/><path class="asset-series dea" d="${seriesPath(bars, 'dea', xAt, macdY)}"/><path class="asset-series k" d="${seriesPath(bars, 'k', xAt, kdjY)}"/><path class="asset-series d" d="${seriesPath(bars, 'd', xAt, kdjY)}"/><path class="asset-series j" d="${seriesPath(bars, 'j', xAt, kdjY)}"/><line class="asset-threshold" x1="${left}" y1="${rsiY(80)}" x2="${width - right}" y2="${rsiY(80)}"/><line class="asset-threshold" x1="${left}" y1="${rsiY(20)}" x2="${width - right}" y2="${rsiY(20)}"/><path class="asset-series rsi" d="${seriesPath(bars, 'rsi', xAt, rsiY)}"/><text class="asset-axis-value" x="${width - 58}" y="${pricePanel.y + 12}">${e(number(priceMax))}</text><text class="asset-axis-value" x="${width - 58}" y="${pricePanel.y + pricePanel.h - 5}">${e(number(priceMin))}</text></svg></div></section>`;
-}
-
-function previewTable(rows = [], limit = 8, { booleanAsMissing = false } = {}) {
-  const values = rows.slice(0, limit);
-  if (!values.length) return '<p class="muted small">这个区块没有可显示的真实记录。</p>';
-  const columns = [...new Set(values.flatMap(row => Object.keys(row)))].slice(0, 6);
-  const cell = value => value === null || value === undefined || value === '' || (booleanAsMissing && typeof value === 'boolean') ? '—' : value;
-  return `<div class="asset-table-wrap"><table class="asset-table"><thead><tr>${columns.map(column => `<th>${e(column)}</th>`).join('')}</tr></thead><tbody>${values.map(row => `<tr>${columns.map(column => `<td>${e(cell(row[column]))}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
-}
-
-function blockCard(name, block = { status: 'loading' }, rows = []) {
-  const status = block.status || 'loading';
-  const meta = block.dataset;
-  return `<article class="asset-block ${e(status)}"><header><div><span class="eyebrow">${e(name.toUpperCase())}</span><h2>${e(LABELS[name] || name)}</h2></div><span class="badge ${status === 'complete' ? 'live' : ['error', 'unavailable'].includes(status) ? 'danger' : ''}">${e(STATE_LABELS[status] || status)}</span></header>${meta ? `<p class="muted small">${e(meta.provider || meta.source || '未知来源')} · 截止 ${e(meta.as_of || meta.actual_range?.end_date || '来源未提供')}</p>` : ''}${block.failure_code ? `<p class="notice warning">${e(block.failure_code)}</p>` : ''}${['complete', 'partial'].includes(status) ? previewTable(rows, 8, { booleanAsMissing: name === 'financials' }) : status === 'loading' ? '<div class="asset-skeleton" role="status">正在查询这个区块…</div>' : status === 'empty' ? '<p class="muted small">来源成功响应，但没有匹配记录。</p>' : ''}</article>`;
-}
-
 function assetHeader(observation, rows) {
-  const history = rows?.history || [];
-  const latest = history.at(-1) || {};
-  const snapshot = { ...latest, ...(rows?.overview?.[0] || {}) };
-  const datasets = observation?.dataset_ids || [];
-  const price = firstValue(snapshot, ['price', 'last', 'close', 'nav', '收盘']);
-  const changePct = firstValue(snapshot, ['change_pct', 'pct_chg', '涨跌幅']);
-  return `<section class="asset-identity"><div><span class="eyebrow">ASSET WORKSPACE</span><h1>${e(snapshot.name || observation?.asset || '资产观察')}</h1><p>${e(observation?.asset || '输入证券代码开始')} · ${e(observation?.asset_type || '股票 / ETF / 指数 / 基金 / 主题')}</p></div><div class="asset-price"><strong>${e(number(price))}</strong><span class="${changePct === null || changePct >= 0 ? 'positive' : 'negative'}">${changePct !== null ? `${changePct >= 0 ? '+' : ''}${number(changePct)}%` : '涨跌未知'}</span></div><div class="button-row"><button class="button" data-workbench-handoff="fingpt" data-source-session="${e(observation?.session_id || '')}" data-dataset-ids="${e(JSON.stringify(datasets))}" ${observation?.session_id && datasets.length ? '' : 'disabled'}>交给 FinGPT</button><button class="button primary" data-workbench-handoff="claw" data-source-session="${e(observation?.session_id || '')}" data-dataset-ids="${e(JSON.stringify(datasets))}" ${observation?.session_id && datasets.length ? '' : 'disabled'}>交给 Claw</button></div></section>`;
+  const snapshot = rows.overview?.[0] || {}; const latest = (rows.history || []).at(-1) || {};
+  const datasets = observation?.dataset_ids || []; const quote = firstValue(snapshot, ['price', 'last', 'close', 'nav']);
+  const price = quote ?? firstValue(latest, ['close', '收盘']); const suppliedChange = firstValue(snapshot, ['change_pct', 'pct_chg', '涨跌幅']); const previousClose = firstValue(snapshot, ['yclose', 'pre_close', '昨收']); const derivedChange = suppliedChange === null && quote !== null && previousClose > 0; const changePct = suppliedChange ?? (derivedChange ? (quote / previousClose - 1) * 100 : null);
+  const meta = observation?.blocks?.[quote === null ? 'history' : 'overview']?.dataset;
+  return `<section class="asset-identity"><div><span class="eyebrow">ASSET OBSERVATION</span><h1>${e(snapshot.name || snapshot['简称'] || observation?.asset || '资产观察')}</h1><p>${e(observation?.asset || '选择证券代码开始')} · ${e(TYPE_LABELS[observation?.asset_type] || '股票')}</p><p class="muted small">${quote === null ? '历史收盘' : meta?.provider === 'akshare' ? '最近日线快照' : '来源快照'} · ${e(meta?.provider || meta?.source || '来源未取得')} · 数据日 ${e(snapshot.date || snapshot['时间'] || latest.date || latest['时间'] || '未提供')} · 读取于 ${e(meta?.retrieved_at || '未提供')}</p></div><div class="asset-price"><strong>${e(number(price))}</strong><span class="${changePct === null ? 'muted' : changePct >= 0 ? 'positive' : 'negative'}">${changePct === null ? '涨跌未知' : `${derivedChange ? '较昨收计算 ' : ''}${changePct >= 0 ? '+' : ''}${number(changePct)}%`}</span></div><div class="button-row"><button class="button" data-workbench-handoff="fingpt" data-source-session="${e(observation?.session_id || '')}" data-dataset-ids="${e(JSON.stringify(datasets))}" ${observation?.session_id && datasets.length ? '' : 'disabled'}>交给 FinGPT</button><button class="button primary" data-workbench-handoff="claw" data-source-session="${e(observation?.session_id || '')}" data-dataset-ids="${e(JSON.stringify(datasets))}" ${observation?.session_id && datasets.length ? '' : 'disabled'}>交给 Claw</button></div></section>`;
 }
-
 function marketMetrics(rows = {}) {
-  const history = rows.history || [];
-  const latest = history.at(-1) || {};
-  const overview = rows.overview?.[0] || {};
-  const source = { ...latest, ...overview };
-  const closes = history.map(row => finite(firstValue(row, ['close', '收盘']))).filter(value => value !== null);
-  const high52 = closes.length ? Math.max(...closes.slice(-252)) : null;
-  const low52 = closes.length ? Math.min(...closes.slice(-252)) : null;
-  return `<dl class="asset-market-metrics" aria-label="资产核心指标">${metric('开盘', firstValue(source, ['open', '开盘']))}${metric('最高', firstValue(source, ['high', '最高']))}${metric('最低', firstValue(source, ['low', '最低']))}${metric('成交量', firstValue(source, ['volume', '成交量']), '')}${metric('成交额', firstValue(source, ['amount', 'turnover', '成交额']), '')}${metric('换手率', firstValue(source, ['turnover_rate_pct', 'turnover_rate', '换手率']), '%')}${metric('52周高', high52)}${metric('52周低', low52)}</dl>`;
+  const history = rows.history || []; const snapshot = rows.overview?.[0] || {}; const latest = history.at(-1) || {};
+  const trading = ['open', 'high', 'low', 'volume', 'vol', 'amount', 'turnover', 'turnover_rate_pct', 'turnover_rate'].some(key => finite(snapshot[key]) !== null) ? snapshot : latest;
+  const priceRows = history.filter(row => finite(row.close ?? row['收盘']) !== null);
+  const highs = priceRows.map(row => finite(row.high ?? row['最高'])).filter(value => value !== null);
+  const lows = priceRows.map(row => finite(row.low ?? row['最低'])).filter(value => value !== null);
+  const metric = (label, value, suffix = '') => `<div><dt>${e(label)}</dt><dd>${e(number(value))}${finite(value) === null ? '' : e(suffix)}</dd></div>`;
+  return `<aside class="asset-quote-panel"><h2>交易指标</h2><p class="muted small">交易数据日 ${e(trading.date || trading['时间'] || '未提供')}，不跨时点补齐缺失字段，不代表实时盘口。</p><dl class="asset-market-metrics">${metric('开盘', firstValue(trading, ['open', '开盘']))}${metric('最高', firstValue(trading, ['high', '最高']))}${metric('最低', firstValue(trading, ['low', '最低']))}${metric('成交量', firstValue(trading, ['volume', 'vol', '成交量']))}${metric('成交额', firstValue(trading, ['amount', 'turnover', '成交额']))}${metric('换手率', firstValue(trading, ['turnover_rate_pct', 'turnover_rate', '换手率']), '%')}${metric('区间最高', highs.length ? Math.max(...highs) : null)}${metric('区间最低', lows.length ? Math.min(...lows) : null)}</dl><h2>估值与股本</h2><dl class="asset-market-metrics">${metric('PE TTM', snapshot.pe_ttm)}${metric('PB', snapshot.pb)}${metric('市现率 TTM', snapshot.pcf_ocf_ttm)}${metric('总股本', snapshot.total_shares)}</dl><p class="muted small">单位、时点和覆盖以来源元数据为准；缺失保持未知。</p></aside>`;
 }
-
 function personalPanel({ observation, watchlists = [], notes = [], alerts = [], notifications = [] }) {
   const asset = observation?.asset || '';
   const selectedNotes = notes.filter(item => item.asset === asset);
@@ -164,34 +56,34 @@ function personalPanel({ observation, watchlists = [], notes = [], alerts = [], 
   return `<aside class="asset-personal"><section><div class="section-heading"><h2>自选与观察</h2><span class="muted small">本地保存</span></div>${watchlists.length ? `<form data-watchlist-item><input type="hidden" name="asset" value="${e(asset)}"><label>加入列表<select name="watchlist_id">${watchlists.map(item => `<option value="${e(item.id)}">${e(item.name)}</option>`).join('')}</select></label><button class="button small" ${asset ? '' : 'disabled'}>加入自选</button></form>` : '<p class="muted small">尚无自选列表。</p>'}<form data-asset-note><label>观察笔记<textarea name="text" maxlength="10000" required placeholder="记录判断、待验证事项和后续动作"></textarea></label><input type="hidden" name="asset" value="${e(asset)}"><button class="button small" ${asset ? '' : 'disabled'}>保存笔记</button></form>${selectedNotes.map(item => `<p class="personal-entry">${e(item.text)}</p>`).join('')}</section><section><div class="section-heading"><h2>提醒规则</h2><span class="muted small">快照到达时评估</span></div><form data-asset-alert><input type="hidden" name="asset" value="${e(asset)}"><div class="mini-form"><select name="field"><option value="price">价格</option><option value="change_pct">涨跌幅</option><option value="volume">成交量</option></select><select name="operator"><option value="gte">≥</option><option value="lte">≤</option><option value="gt">＞</option><option value="lt">＜</option></select><input name="threshold" type="number" step="any" required placeholder="阈值"></div><button class="button small" ${asset ? '' : 'disabled'}>添加提醒</button></form>${selectedAlerts.map(item => `<p class="personal-entry"><span class="tiny-dot ${item.enabled ? 'active' : ''}"></span>${e(item.field)} ${e(item.operator)} ${e(item.threshold)} · ${item.condition_active ? '已触发' : '监控中'}</p>`).join('') || '<p class="muted small">当前资产没有提醒。</p>'}${notifications.filter(item => item.asset === asset).slice(0, 3).map(item => `<p class="notice warning">已触发：${e(item.field)} = ${e(item.value)}</p>`).join('')}</section></aside>`;
 }
 
-function researchContext(observation) {
-  const blocks = observation?.blocks || {};
-  const sources = Object.entries(blocks).map(([name, block]) => ({
-    name: LABELS[name] || name,
-    status: block?.status || 'unavailable',
-    provider: block?.dataset?.provider || block?.dataset?.source || '未取得',
-    asOf: block?.dataset?.as_of || block?.dataset?.actual_range?.end_date || '未提供',
-  }));
-  return `<section class="asset-research-context" aria-label="资产研究上下文"><article><span class="eyebrow">PEERS</span><h2>同类比较</h2><p class="muted small">当前 DataHub 尚未返回可核对的同类集合；不使用静态排名或虚构估值填充。</p></article><article><span class="eyebrow">THEME EXPOSURE</span><h2>主题暴露</h2><p class="muted small">当前资产尚无来自真实数据源的主题暴露结果；待产业链/持仓 Provider 接入后显示。</p></article><article class="asset-source-matrix"><span class="eyebrow">SOURCES & COVERAGE</span><h2>来源与口径</h2>${sources.length ? `<ul>${sources.map(item => `<li><strong>${e(item.name)}</strong><span>${e(item.provider)}</span><span>${e(STATE_LABELS[item.status] || item.status)} · ${e(item.asOf)}</span></li>`).join('')}</ul>` : '<p class="muted small">查询资产后，这里会按区块列出实际数据源、截止时间和覆盖状态。</p>'}</article></section>`;
-}
 
+function sourceCoverage(observation) {
+  const blocks = Object.entries(observation?.blocks || {}).filter(([name]) => !['news', 'announcements'].includes(name));
+  return `<article class="asset-block"><h2>来源与口径</h2>${blocks.length ? `<ul class="asset-coverage-list">${blocks.map(([name, block]) => `<li><strong>${e(LABELS[name] || name)}</strong><span>${e(block.dataset?.provider || block.dataset?.source || '未取得')}</span><span>${e(STATE_LABELS[block.status] || block.status)} · ${e(block.dataset?.as_of || '时间未知')}${block.failure_code ? ` · ${e(block.failure_code)}` : ''}</span></li>`).join('')}</ul>` : '<p class="muted">尚无已冻结的数据快照。</p>'}<details><summary>当前覆盖限制</summary><p class="muted small">分时、盘口、逐笔、完整三表、十大股东名单、公司深档、同业比较、主题暴露及一致预期尚未形成资产页数据闭环。筹码估算本期未提供。</p></details></article>`;
+}
+function assetList({ observations = [], watchlists = [] }, route) {
+  const seen = new Set();
+  const items = [...watchlists.flatMap(item => item.items || []), ...observations].filter(item => { const key = `${item.asset_type}:${item.asset}`; if (seen.has(key)) return false; seen.add(key); return true; });
+  return `<details class="asset-list-drawer" ${globalThis.matchMedia?.('(min-width:1440px)').matches ? 'open' : ''}><summary>自选与最近观察</summary><aside class="asset-watch-rail"><form data-asset-list-filter><label>筛选资产<input name="query" data-asset-list-query type="search" placeholder="输入代码筛选" autocomplete="off"></label></form><form data-asset-watchlist-create><label>新建自选列表<input name="name" required maxlength="80" placeholder="列表名称"></label><button class="button small">创建</button></form><nav aria-label="资产列表">${items.map(item => `<a class="asset-list-row ${route.asset === item.asset ? 'active' : ''}" data-asset-list-code="${e(item.asset)}" href="${e(assetHref(item.asset, item.asset_type || 'stock', route.assetView))}"><strong>${e(item.name || item.asset)}</strong><span>${e(item.asset)} · ${e(TYPE_LABELS[item.asset_type] || '股票')}</span></a>`).join('') || '<p class="muted small">输入代码选择资产，更新后可加入自选。</p>'}</nav></aside></details>`;
+}
 export function readAssetObservation(form) {
-  const data = new FormData(form);
-  return {
-    asset: String(data.get('asset') || '').trim().toUpperCase(),
-    asset_type: String(data.get('asset_type') || 'stock'),
-    source: String(data.get('source') || 'auto'),
-    start_date: String(data.get('start_date') || '') || null,
-    end_date: String(data.get('end_date') || '') || null,
-    frequency: String(data.get('frequency') || 'daily'),
-    adjustment: String(data.get('adjustment') || 'qfq'),
-    sections: ['overview', 'history', 'financials', 'activity', 'announcements', 'news', 'research'],
-  };
+  const data = new FormData(form); const type = String(data.get('asset_type') || 'stock');
+  return { asset: String(data.get('asset') || '').trim().toUpperCase(), asset_type: type, source: String(data.get('source') || 'auto'), start_date: String(data.get('start_date') || '') || null, end_date: String(data.get('end_date') || '') || null, frequency: String(data.get('frequency') || 'daily'), adjustment: String(data.get('adjustment') || 'qfq'), sections: type === 'stock' ? ['overview', 'history', 'financials', 'activity', 'margin', 'holders', 'research'] : ['overview', 'history', 'financials', 'activity', 'research'] };
 }
-
-export function renderAssetWorkspace({ observation = null, rows = {}, watchlists = [], notes = [], alerts = [], notifications = [], busy = false } = {}) {
-  const blocks = observation?.blocks || Object.fromEntries(Object.keys(LABELS).map(key => [key, { status: 'empty' }]));
-  const today = new Date().toISOString().slice(0, 10);
-  const start = new Date(); start.setFullYear(start.getFullYear() - 1);
-  return `<header class="page-header"><div><div class="eyebrow">ASSET OBSERVATION</div><h1>资产观察</h1><p class="muted">行情、财务、事件、公告与资料分别取数；每个区块独立显示真实状态。</p></div><button class="button" data-refresh>刷新本地状态</button></header><form class="asset-search" data-asset-observation><label>证券代码<input name="asset" value="${e(observation?.asset || '')}" placeholder="例如 600519.SH" pattern="[A-Za-z0-9._-]+" required></label><label>类型<select name="asset_type">${[['stock', '股票'], ['etf', 'ETF'], ['index', '指数'], ['fund', '基金'], ['theme', '主题']].map(([id, label]) => `<option value="${id}" ${observation?.asset_type === id ? 'selected' : ''}>${label}</option>`).join('')}</select></label><label>起始日<input type="date" name="start_date" value="${start.toISOString().slice(0, 10)}" required></label><label>结束日<input type="date" name="end_date" value="${today}" required></label><label>周期<select name="frequency"><option value="daily">日线</option><option value="weekly">周线</option><option value="monthly">月线</option></select></label><label>复权<select name="adjustment"><option value="qfq">前复权</option><option value="none">不复权</option><option value="hfq">后复权</option></select></label><button class="button primary" ${busy ? 'disabled' : ''}>${busy ? '正在更新…' : '更新全部区块'}</button></form>${assetHeader(observation, rows)}${marketMetrics(rows)}${renderMarketTerminal(rows.history || [])}${researchContext(observation)}<div class="asset-workspace-grid"><div class="asset-blocks">${Object.entries(blocks).map(([name, block]) => blockCard(name, block, rows[name] || [])).join('')}</div>${personalPanel({ observation, watchlists, notes, alerts, notifications })}</div>`;
+export function renderAssetWorkspace({ observation = null, rows = {}, observations = [], watchlists = [], notes = [], alerts = [], notifications = [], busy = false, route = {}, news = {}, chart = {}, errors = {} } = {}) {
+  if (observation && route.asset && !selectAssetObservation([observation], route)) { observation = null; rows = {}; }
+  const selected = { asset: route.asset || observation?.asset || '', assetType: route.assetType || observation?.asset_type || 'stock', assetView: route.assetView || 'overview' };
+  const current = observation || { asset: selected.asset, asset_type: selected.assetType, blocks: {} }; const blocks = current.blocks || {}; const view = selected.assetView;
+  const now = new Date(); const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now); const start = new Date(`${today}T00:00:00+08:00`); start.setUTCDate(start.getUTCDate() - 59); const dateStart = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit' }).format(start);
+  const parameters = observation?.request_parameters || {};
+  const topics = `<nav class="asset-topic-tabs" aria-label="资产研究专题">${ASSET_VIEWS.map((id, index) => `<a href="${e(assetHref(selected.asset, selected.assetType, id))}" ${view === id ? 'aria-current="page" class="active"' : ''}>${TOPICS[index]}</a>`).join('')}</nav>`;
+  const query = `<details class="asset-query-controls" ${!observation && view === 'overview' ? 'open' : ''}><summary>更新资产数据 · 来源与区间</summary><form class="asset-search" data-asset-observation><label>证券代码<input name="asset" value="${e(selected.asset)}" placeholder="例如 600519.SH" pattern="[A-Za-z0-9._-]+" required></label><label>类型<select name="asset_type">${[['stock', '股票'], ['etf', 'ETF'], ['index', '指数'], ['fund', '基金'], ['theme', '主题']].map(([id, label]) => `<option value="${id}" ${selected.assetType === id ? 'selected' : ''}>${label}</option>`).join('')}</select></label><label>来源<select name="source">${[['auto', '自动选择'], ['akshare', 'AKShare'], ['wind', 'Wind'], ['tinysoft', '天软']].map(([id, label]) => `<option value="${id}" ${current.source === id ? 'selected' : ''}>${label}</option>`).join('')}</select></label><label>起始日<input type="date" name="start_date" value="${e(parameters.start_date || dateStart)}" required></label><label>结束日<input type="date" name="end_date" value="${e(parameters.end_date || today)}" required></label><label>周期<select name="frequency">${[['daily', '日线'], ['weekly', '周线'], ['monthly', '月线']].map(([id, label]) => `<option value="${id}" ${parameters.frequency === id ? 'selected' : ''}>${label}</option>`).join('')}</select></label><label>复权<select name="adjustment">${[['qfq', '前复权'], ['none', '不复权'], ['hfq', '后复权']].map(([id, label]) => `<option value="${id}" ${parameters.adjustment === id ? 'selected' : ''}>${label}</option>`).join('')}</select></label><button class="button primary" ${busy ? 'disabled' : ''}>${busy ? '正在更新…' : '更新资产数据'}</button></form><p class="muted small">Wind 股票日线及资金历史最多 60 个日历日；超范围或不支持周期会明确拒绝，不自动拆分。新闻、公告使用独立查询，不受行情日期范围筛选。</p></details>`;
+  let content;
+  if (view === 'news' || view === 'announcements') content = `<div data-asset-news-slot>${renderAssetNews(news.asset === selected.asset && news.assetType === selected.assetType && news.view === view ? news : { asset: selected.asset, view, status: 'idle' })}</div>`;
+  else if (view === 'financials') content = blockCard('financials', blocks, rows, errors, busy);
+  else if (view === 'capital') content = blockCard('activity', blocks, rows, errors, busy) + blockCard('margin', blocks, rows, errors, busy);
+  else if (view === 'holders') content = `<p class="muted small">以下为汇总指标，不含十大股东姓名及逐机构持仓名单。</p>${blockCard('holders', blocks, rows, errors, busy)}`;
+  else if (view === 'materials') content = blockCard('research', blocks, rows, errors, busy);
+  else content = `${sourceCoverage(current)}<div class="asset-overview-links">${['financials', 'capital', 'holders', 'news', 'announcements'].map(id => `<a href="${e(assetHref(selected.asset, selected.assetType, id))}">${TOPICS[ASSET_VIEWS.indexOf(id)]} →</a>`).join('')}</div>`;
+  return `<section class="asset-observation-page" data-asset-identity="${e(`${selected.assetType}:${selected.asset}`)}" data-asset-view="${e(view)}" data-observation-id="${e(observation?.id || '')}">${assetList({ observations, watchlists }, selected)}<div class="asset-observation-main"><form class="asset-identity-select" data-asset-select><label>资产代码<input name="asset" value="${e(selected.asset)}" placeholder="例如 603986.SH" pattern="[A-Za-z0-9._-]+" required></label><label>资产类型<select name="asset_type">${[['stock', '股票'], ['etf', 'ETF'], ['index', '指数'], ['fund', '基金'], ['theme', '主题']].map(([id, label]) => `<option value="${id}" ${selected.assetType === id ? 'selected' : ''}>${label}</option>`).join('')}</select></label><button class="button">选择资产</button><button class="button" type="button" data-refresh>刷新本地状态</button></form>${assetHeader(current, rows)}${Object.entries(errors).filter(([key]) => ['observations', 'watchlists', 'notes', 'alerts', 'notifications'].includes(key)).map(([, error]) => `<p class="notice danger" role="alert">${e(error)}</p>`).join('')}${query}<details class="asset-chart-details" ${view === 'overview' ? 'open' : ''}><summary>K 线与技术指标 · 展开行情</summary><div class="asset-market-layout"><div><div data-asset-chart-slot>${renderMarketTerminal(rows.history || [], chart)}</div>${blocks.history?.failure_code ? `<p class="notice warning">${e(blocks.history.failure_code)}</p>` : ''}</div>${marketMetrics(rows)}</div></details>${topics}<section class="asset-topic-content" aria-label="${e(TOPICS[ASSET_VIEWS.indexOf(view)] || '概览')}">${content}</section><details class="asset-personal-details" data-asset-personal><summary>个人研究 · 自选、笔记与提醒</summary>${personalPanel({ observation: current, watchlists, notes, alerts, notifications })}<p class="muted small">交接仅包含已冻结的数据快照；本页阅读的新闻和公告没有自动加入研究证据。提醒只在新行情快照到达时评估。</p></details></div></section>`;
 }

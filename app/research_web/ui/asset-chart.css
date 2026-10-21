@@ -1,0 +1,247 @@
+.asset-market-terminal {
+  --chart-up: #d94747;
+  --chart-down: #1f9d70;
+  --chart-ma5: #e08a2e;
+  --chart-ma10: #2876c7;
+  --chart-ma20: #8b5fc7;
+  min-width: 0;
+}
+
+.asset-market-terminal .asset-chart-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin-top: 14px;
+}
+
+.asset-market-terminal .asset-overlay-controls,
+.asset-market-terminal .asset-range-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.asset-market-terminal .asset-chart-toolbar button {
+  min-height: 30px;
+  padding: 5px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface, var(--canvas));
+  color: var(--text);
+  font: inherit;
+  font-size: 11px;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.asset-market-terminal .asset-chart-toolbar button:hover:not(:disabled) {
+  border-color: var(--muted);
+  background: color-mix(in srgb, var(--text) 5%, var(--canvas));
+}
+
+.asset-market-terminal .asset-chart-toolbar button[aria-pressed="true"] {
+  border-color: var(--accent, #2876c7);
+  background: color-mix(in srgb, var(--accent, #2876c7) 12%, var(--canvas));
+  color: var(--accent, #2876c7);
+}
+
+.asset-market-terminal .asset-chart-toolbar button:disabled {
+  opacity: .42;
+  cursor: default;
+}
+
+.asset-market-terminal .asset-chart-toolbar button:focus-visible,
+.asset-market-terminal .asset-terminal-chart:focus-visible,
+.asset-market-terminal .asset-indicator-method summary:focus-visible {
+  outline: 2px solid var(--accent, #2876c7);
+  outline-offset: 3px;
+}
+
+.asset-market-terminal .asset-range-summary {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.asset-market-terminal .asset-history-date {
+  flex-basis: 100%;
+  color: var(--text);
+}
+
+.asset-market-terminal .asset-history-readout {
+  min-height: 52px;
+  line-height: 1.6;
+}
+
+.asset-market-terminal .asset-terminal-legend {
+  min-height: 32px;
+  line-height: 1.6;
+}
+
+.asset-market-terminal .asset-terminal-legend strong {
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.asset-market-terminal .asset-chart-scroll {
+  min-width: 0;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  padding-block: 4px;
+}
+
+.asset-market-terminal .asset-terminal-chart {
+  display: block;
+  width: 100%;
+  min-width: 620px;
+  height: auto;
+  max-height: none;
+  overflow: visible;
+  background: var(--canvas);
+  cursor: crosshair;
+  touch-action: pan-y;
+  user-select: none;
+}
+
+.asset-market-terminal .asset-chart-grid line {
+  stroke: var(--line);
+  stroke-width: .7;
+  vector-effect: non-scaling-stroke;
+}
+
+.asset-market-terminal .asset-chart-grid text,
+.asset-market-terminal .asset-date-label {
+  fill: var(--muted);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.asset-market-terminal .asset-chart-grid .asset-panel-label {
+  fill: var(--text);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.asset-market-terminal .asset-candle line {
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.asset-market-terminal .asset-candle.up line,
+.asset-market-terminal .asset-candle.up rect,
+.asset-market-terminal .asset-volume.up,
+.asset-market-terminal .asset-macd.up {
+  stroke: var(--chart-up);
+  fill: var(--chart-up);
+}
+
+.asset-market-terminal .asset-candle.down line,
+.asset-market-terminal .asset-candle.down rect,
+.asset-market-terminal .asset-volume.down,
+.asset-market-terminal .asset-macd.down {
+  stroke: var(--chart-down);
+  fill: var(--chart-down);
+}
+
+.asset-market-terminal .asset-candle.selected rect {
+  stroke: var(--text);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.asset-market-terminal .asset-volume.unknown {
+  fill: var(--muted);
+}
+
+.asset-market-terminal .asset-series {
+  fill: none;
+  stroke-width: 1.25;
+  vector-effect: non-scaling-stroke;
+}
+
+.asset-market-terminal .asset-series.ma5,
+.asset-market-terminal .asset-series.dif,
+.asset-market-terminal .asset-series.k {
+  stroke: var(--chart-ma5);
+}
+
+.asset-market-terminal .asset-series.ma10,
+.asset-market-terminal .asset-series.dea,
+.asset-market-terminal .asset-series.d {
+  stroke: var(--chart-ma10);
+}
+
+.asset-market-terminal .asset-series.ma20,
+.asset-market-terminal .asset-series.j,
+.asset-market-terminal .asset-series.rsi {
+  stroke: var(--chart-ma20);
+}
+
+.asset-market-terminal .asset-series.boll {
+  stroke: #a07f18;
+  stroke-dasharray: 4 2;
+  opacity: .85;
+}
+
+.asset-market-terminal .asset-series.boll.ma20 {
+  stroke-dasharray: none;
+}
+
+.asset-market-terminal .asset-terminal-legend .dif,
+.asset-market-terminal .asset-terminal-legend .k { color: var(--chart-ma5); }
+.asset-market-terminal .asset-terminal-legend .dea,
+.asset-market-terminal .asset-terminal-legend .d { color: var(--chart-ma10); }
+.asset-market-terminal .asset-terminal-legend .j,
+.asset-market-terminal .asset-terminal-legend .rsi { color: var(--chart-ma20); }
+.asset-market-terminal .asset-terminal-legend .bollUpper,
+.asset-market-terminal .asset-terminal-legend .bollLower { color: #a07f18; }
+
+.asset-market-terminal .asset-threshold,
+.asset-market-terminal .asset-crosshair {
+  stroke: var(--muted);
+  stroke-width: .8;
+  stroke-dasharray: 4 3;
+  pointer-events: none;
+  vector-effect: non-scaling-stroke;
+}
+
+.asset-market-terminal .asset-threshold { opacity: .5; }
+.asset-market-terminal .asset-crosshair { opacity: .8; }
+.asset-market-terminal .asset-crosshair-value-bg { fill: var(--text); pointer-events: none; }
+.asset-market-terminal .asset-crosshair-value { fill: var(--canvas); font-size: 10px; pointer-events: none; }
+
+.asset-market-terminal .asset-calendar-gap,
+.asset-market-terminal .asset-missing-candle {
+  stroke: var(--muted);
+  stroke-width: 1.5;
+  fill: none;
+  vector-effect: non-scaling-stroke;
+}
+
+.asset-market-terminal .asset-calendar-gap { stroke-dasharray: 2 2; }
+.asset-market-terminal .asset-chart-help,
+.asset-market-terminal .asset-indicator-method,
+.asset-market-terminal .asset-chart-warning {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+
+.asset-market-terminal .asset-indicator-method summary {
+  width: fit-content;
+  cursor: pointer;
+}
+
+.asset-market-terminal .asset-indicator-method p { margin: 6px 0 0; }
+.asset-market-terminal .asset-chart-warning { color: var(--warning, #ac6b16); }
+
+@media (max-width: 700px) {
+  .asset-market-terminal .asset-range-summary { margin-left: 0; flex-basis: 100%; }
+  .asset-market-terminal .asset-chart-toolbar button { min-height: 36px; padding-inline: 9px; }
+  .asset-market-terminal .asset-terminal-chart { min-width: 580px; }
+  .asset-market-terminal .asset-terminal-quote { gap: 6px 12px; }
+}
