@@ -122,6 +122,7 @@ def review(source: Path, target: str):
                     "tests/research_web/test_gateway_upgrade.py " + TEST,
                     1,
                 )
+            expected = expected.replace("timeout-minutes: 20", "timeout-minutes: 30", 1)
             if c.git(source, "show", f"{target}:{name}") != expected:
                 raise UpdateBlocked("model_upgrade_workflow_scope_changed")
         else:

@@ -13,5 +13,8 @@ Router 维持 L4，112 项 JS 架构/文档/跨平台合同、本机完整 chang
 候选 915fb4fa 的 Mac Bootstrap/Constraints 通过；Checks 首次在 Python 1185 项通过后的 JS 尾段触及 20 分钟上限，同一候选重跑后 1185 Python、734 JS、10 editorial 全通过。但主线期间合并 PR168，PR 合并冲突门正确阻断。
 对其五份导航 JS 做独立兼容审查：不改后端/依赖、模型配置或凭据 API、会话控制器与发送/停止门；保留旧路由和 manifest 交接，无阻断。固定产品基线推进至 4e8be6ac，并保留导航与本任务双方文档。已有升级测试注册在新基线时不重复插入，增加失败回归后验证。新合并树须重新通过三项 CI，不能复用旧树的整体验收。
 
+最新树Checks再次在Python全部通过后的JS阶段触及20分钟墙钟上限；对比五个实际成功job耗时838–1152秒及两次取消，原预算无足够波动余量。只将同一标准job时限扩至30分钟，保留所有测试/检查、runner及平台门；scope只承认这一个确切工作流差异，新增20/45分钟拒绝反例。没有通过缩减验收换成功。
+
 <!-- architecture-review {"group":"dual-runtime","structure":"unchanged","reason":"保留原主实例和网关部署节点，分别锁定已有发布Git身份；不改变单DSH、服务管理或自动兼容范围，独立clone不迁移。","diagrams":[]} -->
 <!-- architecture-review {"group":"private-multiuser","structure":"unchanged","reason":"只修补已有联合事务的源码权威与发布角色身份区分，用户池、出生栅栏、HTTP冻结、保全与恢复拓扑均保持。","diagrams":[]} -->
+<!-- architecture-review {"group":"verification-workflow","structure":"unchanged","reason":"依据实际job耗时将原Checks单job时限20分钟扩至30分钟；测试、runner、步骤、并发与Mac安装门均保持，不新增执行节点、依赖或模型调用。","diagrams":[]} -->
