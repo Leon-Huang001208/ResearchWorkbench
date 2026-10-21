@@ -1,5 +1,7 @@
 # Research Web 接口清单
 
+新增浏览器路由 `#/account` 与管理员专属 `#/settings/users`，旧 `/account` 页面脚本及 `#/settings/account` 兼容到 `/#/account`。HTTP接口保持现有me/users/password/stop/logout；不新增参数、身份来源或后端接口。账号资料仅展示认证用户名/角色，普通用户不请求管理列表。
+
 操作员 CLI 新增 `apply-ui --expected-gateway SHA --primary SHA --target SHA`；primary 必须等于 target，工具 HEAD 必须为最新已验收 master。业务 HTTP 接口不变。停止前不确定返回 deferred；停止后待恢复返回 recovery_required，不能当作部署成功。
 
 不新增HTTP端点。新轮次网页研究receipt增加report_binding_policy；受信report_context按冻结问题可增加body_target，模型不能覆盖。report_plan.analysis使用{{fact:准确已选id或$计算id}}和{{formula:$计算id}}，全标签引用由系统展开；不能手写数值、日期或算式。规范JSON增加system_plan/presentation和可选body_target，audit_attachment指向同版本实际审计JSON；business_calculations新增annual_change/gdp_implicit_deflator。原生格式列表保持HTML/DOCX/PDF，审计附件是独立绑定文件，report_delivery.files及历史归档包含它。旧receipt和默认格式保持读取兼容。

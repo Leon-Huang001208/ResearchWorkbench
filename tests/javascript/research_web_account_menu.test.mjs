@@ -57,7 +57,7 @@ test('rail uses one real-account trigger or the original local settings entry', 
   const menu = renderAccountMenu({ username: '<script>secret</script>', role: 'user' });
   assert.ok(!menu.includes('<script>'));
   assert.ok(menu.includes('&lt;script&gt;'));
-  assert.ok(menu.includes('href="/account"'));
+  assert.ok(menu.includes('href="#/account"'));
   assert.ok(menu.includes('href="#/settings/general"'));
   assert.ok(menu.includes('<small>用户</small>'));
   assert.ok(renderAccountMenu(user).includes('<small>管理员</small>'));
@@ -202,7 +202,7 @@ test('new gateway mounts the full avatar menu into a protected old shell and res
   f.redraw();
   assert.equal(f.anchor().attributes['aria-expanded'], 'true');
   assert.equal(f.document.body.children.length, 1);
-  assert.ok(f.menu.html.includes('href="/account"'));
+  assert.ok(f.menu.html.includes('href="#/account"'));
   assert.ok(f.menu.html.includes('data-account-logout'));
   f.dispatch('keydown', f.menu.items[0], 'Escape');
   assert.equal(f.document.activeElement, f.anchor());

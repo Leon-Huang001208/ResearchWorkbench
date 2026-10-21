@@ -1,5 +1,6 @@
 /** Server-only account entry; never stores a session token in JavaScript storage. */
 import { mountLegacyAccountMenu } from './account-menu.mjs';
+import { mountLegacyAccountWorkspace } from './account-workspace.mjs';
 import { safeLog } from '/static/core.mjs';
 const originalFetch = window.fetch.bind(window);
 const identity = await originalFetch('/api/server/me', { credentials: 'same-origin' });
@@ -12,6 +13,8 @@ const profileStyle = document.createElement('link');
 profileStyle.rel = 'stylesheet'; profileStyle.href = '/server-static/profile.css'; document.head.append(profileStyle);
 const accountStyle = document.createElement('link');
 accountStyle.rel = 'stylesheet'; accountStyle.href = '/server-static/account-menu.css'; document.head.append(accountStyle);
+const workspaceStyle = document.createElement('link');
+workspaceStyle.rel = 'stylesheet'; workspaceStyle.href = '/server-static/account-workspace.css'; document.head.append(workspaceStyle);
 const restrictModelOptions = () => {
   const option = document.querySelector('#settings-form [name="provider"] option[value="openai-compatible"]');
   if (option) option.disabled = true;
@@ -39,3 +42,4 @@ window.EventSource = class extends NativeEventSource {
 };
 await import('/static/app.mjs');
 mountLegacyAccountMenu({ root: document.querySelector('#app'), user, logger: safeLog });
+mountLegacyAccountWorkspace({root:document.querySelector('#app'),user,logger:safeLog});

@@ -1,7 +1,6 @@
 // Gateway-owned and dependency-free: protected primary UIs may predate this menu.
 const e = value => String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
 const paths = {
-  account: '<circle cx="12" cy="8" r="3.5"/><path d="M5 21v-2a7 7 0 0 1 14 0v2"/>',
   settings: '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.09a2 2 0 0 1-1-1.74v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
   logout: '<path d="M9 4H4v16h5M10 12h11M17 8l4 4-4 4"/>',
 };
@@ -14,7 +13,7 @@ export function renderAccountTrigger(user) {
 }
 
 export function renderAccountMenu(user, { busy = false, error = '' } = {}) {
-  return `<header class="account-identity" role="presentation">${avatar(user)}<span><strong>${e(user.username || '我的账号')}</strong><small>${user.role === 'admin' ? '管理员' : '用户'}</small></span></header><div class="account-actions" role="presentation"><a role="menuitem" tabindex="-1" href="/account">${icon('account')}<span>我的账号</span></a><a role="menuitem" tabindex="-1" href="#/settings/general">${icon('settings')}<span>设置</span></a><div class="account-divider" role="separator"></div><button type="button" role="menuitem" tabindex="-1" data-account-logout ${busy ? 'disabled aria-disabled="true"' : ''}>${icon('logout')}<span>${busy ? '正在退出…' : '退出登录'}</span></button></div>${error ? `<p class="account-error" role="alert">${e(error)}</p>` : ''}`;
+  return `<a class="account-identity account-profile-link" href="#/account" role="menuitem" tabindex="-1" aria-label="查看 ${e(user.username || '当前账号')} 的账号资料">${avatar(user)}<span><strong>${e(user.username || '当前账号')}</strong><small>${user.role === 'admin' ? '管理员' : '用户'}</small></span></a><div class="account-actions" role="presentation"><a role="menuitem" tabindex="-1" href="#/settings/general">${icon('settings')}<span>设置</span></a><div class="account-divider" role="separator"></div><button type="button" role="menuitem" tabindex="-1" data-account-logout ${busy ? 'disabled aria-disabled="true"' : ''}>${icon('logout')}<span>${busy ? '正在退出…' : '退出登录'}</span></button></div>${error ? `<p class="account-error" role="alert">${e(error)}</p>` : ''}`;
 }
 
 /** One body-level overlay survives shell redraws and escapes the rail's clipping. */
