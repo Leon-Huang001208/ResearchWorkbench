@@ -146,7 +146,11 @@ async def check_request(request) -> JSONResponse | None:
         return _denied()
     if path.startswith("/api/research/capabilities") and request.method not in {"GET", "HEAD"}:
         return _denied()
-    if path == "/api/research/runtime/model" and request.method == "PUT":
+    if (path == "/api/research/runtime/model" and request.method == "PUT") or (
+        path.startswith("/api/research/model-profiles")
+        and request.method in {"POST", "PUT"}
+        and not path.endswith("/activate")
+    ):
         try:
             enforce_model_configuration(await request.json())
         except (StoreError, ValueError, UnicodeError, json.JSONDecodeError):

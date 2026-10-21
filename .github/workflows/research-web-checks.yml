@@ -85,6 +85,7 @@ jobs:
         run: |
           .venv/bin/python -m pytest \
             tests/research_web/test_protocol.py \
+            tests/research_web/test_model_profiles.py \
             tests/research_web/test_fingpt_dsh_fusion.py \
             tests/research_web/test_fingpt_comparison.py \
             tests/research_web/test_research_quality.py \

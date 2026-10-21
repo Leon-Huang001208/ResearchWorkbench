@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "unchanged",
-  "summary": "复核显式网关UI更新及恢复合同，README无需改变",
-  "reason": "新增操作员专项入口在网关升级手册说明；默认安装、产品研究能力和模型配置不变，不新增依赖、秘密或迁移。"
+  "disposition": "updated",
+  "summary": "README补充服务商多连接入口及保全边界",
+  "reason": "按服务商添加与独立凭据管理影响用户设置流程；安装入口、依赖与DSH协议不变，真实模型和部署分开授权。"
 }

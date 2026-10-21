@@ -258,6 +258,10 @@ class AutomationService:
         }
         if payload["research_task"] is not None:
             row["research_task"] = payload["research_task"]
+            if hasattr(self.research, "model_profile_identity"):
+                row["model_profile_id"] = self.research.model_profile_identity(
+                    payload["research_task"]["model_provider"]
+                )
         row["definition_revisions"] = [self._definition_snapshot(row)]
         if creation_key is not None:
             row["creation_sha256"] = creation_sha
@@ -291,6 +295,7 @@ class AutomationService:
                     "schedule",
                     "delivery",
                     "research_task",
+                    "model_profile_id",
                     "definition_version",
                 )
                 if key in row
@@ -382,6 +387,10 @@ class AutomationService:
                 row[field] = updates[field]
         if "research_task" in updates:
             row["target"]["sha256"] = _canonical_sha(updates["research_task"])
+            if hasattr(self.research, "model_profile_identity"):
+                row["model_profile_id"] = self.research.model_profile_identity(
+                    updates["research_task"]["model_provider"]
+                )
         row["definition_version"] = version + 1
         revision = self._definition_snapshot(row)
         if mutation_key is not None:
@@ -1233,7 +1242,13 @@ class AutomationService:
             }
         if target["kind"] == "research_task":
             session = await self.research.create_automation_research_session(
-                automation["name"], automation["research_task"]
+                automation["name"],
+                automation["research_task"],
+                **(
+                    {"model_profile_id": automation["model_profile_id"]}
+                    if "model_profile_id" in automation
+                    else {}
+                ),
             )
         else:
             session = await self.research.create("claw", f"{automation['name']} · Automation")

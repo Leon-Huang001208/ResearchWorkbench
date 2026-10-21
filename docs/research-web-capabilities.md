@@ -509,3 +509,5 @@ Hot FinGPT的冻结研究不加载全量Skill目录及外部数据工具，沿�
 
 report_plan 只在原 research_run_script 中替代代码输入，沿同一准入和冻结上下文执行；不增加 Automation、模型循环或补查预算。独立报告组装无评分权，所有分析和真实缺口继续交原 Host 核验。
 
+
+命名模型连接不改变Skill/Method/Workflow的版本或工具权限。显式声明provider/model的research_task日程另锁profile身份并在创建锁内核验；其他能力自动化继续原有默认模型语义，不补造历史选模审批，未验证的兼容工具能力仍拒绝深入研究。

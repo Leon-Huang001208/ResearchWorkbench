@@ -29,6 +29,7 @@ import { createIntelController, renderIntel } from './intel.mjs';
 import { createAihotController, renderAihot } from './aihot.mjs';
 import { renderReportWorkflowDetail, renderReportWorkflowShelf } from './report-workflows.mjs';
 import { buildConfigurationPayload, confirmAutoProbeConsent, createLocalIntegrationPollingGuard, createOfficeConsentQueue, invalidateLocalIntegrationSnapshot, nextLocalStatusExpiry, mergeIntegrationStatuses } from './connections.mjs';
+import { createModelSettings } from './model-settings.mjs';
 import { modelConfigurationPayload, syncModelForm, renderSettingsPage, resolveSettingsSection, settingsConnectionId, settingsRefreshCatalogs } from './settings.mjs';
 import { renderFrameworks } from './frameworks.mjs';
 import { renderEmbeddedBot } from './frameworks/embedded.mjs';
@@ -48,6 +49,7 @@ window.addEventListener('message', event => {
 import { createHotController, renderHotWorkspace } from './hot-workspace.mjs';
 
 const api = createAPI();
+let modelSettingsPanel = null;
 const conversationNavigation = createConversationNavigation({ api, notify: () => render(), changed: () => loadCatalog(['sessions']) });
 const clawWorkspace = { projects: [], detail: null, busy: false, error: '', newName: '', targetSession: '', renameEdits: new Map() };
 const clawDraftEdits = new Map();
@@ -525,10 +527,11 @@ function render() {
   if (!document.hidden && state.route.sessionId === state.detail?.id) conversationNavigation.markSeen(state.detail);
   // Keep the user's own dirty DOM form through unrelated catalog renders.
   // Secrets never enter application state or a server-provided refill.
-  const modelForm = root.querySelector('#settings-form[data-dirty]');
+  const modelForm = root.querySelector('#settings-form[data-dirty]:not(.mp-form)');
   const dirtyHotForms=[...root.querySelectorAll('[data-hot-form][data-hot-dirty]')];
   const documentForm = root.querySelector('#document-edit-form');
   const active = document.activeElement; const focusId = active?.id;
+  const modelPanelFocus = modelSettingsPanel?.element.contains(active) ? {node:active,action:active.dataset?.mpAction,profile:active.dataset?.profile} : null;
   const activeQuestion = active?.closest?.('[data-question-form]');
   const questionFocus = activeQuestion ? { session: activeQuestion.dataset.qSession, id: activeQuestion.dataset.questionForm, index: activeQuestion.dataset.qIndex, legend: active.matches('legend'), name: active.name, value: active.value } : null;
   const focusedSearchResult = active?.dataset?.globalResultKey;
@@ -562,6 +565,13 @@ function render() {
   window.ResearchWebTheme?.syncControls();
   const freshDocumentForm = root.querySelector('#document-edit-form');
   if (documentForm && freshDocumentForm && documentForm.dataset.documentBusy !== "true" && !documentEditor?.busy && documentForm.dataset.documentRevision === freshDocumentForm.dataset.documentRevision) freshDocumentForm.replaceWith(documentForm);
+  const modelPanelMount = root.querySelector('[data-model-profiles-root]');
+  if (modelPanelMount) {
+    const props = {runtime:catalog.runtime || {},models:catalog.models,busy:state.busy};
+    if (!modelSettingsPanel) modelSettingsPanel = createModelSettings({api,...props,changed:()=>loadCatalog(['runtime','models']),logger:safeLog});
+    modelPanelMount.replaceWith(modelSettingsPanel.element);
+    modelSettingsPanel.update(props);
+  } else if (modelSettingsPanel) { modelSettingsPanel.dispose(); modelSettingsPanel = null; }
   const freshModelForm = root.querySelector('#settings-form');
   if (modelForm && freshModelForm) {
     const disabled = freshModelForm.querySelector('button[type="submit"]').disabled;
@@ -592,6 +602,10 @@ function render() {
   if (focusId) {
     const replacement = document.getElementById(focusId);
     if (replacement && !replacement.disabled) { replacement.focus({ preventScroll: true }); if (selection && selection.start !== null) replacement.setSelectionRange?.(selection.start, selection.end); }
+  }
+  else if (modelPanelFocus && modelSettingsPanel) {
+    const replacement = modelPanelFocus.node.isConnected ? modelPanelFocus.node : [...modelSettingsPanel.element.querySelectorAll('[data-mp-action]')].find(node=>node.dataset.mpAction===modelPanelFocus.action&&node.dataset.profile===modelPanelFocus.profile);
+    if(replacement && !replacement.disabled) replacement.focus({preventScroll:true});
   }
   else if (focusedSearchResult && searchOpen) {
     ([...root.querySelectorAll('[data-global-result-key]')].find(item => item.dataset.globalResultKey === focusedSearchResult) || document.getElementById('global-search'))?.focus({ preventScroll: true });
