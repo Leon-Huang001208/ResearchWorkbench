@@ -68,7 +68,7 @@ create/send 路径保持，Hot 周期任务的 Automation 适配仍待实现，�
 G2A 为受管 Docker 增加固定模型 ref 的实例加密后端及主密钥只读卷，仍由原 Web→DSH
 私有 stdio 桥调用。生成、重建和隔离证据分别记录，Native Keychain 与原 Automation 合同保留。
 
-研究台增加ETF工程模拟切片，确定性策略、约束、事务账本及回放均在同一Host内，真实链路保持BLOCKED。
+策略模拟以 `#/simulation/etf` 承载既有 ETF 工程模拟，确定性策略、约束、事务账本及回放均在同一 Host 内，真实链路保持 BLOCKED。
 合同见[数据与文件](03-data-files.md#etf-工程模拟与真实准入边界)。
 
 Claw工作区只替换侧栏，中央聊天/草稿保持；文件MD预览复用Host原端点并以纯文本供沙箱显示。Host受理后附加当前时钟但不作为来源/交易日证据；DataHub未适配来源返回明确503。它们不新增服务、调度层、存储schema或研究执行器，详细合同见下列UI、运行时、文件和API模块。
@@ -96,7 +96,7 @@ macOS实际端点/origin事务现接入公开CLI启动链；同一产品部署�
 
 这是当前研究产品的唯一架构主入口。现役源码覆盖 `app/research_web/`、`research_workbench_entrypoint/`、`docker/` 与共用运行合同；旧 `app/api`、量化业务和 merged-platform 图文属于历史，不是此入口的依赖。Native 双宿主进程与 Docker 单容器是同一 Research Web/DSH 产品的互斥运行方式，顺序共享产品数据，不创建第二个研究引擎。
 
-研究布局、能力中心与架构更新检查已实施。当前 Web 包含研究台按需数据入口、独立资产观察、Claw 具体报告 Workflow、会话快照交接、实际产物及只读“运行与用量”聚合；DataHub 同时迁入天软 CJPY 的四项已实现能力，并加入只复用现有 WindAdapter 封闭方法的受限 Wind binding，缺少本机依赖、登录或等价字段口径时仍失败关闭。东方财富基金和财联社是当前无需专业配置即可真实调用的来源。研究脚本由宿主 FIFO 串行、Python 3.12 readiness 和 `cpu_bounded_v1` 公共预算约定共同约束；不依赖 GPU，Seatbelt 仍仅支持 macOS。Phase 2A 提供只读 MCP Registry；Phase 2B 增加不可变安装、官方 SDK Host、OAuth、工具分级、会话授权、人工审批和 DSH 原子激活回滚；Phase 2C 增加锁定版本的通用 Automation、独立 Claw Run 与研究/投递双状态。当前限制见 [架构状态](status.md)，逐任务证据进入 `.ai/reports/`。图形通过不替代产品、数据覆盖或真实连接审查。
+研究布局、能力中心与架构更新检查已实施。当前 Web 按资产观察、研究情报、研究框架和策略模拟划分业务入口，取消研究台一级导航；保留按需数据查询、Claw 具体报告 Workflow、会话快照交接、来源会话产物及只读“运行与用量”聚合；DataHub 同时迁入天软 CJPY 的四项已实现能力，并加入只复用现有 WindAdapter 封闭方法的受限 Wind binding，缺少本机依赖、登录或等价字段口径时仍失败关闭。东方财富基金和财联社是当前无需专业配置即可真实调用的来源。研究脚本由宿主 FIFO 串行、Python 3.12 readiness 和 `cpu_bounded_v1` 公共预算约定共同约束；不依赖 GPU，Seatbelt 仍仅支持 macOS。Phase 2A 提供只读 MCP Registry；Phase 2B 增加不可变安装、官方 SDK Host、OAuth、工具分级、会话授权、人工审批和 DSH 原子激活回滚；Phase 2C 增加锁定版本的通用 Automation、独立 Claw Run 与研究/投递双状态。当前限制见 [架构状态](status.md)，逐任务证据进入 `.ai/reports/`。图形通过不替代产品、数据覆盖或真实连接审查。
 
 ## 阅读顺序
 
@@ -110,7 +110,7 @@ Docker 模型凭据由 owned overlay 显式绑定加密文件桥，固定 ref、
 
 1. [部署与职责](01-system.md)：启动路径、模块边界和存储归属。
 2. [研究协议与状态](02-research-runtime.md)：提交、SSE、恢复、审批、停止及页面交接。
-3. [数据与文件](03-data-files.md)：研究台、DataHub 静态目录、路由、资料快照、附件、产物和独立交付。
+3. [数据与文件](03-data-files.md)：资产与主题查询、DataHub 静态目录、路由、资料快照、附件、产物和独立交付。
 4. [接口清单](04-api.md)：当前路由与请求边界。
 5. [安全与验证](05-security-validation.md)：可执行边界、测试层次与未覆盖部署。
 6. [文档清单契约](06-documentation-contract.md)：仓库内门禁、更新标记与负向验收。
@@ -124,7 +124,7 @@ Docker 模型凭据由 owned overlay 显式绑定加密文件桥，固定 ref、
 
 ## 不在本轮范围
 
-不新增 PostgreSQL 前置条件、Evidence/Claim、第二研究引擎、线上 Skill 商店或桌面适配。MCP Registry 身份保持 `(registry_id, server_name, version)`；第三方字段按有界纯文本处理且不热链图标。Publisher 只生成外部 CLI 交接材料并明确 `executed:false`。MCP 不实现 sampling、elicitation、实验性 Tasks、任意 shell、版本范围、隐式环境继承或无人值守高风险调用；Automation 不静默升级目标、不自动重试研究，也不批量追赶遗漏。研究台市场页是按需查询和快照入口，不是旧市场首页或后台行情管线。
+不新增 PostgreSQL 前置条件、Evidence/Claim、第二研究引擎、线上 Skill 商店或桌面适配。MCP Registry 身份保持 `(registry_id, server_name, version)`；第三方字段按有界纯文本处理且不热链图标。Publisher 只生成外部 CLI 交接材料并明确 `executed:false`。MCP 不实现 sampling、elicitation、实验性 Tasks、任意 shell、版本范围、隐式环境继承或无人值守高风险调用；Automation 不静默升级目标、不自动重试研究，也不批量追赶遗漏。研究情报的主题检索是按需查询和快照入口，保留新闻、研报及公告视图，不表示新增产业链关系图或后台行情管线。
 
 ## 启动与验收基线
 

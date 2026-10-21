@@ -1,5 +1,7 @@
 # Research Workbench Development Map
 
+业务模块导航重分组由 `ui/core.mjs` 规范化新旧 Hash 路由、`ui/shell.mjs` 组织主导航、`ui/workbench.mjs` 复用资产双视图/主题检索/ETF 模拟、`ui/intel.mjs` 增加主题检索栏目、`ui/app.mjs` 绑定页面归属与查询/交接异步结果。规范入口为 `#/assets`、`#/assets/funds`、`#/intel/search?kind=news|research|announcements`、`#/simulation/etf`；旧 `workbench` 地址保留映射，历史 section/API/持久化/DSH 均不变。近处回归为 `research_web_workbench.test.mjs`、`research_web_intel.test.mjs` 与 `tests/e2e/research_web_business_navigation.mjs`；行为归属见[UI 合同](research-web-ui.md#业务模块与导航-2026-10-21)。
+
 恢复环境回归使用真实Git LFS post-checkout钩子、受限launchd PATH和冻结恢复包，在临时Git仓库重现失败并验证恢复；部署前工具缺失须先失败，优雅排空预算为90秒。
 
 网关升级器 `resident/gateway_upgrade.py` 的 `--preserve-primary` 走 v3 静态事务；相邻 `test_gateway_upgrade.py` 与冻结恢复 runner 覆盖受限差异、双资格、空闲排空和离线六阶段回滚。旧菜单适配继续由 `ui/server/account-menu.mjs` 维护，隔离浏览器使用真实旧版模块验证身份入口。

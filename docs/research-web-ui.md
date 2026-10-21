@@ -143,7 +143,7 @@ DSH 及 schema17 流级预算桥。已有真实报告验收与新 UI 的隔离�
 模型设置的“凭据存储”显示实际后端：系统 Keychain、本实例加密存储或未知/不可用。
 Key 提交后清空且不回填；来源展示不等于真实生成验收。
 
-`#/workbench/etf-paper` 由 `etf-paper.mjs` 展示工程输入、真实BLOCKED缺口、仓位/风险、模拟委托/成交、
+`#/simulation/etf` 由 `etf-paper.mjs` 展示工程输入、真实BLOCKED缺口、仓位/风险、模拟委托/成交、
 现金费用与复盘。打开只读目录及运行摘要，提交须明确上传完整JSON，空缺参数不补推荐值。
 合同见[数据与文件](architecture/research-web/03-data-files.md#etf-工程模拟与真实准入边界)。
 
@@ -231,7 +231,7 @@ Hot 运行配置增加 model.enabled（默认关闭）及 model.scopeId（已有
 付费授权，重启后按既有预算、受控凭据和当日定价检查装配；缺条件显示 blocked_model，列表读取
 仍不触发模型。创建新授权范围、价格刷新的一键入口和正式研究仍待完成。
 
-Hot 工作区为 `#/workbench/hot?view=events|sources|channels`，运行配置为 `#/settings/hot`。
+Hot 工作区为 `#/intel/hot?view=events|sources|channels`，运行配置为 `#/settings/hot`。
 它调用既有Host中的惰性签名桥，不向浏览器提供控制key。页面导航和刷新只读取，不启动Hot、
 模型、研究或安装。事件显示独立相关性/重要性/热度/增量、原文版本和截止时点，来源显示快照/
 暂停/错误/缺口。字面筛选不冒充结构化机构/资产标签；未知时间保持未知，默认Asia/Shanghai。
@@ -243,13 +243,30 @@ UUID与原body，未知回执只允许明确原参数重试。未提交DOM表单
 
 `app/research_web/ui/` 是独立的 Research Web 正式应用源码，由 Research Web FastAPI 服务提供 `/` 和 `/static/`。不加载原 `app/web` 管线或原型脚本，不依赖前端构建工具，不新增第三方包。2026-09-02 的真实模型与浏览器旅程已移入[历史验收](archive/acceptance/research-web-acceptance-2026-09-02.md)，只证明当时环境。
 
-页面使用 hash 路由：`#/fingpt`、`#/claw`、`#/workbench`、`#/workbench/assets`、`#/frameworks`、`#/frameworks/gold`、`#/frameworks/dollar`、`#/history`、`#/skills`、`#/operations` 与设置子路由。黄金和美元流动性详情各是一张带七个语义锚点的连续画布；旧 `?tab=` 地址继续定位相应锚点。框架间切换时，renderer 只接受与目标 slug 一致的快照；旧快照被丢弃并显示目标框架加载态。Dollar 的 SOFR−IORB 图显示最近 30 期，完整 60 期仍保留在快照用于研究状态。能力中心的规范入口使用 `#/skills?kind=skill|tool|workflow|data`，并以 `view=library|mine|plans|connections|market` 表示类型内二级视图；`market` 仅对 Tool 有效，规范地址为 `#/skills?kind=tool&view=market`，无 kind 的 market 也归一到 Tool。无 kind 的旧 plans/connections 链接分别归一到 Workflow/Tool。设置的规范地址是 `#/settings/general`、`#/settings/model`、`#/settings/data`、`#/settings/local`、`#/settings/docs`；`#/settings` 和非法子页回退至通用，旧 `#/settings?connection=<id>` 链接继续按来源进入数据源或本机集成。资产观察是主导航中的独立入口；研究台其余页面支持 `#/workbench/<section>` 与 `#/workbench?section=<section>`。会话地址形如 `#/fingpt?session=<encoded-id>`，刷新页面会重新读取该会话。
+页面使用 hash 路由：`#/fingpt`、`#/claw`、`#/assets`、`#/assets/funds`、`#/intel/search?kind=news|research|announcements`、`#/simulation/etf`、`#/frameworks`、`#/frameworks/gold`、`#/frameworks/dollar`、`#/history`、`#/skills`、`#/operations` 与设置子路由。黄金和美元流动性详情各是一张带七个语义锚点的连续画布；旧 `?tab=` 地址继续定位相应锚点。框架间切换时，renderer 只接受与目标 slug 一致的快照；旧快照被丢弃并显示目标框架加载态。Dollar 的 SOFR−IORB 图显示最近 30 期，完整 60 期仍保留在快照用于研究状态。能力中心的规范入口使用 `#/skills?kind=skill|tool|workflow|data`，并以 `view=library|mine|plans|connections|market` 表示类型内二级视图；`market` 仅对 Tool 有效，规范地址为 `#/skills?kind=tool&view=market`，无 kind 的 market 也归一到 Tool。无 kind 的旧 plans/connections 链接分别归一到 Workflow/Tool。设置的规范地址是 `#/settings/general`、`#/settings/model`、`#/settings/data`、`#/settings/local`、`#/settings/docs`；`#/settings` 和非法子页回退至通用，旧 `#/settings?connection=<id>` 链接继续按来源进入数据源或本机集成。资产观察、研究情报与策略模拟使用各自规范入口，旧研究台路径按下文映射兼容。会话地址形如 `#/fingpt?session=<encoded-id>`，刷新页面会重新读取该会话。
 
 当前采用用户批准的 Codex 风格：中性画布、单列导航、按需展开的研究面板；支持 Light/Dark/跟随系统，Logo 仅图案，浅蓝深白。实现与品牌资产见 [外观与主题](research-web-appearance.md)。真实能力中心、Workflow、DataHub 以外的原生审批、DSH 和文件链路保持不变，没有迁入设计原型的模拟数据。
 
 Phase 2A/2B/2C 通过 CI 后，MCP 市场、MCP Runtime 与 Automation 默认可见；部署可分别用三个 `RESEARCH_*_ENABLED=0` 环境变量关闭。该默认值变化不改变四类能力主导航、深链、弹窗或草稿不自动发送契约。
 
 当前产品身份统一为 **Research Workbench**。浏览器标题、favicon 与品牌图片从现行中性品牌资产读取；消息不显示可见署名，其辅助名称按当前会话模式生成。主题偏好使用 `research-web.appearance.v1`。产品壳不再发布旧名称或旧命令，但 `/api/research/*` 与现有 hash 路由保持稳定。
+
+## 业务模块与导航 2026-10-21
+
+主导航依次为 **FinGPT → Claw → 资产观察 → 研究情报 → AI 资讯 → 研究框架 → 策略模拟 → 能力中心 → 运行与用量**。取消“研究台”一级入口；设置与账号继续沿用产品壳原入口。每个业务页面仅高亮所属的一个主入口。
+
+| 模块 | 组织方式与规范页面 | 既有能力归属 |
+| --- | --- | --- |
+| 资产观察 | 按标的持续跟踪；`#/assets` 与 `#/assets/funds` | “行情与基本面”保留原行情、财务、公告、新闻、研究资料、自选、笔记与提醒；“基金数据”独立使用 `fund_data` 查询基本资料、历史净值、分红、披露持仓，不把基金套入股票区块 |
+| 研究情报 | 按事件与主题阅读、检索；`#/intel/search?kind=news\|research\|announcements` | 原热点/事件及外部栏目保留；主题检索的新闻、研报、公告视图分别复用历史 `market`、`industry`、`documents` section 与已有 DataHub 能力；“行业与主题检索”不表示具备产业链关系图 |
+| 研究框架 | 按分析体系组织判断；`#/frameworks` 及现有详情地址 | 既有框架、快照、评分和 Bot 准入保持原合同 |
+| 策略模拟 | 按策略规则和运行组织；`#/simulation/etf` | 原 ETF 工程输入、运行、持仓、风险、委托成交、资金对账与复盘保留；真实链路的 `BLOCKED` 和缺失值原样展示 |
+
+旧 `#/workbench/<section>` 与 `#/workbench?section=<section>` 继续兼容：根入口和 `assets` 归一到 `#/assets`，`funds` 到 `#/assets/funds`，`market/industry/documents` 到主题检索的 `news/research/announcements`，`etf-paper` 到 `#/simulation/etf`。旧 `hot` 跳转仍保留事件、视图与筛选参数。刷新及浏览器前进后退都按规范目的地恢复当前视图。
+
+不新增资产与研究成果关联，也不渲染跨会话文件总览。上传材料、数据集与生成文件继续在来源研究会话查看。查询/交接 HTTP API、历史 section 值、持久化格式和 DSH 执行机制不变；FinGPT/Claw 继续执行显式提交的研究。
+
+页面打开只读取目录、历史查询或已有运行摘要，查询、模拟与模型研究均须用户显式提交。基金/主题查询按页面归属隔离草稿和异步结果；切换视图后，迟到的目录、查询、轮询或交接响应不得覆盖新页面或触发跳转。刷新恢复最近查询时，交接以该查询实际 dataset manifest 的原参数、来源和截止时间为准，不把尚未提交的表单变化当成已有快照上下文；错误、缺失、`partial` 与未知值继续可见。
 
 ## 模块
 
@@ -281,7 +298,7 @@ Phase 2A/2B/2C 通过 CI 后，MCP 市场、MCP Runtime 与 Automation 默认可
 | `connections.mjs` | 设置页统一连接中心、来源分组/同页详情、配置状态矩阵、秘密型表单和旧环境变量迁移确认；不自行读取或持久化凭据 |
 | `capability-editor.mjs` | 完整候选表单、输入和文件编辑、脚本审查标识、有序 Workflow 步骤与载荷收集 |
 | `capability-controller.mjs` | 显式创建/复制/导入/编辑/检查/发布/停用/启用/版本/回滚操作及失败保稿 |
-| `workbench.mjs` | 市场、基金、产业链、资料等研究台入口，按需查询并把真实快照交接给研究会话 |
+| `workbench.mjs` | 资产观察双视图、研究情报主题检索和策略模拟的既有页面组合；保留历史 section 值，按需查询并把真实快照交接给研究会话 |
 | `asset-workspace.mjs` | 独立资产观察：概览、OHLC K 线、MA/BOLL、成交量、成交额、换手率、MACD、KDJ、RSI、财务/事件/资料分块、自选、笔记、提醒和来源口径；指标只从 DataHub 行情行计算，缺失数据不填演示值 |
 | `frameworks.mjs` / `frameworks/` | Framework Hub、Gold/Dollar 专属连续画布、11 张非重复用途的 Lieflat 图和绑定 slug/章节/缺口/snapshot revision 的解释/深度验证 Bot |
 | `report-workflows.mjs` | Claw 与能力中心中的真实报告 Workflow 卡片和详情；显示锁定版本、模板、Excel 底稿、数据插件、步骤、日程和历史产物 |
@@ -300,7 +317,7 @@ Phase 2A/2B/2C 通过 CI 后，MCP 市场、MCP Runtime 与 Automation 默认可
 - 框架 Bot 默认只解释当前服务器快照，显式“深度验证”才创建独立只读研究会话；两者都绑定精确框架 slug、章节、缺口 ID 与 `snapshot_revision`，跨框架或快照变化后要求重新开始。桌面为右侧吸顶面板，移动端为全页底部面板。
 - 全局 Artifacts 错误只属于研究会话页。资产观察不请求 Artifacts，进入资产页时也会清除旧页面遗留的 Artifacts 错误；软删除会话在恢复前不会重新进入全局产物目录。
 - `@` 标签候选仅在用户展开菜单后读取；首次展开先获得当前会话页面访问授权。候选按标题或 URL 过滤，支持键盘操作和最多 8 个可移除 chip。发送前必须二次确认实时 claim 及可能改变分组；授权、claim 或提取失败均保留正文和 chips。`/` 菜单优先且不与 `@` 菜单同时展开。设置 → 本地集成分别控制浏览器自动化和 Tabbit `web_fetch` 接管，配置只在 Runtime 重启后生效。完整契约和 `read_only` 限制见 [Tabbit 集成](research-web-tabbit.md)。
-- 研究台和资产观察页面打开不会联网；提交查询后轮询真实查询状态，完成后才能把当前 dataset 和页面上下文显式交给 FinGPT/Claw。交接只复制并核验所选会话快照，不重复取数。资产各区块独立显示 `loading/complete/partial/empty/unavailable/error`；历史行情存在时在同一页渲染 OHLC K 线、MA/BOLL、成交量、MACD、KDJ、RSI 和换手率，所有派生指标都由返回的真实行情行计算。DataHub 标准字段 `turnover` 表示成交额，`turnover_rate_pct` 表示换手率；两者不得混用，缺少换手率时显示未知。AKShare 财务摘要历史快照中的布尔缺失哨兵只在财务区块显示为 `—`，其他区块的真实布尔值保持原样；新财务快照在 Provider 边界保存为 `null`。没有真实值时不补价格、估值、主题或同类比较。
+- 资产观察和研究情报的主题检索页面打开不会请求外部数据源；提交查询后轮询真实查询状态，完成后才能把当前 dataset 和页面上下文显式交给 FinGPT/Claw。交接只复制并核验所选会话快照，不重复取数。资产各区块独立显示 `loading/complete/partial/empty/unavailable/error`；历史行情存在时在同一页渲染 OHLC K 线、MA/BOLL、成交量、MACD、KDJ、RSI 和换手率，所有派生指标都由返回的真实行情行计算。DataHub 标准字段 `turnover` 表示成交额，`turnover_rate_pct` 表示换手率；两者不得混用，缺少换手率时显示未知。AKShare 财务摘要历史快照中的布尔缺失哨兵只在财务区块显示为 `—`，其他区块的真实布尔值保持原样；新财务快照在 Provider 边界保存为 `null`。没有真实值时不补价格、估值、主题或同类比较。
 - Claw 首页先读取 `/report-workflows`，单独展示已迁移的报告 Workflow；通用 Workflow 卡不会冒充具体报告。点击详情只查看资源与版本，点击运行才创建独立 Claw 会话。AI 周报处于 `needs_attention` 时禁止运行。
 - 运行与用量页使用单个 `/operations/summary` 汇总请求，避免并发遍历同一 DSH 历史造成瞬时健康误判；页面无停止、重启或删除按钮。缺失 usage 与模型价格分别显示“未知”和“费用未配置”。
 - 会话详情来自 `GET /sessions/{id}`；SSE `snapshot` 替换真实详情，`runtime_error` 显示运行错误。事件连接恢复只重新读取快照，不重发消息。跨会话旧响应会被忽略；较旧 HTTP 快照不会覆盖后来到达的 SSE 输出。
@@ -345,7 +362,7 @@ git diff --check
 
 本节记录旧布局与模板入口。当前 Claw 使用 72px 模块轨、280px 内侧栏、中央编辑器；以下旧 Claw 宽度、四列模板和左对齐标题不作为当前布局契约，以本文后面的 Claw 交互章节为准。
 
-当前产品采用 68px 一级导航与 248px 模式二级侧栏。一级导航只承担 FinGPT、Claw、资产观察、研究台、能力中心、运行与用量和设置；“新研究”、运行任务、最近研究属于当前 FinGPT/Claw 二级侧栏。Claw 二级侧栏再以“会话 / 工作空间”标签切换，非 FinGPT/Claw 页面不渲染二级侧栏；≤1050px 时这些导航进入可开关抽屉。导航底部和设置页都能选择外观。所有功能页顶栏移除页面/会话面包屑标题及独立放大镜按钮，全局搜索保留在一级导航；手机先展开导航再进入搜索。搜索关闭后，桌面焦点回到一级导航搜索，窄屏回到导航展开按钮。桌面顶栏没有运行时异常提示时不占高度，窄屏保留导航按钮所在行；搜索只覆盖已加载的真实会话与 Skill/Workflow/Tool。运行时健康且已授权时顶栏保持静默；只在需要配置模型、事件通道连接中或研究服务不可用时显示通往设置的异常提示；顶栏不提供全局刷新，完整 DSH 诊断与页面级刷新仍位于设置、运行与用量及相关业务页面。研究会话正文按“问题 → 研究过程 → 正文 → 操作”轮次组织：工具调用经 projection seq 归入对应轮次，渲染为可折叠的“研究过程”步骤条（运行中实时展开、完成后收起为摘要），回答正文内的 [docN]／[资料N] 渲染为可点击的参考角标，完成后显示重试/复制/分享/有用/没用操作行。右侧工作空间默认收起，展开后分“参考文件 / 工作笔记 / 执行记录”三个标签，参考文件与工作笔记带计数；执行记录保留实际活动、交付检查及固定版本 Workflow；异常和未完成交付在主画布保留提示。原 hash 路由、其他页面的 data selector 和全部能力操作契约不变。
+当前产品采用 68px 一级导航与 248px 模式二级侧栏。一级导航依次承担 FinGPT、Claw、资产观察、研究情报、AI 资讯、研究框架、策略模拟、能力中心和运行与用量，设置保留底部入口；“新研究”、运行任务、最近研究属于当前 FinGPT/Claw 二级侧栏。Claw 二级侧栏再以“会话 / 工作空间”标签切换，非 FinGPT/Claw 页面不渲染二级侧栏；≤1050px 时这些导航进入可开关抽屉。导航底部和设置页都能选择外观。所有功能页顶栏移除页面/会话面包屑标题及独立放大镜按钮，全局搜索保留在一级导航；手机先展开导航再进入搜索。搜索关闭后，桌面焦点回到一级导航搜索，窄屏回到导航展开按钮。桌面顶栏没有运行时异常提示时不占高度，窄屏保留导航按钮所在行；搜索只覆盖已加载的真实会话与 Skill/Workflow/Tool。运行时健康且已授权时顶栏保持静默；只在需要配置模型、事件通道连接中或研究服务不可用时显示通往设置的异常提示；顶栏不提供全局刷新，完整 DSH 诊断与页面级刷新仍位于设置、运行与用量及相关业务页面。研究会话正文按“问题 → 研究过程 → 正文 → 操作”轮次组织：工具调用经 projection seq 归入对应轮次，渲染为可折叠的“研究过程”步骤条（运行中实时展开、完成后收起为摘要），回答正文内的 [docN]／[资料N] 渲染为可点击的参考角标，完成后显示重试/复制/分享/有用/没用操作行。右侧工作空间默认收起，展开后分“参考文件 / 工作笔记 / 执行记录”三个标签，参考文件与工作笔记带计数；执行记录保留实际活动、交付检查及固定版本 Workflow；异常和未完成交付在主画布保留提示。原 hash 路由、其他页面的 data selector 和全部能力操作契约不变。
 
 FinGPT 与 Claw 分别呈现首页。FinGPT 面向问题研究，其四个快捷入口严格筛选同一 `/capabilities` 目录中的 `document-reading`、`company-research`、`industry-research`、`fund-evaluation`。Claw 明确目标、约束与预期交付；快捷区标题为“研究步骤模板”，只展示同目录 `kind=workflow` 且 `enabled=true` 的真实模板（包括已发布自建模板），不硬编码模板 ID，也不把缺项替换为 Skill 卡片。Claw 仍可通过上方能力选择框/slash 使用真实 Skill，并明确模板不代表已执行。目录缺项显示空态，不补造卡片。
 
@@ -440,7 +457,7 @@ Hot内部简报冻结/Markdown核心已实现，当前尚无网页生成入口�
 
 Hot内部简报现可条件发布为不可变版本并通过signed接口读取/列举；重放保留原版本和截止资料。当前网页尚未提供这些操作；持久记录通过不等于浏览器简报/DOCX或正式研究闭环通过。
 
-Hot简报视图现在为 `#/workbench/hot?view=briefs`。事件详情选择频道并显式生成，使用详情cutoff而非列表更新时点，保留选材窗口与时区；不调用模型。预览从已保存版本读取，分开显示归组摘要、来源陈述及规则/模型/人工判断，显示原始和应用版本。Markdown链接固定当前版本，未知创建保留原请求；晚到简报响应不能覆盖新选择。真实AI/宏观简报生成、预览、固定版本Markdown下载与刷新持久读取已在原验收库完成（Hot凭据fixture/研究offline/modeldisabled）；DOCX与完整研究仍未完成。
+Hot简报视图现在为 `#/intel/hot?view=briefs`。事件详情选择频道并显式生成，使用详情cutoff而非列表更新时点，保留选材窗口与时区；不调用模型。预览从已保存版本读取，分开显示归组摘要、来源陈述及规则/模型/人工判断，显示原始和应用版本。Markdown链接固定当前版本，未知创建保留原请求；晚到简报响应不能覆盖新选择。真实AI/宏观简报生成、预览、固定版本Markdown下载与刷新持久读取已在原验收库完成（Hot凭据fixture/研究offline/modeldisabled）；DOCX与完整研究仍未完成。
 
 ## 设置闭环阶段3：当前能力范围
 
