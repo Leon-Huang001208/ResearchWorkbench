@@ -553,7 +553,7 @@ test('overlapping runtime refreshes stay pending and the latest request wins', a
 
 test('real app event handlers close/select slash, search and drawers without any model or tool write', async () => {
   const handlers = new Map(); const calls = []; const logs = [];
-  const viewportChanges = []; const viewport = { matches: true, addEventListener(name, handler) { if (name === 'change') viewportChanges.push(handler); } };
+  const viewportChanges = []; const windowHandlers = new Map(); const viewport = { matches: true, addEventListener(name, handler) { if (name === 'change') viewportChanges.push(handler); } };
   const rootElement = { innerHTML: '', addEventListener: (name, handler) => handlers.set(name, handler), querySelectorAll: () => [], querySelector: () => null };
   const main = { scrollTop: 0, scrollTo() {}, focus() {} };
   const prompt = { id: 'prompt', focus() {} };
@@ -570,7 +570,7 @@ test('real app event handlers close/select slash, search and drawers without any
   const detail = { ...selectedSkill, draft: { kind: 'skill', metadata: selectedSkill.metadata, instructions: '真实候选', files: [], steps: [] } };
   try {
     Object.defineProperty(globalThis, 'document', { configurable: true, value: { querySelector: key => selectors[key] || null, querySelectorAll: () => resultItems, getElementById: id => id === 'global-search-results' ? searchResults : null, activeElement: null, title: '' } });
-    Object.defineProperty(globalThis, 'window', { configurable: true, value: { matchMedia: () => viewport, addEventListener() {} } });
+    Object.defineProperty(globalThis, 'window', { configurable: true, value: { matchMedia: () => viewport, addEventListener(name, handler) { windowHandlers.set(name, handler); } } });
     Object.defineProperty(globalThis, 'location', { configurable: true, value: { hash: '#/fingpt' } });
     Object.defineProperty(globalThis, 'history', { configurable: true, value: { pushState: (_a, _b, hash) => { globalThis.location.hash = hash; } } });
     Object.defineProperty(globalThis, 'fetch', { configurable: true, value: async (url, options) => {
@@ -582,8 +582,19 @@ test('real app event handlers close/select slash, search and drawers without any
     await load(`app.mjs?capabilities-integration=${Date.now()}`);
     assert.equal(viewportChanges.length, 1);
     viewport.matches = false; viewportChanges[0]({ matches: false });
-    assert.match(rootElement.innerHTML, /aria-label="关闭会话侧栏"/);
+    assert.match(rootElement.innerHTML, /data-collapse-sidebar aria-label="折叠 FinGPT 二级侧栏"/);
+    windowHandlers.get('focusin')({ target: { matches: () => true } });
+    document.body = {}; document.activeElement = document.body;
     viewport.matches = true; viewportChanges[0]({ matches: true });
+    assert.equal(focused, 'toggle', 'CSS-hidden sidebar control restores focus to the mobile opener');
+    windowHandlers.get('focusin')({ target: { matches: () => false } });
+    focused = '';
+    viewportChanges[0]({ matches: true });
+    assert.equal(focused, '', 'resizing must not steal focus from unrelated controls');
+    windowHandlers.get('focusin')({ target: { matches: () => true } });
+    windowHandlers.get('focusout')({ target: { matches: () => true, getClientRects: () => [{}] } });
+    viewportChanges[0]({ matches: true });
+    assert.equal(focused, '', 'deliberately blurred visible sidebar controls must not reclaim focus');
     assert.match(rootElement.innerHTML, /aria-label="打开会话侧栏"/);
     const input = async (id, value, dataset = {}) => handlers.get('input')({ target: { id, value, dataset, closest: () => null } });
     const click = async (dataset) => handlers.get('click')({ target: { closest: () => ({ dataset, disabled: false }) } });

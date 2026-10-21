@@ -1,7 +1,17 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createConversationNavigation, renderProjectEditor, readNavigationView, saveNavigationView, moveNavigationItem } from '../../app/research_web/ui/conversation-navigation.mjs';
-import { renderSidebar } from '../../app/research_web/ui/shell.mjs';
+import { renderSidebar, renderPrimaryRail, renderTopbar } from '../../app/research_web/ui/shell.mjs';
+
+test('research reopen control belongs to the topbar while rail search keeps its label', () => {
+  for (const page of ['fingpt', 'claw']) {
+    const rail = renderPrimaryRail({ page });
+    assert.doesNotMatch(rail, /rail-toggle/);
+    assert.match(rail, /<span>搜索<\/span>/);
+    assert.match(renderTopbar({ page }), /class="icon-button sidebar-reopen"[^>]*data-toggle-sidebar[^>]*aria-label="打开会话侧栏"[^>]*aria-expanded="false"/);
+  }
+  assert.doesNotMatch(renderTopbar({ page: 'settings' }), /sidebar-reopen/);
+});
 
 const metadata = mode => ({ mode, revision: 1, pinned: [], project_order: [] });
 test('navigation save failures preserve confirmed pins and revisions; a mode cannot overwrite another', async () => {
