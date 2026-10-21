@@ -1,0 +1,24 @@
+# Frozen recover entry from 19a16761d66a43a962540cbb2367755a392bcb75; keep unchanged.
+def recover(home: Path):
+    journal = home / "server/run/gateway-upgrade.json"
+    if not journal.exists():
+        return {"status": "idle"}
+    state = read_upgrade_journal(journal)
+    helper = Path(sys.argv[0])
+    if helper.suffix == ".pyz" and helper.name.startswith("gateway-recovery-"):
+        checksum = state.get("recovery", {}).get("artifact_sha256", "")
+        if not isinstance(checksum, str):
+            return {"status": "other_recovery_version"}
+        expected = home / "server/run" / f"gateway-recovery-{checksum[:16]}.pyz"
+        if state.get("version") != 2 or helper.resolve() != expected.resolve():
+            return {"status": "other_recovery_version"}
+    root, config = configured(home)
+    sys.path.insert(0, config["project"])
+    with (
+        file_lock(root, "supervisor.lock", exclusive=True),
+        file_lock(root, "admission.lock", exclusive=True),
+    ):
+        current = read_upgrade_journal(journal)
+        if current != state:
+            raise UpdateBlocked("gateway_journal_changed")
+        return recover_locked(home, current)

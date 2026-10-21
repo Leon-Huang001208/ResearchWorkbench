@@ -1,5 +1,7 @@
 # Research Workbench Development Map
 
+网关升级器 `resident/gateway_upgrade.py` 的 `--preserve-primary` 走 v3 静态事务；相邻 `test_gateway_upgrade.py` 与冻结恢复 runner 覆盖受限差异、双资格、空闲排空和离线六阶段回滚。旧菜单适配继续由 `ui/server/account-menu.mjs` 维护，隔离浏览器使用真实旧版模块验证身份入口。
+
 账号UI位于 `ui/server/account-menu.mjs`、`account-workspace.mjs` 与共用 `account-api.mjs`：身份顶部进资料、admin设置管理、保留DOM表单与旧primary适配。`accounts.mjs`只负责登录及旧/account跳转；相邻account_workspace/menu/session/settings JS测试与隔离浏览器证据分别验证行为。
 
 网关`apply-ui`与version 2恢复合同在`gateway_upgrade.py`；`test_gateway_upgrade.py`及两个冻结恢复fixture覆盖新旧helper、工具/产品隔离、资格失败和六阶段恢复。操作合同见[网关升级](research-web-gateway-upgrade.md)。
