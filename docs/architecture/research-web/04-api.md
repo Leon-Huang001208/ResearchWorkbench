@@ -1,5 +1,7 @@
 # Research Web 接口清单
 
+无新增CLI参数或HTTP接口；恢复任务工具缺失仍以既有blocked错误返回。优雅等待延长不改变deferred/recovery_required的语义。
+
 操作员apply-ui新增显式--preserve-primary，允许经三段受限差异证明的不同target；默认仍要求primary=target。HTTP身份、管理、退出和研究接口不变。
 
 新增的 stage-primary-ui 属于本机显式操作员模块命令，不新增 HTTP API、浏览器权限或研究工具。网关 apply-ui 的 helper 同 blob 校验由源码与冻结恢复包共同执行。

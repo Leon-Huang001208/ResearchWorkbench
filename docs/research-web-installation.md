@@ -1,5 +1,7 @@
 # Research Web Native / Docker 安装与运行
 
+网关冻结恢复任务显式提供既有系统/Homebrew工具PATH，安装前核验Git LFS；本轮不安装新依赖、不修改公开安装入口或全局环境。干净Mac Bootstrap仍是必需门。
+
 需保留旧主实例版本时，显式 `apply-ui --preserve-primary` 使用v3恢复合同。三段受限差异、原锁/空闲/排空/保全均通过才更新网关；公开安装入口和依赖锁不变，仍须同候选Mac干净安装CI。
 
 已验收UI的网关更新使用[显式apply-ui事务](research-web-gateway-upgrade.md#已验收界面的显式更新)：工具和产品各自核对资格，主实例不重装；恢复artifact有独立内容身份，不替换旧控制器。没有新依赖、凭据、数据库迁移或默认安装步骤，原锁与Mac Bootstrap安装/健康门保持。

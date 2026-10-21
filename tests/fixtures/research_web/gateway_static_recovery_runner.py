@@ -133,6 +133,9 @@ def main():
     g.bootstrap = lambda _: events.append("fallback_start")
     g.wait_health = health
     sys.argv = [str(owned_artifact)]
+    if "RWB_RECOVERY_FIXTURE_PATH" in os.environ:
+        os.environ["PATH"] = os.environ["RWB_RECOVERY_FIXTURE_PATH"]
+        log.info("fixture_recovery_environment_applied")
     assert g.main(["recover", "--home", str(home)]) == 0
     result = json.loads((home / "server/run/gateway-upgrade-result.json").read_text())
     assert result["status"] == ("aborted_before_signal" if phase == "preparing" else "rolled_back")

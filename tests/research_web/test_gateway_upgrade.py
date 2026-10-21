@@ -458,6 +458,95 @@ print('frozen_static_contract_passed')
     assert "frozen_static_contract_passed" in result.stdout
 
 
+def test_frozen_recovery_retains_checkout_hook_tools_in_launchd_environment(
+    static_artifact, tmp_path
+):
+    import os
+    import plistlib
+    import shutil
+    import subprocess
+    from pathlib import Path
+
+    source, home, previous, _payload, tool, artifact, _installed, _git = static_artifact
+    minimal = "/usr/bin:/bin:/usr/sbin:/sbin"
+    if not shutil.which("git-lfs"):
+        pytest.skip("existing Git LFS required for real hook regression")
+    hook = source / ".git/hooks/post-checkout"
+    hook.write_text(
+        '#!/bin/sh\ncommand -v git-lfs >/dev/null 2>&1 || exit 2\ngit lfs post-checkout "$@"\n'
+    )
+    hook.chmod(0o700)
+    old = subprocess.run(
+        ["/usr/bin/git", "-C", str(source), "switch", "--detach", tool],
+        env={**os.environ, "PATH": minimal},
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert (old.returncode == 0) == bool(shutil.which("git-lfs", path=minimal))
+    plist = next((home / "Library/LaunchAgents").glob("*.plist"))
+    environment = plistlib.loads(plist.read_bytes())["EnvironmentVariables"]
+    # Model launchd's small default PATH; only the installed job may supply tools.
+    env = {**os.environ, "RWB_RECOVERY_FIXTURE_PATH": environment.get("PATH", minimal)}
+    fixture = Path(__file__).parents[1] / "fixtures/research_web/gateway_static_recovery_runner.py"
+    if not shutil.which("git-lfs", path=minimal):
+        missing = subprocess.run(
+            [
+                sys.executable,
+                str(fixture),
+                str(artifact),
+                str(source),
+                str(tmp_path / "hook-recovery-unfixed"),
+                previous,
+                tool,
+                tool,
+                "starting",
+                "static-gateway",
+            ],
+            env={**os.environ, "RWB_RECOVERY_FIXTURE_PATH": minimal},
+            capture_output=True,
+            text=True,
+            timeout=45,
+            check=False,
+        )
+        assert missing.returncode != 0
+        assert "resident_command_failed" in missing.stdout
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(fixture),
+            str(artifact),
+            str(source),
+            str(tmp_path / "hook-recovery"),
+            previous,
+            tool,
+            tool,
+            "starting",
+            "static-gateway",
+        ],
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=45,
+        check=False,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "frozen_recovery_phase_passed" in result.stdout
+
+
+def test_recovery_checkout_tool_preflight_fails_before_artifact_creation(tmp_path, monkeypatch):
+    from research_workbench_entrypoint.resident import gateway_upgrade as g
+
+    def unavailable(argv):
+        assert argv[:2] == ["/usr/bin/env", f"PATH={g.RECOVERY_PATH}"]
+        raise g.UpdateBlocked("resident_command_failed")
+
+    monkeypatch.setattr(g, "run", unavailable)
+    with pytest.raises(g.UpdateBlocked, match="resident_command_failed"):
+        g.install_recovery(tmp_path, tmp_path)
+    assert not (tmp_path / "server").exists()
+
+
 def test_frozen_artifact_accepts_its_own_exact_helper_in_product(static_artifact):
     import subprocess
 

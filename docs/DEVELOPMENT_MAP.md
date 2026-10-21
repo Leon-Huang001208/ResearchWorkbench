@@ -1,5 +1,7 @@
 # Research Workbench Development Map
 
+恢复环境回归使用真实Git LFS post-checkout钩子、受限launchd PATH和冻结恢复包，在临时Git仓库重现失败并验证恢复；部署前工具缺失须先失败，优雅排空预算为90秒。
+
 网关升级器 `resident/gateway_upgrade.py` 的 `--preserve-primary` 走 v3 静态事务；相邻 `test_gateway_upgrade.py` 与冻结恢复 runner 覆盖受限差异、双资格、空闲排空和离线六阶段回滚。旧菜单适配继续由 `ui/server/account-menu.mjs` 维护，隔离浏览器使用真实旧版模块验证身份入口。
 
 账号UI位于 `ui/server/account-menu.mjs`、`account-workspace.mjs` 与共用 `account-api.mjs`：身份顶部进资料、admin设置管理、保留DOM表单与旧primary适配。`accounts.mjs`只负责登录及旧/account跳转；相邻account_workspace/menu/session/settings JS测试与隔离浏览器证据分别验证行为。
