@@ -45,6 +45,10 @@ MODE = "reviewed-model-providers-v1"
 ASSET_MODE = "reviewed-asset-observation-v1"
 ASSET_PREVIOUS = "c68814db170900688d6a799a241efc098eb83f32"
 ASSET_PAYLOAD = "54d4c8f9421c568de853a2f93263a2bfcd53422c"
+ASSET_V2_MODE = "reviewed-asset-observation-v2"
+ASSET_V2_PREVIOUS = "9bc12355c3b80e4e4459f4c250e13fc2634ed23d"
+ASSET_V2_PAYLOAD = "93d62be64084a5c92541a4a008216c0b3f56c2f1"
+ASSET_MODES = frozenset((ASSET_MODE, ASSET_V2_MODE))
 ASSET_EVIDENCE = "research_workbench_entrypoint/resident/evidence.py"
 ASSET_EVIDENCE_SHA256 = "ec022e39a89a3dbd021fca26049342ce149077f5beb62a8df2aba7826d016d25"
 MAX_ASSET_INDEX_BYTES = 64 * 1024 * 1024
@@ -115,6 +119,8 @@ def previous_for(mode):
         return PREVIOUS
     if mode == ASSET_MODE:
         return ASSET_PREVIOUS
+    if mode == ASSET_V2_MODE:
+        return ASSET_V2_PREVIOUS
     raise UpdateBlocked("model_upgrade_profile_unknown")
 
 
@@ -183,7 +189,7 @@ def asset_index_snapshot(home: Path):
 
 
 def validate_asset_snapshot(state):
-    if state.get("mode") != ASSET_MODE:
+    if state.get("mode") not in ASSET_MODES:
         return
     value = state.get("asset_index_before")
     if (
@@ -201,23 +207,25 @@ def validate_asset_snapshot(state):
 
 
 def verify_asset_index(home: Path, state):
-    if state.get("mode") == ASSET_MODE:
+    if state.get("mode") in ASSET_MODES:
         validate_asset_snapshot(state)
         if asset_index_snapshot(home) != state["asset_index_before"]:
             log.error("asset_upgrade_business_index_changed")
             raise UpdateBlocked("asset_upgrade_business_index_changed")
 
 
-def review_assets(source: Path, target: str):
-    """Freeze the already reviewed PR171 product, including paths reverted from the diff."""
+def review_assets(source: Path, target: str, mode=ASSET_MODE):
+    """Freeze the selected reviewed product, including paths reverted from the diff."""
+    if mode not in ASSET_MODES:
+        raise UpdateBlocked("model_upgrade_profile_unknown")
+    previous = previous_for(mode)
+    payload = ASSET_PAYLOAD if mode == ASSET_MODE else ASSET_V2_PAYLOAD
     c.clean(source, target)
-    c.git(source, "merge-base", "--is-ancestor", ASSET_PAYLOAD, target)
+    c.git(source, "merge-base", "--is-ancestor", payload, target)
     paths = {MODULE, TEST, ASSET_EVIDENCE}
-    for revision in (ASSET_PAYLOAD, target):
+    for revision in (payload, target):
         paths.update(
-            c.git(
-                source, "diff", "--no-renames", "--name-only", ASSET_PREVIOUS, revision
-            ).splitlines()
+            c.git(source, "diff", "--no-renames", "--name-only", previous, revision).splitlines()
         )
     result = {}
     for name in sorted(paths):
@@ -240,20 +248,20 @@ def review_assets(source: Path, target: str):
         }:
             pass
         elif (
-            blob != c.git(source, "rev-parse", f"{ASSET_PAYLOAD}:{name}")
-            or actual_mode != c.git(source, "ls-tree", ASSET_PAYLOAD, "--", name).split()[0]
+            blob != c.git(source, "rev-parse", f"{payload}:{name}")
+            or actual_mode != c.git(source, "ls-tree", payload, "--", name).split()[0]
         ):
             raise UpdateBlocked("asset_upgrade_payload_changed")
         result[name] = blob
-    log.info("asset_upgrade_payload_reviewed files=%s", len(result))
+    log.info("asset_upgrade_payload_reviewed profile=%s files=%s", mode, len(result))
     return result
 
 
 def review(source: Path, target: str, mode=MODE):
     """Only the reviewed model payload plus this operator, its test and documentation."""
     previous_for(mode)
-    if mode == ASSET_MODE:
-        return review_assets(source, target)
+    if mode in ASSET_MODES:
+        return review_assets(source, target, mode)
     c.clean(source, target)
     c.git(source, "merge-base", "--is-ancestor", PAYLOAD, target)
     c.git(source, "merge-base", "--is-ancestor", NAVIGATION_PAYLOAD, target)
@@ -553,7 +561,7 @@ def validate_state(home, state, *, executor_source=None):
         raise UpdateBlocked("model_upgrade_journal_invalid")
     if (
         state.get("version") != 4
-        or state.get("mode") not in {MODE, ASSET_MODE}
+        or state.get("mode") not in {MODE, *ASSET_MODES}
         or state.get("previous") != previous_for(state["mode"])
     ):
         raise UpdateBlocked("model_upgrade_journal_invalid")
@@ -703,7 +711,7 @@ class Operations:
     def prepare_fence(self, state):
         """Publish recoverable ownership before any reservation side effects."""
         state["before"] = g.preservation(self.home)
-        if state.get("mode") == ASSET_MODE:
+        if state.get("mode") in ASSET_MODES:
             state["asset_index_before"] = asset_index_snapshot(self.home)
         state["phase"] = "preparing"
         verify_serve(state["config"]["private_origin"])
@@ -752,7 +760,7 @@ class Operations:
             ):
                 return False
         index = read_json(self.home / "research-web/index.json")
-        if self.state.get("mode") == ASSET_MODE and not asset_queries_idle(index):
+        if self.state.get("mode") in ASSET_MODES and not asset_queries_idle(index):
             log.info("asset_upgrade_queries_active_or_unknown")
             return False
         rows = index.get("automation_runs")
@@ -1095,7 +1103,7 @@ def operate(home, source=None, *, recovering=False, mode=MODE):
                 "controller_sha256": c.digest(root / "controller.pyz"),
                 "supervisor_plist_sha256": supervisor_hash,
             }
-            if mode == ASSET_MODE:
+            if mode in ASSET_MODES:
                 state["asset_index_before"] = asset_index_snapshot(home)
             for role in ("primary", "gateway"):
                 project = Path(state[role + "_project"])
@@ -1152,7 +1160,7 @@ def operate(home, source=None, *, recovering=False, mode=MODE):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=("apply", "apply-assets", "recover"))
+    parser.add_argument("command", choices=("apply", "apply-assets", "apply-assets-v2", "recover"))
     parser.add_argument("--home", type=Path, default=Path.home() / ".research-workbench")
     parser.add_argument("--source", type=Path)
     args = parser.parse_args(argv)
@@ -1162,7 +1170,9 @@ def main(argv=None):
             args.home,
             args.source,
             recovering=args.command == "recover",
-            mode=ASSET_MODE if args.command == "apply-assets" else MODE,
+            mode={"apply-assets": ASSET_MODE, "apply-assets-v2": ASSET_V2_MODE}.get(
+                args.command, MODE
+            ),
         )
         print(json.dumps(result))
         return 0 if result["status"] in {"deployed", "not_required"} else 2

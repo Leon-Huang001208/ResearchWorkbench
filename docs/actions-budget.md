@@ -1,5 +1,7 @@
 # GitHub Actions 免费额度治理
 
+2026-10-22资产观察v2封闭部署profile只扩充原已注册的 `test_model_provider_upgrade.py`，沿现有Project Constraints、Research Web Checks和macOS Bootstrap，不新增workflow、job、runner、依赖或超时。当前API为PUBLIC；最近五个成功job119375810943/119370248735/119366403735/119366403997/119313810314，实际62/310/61/594/60秒。新增v2固定范围、保全和恢复参数化本机预算预留15秒；无模型或厂商请求进入CI，其他平台产品验收仍由对应真机交接，Mac不派Windows/Linux产品workflow。实际常驻切换与数据保全另留私有回执。
+
 2026-10-22资产摘要/来源汇总/透明主题沿既有Checks通配符和macOS Bootstrap，无新job、runner、依赖或超时。当前API为public；最近五个成功job为119313810314/119313811473/119313810997/119305921718/119305911865，分别60/490/570/52/506秒。本机新增投影与主题回归预留60秒，浏览器及已授权CJPY冻结读回仅本机执行；无模型/厂商调用进入CI。后续封闭联合升级profile以单独源码候选交付，仍保留原三门和平台归属，不从Mac派发Windows/Linux产品CI。
 
 2026-10-21 AlphaFoundry指标完整迁移沿原Checks、Project Constraints与macOS Bootstrap；不新增job/runner或延长超时。实时API为PUBLIC，最近五个成功job：39599120648约61秒、39599120520约459秒、39599120755约559秒、39597717254约512秒、39597717260约508秒。用户独立批准的ECharts5.5.0/Chart.js4.4.7作为约1.24MB本地静态库入包，不在CI下载或运行模型/厂商；库及许可/NOTICE增加到同一步安装HTTP逐字节核验。后端增加13项合同，JS增加原公式/筹码黄金值、原版完整指标与库完整性用例，原步骤预留60秒；浏览器原版对照及真实CJPY仅本机执行。保留全部既有门与其他平台NOT_RUN边界。
