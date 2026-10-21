@@ -8,6 +8,8 @@
 
 ## 接口与协议约定
 
+独立发布仓库身份修补不新增接口或命令参数；未知 origin、目录/inode 变化及目标对象缺失仍通过现有 blocked 通道在停机前返回。
+
 PR168 导航随原 `model_provider_upgrade apply/recover` 交付，没有新增参数或 HTTP 接口；显式操作员仅对固定五个 UI 文件使用独立产品身份，后端查询/交接协议不变。
 
 模型服务商联合部署仅新增本机 `model_provider_upgrade apply/recover --home [--source]` 显式入口，无新 HTTP/DSH 接口。只读 resident/runtime/model-profiles 与 server health 用于真实版本、活动及凭据是否配置核对，不发送模型请求或读出 Key。

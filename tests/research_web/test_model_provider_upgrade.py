@@ -691,6 +691,17 @@ def real_operations(tmp_path, monkeypatch):
                 system["failed"] = True
                 raise RuntimeError("synthetic after-effect failure")
 
+    config["repository"] = "fixture"
+    upgrade.c.atomic(root / "config.json", config)
+    for role in ("primary", "gateway"):
+        state[role + "_repository"] = {"common": str(home / role / ".git"), "identity": [1, 2]}
+    monkeypatch.setattr(
+        upgrade,
+        "repository_identity",
+        lambda project, _repository: state[
+            ("primary" if project == primary else "gateway") + "_repository"
+        ],
+    )
     monkeypatch.setenv("RESEARCH_RESIDENT_REVISION", "test-sentinel")
     return (
         home,
@@ -726,6 +737,200 @@ def test_real_activity_in_gateway_only_window_blocks_all_effects(real_operations
     assert system["events"] == []
     assert not (home / "resident/transaction.json").exists()
     assert (home / "server/run/gateway-upgrade.json").exists()
+
+
+def test_release_repositories_may_be_independent_of_qualified_source(tmp_path):
+    import subprocess
+
+    projects = {}
+    for role in ("source", "primary", "gateway"):
+        project = tmp_path / role
+        subprocess.run(["/usr/bin/git", "init", str(project)], check=True, capture_output=True)
+        subprocess.run(
+            [
+                "/usr/bin/git",
+                "-C",
+                str(project),
+                "remote",
+                "add",
+                "origin",
+                "git@github.com:Leon-Huang001208/ResearchWorkbench.git",
+            ],
+            check=True,
+        )
+        projects[role] = project.resolve()
+    state = {
+        "config": {
+            "repository": "Leon-Huang001208/ResearchWorkbench",
+            "source_common": str(projects["source"] / ".git"),
+        }
+    }
+    for role in ("primary", "gateway"):
+        state[role + "_project"] = str(projects[role])
+        state[role + "_repository"] = upgrade.repository_identity(
+            projects[role], state["config"]["repository"]
+        )
+        upgrade.verify_release_repository(state, role)
+    assert state["primary_repository"] != state["gateway_repository"]
+    subprocess.run(
+        [
+            "/usr/bin/git",
+            "-C",
+            str(projects["primary"]),
+            "remote",
+            "set-url",
+            "origin",
+            "https://example.invalid/unknown.git",
+        ],
+        check=True,
+    )
+    with pytest.raises(upgrade.UpdateBlocked, match="repository"):
+        upgrade.verify_release_repository(state, "primary")
+
+
+@pytest.mark.parametrize("changed", ["common", "inode"])
+def test_release_repository_replacement_is_rejected(tmp_path, monkeypatch, changed):
+    saved = {"common": str(tmp_path / ".git"), "identity": [1, 2]}
+    actual = {**saved, changed: str(tmp_path / "other") if changed == "common" else [1, 3]}
+    if changed == "inode":
+        actual = {"common": saved["common"], "identity": [1, 3]}
+    monkeypatch.setattr(upgrade, "repository_identity", lambda *_: actual)
+    state = {
+        "config": {"repository": "fixture"},
+        "primary_project": str(tmp_path),
+        "primary_repository": saved,
+    }
+    with pytest.raises(upgrade.UpdateBlocked, match="repository"):
+        upgrade.verify_release_repository(state, "primary")
+
+
+def test_validate_state_accepts_real_independent_release_clones(tmp_path, monkeypatch):
+    import hashlib
+    import subprocess
+    import zipfile
+
+    home = tmp_path.resolve()
+    authority = home / "authority"
+
+    def git(project, *args):
+        return subprocess.check_output(
+            ["/usr/bin/git", "-C", str(project), *args], text=True
+        ).strip()
+
+    subprocess.run(["/usr/bin/git", "init", str(authority)], check=True, capture_output=True)
+    git(
+        authority,
+        "-c",
+        "user.name=Fixture",
+        "-c",
+        "user.email=fixture@example.invalid",
+        "commit",
+        "--allow-empty",
+        "-m",
+        "fixture",
+    )
+    target = git(authority, "rev-parse", "HEAD")
+    monkeypatch.setattr(upgrade, "PREVIOUS", target)
+    upgrade.g.private_root(home / "resident")
+    source = home / "resident/artifacts" / target / "source"
+    source.parent.mkdir(parents=True)
+    git(authority, "worktree", "add", "--detach", str(source), target)
+    config = {
+        "repository": "Leon-Huang001208/ResearchWorkbench",
+        "source_common": str(authority / ".git"),
+        "baseline": target,
+    }
+    state = {
+        "version": 4,
+        "mode": upgrade.MODE,
+        "phase": "prepared",
+        "previous": target,
+        "target": target,
+        "transaction": str(uuid4()),
+        "source": str(source),
+        "config": config,
+        "reviewed": {},
+        "supervisor_plist_sha256": "fixture",
+        "model_before": {
+            "provider": "fixture",
+            "model": "fixture",
+            "credential_configured": True,
+            "credential_storage": "fixture",
+        },
+    }
+    for role in ("primary", "gateway"):
+        project = home / role
+        subprocess.run(
+            ["/usr/bin/git", "clone", "--no-hardlinks", str(authority), str(project)],
+            check=True,
+            capture_output=True,
+        )
+        git(
+            project,
+            "remote",
+            "set-url",
+            "origin",
+            "git@github.com:Leon-Huang001208/ResearchWorkbench.git",
+        )
+        state[role + "_project"] = str(project)
+        info = project.stat()
+        state[role + "_identity"] = [info.st_dev, info.st_ino]
+        state[role + "_repository"] = upgrade.repository_identity(project, config["repository"])
+    config["project"] = state["primary_project"]
+    state["gateway_config"] = {
+        "project": state["gateway_project"],
+        "revision": target,
+        "binding": {},
+    }
+    state["manifest"] = {"code_commit": target}
+    for path, value in [
+        (home / "resident/config.json", config),
+        (home / "server/resident.json", state["gateway_config"]),
+        (home / "install/manifest.json", state["manifest"]),
+    ]:
+        upgrade.c.atomic(path, value)
+    controller = home / "resident/controller.pyz"
+    controller.write_bytes(b"fixture controller")
+    checksum = hashlib.sha256(controller.read_bytes()).hexdigest()
+    monkeypatch.setattr(upgrade, "CONTROLLER_SHA256", checksum)
+    state["controller_sha256"] = checksum
+    monkeypatch.setattr(upgrade, "verify_supervisor", lambda *_: "fixture")
+    monkeypatch.setattr(upgrade, "validate_executor", lambda *_: None)
+    monkeypatch.setattr(upgrade, "review", lambda *_: {})
+    monkeypatch.setattr(upgrade.g, "module_blobs", lambda *_: {})
+    artifact = home / "server/run/recovery.pyz"
+    artifact.parent.mkdir(parents=True)
+    with zipfile.ZipFile(artifact, "w") as archive:
+        archive.writestr("manifest.json", json.dumps({"target": target, "modules": {}}))
+        archive.writestr("__main__.py", upgrade.ENTRY)
+    artifact.chmod(0o600)
+    plist = home / "recovery.plist"
+    plist.write_bytes(b"fixture plist")
+    state["recovery"] = {
+        "artifact": str(artifact),
+        "sha256": upgrade.c.digest(artifact),
+        "modules": {},
+        "plist": str(plist),
+        "plist_sha256": upgrade.c.digest(plist),
+    }
+    state["gateway_plist"] = str(plist)
+    state["gateway_plist_sha256"] = upgrade.c.digest(plist)
+    wheel = source.parent / "fixture.whl"
+    wheel.write_bytes(b"fixture wheel")
+    state["old_wheel"] = state["new_wheel"] = {
+        "path": str(wheel),
+        "sha256": upgrade.c.digest(wheel),
+    }
+    upgrade.validate_state(home, state)
+    # Preserve path and origin but replace the real Git directory inode.
+    import shutil
+
+    common = Path(state["primary_repository"]["common"])
+    retired = home / "retired-primary-git"
+    common.rename(retired)
+    shutil.copytree(retired, common)
+    with pytest.raises(upgrade.UpdateBlocked, match="repository_changed"):
+        upgrade.validate_state(home, state)
 
 
 @pytest.mark.parametrize("crash_after", upgrade.FORWARD)
@@ -982,6 +1187,76 @@ def test_exact_profile_rejects_unreviewed_business_or_installation_changes(
     monkeypatch.setattr(upgrade.c, "git", git)
     with pytest.raises(upgrade.UpdateBlocked):
         upgrade.review(tmp_path, "f" * 40)
+
+
+@pytest.mark.parametrize(
+    "already_registered,limit", [(False, 30), (True, 30), (True, 20), (True, 45)]
+)
+def test_reviewed_workflow_keeps_one_registered_upgrade_test(
+    tmp_path, monkeypatch, already_registered, limit
+):
+    bare = "timeout-minutes: 20\npython -m pytest tests/research_web/test_gateway_upgrade.py"
+    registered = bare + " " + upgrade.TEST
+    original = registered if already_registered else bare
+    monkeypatch.setattr(upgrade.c, "clean", lambda *_: None)
+
+    def git(_source, *args):
+        if args[0] == "merge-base":
+            return ""
+        if args[0] == "diff":
+            return f"{upgrade.MODULE}\n{upgrade.TEST}\n{upgrade.WORKFLOW}"
+        if args[0] == "rev-parse":
+            return "a" * 40
+        if args[0] == "ls-tree":
+            return "100644 blob " + "a" * 40 + "\t" + args[-1]
+        if args[0] == "show":
+            return (
+                original
+                if args[1].startswith(upgrade.PAYLOAD)
+                else registered.replace("timeout-minutes: 20", f"timeout-minutes: {limit}")
+            )
+        pytest.fail("unexpected review query")
+
+    monkeypatch.setattr(upgrade.c, "git", git)
+    if limit == 30:
+        assert upgrade.WORKFLOW in upgrade.review(tmp_path, "f" * 40)
+    else:
+        with pytest.raises(upgrade.UpdateBlocked, match="workflow_scope"):
+            upgrade.review(tmp_path, "f" * 40)
+
+
+@pytest.mark.parametrize("tamper", ["none", "required-rule", "larger-limit"])
+def test_reviewed_ci_policy_only_changes_bounded_timeout(tmp_path, monkeypatch, tamper):
+    policy = ".agents/project-constraints.json"
+    original = '{"required":["same tests","timeout-minutes: 20"],"strict":true}'
+    candidate = original.replace("timeout-minutes: 20", "timeout-minutes: 30")
+    if tamper == "required-rule":
+        candidate = candidate.replace('"strict":true', '"strict":false')
+    if tamper == "larger-limit":
+        candidate = candidate.replace("timeout-minutes: 30", "timeout-minutes: 45")
+    monkeypatch.setattr(upgrade.c, "clean", lambda *_: None)
+
+    def git(_source, *args):
+        if args[0] == "merge-base":
+            return ""
+        if args[0] == "diff":
+            return f"{upgrade.MODULE}\n{upgrade.TEST}\n{policy}"
+        if args[0] == "rev-parse":
+            if args[-1].split(":", 1)[-1] in upgrade.NAVIGATION_FILES:
+                return "a" * 40
+            return "b" * 40 if args[-1].startswith("f" * 40) else "a" * 40
+        if args[0] == "ls-tree":
+            return "100644 blob " + "a" * 40 + "\t" + args[-1]
+        if args[0] == "show":
+            return original if args[-1].startswith(upgrade.PAYLOAD) else candidate
+        pytest.fail("unexpected policy query")
+
+    monkeypatch.setattr(upgrade.c, "git", git)
+    if tamper == "none":
+        assert policy in upgrade.review(tmp_path, "f" * 40)
+    else:
+        with pytest.raises(upgrade.UpdateBlocked):
+            upgrade.review(tmp_path, "f" * 40)
 
 
 @pytest.mark.parametrize(

@@ -1,5 +1,7 @@
 # Agent 任务路由指南
 
+常驻发布目录可能是独立 clone：先只读核对原 GitHub origin/common/inode，不把发布仓库改造成开发 worktree。新增恢复身份须先做三仓库回归，再执行完整 changed-set 约束和同候选 Mac Bootstrap；停机前确保两角色均已有精确目标对象。
+
 旧5df常驻实例交付PR168导航时，联合操作员只接受五个已审UI blob及原模型基线；先验证实际拒绝与范围正反例，再走原model_provider升级回归、Router、独立评审和同候选Mac安装。实际切换继续取得空闲、冻结与保全证明；不临时patch操作员/自动白名单，不调用模型，不替代浏览器效果验收。
 
 模型服务商联合部署先验证真实旧 controller 合同、部分 BirthFence 中断与 finish 内部故障；新增定点测试加入原 Checks 步骤，无新 job/依赖。完成独立评审、Router 与同候选 Mac Bootstrap 后才部署；活动/未知等待，不用本地测试代替常驻证据。

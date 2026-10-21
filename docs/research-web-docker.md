@@ -1,5 +1,7 @@
 # Mac mini Docker 开发与独立部署
 
+联合升级的独立 Git 仓库身份修补只适用于 Native 发布目录；不改 Docker 源码挂载、镜像、卷或容量保护，仍不构成 Docker 产品升级验证。
+
 PR168 五个导航文件的显式联合交付仍仅针对 macOS Native 主实例/网关；精确 UI 身份不授予 Docker 切换、数据库或构建器维护权限。
 
 模型服务商 v4 联合升级仅适用于当前受审 macOS Native 常驻主实例及网关，不操作 Docker 引擎、容器、卷或容量队列；Docker 活动和未知资源继续保留，不把 Native 部署测试当作 Docker 升级验收。
