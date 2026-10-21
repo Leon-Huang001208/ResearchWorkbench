@@ -1,5 +1,7 @@
 # Research Workbench Development Map
 
+`research_workbench_entrypoint/resident/model_provider_upgrade.py` 是模型服务商专项联合部署入口，复用 supervisor/admission 锁、BirthFence、服务管理器、保全摘要和独立恢复包；测试为 `test_model_provider_upgrade.py`，合同见 `research-web-gateway-upgrade.md`。不改变自动部署白名单或 DSH 协议。
+
 恢复环境回归使用真实Git LFS post-checkout钩子、受限launchd PATH和冻结恢复包，在临时Git仓库重现失败并验证恢复；部署前工具缺失须先失败，优雅排空预算为90秒。
 
 网关升级器 `resident/gateway_upgrade.py` 的 `--preserve-primary` 走 v3 静态事务；相邻 `test_gateway_upgrade.py` 与冻结恢复 runner 覆盖受限差异、双资格、空闲排空和离线六阶段回滚。旧菜单适配继续由 `ui/server/account-menu.mjs` 维护，隔离浏览器使用真实旧版模块验证身份入口。

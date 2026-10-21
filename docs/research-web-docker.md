@@ -1,5 +1,7 @@
 # Mac mini Docker 开发与独立部署
 
+模型服务商 v4 联合升级仅适用于当前受审 macOS Native 常驻主实例及网关，不操作 Docker 引擎、容器、卷或容量队列；Docker 活动和未知资源继续保留，不把 Native 部署测试当作 Docker 升级验收。
+
 本轮FinGPT三组比较只在macOS隔离Native实例执行，不调整Docker服务、VM或生产数据。资源收尾仅在既有锁与任务证明下认领重新生成的匹配源码字节码或空目录；未知目录和正在运行的构建仍阻止回收。
 
 AI资讯自主化本轮在隔离实例接入原版API/worker与独立库，保持DSH研究执行及当前常驻内容。零调用和后续切换边界见[自主资讯合同](research-web-ai-news.md)。

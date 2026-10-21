@@ -8,6 +8,7 @@
     {
       "id": "dual-runtime",
       "sources": [
+        "research_workbench_entrypoint/resident/model_provider_upgrade.py",
         "runtimes/research_web.json",
         "research_workbench_entrypoint/__init__.py",
         "research_workbench_entrypoint/runtime_mode.py",
@@ -747,6 +748,7 @@
     {
       "id": "private-multiuser",
       "sources": [
+        "research_workbench_entrypoint/resident/model_provider_upgrade.py",
         "research_workbench_entrypoint/resident/gateway_fence.py",
         "research_workbench_entrypoint/resident/gateway_upgrade.py",
         "app/research_web/multiuser/",
@@ -764,6 +766,7 @@
       ],
       "tests": [
         "tests/research_web/test_multiuser_accounts.py",
+        "tests/research_web/test_model_provider_upgrade.py",
         "tests/research_web/test_ai_news_multiuser.py",
         "tests/research_web/test_multiuser_gateway.py",
         "tests/research_web/test_multiuser_runtime.py",
