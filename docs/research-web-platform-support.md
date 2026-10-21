@@ -1,5 +1,7 @@
 # Research Web 能力与平台证据
 
+本轮只修正macOS Native显式部署的CI日志下载预算；Mac同候选安装与通用仓库检查仍必需。没有Windows/Linux原生部署或产品派发，Linux runner的通用CI不冒充Linux产品验收。
+
 资产观察 apply-assets 是 macOS Native 的固定版本显式部署；源码、同候选Mac安装CI、真实切换/回滚与浏览器效果分别取证。Windows/Linux原生部署和产品验收仍为NOT_RUN，不从Mac派发其产品CI。
 
 独立 clone 身份回归使用本机临时 Git 仓库，真实发布目录只做元数据预检；macOS 安装仍须最终候选 CI。Windows/Linux 原生产品部署保持 NOT_RUN，不从该回归推断其支持。

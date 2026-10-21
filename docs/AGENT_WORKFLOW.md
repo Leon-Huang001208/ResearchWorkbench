@@ -1,5 +1,7 @@
 # Agent 任务路由指南
 
+资产部署若CI大日志超过原30秒命令预算，应以正式修正、固定读取器SHA256、独立评审和同候选CI调整有界下载时间；不改现场模块或资格回执。本轮实测2.31MB日志47/49秒，下载上限120秒，其余资格、冻结和保全条件不变。
+
 资产观察部署使用已审 `model_provider_upgrade apply-assets` 的固定版本合同。先交付操作员源码并通过同候选CI，再执行原空闲/冻结/恢复事务；Native空闲不能替代资产观察与DataHub查询终态证明。实际版本、保全与浏览器另证，不改自动兼容清单，详见[部署合同](research-web-gateway-upgrade.md#资产观察固定版本联合部署)。
 
 常驻发布目录可能是独立 clone：先只读核对原 GitHub origin/common/inode，不把发布仓库改造成开发 worktree。新增恢复身份须先做三仓库回归，再执行完整 changed-set 约束和同候选 Mac Bootstrap；停机前确保两角色均已有精确目标对象。

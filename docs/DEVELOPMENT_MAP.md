@@ -1,5 +1,7 @@
 # Research Workbench Development Map
 
+`resident/evidence.py:GitHubEvidence.qualify` 仅对CI日志下载传120秒时限，普通命令仍30秒；`model_provider_upgrade.py:ASSET_EVIDENCE_SHA256` 将读取器绑定为受审工具内容。邻近 `test_resident.py` 与 `test_model_provider_upgrade.py` 覆盖超时、实际树不符及文件内容/模式/缺失拒绝。
+
 资产观察显式部署仍在 `resident/model_provider_upgrade.py`：`ASSET_MODE/previous_for/review_assets` 绑定固定旧版与已审产品，`asset_queries_idle` 补齐异步行情任务空闲证明。近处 `test_model_provider_upgrade.py` 以真实临时Git、真实操作方法与固定旧控制器夹具覆盖原始/资产两种profile的准入及恢复；没有第二部署执行器或自动白名单扩展。
 
 联合升级中的 `repository_identity/verify_release_repository` 分别验证主实例和网关的既有 GitHub origin、common directory 与 inode；独立 clone、来源变更及目录替换由 `test_model_provider_upgrade.py` 的真实临时 Git 仓库回归覆盖。

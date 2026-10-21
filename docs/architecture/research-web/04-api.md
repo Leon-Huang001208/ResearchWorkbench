@@ -1,5 +1,7 @@
 # Research Web 接口清单
 
+本轮部署只调整已有GitHub CI日志读取的有界时限并固定工具摘要，没有增加或更改HTTP路由、方法、身份边界和请求字段；完整checkout/树及三CI条件保留。
+
 ## 资产观察区块刷新
 
 `POST /api/research/assets/observations/{observation_id}/blocks/{block}/refresh` 使用 `Idempotency-Key` 头，无请求正文，受理返回 `202` 和观察的公开投影。目标必须是该观察已有的封闭区块：`overview/history/financials/activity/margin/holders/announcements/news/research`；沿原会话、资产、来源及日期参数，仅目标区块以 `refresh=true` 重新调用 DataHub。GET 观察和列表始终只读。
