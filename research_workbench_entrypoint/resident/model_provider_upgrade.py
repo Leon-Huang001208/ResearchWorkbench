@@ -45,6 +45,7 @@ MODE = "reviewed-model-providers-v1"
 ASSET_MODE = "reviewed-asset-observation-v1"
 ASSET_PREVIOUS = "c68814db170900688d6a799a241efc098eb83f32"
 ASSET_PAYLOAD = "54d4c8f9421c568de853a2f93263a2bfcd53422c"
+MAX_ASSET_INDEX_BYTES = 64 * 1024 * 1024
 CONTROLLER_SHA256 = "4924299104d5f82a9cc732bb2ca1f811694d14056d58a2762e7c86e40f6665a2"
 CONTROLLER_MODULE_SHA256 = "b432f519e14a2e851a7eb39a3de179f99494b9347c857694c4192477a7996846"
 TAILSCALE = "/Applications/Tailscale.app/Contents/MacOS/Tailscale"
@@ -140,13 +141,30 @@ def asset_index_snapshot(home: Path):
     """Hash every business-index value, preserving scope and missing/empty distinctions."""
 
     def snapshot(path):
+        try:
+            if path.resolve() != path.absolute():
+                raise ValueError("index_path_unsafe")
+            descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+            with os.fdopen(descriptor, "rb") as stream:
+                info = os.fstat(stream.fileno())
+                if not stat.S_ISREG(info.st_mode) or info.st_size > MAX_ASSET_INDEX_BYTES:
+                    raise ValueError("index_file_invalid")
+                raw = stream.read(MAX_ASSET_INDEX_BYTES + 1)
+            if len(raw) > MAX_ASSET_INDEX_BYTES:
+                raise ValueError("index_size_invalid")
+            index = json.loads(raw)
+            if not isinstance(index, dict):
+                raise ValueError("index_object_required")
+        except (OSError, ValueError) as exc:
+            log.error("asset_upgrade_index_read_failed", extra={"error_type": type(exc).__name__})
+            raise UpdateBlocked("asset_upgrade_index_invalid") from exc
         return {
             key: hashlib.sha256(
                 json.dumps(
                     value, sort_keys=True, separators=(",", ":"), ensure_ascii=True, allow_nan=False
                 ).encode()
             ).hexdigest()
-            for key, value in read_json(path).items()
+            for key, value in index.items()
         }
 
     users = home / "server/users"

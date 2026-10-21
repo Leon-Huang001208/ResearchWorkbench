@@ -176,6 +176,31 @@ def test_asset_snapshot_contains_digests_and_distinguishes_missing_from_empty(tm
     assert empty != before and empty != upgrade.asset_index_snapshot(tmp_path)
 
 
+def test_asset_snapshot_reads_business_indexes_larger_than_metadata_records(tmp_path):
+    (tmp_path / "server/users").mkdir(parents=True)
+    upgrade.c.atomic(tmp_path / "research-web/index.json", {"notes": {"body": "x" * 1_200_000}})
+    before = upgrade.asset_index_snapshot(tmp_path)
+    assert set(before["primary"]) == {"notes"}
+
+
+@pytest.mark.parametrize("bad", ["oversized", "symlink", "malformed", "list"])
+def test_asset_snapshot_rejects_unsafe_or_invalid_business_index(tmp_path, monkeypatch, bad):
+    (tmp_path / "server/users").mkdir(parents=True)
+    root = tmp_path / "research-web"
+    root.mkdir()
+    path = root / "index.json"
+    path.write_text("{}")
+    if bad == "oversized":
+        monkeypatch.setattr(upgrade, "MAX_ASSET_INDEX_BYTES", 1)
+    elif bad == "symlink":
+        path.rename(root / "retired.json")
+        path.symlink_to(root / "retired.json")
+    else:
+        path.write_text("{" if bad == "malformed" else "[]")
+    with pytest.raises(upgrade.UpdateBlocked, match="index_invalid"):
+        upgrade.asset_index_snapshot(tmp_path)
+
+
 @pytest.mark.parametrize(
     "command,profile",
     [("apply", upgrade.MODE), ("apply-assets", upgrade.ASSET_MODE), ("recover", upgrade.MODE)],
