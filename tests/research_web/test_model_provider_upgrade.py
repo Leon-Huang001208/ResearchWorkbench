@@ -1146,6 +1146,38 @@ def test_reviewed_workflow_keeps_one_registered_upgrade_test(
             upgrade.review(tmp_path, "f" * 40)
 
 
+@pytest.mark.parametrize("tamper", ["none", "required-rule", "larger-limit"])
+def test_reviewed_ci_policy_only_changes_bounded_timeout(tmp_path, monkeypatch, tamper):
+    policy = ".agents/project-constraints.json"
+    original = '{"required":["same tests","timeout-minutes: 20"],"strict":true}'
+    candidate = original.replace("timeout-minutes: 20", "timeout-minutes: 30")
+    if tamper == "required-rule":
+        candidate = candidate.replace('"strict":true', '"strict":false')
+    if tamper == "larger-limit":
+        candidate = candidate.replace("timeout-minutes: 30", "timeout-minutes: 45")
+    monkeypatch.setattr(upgrade.c, "clean", lambda *_: None)
+
+    def git(_source, *args):
+        if args[0] == "merge-base":
+            return ""
+        if args[0] == "diff":
+            return f"{upgrade.MODULE}\n{upgrade.TEST}\n{policy}"
+        if args[0] == "rev-parse":
+            return "b" * 40 if args[-1].startswith("f" * 40) else "a" * 40
+        if args[0] == "ls-tree":
+            return "100644 blob " + "a" * 40 + "\t" + args[-1]
+        if args[0] == "show":
+            return original if args[-1].startswith(upgrade.PAYLOAD) else candidate
+        pytest.fail("unexpected policy query")
+
+    monkeypatch.setattr(upgrade.c, "git", git)
+    if tamper == "none":
+        assert policy in upgrade.review(tmp_path, "f" * 40)
+    else:
+        with pytest.raises(upgrade.UpdateBlocked):
+            upgrade.review(tmp_path, "f" * 40)
+
+
 @pytest.mark.parametrize(
     "point",
     [

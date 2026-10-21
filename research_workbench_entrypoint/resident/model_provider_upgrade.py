@@ -33,6 +33,7 @@ PREVIOUS = "5df8e17e04f1b588f7e742423d81fb8e0ba34cb2"
 PAYLOAD = "4e8be6ac7405733755e4a00be10898504e71710a"
 MODULE = "research_workbench_entrypoint/resident/model_provider_upgrade.py"
 WORKFLOW = ".github/workflows/research-web-checks.yml"
+CONSTRAINTS = ".agents/project-constraints.json"
 TEST = "tests/research_web/test_model_provider_upgrade.py"
 ENTRY = "from resident.model_provider_upgrade import main\nraise SystemExit(main())\n"
 MODE = "reviewed-model-providers-v1"
@@ -113,10 +114,10 @@ def review(source: Path, target: str):
             "outputs/research-web-architecture/api-atlas.html",
         }:
             pass
-        elif name == WORKFLOW:
+        elif name in (WORKFLOW, CONSTRAINTS):
             original = c.git(source, "show", f"{PAYLOAD}:{name}")
             expected = original
-            if TEST not in original:
+            if name == WORKFLOW and TEST not in original:
                 expected = original.replace(
                     "tests/research_web/test_gateway_upgrade.py",
                     "tests/research_web/test_gateway_upgrade.py " + TEST,
