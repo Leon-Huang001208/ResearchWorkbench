@@ -1,5 +1,7 @@
 # Mac mini Docker 开发与独立部署
 
+资产观察 apply-assets 仅更新已审 macOS Native 主实例和网关，不切换 Docker 镜像、容器或业务卷；Docker 活动、容量和未知资源保护保持，不能把该部署当作 Docker 验收。
+
 联合升级的独立 Git 仓库身份修补只适用于 Native 发布目录；不改 Docker 源码挂载、镜像、卷或容量保护，仍不构成 Docker 产品升级验证。
 
 PR168 五个导航文件的显式联合交付仍仅针对 macOS Native 主实例/网关；精确 UI 身份不授予 Docker 切换、数据库或构建器维护权限。

@@ -1,5 +1,20 @@
 # Mac mini 空私有池网关升级
 
+## 资产观察固定版本联合部署
+
+资产专项还对主实例及全部私有用户业务 index 的每个顶层值冻结 canonical SHA256，区分字段缺失与空值；journal 不含正文或秘密。前进、回滚、最终完成及 preparing 恢复均核对，变化时保留冻结与恢复记录，不覆盖数据或宣称保全。已结束的 partial 观察和区块可进入空闲，任何 loading 或未知查询状态继续拒绝。
+
+业务索引采用独立的最大64MiB有界读取，校验规范路径、无链接、普通文件与JSON对象；不沿用只适合部署元数据的1MB限制，也不放宽原元数据合同。超过业务上限、损坏或未知路径继续拒绝。
+
+`model_provider_upgrade apply-assets` 仅接受当前 `c68814db170900688d6a799a241efc098eb83f32` 主实例和网关，产品固定为已审 PR171 的 `54d4c8f9421c568de853a2f93263a2bfcd53422c`。工具目标仍须是最新已合并并通过原三项 CI 的精确源码版本；除本操作员及文档/测试外，全部实际差异与固定产品 Git blob、模式一致，固定产品改变过的路径即使从目标差异中消失也逐一核验。未知 UI/后端、依赖、工作流或模式变化拒绝。
+
+```bash
+/absolute/primary/.venv/bin/python -m research_workbench_entrypoint.resident.model_provider_upgrade apply-assets \
+  --home /absolute/private-home --source /absolute/qualified-checkout
+```
+
+仍使用同一 v4 事务、不可变控制器和内容寻址恢复包，不改自动兼容清单、数据根、凭据或 Tailscale 路由。除原 Native、Host、日程与私有池空闲条件，资产观察和 DataHub 查询也须是明确的终态；任何加载或未知状态均延后。回滚及 `recover` 从封闭 profile 决定旧版 c688，不能回退到模型专项的旧版 5df。恢复前复验固定版本身份及原全部保护，不覆盖用户数据。旧 `apply` 的模型专项合同保持原样。
+
 ## 模型服务商联合升级
 
 源码权威 `source_common` 与发布角色仓库身份分开：主实例可为独立 clone，网关可为开发仓库的 worktree。

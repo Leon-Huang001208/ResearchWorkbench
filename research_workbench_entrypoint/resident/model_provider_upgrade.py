@@ -1,4 +1,4 @@
-"""Explicit, exact-scope primary/gateway model upgrade; automatic policy is unchanged."""
+"""Explicit, exact-scope Native product upgrades; automatic policy is unchanged."""
 
 from __future__ import annotations
 
@@ -42,6 +42,10 @@ CONSTRAINTS = ".agents/project-constraints.json"
 TEST = "tests/research_web/test_model_provider_upgrade.py"
 ENTRY = "from resident.model_provider_upgrade import main\nraise SystemExit(main())\n"
 MODE = "reviewed-model-providers-v1"
+ASSET_MODE = "reviewed-asset-observation-v1"
+ASSET_PREVIOUS = "c68814db170900688d6a799a241efc098eb83f32"
+ASSET_PAYLOAD = "54d4c8f9421c568de853a2f93263a2bfcd53422c"
+MAX_ASSET_INDEX_BYTES = 64 * 1024 * 1024
 CONTROLLER_SHA256 = "4924299104d5f82a9cc732bb2ca1f811694d14056d58a2762e7c86e40f6665a2"
 CONTROLLER_MODULE_SHA256 = "b432f519e14a2e851a7eb39a3de179f99494b9347c857694c4192477a7996846"
 TAILSCALE = "/Applications/Tailscale.app/Contents/MacOS/Tailscale"
@@ -104,8 +108,143 @@ def execute(ops, state, *, recovering=False):
         return {"status": "recovery_required"}
 
 
-def review(source: Path, target: str):
+def previous_for(mode):
+    if mode == MODE:
+        return PREVIOUS
+    if mode == ASSET_MODE:
+        return ASSET_PREVIOUS
+    raise UpdateBlocked("model_upgrade_profile_unknown")
+
+
+def asset_queries_idle(index):
+    """A Native-idle response does not prove pending DataHub work has finished."""
+    observations, queries = index.get("asset_observations", {}), index.get("data_queries", {})
+    if not isinstance(observations, dict) or not isinstance(queries, dict):
+        return False
+    for row in observations.values():
+        if not isinstance(row, dict) or row.get("status") not in {"complete", "partial", "failed"}:
+            return False
+        blocks = row.get("blocks", {})
+        if not isinstance(blocks, dict) or any(
+            not isinstance(block, dict)
+            or block.get("status") not in {"complete", "partial", "empty", "unavailable", "error"}
+            for block in blocks.values()
+        ):
+            return False
+    return all(
+        isinstance(row, dict) and row.get("status") in {"completed", "failed"}
+        for row in queries.values()
+    )
+
+
+def asset_index_snapshot(home: Path):
+    """Hash every business-index value, preserving scope and missing/empty distinctions."""
+
+    def snapshot(path):
+        try:
+            if path.resolve() != path.absolute():
+                raise ValueError("index_path_unsafe")
+            descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+            with os.fdopen(descriptor, "rb") as stream:
+                info = os.fstat(stream.fileno())
+                if not stat.S_ISREG(info.st_mode) or info.st_size > MAX_ASSET_INDEX_BYTES:
+                    raise ValueError("index_file_invalid")
+                raw = stream.read(MAX_ASSET_INDEX_BYTES + 1)
+            if len(raw) > MAX_ASSET_INDEX_BYTES:
+                raise ValueError("index_size_invalid")
+            index = json.loads(raw)
+            if not isinstance(index, dict):
+                raise TypeError("index_object_required")
+        except (OSError, ValueError, TypeError) as exc:
+            log.error("asset_upgrade_index_read_failed", extra={"error_type": type(exc).__name__})
+            raise UpdateBlocked("asset_upgrade_index_invalid") from exc
+        return {
+            key: hashlib.sha256(
+                json.dumps(
+                    value, sort_keys=True, separators=(",", ":"), ensure_ascii=True, allow_nan=False
+                ).encode()
+            ).hexdigest()
+            for key, value in index.items()
+        }
+
+    users = home / "server/users"
+    if users.is_symlink() or not users.is_dir():
+        raise UpdateBlocked("asset_upgrade_index_scope_invalid")
+    private = {}
+    for folder in sorted(users.iterdir()):
+        if folder.is_symlink() or (folder / "research-web").is_symlink():
+            raise UpdateBlocked("asset_upgrade_index_scope_invalid")
+        path = folder / "research-web/index.json"
+        if path.exists() or path.is_symlink():
+            private[folder.name] = snapshot(path)
+    return {"primary": snapshot(home / "research-web/index.json"), "private": private}
+
+
+def validate_asset_snapshot(state):
+    if state.get("mode") != ASSET_MODE:
+        return
+    value = state.get("asset_index_before")
+    if (
+        not isinstance(value, dict)
+        or set(value) != {"primary", "private"}
+        or not isinstance(value["private"], dict)
+    ):
+        raise UpdateBlocked("asset_upgrade_index_snapshot_invalid")
+    for scope in [value["primary"], *value["private"].values()]:
+        if not isinstance(scope, dict) or any(
+            not isinstance(digest, str) or not re.fullmatch(r"[0-9a-f]{64}", digest)
+            for digest in scope.values()
+        ):
+            raise UpdateBlocked("asset_upgrade_index_snapshot_invalid")
+
+
+def verify_asset_index(home: Path, state):
+    if state.get("mode") == ASSET_MODE:
+        validate_asset_snapshot(state)
+        if asset_index_snapshot(home) != state["asset_index_before"]:
+            log.error("asset_upgrade_business_index_changed")
+            raise UpdateBlocked("asset_upgrade_business_index_changed")
+
+
+def review_assets(source: Path, target: str):
+    """Freeze the already reviewed PR171 product, including paths reverted from the diff."""
+    c.clean(source, target)
+    c.git(source, "merge-base", "--is-ancestor", ASSET_PAYLOAD, target)
+    paths = {MODULE, TEST}
+    for revision in (ASSET_PAYLOAD, target):
+        paths.update(
+            c.git(
+                source, "diff", "--no-renames", "--name-only", ASSET_PREVIOUS, revision
+            ).splitlines()
+        )
+    result = {}
+    for name in sorted(paths):
+        blob = c.git(source, "rev-parse", f"{target}:{name}")
+        actual_mode = c.git(source, "ls-tree", target, "--", name).split()[0]
+        if actual_mode not in {"100644", "100755"}:
+            raise UpdateBlocked("asset_upgrade_payload_changed")
+        if name.startswith(("docs/", "tests/", ".ai/reports/")) or name in {
+            MODULE,
+            "README.md",
+            "outputs/research-web-architecture/index.html",
+            "outputs/research-web-architecture/api-atlas.html",
+        }:
+            pass
+        elif (
+            blob != c.git(source, "rev-parse", f"{ASSET_PAYLOAD}:{name}")
+            or actual_mode != c.git(source, "ls-tree", ASSET_PAYLOAD, "--", name).split()[0]
+        ):
+            raise UpdateBlocked("asset_upgrade_payload_changed")
+        result[name] = blob
+    log.info("asset_upgrade_payload_reviewed files=%s", len(result))
+    return result
+
+
+def review(source: Path, target: str, mode=MODE):
     """Only the reviewed model payload plus this operator, its test and documentation."""
+    previous_for(mode)
+    if mode == ASSET_MODE:
+        return review_assets(source, target)
     c.clean(source, target)
     c.git(source, "merge-base", "--is-ancestor", PAYLOAD, target)
     c.git(source, "merge-base", "--is-ancestor", NAVIGATION_PAYLOAD, target)
@@ -403,7 +542,11 @@ def validate_state(home, state, *, executor_source=None):
         "credential_storage",
     }:
         raise UpdateBlocked("model_upgrade_journal_invalid")
-    if state.get("version") != 4 or state.get("mode") != MODE or state.get("previous") != PREVIOUS:
+    if (
+        state.get("version") != 4
+        or state.get("mode") not in {MODE, ASSET_MODE}
+        or state.get("previous") != previous_for(state["mode"])
+    ):
         raise UpdateBlocked("model_upgrade_journal_invalid")
     if not g.SHA.fullmatch(state.get("target", "")) or state.get("phase") not in (
         "prepared",
@@ -412,6 +555,7 @@ def validate_state(home, state, *, executor_source=None):
         *BACKWARD,
     ):
         raise UpdateBlocked("model_upgrade_journal_invalid")
+    validate_asset_snapshot(state)
     source = Path(state["source"])
     validate_executor(
         executor_source if executor_source is not None else source, state["target"], state
@@ -420,7 +564,7 @@ def validate_state(home, state, *, executor_source=None):
     if (
         source != expected
         or source.resolve() != source
-        or review(source, state["target"]) != state["reviewed"]
+        or review(source, state["target"], state["mode"]) != state["reviewed"]
     ):
         raise UpdateBlocked("model_upgrade_source_changed")
     if (
@@ -470,7 +614,7 @@ def validate_state(home, state, *, executor_source=None):
             raise UpdateBlocked("model_upgrade_project_changed")
         verify_release_repository(state, role)
         actual = c.git(p, "rev-parse", "HEAD")
-        if actual not in (PREVIOUS, state["target"]):
+        if actual not in (previous_for(state["mode"]), state["target"]):
             raise UpdateBlocked("model_upgrade_revision_unknown")
         c.clean(p, actual)
     if c.digest(Path(state["gateway_plist"])) != state["gateway_plist_sha256"]:
@@ -550,6 +694,8 @@ class Operations:
     def prepare_fence(self, state):
         """Publish recoverable ownership before any reservation side effects."""
         state["before"] = g.preservation(self.home)
+        if state.get("mode") == ASSET_MODE:
+            state["asset_index_before"] = asset_index_snapshot(self.home)
         state["phase"] = "preparing"
         verify_serve(state["config"]["private_origin"])
         g.write_upgrade_journal(self.server / "run/gateway-upgrade.json", state)
@@ -592,10 +738,14 @@ class Operations:
             if (
                 data.get("enabled") is not True
                 or data.get("active") is not False
-                or data.get("revision") not in (PREVIOUS, self.state["target"])
+                or data.get("revision")
+                not in (previous_for(self.state.get("mode", MODE)), self.state["target"])
             ):
                 return False
         index = read_json(self.home / "research-web/index.json")
+        if self.state.get("mode") == ASSET_MODE and not asset_queries_idle(index):
+            log.info("asset_upgrade_queries_active_or_unknown")
+            return False
         rows = index.get("automation_runs")
         return isinstance(rows, dict) and all(
             isinstance(v, dict) and v.get("research_status") not in ("queued", "running")
@@ -663,12 +813,12 @@ class Operations:
         )
 
     def install(self, previous):
-        sha = PREVIOUS if previous else self.state["target"]
+        sha = previous_for(self.state.get("mode", MODE)) if previous else self.state["target"]
         for role in ("primary", "gateway"):
             p = Path(self.state[role + "_project"])
             verify_release_repository(self.state, role)
             actual = c.git(p, "rev-parse", "HEAD")
-            if actual not in (PREVIOUS, self.state["target"]):
+            if actual not in (previous_for(self.state.get("mode", MODE)), self.state["target"]):
                 raise UpdateBlocked("model_upgrade_revision_unknown")
             c.clean(p, actual)
             c.git(p, "switch", "--detach", sha)
@@ -691,7 +841,9 @@ class Operations:
         )
 
     def start_primary(self, previous):
-        os.environ["RESEARCH_RESIDENT_REVISION"] = PREVIOUS if previous else self.state["target"]
+        os.environ["RESEARCH_RESIDENT_REVISION"] = (
+            previous_for(self.state.get("mode", MODE)) if previous else self.state["target"]
+        )
         ports = self.state["config"]["web_port"], self.state["config"]["runtime_port"]
         with c.fixed_ports(self.manager, ports):
             self.manager._start_installed(self.lease, open_browser=False)
@@ -717,13 +869,14 @@ class Operations:
         g.wait_health(config, fenced=True)
 
     def verify(self, previous):
-        sha = PREVIOUS if previous else self.state["target"]
+        sha = previous_for(self.state.get("mode", MODE)) if previous else self.state["target"]
         g.verify_primary(self.home, sha)
         g.health(read_json(self.server / "resident.json"), fenced=True)
         remote = request_json(self.state["config"]["private_origin"] + "/api/server/health")
         if remote.get("revision") != sha or remote.get("deployment_fenced") is not True:
             raise UpdateBlocked("model_upgrade_private_health_failed")
         g.preserved(self.home, self.state["before"])
+        verify_asset_index(self.home, self.state)
         if model_metadata(self.state["config"]) != self.state["model_before"]:
             raise UpdateBlocked("model_upgrade_credential_metadata_changed")
         if not previous:
@@ -760,12 +913,16 @@ class Operations:
 
     def finish(self, state, result):
         validate_configuration(self.home, state)
+        verify_asset_index(self.home, state)
         if result == "deployed":
             candidate = {
                 k: state[k]
                 for k in ("previous", "target", "new_wheel", "old_wheel", "manifest", "proof")
             }
-            candidate["compatibility_review"] = {"profile": MODE, "blobs": state["reviewed"]}
+            candidate["compatibility_review"] = {
+                "profile": state.get("mode", MODE),
+                "blobs": state["reviewed"],
+            }
             c.atomic(self.root / "accepted.json", candidate)
             c.atomic(self.root / "candidate.json", candidate)
             c.atomic(
@@ -781,7 +938,9 @@ class Operations:
         record = {
             "status": result,
             "target": state["target"],
-            "revision": state["target"] if result == "deployed" else PREVIOUS,
+            "revision": (
+                state["target"] if result == "deployed" else previous_for(state.get("mode", MODE))
+            ),
             "preserved": True,
         }
         c.atomic(self.server / "run/model-upgrade-result.json", record)
@@ -794,7 +953,8 @@ class Operations:
         return record
 
 
-def operate(home, source=None, *, recovering=False):
+def operate(home, source=None, *, recovering=False, mode=MODE):
+    previous = previous_for(mode)
     if sys.platform != "darwin":
         raise UpdateBlocked("model_upgrade_macos_only")
     root, config = c.configured(home)
@@ -816,6 +976,7 @@ def operate(home, source=None, *, recovering=False):
                 return {"status": "not_required"}
             state = g.read_upgrade_journal(journal)
             validate_state(home, state)
+            previous = previous_for(state["mode"])
             # BirthFence journals describe both staged and releasing slots.
             # Its own identity-checked recovery handles these intermediate
             # states, before the activity probe interprets owner records.
@@ -832,7 +993,7 @@ def operate(home, source=None, *, recovering=False):
                 != config["source_common"]
             ):
                 raise UpdateBlocked("model_upgrade_source_changed")
-            reviewed = review(source, target)
+            reviewed = review(source, target, mode)
             if c.digest(root / "controller.pyz") != CONTROLLER_SHA256:
                 raise UpdateBlocked("model_upgrade_controller_unreviewed")
             with zipfile.ZipFile(root / "controller.pyz") as original:
@@ -856,15 +1017,15 @@ def operate(home, source=None, *, recovering=False):
                 raise UpdateBlocked("resident_failed_candidate_requires_retry")
             primary, gateway = Path(config["project"]), read_json(server / "resident.json")
             for project in (primary, Path(gateway["project"])):
-                c.clean(project, PREVIOUS)
+                c.clean(project, previous)
             if (
-                gateway["revision"] != PREVIOUS
+                gateway["revision"] != previous
                 or read_json(home / "install/manifest.json").get("status") != "installed"
-                or read_json(home / "install/manifest.json").get("code_commit") != PREVIOUS
-                or read_json(root / "accepted.json").get("target") != PREVIOUS
+                or read_json(home / "install/manifest.json").get("code_commit") != previous
+                or read_json(root / "accepted.json").get("target") != previous
             ):
                 raise UpdateBlocked("model_upgrade_previous_changed")
-            g.verify_primary(home, PREVIOUS)
+            g.verify_primary(home, previous)
             g.no_private_processes(server)
             directory = root / "artifacts" / target
             g.private_root(directory)
@@ -872,7 +1033,7 @@ def operate(home, source=None, *, recovering=False):
             if not artifact_source.exists():
                 c.git(source, "worktree", "add", "--detach", str(artifact_source), target)
             c.clean(artifact_source, target)
-            old_wheel = c.build_wheel(primary, primary, directory / "old" / PREVIOUS)
+            old_wheel = c.build_wheel(primary, primary, directory / "old" / previous)
             new_wheel = c.build_wheel(primary, artifact_source, directory / "new" / target)
             plist = Path.home() / "Library/LaunchAgents" / (g.LABEL + ".plist")
             pid = g.job_pid()
@@ -901,8 +1062,8 @@ def operate(home, source=None, *, recovering=False):
             g.no_children(pid)
             state = {
                 "version": 4,
-                "mode": MODE,
-                "previous": PREVIOUS,
+                "mode": mode,
+                "previous": previous,
                 "target": target,
                 "source": str(artifact_source),
                 "reviewed": reviewed,
@@ -925,6 +1086,8 @@ def operate(home, source=None, *, recovering=False):
                 "controller_sha256": c.digest(root / "controller.pyz"),
                 "supervisor_plist_sha256": supervisor_hash,
             }
+            if mode == ASSET_MODE:
+                state["asset_index_before"] = asset_index_snapshot(home)
             for role in ("primary", "gateway"):
                 project = Path(state[role + "_project"])
                 info = project.stat()
@@ -957,8 +1120,9 @@ def operate(home, source=None, *, recovering=False):
         elif state["phase"] == "preparing":
             # No service/source effect is possible before checkpoint prepared.
             validate_configuration(home, state)
-            g.verify_primary(home, PREVIOUS)
+            g.verify_primary(home, previous)
             g.preserved(home, state["before"])
+            verify_asset_index(home, state)
             journal.unlink()
             c.sync_directory(journal.parent)
             return {"status": "aborted_before_signal"}
@@ -979,13 +1143,18 @@ def operate(home, source=None, *, recovering=False):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=("apply", "recover"))
+    parser.add_argument("command", choices=("apply", "apply-assets", "recover"))
     parser.add_argument("--home", type=Path, default=Path.home() / ".research-workbench")
     parser.add_argument("--source", type=Path)
     args = parser.parse_args(argv)
     logging.basicConfig(filename=args.home / "logs/model-upgrade.log", level=logging.INFO)
     try:
-        result = operate(args.home, args.source, recovering=args.command == "recover")
+        result = operate(
+            args.home,
+            args.source,
+            recovering=args.command == "recover",
+            mode=ASSET_MODE if args.command == "apply-assets" else MODE,
+        )
         print(json.dumps(result))
         return 0 if result["status"] in {"deployed", "not_required"} else 2
     except MaintenanceBusy:

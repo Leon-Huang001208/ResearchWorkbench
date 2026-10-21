@@ -1,5 +1,7 @@
 # FinGPT 三组隔离比较（macOS）
 
+资产观察部署合同的Git、空闲与恢复回归复用原Checks和Mac Bootstrap，不调用比较模型或追加旧模型费用授权；真实CJPY页面检查与研究质量验收分开。
+
 资产观察的后端刷新/财务语义测试只加入既有 Research Web Checks Python 清单，SVG 和资讯导航测试沿原 JS 通配符；不改变 FinGPT 比较控制器、case、截止或费用授权。原同候选 macOS Bootstrap 仍独立验证安装；该组离线/浏览器夹具不能替代任何真实模型、厂商调用或原研究质量判据。
 
 完整Checks因实际安装/回归波动将原job时限扩至30分钟，所有既有检查保留；不会因此调用比较实验、消费旧模型预算或放宽研究质量判据。Mac Bootstrap与平台归属门保持。
