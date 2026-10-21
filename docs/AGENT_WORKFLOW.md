@@ -214,7 +214,7 @@ node scripts/git_safety.mjs backup-prune --project /absolute/RWB --apply
 
 ## 最小验收规划（Verification planning）
 
-资产观察的观察创建、单区块刷新、持久化失败、取消/重启恢复与 Wind 财务语义由 `test_asset_workspace.py` / `test_datahub_wind.py` 加入既有 Research Web Checks Python 步骤；SVG 指标、专题切换、资讯兼容入口和迟到响应沿原 `research_web*.test.mjs` 通配符，浏览器另走 `research_web_asset_workspace.mjs`。新增后端 97 项最终本机复验约 57 秒，预留 90 秒；不新增 job、runner、依赖或 Windows/Linux dispatch，不触发真实厂商/模型调用。完整相关测试、原 macOS 干净安装与最终候选证据仍分别验收，截图和契约测试不代表真实数据源可调用。
+资产观察 AF 连续指标迁移沿既有 Research Web Checks：`test_asset_workspace.py` 覆盖分区选源、完整日期对、60／61天硬门、valuation、旧观察和刷新恢复；JS 通配符覆盖六MA、BOLL样本标准差、EMA／KDJ／RSI黄金值、预热／缺失／平盘、周月先聚合、估算筹码、连续卡片和迟到响应。浏览器另验同输入原页对照、五图联动、缩放平移、多个宽度与明暗主题、取消和实例释放。固定本地 ECharts／Chart.js 的加载、wheel资源和Mac安装字节一致性须独立验证；真实CJPY冷启动首次查询及逐区刷新不能被夹具或HTTP成功替代。保持原CI job、平台归属和DSH质量门，未执行项保留NOT_RUN；常驻部署另行授权。
 
 Claw正文搜索的快速HTTP/私有RPC边界使用`test_session_search.py`，与既有协议合同一起进入Research Web Checks；查询须走JSON POST，浏览器验收另检查模式/归属、错误重试与迟到响应。新增只读搜索不替代完整本地API回归、Native候选与exact-SHA Mac安装CI，也不扩大Windows/Linux dispatch授权。
 
@@ -358,4 +358,4 @@ Docker 构建与验收任务的完成检查必须包含资源收尾：临时资�
 模型服务多连接先复现固定ref不能隔离账号，再离线覆盖legacy绑定、独立Key、未知提交、闲时门、日程锁内竞争及历史子研究；正式UI使用隔离示意数据验证，不读取生产Key或调用模型。完整Router、独立评审与同候选Mac Bootstrap后方可合并，常驻部署另行授权。
 
 
-资产观察安装验收复用既有 macOS Bootstrap 原启动步骤：逐个读取七个新增/组合的资产静态模块与样式，并和 checkout 字节比较；只上传 asset-static-smoke.json 路径/哈希摘要，不触发供应商、模型或新作业。
+资产观察安装验收复用既有 macOS Bootstrap 启动步骤：逐个读取新增／组合的资产静态模块、样式及固定本地图表库，并和 checkout 字节比较；保留 `asset-static-smoke.json` 路径／哈希摘要，不触发供应商、模型或新作业。最终候选的实际CI回执与本地wheel检查分别留证，不能由本机已有依赖代替干净安装。

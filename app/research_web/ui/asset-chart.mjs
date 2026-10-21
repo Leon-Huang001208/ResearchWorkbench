@@ -1,442 +1,257 @@
 import { escapeHTML as e } from './markdown.mjs';
 import { safeLog } from './core.mjs';
+import { MA_PERIODS, finite, enrichMarketBars, aggregateMarketBars, estimateChipDistribution, sourceFrequency } from './asset-indicators.mjs';
+export { enrichMarketBars } from './asset-indicators.mjs';
 
-const MAX_BARS = 5000;
-const INITIAL_BARS = 120;
-const MIN_VISIBLE = 10;
-const WIDTH = 1060;
-const HEIGHT = 718;
-const LEFT = 62;
-const RIGHT = 972;
-const PLOT_WIDTH = RIGHT - LEFT;
-const PANELS = {
-  price: { y: 26, h: 244, label: 'K 线' },
-  volume: { y: 306, h: 64, label: '成交量' },
-  macd: { y: 406, h: 72, label: 'MACD' },
-  kdj: { y: 514, h: 68, label: 'KDJ' },
-  rsi: { y: 618, h: 68, label: 'RSI' },
-};
-const prepared = new WeakSet();
-const renderCache = new WeakMap();
-const clamp = (value, low, high) => Math.min(high, Math.max(low, value));
-const validNumber = value => typeof value === 'number' && Number.isFinite(value);
-const finite = value => {
-  if (typeof value === 'string') {
-    const text = value.trim();
-    if (!/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i.test(text)) return null;
-    value = Number(text);
+const UP = '#ff4d4f'; const DOWN = '#00c896'; const TEXT = '#9ca3af'; const GRID = 'rgba(148,163,184,.18)';
+const COLORS = ['#ed8936', '#3182ce', '#805ad5', '#10b981', '#22d3ee', '#a3a3a3'];
+const BOLL = [['bollUpper', 'BOLL上轨', '#ffff00'], ['ma20', 'BOLL中轨', '#d9d9d9'], ['bollLower', 'BOLL下轨', '#ff00ff']];
+const clamp = (v, low, high) => Math.min(high, Math.max(low, v));
+const fmt = (v, digits = 2) => finite(v) === null ? '—' : v.toLocaleString('zh-CN', { minimumFractionDigits: digits, maximumFractionDigits: digits });
+const priceFmt = value => finite(value) === null ? '—' : Number(value).toFixed(2);
+const initialRange = length => ({ start: Math.max(0, length - 120), end: length, activeIndex: length - 1 });
+const periodLabel = period => ({ day: '日', week: '周', month: '月', unknown: '原始（频率未知）' })[period] || '原始';
+const maEnabled = state => Array.isArray(state.enabledMA) ? state.enabledMA : MA_PERIODS;
+const overlayKeys = state => state.overlay === 'boll' ? BOLL.map(v => v[0]) : state.overlay === 'none' ? [] : maEnabled(state).map(n => `ma${n}`);
+function rangeFor(length, state = {}) {
+  if (!length) return { start: 0, end: 0, activeIndex: -1 };
+  const end = finite(state.end) === null || !state.end ? length : clamp(Math.floor(state.end), 1, length);
+  const start = finite(state.start) === null ? Math.max(0, end - 120) : clamp(Math.floor(state.start), 0, end - 1);
+  const activeIndex = finite(state.activeIndex) === null ? end - 1 : clamp(Math.round(state.activeIndex), start, end - 1);
+  return { start, end, activeIndex };
+}
+function displayBars(rows, state, metadata) {
+  const bars = enrichMarketBars(rows); const source = sourceFrequency(metadata.frequency);
+  return source === 'day' && ['week', 'month'].includes(state.period) ? aggregateMarketBars(bars, state.period) : bars;
+}
+function priceDomain(bars, state) {
+  const { start, end } = rangeFor(bars.length, state); const keys = overlayKeys(state); const values = [];
+  for (const bar of bars.slice(start, end)) {
+    if (bar.validOHLC && !bar.gap) values.push(bar.low, bar.high);
+    for (const key of keys) if (finite(bar[key]) !== null) values.push(bar[key]);
   }
-  return validNumber(value) ? value : null;
-};
-const field = (row, keys, positive = false) => {
-  for (const key of keys) {
-    const value = finite(row[key]);
-    if (value !== null && (positive ? value > 0 : value >= 0)) return value;
-  }
-  return null;
-};
-const number = (value, digits = 2) => validNumber(value) ? value.toLocaleString('zh-CN', { maximumFractionDigits: digits }) : '—';
-const fixed = value => Number(value.toFixed(2));
-const clean = value => validNumber(value) ? value : null;
-
-function normalizeDate(value) {
-  if (typeof value !== 'string' && typeof value !== 'number') return null;
-  const text = String(value).trim();
-  const standardized = /^\d{8}$/.test(text) ? `${text.slice(0, 4)}-${text.slice(4, 6)}-${text.slice(6, 8)}` : text;
-  const match = /^(\d{4})-(\d{2})-(\d{2})(?:[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?)?$/.exec(standardized);
-  if (!match) return null;
-  const year = Number(match[1]); const month = Number(match[2]); const day = Number(match[3]);
-  if (year < 1900 || year > 2200) return null;
-  const date = new Date(Date.UTC(year, month - 1, day));
-  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return null;
-  if (text.length > 10 && text.includes(':') && !Number.isFinite(Date.parse(text))) return null;
-  return { date: `${match[1]}-${match[2]}-${match[3]}`, ordinal: date.getTime() / 86400000 };
+  if (!values.length) return [0, 1];
+  const low = Math.min(...values); const high = Math.max(...values); const padding = Math.max((high - low) * .08, .01);
+  return [low - padding, high + padding];
+}
+function kdjDomain(bars, state) {
+  const range = rangeFor(bars.length, state);
+  const values = bars.slice(range.start, range.end).flatMap(b => [b.k, b.d, b.j]).filter(v => finite(v) !== null);
+  return [Math.min(0, ...values), Math.max(100, ...values)];
+}
+function fieldUnit(metadata, key) {
+  const fields = metadata.fields; const field = Array.isArray(fields) ? fields.find(f => f?.name === key || f?.key === key) : fields?.[key];
+  if (typeof field !== 'object' || !field) return '';
+  const unit = String(field.unit || field.units || '').trim(); const normalized = unit.toLowerCase();
+  const currency = String(field.currency || (normalized === 'currency' ? metadata.currency : '') || '').toUpperCase();
+  const currencies = { CNY: '元', RMB: '元', USD: '美元', HKD: '港元', EUR: '欧元', GBP: '英镑', JPY: '日元' };
+  if (normalized === 'share' || normalized === 'shares') return '股';
+  if (currencies[unit.toUpperCase()]) return currencies[unit.toUpperCase()];
+  if ((!unit || normalized === 'currency') && currencies[currency]) return currencies[currency];
+  return /^(?:万|亿)?(?:股|手|元|美元|港元|份|张|吨|克)$/.test(unit) ? unit : '';
+}
+function metadataLabel(metadata) {
+  const currency = metadata.currency || metadata.fields?.close?.currency || '';
+  const dataset = typeof metadata.dataset === 'string' ? metadata.dataset : metadata.dataset?.dataset_id || metadata.dataset?.id || '';
+  return `源数据频率：${periodLabel(sourceFrequency(metadata.frequency))} ${currency} ${metadata.adjustment || ''} ${dataset}`;
+}
+function readout(bar, previous, metadata = {}) {
+  if (!bar) return '<span>没有可绘制的有效日期历史记录。不会生成模拟行情。</span>';
+  const base = finite(previous?.close); const change = base && finite(bar.close) !== null ? (bar.close / base - 1) * 100 : null;
+  const changeAmount = base !== null && finite(bar.close) !== null ? bar.close - base : null;
+  const amplitude = base && bar.validOHLC ? (bar.high - bar.low) / base * 100 : null;
+  const volumeUnit = fieldUnit(metadata, 'volume') || '源单位'; const amountUnit = fieldUnit(metadata, 'amount') || fieldUnit(metadata, 'turnover') || '源单位';
+  const values = [['开', fmt(bar.open)], ['高', fmt(bar.high)], ['低', fmt(bar.low)], ['收', fmt(bar.close)], ['涨跌额', changeAmount === null ? '—' : `${changeAmount > 0 ? '+' : ''}${fmt(changeAmount)}`], ['涨跌幅', change === null ? '—' : `${change > 0 ? '+' : ''}${fmt(change)}%`], ['均价（源字段）', fmt(bar.vwap)], ['振幅', amplitude === null ? '—' : `${fmt(amplitude)}%`], [`成交量（${volumeUnit}）`, fmt(bar.volume, 0)], [`成交额（${amountUnit}）`, fmt(bar.amount, 0)], ['换手率', bar.turnover_rate_pct === null ? '—' : `${fmt(bar.turnover_rate_pct)}%`]];
+  return `<span class="asset-history-date">历史读数 <strong>${e(bar.date)}</strong></span>${values.map(([label, value]) => `<span>${e(label)} <strong>${e(value)}</strong></span>`).join('')}${bar.validOHLC && !bar.gap ? '' : '<span class="asset-chart-warning">OHLC 缺失、间断或不一致，未绘制该蜡烛</span>'}`;
+}
+function overlayReadout(bar, state) {
+  if (!bar) return '';
+  const keys = state.overlay === 'boll' ? BOLL : state.overlay === 'none' ? [] : maEnabled(state).map(n => [`ma${n}`, `MA${n}`, COLORS[MA_PERIODS.indexOf(n)]]);
+  return keys.map(([key, label, color]) => `<span style="color:${color}">${label}: ${e(fmt(bar[key]))}</span>`).join('');
+}
+function panelLabels(bar = {}) {
+  return [['vol', '53.5%', `VOL:${fmt(bar.volume, 0)} MA5:${fmt(bar.volumeMA5, 0)} MA10:${fmt(bar.volumeMA10, 0)}`], ['macd', '64.5%', `MACD(12,26,9) DIF:${fmt(bar.dif, 4)} DEA:${fmt(bar.dea, 4)} MACD:${fmt(bar.macd, 4)}`], ['kdj', '77.5%', `KDJ(9,3,3) K:${fmt(bar.k)} D:${fmt(bar.d)} J:${fmt(bar.j)}`], ['rsi', '89.5%', `RSI(14):${fmt(bar.rsi)}`]].map(([id, top, text]) => ({ id: `kline-panel-label-${id}`, type: 'text', left: 50, top, silent: true, style: { fill: '#d1d5db', font: '12px JetBrains Mono, SF Mono, Consolas, monospace', textAlign: 'left', textVerticalAlign: 'top', text } }));
+}
+function controls(state, length, metadata) {
+  const source = sourceFrequency(metadata.frequency); const button = (action, label, active = false, disabled = false) => `<button type="button" class="kline-btn${active ? ' active' : ''}" data-asset-chart-action="${action}" aria-pressed="${active}"${disabled ? ' disabled' : ''}>${label}</button>`;
+  const periods = [['day', '日K'], ['week', '周K'], ['month', '月K']].map(([p, label]) => button(`period-${p}`, label, state.period === p && !state.showAll, source !== 'day' && source !== p)).join('');
+  return `<div class="asset-chart-toolbar"><div class="kline-period-group" role="group" aria-label="K线周期">${button('intraday', '分时', false, true)}${button('multiday', '多日', false, true)}${periods}${button('all', '全部', state.showAll)}</div><div class="asset-overlay-controls" role="group" aria-label="主图叠加指标">${button('overlay-ma', 'MA', state.overlay === 'ma')}${button('overlay-boll', 'BOLL', state.overlay === 'boll')}${button('overlay-none', '裸 K', state.overlay === 'none')}${MA_PERIODS.map(n => button(`ma-${n}`, `MA${n}`, maEnabled(state).includes(n))).join('')}</div><div class="asset-range-controls" role="group" aria-label="行情视区">${button('pan-back', '向前查看', false, !state.start)}${button('pan-forward', '向后查看', false, state.end === length)}${button('zoom-in', '放大')}${button('zoom-out', '缩小')}${button('reset', '近120条')}</div><span class="asset-range-summary" data-asset-range-summary>第 ${length ? state.start + 1 : 0}–${state.end} 条 / 共 ${length} 条</span></div>`;
+}
+function chipStats(chip) {
+  const percent = v => v === null ? '—' : `${fmt(v * 100, 1)}%`;
+  return [['筹码峰', fmt(chip.peak)], ['上边界', fmt(chip.upper)], ['下边界', fmt(chip.lower)], ['平均成本', fmt(chip.averageCost)], ['估算获利', percent(chip.profitFraction)], ['估算套牢', percent(chip.lockedFraction)]].map(([label, value]) => `<div><span>${label}</span><strong>${e(value)}</strong></div>`).join('');
+}
+export function renderMarketTerminal(rows = [], state = {}, metadata = {}) {
+  const source = sourceFrequency(metadata.frequency); const normalized = { overlay: 'ma', enabledMA: [...MA_PERIODS], period: source, showAll: false, ...state };
+  const bars = displayBars(rows, normalized, metadata); Object.assign(normalized, rangeFor(bars.length, normalized));
+  const active = bars[normalized.activeIndex]; const chip = estimateChipDistribution(bars, normalized.start, normalized.activeIndex, priceDomain(bars, normalized));
+  return `<section class="asset-market-terminal" aria-label="K 线与技术指标"><header><div><span class="eyebrow">MARKET TERMINAL</span><h2>K 线与技术指标</h2></div><span class="asset-terminal-period" data-asset-chart-metadata>${e(metadataLabel(metadata))}</span></header>${controls(normalized, bars.length, metadata)}<div class="asset-terminal-quote asset-history-readout" data-asset-history aria-live="off">${readout(active, bars[normalized.activeIndex - 1], metadata)}</div><div class="kline-terminal-layout"><div class="kline-indicator-rail" aria-hidden="true"><span class="active">主图</span><span>成交量</span><span>MACD</span><span>KDJ</span><span>RSI</span></div><div class="asset-kline-stage"><div class="asset-main-overlay" data-asset-overlay-label>${overlayReadout(active, normalized)}</div><div class="asset-terminal-chart" data-asset-chart data-asset-echarts role="img" tabindex="0" aria-label="包含 K 线、成交量、MACD、KDJ 和 RSI 的联动行情图"></div></div><aside class="asset-chip-panel"><div class="asset-chip-heading">筹码分布 <small>OHLCV估算</small></div><div class="chip-window-label" data-asset-chip-window>${chip.startDate ? e(`${chip.startDate}–${chip.endDate}`) : '暂无有效窗口'}</div><div class="asset-chip-chart" data-asset-chip-chart role="img" aria-label="OHLCV估算筹码分布"></div><div class="asset-chip-stats" data-asset-chip-stats>${chipStats(chip)}</div><p class="asset-chip-note">OHLCV估算：按区间成交量均匀分配价格，不是实际持仓；未建模换手衰减。</p></aside></div><p class="asset-chart-help">滚轮缩放、拖动平移与底部滑块联动五个面板。方向键选历史记录；离开图表后返回可见区最右记录。“全部”仅展示已加载数据，不请求供应商。</p><details class="asset-indicator-method"><summary>指标计算与数据缺口</summary><p>MA5/10/20/60/120/250 使用完整窗口；BOLL20 为样本标准差 ±2σ。EMA12/26 首收盘价起算，DIF 第26条、DEA9 与 MACD×2 第34条显示。KDJ9 从首个有效 RSV 起算、α=1/3；RSI14 为14个实际涨跌的简单滚动均值。缺失或无效 OHLC 和明确间断重置预热，周/月先聚合 OHLCV 再重算全部指标。成交量均线仅显示数值，单位按源字段。缺失数据保留缺口。</p></details></section>`;
 }
 
-function mean(values) {
-  if (!values.length || values.some(value => !validNumber(value))) return null;
-  return clean(values.reduce((sum, value) => sum + value / values.length, 0));
+/** Original AF ECharts 5.5 five-grid terminal configuration. */
+export function buildMarketChartOption(bars, state = {}, metadata = {}) {
+  const range = rangeFor(bars.length, state); const domain = priceDomain(bars, state); const dates = bars.map(b => b.date);
+  const line = (name, key, axis, color) => ({ name, type: 'line', xAxisIndex: axis, yAxisIndex: axis, data: bars.map((b, i) => [i, b[key]]), smooth: false, connectNulls: false, lineStyle: { width: 1, color }, itemStyle: { color }, symbol: 'none', showSymbol: false });
+  const series = [{ name: 'K线', type: 'candlestick', xAxisIndex: 0, yAxisIndex: 0, data: bars.map(b => b.validOHLC && !b.gap ? [b.open, b.close, b.low, b.high] : [null, null, null, null]), itemStyle: { color: UP, color0: DOWN, borderColor: UP, borderColor0: DOWN } }, { name: '成交量', type: 'bar', xAxisIndex: 1, yAxisIndex: 1, data: bars.map((b, i) => [i, b.volume, b.validOHLC ? (b.close >= b.open ? 1 : -1) : 0]), barWidth: '60%', itemStyle: { color: p => p.data[2] > 0 ? UP : p.data[2] < 0 ? DOWN : TEXT } }, ...MA_PERIODS.map((n, i) => line(`MA${n}`, `ma${n}`, 0, COLORS[i])), ...BOLL.map(([key, name, color]) => line(name, key, 0, color)), { name: 'MACD柱', type: 'bar', xAxisIndex: 2, yAxisIndex: 2, data: bars.map((b, i) => [i, b.macd, b.macd >= 0 ? 1 : -1]), barWidth: '60%', itemStyle: { color: p => p.data[2] > 0 ? UP : DOWN } }, line('DIF', 'dif', 2, COLORS[0]), line('DEA', 'dea', 2, COLORS[1]), line('K', 'k', 3, COLORS[0]), line('D', 'd', 3, COLORS[1]), line('J', 'j', 3, COLORS[2]), { ...line('RSI', 'rsi', 4, COLORS[2]), markLine: { silent: true, symbol: 'none', lineStyle: { type: 'dashed', width: 1, color: GRID }, data: [{ yAxis: 70 }, { yAxis: 30 }] } }];
+  const selected = Object.fromEntries([...MA_PERIODS.map(n => [`MA${n}`, (state.overlay || 'ma') === 'ma' && maEnabled(state).includes(n)]), ...BOLL.map(([, name]) => [name, state.overlay === 'boll'])]);
+  const [kdjMin, kdjMax] = kdjDomain(bars, state);
+  const axisStyle = { axisLine: { onZero: false, lineStyle: { color: GRID } }, axisTick: { show: false }, splitLine: { show: false }, min: 'dataMin', max: 'dataMax' };
+  return { backgroundColor: '#090c12', animation: false, legend: { show: false, selected }, tooltip: { trigger: 'axis', axisPointer: { type: 'cross', crossStyle: { color: TEXT } }, backgroundColor: 'rgba(9,12,18,.94)', borderColor: GRID, textStyle: { color: '#d1d5db', fontSize: 12 }, formatter: params => { const i = params?.[0]?.dataIndex; return i === undefined ? '' : readout(bars[i], bars[i - 1], metadata); } }, axisPointer: { link: [{ xAxisIndex: 'all' }] }, graphic: panelLabels(bars[range.activeIndex]), grid: [{ left: 46, right: 8, top: 28, height: '44%' }, { left: 46, right: 8, top: '53%', height: '8%' }, { left: 46, right: 8, top: '64%', height: '10%' }, { left: 46, right: 8, top: '77%', height: '9%' }, { left: 46, right: 8, top: '89%', height: '6%' }], xAxis: Array.from({ length: 5 }, (_, i) => ({ ...axisStyle, type: 'category', gridIndex: i, data: dates, boundaryGap: true, axisLabel: { show: [0, 2, 4].includes(i), color: TEXT, fontSize: 10 } })), yAxis: Array.from({ length: 5 }, (_, i) => ({ scale: i < 3, gridIndex: i, ...(i === 0 ? { min: domain[0], max: domain[1] } : i === 3 ? { min: kdjMin, max: kdjMax } : i === 4 ? { min: 0, max: 100 } : {}), splitNumber: i === 1 || i === 4 ? 2 : 3, axisLabel: { color: TEXT, fontSize: i === 0 ? 10 : 9, formatter: i === 0 ? priceFmt : undefined }, ...(i === 0 ? { axisPointer: { label: { formatter: params => priceFmt(params.value) } } } : {}), axisLine: { show: false }, axisTick: { show: false }, splitLine: { show: i !== 1, lineStyle: { color: GRID } }, splitArea: { show: false } })), dataZoom: [{ type: 'inside', xAxisIndex: [0, 1, 2, 3, 4], startValue: range.start, endValue: Math.max(0, range.end - 1), filterMode: 'none', zoomOnMouseWheel: true, moveOnMouseMove: true, moveOnMouseWheel: false }, { type: 'slider', xAxisIndex: [0, 1, 2, 3, 4], startValue: range.start, endValue: Math.max(0, range.end - 1), filterMode: 'none', height: 18, bottom: 2, borderColor: GRID, backgroundColor: 'rgba(15,23,42,.7)', fillerColor: 'rgba(148,163,184,.18)', handleStyle: { color: '#64748b' }, textStyle: { color: TEXT, fontSize: 10 } }], series };
 }
 
-function movingAverage(values, period, index) {
-  return index + 1 < period ? null : mean(values.slice(index - period + 1, index + 1));
+export function buildChipChartOption(chip, domain, echarts = null) {
+  const markers = [['筹码峰', chip.peak, '#eab308'], ['上边界', chip.upper, '#f59e0b'], ['下边界', chip.lower, '#f59e0b'], ['参考收盘', chip.referenceClose, COLORS[0]], ['均本', chip.averageCost, COLORS[1]]].filter(([, value]) => finite(value) !== null).map(([name, value, color]) => ({ yAxis: value, name, lineStyle: { color, width: name === '筹码峰' ? 2 : 1.5, type: name === '筹码峰' ? 'solid' : 'dashed' }, label: { formatter: name, color, fontSize: 10 } }));
+  return { backgroundColor: '#11151c', animation: false, tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, backgroundColor: 'rgba(9,12,18,.94)', textStyle: { color: '#d1d5db', fontSize: 11 }, formatter: p => p?.[0] ? `OHLCV估算<br>价格：${e(fmt(p[0].data[1]))}<br>占比：${e(fmt(p[0].data[0]))}%` : '' }, grid: { left: 4, right: 36, top: 8, bottom: 12, containLabel: false }, xAxis: { type: 'value', axisLabel: { color: TEXT, fontSize: 9 }, axisLine: { show: false }, axisTick: { show: false }, splitLine: { lineStyle: { color: GRID } }, max: v => v.max ? v.max * 1.25 : 1 }, yAxis: { type: 'value', min: domain[0], max: domain[1], axisLabel: { color: TEXT, fontSize: 9, formatter: v => fmt(v) }, axisLine: { lineStyle: { color: GRID } }, axisTick: { show: false }, splitLine: { show: false } }, graphic: chip.points.length ? [] : [{ type: 'text', left: 'center', top: 'middle', style: { text: '需至少5条有效OHLCV\n暂无筹码估算', fill: TEXT, font: '11px sans-serif', textAlign: 'center' } }], series: [{ name: 'OHLCV估算筹码分布', type: 'custom', data: chip.points.map(p => [p.concentration_pct, p.price]), renderItem: (params, api) => { const concentration = api.value(0); const price = api.value(1); const start = api.coord([0, price]); const end = api.coord([concentration, price]); const height = Math.max(1, Math.min(3, Math.abs(api.size([0, (chip.bucketWidth || .01) * .72])[1]))); const rect = { x: start[0], y: start[1] - height / 2, width: Math.max(1, end[0] - start[0]), height }; const shape = echarts?.graphic?.clipRectByRect ? echarts.graphic.clipRectByRect(rect, params.coordSys) : rect; return shape ? { type: 'rect', shape, style: api.style({ fill: price > chip.referenceClose ? '#22c55e' : UP }) } : null; }, markLine: { silent: true, symbol: 'none', label: { position: 'end', fontSize: 9, color: TEXT }, data: markers } }] };
 }
 
-// A missing input resets the seed. EMA is not exposed before a full SMA seed.
-function exponentialAverage(values, period) {
-  let previous = null; let seed = [];
-  const weight = 2 / (period + 1);
-  return values.map(value => {
-    if (!validNumber(value)) { previous = null; seed = []; return null; }
-    if (previous === null) {
-      seed.push(value);
-      if (seed.length < period) return null;
-      previous = mean(seed); seed = [];
-    } else previous = clean(previous + weight * (value - previous));
-    return previous;
-  });
-}
-
-function relativeStrength(closes) {
-  let previous = null; let gains = []; let losses = []; let averageGain = null; let averageLoss = null;
-  return closes.map(close => {
-    if (!validNumber(close)) {
-      previous = null; gains = []; losses = []; averageGain = null; averageLoss = null;
-      return null;
-    }
-    if (previous === null) { previous = close; return null; }
-    const change = close - previous; previous = close;
-    if (averageGain === null) {
-      gains.push(Math.max(change, 0)); losses.push(Math.max(-change, 0));
-      if (gains.length < 14) return null;
-      averageGain = mean(gains); averageLoss = mean(losses);
-    } else {
-      averageGain = (averageGain * 13 + Math.max(change, 0)) / 14;
-      averageLoss = (averageLoss * 13 + Math.max(-change, 0)) / 14;
-    }
-    if (averageGain === 0 && averageLoss === 0) return 50;
-    return averageLoss === 0 ? 100 : clean(100 - 100 / (1 + averageGain / averageLoss));
-  });
-}
-
-/**
- * Normalize dated real records; the last duplicate row wins, without backfilling.
- * MA5/10/20 and BOLL20 (population sigma, ±2σ) require full close windows.
- * MACD(12,26,9) uses SMA-seeded EMAs: DIF first at record 26, DEA/hist at 34.
- * KDJ9 starts K=D=50 after nine complete candles; RSI14 uses Wilder smoothing
- * seeded by fourteen actual changes. Missing required values restart warmup.
- * Array.diagnostics describes dropped invalid dates, duplicates and missing data.
- */
-export function enrichMarketBars(rows = []) {
-  const diagnostics = { invalidDates: 0, invalidRows: 0, duplicates: 0, truncated: 0, missingOHLC: 0, missingVolume: 0 };
-  const dated = new Map();
-  for (const row of Array.isArray(rows) ? rows : []) {
-    if (!row || typeof row !== 'object' || Array.isArray(row)) { diagnostics.invalidRows++; continue; }
-    const rawDate = [row.date, row.trade_date, row.datetime, row.time, row['时间']].find(value => value !== null && value !== undefined && String(value).trim() !== '');
-    const date = normalizeDate(rawDate);
-    if (!date) { diagnostics.invalidDates++; continue; }
-    const open = field(row, ['open', '开盘'], true); const high = field(row, ['high', '最高'], true);
-    const low = field(row, ['low', '最低'], true); const close = field(row, ['close', '收盘', 'price', 'last'], true);
-    const bar = {
-      date: date.date, ordinal: date.ordinal, open, high, low, close,
-      volume: field(row, ['volume', 'vol', '成交量']),
-      amount: field(row, ['amount', 'turnover', '成交额']),
-      turnover_rate_pct: field(row, ['turnover_rate_pct', 'turnover_rate', '换手率']),
-      validOHLC: [open, high, low, close].every(validNumber) && high >= Math.max(open, close) && low <= Math.min(open, close) && low <= high,
-    };
-    if (dated.has(date.date)) diagnostics.duplicates++;
-    dated.set(date.date, bar);
-  }
-  const sorted = [...dated.values()].sort((a, b) => a.ordinal - b.ordinal);
-  diagnostics.truncated = Math.max(0, sorted.length - MAX_BARS);
-  const normalized = sorted.slice(-MAX_BARS);
-  const closes = normalized.map(bar => bar.close);
-  const ema12 = exponentialAverage(closes, 12); const ema26 = exponentialAverage(closes, 26);
-  const dif = closes.map((_, index) => ema12[index] === null || ema26[index] === null ? null : clean(ema12[index] - ema26[index]));
-  const dea = exponentialAverage(dif, 9); const rsi = relativeStrength(closes);
-  let k = 50; let d = 50;
-  const bars = normalized.map((bar, index) => {
-    if (!bar.validOHLC) diagnostics.missingOHLC++;
-    if (bar.volume === null) diagnostics.missingVolume++;
-    const ma20 = movingAverage(closes, 20, index);
-    const variance = ma20 === null ? null : mean(closes.slice(index - 19, index + 1).map(value => (value - ma20) ** 2));
-    const deviation = variance === null ? null : Math.sqrt(variance);
-    const window = normalized.slice(index - 8, index + 1);
-    let kValue = null; let dValue = null; let jValue = null;
-    if (index >= 8 && window.every(item => item.validOHLC)) {
-      const low = Math.min(...window.map(item => item.low)); const high = Math.max(...window.map(item => item.high));
-      const rsv = high === low ? 50 : (bar.close - low) / (high - low) * 100;
-      k = (2 * k + rsv) / 3; d = (2 * d + k) / 3;
-      kValue = clean(k); dValue = clean(d); jValue = clean(3 * k - 2 * d);
-    } else { k = 50; d = 50; }
-    return {
-      ...bar, gapDays: index ? bar.ordinal - normalized[index - 1].ordinal : 0,
-      ma5: movingAverage(closes, 5, index), ma10: movingAverage(closes, 10, index), ma20,
-      bollUpper: deviation === null ? null : clean(ma20 + 2 * deviation),
-      bollLower: deviation === null ? null : clean(ma20 - 2 * deviation),
-      dif: dif[index], dea: dea[index], macd: dif[index] === null || dea[index] === null ? null : clean(2 * (dif[index] - dea[index])),
-      k: kValue, d: dValue, j: jValue, rsi: rsi[index],
-    };
-  });
-  Object.defineProperty(bars, 'diagnostics', { value: diagnostics });
-  prepared.add(bars);
-  if (Array.isArray(rows)) renderCache.set(rows, bars);
-  return bars;
-}
-
-// Fetched row arrays are immutable snapshots; reconfigure with a new array on refresh.
-function barsFor(rows) {
-  if (!Array.isArray(rows)) return enrichMarketBars([]);
-  if (prepared.has(rows)) return rows;
-  return renderCache.get(rows) || enrichMarketBars(rows);
-}
-
-function rangeFor(length, start, end) {
-  if (!length) return { start: 0, end: 0 };
-  const last = validNumber(end) ? clamp(Math.floor(end), 1, length) : length;
-  const first = validNumber(start) ? clamp(Math.floor(start), 0, last - 1) : Math.max(0, last - INITIAL_BARS);
-  return { start: first, end: last };
-}
-
-function extent(values, { zero = false, padding = 0.06, fixedRange } = {}) {
-  if (fixedRange) return fixedRange;
-  const finiteValues = values.filter(validNumber);
-  if (zero) finiteValues.push(0);
-  if (!finiteValues.length) return [0, 1];
-  const low = Math.min(...finiteValues); const high = Math.max(...finiteValues);
-  const margin = (high - low || Math.abs(high) * 0.05 || 1) * padding;
-  return [low - margin, high + margin];
-}
-
-function linePath(bars, key, xAt, yAt) {
-  let connected = false;
-  return bars.map((bar, index) => {
-    if (!validNumber(bar[key])) { connected = false; return ''; }
-    const command = connected ? 'L' : 'M'; connected = true;
-    return `${command}${fixed(xAt(index))},${fixed(yAt(bar[key]))}`;
-  }).filter(Boolean).join(' ');
-}
-
-function panelGrid(name, domain, scale) {
-  const panel = PANELS[name]; const ticks = name === 'price' ? 5 : 3;
-  return `<g class="asset-chart-grid" data-panel="${name}"><text class="asset-panel-label" x="${LEFT}" y="${panel.y - 9}">${panel.label}</text>${Array.from({ length: ticks }, (_, index) => {
-    const value = domain[0] + (domain[1] - domain[0]) * index / (ticks - 1); const y = fixed(scale(value));
-    return `<line x1="${LEFT}" y1="${y}" x2="${RIGHT}" y2="${y}"/><text class="asset-axis-value" x="${RIGHT + 8}" y="${y + 4}">${e(number(value))}</text>`;
-  }).join('')}</g>`;
-}
-
-function valueReadout(bar, previous) {
-  const change = validNumber(bar.close) && validNumber(previous?.close) && previous.close !== 0 ? (bar.close / previous.close - 1) * 100 : null;
-  const values = [['开', bar.open], ['高', bar.high], ['低', bar.low], ['收', bar.close]];
-  return `<div class="asset-terminal-quote asset-history-readout" data-active-date="${e(bar.date)}"><span class="asset-history-date">历史读数 <strong>${e(bar.date)}</strong></span>${values.map(([label, value]) => `<span>${label} <strong>${e(number(value))}</strong></span>`).join('')}<span>涨跌幅 <strong>${change === null ? '—' : `${change > 0 ? '+' : ''}${e(number(change))}%`}</strong></span><span>成交量（源单位） <strong>${e(number(bar.volume, 0))}</strong></span><span>成交额（源单位） <strong>${e(number(bar.amount, 0))}</strong></span><span>换手率 <strong>${bar.turnover_rate_pct === null ? '—' : `${e(number(bar.turnover_rate_pct))}%`}</strong></span>${bar.validOHLC ? '' : '<span class="asset-chart-warning">OHLC 缺失或不一致，未绘制该蜡烛</span>'}</div>`;
-}
-
-function indicatorReadout(bar, overlay) {
-  const keys = overlay === 'ma' ? [['ma5', 'MA5'], ['ma10', 'MA10'], ['ma20', 'MA20']] : overlay === 'boll' ? [['ma20', 'BOLL中'], ['bollUpper', 'BOLL上'], ['bollLower', 'BOLL下']] : [];
-  keys.push(['dif', 'DIF'], ['dea', 'DEA'], ['macd', 'MACD'], ['k', 'K'], ['d', 'D'], ['j', 'J'], ['rsi', 'RSI14']);
-  return `<div class="asset-terminal-legend" aria-label="所选历史记录的指标">${keys.map(([key, label]) => `<span class="${key}" data-indicator="${key}">${label} <strong>${e(number(bar[key]))}</strong></span>`).join('')}<span class="up">上涨</span><span class="down">下跌</span></div>`;
-}
-
-function controls(overlay, range, length) {
-  const count = range.end - range.start;
-  const button = (action, label, disabled = false) => `<button type="button" data-asset-chart-action="${action}" aria-label="${label}"${disabled ? ' disabled' : ''}>${label}</button>`;
-  return `<div class="asset-chart-toolbar"><div class="asset-overlay-controls" role="group" aria-label="主图叠加指标">${[['ma', 'MA'], ['boll', 'BOLL'], ['none', '裸 K']].map(([mode, label]) => `<button type="button" data-asset-chart-action="overlay-${mode}" aria-pressed="${overlay === mode}">${label}</button>`).join('')}</div><div class="asset-range-controls" role="group" aria-label="行情视区">${button('pan-back', '向前查看', range.start === 0)}${button('pan-forward', '向后查看', range.end === length)}${button('zoom-in', '放大', count <= Math.min(MIN_VISIBLE, length))}${button('zoom-out', '缩小', count >= length)}${button('reset', '近120条')}</div><span class="asset-range-summary" data-visible-count="${count}">第 ${range.start + 1}–${range.end} 条 / 共 ${length} 条</span></div>`;
-}
-
-function renderTerminal(rows, options) {
-  const allBars = barsFor(rows); const length = allBars.length;
-  const overlay = ['ma', 'boll', 'none'].includes(options.overlay) ? options.overlay : 'ma';
-  const header = '<header><div><span class="eyebrow">MARKET TERMINAL</span><h2>K 线与技术指标</h2></div><span class="asset-terminal-period">日 / 周 / 月由上方查询条件切换</span></header>';
-  if (!length) {
-    const diagnostics = allBars.diagnostics;
-    return `<section class="asset-market-terminal" aria-label="K 线与技术指标">${header}<div class="chart-empty">没有可绘制的有效日期历史记录。${diagnostics.invalidDates ? `日期无效：${diagnostics.invalidDates} 条。` : ''}不会生成模拟行情。</div></section>`;
-  }
-  const range = rangeFor(length, options.start, options.end); const bars = allBars.slice(range.start, range.end);
-  const activeIndex = validNumber(options.activeIndex) ? clamp(Math.round(options.activeIndex), range.start, range.end - 1) : range.end - 1;
-  const active = allBars[activeIndex]; const count = bars.length;
-  const xAt = index => LEFT + (index + 0.5) / count * PLOT_WIDTH;
-  const candleWidth = Math.max(0.4, Math.min(12, PLOT_WIDTH / count * 0.65));
-  const overlayKeys = overlay === 'ma' ? ['ma5', 'ma10', 'ma20'] : overlay === 'boll' ? ['ma20', 'bollUpper', 'bollLower'] : [];
-  const priceValues = bars.flatMap(bar => [...(bar.validOHLC ? [bar.low, bar.high] : []), ...overlayKeys.map(key => bar[key])]);
-  const macdValues = bars.flatMap(bar => [bar.macd, bar.dif, bar.dea]).filter(validNumber);
-  const macdLimit = Math.max(...macdValues.map(Math.abs), 0.01);
-  const domains = {
-    price: extent(priceValues), volume: [0, Math.max(...bars.map(bar => bar.volume ?? 0), 1)],
-    macd: [-macdLimit * 1.08, macdLimit * 1.08],
-    kdj: extent(bars.flatMap(bar => [bar.k, bar.d, bar.j]).concat([0, 100]), { padding: 0.03 }), rsi: [0, 100],
-  };
-  const scales = Object.fromEntries(Object.entries(PANELS).map(([key, panel]) => [key, value => panel.y + (domains[key][1] - value) / (domains[key][1] - domains[key][0]) * panel.h]));
-  const candles = bars.map((bar, index) => {
-    if (!bar.validOHLC) return `<path class="asset-missing-candle" d="M${fixed(xAt(index) - 2)},${PANELS.price.y + PANELS.price.h - 4}h4"><title>${e(bar.date)} OHLC 缺失或不一致</title></path>`;
-    const x = fixed(xAt(index)); const open = scales.price(bar.open); const close = scales.price(bar.close);
-    return `<g class="asset-candle ${bar.close >= bar.open ? 'up' : 'down'}${activeIndex === range.start + index ? ' selected' : ''}"><line x1="${x}" y1="${fixed(scales.price(bar.high))}" x2="${x}" y2="${fixed(scales.price(bar.low))}"/><rect x="${fixed(x - candleWidth / 2)}" y="${fixed(Math.min(open, close))}" width="${fixed(candleWidth)}" height="${fixed(Math.max(0.8, Math.abs(open - close)))}"/></g>`;
-  }).join('');
-  const volumes = bars.map((bar, index) => {
-    if (bar.volume === null) return '';
-    const y = scales.volume(bar.volume); const direction = bar.validOHLC ? bar.close >= bar.open ? 'up' : 'down' : 'unknown';
-    return `<rect class="asset-volume ${direction}" x="${fixed(xAt(index) - candleWidth / 2)}" y="${fixed(y)}" width="${fixed(candleWidth)}" height="${fixed(Math.max(0, PANELS.volume.y + PANELS.volume.h - y))}"/>`;
-  }).join('');
-  const histogram = bars.map((bar, index) => {
-    if (bar.macd === null) return '';
-    const y = scales.macd(bar.macd); const zero = scales.macd(0);
-    return `<rect class="asset-macd ${bar.macd >= 0 ? 'up' : 'down'}" x="${fixed(xAt(index) - candleWidth / 2)}" y="${fixed(Math.min(y, zero))}" width="${fixed(candleWidth)}" height="${fixed(Math.abs(zero - y))}"/>`;
-  }).join('');
-  const path = (key, panel, className = key) => `<path class="asset-series ${className}" d="${linePath(bars, key, xAt, scales[panel])}"/>`;
-  const overlayPaths = overlayKeys.map(key => path(key, 'price', overlay === 'boll' ? `boll ${key}` : key)).join('');
-  const crosshairX = fixed(xAt(activeIndex - range.start));
-  const pointerY = finite(options.crosshairY);
-  const hovered = pointerY === null ? null : Object.entries(PANELS).find(([, panel]) => pointerY >= panel.y && pointerY <= panel.y + panel.h);
-  let horizontal = '';
-  if (hovered) {
-    const [key, panel] = hovered; const value = domains[key][1] - (pointerY - panel.y) / panel.h * (domains[key][1] - domains[key][0]);
-    horizontal = `<line class="asset-crosshair" x1="${LEFT}" y1="${fixed(pointerY)}" x2="${RIGHT}" y2="${fixed(pointerY)}"/><rect class="asset-crosshair-value-bg" x="${RIGHT}" y="${fixed(pointerY - 9)}" width="86" height="18"/><text class="asset-crosshair-value" x="${RIGHT + 5}" y="${fixed(pointerY + 4)}">${e(number(value))}</text>`;
-  }
-  const gaps = bars.map((bar, index) => bar.gapDays > 1 ? `<path class="asset-calendar-gap" d="M${fixed(xAt(index) - PLOT_WIDTH / count / 2)},${PANELS.price.y + PANELS.price.h - 8}v8"><title>与前条记录相隔 ${bar.gapDays} 个自然日；未补齐，不推断停牌</title></path>` : '').join('');
-  const diagnostics = allBars.diagnostics; const warnings = [];
-  if (diagnostics.invalidDates) warnings.push(`日期无效：${diagnostics.invalidDates} 条未绘制`);
-  if (diagnostics.invalidRows) warnings.push(`无效记录：${diagnostics.invalidRows} 条未绘制`);
-  if (diagnostics.duplicates) warnings.push(`重复日期：${diagnostics.duplicates} 条已按最后记录去重`);
-  if (diagnostics.truncated) warnings.push(`超过上限：已保留最近 ${MAX_BARS} 条，省略 ${diagnostics.truncated} 条`);
-  if (diagnostics.missingOHLC) warnings.push(`OHLC 缺失或不一致：${diagnostics.missingOHLC} 条保留时间槽`);
-  if (diagnostics.missingVolume) warnings.push(`成交量缺失：${diagnostics.missingVolume} 条留空`);
-  const dates = [0, Math.floor((count - 1) / 2), count - 1].filter((value, index, items) => items.indexOf(value) === index).map((index, order, items) => `<text class="asset-date-label" x="${fixed(xAt(index))}" y="${HEIGHT - 9}" text-anchor="${order === 0 ? 'start' : order === items.length - 1 ? 'end' : 'middle'}">${e(bars[index].date)}</text>`).join('');
-  return `<section class="asset-market-terminal" aria-label="K 线与技术指标">${header}${controls(overlay, range, length)}${valueReadout(active, allBars[activeIndex - 1])}${indicatorReadout(active, overlay)}<div class="asset-chart-scroll"><svg class="asset-terminal-chart" data-asset-chart data-price-min="${domains.price[0]}" data-price-max="${domains.price[1]}" viewBox="0 0 ${WIDTH} ${HEIGHT}" role="img" tabindex="0" aria-label="包含 K 线、成交量、MACD、KDJ 和 RSI 的行情图；方向键选择历史记录，加减键缩放" aria-describedby="asset-chart-help" preserveAspectRatio="xMidYMid meet"><title>K 线、成交量、MACD、KDJ 与 RSI：${e(bars[0].date)} 至 ${e(bars.at(-1).date)}</title>${Object.keys(PANELS).map(key => panelGrid(key, domains[key], scales[key])).join('')}${candles}${overlayPaths}${volumes}${histogram}${path('dif', 'macd')}${path('dea', 'macd')}${path('k', 'kdj')}${path('d', 'kdj')}${path('j', 'kdj')}${[20, 80].map(value => `<line class="asset-threshold" x1="${LEFT}" x2="${RIGHT}" y1="${fixed(scales.rsi(value))}" y2="${fixed(scales.rsi(value))}"/>`).join('')}${path('rsi', 'rsi')}${gaps}<line class="asset-crosshair" x1="${crosshairX}" y1="${PANELS.price.y}" x2="${crosshairX}" y2="${PANELS.rsi.y + PANELS.rsi.h}"/>${horizontal}${dates}</svg></div><p class="asset-chart-help" id="asset-chart-help">指针或 ← → 查看历史读数；拖动或按钮平移；+ / − 缩放；Ctrl / ⌘ + 滚轮缩放，Shift + 滚轮平移。普通滚轮滚动页面。时间轴按真实记录排列，日期间隔不补齐、不推断停牌。</p><details class="asset-indicator-method"><summary>指标口径与预热</summary><p>MA5/10/20；BOLL20 使用总体标准差 ±2σ。MACD(12,26,9) 的 EMA 以完整均值播种，DIF 最早第26条、DEA 与柱最早第34条；柱 = 2×(DIF−DEA)。KDJ9 满9条完整蜡烛后从 K=D=50 递推；J 可超出0–100。RSI14 以14次真实价格变动播种，再用 Wilder 平滑。缺失所需值会重新预热，— 表示预热不足或缺失。成交量、成交额保持源单位，换手率为百分比。</p></details>${warnings.length ? `<p class="asset-chart-warning" role="status">${e(warnings.join('；'))}。</p>` : ''}</section>`;
-}
-
-export function renderMarketTerminal(rows = [], options = {}) {
-  try { return renderTerminal(rows, options || {}); }
-  catch {
-    safeLog('asset_chart_render_failed', { status: 'error', method: 'render' });
-    return '<section class="asset-market-terminal"><div class="chart-empty" role="status">行情图表暂时无法绘制，请刷新历史数据。</div></section>';
-  }
-}
-
-/** Browser-independent controller. start/end are a half-open range in normalized
- * full history; activeIndex is absolute. configure never emits onChange.
- * Attach delegated click/pointermove/down/up/cancel/leave, keydown and a nonpassive
- * wheel listener. onChange should redraw only the chart slot, preserving focus.
- */
 export function createAssetChartController({ onChange = () => {}, logger = safeLog } = {}) {
-  let bars = []; let sourceRows; let identity; let drag = null;
-  let state = { overlay: 'ma', start: 0, end: 0, activeIndex: -1, crosshairY: null };
-  const getState = () => ({ ...state });
-  function update(next, reason) {
-    const changed = Object.keys(next).some(key => next[key] !== state[key]);
-    if (!changed) return false;
-    state = { ...state, ...next };
-    try { onChange(getState(), { reason }); }
-    catch { logger('asset_chart_change_failed', { status: 'error', method: reason }); }
+  let rawRows = []; let bars = []; let identity; let metadata = {}; let source = 'day';
+  let state = { overlay: 'ma', enabledMA: [...MA_PERIODS], period: 'day', showAll: false, ...initialRange(0), crosshairY: null };
+  let slot = null; let main = null; let chips = null; let observer = null; let frame = null; let needsFull = false; let needsResize = false; let view = null; let library = null;
+  const listeners = []; const chartListeners = []; const zrListeners = [];
+  const log = method => { try { logger(`asset_chart_${method}_failed`, { status: 'error', method }); } catch { /* Diagnostic failures cannot stop resource disposal. */ } };
+  const guarded = (method, fn) => { try { return fn(); } catch { log(method); return false; } };
+  const getState = () => ({ ...state, enabledMA: [...state.enabledMA] });
+  const find = selector => slot?.querySelector(selector);
+  const notify = reason => guarded('change', () => onChange(getState(), { reason }));
+  function syncLabels() {
+    const meta = find('[data-asset-chart-metadata]'); if (meta) meta.textContent = metadataLabel(metadata);
+    const bar = bars[state.activeIndex]; const history = find('[data-asset-history]'); if (history) history.innerHTML = readout(bar, bars[state.activeIndex - 1], metadata);
+    const overlay = find('[data-asset-overlay-label]'); if (overlay) overlay.innerHTML = overlayReadout(bar, state);
+    const summary = find('[data-asset-range-summary]'); if (summary) summary.textContent = `第 ${bars.length ? state.start + 1 : 0}–${state.end} 条 / 共 ${bars.length} 条`;
+    for (const button of slot?.querySelectorAll('[data-asset-chart-action]') || []) {
+      const action = button.dataset.assetChartAction; let pressed = false;
+      if (action.startsWith('overlay-')) pressed = state.overlay === action.slice(8);
+      else if (action.startsWith('ma-')) pressed = state.enabledMA.includes(Number(action.slice(3)));
+      else if (action.startsWith('period-')) { const p = action.slice(7); pressed = state.period === p && !state.showAll; button.disabled = source !== 'day' && source !== p; }
+      else if (action === 'all') pressed = state.showAll;
+      else if (action === 'pan-back') button.disabled = state.start === 0;
+      else if (action === 'pan-forward') button.disabled = state.end === bars.length;
+      button.setAttribute('aria-pressed', String(pressed)); button.classList.toggle('active', pressed);
+    }
+    const layout = find('.kline-terminal-layout'); const chart = find('[data-asset-echarts]'); layout?.style.setProperty('--chip-chart-height', `${Math.max(220, Math.round((chart?.clientHeight || 690) * .44))}px`);
+    if (chart?.dataset) Object.assign(chart.dataset, { visibleStart: String(state.start), visibleEnd: String(state.end), visibleCount: String(state.end - state.start), activeIndex: String(state.activeIndex), period: state.period, overlay: state.overlay, enabledMa: state.enabledMA.join(',') });
+  }
+  function flush() {
+    frame = null; if (!slot) return;
+    guarded('render', () => {
+      syncLabels();
+      const domain = priceDomain(bars, state);
+      // Native dataZoom already owns its gesture state; only merge its price
+      // domain/readouts here so a drag is not replaced by a full option reset.
+      const [kdjMin, kdjMax] = kdjDomain(bars, state);
+      if (main) main.setOption(needsFull ? buildMarketChartOption(bars, state, metadata) : { graphic: panelLabels(bars[state.activeIndex]), yAxis: [{ min: domain[0], max: domain[1] }, {}, {}, { min: kdjMin, max: kdjMax }, {}] }, needsFull);
+      const chip = estimateChipDistribution(bars, state.start, state.activeIndex, domain);
+      const stats = find('[data-asset-chip-stats]'); if (stats) stats.innerHTML = chipStats(chip);
+      const windowLabel = find('[data-asset-chip-window]'); if (windowLabel) windowLabel.textContent = chip.startDate ? `${chip.startDate}–${chip.endDate}（${chip.validBars}条有效）` : '暂无有效窗口';
+      chips?.setOption(buildChipChartOption(chip, domain, library), true);
+      if (needsResize) { main?.resize(); chips?.resize(); }
+    });
+    needsFull = needsResize = false;
+  }
+  function schedule(full = false, resize = false) {
+    needsFull ||= full; needsResize ||= resize; if (!slot || frame !== null) return;
+    if (view?.requestAnimationFrame) frame = view.requestAnimationFrame(flush); else flush();
+  }
+  function update(next, reason, full = false) {
+    if (!Object.entries(next).some(([key, value]) => JSON.stringify(value) !== JSON.stringify(state[key]))) return false;
+    state = { ...state, ...next }; schedule(full); notify(reason); return true;
+  }
+  function release() {
+    if (frame !== null) { guarded('cancel_frame', () => view?.cancelAnimationFrame?.(frame)); frame = null; }
+    for (const [node, name, handler, options] of listeners.splice(0)) guarded('remove_listener', () => node.removeEventListener(name, handler, options));
+    for (const [chart, name, handler] of chartListeners.splice(0)) guarded('remove_listener', () => chart.off(name, handler));
+    for (const [zr, name, handler] of zrListeners.splice(0)) guarded('remove_listener', () => zr.off(name, handler));
+    if (observer) guarded('observer_dispose', () => observer.disconnect()); observer = null;
+    if (main) guarded('dispose', () => main.dispose()); if (chips) guarded('dispose', () => chips.dispose());
+    main = chips = null; slot = null; view = null; library = null; needsFull = needsResize = false;
+  }
+  function initCharts() {
+    if (!slot || main || !bars.length) return;
+    const mainNode = find('[data-asset-echarts]'); const chipNode = find('[data-asset-chip-chart]'); if (!mainNode || !chipNode) return;
+    library = view?.echarts || globalThis.echarts;
+    if (!library?.init) { mainNode.textContent = '图表资源未加载，历史数据仍可读取。'; log('library'); return; }
+    mainNode.textContent = ''; chipNode.textContent = '';
+    main = library.init(mainNode, null, { devicePixelRatio: view?.devicePixelRatio || 1 }); chips = library.init(chipNode, null, { devicePixelRatio: view?.devicePixelRatio || 1 });
+    const on = (name, handler) => { const safe = event => guarded('interaction', () => handler(event)); main.on(name, safe); chartListeners.push([main, name, safe]); };
+    on('updateAxisPointer', event => {
+      const axis = event?.axesInfo?.find(a => a.axisDim === 'x' && a.axisIndex === 0) || event?.axesInfo?.find(a => a.axisDim === 'x'); if (!axis) return;
+      const index = Number.isInteger(Number(axis.value)) ? Number(axis.value) : bars.findIndex(b => b.date === String(axis.value)); if (index >= 0) select(clamp(index, state.start, state.end - 1));
+    });
+    on('dataZoom', event => {
+      const zoom = event?.batch?.[0] || event || {}; const n = bars.length;
+      const index = (value, percent, fallback) => finite(value) !== null ? Math.round(Number(value)) : finite(percent) !== null ? Math.round(Number(percent) / 100 * Math.max(0, n - 1)) : fallback;
+      const start = clamp(index(zoom.startValue, zoom.start, state.start), 0, n - 1); const end = clamp(index(zoom.endValue, zoom.end, state.end - 1) + 1, start + 1, n);
+      update({ start, end, activeIndex: end - 1, showAll: start === 0 && end === n, crosshairY: null }, 'zoom');
+    });
+    const zr = main.getZr?.(); if (zr) { const leave = () => resetPointer(); zr.on('globalout', leave); zrListeners.push([zr, 'globalout', leave]); }
+    if (view?.ResizeObserver) { observer = new view.ResizeObserver(() => schedule(false, true)); observer.observe(mainNode); observer.observe(chipNode); }
+    else if (view?.addEventListener) listen(view, 'resize', () => schedule(false, true));
+    schedule(true, true);
+  }
+  function configure(rows = [], key = '', nextMetadata = {}) {
+    const result = guarded('configure', () => {
+      if (rawRows === rows && identity === key && metadata === nextMetadata) return getState();
+      const previousBars = bars; const previous = state; const previousSource = source; const changedIdentity = identity !== key; rawRows = rows; identity = key; metadata = nextMetadata || {}; source = sourceFrequency(metadata.frequency);
+      const period = changedIdentity || !previousBars.length || source !== previousSource ? source : source === 'day' ? state.period : source;
+      bars = displayBars(rawRows, { ...state, period }, metadata);
+      if (changedIdentity || !previousBars.length || period !== previous.period) state = { overlay: 'ma', enabledMA: [...MA_PERIODS], period, showAll: false, ...initialRange(bars.length), crosshairY: null };
+      else {
+        const count = previous.showAll ? bars.length : Math.min(previous.end - previous.start, bars.length); const pinned = previous.end === previousBars.length;
+        let start = pinned ? bars.length - count : bars.findIndex(b => b.date === previousBars[previous.start]?.date); if (start < 0) start = clamp(previous.start, 0, Math.max(0, bars.length - count));
+        const end = start + count; const selectedDate = previousBars[previous.activeIndex]?.date; let activeIndex = pinned && previous.activeIndex === previousBars.length - 1 ? bars.length - 1 : bars.findIndex(b => b.date === selectedDate);
+        activeIndex = bars.length ? clamp(activeIndex < 0 ? start : activeIndex, start, end - 1) : -1;
+        state = { ...state, start, end, activeIndex, crosshairY: null };
+      }
+      if (slot) { initCharts(); schedule(true); } return getState();
+    });
+    if (result === false) release(); return result;
+  }
+  function select(index) { if (!bars.length || finite(index) === null) return false; const activeIndex = clamp(Math.round(index), 0, bars.length - 1); const count = state.end - state.start; const start = activeIndex < state.start ? activeIndex : activeIndex >= state.end ? activeIndex - count + 1 : state.start; return update({ start, end: start + count, activeIndex }, 'select', start !== state.start); }
+  function pan(delta) { if (!bars.length || finite(delta) === null) return false; const count = state.end - state.start; const start = clamp(state.start + Math.round(delta), 0, bars.length - count); const end = start + count; return update({ start, end, activeIndex: clamp(state.activeIndex, start, end - 1), showAll: start === 0 && end === bars.length }, 'pan', true); }
+  function zoom(factor) { if (!bars.length || finite(factor) === null || factor <= 0) return false; const count = clamp(Math.round((state.end - state.start) * factor), Math.min(10, bars.length), bars.length); const start = clamp(Math.round(state.activeIndex - count / 2), 0, bars.length - count); const end = start + count; return update({ start, end, activeIndex: clamp(state.activeIndex, start, end - 1), showAll: count === bars.length }, 'zoom', true); }
+  function reset() { return update({ ...initialRange(bars.length), showAll: false, crosshairY: null }, 'reset', true); }
+  function resetPointer() { return update({ activeIndex: state.end - 1, crosshairY: null }, 'leave'); }
+  function cancel() {
+    if (frame !== null) { guarded('cancel_frame', () => view?.cancelAnimationFrame?.(frame)); frame = null; }
+    state = { ...state, activeIndex: state.end - 1, crosshairY: null };
+    // Publish the restored edge after cancel so unchanged leave is consistent.
+    if (slot) flush(); else needsFull = needsResize = false;
     return true;
   }
-  function configure(rows = [], nextIdentity = '') {
-    if (sourceRows === rows && identity === nextIdentity) return getState();
-    const previousBars = bars; const previous = state; sourceRows = rows;
-    bars = enrichMarketBars(rows);
-    if (identity !== nextIdentity || !previousBars.length) {
-      identity = nextIdentity; drag = null;
-      state = { overlay: 'ma', ...rangeFor(bars.length), activeIndex: bars.length - 1, crosshairY: null };
-    } else {
-      const count = Math.min(previous.end - previous.start, bars.length);
-      const pinnedToLatest = previous.end === previousBars.length;
-      const firstDate = previousBars[previous.start]?.date;
-      const selectedDate = previousBars[previous.activeIndex]?.date;
-      let start = pinnedToLatest ? bars.length - count : bars.findIndex(bar => bar.date === firstDate);
-      if (start < 0) start = Math.max(0, Math.min(previous.start, bars.length - count));
-      const end = Math.min(bars.length, start + count);
-      let activeIndex = previous.activeIndex === previousBars.length - 1 && pinnedToLatest ? bars.length - 1 : bars.findIndex(bar => bar.date === selectedDate);
-      activeIndex = bars.length ? clamp(activeIndex < 0 ? start : activeIndex, start, end - 1) : -1;
-      state = { ...previous, start, end, activeIndex, crosshairY: null }; drag = null;
-    }
-    return getState();
-  }
-  function select(index, extra = {}) {
-    if (!bars.length || !validNumber(index)) return false;
-    const activeIndex = clamp(Math.round(index), 0, bars.length - 1); const count = state.end - state.start;
-    let start = state.start;
-    if (activeIndex < start) start = activeIndex;
-    if (activeIndex >= state.end) start = activeIndex - count + 1;
-    return update({ start, end: start + count, activeIndex, ...extra }, 'select');
-  }
-  function pan(delta) {
-    if (!bars.length || !validNumber(delta)) return false;
-    const count = state.end - state.start; const start = clamp(state.start + Math.round(delta), 0, bars.length - count); const end = start + count;
-    return update({ start, end, activeIndex: clamp(state.activeIndex, start, end - 1), crosshairY: null }, 'pan');
-  }
-  function zoom(factor, anchorIndex = state.activeIndex) {
-    if (!bars.length || !validNumber(factor) || factor <= 0) return false;
-    const count = state.end - state.start;
-    const nextCount = clamp(Math.round(count * factor), Math.min(MIN_VISIBLE, bars.length), bars.length);
-    const anchor = clamp(validNumber(anchorIndex) ? anchorIndex : state.activeIndex, state.start, state.end - 1);
-    const ratio = count === 1 ? 0.5 : (anchor - state.start) / (count - 1);
-    const start = clamp(Math.round(anchor - ratio * (nextCount - 1)), 0, bars.length - nextCount); const end = start + nextCount;
-    return update({ start, end, activeIndex: clamp(state.activeIndex, start, end - 1), crosshairY: null }, 'zoom');
-  }
-  function reset() {
-    drag = null;
-    return update({ ...rangeFor(bars.length), activeIndex: bars.length - 1, crosshairY: null }, 'reset');
-  }
-  function cancel() { drag = null; return update({ crosshairY: null }, 'cancel'); }
-  function position(event, element) {
-    const rect = element.getBoundingClientRect();
-    if (!rect.width || !rect.height || !validNumber(event.clientX)) return null;
-    const x = (event.clientX - rect.left) / rect.width * WIDTH;
-    const y = validNumber(event.clientY) ? (event.clientY - rect.top) / rect.height * HEIGHT : null;
-    return { rect, x, y, index: clamp(state.start + Math.floor((x - LEFT) / PLOT_WIDTH * (state.end - state.start)), state.start, state.end - 1) };
-  }
-  function handleEvent(event) {
-    const target = event?.target;
-    if (!target || typeof target.closest !== 'function') return false;
-    if (event.type === 'click') {
-      const control = target.closest('[data-asset-chart-action]'); if (!control || control.disabled) return false;
-      const action = control.dataset.assetChartAction;
-      if (['overlay-ma', 'overlay-boll', 'overlay-none'].includes(action)) { update({ overlay: action.slice(8) }, 'overlay'); return true; }
-      const step = Math.max(1, Math.round((state.end - state.start) / 4));
-      if (action === 'pan-back') pan(-step);
-      else if (action === 'pan-forward') pan(step);
-      else if (action === 'zoom-in') zoom(0.75);
-      else if (action === 'zoom-out') zoom(1.4);
-      else if (action === 'reset') reset();
-      else return false;
-      return true;
-    }
-    if (event.type === 'pointerup' || event.type === 'pointercancel') {
-      if (!drag || (event.pointerId !== undefined && drag.pointerId !== event.pointerId)) return false;
-      drag = null; return true;
-    }
-    const element = target.closest('[data-asset-chart]');
-    if (event.type === 'pointermove' && drag) {
-      if (event.buttons === 0) { drag = null; return false; }
-      if (event.pointerId !== undefined && event.pointerId !== drag.pointerId) return false;
-      const dx = event.clientX - drag.x; const dy = (event.clientY ?? drag.y) - drag.y;
-      if (Math.abs(dx) > 5 && Math.abs(dx) > Math.abs(dy)) {
-        const count = state.end - state.start;
-        const delta = Math.round(-dx / drag.width * WIDTH / PLOT_WIDTH * count);
-        const start = clamp(drag.start + delta, 0, bars.length - count);
-        update({ start, end: start + count, activeIndex: clamp(state.activeIndex, start, start + count - 1), crosshairY: null }, 'drag');
-        event.preventDefault?.(); return true;
-      }
-    }
-    if (!element || !bars.length) return false;
-    if (event.type === 'pointerdown') {
-      if (event.button !== undefined && event.button !== 0) return false;
-      const point = position(event, element); if (!point) return false;
-      drag = { x: event.clientX, y: event.clientY, width: point.rect.width, start: state.start, pointerId: event.pointerId };
-      select(point.index, { crosshairY: point.y === null ? null : Math.round(point.y) }); return true;
-    }
-    if (event.type === 'pointermove') {
-      const point = position(event, element); if (!point) return false;
-      select(point.index, { crosshairY: point.y === null ? null : Math.round(point.y) }); return true;
-    }
-    if (event.type === 'pointerleave') {
-      // Capturing listeners also see leaves from candle descendants. A drag is
-      // document-scoped and ends only on pointerup/cancel, even outside the SVG.
-      if (target !== element) return false;
-      update({ crosshairY: null }, 'leave'); return true;
-    }
-    if (event.type === 'wheel') {
-      if (!event.ctrlKey && !event.metaKey && !event.shiftKey) return false;
-      const delta = finite(event.deltaY) || finite(event.deltaX); if (!delta) return false;
-      if (event.ctrlKey || event.metaKey) { const point = position(event, element); zoom(delta < 0 ? 0.85 : 1.18, point?.index); }
-      else pan(Math.sign(delta) * Math.max(1, Math.round((state.end - state.start) / 12)));
-      event.preventDefault?.(); return true;
-    }
-    if (event.type === 'keydown') {
-      if (event.altKey || event.ctrlKey || event.metaKey) return false;
-      if (event.key === 'ArrowLeft') select(state.activeIndex - 1, { crosshairY: null });
-      else if (event.key === 'ArrowRight') select(state.activeIndex + 1, { crosshairY: null });
-      else if (event.key === 'Home') select(0, { crosshairY: null });
-      else if (event.key === 'End') select(bars.length - 1, { crosshairY: null });
-      else if (['+', '='].includes(event.key)) zoom(0.75);
-      else if (['-', '−', '_'].includes(event.key)) zoom(1.4);
-      else if (event.key === 'Escape') cancel();
-      else return false;
-      event.preventDefault?.(); return true;
-    }
-    return false;
-  }
   function handle(event) {
-    try { return handleEvent(event); }
-    catch { logger('asset_chart_interaction_failed', { status: 'error', method: 'handle' }); return false; }
+    return guarded('interaction', () => {
+      if (event?.assetChartHandled) return true;
+      if (event?.type === 'mouseleave' || event?.type === 'pointerleave') return resetPointer();
+      if (event?.type === 'click') {
+        const button = event.target?.closest?.('[data-asset-chart-action]'); if (!button || button.disabled) return false; const action = button.dataset.assetChartAction;
+        if (['overlay-ma', 'overlay-boll', 'overlay-none'].includes(action)) return update({ overlay: action.slice(8) }, 'overlay', true);
+        if (/^ma-(5|10|20|60|120|250)$/.test(action)) { const n = Number(action.slice(3)); return update({ enabledMA: state.enabledMA.includes(n) ? state.enabledMA.filter(v => v !== n) : MA_PERIODS.filter(v => v === n || state.enabledMA.includes(v)) }, 'ma', true); }
+        if (action.startsWith('period-')) { const period = action.slice(7); if (!['day', 'week', 'month'].includes(period) || (source !== 'day' && source !== period)) return false; bars = displayBars(rawRows, { ...state, period }, metadata); return update({ period, ...initialRange(bars.length), showAll: false }, 'period', true); }
+        if (action === 'all') return update({ start: 0, end: bars.length, activeIndex: bars.length - 1, showAll: true }, 'all', true);
+        if (action === 'reset') return reset(); if (action === 'zoom-in') return zoom(.75); if (action === 'zoom-out') return zoom(1.4);
+        if (action === 'pan-back') return pan(-Math.max(1, Math.round((state.end - state.start) / 4))); if (action === 'pan-forward') return pan(Math.max(1, Math.round((state.end - state.start) / 4))); return false;
+      }
+      if (event?.type === 'keydown' && !event.altKey && !event.ctrlKey && !event.metaKey) {
+        if (!event.target?.closest?.('[data-asset-chart]')) return false;
+        let handled = true;
+        if (event.key === 'ArrowLeft') select(state.activeIndex - 1); else if (event.key === 'ArrowRight') select(state.activeIndex + 1); else if (event.key === 'Home') select(0); else if (event.key === 'End') select(bars.length - 1); else if (['+', '='].includes(event.key)) zoom(.75); else if (['-', '−', '_'].includes(event.key)) zoom(1.4); else if (event.key === 'Escape') resetPointer(); else handled = false;
+        if (handled) event.preventDefault?.(); return handled;
+      }
+      return false;
+    });
   }
-  return { configure, getState, handle, select, pan, zoom, reset, cancel };
+  function listen(node, name, handler, options) { node.addEventListener(name, handler, options); listeners.push([node, name, handler, options]); }
+  function mount(nextSlot) {
+    release(); if (!nextSlot) return false; slot = nextSlot; view = slot.ownerDocument?.defaultView || (typeof window === 'undefined' ? null : window);
+    const result = guarded('mount', () => {
+      slot.innerHTML = renderMarketTerminal(rawRows, state, metadata);
+      const localHandle = event => { const handled = handle(event); if (handled) { event.assetChartHandled = true; event.stopPropagation?.(); } };
+      listen(slot, 'click', localHandle); listen(slot, 'keydown', localHandle);
+      const chartNode = find('[data-asset-echarts]'); if (chartNode) { listen(chartNode, 'mouseleave', resetPointer); listen(chartNode, 'pointerleave', resetPointer); }
+      initCharts(); schedule(true); return true;
+    });
+    if (result === false) release(); return result;
+  }
+  return { configure, getState, mount, dispose: release, cancel, handle, select, pan, zoom, reset };
 }
