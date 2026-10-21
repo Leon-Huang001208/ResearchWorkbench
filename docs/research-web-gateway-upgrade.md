@@ -1,11 +1,34 @@
 # Mac mini 空私有池网关升级
 
+## 显式准备主实例 UI 候选
+
+当已合并的 UI 更新同时包含本升级器自身时，自动 resident 仍拒绝该路径。先从精确目标的干净工具 checkout、使用原主实例解释器执行：
+
+```bash
+/absolute/primary/.venv/bin/python -m research_workbench_entrypoint.resident.gateway_upgrade stage-primary-ui \
+  --home /absolute/private-home --source /absolute/reviewed-target-checkout \
+  --primary EXACT_CURRENT_PRIMARY_SHA --target EXACT_VERIFIED_MASTER_SHA
+```
+
+此命令只准备新旧 wheel 和私有 candidate，不停服务、不更改自动白名单、baseline 或 controller.pyz。
+它核对同一 Git common directory、工具实际路径、解释器、原 manifest 与源码、隔离候选、最新主线及原三项 CI；
+拒绝 primary/gateway 恢复 journal、其他任务尚未接受的候选和准备期间的候选替换。
+只允许 UI、文档、测试、报告及本升级器一个精确 Git blob；已有已接受的旧候选可退休，同一审查身份可重复校验。
+
+随后执行原 `rwb resident tick`（或等待已安装监督器）：原不可变控制器仍持准入/lifecycle锁、检查原生/Host/排队自动化空闲，
+写 journal 后才切换，失败仍恢复旧 wheel 与源码。必须确认 accepted、实际进程 revision 和会话/模型保全后，才能继续下述网关 `apply-ui`。
+主实例已到目标时跳过准备；活动或未知保持 deferred，不强停。现场不可变控制器须先独立核对支持复用同一 previous/target candidate。
+
 ## 已验收界面的显式更新
 
 当主实例已自动更新而网关仍使用旧界面时，用`apply-ui`更新网关。工具版本与产品版本分开认证：
 工具checkout须为最新已合并、独立评审及三CI通过的提交；`target`须等于当前primary且独立通过原资格核对。
 旧网关到产品只允许UI、文档、测试与报告；产品到工具只允许升级器自身及文档、测试、报告。
 两段差异均核祖先和完整路径/blob，禁止用rename隐藏后端删除；依赖、未知后端及控制器变化拒绝。
+
+产品段也可包含本升级器自身，但其完整 Git blob 必须与冻结工具版本中的同一路径完全相同；
+不接受缺失/删除或与恢复工具不一致的 helper。该判断随 version 2 恢复包冻结，离线恢复再次执行同一校验，
+不会把一段临时内存放行逻辑冒充持久恢复合同。
 
 ```bash
 /absolute/primary/.venv/bin/python -m research_workbench_entrypoint.resident.gateway_upgrade apply-ui \

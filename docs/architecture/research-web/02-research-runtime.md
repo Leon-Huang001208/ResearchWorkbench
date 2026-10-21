@@ -1,5 +1,7 @@
 # 研究协议、执行状态与恢复
 
+静态候选准备与实际切换分开：stage-primary-ui 不发停止信号；原 resident 继续执行原生/Host/自动化空闲、准入锁和 journal-before-stop。网关恢复再次核对升级器的同一 Git blob，活动/未知仍延后，研究执行协议和固定 DSH 不变。
+
 新网页轮次冻结bound-analysis-v1，Host提供可选中文字数目标；report_plan用fact/formula完整引用绑定分析中的数字和推导，禁止通过手工payload降级。固定DSH参数schema使用独立互斥object分支；wire不支持的长度/数值关键字不承担授权，原固定脚本和Python入口仍强制全部16/40/8/0..12及字节上限。预算、取消、历史和一次补查通道不变。
 
 允许web的研究在首次空证据时就采用plan；正文回调刷新后选择实际ID，原native admission每次提供最新受信context和冻结formats。calculations仅传原始引用/操作/展示位数；系统生成声明、笔记、底稿与格式，Host从实际字节重算。错误反馈返回有界唯一ID，修正不新增补查许可。原预算、取消、历史、幂等及JSON最后发布/失败恢复协议保持。
