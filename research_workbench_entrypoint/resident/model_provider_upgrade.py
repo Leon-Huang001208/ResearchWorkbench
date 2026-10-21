@@ -29,8 +29,8 @@ from .gateway_fence import BirthFence
 
 log = logging.getLogger(__name__)
 PREVIOUS = "5df8e17e04f1b588f7e742423d81fb8e0ba34cb2"
-# PR165 model backend plus already merged PR166 login presentation only.
-PAYLOAD = "0d73c0348094f11c3440d8f6893c7a6896a8dbc8"
+# PR165 model backend plus reviewed PR166/168 presentation and navigation.
+PAYLOAD = "4e8be6ac7405733755e4a00be10898504e71710a"
 MODULE = "research_workbench_entrypoint/resident/model_provider_upgrade.py"
 WORKFLOW = ".github/workflows/research-web-checks.yml"
 TEST = "tests/research_web/test_model_provider_upgrade.py"
@@ -115,11 +115,13 @@ def review(source: Path, target: str):
             pass
         elif name == WORKFLOW:
             original = c.git(source, "show", f"{PAYLOAD}:{name}")
-            expected = original.replace(
-                "tests/research_web/test_gateway_upgrade.py",
-                "tests/research_web/test_gateway_upgrade.py " + TEST,
-                1,
-            )
+            expected = original
+            if TEST not in original:
+                expected = original.replace(
+                    "tests/research_web/test_gateway_upgrade.py",
+                    "tests/research_web/test_gateway_upgrade.py " + TEST,
+                    1,
+                )
             if c.git(source, "show", f"{target}:{name}") != expected:
                 raise UpdateBlocked("model_upgrade_workflow_scope_changed")
         else:

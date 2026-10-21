@@ -8,8 +8,9 @@
 
 显式入口 `research_workbench_entrypoint.resident.model_provider_upgrade apply` 针对原主实例与网关
 `5df8e17e04f1b588f7e742423d81fb8e0ba34cb2`，只允许已审模型服务商产品
-`eb42682f22ab9629bfd5f677d8ed38ae0d0ebec0` 与已合并登录外观 PR166 的固定产品基线
-`0d73c0348094f11c3440d8f6893c7a6896a8dbc8` 源码 blob、该操作员及测试/文档变化。
+`eb42682f22ab9629bfd5f677d8ed38ae0d0ebec0`、已合并登录外观 PR166
+与已独立审查的 PR168 导航界面，固定产品基线为
+`4e8be6ac7405733755e4a00be10898504e71710a` 源码 blob、该操作员及测试/文档变化。
 自动兼容清单、固定 DSH、依赖及原 controller.pyz 不修改；目标必须是最新已合并且三项 CI 合格的精确 SHA。
 
 ```bash

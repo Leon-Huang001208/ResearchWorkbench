@@ -1112,6 +1112,30 @@ def test_exact_profile_rejects_unreviewed_business_or_installation_changes(
         upgrade.review(tmp_path, "f" * 40)
 
 
+@pytest.mark.parametrize("already_registered", [False, True])
+def test_reviewed_workflow_keeps_one_registered_upgrade_test(
+    tmp_path, monkeypatch, already_registered
+):
+    bare = "python -m pytest tests/research_web/test_gateway_upgrade.py"
+    registered = bare + " " + upgrade.TEST
+    original = registered if already_registered else bare
+    monkeypatch.setattr(upgrade.c, "clean", lambda *_: None)
+
+    def git(_source, *args):
+        if args[0] == "merge-base":
+            return ""
+        if args[0] == "diff":
+            return f"{upgrade.MODULE}\n{upgrade.TEST}\n{upgrade.WORKFLOW}"
+        if args[0] == "rev-parse":
+            return "a" * 40
+        if args[0] == "show":
+            return original if args[1].startswith(upgrade.PAYLOAD) else registered
+        pytest.fail("unexpected review query")
+
+    monkeypatch.setattr(upgrade.c, "git", git)
+    assert upgrade.WORKFLOW in upgrade.review(tmp_path, "f" * 40)
+
+
 @pytest.mark.parametrize(
     "point",
     [
