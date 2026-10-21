@@ -189,11 +189,15 @@ def _sync_query(query: BusinessQuery, token: str | None = None):
                 code=canonical_vendor_code(asset),
                 start=start,
                 end=end,
-                cycle=parameters.get("frequency", "day"),
+                cycle={"daily": "day", "weekly": "W", "monthly": "M"}.get(
+                    parameters.get("frequency"), parameters.get("frequency", "day")
+                ),
                 rate={
                     "none": "不复权",
                     "forward": "前复权",
                     "backward": "后复权",
+                    "qfq": "前复权",
+                    "hfq": "后复权",
                 }.get(adjustment, adjustment),
                 fields=parameters.get("fields"),
                 client=client,

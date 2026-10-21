@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import date
 
 from core.observability import get_logger
 
@@ -28,6 +29,41 @@ def _integer(value, name, default, minimum=1, maximum=100):
     if isinstance(value, bool) or not isinstance(value, int) or not minimum <= value <= maximum:
         raise StoreError(f"{name} 参数非法")
     return value
+
+
+def _wind_financial_query(query: BusinessQuery) -> BusinessQuery:
+    """Translate equivalent indicator naming without reducing requested periods."""
+    parameters = query.parameters
+    statements = parameters.get("statements", ["metrics"])
+    periods = parameters.get("periods", [])
+    valid = (
+        statements in (["indicators"], ["metrics"])
+        and isinstance(periods, list)
+        and len(periods) <= 1
+    )
+    if valid and periods:
+        try:
+            valid = (
+                isinstance(periods[0], str)
+                and date.fromisoformat(periods[0]).isoformat() == periods[0]
+            )
+        except (ValueError, TypeError):
+            valid = False
+    if not valid:
+        log.warning("datahub_wind_financial_semantics_rejected")
+        raise StoreError(
+            "Wind 当前仅支持最新一期或明确指定的单期财务指标", "data_not_equivalent", 400
+        )
+    return query.model_copy(
+        update={
+            "source": "wind",
+            "parameters": {
+                **parameters,
+                "statements": ["metrics"],
+                "periods": list(periods),
+            },
+        }
+    )
 
 
 def resolve(
@@ -173,7 +209,11 @@ def resolve(
         "financials",
         "market_activity",
     }:
-        legacy = query.model_copy(update={"source": "wind"})
+        legacy = (
+            _wind_financial_query(query)
+            if query.capability == "financials"
+            else query.model_copy(update={"source": "wind"})
+        )
     elif selected == "mysql" and query.capability in {"database_schema", "table_query"}:
         legacy = query.model_copy(update={"source": "mysql"})
     else:

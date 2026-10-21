@@ -78,6 +78,47 @@ def create(client, value=None):
     return response.json()
 
 
+def test_builtin_dependency_inventory_is_scoped_to_initialization(tmp_path, monkeypatch):
+    import importlib.metadata
+
+    isolate_keyring(monkeypatch)
+    installed = importlib.metadata.packages_distributions()
+    scans = []
+    present = True
+
+    def inventory():
+        scans.append(True)
+        return {**installed, **({"task_only_module": ["task-only-dist"]} if present else {})}
+
+    monkeypatch.setattr(importlib.metadata, "packages_distributions", inventory)
+    catalog = CapabilityCatalog(tmp_path / "first")
+    assert len(scans) == 1
+    value = candidate()
+    value["files"] = [{"path": "scripts/check.py", "content": "import task_only_module\n"}]
+    draft = catalog._draft(value)
+    draft["reviewed_scripts"] = [draft["files"][0]["sha256"]]
+    assert catalog.validate("skill", draft)["valid"]
+    present = False
+    result = catalog.validate("skill", draft)
+    assert any(issue["code"] == "dependency_missing" for issue in result["issues"])
+    assert len(scans) == 3
+    CapabilityCatalog(tmp_path / "second")
+    assert len(scans) == 4
+    assert catalog._initial_module_distributions is None
+
+    def fail_inventory():
+        raise ValueError("synthetic inventory failure")
+
+    from app.research_web.capabilities.models import CapabilityError
+
+    monkeypatch.setattr(importlib.metadata, "packages_distributions", fail_inventory)
+    interrupted = CapabilityCatalog.__new__(CapabilityCatalog)
+    with pytest.raises(CapabilityError):
+        interrupted.__init__(tmp_path / "interrupted")
+    assert not interrupted._initializing
+    assert interrupted._initial_module_distributions is None
+
+
 @pytest.mark.parametrize(
     ("name", "slug"),
     [
@@ -247,8 +288,15 @@ def test_offline_seed_catalog_tools_and_workflows_without_session(api, monkeypat
         "rwb_prepare_automation_update",
         "rwb_run_automation",
         "ask_user_question",
+        "research_check_quality",
+        "research_read_source",
     }
     assert {tool["id"] for tool in tools} == baseline_tool_ids | added_tool_ids
+    assert all(
+        not tool["selectable"]
+        for tool in tools
+        if tool["id"] in {"research_check_quality", "research_read_source"}
+    )
     assert len(tools) == len(baseline_tool_ids | added_tool_ids)
     document_tool = next(tool for tool in tools if tool["id"] == "research_document_operation")
     assert document_tool["read_only"] is False

@@ -1,5 +1,9 @@
 # Research Web DataHub
 
+资产观察继续经 AssetWorkspace 调用 Broker，页面打开不取数；显式创建观察或刷新单一区块才提交业务查询。行情与快照传入明确的 `asset_type`，Wind 不从证券代码推断股票身份。财务区块使用 `statements=["indicators"]`、`periods=[]` 表示最新一期，Broker 只把等价指标名映射为 Wind 的 `metrics`，不丢弃明确指定的单期；报表请求、多期或非法期间返回 `data_not_equivalent`。Wind 最新一期的局限随快照显示，不能称为多年财务历史。历史行情继续受既有 60 天范围约束，派生图表不补成 52 周数据。
+
+单区块刷新入口及幂等/失败合同见[API](architecture/research-web/04-api.md#资产观察区块刷新)。刷新沿原会话、来源、参数和快照安全边界，Broker 的 `refresh=true` 只重取目标区块；其余区块不重取。新闻/公告在资产页按证券阅读既有 Golddata 只读 API，和 DataHub 的 `news` / `announcements` 快照区块保留来源区别；不新增 Provider 或真实调用授权。
+
 正文读取通过原实例私有数据桥按本会话已登记来源 ID 执行，不增加 Provider 凭据或修改已有取数合同。取消使用受信原生 call_id，有限请求的实际输入字节与来源身份保全，搜索摘要继续未核验；正文范围及网络保护见架构 03–05。
 
 FinGPT 数值验收读取本会话真实 DataHub 快照及上传文本，不复制候选分支的直接腾讯/东财/iFinD 调用路径。未经现有 Provider 合同和环境验收的来源继续未接入。检索摘要不作为全文证据，缺口不伪装成可调用或已核实。
@@ -322,3 +326,6 @@ Hot原件导入属于frozen_evidence/hot_evidence会话快照，不宣称为新�
 
 
 2026-10-13续跑：Hot研究脚本现在可读取本会话授权的冻结资料：创建回执、hot_research目的、run/instance/manifest匹配及所有原件hash必须通过。普通Provider选源/查询仍走原合同；本次仅修复快照只读权限。
+
+
+资产观察按单查询容量顺序调度 auto、Wind、天软和 AKShare 的同观察区块，避免自身触发 provider_busy；其他会话的占用仍如实返回。CJPY 将业务 daily/weekly/monthly 等价映射到 SDK day/W/M，qfq/hfq 映射前/后复权，保留原始字段与未知单位。资产图表识别原字段“时间/简称/vol”，来源数据日与读取时刻分开，不用读取时间替代交易日。既有 SDK 凭据用于隔离验收并不自动建立其他实例或账号的 DataHub 连接。

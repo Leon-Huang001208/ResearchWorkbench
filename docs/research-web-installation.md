@@ -1,5 +1,7 @@
 # Research Web Native / Docker 安装与运行
 
+资产观察工作台的 SVG 图表、证券资讯和单区块刷新随既有 Web 包安装，不新增 Python/Node 包、厂商 SDK、配置项或模型权限。已核对 `requirements/web.in`、`requirements/web.lock`、`scripts/setup_web.py` 与原 Bootstrap：依赖锁、公开安装入口和固定 DSH 保持；兼容性仍须最终候选的 `macos-14` 干净安装、3081/8088 健康和 Doctor 证明。本机已有环境与隔离浏览器不替代该门，真实 Wind/Golddata 可用性另行取证。
+
 显式联合升级保留独立的常驻发布 clone；仅构建源码使用受审 source 的 common directory，两发布角色分别绑定原 Git 目录/inode 和同一 GitHub origin。目标对象缺失在停机前拒绝，不修改既有安装布局或凭据。
 
 现有常驻的模型服务商后端更新使用[显式联合升级](research-web-gateway-upgrade.md#模型服务商联合升级)，须受审精确 SHA、Mac 干净安装证据、真实空闲及恢复准备；不替换原控制器、不安装新依赖、不迁移凭据/会话。公开安装入口和依赖锁保持。
@@ -912,3 +914,6 @@ AES 载入进一步认证全部既有模型记录；错误密文树/实例绑定
 ## 框架嵌入资产安装 · 2026-10-14
 
 十一套看板资产随 Git checkout 提供，公开安装器继续使用锁定依赖与固定 DSH，无额外 Node/Python 依赖和开发服务器。Gold／Dollar 核心使用本站原生快照；其余九套是明确标记的静态导入资产。无需创建凭据或调用模型即可验证页面资源与数据桥接；模型生成和供应商数据可用性仍独立验收。安装验收须检查十一套入口、核心脚本和样式在干净 checkout 可读取。
+
+
+资产观察安装验收复用既有 macOS Bootstrap 原启动步骤：逐个读取七个新增/组合的资产静态模块与样式，并和 checkout 字节比较；只上传 asset-static-smoke.json 路径/哈希摘要，不触发供应商、模型或新作业。

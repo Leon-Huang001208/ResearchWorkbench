@@ -6,6 +6,8 @@
 
 业务模块导航重分组由 `ui/core.mjs` 规范化新旧 Hash 路由、`ui/shell.mjs` 组织主导航、`ui/workbench.mjs` 复用资产双视图/主题检索/ETF 模拟、`ui/intel.mjs` 增加主题检索栏目、`ui/app.mjs` 绑定页面归属与查询/交接异步结果。规范入口为 `#/assets`、`#/assets/funds`、`#/intel/search?kind=news|research|announcements`、`#/simulation/etf`；旧 `workbench` 地址保留映射，历史 section/API/持久化/DSH 均不变。近处回归为 `research_web_workbench.test.mjs`、`research_web_intel.test.mjs` 与 `tests/e2e/research_web_business_navigation.mjs`；行为归属见[UI 合同](research-web-ui.md#业务模块与导航-2026-10-21)。
 
+资产观察的 SVG 行情与指标计算位于 `ui/asset-chart.mjs/css`，页面组合位于 `asset-workspace.mjs/css`，控制器、兼容导航和证券资讯分别在 `asset-controller.mjs`、`asset-navigation.mjs`、`asset-news.mjs`。后端 `asset_routes.py` / `asset_workspace.py` 提供观察和幂等单区块刷新，`datahub/broker.py` 保留财务指标/期间语义后再映射 Wind。定点回归为 `test_asset_workspace.py`、`test_datahub_wind.py`、`research_web_asset_chart.test.mjs`、`research_web_asset_workspace.test.mjs`、原 workbench/intel 测试及 `tests/e2e/research_web_asset_workspace.mjs`。页面/读取/刷新合同见 UI、DataHub 和架构 03–05 章；不改变验证策略或平台归属。
+
 `research_workbench_entrypoint/resident/model_provider_upgrade.py` 是模型服务商专项联合部署入口，复用 supervisor/admission 锁、BirthFence、服务管理器、保全摘要和独立恢复包；测试为 `test_model_provider_upgrade.py`，合同见 `research-web-gateway-upgrade.md`。不改变自动部署白名单或 DSH 协议。
 
 恢复环境回归使用真实Git LFS post-checkout钩子、受限launchd PATH和冻结恢复包，在临时Git仓库重现失败并验证恢复；部署前工具缺失须先失败，优雅排空预算为90秒。
@@ -67,6 +69,7 @@ AI资讯采用固定原版AIHOT API与worker、独立PostgreSQL和Host私有桥�
 私网邀请制入口为 `research_workbench_entrypoint/server.py` → `app/research_web/multiuser/__main__.py`；accounts 管 SQLite 账号/登录态，gateway 管固定 origin、鉴权及逐用户代理，runtime 管独立 Web/DSH pair 和两实例上限。`tenant_policy.py` 在后端执行入口拒绝宿主能力；`ui/server/` 管登录、账号和页面身份，浏览器草稿/导航偏好按账号 UUID 命名空间恢复。近处测试为 `test_multiuser_accounts/gateway/runtime/cli.py`、`research_web_multiuser_storage/policy.test.mjs`。安装、安全/API和部署图映射至架构清单的 private-multiuser 组；不改变原单用户数据或依赖锁。
 
 Git基线恢复由git_safety.mjs的remote_moved原位prepare认证，保留原PR/工作树和旧回执，重置CI/验证并推进已发布tip绑定。近处git_safety.test.mjs覆盖所有权、祖先、并发变化、重复准备、发布后回退及锁保护；共享框架不修改。
+已发布PR等待/失败状态也通过同一原位prepare恢复真实前进的主线，保留修补计数；新回归覆盖计数耗尽、主线未变、脏目录与外来PR head，不修改全局控制器或发布配额。
 
 AI资讯：aihot_routes.py管理v1兼容和完整site报刊/热点合同、LRU/ETag/限流；aihot_media.py
 只读取上游已签发图片。ui/aihot.mjs负责代次/取消/归档状态，aihot-report/hot/common.mjs
@@ -391,3 +394,6 @@ Hot研究结果读取/原回合核对为hot_results.py与hot_routes，测试test
 报告质量的全量 CSV 复算由 research_calculations.py 提供，研究质量服务绑定来源、文件 SHA 与当前回合；test_research_calculations.py、test_delivery_cache.py、test_research_quality_scope.py 复用现有 Research Web Checks Python 步骤，新增测试预算 15 秒，不新增 job/runner。Mac 干净安装及真实模型并发交付单独验收。
 
 模型服务多连接：`model_profile_registry.py` 校验公开身份及固定 ref→物理账号映射，`model_profiles.py` 复用服务锁、活动/受理/交付保护与原配置提交，`ui/model-settings.mjs/css` 管独立 DOM 表单与服务商目录。`automation/service.py` 保存连接身份，`service.create` 在同一锁内核对日程期望绑定。近处回归 `test_model_profiles.py`、`research_web_model_profiles.test.mjs`，原 Keychain、Docker 密文、兼容适配与设置回归保留。
+
+
+资产 CJPY 实际回读补充：providers_cjpy.py 映射业务周期/复权到已安装 SDK；asset-chart.mjs 与 asset-workspace.mjs 读取供应商原字段“时间/简称/vol”。test_asset_workspace.py 对单通道来源调度和 SDK 参数做离线回归；真实取数只在显式授权的隔离目录中验收，不修改已有实例凭据。

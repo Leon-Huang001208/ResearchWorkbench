@@ -11,7 +11,15 @@ router = APIRouter(prefix="/api/research")
 
 AssetType = Literal["stock", "etf", "index", "fund", "theme"]
 AssetBlock = Literal[
-    "overview", "history", "financials", "activity", "announcements", "news", "research"
+    "overview",
+    "history",
+    "financials",
+    "activity",
+    "margin",
+    "holders",
+    "announcements",
+    "news",
+    "research",
 ]
 
 
@@ -29,7 +37,7 @@ class ObservationRequest(BaseModel):
     sections: list[AssetBlock] = Field(
         default_factory=_default_sections,
         min_length=1,
-        max_length=7,
+        max_length=9,
     )
     start_date: str | None = Field(default=None, pattern=r"^[0-9]{4}-[0-9]{2}-[0-9]{2}$")
     end_date: str | None = Field(default=None, pattern=r"^[0-9]{4}-[0-9]{2}-[0-9]{2}$")
@@ -90,6 +98,18 @@ async def list_observations(request: Request):
 @router.get("/assets/observations/{observation_id}")
 async def observation(observation_id: str, request: Request):
     return request.app.state.research.asset_workspace.observation(observation_id)
+
+
+@router.post("/assets/observations/{observation_id}/blocks/{block}/refresh", status_code=202)
+async def refresh_observation_block(
+    observation_id: str,
+    block: AssetBlock,
+    request: Request,
+    idempotency_key: str = Header(min_length=8, max_length=128),
+):
+    return await request.app.state.research.asset_workspace.refresh_block(
+        observation_id, block, idempotency_key
+    )
 
 
 @router.get("/watchlists")

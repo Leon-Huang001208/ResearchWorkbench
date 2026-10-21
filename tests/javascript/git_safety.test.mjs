@@ -827,6 +827,42 @@ test('remote advance recovery preserves the existing PR, worktrees and old commi
   assert.ok(f.calls.every(args => args[0] === 'api' || args[0] === 'pr' && args[1] === 'view'));
 });
 
+for (const status of ['awaiting_ci', 'ci_failed']) test(`live published ${status} refreshes a moved base without consuming exhausted CI repair budget`, async t => {
+  const f = baseRefreshFixture(t);
+  f.receipt.status = status; f.receipt.repairAttempts = 3;
+  fs.writeFileSync(f.filename, JSON.stringify(f.receipt));
+  const before = git(f.projectRoot, ['show-ref']);
+  const result = await runDelivery({projectRoot: f.projectRoot, taskId: 'task', action: 'prepare'}, f.safe);
+  assert.equal(result.status, 'prepared');
+  assert.equal(result.baseCommit, f.latest);
+  assert.equal(result.repairAttempts, 3);
+  assert.deepEqual(result.pullRequest, f.receipt.pullRequest);
+  assert.equal(result.verification, null);
+  assert.deepEqual(result.ci, {status: 'pending', runs: []});
+  assert.equal(git(f.projectRoot, ['show-ref']), before);
+  assert.ok(f.calls.every(args => args[0] === 'api' || args[0] === 'pr' && args[1] === 'view'));
+});
+
+test('live published base refresh rejects an unchanged master without mutating the receipt', async t => {
+  const f = baseRefreshFixture(t);
+  f.receipt.status = 'awaiting_ci'; f.receipt.repairAttempts = 3;
+  fs.writeFileSync(f.filename, JSON.stringify(f.receipt)); f.setRemoteBase(f.receipt.baseCommit);
+  const before = fs.readFileSync(f.filename);
+  await assert.rejects(runDelivery({projectRoot: f.projectRoot, taskId: 'task', action: 'prepare'}, f.safe), {code: 'BASE_REFRESH_NOT_NEEDED'});
+  assert.deepEqual(fs.readFileSync(f.filename), before);
+});
+
+for (const failure of ['dirty', 'foreign-pr']) test(`live published base refresh preserves guards with ${failure}`, async t => {
+  const f = baseRefreshFixture(t);
+  f.receipt.status = 'awaiting_ci'; f.receipt.repairAttempts = 3;
+  fs.writeFileSync(f.filename, JSON.stringify(f.receipt));
+  if (failure === 'dirty') fs.writeFileSync(path.join(f.receipt.integrationWorktree, 'untracked'), 'preserve');
+  else f.pr.headRefOid = f.latest;
+  const before = fs.readFileSync(f.filename);
+  await assert.rejects(runDelivery({projectRoot: f.projectRoot, taskId: 'task', action: 'prepare'}, f.safe), {code: failure === 'dirty' ? 'WORKTREE_DIRTY' : 'PR_HEAD_MISMATCH'});
+  assert.deepEqual(fs.readFileSync(f.filename), before);
+});
+
 test('remote advance recovery refuses dirty or wrong-branch worktrees without changing the receipt', async t => {
   const f = baseRefreshFixture(t), before = fs.readFileSync(f.filename);
   const dirty = path.join(f.receipt.integrationWorktree, 'untracked'); fs.writeFileSync(dirty, 'preserve');

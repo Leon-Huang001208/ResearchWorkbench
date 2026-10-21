@@ -120,6 +120,7 @@ master及PR head须匹配，并在写入前再次核对。脏目录、未提交�
 head或既有锁均拒绝。支持旧prepared尚未发布时主线再次前进；只接受明确登记的已发布tip，
 不接受任意祖先。成功发布后会把该tip推进到实际发布候选，禁止沿用更老的tip。
 首次发布前恢复要求 `mode`、`pullRequest`、`remoteCommit` 三项明确为 null；不查询不存在的 PR。已发布任务继续验证原 PR 身份，不接受部分发布字段或未知远端 tip。
+已发布 PR 处于 `awaiting_ci` 或 `ci_failed`、而真实主线已经前进时，也可在原工作树提交合并后直接 `--prepare`；不要求先发起一次 CI 修补来获得 `remote_moved` 标记。该入口仍必须证明新主线、旧候选、原 PR 和工作树身份，保留全部修补计数；主线未变仍拒绝，不能用刷新基线重试同候选或重置配额。
 恢复将旧完整回执以0600存于Git common dir的 `leon-engineering/git-safety/base-refresh/TASK/`，
 保留原PR、原工作树、所有引用和修补计数；不调用共享控制器的删除/重建分支，也不执行push。
 新回执回到prepared并清空verification/CI，旧评审因候选SHA不同而失效；须重新完成本地验证、
@@ -208,6 +209,8 @@ node scripts/git_safety.mjs backup-prune --project /absolute/RWB --apply
 新模式按真实 runner/machine 平台归属证据：多平台 local gate 的一次 macOS 执行不复用为 Windows/Linux PASS；`generic` 不推断所有原生平台，`cross-platform` 未覆盖的目标仍保留 NOT_RUN 交接。CI PASS 必须绑定 workflow、run、候选、预期及实际 checkout；merge preview 还须由本地真实 Git commit 的父提交证明关联 base/head，未知对象失败关闭且 validator 不自行 fetch。候选、说明源码、图源/生成物与报告提交分别记录，避免报告或生成物自指提交。报告仍记录验收范围和证据来源；机械结构有效不代表任务已全部完成。
 
 ## 最小验收规划（Verification planning）
+
+资产观察的观察创建、单区块刷新、持久化失败、取消/重启恢复与 Wind 财务语义由 `test_asset_workspace.py` / `test_datahub_wind.py` 加入既有 Research Web Checks Python 步骤；SVG 指标、专题切换、资讯兼容入口和迟到响应沿原 `research_web*.test.mjs` 通配符，浏览器另走 `research_web_asset_workspace.mjs`。新增后端 97 项最终本机复验约 57 秒，预留 90 秒；不新增 job、runner、依赖或 Windows/Linux dispatch，不触发真实厂商/模型调用。完整相关测试、原 macOS 干净安装与最终候选证据仍分别验收，截图和契约测试不代表真实数据源可调用。
 
 Claw正文搜索的快速HTTP/私有RPC边界使用`test_session_search.py`，与既有协议合同一起进入Research Web Checks；查询须走JSON POST，浏览器验收另检查模式/归属、错误重试与迟到响应。新增只读搜索不替代完整本地API回归、Native候选与exact-SHA Mac安装CI，也不扩大Windows/Linux dispatch授权。
 
@@ -349,3 +352,6 @@ Docker 构建与验收任务的完成检查必须包含资源收尾：临时资�
 - 只修改 Research Web 页面、Web API 或 Runtime：按 Web 测试与项目约束交付，不运行 Desktop Verify。
 
 模型服务多连接先复现固定ref不能隔离账号，再离线覆盖legacy绑定、独立Key、未知提交、闲时门、日程锁内竞争及历史子研究；正式UI使用隔离示意数据验证，不读取生产Key或调用模型。完整Router、独立评审与同候选Mac Bootstrap后方可合并，常驻部署另行授权。
+
+
+资产观察安装验收复用既有 macOS Bootstrap 原启动步骤：逐个读取七个新增/组合的资产静态模块与样式，并和 checkout 字节比较；只上传 asset-static-smoke.json 路径/哈希摘要，不触发供应商、模型或新作业。
