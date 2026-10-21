@@ -28,7 +28,9 @@ import { readAssetObservation } from './asset-workspace.mjs';
 import { assetHref, selectAssetObservation } from './asset-navigation.mjs';
 import { createAssetWorkspaceController } from './asset-controller.mjs';
 import { createAssetNewsController, renderAssetNews } from './asset-news.mjs';
-import { createAssetChartController, renderMarketTerminal } from './asset-chart.mjs';
+import { createAssetChartController } from './asset-chart.mjs';
+import { mountCapitalFlow } from './asset-workspace.mjs';
+import { projectAssetObservation } from './asset-projection.mjs';
 import { renderOperations } from './operations.mjs';
 import { createIntelController, renderIntel } from './intel.mjs';
 import { createAihotController, renderAihot } from './aihot.mjs';
@@ -44,7 +46,7 @@ const frameworkEmbedBridge = createEmbedBridge({ origin: globalThis.location?.or
 let frameworkEmbedFrame = null;
 frameworkEmbedBridge.setTheme(document.documentElement?.dataset?.theme || 'light');
 if (globalThis.MutationObserver && document.documentElement) {
-  new MutationObserver(() => frameworkEmbedBridge.setTheme(document.documentElement.dataset.theme)).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+  new MutationObserver(() => { frameworkEmbedBridge.setTheme(document.documentElement.dataset.theme); mountAssetIndicators(); }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 }
 window.addEventListener('message', event => {
   if (frameworkEmbedBridge.receive(event)) {
@@ -151,18 +153,35 @@ window.matchMedia('(max-width: 1050px)').addEventListener?.('change', event => {
 const hotController = createHotController({api,onChange:()=>render(),isActive:()=>state.route.page==='intel'&&state.route.intelTab==='hot'||state.route.page==='settings'&&state.route.settingsSection==='hot'});
 const intelController = createIntelController({ onChange: () => { if (state.route.page === 'intel') render(); } });
 const isAssetPage = () => ['assets', 'workbench'].includes(state.route.page) && state.route.section === 'assets';
-let assetChartFrame = null;
-const assetChart = createAssetChartController({ onChange: () => {
-  if (assetChartFrame !== null) return;
-  assetChartFrame = requestAnimationFrame(() => {
-    assetChartFrame = null; if (!isAssetPage()) return;
-    const slot = root.querySelector('[data-asset-chart-slot]'); if (!slot || !assetState.observation || !selectAssetObservation([assetState.observation], state.route)) return;
-    const focused = slot.contains(document.activeElement);
-    const action = focused ? document.activeElement?.dataset?.assetChartAction : null;
-    slot.innerHTML = renderMarketTerminal(assetState.rows.history || [], assetChart.getState());
-    if (focused) (action ? slot.querySelector(`[data-asset-chart-action="${action}"]`) : slot.querySelector('svg'))?.focus({ preventScroll: true });
-  });
-} });
+const assetChart = createAssetChartController();
+let assetCapitalFlow = null;
+let assetAnchorKey = '';
+function assetTerminalMetadata(observation = assetState.observation) {
+  return { ...observation?.blocks?.history?.dataset, frequency: observation?.request_parameters?.frequency || 'daily', adjustment: observation?.request_parameters?.adjustment || 'qfq', asset: observation?.asset, name: assetState.rows.overview?.[0]?.name || assetState.rows.overview?.[0]?.['简称'] };
+}
+function configureAssetTerminal() {
+  const observation = selectAssetObservation(assetState.observation ? [assetState.observation] : [], state.route);
+  const key = `${observation?.asset_type || state.route.assetType}:${observation?.asset || state.route.asset}:${observation?.blocks?.history?.dataset?.dataset_id || ''}`;
+  assetChart.configure(observation ? assetState.rows.history || [] : [], key, assetTerminalMetadata(observation));
+}
+function mountAssetIndicators() {
+  if (!isAssetPage()) return;
+  const page = root.querySelector('[data-asset-identity]');
+  if (!page) return;
+  try {
+    configureAssetTerminal();
+    assetChart.mount(page.querySelector('[data-asset-chart-slot]'));
+    const observation = selectAssetObservation(assetState.observation ? [assetState.observation] : [], state.route);
+    assetCapitalFlow?.dispose();
+    assetCapitalFlow = mountCapitalFlow(page, projectAssetObservation(observation ? assetState.rows : {}, observation || {}));
+    const view = state.route.assetView || 'overview';
+    const anchorKey = `${page.dataset.assetIdentity}:${view}`;
+    if (anchorKey !== assetAnchorKey) {
+      assetAnchorKey = anchorKey;
+      page.querySelector(`[data-asset-anchor="${view}"]`)?.scrollIntoView({ block: 'start' });
+    }
+  } catch (error) { safeLog('asset_indicators_mount_failed', { error: error.name }); }
+}
 const assetWorkspace = createAssetWorkspaceController({ api, onChange: () => { assetState = assetWorkspace.state; if (isAssetPage()) render(); } });
 assetState = assetWorkspace.state;
 const assetNews = createAssetNewsController({ onChange: () => {
@@ -180,9 +199,6 @@ const assetNews = createAssetNewsController({ onChange: () => {
 window.addEventListener('blur', () => assetChart.cancel());
 window.addEventListener('pointerup', () => assetChart.cancel());
 window.addEventListener('pointercancel', () => assetChart.cancel());
-for (const name of ['pointermove', 'pointerdown', 'pointerup', 'pointercancel', 'pointerleave', 'keydown', 'wheel']) {
-  root.addEventListener(name, event => { if (isAssetPage()) assetChart.handle(event); }, { capture: name === 'pointerleave', passive: name !== 'wheel' && name !== 'keydown' && name !== 'pointerdown' });
-}
 
 const aihotController = createAihotController({ onChange: () => { if (state.route.page === 'aihot') render(); } });
 const capabilityController = createCapabilityController({ api, onChange: () => render(), onCatalogChange: () => loadCatalog(['capabilities']) });
@@ -615,6 +631,8 @@ function render() {
     if (name === 'workbenchQueries') return isDataWorkspaceRoute(state.route) && !['assets', 'etf-paper'].includes(state.route.section);
     return true;
   });
+  assetChart.dispose();
+  assetCapitalFlow?.dispose(); assetCapitalFlow = null;
   root.innerHTML = `<div class="app-shell ${state.route.page === 'claw' ? 'claw-shell' : ''} ${hasContext ? '' : 'wide-page'} ${hasSecondary ? 'has-secondary' : ''} ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${sidebarOpen ? 'navigation-open' : ''} ${hasContext ? 'context-open' : ''}">${renderTopbar({ page: state.route.page, section: state.route.section, frameworkSlug: state.route.frameworkSlug, settingsSection: state.route.page === 'settings' ? currentSettingsSection() : '', detail: state.detail, runtimeLabel: runtimeLabel(), runtime: catalog.runtime, models: catalog.models, busy: state.busy, search: globalSearch, sessions: catalog.sessions, skills: searchableCapabilities, searchOpen, nativeSearch: state.route.page === 'claw' ? nativeSessionSearch.state : null })}<div class="navigation-column">${primaryRail()}${sidebar()}</div><main id="main" tabindex="-1"><div class="page-content">${notice(state.error)}${visibleErrors.map(([name, error]) => notice(`${({ runtime: '运行时', models: '模型目录', workspaces: '工作空间', sessions: '会话历史', deletedSessions: '已删除会话', capabilities: '能力目录', tools: '工具目录', reportWorkflows: '报告 Workflow', automations: '运行计划', automationRuns: 'Automation 运行', deliveryChannels: '交付渠道', dataCatalog: '数据目录', connections: '连接中心', localIntegrations: '本机集成诊断', connectionConfiguration: '来源配置', migration: '旧配置迁移' })[name] || name}：${error}`)).join('')}${notice(success, 'success')}${mainPage()}</div></main>${hasContext || contextOpen ? contextPanel() : ''}</div>${sidebarOpen || contextOpen ? '<button class="mobile-backdrop" data-close-drawers aria-label="关闭面板"></button>' : ''}${sessionActionsLayer()}${documentEditor?.sessionId === state.detail?.id ? renderDocumentEditor(documentEditor) : ""}`;
   const newFrameworkFrame = root.querySelector('iframe[data-native-framework]');
   frameworkEmbedFrame = newFrameworkFrame;
@@ -689,6 +707,7 @@ function render() {
     for (const sibling of root.children) if (!sibling.contains(projectDialog)) sibling.inert = true;
     if (!projectDialog.contains(document.activeElement) || document.activeElement?.disabled) (projectDialog.querySelector('input:not(:disabled)') || projectDialog).focus({ preventScroll: true });
   }
+  mountAssetIndicators();
   document.title = `${state.detail?.title || ({ fingpt: 'FinGPT', claw: 'Claw', assets: '资产观察', simulation: '策略模拟', frameworks: '研究框架', history: '研究历史', skills: '能力中心', operations: '运行与用量', intel: '研究情报', aihot: 'AI 资讯', settings: '设置', account: '账号资料' })[state.route.page] || '资产观察'} · Research Workbench`;
 }
 
@@ -1336,7 +1355,7 @@ async function loadAssetWorkspace(current = workbenchOwner()) {
   if (ticket !== pageGeneration || !current() || !isAssetPage()) return;
   assetState = assetWorkspace.state;
   const observation = assetState.observation;
-  assetChart.configure(assetState.rows.history || [], `${observation?.asset_type || state.route.assetType}:${observation?.asset || state.route.asset}:${observation?.blocks?.history?.dataset?.dataset_id || ''}`);
+  configureAssetTerminal();
   workbenchContext = observation ? { section: 'assets', asset: observation.asset, asset_type: observation.asset_type, source: observation.source, requested_at: observation.created_at, completed_at: observation.updated_at, dataset_ids: observation.dataset_ids || [], blocks: Object.fromEntries(Object.entries(observation.blocks || {}).map(([name, block]) => [name, { status: block.status, as_of: block.dataset?.as_of || null, provider: block.dataset?.provider || null }])) } : {};
   delete catalog.errors.assetWorkspace;
 }

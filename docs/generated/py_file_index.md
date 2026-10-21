@@ -3035,11 +3035,15 @@ Module docstring:
 
 Imports:
 - `__future__`
+- `datetime`
 - `fastapi`
 - `pydantic`
 - `typing`
 
 Classes:
+- `SectionRange`
+  - An explicit, complete calendar interval; provider limits still apply.
+  - methods: validate_interval
 - `ObservationRequest`
 - `WatchlistCreate`
 - `WatchlistItem`
@@ -3089,7 +3093,7 @@ Classes:
 - `AssetWorkspaceError`
   - methods: __init__
 - `AssetWorkspace`
-  - methods: __init__, _mark_cancelled, _track_task, public_observation, create_observation, refresh_block, _parameters, _run_block, _run, observation, list_observations, create_watchlist, add_watchlist_item, create_note, patch_note, create_alert, patch_alert, evaluate_alerts, close
+  - methods: __init__, _mark_cancelled, _track_task, public_observation, create_observation, refresh_block, _parameters, _source, _requested_range, _run_block, _run, observation, list_observations, create_watchlist, add_watchlist_item, create_note, patch_note, create_alert, patch_alert, evaluate_alerts, close
 
 Functions:
 - `_uuid_record`

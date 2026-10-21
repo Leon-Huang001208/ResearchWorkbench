@@ -1,5 +1,7 @@
 # Research Web 接口清单
 
+资产观察公开Method／Path保持；ObservationRequest新增 `section_sources: dict[AssetBlock, SourceId] = {}` 和 `section_ranges: dict[history|activity|margin, SectionRange] = {}`，SectionRange严格为完整、真实ISO日期对且start_date≤end_date，未知键／半对拒绝。逐区来源覆盖原source，未覆盖沿原值；逐区范围覆盖全局日期，未覆盖沿原请求，holders.end_date仍为报告期。公开request_parameters缺字段按空映射兼容旧记录，区块回显有效来源与范围，刷新和恢复沿保存请求执行。AssetBlock新增valuation，内部复用market_snapshot并请求明确asset_type和close／pe_ttm／pb／total_shares；没有新路由。专业来源失败不隐式回退，Wind60天硬门不截断／拆分，61天仍拒绝；新UI行情1Y与资金／两融60天分别传入。
+
 本轮部署只调整已有GitHub CI日志读取的有界时限并固定工具摘要，没有增加或更改HTTP路由、方法、身份边界和请求字段；完整checkout/树及三CI条件保留。
 
 ## 资产观察区块刷新

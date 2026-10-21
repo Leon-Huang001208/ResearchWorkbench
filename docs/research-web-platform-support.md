@@ -1,5 +1,7 @@
 # Research Web 能力与平台证据
 
+AF连续指标迁移是macOS宿主的Web功能开发；本地公式／后端／页面测试、浏览器对照、真实CJPY及同候选Mac干净安装分别取证，未取得者保留NOT_RUN。本地图表库需随wheel和Mac安装物逐字节核对；没有Windows／Linux原生产品验收证据，不从Mac触发其产品dispatch，也不触发Tauri／sidecar／桌面安装门。常驻部署另行授权。
+
 本轮只修正macOS Native显式部署的CI日志下载预算；Mac同候选安装与通用仓库检查仍必需。没有Windows/Linux原生部署或产品派发，Linux runner的通用CI不冒充Linux产品验收。
 
 资产观察 apply-assets 是 macOS Native 的固定版本显式部署；源码、同候选Mac安装CI、真实切换/回滚与浏览器效果分别取证。Windows/Linux原生部署和产品验收仍为NOT_RUN，不从Mac派发其产品CI。

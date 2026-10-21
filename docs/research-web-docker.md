@@ -1,5 +1,7 @@
 # Mac mini Docker 开发与独立部署
 
+AF指标区新增的固定本地ECharts／Chart.js属于现有Web静态包，不新增容器、端口、卷、网络或数据库；Docker部署与容量／归属保护保持。wheel静态资源核对不能替代真实Docker构建与健康证据，未执行Docker产品验收仍为NOT_RUN，Native／Mac安装结果不互相冒充。
+
 本轮CI大日志下载预算修正只服务既有macOS Native显式部署；不改Docker部署、构建缓存、网络或卷。原全部资格检查保留，本机操作员仅有界等待120秒读取CI日志，非Docker验收证据。
 
 资产观察 apply-assets 仅更新已审 macOS Native 主实例和网关，不切换 Docker 镜像、容器或业务卷；Docker 活动、容量和未知资源保护保持，不能把该部署当作 Docker 验收。

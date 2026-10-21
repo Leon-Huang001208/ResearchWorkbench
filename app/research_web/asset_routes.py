@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from typing import Literal
+from datetime import date
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Header, Request
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 router = APIRouter(prefix="/api/research")
 
@@ -13,6 +14,7 @@ AssetType = Literal["stock", "etf", "index", "fund", "theme"]
 AssetBlock = Literal[
     "overview",
     "history",
+    "valuation",
     "financials",
     "activity",
     "margin",
@@ -21,6 +23,25 @@ AssetBlock = Literal[
     "news",
     "research",
 ]
+SourceId = Annotated[str, Field(pattern=r"^[a-z0-9_]+$")]
+RangeBlock = Literal["history", "activity", "margin"]
+
+
+class SectionRange(BaseModel):
+    """An explicit, complete calendar interval; provider limits still apply."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    start_date: str = Field(pattern=r"^[0-9]{4}-[0-9]{2}-[0-9]{2}$")
+    end_date: str = Field(pattern=r"^[0-9]{4}-[0-9]{2}-[0-9]{2}$")
+
+    @model_validator(mode="after")
+    def validate_interval(self) -> SectionRange:
+        start = date.fromisoformat(self.start_date)
+        end = date.fromisoformat(self.end_date)
+        if start > end:
+            raise ValueError("start_date must not follow end_date")
+        return self
 
 
 def _default_sections() -> list[AssetBlock]:
@@ -33,11 +54,13 @@ class ObservationRequest(BaseModel):
     session_id: str | None = Field(default=None, pattern=r"^[a-f0-9-]{36}$")
     asset: str = Field(min_length=2, max_length=32, pattern=r"^[A-Za-z0-9._-]+$")
     asset_type: AssetType
-    source: str = Field(default="auto", pattern=r"^[a-z0-9_]+$")
+    source: SourceId = "auto"
+    section_sources: dict[AssetBlock, SourceId] = Field(default_factory=dict)
+    section_ranges: dict[RangeBlock, SectionRange] = Field(default_factory=dict)
     sections: list[AssetBlock] = Field(
         default_factory=_default_sections,
         min_length=1,
-        max_length=9,
+        max_length=10,
     )
     start_date: str | None = Field(default=None, pattern=r"^[0-9]{4}-[0-9]{2}-[0-9]{2}$")
     end_date: str | None = Field(default=None, pattern=r"^[0-9]{4}-[0-9]{2}-[0-9]{2}$")
