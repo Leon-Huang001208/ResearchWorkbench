@@ -1,5 +1,7 @@
 # Mac mini Docker 开发与独立部署
 
+联合升级的独立 Git 仓库身份修补只适用于 Native 发布目录；不改 Docker 源码挂载、镜像、卷或容量保护，仍不构成 Docker 产品升级验证。
+
 模型服务商 v4 联合升级仅适用于当前受审 macOS Native 常驻主实例及网关，不操作 Docker 引擎、容器、卷或容量队列；Docker 活动和未知资源继续保留，不把 Native 部署测试当作 Docker 升级验收。
 
 本轮FinGPT三组比较只在macOS隔离Native实例执行，不调整Docker服务、VM或生产数据。资源收尾仅在既有锁与任务证明下认领重新生成的匹配源码字节码或空目录；未知目录和正在运行的构建仍阻止回收。

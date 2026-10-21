@@ -373,7 +373,7 @@ def install_recovery(home, source, target, python):
     }
 
 
-def validate_state(home, state):
+def validate_state(home, state, *, executor_source=None):
     if str(UUID(state.get("transaction", ""))) != state.get("transaction"):
         raise UpdateBlocked("model_upgrade_journal_invalid")
     metadata = state.get("model_before")
@@ -394,7 +394,9 @@ def validate_state(home, state):
     ):
         raise UpdateBlocked("model_upgrade_journal_invalid")
     source = Path(state["source"])
-    validate_executor(source, state["target"], state)
+    validate_executor(
+        executor_source if executor_source is not None else source, state["target"], state
+    )
     expected = home / "resident/artifacts" / state["target"] / "source"
     if (
         source != expected
@@ -447,11 +449,7 @@ def validate_state(home, state):
             raise UpdateBlocked("model_upgrade_project_changed")
         if p.resolve() != p or [p.stat().st_dev, p.stat().st_ino] != state[role + "_identity"]:
             raise UpdateBlocked("model_upgrade_project_changed")
-        if (
-            c.git(p, "rev-parse", "--path-format=absolute", "--git-common-dir")
-            != state["config"]["source_common"]
-        ):
-            raise UpdateBlocked("model_upgrade_project_changed")
+        verify_release_repository(state, role)
         actual = c.git(p, "rev-parse", "HEAD")
         if actual not in (PREVIOUS, state["target"]):
             raise UpdateBlocked("model_upgrade_revision_unknown")
@@ -459,6 +457,33 @@ def validate_state(home, state):
     if c.digest(Path(state["gateway_plist"])) != state["gateway_plist_sha256"]:
         raise UpdateBlocked("model_upgrade_job_changed")
     validate_configuration(home, state)
+
+
+def repository_identity(project, repository):
+    """Release clones need not share the development checkout's Git directory."""
+    common = Path(c.git(project, "rev-parse", "--path-format=absolute", "--git-common-dir"))
+    info = common.lstat()
+    if common.resolve() != common or not stat.S_ISDIR(info.st_mode) or info.st_uid != os.getuid():
+        raise UpdateBlocked("model_upgrade_repository_unknown")
+    origin = c.git(project, "remote", "get-url", "origin")
+    if origin not in {
+        f"git@github.com:{repository}.git",
+        f"https://github.com/{repository}.git",
+        f"https://github.com/{repository}",
+    }:
+        raise UpdateBlocked("model_upgrade_repository_unknown")
+    after = common.lstat()
+    if (info.st_dev, info.st_ino) != (after.st_dev, after.st_ino):
+        raise UpdateBlocked("model_upgrade_repository_changed")
+    return {"common": str(common), "identity": [info.st_dev, info.st_ino]}
+
+
+def verify_release_repository(state, role):
+    if (
+        repository_identity(Path(state[role + "_project"]), state["config"]["repository"])
+        != state[role + "_repository"]
+    ):
+        raise UpdateBlocked("model_upgrade_repository_changed")
 
 
 def gateway_configuration(state, previous=False):
@@ -622,6 +647,7 @@ class Operations:
         sha = PREVIOUS if previous else self.state["target"]
         for role in ("primary", "gateway"):
             p = Path(self.state[role + "_project"])
+            verify_release_repository(self.state, role)
             actual = c.git(p, "rev-parse", "HEAD")
             if actual not in (PREVIOUS, self.state["target"]):
                 raise UpdateBlocked("model_upgrade_revision_unknown")
@@ -825,7 +851,7 @@ def operate(home, source=None, *, recovering=False):
             g.private_root(directory)
             artifact_source = directory / "source"
             if not artifact_source.exists():
-                c.git(primary, "worktree", "add", "--detach", str(artifact_source), target)
+                c.git(source, "worktree", "add", "--detach", str(artifact_source), target)
             c.clean(artifact_source, target)
             old_wheel = c.build_wheel(primary, primary, directory / "old" / PREVIOUS)
             new_wheel = c.build_wheel(primary, artifact_source, directory / "new" / target)
@@ -881,9 +907,15 @@ def operate(home, source=None, *, recovering=False):
                 "supervisor_plist_sha256": supervisor_hash,
             }
             for role in ("primary", "gateway"):
-                info = Path(state[role + "_project"]).stat()
+                project = Path(state[role + "_project"])
+                info = project.stat()
                 state[role + "_identity"] = [info.st_dev, info.st_ino]
+                state[role + "_repository"] = repository_identity(project, config["repository"])
+                c.git(project, "cat-file", "-e", f"{target}^{{commit}}")
             state["recovery"] = install_recovery(home, source, target, python)
+            # Exercise the exact recovery identity contract before any fence
+            # publication or stop; an apply-only proof cannot protect rollback.
+            validate_state(home, state, executor_source=source)
         from app.research_web.service_manager import WebServiceManager
 
         manager = WebServiceManager(

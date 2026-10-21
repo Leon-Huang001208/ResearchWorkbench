@@ -1,5 +1,7 @@
 # Research Web Native / Docker 安装与运行
 
+显式联合升级保留独立的常驻发布 clone；仅构建源码使用受审 source 的 common directory，两发布角色分别绑定原 Git 目录/inode 和同一 GitHub origin。目标对象缺失在停机前拒绝，不修改既有安装布局或凭据。
+
 现有常驻的模型服务商后端更新使用[显式联合升级](research-web-gateway-upgrade.md#模型服务商联合升级)，须受审精确 SHA、Mac 干净安装证据、真实空闲及恢复准备；不替换原控制器、不安装新依赖、不迁移凭据/会话。公开安装入口和依赖锁保持。
 
 网关冻结恢复任务显式提供既有系统/Homebrew工具PATH，安装前核验Git LFS；本轮不安装新依赖、不修改公开安装入口或全局环境。干净Mac Bootstrap仍是必需门。

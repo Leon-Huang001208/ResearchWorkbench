@@ -1,5 +1,7 @@
 # Agent 任务路由指南
 
+常驻发布目录可能是独立 clone：先只读核对原 GitHub origin/common/inode，不把发布仓库改造成开发 worktree。新增恢复身份须先做三仓库回归，再执行完整 changed-set 约束和同候选 Mac Bootstrap；停机前确保两角色均已有精确目标对象。
+
 模型服务商联合部署先验证真实旧 controller 合同、部分 BirthFence 中断与 finish 内部故障；新增定点测试加入原 Checks 步骤，无新 job/依赖。完成独立评审、Router 与同候选 Mac Bootstrap 后才部署；活动/未知等待，不用本地测试代替常驻证据。
 
 静态部署包含升级器自身时，先在干净且受审的精确目标checkout执行stage-primary-ui；核对现场冻结controller的candidate复用分支与摘要，原tick完成空闲切换及accepted/进程/会话模型保全后，再apply-ui更新网关。helper产品blob必须等于冻结工具blob；不临时patch白名单或恢复算法，候选冲突/活动/未知延后。回归沿原gateway升级模块和Mac Bootstrap，不新增依赖或他平台产品dispatch。

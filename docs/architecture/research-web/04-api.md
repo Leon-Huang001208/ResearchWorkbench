@@ -1,5 +1,7 @@
 # Research Web 接口清单
 
+独立发布仓库身份修补不新增接口或命令参数；未知 origin、目录/inode 变化及目标对象缺失仍通过现有 blocked 通道在停机前返回。
+
 模型服务商联合部署仅新增本机 `model_provider_upgrade apply/recover --home [--source]` 显式入口，无新 HTTP/DSH 接口。只读 resident/runtime/model-profiles 与 server health 用于真实版本、活动及凭据是否配置核对，不发送模型请求或读出 Key。
 
 无新增CLI参数或HTTP接口；恢复任务工具缺失仍以既有blocked错误返回。优雅等待延长不改变deferred/recovery_required的语义。
