@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { renderClawSchedules, renderClawRunCards, clawCases, renderAutomationDrafts, automationDraftBody, renderClawConnections } from '../../app/research_web/ui/claw-workspace.mjs';
 import { createAPI } from '../../app/research_web/ui/core.mjs';
-import { renderSidebar, renderPrimaryRail } from '../../app/research_web/ui/shell.mjs';
+import { renderSidebar, renderPrimaryRail, renderTopbar } from '../../app/research_web/ui/shell.mjs';
 import { renderConversation } from '../../app/research_web/ui/views.mjs';
 import { renderComposer } from '../../app/research_web/ui/composer.mjs';
 
@@ -174,10 +174,10 @@ test('Claw schedule creation keeps its draft after homepage examples are removed
   assert.match(clawCases[0].text,/先澄清/);
   assert.doesNotMatch(html,/回放|工具成功|已完成/);
 });
-test('side navigation owns schedule and workspace while rail always offers reopening',()=>{
+test('side navigation owns schedule and workspace while topbar offers reopening',()=>{
   assert.match(renderSidebar({page:'claw'}),/view=plans/);
   assert.match(renderSidebar({page:'claw'}),/view=projects/);
-  assert.match(renderPrimaryRail({page:'claw',secondaryOpen:false}),/aria-expanded="false"/);
+  assert.match(renderTopbar({page:'claw'}),/sidebar-reopen[^>]*aria-expanded="false"/);
 });
 
 test('explicit create-enable changes only the confirmation endpoint and keeps the draft body', async()=>{
@@ -204,12 +204,12 @@ test('run source labels respect the actual schedule trigger and unknown stays vi
   assert.doesNotMatch(html,/手动试跑/);
 });
 
-test('desktop sidebar focus uses the visible rail and mobile close uses the topbar', async()=>{
+test('desktop sidebar focus uses the content reopen control and mobile keeps drawer controls', async()=>{
   const { focusSidebarControl } = await import('../../app/research_web/ui/shell.mjs');
   const selections=[];
   const document={querySelector:selector=>({focus:()=>selections.push(selector)})};
-  focusSidebarControl(document,false); focusSidebarControl(document,true); focusSidebarControl(document,true,true);
-  assert.deepEqual(selections,['.primary-rail .rail-toggle','.topbar .menu-toggle','.rail-mobile-close']);
+  focusSidebarControl(document,false); focusSidebarControl(document,false,true); focusSidebarControl(document,true); focusSidebarControl(document,true,true);
+  assert.deepEqual(selections,['.topbar .sidebar-reopen','.secondary-sidebar .sidebar-collapse','.topbar .menu-toggle','.rail-mobile-close']);
 });
 test('readable parent and individual session rows retain escaped history restrictions', async()=>{
   const { renderResearchAttention, renderSessionRow } = await import('../../app/research_web/ui/shell.mjs');

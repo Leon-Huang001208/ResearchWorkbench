@@ -29,7 +29,7 @@ export function renderAppearancePicker() {
 }
 
 export function focusSidebarControl(document, narrow = false, open = false) {
-  const selector = narrow ? open ? '.rail-mobile-close' : '.topbar .menu-toggle' : open ? '.secondary-sidebar .sidebar-collapse' : '.primary-rail .rail-toggle';
+  const selector = narrow ? open ? '.rail-mobile-close' : '.topbar .menu-toggle' : open ? '.secondary-sidebar .sidebar-collapse' : '.topbar .sidebar-reopen';
   document.querySelector(selector)?.focus?.({ preventScroll: true });
 }
 
@@ -85,14 +85,12 @@ export function renderGlobalResults(query, sessions, skills, { native = null } =
 }
 
 export function renderPrimaryRail({ page, section = '', secondaryOpen = false, account = null } = {}) {
-  const researchPage = ['fingpt', 'claw'].includes(page);
   const links = navItems.map((item) => {
     const active = page === item.page && (item.section ? section === item.section : !(item.page === 'workbench' && ['assets','hot'].includes(section)));
     return `<a href="${item.href}" class="rail-link ${active ? 'active' : ''}" ${active ? 'aria-current="page"' : ''} title="${e(item.title)}"><span class="rail-icon" aria-hidden="true">${icon(item.glyph)}</span><span class="rail-label">${e(item.title)}</span></a>`;
   }).join('');
-  const sidebarToggle = researchPage ? `<button class="rail-link rail-toggle ${secondaryOpen ? 'active' : ''}" data-toggle-sidebar aria-label="${secondaryOpen ? '关闭会话侧栏' : '打开会话侧栏'}" aria-expanded="${secondaryOpen}">${icon('sidebar')}</button>` : '';
   const footer = account ? renderAccountTrigger(account) : `<a class="rail-link rail-settings ${page === 'settings' ? 'active' : ''}" href="#/settings/general" title="设置" ${page === 'settings' ? 'aria-current="page"' : ''}><span class="rail-icon" aria-hidden="true">${icon('settings')}</span><span class="rail-label">设置</span></a>`;
-  return `<nav class="primary-rail" aria-label="产品主导航"><a class="rail-brand" href="#/fingpt" aria-label="Research Workbench Research">${renderBrandMark()}<span class="brand-name">Research Workbench</span></a>${sidebarToggle}<button class="icon-button rail-mobile-close" data-toggle-sidebar aria-label="关闭导航">×</button><button class="search-trigger" data-toggle-search aria-label="搜索会话与能力">${icon('search')}<span>搜索</span></button><div class="primary-nav">${links}</div><div class="navigation-footer">${footer}</div></nav>`;
+  return `<nav class="primary-rail" aria-label="产品主导航"><a class="rail-brand" href="#/fingpt" aria-label="Research Workbench Research">${renderBrandMark()}<span class="brand-name">Research Workbench</span></a><button class="icon-button rail-mobile-close" data-toggle-sidebar aria-label="关闭导航">×</button><button class="search-trigger" data-toggle-search aria-label="搜索会话与能力">${icon('search')}<span>搜索</span></button><div class="primary-nav">${links}</div><div class="navigation-footer">${footer}</div></nav>`;
 }
 
 function renderClawWorkspace(detail, workspaces, selectedWorkspace) {
@@ -143,6 +141,7 @@ export function renderContextPanel({ detail, selectedTab = 'activity', mobileOpe
 }
 
 export function renderTopbar({ page = 'fingpt', section = '', frameworkSlug = '', settingsSection = '', detail = null, runtimeLabel, runtime, search = '', sessions = [], skills = [], searchOpen = false, nativeSearch = null } = {}) {
+  const sidebarReopen = ['fingpt', 'claw'].includes(page) ? `<button type="button" class="icon-button sidebar-reopen" data-toggle-sidebar aria-label="打开会话侧栏" aria-expanded="false">${icon('sidebar')}</button>` : '';
   let runtimeAttention = '';
   if (runtime && (!runtime.connected || runtime.credential_configured === false)) {
     const [label, tone] = runtime.connected
@@ -152,5 +151,5 @@ export function renderTopbar({ page = 'fingpt', section = '', frameworkSlug = ''
         : ['研究服务不可用', 'danger'];
     runtimeAttention = `<div class="topbar-right"><a href="#/settings/model" class="runtime-status ${tone}" title="${e(runtime.message || runtimeLabel || label)}"><span class="tiny-dot" aria-hidden="true"></span>${label}</a></div>`;
   }
-  return `<header class="topbar ${searchOpen ? 'search-open' : ''}"><button class="icon-button menu-toggle" data-toggle-sidebar aria-label="打开导航">${icon('sidebar')}</button><div class="search-popover" role="dialog" aria-label="搜索会话与能力" ${searchOpen ? '' : 'hidden'}><button type="button" class="icon-button search-close" data-close-search aria-label="关闭搜索">${icon('close')}</button>${renderGlobalSearch(search, sessions, skills, { native: nativeSearch })}</div>${runtimeAttention}</header>`;
+  return `<header class="topbar ${searchOpen ? 'search-open' : ''}">${sidebarReopen}<button class="icon-button menu-toggle" data-toggle-sidebar aria-label="打开导航">${icon('sidebar')}</button><div class="search-popover" role="dialog" aria-label="搜索会话与能力" ${searchOpen ? '' : 'hidden'}><button type="button" class="icon-button search-close" data-close-search aria-label="关闭搜索">${icon('close')}</button>${renderGlobalSearch(search, sessions, skills, { native: nativeSearch })}</div>${runtimeAttention}</header>`;
 }
