@@ -38,3 +38,5 @@
 - 用户后续确认：顶部仅添加服务商；手动刷新在运行时信息内。
 - SDK缓存审查绑定固定DSH 7ecf564：DeepSeek/搜索每次操作重新resolve，无跨请求Key缓存；兼容prepare捕获Key，当前协议route替换Key时更新global connection_revision（即使该协议不是全局默认）。
 - 明确边界：研究任务日程research_task锁provider/model/profile；Skill/Workflow/Report Workflow保留原有执行时默认模型语义，不补造历史审批。常驻部署、真实供应商及跨平台实机未执行。
+
+PR #165 首轮通用 CI 为 1052 passed / 11 skipped / 12 setup errors；新增 profile 夹具漏隔离 Host 签名与 DataHub 元数据凭据，CI 无系统钥匙串而正确失败关闭。以系统 keyring 操作抛出受控异常复现同一初始化失败，再复用原 API 测试的进程内凭据隔离模式，保持全部产品保护规则及断言。该修补只改测试与本报告，产品源码未变；最终候选另绑修补测试、通用检查及 macOS CI，旧源码验证若复用须保留原候选和字节一致性证据。

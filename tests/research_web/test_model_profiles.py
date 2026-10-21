@@ -27,6 +27,16 @@ class MemoryCredentials:
         self.values.pop((service, account), None)
 
 
+@pytest.fixture(autouse=True)
+def isolated_host_credentials(monkeypatch):
+    """Keep Host signing and DataHub metadata away from the OS credential store."""
+    import keyring
+
+    backend = MemoryCredentials()
+    for operation in ("get_password", "set_password", "delete_password"):
+        monkeypatch.setattr(keyring, operation, getattr(backend, operation))
+
+
 def persist(root, state):
     (root / "index.json").write_text(json.dumps(state))
 
