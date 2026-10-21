@@ -69,6 +69,7 @@ AI资讯采用固定原版AIHOT API与worker、独立PostgreSQL和Host私有桥�
 私网邀请制入口为 `research_workbench_entrypoint/server.py` → `app/research_web/multiuser/__main__.py`；accounts 管 SQLite 账号/登录态，gateway 管固定 origin、鉴权及逐用户代理，runtime 管独立 Web/DSH pair 和两实例上限。`tenant_policy.py` 在后端执行入口拒绝宿主能力；`ui/server/` 管登录、账号和页面身份，浏览器草稿/导航偏好按账号 UUID 命名空间恢复。近处测试为 `test_multiuser_accounts/gateway/runtime/cli.py`、`research_web_multiuser_storage/policy.test.mjs`。安装、安全/API和部署图映射至架构清单的 private-multiuser 组；不改变原单用户数据或依赖锁。
 
 Git基线恢复由git_safety.mjs的remote_moved原位prepare认证，保留原PR/工作树和旧回执，重置CI/验证并推进已发布tip绑定。近处git_safety.test.mjs覆盖所有权、祖先、并发变化、重复准备、发布后回退及锁保护；共享框架不修改。
+已发布PR等待/失败状态也通过同一原位prepare恢复真实前进的主线，保留修补计数；新回归覆盖计数耗尽、主线未变、脏目录与外来PR head，不修改全局控制器或发布配额。
 
 AI资讯：aihot_routes.py管理v1兼容和完整site报刊/热点合同、LRU/ETag/限流；aihot_media.py
 只读取上游已签发图片。ui/aihot.mjs负责代次/取消/归档状态，aihot-report/hot/common.mjs

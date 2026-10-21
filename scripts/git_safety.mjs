@@ -625,7 +625,8 @@ function refreshPublishedBase(repository, receipt, taskId, options) {
   // an already committed descendant, preserving every ref and any existing PR.
   // A never-published candidate must retain explicit null publication identities.
   const unpublished = receipt.mode === null && receipt.pullRequest === null && receipt.remoteCommit === null;
-  if ((!unpublished && receipt.mode !== 'pr') || receipt.status !== 'remote_moved' || !receipt.integrationCommit) fail('PREPARE_REMOVAL_BLOCKED');
+  const refreshable = unpublished ? ['remote_moved'] : ['remote_moved', 'awaiting_ci', 'ci_failed'];
+  if ((!unpublished && receipt.mode !== 'pr') || !refreshable.includes(receipt.status) || !receipt.integrationCommit) fail('PREPARE_REMOVAL_BLOCKED');
   if (unpublished && (receipt.baseRefreshPublishedHead != null || Object.keys(receipt).some(key => /publish|publication|push|pull.?request|remote.?commit/i.test(key) && !['pullRequest', 'remoteCommit', 'baseRefreshPublishedHead'].includes(key)) || receipt.cleanup?.remoteBranchDeleted === true || receipt.rollback && receipt.rollback.status !== 'not_run')) fail('UNPUBLISHED_STATE_INVALID');
   if (receipt.taskId !== taskId || receipt.repositoryRoot !== repository.repositoryRoot || receipt.remote !== 'origin' || receipt.defaultBranch !== 'master' || !new RegExp(`^codex/integrate-${taskId}(?:-r[0-9]+)?$`).test(receipt.integrationBranch ?? '')) fail('TASK_OWNERSHIP_MISMATCH');
   const repo = githubRepo(receipt);
@@ -999,7 +1000,8 @@ export async function runDelivery({projectRoot, taskId, action, reviewedCommit, 
         if (params.replacePrepared) fail('PREPARE_REMOVAL_BLOCKED');
         const receipt = controller.readDeliveryReceipt(common);
         if (receipt.status === 'ci_passed') fail('PREPARE_REMOVAL_BLOCKED');
-        result = receipt.status === 'remote_moved'
+        const refreshBase = receipt.status === 'remote_moved' || receipt.mode === 'pr' && ['awaiting_ci', 'ci_failed'].includes(receipt.status);
+        result = refreshBase
           ? refreshPublishedBase(repository, receipt, taskId, options)
           : controller.prepareDelivery({...common, integrationWorktreeRoot: params.worktreeRoot, replacePrepared: false});
         resourcePhase(repository, taskId, 'record', options);
