@@ -10,6 +10,643 @@ import pytest
 from research_workbench_entrypoint.resident.gateway_fence import BirthFence, FenceBlocked
 
 
+def test_static_scopes_separate_product_and_operator_code(monkeypatch, tmp_path):
+    from research_workbench_entrypoint.resident import gateway_upgrade as g
+
+    def git(_source, *args):
+        if args[0] == "diff":
+            assert "--no-renames" in args
+            return (
+                "app/research_web/ui/server/session.mjs"
+                if args[-2] == "a" * 40
+                else "research_workbench_entrypoint/resident/gateway_upgrade.py"
+            )
+        return "d" * 40 if args[0] == "rev-parse" else ""
+
+    monkeypatch.setattr(g, "git", git)
+    scopes = g.static_scopes(tmp_path, "a" * 40, "b" * 40, "c" * 40)
+    assert set(scopes) == {"payload", "tool"}
+    assert "app/research_web/ui/server/session.mjs" in scopes["payload"]
+    assert "research_workbench_entrypoint/resident/gateway_upgrade.py" in scopes["tool"]
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "app/research_web/multiuser/gateway.py",
+        "requirements/web.lock",
+        "research_workbench_entrypoint/resident/controller.py",
+    ],
+)
+@pytest.mark.parametrize("bad_range", ["payload", "tool"])
+def test_static_scopes_deny_backend_dependencies_and_controller_changes(
+    monkeypatch, tmp_path, path, bad_range
+):
+    from research_workbench_entrypoint.resident import gateway_upgrade as g
+
+    def git(_source, *args):
+        if args[0] == "diff":
+            kind = "payload" if args[-2] == "a" * 40 else "tool"
+            return path if kind == bad_range else "docs/research-web-gateway-upgrade.md"
+        return ""
+
+    monkeypatch.setattr(g, "git", git)
+    with pytest.raises(g.UpdateBlocked, match="gateway_static_scope_changed"):
+        g.static_scopes(tmp_path, "a" * 40, "b" * 40, "c" * 40)
+
+
+@pytest.fixture
+def static_artifact(tmp_path, monkeypatch):
+    import hashlib
+    import json
+    import subprocess
+    from pathlib import Path
+
+    from research_workbench_entrypoint.resident import gateway_upgrade as g
+
+    if not Path("/usr/bin/git").is_file():
+        pytest.skip("macOS operator requires system Git")
+    source, home = tmp_path / "tool-repo", tmp_path / "artifact-home"
+    source.mkdir()
+    package = source / g.MODULE_ROOT
+    package.mkdir(parents=True)
+    for file in Path(g.__file__).parent.glob("*.py"):
+        (package / file.name).write_bytes(file.read_bytes())
+    latest = (package / "gateway_upgrade.py").read_bytes()
+    (package / "gateway_upgrade.py").write_bytes(b"# previous operator fixture\n")
+
+    def git(*args):
+        return subprocess.check_output(
+            [
+                "/usr/bin/git",
+                "-c",
+                "gc.auto=0",
+                "-c",
+                "maintenance.auto=false",
+                "-C",
+                str(source),
+                *args,
+            ],
+            text=True,
+        ).strip()
+
+    git("init", "-q")
+    git("config", "user.name", "Fixture")
+    git("config", "user.email", "fixture@example.invalid")
+    git("add", ".")
+    git("commit", "-qm", "previous")
+    previous = git("rev-parse", "HEAD")
+    ui = source / "app/research_web/ui/server/session.mjs"
+    ui.parent.mkdir(parents=True)
+    ui.write_text("// product UI fixture\n")
+    git("add", ".")
+    git("commit", "-qm", "payload")
+    payload = git("rev-parse", "HEAD")
+    (package / "gateway_upgrade.py").write_bytes(latest)
+    git("add", ".")
+    git("commit", "-qm", "operator")
+    tool = git("rev-parse", "HEAD")
+    (home / "server/run").mkdir(parents=True, mode=0o700)
+    (home / "resident").mkdir(mode=0o700)
+    (home / "resident/config.json").write_text(json.dumps({"project": str(source)}))
+    (home / "Library/LaunchAgents").mkdir(parents=True)
+    with monkeypatch.context() as patch:
+        patch.setattr(Path, "home", classmethod(lambda cls: home))
+        patch.setattr(g, "run", lambda *_a, **_k: "")
+        installed = g.install_recovery(home, source, revision=tool)
+        assert g.install_recovery(home, source, revision=tool) == installed
+    artifact = home / "server/run" / f"gateway-recovery-{installed['artifact_sha256'][:16]}.pyz"
+    assert hashlib.sha256(artifact.read_bytes()).hexdigest() == installed["artifact_sha256"]
+    return source, home, previous, payload, tool, artifact, installed, git
+
+
+def static_state(recovery, static_artifact, monkeypatch):
+    import json
+    import zipfile
+
+    g, home, root, state, events, live = recovery
+    _source, _home, _previous, _payload, tool, artifact, installed, _git = static_artifact
+    with zipfile.ZipFile(artifact) as archive:
+        manifest = json.loads(archive.read("manifest.json"))
+    (root / "run" / artifact.name).write_bytes(artifact.read_bytes())
+    state.update(
+        version=2, mode="static-ui", primary=state["target"], tool_revision=tool, recovery=installed
+    )
+    state["original_config"] = {"revision": state["previous"]}
+    state["reviewed"] = {
+        "payload": {"app/research_web/ui/server/session.mjs": "d" * 40},
+        "tool": {g.TOOL_PATH: "e" * 40},
+    }
+    monkeypatch.setattr(g, "static_scopes", lambda *_: state["reviewed"])
+    monkeypatch.setattr(g, "module_blobs", lambda *_: manifest["modules"])
+    monkeypatch.setattr(
+        g, "configured", lambda *_: (home / "resident", {"source_common": "fixture-common"})
+    )
+    old_git = g.git
+    monkeypatch.setattr(
+        g,
+        "git",
+        lambda p, *args: (
+            "fixture-common"
+            if args == ("rev-parse", "--path-format=absolute", "--git-common-dir")
+            else old_git(p, *args)
+        ),
+    )
+    return g, home, root, state, events, live
+
+
+@pytest.mark.parametrize(
+    "phase", ["preparing", "draining", "stopped", "starting", "rolling_back", "fallback_starting"]
+)
+def test_static_recovery_all_phases_keep_original_transaction_guards(
+    static_artifact, recovery, monkeypatch, phase
+):
+    import json
+
+    g, home, root, state, events, live = static_state(recovery, static_artifact, monkeypatch)
+    state["phase"] = phase
+    if phase == "preparing":
+        live["sha"] = state["previous"]
+        (root / "resident.json").write_text(json.dumps(state["original_config"]))
+    elif phase == "fallback_starting":
+        live["sha"] = state["previous"]
+        (root / "resident.json").write_text(json.dumps(state["fallback"]))
+        live["job"] = False
+    elif phase in {"draining", "stopped", "rolling_back"}:
+        live["job"] = False
+        live["pid"] = None
+    result = g.recover_locked(home, state)
+    assert result["status"] == ("aborted_before_signal" if phase == "preparing" else "rolled_back")
+    assert (
+        "restore_code" not in events
+        if phase in {"preparing", "fallback_starting"}
+        else "restore_code" in events
+    )
+    assert "clean:c" not in events
+
+
+def test_real_legacy_recovery_rejects_version_two_before_any_action(
+    static_artifact, recovery, monkeypatch
+):
+    import runpy
+    from pathlib import Path
+
+    g, home, _root, state, events, _live = static_state(recovery, static_artifact, monkeypatch)
+    fixture = Path(__file__).parents[1] / "fixtures/research_web/gateway_recover_v1.py.txt"
+    namespace = runpy.run_path(str(fixture), init_globals=dict(vars(g)))
+    with pytest.raises(g.UpdateBlocked, match="gateway_recovery_identity_changed"):
+        namespace["recover_locked"](home, state)
+    assert events == []
+
+
+def test_static_artifact_loads_contract_in_fresh_interpreter(static_artifact):
+    import os
+    import subprocess
+
+    source, _home, previous, payload, tool, artifact, _installed, _git = static_artifact
+    code = """import sys
+from pathlib import Path
+sys.path.insert(0,sys.argv[1])
+from resident import gateway_upgrade as g
+assert g.PRODUCT != sys.argv[4]
+scopes=g.static_scopes(Path(sys.argv[2]),sys.argv[3],sys.argv[4],sys.argv[5])
+assert 'app/research_web/ui/server/session.mjs' in scopes['payload']
+assert g.TOOL_PATH in scopes['tool']
+print('frozen_static_contract_passed')
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", code, str(artifact), str(source), previous, payload, tool],
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=30,
+        env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
+    )
+    assert result.returncode == 0, result.stderr
+    assert "frozen_static_contract_passed" in result.stdout
+
+
+@pytest.mark.parametrize(
+    "phase", ["preparing", "draining", "stopped", "starting", "rolling_back", "fallback_starting"]
+)
+def test_frozen_artifact_recovers_each_phase_without_operator_contract_patches(
+    static_artifact, tmp_path, phase
+):
+    import os
+    import subprocess
+    from pathlib import Path
+
+    source, _home, previous, payload, tool, artifact, _installed, _git = static_artifact
+    fixture = Path(__file__).parents[1] / "fixtures/research_web/gateway_static_recovery_runner.py"
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(fixture),
+            str(artifact),
+            str(source),
+            str(tmp_path / "frozen-recovery"),
+            previous,
+            payload,
+            tool,
+            phase,
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=45,
+        env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "frozen_recovery_phase_passed" in result.stdout
+
+
+def test_static_artifact_tamper_stops_before_native_actions(static_artifact, recovery, monkeypatch):
+    g, home, root, state, events, _live = static_state(recovery, static_artifact, monkeypatch)
+    checksum = state["recovery"]["artifact_sha256"]
+    (root / "run" / f"gateway-recovery-{checksum[:16]}.pyz").write_bytes(b"changed")
+    with pytest.raises(g.UpdateBlocked, match="gateway_recovery_identity_changed"):
+        g.recover_locked(home, state)
+    assert events == []
+
+
+def test_static_manifest_cannot_claim_other_git_module_bytes(
+    static_artifact, recovery, monkeypatch
+):
+    import hashlib
+    import io
+    import zipfile
+
+    g, home, root, state, events, _live = static_state(recovery, static_artifact, monkeypatch)
+    old = root / "run" / f"gateway-recovery-{state['recovery']['artifact_sha256'][:16]}.pyz"
+    output = io.BytesIO()
+    with zipfile.ZipFile(old) as original, zipfile.ZipFile(output, "w") as changed:
+        for name in original.namelist():
+            changed.writestr(
+                name,
+                (
+                    b"# changed module"
+                    if name == "resident/gateway_upgrade.py"
+                    else original.read(name)
+                ),
+            )
+    raw = output.getvalue()
+    checksum = hashlib.sha256(raw).hexdigest()
+    (root / "run" / f"gateway-recovery-{checksum[:16]}.pyz").write_bytes(raw)
+    state["recovery"]["artifact_sha256"] = checksum
+    with pytest.raises(g.UpdateBlocked, match="gateway_recovery_manifest_changed"):
+        g.recover_locked(home, state)
+    assert events == []
+
+
+def test_static_rename_cannot_hide_an_operator_deletion_in_documentation(static_artifact):
+    from research_workbench_entrypoint.resident import gateway_upgrade as g
+
+    source, _home, previous, _payload, _tool, _artifact, _installed, git = static_artifact
+    git("checkout", "--detach", previous)
+    (source / "docs").mkdir()
+    git("mv", g.TOOL_PATH, "docs/hidden.py")
+    git("commit", "-qm", "disallowed rename")
+    renamed = git("rev-parse", "HEAD")
+    with pytest.raises(g.UpdateBlocked, match="gateway_static_scope_changed"):
+        g.static_scopes(source, previous, renamed, renamed)
+
+
+@pytest.mark.parametrize("identity", ["directory", "git-common"])
+def test_static_recovery_refuses_replaced_source_identity(
+    static_artifact, recovery, monkeypatch, identity
+):
+    g, home, _root, state, events, _live = static_state(recovery, static_artifact, monkeypatch)
+    if identity == "directory":
+        state["project_identity"] = [0, 0]
+    else:
+        monkeypatch.setattr(g, "git", lambda *_a: "foreign-common")
+    with pytest.raises(g.UpdateBlocked, match="gateway_source_identity_changed"):
+        g.recover_locked(home, state)
+    assert events == []
+
+
+def test_unrelated_static_helper_leaves_journal_without_acquiring_locks(
+    static_artifact, recovery, monkeypatch
+):
+    import json
+
+    g, home, root, state, events, _live = static_state(recovery, static_artifact, monkeypatch)
+    g.write_upgrade_journal(root / "run/gateway-upgrade.json", state)
+    monkeypatch.setattr(sys, "argv", [str(root / "run/gateway-recovery-deadbeefdeadbeef.pyz")])
+    monkeypatch.setattr(g, "file_lock", lambda *_a, **_k: pytest.fail("wrong helper acquired lock"))
+    assert g.recover(home)["status"] == "other_recovery_version"
+    assert json.loads((root / "run/gateway-upgrade.json").read_text()) == state
+    assert events == []
+
+
+@pytest.mark.parametrize(
+    "phase,expected",
+    [
+        ("preparing", "deferred"),
+        ("draining", "recovery_required"),
+        ("starting", "recovery_required"),
+    ],
+)
+def test_busy_cli_distinguishes_pending_recovery(recovery, monkeypatch, phase, expected):
+    import io
+
+    g, home, root, state, _events, _live = recovery
+    state["phase"] = phase
+    g.write_upgrade_journal(root / "run/gateway-upgrade.json", state)
+    (home / "logs").mkdir(exist_ok=True)
+
+    def busy(*_a, **_k):
+        raise g.MaintenanceBusy("busy")
+
+    monkeypatch.setattr(g, "apply", busy)
+    output = io.StringIO()
+    monkeypatch.setattr(sys, "stdout", output)
+    code = g.main(
+        [
+            "apply-ui",
+            "--home",
+            str(home),
+            "--source",
+            str(home),
+            "--primary",
+            state["target"],
+            "--target",
+            state["target"],
+            "--expected-gateway",
+            state["previous"],
+        ]
+    )
+    assert code == (0 if expected == "deferred" else 1)
+    assert expected in output.getvalue()
+
+
+@pytest.fixture
+def ui_apply(server, monkeypatch):
+    import json
+    import plistlib
+    from contextlib import nullcontext
+    from pathlib import Path
+
+    from research_workbench_entrypoint.resident import gateway_upgrade as g
+
+    root, primary_user, _ = server
+    home = root.parent
+    (home / "resident").mkdir(mode=0o700)
+    source, project = home / "tool", home / "gateway"
+    source.mkdir()
+    project.mkdir()
+    previous, payload, tool = "a" * 40, "b" * 40, "c" * 40
+    python = str(Path(sys.prefix) / "bin/python")
+    config = {
+        "revision": previous,
+        "project": str(project),
+        "binding": {"primary_user_id": primary_user},
+    }
+    (root / "resident.json").write_text(json.dumps(config))
+    agents = home / "Library/LaunchAgents"
+    agents.mkdir(parents=True)
+    (agents / (g.LABEL + ".plist")).write_bytes(
+        plistlib.dumps(
+            {
+                "Label": g.LABEL,
+                "WorkingDirectory": str(project),
+                "ProgramArguments": [
+                    python,
+                    "-m",
+                    "app.research_web.multiuser.resident",
+                    "--root",
+                    str(root),
+                ],
+            }
+        )
+    )
+    events = []
+    state = {"latest": tool, "sha": previous, "fail": None, "retained": False}
+
+    class Evidence:
+        def latest(self):
+            events.append("latest")
+            return state["latest"]
+
+        def qualify(self, revision):
+            events.append("qualify:" + revision[0])
+            if state["fail"] == "qualify:" + revision[0]:
+                raise g.UpdateBlocked("fixture_qualification_failed")
+            return {"sha": revision}
+
+    def git(path, *args):
+        if args == ("rev-parse", "--path-format=absolute", "--git-common-dir"):
+            return "fixture-common"
+        if args[0] == "switch":
+            events.append("switch:" + args[-1][0])
+            state["sha"] = args[-1]
+        return tool if path == source else state["sha"]
+
+    def scopes(*args):
+        assert args == (source, previous, payload, tool)
+        if state["fail"] == "scope":
+            raise g.UpdateBlocked("gateway_static_scope_changed")
+        return {
+            "payload": {"app/research_web/ui/server/session.mjs": "d" * 40},
+            "tool": {g.TOOL_PATH: "e" * 40},
+        }
+
+    def idle(*args):
+        assert args == (home, payload)
+        events.append("primary_idle")
+        if state["fail"] == "active":
+            raise g.MaintenanceBusy("active")
+        return {"primary_user_id": primary_user}
+
+    def install(actual_home, actual_source, *, revision):
+        assert (actual_home, actual_source, revision) == (home, source, tool)
+        events.append("install_tool_recovery")
+        return {"tool_revision": tool, "artifact_sha256": "f" * 64}
+
+    def identity(actual_home, record):
+        assert (
+            actual_home,
+            record["version"],
+            record["mode"],
+            record["tool_revision"],
+            record["primary"],
+            record["target"],
+        ) == (home, 2, "static-ui", tool, payload, payload)
+        events.append("recovery_verified")
+
+    class Fence:
+        def __init__(self, *_a, **_k):
+            self.retain = False
+
+        def __enter__(self):
+            events.append("fence")
+            return self
+
+        def __exit__(self, *_):
+            state["retained"] = self.retain
+
+        def release_database(self):
+            events.append("release_database")
+
+        @staticmethod
+        def recover(*_a, **_k):
+            events.append("recover_slots")
+
+    def preservation(_home):
+        if state["fail"] == "moved":
+            state["latest"] = "d" * 40
+        return {"snapshot": "unchanged"}
+
+    def drain(*_):
+        events.append("signal")
+        if state["fail"] == "drain":
+            raise g.MaintenanceBusy("gateway_draining")
+
+    def startup(*_):
+        events.append("start")
+        if state["fail"] == "start":
+            raise g.UpdateBlocked("fixture_start_failed")
+
+    def health(*_a, **_k):
+        if state["fail"] == "health":
+            raise g.UpdateBlocked("fixture_health_failed")
+
+    def preserved(*_):
+        if state["fail"] == "preservation":
+            raise g.UpdateBlocked("fixture_preservation_failed")
+
+    monkeypatch.setattr(g.sys, "platform", "darwin")
+    monkeypatch.setattr(Path, "home", classmethod(lambda cls: home))
+    monkeypatch.setattr(
+        g,
+        "configured",
+        lambda *_: (
+            home / "resident",
+            {
+                "project": str(Path(sys.prefix).parent),
+                "gh": "/fixture/gh",
+                "repository": "owner/repo",
+                "source_common": "fixture-common",
+            },
+        ),
+    )
+    monkeypatch.setattr(g, "file_lock", lambda *_a, **_k: nullcontext())
+    monkeypatch.setattr(g, "GitHubEvidence", lambda *_: Evidence())
+    monkeypatch.setattr(g, "git", git)
+    monkeypatch.setattr(g, "clean", lambda *_: None)
+    monkeypatch.setattr(g, "static_scopes", scopes)
+    monkeypatch.setattr(g, "verify_primary", idle)
+    monkeypatch.setattr(g, "verify_signal_contract", lambda: None)
+    monkeypatch.setattr(g, "job_pid", lambda: 111)
+    monkeypatch.setattr(g, "native_image", lambda *_: Path(python).resolve())
+    monkeypatch.setattr(
+        g,
+        "process",
+        lambda *_: "Mon Jan 1 00:00:00 2026 "
+        + " ".join([python, "-m", "app.research_web.multiuser.resident", "--root", str(root)]),
+    )
+    monkeypatch.setattr(g, "listener_pids", lambda: {111})
+    monkeypatch.setattr(g, "no_children", lambda *_: None)
+    monkeypatch.setattr(g, "no_private_processes", lambda *_: None)
+    monkeypatch.setattr(g, "install_recovery", install)
+    monkeypatch.setattr(g, "static_recovery_identity", identity)
+    monkeypatch.setattr(g, "BirthFence", Fence)
+    monkeypatch.setattr(g, "preservation", preservation)
+    monkeypatch.setattr(g, "graceful_drain", drain)
+    monkeypatch.setattr(g, "bootout_after_drain", lambda *_: events.append("bootout"))
+    monkeypatch.setattr(g, "bootstrap", startup)
+    monkeypatch.setattr(g, "wait_health", health)
+    monkeypatch.setattr(g, "preserved", preserved)
+    return g, home, root, source, previous, payload, tool, state, events
+
+
+def test_apply_ui_qualifies_tool_and_payload_and_never_deploys_tool(ui_apply):
+    import json
+
+    g, home, root, source, previous, payload, tool, state, events = ui_apply
+    result = g.apply(home, source, payload, payload, expected_gateway=previous)
+    assert result["status"] == "deployed"
+    assert events.index("qualify:b") < events.index("install_tool_recovery")
+    assert events.index("qualify:c") < events.index("install_tool_recovery")
+    assert events.index("recovery_verified") < events.index("signal")
+    assert "switch:b" in events and "switch:c" not in events
+    assert state["sha"] == payload
+    assert json.loads((root / "resident.json").read_text())["revision"] == payload
+    journal = json.loads((root / "run/gateway-upgrade-original.json").read_text())
+    assert journal["tool_revision"] == tool
+    assert journal["proof"]["sha"] == payload and journal["tool_proof"]["sha"] == tool
+
+
+def test_apply_ui_requires_payload_equal_to_actual_primary(ui_apply):
+    g, home, root, source, previous, payload, _tool, _state, events = ui_apply
+    with pytest.raises(g.UpdateBlocked, match="gateway_static_revision_invalid"):
+        g.apply(home, source, payload, "d" * 40, expected_gateway=previous)
+    assert "signal" not in events and "install_tool_recovery" not in events
+    assert not (root / "run/gateway-upgrade.json").exists()
+
+
+@pytest.mark.parametrize("failure", ["qualify:b", "qualify:c", "scope", "baseline", "active"])
+def test_apply_ui_admission_failures_do_not_signal_or_write_journal(ui_apply, failure):
+    g, home, root, source, previous, payload, _tool, state, events = ui_apply
+    state["fail"] = failure
+    expected = "d" * 40 if failure == "baseline" else previous
+    with pytest.raises((g.UpdateBlocked, g.MaintenanceBusy)):
+        g.apply(home, source, payload, payload, expected_gateway=expected)
+    assert "signal" not in events and "install_tool_recovery" not in events
+    assert not (root / "run/gateway-upgrade.json").exists()
+    assert state["sha"] == previous
+
+
+def test_apply_ui_master_move_after_fence_aborts_before_signal(ui_apply):
+    g, home, root, source, previous, payload, _tool, state, events = ui_apply
+    state["fail"] = "moved"
+    with pytest.raises(g.UpdateBlocked, match="resident_master_moved"):
+        g.apply(home, source, payload, payload, expected_gateway=previous)
+    assert "recover_slots" in events and "signal" not in events
+    assert not (root / "run/gateway-upgrade.json").exists()
+
+
+def test_apply_ui_signal_timeout_retains_recoverable_journal(ui_apply):
+    import json
+
+    g, home, root, source, previous, payload, _tool, state, events = ui_apply
+    state["fail"] = "drain"
+    with pytest.raises(g.MaintenanceBusy):
+        g.apply(home, source, payload, payload, expected_gateway=previous)
+    assert state["retained"] is True
+    assert "bootout" not in events and state["sha"] == previous
+    assert json.loads((root / "run/gateway-upgrade.json").read_text())["phase"] == "draining"
+
+
+@pytest.mark.parametrize("failure", ["start", "health", "preservation"])
+def test_apply_ui_candidate_failure_dispatches_exact_version_two_rollback(
+    ui_apply, monkeypatch, failure
+):
+    g, home, _root, source, previous, payload, tool, state, _events = ui_apply
+    state["fail"] = failure
+    recovered = []
+
+    def rollback(actual_home, record):
+        recovered.append(
+            (
+                actual_home,
+                record["version"],
+                record["mode"],
+                record["tool_revision"],
+                record["target"],
+                record["previous"],
+            )
+        )
+        return {"status": "rolled_back"}
+
+    monkeypatch.setattr(g, "recover_locked", rollback)
+    assert (
+        g.apply(home, source, payload, payload, expected_gateway=previous)["status"]
+        == "rolled_back"
+    )
+    assert recovered == [(home, 2, "static-ui", tool, payload, previous)]
+
+
 @pytest.mark.skipif(sys.platform != "darwin", reason="macOS kernel process image")
 def test_native_python_image_matches_framework_exec_instead_of_launcher():
     from pathlib import Path

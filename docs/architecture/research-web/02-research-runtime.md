@@ -666,3 +666,6 @@ AES 绑定先验证已有树及两个固定 ref 的完整认证，不允许外�
 Gold／Dollar 看板确认宿主已读 snapshot revision 后，Bot 才沿原解释／显式深度验证 preset 请求 DSH；已有会话仍绑定旧 revision，刷新不改变绑定。静态九项拒绝框架 Bot，不生成第二套执行链。
 
 会话列表和详情把本机持有的原生未决question按ownerSessionId投影为waiting_input（优先于运行标记），解除提问后回到原生运行状态；不改调度、取消能力或执行器。浏览器查看完成标记仅关联该会话updated_at，未查看显示圆环，查看后隐藏。
+## 网关静态部署的运行时边界
+
+显式 `apply-ui` 要求产品等于当前 primary，工具独立验收。沿用准入锁、空闲核验、出生栅栏和 HTTP 排空；只对已识别网关发送原有优雅停止信号，不切换或重启研究 Web/DSH。发信号后的未完成事务保留 journal 并报告 recovery_required。
