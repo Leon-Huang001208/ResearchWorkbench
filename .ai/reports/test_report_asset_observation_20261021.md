@@ -63,3 +63,5 @@
 复审修复：新闻/公告内通过更新数据表单改变证券身份时，replaceState 后立即激活该资产资讯，保持行情与资讯并行。浏览器回归先红后绿，六种宽度/主题均通过，日志 logs/asset-news-form-red.log、logs/asset-news-form-green.log。最新主线 c68814db 的部署资格变更已保留；不包含本任务的常驻部署授权。
 
 元数据修复本机验证：完整能力目录、资产和Wind合计121 PASS，46.24秒；仅更新原工具清单的陈旧断言以反映已存在且不可选择的research_check_quality/research_read_source，没有新增工具权限。完整CI Python同清单仍在运行。
+
+额外本机CI同清单探针并未全通过：1275 PASS、27 FAIL，120.24秒。失败集中于未改动的macOS文档沙箱与冻结恢复：借用另一worktree的已安装测试解释器导致site-packages读权限拒绝，以及已安装旧包runtime_contract_unsafe_path；不能据此声称全套本机通过。资产/能力/Wind的121回归已通过，正式必需Router门与干净安装仍分别记录；不放宽沙箱/冻结恢复或修改其他任务解释器，不安装依赖来掩盖这些环境限制。日志logs/asset-ci-python-parity.log。
