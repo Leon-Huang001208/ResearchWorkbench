@@ -1,5 +1,7 @@
 # GitHub Actions 免费额度治理
 
+2026-10-21 业务导航重分组复用原 Project Constraints、Research Web Checks 与 macOS Bootstrap，不新增 job、runner、依赖或模型调用。实时 API 核对 PUBLIC；最近五次成功 run 为39550643254/39549200559/39549167378/39549167422/39547002880，创建至结束约65/562/856/62/445秒。原Web Checks已覆盖 research_web JS 通配符；本轮浏览器夹具只在本机运行。UI路径不自动选择Bootstrap，故按本轮用户明确要求在已发布精确候选上手动运行现有macOS安装流程，核对checkout与3081/8088健康及Doctor。不从Mac触发Windows/Linux产品CI，常驻部署另行授权。
+
 2026-10-21模型服务多连接只向原Checks Python步骤增加test_model_profiles.py，JS沿既有research_web通配符；不新增job/runner/依赖。当前API核验PUBLIC；最近五成功39531660218/39531626724/39519102659/39519102685/39519102794创建到结束约422/55/513/906/65秒。新增隔离模块16项本机约160秒、预留180秒，保留原20分钟超时及同候选Mac Bootstrap；Mac不触发Windows/Linux产品任务，无真实模型调用。
 
 2026-10-21 静态升级工具修复复用 Research Web Checks 原 test_gateway_upgrade.py 与原 macOS Bootstrap，不加 job/runner/依赖或模型调用。实时 PUBLIC；最近五次成功 run 为39536389107/39536343972/39536343791/39535496983/39535497053，创建至结束约661/55/565/64/892秒。新增 helper 同blob、候选保护及六阶段冻结恢复回归在现存环境约19秒，预留30秒；既有超时及Windows/Linux产品dispatch边界不变。真实常驻升级和UI保全另行取证。
