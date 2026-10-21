@@ -400,7 +400,11 @@ class EncryptedModelCredentialBackend(PrivateFileCredentialBackend):
                     if account is None:
                         envelope = json.loads(payload["password"])
                         account = envelope.get("account") if isinstance(envelope, dict) else None
-                        if not self._profile_ref(account) or self._name(service, account) != name:
+                        if (
+                            not isinstance(account, str)
+                            or not self._profile_ref(account)
+                            or self._name(service, account) != name
+                        ):
                             raise CredentialBackendError("model_record_binding_invalid")
                     self._decrypt(payload["password"], service, account)
 
