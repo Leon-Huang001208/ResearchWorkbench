@@ -1,5 +1,7 @@
 # 部署与模块职责
 
+资产观察 v2 仍由原 `model_provider_upgrade` 协调既有 Native 主实例和网关；固定旧版 `9bc12355` 与产品 `93d62be6`，旧 v1／模型 profile 保留。v4 journal、不可变控制器、生产解释器、冻结恢复包和锁的职责不变，没有新增服务节点或扩大自动升级权限，现有部署图继续准确。
+
 资产观察迁入原 AF 连续指标区仍是既有浏览器 → Host AssetWorkspace → DataHub Broker → Provider／会话快照链路。`asset-indicators.mjs`、`asset-projection.mjs` 与本地固定 ECharts 5.5.0／Chart.js 4.4.7 属于前端内部模块及安装资源，不新增服务节点、数据库、协调器或研究执行引擎；账号权限与唯一DSH不变。原部署图拓扑仍准确，具体页面见[UI合同](../../research-web-ui.md#资产观察工作台)。
 
 资产联合操作员固定证据读取器完整SHA256，CI大日志下载上限120秒，其他命令30秒；节点、不可变controller、全请求冻结及恢复拓扑不变，复核失败仍在停机前拒绝，详见[专项部署](../../research-web-gateway-upgrade.md)。

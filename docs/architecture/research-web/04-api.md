@@ -1,5 +1,7 @@
 # Research Web 接口清单
 
+`model_provider_upgrade apply-assets-v2` 属于显式本机操作员 CLI；新增封闭版本身份不增加或改变公开 HTTP 方法、路径、请求字段、认证边界和 Observation 响应。资产／DataHub 状态只读用于原空闲证明，业务 API 与研究执行链路保持，现有 API 图和索引继续准确。
+
 资产摘要新增的估值及八区来源明细是浏览器 DTO，字段从已取得快照和元数据投影；它们不进入 ObservationRequest 或公开 HTTP 响应 schema，不增加端点、参数、Provider 查询或持久化字段。展开选择／查询／来源详情和切换主题不取数，原显式创建及区块刷新合同保持。
 
 资产观察公开Method／Path保持；ObservationRequest新增 `section_sources: dict[AssetBlock, SourceId] = {}` 和 `section_ranges: dict[history|activity|margin, SectionRange] = {}`，SectionRange严格为完整、真实ISO日期对且start_date≤end_date，未知键／半对拒绝。逐区来源覆盖原source，未覆盖沿原值；逐区范围覆盖全局日期，未覆盖沿原请求，holders.end_date仍为报告期。公开request_parameters缺字段按空映射兼容旧记录，区块回显有效来源与范围，刷新和恢复沿保存请求执行。AssetBlock新增valuation，内部复用market_snapshot并请求明确asset_type和close／pe_ttm／pb／total_shares；没有新路由。专业来源失败不隐式回退，Wind60天硬门不截断／拆分，61天仍拒绝；新UI行情1Y与资金／两融60天分别传入。

@@ -2,6 +2,17 @@
 
 ## 资产观察固定版本联合部署
 
+新版资产页使用独立的封闭 profile `reviewed-asset-observation-v2`，入口为 `model_provider_upgrade apply-assets-v2`：旧主实例与网关必须同为 `9bc12355c3b80e4e4459f4c250e13fc2634ed23d`，产品精确绑定已合并 PR175 的 `93d62be64084a5c92541a4a008216c0b3f56c2f1`。该产品包含完整指标区、交易／估值摘要、默认折叠的来源表及透明主题图表。最终工具目标仍须为最新已合并、独立评审且原三项 CI 合格的源码版本；产品祖先、完整差异路径并集、Git blob 和文件模式逐项核验，回退后从差异中消失或被删除的产品路径也不能漏检。除操作员自身、文档和测试外，额外产品、依赖或工作流变化继续拒绝。
+
+```bash
+/absolute/primary/.venv/bin/python -m research_workbench_entrypoint.resident.model_provider_upgrade apply-assets-v2 \
+  --home /absolute/private-home --source /absolute/qualified-clean-checkout
+```
+
+从最终工具目标的干净 checkout 执行，`--source` 与实际模块目录必须一致并共享已登记的源码 Git common directory；有未跟踪文件也不符合干净条件。开发主工作区有其他任务文件时，创建受管的干净目标 worktree，不能移动业务文件、修改忽略规则或跳过身份校验。解释器使用原生产 venv；部署前确认两个发布角色仓库已有目标对象，不复制源码目录或凭据。
+
+v2 继续使用原 v4 journal、不可变控制器、锁、BirthFence、优雅排空及内容寻址恢复包。资产／DataHub 终态和全业务索引保全同时适用于 v1、v2；活动或未知任务延后切换。`recover` 根据已验证 journal 的封闭 mode 选择对应固定旧版：v2 只回到 `9bc12355`，v1 只回到下述 `c68814db`。原 `apply-assets` 和模型专项 `apply` 的固定身份、历史恢复包及自动兼容清单均保留。离线检查、CI、实际运行版本和数据保全各自留证，不以预览代替部署验收。
+
 资产专项另固定证据读取器 `evidence.py` 的完整 SHA256，仅允许已审 CI 日志下载30→120秒的有界时限修正；其余命令仍为30秒，日志8MB上限、实际checkout/树、最新三CI和独立评审条件不变。证据文件内容、模式、删除或回退不匹配继续拒绝。该读取器进入原内容寻址恢复包，不修改不可变 controller.pyz 或现场白名单。
 
 资产专项还对主实例及全部私有用户业务 index 的每个顶层值冻结 canonical SHA256，区分字段缺失与空值；journal 不含正文或秘密。前进、回滚、最终完成及 preparing 恢复均核对，变化时保留冻结与恢复记录，不覆盖数据或宣称保全。已结束的 partial 观察和区块可进入空闲，任何 loading 或未知查询状态继续拒绝。

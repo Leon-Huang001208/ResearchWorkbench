@@ -1,5 +1,7 @@
 # Research Workbench Development Map
 
+`resident/model_provider_upgrade.py` 的 `ASSET_V2_MODE/ASSET_V2_PREVIOUS/ASSET_V2_PAYLOAD` 与 `previous_for/review_assets` 增加封闭 v2 身份：`apply-assets-v2` 固定旧版 `9bc12355` 与 PR175 产品 `93d62be6`；v1 和模型常量保持。两资产 mode 共享原索引冻结、空闲、状态校验及 v4 恢复，动态读取所选固定常量而不接受运行时任意版本。近处 `test_model_provider_upgrade.py` 覆盖真实 Git 范围、完整恢复与错误 previous 拒绝；执行合同见[部署说明](research-web-gateway-upgrade.md#资产观察固定版本联合部署)。无新服务、HTTP 字段、数据迁移或依赖。
+
 资产摘要重排由 `ui/asset-workspace.mjs/css` 形成紧凑页头、交易／估值分组、嵌套查询和图后默认收起的来源表；`asset-projection.mjs` 输出仅用于前端的 `valuation`／`coverageRows`，保留真实零值、来源、已载入行和缺口，Wind 未核验股本不派生市值。`app.mjs` 在同资产重绘中恢复原生 details，跨证券／类型重置。`asset-chart.mjs/css` 从主题变量同步透明画布、文字、网格与 tooltip，原比例、公式和联动保持；资金图沿原 Chart.js 实例读取主题。相关纯投影回归为 `tests/javascript/research_web_asset_projection.test.mjs`，页面、主题与联动沿 `research_web_asset_workspace.test.mjs`／`research_web_asset_chart.test.mjs` 及资产 E2E 分别验证。本轮不改 HTTP、观察存储、Provider 或安装依赖，浏览器／厂商读回／同候选 Mac CI／常驻部署仍须各自真实证据。
 
 `resident/evidence.py:GitHubEvidence.qualify` 仅对CI日志下载传120秒时限，普通命令仍30秒；`model_provider_upgrade.py:ASSET_EVIDENCE_SHA256` 将读取器绑定为受审工具内容。邻近 `test_resident.py` 与 `test_model_provider_upgrade.py` 覆盖超时、实际树不符及文件内容/模式/缺失拒绝。

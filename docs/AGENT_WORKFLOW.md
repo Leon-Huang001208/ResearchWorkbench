@@ -1,5 +1,7 @@
 # Agent 任务路由指南
 
+资产摘要产品 PR175 合并后，正式交付独立 `reviewed-asset-observation-v2`／`apply-assets-v2`：固定旧版 `9bc12355` 与产品 `93d62be6`，再对操作员最终候选执行完整 Router、独立 Python 评审及原三项 CI。合并后从干净、共享原源码 common directory 的目标 worktree 和生产 venv 部署；开发目录的未跟踪文件不移动、不改忽略以绕过检查。持锁核对研究、日程、资产及 DataHub 明确空闲，冻结主／私有全部业务索引后按原 v4 事务切换，实际版本和保全另证。v1／旧模型恢复、自动白名单和跨平台职责保持；合同见[固定版本部署](research-web-gateway-upgrade.md#资产观察固定版本联合部署)。
+
 资产部署若CI大日志超过原30秒命令预算，应以正式修正、固定读取器SHA256、独立评审和同候选CI调整有界下载时间；不改现场模块或资格回执。本轮实测2.31MB日志47/49秒，下载上限120秒，其余资格、冻结和保全条件不变。
 
 资产观察部署使用已审 `model_provider_upgrade apply-assets` 的固定版本合同。先交付操作员源码并通过同候选CI，再执行原空闲/冻结/恢复事务；Native空闲不能替代资产观察与DataHub查询终态证明。实际版本、保全与浏览器另证，不改自动兼容清单，详见[部署合同](research-web-gateway-upgrade.md#资产观察固定版本联合部署)。

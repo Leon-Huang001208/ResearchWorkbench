@@ -97,6 +97,8 @@ FinGPT 单引擎融合不新增 npm/Python 产品依赖，不增加供应商环�
 
 ## macOS 登录后常驻与自动部署
 
+新版资产页通过独立 `model_provider_upgrade apply-assets-v2` 交付，固定旧主实例／网关 `9bc12355c3b80e4e4459f4c250e13fc2634ed23d` 与 PR175 产品 `93d62be64084a5c92541a4a008216c0b3f56c2f1`。最终操作员须先通过原三项 CI 与独立评审，再从同源码 common directory 的干净目标 checkout、使用原生产 venv 执行；含未跟踪文件的开发目录不能直接用作操作源。原 v4 恢复、空闲与完整业务索引保全继续生效，旧 v1 和模型专项不改。此流程只安装本项目 wheel，无新依赖、配置项、HTTP 字段或迁移；公开安装入口及 `requirements/web.in`、`requirements/web.lock`、`scripts/setup_web.py`、Mac Bootstrap 保持兼容并按候选验收。详见[固定版本联合部署](research-web-gateway-upgrade.md#资产观察固定版本联合部署)。
+
 资产观察有显式 `model_provider_upgrade apply-assets` 合同，固定 c688 旧版本与已审 PR171 产品，只复用现有生产解释器安装本项目 wheel，不安装新依赖或扩大自动兼容范围。必须先通过最新源码资格、资产/DataHub与原Native/Host/私有池空闲、保全和恢复检查；使用方法见[固定版本联合部署](research-web-gateway-upgrade.md#资产观察固定版本联合部署)。
 
 模型服务商联合升级可同时交付 PR168 的五个精确导航 UI blob；其余产品文件仍绑定原模型服务商基线。须通过最新已合并候选的三CI、独立评审与原空闲/保全事务，不使用复制静态目录或临时放宽自动白名单交付界面。范围见[联合升级合同](research-web-gateway-upgrade.md#模型服务商联合升级)。
