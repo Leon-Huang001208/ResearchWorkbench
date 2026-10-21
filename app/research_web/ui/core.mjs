@@ -1,8 +1,8 @@
 const API_ROOT = '/api/research';
 const segment = (value) => encodeURIComponent(value);
-const pages = new Set(['fingpt', 'claw', 'workbench', 'frameworks', 'skills', 'history', 'operations', 'settings', 'intel', 'aihot']);
+const pages = new Set(['fingpt', 'claw', 'workbench', 'frameworks', 'skills', 'history', 'operations', 'settings', 'account', 'intel', 'aihot']);
 const workbenchSections = new Set(['market', 'assets', 'funds', 'industry', 'documents', 'hot', 'etf-paper']);
-const settingsSections = new Set(['general', 'model', 'data', 'local', 'docs', 'hot']);
+const settingsSections = new Set(['general', 'model', 'data', 'local', 'docs', 'hot', 'users']);
 const capabilityViews = new Set(['library', 'mine', 'plans', 'connections', 'market']);
 const capabilityKinds = new Set(['skill', 'method', 'tool', 'workflow', 'data']);
 const frameworkTabs = new Set(['overview', 'drivers', 'supply', 'cycle', 'positioning', 'allocation', 'quantity', 'price', 'fiscal', 'plumbing', 'cross-border', 'evidence']);
@@ -83,6 +83,7 @@ export function parseRoute(hash = '') {
 }
 
 export function legacyRouteTarget(hash = '') {
+  if (/^#\/settings\/account(?:\?|$)/.test(String(hash))) return '#/account';
   if (/^#\/workbench\/hot(?:\?|$)/.test(String(hash))) return String(hash).replace('#/workbench/hot', '#/intel/hot');
   if (/^#\/workbench\?/.test(String(hash))) {
     const params = new URLSearchParams(String(hash).split('?')[1]);

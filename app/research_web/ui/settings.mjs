@@ -5,6 +5,7 @@ import { renderConnectionCenter, renderLocalIntegrationConsole, selectedConnecti
 
 export const settingsSections = Object.freeze([
   { id: 'general', label: '通用', eyebrow: 'GENERAL', description: '管理仅影响当前浏览器的显示偏好。' },
+  { id: 'users', label: '用户管理', eyebrow: 'USER MANAGEMENT', description: '邀请用户，并管理账号和研究实例。', adminOnly: true },
   { id: 'model', label: '模型服务', eyebrow: 'MODEL SERVICE', description: '配置 Research Runtime 使用的模型服务。', refreshable: true },
   { id: 'data', label: '数据源', eyebrow: 'DATA CONNECTIONS', description: '管理专业数据源、API 数据源与公开来源。', refreshable: true },
   { id: 'local', label: '本机集成', eyebrow: 'LOCAL INTEGRATIONS', description: '诊断当前服务设备上的本机服务、文件夹、Office、浏览器与 MCP 能力。', refreshable: true },
@@ -14,8 +15,9 @@ export const settingsSections = Object.freeze([
 
 const sectionIds = new Set(settingsSections.map((section) => section.id));
 
-export function resolveSettingsSection(route = {}, sources = []) {
+export function resolveSettingsSection(route = {}, sources = [], account = null) {
   const requested = sectionIds.has(route.settingsSection) ? route.settingsSection : 'general';
+  if (requested === 'users' && account?.role !== 'admin') return 'general';
   if (!route.legacySettingsConnection || !route.connectionId) return requested;
   const source = sources.find((item) => item?.id === route.connectionId);
   return source?.group === 'local' ? 'local' : 'data';
@@ -33,8 +35,8 @@ export function settingsRefreshCatalogs(section) {
   return [];
 }
 
-function renderSettingsNavigation(activeSection) {
-  return `<nav class="settings-navigation" aria-label="设置分类"><span class="settings-navigation-label">设置</span>${settingsSections.map((section) => `<a href="#/settings/${section.id}" class="settings-navigation-link ${section.id === activeSection ? 'active' : ''}" ${section.id === activeSection ? 'aria-current="page"' : ''}>${e(section.label)}</a>`).join('')}</nav>`;
+function renderSettingsNavigation(activeSection, account) {
+  return `<nav class="settings-navigation" aria-label="设置分类"><span class="settings-navigation-label">设置</span>${settingsSections.filter(section=>!section.adminOnly||account?.role==='admin').map((section) => `<a href="#/settings/${section.id}" class="settings-navigation-link ${section.id === activeSection ? 'active' : ''}" ${section.id === activeSection ? 'aria-current="page"' : ''}>${e(section.label)}</a>`).join('')}</nav>`;
 }
 
 function renderSettingsHeader(section) {
@@ -119,6 +121,7 @@ function renderTabbitSettings(tabbit, busy) {
 }
 
 function renderSettingsBody(options) {
+  if(options.section==='users')return '<div data-account-management-slot></div>';
   if(options.section==='hot')return options.hotHTML || '<p class="muted">热点设置读取中…</p>';
   const { section, runtime, tabbit, models, runtimeLabel, busy, modelFailures, connections, integrations, localIntegrations, localVerificationTarget, localCategory, officeConsentConfirmation, selectedConfiguration, migrationOpen, connectionDetailOpen, hash } = options;
   if (section === 'model') return renderModelSettings({ runtime, models, runtimeLabel, busy, modelFailures });
@@ -146,7 +149,7 @@ function renderSettingsBody(options) {
 
 export function renderSettingsPage(options = {}) {
   const sources = Array.isArray(options.connections?.sources) ? options.connections.sources : [];
-  const section = resolveSettingsSection(options.route, sources);
+  const section = resolveSettingsSection(options.route, sources, options.account);
   const definition = settingsSections.find((item) => item.id === section) || settingsSections[0];
-  return `<div class="settings-layout">${renderSettingsNavigation(section)}<section class="settings-page" data-settings-section="${e(section)}">${renderSettingsHeader(definition)}${renderSettingsBody({ ...options, section })}</section></div>`;
+  return `<div class="settings-layout">${renderSettingsNavigation(section, options.account)}<section class="settings-page" data-settings-section="${e(section)}">${renderSettingsHeader(definition)}${renderSettingsBody({ ...options, section })}</section></div>`;
 }
