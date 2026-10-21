@@ -52,6 +52,8 @@
 
 ## 综合 CI 的元数据扫描修复
 
+修复后的综合 CI 39580017091 在 309.41 秒完成 Python：1274 PASS、11 SKIP、17 FAIL；超时问题已消除。失败集中于两处合同夹具仍替换旧的 _dependency_ready，而真实目录已读取 _dependency_status；Mac 已安装依赖掩盖了该缺口。以 find_spec 全部返回 None 的本机负例复现后，只将这两处夹具改为替换实际依赖边界，仍经过原 AssetWorkspace/Broker/Provider；不安装 Wind SDK、不修改生产目录/Provider 的平台与准入规则。
+
 首次综合 CI 39575611151 达到原 20 分钟上限后取消，未认证为通过；同候选 macOS Bootstrap 39575611311 和 Project Constraints 39575611345 已通过。只读分析发现 5%→11% 段的 1408 次能力 draft→check 累计约 765 秒，其中 576 次超过一秒；该段无凭据失败，不能解释为凭据重试或死循环。本机 cProfile 独立确认一次目录初始化重复调用 packages_distributions 18 次，占约 4.97 秒。
 
 修复只在同一次 CapabilityCatalog 初始化事务懒加载一次模块清单，finally 清除；显式 validate/check、依赖版本、来源和凭据仍保持新鲜检查。新增先红后绿回归覆盖扫描次数、新实例、初始化后依赖消失和异常清除，原禁止导入检查保持；资产 API 测试改用内存钥匙串。原 CI 增加该单项回归，保留全部既有测试、runner 和 20 分钟上限，不重跑旧候选。新候选仍需独立评审和同候选全部 CI。
@@ -65,3 +67,5 @@
 元数据修复本机验证：完整能力目录、资产和Wind合计121 PASS，46.24秒；仅更新原工具清单的陈旧断言以反映已存在且不可选择的research_check_quality/research_read_source，没有新增工具权限。完整CI Python同清单仍在运行。
 
 额外本机CI同清单探针并未全通过：1275 PASS、27 FAIL，120.24秒。失败集中于未改动的macOS文档沙箱与冻结恢复：借用另一worktree的已安装测试解释器导致site-packages读权限拒绝，以及已安装旧包runtime_contract_unsafe_path；不能据此声称全套本机通过。资产/能力/Wind的121回归已通过，正式必需Router门与干净安装仍分别记录；不放宽沙箱/冻结恢复或修改其他任务解释器，不安装依赖来掩盖这些环境限制。日志logs/asset-ci-python-parity.log。
+
+无厂商SDK负例两项先红后绿（2 PASS/0.43秒），资产/Wind完整100 PASS/6.46秒，Ruff/Black/isort/diff检查通过；日志logs/asset-wind-sdk-absence-{red,green}.log及logs/asset-wind-fixture-final.log。

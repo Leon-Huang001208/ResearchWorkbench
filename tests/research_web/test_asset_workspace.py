@@ -117,7 +117,12 @@ def wind_workspace(tmp_path, monkeypatch):
     from app.research_web.datahub import DataHub, catalog, providers_wind
 
     monkeypatch.setattr(
-        catalog, "_dependency_ready", lambda source_id, dependencies: source_id == "wind"
+        catalog,
+        "_dependency_status",
+        lambda source_id, dependencies: (
+            source_id == "wind",
+            None if source_id == "wind" else "blocked_dependency",
+        ),
     )
     service = SimpleNamespace(store=Store(tmp_path), notify=lambda: None)
     service.datahub = DataHub(service.store)

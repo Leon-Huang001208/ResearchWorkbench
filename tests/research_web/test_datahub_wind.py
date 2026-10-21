@@ -1183,7 +1183,12 @@ def test_wind_catalog_and_broker_expose_only_bounded_business_bindings(monkeypat
     from app.research_web.datahub import broker, catalog
 
     monkeypatch.setattr(
-        catalog, "_dependency_ready", lambda source_id, dependencies: source_id == "wind"
+        catalog,
+        "_dependency_status",
+        lambda source_id, dependencies: (
+            source_id == "wind",
+            None if source_id == "wind" else "blocked_dependency",
+        ),
     )
     connection_statuses = {
         "wind": {
