@@ -1,5 +1,7 @@
 # GitHub Actions 免费额度治理
 
+资产观察首轮综合 CI 39575611151 在 20 分钟上限取消；同候选 macOS Bootstrap 与 Project Constraints 已成功。根因证据为目录初始化重复扫描 Python 模块元数据（本机 18 次，CI 慢段约 765 秒）；本轮修复为单次初始化快照，并向原 Python 步骤增加一个失效边界回归。不删测试、不延长超时、不增加 job/runner/依赖或模型调用；修复候选按原 PR 自动触发，旧失败保留。天软真实取数只在已授权本机完成，CI 保持无厂商凭据。
+
 2026-10-21 导航常驻交付仅向既有 `test_model_provider_upgrade.py` 增加9个精确范围正反例，108项本机0.61秒，新增预留2秒；Checks原步骤自动覆盖，无新增job/runner/依赖或模型调用。实时PUBLIC，最近五个成功run为39569274255/39566005247/39563022513/39563022538/39563022655，创建至结束约56/64/46/574/2371秒，最后一项含重试等待，单attempt仍保留既有20分钟上限。Mac Bootstrap沿同候选原流程，Windows/Linux产品不由Mac dispatch。实际常驻切换获本轮用户明确授权，空闲、恢复和保全单独留证。
 
 2026-10-21 业务导航重分组复用原 Project Constraints、Research Web Checks 与 macOS Bootstrap，不新增 job、runner、依赖或模型调用。实时 API 核对 PUBLIC；最近五次成功 run 为39550643254/39549200559/39549167378/39549167422/39547002880，创建至结束约65/562/856/62/445秒。原Web Checks已覆盖 research_web JS 通配符；本轮浏览器夹具只在本机运行。UI路径不自动选择Bootstrap，故按本轮用户明确要求在已发布精确候选上手动运行现有macOS安装流程，核对checkout与3081/8088健康及Doctor。不从Mac触发Windows/Linux产品CI，常驻部署另行授权。

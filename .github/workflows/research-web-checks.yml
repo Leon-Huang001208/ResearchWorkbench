@@ -108,6 +108,7 @@ jobs:
             tests/research_web/test_integration_coordinator.py \
             tests/research_web/test_asset_workspace.py \
             tests/research_web/test_datahub_wind.py \
+            tests/research_web/test_capabilities.py::test_builtin_dependency_inventory_is_scoped_to_initialization \
             tests/research_web/test_documentation.py \
             tests/research_web/test_doc_sync.py \
             tests/research_web/test_cli_lazy.py \

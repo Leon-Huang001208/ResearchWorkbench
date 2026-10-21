@@ -16,6 +16,25 @@ from app.research_web.service import ResearchService
 from app.research_web.store import Store
 
 
+@pytest.fixture(autouse=True)
+def isolated_host_credentials(monkeypatch):
+    """Keep asset fixture startup away from the host credential store."""
+    import keyring
+
+    values = {}
+    monkeypatch.setattr(
+        keyring, "get_password", lambda service, account: values.get((service, account))
+    )
+    monkeypatch.setattr(
+        keyring,
+        "set_password",
+        lambda service, account, value: values.__setitem__((service, account), value),
+    )
+    monkeypatch.setattr(
+        keyring, "delete_password", lambda service, account: values.pop((service, account), None)
+    )
+
+
 def test_tinysoft_canonical_asset_query_translates_cycle_and_adjustment(monkeypatch):
     import sys
 

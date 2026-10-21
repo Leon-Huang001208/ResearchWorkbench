@@ -50,4 +50,16 @@
 
 集成检查：Node 24.19.0 的全部 Research Web JS 共 772 项，770 PASS / 2 SKIP / 0 FAIL；原业务导航浏览器验收 10 项通过，本任务 fixture 6 场景与保存真实 CJPY 数据回读 2 场景通过。原 Mac Bootstrap 同一启动步骤增加七个资产静态资源的已安装字节与 checkout 字节一致核验，摘要进入现有最小 artifact；远端运行尚待执行，不以本地检查代替。
 
+## 综合 CI 的元数据扫描修复
+
+首次综合 CI 39575611151 达到原 20 分钟上限后取消，未认证为通过；同候选 macOS Bootstrap 39575611311 和 Project Constraints 39575611345 已通过。只读分析发现 5%→11% 段的 1408 次能力 draft→check 累计约 765 秒，其中 576 次超过一秒；该段无凭据失败，不能解释为凭据重试或死循环。本机 cProfile 独立确认一次目录初始化重复调用 packages_distributions 18 次，占约 4.97 秒。
+
+修复只在同一次 CapabilityCatalog 初始化事务懒加载一次模块清单，finally 清除；显式 validate/check、依赖版本、来源和凭据仍保持新鲜检查。新增先红后绿回归覆盖扫描次数、新实例、初始化后依赖消失和异常清除，原禁止导入检查保持；资产 API 测试改用内存钥匙串。原 CI 增加该单项回归，保留全部既有测试、runner 和 20 分钟上限，不重跑旧候选。新候选仍需独立评审和同候选全部 CI。
+
+追加用户授权后，已用原连接保存机制将天软凭据复制到 RWB 主实例系统钥匙串，回读一致，configured/secret_configured 为真、restart_required 为假；不输出秘密，不重启常驻服务。操作回执 logs/asset-credential-transfer.json 保存在主 checkout 私有日志；这一后续配置操作不改变先前临时 Store 的真实取数证据。
+
+<!-- architecture-review {"group":"capabilities","structure":"unchanged","reason":"仅在既有目录构造事务内部共享静态安装元数据，事务结束及异常清除；初始化外的准入、来源、版本和脚本检查仍实时执行，没有改变Host/DSH、存储或权限边界。","diagrams":[]} -->
+
 复审修复：新闻/公告内通过更新数据表单改变证券身份时，replaceState 后立即激活该资产资讯，保持行情与资讯并行。浏览器回归先红后绿，六种宽度/主题均通过，日志 logs/asset-news-form-red.log、logs/asset-news-form-green.log。最新主线 c68814db 的部署资格变更已保留；不包含本任务的常驻部署授权。
+
+元数据修复本机验证：完整能力目录、资产和Wind合计121 PASS，46.24秒；仅更新原工具清单的陈旧断言以反映已存在且不可选择的research_check_quality/research_read_source，没有新增工具权限。完整CI Python同清单仍在运行。
