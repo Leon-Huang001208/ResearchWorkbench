@@ -1,5 +1,6 @@
 """The explicitly reviewed model upgrade must be fenced and reversible."""
 
+import hashlib
 import json
 import plistlib
 import re
@@ -25,7 +26,21 @@ def test_asset_profile_has_fixed_previous_and_rejects_unknown_mode():
 
 
 @pytest.mark.parametrize(
-    "bad", [None, "backend", "ui", "dependency", "mode", "reverted", "deleted", "extra", "ancestry"]
+    "bad",
+    [
+        None,
+        "backend",
+        "ui",
+        "dependency",
+        "mode",
+        "reverted",
+        "deleted",
+        "extra",
+        "ancestry",
+        "evidence",
+        "evidence-mode",
+        "evidence-deleted",
+    ],
 )
 def test_asset_review_uses_real_git_and_frozen_product(tmp_path, monkeypatch, bad):
     def git(*args):
@@ -39,6 +54,7 @@ def test_asset_review_uses_real_git_and_frozen_product(tmp_path, monkeypatch, ba
     files = {
         upgrade.MODULE: "operator",
         upgrade.TEST: "tests",
+        upgrade.ASSET_EVIDENCE: "reviewed evidence",
         "app/research_web/asset_workspace.py": "before",
         "app/research_web/ui/asset-workspace.mjs": "before",
         "requirements/web.lock": "same",
@@ -57,8 +73,17 @@ def test_asset_review_uses_real_git_and_frozen_product(tmp_path, monkeypatch, ba
     payload = git("rev-parse", "HEAD")
     monkeypatch.setattr(upgrade, "ASSET_PREVIOUS", base)
     monkeypatch.setattr(upgrade, "ASSET_PAYLOAD", payload)
+    monkeypatch.setattr(
+        upgrade, "ASSET_EVIDENCE_SHA256", hashlib.sha256(b"reviewed evidence").hexdigest()
+    )
     (tmp_path / upgrade.MODULE).write_text("reviewed operator")
     name = "app/research_web/asset_workspace.py"
+    if bad == "evidence":
+        (tmp_path / upgrade.ASSET_EVIDENCE).write_text("unreviewed evidence")
+    if bad == "evidence-mode":
+        (tmp_path / upgrade.ASSET_EVIDENCE).chmod(0o755)
+    if bad == "evidence-deleted":
+        (tmp_path / upgrade.ASSET_EVIDENCE).unlink()
     if bad == "backend":
         (tmp_path / name).write_text("unreviewed")
     if bad in {"ui", "reverted"}:

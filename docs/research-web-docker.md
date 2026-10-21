@@ -1,5 +1,7 @@
 # Mac mini Docker 开发与独立部署
 
+本轮CI大日志下载预算修正只服务既有macOS Native显式部署；不改Docker部署、构建缓存、网络或卷。原全部资格检查保留，本机操作员仅有界等待120秒读取CI日志，非Docker验收证据。
+
 资产观察 apply-assets 仅更新已审 macOS Native 主实例和网关，不切换 Docker 镜像、容器或业务卷；Docker 活动、容量和未知资源保护保持，不能把该部署当作 Docker 验收。
 
 联合升级的独立 Git 仓库身份修补只适用于 Native 发布目录；不改 Docker 源码挂载、镜像、卷或容量保护，仍不构成 Docker 产品升级验证。
