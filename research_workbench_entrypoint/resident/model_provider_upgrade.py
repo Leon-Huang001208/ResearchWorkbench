@@ -45,6 +45,8 @@ MODE = "reviewed-model-providers-v1"
 ASSET_MODE = "reviewed-asset-observation-v1"
 ASSET_PREVIOUS = "c68814db170900688d6a799a241efc098eb83f32"
 ASSET_PAYLOAD = "54d4c8f9421c568de853a2f93263a2bfcd53422c"
+ASSET_EVIDENCE = "research_workbench_entrypoint/resident/evidence.py"
+ASSET_EVIDENCE_SHA256 = "ec022e39a89a3dbd021fca26049342ce149077f5beb62a8df2aba7826d016d25"
 MAX_ASSET_INDEX_BYTES = 64 * 1024 * 1024
 CONTROLLER_SHA256 = "4924299104d5f82a9cc732bb2ca1f811694d14056d58a2762e7c86e40f6665a2"
 CONTROLLER_MODULE_SHA256 = "b432f519e14a2e851a7eb39a3de179f99494b9347c857694c4192477a7996846"
@@ -210,7 +212,7 @@ def review_assets(source: Path, target: str):
     """Freeze the already reviewed PR171 product, including paths reverted from the diff."""
     c.clean(source, target)
     c.git(source, "merge-base", "--is-ancestor", ASSET_PAYLOAD, target)
-    paths = {MODULE, TEST}
+    paths = {MODULE, TEST, ASSET_EVIDENCE}
     for revision in (ASSET_PAYLOAD, target):
         paths.update(
             c.git(
@@ -223,7 +225,14 @@ def review_assets(source: Path, target: str):
         actual_mode = c.git(source, "ls-tree", target, "--", name).split()[0]
         if actual_mode not in {"100644", "100755"}:
             raise UpdateBlocked("asset_upgrade_payload_changed")
-        if name.startswith(("docs/", "tests/", ".ai/reports/")) or name in {
+        if name == ASSET_EVIDENCE:
+            if (
+                actual_mode != "100644"
+                or hashlib.sha256(g.git_bytes(source, target, "evidence.py")).hexdigest()
+                != ASSET_EVIDENCE_SHA256
+            ):
+                raise UpdateBlocked("asset_upgrade_evidence_changed")
+        elif name.startswith(("docs/", "tests/", ".ai/reports/")) or name in {
             MODULE,
             "README.md",
             "outputs/research-web-architecture/index.html",

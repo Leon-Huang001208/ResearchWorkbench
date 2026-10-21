@@ -149,7 +149,8 @@ class GitHubEvidence:
                             str(self.gh),
                             "api",
                             f"repos/{self.repository}/actions/jobs/{job['id']}/logs",
-                        ]
+                        ],
+                        timeout=120,
                     )
                     lines = raw.splitlines()
                     for index, line in enumerate(lines[:-1]):

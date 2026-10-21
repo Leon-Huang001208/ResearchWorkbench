@@ -327,12 +327,37 @@ def github_fixture(tmp_path, monkeypatch, *, tree_mismatch=False, review_head=No
         return {"workflow_runs": [{"id": 1, "status": "completed", "conclusion": "success"}]}
 
     monkeypatch.setattr(instance, "api", api)
-    monkeypatch.setattr(
-        evidence,
-        "run",
-        lambda _: "[command]/usr/bin/git log -1 --format=%H\n2026-10-15T00:00:00Z " + head,
-    )
+
+    def download(argv, *, timeout=30):
+        assert argv[-1].endswith("/logs") and timeout == 120
+        return "[command]/usr/bin/git log -1 --format=%H\n2026-10-15T00:00:00Z " + head
+
+    monkeypatch.setattr(evidence, "run", download)
     return instance, target
+
+
+def test_regular_evidence_commands_keep_original_bounded_timeout(monkeypatch):
+    calls = []
+
+    def command(argv, **kwargs):
+        calls.append(kwargs)
+        return subprocess.CompletedProcess(argv, 0, "{}", "")
+
+    monkeypatch.setattr(evidence.subprocess, "run", command)
+    assert evidence.run(["/gh", "api", "fixture"]) == "{}"
+    assert calls[0]["timeout"] == 30
+
+
+def test_ci_log_timeout_still_blocks_eligibility(tmp_path, monkeypatch):
+    instance, target = github_fixture(tmp_path, monkeypatch)
+
+    def command(_argv, **kwargs):
+        assert kwargs["timeout"] == 120
+        raise evidence.UpdateBlocked("resident_command_unavailable")
+
+    monkeypatch.setattr(evidence, "run", command)
+    with pytest.raises(evidence.UpdateBlocked, match="resident_command_unavailable"):
+        instance.qualify(target)
 
 
 def test_eligibility_requires_matching_review_and_actual_ci_tree(tmp_path, monkeypatch):
