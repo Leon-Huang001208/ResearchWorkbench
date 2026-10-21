@@ -1112,11 +1112,13 @@ def test_exact_profile_rejects_unreviewed_business_or_installation_changes(
         upgrade.review(tmp_path, "f" * 40)
 
 
-@pytest.mark.parametrize("already_registered", [False, True])
+@pytest.mark.parametrize(
+    "already_registered,limit", [(False, 30), (True, 30), (True, 20), (True, 45)]
+)
 def test_reviewed_workflow_keeps_one_registered_upgrade_test(
-    tmp_path, monkeypatch, already_registered
+    tmp_path, monkeypatch, already_registered, limit
 ):
-    bare = "python -m pytest tests/research_web/test_gateway_upgrade.py"
+    bare = "timeout-minutes: 20\npython -m pytest tests/research_web/test_gateway_upgrade.py"
     registered = bare + " " + upgrade.TEST
     original = registered if already_registered else bare
     monkeypatch.setattr(upgrade.c, "clean", lambda *_: None)
@@ -1129,11 +1131,19 @@ def test_reviewed_workflow_keeps_one_registered_upgrade_test(
         if args[0] == "rev-parse":
             return "a" * 40
         if args[0] == "show":
-            return original if args[1].startswith(upgrade.PAYLOAD) else registered
+            return (
+                original
+                if args[1].startswith(upgrade.PAYLOAD)
+                else registered.replace("timeout-minutes: 20", f"timeout-minutes: {limit}")
+            )
         pytest.fail("unexpected review query")
 
     monkeypatch.setattr(upgrade.c, "git", git)
-    assert upgrade.WORKFLOW in upgrade.review(tmp_path, "f" * 40)
+    if limit == 30:
+        assert upgrade.WORKFLOW in upgrade.review(tmp_path, "f" * 40)
+    else:
+        with pytest.raises(upgrade.UpdateBlocked, match="workflow_scope"):
+            upgrade.review(tmp_path, "f" * 40)
 
 
 @pytest.mark.parametrize(

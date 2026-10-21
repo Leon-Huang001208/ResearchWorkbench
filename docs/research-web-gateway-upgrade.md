@@ -6,6 +6,8 @@
 两角色分别记录并恢复校验原 Git common directory/inode 和精确 GitHub origin，源码冻结目录由受审 source 创建。
 停机前确认两角色拥有目标 commit；目录、origin 或 inode 变化仍拒绝，不能通过搬迁发布目录或改配置绕过。
 
+工作流完整 blob 只额外允许原定点测试注册与已审 Checks 时限20→30分钟，保留全部测试、runner和检查门；其他工作流差异仍拒绝。已有注册不重复插入，未核对通过的超时或取消不能充作成功证明。
+
 显式入口 `research_workbench_entrypoint.resident.model_provider_upgrade apply` 针对原主实例与网关
 `5df8e17e04f1b588f7e742423d81fb8e0ba34cb2`，只允许已审模型服务商产品
 `eb42682f22ab9629bfd5f677d8ed38ae0d0ebec0`、已合并登录外观 PR166

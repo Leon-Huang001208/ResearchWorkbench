@@ -1,5 +1,8 @@
 # GitHub Actions 免费额度治理
 
+2026-10-21完整Checks两次在Python全部通过后于JS尾段触及20分钟上限（39563022655首次、39569274275）。不删测试、不拆出绕门或新增job，原标准Ubuntu job时限改30分钟以容纳安装和完整回归的真实波动；原测试、runner、concurrency、Mac门及跨平台边界保持。
+最新五个成功job为39563022655第2次/39561464800第2次/39558749888/39557934305/39549167378，实际job耗时1036/838/1043/1152/852秒（按各次jobs时间，非含重跑等待的run总墙钟）。当前API为PUBLIC、标准runner；30分钟为有界余量，无新依赖、模型或付费源。此前20分钟记录作为历史保留。
+
 2026-10-21 业务导航重分组复用原 Project Constraints、Research Web Checks 与 macOS Bootstrap，不新增 job、runner、依赖或模型调用。实时 API 核对 PUBLIC；最近五次成功 run 为39550643254/39549200559/39549167378/39549167422/39547002880，创建至结束约65/562/856/62/445秒。原Web Checks已覆盖 research_web JS 通配符；本轮浏览器夹具只在本机运行。UI路径不自动选择Bootstrap，故按本轮用户明确要求在已发布精确候选上手动运行现有macOS安装流程，核对checkout与3081/8088健康及Doctor。不从Mac触发Windows/Linux产品CI，常驻部署另行授权。
 
 2026-10-21 模型服务商联合升级只在既有 Checks Python 步骤增加定点模块，不增 job/runner/依赖。
