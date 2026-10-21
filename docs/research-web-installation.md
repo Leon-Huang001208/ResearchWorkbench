@@ -1,5 +1,7 @@
 # Research Web Native / Docker 安装与运行
 
+现有常驻的模型服务商后端更新使用[显式联合升级](research-web-gateway-upgrade.md#模型服务商联合升级)，须受审精确 SHA、Mac 干净安装证据、真实空闲及恢复准备；不替换原控制器、不安装新依赖、不迁移凭据/会话。公开安装入口和依赖锁保持。
+
 网关冻结恢复任务显式提供既有系统/Homebrew工具PATH，安装前核验Git LFS；本轮不安装新依赖、不修改公开安装入口或全局环境。干净Mac Bootstrap仍是必需门。
 
 需保留旧主实例版本时，显式 `apply-ui --preserve-primary` 使用v3恢复合同。三段受限差异、原锁/空闲/排空/保全均通过才更新网关；公开安装入口和依赖锁不变，仍须同候选Mac干净安装CI。

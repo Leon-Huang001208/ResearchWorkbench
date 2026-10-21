@@ -1,5 +1,36 @@
 # Mac mini 空私有池网关升级
 
+## 模型服务商联合升级
+
+显式入口 `research_workbench_entrypoint.resident.model_provider_upgrade apply` 针对原主实例与网关
+`5df8e17e04f1b588f7e742423d81fb8e0ba34cb2`，只允许已审模型服务商产品
+`eb42682f22ab9629bfd5f677d8ed38ae0d0ebec0` 与已合并登录外观 PR166 的固定产品基线
+`0d73c0348094f11c3440d8f6893c7a6896a8dbc8` 源码 blob、该操作员及测试/文档变化。
+自动兼容清单、固定 DSH、依赖及原 controller.pyz 不修改；目标必须是最新已合并且三项 CI 合格的精确 SHA。
+
+```bash
+/absolute/primary/.venv/bin/python -m research_workbench_entrypoint.resident.model_provider_upgrade apply \
+  --home /absolute/private-home --source /absolute/qualified-checkout
+```
+
+从合格源码目录执行，解释器须为生产 venv。在发信号前安装独立内容寻址恢复包和 LaunchAgent，
+冻结原 wheel、配置与完整保全摘要。服务商/模型与凭据是否已配置只取元数据，不记录 Key 或问题正文、不调用模型。
+
+持 supervisor/admission/operator 锁；Native、Host、自动化及全部用户池中任何活动/未知均等待。
+先写 version 4 全请求冻结意图，再取得 BirthFence；部分 stage/owner/releasing 中断由原身份恢复处理。
+确认原私网根返回 503 后才写旧控制器可读的主实例 journal，随后优雅排空网关及停止主实例。
+原控制器模块真实摘要绑定 Git `02c086b168e62723887c7a778f716f6146595b6d`，恢复期间其私网根健康不可能通过，
+因此不会提前撤门；旧控制器可先恢复原主实例，新恢复任务须重新核对空闲并协调两端。
+不改 Tailscale 路由，原 `/collections` 保留，不强杀、不停运行研究。
+
+两端源码/wheel、网关绑定及实际 revision 一致，健康、保全和模型元数据全部通过才记录 accepted/baseline 并撤门。
+切换失败自动恢复原两端；排空/活动未知保留 journal 等待。终态写入、unlink 或 fsync 异常返回
+`completion_unknown`，当前调用不再停机回滚；独立恢复重新验证身份并取得全部保护后处理，栅栏已撤则不执行恢复。
+恢复只还原部署配置，不覆盖账号库、会话、模型凭据与业务文件。
+
+日志：`logs/model-upgrade.log`；私有回执：`server/run/model-upgrade-result.json`。
+离线故障注入和 CI 不替代实际部署后检查；活动或状态未知期间不得宣称部署完成。
+
 恢复LaunchAgent仅在自身EnvironmentVariables声明系统/Homebrew PATH；安装恢复包前用同一路径运行既有Git LFS版本检查。缺少工具在栅栏、journal和信号之前失败，不安装包、不禁用Git钩子、不修改全局PATH。SIGTERM优雅等待延至90秒；超时仍保留recovery_required，不强杀。旧恢复包和任务保持原样，新版本使用独立内容身份。
 
 ## 保留主实例版本的静态网关更新
