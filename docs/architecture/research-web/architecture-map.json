@@ -374,11 +374,17 @@
         "vendor/dsh-tabbit/0.3.4/",
         "app/research_web/sandbox.py",
         "app/research_web/skills/",
-        "app/research_web/live_acceptance_budget.py"
+        "app/research_web/live_acceptance_budget.py",
+        "app/research_web/model_profile_registry.py",
+        "app/research_web/model_profiles.py"
       ],
       "documents": [
         "docs/architecture/research-web/01-system.md",
-        "docs/research-web-tabbit.md"
+        "docs/research-web-tabbit.md",
+        "docs/research-web-ui.md",
+        "docs/architecture/research-web/02-research-runtime.md",
+        "docs/architecture/research-web/04-api.md",
+        "docs/architecture/research-web/05-security-validation.md"
       ],
       "diagrams": [
         "01-deployment",
@@ -402,7 +408,9 @@
         "tests/javascript/research_web_automation_draft_tool.test.mjs",
         "tests/research_web/test_encrypted_model_credentials.py",
         "tests/research_web/test_live_acceptance_budget.py",
-        "tests/javascript/research_web_quality_tool.test.mjs"
+        "tests/javascript/research_web_quality_tool.test.mjs",
+        "tests/research_web/test_model_profiles.py",
+        "tests/javascript/research_web_model_profiles.test.mjs"
       ]
     },
     {
@@ -3955,6 +3963,41 @@
       "path": "/api/server/health",
       "source": "app/research_web/multiuser/gateway.py",
       "declaredPath": "/api/server/health",
+      "prefix": ""
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/model-profiles",
+      "source": "app/research_web/main.py",
+      "declaredPath": "/api/research/model-profiles",
+      "prefix": ""
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/model-profiles",
+      "source": "app/research_web/main.py",
+      "declaredPath": "/api/research/model-profiles",
+      "prefix": ""
+    },
+    {
+      "method": "PUT",
+      "path": "/api/research/model-profiles/{identity}",
+      "source": "app/research_web/main.py",
+      "declaredPath": "/api/research/model-profiles/{identity}",
+      "prefix": ""
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/model-profiles/{identity}/activate",
+      "source": "app/research_web/main.py",
+      "declaredPath": "/api/research/model-profiles/{identity}/activate",
+      "prefix": ""
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/research/model-profiles/{identity}",
+      "source": "app/research_web/main.py",
+      "declaredPath": "/api/research/model-profiles/{identity}",
       "prefix": ""
     }
   ],

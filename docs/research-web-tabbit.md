@@ -323,3 +323,5 @@ Hot冻结FinGPT使用仅本地脚本/文档工具的research-hot-frozen组合，
 ## FinGPT 研究融合 · 2026-10-13
 
 FinGPT 的 web 检索范围同时约束 tabbit_tabs 附加与 tabbit_browser 调用；未选择 web 时拒绝受理。保留 Tabbit 的原 claim、一次性 token、审批与只读限制；FinGPT 原生 Todo/报告投影不会将 Codex 内置浏览器连接证据用作 Tabbit 可调用性证明。
+
+模型服务商配置只调整模型连接索引与Key解析，不更改Tabbit CLI/实例选择、浏览器审批或MCP工具范围。本次浏览器测试只访问回环隔离UI夹具，不调用Tabbit、真实供应商或生产研究。

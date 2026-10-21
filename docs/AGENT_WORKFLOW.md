@@ -341,3 +341,5 @@ Docker 构建与验收任务的完成检查必须包含资源收尾：临时资�
 - 分析失败的 Windows CI 日志并提出有界修复：可用后台/远程执行，交付日志范围、分析报告、修复 diff、运行命令及未在真实 Windows 复测的限制。
 - 修改 Tauri sidecar 或 Wind/Excel 集成：Mac 任务完成 macOS 验收后交接 Windows 真机任务；Windows 任务负责原生 Windows CI 和 Windows 发版前的安装级烟测，不阻塞 Mac 任务完成。
 - 只修改 Research Web 页面、Web API 或 Runtime：按 Web 测试与项目约束交付，不运行 Desktop Verify。
+
+模型服务多连接先复现固定ref不能隔离账号，再离线覆盖legacy绑定、独立Key、未知提交、闲时门、日程锁内竞争及历史子研究；正式UI使用隔离示意数据验证，不读取生产Key或调用模型。完整Router、独立评审与同候选Mac Bootstrap后方可合并，常驻部署另行授权。

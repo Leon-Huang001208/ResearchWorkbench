@@ -222,6 +222,17 @@ class ModelConfig(BaseModel):
         return value
 
 
+class ModelProfileConfig(ModelConfig):
+    name: str = Field(min_length=1, max_length=80)
+
+    @field_validator("name")
+    @classmethod
+    def profile_name(cls, value):
+        if not value.strip() or any(ord(char) < 32 for char in value):
+            raise ValueError("model_profile_name_invalid")
+        return value.strip()
+
+
 def create_app(service: ResearchService | None = None) -> FastAPI:
     # Operator opt-in for one authenticated Tailscale Serve HTTPS origin only.
     # Never derive trust from Host, X-Forwarded-Host, or a wildcard suffix.
@@ -536,6 +547,26 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
             protocol=body.protocol,
             credential_mode=body.credential_mode,
         )
+
+    @app.get("/api/research/model-profiles")
+    async def model_profiles(request: Request):
+        return await svc(request).list_model_profiles()
+
+    @app.post("/api/research/model-profiles")
+    async def add_model_profile(body: ModelProfileConfig, request: Request):
+        return await svc(request).save_model_profile(body)
+
+    @app.put("/api/research/model-profiles/{identity}")
+    async def update_model_profile(identity: str, body: ModelProfileConfig, request: Request):
+        return await svc(request).save_model_profile(body, identity)
+
+    @app.post("/api/research/model-profiles/{identity}/activate")
+    async def activate_model_profile(identity: str, request: Request):
+        return await svc(request).activate_model_profile(identity)
+
+    @app.delete("/api/research/model-profiles/{identity}")
+    async def archive_model_profile(identity: str, request: Request):
+        return await svc(request).archive_model_profile(identity)
 
     @app.post("/api/research/runtime/model/test")
     async def test_model(request: Request):

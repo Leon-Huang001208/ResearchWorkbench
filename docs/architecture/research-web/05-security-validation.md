@@ -695,3 +695,5 @@ AES 专用模型后端在构造器的既有文件锁内核验全部现有 JSON�
 ## 框架嵌入核心闭环 · 2026-10-14
 
 嵌入资源使用 /frameworks-embed/ 路由级同源 CSP，不放宽宿主 CSP。宿主与子窗口桥接校验 origin、source、slug、revision 与本次 token，重新挂载必须重新确认；过时回执不能解锁 Bot。原生快照不回退静态 JSON；来源缺口、数据准入和固定 DSH 权限门保留。真实模型、供应商和跨平台证据独立记录。
+
+命名模型 profile 只扩展产品固定命名域 RESEARCH_MODEL_PROFILE_<32hex>；私有 bridge 还必须匹配该用户 Store 注册项。两个 legacy 账号和原 namespace 不迁移或回填。旧 DSH ref 按服务端路由解析，端点/协议不会由浏览器任意控制执行。Docker 新 profile AES envelope 携带公开 account，启动逐项校验 filename、account 与 AAD；旧 envelope 原样兼容，未知文件/损坏/错误绑定仍拒绝。HTTP 不提供读 Key API，日志仅事件/错误码；未知凭据状态阻断生成，清除仍显式确认。

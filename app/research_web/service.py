@@ -60,6 +60,8 @@ from .mcp_runtime.package_planner import PackagePlanner
 from .mcp_runtime.package_resolver import PackageResolver
 from .mcp_runtime.sdk_host import SDKHost
 from .mcp_runtime.service import MCPRuntimeService, runtime_feature_enabled
+from .model_profile_registry import LEGACY_IDS, LEGACY_REFS, PROFILE_PREFIX
+from .model_profiles import ModelProfilesMixin
 from .projection import (
     activity_detail,
     activity_value,
@@ -287,7 +289,7 @@ def _explicit_automation_trial(text, automation, context):
     return True
 
 
-class ResearchService:
+class ResearchService(ModelProfilesMixin):
     def __init__(
         self,
         client: DSHClient,
@@ -771,6 +773,7 @@ class ResearchService:
         base_url=None,
         protocol=None,
         credential_mode="api_key",
+        _profile_id=None,
     ):
         await self.ensure_owned()
         compatible = provider == "openai-compatible"
@@ -799,6 +802,70 @@ class ResearchService:
         if self.model_test_lock.locked():
             raise RuntimeFailure("模型保存或测试正在运行", "model_change_busy")
         async with self.model_test_lock, self.lock:
+            profile_registry = (
+                self.model_profile_registry()
+                if (_profile_id is not None or "model_profiles" in self.store.data)
+                else None
+            )
+            old_profile_registry = self.store.data.get("model_profiles")
+            if profile_registry is not None:
+                await self.require_model_profiles_idle()
+                profile_identity = (
+                    _profile_id or profile_registry["routes"].get(provider) or LEGACY_IDS[provider]
+                )
+                profile = profile_registry["items"].get(profile_identity)
+                legacy_addition = profile is None and _profile_id is None
+                if legacy_addition:
+                    profile = {
+                        "id": profile_identity,
+                        "name": (
+                            "DeepSeek 官方"
+                            if provider == "deepseek-official"
+                            else "兼容服务（已有连接）"
+                        ),
+                        "provider": provider,
+                        "model": model,
+                        "credential_ref": LEGACY_REFS[provider],
+                        "credential_mode": credential_mode,
+                        "archived": False,
+                    }
+                    if compatible:
+                        profile.update(base_url=base_url, protocol=protocol)
+                    profile_registry["items"][profile_identity] = profile
+                if profile is None or profile["archived"] or profile["provider"] != provider:
+                    raise RuntimeFailure("模型连接不存在", "model_profile_missing")
+                if _profile_id is not None:
+                    if any(
+                        profile.get(key) != value
+                        for key, value in (
+                            ("model", model),
+                            ("base_url", base_url),
+                            ("credential_mode", credential_mode),
+                        )
+                    ):
+                        raise RuntimeFailure(
+                            "连接配置已更新，请刷新后重新选择", "model_profile_changed"
+                        )
+                    if profile.get("uncertain"):
+                        raise RuntimeFailure(
+                            "此连接凭据提交结果未知", "model_configuration_uncertain"
+                        )
+                    if credential_mode != "none":
+                        status = await self.client.rpc(
+                            "credentials.describe", {"refs": [PROFILE_PREFIX + profile_identity]}
+                        )
+                        if (
+                            status.get("credentials", {})
+                            .get(PROFILE_PREFIX + profile_identity, {})
+                            .get("configured")
+                            is not True
+                        ):
+                            raise RuntimeFailure(
+                                "此连接尚未配置凭据或状态未知", "model_credentials_missing"
+                            )
+                ref = (
+                    LEGACY_REFS[provider] if legacy_addition else PROFILE_PREFIX + profile_identity
+                )
             selection = {"provider": provider, "model": model}
             native = await self.client.rpc("session.list", {})
             if any(item["running"] for item in native["items"]) or any(self.running.values()):
@@ -816,7 +883,12 @@ class ResearchService:
                         )
             if clear_api_key and api_key is not None:
                 raise RuntimeFailure("替换与清除不能同时提交", "invalid_request")
-            if self.store.data.get(uncertain_key) and api_key is None and not clear_api_key:
+            if (
+                self.store.data.get(uncertain_key)
+                and api_key is None
+                and not clear_api_key
+                and _profile_id is None
+            ):
                 raise RuntimeFailure(
                     "凭据更新回执未知；请明确重新录入或清除后再测试",
                     "model_configuration_uncertain",
@@ -840,6 +912,7 @@ class ResearchService:
             previous_connection = self.store.data.get("compatible_model_connection")
             if (
                 compatible
+                and _profile_id is None
                 and credential_mode == "api_key"
                 and api_key is None
                 and not clear_api_key
@@ -887,6 +960,16 @@ class ResearchService:
                 if compatible:
                     self.store.data["compatible_model_connection"] = connection
                     self.store.data["compatible_model_connection_revision"] = secrets.token_hex(16)
+                if profile_registry is not None:
+                    profile.update(model=model, credential_mode=credential_mode)
+                    if compatible:
+                        profile.update(base_url=base_url, protocol=protocol)
+                    if changing_credential:
+                        profile.update(uncertain=False, cleared=clear_api_key)
+                    profile_registry["active_id"] = profile_identity
+                    profile_registry["routes"][provider] = profile_identity
+                    self.store.data["model_profiles"] = profile_registry
+                    self._sync_profile_flags(profile_registry)
                 self.store.data["model"] = selection
                 self.store.data.pop("model_test", None)
                 self.store.data.pop("model_application", None)
@@ -904,6 +987,10 @@ class ResearchService:
                             self.store.data.pop(name, None)
                         else:
                             self.store.data[name] = value
+                if old_profile_registry is None:
+                    self.store.data.pop("model_profiles", None)
+                else:
+                    self.store.data["model_profiles"] = old_profile_registry
                 if old_selection is None:
                     self.store.data.pop("model", None)
                 else:
@@ -921,6 +1008,10 @@ class ResearchService:
                 # observer failure to credential/rejected; it is not a rollback receipt.
                 uncertain = mutation_started
                 if uncertain:
+                    if old_profile_registry is not None:
+                        if profile_identity not in old_profile_registry["items"]:
+                            old_profile_registry["items"][profile_identity] = dict(profile)
+                        old_profile_registry["items"][profile_identity]["uncertain"] = True
                     self.store.data[uncertain_key] = True
                     self.store.data.pop("model_test", None)
                 try:
@@ -1047,10 +1138,18 @@ class ResearchService:
         metadata=None,
         project_id=None,
         model_selection=None,
+        expected_model_profile=None,
     ):
-        selection = dict(self.default_model if model_selection is None else model_selection)
         await self.ensure_owned()
         async with self.lock:
+            selection = dict(self.default_model if model_selection is None else model_selection)
+            if (
+                expected_model_profile is not None
+                and expected_model_profile != self.model_profile_identity(selection["provider"])
+            ):
+                raise RuntimeFailure(
+                    "模型连接已切换，未创建研究，请切回批准的连接", "model_profile_changed"
+                )
             if project_id is not None:
                 project = ClawProjects(self, mode).get(project_id)
                 if project["archived"]:
@@ -1104,6 +1203,7 @@ class ResearchService:
                 row["created"] = True
                 row["model"] = selection["model"]
                 row["model_provider"] = selection["provider"]
+                row["model_profile_id"] = self.model_profile_identity(selection["provider"])
                 if row["model_provider"] == "openai-compatible":
                     connection = self.compatible_connection()
                     row["model_connection_binding"] = {
@@ -1165,6 +1265,9 @@ class ResearchService:
                     "会话创建结果仍未知；只查询恢复，不自动重发", "hot_session_outcome_unknown"
                 )
             if row["model"] is None:
+                row["model_profile_id"] = self.model_profile_identity(
+                    self.default_model["provider"]
+                )
                 row["model"], row["model_provider"] = (
                     self.default_model["model"],
                     self.default_model["provider"],
@@ -1214,6 +1317,9 @@ class ResearchService:
                     raise
             row.update(created=True, hot_creation_state="configuring")
             self.store.save()
+            if "model_profile_id" not in row:
+                row["model_profile_id"] = LEGACY_IDS[row["model_provider"]]
+            self.assert_session_model_profile(row)
             await self.client.rpc(
                 "session.selectModel",
                 {"sessionId": sid, "provider": row["model_provider"], "model": row["model"]},
@@ -1255,7 +1361,7 @@ class ResearchService:
                 result["purge_state"] = "pending"
         return result
 
-    async def create_automation_research_session(self, name, definition):
+    async def create_automation_research_session(self, name, definition, *, model_profile_id=None):
         """Pin the approved model and scope to a fresh native execution session."""
         from .automation.models import ResearchTaskDefinition
 
@@ -1271,6 +1377,11 @@ class ResearchService:
             for group in catalog["groups"]
         ):
             raise RuntimeFailure("任务锁定模型不可用", "model_unavailable")
+        expected_profile = model_profile_id or LEGACY_IDS[task.model_provider]
+        if expected_profile != self.model_profile_identity(task.model_provider):
+            raise RuntimeFailure(
+                "日程绑定的连接未激活，请切回原连接或重新批准日程", "model_profile_changed"
+            )
         await self._require_model_credentials(task.model_provider)
         result = await self.create(
             "claw",
@@ -1279,6 +1390,7 @@ class ResearchService:
             purpose="automation",
             metadata={"automation_research_scope": task.model_dump(mode="json")},
             model_selection={"provider": task.model_provider, "model": task.model_id},
+            expected_model_profile=expected_profile,
         )
         log.info("automation_research_session_created")
         return result
@@ -2488,6 +2600,7 @@ class ResearchService:
                 raise RuntimeFailure("模型凭据已清除，请重新配置", "model_credentials_missing")
             self.capabilities.assert_consistent()
             row = self.store.session(sid)
+            self.assert_session_model_profile(row)
             if provider == "openai-compatible":
                 connection = self.compatible_connection()
                 binding = (

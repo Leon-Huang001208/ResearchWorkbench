@@ -381,3 +381,5 @@ hot_results分别显示执行failed与交付completed；读资料的Seatbelt验�
 Hot研究结果读取/原回合核对为hot_results.py与hot_routes，测试test_hot_results/test_delivery及research_web_hot；Delivery.refresh新增可选不可变key，旧调用默认保持。结果按Delivery原合同完整流式SHA核验，100文件/每文件16MiB，超限明确不可核验，不以展示截断写入failed。
 
 报告质量的全量 CSV 复算由 research_calculations.py 提供，研究质量服务绑定来源、文件 SHA 与当前回合；test_research_calculations.py、test_delivery_cache.py、test_research_quality_scope.py 复用现有 Research Web Checks Python 步骤，新增测试预算 15 秒，不新增 job/runner。Mac 干净安装及真实模型并发交付单独验收。
+
+模型服务多连接：`model_profile_registry.py` 校验公开身份及固定 ref→物理账号映射，`model_profiles.py` 复用服务锁、活动/受理/交付保护与原配置提交，`ui/model-settings.mjs/css` 管独立 DOM 表单与服务商目录。`automation/service.py` 保存连接身份，`service.create` 在同一锁内核对日程期望绑定。近处回归 `test_model_profiles.py`、`research_web_model_profiles.test.mjs`，原 Keychain、Docker 密文、兼容适配与设置回归保留。
