@@ -2,6 +2,10 @@
 
 ## 模型服务商联合升级
 
+五个导航文件始终进入身份检查，即使回退至旧版本而从 `PREVIOUS..target` 差异中消失也不能跳过；单文件或全部回退均拒绝。
+
+导航交付沿同一显式事务：仅 `app/research_web/ui/` 下的 `app.mjs`、`core.mjs`、`intel.mjs`、`shell.mjs`、`workbench.mjs` 改为绑定 PR168 已合并产品 `4e8be6ac7405733755e4a00be10898504e71710a` 的精确 Git blob 与模式；目标必须包含该祖先。其余产品路径仍逐字节绑定下述 `0d73c034`，工作流仍只允许原定点测试插入。任意额外 UI、后端、依赖或文件模式变化拒绝；这不授权任意静态目录更新，不改变自动兼容清单或 v4 恢复合同。源码资格、空闲切换、会话/文件/模型保全和实际浏览器效果分别取证。
+
 显式入口 `research_workbench_entrypoint.resident.model_provider_upgrade apply` 针对原主实例与网关
 `5df8e17e04f1b588f7e742423d81fb8e0ba34cb2`，只允许已审模型服务商产品
 `eb42682f22ab9629bfd5f677d8ed38ae0d0ebec0` 与已合并登录外观 PR166 的固定产品基线

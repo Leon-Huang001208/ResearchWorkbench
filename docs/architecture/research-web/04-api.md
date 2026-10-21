@@ -8,6 +8,8 @@
 
 ## 接口与协议约定
 
+PR168 导航随原 `model_provider_upgrade apply/recover` 交付，没有新增参数或 HTTP 接口；显式操作员仅对固定五个 UI 文件使用独立产品身份，后端查询/交接协议不变。
+
 模型服务商联合部署仅新增本机 `model_provider_upgrade apply/recover --home [--source]` 显式入口，无新 HTTP/DSH 接口。只读 resident/runtime/model-profiles 与 server health 用于真实版本、活动及凭据是否配置核对，不发送模型请求或读出 Key。
 
 无新增CLI参数或HTTP接口；恢复任务工具缺失仍以既有blocked错误返回。优雅等待延长不改变deferred/recovery_required的语义。

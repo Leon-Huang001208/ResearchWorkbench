@@ -1,5 +1,7 @@
 # Research Workbench Development Map
 
+`resident/model_provider_upgrade.py:review` 对 PR168 五个导航文件使用独立固定 Git 身份，其余产品保持原模型基线；近处测试 `test_navigation_payload_is_exact_and_does_not_expand_backend_scope` 覆盖接受精确导航、拒绝未知 UI/后端/依赖/模式及非祖先。修改该范围须正式交付，不修改现场自动白名单。
+
 业务模块导航重分组由 `ui/core.mjs` 规范化新旧 Hash 路由、`ui/shell.mjs` 组织主导航、`ui/workbench.mjs` 复用资产双视图/主题检索/ETF 模拟、`ui/intel.mjs` 增加主题检索栏目、`ui/app.mjs` 绑定页面归属与查询/交接异步结果。规范入口为 `#/assets`、`#/assets/funds`、`#/intel/search?kind=news|research|announcements`、`#/simulation/etf`；旧 `workbench` 地址保留映射，历史 section/API/持久化/DSH 均不变。近处回归为 `research_web_workbench.test.mjs`、`research_web_intel.test.mjs` 与 `tests/e2e/research_web_business_navigation.mjs`；行为归属见[UI 合同](research-web-ui.md#业务模块与导航-2026-10-21)。
 
 资产观察的 SVG 行情与指标计算位于 `ui/asset-chart.mjs/css`，页面组合位于 `asset-workspace.mjs/css`，控制器、兼容导航和证券资讯分别在 `asset-controller.mjs`、`asset-navigation.mjs`、`asset-news.mjs`。后端 `asset_routes.py` / `asset_workspace.py` 提供观察和幂等单区块刷新，`datahub/broker.py` 保留财务指标/期间语义后再映射 Wind。定点回归为 `test_asset_workspace.py`、`test_datahub_wind.py`、`research_web_asset_chart.test.mjs`、`research_web_asset_workspace.test.mjs`、原 workbench/intel 测试及 `tests/e2e/research_web_asset_workspace.mjs`。页面/读取/刷新合同见 UI、DataHub 和架构 03–05 章；不改变验证策略或平台归属。
