@@ -1,5 +1,7 @@
 # Mac mini Docker 开发与独立部署
 
+资产观察 `apply-assets-v2` 仅为 macOS Native 显式联合升级增加固定旧版／产品身份，不操作 Docker 镜像、容器、业务卷、网络或构建缓存。原容量、归属及活动保护保持；Native 本地、CI 或实际切换不充当 Docker 产品验收，未执行项继续 NOT_RUN。
+
 AF指标区新增的固定本地ECharts／Chart.js属于现有Web静态包，不新增容器、端口、卷、网络或数据库；Docker部署与容量／归属保护保持。wheel静态资源核对不能替代真实Docker构建与健康证据，未执行Docker产品验收仍为NOT_RUN，Native／Mac安装结果不互相冒充。
 
 本轮CI大日志下载预算修正只服务既有macOS Native显式部署；不改Docker部署、构建缓存、网络或卷。原全部资格检查保留，本机操作员仅有界等待120秒读取CI日志，非Docker验收证据。

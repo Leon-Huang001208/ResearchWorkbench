@@ -1,5 +1,7 @@
 # Research Web 能力与平台证据
 
+资产观察 v2 固定版本操作员属于 macOS Native 功能交付，本机真实 Git／恢复回归、原通用仓库门、同候选 Mac 干净安装、实际切换及保全分别绑定证据。没有 Windows／Linux 原生产品部署或实机验收，不从 Mac 派发其产品 CI；这些层级继续 NOT_RUN，由对应真机接手，也不触发桌面 Tauri／sidecar 交付。
+
 AF连续指标迁移是macOS宿主的Web功能开发；本地公式／后端／页面测试、浏览器对照、真实CJPY及同候选Mac干净安装分别取证，未取得者保留NOT_RUN。本地图表库需随wheel和Mac安装物逐字节核对；没有Windows／Linux原生产品验收证据，不从Mac触发其产品dispatch，也不触发Tauri／sidecar／桌面安装门。常驻部署另行授权。
 
 本轮只修正macOS Native显式部署的CI日志下载预算；Mac同候选安装与通用仓库检查仍必需。没有Windows/Linux原生部署或产品派发，Linux runner的通用CI不冒充Linux产品验收。

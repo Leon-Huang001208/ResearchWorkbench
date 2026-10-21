@@ -17,14 +17,21 @@ from research_workbench_entrypoint.resident import model_provider_upgrade as upg
 from research_workbench_entrypoint.resident.admission import MaintenanceBusy
 from research_workbench_entrypoint.resident.gateway_fence import BirthFence
 
+ASSET_PROFILES = (upgrade.ASSET_MODE, upgrade.ASSET_V2_MODE)
+
 
 def test_asset_profile_has_fixed_previous_and_rejects_unknown_mode():
     assert upgrade.previous_for(upgrade.ASSET_MODE) == "c68814db170900688d6a799a241efc098eb83f32"
+    assert upgrade.previous_for(upgrade.ASSET_V2_MODE) == "9bc12355c3b80e4e4459f4c250e13fc2634ed23d"
+    assert upgrade.ASSET_PAYLOAD == "54d4c8f9421c568de853a2f93263a2bfcd53422c"
+    assert upgrade.ASSET_V2_PAYLOAD == "93d62be64084a5c92541a4a008216c0b3f56c2f1"
+    assert upgrade.ASSET_MODES == frozenset(ASSET_PROFILES)
     assert upgrade.previous_for(upgrade.MODE) == upgrade.PREVIOUS
     with pytest.raises(upgrade.UpdateBlocked):
         upgrade.previous_for("unreviewed")
 
 
+@pytest.mark.parametrize("profile", ASSET_PROFILES)
 @pytest.mark.parametrize(
     "bad",
     [
@@ -40,9 +47,10 @@ def test_asset_profile_has_fixed_previous_and_rejects_unknown_mode():
         "evidence",
         "evidence-mode",
         "evidence-deleted",
+        "untracked",
     ],
 )
-def test_asset_review_uses_real_git_and_frozen_product(tmp_path, monkeypatch, bad):
+def test_asset_review_uses_real_git_and_frozen_product(tmp_path, monkeypatch, bad, profile):
     def git(*args):
         return subprocess.check_output(
             ["/usr/bin/git", "-C", str(tmp_path), *args], text=True
@@ -71,8 +79,9 @@ def test_asset_review_uses_real_git_and_frozen_product(tmp_path, monkeypatch, ba
     git("add", ".")
     git("commit", "-m", "payload")
     payload = git("rev-parse", "HEAD")
-    monkeypatch.setattr(upgrade, "ASSET_PREVIOUS", base)
-    monkeypatch.setattr(upgrade, "ASSET_PAYLOAD", payload)
+    prefix = "ASSET" if profile == upgrade.ASSET_MODE else "ASSET_V2"
+    monkeypatch.setattr(upgrade, prefix + "_PREVIOUS", base)
+    monkeypatch.setattr(upgrade, prefix + "_PAYLOAD", payload)
     monkeypatch.setattr(
         upgrade, "ASSET_EVIDENCE_SHA256", hashlib.sha256(b"reviewed evidence").hexdigest()
     )
@@ -104,12 +113,14 @@ def test_asset_review_uses_real_git_and_frozen_product(tmp_path, monkeypatch, ba
         git("checkout", "--orphan", "foreign")
         git("commit", "-m", "foreign")
     target = git("rev-parse", "HEAD")
+    if bad == "untracked":
+        (tmp_path / "untracked.txt").write_text("unreviewed checkout state")
     if bad is None:
-        result = upgrade.review(tmp_path, target, upgrade.ASSET_MODE)
+        result = upgrade.review(tmp_path, target, profile)
         assert name in result and upgrade.MODULE in result
     else:
         with pytest.raises(upgrade.UpdateBlocked):
-            upgrade.review(tmp_path, target, upgrade.ASSET_MODE)
+            upgrade.review(tmp_path, target, profile)
 
 
 @pytest.mark.parametrize(
@@ -157,9 +168,10 @@ def test_asset_activity_is_not_confused_with_native_idle(state, expected):
     assert upgrade.asset_queries_idle(state) is expected
 
 
+@pytest.mark.parametrize("profile", ASSET_PROFILES)
 @pytest.mark.parametrize("scope", ["primary", "private"])
 @pytest.mark.parametrize("change", ["delete", "modify", "empty", "remove_file"])
-def test_asset_business_index_preservation_covers_every_scope(tmp_path, scope, change):
+def test_asset_business_index_preservation_covers_every_scope(tmp_path, scope, change, profile):
     root = tmp_path / "research-web"
     user = tmp_path / "server/users" / str(uuid4()) / "research-web"
     value = {
@@ -170,7 +182,7 @@ def test_asset_business_index_preservation_covers_every_scope(tmp_path, scope, c
     for folder in (root, user):
         upgrade.c.atomic(folder / "index.json", value)
     before = upgrade.asset_index_snapshot(tmp_path)
-    state = {"mode": upgrade.ASSET_MODE, "asset_index_before": before}
+    state = {"mode": profile, "asset_index_before": before}
     upgrade.verify_asset_index(tmp_path, state)
     path = (root if scope == "primary" else user) / "index.json"
     if change == "remove_file":
@@ -251,7 +263,12 @@ def test_asset_snapshot_rejects_fifo_without_blocking(tmp_path):
 
 @pytest.mark.parametrize(
     "command,profile",
-    [("apply", upgrade.MODE), ("apply-assets", upgrade.ASSET_MODE), ("recover", upgrade.MODE)],
+    [
+        ("apply", upgrade.MODE),
+        ("apply-assets", upgrade.ASSET_MODE),
+        ("apply-assets-v2", upgrade.ASSET_V2_MODE),
+        ("recover", upgrade.MODE),
+    ],
 )
 def test_cli_selects_only_the_closed_profile(tmp_path, monkeypatch, command, profile):
     (tmp_path / "logs").mkdir()
@@ -266,12 +283,20 @@ def test_cli_selects_only_the_closed_profile(tmp_path, monkeypatch, command, pro
     assert calls == [{"recovering": command == "recover", "mode": profile}]
 
 
-def test_asset_journal_cannot_select_the_legacy_previous():
+@pytest.mark.parametrize(
+    "profile,previous",
+    [
+        (upgrade.ASSET_MODE, upgrade.PREVIOUS),
+        (upgrade.ASSET_V2_MODE, upgrade.PREVIOUS),
+        (upgrade.ASSET_V2_MODE, upgrade.ASSET_PREVIOUS),
+    ],
+)
+def test_asset_journal_cannot_select_the_legacy_previous(profile, previous):
     state = {
         "transaction": str(uuid4()),
         "version": 4,
-        "mode": upgrade.ASSET_MODE,
-        "previous": upgrade.PREVIOUS,
+        "mode": profile,
+        "previous": previous,
         "model_before": {
             "provider": "fixture",
             "model": "fixture",
@@ -541,7 +566,7 @@ def test_actual_gateway_health_field_is_used(tmp_path, monkeypatch):
     ops.verify(False)
 
 
-@pytest.mark.parametrize("profile", [upgrade.MODE, upgrade.ASSET_MODE])
+@pytest.mark.parametrize("profile", [upgrade.MODE, *ASSET_PROFILES])
 def test_immutable_old_controller_cannot_clear_primary_journal_under_gateway_fence(
     tmp_path, monkeypatch, profile
 ):
@@ -803,7 +828,7 @@ def real_operations(tmp_path, monkeypatch, request):
         "credential_configured": True,
         "credential_storage": "system_keychain",
     }
-    if mode == upgrade.ASSET_MODE:
+    if mode in upgrade.ASSET_MODES:
         state["asset_index_before"] = upgrade.asset_index_snapshot(home)
     system = {
         "primary": previous,
@@ -1003,14 +1028,14 @@ def test_real_operation_methods_converge_and_preserve_data(real_operations, fail
     assert json.loads((home / "install/manifest.json").read_text())["code_commit"] == expected
 
 
-@pytest.mark.parametrize("real_operations", [upgrade.ASSET_MODE], indirect=True)
+@pytest.mark.parametrize("real_operations", ASSET_PROFILES, indirect=True)
 @pytest.mark.parametrize("failed", [None, *upgrade.FORWARD])
 def test_asset_operation_methods_restore_the_asset_previous(real_operations, failed):
     home, state, system, make, uid = real_operations
     system["fail"] = failed
     with BirthFence(home / "server", uid, transaction=state["transaction"]) as fence:
         result = upgrade.execute(make(fence), state)
-    expected = state["target"] if failed is None else upgrade.ASSET_PREVIOUS
+    expected = state["target"] if failed is None else state["previous"]
     assert result["status"] == ("deployed" if failed is None else "rolled_back")
     assert system["primary"] == system["gateway"] == expected
     assert system["running"] and system["loaded"]
@@ -1020,11 +1045,11 @@ def test_asset_operation_methods_restore_the_asset_previous(real_operations, fai
     if failed is None:
         assert (
             upgrade.read_json(home / "resident/accepted.json")["compatibility_review"]["profile"]
-            == upgrade.ASSET_MODE
+            == state["mode"]
         )
 
 
-@pytest.mark.parametrize("real_operations", [upgrade.ASSET_MODE], indirect=True)
+@pytest.mark.parametrize("real_operations", ASSET_PROFILES, indirect=True)
 @pytest.mark.parametrize("phase", [*upgrade.FORWARD, *upgrade.BACKWARD])
 def test_asset_interrupted_phase_recovers_the_known_asset_previous(real_operations, phase):
     home, state, system, make, uid = real_operations
@@ -1034,11 +1059,11 @@ def test_asset_interrupted_phase_recovers_the_known_asset_previous(real_operatio
     with BirthFence(home / "server", uid, transaction=state["transaction"]) as fence:
         result = upgrade.execute(make(fence), state, recovering=True)
     assert result["status"] == "rolled_back"
-    assert system["primary"] == system["gateway"] == upgrade.ASSET_PREVIOUS
+    assert system["primary"] == system["gateway"] == state["previous"]
     assert not (home / "server/run/gateway-upgrade.json").exists()
 
 
-@pytest.mark.parametrize("real_operations", [upgrade.ASSET_MODE], indirect=True)
+@pytest.mark.parametrize("real_operations", ASSET_PROFILES, indirect=True)
 def test_asset_query_running_prevents_any_switch(real_operations):
     home, state, system, make, _uid = real_operations
     upgrade.c.atomic(
@@ -1051,7 +1076,7 @@ def test_asset_query_running_prevents_any_switch(real_operations):
     assert not (home / "server/run/gateway-upgrade.json").exists()
 
 
-@pytest.mark.parametrize("real_operations", [upgrade.ASSET_MODE], indirect=True)
+@pytest.mark.parametrize("real_operations", ASSET_PROFILES, indirect=True)
 @pytest.mark.parametrize("boundary", ["verify_target", "finish"])
 def test_asset_index_loss_keeps_recovery_fenced_and_never_claims_preservation(
     real_operations, boundary
@@ -1080,13 +1105,14 @@ def test_asset_index_loss_keeps_recovery_fenced_and_never_claims_preservation(
     assert upgrade.read_json(home / "research-web/index.json") == {}
 
 
+@pytest.mark.parametrize("profile", ASSET_PROFILES)
 @pytest.mark.parametrize(
     "value",
     [None, {}, {"primary": {}, "private": []}, {"primary": {"notes": "raw"}, "private": {}}],
 )
-def test_asset_recovery_requires_valid_frozen_index_digests(value):
+def test_asset_recovery_requires_valid_frozen_index_digests(value, profile):
     with pytest.raises(upgrade.UpdateBlocked, match="snapshot_invalid"):
-        upgrade.validate_asset_snapshot({"mode": upgrade.ASSET_MODE, "asset_index_before": value})
+        upgrade.validate_asset_snapshot({"mode": profile, "asset_index_before": value})
 
 
 def test_real_activity_in_gateway_only_window_blocks_all_effects(real_operations):
@@ -1165,7 +1191,7 @@ def test_release_repository_replacement_is_rejected(tmp_path, monkeypatch, chang
         upgrade.verify_release_repository(state, "primary")
 
 
-@pytest.mark.parametrize("profile", [upgrade.MODE, upgrade.ASSET_MODE])
+@pytest.mark.parametrize("profile", [upgrade.MODE, *ASSET_PROFILES])
 def test_validate_state_accepts_real_independent_release_clones(tmp_path, monkeypatch, profile):
     import hashlib
     import subprocess
@@ -1192,9 +1218,12 @@ def test_validate_state_accepts_real_independent_release_clones(tmp_path, monkey
         "fixture",
     )
     target = git(authority, "rev-parse", "HEAD")
-    monkeypatch.setattr(
-        upgrade, "PREVIOUS" if profile == upgrade.MODE else "ASSET_PREVIOUS", target
-    )
+    previous_name = {
+        upgrade.MODE: "PREVIOUS",
+        upgrade.ASSET_MODE: "ASSET_PREVIOUS",
+        upgrade.ASSET_V2_MODE: "ASSET_V2_PREVIOUS",
+    }[profile]
+    monkeypatch.setattr(upgrade, previous_name, target)
     upgrade.g.private_root(home / "resident")
     source = home / "resident/artifacts" / target / "source"
     source.parent.mkdir(parents=True)
@@ -1247,7 +1276,7 @@ def test_validate_state_accepts_real_independent_release_clones(tmp_path, monkey
         "binding": {},
     }
     state["manifest"] = {"code_commit": target}
-    if profile == upgrade.ASSET_MODE:
+    if profile in upgrade.ASSET_MODES:
         upgrade.g.private_root(home / "server")
         upgrade.g.private_root(home / "server/users")
         upgrade.c.atomic(home / "research-web/index.json", {"notes": {}})
@@ -1302,6 +1331,7 @@ def test_validate_state_accepts_real_independent_release_clones(tmp_path, monkey
         upgrade.validate_state(home, state)
 
 
+@pytest.mark.parametrize("real_operations", [upgrade.MODE, *ASSET_PROFILES], indirect=True)
 @pytest.mark.parametrize("crash_after", upgrade.FORWARD)
 def test_new_recovery_resumes_real_reservations_after_each_interruption(
     real_operations, crash_after
@@ -1328,7 +1358,7 @@ def test_new_recovery_resumes_real_reservations_after_each_interruption(
         ops.state = saved
         result = upgrade.execute(ops, saved, recovering=True)
     assert result["status"] == "rolled_back"
-    assert system["primary"] == system["gateway"] == upgrade.PREVIOUS
+    assert system["primary"] == system["gateway"] == state["previous"]
     assert system["running"] and system["loaded"]
     assert not (home / "resident/transaction.json").exists()
     assert not (home / "server/run/gateway-upgrade.json").exists()
@@ -1628,6 +1658,7 @@ def test_reviewed_ci_policy_only_changes_bounded_timeout(tmp_path, monkeypatch, 
             upgrade.review(tmp_path, "f" * 40)
 
 
+@pytest.mark.parametrize("real_operations", [upgrade.MODE, *ASSET_PROFILES], indirect=True)
 @pytest.mark.parametrize(
     "point",
     [
@@ -1722,6 +1753,7 @@ def test_finish_failure_never_signals_again_in_same_stack(
     monkeypatch.undo()
 
 
+@pytest.mark.parametrize("real_operations", [upgrade.MODE, *ASSET_PROFILES], indirect=True)
 @pytest.mark.parametrize(
     "boundary", ["publish-journal", "stage-recorded", "owner-published", "releasing"]
 )
