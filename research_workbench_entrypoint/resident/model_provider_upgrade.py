@@ -29,8 +29,13 @@ from .gateway_fence import BirthFence
 
 log = logging.getLogger(__name__)
 PREVIOUS = "5df8e17e04f1b588f7e742423d81fb8e0ba34cb2"
-# PR165 model backend plus reviewed PR166/168 presentation and navigation.
-PAYLOAD = "4e8be6ac7405733755e4a00be10898504e71710a"
+# PR165 model backend plus already merged PR166 login presentation only.
+PAYLOAD = "0d73c0348094f11c3440d8f6893c7a6896a8dbc8"
+# PR168's reviewed navigation; all other product files retain PAYLOAD's identity.
+NAVIGATION_PAYLOAD = "4e8be6ac7405733755e4a00be10898504e71710a"
+NAVIGATION_FILES = frozenset(
+    f"app/research_web/ui/{name}.mjs" for name in ("app", "core", "intel", "shell", "workbench")
+)
 MODULE = "research_workbench_entrypoint/resident/model_provider_upgrade.py"
 WORKFLOW = ".github/workflows/research-web-checks.yml"
 CONSTRAINTS = ".agents/project-constraints.json"
@@ -103,7 +108,11 @@ def review(source: Path, target: str):
     """Only the reviewed model payload plus this operator, its test and documentation."""
     c.clean(source, target)
     c.git(source, "merge-base", "--is-ancestor", PAYLOAD, target)
+    c.git(source, "merge-base", "--is-ancestor", NAVIGATION_PAYLOAD, target)
     paths = c.git(source, "diff", "--no-renames", "--name-only", PREVIOUS, target).splitlines()
+    # A reverted file disappears from PREVIOUS..target; still require every
+    # reviewed navigation file so the deployed product cannot silently regress.
+    paths = sorted(set(paths) | NAVIGATION_FILES)
     result = {}
     for name in paths:
         blob = c.git(source, "rev-parse", f"{target}:{name}")
@@ -127,14 +136,20 @@ def review(source: Path, target: str):
             if c.git(source, "show", f"{target}:{name}") != expected:
                 raise UpdateBlocked("model_upgrade_workflow_scope_changed")
         else:
-            expected_blob = c.git(source, "rev-parse", f"{PAYLOAD}:{name}")
-            expected_mode = c.git(source, "ls-tree", PAYLOAD, "--", name).split()[0]
+            expected = NAVIGATION_PAYLOAD if name in NAVIGATION_FILES else PAYLOAD
+            expected_blob = c.git(source, "rev-parse", f"{expected}:{name}")
+            expected_mode = c.git(source, "ls-tree", expected, "--", name).split()[0]
             actual_mode = c.git(source, "ls-tree", target, "--", name).split()[0]
             if blob != expected_blob or expected_mode != actual_mode:
                 raise UpdateBlocked("model_upgrade_payload_changed")
         result[name] = blob
     if MODULE not in result or TEST not in result:
         raise UpdateBlocked("model_upgrade_operator_missing")
+    log.info(
+        "model_upgrade_payload_reviewed files=%s navigation_files=%s",
+        len(result),
+        len(NAVIGATION_FILES.intersection(result)),
+    )
     return result
 
 

@@ -2,6 +2,8 @@
 
 联合升级分别锁定源码权威仓库及两个发布角色的 Git common directory/inode；发布主实例可为同 GitHub 仓库的独立 clone，不能强制搬入开发 worktree。构建源码继续来自受审 source，恢复逐角色复验身份。
 
+显式联合升级的导航范围固定为 PR168 的五个 UI blob；其他产品仍绑定原模型服务商基线，旧控制器、v4 journal、研究执行与会话/模型数据根不变。此范围由已审操作员源码和冻结恢复包共同校验，不新增部署机制。
+
 模型服务商后端的显式联合部署通过 `resident/model_provider_upgrade.py` 同步主实例 wheel、源码和网关绑定；version 4 全局意图先于出生占槽及主实例 journal，保留原控制器和自动兼容清单。活动/未知等待，失败恢复两端且保全原数据；详见[联合升级合同](research-web-gateway-upgrade.md#模型服务商联合升级)。
 
 冻结恢复任务显式保留系统与既有Homebrew工具PATH，部署前验证Git LFS可用，保持原Git钩子和身份检查；不安装依赖或改变研究服务拓扑。

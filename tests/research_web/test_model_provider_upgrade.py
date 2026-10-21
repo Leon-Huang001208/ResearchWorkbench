@@ -1073,6 +1073,83 @@ def test_retention_cannot_purge_existing_deleted_history_during_deployment(tmp_p
         upgrade.verify_retention(tmp_path)
 
 
+@pytest.mark.parametrize(
+    "bad",
+    [
+        None,
+        "ui",
+        "mode",
+        "backend",
+        "dependency",
+        "extra_ui",
+        "ancestry",
+        "reverted",
+        "all_reverted",
+    ],
+)
+def test_navigation_payload_is_exact_and_does_not_expand_backend_scope(monkeypatch, tmp_path, bad):
+    """The deployed navigation is a frozen product, not a general UI allowance."""
+    target = "f" * 40
+    navigation = "4e8be6ac7405733755e4a00be10898504e71710a"
+    ui = {
+        f"app/research_web/ui/{name}.mjs" for name in ("app", "core", "intel", "shell", "workbench")
+    }
+    paths = {upgrade.MODULE, upgrade.TEST, "app/research_web/service.py", *ui}
+    if bad == "dependency":
+        paths.add("requirements/web.lock")
+    if bad == "extra_ui":
+        paths.add("app/research_web/ui/unreviewed.mjs")
+    reverted = (
+        ui
+        if bad == "all_reverted"
+        else {"app/research_web/ui/app.mjs"} if bad == "reverted" else set()
+    )
+    paths.difference_update(reverted)
+    calls = []
+    monkeypatch.setattr(upgrade.c, "clean", lambda *_: None)
+
+    def git(_root, *args):
+        calls.append(args)
+        if args[0] == "merge-base":
+            if bad == "ancestry" and navigation in args:
+                raise upgrade.UpdateBlocked("resident_git_failed")
+            return ""
+        if args[0] == "diff":
+            return "\n".join(sorted(paths))
+        if args[0] == "rev-parse":
+            revision, name = args[-1].split(":", 1)
+            if name in ui:
+                if revision == target and name in reverted:
+                    return "a" * 40
+                if bad == "ui" and revision == target:
+                    return "c" * 40
+                return ("b" if revision in (target, navigation) else "a") * 40
+            if revision == target and (
+                bad == "backend"
+                and name == "app/research_web/service.py"
+                or bad == "dependency"
+                and name == "requirements/web.lock"
+                or bad == "extra_ui"
+                and name.endswith("unreviewed.mjs")
+            ):
+                return "b" * 40
+            return "a" * 40
+        if args[0] == "ls-tree":
+            mode = "100755" if bad == "mode" and args[1] == target and args[-1] in ui else "100644"
+            return f"{mode} blob {'a' * 40}\t{args[-1]}"
+        pytest.fail("unexpected payload review query")
+
+    monkeypatch.setattr(upgrade.c, "git", git)
+    if bad is not None:
+        with pytest.raises(upgrade.UpdateBlocked):
+            upgrade.review(tmp_path, target)
+    else:
+        result = upgrade.review(tmp_path, target)
+        assert set(result) == paths
+        assert all(result[name] == "b" * 40 for name in ui)
+        assert ("merge-base", "--is-ancestor", navigation, target) in calls
+
+
 @pytest.mark.parametrize("bad", ["dependency", "payload", "mode", "workflow"])
 def test_exact_profile_rejects_unreviewed_business_or_installation_changes(
     monkeypatch, tmp_path, bad
@@ -1130,6 +1207,8 @@ def test_reviewed_workflow_keeps_one_registered_upgrade_test(
             return f"{upgrade.MODULE}\n{upgrade.TEST}\n{upgrade.WORKFLOW}"
         if args[0] == "rev-parse":
             return "a" * 40
+        if args[0] == "ls-tree":
+            return "100644 blob " + "a" * 40 + "\t" + args[-1]
         if args[0] == "show":
             return (
                 original
@@ -1163,6 +1242,8 @@ def test_reviewed_ci_policy_only_changes_bounded_timeout(tmp_path, monkeypatch, 
         if args[0] == "diff":
             return f"{upgrade.MODULE}\n{upgrade.TEST}\n{policy}"
         if args[0] == "rev-parse":
+            if args[-1].split(":", 1)[-1] in upgrade.NAVIGATION_FILES:
+                return "a" * 40
             return "b" * 40 if args[-1].startswith("f" * 40) else "a" * 40
         if args[0] == "ls-tree":
             return "100644 blob " + "a" * 40 + "\t" + args[-1]

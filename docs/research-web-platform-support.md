@@ -2,6 +2,8 @@
 
 独立 clone 身份回归使用本机临时 Git 仓库，真实发布目录只做元数据预检；macOS 安装仍须最终候选 CI。Windows/Linux 原生产品部署保持 NOT_RUN，不从该回归推断其支持。
 
+PR168 导航的联合部署范围不扩展平台支持；本任务单列 Mac 源码/安装CI、实际 Native 切换及浏览器证据，Windows/Linux产品原生验收仍为NOT_RUN。
+
 模型服务商联合部署操作员仅支持 macOS 且核对受审旧版本和物理身份；本机恢复回归与同候选 Mac 安装 CI 分别留证。Windows/Linux 产品部署及真机验收 NOT_RUN，由对应设备接手，不由 Mac 触发其产品 dispatch。
 
 FinGPT三组比较的真实模型、Keychain和进程组验证限定macOS；Linux通用离线夹具不等于Linux产品支持。Windows/Linux实际运行和CI交接保持NOT_RUN。本机实验不自动变更生产部署。
