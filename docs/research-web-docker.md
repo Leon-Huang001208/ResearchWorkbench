@@ -306,3 +306,5 @@ Hot原件冻结的本轮PG容器仅为既有项目隔离验证资源：启动前
 两种已存在的密文格式保持独立：常规 staged launcher 默认 `docker-encrypted-file`（Fernet，同卷主密钥）；管理器显式 `RWB_MODEL_BACKEND=docker-encrypted` 绑定 AES-GCM 与独立只读主密钥卷。桥接拒绝混用参数和外来密文格式；无自动转换、回退、旧 Key 删除或重新生成主密钥。来源分别报告 `docker-encrypted-file` 与 `docker-encrypted`，配置不认证真实生成。
 
 AES 构造时在原锁内核验既有树的实例、固定 namespace/ref 文件名及完整 AEAD；A 树配 B 完整密钥/身份不会成为未配置的新写目标，修复不执行卷迁移或清理。
+
+模型profile仍使用实例绑定的原加密模型后端，不新增卷或主密钥。新AES-GCM记录携带公开账号并核对文件名和AAD，旧记录不转换；所有记录重启校验继续拒绝未知/损坏绑定。本次Mac任务不从Mac dispatch Linux/Windows产品CI，Docker实际交付仍按对应真机证据。

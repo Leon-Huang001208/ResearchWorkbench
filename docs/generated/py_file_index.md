@@ -3688,6 +3688,7 @@ Imports:
 - `logging`
 - `os`
 - `pathlib`
+- `re`
 - `runtime_state`
 - `secrets`
 - `stat`
@@ -3708,7 +3709,7 @@ Classes:
   - methods: __init__, _name, _verify_root, _locked_directory, _read, get_password, set_password, delete_password
 - `EncryptedModelCredentialBackend`
   - AES-256-GCM model records; a separate read-only instance key is mandatory.
-  - methods: __init__, _reference, _load_key, _cipher, _aad, _decrypt, get_password, set_password, delete_password
+  - methods: __init__, _profile_ref, _reference, _load_key, _cipher, _aad, _decrypt, get_password, set_password, delete_password
 
 Functions:
 - `_safe_errors`
@@ -5676,6 +5677,8 @@ Classes:
 - `Answers`
 - `ModelConfig`
   - methods: declared_connection, reject_masked_key
+- `ModelProfileConfig`
+  - methods: profile_name
 
 Functions:
 - `create_app`
@@ -6418,6 +6421,7 @@ Imports:
 - `logging`
 - `os`
 - `pathlib`
+- `re`
 - `secrets`
 - `sys`
 - `typing`
@@ -6431,6 +6435,7 @@ Classes:
   - methods: __init__, get_password, delete_password, set_password
 
 Functions:
+- `is_model_ref`
 - `docker_backend`
 - `initialize_docker_store`
   - Admin-only one-time initialization; existing resources are never reset.
@@ -6439,8 +6444,51 @@ Functions:
 - `system_backend`
   - Select the approved backend directly, bypassing keyring configuration.
 - `execute`
-  - Operate only on this canonical data home's two fixed model accounts.
+  - Operate on fixed legacy accounts or registered, isolated profile accounts.
 - `main`
+
+
+## `app/research_web/model_profile_registry.py`
+
+Module docstring:
+> Non-secret profile identities shared by Host and the isolated credential bridge.
+
+Imports:
+- `__future__`
+- `copy`
+- `json`
+- `logging`
+- `pathlib`
+- `re`
+- `urllib.parse`
+
+Functions:
+- `is_profile_ref`
+- `validate_registry`
+- `bootstrap_profiles`
+- `credential_account`
+  - Resolve fixed runtime aliases without reading, copying or logging any Key.
+
+
+## `app/research_web/model_profiles.py`
+
+Module docstring:
+> Named model connections; no second credential store or transcript projection.
+
+Imports:
+- `__future__`
+- `asyncio`
+- `client`
+- `core.observability`
+- `delivery`
+- `model_profile_registry`
+- `secrets`
+- `store`
+- `uuid`
+
+Classes:
+- `ModelProfilesMixin`
+  - methods: model_profile_registry, model_profile_identity, assert_session_model_profile, require_model_profiles_idle, model_profile_referenced, _store_model_profiles, list_model_profiles, _sync_profile_flags, save_model_profile, activate_model_profile, archive_model_profile
 
 
 ## `app/research_web/multiuser/__init__.py`
@@ -8094,7 +8142,7 @@ Imports:
 - `json`
 - `local_integrations`
 - `mcp_registry`
-- ... 26 more
+- ... 28 more
 
 Classes:
 - `_SessionOwnedMCPRuntime`

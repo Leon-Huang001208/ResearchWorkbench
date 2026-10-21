@@ -11,6 +11,7 @@ import hashlib
 import json
 import logging
 import os
+import re
 import secrets
 import stat
 import time
@@ -380,8 +381,6 @@ class EncryptedModelCredentialBackend(PrivateFileCredentialBackend):
                 for name in os.listdir(directory):
                     if not name.endswith(".json"):
                         continue
-                    if name not in references:
-                        raise CredentialBackendError("model_record_binding_invalid")
                     record = self._read(directory, name)
                     if record is None:
                         raise CredentialBackendError("model_ciphertext_invalid")
@@ -395,14 +394,26 @@ class EncryptedModelCredentialBackend(PrivateFileCredentialBackend):
                         or _encode(payload["password"]) != record[0]
                     ):
                         raise CredentialBackendError("model_ciphertext_invalid")
-                    # Validate every existing record, not just the requested account.
-                    # A foreign tree cannot be masked by an empty current namespace.
-                    self._decrypt(payload["password"], service, references[name])
+                    # New envelopes carry their public profile account. Authenticate
+                    # both the exact filename and the account-bound AAD on restart.
+                    account = references.get(name)
+                    if account is None:
+                        envelope = json.loads(payload["password"])
+                        account = envelope.get("account") if isinstance(envelope, dict) else None
+                        if not self._profile_ref(account) or self._name(service, account) != name:
+                            raise CredentialBackendError("model_record_binding_invalid")
+                    self._decrypt(payload["password"], service, account)
+
+    @staticmethod
+    def _profile_ref(account):
+        return (
+            isinstance(account, str)
+            and re.fullmatch(r"RESEARCH_MODEL_PROFILE_[0-9a-f]{32}", account) is not None
+        )
 
     def _reference(self, service: str, account: str) -> None:
-        if (
-            service != "org.research-workbench.model." + self.instance
-            or account not in self.MODEL_REFS
+        if service != "org.research-workbench.model." + self.instance or (
+            account not in self.MODEL_REFS and not self._profile_ref(account)
         ):
             raise CredentialBackendError("model_record_binding_invalid")
 
@@ -440,7 +451,13 @@ class EncryptedModelCredentialBackend(PrivateFileCredentialBackend):
         payload = json.loads(raw)
         if (
             not isinstance(payload, dict)
-            or set(payload) != {"version", "algorithm", "instance", "nonce", "ciphertext"}
+            or set(payload)
+            != (
+                {"version", "algorithm", "instance", "nonce", "ciphertext", "account"}
+                if self._profile_ref(account)
+                else {"version", "algorithm", "instance", "nonce", "ciphertext"}
+            )
+            or (self._profile_ref(account) and payload.get("account") != account)
             or type(payload["version"]) is not int
             or payload["version"] != 1
             or payload["algorithm"] != "AES-256-GCM"
@@ -481,6 +498,8 @@ class EncryptedModelCredentialBackend(PrivateFileCredentialBackend):
                 "nonce": base64.b64encode(nonce).decode(),
                 "ciphertext": base64.b64encode(ciphertext).decode(),
             }
+            if self._profile_ref(account):
+                payload["account"] = account
             super().set_password(service, account, json.dumps(payload, sort_keys=True))
 
     def delete_password(self, service: str, account: str) -> None:

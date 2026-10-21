@@ -34,7 +34,7 @@ Native 可按[安装指南](docs/research-web-installation.md#可选tailscale-�
 显式启用单个 Tailscale 私网 HTTPS origin；默认仍只接受本机访问，不自动开放公网。
 浏览器点击外部链接可打开首页；例外仅限用户触发的顶层 GET 导航，不放开跨站 API。
 
-模型设置支持兼容服务的 Base URL 与模型 ID；凭据仍只进入本实例的既有私有存储。
+模型设置按服务商管理多个命名连接，提供 DeepSeek 官方和自定义兼容服务；独立保存凭据，切换只影响新研究默认连接，旧会话及显式选模的研究任务日程保留绑定。见[模型服务设置](docs/research-web-ui.md#模型服务商与连接)。
 外部资料源由连接中心显示配置与准入状态，失败会保留明确状态；已保存或已配置不代表实际调用通过。
 详见[连接中心](docs/research-web-datahub.md)与[能力合同](docs/research-web-capabilities.md)。
 

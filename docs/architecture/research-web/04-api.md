@@ -334,6 +334,11 @@ MCP staging、安装 payload、清单与确认令牌目录的 Windows mode 修�
 | GET | `/api/research/runtime/tabbit` | `app/research_web/main.py` |
 | PUT | `/api/research/runtime/tabbit` | `app/research_web/main.py` |
 | GET | `/api/research/models` | `app/research_web/main.py` |
+| GET | `/api/research/model-profiles` | `app/research_web/main.py` |
+| POST | `/api/research/model-profiles` | `app/research_web/main.py` |
+| PUT | `/api/research/model-profiles/{identity}` | `app/research_web/main.py` |
+| POST | `/api/research/model-profiles/{identity}/activate` | `app/research_web/main.py` |
+| DELETE | `/api/research/model-profiles/{identity}` | `app/research_web/main.py` |
 | PUT | `/api/research/runtime/model` | `app/research_web/main.py` |
 | POST | `/api/research/runtime/model/test` | `app/research_web/main.py` |
 | GET | `/api/research/workspaces` | `app/research_web/main.py` |
@@ -585,3 +590,7 @@ GET会话列表及父详情不因已验证活动的历史子mode=unknown整体�
 旧网页记录只有as_of值、没有可追溯出版meta/header证据时，当前只读投影保守返回unknown；有正文header但与旧日期冲突时同样保留unknown。旧索引和原文不回写，此状态不能被当成来源已核验；新读取会保存实际出版证据，未来发布日期继续触发原截止日门。
 
 原交付层与报告格式器共用同一task_id的冻结required_formats；显式UI/能力选择优先，deep无选择时才从用户明确格式文本取默认。上下文和Host投影均读取Store中的同一回执，拒绝错任务和未知格式，不能由模型或传入的交付投影减项。
+
+### 模型连接管理 API
+
+GET /model-profiles 返回 items/active_id；每项只含 id/name/provider/model/base_url/protocol/credential_mode、active、credential_required/configured 及 uncertain，无 Key 或物理 credential_ref。POST/PUT 使用原 ModelConfig 字段加 name；Key 可省略保留，但新地址不能继承旧端点凭据。POST /{identity}/activate 从服务端已保存配置激活，禁止客户端携带新的连接参数。DELETE 只归档，无自动凭据删除；被会话/日程引用或当前协议路由拒绝归档。运行/未知活动拒绝修改，凭据写入回执未知保留 durable uncertain。旧 PUT /runtime/model 保持字段和返回契约，同步当前 profile。服务器邀请制仍只允许 DeepSeek 官方，不能通过新路径添加/激活任意兼容上游。
