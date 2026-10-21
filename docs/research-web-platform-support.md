@@ -1,5 +1,7 @@
 # Research Web 能力与平台证据
 
+模型服务商联合部署操作员仅支持 macOS 且核对受审旧版本和物理身份；本机恢复回归与同候选 Mac 安装 CI 分别留证。Windows/Linux 产品部署及真机验收 NOT_RUN，由对应设备接手，不由 Mac 触发其产品 dispatch。
+
 FinGPT三组比较的真实模型、Keychain和进程组验证限定macOS；Linux通用离线夹具不等于Linux产品支持。Windows/Linux实际运行和CI交接保持NOT_RUN。本机实验不自动变更生产部署。
 
 stage 预留保全释放属于 Mac mini 管理平面，本机 Docker Desktop 单独验收；不认证 Windows/Linux 产品或跨平台原生支持。
