@@ -123,12 +123,19 @@ let mcpMarketplaceState = { registries: [], installations: [], approvals: [], ap
 const questionDrafts = new Map();
 const controller = createController({ api, onNavigate: (hash) => { history.pushState(null, '', hash); } });
 const state = controller.state;
+let sidebarControlFocused = false;
+window.addEventListener('focusin', event => {
+  sidebarControlFocused = Boolean(event.target?.matches?.('[data-toggle-sidebar], [data-collapse-sidebar]'));
+});
+window.addEventListener('focusout', event => {
+  if (event.target?.matches?.('[data-toggle-sidebar], [data-collapse-sidebar]') && event.target.getClientRects().length) sidebarControlFocused = false;
+});
 window.matchMedia('(max-width: 1050px)').addEventListener?.('change', event => {
-  const sidebarFocused = document.activeElement?.matches?.('[data-toggle-sidebar], [data-collapse-sidebar]');
+  const sidebarFocused = document.activeElement?.matches?.('[data-toggle-sidebar], [data-collapse-sidebar]') || (sidebarControlFocused && document.activeElement === document.body);
   sidebarOpen = false; contextOpen = false;
   safeLog('research_navigation_viewport_changed');
   render();
-  if (sidebarFocused) focusSidebarControl(document, event.matches);
+  if (sidebarFocused) focusSidebarControl(document, event.matches, !event.matches && !sidebarCollapsed);
 });
 const hotController = createHotController({api,onChange:()=>render(),isActive:()=>state.route.page==='intel'&&state.route.intelTab==='hot'||state.route.page==='settings'&&state.route.settingsSection==='hot'});
 const intelController = createIntelController({ onChange: () => { if (state.route.page === 'intel') render(); } });

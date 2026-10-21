@@ -466,7 +466,7 @@ body { line-height: 1.5; }
 .recent-item { min-height: 32px; font-size: 12px; padding: 7px 11px; }
 .navigation-footer { border: 0; bottom: 26px; left: 14px; right: 14px; }
 .sidebar-collapsed .new-research, .sidebar-collapsed .search-trigger { justify-content: center; padding-inline: 0; }
-.sidebar-collapsed .new-research span, .sidebar-collapsed .search-trigger span { display: none; }
+.sidebar-collapsed .new-research span { display: none; }
 .topbar { padding: 0 30px; border-bottom: 0; }
 .runtime-status { font-size: 11px; }
 .search-popover { position: fixed; left: max(16px, calc(50vw - 260px)); top: 70px; width: min(520px, calc(100vw - 32px)); padding: 12px; border: 1px solid var(--control-line); border-radius: 12px; background: var(--surface); box-shadow: var(--shadow); z-index: 60; }
