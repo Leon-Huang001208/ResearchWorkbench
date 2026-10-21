@@ -168,3 +168,6 @@ Host元数据专项升级测试复用Research Web Checks现有test_resident.py�
 2026-10-18报告质量修复：向Research Web Checks原Python步骤加入calculation、quality_scope、delivery_cache三个定点模块；不扩为全目录、不增加job/runner/模型请求。当前仓库PUBLIC。最近五个成功run 39046323748/39045609664/39044959112/39044358075/39026388921，创建至结束540/521/523/392/494秒，均值494秒。本机计算模块约0.2秒、scope两例6.45秒，新增预算15秒；保留原20分钟、concurrency和macOS安装独立验收，纯缓存测试不作为Linux/Windows产品原生证据。
 
 2026-10-19 FinGPT三组隔离比较：test_fingpt_comparison.py加入原Web Checks，JS沿research_web*.test.mjs；缓存重建回归沿原Project Constraints unittest，不新增job/runner/依赖或平台dispatch。实时PUBLIC；最近5次成功Web Checks 39230251649/39228257055/39224153699/39220771650/39219558278创建至结束685/666/650/604/565秒，均值634秒；新真实进程离线回归本机约3秒，预留20秒。保留原超时/concurrency及同候选Mac Bootstrap。CI不访问实际凭据、不运行真实研究；用户另行授权3次本机模型研究，不能算入离线验收。
+
+
+资产静态闭包验收在既有 Mac Bootstrap 启动步骤增加七次固定本机 HTTP 读取及 checkout 字节比较，预计不足 1 秒、预留 5 秒；原 job/runner/超时不变，保留同候选哈希摘要。真实 CJPY 验收仅在用户明确授权的本机隔离目录执行，与 CI 零供应商/模型调用边界分开。

@@ -347,3 +347,6 @@ Docker 构建与验收任务的完成检查必须包含资源收尾：临时资�
 - 只修改 Research Web 页面、Web API 或 Runtime：按 Web 测试与项目约束交付，不运行 Desktop Verify。
 
 模型服务多连接先复现固定ref不能隔离账号，再离线覆盖legacy绑定、独立Key、未知提交、闲时门、日程锁内竞争及历史子研究；正式UI使用隔离示意数据验证，不读取生产Key或调用模型。完整Router、独立评审与同候选Mac Bootstrap后方可合并，常驻部署另行授权。
+
+
+资产观察安装验收复用既有 macOS Bootstrap 原启动步骤：逐个读取七个新增/组合的资产静态模块与样式，并和 checkout 字节比较；只上传 asset-static-smoke.json 路径/哈希摘要，不触发供应商、模型或新作业。
