@@ -21,6 +21,7 @@ log = get_logger(__name__)
 BLOCK_QUERIES = {
     "overview": "market_snapshot",
     "history": "market_bars",
+    "valuation": "market_snapshot",
     "financials": "financials",
     "activity": "market_activity",
     "margin": "market_activity",
@@ -171,10 +172,25 @@ class AssetWorkspace:
         result["request_parameters"] = {
             key: value
             for key, value in row.get("request", {}).items()
-            if key in {"start_date", "end_date", "frequency", "adjustment"}
+            if key
+            in {
+                "start_date",
+                "end_date",
+                "frequency",
+                "adjustment",
+                "section_sources",
+                "section_ranges",
+            }
         }
+        # Project defaults for legacy records without migrating persisted requests.
+        result["request_parameters"].setdefault("section_sources", {})
+        result["request_parameters"].setdefault("section_ranges", {})
         result["blocks"] = {
-            name: {key: value for key, value in block.items() if key != "sample"}
+            name: {
+                **{key: value for key, value in block.items() if key != "sample"},
+                "requested_source": self._source(row, name),
+                "requested_range": self._requested_range(row, name),
+            }
             for name, block in row["blocks"].items()
         }
         result["dataset_ids"] = [
@@ -266,15 +282,22 @@ class AssetWorkspace:
 
     def _parameters(self, row: dict, block: str) -> dict[str, Any]:
         request = row["request"]
+        interval = request.get("section_ranges", {}).get(block, request)
         asset = row["asset"]
         if block == "overview":
             return {"assets": [asset], "asset_type": row["asset_type"]}
+        if block == "valuation":
+            return {
+                "assets": [asset],
+                "asset_type": row["asset_type"],
+                "fields": ["close", "pe_ttm", "pb", "total_shares"],
+            }
         if block == "history":
             return {
                 "asset": asset,
                 "asset_type": row["asset_type"],
-                "start_date": request.get("start_date"),
-                "end_date": request.get("end_date"),
+                "start_date": interval.get("start_date"),
+                "end_date": interval.get("end_date"),
                 "frequency": request.get("frequency", "daily"),
                 "adjustment": request.get("adjustment", "qfq"),
             }
@@ -286,8 +309,8 @@ class AssetWorkspace:
             return {
                 "asset": asset,
                 "dataset": "margin_trading" if block == "margin" else "fund_flow",
-                "start_date": request.get("start_date"),
-                "end_date": request.get("end_date"),
+                "start_date": interval.get("start_date"),
+                "end_date": interval.get("end_date"),
             }
         if block == "announcements":
             return {
@@ -298,6 +321,16 @@ class AssetWorkspace:
         if block == "news":
             return {"query": asset, "limit": 30}
         return {"query": asset, "document_type": "all", "limit": 30}
+
+    def _source(self, row: dict, block: str) -> str:
+        return row["request"].get("section_sources", {}).get(block, row["source"])
+
+    def _requested_range(self, row: dict, block: str) -> dict[str, Any]:
+        return {
+            key: value
+            for key, value in self._parameters(row, block).items()
+            if key in {"start_date", "end_date"} and value is not None
+        }
 
     async def _run_block(
         self, row: dict, block: str, *, refresh_call_id: str | None = None
@@ -314,7 +347,7 @@ class AssetWorkspace:
                 refresh_call_id or f"asset:{row['id']}:{block}",
                 BusinessQuery(
                     capability=BLOCK_QUERIES[block],
-                    source=row["source"],
+                    source=self._source(row, block),
                     parameters=parameters,
                     refresh=refresh_call_id is not None,
                 ),
@@ -374,7 +407,10 @@ class AssetWorkspace:
     ) -> None:
         try:
             selected = list(row["blocks"]) if blocks is None else blocks
-            if row["source"] in {"auto", "wind", "tinysoft", "akshare"}:
+            if any(
+                self._source(row, block) in {"auto", "wind", "tinysoft", "akshare"}
+                for block in selected
+            ):
                 for block in selected:
                     await self._run_block(row, block, refresh_call_id=refresh_call_id)
             else:

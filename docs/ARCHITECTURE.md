@@ -4,7 +4,7 @@
 
 资产观察的显式联合部署沿既有 v4 主实例/网关事务，以封闭 profile 固定 c688 旧版与 PR171 产品；原不可变控制器、DSH、节点及恢复拓扑不变。部署空闲证明同时覆盖未完成的资产观察/DataHub 查询，部署合同见[固定版本部署](research-web-gateway-upgrade.md#资产观察固定版本联合部署)。
 
-资产观察沿用 Host 内的 AssetWorkspace → DataHub Broker → 会话快照链路；A 股页面由原生 SVG 行情主图、证券身份/自选栏、报价栏和专题阅读区组成。显式单区块刷新通过既有观察记录的 POST 入口重新取数，旧快照与失败状态分别保留；研究情报的新闻/公告入口迁入资产观察，兼容原只读 Golddata API。没有新增行情服务、研究引擎、供应商或依赖，合同见[资产页面](research-web-ui.md#资产观察工作台)与[API](architecture/research-web/04-api.md#资产观察区块刷新)。
+资产观察沿用 Host 内的 AssetWorkspace → DataHub Broker → 会话快照链路，A 股指标区迁入原 AlphaFoundry 连续工作区：基本行情、五图终端、估算筹码、资金流及五张基本面卡片。浏览器内 `asset-indicators.mjs` 确定性计算，`asset-projection.mjs` 保留真实字段和缺口；ECharts 5.5.0 / Chart.js 4.4.7 以已批准的固定本地资源随包交付。请求只增加分区来源、日期与 valuation 区块，HTTP路径、单区块刷新和会话快照边界保持；不迁 Agent 委员会、数据库或协调器，DSH仍为唯一研究执行引擎。合同见[资产页面](research-web-ui.md#资产观察工作台)与[API](architecture/research-web/04-api.md#资产观察区块刷新)。
 
 联合升级分别锁定源码权威仓库及两个发布角色的 Git common directory/inode；发布主实例可为同 GitHub 仓库的独立 clone，不能强制搬入开发 worktree。构建源码继续来自受审 source，恢复逐角色复验身份。
 

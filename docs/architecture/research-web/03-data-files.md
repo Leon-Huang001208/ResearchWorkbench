@@ -1,5 +1,7 @@
 # DataHub、研究资料与实际文件
 
+AF连续指标迁移不增加数据库或迁移：`section_sources`／`section_ranges`随原 `asset_observations` 请求保存，旧记录缺省为空映射，公开request_parameters与区块状态回显有效来源／范围。valuation仍是所属会话的market_snapshot数据集；六MA／BOLL／MACD／KDJ／RSI和180桶筹码只在浏览器由快照派生，不写回来源。筹码明确估算，财务／股东／行业／事件／宏观缺字段保留空位，资金净额和北向持仓不冒充流入流出。来源、交易日、单位、复权、TTM／MRQ及报告期保留。
+
 CI大日志读取预算30→120秒仅改变资格证明的网络等待，不写DataHub、会话或业务索引。资产专项仍核对主实例及私有账号完整索引摘要，读取器完整SHA256绑定入原恢复包，不覆盖业务数据。
 
 资产观察部署沿原v4 journal记录profile、固定旧版、目标及逐路径Git身份；旧记录仍由原model profile解释。资产/查询状态只读用于空闲证明，不恢复或重写观察数据；保全摘要、业务数据根和凭据存储保持。

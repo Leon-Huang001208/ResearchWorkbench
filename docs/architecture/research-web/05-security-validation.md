@@ -1,5 +1,7 @@
 # 安全边界与验证方法
 
+AF指标迁移保留原认证、每用户数据根、封闭区块、快照及取消边界。section_sources只接受来源ID，section_ranges只接受history／activity／margin完整合法日期对，不接收路径、表达式或凭据；显式专业来源失败不扩大为自动来源。valuation复用现有market_snapshot权限，不新增Provider。固定本地ECharts／Chart.js不引入外部CDN；公式、180桶估算筹码及页面空态不获得研究事实或质量认证。真实CJPY、同候选Mac安装、浏览器交互和原DSH质量证据各自留验。
+
 CI日志下载采用120秒上限，普通命令30秒、日志8MB上限、真实checkout树、三CI与独立评审仍强制。资产专项仅接受固定读取器完整SHA256和100644模式，变更/缺失/回退拒绝；不改自动白名单或不可变controller。
 
 资产部署profile固定c688旧版和PR171产品；实际差异和固定产品改变路径都校验blob/模式，不能通过回退使路径从diff消失来绕过。新mode不修改自动白名单；资产观察/DataHub非终态也拒绝停机。真实Git负例、双profile恢复及原不可变控制器夹具分别验证边界。

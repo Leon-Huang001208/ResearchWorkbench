@@ -2,7 +2,7 @@
 
 macOS显式资产部署的CI日志复核使用120秒有界下载，普通资格命令仍30秒；读取器完整SHA256由已审操作员绑定。无需新依赖或安装参数，原干净安装、固定DSH、Doctor与恢复门保持，详见[部署合同](research-web-gateway-upgrade.md)。
 
-资产观察工作台的 SVG 图表、证券资讯和单区块刷新随既有 Web 包安装，不新增 Python/Node 包、厂商 SDK、配置项或模型权限。已核对 `requirements/web.in`、`requirements/web.lock`、`scripts/setup_web.py` 与原 Bootstrap：依赖锁、公开安装入口和固定 DSH 保持；兼容性仍须最终候选的 `macos-14` 干净安装、3081/8088 健康和 Doctor 证明。本机已有环境与隔离浏览器不替代该门，真实 Wind/Golddata 可用性另行取证。
+资产观察 AF 连续指标区随既有 Web 包安装，新增已独立授权的本地静态 ECharts 5.5.0 与 Chart.js 4.4.7，固定版本、许可及SHA-256，不依赖CDN或开发者全局包；无新Python包、厂商SDK、秘密或模型权限。公开 `./setup-web.sh`、`setup-web.cmd` 和 `python scripts/setup_web.py`、`requirements/web.in`／`web.lock`、固定DSH及原Bootstrap合同保持。交付须核对本地静态库、wheel及干净安装物逐字节一致，并由最终候选 `macos-14` 的3081／8088健康与Doctor证明安装兼容；核对文件无须修改的结论也须由安装CI验证。本机已有环境与浏览器夹具不能替代此门，真实CJPY冷启动首次查询、逐区刷新及Wind可用性另留证据。
 
 显式联合升级保留独立的常驻发布 clone；仅构建源码使用受审 source 的 common directory，两发布角色分别绑定原 Git 目录/inode 和同一 GitHub origin。目标对象缺失在停机前拒绝，不修改既有安装布局或凭据。
 
@@ -920,4 +920,4 @@ AES 载入进一步认证全部既有模型记录；错误密文树/实例绑定
 十一套看板资产随 Git checkout 提供，公开安装器继续使用锁定依赖与固定 DSH，无额外 Node/Python 依赖和开发服务器。Gold／Dollar 核心使用本站原生快照；其余九套是明确标记的静态导入资产。无需创建凭据或调用模型即可验证页面资源与数据桥接；模型生成和供应商数据可用性仍独立验收。安装验收须检查十一套入口、核心脚本和样式在干净 checkout 可读取。
 
 
-资产观察安装验收复用既有 macOS Bootstrap 原启动步骤：逐个读取七个新增/组合的资产静态模块与样式，并和 checkout 字节比较；只上传 asset-static-smoke.json 路径/哈希摘要，不触发供应商、模型或新作业。
+资产观察安装验收复用既有 macOS Bootstrap 启动步骤，读取全部新增／组合的资产静态模块、样式和固定本地图表库并和checkout逐字节比较，上传 `asset-static-smoke.json` 路径／哈希摘要；资源须进入wheel和实际安装目录。此检查不调用供应商、模型或新作业，也不表示浏览器交互或真实CJPY已验收。

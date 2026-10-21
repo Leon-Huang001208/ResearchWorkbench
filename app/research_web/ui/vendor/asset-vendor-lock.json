@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "purpose": "AlphaFoundry indicator workspace local chart dependencies",
+  "packages": [
+    {
+      "package": "echarts",
+      "version": "5.5.0",
+      "source": "https://registry.npmjs.org/echarts/-/echarts-5.5.0.tgz",
+      "npm_integrity": "sha512-rNYnNCzqDAPCr4m/fqyUFv7fD9qIsd50S6GDFgO1DxZhncCsNsG7IfUlAlvZe5oSEQxtsjnHiUuppzccry93Xw==",
+      "file": "echarts-5.5.0.min.js",
+      "sha256": "42f8329d989b6f6539dd2b15bbdf0d82025762ac112fbb60dc57b27d7bcf3946",
+      "bytes": 1029203,
+      "license_file": "echarts-5.5.0.LICENSE.txt",
+      "license_sha256": "634293835b43a6dd2094fa39182a3d9a6b9ca43b7fdb9ac354e8037af2a3093a",
+      "notice_file": "echarts-5.5.0.NOTICE.txt",
+      "notice_sha256": "fa99ac3af859d0e13166906dc53a73ad34a08898da7e8ae83407275496e9e30c"
+    },
+    {
+      "package": "chart.js",
+      "version": "4.4.7",
+      "source": "https://registry.npmjs.org/chart.js/-/chart.js-4.4.7.tgz",
+      "npm_integrity": "sha512-pwkcKfdzTMAU/+jNosKhNL2bHtJc/sSmYgVbuGTEDhzkrhmyihmP7vUc/5ZK9WopidMDHNe3Wm7jOd/WhuHWuw==",
+      "file": "chart-4.4.7.umd.js",
+      "sha256": "2812cb8825fdc57469eb2f7bb055e9429244e599920511ee477e828499b632cb",
+      "bytes": 205615,
+      "license_file": "chart-js-4.4.7.LICENSE.txt",
+      "license_sha256": "41a84aa2caba645f966a18d9c2056b73e6d3a81d80bc0046bc0011a2634d4cce"
+    }
+  ]
+}

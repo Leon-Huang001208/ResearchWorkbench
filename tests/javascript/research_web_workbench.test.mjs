@@ -220,13 +220,13 @@ test('asset workspace renders independent states, native chart and personal obse
     },
     watchlists: [{ id: 'w1', name: '核心观察', items: [] }], notes: [], alerts: [], notifications: [],
   });
-  for (const label of ['资产概览', '历史行情', '财务指标', '开盘', '最高', '成交量', '换手率', '区间最高', 'K 线与技术指标', 'MACD', 'KDJ', 'RSI', 'BOLL', '当前覆盖限制', '主题暴露', '来源与口径', '自选与观察', '提醒规则', '交给 FinGPT', '交给 Claw']) assert.match(html, new RegExp(label));
+  for (const label of ['资产概览', '历史行情', '财务指标', '开盘', '最高', '成交量', '换手率', '区间最高', 'K 线与技术指标', 'MACD', 'KDJ', 'RSI', 'BOLL', '当前覆盖限制', '筹码分布', '股东名称', '行业PE', '宏观', '各区块日期范围', '自选与观察', '提醒规则', '交给 FinGPT', '交给 Claw']) assert.match(html, new RegExp(label));
   assert.match(html, /akshare/); assert.match(html, /2026-09-05/);
-  assert.match(html, /<svg[^>]+aria-label="包含 K 线、成交量、MACD、KDJ 和 RSI 的行情图[^"]*"/);
-  assert.match(html, /class="asset-candle (?:up|down)"/);
+  assert.match(html, /data-asset-echarts[^>]+aria-label="包含 K 线、成交量、MACD、KDJ 和 RSI 的联动行情图"/);
+  assert.match(html, /data-asset-chip-chart[^>]+aria-label="OHLCV估算筹码分布"/);
   assert.match(html, /换手率 <strong>0\.51%<\/strong>/);
   assert.match(html, /query_failed/);
-  assert.doesNotMatch(html, /echarts|chart\.js|unpkg|演示/);
+  assert.doesNotMatch(html, /https?:\/\/[^" ]*(?:cdn|unpkg)|演示/);
 });
 
 test('asset terminal derives technical indicators only from supplied market bars', async () => {
@@ -253,8 +253,8 @@ test('asset metrics keep canonical turnover amount separate from turnover rate',
     observation: { asset: '600519.SH', asset_type: 'stock', blocks: {} },
     rows: { overview: [{ turnover: 3336029501, turnover_rate_pct: null }], history: [] },
   });
-  assert.match(html, /成交额<\/dt><dd>3,336,029,501<\/dd>/);
-  assert.match(html, /换手率<\/dt><dd>—<\/dd>/);
+  assert.match(html, /成交额<\/dt><dd[^>]*>3,336,029,501<\/dd>/);
+  assert.match(html, /换手率<\/dt><dd[^>]*>—<\/dd>/);
   assert.doesNotMatch(html, /3,336,029,501%/);
 });
 
@@ -265,7 +265,7 @@ test('asset workspace never turns absent market values into zero', async () => {
     rows: { overview: [], history: [] },
   });
   for (const label of ['开盘', '最高', '最低', '成交量', '成交额', '换手率', '区间最高', '区间最低']) {
-    assert.match(html, new RegExp(`${label}</dt><dd>—</dd>`));
+    assert.match(html, new RegExp(`${label}</dt><dd[^>]*>—</dd>`));
   }
 });
 
