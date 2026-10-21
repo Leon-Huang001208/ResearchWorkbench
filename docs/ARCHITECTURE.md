@@ -1,5 +1,7 @@
 # Research Workbench 架构总览
 
+模型服务商后端的显式联合部署通过 `resident/model_provider_upgrade.py` 同步主实例 wheel、源码和网关绑定；version 4 全局意图先于出生占槽及主实例 journal，保留原控制器和自动兼容清单。活动/未知等待，失败恢复两端且保全原数据；详见[联合升级合同](research-web-gateway-upgrade.md#模型服务商联合升级)。
+
 冻结恢复任务显式保留系统与既有Homebrew工具PATH，部署前验证Git LFS可用，保持原Git钩子和身份检查；不安装依赖或改变研究服务拓扑。
 
 保留主实例版本的显式静态网关更新使用 version 3 `static-gateway`，同时核对主实例/旧网关到目标的受限差异与冻结工具身份；不改变原研究进程、自动兼容清单或恢复保护。旧主实例菜单适配保持唯一控制器，详见[网关升级](research-web-gateway-upgrade.md)。
