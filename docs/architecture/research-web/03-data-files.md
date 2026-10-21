@@ -1,5 +1,7 @@
 # DataHub、研究资料与实际文件
 
+资产观察部署沿原v4 journal记录profile、固定旧版、目标及逐路径Git身份；旧记录仍由原model profile解释。资产/查询状态只读用于空闲证明，不恢复或重写观察数据；保全摘要、业务数据根和凭据存储保持。
+
 资产观察继续保存于既有 Store 的 `asset_observations`，行情/财务等实际数据仍是所属研究会话的 DataHub 快照，没有新增数据库或迁移。单区块刷新在观察记录内保存 `refresh_keys` 的 SHA-256 键、目标区块及 `call_id`，公开响应隐藏原请求、刷新键和内部 sample，只给受限请求参数、区块状态与 dataset 标识。受理先持久化再创建取数任务，保存失败回退内存状态且不启动查询。
 
 刷新保持原 dataset 直到新结果可用；失败、取消或重启中断保留原 dataset 身份，同时标明新的 `failure_code`，不得把旧快照冒充本次刷新成功。已有加载区块没有存活 owner 时恢复为 `unavailable/interrupted`，取消为 `unavailable/cancelled`；不自动重试厂商取数。财务最新一期和行情 60 天范围按 DataHub 原参数记录；图表仅从这些快照行计算，Golddata 新闻/公告阅读不写成 DataHub 快照或 Hot 证据。

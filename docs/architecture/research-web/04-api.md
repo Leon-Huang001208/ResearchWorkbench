@@ -8,6 +8,8 @@
 
 ## 接口与协议约定
 
+本机显式操作员增加 `model_provider_upgrade apply-assets`，只选封闭的资产产品profile；`recover` 从已验证journal恢复对应旧版本。不新增HTTP参数、业务端点或用户可配置的任意旧版/产品SHA。
+
 独立发布仓库身份修补不新增接口或命令参数；未知 origin、目录/inode 变化及目标对象缺失仍通过现有 blocked 通道在停机前返回。
 
 PR168 导航随原 `model_provider_upgrade apply/recover` 交付，没有新增参数或 HTTP 接口；显式操作员仅对固定五个 UI 文件使用独立产品身份，后端查询/交接协议不变。

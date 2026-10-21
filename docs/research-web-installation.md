@@ -93,6 +93,8 @@ FinGPT 单引擎融合不新增 npm/Python 产品依赖，不增加供应商环�
 
 ## macOS 登录后常驻与自动部署
 
+资产观察有显式 `model_provider_upgrade apply-assets` 合同，固定 c688 旧版本与已审 PR171 产品，只复用现有生产解释器安装本项目 wheel，不安装新依赖或扩大自动兼容范围。必须先通过最新源码资格、资产/DataHub与原Native/Host/私有池空闲、保全和恢复检查；使用方法见[固定版本联合部署](research-web-gateway-upgrade.md#资产观察固定版本联合部署)。
+
 模型服务商联合升级可同时交付 PR168 的五个精确导航 UI blob；其余产品文件仍绑定原模型服务商基线。须通过最新已合并候选的三CI、独立评审与原空闲/保全事务，不使用复制静态目录或临时放宽自动白名单交付界面。范围见[联合升级合同](research-web-gateway-upgrade.md#模型服务商联合升级)。
 
 UI 更新若同时包含显式网关升级工具，可按[受控 UI 候选准备](research-web-gateway-upgrade.md#显式准备主实例-ui-候选)先准备精确新旧 wheel，再由原不可变 resident 执行空闲切换；之后独立更新网关。此专项不扩大自动白名单、不安装新依赖、不改 baseline 或数据根；工具本身的 Git blob 必须与冻结恢复工具一致，主实例和网关均须核对原会话及模型保全。

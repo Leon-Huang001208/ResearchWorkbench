@@ -1,5 +1,7 @@
 # Research Workbench Development Map
 
+资产观察显式部署仍在 `resident/model_provider_upgrade.py`：`ASSET_MODE/previous_for/review_assets` 绑定固定旧版与已审产品，`asset_queries_idle` 补齐异步行情任务空闲证明。近处 `test_model_provider_upgrade.py` 以真实临时Git、真实操作方法与固定旧控制器夹具覆盖原始/资产两种profile的准入及恢复；没有第二部署执行器或自动白名单扩展。
+
 联合升级中的 `repository_identity/verify_release_repository` 分别验证主实例和网关的既有 GitHub origin、common directory 与 inode；独立 clone、来源变更及目录替换由 `test_model_provider_upgrade.py` 的真实临时 Git 仓库回归覆盖。
 
 `resident/model_provider_upgrade.py:review` 对 PR168 五个导航文件使用独立固定 Git 身份，其余产品保持原模型基线；近处测试 `test_navigation_payload_is_exact_and_does_not_expand_backend_scope` 覆盖接受精确导航、拒绝未知 UI/后端/依赖/模式及非祖先。修改该范围须正式交付，不修改现场自动白名单。
