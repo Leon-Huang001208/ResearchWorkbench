@@ -1,5 +1,16 @@
 # Mac mini 空私有池网关升级
 
+## 全市场缺口修复固定部署
+
+行情缺口部署使用封闭 `reviewed-market-gaps-v1` / `apply-market-gaps`：旧版固定 `99d3ee34977c47189a5638207c109a555f52a687`，产品源码检查点固定 `b333c51c7508b7d346b3ca0f039e4e746b0fd8b8`。检查点为本轮产品修复的不可变祖先，最终操作员/产品组合目标仍必须最新已合并 master、独立评审和原三项 exact-tree CI（含 Mac 干净安装）合格；不把检查点冒充合并版本。复用原 version4 保全/恢复，并在原维护锁内额外核对 MarketService 的 inflight 明确为空；未知或正在采集时不切换。旧 profile、controller/evidence/网关模块字节及模型/账号权限保持，无新部署节点、HTTP或依赖，原图准确。
+
+```bash
+/absolute/primary/.venv/bin/python -m research_workbench_entrypoint.resident.model_provider_upgrade apply-market-gaps \
+  --home /absolute/private-home --source /absolute/qualified-clean-checkout
+```
+
+最终产品路径与检查点以完整差异并集/blob/文件模式/祖先冻结，只有原操作员、测试和文档例外；不开放任意SHA、附带产品或自动兼容白名单。市场缓存与原会话/数据/模型原位保留；GET市场空闲核验不触发上游。recover只回到固定99d3，继续使用64MiB严格业务读取、原1MB元数据及全账号索引保全。合并后可在既有resident/artifacts/<target>/source内准备同源码common directory的干净detached checkout执行，归档/回收仅针对开发worktree，不回收生产source或恢复包。三个CI及产品实采不替代实际部署/真实认证验收，Windows/Linux产品层仍按设备交接。
+
 ## 全市场概览固定版本部署
 
 2026-10-22 全市场常驻部署使用封闭 `reviewed-market-overview-v1` / `apply-market`：旧版固定 `4d2e3c408663b64be9e58b03213f4ca8f1152733`，产品固定已合并 PR179 `5de7e5f2db95b8b501905af9cfdc30e8fe84db0b`。复用原 version4 事务、空闲准入、BirthFence、全部账号索引冻结和内容寻址恢复；旧 profile、控制器、证据读取器及自动兼容白名单保持。操作员候选须独立评审及原三项 CI／同候选 Mac 安装通过，再按用户授权切换并在真实认证页面验收。

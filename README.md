@@ -1,5 +1,7 @@
 # Research Workbench
 
+[固定版本部署](docs/research-web-gateway-upgrade.md#全市场缺口修复固定部署)继续保全原会话、数据及模型，并核对行情采集空闲。
+
 全市场概览按来源明确停牌／未上市状态，补取真实零成交额与有标记的停牌参考价；沪深大盘日线资金展示独立的来源和交易日。详见[数据口径](docs/research-web-datahub.md#无会话全市场数据)。
 
 常驻全市场更新通过[固定版本部署事务](docs/research-web-gateway-upgrade.md#全市场概览固定版本部署)保全原会话、数据与模型配置，切换后另验真实认证页面。
