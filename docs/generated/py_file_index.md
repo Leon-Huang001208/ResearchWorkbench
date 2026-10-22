@@ -3053,6 +3053,8 @@ Classes:
 
 Functions:
 - `pinyin_abbr`
+- `_pinyin_alias_score`
+  - Match initial alternatives without renaming securities or expanding cache data.
 - `_items`
 
 

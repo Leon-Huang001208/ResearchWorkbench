@@ -45,6 +45,24 @@ INITIALS = (
     (-11847, -11056, "y"),
     (-11055, -10247, "z"),
 )
+POLYPHONIC_INITIALS = {
+    "行": "hx",
+    "重": "cz",
+    "藏": "cz",
+    "长": "cz",
+    "乐": "ly",
+    "厦": "sx",
+    "朝": "cz",
+    "单": "cs",
+    "解": "jx",
+    "区": "oq",
+    "参": "cs",
+    "澄": "cd",
+    "传": "cz",
+    "曾": "zc",
+    "盛": "cs",
+    "屏": "bp",
+}
 
 
 def pinyin_abbr(text: str) -> str:
@@ -67,6 +85,27 @@ def pinyin_abbr(text: str) -> str:
                 next((initial for low, high, initial in INITIALS if low <= code <= high), "")
             )
     return "".join(result)
+
+
+def _pinyin_alias_score(name: str, needle: str) -> int:
+    """Match initial alternatives without renaming securities or expanding cache data."""
+    if (
+        not needle
+        or not needle.isascii()
+        or not needle.isalnum()
+        or not any(char in POLYPHONIC_INITIALS for char in name)
+    ):
+        return -1
+    options = [
+        set(POLYPHONIC_INITIALS.get(char, initial))
+        for char in name
+        if (initial := pinyin_abbr(char))
+    ]
+    size = len(needle)
+    for start in range(len(options) - size + 1):
+        if all(char in options[start + index] for index, char in enumerate(needle)):
+            return 270 if start == 0 and size == len(options) else 170 if start == 0 else 70
+    return -1
 
 
 def _items(value: dict) -> list[dict]:
@@ -280,7 +319,7 @@ class AssetDirectory:
                 )
                 for index, field in enumerate(fields)
             ]
-            return max(scores) if needle else 0
+            return max(*scores, _pinyin_alias_score(item["name"], needle)) if needle else 0
 
         matches = [(score(item), item) for item in record.get("items", [])]
         matches = [(rank, item) for rank, item in matches if rank >= 0]

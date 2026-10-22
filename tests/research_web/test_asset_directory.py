@@ -69,6 +69,28 @@ def directory_rows(count=6001):
 
 
 @pytest.mark.asyncio
+async def test_standard_polyphonic_stock_initials_match_without_rebuilding_old_cache(tmp_path):
+    names = ["招商银行", "重庆银行", "西藏矿业", "平安银行"]
+
+    async def loader():
+        return {
+            "items": [{**row, "name": name} for row, name in zip(directory_rows(4), names)],
+            "total_count": 4,
+            "provider": "tinysoft",
+        }
+
+    index = AssetDirectory(tmp_path, loader=loader, fingerprint=lambda: "same-account")
+    index.search("")
+    await index.wait()
+    restored = AssetDirectory(tmp_path, loader=loader, fingerprint=lambda: "same-account")
+    for query, name in zip(["zsyh", "cqyh", "xzky", "payh"], names):
+        assert restored.search(query)["items"][0]["name"] == name
+    assert restored.search("zsyx")["items"][0]["name"] == "招商银行"
+    await index.close()
+    await restored.close()
+
+
+@pytest.mark.asyncio
 async def test_directory_coalesces_cold_load_retains_over5000_and_ranks_pinyin(tmp_path):
     calls = []
     ready = asyncio.Event()
