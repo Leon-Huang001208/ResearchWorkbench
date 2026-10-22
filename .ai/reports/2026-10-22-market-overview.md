@@ -45,3 +45,5 @@
 <!-- architecture-review {"group":"automations","structure":"unchanged","reason":"共用浏览器API只增加市场页面调用入口；市场刷新不注册Automation，不改变研究日程、运行状态或交付渠道拓扑。","diagrams":[]} -->
 <!-- architecture-review {"group":"verification-workflow","structure":"unchanged","reason":"既有Checks同一步骤增加两个离线测试模块，原任务、runner、检查流程和平台边界保持，不新增验证节点。","diagrams":[]} -->
 <!-- architecture-review {"group":"documentation","structure":"unchanged","reason":"文档阅读器仅新增固定市场图名称白名单，原安全读取、隔离CSP、HTTP端点和阅读流程保持。","diagrams":[]} -->
+
+源码检查点：`8043d028242fa4687be260ae151a8333ceaa6af6`；架构阅读器的源码链接固定至该真实提交，后续图文检查点不自指。
