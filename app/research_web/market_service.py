@@ -51,6 +51,8 @@ QUOTE_FIELDS = (
     "change_60d_pct",
     "change_ytd_pct",
     "as_of",
+    "trade_status",
+    "price_basis",
 )
 MAX_REQUESTS = 128
 MAX_KEYS = 64
@@ -592,6 +594,27 @@ class MarketService:
             if len(raw.encode()) > MAX_RECORD_BYTES:
                 raise MarketError("market_response_limit", "市场数据超过容量限制。", 502)
             snapshot = deepcopy(payload)
+            if section == "flows":
+                current_flow = snapshot.get("summary", {}).get("market_flow")
+                old_flow = self._snapshots.get(key, {}).get("summary", {}).get("market_flow")
+                if (
+                    isinstance(current_flow, dict)
+                    and current_flow.get("complete") is False
+                    and isinstance(old_flow, dict)
+                    and old_flow.get("complete") is True
+                ):
+                    snapshot["summary"]["market_flow"] = {
+                        **deepcopy(old_flow),
+                        "stale": True,
+                        "error": {
+                            "code": "market_flow_unavailable",
+                            "message": "本次沪深大盘资金流获取失败，保留上次快照。",
+                        },
+                        "last_attempt": current_flow.get("retrieved_at"),
+                    }
+                    if len(json.dumps(snapshot, allow_nan=False).encode()) > MAX_RECORD_BYTES:
+                        raise MarketError("market_response_limit", "市场数据超过容量限制。", 502)
+                    log.warning("market_flow_cache_preserved", section=key)
             snapshot["snapshot_id"] = str(uuid4())
             if not self._valid_snapshot(snapshot):
                 raise MarketError("market_response_invalid", "市场数据结构无效。", 502)
@@ -820,7 +843,16 @@ class MarketService:
             ]
         valid: list[dict] = []
         missing: list[dict] = []
-        numeric = sort not in {"asset", "code", "name", "exchange", "board", "as_of"}
+        numeric = sort not in {
+            "asset",
+            "code",
+            "name",
+            "exchange",
+            "board",
+            "as_of",
+            "trade_status",
+            "price_basis",
+        }
         for row in rows:
             value = row.get(sort)
             (

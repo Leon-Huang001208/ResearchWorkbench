@@ -23,6 +23,7 @@ ASSET_PROFILES = (
     upgrade.ASSET_V3_MODE,
     upgrade.ASSET_V4_MODE,
     "reviewed-market-overview-v1",
+    "reviewed-market-gaps-v1",
 )
 
 
@@ -117,6 +118,7 @@ def test_asset_review_uses_real_git_and_frozen_product(tmp_path, monkeypatch, ba
         upgrade.ASSET_V3_MODE: "ASSET_V3",
         upgrade.ASSET_V4_MODE: "ASSET_V4",
         "reviewed-market-overview-v1": "MARKET",
+        "reviewed-market-gaps-v1": "MARKET_GAPS",
     }[profile]
     monkeypatch.setattr(upgrade, prefix + "_PREVIOUS", base)
     monkeypatch.setattr(upgrade, prefix + "_PAYLOAD", payload)
@@ -381,6 +383,7 @@ def test_asset_snapshot_rejects_fifo_without_blocking(tmp_path):
         ("apply-assets-v3", upgrade.ASSET_V3_MODE),
         ("apply-assets-v4", upgrade.ASSET_V4_MODE),
         ("apply-market", "reviewed-market-overview-v1"),
+        ("apply-market-gaps", "reviewed-market-gaps-v1"),
         ("recover", upgrade.MODE),
     ],
 )
@@ -414,6 +417,8 @@ def test_cli_selects_only_the_closed_profile(tmp_path, monkeypatch, command, pro
         (upgrade.ASSET_V4_MODE, upgrade.ASSET_V4_PAYLOAD),
         ("reviewed-market-overview-v1", upgrade.ASSET_V4_PREVIOUS),
         ("reviewed-market-overview-v1", "5de7e5f2db95b8b501905af9cfdc30e8fe84db0b"),
+        (upgrade.MARKET_GAPS_MODE, upgrade.MARKET_PREVIOUS),
+        (upgrade.MARKET_GAPS_MODE, upgrade.MARKET_GAPS_PAYLOAD),
     ],
 )
 def test_asset_journal_cannot_select_the_legacy_previous(profile, previous):
@@ -1060,6 +1065,8 @@ def real_operations(tmp_path, monkeypatch, request):
     )
 
     def request(url):
+        if url.endswith("/api/research/market"):
+            return {"inflight": []}
         if url.endswith("/api/research/runtime"):
             return {"connected": True, "health_check_passed": True, **state["model_before"]}
         if url.endswith("/api/research/model-profiles"):
@@ -1350,6 +1357,7 @@ def test_validate_state_accepts_real_independent_release_clones(tmp_path, monkey
         upgrade.ASSET_V3_MODE: "ASSET_V3_PREVIOUS",
         upgrade.ASSET_V4_MODE: "ASSET_V4_PREVIOUS",
         "reviewed-market-overview-v1": "MARKET_PREVIOUS",
+        "reviewed-market-gaps-v1": "MARKET_GAPS_PREVIOUS",
     }[profile]
     monkeypatch.setattr(upgrade, previous_name, target)
     upgrade.g.private_root(home / "resident")
@@ -1950,3 +1958,36 @@ def test_large_business_index_keeps_metadata_limit_and_market_reader_binding(tmp
     assert calls == [{"index_reader": upgrade.read_business_index}]
     with pytest.raises(upgrade.UpdateBlocked, match="asset_upgrade_index_invalid"):
         upgrade.read_business_index(tmp_path / "missing.json")
+
+
+def test_market_gap_profile_freezes_resident_and_reviewed_source_checkpoint():
+    assert upgrade.MARKET_GAPS_MODE == "reviewed-market-gaps-v1"
+    assert (
+        upgrade.previous_for(upgrade.MARKET_GAPS_MODE) == "99d3ee34977c47189a5638207c109a555f52a687"
+    )
+    assert upgrade.MARKET_GAPS_PAYLOAD == "9faeeca3003a912ca75799fb27b635ba1bb87a1a"
+
+
+@pytest.mark.parametrize("real_operations", ["reviewed-market-gaps-v1"], indirect=True)
+@pytest.mark.parametrize(
+    "response,expected",
+    [
+        (None, False),
+        ({}, False),
+        ({"inflight": None}, False),
+        ({"inflight": [{}]}, False),
+        ({"inflight": []}, True),
+    ],
+)
+def test_market_refresh_activity_blocks_the_fixed_upgrade(
+    real_operations, monkeypatch, response, expected
+):
+    home, state, _system, make, uid = real_operations
+    original = upgrade.request_json
+    monkeypatch.setattr(
+        upgrade,
+        "request_json",
+        lambda url: response if url.endswith("/api/research/market") else original(url),
+    )
+    with BirthFence(home / "server", uid, transaction=state["transaction"]) as fence:
+        assert make(fence).idle() is expected
