@@ -2,7 +2,9 @@
 
 from fastapi import APIRouter, Request, UploadFile
 from fastapi.responses import Response
-from pydantic import BaseModel, ConfigDict, Field, SecretStr
+from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
+
+from core.observability import get_logger
 
 from .mcp_runtime.routes import ToolPolicyRequest
 from .plugins.packages import MAX_ARCHIVE, PluginError, safe_path
@@ -11,6 +13,7 @@ from .tenant_policy import _gateway_key
 from .tenant_policy import enabled as tenant_enabled
 
 router = APIRouter(prefix="/api/research/plugins")
+log = get_logger(__name__)
 
 
 class Review(BaseModel):
@@ -26,7 +29,17 @@ class MCPConfirmation(BaseModel):
 
 class NativeReview(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
-    expected: dict[str, str] = Field(min_length=3, max_length=3)
+    expected: dict[str, str] = Field(min_length=3, max_length=4)
+
+    @field_validator("expected")
+    @classmethod
+    def exact_fingerprint_shape(cls, value):
+        keys = set(value)
+        base = {"manifest", "artifacts", "schemas"}
+        if keys not in (base, base | {"sandbox"}):
+            log.warning("plugin_native_review_shape_rejected")
+            raise ValueError("native_fingerprint_keys_invalid")
+        return value
 
 
 class PluginSession(BaseModel):

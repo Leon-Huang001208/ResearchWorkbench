@@ -140,3 +140,6 @@ ToolRuntime 离线注册与嵌套 subagent fixture 证明执行管线契约；�
 3081、8088/Doctor CI 才能证明安装兼容；本机已有环境、fixture 和离线契约不能替代该门。
 Windows/Linux 原生及 CI 为对应设备任务，未执行保持 NOT_RUN。无 OS sandbox 的脚本 Hook
 保持关闭；没有任意 shell、HTTP、prompt 或 agent Hook 的降级执行路径。
+
+
+2026-10-23 真实Host验收使用实际ConfirmationTokenManager、InstallationStore、PackageInstaller、SDKHost和AuthorizationManager；仅注册目录/字节下载为离线夹具，模型传输明确NoModels。原生审核HTTP契约接受远程三项和受管四项固定指纹，未知字段422且不改变审核记录。可见页面覆盖至会话授权，真实工具调用/人工批准由独立HTTP验收证明；不冒充完整DSH模型回合。

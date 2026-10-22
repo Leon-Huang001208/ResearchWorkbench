@@ -7687,6 +7687,7 @@ Module docstring:
 > Plugin APIs; native local boundary or authenticated manager owns mutations.
 
 Imports:
+- `core.observability`
 - `fastapi`
 - `fastapi.responses`
 - `mcp_runtime.routes`
@@ -7699,6 +7700,7 @@ Classes:
 - `Review`
 - `MCPConfirmation`
 - `NativeReview`
+  - methods: exact_fingerprint_shape
 - `PluginSession`
 - `PluginAuthorization`
 - `PluginDecision`

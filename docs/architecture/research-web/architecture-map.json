@@ -335,6 +335,8 @@
         "tests/research_web/test_plugins.py",
         "tests/research_web/test_plugins_mcp_security.py",
         "tests/research_web/test_plugins_runtime_restart.py",
+        "tests/research_web/test_mcp_managed_sandbox.py",
+        "tests/e2e/test_research_web_plugins_real_fixture.py",
         "tests/javascript/research_web_plugins.test.mjs"
       ]
     },

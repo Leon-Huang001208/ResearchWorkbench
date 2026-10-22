@@ -80,3 +80,6 @@ IPv4/IPv6/Unix socket 测试目标均为测试自己创建并监听的本地端�
 
 
 <!-- architecture-review {"group":"verification-workflow","structure":"unchanged","reason":"仅扩展既有Checks同一步骤的四个定点模块；不新增job/runner/timeout或平台dispatch，Mac真实SDK/Seatbelt本机与安装CI分别保留。","diagrams":[]} -->
+
+
+2026-10-23 整合复核发现旧NativeReview HTTP模型只允许三项，导致真实SDK安装后的四项指纹审核422；root补精确3/4键集校验，真实HTTP夹具复验1项11.46秒通过，含未知字段422且审核状态不变。源码/角色/字节流原约束保持；新夹具全内存凭据且禁止真实后端构造。Root已补真实UI与API验收范围说明，尚待冻结候选可见浏览器及CI。
