@@ -134,6 +134,28 @@ def test_canonical_projection_preserves_body_and_rejects_wrong_task_or_missing_b
         canonical_projection(value, {"blocks": [{"id": "absent", "required": True}]}, binding)
 
 
+def test_projection_uses_canonical_chinese_presentation_and_preserves_audit_body():
+    canonical = _canonical()
+    canonical["presentation"] = [
+        {
+            "id": "market",
+            "heading": "市场",
+            "text": "用于交付的中文内容。",
+            "citations": ["file:abc"],
+        }
+    ]
+    projected = canonical_projection(
+        canonical, {"blocks": [{"id": "market", "required": True}]}, {"task_id": "a" * 24}
+    )
+    assert projected["sections"][0]["content"] == "用于交付的中文内容。"
+    assert canonical["sections"][0]["text"] == "市场资料。"
+    canonical["presentation"][0]["id"] = "wrong"
+    with pytest.raises(WorkflowError):
+        canonical_projection(
+            canonical, {"blocks": [{"id": "market", "required": True}]}, {"task_id": "a" * 24}
+        )
+
+
 def test_trusted_context_does_not_accept_browser_or_model_metadata(tmp_path):
     row = {
         "report_workflow": {

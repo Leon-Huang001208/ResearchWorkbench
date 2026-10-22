@@ -175,7 +175,23 @@ def canonical_projection(value: dict, context: dict, binding: dict) -> dict:
     except (ValueError, KeyError, TypeError) as exc:
         raise WorkflowError("规范报告身份或结构无效", "weekly_canonical_invalid", 409) from exc
     declared = {block["id"]: block for block in context.get("blocks", [])}
-    sections = {section.get("id"): section for section in value["sections"]}
+    presented = value.get("presentation", value["sections"])
+    if (
+        not isinstance(presented, list)
+        or len(presented) != len(value["sections"])
+        or any(
+            not isinstance(section, dict)
+            or not isinstance(section.get("text"), str)
+            or not isinstance(section.get("heading"), str)
+            for section in presented
+        )
+    ):
+        raise WorkflowError("规范报告的中文呈现无效", "weekly_presentation_invalid", 409)
+    sections = {section.get("id"): section for section in presented}
+    if len(sections) != len(presented) or set(sections) != {
+        section.get("id") for section in value["sections"]
+    }:
+        raise WorkflowError("规范报告的呈现区块不一致", "weekly_presentation_invalid", 409)
     required = {key for key, block in declared.items() if block.get("required", True)}
     if (
         not required.issubset(sections)
