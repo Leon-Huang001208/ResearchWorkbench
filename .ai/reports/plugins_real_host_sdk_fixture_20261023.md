@@ -57,3 +57,11 @@ PR191首轮Checks `39815289736` 在JavaScript合同失败：新增插件页签�
 Root只补插件页专用待审队列、按当前插件/组件/用户会话的approvals与decide、上下文清理及异步回包复核，不放宽后端授权。事件级测试先出现两项RED，修正后approve/deny、陌生会话/过期行拒绝、scope/自动选择及成功import的新旧上下文清理共8项PASS；import残余由SPEC事件harness先证明旧preview/snapshot/queue残留，再补reset和回归。SPEC和独立TypeScript质量复审均PASS。
 
 冻结UI源码SHA-256 `f21bcb91a4c8c89143ed1584649848a4aa853b0c75c2ee69224365ba2ea24294`，UI测试 `3b31eaa744109995ddcf9f645cd7f5c91e1020084b17f147a218843860f9b77e`。待root在新源码提交上执行真实浏览器approve/deny及SDK结果；新候选完整本地门与CI另行取证，不能沿用4ac三CI声称最终通过。
+
+## 新页面真实批准与拒绝
+
+上述UI在源码检查点 `e3d311d8685cb4c30bb0361ccc5e07fc591ac858` 上完成实际CUA验证。独立控制器建立全内存凭据、NoModels DSH transport的自有18996 HTTP Host，使用固定7ecf的真实ToolRuntime组件和原adapter发起两个不同call ID；本阶段禁止控制器代发decide。Root在真实插件页选择当前会话、刷新待审队列，分别点击批准与拒绝：批准后实际SDK/Seatbelt工具执行1次且Canary成功；拒绝后ToolRuntime返回错误，实际工具执行0次。两次浏览器决定均HTTP200，模型调用0。批准不是数据成功的替代，结果另由真实子进程记录证明。
+
+两张截图在 `/Users/leon/.codex/visualizations/2026/10/23/plugin-real-sdk/call-approved.jpg` 与 `call-denied.jpg`。所有自有Python/Node/服务器和8个SDK子进程退出、scratch删除；关闭后首次端口bind失败，原始blocked回执未覆盖，独立复查普通及复用bind成功、所有PID已退出，最终评估为 `passed_after_retirement_recheck`。
+
+私有证据目录 `/private/tmp/rwb-plugin-ui-approval-xva96a4j`：final-assessment SHA-256 `d9786527529c9fa454f1af0486b444084df8b555a8ae6db5404820e65d9ba55a`，原始final-evidence `560a2bc0331f3e58c963a95438edd24ab1f0ab4a0582e44358392a4276acefc3`，retirement-recheck `7220a63809dd1853c149325a97972d33d722e263f0d523cbfa6f92f5bcb88793`。不是完整DSH服务或模型验收，也未修改现有服务/凭据/外盘。后续文档绑定不改变该UI源摘要，最终提交的原必需本地与CI门仍重新取证。
