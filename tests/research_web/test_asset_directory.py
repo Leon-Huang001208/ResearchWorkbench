@@ -1,11 +1,58 @@
 """Account-scoped directory loading, authorization and bounded cache regressions."""
 
 import asyncio
+import threading
 from types import SimpleNamespace
 
 import pytest
 
 from app.research_web.asset_directory import AssetDirectory
+
+
+@pytest.mark.asyncio
+async def test_directory_timeout_keeps_resident_lease_until_actual_worker_finishes(
+    tmp_path, monkeypatch
+):
+    from app.research_web.datahub import DataHub, providers_cjpy
+    from app.research_web.datahub.providers import ProviderError
+    from research_workbench_entrypoint.resident.admission import (
+        MaintenanceBusy,
+        file_lock,
+        private_root,
+    )
+
+    private_root(tmp_path)
+    monkeypatch.setenv("RESEARCH_RESIDENT_HOME", str(tmp_path))
+    entered, release = threading.Event(), threading.Event()
+
+    def blocked(*args):
+        entered.set()
+        release.wait(2)
+        return ["SH603986"]
+
+    monkeypatch.setattr(providers_cjpy, "_directory_step", blocked)
+    monkeypatch.setattr(providers_cjpy, "DEADLINE", 0.02)
+    hub = object.__new__(DataHub)
+    hub.directory_fingerprint = lambda: "authorized"
+    hub.connections = SimpleNamespace(read_source_secret=lambda source: "synthetic-token")
+    hub.directory_tasks = set()
+    task = asyncio.create_task(hub.asset_directory())
+    try:
+        for _ in range(100):
+            if entered.is_set():
+                break
+            await asyncio.sleep(0.001)
+        assert entered.is_set()
+        await asyncio.sleep(0.04)
+        assert not task.done() and providers_cjpy.active_futures()
+        with pytest.raises(MaintenanceBusy), file_lock(tmp_path, "admission.lock", exclusive=True):
+            pass
+    finally:
+        release.set()
+        with pytest.raises(ProviderError, match="deadline"):
+            await task
+    with file_lock(tmp_path, "admission.lock", exclusive=True):
+        assert not providers_cjpy.active_futures()
 
 
 def directory_rows(count=6001):

@@ -174,6 +174,46 @@ try {
     await screenshot('synthetic-search-390-dark.png'); return evidence;
   });
 
+  await check('focused-date-history-response-preserves-scroll-and-existing-cutoff-data', async () => {
+    for (let i = 0; i < state.rows.history.length; i++) state.rows.history[i].date = new Date(Date.parse('2026-10-21') - (899 - i) * 86400000).toISOString().slice(0, 10);
+    state.rows.overview[0].date = '2026-10-22';
+    Object.assign(state.observation.blocks.overview.dataset, { as_of: '2026-10-22' });
+    Object.assign(state.observation.blocks.history.dataset, { as_of: '2026-10-21', asset_history: { requested_as_of: '2026-10-21', canonical_version: 'synthetic-frozen-21', adjustment: 'qfq', coverage: { full_history: true } } });
+    const context = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
+    const requests = []; let release; let announce; const requested = new Promise(resolve => { announce = resolve; });
+    await context.route('**/*', route => {
+      const request = route.request(); const url = request.url();
+      if (!url.startsWith(origin + '/') && !url.startsWith('data:')) { external.push(url); return route.abort(); }
+      if (url.endsWith('/history-jobs') && request.method() === 'POST') {
+        requests.push(request.postDataJSON());
+        if (requests.length === 1) return new Promise(resolve => { release = async () => { await route.continue(); resolve(); }; announce(); });
+      }
+      return route.continue();
+    });
+    page = await context.newPage(); page.setDefaultTimeout(15000); page.on('pageerror', error => errors.push(error.message));
+    try {
+      await page.goto(`${origin}/#/assets?view=financials&asset=600519.SH&asset_type=stock`, { waitUntil: 'domcontentloaded' }); await requested; await page.waitForLoadState('load'); await stable();
+      await page.locator('[data-asset-selected-date]').fill(state.rows.history[450].date); await page.locator('[data-asset-selected-date]').press('Tab');
+      await page.evaluate(() => echarts.getInstanceByDom(document.querySelector('[data-asset-echarts]')).dispatchAction({ type: 'dataZoom', startValue: 250, endValue: 799 }));
+      await page.waitForFunction(() => document.querySelector('[data-asset-echarts]').dataset.visibleStart === '250' && document.querySelector('[data-asset-echarts]').dataset.visibleEnd === '800');
+      const frames = () => page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))); await frames();
+      await page.locator('[data-asset-selected-date]').focus();
+      await page.evaluate(() => { window.cutoffChart = document.querySelector('[data-asset-echarts]'); window.cutoffInstance = echarts.getInstanceByDom(window.cutoffChart); const main = document.querySelector('#main'); main.scrollTop += document.querySelector('.asset-topic-tabs').getBoundingClientRect().top - main.getBoundingClientRect().top - 24; });
+      await frames(); const before = await snapshot();
+      assert.equal(await page.locator('[data-asset-selected-date]').evaluate(node => node === document.activeElement), true);
+      assert.deepEqual(requests, [{ scope: 'all', adjustment: 'qfq', as_of: '2026-10-22' }]);
+      await release(); release = null; await page.waitForLoadState('networkidle'); await frames();
+      const after = await snapshot(); assert.deepEqual(after, before);
+      assert.equal(await page.locator('[data-asset-selected-date]').evaluate(node => node === document.activeElement), true);
+      assert.equal(await page.evaluate(() => document.querySelector('[data-asset-echarts]') === window.cutoffChart && echarts.getInstanceByDom(window.cutoffChart) === window.cutoffInstance), true);
+      const lastFrozenDate = await page.evaluate(() => echarts.getInstanceByDom(document.querySelector('[data-asset-echarts]')).getOption().xAxis[0].data.at(-1));
+      assert.equal(lastFrozenDate, '2026-10-21');
+      for (const id of ['news', 'financials']) { await view(id).click(); await page.locator(`[data-asset-topic="${id}"]`).waitFor(); await page.waitForLoadState('networkidle'); assert.deepEqual(await snapshot(), before); }
+      assert.equal(requests.length, 1); await screenshot('focused-date-background-history-preserved.png');
+      return { requestedJob: requests[0], jobsAfterTabs: requests.length, before, after, lastFrozenDate, newCutoffDataDelivery: 'NOT_RUN', newHistoryVersionDelivered: false, note: 'Synthetic fixture returned only saved 21-day history; no new supplier data is claimed.' };
+    } finally { if (release) await release(); }
+  });
+
   await check('synthetic-only-network-and-source-integrity', async () => {
     assert.deepEqual(external, []); assert.deepEqual(errors, []); assert.deepEqual(state.errors, []);
     sourceEvidence = await fixture.verifySourceUnchanged();

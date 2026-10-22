@@ -236,7 +236,12 @@ export function createAssetChartController({ onChange = () => {}, onPanelsChange
     const history = find('[data-asset-history]'); if (history) history.innerHTML = readout(bar, (source === 'day' ? daily : bars)[index - 1], metadata);
     const overlay = find('[data-asset-overlay-label]'); if (overlay) overlay.innerHTML = overlayReadout(bars[state.activeIndex], state);
     const summary = find('[data-asset-range-summary]'); if (summary) summary.textContent = `第 ${bars.length ? state.start + 1 : 0}–${state.end} 条 / 共 ${bars.length} 条`;
-    const date = find('[data-asset-selected-date]'); if (date) { date.value = state.selectedDate; date.min = daily[0]?.date || ''; date.max = daily.at(-1)?.date || ''; }
+    const date = find('[data-asset-selected-date]'); if (date) {
+      if (date.value !== state.selectedDate) date.value = state.selectedDate;
+      const min = daily[0]?.date || ''; const max = daily.at(-1)?.date || '';
+      if (date.min !== min) date.min = min;
+      if (date.max !== max) date.max = max;
+    }
     const cue = find('[data-asset-selection-cue]'); if (cue) cue.textContent = outside() ? `所选日 ${state.selectedDate} 在视区外` : '';
     const adjustment = find('[data-asset-chart-adjustment]'); if (adjustment) { adjustment.value = state.adjustment; adjustment.disabled = !metadata.canLoadHistory || busyHistory(metadata) || state.historyRequestPending; }
     const status = find('[data-asset-history-status]'); if (status) status.textContent = historyStatus(state, metadata);
