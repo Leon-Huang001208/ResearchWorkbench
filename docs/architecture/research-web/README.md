@@ -1,10 +1,12 @@
 # Research Workbench Research Web 当前架构
 
-2026-10-22资产交互v5只在既有Native操作员增加固定部署身份（旧51f09、产品PR185真实merge9bc4），无新节点、HTTP或产品数据流；原图源、图形回执与API清单保持。后续大索引修复只让v5复用既有64 MiB业务读取器，元数据仍1 MB；阅读入口说明源码固定到已提交修复8f2cb39a，固定产品9bc4不变。PR187原Constraints失败、修补候选CI和实际部署分别记录，见[部署合同](../../research-web-gateway-upgrade.md#资产交互与数据-v5-2026-10-22)和[修复报告](../../../.ai/reports/test_report_asset_v5_index_fix_20261022.md)。
+当前v5组合产品为PR188真实merge88ef3817（含资产9bc4及DataHub研究仓），旧版仍51f09；阅读入口固定该已提交组合产品，v5一行64 MiB读取修复另指8f2cb39a，元数据保持1 MB。PR188新04数据流与API清单保留，profile修复自身不新增节点或HTTP。用户批准组合验收后锁定baostock0.9.4／psycopg3.3.6随常驻部署，但不启用／迁移DB、不改外盘；旧a114三CI全PASS、新组合重验及实际部署分别记录，见[部署合同](../../research-web-gateway-upgrade.md#资产交互与数据-v5-2026-10-22)和[修复报告](../../../.ai/reports/test_report_asset_v5_index_fix_20261022.md)。
 
 华安ETF周报沿现有Workflow、私有DataHub、唯一DSH与Host质量边界升级；新合同只对附接主管理员
 启用，规范正文、原版式图表与正式归档同版本绑定。09/10图标明旧版兼容和新合同路径；源码能力、
 真实取数/成稿、三周运行及部署分别留证，未核实来源保持阻断。入口见[周报生产合同](../../research-web-etf-weekly-production.md)。
+
+DataHub研究仓基座在同一Host/DSH下提供可选授权查仓、缺口补数、修订与历史时点/冻结恢复。图04及来源证据映射已更新，生产连接和全量采集尚未启用；单元/临时PG、真实免费来源、认证页面与安装CI分别验收。Automation执行拓扑不变。
 
 2026-10-22 资产交互与结构化数据沿既有Host／DataHub／CJPY增加单A股目录搜索、真实专题按需load、24小时账号目录和15分钟普通区块缓存。新增两条HTTP与幂等／来源范围／共享锁／活动witness合同，02模块图补账号缓存分支，04区分资产／DSH调用及原会话快照；无会话目录不进入研究资料发布链。封闭估值、报告期财务、股东名单／汇总、行业、两融与公告事件保留来源／版本／单位及partial，不开放任意repo／公式或新研究引擎。当前源码链接绑定PR185真实merge `9bc4e4cab91130647a5bc0dfa519e97f4773416a`，完整执行、浏览器、CI和部署状态见[本轮报告](../../../.ai/reports/test_report_asset_interaction_data_20261022.md)。
 

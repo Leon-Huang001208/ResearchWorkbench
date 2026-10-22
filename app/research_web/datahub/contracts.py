@@ -2,7 +2,7 @@
 
 import hashlib
 import json
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from typing import Any, Literal
 from zoneinfo import ZoneInfo
 
@@ -209,9 +209,20 @@ class BusinessQuery(BaseModel):
     allow_fallback: bool = Field(default=False, strict=True)
     parameters: dict[str, Any] = Field(default_factory=dict)
     refresh: bool = Field(default=False, strict=True)
+    purpose: Literal["display", "research", "backtest"] = "research"
+    quality: Literal["strict", "allow_stale"] = "strict"
+    as_of: datetime | None = None
 
     @model_validator(mode="after")
     def safe_parameters(self):
+        if self.quality == "allow_stale" and self.purpose != "display":
+            raise ValueError("只有展示查询可以显式接受陈旧数据")
+        if self.as_of is not None and self.as_of.tzinfo is None:
+            raise ValueError("历史时点必须包含时区")
+        if self.as_of is not None and self.as_of > datetime.now(UTC):
+            raise ValueError("历史时点不能位于未来")
+        if self.purpose == "backtest" and self.as_of is None:
+            raise ValueError("正式回测必须明确历史时点")
         if len(self.parameters) > 20:
             raise ValueError("业务参数过多")
         forbidden = {
@@ -247,6 +258,12 @@ class BusinessQuery(BaseModel):
 
     def fingerprint(self, *, include_refresh=False):
         value = self.model_dump(exclude=set() if include_refresh else {"refresh"})
+        # Existing receipts are immutable: default policy retains the v1 digest.
+        for key, default in (("purpose", "research"), ("quality", "strict"), ("as_of", None)):
+            if value.get(key) == default:
+                value.pop(key, None)
+        if self.as_of is not None:
+            value["as_of"] = self.as_of.isoformat()
         return hashlib.sha256(
             json.dumps(["business-1.0.0", value], sort_keys=True, ensure_ascii=False).encode()
         ).hexdigest()

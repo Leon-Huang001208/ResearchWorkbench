@@ -12,6 +12,8 @@
 
 2026-10-22 Host资产工作区新增账号AssetDirectory和按需load，仍部署在原FastAPI进程，不创建第二研究引擎、守护进程或数据库。目录search GET可以合并后台天软读取，结果落账号24小时缓存；普通专题区块沿原会话DataHub快照，15分钟同条件缓存，规范历史继续history-job。02模块图补目录缓存分支，04区分资产／DSH取数和会话快照，API Atlas登记两新HTTP；这些真实变化不能沿用旧纯静态或封闭部署profile的“无新接口”描述。账号、凭据namespace及唯一DSH边界保持，实际安装与部署仍须独立证据。
 
+Host ResearchService默认挂入可选ResearchWarehouse，也保留受信market_store_bridge注入，仍由现有DataHub和唯一DSH执行。MarketStore是独立业务库接口，不默认连接现有5432或更改服务；resident空闲证明同时纳入所有SDK真实Future、DataHub未终态任务和存储线程占用。
+
 2026-10-22 v4沿既有Native主实例/私网网关和version4事务，只增加固定旧5495与PR180产品`9b436613aad9136f4959c992c89dd72fc7354ed5`身份。旧v1/v2/v3、controller/evidence及严格保全保持，无新运行节点/接口/引擎/依赖，原图及Atlas准确，不改HTML/PNG。产品候选654fa6、preview2e069与真实merge同tree；产品三CI和旧v3正式恢复5495不替代v4工具最终验收/部署。
 
 华安ETF周报新合同复用现有Native Host、附接主管理员网关、DataHub和唯一DSH；没有新增守护进程、

@@ -1,5 +1,7 @@
 # 华安 ETF 周报数据合同
 
+研究仓并行整合保留 `collect_report_weekly` 的受信私有入口、Wind Client API 源等价校准和真实 Future 排空边界。通用 `BusinessQuery` 的用途/历史时点约束及 MarketStore 冻结只约束其自身查询；provider-native 快照的首次观测时间不补造本周报的历史发布、跨市场交易日历或经济日历。连接中心的短期实际调用证据按能力与配置隔离，不认证周报整组数据；仓库/会话缓存命中也不刷新上游可用证明。缺少同源对照、单位或日期合同仍保持 `blocked_data`。
+
 全市场访客行情补取只写当前用户MarketService缓存，停牌参考价、未上市和零成交额按来源分别标记；不替代本周报的私有Wind API、精确字段校准和同源对账，也不新增周报外部查询授权。市场实采与周报数据准入各自验收。
 
 2026-10-22资产集成边界复核：DataHub新增的无会话A股目录只核验当前账号`search_assets/tinysoft`授权，固定表／预定义因子及dataset感知选源只服务资产观察请求；它们不调用或放宽私有`collect_report_weekly`、受信Report Run身份与WindPy同源读取合同。目录授权指纹、资产快照和全历史`as_of`不能替代周报的连接身份、固定映射、报告期、Dataset哈希及API／Excel等价证明；resident目录租约等待真实Future排空也不认证任何供应商字段覆盖。原周报的`unverified`／`blocked_data`及未运行项继续由本页证据决定，A股财务、股东或公告预检不提升为ETF周报数据验收。

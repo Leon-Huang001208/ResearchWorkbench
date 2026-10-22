@@ -11,8 +11,9 @@ from ..store import StoreError
 from .adjustment_contract import validate_adjustment_parameters
 from .catalog import build_catalog
 from .contracts import BusinessQuery, Query
-from .providers import ProviderError
+from .providers import ProviderError, cn_stock_identity
 from .providers_akshare import validate_supported_query
+from .providers_baostock import validate_supported_query as validate_baostock_query
 from .providers_wind_api import WindAPIQuery
 
 log = get_logger(__name__)
@@ -127,6 +128,8 @@ def resolve(
     environ=None,
     mysql_status=None,
     connection_statuses=None,
+    excluded_sources: frozenset[str] = frozenset(),
+    storage_read: bool = False,
 ) -> Resolution:
     catalog = build_catalog(
         probes=probes,
@@ -180,25 +183,65 @@ def resolve(
     for source_id in ordered:
         readiness = sources[source_id]["readiness"]
         reason = None
-        if not binding_by_source[source_id]["implemented"]:
+        if source_id in excluded_sources:
+            reason = "runtime_source_exhausted"
+        elif not binding_by_source[source_id]["implemented"]:
             reason = "capability_not_integrated"
         elif not readiness["integration_completed"]:
             reason = "not_integrated"
         elif not readiness["configured"]:
             reason = "blocked_config"
-        elif not readiness["dependency_ready"]:
+        elif not storage_read and not readiness["dependency_ready"]:
             reason = "blocked_dependency"
         elif not readiness["allowed"]:
             reason = "disabled"
-        elif readiness["health"] == "unavailable":
+        elif not storage_read and readiness["health"] == "unavailable":
             reason = "probe_unavailable"
-        if reason is None and source_id == "akshare":
+        if reason is None and excluded_sources and not storage_read:
+            # Matching qfq/hfq names do not prove matching factor anchors. Until
+            # a canonical merge proof exists, runtime failover is raw daily stock
+            # data only; historical adjusted blocks use the warehouse contract.
+            reviewed_raw_bars = (
+                source_id in {"wind", "akshare", "baostock"}
+                and query.capability == "market_bars"
+                and query.parameters.get("asset_type") == "stock"
+                and query.parameters.get("adjustment") == "none"
+                and query.parameters.get("frequency") in {"1d", "daily", "day"}
+            )
+            if not reviewed_raw_bars:
+                reason = "data_not_equivalent"
+        if reason is None and source_id in {"akshare", "baostock"}:
             try:
-                validate_supported_query(query)
+                validator = (
+                    validate_baostock_query if source_id == "baostock" else validate_supported_query
+                )
+                validator(query)
             except ProviderError as exc:
                 reason = str(exc)
                 unsupported_code = reason
-                log.warning("datahub_akshare_query_semantics_rejected", reason=reason)
+                log.warning("datahub_query_semantics_rejected", source=source_id, reason=reason)
+        if (
+            reason is None
+            and source_id == "wind"
+            and query.capability
+            in {
+                "market_bars",
+                "market_snapshot",
+            }
+        ):
+            try:
+                assets = (
+                    [query.parameters.get("asset")]
+                    if query.capability == "market_bars"
+                    else query.parameters.get("assets")
+                )
+                if not isinstance(assets, list) or not assets:
+                    raise ProviderError("data_not_equivalent")
+                for asset in assets:
+                    cn_stock_identity(asset)
+            except ProviderError:
+                reason = unsupported_code = "data_not_equivalent"
+                log.warning("datahub_wind_stock_identity_rejected")
         if reason is None and source_id == "tinysoft" and query.capability == "factor_macro":
             try:
                 validate_adjustment_parameters(query.parameters)
@@ -274,8 +317,15 @@ def resolve(
         "market_activity",
     }:
         legacy = query.model_copy(update={"source": "tinysoft"})
+    elif selected == "baostock" and query.capability in {
+        "search_assets",
+        "trading_calendar",
+        "market_bars",
+    }:
+        legacy = query.model_copy(update={"source": "baostock"})
     elif selected == "akshare" and query.capability in {
         "search_assets",
+        "trading_calendar",
         "market_bars",
         "market_snapshot",
         "financials",

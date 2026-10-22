@@ -46,10 +46,10 @@
     },
     {
       "id": "04-data-file-flow",
-      "artifactSha256": "fe55281a04d81d5caf5caf1458d8be4900c672b5e17a8ee89aa861d79e2689a9",
-      "specificationSha256": "4bff8c980a3ae94ee1329bfd0b68ece329d9897fed8c8bc21ce8c94c5a62028d",
+      "artifactSha256": "3bc3c0bf76de80f364320491ef42f5dc2620bd4c70670966747b2f75315dba5a",
+      "specificationSha256": "aceca92c2490e4b094779be308698f89fced4f1cfd352055407c3ba90d26e1b3",
       "status": "reviewed",
-      "reviewer": "codex-docs-agent",
+      "reviewer": "Codex implementation reviewer (actual image inspection)",
       "date": "2026-10-22",
       "captures": [
         "04-data-file-flow.visual-check.1440x900.dark.png",
@@ -58,7 +58,7 @@
       "findings": [
         "保留原图较大的右侧留白；root明确选择恢复已验证1900宽版面，不再扩几何优化。"
       ],
-      "notes": "已用image reader实际查看本hash的1440深色和2048浅色截图：账号来源授权、Provider、不可变快照与DSH消费边界清楚，无新穿线、标签遮挡或裁剪。1120宽尝试的纵向溢出证据已归档，恢复后的spec/HTML与首版hash逐项相同且重新通过四视口包含性；本图不证明真实产品或供应商链路。"
+      "notes": "整合仓库与资产目录描述后重新deliver（9/9，0 warnings）及四视口visual-check；实际查看1440深色和2048浅色截图，未见新增裁剪、穿线或重叠。保留已确认的原宽画布右侧留白；截图不认证产品或厂商可用性。"
     },
     {
       "id": "06-run-state",

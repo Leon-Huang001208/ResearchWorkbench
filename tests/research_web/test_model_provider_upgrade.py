@@ -2027,4 +2027,18 @@ def test_market_refresh_activity_blocks_the_fixed_upgrade(
 def test_asset_v5_is_bound_to_actual_resident_and_merged_product():
     assert upgrade.ASSET_V5_MODE == "reviewed-asset-observation-v5"
     assert upgrade.previous_for(upgrade.ASSET_V5_MODE) == "51f09fa783694aae5234905933948394ca167dcc"
-    assert upgrade.ASSET_V5_PAYLOAD == "9bc4e4cab91130647a5bc0dfa519e97f4773416a"
+    assert upgrade.ASSET_V5_PAYLOAD == "88ef3817680ac822e2d7c819db845de4b7275173"
+
+
+@pytest.mark.parametrize("profile", [upgrade.MODE, *upgrade.ASSET_MODES])
+def test_target_manifest_preserves_old_lock_except_authorized_v5_combination(profile):
+    old = {"code_commit": "a" * 40, "web_lock_sha256": "c" * 64, "installed_at": "old"}
+    state = {"mode": profile, "manifest": old, "target": "b" * 40}
+    target = upgrade.target_manifest(state)
+    expected = {**old, "code_commit": "b" * 40}
+    if profile == upgrade.ASSET_V5_MODE:
+        expected["web_lock_sha256"] = (
+            "7c631d4fa5354170c622225be129a09f7f5890457aa0521bd5f46cecb6bb7102"
+        )
+    assert target == expected
+    assert old == state["manifest"]

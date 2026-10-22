@@ -124,7 +124,7 @@ def test_resident_activity_includes_real_vendor_futures(monkeypatch, pending, in
         store=SimpleNamespace(data={}),
         market=inactive_market,
         asset_workspace=SimpleNamespace(directory=SimpleNamespace(active=False), tasks={}),
-        datahub=SimpleNamespace(tasks={}, directory_tasks=set()),
+        datahub=SimpleNamespace(tasks={}, storage_runner=None, directory_tasks=set()),
     )
     monkeypatch.setattr(providers_cjpy, "active_futures", lambda: (object(),) if pending else ())
     assert TestClient(app).get("/api/research/resident").json()["active"] is pending
@@ -145,7 +145,7 @@ def test_resident_activity_includes_nonterminal_history_jobs(monkeypatch, state,
         store=SimpleNamespace(data={"asset_history_jobs": {"job": {"state": state}}}),
         market=inactive_market,
         asset_workspace=SimpleNamespace(directory=SimpleNamespace(active=False), tasks={}),
-        datahub=SimpleNamespace(tasks={}, directory_tasks=set()),
+        datahub=SimpleNamespace(tasks={}, storage_runner=None, directory_tasks=set()),
     )
     monkeypatch.setattr(providers_cjpy, "active_futures", lambda: ())
     assert TestClient(app).get("/api/research/resident").json()["active"] is True
@@ -171,7 +171,7 @@ def test_resident_activity_keeps_unknown_or_conflicting_history_busy(
         store=SimpleNamespace(data={"asset_history_jobs": jobs}),
         market=inactive_market,
         asset_workspace=SimpleNamespace(directory=SimpleNamespace(active=False), tasks={}),
-        datahub=SimpleNamespace(tasks={}, directory_tasks=set()),
+        datahub=SimpleNamespace(tasks={}, storage_runner=None, directory_tasks=set()),
     )
     monkeypatch.setattr(providers_cjpy, "active_futures", lambda: ())
     assert TestClient(app).get("/api/research/resident").json()["active"] is True
@@ -194,7 +194,7 @@ def test_resident_activity_worker_witness_failure_remains_unknown(monkeypatch, i
         store=SimpleNamespace(data={}),
         market=inactive_market,
         asset_workspace=SimpleNamespace(directory=SimpleNamespace(active=False), tasks={}),
-        datahub=SimpleNamespace(tasks={}, directory_tasks=set()),
+        datahub=SimpleNamespace(tasks={}, storage_runner=None, directory_tasks=set()),
     )
     monkeypatch.setattr(providers_cjpy, "active_futures", unavailable)
     assert TestClient(app).get("/api/research/resident").json()["active"] is None
@@ -213,10 +213,94 @@ def test_resident_activity_missing_market_witness_remains_unknown(monkeypatch):
         questions={},
         store=SimpleNamespace(data={}),
         market=SimpleNamespace(),
+        asset_workspace=SimpleNamespace(directory=SimpleNamespace(active=False), tasks={}),
+        datahub=SimpleNamespace(tasks={}, storage_runner=None, directory_tasks=set()),
     )
     monkeypatch.setattr(providers_cjpy, "active_futures", lambda: ())
     monkeypatch.setattr(providers_wind_api, "activity_witness", lambda: {"active": False})
     assert TestClient(app).get("/api/research/resident").json()["active"] is None
+
+
+@pytest.mark.parametrize("busy", [False, True])
+@pytest.mark.parametrize("failed_witness", ["sdk", "market"])
+def test_resident_known_busy_survives_another_unknown_witness(monkeypatch, busy, failed_witness):
+    from fastapi.testclient import TestClient
+
+    from app.research_web.datahub import providers_wind_api, worker_activity
+    from app.research_web.main import create_app
+
+    def unknown():
+        raise RuntimeError("activity_witness_unavailable")
+
+    sdk = unknown if failed_witness == "sdk" else lambda: (object(),) if busy else ()
+    market = unknown if failed_witness == "market" else lambda: {"active": busy}
+    monkeypatch.setattr(worker_activity, "active_futures", sdk)
+    monkeypatch.setattr(providers_wind_api, "activity_witness", lambda: {"active": False})
+    app = create_app()
+    app.state.research = SimpleNamespace(
+        running={},
+        approvals={},
+        questions={},
+        store=SimpleNamespace(data={}),
+        market=SimpleNamespace(activity_witness=market),
+        asset_workspace=SimpleNamespace(directory=SimpleNamespace(active=False), tasks={}),
+        datahub=SimpleNamespace(tasks={}, storage_runner=None, directory_tasks=set()),
+    )
+    assert TestClient(app).get("/api/research/resident").json()["active"] is (
+        True if busy else None
+    )
+
+
+@pytest.mark.parametrize("busy_kind", ["history", "wind_api", "report", "datahub", "storage"])
+def test_resident_accumulates_all_known_activity_without_skipping_witnesses(monkeypatch, busy_kind):
+    from fastapi.testclient import TestClient
+
+    from app.research_web.datahub import providers_wind_api, worker_activity
+    from app.research_web.main import create_app
+
+    checked = set()
+
+    def sdk():
+        checked.add("sdk")
+        return ()
+
+    def wind_api():
+        checked.add("wind_api")
+        return {"active": busy_kind == "wind_api"}
+
+    def unknown_market():
+        checked.add("market")
+        raise RuntimeError("market_activity_unknown")
+
+    monkeypatch.setattr(worker_activity, "active_futures", sdk)
+    monkeypatch.setattr(providers_wind_api, "activity_witness", wind_api)
+    app = create_app()
+    app.state.research = SimpleNamespace(
+        running={},
+        approvals={},
+        questions={},
+        store=SimpleNamespace(
+            data={
+                "asset_history_jobs": (
+                    {"job": {"state": "running"}} if busy_kind == "history" else {}
+                )
+            }
+        ),
+        market=SimpleNamespace(activity_witness=unknown_market),
+        report_workflows=SimpleNamespace(
+            catalog=SimpleNamespace(
+                data={"runs": {"run": {"status": "running"}} if busy_kind == "report" else {}}
+            ),
+            runtime=SimpleNamespace(tasks={}),
+        ),
+        datahub=SimpleNamespace(
+            tasks={"call": SimpleNamespace(done=lambda: False)} if busy_kind == "datahub" else {},
+            storage_runner=SimpleNamespace(active=busy_kind == "storage"),
+            directory_tasks=set(),
+        ),
+    )
+    assert TestClient(app).get("/api/research/resident").json()["active"] is True
+    assert checked == {"sdk", "wind_api", "market"}
 
 
 @pytest.mark.parametrize(
@@ -244,7 +328,8 @@ def test_resident_preserves_all_activity_witnesses_and_rejects_unknown(monkeypat
     if busy == "block":
         workspace.tasks["block"] = SimpleNamespace(done=lambda: False)
     hub = SimpleNamespace(
-        tasks={"query": object()} if busy == "datahub" else {},
+        tasks={"query": SimpleNamespace(done=lambda: False)} if busy == "datahub" else {},
+        storage_runner=None,
         directory_tasks={object()} if busy == "directory_task" else set(),
     )
     if busy == "missing_directory":

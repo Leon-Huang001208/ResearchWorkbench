@@ -1,5 +1,7 @@
 # Research Workbench 架构总览
 
+PR188合流后的当前v5组合产品固定88ef3817680ac822e2d7c819db845de4b7275173，包含资产9bc4及DataHub研究仓；PREVIOUS仍51f09，8f2cb39a的一行业务读取修复另保留源码身份。用户已批准组合验收后部署锁定baostock0.9.4／psycopg3.3.6，但不启用／迁移数据库、不改外盘。PR188已审新04数据流保持，以下“v5本身无新结构／依赖”只描述原封闭profile及一行修复，不覆盖组合产品的研究仓变化；旧a114三CI全PASS不认证新组合，最终仍须重验。
+
 2026-10-22资产v5大业务索引修复仅让原verify_primary的v5分支复用既有64 MiB安全业务读取器，元数据仍为1 MB；修复8.67 MB业务index在停机前被误拒绝的绑定错误。既有Host、账号数据根、部署节点、锁、version4事务、全账号保全与恢复不变，旧profile／controller／evidence／固定产品均不修改。无新HTTP、数据流、格式或依赖，现有图准确；PR187原Constraints失败及修补后的候选验收分别留证，不以本机通过冒充CI或部署成功。
 
 2026-10-22资产交互v5固定部署只在原操作员增加封闭`reviewed-asset-observation-v5`／`apply-assets-v5`身份：PREVIOUS固定当前常驻`51f09fa783694aae5234905933948394ca167dcc`，PAYLOAD固定PR185真实merge `9bc4e4cab91130647a5bc0dfa519e97f4773416a`。沿原version4事务、维护锁、BirthFence、全账号索引保全及内容寻址恢复；旧资产v1–v4、两个market profile和模型恢复保持。没有新增节点、HTTP、持久格式或数据流，现有图源准确，不重画图；阅读源码链接指向已审产品，v5操作员最终候选仍需独立评审、原三CI／同候选Mac安装及实际部署证据。
@@ -13,6 +15,8 @@
 2026-10-22 资产交互与数据迭代增加两条现有 Host 内的数据路径：单搜索框 → 账号 `AssetDirectory` → 显式授权的 DataHub 天软目录读取 → 24小时账号缓存；专题页 → `AssetWorkspace.load_block` → Broker → 数据集感知的 Provider → 原会话不可变快照。目录读取不创建研究会话或启动模型；新证券的概览与近期前复权历史仍沿原观察／历史任务链路。DSH继续是唯一研究引擎，没有新服务、数据库、依赖或部署节点。新增HTTP与缓存分支分别见[接口](architecture/research-web/04-api.md#资产目录搜索与区块按需加载)和[文件](architecture/research-web/03-data-files.md#资产目录与按需区块缓存)，不沿用此前纯静态迭代的“无新HTTP／持久化”结论。
 
 天软结构化资产适配使用固定表字段和预定义因子，提供估值、财务、股东明细／汇总、行业分类、两融及公告事件；财务按报告期／公布日读取，不套用行情60天区间，缺字段、单位和币种不补造。日线蜡烛实体与所选日期／视区独立保持，专题内容局部更新；真实来源预检、完整浏览器链路、同候选Mac安装CI与常驻切换分别取证。宏观、ETF和指数不因本次A股接入而获得支持声明，详见[DataHub合同](research-web-datahub.md#资产目录与结构化区块)。
+
+研究仓作为现有 Host/DataHub 的可选存储边界，MarketStoreService 逐次检查来源与租户授权，WarehouseBridge 只接受可信宿主数据合同与交易日历。原件/事实修订/PIT/冻结位于独立 PostgreSQL 适配，不引入第二执行引擎；正式连接与迁移尚未启用。资料流图04同步可选仓、真实工作占用和冻结边界。
 
 2026-10-22 部署profile v4复用原Native/网关version4事务，旧版固定5495、产品固定PR180真实merge `9b436613aad9136f4959c992c89dd72fc7354ed5`。旧v1/v2/v3、controller/evidence及严格保全门不变，无新服务、API、持久格式或产品数据流，不改图/架构HTML/PNG或CI。旧v3失败已正式恢复5495/preserved=true/fenced=false；产品三CI与v4工具最终验收/部署分开，详见[固定部署合同](research-web-gateway-upgrade.md#资产观察固定版本联合部署)。
 

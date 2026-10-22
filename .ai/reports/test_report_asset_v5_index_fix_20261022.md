@@ -1,5 +1,19 @@
 # 资产v5业务索引预检修复
 
+组合版额外修复安装清单：PR188修改web.lock，仅更新code_commit会触发Doctor web_lock_mismatch。新增target_manifest仅v5固定已审88ef锁SHA256 `7c631d4fa5354170c622225be129a09f7f5890457aa0521bd5f46cecb6bb7102`；配置校验仍精确接受原/目标两种清单，回滚恢复原始清单，旧profile及v4 journal不变。先写八profile清单回归均失败后实现，最终完整回归另留日志。三个wheel已按原锁哈希下载，wheel metadata依赖在生产venv均满足，尚未安装。实际安装须对原有包版本保全并pip check；该前提不能用清单字段替代。数据库不启用不迁移，外盘不改。
+
+## PR188合流后的当前候选
+
+主线已合并DataHub研究仓产品`88ef3817680ac822e2d7c819db845de4b7275173`，包含资产PR185产品9bc4。用户当前明确批准“组合验收后一起部署”，包括已合并锁定baostock0.9.4／psycopg3.3.6进入常驻；数据库不启用、不迁移、外盘不改，不新增服务或DB连接配置。尚未成功部署的v5由root将PAYLOAD固定为完整88ef，PREVIOUS仍51f09，旧profile保持；源码常量／兼容测试及实际部署由root负责。
+
+阅读入口与Atlas采用已提交组合产品88ef；该提交没有v5一行读取修复，修复源码单独保留为[8f2cb39a](https://github.com/Leon-Huang001208/ResearchWorkbench/blob/8f2cb39a63c99c6e64875daf21dbb8b07518ff43/research_workbench_entrypoint/resident/model_provider_upgrade.py)。最终包含两者及新PAYLOAD常量的操作员提交须在合流后另行绑定，不能把88ef链接误当作读取修复已在该提交内。
+
+主任务已核定旧候选`a114beeabadc88a018872e997387978a934d805e`原三CI全PASS；PR188前进后，这些PASS仍只属于旧树，新组合的本机兼容、独评、原三CI与同候选Mac安装必须重验。更早CI39794625674的文档缺失FAIL记录同样保留，不被后续通过覆盖。当前尚未部署，本次文档不安装包、启用数据库或执行切换。
+
+合流保留双方模块／API／证据边界：map为23组、321条API声明／318唯一接口；PR188实际新增的04研究仓数据流、HTML与visual-review保留其原字节。v5读取修复自身结构不变与PR188数据流扩展分别评审，不以选择旧图或单边生成物解决冲突。下述“无新依赖／图源不变”及24路径结果均是原8f／a114阶段范围，不提升为新组合结论。
+
+主任务已实际报告组合部署工具769、资产／Broker／Provider／活动状态278，以及JS965 PASS／2 skip；锁内三份wheel已下载并核验哈希，尚未安装常驻。这些检查点与新候选CI、安装终态、数据库启用及实际部署分别记录。文档合流另以双方完整118路径及相对88ef的净24路径运行constraints／doc-sync，均0 violations；governance804文件通过，四个文档JS模块112 PASS／0 skip，官方Atlas与Python索引check通过。完整argv与日志保存在`logs/asset-index-fix-docs-impl/pr188-*`；最终提交后仍由root重绑Git候选及原三CI，本文不冒充该候选已通过CI或部署。
+
 宿主macOS Mac mini，Web部署工具修复。任务 `asset-v5-index-fix-20261022`，基线PR186合并240bbac。实际apply-assets-v5停机前拒绝 `resident_record_invalid`：verify_primary误用1 MB元数据读取器读取业务index。服务仍为51f09，无journal、无业务索引裁剪。原失败日志保留于Git common delivery evidence与用户home logs/model-upgrade.log。
 
 仅将v5加入已有64 MiB业务读取绑定，保留普通文件、非符号链接、大小、JSON对象校验及全部保全/恢复门；旧profile不变。新增真实故障回归在修复前1失败2通过，另保留五种旧读取绑定回归。初次测试误载legacy根conftest缺SQLAlchemy，随后采用现有CI的confcutdir，不安装依赖。完整本地回归、Router、独立评审、原三CI与Mac干净安装及实际部署待最终证据分别绑定。Windows/Linux原生未执行，不冒充通过。

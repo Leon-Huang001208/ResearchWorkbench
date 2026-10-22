@@ -132,6 +132,22 @@ jobs:
             tests/research_web/test_datahub_wind.py \
             tests/research_web/test_datahub_wind_api.py \
             tests/research_web/test_service_manager.py \
+            tests/research_web/test_datahub_reliability.py \
+            tests/research_web/test_datahub_storage_activity.py \
+            tests/research_web/test_datahub_warehouse.py \
+            tests/research_web/test_datahub_akshare_semantics.py \
+            tests/research_web/test_datahub_baostock.py \
+            tests/research_web/test_datahub_public_worker.py \
+            tests/research_web/test_research_warehouse_management.py \
+            tests/research_web/test_research_snapshot_store.py \
+            tests/research_web/test_quantapi_authorization.py \
+            tests/research_web/test_datahub_numeric_sources.py \
+            tests/research_web/test_datahub_execution_health.py \
+            tests/research_web/test_warehouse_diagnostics.py \
+            tests/research_web/test_market_store.py \
+            tests/research_web/test_market_store_postgres.py \
+            tests/research_web/test_market_store_operation.py \
+            tests/research_web/test_market_store_live_postgres.py \
             tests/research_web/test_capabilities.py::test_builtin_dependency_inventory_is_scoped_to_initialization \
             tests/research_web/test_documentation.py \
             tests/research_web/test_doc_sync.py \

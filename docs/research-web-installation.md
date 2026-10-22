@@ -1,5 +1,7 @@
 # Research Web Native / Docker 安装与运行
 
+当前用户已批准PR188／v5组合验收后一起部署已合并锁定baostock0.9.4／psycopg3.3.6；数据库不启用／不迁移、外盘不改，不新增数据库服务或连接配置。v5当前PAYLOAD为完整产品88ef3817、PREVIOUS仍51f09；依赖变化来自PR188已审锁文件，原profile及一行读取修复自身不引入任意依赖。旧a114候选三CI全PASS不能代替新组合的原三CI／同候选Mac干净安装，本轮文档不执行包安装或部署。
+
 资产v5索引预检修复（2026-10-22）只修原操作员的读取绑定：业务index复用既有64 MiB安全读取，部署元数据保持1 MB，旧profile不变。requirements/web.in、web.lock、setup_web.py及Mac Bootstrap无需改变依赖或安装流程；三个一键入口和原同候选Mac干净安装／固定DSH／3081／8088／Doctor门保留。原8.67 MB索引停机前拒绝与PR187 Constraints失败不写成安装或部署成功，修补候选须重新通过原三CI；不裁剪账号索引、不安装包或处理凭据。
 
 2026-10-22资产交互v5使用既有macOS Native操作员，固定旧51f09与PR185产品9bc4，入口`apply-assets-v5`；不新增安装参数、依赖、凭据接收面或Doctor能力。已核对requirements/web.in、requirements/web.lock、scripts/setup_web.py、本页及research-web-bootstrap.yml，依赖／安装器／workflow字节均无需改动。原setup-web.sh、setup-web.cmd、python scripts/setup_web.py三入口及同候选macos-14干净安装、固定DSH、3081／8088和Doctor门保留；产品旧CI与本机installed环境不认证v5最终候选安装通过。实际切换及固定51f09恢复见[部署合同](research-web-gateway-upgrade.md#资产交互与数据-v5-2026-10-22)。
@@ -11,6 +13,14 @@
 2026-10-22 资产交互与结构化数据迭代继续使用现有CJPY 0.5.2、Python锁、固定DSH及本地ECharts／Chart.js。`asset_directory.py`、`providers_cjpy_assets.py`与资产搜索静态模块随既有Web包安装，不新增Python／Node依赖、系统配置或秘密接收面。已核对 `requirements/web.in`、`requirements/web.lock`、`scripts/setup_web.py`、本安装文档和 `.github/workflows/research-web-bootstrap.yml`；requirements与安装器无须新增依赖；Bootstrap仅在原静态下载／逐字节比较两处名单追加asset-search.mjs，现覆盖16项资产，不加job／runner／条件。此结论的安装兼容性仍待最终同候选 `macos-14` 干净checkout、固定DSH构建、3081／8088健康和 `rwb web doctor --json` 证明；本机已有包不能算安装PASS。原 `./setup-web.sh`、`setup-web.cmd`、`python scripts/setup_web.py` 三入口与所有平台门保留。
 
 目录只读取当前账号已配置的天软连接，首次打开可能显示加载／未授权，24小时同授权旧缓存可继续显示并标过期；来源配置变化不复用旧目录。不复制开发账号凭据、不自动配置厂商或调用模型。新Provider只声明本轮封闭A股能力；Windows／Linux原生、Docker及常驻部署仍分别记录实际证据，源码和本机预检不自动更新原常驻服务。协议及文件见[资产目录合同](research-web-datahub.md#资产目录与结构化区块)。
+
+## 可选研究仓与只读 Doctor
+
+研究仓是显式配置的可选能力；安装驱动、保存配置及启用标记都不能证明数据库连通、schema权限或数据完整。`rwb web doctor --json` 的 `research_warehouse` 只检查当前实例的 `warehouse.json` 形状、私有目录/文件权限与 `psycopg` 模块可发现状态，不连接PostgreSQL、不读凭据、不调用厂商，也不创建或修改配置。该字段不输出host、数据库名、用户名、数据根、profile ID或owner。
+
+未配置显示 `state=unconfigured`，不阻断整体Doctor。有效配置显示 `state=configured` 和真实 `enabled` 标记；两者都保持 `connectivity=unknown`、`readiness=not_verified`。格式、权限、链接或内嵌秘密字段异常显示 `state=invalid`；驱动缺失单独显示 `driver=missing`。真实数据库可用性必须在UI中显式验证，Doctor不会把旧启用标记或配置存在当成已通过。Windows ACL和其他平台实机验证仍按各平台任务独立记录。
+
+研究仓基座新增锁定 `psycopg[binary]` 3.3.6 与 `baostock` 0.9.4，用户仅授权本任务隔离环境安装及有界免费验证。公开安装器仍从 `requirements/web.lock` 的哈希集合安装，`scripts/setup_web.py` 无额外全局依赖或服务安装步骤。驱动安装不创建业务库，不启用数据采集，不迁移原件；正式库配置/权限和部署另行确认。`setup-web.sh`、`setup-web.cmd`、`python scripts/setup_web.py` 与既有 macOS Bootstrap 干净安装/固定DSH/3081/8088/Doctor门保留，尚待本候选CI证明兼容。外盘ExFAT且无独立备份，不配置为活动数据库数据根。
 
 2026-10-22 v4部署只复用现有Native操作员及生产venv，固定旧5495和PR180产品`9b436613aad9136f4959c992c89dd72fc7354ed5`。公开三安装入口、requirements/web.in/web.lock、scripts/setup_web.py与原Mac Bootstrap合同保持，不增依赖/流程。产品Mac39730452006实际checkout654fa6、581秒，干净安装/固定DSH/3081/8088/doctor及15项静态资源通过；v4工具仍须自身最终同候选CI/安装与部署证据，不能复用产品通过代替。旧v3已正式恢复5495并保全，旧v1/v2/v3恢复及controller/evidence字节不变，见[部署合同](research-web-gateway-upgrade.md#资产观察固定版本联合部署)。
 

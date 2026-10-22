@@ -1,6 +1,6 @@
 # Research Web 接口清单
 
-资产v5索引修复只改变Native操作员的内部verify_primary读取绑定，不新增HTTP、CLI参数、账号权限或请求格式；API inventory仍为318声明／315唯一接口。64 MiB业务读取与1 MB部署元数据明确分开，旧profile不变。阅读页说明源码固定到已提交修复8f2cb39a，固定产品仍PR185 merge9bc4；文档与本机结果不表示PR187原CI失败已通过或常驻已切换。
+资产v5索引修复只改变Native操作员的内部verify_primary读取绑定，不新增HTTP、CLI参数、账号权限或请求格式；合流PR188后API inventory为321声明／318唯一接口，新增路径按研究仓原合同保留。64 MiB业务读取与1 MB部署元数据明确分开，旧profile不变。阅读页使用已提交组合产品88ef3817，v5一行读取修复另指8f2cb39a；当前PAYLOAD为88ef、PREVIOUS仍51f09。旧a114三CI全PASS不认证新组合，文档与本机结果也不表示常驻已切换。
 
 资产交互v5（2026-10-22）增加的是操作员CLI封闭命令apply-assets-v5，不新增HTTP、请求参数或权限入口。原目录search、区块load、历史as_of及账号／会话归属合同保持，API inventory仍为318条源码声明／315个唯一接口；Atlas只将源码链接固定到PR185真实merge9bc4。最终部署资格与固定旧51f09的恢复见[操作合同](../../research-web-gateway-upgrade.md#资产交互与数据-v5-2026-10-22)，HTTP或产品CI成功不表示v5已切换。
 
@@ -30,6 +30,10 @@ load正文只允许`source`（可省略或auto／封闭来源ID）、`refresh`�
 初始观察、旧refresh和新load共用区块锁。同块同条件加载合并；加载中来源／区间冲突409，同一Idempotency-Key换区块、来源、范围或refresh条件也409，原有效任务继续。每次成功受理，包括缓存与合并，先持久键摘要和正文签名；保存失败503 `asset_observation_save_failed`，不启动新查询，并仅原位回滚本次修改，保留其他活动对象。公开响应隐藏内部键、原request和sample；失败保留旧dataset与本次失败，客户端不能把旧值当作新成功。
 
 新增industry／holder_details／events复用market_activity，valuation的固定字段为close／pe_ttm／pb／pb_mrq／ps_ttm／total_shares；天软财务按报告期／公布日读取，Wind既有60日行情等价门保持。GET resident的active覆盖目录后台任务、区块task、历史非终态及真实Future，未知witness不能作为可部署空闲证明。来源与文件细则见[DataHub](../../research-web-datahub.md#资产目录与结构化区块)和[存储](03-data-files.md#资产目录与按需区块缓存)。
+
+研究仓新增 `GET/POST /api/research/data/warehouse`：读取当前实例安全状态，以及显式保存、初始化、停用；保存不连接数据库，初始化只在已存在的独立数据库建表。服务器租户模式暂拒绝此配置路径，不能用浏览器 owner 自行取得共享仓权限。另增加 `POST /api/research/data/sources/{source_id}/configuration/verify`，当前仅支持 `ext_ths` 的既有 refresh_token 换取 access_token 授权检查，要求显式用户操作头；不查询行情、不轮换 token、不声称数据权限已通过。
+
+研究仓基座扩展既有DataHub业务请求（业务取数路径保持）：`purpose`默认research、`quality`默认strict、`as_of`为带时区且不晚于当前的时点；backtest必须给as_of，allow_stale只允许display。结果新增data_success及白名单provider_metadata（真实execution_attempts、仓版本/命中/持久化及PIT证据）。未知历史返回409/data_pit_unavailable；前台18秒超时返回504/data_query_deadline，原call_id对应任务继续排空至真实终态，不得换ID盲重发。收据可记录warehouse_committed及已提交版本，即使最终查询取消或超时也不声称回滚。
 
 2026-10-22 `apply-assets-v4`为封闭本机操作员CLI，固定旧5495与PR180产品`9b436613aad9136f4959c992c89dd72fc7354ed5`；无新HTTP方法/路径/字段、DSH或API权限。旧v1/v2/v3及version4 journal保持，产品原接口和API Atlas未变，不重建架构HTML/PNG。产品三CI与v4最终测试/评审/CI/部署分开，只有完整资格及原锁/空闲/保全通过后才允许实际切换。
 

@@ -7,7 +7,7 @@ import json
 import os
 import re
 import time
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import uuid4
 
@@ -15,6 +15,7 @@ from core.observability import get_logger
 from research_workbench_entrypoint.resident.admission import MaintenanceBusy
 from research_workbench_entrypoint.resident.admission import admission as resident_admission
 
+from ..market_store import MarketStoreError
 from ..store import StoreError
 from . import providers
 from .broker import resolve
@@ -27,8 +28,10 @@ from .connections import (
 )
 from .contracts import BusinessQuery, Query
 from .probes import probe_source
+from .reliability import TOTAL_DEADLINE, CircuitBreaker, execute, failure_code
 from .security import load_control
 from .snapshots import Snapshots
+from .storage_activity import StorageOperationCancelled, StorageRunner
 
 log = get_logger(__name__)
 __all__ = ["BusinessQuery", "DataHub", "Query", "load_control"]
@@ -83,6 +86,7 @@ class DataHub:
         max_retained_probes=128,
         monotonic_clock=time.monotonic,
         admission=None,
+        warehouse=None,
     ):
         self.store = store
         self.snapshots = Snapshots(store)
@@ -91,6 +95,13 @@ class DataHub:
         self.transport = transport
         self.probe_runner = probe_runner or probe_source
         self.tasks: dict[tuple[str, str], asyncio.Task] = {}
+        self.execution_sources: dict[tuple[str, str], set[str]] = {}
+        self.execution_commits: dict[tuple[str, str], list[str]] = {}
+        self.query_deadlines: dict[tuple[str, str], float] = {}
+        self.deadline_calls: set[tuple[str, str]] = set()
+        self.authorization_checks: dict[str, dict] = {}
+        self.runtime_health = CircuitBreaker(clock=monotonic_clock)
+        self._execution_health: dict[tuple[str, str, str], dict] = {}
         self.probe_tasks: dict[str, asyncio.Task] = {}
         self.directory_tasks: set[asyncio.Task] = set()
         self.probes: dict[str, dict] = {}
@@ -104,6 +115,14 @@ class DataHub:
         self.cache_hits: dict[tuple[str, str], bool] = {}
         self.closed = False
         self.admission = admission
+        self.warehouse = warehouse
+        self.storage_runner = StorageRunner() if warehouse is not None else None
+
+    def _storage(self) -> StorageRunner:
+        if self.storage_runner is None:
+            log.error("datahub_warehouse_runner_unavailable")
+            raise MarketStoreError("warehouse_runner_unavailable")
+        return self.storage_runner
 
     def authenticate(self, value):
         return (
@@ -127,10 +146,122 @@ class DataHub:
                 latest[probe["source_id"]] = probe
         return latest
 
-    def catalog(self):
+    def admission_catalog(self):
+        """Current authority facts without the execution projection being authorized."""
         return build_catalog(
             probes=self._latest_probes(), connection_statuses=self.connections.statuses()
         )
+
+    def catalog(self):
+        result = self.admission_catalog()
+        result["runtime_health"] = self.runtime_health.snapshot()
+        execution = self._latest_execution_health()
+        for source in result["sources"]:
+            source["execution_evidence"] = execution.get(source["id"], [])
+        return result
+
+    def _record_execution_health(self, sid, query, configuration_digest, result):
+        """Only the actual provider boundary may create this bounded evidence."""
+        if (
+            query.capability == "external_data"
+            and query.parameters.get("dataset", "catalog") == "catalog"
+        ):
+            return  # Local inventory is not an upstream request or an entitlement test.
+        source = query.source
+        try:
+            current = self.source_configuration_digest(source)
+        except (StoreError, OSError, RuntimeError, ValueError):
+            log.warning("datahub_execution_health_authority_unknown")
+            return
+        if configuration_digest != current:
+            return
+        successful = (
+            result.status in {"complete", "snapshot"} and bool(result.rows) and not result.missing
+        )
+        status = (
+            "success"
+            if successful
+            else (
+                "empty"
+                if result.status == "empty"
+                or (result.status in {"complete", "snapshot"} and not result.rows)
+                else "partial" if result.status == "partial" or result.missing else "failed"
+            )
+        )
+        code = (
+            None
+            if successful
+            else failure_code(result)
+            or {"empty": "provider_empty", "partial": "provider_partial"}.get(
+                status, "provider_error"
+            )
+        )
+        now = datetime.now(UTC)
+        ttl = min(300.0, self.probe_ttl_seconds)
+        key = source, query.capability, configuration_digest
+        self._execution_health.pop(key, None)
+        self._execution_health[key] = {
+            "sid": sid,
+            "query": query,
+            "expires_monotonic": self._monotonic() + ttl,
+            "evidence": {
+                "capability": query.capability,
+                "status": status,
+                "failure_code": code,
+                "completed_at": now.isoformat(),
+                "expires_at": (now + timedelta(seconds=ttl)).isoformat(),
+                "basis": "actual_provider_call",
+                "cache_validates_upstream": False,
+            },
+        }
+        while len(self._execution_health) > min(256, self.max_retained_probes):
+            self._execution_health.pop(next(iter(self._execution_health)))
+        log.info(
+            "datahub_execution_health_recorded",
+            source=source,
+            capability=query.capability,
+            status=status,
+        )
+
+    def _latest_execution_health(self):
+        """Current authorization and exact configuration govern evidence reuse."""
+        latest: dict[str, list[dict]] = {}
+        for key, record in list(self._execution_health.items()):
+            source, _capability, configuration = key
+            if record["expires_monotonic"] <= self._monotonic():
+                self._execution_health.pop(key, None)
+                continue
+            try:
+                if configuration != self.source_configuration_digest(source):
+                    self._execution_health.pop(key, None)
+                    continue
+                self._authorize_query(record["sid"], record["query"])
+            except (StoreError, OSError, RuntimeError, ValueError):
+                log.warning("datahub_execution_health_authority_unknown")
+                self._execution_health.pop(key, None)
+                continue
+            latest.setdefault(source, []).append(dict(record["evidence"]))
+        return latest
+
+    async def _fetch_with_execution_health(
+        self, sid, query, configuration_digest, *, business_query=None
+    ):
+        evidence_query = business_query or query
+        try:
+            result = await providers.fetch(
+                query, transport=self.transport, connections=self.connections
+            )
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:  # Retain original execution failure, redact health.
+            safe = str(exc) if isinstance(exc, providers.ProviderError) else "provider_error"
+            result = providers.Result(status="failed", limitations=[safe])
+            if isinstance(evidence_query, BusinessQuery):
+                self._record_execution_health(sid, evidence_query, configuration_digest, result)
+            raise
+        if isinstance(evidence_query, BusinessQuery):
+            self._record_execution_health(sid, evidence_query, configuration_digest, result)
+        return result
 
     def connection_center(self):
         return build_connection_center(self.catalog(), self.connections)
@@ -193,6 +324,10 @@ class DataHub:
             from .providers_akshare import SEMANTICS_REVISION
 
             semantics["provider_semantics_revision"] = SEMANTICS_REVISION
+        elif source_id == "baostock":
+            from .providers_baostock import SEMANTICS_REVISION
+
+            semantics["provider_semantics_revision"] = SEMANTICS_REVISION
         elif source_id == "tinysoft":
             from .adjustment_contract import CONTRACT_VERSION, DEFINITION_SHA256
 
@@ -200,6 +335,8 @@ class DataHub:
                 adjustment_contract_version=CONTRACT_VERSION,
                 adjustment_definition_sha256=DEFINITION_SHA256,
             )
+        elif source_id in {"ext_worldbank", "ext_bls", "ext_ths"}:
+            semantics["provider_semantics_revision"] = "official-numeric-envelope-v1"
         payload = json.dumps(
             {
                 "status": (
@@ -508,10 +645,21 @@ class DataHub:
             **manifest,
             "sample": bounded_sample(self.rows(sid, manifest["dataset_id"], 0, 3)["items"]),
             "cache_hit": cache_hit,
+            "data_success": manifest.get("provider_metadata", {}).get(
+                "quality_accepted", manifest["status"] in {"complete", "snapshot", "empty"}
+            ),
         }
 
     def _authorize_query(
-        self, sid, query, *, provider=None, cached=False, authorization_fingerprint=None
+        self,
+        sid,
+        query,
+        *,
+        provider=None,
+        cached=False,
+        authorization_fingerprint=None,
+        excluded_sources=frozenset(),
+        storage_read=False,
     ):
         if not isinstance(query, BusinessQuery):
             return None
@@ -523,18 +671,206 @@ class DataHub:
             if authorization_fingerprint != self.source_configuration_digest(provider):
                 raise StoreError("缓存授权版本已变化", "data_cache_authorization_changed", 409)
         resolution = resolve(
-            checked, probes=self._latest_probes(), connection_statuses=self.connections.statuses()
+            checked,
+            probes=self._latest_probes(),
+            connection_statuses=self.connections.statuses(),
+            excluded_sources=excluded_sources,
+            storage_read=storage_read,
         )
         if self.admission is not None:
             self.admission(sid, checked, resolution)
         return resolution
+
+    async def _warehouse_read(self, sid, query, initial):
+        if self.warehouse is None or self.storage_runner is None:
+            return None, initial
+        resolution = initial
+        excluded: frozenset[str] = frozenset()
+        for _ in range(128):
+            source = resolution.provider_id
+            digest_before = self.source_configuration_digest(source)
+            try:
+                result = await self.storage_runner.run(
+                    self.warehouse.read, query, source, digest_before
+                )
+            except MarketStoreError as exc:
+                if (
+                    str(exc)
+                    in {
+                        "warehouse_busy",
+                        "warehouse_database_unavailable",
+                        "warehouse_database_operation_failed",
+                    }
+                    and query.as_of is None
+                ):
+                    log.warning("datahub_warehouse_unavailable", code=str(exc))
+                    return None, initial
+                raise StoreError(
+                    "资料仓读取或授权校验失败", "warehouse_read_rejected", 409
+                ) from None
+            if result is not None:
+                if digest_before != self.source_configuration_digest(source):
+                    raise StoreError(
+                        "资料仓来源授权已变化", "data_source_authorization_changed", 409
+                    )
+                self._authorize_query(
+                    sid,
+                    query.model_copy(update={"source": source, "allow_fallback": False}),
+                    storage_read=True,
+                )
+                return result, resolution
+            if query.source != "auto" and not query.allow_fallback:
+                break
+            excluded = excluded | {source}
+            try:
+                resolution = self._authorize_query(
+                    sid, query, excluded_sources=excluded, storage_read=True
+                )
+            except StoreError as exc:
+                if exc.code in {"data_capability_unavailable", "data_capability_not_integrated"}:
+                    break
+                raise
+        return None, initial
+
+    async def _execute_business(self, sid, call_id, query, initial):
+        """Reauthorize each attempt; explicit fixed-source requests stay fixed."""
+
+        def candidate(excluded):
+            if not excluded and self.runtime_health.available(health_key(initial)):
+                return initial
+            try:
+                skipped = excluded
+                for _ in range(128):
+                    resolved = self._authorize_query(sid, query, excluded_sources=skipped)
+                    if self.runtime_health.available(health_key(resolved)):
+                        return resolved
+                    skipped = skipped | {resolved.provider_id}
+                return None
+            except StoreError as exc:
+                if exc.code in {"data_capability_unavailable", "data_capability_not_integrated"}:
+                    return None
+                raise
+
+        def health_key(resolution):
+            return (
+                resolution.provider_id,
+                query.capability,
+                self.source_configuration_digest(resolution.provider_id),
+            )
+
+        async def fetch(resolution):
+            self.execution_sources.setdefault((sid, call_id), set()).add(resolution.provider_id)
+            before = self.source_configuration_digest(resolution.provider_id)
+            self._authorize_query(
+                sid,
+                query.model_copy(
+                    update={"source": resolution.provider_id, "allow_fallback": False}
+                ),
+            )
+            planned = None
+            if self.warehouse is not None:
+                try:
+                    planned = await self._storage().run(
+                        self.warehouse.missing_queries, query, resolution.provider_id, before
+                    )
+                except MarketStoreError as exc:
+                    if str(exc) not in {
+                        "warehouse_busy",
+                        "warehouse_database_unavailable",
+                        "warehouse_database_operation_failed",
+                    }:
+                        raise
+                    log.warning("datahub_warehouse_plan_unavailable", code=str(exc))
+            result = None
+            try:
+                if planned:
+                    result = None
+                    for gap_query in planned:
+                        if self.source_configuration_digest(resolution.provider_id) != before:
+                            raise StoreError(
+                                "取数期间来源授权已变化", "data_source_authorization_changed", 409
+                            )
+                        self._authorize_query(sid, gap_query)
+                        result = await self._fetch_with_execution_health(sid, gap_query, before)
+                        if result.status not in {"complete", "snapshot"}:
+                            if result.status == "empty":
+                                result.status = "partial"
+                                result.limitations.append("warehouse_coverage_incomplete")
+                            break
+                        if self.source_configuration_digest(resolution.provider_id) != before:
+                            raise StoreError(
+                                "取数期间来源授权已变化", "data_source_authorization_changed", 409
+                            )
+                        self._authorize_query(sid, gap_query)
+                        gap_version = await self._storage().run(
+                            self.warehouse.ingest, gap_query, resolution.provider_id, before, result
+                        )
+                        if gap_version is not None:
+                            self.execution_commits.setdefault((sid, call_id), []).append(
+                                gap_version
+                            )
+                    if result is not None and result.status in {"complete", "snapshot"}:
+                        combined = await self._storage().run(
+                            self.warehouse.read, query, resolution.provider_id, before
+                        )
+                        if combined is not None:
+                            result = combined
+                            result.metadata.update(
+                                warehouse_hit=False,
+                                warehouse_incremental=True,
+                                warehouse_fetch_ranges=len(planned),
+                            )
+                        else:
+                            result.status = "partial"
+                            result.limitations.append("warehouse_coverage_incomplete")
+            except MarketStoreError as exc:
+                if str(exc) not in {
+                    "warehouse_busy",
+                    "warehouse_database_unavailable",
+                    "warehouse_database_operation_failed",
+                }:
+                    raise
+                log.warning("datahub_warehouse_incremental_unavailable", code=str(exc))
+                result = None
+            if result is None:
+                result = await self._fetch_with_execution_health(
+                    sid,
+                    resolution.query,
+                    before,
+                    business_query=query.model_copy(
+                        update={"source": resolution.provider_id, "allow_fallback": False}
+                    ),
+                )
+            if self.source_configuration_digest(resolution.provider_id) != before:
+                raise StoreError("取数期间来源授权已变化", "data_source_authorization_changed", 409)
+            self._authorize_query(
+                sid,
+                query.model_copy(
+                    update={"source": resolution.provider_id, "allow_fallback": False}
+                ),
+            )
+            result.metadata = {**result.metadata, "execution_authorization_digest": before}
+            self.runtime_health.record(
+                health_key(resolution),
+                accepted=result.status in {"complete", "snapshot", "empty"},
+                code=failure_code(result),
+            )
+            return result
+
+        return await execute(
+            resolve=candidate,
+            fetch=fetch,
+            source_id=lambda value: value.provider_id,
+            allow_fallback=query.source == "auto" or query.allow_fallback,
+            accept_partial=query.purpose == "display" and query.quality == "allow_stale",
+        )
 
     async def query(self, sid, call_id, query: Query | BusinessQuery):
         self.store.session(sid)
         if self.closed or not re.fullmatch(r"[a-zA-Z0-9_.:-]{1,256}", call_id):
             raise StoreError("资料服务关闭或调用标识非法")
         # A receipt/cache is historical evidence, never current authorization.
-        self._authorize_query(sid, query)
+        self._authorize_query(sid, query, storage_read=self.warehouse is not None)
         key = (sid, call_id)
         receipt = self.snapshots.receipt(sid, call_id)
         fingerprint = query.fingerprint(include_refresh=True)
@@ -554,19 +890,49 @@ class DataHub:
                         provider=manifest.get("provider"),
                         cached=True,
                         authorization_fingerprint=manifest.get("authorization_fingerprint"),
+                        storage_read=self.warehouse is not None
+                        and manifest.get("provider_metadata", {}).get("warehouse_hit") is True,
                     )
                 return self.short(sid, manifest, cache_hit=receipt["cache_hit"])
             if key in self.tasks:
-                return await asyncio.shield(self.tasks[key])
+                return await self._wait_query(key, self.tasks[key])
             raise StoreError("资料调用已取消、失败或上次受理状态未知；不自动重发")
         self.snapshots.receipt(sid, call_id, {"status": "pending", "fingerprint": fingerprint})
         task = asyncio.create_task(self._query(sid, call_id, query), name="datahub-query")
         self.tasks[key] = task
-        try:
-            return await asyncio.shield(task)
-        finally:
-            if task.done():
+        self.query_deadlines[key] = time.monotonic() + TOTAL_DEADLINE
+
+        def expire():
+            if not task.done() and key not in self.deadline_calls:
+                self.deadline_calls.add(key)
+                task.cancel()
+                log.warning("datahub_query_deadline_draining", session_id=key[0])
+
+        timer = asyncio.get_running_loop().call_later(TOTAL_DEADLINE, expire)
+
+        def completed(owned):
+            timer.cancel()
+            if not owned.cancelled():
+                owned.exception()  # Observe late failures after the caller's deadline.
+            if self.tasks.get(key) is owned:
                 self.tasks.pop(key, None)
+            self.query_deadlines.pop(key, None)
+            self.deadline_calls.discard(key)
+
+        task.add_done_callback(completed)
+        return await self._wait_query(key, task)
+
+    async def _wait_query(self, key, task):
+        """Bound the caller while owned workers retain capacity through draining."""
+        remaining = max(0.0, self.query_deadlines.get(key, time.monotonic()) - time.monotonic())
+        done, _ = await asyncio.wait({task}, timeout=remaining)
+        if done:
+            return task.result()
+        if key not in self.deadline_calls:
+            self.deadline_calls.add(key)
+            task.cancel()
+            log.warning("datahub_query_deadline_draining", session_id=key[0])
+        raise StoreError("资料查询已超时；原调用仍由后台排空，请勿重发", "data_query_deadline", 504)
 
     async def collect_report_weekly(
         self,
@@ -947,8 +1313,29 @@ class DataHub:
     async def _query(self, sid, call_id, query):
         fingerprint = query.fingerprint(include_refresh=True)
         try:
-            resolution = self._authorize_query(sid, query)
-            if not query.refresh:
+            resolution = self._authorize_query(sid, query, storage_read=self.warehouse is not None)
+            warehouse_result = None
+            if isinstance(query, BusinessQuery):
+                prepare = getattr(self.warehouse, "prepare", None)
+                if callable(prepare):
+                    calendar_version = await prepare(
+                        query,
+                        runner=self.storage_runner,
+                        authorize=lambda value: self._authorize_query(sid, value),
+                        configuration_digest=self.source_configuration_digest,
+                        touch_source=lambda source: self.execution_sources.setdefault(
+                            (sid, call_id), set()
+                        ).add(source),
+                    )
+                    if isinstance(calendar_version, str):
+                        self.execution_commits.setdefault((sid, call_id), []).append(
+                            calendar_version
+                        )
+                if not query.refresh:
+                    warehouse_result, resolution = await self._warehouse_read(
+                        sid, query, resolution
+                    )
+            if not query.refresh and warehouse_result is None:
                 for candidate in self.list(sid):
                     age = (
                         datetime.now(UTC) - datetime.fromisoformat(candidate["retrieved_at"])
@@ -992,7 +1379,17 @@ class DataHub:
                         )
                         return self.short(sid, candidate, cache_hit=True)
             request_query = query
+            if (
+                isinstance(query, BusinessQuery)
+                and query.as_of is not None
+                and warehouse_result is None
+            ):
+                # Live providers cannot prove historical availability. Only a
+                # warehouse as-of view may satisfy this contract.
+                raise StoreError("该历史时点尚无已验证的数据仓库视图", "data_pit_unavailable", 409)
             if isinstance(query, BusinessQuery):
+                if warehouse_result is None:
+                    resolution = self._authorize_query(sid, query)
                 provider_query = resolution.query
                 source_label = resolution.provider_id
             else:
@@ -1002,11 +1399,20 @@ class DataHub:
             authorization_fingerprint = (
                 self.source_configuration_digest(source_label) if resolution else None
             )
-            result = await providers.fetch(
-                provider_query, transport=self.transport, connections=self.connections
-            )
+            if warehouse_result is not None:
+                result = warehouse_result
+            elif resolution:
+                result, resolution = await self._execute_business(sid, call_id, query, resolution)
+                provider_query = resolution.query
+                source_label = resolution.provider_id
+                authorization_fingerprint = self.source_configuration_digest(source_label)
+            else:
+                result = await providers.fetch(
+                    provider_query, transport=self.transport, connections=self.connections
+                )
             if resolution:
                 result.provider_id = resolution.provider_id
+                result.metadata["execution_attempts"] = result.attempted_sources
                 result.attempted_sources = resolution.attempted_sources
                 keywords = request_query.parameters.get("query")
                 if (
@@ -1024,6 +1430,30 @@ class DataHub:
                     if before and not result.rows:
                         result.status = "empty"
                         result.limitations.append("来源快照已取得，但没有匹配关键词的电报。")
+                if self.warehouse is not None and warehouse_result is None:
+                    try:
+                        version = await self._storage().run(
+                            self.warehouse.ingest,
+                            request_query,
+                            source_label,
+                            authorization_fingerprint,
+                            result,
+                        )
+                        result.metadata["warehouse_persisted"] = version is not None
+                        if version is not None:
+                            self.execution_commits.setdefault((sid, call_id), []).append(version)
+                            result.metadata["warehouse_version"] = version
+                    except MarketStoreError as exc:
+                        if str(exc) not in {
+                            "warehouse_busy",
+                            "warehouse_database_unavailable",
+                            "warehouse_database_operation_failed",
+                        }:
+                            raise
+                        result.metadata.update(
+                            warehouse_persisted=False, warehouse_failure_code=str(exc)
+                        )
+                        log.warning("datahub_warehouse_write_unavailable", code=str(exc))
             await asyncio.sleep(0)
             manifest = self.snapshots.publish(
                 sid,
@@ -1040,25 +1470,63 @@ class DataHub:
                     "fingerprint": fingerprint,
                     "dataset_id": manifest["dataset_id"],
                     "cache_hit": False,
+                    "data_status": result.status,
+                    "data_success": result.metadata.get(
+                        "quality_accepted", result.status != "failed"
+                    ),
                 },
             )
             return self.short(sid, manifest)
-        except asyncio.CancelledError:
+        except asyncio.CancelledError as cancellation:
             # The task cancellation is only a request. A synchronous vendor call
             # keeps capacity until its real Future has completed.
-            if getattr(query, "source", None) == "tinysoft":
-                from .providers_cjpy import wait_for_idle
+            from .worker_activity import drain_sources
 
-                await wait_for_idle()
-            self.snapshots.receipt(
-                sid, call_id, {"status": "cancelled", "fingerprint": fingerprint}
-            )
+            touched = self.execution_sources.get((sid, call_id), set())
+            await drain_sources(touched | {getattr(query, "source", "")})
+            cancelled_receipt = {"status": "cancelled", "fingerprint": fingerprint}
+            if (sid, call_id) in self.deadline_calls:
+                cancelled_receipt.update(status="failed", failure_code="deadline")
+            committed = self.execution_commits.get((sid, call_id), [])
+            if committed:
+                cancelled_receipt.update(warehouse_committed=True, warehouse_versions=committed)
+            if isinstance(cancellation, StorageOperationCancelled):
+                cancelled_receipt["warehouse_committed"] = (
+                    bool(committed) or cancellation.outcome.committed
+                )
+                committed_version = cancellation.outcome.result
+                if isinstance(committed_version, str) and re.fullmatch(
+                    r"[a-f0-9]{64}", committed_version
+                ):
+                    cancelled_receipt["warehouse_version"] = committed_version
+            self.snapshots.receipt(sid, call_id, cancelled_receipt)
             log.info("datahub_query_cancelled", session_id=sid)
             raise
+        except MarketStoreError as exc:
+            allowed = {
+                "warehouse_upstream_overlap_conflict",
+                "warehouse_upstream_anchor_missing",
+                "warehouse_original_provenance_invalid",
+                "warehouse_stock_value_invalid",
+                "warehouse_stock_value_missing",
+                "warehouse_fact_identity_mismatch",
+                "warehouse_calendar_invalid",
+            }
+            code = str(exc) if str(exc) in allowed else "warehouse_query_rejected"
+            self.snapshots.receipt(
+                sid, call_id, {"status": "failed", "fingerprint": fingerprint, "failure_code": code}
+            )
+            log.warning("datahub_warehouse_query_rejected", code=code)
+            raise StoreError(
+                "研究仓数据口径、重叠校验或授权未通过，未发布结果", code, 409
+            ) from None
         except Exception as exc:
             self.snapshots.receipt(sid, call_id, {"status": "failed", "fingerprint": fingerprint})
             log.error("datahub_query_failed", session_id=sid, error_type=type(exc).__name__)
             raise
+        finally:
+            self.execution_sources.pop((sid, call_id), None)
+            self.execution_commits.pop((sid, call_id), None)
 
     async def cancel(self, sid, call_id=None):
         self.store.session(sid)
@@ -1082,15 +1550,40 @@ class DataHub:
 
     async def close(self):
         self.closed = True
+        failures: list[BaseException] = []
+
+        async def finish_owned(awaitable):
+            pending = asyncio.ensure_future(awaitable)
+            while not pending.done():
+                try:
+                    await asyncio.shield(pending)
+                except asyncio.CancelledError as exc:
+                    if not pending.cancelled():
+                        failures.append(exc)
+                except Exception:  # noqa: BLE001 - inspect original outcome below.
+                    break  # Inspect the original outcome below, then drain other resources.
+            try:
+                pending.result()
+            except (Exception, asyncio.CancelledError) as exc:  # noqa: BLE001
+                failures.append(exc)
+                log.warning("datahub_close_drain_failed", error_type=type(exc).__name__)
+
         if self.directory_tasks:
-            await asyncio.gather(*self.directory_tasks, return_exceptions=True)
+            await finish_owned(asyncio.gather(*self.directory_tasks, return_exceptions=True))
         tasks = [*self.tasks.values(), *self.probe_tasks.values()]
         for task in tasks:
             task.cancel()
         if tasks:
-            await asyncio.gather(*tasks, return_exceptions=True)
+            await finish_owned(asyncio.gather(*tasks, return_exceptions=True))
         from .providers_wind_api import wait_for_idle
+        from .worker_activity import SOURCES, drain_sources
 
-        await wait_for_idle()
+        for source in sorted(SOURCES):
+            await finish_owned(drain_sources(frozenset({source})))
+        await finish_owned(wait_for_idle())
+        if self.storage_runner is not None:
+            await finish_owned(self.storage_runner.close())
         self.tasks.clear()
         self.probe_tasks.clear()
+        if failures:
+            raise failures[0]

@@ -56,10 +56,11 @@ ASSET_V3_PAYLOAD = "a0ff3ae2e2ab92bad10ba8547e45027687ec7cc1"
 ASSET_V4_MODE = "reviewed-asset-observation-v4"
 ASSET_V4_PREVIOUS = "5495e64c0be08c9db58e336705db90584f8ba8b5"
 ASSET_V4_PAYLOAD = "9b436613aad9136f4959c992c89dd72fc7354ed5"
-# PR185 merged asset interaction/data product; the live market-gaps resident is preserved.
+# PR188 includes PR185 assets plus the explicitly authorized DataHub combination.
 ASSET_V5_MODE = "reviewed-asset-observation-v5"
 ASSET_V5_PREVIOUS = "51f09fa783694aae5234905933948394ca167dcc"
-ASSET_V5_PAYLOAD = "9bc4e4cab91130647a5bc0dfa519e97f4773416a"
+ASSET_V5_PAYLOAD = "88ef3817680ac822e2d7c819db845de4b7275173"
+ASSET_V5_WEB_LOCK_SHA256 = "7c631d4fa5354170c622225be129a09f7f5890457aa0521bd5f46cecb6bb7102"
 # PR179's merged market product, starting at the completed v4 resident deployment.
 MARKET_MODE = "reviewed-market-overview-v1"
 MARKET_PREVIOUS = "4d2e3c408663b64be9e58b03213f4ca8f1152733"
@@ -760,12 +761,19 @@ def gateway_configuration(state, previous=False):
     }
 
 
+def target_manifest(state):
+    manifest = {**state["manifest"], "code_commit": state["target"]}
+    if state.get("mode") == ASSET_V5_MODE:
+        manifest["web_lock_sha256"] = ASSET_V5_WEB_LOCK_SHA256
+    return manifest
+
+
 def validate_configuration(home, state):
     actual = read_json(home / "resident/config.json")
     if actual not in (state["config"], {**state["config"], "baseline": state["target"]}):
         raise UpdateBlocked("model_upgrade_configuration_changed")
     manifest = read_json(home / "install/manifest.json")
-    if manifest not in (state["manifest"], {**state["manifest"], "code_commit": state["target"]}):
+    if manifest not in (state["manifest"], target_manifest(state)):
         raise UpdateBlocked("model_upgrade_manifest_changed")
     gateway = read_json(home / "server/resident.json")
     if gateway not in (gateway_configuration(state, True), gateway_configuration(state)):
@@ -948,7 +956,12 @@ class Operations:
             timeout=180,
         )
         c.atomic(
-            self.home / "install/manifest.json", {**self.state["manifest"], "code_commit": sha}
+            self.home / "install/manifest.json",
+            (
+                {**self.state["manifest"], "code_commit": sha}
+                if previous
+                else target_manifest(self.state)
+            ),
         )
 
     def start_primary(self, previous):
