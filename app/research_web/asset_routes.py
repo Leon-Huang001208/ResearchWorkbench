@@ -68,6 +68,28 @@ class ObservationRequest(BaseModel):
     adjustment: Literal["none", "qfq", "hfq"] = "qfq"
 
 
+class HistoryJobRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    scope: Literal["recent", "older", "all"]
+    adjustment: Literal["none", "qfq", "hfq"]
+    retry_of: str | None = Field(
+        default=None, pattern=r"^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$"
+    )
+
+
+class ChartPreferencesRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    panels: list[Literal["volume", "macd", "kdj", "rsi"]] = Field(max_length=4)
+
+    @model_validator(mode="after")
+    def unique_panels(self):
+        if len(set(self.panels)) != len(self.panels):
+            raise ValueError("panels must be unique")
+        return self
+
+
 class WatchlistCreate(BaseModel):
     name: str = Field(min_length=1, max_length=80)
     polling_minutes: Literal[5, 15, 60] | None = None
@@ -121,6 +143,45 @@ async def list_observations(request: Request):
 @router.get("/assets/observations/{observation_id}")
 async def observation(observation_id: str, request: Request):
     return request.app.state.research.asset_workspace.observation(observation_id)
+
+
+@router.post("/assets/observations/{observation_id}/history-jobs", status_code=202)
+async def create_history_job(
+    observation_id: str,
+    body: HistoryJobRequest,
+    request: Request,
+    idempotency_key: str = Header(min_length=8, max_length=128),
+):
+    return await request.app.state.research.asset_workspace.history_jobs.create(
+        observation_id, body, idempotency_key
+    )
+
+
+@router.get("/assets/observations/{observation_id}/history-jobs")
+async def list_history_jobs(observation_id: str, request: Request):
+    return {"items": request.app.state.research.asset_workspace.history_jobs.list(observation_id)}
+
+
+@router.get("/assets/observations/{observation_id}/history-jobs/{job_id}")
+async def get_history_job(observation_id: str, job_id: str, request: Request):
+    return request.app.state.research.asset_workspace.history_jobs.get(observation_id, job_id)
+
+
+@router.post("/assets/observations/{observation_id}/history-jobs/{job_id}/cancel", status_code=202)
+async def cancel_history_job(observation_id: str, job_id: str, request: Request):
+    return await request.app.state.research.asset_workspace.history_jobs.cancel(
+        observation_id, job_id
+    )
+
+
+@router.get("/assets/chart-preferences")
+async def get_chart_preferences(request: Request):
+    return request.app.state.research.asset_workspace.chart_preferences()
+
+
+@router.put("/assets/chart-preferences")
+async def put_chart_preferences(body: ChartPreferencesRequest, request: Request):
+    return request.app.state.research.asset_workspace.set_chart_preferences(body.panels)
 
 
 @router.post("/assets/observations/{observation_id}/blocks/{block}/refresh", status_code=202)

@@ -1,5 +1,7 @@
 # 研究协议、执行状态与恢复
 
+2026-10-22 历史任务属于Host数据工作，不创建DSH研究回合或Automation日程。queued/running/cancelling/draining为活动，completed/failed/cancelled/interrupted为终态；服务关闭/会话取消联动子DataHub call_id并等真实Future结束，无owner恢复为interrupted且不自动重试。固定复权规范/raw/因子/metadata通过原会话快照交给唯一DSH，旧冻结研究材料继续只读。resident活动同时反映任务与真实Future，异常witness为未知；操作员要求全部明确空闲，不能仅凭HTTP取消或浏览器关闭切换。[历史合同](../../research-web-datahub.md#资产历史任务与固定复权)不放宽DSH执行、质量门、模型及厂商授权。
+
 资产观察 `apply-assets-v2` 复用原 v4 前进／恢复状态机；已验证 journal 的 v2 mode 固定恢复 `9bc12355`，v1 和模型 mode 保留原旧版。两资产 mode 均要求观察和 DataHub 明确终态，活动／未知延后；DSH 协议、研究历史、质量门、取消语义及原恢复拓扑不改变，不调用模型或供应商。
 
 资产观察的图表公式和字段投影仅在浏览器确定性执行，不引入AF Agent委员会或第二执行循环。新增section_sources／section_ranges保存在原观察请求，刷新和恢复复用原任务／取消状态机；失败沿有效显式来源返回，不自动改来源或重试。DSH协议、原生历史、研究质量与用户授权边界保持。

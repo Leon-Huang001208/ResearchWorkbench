@@ -153,16 +153,30 @@ window.matchMedia('(max-width: 1050px)').addEventListener?.('change', event => {
 const hotController = createHotController({api,onChange:()=>render(),isActive:()=>state.route.page==='intel'&&state.route.intelTab==='hot'||state.route.page==='settings'&&state.route.settingsSection==='hot'});
 const intelController = createIntelController({ onChange: () => { if (state.route.page === 'intel') render(); } });
 const isAssetPage = () => ['assets', 'workbench'].includes(state.route.page) && state.route.section === 'assets';
-const assetChart = createAssetChartController();
+const assetChart = createAssetChartController({
+  onPanelsChange: panels => { void assetWorkspace.savePreferences(panels); },
+  onHistoryRequest: request => {
+    if (request.action === 'cancel') return assetWorkspace.stopHistory();
+    return assetWorkspace.startHistory(request.scope || 'recent', request.adjustment || 'none', request.action === 'retry' ? assetState.historyJob?.id : undefined);
+  },
+});
 let assetCapitalFlow = null;
 let assetAnchorKey = '';
 function assetTerminalMetadata(observation = assetState.observation) {
-  return { ...observation?.blocks?.history?.dataset, frequency: observation?.request_parameters?.frequency || 'daily', adjustment: observation?.request_parameters?.adjustment || 'qfq', asset: observation?.asset, name: assetState.rows.overview?.[0]?.name || assetState.rows.overview?.[0]?.['简称'] };
+  const dataset = observation?.blocks?.history?.dataset;
+  return { ...dataset, frequency: observation?.request_parameters?.frequency || 'daily', adjustment: dataset?.asset_history?.adjustment || observation?.request_parameters?.adjustment || 'qfq', assetIdentity: `${observation?.asset_type || state.route.assetType || 'stock'}:${observation?.asset || state.route.asset || ''}`, historyJob: assetState.historyJob, canLoadHistory: Boolean(observation?.id), asset: observation?.asset, name: assetState.rows.overview?.[0]?.name || assetState.rows.overview?.[0]?.['简称'], currentQuote: projectAssetObservation(assetState.rows, observation || {}).basic };
 }
 function configureAssetTerminal() {
   const observation = selectAssetObservation(assetState.observation ? [assetState.observation] : [], state.route);
   const key = `${observation?.asset_type || state.route.assetType}:${observation?.asset || state.route.asset}:${observation?.blocks?.history?.dataset?.dataset_id || ''}`;
-  assetChart.configure(observation ? assetState.rows.history || [] : [], key, assetTerminalMetadata(observation));
+  assetChart.configure(observation ? assetState.rows.history || [] : [], key, assetTerminalMetadata(observation), assetState.preferences);
+}
+function setAssetMetricsDrawer(open, focus = true) {
+  const panel = root.querySelector('.asset-wind-metrics'); const trigger = root.querySelector('[data-asset-metrics-toggle]');
+  if (!panel || !trigger) return;
+  panel.classList.toggle('is-open', open); trigger.setAttribute('aria-expanded', String(open));
+  if (open) { panel.setAttribute('role', 'dialog'); panel.setAttribute('aria-modal', 'true'); if (focus) panel.querySelector('[data-asset-metrics-close]')?.focus({ preventScroll: true }); }
+  else { panel.removeAttribute('role'); panel.removeAttribute('aria-modal'); if (focus) trigger.focus({ preventScroll: true }); }
 }
 function mountAssetIndicators() {
   if (!isAssetPage()) return;
@@ -605,7 +619,8 @@ function render() {
   const assetFormSelectors = ['[data-asset-select]', '[data-asset-observation]', '[data-asset-note]', '[data-asset-alert]', '[data-watchlist-item]', '[data-asset-watchlist-create]'];
   const assetForms = keepAssetForms ? assetFormSelectors.map(selector => [selector, assetPage.querySelector(selector)]).filter(([, node]) => node) : [];
   const assetFocus = keepAssetForms && assetForms.some(([, form]) => form.contains(document.activeElement)) ? document.activeElement : null;
-  const assetDetails = keepAssetForms ? ['.asset-list-drawer', '.asset-personal-details', '.asset-source-summary', '.asset-identity-switch', ...(assetPage.dataset.assetView === (state.route.assetView || 'overview') ? ['.asset-chart-details', ...(assetPage.dataset.observationId ? ['.asset-query-controls'] : [])] : [])].map(selector => [selector, assetPage.querySelector(selector)?.open]) : [];
+  const assetMetricsOpen = keepAssetForms && assetPage.querySelector('.asset-wind-metrics')?.classList.contains('is-open');
+  const assetDetails = keepAssetForms ? ['.asset-list-drawer', '.asset-personal-details', '.asset-source-summary', '.asset-identity-switch', '.asset-research-menu', ...(assetPage.dataset.assetView === (state.route.assetView || 'overview') ? ['.asset-chart-details', ...(assetPage.dataset.observationId ? ['.asset-query-controls'] : [])] : [])].map(selector => [selector, assetPage.querySelector(selector)?.open]) : [];
   const active = document.activeElement; const focusId = active?.id;
   const modelPanelFocus = modelSettingsPanel?.element.contains(active) ? {node:active,action:active.dataset?.mpAction,profile:active.dataset?.profile} : null;
   const activeQuestion = active?.closest?.('[data-question-form]');
@@ -648,6 +663,7 @@ function render() {
   const freshDocumentForm = root.querySelector('#document-edit-form');
   for (const [selector, form] of assetForms) root.querySelector(selector)?.replaceWith(form);
   for (const [selector, open] of assetDetails) { const details = root.querySelector(selector); if (details && open !== undefined) details.open = open; }
+  if (assetMetricsOpen) setAssetMetricsDrawer(true, false);
   if (assetFocus?.isConnected) assetFocus.focus({ preventScroll: true });
   if (documentForm && freshDocumentForm && documentForm.dataset.documentBusy !== "true" && !documentEditor?.busy && documentForm.dataset.documentRevision === freshDocumentForm.dataset.documentRevision) freshDocumentForm.replaceWith(documentForm);
   const modelPanelMount = root.querySelector('[data-model-profiles-root]');
@@ -1377,7 +1393,7 @@ async function showRoute() {
     history.replaceState(null, '', '#/claw?view=plans');
   }
   intelController.cancel();
-  assetWorkspace.cancel(); assetNews.cancel(); assetChart.cancel();
+  assetNews.cancel(); assetChart.cancel();
   aihotController.cancel();
   localIntegrationPollingGuard.invalidate(); officeAutoPollingGuard.invalidate(); officeConsentConfirmation = '';
   localVerificationTarget = '';
@@ -1388,6 +1404,8 @@ async function showRoute() {
   }
   quickCategory = '';
   const requestedRoute = parseRoute(location.hash);
+  const sameAssetPage = isAssetPage() && ['assets', 'workbench'].includes(requestedRoute.page) && requestedRoute.section === 'assets' && requestedRoute.asset === state.route.asset && requestedRoute.assetType === state.route.assetType;
+  assetWorkspace.cancel({ stopHistory: !sameAssetPage });
   if(!(requestedRoute.page==='intel'&&requestedRoute.intelTab==='hot'||requestedRoute.page==='settings'&&requestedRoute.settingsSection==='hot'))hotController.deactivate();
   if (requestedRoute.page !== 'frameworks' || requestedRoute.frameworkSlug !== state.route.frameworkSlug) {
     closeFrameworkStream(); closeFrameworkStream = () => {};
@@ -1644,6 +1662,19 @@ root.addEventListener('keydown', (event) => {
     }
   }
 
+  if (isAssetPage()) {
+    const metrics = root.querySelector('.asset-wind-metrics.is-open');
+    if (metrics && event.key === 'Escape') { event.preventDefault(); setAssetMetricsDrawer(false); return; }
+    if (metrics && event.key === 'Tab') {
+      const focusable = [...metrics.querySelectorAll('button, a[href], input, select, textarea, [tabindex="0"]')].filter(item => !item.disabled);
+      const first = focusable[0]; const last = focusable.at(-1);
+      if (event.shiftKey && document.activeElement === first || !event.shiftKey && document.activeElement === last) { event.preventDefault(); (event.shiftKey ? last : first)?.focus(); return; }
+    }
+    if (event.key === 'Escape') {
+      const menu = event.target.closest?.('.asset-header-actions details[open]');
+      if (menu) { event.preventDefault(); menu.open = false; menu.querySelector('summary')?.focus(); return; }
+    }
+  }
   if (state.route.page === 'aihot' && event.key === 'Escape') root.querySelectorAll('.aihot-faces[open]').forEach(item => { item.open = false; });
   if (event.isComposing || event.keyCode === 229) return;
   if (event.target.type === 'radio' && event.target.matches?.('.codex-question-option input') && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) {
@@ -2229,6 +2260,7 @@ root.addEventListener('submit', async (event) => {
     const current = workbenchOwner();
     const payload = readAssetObservation(event.target); const ticket = pageGeneration;
     if (payload.source === 'wind' && (payload.frequency !== 'daily' || (Date.parse(payload.end_date) - Date.parse(payload.start_date)) / 86400000 + 1 > 60)) { state.error = 'Wind 当前仅支持不超过 60 个日历日的股票日线，请修改区间或来源。'; render(); return; }
+    assetWorkspace.cancel();
     workbenchBusy = true; state.error = ''; render();
     try {
       let record = await api.createAssetObservation(payload, crypto.randomUUID());
@@ -2241,6 +2273,7 @@ root.addEventListener('submit', async (event) => {
       record = await pollAssetObservation(record, ticket);
       if (ticket !== pageGeneration || !current()) return;
       await loadAssetWorkspace();
+      if (ticket === pageGeneration && current() && record.status !== 'running' && assetState.observation?.id === record.id) void assetWorkspace.startHistory('recent', payload.adjustment);
       success = record.status === 'complete' ? '资产数据查询已结束，请查看各区块的来源与覆盖。' : record.status === 'running' ? '查询仍在运行，刷新本地状态可继续查看；未重新提交。' : '查询已结束，部分区块有缺失或失败，请查看对应状态。';
     } catch (error) { if (ticket === pageGeneration) state.error = error.message; safeLog('asset_observation_create_failed'); }
     finally { if (current()) { workbenchBusy = false; render(); } }
@@ -2438,6 +2471,8 @@ root.addEventListener('pointerdown', event => {
 });
 root.addEventListener('click', async (event) => {
   if (isAssetPage()) {
+    if (event.target.closest?.('[data-asset-metrics-toggle]')) { setAssetMetricsDrawer(!root.querySelector('.asset-wind-metrics')?.classList.contains('is-open')); return; }
+    if (event.target.closest?.('[data-asset-metrics-close]')) { setAssetMetricsDrawer(false); return; }
     if (assetChart.handle(event)) return;
     if (event.target.closest?.('[data-asset-news-refresh]')) { await assetNews.activate(state.route, { refresh: true }); return; }
     const newsRow = event.target.closest?.('[data-asset-news-select]');

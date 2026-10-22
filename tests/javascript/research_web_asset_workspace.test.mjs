@@ -30,20 +30,23 @@ test('original continuous indicators keep every card and missing slot on every l
     for (const attribute of ['data-asset-select', 'data-asset-observation', 'data-asset-note', 'data-asset-alert', 'data-workbench-handoff', 'data-asset-news-slot']) assert.ok(html.includes(attribute), attribute);
   }
 });
-test('compact hero groups all metrics in order and keeps native controls closed', () => {
+test('compact header keeps menus closed and original metrics sit beside the chart', () => {
   const html = renderAssetWorkspace({ route: { asset: '600519.SH', assetType: 'stock' }, rows: { overview: [{ name: '贵州茅台', price: 10, open: 0, high: 11, low: 9, volume: 0, amount: 0, turnover_rate_pct: 0, date: '2026-10-21' }] } });
   const hero = html.slice(html.indexOf('<section class="asset-basic-card'), html.indexOf('<section class="asset-market-full"'));
   for (const className of ['asset-identity-switch', 'asset-query-controls']) assert.match(hero, new RegExp(`<details class="${className}">`));
-  const trading = hero.slice(hero.indexOf('class="asset-trading-group"'), hero.indexOf('class="asset-valuation-group"'));
+  const metrics = html.slice(html.indexOf('<aside class="asset-wind-metrics"'), html.indexOf('<details class="asset-source-summary"'));
+  assert.ok(html.indexOf('data-asset-chart-slot') < html.indexOf('<aside class="asset-wind-metrics"'));
+  assert.doesNotMatch(hero, /asset-summary-metrics/);
+  const trading = metrics.slice(metrics.indexOf('class="asset-trading-group"'), metrics.indexOf('class="asset-valuation-group"'));
   let last = -1;
   for (const label of ['开盘', '最高', '最低', '换手率', '成交量', '成交额', '区间最高', '区间最低']) { const index = trading.indexOf(`<dt>${label}</dt>`); assert.ok(index > last, label); last = index; }
-  const valuation = hero.slice(hero.indexOf('class="asset-valuation-group"'));
+  const valuation = metrics.slice(metrics.indexOf('class="asset-valuation-group"'));
   last = -1;
   for (const label of ['PE-TTM', 'PB', 'PS-TTM', '总股本', '市值']) { const index = valuation.indexOf(`<dt>${label}</dt>`); assert.ok(index > last, label); last = index; }
   assert.match(trading, /开盘<\/dt><dd[^>]*>0<\/dd>/);
   assert.match(trading, /成交量<\/dt><dd id="asset-volume">0<\/dd>/);
   assert.match(valuation, /市值<\/dt><dd id="asset-market-cap">—<\/dd>/);
-  assert.match(hero, /未取得的数据以 — 表示/);
+  assert.match(metrics, /未取得的数据以 — 表示/);
 });
 test('source summary counts hydrated snapshot rows and distinguishes stale and unloaded states', () => {
   const observation = { asset: '600519.SH', asset_type: 'stock', blocks: {
@@ -97,7 +100,7 @@ test('valuation preserves zero and raw Wind shares without guessing a share scal
   const observation = { asset: '600519.SH', asset_type: 'stock', blocks: { valuation: { status: 'complete', dataset: { dataset_id: 'v', provider: 'wind', fields: [{ name: 'total_shares', unit: 'share' }, { name: 'market_cap', unit: 'currency', currency: 'CNY' }] } } } };
   const rows = { valuation: [{ date: '2026-10-20', pe_ttm: 0, pb: 0, ps_ttm: 0, total_shares: 100, close: 9 }] };
   const html = renderAssetWorkspace({ observation, rows });
-  const valuation = html.slice(html.indexOf('class="asset-valuation-group"'), html.indexOf('<section class="asset-market-full"'));
+  const valuation = html.slice(html.indexOf('class="asset-valuation-group"'), html.indexOf('<details class="asset-source-summary"'));
   for (const label of ['PE-TTM', 'PB', 'PS-TTM']) assert.ok(valuation.includes(`<dt>${label}</dt><dd>0</dd>`), label);
   assert.match(valuation, /id="asset-total-shares">100<\/dd>/);
   assert.match(valuation, /未经核实，不作换算/);
@@ -111,7 +114,8 @@ test('summary leaves market terminal DOM intact and empty shareholders have no s
   const p = projectAssetObservation(rows, observation);
   const terminal = renderMarketTerminal(rows.history, {}, { ...p.blocks.history.dataset, frequency: 'daily', adjustment: 'none', asset: observation.asset, name: observation.asset, currentQuote: p.basic });
   const html = renderAssetWorkspace({ observation, rows });
-  assert.ok(html.includes(`<div data-asset-chart-slot>${terminal}</div></section><details class="asset-source-summary">`));
+  assert.ok(html.includes(`<div data-asset-chart-slot>${terminal}</div></section>`));
+  assert.ok(html.indexOf('<aside class="asset-wind-metrics"') < html.indexOf('<details class="asset-source-summary"'));
   const shareholder = html.slice(html.indexOf('id="shareholder-panel"'), html.indexOf('id="industry-panel"'));
   assert.match(shareholder, /<tbody><\/tbody>/);
   assert.match(shareholder, /股东名单未取得/);

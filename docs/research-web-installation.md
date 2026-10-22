@@ -1,5 +1,7 @@
 # Research Web Native / Docker 安装与运行
 
+2026-10-22 Wind工作区增加Host内历史任务、兼容Store键与账号图表偏好，继续使用现有CJPY 0.5.2、ECharts 5.5.0、Chart.js 4.4.7及唯一DSH；没有新依赖、安装参数或秘密接收面。公开三安装入口、`requirements/web.in`/`web.lock`、`scripts/setup_web.py`与Bootstrap均按现有合同核对；未修改这些文件的兼容性仍必须由同候选macos-14干净安装、固定DSH构建、3081/8088及doctor证明。历史取数/复权只在已授权来源可用后执行，旧观察与研究材料不迁移；常驻仍为5495基线，开发态测试不表示已部署。详见[批准计划](plans/2026-10-22-wind-asset-workspace.md)。
+
 资产摘要布局与图表主题迭代只修改既有 Web 静态模块：紧凑交易／估值、来源纯投影、折叠状态及透明图表；继续使用已批准本地 ECharts 5.5.0／Chart.js 4.4.7，没有新 Python／Node 依赖、厂商 SDK、设置、秘密或数据库迁移。公开三入口、`requirements/web.in`／`web.lock`、`scripts/setup_web.py` 与 Bootstrap 工作流保持既有合同；最终候选仍须本地 macOS 验证及同候选 `macos-14` 干净安装、固定 DSH 构建、3081／8088 健康和 Doctor 证据。源码合并与浏览器结果不等于常驻更新；常驻切换须在产品版本冻结后另行交付绑定实际 previous 与精确 payload 的正式版本化封闭 profile，既有部署 profile 不自动兼容本轮资产摘要。
 
 macOS显式资产部署的CI日志复核使用120秒有界下载，普通资格命令仍30秒；读取器完整SHA256由已审操作员绑定。无需新依赖或安装参数，原干净安装、固定DSH、Doctor与恢复门保持，详见[部署合同](research-web-gateway-upgrade.md)。

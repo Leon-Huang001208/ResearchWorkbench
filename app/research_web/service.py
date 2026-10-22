@@ -1788,6 +1788,7 @@ class ResearchService(ModelProfilesMixin):
             row = self.store.session(sid, include_deleted=True)
             if row.get("deleted_at") is None:
                 raise StoreError("会话必须先移至已删除", "session_not_deleted", 409)
+            await self.asset_workspace.history_jobs.cancel_session(sid)
             if row.get("native_deleted_at") is None:
                 try:
                     native = await self.client.rpc("session.delete", {"sessionId": sid})
@@ -3379,6 +3380,7 @@ class ResearchService(ModelProfilesMixin):
             }
             delivery["cancel_request"] = request
             self.store.save()
+        await self.asset_workspace.history_jobs.cancel_session(sid)
         await self.datahub.cancel(sid)
         try:
             result = await self.client.rpc("session.cancel", {"sessionId": sid})

@@ -1,10 +1,31 @@
 # Research Web 接口清单
 
+## 资产历史任务与图表偏好
+
+最后核对：2026-10-22。下列6个新增端点由 `asset_routes.py` 声明，经既有 `/api/research` 前缀挂载；认证身份及账号 Store 隔离保持。任务受理与规范数据发布是两个事实，`202` 不代表历史完整。
+
+| 方法 | 路径 | 合同 |
+| --- | --- | --- |
+| POST | `/api/research/assets/observations/{observation_id}/history-jobs` | 必需 `Idempotency-Key`，受理202，正文见下文 |
+| GET | `/api/research/assets/observations/{observation_id}/history-jobs` | 只读列表 `{items:[job]}` |
+| GET | `/api/research/assets/observations/{observation_id}/history-jobs/{job_id}` | 只读单任务与进度 |
+| POST | `/api/research/assets/observations/{observation_id}/history-jobs/{job_id}/cancel` | 无正文，202；终态重复取消返回原终态，真实Future结束前仍排空 |
+| GET | `/api/research/assets/chart-preferences` | 当前账号的 `{panels,revision}`；默认 `volume,macd` |
+| PUT | `/api/research/assets/chart-preferences` | 正文 `{panels:[...]}`，保序、唯一、0至4项，枚举 `volume/macd/kdj/rsi` |
+
+历史任务正文严格为 `{scope:"recent"|"older"|"all", adjustment:"none"|"qfq"|"hfq", retry_of?:<UUID>}`，拒绝额外字段；键为8至128个字母、数字、`_.:-`字符。同观察同键同参数返回原任务，改参数返回409 `history_key_conflict`。已有活动任务或行情刷新时409 `history_busy`；`older` 要求现有规范历史且复权相同。重试只接受同口径、可重试的失败/取消/中断任务，新键显式提交；缓存或因子版本冲突要求重建。保存失败不启动任务。
+
+公开 job 含 `id/observation_id/state/status/scope/adjustment/created_at/updated_at/progress/coverage/current_dataset/failure_code/failure/retryable/retry_of/request_key`。`state` 与 `status` 相同，非终态为 `queued/running/cancelling/draining`，终态为 `completed/failed/cancelled/interrupted`；`progress` 包含 `chunks_completed/chunks_total/rows`，coverage 区分实际日期、扫描区间、上市日及完整历史边界证明。失败只有安全业务码，公开 dataset 不暴露内部原始行、因子、输入或路径。观察投影附最近 `history_job`。`request_key` 用于核对未知提交，不是认证秘密。
+
+`recent` 取截止前2自然年；`older` 在已扫描最早日向前4年；`all` 从近到远分块至上市日或明确声明的1990-01-01下界。每块Provider限制保持，规范总行数不受5000行的单次Provider上限截断。完整数据与同版本 metadata 原子切换、旧材料兼容和复权失败关闭见[文件合同](03-data-files.md#资产历史与图表偏好存储)及[DataHub](../../research-web-datahub.md#资产历史任务与固定复权)。
+
+既有 `GET /api/research/resident` 的 `active` 同时包含真实 CJPY Future和历史任务非终态，无法读取witness为未知，不伪报false。操作员只在研究/观察/DataHub/历史任务全部明确空闲后允许切换；`cancelled`查询终态不抵消仍运行的Future。
+
 `model_provider_upgrade apply-assets-v2` 属于显式本机操作员 CLI；新增封闭版本身份不增加或改变公开 HTTP 方法、路径、请求字段、认证边界和 Observation 响应。资产／DataHub 状态只读用于原空闲证明，业务 API 与研究执行链路保持，现有 API 图和索引继续准确。
 
 资产摘要新增的估值及八区来源明细是浏览器 DTO，字段从已取得快照和元数据投影；它们不进入 ObservationRequest 或公开 HTTP 响应 schema，不增加端点、参数、Provider 查询或持久化字段。展开选择／查询／来源详情和切换主题不取数，原显式创建及区块刷新合同保持。
 
-资产观察公开Method／Path保持；ObservationRequest新增 `section_sources: dict[AssetBlock, SourceId] = {}` 和 `section_ranges: dict[history|activity|margin, SectionRange] = {}`，SectionRange严格为完整、真实ISO日期对且start_date≤end_date，未知键／半对拒绝。逐区来源覆盖原source，未覆盖沿原值；逐区范围覆盖全局日期，未覆盖沿原请求，holders.end_date仍为报告期。公开request_parameters缺字段按空映射兼容旧记录，区块回显有效来源与范围，刷新和恢复沿保存请求执行。AssetBlock新增valuation，内部复用market_snapshot并请求明确asset_type和close／pe_ttm／pb／total_shares；没有新路由。专业来源失败不隐式回退，Wind60天硬门不截断／拆分，61天仍拒绝；新UI行情1Y与资金／两融60天分别传入。
+原区块合同的Method／Path保留；ObservationRequest支持 `section_sources: dict[AssetBlock, SourceId] = {}` 和 `section_ranges: dict[history|activity|margin, SectionRange] = {}`，SectionRange严格为完整、真实ISO日期对且start_date≤end_date，未知键／半对拒绝。逐区来源覆盖原source，未覆盖沿原值；逐区范围覆盖全局日期，未覆盖沿原请求，holders.end_date仍为报告期。公开request_parameters缺字段按空映射兼容旧记录，区块回显有效来源与范围，刷新和恢复沿保存请求执行。AssetBlock新增valuation，内部复用market_snapshot并请求明确asset_type和close／pe_ttm／pb／total_shares；没有新路由。专业来源失败不隐式回退，Wind60天硬门不截断／拆分，61天仍拒绝；新UI历史使用独立任务，资金／两融60天分别传入。
 
 本轮部署只调整已有GitHub CI日志读取的有界时限并固定工具摘要，没有增加或更改HTTP路由、方法、身份边界和请求字段；完整checkout/树及三CI条件保留。
 

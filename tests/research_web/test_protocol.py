@@ -819,8 +819,12 @@ async def test_upgraded_subagent_catalog_uses_authoritative_parent_projection_an
         service.store.audit = lambda *_args, **_kwargs: None
         service.delivery = SimpleNamespace(current=lambda _sid: None)
         service.datahub = SimpleNamespace(cancel=AsyncMock())
+        service.asset_workspace = SimpleNamespace(
+            history_jobs=SimpleNamespace(cancel_session=AsyncMock())
+        )
         service.notify = lambda: None
         assert await service._cancel("parent") == {"accepted": True}
+        service.asset_workspace.history_jobs.cancel_session.assert_awaited_once_with("parent")
         assert (
             "/api/subagents/interruptByParent",
             {"parentSessionId": "parent", "childSessionId": "child", "mode": "continuable"},

@@ -129,6 +129,17 @@ def asset_queries_idle(index):
     observations, queries = index.get("asset_observations", {}), index.get("data_queries", {})
     if not isinstance(observations, dict) or not isinstance(queries, dict):
         return False
+    history_jobs = index.get("asset_history_jobs", {})
+    if not isinstance(history_jobs, dict):
+        return False
+    for job in history_jobs.values():
+        if not isinstance(job, dict):
+            return False
+        state = job.get("state", job.get("status"))
+        if state not in {"completed", "failed", "cancelled", "interrupted"}:
+            return False
+        if "state" in job and "status" in job and job["state"] != job["status"]:
+            return False
     for row in observations.values():
         if not isinstance(row, dict) or row.get("status") not in {"complete", "partial", "failed"}:
             return False
@@ -140,7 +151,7 @@ def asset_queries_idle(index):
         ):
             return False
     return all(
-        isinstance(row, dict) and row.get("status") in {"completed", "failed"}
+        isinstance(row, dict) and row.get("status") in {"completed", "failed", "cancelled"}
         for row in queries.values()
     )
 

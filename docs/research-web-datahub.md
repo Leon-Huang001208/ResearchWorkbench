@@ -1,12 +1,26 @@
 # Research Web DataHub
 
+## 资产历史任务与固定复权
+
+最后核对：2026-10-22。历史工作区沿用当前账号的 Host → DataHub Broker → 天软 CJPY → 会话快照链路，不建立另一研究引擎或全局行情数据库。`asset_history_jobs.py` 负责持久任务、分块、取消与发布，`asset_history.py` 负责日线校验、合并及复权。任务范围为近期2自然年、向前续取4年、全部至上市日；没有上市日证明时仅声明1990-01-01扫描下界。每块最多4自然年且边界日重叠，按从近到远顺序处理；同日同值去重，冲突失败，不任选一条。每次 Provider 调用仍≤5000行、15秒、每来源一个真实 Future；规范合并结果可以超过5000行，不能因此截断客户端读取。
+
+`factor_macro` 的天软绑定只开放封闭的 `series=adjustment_metadata|listing_date|adjustment_factors`；后两者只接受一个规范沪深A股证券，逐日因子每次1至500个唯一、非未来 ISO 日期。拒绝任意仓库、公式、宏观全集及额外参数；这不代表通用宏观或因子库已经接入。metadata版本为 `tinysoft-adjustment-v1`，定义 SHA-256 为 `76fb444109d027db7657b8baea96a4299b5d8ddb826aac7edc31dfb09df82fc5`。
+
+产品规范前复权为 `P(t) × A(t) / A(as_of)`，后复权为 `P(t) × A(t) / A(listing_date)`；`as_of` 是当前已得到的最后交易日，续取更早区间保留原锚点。复权前校验真实上市日行情、上市日因子等于1、全部交易日期有精确正因子、定义及来源配置版本一致。只调整 OHLC，量额保留供应商原值。缺因子、上市日/锚点未证明、哈希不符、重叠冲突或版本变化一律失败关闭，不向前填因子、不回退原始价；旧规范快照继续可用。
+
+已授权独立预检在两只股票、676个交易日及上市日上完成18次实际调用，审阅报告 SHA-256 为 `85fc23ae55255cdaec3e693753d4202c972a56ba29b9bd41b93750c273849cf3`；独立 gate 为 PASS。原始市场行、因子、授权与 wire 文件仅留私有 `logs/wind-adjustment-preflight/`，不提交仓库。此有限实测不证明全市场或全历史已验证；厂商原生前复权与本规范存在全局尺度差异，其精确全局锚点未知，不承诺 SDK 的按截止日复权保证。OHLC币种和单位未声明；成交量“股”、成交额“元”仅引用供应商目录声明，不升级为独立单位核验。
+
+原始块、因子与来源 manifest 不可变，并按账号保存缓存、配置摘要与因子版本。每次发布把全部累计规范行和同版本 metadata 一起写成新快照，再比较观察代次与旧 dataset 指针并原子切换；不能拼接不同锚点下的已复权块。重试只有显式请求才发生，复用缓存仍复验授权、来源 hash 与因子；旧观察与旧研究冻结材料继续可读。研究交接复制规范行、原始响应、因子和 metadata，脱离原任务后仍可复核。
+
+取消将子 DataHub `call_id` 联动取消，但同步SDK的真实 Future 结束前仍为 `cancelling/draining`，不释放来源容量、不发布迟到结果。Host关闭、会话取消/清理及恢复都覆盖历史任务；遗留无owner任务恢复为 `interrupted`，不自动重试。常驻空闲证明同时检查 Store 非终态任务和真实 CJPY Future，未知 witness 保持未知并阻止切换。API、持久化及UI合同分别见[接口](architecture/research-web/04-api.md#资产历史任务与图表偏好)、[文件](architecture/research-web/03-data-files.md#资产历史与图表偏好存储)与[工作台](research-web-ui.md#资产观察工作台)。
+
 资产页紧凑摘要新增的 `valuation` 与 `coverageRows` 仅为 `asset-projection.mjs` 浏览器 DTO，消费当前已载入行与既有 dataset 元数据，不扩展 DataHub、ObservationRequest、持久化格式或 HTTP 合同。“N/8 有快照”按八个既有区块的真实载入行及 dataset 身份计数，complete 但未载入不计入；新闻／公告仍走独立阅读。来源明细分开显示请求来源／实际 Provider、行内数据日、`as_of`、北京时间 `retrieved_at`、报告期、请求／实际／载入区间、字段单位与限制，不能把这些不同时间和范围合并为一个“最新”。
 
 资产观察继续经 AssetWorkspace → Broker → 现有 Provider，页面打开不取数；显式创建或刷新单一区块才提交查询。请求新增 `section_sources={}`：区块显式来源覆盖原 `source`，未覆盖仍沿原来源，专业来源失败不能隐式回退。新增 `section_ranges={}`：只接受 history／activity／margin 的完整 ISO 日期对，开始不晚于结束；缺省沿原全局日期，旧记录恢复为两个空映射。刷新沿保存的有效来源与日期执行，公开请求参数及各区块显示来源／范围，不能以全局来源掩盖差异。holders 的 `end_date` 仍是报告期，不参与历史日期覆盖。
 
 已有 `valuation` 区块复用原 `market_snapshot`，请求明确 `asset_type` 及 Wind 的 `close/pe_ttm/pb/total_shares`，不新增 API 路径或 Provider。摘要 PS-TTM 只读取已取得的明确 `ps_ttm` 字段，不增加请求或用市值／单期营收补造。普通 PB 不升级为 PB-MRQ，TTM/MRQ 和未知单位继续显式保留；Wind 总股本原数显示但数量级未核验，即使来源声明 `share` 也不换算、不据此派生市值。其他来源仅在同源同日、股本与每股价格单位及币种均确认时可从 close × total_shares 派生；缺失显示 `—`，真实零值保留。财务仍使用 `statements=["indicators"]`、`periods=[]` 读取最新一期，Broker 只映射等价指标，报表、多期或非法期间继续 `data_not_equivalent`，不能称为多年财务历史。
 
-新页面显式行情 tinysoft、估值 wind、财务／资金／股东 auto；行情1Y与资金／两融近60个日历日（截止往前59天）分别传入。Wind 已有60天硬门保持，61天拒绝，不截断、不拆分；不能将其泛化为所有 Provider 的行情上限。派生图表只使用真实行，缺口不补成52周。真实 CJPY 冷启动、首次查询及逐区刷新须另留厂商证据，离线测试不证明已配置或可调用。
+页面显式行情 tinysoft、估值 wind、财务／资金／股东 auto；历史工作区使用上述近期/更早/全部任务，资金／两融近60个日历日（截止往前59天）分别传入。Wind已有60天硬门保持，61天拒绝，不截断、不拆分；不将其泛化为天软历史任务上限。派生图表只用真实行，缺口不补成52周。真实全历史加载、首次查询和逐区刷新分别留厂商证据，有限预检或离线测试不替代完整验收。
 
 单区块刷新入口及幂等/失败合同见[API](architecture/research-web/04-api.md#资产观察区块刷新)。刷新沿原会话、来源、参数和快照安全边界，Broker 的 `refresh=true` 只重取目标区块；其余区块不重取。新闻/公告在资产页按证券阅读既有 Golddata 只读 API，和 DataHub 的 `news` / `announcements` 快照区块保留来源区别；不新增 Provider 或真实调用授权。
 
@@ -82,7 +96,7 @@ Tool 统一使用 `datahub_*` 子系统前缀，而不是 `rwb_*` 产品品牌�
 
 iFinD HTTP 探测在用户完成现有数据源配置后执行真实登录、健康检查、最小只读基础数据查询和登出；登录成功但空响应、权限或配额失败都不会标记健康。Token 只存在于客户端会话与当前模式的凭据后端，不返回本机集成页或写入日志。
 
-东方财富基金和财联社无需专业配置即可调用。天软 CJPY 已完成证券目录、交易日历、历史行情和实时快照四项 Provider 适配；只有 `cjpy` 依赖存在且 `CJ_KEY` 已配置时，对应绑定才可调用。AKShare 已实现 `search_assets`、`market_bars`、`market_snapshot`、`financials` 和 `market_activity`，但仅在 `akshare` 依赖就绪时 callable；其财务摘要把供应商布尔缺失哨兵规范化为 JSON `null`，不把 `false` 作为财务数值写入新快照，其他 capability 的真实布尔字段不受影响。Wind 新增受限 DataHub binding，只复用现有 xlwings/Excel `WindAdapter` 的封闭方法映射：股票日线行情、快照、指数实时行情 `quotes`、固定财务指标，以及资金流、融资融券和股东数据；现有 `fetch_block_trades` 实际返回龙虎榜，不能等价为大宗交易，因此不登记。Wind `market_bars` binding 的资产范围固定为股票，BusinessQuery 与 Runtime 工具接受显式 `asset_type` 上下文，但 Wind Provider 只允许 `stock`；缺失、指数或 ETF 均在 adapter 初始化前返回 `data_not_equivalent`，不会只凭六位代码推断。指数继续通过 `index_data` 的 points 口径查询。每个 capability/dataset 都投影到固定输出字段、类型、单位和日期语义，并拒绝 adapter 返回的任何未知列、其他证券或越界日期；指数身份也必须与请求一致。指数点位使用 points，融券余量使用 share，不能按 CNY/share 或 CNY 发布。业务请求只接受 `.SH`、`.SZ`、`.BJ` A 股代码及封闭字段、日期和复权枚举；不接受 Wind 公式、表达式、路径、凭据或任意字段。只有 xlwings/Excel 路径构成该 Provider 的依赖就绪条件，只有 WindPy 或配置 `preferred_adapter=client_api` 时不能进入 Runtime callable 计算。未登录返回 `wind_not_logged_in`，当前适配器缺方法返回 `wind_method_unavailable`，身份、单位、日期、复权或数据集不等价返回 `data_not_equivalent`。指数成分、宏观/利率及基金持仓没有已核实的现有适配器等价方法，因此不登记为 Wind 已实现绑定。天软的其他登记能力继续显示“能力仅登记”，不会由来源级“已适配”状态错误放行。真正尚未实现的其余来源只用于展示真实覆盖规划与缺口，不会因为“代码存在”被伪报为已连接。手动探测一次只检查一个来源，重复 Idempotency-Key 返回同一 probe；未适配来源直接返回安全化不可用结果且不联网。
+东方财富基金和财联社无需专业配置即可调用。天软 CJPY 已完成证券目录、交易日历、历史行情、实时快照及上述三种封闭复权查询的 Provider 适配；只有 `cjpy` 依赖存在且 `CJ_KEY` 已配置时，对应绑定才可调用。AKShare 已实现 `search_assets`、`market_bars`、`market_snapshot`、`financials` 和 `market_activity`，但仅在 `akshare` 依赖就绪时 callable；其财务摘要把供应商布尔缺失哨兵规范化为 JSON `null`，不把 `false` 作为财务数值写入新快照，其他 capability 的真实布尔字段不受影响。Wind 新增受限 DataHub binding，只复用现有 xlwings/Excel `WindAdapter` 的封闭方法映射：股票日线行情、快照、指数实时行情 `quotes`、固定财务指标，以及资金流、融资融券和股东数据；现有 `fetch_block_trades` 实际返回龙虎榜，不能等价为大宗交易，因此不登记。Wind `market_bars` binding 的资产范围固定为股票，BusinessQuery 与 Runtime 工具接受显式 `asset_type` 上下文，但 Wind Provider 只允许 `stock`；缺失、指数或 ETF 均在 adapter 初始化前返回 `data_not_equivalent`，不会只凭六位代码推断。指数继续通过 `index_data` 的 points 口径查询。每个 capability/dataset 都投影到固定输出字段、类型、单位和日期语义，并拒绝 adapter 返回的任何未知列、其他证券或越界日期；指数身份也必须与请求一致。指数点位使用 points，融券余量使用 share，不能按 CNY/share 或 CNY 发布。业务请求只接受 `.SH`、`.SZ`、`.BJ` A 股代码及封闭字段、日期和复权枚举；不接受 Wind 公式、表达式、路径、凭据或任意字段。只有 xlwings/Excel 路径构成该 Provider 的依赖就绪条件，只有 WindPy 或配置 `preferred_adapter=client_api` 时不能进入 Runtime callable 计算。未登录返回 `wind_not_logged_in`，当前适配器缺方法返回 `wind_method_unavailable`，身份、单位、日期、复权或数据集不等价返回 `data_not_equivalent`。指数成分、宏观/利率及基金持仓没有已核实的现有适配器等价方法，因此不登记为 Wind 已实现绑定。天软的其他登记能力继续显示“能力仅登记”，不会由来源级“已适配”状态错误放行。真正尚未实现的其余来源只用于展示真实覆盖规划与缺口，不会因为“代码存在”被伪报为已连接。手动探测一次只检查一个来源，重复 Idempotency-Key 返回同一 probe；未适配来源直接返回安全化不可用结果且不联网。
 
 Wind `market_bars` 与 `market_snapshot` 都要求显式 `asset_type=stock`；对应 binding 只显示股票，
 缺失、指数或 ETF 在 adapter 初始化和可用性检查前失败关闭。通用能力仍允许其他 Provider 按真实

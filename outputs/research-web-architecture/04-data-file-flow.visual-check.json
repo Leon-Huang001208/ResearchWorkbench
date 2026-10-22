@@ -5,9 +5,9 @@
   "status": "pass",
   "visualReview": "pending",
   "artifact": {
-    "path": "/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/mysql-datahub-platform/outputs/research-web-architecture/04-data-file-flow.html",
-    "sha256": "a018697374b7bd2968dfede5b1575d7cc3677622be16747d32bdba89953842d5",
-    "bytes": 649741
+    "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/wind-asset-workspace-20261022/outputs/research-web-architecture/04-data-file-flow.html",
+    "sha256": "aa52059b4e962f162931f1534eb93f8f920580f70b125fd260edcffd4bd2d35f",
+    "bytes": 649804
   },
   "state": {
     "detail": "read",
