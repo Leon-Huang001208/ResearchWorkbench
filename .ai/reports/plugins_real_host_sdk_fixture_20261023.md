@@ -37,3 +37,9 @@ PYTHONPATH="$PWD" /Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/datah
 URL `http://127.0.0.1:18991/#/skills?kind=plugin`。上传该 root 下 `fixture-plugin.zip`，依次点击选择全部权限、审核、启用、生成原生安装预览、确认原生安装（无 WEATHER_TOKEN 输入）、探测、查看快照、锁定 schema、空闲时启用 MCP，然后为 `Real SDK canary (no models)` 会话授权 `canary`。
 
 产品 UI 尚无直接 tools/call 按钮；浏览器覆盖到实际 session grant。API `--verify` 单独覆盖实际 tool call 和 call approval，不得将其报告为完整 DSH/model 或浏览器触发 tool call。单用户 local-owner 角色与网关 admin/user 角色测试分别记录。
+
+## 冻结源码浏览器实测
+
+Root 在 macOS 以源码检查点 `7e156fb9c` 启动上述独立 18991 实例，经可见页面完成 ZIP 上传、安全预览、全部声明权限审核、启用投影、原生计划预览与真实安装、官方 SDK 探测、四项指纹审核、启用 MCP 和无模型会话授权。最终页面明确显示“已由原生 MCP 授予此会话的固定工具权限”，此前启用返回 `MCP：enabled`。包摘要为 `abb0f46521e91d66ab1ccdbe2fa5ab8f95905794135fe3a162bec61960e4fb00`。
+
+截图仅含本任务离线 Canary，无用户凭据：`/Users/leon/.codex/visualizations/2026/10/23/plugin-real-sdk/capability-granted.jpg`。测试页已关闭，精确归属进程 PID34780 已收到 TERM 并退出，日志显示 `market_service_closed`；原18993数据源隔离实例及其他服务未操作。浏览器未触发工具调用，实际工具返回仍由前述独立 Host/SDK HTTP 生命周期证明；无真实 DSH 发现、模型或厂商调用声明。
