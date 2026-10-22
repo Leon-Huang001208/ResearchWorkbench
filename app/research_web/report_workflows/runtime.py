@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import copy
+import hashlib
 import inspect
 import json
 import re
@@ -23,10 +24,26 @@ from ..report_rendering import render_report_payload
 from ..store import StoreError
 from .models import RefreshStatus, WorkflowError, WorkflowSchedule
 from .tooling import materialize_report_snapshot
+from .weekly_quality import (
+    INSUFFICIENT_NEWS,
+    POLICY_ID,
+    bind_weekly_projection,
+    finalization_binding,
+    freeze_weekly_production,
+    stage_weekly_projection,
+    weekly_enabled,
+)
 
 log = get_logger(__name__)
 SHANGHAI = ZoneInfo("Asia/Shanghai")
-ACTIVE = {"queued", "preparing_data", "running", "blocked_approval", "validating"}
+ACTIVE = {
+    "queued",
+    "preparing_data",
+    "running",
+    "blocked_approval",
+    "validating",
+    "needs_attention",
+}
 
 
 def _public_metadata(value):
@@ -206,11 +223,25 @@ class ReportWorkflowRuntime:
             self.catalog._save()
         return copy.deepcopy(row)
 
-    @staticmethod
-    def public_run(row: dict) -> dict:
-        return _public_metadata(
-            {key: value for key, value in row.items() if key != "path"}
-        )
+    def public_run(self, row: dict) -> dict:
+        row = copy.deepcopy(row)
+        if row.get("finalization_status") == "finalized":
+            try:
+                binding = finalization_binding(self.service, row["session_id"])
+                if any(
+                    binding.get(key) != row.get("finalization_binding", {}).get(key)
+                    for key in (
+                        "task_id",
+                        "contract_sha256",
+                        "canonical_sha256",
+                        "snapshot_sha256",
+                        "artifacts",
+                    )
+                ):
+                    raise WorkflowError("周报定稿字节已经改变", "weekly_finalization_changed", 409)
+            except (StoreError, OSError, ValueError, KeyError, TypeError):
+                row.update(finalization_status="invalidated", quality_status="invalid")
+        return _public_metadata({key: value for key, value in row.items() if key != "path"})
 
     def runs(self, workflow_id: str) -> list[dict]:
         with self.catalog._exclusive():
@@ -232,29 +263,48 @@ class ReportWorkflowRuntime:
             with self.catalog._exclusive():
                 workflow = self.catalog._row(workflow_id)
                 selected = version or workflow.get("current_version")
-                if selected is None or not workflow.get("versions", {}).get(
-                    str(selected), {}
-                ).get("published"):
-                    raise WorkflowError(
-                        "Workflow 尚无已发布版本", "version_required", 409
-                    )
+                if selected is None or not workflow.get("versions", {}).get(str(selected), {}).get(
+                    "published"
+                ):
+                    raise WorkflowError("Workflow 尚无已发布版本", "version_required", 409)
                 workflow_status = workflow.get("status", "draft")
                 if workflow_status == "disabled":
                     raise WorkflowError("Workflow 已停用", "workflow_disabled", 409)
                 if workflow_status != "enabled":
-                    raise WorkflowError(
-                        "Workflow 尚未启用", "workflow_not_enabled", 409
-                    )
+                    raise WorkflowError("Workflow 尚未启用", "workflow_not_enabled", 409)
+                manifest = self.catalog.manifest(workflow_id, selected)
+                weekly_contract = None
+                owner = None
+                if weekly_enabled(manifest):
+                    from .weekly_data import build_weekly_data_contract
+
+                    owner = self._require_weekly_owner()
+                    if trigger not in {"manual", "retry"} and not self._manual_weekly_passed(
+                        workflow_id, selected
+                    ):
+                        raise WorkflowError(
+                            "周报自动运行前必须完成本版本的真实手动定稿", "manual_run_required", 409
+                        )
+                    weekly_contract = build_weekly_data_contract(datetime.now(UTC))
+                    if trigger != "retry":
+                        previous = next(
+                            (
+                                item
+                                for item in reversed(list(self.catalog.data["runs"].values()))
+                                if item.get("workflow_id") == workflow_id
+                                and item.get("weekly_cutoff") == weekly_contract["cutoff"]
+                            ),
+                            None,
+                        )
+                        if previous is not None:
+                            return self.public_run(copy.deepcopy(previous))
                 run_id = uuid4().hex
                 if any(
-                    item.get("workflow_id") == workflow_id
-                    and item.get("status") in ACTIVE
+                    item.get("workflow_id") == workflow_id and item.get("status") in ACTIVE
                     for item in self.catalog.data["runs"].values()
                 ):
                     return self.public_run(
-                        self._new_run(
-                            run_id, workflow_id, selected, trigger, "skipped_overlap"
-                        )
+                        self._new_run(run_id, workflow_id, selected, trigger, "skipped_overlap")
                     )
                 workspace = self.catalog.create_run_workspace(workflow_id, selected)
                 run_id = workspace["run_id"]
@@ -274,6 +324,14 @@ class ReportWorkflowRuntime:
                     run_ref=f"runs/{run_id}",
                 )
                 row.pop("path", None)
+                if weekly_contract is not None:
+                    row.update(
+                        owner_id=owner["id"],
+                        weekly_cutoff=weekly_contract["cutoff"],
+                        weekly_data_contract=weekly_contract,
+                        quality_status="pending",
+                        finalization_status="pending",
+                    )
                 workflow = self.catalog._row(workflow_id)
                 workflow["latest_run"] = run_id
                 self.catalog._save()
@@ -284,37 +342,121 @@ class ReportWorkflowRuntime:
             )
             return public
 
+    def _require_weekly_owner(self, owner_id: str | None = None) -> dict:
+        authorizer = getattr(self.service.report_workflows, "require_weekly_owner", None)
+        if not callable(authorizer):
+            raise WorkflowError("周报管理员身份尚未验证", "weekly_owner_unavailable", 403)
+        return authorizer(expected_owner_id=owner_id)
+
+    def _manual_weekly_passed(self, workflow_id: str, version: int) -> bool:
+        return any(
+            row.get("workflow_id") == workflow_id
+            and row.get("version") == version
+            and row.get("trigger") == "manual"
+            and row.get("status") == "completed"
+            and row.get("delivery_status") == "complete"
+            and row.get("finalization_status") == "finalized"
+            and self.public_run(row).get("finalization_status") == "finalized"
+            for row in self.catalog.data["runs"].values()
+        )
+
     async def _execute(self, run_id: str) -> None:
         run = self._run(run_id)
         try:
             run = self._update_run(run_id, status="preparing_data")
             manifest = self.catalog.manifest(run["workflow_id"], run["version"])
-            for policy in manifest.workbook_policies:
-                result = await self._refresh_workbook(run_id, policy.workbook)
-                if result.status is not RefreshStatus.READY:
+            formal = weekly_enabled(manifest)
+            sid = None
+            workbook_projection = None
+            if formal:
+                self._require_weekly_owner(run.get("owner_id"))
+                session = await self.service.create("claw", f"{manifest.name} · 报告 Workflow")
+                sid = session["id"]
+                run = self._update_run(run_id, session_id=sid)
+                collector = getattr(self.service.datahub, "collect_report_weekly", None)
+                if not callable(collector):
                     self._update_run(
                         run_id,
                         status="blocked_data",
-                        failure_code=result.code or "workbook_refresh_failed",
-                        missing=[policy.workbook],
+                        failure_code="weekly_data_collector_unavailable",
+                        finalization_status="blocked",
                     )
                     return
-                run = self._append_refresh_manifest(run_id, result.manifest_path)
-            snapshot = await asyncio.to_thread(
-                materialize_report_snapshot,
-                self.run_path(run_id),
-                manifest,
-                run["refresh_manifests"],
-            )
+                collected = await collector(
+                    sid,
+                    f"report-weekly-data-{run_id}",
+                    cutoff=run["weekly_data_contract"]["cutoff"],
+                    run_root=self.run_path(run_id),
+                    manifest=manifest,
+                )
+                assessment = collected.get("assessment") or {}
+                if (
+                    assessment.get("status") != "passed"
+                    or collected.get("contract") != run["weekly_data_contract"]
+                ):
+                    self._update_run(
+                        run_id,
+                        status="blocked_data",
+                        failure_code="weekly_data_unverified",
+                        missing=list(assessment.get("issues") or ["weekly_data_unverified"]),
+                        finalization_status="blocked",
+                    )
+                    return
+                from ..datahub.security import atomic_json, directory, read_file
+
+                with directory(self.run_path(run_id), ("snapshots",), create=True) as folder:
+                    atomic_json(folder, "report-data.json", collected["snapshot"])
+                    raw = read_file(folder, "report-data.json", limit=16 * 1024 * 1024)
+                snapshot = {
+                    "path": "snapshots/report-data.json",
+                    "sha256": hashlib.sha256(raw).hexdigest(),
+                }
+                from .weekly_data import materialize_weekly_workbooks
+
+                workbook_projection = await asyncio.to_thread(
+                    materialize_weekly_workbooks,
+                    collected["snapshot"],
+                    self.run_path(run_id),
+                    manifest,
+                )
+                if workbook_projection.get("snapshot_sha256") != snapshot["sha256"]:
+                    raise WorkflowError(
+                        "周报底稿与本期快照不一致", "weekly_workbook_projection_invalid", 409
+                    )
+                run = self._update_run(
+                    run_id,
+                    weekly_production=freeze_weekly_production(manifest, collected["contract"]),
+                    weekly_data_assessment={
+                        key: assessment.get(key)
+                        for key in ("status", "issues", "contract_sha256", "snapshot_sha256")
+                    },
+                )
+            else:
+                for policy in manifest.workbook_policies:
+                    result = await self._refresh_workbook(run_id, policy.workbook)
+                    if result.status is not RefreshStatus.READY:
+                        self._update_run(
+                            run_id,
+                            status="blocked_data",
+                            failure_code=result.code or "workbook_refresh_failed",
+                            missing=[policy.workbook],
+                        )
+                        return
+                    run = self._append_refresh_manifest(run_id, result.manifest_path)
+                snapshot = await asyncio.to_thread(
+                    materialize_report_snapshot,
+                    self.run_path(run_id),
+                    manifest,
+                    run["refresh_manifests"],
+                )
             run = self._update_run(
                 run_id,
                 dataset_snapshot=snapshot["path"],
                 dataset_snapshot_sha256=snapshot["sha256"],
             )
-            session = await self.service.create(
-                "claw", f"{manifest.name} · 报告 Workflow"
-            )
-            sid = session["id"]
+            if sid is None:
+                session = await self.service.create("claw", f"{manifest.name} · 报告 Workflow")
+                sid = session["id"]
             run = self._update_run(run_id, session_id=sid)
             session_row = self.service.store.session(sid)
             session_row["report_workflow"] = {
@@ -322,6 +464,8 @@ class ReportWorkflowRuntime:
                 "version": run["version"],
                 "run_id": run_id,
             }
+            if formal:
+                session_row["report_workflow"]["quality_policy"] = POLICY_ID
             target = self.service.store.directory(sid) / "inputs" / "report-workflow"
             shutil.copytree(self.run_path(run_id), target, dirs_exist_ok=True)
             context = {
@@ -332,41 +476,74 @@ class ReportWorkflowRuntime:
                 "delivery": json.loads(manifest.delivery.model_dump_json()),
                 "primary_workbook": manifest.delivery.primary_workbook,
                 "blocks": json.loads(
-                    json.dumps(
-                        [
-                            json.loads(block.model_dump_json())
-                            for block in manifest.blocks
-                        ]
-                    )
+                    json.dumps([json.loads(block.model_dump_json()) for block in manifest.blocks])
                 ),
-                "refresh_manifests": [
-                    Path(path).name for path in run["refresh_manifests"]
-                ],
+                "refresh_manifests": [Path(path).name for path in run["refresh_manifests"]],
                 "dataset_snapshot": snapshot["path"],
                 "dataset_snapshot_sha256": snapshot["sha256"],
                 "minimum_subagents": manifest.minimum_subagents,
             }
-            (target / "run-context.json").write_text(
-                json.dumps(context, ensure_ascii=False, indent=2)
-            )
+            if formal:
+                context["weekly_production"] = run["weekly_production"]
+                context["workbook_projection"] = workbook_projection
+                context["template_resources"] = [
+                    {"path": item.path, "sha256": item.sha256}
+                    for item in manifest.resources
+                    if item.path.startswith(("templates/", "assets/"))
+                ]
+                from ..datahub.security import atomic_json, directory, read_file
+
+                with directory(target) as folder:
+                    atomic_json(folder, "run-context.json", context)
+                    context_raw = read_file(folder, "run-context.json", limit=1_000_000)
+                self._update_run(
+                    run_id, weekly_context_sha256=hashlib.sha256(context_raw).hexdigest()
+                )
+                self._require_weekly_owner(run.get("owner_id"))
+            else:
+                (target / "run-context.json").write_text(
+                    json.dumps(context, ensure_ascii=False, indent=2)
+                )
             self.service.store.save()
+            prompt = (
+                f"执行锁定的 Report Workflow《{manifest.name}》v{run['version']}。"
+                "先读取 inputs/report-workflow/run-context.json、workflow.yaml、模板和已刷新底稿；"
+                f"必须创建并完成至少 {manifest.minimum_subagents} 个原生子 Agent；所有子 Agent "
+                f"只能共用快照 SHA-256 {snapshot['sha256']}，不得重复刷新或取数。"
+                "研究结束后必须写入 outputs/report_payload.json，结构为 "
+                "{title, summary, as_of, sections:[{id,title,content}], sources, missing}；"
+                "sections 必须使用 run-context.json 中声明的区块 id。"
+                "文件组装和交付检查由后端受审查 Tool 完成，不调用旧报告执行链。"
+            )
+            if formal:
+                prompt = (
+                    f"执行锁定的华安 ETF 周报 v{run['version']}。先读取 inputs/report-workflow/run-context.json、模板及共享数据快照。"
+                    "本轮仅使用已核验事实、确定性比较和有原文出处的观点；数据、计算、截止和实际交易日期以 Host 冻结合同为准。"
+                    "正文的唯一可修改真源为 outputs/research-report.json，必须使用原生 report_plan，sections.id 对应全部原报告区块，coverage 绑定本轮研究合同要求。"
+                    "不要另写 report_payload.json 或自行组装 Office；Host 将规范正文投影到原模板。"
+                    f"仅 run-context 中 news_block_ids 允许声明：{INSUFFICIENT_NEWS} 必须保留真实取证记录，不能用训练知识补新闻。"
+                    "调用 research_check_quality；只允许原回合一次有界补查，失败保留 incomplete，不新建研究或放宽要求。"
+                    f"子 Agent 只复用已冻结快照 SHA-256 {snapshot['sha256']}，不得重复刷新底稿。"
+                )
+            if formal:
+                self._update_run(
+                    run_id,
+                    research_admission_at=time.time(),
+                    research_submission_state="submitting",
+                )
             await self.service.send(
                 sid,
-                (
-                    f"执行锁定的 Report Workflow《{manifest.name}》v{run['version']}。"
-                    "先读取 inputs/report-workflow/run-context.json、workflow.yaml、模板和已刷新底稿；"
-                    f"必须创建并完成至少 {manifest.minimum_subagents} 个原生子 Agent；所有子 Agent "
-                    f"只能共用快照 SHA-256 {snapshot['sha256']}，不得重复刷新或取数。"
-                    "研究结束后必须写入 outputs/report_payload.json，结构为 "
-                    "{title, summary, as_of, sections:[{id,title,content}], sources, missing}；"
-                    "sections 必须使用 run-context.json 中声明的区块 id。"
-                    "文件组装和交付检查由后端受审查 Tool 完成，不调用旧报告执行链。"
-                ),
+                prompt,
                 f"report-workflow-{run_id}",
                 formats=[item.value for item in manifest.delivery.formats],
                 capability_id="report-production-workflow",
             )
-            self._update_run(run_id, status="running")
+            self._update_run(
+                run_id,
+                status="running",
+                research_started_at=time.time(),
+                **({"research_submission_state": "accepted"} if formal else {}),
+            )
             self.service.store.audit(
                 "report_workflow", "started", session_id=sid, report_run_id=run_id
             )
@@ -381,8 +558,30 @@ class ReportWorkflowRuntime:
             raise
         except Exception as exc:  # noqa: BLE001 - background boundary fails closed.
             log.error("report_workflow_run_failed", error_type=type(exc).__name__)
+            current = self._run(run_id)
+            unknown = bool(
+                current.get("research_admission_at") and not current.get("research_started_at")
+            )
             self._update_run(
-                run_id, status="failed", failure_code="report_execution_failed"
+                run_id,
+                status="needs_attention" if unknown else "failed",
+                failure_code=(
+                    "research_submission_unknown"
+                    if unknown
+                    else getattr(exc, "code", "report_execution_failed")
+                ),
+                **(
+                    {
+                        "finalization_status": "blocked",
+                        "research_submission_state": (
+                            "unknown"
+                            if unknown
+                            else current.get("research_submission_state", "not_submitted")
+                        ),
+                    }
+                    if current.get("weekly_data_contract")
+                    else {}
+                ),
             )
         finally:
             self.tasks.pop(run_id, None)
@@ -431,28 +630,45 @@ class ReportWorkflowRuntime:
                 # Every Report Workflow must project the structured payload through
                 # the reviewed deterministic renderer before delivery can pass.
                 if not current.get("projection_attempted_at"):
-                    manifest = self.catalog.manifest(
-                        current["workflow_id"], current["version"]
-                    )
+                    manifest = self.catalog.manifest(current["workflow_id"], current["version"])
                     self._update_run(
                         run_id,
                         status="validating",
                         projection_attempted_at=time.time(),
                     )
-                    projection = await render_report_payload(
-                        self.service.store,
-                        current["session_id"],
-                        [item.value for item in manifest.delivery.formats],
-                    )
+                    formal = weekly_enabled(manifest)
+                    try:
+                        staged = (
+                            stage_weekly_projection(self.service, current["session_id"])
+                            if formal
+                            else None
+                        )
+                        projection = await render_report_payload(
+                            self.service.store,
+                            current["session_id"],
+                            [item.value for item in manifest.delivery.formats],
+                        )
+                        if formal and projection.get("status") == "completed":
+                            self._require_weekly_owner(current.get("owner_id"))
+                            bind_weekly_projection(
+                                self.service, current["session_id"], staged, projection
+                            )
+                    except (StoreError, ValueError, TypeError, KeyError, OSError) as exc:
+                        log.warning(
+                            "report_weekly_projection_failed", error_type=type(exc).__name__
+                        )
+                        projection = {
+                            "status": "failed",
+                            "files": [],
+                            "code": getattr(exc, "code", "weekly_projection_invalid"),
+                        }
                     projection_status = str(projection.get("status") or "failed")
                     if projection_status == "completed":
                         self._rearm_delivery_validation(current["session_id"])
                     self._update_run(
                         run_id,
                         projection_status=projection_status,
-                        projection_missing_blocks=list(
-                            projection.get("missing_blocks") or []
-                        ),
+                        projection_missing_blocks=list(projection.get("missing_blocks") or []),
                     )
                     if projection_status == "completed":
                         detail = await self.service.detail(current["session_id"])
@@ -460,9 +676,7 @@ class ReportWorkflowRuntime:
                         if delivery.get("status") not in FINAL:
                             continue
                 current = self._run(run_id)
-                manifest = self.catalog.manifest(
-                    current["workflow_id"], current["version"]
-                )
+                manifest = self.catalog.manifest(current["workflow_id"], current["version"])
                 by_id = {
                     item.get("id"): item
                     for item in [
@@ -481,27 +695,105 @@ class ReportWorkflowRuntime:
                 ]
                 missing = list(delivery.get("missing_formats", []))
                 missing.extend(
-                    f"block:{item}"
-                    for item in current.get("projection_missing_blocks") or []
+                    f"block:{item}" for item in current.get("projection_missing_blocks") or []
                 )
                 if current.get("projection_status") != "completed":
                     missing.append(
-                        "projection:"
-                        + str(current.get("projection_status") or "not_attempted")
+                        "projection:" + str(current.get("projection_status") or "not_attempted")
                     )
                 if len(completed_subagents) < manifest.minimum_subagents:
                     missing.append(f"subagents:{manifest.minimum_subagents}")
-                complete = delivery.get("status") == "completed" and not missing
-                self._update_run(
-                    run_id,
-                    status="completed" if complete else "delivery_incomplete",
-                    delivery_status="complete" if complete else "incomplete",
-                    artifacts=delivery.get("files", []),
-                    missing=missing,
-                    subagents=subagents,
-                )
+                file_complete = delivery.get("status") == "completed" and not missing
+                complete = file_complete
+                formal = weekly_enabled(manifest)
+                quality_status = "pending"
+                finalization_status = "blocked"
+                binding = None
+                if formal:
+                    from ..research_quality_service import check_quality
+
+                    drained = all(
+                        item.get("status") in {"completed", "failed", "cancelled", "canceled"}
+                        for item in subagents
+                    )
+                    if not drained:
+                        self._update_run(
+                            run_id,
+                            status="validating",
+                            quality_status="pending",
+                            finalization_status="pending",
+                        )
+                        continue
+                    try:
+                        self._require_weekly_owner(current.get("owner_id"))
+                        checked = await check_quality(self.service, current["session_id"])
+                        quality_status = checked.get("status", "incomplete")
+                        if complete and quality_status == "passed":
+                            binding = finalization_binding(self.service, current["session_id"])
+                            finalization_status = "finalized"
+                        else:
+                            complete = False
+                            missing.extend(
+                                "quality:" + str(issue) for issue in checked.get("issues", [])
+                            )
+                    except (StoreError, ValueError, TypeError, KeyError, OSError) as exc:
+                        log.warning(
+                            "report_weekly_finalization_blocked", error_type=type(exc).__name__
+                        )
+                        quality_status = "invalid"
+                        complete = False
+                        missing.append(getattr(exc, "code", "weekly_finalization_invalid"))
+                updates = {
+                    "status": (
+                        "completed"
+                        if complete
+                        else (
+                            "quality_incomplete"
+                            if formal and file_complete
+                            else "delivery_incomplete"
+                        )
+                    ),
+                    "delivery_status": "complete" if file_complete else "incomplete",
+                    "artifacts": delivery.get("files", []),
+                    "missing": missing,
+                    "subagents": subagents,
+                }
+                if formal:
+                    updates.update(
+                        execution_status="completed",
+                        quality_status=quality_status,
+                        finalization_status=finalization_status,
+                        finalization_binding=binding,
+                    )
+                self._finish_run(run_id, updates)
                 return
         self._update_run(run_id, status="failed", failure_code="report_timeout")
+
+    def _finish_run(self, run_id: str, updates: dict) -> None:
+        """Publish the accepted run and latest-final pointer in one catalog write."""
+        if updates.get("finalization_status") == "finalized":
+            self._require_weekly_owner(self._run(run_id).get("owner_id"))
+        with self.catalog._exclusive():
+            row = self.catalog.data["runs"][run_id]
+            workflow = self.catalog._row(row["workflow_id"])
+            before_run, before_workflow = copy.deepcopy(row), copy.deepcopy(workflow)
+            row.update(updates, updated_at=time.time())
+            if updates.get("finalization_status") == "finalized":
+                workflow["last_finalized_run"] = run_id
+                workflow["last_finalized"] = {
+                    "run_id": run_id,
+                    "session_id": row.get("session_id"),
+                    "binding": copy.deepcopy(updates["finalization_binding"]),
+                }
+            try:
+                self.catalog._save()
+            except Exception:
+                row.clear()
+                row.update(before_run)
+                workflow.clear()
+                workflow.update(before_workflow)
+                log.warning("report_workflow_final_save_failed")
+                raise
 
     async def cancel(self, run_id: str) -> dict:
         run = self._run(run_id)
@@ -523,6 +815,41 @@ class ReportWorkflowRuntime:
         if run["status"] in ACTIVE:
             raise WorkflowError("报告运行仍在进行", "run_active", 409)
         if (
+            run.get("finalization_status") == "finalized"
+            and self.public_run(run).get("finalization_status") == "finalized"
+        ):
+            return self.public_run(run)
+        if run.get("weekly_data_contract") and (
+            run.get("research_admission_at") or run.get("research_started_at")
+        ):
+            # A delivery action never starts another paid research turn. Keep the
+            # original session, cutoff and evidence; only reproject/recheck bytes.
+            if not run.get("session_id") or not run.get("dataset_snapshot_sha256"):
+                raise WorkflowError(
+                    "本轮研究结果未知，需要人工核查", "weekly_research_unknown", 409
+                )
+            root = self.service.store.directory(run["session_id"])
+            canonical = root / "outputs" / "research-report.json"
+            if canonical.is_symlink() or not canonical.is_file():
+                raise WorkflowError(
+                    "本轮缺少规范报告，不能自动重做研究", "weekly_canonical_missing", 409
+                )
+            self._require_weekly_owner(run.get("owner_id"))
+            self._update_run(
+                run_id,
+                status="validating",
+                delivery_status="pending",
+                quality_status="pending",
+                finalization_status="pending",
+                projection_attempted_at=None,
+                projection_status=None,
+                missing=[],
+            )
+            self.tasks[run_id] = asyncio.create_task(
+                self._resume_delivery(run_id), name=f"report-weekly-recheck-{run_id}"
+            )
+            return self.public_run(self._run(run_id))
+        if (
             run["status"] == "delivery_incomplete"
             and run.get("session_id")
             and run.get("dataset_snapshot_sha256")
@@ -543,24 +870,16 @@ class ReportWorkflowRuntime:
                 return self.public_run(self._run(run_id))
             attempt = int(run.get("delivery_retry_attempt") or 0) + 1
             previous_session_id = run["session_id"]
-            session = await self.service.create(
-                "claw", f"{run['workflow_id']} · 报告交付续跑"
-            )
+            session = await self.service.create("claw", f"{run['workflow_id']} · 报告交付续跑")
             delivery_session_id = session["id"]
             source = (
-                self.service.store.directory(previous_session_id)
-                / "inputs"
-                / "report-workflow"
+                self.service.store.directory(previous_session_id) / "inputs" / "report-workflow"
             )
             target = (
-                self.service.store.directory(delivery_session_id)
-                / "inputs"
-                / "report-workflow"
+                self.service.store.directory(delivery_session_id) / "inputs" / "report-workflow"
             )
             if source.is_symlink() or not source.is_dir():
-                raise WorkflowError(
-                    "锁定的报告资源不存在", "workflow_resources_missing", 409
-                )
+                raise WorkflowError("锁定的报告资源不存在", "workflow_resources_missing", 409)
             shutil.copytree(source, target, dirs_exist_ok=True)
             session_row = self.service.store.session(delivery_session_id)
             session_row["report_workflow"] = {
@@ -575,8 +894,7 @@ class ReportWorkflowRuntime:
                 status="running",
                 delivery_status="pending",
                 delivery_retry_attempt=attempt,
-                research_session_id=run.get("research_session_id")
-                or previous_session_id,
+                research_session_id=run.get("research_session_id") or previous_session_id,
                 session_id=delivery_session_id,
                 delivery_session_id=delivery_session_id,
                 projection_attempted_at=None,
@@ -601,9 +919,7 @@ class ReportWorkflowRuntime:
                 self._resume_delivery(run_id), name=f"report-delivery-retry-{run_id}"
             )
             return self.public_run(self._run(run_id))
-        return await self.start_run(
-            run["workflow_id"], trigger="retry", version=run["version"]
-        )
+        return await self.start_run(run["workflow_id"], trigger="retry", version=run["version"])
 
     async def _resume_delivery(self, run_id: str) -> None:
         try:
@@ -613,9 +929,7 @@ class ReportWorkflowRuntime:
             raise
         except Exception as exc:  # noqa: BLE001 - resumed background boundary.
             log.error("report_delivery_retry_failed", error_type=type(exc).__name__)
-            self._update_run(
-                run_id, status="failed", failure_code="delivery_retry_failed"
-            )
+            self._update_run(run_id, status="failed", failure_code="delivery_retry_failed")
         finally:
             self.tasks.pop(run_id, None)
 
@@ -633,10 +947,26 @@ class ReportWorkflowRuntime:
             "last_triggered_at": None,
         }
 
-    def put_schedule(
-        self, workflow_id: str, body: dict, *, now: datetime | None = None
-    ) -> dict:
+    def put_schedule(self, workflow_id: str, body: dict, *, now: datetime | None = None) -> dict:
         contract = WorkflowSchedule.model_validate(body)
+        workflow = self.catalog._row(workflow_id)
+        selected = workflow.get("current_version")
+        formal = selected is not None and weekly_enabled(
+            self.catalog.manifest(workflow_id, selected)
+        )
+        owner = self._require_weekly_owner() if formal else None
+        if (
+            formal
+            and contract.enabled
+            and (
+                contract.kind.value != "weekly"
+                or contract.timezone != "Asia/Shanghai"
+                or (contract.weekday, contract.hour, contract.minute) != (4, 15, 30)
+            )
+        ):
+            raise WorkflowError(
+                "华安周报固定于北京时间每周五15:30启动", "weekly_schedule_invalid", 409
+            )
         if contract.enabled:
             with self.catalog._exclusive():
                 manual_passed = any(
@@ -644,6 +974,7 @@ class ReportWorkflowRuntime:
                     and row.get("trigger") == "manual"
                     and row.get("status") == "completed"
                     and row.get("delivery_status") == "complete"
+                    and (not formal or self._manual_weekly_passed(workflow_id, selected))
                     for row in self.catalog.data["runs"].values()
                 )
             if not manual_passed:
@@ -653,12 +984,12 @@ class ReportWorkflowRuntime:
                     409,
                 )
         value = json.loads(contract.model_dump_json())
+        if owner is not None:
+            value["owner_id"] = owner["id"]
         value["next_run_at"] = self._next_run(value, now or datetime.now(UTC))
         with self.catalog._exclusive():
             row = self.catalog._row(workflow_id)
-            value["last_triggered_at"] = row.get("schedule", {}).get(
-                "last_triggered_at"
-            )
+            value["last_triggered_at"] = row.get("schedule", {}).get("last_triggered_at")
             row["schedule"] = value
             self.catalog._save()
         return value
@@ -684,17 +1015,13 @@ class ReportWorkflowRuntime:
     def _set_schedule_due_for_test(self, workflow_id: str, value: datetime) -> None:
         with self.catalog._exclusive():
             row = self.catalog._row(workflow_id)
-            row.setdefault("schedule", {})["next_run_at"] = value.astimezone(
-                UTC
-            ).isoformat()
+            row.setdefault("schedule", {})["next_run_at"] = value.astimezone(UTC).isoformat()
             self.catalog._save()
 
     def _record_schedule_failure(
         self, workflow_id: str, code: str, now: datetime, *, disable: bool = False
     ) -> None:
-        safe_code = (
-            code if re.fullmatch(r"[a-z0-9_]{1,64}", code) else "schedule_failed"
-        )
+        safe_code = code if re.fullmatch(r"[a-z0-9_]{1,64}", code) else "schedule_failed"
         with self.catalog._exclusive():
             row = self.catalog.data["workflows"].get(workflow_id)
             if row is None:
@@ -726,6 +1053,12 @@ class ReportWorkflowRuntime:
         for workflow_id, schedule in scheduled:
             if not schedule.get("enabled"):
                 continue
+            if schedule.get("owner_id"):
+                try:
+                    self._require_weekly_owner(schedule["owner_id"])
+                except WorkflowError as exc:
+                    self._record_schedule_failure(workflow_id, exc.code, now, disable=True)
+                    continue
             try:
                 due = schedule.get("next_run_at")
                 if not isinstance(due, str):
@@ -733,9 +1066,7 @@ class ReportWorkflowRuntime:
                 if datetime.fromisoformat(due) > now:
                     continue
             except (TypeError, ValueError):
-                self._record_schedule_failure(
-                    workflow_id, "schedule_invalid", now, disable=True
-                )
+                self._record_schedule_failure(workflow_id, "schedule_invalid", now, disable=True)
                 continue
             try:
                 await self.start_run(workflow_id, trigger="schedule")
@@ -744,10 +1075,9 @@ class ReportWorkflowRuntime:
                     "workflow_disabled",
                     "workflow_not_enabled",
                     "version_required",
+                    "manual_run_required",
                 }
-                self._record_schedule_failure(
-                    workflow_id, exc.code, now, disable=disable
-                )
+                self._record_schedule_failure(workflow_id, exc.code, now, disable=disable)
                 continue
             except Exception as exc:  # noqa: BLE001 - isolate each persisted schedule.
                 log.error(
@@ -755,9 +1085,7 @@ class ReportWorkflowRuntime:
                     workflow_id=workflow_id,
                     error_type=type(exc).__name__,
                 )
-                self._record_schedule_failure(
-                    workflow_id, "schedule_trigger_failed", now
-                )
+                self._record_schedule_failure(workflow_id, "schedule_trigger_failed", now)
                 continue
             with self.catalog._exclusive():
                 # start_run may update the persisted catalog. Re-read while holding
@@ -778,7 +1106,5 @@ class ReportWorkflowRuntime:
             try:
                 await self.tick()
             except Exception as exc:  # noqa: BLE001 - scheduler must survive a bad record.
-                log.error(
-                    "report_workflow_scheduler_failed", error_type=type(exc).__name__
-                )
+                log.error("report_workflow_scheduler_failed", error_type=type(exc).__name__)
             await asyncio.sleep(15)
