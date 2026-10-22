@@ -1,5 +1,7 @@
 # 安全边界与验证方法
 
+2026-10-23 v5对API元数据和ZIP下载均发送`Cache-Control: no-cache`强制HTTP重新验证，并fresh下载当前run的二进制ZIP，严格校验并读取完整job日志；run／job仍来自原fresh workflow查询，解析失败／缺失／身份或tree不一致须失败关闭。gh run view的64KiB Scanner会静默截断并缓存，f853方案已拒绝；新ASSET_V5_EVIDENCE_SHA256=22d8dde6266096cec77b0fb3ce5e27d3f05e52bef4fcdc747bed5289f00d4679，当前不能据旧f853提交或部署。重新验证不保证API可用，瞬时空响应仍阻断；缺失仍立即拒绝，不增加重试或缓存fallback；原120秒及资格预算不放宽。旧ASSET_EVIDENCE_SHA256=ec022e39a89a3dbd021fca26049342ce149077f5beb62a8df2aba7826d016d25、旧profile、controller.pyz及module和冻结恢复包保持，最终ZIP实现须独评及原三CI。
+
 资产v5大索引修复仅让该profile复用既有64 MiB read_business_index：路径／普通文件／NOFOLLOW／大小及JSON对象校验保持，错误仍日志并失败关闭；元数据保持1 MB，旧profile绑定、固定PREVIOUS／PAYLOAD、controller／evidence字节及保全／恢复门不变。没有新信任边界、权限或外部输入；不通过裁剪8.67 MB业务索引或放宽读取检查消除故障。PR187文档／结构门失败保留，补齐后仍须原完整约束、独评和同候选三CI。
 
 资产交互v5固定PREVIOUS=51f09、PAYLOAD=PR185真实merge9bc4；原review_assets继续核对产品祖先、完整路径并集、blob、模式、干净checkout及源码／发布仓库身份，运行时不接受任意旧版或产品SHA。旧profile、不可变controller／evidence、自动兼容白名单、账号与秘密namespace不变；原维护锁、BirthFence、明确空闲、全账号保全和正式recover仍为硬门。没有新信任边界或认证流程，01／12安全相关图保持，产品三CI不替代v5最终独评／CI／真实切换证据。

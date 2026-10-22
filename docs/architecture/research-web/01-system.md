@@ -1,5 +1,7 @@
 # 部署与模块职责
 
+2026-10-23 v5通过现有GitHub证据服务fresh下载当前run的二进制ZIP，严格读取完整job日志；静默截断／缓存的gh run view及f853方案已拒绝。主实例、网关、锁和BirthFence节点不变，无新部署进程或HTTP。只有v5选择最终受审ZIP reader，旧profile、controller与恢复包保持，原部署图准确；产品5d3927和实际运行51f09分列，当前未切换。
+
 资产v5大索引修复只调整既有Native操作员预检读取绑定：v5业务index沿64 MiB安全读取器，部署元数据仍1 MB。主实例／网关、账号根、锁、BirthFence和version4事务没有新增节点或拓扑；旧profile与固定产品不变，01部署图仍准确。此前8.67 MB索引在停机前被拒绝，不能把随后本机修复或文档补齐当作实际切换成功。
 
 资产交互v5（2026-10-22）只新增原Native操作员的固定profile：旧51f09、产品PR185真实merge9bc4，入口apply-assets-v5。主实例／网关、维护锁、BirthFence、账号数据根和唯一DSH节点保持；没有新守护进程、容器、HTTP或部署拓扑，01部署图仍准确。旧资产／market／模型profile保留，v5最终资格及未部署状态见[操作合同](../../research-web-gateway-upgrade.md#资产交互与数据-v5-2026-10-22)。

@@ -128,6 +128,9 @@ def test_asset_review_uses_real_git_and_frozen_product(tmp_path, monkeypatch, ba
         upgrade, "ASSET_EVIDENCE_SHA256", hashlib.sha256(b"reviewed evidence").hexdigest()
     )
     monkeypatch.setattr(
+        upgrade, "ASSET_V5_EVIDENCE_SHA256", hashlib.sha256(b"reviewed evidence").hexdigest()
+    )
+    monkeypatch.setattr(
         upgrade, "MARKET_GATEWAY_SHA256", hashlib.sha256(b"reviewed gateway").hexdigest()
     )
     (tmp_path / upgrade.MODULE).write_text("reviewed operator")
@@ -2033,7 +2036,18 @@ def test_market_refresh_activity_blocks_the_fixed_upgrade(
 def test_asset_v5_is_bound_to_actual_resident_and_merged_product():
     assert upgrade.ASSET_V5_MODE == "reviewed-asset-observation-v5"
     assert upgrade.previous_for(upgrade.ASSET_V5_MODE) == "51f09fa783694aae5234905933948394ca167dcc"
-    assert upgrade.ASSET_V5_PAYLOAD == "88ef3817680ac822e2d7c819db845de4b7275173"
+    assert upgrade.ASSET_V5_PAYLOAD == "5d3927fae923d443a2c85431e4bc6ec33be7c9f6"
+
+
+def test_legacy_evidence_pin_is_not_replaced_by_v5_transport_reader():
+    assert (
+        upgrade.ASSET_EVIDENCE_SHA256
+        == "ec022e39a89a3dbd021fca26049342ce149077f5beb62a8df2aba7826d016d25"
+    )
+    assert (
+        upgrade.ASSET_V5_EVIDENCE_SHA256
+        == "22d8dde6266096cec77b0fb3ce5e27d3f05e52bef4fcdc747bed5289f00d4679"
+    )
 
 
 @pytest.mark.parametrize("profile", [upgrade.MODE, *upgrade.ASSET_MODES])
