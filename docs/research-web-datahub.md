@@ -455,3 +455,5 @@ CJPY局部成交量声明还必须逐行校验所有已存在asset/code/stock_co
 2026-10-23 单位策略还逐输入冻结到required_semantics证据字段、query及manifest/query/provider_query，_authorize_inputs复验与任务策略一致，_cache_chunk/_reuse检查块顶层策略；旧缺字段None按原合同处理。离线HTTP链覆盖AK执行失败再Bao可信raw成功，候选skip与实际execution_attempts分别保存，不以skip替代运行失败降级证明。
 
 2026-10-23 本次交付缓存边界：Asset新历史job固定refresh=True，显式重读所请求整段，不是先读取研究仓再只补缺失部分。DataHub普通refresh=False仅按精确策略/来源复用完整匹配缓存；Wind超过60自然日时缓存来源仍受当前fetch准入guard限制。跨来源部分覆盖不在本任务中拼接，研究仓prepare交易日历仍可能联网。这些是实际未完成能力，不能用本轮候选降级、原生冻结或单源完整缓存测试宣称全部缓存/缺口补数已覆盖。
+
+2026-10-23 最新逐源证据快照见[64源验证清单](../.ai/reports/2026-10-23-datahub-source-verification.json)：保留2026-10-22静态旧快照，区分CJPY Native SDK字段元数据、iFinD Windows SDK与ext_ths HTTP渠道、Market表面及逐源事实。真实AK此前API/页面两轮与最终组合真实Bao一次分别记录，57源未重查；局部元数据、单证券485行或页面图表不升级为全源可用、PIT、正式回测或部署。

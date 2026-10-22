@@ -1,0 +1,2814 @@
+{
+  "schema_version": 2,
+  "artifact_kind": "source_audit_evidence_reconciliation",
+  "date": "2026-10-23",
+  "review_state": "promoted_verified_reference_hashes_and_bounded_scope",
+  "field_notes": {
+    "old_static_snapshot": "逐源保留2026-10-22旧绑定及状态，不作当前可用证明",
+    "current_observation": "本次证据观测或明确未重查；历史摘要不算新厂商调用",
+    "surfaces": "产品表面与设备策略，不增加或冒充Broker来源",
+    "evidence": "仅报告/回执路径与SHA256；未定位原件明确标记historical_summary_only"
+  },
+  "old_audit": {
+    "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/datahub-warehouse-20261022/.ai/reports/2026-10-22-datahub-source-audit.json",
+    "sha256": "d36a59214bb4c6b3bfbdebf07091ca1e81fc3dd7d1d78f12e2495e024270b9a5",
+    "date": "2026-10-22",
+    "source_count": 64,
+    "preserved_without_mutation": true
+  },
+  "metadata": {
+    "host_platform": "macOS",
+    "mode": "source_verification_evidence_reconciliation_no_new_fetches",
+    "source_refs": {
+      "Plugin": "7a1c60760ad0344a468583b450f9210496bffde2",
+      "Auth": "d693d750e1deab0bb25c67b746684260b372ca4a",
+      "Fund": "5d3927fae923d443a2c85431e4bc6ec33be7c9f6",
+      "Foundation": "88ef3817680ac822e2d7c819db845de4b7275173",
+      "Market_merge": "71ce8519ae3cf8542e21ff77373a861c873423c1",
+      "Asset_combined_validated_candidate": "5cdaee4f06677cea948070dbe45675a265a1fba4"
+    },
+    "source_refs_precision": "六个完整Git commit对象核验；Market已合并，Asset5cda为真实组合UI已验候选，不冒充常驻revision或已发布",
+    "existing_services_modified": false,
+    "dependencies_installed": false,
+    "vendor_calls_this_audit": 0,
+    "model_calls_this_audit": 0,
+    "secret_values_read_or_included": false,
+    "deployment_performed": false,
+    "temporary_configuration": "最终组合18997为独立完整Host/Memory，exit0/PIDabsent/root删除/reuseaddrPASS/tab关闭；不推定常驻配置",
+    "persistent_skill_configuration": "root确认官方Skill600权限持久配置已存在；未读取路径或秘密值，不等于Host配置",
+    "historical_root_vendor_observations": {
+      "cjpy_metadata": 1,
+      "cjpy_market_in_this_probe": 0,
+      "akshare_api_and_page": 2,
+      "baostock_final_host_worker": 1,
+      "final_bao_ak_failure": "controlled_only"
+    }
+  },
+  "sources": [
+    {
+      "source_id": "wind",
+      "old_static_snapshot": {
+        "id": "wind",
+        "name": "Wind",
+        "auth_kind": "terminal",
+        "implementation": "blocked_config",
+        "bindings": [
+          {
+            "capability": "market_bars",
+            "implemented": true,
+            "datasets": [
+              "daily_quotes"
+            ]
+          },
+          {
+            "capability": "market_snapshot",
+            "implemented": true,
+            "datasets": [
+              "realtime"
+            ]
+          },
+          {
+            "capability": "index_data",
+            "implemented": true,
+            "datasets": [
+              "quotes"
+            ]
+          },
+          {
+            "capability": "financials",
+            "implemented": true,
+            "datasets": [
+              "financial_statements"
+            ]
+          },
+          {
+            "capability": "market_activity",
+            "implemented": true,
+            "datasets": [
+              "fund_flow",
+              "margin_trading",
+              "holder_data"
+            ]
+          }
+        ],
+        "live_acceptance": {
+          "state": "not_run",
+          "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+        },
+        "static_readiness_is_live_proof": false
+      },
+      "current_observation": {
+        "status": "historical_device_verified_current_market_unverified",
+        "scope": "2026-09-11 Mac Wind/Excel最小公式；当前DataHub行情未复验",
+        "evidence": [
+          {
+            "path": "/Users/leon/Desktop/Projects/ResearchWorkbench/.ai/reports/2026-09-10-mac-local-integrations-live.md",
+            "availability": "present",
+            "sha256": "b2e7434ad4a9793387386171983ff3b40e0a39102bb06663e61817a0273a6dd4",
+            "scope": "含9月11日真实Office/Wind验证和工作簿超时"
+          }
+        ],
+        "evidence_grade": "historical_summary_only",
+        "limitations": [
+          "旧available不等于当前行情/财务全链成功",
+          "Wind验证TTL为5分钟；会话/安全验证可能需要用户交互",
+          "股票历史Provider60自然日限制；auto跳过两年请求不等于故障",
+          "本轮受控Wind不是厂商调用",
+          "未部署"
+        ]
+      }
+    },
+    {
+      "source_id": "tinysoft",
+      "old_static_snapshot": {
+        "id": "tinysoft",
+        "name": "天软",
+        "auth_kind": "terminal",
+        "implementation": "blocked_config",
+        "bindings": [
+          {
+            "capability": "search_assets",
+            "implemented": true,
+            "datasets": [
+              "stock_list",
+              "fund_list"
+            ]
+          },
+          {
+            "capability": "trading_calendar",
+            "implemented": true,
+            "datasets": [
+              "trading_days"
+            ]
+          },
+          {
+            "capability": "market_bars",
+            "implemented": true,
+            "datasets": [
+              "daily_quotes"
+            ]
+          },
+          {
+            "capability": "market_snapshot",
+            "implemented": true,
+            "datasets": [
+              "table_data"
+            ]
+          },
+          {
+            "capability": "index_data",
+            "implemented": false,
+            "datasets": [
+              "daily_quotes"
+            ]
+          },
+          {
+            "capability": "financials",
+            "implemented": false,
+            "datasets": [
+              "table_data"
+            ]
+          },
+          {
+            "capability": "factor_macro",
+            "implemented": true,
+            "datasets": [
+              "adjustment_metadata",
+              "listing_date",
+              "adjustment_factors"
+            ]
+          },
+          {
+            "capability": "fund_data",
+            "implemented": false,
+            "datasets": [
+              "fund_list"
+            ]
+          }
+        ],
+        "live_acceptance": {
+          "state": "not_run",
+          "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+        },
+        "static_readiness_is_live_proof": false
+      },
+      "current_observation": {
+        "status": "bounded_sdk_metadata_verified_price_units_unknown",
+        "scope": "CJPY Native SDK0.5.2 独立CjClient仅markettable_columns一次；行情/财务和当前完整实例仍未复验",
+        "evidence": [
+          {
+            "path": "/Users/leon/Desktop/Projects/ResearchWorkbench/.ai/reports/test_report_wind_asset_workspace_20261022.md",
+            "availability": "present",
+            "sha256": "70a588030cd3b7dc1ae9d7096f9c720732846ca7f87cfe1cd7f0854d3be15fd8",
+            "scope": "历史136次CJPY调用、2261/6025行三复权"
+          },
+          {
+            "path": ".ai/reports/test_report_asset_history_fallback_20261023.md",
+            "availability": "git_blob_present",
+            "sha256": "bb6eed1d54330932cf37f73137472bdee9f1f809aff820c04dcff04add88543d",
+            "scope": "本轮Tinysoft失败为受控fixture",
+            "git_repository": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/asset-history-fallback-20261023-integration",
+            "git_ref": "5cdaee4f06677cea948070dbe45675a265a1fba4"
+          },
+          {
+            "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/datahub-warehouse-20261022/.ai/reports/2026-10-22-datahub-warehouse-PROGRESS.md",
+            "availability": "present",
+            "sha256": "3488621a5080ae87849bb4980375f163fe0a61645423ffcc3ea5e0f2683270af",
+            "scope": "移除天软规范桥，未知单位不得提升"
+          },
+          {
+            "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/asset-history-fallback-20261023/logs/cjpy-field-metadata/result.json",
+            "availability": "present",
+            "sha256": "6af7f62e3abcc1fb41ad7b0d1d58d7f771fa11c1065dd175a88c1b9ff1df3e12",
+            "scope": "Native SDK字段字典读取结果：HTTP200、0.5.2、53字段、无凭据反射/持久化/配置写"
+          },
+          {
+            "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/asset-history-fallback-20261023-integration/logs/asset-final-bao-host/final-assessment.json",
+            "availability": "present",
+            "sha256": "2b8525a237ada3da075738aecbea5b809b22f13a8d041d73b2b1ff960614073d",
+            "scope": "新raw策略语义跳过Tinysoft；不是实际天软行情调用"
+          }
+        ],
+        "evidence_grade": "native_sdk_metadata_only_plus_historical_market_summary",
+        "facts": {
+          "historical_sdk_calls": 136,
+          "historical_rows_by_asset": [
+            2261,
+            6025
+          ],
+          "metadata_requests": 1,
+          "sdk_version": "0.5.2",
+          "http_status": 200,
+          "metadata_field_count": 53,
+          "metadata_method": "markettable_columns",
+          "dictionary_sha256": "27df9e431be417c522e65151179dcc476822f38e792f8ea497bd19733ac4d829",
+          "dictionary_raw_in_git": false,
+          "stock_vol_unit": "share",
+          "stock_amount_native_unit": "元",
+          "amount_currency": null,
+          "ohlc_unit": null,
+          "ohlc_currency": null,
+          "market_queries_this_metadata_probe": 0,
+          "financial_queries_this_metadata_probe": 0,
+          "model_calls_this_metadata_probe": 0,
+          "account_configuration_changed": false,
+          "credential_persisted": false
+        },
+        "limitations": [
+          "本次仅Native SDK字段元数据读取，不把HTTP200当行情/财务成功",
+          "vol股与amount元仅在exactSDK0.5.2/沪深stock/daily及明确身份依据下应用；完全无identity列标single_security_request且不补行，有矛盾列不应用",
+          "OHLC单位/currency未声明，规范研究仓桥继续排除，raw单位策略跳过Tinysoft",
+          "旧136次调用仅历史证据，不认证当前实例/账号权限",
+          "原字段字典0600且secret扫描false，仅摘要/hash入Git",
+          "未部署"
+        ]
+      }
+    },
+    {
+      "source_id": "ifind",
+      "old_static_snapshot": {
+        "id": "ifind",
+        "name": "iFinD",
+        "auth_kind": "terminal",
+        "implementation": "disabled",
+        "bindings": [
+          {
+            "capability": "market_bars",
+            "implemented": false,
+            "datasets": [
+              "quotes"
+            ]
+          },
+          {
+            "capability": "market_snapshot",
+            "implemented": false,
+            "datasets": [
+              "quotes"
+            ]
+          },
+          {
+            "capability": "financials",
+            "implemented": false,
+            "datasets": [
+              "financials"
+            ]
+          },
+          {
+            "capability": "market_activity",
+            "implemented": false,
+            "datasets": [
+              "fund_flow",
+              "industry"
+            ]
+          },
+          {
+            "capability": "factor_macro",
+            "implemented": false,
+            "datasets": [
+              "macro",
+              "technical"
+            ]
+          }
+        ],
+        "live_acceptance": {
+          "state": "not_run",
+          "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+        },
+        "static_readiness_is_live_proof": false
+      },
+      "current_observation": {
+        "status": "not_rechecked",
+        "scope": "本次未复核",
+        "evidence": [],
+        "limitations": [
+          "不根据旧readiness声明当前可用"
+        ],
+        "channel_note": "Windows SDK独立渠道未重查；ext_ths HTTP成功不能认证此渠道。"
+      }
+    },
+    {
+      "source_id": "akshare",
+      "old_static_snapshot": {
+        "id": "akshare",
+        "name": "AKShare",
+        "auth_kind": "none",
+        "implementation": "ready",
+        "bindings": [
+          {
+            "capability": "search_assets",
+            "implemented": true,
+            "datasets": [
+              "stock_master"
+            ]
+          },
+          {
+            "capability": "trading_calendar",
+            "implemented": true,
+            "datasets": [
+              "trading_calendar"
+            ]
+          },
+          {
+            "capability": "market_bars",
+            "implemented": true,
+            "datasets": [
+              "stock_daily",
+              "index_daily"
+            ]
+          },
+          {
+            "capability": "market_snapshot",
+            "implemented": true,
+            "datasets": [
+              "spot"
+            ]
+          },
+          {
+            "capability": "index_data",
+            "implemented": false,
+            "datasets": [
+              "index_daily"
+            ]
+          },
+          {
+            "capability": "financials",
+            "implemented": true,
+            "datasets": [
+              "financials"
+            ]
+          },
+          {
+            "capability": "market_activity",
+            "implemented": true,
+            "datasets": [
+              "fund_flow"
+            ]
+          },
+          {
+            "capability": "factor_macro",
+            "implemented": false,
+            "datasets": [
+              "macro"
+            ]
+          },
+          {
+            "capability": "search_news",
+            "implemented": false,
+            "datasets": [
+              "news"
+            ]
+          }
+        ],
+        "live_acceptance": {
+          "state": "bounded_live_verified",
+          "capabilities": [
+            "market_bars:stock/raw/daily",
+            "market_bars:index/native/daily",
+            "financials:metrics/native",
+            "trading_calendar:CN"
+          ],
+          "warehouse": "stock-incremental-and-restart;native-financial-index-restart"
+        },
+        "static_readiness_is_live_proof": false
+      },
+      "current_observation": {
+        "status": "bounded_live_verified",
+        "scope": "近期股票不复权历史：真实API与完整Host浏览器图表",
+        "evidence": [
+          {
+            "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/asset-history-fallback-20261023/logs/asset-visible-host/final-assessment.json",
+            "availability": "present",
+            "sha256": "297e288fe6aba912eedd9884a34c9d3652b5a374e57bebea0d51583ec88cbe5e",
+            "scope": "完整Host页面485行、单次该进程public调用"
+          },
+          {
+            "path": ".ai/reports/test_report_asset_history_fallback_20261023.md",
+            "availability": "git_blob_present",
+            "sha256": "bb6eed1d54330932cf37f73137472bdee9f1f809aff820c04dcff04add88543d",
+            "scope": "报告记录此前API与此次页面合计两次public调用",
+            "git_repository": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/asset-history-fallback-20261023-integration",
+            "git_ref": "5cdaee4f06677cea948070dbe45675a265a1fba4"
+          },
+          {
+            "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/asset-history-fallback-20261023/logs/asset-real-free-fallback/result.json",
+            "availability": "present",
+            "sha256": "9a26f06cfb00d23c5425a5a7258935c7e2e4e199c3527c3ce614849ff7fad2fc",
+            "scope": "此前真实API AK485行一次"
+          },
+          {
+            "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/asset-history-fallback-20261023/logs/asset-visible-host/result.json",
+            "availability": "present",
+            "sha256": "5a16e15edf81178d5942b6684e13c10fc29428c66e3610453840b5147bd28b33",
+            "scope": "此前完整Host实际AK485行一次"
+          },
+          {
+            "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/asset-history-fallback-20261023-integration/logs/asset-final-bao-host/final-assessment.json",
+            "availability": "present",
+            "sha256": "2b8525a237ada3da075738aecbea5b809b22f13a8d041d73b2b1ff960614073d",
+            "scope": "本最终组合AK为受控executor失败，不是第三次真实AK请求"
+          }
+        ],
+        "facts": {
+          "rows": 485,
+          "public_invocations_across_api_and_page": 2,
+          "visible_host_process_public_invocations": 1,
+          "models": 0,
+          "api_public_invocations": 1,
+          "rows_per_api_and_page": [
+            485,
+            485
+          ],
+          "final_bao_chain_ak_public_requests": 0,
+          "final_bao_chain_ak_controlled_execution_failures": 1
+        },
+        "limitations": [
+          "此前真实API/页面合计两次AK公开worker调用，各485行；新策略最终组合链AK仅受控失败无真实上游",
+          "初始快照受控CJ失败，不认证整页其他区块成功",
+          "两次旧真实AK属于此前源码阶段；最终候选通过相同Provider合同映射，新的候选准入与最终真实Bao另证",
+          "原始不复权、上市边界未知，非全历史/PIT/正式回测",
+          "临时Memory配置不改生产服务，未部署"
+        ]
+      }
+    },
+    {
+      "source_id": "baostock",
+      "old_static_snapshot": {
+        "id": "baostock",
+        "name": "BaoStock",
+        "auth_kind": "none",
+        "implementation": "ready",
+        "bindings": [
+          {
+            "capability": "search_assets",
+            "implemented": true,
+            "datasets": [
+              "stock_master"
+            ]
+          },
+          {
+            "capability": "trading_calendar",
+            "implemented": true,
+            "datasets": [
+              "trade_dates"
+            ]
+          },
+          {
+            "capability": "market_bars",
+            "implemented": true,
+            "datasets": [
+              "stock_daily"
+            ]
+          },
+          {
+            "capability": "financials",
+            "implemented": false,
+            "datasets": [
+              "financials"
+            ]
+          },
+          {
+            "capability": "search_news",
+            "implemented": false,
+            "datasets": [
+              "news"
+            ]
+          }
+        ],
+        "live_acceptance": {
+          "state": "bounded_live_verified_after_repair",
+          "capabilities": [
+            "market_bars:stock/raw/daily"
+          ],
+          "warehouse": "browser-2-rows-second-db-hit",
+          "initial_failure": "12-second-deadline"
+        },
+        "static_readiness_is_live_proof": false
+      },
+      "current_observation": {
+        "status": "bounded_live_verified_actual_host_ui",
+        "scope": "精确5cda组合Host/UI；CJPY语义跳过/Wind范围跳过/AK受控执行失败→真实BaoStock单worker原始日线485行",
+        "evidence": [
+          {
+            "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/datahub-warehouse-20261022/.ai/reports/2026-10-22-datahub-warehouse-PROGRESS.md",
+            "availability": "present",
+            "sha256": "3488621a5080ae87849bb4980375f163fe0a61645423ffcc3ea5e0f2683270af",
+            "scope": "历史修复后2行/1.39秒及18994页面摘要"
+          },
+          {
+            "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/datahub-warehouse-20261022/.ai/reports/2026-10-22-datahub-source-audit.json",
+            "availability": "present",
+            "sha256": "d36a59214bb4c6b3bfbdebf07091ca1e81fc3dd7d1d78f12e2495e024270b9a5",
+            "scope": "旧64源清单中的历史局部验证摘要"
+          },
+          {
+            "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/asset-history-fallback-20261023-integration/logs/asset-final-bao-host/final-assessment.json",
+            "availability": "present",
+            "sha256": "2b8525a237ada3da075738aecbea5b809b22f13a8d041d73b2b1ff960614073d",
+            "scope": "组合Host/UI审核PASS，sourcehead5cda、源与执行审计完整"
+          },
+          {
+            "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/asset-history-fallback-20261023-integration/logs/asset-final-bao-host/result.json",
+            "availability": "present",
+            "sha256": "ddfbbc6502f4b988c1cb23e137859b45c03f1c955b62f8c90d5712fd9cc67d70",
+            "scope": "真实BaoStock worker一次、485行及输入manifest两条execution_attempts"
+          },
+          {
+            "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/asset-history-fallback-20261023-integration/logs/asset-final-bao-host/retired.json",
+            "availability": "present",
+            "sha256": "1fdae03463c2630ecaa100733380748f19af256b079858b27ac0e50f9a401436",
+            "scope": "临时PID6678退出、root删除"
+          }
+        ],
+        "evidence_grade": "actual_public_sdk_and_actual_host_ui",
+        "limitations": [
+          "仅600000.SH单一两年近期不复权样本；不认证ETF/指数/财务/新闻/全历史/PIT",
+          "AK失败是受控executor，不认证真实AK失败；CJPY和Wind是语义/范围准入跳过",
+          "固定Tinysoft和初始快照受控失败保留，不认证整页所有区块",
+          "canonical顶层attempted_sources空，但输入manifest保留完整候选和两条执行记录",
+          "历史首次12秒超时与旧2行摘要保留，不覆盖为本次成功",
+          "真实临时Host/Memory独立配置，未部署"
+        ],
+        "facts": {
+          "source_git_head": "5cdaee4f06677cea948070dbe45675a265a1fba4",
+          "public_worker_requests": 1,
+          "provider": "baostock",
+          "rows": 485,
+          "worker_duration_seconds_approx": 1.409,
+          "requested_range": {
+            "start_date": "2024-10-20",
+            "end_date": "2026-10-20"
+          },
+          "actual_range": {
+            "start_date": "2024-10-21",
+            "end_date": "2026-10-20"
+          },
+          "last_close": 9.76,
+          "required_semantics": "cn_stock_daily_cny_share_v1",
+          "canonical_version": "asset-history-raw-2",
+          "listing_date": null,
+          "boundary_verified": false,
+          "full_history": false,
+          "price_currency": "CNY",
+          "price_unit": "currency_per_share",
+          "volume_unit": "share",
+          "model_calls": 0,
+          "database_calls": 0,
+          "production_credentials_used": false,
+          "canonical_top_level_attempted_sources": [],
+          "execution_audit_location": "asset_history.inputs[0].manifest.provider_metadata.execution_attempts",
+          "execution_attempts": [
+            "akshare:controlled_vendor_unreachable",
+            "baostock:actual_success"
+          ],
+          "temporary_host_exit": 0,
+          "pid_absent": true,
+          "temporary_root_removed": true,
+          "port_18997_reuseaddr": "PASS",
+          "browser_tab9_closed": true
+        }
+      }
+    },
+    {
+      "source_id": "tushare",
+      "old_static_snapshot": {
+        "id": "tushare",
+        "name": "Tushare",
+        "auth_kind": "api_key",
+        "implementation": "disabled",
+        "bindings": [
+          {
+            "capability": "search_assets",
+            "implemented": false,
+            "datasets": [
+              "stock_basic"
+            ]
+          },
+          {
+            "capability": "trading_calendar",
+            "implemented": false,
+            "datasets": [
+              "trade_cal"
+            ]
+          },
+          {
+            "capability": "market_bars",
+            "implemented": false,
+            "datasets": [
+              "daily"
+            ]
+          },
+          {
+            "capability": "financials",
+            "implemented": false,
+            "datasets": [
+              "fina_indicator"
+            ]
+          }
+        ],
+        "live_acceptance": {
+          "state": "not_run",
+          "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+        },
+        "static_readiness_is_live_proof": false
+      },
+      "current_observation": {
+        "status": "not_rechecked",
+        "scope": "本次未复核",
+        "evidence": [],
+        "limitations": [
+          "不根据旧readiness声明当前可用"
+        ]
+      }
+    },
+    {
+      "source_id": "yahoo",
+      "old_static_snapshot": {
+        "id": "yahoo",
+        "name": "Yahoo Finance",
+        "auth_kind": "none",
+        "implementation": "disabled",
+        "bindings": [
+          {
+            "capability": "market_bars",
+            "implemented": false,
+            "datasets": [
+              "stock_daily"
+            ]
+          },
+          {
+            "capability": "market_snapshot",
+            "implemented": false,
+            "datasets": [
+              "stock_info"
+            ]
+          },
+          {
+            "capability": "index_data",
+            "implemented": false,
+            "datasets": [
+              "index_daily"
+            ]
+          },
+          {
+            "capability": "financials",
+            "implemented": false,
+            "datasets": [
+              "financials"
+            ]
+          },
+          {
+            "capability": "search_news",
+            "implemented": false,
+            "datasets": [
+              "news"
+            ]
+          }
+        ],
+        "live_acceptance": {
+          "state": "not_run",
+          "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+        },
+        "static_readiness_is_live_proof": false
+      },
+      "current_observation": {
+        "status": "not_rechecked",
+        "scope": "本次未复核",
+        "evidence": [],
+        "limitations": [
+          "不根据旧readiness声明当前可用"
+        ]
+      }
+    },
+    {
+      "source_id": "chinastock",
+      "old_static_snapshot": {
+        "id": "chinastock",
+        "name": "ChinaStock",
+        "auth_kind": "none",
+        "implementation": "disabled",
+        "bindings": [
+          {
+            "capability": "search_assets",
+            "implemented": false,
+            "datasets": [
+              "asset_search"
+            ]
+          },
+          {
+            "capability": "market_bars",
+            "implemented": false,
+            "datasets": [
+              "quotes"
+            ]
+          },
+          {
+            "capability": "market_snapshot",
+            "implemented": false,
+            "datasets": [
+              "quotes"
+            ]
+          },
+          {
+            "capability": "financials",
+            "implemented": false,
+            "datasets": [
+              "financials"
+            ]
+          },
+          {
+            "capability": "market_activity",
+            "implemented": false,
+            "datasets": [
+              "fund_flow",
+              "sentiment"
+            ]
+          },
+          {
+            "capability": "factor_macro",
+            "implemented": false,
+            "datasets": [
+              "macro",
+              "technical"
+            ]
+          }
+        ],
+        "live_acceptance": {
+          "state": "not_run",
+          "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+        },
+        "static_readiness_is_live_proof": false
+      },
+      "current_observation": {
+        "status": "not_rechecked",
+        "scope": "本次未复核",
+        "evidence": [],
+        "limitations": [
+          "不根据旧readiness声明当前可用"
+        ]
+      }
+    },
+    {
+      "source_id": "local_cache",
+      "old_static_snapshot": {
+        "id": "local_cache",
+        "name": "本地数据 / 缓存",
+        "auth_kind": "local",
+        "implementation": "disabled",
+        "bindings": [
+          {
+            "capability": "search_assets",
+            "implemented": false,
+            "datasets": [
+              "asset_cache"
+            ]
+          },
+          {
+            "capability": "market_bars",
+            "implemented": false,
+            "datasets": [
+              "price_cache"
+            ]
+          }
+        ],
+        "live_acceptance": {
+          "state": "not_run",
+          "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+        },
+        "static_readiness_is_live_proof": false
+      },
+      "current_observation": {
+        "status": "not_rechecked",
+        "scope": "本次未复核",
+        "evidence": [],
+        "limitations": [
+          "不根据旧readiness声明当前可用"
+        ]
+      }
+    },
+    {
+      "source_id": "csindex",
+      "old_static_snapshot": {
+        "id": "csindex",
+        "name": "中证指数",
+        "auth_kind": "none",
+        "implementation": "disabled",
+        "bindings": [
+          {
+            "capability": "index_data",
+            "implemented": false,
+            "datasets": [
+              "index_constituents",
+              "index_valuation"
+            ]
+          }
+        ],
+        "live_acceptance": {
+          "state": "not_run",
+          "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+        },
+        "static_readiness_is_live_proof": false
+      },
+      "current_observation": {
+        "status": "not_rechecked",
+        "scope": "本次未复核",
+        "evidence": [],
+        "limitations": [
+          "不根据旧readiness声明当前可用"
+        ]
+      }
+    },
+    {
+      "source_id": "szse",
+      "old_static_snapshot": {
+        "id": "szse",
+        "name": "深交所",
+        "auth_kind": "none",
+        "implementation": "disabled",
+        "bindings": [
+          {
+            "capability": "search_assets",
+            "implemented": false,
+            "datasets": [
+              "listed_companies"
+            ]
+          },
+          {
+            "capability": "search_announcements",
+            "implemented": false,
+            "datasets": [
+              "company_info"
+            ]
+          }
+        ],
+        "live_acceptance": {
+          "state": "not_run",
+          "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+        },
+        "static_readiness_is_live_proof": false
+      },
+      "current_observation": {
+        "status": "not_rechecked",
+        "scope": "本次未复核",
+        "evidence": [],
+        "limitations": [
+          "不根据旧readiness声明当前可用"
+        ]
+      }
+    },
+    {
+      "source_id": "cninfo",
+      "old_static_snapshot": {
+        "id": "cninfo",
+        "name": "巨潮资讯",
+        "auth_kind": "none",
+        "implementation": "disabled",
+        "bindings": [
+          {
+            "capability": "search_announcements",
+            "implemented": false,
+            "datasets": [
+              "announcements"
+            ]
+          }
+        ],
+        "live_acceptance": {
+          "state": "not_run",
+          "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+        },
+        "static_readiness_is_live_proof": false
+      },
+      "current_observation": {
+        "status": "not_rechecked",
+        "scope": "本次未复核",
+        "evidence": [],
+        "limitations": [
+          "不根据旧readiness声明当前可用"
+        ]
+      }
+    },
+    {
+      "source_id": "cls",
+      "old_static_snapshot": {
+        "id": "cls",
+        "name": "财联社",
+        "auth_kind": "none",
+        "implementation": "ready",
+        "bindings": [
+          {
+            "capability": "search_news",
+            "implemented": true,
+            "datasets": [
+              "telegram"
+            ]
+          }
+        ],
+        "live_acceptance": {
+          "state": "bounded_live_verified",
+          "capabilities": [
+            "search_news:2-items"
+          ],
+          "warehouse": "news-excluded-from-numeric-snapshots"
+        },
+        "static_readiness_is_live_proof": false
+      },
+      "current_observation": {
+        "status": "historical_bounded_verification_not_rechecked",
+        "scope": "历史财联社电报最近两条及Runtime工具",
+        "evidence": [
+          {
+            "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/datahub-warehouse-20261022/.ai/reports/test_report_integration_providers_20260916_b2.md",
+            "availability": "present",
+            "sha256": "93cb24203cacbe50756b23f39814e71a81cc0453aa31482b9686554fbfdaf35a",
+            "scope": "2026-09-16真实probe/query/Runtime两条"
+          },
+          {
+            "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/datahub-warehouse-20261022/.ai/reports/2026-10-22-datahub-source-audit.json",
+            "availability": "present",
+            "sha256": "d36a59214bb4c6b3bfbdebf07091ca1e81fc3dd7d1d78f12e2495e024270b9a5",
+            "scope": "2026-10-22清单两条局部验证摘要；未附新的独立原件"
+          }
+        ],
+        "evidence_grade": "historical_summary_only",
+        "limitations": [
+          "本次无新CLS调用",
+          "10月22日清单不充分证明新增调用，不能再算一次",
+          "新闻不作为数值研究仓快照，未认证日期过滤/完整历史"
+        ]
+      }
+    },
+    {
+      "source_id": "cnstock_flash",
+      "old_static_snapshot": {
+        "id": "cnstock_flash",
+        "name": "中国证券网快讯",
+        "auth_kind": "none",
+        "implementation": "disabled",
+        "bindings": [
+          {
+            "capability": "search_news",
+            "implemented": false,
+            "datasets": [
+              "flash"
+            ]
+          }
+        ],
+        "live_acceptance": {
+          "state": "not_run",
+          "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+        },
+        "static_readiness_is_live_proof": false
+      },
+      "current_observation": {
+        "status": "not_rechecked",
+        "scope": "本次未复核",
+        "evidence": [],
+        "limitations": [
+          "不根据旧readiness声明当前可用"
+        ]
+      }
+    },
+    {
+      "source_id": "cnstock_news",
+      "old_static_snapshot": {
+        "id": "cnstock_news",
+        "name": "中国证券网新闻",
+        "auth_kind": "none",
+        "implementation": "disabled",
+        "bindings": [
+          {
+            "capability": "search_news",
+            "implemented": false,
+            "datasets": [
+              "news"
+            ]
+          }
+        ],
+        "live_acceptance": {
+          "state": "not_run",
+          "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+        },
+        "static_readiness_is_live_proof": false
+      },
+      "current_observation": {
+        "status": "not_rechecked",
+        "scope": "本次未复核",
+        "evidence": [],
+        "limitations": [
+          "不根据旧readiness声明当前可用"
+        ]
+      }
+    },
+    {
+      "source_id": "zhiqiu_reports",
+      "old_static_snapshot": {
+        "id": "zhiqiu_reports",
+        "name": "知丘研报",
+        "auth_kind": "account",
+        "implementation": "disabled",
+        "bindings": [
+          {
+            "capability": "search_research",
+            "implemented": false,
+            "datasets": [
+              "report"
+            ]
+          }
+        ],
+        "live_acceptance": {
+          "state": "not_run",
+          "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+        },
+        "static_readiness_is_live_proof": false
+      },
+      "current_observation": {
+        "status": "not_rechecked",
+        "scope": "本次未复核",
+        "evidence": [],
+        "limitations": [
+          "不根据旧readiness声明当前可用"
+        ]
+      }
+    },
+    {
+      "source_id": "zhiqiu_wechat",
+      "old_static_snapshot": {
+        "id": "zhiqiu_wechat",
+        "name": "知丘公众号",
+        "auth_kind": "account",
+        "implementation": "disabled",
+        "bindings": [
+          {
+            "capability": "search_news",
+            "implemented": false,
+            "datasets": [
+              "news"
+            ]
+          },
+          {
+            "capability": "search_research",
+            "implemented": false,
+            "datasets": [
+              "news"
+            ]
+          }
+        ],
+        "live_acceptance": {
+          "state": "not_run",
+          "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+        },
+        "static_readiness_is_live_proof": false
+      },
+      "current_observation": {
+        "status": "not_rechecked",
+        "scope": "本次未复核",
+        "evidence": [],
+        "limitations": [
+          "不根据旧readiness声明当前可用"
+        ]
+      }
+    },
+    {
+      "source_id": "zhiqiu_transcript",
+      "old_static_snapshot": {
+        "id": "zhiqiu_transcript",
+        "name": "知丘纪要",
+        "auth_kind": "account",
+        "implementation": "disabled",
+        "bindings": [
+          {
+            "capability": "search_research",
+            "implemented": false,
+            "datasets": [
+              "meeting"
+            ]
+          }
+        ],
+        "live_acceptance": {
+          "state": "not_run",
+          "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+        },
+        "static_readiness_is_live_proof": false
+      },
+      "current_observation": {
+        "status": "not_rechecked",
+        "scope": "本次未复核",
+        "evidence": [],
+        "limitations": [
+          "不根据旧readiness声明当前可用"
+        ]
+      }
+    },
+    {
+      "source_id": "eastmoney_fund",
+      "old_static_snapshot": {
+        "id": "eastmoney_fund",
+        "name": "东方财富基金",
+        "auth_kind": "none",
+        "implementation": "ready",
+        "bindings": [
+          {
+            "capability": "fund_data",
+            "implemented": true,
+            "datasets": [
+              "fund_nav",
+              "fund_profile",
+              "fund_distributions",
+              "fund_holdings"
+            ]
+          }
+        ],
+        "live_acceptance": {
+          "state": "bounded_live_verified",
+          "capabilities": [
+            "fund_data:nav"
+          ],
+          "warehouse": "native-ingestion-incomplete-declared-missing-fields",
+          "limitations": [
+            "currency-unverified",
+            "not-adjusted-total-return"
+          ]
+        },
+        "static_readiness_is_live_proof": false
+      },
+      "current_observation": {
+        "status": "bounded_live_verified_native_capture",
+        "scope": "510050两日NAV，默认Host/Broker、owned PostgreSQL命中和重启冻结一致",
+        "evidence": [
+          {
+            "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/datahub-fund-snapshots-20261022-integration/.ai/reports/test_report_datahub_fund_nav_20261022.md",
+            "availability": "present",
+            "sha256": "9853c77736db0976cecd8ef42c0cbe772ec4999189f32b7ba6ea34ffb9e3c004",
+            "scope": "真实两日NAV与ownedPG重启、内存凭据隔离"
+          }
+        ],
+        "facts": {
+          "nav_rows": 2,
+          "vendor_fetches_per_acceptance": 1,
+          "second_call_db_hit": true,
+          "owned_pg_restart_db_hit": true,
+          "quality_accepted": false,
+          "formal_backtest_eligible": false,
+          "historical_point_in_time": false
+        },
+        "limitations": [
+          "使用临时Memory凭据/ownedPG，不是现有服务或5432验收",
+          "只开放至多31日且保留指定缺口的NAV捕获例外",
+          "verified_currency/benchmark_timeseries/adjusted_total_return缺失继续保留",
+          "profile/distributions/holdings未在本轮重查",
+          "报告记载的测试隔离事故仍保留，不读取/删除相关真实签名项",
+          "未部署"
+        ]
+      }
+    },
+    {
+      "source_id": "tavily",
+      "old_static_snapshot": {
+        "id": "tavily",
+        "name": "Tavily",
+        "auth_kind": "api_key",
+        "implementation": "disabled",
+        "bindings": [
+          {
+            "capability": "search_web",
+            "implemented": false,
+            "datasets": [
+              "web_search"
+            ]
+          }
+        ],
+        "live_acceptance": {
+          "state": "not_run",
+          "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+        },
+        "static_readiness_is_live_proof": false
+      },
+      "current_observation": {
+        "status": "not_rechecked",
+        "scope": "本次未复核",
+        "evidence": [],
+        "limitations": [
+          "不根据旧readiness声明当前可用"
+        ]
+      }
+    },
+    {
+      "source_id": "bing",
+      "old_static_snapshot": {
+        "id": "bing",
+        "name": "Bing Search",
+        "auth_kind": "api_key",
+        "implementation": "disabled",
+        "bindings": [
+          {
+            "capability": "search_web",
+            "implemented": false,
+            "datasets": [
+              "web_search"
+            ]
+          }
+        ],
+        "live_acceptance": {
+          "state": "not_run",
+          "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+        },
+        "static_readiness_is_live_proof": false
+      },
+      "current_observation": {
+        "status": "not_rechecked",
+        "scope": "本次未复核",
+        "evidence": [],
+        "limitations": [
+          "不根据旧readiness声明当前可用"
+        ]
+      }
+    },
+    {
+      "source_id": "mysql",
+      "old_static_snapshot": {
+        "id": "mysql",
+        "name": "用户 MySQL 数据库",
+        "auth_kind": "account",
+        "implementation": "blocked_config",
+        "bindings": [
+          {
+            "capability": "database_schema",
+            "implemented": true,
+            "datasets": [
+              "databases",
+              "tables",
+              "columns"
+            ]
+          },
+          {
+            "capability": "table_query",
+            "implemented": true,
+            "datasets": [
+              "single_table_select"
+            ]
+          }
+        ],
+        "live_acceptance": {
+          "state": "not_run",
+          "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+        },
+        "static_readiness_is_live_proof": false
+      },
+      "current_observation": {
+        "status": "not_rechecked",
+        "scope": "本次未复核",
+        "evidence": [],
+        "limitations": [
+          "不根据旧readiness声明当前可用"
+        ]
+      }
+    },
+    {
+      "source_id": "ext_registry",
+      "old_static_snapshot": {
+        "id": "ext_registry",
+        "name": "外部数据源总目录",
+        "auth_kind": "none",
+        "implementation": "ready",
+        "bindings": [
+          {
+            "capability": "external_data",
+            "implemented": true,
+            "datasets": [
+              "catalog"
+            ]
+          }
+        ],
+        "live_acceptance": {
+          "state": "not_run",
+          "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+        },
+        "static_readiness_is_live_proof": false
+      },
+      "current_observation": {
+        "status": "not_rechecked",
+        "scope": "本次未复核",
+        "evidence": [],
+        "limitations": [
+          "不根据旧readiness声明当前可用"
+        ]
+      }
+    },
+    {
+      "source_id": "ext_morningstar",
+      "old_static_snapshot": {
+        "id": "ext_morningstar",
+        "name": "Morningstar / Sustainalytics",
+        "auth_kind": "none",
+        "implementation": "disabled",
+        "bindings": [
+          {
+            "capability": "external_data",
+            "implemented": false,
+            "datasets": [
+              "catalog"
+            ]
+          }
+        ],
+        "live_acceptance": {
+          "state": "not_run",
+          "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+        },
+        "static_readiness_is_live_proof": false
+      },
+      "current_observation": {
+        "status": "not_rechecked",
+        "scope": "本次未复核",
+        "evidence": [],
+        "limitations": [
+          "不根据旧readiness声明当前可用"
+        ]
+      }
+    },
+    {
+      "source_id": "ext_tradingview",
+      "old_static_snapshot": {
+        "id": "ext_tradingview",
+        "name": "TradingView",
+        "auth_kind": "none",
+        "implementation": "disabled",
+        "bindings": [
+          {
+            "capability": "external_data",
+            "implemented": false,
+            "datasets": [
+              "catalog"
+            ]
+          }
+        ],
+        "live_acceptance": {
+          "state": "not_run",
+          "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+        },
+        "static_readiness_is_live_proof": false
+      },
+      "current_observation": {
+        "status": "not_rechecked",
+        "scope": "本次未复核",
+        "evidence": [],
+        "limitations": [
+          "不根据旧readiness声明当前可用"
+        ]
+      }
+    },
+    {
+      "source_id": "ext_ths",
+      "old_static_snapshot": {
+        "id": "ext_ths",
+        "name": "同花顺 / iFinD",
+        "auth_kind": "api_key",
+        "implementation": "ready",
+        "bindings": [
+          {
+            "capability": "external_data",
+            "implemented": true,
+            "datasets": [
+              "catalog",
+              "real_time_quotation",
+              "cmd_history_quotation",
+              "basic_data_service",
+              "smart_stock_picking",
+              "news",
+              "reports",
+              "futures-reports"
+            ]
+          }
+        ],
+        "live_acceptance": {
+          "state": "not_run",
+          "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+        },
+        "static_readiness_is_live_proof": false
+      },
+      "current_observation": {
+        "status": "bounded_live_verified",
+        "scope": "ext_ths HTTP history_data，经临时Host，单证券单日期单close字段",
+        "evidence": [
+          {
+            "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/datahub-quantapi-auth-20261022-integration/logs/quantapi-host-history-acceptance/result.json",
+            "availability": "present",
+            "sha256": "e9f69ee43df86a975c7e211aa833ae5a61b7371efff16d105e69c8576b66d042",
+            "scope": "当前Host历史回执：一行、一次行情请求"
+          },
+          {
+            "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/datahub-quantapi-auth-20261022-integration/.ai/reports/2026-10-22-quantapi-access-preference.md",
+            "availability": "present",
+            "sha256": "a69396ddc6774634ad9a6bcdf00e09ccbc36e7d07e957fb1545f3dd86146d2d5",
+            "scope": "授权与历史修复报告"
+          }
+        ],
+        "facts": {
+          "history_rows": 1,
+          "host_market_queries": 1,
+          "access_exchanges": 0,
+          "token_resets": 0,
+          "model_prompts": 0
+        },
+        "limitations": [
+          "不认证ifind来源Windows SDK、财务、宏观或全部HTTP能力",
+          "临时Host注入Memory凭据，非现有常驻服务配置",
+          "官方Skill的600权限持久配置已由root确认；本审计未读取或验证该文件，不推定Host共享配置",
+          "单次历史样本不是PIT或正式回测验收",
+          "未部署"
+        ]
+      }
+    },
+    {
+      "source_id": "ext_aihot",
+      "old_static_snapshot": {
+        "id": "ext_aihot",
+        "name": "AI HOT",
+        "auth_kind": "none",
+        "implementation": "ready",
+        "bindings": [
+          {
+            "capability": "external_data",
+            "implemented": true,
+            "datasets": [
+              "catalog",
+              "items",
+              "daily",
+              "daily-date",
+              "archive"
+            ]
+          }
+        ],
+        "live_acceptance": {
+          "state": "not_run",
+          "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+        },
+        "static_readiness_is_live_proof": false
+      },
+      "current_observation": {
+        "status": "not_rechecked",
+        "scope": "本次未复核",
+        "evidence": [],
+        "limitations": [
+          "不根据旧readiness声明当前可用"
+        ]
+      }
+    },
+    {
+      "source_id": "ext_realfund",
+      "old_static_snapshot": {
+        "id": "ext_realfund",
+        "name": "realfund / real_fund",
+        "auth_kind": "none",
+        "implementation": "ready",
+        "bindings": [
+          {
+            "capability": "external_data",
+            "implemented": true,
+            "datasets": [
+              "catalog",
+              "related-sector",
+              "fund-secid"
+            ]
+          }
+        ],
+        "live_acceptance": {
+          "state": "not_run",
+          "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+        },
+        "static_readiness_is_live_proof": false
+      },
+      "current_observation": {
+        "status": "not_rechecked",
+        "scope": "本次未复核",
+        "evidence": [],
+        "limitations": [
+          "不根据旧readiness声明当前可用"
+        ]
+      }
+    },
+    {
+      "source_id": "ext_daole",
+      "old_static_snapshot": {
+        "id": "ext_daole",
+        "name": "道乐 / 乐数",
+        "auth_kind": "api_key",
+        "implementation": "credential_transport_blocked",
+        "bindings": [
+          {
+            "capability": "external_data",
+            "implemented": true,
+            "datasets": [
+              "catalog",
+              "summary",
+              "datasets",
+              "data",
+              "schema",
+              "batches"
+            ]
+          }
+        ],
+        "live_acceptance": {
+          "state": "not_run",
+          "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+        },
+        "static_readiness_is_live_proof": false
+      },
+      "current_observation": {
+        "status": "not_rechecked",
+        "scope": "本次未复核",
+        "evidence": [],
+        "limitations": [
+          "不根据旧readiness声明当前可用"
+        ]
+      }
+    },
+    {
+      "source_id": "ext_eastmoney",
+      "old_static_snapshot": {
+        "id": "ext_eastmoney",
+        "name": "东方财富 / 天天基金",
+        "auth_kind": "none",
+        "implementation": "ready",
+        "bindings": [
+          {
+            "capability": "external_data",
+            "implemented": true,
+            "datasets": [
+              "catalog",
+              "legacy-0",
+              "legacy-1",
+              "legacy-2",
+              "legacy-3",
+              "legacy-4",
+              "legacy-5",
+              "legacy-6",
+              "fund-position",
+              "fund-history",
+              "datacenter",
+              "reports",
+              "news",
+              "boards",
+              "intraday",
+              "valuation-last",
+              "wealth-account"
+            ]
+          }
+        ],
+        "live_acceptance": {
+          "state": "not_run",
+          "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+        },
+        "static_readiness_is_live_proof": false
+      },
+      "current_observation": {
+        "status": "not_rechecked",
+        "scope": "本次未复核",
+        "evidence": [],
+        "limitations": [
+          "不根据旧readiness声明当前可用"
+        ],
+        "channel_note": "同上游的原生Provider成功不等于此通用外部适配器已验收。"
+      }
+    },
+    {
+      "source_id": "ext_tencent",
+      "old_static_snapshot": {
+        "id": "ext_tencent",
+        "name": "腾讯财经",
+        "auth_kind": "none",
+        "implementation": "ready",
+        "bindings": [
+          {
+            "capability": "external_data",
+            "implemented": true,
+            "datasets": [
+              "catalog",
+              "quote",
+              "minute",
+              "history"
+            ]
+          }
+        ],
+        "live_acceptance": {
+          "state": "not_run",
+          "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+        },
+        "static_readiness_is_live_proof": false
+      },
+      "current_observation": {
+        "status": "not_rechecked",
+        "scope": "本次未复核",
+        "evidence": [],
+        "limitations": [
+          "不根据旧readiness声明当前可用"
+        ]
+      }
+    },
+    {
+      "source_id": "ext_sina",
+      "old_static_snapshot": {
+        "id": "ext_sina",
+        "name": "新浪财经",
+        "auth_kind": "none",
+        "implementation": "ready",
+        "bindings": [
+          {
+            "capability": "external_data",
+            "implemented": true,
+            "datasets": [
+              "catalog",
+              "quote",
+              "gold-history",
+              "fund-estimate",
+              "news"
+            ]
+          }
+        ],
+        "live_acceptance": {
+          "state": "not_run",
+          "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+        },
+        "static_readiness_is_live_proof": false
+      },
+      "current_observation": {
+        "status": "not_rechecked",
+        "scope": "本次未复核",
+        "evidence": [],
+        "limitations": [
+          "不根据旧readiness声明当前可用"
+        ]
+      }
+    },
+    {
+      "source_id": "ext_yahoo",
+      "old_static_snapshot": {
+        "id": "ext_yahoo",
+        "name": "Yahoo Finance",
+        "auth_kind": "none",
+        "implementation": "ready",
+        "bindings": [
+          {
+            "capability": "external_data",
+            "implemented": true,
+            "datasets": [
+              "catalog",
+              "chart",
+              "chart-backup"
+            ]
+          }
+        ],
+        "live_acceptance": {
+          "state": "not_run",
+          "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+        },
+        "static_readiness_is_live_proof": false
+      },
+      "current_observation": {
+        "status": "not_rechecked",
+        "scope": "本次未复核",
+        "evidence": [],
+        "limitations": [
+          "不根据旧readiness声明当前可用"
+        ]
+      }
+    },
+    {
+      "source_id": "ext_nasdaq",
+      "old_static_snapshot": {
+        "id": "ext_nasdaq",
+        "name": "Nasdaq",
+        "auth_kind": "none",
+        "implementation": "ready",
+        "bindings": [
+          {
+            "capability": "external_data",
+            "implemented": true,
+            "datasets": [
+              "catalog",
+              "history"
+            ]
+          }
+        ],
+        "live_acceptance": {
+          "state": "not_run",
+          "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+        },
+        "static_readiness_is_live_proof": false
+      },
+      "current_observation": {
+        "status": "not_rechecked",
+        "scope": "本次未复核",
+        "evidence": [],
+        "limitations": [
+          "不根据旧readiness声明当前可用"
+        ]
+      }
+    },
+    {
+      "source_id": "ext_fred",
+      "old_static_snapshot": {
+        "id": "ext_fred",
+        "name": "FRED / 圣路易斯联储",
+        "auth_kind": "none",
+        "implementation": "ready",
+        "bindings": [
+          {
+            "capability": "external_data",
+            "implemented": true,
+            "datasets": [
+              "catalog",
+              "series"
+            ]
+          }
+        ],
+        "live_acceptance": {
+          "state": "not_run",
+          "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+        },
+        "static_readiness_is_live_proof": false
+      },
+      "current_observation": {
+        "status": "not_rechecked",
+        "scope": "本次未复核",
+        "evidence": [],
+        "limitations": [
+          "不根据旧readiness声明当前可用"
+        ]
+      }
+    },
+    {
+      "source_id": "ext_nyfed",
+      "old_static_snapshot": {
+        "id": "ext_nyfed",
+        "name": "纽约联储",
+        "auth_kind": "none",
+        "implementation": "ready",
+        "bindings": [
+          {
+            "capability": "external_data",
+            "implemented": true,
+            "datasets": [
+              "catalog",
+              "rates",
+              "reverse-repo",
+              "repo",
+              "dealer"
+            ]
+          }
+        ],
+        "live_acceptance": {
+          "state": "not_run",
+          "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+        },
+        "static_readiness_is_live_proof": false
+      },
+      "current_observation": {
+        "status": "not_rechecked",
+        "scope": "本次未复核",
+        "evidence": [],
+        "limitations": [
+          "不根据旧readiness声明当前可用"
+        ]
+      }
+    },
+    {
+      "source_id": "ext_fed",
+      "old_static_snapshot": {
+        "id": "ext_fed",
+        "name": "美联储",
+        "auth_kind": "none",
+        "implementation": "ready",
+        "bindings": [
+          {
+            "capability": "external_data",
+            "implemented": true,
+            "datasets": [
+              "catalog",
+              "h41",
+              "calendar",
+              "sep",
+              "news"
+            ]
+          }
+        ],
+        "live_acceptance": {
+          "state": "not_run",
+          "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+        },
+        "static_readiness_is_live_proof": false
+      },
+      "current_observation": {
+        "status": "not_rechecked",
+        "scope": "本次未复核",
+        "evidence": [],
+        "limitations": [
+          "不根据旧readiness声明当前可用"
+        ]
+      }
+    },
+    {
+      "source_id": "ext_atlantafed",
+      "old_static_snapshot": {
+        "id": "ext_atlantafed",
+        "name": "亚特兰大联储",
+        "auth_kind": "none",
+        "implementation": "ready",
+        "bindings": [
+          {
+            "capability": "external_data",
+            "implemented": true,
+            "datasets": [
+              "catalog",
+              "mpt"
+            ]
+          }
+        ],
+        "live_acceptance": {
+          "state": "not_run",
+          "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+        },
+        "static_readiness_is_live_proof": false
+      },
+      "current_observation": {
+        "status": "not_rechecked",
+        "scope": "本次未复核",
+        "evidence": [],
+        "limitations": [
+          "不根据旧readiness声明当前可用"
+        ]
+      }
+    },
+    {
+      "source_id": "ext_treasury",
+      "old_static_snapshot": {
+        "id": "ext_treasury",
+        "name": "美国财政部 / TreasuryDirect",
+        "auth_kind": "none",
+        "implementation": "ready",
+        "bindings": [
+          {
+            "capability": "external_data",
+            "implemented": true,
+            "datasets": [
+              "catalog",
+              "cash",
+              "auction"
+            ]
+          }
+        ],
+        "live_acceptance": {
+          "state": "not_run",
+          "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+        },
+        "static_readiness_is_live_proof": false
+      },
+      "current_observation": {
+        "status": "not_rechecked",
+        "scope": "本次未复核",
+        "evidence": [],
+        "limitations": [
+          "不根据旧readiness声明当前可用"
+        ]
+      }
+    },
+    {
+      "source_id": "ext_bls",
+      "old_static_snapshot": {
+        "id": "ext_bls",
+        "name": "美国劳工统计局 BLS",
+        "auth_kind": "none",
+        "implementation": "ready",
+        "bindings": [
+          {
+            "capability": "external_data",
+            "implemented": true,
+            "datasets": [
+              "catalog",
+              "series",
+              "cpi-calendar",
+              "employment-calendar"
+            ]
+          }
+        ],
+        "live_acceptance": {
+          "state": "not_run",
+          "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+        },
+        "static_readiness_is_live_proof": false
+      },
+      "current_observation": {
+        "status": "not_rechecked",
+        "scope": "本次未复核",
+        "evidence": [],
+        "limitations": [
+          "不根据旧readiness声明当前可用"
+        ]
+      }
+    },
+    {
+      "source_id": "ext_worldbank",
+      "old_static_snapshot": {
+        "id": "ext_worldbank",
+        "name": "世界银行",
+        "auth_kind": "none",
+        "implementation": "ready",
+        "bindings": [
+          {
+            "capability": "external_data",
+            "implemented": true,
+            "datasets": [
+              "catalog",
+              "inflation"
+            ]
+          }
+        ],
+        "live_acceptance": {
+          "state": "bounded_live_verified",
+          "capabilities": [
+            "external_data:inflation:2023-2024"
+          ],
+          "warehouse": "native-2-observations-and-restart"
+        },
+        "static_readiness_is_live_proof": false
+      },
+      "current_observation": {
+        "status": "not_rechecked",
+        "scope": "本次未复核",
+        "evidence": [],
+        "limitations": [
+          "不根据旧readiness声明当前可用"
+        ]
+      }
+    },
+    {
+      "source_id": "ext_wgc",
+      "old_static_snapshot": {
+        "id": "ext_wgc",
+        "name": "世界黄金协会 WGC / Goldhub",
+        "auth_kind": "none",
+        "implementation": "ready",
+        "bindings": [
+          {
+            "capability": "external_data",
+            "implemented": true,
+            "datasets": [
+              "catalog",
+              "supply",
+              "etf-flows",
+              "etf-holdings",
+              "aisc",
+              "open-interest",
+              "comex",
+              "premium",
+              "volumes",
+              "central-banks"
+            ]
+          }
+        ],
+        "live_acceptance": {
+          "state": "not_run",
+          "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+        },
+        "static_readiness_is_live_proof": false
+      },
+      "current_observation": {
+        "status": "not_rechecked",
+        "scope": "本次未复核",
+        "evidence": [],
+        "limitations": [
+          "不根据旧readiness声明当前可用"
+        ]
+      }
+    },
+    {
+      "source_id": "ext_lbma",
+      "old_static_snapshot": {
+        "id": "ext_lbma",
+        "name": "LBMA",
+        "auth_kind": "none",
+        "implementation": "ready",
+        "bindings": [
+          {
+            "capability": "external_data",
+            "implemented": true,
+            "datasets": [
+              "catalog",
+              "gold-pm"
+            ]
+          }
+        ],
+        "live_acceptance": {
+          "state": "not_run",
+          "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+        },
+        "static_readiness_is_live_proof": false
+      },
+      "current_observation": {
+        "status": "not_rechecked",
+        "scope": "本次未复核",
+        "evidence": [],
+        "limitations": [
+          "不根据旧readiness声明当前可用"
+        ]
+      }
+    },
+    {
+      "source_id": "ext_cftc",
+      "old_static_snapshot": {
+        "id": "ext_cftc",
+        "name": "美国 CFTC",
+        "auth_kind": "none",
+        "implementation": "ready",
+        "bindings": [
+          {
+            "capability": "external_data",
+            "implemented": true,
+            "datasets": [
+              "catalog",
+              "cot"
+            ]
+          }
+        ],
+        "live_acceptance": {
+          "state": "not_run",
+          "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+        },
+        "static_readiness_is_live_proof": false
+      },
+      "current_observation": {
+        "status": "not_rechecked",
+        "scope": "本次未复核",
+        "evidence": [],
+        "limitations": [
+          "不根据旧readiness声明当前可用"
+        ]
+      }
+    },
+    {
+      "source_id": "ext_cboe",
+      "old_static_snapshot": {
+        "id": "ext_cboe",
+        "name": "Cboe",
+        "auth_kind": "none",
+        "implementation": "ready",
+        "bindings": [
+          {
+            "capability": "external_data",
+            "implemented": true,
+            "datasets": [
+              "catalog",
+              "gld-options"
+            ]
+          }
+        ],
+        "live_acceptance": {
+          "state": "not_run",
+          "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+        },
+        "static_readiness_is_live_proof": false
+      },
+      "current_observation": {
+        "status": "not_rechecked",
+        "scope": "本次未复核",
+        "evidence": [],
+        "limitations": [
+          "不根据旧readiness声明当前可用"
+        ]
+      }
+    },
+    {
+      "source_id": "ext_spdr",
+      "old_static_snapshot": {
+        "id": "ext_spdr",
+        "name": "SPDR Gold Shares",
+        "auth_kind": "none",
+        "implementation": "ready",
+        "bindings": [
+          {
+            "capability": "external_data",
+            "implemented": true,
+            "datasets": [
+              "catalog",
+              "gld"
+            ]
+          }
+        ],
+        "live_acceptance": {
+          "state": "not_run",
+          "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+        },
+        "static_readiness_is_live_proof": false
+      },
+      "current_observation": {
+        "status": "not_rechecked",
+        "scope": "本次未复核",
+        "evidence": [],
+        "limitations": [
+          "不根据旧readiness声明当前可用"
+        ]
+      }
+    },
+    {
+      "source_id": "ext_moex",
+      "old_static_snapshot": {
+        "id": "ext_moex",
+        "name": "莫斯科交易所 MOEX",
+        "auth_kind": "none",
+        "implementation": "ready",
+        "bindings": [
+          {
+            "capability": "external_data",
+            "implemented": true,
+            "datasets": [
+              "catalog",
+              "index"
+            ]
+          }
+        ],
+        "live_acceptance": {
+          "state": "not_run",
+          "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+        },
+        "static_readiness_is_live_proof": false
+      },
+      "current_observation": {
+        "status": "not_rechecked",
+        "scope": "本次未复核",
+        "evidence": [],
+        "limitations": [
+          "不根据旧readiness声明当前可用"
+        ]
+      }
+    },
+    {
+      "source_id": "ext_kapsarc",
+      "old_static_snapshot": {
+        "id": "ext_kapsarc",
+        "name": "KAPSARC / BGS 数据转发",
+        "auth_kind": "none",
+        "implementation": "ready",
+        "bindings": [
+          {
+            "capability": "external_data",
+            "implemented": true,
+            "datasets": [
+              "catalog",
+              "production"
+            ]
+          }
+        ],
+        "live_acceptance": {
+          "state": "not_run",
+          "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+        },
+        "static_readiness_is_live_proof": false
+      },
+      "current_observation": {
+        "status": "not_rechecked",
+        "scope": "本次未复核",
+        "evidence": [],
+        "limitations": [
+          "不根据旧readiness声明当前可用"
+        ]
+      }
+    },
+    {
+      "source_id": "ext_cls",
+      "old_static_snapshot": {
+        "id": "ext_cls",
+        "name": "财联社",
+        "auth_kind": "none",
+        "implementation": "ready",
+        "bindings": [
+          {
+            "capability": "external_data",
+            "implemented": true,
+            "datasets": [
+              "catalog",
+              "home",
+              "fed-subject",
+              "hot-list"
+            ]
+          }
+        ],
+        "live_acceptance": {
+          "state": "not_run",
+          "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+        },
+        "static_readiness_is_live_proof": false
+      },
+      "current_observation": {
+        "status": "not_rechecked",
+        "scope": "本次未复核",
+        "evidence": [],
+        "limitations": [
+          "不根据旧readiness声明当前可用"
+        ],
+        "channel_note": "同上游的原生Provider成功不等于此通用外部适配器已验收。"
+      }
+    },
+    {
+      "source_id": "ext_wallstreetcn",
+      "old_static_snapshot": {
+        "id": "ext_wallstreetcn",
+        "name": "华尔街见闻",
+        "auth_kind": "none",
+        "implementation": "ready",
+        "bindings": [
+          {
+            "capability": "external_data",
+            "implemented": true,
+            "datasets": [
+              "catalog",
+              "lives",
+              "articles",
+              "lives-alternate",
+              "popular"
+            ]
+          }
+        ],
+        "live_acceptance": {
+          "state": "not_run",
+          "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+        },
+        "static_readiness_is_live_proof": false
+      },
+      "current_observation": {
+        "status": "not_rechecked",
+        "scope": "本次未复核",
+        "evidence": [],
+        "limitations": [
+          "不根据旧readiness声明当前可用"
+        ]
+      }
+    },
+    {
+      "source_id": "ext_jin10",
+      "old_static_snapshot": {
+        "id": "ext_jin10",
+        "name": "金十数据",
+        "auth_kind": "none",
+        "implementation": "ready",
+        "bindings": [
+          {
+            "capability": "external_data",
+            "implemented": true,
+            "datasets": [
+              "catalog",
+              "hot",
+              "priority-flash"
+            ]
+          }
+        ],
+        "live_acceptance": {
+          "state": "not_run",
+          "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+        },
+        "static_readiness_is_live_proof": false
+      },
+      "current_observation": {
+        "status": "not_rechecked",
+        "scope": "本次未复核",
+        "evidence": [],
+        "limitations": [
+          "不根据旧readiness声明当前可用"
+        ]
+      }
+    },
+    {
+      "source_id": "ext_google_news",
+      "old_static_snapshot": {
+        "id": "ext_google_news",
+        "name": "Google News RSS",
+        "auth_kind": "none",
+        "implementation": "ready",
+        "bindings": [
+          {
+            "capability": "external_data",
+            "implemented": true,
+            "datasets": [
+              "catalog",
+              "search"
+            ]
+          }
+        ],
+        "live_acceptance": {
+          "state": "not_run",
+          "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+        },
+        "static_readiness_is_live_proof": false
+      },
+      "current_observation": {
+        "status": "not_rechecked",
+        "scope": "本次未复核",
+        "evidence": [],
+        "limitations": [
+          "不根据旧readiness声明当前可用"
+        ]
+      }
+    },
+    {
+      "source_id": "ext_forexfactory",
+      "old_static_snapshot": {
+        "id": "ext_forexfactory",
+        "name": "Forex Factory / Fair Economy",
+        "auth_kind": "none",
+        "implementation": "ready",
+        "bindings": [
+          {
+            "capability": "external_data",
+            "implemented": true,
+            "datasets": [
+              "catalog",
+              "week-json",
+              "week-xml"
+            ]
+          }
+        ],
+        "live_acceptance": {
+          "state": "not_run",
+          "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+        },
+        "static_readiness_is_live_proof": false
+      },
+      "current_observation": {
+        "status": "not_rechecked",
+        "scope": "本次未复核",
+        "evidence": [],
+        "limitations": [
+          "不根据旧readiness声明当前可用"
+        ]
+      }
+    },
+    {
+      "source_id": "ext_csindex",
+      "old_static_snapshot": {
+        "id": "ext_csindex",
+        "name": "中证指数",
+        "auth_kind": "none",
+        "implementation": "ready",
+        "bindings": [
+          {
+            "capability": "external_data",
+            "implemented": true,
+            "datasets": [
+              "catalog",
+              "valuation"
+            ]
+          }
+        ],
+        "live_acceptance": {
+          "state": "not_run",
+          "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+        },
+        "static_readiness_is_live_proof": false
+      },
+      "current_observation": {
+        "status": "not_rechecked",
+        "scope": "本次未复核",
+        "evidence": [],
+        "limitations": [
+          "不根据旧readiness声明当前可用"
+        ]
+      }
+    },
+    {
+      "source_id": "ext_danjuan",
+      "old_static_snapshot": {
+        "id": "ext_danjuan",
+        "name": "蛋卷基金 / 雪球",
+        "auth_kind": "none",
+        "implementation": "ready",
+        "bindings": [
+          {
+            "capability": "external_data",
+            "implemented": true,
+            "datasets": [
+              "catalog",
+              "history"
+            ]
+          }
+        ],
+        "live_acceptance": {
+          "state": "not_run",
+          "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+        },
+        "static_readiness_is_live_proof": false
+      },
+      "current_observation": {
+        "status": "not_rechecked",
+        "scope": "本次未复核",
+        "evidence": [],
+        "limitations": [
+          "不根据旧readiness声明当前可用"
+        ]
+      }
+    },
+    {
+      "source_id": "ext_etfrun",
+      "old_static_snapshot": {
+        "id": "ext_etfrun",
+        "name": "ETF.run",
+        "auth_kind": "none",
+        "implementation": "ready",
+        "bindings": [
+          {
+            "capability": "external_data",
+            "implemented": true,
+            "datasets": [
+              "catalog",
+              "index"
+            ]
+          }
+        ],
+        "live_acceptance": {
+          "state": "not_run",
+          "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+        },
+        "static_readiness_is_live_proof": false
+      },
+      "current_observation": {
+        "status": "not_rechecked",
+        "scope": "本次未复核",
+        "evidence": [],
+        "limitations": [
+          "不根据旧readiness声明当前可用"
+        ]
+      }
+    },
+    {
+      "source_id": "ext_funddb",
+      "old_static_snapshot": {
+        "id": "ext_funddb",
+        "name": "韭圈儿 / FundDB",
+        "auth_kind": "none",
+        "implementation": "ready",
+        "bindings": [
+          {
+            "capability": "external_data",
+            "implemented": true,
+            "datasets": [
+              "catalog",
+              "valuation"
+            ]
+          }
+        ],
+        "live_acceptance": {
+          "state": "not_run",
+          "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+        },
+        "static_readiness_is_live_proof": false
+      },
+      "current_observation": {
+        "status": "not_rechecked",
+        "scope": "本次未复核",
+        "evidence": [],
+        "limitations": [
+          "不根据旧readiness声明当前可用"
+        ]
+      }
+    },
+    {
+      "source_id": "ext_tikhub",
+      "old_static_snapshot": {
+        "id": "ext_tikhub",
+        "name": "TikHub",
+        "auth_kind": "api_key",
+        "implementation": "blocked_config",
+        "bindings": [
+          {
+            "capability": "external_data",
+            "implemented": true,
+            "datasets": [
+              "catalog",
+              "xiaohongshu",
+              "douyin"
+            ]
+          }
+        ],
+        "live_acceptance": {
+          "state": "not_run",
+          "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+        },
+        "static_readiness_is_live_proof": false
+      },
+      "current_observation": {
+        "status": "not_rechecked",
+        "scope": "本次未复核",
+        "evidence": [],
+        "limitations": [
+          "不根据旧readiness声明当前可用"
+        ]
+      }
+    },
+    {
+      "source_id": "ext_cicc",
+      "old_static_snapshot": {
+        "id": "ext_cicc",
+        "name": "中金点睛",
+        "auth_kind": "api_key",
+        "implementation": "blocked_config",
+        "bindings": [
+          {
+            "capability": "external_data",
+            "implemented": true,
+            "datasets": [
+              "catalog",
+              "search"
+            ]
+          }
+        ],
+        "live_acceptance": {
+          "state": "not_run",
+          "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+        },
+        "static_readiness_is_live_proof": false
+      },
+      "current_observation": {
+        "status": "not_rechecked",
+        "scope": "本次未复核",
+        "evidence": [],
+        "limitations": [
+          "不根据旧readiness声明当前可用"
+        ]
+      }
+    },
+    {
+      "source_id": "ext_datahub_gold",
+      "old_static_snapshot": {
+        "id": "ext_datahub_gold",
+        "name": "DataHub datasets/gold-prices",
+        "auth_kind": "none",
+        "implementation": "ready",
+        "bindings": [
+          {
+            "capability": "external_data",
+            "implemented": true,
+            "datasets": [
+              "catalog",
+              "monthly"
+            ]
+          }
+        ],
+        "live_acceptance": {
+          "state": "not_run",
+          "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+        },
+        "static_readiness_is_live_proof": false
+      },
+      "current_observation": {
+        "status": "not_rechecked",
+        "scope": "本次未复核",
+        "evidence": [],
+        "limitations": [
+          "不根据旧readiness声明当前可用"
+        ]
+      }
+    },
+    {
+      "source_id": "ext_reddit",
+      "old_static_snapshot": {
+        "id": "ext_reddit",
+        "name": "Reddit",
+        "auth_kind": "none",
+        "implementation": "ready",
+        "bindings": [
+          {
+            "capability": "external_data",
+            "implemented": true,
+            "datasets": [
+              "catalog",
+              "search"
+            ]
+          }
+        ],
+        "live_acceptance": {
+          "state": "not_run",
+          "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+        },
+        "static_readiness_is_live_proof": false
+      },
+      "current_observation": {
+        "status": "not_rechecked",
+        "scope": "本次未复核",
+        "evidence": [],
+        "limitations": [
+          "不根据旧readiness声明当前可用"
+        ]
+      }
+    },
+    {
+      "source_id": "ext_coindesk",
+      "old_static_snapshot": {
+        "id": "ext_coindesk",
+        "name": "CoinDesk",
+        "auth_kind": "none",
+        "implementation": "ready",
+        "bindings": [
+          {
+            "capability": "external_data",
+            "implemented": true,
+            "datasets": [
+              "catalog",
+              "rss"
+            ]
+          }
+        ],
+        "live_acceptance": {
+          "state": "not_run",
+          "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+        },
+        "static_readiness_is_live_proof": false
+      },
+      "current_observation": {
+        "status": "not_rechecked",
+        "scope": "本次未复核",
+        "evidence": [],
+        "limitations": [
+          "不根据旧readiness声明当前可用"
+        ]
+      }
+    },
+    {
+      "source_id": "ext_cointelegraph",
+      "old_static_snapshot": {
+        "id": "ext_cointelegraph",
+        "name": "CoinTelegraph",
+        "auth_kind": "none",
+        "implementation": "ready",
+        "bindings": [
+          {
+            "capability": "external_data",
+            "implemented": true,
+            "datasets": [
+              "catalog",
+              "rss"
+            ]
+          }
+        ],
+        "live_acceptance": {
+          "state": "not_run",
+          "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+        },
+        "static_readiness_is_live_proof": false
+      },
+      "current_observation": {
+        "status": "not_rechecked",
+        "scope": "本次未复核",
+        "evidence": [],
+        "limitations": [
+          "不根据旧readiness声明当前可用"
+        ]
+      }
+    },
+    {
+      "source_id": "ext_reuters_rss",
+      "old_static_snapshot": {
+        "id": "ext_reuters_rss",
+        "name": "Reuters RSS",
+        "auth_kind": "none",
+        "implementation": "ready",
+        "bindings": [
+          {
+            "capability": "external_data",
+            "implemented": true,
+            "datasets": [
+              "catalog",
+              "business",
+              "company"
+            ]
+          }
+        ],
+        "live_acceptance": {
+          "state": "not_run",
+          "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+        },
+        "static_readiness_is_live_proof": false
+      },
+      "current_observation": {
+        "status": "not_rechecked",
+        "scope": "本次未复核",
+        "evidence": [],
+        "limitations": [
+          "不根据旧readiness声明当前可用"
+        ]
+      }
+    }
+  ],
+  "surfaces": [
+    {
+      "surface_id": "market_indices_aggregate",
+      "registration": "surface_not_broker_source",
+      "status": "bounded_live_verified_native_first_observed",
+      "scope": "Market实际指数聚合及ownedPG，两轮累计48次上游HTTP",
+      "evidence": [
+        {
+          "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/market-warehouse-20261023-integration/logs/market-final-real/receipt.json",
+          "availability": "present",
+          "sha256": "0d141b64e29af4158cabaf44d6601040ce306f7878a35859758ccb2bce504e10",
+          "scope": "已读取此轮24次HTTP全部200及12指数身份，ownedPG清理"
+        }
+      ],
+      "facts": {
+        "two_rounds_total_http_calls": 48,
+        "two_rounds_total_provenance": "root_explicit_handoff_summary",
+        "direct_receipt_http_calls": 24,
+        "direct_receipt_http_200": 24,
+        "direct_receipt_index_identity_count": 12,
+        "model_calls": 0,
+        "native_first_observed": true,
+        "historical_point_in_time": false
+      },
+      "limitations": [
+        "本审计仅定位一个24次回执；另一轮原件未定位，累计48来自root明确交接摘要",
+        "不是BrokerSource注册，不算ext_eastmoney通用Adapter验收",
+        "非PIT/正式回测，非全市场/全历史",
+        "临时ownedPG/Memory环境，未部署"
+      ]
+    },
+    {
+      "surface_id": "server_local_integrations",
+      "registration": "host_policy_surface",
+      "status": "blocked_by_server_policy",
+      "scope": "服务器profile隐藏入口，tenant_policy禁止local-integrations API",
+      "evidence": [
+        {
+          "path": "/Users/leon/Desktop/Projects/ResearchWorkbench/.ai/reports/2026-09-10-mac-local-integrations-live.md",
+          "availability": "present",
+          "sha256": "b2e7434ad4a9793387386171983ff3b40e0a39102bb06663e61817a0273a6dd4",
+          "scope": "旧本机Office设备成功与服务器策略分开"
+        }
+      ],
+      "code_references": [
+        "/Users/leon/Desktop/Projects/ResearchWorkbench/app/research_web/ui/server/profile.css:4",
+        "/Users/leon/Desktop/Projects/ResearchWorkbench/app/research_web/tenant_policy.py:35"
+      ],
+      "limitations": [
+        "不认证当前设备授权；此阻断不能通过旧设备报告消除",
+        "本次只核对代码位置，没有API请求或更改策略",
+        "代码引用非原件，不把其内容或配置作为秘密读取"
+      ]
+    }
+  ],
+  "changed_observation_source_ids": [
+    "akshare",
+    "baostock",
+    "cls",
+    "eastmoney_fund",
+    "ext_ths",
+    "tinysoft",
+    "wind"
+  ],
+  "not_rechecked_count": 57,
+  "overall_status": "partial_bounded_sources_verified_57_not_rechecked_not_deployed",
+  "review": {
+    "evidence_files_hash_checked": 23,
+    "unique_evidence_files": 17,
+    "source_ids_unique": 64,
+    "new_vendor_calls": 0,
+    "secret_config_files_read": false,
+    "all_sources_available": false,
+    "prior_draft_reference_occurrences": 15,
+    "full_git_commit_refs_checked": 6,
+    "not_rechecked_source_count": 57
+  }
+}
