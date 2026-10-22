@@ -222,7 +222,7 @@ def read_business_index(path: Path):
 
 
 def verify_primary(home, expected, mode):
-    if mode in {MARKET_MODE, MARKET_GAPS_MODE}:
+    if mode in {MARKET_MODE, MARKET_GAPS_MODE, ASSET_V5_MODE}:
         return g.verify_primary(home, expected, index_reader=read_business_index)
     return g.verify_primary(home, expected)
 
