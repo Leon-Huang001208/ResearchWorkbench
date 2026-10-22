@@ -2,75 +2,76 @@
   "schemaVersion": 1,
   "ok": true,
   "command": "visual-check",
+  "method": "cua_repl viewport + read-only DOM measurements + browser screenshots; CLI visual-check not executed",
   "status": "pass",
   "visualReview": "pending",
   "artifact": {
-    "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/market-overview-20261022/outputs/research-web-architecture/13-market-overview.html",
-    "sha256": "9a1bbb6d07b747dcc15ef6c2eae6d5b0734c90f13206df2ece09cf604fdb513b",
-    "bytes": 635560
+    "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/market-warehouse-20261023/outputs/research-web-architecture/13-market-overview.html",
+    "sha256": "635bba7379adac04b70c187917727ee2d79f0d4958e41f9312313794b4bbb0c5",
+    "bytes": 640848
   },
   "state": {
     "detail": "read",
     "motion": "still"
   },
-  "chrome": {
+  "browser": {
     "status": "available",
-    "executable": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+    "name": "Codex in-app browser"
   },
   "containment": {
     "status": "pass",
     "viewports": [
       {
-        "width": 1440,
         "height": 900,
-        "theme": "light",
-        "innerWidth": 1440,
         "innerHeight": 900,
-        "scrollWidth": 1440,
+        "innerWidth": 1440,
+        "resolvedTheme": "light",
         "scrollHeight": 900,
+        "scrollWidth": 1440,
+        "width": 1440,
+        "theme": "light",
         "overflowX": false,
         "overflowY": false,
-        "ok": true,
-        "resolvedTheme": "light"
+        "ok": true
       },
       {
-        "width": 1600,
         "height": 1000,
-        "theme": "light",
-        "innerWidth": 1600,
         "innerHeight": 1000,
-        "scrollWidth": 1600,
+        "innerWidth": 1600,
+        "resolvedTheme": "light",
         "scrollHeight": 1000,
+        "scrollWidth": 1600,
+        "width": 1600,
+        "theme": "light",
         "overflowX": false,
         "overflowY": false,
-        "ok": true,
-        "resolvedTheme": "light"
+        "ok": true
       },
       {
-        "width": 1920,
         "height": 1080,
-        "theme": "light",
-        "innerWidth": 1920,
         "innerHeight": 1080,
-        "scrollWidth": 1920,
+        "innerWidth": 1920,
+        "resolvedTheme": "light",
         "scrollHeight": 1080,
+        "scrollWidth": 1920,
+        "width": 1920,
+        "theme": "light",
         "overflowX": false,
         "overflowY": false,
-        "ok": true,
-        "resolvedTheme": "light"
+        "ok": true
       },
       {
-        "width": 2048,
         "height": 1320,
-        "theme": "light",
-        "innerWidth": 2048,
         "innerHeight": 1320,
-        "scrollWidth": 2048,
+        "innerWidth": 2048,
+        "resolvedTheme": "light",
         "scrollHeight": 1320,
+        "scrollWidth": 2048,
+        "width": 2048,
+        "theme": "light",
         "overflowX": false,
         "overflowY": false,
-        "ok": true,
-        "resolvedTheme": "light"
+        "ok": true
       }
     ]
   },
@@ -78,60 +79,60 @@
     "status": "pass",
     "screenshots": [
       {
-        "width": 1440,
         "height": 900,
-        "theme": "light",
-        "innerWidth": 1440,
         "innerHeight": 900,
-        "scrollWidth": 1440,
-        "scrollHeight": 900,
-        "overflowX": false,
-        "overflowY": false,
-        "ok": true,
+        "innerWidth": 1440,
         "resolvedTheme": "light",
-        "file": "13-market-overview.visual-check.1440x900.light.png"
-      },
-      {
+        "scrollHeight": 900,
+        "scrollWidth": 1440,
         "width": 1440,
-        "height": 900,
-        "theme": "dark",
-        "innerWidth": 1440,
-        "innerHeight": 900,
-        "scrollWidth": 1440,
-        "scrollHeight": 900,
-        "overflowX": false,
-        "overflowY": false,
-        "ok": true,
-        "resolvedTheme": "dark",
-        "file": "13-market-overview.visual-check.1440x900.dark.png"
-      },
-      {
-        "width": 2048,
-        "height": 1320,
         "theme": "light",
-        "innerWidth": 2048,
-        "innerHeight": 1320,
-        "scrollWidth": 2048,
-        "scrollHeight": 1320,
         "overflowX": false,
         "overflowY": false,
         "ok": true,
-        "resolvedTheme": "light",
-        "file": "13-market-overview.visual-check.2048x1320.light.png"
+        "file": "13-market-overview.visual-check.1440x900.light.jpg"
       },
       {
-        "width": 2048,
         "height": 1320,
-        "theme": "dark",
-        "innerWidth": 2048,
         "innerHeight": 1320,
-        "scrollWidth": 2048,
+        "innerWidth": 2048,
+        "resolvedTheme": "light",
         "scrollHeight": 1320,
+        "scrollWidth": 2048,
+        "width": 2048,
+        "theme": "light",
         "overflowX": false,
         "overflowY": false,
         "ok": true,
+        "file": "13-market-overview.visual-check.2048x1320.light.jpg"
+      },
+      {
+        "height": 1320,
+        "innerHeight": 1320,
+        "innerWidth": 2048,
         "resolvedTheme": "dark",
-        "file": "13-market-overview.visual-check.2048x1320.dark.png"
+        "scrollHeight": 1320,
+        "scrollWidth": 2048,
+        "width": 2048,
+        "theme": "dark",
+        "overflowX": false,
+        "overflowY": false,
+        "ok": true,
+        "file": "13-market-overview.visual-check.2048x1320.dark.jpg"
+      },
+      {
+        "height": 900,
+        "innerHeight": 900,
+        "innerWidth": 1440,
+        "resolvedTheme": "dark",
+        "scrollHeight": 900,
+        "scrollWidth": 1440,
+        "width": 1440,
+        "theme": "dark",
+        "overflowX": false,
+        "overflowY": false,
+        "ok": true,
+        "file": "13-market-overview.visual-check.1440x900.dark.jpg"
       }
     ],
     "contactSheet": "13-market-overview.visual-check.html"

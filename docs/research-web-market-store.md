@@ -30,6 +30,8 @@
 
 ## 接入界面
 
+固定公开indices的sessionless接入由`MarketReader`复用此仓库与同一个`StorageRunner`，不创建研究sid、不连接业务5432、不新增数据库服务。`ResearchWarehouse.capture_identity()`只返回当前个人profile的id/owner/enabled及安全配置摘要，不返回密码；Host读写前后比较该身份。SnapshotSeries底层每次授权另校验profile配置未替换，原个人/共享范围不放宽。取消或关闭MarketService必须等待实际在途StorageRunner事务结束；数据库故障只标明未持久化，不抹去原生快照或旧完整捕获。生产配置、全量导入和部署仍各自单独授权。
+
 默认 `ResearchService` 已挂入 `ResearchWarehouse`，配置页与能力中心提供同一个仓库面板。未配置时不连接、不初始化；有界免费验证只通过既有资产观察 API 取最多14天数据，第二次必须数据库命中。可选 Doctor 只确认配置/驱动，连通性仍未知。原始股票规范桥限已审的 AKShare、BaoStock、Wind，逐个非空数值字段核对单位；天软尚未验证单位，保留供应商原生快照，不提升为规范价格/量额。其他财务、宏观、资金流及ETF/指数原生数据保存首次观测版本，限制见[原生快照合同](research-web-vendor-snapshots.md)。
 
 同一逻辑事实、同一公开/入库排序时刻出现不同值，在提交边界即拒绝；PostgreSQL在既有数据集事务锁内核验并发冲突，失败不发布原件、版本或水位。查询时仍保留歧义检测，不能将既有损坏记录任意选一条。跨源锚点数值一致不等于单位已经得到验证。

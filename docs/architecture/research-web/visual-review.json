@@ -188,17 +188,20 @@
     },
     {
       "id": "13-market-overview",
-      "artifactSha256": "9a1bbb6d07b747dcc15ef6c2eae6d5b0734c90f13206df2ece09cf604fdb513b",
-      "specificationSha256": "f58afa25724117ddcb1be17368ca6f4e9c391fec9db98f030b4b22cde7625166",
+      "artifactSha256": "635bba7379adac04b70c187917727ee2d79f0d4958e41f9312313794b4bbb0c5",
+      "specificationSha256": "44fcc9edb7475a53309f721e299a33570c440e1c9255eb2fcf219863296f4ebf",
       "status": "reviewed",
       "reviewer": "codex-controller",
-      "date": "2026-10-22",
+      "date": "2026-10-23",
       "captures": [
-        "13-market-overview.visual-check.1440x900.light.png",
-        "13-market-overview.visual-check.2048x1320.dark.png"
+        "13-market-overview.visual-check.1440x900.light.jpg",
+        "13-market-overview.visual-check.1440x900.dark.jpg",
+        "13-market-overview.visual-check.2048x1320.light.jpg",
+        "13-market-overview.visual-check.2048x1320.dark.jpg"
       ],
       "findings": [],
-      "notes": "已查看最终1440浅色与2048深色截图；五阶段市场读取、独立用户缓存及来源节点关系可读，无穿线、遮挡或裁剪。四视口自动包含性与源码完整性另证，不证明真实行情可用。"
+      "notes": "Codex root通过CUA读取四桌面视口DOM，均无横纵溢出，实际查看最小与最大深浅色四截图。首轮1440高1209溢出，紧凑1100x650三行排布修正后通过；未缩字体、隐藏内容或改浏览器输出。刷新、indices-only MarketReader、可选个人仓及其余分区原链可辨，线不穿无关节点，标签与结论卡未裁剪。测量与截图由cua_repl完成，未运行CLI visual-check；本图不证明上游可用性或正式部署。",
+      "correction_rounds": 1
     }
   ]
 }

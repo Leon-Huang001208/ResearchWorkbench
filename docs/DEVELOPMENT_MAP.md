@@ -6,6 +6,8 @@ iFinD历史行情仍由 `datahub/providers_external.py` 的原 `fetch/numeric_en
 `test_datahub_numeric_sources.py` 覆盖官方形状、失败、空值、长度和字节保真；全null结果为
 `partial/history_values_missing`，不提升原生快照/正式回测或单位核验状态。无新Provider、凭据后端或依赖。
 
+公开indices个人仓库闭环定位在`datahub/market_reader.py`，默认注入点为`service.py`的MarketService构造，POST采集点在`market_service.py._collect`；`research_snapshot_store.py`只额外接受固定12指数原生封包，`research_warehouse.py.capture_identity`提供无秘密profile epoch。定点回归为`test_market_reader.py`与opt-in `test_market_reader_live_postgres.py`，后者复用已有socket-only临时PG helper，结束停止并删除自有实例；不会触及5432或部署服务。取消/close真实draining、跨用户根和profile/source变更、部分响应保护是该桥验收边界；公开源无独立grant、多源等价及正式PIT仍未实现。
+
 组合v5的 `target_manifest` 只为本次已授权的新锁固定目标哈希；`Operations.install` 启用目标清单、恢复原清单，`validate_configuration` 保留精确二选一。旧profile不改，新增八profile清单回归并继续原完整恢复矩阵；安装三包与pip check是实际部署前的独立证据，不由清单字段代替。
 
 PR188合流后当前v5的PAYLOAD由root固定完整组合产品88ef3817，PREVIOUS仍51f09；初始9bc4身份是历史检查点。一行verify_primary业务读取修复源码为8f2cb39a，DataHub仓库与新04数据流按PR188来源保留，不将两者混成同一已提交源码。用户允许组合验收后部署锁定baostock0.9.4／psycopg3.3.6，不启用／迁移DB或改外盘；源码／兼容回归由root负责，旧a114三CI与新候选重验分开。

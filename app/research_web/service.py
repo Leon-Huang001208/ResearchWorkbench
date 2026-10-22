@@ -335,7 +335,9 @@ class ResearchService(ModelProfilesMixin):
             mcp_runtime = self._build_mcp_runtime(mcp_keyring_backend)
         self.mcp_runtime = _SessionOwnedMCPRuntime(mcp_runtime, store)
         self.asset_workspace = AssetWorkspace(self)
-        self.market = MarketService(store.root)
+        from .datahub.market_reader import MarketReader
+
+        self.market = MarketService(store.root, market_reader=MarketReader(self.datahub))
         self.frameworks = FrameworkService(self, store.root / "frameworks")
         self.report_studio = ReportStudio(self)
         self.report_workflows = ReportWorkflowManager(self)

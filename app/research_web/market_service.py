@@ -106,11 +106,13 @@ class MarketService:
         root: Path,
         provider=None,
         *,
+        market_reader=None,
         clock: Callable[[], float] = time.monotonic,
         now: Callable[[], datetime] | None = None,
     ):
         self.root = Path(root) / "market-cache"
         self.provider = provider
+        self.market_reader = market_reader
         self.clock = clock
         self.now = now or (lambda: datetime.now(UTC))
         self._snapshots: OrderedDict[str, dict] = OrderedDict()
@@ -589,7 +591,11 @@ class MarketService:
                         from .datahub.providers_market import MarketProvider
 
                         self.provider = MarketProvider()
-                    payload = await self.provider.fetch(section, **parameters)
+                    if section == "indices" and self.market_reader is not None:
+                        # An explicit product refresh must always contact upstream.
+                        payload = await self.market_reader.indices(self.provider, refresh=True)
+                    else:
+                        payload = await self.provider.fetch(section, **parameters)
             raw = json.dumps(payload, allow_nan=False)
             if len(raw.encode()) > MAX_RECORD_BYTES:
                 raise MarketError("market_response_limit", "市场数据超过容量限制。", 502)

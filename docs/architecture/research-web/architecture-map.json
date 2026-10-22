@@ -215,7 +215,9 @@
         "tests/research_web/test_aihot.py",
         "tests/research_web/test_market_service.py",
         "tests/e2e/market_authenticated.py",
-        "tests/research_web/test_warehouse_diagnostics.py"
+        "tests/research_web/test_warehouse_diagnostics.py",
+        "tests/research_web/test_market_reader.py",
+        "tests/research_web/test_market_reader_live_postgres.py"
       ]
     },
     {
@@ -248,7 +250,8 @@
         "app/research_web/datahub/",
         "app/research_web/runtime/public-data.mjs",
         "app/research_web/market_store/",
-        "app/research_web/datahub/providers_cjpy_assets.py"
+        "app/research_web/datahub/providers_cjpy_assets.py",
+        "app/research_web/datahub/market_reader.py"
       ],
       "documents": [
         "docs/architecture/research-web/03-data-files.md",
@@ -298,7 +301,9 @@
         "tests/research_web/test_research_snapshot_store.py",
         "tests/research_web/test_datahub_execution_health.py",
         "tests/research_web/test_cjpy_asset_data.py",
-        "tests/research_web/test_asset_provider_normalization.py"
+        "tests/research_web/test_asset_provider_normalization.py",
+        "tests/research_web/test_market_reader.py",
+        "tests/research_web/test_market_reader_live_postgres.py"
       ]
     },
     {
@@ -2168,7 +2173,7 @@
       "receipt": "outputs/research-web-architecture/13-market-overview.receipt.json",
       "visualReceipt": "outputs/research-web-architecture/13-market-overview.visual-check.json",
       "level": "flows",
-      "summary": "沪深北公开行情的无会话刷新、覆盖核验、用户缓存及只读筛选导出。",
+      "summary": "沪深北无会话刷新、覆盖与用户缓存；固定12指数经Host桥完整写入可选个人仓库，内部允许缓存读。",
       "evidence": [
         {
           "subjects": [
@@ -2203,6 +2208,27 @@
             "marketProjection"
           ],
           "source": "app/research_web/datahub/providers_market.py"
+        },
+        {
+          "subjects": [
+            "marketReader",
+            "indicesFetch",
+            "indicesCapture",
+            "indicesCache"
+          ],
+          "source": "app/research_web/datahub/market_reader.py"
+        },
+        {
+          "subjects": [
+            "optionalWarehouse"
+          ],
+          "source": "app/research_web/datahub/research_warehouse.py"
+        },
+        {
+          "subjects": [
+            "indicesRefresh"
+          ],
+          "source": "app/research_web/market_service.py"
         }
       ]
     }
@@ -4698,7 +4724,7 @@
   "reading": {
     "repository": {
       "url": "https://github.com/Leon-Huang001208/ResearchWorkbench",
-      "revision": "e3d311d8685cb4c30bb0361ccc5e07fc591ac858"
+      "revision": "1a5a497004f4056de0fafabf93e20dad52616ec4"
     },
     "levels": [
       {
@@ -4801,7 +4827,7 @@
         "id": "datahub",
         "group": "datahub",
         "title": "DataHub",
-        "summary": "白名单查询、选源与会话快照，登记不等于可调用。",
+        "summary": "来源目录、受信快照与可选个人研究仓；公开固定指数桥保持无会话边界。",
         "category": "DataHub 与交接"
       },
       {
