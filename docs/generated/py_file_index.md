@@ -5838,6 +5838,7 @@ Module docstring:
 
 Imports:
 - `argparse`
+- `asyncio`
 - `capabilities.catalog`
 - `collections.abc`
 - `core.observability`
@@ -5848,6 +5849,7 @@ Imports:
 - `mcp_runtime.authorization`
 - `os`
 - `pathlib`
+- `plugins`
 - `re`
 - `runtime_state`
 - `shutil`
@@ -6181,7 +6183,7 @@ Imports:
 - `intel_routes`
 - `json`
 - `local_integrations`
-- ... 27 more
+- ... 29 more
 
 Classes:
 - `NewSession`
@@ -6791,6 +6793,53 @@ Functions:
 - `_is_unsafe_private_directory`
 
 
+## `app/research_web/mcp_runtime/managed_sandbox.py`
+
+Module docstring:
+> Native offline Python MCP confinement, independent of ordinary stdio targets.
+
+Imports:
+- `__future__`
+- `anyio`
+- `asyncio`
+- `contextlib`
+- `core.observability`
+- `dataclasses`
+- `hashlib`
+- `json`
+- `os`
+- `pathlib`
+- `re`
+- `shutil`
+- `stat`
+- `subprocess`
+- `sys`
+- `tempfile`
+
+Classes:
+- `TrustedManagedStdioTarget`
+
+Functions:
+- `available`
+- `validate_plan`
+  - Validate supported entrypoint shape before installation or secret reads.
+- `_quote`
+- `profile`
+- `policy_digest`
+  - Changing policy source requires explicit permission review of old packages.
+- `_runtime_identity`
+- `build_managed_target`
+- `validate_managed_target`
+- `_stop_owned_process`
+  - Reap our exact child before scratch or admission capacity can retire.
+- `_await_owned_task`
+  - Defer repeated native Task.cancel until owned birth/cleanup finishes.
+- `_reap_owned_process`
+- `_bounded_stdio`
+  - Own bytes/process only; official SDK still owns all MCP protocol/session work.
+- `official_transport`
+
+
 ## `app/research_web/mcp_runtime/models.py`
 
 Module docstring:
@@ -6903,7 +6952,7 @@ Classes:
   - A stable local package installation failure.
 - `PackageInstaller`
   - Reverify staged bytes, install without shell, then atomically publish.
-  - methods: __init__, install, target, update, remove, _published_argv, _write_launcher, _default_runner, _private_root, _staging_directory, _reverify, _minimal_environment, _extract_mcpb
+  - methods: __init__, install, target, update, managed_target, remove, _published_argv, _write_launcher, _default_runner, _private_root, _staging_directory, _reverify, _minimal_environment, _extract_mcpb
 
 
 ## `app/research_web/mcp_runtime/package_planner.py`
@@ -7054,6 +7103,7 @@ Imports:
 - `credentials`
 - `hashlib`
 - `json`
+- `managed_sandbox`
 - `oauth`
 - `re`
 - `transport`
@@ -7064,7 +7114,7 @@ Classes:
   - Stable Host error that omits target, arguments and third-party bodies.
 - `SDKHost`
   - Expose tools/resources/prompts without sampling, elicitation or MCP Tasks.
-  - methods: __init__, _official_client, _official_target, _remote_transport, _client, _target_digest, _bounded, _validate_request, capabilities, _server_projection, _invoke, call_tool, read_resource, get_prompt
+  - methods: __init__, _official_client, _official_target, _managed_cleanup_blocked, _remote_transport, _client, _target_digest, _bounded, _validate_request, capabilities, _server_projection, _invoke, call_tool, read_resource, get_prompt
 
 
 ## `app/research_web/mcp_runtime/service.py`
@@ -7083,6 +7133,7 @@ Imports:
 - `control`
 - `copy`
 - `core.observability`
+- `functools`
 - `inspect`
 - `installation_store`
 - `json`
@@ -7091,6 +7142,7 @@ Imports:
 - `pathlib`
 - `sdk_host`
 - `typing`
+- `uuid`
 
 Classes:
 - `MCPRuntimeError`
@@ -7098,9 +7150,11 @@ Classes:
   - methods: __init__
 - `MCPRuntimeService`
   - Coordinate trusted MCP components while keeping public requests declarative.
-  - methods: __init__, start, close, _ensure_enabled, _require_components, preview, install, list_installations, installation, status, capabilities, probe, enable, disable, update, delete, classify_tool, authorize_session, register_automation_session, read_resource, get_prompt, call_tool, approvals, decide_approval, authenticate_internal, _require_session_installation, oauth_start, oauth_callback, _active_target, _target, _resolve_target, _require_idle, _activate, _manifest, _set_state, _state, _load_runtime_state, _write_states, _write_active, _project_manifest, _installation_projection, _capability_projection, _approval_projection, _authorization_error
+  - methods: __init__, start, close, _ensure_enabled, _require_components, preview, install, list_installations, installation, status, capabilities, probe, enable, _plugin_activation, _save_plugin_activation, stage_managed_enable, commit_managed_activation, rollback_managed_activation, disable, update, delete, classify_tool, authorize_session, register_automation_session, read_resource, get_prompt, call_tool, approvals, decide_approval, authenticate_internal, _require_session_installation, oauth_start, oauth_callback, _active_target, _target, _managed_guard, _resolve_target, _require_managed_process_isolation, _require_idle, _activate, _manifest, _set_state, _state, _load_runtime_state, _write_states, _write_active, _project_manifest, _installation_projection, _capability_projection, _approval_projection, _authorization_error
 
 Functions:
+- `sdk_operation`
+  - Track pending SDK work so a tenant restart cannot race a process birth.
 - `runtime_feature_enabled`
 - `_await`
 - `_field`
@@ -7344,6 +7398,8 @@ Imports:
 - `httpx`
 - `origin`
 - `pathlib`
+- `plugin_routes`
+- `plugins`
 - `pydantic`
 - `re`
 - `runtime`
@@ -7377,6 +7433,44 @@ Imports:
 Functions:
 - `validate_origin`
   - Accept one exact HTTPS tailnet origin or a loopback development origin.
+
+
+## `app/research_web/multiuser/plugin_routes.py`
+
+Module docstring:
+> Gateway-owned package approvals; identities come solely from AccountStore.
+
+Imports:
+- `asyncio`
+- `fastapi`
+- `fastapi.responses`
+- `json`
+- `pathlib`
+- `plugin_routes`
+- `plugins`
+- `plugins.packages`
+- `plugins.proof`
+- `uuid`
+
+Functions:
+- `actor`
+- `source_root`
+- `configure`
+  - Attach lazy managers; importing or constructing a gateway starts no process.
+- `native_request`
+  - Fixed user's pool backend and fixed plugin action; never a browser URL.
+- `mcp_action`
+- `refresh_runtime`
+- `pending_reviews`
+- `approve_native_review`
+- `_service`
+- `catalog`
+- `source_file`
+- `preview`
+- `review`
+- `enable`
+- `disable`
+- `uninstall`
 
 
 ## `app/research_web/multiuser/preservation.py`
@@ -7514,7 +7608,7 @@ Classes:
 - `_Instance`
 - `RuntimePool`
   - Never adopt old processes or evict an active user's research for capacity.
-  - methods: __init__, _assert_pool, _audit, _user, _record, _environment, backend_for, _start, _spawn, _wait_runtime, _wait_backend, _stop_child, _dispose, stop, close, _close_owned
+  - methods: __init__, _assert_pool, _audit, _user, _record, _environment, backend_for, _start, _spawn, _wait_runtime, _wait_backend, _stop_child, _dispose, request_started, request_finished, _restart_identity, _plugin_control, _replace_dsh, _wait_plugin_guard, restart_runtime, stop, close, _close_owned
 
 Functions:
 - `_directory`
@@ -7589,6 +7683,228 @@ Functions:
 - `services`
 - `storage`
 - `summary`
+
+
+## `app/research_web/plugin_routes.py`
+
+Module docstring:
+> Plugin APIs; native local boundary or authenticated manager owns mutations.
+
+Imports:
+- `core.observability`
+- `fastapi`
+- `fastapi.responses`
+- `mcp_runtime.routes`
+- `plugins.packages`
+- `plugins.proof`
+- `pydantic`
+- `tenant_policy`
+
+Classes:
+- `Review`
+- `MCPConfirmation`
+- `NativeReview`
+  - methods: exact_fingerprint_shape
+- `PluginSession`
+- `PluginAuthorization`
+- `PluginDecision`
+
+Functions:
+- `management`
+- `mcp_management`
+- `catalog`
+- `detail`
+- `source_file`
+- `preview`
+- `review`
+- `enable`
+- `disable`
+- `uninstall`
+- `mcp_preview`
+- `mcp_install`
+- `mcp_probe`
+- `mcp_review`
+- `mcp_status`
+- `mcp_enable`
+- `mcp_disable`
+- `mcp_classify`
+- `mcp_authorize`
+- `mcp_approvals`
+- `mcp_decide`
+
+
+## `app/research_web/plugins/__init__.py`
+
+Module docstring:
+> Inert, reviewed ecosystem packages projected into the sole DSH runtime.
+
+Imports:
+- `packages`
+- `service`
+
+
+## `app/research_web/plugins/mcp_policy.py`
+
+Module docstring:
+> Tenant-only MCP package ownership and content/schema approval verification.
+
+Imports:
+- `hashlib`
+- `json`
+- `os`
+- `packages`
+- `pathlib`
+- `re`
+
+Functions:
+- `register_managed`
+- `requires_managed`
+- `canonical`
+- `schema_view`
+- `artifact_digest`
+  - Freshly hash installed bytes, bounded and without following links.
+- `native_fingerprint`
+- `managed_binding`
+  - Read current reviewed package source before any tenant process/call.
+
+
+## `app/research_web/plugins/packages.py`
+
+Module docstring:
+> Bounded plugin ZIP reader: never extracts, imports, executes or resolves URLs.
+
+Imports:
+- `__future__`
+- `core.observability`
+- `hashlib`
+- `io`
+- `json`
+- `pathlib`
+- `re`
+- `stat`
+- `store`
+- `unicodedata`
+- `zipfile`
+
+Classes:
+- `PluginError`
+  - methods: __init__
+
+Functions:
+- `safe_path`
+  - Reject alternate encodings and ambiguous ZIP paths on casefolded hosts.
+- `read_json`
+- `reject_credentials`
+  - Never copy host credential files or inline MCP secrets into package stores.
+- `_component`
+- `parse_archive`
+  - Return a digest plus complete inert files and explicit support inventory.
+
+
+## `app/research_web/plugins/proof.py`
+
+Module docstring:
+> One-use, short-lived gateway proof restricted to plugin MCP routes.
+
+Imports:
+- `hashlib`
+- `hmac`
+- `packages`
+- `re`
+- `secrets`
+- `time`
+
+Functions:
+- `_message`
+- `sign`
+- `verify`
+
+
+## `app/research_web/plugins/runtime_restart.py`
+
+Module docstring:
+> Backend half of the Pool-owned tenant DSH restart birth fence.
+
+Imports:
+- `capabilities.catalog`
+- `core.observability`
+- `fastapi`
+- `os`
+- `packages`
+- `proof`
+- `pydantic`
+- `service`
+- `tenant_policy`
+
+Classes:
+- `ManagerControl`
+
+Functions:
+- `authenticated`
+- `_guard`
+- `_fence`
+- `_background_idle`
+- `freeze`
+- `rollback`
+- `commit`
+- `unfreeze`
+
+
+## `app/research_web/plugins/sandbox_runner.py`
+
+Module docstring:
+> macOS Seatbelt runner for reviewed /bin/sh builtin-only plugin hooks.
+
+Imports:
+- `__future__`
+- `asyncio`
+- `core.observability`
+- `json`
+- `os`
+- `packages`
+- `pathlib`
+- `signal`
+- `sys`
+- `tempfile`
+
+Functions:
+- `available`
+- `_canonical`
+- `profile`
+- `run_script`
+  - Bounded own process group; cancellation/failure always kills and reaps it.
+
+
+## `app/research_web/plugins/service.py`
+
+Module docstring:
+> Reviewed immutable plugins; native capabilities/MCP remain execution authorities.
+
+Imports:
+- `__future__`
+- `asyncio`
+- `capabilities.packages`
+- `copy`
+- `core.observability`
+- `inspect`
+- `os`
+- `packages`
+- `pathlib`
+- `re`
+- `shutil`
+- `store`
+- `yaml`
+
+Classes:
+- `PluginService`
+  - Package review never replaces component-specific runtime authorization.
+  - methods: __init__, save, _row, _archive, preview, detail, confirm_native, version_authorized, manages_capability, capability_authorized, native_authorized, list, synchronize, review, _reviewed, _idle, _mcp_active, _draft, enable, disable, disable_mcp, pin, before_message, before_message_async, hook_cancellation, cancel_hook, command, mcp_preview, mcp_install, _require_mcp_process_isolation, mcp_review_snapshot, mcp_review, uninstall
+
+Functions:
+- `awaited`
+- `_private_directory`
+- `_atomic`
+- `_private_json`
 
 
 ## `app/research_web/portfolio_decisions/__init__.py`
@@ -9132,14 +9448,14 @@ Imports:
 - `json`
 - `local_integrations`
 - `market_service`
-- ... 29 more
+- ... 30 more
 
 Classes:
 - `_SessionOwnedMCPRuntime`
   - Enforce Research Store ownership before any session-scoped MCP operation.
   - methods: __init__, __getattr__, start, close, _owned, authorize_session, register_automation_session, read_resource, get_prompt, call_tool, approvals, decide_approval
 - `ResearchService`
-  - methods: __init__, _build_mcp_runtime, ensure_owned, start, close, _retention_loop, notify, _connect, _consume, _interaction_owner, _model_plane, compatible_connection, _require_model_credentials, runtime, configure_model, test_model, create, ensure_hot_session, summary, create_automation_research_session, run_automation_from_chat, search_sessions, list_sessions, soft_delete_session, restore_session, permanent_delete_session, purge_expired_sessions, _model_tools_verified, _task_capabilities, _effective_records, _task_readiness_context, native_admission, _data_query_admission, capability_readiness, detail, _cancel_observation, send, skill_catalog, _capability_idle, _mcp_idle_gate, _restart_mcp_runtime, change_capability, create_capability_session, capability_from_artifact, approve, cancel, _cancel, answer
+  - methods: __init__, _build_mcp_runtime, ensure_owned, start, close, _retention_loop, notify, _connect, _consume, _interaction_owner, _model_plane, compatible_connection, _require_model_credentials, runtime, configure_model, test_model, create, ensure_hot_session, summary, create_automation_research_session, run_automation_from_chat, search_sessions, list_sessions, soft_delete_session, restore_session, permanent_delete_session, purge_expired_sessions, _model_tools_verified, _task_capabilities, _effective_records, _task_readiness_context, native_admission, _data_query_admission, capability_readiness, detail, _cancel_observation, send, skill_catalog, _capability_idle, _mcp_idle_gate, _plugin_idle_gate, _restart_mcp_runtime, change_capability, create_capability_session, capability_from_artifact, approve, cancel, _cancel, answer
 
 Functions:
 - `_mcp_internal_url`
@@ -10003,6 +10319,7 @@ Imports:
 - `core.observability`
 - `hmac`
 - `json`
+- `mcp_registry.service`
 - `os`
 - `pathlib`
 - `starlette.responses`

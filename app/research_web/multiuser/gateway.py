@@ -20,8 +20,11 @@ from core.observability import get_logger
 from ..ai_news_routes import router as ai_news_router
 from ..ai_news_service import create_ai_news_service
 from ..aihot_routes import router as aihot_router
+from ..plugins import PluginError
 from .accounts import SESSION_TTL_SECONDS, AccountError, AccountStore
 from .origin import validate_origin
+from .plugin_routes import configure as configure_plugins
+from .plugin_routes import router as plugin_router
 from .runtime import RuntimeErrorSafe
 
 log = get_logger(__name__)
@@ -121,6 +124,8 @@ def create_gateway(
     app = FastAPI(title="Research Workbench Private Server", lifespan=lifespan)
     app.state.accounts = accounts
     app.state.pool = pool
+    configure_plugins(app, accounts, pool, client)
+    app.include_router(plugin_router)
     # One server-owned news store, outside every user's DSH/data/credential namespace.
     # Constructing the default bridge does no I/O and never starts a runtime or DB.
     app.state.ai_news = (ai_news_factory or create_ai_news_service)(
@@ -140,6 +145,10 @@ def create_gateway(
 
     @app.exception_handler(AccountError)
     async def account_error(request, exc):
+        return error(exc.code, exc.status)
+
+    @app.exception_handler(PluginError)
+    async def plugin_error(request, exc):
         return error(exc.code, exc.status)
 
     @app.exception_handler(RequestValidationError)
@@ -236,7 +245,11 @@ def create_gateway(
                 "GET",
                 "HEAD",
             }:
-                maximum = 65536 if news else 16384
+                maximum = (
+                    11 * 1024 * 1024
+                    if request.url.path.startswith("/api/server/plugins/")
+                    else 65536 if news else 16384
+                )
                 if length > maximum:
                     return error("request_too_large", 413)
                 parts = []
@@ -482,13 +495,23 @@ def create_gateway(
         # httpx's shared cookie jar may have learned a backend Set-Cookie.
         # Backend authentication is exclusively the per-instance header.
         outbound.headers.pop("cookie", None)
+        ticket = None
+        if request.method not in {"GET", "HEAD"} and hasattr(pool, "request_started"):
+            try:
+                ticket = await pool.request_started(user.id, backend)
+            except RuntimeErrorSafe as exc:
+                return error(exc.code, exc.status)
         try:
             response = await client.send(outbound, stream=True, follow_redirects=False)
         except httpx.HTTPError as exc:
+            if ticket is not None:
+                await pool.request_finished(user.id, ticket)
             log.warning("multiuser_proxy_failed", error_type=type(exc).__name__)
             return error("runtime_unavailable", 503)
         if 300 <= response.status_code < 400:
             await response.aclose()
+            if ticket is not None:
+                await pool.request_finished(user.id, ticket)
             return error("runtime_redirect_denied", 502)
 
         async def content():
@@ -520,6 +543,8 @@ def create_gateway(
                     pending.cancel()
                     await asyncio.gather(pending, return_exceptions=True)
                 await response.aclose()
+                if ticket is not None:
+                    await pool.request_finished(user.id, ticket)
 
         return StreamingResponse(
             content(),

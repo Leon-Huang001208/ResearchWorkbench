@@ -35,6 +35,11 @@ load正文只允许`source`（可省略或auto／封闭来源ID）、`refresh`�
 
 研究仓基座扩展既有DataHub业务请求（业务取数路径保持）：`purpose`默认research、`quality`默认strict、`as_of`为带时区且不晚于当前的时点；backtest必须给as_of，allow_stale只允许display。结果新增data_success及白名单provider_metadata（真实execution_attempts、仓版本/命中/持久化及PIT证据）。未知历史返回409/data_pit_unavailable；前台18秒超时返回504/data_query_deadline，原call_id对应任务继续排空至真实终态，不得换ID盲重发。收据可记录warehouse_committed及已提交版本，即使最终查询取消或超时也不声称回滚。
 
+
+2026-10-22 MCP隔离：仅macOS固定离线Python在新增权限、policy/runtime/安装树/schema复审后条件开放；逐次重验并在受管Seatbelt内执行。Node/npm、其他平台、凭据环境、网络和子进程需求保持受限或失败关闭。解析前字节/连接时限与真实进程回收分别核验，回收未知保留准入栅栏；固定远程及非受管Native维持各自合同。具体包就绪不由Doctor入口存在推断。
+
+2026-10-22 插件新增 /api/research/plugins 固定包/文件/审批/lifecycle/MCP操作、/api/server/plugins 真实cookie角色共享/个人分发与固定owner审批队列，以及 /api/research/internal/plugin-runtime 的 freeze/commit/rollback/unfreeze 私有管理回调。完整Method/Path由architecture-map与API Atlas逐项登记；同源、tenant边界、一次性证明、body上限和错误状态详见[插件合同](../../research-web-plugins.md)。
+
 2026-10-22 `apply-assets-v4`为封闭本机操作员CLI，固定旧5495与PR180产品`9b436613aad9136f4959c992c89dd72fc7354ed5`；无新HTTP方法/路径/字段、DSH或API权限。旧v1/v2/v3及version4 journal保持，产品原接口和API Atlas未变，不重建架构HTML/PNG。产品三CI与v4最终测试/评审/CI/部署分开，只有完整资格及原锁/空闲/保全通过后才允许实际切换。
 
 2026-10-22 `model_provider_upgrade apply-assets-v3`是本机操作员CLI，封闭绑定旧5495和已合并产品a0ff3ae2；无新HTTP方法/路径/请求字段、DSH协议或API权限。原产品6项历史/偏好端点与现有Atlas保持，部署profile不重新生成架构HTML/PNG。最终工具三CI与实际切换/保全独立验收，旧v1/v2恢复、controller/evidence不变；见[部署合同](../../research-web-gateway-upgrade.md#资产观察固定版本联合部署)。
@@ -696,3 +701,6 @@ GET会话列表及父详情不因已验证活动的历史子mode=unknown整体�
 ### 模型连接管理 API
 
 GET /model-profiles 返回 items/active_id；每项只含 id/name/provider/model/base_url/protocol/credential_mode、active、credential_required/configured 及 uncertain，无 Key 或物理 credential_ref。POST/PUT 使用原 ModelConfig 字段加 name；Key 可省略保留，但新地址不能继承旧端点凭据。POST /{identity}/activate 从服务端已保存配置激活，禁止客户端携带新的连接参数。DELETE 只归档，无自动凭据删除；被会话/日程引用或当前协议路由拒绝归档。运行/未知活动拒绝修改，凭据写入回执未知保留 durable uncertain。旧 PUT /runtime/model 保持字段和返回契约，同步当前 profile。服务器邀请制仍只允许 DeepSeek 官方，不能通过新路径添加/激活任意兼容上游。
+
+
+2026-10-23 插件原生审核：expected仅接受manifest/artifacts/schemas三项或再加sandbox四项；未知键失败关闭，实际值仍与当前不可变原生快照逐项核对。此修复保留远程三项兼容，避免受管离线Python的合法四项指纹被旧HTTP模型误拒绝。

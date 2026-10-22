@@ -1,10 +1,21 @@
 /** Host-global final veto; MCP tools require an exact activation allowlist. */
 import { spawn } from 'node:child_process';
+import { existsSync, lstatSync, mkdirSync, writeFileSync, renameSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
-import { isAbsolute } from 'node:path';
+import { isAbsolute, join, resolve } from 'node:path';
 import { nativeAdmission } from './public-data.mjs';
 
 export const inject = ['tools', 'llm', 'sessions'];
+
+export function pluginRuntimeFrozen(root) {
+  if (typeof root !== 'string' || !isAbsolute(root) || resolve(root) !== root) return true;
+  try {
+    const folder = join(root, 'plugins');
+    if (!existsSync(folder)) return false;
+    if (lstatSync(folder).isSymbolicLink()) return true;
+    return existsSync(join(folder, 'runtime-freeze.json'));
+  } catch { return true; }
+}
 const SAFE_SCOPE_CODES = new Set([
   'data_contract_missing', 'data_contract_invalid', 'data_state_unknown',
   'data_source_unavailable', 'data_dependency_unavailable',
@@ -104,7 +115,7 @@ export const RESEARCH_TOOLS = new Set([
   'datahub_get_market_activity', 'datahub_get_factor_macro', 'datahub_get_fund_data',
   'datahub_search_news', 'datahub_search_announcements', 'datahub_search_research', 'datahub_search_web',
   'datahub_get_database_schema', 'datahub_query_table', 'datahub_get_external_data',
-  'skill', 'web_search', 'subagent', 'send_message', 'interrupt_agent', 'list_agents',
+  'skill', 'web_search', 'subagent', 'send_message', 'interrupt_agent', 'list_agents', 'rwb_plugin_instructions', 'rwb_plugin_agent',
 ]);
 
 export function apply(ctx, config = {}) {
@@ -168,6 +179,7 @@ export function apply(ctx, config = {}) {
     // Upstream /skill-name user gestures inject instructions before any tool
     // invocation. Inspect the authoritative injected source, not user prose.
     ctx.on('agent/pre-step', async (options, next) => {
+      if (config.tenantMode === true && pluginRuntimeFrozen(config.researchRoot)) return { kind: 'reject' };
       if (config.enabled && !catalogScoped.has(options.agent)) {
         try {
           const scope = await nativeAdmission(ctx, {name:'agent_step',agent:options.agent,signal:options.signal}, config);
@@ -318,8 +330,9 @@ export function apply(ctx, config = {}) {
   }
   ctx.tools.guard((execution) => {
     if (config.tenantMode === true) {
+      if (pluginRuntimeFrozen(config.researchRoot)) return 'plugin_runtime_frozen';
       const denied = typeof execution.name !== 'string' ||
-        (execution.name === 'skill' && !tenantSkillNames.has(execution.arguments?.name)) || execution.name.startsWith('mcp__') ||
+        (execution.name === 'skill' && !tenantSkillNames.has(execution.arguments?.name)) || (execution.name.startsWith('mcp__') && !mcpTools.has(execution.name)) ||
         ['tabbit_browser', 'web_fetch', 'rwb_prepare_automation', 'rwb_list_automations',
          'rwb_prepare_automation_update', 'rwb_run_automation'].includes(execution.name) ||
         (execution.name === 'research_document_operation' && execution.arguments?.mode !== 'file');
@@ -364,4 +377,15 @@ export function apply(ctx, config = {}) {
     ctx.logger.warn('Research Workbench rejected disabled tool: %s', execution.name);
     return 'Research Workbench: this tool is not authorized. Do not attempt shell, arbitrary URL, MCP or host-file access.';
   });
+  if (config.tenantMode === true && config.enabled === true) {
+    const folder = join(config.researchRoot, 'plugins');
+    mkdirSync(folder, { recursive: true, mode: 0o700 });
+    if (lstatSync(folder).isSymbolicLink()) throw Error('plugin_guard_state_unsafe');
+    const target = join(folder, 'guard-state.json');
+    if (existsSync(target) && lstatSync(target).isSymbolicLink()) throw Error('plugin_guard_state_unsafe');
+    const temporary = join(folder, `.guard-${process.pid}.json`);
+    writeFileSync(temporary, JSON.stringify({ schema_version: 1, pid: process.pid, skill_names: [...tenantSkillNames], mcp_tools: [...mcpTools], freeze_supported: true }), { flag: 'wx', mode: 0o600 });
+    renameSync(temporary, target);
+    ctx.logger.info('research_plugin_guard_initialized');
+  }
 }

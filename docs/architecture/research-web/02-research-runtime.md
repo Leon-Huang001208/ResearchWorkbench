@@ -14,6 +14,11 @@
 
 DataHub查询前台总预算18秒，独立owned计时器在HTTP断连后仍有效；超时返回504并保留同call_id，任务继续真实排空，完成前不释放SDK/数据库容量。成功提交后取消保留真实warehouse版本，迟到数据不发布。DSH与Automation预算、历史回合及模型授权没有扩大。
 
+
+2026-10-22 MCP隔离：仅macOS固定离线Python在新增权限、policy/runtime/安装树/schema复审后条件开放；逐次重验并在受管Seatbelt内执行。Node/npm、其他平台、凭据环境、网络和子进程需求保持受限或失败关闭。解析前字节/连接时限与真实进程回收分别核验，回收未知保留准入栅栏；固定远程及非受管Native维持各自合同。具体包就绪不由Doctor入口存在推断。
+
+2026-10-22 插件指令读取当前 session 不可变 pin；仍批准旧版本跨升级继续使用，显式撤权即时拒绝。Skill/Workflow 走既有能力目录、Agent 走既有 DSH subagent 与预算，精确 MCP 工具需 Host/schema/guard 全链确认；Hook 与运行中请求计入空闲证明。原Automation调度保持，双阶段重启未知保留 fence。见[插件合同](../../research-web-plugins.md)。
+
 2026-10-22 v4 profile固定旧5495与PR180产品`9b436613aad9136f4959c992c89dd72fc7354ed5`，不改变version4 journal和前进/回滚/冻结recover状态机。既有DSH/历史任务/真实Future/取消排空/日程/私有池空闲及旧v1/v2/v3恢复身份保持。旧v3已正式恢复5495且网关解除fence；产品三CI属于产品证据，v4最终本机/评审/CI/部署另验，不新增运行状态或重画图。
 
 显式华安周报合同由受信Report Run创建Claw会话并冻结原要求；数据失败不发送模型，不把任意Claw

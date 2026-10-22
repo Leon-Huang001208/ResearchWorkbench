@@ -1,5 +1,7 @@
 # Research Web 文档门禁与安全入口
 
+2026-10-22 插件契约新增固定包/权限/原生能力映射与支持限制；静态API扫描仍需真实CLI网关，再逐一验证其相对router import与include，未挂载保持拒绝。新模块、路由、Python索引与API Atlas已登记；无新任意文档文件入口或图阅读权限。见[插件合同](research-web-plugins.md)。
+
 架构阅读器增加固定全市场概览视图 `13-market-overview.html`，说明公开源、无会话刷新、用户缓存和只读导出关系；继续由既有名称白名单与隔离CSP保护，不提供任意文件浏览。
 
 AI资讯自主化本轮在隔离实例接入原版API/worker与独立库，保持DSH研究执行及当前常驻内容。零调用和后续切换边界见[自主资讯合同](research-web-ai-news.md)。

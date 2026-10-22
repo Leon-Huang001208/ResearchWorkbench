@@ -22,6 +22,9 @@
 
 研究仓基座新增锁定 `psycopg[binary]` 3.3.6 与 `baostock` 0.9.4，用户仅授权本任务隔离环境安装及有界免费验证。公开安装器仍从 `requirements/web.lock` 的哈希集合安装，`scripts/setup_web.py` 无额外全局依赖或服务安装步骤。驱动安装不创建业务库，不启用数据采集，不迁移原件；正式库配置/权限和部署另行确认。`setup-web.sh`、`setup-web.cmd`、`python scripts/setup_web.py` 与既有 macOS Bootstrap 干净安装/固定DSH/3081/8088/Doctor门保留，尚待本候选CI证明兼容。外盘ExFAT且无独立备份，不配置为活动数据库数据根。
 
+
+2026-10-22 插件基座复用既有 Python/Node 依赖与固定 DSH，公开三安装入口、requirements/web.in/web.lock、scripts/setup_web.py、Bootstrap 工作流保持。管理员从能力中心导入固定 ZIP，核对摘要/文件/精确权限后审核；导入不执行脚本或复制 Codex/Claude 凭据。macOS Hook 仅在 Seatbelt 可用时启用，其他平台显示受限。macOS 受管本地 MCP 仅支持经过显式 offline-sandbox 权限和实际 runtime/安装树/schema 摘要审核的离线 Python；安装包只读、独立 scratch 可写，禁止网络、子进程与供应商凭据。npm/Node 和非 macOS 本地执行保持拒绝，固定远程端点保留原生审批流程；Doctor 的 mcp_managed_local_sandbox 仅报告平台入口且 acceptance 保持 NOT_RUN；详情见[插件合同](research-web-plugins.md)。最终候选仍须同候选 macos-14 干净安装、固定 DSH、3081/8088 与 Doctor，当前本地夹具不替代此门。
+
 2026-10-22 v4部署只复用现有Native操作员及生产venv，固定旧5495和PR180产品`9b436613aad9136f4959c992c89dd72fc7354ed5`。公开三安装入口、requirements/web.in/web.lock、scripts/setup_web.py与原Mac Bootstrap合同保持，不增依赖/流程。产品Mac39730452006实际checkout654fa6、581秒，干净安装/固定DSH/3081/8088/doctor及15项静态资源通过；v4工具仍须自身最终同候选CI/安装与部署证据，不能复用产品通过代替。旧v3已正式恢复5495并保全，旧v1/v2/v3恢复及controller/evidence字节不变，见[部署合同](research-web-gateway-upgrade.md#资产观察固定版本联合部署)。
 
 2026-10-22 Wind产品PR177已合并，常驻切换单独使用`reviewed-asset-observation-v3`/`apply-assets-v3`：旧主实例/网关必须精确5495，产品必须精确a0ff3ae2；最终操作员候选仍需原三CI及同候选macOS干净安装证据。公开安装三入口、锁定依赖、固定DSH和生产venv保持，不新增依赖、厂商权限或系统配置。用户已授权本轮常驻部署，root在验收后按原锁/空闲/全账号索引保全事务执行；文档或产品CI不等于已切换。旧v1/v2恢复、controller/evidence字节保持，见[部署合同](research-web-gateway-upgrade.md#资产观察固定版本联合部署)。

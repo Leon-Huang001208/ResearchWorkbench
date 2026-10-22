@@ -6,7 +6,7 @@ const workbenchSections = new Set(['market', 'assets', 'funds', 'industry', 'doc
 const searchSections = { news: 'market', research: 'industry', announcements: 'documents' };
 const settingsSections = new Set(['general', 'model', 'data', 'local', 'docs', 'hot', 'users']);
 const capabilityViews = new Set(['library', 'mine', 'plans', 'connections', 'market']);
-const capabilityKinds = new Set(['skill', 'method', 'tool', 'workflow', 'data']);
+const capabilityKinds = new Set(['skill', 'method', 'tool', 'workflow', 'data', 'plugin']);
 const frameworkTabs = new Set(['overview', 'drivers', 'supply', 'cycle', 'positioning', 'allocation', 'quantity', 'price', 'fiscal', 'plumbing', 'cross-border', 'evidence']);
 
 export function parseRoute(hash = '') {
