@@ -148,7 +148,11 @@
         "tests/javascript/research_web_market.test.mjs",
         "tests/javascript/research_web_market_navigation.test.mjs",
         "tests/e2e/research_web_market_authenticated.mjs",
-        "tests/javascript/research_web_weekly_production.test.mjs"
+        "tests/javascript/research_web_weekly_production.test.mjs",
+        "tests/javascript/research_web_asset_search.test.mjs",
+        "tests/javascript/research_web_asset_tabs.test.mjs",
+        "tests/javascript/research_web_asset_loading.test.mjs",
+        "tests/e2e/research_web_asset_interactions.mjs"
       ]
     },
     {
@@ -240,7 +244,8 @@
       "id": "datahub",
       "sources": [
         "app/research_web/datahub/",
-        "app/research_web/runtime/public-data.mjs"
+        "app/research_web/runtime/public-data.mjs",
+        "app/research_web/datahub/providers_cjpy_assets.py"
       ],
       "documents": [
         "docs/architecture/research-web/03-data-files.md",
@@ -273,7 +278,9 @@
         "tests/research_web/test_market_provider.py",
         "tests/e2e/research_web_market_authenticated.mjs",
         "tests/research_web/test_datahub_wind_api.py",
-        "tests/research_web/test_report_weekly_data.py"
+        "tests/research_web/test_report_weekly_data.py",
+        "tests/research_web/test_cjpy_asset_data.py",
+        "tests/research_web/test_asset_provider_normalization.py"
       ]
     },
     {
@@ -525,7 +532,9 @@
         "app/research_web/ui/asset-news.mjs",
         "app/research_web/portfolio_decisions/",
         "app/research_web/asset_history.py",
-        "app/research_web/asset_history_jobs.py"
+        "app/research_web/asset_history_jobs.py",
+        "app/research_web/asset_directory.py",
+        "app/research_web/ui/asset-search.mjs"
       ],
       "documents": [
         "docs/research-web-ui.md",
@@ -550,7 +559,13 @@
         "tests/javascript/research_web_intel.test.mjs",
         "tests/e2e/research_web_asset_workspace.mjs",
         "tests/research_web/test_asset_history.py",
-        "tests/javascript/research_web_wind_workspace.test.mjs"
+        "tests/javascript/research_web_wind_workspace.test.mjs",
+        "tests/research_web/test_asset_directory.py",
+        "tests/research_web/test_asset_loading.py",
+        "tests/javascript/research_web_asset_loading.test.mjs",
+        "tests/javascript/research_web_asset_search.test.mjs",
+        "tests/javascript/research_web_asset_tabs.test.mjs",
+        "tests/e2e/research_web_asset_interactions.mjs"
       ]
     },
     {
@@ -1141,10 +1156,24 @@
             "assetWorkspace"
           ],
           "source": "app/research_web/asset_workspace.py"
+        },
+        {
+          "subjects": [
+            "assetDirectoryCache",
+            "directoryCache"
+          ],
+          "source": "app/research_web/asset_directory.py"
+        },
+        {
+          "subjects": [
+            "datahub",
+            "dataRoute"
+          ],
+          "source": "app/research_web/datahub/providers_cjpy_assets.py"
         }
       ],
       "level": "subsystems",
-      "summary": "MCP、自动化、报告和资产持久历史任务的既有Host依赖。"
+      "summary": "资产目录、按需区块、历史任务与原MCP／自动化／报告Host依赖。"
     },
     {
       "id": "01-deployment",
@@ -1531,10 +1560,33 @@
             "parsedResult"
           ],
           "source": "app/research_web/datahub/adjustment_contract.py"
+        },
+        {
+          "subjects": [
+            "tool",
+            "policy",
+            "businessIntent",
+            "validatedQuery"
+          ],
+          "source": "app/research_web/asset_workspace.py"
+        },
+        {
+          "subjects": [
+            "providers",
+            "parsedResult"
+          ],
+          "source": "app/research_web/datahub/providers_cjpy_assets.py"
+        },
+        {
+          "subjects": [
+            "web",
+            "webRead"
+          ],
+          "source": "app/research_web/ui/asset-controller.mjs"
         }
       ],
       "level": "flows",
-      "summary": "DataHub原始行、逐日因子、固定复权规范快照和自包含研究交接。"
+      "summary": "按需资产区块、固定复权快照与研究交接；无会话目录缓存分支见02。"
     },
     {
       "id": "05-capability-flow",
@@ -3744,13 +3796,6 @@
     },
     {
       "method": "POST",
-      "path": "/api/research/report-workflows/{workflow_id}/weekly-production/prepare",
-      "source": "app/research_web/report_workflow_routes.py",
-      "declaredPath": "/report-workflows/{workflow_id}/weekly-production/prepare",
-      "prefix": "/api/research"
-    },
-    {
-      "method": "POST",
       "path": "/api/research/report-workflows/{workflow_id}/copy",
       "source": "app/research_web/report_workflow_routes.py",
       "declaredPath": "/report-workflows/{workflow_id}/copy",
@@ -4322,13 +4367,34 @@
       "source": "app/research_web/asset_routes.py",
       "declaredPath": "/assets/chart-preferences",
       "prefix": "/api/research"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/report-workflows/{workflow_id}/weekly-production/prepare",
+      "source": "app/research_web/report_workflow_routes.py",
+      "declaredPath": "/report-workflows/{workflow_id}/weekly-production/prepare",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/assets/search",
+      "source": "app/research_web/asset_routes.py",
+      "declaredPath": "/assets/search",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/assets/observations/{observation_id}/blocks/{block}/load",
+      "source": "app/research_web/asset_routes.py",
+      "declaredPath": "/assets/observations/{observation_id}/blocks/{block}/load",
+      "prefix": "/api/research"
     }
   ],
   "visualReview": "docs/architecture/research-web/visual-review.json",
   "reading": {
     "repository": {
       "url": "https://github.com/Leon-Huang001208/ResearchWorkbench",
-      "revision": "b24b944454edee97eb3b9a24b44dac51b73ab172"
+      "revision": "263a32ad22287725cd51f73152d0b433ae7d12b1"
     },
     "levels": [
       {
@@ -4480,7 +4546,7 @@
         "id": "workbench",
         "group": "workbench",
         "title": "资产观察",
-        "summary": "持久历史任务、固定复权与账号指标偏好；原始/因子/规范快照可复核。",
+        "summary": "单A股目录搜索、专题按需区块与历史任务；目录按账号／授权缓存，规范快照及研究交接可复核。",
         "category": "资产观察"
       },
       {

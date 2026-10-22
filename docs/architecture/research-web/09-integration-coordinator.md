@@ -7,6 +7,8 @@
 精确指标覆盖、跨市场日历、经济日历和同源对照分别取证，不从既有callable或Office诊断推导成功。
 来源配置身份变化使等价证据失效，未知输入保持数据阻断，见[周报数据合同](../../research-web-etf-weekly-data.md)。
 
+2026-10-22 资产目录及结构化Provider复用原账号连接namespace和天软SDK；目录在读取秘密前后及返回后复核显式来源的配置／授权指纹。结构化适配只开放固定表／字段／预定义因子，metadata不符合时拒绝，不接收任意repo或公式；不增加厂商登录、探测、凭据设置入口或自动权限授予。AssetDirectory与区块task持续进入resident活动／关闭等待，真实SDK Future未结束不释放容量。缓存及原始行／报告期／单位边界见[DataHub](../../research-web-datahub.md#资产目录与结构化区块)。
+
 2026-10-22 天软在既有factor_macro目录内增加封闭adjustment_metadata/listing_date/adjustment_factors绑定，仍经原依赖/配置/授权/健康/适配检查；≤500日期、单沪深股票及精确定义hash不等于开放通用因子库或宏观服务。历史任务复用Broker、真实单Future容量与取消排空，账号缓存复用也重新核验配置授权；已有预检只证明两股票范围。协调器不增加厂商登录、探测、秘密入口或第二研究引擎，详见[固定复权合同](../../research-web-datahub.md#资产历史任务与固定复权)。
 
 全市场概览通过固定公共行情端点读取，运行状态由本区实际请求、时间和覆盖元数据确认；不启动 Excel／Wind、本机探测或供应商登录，也不使用另一条 AKShare 探测的成功替代全市场采集证明。协调器及宿主权限不变，日常刷新由 MarketService 独立管理。

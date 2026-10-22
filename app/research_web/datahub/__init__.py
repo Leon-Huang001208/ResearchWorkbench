@@ -12,6 +12,8 @@ from typing import Any
 from uuid import uuid4
 
 from core.observability import get_logger
+from research_workbench_entrypoint.resident.admission import MaintenanceBusy
+from research_workbench_entrypoint.resident.admission import admission as resident_admission
 
 from ..store import StoreError
 from . import providers
@@ -90,6 +92,7 @@ class DataHub:
         self.probe_runner = probe_runner or probe_source
         self.tasks: dict[tuple[str, str], asyncio.Task] = {}
         self.probe_tasks: dict[str, asyncio.Task] = {}
+        self.directory_tasks: set[asyncio.Task] = set()
         self.probes: dict[str, dict] = {}
         self.probe_keys: dict[tuple[str, str], str] = {}
         self._probe_waiters: dict[str, int] = {}
@@ -131,6 +134,55 @@ class DataHub:
 
     def connection_center(self):
         return build_connection_center(self.catalog(), self.connections)
+
+    def directory_fingerprint(self) -> str:
+        """Reauthorize the account's explicit Tinysoft stock search without a session."""
+        if self.closed:
+            raise StoreError("资产目录服务已关闭", "asset_directory_closed", 503)
+        query = BusinessQuery(
+            capability="search_assets",
+            source="tinysoft",
+            allow_fallback=False,
+            parameters={"query": "", "asset_type": "stock"},
+        )
+        resolution = resolve(
+            query, probes=self._latest_probes(), connection_statuses=self.connections.statuses()
+        )
+        if resolution.provider_id != "tinysoft":
+            raise StoreError("资产目录来源不可用", "asset_directory_unauthorized", 409)
+        return self.source_configuration_digest("tinysoft")
+
+    async def asset_directory(self) -> dict:
+        """Load authorized directory data only; never create a research session."""
+        try:
+            with resident_admission():
+                return await self._asset_directory()
+        except MaintenanceBusy as exc:
+            log.info("datahub_directory_deployment_busy")
+            raise StoreError("正在安全更新，请稍后重新搜索", "deployment_busy", 503) from exc
+
+    async def _asset_directory(self) -> dict:
+        """Keep the deployment admission lease through actual SDK completion."""
+        from .providers_cjpy import fetch_directory
+
+        revision = self.directory_fingerprint()
+        task = asyncio.current_task()
+        if task is not None:
+            self.directory_tasks.add(task)
+        try:
+            token = await asyncio.to_thread(self.connections.read_source_secret, "tinysoft")
+            if self.directory_fingerprint() != revision:
+                raise StoreError("资产目录配置已变化", "asset_directory_authorization_changed", 409)
+            value = await fetch_directory(token=token)
+            if self.directory_fingerprint() != revision:
+                raise StoreError("资产目录配置已变化", "asset_directory_authorization_changed", 409)
+            return value
+        except Exception as exc:
+            log.warning("datahub_asset_directory_failed", error_type=type(exc).__name__)
+            raise
+        finally:
+            if task is not None:
+                self.directory_tasks.discard(task)
 
     def source_configuration_digest(self, source_id: str) -> str:
         """Return a canonical digest of safe configuration metadata only."""
@@ -1030,6 +1082,8 @@ class DataHub:
 
     async def close(self):
         self.closed = True
+        if self.directory_tasks:
+            await asyncio.gather(*self.directory_tasks, return_exceptions=True)
         tasks = [*self.tasks.values(), *self.probe_tasks.values()]
         for task in tasks:
             task.cancel()

@@ -220,7 +220,10 @@ test('asset workspace renders independent states, native chart and personal obse
     },
     watchlists: [{ id: 'w1', name: '核心观察', items: [] }], notes: [], alerts: [], notifications: [],
   });
-  for (const label of ['资产概览', '历史行情', '财务指标', '开盘', '最高', '成交量', '换手率', '区间最高', '行情与技术指标', 'MACD', 'KDJ', 'RSI', 'BOLL', '当前覆盖限制', '筹码分布', '股东名称', '行业PE', '宏观', '各区块日期范围', '自选与观察', '提醒规则', '交给 FinGPT', '交给 Claw']) assert.match(html, new RegExp(label));
+  for (const label of ['资产概览', '历史行情', '财务指标', '开盘', '最高', '成交量', '换手率', '区间最高', '行情与技术指标', 'MACD', 'KDJ', 'RSI', 'BOLL', '当前覆盖限制', '筹码分布', '自选与观察', '提醒规则', '交给 FinGPT', '交给 Claw']) assert.match(html, new RegExp(label));
+  assert.match(assets.renderAssetWorkspace({ observation, route: { assetView: 'holders' } }), /股东名称/);
+  assert.match(assets.renderAssetWorkspace({ observation, route: { assetView: 'materials' } }), /行业PE/);
+  assert.doesNotMatch(html, /macro-panel|各区块日期范围/);
   assert.match(html, /akshare/); assert.match(html, /2026-09-05/);
   assert.match(html, /data-asset-echarts[^>]+aria-label="K线与自定义副图；方向键选择历史交易日"/);
   assert.match(html, /data-asset-chip-chart[^>]+aria-label="日线累计至所选日的OHLCV估算筹码分布"/);
@@ -251,13 +254,16 @@ test('asset refresh actions remain unique inside the native source disclosure', 
   const names = ['overview', 'history', 'valuation', 'financials', 'activity', 'margin', 'holders', 'research'];
   const observation = { asset: '600519.SH', asset_type: 'stock', blocks: Object.fromEntries(names.map(name => [name, { status: name === 'financials' ? 'loading' : 'complete', dataset: { dataset_id: name } }])) };
   const html = renderAssetWorkspace({ observation });
-  const source = html.slice(html.indexOf('<details class="asset-source-summary">'), html.indexOf('<nav class="asset-topic-tabs"'));
-  assert.match(source, /0\/8 区块有快照/);
-  for (const name of names) {
-    assert.equal((html.match(new RegExp(`data-asset-block-refresh="${name}"`, 'g')) || []).length, 1, name);
-    assert.ok(source.includes(`data-asset-block-refresh="${name}"`), name);
+  const start = html.indexOf('<details class="asset-source-summary">');
+  const source = html.slice(start, html.indexOf('</details>', start) + 10);
+  assert.match(source, /已取得 0 · 待加载 11 · 查询失败 0 · 未接入 0/);
+  for (const name of names.filter(name => name !== 'history')) {
+    assert.equal((html.match(new RegExp(`data-asset-block-load="${name}"`, 'g')) || []).length, 1, name);
+    assert.ok(source.includes(`data-asset-block-load="${name}"`), name);
   }
-  assert.match(source, /data-asset-block-refresh="financials" disabled/);
+  assert.doesNotMatch(source, /data-asset-block-load="history"/);
+  assert.match(source, /历史行情使用上方图表控件更新/);
+  assert.match(source, /data-asset-block-load="financials" disabled/);
   assert.match(source, /加载中 · 尚无快照/);
 });
 

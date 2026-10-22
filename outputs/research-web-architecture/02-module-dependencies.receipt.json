@@ -3,15 +3,15 @@
   "ok": true,
   "command": "deliver",
   "type": "architecture",
-  "input": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/wind-asset-workspace-20261022/docs/architecture/research-web/diagrams/02-module-dependencies-final.json",
-  "output": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/wind-asset-workspace-20261022/outputs/research-web-architecture/02-module-dependencies.html",
+  "input": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/wind-date-window-20261022/docs/architecture/research-web/diagrams/02-module-dependencies-final.json",
+  "output": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/wind-date-window-20261022/outputs/research-web-architecture/02-module-dependencies.html",
   "specification": {
-    "sha256": "4b881aa9fe18f81031773534b045a9138821697cd17e220f9ade9bf62f61ba03",
-    "bytes": 14172
+    "sha256": "2c25ec1766306bdbf8c57dabd28ca41afcc2694a8a2df57be23886a2e5270ae9",
+    "bytes": 14704
   },
   "artifact": {
-    "sha256": "9f3145259444249bf33a721c8e64523cbf9dec30b58f1e2ec468d77ca9f1a311",
-    "bytes": 659500
+    "sha256": "901ff7080b070fc4dfed9bb21969841f536cb9359c27b3a545be6684164c6329",
+    "bytes": 661500
   },
   "validation": {
     "checksPassed": 9,

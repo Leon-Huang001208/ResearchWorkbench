@@ -1,6 +1,13 @@
 // Asset identity stays separate from the six-digit upstream news identifier.
 export const ASSET_VIEWS = ['overview', 'financials', 'capital', 'holders', 'news', 'announcements', 'materials'];
 export const ASSET_TYPES = ['stock', 'etf', 'index', 'fund', 'theme'];
+export function assetTopicKey(key, view = 'overview') {
+  const index = Math.max(0, ASSET_VIEWS.indexOf(view));
+  if (key === 'Home') return ASSET_VIEWS[0];
+  if (key === 'End') return ASSET_VIEWS.at(-1);
+  if (!['ArrowLeft', 'ArrowRight'].includes(key)) return null;
+  return ASSET_VIEWS[(index + (key === 'ArrowRight' ? 1 : -1) + ASSET_VIEWS.length) % ASSET_VIEWS.length];
+}
 export const cleanAsset = value => /^[A-Za-z0-9][A-Za-z0-9._-]{1,31}$/.test(String(value || '')) ? String(value).toUpperCase() : '';
 export function assetHref(asset = '', assetType = 'stock', view = 'overview') {
   const params = new URLSearchParams({ view: ASSET_VIEWS.includes(view) ? view : 'overview' });

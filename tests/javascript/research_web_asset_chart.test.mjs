@@ -36,6 +36,21 @@ test('panel preferences normalize, deduplicate, allow none and notify only user 
   assert.deepEqual(option.dataZoom[1].xAxisIndex, [0]);
 });
 
+test('history status refresh leaves identical native date properties untouched', () => {
+  const f = fakeDOM(); const input = rows(300); const date = {}; const values = { value: '', min: '', max: '' }; const writes = { value: 0, min: 0, max: 0 };
+  for (const key of Object.keys(values)) Object.defineProperty(date, key, { get: () => values[key], set: next => { values[key] = next; writes[key]++; } });
+  f.nodes.set('[data-asset-selected-date]', date);
+  const c = createAssetChartController();
+  c.configure(input, 'one', { assetIdentity: 'same', historyJob: { status: 'queued' } }); c.mount(f.node); f.flush();
+  for (const key of Object.keys(writes)) writes[key] = 0;
+  c.configure(input, 'one', { assetIdentity: 'same', historyJob: { status: 'completed' } }); f.flush();
+  assert.deepEqual(writes, { value: 0, min: 0, max: 0 });
+  c.selectDate(day(80)); f.flush(); assert.deepEqual(writes, { value: 1, min: 0, max: 0 });
+  c.configure(rows(301), 'two', { assetIdentity: 'same' }); f.flush();
+  assert.deepEqual(writes, { value: 1, min: 0, max: 1 });
+  assert.equal(date.value, day(80)); assert.equal(date.max, day(300)); c.dispose();
+});
+
 test('selected actual date survives every viewport gesture, leave and same-asset version refresh', () => {
   const c = createAssetChartController(); const metadata = { frequency: 'daily', assetIdentity: { code: '603986.SH', type: 'stock' } };
   c.configure(rows(300), 'dataset-v1', metadata); c.select(180);
@@ -49,13 +64,57 @@ test('selected actual date survives every viewport gesture, leave and same-asset
   c.handle(click('latest')); assert.equal(c.getState().selectedDate, day(304));
 });
 
+test('recent 120 resets only the viewport while latest explicitly selects the last trade day', () => {
+  const f = fakeDOM(); const c = createAssetChartController();
+  c.configure(rows(300), 'one'); c.mount(f.node); c.select(80); f.flush();
+  const points = f.instances[1].option.series[0].data; const stats = f.nodes.get('[data-asset-chip-stats]').innerHTML;
+  const readout = f.nodes.get('[data-asset-history]').innerHTML;
+  assert.equal(points.length, 180);
+  c.zoom(.5); c.pan(1000); f.flush();
+  assert.equal(c.getState().end - c.getState().start, 60);
+  c.handle(click('reset')); f.flush();
+  const state = c.getState();
+  assert.equal(state.start, 180); assert.equal(state.end, 300);
+  assert.equal(state.selectedDate, day(80)); assert.equal(state.activeIndex, 80);
+  assert.equal(state.selectedOutsideView, true);
+  assert.deepEqual(f.instances[1].option.series[0].data, points);
+  assert.equal(f.nodes.get('[data-asset-chip-stats]').innerHTML, stats);
+  assert.equal(f.nodes.get('[data-asset-history]').innerHTML, readout);
+  assert.match(f.nodes.get('[data-asset-chip-window]').textContent, new RegExp(`${day(0)}.*${day(80)}`));
+  c.handle(click('latest')); f.flush();
+  assert.equal(c.getState().selectedDate, day(299)); assert.equal(c.getState().activeIndex, 299);
+  assert.equal(c.getState().start, 180); assert.equal(c.getState().end, 300);
+  assert.equal(c.getState().selectedOutsideView, false);
+  assert.match(f.nodes.get('[data-asset-chip-window]').textContent, new RegExp(day(299)));
+  c.dispose();
+});
+
+for (const period of ['week', 'month']) {
+  test(`recent 120 preserves an actual trade day and its ${period} aggregate index`, () => {
+    const input = rows(900).filter(bar => ![0, 6].includes(new Date(`${bar.date}T00:00:00Z`).getUTCDay()));
+    const c = createAssetChartController(); c.configure(input, 'one');
+    c.selectDate(day(14)); c.handle(click(`period-${period}`));
+    const aggregated = aggregateMarketBars(enrichMarketBars(input), period);
+    const selected = c.getState();
+    assert.notEqual(selected.selectedDate, aggregated[selected.activeIndex].source_end_date);
+    c.zoom(.5); c.pan(-1000); c.reset();
+    assert.equal(c.getState().selectedDate, day(14)); assert.equal(c.getState().activeIndex, selected.activeIndex);
+    assert.equal(c.getState().start, Math.max(0, aggregated.length - 120));
+    assert.equal(c.getState().end, aggregated.length);
+    c.handle(click('latest'));
+    assert.equal(c.getState().selectedDate, input.at(-1).date);
+    assert.equal(c.getState().activeIndex, aggregated.length - 1);
+    assert.equal(c.getState().selectedOutsideView, false);
+  });
+}
+
 test('daily cumulative chip statistics remain identical after zoom, overlays and period changes', () => {
   const f = fakeDOM(); const c = createAssetChartController();
   c.configure(rows(300), 'version-one', { assetIdentity: '603986.SH:stock', asset_history: { canonical_version: 'v1', factor_version: 'f1', adjustment: 'qfq' } });
   c.mount(f.node); c.select(180); f.flush();
   const points = f.instances[1].option.series[0].data; const stats = f.nodes.get('[data-asset-chip-stats]').innerHTML;
   assert.equal(points.length, 180); assert.match(f.nodes.get('[data-asset-chip-window]').textContent, new RegExp(`${day(0)}.*${day(180)}`));
-  for (const action of ['zoom-in', 'pan-forward', 'overlay-boll', 'period-week', 'period-month', 'period-day']) {
+  for (const action of ['zoom-in', 'pan-forward', 'reset', 'overlay-boll', 'period-week', 'period-month', 'period-day']) {
     c.handle(click(action)); f.flush();
     assert.equal(c.getState().selectedDate, day(180));
     assert.deepEqual(f.instances[1].option.series[0].data, points, action);
@@ -581,6 +640,27 @@ test('mounted configure refreshes metadata and can recover from an initially mis
   assert.equal(f.instances.length, 2); assert.match(f.nodes.get('[data-asset-chart-metadata]').textContent, /CNY 前复权/); c.dispose();
 });
 
+test('real pinned ECharts retains candle bodies above 600 rows with only 120 visible bars', () => {
+  const timers = new Set();
+  const runtime = { console, clearTimeout, setTimeout: (callback, delay) => { const timer = setTimeout(callback, delay); timers.add(timer); return timer; } };
+  runInNewContext(readFileSync(new URL('../../app/research_web/ui/vendor/echarts-5.5.0.min.js', import.meta.url), 'utf8'), runtime);
+  const chart = runtime.echarts.init(null, null, { renderer: 'svg', ssr: true, width: 1000, height: 400 });
+  try {
+    chart.setOption(buildMarketChartOption(enrichMarketBars(rows(2261)), { start: 2141, end: 2261, panels: [] }));
+    const model = chart.getModel().getSeriesByType('candlestick')[0]; const data = model.getData();
+    assert.equal(data.count(), 2261);
+    assert.equal(chart.getOption().dataZoom[0].startValue, 2141);
+    assert.equal(chart.getOption().dataZoom[0].endValue, 2260);
+    for (const index of [2142, 2200, 2259]) {
+      const candle = data.getItemGraphicEl(index);
+      assert.ok(candle, `visible candle ${index} must have a body graphic (large=${model.pipelineContext.large})`);
+      const body = candle.shape.points.slice(0, 4);
+      assert.ok(Math.max(...body.map(point => point[0])) > Math.min(...body.map(point => point[0])), 'candle body must have positive width');
+      assert.ok(Math.max(...body.map(point => point[1])) > Math.min(...body.map(point => point[1])), 'unequal open/close must have positive body height');
+    }
+  } finally { chart.dispose(); for (const timer of timers) clearTimeout(timer); }
+});
+
 test('real pinned ECharts creates every series view and survives controls, keyboard, cancel and native zoom', () => {
   const timers = new Set();
   const runtime = { console, clearTimeout, setTimeout: (callback, delay) => { const timer = setTimeout(callback, delay); timers.add(timer); return timer; } };
@@ -600,11 +680,11 @@ test('real pinned ECharts creates every series view and survives controls, keybo
   try {
     c.configure(rows(320), 'one');
     for (const mode of ['dark', 'light', 'dark']) {
-      const palette = pageTheme(f, mode); c.reset(); c.mount(f.node); f.flush(); viewsAreReady();
+      const palette = pageTheme(f, mode); c.handle(click('latest')); c.mount(f.node); f.flush(); viewsAreReady();
       assert.equal(charts.at(-2).getOption().backgroundColor, 'transparent');
       assert.equal(charts.at(-1).getOption().backgroundColor, 'transparent');
       assert.equal(charts.at(-2).getOption().xAxis[0].axisLabel.color, palette['--muted']);
-      for (const action of ['ma-250', 'ma-250', 'overlay-boll', 'overlay-none', 'overlay-ma', 'period-week', 'period-month', 'period-day', 'all', 'reset']) {
+      for (const action of ['ma-250', 'ma-250', 'overlay-boll', 'overlay-none', 'overlay-ma', 'period-week', 'period-month', 'period-day', 'all', 'reset', 'latest']) {
         c.cancel(); c.handle(click(action)); f.flush(); viewsAreReady();
       }
       c.handle({ type: 'keydown', key: 'ArrowLeft', target: { closest: () => ({}) } }); f.flush();

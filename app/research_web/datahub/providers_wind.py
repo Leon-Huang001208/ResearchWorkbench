@@ -444,6 +444,7 @@ def _requested_output_fields(query: BusinessQuery) -> frozenset[str]:
         for field in requested
         if field in source_to_output and field not in {"code", "trade_date"}
     }
+    projected.update(field for field in requested if field in {"pb_mrq", "ps_ttm"})
     return frozenset(projected) or _MINIMUM_OUTPUT_FIELDS[_schema_key(query)]
 
 
@@ -551,6 +552,8 @@ def _invoke(query: BusinessQuery, adapter: Any) -> Any:
             "turnover",
             "pe_ttm",
             "pb",
+            "pb_mrq",
+            "ps_ttm",
             "pcf_ocf_ttm",
             "total_shares",
         }

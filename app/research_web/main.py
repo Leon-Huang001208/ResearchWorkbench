@@ -462,6 +462,7 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
                     not isinstance(row, dict) or row.get("status") not in terminal_reports
                     for row in report_runs.values()
                 )
+                workspace = research.asset_workspace
                 active = bool(
                     active
                     or history_active
@@ -471,6 +472,9 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
                     or report_active
                     or getattr(report_runtime, "tasks", {})
                     or getattr(getattr(research, "datahub", None), "tasks", {})
+                    or workspace.directory.active
+                    or any(not task.done() for task in workspace.tasks.values())
+                    or research.datahub.directory_tasks
                 )
             except Exception as exc:  # noqa: BLE001 - unknown activity must fail closed
                 # Unknown worker activity must never certify a safe resident stop.

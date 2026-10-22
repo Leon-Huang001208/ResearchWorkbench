@@ -173,6 +173,8 @@ class HistoryJobs:
         if not re.fullmatch(r"[A-Za-z0-9_.:-]{8,128}", key):
             raise fail("history_key_invalid", "Idempotency-Key 格式非法", 400)
         payload = body.model_dump()
+        if body.as_of is None:
+            payload.pop("as_of")
         key_hash = digest([oid, key])
         existing = self.store.data["asset_history_keys"].get(key_hash)
         if existing:
@@ -199,13 +201,21 @@ class HistoryJobs:
                 previous[k] != payload[k] for k in ("scope", "adjustment")
             ):
                 raise fail("history_retry_invalid", "仅可显式重试相同口径的失败或中断任务")
+            if body.as_of is not None and body.as_of != previous["requested_as_of"]:
+                raise fail("history_retry_invalid", "重试必须保留原复权截止日")
         request = observation.get("request", {})
         end = iso_date(
-            request.get("section_ranges", {}).get("history", {}).get("end_date")
+            body.as_of
+            or request.get("section_ranges", {}).get("history", {}).get("end_date")
             or request.get("end_date")
             or datetime.now(ZoneInfo("Asia/Shanghai")).date().isoformat()
         )
         end_day = datetime.fromisoformat(end).date()
+        if (
+            body.as_of is not None
+            and not FLOOR <= end_day <= datetime.now(ZoneInfo("Asia/Shanghai")).date()
+        ):
+            raise fail("history_date_invalid", "历史截止日须在1990年至今的范围内", 400)
         start_day = shift_years(end_day, -2) if body.scope == "recent" else FLOOR
         if body.scope == "older":
             if not canonical:
@@ -603,7 +613,11 @@ class HistoryJobs:
         previous_status = observation["status"]
         previous_updated = observation.get("updated_at")
         block.update(
-            status="complete" if adjusted else "empty", dataset=manifest, failure_code=None
+            status="complete" if adjusted else "empty",
+            dataset=manifest,
+            failure_code=None,
+            requested_range={"start_date": scanned_start, "end_date": row["requested_as_of"]},
+            loaded_at=time.time(),
         )
         row.update(
             expected_dataset_id=manifest["dataset_id"],

@@ -6,7 +6,11 @@
 
 市场部署的 read_business_index 复用原64MiB业务上限；retention、idle及市场profile的verify_primary统一使用该读取器，gateway_upgrade.py仅增加默认仍为原元数据读取器的显式参数。市场profile单独固定该模块SHA-256，旧profiles不接受新增例外；大索引及网关额外字节/模式/删除拒绝由同一操作员测试覆盖。
 
-2026-10-22 全市场常驻部署使用封闭 `reviewed-market-overview-v1` / `apply-market`：旧版固定 `4d2e3c408663b64be9e58b03213f4ca8f1152733`，产品固定已合并 PR179 `5de7e5f2db95b8b501905af9cfdc30e8fe84db0b`。复用原 version4 事务、空闲准入、BirthFence、全部账号索引冻结和内容寻址恢复；旧 profile、控制器、证据读取器及自动兼容白名单保持。操作员候选须独立评审及原三项 CI／同候选 Mac 安装通过，再按用户授权切换并在真实认证页面验收。 无新服务、HTTP、持久格式或依赖；现有图及 API Atlas 准确，不重画 HTML/PNG。Windows/Linux 原生与 Docker 产品层保持各自未执行状态。
+2026-10-22 全市场常驻部署使用封闭 `reviewed-market-overview-v1` / `apply-market`：旧版固定 `4d2e3c408663b64be9e58b03213f4ca8f1152733`，产品固定已合并 PR179 `5de7e5f2db95b8b501905af9cfdc30e8fe84db0b`。复用原 version4 事务、空闲准入、BirthFence、全部账号索引冻结和内容寻址恢复；旧 profile、控制器、证据读取器及自动兼容白名单保持。操作员候选须独立评审及原三项 CI／同候选 Mac 安装通过，再按用户授权切换并在真实认证页面验收。 该封闭部署事务本身不新增服务、HTTP、持久格式或依赖；它沿用当时已审的图与 API Atlas，不要求重画 HTML/PNG。Windows/Linux 原生与 Docker 产品层保持各自未执行状态。
+
+2026-10-22 资产交互与数据定位：`asset_directory.py`负责账号目录索引、代码／名称／GB2312简拼排序、24小时缓存、授权指纹与有界原子文件；DataHub `directory_fingerprint/asset_directory`负责显式天软授权和同namespace凭据读取前后的复核，`providers_cjpy.fetch_directory`沿原SDK容量分批取得完整目录。`asset_routes.py`新增搜索与区块load端点，`asset_workspace.py`负责旧观察缺块补建、15分钟缓存、成功受理签名、来源／区间409、统一区块锁、失败原位回滚和旧快照保留；活动目录／区块任务进入原resident活动投影及关闭边界。
+
+`datahub/providers_cjpy_assets.py`保存固定表／字段／因子合同；`providers_cjpy.py`继续拥有真实SDK Future、容量与关闭，Broker按dataset选择实际支持的来源。AKShare标准字段与原中文列并存，不派生流出或资金构成。前端 `asset-search.mjs`提供单A股搜索与账号／代次取消，`asset-controller.mjs`按专题激活和初次overview→recent qfq加载，`asset-workspace.mjs/css`保留图表／指标并局部替换专题；`asset-projection.mjs`按真实估值、报告期、股东和行业字段投影，独立新闻／公告控制器保留60秒缓存。新回归为 `test_asset_directory.py`、`test_asset_loading.py`、`test_cjpy_asset_data.py`、`test_asset_provider_normalization.py`及资产搜索／专题JS和E2E；原资产、历史、Provider、安装门均保留。合同见[UI](research-web-ui.md#资产观察工作台)、[DataHub](research-web-datahub.md#资产目录与结构化区块)、架构03／04／05章；源码与本机夹具通过不代替同候选CI、真实浏览器或部署。
 
 2026-10-22 v4 profile在`resident/model_provider_upgrade.py`的ASSET_V4_MODE/PREVIOUS/PAYLOAD、封闭previous_for/review_assets和CLI分派中维护，近处回归为test_model_provider_upgrade.py；操作员/测试由独立实现者负责。旧5495固定，产品固定PR180真实merge `9b436613aad9136f4959c992c89dd72fc7354ed5`；654fa6只保留在历史候选证据中。旧v1/v2/v3/controller/evidence/保全门及依赖/CI不变，既有图准确，不改HTML/PNG。产品三CI不替代v4最终本机/评审/CI/部署证据，见[部署合同](research-web-gateway-upgrade.md#资产观察固定版本联合部署)。
 

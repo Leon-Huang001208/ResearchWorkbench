@@ -941,13 +941,14 @@ async def test_mixed_sources_use_real_broker_providers_and_saved_refresh_scope(
     assert tinysoft_calls[0]["start"] == "2025-09-11"
     assert tinysoft_calls[0]["end"] == "2026-09-11"
     valuation = item["blocks"]["valuation"]
-    assert valuation["status"] == "complete", valuation
+    assert valuation["status"] == "partial", valuation
+    assert "partial_fields_missing" in valuation["dataset"]["limitations"]
     assert valuation["requested_source"] == "wind"
     assert valuation["requested_range"] == {}
     assert valuation["dataset"]["query"]["parameters"] == {
         "assets": ["600519.SH"],
         "asset_type": "stock",
-        "fields": ["close", "pe_ttm", "pb", "total_shares"],
+        "fields": ["close", "pe_ttm", "pb", "pb_mrq", "ps_ttm", "total_shares"],
     }
     assert item["blocks"]["holders"]["dataset"]["query"]["parameters"] == {
         "asset": "600519.SH",

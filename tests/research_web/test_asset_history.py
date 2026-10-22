@@ -118,6 +118,34 @@ async def settle(ws):
     await asyncio.gather(*list(ws.history_jobs.tasks.values()))
 
 
+@pytest.mark.asyncio
+async def test_explicit_new_quote_cutoff_builds_new_version_without_rewriting_old_request(tmp_path):
+    ws, hub, oid = workspace(tmp_path)
+    first = await ws.history_jobs.create(
+        oid, HistoryJobRequest(scope="all", adjustment="qfq"), "old-cutoff"
+    )
+    await settle(ws)
+    old_dataset = ws.observation(oid)["blocks"]["history"]["dataset"]
+    second = await ws.history_jobs.create(
+        oid, HistoryJobRequest(scope="all", adjustment="qfq", as_of="2026-10-21"), "new-cutoff"
+    )
+    await settle(ws)
+    latest = ws.observation(oid)["blocks"]["history"]["dataset"]
+    assert ws.history_jobs.get(oid, first["id"])["state"] == "completed"
+    assert ws.history_jobs.get(oid, second["id"])["state"] == "completed"
+    assert latest["asset_history"]["requested_as_of"] == "2026-10-21"
+    assert old_dataset["asset_history"]["requested_as_of"] == "2026-10-20"
+    assert latest["dataset_id"] != old_dataset["dataset_id"]
+    assert ws.observation(oid)["blocks"]["history"]["requested_range"]["end_date"] == "2026-10-21"
+    assert ws.store.data["asset_observations"][oid]["request"]["end_date"] == "2026-10-20"
+    assert hub.detail(ws.observation(oid)["session_id"], old_dataset["dataset_id"])
+
+
+def test_older_history_cannot_replace_the_anchor_with_a_new_cutoff():
+    with pytest.raises(ValueError):
+        HistoryJobRequest(scope="older", adjustment="qfq", as_of="2026-10-21")
+
+
 def test_research_dataset_summary_keeps_history_metadata_without_private_inputs(tmp_path):
     from app.research_web.datahub import DataHub
 

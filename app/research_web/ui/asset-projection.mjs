@@ -14,10 +14,11 @@ function cell(row, keys, meta = {}, block = {}, allowBoolean = false) {
   const field = fieldMeta(meta, key);
   const unit = key ? field.unit || meta.units?.[key] || null : null;
   const nonCurrency = nonCurrencyKeys.has(key) || ['ratio', 'percent', '%', '倍', 'share', 'shares', '股', '万股', '亿股'].includes(String(unit || '').toLowerCase());
-  return { value: key ? row[key] : null, key: key || null, unit, currency: key && !nonCurrency ? field.currency || meta.currency || null : null, provider: sourceOf(meta), date: dateOf(row), reportPeriod: reportPeriodOf(row), state: block.status || (key ? 'partial' : 'unavailable') };
+  return { value: key ? row[key] : null, key: key || null, unit, currency: key && !nonCurrency ? field.currency || meta.currency || null : null, basis: field.basis || null, provider: sourceOf(meta), date: dateOf(row), reportPeriod: reportPeriodOf(row), state: block.status || (key ? 'partial' : 'unavailable') };
 }
 function latest(rows = []) {
-  return rows.reduce((selected, row) => !selected || (String(dateOf(row) || reportPeriodOf(row) || '') > String(dateOf(selected) || reportPeriodOf(selected) || '')) ? row : selected, null) || {};
+  const key = row => `${reportPeriodOf(row) || dateOf(row) || ''}:${row?.published_at || ''}`;
+  return rows.reduce((selected, row) => !selected || key(row) > key(selected) ? row : selected, null) || {};
 }
 function asBlock(observation, name) {
   const block = observation?.blocks?.[name] || {};
@@ -29,7 +30,7 @@ function sharesCell(value) {
   const unitVerified = value.provider !== 'wind' && shareUnit(value.unit);
   return { ...value, unitVerified, unitNote: value.provider === 'wind' ? '单位为来源声明，尚未核验 Wind 原始返回数量级；不据此推导市值。' : unitVerified ? null : '来源未提供可核验的股本单位；不据此推导市值。' };
 }
-const COVERAGE_BLOCKS = [['overview', '资产概览'], ['history', '历史行情'], ['valuation', '估值'], ['financials', '财务指标'], ['activity', '资金流'], ['margin', '融资融券'], ['holders', '股东与机构持仓汇总'], ['research', '研究资料']];
+const COVERAGE_BLOCKS = [['overview', '资产概览'], ['history', '历史行情'], ['valuation', '估值'], ['financials', '财务指标'], ['activity', '资金流'], ['margin', '融资融券'], ['holders', '股东与机构持仓汇总'], ['holder_details', '前十大股东'], ['industry', '行业'], ['events', '公告事件'], ['research', '研究资料']];
 function rangeOf(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
   const range = Object.fromEntries(['start_date', 'end_date'].filter(key => !missing(value[key])).map(key => [key, value[key]]));
@@ -53,8 +54,10 @@ function projectCoverage(rows, observation, blocks) {
     const periods = [...new Set(loaded.map(reportPeriodOf).filter(value => !missing(value)))].sort((a, b) => String(a).localeCompare(String(b)));
     const status = block.status || meta.status || 'unavailable'; const datasetId = meta.dataset_id || null; const hasSnapshot = loaded.length > 0 && Boolean(datasetId);
     const failureCode = block.failure_code || null;
+    const unsupported = ['not_implemented', 'data_provider_not_implemented', 'tinysoft_capability_unsupported'].includes(failureCode);
+    const loadState = !recorded ? 'not_loaded' : unsupported ? 'not_connected' : status === 'loading' ? hasSnapshot ? 'refreshing' : 'loading' : failureCode || ['error', 'unavailable'].includes(status) ? hasSnapshot && failureCode !== 'snapshot_read_failed' ? 'stale' : 'error' : status === 'empty' ? 'empty' : hasSnapshot ? 'ready' : 'not_loaded';
     const requestedRange = recorded ? rangeOf(block.requested_range) || rangeOf(request.section_ranges?.[id]) || rangeOf(meta.requested_range) || (['history', 'activity', 'margin'].includes(id) ? rangeOf(request) : null) : null;
-    return { id, label, status, requestedSource: recorded ? block.requested_source || request.section_sources?.[id] || observation.source || meta.query?.source || null : null, provider: sourceOf(meta), datasetId, loadedRowCount: loaded.length, hasSnapshot, asOf: meta.as_of || null, retrievedAt: meta.retrieved_at || null, dataDate: dates.at(-1) || null, reportPeriods: periods, requestedRange, actualRange: rangeOf(meta.actual_range), loadedRange: dates.length ? { start_date: dates[0], end_date: dates.at(-1) } : null, requestedFrequency: recorded && id === 'history' ? request.frequency || meta.query?.parameters?.frequency || null : null, requestedAdjustment: recorded && id === 'history' ? request.adjustment || meta.query?.parameters?.adjustment || null : null, fields: declaredFields(meta), limitations: Array.isArray(meta.limitations) ? [...meta.limitations] : [], failureCode, retainedSnapshot: hasSnapshot && failureCode !== 'snapshot_read_failed' && Boolean(failureCode || ['error', 'unavailable'].includes(status)) };
+    return { id, label, status, loadState, requestedSource: recorded ? block.requested_source || request.section_sources?.[id] || observation.source || meta.query?.source || null : null, provider: sourceOf(meta), datasetId, loadedRowCount: loaded.length, hasSnapshot, asOf: meta.as_of || null, retrievedAt: meta.retrieved_at || null, dataDate: dates.at(-1) || null, reportPeriods: periods, requestedRange, actualRange: rangeOf(meta.actual_range), loadedRange: dates.length ? { start_date: dates[0], end_date: dates.at(-1) } : null, requestedFrequency: recorded && id === 'history' ? request.frequency || meta.query?.parameters?.frequency || null : null, requestedAdjustment: recorded && id === 'history' ? request.adjustment || meta.query?.parameters?.adjustment || null : null, fields: declaredFields(meta), limitations: Array.isArray(meta.limitations) ? [...meta.limitations] : [], failureCode, retainedSnapshot: hasSnapshot && failureCode !== 'snapshot_read_failed' && Boolean(failureCode || ['error', 'unavailable'].includes(status)) };
   });
 }
 function qualifiedTTM(value, meta) {
@@ -80,13 +83,20 @@ function capitalPartition(row, meta) {
 }
 
 export function projectAssetObservation(rows = {}, observation = {}) {
-  const blocks = Object.fromEntries(['overview', 'history', 'valuation', 'financials', 'activity', 'margin', 'holders', 'research', 'industry', 'events', 'macro', 'shareholders'].map(name => [name, asBlock(observation, name)]));
+  const blocks = Object.fromEntries(['overview', 'history', 'valuation', 'financials', 'activity', 'margin', 'holders', 'holder_details', 'research', 'industry', 'events', 'macro', 'shareholders'].map(name => [name, asBlock(observation, name)]));
   const overview = latest(rows.overview); const history = [...(rows.history || [])].sort((a, b) => String(dateOf(a) || '').localeCompare(String(dateOf(b) || ''))); const historical = history.at(-1) || {};
   const hasQuote = ['price', 'last', 'close', 'nav'].some(key => numeric(overview[key]) !== null);
   const quote = hasQuote ? overview : historical; const quoteBlock = hasQuote ? blocks.overview : blocks.history;
   const q = keys => cell(quote, keys, quoteBlock.dataset, quoteBlock);
   const hasOverview = (rows.overview || []).length > 0; const trading = hasOverview ? overview : historical; const tradingBlock = hasOverview ? blocks.overview : blocks.history;
-  const t = keys => cell(trading, keys, tradingBlock.dataset, tradingBlock);
+  const t = keys => {
+    const value = cell(trading, keys, tradingBlock.dataset, tradingBlock);
+    if (keys.includes('turnover_rate_pct') && missing(value.value)) {
+      const candidate = latest(rows.valuation);
+      if (sourceOf(tradingBlock.dataset) && sourceOf(tradingBlock.dataset) === sourceOf(blocks.valuation.dataset) && dateOf(trading) && dateOf(trading) === dateOf(candidate)) return cell(candidate, keys, blocks.valuation.dataset, blocks.valuation);
+    }
+    return value;
+  };
   const valuation = latest(rows.valuation); const v = keys => cell(valuation, keys, blocks.valuation.dataset, blocks.valuation);
   const financial = latest(rows.financials); const f = keys => cell(financial, keys, blocks.financials.dataset, blocks.financials);
   const price = q(['price', 'last', 'close', 'nav', '收盘']); const previous = q(['yclose', 'pre_close', '昨收']);
@@ -108,8 +118,8 @@ export function projectAssetObservation(rows = {}, observation = {}) {
   const span = (Date.parse(rangeEnd) - Date.parse(rangeStart)) / 86400000;
   const verifiedYear = blocks.history.status === 'complete' && blocks.history.dataset.pagination_complete === true && (coverage?.complete === true || coverage?.full_year === true) && rangeStart && rangeEnd && span >= 364 && span <= 366;
   const activity = latest(rows.activity); const a = keys => cell(activity, keys, blocks.activity.dataset, blocks.activity);
-  const shareholderRows = (rows.shareholders || rows.holders || []).filter(row => !missing(row.shareholder_name) || !missing(row.holder_name) || (rows.shareholders && !missing(row.name)));
-  const shareholderBlock = rows.shareholders ? blocks.shareholders : blocks.holders;
+  const shareholderRows = (rows.holder_details || rows.shareholders || rows.holders || []).filter(row => !missing(row.shareholder_name) || !missing(row.holder_name) || ((rows.shareholders || rows.holder_details) && !missing(row.name)));
+  const shareholderBlock = rows.holder_details ? blocks.holder_details : rows.shareholders ? blocks.shareholders : blocks.holders;
   const shareholders = shareholderRows.slice(0, 10).map(row => ({ name: cell(row, ['shareholder_name', 'holder_name', 'name'], shareholderBlock.dataset, shareholderBlock), ratio: cell(row, ['share_ratio', 'holding_ratio'], shareholderBlock.dataset, shareholderBlock), change: cell(row, ['change_ratio', 'holding_change_ratio'], shareholderBlock.dataset, shareholderBlock), stateOwned: cell(row, ['is_state_owned', 'state_owned'], shareholderBlock.dataset, shareholderBlock, true) }));
   const industryRow = latest(rows.industry); const i = keys => cell(industryRow, keys, blocks.industry.dataset, blocks.industry);
   const events = (rows.events || []).map(row => ({ summary: cell(row, ['summary', 'title'], blocks.events.dataset, blocks.events), type: cell(row, ['event_type', 'type'], blocks.events.dataset, blocks.events), time: cell(row, ['publish_date', 'created_at', 'date'], blocks.events.dataset, blocks.events) }));
