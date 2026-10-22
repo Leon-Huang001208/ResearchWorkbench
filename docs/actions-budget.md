@@ -1,5 +1,7 @@
 # GitHub Actions 免费额度治理
 
+2026-10-23公开indices仓库桥仅向原Research Web Checks的同一pytest步骤追加test_market_reader.py和test_market_reader_live_postgres.py；原job、runner、timeout、依赖、条件和全部平台门不变。无显式RWB_MARKET_STORE_LIVE_PG=1时真实PG测试保持skip，不能认证CI PostgreSQL已通过。本机定点闭包128例4.30秒，新增模块预留15秒；远端visibility/额度仍由root发布前实时复查，本次实现者不push/dispatch/rerun，也不调用厂商或模型。
+
 主线PR188推进后，旧a114候选三CI全PASS保持原候选归属，不能作为新组合候选PASS。当前用户已批准组合验收后将已合并锁定baostock0.9.4／psycopg3.3.6一起部署到常驻，数据库不启用／不迁移、外盘不改；此前隔离授权记录不冒充这次授权。root沿原三CI／同候选Mac安装正常重绑，不手工rerun、不加job／runner或削减门；下述PUBLIC／耗时均为历史快照，远端动作前仍实时核对。
 
 PR187资产v5索引修复的Project Constraints run39794625674因模块文档覆盖和meaningful structure review缺失失败，原失败日志保留。补齐文档后沿同PR正常修补发布并等待原三CI／同候选Mac Bootstrap，不手工rerun、不新增job／runner／依赖或削减门。769＋112本机及173项独评属于各自源候选证据，不转写为新CI通过；当前visibility／额度仍由root在远端操作前实时核验，本次文档任务不触发Actions或部署。

@@ -123,6 +123,22 @@ class ResearchWarehouse:
         profile = self._profile()
         return profile["owner"] if profile else "unconfigured-" + self._namespace
 
+    def capture_identity(self):
+        """Non-secret personal profile epoch for trusted sessionless Host readers."""
+        # Profiles publish atomically. Do not wait on the database operation lock
+        # from the event loop: cancellation must remain able to drain its worker.
+        profile = self._profile()
+        if profile is None:
+            return None
+        return {
+            "id": profile["id"],
+            "owner": profile["owner"],
+            "enabled": profile["enabled"],
+            "configuration_digest": hashlib.sha256(
+                json.dumps(profile["configuration"], sort_keys=True).encode()
+            ).hexdigest(),
+        }
+
     def _write(self, value):
         with directory(self.root, (), private=True) as root:
             atomic_json(root, "warehouse.json", value)
@@ -740,6 +756,7 @@ class ResearchWarehouse:
                 current
                 and current["enabled"]
                 and current["id"] == profile["id"]
+                and current["configuration"] == profile["configuration"]
                 and actor == profile["owner"]
                 and requested == scope
             )

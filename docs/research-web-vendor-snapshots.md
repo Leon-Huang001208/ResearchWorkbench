@@ -1,5 +1,9 @@
 # 供应商原生研究快照
 
+2026-10-23固定公开指数桥：额外仅接受source=eastmoney、capability=market_snapshot、asset_type=index、assets严格等于`providers_market.INDEXES`的12个有序身份及固定price/change/change_pct/as_of/series字段。不存在任意market_snapshot扩权。Host把完整MarketProvider响应放在单个`rows[0].response`封包并保留该规范JSON字节为原件；这是Provider响应捕获，不冒充未由适配器暴露的HTTP wire原字节。完整12行、分页完整、missing均为零、每行报价/时间/有界分时齐备才可入仓；partial/failed和无原件仍拒绝。原生点位/百分比与分时语义原样保留，不证明第二来源单位等价。读取仍遵守下文300秒display+allow_stale规则，显式refresh绕过读取。具体Host/profile授权及降级见[DataHub](research-web-datahub.md)。
+
+完整字段捕获还逐行核对固定code/name/stale=False、price/change/change_pct有限数值、上海时区完整ISO秒报价时间；每个分时点须为含time/price/change_pct的对象，有限数值、同报价日、严格递增且不超过供应商已有5分钟未来容差。顶层as_of/quote_trade_date/temporal_complete和精确三项missing零计数必须一致。现Provider的_number可输出None，且其complete主要声明端点覆盖；这样的原响应仍原样交给市场页，但必需字段为null/缺字段/畸形时间或分时不得入仓，warehouse标为incomplete并保护旧完整捕获，不擅自改写原complete字段含义。
+
 `datahub/research_snapshot_store.py` 的 `SnapshotSeries(service, actor, scope)` 是既有 `MarketStoreService` 的受信 Host 适配器，不创建连接或 schema。actor、StoreScope、schema_identity、units_identity 必须由 Host 提供，不能从浏览器接受 owner。每次读取、归档、冻结仍经过 service 的当前 read/write/export 授权；权限撤销后缓存也不能读。
 
 支持 financials、market_activity、factor_macro、fund_data、index_data 及 asset_type 为 etf/index 的 market_bars。原生快照与股票规范行情不同。天软股票在单位尚未审核时也只走此原生合同，不提升为规范行情。已登记厂商限 akshare、baostock、wind、tinysoft 和既有 eastmoney_fund 基金来源。external_data 仅允许显式清单 `ext_fred/series`、`ext_bls/series`、`ext_worldbank/inflation`，以及当前账户的官方 `ext_ths/cmd_history_quotation`、`basic_data_service`、`real_time_quotation` 数值接口；目录、新闻、日历网页、凭据入口、用户数据库和其他自定义接口均排除。来源权限仍由 Host policy 决定，白名单本身不授予许可。

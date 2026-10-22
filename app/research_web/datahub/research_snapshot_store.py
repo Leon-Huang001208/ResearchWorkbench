@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import json
+import math
 from datetime import UTC, date, datetime, timedelta
 from threading import RLock
 from uuid import uuid4
@@ -14,6 +15,7 @@ from ..market_store import Batch, DatasetIdentity, Fact, MarketStoreError, RawOr
 from ..market_store.models import canonical, digest, parse_batch
 from .contracts import BusinessQuery
 from .providers import MAX_QUERY_BYTES, Result
+from .providers_market import INDEXES
 
 log = get_logger(__name__)
 CAPABILITIES = frozenset(
@@ -76,6 +78,99 @@ START = date(1970, 1, 1)
 NAV_SEMANTIC_GAPS = frozenset(
     {"adjusted_total_return", "benchmark_timeseries", "verified_currency"}
 )
+MARKET_INDICES_PARAMETERS = {
+    "asset_type": "index",
+    "assets": [asset for asset, _, _ in INDEXES],
+    "fields": ["price", "change", "change_pct", "as_of", "series"],
+}
+
+
+def _market_numeric(value):
+    try:
+        return type(value) in {int, float} and math.isfinite(value)
+    except OverflowError:
+        return False
+
+
+def _market_stamp(value):
+    """Match the Provider's full Shanghai ISO-second timestamp contract."""
+    if not isinstance(value, str):
+        return None
+    try:
+        stamp = datetime.fromisoformat(value)
+        if (
+            stamp.utcoffset() != timedelta(hours=8)
+            or stamp.isoformat(timespec="seconds") != value
+            or stamp.year < 1990
+            or stamp > datetime.now(UTC) + timedelta(minutes=5)
+        ):
+            return None
+        return stamp
+    except (ValueError, OverflowError):
+        return None
+
+
+def _complete_index_row(row, identity, trade_date):
+    asset, name, _secid = identity
+    stamp = _market_stamp(row.get("as_of"))
+    if (
+        row.get("asset") != asset
+        or row.get("code") != asset[:6]
+        or row.get("name") != name
+        or row.get("stale") is not False
+        or stamp is None
+        or stamp.date().isoformat() != trade_date
+        or not all(_market_numeric(row.get(field)) for field in ("price", "change", "change_pct"))
+    ):
+        return False
+    series = row.get("series")
+    if not isinstance(series, list) or not 1 <= len(series) <= 500:
+        return False
+    previous = None
+    for point in series:
+        if not isinstance(point, dict) or not all(
+            _market_numeric(point.get(field)) for field in ("price", "change_pct")
+        ):
+            return False
+        observed = _market_stamp(point.get("time"))
+        if (
+            observed is None
+            or observed.date() != stamp.date()
+            or (previous is not None and observed <= previous)
+        ):
+            return False
+        previous = observed
+    return True
+
+
+def complete_market_indices(payload):
+    """Capture all fixed index fields and well-formed intraday points, never null gaps.
+
+    Provider completeness only proves endpoint coverage. Missing numeric fields
+    can still be null in its response; preserve that response but do not call it
+    a complete warehouse capture of the required index field contract.
+    """
+    if not isinstance(payload, dict):
+        return False
+    rows = payload.get("rows")
+    return bool(
+        payload.get("provider") == "eastmoney"
+        and payload.get("complete") is True
+        and payload.get("pagination_complete") is True
+        and payload.get("temporal_complete") is True
+        and payload.get("provider_total") == len(INDEXES)
+        and isinstance(rows, list)
+        and len(rows) == len(INDEXES)
+        and all(isinstance(row, dict) for row in rows)
+        and all(
+            _complete_index_row(row, identity, payload.get("quote_trade_date"))
+            for row, identity in zip(rows, INDEXES, strict=True)
+        )
+        and _market_stamp(payload.get("as_of")) is not None
+        and payload["as_of"] == max(row["as_of"] for row in rows)
+        and payload.get("missing") == {"indices": 0, "intraday": 0, "quote_date": 0}
+        and all(type(value) is int for value in payload["missing"].values())
+    )
 
 
 def _bounded_nav_capture(query, result, source):
@@ -140,6 +235,11 @@ class SnapshotSeries:
             raise MarketStoreError("snapshot_source_mismatch")
         accepted = query.capability in CAPABILITIES and self.scope.source in SOURCES
         accepted |= (
+            query.capability == "market_snapshot"
+            and self.scope.source == "eastmoney"
+            and query.parameters == MARKET_INDICES_PARAMETERS
+        )
+        accepted |= (
             query.capability == "market_bars"
             and (
                 query.parameters.get("asset_type") in {"etf", "index"}
@@ -197,6 +297,15 @@ class SnapshotSeries:
         with self._lock:
             # Even rejected/empty outcomes recheck current read entitlement.
             previous = self._facts(dataset, None)
+            if query.capability == "market_snapshot" and (
+                len(result.rows) != 1
+                or not isinstance(result.rows[0], dict)
+                or set(result.rows[0]) != {"response"}
+                or not complete_market_indices(result.rows[0]["response"])
+                or result.pagination_complete is not True
+            ):
+                log.info("research_snapshot_not_ingested", reason="market_indices_incomplete")
+                return None
             if query.as_of is not None or result.status not in {"complete", "snapshot", "empty"}:
                 log.info("research_snapshot_not_ingested", reason="historical_or_incomplete")
                 return None

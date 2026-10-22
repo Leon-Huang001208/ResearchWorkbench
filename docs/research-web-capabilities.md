@@ -1,5 +1,7 @@
 # Research Web 能力包与版本
 
+固定公开indices个人仓库桥属于Host市场页内部适配，不新增原生Tool、Skill、Workflow或Broker公开来源绑定，不伪造研究sid。能力发布、自动化依赖和私有来源准入保持原门；仓库已持久化或命中不提升研究质量及正式回测资格。
+
 华安ETF周报在既有报告Workflow详情准备未发布的`huaan-etf-weekly-v1`继任版本，沿原版本API发布；
 不新增执行引擎或公开原生Tool。主管理员身份、同源取数、原质量门、文件交付及正式定稿分别核验，
 当前版本真实手动定稿后才可启用周五15:30日程。旧历史不继承新认证，见[周报生产合同](research-web-etf-weekly-production.md)。
