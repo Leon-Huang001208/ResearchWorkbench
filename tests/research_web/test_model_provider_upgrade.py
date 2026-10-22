@@ -921,7 +921,7 @@ def real_operations(tmp_path, monkeypatch, request):
         "binding": binding,
         "origin": config["private_origin"],
     }
-    manifest = {"code_commit": previous, "status": "installed"}
+    manifest = {"code_commit": previous, "status": "installed", "web_lock_sha256": "c" * 64}
     accepted = {"target": previous, "sentinel": "previous-accepted"}
     for path, value in (
         (root / "config.json", config),
@@ -1176,6 +1176,12 @@ def test_asset_operation_methods_restore_the_asset_previous(real_operations, fai
     expected = state["target"] if failed is None else state["previous"]
     assert result["status"] == ("deployed" if failed is None else "rolled_back")
     assert system["primary"] == system["gateway"] == expected
+    expected_manifest = {**state["manifest"], "code_commit": expected}
+    if failed is None and state["mode"] == upgrade.ASSET_V5_MODE:
+        expected_manifest["web_lock_sha256"] = (
+            "7c631d4fa5354170c622225be129a09f7f5890457aa0521bd5f46cecb6bb7102"
+        )
+    assert json.loads((home / "install/manifest.json").read_text()) == expected_manifest
     assert system["running"] and system["loaded"]
     assert not (home / "resident/transaction.json").exists()
     assert not (home / "server/run/gateway-upgrade.json").exists()
