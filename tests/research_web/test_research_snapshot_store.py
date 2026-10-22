@@ -311,6 +311,115 @@ def test_clock_conflict_never_randomly_orders_revisions(context):
     assert len(backend.history(series.scope, series.dataset(query()))) == 1
 
 
+NAV_MISSING = ["adjusted_total_return", "benchmark_timeseries", "verified_currency"]
+
+
+def nav_query(**updates):
+    return query(
+        capability="fund_data",
+        source="eastmoney_fund",
+        parameters={
+            "dataset": "nav",
+            "code": "510050",
+            "start_date": "2025-01-02",
+            "end_date": "2025-01-03",
+        },
+        **updates,
+    )
+
+
+def nav_series(context):
+    _, _, service, _ = context
+    series = SnapshotSeries(
+        service, "alice", StoreScope("alice", "public", "eastmoney_fund", "a" * 64)
+    )
+    series._now = lambda: OBSERVED
+    return series
+
+
+@pytest.mark.parametrize("dataset", ["nav", "fund_nav"])
+def test_complete_bounded_nav_preserves_disclosed_semantic_gaps(context, dataset):
+    series = nav_series(context)
+    request = nav_query()
+    request.parameters["dataset"] = dataset
+    result = response(
+        provider_id="eastmoney_fund",
+        missing=NAV_MISSING,
+        pagination_complete=True,
+        limitations=["unadjusted"],
+    )
+    assert series.ingest(request, result)
+    read = series.read(request.model_copy(update={"as_of": OBSERVED}))
+    assert read.missing == NAV_MISSING
+    assert read.fields == result.fields
+    assert "unadjusted" in read.limitations
+    assert read.metadata["quality_accepted"] is False
+    assert read.metadata["formal_backtest_eligible"] is False
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        "unknown_gap",
+        "wrong_provider",
+        "missing_provider",
+        "wrong_source",
+        "wrong_dataset",
+        "unbounded",
+        "wide",
+        "invalid_date",
+        "reversed_dates",
+        "snapshot",
+        "empty",
+        "pagination",
+        "raw",
+        "as_of",
+        "partial",
+    ],
+)
+def test_nav_exception_does_not_relax_other_capture_requirements(context, change):
+    series = nav_series(context)
+    request = nav_query()
+    result = response(provider_id="eastmoney_fund", missing=NAV_MISSING, pagination_complete=True)
+    if change == "unknown_gap":
+        result.missing = [*NAV_MISSING, "unit_nav"]
+    elif change == "wrong_provider":
+        result.provider_id = "fund_nav"
+    elif change == "missing_provider":
+        result.provider_id = None
+    elif change == "wrong_source":
+        series = SnapshotSeries(
+            series.service, "alice", StoreScope("alice", "public", "fund_nav", "a" * 64)
+        )
+        request = request.model_copy(update={"source": "fund_nav"})
+        result.provider_id = "fund_nav"
+    elif change == "wrong_dataset":
+        request.parameters["dataset"] = "profile"
+    elif change == "unbounded":
+        request.parameters.pop("start_date")
+        request.parameters.pop("end_date")
+    elif change == "wide":
+        request.parameters["end_date"] = "2025-03-03"
+    elif change == "invalid_date":
+        request.parameters["start_date"] = "not-a-date"
+    elif change == "reversed_dates":
+        request.parameters["start_date"] = "2025-01-04"
+    elif change in {"snapshot", "partial", "empty"}:
+        result.status = change
+    elif change == "pagination":
+        result.pagination_complete = False
+    elif change == "raw":
+        result.raw = []
+    else:
+        request = request.model_copy(update={"as_of": OBSERVED})
+    if change in {"as_of", "partial"}:
+        assert series.ingest(request, result) is None
+    else:
+        with pytest.raises(MarketStoreError):
+            series.ingest(request, result)
+    assert context[1].history(series.scope, series.dataset(request)) == ()
+
+
 def test_export_and_restore_actions_are_independently_authorized(context):
     series, backend, _, _ = context
     series.ingest(query(), response())

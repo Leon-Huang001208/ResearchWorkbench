@@ -401,3 +401,6 @@ Hot原件导入属于frozen_evidence/hot_evidence会话快照，不宣称为新�
 
 
 资产观察按单查询容量顺序调度 auto、Wind、天软和 AKShare 的同观察区块，避免自身触发 provider_busy；其他会话的占用仍如实返回。CJPY 将业务 daily/weekly/monthly 等价映射到 SDK day/W/M，qfq/hfq 映射前/后复权，保留原始字段与未知单位。资产图表识别原字段“时间/简称/vol”，来源数据日与读取时刻分开，不用读取时间替代交易日。既有 SDK 凭据用于隔离验收并不自动建立其他实例或账号的 DataHub 连接。
+
+
+2026-10-22 基金NAV入仓：基金NAV已接入原生研究仓：日期范围最多31日且分页完整时，保留adjusted_total_return、benchmark_timeseries、verified_currency三项已声明缺口；第二次展示查询可命中仓库，data_success与正式回测标记仍不提升。
