@@ -18,6 +18,15 @@ AlphaFoundry 只读。冻结真实底稿 57 序列、明确交易日/收盘口�
 不等于 Word 逐页版式验收。独立界面夹具验证桌面/窄屏、四种状态分离、日程禁用和迟到响应。
 最终源码变化后应由主任务重跑适用闭包，并保留执行 SHA 和日志，不能将旧检查伪记为新执行。
 
+主任务收敛代码 `a9ef684e9` 后实测22个Python模块 **1099 passed，413.03秒**；独立
+本机集成模块 **106 passed、1 skipped，10.73秒**；Node UI/协议/架构/治理 **210/210**。
+11个核心Python源码mypy通过，全部39个变更Python文件Ruff/isort通过；Black仅剩
+`datahub/snapshots.py`既有格式债务，新增解析段已按格式修正，其余38文件通过。
+测试结束的旧xlwings atexit清理回调抛出枚举ValueError，pytest退出码仍为0，日志完整保留；
+没有据此认证Office刷新。独立Python评审APPROVE（44例通过），JS复审PASS（26例通过）。
+本机wheel内34个变更app文件与源码逐字节一致。对应日志为主任务`logs/etf-weekly/`；后续
+文档、CI登记和一处空行格式变化不冒充这些测试原始执行SHA，最终集成与CI仍另取证。
+
 本次 CI 登记扩大既有 Checks Python 文件清单，不改变 job、runner、超时或产品依赖；
 原锁提取安装步骤同时固定已声明的 openpyxl/et-xmlfile，避免依赖全局或不确定的传递安装。
 实时只读 GitHub API 证明 `PUBLIC/private=false`，近期标准 runner 成功记录及预算见
