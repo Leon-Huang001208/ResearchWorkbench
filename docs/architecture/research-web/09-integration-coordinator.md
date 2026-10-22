@@ -244,3 +244,6 @@ Hot固定原件发布复用DataHub私有会话快照目录与读取授权；它�
 
 
 2026-10-13续跑：Hot冻结快照是已验证的会话证据副本，script准入不要求它伪装成普通DataHub供应商，也不提升任何来源可调用状态；原capability许可先于只读路径授予。
+
+
+2026-10-22 基金NAV入仓：基金NAV例外仅限eastmoney_fund、nav/fund_nav及最多31日完整分页；授权撤销、配置epoch和profile失效仍阻止查仓，不扩大跨源等价或令牌权限。

@@ -73,6 +73,30 @@ RESULT_KEYS = (
 # Storage slot for one exact query; never a report, release or observation date.
 # All observations are revisions of this one logical fact, projected by cutoff.
 START = date(1970, 1, 1)
+NAV_SEMANTIC_GAPS = frozenset(
+    {"adjusted_total_return", "benchmark_timeseries", "verified_currency"}
+)
+
+
+def _bounded_nav_capture(query, result, source):
+    """Admit disclosed NAV semantics gaps only for a complete, narrow source response."""
+    if (
+        source != "eastmoney_fund"
+        or result.provider_id != source
+        or query.capability != "fund_data"
+        or query.parameters.get("dataset") not in {"nav", "fund_nav"}
+        or result.status != "complete"
+        or result.pagination_complete is not True
+        or not set(result.missing) <= NAV_SEMANTIC_GAPS
+    ):
+        return False
+    try:
+        start, end = (
+            date.fromisoformat(query.parameters[name]) for name in ("start_date", "end_date")
+        )
+    except (KeyError, TypeError, ValueError):
+        return False
+    return 0 <= (end - start).days <= 30
 
 
 class SnapshotSeries:
@@ -176,7 +200,9 @@ class SnapshotSeries:
             if query.as_of is not None or result.status not in {"complete", "snapshot", "empty"}:
                 log.info("research_snapshot_not_ingested", reason="historical_or_incomplete")
                 return None
-            if result.provider_id not in {None, self.scope.source} or result.missing:
+            if result.provider_id not in {None, self.scope.source} or (
+                result.missing and not _bounded_nav_capture(query, result, self.scope.source)
+            ):
                 raise MarketStoreError("snapshot_provider_or_completeness_mismatch")
             if result.status == "empty" and result.rows:
                 raise MarketStoreError("snapshot_empty_status_mismatch")
