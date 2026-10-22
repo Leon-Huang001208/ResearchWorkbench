@@ -770,9 +770,18 @@ async def test_business_query_routes_only_integrated_sources_and_snapshots(tmp_p
     await hub.close()
 
 
-def test_catalog_api_and_manual_probe_are_idempotent_and_sanitized(tmp_path):
+def test_catalog_api_and_manual_probe_are_idempotent_and_sanitized(tmp_path, monkeypatch):
+    from test_mcp_runtime_integration import FakeKeyring
+
+    from app.research_web.credential_backend import CredentialBackendError, SystemKeyringBackend
+
+    def unavailable(*_args, **_kwargs):
+        raise CredentialBackendError("credential_store_unavailable")
+
+    for operation in ("get_password", "set_password", "delete_password"):
+        monkeypatch.setattr(SystemKeyringBackend, operation, unavailable)
     native = NativeFixture()
-    service = ResearchService(native, Store(tmp_path))
+    service = ResearchService(native, Store(tmp_path), mcp_keyring_backend=FakeKeyring())
     external = []
 
     def respond(request):

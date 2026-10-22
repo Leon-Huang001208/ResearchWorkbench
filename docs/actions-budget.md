@@ -1,5 +1,7 @@
 # GitHub Actions 免费额度治理
 
+Wind资产工作区首轮PR177：Constraints39717416229通过（71秒），Mac Bootstrap39717416234通过（599秒）；Checks39717416265在454秒失败，1716通过、11条件跳过，唯一失败为新纳入的目录测试默认依赖Ubuntu不存在的系统钥匙串。只给该测试注入现有内存后端并保留拒绝系统后端的回归，同时修正旧10条快照首次向左加载的前端接线。沿原PR正常补丁发布，不手动rerun、不加job/runner/依赖或超时；新候选重新绑定原三门，不复用旧Mac通过为新SHA。当前API仍为PUBLIC。
+
 2026-10-22 Wind工作区实时只读GitHub API核验仓库PUBLIC、private=false。最近5个成功run为39648735990（Bootstrap，693秒）、39648736129（Checks，561秒）、39648735965（Constraints，67秒）、39646992391（Constraints，66秒）、39646992444（Bootstrap，423秒），创建至结束均值362秒；这是既有基线成功记录，不认证本次候选。证据留`logs/wind-docs/repository.json`与`recent-success-runs.json`。本次只给现存Checks加入test_asset_history及原datahub/catalog/cjpy/broker四模块，不增job/runner/超时/依赖；本机history＋DataHub86例12.68秒、空闲359例9.21秒为阶段计时，预留新增步骤60秒。保留同候选macos-14干净安装/固定DSH/3081/8088/doctor和通用仓库门，Mac不触发Windows/Linux产品dispatch；没有新增模型调用或厂商调用授权。
 
 2026-10-22资产观察v2封闭部署profile只扩充原已注册的 `test_model_provider_upgrade.py`，沿现有Project Constraints、Research Web Checks和macOS Bootstrap，不新增workflow、job、runner、依赖或超时。当前API为PUBLIC；最近五个成功job119375810943/119370248735/119366403735/119366403997/119313810314，实际62/310/61/594/60秒。新增v2固定范围、保全和恢复参数化本机预算预留15秒；无模型或厂商请求进入CI，其他平台产品验收仍由对应真机交接，Mac不派Windows/Linux产品workflow。实际常驻切换与数据保全另留私有回执。

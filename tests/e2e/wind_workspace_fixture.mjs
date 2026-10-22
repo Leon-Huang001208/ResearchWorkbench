@@ -14,20 +14,21 @@ const forms='form[data-asset-observation],form[data-asset-note],form[data-asset-
 const apply=()=>{const buttons=[...document.querySelectorAll('[data-workbench-handoff],[data-asset-block-refresh],[data-watchlist-item],[data-send],[data-submit]'),...[...document.querySelectorAll(forms)].flatMap(form=>[...form.querySelectorAll('button:not([type="button"]),input[type="submit"]')])];for(const button of buttons){button.disabled=true;button.title=restriction;button.setAttribute('aria-disabled','true');button.dataset.previewReadOnly='true';}};
 new MutationObserver(apply).observe(document.documentElement,{childList:true,subtree:true});apply();document.addEventListener('submit',event=>{if(event.target.matches(forms)){event.preventDefault();event.stopImmediatePropagation();}},true);`;
 
-export async function startWindFixture(project, output, { port = 0, proofPath = process.env.RWB_WIND_PROOF } = {}) {
+export async function startWindFixture(project, output, { port = 0, proofPath = process.env.RWB_WIND_PROOF, partialProofPath = process.env.RWB_WIND_PARTIAL_PROOF } = {}) {
   await mkdir(output, { recursive: true });
   const ui = path.join(project, 'app/research_web/ui');
   const hashes = Object.fromEntries(await Promise.all(sourceFiles.map(async name => [name, createHash('sha256').update(await readFile(path.join(ui, name))).digest('hex')])));
   const proof = proofPath ? JSON.parse(await readFile(proofPath, 'utf8')) : null;
+  const partialProof = partialProofPath ? JSON.parse(await readFile(partialProofPath, 'utf8')) : null;
   assert.ok(proof?.observations?.length && proof?.rowsByDataset, 'RWB_WIND_PROOF must contain actual exported observations and rowsByDataset');
   const versions = clone(proof.versions || proof.observations.map(observation => ({ asset: observation.asset, adjustment: observation.blocks.history.dataset.asset_history.adjustment, observation })));
-  const rows = clone(proof.rowsByDataset);
+  const rows = clone({ ...proof.rowsByDataset, ...(partialProof?.rowsByDataset || {}) });
   const current = new Map();
   for (const version of versions) {
     const existing = current.get(version.asset);
     if (!existing || version.adjustment === 'qfq') current.set(version.asset, clone(version.observation));
   }
-  const state = { current, versions, rows, reads: [], errors: [], jobs: new Map(), preferences: ['volume', 'macd'], preferenceWrites: [], proofPath, hashes, readDelay: 0, jobPolls: 0 };
+  const state = { current, versions, partialVersions: clone(partialProof?.versions || []), partialProvenance: partialProof?.provenance, partialProofPath, usePartialForRecent: false, rows, reads: [], historyRequests: [], errors: [], jobs: new Map(), preferences: ['volume', 'macd'], preferenceWrites: [], proofPath, hashes, readDelay: 0, jobPolls: 0 };
   const publicObservation = observation => {
     const value = clone(observation);
     for (const block of Object.values(value.blocks || {})) if (block.dataset) block.dataset.limitations = [...(block.dataset.limitations || []), '冻结快照、非实时行情；隔离预览只回读已保存数据，不查询供应商或模型。'];
@@ -36,7 +37,8 @@ export async function startWindFixture(project, output, { port = 0, proofPath = 
   const byId = id => [...current.values()].find(observation => observation.id === id);
   const finishJob = job => {
     const observation = byId(job.observation_id);
-    const version = versions.find(item => item.asset === observation?.asset && item.adjustment === job.adjustment);
+    const available = state.usePartialForRecent && job.scope === 'recent' ? state.partialVersions : versions;
+    const version = available.find(item => item.asset === observation?.asset && item.adjustment === job.adjustment);
     assert.ok(version, 'No real frozen snapshot for requested adjustment');
     const next = clone(version.observation);
     next.id = observation.id;
@@ -77,6 +79,7 @@ export async function startWindFixture(project, output, { port = 0, proofPath = 
           if (request.method === 'POST' && !jid) {
             assert.ok(request.headers['idempotency-key']);
             const observation = byId(oid); assert.ok(observation);
+            state.historyRequests.push({ observation_id: oid, request_key: request.headers['idempotency-key'], ...clone(body) });
             const job = { id: randomUUID(), observation_id: oid, request_key: request.headers['idempotency-key'], state: 'running', status: 'running', scope: body.scope, adjustment: body.adjustment, retryable: true, progress: { chunks_completed: 0, chunks_total: 1, rows: 0 }, current_dataset: observation.blocks.history.dataset, polls: 0 };
             state.jobs.set(job.id, job); return send(job, 202);
           }
@@ -118,7 +121,7 @@ export async function startWindFixture(project, output, { port = 0, proofPath = 
   });
   await new Promise(resolve => server.listen(port, '127.0.0.1', resolve));
   const origin = `http://127.0.0.1:${server.address().port}`;
-  await writeFile(path.join(output, 'fixture.json'), JSON.stringify({ origin, pid: process.pid, proofPath, hashes, supplierCalls: 0, modelCalls: 0, productionWrites: 0 }, null, 2));
+  await writeFile(path.join(output, 'fixture.json'), JSON.stringify({ origin, pid: process.pid, proofPath, partialProofPath, hashes, supplierCalls: 0, modelCalls: 0, productionWrites: 0 }, null, 2));
   return { state, origin, close: () => new Promise(resolve => server.close(resolve)), verifySourceUnchanged: async () => {
     for (const [file, hash] of Object.entries(hashes)) assert.equal(createHash('sha256').update(await readFile(path.join(ui, file))).digest('hex'), hash, `Source changed while browser acceptance ran: ${file}`);
     return hashes;
