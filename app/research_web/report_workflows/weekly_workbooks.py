@@ -11,6 +11,7 @@ import tempfile
 from datetime import date
 from decimal import Decimal
 from pathlib import Path, PurePosixPath
+from typing import TypeAlias
 from zipfile import BadZipFile, ZipFile
 
 from lxml import etree
@@ -31,6 +32,7 @@ R = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
 C = "http://schemas.openxmlformats.org/drawingml/2006/chart"
 NS = {"m": M, "c": C}
 _MAX_BYTES = 128 * 1024 * 1024
+CellValue: TypeAlias = str | int | float | Decimal | None
 
 
 def _xml(raw):
@@ -49,16 +51,26 @@ def _serial(day: str, date_1904: bool) -> int:
 
 def _column(ref):
     value = 0
-    for char in re.match(r"[A-Z]+", ref)[0]:
+    match = re.match(r"[A-Z]+", ref)
+    if match is None:
+        raise WorkflowError("单元格列引用无效", "weekly_cell_invalid", 409)
+    for char in match[0]:
         value = value * 26 + ord(char) - ord("A") + 1
     return value
+
+
+def _row_number(coordinate: str) -> int:
+    match = re.search(r"[1-9][0-9]*$", coordinate)
+    if match is None:
+        raise WorkflowError("单元格行引用无效", "weekly_cell_invalid", 409)
+    return int(match[0])
 
 
 def _set(sheet, coordinate, value):
     data = sheet.find("m:sheetData", NS)
     if data is None:
         raise WorkflowError("工作簿缺少数据区", "weekly_workbook_invalid", 409)
-    row_index = int(re.search(r"\d+$", coordinate)[0])
+    row_index = _row_number(coordinate)
     row = data.find(f"m:row[@r='{row_index}']", NS)
     if row is None:
         row = etree.Element(f"{{{M}}}row", r=str(row_index))
@@ -127,6 +139,10 @@ def _cached(parts, sheets):
                 cells[cell.get("r")] = strings[int(value.text)]
             elif cell.get("t") == "inlineStr":
                 cells[cell.get("r")] = "".join(cell.find("m:is", NS).itertext())
+            elif cell.get("t") in {"str", "e", "d"} and value is not None:
+                # Wind name formulas cache text as t=str rather than shared
+                # strings. Preserve it; attempting float() corrupts real files.
+                cells[cell.get("r")] = value.text
             elif value is not None:
                 cells[cell.get("r")] = float(value.text)
         values[name] = cells
@@ -174,7 +190,8 @@ def _project(raw, role, snapshot, assessment, contract):
     values = _cached(parts, sheets)
     date_properties = workbook.find("m:workbookPr", NS)
     date_1904 = date_properties is not None and date_properties.get("date1904") in {"1", "true"}
-    changes, history_ends = {}, {}
+    changes: dict[str, dict[str, CellValue]] = {}
+    history_ends: dict[str, int] = {}
     observations = {item["id"]: item for item in assessment["observations"]}
     mapping = load_weekly_mapping()
     if role == "primary":
@@ -192,7 +209,7 @@ def _project(raw, role, snapshot, assessment, contract):
         for spec in mapping["series"]:
             if spec["group"] in {"domestic", "overseas"}:
                 sheet, cell = spec["legacy_cell"].split("!")
-                row = int(re.search(r"\d+", cell)[0])
+                row = _row_number(cell)
                 changes.setdefault(sheet, {}).update(
                     {f"A{row}": spec["asset"], f"B{row}": spec["display_name"]}
                 )
@@ -201,7 +218,7 @@ def _project(raw, role, snapshot, assessment, contract):
                 ) / (100 if spec["group"] == "overseas" else 1)
             elif spec["group"] in {"gold", "oil"}:
                 sheet, coordinates = spec["legacy_cell"].split("!")
-                row = int(re.search(r"\d+", coordinates)[0])
+                row = _row_number(coordinates.split(":", 1)[0])
                 observation = observations[spec["id"]]
                 changes.setdefault(sheet, {})
                 changes[sheet].update({f"A{row}": spec["asset"], f"B{row}": spec["display_name"]})
@@ -232,7 +249,7 @@ def _project(raw, role, snapshot, assessment, contract):
         for spec in mapping["series"]:
             if spec["group"] == "industry":
                 _, cell = spec["legacy_cell"].split("!")
-                row = int(re.search(r"\d+", cell)[0])
+                row = _row_number(cell)
                 label = spec["display_name"]
                 if label.endswith(("(申万)", "（申万）")):
                     label = label[:-4]
@@ -247,7 +264,10 @@ def _project(raw, role, snapshot, assessment, contract):
             ("期货结算价(连续)_布伦特原油", ("history_oil_brent", "history_oil_wti")),
         ):
             series = [
-                {row["date"]: row["value"] for row in snapshot["series"][identifier]["rows"]}
+                {
+                    row["date"]: Decimal(str(row["value"]))
+                    for row in snapshot["series"][identifier]["rows"]
+                }
                 for identifier in identifiers
             ]
             dates = sorted(series[0].keys() | series[1].keys())
@@ -313,7 +333,10 @@ def _project(raw, role, snapshot, assessment, contract):
 
 def materialize_weekly_workbooks(snapshot: dict, run_root: Path, manifest) -> dict:
     """Modify only safe, existing Run copies, with exact snapshot/output hashes."""
-    contract = build_weekly_data_contract(snapshot.get("cutoff"))
+    cutoff = snapshot.get("cutoff")
+    if not isinstance(cutoff, str):
+        raise WorkflowError("周报截止时间无效", "weekly_cutoff_invalid", 409)
+    contract = build_weekly_data_contract(cutoff)
     assessment = assess_weekly_snapshot(snapshot, contract)
     if assessment["status"] != "passed":
         raise WorkflowError("本期数据未通过，禁止投影工作簿", "weekly_data_not_passed", 409)
@@ -426,5 +449,10 @@ def materialize_weekly_workbooks(snapshot: dict, run_root: Path, manifest) -> di
             "sheet": "经济数据",
             "range": f"A1:H{len(snapshot['economic_calendar']['events']) + 1}",
         },
-        "overseas": {"workbook": "workbooks/周报数据.xlsx", "sheet": "海外", "range": "A2:C13"},
+        "overseas": {
+            "workbook": "workbooks/周报数据.xlsx",
+            "sheet": "海外",
+            "range": "A2:C13",
+            "columns": ["code", "name", "return_fraction"],
+        },
     }

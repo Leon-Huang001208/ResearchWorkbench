@@ -22,6 +22,25 @@ POLICY_ID = "huaan-etf-weekly-v1"
 MAPPING_SHA256 = "f0337d4564749ba2fe97ae029fede7b71834edb635bd62d68206995319da98ce"
 _HASH = re.compile(r"^[a-f0-9]{64}$")
 _SOURCES = {"wind_client_api", "wind_excel"}
+ADAPTER_REVISION = "wind-client-api-weekly-v1"
+
+
+def weekly_code_identity() -> dict:
+    """Bind equivalence to the installed adapter and arithmetic implementation."""
+    package = Path(__file__).parent
+    paths = {
+        "adapter_code_sha256": package.parent / "datahub" / "providers_wind_api.py",
+        "weekly_algorithm_sha256": Path(__file__),
+        "source_reader_code_sha256": package / "weekly_sources.py",
+    }
+    try:
+        identity = {
+            key: hashlib.sha256(path.read_bytes()).hexdigest() for key, path in paths.items()
+        }
+    except OSError as exc:
+        log.error("weekly_code_identity_unavailable", error_type=type(exc).__name__)
+        raise ValueError("weekly_code_identity_unavailable") from exc
+    return {"adapter_revision": ADAPTER_REVISION, **identity}
 
 
 def weekly_snapshot_sha256(value: dict) -> str:
@@ -140,6 +159,11 @@ def _calendar(value: dict, cutoff: datetime) -> list[str]:
     # Full trading dates are not enough: the collector must supply the actual
     # close timestamp for each completed session, including overseas sessions.
     closes = value.get("session_closes", {})
+    if not isinstance(closes, dict) or any(day not in closes for day in dates):
+        raise ValueError("weekly_calendar_close_missing")
+    expected_completed = [day for day in dates if _aware(closes[day]) <= cutoff]
+    if completed != expected_completed:
+        raise ValueError("weekly_calendar_future_session")
     for day in completed:
         if _day(day) > cutoff.date() or day not in closes or _aware(closes[day]) > cutoff:
             raise ValueError("weekly_calendar_future_session")
@@ -157,11 +181,13 @@ def _series_rows(value: dict, spec: dict, cutoff: datetime, completed: list[str]
     rows = value.get("rows")
     if not isinstance(rows, list) or not rows or len(rows) > 10000:
         raise ValueError("weekly_series_rows_missing")
-    values = {}
+    values: dict[str, Decimal] = {}
     for row in rows:
         if not isinstance(row, dict):
             raise TypeError("weekly_series_row_invalid")
         day = row.get("date")
+        if not isinstance(day, str):
+            raise TypeError("weekly_date_invalid")
         _day(day)
         if day not in completed or (
             row.get("published_at") is not None and _aware(row["published_at"]) > cutoff
@@ -290,8 +316,21 @@ def build_equivalence_proof(
     configuration_sha256: str,
     source_contract_sha256: str,
     sdk_identity_sha256: str,
+    adapter_revision: str | None = None,
+    adapter_code_sha256: str | None = None,
+    weekly_algorithm_sha256: str | None = None,
+    source_reader_code_sha256: str | None = None,
 ) -> dict:
     """Create reusable evidence from real inputs; never create proof from a flag."""
+    code_identity = weekly_code_identity()
+    supplied = {
+        "adapter_revision": adapter_revision,
+        "adapter_code_sha256": adapter_code_sha256,
+        "weekly_algorithm_sha256": weekly_algorithm_sha256,
+        "source_reader_code_sha256": source_reader_code_sha256,
+    }
+    if any(value is not None and value != code_identity[key] for key, value in supplied.items()):
+        raise ValueError("weekly_equivalence_adapter_changed")
     groups = []
     for group in sorted({item["group"] for item in load_weekly_mapping()["series"]}):
         if compare_weekly_sources(api, excel, groups={group})["status"] == "passed":
@@ -311,6 +350,7 @@ def build_equivalence_proof(
         "configuration_sha256": configuration_sha256,
         "source_contract_sha256": source_contract_sha256,
         "sdk_identity_sha256": sdk_identity_sha256,
+        **code_identity,
         "groups": groups,
         "api_input": frozen_api,
         "excel_input": frozen_excel,
@@ -331,6 +371,9 @@ def _assess_equivalence_proof(snapshot: dict, proof: dict) -> list[str]:
         for key in ("configuration_sha256", "source_contract_sha256", "sdk_identity_sha256"):
             if not _HASH.fullmatch(str(proof.get(key))) or proof[key] != snapshot.get(key):
                 raise ValueError("weekly_equivalence_configuration_changed")
+        for key, current in weekly_code_identity().items():
+            if proof.get(key) != current or snapshot.get(key) != current:
+                raise ValueError("weekly_equivalence_adapter_changed")
         groups = {
             spec["group"]
             for spec in load_weekly_mapping()["series"]
@@ -370,6 +413,47 @@ def merge_weekly_sources(api: dict, excel: dict) -> dict:
         merged["migration_groups"] = switched
         merged["comparison_receipts"] = comparisons
     return merged
+
+
+def adopt_verified_groups(api: dict, excel: dict | None, proof: dict) -> dict:
+    """Use verified API groups and only fresh, independently checkable Excel rows."""
+    import copy
+
+    result = copy.deepcopy(api)
+    groups = set(proof.get("groups", []))
+    mapping = load_weekly_mapping()["series"]
+    if (
+        excel is not None
+        and excel.get("source") == "wind_excel"
+        and excel.get("cutoff") == api.get("cutoff")
+        and excel.get("mapping_sha256") == MAPPING_SHA256
+    ):
+        for group in sorted({item["group"] for item in mapping} - groups):
+            specifications = [item for item in mapping if item["group"] == group]
+            # Weekly aggregates cannot substitute for independently checkable
+            # daily inputs. Missing raw rows keep the report blocked.
+            if not all(
+                isinstance(excel.get("series", {}).get(item["id"], {}).get("rows"), list)
+                and excel["series"][item["id"]]["rows"]
+                for item in specifications
+            ):
+                continue
+            for item in specifications:
+                result["series"][item["id"]] = copy.deepcopy(excel["series"][item["id"]])
+    result["equivalence_proof"] = copy.deepcopy(proof)
+    sources = {
+        source: sorted(
+            {
+                item["group"]
+                for item in mapping
+                if result.get("series", {}).get(item["id"], {}).get("source") == source
+            }
+        )
+        for source in ("wind_client_api", "wind_excel")
+    }
+    result["source_groups"] = sources
+    result["migration_groups"] = sources["wind_client_api"]
+    return result
 
 
 def assess_weekly_snapshot(snapshot: dict, contract: dict) -> dict:

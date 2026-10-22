@@ -526,6 +526,7 @@ class DataHub:
         verification_receipts=None,
         run_root=None,
         manifest=None,
+        prepare_excel=None,
     ):
         """Private Host-only collection with ordinary ownership and raw snapshots.
 
@@ -533,10 +534,13 @@ class DataHub:
         existing hash-verified datasets of this session, never model booleans.
         """
         from ..report_workflows.weekly_data import (
+            adopt_verified_groups,
             assess_weekly_snapshot,
             build_equivalence_proof,
             build_weekly_data_contract,
+            load_weekly_mapping,
             sample_snapshot,
+            weekly_code_identity,
         )
         from .broker import resolve_report_weekly
         from .providers_wind_api import WindAPIQuery, WindClientAPIProvider, wait_for_idle
@@ -562,6 +566,7 @@ class DataHub:
             return self.source_configuration_digest("wind")
 
         configuration = authorize()
+        workflow_manifest = manifest
         source_contract = None
         source_contract_sha = None
         if run_root is not None or manifest is not None:
@@ -569,8 +574,10 @@ class DataHub:
                 raise StoreError("周报资源上下文不完整", "weekly_resource_invalid", 409)
             from ..report_workflows.weekly_sources import load_run_source_contract
 
-            self._report_weekly_run_context(sid, run_root, manifest)
-            source_contract, source_contract_sha = load_run_source_contract(run_root, manifest)
+            self._report_weekly_run_context(sid, run_root, workflow_manifest)
+            source_contract, source_contract_sha = load_run_source_contract(
+                run_root, workflow_manifest
+            )
         receipt = self.snapshots.receipt(sid, call_id)
         fingerprint = query.fingerprint(include_refresh=True)
         if receipt:
@@ -594,8 +601,12 @@ class DataHub:
         async def collect():
             try:
                 baseline = economic = None
+                if verification_receipts is not None and not isinstance(
+                    verification_receipts, dict
+                ):
+                    raise StoreError("周报比较材料引用无效", "weekly_comparison_invalid", 400)
                 references = dict(verification_receipts or {})
-                if not isinstance(references, dict) or set(references) - {
+                if set(references) - {
                     "baseline_dataset_id",
                     "economic_calendar_dataset_id",
                 }:
@@ -606,8 +617,8 @@ class DataHub:
                 ):
                     if key not in references:
                         continue
-                    manifest = self.detail(sid, references[key])
-                    if manifest.get("provider") != expected_source:
+                    dataset_manifest = self.detail(sid, references[key])
+                    if dataset_manifest.get("provider") != expected_source:
                         raise StoreError("周报比较材料来源不符", "weekly_comparison_invalid", 409)
                     rows = self.rows(sid, references[key], 0, 1)["items"]
                     if len(rows) != 1:
@@ -627,6 +638,7 @@ class DataHub:
                     "configuration_sha256": configuration,
                     "source_contract_sha256": source_contract_sha,
                     "sdk_identity_sha256": readiness.get("sdk_identity_sha256"),
+                    **weekly_code_identity(),
                 }
                 proof_key = hashlib.sha256(
                     json.dumps(proof_identity, sort_keys=True).encode()
@@ -640,11 +652,6 @@ class DataHub:
                 ) as control:
                     if proof_key + ".json" in os.listdir(control):
                         proof = json.loads(read_file(control, proof_key + ".json", private=True))
-                if proof is None and baseline is None and run_root is not None:
-                    registered = self.register_report_weekly_inputs(
-                        sid, f"{call_id}.excel", cutoff, run_root=run_root, manifest=manifest
-                    )
-                    baseline = self.rows(sid, registered["baseline_dataset_id"], 0, 1)["items"][0]
                 if readiness.get("dependency_ready") is not True:
                     snapshot = sample_snapshot(contract)
                     code = readiness.get("code") or "wind_api_dependency_missing"
@@ -665,19 +672,52 @@ class DataHub:
                     raise StoreError(
                         "取数期间周报来源授权变化", "data_cache_authorization_changed", 409
                     )
+                # Verify all current API inputs before touching Office. The sole
+                # missing prerequisite may be first-source equivalence, never
+                # an SDK/login/calendar/field/data failure hidden by calibration.
+                remaining = set(collected["assessment"]["issues"]) - {
+                    "weekly_api_equivalence_unverified"
+                }
+                all_groups = {item["group"] for item in load_weekly_mapping()["series"]}
+                needs_excel = proof is None or set(proof.get("groups", [])) != all_groups
                 if (
-                    proof is None
-                    and baseline is not None
-                    and all(
-                        isinstance(value, str) and re.fullmatch(r"[a-f0-9]{64}", value)
-                        for value in proof_identity.values()
+                    needs_excel
+                    and baseline is None
+                    and run_root is not None
+                    and readiness.get("dependency_ready") is True
+                    and source_contract is not None
+                    and not remaining
+                ):
+                    if prepare_excel is None:
+                        raise StoreError(
+                            "首次同源校准需要受控底稿刷新", "weekly_calibration_required", 409
+                        )
+                    await prepare_excel()
+                    if authorize() != configuration:
+                        raise StoreError(
+                            "校准期间来源授权变化", "data_cache_authorization_changed", 409
+                        )
+                    registered = self.register_report_weekly_inputs(
+                        sid,
+                        f"{call_id}.excel",
+                        cutoff,
+                        run_root=run_root,
+                        manifest=workflow_manifest,
                     )
+                    baseline = self.rows(sid, registered["baseline_dataset_id"], 0, 1)["items"][0]
+                    snapshot["equivalence_baseline"] = baseline
+                if baseline is not None and all(
+                    isinstance(value, str) and re.fullmatch(r"[a-f0-9]{64}", value)
+                    for key, value in proof_identity.items()
+                    if key != "adapter_revision"
                 ):
                     try:
                         candidate = build_equivalence_proof(snapshot, baseline, **proof_identity)
                     except ValueError:
                         candidate = None
-                    if candidate is not None:
+                    if candidate is not None and (
+                        proof is None or set(proof.get("groups", [])) <= set(candidate["groups"])
+                    ):
                         proof = candidate
                         with directory(
                             self.store.root,
@@ -687,7 +727,8 @@ class DataHub:
                         ) as control:
                             atomic_json(control, proof_key + ".json", proof)
                 if proof is not None:
-                    snapshot["equivalence_proof"] = proof
+                    snapshot = adopt_verified_groups(snapshot, baseline, proof)
+                    collected["snapshot"] = snapshot
                 collected["assessment"] = assess_weekly_snapshot(snapshot, contract)
                 if authorize() != configuration:
                     raise StoreError(
@@ -722,7 +763,7 @@ class DataHub:
                     },
                     limitations=snapshot.get("limitations", []),
                 )
-                manifest = self.snapshots.publish(
+                published_manifest = self.snapshots.publish(
                     sid, query, result, request_query=query, authorization_fingerprint=configuration
                 )
                 self.snapshots.receipt(
@@ -731,7 +772,7 @@ class DataHub:
                     {
                         "status": "completed",
                         "fingerprint": fingerprint,
-                        "dataset_id": manifest["dataset_id"],
+                        "dataset_id": published_manifest["dataset_id"],
                         "cache_hit": False,
                     },
                 )
@@ -740,7 +781,7 @@ class DataHub:
                     session_id=sid,
                     status=collected["assessment"]["status"],
                 )
-                return {**collected, "datasets": [manifest]}
+                return {**collected, "datasets": [published_manifest]}
             except asyncio.CancelledError:
                 await wait_for_idle()
                 self.snapshots.receipt(
@@ -980,5 +1021,8 @@ class DataHub:
             task.cancel()
         if tasks:
             await asyncio.gather(*tasks, return_exceptions=True)
+        from .providers_wind_api import wait_for_idle
+
+        await wait_for_idle()
         self.tasks.clear()
         self.probe_tasks.clear()

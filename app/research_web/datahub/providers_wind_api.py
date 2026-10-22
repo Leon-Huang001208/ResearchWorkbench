@@ -16,7 +16,7 @@ import json
 import threading
 from datetime import UTC, date, datetime, time, timedelta
 from pathlib import Path
-from typing import Literal
+from typing import Literal, TypedDict
 from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel, ConfigDict, model_validator
@@ -40,6 +40,12 @@ SEMANTICS_REVISION = "wind-client-api-weekly-v1"
 _EXECUTOR = concurrent.futures.ThreadPoolExecutor(max_workers=1, thread_name_prefix="rwb-wind-api")
 _LOCK = threading.Lock()
 _OUTSTANDING: concurrent.futures.Future | None = None
+
+
+class _SeriesRow(TypedDict):
+    date: str
+    value: int | float | None
+    published_at: str | None
 
 
 class WindAPIQuery(BaseModel):
@@ -227,7 +233,7 @@ class WindClientAPIProvider:
                 spec["field"],
                 query.start_date,
                 query.end_date,
-                "PriceAdj=U;Days=Trading",
+                "Period=D;PriceAdj=U;Days=Trading;Fill=Blank",
             )
         error = getattr(response, "ErrorCode", None)
         if isinstance(error, bool) or not isinstance(error, int) or error != 0:
@@ -266,6 +272,11 @@ class WindClientAPIProvider:
                 event = {
                     key: data[fields.index(field)][index] for key, field in spec["fields"].items()
                 }
+                if "importance_values" in spec:
+                    raw_importance = str(event["importance"])
+                    if raw_importance not in spec["importance_values"]:
+                        raise ProviderError("wind_api_economic_importance_unmapped")
+                    event["importance"] = spec["importance_values"][raw_importance]
                 try:
                     event["date"] = date.fromisoformat(str(event["date"])[:10]).isoformat()
                 except ValueError as exc:
@@ -319,6 +330,8 @@ class WindClientAPIProvider:
                 raise ProviderError("wind_api_session_close_unverified")
             cutoff = datetime.fromisoformat(query.cutoff)
             completed = [day for day in dates if datetime.fromisoformat(closes[day]) <= cutoff]
+            if not completed:
+                raise ProviderError("wind_api_calendar_no_completed_session")
             return {
                 "source": self.provider_id,
                 "dates": dates,
@@ -346,26 +359,39 @@ class WindClientAPIProvider:
             or len(times) > MAX_API_ROWS
         ):
             raise ProviderError("wind_api_response_shape_invalid")
-        rows, seen = [], set()
+        rows: list[_SeriesRow] = []
+        seen: set[str] = set()
         for day, value in zip(times, data[0], strict=True):
             day = date.fromisoformat(str(day)[:10]).isoformat()
             if not query.start_date <= day <= query.end_date or day in seen:
                 raise ProviderError("wind_api_dates_invalid")
-            if isinstance(value, bool) or not isinstance(value, (int, float)):
+            if value is not None and (
+                isinstance(value, bool) or not isinstance(value, (int, float))
+            ):
                 raise ProviderError("wind_api_number_missing")
             seen.add(day)
             rows.append({"date": day, "value": value, "published_at": None})
         rows.sort(key=lambda row: row["date"])
+        missing_dates = []
+        while rows and rows[-1]["value"] is None:
+            missing_dates.append(rows.pop()["date"])
+        if not rows or any(row["value"] is None for row in rows):
+            raise ProviderError("wind_api_interior_or_all_values_missing")
         log.info("wind_api_series_read", series_id=spec["id"], row_count=len(rows))
         return {
             **{key: spec[key] for key in ("asset", "field", "unit", "currency", "market")},
             "source": self.provider_id,
             "rows": rows,
+            "missing_dates": sorted(missing_dates),
             "raw_sha256": hashlib.sha256(encoded).hexdigest(),
             "raw_payload": raw,
             "retrieved_at": datetime.now(UTC).isoformat(),
             "equivalence_verified": False,
-            "limitations": ["published_at_unknown", "requires_same_source_excel_comparison"],
+            "limitations": [
+                "published_at_unknown",
+                "requires_same_source_excel_comparison",
+                *(["trailing_observations_unavailable"] if missing_dates else []),
+            ],
         }
 
     async def fetch(self, query: WindAPIQuery) -> dict:
@@ -431,7 +457,7 @@ class WindClientAPIProvider:
                         kind="series",
                         series_id=spec["id"],
                         start_date=spec["history_start"] or contract["window_start"],
-                        end_date=contract["period_end"],
+                        end_date=snapshot["calendars"][spec["market"]]["completed_dates"][-1],
                         cutoff=contract["cutoff"],
                     )
                     snapshot["series"][spec["id"]] = await self.fetch(query)

@@ -50,6 +50,18 @@ Excel Dataset。主数据及图表底稿必须分别有匹配输出哈希的 Win
 Host 生成的等价证据保存在私有控制目录，绑定映射、连接配置、SDK 模块身份和来源
 合同。后续周期重读证明中的真实旧输入并重新比较，检查绑定未变后只验本期 API
 新鲜度，不要求每期再刷新 Excel。任何配置或定义变化都会使证明失效。
+等价身份还绑定受审适配器语义版本及适配器、周报计算、Excel 读取实现的实际源码
+SHA-256；仅修改 WSD 选项或归一化也会使旧证明失效。
+
+首次校准的 `prepare_excel` 回调只在 API 已取得完整、可独立检查的输入而仅缺等价
+证明时执行；SDK、登录、权限、交易日历或必需字段失败时不启动 Office。回调先用
+`freeze_weekly_workbook_dates` 将主数据与行业图的 Run 日期固定到报告期，再走原有
+受控刷新与刷新清单。旧目录或母版不被改写。
+
+collector 实际调用 `adopt_verified_groups`：已获证明的组采用 API；未获证明的组
+只有在本期已刷新 Excel 提供足够逐日原始数据时才明确保留 Excel，例如原图表中的
+长期 EDB 序列。只有周收益/均值的缓存不能冒充逐日原始数据，不足仍阻断。快照的
+`source_groups` 分别记录 API 与 Excel，部分迁移不能显示为全量去掉 Excel。
 
 已核实的日历和经济日历通过已发布版本资源
 `mappings/huaan-weekly-source-contract.json` 接入。资源须匹配 manifest 哈希，包含

@@ -19,6 +19,7 @@ from app.research_web.report_workflows.weekly_data import (
     load_weekly_mapping,
     materialize_weekly_workbooks,
     merge_weekly_sources,
+    weekly_code_identity,
     weekly_snapshot_sha256,
 )
 
@@ -187,8 +188,18 @@ class WeeklyDataTests(unittest.TestCase):
         for value in future["series"].values():
             value["source"] = "wind_client_api"
         future.update(identities)
+        future.update(weekly_code_identity())
         future["equivalence_proof"] = proof
         self.assertEqual(assess_weekly_snapshot(future, future_contract)["status"], "passed")
+        from unittest.mock import patch
+
+        with patch(
+            "app.research_web.report_workflows.weekly_data.ADAPTER_REVISION", "changed-adapter"
+        ):
+            self.assertIn(
+                "weekly_equivalence_adapter_changed",
+                assess_weekly_snapshot(future, future_contract)["issues"],
+            )
         future["configuration_sha256"] = "0" * 64
         self.assertIn(
             "weekly_equivalence_configuration_changed",
@@ -276,6 +287,28 @@ class WeeklyDataTests(unittest.TestCase):
             primary["国内"][f"C{row}"] = -999
             primary["国内"][f"C{row}"].number_format = "0.0000"
         primary.save(root / "workbooks/周报数据.xlsx")
+        # Actual Wind s_info_name formulas use cached t=str values. openpyxl
+        # cannot author formula caches, so insert the vendor-shaped cell part.
+        from zipfile import ZipFile
+
+        from lxml import etree
+
+        target = root / "workbooks/周报数据.xlsx"
+        with ZipFile(target) as package:
+            parts = {
+                item.filename: (item, package.read(item.filename)) for item in package.infolist()
+            }
+        info, raw = parts["xl/worksheets/sheet2.xml"]
+        sheet = etree.fromstring(raw)
+        namespace = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
+        row = sheet.find(f".//{{{namespace}}}row[@r='2']")
+        cell = etree.SubElement(row, f"{{{namespace}}}c", r="B2", t="str")
+        etree.SubElement(cell, f"{{{namespace}}}f").text = "s_info_name(A2)"
+        etree.SubElement(cell, f"{{{namespace}}}v").text = "沪深300"
+        parts[info.filename] = (info, etree.tostring(sheet))
+        with ZipFile(target, "w") as package:
+            for entry, raw in parts.values():
+                package.writestr(entry, raw)
         graph = Workbook()
         graph.remove(graph.active)
         industry = graph.create_sheet("申万一级行业指数")
