@@ -1,5 +1,7 @@
 # 图文更新清单契约与门禁
 
+全市场概览新增固定 `13-market-overview.html` 视图，源码／API／测试登记进入原架构清单，阅读器只扩充该名称白名单。新图保留规范、交付哈希、四视口自动包含性和最终浅深色截图复核；固定目录、无跟随读取与文档CSP保持。市场真实行情和代码检查均不能由图文回执替代。
+
 AI资讯自主化本轮在隔离实例接入原版API/worker与独立库，保持DSH研究执行及当前常驻内容。零调用和后续切换边界见[自主资讯合同](../../research-web-ai-news.md)。
 
 可选私网服务器的独立网关只有在 `multiuser/__main__.py` 实际 import `create_gateway`、构造 app 并 `uvicorn.run(app, ...)` 时进入 HTTP 扫描挂载集合；未挂载模块仍失败，`api_route` 等不支持声明仍拒绝。账号 API 和六个普通 catchall 方法均逐项写入清单，生成 Atlas 不过滤服务器接口。private-multiuser 组与更新后的部署图分别记录新入口与逐用户边界，同 UID 信任限制由安全文档维护。

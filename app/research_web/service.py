@@ -45,6 +45,7 @@ from .delivery import FINAL, Delivery, expected_formats
 from .frameworks import FrameworkService
 from .integrations import IntegrationCoordinator
 from .local_integrations import LocalIntegrationManager
+from .market_service import MarketService
 from .mcp_registry import MCPRegistryService
 from .mcp_runtime.authorization import AuthorizationManager
 from .mcp_runtime.control import load_control as load_mcp_control
@@ -322,6 +323,7 @@ class ResearchService(ModelProfilesMixin):
             mcp_runtime = self._build_mcp_runtime(mcp_keyring_backend)
         self.mcp_runtime = _SessionOwnedMCPRuntime(mcp_runtime, store)
         self.asset_workspace = AssetWorkspace(self)
+        self.market = MarketService(store.root)
         self.frameworks = FrameworkService(self, store.root / "frameworks")
         self.report_studio = ReportStudio(self)
         self.report_workflows = ReportWorkflowManager(self)
@@ -442,6 +444,7 @@ class ResearchService(ModelProfilesMixin):
         await self.automations.close()
         await self.report_workflows.close()
         await self.asset_workspace.close()
+        await self.market.close()
         await self.integrations.close()
         await self.local_integrations.close()
         await self.frameworks.close()

@@ -2,6 +2,8 @@
 
 2026-10-22 Wind工作区在现有Host的AssetWorkspace旁增加`HistoryJobs`与纯历史规范模块，沿Broker串行取得日线/因子并原子发布规范快照，账号Store保存任务和副图偏好。模块及数据流图02/04已同步真实变化，API Atlas补6端点；部署仍是原浏览器/Host/DSH/网关节点，无新守护进程或数据库。Host关闭等待任务排空，resident及操作员空闲证明同时检查真实CJPY Future和持久任务。Automation调度与每用户运行根保持；详细[存储](03-data-files.md#资产历史与图表偏好存储)、[接口](04-api.md#资产历史任务与图表偏好)与[批准计划](../../plans/2026-10-22-wind-asset-workspace.md)分别维护。
 
+Host 新增无会话 `MarketService`，由 ResearchService 初始化和关闭；市场 HTTP 只在 POST 启动有界公共行情采集，GET 读取用户缓存。它不是独立守护进程或研究引擎，不改变 Web/DSH 部署节点；新模块内数据流见[市场概览](../../../outputs/research-web-architecture/13-market-overview.html)。实际常驻升级仍须独立授权和检查新模块任务的排空，不沿用旧固定产品 profile 冒充兼容。
+
 资产观察 v2 仍由原 `model_provider_upgrade` 协调既有 Native 主实例和网关；固定旧版 `9bc12355` 与产品 `93d62be6`，旧 v1／模型 profile 保留。v4 journal、不可变控制器、生产解释器、冻结恢复包和锁的职责不变，没有新增服务节点或扩大自动升级权限，现有部署图继续准确。
 
 资产观察迁入原 AF 连续指标区仍是既有浏览器 → Host AssetWorkspace → DataHub Broker → Provider／会话快照链路。`asset-indicators.mjs`、`asset-projection.mjs` 与本地固定 ECharts 5.5.0／Chart.js 4.4.7 属于前端内部模块及安装资源，不新增服务节点、数据库、协调器或研究执行引擎；账号权限与唯一DSH不变。原部署图拓扑仍准确，具体页面见[UI合同](../../research-web-ui.md#资产观察工作台)。

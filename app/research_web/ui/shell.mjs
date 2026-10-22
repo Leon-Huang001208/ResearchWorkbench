@@ -10,6 +10,7 @@ import { renderAccountTrigger } from './server/account-menu.mjs';
 const navItems = [
   { page: 'fingpt', glyph: 'chat', title: 'FinGPT', href: '#/fingpt' },
   { page: 'claw', glyph: 'layers', title: 'Claw', href: '#/claw' },
+  { page: 'market', glyph: 'chart', title: '全市场概览', href: '#/market' },
   { page: 'assets', glyph: 'chart', title: '资产观察', href: '#/assets' },
   { page: 'intel', glyph: 'activity', title: '研究情报', href: '#/intel/overview' },
   { page: 'aihot', glyph: 'activity', title: 'AI 资讯', href: '#/aihot/daily' },

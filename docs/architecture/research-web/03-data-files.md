@@ -10,6 +10,10 @@
 
 旧观察、原DataHub快照及旧研究冻结材料不重写。交接复制规范行和自包含的raw/因子/metadata，来源hash仍可复核。会话purge先取消并等待真实Future排空；Store拒绝清理非终态任务，缓存逐项核验归属与哈希，未知对象保留并报错。进程恢复将无存活owner的任务标为interrupted，显式重试后才继续取数；服务关闭与会话取消共用排空边界。常驻活动投影和操作员空闲证明覆盖非终态任务及真实Future，不因浏览器关闭或HTTP取消而提前放行。
 
+## 全市场概览缓存
+
+全市场缓存属于当前用户 `store.root/market-cache/`，与 `index.json`、研究 inputs/outputs 和会话数据集分离；保留当前及上一完整快照，有界原子写入，失败／partial 不覆盖可恢复的完整版本。GET 筛选、分页与 CSV 固定 snapshot_id，板块成员与同份股票池相交；筛选不改变总览分母。数据流见[市场概览](../../../outputs/research-web-architecture/13-market-overview.html)。
+
 资产观察 v2 profile 在原 v4 journal 中记录固定 mode、旧版与目标，主实例及全部私有账号业务 index 仍按每个顶层值冻结 canonical SHA256，区分缺失与空值；v1 同样保留此检查。前进、回滚、完成和 preparing 恢复不覆盖观察、查询、会话、账号或凭据。固定身份增加不改变 journal 版本、数据根、HTTP 或业务存储，现有文件流图无需新增节点。
 
 资产摘要的 `valuation`／`coverageRows` 是浏览器内存投影，不写入 Observation、DataHub 快照或任何数据库。覆盖数要求 dataset 身份与当前实际载入行同时存在，保留失败／加载中的旧快照身份；数据日、`as_of`、`retrieved_at`、报告期及请求／实际／载入区间分别保留。PB与PB-MRQ、明确PS-TTM与单期财务、零与缺失各自区分；Wind股本数量级未核验，不换算或派生市值。折叠状态仅按当前资产恢复，主题切换不改变源数据、公式、快照或交接材料。

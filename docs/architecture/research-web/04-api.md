@@ -21,6 +21,12 @@
 
 既有 `GET /api/research/resident` 的 `active` 同时包含真实 CJPY Future和历史任务非终态，无法读取witness为未知，不伪报false。操作员只在研究/观察/DataHub/历史任务全部明确空闲后允许切换；`cancelled`查询终态不抵消仍运行的Future。
 
+## 全市场概览接口
+
+`GET /api/research/market` 读取各区快照、覆盖、错误、交易日历状态与活动采集；GET不联网。`POST /market/refresh` 接受固定 `sections`（quotes、indices、industry、concept、flows、calendar、members）、行业／概念 `kind`、today／5d／10d `period` 和已登记 `board_id`，202返回独立 `request_id`；同 key 后台合并，`Idempotency-Key`可复用同次请求。`GET /market/refresh/{request_id}` 轮询，`DELETE`释放本请求订阅，最后读者离开才取消共享采集。
+
+`GET /market/quotes` 支持 `snapshot_id`、exchange、board、search、sort、direction、offset、limit（最多200）；`GET /market/quotes/export` 导出相同筛选的完整 CSV，要求完整来源股票池。板块过滤必须先显式刷新 members，成员与同份行情池相交，不重取个股报价。响应保留来源、行情／采集时间、provider_total、pages_fetched、pagination_complete、complete、missing、limitations、stale和本次错误；失败不冒充完整数据。不接收会话ID、凭据、路径或任意上游端点。
+
 `model_provider_upgrade apply-assets-v2` 属于显式本机操作员 CLI；新增封闭版本身份不增加或改变公开 HTTP 方法、路径、请求字段、认证边界和 Observation 响应。资产／DataHub 状态只读用于原空闲证明，业务 API 与研究执行链路保持，现有 API 图和索引继续准确。
 
 资产摘要新增的估值及八区来源明细是浏览器 DTO，字段从已取得快照和元数据投影；它们不进入 ObservationRequest 或公开 HTTP 响应 schema，不增加端点、参数、Provider 查询或持久化字段。展开选择／查询／来源详情和切换主题不取数，原显式创建及区块刷新合同保持。

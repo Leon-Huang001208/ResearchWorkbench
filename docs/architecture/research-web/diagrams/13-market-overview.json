@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {"title": "全市场概览：无会话采集与用户缓存", "quality_profile": "showcase", "viewBox": [1100, 650]},
+  "stages": [{"label": "行情页面"}, {"label": "请求与生命周期"}, {"label": "固定来源"}, {"label": "完整性与存储"}, {"label": "只读呈现"}],
+  "nodes": [
+    {"id": "marketPage", "type": "frontend", "label": "三个行情页签", "sublabel": "可见刷新 / 手动暂停", "stage": 0, "row": 1},
+    {"id": "marketRoutes", "type": "security", "label": "POST 刷新准入", "sublabel": "固定参数 / 维护保护", "stage": 1, "row": 1},
+    {"id": "marketService", "type": "backend", "label": "MarketService", "sublabel": "共享采集 / 精确取消", "stage": 2, "row": 1},
+    {"id": "publicMarket", "type": "cloud", "label": "公开行情来源", "sublabel": "沪 / 深 / 北独立分页", "stage": 2, "row": 3},
+    {"id": "coverage", "type": "backend", "label": "身份与覆盖核验", "sublabel": "总数 / 日期 / 单位", "stage": 3, "row": 1},
+    {"id": "marketCache", "type": "database", "label": "用户市场缓存", "sublabel": "当前及上一完整快照", "stage": 3, "row": 3},
+    {"id": "marketRead", "type": "frontend", "label": "GET 筛选与导出", "sublabel": "来源 / 时间 / 真实缺口", "stage": 4, "row": 1}
+  ],
+  "flows": [
+    {"id": "marketRefresh", "from": "marketPage", "to": "marketRoutes", "label": "显式启动", "variant": "security"},
+    {"id": "marketAdmit", "from": "marketRoutes", "to": "marketService", "label": "有界任务"},
+    {"id": "marketFetch", "from": "marketService", "to": "publicMarket", "label": "固定 HTTP 端点", "variant": "security"},
+    {"id": "marketNormalize", "from": "marketService", "to": "coverage", "label": "采集与规范化"},
+    {"id": "marketPersist", "from": "coverage", "to": "marketCache", "label": "完整快照原子保存", "variant": "emphasis"},
+    {"id": "marketProjection", "from": "coverage", "to": "marketRead", "label": "完整或明确缺口", "route": "straight"},
+    {"id": "marketCachedRead", "from": "marketCache", "to": "marketRead", "label": "失败保留旧版", "variant": "dashed"}
+  ],
+  "cards": [
+    {"dot": "emerald", "title": "数据口径", "items": ["北交所由独立股票池确认身份", "分页不截断全市场统计", "缺报价不计入平盘"]},
+    {"dot": "amber", "title": "刷新与恢复", "items": ["行情30秒、板块资金60秒", "多个读者共享同一采集", "最后读者取消时回收任务"]},
+    {"dot": "rose", "title": "系统边界", "items": ["缓存属于当前用户数据根", "不创建研究会话或数据集", "DSH仍是唯一研究引擎"]}
+  ]
+}
