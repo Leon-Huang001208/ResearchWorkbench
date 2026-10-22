@@ -70,7 +70,28 @@ async function waitMarket(page, predicate = value => value.sections.quotes.snaps
   throw new Error('real_market_refresh_timeout');
 }
 async function screen(page, name) {
-  const file = path.join(output, `${name}.png`); await page.screenshot({ path: file }); screens.push(file); return file;
+  const file = path.join(output, `${name}.png`); await page.screenshot({ path: file, animations: 'disabled' }); screens.push(file); return file;
+}
+async function waitReadableTheme(page, mode) {
+  const handle = await page.waitForFunction(mode => {
+    if (document.documentElement.dataset.theme !== mode) return false;
+    const card = document.querySelector('.market-index-card');
+    const label = card?.querySelector('span:first-child'), price = card?.querySelector('strong');
+    if (!label || !price) return false;
+    const color = element => getComputedStyle(element).color;
+    const foreground = color(label), valueColor = color(price), expected = color(document.body);
+    const background = getComputedStyle(card.closest('.market-panel')).backgroundColor;
+    const luminance = rgb => {
+      const channels = rgb.match(/[\d.]+/g)?.slice(0, 3).map(Number);
+      if (!channels || channels.length !== 3) return NaN;
+      const linear = channels.map(value => { const normalized = value / 255; return normalized <= 0.04045 ? normalized / 12.92 : ((normalized + 0.055) / 1.055) ** 2.4; });
+      return linear[0] * 0.2126 + linear[1] * 0.7152 + linear[2] * 0.0722;
+    };
+    const fg = luminance(foreground), bg = luminance(background), contrast = (Math.max(fg, bg) + 0.05) / (Math.min(fg, bg) + 0.05);
+    if (foreground !== expected || valueColor !== expected || contrast < 4.5 || (mode === 'dark' ? bg >= 0.15 : bg <= 0.7)) return false;
+    return { mode, foreground, background, contrast_ratio: contrast, settled_theme_text: true };
+  }, mode);
+  const evidence = await handle.jsonValue(); await handle.dispose(); return evidence;
 }
 async function tableAction(page, action, expected = {}) {
   await page.waitForFunction(() => !document.querySelector('.market-pagination')?.textContent.includes('读取中'));
@@ -142,6 +163,7 @@ try {
       return { snapshot_id: quotes.snapshot_id, provider: quotes.provider, row_count: quotes.row_count, provider_total: quotes.provider_total, independentMetadata, scopes, as_of: quotes.as_of, retrieved_at: quotes.retrieved_at, breadth, upcoming_count: quotes.summary.upcoming_count, amount: quotes.summary.amount, missing: quotes.missing, indices: { count: snapshot.sections.indices.rows.length, complete: snapshot.sections.indices.complete, missing: snapshot.sections.indices.missing }, boards: Object.fromEntries(['industry', 'concept'].map(key => [key, { count: snapshot.sections[key].row_count, complete: snapshot.sections[key].complete, missing: snapshot.sections[key].missing }])) };
     });
     await page.locator('.market-page h1').waitFor();
+    await page.waitForFunction(snapshotID => document.querySelectorAll('.market-index-card').length === 12 && [...document.querySelectorAll('.market-metadata p')].some(element => element.textContent.includes(snapshotID)) && !document.querySelector('[data-market-action=refresh]')?.disabled, snapshot.sections.quotes.snapshot_id, { timeout: 150000 });
     const pause = page.locator('[data-market-action=pause]'); if (await pause.textContent() === '暂停自动') await pause.click();
     await screen(page, 'real-authenticated-overview');
     await check('real quote table CSV and page statistics bind one snapshot', async () => {
@@ -248,14 +270,14 @@ try {
       return { from: previous.sections.quotes.snapshot_id, to: updated.sections.quotes.snapshot_id, first_request_after_ms: automatic[0].at - resumed, rows: updated.sections.quotes.row_count, as_of: updated.sections.quotes.as_of, state: updated.market_state };
     });
     await check('real authenticated market renders light dark and narrow table scrolling', async () => {
-      await page.emulateMedia({ colorScheme: 'dark' }); await page.waitForFunction(() => document.documentElement.dataset.theme === 'dark'); await screen(page, 'real-authenticated-dark');
-      await page.emulateMedia({ colorScheme: 'light' }); await page.waitForFunction(() => document.documentElement.dataset.theme === 'light');
+      await page.emulateMedia({ colorScheme: 'dark' }); const dark = await waitReadableTheme(page, 'dark'); await screen(page, 'real-authenticated-dark');
+      await page.emulateMedia({ colorScheme: 'light' }); const light = await waitReadableTheme(page, 'light');
       await page.setViewportSize({ width: 390, height: 844 }); await screen(page, 'real-authenticated-narrow-overview');
       await page.locator('.market-tabs').getByRole('link', { name: '沪深北行情', exact: true }).click(); await page.locator('.market-table').waitFor();
       const dimensions = await page.locator('.market-table-wrap').evaluate(element => ({ client: element.clientWidth, scroll: element.scrollWidth, overflow: getComputedStyle(element).overflowX }));
       assert.ok(dimensions.scroll > dimensions.client); assert.ok(['auto', 'scroll'].includes(dimensions.overflow)); await screen(page, 'real-authenticated-narrow-quotes');
       await page.setViewportSize({ width: 1440, height: 1000 });
-      return { themes: ['light', 'dark'], viewport: { width: 390, height: 844 }, table: dimensions };
+      return { themes: [light, dark], viewport: { width: 390, height: 844 }, table: dimensions };
     });
     await check('stock and index links enter existing asset observation without sessions', async () => {
       const stock = page.locator('.market-table tbody a').first(); const stockHref = await stock.getAttribute('href'); assert.ok(stockHref.startsWith('#/assets?'));
