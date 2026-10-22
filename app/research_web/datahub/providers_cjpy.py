@@ -680,6 +680,7 @@ async def fetch_directory(token: str | None = None) -> dict:
             raise
         except TimeoutError as exc:
             _stop_work(future)
+            await wait_for_idle()
             raise ProviderError("deadline") from exc
 
     try:

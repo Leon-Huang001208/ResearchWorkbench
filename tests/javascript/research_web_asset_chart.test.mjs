@@ -36,6 +36,21 @@ test('panel preferences normalize, deduplicate, allow none and notify only user 
   assert.deepEqual(option.dataZoom[1].xAxisIndex, [0]);
 });
 
+test('history status refresh leaves identical native date properties untouched', () => {
+  const f = fakeDOM(); const input = rows(300); const date = {}; const values = { value: '', min: '', max: '' }; const writes = { value: 0, min: 0, max: 0 };
+  for (const key of Object.keys(values)) Object.defineProperty(date, key, { get: () => values[key], set: next => { values[key] = next; writes[key]++; } });
+  f.nodes.set('[data-asset-selected-date]', date);
+  const c = createAssetChartController();
+  c.configure(input, 'one', { assetIdentity: 'same', historyJob: { status: 'queued' } }); c.mount(f.node); f.flush();
+  for (const key of Object.keys(writes)) writes[key] = 0;
+  c.configure(input, 'one', { assetIdentity: 'same', historyJob: { status: 'completed' } }); f.flush();
+  assert.deepEqual(writes, { value: 0, min: 0, max: 0 });
+  c.selectDate(day(80)); f.flush(); assert.deepEqual(writes, { value: 1, min: 0, max: 0 });
+  c.configure(rows(301), 'two', { assetIdentity: 'same' }); f.flush();
+  assert.deepEqual(writes, { value: 1, min: 0, max: 1 });
+  assert.equal(date.value, day(80)); assert.equal(date.max, day(300)); c.dispose();
+});
+
 test('selected actual date survives every viewport gesture, leave and same-asset version refresh', () => {
   const c = createAssetChartController(); const metadata = { frequency: 'daily', assetIdentity: { code: '603986.SH', type: 'stock' } };
   c.configure(rows(300), 'dataset-v1', metadata); c.select(180);
