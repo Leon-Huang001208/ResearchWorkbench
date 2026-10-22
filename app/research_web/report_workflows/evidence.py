@@ -13,7 +13,7 @@ from ..research_business_evidence import _emit, _proof
 from .models import WorkflowError
 
 log = get_logger(__name__)
-FACTS_PATH = "inputs/report-workflow/weekly-facts.jsonl"
+FACTS_PATH = "inputs/report-workflow/weekly-facts.txt"
 
 
 def weekly_fact_rows(bundle: dict) -> list[dict]:
@@ -219,7 +219,7 @@ def _news_business_observations(service, sid, scope):
 
 def _news_file_name(record):
     key = record["block_id"] + ":" + record["dataset_id"]
-    return "weekly-news-" + hashlib.sha256(key.encode()).hexdigest()[:24] + ".jsonl"
+    return "weekly-news-" + hashlib.sha256(key.encode()).hexdigest()[:24] + ".txt"
 
 
 def _content(bundle: dict) -> tuple[list[dict], str]:
@@ -239,10 +239,10 @@ def prepare_weekly_evidence(service, sid: str) -> None:
         with directory(service.store.directory(sid), ("inputs", "report-workflow")) as folder:
             path = service.store.directory(sid) / FACTS_PATH
             if path.exists():
-                if read_file(folder, "weekly-facts.jsonl", limit=192_000) != content.encode():
+                if read_file(folder, "weekly-facts.txt", limit=192_000) != content.encode():
                     raise ValueError("weekly_facts_changed")
             else:
-                write_new(folder, "weekly-facts.jsonl", content.encode())
+                write_new(folder, "weekly-facts.txt", content.encode())
         service.store.files(sid)
         service.store.save()
         log.info("report_weekly_facts_prepared", session_id=sid)

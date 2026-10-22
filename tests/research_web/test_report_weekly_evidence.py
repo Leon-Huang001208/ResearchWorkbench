@@ -1,7 +1,6 @@
 """Weekly calculations use Host observations and never model-provided facts."""
 
 import hashlib
-from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -51,7 +50,7 @@ def test_fact_index_is_rebuilt_and_tampering_is_rejected(tmp_path, monkeypatch):
 
         def open_file(self, sid, fid):
             assert fid == hashlib.sha256(evidence.FACTS_PATH.encode()).hexdigest()[:24]
-            return (root / evidence.FACTS_PATH).open("rb"), "weekly-facts.jsonl"
+            return (root / evidence.FACTS_PATH).open("rb"), "weekly-facts.txt"
 
     store = Store()
     store.root = tmp_path
@@ -101,6 +100,24 @@ def test_mean_uses_actual_number_of_trading_observations():
     )
     assert str(value) == "16"
     assert unit == "CNY"
+
+
+def test_fact_evidence_is_registered_by_the_real_store(tmp_path, monkeypatch):
+    from app.research_web.store import Store
+
+    store = Store(tmp_path)
+    sid = store.create("claw", "周报")["id"]
+    (store.directory(sid) / "inputs/report-workflow").mkdir()
+    service = SimpleNamespace(store=store)
+    monkeypatch.setattr(evidence, "_verified", lambda *_: bundle())
+    monkeypatch.setattr(evidence, "_news_business_observations", lambda *_: [])
+    evidence.prepare_weekly_evidence(service, sid)
+    files = store.files(sid)
+    assert any(item["name"] == "weekly-facts.txt" for item in files)
+    observed = evidence.weekly_business_observations(
+        service, sid, task_id="a" * 24, contract_sha="b" * 64
+    )
+    assert observed and observed[0]["proofs"][0]["source_id"].startswith("file:")
 
 
 def test_original_evidence_budget_stays_fixed_without_host_weekly_operands():
