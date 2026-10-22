@@ -969,13 +969,16 @@ class ReportWorkflowRuntime:
             )
         if contract.enabled:
             with self.catalog._exclusive():
-                manual_passed = any(
-                    row.get("workflow_id") == workflow_id
-                    and row.get("trigger") == "manual"
-                    and row.get("status") == "completed"
-                    and row.get("delivery_status") == "complete"
-                    and (not formal or self._manual_weekly_passed(workflow_id, selected))
-                    for row in self.catalog.data["runs"].values()
+                manual_passed = (
+                    self._manual_weekly_passed(workflow_id, selected)
+                    if formal
+                    else any(
+                        row.get("workflow_id") == workflow_id
+                        and row.get("trigger") == "manual"
+                        and row.get("status") == "completed"
+                        and row.get("delivery_status") == "complete"
+                        for row in self.catalog.data["runs"].values()
+                    )
                 )
             if not manual_passed:
                 raise WorkflowError(

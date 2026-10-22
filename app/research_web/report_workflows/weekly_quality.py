@@ -156,6 +156,7 @@ def weekly_verified_evidence(service, sid: str) -> dict | None:
         return {
             "assessment": assessment,
             "snapshot": snapshot,
+            "data_contract": frozen["data_contract"],
             "source_id": "file:" + fid,
             "source_sha256": _digest(raw),
             "content": raw.decode("utf-8", errors="strict"),
