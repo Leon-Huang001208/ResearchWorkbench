@@ -320,6 +320,7 @@ export function createAssetChartController({ onChange = () => {}, onPanelsChange
   function requestHistory(action = 'load', scope = 'all', requestedAdjustment) {
     if (!metadata.canLoadHistory) return false;
     if (action !== 'cancel' && (busyHistory(metadata) || state.historyRequestPending)) return false;
+    if (action === 'load' && scope === 'older' && !historyFor(metadata).canonical_version) scope = 'recent';
     let attemptAnchor = '';
     if (action === 'load' && scope === 'older') {
       if (completeHistory(metadata)) return false;

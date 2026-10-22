@@ -118,6 +118,20 @@ test('server-required rebuild hides and rejects retry without changing loaded da
   assert.equal(c.getState().adjustment, 'qfq');
 });
 
+test('the first older request from a legacy snapshot builds a separate recent canonical version', () => {
+  const requests = []; const c = createAssetChartController({ onHistoryRequest: request => { requests.push(request); return true; } });
+  const input = rows(10);
+  c.configure(input, 'legacy', { assetIdentity: 'one', canLoadHistory: true, adjustment: 'qfq' });
+  c.pan(-1);
+  assert.deepEqual(requests, [{ action: 'load', scope: 'recent', adjustment: 'qfq' }]);
+  assert.equal(c.getState().selectedDate, input.at(-1).date);
+  assert.equal(c.getState().adjustment, 'qfq');
+  c.configure(rows(300), 'canonical', { assetIdentity: 'one', canLoadHistory: true,
+    asset_history: { canonical_version: 'v1', adjustment: 'qfq', coverage: { full_history: false } } });
+  c.pan(-1000);
+  assert.deepEqual(requests.at(-1), { action: 'load', scope: 'older', adjustment: 'qfq' });
+});
+
 test('a failed factor version can rebuild full history while the prior complete snapshot stays readable', () => {
   const requests = []; const c = createAssetChartController({ onHistoryRequest: request => { requests.push(request); return true; } });
   c.configure(rows(300), 'v1', { assetIdentity: 'one', canLoadHistory: true,

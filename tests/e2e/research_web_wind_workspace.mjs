@@ -228,6 +228,26 @@ try {
     const evidence = await stateOfChart(); assert.equal(+evidence.visibleCount, 10); assert.equal(await page.locator('[data-asset-chart-action="all"]').innerText(), '全历史');
     state.current.set('603986.SH', original); return evidence;
   });
+  await check('legacy first left-load builds recent canonical before any older extension', async () => {
+    assert.ok(state.partialVersions.length, 'RWB_WIND_PARTIAL_PROOF must provide a verified real intermediate canonical snapshot');
+    const original = structuredClone(state.current.get('603986.SH')); const legacy = structuredClone(original); const dataset = legacy.blocks.history.dataset;
+    const id = 'legacy-ten-first-left'; state.rows[id] = state.rows[dataset.dataset_id].slice(-10); dataset.dataset_id = id; dataset.row_count = 10; delete dataset.asset_history; delete legacy.history_job; legacy.dataset_ids = [id];
+    state.current.set('603986.SH', legacy); state.usePartialForRecent = true;
+    await page.goto(`${origin}/#/assets?asset=603986.SH&asset_type=stock&view=overview`); await stable();
+    const firstPost = page.waitForRequest(request => request.method() === 'POST' && /\/history-jobs$/.test(new URL(request.url()).pathname));
+    await action('pan-back'); const first = JSON.parse((await firstPost).postData()); assert.equal(first.scope, 'recent');
+    const partial = state.partialVersions.find(version => version.asset === '603986.SH' && version.adjustment === first.adjustment); assert.ok(partial);
+    const partialDataset = partial.observation.blocks.history.dataset;
+    await page.waitForFunction(expected => { const node=document.querySelector('[data-asset-echarts]'); const main=node && echarts.getInstanceByDom(node); return main?.getOption()?.series?.find(series=>series.type==='candlestick')?.data.length===expected && document.querySelector('[data-asset-chart-adjustment]')?.disabled===false; }, partialDataset.row_count, {timeout:25000}); await stable();
+    assert.ok(state.current.get('603986.SH').blocks.history.dataset.asset_history.canonical_version);
+    assert.equal(partialDataset.asset_history.coverage.full_history, false);
+    await chart().evaluate(node => echarts.getInstanceByDom(node).dispatchAction({ type:'dataZoom', dataZoomIndex:1, startValue:1, endValue:120 })); await stable();
+    const secondPost = page.waitForRequest(request => request.method() === 'POST' && /\/history-jobs$/.test(new URL(request.url()).pathname));
+    await action('pan-back'); const second = JSON.parse((await secondPost).postData()); assert.equal(second.scope, 'older'); assert.equal(second.adjustment, first.adjustment);
+    await page.waitForFunction(expected => { const node=document.querySelector('[data-asset-echarts]'); const main=node && echarts.getInstanceByDom(node); return main?.getOption()?.series?.find(series=>series.type==='candlestick')?.data.length===expected && document.querySelector('[data-asset-chart-adjustment]')?.disabled===false; }, original.blocks.history.dataset.row_count, {timeout:25000}); await stable();
+    state.usePartialForRecent=false; state.current.set('603986.SH', original);
+    return { firstPost:first, secondPost:second, intermediateRows:partialDataset.row_count, finalRows:original.blocks.history.dataset.row_count, intermediateProvenance:state.partialProvenance, note:'HTTP job transitions are in-memory only; intermediate and complete canonical inputs are verified actual saved snapshots.' };
+  });
   await check('no browser/server errors no outside requests and exact source hashes', async () => {
     const handoffs = page.locator('[data-workbench-handoff]');
     assert.equal(await handoffs.count(), 2);
@@ -235,7 +255,7 @@ try {
     assert.deepEqual(errors, []); assert.deepEqual(external, []); assert.deepEqual(state.errors, []); return { errors, external, supplierCalls: 0, modelCalls: 0, sourceHashes: await fixture.verifySourceUnchanged() };
   });
 } finally {
-  await writeFile(path.join(output, 'report.json'), JSON.stringify({ startedAt: new Date().toISOString(), origin, proofPath: state.proofPath, results, errors, external, serverErrors: state.errors, screenshots, requests: state.reads, sourceHashes: state.hashes, actualSupplierModelRequestsInBrowser: 0, isolation: 'real frozen OHLC snapshots; API job transitions and preference writes are in-memory fixture only' }, null, 2));
+  await writeFile(path.join(output, 'report.json'), JSON.stringify({ startedAt: new Date().toISOString(), origin, proofPath: state.proofPath, partialProofPath:state.partialProofPath, results, errors, external, serverErrors: state.errors, screenshots, requests: state.reads, historyRequests:state.historyRequests, sourceHashes: state.hashes, actualSupplierModelRequestsInBrowser: 0, isolation: 'real frozen OHLC snapshots; API job transitions and preference writes are in-memory fixture only' }, null, 2));
   await browser.close(); await fixture.close();
 }
 const failed = results.filter(result => result.status === 'FAIL');
