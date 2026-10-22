@@ -43,3 +43,9 @@ URL `http://127.0.0.1:18991/#/skills?kind=plugin`。上传该 root 下 `fixture-
 Root 在 macOS 以源码检查点 `7e156fb9c` 启动上述独立 18991 实例，经可见页面完成 ZIP 上传、安全预览、全部声明权限审核、启用投影、原生计划预览与真实安装、官方 SDK 探测、四项指纹审核、启用 MCP 和无模型会话授权。最终页面明确显示“已由原生 MCP 授予此会话的固定工具权限”，此前启用返回 `MCP：enabled`。包摘要为 `abb0f46521e91d66ab1ccdbe2fa5ab8f95905794135fe3a162bec61960e4fb00`。
 
 截图仅含本任务离线 Canary，无用户凭据：`/Users/leon/.codex/visualizations/2026/10/23/plugin-real-sdk/capability-granted.jpg`。测试页已关闭，精确归属进程 PID34780 已收到 TERM 并退出，日志显示 `market_service_closed`；原18993数据源隔离实例及其他服务未操作。浏览器未触发工具调用，实际工具返回仍由前述独立 Host/SDK HTTP 生命周期证明；无真实 DSH 发现、模型或厂商调用声明。
+
+## 固定 ToolRuntime 桥接与 CI 修复
+
+独立质量复审在 `c88ecac3f3e2b0d363fe57dcac7abaea453b2f79` 用固定 DSH `7ecf564f2e09b829240c5553687223bdd1e2df73` 的真实 Context/SystemPrompt/ToolRuntime 执行原 MCP adapter，经自有18996 HTTP Host、逐次调用审批、官方 SDK 和 Seatbelt 返回 `RWB_REAL_SDK_CANARY_20261022:native-bridge`，11.71秒通过。仅一次adapter HTTP调用，模型为0；Python/Node/自有服务器及7个SDK子进程均退出，scratch回收，端口可重新绑定。私有回执 `/private/tmp/rwb-nativebridge-quality-_z64gg3t/bridge-evidence.json` SHA-256 `08a39828c09c37ed2c7e23ab8c2bae291e107cb2d9b2a4f51002baddca4bd0a3`。该结果证明固定ToolRuntime组件的真实工具桥，不等同完整DSH服务、浏览器触发调用或模型验收。
+
+PR191首轮Checks `39815289736` 在JavaScript合同失败：新增插件页签后，旧methods测试仍把End键末项断言为data（实际plugin）。本机单模块已重现失败，仅修正该断言并补Home返回skill，保留方法页原只读/十条/选择与重试用例；未改产品导航或削弱权限门。原失败日志保留于 `logs/plugins-final/methods-keyboard-before.log` 和 `/tmp/rwb-plugin-ci-checks-failed.log`，完整JavaScript合同及新候选原必需门仍须重验，不将旧CI改写为通过。
