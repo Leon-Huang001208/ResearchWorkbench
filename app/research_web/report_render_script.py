@@ -204,7 +204,7 @@ def render_docx(payload, values):
     )
     context = load_context()
     WEEKLY_BLOCK_BINDINGS = apply_weekly_docx_projection(  # noqa: F821
-        document, context, Path("inputs/report-workflow")
+        document, context, Path(globals()["SESSION_ROOT"]) / "inputs/report-workflow"
     )
     output = Path("outputs/report.docx")
     document.save(output)
