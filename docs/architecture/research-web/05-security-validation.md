@@ -1,5 +1,7 @@
 # 安全边界与验证方法
 
+固定公开indices桥只接受Host内构造的12指数合同，浏览器不能提交actor/scope。当前Host用户根、仓库根、profile id/owner/enabled/config摘要和来源配置/合同摘要在读写前后复核；数据库不可用才允许明确未持久化，授权/合同失败不降级。公开访客源没有独立grant，不能声称该不存在的开关可撤销；真实profile撤销与跨用户根拒绝有离线回归。共享/私有Wind/周报与tenant策略均不扩权。
+
 资产v5大索引修复仅让该profile复用既有64 MiB read_business_index：路径／普通文件／NOFOLLOW／大小及JSON对象校验保持，错误仍日志并失败关闭；元数据保持1 MB，旧profile绑定、固定PREVIOUS／PAYLOAD、controller／evidence字节及保全／恢复门不变。没有新信任边界、权限或外部输入；不通过裁剪8.67 MB业务索引或放宽读取检查消除故障。PR187文档／结构门失败保留，补齐后仍须原完整约束、独评和同候选三CI。
 
 资产交互v5固定PREVIOUS=51f09、PAYLOAD=PR185真实merge9bc4；原review_assets继续核对产品祖先、完整路径并集、blob、模式、干净checkout及源码／发布仓库身份，运行时不接受任意旧版或产品SHA。旧profile、不可变controller／evidence、自动兼容白名单、账号与秘密namespace不变；原维护锁、BirthFence、明确空闲、全账号保全和正式recover仍为硬门。没有新信任边界或认证流程，01／12安全相关图保持，产品三CI不替代v5最终独评／CI／真实切换证据。

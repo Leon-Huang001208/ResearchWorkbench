@@ -64,6 +64,8 @@ load正文只允许`source`（可省略或auto／封闭来源ID）、`refresh`�
 
 ## 全市场概览接口
 
+indices响应可附加`warehouse`对象：status、persisted、hit、source=eastmoney、source_count=1、version（本次写入返回版本）、snapshot_sha256/observed_at/display_cache_ttl_seconds（仓命中证据）及固定False的quality_accepted/formal_backtest_eligible。原响应字段含义和HTTP请求不变；仓不可用而上游成功时明确persisted=False，授权失败不降级取数。GET仍零上游调用，POST显式刷新不冒充仓命中刷新；内部缓存读不是新HTTP入口。
+
 `GET /api/research/market` 读取各区快照、覆盖、错误、交易日历状态与活动采集；GET不联网。`POST /market/refresh` 接受固定 `sections`（quotes、indices、industry、concept、flows、calendar、members）、行业／概念 `kind`、today／5d／10d `period` 和已登记 `board_id`，202返回独立 `request_id`；同 key 后台合并，`Idempotency-Key`可复用同次请求。`GET /market/refresh/{request_id}` 轮询，`DELETE`释放本请求订阅，最后读者离开才取消共享采集。
 
 `GET /market/quotes` 支持 `snapshot_id`、exchange、board、search、sort、direction、offset、limit（最多200）；`GET /market/quotes/export` 导出相同筛选的完整 CSV，要求完整来源股票池。板块过滤必须先显式刷新 members，成员与同份行情池相交，不重取个股报价。响应保留来源、行情／采集时间、provider_total、pages_fetched、pagination_complete、complete、missing、limitations、stale和本次错误；失败不冒充完整数据。不接收会话ID、凭据、路径或任意上游端点。

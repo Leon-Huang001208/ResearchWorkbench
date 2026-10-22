@@ -4142,6 +4142,26 @@ Functions:
   - No provider query is fabricated: this is a stored-evidence snapshot kind.
 
 
+## `app/research_web/datahub/market_reader.py`
+
+Module docstring:
+> Trusted sessionless Host bridge for one fixed public Eastmoney indices contract.
+
+Imports:
+- `contracts`
+- `copy`
+- `core.observability`
+- `market_store`
+- `market_store.models`
+- `pathlib`
+- `providers`
+- `research_snapshot_store`
+
+Classes:
+- `MarketReader`
+  - methods: __init__, _identity, _recheck, _metadata, indices
+
+
 ## `app/research_web/datahub/probes.py`
 
 Module docstring:
@@ -4681,7 +4701,9 @@ Imports:
 - `json`
 - `market_store`
 - `market_store.models`
+- `math`
 - `providers`
+- `providers_market`
 - `threading`
 - `uuid`
 
@@ -4691,6 +4713,12 @@ Classes:
   - methods: __init__, _now, dataset, _facts, ingest, read
 
 Functions:
+- `_market_numeric`
+- `_market_stamp`
+  - Match the Provider's full Shanghai ISO-second timestamp contract.
+- `_complete_index_row`
+- `complete_market_indices`
+  - Capture all fixed index fields and well-formed intraday points, never null gaps.
 - `_bounded_nav_capture`
   - Admit disclosed NAV semantics gaps only for a complete, narrow source response.
 
@@ -4730,7 +4758,7 @@ Classes:
 - `WarehouseConfiguration`
   - methods: check_endpoint
 - `ResearchWarehouse`
-  - methods: __init__, _profile, owner, _write, _secret, status, save, _postgres, initialize, disable, _calendar_service, _stored_calendar, _save_calendar, prepare, _bridge, _snapshot_series, read, missing_queries, ingest
+  - methods: __init__, _profile, owner, capture_identity, _write, _secret, status, save, _postgres, initialize, disable, _calendar_service, _stored_calendar, _save_calendar, prepare, _bridge, _snapshot_series, read, missing_queries, ingest
 
 
 ## `app/research_web/datahub/routes.py`

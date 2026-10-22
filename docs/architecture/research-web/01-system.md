@@ -1,5 +1,7 @@
 # 部署与模块职责
 
+公开indices桥由现有ResearchService注入`MarketReader`，仅为MarketService的固定指数分区接入原ResearchWarehouse/StorageRunner。其余分区直取和用户缓存、GET零上游、唯一DSH及部署节点不变；13市场数据流增加可选个人仓库条件边，未配置不会创建数据库或后台采集。
+
 资产v5大索引修复只调整既有Native操作员预检读取绑定：v5业务index沿64 MiB安全读取器，部署元数据仍1 MB。主实例／网关、账号根、锁、BirthFence和version4事务没有新增节点或拓扑；旧profile与固定产品不变，01部署图仍准确。此前8.67 MB索引在停机前被拒绝，不能把随后本机修复或文档补齐当作实际切换成功。
 
 资产交互v5（2026-10-22）只新增原Native操作员的固定profile：旧51f09、产品PR185真实merge9bc4，入口apply-assets-v5。主实例／网关、维护锁、BirthFence、账号数据根和唯一DSH节点保持；没有新守护进程、容器、HTTP或部署拓扑，01部署图仍准确。旧资产／market／模型profile保留，v5最终资格及未部署状态见[操作合同](../../research-web-gateway-upgrade.md#资产交互与数据-v5-2026-10-22)。

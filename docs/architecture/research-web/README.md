@@ -1,5 +1,7 @@
 # Research Workbench Research Web 当前架构
 
+2026-10-23固定公开indices个人仓库桥新增的内部读写条件边见[13市场图](../../../outputs/research-web-architecture/13-market-overview.html)。默认Host的POST仍真实取上游，GET只读原用户缓存；仅内部允许缓存读可命中同源短时捕获。没有新增服务、DSH引擎或自动采集，个人仓库未配置时明确未持久化。
+
 当前v5组合产品为PR188真实merge88ef3817（含资产9bc4及DataHub研究仓），旧版仍51f09；阅读入口固定该已提交组合产品，v5一行64 MiB读取修复另指8f2cb39a，元数据保持1 MB。PR188新04数据流与API清单保留，profile修复自身不新增节点或HTTP。用户批准组合验收后锁定baostock0.9.4／psycopg3.3.6随常驻部署，但不启用／迁移DB、不改外盘；旧a114三CI全PASS、新组合重验及实际部署分别记录，见[部署合同](../../research-web-gateway-upgrade.md#资产交互与数据-v5-2026-10-22)和[修复报告](../../../.ai/reports/test_report_asset_v5_index_fix_20261022.md)。
 
 华安ETF周报沿现有Workflow、私有DataHub、唯一DSH与Host质量边界升级；新合同只对附接主管理员

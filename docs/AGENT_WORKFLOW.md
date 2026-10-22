@@ -1,5 +1,7 @@
 # Agent 任务路由指南
 
+2026-10-23公开indices仓库桥复用现有Checks Python步骤，追加MarketReader及opt-in临时PG测试，不新增job/runner/timeout/依赖或平台dispatch。macOS本机只用已有批准venv及既有socket-only临时PG helper；PG5432、生产配置、外盘、真实凭据与模型保持无操作。缺显式PG环境的CI保留skip；本机PG成功不替代同候选Mac干净安装和通用仓库门，评审/发布由root统一绑定。
+
 PR188合流后，当前用户已明确批准“组合验收后一起部署”，包括已合并锁中的baostock0.9.4／psycopg3.3.6；不启用或迁移数据库，不改外盘。尚未成功切换的v5将PAYLOAD固定到完整产品88ef3817（含资产9bc4与DataHub研究仓），PREVIOUS仍51f09；旧profile不变。旧a114候选三CI全PASS只属于旧树，新组合必须重新完成本机兼容／独评／原三CI和同候选Mac安装后才由root部署，本次文档不安装包或切换。
 
 2026-10-22资产v5业务索引预检修复保持原完整changed-set Router与模块文档门：仅v5复用64 MiB安全业务读取，元数据和旧profile保持。PR187 Constraints run39794625674因模块文档／结构复核缺失失败，须补实际影响说明并正常提交后重新绑定原三CI／同候选Mac安装；不删规则、不手工涂改原run或以局部769／112和独评173项代替CI。停机前拒绝不表示已部署，正式切换仍由root完成原资格、锁、明确空闲和全账号保全。

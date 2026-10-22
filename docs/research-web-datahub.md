@@ -66,7 +66,9 @@ BaoStock 0.9.4新增公开沪深股票原始日线、股票目录和交易日历
 
 腾讯、与新浪访客报价已做只读对照：腾讯明确停牌标记及参考价格与东财吻合；新浪对部分停牌返回零价/旧日，北交所样本为空。不将不同源状态/单位默混进本批；本轮现有东财接口已补齐目标缺口，不新增依赖或登录。实测、合同与保全部署记录见[任务报告](../.ai/reports/2026-10-22-market-gaps.md)。
 
-`MarketService`使用当前用户market-cache/保存当前及上一完整快照，GET消费缓存、POST显式刷新；不产生研究receipt、dataset或DSH调用。行业／概念按东方财富分类，沪深大盘资金不含北交所；该公开市场链路不改变天软权限，资产结构化能力见上节。公开源可达、字段可用、分页完整和真实验收分别记录。
+`MarketService`使用当前用户market-cache/保存当前及上一完整快照，GET消费缓存、POST显式刷新；不产生研究会话、研究receipt或DSH调用。indices的默认Host链路现通过`datahub/market_reader.py`接入个人ResearchWarehouse；完整固定12指数响应作为一个原生响应封包入仓，既有GET不读上游也不主动读仓。POST始终实际取上游；仅受信内部`refresh=False`读可使用同来源、同配置摘要、300秒内的仓库捕获。行业／概念按东方财富分类，沪深大盘资金不含北交所；其余分区仍走既有公开适配。本次不改变天软权限，也不注册未经等价性核实的第二来源。
+
+公开eastmoney访客合同目前没有独立来源授权开关，不能声称已实现该来源grant撤销；真实可撤销边界为Host生命周期与个人仓库profile。读写前后复核Host未关闭、用户根/仓库根一致，以及profile的id、owner、enabled和脱敏配置摘要、来源配置/固定合同摘要。profile停用或换配置后不能再命中旧仓库，进行中变化拒绝交付；每次底层read/write/export仍走MarketStore授权。浏览器不能提交actor/scope。新增`warehouse`元数据准确区分hit/persisted/incomplete/disabled/not_configured及数据库不可用；仅数据库busy/unavailable/operation_failed允许继续上游，授权和合同错误不降级。partial/失败/缺指数/缺分时不替换旧完整捕获；不提升研究质量、PIT或正式回测资格。公开源可达、字段可用、分页完整和真实验收分别记录。
 
 资产页估值与coverageRows仍是浏览器DTO，但本轮另增加上述目录／load HTTP和缓存合同。来源摘要按当前区块动态统计已取得／待加载／查询失败／未接入，成功空结果与未读取快照分开，新闻／公告不计入DataHub统计。数据日、as_of、retrieved_at、报告期、请求／实际／已载入区间保留，不能合并为一个“最新”。
 

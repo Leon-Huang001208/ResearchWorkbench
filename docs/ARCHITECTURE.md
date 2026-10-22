@@ -1,5 +1,7 @@
 # Research Workbench 架构总览
 
+2026-10-23公开指数研究仓桥沿现有Host/MarketService/DataHub/ResearchWarehouse拓扑：默认Host注入无会话MarketReader，POST indices显式取公开eastmoney后将完整固定12指数响应归档；GET仍只消费market-cache。内部允许缓存请求可读同来源/同个人profile摘要的短时捕获，读写前后重验Host根、关闭状态与profile epoch。没有新增服务、HTTP接口、依赖、研究引擎、共享scope或第二来源；13市场图新增indices-only的可选写仓/内部缓存读取分支，不沿用此前无仓库边的旧图结论，精确边界见[DataHub](research-web-datahub.md)。
+
 PR188合流后的当前v5组合产品固定88ef3817680ac822e2d7c819db845de4b7275173，包含资产9bc4及DataHub研究仓；PREVIOUS仍51f09，8f2cb39a的一行业务读取修复另保留源码身份。用户已批准组合验收后部署锁定baostock0.9.4／psycopg3.3.6，但不启用／迁移数据库、不改外盘。PR188已审新04数据流保持，以下“v5本身无新结构／依赖”只描述原封闭profile及一行修复，不覆盖组合产品的研究仓变化；旧a114三CI全PASS不认证新组合，最终仍须重验。
 
 2026-10-22资产v5大业务索引修复仅让原verify_primary的v5分支复用既有64 MiB安全业务读取器，元数据仍为1 MB；修复8.67 MB业务index在停机前被误拒绝的绑定错误。既有Host、账号数据根、部署节点、锁、version4事务、全账号保全与恢复不变，旧profile／controller／evidence／固定产品均不修改。无新HTTP、数据流、格式或依赖，现有图准确；PR187原Constraints失败及修补后的候选验收分别留证，不以本机通过冒充CI或部署成功。

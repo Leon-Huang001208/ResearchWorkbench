@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "unchanged",
-  "summary": "复核基金NAV原生快照有界捕获；根README既有可选研究仓与未部署说明保持准确。",
-  "reason": "已阅读根README。现有研究仓段落说明隔离实现、正式库/外盘/常驻尚未启用，并链接完整研究仓合同；此次只允许完整分页的最多31日东财NAV保留三项已声明缺口，无新入口、依赖、schema或部署。具体语义已同步原生快照及周报边界文档，根README无需重复供应商字段清单。"
+  "summary": "复核固定公开indices的个人仓库桥；根README既有无研究会话行情与可选仓库说明保持准确。",
+  "reason": "已阅读根README。既有行情段落链接DataHub合同，研究仓仍需显式个人配置；此次仅将完整12指数原生响应接入同一仓库，不新增HTTP入口、依赖、schema、共享权限或部署。具体POST真实取数、内部缓存读和profile撤销边界已同步DataHub/API/原生快照文档，根README无需重复内部模块清单。"
 }
