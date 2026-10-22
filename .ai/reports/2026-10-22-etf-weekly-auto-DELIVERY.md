@@ -42,6 +42,13 @@ AlphaFoundry 只读。冻结真实底稿 57 序列、明确交易日/收盘口�
 数据或质量证据时保留阻断/未完成，首个真实完整定稿前不启用日程。本机源码和离线验证不认证
 这些运营门，也不认证 Windows/Linux 原生支持；其他平台交由对应设备对精确候选验收。
 
+用户随后明确授权独立环境安装官方SDK及一次只读对照预检，并补充可能只有Wind账户、未开通
+Client API。实际预检发现Wind.app 26.5.3已运行，但Python无WindPy；[官方Client API页面](https://www.wind.com.cn/portal/zh/ClientApi/index.html)、
+[下载中心](https://www.wind.com.cn/download.htm)及只读终端帮助菜单均未找到可直接安装的SDK包。
+本次因此停在SDK获取/依赖层 **BLOCKED**，未安装第三方同名包，未调用SDK连接、行情、
+`w.start/stop`或Office刷新。API权益仍为 **UNKNOWN**，API/Excel对照 **NOT_RUN**，不能写成
+账户已被拒绝授权。原始来源、哈希和本机证据保存在主任务`logs/etf-weekly/wind-precheck/`。
+
 <!-- architecture-review {"group":"ui","structure":"unchanged","reason":"在既有能力中心和Claw详情投影周报状态与入口，保留原单页导航及Host请求链","diagrams":[]} -->
 <!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"新增周报准备路由仍由原FastAPI和ResearchService处理，不增加独立API服务或执行引擎","diagrams":[]} -->
 <!-- architecture-review {"group":"datahub","structure":"unchanged","reason":"封闭Client API适配与取数仍通过原私有DataHub及快照交接，不新增跨租户通道或数据服务","diagrams":[]} -->
