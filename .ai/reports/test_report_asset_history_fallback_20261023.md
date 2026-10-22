@@ -127,3 +127,5 @@ Root/SPEC确认CJPY实际默认markettable形状完全无identity列，封闭单
 Root补充的普通仓只读核查：DataHub refresh=False已实现仓候选AK miss后Bao完整命中且0 fetch；这不改变History新job refresh=True显式整段强刷边界。Wind storage_read仍无条件经过validate_wind_query的>60自然日限制，导致该类完整缓存受挡，本轮只记录、不扩源码修复。
 
 Root已转交独立质量最终PASS，注解后0a6dc冻结九文件精确匹配；CJPY50及Ruff/Black通过，同范围mypy新增两项消失、原四项债保留。仅局部类型注解，无行为改动，176项此前行为闭包按源码差异映射保留，不伪称重跑。现按授权提交本feature源码/文档检查点并managedprepare最新master，未发布、未部署；组合实际Host/Bao验证和最终全门随后由Root协调。
+
+新源码检查点实际提交`f3149a578ab3d86c96651ef25d42725c7de25a01`，包含本次typed raw语义/缓存边界及CJPY原生字段证据完整保存。此处reading.repository.revision更新到该源码检查点，官方生成物归随后的docs commit，避免自指；与最新master的组合源码另由managedprepare及其精确候选说明，源门/实际组合UI/最终CI不混写。
