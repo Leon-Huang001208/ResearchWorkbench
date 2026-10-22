@@ -10,6 +10,183 @@ from types import SimpleNamespace
 
 
 class WarehouseManagementTests(unittest.TestCase):
+    def test_default_host_broker_captures_bounded_nav_with_semantic_gaps(self):
+        import asyncio
+        from unittest.mock import patch
+
+        import httpx
+        from test_api import NativeFixture
+
+        from app.research_web.datahub import catalog, providers
+        from app.research_web.datahub.contracts import BusinessQuery
+        from app.research_web.datahub.research_warehouse import ResearchWarehouse
+        from app.research_web.market_store import InMemoryMarketStore, MarketStoreError
+        from app.research_web.mcp_registry.service import MCPRegistryService
+        from app.research_web.service import ResearchService
+        from app.research_web.store import Store, StoreError
+
+        class Backend(InMemoryMarketStore):
+            def bootstrap(self):
+                pass
+
+        async def exercise(root):
+            backend = Backend()
+            native = NativeFixture()
+            with patch.object(ResearchWarehouse, "_postgres", staticmethod(lambda *_: backend)):
+                host = ResearchService(
+                    native,
+                    Store(root),
+                    mcp_registry=MCPRegistryService(root, keyring_backend=memory_keyring),
+                    mcp_keyring_backend=memory_keyring,
+                    delivery_keyring_backend=memory_keyring,
+                )
+            hub = host.datahub
+            warehouse = hub.warehouse
+            self.assertIsInstance(warehouse, ResearchWarehouse)
+            saved = warehouse.save(
+                {
+                    "host": "127.0.0.1",
+                    "database": "rwb_market_nav",
+                    "username": "research",
+                    "sslmode": "disable",
+                }
+            )
+            warehouse.initialize(saved["profile_id"], "rwb_market_nav")
+            sid = host.store.create("claw", "NAV capture")["id"]
+            request = BusinessQuery(
+                capability="fund_data",
+                source="eastmoney_fund",
+                purpose="display",
+                quality="allow_stale",
+                parameters={
+                    "dataset": "nav",
+                    "code": "510050",
+                    "start_date": "2025-01-02",
+                    "end_date": "2025-01-03",
+                },
+            )
+            raw = json.dumps(
+                {
+                    "ErrCode": 0,
+                    "Data": {
+                        "LSJZList": [
+                            {
+                                "FSRQ": day,
+                                "DWJZ": "1.23",
+                                "LJJZ": "2.34",
+                                "JZZZL": "0.5",
+                                "FHSP": "",
+                            }
+                            for day in ("2025-01-03", "2025-01-02")
+                        ]
+                    },
+                    "TotalCount": 2,
+                    "PageIndex": 1,
+                    "PageSize": 100,
+                }
+            ).encode()
+            calls = []
+            original_fetch = providers.fetch
+
+            async def fetch(query, **kwargs):
+                calls.append(query)
+                if len(calls) > 1:
+                    raise providers.ProviderError("vendor_call_blocked")
+                return await original_fetch(
+                    query, transport=httpx.MockTransport(lambda _: httpx.Response(200, content=raw))
+                )
+
+            try:
+                with patch.object(providers, "fetch", fetch):
+                    first = await hub.query(sid, "nav-first", request)
+                    second = await hub.query(sid, "nav-db-hit", request)
+                    self.assertTrue(first["provider_metadata"]["warehouse_persisted"])
+                    self.assertTrue(second["provider_metadata"]["warehouse_hit"])
+                    self.assertEqual(second["row_count"], 2)
+                    self.assertFalse(second["data_success"])
+                    self.assertFalse(second["provider_metadata"]["quality_accepted"])
+                    self.assertFalse(second["provider_metadata"]["formal_backtest_eligible"])
+                    self.assertEqual(len(calls), 1)
+                    old_digest = hub.source_configuration_digest("eastmoney_fund")
+                    binding = warehouse._snapshot_series(request, "eastmoney_fund", old_digest)
+                    with (
+                        patch.object(catalog, "DISABLED", catalog.DISABLED | {"eastmoney_fund"}),
+                        self.assertRaises(StoreError),
+                    ):
+                        await hub.query(sid, "nav-revoked", request)
+                    self.assertEqual(len(calls), 1)
+                    with patch.object(
+                        hub.connections, "configuration_revision", return_value="new-source-epoch"
+                    ):
+                        self.assertNotEqual(
+                            hub.source_configuration_digest("eastmoney_fund"), old_digest
+                        )
+                        self.assertIsNone(
+                            warehouse.read(
+                                request,
+                                "eastmoney_fund",
+                                hub.source_configuration_digest("eastmoney_fund"),
+                            )
+                        )
+                        with self.assertRaises(StoreError):
+                            hub._authorize_query(
+                                sid,
+                                request,
+                                cached=True,
+                                provider="eastmoney_fund",
+                                authorization_fingerprint=old_digest,
+                            )
+                    warehouse.disable(saved["profile_id"])
+                    with self.assertRaisesRegex(MarketStoreError, "warehouse_access_denied"):
+                        binding[0].read(binding[1])
+                self.assertFalse(any(method == "session.prompt" for method, _ in native.calls))
+            finally:
+                await hub.close()
+
+        secrets = {}
+        memory_keyring = SimpleNamespace(
+            get_password=lambda service, account: secrets.get((service, account)),
+            set_password=lambda service, account, value: secrets.__setitem__(
+                (service, account), value
+            ),
+            delete_password=lambda service, account: secrets.pop((service, account), None),
+        )
+        with (
+            TemporaryDirectory() as directory,
+            patch(
+                "app.research_web.datahub.connections.default_credential_backend",
+                return_value=memory_keyring,
+            ),
+            patch(
+                "app.research_web.credential_backend.SystemKeyringBackend.get_password",
+                side_effect=AssertionError("host_credentials_forbidden"),
+            ) as real_get,
+            patch(
+                "app.research_web.credential_backend.SystemKeyringBackend.set_password",
+                side_effect=AssertionError("host_credentials_forbidden"),
+            ) as real_set,
+            patch(
+                "app.research_web.credential_backend.SystemKeyringBackend.delete_password",
+                side_effect=AssertionError("host_credentials_forbidden"),
+            ) as real_delete,
+            patch(
+                "app.research_web.credential_backend.PrivateFileCredentialBackend.__init__",
+                side_effect=AssertionError("host_credentials_forbidden"),
+            ) as real_file_backend,
+            patch("keyring.get_password", lambda service, account: secrets.get((service, account))),
+            patch(
+                "keyring.set_password",
+                lambda service, account, value: secrets.__setitem__((service, account), value),
+            ),
+            patch(
+                "keyring.delete_password",
+                lambda service, account: secrets.pop((service, account), None),
+            ),
+        ):
+            asyncio.run(exercise(Path(directory)))
+            for ambient in (real_get, real_set, real_delete, real_file_backend):
+                ambient.assert_not_called()
+
     def test_canonical_stock_identity_is_checked_before_any_source_commit(self):
         from app.research_web.datahub.contracts import BusinessQuery
         from app.research_web.datahub.providers import Result
