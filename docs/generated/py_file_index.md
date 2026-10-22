@@ -4342,6 +4342,7 @@ Functions:
 - `_number`
 - `_text`
 - `_timestamp`
+- `_listing_date`
 - `_code`
 - `_board_id`
 - `_calendar_payload`

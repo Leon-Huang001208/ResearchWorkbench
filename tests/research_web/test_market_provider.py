@@ -41,9 +41,95 @@ def transport_for(scopes, mutate=None):
     return httpx.MockTransport(handle)
 
 
-SH = "m:1 t:2,m:1 t:23"
-SZ = "m:0 t:6,m:0 t:80"
-BJ = "m:0 t:81 s:2048"
+SH = "m:1 t:2 f:!2,m:1 t:23 f:!2"
+SZ = "m:0 t:6 f:!2,m:0 t:80 f:!2"
+BJ = "m:0 t:81 s:262144 f:!2"
+
+
+@pytest.mark.asyncio
+async def test_current_site_universe_preserves_halts_without_legacy_instruments():
+    current = {
+        "m:1 t:2 f:!2,m:1 t:23 f:!2": [
+            quote("600000", 1),
+            quote("600012", 1, f2="-", f3="-", f6=0),
+        ],
+        "m:0 t:6 f:!2,m:0 t:80 f:!2": [quote("000001")],
+        "m:0 t:81 s:262144 f:!2": [quote("920001")],
+    }
+
+    async def handle(request):
+        scope = request.url.params["fs"]
+        rows = current.get(
+            scope, [quote("600001", 1, f14="历史退市"), quote("810011", f14="非普通股")]
+        )
+        return httpx.Response(200, json={"data": {"total": len(rows), "diff": rows}})
+
+    async with MarketProvider(transport=httpx.MockTransport(handle)) as provider:
+        result = await provider.fetch("quotes")
+    assert result["complete"] is True
+    assert {row["asset"] for row in result["rows"]} == {
+        "600000.SH",
+        "600012.SH",
+        "000001.SZ",
+        "920001.BJ",
+    }
+    assert result["summary"]["breadth"]["unknown"] == 1
+    assert result["summary"]["amount"] == 6000
+
+
+@pytest.mark.asyncio
+async def test_source_listing_dates_distinguish_upcoming_from_unknown_quotes():
+    scopes = {
+        SH: [quote("600000", 1, f26=20000101)],
+        SZ: [quote("000001", f26=19910403)],
+        BJ: [quote("920285", f26=20261023, f2=20, f3=10, f6=100)],
+    }
+    async with MarketProvider(transport=transport_for(scopes)) as provider:
+        result = await provider.fetch("quotes")
+    assert result["rows"][-1]["listing_date"] == "2026-10-23"
+    assert result["summary"]["upcoming_count"] == 1
+    assert result["summary"]["breadth"]["unknown"] == 1
+    assert result["summary"]["amount"] is None
+    assert any("待上市" in text for text in result["limitations"])
+
+
+@pytest.mark.asyncio
+async def test_public_guest_quotes_work_when_old_api_disconnects():
+    scopes = {SH: [quote("600001", 1)], SZ: [quote("000001")], BJ: [quote("920001")]}
+
+    async def handle(request):
+        if request.url.path != "/webguest/api/qt/clist/get":
+            raise httpx.RemoteProtocolError("Server disconnected without sending a response.")
+        rows = scopes[request.url.params["fs"]]
+        return httpx.Response(200, json={"data": {"total": len(rows), "diff": rows}})
+
+    async with MarketProvider(transport=httpx.MockTransport(handle)) as provider:
+        result = await provider.fetch("quotes")
+    assert result["complete"] is True
+    assert len(result["rows"]) == 3
+    assert result["summary"]["breadth"]["total"] == 3
+
+
+@pytest.mark.asyncio
+async def test_index_intraday_uses_public_guest_when_history_disconnects():
+    async def handle(request):
+        code = request.url.params["secid"].split(".")[1]
+        if request.url.host != "82.push2.eastmoney.com":
+            raise httpx.RemoteProtocolError("Server disconnected without sending a response.")
+        if request.url.path == "/webguest/api/qt/stock/get":
+            return httpx.Response(
+                200, json={"data": {"f57": code, "f43": 101, "f60": 100, "f86": STAMP, "f170": 1}}
+            )
+        assert request.url.path == "/webguest/api/qt/stock/trends2/get"
+        return httpx.Response(
+            200,
+            json={"data": {"code": code, "trends": ["2026-10-22 09:31,100,101,101,100,1,100,100"]}},
+        )
+
+    async with MarketProvider(transport=httpx.MockTransport(handle)) as provider:
+        result = await provider.fetch("indices")
+    assert result["complete"] is True
+    assert all(row["series"] for row in result["rows"])
 
 
 @pytest.mark.asyncio

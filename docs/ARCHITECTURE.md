@@ -4,6 +4,8 @@
 
 全市场概览新增 Host 内无会话 `MarketService`：市场页面 → 固定参数刷新入口 → DataHub 目录中的公开行情适配 → 覆盖核验与用户有界缓存 → GET 筛选／导出。它不经过会话物化或研究循环，DSH仍为唯一研究引擎；新数据流见[市场概览图](../outputs/research-web-architecture/13-market-overview.html)，界面和接口分别见[前端](research-web-ui.md#全市场概览)与[API](architecture/research-web/04-api.md#全市场概览接口)。
 
+该适配的报价访客路径、官网沪深北范围及待上市处理属于现有固定来源合同，见[全市场数据](research-web-datahub.md#无会话全市场数据)。真实验收使用隔离账号的正式 AccountStore／Gateway／RuntimePool 启动候选 Web 与固定 DSH，再经 `/auth` 页面读取上游；浏览器假数据回归不替代这层证明。
+
 资产观察 v2 部署 profile 只为既有显式联合升级器增加固定的旧版 `9bc12355`／PR175 产品 `93d62be6` 身份，复用原 v4 主实例与网关事务、不可变控制器、锁及冻结恢复包；旧 v1 与模型 profile 保留。没有新增部署节点、研究引擎、HTTP 或持久化格式，现有部署与数据流图仍准确；资产／DataHub 空闲与全索引保全适用于两种资产 profile，详细固定合同见[部署说明](research-web-gateway-upgrade.md#资产观察固定版本联合部署)。
 
 资产摘要与主题迭代仍沿浏览器 AssetWorkspace → Host → DataHub Broker → Provider／会话快照链路：估值与八区来源表只投影当前载入行和既有元数据；原生折叠状态由当前资产身份管理。透明图表及主题同步继续由既有 ECharts／Chart.js 实例负责，不增加服务、数据库、Provider、HTTP字段或第二研究引擎，现有部署与数据流图拓扑仍准确。缺失口径不派生，Wind 未核验股本不用于市值；详细契约见[资产页面](research-web-ui.md#资产观察工作台)与[DataHub](research-web-datahub.md)。常驻应用需产品版本冻结后独立正式 profile，不由静态改动或原封闭部署 profile 自动覆盖。

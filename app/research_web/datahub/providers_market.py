@@ -22,6 +22,7 @@ from core.observability import get_logger
 log = get_logger(__name__)
 TZ = ZoneInfo("Asia/Shanghai")
 QUOTE_HOST = "https://82.push2.eastmoney.com"
+QUOTE_PUBLIC_PREFIX = "/webguest"
 HISTORY_HOST = "https://push2his.eastmoney.com"
 CALENDAR_URL = "https://finance.sina.com.cn/realstock/company/klc_td_sh.txt"
 SOURCE_URL = "https://quote.eastmoney.com/center/gridlist.html#hs_a_board"
@@ -30,8 +31,15 @@ MAX_RESPONSE_BYTES = 4 * 1024 * 1024
 MAX_QUERY_BYTES = 32 * 1024 * 1024
 PAGE_SIZE = 100
 SECTIONS = frozenset({"quotes", "indices", "industry", "concept", "flows", "calendar", "members"})
-SCOPES = {"SH": "m:1 t:2,m:1 t:23", "SZ": "m:0 t:6,m:0 t:80", "BJ": "m:0 t:81 s:2048"}
-QUOTE_FIELDS = "f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13,f14,f20,f21,f23,f24,f25,f124"
+# Match the vendor's current hs_a_board/sh_a_board/sz_a_board/bj_a_board
+# contracts in https://quote.eastmoney.com/center/static/build/index.js.
+# The legacy s:2048 Beijing pool also contains non-equity instruments.
+SCOPES = {
+    "SH": "m:1 t:2 f:!2,m:1 t:23 f:!2",
+    "SZ": "m:0 t:6 f:!2,m:0 t:80 f:!2",
+    "BJ": "m:0 t:81 s:262144 f:!2",
+}
+QUOTE_FIELDS = "f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13,f14,f20,f21,f23,f24,f25,f26,f124"
 BOARD_FIELDS = "f2,f3,f6,f8,f12,f13,f14,f20,f104,f105,f128,f136,f124"
 INDEXES = (
     ("000001.SH", "上证指数", "1.000001"),
@@ -94,6 +102,16 @@ def _timestamp(value: Any) -> str | None:
     if stamp.year < 1990 or stamp > datetime.now(TZ) + timedelta(minutes=5):
         return None
     return stamp.isoformat(timespec="seconds")
+
+
+def _listing_date(value: Any) -> str | None:
+    text = str(value)
+    if not re.fullmatch(r"[0-9]{8}", text):
+        return None
+    try:
+        return date.fromisoformat(f"{text[:4]}-{text[4:6]}-{text[6:]}").isoformat()
+    except ValueError:
+        return None
 
 
 def _code(row: dict) -> str:
@@ -165,7 +183,8 @@ class _Reader:
             return bytes(chunks)
 
     async def json(self, path: str, params: dict, *, history: bool = False) -> dict:
-        raw = await self.raw((HISTORY_HOST if history else QUOTE_HOST) + path, params)
+        base = HISTORY_HOST if history else QUOTE_HOST + QUOTE_PUBLIC_PREFIX
+        raw = await self.raw(base + path, params)
         try:
             payload = json.loads(raw)
         except (ValueError, UnicodeError) as exc:
@@ -388,6 +407,7 @@ class MarketProvider:
             board=board,
             volume=lots * 100 if lots is not None else None,
             as_of=_timestamp(row.get("f124")),
+            listing_date=_listing_date(row.get("f26")),
         )
         return result
 
@@ -430,6 +450,11 @@ class MarketProvider:
             row["as_of"] is not None and row["as_of"][:10] != trade_date for row in rows
         )
         result["quote_trade_date"] = trade_date
+        upcoming = sum(
+            bool(row["listing_date"] and trade_date and row["listing_date"] > trade_date)
+            for row in rows
+        )
+        result["summary"]["upcoming_count"] = upcoming
         result["temporal_complete"] = not missing_time and not previous_date and bool(trade_date)
         for row in rows:
             row["stale"] = row["as_of"] is None or row["as_of"][:10] != trade_date
@@ -451,6 +476,10 @@ class MarketProvider:
             result["limitations"].append(
                 "部分报价属于较早交易日，保留原行与日期；广度计入未知，不发布混合日期的成交额。"
             )
+        if upcoming:
+            result["limitations"].append(
+                f"来源A股目录包含待上市{upcoming}只；上市日期来自来源字段，缺报价不解释为停牌或平盘。"
+            )
         if result["complete"]:
             result["summary"].update(self._statistics(rows, trade_date))
             result["summary"]["quote_trade_date"] = trade_date
@@ -458,7 +487,13 @@ class MarketProvider:
 
     @staticmethod
     def _statistics(rows: list[dict], trade_date: str | None = None) -> dict:
-        current = [row for row in rows if row.get("as_of") and row["as_of"][:10] == trade_date]
+        current = [
+            row
+            for row in rows
+            if row.get("as_of")
+            and row["as_of"][:10] == trade_date
+            and not (row.get("listing_date") and trade_date and row["listing_date"] > trade_date)
+        ]
         valid = [
             row for row in current if row["price"] is not None and row["change_pct"] is not None
         ]
@@ -718,7 +753,6 @@ class MarketProvider:
                 "fields1": "f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13",
                 "fields2": "f51,f52,f53,f54,f55,f56,f57,f58",
             },
-            history=True,
         )
         data = payload.get("data")
         if not isinstance(data, dict) or data.get("code") != code:

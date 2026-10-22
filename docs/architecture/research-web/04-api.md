@@ -27,6 +27,8 @@
 
 `GET /market/quotes` 支持 `snapshot_id`、exchange、board、search、sort、direction、offset、limit（最多200）；`GET /market/quotes/export` 导出相同筛选的完整 CSV，要求完整来源股票池。板块过滤必须先显式刷新 members，成员与同份行情池相交，不重取个股报价。响应保留来源、行情／采集时间、provider_total、pages_fetched、pagination_complete、complete、missing、limitations、stale和本次错误；失败不冒充完整数据。不接收会话ID、凭据、路径或任意上游端点。
 
+报价行 `listing_date` 来自供应商上市日期（无效时为null），summary 的 `upcoming_count` 记录目录内未来上市数量。未来上市不参加有效广度、分布或排行；缺报价仍计入unknown。`complete` 仅证明来源范围和分页，不能证明报价／停牌／涨跌停字段齐全；成交额缺口保持null，不能把页面的unknown或待上市当作零成交。
+
 `model_provider_upgrade apply-assets-v2` 属于显式本机操作员 CLI；新增封闭版本身份不增加或改变公开 HTTP 方法、路径、请求字段、认证边界和 Observation 响应。资产／DataHub 状态只读用于原空闲证明，业务 API 与研究执行链路保持，现有 API 图和索引继续准确。
 
 资产摘要新增的估值及八区来源明细是浏览器 DTO，字段从已取得快照和元数据投影；它们不进入 ObservationRequest 或公开 HTTP 响应 schema，不增加端点、参数、Provider 查询或持久化字段。展开选择／查询／来源详情和切换主题不取数，原显式创建及区块刷新合同保持。

@@ -14,6 +14,8 @@
 
 全市场缓存属于当前用户 `store.root/market-cache/`，与 `index.json`、研究 inputs/outputs 和会话数据集分离；保留当前及上一完整快照，有界原子写入，失败／partial 不覆盖可恢复的完整版本。GET 筛选、分页与 CSV 固定 snapshot_id，板块成员与同份股票池相交；筛选不改变总览分母。数据流见[市场概览](../../../outputs/research-web-architecture/13-market-overview.html)。
 
+报价行保留来源上市日期 `listing_date`；summary 的 `upcoming_count` 区分目录内未来上市证券与一般缺报价。未来上市行不参与有效行情统计，原始缺口保留；`complete` 认证范围分页，不认证每个字段都有值。成交额缺口不补零，不将旧范围中的退市／非普通股复制到当前快照。
+
 资产观察 v2 profile 在原 v4 journal 中记录固定 mode、旧版与目标，主实例及全部私有账号业务 index 仍按每个顶层值冻结 canonical SHA256，区分缺失与空值；v1 同样保留此检查。前进、回滚、完成和 preparing 恢复不覆盖观察、查询、会话、账号或凭据。固定身份增加不改变 journal 版本、数据根、HTTP 或业务存储，现有文件流图无需新增节点。
 
 资产摘要的 `valuation`／`coverageRows` 是浏览器内存投影，不写入 Observation、DataHub 快照或任何数据库。覆盖数要求 dataset 身份与当前实际载入行同时存在，保留失败／加载中的旧快照身份；数据日、`as_of`、`retrieved_at`、报告期及请求／实际／载入区间分别保留。PB与PB-MRQ、明确PS-TTM与单期财务、零与缺失各自区分；Wind股本数量级未核验，不换算或派生市值。折叠状态仅按当前资产恢复，主题切换不改变源数据、公式、快照或交接材料。

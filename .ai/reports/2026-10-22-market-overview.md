@@ -1,7 +1,7 @@
 # 沪深北全市场概览实施与验收记录
 
-宿主：macOS；任务：Web功能开发；基线：5495e64c0be08c9db58e336705db90584f8ba8b5。
-任务ID：market-overview-20261022。当前状态：代码及离线验收完成，真实行情验收BLOCKED；同候选CI待执行。未合并、未部署。
+宿主：macOS；任务：Web功能开发；任务ID：market-overview-20261022。
+本轮按用户要求修复东财断连、完成真实行情与正式认证页面验收后再合并PR179；常驻部署未授权。最终候选的本地／真实页面／独立评审／三项CI分别绑定，旧候选通过不能直接沿用。
 
 ## 实施范围
 
@@ -17,18 +17,21 @@
 - Python与JS分别独立评审。原P1/P2均先复现再回归修复；评审不替代浏览器或真实数据验收。
 - 新市场数据流图使用Archify showcase验证9/9，自动四视口包含性通过；最终截图与哈希复核另记。
 
-## 真实源与剩余门
+## 连接诊断与真实源
 
 最终本地证据：Web JS 865项中863 PASS／2个既有SKIP（logs/market-all-web-js.log）；L4治理229 PASS（logs/market-l4-js.log）；Python集成326 PASS（logs/market-python-integration.log）、边界112 PASS（logs/market-python-boundary.log）、最终定点43 PASS（logs/market-python-target.log），各范围存在重叠，不相加为独立测试总数。新增3源码文件mypy使用`--follow-imports=skip`通过；9个变更Python文件Black／isort及Ruff通过。曾遇到缺测试工具及Black stdin多进程环境问题，最终使用现有缓存和串行检查解决，无安装或规则降级。
 
 隔离真实浏览器9 PASS／0 FAIL，见logs/market-e2e/result.json；实际app、MarketService与路由核对6001股票、CSV同快照、30秒自动刷新、输入焦点、三市成员、明暗和390px宽度。fixture cookie仅验证同源传递，不是生产认证或真实行情验收；测试无外网／模型／创建会话，退出collector=0。
 
-最终Provider字节的真实只读采集见logs/market-real-source.json：股票池0行、complete=false、三市network_error，日历8796日成功。真实市场验收保持BLOCKED，不能凭离线或安装门改为PASS。
+旧候选216f095的logs/market-real-source.json因三市network_error保持BLOCKED，原三项CI通过未据此合并。继续诊断证实：同主机／同参数／同TLS下，旧报价路径断连，公开访客路径完成读取；指数分时原历史主机也间歇断连，改用固定报价访客路径后12指数各161个真实同日点成功。无IPv4强制、代理变更、TLS降级、凭据或依赖安装。
 
-- 真实Sina交易日历成功读取，覆盖至2026-12-31；北证50单点身份已核对。
-- 当前全市场、指数及行业完整采集遇到RemoteProtocolError，原因未知。早先小样本HTTP成功不算完整市场验收；代码明确保留partial、缺口与旧快照，未降低TLS或放开环境代理。
-- 生产认证页面和同候选GitHub三门尚待完成；本地Router闭包已执行，最终Git绑定回执另留logs。Windows/Linux原生和Docker实机保持NOT_RUN交接，不能由Mac或Ubuntu通用检查替代。
-- 常驻服务部署未授权，本任务未变更运行服务、会话、模型配置或业务数据。
+股票范围取自东财当前官网脚本；旧5925池含退市及非普通股，修正为沪2319／深2908／北354，合计5581，与官网合并范围元数据对齐。13:26:57全量58页无漏页／重复；缺报价11条，含次日上市920285.BJ。保留f26上市日期、unknown及待上市数量，不伪补停牌／平盘／涨跌停或总成交额。源证据和候选源调查见[数据源报告](2026-10-22-market-data-sources.md)。
+
+正式 AccountStore／Gateway／RuntimePool 启动候选Web和固定DSH的首轮真实浏览器取得5581行、5581个CSV唯一ID及逐市对账；行业496／概念516、资金六组合、成分27同快照、30.093秒自动刷新和双账号空缓存隔离通过。首轮13 PASS／3 FAIL保留：一个表格等待条件捕获前次响应、两个过宽进程探针把未知短命实例列为resident；测试修正必须在最终候选重跑，不删除旧失败。沪深大盘日线资金的正式路径断连、访客路径rc100／data=null，保留不可用缺口，不能用板块或盘中资金替代。
+
+Provider／Service新增路径、官网范围及未来上市回归47 PASS，先RED再GREEN；此前Python/JS广泛回归为历史检查点，最终合并候选重新执行Router闭包。真实Sina交易日历覆盖至2026-12-31。最终认证页面与新候选三项GitHub门待本轮提交后完成，私有logs记录精确SHA／源码hash／实际checkout及平台。
+
+Windows/Linux原生和Docker实机保持NOT_RUN交接，不能由Mac或Ubuntu通用检查替代。本任务未切换常驻服务、读取生产秘密或运行模型；正式认证只使用新的0700临时用户根和内存随机测试密码。
 
 ## 变更与证据映射
 
