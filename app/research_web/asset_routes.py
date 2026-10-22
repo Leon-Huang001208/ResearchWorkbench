@@ -76,9 +76,18 @@ class HistoryJobRequest(BaseModel):
 
     scope: Literal["recent", "older", "all"]
     adjustment: Literal["none", "qfq", "hfq"]
+    as_of: str | None = Field(default=None, pattern=r"^[0-9]{4}-[0-9]{2}-[0-9]{2}$")
     retry_of: str | None = Field(
         default=None, pattern=r"^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$"
     )
+
+    @model_validator(mode="after")
+    def valid_cutoff(self):
+        if self.as_of is not None:
+            date.fromisoformat(self.as_of)
+            if self.scope == "older":
+                raise ValueError("older history retains the existing adjustment anchor")
+        return self
 
 
 class BlockLoadRequest(BaseModel):

@@ -1,5 +1,7 @@
 # Research Workbench Research Web 当前架构
 
+2026-10-22 资产交互与结构化数据沿既有Host／DataHub／CJPY增加单A股目录搜索、真实专题按需load、24小时账号目录和15分钟普通区块缓存。新增两条HTTP与幂等／来源范围／共享锁／活动witness合同，02模块图补账号缓存分支，04区分资产／DSH调用及原会话快照；无会话目录不进入研究资料发布链。封闭估值、报告期财务、股东名单／汇总、行业、两融与公告事件保留来源／版本／单位及partial，不开放任意repo／公式或新研究引擎。当前源码链接绑定产品提交`986367bac62efc89bb6ae498a1e829ea543bedf7`，完整执行、浏览器、CI和部署状态见[本轮报告](../../../.ai/reports/test_report_asset_interaction_data_20261022.md)。
+
 2026-10-22 Wind资产工作区沿唯一Host/DataHub增加持久历史任务、固定锚点复权规范发布与账号副图偏好，6个API、Store兼容键及原始块/因子/规范快照已同步02模块图、04资料流图及API Atlas。取消/close/purge等待真实Future，resident与操作员空闲覆盖任务；原Automation唯一调度、DSH执行和网关身份保持。详见[文件](03-data-files.md#资产历史与图表偏好存储)、[接口](04-api.md#资产历史任务与图表偏好)及[批准计划](../../plans/2026-10-22-wind-asset-workspace.md)。有限预检、最终功能/浏览器/CI和常驻部署各自取证。
 
 全市场概览在Host内增加无会话采集与用户市场缓存，数据流独立于研究会话物化；见[模块图](../../../outputs/research-web-architecture/13-market-overview.html)、[接口](04-api.md#全市场概览接口)和[数据边界](03-data-files.md)。没有新增守护进程、第二研究引擎或Wind／Office权限。
@@ -100,7 +102,7 @@ macOS实际端点/origin事务现接入公开CLI启动链；同一产品部署�
 
 这是当前研究产品的唯一架构主入口。现役源码覆盖 `app/research_web/`、`research_workbench_entrypoint/`、`docker/` 与共用运行合同；旧 `app/api`、量化业务和 merged-platform 图文属于历史，不是此入口的依赖。Native 双宿主进程与 Docker 单容器是同一 Research Web/DSH 产品的互斥运行方式，顺序共享产品数据，不创建第二个研究引擎。
 
-研究布局、能力中心与架构更新检查已实施。当前 Web 按资产观察、研究情报、研究框架和策略模拟划分业务入口，取消研究台一级导航；保留按需数据查询、Claw 具体报告 Workflow、会话快照交接、来源会话产物及只读“运行与用量”聚合；DataHub 同时迁入天软 CJPY 的四项已实现能力，并加入只复用现有 WindAdapter 封闭方法的受限 Wind binding，缺少本机依赖、登录或等价字段口径时仍失败关闭。东方财富基金和财联社是当前无需专业配置即可真实调用的来源。研究脚本由宿主 FIFO 串行、Python 3.12 readiness 和 `cpu_bounded_v1` 公共预算约定共同约束；不依赖 GPU，Seatbelt 仍仅支持 macOS。Phase 2A 提供只读 MCP Registry；Phase 2B 增加不可变安装、官方 SDK Host、OAuth、工具分级、会话授权、人工审批和 DSH 原子激活回滚；Phase 2C 增加锁定版本的通用 Automation、独立 Claw Run 与研究/投递双状态。当前限制见 [架构状态](status.md)，逐任务证据进入 `.ai/reports/`。图形通过不替代产品、数据覆盖或真实连接审查。
+研究布局、能力中心与架构更新检查已实施。当前 Web 按资产观察、研究情报、研究框架和策略模拟划分业务入口，取消研究台一级导航；保留按需数据查询、Claw 具体报告 Workflow、会话快照交接、来源会话产物及只读“运行与用量”聚合；DataHub 同时提供天软CJPY的封闭目录／行情／复权及结构化资产能力，并加入只复用现有 WindAdapter 封闭方法的受限 Wind binding，缺少本机依赖、登录或等价字段口径时仍失败关闭。东方财富基金和财联社是当前无需专业配置即可真实调用的来源。研究脚本由宿主 FIFO 串行、Python 3.12 readiness 和 `cpu_bounded_v1` 公共预算约定共同约束；不依赖 GPU，Seatbelt 仍仅支持 macOS。Phase 2A 提供只读 MCP Registry；Phase 2B 增加不可变安装、官方 SDK Host、OAuth、工具分级、会话授权、人工审批和 DSH 原子激活回滚；Phase 2C 增加锁定版本的通用 Automation、独立 Claw Run 与研究/投递双状态。当前限制见 [架构状态](status.md)，逐任务证据进入 `.ai/reports/`。图形通过不替代产品、数据覆盖或真实连接审查。
 
 ## 阅读顺序
 

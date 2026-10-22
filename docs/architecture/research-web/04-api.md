@@ -27,6 +27,8 @@ load正文只允许`source`（可省略或auto／封闭来源ID）、`refresh`�
 
 ## 资产历史任务与图表偏好
 
+历史任务正文兼容可选ISO日期`as_of`；省略／None沿原观察截止与旧请求行为，不能使旧任务／旧证据失效。同一任务键改变实际as_of仍属于参数冲突。报价的实际交易日晚于旧规范锚点时，可用新as_of创建独立历史版本；已完成全历史须重新生成完整版本，不以新证券recent两年窗口截掉原覆盖，旧版本和输入证据保持不可变。
+
 最后核对：2026-10-22。下列6个新增端点由 `asset_routes.py` 声明，经既有 `/api/research` 前缀挂载；认证身份及账号 Store 隔离保持。任务受理与规范数据发布是两个事实，`202` 不代表历史完整。
 
 | 方法 | 路径 | 合同 |
@@ -38,7 +40,7 @@ load正文只允许`source`（可省略或auto／封闭来源ID）、`refresh`�
 | GET | `/api/research/assets/chart-preferences` | 当前账号的 `{panels,revision}`；默认 `volume,macd` |
 | PUT | `/api/research/assets/chart-preferences` | 正文 `{panels:[...]}`，保序、唯一、0至4项，枚举 `volume/macd/kdj/rsi` |
 
-历史任务正文严格为 `{scope:"recent"|"older"|"all", adjustment:"none"|"qfq"|"hfq", retry_of?:<UUID>}`，拒绝额外字段；键为8至128个字母、数字、`_.:-`字符。同观察同键同参数返回原任务，改参数返回409 `history_key_conflict`。已有活动任务或行情刷新时409 `history_busy`；`older` 要求现有规范历史且复权相同。重试只接受同口径、可重试的失败/取消/中断任务，新键显式提交；缓存或因子版本冲突要求重建。保存失败不启动任务。
+历史任务正文严格为 `{scope:"recent"|"older"|"all", adjustment:"none"|"qfq"|"hfq", retry_of?:<UUID>, as_of?:<ISO日期>}`，拒绝额外字段；键为8至128个字母、数字、`_.:-`字符。同观察同键同参数返回原任务，改参数返回409 `history_key_conflict`。已有活动任务或行情刷新时409 `history_busy`；`older` 要求现有规范历史且复权相同。重试只接受同口径、可重试的失败/取消/中断任务，新键显式提交；缓存或因子版本冲突要求重建。保存失败不启动任务。
 
 公开 job 含 `id/observation_id/state/status/scope/adjustment/created_at/updated_at/progress/coverage/current_dataset/failure_code/failure/retryable/retry_of/request_key`。`state` 与 `status` 相同，非终态为 `queued/running/cancelling/draining`，终态为 `completed/failed/cancelled/interrupted`；`progress` 包含 `chunks_completed/chunks_total/rows`，coverage 区分实际日期、扫描区间、上市日及完整历史边界证明。失败只有安全业务码，公开 dataset 不暴露内部原始行、因子、输入或路径。观察投影附最近 `history_job`。`request_key` 用于核对未知提交，不是认证秘密。
 

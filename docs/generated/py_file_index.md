@@ -3132,6 +3132,7 @@ Classes:
   - methods: validate_interval
 - `ObservationRequest`
 - `HistoryJobRequest`
+  - methods: valid_cutoff
 - `BlockLoadRequest`
   - methods: complete_interval
 - `ChartPreferencesRequest`

@@ -6,6 +6,23 @@ import { createAPI } from '../../app/research_web/ui/core.mjs';
 const observed = asset => ({ id: asset, asset, asset_type: 'stock', session_id: 'session', blocks: { history: { status: 'complete', dataset: { dataset_id: 'history', row_count: 1 } } } });
 const apiFor = (extra = {}) => ({ assetObservations: async () => ({ items: [observed('603986.SH')] }), watchlists: async () => ({ items: [] }), assetNotes: async () => ({ items: [] }), assetAlerts: async () => ({ items: [] }), assetNotifications: async () => ({ items: [] }), datasetRows: async () => ({ items: [{ close: 10 }], total: 1 }), ...extra });
 
+for (const quote of [{ date: '2026-10-22' }, { '时间': '2026-10-22T15:00:00' }, { date: '2026-10-22T15:00:00+08:00' }, { as_of: '2026-10-22' }]) test(`a newer quote ${JSON.stringify(quote)} advances a separate full-range history once on entry`, async () => {
+  const record = observed('603986.SH'); const jobs = [];
+  record.blocks.history.dataset.asset_history = { requested_as_of: '2026-10-21', adjustment: 'qfq', coverage: { full_history: true } };
+  record.blocks.overview = { status: 'complete', dataset: { dataset_id: 'quote', row_count: 1 } };
+  const c = createAssetWorkspaceController({ api: apiFor({
+    assetObservations: async () => ({ items: [record] }),
+    datasetRows: async (_sid, did) => ({ items: [did === 'quote' ? { ...quote, close: 10 } : { date: '2026-10-21', close: 11 }], total: 1 }),
+    loadAssetBlock: async () => record,
+    startAssetHistory: async (_id, body) => { jobs.push(body); return { id: 'advance', status: 'completed' }; },
+  }) });
+  await c.activateView({ asset: record.asset, assetType: 'stock', assetView: 'financials' });
+  await new Promise(resolve => setTimeout(resolve, 0));
+  assert.deepEqual(jobs, [{ scope: 'all', adjustment: 'qfq', as_of: '2026-10-22' }]);
+  await c.activateView({ asset: record.asset, assetType: 'stock', assetView: 'news' });
+  assert.equal(jobs.length, 1); c.cancel();
+});
+
 test('view activation loads exactly its blocks while preserving historical rows and no news DataHub request', async () => {
   const calls = [];
   const c = createAssetWorkspaceController({ api: apiFor({ loadAssetBlock: async (id, block, body) => { calls.push([block, body]); return { ...observed(id), blocks: { ...observed(id).blocks, [block]: { status: 'complete', dataset: { dataset_id: block, row_count: 1 } } } }; } }) });

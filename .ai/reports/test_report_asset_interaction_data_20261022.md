@@ -1,6 +1,6 @@
 # 资产交互与结构化数据迭代：验收草稿
 
-日期：2026-10-22。宿主：macOS Mac mini。任务类型：Web功能开发；本平台范围为本机macOS及同候选Mac CI。本文是当前实现／验证检查点，最终SHA、完整回归、认证浏览器、CI、部署与资源收尾仍由主任务绑定；不作为最终通过或跨平台支持证明。
+日期：2026-10-22。宿主：macOS Mac mini。任务类型：Web功能开发；本平台范围为本机macOS及同候选Mac CI。产品源码已提交`986367bac62efc89bb6ae498a1e829ea543bedf7`，架构源码链接绑定该提交；文档收尾后的最终交付／合并SHA、CI、部署与资源收尾仍由主任务绑定。本文不作为整项目全部验证或跨平台支持证明。
 
 ## 范围与行为
 
@@ -26,7 +26,7 @@
 | --- | --- | --- |
 | 后端目录／加载／原资产／历史四模块 | 阶段PASS：114项，1项第三方Starlette弃用警告；后续root日期接线等变更须另绑定最终字节 | logs/asset-load-impl/backend-rollback-fixed.log |
 | 独立后端评审 | 阶段APPROVE：仅当时锁定范围，四个已复现缺陷闭合；不套用后续改动 | logs/asset-backend-review/review-rollback-fixed.md、reviewed-rollback-fixed-files.sha256 |
-| 后端格式／静态检查 | 定点ruff、black、isort通过；mypy五源模块无错误，保留既有未检查函数体说明 | logs/asset-load-impl/rollback-{ruff,black,isort,mypy}.log |
+| 后端格式／静态检查 | 历史阶段定点ruff／black／isort及五源follow-imports=skip结果保留；最新标准mypy仍FAIL，详见下节18项基线说明 | logs/asset-load-impl/rollback-{ruff,black,isort,mypy}.log |
 | 目录真实有限预检 | 5577/5577条；不证明每只证券所有数据能力 | logs/asset-data-preflight/normalized-directory.json |
 | 七类结构化有限预检 | 根任务预检603986：估值1、财务12、股东汇总1／明细10、行业1、两融37、事件31行；非全市场／全历史证明 | logs/asset-data-preflight/normalized-*.json；只读计数与SHA见logs/asset-docs-impl/preflight-evidence-summary.json |
 | 纯SDK／规范化fixtures | 根任务已报告局部11项纯SDK通过，最终合并测试数待记录 | 新两测试模块，主任务完整回归日志待绑定 |
@@ -36,20 +36,37 @@
 | 官方Python索引 | PASS：源码格式固定后官方重生成及check；后续Python AST若再变仍需重生成 | logs/asset-docs-impl/index-generation-final.log、index-check-final.log |
 | 架构HTML／回执 | 02、04最终deliver均showcase9/9零错警告，四桌面包含性通过并已查看1440深色／2048浅色；04收窄尝试曾溢出，已按root确认恢复1900宽首版且spec／HTML hash相同，保留右侧留白说明 | outputs/research-web-architecture/02-module-dependencies.*、04-data-file-flow.*；失败在logs/asset-docs-impl/04-r2-failed/，恢复见04-visual-check-restored.stdout.json |
 | 文档只读HTTP合同 | PASS：26项，1项第三方Starlette弃用警告 | logs/asset-docs-impl/documentation-tests.log |
-| 官方Atlas／阅读入口 | 生成范围仅api-atlas.html和index.html；317源码声明／314唯一接口，官方check通过；最终源码链接SHA待主任务代码提交绑定 | logs/asset-docs-impl/atlas-generation-preview.json、atlas-generation.log、atlas-check.log |
+| 官方Atlas／阅读入口 | 生成范围仅api-atlas.html和index.html；317源码声明／314唯一接口；源码链接绑定已提交986367b，官方重生成／check PASS，后续as_of提交待新SHA再绑定 | logs/asset-docs-impl/atlas-source-pin-preview.json、atlas-source-pin-generation.log、atlas-source-pin-check.log |
+| README实际复核及全文constraints | 根README和架构入口实际补入资产行为／边界，四字段receipt为updated；基于root原79项并集全部新增／当前diff构成84项，完整project-constraints与doc-sync PASS | docs/architecture/research-web/readme-review.json；logs/asset-docs-impl/complete-changed-set.json、full-project-constraints.log、full-source-pin-doc-sync.log |
 
 复现和修复证据保留：日期／蜡烛实体的RED→GREEN位于logs/wind-date-impl/；来源／缓存幂等／旧刷新锁及并发回滚的RED→GREEN位于logs/asset-load-impl/。早期BLOCK及错误现场不删除，不以新APPROVE覆盖旧字节的结论。
 
-root随后发现并修复冷启动日期接线：新缺失activity／margin持久默认上海时区近60日；events由保存截止日或当日派生60日，避免None／仅end_date的Provider拒绝，不扩RangeBlock。无日期及固定截止2026-10-21两条RED→GREEN见logs/asset-data-impl/lazy-range-{red,green}.log。这些新字节及cold overview hydrate仍由root单列回归和独评，不能沿用上述114项阶段结论。
+root随后修复冷启动日期接线：新缺失activity／margin持久默认上海时区近60日；events由保存截止日或当日派生60日，避免None／仅end_date的Provider拒绝，不扩RangeBlock。无日期及固定截止2026-10-21两条RED→GREEN见logs/asset-data-impl/lazy-range-{red,green}.log。最终后端364项与UI独评闭包分别认证新字节，不沿用旧114项阶段结论。
 
 文档生成实际使用本机既有Node24与Python3.12，不安装包。官方命令包括`generate_py_file_index.py`及`--check`、`check_doc_sync.py`、`build_research_web_api_atlas.mjs`及`--check`，以及Archify对02／04的validate／deliver／visual-check。完整执行器路径、argv与结果日志记录在私有`logs/asset-docs-impl/executed-commands.json`；结构图两个最终HTML均9/9、零错误／警告，自动visualReview仍为pending，已看图的独立记录位于visual-review.json。04不再扩几何优化，恢复已通过版面的动作和失败归档均保留。
+
+## 产品源码986367b的最新检查点
+
+以下检查点属于986367b源码阶段。其后已批准补充兼容可选HistoryJobRequest.as_of：None保留旧行为，报价交易日晚于旧锚点时重建独立完整历史版本，不用recent截掉原全历史；根任务正在实现和回归，链接暂保留986367b，待新的真实产品提交后再绑定，不能沿用下表为新字节作最终认证。
+
+| 验证层 | 实际结果与边界 | 证据 |
+| --- | --- | --- |
+| 最终独立后端评审 | APPROVE，11个相关pytest模块364 PASS，1项Starlette弃用警告；原四个缺陷及显式AKShare错误码回归闭合 | logs/asset-backend-review/review-full-final.md、full-review-final-pytest.log、full-review-final-byte-verification.log |
+| 后端格式 | 11源模块ruff、black、isort PASS | logs/asset-backend-review/full-review-final-{ruff,black,isort}.log |
+| 标准mypy | FAIL：18项／10文件。精确HEAD影子基线为评审时5de7e5f2，同18项诊断、无新增；不能称mypy PASS。follow-imports=skip的2项broker诊断也与HEAD相同 | logs/asset-backend-review/full-review-final-mypy-standard.log、full-review-mypy-baseline-comparison.log、full-review-final-mypy-skip.log |
+| Node阶段全量 | 1211总数，1209 PASS／2 skip／0 fail；common-entry后另做目标7项及最终独评，不把较早全量自动提升为所有最终UI字节证明 | logs/asset-data-impl/full-javascript.log；原common-entry-green.log保留早期残余失败行，最终依据见后两行 |
+| UI最终独立评审 | 未发现新增可报告缺陷，原P2关闭；36个相关JS文件634/634 PASS，17源文件与986367b Git blob和E2E前后逐项匹配 | logs/asset-ui-review/review-final.md、node-test-final.log、final-manifest-verification.log |
+| 最终合成浏览器 | 7/7 PASS，errors／external／fixtureErrors为空，供应商／模型调用0，fixture server关闭；这是合成Chrome证据 | logs/asset-interactions-e2e/common-entry-final-run.log、summary.json；summary SHA256为98393d4305e49fbed61b3874c978b1aa752020b0c13730620d135a1cd6dd73ef |
+| 最终真实CJPY七区块 | synthetic=false；估值、股东明细／汇总、行业、两融、事件complete，financials仍partial，保留不同公布日／版本字段缺口；模型0、生产数据库写入0 | logs/asset-data-preflight/final-candidate.json |
+| Router其余闭包 | protocol／local-integrations仍在执行，结果待主任务记录；不提前标PASS | logs/asset-delivery/router-protocol-integrations.log |
+| 额外whole-research_web试跑 | 超出Router closure的追加试跑已由root主动停止，整套NOT_RUN／未完成，不计为整项目PASS，不减少Router原必需门 | logs/asset-data-impl/full-research-web.log |
 
 ## 必须继续记录的验收
 
 | 验收 | 当前状态 |
 | --- | --- |
-| 最终候选全部Python／JavaScript、架构／完整性门 | 待主任务最终tree执行并记录；局部114项不能替代 |
-| 合成浏览器E2E与冷启动overview hydrate | 进行中，结果待UI／root记录；不能先写PASS |
+| 最终候选Router完整闭包、架构／完整性门 | 相关后端364、JS阶段1211与最终独评634、合成E2E7已执行；protocol／local-integrations及文档收尾commit的完整约束／CI仍待绑定，整项目Python未完成 |
+| 合成浏览器E2E与冷启动overview hydrate | 7/7合成E2E及最终UI独评已记录；不代替真实认证生产页面 |
 | 真实认证浏览器：搜索、切证券／专题、按需缓存、来源字段、日期／筹码／蜡烛 | NOT_RUN／待主任务真实链路记录；有限Provider预检不替代 |
 | 同候选Project Constraints／Research Web Checks／macos-14干净安装 | NOT_RUN／待CI；未发布候选前不沿用旧run |
 | 固定DSH构建、3081／8088健康、rwb web doctor | 待同候选Mac Bootstrap；本机installed环境不作为安装PASS |

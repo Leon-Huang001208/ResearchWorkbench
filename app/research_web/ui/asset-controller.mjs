@@ -7,6 +7,10 @@ const identity = observation => `${observation?.asset_type || 'stock'}:${observa
 const cloneObservation = observation => ({ ...observation, blocks: Object.fromEntries(Object.entries(observation.blocks || {}).map(([key, block]) => [key, { ...block }])) });
 const validPanels = panels => Array.isArray(panels) && panels.length <= 4 && new Set(panels).size === panels.length && panels.every(panel => ['volume', 'macd', 'kdj', 'rsi'].includes(panel));
 const VIEW_BLOCKS = { overview: ['overview', 'valuation'], financials: ['financials', 'valuation'], capital: ['activity', 'margin'], holders: ['holders', 'holder_details'], materials: ['research', 'industry', 'events'], news: [], announcements: [] };
+const quoteDate = rows => (rows || []).map(row => String(row.date || row['时间'] || row.as_of || '')).filter(value => /^\d{4}-\d{2}-\d{2}(?:$|[T ])/u.test(value)).map(value => value.slice(0, 10)).filter(day => {
+  const parsed = new Date(`${day}T00:00:00Z`);
+  return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === day;
+}).sort().at(-1);
 const currentAccount = () => String(globalThis.__RWB_USER_ID__ || 'single-user');
 
 /** Read an immutable snapshot using actual returned progress, including short pages. */
@@ -105,7 +109,8 @@ export function createAssetWorkspaceController({ api, onChange = () => {}, pollI
       let job;
       try {
         // Creation is intentionally not tied to read cancellation: a late 202 identifies the exact job.
-        job = await api.startAssetHistory(context.observationId, { scope, adjustment, ...(retryOf ? { retry_of: retryOf } : {}) }, context.key);
+        const cutoff = !retryOf && scope !== 'older' ? quoteDate(state.rows.overview) : null;
+        job = await api.startAssetHistory(context.observationId, { scope, adjustment, ...(cutoff ? { as_of: cutoff } : {}), ...(retryOf ? { retry_of: retryOf } : {}) }, context.key);
       } catch (error) {
         if (error.status >= 400 && error.status < 500) { context.rejected = true; throw error; }
         safeLog('asset_history_submit_reconcile', { status: error.code || 'request_failed' });
@@ -252,6 +257,14 @@ export function createAssetWorkspaceController({ api, onChange = () => {}, pollI
     const blocks = [...new Set([...(sameAsset ? [] : ['overview', 'valuation']), ...(VIEW_BLOCKS[route.assetView] || VIEW_BLOCKS.overview)])];
     await Promise.all(blocks.map(block => loadBlock(block, { refresh })));
     if (needsInitialHistory && ticket === generation) void startHistory('recent', 'qfq').catch(() => { safeLog('asset_initial_history_failed', { status: 'history_failed' }); });
+    else if (!sameAsset && ticket === generation) {
+      const history = state.observation.blocks.history?.dataset?.asset_history;
+      const cutoff = quoteDate(state.rows.overview);
+      if (history && cutoff && cutoff > history.requested_as_of) {
+        // Rebuild a separate canonical version; never append across adjustment anchors.
+        void startHistory(history.coverage?.full_history ? 'all' : 'recent', history.adjustment || 'qfq').catch(() => { safeLog('asset_history_advance_failed', { status: 'history_failed' }); });
+      }
+    }
   }
   function savePreferences(panels) {
     if (!validPanels(panels)) { state.errors.preferences = '副图选择无效'; notify(); return Promise.resolve(); }
