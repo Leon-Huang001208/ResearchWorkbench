@@ -365,6 +365,28 @@ ProviderBinding按dataset发布已审阅的语义；未知频率/单位/历史�
 refresh-only 配置保持一次显式交换验证。两条路径始终返回 `data_queries=0`、
 `data_permission_verified=false`、`token_rotated=false`；元数据认证成功不证明任何市场数据权限。
 
+历史行情保留既有 `ext_ths/cmd_history_quotation` dataset ID 与原生快照白名单，实际固定出口修正为
+`POST https://quantapi.51ifind.com/api/v1/history_data`。按已审官方 Skill 1.1.0 的 THS_HQ 合同，
+`arguments_json.body` 可为旧式合法扁平对象或仅含 `reqBody` 的对象；Provider 只包装一次，
+不接受两种格式混合或 URL query 替代参数。`codes`／`indicators` 为非空、无空白、至多4096字符的
+逗号分隔字符串，`startdate`／`enddate` 为有序有效日期（`YYYYMMDD`、`YYYY-MM-DD`、`YYYY/MM/DD`）。
+可选 `functionpara` 仅接受官方对象格式及 `Interval`／`SampleInterval`（互斥）、`CPS`、`PriceType`、
+`Fill`、`BaseDate`、`Currency`；不猜测历史字符串语法、不丢弃未知字段或补币种／复权／填充默认值。
+未知或歧义参数在读取凭据前返回 `quantapi_history_contract_invalid`。
+
+证券列表仅接受显式字母数字、点、下划线、短横线代码；指标仅接受显式英文字母数字与下划线，
+均以逗号分隔，拒绝通配符／括号／表达式。Host单次保守预算为5000 cells：
+`证券项数 × 指标项数 × 首尾均计入的日历天数`，超限在取密前返回
+`quantapi_history_workload_limit`。这是产品安全上限，不是供应商或账户额度，也不是返回行数limit；
+周/月Interval及SampleInterval不放宽估算，不自动拆批、截断或添加默认值。
+
+例如旧式 `body={"codes":"600000.SH","indicators":"close","startdate":"2026-10-21",
+"enddate":"2026-10-21","functionpara":{"Interval":"D","Currency":"RMB","Fill":"Blank"}}`
+转换为 `{"reqBody":body}`。仍按 `tables[].thscode/time/table` 对齐展开并保存完整源字节，
+空数组返回 `empty`、坏结构和非零错误码失败；真实 null 不填零，全部指标无值时保留原件与行并返回
+`partial/history_values_missing`，不进入原生研究仓的完整快照。请求 RMB 或复权选项不构成单位或
+跨源等价的独立核验，未知单位仍为 `provider_defined`，正式回测／历史可得性边界不变。
+
 状态语义：`code_exists` 表示来源在清单中已登记；`integration_completed` 表示已有按需取数适配；
 `configured` 对公开来源为真、对凭据来源仅在秘密已保存时为真。外部来源的探测只报告配置与适配状态，不向上游发请求，
 避免服务启动的批量探测对数十个外部站点产生周期性流量：登记但可读的来源返回 `degraded/not_live_verified`，

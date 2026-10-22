@@ -4418,6 +4418,7 @@ Imports:
 - `httpx`
 - `io`
 - `json`
+- `math`
 - `providers`
 - `re`
 - `time`
@@ -4432,6 +4433,8 @@ Classes:
 Functions:
 - `arguments`
 - `endpoint_request`
+- `_quantapi_history_body`
+  - Wrap only the documented history contract, before reading credentials.
 - `_list_payload`
   - Dict payloads with a primary list become real rows so samples stay small.
 - `response_rows`

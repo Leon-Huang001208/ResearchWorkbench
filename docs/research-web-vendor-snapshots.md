@@ -22,3 +22,9 @@ dataset key 包含 capability、实际 source、全部 parameters 的规范摘�
 
 
 2026-10-22 iFinD凭据复用：iFinD get_limit_policy仅用于显式授权验证，不进入external_data数值白名单或原生研究快照；不得把权限元数据当行情/财务数据保存。
+
+2026-10-23 iFinD历史行情：`ext_ths/cmd_history_quotation` 保留原dataset身份，固定请求改为官方
+`history_data`，合法旧flat body精确包一层`reqBody`，原生`reqBody`不重复包装；参数冲突或未知语法先于取密拒绝。
+time/table逐项对齐和raw字节保存保持；全null指标结果标记`partial/history_values_missing`，原生快照不接纳为完整数据。
+官方单证券单日收盘价样本、授权元数据、本机Mock和候选Host实际数据验收分别记录，不互相替代。
+未知币种／复权等价、历史时点及正式回测仍未认证，不新增EDB、日期序列或PIT接口。

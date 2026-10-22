@@ -6,6 +6,7 @@ import hashlib
 import hmac
 import io
 import json
+import math
 import re
 import time
 from datetime import UTC, datetime
@@ -96,6 +97,94 @@ def endpoint_request(
     if endpoint["method"] == "GET" and args.get("body"):
         raise ProviderError("external_body_not_allowed")
     return endpoint, url
+
+
+def _quantapi_history_body(args: dict[str, Any]) -> dict[str, Any]:
+    """Wrap only the documented history contract, before reading credentials."""
+    reason = "quantapi_history_contract_invalid"
+    body = args.get("body", {})
+    if args.get("query") or ("reqBody" in body and set(body) != {"reqBody"}):
+        raise ProviderError(reason)
+    payload = body.get("reqBody") if "reqBody" in body else body
+    required = {"codes", "indicators", "startdate", "enddate"}
+    if (
+        not isinstance(payload, dict)
+        or not required <= payload.keys()
+        or payload.keys() - required - {"functionpara"}
+    ):
+        raise ProviderError(reason)
+    for key in required:
+        value = payload[key]
+        if (
+            not isinstance(value, str)
+            or not 1 <= len(value) <= (10 if key.endswith("date") else 4096)
+            or any(char.isspace() or ord(char) < 32 for char in value)
+            or any(not part for part in value.split(","))
+        ):
+            raise ProviderError(reason)
+        if key in {"codes", "indicators"}:
+            pattern = r"[A-Za-z0-9._-]+" if key == "codes" else r"[A-Za-z0-9_]+"
+            if any(re.fullmatch(pattern, part) is None for part in value.split(",")):
+                raise ProviderError(reason)
+    dates = []
+    for key in ("startdate", "enddate"):
+        value = payload[key]
+        pattern = "%Y-%m-%d" if "-" in value else "%Y/%m/%d" if "/" in value else "%Y%m%d"
+        try:
+            day = datetime.strptime(value, pattern)
+        except ValueError:
+            raise ProviderError(reason) from None
+        if day.strftime(pattern) != value:
+            raise ProviderError(reason)
+        dates.append(day)
+    if dates[0] > dates[1]:
+        raise ProviderError(reason)
+    options = payload.get("functionpara", {})
+    enums = {
+        "Interval": {"D", "W", "M", "Q", "S", "Y"},
+        "SampleInterval": {"D", "W", "M", "Q", "S", "Y"},
+        "CPS": {"1", "2"},
+        "PriceType": {"1", "2"},
+        "Currency": {"RMB", "MHB", "GHB", "YSHB"},
+    }
+    if (
+        not isinstance(options, dict)
+        or options.keys() - enums.keys() - {"Fill", "BaseDate"}
+        or {"Interval", "SampleInterval"} <= options.keys()
+    ):
+        raise ProviderError(reason)
+    for key, value in options.items():
+        if key in enums:
+            if not isinstance(value, str) or value not in enums[key]:
+                raise ProviderError(reason)
+        elif key == "BaseDate":
+            try:
+                if (
+                    not isinstance(value, str)
+                    or datetime.strptime(value, "%Y-%m-%d").strftime("%Y-%m-%d") != value
+                ):
+                    raise ValueError
+            except ValueError:
+                raise ProviderError(reason) from None
+        elif not isinstance(value, str) or value not in {"Previous", "Blank", "Omit"}:
+            try:
+                if (
+                    isinstance(value, bool)
+                    or not isinstance(value, (str, int, float))
+                    or not math.isfinite(float(value))
+                ):
+                    raise ValueError
+            except (ValueError, OverflowError):
+                raise ProviderError(reason) from None
+    # Host safety budget, not vendor/account quota or the returned-row limit.
+    cells = (
+        len(payload["codes"].split(","))
+        * len(payload["indicators"].split(","))
+        * ((dates[1] - dates[0]).days + 1)
+    )
+    if cells > MAX_ROWS:
+        raise ProviderError("quantapi_history_workload_limit")
+    return {"reqBody": payload}
 
 
 _NESTED_LIST_KEYS = (
@@ -538,6 +627,8 @@ async def fetch(
             raise ProviderError("external_source_required")
         args = arguments(query.parameters.get("arguments_json"))
         endpoint, url = endpoint_request(source_id, dataset, args)
+        if (source_id, dataset) == ("ext_ths", "cmd_history_quotation"):
+            args["body"] = _quantapi_history_body(args)
         if credential_transport_blocked(endpoint):
             raise ProviderError("credential_transport_blocked")
         limit = query.parameters.get("limit", MAX_ROWS)
@@ -602,6 +693,18 @@ async def fetch(
             if len(rows) > limit or complete_page is False
             else "snapshot" if rows else "empty"
         )
+        if (
+            (source_id, dataset) == ("ext_ths", "cmd_history_quotation")
+            and result.rows
+            and all(
+                value is None
+                for row in result.rows
+                for key, value in row.items()
+                if key not in {"asset", "date"}
+            )
+        ):
+            result.status = "partial"
+            result.missing.append("history_values_missing")
         result.provider_total = provider_total
         result.pagination_complete = len(rows) <= limit and complete_page is True
         if complete_page is False:
