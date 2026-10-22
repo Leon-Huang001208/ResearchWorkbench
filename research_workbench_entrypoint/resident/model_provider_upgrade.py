@@ -56,6 +56,10 @@ ASSET_V3_PAYLOAD = "a0ff3ae2e2ab92bad10ba8547e45027687ec7cc1"
 ASSET_V4_MODE = "reviewed-asset-observation-v4"
 ASSET_V4_PREVIOUS = "5495e64c0be08c9db58e336705db90584f8ba8b5"
 ASSET_V4_PAYLOAD = "9b436613aad9136f4959c992c89dd72fc7354ed5"
+# PR185 merged asset interaction/data product; the live market-gaps resident is preserved.
+ASSET_V5_MODE = "reviewed-asset-observation-v5"
+ASSET_V5_PREVIOUS = "51f09fa783694aae5234905933948394ca167dcc"
+ASSET_V5_PAYLOAD = "9bc4e4cab91130647a5bc0dfa519e97f4773416a"
 # PR179's merged market product, starting at the completed v4 resident deployment.
 MARKET_MODE = "reviewed-market-overview-v1"
 MARKET_PREVIOUS = "4d2e3c408663b64be9e58b03213f4ca8f1152733"
@@ -68,7 +72,15 @@ MARKET_GAPS_PREVIOUS = "99d3ee34977c47189a5638207c109a555f52a687"
 MARKET_GAPS_PAYLOAD = "9faeeca3003a912ca75799fb27b635ba1bb87a1a"
 # Historical family name: all these profiles require full business-index preservation.
 ASSET_MODES = frozenset(
-    (ASSET_MODE, ASSET_V2_MODE, ASSET_V3_MODE, ASSET_V4_MODE, MARKET_MODE, MARKET_GAPS_MODE)
+    (
+        ASSET_MODE,
+        ASSET_V2_MODE,
+        ASSET_V3_MODE,
+        ASSET_V4_MODE,
+        ASSET_V5_MODE,
+        MARKET_MODE,
+        MARKET_GAPS_MODE,
+    )
 )
 ASSET_EVIDENCE = "research_workbench_entrypoint/resident/evidence.py"
 ASSET_EVIDENCE_SHA256 = "ec022e39a89a3dbd021fca26049342ce149077f5beb62a8df2aba7826d016d25"
@@ -146,6 +158,8 @@ def previous_for(mode):
         return ASSET_V3_PREVIOUS
     if mode == ASSET_V4_MODE:
         return ASSET_V4_PREVIOUS
+    if mode == ASSET_V5_MODE:
+        return ASSET_V5_PREVIOUS
     if mode == MARKET_MODE:
         return MARKET_PREVIOUS
     if mode == MARKET_GAPS_MODE:
@@ -276,6 +290,7 @@ def review_assets(source: Path, target: str, mode=ASSET_MODE):
         ASSET_V2_MODE: ASSET_V2_PAYLOAD,
         ASSET_V3_MODE: ASSET_V3_PAYLOAD,
         ASSET_V4_MODE: ASSET_V4_PAYLOAD,
+        ASSET_V5_MODE: ASSET_V5_PAYLOAD,
         MARKET_MODE: MARKET_PAYLOAD,
         MARKET_GAPS_MODE: MARKET_GAPS_PAYLOAD,
     }[mode]
@@ -1247,6 +1262,7 @@ def main(argv=None):
             "apply-assets-v2",
             "apply-assets-v3",
             "apply-assets-v4",
+            "apply-assets-v5",
             "apply-market",
             "apply-market-gaps",
             "recover",
@@ -1266,6 +1282,7 @@ def main(argv=None):
                 "apply-assets-v2": ASSET_V2_MODE,
                 "apply-assets-v3": ASSET_V3_MODE,
                 "apply-assets-v4": ASSET_V4_MODE,
+                "apply-assets-v5": ASSET_V5_MODE,
                 "apply-market": MARKET_MODE,
                 "apply-market-gaps": MARKET_GAPS_MODE,
             }.get(args.command, MODE),

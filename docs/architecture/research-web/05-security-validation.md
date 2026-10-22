@@ -1,5 +1,7 @@
 # 安全边界与验证方法
 
+资产交互v5固定PREVIOUS=51f09、PAYLOAD=PR185真实merge9bc4；原review_assets继续核对产品祖先、完整路径并集、blob、模式、干净checkout及源码／发布仓库身份，运行时不接受任意旧版或产品SHA。旧profile、不可变controller／evidence、自动兼容白名单、账号与秘密namespace不变；原维护锁、BirthFence、明确空闲、全账号保全和正式recover仍为硬门。没有新信任边界或认证流程，01／12安全相关图保持，产品三CI不替代v5最终独评／CI／真实切换证据。
+
 行情缺口部署使用封闭 `reviewed-market-gaps-v1` / `apply-market-gaps`：旧版固定 `99d3ee34977c47189a5638207c109a555f52a687`，产品源码检查点固定 `9faeeca3003a912ca75799fb27b635ba1bb87a1a`。检查点为本轮产品修复的不可变祖先，最终操作员/产品组合目标仍必须最新已合并 master、独立评审和原三项 exact-tree CI（含 Mac 干净安装）合格；不把检查点冒充合并版本。复用原 version4 保全/恢复，并在原维护锁内额外核对 MarketService 的 inflight 明确为空；未知或正在采集时不切换。旧 profile、controller/evidence/网关模块字节及模型/账号权限保持，无新部署节点、HTTP或依赖，原图准确。
 
 全市场缺口修复（2026-10-22）：股票列表增加东财官网 f292 交易状态；同身份、同日单股接口有界补取空成交额与停牌参考价。停牌、未上市单列，不计平盘；已上市股票成交额全部覆盖后才合计。沪深大盘日线资金改用已实测访客端点，使用自己的来源、日期、采集时间与返回行数，不沿用板块元数据。无新依赖、来源权限或研究会话；原 Host/MarketService/DataHub/东财拓扑不变，现有图及 API Atlas 不重画。
