@@ -56,7 +56,12 @@ ASSET_V3_PAYLOAD = "a0ff3ae2e2ab92bad10ba8547e45027687ec7cc1"
 ASSET_V4_MODE = "reviewed-asset-observation-v4"
 ASSET_V4_PREVIOUS = "5495e64c0be08c9db58e336705db90584f8ba8b5"
 ASSET_V4_PAYLOAD = "9b436613aad9136f4959c992c89dd72fc7354ed5"
-ASSET_MODES = frozenset((ASSET_MODE, ASSET_V2_MODE, ASSET_V3_MODE, ASSET_V4_MODE))
+# PR179's merged market product, starting at the completed v4 resident deployment.
+MARKET_MODE = "reviewed-market-overview-v1"
+MARKET_PREVIOUS = "4d2e3c408663b64be9e58b03213f4ca8f1152733"
+MARKET_PAYLOAD = "5de7e5f2db95b8b501905af9cfdc30e8fe84db0b"
+# Historical family name: all these profiles require full business-index preservation.
+ASSET_MODES = frozenset((ASSET_MODE, ASSET_V2_MODE, ASSET_V3_MODE, ASSET_V4_MODE, MARKET_MODE))
 ASSET_EVIDENCE = "research_workbench_entrypoint/resident/evidence.py"
 ASSET_EVIDENCE_SHA256 = "ec022e39a89a3dbd021fca26049342ce149077f5beb62a8df2aba7826d016d25"
 MAX_ASSET_INDEX_BYTES = 64 * 1024 * 1024
@@ -133,6 +138,8 @@ def previous_for(mode):
         return ASSET_V3_PREVIOUS
     if mode == ASSET_V4_MODE:
         return ASSET_V4_PREVIOUS
+    if mode == MARKET_MODE:
+        return MARKET_PREVIOUS
     raise UpdateBlocked("model_upgrade_profile_unknown")
 
 
@@ -247,6 +254,7 @@ def review_assets(source: Path, target: str, mode=ASSET_MODE):
         ASSET_V2_MODE: ASSET_V2_PAYLOAD,
         ASSET_V3_MODE: ASSET_V3_PAYLOAD,
         ASSET_V4_MODE: ASSET_V4_PAYLOAD,
+        MARKET_MODE: MARKET_PAYLOAD,
     }[mode]
     c.clean(source, target)
     c.git(source, "merge-base", "--is-ancestor", payload, target)
@@ -1196,6 +1204,7 @@ def main(argv=None):
             "apply-assets-v2",
             "apply-assets-v3",
             "apply-assets-v4",
+            "apply-market",
             "recover",
         ),
     )
@@ -1213,6 +1222,7 @@ def main(argv=None):
                 "apply-assets-v2": ASSET_V2_MODE,
                 "apply-assets-v3": ASSET_V3_MODE,
                 "apply-assets-v4": ASSET_V4_MODE,
+                "apply-market": MARKET_MODE,
             }.get(args.command, MODE),
         )
         print(json.dumps(result))
