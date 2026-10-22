@@ -1,5 +1,7 @@
 # Research Workbench
 
+资产v5部署前大索引预检修复只让v5使用已有64 MiB安全业务读取器；元数据仍为1 MB，旧profile和固定产品不变。原8.67 MB业务索引在停机前被拒绝，数据未裁剪；修复须继续原完整文档／评审／三CI及同候选Mac安装，PR187原Constraints失败不写成通过。当前仍待正式切换与全账号保全，见[部署合同](docs/research-web-gateway-upgrade.md)和[修复记录](.ai/reports/test_report_asset_v5_index_fix_20261022.md)。
+
 [固定版本部署](docs/research-web-gateway-upgrade.md#全市场缺口修复固定部署)继续保全原会话、数据及模型，并核对行情采集空闲。
 
 全市场概览按来源明确停牌／未上市状态，补取真实零成交额与有标记的停牌参考价；沪深大盘日线资金展示独立的来源和交易日。详见[数据口径](docs/research-web-datahub.md#无会话全市场数据)。
@@ -54,7 +56,7 @@ Native 可按[安装指南](docs/research-web-installation.md#可选tailscale-�
 
 资产观察采用 Wind 风格平面工作区，保留交易/估值、自选、财务、资金、股东、新闻、公告和个人资料。日线历史支持近期2年、续取更早和全部加载，不复权/前复权/后复权保存固定锚点与来源证据；副图默认VOL＋MACD，账号内可选0至4栏。筹码按所选日期的已载入日线前缀估算，缩放不改变同日统计；缺口、失败和取消排空如实显示。详见[资产观察](docs/research-web-ui.md#资产观察工作台)与[批准计划](docs/plans/2026-10-22-wind-asset-workspace.md)。实现、有限厂商预检、最终浏览器/CI和常驻部署分别验收。
 
-资产交互v5固定部署合同绑定PR185真实合并产品`9bc4e4cab91130647a5bc0dfa519e97f4773416a`，当前旧版与恢复基线固定`51f09fa783694aae5234905933948394ca167dcc`。产品三CI已通过；v5操作员最终候选仍须本机回归、独立评审、原三CI及同候选Mac安装，实际切换／认证页面／数据保全另验，当前文档不表示已部署。旧v1–v4、两个market profile、不可变控制器及严格保全门保持，见[部署说明](docs/research-web-gateway-upgrade.md#资产交互与数据-v5-2026-10-22)。
+资产交互v5当前固定部署产品为PR188真实merge `88ef3817680ac822e2d7c819db845de4b7275173`，包含PR185资产9bc4与DataHub研究仓；旧版及恢复基线仍固定`51f09fa783694aae5234905933948394ca167dcc`。用户已批准组合验收后一起部署锁定baostock0.9.4／psycopg3.3.6，数据库不启用／不迁移、外盘不改。旧a114三CI全PASS不认证新组合；新候选须重新完成本机兼容、独评、原三CI及同候选Mac安装，实际切换／认证页面／数据保全另验，当前仍未部署。旧profile、不可变控制器及严格保全门保持，见[部署说明](docs/research-web-gateway-upgrade.md#资产交互与数据-v5-2026-10-22)。
 
 Wind工作区v4固定版本部署合同已绑定PR180合并产品`9b436613aad9136f4959c992c89dd72fc7354ed5`，旧版固定5495；产品三项CI已通过，v4操作员的最终测试、评审、CI及实际切换仍须分别验收。旧v3切换失败后已正式恢复5495并保全数据、解除网关fence；旧v1/v2/v3身份和恢复、不可变控制器及严格保全门保持，详见[部署说明](docs/research-web-gateway-upgrade.md#资产观察固定版本联合部署)。
 

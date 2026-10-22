@@ -921,7 +921,7 @@ def real_operations(tmp_path, monkeypatch, request):
         "binding": binding,
         "origin": config["private_origin"],
     }
-    manifest = {"code_commit": previous, "status": "installed"}
+    manifest = {"code_commit": previous, "status": "installed", "web_lock_sha256": "c" * 64}
     accepted = {"target": previous, "sentinel": "previous-accepted"}
     for path, value in (
         (root / "config.json", config),
@@ -1176,6 +1176,12 @@ def test_asset_operation_methods_restore_the_asset_previous(real_operations, fai
     expected = state["target"] if failed is None else state["previous"]
     assert result["status"] == ("deployed" if failed is None else "rolled_back")
     assert system["primary"] == system["gateway"] == expected
+    expected_manifest = {**state["manifest"], "code_commit": expected}
+    if failed is None and state["mode"] == upgrade.ASSET_V5_MODE:
+        expected_manifest["web_lock_sha256"] = (
+            "7c631d4fa5354170c622225be129a09f7f5890457aa0521bd5f46cecb6bb7102"
+        )
+    assert json.loads((home / "install/manifest.json").read_text()) == expected_manifest
     assert system["running"] and system["loaded"]
     assert not (home / "resident/transaction.json").exists()
     assert not (home / "server/run/gateway-upgrade.json").exists()
@@ -1945,7 +1951,12 @@ def test_preparing_intent_recovers_partial_birth_fence(real_operations, monkeypa
     assert system["events"] == []
 
 
-def test_large_business_index_keeps_metadata_limit_and_market_reader_binding(tmp_path, monkeypatch):
+@pytest.mark.parametrize(
+    "profile", [upgrade.MARKET_MODE, upgrade.MARKET_GAPS_MODE, upgrade.ASSET_V5_MODE]
+)
+def test_large_business_index_keeps_metadata_limit_and_profile_reader_binding(
+    tmp_path, monkeypatch, profile
+):
     root = tmp_path / "research-web"
     root.mkdir()
     path = root / "index.json"
@@ -1961,10 +1972,29 @@ def test_large_business_index_keeps_metadata_limit_and_market_reader_binding(tmp
         assert kwargs["index_reader"](path)["sessions"] == {}
 
     monkeypatch.setattr(upgrade.g, "verify_primary", verify)
-    upgrade.verify_primary(tmp_path, "a" * 40, upgrade.MARKET_MODE)
+    upgrade.verify_primary(tmp_path, "a" * 40, profile)
     assert calls == [{"index_reader": upgrade.read_business_index}]
     with pytest.raises(upgrade.UpdateBlocked, match="asset_upgrade_index_invalid"):
         upgrade.read_business_index(tmp_path / "missing.json")
+
+
+@pytest.mark.parametrize(
+    "profile",
+    [
+        upgrade.MODE,
+        upgrade.ASSET_MODE,
+        upgrade.ASSET_V2_MODE,
+        upgrade.ASSET_V3_MODE,
+        upgrade.ASSET_V4_MODE,
+    ],
+)
+def test_legacy_primary_reader_binding_is_unchanged(tmp_path, monkeypatch, profile):
+    calls = []
+    monkeypatch.setattr(
+        upgrade.g, "verify_primary", lambda *args, **kwargs: calls.append((args, kwargs))
+    )
+    upgrade.verify_primary(tmp_path, "a" * 40, profile)
+    assert calls == [((tmp_path, "a" * 40), {})]
 
 
 def test_market_gap_profile_freezes_resident_and_reviewed_source_checkpoint():
@@ -2003,4 +2033,18 @@ def test_market_refresh_activity_blocks_the_fixed_upgrade(
 def test_asset_v5_is_bound_to_actual_resident_and_merged_product():
     assert upgrade.ASSET_V5_MODE == "reviewed-asset-observation-v5"
     assert upgrade.previous_for(upgrade.ASSET_V5_MODE) == "51f09fa783694aae5234905933948394ca167dcc"
-    assert upgrade.ASSET_V5_PAYLOAD == "9bc4e4cab91130647a5bc0dfa519e97f4773416a"
+    assert upgrade.ASSET_V5_PAYLOAD == "88ef3817680ac822e2d7c819db845de4b7275173"
+
+
+@pytest.mark.parametrize("profile", [upgrade.MODE, *upgrade.ASSET_MODES])
+def test_target_manifest_preserves_old_lock_except_authorized_v5_combination(profile):
+    old = {"code_commit": "a" * 40, "web_lock_sha256": "c" * 64, "installed_at": "old"}
+    state = {"mode": profile, "manifest": old, "target": "b" * 40}
+    target = upgrade.target_manifest(state)
+    expected = {**old, "code_commit": "b" * 40}
+    if profile == upgrade.ASSET_V5_MODE:
+        expected["web_lock_sha256"] = (
+            "7c631d4fa5354170c622225be129a09f7f5890457aa0521bd5f46cecb6bb7102"
+        )
+    assert target == expected
+    assert old == state["manifest"]

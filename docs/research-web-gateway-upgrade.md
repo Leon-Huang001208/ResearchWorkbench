@@ -1,5 +1,9 @@
 # Mac mini 空私有池网关升级
 
+组合v5在安装目标产品时，仅把安装清单的`web_lock_sha256`同步为已冻结88ef锁文件的`7c631d4fa5354170c622225be129a09f7f5890457aa0521bd5f46cecb6bb7102`，并更新code_commit；回滚精确恢复原清单。配置校验只接受原清单或该固定目标清单，不接受任意哈希。用户已授权的三个发行包须先按原锁定哈希安装、核验版本及pip check，并确认其余已装版本不变；不能用更新清单掩盖依赖未安装。旧profile、version4 journal、不可变controller/evidence、账号及业务索引保全不变。
+
+资产 v5 的主实例预检使用已有 `read_business_index`，上限64 MiB，仍拒绝符号链接、非普通文件、越界、损坏或非对象索引。部署元数据继续使用原1 MB读取器；旧资产与模型 profile 的读取绑定不变。真实首次切换因业务索引超过1 MB在停机前被拒绝，旧服务保持；不得裁剪索引或修改不可变证据读取器。修复后须重新通过原评审、三项CI及同候选Mac安装，再执行正式切换和全账号保全。
+
 ## 全市场缺口修复固定部署
 
 行情缺口部署使用封闭 `reviewed-market-gaps-v1` / `apply-market-gaps`：旧版固定 `99d3ee34977c47189a5638207c109a555f52a687`，产品源码检查点固定 `9faeeca3003a912ca75799fb27b635ba1bb87a1a`。检查点为本轮产品修复的不可变祖先，最终操作员/产品组合目标仍必须最新已合并 master、独立评审和原三项 exact-tree CI（含 Mac 干净安装）合格；不把检查点冒充合并版本。复用原 version4 保全/恢复，并在原维护锁内额外核对 MarketService 的 inflight 明确为空；未知或正在采集时不切换。旧 profile、controller/evidence/网关模块字节及模型/账号权限保持，无新部署节点、HTTP或依赖，原图准确。
@@ -28,7 +32,7 @@
 
 ### 资产交互与数据 v5 2026-10-22
 
-封闭profile为`reviewed-asset-observation-v5`，入口为`model_provider_upgrade apply-assets-v5`。PREVIOUS精确固定当前主实例与网关的`51f09fa783694aae5234905933948394ca167dcc`，PAYLOAD精确固定PR185真实merge `9bc4e4cab91130647a5bc0dfa519e97f4773416a`；旧4d2e、99d3及5495分别属于历史部署合同，不能作为v5当前恢复基线。产品candidate／preview／merge同tree及产品三CI由主任务另留证，不代替v5操作员最终提交的本机回归、独立评审和原三CI／同候选Mac安装。
+封闭profile为`reviewed-asset-observation-v5`，入口为`model_provider_upgrade apply-assets-v5`。PREVIOUS精确固定当前主实例与网关的`51f09fa783694aae5234905933948394ca167dcc`，PAYLOAD在PR188合流及用户当前授权后精确固定完整已合并产品`88ef3817680ac822e2d7c819db845de4b7275173`（包含PR185资产产品9bc4及DataHub研究仓）；旧4d2e、99d3及5495分别属于历史部署合同，不能作为v5当前恢复基线。旧a114候选原三CI全PASS保留为历史，主线前进后须重新认证新组合的本机兼容、独立评审及原三CI／同候选Mac安装，不能用旧树证据替代。
 
 ```bash
 /absolute/primary/.venv/bin/python -m research_workbench_entrypoint.resident.model_provider_upgrade apply-assets-v5 \
@@ -39,7 +43,7 @@ v5只增加原常量表、previous_for／review_assets及CLI封闭分支；仍�
 
 沿原version4 journal、维护锁、BirthFence、优雅排空、全账号业务索引冻结与内容寻址恢复；目录后台租约、资产区块／历史及真实Future的活动证明仍由既有产品边界提供，活动或未知时不切换。保留会话、模型配置、账号权限、市场缓存和原始快照，不触发研究、周报、供应商或模型调用。`recover`只按已验证journal的v5 mode返回固定51f09，旧资产v1–v4、两个market profile、模型恢复和不可变controller／evidence保持原合同。
 
-本profile没有新增节点、HTTP、数据流、持久格式或依赖；图源与API inventory不变，阅读源码链接只更新到已审产品。最终root按资格、明确空闲、冻结／健康／保全与真实认证页面逐项取证前，状态保持未部署。详见[本轮报告](../.ai/reports/test_report_asset_interaction_v5_deploy_20261022.md)。
+profile和一行读取修复本身没有新增部署节点或HTTP；组合产品包含PR188的可选研究仓／DataHub合同，保留其已审新04数据流，API inventory为321声明／318唯一接口。当前用户明确允许组合验收后随常驻安装已合并锁定baostock0.9.4／psycopg3.3.6，数据库不启用／不迁移、外盘不改；不扩大为任意依赖或数据库配置授权。阅读入口指向已提交组合产品88ef，一行v5读取修复另见8f2cb39a63c99c6e64875daf21dbb8b07518ff43，最终操作员提交另绑。root完成资格、明确空闲、冻结／健康／保全与真实认证页面逐项取证前，状态保持未部署。详见[原profile报告](../.ai/reports/test_report_asset_interaction_v5_deploy_20261022.md)与[读取修复及合流报告](../.ai/reports/test_report_asset_v5_index_fix_20261022.md)。
 
 ### Wind工作区 v4（2026-10-22）
 

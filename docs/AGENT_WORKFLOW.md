@@ -1,5 +1,9 @@
 # Agent 任务路由指南
 
+PR188合流后，当前用户已明确批准“组合验收后一起部署”，包括已合并锁中的baostock0.9.4／psycopg3.3.6；不启用或迁移数据库，不改外盘。尚未成功切换的v5将PAYLOAD固定到完整产品88ef3817（含资产9bc4与DataHub研究仓），PREVIOUS仍51f09；旧profile不变。旧a114候选三CI全PASS只属于旧树，新组合必须重新完成本机兼容／独评／原三CI和同候选Mac安装后才由root部署，本次文档不安装包或切换。
+
+2026-10-22资产v5业务索引预检修复保持原完整changed-set Router与模块文档门：仅v5复用64 MiB安全业务读取，元数据和旧profile保持。PR187 Constraints run39794625674因模块文档／结构复核缺失失败，须补实际影响说明并正常提交后重新绑定原三CI／同候选Mac安装；不删规则、不手工涂改原run或以局部769／112和独评173项代替CI。停机前拒绝不表示已部署，正式切换仍由root完成原资格、锁、明确空闲和全账号保全。
+
 研究仓本轮先完成隔离临时 PostgreSQL、DataHub缺口/授权/取消回归与独立评审，再绑定完整候选的本机门和Mac安装CI。新增测试仅扩展既有Checks步骤，不用厂商网络或真实模型替代离线验收；正式数据根、生产连接、迁移及常驻部署另行授权，Windows/Linux交接各自真机。
 
 2026-10-22资产交互v5固定部署在Mac mini隔离worktree交付，仅新增封闭profile与近处回归，固定PREVIOUS=51f09、PAYLOAD=PR185真实merge9bc4。原完整changed-set Router、独立评审、Project Constraints／Research Web Checks／同候选Mac Bootstrap继续适用；产品三CI不认证操作员候选。只有最终资格通过后，root才按原锁、明确空闲、BirthFence、全账号冻结及version4事务部署；本轮文档不执行apply，不以预览或本机installed环境替代实际版本／认证页面／保全证据。
