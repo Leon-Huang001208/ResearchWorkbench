@@ -350,7 +350,7 @@ class ReportWorkflowRuntime:
                     raise WorkflowError("Workflow 尚未启用", "workflow_not_enabled", 409)
                 manifest = self.catalog.manifest(workflow_id, selected)
                 weekly_contract = None
-                owner = None
+                owner: dict = {}
                 if weekly_enabled(manifest):
                     from .weekly_data import build_weekly_data_contract
 
@@ -784,7 +784,7 @@ class ReportWorkflowRuntime:
                         staged = (
                             stage_weekly_projection(self.service, current["session_id"])
                             if formal
-                            else None
+                            else {}
                         )
                         projection = await render_report_payload(
                             self.service.store,
