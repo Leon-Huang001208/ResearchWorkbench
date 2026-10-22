@@ -1,6 +1,8 @@
 # Research Workbench Research Web 当前架构
 
-2026-10-23 当前组合源码阅读检查点为`4675525d211b30050d31b75279b157e21f3d9e3d`，实际父提交为Market/Auth/Plugin主线71ce8519及Asset功能87abc999；本入口与Atlas绑定此已存在组合source，不将历史feature pin当作含上游的源码。新raw单位策略、原生证据与主线插件/授权/市场能力全部保留；组合实际UI、最终CI与常驻部署分别留证。下方早期pin仅保留各阶段历史归属。
+2026-10-23 当前组合源码阅读检查点为`2a8585af3a6b3a8bbbb9618643e6da8a119c4cb0`，包含已审主线Plugin/Auth/Market、资产来源策略与Wind仓库长窗回归修复。读取仍校验数据语义及当前授权，供应商60日容量只应用于实际缺口；受控仓与StorageRunner测试不认证真实Wind/PG。实际Host/Bao、最终CI和部署继续按精确候选独立留证。
+
+2026-10-23 前一组合源码阅读检查点为`4675525d211b30050d31b75279b157e21f3d9e3d`，实际父提交为Market/Auth/Plugin主线71ce8519及Asset功能87abc999；本入口与Atlas绑定此已存在组合source，不将历史feature pin当作含上游的源码。新raw单位策略、原生证据与主线插件/授权/市场能力全部保留；组合实际UI、最终CI与常驻部署分别留证。下方早期pin仅保留各阶段历史归属。
 
 2026-10-23固定公开indices个人仓库桥新增的内部读写条件边见[13市场图](../../../outputs/research-web-architecture/13-market-overview.html)。默认Host的POST仍真实取上游，GET只读原用户缓存；仅内部允许缓存读可命中同源短时捕获。没有新增服务、DSH引擎或自动采集，个人仓库未配置时明确未持久化。
 

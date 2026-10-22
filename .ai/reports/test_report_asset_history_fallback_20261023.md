@@ -162,3 +162,6 @@ Wind增量SPEC独立复核限定PASS：Root已收到独立230项及Ruff/Black/is
 
 
 Wind增量独立质量限定PASS：logs/wind-cache-quality-review.json（SHA256 678453dacacf7e40439ffdbc573da417570de4fc2be81d4e5e9a1b7af23336e6）核对五个冻结SHA稳定，独立29项定点PASS及Ruff/Black通过；三源mypy仅保留原Broker三项Resolution调用旧债，没有将全mypy写为PASS。Root已授权正常integration源码修复检查点及随后reading绑定文档提交，不publish、不运行长门；新的实际Host/Bao第二轮是产品源码变化后的独立验收，旧887 API与首次Bao证据原样保留，不提前认证新candidate已通过供应商/CI/部署。
+
+
+Wind修复源码检查点已正常提交`2a8585af3a6b3a8bbbb9618643e6da8a119c4cb0`，父提交88710ece；本轮reading.repository.revision与架构入口绑定此已存在source，再由官方生成器重建index/API Atlas。后续docs commit与此source产品字节相同，供应商新验收及Router/CI仍由Root后续绑定，不将受审旧source证据替换为新候选已验。
