@@ -119,6 +119,20 @@ class PluginService:
     def preview(self, raw):
         package = parse_archive(raw)
         digest = package["digest"]
+        if (
+            digest in self.data["versions"]
+            and self._row(digest)["permissions"] != package["permissions"]
+        ):
+            # Explicit re-import exposes a changed Host policy for re-review;
+            # never carry old package/schema approval to new sandbox authority.
+            row = self._row(digest)
+            row.update(
+                permissions=package["permissions"],
+                components=package["components"],
+                review=None,
+                mcp_reviews={},
+            )
+            self.save()
         if digest not in self.data["versions"]:
             for prior in self.data["versions"].values():
                 if prior["name"] == package["name"] and prior["version"] == package["version"]:
@@ -154,8 +168,15 @@ class PluginService:
                 and component.get("selection", {}).get("package_index") is not None
             ):
                 # Re-project old imported rows too; stored support is not authority.
+                from ..mcp_runtime.managed_sandbox import available
+
                 component["support"] = "limited"
-                component["reason"] = "mcp_managed_local_process_isolation_required"
+                component["sandbox_available"] = available()
+                component["reason"] = (
+                    "mcp_offline_python_sandbox_required"
+                    if available()
+                    else "mcp_managed_local_process_isolation_required"
+                )
             if component_id in row.get("component_issues", {}):
                 component["reason"] = "native_validation_failed"
                 component["issues"] = row["component_issues"][component_id]
@@ -208,7 +229,13 @@ class PluginService:
             or review.get("permissions") != row["permissions"]
         ):
             return False
-        self._archive(digest)
+        try:
+            self._archive(digest)
+        except PluginError as exc:
+            if exc.code != "plugin_integrity_failed":
+                raise
+            log.warning("plugin_current_policy_review_required")
+            return False
         if sources and row.get("managed_approval"):
             for source in self.approval_roots:
                 if (source / "plugins/index.json").exists():
@@ -721,6 +748,13 @@ class PluginService:
         preview = await self.mcp.preview(
             InstallationSelection.model_validate(component["selection"])
         )
+        if component["selection"].get("package_index") is not None:
+            from ..mcp_runtime.managed_sandbox import validate_plan
+
+            try:
+                validate_plan(preview["plan"])
+            except ValueError as exc:
+                raise PluginError("mcp_managed_offline_python_required", 403) from exc
         # Native confirmation tokens are ephemeral and package-bound here;
         # credentials are accepted only by native MCP, never this package store.
         self._mcp_pending = getattr(self, "_mcp_pending", {})
@@ -735,6 +769,8 @@ class PluginService:
         if component is None:
             raise PluginError("plugin_mcp_component_not_found", 404)
         self._require_mcp_process_isolation(component)
+        if component.get("selection", {}).get("package_index") is not None and environment_values:
+            raise PluginError("mcp_managed_offline_environment_forbidden", 403)
         if getattr(self, "_mcp_pending", {}).get((digest, key)) != token:
             raise PluginError("plugin_mcp_confirmation_invalid", 409)
         if key in row["mcp_bindings"]:
@@ -760,8 +796,11 @@ class PluginService:
     @staticmethod
     def _require_mcp_process_isolation(component):
         if component.get("selection", {}).get("package_index") is not None:
-            log.warning("mcp_managed_local_process_isolation_required")
-            raise PluginError("mcp_managed_local_process_isolation_required", 403)
+            from ..mcp_runtime.managed_sandbox import available
+
+            if not available():
+                log.warning("mcp_managed_local_process_isolation_required")
+                raise PluginError("mcp_managed_local_process_isolation_required", 403)
 
     def mcp_review_snapshot(self, digest, key):
         row = self._reviewed(digest)

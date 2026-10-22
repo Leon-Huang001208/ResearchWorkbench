@@ -2945,6 +2945,8 @@ class WebServiceManager:
         """Return a path-free, credential-free Web installation diagnosis."""
         from research_workbench_entrypoint.resident.admission import diagnostic
 
+        from .mcp_runtime.managed_sandbox import POLICY_VERSION, available
+
         diagnosis = self._installation_diagnosis()
         probes = self._service_probes()
         installation_issues = diagnosis.get("issues", [])
@@ -3009,6 +3011,15 @@ class WebServiceManager:
             "services": {probe.role: probe.public() for probe in probes},
             "office_auto_verification": office_auto,
             "ai_news": self._ai_news_diagnostic(),
+            "mcp_managed_local_sandbox": {
+                "available": available(),
+                "policy": POLICY_VERSION,
+                "runtime": "python",
+                "network": False,
+                "child_processes": False,
+                "supplier_credentials": False,
+                "acceptance": "NOT_RUN",
+            },
         }
 
     def _ai_news_diagnostic(self) -> dict:

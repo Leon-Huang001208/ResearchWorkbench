@@ -77,13 +77,23 @@ HMAC。角色来自网关登录状态，浏览器 header 不获得授权；nonce
 
 ## MCP 实际审核与两阶段重启
 
-受管本地 MCP（npm/PyPI/MCPB 的 stdio launcher）当前 **BLOCKED**。固定字节、最小环境、
-安装目录 cwd 和包/schema 审批不构成操作系统隔离；launcher 可在首次握手前读取或改写绝对路径。
-本阶段不执行此类插件的原生预览/安装，也不解析已安装目标、探测、启动或调用；统一返回
-`mcp_managed_local_process_isolation_required`。本地组件显示有限支持、未就绪，旧缓存和
-Native 中已登记的受管安装同样拒绝。所有平台均关闭该路径，没有按平台降级执行。
-只有具备真实 OS 进程、文件和网络边界并完成独立验收后才可开放；因此本地 MCP 支持尚未完成。
-固定远程 HTTP 端点继续原有审批/授权合同，非受管 Native MCP 保持既有行为。
+macOS 受管本地 MCP 仅开放离线 Python：PyPI 的固定 `python -m module` 或 MCPB 内固定
+`python server.py` 入口，由 Host 自己固定的 Python 以 `-I -S -B` 启动；不使用包提供的
+shell、env launcher、宿主 site-packages 或 `.pth`。npm/Node、供应商环境凭据及非 macOS
+本地执行保持拒绝。固定远程 HTTP 端点与非受管 Native MCP 保持原合同。
+
+管理员须显式审核新增 `mcp:offline-sandbox:<policy SHA256>` 权限；旧审批不自动启用。
+显式重导入相同包可显示新权限，但清空旧权限与 schema 审核。实际安装复审另绑定当前政策、
+Python/runtime/精确链接库和安装树摘要；启动、探测、工具调用与缓存恢复均重新验证。
+改变任一绑定即拒绝，必须重新审核当前版本。SDK 运行仅拥有安装树及固定 runtime 的只读权限，
+每次连接生成独立可写 HOME/TMP/XDG scratch。禁止网络 IPv4/IPv6/Unix socket、fork、
+非固定解释器 exec、Mach lookup/register、POSIX IPC、signal 和进程信息访问；不传供应商
+凭据或环境秘密。官方 MCP SDK Client/Session 管理协议；Host 受管专用 transport 在官方 JSON-RPC adapter 解析前限制单行 1 MiB、连接总输出 8 MiB（固定 64 KiB 分块），请求单帧 1 MiB、连接时限 35 秒。Host 拥有唯一新会话子进程，在独立任务内有界关闭/terminate/kill/wait并确认reap及句柄关闭；反复原生 asyncio 取消也须等待出生/回收结束后再传播取消。随后验证 scratch 身份并回收；未知进程、身份变化或清理失败保留scratch与runtime.operations出生/容量栅栏及明确错误。只读元数据和固定系统 runtime 文件可见，
+不宣称抵抗可信 Host 同 UID 管理员在检查与启动之间的恶意竞争。
+
+这些边界的 Native fixture 验证与真实 Host/DSH/浏览器产品验收分开记录；Doctor 的
+`mcp_managed_local_sandbox.available` 仅表示平台具备入口，`acceptance=NOT_RUN`
+不认证任一已安装包。没有相应原生能力的平台不会降级成普通 stdio 执行。
 
 包审批以后仍保留原生安装确认。原生安装结果与实际安装树摘要绑定；探测后由管理员确认
 固定 manifest/config/artifact/schema 快照。工具 schema 漂移、安装字节变更、源审批撤销会

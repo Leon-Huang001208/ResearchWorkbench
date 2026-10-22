@@ -1,5 +1,7 @@
 # Research Workbench Development Map
 
+2026-10-22 MCP 离线本地执行：`mcp_runtime/managed_sandbox.py`维护固定 Python入口、runtime/政策摘要、Seatbelt和scratch生命周期；`package_installer.managed_target`不读取凭据，`service._managed_guard`重验审批与缓存目标，`sdk_host`使用官方SDK transport。`plugins/mcp_policy.py`绑定native摘要，`packages.py`新增精确offline-sandbox权限，旧审批须显式重导入/重审。真实SDK/Runtime canary回归位于`test_mcp_managed_sandbox.py`，UI三态位于`research_web_plugins_ui.test.mjs`；Host/DSH/浏览器最终验收仍由主任务另行取证。
+
 2026-10-22 插件入口：`plugins/packages.py` 管惰性 ZIP 规范化，`plugins/service.py` 管不可变版本与原 CapabilityCatalog，`mcp_policy.py` 管 native artifact/schema 审批绑定，`proof.py` 管固定动作凭证，`sandbox_runner.py` 管 macOS Hook，`runtime_restart.py`/`multiuser/runtime.py` 管受控冻结。`plugin_routes.py`/`multiuser/plugin_routes.py`、`ui/plugins-workspace.mjs`、`runtime/plugins.mjs`/guard 贯通能力中心与唯一 DSH；定点测试 `test_plugins*.py`、`research_web_plugins*.test.mjs` 及隔离浏览器夹具。详见[插件合同](research-web-plugins.md)。
 
 2026-10-22 v4 profile在`resident/model_provider_upgrade.py`的ASSET_V4_MODE/PREVIOUS/PAYLOAD、封闭previous_for/review_assets和CLI分派中维护，近处回归为test_model_provider_upgrade.py；操作员/测试由独立实现者负责。旧5495固定，产品固定PR180真实merge `9b436613aad9136f4959c992c89dd72fc7354ed5`；654fa6只保留在历史候选证据中。旧v1/v2/v3/controller/evidence/保全门及依赖/CI不变，既有图准确，不改HTML/PNG。产品三CI不替代v4最终本机/评审/CI/部署证据，见[部署合同](research-web-gateway-upgrade.md#资产观察固定版本联合部署)。

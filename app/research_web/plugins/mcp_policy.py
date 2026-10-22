@@ -110,11 +110,32 @@ def native_fingerprint(root, manifest, schemas=None):
         if "endpoint" in plan
         else artifact_digest(Path(root) / "mcp-runtime/packages" / installation)
     )
-    return {
+    fingerprint = {
         "manifest": canonical(value),
         "artifacts": artifact,
         "schemas": canonical(schema_view(schemas)) if schemas is not None else None,
     }
+    if artifact != "remote":
+        from ..mcp_runtime.managed_sandbox import build_managed_target, policy_digest, validate_plan
+
+        try:
+            validate_plan(plan)
+        except ValueError:
+            fingerprint["sandbox"] = canonical({"policy": policy_digest(), "supported": False})
+        else:
+            target = build_managed_target(
+                Path(root) / "mcp-runtime/packages" / installation,
+                plan["argv"],
+                plan["package_type"],
+            )
+            fingerprint["sandbox"] = canonical(
+                {
+                    "policy": target.policy_sha256,
+                    "runtime": target.runtime_sha256,
+                    "package": target.package_sha256,
+                }
+            )
+    return fingerprint
 
 
 def managed_binding(root, manifest, schemas=None, *, require_schema=True):
@@ -188,6 +209,7 @@ def managed_binding(root, manifest, schemas=None, *, require_schema=True):
                 expected is None
                 or expected["manifest"] != current["manifest"]
                 or expected["artifacts"] != current["artifacts"]
+                or expected.get("sandbox") != current.get("sandbox")
             ):
                 raise PluginError("plugin_mcp_native_review_required", 403)
             if require_schema and (

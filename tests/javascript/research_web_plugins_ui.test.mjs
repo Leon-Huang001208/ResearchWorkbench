@@ -34,16 +34,18 @@ test('consumer UI has source visibility without pretending to have admin managem
   assert.ok(html.includes('data-plugin-action="refresh-runtime"'));
 });
 
-test('local MCP stays visibly blocked while remote fixed endpoints retain controls', () => {
-  for (const local of [true, false]) {
+test('unsupported local MCP stays blocked; offline Python and remote controls remain usable', () => {
+  for (const mode of ['blocked', 'offline', 'remote']) {
+    const local = mode !== 'remote';
+    const blocked = mode === 'blocked';
     const view = state();
     view.items[0].review = {digest: view.selected};
-    view.items[0].components = [{kind: 'mcp', key: 'server', support: local ? 'limited' : 'supported', ready: false, reason: local ? 'mcp_managed_local_process_isolation_required' : 'native_preview_confirmation_required', selection: local ? {package_index: 0} : {remote_index: 0}}];
+    view.items[0].components = [{kind: 'mcp', key: 'server', support: local ? 'limited' : 'supported', ready: false, sandbox_available: !blocked, reason: blocked ? 'mcp_managed_local_process_isolation_required' : local ? 'mcp_offline_python_sandbox_required' : 'native_preview_confirmation_required', selection: local ? {package_index: 0} : {remote_index: 0}}];
     const html = renderPluginWorkspace(view);
-    assert.ok(html.includes('缺少操作系统进程隔离保持停用'));
+    assert.ok(html.includes('macOS 受管本地 MCP 仅开放离线 Python'));
     for (const action of ['mcp-preview', 'mcp-probe', 'mcp-enable']) {
       const control = html.match(new RegExp(`data-plugin-action="${action}"[^>]*`))[0];
-      assert.equal(control.includes('disabled'), local);
+      assert.equal(control.includes('disabled'), blocked);
     }
   }
 });

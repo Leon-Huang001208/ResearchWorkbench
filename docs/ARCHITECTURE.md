@@ -1,5 +1,7 @@
 # Research Workbench 架构总览
 
+2026-10-22 受管本地 MCP 沿原 Host → 官方 SDK → stdio 链增加 `mcp_runtime/managed_sandbox.py`：仅 macOS 固定 Python 的离线 Seatbelt，安装包/runtime只读、每连接scratch可写，禁网络/子进程/凭据环境。新权限与实际政策/runtime/包/schema审核逐次重验；远程HTTP与非受管Native保留，无新引擎/服务/依赖。节点拓扑不变，详细边界与验收分层见[插件合同](research-web-plugins.md)。
+
 2026-10-22 插件包由 Host `plugins/` 管理不可变版本、审核与投影，`plugin_routes.py` 和 `multiuser/plugin_routes.py` 连接原能力中心、真实网关角色与原 MCP 生命周期；`runtime/plugins.mjs`/guard 接唯一 DSH，不增加研究引擎。双阶段受控重启复用请求出生冻结，仅停止 Pool 自有空闲 DSH，未知保持冻结。文件、权限、接口和支持差异见[插件合同](research-web-plugins.md)。
 
 2026-10-22 部署profile v4复用原Native/网关version4事务，旧版固定5495、产品固定PR180真实merge `9b436613aad9136f4959c992c89dd72fc7354ed5`。旧v1/v2/v3、controller/evidence及严格保全门不变，无新服务、API、持久格式或产品数据流，不改图/架构HTML/PNG或CI。旧v3失败已正式恢复5495/preserved=true/fenced=false；产品三CI与v4工具最终验收/部署分开，详见[固定部署合同](research-web-gateway-upgrade.md#资产观察固定版本联合部署)。

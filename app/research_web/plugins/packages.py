@@ -351,7 +351,7 @@ def parse_archive(raw):
                 key,
                 support="limited" if validated.get("package_index") is not None else "supported",
                 reason=(
-                    "mcp_managed_local_process_isolation_required"
+                    "mcp_offline_python_sandbox_required"
                     if validated.get("package_index") is not None
                     else "native_preview_confirmation_required"
                 ),
@@ -397,6 +397,13 @@ def parse_archive(raw):
         }
     )
     for component in components:
+        if (
+            component["kind"] == "mcp"
+            and component.get("selection", {}).get("package_index") is not None
+        ):
+            from ..mcp_runtime.managed_sandbox import policy_digest
+
+            permissions.append("mcp:offline-sandbox:" + policy_digest())
         if component["kind"] == "hook" and (component.get("policy") or {}).get("type") == "script":
             permissions.append(
                 "hooks:execute:"

@@ -6279,6 +6279,53 @@ Functions:
 - `_is_unsafe_private_directory`
 
 
+## `app/research_web/mcp_runtime/managed_sandbox.py`
+
+Module docstring:
+> Native offline Python MCP confinement, independent of ordinary stdio targets.
+
+Imports:
+- `__future__`
+- `anyio`
+- `asyncio`
+- `contextlib`
+- `core.observability`
+- `dataclasses`
+- `hashlib`
+- `json`
+- `os`
+- `pathlib`
+- `re`
+- `shutil`
+- `stat`
+- `subprocess`
+- `sys`
+- `tempfile`
+
+Classes:
+- `TrustedManagedStdioTarget`
+
+Functions:
+- `available`
+- `validate_plan`
+  - Validate supported entrypoint shape before installation or secret reads.
+- `_quote`
+- `profile`
+- `policy_digest`
+  - Changing policy source requires explicit permission review of old packages.
+- `_runtime_identity`
+- `build_managed_target`
+- `validate_managed_target`
+- `_stop_owned_process`
+  - Reap our exact child before scratch or admission capacity can retire.
+- `_await_owned_task`
+  - Defer repeated native Task.cancel until owned birth/cleanup finishes.
+- `_reap_owned_process`
+- `_bounded_stdio`
+  - Own bytes/process only; official SDK still owns all MCP protocol/session work.
+- `official_transport`
+
+
 ## `app/research_web/mcp_runtime/models.py`
 
 Module docstring:
@@ -6391,7 +6438,7 @@ Classes:
   - A stable local package installation failure.
 - `PackageInstaller`
   - Reverify staged bytes, install without shell, then atomically publish.
-  - methods: __init__, install, target, update, remove, _published_argv, _write_launcher, _default_runner, _private_root, _staging_directory, _reverify, _minimal_environment, _extract_mcpb
+  - methods: __init__, install, target, update, managed_target, remove, _published_argv, _write_launcher, _default_runner, _private_root, _staging_directory, _reverify, _minimal_environment, _extract_mcpb
 
 
 ## `app/research_web/mcp_runtime/package_planner.py`
@@ -6542,6 +6589,7 @@ Imports:
 - `credentials`
 - `hashlib`
 - `json`
+- `managed_sandbox`
 - `oauth`
 - `re`
 - `transport`
@@ -6552,7 +6600,7 @@ Classes:
   - Stable Host error that omits target, arguments and third-party bodies.
 - `SDKHost`
   - Expose tools/resources/prompts without sampling, elicitation or MCP Tasks.
-  - methods: __init__, _official_client, _official_target, _remote_transport, _client, _target_digest, _bounded, _validate_request, capabilities, _server_projection, _invoke, call_tool, read_resource, get_prompt
+  - methods: __init__, _official_client, _official_target, _managed_cleanup_blocked, _remote_transport, _client, _target_digest, _bounded, _validate_request, capabilities, _server_projection, _invoke, call_tool, read_resource, get_prompt
 
 
 ## `app/research_web/mcp_runtime/service.py`

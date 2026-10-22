@@ -37,7 +37,10 @@ def sdk_operation(function):
         try:
             return await function(self, *args, **kwargs)
         finally:
-            self.operations.discard(token)
+            if getattr(self.host, "managed_cleanup_blocked", False):
+                log.error("mcp_operation_retained_cleanup_blocked")
+            else:
+                self.operations.discard(token)
 
     return tracked
 
@@ -300,7 +303,7 @@ class MCPRuntimeService:
                     input_schema=tool.get("inputSchema", tool.get("input_schema")),
                     output_schema=tool.get("outputSchema", tool.get("output_schema")),
                     annotations=tool.get("annotations"),
-                    description=tool.get("description", ""),
+                    description="" if tool.get("description") is None else tool["description"],
                 )
         except Exception as exc:
             self._set_state(installation_id, "health_failed")
@@ -773,7 +776,9 @@ class MCPRuntimeService:
         await self._managed_guard(manifest, require_schema=False)
         installation_id = str(_field(manifest, "id"))
         if installation_id in self._targets:
-            return self._targets[installation_id]
+            target = self._targets[installation_id]
+            await self._managed_guard(manifest, require_schema=False, target=target)
+            return target
         self._require_components("installer")
         target = await self._resolve_target(manifest)
         self._targets[installation_id] = target
@@ -795,6 +800,17 @@ class MCPRuntimeService:
             raise MCPRuntimeError("mcp_managed_approval_unavailable", 403)
         try:
             managed_binding(self._data_root, manifest, require_schema=False)
+            if target is not None and not _field(_field(manifest, "plan"), "endpoint"):
+                from .managed_sandbox import validate_managed_target
+
+                validate_managed_target(target)
+                plan = _field(manifest, "plan")
+                if (
+                    target.package != self._data_root / "mcp-runtime/packages" / installation_id
+                    or target.argv != tuple(_field(plan, "argv"))
+                    or target.package_type != _field(plan, "package_type")
+                ):
+                    raise ValueError("mcp_managed_cached_target_mismatch")
             if require_schema:
                 if fresh:
                     capabilities = await _await(self.host.capabilities(target))
@@ -807,13 +823,18 @@ class MCPRuntimeService:
         # Called directly after plugin installation as well as by normal startup.
         # Refuse before reading environment credentials or constructing a launcher.
         self._require_managed_process_isolation(manifest)
-        targeter = getattr(self.installer, "target", None)
+        from ..plugins.mcp_policy import requires_managed
+
+        managed_local = (
+            self.managed_only or requires_managed(self._data_root, str(_field(manifest, "id")))
+        ) and not _field(_field(manifest, "plan"), "endpoint")
+        targeter = getattr(self.installer, "managed_target" if managed_local else "target", None)
         if targeter is None:
             raise MCPRuntimeError("mcp_installer_target_unavailable", 503)
         return await _await(targeter(manifest))
 
     def _require_managed_process_isolation(self, manifest: Any) -> None:
-        """Block managed local executables until an OS confinement contract exists."""
+        """Only the verified native offline Python contract may launch locally."""
         from ..plugins.mcp_policy import requires_managed
 
         if not self.managed_only and not requires_managed(
@@ -822,12 +843,17 @@ class MCPRuntimeService:
             return
         plan = _field(manifest, "plan")
         if _field(plan, "target_kind") == "local" or not _field(plan, "endpoint"):
-            log.warning("mcp_managed_local_process_isolation_required")
-            raise MCPRuntimeError(
-                "mcp_managed_local_process_isolation_required",
-                403,
-                "受管本地 MCP 缺少操作系统进程隔离，保持停用；可使用固定远程端点",
-            )
+            from .managed_sandbox import validate_plan
+
+            try:
+                validate_plan(plan)
+            except ValueError as exc:
+                log.warning("mcp_managed_local_process_isolation_required")
+                raise MCPRuntimeError(
+                    "mcp_managed_local_process_isolation_required",
+                    403,
+                    "仅支持 macOS 离线 Python MCP；禁止网络、子进程与供应商凭据环境",
+                ) from exc
 
     async def _require_idle(self) -> None:
         idle_gate = self.idle_gate

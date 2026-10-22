@@ -17,6 +17,35 @@ ACTOR = "01234567-0123-4123-8123-0123456789ab"
 PATH = "/api/research/plugins/" + "a" * 64 + "/mcp/weather/install"
 
 
+@pytest.fixture(autouse=True)
+def memory_credentials_before_any_host(monkeypatch):
+    import keyring
+
+    from app.research_web.mcp_runtime import credentials
+
+    class Memory:
+        def __init__(self):
+            self.values = {}
+
+        def get_password(self, service, account):
+            return self.values.get((service, account))
+
+        def set_password(self, service, account, value):
+            self.values[(service, account)] = value
+
+        def delete_password(self, service, account):
+            self.values.pop((service, account), None)
+
+    backend = Memory()
+    monkeypatch.setattr(credentials, "default_credential_backend", lambda: backend)
+
+    def forbidden(*_args, **_kwargs):
+        raise AssertionError("real keyring access forbidden in security fixture")
+
+    for method in ("get_password", "set_password", "delete_password"):
+        monkeypatch.setattr(keyring, method, forbidden)
+
+
 def test_proof_is_one_use_body_method_route_actor_and_expiry_bound():
     headers = sign("k" * 48, "POST", PATH, b"{}", ACTOR, "user", now=100)
     assert verify("k" * 48, "POST", PATH, b"{}", headers, {}, now=101) == (ACTOR, "user")
@@ -150,7 +179,12 @@ async def test_tenant_local_install_blocks_before_store_and_installer(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_plugin_local_install_and_preview_block_before_native_side_effects(tmp_path):
+async def test_plugin_local_install_and_preview_block_before_native_side_effects(
+    tmp_path, monkeypatch
+):
+    from app.research_web.mcp_runtime import managed_sandbox
+
+    monkeypatch.setattr(managed_sandbox, "available", lambda: False)
     calls = []
     native = SimpleNamespace(
         preview=lambda *args: calls.append(args), install=lambda *args: calls.append(args)

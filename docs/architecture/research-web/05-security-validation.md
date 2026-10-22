@@ -1,6 +1,6 @@
 # 安全边界与验证方法
 
-2026-10-22 插件安全检查：固定 ZIP 摘要与精确权限审核、不可变版本/旧会话 pin、撤权即时复验、MCP 原生安装确认/OAuth/会话 grant、当前 artifact/config/schema 再校验；受管本地 MCP 尚无 OS 进程隔离，安装/目标解析/探测/启动/调用均失败关闭，固定远程端点保留原合同。最小 HOME/cwd 和工具审批不能防止握手前绝对路径读写。网关凭真实 AccountStore cookie 角色，以固定路由与一次性 HMAC 绑定 owner/backend/body，不信任浏览器 role header。空闲重启双阶段冻结出生并只处理 Pool 自有 PID，未知保留 fence；Hook 使用独立 macOS Seatbelt、空 HOME、最小环境、默认禁网络/Keychain/宿主秘密及显式文件 scope。共享审核不复制个人秘密，卸载只删除自有副本；具体支持与限制见[插件合同](../../research-web-plugins.md)。
+2026-10-22 插件安全检查：固定 ZIP 摘要与精确权限审核、不可变版本/旧会话 pin、撤权即时复验、MCP 原生安装确认/OAuth/会话 grant、当前 artifact/config/schema 再校验；受管本地 MCP 只开放 macOS 固定 Python 的离线 Seatbelt：安装树/runtime只读、独立scratch可写，禁网络/子进程/Mach/IPC及凭据环境；新offline-sandbox权限和政策/runtime/安装树/schema摘要逐次复验。Node/npm、宿主site-packages与非macOS本地执行失败关闭，固定远程端点保留原合同。真实SDK canary与Host/DSH/浏览器验收分开，详见插件合同。网关凭真实 AccountStore cookie 角色，以固定路由与一次性 HMAC 绑定 owner/backend/body，不信任浏览器 role header。空闲重启双阶段冻结出生并只处理 Pool 自有 PID，未知保留 fence；Hook 使用独立 macOS Seatbelt、空 HOME、最小环境、默认禁网络/Keychain/宿主秘密及显式文件 scope。共享审核不复制个人秘密，卸载只删除自有副本；具体支持与限制见[插件合同](../../research-web-plugins.md)。
 
 2026-10-22 v4精确固定旧5495与PR180真实merge产品`9b436613aad9136f4959c992c89dd72fc7354ed5`，候选654fa6/preview2e069只作历史tree证据。完整路径并集/blob/模式/祖先、干净源码及角色仓库身份、原锁/真实空闲/全账号索引保全、controller/evidence字节和旧v1/v2/v3恢复全部保持；不开放任意SHA或新依赖/workflow/产品差异。旧v3恢复和产品三CI不代表v4最终资格或已部署，无新权限/协议/拓扑，不改生成图。
 
