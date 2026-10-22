@@ -91,6 +91,100 @@ class FakeProvider:
         self.closed = True
 
 
+@pytest.mark.asyncio
+async def test_activity_witness_tracks_real_collection_and_cancel_drain(tmp_path):
+    provider = FakeProvider()
+    provider.wait = asyncio.Event()
+    provider.cleanup = asyncio.Event()
+    service = MarketService(tmp_path, provider=provider)
+    request = await service.refresh(["quotes"])
+    await provider.started.wait()
+    cancelling = None
+    try:
+        assert service.activity_witness()["active"] is True
+        cancelling = asyncio.create_task(service.cancel(request["request_id"]))
+        await provider.cancelled.wait()
+        assert service.request(request["request_id"])["status"] == "cancelled"
+        assert service.activity_witness()["active"] is True
+        provider.cleanup.set()
+        await cancelling
+        assert service.activity_witness()["active"] is False
+    finally:
+        provider.wait.set()
+        provider.cleanup.set()
+        if cancelling is not None:
+            await cancelling
+        await service.close()
+
+
+@pytest.mark.asyncio
+async def test_activity_witness_covers_provider_close_and_close_failure(tmp_path):
+    class ClosingProvider(FakeProvider):
+        def __init__(self):
+            super().__init__()
+            self.close_started = asyncio.Event()
+            self.close_release = asyncio.Event()
+
+        async def close(self):
+            self.close_started.set()
+            await self.close_release.wait()
+            self.closed = True
+
+    provider = ClosingProvider()
+    service = MarketService(tmp_path, provider=provider)
+    closing = asyncio.create_task(service.close())
+    await provider.close_started.wait()
+    try:
+        assert not service._collectors
+        assert service.activity_witness()["active"] is True
+    finally:
+        provider.close_release.set()
+        await closing
+    assert service.activity_witness()["active"] is False
+
+    class FailingProvider(FakeProvider):
+        async def close(self):
+            raise RuntimeError("vendor-close-detail-must-stay-private")
+
+    failed = MarketService(tmp_path / "failed", provider=FailingProvider())
+    await failed.close()
+    assert failed.activity_witness()["active"] is None
+
+
+@pytest.mark.asyncio
+async def test_close_does_not_interrupt_an_already_draining_collector(tmp_path):
+    provider = FakeProvider()
+    provider.wait = asyncio.Event()
+    provider.cleanup = asyncio.Event()
+    service = MarketService(tmp_path, provider=provider)
+    request = await service.refresh(["quotes"])
+    await provider.started.wait()
+    cancelling = asyncio.create_task(service.cancel(request["request_id"]))
+    await provider.cancelled.wait()
+    closing = asyncio.create_task(service.close())
+    try:
+        await asyncio.sleep(0)
+        await asyncio.sleep(0)
+        assert not closing.done()
+        assert service.activity_witness()["active"] is True
+    finally:
+        provider.cleanup.set()
+        await asyncio.gather(cancelling, closing)
+    assert service.activity_witness()["active"] is False
+
+
+def test_activity_witness_rejects_invalid_or_unbounded_state(tmp_path):
+    service = MarketService(tmp_path, provider=FakeProvider())
+    assert service.activity_witness()["active"] is False
+    service._collectors = {str(index): {} for index in range(17)}
+    assert service.activity_witness()["active"] is None
+    service._collectors = {"quotes": {"task": None, "readers": set(), "draining": False}}
+    assert service.activity_witness()["active"] is None
+    service._collectors = {}
+    service._closing = -1
+    assert service.activity_witness()["active"] is None
+
+
 async def settled(service, request):
     for _ in range(100):
         state = service.request(request["request_id"])

@@ -4,11 +4,18 @@
 
 2026-10-22 v4沿既有Native主实例/私网网关和version4事务，只增加固定旧5495与PR180产品`9b436613aad9136f4959c992c89dd72fc7354ed5`身份。旧v1/v2/v3、controller/evidence及严格保全保持，无新运行节点/接口/引擎/依赖，原图及Atlas准确，不改HTML/PNG。产品候选654fa6、preview2e069与真实merge同tree；产品三CI和旧v3正式恢复5495不替代v4工具最终验收/部署。
 
+华安ETF周报新合同复用现有Native Host、附接主管理员网关、DataHub和唯一DSH；没有新增守护进程、
+数据库或研究循环。`report_workflows`锁定资源/截止期，私有API适配取得同源证据，DSH写规范正文，
+Host以原质量门核验并将中文presentation投影到原版式、本期图表和正式归档。普通tenant不获得该
+主账号例外。09/10报告图分别展示旧版兼容与新合同；通用部署节点保持。详见[周报生产](../../research-web-etf-weekly-production.md)。
+
 2026-10-22 v3仅为已合并Wind产品增加封闭部署身份：旧主实例/网关5495、产品a0ff3ae2，沿同一model_provider_upgrade协调原Native/网关v4事务。controller、evidence和旧v1/v2恢复保持字节及语义，无新运行节点、HTTP、产品模块或依赖；部署/模块图与Atlas不变，也不重新生成HTML/PNG。最终候选验收通过且root持锁证明全部任务/Future空闲并冻结全账号索引后，才执行本轮已授权切换；[部署合同](../../research-web-gateway-upgrade.md#资产观察固定版本联合部署)是本轮真源。
 
 2026-10-22 Wind工作区在现有Host的AssetWorkspace旁增加`HistoryJobs`与纯历史规范模块，沿Broker串行取得日线/因子并原子发布规范快照，账号Store保存任务和副图偏好。模块及数据流图02/04已同步真实变化，API Atlas补6端点；部署仍是原浏览器/Host/DSH/网关节点，无新守护进程或数据库。Host关闭等待任务排空，resident及操作员空闲证明同时检查真实CJPY Future和持久任务。Automation调度与每用户运行根保持；详细[存储](03-data-files.md#资产历史与图表偏好存储)、[接口](04-api.md#资产历史任务与图表偏好)与[批准计划](../../plans/2026-10-22-wind-asset-workspace.md)分别维护。
 
 Host 新增无会话 `MarketService`，由 ResearchService 初始化和关闭；市场 HTTP 只在 POST 启动有界公共行情采集，GET 读取用户缓存。它不是独立守护进程或研究引擎，不改变 Web/DSH 部署节点；新模块内数据流见[市场概览](../../../outputs/research-web-architecture/13-market-overview.html)。实际常驻升级仍须独立授权和检查新模块任务的排空，不沿用旧固定产品 profile 冒充兼容。
+
+resident 空闲证明同步读取 `MarketService` 的有界活动见证；真实 collector、取消后的排空与 Provider 关闭期间均保持活动。缺失或无效见证、关闭失败保持未知，不能认证可安全停止；请求显示已取消不等于底层采集已经结束。
 
 资产观察 v2 仍由原 `model_provider_upgrade` 协调既有 Native 主实例和网关；固定旧版 `9bc12355` 与产品 `93d62be6`，旧 v1／模型 profile 保留。v4 journal、不可变控制器、生产解释器、冻结恢复包和锁的职责不变，没有新增服务节点或扩大自动升级权限，现有部署图继续准确。
 

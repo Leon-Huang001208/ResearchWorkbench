@@ -1,5 +1,9 @@
 # Research Workbench Research Web 当前架构
 
+华安ETF周报沿现有Workflow、私有DataHub、唯一DSH与Host质量边界升级；新合同只对附接主管理员
+启用，规范正文、原版式图表与正式归档同版本绑定。09/10图标明旧版兼容和新合同路径；源码能力、
+真实取数/成稿、三周运行及部署分别留证，未核实来源保持阻断。入口见[周报生产合同](../../research-web-etf-weekly-production.md)。
+
 2026-10-22 Wind资产工作区沿唯一Host/DataHub增加持久历史任务、固定锚点复权规范发布与账号副图偏好，6个API、Store兼容键及原始块/因子/规范快照已同步02模块图、04资料流图及API Atlas。取消/close/purge等待真实Future，resident与操作员空闲覆盖任务；原Automation唯一调度、DSH执行和网关身份保持。详见[文件](03-data-files.md#资产历史与图表偏好存储)、[接口](04-api.md#资产历史任务与图表偏好)及[批准计划](../../plans/2026-10-22-wind-asset-workspace.md)。有限预检、最终功能/浏览器/CI和常驻部署各自取证。
 
 全市场概览在Host内增加无会话采集与用户市场缓存，数据流独立于研究会话物化；见[模块图](../../../outputs/research-web-architecture/13-market-overview.html)、[接口](04-api.md#全市场概览接口)和[数据边界](03-data-files.md)。没有新增守护进程、第二研究引擎或Wind／Office权限。

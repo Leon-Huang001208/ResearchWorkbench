@@ -430,6 +430,21 @@ def create_gateway(
         if path.startswith("api/research/internal/") or "//" in path or "\\" in path:
             return error("server_internal_route_denied", 403)
         user = request.state.user
+        report_admin = request.url.path.startswith(
+            (
+                "/api/research/report-workflows",
+                "/api/research/report-runs",
+                "/api/research/report-projects",
+                "/api/research/automations",
+                "/api/research/automation-runs",
+                "/api/research/delivery-channels",
+            )
+        )
+        if report_admin and (
+            user.role != "admin" or user.id != getattr(pool, "primary_user_id", None)
+        ):
+            log.warning("multiuser_report_owner_denied", user_id=user.id)
+            return error("primary_administrator_required", 403)
         token = request.cookies.get(COOKIE, "")
         if not page_matches(request, user):
             return error("account_changed", 401)
@@ -455,6 +470,10 @@ def create_gateway(
         current = await asyncio.to_thread(accounts.authenticate, token)
         if current is None or current.id != user.id:
             return error("login_required", 401)
+        if report_admin and (
+            current.role != "admin" or current.id != getattr(pool, "primary_user_id", None)
+        ):
+            return error("primary_administrator_required", 403)
         query = httpx.QueryParams(request.url.query).remove("rwb_user")
         target = httpx.URL(backend.url + "/" + path).copy_with(query=str(query).encode())
         outbound = client.build_request(

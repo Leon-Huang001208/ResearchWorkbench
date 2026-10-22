@@ -12,6 +12,7 @@ import zipfile
 from pathlib import Path
 
 FORMATS = list(globals().get("FORMATS", []))
+WEEKLY_BLOCK_BINDINGS = []
 
 
 def clean_text(value, limit=100_000):
@@ -193,10 +194,18 @@ def replacements(payload):
 
 
 def render_docx(payload, values):
+    global WEEKLY_BLOCK_BINDINGS
+
     templates = sorted(Path("inputs/report-workflow/templates").rglob("*.docx"))
     if not templates:
         templates = sorted(Path("inputs/report-project").rglob("*.docx"))
-    document = build_docx_document(payload, values, templates[0] if templates else None)
+    document = build_docx_document(  # noqa: F821
+        payload, values, templates[0] if templates else None
+    )
+    context = load_context()
+    WEEKLY_BLOCK_BINDINGS = apply_weekly_docx_projection(  # noqa: F821
+        document, context, Path(globals()["SESSION_ROOT"]) / "inputs/report-workflow"
+    )
     output = Path("outputs/report.docx")
     document.save(output)
     return output
@@ -650,6 +659,7 @@ else:
                 "status": "completed",
                 "files": created,
                 "missing_blocks": payload.get("missing_blocks", []),
+                "weekly_block_bindings": WEEKLY_BLOCK_BINDINGS,
             },
             ensure_ascii=False,
         )

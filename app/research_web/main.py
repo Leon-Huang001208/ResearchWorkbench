@@ -429,6 +429,7 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
             )
             try:
                 from .datahub.providers_cjpy import active_futures
+                from .datahub.providers_wind_api import activity_witness
 
                 history_jobs = research.store.data.get("asset_history_jobs", {})
                 history_active = not isinstance(history_jobs, dict) or any(
@@ -438,7 +439,39 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
                     not in {"completed", "failed", "cancelled", "interrupted"}
                     for row in history_jobs.values()
                 )
-                active = bool(active or history_active or active_futures())
+                wind_api = activity_witness()
+                if not isinstance(wind_api, dict) or type(wind_api.get("active")) is not bool:
+                    raise ValueError("wind_api_activity_unknown")
+                market = research.market.activity_witness()
+                if not isinstance(market, dict) or type(market.get("active")) is not bool:
+                    raise ValueError("market_activity_unknown")
+                report_manager = getattr(research, "report_workflows", None)
+                report_runtime = getattr(report_manager, "runtime", None)
+                report_catalog = getattr(report_manager, "catalog", None)
+                report_runs = getattr(report_catalog, "data", {}).get("runs", {})
+                terminal_reports = {
+                    "completed",
+                    "cancelled",
+                    "failed",
+                    "blocked_data",
+                    "delivery_incomplete",
+                    "quality_incomplete",
+                    "skipped_overlap",
+                }
+                report_active = not isinstance(report_runs, dict) or any(
+                    not isinstance(row, dict) or row.get("status") not in terminal_reports
+                    for row in report_runs.values()
+                )
+                active = bool(
+                    active
+                    or history_active
+                    or active_futures()
+                    or wind_api["active"]
+                    or market["active"]
+                    or report_active
+                    or getattr(report_runtime, "tasks", {})
+                    or getattr(getattr(research, "datahub", None), "tasks", {})
+                )
             except Exception as exc:  # noqa: BLE001 - unknown activity must fail closed
                 # Unknown worker activity must never certify a safe resident stop.
                 log.warning("resident_data_activity_unknown", error_type=type(exc).__name__)

@@ -12,6 +12,11 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
+from app.research_web.credential_backend import (
+    CredentialBackendError,
+    SystemKeyringBackend,
+    default_credential_backend,
+)
 from app.research_web.main import create_app
 from app.research_web.report_workflows import migration as migration_module
 from app.research_web.report_workflows import runtime as runtime_module
@@ -21,6 +26,49 @@ from app.research_web.report_workflows.models import (
 )
 from app.research_web.service import ResearchService
 from app.research_web.store import Store
+
+
+@pytest.fixture(autouse=True)
+def isolated_keyring(monkeypatch):
+    """Own every synthetic secret in memory; never consult the host keyring."""
+    import keyring
+
+    values = {}
+    monkeypatch.delenv("RESEARCH_CREDENTIAL_HOME", raising=False)
+    monkeypatch.setattr(
+        keyring, "get_password", lambda service, account: values.get((service, account))
+    )
+    monkeypatch.setattr(
+        keyring,
+        "set_password",
+        lambda service, account, value: values.__setitem__((service, account), value),
+    )
+    monkeypatch.setattr(
+        keyring, "delete_password", lambda service, account: values.pop((service, account), None)
+    )
+    return values
+
+
+def test_report_fixture_credentials_are_memory_only(isolated_keyring):
+    backend = default_credential_backend()
+    assert isinstance(backend, SystemKeyringBackend)
+    assert backend.get_password("report-fixture", "account") is None
+    backend.set_password("report-fixture", "account", "fixture-only-value")
+    assert isolated_keyring == {("report-fixture", "account"): "fixture-only-value"}
+    assert backend.get_password("report-fixture", "account") == "fixture-only-value"
+    backend.delete_password("report-fixture", "account")
+    assert isolated_keyring == {}
+
+
+def test_unavailable_system_keyring_still_fails_closed(monkeypatch):
+    import keyring
+
+    def unavailable(*_args):
+        raise RuntimeError("fixture-unavailable-private-detail")
+
+    monkeypatch.setattr(keyring, "get_password", unavailable)
+    with pytest.raises(CredentialBackendError, match="^credential_store_unavailable$"):
+        default_credential_backend().get_password("report-fixture", "account")
 
 
 class NativeFixture:
@@ -206,6 +254,41 @@ def test_report_workflow_api_coexists_with_capability_workflows(api, tmp_path):
     )
     assert invalid.status_code == 422
     assert invalid.json()["error"]["code"] == "invalid_manifest"
+
+
+def test_weekly_upgrade_is_explicit_unpublished_and_keeps_original_version(api, tmp_path):
+    client, service, _ = api
+    _create_version(client, tmp_path, "huaan-etf-weekly")
+    assert (
+        client.post(
+            "/api/research/report-workflows/huaan-etf-weekly/versions/1/publish"
+        ).status_code
+        == 200
+    )
+    endpoint = "/api/research/report-workflows/huaan-etf-weekly/weekly-production/prepare"
+    assert client.post(endpoint).status_code == 409
+    service.report_owner_authorizer = lambda: {
+        "id": "test-primary",
+        "role": "admin",
+        "enabled": True,
+    }
+    response = client.post(endpoint)
+    assert response.status_code == 200, response.text
+    detail = response.json()
+    assert detail["current_version"] == 1
+    assert detail["weekly_production"]["enabled"] is False
+    assert detail["weekly_production"]["prepared_version"] == 2
+    old = service.report_workflows.catalog.manifest("huaan-etf-weekly", 1)
+    new = service.report_workflows.catalog.manifest("huaan-etf-weekly", 2)
+    assert old.weekly_production is None
+    assert new.weekly_production.policy_id == "huaan-etf-weekly-v1"
+    assert new.minimum_subagents == 0
+    assert new.schedule.weekday == 4 and new.schedule.hour == 15 and new.schedule.minute == 30
+    assert new.schedule.enabled is False
+    assert (
+        client.post("/api/research/report-workflows/another/weekly-production/prepare").status_code
+        == 409
+    )
 
 
 def test_provider_probe_is_safe_and_missing_xlwings_blocks_run(api, tmp_path, monkeypatch):

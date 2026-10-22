@@ -92,6 +92,36 @@ def _manifest(
     )
 
 
+@pytest.mark.parametrize(
+    "target,valid",
+    [
+        ("/xl/worksheets/sheet1.xml", True),
+        ("/etc/passwd", False),
+        ("/xl/worksheets/../../outside.xml", False),
+        ("file:///etc/passwd", False),
+    ],
+)
+def test_cached_workbook_accepts_only_safe_opc_package_absolute_sheet_paths(
+    tmp_path, target, valid
+):
+    source = BytesIO(_xlsx({"A1": (None, 7)}))
+    path = tmp_path / "opc.xlsx"
+    with zipfile.ZipFile(source) as old, zipfile.ZipFile(path, "w") as new:
+        for name in old.namelist():
+            data = old.read(name)
+            if name == "xl/_rels/workbook.xml.rels":
+                data = data.replace(
+                    b'Target="worksheets/sheet1.xml"', f'Target="{target}"'.encode()
+                )
+            new.writestr(name, data)
+    if valid:
+        cells, errors, _ = workbook_module.read_cached_workbook(path)
+        assert cells["Sheet1!A1"] == 7 and not errors
+    else:
+        with pytest.raises(WorkflowError):
+            workbook_module.read_cached_workbook(path)
+
+
 def test_models_forbid_unknown_enums_and_extra_fields():
     with pytest.raises(ValidationError):
         ReportBlock(id="summary", title="摘要", kind="unknown")
@@ -455,16 +485,18 @@ def test_xlwings_missing_is_safe_and_does_not_expose_import_message(monkeypatch)
             raise ModuleNotFoundError("secret path and plugin details")
         return real_import(name, *args, **kwargs)
 
+    monkeypatch.setattr(workbook_module.sys, "platform", "darwin")
     monkeypatch.setattr(importlib, "import_module", missing)
     result = WindExcelProvider().readiness()
     assert result == {"ready": False, "code": "xlwings_missing"}
     assert "secret" not in json.dumps(result)
 
 
-def test_official_excel_provider_blocks_windows_without_starting_worker(
-    tmp_path: Path, monkeypatch
+@pytest.mark.parametrize("platform", ["win32", "linux"])
+def test_official_excel_provider_blocks_unsupported_platform_without_starting_worker(
+    tmp_path: Path, monkeypatch, platform
 ):
-    monkeypatch.setattr(workbook_module.sys, "platform", "win32")
+    monkeypatch.setattr(workbook_module.sys, "platform", platform)
 
     def unexpected_import(*args, **kwargs):
         pytest.fail("unsupported platforms must not import xlwings")
