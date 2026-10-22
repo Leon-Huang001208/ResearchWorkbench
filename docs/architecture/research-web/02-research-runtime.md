@@ -1,5 +1,7 @@
 # 研究协议、执行状态与恢复
 
+2026-10-22 MCP 隔离修复：受管本地 MCP 在 Host 目标解析及 SDK 调用前统一拒绝，已缓存 target 和 Native managed marker 同样受限；首次握手前不能靠 schema/grant 防止宿主文件访问。本轮不变更 DSH 或模型执行协议。
+
 2026-10-22 插件指令读取当前 session 不可变 pin；仍批准旧版本跨升级继续使用，显式撤权即时拒绝。Skill/Workflow 走既有能力目录、Agent 走既有 DSH subagent 与预算，精确 MCP 工具需 Host/schema/guard 全链确认；Hook 与运行中请求计入空闲证明。原Automation调度保持，双阶段重启未知保留 fence。见[插件合同](../../research-web-plugins.md)。
 
 2026-10-22 v4 profile固定旧5495与PR180产品`9b436613aad9136f4959c992c89dd72fc7354ed5`，不改变version4 journal和前进/回滚/冻结recover状态机。既有DSH/历史任务/真实Future/取消排空/日程/私有池空闲及旧v1/v2/v3恢复身份保持。旧v3已正式恢复5495且网关解除fence；产品三CI属于产品证据，v4最终本机/评审/CI/部署另验，不新增运行状态或重画图。

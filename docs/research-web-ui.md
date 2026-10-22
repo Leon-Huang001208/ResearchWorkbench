@@ -1,5 +1,7 @@
 # Research Web 前端
 
+2026-10-22 MCP 隔离修复：受管本地 MCP 显示 limited/未就绪及 OS 进程隔离缺口，预览、探测和启用按钮禁用；固定远程组件保留原操作，后端独立拒绝本地执行。
+
 2026-10-22 能力中心插件页接真实 Host 生命周期：ZIP 文件预览、默认不勾选权限、审核/启用/撤权/回滚/删除、版本支持表、MCP 确认及服务端管理员审批队列；server 模式按真实角色显示操作，后台仍独立校验。状态未知、MCP 升级 deferred 和 runtime discovery pending 明确可见。详情见[插件合同](research-web-plugins.md)。
 
 ## 全市场概览

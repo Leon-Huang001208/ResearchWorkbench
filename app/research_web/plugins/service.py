@@ -149,6 +149,13 @@ class PluginService:
             component_id = component["kind"] + ":" + component["key"]
             binding = row["bindings"].get(component_id)
             component["ready"] = False
+            if (
+                component["kind"] == "mcp"
+                and component.get("selection", {}).get("package_index") is not None
+            ):
+                # Re-project old imported rows too; stored support is not authority.
+                component["support"] = "limited"
+                component["reason"] = "mcp_managed_local_process_isolation_required"
             if component_id in row.get("component_issues", {}):
                 component["reason"] = "native_validation_failed"
                 component["issues"] = row["component_issues"][component_id]
@@ -176,7 +183,8 @@ class PluginService:
                 # A native install is not a ready callable tool until activated,
                 # probed and separately authorized to a session by MCP Runtime.
                 component["installation_id"] = row["mcp_bindings"][component["key"]]
-                component["reason"] = "native_tool_session_authorization_required"
+                if component.get("selection", {}).get("package_index") is None:
+                    component["reason"] = "native_tool_session_authorization_required"
         return row
 
     def confirm_native(self, names):
@@ -707,6 +715,7 @@ class PluginService:
         )
         if component is None:
             raise PluginError("plugin_mcp_component_not_found", 404)
+        self._require_mcp_process_isolation(component)
         from ..mcp_runtime.models import InstallationSelection
 
         preview = await self.mcp.preview(
@@ -720,6 +729,12 @@ class PluginService:
 
     async def mcp_install(self, digest, key, token, environment_values):
         row = self._reviewed(digest)
+        component = next(
+            (c for c in row["components"] if c["kind"] == "mcp" and c["key"] == key), None
+        )
+        if component is None:
+            raise PluginError("plugin_mcp_component_not_found", 404)
+        self._require_mcp_process_isolation(component)
         if getattr(self, "_mcp_pending", {}).get((digest, key)) != token:
             raise PluginError("plugin_mcp_confirmation_invalid", 409)
         if key in row["mcp_bindings"]:
@@ -741,6 +756,12 @@ class PluginService:
         self._mcp_pending.pop((digest, key))
         self.save()
         return result
+
+    @staticmethod
+    def _require_mcp_process_isolation(component):
+        if component.get("selection", {}).get("package_index") is not None:
+            log.warning("mcp_managed_local_process_isolation_required")
+            raise PluginError("mcp_managed_local_process_isolation_required", 403)
 
     def mcp_review_snapshot(self, digest, key):
         row = self._reviewed(digest)

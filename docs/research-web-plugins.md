@@ -77,6 +77,14 @@ HMAC。角色来自网关登录状态，浏览器 header 不获得授权；nonce
 
 ## MCP 实际审核与两阶段重启
 
+受管本地 MCP（npm/PyPI/MCPB 的 stdio launcher）当前 **BLOCKED**。固定字节、最小环境、
+安装目录 cwd 和包/schema 审批不构成操作系统隔离；launcher 可在首次握手前读取或改写绝对路径。
+本阶段不执行此类插件的原生预览/安装，也不解析已安装目标、探测、启动或调用；统一返回
+`mcp_managed_local_process_isolation_required`。本地组件显示有限支持、未就绪，旧缓存和
+Native 中已登记的受管安装同样拒绝。所有平台均关闭该路径，没有按平台降级执行。
+只有具备真实 OS 进程、文件和网络边界并完成独立验收后才可开放；因此本地 MCP 支持尚未完成。
+固定远程 HTTP 端点继续原有审批/授权合同，非受管 Native MCP 保持既有行为。
+
 包审批以后仍保留原生安装确认。原生安装结果与实际安装树摘要绑定；探测后由管理员确认
 固定 manifest/config/artifact/schema 快照。工具 schema 漂移、安装字节变更、源审批撤销会
 使后续启动/探测/调用失败关闭。遗留非受管 active 清单不能因此自动获准启动。
@@ -111,6 +119,11 @@ owner 或任意上游。每次 schema 确认还复验预览时的实际 fingerpr
 撤权、MCP 字节/schema 失效、固定 proof、旧 active 拒绝、Seatbelt/超时/取消、出生租约和仅
 自有 fixture 进程的两阶段重启。固定 DSH `7ecf564f2e09b829240c5553687223bdd1e2df73` 的真实
 ToolRuntime 离线注册与嵌套 subagent fixture 证明执行管线契约；没有真实模型调用。
+
+受管本地隔离回归使用官方 MCP SDK 和自有可执行 fixture：先验证非受管 launcher 能读取和
+改写测试的兄弟 sentinel，再确认受管 probe/start/call/直接目标解析均在子进程与凭据读取前
+拒绝，包含已缓存 target、tenant 与 Native marker 两种身份。此证明只认证失败关闭，
+不将 cwd/HOME 或 Hook 的 Seatbelt 子集称为 MCP OS 沙箱。
 
 浏览器 fixture 使用实际能力中心与真实 Web/Plugin/Capability/MCP API，DSH 和外部 MCP Host
 是明确的离线 fixture；另有真实临时 AccountStore/gateway 的 admin/reader cookie 登录验证

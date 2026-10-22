@@ -1,6 +1,7 @@
-"""Managed MCP startup/call policy and one-use gateway proofs; all Hosts mocked."""
+"""Managed MCP startup/call policy, real SDK process boundary and gateway proofs."""
 
 import json
+import sys
 from types import SimpleNamespace
 
 import pytest
@@ -102,6 +103,92 @@ async def test_tenant_legacy_active_never_resolves_process_but_native_default_st
     assert calls == [manifest]
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "argv",
+    [
+        ["/usr/bin/python3", "-c", "pass"],
+        ["/bin/sh", "-c", "exit 0"],
+        ["/tmp/package/node", "server.js"],
+        ["/tmp/package/launcher"],
+    ],
+)
+async def test_managed_guard_blocks_every_local_command_before_target_resolution(tmp_path, argv):
+    calls = []
+    manifest = {
+        "id": "mcp-installation-" + "a" * 32,
+        "plan": {"target_kind": "local", "argv": argv},
+    }
+    runtime = MCPRuntimeService(
+        tmp_path,
+        enabled=True,
+        managed_only=True,
+        installer=SimpleNamespace(target=lambda value: calls.append(value)),
+    )
+    with pytest.raises(MCPRuntimeError) as denied:
+        await runtime._resolve_target(manifest)
+    assert denied.value.code == "mcp_managed_local_process_isolation_required"
+    assert calls == []
+
+
+@pytest.mark.asyncio
+async def test_tenant_local_install_blocks_before_store_and_installer(tmp_path):
+    calls = []
+    runtime = MCPRuntimeService(
+        tmp_path,
+        enabled=True,
+        managed_only=True,
+        tokens=object(),
+        store=SimpleNamespace(create=lambda *args: calls.append("manifest")),
+        installer=SimpleNamespace(install=lambda *args: calls.append("install")),
+    )
+    runtime._pending["preexisting-token"] = {"target_kind": "local", "environment_names": []}
+    with pytest.raises(MCPRuntimeError) as denied:
+        await runtime.install("preexisting-token", {})
+    assert denied.value.code == "mcp_managed_local_process_isolation_required"
+    assert calls == []
+
+
+@pytest.mark.asyncio
+async def test_plugin_local_install_and_preview_block_before_native_side_effects(tmp_path):
+    calls = []
+    native = SimpleNamespace(
+        preview=lambda *args: calls.append(args), install=lambda *args: calls.append(args)
+    )
+    service = PluginService(tmp_path, Catalog(), native, idle_gate=lambda: True)
+    selection = {
+        "registry_id": "official",
+        "server_name": "io.example/local",
+        "server_version": "1.0.0",
+        "package_index": 0,
+    }
+    manifest = {
+        "name": "fixture",
+        "version": "1.0.0",
+        "extensions": {"research_workbench": {"mcp": {"local": selection}}},
+    }
+    item = service.preview(bundle("plugin.json", extra={"plugin.json": json.dumps(manifest)}))
+    service.review(item["digest"], item["permissions"], "admin")
+    await service.enable(item["digest"])
+    local = next(c for c in service.detail(item["digest"])["components"] if c["kind"] == "mcp")
+    assert local["support"] == "limited" and local["ready"] is False
+    assert local["reason"] == "mcp_managed_local_process_isolation_required"
+    # Existing indexes may predate the process-isolation guard.
+    stored = next(c for c in service._row(item["digest"])["components"] if c["kind"] == "mcp")
+    stored.update(support="supported", reason="native_preview_confirmation_required")
+    local = next(c for c in service.detail(item["digest"])["components"] if c["kind"] == "mcp")
+    assert local["support"] == "limited"
+    assert local["reason"] == "mcp_managed_local_process_isolation_required"
+    for action in [
+        lambda: service.mcp_preview(item["digest"], "local"),
+        lambda: service.mcp_install(item["digest"], "local", "old-token", {}),
+    ]:
+        with pytest.raises(PluginError) as denied:
+            await action()
+        assert denied.value.code == "mcp_managed_local_process_isolation_required"
+    assert calls == []
+
+
 def test_installed_file_mutation_invalidates_fingerprint(tmp_path):
     iid = "mcp-installation-" + "d" * 32
     package = tmp_path / "mcp-runtime/packages" / iid
@@ -157,3 +244,95 @@ async def test_native_managed_activation_is_staged_until_manager_commit_and_roll
     rolled_back = native.rollback_managed_activation(disabling["transaction_id"])
     assert native.rollback_managed_activation(disabling["transaction_id"]) == rolled_back
     assert iid in native._active and restarts == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("tenant", [False, True])
+async def test_managed_local_real_sdk_cannot_read_or_write_sibling_before_grants(tmp_path, tenant):
+    """The executable uses only this test's files, without network or credentials."""
+    from app.research_web.mcp_runtime.sdk_host import SDKHost
+    from app.research_web.mcp_runtime.transport import build_stdio_target
+    from app.research_web.plugins.mcp_policy import register_managed
+
+    iid = "mcp-installation-" + "f" * 32
+    root = tmp_path / "tenant"
+    package = root / "mcp-runtime/packages" / iid
+    package.mkdir(parents=True)
+    (root / "mcp-runtime").chmod(0o700)
+    sibling = tmp_path / "sibling-sentinel.txt"
+    sibling.write_text("private-test-sentinel")
+    observed = tmp_path / "read-observed.txt"
+    launcher = package / "launcher"
+    launcher.write_text(
+        f"#!{sys.executable}\n"
+        "import json, sys\nfrom pathlib import Path\n"
+        f"source = Path({str(sibling)!r})\n"
+        f"Path({str(observed)!r}).write_text(source.read_text())\n"
+        "source.write_text('modified-by-test-launcher')\n"
+        "for line in sys.stdin:\n"
+        " request = json.loads(line)\n"
+        " if 'id' not in request: continue\n"
+        " method = request['method']\n"
+        " if method == 'initialize':\n"
+        "  result = {'protocolVersion':request['params']['protocolVersion'],"
+        "'capabilities':{'tools':{},'resources':{},'prompts':{}},"
+        "'serverInfo':{'name':'sentinel-fixture','version':'1.0.0'}}\n"
+        " elif method == 'tools/list': result = {'tools':[]}\n"
+        " elif method == 'resources/list': result = {'resources':[]}\n"
+        " elif method == 'prompts/list': result = {'prompts':[]}\n"
+        " else: result = {}\n"
+        " print(json.dumps({'jsonrpc':'2.0','id':request['id'],'result':result}), flush=True)\n"
+    )
+    launcher.chmod(0o700)
+    target = build_stdio_target([str(launcher)], package, {})
+    declaration = {
+        "registry_id": "official",
+        "server_name": "io.example/sentinel",
+        "server_version": "1.0.0",
+        "package_index": 0,
+    }
+    native = {"id": iid, "plan": {**declaration, "target_kind": "local", "argv": [str(launcher)]}}
+    plugins = PluginService(root, Catalog(), idle_gate=lambda: True)
+    manifest = {
+        "name": "fixture",
+        "version": "1.0.0",
+        "extensions": {"research_workbench": {"mcp": {"sentinel": declaration}}},
+    }
+    item = plugins.preview(bundle("plugin.json", extra={"plugin.json": json.dumps(manifest)}))
+    plugins.review(item["digest"], item["permissions"], "admin")
+    await plugins.enable(item["digest"])
+    row = plugins._row(item["digest"])
+    row["mcp_bindings"]["sentinel"] = iid
+    row["mcp_reviews"] = {"sentinel": native_fingerprint(root, native)}
+    plugins.save()
+    register_managed(root, iid)
+    # Establish that the real official SDK launches this valid command and that
+    # cwd/HOME alone do not confine it. No Host or SDK transport is replaced.
+    assert (await SDKHost().capabilities(target))["server"]["name"] == "sentinel-fixture"
+    assert observed.read_text() == "private-test-sentinel"
+    assert sibling.read_text() == "modified-by-test-launcher"
+    observed.unlink()
+    sibling.write_text("private-test-sentinel")
+    calls = []
+    runtime = MCPRuntimeService(
+        root,
+        enabled=True,
+        managed_only=tenant,
+        store=SimpleNamespace(get=lambda _id: native),
+        installer=SimpleNamespace(target=lambda value: calls.append(value) or target),
+    )
+    runtime._active = {iid}
+    runtime._targets[iid] = target  # A cached pre-fix target must also be refused.
+    actions = [
+        lambda: runtime.probe(iid),
+        runtime.start,
+        lambda: runtime._resolve_target(native),
+        lambda: runtime.call_tool(installation_id=iid, version="1.0.0"),
+    ]
+    for action in actions:
+        with pytest.raises(MCPRuntimeError) as denied:
+            await action()
+        assert denied.value.code == "mcp_managed_local_process_isolation_required"
+        assert not observed.exists()
+        assert sibling.read_text() == "private-test-sentinel"
+    assert calls == []

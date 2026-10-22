@@ -349,8 +349,12 @@ def parse_archive(raw):
             _component(
                 "mcp",
                 key,
-                support="supported",
-                reason="native_preview_confirmation_required",
+                support="limited" if validated.get("package_index") is not None else "supported",
+                reason=(
+                    "mcp_managed_local_process_isolation_required"
+                    if validated.get("package_index") is not None
+                    else "native_preview_confirmation_required"
+                ),
                 selection=validated,
             )
         )

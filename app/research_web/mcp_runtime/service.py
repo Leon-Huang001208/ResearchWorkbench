@@ -219,6 +219,8 @@ class MCPRuntimeService:
         plan = self._pending.get(confirmation_token)
         if plan is None:
             raise MCPRuntimeError("confirmation_token_invalid", 409)
+        if self.managed_only:
+            self._require_managed_process_isolation({"plan": plan})
         expected_names = set(_field(plan, "environment_names", []))
         if set(environment_values) != expected_names or any(
             not isinstance(value, str)
@@ -787,6 +789,8 @@ class MCPRuntimeService:
         if not self.managed_only and not requires_managed(self._data_root, installation_id):
             return
 
+        self._require_managed_process_isolation(manifest)
+
         if self._data_root is None:
             raise MCPRuntimeError("mcp_managed_approval_unavailable", 403)
         try:
@@ -800,10 +804,30 @@ class MCPRuntimeService:
             raise MCPRuntimeError("mcp_managed_approval_required", 403) from exc
 
     async def _resolve_target(self, manifest: Any) -> Any:
+        # Called directly after plugin installation as well as by normal startup.
+        # Refuse before reading environment credentials or constructing a launcher.
+        self._require_managed_process_isolation(manifest)
         targeter = getattr(self.installer, "target", None)
         if targeter is None:
             raise MCPRuntimeError("mcp_installer_target_unavailable", 503)
         return await _await(targeter(manifest))
+
+    def _require_managed_process_isolation(self, manifest: Any) -> None:
+        """Block managed local executables until an OS confinement contract exists."""
+        from ..plugins.mcp_policy import requires_managed
+
+        if not self.managed_only and not requires_managed(
+            self._data_root, str(_field(manifest, "id"))
+        ):
+            return
+        plan = _field(manifest, "plan")
+        if _field(plan, "target_kind") == "local" or not _field(plan, "endpoint"):
+            log.warning("mcp_managed_local_process_isolation_required")
+            raise MCPRuntimeError(
+                "mcp_managed_local_process_isolation_required",
+                403,
+                "受管本地 MCP 缺少操作系统进程隔离，保持停用；可使用固定远程端点",
+            )
 
     async def _require_idle(self) -> None:
         idle_gate = self.idle_gate

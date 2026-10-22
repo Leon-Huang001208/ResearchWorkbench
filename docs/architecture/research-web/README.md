@@ -1,5 +1,7 @@
 # Research Workbench Research Web 当前架构
 
+2026-10-22 MCP 隔离修复：受管本地 MCP 的 OS 进程隔离尚未实现，当前以失败关闭阻止预览/安装/探测/启动/调用；本地组件 limited，固定远程端点继续原合同。此修复仅收紧现有 Host 准入，不新增沙箱服务或图节点。
+
 2026-10-22 插件契约新增[固定包、权限、生命周期及支持状态](../../research-web-plugins.md)：现有能力中心/API/Host/MCP/唯一DSH节点内适配，不增加执行引擎或网络服务；API Atlas登记新增固定路由。本地真实Host与临时账号浏览器、固定DSH离线注册分别取证，外部OAuth/真实模型与其他平台仍NOT_RUN。
 
 2026-10-22 Wind资产工作区沿唯一Host/DataHub增加持久历史任务、固定锚点复权规范发布与账号副图偏好，6个API、Store兼容键及原始块/因子/规范快照已同步02模块图、04资料流图及API Atlas。取消/close/purge等待真实Future，resident与操作员空闲覆盖任务；原Automation唯一调度、DSH执行和网关身份保持。详见[文件](03-data-files.md#资产历史与图表偏好存储)、[接口](04-api.md#资产历史任务与图表偏好)及[批准计划](../../plans/2026-10-22-wind-asset-workspace.md)。有限预检、最终功能/浏览器/CI和常驻部署各自取证。

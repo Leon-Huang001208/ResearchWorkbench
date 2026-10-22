@@ -1,5 +1,7 @@
 # 能力包、版本与原生调用
 
+2026-10-22 MCP 隔离修复：受管本地 MCP 标为 limited/ready=false，缺少 OS 进程隔离时不会进入 SDK；包、字节和 schema 审核不豁免该门。固定远程端点和非受管 Native 延续原能力合同。
+
 2026-10-22 插件统一管理 Skill/Workflow/MCP 与受限 Command/Agent/Hook 映射；ready 需 native loader、当前审批、精确 schema 和 DSH guard 全链确认。宿主专属 UI/cloud/API 或未实现 Hook 不静默丢弃，支持表保留 limited/unsupported。升级默认只影响新会话，撤权单独生效，MCP无法并存明确deferred。见[插件合同](../../research-web-plugins.md)。
 
 资产观察 AF 指标公式和快照投影属于前端显示能力，不登记新Skill／Tool／Workflow，不迁移AF Agent委员会或新Provider。ECharts 5.5.0／Chart.js 4.4.7为经批准的固定本地渲染资源，不授予网络、脚本、凭据或模型调用权限；研究继续只经原DSH及能力准入，估算与空字段不满足真实证据门。

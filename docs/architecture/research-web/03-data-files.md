@@ -1,5 +1,7 @@
 # DataHub、研究资料与实际文件
 
+2026-10-22 MCP 隔离修复：受管本地 MCP launcher 尚无 OS 文件边界，因此不执行此类包；最小 cwd/HOME 不保护兄弟账号目录。临时 sentinel 回归只访问测试自有兄弟文件，无业务数据或凭据读取。
+
 2026-10-22 插件私有目录保存 owned ZIP、immutable versions、index/review/session pins、source审批投影和MCP activation事务；私有文件 nofollow/原子写入，摘要与精确权限绑定，不复制外部宿主credential。共享审批目录不含用户秘密；卸载只删除自有副本且阻止删除被会话引用版本。原业务Store/会话文件保留。见[插件合同](../../research-web-plugins.md)。
 
 2026-10-22 v4仍使用原version4 journal和全账号index canonical SHA-256冻结/复核，不新增业务schema；固定旧5495与PR180产品`9b436613aad9136f4959c992c89dd72fc7354ed5`。旧v1/v2/v3、原始/因子/规范快照、账号/模型/凭据及controller/evidence保持。旧v3因默认键物化被门禁拒绝后已正式恢复5495/preserved=true；v4承接已合并启动修复，不清洗索引、不忽略键或改严格保全。现有图/HTML/PNG保持，v4最终资格和实际切换保全另证。

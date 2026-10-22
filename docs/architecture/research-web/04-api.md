@@ -1,5 +1,7 @@
 # Research Web 接口清单
 
+2026-10-22 MCP 隔离修复：本地插件 MCP 原生预览/安装及已登记受管安装的目标解析/探测/启动/调用返回 403 `mcp_managed_local_process_isolation_required`；固定远程端点沿原合同，无新增 HTTP 路由或请求字段。
+
 2026-10-22 插件新增 /api/research/plugins 固定包/文件/审批/lifecycle/MCP操作、/api/server/plugins 真实cookie角色共享/个人分发与固定owner审批队列，以及 /api/research/internal/plugin-runtime 的 freeze/commit/rollback/unfreeze 私有管理回调。完整Method/Path由architecture-map与API Atlas逐项登记；同源、tenant边界、一次性证明、body上限和错误状态详见[插件合同](../../research-web-plugins.md)。
 
 2026-10-22 `apply-assets-v4`为封闭本机操作员CLI，固定旧5495与PR180产品`9b436613aad9136f4959c992c89dd72fc7354ed5`；无新HTTP方法/路径/字段、DSH或API权限。旧v1/v2/v3及version4 journal保持，产品原接口和API Atlas未变，不重建架构HTML/PNG。产品三CI与v4最终测试/评审/CI/部署分开，只有完整资格及原锁/空闲/保全通过后才允许实际切换。

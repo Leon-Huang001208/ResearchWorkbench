@@ -6588,7 +6588,7 @@ Classes:
   - methods: __init__
 - `MCPRuntimeService`
   - Coordinate trusted MCP components while keeping public requests declarative.
-  - methods: __init__, start, close, _ensure_enabled, _require_components, preview, install, list_installations, installation, status, capabilities, probe, enable, _plugin_activation, _save_plugin_activation, stage_managed_enable, commit_managed_activation, rollback_managed_activation, disable, update, delete, classify_tool, authorize_session, register_automation_session, read_resource, get_prompt, call_tool, approvals, decide_approval, authenticate_internal, _require_session_installation, oauth_start, oauth_callback, _active_target, _target, _managed_guard, _resolve_target, _require_idle, _activate, _manifest, _set_state, _state, _load_runtime_state, _write_states, _write_active, _project_manifest, _installation_projection, _capability_projection, _approval_projection, _authorization_error
+  - methods: __init__, start, close, _ensure_enabled, _require_components, preview, install, list_installations, installation, status, capabilities, probe, enable, _plugin_activation, _save_plugin_activation, stage_managed_enable, commit_managed_activation, rollback_managed_activation, disable, update, delete, classify_tool, authorize_session, register_automation_session, read_resource, get_prompt, call_tool, approvals, decide_approval, authenticate_internal, _require_session_installation, oauth_start, oauth_callback, _active_target, _target, _managed_guard, _resolve_target, _require_managed_process_isolation, _require_idle, _activate, _manifest, _set_state, _state, _load_runtime_state, _write_states, _write_active, _project_manifest, _installation_projection, _capability_projection, _approval_projection, _authorization_error
 
 Functions:
 - `sdk_operation`
@@ -7334,7 +7334,7 @@ Imports:
 Classes:
 - `PluginService`
   - Package review never replaces component-specific runtime authorization.
-  - methods: __init__, save, _row, _archive, preview, detail, confirm_native, version_authorized, manages_capability, capability_authorized, native_authorized, list, synchronize, review, _reviewed, _idle, _mcp_active, _draft, enable, disable, disable_mcp, pin, before_message, before_message_async, hook_cancellation, cancel_hook, command, mcp_preview, mcp_install, mcp_review_snapshot, mcp_review, uninstall
+  - methods: __init__, save, _row, _archive, preview, detail, confirm_native, version_authorized, manages_capability, capability_authorized, native_authorized, list, synchronize, review, _reviewed, _idle, _mcp_active, _draft, enable, disable, disable_mcp, pin, before_message, before_message_async, hook_cancellation, cancel_hook, command, mcp_preview, mcp_install, _require_mcp_process_isolation, mcp_review_snapshot, mcp_review, uninstall
 
 Functions:
 - `awaited`

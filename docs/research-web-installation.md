@@ -1,6 +1,6 @@
 # Research Web Native / Docker 安装与运行
 
-2026-10-22 插件基座复用既有 Python/Node 依赖与固定 DSH，公开三安装入口、requirements/web.in/web.lock、scripts/setup_web.py、Bootstrap 工作流保持。管理员从能力中心导入固定 ZIP，核对摘要/文件/精确权限后审核；导入不执行脚本或复制 Codex/Claude 凭据。macOS Hook 仅在 Seatbelt 可用时启用，其他平台显示受限。新增配置与安装安全清单见[插件合同](research-web-plugins.md)；最终候选仍须同候选 macos-14 干净安装、固定 DSH、3081/8088 与 Doctor，当前本地夹具不替代此门。
+2026-10-22 插件基座复用既有 Python/Node 依赖与固定 DSH，公开三安装入口、requirements/web.in/web.lock、scripts/setup_web.py、Bootstrap 工作流保持。管理员从能力中心导入固定 ZIP，核对摘要/文件/精确权限后审核；导入不执行脚本或复制 Codex/Claude 凭据。macOS Hook 仅在 Seatbelt 可用时启用，其他平台显示受限。受管本地 MCP 缺少 OS 进程隔离，所有平台均禁止其安装、目标解析、探测、启动和调用，固定远程端点保留原生审批流程；详情见[插件合同](research-web-plugins.md)。最终候选仍须同候选 macos-14 干净安装、固定 DSH、3081/8088 与 Doctor，当前本地夹具不替代此门。
 
 2026-10-22 v4部署只复用现有Native操作员及生产venv，固定旧5495和PR180产品`9b436613aad9136f4959c992c89dd72fc7354ed5`。公开三安装入口、requirements/web.in/web.lock、scripts/setup_web.py与原Mac Bootstrap合同保持，不增依赖/流程。产品Mac39730452006实际checkout654fa6、581秒，干净安装/固定DSH/3081/8088/doctor及15项静态资源通过；v4工具仍须自身最终同候选CI/安装与部署证据，不能复用产品通过代替。旧v3已正式恢复5495并保全，旧v1/v2/v3恢复及controller/evidence字节不变，见[部署合同](research-web-gateway-upgrade.md#资产观察固定版本联合部署)。
 
