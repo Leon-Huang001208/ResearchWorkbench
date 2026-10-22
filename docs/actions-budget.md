@@ -1,5 +1,7 @@
 # GitHub Actions 免费额度治理
 
+研究仓/DataHub基座扩展既有Checks定点测试，无新workflow/job/runner/timeout或真实模型调用。2026-10-22只读API确认PUBLIC/private=false；最近5个成功run39748915262/39748915221/39748915311/39747463670/39747463537创建至结束72/572/554/63/494秒，平均351秒。新增离线回归本机核心253例12.13秒，预留现有步骤30秒；真实临时PG仅本机显式开启，CI缺PG保留条件跳过，不冒充真实数据库验收。psycopg与BaoStock依赖已单独授权隔离安装，Mac Bootstrap继续验证干净锁安装及原健康/Doctor；不触发Windows/Linux产品dispatch。
+
 2026-10-22 Wind v4封闭部署profile只扩展原test_model_provider_upgrade定点，沿既有Project Constraints、Research Web Checks和macOS Bootstrap，不新增workflow/job/runner/timeout/依赖。先前只读API为PUBLIC/private=false，最近5成功run39730343750/39725433303/39725433385/39725433371/39724266491墙钟64/56/562/409/643秒，均值346.8秒，证据留logs/wind-v4-docs。现产品PR180已真实合并为`9b436613aad9136f4959c992c89dd72fc7354ed5`，产品三CI39730343750/39730343679/39730452006均PASS；其中Mac手动候选checkout654fa6、581秒，不冒充v4工具最终CI。新增局部本机预算预留15秒，v4最终资格仍由实际门证明；不手动rerun、派他平台产品任务或调用模型/厂商。
 
 2026-10-22 Wind启动保全热修复只扩充现有test_store回归，沿原Project Constraints、Research Web Checks及Mac Bootstrap，不增workflow/job/runner/timeout/依赖。只读API当前PUBLIC/private=false；最近5成功run39725433303（Constraints，56秒）、39725433385（Bootstrap，562秒）、39725433371（Checks，409秒）、39724266491（Bootstrap，643秒）、39724188738（Constraints，64秒），为创建至结束墙钟，均值346.8秒。证据留`logs/wind-startup-preservation-docs/repository.json`与`recent-success-runs.json`；旧profile/基线成功不认证此热修复。新增定点本机预留15秒，实际回归及同候选Mac安装门由本轮证据回填；不触发Windows/Linux产品dispatch，不执行新模型/厂商调用。真实恢复/fenced与部署状态另验，不能以CI成功替代。

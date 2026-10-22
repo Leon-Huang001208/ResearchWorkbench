@@ -148,6 +148,38 @@ test('automatic business query uses the stable DataHub contract without reading 
   } finally {globalThis.fetch=original;}
 });
 
+test('business policy forwards historical cutoff outside provider parameters',async()=>{
+  const f=await fixture();const requests=[];const original=globalThis.fetch;
+  globalThis.fetch=async(url,options)=>{requests.push({url,options});return reply({...dataset,provider:'wind',capability:'market_bars',data_success:true,provider_metadata:{warehouse_hit:true,warehouse_snapshot_sha256:'a'.repeat(64)}});};
+  try {
+    const tool=f.tools.get('datahub_get_market_bars');
+    const result=await tool.execute({asset:'600519.SH',asset_type:'stock',start_date:'2025-01-02',end_date:'2025-01-03',purpose:'backtest',as_of:'2025-01-06T00:00:00Z'},f.exec);
+    const query=JSON.parse(requests[0].options.body).query;
+    assert.equal(query.purpose,'backtest');assert.equal(query.as_of,'2025-01-06T00:00:00Z');
+    assert.ok(!Object.hasOwn(query.parameters,'as_of'));
+    const manifest=JSON.parse(result.manifest_json);
+    assert.equal(manifest.data_success,true);assert.equal(manifest.provider_metadata.warehouse_hit,true);
+    await assert.rejects(tool.execute({asset:'600519.SH',start_date:'2025-01-02',end_date:'2025-01-03',purpose:'research',quality:'allow_stale'},f.exec));
+    await assert.rejects(tool.execute({asset:'600519.SH',start_date:'2025-01-02',end_date:'2025-01-03',purpose:'backtest'},f.exec));
+  } finally {globalThis.fetch=original;}
+});
+
+test('native snapshot metadata keeps capture and backtest limits without arbitrary metadata',async()=>{
+  const f=await fixture();const original=globalThis.fetch;
+  globalThis.fetch=async()=>reply({...dataset,provider:'akshare',capability:'financials',data_success:false,
+    provider_metadata:{storage_form:'provider_native_snapshot',availability_basis:'first_observed',
+      formal_backtest_eligible:false,observed_at:'2026-01-20T10:00:00+00:00',captured_as_of:null,
+      secret:'never-forward'}});
+  try {
+    const result=await f.tools.get('datahub_get_financials').execute({asset:'000001.SZ',source:'akshare'},f.exec);
+    const metadata=JSON.parse(result.manifest_json).provider_metadata;
+    assert.equal(metadata.formal_backtest_eligible,false);
+    assert.equal(metadata.availability_basis,'first_observed');
+    assert.equal(metadata.observed_at,'2026-01-20T10:00:00+00:00');
+    assert.equal(Object.hasOwn(metadata,'secret'),false);
+  } finally {globalThis.fetch=original;}
+});
+
 test('market bars forwards explicit asset type context to DataHub',async()=>{
   const f=await fixture();const requests=[];const original=globalThis.fetch;
   globalThis.fetch=async(url,options)=>{requests.push({url,options});return reply({...dataset,provider:'wind',capability:'market_bars'});};
@@ -300,7 +332,7 @@ test('non-2xx DataHub responses expose only allowlisted stable codes within a sm
 test('unavailable capability codes use the same bounded allowlisted error projection', async () => {
   const f=await fixture();const original=globalThis.fetch;
   try {
-    for(const code of ['data_capability_not_integrated','data_capability_unavailable']) {
+    for(const code of ['data_capability_not_integrated','data_capability_unavailable','data_pit_unavailable','data_query_deadline','data_source_authorization_changed','warehouse_read_rejected','warehouse_write_rejected']) {
       globalThis.fetch=async()=>new Response(JSON.stringify({error:{code,message:'synthetic secret'}}),{status:503,headers:{'content-type':'application/json'}});
       await assert.rejects(f.tool.execute({dataset:'nav',code:'000001'},f.exec),error=>{
         assert.equal(error.message,`DataHub request failed (HTTP 503): ${code}`);

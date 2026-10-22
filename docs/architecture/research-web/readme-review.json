@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "updated",
-  "summary": "v4固定版本部署合同绑定PR180真实合并产品",
-  "reason": "README同步固定旧5495与PR180真实merge 9b436613aad9136f4959c992c89dd72fc7354ed5，明确产品三CI已通过但v4工具最终资格/部署仍独立验收；654候选仅作历史证据。旧v1/v2/v3/controller/evidence、version4事务和严格保全保持，无新HTTP/拓扑/依赖/CI，原安装入口不改。"
+  "summary": "可选研究仓及DataHub可靠性基座的实际边界",
+  "reason": "README同步可选PostgreSQL修订/PIT/冻结、原始日线补洞及实际备用源切换，明确尚未启用正式库、外盘迁移和常驻部署；不将离线测试或免费样例等同完整产品验收。"
 }

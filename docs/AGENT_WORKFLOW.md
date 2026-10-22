@@ -1,5 +1,7 @@
 # Agent 任务路由指南
 
+研究仓本轮先完成隔离临时 PostgreSQL、DataHub缺口/授权/取消回归与独立评审，再绑定完整候选的本机门和Mac安装CI。新增测试仅扩展既有Checks步骤，不用厂商网络或真实模型替代离线验收；正式数据根、生产连接、迁移及常驻部署另行授权，Windows/Linux交接各自真机。
+
 2026-10-22 Wind v4部署profile固定PREVIOUS=5495、PAYLOAD=`9b436613aad9136f4959c992c89dd72fc7354ed5`（PR180真实merge），产品三CI已通过且候选/preview/merge同tree。沿原操作员真实Git/固定范围/四profile恢复矩阵、完整changed-set Router、独立评审及v4同候选原三CI/Mac安装门，不增job/依赖或放宽保全。热修38/527、产品CI与旧v3正式恢复5495分别留证，不能转写为v4最终通过；实际切换仍由root在最终资格、锁、明确空闲和全账号保全后执行。
 
 2026-10-22 v3真实切换触发索引保全拒绝时，先保留原24业务键/12账号对账和recovery_required/fenced状态，由root走既有受管精确恢复；不得改摘要、忽略键或编辑immutable controller放行。启动默认键问题在独立热修复worktree内改Store序列化并补test_store回归：旧盘缺失且精确默认三键仅在内存，首次真实变更才持久化，既有空键保留。沿原Router/评审/三CI及同候选Mac安装门，不增job/依赖；本机通过不能替代恢复终态、实际版本/账号保全或后续部署证据，未执行保持真实状态。

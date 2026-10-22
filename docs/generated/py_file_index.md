@@ -3850,10 +3850,13 @@ Imports:
 - `hashlib`
 - `hmac`
 - `json`
+- `market_store`
 - `probes`
 - `re`
+- `reliability`
 - `security`
 - `snapshots`
+- `storage_activity`
 - `store`
 - `time`
 - `typing`
@@ -3861,7 +3864,7 @@ Imports:
 
 Classes:
 - `DataHub`
-  - methods: __init__, authenticate, _latest_probes, catalog, connection_center, source_configuration_digest, catalog_capability, catalog_source, start_probe, _probe, _mark_probe_terminal, _prune_probes, probe, run_probe, restore_probe_statuses, detail, summaries, copy_for_upgrade, copy_selected, list, rows, short, _authorize_query, query, _query, cancel, close
+  - methods: __init__, _storage, authenticate, _latest_probes, catalog, _record_execution_health, _latest_execution_health, _fetch_with_execution_health, connection_center, source_configuration_digest, catalog_capability, catalog_source, start_probe, _probe, _mark_probe_terminal, _prune_probes, probe, run_probe, restore_probe_statuses, detail, summaries, copy_for_upgrade, copy_selected, list, rows, short, _authorize_query, _warehouse_read, _execute_business, query, _wait_query, _query, cancel, close
 
 Functions:
 - `_trim_sample_strings`
@@ -3904,6 +3907,7 @@ Imports:
 - `datetime`
 - `providers`
 - `providers_akshare`
+- `providers_baostock`
 - `store`
 
 Classes:
@@ -4175,6 +4179,7 @@ Imports:
 - `concurrent.futures`
 - `contracts`
 - `core.observability`
+- `dataclasses`
 - `datetime`
 - `httpx`
 - `json`
@@ -4185,14 +4190,22 @@ Imports:
 - `time`
 - `typing`
 
+Classes:
+- `_FeedNormalizer`
+  - methods: __call__
+
 Functions:
+- `active_futures`
+  - Witness actual SDK work independently of cancelled coroutine waiters.
 - `_release_capacity`
 - `_submit_work`
 - `_submit`
+- `_invoke`
 - `_symbol`
 - `_market_code`
 - `_market_symbol`
 - `_exchange_symbol`
+- `_frequency`
 - `_activity_bounds`
 - `validate_supported_query`
   - Pure semantics check shared by selection/cache admission and execution.
@@ -4206,17 +4219,48 @@ Functions:
 - `_number`
 - `_normalize_assets`
 - `_normalize_bars`
+- `_normalize_sina_stock_bars`
+- `_normalize_em_stock_bars`
 - `_normalize_snapshot`
 - `_normalize_generic`
 - `_normalize_activity`
 - `_normalize_financials`
-- `_invoke`
+- `_invoke_sdk`
 - `_fetch_probe_payload`
 - `_probe_remote`
   - Probe AKShare's fixed Sina calendar upstream with a cancellable stream.
 - `_probe_failure_code`
+- `_materialize`
+- `invoke_public`
 - `fetch`
 - `probe`
+
+
+## `app/research_web/datahub/providers_baostock.py`
+
+Module docstring:
+> Closed anonymous BaoStock adapter; raw SH/SZ daily bars only.
+
+Imports:
+- `__future__`
+- `asyncio`
+- `concurrent.futures`
+- `contracts`
+- `core.observability`
+- `datetime`
+- `json`
+- `providers`
+- `re`
+- `threading`
+
+Functions:
+- `active_futures`
+- `_asset`
+- `_bounds`
+- `validate_supported_query`
+- `_records`
+- `invoke`
+- `fetch`
 
 
 ## `app/research_web/datahub/providers_cjpy.py`
@@ -4302,10 +4346,14 @@ Functions:
 - `_list_payload`
   - Dict payloads with a primary list become real rows so samples stay small.
 - `response_rows`
+- `numeric_envelope`
+  - Closed official envelopes; original bytes retain publication/revision limits.
 - `_rows_reflect_credentials`
   - Inspect decoded strings before publishing; never log credential contents.
 - `bounded_response`
 - `credentials`
+- `verify_quantapi_authorization`
+  - Explicit refresh-token exchange only; never rotate tokens or read data.
 - `cicc_request`
 - `fetch`
 
@@ -4367,6 +4415,8 @@ Imports:
 - `zoneinfo`
 
 Functions:
+- `active_futures`
+  - Read-only witness; a stopped waiter cannot release real Excel work.
 - `_asset`
 - `_day`
 - `_bounded_history_range`
@@ -4391,6 +4441,124 @@ Functions:
 - `fetch`
 
 
+## `app/research_web/datahub/public_worker.py`
+
+Module docstring:
+> Tokenless public SDK isolation with a bounded, owned child process.
+
+Imports:
+- `__future__`
+- `base64`
+- `contextlib`
+- `contracts`
+- `core.observability`
+- `dataclasses`
+- `json`
+- `os`
+- `pathlib`
+- `providers`
+- `socket`
+- `subprocess`
+- `sys`
+- `tempfile`
+
+Classes:
+- `_BoundedPublicSocket`
+  - Owned child only: finite socket waits and explicit EOF for guest BaoStock.
+  - methods: __init__, recv
+
+Functions:
+- `invoke_worker`
+- `main`
+
+
+## `app/research_web/datahub/reliability.py`
+
+Module docstring:
+> Bounded execution attempts; authorization and equivalence remain resolver-owned.
+
+Imports:
+- `__future__`
+- `asyncio`
+- `collections.abc`
+- `core.observability`
+- `providers`
+- `time`
+- `typing`
+
+Classes:
+- `CircuitBreaker`
+  - Per-authority/endpoint health; a new configuration never inherits denial.
+  - methods: __init__, available, record, snapshot
+
+Functions:
+- `failure_code`
+  - Only known non-sensitive codes enter execution diagnostics.
+- `execute`
+  - One logical call, one shared deadline; never retry an unknown outcome.
+
+
+## `app/research_web/datahub/research_snapshot_store.py`
+
+Module docstring:
+> Source-qualified native responses captured for reproducible research, not PIT bars.
+
+Imports:
+- `__future__`
+- `base64`
+- `contracts`
+- `core.observability`
+- `datetime`
+- `json`
+- `market_store`
+- `market_store.models`
+- `providers`
+- `threading`
+- `uuid`
+
+Classes:
+- `SnapshotSeries`
+  - Trusted Host adapter; actor/scope/schema/units must never come from a browser.
+  - methods: __init__, _now, dataset, _facts, ingest, read
+
+
+## `app/research_web/datahub/research_warehouse.py`
+
+Module docstring:
+> Instance-owned warehouse configuration and reviewed raw stock bindings.
+
+Imports:
+- `__future__`
+- `base64`
+- `contracts`
+- `core.observability`
+- `datetime`
+- `hashlib`
+- `json`
+- `market_store`
+- `market_store.models`
+- `market_store.operation`
+- `math`
+- `os`
+- `pathlib`
+- `pydantic`
+- `re`
+- `research_snapshot_store`
+- `security`
+- `store`
+- `threading`
+- `time`
+- `typing`
+- `uuid`
+- `warehouse`
+
+Classes:
+- `WarehouseConfiguration`
+  - methods: check_endpoint
+- `ResearchWarehouse`
+  - methods: __init__, _profile, owner, _write, _secret, status, save, _postgres, initialize, disable, _calendar_service, _stored_calendar, _save_calendar, prepare, _bridge, _snapshot_series, read, missing_queries, ingest
+
+
 ## `app/research_web/datahub/routes.py`
 
 Module docstring:
@@ -4402,12 +4570,14 @@ Imports:
 - `contracts`
 - `fastapi`
 - `fastapi.responses`
+- `market_store`
 - `pydantic`
 - `store`
 - `typing`
 
 Classes:
 - `MySQLConfigurationUpdate`
+- `WarehouseControl`
 - `MigrationRequest`
 - `SkillAdmissionRequest`
 - `QualityCheckRequest`
@@ -4416,12 +4586,15 @@ Classes:
 - `SourceCancelRequest`
 
 Functions:
+- `research_warehouse_status`
+- `research_warehouse_control`
 - `_credential_error`
 - `catalog`
 - `connections`
 - `migration_preview`
 - `apply_migration`
 - `source_configuration`
+- `verify_source_authorization`
 - `save_source_configuration`
 - `delete_source_configuration`
 - `capability_detail`
@@ -4515,6 +4688,67 @@ Classes:
 Functions:
 - `sha`
 - `csv_bytes`
+
+
+## `app/research_web/datahub/storage_activity.py`
+
+Module docstring:
+> One bounded owned storage worker; cancellation observes the real transaction.
+
+Imports:
+- `asyncio`
+- `concurrent.futures`
+- `core.observability`
+- `functools`
+- `market_store`
+- `threading`
+
+Classes:
+- `StorageOperationCancelled`
+  - methods: __init__
+- `StorageRunner`
+  - methods: __init__, active, _finished, run, close
+
+
+## `app/research_web/datahub/warehouse.py`
+
+Module docstring:
+> Reviewed dataset bindings between DataHub and the independently authorized store.
+
+Imports:
+- `__future__`
+- `collections.abc`
+- `contracts`
+- `core.observability`
+- `dataclasses`
+- `datetime`
+- `json`
+- `market_store`
+- `market_store.models`
+- `providers`
+
+Classes:
+- `WarehouseBinding`
+- `WarehouseBridge`
+  - methods: __init__, _context, _window, missing_queries, read, ingest
+
+
+## `app/research_web/datahub/worker_activity.py`
+
+Module docstring:
+> Shared idle proof for bounded SDK workers, cancellation and resident updates.
+
+Imports:
+- `asyncio`
+- `concurrent.futures`
+- `core.observability`
+- `providers`
+
+Functions:
+- `source_futures`
+- `active_futures`
+- `drain_sources`
+  - Wait on owned futures; never cancel underlying native/SDK operations.
 
 
 ## `app/research_web/delivery.py`
@@ -5794,6 +6028,151 @@ Classes:
 
 Functions:
 - `create_app`
+
+
+## `app/research_web/market_store/__init__.py`
+
+Module docstring:
+> Opt-in research warehouse. Import never connects, bootstraps or ingests data.
+
+Imports:
+- `models`
+- `operation`
+- `postgres`
+- `store`
+
+
+## `app/research_web/market_store/models.py`
+
+Module docstring:
+> Immutable, source-qualified research facts and portable frozen manifests.
+
+Imports:
+- `base64`
+- `core.observability`
+- `dataclasses`
+- `datetime`
+- `hashlib`
+- `json`
+- `re`
+- `typing`
+
+Classes:
+- `MarketStoreError`
+  - Stable warehouse failure; messages must never contain connection secrets.
+- `StoreScope`
+  - methods: __post_init__, key
+- `DatasetIdentity`
+  - methods: __post_init__, key
+- `RawOriginal`
+  - methods: __post_init__, sha256
+- `Fact`
+  - methods: __post_init__, value, logical_key, revision_key, identity
+- `CoverageProof`
+  - methods: __post_init__
+- `Batch`
+  - methods: __post_init__
+- `ReadResult`
+  - methods: __post_init__, pit_complete
+- `FrozenSnapshot`
+  - Canonical bytes contain selected revisions and originals, never filesystem paths.
+  - methods: __post_init__, export, load
+- `SemanticProof`
+  - methods: __post_init__
+
+Functions:
+- `canonical`
+- `digest`
+- `identifier`
+- `hash_value`
+- `instant`
+- `day`
+- `fact_document`
+- `parse_fact`
+- `batch_document`
+- `parse_batch`
+- `merge_snapshots`
+  - Pure merge; callers must authorize every input before invoking this helper.
+
+
+## `app/research_web/market_store/operation.py`
+
+Module docstring:
+> Thread-propagated, per-operation cancellation and truthful commit outcomes.
+
+Imports:
+- `contextlib`
+- `contextvars`
+- `core.observability`
+- `dataclasses`
+- `models`
+- `threading`
+
+Classes:
+- `OperationOutcome`
+- `MarketStoreCancelled`
+  - methods: __init__
+- `OperationContext`
+  - One Event per operation. Cancellation never touches other calls/users.
+  - methods: __init__, cancel, committed, outcome, checkpoint, record_committed
+
+Functions:
+- `operation_context`
+- `checkpoint`
+- `record_committed`
+
+
+## `app/research_web/market_store/postgres.py`
+
+Module docstring:
+> Opt-in indexed PostgreSQL warehouse with immutable incremental manifests.
+
+Imports:
+- `contextlib`
+- `core.observability`
+- `dataclasses`
+- `datetime`
+- `json`
+- `models`
+- `operation`
+
+Classes:
+- `PostgresMarketStore`
+  - Indexed append-only facts and originals; explicit migration ownership.
+  - methods: __init__, from_dsn, _transaction, bootstrap, _empty_version, _head, version, watermark, _read_facts, read_range, find_gaps, _lock, _prepare, _append, commit_batch, _coverage, _originals, freeze, _save_frozen, export_restore
+
+Functions:
+- `_json`
+- `_logical`
+- `_revision`
+- `_proof_document`
+
+
+## `app/research_web/market_store/store.py`
+
+Module docstring:
+> Warehouse protocol, deterministic reference backend and authorization boundary.
+
+Imports:
+- `collections.abc`
+- `core.observability`
+- `dataclasses`
+- `datetime`
+- `json`
+- `models`
+- `operation`
+- `threading`
+- `typing`
+
+Classes:
+- `MarketStore`
+  - methods: read_range, find_gaps, commit_batch, freeze, export_restore, version
+- `InMemoryMarketStore`
+  - Reference backend for tests only. Does not provide production persistence.
+  - methods: __init__, _get, history, commit_batch, version, watermark, read_range, find_gaps, freeze, export_restore
+- `MarketStoreService`
+  - Trusted Host boundary. Authorization callback required on every operation.
+  - methods: __init__, _check, read_range, find_gaps, commit_batch, version, freeze, export_restore, merge_snapshots
 
 
 ## `app/research_web/mcp_registry/__init__.py`
@@ -9142,6 +9521,26 @@ Functions:
 - `_denied`
 - `check_request`
   - Authenticate every backend route before product handlers see the request.
+
+
+## `app/research_web/warehouse_diagnostics.py`
+
+Module docstring:
+> Read-only, credential-free optional warehouse installation diagnostics.
+
+Imports:
+- `core.observability`
+- `datahub.security`
+- `importlib.util`
+- `json`
+- `pathlib`
+- `re`
+- `research_workbench_entrypoint.web_contract`
+- `store`
+
+Functions:
+- `warehouse_diagnostic`
+  - Inspect only this instance's profile; never instantiate backend/keyring.
 
 
 ## `app/research_web/workbench.py`

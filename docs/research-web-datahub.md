@@ -1,5 +1,19 @@
 # Research Web DataHub
 
+默认Host已挂入可选ResearchWarehouse；数据设置与能力中心复用同一配置及有界免费验证面板，保存不会连接，Doctor只报告脱敏配置/驱动状态。实际调用健康按来源、能力和配置摘要独立记录，最长300秒、最多256条；改配、撤权或过期即失效。数据库/会话缓存不刷新上游健康，显式探测与实际取数证据分开。连接中心的“部分能力已验证”只覆盖列明的能力与时间，不代表整个供应商或正式回测合格。
+
+官方数值响应按封闭合同展开：世界银行分页头与观测分开，未取完分页返回partial；BLS逐series的year/period/value保留，不把M13年均值冒充月份；iFinD历史time数组与table指标逐项核对长度后展开。未知单位保持provider_defined。完整源字节仍冻结，账号/刷新令牌入口不入仓；详见[原生快照](research-web-vendor-snapshots.md)。官方说明：[世界银行](https://datahelpdesk.worldbank.org/knowledgebase/articles/898581-api-basic-call-structures)、[BLS](https://www.bls.gov/developers/api_signature_v2.htm)、[iFinD](https://quantapi.51ifind.com/gwstatic/static/ds_web/quantapi-web/example.html)。
+
+## 研究仓及可靠性基座（2026-10-22，隔离实现）
+
+本阶段新增可选的 `MarketStore` 与可信 `WarehouseBridge` 注入接口，原有会话快照继续读取；正式数据根/数据库配置与自动采集尚未启用。仓库按明确交易日历检查内部缺口，原始日线按缺失连续区间补数后重新检查整窗覆盖；未知空结果不会证明停牌或无交易。显式 refresh 重取请求区间以发现修订；源间自动切换仅开放经过审核的沪深股票原始日线口径，复权行情和财务/资金流不依据同名字段猜测等价性。内核及权限/恢复合同见[研究仓](research-web-market-store.md)。
+
+`BusinessQuery` 新增 `purpose=display|research|backtest`、`quality=strict|allow_stale`、有时区的 `as_of`；默认请求指纹保持兼容，正式回测必须提供历史时点。未证明的历史视图返回 `data_pit_unavailable`，不以当日下载补造过去版本。实际尝试在 `provider_metadata.execution_attempts`，数据成功在 `data_success`；调用完成不代表数据可用。前台总预算18秒，超时返回504及稳定代码；原call_id保留，已启动SDK/数据库在后台排空、真实结束前仍占容量，迟到结果不能发布。断连不取消owned计时器；重复call_id不重发。
+
+BaoStock 0.9.4新增公开沪深股票原始日线、股票目录和交易日历适配，其财务/新闻绑定仍未实现；无账号SDK不等于厂商数据再分发许可。BaoStock与AKShare由固定模块、最小环境和私有临时HOME的自有子进程执行，每次12秒上限；这仅是生命周期隔离，不是插件沙箱。AKShare新浪日线量为股、换手率比例转百分数且不当作成交额，东方财富手数转股；所有未知指数/ETF量单位仍明确标记。
+
+真实免费验收：AKShare provider 新浪历史日线7行、2.04秒、结束后无活动Future；BaoStock首次provider请求12.01秒超时、零行、已回收。其他来源、认证页面及最终CI验收不能由这些样例推定通过。
+
 ## 资产历史任务与固定复权
 
 2026-10-22 启动保全热修复限定Store持久化边界：旧磁盘缺失且仍为精确默认的历史jobs/keys和图表偏好只在内存提供；启动或Automation无关save不将其写入旧index，首次真实变化才落盘。原有键（含空值）及写入后恢复默认的键继续保留，原子替换失败不误记已持久化。DataHub Provider、raw/factors/canonical、业务API与严格保全门不变，不追加厂商调用或放宽来源权限；同候选Mac安装与真实恢复/部署另证，详见[文件合同](architecture/research-web/03-data-files.md#资产历史与图表偏好存储)。

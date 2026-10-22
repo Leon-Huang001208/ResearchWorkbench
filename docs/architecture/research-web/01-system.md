@@ -1,5 +1,7 @@
 # 部署与模块职责
 
+Host ResearchService仅增加可选market_store_bridge注入，仍由现有DataHub和唯一DSH执行。MarketStore是独立业务库接口，不默认连接现有5432或更改服务；resident空闲证明同时纳入所有SDK真实Future、DataHub未终态任务和存储线程占用。
+
 2026-10-22 v4沿既有Native主实例/私网网关和version4事务，只增加固定旧5495与PR180产品`9b436613aad9136f4959c992c89dd72fc7354ed5`身份。旧v1/v2/v3、controller/evidence及严格保全保持，无新运行节点/接口/引擎/依赖，原图及Atlas准确，不改HTML/PNG。产品候选654fa6、preview2e069与真实merge同tree；产品三CI和旧v3正式恢复5495不替代v4工具最终验收/部署。
 
 2026-10-22 v3仅为已合并Wind产品增加封闭部署身份：旧主实例/网关5495、产品a0ff3ae2，沿同一model_provider_upgrade协调原Native/网关v4事务。controller、evidence和旧v1/v2恢复保持字节及语义，无新运行节点、HTTP、产品模块或依赖；部署/模块图与Atlas不变，也不重新生成HTML/PNG。最终候选验收通过且root持锁证明全部任务/Future空闲并冻结全账号索引后，才执行本轮已授权切换；[部署合同](../../research-web-gateway-upgrade.md#资产观察固定版本联合部署)是本轮真源。

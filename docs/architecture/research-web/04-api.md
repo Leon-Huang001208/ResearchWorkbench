@@ -1,5 +1,9 @@
 # Research Web 接口清单
 
+研究仓新增 `GET/POST /api/research/data/warehouse`：读取当前实例安全状态，以及显式保存、初始化、停用；保存不连接数据库，初始化只在已存在的独立数据库建表。服务器租户模式暂拒绝此配置路径，不能用浏览器 owner 自行取得共享仓权限。另增加 `POST /api/research/data/sources/{source_id}/configuration/verify`，当前仅支持 `ext_ths` 的既有 refresh_token 换取 access_token 授权检查，要求显式用户操作头；不查询行情、不轮换 token、不声称数据权限已通过。
+
+研究仓基座扩展既有DataHub业务请求（业务取数路径保持）：`purpose`默认research、`quality`默认strict、`as_of`为带时区且不晚于当前的时点；backtest必须给as_of，allow_stale只允许display。结果新增data_success及白名单provider_metadata（真实execution_attempts、仓版本/命中/持久化及PIT证据）。未知历史返回409/data_pit_unavailable；前台18秒超时返回504/data_query_deadline，原call_id对应任务继续排空至真实终态，不得换ID盲重发。收据可记录warehouse_committed及已提交版本，即使最终查询取消或超时也不声称回滚。
+
 2026-10-22 `apply-assets-v4`为封闭本机操作员CLI，固定旧5495与PR180产品`9b436613aad9136f4959c992c89dd72fc7354ed5`；无新HTTP方法/路径/字段、DSH或API权限。旧v1/v2/v3及version4 journal保持，产品原接口和API Atlas未变，不重建架构HTML/PNG。产品三CI与v4最终测试/评审/CI/部署分开，只有完整资格及原锁/空闲/保全通过后才允许实际切换。
 
 2026-10-22 `model_provider_upgrade apply-assets-v3`是本机操作员CLI，封闭绑定旧5495和已合并产品a0ff3ae2；无新HTTP方法/路径/请求字段、DSH协议或API权限。原产品6项历史/偏好端点与现有Atlas保持，部署profile不重新生成架构HTML/PNG。最终工具三CI与实际切换/保全独立验收，旧v1/v2恢复、controller/evidence不变；见[部署合同](../../research-web-gateway-upgrade.md#资产观察固定版本联合部署)。

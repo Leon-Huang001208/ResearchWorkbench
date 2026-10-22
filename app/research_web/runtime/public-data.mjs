@@ -36,6 +36,9 @@ const SAFE_ERROR_CODES = new Set([
   'invalid_request', 'invalid_resource', 'internal_error',
   'data_source_unavailable', 'data_capability_unsupported', 'data_operation_unsupported',
   'data_capability_not_integrated', 'data_capability_unavailable',
+  'data_pit_unavailable', 'data_query_deadline', 'data_source_authorization_changed',
+  'warehouse_read_rejected', 'warehouse_write_rejected',
+  'warehouse_query_rejected', 'warehouse_upstream_overlap_conflict', 'warehouse_upstream_anchor_missing',
   'data_cache_authorization_changed',
   'data_not_equivalent', 'invalid_asset', 'invalid_adjustment', 'invalid_frequency',
   'data_contract_missing', 'data_contract_invalid', 'data_state_unknown',
@@ -83,7 +86,7 @@ function validSchema(value,schema) {
 
 function stableBusinessQuery(capability, args, properties, required) {
   if (!args || typeof args !== 'object' || Array.isArray(args)) throw Error('Business data arguments must be an object');
-  const common=['source','allow_fallback','refresh'];
+  const common=['source','allow_fallback','refresh','purpose','quality','as_of'];
   const allowed=new Set([...common,...Object.keys(properties)]);
   if (Object.keys(args).some(key=>!allowed.has(key))) throw Error('Only registered business data arguments are accepted');
   for (const key of required) if (!Object.hasOwn(args,key) || args[key] === undefined) throw Error(`Business data argument ${key} is required`);
@@ -98,13 +101,22 @@ function stableBusinessQuery(capability, args, properties, required) {
   const source=Object.hasOwn(args,'source') ? args.source : undefined;
   const allowFallback=Object.hasOwn(args,'allow_fallback') ? args.allow_fallback : undefined;
   const refresh=Object.hasOwn(args,'refresh') ? args.refresh : undefined;
+  const purpose=Object.hasOwn(args,'purpose') ? args.purpose : undefined;
+  const quality=Object.hasOwn(args,'quality') ? args.quality : undefined;
+  const asOf=Object.hasOwn(args,'as_of') ? args.as_of : undefined;
   if (source !== undefined && (typeof source !== 'string' || !/^[a-z0-9_]{1,64}$/.test(source))) throw Error('Data source is not a registered identifier');
   if (allowFallback !== undefined && typeof allowFallback !== 'boolean') throw Error('allow_fallback must be boolean');
   if (refresh !== undefined && typeof refresh !== 'boolean') throw Error('refresh must be boolean');
+  if (purpose !== undefined && !['display','research','backtest'].includes(purpose)) throw Error('purpose is invalid');
+  if (quality !== undefined && !['strict','allow_stale'].includes(quality)) throw Error('quality is invalid');
+  if (quality === 'allow_stale' && purpose !== 'display') throw Error('Only display queries may allow stale data');
+  if (asOf !== undefined && (typeof asOf !== 'string' || asOf.length > 64 || !/(?:Z|[+-]\d{2}:\d{2})$/.test(asOf) || !Number.isFinite(Date.parse(asOf)) || Date.parse(asOf)>Date.now())) throw Error('Historical cutoff must be a known time with timezone');
+  if (purpose === 'backtest' && asOf === undefined) throw Error('Backtests require an explicit historical cutoff');
   const parameters=Object.fromEntries(Object.entries(args).filter(([key])=>!common.includes(key)));
   const raw=JSON.stringify(parameters);
   if (Buffer.byteLength(raw)>32768) throw Error('Business data arguments exceed size limit');
-  return {capability,source:source || 'auto',allow_fallback:allowFallback || false,parameters,refresh:refresh || false};
+  return {capability,source:source || 'auto',allow_fallback:allowFallback || false,parameters,refresh:refresh || false,
+    ...(purpose === undefined ? {} : {purpose}),...(quality === undefined ? {} : {quality}),...(asOf === undefined ? {} : {as_of:asOf})};
 }
 
 export async function privateControl(root) {
@@ -321,9 +333,60 @@ export async function executeAutomationAction(ctx, exec, config, args) {
 
 function smallResult(value) {
   if (!value || typeof value.dataset_id !== 'string' || typeof value.source !== 'string' || !/^[a-z0-9_]{1,64}$/.test(value.source) || !['complete','snapshot','empty','partial','failed'].includes(value.status) || !Array.isArray(value.files) || !Array.isArray(value.sample) || value.sample.length > 3 || !Number.isSafeInteger(value.row_count)) throw Error('DataHub response schema is invalid');
-  const keys=['dataset_id','source','provider','capability','attempted_sources','source_url','schema_version','status','row_count','provider_total','pages_fetched','pagination_complete','requested_range','actual_range','retrieved_at','as_of','cache_hit','fields','missing','limitations','manifest_sha256','query','provider_query','coverage'];
+  const keys=['dataset_id','source','provider','capability','attempted_sources','source_url','schema_version','status','row_count','provider_total','pages_fetched','pagination_complete','requested_range','actual_range','retrieved_at','as_of','cache_hit','fields','missing','limitations','manifest_sha256','query','provider_query','coverage','data_success'];
+  const manifest=Object.fromEntries(keys.filter(key=>key in value).map(key=>[key,value[key]]));
+  if ('data_success' in value && typeof value.data_success !== 'boolean') throw Error('DataHub quality result is invalid');
+  const metadata=value.provider_metadata;
+  if (metadata && typeof metadata === 'object' && !Array.isArray(metadata)) {
+    const selected={};
+    const upstreams = new Set(['sina','eastmoney','baostock','akshare','wind','tinysoft']);
+    if (Object.hasOwn(metadata,'upstream_id')) {
+      if (!upstreams.has(metadata.upstream_id)) throw Error('DataHub upstream is invalid');
+      selected.upstream_id=metadata.upstream_id;
+    }
+    if (Object.hasOwn(metadata,'actual_upstreams')) {
+      if (!Array.isArray(metadata.actual_upstreams) || metadata.actual_upstreams.length>6 || metadata.actual_upstreams.some(value=>!upstreams.has(value))) throw Error('DataHub upstreams are invalid');
+      selected.actual_upstreams=[...metadata.actual_upstreams];
+    }
+    if (Object.hasOwn(metadata,'upstream_attempts')) {
+      if (!Array.isArray(metadata.upstream_attempts) || metadata.upstream_attempts.length>2 || metadata.upstream_attempts.some(value=>!value || !upstreams.has(value.upstream) || !['complete','failed','empty','partial'].includes(value.status))) throw Error('DataHub upstream attempts are invalid');
+      selected.upstream_attempts=metadata.upstream_attempts.map(value=>({upstream:value.upstream,status:value.status}));
+    }
+    for (const key of ['warehouse_hit','warehouse_persisted','historical_point_in_time','quality_accepted','formal_backtest_eligible']) {
+      if (Object.hasOwn(metadata,key)) {
+        if (typeof metadata[key] !== 'boolean') throw Error('DataHub metadata is invalid');
+        selected[key]=metadata[key];
+      }
+    }
+    for (const [key, allowed] of [['storage_form',['provider_native_snapshot']],['availability_basis',['first_observed']]]) {
+      if (Object.hasOwn(metadata,key)) {
+        if (!allowed.includes(metadata[key])) throw Error('DataHub storage contract is invalid');
+        selected[key]=metadata[key];
+      }
+    }
+    for (const key of ['observed_at','captured_as_of']) {
+      if (Object.hasOwn(metadata,key)) {
+        if (metadata[key] !== null && (typeof metadata[key] !== 'string' || metadata[key].length>64 || !Number.isFinite(Date.parse(metadata[key])))) throw Error('DataHub capture time is invalid');
+        selected[key]=metadata[key];
+      }
+    }
+    for (const key of ['warehouse_version','warehouse_snapshot_sha256','warehouse_scope_digest','warehouse_semantics_digest']) {
+      if (Object.hasOwn(metadata,key)) {
+        if (typeof metadata[key] !== 'string' || !/^[a-f0-9]{64}$/.test(metadata[key])) throw Error('DataHub version is invalid');
+        selected[key]=metadata[key];
+      }
+    }
+    if (Object.hasOwn(metadata,'execution_attempts')) {
+      if (!Array.isArray(metadata.execution_attempts) || metadata.execution_attempts.length>4) throw Error('DataHub attempts are invalid');
+      selected.execution_attempts=metadata.execution_attempts.map(attempt=>{
+        if (!attempt || typeof attempt.source !== 'string' || !/^[a-z0-9_]{1,64}$/.test(attempt.source) || !['complete','snapshot','empty','partial','failed'].includes(attempt.status) || typeof attempt.quality_accepted !== 'boolean' || !Number.isSafeInteger(attempt.duration_ms) || attempt.duration_ms<0 || (attempt.failure_code!==null && (typeof attempt.failure_code!=='string' || !/^[a-z0-9_]{1,128}$/.test(attempt.failure_code)))) throw Error('DataHub attempt is invalid');
+        return {source:attempt.source,status:attempt.status,quality_accepted:attempt.quality_accepted,duration_ms:attempt.duration_ms,failure_code:attempt.failure_code};
+      });
+    }
+    if (Object.keys(selected).length) manifest.provider_metadata=selected;
+  }
   return {dataset_id:value.dataset_id,source:value.source,status:value.status,
-    manifest_json:JSON.stringify(Object.fromEntries(keys.filter(key=>key in value).map(key=>[key,value[key]]))),
+    manifest_json:JSON.stringify(manifest),
     files_json:JSON.stringify(value.files.map(({name,path,sha256})=>({name,path,sha256}))),sample_json:JSON.stringify(value.sample)};
 }
 
@@ -362,7 +425,7 @@ export function apply(ctx, config) {
   const outputKeys=['dataset_id','source','status','manifest_json','files_json','sample_json'];
   for (const [toolName,[capability,description,properties,required]] of Object.entries(BUSINESS)) {
     if (!enabledTools.has(toolName)) continue;
-    const common={source:{type:'string',description:'目录来源 ID；默认 auto'},allow_fallback:{type:'boolean'},refresh:{type:'boolean'}};
+    const common={source:{type:'string',description:'目录来源 ID；默认 auto'},allow_fallback:{type:'boolean'},refresh:{type:'boolean'},purpose:{type:'string',enum:['display','research','backtest']},quality:{type:'string',enum:['strict','allow_stale']},as_of:{type:'string',description:'正式回测所需的历史可得时点，必须包含时区；不能用实时响应代替'}};
     ctx.tools.register({
       name:toolName,
       description:`${description}。工具注册不代表当前来源可调用；每次由 DataHub 核对适配、配置、依赖及权限并保存会话隔离快照。data_source_unavailable、data_operation_unsupported 或 data_not_equivalent 时须核对来源与参数；data_capability_not_integrated 表示来源尚未适配；data_capability_unavailable 表示当前来源条件未满足，不要重复相同请求或改写查询反复尝试，须说明缺口。其他工具仍须符合本任务批准范围，不得隐式扩大权限。`,

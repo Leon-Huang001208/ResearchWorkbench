@@ -426,7 +426,7 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
                 )
             )
             try:
-                from .datahub.providers_cjpy import active_futures
+                from .datahub.worker_activity import active_futures
 
                 history_jobs = research.store.data.get("asset_history_jobs", {})
                 history_active = not isinstance(history_jobs, dict) or any(
@@ -436,7 +436,15 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
                     not in {"completed", "failed", "cancelled", "interrupted"}
                     for row in history_jobs.values()
                 )
-                active = bool(active or history_active or active_futures())
+                datahub = research.datahub
+                storage_runner = getattr(datahub, "storage_runner", None)
+                active = bool(
+                    active
+                    or history_active
+                    or active_futures()
+                    or any(not task.done() for task in datahub.tasks.values())
+                    or (storage_runner is not None and storage_runner.active)
+                )
             except Exception as exc:  # noqa: BLE001 - unknown activity must fail closed
                 # Unknown worker activity must never certify a safe resident stop.
                 log.warning("resident_data_activity_unknown", error_type=type(exc).__name__)

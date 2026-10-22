@@ -165,7 +165,8 @@
         "app/research_web/navigation.py",
         "app/research_web/aihot_routes.py",
         "app/research_web/aihot_media.py",
-        "app/research_web/aihot_content.py"
+        "app/research_web/aihot_content.py",
+        "app/research_web/warehouse_diagnostics.py"
       ],
       "documents": [
         "docs/architecture/research-web/01-system.md",
@@ -228,12 +229,14 @@
       "id": "datahub",
       "sources": [
         "app/research_web/datahub/",
-        "app/research_web/runtime/public-data.mjs"
+        "app/research_web/runtime/public-data.mjs",
+        "app/research_web/market_store/"
       ],
       "documents": [
         "docs/architecture/research-web/03-data-files.md",
         "docs/architecture/research-web/09-integration-coordinator.md",
-        "docs/research-web-datahub.md"
+        "docs/research-web-datahub.md",
+        "docs/research-web-market-store.md"
       ],
       "diagrams": [
         "02-module-dependencies",
@@ -254,7 +257,17 @@
         "tests/research_web/test_hot_snapshot_publication.py",
         "tests/research_web/test_datahub_wind.py",
         "tests/research_web/test_datahub_broker.py",
-        "tests/research_web/test_datahub_cjpy.py"
+        "tests/research_web/test_datahub_cjpy.py",
+        "tests/research_web/test_market_store.py",
+        "tests/research_web/test_market_store_postgres.py",
+        "tests/research_web/test_market_store_live_postgres.py",
+        "tests/research_web/test_market_store_operation.py",
+        "tests/research_web/test_datahub_warehouse.py",
+        "tests/research_web/test_datahub_storage_activity.py",
+        "tests/research_web/test_datahub_reliability.py",
+        "tests/research_web/test_datahub_baostock.py",
+        "tests/research_web/test_datahub_public_worker.py",
+        "tests/research_web/test_datahub_akshare_semantics.py"
       ]
     },
     {
@@ -1494,10 +1507,28 @@
             "parsedResult"
           ],
           "source": "app/research_web/datahub/adjustment_contract.py"
+        },
+        {
+          "subjects": [
+            "normalize"
+          ],
+          "source": "app/research_web/datahub/warehouse.py"
+        },
+        {
+          "subjects": [
+            "normalize"
+          ],
+          "source": "app/research_web/market_store/postgres.py"
+        },
+        {
+          "subjects": [
+            "router"
+          ],
+          "source": "app/research_web/datahub/reliability.py"
         }
       ],
       "level": "flows",
-      "summary": "DataHub原始行、逐日因子、固定复权规范快照和自包含研究交接。"
+      "summary": "DataHub授权查仓、缺口补数、等价切换、规范修订与冻结资料流；正式库尚未启用。"
     },
     {
       "id": "05-capability-flow",
@@ -4116,6 +4147,27 @@
       "path": "/api/research/assets/chart-preferences",
       "source": "app/research_web/asset_routes.py",
       "declaredPath": "/assets/chart-preferences",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/data/warehouse",
+      "source": "app/research_web/datahub/routes.py",
+      "declaredPath": "/data/warehouse",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/data/warehouse",
+      "source": "app/research_web/datahub/routes.py",
+      "declaredPath": "/data/warehouse",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/data/sources/{source_id}/configuration/verify",
+      "source": "app/research_web/datahub/routes.py",
+      "declaredPath": "/data/sources/{source_id}/configuration/verify",
       "prefix": "/api/research"
     }
   ],

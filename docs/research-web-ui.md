@@ -1,5 +1,7 @@
 # Research Web 前端
 
+DataHub响应新增data_success及仓库/实际尝试元数据，前台必须区分partial、empty与failed；超时504/data_query_deadline不能显示成功或自动换call_id重发。当前改动为后端和原生工具桥基座，尚无仓库配置页面或认证常驻页面验收；既有资产页及历史任务交接保持原合同。
+
 ## 资产观察工作台
 
 最后核对：2026-10-22。批准方案见 [Wind 工作区实施计划](plans/2026-10-22-wind-asset-workspace.md)；实现与实际浏览器、常驻部署验收分别记录。

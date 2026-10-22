@@ -484,6 +484,10 @@ async def fetch(query: Query | BusinessQuery, *, transport=None, connections=Non
             from .providers_akshare import fetch as akshare_fetch
 
             return await akshare_fetch(query)
+        elif query.source == "baostock":
+            from .providers_baostock import fetch as baostock_fetch
+
+            return await baostock_fetch(query)
         elif query.source == "mysql":
             from .providers_mysql import fetch as mysql_fetch
 
@@ -562,6 +566,39 @@ async def probe(source_id: str, *, transport=None, connections=None):
         from .providers_akshare import probe as akshare_probe
 
         return await akshare_probe()
+    if source_id == "baostock":
+        from .providers_baostock import fetch as baostock_fetch
+
+        result = await baostock_fetch(
+            BusinessQuery(
+                capability="trading_calendar",
+                source="baostock",
+                parameters={"market": "CN", "start_date": "2025-01-02", "end_date": "2025-01-02"},
+            )
+        )
+        accepted = result.status == "complete" and len(result.rows) == 1
+        return {
+            "health": "healthy" if accepted else "unavailable",
+            "failure_code": (
+                None
+                if accepted
+                else next(
+                    (
+                        code
+                        for code in result.limitations
+                        if code
+                        in {
+                            "deadline",
+                            "provider_busy",
+                            "vendor_unreachable",
+                            "missing_dependency",
+                            "vendor_schema_invalid",
+                        }
+                    ),
+                    "probe_failed",
+                )
+            ),
+        }
     if source_id == "mysql":
         from .providers_mysql import probe as mysql_probe
 

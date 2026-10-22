@@ -1,5 +1,7 @@
 # Research Workbench 架构总览
 
+研究仓作为现有 Host/DataHub 的可选存储边界，MarketStoreService 逐次检查来源与租户授权，WarehouseBridge 只接受可信宿主数据合同与交易日历。原件/事实修订/PIT/冻结位于独立 PostgreSQL 适配，不引入第二执行引擎；正式连接与迁移尚未启用。资料流图04同步可选仓、真实工作占用和冻结边界。
+
 2026-10-22 部署profile v4复用原Native/网关version4事务，旧版固定5495、产品固定PR180真实merge `9b436613aad9136f4959c992c89dd72fc7354ed5`。旧v1/v2/v3、controller/evidence及严格保全门不变，无新服务、API、持久格式或产品数据流，不改图/架构HTML/PNG或CI。旧v3失败已正式恢复5495/preserved=true/fenced=false；产品三CI与v4工具最终验收/部署分开，详见[固定部署合同](research-web-gateway-upgrade.md#资产观察固定版本联合部署)。
 
 2026-10-22 启动保全热修复只调整Store序列化：旧磁盘缺失且仍为精确默认值的`asset_history_jobs`、`asset_history_keys`及`chart_preferences`仅在内存兼容提供，启动/无关服务save不把它们写入旧索引；首次真实变化后才持久化，原来已存在的键（包括空值）和已持久化后恢复默认的键均保留。严格索引保全门、不可变控制器、部署事务与产品API/数据流不变，因此不改图或CI结构。真实v3切换因增加默认键被保全门拒绝、回滚/恢复状态由本次报告如实记录，不把门禁阻断说成部署成功。

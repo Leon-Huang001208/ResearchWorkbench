@@ -1,5 +1,7 @@
 # Research Web 能力包与版本
 
+本轮DataHub仍使用既有datahub_*工具ID，新增purpose/quality/as_of约束和真实尝试元数据；工具注册不表示来源可用，BaoStock仅三个已实现业务绑定开放。Skill/Workflow/Automation不会因此取得数据库写权限、个人凭据或新增模型预算，仓库由可信Host绑定。
+
 2026-10-22 Wind历史工作区复用现有market_bars与factor_macro Tool ID；天软factor_macro只开放metadata/上市日/逐日因子三种封闭series，不新增Skill、Workflow、模型或Automation触发权限。Host历史job与账号图表偏好属于资产数据/UI状态，不是研究引擎。交接规范/raw/factors/metadata仍受会话和来源归属约束；估算筹码、厂商目录单位和有限预检不能提升为研究事实或质量通过。
 
 原AF连续指标工作区只迁入确定性浏览器公式、字段投影及本地固定图表资源，未增加Skill／Tool／Workflow或第二Agent引擎；不迁移AF委员会、数据库、协调器或其能力注册。财务／行业／股东／宏观缺数据时显示未知，估算筹码不能作为真实持仓或通过研究质量门。

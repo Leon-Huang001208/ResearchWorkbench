@@ -110,7 +110,11 @@ class Snapshots:
                     raise StoreError("资料manifest校验失败")
                 for item in manifest["files"]:
                     from .frozen_archive import OBJECT_FILE
-                    archive_file = manifest.get("snapshot_kind") == "hot_evidence" and (item["name"] == "evidence-manifest.json" or OBJECT_FILE.fullmatch(item["name"]))
+
+                    archive_file = manifest.get("snapshot_kind") == "hot_evidence" and (
+                        item["name"] == "evidence-manifest.json"
+                        or OBJECT_FILE.fullmatch(item["name"])
+                    )
                     if (
                         item["name"] not in {"rows.json", "rows.csv", "asset-history.json"}
                         and not archive_file
@@ -179,8 +183,8 @@ class Snapshots:
             "attempted_sources": result.attempted_sources,
             "source_url": result.source_url,
             "schema_version": SCHEMA_VERSION,
-            "query": (request_query or query).model_dump(exclude={"refresh"}),
-            "provider_query": query.model_dump(exclude={"refresh"}),
+            "query": (request_query or query).model_dump(mode="json", exclude={"refresh"}),
+            "provider_query": query.model_dump(mode="json", exclude={"refresh"}),
             "query_fingerprint": (request_query or query).fingerprint(),
             "retrieved_at": datetime.now(UTC).isoformat(),
             "as_of": result.as_of,
@@ -257,7 +261,10 @@ class Snapshots:
         owned_temporary = set()
         committed = False
         try:
-            for parts, files, private in [(self._private(sid), private_files, True), (self._public(sid), public_files, False)]:
+            for parts, files, private in [
+                (self._private(sid), private_files, True),
+                (self._public(sid), public_files, False),
+            ]:
                 with directory(self.store.root, parts, create=True, private=private) as parent:
                     if temporary not in os.listdir(parent):
                         make_directory(parent, temporary)
@@ -274,7 +281,11 @@ class Snapshots:
                             existing = read_file(fd, name, private=private)
                             if existing == content:
                                 continue
-                            if not recover or len(existing) >= len(content) or not content.startswith(existing):
+                            if (
+                                not recover
+                                or len(existing) >= len(content)
+                                or not content.startswith(existing)
+                            ):
                                 raise StoreError("资料暂存内容校验失败")
                             unlink_file(fd, name)
                         write_new(fd, name, content)
@@ -286,7 +297,10 @@ class Snapshots:
                         if not recover:
                             raise StoreError("资料标识已存在")
                         with directory(self.store.root, (*parts, did), private=private) as fd:
-                            if set(os.listdir(fd)) != set(files) or any(read_file(fd, name, private=private) != content for name, content in files.items()):
+                            if set(os.listdir(fd)) != set(files) or any(
+                                read_file(fd, name, private=private) != content
+                                for name, content in files.items()
+                            ):
                                 raise StoreError("已有资料与固定选材不一致")
                         with directory(self.store.root, (*parts, temporary), private=private) as fd:
                             for name in files:
@@ -298,7 +312,13 @@ class Snapshots:
                     if private:
                         committed = True
                     sync_directory(parent)
-            log.info("datahub_snapshot_published", session_id=sid, dataset_id=did, status=manifest["status"], rows=manifest["row_count"])
+            log.info(
+                "datahub_snapshot_published",
+                session_id=sid,
+                dataset_id=did,
+                status=manifest["status"],
+                rows=manifest["row_count"],
+            )
             return self.detail(sid, did)
         except (OSError, StoreError):
             log.error("datahub_snapshot_publish_failed", session_id=sid, dataset_id=did)
@@ -308,7 +328,10 @@ class Snapshots:
                 raise
             for parts, files, private in created:
                 with directory(self.store.root, parts, private=private) as parent:
-                    for name in [*([temporary] if parts in owned_temporary else []), *([did] if parts in published else [])]:
+                    for name in [
+                        *([temporary] if parts in owned_temporary else []),
+                        *([did] if parts in published else []),
+                    ]:
                         if name not in os.listdir(parent):
                             continue
                         with directory(self.store.root, (*parts, name), private=private) as fd:
@@ -323,15 +346,21 @@ class Snapshots:
     def admit_hot_script(self, sid, did):
         """Grant only this owned Hot run's fully verified, immutable evidence copy."""
         from .frozen_archive import OBJECT_FILE, validate_bundle
+
         row = self.store.session(sid)
         origin = row.get("hot_origin")
         snapshot = self.detail(sid, did)
         binding = snapshot.get("hot")
-        if (row.get("created") is not True or row.get("purpose") != "hot_research"
-                or not isinstance(origin, dict) or snapshot.get("snapshot_kind") != "hot_evidence"
-                or not isinstance(binding, dict) or binding.get("runId") != origin.get("runId")
-                or binding.get("instanceId") != origin.get("instanceId")
-                or binding.get("manifestHash") != origin.get("manifestHash")):
+        if (
+            row.get("created") is not True
+            or row.get("purpose") != "hot_research"
+            or not isinstance(origin, dict)
+            or snapshot.get("snapshot_kind") != "hot_evidence"
+            or not isinstance(binding, dict)
+            or binding.get("runId") != origin.get("runId")
+            or binding.get("instanceId") != origin.get("instanceId")
+            or binding.get("manifestHash") != origin.get("manifestHash")
+        ):
             raise StoreError("冻结资料不属于当前Hot研究会话")
         try:
             # detail already verified the private manifest and all public hashes.
@@ -348,8 +377,14 @@ class Snapshots:
                     if not OBJECT_FILE.fullmatch(item["filename"]):
                         raise ValueError("hot_object_name")
                     values[item["key"]] = read_file(fd, item["filename"])
-            validate_bundle({"manifest": frozen, "manifestBytes": canonical,
-                             "manifestHash": origin["manifestHash"], "objects": values})
+            validate_bundle(
+                {
+                    "manifest": frozen,
+                    "manifestBytes": canonical,
+                    "manifestHash": origin["manifestHash"],
+                    "objects": values,
+                }
+            )
         except (ValueError, KeyError, TypeError) as exc:
             log.warning("hot_script_snapshot_denied")
             raise StoreError("冻结资料校验失败") from exc
@@ -358,11 +393,16 @@ class Snapshots:
 
     def publish_hot(self, sid, run_id, bundle, *, origin=None):
         from .frozen_archive import build_archive, validate_bundle
+
         row = self.store.session(sid)
         if row.get("created") is not True:
             raise StoreError("目标研究会话尚未获得原生创建回执")
         frozen, _, _ = validate_bundle(bundle)
-        expected = {"runId": run_id, "instanceId": frozen["instanceId"], "manifestHash": bundle["manifestHash"]}
+        expected = {
+            "runId": run_id,
+            "instanceId": frozen["instanceId"],
+            "manifestHash": bundle["manifestHash"],
+        }
         if origin is None and row.get("hot_origin") != expected:
             raise StoreError("冻结证据不属于目标研究交接")
         key = "hot-publication:" + run_id + ":" + bundle["manifestHash"]
@@ -372,7 +412,9 @@ class Snapshots:
             self.receipt(sid, key, prepared)
         if prepared.get("manifestHash") != bundle["manifestHash"]:
             raise StoreError("资料准备记录与选材不一致")
-        did, manifest, public, private = build_archive(sid, run_id, bundle, prepared["at"], origin=origin)
+        did, manifest, public, private = build_archive(
+            sid, run_id, bundle, prepared["at"], origin=origin
+        )
         if did in self.ids(sid):
             found = self.detail(sid, did)
             if found.get("hot") != manifest["hot"]:
@@ -400,9 +442,23 @@ class Snapshots:
             if original.get("snapshot_kind") == "hot_evidence":
                 canonical = self.read(old_sid, did, "evidence-manifest.json")
                 frozen = json.loads(canonical)
-                values = {item["key"]: self.read(old_sid, did, item["filename"]) for item in frozen["objects"]}
-                copied.append(self.publish_hot(new_sid, original["hot"]["runId"], {"manifest": frozen,
-                    "manifestBytes": canonical, "manifestHash": original["hot"]["manifestHash"], "objects": values}, origin=original))
+                values = {
+                    item["key"]: self.read(old_sid, did, item["filename"])
+                    for item in frozen["objects"]
+                }
+                copied.append(
+                    self.publish_hot(
+                        new_sid,
+                        original["hot"]["runId"],
+                        {
+                            "manifest": frozen,
+                            "manifestBytes": canonical,
+                            "manifestHash": original["hot"]["manifestHash"],
+                            "objects": values,
+                        },
+                        origin=original,
+                    )
+                )
                 continue
             raw = []
             with directory(self.store.root, (*self._private(old_sid), did), private=True) as fd:
