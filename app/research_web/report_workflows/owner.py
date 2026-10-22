@@ -34,10 +34,9 @@ def resolve_primary_owner(service, expected_owner_id: str | None = None) -> dict
             binding = read_json(server / "resident.json")["binding"]
             owner_id = str(UUID(binding["primary_user_id"]))
             identity = data_root.stat()
-            if (
-                Path(binding["home"]).resolve() / "research-web" != data_root.resolve()
-                or binding["data_identity"] != [identity.st_dev, identity.st_ino]
-            ):
+            if Path(binding["home"]).resolve() / "research-web" != data_root.resolve() or binding[
+                "data_identity"
+            ] != [identity.st_dev, identity.st_ino]:
                 raise ValueError("owner_binding_changed")
             database = server / "accounts.sqlite3"
             descriptor = os.open(database, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
@@ -50,7 +49,9 @@ def resolve_primary_owner(service, expected_owner_id: str | None = None) -> dict
                     or (os.name != "nt" and before.st_mode & 0o077)
                 ):
                     raise ValueError("owner_database_invalid")
-                with closing(sqlite3.connect(database.as_uri() + "?mode=ro", uri=True, timeout=2)) as db:
+                with closing(
+                    sqlite3.connect(database.as_uri() + "?mode=ro", uri=True, timeout=2)
+                ) as db:
                     db.execute("PRAGMA query_only=ON")
                     row = db.execute(
                         "SELECT id, role, enabled FROM accounts WHERE id = ?", (owner_id,)

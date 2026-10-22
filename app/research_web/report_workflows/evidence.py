@@ -50,9 +50,60 @@ def weekly_fact_rows(bundle: dict) -> list[dict]:
             number = Decimal(str(value))
             if not number.is_finite() or not isinstance(units, str) or not units:
                 raise WorkflowError("周报数值或单位不完整", "weekly_evidence_invalid", 409)
-            facts.append({"series_id": identity, "heading": row.get("display_name") or identity,
-                          "metric": metric, "period": date,
-                          "value": format(number, "f"), "unit": units})
+            facts.append(
+                {
+                    "series_id": identity,
+                    "heading": row.get("display_name") or identity,
+                    "metric": metric,
+                    "period": date,
+                    "value": format(number, "f"),
+                    "unit": units,
+                }
+            )
+    contract = bundle.get("data_contract")
+    if contract:
+        if any(row.get("group") == "industry" for row in bundle["assessment"]["observations"]):
+            facts.append(
+                {
+                    "series_id": "industry_chart",
+                    "heading": "申万一级行业周涨跌幅",
+                    "metric": "weekly_industry_chart_status",
+                    "period": contract["cutoff"][:10],
+                    "value": None,
+                    "unit": "status",
+                    "statement": "申万行业图使用本期已核验的全部行业序列。",
+                }
+            )
+        for identity, title, value in (
+            ("report_start", "开始日期", contract["period_start"]),
+            ("report_end", "结束日期", contract["cutoff"][:10]),
+        ):
+            facts.append(
+                {
+                    "series_id": identity,
+                    "heading": title,
+                    "metric": "weekly_report_period",
+                    "period": value,
+                    "value": None,
+                    "unit": "date",
+                    "statement": f"{title}：{value}",
+                }
+            )
+        calendar = bundle["snapshot"].get("economic_calendar", {})
+        if calendar.get("coverage_verified") is True:
+            facts.append(
+                {
+                    "series_id": "economic_calendar",
+                    "heading": "下周全球投资日历",
+                    "metric": "weekly_economic_calendar",
+                    "period": contract["next_calendar_start"],
+                    "value": None,
+                    "unit": "events",
+                    "statement": json.dumps(
+                        calendar.get("events", []), ensure_ascii=False, sort_keys=True
+                    ),
+                }
+            )
     return facts
 
 
@@ -70,35 +121,58 @@ def _empty_news_records(service, sid):
         return []
     start = frozen["data_contract"]["period_start"]
     end = frozen["as_of"]
-    titles = {item["id"]: item["text"] for item in frozen["requirements"]
-              if item["id"] in frozen["news_block_ids"]}
-    result = []
+    titles = {
+        item["id"]: item["text"]
+        for item in frozen["requirements"]
+        if item["id"] in frozen["news_block_ids"]
+    }
+    result, seen = [], set()
     for item in service.datahub.list(sid):
-        if (item.get("capability") != "search_news" or item.get("status") != "complete"
-                or item.get("row_count") != 0 or item.get("pagination_complete") is not True
-                or item.get("missing") or item.get("provider_metadata", {}).get("requested_range_verified") is not True):
-            continue
         parameters = item.get("query", {}).get("parameters", {})
-        if parameters.get("start_date") != start or parameters.get("end_date") != end:
+        if (
+            item.get("capability") != "search_news"
+            or parameters.get("start_date") != start
+            or parameters.get("end_date") != end
+        ):
             continue
-        matches = [identifier for identifier, title in titles.items() if parameters.get("query") == title]
+        matches = [
+            identifier
+            for identifier, title in titles.items()
+            if parameters.get("query") == title and identifier not in seen
+        ]
+        seen.update(matches)
+        if (
+            item.get("capability") != "search_news"
+            or item.get("status") != "complete"
+            or item.get("row_count") != 0
+            or item.get("pagination_complete") is not True
+            or item.get("missing")
+            or item.get("provider_metadata", {}).get("requested_range_verified") is not True
+        ):
+            continue
         if not matches:
             continue
         raw = service.datahub.snapshots.read(sid, item["dataset_id"], "rows.json")
         if json.loads(raw) != []:
             raise WorkflowError("新闻快照计数不一致", "weekly_news_evidence_invalid", 409)
         for identifier in matches:
-            result.append({"block_id": identifier, "title": titles[identifier],
-                           "dataset_id": item["dataset_id"], "query": parameters,
-                           "raw_sha256": hashlib.sha256(raw).hexdigest(),
-                           "statement": "本期未取得足够可核验材料。"})
+            result.append(
+                {
+                    "block_id": identifier,
+                    "title": titles[identifier],
+                    "dataset_id": item["dataset_id"],
+                    "query": parameters,
+                    "raw_sha256": hashlib.sha256(raw).hexdigest(),
+                    "statement": "本期未取得足够可核验材料。",
+                }
+            )
     return result
 
 
 def refresh_weekly_news_evidence(service, sid: str) -> None:
     """Only completed, exact-period, zero-result queries authorize a gap statement."""
     for record in _empty_news_records(service, sid):
-        name = "weekly-news-" + hashlib.sha256(record["block_id"].encode()).hexdigest()[:24] + ".jsonl"
+        name = _news_file_name(record)
         raw = (json.dumps(record, ensure_ascii=False, sort_keys=True) + "\n").encode()
         with directory(service.store.directory(sid), ("inputs", "report-workflow")) as folder:
             if (service.store.directory(sid) / "inputs/report-workflow" / name).exists():
@@ -113,7 +187,7 @@ def refresh_weekly_news_evidence(service, sid: str) -> None:
 def _news_business_observations(service, sid, scope):
     result = []
     for record in _empty_news_records(service, sid):
-        name = "weekly-news-" + hashlib.sha256(record["block_id"].encode()).hexdigest()[:24] + ".jsonl"
+        name = _news_file_name(record)
         reference = "inputs/report-workflow/" + name
         fid = hashlib.sha256(reference.encode()).hexdigest()[:24]
         expected = json.dumps(record, ensure_ascii=False, sort_keys=True) + "\n"
@@ -122,11 +196,30 @@ def _news_business_observations(service, sid, scope):
             actual = stream.read(16_001)
         if actual != expected.encode():
             raise WorkflowError("新闻缺口证据已变化", "weekly_news_evidence_changed", 409)
-        source = {"id": "file:" + fid, "sha256": hashlib.sha256(actual).hexdigest(), "content": expected}
-        result.append(_emit(scope, "weekly_news_material_status", record["query"]["end_date"], None,
-                            "status", [_proof(source, [record["statement"]])],
-                            method="huaan-weekly-news-status-v1", text=record["statement"], heading=record["title"]))
+        source = {
+            "id": "file:" + fid,
+            "sha256": hashlib.sha256(actual).hexdigest(),
+            "content": expected,
+        }
+        result.append(
+            _emit(
+                scope,
+                "weekly_news_material_status",
+                record["query"]["end_date"],
+                None,
+                "status",
+                [_proof(source, [record["statement"]])],
+                method="huaan-weekly-news-status-v1",
+                text=record["statement"],
+                heading=record["title"],
+            )
+        )
     return result
+
+
+def _news_file_name(record):
+    key = record["block_id"] + ":" + record["dataset_id"]
+    return "weekly-news-" + hashlib.sha256(key.encode()).hexdigest()[:24] + ".jsonl"
 
 
 def _content(bundle: dict) -> tuple[list[dict], str]:
@@ -158,7 +251,9 @@ def prepare_weekly_evidence(service, sid: str) -> None:
         raise WorkflowError("周报事实索引无法准备", "weekly_evidence_invalid", 409) from None
 
 
-def weekly_business_observations(service, sid: str, *, task_id: str, contract_sha: str) -> list[dict]:
+def weekly_business_observations(
+    service, sid: str, *, task_id: str, contract_sha: str
+) -> list[dict]:
     bundle = _verified(service, sid)
     if bundle is None:
         return []
@@ -170,17 +265,33 @@ def weekly_business_observations(service, sid: str, *, task_id: str, contract_sh
             actual = stream.read(192_001)
         if actual != content.encode():
             raise ValueError("weekly_fact_bytes_changed")
-        source = {"id": "file:" + fid, "content": content, "sha256": hashlib.sha256(actual).hexdigest()}
+        source = {
+            "id": "file:" + fid,
+            "content": content,
+            "sha256": hashlib.sha256(actual).hexdigest(),
+        }
         scope = str(service.store.root) + ":" + sid + ":" + task_id + ":" + contract_sha
         result = []
         for row, line in zip(facts, content.splitlines(), strict=True):
             proof = _proof(source, [line])
-            result.append(_emit(scope, row["metric"], row["period"], Decimal(row["value"]),
-                                row["unit"], [proof], method="huaan-weekly-data-v1",
-                                text=f"{row['series_id']} {row['metric']} {row['period']} {row['value']} {row['unit']}",
-                                heading=row["heading"]))
+            result.append(
+                _emit(
+                    scope,
+                    row["metric"],
+                    row["period"],
+                    Decimal(row["value"]) if row["value"] is not None else None,
+                    row["unit"],
+                    [proof],
+                    method="huaan-weekly-data-v1",
+                    text=row.get("statement")
+                    or f"{row['series_id']} {row['metric']} {row['period']} {row['value']} {row['unit']}",
+                    heading=row["heading"],
+                )
+            )
         result.extend(_news_business_observations(service, sid, scope))
         return result
     except (OSError, ValueError, KeyError, InvalidOperation) as exc:
         log.warning("report_weekly_facts_rejected", error_type=type(exc).__name__)
-        raise WorkflowError("周报事实索引与已核验数据不一致", "weekly_evidence_invalid", 409) from None
+        raise WorkflowError(
+            "周报事实索引与已核验数据不一致", "weekly_evidence_invalid", 409
+        ) from None
