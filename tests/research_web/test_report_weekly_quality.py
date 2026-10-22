@@ -257,6 +257,17 @@ def test_required_chart_cannot_be_accepted_by_reusing_old_template(tmp_path):
     assert json.loads((root / "outputs" / "research-report.json").read_text()) == canonical
 
 
+def test_template_cannot_drop_a_required_narrative_even_with_valid_file(tmp_path):
+    service, _run, _context = _service(tmp_path)
+    root = service.store.directory("s")
+    (root / "outputs" / "research-report.json").write_text(json.dumps(_canonical()))
+    (root / "outputs" / "report.html").write_text("<html>遗漏规范正文</html>")
+    staged = stage_weekly_projection(service, "s")
+    with pytest.raises(WorkflowError) as error:
+        bind_weekly_projection(service, "s", staged, {"files": ["outputs/report.html"]})
+    assert error.value.code == "weekly_narrative_projection_incomplete"
+
+
 def test_failed_final_save_preserves_previous_final_pointer(tmp_path):
     from contextlib import nullcontext
 

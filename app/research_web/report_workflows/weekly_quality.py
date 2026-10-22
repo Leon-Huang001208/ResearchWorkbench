@@ -9,12 +9,14 @@ projection receipt or a quality verdict.
 from __future__ import annotations
 
 import hashlib
+import html
 import json
 import re
 import time
 import zipfile
 from io import BytesIO
 from pathlib import Path, PurePosixPath
+from xml.etree import ElementTree
 
 from core.observability import get_logger
 
@@ -275,6 +277,43 @@ def _validate_artifact(name: str, raw: bytes) -> None:
         raise ValueError("weekly artifact placeholder remains")
 
 
+def _verify_narrative_projection(
+    root: Path, canonical: dict, context: dict, artifacts: list[dict]
+) -> None:
+    """Every required prose block must actually appear in the delivered body."""
+    narrative = {
+        block["id"]
+        for block in context.get("blocks", [])
+        if block.get("kind") == "narrative" and block.get("required", True)
+    }
+    expected = [
+        section["text"]
+        for section in canonical.get("presentation", canonical["sections"])
+        if section.get("id") in narrative
+    ]
+    for artifact in artifacts:
+        suffix = artifact["name"].rsplit(".", 1)[-1]
+        if suffix not in {"docx", "html"}:
+            continue
+        body = _read(root, "outputs/" + artifact["name"])
+        if suffix == "docx":
+            with zipfile.ZipFile(BytesIO(body)) as archive:
+                document = ElementTree.fromstring(archive.read("word/document.xml"))
+                text = "".join(
+                    node.text or ""
+                    for node in document.iter(
+                        "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}t"
+                    )
+                )
+        else:
+            text = html.unescape(re.sub(r"<[^>]*>", "", body.decode("utf-8", errors="strict")))
+        normalized = re.sub(r"\s+", "", text)
+        if any(re.sub(r"\s+", "", item) not in normalized for item in expected):
+            raise WorkflowError(
+                "周报产物缺少规范正文", "weekly_narrative_projection_incomplete", 409
+            )
+
+
 def bind_weekly_projection(service, sid: str, staged: dict, projection: dict) -> dict:
     """Record a Host-produced projection before the unchanged quality gate runs."""
     frozen = trusted_weekly_context(service, sid)
@@ -324,6 +363,7 @@ def bind_weekly_projection(service, sid: str, staged: dict, projection: dict) ->
         raise WorkflowError(
             "周报图表或表格未绑定本期数据", "weekly_structured_blocks_unverified", 409
         )
+    _verify_narrative_projection(root, canonical, context, artifacts)
     templates = []
     for item in context.get("template_resources", []):
         relative = "inputs/report-workflow/" + item["path"]
