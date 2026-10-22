@@ -23,7 +23,7 @@ const results = [], pageErrors = [], externalBrowser = [], screens = [], refresh
 const startedAt = new Date().toISOString(), started = performance.now();
 const isolatedDataRoot = path.join('/private/tmp', `rwb-market-auth-${crypto.randomUUID()}`);
 const candidateCommit = execFileSync('/usr/bin/git', ['rev-parse', 'HEAD'], { cwd: project, encoding: 'utf8' }).trim();
-const sourceHashes = Object.fromEntries(await Promise.all(['app/research_web/datahub/providers_market.py', 'app/research_web/market_service.py', 'app/research_web/market_routes.py', 'app/research_web/multiuser/gateway.py', 'app/research_web/multiuser/runtime.py'].map(async file => [file, crypto.createHash('sha256').update(await readFile(path.join(project, file))).digest('hex')])));
+const sourceHashes = Object.fromEntries(await Promise.all(['app/research_web/datahub/providers_market.py', 'app/research_web/market_service.py', 'app/research_web/market_routes.py', 'app/research_web/multiuser/gateway.py', 'app/research_web/multiuser/runtime.py', 'app/research_web/ui/market.mjs', 'app/research_web/ui/market.css', 'tests/e2e/market_authenticated.py', 'tests/e2e/research_web_market_authenticated.mjs'].map(async file => [file, crypto.createHash('sha256').update(await readFile(path.join(project, file))).digest('hex')])));
 let helper, browser, origin, users, shutdownRecord, gatewayExit, metadataResolve, metadataReject, ownedResolve;
 const bounded = (promise, ms, text) => { let timer; return Promise.race([promise, new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(text)), ms); })]).finally(() => clearTimeout(timer)); };
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -76,7 +76,7 @@ async function tableAction(page, action, expected = {}) {
   await page.waitForFunction(() => !document.querySelector('.market-pagination')?.textContent.includes('读取中'));
   const exported = await page.getByRole('link', { name: '导出 CSV', exact: true }).getAttribute('href');
   expected = { snapshot_id: new URL(exported, origin).searchParams.get('snapshot_id'), ...expected };
-  const response = page.waitForResponse(value => { const url = new URL(value.url()); return url.pathname === '/api/research/market/quotes' && value.request().method() === 'GET' && Object.entries(expected).every(([key, value]) => url.searchParams.get(key) === String(value)); });
+  const response = page.waitForResponse(value => { const url = new URL(value.url()); return url.pathname === '/api/research/market/quotes' && value.request().method() === 'GET' && Object.entries(expected).every(([key, value]) => (url.searchParams.get(key) ?? '') === String(value)); });
   await action(); const value = await response; assert.equal(value.status(), 200); const body = await value.json();
   await page.waitForFunction(({ first, count }) => {
     if (document.querySelector('.market-pagination')?.textContent.includes('读取中')) return false;

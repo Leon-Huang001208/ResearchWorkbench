@@ -276,8 +276,7 @@ export function createMarketController({ api, onChange = () => {}, onNavigate = 
       } finally {
         if (id && !terminal && readers.has(id)) void api.request(`/market/refresh/${encodeURIComponent(id)}`, { method: 'DELETE' }).catch(() => safeLog('market_reader_release_failed', { status: 'failed', method: 'DELETE' }));
         if (id) readers.delete(id);
-        refreshes.delete(key);
-        if (ticket === generation) { state.refreshing = refreshes.size > 0; changed(); }
+        if (ticket === generation) { refreshes.delete(key); state.refreshing = refreshes.size > 0; changed(); }
       }
     })();
     refreshes.set(key, work); return work;

@@ -282,3 +282,31 @@ test('replacing an in-progress board selection releases its own reader without c
   assert.equal(calls.filter(call=>call.path==='/market/refresh/active-BK0002'&&call.options.method==='DELETE').length,0);
   h.controller.dispose();
 });
+
+test('an old refresh cannot remove the current generation singleflight registration', async () => {
+  const snapshot = data({sections: Object.fromEntries(['quotes','calendar'].map(key => [key, section()]))});
+  const h = harness(snapshot), starts = [], calls = [];
+  h.controller.api.request = async (path, options = {}) => {
+    calls.push({path, options});
+    if (path === '/market') return snapshot;
+    if (path.startsWith('/market/quotes?')) return {items: [quote], total: 1};
+    if (path === '/market/refresh') return new Promise(resolve => starts.push(resolve));
+    return {status: 'cancelled'};
+  };
+  await h.controller.activate({marketView: 'quotes'});
+  const old = h.controller.refresh(['quotes']);
+  await h.controller.activate({marketView: 'quotes'});
+  const current = h.controller.refresh(['quotes']);
+  assert.equal(starts.length, 2);
+  starts[0]({request_id: 'old', status: 'completed'});
+  await old;
+  const duplicate = h.controller.refresh(['quotes']);
+  assert.equal(starts.length, 2, 'the active refresh must still be shared after an old response');
+  assert.equal(h.controller.state.refreshing, true);
+  starts[1]({request_id: 'current', status: 'completed'});
+  await Promise.all([current, duplicate]);
+  assert.equal(h.controller.state.refreshing, false);
+  assert.ok(calls.some(call => call.path === '/market/refresh/old' && call.options.method === 'DELETE'));
+  assert.ok(!calls.some(call => call.path === '/market/refresh/current' && call.options.method === 'DELETE'));
+  h.controller.dispose();
+});
