@@ -4,7 +4,7 @@
 
 2026-10-22新增账号内无会话目录读取：`GET /api/research/assets/search`触发一个合并的后台目录任务，显式通过Broker核验`search_assets/tinysoft`，在同一凭据namespace读取秘密前后及Provider返回后复核配置／授权指纹。它不创建研究会话或启动模型。完整目录按代码／名称／GB2312简拼排序，搜索只返回最多50个匹配项（默认20），完整记录不在5000条截断。固定SDK调用保持每次≤5000行、15秒及一个真实Future；名称按≤500证券一批取得，不放宽底层上限。
 
-目录状态为loading／ready／stale／error／unavailable，当前账号`asset-directory/index.json`保留24小时同指纹缓存，最多20000条／8MiB。冷启动立即返回loading并轮询，旧缓存过期可读并后台刷新，失败有30秒重试间隔；配置或授权变化禁止复用旧目录。固定`.pending.json`只按本次创建的文件身份清理，未知遗留不删且明确刷新失败。后台任务跨SDK批次始终进入resident活动／关闭等待，真实Future未结束不放行空闲。
+目录状态为loading／ready／stale／error／unavailable，当前账号`asset-directory/index.json`保留24小时同指纹缓存，最多20000条／8MiB。冷启动立即返回loading并轮询，旧缓存过期可读并后台刷新，失败有30秒重试间隔；配置或授权变化禁止复用旧目录。固定`.pending.json`只按本次创建的文件身份清理，未知遗留不删且明确刷新失败。后台任务跨SDK批次始终进入resident活动／关闭等待，真实Future未结束不放行空闲。目录实际读取持有既有resident共享准入租约；事务围栏期间不启动SDK，返回deployment_busy，取消时等待真实SDK退出后才释放租约。
 
 `POST .../blocks/{block}/load`为旧观察补齐区块并按相同来源／区间复用15分钟缓存，显式refresh绕过普通缓存。新缺失activity／margin无显式区间时，按上海时区和保存截止日（缺省当日）持久近60个日历日；events按同一截止规则固定派生60日业务范围，不开放events的RangeBlock参数。旧create／refresh已保存日期语义保留，财务报告期不套此窗口。所有成功受理（包括缓存和合并）先保存幂等签名；来源／区间冲突或同键换条件返回409，保存失败不启动新查询，也不替换其他活动区块共享引用。初始观察、旧refresh、新load共用区块锁；失败保留旧快照，规范历史只能由history-job发布。接口和文件见[API](architecture/research-web/04-api.md#资产目录搜索与区块按需加载)与[存储](architecture/research-web/03-data-files.md#资产目录与按需区块缓存)。
 

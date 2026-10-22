@@ -11,6 +11,8 @@ from typing import Any
 from uuid import uuid4
 
 from core.observability import get_logger
+from research_workbench_entrypoint.resident.admission import MaintenanceBusy
+from research_workbench_entrypoint.resident.admission import admission as resident_admission
 
 from ..store import StoreError
 from . import providers
@@ -151,6 +153,15 @@ class DataHub:
 
     async def asset_directory(self) -> dict:
         """Load authorized directory data only; never create a research session."""
+        try:
+            with resident_admission():
+                return await self._asset_directory()
+        except MaintenanceBusy as exc:
+            log.info("datahub_directory_deployment_busy")
+            raise StoreError("正在安全更新，请稍后重新搜索", "deployment_busy", 503) from exc
+
+    async def _asset_directory(self) -> dict:
+        """Keep the deployment admission lease through actual SDK completion."""
         from .providers_cjpy import fetch_directory
 
         revision = self.directory_fingerprint()
