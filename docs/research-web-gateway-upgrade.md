@@ -2,6 +2,16 @@
 
 ## 资产观察固定版本联合部署
 
+### Wind工作区 v4（2026-10-22）
+
+封闭profile `reviewed-asset-observation-v4`，入口`model_provider_upgrade apply-assets-v4`。PREVIOUS精确固定`5495e64c0be08c9db58e336705db90584f8ba8b5`，PAYLOAD精确固定PR180真实merge `9b436613aad9136f4959c992c89dd72fc7354ed5`；不能以候选、preview或任意SHA替代。主任务fetch核定真实merge父为08aac/654fa、tree `1aff5360808c835a6096af751e942b6692497bfa`，与候选654fa及preview2e069相同。合并前草稿候选仅保留为历史检查点。
+
+v4承接已合并启动保全修复产品，只改变固定部署身份，不改变原version4 journal、锁、BirthFence、冻结恢复、controller/evidence字节、严格全账号索引保全或依赖/CI。profile v4与journal version4是两个概念，旧v1/v2/v3固定身份、产品范围和恢复语义全部保留。最终仍要求固定payload祖先、完整差异路径并集/blob/模式与干净源码/发布仓库身份，不接受任意SHA或额外产品、workflow、依赖及架构HTML/PNG差异。
+
+旧v3实际切换因启动新增默认三键被严格保全门拒绝，已通过精确SHA还原及冻结的正式recover恢复5495，preserved=true，网关fenced=false。产品三CI39730343750/39730343679/39730452006均PASS；自动门实际checkout2e069，Mac实际checkout654fa6、581秒且安装artifact12405650153已核验。产品Doctor/3081/8088、固定DSH与静态资源通过，CJPY0.5.2未配置时如实不可调用；这些不认证v4操作员最终pin后的本机测试、独立评审、候选CI/安装或实际部署。root完成v4最终资格后才按原授权/持锁空闲/全账号冻结/健康及认证页面合同执行。
+
+最终`recover`须从已验证journal的封闭mode选择v4固定旧版5495；不得更改旧v1/v2/v3分派或恢复包。当前没有新部署节点、HTTP、持久格式或产品数据流，因此不重画图或重新生成HTML/PNG。阶段证据见`.ai/reports/test_report_wind_workspace_v4_deploy_20261022.md`；实际apply只接受最终工具候选完整资格及原空闲/保全门，不以产品通过替代。
+
 ### Wind工作区 v3（2026-10-22）
 
 Wind工作区产品PR177已合并后，以新的封闭profile `reviewed-asset-observation-v3` 单独交付部署工具，入口为 `model_provider_upgrade apply-assets-v3`。旧主实例和网关精确固定为 `5495e64c0be08c9db58e336705db90584f8ba8b5`，产品精确固定为 `a0ff3ae2e2ab92bad10ba8547e45027687ec7cc1`；不得用任意前版、目标SHA或祖先替代该产品身份。最终工具候选仍须最新合并基线、独立评审及原三项CI合格；产品原验收不替代本profile工具的候选验收。
