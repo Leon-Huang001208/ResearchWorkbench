@@ -13,6 +13,8 @@ Host以原质量门核验并将中文presentation投影到原版式、本期图�
 
 Host 新增无会话 `MarketService`，由 ResearchService 初始化和关闭；市场 HTTP 只在 POST 启动有界公共行情采集，GET 读取用户缓存。它不是独立守护进程或研究引擎，不改变 Web/DSH 部署节点；新模块内数据流见[市场概览](../../../outputs/research-web-architecture/13-market-overview.html)。实际常驻升级仍须独立授权和检查新模块任务的排空，不沿用旧固定产品 profile 冒充兼容。
 
+resident 空闲证明同步读取 `MarketService` 的有界活动见证；真实 collector、取消后的排空与 Provider 关闭期间均保持活动。缺失或无效见证、关闭失败保持未知，不能认证可安全停止；请求显示已取消不等于底层采集已经结束。
+
 资产观察 v2 仍由原 `model_provider_upgrade` 协调既有 Native 主实例和网关；固定旧版 `9bc12355` 与产品 `93d62be6`，旧 v1／模型 profile 保留。v4 journal、不可变控制器、生产解释器、冻结恢复包和锁的职责不变，没有新增服务节点或扩大自动升级权限，现有部署图继续准确。
 
 资产观察迁入原 AF 连续指标区仍是既有浏览器 → Host AssetWorkspace → DataHub Broker → Provider／会话快照链路。`asset-indicators.mjs`、`asset-projection.mjs` 与本地固定 ECharts 5.5.0／Chart.js 4.4.7 属于前端内部模块及安装资源，不新增服务节点、数据库、协调器或研究执行引擎；账号权限与唯一DSH不变。原部署图拓扑仍准确，具体页面见[UI合同](../../research-web-ui.md#资产观察工作台)。

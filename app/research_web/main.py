@@ -442,6 +442,9 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
                 wind_api = activity_witness()
                 if not isinstance(wind_api, dict) or type(wind_api.get("active")) is not bool:
                     raise ValueError("wind_api_activity_unknown")
+                market = research.market.activity_witness()
+                if not isinstance(market, dict) or type(market.get("active")) is not bool:
+                    raise ValueError("market_activity_unknown")
                 report_manager = getattr(research, "report_workflows", None)
                 report_runtime = getattr(report_manager, "runtime", None)
                 report_catalog = getattr(report_manager, "catalog", None)
@@ -464,6 +467,7 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
                     or history_active
                     or active_futures()
                     or wind_api["active"]
+                    or market["active"]
                     or report_active
                     or getattr(report_runtime, "tasks", {})
                     or getattr(getattr(research, "datahub", None), "tasks", {})
