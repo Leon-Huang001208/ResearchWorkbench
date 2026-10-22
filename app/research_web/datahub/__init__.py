@@ -111,7 +111,7 @@ class DataHub:
 
     def _latest_probes(self):
         self._prune_probes()
-        latest = {}
+        latest: dict[str, dict] = {}
         for probe in self.probes.values():
             if probe.get("status") != "completed":
                 continue
@@ -557,15 +557,19 @@ class DataHub:
             cutoff=contract["cutoff"],
         )
 
+        report_contract_selected = False
+
         def authorize():
             resolution = resolve_report_weekly(
-                query, probes=self._latest_probes(), connection_statuses=self.connections.statuses()
+                query,
+                probes=self._latest_probes(),
+                connection_statuses=self.connections.statuses(),
+                report_contract_selected=report_contract_selected,
             )
             if self.admission is not None:
                 self.admission(sid, query, resolution)
             return self.source_configuration_digest("wind")
 
-        configuration = authorize()
         workflow_manifest = manifest
         source_contract = None
         source_contract_sha = None
@@ -578,6 +582,16 @@ class DataHub:
             source_contract, source_contract_sha = load_run_source_contract(
                 run_root, workflow_manifest
             )
+            declared = (
+                workflow_manifest.model_dump(mode="json")
+                if hasattr(workflow_manifest, "model_dump")
+                else workflow_manifest
+            )
+            policy = declared.get("weekly_production")
+            report_contract_selected = (
+                isinstance(policy, dict) and policy.get("policy_id") == "huaan-etf-weekly-v1"
+            )
+        configuration = authorize()
         receipt = self.snapshots.receipt(sid, call_id)
         fingerprint = query.fingerprint(include_refresh=True)
         if receipt:

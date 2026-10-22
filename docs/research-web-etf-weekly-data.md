@@ -36,8 +36,15 @@ WSD 或 EDB 参数，并保留原始响应、请求及哈希。SDK 数值、身�
 单次序列查询可用于后续受控同源对照，但不能由“可导入”推导为已具备周报覆盖。
 
 `DataHub.collect_report_weekly` 是私有 Host 入口，不注册到 `BUSINESS_TOOLS`。
-Broker 先检查现有 Wind 配置、允许状态、健康及显式 `preferred_adapter=client_api`，
-再执行现有任务准入。取数前后复查配置身份，复用会话归属、不可变快照和调用回执。
+Broker 先检查现有 Wind 配置、允许状态及健康，再执行现有任务准入。已发布华安版本
+显式启用 `weekly_production.policy_id=huaan-etf-weekly-v1` 时，collector 须先完成可信
+Run 身份与来源资源哈希验证，才由 Host 导出内部 API 选择标记；它不修改全局 Wind
+首选适配器，原资产观察仍可继续使用 Excel。没有该受信报告合同的直接调用仍要求
+全局显式选择 `preferred_adapter=client_api`。内部标记不进入 HTTP 或 DSH 参数。
+原 Excel 适配器的失败探测不作为这条受审 API 路径的健康结论；API 自行检查 SDK
+连接和真实供应商响应。来源被禁用、未配置或凭据存储不可用仍然拒绝，不能因报告
+选用了 API 绕过全局来源授权。
+取数前后复查配置身份，复用会话归属、不可变快照和调用回执。
 未决、失败或取消的调用不会自动重发；成功回执仍区分完整输入与不完整输入。
 
 同源对照材料只接受本会话已保存、哈希核验的 Dataset 引用。API/Excel 的实际输入

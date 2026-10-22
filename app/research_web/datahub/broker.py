@@ -13,6 +13,7 @@ from .catalog import build_catalog
 from .contracts import BusinessQuery, Query
 from .providers import ProviderError
 from .providers_akshare import validate_supported_query
+from .providers_wind_api import WindAPIQuery
 
 log = get_logger(__name__)
 
@@ -20,20 +21,24 @@ log = get_logger(__name__)
 @dataclass(frozen=True)
 class Resolution:
     provider_id: str
-    query: Query | BusinessQuery
+    query: Query | BusinessQuery | WindAPIQuery
     attempted_sources: list[dict]
 
 
 def resolve_report_weekly(
-    query, *, probes=None, connection_statuses=None, environ=None
+    query,
+    *,
+    probes=None,
+    connection_statuses=None,
+    environ=None,
+    report_contract_selected: bool = False,
 ) -> Resolution:
     """Authorize the private Client API path without broadening public Wind tools.
 
-    The general Excel bindings intentionally remain unavailable when client_api is
-    selected. This closed report path checks that exact adapter's dependency later.
+    A validated published report policy may select its private API independently
+    of the ordinary Wind preference. Callers without that trusted context still
+    require an explicit global Client API choice. Public bindings never change.
     """
-    from .providers_wind_api import WindAPIQuery
-
     if not isinstance(query, WindAPIQuery):
         raise StoreError("周报取数合同无效", "weekly_query_invalid", 400)
     statuses = connection_statuses or {}
@@ -47,17 +52,28 @@ def resolve_report_weekly(
     readiness = source["readiness"]
     if not readiness["allowed"] or not readiness["configured"]:
         raise StoreError("Wind 周报来源未配置或未获允许", "weekly_source_unavailable", 503)
-    if statuses.get("wind", {}).get("preferred_adapter") != "client_api":
-        raise StoreError("周报 API 需显式选择 Client API", "weekly_client_api_not_selected", 409)
     if (
-        not statuses.get("wind", {}).get("credential_store_available", True)
-        or readiness["health"] == "unavailable"
+        statuses.get("wind", {}).get("preferred_adapter") != "client_api"
+        and report_contract_selected is not True
+    ):
+        raise StoreError("周报 API 需显式选择 Client API", "weekly_client_api_not_selected", 409)
+    if not statuses.get("wind", {}).get("credential_store_available", True) or (
+        readiness["health"] == "unavailable" and report_contract_selected is not True
     ):
         raise StoreError("Wind 周报来源状态不可用", "weekly_source_unavailable", 503)
+    # A probe of the ordinary Excel adapter is not a Client API health check.
+    # The private path still verifies SDK connection and every vendor response.
     return Resolution(
         "wind",
         query,
-        [{"source": "wind", "adapter": "client_api", "status": "selected", "reason": None}],
+        [
+            {
+                "source": "wind",
+                "adapter": "client_api",
+                "status": "selected",
+                "reason": "published_report_contract" if report_contract_selected is True else None,
+            }
+        ],
     )
 
 

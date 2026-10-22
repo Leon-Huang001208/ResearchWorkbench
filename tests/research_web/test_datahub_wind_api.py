@@ -339,6 +339,110 @@ class WindAPITests(unittest.TestCase):
             with self.assertRaises(StoreError):
                 resolve_report_weekly(self.query(), connection_statuses=statuses, environ={})
 
+    def test_report_contract_keeps_ordinary_excel_source_callable(self):
+        from unittest.mock import patch
+
+        import pandas as pd
+
+        from app.research_web.datahub.broker import resolve
+        from app.research_web.datahub.catalog import build_catalog
+        from app.research_web.datahub.contracts import BusinessQuery
+        from app.research_web.datahub.providers_wind import fetch
+
+        class ExcelAdapter:
+            def is_available(self):
+                return True
+
+            def fetch_daily_quotes(self, **_kwargs):
+                return pd.DataFrame([{"code": "600519.SH", "date": "2026-10-21", "close": 1500.0}])
+
+            def close(self):
+                return None
+
+        statuses = {"wind": {"configured": True, "preferred_adapter": "excel"}}
+        ordinary = BusinessQuery(
+            capability="market_bars",
+            source="wind",
+            parameters={
+                "asset": "600519.SH",
+                "asset_type": "stock",
+                "start_date": "2026-10-21",
+                "end_date": "2026-10-21",
+            },
+        )
+        with patch(
+            "app.research_web.datahub.catalog._dependency_status", return_value=(True, None)
+        ):
+            selected = resolve(ordinary, connection_statuses=statuses, environ={})
+            before = next(
+                item
+                for item in build_catalog(connection_statuses=statuses, environ={})["sources"]
+                if item["id"] == "wind"
+            )
+            with self.assertRaises(StoreError):
+                resolve_report_weekly(self.query(), connection_statuses=statuses, environ={})
+            private = resolve_report_weekly(
+                self.query(),
+                connection_statuses=statuses,
+                environ={},
+                report_contract_selected=True,
+            )
+            result = asyncio.run(fetch(selected.query, adapter=ExcelAdapter()))
+            after = next(
+                item
+                for item in build_catalog(connection_statuses=statuses, environ={})["sources"]
+                if item["id"] == "wind"
+            )
+        self.assertEqual(result.status, "complete")
+        self.assertEqual(result.rows[0]["close"], 1500.0)
+        self.assertEqual(private.attempted_sources[0]["reason"], "published_report_contract")
+        self.assertTrue(before["readiness"]["callable"])
+        self.assertEqual(after["readiness"], before["readiness"])
+        self.assertEqual(statuses["wind"]["preferred_adapter"], "excel")
+
+    def test_report_api_uses_own_health_but_preserves_source_authorization(self):
+        from unittest.mock import patch
+
+        from app.research_web.datahub import catalog
+
+        statuses = {"wind": {"configured": True, "preferred_adapter": "excel"}}
+        probes = {"wind": {"health": "unavailable", "failure_code": "excel_missing"}}
+        selected = resolve_report_weekly(
+            self.query(),
+            probes=probes,
+            connection_statuses=statuses,
+            environ={},
+            report_contract_selected=True,
+        )
+        self.assertEqual(selected.provider_id, "wind")
+        sdk = FakeSDK()
+        provider = WindClientAPIProvider(sdk_factory=lambda: sdk)
+        self.assertEqual(asyncio.run(provider.fetch(self.query()))["rows"][-1]["value"], 101.0)
+        sdk.isconnected = lambda: False
+        with self.assertRaisesRegex(Exception, "wind_api_not_logged_in"):
+            asyncio.run(provider.fetch(self.query()))
+        with patch.object(catalog, "DISABLED", {*catalog.DISABLED, "wind"}):
+            with self.assertRaises(StoreError) as denied:
+                resolve_report_weekly(
+                    self.query(),
+                    probes=probes,
+                    connection_statuses=statuses,
+                    environ={},
+                    report_contract_selected=True,
+                )
+            self.assertEqual(denied.exception.code, "weekly_source_unavailable")
+        for status in (
+            {"configured": False, "preferred_adapter": "excel"},
+            {"configured": True, "preferred_adapter": "excel", "credential_store_available": False},
+        ):
+            with self.assertRaises(StoreError):
+                resolve_report_weekly(
+                    self.query(),
+                    connection_statuses={"wind": status},
+                    environ={},
+                    report_contract_selected=True,
+                )
+
     def test_private_collector_reuses_snapshot_and_never_adds_a_dsh_tool(self):
         from app.research_web.datahub import DataHub
         from app.research_web.datahub.contracts import BUSINESS_TOOLS
@@ -455,7 +559,12 @@ class WindAPITests(unittest.TestCase):
                 {"path": "workbooks/" + name}
                 for name in ("周报数据.xlsx", "周报图表.xlsx", "全球经济日历.xlsx")
             ]
-            manifest = {"workflow_id": "huaan-etf-weekly", "version": 1, "resources": resources}
+            manifest = {
+                "workflow_id": "huaan-etf-weekly",
+                "version": 1,
+                "resources": resources,
+                "weekly_production": {"policy_id": "huaan-etf-weekly-v1"},
+            }
             materialize_weekly_workbooks(snapshot, run_root, manifest)
             config = {
                 "schema_version": 1,
@@ -486,7 +595,7 @@ class WindAPITests(unittest.TestCase):
             hub.connections.statuses = lambda: {
                 "wind": {
                     "configured": True,
-                    "preferred_adapter": "client_api",
+                    "preferred_adapter": "excel",
                     "credential_store_available": True,
                 }
             }
@@ -517,6 +626,19 @@ class WindAPITests(unittest.TestCase):
 
             # No verification_receipts argument: exercise the actual default
             # branch, reading real fixture XLSX bytes rather than mocking capture.
+            without_report_policy = {**manifest, "weekly_production": None}
+            with self.assertRaises(StoreError) as disabled:
+                await hub.collect_report_weekly(
+                    sid,
+                    "no-report-policy",
+                    contract["cutoff"],
+                    provider=SyntheticAPI(),
+                    run_root=run_root,
+                    manifest=without_report_policy,
+                    prepare_excel=prepare_excel,
+                )
+            self.assertEqual(disabled.exception.code, "weekly_client_api_not_selected")
+            self.assertEqual(prepared, [])
             first = await hub.collect_report_weekly(
                 sid,
                 "first",
