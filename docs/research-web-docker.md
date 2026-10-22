@@ -1,5 +1,7 @@
 # Mac mini Docker 开发与独立部署
 
+2026-10-23 v5只调整Native资格的fresh run-log二进制ZIP严格读取，gh run view静默截断方案已拒绝；Docker镜像、Compose、卷、资源治理和运行时选择不变。原120秒、资格预算及fresh CI／tree检查不得放宽，旧profile／恢复包保持。ZIP传输计时不证明Docker构建或健康通过，本轮没有Docker执行、依赖新增或平台dispatch。
+
 资产v5大索引修复仅影响Native操作员verify_primary的v5业务读取绑定，不改Docker镜像、Compose、卷、资源治理或双运行时选择。64 MiB是既有业务索引边界，元数据保持1 MB；没有Docker容量或持久格式扩展。Native停机前拒绝、本机回归和PR187文档门修补均不认证Docker产品验收，本轮Docker／Linux执行保持未运行状态。
 
 2026-10-22资产交互v5仅是现有macOS Native常驻的封闭部署身份（旧51f09、产品PR185 merge9bc4）；Docker镜像、Compose、卷、双运行时选择与资源生命周期均无变化，不将Native profile或产品三CI作为Docker构建／健康／持久化证据。本轮不触发Docker执行或Linux产品dispatch，相关未执行状态保留；原version4保全／恢复与同候选Mac安装要求见[部署合同](research-web-gateway-upgrade.md#资产交互与数据-v5-2026-10-22)。

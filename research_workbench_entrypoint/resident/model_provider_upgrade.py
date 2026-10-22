@@ -56,10 +56,10 @@ ASSET_V3_PAYLOAD = "a0ff3ae2e2ab92bad10ba8547e45027687ec7cc1"
 ASSET_V4_MODE = "reviewed-asset-observation-v4"
 ASSET_V4_PREVIOUS = "5495e64c0be08c9db58e336705db90584f8ba8b5"
 ASSET_V4_PAYLOAD = "9b436613aad9136f4959c992c89dd72fc7354ed5"
-# PR188 includes PR185 assets plus the explicitly authorized DataHub combination.
+# PR189 retains PR185 assets, the approved DataHub combination and bounded fund snapshots.
 ASSET_V5_MODE = "reviewed-asset-observation-v5"
 ASSET_V5_PREVIOUS = "51f09fa783694aae5234905933948394ca167dcc"
-ASSET_V5_PAYLOAD = "88ef3817680ac822e2d7c819db845de4b7275173"
+ASSET_V5_PAYLOAD = "5d3927fae923d443a2c85431e4bc6ec33be7c9f6"
 ASSET_V5_WEB_LOCK_SHA256 = "7c631d4fa5354170c622225be129a09f7f5890457aa0521bd5f46cecb6bb7102"
 # PR179's merged market product, starting at the completed v4 resident deployment.
 MARKET_MODE = "reviewed-market-overview-v1"
@@ -85,6 +85,7 @@ ASSET_MODES = frozenset(
 )
 ASSET_EVIDENCE = "research_workbench_entrypoint/resident/evidence.py"
 ASSET_EVIDENCE_SHA256 = "ec022e39a89a3dbd021fca26049342ce149077f5beb62a8df2aba7826d016d25"
+ASSET_V5_EVIDENCE_SHA256 = "22d8dde6266096cec77b0fb3ce5e27d3f05e52bef4fcdc747bed5289f00d4679"
 MAX_ASSET_INDEX_BYTES = 64 * 1024 * 1024
 CONTROLLER_SHA256 = "4924299104d5f82a9cc732bb2ca1f811694d14056d58a2762e7c86e40f6665a2"
 CONTROLLER_MODULE_SHA256 = "b432f519e14a2e851a7eb39a3de179f99494b9347c857694c4192477a7996846"
@@ -311,10 +312,10 @@ def review_assets(source: Path, target: str, mode=ASSET_MODE):
         if actual_mode not in {"100644", "100755"}:
             raise UpdateBlocked("asset_upgrade_payload_changed")
         if name == ASSET_EVIDENCE:
-            if (
-                actual_mode != "100644"
-                or hashlib.sha256(g.git_bytes(source, target, "evidence.py")).hexdigest()
-                != ASSET_EVIDENCE_SHA256
+            if actual_mode != "100644" or hashlib.sha256(
+                g.git_bytes(source, target, "evidence.py")
+            ).hexdigest() != (
+                ASSET_V5_EVIDENCE_SHA256 if mode == ASSET_V5_MODE else ASSET_EVIDENCE_SHA256
             ):
                 raise UpdateBlocked("asset_upgrade_evidence_changed")
         elif mode == MARKET_MODE and name == MARKET_GATEWAY:

@@ -1,5 +1,17 @@
 # Mac mini 空私有池网关升级
 
+## v5 完整CI日志传输 2026-10-23
+
+当前PAYLOAD固定最新master／PR189真实merge `5d3927fae923d443a2c85431e4bc6ec33be7c9f6`；PREVIOUS仍`51f09fa783694aae5234905933948394ca167dcc`，Web锁仍`7c631d4fa5354170c622225be129a09f7f5890457aa0521bd5f46cecb6bb7102`。原PR187 merge276491c9及9a9候选三CI全PASS保留原归属，不能认证新transport候选；以下旧v5 PAYLOAD／reader说明为历史检查点，当前以本节为准。
+
+真实qualification的raw job日志约4.5 MB，多次触发原120秒时限；一次raw106.66秒，HTTP1也迟。先前`gh run view`探针虽1.58秒、24436行且含同checkout，但官方2.67 Scanner有64KiB行限制，会静默截断并缓存，不能证明完整日志；f853方案已拒绝，不提交。该旧探针与原记录保留为失败方案证据，不再作为完整性验收。
+
+新机制为fresh `gh api repos/REPOSITORY/actions/runs/RUN/logs`二进制ZIP严格读取，按当前成功job身份校验／选择完整日志成员并在解析失败、缺失或不一致时失败关闭；不能经过行扫描或使用缓存裁剪结果。主任务新下载实测2.76秒／362044字节，样本包含`0_checks.txt`4496420字节及`checks/system.txt`605字节。最终资格仍重新核验fresh workflow／job／已合并PR／SHA／checkout与目标tree，原120秒及资格预算不得放宽；ZIP下载和成员解析需有界，具体限制按最终受审源码及回归绑定。
+
+元数据API与ZIP下载均显式发送`Cache-Control: no-cache`强制HTTP重新验证；重新验证不保证API可用，瞬时空响应仍阻断；原缺失即拒绝的条件保持，无重试或缓存fallback。新`ASSET_V5_EVIDENCE_SHA256=22d8dde6266096cec77b0fb3ce5e27d3f05e52bef4fcdc747bed5289f00d4679`，reader已格式化固定并读回SHA相符，正式全套回归／最终候选提交／CI仍待绑定。旧`ASSET_EVIDENCE_SHA256=ec022e39a89a3dbd021fca26049342ce149077f5beb62a8df2aba7826d016d25`、旧profile、不可变controller.pyz及module、冻结恢复包保持；旧f853文件哈希一致不构成新实现可接受的证明。原稳定探针记录仍在Git common directory的`leon-engineering/deployments/asset-interaction-20261022/job-log-archive-producer.json`；最终ZIP证据与候选提交／哈希由root另绑定，文档不执行线上读取或切换。
+
+用户批准的三个发行包已由主任务安装并核对95个适用Web锁包精确、旧版本无变化；全局pip check仍为11项旧legacy缺失FAIL。原setup_web.py的Web-only安装闭包合同保持，不为本次资格传输引入额外包、安装例外或新依赖门豁免。数据库不启用／不迁移、外盘不改。服务仍51f09，未停机、无journal；新候选须独评及原三CI／同候选Mac安装，再由root执行原资格、锁、空闲、全账号保全和认证页面验收。筹码prototype在独立隔离任务，本轮不夹带UI或算法改动，详见[本轮报告](../.ai/reports/test_report_asset_v5_transport_20261023.md)。
+
 组合v5在安装目标产品时，仅把安装清单的`web_lock_sha256`同步为已冻结88ef锁文件的`7c631d4fa5354170c622225be129a09f7f5890457aa0521bd5f46cecb6bb7102`，并更新code_commit；回滚精确恢复原清单。配置校验只接受原清单或该固定目标清单，不接受任意哈希。用户已授权的三个发行包须先按原锁定哈希安装、核验版本及pip check，并确认其余已装版本不变；不能用更新清单掩盖依赖未安装。旧profile、version4 journal、不可变controller/evidence、账号及业务索引保全不变。
 
 资产 v5 的主实例预检使用已有 `read_business_index`，上限64 MiB，仍拒绝符号链接、非普通文件、越界、损坏或非对象索引。部署元数据继续使用原1 MB读取器；旧资产与模型 profile 的读取绑定不变。真实首次切换因业务索引超过1 MB在停机前被拒绝，旧服务保持；不得裁剪索引或修改不可变证据读取器。修复后须重新通过原评审、三项CI及同候选Mac安装，再执行正式切换和全账号保全。

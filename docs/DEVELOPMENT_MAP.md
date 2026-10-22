@@ -1,5 +1,7 @@
 # Research Workbench Development Map
 
+2026-10-23日志修复定位在resident/evidence.py的GitHubEvidence.qualify：fresh gh api actions/runs/RUN/logs按二进制下载ZIP，严格校验并读取完整job日志；gh run view的64KiB行扫描截断／缓存使f853方案无效。model_provider_upgrade.py仅为v5选择最终受审ZIP reader哈希与产品5d3927，旧ec022绑定、controller／恢复、PREVIOUS51f09和锁7c631d4保持。test_resident.py与test_model_provider_upgrade.py由root更新源码回归，最终独评／原三CI／Mac安装另绑；筹码原型不入本轮。
+
 组合v5的 `target_manifest` 只为本次已授权的新锁固定目标哈希；`Operations.install` 启用目标清单、恢复原清单，`validate_configuration` 保留精确二选一。旧profile不改，新增八profile清单回归并继续原完整恢复矩阵；安装三包与pip check是实际部署前的独立证据，不由清单字段代替。
 
 PR188合流后当前v5的PAYLOAD由root固定完整组合产品88ef3817，PREVIOUS仍51f09；初始9bc4身份是历史检查点。一行verify_primary业务读取修复源码为8f2cb39a，DataHub仓库与新04数据流按PR188来源保留，不将两者混成同一已提交源码。用户允许组合验收后部署锁定baostock0.9.4／psycopg3.3.6，不启用／迁移DB或改外盘；源码／兼容回归由root负责，旧a114三CI与新候选重验分开。

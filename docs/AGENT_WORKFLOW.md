@@ -1,5 +1,7 @@
 # Agent 任务路由指南
 
+2026-10-23 v5 transport必须使用fresh gh api run-log二进制ZIP严格读取；gh run view因64KiB行扫描会静默截断并缓存，已拒绝f853，先前同24436行／同checkout对照不能认证完整日志。原120秒、资格预算及fresh workflow／job／PR／SHA／tree门保持，源码／ZIP安全回归、独评、原三CI与同候选Mac安装重新绑定。旧PR187／9a9通过只属于旧树，实际服务仍51f09、未停机无journal，旧reader／profile及冻结恢复包保持。
+
 PR188合流后，当前用户已明确批准“组合验收后一起部署”，包括已合并锁中的baostock0.9.4／psycopg3.3.6；不启用或迁移数据库，不改外盘。尚未成功切换的v5将PAYLOAD固定到完整产品88ef3817（含资产9bc4与DataHub研究仓），PREVIOUS仍51f09；旧profile不变。旧a114候选三CI全PASS只属于旧树，新组合必须重新完成本机兼容／独评／原三CI和同候选Mac安装后才由root部署，本次文档不安装包或切换。
 
 2026-10-22资产v5业务索引预检修复保持原完整changed-set Router与模块文档门：仅v5复用64 MiB安全业务读取，元数据和旧profile保持。PR187 Constraints run39794625674因模块文档／结构复核缺失失败，须补实际影响说明并正常提交后重新绑定原三CI／同候选Mac安装；不删规则、不手工涂改原run或以局部769／112和独评173项代替CI。停机前拒绝不表示已部署，正式切换仍由root完成原资格、锁、明确空闲和全账号保全。
