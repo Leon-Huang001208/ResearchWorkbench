@@ -96,6 +96,14 @@ def _verified(service, sid):
     return weekly_verified_evidence(service, sid)
 
 
+def weekly_research_inputs(service, sid):
+    """Template assets are hash-bound delivery inputs, not claimed research sources."""
+    if _verified(service, sid) is None:
+        return None
+    return {FACTS_PATH, *("inputs/report-workflow/" + _news_file_name(row)
+                          for row in _empty_news_records(service, sid))}
+
+
 def _empty_news_records(service, sid):
     from .weekly_quality import trusted_weekly_context
 
@@ -266,7 +274,7 @@ def weekly_business_observations(
                     row["unit"],
                     [proof],
                     method=(
-                        "huaan-weekly-data-v1"
+                        "huaan-weekly-data"
                         if row["value"] is not None
                         else "Huaan weekly verified process"
                     ),

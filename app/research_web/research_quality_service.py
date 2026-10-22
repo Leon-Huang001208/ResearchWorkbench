@@ -171,6 +171,14 @@ def source_context(service, sid, files, sources=()):
     total = 0
     files = upload_evidence_files(service.store, sid, files)
     if service.store.session(sid).get("report_workflow", {}).get("quality_policy"):
+        from .report_workflows.evidence import weekly_research_inputs
+
+        research_inputs = weekly_research_inputs(service, sid)
+        if research_inputs is not None:
+            identities_by_id = service.store.session(sid).get("files", {})
+            files = [item for item in files
+                     if not identities_by_id.get(item["id"], "").startswith("inputs/report-workflow/")
+                     or identities_by_id[item["id"]] in research_inputs]
         files = sorted(files, key=lambda item: not item.get("name", "").startswith(("weekly-facts", "weekly-news-")))
     scope = service.store.session(sid).get("source_scope", ["uploads", "datahub", "web"])
     for item in files if "uploads" in scope else []:

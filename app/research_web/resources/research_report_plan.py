@@ -100,7 +100,7 @@ def _fact_text(row):
             "weekly_raw_daily_amount": "成交额", "weekly_trading_days": "本期交易日数",
             "weekly_previous_trading_days": "上期交易日数", "weekly_history_count": "历史观测数",
         }.get(row["metric"], row["metric"])
-        return f"{row['heading']}（数据日 {row['period']}）{label}为{row['value']} {row['unit']}"
+        return f"{row.get('heading', row['metric'])}（数据日 {row['period']}）{label}为{row['value']} {row['unit']}"
     return (
         f"{row['period']}年{labels.get(row['metric'], row['metric'])}为{row['value']} {row['unit']}"
     )
@@ -294,7 +294,7 @@ def _report_evidence_limit(bundle):
     weekly = any(
         isinstance(row, dict)
         and row.get("metric") in {"weekly_close", "weekly_raw_daily_amount"}
-        and row.get("content", "").endswith("\nhuaan-weekly-data-v1")
+        and row.get("content", "").endswith("\nhuaan-weekly-data")
         for row in bundle.get("observations", [])
     )
     return 80 if weekly else 40
