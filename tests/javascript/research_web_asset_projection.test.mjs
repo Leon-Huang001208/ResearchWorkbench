@@ -5,6 +5,36 @@ import { projectAssetObservation } from '../../app/research_web/ui/asset-project
 const project = (rows = {}, blocks = {}, extra = {}) => projectAssetObservation(rows, { ...extra, blocks });
 const snapshot = (provider, extra = {}) => ({ status: 'complete', dataset: { provider, ...extra } });
 
+test('new holder details project their report, ratios and explicit ownership separately from totals', () => {
+  const p = project({ holder_details: [{ shareholder_name: '真实字段示例', report_period: '2026-06-30', share_ratio: 0, change_ratio: 1, is_state_owned: false }], holders: [{ top10_pct: 50 }] }, { holder_details: snapshot('tinysoft', { fields: { share_ratio: { unit: 'percent' }, change_ratio: { unit: '百分点' } } }) });
+  assert.equal(p.shareholders.length, 1); assert.equal(p.shareholders[0].ratio.value, 0); assert.equal(p.shareholders[0].stateOwned.value, false);
+  assert.equal(p.shareholders[0].ratio.provider, 'tinysoft'); assert.equal(p.shareholders[0].ratio.reportPeriod, '2026-06-30');
+});
+
+test('source coverage distinguishes not loaded, loading, failed refresh and unsupported', () => {
+  const p = project({ overview: [{ close: 10 }] }, { overview: { status: 'loading', dataset: { dataset_id: 'saved', provider: 'tinysoft' } }, financials: { status: 'error', failure_code: 'deadline' }, research: { status: 'unavailable', failure_code: 'not_implemented' } });
+  assert.equal(p.coverageRows.find(row => row.id === 'overview').loadState, 'refreshing');
+  assert.equal(p.coverageRows.find(row => row.id === 'history').loadState, 'not_loaded');
+  assert.equal(p.coverageRows.find(row => row.id === 'financials').loadState, 'error');
+  assert.equal(p.coverageRows.find(row => row.id === 'research').loadState, 'not_connected');
+  assert.ok(p.coverageRows.some(row => row.id === 'holder_details'));
+  assert.ok(p.coverageRows.some(row => row.id === 'industry'));
+});
+
+test('latest financial report is selected by report period before retrieval date', () => {
+  const p = project({ financials: [{ date: '2026-10-21', report_period: '2026-03-31', revenue: 1 }, { date: '2026-09-01', report_period: '2026-06-30', revenue: 2 }] });
+  assert.equal(p.financial.revenue.value, 2);
+});
+
+test('turnover may use a verified valuation field only at the same source and date', () => {
+  const rows = { overview: [{ date: '2026-10-21', close: 10 }], valuation: [{ date: '2026-10-21', turnover_rate_pct: 0 }] };
+  const blocks = { overview: snapshot('tinysoft'), valuation: snapshot('tinysoft', { fields: { turnover_rate_pct: { unit: 'percent' } } }) };
+  assert.equal(project(rows, blocks).basic.turnover.value, 0);
+  assert.equal(project(rows, blocks).basic.turnover.unit, 'percent');
+  assert.equal(project({ ...rows, valuation: [{ date: '2026-10-20', turnover_rate_pct: 5 }] }, blocks).basic.turnover.value, null);
+  assert.equal(project(rows, { ...blocks, valuation: snapshot('wind') }).basic.turnover.value, null);
+});
+
 test('uncollected sections do not claim a global source or date range was requested', () => {
   const p = project({ overview: [{ price: 2 }] }, { overview: snapshot('tinysoft', { dataset_id: 'quote' }) }, { source: 'tinysoft', request_parameters: { start_date: '2026-09-01', end_date: '2026-10-21', frequency: 'daily', adjustment: 'qfq' } });
   for (const row of p.coverageRows.filter(item => item.id !== 'overview')) {
@@ -85,7 +115,7 @@ test('coverage separates providers, row dates, report periods and metadata read 
     history: { ...snapshot('wind', { dataset_id: 'history-id', actual_range: { start_date: '2026-10-17', end_date: '2026-10-20' } }), requested_source: 'wind', requested_range: { start_date: '2026-10-01', end_date: '2026-10-21' } },
     financials: snapshot('financial-vendor', { dataset_id: 'financial-id' }),
   }, { source: 'auto', request_parameters: { frequency: 'daily', adjustment: 'none' } });
-  assert.deepEqual(p.coverageRows.map(row => row.id), ['overview', 'history', 'valuation', 'financials', 'activity', 'margin', 'holders', 'research']);
+  assert.deepEqual(p.coverageRows.map(row => row.id), ['overview', 'history', 'valuation', 'financials', 'activity', 'margin', 'holders', 'holder_details', 'industry', 'events', 'research']);
   const byId = Object.fromEntries(p.coverageRows.map(row => [row.id, row]));
   assert.equal(byId.overview.provider, 'tinysoft'); assert.equal(byId.overview.dataDate, '2026-10-20T15:00:00');
   assert.equal(byId.overview.asOf, '2026-10-21'); assert.equal(byId.overview.retrievedAt, '2026-10-22T01:00:00Z');

@@ -3028,6 +3028,34 @@ Functions:
 - `group_reports`
 
 
+## `app/research_web/asset_directory.py`
+
+Module docstring:
+> Bounded, account-owned stock directory; no legacy database or provider lifecycle.
+
+Imports:
+- `__future__`
+- `asyncio`
+- `core.observability`
+- `json`
+- `math`
+- `os`
+- `pathlib`
+- `re`
+- `stat`
+- `time`
+- `typing`
+
+Classes:
+- `AssetDirectory`
+  - One cache and one refresh task per authenticated user's Store root.
+  - methods: __init__, active, _directory, _restore, _persist, _refresh, search, wait, close
+
+Functions:
+- `pinyin_abbr`
+- `_items`
+
+
 ## `app/research_web/asset_history.py`
 
 Module docstring:
@@ -3104,6 +3132,9 @@ Classes:
   - methods: validate_interval
 - `ObservationRequest`
 - `HistoryJobRequest`
+  - methods: valid_cutoff
+- `BlockLoadRequest`
+  - methods: complete_interval
 - `ChartPreferencesRequest`
   - methods: unique_panels
 - `WatchlistCreate`
@@ -3116,6 +3147,7 @@ Classes:
 Functions:
 - `_default_sections`
 - `create_observation`
+- `search_assets`
 - `list_observations`
 - `observation`
 - `create_history_job`
@@ -3125,6 +3157,7 @@ Functions:
 - `get_chart_preferences`
 - `put_chart_preferences`
 - `refresh_observation_block`
+- `load_observation_block`
 - `watchlists`
 - `create_watchlist`
 - `add_watchlist_item`
@@ -3147,7 +3180,9 @@ Imports:
 - `asyncio`
 - `core.observability`
 - `datahub.contracts`
+- `datetime`
 - `hashlib`
+- `json`
 - `operator`
 - `re`
 - `store`
@@ -3155,14 +3190,16 @@ Imports:
 - `typing`
 - `uuid`
 - `weakref`
+- `zoneinfo`
 
 Classes:
 - `AssetWorkspaceError`
   - methods: __init__
 - `AssetWorkspace`
-  - methods: __init__, _mark_cancelled, _track_task, public_observation, chart_preferences, set_chart_preferences, create_observation, refresh_block, _parameters, _source, _requested_range, _run_block, _run, observation, list_observations, create_watchlist, add_watchlist_item, create_note, patch_note, create_alert, patch_alert, evaluate_alerts, close
+  - methods: __init__, _mark_cancelled, _track_task, public_observation, chart_preferences, set_chart_preferences, create_observation, refresh_block, _reserve_load_key, load_block, _parameters, _source, _requested_range, _run_block, _run, observation, list_observations, create_watchlist, add_watchlist_item, create_note, patch_note, create_alert, patch_alert, evaluate_alerts, close
 
 Functions:
+- `_recent_range`
 - `_uuid_record`
 - `_public_dataset`
 - `_failure_code`
@@ -3862,7 +3899,7 @@ Imports:
 
 Classes:
 - `DataHub`
-  - methods: __init__, authenticate, _latest_probes, catalog, connection_center, source_configuration_digest, catalog_capability, catalog_source, start_probe, _probe, _mark_probe_terminal, _prune_probes, probe, run_probe, restore_probe_statuses, detail, summaries, copy_for_upgrade, copy_selected, list, rows, short, _authorize_query, query, collect_report_weekly, _report_weekly_run_context, register_report_weekly_inputs, _query, cancel, close
+  - methods: __init__, authenticate, _latest_probes, catalog, connection_center, directory_fingerprint, asset_directory, source_configuration_digest, catalog_capability, catalog_source, start_probe, _probe, _mark_probe_terminal, _prune_probes, probe, run_probe, restore_probe_statuses, detail, summaries, copy_for_upgrade, copy_selected, list, rows, short, _authorize_query, query, collect_report_weekly, _report_weekly_run_context, register_report_weekly_inputs, _query, cancel, close
 
 Functions:
 - `_trim_sample_strings`
@@ -4213,6 +4250,7 @@ Functions:
 - `_normalize_snapshot`
 - `_normalize_generic`
 - `_normalize_activity`
+- `_explicit_money`
 - `_normalize_financials`
 - `_invoke`
 - `_fetch_probe_payload`
@@ -4242,9 +4280,16 @@ Imports:
 - `providers`
 - `re`
 - `threading`
+- `time`
 - `typing`
 
+Classes:
+- `_BoundedSDK`
+  - Stop admitting follow-up SDK calls after the owner's budget ends.
+  - methods: __init__, __getattr__
+
 Functions:
+- `_stop_work`
 - `active_futures`
   - Read-only witness of SDK work still occupying the single provider worker.
 - `wait_for_idle`
@@ -4253,6 +4298,7 @@ Functions:
   - Retrieve late SDK exceptions even after the caller timed out or cancelled.
 - `_release_capacity`
 - `_submit`
+- `_submit_work`
 - `_json_value`
 - `canonical_vendor_code`
 - `_effective_token`
@@ -4266,9 +4312,43 @@ Functions:
 - `_normalized_factor_rows`
 - `_sync_adjustment_query`
 - `_sync_query`
+- `_sync_query_with_client`
 - `_failure_code`
 - `fetch`
+- `_directory_step`
+- `fetch_directory`
+  - Full code universe, then <=500 names per real, bounded SDK Future.
 - `probe`
+
+
+## `app/research_web/datahub/providers_cjpy_assets.py`
+
+Module docstring:
+> Closed A-share tables, checked against CJPY metadata before every read.
+
+Imports:
+- `__future__`
+- `contracts`
+- `core.observability`
+- `datetime`
+- `json`
+- `math`
+- `providers`
+- `re`
+- `zoneinfo`
+
+Classes:
+- `Context`
+  - methods: __init__, records, identities, table, field
+
+Functions:
+- `_json`
+- `_day`
+- `_number`
+- `_financials`
+- `_holder_details`
+- `_snapshot`
+- `structured_query`
 
 
 ## `app/research_web/datahub/providers_external.py`

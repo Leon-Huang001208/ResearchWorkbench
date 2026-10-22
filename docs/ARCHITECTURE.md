@@ -1,6 +1,10 @@
 # Research Workbench 架构总览
 
-2026-10-22 全市场常驻部署使用封闭 `reviewed-market-overview-v1` / `apply-market`：旧版固定 `4d2e3c408663b64be9e58b03213f4ca8f1152733`，产品固定已合并 PR179 `5de7e5f2db95b8b501905af9cfdc30e8fe84db0b`。复用原 version4 事务、空闲准入、BirthFence、全部账号索引冻结和内容寻址恢复；旧 profile、控制器、证据读取器及自动兼容白名单保持。操作员候选须独立评审及原三项 CI／同候选 Mac 安装通过，再按用户授权切换并在真实认证页面验收。 无新服务、HTTP、持久格式或依赖；现有图及 API Atlas 准确，不重画 HTML/PNG。Windows/Linux 原生与 Docker 产品层保持各自未执行状态。
+2026-10-22 全市场常驻部署使用封闭 `reviewed-market-overview-v1` / `apply-market`：旧版固定 `4d2e3c408663b64be9e58b03213f4ca8f1152733`，产品固定已合并 PR179 `5de7e5f2db95b8b501905af9cfdc30e8fe84db0b`。复用原 version4 事务、空闲准入、BirthFence、全部账号索引冻结和内容寻址恢复；旧 profile、控制器、证据读取器及自动兼容白名单保持。操作员候选须独立评审及原三项 CI／同候选 Mac 安装通过，再按用户授权切换并在真实认证页面验收。 该封闭部署事务本身不新增服务、HTTP、持久格式或依赖；它沿用当时已审的图与 API Atlas，不要求重画 HTML/PNG。Windows/Linux 原生与 Docker 产品层保持各自未执行状态。
+
+2026-10-22 资产交互与数据迭代增加两条现有 Host 内的数据路径：单搜索框 → 账号 `AssetDirectory` → 显式授权的 DataHub 天软目录读取 → 24小时账号缓存；专题页 → `AssetWorkspace.load_block` → Broker → 数据集感知的 Provider → 原会话不可变快照。目录读取不创建研究会话或启动模型；新证券的概览与近期前复权历史仍沿原观察／历史任务链路。DSH继续是唯一研究引擎，没有新服务、数据库、依赖或部署节点。新增HTTP与缓存分支分别见[接口](architecture/research-web/04-api.md#资产目录搜索与区块按需加载)和[文件](architecture/research-web/03-data-files.md#资产目录与按需区块缓存)，不沿用此前纯静态迭代的“无新HTTP／持久化”结论。
+
+天软结构化资产适配使用固定表字段和预定义因子，提供估值、财务、股东明细／汇总、行业分类、两融及公告事件；财务按报告期／公布日读取，不套用行情60天区间，缺字段、单位和币种不补造。日线蜡烛实体与所选日期／视区独立保持，专题内容局部更新；真实来源预检、完整浏览器链路、同候选Mac安装CI与常驻切换分别取证。宏观、ETF和指数不因本次A股接入而获得支持声明，详见[DataHub合同](research-web-datahub.md#资产目录与结构化区块)。
 
 2026-10-22 部署profile v4复用原Native/网关version4事务，旧版固定5495、产品固定PR180真实merge `9b436613aad9136f4959c992c89dd72fc7354ed5`。旧v1/v2/v3、controller/evidence及严格保全门不变，无新服务、API、持久格式或产品数据流，不改图/架构HTML/PNG或CI。旧v3失败已正式恢复5495/preserved=true/fenced=false；产品三CI与v4工具最终验收/部署分开，详见[固定部署合同](research-web-gateway-upgrade.md#资产观察固定版本联合部署)。
 
