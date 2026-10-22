@@ -553,7 +553,7 @@ def wait_health(config: dict, *, fenced: bool | None):
             time.sleep(0.5)
 
 
-def verify_primary(home: Path, expected: str):
+def verify_primary(home: Path, expected: str, *, index_reader=read_json):
     from app.research_web.multiuser.resident_binding import LegacyBinding
     from app.research_web.service_manager import WebServiceManager
 
@@ -573,7 +573,7 @@ def verify_primary(home: Path, expected: str):
     runtime = next(probe for probe in manager._service_probes() if probe.role == "runtime")
     if state.get("active") is not False or manager._active_research_read_only(runtime):
         raise MaintenanceBusy("research_active_or_unknown")
-    index = read_json(binding.data_root / "index.json")
+    index = index_reader(binding.data_root / "index.json")
     rows = index.get("automation_runs", {})
     if not isinstance(rows, dict) or any(
         not isinstance(row, dict) or row.get("research_status") in {"queued", "running"}

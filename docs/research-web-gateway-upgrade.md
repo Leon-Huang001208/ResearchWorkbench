@@ -9,6 +9,8 @@
   --home /absolute/private-home --source /absolute/qualified-clean-checkout
 ```
 
+市场 profile 另将 gateway_upgrade.py 的有界业务读取参数扩展绑定为完整 SHA-256；此文件的额外变化、删除或模式变化拒绝，旧 profile 不获得该例外。业务索引读取使用原64MiB上限，元数据仍为1MB。原现场索引8,673,739字节导致旧 verify_primary/retention/idle 读取失败，修复只复用严格普通文件、规范路径、拒绝链接和JSON对象校验，不裁剪业务数据。
+
 产品祖先、完整路径并集、Git blob 和文件模式逐项冻结；仅操作员自身、测试和文档可随最终工具候选变化。历史 ASSET_MODES 家族包含市场 profile，因而市场切换同样强制业务索引全量保全、资产/DataHub/历史任务及真实 Future 空闲。旧版尚无市场采集服务，切换完成前网关保持围栏；不迁移数据或触发市场/模型查询。recover 根据已验证 journal 的市场 mode 只回到固定 4d2e3c40。部署后以真实登录页核对三个页签、沪深北完整覆盖、来源时间、刷新和原会话/模型保留。
 
 ## 资产观察固定版本联合部署

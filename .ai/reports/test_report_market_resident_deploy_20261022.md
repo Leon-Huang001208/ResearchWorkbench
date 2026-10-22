@@ -12,3 +12,7 @@ reviewed-market-overview-v1 / apply-market 固定旧版4d2e3c408663b64be9e58b032
 
 <!-- architecture-review {"group":"dual-runtime","structure":"unchanged","reason":"只增加固定旧4d2e及已合并全市场产品5de7的封闭部署身份，复用原事务；无新节点、HTTP、依赖或数据流，现有图准确。","diagrams":[]} -->
 <!-- architecture-review {"group":"private-multiuser","structure":"unchanged","reason":"原用户隔离、业务索引冻结、模型及会话保全合同不变；真实认证验收另证，不新增权限或拓扑。","diagrams":[]} -->
+
+## 现场预检修复
+
+原业务索引8,673,739字节，旧g.verify_primary/retention/idle错误沿用1MB元数据限制，实际复现resident_record_invalid。新增业务读取器复用原64MiB上限及严格路径/普通文件/JSON对象拒绝，将市场profile显式传给verify_primary；gateway_upgrade仅增加可选读取参数、默认原行为。新市场profile逐字节SHA-256固定此网关扩展；旧profiles不扩大范围。没有裁剪索引、放宽元数据或修改controller/evidence。修复后实际主实例空闲、保留期与私有进程预检PASS；正式事务仍需重新持锁检查。旧候选CI不认证修复候选，最终回归、独立复审和三CI重新绑定。

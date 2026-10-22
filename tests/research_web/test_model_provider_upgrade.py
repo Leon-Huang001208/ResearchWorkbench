@@ -76,6 +76,9 @@ def test_asset_profile_has_fixed_previous_and_rejects_unknown_mode():
         "evidence-mode",
         "evidence-deleted",
         "untracked",
+        "gateway",
+        "gateway-mode",
+        "gateway-deleted",
     ],
 )
 def test_asset_review_uses_real_git_and_frozen_product(tmp_path, monkeypatch, bad, profile):
@@ -91,6 +94,7 @@ def test_asset_review_uses_real_git_and_frozen_product(tmp_path, monkeypatch, ba
         upgrade.MODULE: "operator",
         upgrade.TEST: "tests",
         upgrade.ASSET_EVIDENCE: "reviewed evidence",
+        upgrade.MARKET_GATEWAY: "reviewed gateway",
         "app/research_web/asset_workspace.py": "before",
         "app/research_web/ui/asset-workspace.mjs": "before",
         "requirements/web.lock": "same",
@@ -119,7 +123,16 @@ def test_asset_review_uses_real_git_and_frozen_product(tmp_path, monkeypatch, ba
     monkeypatch.setattr(
         upgrade, "ASSET_EVIDENCE_SHA256", hashlib.sha256(b"reviewed evidence").hexdigest()
     )
+    monkeypatch.setattr(
+        upgrade, "MARKET_GATEWAY_SHA256", hashlib.sha256(b"reviewed gateway").hexdigest()
+    )
     (tmp_path / upgrade.MODULE).write_text("reviewed operator")
+    if bad == "gateway":
+        (tmp_path / upgrade.MARKET_GATEWAY).write_text("unreviewed gateway")
+    if bad == "gateway-mode":
+        (tmp_path / upgrade.MARKET_GATEWAY).chmod(0o755)
+    if bad == "gateway-deleted":
+        (tmp_path / upgrade.MARKET_GATEWAY).unlink()
     name = "app/research_web/asset_workspace.py"
     if bad == "evidence":
         (tmp_path / upgrade.ASSET_EVIDENCE).write_text("unreviewed evidence")
@@ -171,6 +184,7 @@ def test_v4_accepts_exact_store_hotfix_while_v3_keeps_its_frozen_product(tmp_pat
         upgrade.MODULE: "operator",
         upgrade.TEST: "tests",
         upgrade.ASSET_EVIDENCE: "reviewed evidence",
+        upgrade.MARKET_GATEWAY: "reviewed gateway",
         store_name: "legacy Store",
     }
     for name, value in files.items():
@@ -661,7 +675,7 @@ def test_actual_gateway_health_field_is_used(tmp_path, monkeypatch):
         "before": {},
         "model_before": {"provider": "fixture", "model": "fixture", "credential_configured": False},
     }
-    monkeypatch.setattr(upgrade.g, "verify_primary", lambda *_: None)
+    monkeypatch.setattr(upgrade.g, "verify_primary", lambda *_a, **_k: None)
     monkeypatch.setattr(upgrade.g, "health", lambda *_a, **_k: None)
     monkeypatch.setattr(upgrade.g, "preserved", lambda *_: None)
     monkeypatch.setattr(upgrade, "model_metadata", lambda _config: ops.state["model_before"])
@@ -1031,7 +1045,7 @@ def real_operations(tmp_path, monkeypatch, request):
     monkeypatch.setattr(upgrade.g, "health", health)
     monkeypatch.setattr(upgrade.g, "wait_health", health)
 
-    def verify_primary(_home, sha):
+    def verify_primary(_home, sha, **kwargs):
         assert system["running"] and system["primary"] == sha and not system["active"]
 
     monkeypatch.setattr(upgrade.g, "verify_primary", verify_primary)
@@ -1914,3 +1928,25 @@ def test_preparing_intent_recovers_partial_birth_fence(real_operations, monkeypa
     assert not list((home / "server/users").glob("*/state/owner.json"))
     assert make(None).idle() is True
     assert system["events"] == []
+
+
+def test_large_business_index_keeps_metadata_limit_and_market_reader_binding(tmp_path, monkeypatch):
+    root = tmp_path / "research-web"
+    root.mkdir()
+    path = root / "index.json"
+    path.write_text(json.dumps({"sessions": {}, "automation_runs": {}, "padding": "x" * 1_100_000}))
+    with pytest.raises(upgrade.UpdateBlocked, match="resident_record_invalid"):
+        upgrade.read_json(path)
+    upgrade.verify_retention(tmp_path)
+    assert upgrade.asset_queries_idle(upgrade.read_business_index(path))
+    calls = []
+
+    def verify(home, expected, **kwargs):
+        calls.append(kwargs)
+        assert kwargs["index_reader"](path)["sessions"] == {}
+
+    monkeypatch.setattr(upgrade.g, "verify_primary", verify)
+    upgrade.verify_primary(tmp_path, "a" * 40, upgrade.MARKET_MODE)
+    assert calls == [{"index_reader": upgrade.read_business_index}]
+    with pytest.raises(upgrade.UpdateBlocked, match="asset_upgrade_index_invalid"):
+        upgrade.read_business_index(tmp_path / "missing.json")
