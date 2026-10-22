@@ -180,6 +180,37 @@ async def test_recent_canonical_copy_and_preferences_are_account_scoped(tmp_path
 
 
 @pytest.mark.asyncio
+async def test_first_history_job_and_preference_write_persist_across_restart(tmp_path):
+    ws, hub, oid = workspace(tmp_path)
+    before = json.loads(ws.store.index.read_text())
+    assert not {"asset_history_jobs", "asset_history_keys", "chart_preferences"} & before.keys()
+    job = await ws.history_jobs.create(
+        oid, HistoryJobRequest(scope="recent", adjustment="qfq"), "persist-history-1"
+    )
+    await settle(ws)
+    saved = json.loads(ws.store.index.read_text())
+    assert saved["asset_history_jobs"][job["id"]]["state"] == "completed"
+    assert saved["asset_history_keys"]
+    assert "chart_preferences" not in saved
+    # Explicitly saving the default panel choice is still a real preference write.
+    preference = ws.set_chart_preferences(["volume", "macd"])
+    assert preference["revision"] == 1
+    await ws.close()
+    restored_store = Store(tmp_path)
+    restored = AssetWorkspace(
+        SimpleNamespace(store=restored_store, datahub=HistoryHub(restored_store))
+    )
+    assert restored.chart_preferences() == preference
+    assert restored.history_jobs.get(oid, job["id"])["state"] == "completed"
+    assert (
+        restored.observation(oid)["blocks"]["history"]["dataset"]
+        == ws.observation(oid)["blocks"]["history"]["dataset"]
+    )
+    assert hub.calls
+    await restored.close()
+
+
+@pytest.mark.asyncio
 async def test_older_requires_canonical_and_rejects_conflicting_idempotency(tmp_path):
     ws, _, oid = workspace(tmp_path)
     with pytest.raises(StoreError, match="规范历史"):

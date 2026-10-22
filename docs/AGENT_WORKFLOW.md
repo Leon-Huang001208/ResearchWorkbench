@@ -1,5 +1,7 @@
 # Agent 任务路由指南
 
+2026-10-22 v3真实切换触发索引保全拒绝时，先保留原24业务键/12账号对账和recovery_required/fenced状态，由root走既有受管精确恢复；不得改摘要、忽略键或编辑immutable controller放行。启动默认键问题在独立热修复worktree内改Store序列化并补test_store回归：旧盘缺失且精确默认三键仅在内存，首次真实变更才持久化，既有空键保留。沿原Router/评审/三CI及同候选Mac安装门，不增job/依赖；本机通过不能替代恢复终态、实际版本/账号保全或后续部署证据，未执行保持真实状态。
+
 2026-10-22 Wind工作区按隔离Web功能任务执行，新增test_asset_history并把原datahub/catalog/cjpy/broker四模块加入现有Checks；无新增job/runner/timeout/依赖。固定复权与历史/偏好API属于公开合同变化，完整Router、文档图文、独立评审及同候选Mac安装门保留。Provider/历史/空闲/JS检查点、有限真实预检和浏览器几何/全历史分别绑定证据；合并不推定常驻已部署，Windows/Linux产品只交接对应设备。详见[批准计划](plans/2026-10-22-wind-asset-workspace.md)与[预算](actions-budget.md)。
 
 资产摘要产品 PR175 合并后，正式交付独立 `reviewed-asset-observation-v2`／`apply-assets-v2`：固定旧版 `9bc12355` 与产品 `93d62be6`，再对操作员最终候选执行完整 Router、独立 Python 评审及原三项 CI。合并后从干净、共享原源码 common directory 的目标 worktree 和生产 venv 部署；开发目录的未跟踪文件不移动、不改忽略以绕过检查。持锁核对研究、日程、资产及 DataHub 明确空闲，冻结主／私有全部业务索引后按原 v4 事务切换，实际版本和保全另证。v1／旧模型恢复、自动白名单和跨平台职责保持；合同见[固定版本部署](research-web-gateway-upgrade.md#资产观察固定版本联合部署)。
