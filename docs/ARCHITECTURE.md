@@ -174,3 +174,5 @@ ETF工程模拟由Host内 `portfolio_decisions/` 完成确定性信号、组合�
 - [Development Map](DEVELOPMENT_MAP.md) 映射源码区域、权威文档和测试。
 - [文档门禁](research-web-documentation.md) 校验文档分类、权威唯一性、链接、退役命令、生成索引和 Research Web 架构清单。
 - `.ai/reports/` 保存每次任务的真实命令、结果和架构影响；`CHANGELOG.md` 只保留用户可见变化。
+
+2026-10-23 资产历史来源修复：HistoryJobRequest/source、HistoryJobs冻结来源配置映射及真实输入授权，recent/none经现Broker等价候选降级；Wind纯参数校验前移候选准入。asset_history.normalize_raw_rows核验CNY/share/amount声明与证券/日期后生成asset-history-raw-2；旧版与Tinysoft固定复权门不变。UI历史来源选择、初次auto/none及冻结重试沿既有Host/DataHub/快照图，无新引擎、数据库、依赖或HTTP端点。离线HTTP/执行器/快照与JS证据分别保留；真实供应商、认证浏览器及同候选Mac安装CI另验。

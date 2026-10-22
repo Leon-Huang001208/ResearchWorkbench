@@ -54,9 +54,9 @@ load正文只允许`source`（可省略或auto／封闭来源ID）、`refresh`�
 | GET | `/api/research/assets/chart-preferences` | 当前账号的 `{panels,revision}`；默认 `volume,macd` |
 | PUT | `/api/research/assets/chart-preferences` | 正文 `{panels:[...]}`，保序、唯一、0至4项，枚举 `volume/macd/kdj/rsi` |
 
-历史任务正文严格为 `{scope:"recent"|"older"|"all", adjustment:"none"|"qfq"|"hfq", retry_of?:<UUID>, as_of?:<ISO日期>}`，拒绝额外字段；键为8至128个字母、数字、`_.:-`字符。同观察同键同参数返回原任务，改参数返回409 `history_key_conflict`。已有活动任务或行情刷新时409 `history_busy`；`older` 要求现有规范历史且复权相同。重试只接受同口径、可重试的失败/取消/中断任务，新键显式提交；缓存或因子版本冲突要求重建。保存失败不启动任务。
+历史任务正文严格为 `{scope:"recent"|"older"|"all", adjustment:"none"|"qfq"|"hfq", source?:"auto"|"tinysoft"|"wind"|"akshare"|"baostock", retry_of?:<UUID>, as_of?:<ISO日期>}`，拒绝额外字段；键为8至128个字母、数字、`_.:-`字符。同观察同键同参数返回原任务，改参数返回409 `history_key_conflict`。已有活动任务或行情刷新时409 `history_busy`；`older` 要求现有规范历史且复权相同。重试只接受同口径、可重试的失败/取消/中断任务，新键显式提交；缓存或因子版本冲突要求重建。保存失败不启动任务。未传source保持旧客户端tinysoft语义；非tinysoft只开放recent/none。auto按现有Broker等价候选降级，固定来源失败不切源；Wind超60自然日只在auto候选准入跳过，不拆块或当作transient。重试冻结source、adjustment与requested_as_of，不能随UI或新报价变化。
 
-公开 job 含 `id/observation_id/state/status/scope/adjustment/created_at/updated_at/progress/coverage/current_dataset/failure_code/failure/retryable/retry_of/request_key`。`state` 与 `status` 相同，非终态为 `queued/running/cancelling/draining`，终态为 `completed/failed/cancelled/interrupted`；`progress` 包含 `chunks_completed/chunks_total/rows`，coverage 区分实际日期、扫描区间、上市日及完整历史边界证明。失败只有安全业务码，公开 dataset 不暴露内部原始行、因子、输入或路径。观察投影附最近 `history_job`。`request_key` 用于核对未知提交，不是认证秘密。
+公开 job 含 `id/observation_id/state/status/scope/adjustment/source/requested_as_of/created_at/updated_at/progress/coverage/current_dataset/failure_code/failure/retryable/retry_of/request_key`。`state` 与 `status` 相同，非终态为 `queued/running/cancelling/draining`，终态为 `completed/failed/cancelled/interrupted`；`progress` 包含 `chunks_completed/chunks_total/rows`，coverage 区分实际日期、扫描区间、上市日及完整历史边界证明。失败只有安全业务码，公开 dataset 不暴露内部原始行、因子、输入或路径。观察投影附最近 `history_job`。`request_key` 用于核对未知提交，不是认证秘密。
 
 `recent` 取截止前2自然年；`older` 在已扫描最早日向前4年；`all` 从近到远分块至上市日或明确声明的1990-01-01下界。每块Provider限制保持，规范总行数不受5000行的单次Provider上限截断。完整数据与同版本 metadata 原子切换、旧材料兼容和复权失败关闭见[文件合同](03-data-files.md#资产历史与图表偏好存储)及[DataHub](../../research-web-datahub.md#资产历史任务与固定复权)。
 

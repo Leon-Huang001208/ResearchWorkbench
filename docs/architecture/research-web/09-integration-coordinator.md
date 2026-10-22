@@ -247,3 +247,5 @@ Hot固定原件发布复用DataHub私有会话快照目录与读取授权；它�
 
 
 2026-10-22 基金NAV入仓：基金NAV例外仅限eastmoney_fund、nav/fund_nav及最多31日完整分页；授权撤销、配置epoch和profile失效仍阻止查仓，不扩大跨源等价或令牌权限。
+
+2026-10-23 历史任务请求显式source并冻结来源配置映射，最终规范发布与缓存复用复查实际输入来源授权；取消/partial复用worker_activity的所有实际涉及来源排空。仍通过现Host、Broker、Provider及会话快照，不增加协调器节点、存储服务或新HTTP入口。

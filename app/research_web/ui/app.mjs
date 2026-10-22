@@ -164,7 +164,7 @@ const assetChart = createAssetChartController({
   onPanelsChange: panels => { void assetWorkspace.savePreferences(panels); },
   onHistoryRequest: request => {
     if (request.action === 'cancel') return assetWorkspace.stopHistory();
-    return assetWorkspace.startHistory(request.scope || 'recent', request.adjustment || 'none', request.action === 'retry' ? assetState.historyJob?.id : undefined);
+    return assetWorkspace.startHistory(request.scope || 'recent', request.adjustment || 'none', request.action === 'retry' ? assetState.historyJob?.id : undefined, request.source);
   },
 });
 let assetCapitalFlow = null;
@@ -196,14 +196,16 @@ function paintAssetWorkspace() {
 }
 function assetTerminalMetadata(observation = assetState.observation) {
   const dataset = observation?.blocks?.history?.dataset;
-  return { ...dataset, frequency: observation?.request_parameters?.frequency || 'daily', adjustment: dataset?.asset_history?.adjustment || observation?.request_parameters?.adjustment || 'qfq', assetIdentity: `${observation?.asset_type || state.route.assetType || 'stock'}:${observation?.asset || state.route.asset || ''}`, historyJob: assetState.historyJob, canLoadHistory: Boolean(observation?.id), asset: observation?.asset, name: assetState.rows.overview?.[0]?.name || assetState.rows.overview?.[0]?.['简称'], currentQuote: projectAssetObservation(assetState.rows, observation || {}).basic };
+  const history = dataset?.asset_history;
+  const historySource = history?.source || (history?.canonical_version === 'asset-history-1' ? 'tinysoft' : history?.canonical_version === 'asset-history-raw-2' ? 'unknown' : observation?.request_parameters?.section_sources?.history || observation?.request_parameters?.source || observation?.source || 'tinysoft');
+  return { ...dataset, frequency: observation?.request_parameters?.frequency || 'daily', adjustment: dataset?.asset_history?.adjustment || observation?.request_parameters?.adjustment || 'qfq', assetIdentity: `${observation?.asset_type || state.route.assetType || 'stock'}:${observation?.asset || state.route.asset || ''}`, historyJob: assetState.historyJob, historySource, canLoadHistory: Boolean(observation?.id) && historySource !== 'unknown', asset: observation?.asset, name: assetState.rows.overview?.[0]?.name || assetState.rows.overview?.[0]?.['简称'], currentQuote: projectAssetObservation(assetState.rows, observation || {}).basic };
 }
 function configureAssetTerminal() {
   const observation = selectAssetObservation(assetState.observation ? [assetState.observation] : [], state.route);
   const key = `${observation?.asset_type || state.route.assetType}:${observation?.asset || state.route.asset}:${observation?.blocks?.history?.dataset?.dataset_id || ''}`;
   const rows = observation ? assetState.rows.history || emptyAssetHistory : emptyAssetHistory;
   const metadata = assetTerminalMetadata(observation);
-  const signature = JSON.stringify({ key, dataset: observation?.blocks?.history?.dataset, frequency: metadata.frequency, adjustment: metadata.adjustment, historyJob: metadata.historyJob, panels: assetState.preferences?.panels });
+  const signature = JSON.stringify({ key, dataset: observation?.blocks?.history?.dataset, frequency: metadata.frequency, adjustment: metadata.adjustment, historySource: metadata.historySource, historyJob: metadata.historyJob, panels: assetState.preferences?.panels });
   if (configuredAssetHistory === rows && configuredAssetSignature === signature) return;
   if (assetChart.configure(rows, key, metadata, assetState.preferences) !== false) { configuredAssetHistory = rows; configuredAssetSignature = signature; }
 }
@@ -2354,7 +2356,7 @@ root.addEventListener('submit', async (event) => {
       record = await pollAssetObservation(record, ticket);
       if (ticket !== pageGeneration || !current()) return;
       await loadAssetWorkspace();
-      if (ticket === pageGeneration && current() && record.status !== 'running' && assetState.observation?.id === record.id) void assetWorkspace.startHistory('recent', payload.adjustment);
+      if (ticket === pageGeneration && current() && record.status !== 'running' && assetState.observation?.id === record.id) void assetWorkspace.startHistory('recent', payload.adjustment, undefined, payload.adjustment === 'none' ? payload.source : 'tinysoft');
       success = record.status === 'complete' ? '资产数据查询已结束，请查看各区块的来源与覆盖。' : record.status === 'running' ? '查询仍在运行，刷新本地状态可继续查看；未重新提交。' : '查询已结束，部分区块有缺失或失败，请查看对应状态。';
     } catch (error) { if (ticket === pageGeneration) state.error = error.message; safeLog('asset_observation_create_failed'); }
     finally { if (current()) { workbenchBusy = false; render(); } }

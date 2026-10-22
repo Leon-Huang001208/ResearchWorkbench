@@ -30,6 +30,8 @@
 
 ## 资产历史与图表偏好存储
 
+2026-10-23 新任务冻结requested source及source_configuration_digests真实来源映射；auto不对空配置构造摘要。旧job缺source只在读取时解释为tinysoft，不回填旧磁盘。非tinysoft近期原始日线使用`asset-history-raw-2`标记；输入保留实际provider、source_url、manifest/hash、来源配置指纹及声明单位，最终发布与缓存复用重验实际来源授权。旧`asset-history-1`及固定复权快照继续读取。没有上市日证据时listing_date为null、boundary_verified/full_history为false，1990扫描下界不能充当上市边界。
+
 可选历史as_of只影响新任务冻结的截止及其独立规范版本；None保留旧任务／旧请求兼容。已有完整历史在报价交易日超过旧锚点时重建完整覆盖，不把原数据或研究引用改成近期两年；旧dataset、raw、因子及manifest仍可复核。新旧as_of版本各自保留定义／因子／范围证据，失败不得覆盖旧指针，服务恢复和缓存复用仍复核归属与授权。
 
 最后核对：2026-10-22。Store在内存兼容提供`asset_history_jobs={}`、`asset_history_keys={}`及`chart_preferences={panels:[volume,macd],revision:0}`，无数据库/schema迁移。对于旧磁盘中未有且仍精确等于这些默认值（含JSON类型）的键，启动或无关服务save只序列化原有业务字段，不把三键物化到`index.json`；某键第一次真正改变后才写入，并在原子替换成功后登记为已持久化。原磁盘已存在的键，包括空对象、空列表或null，以及已持久化后恢复默认的键均不得删除；保存失败不提前登记。其他键、原子写入/错误处理及部署严格保全比对保持。指标偏好保留0至4个唯一有序副图及revision，默认VOL＋MACD，账号内所有证券共用；保存失败恢复原值。任务保存原始请求、观察/会话身份、代次、当前快照、扫描进度和安全失败码，公开投影隐藏内部字段。

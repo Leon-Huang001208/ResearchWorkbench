@@ -19,3 +19,5 @@ dataset key 包含 capability、实际 source、全部 parameters 的规范摘�
 命中的 Result.raw 是 `FrozenSnapshot.export()` 可移植包，只含本次选定的一个版本及它引用的完整响应原件，不包含该 series 的全历史。旧捕获通过相应 as_of 分别冻结导出；`service.export_restore(actor, scope, content)` 在当前 restore 授权下恢复该版本后可重读。查询/冻结遵守既有每次操作的事实数和字节预算及 DataHub 16MiB响应限制，超限明确失败，不截断；这些是单次投影/单份原件的预算，不是全部历史累计容量上限。超过10,000次追加修订后查询仍只投影一条事实，后续修订可继续追加；实际长期容量、索引性能与生产备份仍待独立验收。模块没有安装新依赖，没有连接真实 PostgreSQL/厂商，也不代表 Host/UI、安装 CI、生产部署或其他平台已完成验收。
 
 离线验证入口：`.venv-tests/bin/python -m pytest --confcutdir=tests/research_web tests/research_web/test_research_snapshot_store.py -q`。
+
+2026-10-23 资产近期原始历史在独立规范发布前核验CNY/share与量额声明、证券及日期；turnover仅在声明CNY金额时映射amount。未知单位完整响应仍可以保留DataHub原生快照，但历史任务不发布规范图；不会把该失败称为已完成质量降级。旧原生快照、唯一来源与raw/hash归属不重写。

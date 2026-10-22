@@ -217,7 +217,7 @@ test('cancelled adjustment does not change the basis of a new older request; exp
   assert.deepEqual(requests.at(-1), { action: 'retry', scope: 'recent', adjustment: 'hfq' });
   c.configure(input, 'v1', { ...cancelled });
   c.pan(-1000);
-  assert.deepEqual(requests.at(-1), { action: 'load', scope: 'older', adjustment: 'qfq' });
+  assert.deepEqual(requests.at(-1), { action: 'load', scope: 'older', adjustment: 'qfq', source: 'tinysoft' });
 });
 
 test('atomic canonical metadata updates the displayed basis while the history job is still running', () => {
@@ -725,4 +725,15 @@ test('real ECharts price and chip coordinates align globally within one pixel at
       } finally { c.dispose(); }
     }
   } finally { for (const timer of timers) clearTimeout(timer); }
+});
+
+
+test('source control explicitly selects raw auto while retry preserves frozen source', () => {
+  const requests = []; const c = createAssetChartController({ onHistoryRequest: value => { requests.push(value); return false; } });
+  c.configure(rows(50), 'old', { canLoadHistory: true, historySource: 'tinysoft', adjustment: 'none', historyJob: { id: 'failed', state: 'failed', retryable: true, scope: 'recent', adjustment: 'none', source: 'baostock' } });
+  assert.match(renderMarketTerminal(rows(50), c.getState(), { canLoadHistory: true, historySource: 'tinysoft' }), /data-asset-history-source/);
+  c.handle({ type: 'change', target: { value: 'auto', matches: selector => selector === '[data-asset-history-source]' } });
+  assert.deepEqual(requests[0], { action: 'load', scope: 'recent', adjustment: 'none', source: 'auto' });
+  c.handle(click('history-retry'));
+  assert.equal(requests.at(-1).source, 'baostock');
 });

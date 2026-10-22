@@ -446,3 +446,5 @@ Hot研究结果读取/原回合核对为hot_results.py与hot_routes，测试test
 
 
 资产 CJPY 实际回读补充：providers_cjpy.py 映射业务周期/复权到已安装 SDK；asset-chart.mjs 与 asset-workspace.mjs 读取供应商原字段“时间/简称/vol”。test_asset_workspace.py 对单通道来源调度和 SDK 参数做离线回归；真实取数只在显式授权的隔离目录中验收，不修改已有实例凭据。
+
+2026-10-23 资产历史来源修复：HistoryJobRequest/source、HistoryJobs冻结来源配置映射及真实输入授权，recent/none经现Broker等价候选降级；Wind纯参数校验前移候选准入。asset_history.normalize_raw_rows核验CNY/share/amount声明与证券/日期后生成asset-history-raw-2；旧版与Tinysoft固定复权门不变。UI历史来源选择、初次auto/none及冻结重试沿既有Host/DataHub/快照图，无新引擎、数据库、依赖或HTTP端点。离线HTTP/执行器/快照与JS证据分别保留；真实供应商、认证浏览器及同候选Mac安装CI另验。

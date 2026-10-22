@@ -98,19 +98,22 @@ export function createAssetWorkspaceController({ api, onChange = () => {}, pollI
     }
     } finally { context.following = false; }
   }
-  async function startHistory(scope = 'recent', adjustment = 'none', retryOf) {
+  async function startHistory(scope = 'recent', adjustment = 'none', retryOf, source) {
     const observation = state.observation;
     if (!observation?.id || !api.startAssetHistory || historyContext) return;
+    const frozen = retryOf ? state.historyJob : null;
+    if (retryOf && frozen?.id !== retryOf) { state.errors.historyJobs = '原历史任务状态缺失，请刷新后重试'; notify(); return; }
+    if (frozen) { scope = frozen.scope; adjustment = frozen.adjustment; source = frozen.source || 'tinysoft'; }
     if (!['recent', 'older', 'all'].includes(scope) || !['none', 'qfq', 'hfq'].includes(adjustment)) { state.errors.historyJobs = '历史加载参数无效'; notify(); return; }
     const context = { observationId: observation.id, identity: identity(observation), key: globalThis.crypto.randomUUID(), cancelled: false, abort: new AbortController(), job: null };
     historyContext = context; delete state.errors.historyJobs;
-    state.historyJob = { status: 'queued', scope, adjustment, request_key: context.key }; notify();
+    state.historyJob = { status: 'queued', scope, adjustment, source: source || 'tinysoft', request_key: context.key }; notify();
     try {
       let job;
       try {
         // Creation is intentionally not tied to read cancellation: a late 202 identifies the exact job.
-        const cutoff = !retryOf && scope !== 'older' ? quoteDate(state.rows.overview) : null;
-        job = await api.startAssetHistory(context.observationId, { scope, adjustment, ...(cutoff ? { as_of: cutoff } : {}), ...(retryOf ? { retry_of: retryOf } : {}) }, context.key);
+        const cutoff = frozen ? (scope === 'older' ? null : frozen.requested_as_of) : scope !== 'older' ? quoteDate(state.rows.overview) : null;
+        job = await api.startAssetHistory(context.observationId, { scope, adjustment, ...(source ? { source } : {}), ...(cutoff ? { as_of: cutoff } : {}), ...(retryOf ? { retry_of: retryOf } : {}) }, context.key);
       } catch (error) {
         if (error.status >= 400 && error.status < 500) { context.rejected = true; throw error; }
         safeLog('asset_history_submit_reconcile', { status: error.code || 'request_failed' });
@@ -243,7 +246,7 @@ export function createAssetWorkspaceController({ api, onChange = () => {}, pollI
       try {
         const creationIdentity = `${route.assetType || 'stock'}:${route.asset.toUpperCase()}`;
         if (!creationKeys.has(creationIdentity)) { creationKeys.set(creationIdentity, globalThis.crypto.randomUUID()); if (creationKeys.size > 64) creationKeys.delete(creationKeys.keys().next().value); }
-        const created = await api.createAssetObservation({ asset: route.asset, asset_type: 'stock', source: 'tinysoft', sections: ['overview'], frequency: 'daily', adjustment: 'qfq' }, creationKeys.get(creationIdentity));
+        const created = await api.createAssetObservation({ asset: route.asset, asset_type: 'stock', source: 'auto', sections: ['overview'], frequency: 'daily', adjustment: 'none' }, creationKeys.get(creationIdentity));
         if (ticket !== generation) return;
         if (!selectAssetObservation([created], route)) throw new Error('新增观察资产身份异常');
         state.observation = cloneObservation(created); state.rows = {}; state.observations = [state.observation, ...state.observations];
@@ -256,13 +259,17 @@ export function createAssetWorkspaceController({ api, onChange = () => {}, pollI
     if (ticket !== generation || !state.observation) return;
     const blocks = [...new Set([...(sameAsset ? [] : ['overview', 'valuation']), ...(VIEW_BLOCKS[route.assetView] || VIEW_BLOCKS.overview)])];
     await Promise.all(blocks.map(block => loadBlock(block, { refresh })));
-    if (needsInitialHistory && ticket === generation) void startHistory('recent', 'qfq').catch(() => { safeLog('asset_initial_history_failed', { status: 'history_failed' }); });
+    if (needsInitialHistory && ticket === generation) void startHistory('recent', 'none', undefined, 'auto').catch(() => { safeLog('asset_initial_history_failed', { status: 'history_failed' }); });
     else if (!sameAsset && ticket === generation) {
       const history = state.observation.blocks.history?.dataset?.asset_history;
       const cutoff = quoteDate(state.rows.overview);
+      if (history?.canonical_version === 'asset-history-raw-2' && !history.source) {
+        state.errors.historyJobs = '历史来源未知，请核验当前快照后再更新';
+        safeLog('asset_history_source_unknown', { status: 'history_source_unknown' }); notify(); return;
+      }
       if (history && cutoff && cutoff > history.requested_as_of) {
         // Rebuild a separate canonical version; never append across adjustment anchors.
-        void startHistory(history.coverage?.full_history ? 'all' : 'recent', history.adjustment || 'qfq').catch(() => { safeLog('asset_history_advance_failed', { status: 'history_failed' }); });
+        void startHistory(history.coverage?.full_history ? 'all' : 'recent', history.adjustment || 'qfq', undefined, history.source).catch(() => { safeLog('asset_history_advance_failed', { status: 'history_failed' }); });
       }
     }
   }

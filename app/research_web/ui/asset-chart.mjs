@@ -140,14 +140,15 @@ function historyStatus(state, metadata) {
   if (pending) return `${state.requestedAdjustment ? `正在生成${adjustmentLabel(state.requestedAdjustment)}，当前仍显示${adjustmentLabel(state.adjustment)}原版本 · ` : ''}加载历史${progress === null ? '…' : ` ${fmt(clamp(progress, 0, 100), 0)}%`}${count === null ? '' : ` · ${fmt(count, 0)}条`}`;
   if (failed) return `${retryableHistory(metadata) ? '历史加载失败，可重试' : '历史口径已变化，请重新加载全历史'}${job.failure_code ? ` · ${job.failure_code}` : ''}`;
   if (status === 'cancelled') return '历史加载已取消，已取得数据保留，可重试';
-  return completeHistory(metadata) ? '全部历史已加载' : metadata.canLoadHistory ? '可向前加载更多历史' : '旧快照 · 全历史尚未接入';
+  if ((state.historySource || metadata.historySource) === 'unknown') return '历史来源未知 · 请核验快照';
+  return completeHistory(metadata) ? '全部历史已加载' : (state.historySource || metadata.historySource || 'tinysoft') !== 'tinysoft' ? '近期不复权 · 更早/全历史请先选择固定天软' : metadata.canLoadHistory ? '可向前加载更多历史' : '旧快照 · 全历史尚未接入';
 }
 function controls(state, length, metadata) {
   const source = sourceFrequency(metadata.frequency); const pending = busyHistory(metadata) || state.historyRequestPending;
   const button = (action, label, active = false, disabled = false, extra = '') => `<button type="button" class="kline-btn${active ? ' active' : ''}" data-asset-chart-action="${action}" aria-pressed="${active}"${disabled ? ' disabled' : ''}${extra}>${label}</button>`;
   const periods = [['day', '日K'], ['week', '周K'], ['month', '月K']].map(([period, label]) => button(`period-${period}`, label, state.period === period, source !== 'day' && source !== period)).join('');
   const failed = retryableHistory(metadata);
-  return `<div class="asset-chart-toolbar"><div class="kline-period-group" role="group" aria-label="K线周期">${periods}</div><select class="asset-chart-adjustment" data-asset-chart-adjustment aria-label="复权方式"${pending || !metadata.canLoadHistory ? ' disabled' : ''}>${[['none', '不复权'], ['qfq', '前复权'], ['hfq', '后复权']].map(([value, label]) => `<option value="${value}"${state.adjustment === value ? ' selected' : ''}>${label}</option>`).join('')}</select>${button('all', requiresHistoryRebuild(metadata) ? '重建全历史' : completeHistory(metadata) ? '全部已加载' : '全历史', state.showAll, pending || (!metadata.canLoadHistory && !completeHistory(metadata)))}<span class="asset-history-status" data-asset-history-status role="status">${e(historyStatus(state, metadata))}</span>${button('history-cancel', '取消', false, false, pending ? '' : ' hidden')}${button('history-retry', '重试', false, pending || !metadata.canLoadHistory, failed ? '' : ' hidden')}<div class="asset-overlay-controls" role="group" aria-label="主图叠加指标">${button('overlay-ma', 'MA', state.overlay === 'ma')}${button('overlay-boll', 'BOLL', state.overlay === 'boll')}${button('overlay-none', '裸K', state.overlay === 'none')}<details class="asset-chart-popover"><summary>均线⌄</summary><div class="asset-chart-popover-content" role="group" aria-label="主图均线">${MA_PERIODS.map(n => button(`ma-${n}`, `MA${n}`, maEnabled(state).includes(n))).join('')}<small>完整窗口后显示；缺失保留空档。</small></div></details></div><div class="asset-range-controls" role="group" aria-label="行情视区">${button('pan-back', '‹', false, !state.start && !metadata.canLoadHistory, ' aria-label="视区前移"')}${button('pan-forward', '›', false, state.end === length, ' aria-label="视区后移"')}${button('zoom-in', '＋', false, false, ' aria-label="放大视区"')}${button('zoom-out', '－', false, false, ' aria-label="缩小视区"')}${button('reset', '近120条')}</div></div>`;
+  return `<div class="asset-chart-toolbar"><div class="kline-period-group" role="group" aria-label="K线周期">${periods}</div><select class="asset-chart-adjustment" data-asset-chart-adjustment aria-label="复权方式"${pending || !metadata.canLoadHistory ? ' disabled' : ''}>${[['none', '不复权'], ['qfq', '前复权'], ['hfq', '后复权']].map(([value, label]) => `<option value="${value}"${state.adjustment === value ? ' selected' : ''}>${label}</option>`).join('')}</select><select data-asset-history-source aria-label="历史来源"${pending || !metadata.canLoadHistory ? ' disabled' : ''}>${(state.historySource || metadata.historySource) === 'unknown' ? '<option value="unknown" selected>来源未知（请核验快照）</option>' : ''}${[['auto', '自动备用（近期日线/不复权）'], ['tinysoft', '天软（固定来源）'], ['wind', 'Wind（固定来源）'], ['akshare', 'AKShare（固定来源）'], ['baostock', 'BaoStock（固定来源）']].map(([value, label]) => `<option value="${value}"${(state.historySource || metadata.historySource || 'tinysoft') === value ? ' selected' : ''}>${label}</option>`).join('')}</select>${button('all', requiresHistoryRebuild(metadata) ? '重建全历史' : completeHistory(metadata) ? '全部已加载' : '全历史', state.showAll, pending || (state.historySource || metadata.historySource || 'tinysoft') !== 'tinysoft' || (!metadata.canLoadHistory && !completeHistory(metadata)))}<span class="asset-history-status" data-asset-history-status role="status">${e(historyStatus(state, metadata))}</span>${button('history-cancel', '取消', false, false, pending ? '' : ' hidden')}${button('history-retry', '重试', false, pending || !metadata.canLoadHistory, failed ? '' : ' hidden')}<div class="asset-overlay-controls" role="group" aria-label="主图叠加指标">${button('overlay-ma', 'MA', state.overlay === 'ma')}${button('overlay-boll', 'BOLL', state.overlay === 'boll')}${button('overlay-none', '裸K', state.overlay === 'none')}<details class="asset-chart-popover"><summary>均线⌄</summary><div class="asset-chart-popover-content" role="group" aria-label="主图均线">${MA_PERIODS.map(n => button(`ma-${n}`, `MA${n}`, maEnabled(state).includes(n))).join('')}<small>完整窗口后显示；缺失保留空档。</small></div></details></div><div class="asset-range-controls" role="group" aria-label="行情视区">${button('pan-back', '‹', false, !state.start && !metadata.canLoadHistory, ' aria-label="视区前移"')}${button('pan-forward', '›', false, state.end === length, ' aria-label="视区后移"')}${button('zoom-in', '＋', false, false, ' aria-label="放大视区"')}${button('zoom-out', '－', false, false, ' aria-label="缩小视区"')}${button('reset', '近120条')}</div></div>`;
 }
 function chipStats(chip) {
   const percent = value => value === null ? '—' : `${fmt(value * 100, 1)}%`;
@@ -200,7 +201,7 @@ export function buildChipChartOption(chip, domain, echarts = null, theme) {
 
 export function createAssetChartController({ onChange = () => {}, onPanelsChange = () => {}, onHistoryRequest = () => {}, logger = safeLog } = {}) {
   let rawRows = []; let daily = []; let bars = []; let identity; let datasetKey = ''; let metadata = {}; let source = 'day';
-  let state = { overlay: 'ma', enabledMA: [...MA_PERIODS], panels: [...DEFAULT_PANELS], period: 'day', adjustment: 'none', requestedAdjustment: null, selectedDate: '', historyViewAllRequested: false, showAll: false, ...initialRange(0), crosshairY: null, crosshairVisible: false, historyRequestPending: false };
+  let state = { historySource: metadata.historySource, overlay: 'ma', enabledMA: [...MA_PERIODS], panels: [...DEFAULT_PANELS], period: 'day', adjustment: 'none', requestedAdjustment: null, selectedDate: '', historyViewAllRequested: false, showAll: false, ...initialRange(0), crosshairY: null, crosshairVisible: false, historyRequestPending: false };
   let slot = null; let main = null; let chips = null; let observer = null; let frame = null; let needsFull = false; let needsResize = false; let view = null; let library = null; let applying = false; let olderAnchor = ''; let lastHistoryScope = 'all'; let lastHistoryAdjustment = null; let pointerBlocked = false; let dragging = false; let gestureStartX = null; let historyRequestSerial = 0;
   let theme = chartTheme(); const chipCache = new Map();
   const listeners = []; const chartListeners = []; const zrListeners = [];
@@ -244,6 +245,7 @@ export function createAssetChartController({ onChange = () => {}, onPanelsChange
     }
     const cue = find('[data-asset-selection-cue]'); if (cue) cue.textContent = outside() ? `所选日 ${state.selectedDate} 在视区外` : '';
     const adjustment = find('[data-asset-chart-adjustment]'); if (adjustment) { adjustment.value = state.adjustment; adjustment.disabled = !metadata.canLoadHistory || busyHistory(metadata) || state.historyRequestPending; }
+    const historySource = find('[data-asset-history-source]'); if (historySource) { historySource.value = state.historySource || metadata.historySource || 'tinysoft'; historySource.disabled = !metadata.canLoadHistory || busyHistory(metadata) || state.historyRequestPending; }
     const status = find('[data-asset-history-status]'); if (status) status.textContent = historyStatus(state, metadata);
     const pending = busyHistory(metadata) || state.historyRequestPending;
     for (const button of slot?.querySelectorAll('[data-asset-chart-action]') || []) {
@@ -252,11 +254,11 @@ export function createAssetChartController({ onChange = () => {}, onPanelsChange
       else if (action.startsWith('ma-')) pressed = state.enabledMA.includes(Number(action.slice(3)));
       else if (action.startsWith('period-')) { const period = action.slice(7); pressed = state.period === period; button.disabled = source !== 'day' && source !== period; }
       else if (action.startsWith('panel-add-')) button.disabled = state.panels.includes(action.slice(10));
-      else if (action === 'all') { pressed = state.showAll; button.disabled = pending || (!metadata.canLoadHistory && !completeHistory(metadata)); button.textContent = requiresHistoryRebuild(metadata) ? '重建全历史' : completeHistory(metadata) ? '全部已加载' : '全历史'; }
+      else if (action === 'all') { pressed = state.showAll; button.disabled = pending || (state.historySource || metadata.historySource || 'tinysoft') !== 'tinysoft' || (!metadata.canLoadHistory && !completeHistory(metadata)); button.textContent = requiresHistoryRebuild(metadata) ? '重建全历史' : completeHistory(metadata) ? '全部已加载' : '全历史'; }
       else if (action === 'history-cancel') { button.hidden = !pending; button.disabled = String(jobFor(metadata).status || jobFor(metadata).state) === 'cancelling'; }
       else if (action === 'history-retry') { button.hidden = !retryableHistory(metadata); button.disabled = pending || !metadata.canLoadHistory; }
       else if (action === 'locate') button.hidden = !outside();
-      else if (action === 'pan-back') button.disabled = state.start === 0 && (!metadata.canLoadHistory || completeHistory(metadata));
+      else if (action === 'pan-back') button.disabled = state.start === 0 && (!metadata.canLoadHistory || completeHistory(metadata) || (state.historySource || metadata.historySource || 'tinysoft') !== 'tinysoft');
       else if (action === 'pan-forward') button.disabled = state.end === bars.length;
       button.setAttribute('aria-pressed', String(pressed)); button.classList.toggle('active', pressed);
     }
@@ -322,7 +324,7 @@ export function createAssetChartController({ onChange = () => {}, onPanelsChange
     if (main) guarded('dispose', () => main.dispose()); if (chips) guarded('dispose', () => chips.dispose());
     main = chips = null; slot = null; view = null; library = null; needsFull = needsResize = false; pointerBlocked = dragging = false;
   }
-  function requestHistory(action = 'load', scope = 'all', requestedAdjustment) {
+  function requestHistory(action = 'load', scope = 'all', requestedAdjustment, requestedSource) {
     if (!metadata.canLoadHistory) return false;
     if (action !== 'cancel' && (busyHistory(metadata) || state.historyRequestPending)) return false;
     if (action === 'load' && scope === 'older' && !historyFor(metadata).canonical_version) scope = 'recent';
@@ -334,9 +336,11 @@ export function createAssetChartController({ onChange = () => {}, onPanelsChange
     }
     const previousTarget = jobFor(metadata).adjustment || lastHistoryAdjustment || state.adjustment;
     const adjustment = requestedAdjustment || (action === 'retry' || action === 'cancel' ? previousTarget : state.adjustment);
+    const selectedSource = action === 'retry' || action === 'cancel' ? jobFor(metadata).source : requestedSource || state.historySource || metadata.historySource;
+    if (action === 'load' && selectedSource && selectedSource !== 'tinysoft' && (scope !== 'recent' || adjustment !== 'none')) { log('history_source_scope'); return false; }
     if (action !== 'cancel') {
       lastHistoryScope = scope; lastHistoryAdjustment = adjustment;
-      update({ historyRequestPending: true, historyViewAllRequested: scope === 'all', requestedAdjustment: adjustment === state.adjustment ? null : adjustment }, 'history');
+      update({ historySource: selectedSource || state.historySource, historyRequestPending: true, historyViewAllRequested: scope === 'all', requestedAdjustment: adjustment === state.adjustment ? null : adjustment }, 'history');
     }
     const requestSerial = ++historyRequestSerial;
     const rejected = () => {
@@ -344,7 +348,7 @@ export function createAssetChartController({ onChange = () => {}, onPanelsChange
       if (attemptAnchor && olderAnchor === attemptAnchor) olderAnchor = '';
       update({ historyRequestPending: false, historyViewAllRequested: false, requestedAdjustment: null }, 'history_failed');
     };
-    const result = guarded('history_request', () => onHistoryRequest({ action, scope, adjustment }));
+    const result = guarded('history_request', () => onHistoryRequest({ action, scope, adjustment, ...(selectedSource ? { source: selectedSource } : {}) }));
     if (result === false) { rejected(); return false; }
     if (result && typeof result.then === 'function') result.then(accepted => {
       if (requestSerial !== historyRequestSerial) return;
@@ -390,22 +394,23 @@ export function createAssetChartController({ onChange = () => {}, onPanelsChange
     const result = guarded('configure', () => {
       const nextIdentity = identityFor(nextMetadata || {}, key); const changedIdentity = identity !== nextIdentity;
       if (rawRows === rows && datasetKey === key && metadata === nextMetadata && !preferences) return getState();
-      const previousBars = bars; const previous = state; const previousSource = source; const changedRows = rawRows !== rows || datasetKey !== key;
+      const previousBars = bars; const previous = state; const previousSource = source; const previousHistorySource = metadata.historySource; const changedRows = rawRows !== rows || datasetKey !== key;
       rawRows = rows; identity = nextIdentity; datasetKey = key; metadata = nextMetadata || {}; source = sourceFrequency(metadata.frequency);
       daily = enrichMarketBars(rawRows);
       const period = changedIdentity || !previousBars.length || source !== previousSource ? source : source === 'day' ? state.period : source;
       bars = source === 'day' && ['week', 'month'].includes(period) ? aggregateMarketBars(daily, period) : daily;
-      if (changedIdentity || !previousBars.length) {
+      if (changedIdentity) {
         chipCache.clear(); olderAnchor = ''; lastHistoryAdjustment = null; historyRequestSerial++;
-        state = { overlay: 'ma', enabledMA: [...MA_PERIODS], panels: preferences ? panelsFor(preferences) : [...previous.panels], period, adjustment: adjustmentFor(metadata), requestedAdjustment: null, selectedDate: daily.at(-1)?.date || '', historyViewAllRequested: false, showAll: false, ...initialRange(bars.length), crosshairY: null, crosshairVisible: false, historyRequestPending: false };
+        state = { historySource: metadata.historySource, overlay: 'ma', enabledMA: [...MA_PERIODS], panels: preferences ? panelsFor(preferences) : [...previous.panels], period, adjustment: adjustmentFor(metadata), requestedAdjustment: null, selectedDate: daily.at(-1)?.date || '', historyViewAllRequested: false, showAll: false, ...initialRange(bars.length), crosshairY: null, crosshairVisible: false, historyRequestPending: false };
       } else {
         if (changedRows) chipCache.clear();
         const startDate = previousBars[previous.start]?.source_start_date || previousBars[previous.start]?.date;
         const endDate = previousBars[previous.end - 1]?.date;
-        const start = previous.showAll ? 0 : Math.max(0, nearestIndex(bars, startDate));
-        const end = bars.length ? previous.showAll ? bars.length : Math.max(start + 1, nearestIndex(bars, endDate) + 1) : 0;
+        const firstRows = !previousBars.length && bars.length > 0;
+        const start = firstRows ? initialRange(bars.length).start : previous.showAll ? 0 : Math.max(0, nearestIndex(bars, startDate));
+        const end = firstRows ? bars.length : bars.length ? previous.showAll ? bars.length : Math.max(start + 1, nearestIndex(bars, endDate) + 1) : 0;
         const selectedDate = daily[actualDateIndex(daily, previous.selectedDate)]?.date || '';
-        state = { ...previous, period, selectedDate, start, end, adjustment: adjustmentFor(metadata), historyRequestPending: busyHistory(metadata) ? previous.historyRequestPending : changedRows || ['completed', 'complete', 'succeeded', 'failed', 'error', 'cancelled', 'interrupted'].includes(String(jobFor(metadata).status || jobFor(metadata).state || '')) ? false : previous.historyRequestPending, crosshairY: null, crosshairVisible: false };
+        state = { ...previous, historySource: previousHistorySource !== metadata.historySource ? metadata.historySource : previous.historySource, period, selectedDate, start, end, adjustment: adjustmentFor(metadata), historyRequestPending: busyHistory(metadata) ? previous.historyRequestPending : changedRows || ['completed', 'complete', 'succeeded', 'failed', 'error', 'cancelled', 'interrupted'].includes(String(jobFor(metadata).status || jobFor(metadata).state || '')) ? false : previous.historyRequestPending, crosshairY: null, crosshairVisible: false };
         if (preferences) state.panels = panelsFor(preferences);
         if (changedRows && adjustmentFor(metadata) === previous.requestedAdjustment) state.requestedAdjustment = null;
         if (changedRows && previous.historyViewAllRequested && completeHistory(metadata)) state = { ...state, start: 0, end: bars.length, showAll: true, historyViewAllRequested: false };
@@ -463,11 +468,16 @@ export function createAssetChartController({ onChange = () => {}, onPanelsChange
       if (event?.assetChartHandled) return true;
       if (event?.type === 'mouseleave' || event?.type === 'pointerleave') return hidePointer();
       if (event?.type === 'change') {
+        if (event.target?.matches?.('[data-asset-history-source]')) {
+          const selected = event.target.value; if (!['auto', 'tinysoft', 'wind', 'akshare', 'baostock'].includes(selected) || !metadata.canLoadHistory || busyHistory(metadata) || state.historyRequestPending) return false;
+          state = { ...state, historySource: selected };
+          return requestHistory('load', 'recent', 'none', selected);
+        }
         if (event.target?.matches?.('[data-asset-selected-date]')) return selectDate(event.target.value);
         if (event.target?.matches?.('[data-asset-chart-adjustment]')) {
           const adjustment = event.target.value; if (!['none', 'qfq', 'hfq'].includes(adjustment) || !metadata.canLoadHistory || busyHistory(metadata) || state.historyRequestPending) return false;
           if (adjustment === state.adjustment) return false;
-          return requestHistory('load', 'recent', adjustment);
+          return requestHistory('load', 'recent', adjustment, adjustment === 'none' ? state.historySource || metadata.historySource : 'tinysoft');
         }
       }
       if (event?.type === 'click') {

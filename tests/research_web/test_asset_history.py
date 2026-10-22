@@ -18,6 +18,43 @@ from app.research_web.datahub.snapshots import Snapshots
 from app.research_web.store import Store, StoreError
 
 
+@pytest.fixture(autouse=True)
+def isolated_credentials(monkeypatch):
+    """Every host fixture uses memory; unexpected OS credential access fails closed."""
+    import keyring
+
+    from app.research_web import credential_backend
+    from app.research_web.datahub import connections
+
+    class MemoryCredentials:
+        def __init__(self):
+            self.values = {}
+
+        def get_password(self, service, account):
+            return self.values.get((service, account))
+
+        def set_password(self, service, account, value):
+            self.values[(service, account)] = value
+
+        def delete_password(self, service, account):
+            self.values.pop((service, account), None)
+
+    def deny(*_args, **_kwargs):
+        pytest.fail("history tests must not access host credentials")
+
+    monkeypatch.setattr(connections, "default_credential_backend", MemoryCredentials)
+    monkeypatch.setattr(credential_backend, "default_credential_backend", MemoryCredentials)
+    for backend in (
+        credential_backend.SystemKeyringBackend,
+        credential_backend.PrivateFileCredentialBackend,
+    ):
+        monkeypatch.setattr(backend, "__init__", deny)
+        for method in ("get_password", "set_password", "delete_password"):
+            monkeypatch.setattr(backend, method, deny)
+    for method in ("get_password", "set_password", "delete_password"):
+        monkeypatch.setattr(keyring, method, deny)
+
+
 class HistoryHub:
     """Deterministic supplier boundary; snapshot IO remains real."""
 
@@ -828,3 +865,432 @@ async def test_canonical_adjustment_is_not_a_generic_vendor_cache_entry(tmp_path
     finally:
         await ws.close()
         await hub.close()
+
+
+def test_history_source_is_explicit_and_old_clients_keep_tinysoft():
+    assert HistoryJobRequest(scope="recent", adjustment="none").source == "tinysoft"
+    assert HistoryJobRequest(scope="recent", adjustment="none", source="auto").source == "auto"
+    with pytest.raises(ValueError):
+        HistoryJobRequest(scope="recent", adjustment="qfq", source="auto")
+    with pytest.raises(ValueError):
+        HistoryJobRequest(scope="all", adjustment="none", source="auto")
+
+
+def test_raw_history_requires_identity_units_and_maps_declared_turnover():
+    from app.research_web.asset_history import normalize_raw_rows
+
+    interval = {"start_date": "2026-10-01", "end_date": "2026-10-20"}
+    rows = [
+        {
+            "asset": "600000.SH",
+            "date": "2026-10-20",
+            "open": 10,
+            "high": 12,
+            "low": 9,
+            "close": 11,
+            "volume": 100,
+            "turnover": 1100,
+        }
+    ]
+    fields = {
+        k: {"unit": "currency_per_share", "currency": "CNY"}
+        for k in ("open", "high", "low", "close")
+    }
+    fields.update(
+        volume={"unit": "share", "currency": None}, turnover={"unit": "currency", "currency": "CNY"}
+    )
+    assert normalize_raw_rows(rows, "600000.SH", interval, fields)[0]["amount"] == 1100
+    with pytest.raises(StoreError, match="单位"):
+        normalize_raw_rows(rows, "600000.SH", interval, {})
+    with pytest.raises(StoreError, match="身份"):
+        normalize_raw_rows(
+            [{k: v for k, v in rows[0].items() if k != "asset"}], "600000.SH", interval, fields
+        )
+
+
+@pytest.mark.asyncio
+async def test_recent_auto_freezes_requested_source_and_actual_configuration(tmp_path):
+    ws, hub, oid = workspace(tmp_path)
+    job = await ws.history_jobs.create(
+        oid, HistoryJobRequest(scope="recent", adjustment="none", source="auto"), "auto-recent-key"
+    )
+    await settle(ws)
+    record = ws.store.data["asset_history_jobs"][job["id"]]
+    assert record["source"] == "auto"
+    assert set(record["source_configuration_digests"]) == {
+        "tinysoft",
+        "wind",
+        "akshare",
+        "baostock",
+    }
+    assert all(query.source == "auto" for query in hub.calls)
+    # A supplier with no price-unit declaration cannot produce a canonical snapshot.
+    assert ws.history_jobs.get(oid, job["id"])["failure_code"] == "history_unit_unverified"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "source, fault",
+    [
+        ("auto", None),
+        ("tinysoft", None),
+        ("auto", "units"),
+        ("auto", "security"),
+        ("auto", "conflict"),
+        ("auto", "revoked"),
+    ],
+)
+async def test_http_history_real_broker_executor_fallback_chain(
+    tmp_path, monkeypatch, source, fault
+):
+    import httpx
+    from fastapi import FastAPI
+
+    from app.research_web.asset_routes import router
+    from app.research_web.datahub import providers_akshare
+
+    ws, hub, oid, calls, sdk, _ = real_workspace(tmp_path, monkeypatch)
+    statuses = {
+        "tinysoft": {"configured": True, "secret_configured": True},
+        "wind": {"configured": True, "preferred_adapter": "excel"},
+    }
+    monkeypatch.setattr(hub.connections, "statuses", lambda: statuses)
+
+    def failed_bars(**kwargs):
+        calls.append(("failed-bars", kwargs))
+        raise OSError("synthetic unavailability")
+
+    sdk.get_market_data = failed_bars
+    public_calls = []
+
+    def invoke(query):
+        public_calls.append(query)
+        rows = [
+            {
+                "date": query.parameters["end_date"],
+                "open": 10,
+                "high": 12,
+                "low": 9,
+                "close": 11,
+                "volume": 100,
+                "amount": 1100,
+            }
+        ]
+        if fault == "conflict":
+            rows.append({**rows[0], "close": 10.5})
+        import pandas as pd
+
+        result = providers_akshare._materialize(
+            query, pd.DataFrame(rows), providers_akshare._normalize_sina_stock_bars
+        )
+        if fault == "units":
+            result.fields["close"]["currency"] = None
+        if fault == "security":
+            result.rows[0]["asset"] = "000001.SZ"
+        if fault == "revoked":
+            monkeypatch.setattr(hub.connections, "configuration_revision", lambda _: "revoked")
+        return result
+
+    monkeypatch.setattr(providers_akshare, "_invoke", invoke)
+    app = FastAPI()
+    app.include_router(router)
+    app.state.research = ws.service
+    ws.service.asset_workspace = ws
+    try:
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://fixture"
+        ) as client:
+            response = await client.post(
+                f"/api/research/assets/observations/{oid}/history-jobs",
+                json={"scope": "recent", "adjustment": "none", "source": source},
+                headers={"Idempotency-Key": "http-fallback-01"},
+            )
+            assert response.status_code == 202, response.text
+            job = response.json()
+            await settle(ws)
+            result = (
+                await client.get(
+                    f"/api/research/assets/observations/{oid}/history-jobs/{job['id']}"
+                )
+            ).json()
+        assert not any(call[0] == "factors" for call in calls)
+        if source == "tinysoft":
+            assert result["state"] == "failed"
+            assert public_calls == []
+        elif fault:
+            assert result["state"] == "failed", result
+            assert ws.observation(oid)["blocks"]["history"]["dataset"] is None
+        else:
+            assert result["state"] == "completed", result
+            assert len(public_calls) == 1
+            dataset = ws.observation(oid)["blocks"]["history"]["dataset"]
+            assert dataset["provider"] == "akshare"
+            assert (
+                hub.detail(ws.observation(oid)["session_id"], dataset["dataset_id"])["source_url"]
+                == "https://akshare.akfamily.xyz/"
+            )
+            history = hub.detail(ws.observation(oid)["session_id"], dataset["dataset_id"])[
+                "asset_history"
+            ]
+            assert history["canonical_version"] == "asset-history-raw-2"
+            assert history["coverage"]["listing_date"] is None
+            assert history["coverage"]["boundary_verified"] is False
+            assert history["coverage"]["full_history"] is False
+            assert history["raw_rows"][0]["amount"] == 1100
+            attempts = history["inputs"][0]["manifest"]["attempted_sources"]
+            assert any(
+                a["source"] == "wind" and a["reason"] == "workload_too_large" for a in attempts
+            )
+            assert any(a["source"] == "tinysoft" for a in attempts)
+    finally:
+        await hub.close()
+
+
+@pytest.mark.asyncio
+async def test_auto_cancellation_drains_real_public_executor_and_retry_freezes_source(
+    tmp_path, monkeypatch
+):
+    from app.research_web.datahub import providers_akshare
+    from app.research_web.datahub.providers import Result
+
+    ws, hub, oid, _, _sdk, _ = real_workspace(tmp_path, monkeypatch)
+    statuses = {"tinysoft": {"configured": False}}
+    monkeypatch.setattr(hub.connections, "statuses", lambda: statuses)
+    entered, release = threading.Event(), threading.Event()
+
+    def invoke(query):
+        entered.set()
+        assert release.wait(3), "fixture did not release public executor"
+        return Result(
+            rows=[],
+            raw=[b"[]"],
+            status="empty",
+            pagination_complete=True,
+            provider_id="akshare",
+            fields={
+                k: {"unit": "currency_per_share", "currency": "CNY"}
+                for k in ("open", "high", "low", "close")
+            },
+        )
+
+    monkeypatch.setattr(providers_akshare, "_invoke", invoke)
+    job = await ws.history_jobs.create(
+        oid, HistoryJobRequest(scope="recent", adjustment="none", source="auto"), "auto-cancel-key"
+    )
+    try:
+        assert await asyncio.to_thread(entered.wait, 2)
+        cancelled = await ws.history_jobs.cancel(oid, job["id"])
+        await asyncio.sleep(0.01)
+        assert cancelled["state"] == "cancelling"
+        assert ws.history_jobs.active(oid)
+        assert providers_akshare.active_futures()
+        release.set()
+        await settle(ws)
+        assert ws.history_jobs.get(oid, job["id"])["state"] == "cancelled"
+        assert not providers_akshare.active_futures()
+        assert ws.observation(oid)["blocks"]["history"]["dataset"] is None
+        with pytest.raises(StoreError) as error:
+            await ws.history_jobs.create(
+                oid,
+                HistoryJobRequest(
+                    scope="recent", adjustment="none", source="baostock", retry_of=job["id"]
+                ),
+                "auto-retry-changed",
+            )
+        assert error.value.code == "history_retry_invalid"
+    finally:
+        release.set()
+        await settle(ws)
+        await hub.close()
+
+
+def test_reading_legacy_job_does_not_backfill_source_on_disk(tmp_path):
+    ws, _, oid = workspace(tmp_path)
+    row = {
+        "id": "legacy",
+        "observation_id": oid,
+        "state": "failed",
+        "scope": "recent",
+        "adjustment": "none",
+        "failure_code": "provider_error",
+    }
+    ws.store.data["asset_history_jobs"]["legacy"] = row
+    ws.store.save()
+    before = (tmp_path / "index.json").read_bytes()
+    assert ws.history_jobs.get(oid, "legacy")["source"] == "tinysoft"
+    assert "source" not in row
+    assert (tmp_path / "index.json").read_bytes() == before
+
+
+@pytest.mark.parametrize("extra", [{"code": "000001.SZ"}, {"日期": "2026-10-19"}])
+def test_raw_history_rejects_conflicting_identity_or_date_aliases(extra):
+    from app.research_web.asset_history import normalize_raw_rows
+
+    fields = {
+        key: {"unit": "currency_per_share", "currency": "CNY"}
+        for key in ("open", "high", "low", "close")
+    }
+    row = {
+        "asset": "600000.SH",
+        "date": "2026-10-20",
+        "open": 10,
+        "high": 12,
+        "low": 9,
+        "close": 11,
+        **extra,
+    }
+    with pytest.raises(StoreError):
+        normalize_raw_rows(
+            [row], "600000.SH", {"start_date": "2026-10-01", "end_date": "2026-10-20"}, fields
+        )
+
+
+@pytest.mark.parametrize(
+    "key, alias, value, alias_unit",
+    [
+        ("open", "开盘", 999, "valid"),
+        ("volume", "vol", 999, "valid"),
+        ("amount", "成交额", 999, "valid"),
+        ("amount", "turnover", 999, "valid"),
+        ("volume", "vol", 100, "unknown"),
+        ("amount", "成交额", 1100, "wrong"),
+        ("open", "开盘", 10, "unknown"),
+    ],
+)
+def test_raw_history_checks_every_numeric_alias_and_its_declared_unit(
+    key, alias, value, alias_unit
+):
+    from app.research_web.asset_history import normalize_raw_rows
+
+    fields = {
+        name: {"unit": "currency_per_share", "currency": "CNY"}
+        for name in ("open", "high", "low", "close")
+    }
+    fields.update(
+        volume={"unit": "share", "currency": None}, amount={"unit": "currency", "currency": "CNY"}
+    )
+    fields[alias] = (
+        dict(fields[key])
+        if alias_unit == "valid"
+        else ({"unit": "lot", "currency": None} if alias_unit == "wrong" else {})
+    )
+    row = {
+        "asset": "600000.SH",
+        "date": "2026-10-20",
+        "open": 10,
+        "high": 12,
+        "low": 9,
+        "close": 11,
+        "volume": 100,
+        "amount": 1100,
+        alias: value,
+    }
+    with pytest.raises(StoreError):
+        normalize_raw_rows(
+            [row], "600000.SH", {"start_date": "2026-10-01", "end_date": "2026-10-20"}, fields
+        )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("cancel_during_drain", [False, True])
+async def test_history_deadline_keeps_owned_call_draining_until_real_executor_exits(
+    tmp_path, monkeypatch, cancel_during_drain
+):
+    import app.research_web.datahub as datahub_module
+    from app.research_web.datahub import providers_akshare
+    from app.research_web.datahub.providers import Result
+
+    ws, hub, oid, _, _sdk, _ = real_workspace(tmp_path, monkeypatch)
+    monkeypatch.setattr(hub.connections, "statuses", lambda: {"tinysoft": {"configured": False}})
+    monkeypatch.setattr(datahub_module, "TOTAL_DEADLINE", 0.03)
+    entered, release = threading.Event(), threading.Event()
+
+    def invoke(_query):
+        entered.set()
+        assert release.wait(3)
+        return Result(
+            rows=[], raw=[b"[]"], status="empty", pagination_complete=True, provider_id="akshare"
+        )
+
+    monkeypatch.setattr(providers_akshare, "_invoke", invoke)
+    job = await ws.history_jobs.create(
+        oid,
+        HistoryJobRequest(scope="recent", adjustment="none", source="auto"),
+        "deadline-drain-key",
+    )
+    try:
+        assert await asyncio.to_thread(entered.wait, 2)
+        await asyncio.sleep(0.08)
+        current = ws.history_jobs.get(oid, job["id"])
+        record = ws.store.data["asset_history_jobs"][job["id"]]
+        assert current["state"] == "draining"
+        assert current["retryable"] is False and ws.history_jobs.active(oid)
+        assert record.get("child_call_id")
+        assert providers_akshare.active_futures() and len(hub.tasks) == 1
+        with pytest.raises(StoreError) as busy:
+            await ws.history_jobs.create(
+                oid,
+                HistoryJobRequest(scope="recent", adjustment="none", source="auto"),
+                "deadline-busy-key",
+            )
+        assert busy.value.code == "history_busy"
+        if cancel_during_drain:
+            await ws.history_jobs.cancel(oid, job["id"])
+            assert ws.history_jobs.active(oid)
+            assert record.get("child_call_id") and providers_akshare.active_futures()
+        release.set()
+        await settle(ws)
+        current = ws.history_jobs.get(oid, job["id"])
+        assert current["state"] == ("cancelled" if cancel_during_drain else "failed")
+        assert current["failure_code"] == (
+            "history_cancelled" if cancel_during_drain else "data_query_deadline"
+        )
+        assert current["retryable"] is True
+        assert (
+            not record.get("child_call_id")
+            and not providers_akshare.active_futures()
+            and not hub.tasks
+        )
+        assert ws.observation(oid)["blocks"]["history"]["dataset"] is None
+    finally:
+        release.set()
+        await settle(ws)
+        await hub.close()
+
+
+def test_raw_history_equal_declared_aliases_and_optional_none_do_not_fill_zero():
+    from app.research_web.asset_history import normalize_raw_rows
+
+    fields = {
+        name: {"unit": "currency_per_share", "currency": "CNY"}
+        for name in ("open", "high", "low", "close", "开盘")
+    }
+    fields.update(
+        volume={"unit": "share", "currency": None},
+        vol={"unit": "share", "currency": None},
+        amount={"unit": "currency", "currency": "CNY"},
+        turnover={"unit": "currency", "currency": "CNY"},
+    )
+    row = {
+        "asset": "600000.SH",
+        "date": "2026-10-20",
+        "open": 10,
+        "开盘": "10.0",
+        "high": 12,
+        "low": 9,
+        "close": 11,
+        "volume": 100,
+        "vol": "100",
+        "amount": 1100,
+        "turnover": "1100.0",
+    }
+    interval = {"start_date": "2026-10-01", "end_date": "2026-10-20"}
+    value = normalize_raw_rows([row], "600000.SH", interval, fields)[0]
+    assert value["open"] == 10 and value["volume"] == 100 and value["amount"] == 1100
+    optional = {**row, "volume": None, "vol": None, "amount": None, "turnover": None}
+    value = normalize_raw_rows([optional], "600000.SH", interval, fields)[0]
+    assert "volume" not in value and "amount" not in value
+    with pytest.raises(StoreError):
+        normalize_raw_rows(
+            [{**optional, "open": None, "开盘": None}], "600000.SH", interval, fields
+        )

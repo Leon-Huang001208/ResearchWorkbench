@@ -15,6 +15,7 @@ from datetime import date
 from .store import StoreError
 
 HISTORY_VERSION = "asset-history-1"
+RAW_HISTORY_VERSION = "asset-history-raw-2"
 FLOOR = date(1990, 1, 1)
 ACTIVE = {"queued", "running", "cancelling", "draining"}
 TERMINAL = {"completed", "failed", "cancelled", "interrupted"}
@@ -123,6 +124,65 @@ def merge_rows(existing: list[dict], incoming: list[dict]) -> list[dict]:
             raise fail("history_overlap_conflict", "同日历史冲突，保留输入与原规范数据")
         merged[row["date"]] = row
     return [merged[day] for day in sorted(merged)]
+
+
+def normalize_raw_rows(rows: list[dict], asset: str, interval: dict, fields: dict) -> list[dict]:
+    """Require declared equivalent CNY/share units before projecting raw history."""
+    for key in ("open", "high", "low", "close"):
+        if fields.get(key) != {"unit": "currency_per_share", "currency": "CNY"}:
+            raise fail("history_unit_unverified", "原始历史价格单位无法核验")
+    projected = []
+    for original in rows:
+        identities = [
+            original[k]
+            for k in ("asset", "code", "stock_code", "证券代码", "代码")
+            if k in original
+        ]
+        if not identities or any(
+            str(value).upper() not in {asset, asset[:6], asset[-2:] + asset[:6]}
+            for value in identities
+        ):
+            raise fail("history_asset_mismatch", "原始历史证券身份缺失")
+        dates = [
+            iso_date(original[k]) for k in ("date", "时间", "日期", "datetime") if k in original
+        ]
+        if len(set(dates)) != 1:
+            raise fail("history_date_invalid", "原始历史日期别名缺失或冲突")
+        row = {"asset": asset, "date": dates[0]}
+        for key, aliases in ALIASES.items():
+            names = (*aliases, "turnover") if key == "amount" else aliases
+            present = [name for name in names if name in original and original[name] is not None]
+            if not present and key in {"volume", "amount"}:
+                continue
+            accepted = (
+                {"unit": "share", "currency": None}
+                if key == "volume"
+                else (
+                    {"unit": "currency", "currency": "CNY"}
+                    if key == "amount"
+                    else {"unit": "currency_per_share", "currency": "CNY"}
+                )
+            )
+            values = []
+            for name in present:
+                if fields.get(name) != accepted:
+                    raise fail("history_unit_unverified", "原始历史字段单位无法核验")
+                value = original[name]
+                if isinstance(value, bool):
+                    raise fail("history_number_invalid", "原始历史字段数值无法核验")
+                try:
+                    number = float(value)
+                except (TypeError, ValueError) as exc:
+                    raise fail("history_number_invalid", "原始历史字段数值无法核验") from exc
+                if not math.isfinite(number):
+                    raise fail("history_number_invalid", "原始历史字段数值无法核验")
+                values.append(number)
+            if len(set(values)) > 1:
+                raise fail("history_overlap_conflict", "原始历史数值别名冲突")
+            if values:
+                row[key] = values[0]
+        projected.append(row)
+    return normalize_rows(projected, asset, interval)
 
 
 def factor_map(rows: list[dict], asset: str, days: list[str], listing: str) -> dict[str, float]:

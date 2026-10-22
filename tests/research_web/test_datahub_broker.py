@@ -10,12 +10,107 @@ from app.research_web.datahub.catalog import build_catalog
 from app.research_web.store import StoreError
 
 
+@pytest.fixture(autouse=True)
+def deny_external_credentials(monkeypatch):
+    from app.research_web import credential_backend
+
+    def deny(*_args, **_kwargs):
+        pytest.fail("Broker tests must not access system or private credentials")
+
+    for backend in (
+        credential_backend.SystemKeyringBackend,
+        credential_backend.PrivateFileCredentialBackend,
+    ):
+        monkeypatch.setattr(backend, "__init__", deny)
+    import keyring
+
+    for method in ("get_password", "set_password", "delete_password"):
+        monkeypatch.setattr(keyring, method, deny)
+
+
 @pytest.fixture
 def ready(monkeypatch):
     from app.research_web.datahub import catalog
 
     monkeypatch.setattr(catalog, "_dependency_status", lambda *_args: (True, None))
     return {"tinysoft": {"configured": True, "secret_configured": True}}
+
+
+@pytest.mark.parametrize("next_source", ["akshare", "baostock"])
+def test_auto_skips_wind_long_history_before_execution(ready, next_source):
+    statuses = {
+        "wind": {"configured": True, "preferred_adapter": "excel"},
+    }
+    query = BusinessQuery(
+        capability="market_bars",
+        parameters={
+            "asset": "600519.SH",
+            "asset_type": "stock",
+            "frequency": "daily",
+            "adjustment": "none",
+            "start_date": "2024-09-11",
+            "end_date": "2026-09-11",
+        },
+    )
+    result = resolve(
+        query,
+        environ={},
+        connection_statuses=statuses,
+        excluded_sources=frozenset({"akshare"}) if next_source == "baostock" else frozenset(),
+    )
+    assert result.provider_id == next_source
+    assert result.query.parameters == query.parameters
+    assert next(item for item in result.attempted_sources if item["source"] == "wind") == {
+        "source": "wind",
+        "status": "skipped",
+        "reason": "workload_too_large",
+    }
+
+
+def test_explicit_wind_long_history_preserves_parameter_error_without_fallback(ready):
+    with pytest.raises(StoreError) as error:
+        resolve(
+            BusinessQuery(
+                capability="market_bars",
+                source="wind",
+                parameters={
+                    "asset": "600519.SH",
+                    "asset_type": "stock",
+                    "frequency": "daily",
+                    "adjustment": "none",
+                    "start_date": "2024-09-11",
+                    "end_date": "2026-09-11",
+                },
+            ),
+            environ={},
+            connection_statuses={"wind": {"configured": True, "preferred_adapter": "excel"}},
+        )
+    assert error.value.code == "workload_too_large"
+    assert "Wind" in str(error.value)
+
+
+@pytest.mark.parametrize(
+    ("start_date", "expected_source"), [("2026-07-14", "wind"), ("2026-07-13", "akshare")]
+)
+def test_wind_history_candidate_admission_has_same_inclusive_sixty_day_bound(
+    ready, start_date, expected_source
+):
+    result = resolve(
+        BusinessQuery(
+            capability="market_bars",
+            parameters={
+                "asset": "600519.SH",
+                "asset_type": "stock",
+                "frequency": "daily",
+                "adjustment": "none",
+                "start_date": start_date,
+                "end_date": "2026-09-11",
+            },
+        ),
+        environ={},
+        connection_statuses={"wind": {"configured": True, "preferred_adapter": "excel"}},
+    )
+    assert result.provider_id == expected_source
 
 
 def test_auto_selects_only_supported_tinysoft_adjustment_series(ready):
@@ -109,7 +204,11 @@ def test_cached_wind_authorization_keeps_valid_explicit_stock_unchanged(
     )
     parameters = {
         "asset_type": "stock",
-        **({"asset": asset} if capability == "market_bars" else {"assets": [asset]}),
+        **(
+            {"asset": asset, "start_date": "2026-09-01", "end_date": "2026-09-11"}
+            if capability == "market_bars"
+            else {"assets": [asset]}
+        ),
     }
     query = BusinessQuery(capability=capability, source="auto", parameters=parameters)
     result = DataHub._authorize_query(

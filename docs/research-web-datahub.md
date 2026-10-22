@@ -38,6 +38,10 @@ BaoStock 0.9.4新增公开沪深股票原始日线、股票目录和交易日历
 
 ## 资产历史任务与固定复权
 
+2026-10-23 来源合同：新页面观察使用auto，初次历史请求明确recent/daily/none/source:auto。未传source的旧客户端仍固定tinysoft；旧观察不批量改源，用户可显式切换历史来源。只有近期原始日线开放auto/Wind/AKShare/BaoStock；qfq/hfq、older/all保持原Tinysoft因子与固定锚点合同。Broker在执行前跳过超过Wind60自然日上限的auto候选，继续同证券、同daily/none口径的等价来源；显式Wind仍报参数错误。不会拆分换源，也不扩大transient集合。
+
+非Tinysoft请求的原始输入必须核验证券身份、请求日期、OHLC与量额声明单位：价格为CNY/share、量为share、金额为CNY；turnover只有声明CNY金额时才映射amount。每个有值OHLC/量额别名均须声明相同单位且数值一致，不能默选首字段；可选量额全为空仍保持缺失，不填零。未知单位、错证券、区间外日期或同日冲突停止规范发布，旧图保持；这种失败不声称已经质量降级。规范版本`asset-history-raw-2`逐输入绑定真实provider/URL/manifest/hash/配置摘要。最终发布及缓存命中复验实际来源授权，取消和partial按所有涉及来源的真实Future排空。无上市证据保持listing_date:null、boundary_verified:false、full_history:false。
+
 历史任务可选as_of为新一版冻结的截止／锚点输入，省略时保持旧行为。重新进入个股时，若来源实际报价交易日超过旧全历史的截止锚点，按新日期独立重建完整历史版本，原全历史／因子／研究冻结材料不改写；新证券首次recent默认不变。不能按HTTP读取日冒充报价交易日，也不能用一次recent替换已完成全历史。新版本仍受全部因子／覆盖／代次与原子发布门约束，失败继续保留旧版本。
 
 2026-10-22 启动保全热修复限定Store持久化边界：旧磁盘缺失且仍为精确默认的历史jobs/keys和图表偏好只在内存提供；启动或Automation无关save不将其写入旧index，首次真实变化才落盘。原有键（含空值）及写入后恢复默认的键继续保留，原子替换失败不误记已持久化。DataHub Provider、raw/factors/canonical、业务API与严格保全门不变，不追加厂商调用或放宽来源权限；同候选Mac安装与真实恢复/部署另证，详见[文件合同](architecture/research-web/03-data-files.md#资产历史与图表偏好存储)。
@@ -74,7 +78,7 @@ AssetWorkspace保持旧create／refresh；新页面进入专题后按需调用lo
 
 valuation沿market_snapshot请求close／pe_ttm／pb／pb_mrq／ps_ttm／total_shares；天软按上节的预定义因子取得新字段。普通PB不升级MRQ，PS-TTM不以市值／单期营收补造；Wind未提供的新字段保持partial，未核验股本数量级不派生市值。财务仍从业务financials进入，按所选Provider实际支持的报告期／报表合同读取，不能把本轮最新披露数据称为多年财务历史。
 
-默认概览／历史tinysoft，其余缺块auto，Broker按dataset真实实现选源，fund_flow不选未实现该dataset的天软。Wind60日硬门保持，不截断或拆分、不泛化为天软财务与历史任务限制。真实全历史、首次自动加载和逐区刷新仍分别留厂商证据；有限预检或离线fixtures不替代完整验收。新闻／公告仍按证券读取既有Golddata接口，和旧DataHub news／announcements快照的来源身份分开。
+新观察默认概览auto、近期历史明确auto/none，旧观察固定源及其余缺块auto，Broker按dataset真实实现选源，fund_flow不选未实现该dataset的天软。Wind60日硬门保持，不截断或拆分、不泛化为天软财务与历史任务限制。真实全历史、首次自动加载和逐区刷新仍分别留厂商证据；有限预检或离线fixtures不替代完整验收。新闻／公告仍按证券读取既有Golddata接口，和旧DataHub news／announcements快照的来源身份分开。
 
 正文读取通过原实例私有数据桥按本会话已登记来源 ID 执行，不增加 Provider 凭据或修改已有取数合同。取消使用受信原生 call_id，有限请求的实际输入字节与来源身份保全，搜索摘要继续未核验；正文范围及网络保护见架构 03–05。
 
@@ -404,3 +408,5 @@ Hot原件导入属于frozen_evidence/hot_evidence会话快照，不宣称为新�
 
 
 2026-10-22 基金NAV入仓：基金NAV已接入原生研究仓：日期范围最多31日且分页完整时，保留adjusted_total_return、benchmark_timeseries、verified_currency三项已声明缺口；第二次展示查询可命中仓库，data_success与正式回测标记仍不提升。
+
+2026-10-23 前台data_query_deadline或其他异常若DataHub仍拥有同一call_id任务，历史job保留child_call_id及draining活动状态，复用DataHub.cancel同调用等待真实SDK Future排空后才失败/开放retry；排空期间新任务history_busy。取消排空期间仍等待原调用，不重发、放宽超时或发布晚结果。

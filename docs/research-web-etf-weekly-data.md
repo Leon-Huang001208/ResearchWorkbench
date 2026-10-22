@@ -103,3 +103,5 @@ collector 实际调用 `adopt_verified_groups`：已获证明的组采用 API；
 
 
 2026-10-22 基金NAV入仓：最多31日东财NAV原生快照仍带未知币种、基准和总回报缺口，不作为本周报Wind/Excel同源输入或正式回测数据。
+
+2026-10-23 Broker新增股票原始历史的Wind范围候选准入，只让auto请求跳过超60自然日Wind；私有周报WindAPIQuery仍经resolve_report_weekly，不借股票备用源填周报组或改厂商字段。已有同源校准及原件绑定继续独立验收。
