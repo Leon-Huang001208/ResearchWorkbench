@@ -4,6 +4,7 @@ import { createConversationNavigation, renderProjectEditor } from './conversatio
 import { captureQuestionForm, actionQuestion, collectQuestionGroup, questionStateKey } from './questionnaire.mjs';
 import { createAPI, createController, prepareClawExampleDraft, parseRoute, legacyRouteTarget, isDataWorkspaceRoute, isRunning, safeLog, collectQuestionAnswers, reconcileSessionSummary, waitForDataProbe, waitForIntegrationBatch, waitForLocalIntegrationProbe, waitForLocalIntegrationVerification } from './core.mjs';
 import { escapeHTML as e } from './markdown.mjs';
+import { createWarehousePanel } from './research-warehouse.mjs';
 import { createDisclosureState } from './disclosures.mjs';
 import { createAccountMenu } from './server/account-menu.mjs';
 import { createAccountWorkspace, renderAccountProfile } from './server/account-workspace.mjs';
@@ -38,7 +39,7 @@ import { createMarketController, renderMarketPage } from './market.mjs';
 import { createAihotController, renderAihot } from './aihot.mjs';
 import { renderReportWorkflowDetail, renderReportWorkflowShelf } from './report-workflows.mjs';
 import { canUseReportWorkflows } from './weekly-production.mjs';
-import { buildConfigurationPayload, confirmAutoProbeConsent, createLocalIntegrationPollingGuard, createOfficeConsentQueue, invalidateLocalIntegrationSnapshot, nextLocalStatusExpiry, mergeIntegrationStatuses } from './connections.mjs';
+import { buildConfigurationPayload, confirmAutoProbeConsent, createExecutionEvidenceExpiry, createLocalIntegrationPollingGuard, createOfficeConsentQueue, invalidateLocalIntegrationSnapshot, nextLocalStatusExpiry, mergeIntegrationStatuses } from './connections.mjs';
 import { createModelSettings } from './model-settings.mjs';
 import { modelConfigurationPayload, syncModelForm, renderSettingsPage, resolveSettingsSection, settingsConnectionId, settingsRefreshCatalogs } from './settings.mjs';
 import { renderFrameworks } from './frameworks.mjs';
@@ -60,6 +61,7 @@ import { createHotController, renderHotWorkspace } from './hot-workspace.mjs';
 
 const api = createAPI();
 let modelSettingsPanel = null;
+let warehousePanel = null;
 const conversationNavigation = createConversationNavigation({ api, notify: () => render(), changed: () => loadCatalog(['sessions']) });
 const clawWorkspace = { projects: [], detail: null, busy: false, error: '', newName: '', targetSession: '', renameEdits: new Map() };
 const clawDraftEdits = new Map();
@@ -123,6 +125,7 @@ let operationsData = { usage: null, tools: null, datahub: null, services: null, 
 let reportWorkflowDetail = null; let reportWorkflowBusy = false;
 let automationFormOpen = false; let automationBusy = false;
 let selectedConnectionConfiguration = null; let migrationOpen = false; let connectionDetailOpen = true; let connectionProbeBusy = false; let localIntegrationProbeBusy = false; let localVerificationTarget = ''; let localCategory = 'all'; let officeConsentConfirmation = ''; let localStatusExpiryTimer = null;
+const executionEvidenceExpiry = createExecutionEvidenceExpiry({ getSources: () => catalog.connections.sources, isActive: () => Boolean(root.querySelector('[data-connection-workbench]')), onExpire: () => render() });
 let frameworkState = { status: 'idle', catalog: null, data: null, slug: '', error: '' };
 let frameworkBot = { open: false, mode: 'explain', sessionId: '', detail: null, draft: '', busy: false, error: '', errorCode: '' };
 let closeFrameworkStream = () => {};
@@ -681,6 +684,7 @@ function render() {
   assetCapitalFlow?.dispose(); assetCapitalFlow = null;
   root.innerHTML = `<div class="app-shell ${state.route.page === 'claw' ? 'claw-shell' : ''} ${hasContext ? '' : 'wide-page'} ${hasSecondary ? 'has-secondary' : ''} ${sidebarCollapsed ? 'sidebar-collapsed' : ''} ${sidebarOpen ? 'navigation-open' : ''} ${hasContext ? 'context-open' : ''}">${renderTopbar({ page: state.route.page, section: state.route.section, frameworkSlug: state.route.frameworkSlug, settingsSection: state.route.page === 'settings' ? currentSettingsSection() : '', detail: state.detail, runtimeLabel: runtimeLabel(), runtime: catalog.runtime, models: catalog.models, busy: state.busy, search: globalSearch, sessions: catalog.sessions, skills: searchableCapabilities, searchOpen, nativeSearch: state.route.page === 'claw' ? nativeSessionSearch.state : null })}<div class="navigation-column">${primaryRail()}${sidebar()}</div><main id="main" tabindex="-1"><div class="page-content">${notice(state.error)}${visibleErrors.map(([name, error]) => notice(`${({ runtime: '运行时', models: '模型目录', workspaces: '工作空间', sessions: '会话历史', deletedSessions: '已删除会话', capabilities: '能力目录', tools: '工具目录', reportWorkflows: '报告 Workflow', automations: '运行计划', automationRuns: 'Automation 运行', deliveryChannels: '交付渠道', dataCatalog: '数据目录', connections: '连接中心', localIntegrations: '本机集成诊断', connectionConfiguration: '来源配置', migration: '旧配置迁移' })[name] || name}：${error}`)).join('')}${notice(success, 'success')}${mainPage()}</div></main>${hasContext || contextOpen ? contextPanel() : ''}</div>${sidebarOpen || contextOpen ? '<button class="mobile-backdrop" data-close-drawers aria-label="关闭面板"></button>' : ''}${sessionActionsLayer()}${documentEditor?.sessionId === state.detail?.id ? renderDocumentEditor(documentEditor) : ""}`;
   const newFrameworkFrame = root.querySelector('iframe[data-native-framework]');
+  executionEvidenceExpiry.sync();
   frameworkEmbedFrame = newFrameworkFrame;
   frameworkEmbedBridge.clear();
   if (newFrameworkFrame) {
@@ -699,6 +703,11 @@ function render() {
   if (assetFocus?.isConnected) assetFocus.focus({ preventScroll: true });
   if (documentForm && freshDocumentForm && documentForm.dataset.documentBusy !== "true" && !documentEditor?.busy && documentForm.dataset.documentRevision === freshDocumentForm.dataset.documentRevision) freshDocumentForm.replaceWith(documentForm);
   const modelPanelMount = root.querySelector('[data-model-profiles-root]');
+  const warehouseMount = root.querySelector('[data-research-warehouse-root]');
+  if (warehouseMount) {
+    if (!warehousePanel) warehousePanel = createWarehousePanel({api,logger:safeLog,onValidated:()=>loadCatalog(['connections','dataCatalog'])});
+    warehouseMount.replaceWith(warehousePanel.element);
+  } else if (warehousePanel) { warehousePanel.dispose(); warehousePanel = null; }
   if (modelPanelMount) {
     const props = {runtime:catalog.runtime || {},models:catalog.models,busy:state.busy};
     if (!modelSettingsPanel) modelSettingsPanel = createModelSettings({api,...props,changed:()=>loadCatalog(['runtime','models']),logger:safeLog});
@@ -3037,6 +3046,16 @@ root.addEventListener('click', async (event) => {
     }
     return;
   }
+  if ('verifySourceAuth' in data) {
+    connectionProbeBusy = true; state.error = ''; success = ''; render();
+    try {
+      const result = await api.verifySourceAuthorization(data.verifySourceAuth);
+      success = result.status === 'authenticated' ? 'HTTP 授权交换成功；具体数据权限尚未验证。' : '授权尚未验证。';
+      await loadConnectionConfiguration(data.verifySourceAuth);
+    } catch (error) { state.error = error.message || '授权未验证'; safeLog('source_authorization_unverified'); }
+    finally { connectionProbeBusy = false; render(); }
+    return;
+  }
   if ('localIntegrationsProbe' in data) {
     state.error = ''; success = ''; localIntegrationProbeBusy = true; render();
     try {
@@ -3779,7 +3798,9 @@ async function handleCapabilityClick(data) {
 }
 
 controller.subscribe(() => { catalog.sessions = reconcileSessionSummary(catalog.sessions, state.detail); render(); void loadWorkflowVersion(); });
-window.addEventListener('hashchange', () => { clearTimeout(localStatusExpiryTimer); void showRoute(); });
+window.addEventListener('hashchange', () => { clearTimeout(localStatusExpiryTimer); executionEvidenceExpiry.cancel(); void showRoute(); });
+window.addEventListener('pagehide', () => executionEvidenceExpiry.cancel());
+window.addEventListener('pageshow', () => { if (root.querySelector('[data-connection-workbench]')) render(); });
 window.addEventListener('visibilitychange', () => {
   if (!document.hidden && state.detail?.status === 'completed') render();
   if (!document.hidden && state.route.page === 'settings' && currentSettingsSection() === 'local') void loadCatalog(['localIntegrations']);

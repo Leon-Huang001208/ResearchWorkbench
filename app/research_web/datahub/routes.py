@@ -7,6 +7,7 @@ from fastapi import APIRouter, Header, Query, Request
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, ValidationError
 
+from ..market_store import MarketStoreError
 from ..store import StoreError
 from .connections import (
     CredentialStoreError,
@@ -22,6 +23,55 @@ class MySQLConfigurationUpdate(MySQLConfiguration):
     model_config = ConfigDict(extra="forbid", strict=True)
 
     password: SecretStr | None = None
+
+
+class WarehouseControl(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    operation: Literal["save", "initialize", "disable"]
+    configuration: dict[str, Any] | None = None
+    profile_id: str | None = Field(default=None, pattern=r"^[0-9a-f]{32}$")
+    database_confirmation: str | None = Field(default=None, max_length=64)
+
+
+@router.get("/data/warehouse")
+async def research_warehouse_status(request: Request):
+    hub = request.app.state.research.datahub
+    if not callable(getattr(hub.warehouse, "status", None)):
+        raise StoreError("当前宿主未接入可管理研究仓", "warehouse_management_unavailable", 409)
+    try:
+        return await hub.storage_runner.run(hub.warehouse.status)
+    except MarketStoreError:
+        raise StoreError("研究仓状态不可读取", "warehouse_status_unavailable", 503) from None
+
+
+@router.post("/data/warehouse")
+async def research_warehouse_control(body: WarehouseControl, request: Request):
+    hub = request.app.state.research.datahub
+    if not callable(getattr(hub.warehouse, "status", None)):
+        raise StoreError("当前宿主未接入可管理研究仓", "warehouse_management_unavailable", 409)
+    try:
+        if body.operation == "save":
+            if body.configuration is None:
+                raise ValueError("configuration_required")
+            return await hub.storage_runner.run(hub.warehouse.save, body.configuration)
+        if body.operation == "initialize":
+            return await hub.storage_runner.run(
+                hub.warehouse.initialize, body.profile_id, body.database_confirmation
+            )
+        return await hub.storage_runner.run(hub.warehouse.disable, body.profile_id)
+    except MarketStoreError as exc:
+        codes = {
+            "warehouse_confirmation_mismatch",
+            "warehouse_credentials_unavailable",
+            "warehouse_database_unavailable",
+            "warehouse_database_operation_failed",
+        }
+        code = str(exc) if str(exc) in codes else "warehouse_operation_rejected"
+        raise StoreError("研究仓操作未完成，请核对配置和明确确认的专用数据库", code, 409) from None
+    except ValueError:
+        raise StoreError(
+            "研究仓配置字段或确认信息非法", "warehouse_configuration_invalid", 422
+        ) from None
 
 
 class MigrationRequest(BaseModel):
@@ -121,9 +171,41 @@ def apply_migration(body: MigrationRequest, request: Request):
 @router.get("/data/sources/{source_id}/configuration")
 def source_configuration(source_id: str, request: Request):
     try:
-        return request.app.state.research.datahub.connections.source_status(source_id)
+        hub = request.app.state.research.datahub
+        result = hub.connections.source_status(source_id)
+        check = hub.authorization_checks.get(source_id)
+        if check and check["configuration_digest"] == hub.source_configuration_digest(source_id):
+            result["authorization_check"] = check["result"]
+        return result
     except CredentialStoreError as exc:
         return _credential_error(exc)
+
+
+@router.post("/data/sources/{source_id}/configuration/verify")
+async def verify_source_authorization(source_id: str, request: Request):
+    import httpx
+
+    from .providers import ProviderError
+    from .providers_external import verify_quantapi_authorization
+
+    if source_id != "ext_ths" or request.headers.get("X-Research-User-Action") != "?1":
+        raise StoreError(
+            "只允许显式验证官方iFinD HTTP授权", "authorization_check_not_admitted", 403
+        )
+    hub = request.app.state.research.datahub
+    before = hub.source_configuration_digest(source_id)
+    try:
+        result = await verify_quantapi_authorization(hub.connections, transport=hub.transport)
+    except (ProviderError, httpx.HTTPError, TimeoutError):
+        raise StoreError(
+            "HTTP授权未验证，请核对现有refresh_token和账号权限；未更新或轮换token",
+            "source_authorization_unverified",
+            409,
+        ) from None
+    if before != hub.source_configuration_digest(source_id):
+        raise StoreError("验证期间凭据配置发生变化", "data_source_authorization_changed", 409)
+    hub.authorization_checks[source_id] = {"configuration_digest": before, "result": result}
+    return result
 
 
 @router.put("/data/sources/{source_id}/configuration")

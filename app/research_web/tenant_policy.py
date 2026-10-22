@@ -39,6 +39,7 @@ _BLOCKED = (
     "/api/research/automation-runs",
     "/api/research/delivery-channels",
     "/api/research/data/connections",
+    "/api/research/data/warehouse",
     "/api/research/hot",
     "/api/research/operations",
     "/api/research/resident",

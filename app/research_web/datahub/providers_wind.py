@@ -19,6 +19,7 @@ from .providers import (
     MAX_ROWS,
     ProviderError,
     Result,
+    cn_stock_identity,
     numeric,
     valid_date,
 )
@@ -37,6 +38,15 @@ _WIND_EXECUTOR = concurrent.futures.ThreadPoolExecutor(
 _WIND_LOCK = threading.Lock()
 _WIND_OUTSTANDING: concurrent.futures.Future[Any] | None = None
 _WIND_POISONED = False
+
+
+def active_futures() -> tuple[concurrent.futures.Future[Any], ...]:
+    """Read-only witness; a stopped waiter cannot release real Excel work."""
+    with _WIND_LOCK:
+        if _WIND_OUTSTANDING is None or _WIND_OUTSTANDING.done():
+            return ()
+        return (_WIND_OUTSTANDING,)
+
 
 # Each reviewed adapter result is projected through one immutable schema. The
 # first tuple is (output field, adapter field, type, unit, currency); allowed
@@ -270,7 +280,14 @@ def _preflight(query: BusinessQuery) -> None:
         if parameters.get("asset_type") != "stock":
             raise ProviderError("data_not_equivalent")
         if query.capability == "market_bars":
+            cn_stock_identity(parameters.get("asset"))
             _bounded_history_range(parameters)
+        else:
+            assets = parameters.get("assets")
+            if not isinstance(assets, list) or not 1 <= len(assets) <= 50:
+                raise ProviderError("data_not_equivalent")
+            for asset in assets:
+                cn_stock_identity(asset)
     elif query.capability == "market_activity" and parameters.get("dataset") in {
         "fund_flow",
         "margin_trading",

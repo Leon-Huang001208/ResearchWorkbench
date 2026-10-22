@@ -617,9 +617,12 @@ BINDING_SPECS = {
     "table_query": [("mysql", ["single_table_select"])],
 }
 
-INTEGRATED = {"eastmoney_fund", "cls", "tinysoft", "akshare", "mysql", "wind"}
+INTEGRATED = {"eastmoney_fund", "cls", "tinysoft", "akshare", "mysql", "wind", "baostock"}
 DISABLED = {"szse", "cninfo"}
 IMPLEMENTED_BINDINGS = {
+    ("baostock", "search_assets"),
+    ("baostock", "trading_calendar"),
+    ("baostock", "market_bars"),
     ("tinysoft", "search_assets"),
     ("tinysoft", "trading_calendar"),
     ("tinysoft", "market_bars"),
@@ -628,6 +631,7 @@ IMPLEMENTED_BINDINGS = {
     ("tinysoft", "financials"),
     ("tinysoft", "market_activity"),
     ("akshare", "search_assets"),
+    ("akshare", "trading_calendar"),
     ("akshare", "market_bars"),
     ("akshare", "market_snapshot"),
     ("akshare", "financials"),
@@ -648,6 +652,40 @@ BINDING_ASSETS = {
 
 # Dataset-specific facts match the reviewed adapters. Unlisted facts stay unknown.
 BINDING_SEMANTICS = {
+    ("baostock", "market_bars"): {
+        "stock_daily": {
+            "frequencies": ["daily"],
+            "adjustments": ["none"],
+            "historical_point_in_time": False,
+            "units": {
+                "open": "currency_per_share",
+                "high": "currency_per_share",
+                "low": "currency_per_share",
+                "close": "currency_per_share",
+                "volume": "share",
+                "turnover": "currency",
+            },
+            "currency": "CNY",
+            "query_defaults": {"frequency": "daily", "adjustment": "none"},
+        },
+    },
+    ("akshare", "market_bars"): {
+        "stock_daily": {
+            "frequencies": ["daily", "weekly", "monthly"],
+            "adjustments": ["none", "qfq", "hfq"],
+            "historical_point_in_time": False,
+            "units": {
+                "open": "currency_per_share",
+                "high": "currency_per_share",
+                "low": "currency_per_share",
+                "close": "currency_per_share",
+                "volume": "share",
+                "turnover": "currency",
+            },
+            "currency": "CNY",
+            "query_defaults": {"frequency": "daily", "adjustment": "qfq"},
+        },
+    },
     ("eastmoney_fund", "fund_data"): {
         "fund_nav": {
             "frequencies": ["daily"],
@@ -685,13 +723,14 @@ def _configured(auth: str, keys: list[str], environ: dict[str, str]) -> bool:
 def _dependency_status(source_id: str, dependencies: list[str]) -> tuple[bool, str | None]:
     if not dependencies:
         return True, None
-    if source_id in {"wind", "tinysoft", "ifind", "akshare", "mysql"}:
+    if source_id in {"wind", "tinysoft", "ifind", "akshare", "mysql", "baostock"}:
         try:
             modules = {
                 "wind": ("xlwings",),
                 "tinysoft": ("cjpy", "requests", "urllib3"),
                 "ifind": ("iFinD", "iFinDPy"),
                 "akshare": ("akshare",),
+                "baostock": ("baostock",),
                 "mysql": ("pymysql", "keyring"),
             }[source_id]
             readiness = [find_spec(module) is not None for module in modules]
@@ -802,7 +841,7 @@ def build_catalog(
         for priority, (source_id, datasets) in enumerate(candidates, 1):
             source = by_source[source_id]
             implemented = source_id in INTEGRATED and (
-                source_id not in {"tinysoft", "akshare", "wind"}
+                source_id not in {"tinysoft", "akshare", "wind", "baostock"}
                 or (source_id, capability_id) in IMPLEMENTED_BINDINGS
             )
             bindings.append(

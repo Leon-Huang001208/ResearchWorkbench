@@ -2945,6 +2945,8 @@ class WebServiceManager:
         """Return a path-free, credential-free Web installation diagnosis."""
         from research_workbench_entrypoint.resident.admission import diagnostic
 
+        from .warehouse_diagnostics import warehouse_diagnostic
+
         diagnosis = self._installation_diagnosis()
         probes = self._service_probes()
         installation_issues = diagnosis.get("issues", [])
@@ -3010,6 +3012,7 @@ class WebServiceManager:
             "office_auto_verification": office_auto,
             "weekly_report": self._weekly_report_diagnostic(),
             "ai_news": self._ai_news_diagnostic(),
+            "research_warehouse": warehouse_diagnostic(self.data_root),
         }
 
     def _weekly_report_diagnostic(self) -> dict:

@@ -4,6 +4,8 @@
 不新增执行引擎或公开原生Tool。主管理员身份、同源取数、原质量门、文件交付及正式定稿分别核验，
 当前版本真实手动定稿后才可启用周五15:30日程。旧历史不继承新认证，见[周报生产合同](research-web-etf-weekly-production.md)。
 
+本轮DataHub仍使用既有datahub_*工具ID，新增purpose/quality/as_of约束和真实尝试元数据；工具注册不表示来源可用，BaoStock仅三个已实现业务绑定开放。Skill/Workflow/Automation不会因此取得数据库写权限、个人凭据或新增模型预算，仓库由可信Host绑定。
+
 2026-10-22 Wind历史工作区复用现有market_bars与factor_macro Tool ID；天软factor_macro只开放metadata/上市日/逐日因子三种封闭series，不新增Skill、Workflow、模型或Automation触发权限。Host历史job与账号图表偏好属于资产数据/UI状态，不是研究引擎。交接规范/raw/factors/metadata仍受会话和来源归属约束；估算筹码、厂商目录单位和有限预检不能提升为研究事实或质量通过。
 
 全市场概览属于固定行情浏览页面，不注册新的Skill／Tool／Workflow，不启动Automation或研究会话。30／60秒刷新只在页面可见且日历允许时运行，取消、公开来源与用户缓存由MarketService负责；能力权限、日程和唯一DSH执行边界保持。

@@ -223,6 +223,9 @@ def test_connections_summary_has_safe_catalog_sources_and_platform_sections(tmp_
         "configured",
         "secret_configured",
         "probe_status",
+        "execution_evidence",
+        "execution_verified",
+        "execution_scope",
         "integration_completed",
         "callable",
         "configuration_supported",
@@ -231,6 +234,12 @@ def test_connections_summary_has_safe_catalog_sources_and_platform_sections(tmp_
         "warnings",
     }
     assert all(set(item) == required for item in body["sources"])
+    assert all(
+        item["execution_evidence"] == []
+        and item["execution_verified"] is False
+        and item["execution_scope"] == "listed_capabilities_only"
+        for item in body["sources"]
+    )
     assert next(item for item in body["sources"] if item["id"] == "local_cache")["label"] == (
         "Excel 与本机工作流"
     )

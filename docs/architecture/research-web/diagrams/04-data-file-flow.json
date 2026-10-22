@@ -119,19 +119,19 @@
       "id": "router",
       "type": "backend",
       "label": "DataHub 路由",
-      "sublabel": "市场过滤 / 优先级 / 单源",
+      "sublabel": "先读仓 / 缺口 / 等价切换",
       "stage": 2,
       "row": 1,
-      "tag": "auto 或显式"
+      "tag": "固定来源语义保留"
     },
     {
       "id": "providers",
       "type": "backend",
       "label": "Provider 适配器",
-      "sublabel": "请求 / 分页 / 解析",
+      "sublabel": "真实工作占用 / 分页 / 解析",
       "stage": 2,
       "row": 2,
-      "tag": "已适配才执行"
+      "tag": "公开SDK子进程12秒"
     },
     {
       "id": "upstreams",
@@ -145,12 +145,12 @@
     {
       "id": "normalize",
       "type": "backend",
-      "label": "规范结果封装",
-      "sublabel": "历史合并 / 因子 / 固定锚点",
+      "label": "规范事实与研究仓",
+      "sublabel": "可选PG / 修订 / PIT / 冻结",
       "stage": 3,
       "row": 2,
       "width": 124,
-      "tag": "同版本全行"
+      "tag": "宿主绑定及逐次授权"
     },
     {
       "id": "snapshots",
@@ -345,18 +345,18 @@
     },
     {
       "dot": "orange",
-      "title": "持久历史任务",
+      "title": "仓库与运行边界",
       "items": [
-        "近期2年 / 续取4年 / 全部；缺因子或冲突失败，保留旧快照",
-        "取消仍等待真实Future；账号缓存与任务非终态纳入空闲证明"
+        "覆盖账本识别内部缺口，空响应不证明无交易",
+        "18秒前台预算；SDK与数据库真实排空后才回收"
       ]
     },
     {
       "dot": "emerald",
-      "title": "可重复研究",
+      "title": "迁移与回测",
       "items": [
-        "原始块、逐日因子、定义版本与截止锚点共同保全",
-        "交接复制规范行和自包含证据；旧冻结材料继续可读"
+        "原件、修订和历史可得时间分别保留",
+        "冻结版本可导出恢复；本阶段不启用正式库或迁移"
       ]
     }
   ]

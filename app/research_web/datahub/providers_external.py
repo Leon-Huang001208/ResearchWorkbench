@@ -29,7 +29,7 @@ from .providers import DEADLINE, MAX_RESPONSE_BYTES, MAX_ROWS, ProviderError, Re
 
 log = get_logger(__name__)
 _PRIVATE_KEYS = re.compile(
-    r"(?:password|secret|token|api_?key|authorization|cookie|headers?|url|host|proxy|redirect|callback|path|module|sql)",
+    r"(?:password|secret|token|api_?key|registration_?key|authorization|cookie|headers?|url|host|proxy|redirect|callback|path|module|sql)",
     re.IGNORECASE,
 )
 
@@ -202,7 +202,92 @@ def response_rows(raw: bytes, content_type: str, encoding: str = "utf-8") -> lis
     return [{"text": text, "format": "source_text"}]
 
 
-def _rows_reflect_credentials(rows: list[dict[str, Any]], secrets: list[str]) -> bool:
+def numeric_envelope(source, dataset, raw, fallback_rows):
+    """Closed official envelopes; original bytes retain publication/revision limits."""
+    selected = (source, dataset)
+    if selected not in {
+        ("ext_worldbank", "inflation"),
+        ("ext_bls", "series"),
+        ("ext_ths", "cmd_history_quotation"),
+    }:
+        return fallback_rows, None, None
+    try:
+        body = json.loads(raw)
+        if selected == ("ext_worldbank", "inflation"):
+            if not isinstance(body, list) or len(body) != 2 or not isinstance(body[0], dict):
+                raise ValueError("invalid_worldbank")
+            header, rows = body
+            page, pages, total = (int(header[key]) for key in ("page", "pages", "total"))
+            if page < 1 or pages < 0 or total < 0 or (pages and page > pages):
+                raise ValueError("invalid_pagination")
+            if rows is None and total == 0:
+                rows = []
+            if (
+                not isinstance(rows, list)
+                or any(
+                    not isinstance(row, dict) or "date" not in row or "value" not in row
+                    for row in rows
+                )
+                or total < len(rows)
+            ):
+                raise ValueError("invalid_observations")
+            return rows, total, pages <= 1
+        if selected == ("ext_bls", "series"):
+            if not isinstance(body, dict) or body.get("status") != "REQUEST_SUCCEEDED":
+                raise ValueError("invalid_bls_status")
+            series = body["Results"]["series"]
+            if not isinstance(series, list):
+                raise ValueError("invalid_series")
+            rows = []
+            for item in series:
+                if not isinstance(item.get("seriesID"), str) or not isinstance(
+                    item.get("data"), list
+                ):
+                    raise TypeError("invalid_series")
+                for row in item["data"]:
+                    if (
+                        not isinstance(row, dict)
+                        or not {"year", "period", "value"} <= row.keys()
+                        or "series_id" in row
+                    ):
+                        raise ValueError("invalid_observation")
+                    rows.append({"series_id": item["seriesID"], **row})
+            return rows, len(rows), True
+        tables = body["tables"]
+        if not isinstance(tables, list):
+            raise TypeError("invalid_tables")
+        rows = []
+        for item in tables:
+            times, fields, asset = item["time"], item["table"], item["thscode"]
+            if (
+                not isinstance(times, list)
+                or not isinstance(fields, dict)
+                or not fields
+                or not isinstance(asset, str)
+                or not asset
+                or {"asset", "date"} & fields.keys()
+                or any(not isinstance(t, str) or not t for t in times)
+                or any(
+                    not isinstance(values, list) or len(values) != len(times)
+                    for values in fields.values()
+                )
+            ):
+                raise ValueError("unaligned_history")
+            for index, day in enumerate(times):
+                rows.append(
+                    {
+                        "asset": asset,
+                        "date": day,
+                        **{key: values[index] for key, values in fields.items()},
+                    }
+                )
+        return rows, len(rows), True
+    except (ValueError, TypeError, KeyError, AttributeError):
+        log.warning("external_numeric_envelope_invalid", source=source, dataset=dataset)
+        raise ProviderError("external_numeric_schema_invalid") from None
+
+
+def _rows_reflect_credentials(rows: Any, secrets: list[str]) -> bool:
     """Inspect decoded strings before publishing; never log credential contents."""
     sensitive = tuple(secret for secret in secrets if secret)
     if not sensitive:
@@ -283,6 +368,40 @@ async def credentials(
         return token, [secret, token]
     except (KeyError, TypeError, ValueError):
         raise ProviderError("vendor_auth_failed") from None
+
+
+async def verify_quantapi_authorization(connections, *, transport=None):
+    """Explicit refresh-token exchange only; never rotate tokens or read data."""
+    try:
+        secret = await asyncio.to_thread(connections.read_source_secret, "ext_ths")
+        configuration = json.loads(secret)
+        if (
+            not isinstance(configuration, dict)
+            or not isinstance(configuration.get("refresh_token"), str)
+            or not configuration["refresh_token"]
+            or len(configuration["refresh_token"]) > 4096
+        ):
+            raise ProviderError("refresh_token_required")
+    except ProviderError:
+        raise
+    except Exception:  # noqa: BLE001 - configuration and credential errors are never echoed.
+        raise ProviderError("refresh_token_required") from None
+    async with (
+        asyncio.timeout(12),
+        httpx.AsyncClient(
+            transport=transport, timeout=8, follow_redirects=False, trust_env=False
+        ) as client,
+    ):
+        token, _sensitive = await credentials(client, "ext_ths", connections)
+        if not token:
+            raise ProviderError("vendor_auth_failed")
+    return {
+        "status": "authenticated",
+        "data_permission_verified": False,
+        "data_queries": 0,
+        "token_rotated": False,
+        "checked_at": datetime.now(UTC).isoformat(),
+    }
 
 
 async def cicc_request(
@@ -404,11 +523,31 @@ async def fetch(
                     )
         if any(value and value.encode() in raw for value in reflected):
             raise ProviderError("credential_reflection")
+        if reflected:
+            text = raw.decode(encoding, errors="replace")
+            if "json" in content_type or text.lstrip().startswith(("{", "[")):
+                try:
+                    decoded = json.loads(text)
+                except ValueError:
+                    raise ProviderError("external_invalid_json") from None
+                # Inspect envelope metadata and keys before selecting rows: a
+                # JSON-escaped secret must never enter archived original bytes.
+                if _rows_reflect_credentials(decoded, reflected):
+                    raise ProviderError("credential_reflection")
         rows = response_rows(raw, content_type, encoding)
+        rows, provider_total, complete_page = numeric_envelope(source_id, dataset, raw, rows)
         if _rows_reflect_credentials(rows, reflected):
             raise ProviderError("credential_reflection")
         result.rows = rows[:limit]
-        result.status = "partial" if len(rows) > limit else "snapshot" if rows else "empty"
+        result.status = (
+            "partial"
+            if len(rows) > limit or complete_page is False
+            else "snapshot" if rows else "empty"
+        )
+        result.provider_total = provider_total
+        result.pagination_complete = len(rows) <= limit and complete_page is True
+        if complete_page is False:
+            result.missing.append("remaining_provider_pages")
         result.raw = [raw]
         result.raw_bytes = len(raw)
         result.pages_fetched = 1

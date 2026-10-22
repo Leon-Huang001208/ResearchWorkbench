@@ -177,7 +177,8 @@
         "app/research_web/aihot_media.py",
         "app/research_web/aihot_content.py",
         "app/research_web/market_service.py",
-        "app/research_web/market_routes.py"
+        "app/research_web/market_routes.py",
+        "app/research_web/warehouse_diagnostics.py"
       ],
       "documents": [
         "docs/architecture/research-web/01-system.md",
@@ -213,7 +214,8 @@
         "tests/research_web/test_claw_projects.py",
         "tests/research_web/test_aihot.py",
         "tests/research_web/test_market_service.py",
-        "tests/e2e/market_authenticated.py"
+        "tests/e2e/market_authenticated.py",
+        "tests/research_web/test_warehouse_diagnostics.py"
       ]
     },
     {
@@ -245,6 +247,7 @@
       "sources": [
         "app/research_web/datahub/",
         "app/research_web/runtime/public-data.mjs",
+        "app/research_web/market_store/",
         "app/research_web/datahub/providers_cjpy_assets.py"
       ],
       "documents": [
@@ -252,7 +255,9 @@
         "docs/architecture/research-web/09-integration-coordinator.md",
         "docs/research-web-datahub.md",
         "docs/research-web-etf-weekly-production.md",
-        "docs/research-web-etf-weekly-data.md"
+        "docs/research-web-etf-weekly-data.md",
+        "docs/research-web-market-store.md",
+        "docs/research-web-vendor-snapshots.md"
       ],
       "diagrams": [
         "02-module-dependencies",
@@ -279,6 +284,19 @@
         "tests/e2e/research_web_market_authenticated.mjs",
         "tests/research_web/test_datahub_wind_api.py",
         "tests/research_web/test_report_weekly_data.py",
+        "tests/research_web/test_market_store.py",
+        "tests/research_web/test_market_store_postgres.py",
+        "tests/research_web/test_market_store_live_postgres.py",
+        "tests/research_web/test_market_store_operation.py",
+        "tests/research_web/test_datahub_warehouse.py",
+        "tests/research_web/test_datahub_storage_activity.py",
+        "tests/research_web/test_datahub_reliability.py",
+        "tests/research_web/test_datahub_baostock.py",
+        "tests/research_web/test_datahub_public_worker.py",
+        "tests/research_web/test_datahub_akshare_semantics.py",
+        "tests/research_web/test_research_warehouse_management.py",
+        "tests/research_web/test_research_snapshot_store.py",
+        "tests/research_web/test_datahub_execution_health.py",
         "tests/research_web/test_cjpy_asset_data.py",
         "tests/research_web/test_asset_provider_normalization.py"
       ]
@@ -1563,6 +1581,24 @@
         },
         {
           "subjects": [
+            "normalize"
+          ],
+          "source": "app/research_web/datahub/warehouse.py"
+        },
+        {
+          "subjects": [
+            "normalize"
+          ],
+          "source": "app/research_web/market_store/postgres.py"
+        },
+        {
+          "subjects": [
+            "router"
+          ],
+          "source": "app/research_web/datahub/reliability.py"
+        },
+        {
+          "subjects": [
             "tool",
             "policy",
             "businessIntent",
@@ -1586,7 +1622,7 @@
         }
       ],
       "level": "flows",
-      "summary": "按需资产区块、固定复权快照与研究交接；无会话目录缓存分支见02。"
+      "summary": "DataHub授权查仓、缺口补数、等价切换、规范修订与冻结资料流；正式库尚未启用。 按需资产区块、固定复权快照与研究交接；无会话目录缓存分支见02。"
     },
     {
       "id": "05-capability-flow",
@@ -3796,6 +3832,13 @@
     },
     {
       "method": "POST",
+      "path": "/api/research/report-workflows/{workflow_id}/weekly-production/prepare",
+      "source": "app/research_web/report_workflow_routes.py",
+      "declaredPath": "/report-workflows/{workflow_id}/weekly-production/prepare",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "POST",
       "path": "/api/research/report-workflows/{workflow_id}/copy",
       "source": "app/research_web/report_workflow_routes.py",
       "declaredPath": "/report-workflows/{workflow_id}/copy",
@@ -4369,10 +4412,24 @@
       "prefix": "/api/research"
     },
     {
+      "method": "GET",
+      "path": "/api/research/data/warehouse",
+      "source": "app/research_web/datahub/routes.py",
+      "declaredPath": "/data/warehouse",
+      "prefix": "/api/research"
+    },
+    {
       "method": "POST",
-      "path": "/api/research/report-workflows/{workflow_id}/weekly-production/prepare",
-      "source": "app/research_web/report_workflow_routes.py",
-      "declaredPath": "/report-workflows/{workflow_id}/weekly-production/prepare",
+      "path": "/api/research/data/warehouse",
+      "source": "app/research_web/datahub/routes.py",
+      "declaredPath": "/data/warehouse",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/data/sources/{source_id}/configuration/verify",
+      "source": "app/research_web/datahub/routes.py",
+      "declaredPath": "/data/sources/{source_id}/configuration/verify",
       "prefix": "/api/research"
     },
     {
@@ -4394,7 +4451,7 @@
   "reading": {
     "repository": {
       "url": "https://github.com/Leon-Huang001208/ResearchWorkbench",
-      "revision": "1209fcfb6037a6a720aad8e473db2902f35a8b08"
+      "revision": "2f2f4c72133071492d155d6899a092d657b55831"
     },
     "levels": [
       {

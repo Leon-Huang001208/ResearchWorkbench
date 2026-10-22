@@ -1,5 +1,7 @@
 # Agent 任务路由指南
 
+研究仓本轮先完成隔离临时 PostgreSQL、DataHub缺口/授权/取消回归与独立评审，再绑定完整候选的本机门和Mac安装CI。新增测试仅扩展既有Checks步骤，不用厂商网络或真实模型替代离线验收；正式数据根、生产连接、迁移及常驻部署另行授权，Windows/Linux交接各自真机。
+
 2026-10-22资产交互v5固定部署在Mac mini隔离worktree交付，仅新增封闭profile与近处回归，固定PREVIOUS=51f09、PAYLOAD=PR185真实merge9bc4。原完整changed-set Router、独立评审、Project Constraints／Research Web Checks／同候选Mac Bootstrap继续适用；产品三CI不认证操作员候选。只有最终资格通过后，root才按原锁、明确空闲、BirthFence、全账号冻结及version4事务部署；本轮文档不执行apply，不以预览或本机installed环境替代实际版本／认证页面／保全证据。
 
 2026-10-22 资产交互与数据任务仅在原Research Web Checks的Python合同步骤追加目录、按需加载、封闭CJPY结构化数据及Provider规范化四模块，并在原Mac Bootstrap两处静态名单追加asset-search.mjs；不增job／runner／条件／依赖，原全部必需门保留。Mac本机fixtures、有限厂商预检、认证浏览器、同候选Mac安装CI、常驻部署分别认证；目录5577条和局部后端通过不代替其他层。Windows／Linux产品dispatch仍由对应真机执行，模型质量判据和费用授权不变。新目录／load API及cache／快照分支按架构map、02／04图和任务报告记录，不沿用纯静态结论。

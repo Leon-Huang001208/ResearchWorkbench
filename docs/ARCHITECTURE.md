@@ -12,6 +12,8 @@
 
 天软结构化资产适配使用固定表字段和预定义因子，提供估值、财务、股东明细／汇总、行业分类、两融及公告事件；财务按报告期／公布日读取，不套用行情60天区间，缺字段、单位和币种不补造。日线蜡烛实体与所选日期／视区独立保持，专题内容局部更新；真实来源预检、完整浏览器链路、同候选Mac安装CI与常驻切换分别取证。宏观、ETF和指数不因本次A股接入而获得支持声明，详见[DataHub合同](research-web-datahub.md#资产目录与结构化区块)。
 
+研究仓作为现有 Host/DataHub 的可选存储边界，MarketStoreService 逐次检查来源与租户授权，WarehouseBridge 只接受可信宿主数据合同与交易日历。原件/事实修订/PIT/冻结位于独立 PostgreSQL 适配，不引入第二执行引擎；正式连接与迁移尚未启用。资料流图04同步可选仓、真实工作占用和冻结边界。
+
 2026-10-22 部署profile v4复用原Native/网关version4事务，旧版固定5495、产品固定PR180真实merge `9b436613aad9136f4959c992c89dd72fc7354ed5`。旧v1/v2/v3、controller/evidence及严格保全门不变，无新服务、API、持久格式或产品数据流，不改图/架构HTML/PNG或CI。旧v3失败已正式恢复5495/preserved=true/fenced=false；产品三CI与v4工具最终验收/部署分开，详见[固定部署合同](research-web-gateway-upgrade.md#资产观察固定版本联合部署)。
 
 华安 ETF 周报新生产合同沿既有 Report Workflow、私有 DataHub、唯一 DSH 和 Host 质量门运行。

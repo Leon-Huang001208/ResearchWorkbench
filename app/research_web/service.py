@@ -305,12 +305,23 @@ class ResearchService(ModelProfilesMixin):
         runtime_manager=None,
         delivery_keyring_backend=None,
         auto_probe_on_start: bool = False,
+        market_store_bridge=None,
     ):
         self.client, self.store, self.owned = client, store, owned
         self.expected_cwd = expected_cwd
         self.delivery = Delivery(store, delivery_python)
         self.capabilities = CapabilityCatalog(store.root)
-        self.datahub = DataHub(store, admission=self._data_query_admission)
+        self.datahub = DataHub(
+            store, admission=self._data_query_admission, warehouse=market_store_bridge
+        )
+        if market_store_bridge is None:
+            from .datahub.research_warehouse import ResearchWarehouse
+            from .datahub.storage_activity import StorageRunner
+
+            self.datahub.warehouse = ResearchWarehouse(
+                store.root, keyring=self.datahub.connections.keyring
+            )
+            self.datahub.storage_runner = StorageRunner()
         self.tabbit = TabbitIntegration(client, store)
         self.local_integrations = LocalIntegrationManager(store.root / "local-integrations")
         self.integrations = IntegrationCoordinator(
@@ -2145,7 +2156,7 @@ class ResearchService(ModelProfilesMixin):
         if not refs:
             return  # Non-AI product queries retain their existing DataHub authorization.
         records = self._effective_records(refs)
-        catalog = self.datahub.catalog()
+        catalog = self.datahub.admission_catalog()
         for ref in refs:
             scope = self.capabilities.data_readiness(ref["id"], catalog)
             if not scope["admitted"]:
