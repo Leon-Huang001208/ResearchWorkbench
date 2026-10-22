@@ -22,7 +22,14 @@ ASSET_PROFILES = (
     upgrade.ASSET_V2_MODE,
     upgrade.ASSET_V3_MODE,
     upgrade.ASSET_V4_MODE,
+    "reviewed-market-overview-v1",
 )
+
+
+def test_market_profile_binds_resident_and_merged_product():
+    assert upgrade.MARKET_MODE == "reviewed-market-overview-v1"
+    assert upgrade.previous_for(upgrade.MARKET_MODE) == "4d2e3c408663b64be9e58b03213f4ca8f1152733"
+    assert upgrade.MARKET_PAYLOAD == "5de7e5f2db95b8b501905af9cfdc30e8fe84db0b"
 
 
 def test_wind_v3_profile_is_bound_to_the_actual_resident_and_reviewed_product():
@@ -105,6 +112,7 @@ def test_asset_review_uses_real_git_and_frozen_product(tmp_path, monkeypatch, ba
         upgrade.ASSET_V2_MODE: "ASSET_V2",
         upgrade.ASSET_V3_MODE: "ASSET_V3",
         upgrade.ASSET_V4_MODE: "ASSET_V4",
+        "reviewed-market-overview-v1": "MARKET",
     }[profile]
     monkeypatch.setattr(upgrade, prefix + "_PREVIOUS", base)
     monkeypatch.setattr(upgrade, prefix + "_PAYLOAD", payload)
@@ -358,6 +366,7 @@ def test_asset_snapshot_rejects_fifo_without_blocking(tmp_path):
         ("apply-assets-v2", upgrade.ASSET_V2_MODE),
         ("apply-assets-v3", upgrade.ASSET_V3_MODE),
         ("apply-assets-v4", upgrade.ASSET_V4_MODE),
+        ("apply-market", "reviewed-market-overview-v1"),
         ("recover", upgrade.MODE),
     ],
 )
@@ -389,6 +398,8 @@ def test_cli_selects_only_the_closed_profile(tmp_path, monkeypatch, command, pro
         (upgrade.ASSET_V4_MODE, upgrade.ASSET_V2_PREVIOUS),
         (upgrade.ASSET_V4_MODE, upgrade.ASSET_V3_PAYLOAD),
         (upgrade.ASSET_V4_MODE, upgrade.ASSET_V4_PAYLOAD),
+        ("reviewed-market-overview-v1", upgrade.ASSET_V4_PREVIOUS),
+        ("reviewed-market-overview-v1", "5de7e5f2db95b8b501905af9cfdc30e8fe84db0b"),
     ],
 )
 def test_asset_journal_cannot_select_the_legacy_previous(profile, previous):
@@ -1324,6 +1335,7 @@ def test_validate_state_accepts_real_independent_release_clones(tmp_path, monkey
         upgrade.ASSET_V2_MODE: "ASSET_V2_PREVIOUS",
         upgrade.ASSET_V3_MODE: "ASSET_V3_PREVIOUS",
         upgrade.ASSET_V4_MODE: "ASSET_V4_PREVIOUS",
+        "reviewed-market-overview-v1": "MARKET_PREVIOUS",
     }[profile]
     monkeypatch.setattr(upgrade, previous_name, target)
     upgrade.g.private_root(home / "resident")

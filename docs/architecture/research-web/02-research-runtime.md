@@ -1,5 +1,7 @@
 # 研究协议、执行状态与恢复
 
+2026-10-22 全市场常驻部署使用封闭 `reviewed-market-overview-v1` / `apply-market`：旧版固定 `4d2e3c408663b64be9e58b03213f4ca8f1152733`，产品固定已合并 PR179 `5de7e5f2db95b8b501905af9cfdc30e8fe84db0b`。复用原 version4 事务、空闲准入、BirthFence、全部账号索引冻结和内容寻址恢复；旧 profile、控制器、证据读取器及自动兼容白名单保持。操作员候选须独立评审及原三项 CI／同候选 Mac 安装通过，再按用户授权切换并在真实认证页面验收。 无新服务、HTTP、持久格式或依赖；现有图及 API Atlas 准确，不重画 HTML/PNG。Windows/Linux 原生与 Docker 产品层保持各自未执行状态。
+
 2026-10-22 v4 profile固定旧5495与PR180产品`9b436613aad9136f4959c992c89dd72fc7354ed5`，不改变version4 journal和前进/回滚/冻结recover状态机。既有DSH/历史任务/真实Future/取消排空/日程/私有池空闲及旧v1/v2/v3恢复身份保持。旧v3已正式恢复5495且网关解除fence；产品三CI属于产品证据，v4最终本机/评审/CI/部署另验，不新增运行状态或重画图。
 
 2026-10-22 Wind部署profile v3复用原v4前进/恢复状态机，journal中的封闭mode只选择固定旧版5495，旧v1/v2恢复不变。原DSH、历史任务、取消排空、真实CJPY Future及研究质量协议均不修改；root切换前仍须持锁证明研究/日程/私有池/观察/DataHub/历史全部明确空闲。产品验收不替代profile候选CI与实际版本/保全，未知状态继续阻止；没有新运行状态或执行拓扑，因此不重画当前图。
