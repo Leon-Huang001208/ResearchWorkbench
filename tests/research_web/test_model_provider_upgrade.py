@@ -1982,7 +1982,7 @@ def test_market_gap_profile_freezes_resident_and_reviewed_source_checkpoint():
 def test_market_refresh_activity_blocks_the_fixed_upgrade(
     real_operations, monkeypatch, response, expected
 ):
-    home, state, system, make, uid = real_operations
+    home, state, _system, make, uid = real_operations
     original = upgrade.request_json
     monkeypatch.setattr(
         upgrade,
