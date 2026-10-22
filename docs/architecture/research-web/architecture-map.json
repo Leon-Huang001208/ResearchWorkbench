@@ -104,7 +104,8 @@
         "01-deployment",
         "02-module-dependencies",
         "03-research-sequence",
-        "12-ai-news"
+        "12-ai-news",
+        "13-market-overview"
       ],
       "tests": [
         "tests/javascript/research_web_ui.test.mjs",
@@ -142,7 +143,9 @@
         "tests/javascript/research_web_aihot_reading.test.mjs",
         "tests/javascript/research_web_asset_chart.test.mjs",
         "tests/javascript/research_web_asset_workspace.test.mjs",
-        "tests/e2e/research_web_asset_workspace.mjs"
+        "tests/e2e/research_web_asset_workspace.mjs",
+        "tests/javascript/research_web_market.test.mjs",
+        "tests/javascript/research_web_market_navigation.test.mjs"
       ]
     },
     {
@@ -165,7 +168,9 @@
         "app/research_web/navigation.py",
         "app/research_web/aihot_routes.py",
         "app/research_web/aihot_media.py",
-        "app/research_web/aihot_content.py"
+        "app/research_web/aihot_content.py",
+        "app/research_web/market_service.py",
+        "app/research_web/market_routes.py"
       ],
       "documents": [
         "docs/architecture/research-web/01-system.md",
@@ -179,7 +184,8 @@
         "03-research-sequence",
         "06-run-state",
         "11-hot-events",
-        "12-ai-news"
+        "12-ai-news",
+        "13-market-overview"
       ],
       "tests": [
         "tests/research_web/test_api.py",
@@ -197,7 +203,8 @@
         "tests/research_web/test_intel.py",
         "tests/research_web/test_hot_session_recovery.py",
         "tests/research_web/test_claw_projects.py",
-        "tests/research_web/test_aihot.py"
+        "tests/research_web/test_aihot.py",
+        "tests/research_web/test_market_service.py"
       ]
     },
     {
@@ -239,7 +246,8 @@
         "02-module-dependencies",
         "03-research-sequence",
         "04-data-file-flow",
-        "11-hot-events"
+        "11-hot-events",
+        "13-market-overview"
       ],
       "tests": [
         "tests/research_web/test_datahub.py",
@@ -252,7 +260,8 @@
         "tests/javascript/research_web_capabilities_ui.test.mjs",
         "tests/javascript/research_web_public_data.test.mjs",
         "tests/research_web/test_hot_snapshot_publication.py",
-        "tests/research_web/test_datahub_wind.py"
+        "tests/research_web/test_datahub_wind.py",
+        "tests/research_web/test_market_provider.py"
       ]
     },
     {
@@ -1902,6 +1911,51 @@
           "source": "app/research_web/client.py"
         }
       ]
+    },
+    {
+      "id": "13-market-overview",
+      "source": "docs/architecture/research-web/diagrams/13-market-overview.json",
+      "artifact": "outputs/research-web-architecture/13-market-overview.html",
+      "receipt": "outputs/research-web-architecture/13-market-overview.receipt.json",
+      "visualReceipt": "outputs/research-web-architecture/13-market-overview.visual-check.json",
+      "level": "flows",
+      "summary": "沪深北公开行情的无会话刷新、覆盖核验、用户缓存及只读筛选导出。",
+      "evidence": [
+        {
+          "subjects": [
+            "marketPage",
+            "marketRead",
+            "marketRefresh"
+          ],
+          "source": "app/research_web/ui/market.mjs"
+        },
+        {
+          "subjects": [
+            "marketRoutes",
+            "marketAdmit"
+          ],
+          "source": "app/research_web/market_routes.py"
+        },
+        {
+          "subjects": [
+            "marketService",
+            "marketCache",
+            "marketPersist",
+            "marketCachedRead"
+          ],
+          "source": "app/research_web/market_service.py"
+        },
+        {
+          "subjects": [
+            "publicMarket",
+            "coverage",
+            "marketFetch",
+            "marketNormalize",
+            "marketProjection"
+          ],
+          "source": "app/research_web/datahub/providers_market.py"
+        }
+      ]
     }
   ],
   "apis": [
@@ -1911,6 +1965,41 @@
       "source": "app/research_web/main.py",
       "declaredPath": "/",
       "prefix": ""
+    },
+    {
+      "method": "GET",
+      "path": "/",
+      "source": "app/research_web/multiuser/gateway.py",
+      "declaredPath": "/",
+      "prefix": ""
+    },
+    {
+      "method": "GET",
+      "path": "/account",
+      "source": "app/research_web/multiuser/gateway.py",
+      "declaredPath": "/account",
+      "prefix": ""
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/ai-news/control",
+      "source": "app/research_web/ai_news_routes.py",
+      "declaredPath": "/control",
+      "prefix": "/api/research/ai-news"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/ai-news/feeds/{kind}.xml",
+      "source": "app/research_web/ai_news_routes.py",
+      "declaredPath": "/feeds/{kind}.xml",
+      "prefix": "/api/research/ai-news"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/ai-news/status",
+      "source": "app/research_web/ai_news_routes.py",
+      "declaredPath": "/status",
+      "prefix": "/api/research/ai-news"
     },
     {
       "method": "GET",
@@ -2929,6 +3018,48 @@
     },
     {
       "method": "GET",
+      "path": "/api/research/market",
+      "source": "app/research_web/market_routes.py",
+      "declaredPath": "",
+      "prefix": "/api/research/market"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/market/quotes",
+      "source": "app/research_web/market_routes.py",
+      "declaredPath": "/quotes",
+      "prefix": "/api/research/market"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/market/quotes/export",
+      "source": "app/research_web/market_routes.py",
+      "declaredPath": "/quotes/export",
+      "prefix": "/api/research/market"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/market/refresh",
+      "source": "app/research_web/market_routes.py",
+      "declaredPath": "/refresh",
+      "prefix": "/api/research/market"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/research/market/refresh/{request_id}",
+      "source": "app/research_web/market_routes.py",
+      "declaredPath": "/refresh/{request_id}",
+      "prefix": "/api/research/market"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/market/refresh/{request_id}",
+      "source": "app/research_web/market_routes.py",
+      "declaredPath": "/refresh/{request_id}",
+      "prefix": "/api/research/market"
+    },
+    {
+      "method": "GET",
       "path": "/api/research/mcp/approvals",
       "source": "app/research_web/mcp_runtime/routes.py",
       "declaredPath": "/approvals",
@@ -3115,6 +3246,41 @@
       "source": "app/research_web/mcp_registry/routes.py",
       "declaredPath": "/servers/{registry_id}/{server_name:path}/versions/{version}",
       "prefix": "/api/research/mcp"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/model-profiles",
+      "source": "app/research_web/main.py",
+      "declaredPath": "/api/research/model-profiles",
+      "prefix": ""
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/model-profiles",
+      "source": "app/research_web/main.py",
+      "declaredPath": "/api/research/model-profiles",
+      "prefix": ""
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/research/model-profiles/{identity}",
+      "source": "app/research_web/main.py",
+      "declaredPath": "/api/research/model-profiles/{identity}",
+      "prefix": ""
+    },
+    {
+      "method": "PUT",
+      "path": "/api/research/model-profiles/{identity}",
+      "source": "app/research_web/main.py",
+      "declaredPath": "/api/research/model-profiles/{identity}",
+      "prefix": ""
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/model-profiles/{identity}/activate",
+      "source": "app/research_web/main.py",
+      "declaredPath": "/api/research/model-profiles/{identity}/activate",
+      "prefix": ""
     },
     {
       "method": "GET",
@@ -3845,25 +4011,11 @@
       "prefix": ""
     },
     {
-      "method": "POST",
-      "path": "/api/research/ai-news/control",
-      "source": "app/research_web/ai_news_routes.py",
-      "declaredPath": "/control",
-      "prefix": "/api/research/ai-news"
-    },
-    {
       "method": "GET",
-      "path": "/api/research/ai-news/feeds/{kind}.xml",
-      "source": "app/research_web/ai_news_routes.py",
-      "declaredPath": "/feeds/{kind}.xml",
-      "prefix": "/api/research/ai-news"
-    },
-    {
-      "method": "GET",
-      "path": "/api/research/ai-news/status",
-      "source": "app/research_web/ai_news_routes.py",
-      "declaredPath": "/status",
-      "prefix": "/api/research/ai-news"
+      "path": "/api/server/health",
+      "source": "app/research_web/multiuser/gateway.py",
+      "declaredPath": "/api/server/health",
+      "prefix": ""
     },
     {
       "method": "POST",
@@ -3929,49 +4081,14 @@
       "prefix": ""
     },
     {
-      "method": "GET",
-      "path": "/account",
-      "source": "app/research_web/multiuser/gateway.py",
-      "declaredPath": "/account",
-      "prefix": ""
-    },
-    {
-      "method": "GET",
-      "path": "/",
-      "source": "app/research_web/multiuser/gateway.py",
-      "declaredPath": "/",
-      "prefix": ""
-    },
-    {
-      "method": "GET",
-      "path": "/{path:path}",
-      "source": "app/research_web/multiuser/gateway.py",
-      "declaredPath": "/{path:path}",
-      "prefix": ""
-    },
-    {
-      "method": "POST",
-      "path": "/{path:path}",
-      "source": "app/research_web/multiuser/gateway.py",
-      "declaredPath": "/{path:path}",
-      "prefix": ""
-    },
-    {
-      "method": "PUT",
-      "path": "/{path:path}",
-      "source": "app/research_web/multiuser/gateway.py",
-      "declaredPath": "/{path:path}",
-      "prefix": ""
-    },
-    {
-      "method": "PATCH",
-      "path": "/{path:path}",
-      "source": "app/research_web/multiuser/gateway.py",
-      "declaredPath": "/{path:path}",
-      "prefix": ""
-    },
-    {
       "method": "DELETE",
+      "path": "/{path:path}",
+      "source": "app/research_web/multiuser/gateway.py",
+      "declaredPath": "/{path:path}",
+      "prefix": ""
+    },
+    {
+      "method": "GET",
       "path": "/{path:path}",
       "source": "app/research_web/multiuser/gateway.py",
       "declaredPath": "/{path:path}",
@@ -3985,45 +4102,24 @@
       "prefix": ""
     },
     {
-      "method": "GET",
-      "path": "/api/server/health",
+      "method": "PATCH",
+      "path": "/{path:path}",
       "source": "app/research_web/multiuser/gateway.py",
-      "declaredPath": "/api/server/health",
-      "prefix": ""
-    },
-    {
-      "method": "GET",
-      "path": "/api/research/model-profiles",
-      "source": "app/research_web/main.py",
-      "declaredPath": "/api/research/model-profiles",
+      "declaredPath": "/{path:path}",
       "prefix": ""
     },
     {
       "method": "POST",
-      "path": "/api/research/model-profiles",
-      "source": "app/research_web/main.py",
-      "declaredPath": "/api/research/model-profiles",
+      "path": "/{path:path}",
+      "source": "app/research_web/multiuser/gateway.py",
+      "declaredPath": "/{path:path}",
       "prefix": ""
     },
     {
       "method": "PUT",
-      "path": "/api/research/model-profiles/{identity}",
-      "source": "app/research_web/main.py",
-      "declaredPath": "/api/research/model-profiles/{identity}",
-      "prefix": ""
-    },
-    {
-      "method": "POST",
-      "path": "/api/research/model-profiles/{identity}/activate",
-      "source": "app/research_web/main.py",
-      "declaredPath": "/api/research/model-profiles/{identity}/activate",
-      "prefix": ""
-    },
-    {
-      "method": "DELETE",
-      "path": "/api/research/model-profiles/{identity}",
-      "source": "app/research_web/main.py",
-      "declaredPath": "/api/research/model-profiles/{identity}",
+      "path": "/{path:path}",
+      "source": "app/research_web/multiuser/gateway.py",
+      "declaredPath": "/{path:path}",
       "prefix": ""
     }
   ],

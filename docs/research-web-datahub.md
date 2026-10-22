@@ -1,5 +1,11 @@
 # Research Web DataHub
 
+## 无会话全市场数据
+
+`datahub/providers_market.py` 在现有依赖内对东方财富固定端点进行有界异步读取，沪、深、北按独立范围完整分页；北交所身份不能仅由上游 `f13=0` 推为深圳。保留来源总数、页数、行情时间、日期分布与缺口，重复、漏页、总数变化和容量超界不能标为完整。市场采集使用独立容量边界，其他 Provider 的5000行限制保持。
+
+`MarketService` 使用当前用户 `market-cache/` 保存当前与上一完整快照，GET 仅消费缓存，POST 显式刷新；该路径不经过会话查询，不产生研究 receipt、dataset 或 DSH 工具调用。行业／概念使用东方财富分类，资金按供应商订单分类；沪深大盘资金流不包含北交所。Wind只作为版式参考，天软既有能力不变。公开源可达、字段可用、分页完整和真实验收分别记录。
+
 资产页紧凑摘要新增的 `valuation` 与 `coverageRows` 仅为 `asset-projection.mjs` 浏览器 DTO，消费当前已载入行与既有 dataset 元数据，不扩展 DataHub、ObservationRequest、持久化格式或 HTTP 合同。“N/8 有快照”按八个既有区块的真实载入行及 dataset 身份计数，complete 但未载入不计入；新闻／公告仍走独立阅读。来源明细分开显示请求来源／实际 Provider、行内数据日、`as_of`、北京时间 `retrieved_at`、报告期、请求／实际／载入区间、字段单位与限制，不能把这些不同时间和范围合并为一个“最新”。
 
 资产观察继续经 AssetWorkspace → Broker → 现有 Provider，页面打开不取数；显式创建或刷新单一区块才提交查询。请求新增 `section_sources={}`：区块显式来源覆盖原 `source`，未覆盖仍沿原来源，专业来源失败不能隐式回退。新增 `section_ranges={}`：只接受 history／activity／margin 的完整 ISO 日期对，开始不晚于结束；缺省沿原全局日期，旧记录恢复为两个空映射。刷新沿保存的有效来源与日期执行，公开请求参数及各区块显示来源／范围，不能以全局来源掩盖差异。holders 的 `end_date` 仍是报告期，不参与历史日期覆盖。

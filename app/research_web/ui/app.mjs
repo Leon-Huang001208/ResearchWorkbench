@@ -33,6 +33,7 @@ import { mountCapitalFlow } from './asset-workspace.mjs';
 import { projectAssetObservation } from './asset-projection.mjs';
 import { renderOperations } from './operations.mjs';
 import { createIntelController, renderIntel } from './intel.mjs';
+import { createMarketController, renderMarketPage } from './market.mjs';
 import { createAihotController, renderAihot } from './aihot.mjs';
 import { renderReportWorkflowDetail, renderReportWorkflowShelf } from './report-workflows.mjs';
 import { buildConfigurationPayload, confirmAutoProbeConsent, createLocalIntegrationPollingGuard, createOfficeConsentQueue, invalidateLocalIntegrationSnapshot, nextLocalStatusExpiry, mergeIntegrationStatuses } from './connections.mjs';
@@ -152,6 +153,7 @@ window.matchMedia('(max-width: 1050px)').addEventListener?.('change', event => {
 });
 const hotController = createHotController({api,onChange:()=>render(),isActive:()=>state.route.page==='intel'&&state.route.intelTab==='hot'||state.route.page==='settings'&&state.route.settingsSection==='hot'});
 const intelController = createIntelController({ onChange: () => { if (state.route.page === 'intel') render(); } });
+const marketController = createMarketController({ api, onChange: () => { if (state.route.page === 'market') render(); } });
 const isAssetPage = () => ['assets', 'workbench'].includes(state.route.page) && state.route.section === 'assets';
 const assetChart = createAssetChartController();
 let assetCapitalFlow = null;
@@ -403,6 +405,7 @@ function currentSettingsConnectionId() {
 }
 
 function mainPage() {
+  if (state.route.page === 'market') return renderMarketPage(marketController.state, state.route);
   if (state.route.page === 'account') return renderAccountProfile(globalThis.__RWB_ACCOUNT__);
   if (state.route.page === 'claw') {
     return clawMainPage();
@@ -708,7 +711,7 @@ function render() {
     if (!projectDialog.contains(document.activeElement) || document.activeElement?.disabled) (projectDialog.querySelector('input:not(:disabled)') || projectDialog).focus({ preventScroll: true });
   }
   mountAssetIndicators();
-  document.title = `${state.detail?.title || ({ fingpt: 'FinGPT', claw: 'Claw', assets: '资产观察', simulation: '策略模拟', frameworks: '研究框架', history: '研究历史', skills: '能力中心', operations: '运行与用量', intel: '研究情报', aihot: 'AI 资讯', settings: '设置', account: '账号资料' })[state.route.page] || '资产观察'} · Research Workbench`;
+  document.title = `${state.detail?.title || ({ fingpt: 'FinGPT', claw: 'Claw', market: '全市场概览', assets: '资产观察', simulation: '策略模拟', frameworks: '研究框架', history: '研究历史', skills: '能力中心', operations: '运行与用量', intel: '研究情报', aihot: 'AI 资讯', settings: '设置', account: '账号资料' })[state.route.page] || '资产观察'} · Research Workbench`;
 }
 
 async function loadCatalog(names = defaultCatalogNames) {
@@ -1377,6 +1380,7 @@ async function showRoute() {
     history.replaceState(null, '', '#/claw?view=plans');
   }
   intelController.cancel();
+  marketController.cancel();
   assetWorkspace.cancel(); assetNews.cancel(); assetChart.cancel();
   aihotController.cancel();
   localIntegrationPollingGuard.invalidate(); officeAutoPollingGuard.invalidate(); officeConsentConfirmation = '';
@@ -1460,6 +1464,7 @@ async function showRoute() {
   if (isDataWorkspaceRoute(state.route)) await loadWorkbench();
   if (ticket !== pageGeneration) return;
   if (state.route.page === 'operations') await loadOperations();
+  if (state.route.page === 'market') await marketController.activate(state.route);
   if (state.route.page === 'aihot') await aihotController.activate(state.route);
   if (state.route.page === 'intel') {
     if (state.route.intelTab === 'hot') await hotController.activate(state.route);
@@ -1533,6 +1538,7 @@ function selectTabbit(tabId) {
 }
 
 function handleInput(event) {
+  if (state.route.page === 'market' && marketController.handleInput(event)) return;
   if (event.target.matches?.('[data-asset-list-query]')) { const query = event.target.value.trim().toUpperCase(); for (const row of root.querySelectorAll('[data-asset-list-code]')) row.hidden = !row.dataset.assetListCode.includes(query); return; }
   const hotForm=event.target.closest?.('[data-hot-form]');
   if(hotForm)hotForm.dataset.hotDirty='true';
@@ -1841,6 +1847,7 @@ async function configureComposerModel(value) {
 }
 
 root.addEventListener('change', async (event) => {
+  if (state.route.page === 'market' && await marketController.handleChange(event)) return;
   if (event.target.matches?.('[data-etf-run]')) {
     if (!event.target.value || workbenchBusy) return;
     const current = workbenchOwner();
@@ -2005,6 +2012,7 @@ root.addEventListener('paste', (event) => {
 });
 
 root.addEventListener('submit', async (event) => {
+  if (state.route.page === 'market' && await marketController.handleSubmit(event)) return;
   if (event.target.matches?.('[data-asset-select]')) {
     event.preventDefault(); const data = new FormData(event.target);
     location.hash = assetHref(String(data.get('asset') || '').trim(), String(data.get('asset_type') || 'stock'), state.route.assetView || 'overview'); return;
@@ -2437,6 +2445,7 @@ root.addEventListener('pointerdown', event => {
   if (form && questionAdvanceKey === questionStateKey(form.dataset.qSession, form.dataset.questionForm) && (event.detail > 1 || performance.now() < questionAdvanceUntil)) event.preventDefault();
 });
 root.addEventListener('click', async (event) => {
+  if (state.route.page === 'market' && await marketController.handleClick(event)) return;
   if (isAssetPage()) {
     if (assetChart.handle(event)) return;
     if (event.target.closest?.('[data-asset-news-refresh]')) { await assetNews.activate(state.route, { refresh: true }); return; }

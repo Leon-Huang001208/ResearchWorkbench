@@ -1,5 +1,7 @@
 # 研究协议、执行状态与恢复
 
+市场刷新使用独立 request ID 与每个读取者的订阅，同 key 采集合并；最后读取者取消及服务关闭均取消并等待后台 HTTP 回收。行情缓存不进入研究会话、DataHub 会话 receipt 或 DSH 历史，研究协议和质量门保持；市场 pending/running/completed/failed/cancelled 不能解释为研究执行或验收结果。
+
 资产观察 `apply-assets-v2` 复用原 v4 前进／恢复状态机；已验证 journal 的 v2 mode 固定恢复 `9bc12355`，v1 和模型 mode 保留原旧版。两资产 mode 均要求观察和 DataHub 明确终态，活动／未知延后；DSH 协议、研究历史、质量门、取消语义及原恢复拓扑不改变，不调用模型或供应商。
 
 资产观察的图表公式和字段投影仅在浏览器确定性执行，不引入AF Agent委员会或第二执行循环。新增section_sources／section_ranges保存在原观察请求，刷新和恢复复用原任务／取消状态机；失败沿有效显式来源返回，不自动改来源或重试。DSH协议、原生历史、研究质量与用户授权边界保持。

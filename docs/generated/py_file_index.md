@@ -4209,6 +4209,44 @@ Functions:
 - `fetch`
 
 
+## `app/research_web/datahub/providers_market.py`
+
+Module docstring:
+> Bounded, session-free market readers using fixed public vendor contracts.
+
+Imports:
+- `__future__`
+- `asyncio`
+- `core.observability`
+- `datetime`
+- `httpx`
+- `json`
+- `math`
+- `re`
+- `typing`
+- `zoneinfo`
+
+Classes:
+- `MarketProviderError`
+  - Fixed, non-sensitive transport or contract failure.
+  - methods: __init__
+- `_Reader`
+  - methods: __init__, raw, json
+- `MarketProvider`
+  - An owned HTTP client, bounded section reads, and exact cancellation.
+  - methods: __init__, __aenter__, __aexit__, close, fetch, _result, _paginate, _quote, _quotes, _statistics, _boards, _flows, _market_flow, _members, _indices, _index_series, _calendar, _decode_calendar
+
+Functions:
+- `_now`
+- `_number`
+- `_text`
+- `_timestamp`
+- `_code`
+- `_board_id`
+- `_calendar_payload`
+  - Parse only the vendor's data assignment and its fixed optional alias.
+
+
 ## `app/research_web/datahub/providers_mysql.py`
 
 Module docstring:
@@ -5672,7 +5710,7 @@ Imports:
 - `intel_routes`
 - `json`
 - `local_integrations`
-- ... 26 more
+- ... 27 more
 
 Classes:
 - `NewSession`
@@ -5693,6 +5731,73 @@ Classes:
 
 Functions:
 - `create_app`
+
+
+## `app/research_web/market_routes.py`
+
+Module docstring:
+> Sessionless market reads and explicitly admitted refresh operations.
+
+Imports:
+- `__future__`
+- `core.observability`
+- `fastapi`
+- `market_service`
+- `pydantic`
+- `starlette.responses`
+- `typing`
+
+Classes:
+- `RefreshRequest`
+- `QuoteFilters`
+- `QuotePage`
+
+Functions:
+- `_failure`
+- `overview`
+- `refresh`
+- `refresh_status`
+- `cancel`
+- `export_quotes`
+- `quotes`
+
+
+## `app/research_web/market_service.py`
+
+Module docstring:
+> User-owned, sessionless market snapshots and shared refresh lifecycle.
+
+Imports:
+- `__future__`
+- `asyncio`
+- `collections`
+- `collections.abc`
+- `copy`
+- `core.observability`
+- `csv`
+- `datetime`
+- `hashlib`
+- `io`
+- `json`
+- `math`
+- `os`
+- `pathlib`
+- `re`
+- `time`
+- `uuid`
+- `zoneinfo`
+
+Classes:
+- `MarketError`
+  - A safe product error without upstream payloads, paths or credentials.
+  - methods: __init__
+- `MarketService`
+  - Cache public market reads inside one authenticated user's data root.
+  - methods: __init__, _interval, _key, _path, _directory, _load, _valid_key, _valid_snapshot, _complete_snapshot, _record, _persist, _project, overview, market_state, _validate_board, _trim_requests, refresh, _await_draining, _finish_reader, _collect, _trim_auxiliary, _resolve_members, request, cancel, _quote_snapshot, _filtered, quotes, export_quotes, close
+
+Functions:
+- `_iso`
+- `_safe_error`
 
 
 ## `app/research_web/mcp_registry/__init__.py`
@@ -8152,8 +8257,8 @@ Imports:
 - `integrations`
 - `json`
 - `local_integrations`
-- `mcp_registry`
-- ... 28 more
+- `market_service`
+- ... 29 more
 
 Classes:
 - `_SessionOwnedMCPRuntime`

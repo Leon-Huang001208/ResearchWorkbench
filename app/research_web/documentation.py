@@ -33,6 +33,7 @@ DOCUMENT_NAMES = frozenset(
         "10-excel-report-dataflow",
         "11-hot-events",
         "12-ai-news",
+        "13-market-overview",
     )
 )
 DOCUMENT_CSP = (

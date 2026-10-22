@@ -1,5 +1,7 @@
 # Research Web 文档门禁与安全入口
 
+架构阅读器增加固定全市场概览视图 `13-market-overview.html`，说明公开源、无会话刷新、用户缓存和只读导出关系；继续由既有名称白名单与隔离CSP保护，不提供任意文件浏览。
+
 AI资讯自主化本轮在隔离实例接入原版API/worker与独立库，保持DSH研究执行及当前常驻内容。零调用和后续切换边界见[自主资讯合同](research-web-ai-news.md)。
 
 新增 private-multiuser 组映射独立服务器账号网关、逐用户 runtime 与后端 profile，部署图展示其可选入口。HTTP 清单除原 `main.py` 路由外，仅接受经 `multiuser/__main__.py` 明确导入、装配并交给 uvicorn 的独立 gateway；仍要求字面量路径及普通方法装饰器，catchall 六种方法逐项登记。此检查证明源码接线和清单完整，不证明登录、隔离、模型或平台实际验收。
