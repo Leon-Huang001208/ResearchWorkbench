@@ -81,3 +81,9 @@ Root在18997隔离完整Host页面完成PASS：显式Tinysoft请求失败后下�
 公开AK实际调用合计两次，分别用于此前API闭环和本次完整Host可视闭环；本UI进程最多一次public invocation。受控Tinysoft/Wind设置仍不构成真实厂商验收；模型、付费供应商、生产凭据、PG均未调用。最终UI临时Host graceful exit0、PID absent、临时root删除、CUA tab8关闭；最初server exit143无finalizer及ownroot只读capability copies导致首次清理拒绝亦保留。Root核实任务目录身份后仅为本任务目录增加owner-write后删除，没有变动宿主服务。端口plain bind仍errno48（TIME_WAIT），reuseaddr复查PASS，不能写plain PASS。
 
 新chart源码eb5894165e19bf712d74624285da192c5d268a7745c7adbfdcbc62d7e66bab52已获Root转交的独立TS最终PASS99，其余三受审JS仍为前述55f0caa／732aacc／8e4924c。该结果替代旧chart的PASS98检查点，真实页面也绑定修补后字节。实现者未重跑vendor；本feature现在按Root重新授予的独占窗口提交功能检查点与reading绑定，仍不prepare/push/部署，常驻部署与最终CI另证。
+
+## 源码检查点与阅读入口绑定
+
+功能源码检查点已实际提交：`323da9ae60960dbe7f246f4686a54302bebbf819`（fix(assets): route recent raw history through equivalent fallback），包含34个本任务文件及真实AK/Host页面范围报告。reading.repository.revision固定到此源码提交，由官方build_research_web_api_atlas生成入口与API Atlas；生成物及本记录归第二文档提交，避免自指。检查点不代表已push、最终CI通过或常驻部署；实际平台与供应商范围仍按上文分别记录。
+
+阅读绑定实际检查：官方build_research_web_api_atlas生成及--check通过，reading/architecture/documentation JavaScript91项PASS（logs/asset-history-reading-architecture-tests.log）；专项architecture-check及完整changed-set doc-sync包含约束、生成索引、文档治理PASS（logs/asset-history-reading-architecture-check.log、reading-doc-sync.log）。本次第二提交仅绑定map/阅读README/两项生成HTML与报告，不改变功能检查点产品字节。

@@ -1,5 +1,7 @@
 # Research Workbench Research Web 当前架构
 
+2026-10-23 资产近期不复权备用链源码检查点为`323da9ae60960dbe7f246f4686a54302bebbf819`，本阅读入口及API Atlas现固定该已提交源码。它包含历史source、规范raw2、真实授权与排空及页面来源保持修复；真实免费API和完整Host页面各取得一次AKShare485行，两次目的不同。Tinysoft/Wind仍为受控故障/范围设置，最终CI、合并和常驻部署分别取证，不由阅读pin宣称已部署。
+
 当前v5组合产品为PR188真实merge88ef3817（含资产9bc4及DataHub研究仓），旧版仍51f09；阅读入口固定该已提交组合产品，v5一行64 MiB读取修复另指8f2cb39a，元数据保持1 MB。PR188新04数据流与API清单保留，profile修复自身不新增节点或HTTP。用户批准组合验收后锁定baostock0.9.4／psycopg3.3.6随常驻部署，但不启用／迁移DB、不改外盘；旧a114三CI全PASS、新组合重验及实际部署分别记录，见[部署合同](../../research-web-gateway-upgrade.md#资产交互与数据-v5-2026-10-22)和[修复报告](../../../.ai/reports/test_report_asset_v5_index_fix_20261022.md)。
 
 华安ETF周报沿现有Workflow、私有DataHub、唯一DSH与Host质量边界升级；新合同只对附接主管理员
