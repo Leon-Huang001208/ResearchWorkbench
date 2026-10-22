@@ -24,6 +24,43 @@ class Resolution:
     attempted_sources: list[dict]
 
 
+def resolve_report_weekly(
+    query, *, probes=None, connection_statuses=None, environ=None
+) -> Resolution:
+    """Authorize the private Client API path without broadening public Wind tools.
+
+    The general Excel bindings intentionally remain unavailable when client_api is
+    selected. This closed report path checks that exact adapter's dependency later.
+    """
+    from .providers_wind_api import WindAPIQuery
+
+    if not isinstance(query, WindAPIQuery):
+        raise StoreError("周报取数合同无效", "weekly_query_invalid", 400)
+    statuses = connection_statuses or {}
+    source = next(
+        item
+        for item in build_catalog(probes=probes, connection_statuses=statuses, environ=environ)[
+            "sources"
+        ]
+        if item["id"] == "wind"
+    )
+    readiness = source["readiness"]
+    if not readiness["allowed"] or not readiness["configured"]:
+        raise StoreError("Wind 周报来源未配置或未获允许", "weekly_source_unavailable", 503)
+    if statuses.get("wind", {}).get("preferred_adapter") != "client_api":
+        raise StoreError("周报 API 需显式选择 Client API", "weekly_client_api_not_selected", 409)
+    if (
+        not statuses.get("wind", {}).get("credential_store_available", True)
+        or readiness["health"] == "unavailable"
+    ):
+        raise StoreError("Wind 周报来源状态不可用", "weekly_source_unavailable", 503)
+    return Resolution(
+        "wind",
+        query,
+        [{"source": "wind", "adapter": "client_api", "status": "selected", "reason": None}],
+    )
+
+
 def _integer(value, name, default, minimum=1, maximum=100):
     if value is None:
         return default

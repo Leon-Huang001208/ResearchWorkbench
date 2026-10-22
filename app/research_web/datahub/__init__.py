@@ -4,6 +4,7 @@ import asyncio
 import hashlib
 import hmac
 import json
+import os
 import re
 import time
 from datetime import UTC, datetime
@@ -514,6 +515,327 @@ class DataHub:
         finally:
             if task.done():
                 self.tasks.pop(key, None)
+
+    async def collect_report_weekly(
+        self,
+        sid,
+        call_id,
+        cutoff,
+        *,
+        provider=None,
+        verification_receipts=None,
+        run_root=None,
+        manifest=None,
+    ):
+        """Private Host-only collection with ordinary ownership and raw snapshots.
+
+        No HTTP route or DSH Tool accepts this request. Comparison inputs are
+        existing hash-verified datasets of this session, never model booleans.
+        """
+        from ..report_workflows.weekly_data import (
+            assess_weekly_snapshot,
+            build_equivalence_proof,
+            build_weekly_data_contract,
+            sample_snapshot,
+        )
+        from .broker import resolve_report_weekly
+        from .providers_wind_api import WindAPIQuery, WindClientAPIProvider, wait_for_idle
+        from .security import atomic_json, directory, read_file
+
+        self.store.session(sid)
+        if self.closed or not re.fullmatch(r"[a-zA-Z0-9_.:-]{1,256}", call_id):
+            raise StoreError("资料服务关闭或调用标识非法")
+        contract = build_weekly_data_contract(cutoff)
+        query = WindAPIQuery(
+            kind="weekly",
+            start_date=contract["window_start"],
+            end_date=contract["period_end"],
+            cutoff=contract["cutoff"],
+        )
+
+        def authorize():
+            resolution = resolve_report_weekly(
+                query, probes=self._latest_probes(), connection_statuses=self.connections.statuses()
+            )
+            if self.admission is not None:
+                self.admission(sid, query, resolution)
+            return self.source_configuration_digest("wind")
+
+        configuration = authorize()
+        source_contract = None
+        source_contract_sha = None
+        if run_root is not None or manifest is not None:
+            if run_root is None or manifest is None:
+                raise StoreError("周报资源上下文不完整", "weekly_resource_invalid", 409)
+            from ..report_workflows.weekly_sources import load_run_source_contract
+
+            self._report_weekly_run_context(sid, run_root, manifest)
+            source_contract, source_contract_sha = load_run_source_contract(run_root, manifest)
+        receipt = self.snapshots.receipt(sid, call_id)
+        fingerprint = query.fingerprint(include_refresh=True)
+        if receipt:
+            if receipt.get("fingerprint") != fingerprint:
+                raise StoreError("同一周报取数标识不能用于不同报告期", "weekly_call_conflict", 409)
+            if receipt.get("status") == "completed":
+                manifest = self.detail(sid, receipt["dataset_id"])
+                if manifest.get("authorization_fingerprint") != configuration:
+                    raise StoreError("周报来源授权已变化", "data_cache_authorization_changed", 409)
+                snapshot = self.rows(sid, manifest["dataset_id"], 0, 1)["items"][0]
+                return {
+                    "contract": contract,
+                    "snapshot": snapshot,
+                    "assessment": assess_weekly_snapshot(snapshot, contract),
+                    "datasets": [manifest],
+                }
+            if (sid, call_id) in self.tasks:
+                return await asyncio.shield(self.tasks[(sid, call_id)])
+            raise StoreError("周报资料受理状态未知，不自动重发", "weekly_call_unknown", 409)
+
+        async def collect():
+            try:
+                baseline = economic = None
+                references = dict(verification_receipts or {})
+                if not isinstance(references, dict) or set(references) - {
+                    "baseline_dataset_id",
+                    "economic_calendar_dataset_id",
+                }:
+                    raise StoreError("周报比较材料引用无效", "weekly_comparison_invalid", 400)
+                for key, expected_source in (
+                    ("baseline_dataset_id", "wind_excel"),
+                    ("economic_calendar_dataset_id", "wind"),
+                ):
+                    if key not in references:
+                        continue
+                    manifest = self.detail(sid, references[key])
+                    if manifest.get("provider") != expected_source:
+                        raise StoreError("周报比较材料来源不符", "weekly_comparison_invalid", 409)
+                    rows = self.rows(sid, references[key], 0, 1)["items"]
+                    if len(rows) != 1:
+                        raise StoreError("周报比较材料不完整", "weekly_comparison_invalid", 409)
+                    if key == "baseline_dataset_id":
+                        baseline = rows[0]
+                    else:
+                        economic = rows[0].get("economic_calendar")
+                adapter = provider or WindClientAPIProvider(
+                    calendar_contracts=source_contract["calendars"] if source_contract else None,
+                    economic_contract=(
+                        source_contract["economic_calendar"] if source_contract else None
+                    ),
+                )
+                readiness = adapter.readiness()
+                proof_identity = {
+                    "configuration_sha256": configuration,
+                    "source_contract_sha256": source_contract_sha,
+                    "sdk_identity_sha256": readiness.get("sdk_identity_sha256"),
+                }
+                proof_key = hashlib.sha256(
+                    json.dumps(proof_identity, sort_keys=True).encode()
+                ).hexdigest()
+                proof = None
+                with directory(
+                    self.store.root,
+                    (".control", "report-weekly-equivalence"),
+                    create=True,
+                    private=True,
+                ) as control:
+                    if proof_key + ".json" in os.listdir(control):
+                        proof = json.loads(read_file(control, proof_key + ".json", private=True))
+                if proof is None and baseline is None and run_root is not None:
+                    registered = self.register_report_weekly_inputs(
+                        sid, f"{call_id}.excel", cutoff, run_root=run_root, manifest=manifest
+                    )
+                    baseline = self.rows(sid, registered["baseline_dataset_id"], 0, 1)["items"][0]
+                if readiness.get("dependency_ready") is not True:
+                    snapshot = sample_snapshot(contract)
+                    code = readiness.get("code") or "wind_api_dependency_missing"
+                    snapshot["limitations"] = [code]
+                    collected = {
+                        "contract": contract,
+                        "snapshot": snapshot,
+                        "assessment": assess_weekly_snapshot(snapshot, contract),
+                    }
+                    collected["assessment"]["issues"].append(code)
+                else:
+                    collected = await adapter.collect(
+                        contract, baseline_snapshot=baseline, economic_calendar=economic
+                    )
+                snapshot = collected["snapshot"]
+                snapshot.update(proof_identity)
+                if authorize() != configuration:
+                    raise StoreError(
+                        "取数期间周报来源授权变化", "data_cache_authorization_changed", 409
+                    )
+                if (
+                    proof is None
+                    and baseline is not None
+                    and all(
+                        isinstance(value, str) and re.fullmatch(r"[a-f0-9]{64}", value)
+                        for value in proof_identity.values()
+                    )
+                ):
+                    try:
+                        candidate = build_equivalence_proof(snapshot, baseline, **proof_identity)
+                    except ValueError:
+                        candidate = None
+                    if candidate is not None:
+                        proof = candidate
+                        with directory(
+                            self.store.root,
+                            (".control", "report-weekly-equivalence"),
+                            create=True,
+                            private=True,
+                        ) as control:
+                            atomic_json(control, proof_key + ".json", proof)
+                if proof is not None:
+                    snapshot["equivalence_proof"] = proof
+                collected["assessment"] = assess_weekly_snapshot(snapshot, contract)
+                if authorize() != configuration:
+                    raise StoreError(
+                        "取数期间周报来源授权变化", "data_cache_authorization_changed", 409
+                    )
+                raw = json.dumps(
+                    snapshot,
+                    ensure_ascii=False,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                    allow_nan=False,
+                ).encode()
+                if len(raw) > 16 * 1024 * 1024:
+                    raise StoreError("周报资料超过大小上限", "weekly_snapshot_too_large", 413)
+                result = providers.Result(
+                    rows=[snapshot],
+                    raw=[raw],
+                    source_url="wind-client-api",
+                    status=(
+                        "complete" if collected["assessment"]["status"] == "passed" else "partial"
+                    ),
+                    pages_fetched=1,
+                    provider_total=1,
+                    pagination_complete=True,
+                    provider_id="wind_client_api",
+                    as_of=contract["period_end"],
+                    metadata={
+                        "snapshot_kind": "report_weekly",
+                        "mapping_sha256": contract["mapping_sha256"],
+                        "contract_sha256": contract["contract_sha256"],
+                        "assessment": collected["assessment"],
+                    },
+                    limitations=snapshot.get("limitations", []),
+                )
+                manifest = self.snapshots.publish(
+                    sid, query, result, request_query=query, authorization_fingerprint=configuration
+                )
+                self.snapshots.receipt(
+                    sid,
+                    call_id,
+                    {
+                        "status": "completed",
+                        "fingerprint": fingerprint,
+                        "dataset_id": manifest["dataset_id"],
+                        "cache_hit": False,
+                    },
+                )
+                log.info(
+                    "datahub_weekly_collected",
+                    session_id=sid,
+                    status=collected["assessment"]["status"],
+                )
+                return {**collected, "datasets": [manifest]}
+            except asyncio.CancelledError:
+                await wait_for_idle()
+                self.snapshots.receipt(
+                    sid, call_id, {"status": "cancelled", "fingerprint": fingerprint}
+                )
+                raise
+            except Exception as exc:  # Vendor text never reaches logs.
+                self.snapshots.receipt(
+                    sid, call_id, {"status": "failed", "fingerprint": fingerprint}
+                )
+                log.warning("datahub_weekly_failed", error_type=type(exc).__name__)
+                raise
+
+        self.snapshots.receipt(sid, call_id, {"status": "pending", "fingerprint": fingerprint})
+        task = asyncio.create_task(collect(), name="datahub-weekly")
+        self.tasks[(sid, call_id)] = task
+        try:
+            return await asyncio.shield(task)
+        finally:
+            if task.done():
+                self.tasks.pop((sid, call_id), None)
+
+    def _report_weekly_run_context(self, sid, run_root, manifest):
+        """Bind private source resources to the exact owned report Run."""
+        from pathlib import Path
+
+        row = self.store.session(sid)
+        binding = row.get("report_workflow", {})
+        value = manifest.model_dump(mode="json") if hasattr(manifest, "model_dump") else manifest
+        root = Path(run_root)
+        expected = self.store.root / "report-workflows" / "runs" / str(binding.get("run_id", ""))
+        if (
+            binding.get("workflow_id") != "huaan-etf-weekly"
+            or binding.get("version") != value.get("version")
+            or value.get("workflow_id") != binding.get("workflow_id")
+            or root.is_symlink()
+            or root.resolve() != expected.resolve()
+        ):
+            raise StoreError("周报资源不属于当前运行", "weekly_resource_invalid", 409)
+
+    def register_report_weekly_inputs(self, sid, call_id, cutoff, *, run_root, manifest):
+        """Register actual Run Excel bytes for first calibration, never pass flags."""
+        from ..report_workflows.weekly_data import build_weekly_data_contract
+        from ..report_workflows.weekly_sources import capture_excel_comparison
+        from .providers_wind_api import WindAPIQuery
+
+        self._report_weekly_run_context(sid, run_root, manifest)
+        contract = build_weekly_data_contract(cutoff)
+        baseline = capture_excel_comparison(run_root, manifest, contract)
+        query = WindAPIQuery(
+            kind="weekly",
+            start_date=contract["window_start"],
+            end_date=contract["period_end"],
+            cutoff=contract["cutoff"],
+        )
+        raw = json.dumps(
+            baseline, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False
+        ).encode()
+        fingerprint = hashlib.sha256(raw).hexdigest()
+        receipt = self.snapshots.receipt(sid, call_id)
+        if receipt:
+            if receipt.get("fingerprint") != fingerprint or receipt.get("status") != "completed":
+                raise StoreError("Excel 对照材料受理状态冲突", "weekly_comparison_invalid", 409)
+            self.detail(sid, receipt["dataset_id"])
+            return {"baseline_dataset_id": receipt["dataset_id"]}
+        result = providers.Result(
+            rows=[baseline],
+            raw=[raw],
+            source_url="owned-report-run-excel",
+            status="snapshot",
+            provider_id="wind_excel",
+            pages_fetched=1,
+            provider_total=1,
+            pagination_complete=True,
+            as_of=contract["period_end"],
+        )
+        saved = self.snapshots.publish(
+            sid,
+            query,
+            result,
+            request_query=query,
+            authorization_fingerprint=self.source_configuration_digest("wind"),
+        )
+        self.snapshots.receipt(
+            sid,
+            call_id,
+            {
+                "status": "completed",
+                "fingerprint": fingerprint,
+                "dataset_id": saved["dataset_id"],
+                "cache_hit": False,
+            },
+        )
+        log.info("datahub_weekly_excel_registered", session_id=sid)
+        return {"baseline_dataset_id": saved["dataset_id"]}
 
     async def _query(self, sid, call_id, query):
         fingerprint = query.fingerprint(include_refresh=True)
