@@ -6,6 +6,27 @@ const data = (overrides = {}) => ({ sections: {}, market_state: { state: 'unknow
 const section = (rows = [], extra = {}) => ({ rows, provider: 'eastmoney', complete: true, pagination_complete: true, provider_total: rows.length, snapshot_id: 'snap1', as_of: '2026-10-22T03:00:00Z', retrieved_at: '2026-10-22T03:00:01Z', ...extra });
 const quote = { asset: '920001.BJ', code: '920001', name: '北交样本', exchange: 'BJ', price: 0, change_pct: null, amount: 0 };
 
+test('known suspended and unlisted rows have explicit labels and separate breadth', () => {
+  const html = renderMarketPage({ snapshot: data({ sections: { quotes: section([], { summary: { up: 1, down: 2, flat: 3, unknown: 0, suspended: 7, unlisted: 4, amount: 2000, amount_scope_count: 13 } }) } }) });
+  assert.match(html, /停牌/); assert.match(html, /未上市/); assert.match(html, /已上市 13 只/);
+  const table = renderMarketPage({ quotes: { items: [{ ...quote, price: 3.57, trade_status: 'suspended', price_basis: 'last_traded_reference' }] } }, { marketView: 'quotes' });
+  assert.match(table, /3\.57<small>停牌参考价/);
+});
+
+test('market flow uses its own date and row coverage rather than sector metadata', () => {
+  const market = section([{ date: '2026-10-22', main_net: -10 }], { trade_date: '2026-10-22', retrieved_at: '2026-10-22T09:00:00Z' });
+  const html = renderMarketPage({ snapshot: data({ sections: { 'flows:industry:today': section([], { provider_total: 496, summary: { market_flow: market } }) } }) }, { marketView: 'sectors' });
+  assert.match(html, /行情日：2026-10-22（日线）/); assert.match(html, /1 \/ 1 条/);
+});
+
+test('retained market flow inherits collector staleness and error without sector coverage', () => {
+  const market = section([{ date: '2026-10-22', main_net: -10 }], { trade_date: '2026-10-22' });
+  const html = renderMarketPage({ snapshot: data({ sections: { 'flows:industry:today': section([], { stale: true, error: { message: '本次获取失败' }, provider_total: 496, summary: { market_flow: market } }) } }) }, { marketView: 'sectors' });
+  const panel = html.slice(html.indexOf('<h2>沪深大盘资金流'));
+  assert.match(panel, /陈旧 · 保留上次快照/); assert.match(panel, /本次获取失败/);
+  assert.match(panel, /1 \/ 1 条/); assert.doesNotMatch(panel, /496/);
+});
+
 function harness(initial = data(), extra = {}) {
   const calls = []; let current = initial;
   const api = { request: async (path, options = {}) => {

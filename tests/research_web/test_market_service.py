@@ -101,6 +101,46 @@ async def settled(service, request):
 
 
 @pytest.mark.asyncio
+async def test_failed_market_flow_preserves_own_last_good_rows_and_recovers(tmp_path):
+    provider = FakeProvider()
+    flow = {
+        "rows": [{"date": "2026-10-22", "main_net": -10}],
+        "complete": True,
+        "provider": "eastmoney",
+        "row_count": 1,
+        "provider_total": 1,
+        "trade_date": "2026-10-22",
+    }
+    provider.value = payload(summary={"market_flow": flow})
+    clock = [0]
+    service = MarketService(tmp_path, provider=provider, clock=lambda: clock[0])
+    await settled(service, await service.refresh(["flows"]))
+    clock[0] = 61
+    provider.value = payload(
+        summary={
+            "market_flow": {"rows": [], "complete": False, "retrieved_at": "2026-10-22T11:00:00Z"}
+        }
+    )
+    await settled(service, await service.refresh(["flows"]))
+    kept = service.overview()["sections"]["flows:industry:today"]["summary"]["market_flow"]
+    assert kept["rows"] == flow["rows"] and kept["stale"] is True
+    assert kept["row_count"] == 1 and kept["error"]["code"] == "market_flow_unavailable"
+    await service.close()
+    restored = MarketService(tmp_path, provider=provider, clock=lambda: clock[0])
+    assert (
+        restored.overview()["sections"]["flows:industry:today"]["summary"]["market_flow"]["stale"]
+        is True
+    )
+    provider.value = payload(
+        summary={"market_flow": {**flow, "rows": [{"date": "2026-10-22", "main_net": -20}]}}
+    )
+    await settled(restored, await restored.refresh(["flows"]))
+    recovered = restored.overview()["sections"]["flows:industry:today"]["summary"]["market_flow"]
+    assert recovered["rows"][0]["main_net"] == -20 and recovered.get("stale") is not True
+    await restored.close()
+
+
+@pytest.mark.asyncio
 async def test_get_is_read_only_and_refresh_never_creates_research_session(tmp_path):
     provider = FakeProvider()
     service = MarketService(tmp_path, provider=provider)

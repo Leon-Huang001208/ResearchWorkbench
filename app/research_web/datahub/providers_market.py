@@ -39,7 +39,7 @@ SCOPES = {
     "SZ": "m:0 t:6 f:!2,m:0 t:80 f:!2",
     "BJ": "m:0 t:81 s:262144 f:!2",
 }
-QUOTE_FIELDS = "f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13,f14,f20,f21,f23,f24,f25,f26,f124"
+QUOTE_FIELDS = "f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13,f14,f20,f21,f23,f24,f25,f26,f124,f292"
 BOARD_FIELDS = "f2,f3,f6,f8,f12,f13,f14,f20,f104,f105,f128,f136,f124"
 INDEXES = (
     ("000001.SH", "上证指数", "1.000001"),
@@ -83,6 +83,15 @@ def _number(value: Any) -> float | None:
     except (ValueError, TypeError, OverflowError):
         return None
     return number if math.isfinite(number) else None
+
+
+def _trade_status(value: Any) -> str:
+    number = _number(value)
+    if number is None or number != int(number) or not 1 <= number <= 19:
+        return "unknown"
+    return {6: "suspended", 8: "suspended", 14: "suspended", 9: "unlisted", 7: "delisted"}.get(
+        int(number), "normal"
+    )
 
 
 def _text(value: Any, limit: int = 120) -> str:
@@ -408,8 +417,109 @@ class MarketProvider:
             volume=lots * 100 if lots is not None else None,
             as_of=_timestamp(row.get("f124")),
             listing_date=_listing_date(row.get("f26")),
+            trade_status=_trade_status(row.get("f292")),
+            price_basis="quote",
         )
+        if result["trade_status"] == "suspended" and result["price"] is not None:
+            result["price_basis"] = "suspended_reference"
         return result
+
+    async def _quote_details(
+        self, reader: _Reader, rows: list[dict], trade_date: str | None
+    ) -> int:
+        """Fill only missing fields from bounded, identity/date-matched vendor details."""
+        pending = [
+            row
+            for row in rows
+            if row.get("amount") is None
+            or row.get("volume") is None
+            or row.get("trade_status") != "unlisted"
+            and (row.get("price") is None or row.get("change_pct") is None)
+        ]
+        repaired = 0
+
+        async def one(row):
+            nonlocal repaired
+            try:
+                payload = await reader.json(
+                    "/api/qt/stock/get",
+                    {
+                        "secid": ("1." if row["exchange"] == "SH" else "0.") + row["code"],
+                        "fltt": "2",
+                        "fields": "f43,f47,f48,f57,f58,f59,f60,f86,f169,f170,f292,f301",
+                    },
+                )
+                detail = payload.get("data")
+                if (
+                    not isinstance(detail, dict)
+                    or detail.get("f57") != row["code"]
+                    or detail.get("f58") != row["name"]
+                ):
+                    raise MarketProviderError("market_detail_identity_mismatch")
+                stamp = _timestamp(detail.get("f86"))
+                if (
+                    not stamp
+                    or stamp[:10] != trade_date
+                    or not row.get("as_of")
+                    or row["as_of"][:10] != trade_date
+                ):
+                    raise MarketProviderError("market_detail_date_mismatch")
+                changed = []
+                if row.get("trade_status") in {"normal", "unknown"}:
+                    for key, field in [("change", "f169"), ("change_pct", "f170")]:
+                        value = _number(detail.get(field))
+                        if row.get(key) is None and value is not None:
+                            row[key] = value
+                            changed.append(key)
+                for key, field, factor in [("amount", "f48", 1), ("volume", "f47", 100)]:
+                    value = _number(detail.get(field))
+                    if row.get(key) is None and value is not None and value >= 0:
+                        row[key] = value * factor
+                        changed.append(key)
+                if row.get("price") is None and row.get("trade_status") != "unlisted":
+                    price, basis = _number(detail.get("f43")), (
+                        "suspended_reference" if row.get("trade_status") == "suspended" else "quote"
+                    )
+                    if (price is None or price <= 0) and row.get("trade_status") == "suspended":
+                        last, digits = _number(detail.get("f301")), _number(detail.get("f59"))
+                        price = (
+                            last / 10 ** int(digits)
+                            if last
+                            and digits is not None
+                            and digits == int(digits)
+                            and 0 <= digits <= 6
+                            else None
+                        )
+                        basis = "last_traded_reference"
+                        if price is None or price <= 0:
+                            price, basis = _number(detail.get("f60")), "previous_close_reference"
+                    if price is not None and price > 0:
+                        row["price"], row["price_basis"] = price, basis
+                        changed.append("price")
+                if changed:
+                    row["quote_detail"] = {
+                        "provider": "eastmoney",
+                        "source_url": QUOTE_HOST + QUOTE_PUBLIC_PREFIX + "/api/qt/stock/get",
+                        "as_of": stamp,
+                        "retrieved_at": _now(),
+                        "fields": changed,
+                    }
+                    repaired += 1
+            except (MarketProviderError, httpx.HTTPError) as exc:
+                log.warning(
+                    "market_quote_detail_unavailable",
+                    asset=row["asset"],
+                    code=(
+                        exc.code if isinstance(exc, MarketProviderError) else "market_network_error"
+                    ),
+                )
+
+        try:
+            async with asyncio.timeout(10):
+                await asyncio.gather(*(one(row) for row in pending[:100]))
+        except TimeoutError:
+            log.warning("market_quote_details_timeout", attempted=min(100, len(pending)))
+        return repaired
 
     async def _quotes(self, reader: _Reader) -> dict:
         async def one(exchange, scope):
@@ -444,16 +554,23 @@ class MarketProvider:
             }
             for exchange, items, total, scope_issues in scopes
         }
-        missing_quotes = sum(row["price"] is None or row["change_pct"] is None for row in rows)
         trade_date = result["as_of"][:10] if result["as_of"] else None
+        for row in rows:
+            if row["listing_date"] and trade_date and row["listing_date"] > trade_date:
+                row["trade_status"] = "unlisted"
+            if row["trade_status"] == "unlisted":
+                row["price"], row["price_basis"] = None, "unlisted"
+        result["summary"]["detail_repaired"] = await self._quote_details(reader, rows, trade_date)
+        missing_quotes = sum(
+            (row["price"] is None or row["change_pct"] is None)
+            and row["trade_status"] not in {"suspended", "unlisted"}
+            for row in rows
+        )
         previous_date = sum(
             row["as_of"] is not None and row["as_of"][:10] != trade_date for row in rows
         )
         result["quote_trade_date"] = trade_date
-        upcoming = sum(
-            bool(row["listing_date"] and trade_date and row["listing_date"] > trade_date)
-            for row in rows
-        )
+        upcoming = sum(row["trade_status"] == "unlisted" for row in rows)
         result["summary"]["upcoming_count"] = upcoming
         result["temporal_complete"] = not missing_time and not previous_date and bool(trade_date)
         for row in rows:
@@ -462,13 +579,17 @@ class MarketProvider:
             "quote": missing_quotes,
             "as_of": missing_time,
             "quote_date": previous_date,
-            "halt_status": len(rows),
+            "halt_status": sum(row["trade_status"] == "unknown" for row in rows),
+            "amount": sum(
+                row["amount"] is None and row["trade_status"] != "unlisted" for row in rows
+            ),
             "price_limit_status": len(rows),
         }
         result["limitations"].extend(
             [
                 "股票池为东方财富沪深北A股口径；分页完整性不等于交易所目录已独立核验。",
-                "缺报价不视为平盘；未提供可靠停牌、涨跌停及昨日同口径成交额。",
+                "交易状态采用东财官网f292映射；停牌和未上市单列，不计平盘。停牌参考价按单股接口f301最后价格或f60昨收标注；不代表当日成交。",
+                "缺失成交额仅用同身份、同日单股接口的真实值补取；0与空值区分。补取最多100只、10秒，与全市场快照同批留证；失败保留缺口。涨跌停和昨日成交额未提供时不推算。",
                 "成交量按来源手数换算为股，成交额和市值单位为人民币元；PE为动态口径。",
             ]
         )
@@ -478,7 +599,7 @@ class MarketProvider:
             )
         if upcoming:
             result["limitations"].append(
-                f"来源A股目录包含待上市{upcoming}只；上市日期来自来源字段，缺报价不解释为停牌或平盘。"
+                f"来源A股目录包含待上市/未上市{upcoming}只；状态取自f292，具体上市日期仅在来源f26提供时显示；不补造当日报价。"
             )
         if result["complete"]:
             result["summary"].update(self._statistics(rows, trade_date))
@@ -492,16 +613,25 @@ class MarketProvider:
             for row in rows
             if row.get("as_of")
             and row["as_of"][:10] == trade_date
+            and row.get("trade_status") not in {"suspended", "unlisted", "delisted"}
             and not (row.get("listing_date") and trade_date and row["listing_date"] > trade_date)
         ]
         valid = [
             row for row in current if row["price"] is not None and row["change_pct"] is not None
         ]
+        suspended = sum(row.get("trade_status") == "suspended" for row in rows)
+        unlisted = sum(
+            row.get("trade_status") == "unlisted"
+            or bool(row.get("listing_date") and trade_date and row["listing_date"] > trade_date)
+            for row in rows
+        )
         breadth = {
             "up": sum(row["change_pct"] > 0 for row in valid),
             "down": sum(row["change_pct"] < 0 for row in valid),
             "flat": sum(row["change_pct"] == 0 for row in valid),
-            "unknown": len(rows) - len(valid),
+            "unknown": len(rows) - len(valid) - suspended - unlisted,
+            "suspended": suspended,
+            "unlisted": unlisted,
             "total": len(rows),
         }
         bounds = [-math.inf, -10, -7, -5, -3, 0, 3, 5, 7, 10, math.inf]
@@ -522,14 +652,25 @@ class MarketProvider:
             for label, low, high in zip(labels, bounds, bounds[1:])
         ]
         ordered = sorted(valid, key=lambda row: (row["change_pct"], row["asset"]))
-        amounts = [row["amount"] for row in current if row["amount"] is not None]
-        amount = sum(amounts) if len(amounts) == len(rows) else None
+        amount_pool = [
+            row
+            for row in rows
+            if row.get("trade_status") != "unlisted"
+            and not (row.get("listing_date") and trade_date and row["listing_date"] > trade_date)
+        ]
+        amounts = [
+            row["amount"]
+            for row in amount_pool
+            if row["amount"] is not None and row.get("as_of") and row["as_of"][:10] == trade_date
+        ]
+        amount = math.fsum(amounts) if len(amounts) == len(amount_pool) and amount_pool else None
         return {
             **breadth,
             "breadth": breadth,
             "histogram": histogram,
             "amount": amount,
-            "amount_missing": len(rows) - len(amounts),
+            "amount_missing": len(amount_pool) - len(amounts),
+            "amount_scope_count": len(amount_pool),
             "gainers": ordered[-10:][::-1],
             "losers": ordered[:10],
         }
@@ -596,7 +737,19 @@ class MarketProvider:
         )
         try:
             result["summary"]["market_flow"] = await self._market_flow(reader)
-        except (MarketProviderError, httpx.HTTPError):
+        except (MarketProviderError, httpx.HTTPError) as exc:
+            log.warning(
+                "market_flow_unavailable",
+                code=exc.code if isinstance(exc, MarketProviderError) else "market_network_error",
+            )
+            result["summary"]["market_flow"] = {
+                "rows": [],
+                "provider": "eastmoney",
+                "source_url": QUOTE_HOST + QUOTE_PUBLIC_PREFIX + "/api/qt/stock/fflow/daykline/get",
+                "retrieved_at": _now(),
+                "complete": False,
+                "missing": {"market_flow": 1},
+            }
             result["missing"]["market_flow"] = 1
             result["limitations"].append("沪深大盘日线资金流暂不可用；板块资金仍按本次返回展示。")
         return result
@@ -613,13 +766,13 @@ class MarketProvider:
                 "fields2": ",".join(f"f{n}" for n in range(51, 66)),
                 "ut": "b2884a393a59ad64002292a3e90d46a5",
             },
-            history=True,
+            history=False,
         )
         data = payload.get("data")
         lines = data.get("klines") if isinstance(data, dict) else None
-        if not isinstance(lines, list) or len(lines) > 100:
+        if not isinstance(lines, list) or not lines or len(lines) > 100:
             raise MarketProviderError("market_invalid_flow_history")
-        rows = []
+        rows: list[dict[str, Any]] = []
         for line in lines:
             parts = line.split(",") if isinstance(line, str) else []
             if len(parts) != 15:
@@ -628,6 +781,13 @@ class MarketProvider:
                 day = date.fromisoformat(parts[0]).isoformat()
             except ValueError as exc:
                 raise MarketProviderError("market_invalid_flow_history") from exc
+            if (
+                day > datetime.now(TZ).date().isoformat()
+                or rows
+                and day <= rows[-1]["date"]
+                or any(_number(value) is None for value in parts[1:6])
+            ):
+                raise MarketProviderError("market_invalid_flow_history")
             rows.append(
                 {
                     "date": day,
@@ -639,11 +799,20 @@ class MarketProvider:
                 }
             )
         return {
+            "provider": "eastmoney",
+            "source_url": QUOTE_HOST + QUOTE_PUBLIC_PREFIX + "/api/qt/stock/fflow/daykline/get",
+            "retrieved_at": _now(),
+            "trade_date": rows[-1]["date"],
+            "row_count": len(rows),
+            "provider_total": len(rows),
+            "complete": True,
             "name": "沪深大盘资金流",
             "scope": "SH+SZ",
             "frequency": "daily",
             "rows": rows,
-            "limitations": ["仅上证及深证口径，不含北交所；日线不是盘中资金分时。"],
+            "limitations": [
+                f"来源实际返回{len(rows)}个交易日；不承诺请求的30日全部可用。仅沪深口径，不含北交所；日线不是盘中资金分时。"
+            ],
         }
 
     async def _members(self, reader: _Reader, board_id: str, kind: str) -> dict:
