@@ -145,7 +145,8 @@
         "tests/javascript/research_web_asset_workspace.test.mjs",
         "tests/e2e/research_web_asset_workspace.mjs",
         "tests/javascript/research_web_market.test.mjs",
-        "tests/javascript/research_web_market_navigation.test.mjs"
+        "tests/javascript/research_web_market_navigation.test.mjs",
+        "tests/e2e/research_web_market_authenticated.mjs"
       ]
     },
     {
@@ -204,7 +205,8 @@
         "tests/research_web/test_hot_session_recovery.py",
         "tests/research_web/test_claw_projects.py",
         "tests/research_web/test_aihot.py",
-        "tests/research_web/test_market_service.py"
+        "tests/research_web/test_market_service.py",
+        "tests/e2e/market_authenticated.py"
       ]
     },
     {
@@ -263,7 +265,8 @@
         "tests/research_web/test_datahub_wind.py",
         "tests/research_web/test_datahub_broker.py",
         "tests/research_web/test_datahub_cjpy.py",
-        "tests/research_web/test_market_provider.py"
+        "tests/research_web/test_market_provider.py",
+        "tests/e2e/research_web_market_authenticated.mjs"
       ]
     },
     {
@@ -4219,7 +4222,7 @@
   "reading": {
     "repository": {
       "url": "https://github.com/Leon-Huang001208/ResearchWorkbench",
-      "revision": "3b59f586b23b4dc8a5988c5443790b32ca396b5f"
+      "revision": "e62f5cbf63a06ea3ce54fd18a58c01123cac7ade"
     },
     "levels": [
       {
