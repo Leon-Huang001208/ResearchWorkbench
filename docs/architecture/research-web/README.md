@@ -1,5 +1,7 @@
 # Research Workbench Research Web 当前架构
 
+2026-10-23 当前组合源码阅读检查点为`4675525d211b30050d31b75279b157e21f3d9e3d`，实际父提交为Market/Auth/Plugin主线71ce8519及Asset功能87abc999；本入口与Atlas绑定此已存在组合source，不将历史feature pin当作含上游的源码。新raw单位策略、原生证据与主线插件/授权/市场能力全部保留；组合实际UI、最终CI与常驻部署分别留证。下方早期pin仅保留各阶段历史归属。
+
 2026-10-23固定公开indices个人仓库桥新增的内部读写条件边见[13市场图](../../../outputs/research-web-architecture/13-market-overview.html)。默认Host的POST仍真实取上游，GET只读原用户缓存；仅内部允许缓存读可命中同源短时捕获。没有新增服务、DSH引擎或自动采集，个人仓库未配置时明确未持久化。
 
 2026-10-23 新的单位策略与原生字段证据源码检查点为`f3149a578ab3d86c96651ef25d42725c7de25a01`，本阅读入口与Atlas绑定此已提交版本。包含CJPY局部量额依据、native证据freeze/restore、规范raw required_semantics与缓存身份；实际来源验证、最终合流/CI/部署仍按任务回执分开记录。
