@@ -274,7 +274,8 @@ def _bounded_history_range(parameters: dict[str, Any]) -> tuple[str, str]:
     return start, end
 
 
-def _preflight(query: BusinessQuery) -> None:
+def validate_supported_query(query: BusinessQuery) -> None:
+    """Check local request bounds without opening an adapter or reading credentials."""
     parameters = query.parameters
     if query.capability in {"market_bars", "market_snapshot"}:
         if parameters.get("asset_type") != "stock":
@@ -630,7 +631,7 @@ def _invoke(query: BusinessQuery, adapter: Any) -> Any:
 async def fetch(query: BusinessQuery, *, adapter: Any | None = None) -> Result:
     result = Result(provider_id="wind", source_url="wind://local-session")
     try:
-        _preflight(query)
+        validate_supported_query(query)
         future = _submit(query, adapter)
         try:
             frame = await asyncio.wait_for(

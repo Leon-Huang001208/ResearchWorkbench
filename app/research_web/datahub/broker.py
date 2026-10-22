@@ -14,6 +14,7 @@ from .contracts import BusinessQuery, Query
 from .providers import ProviderError, cn_stock_identity
 from .providers_akshare import validate_supported_query
 from .providers_baostock import validate_supported_query as validate_baostock_query
+from .providers_wind import validate_supported_query as validate_wind_query
 from .providers_wind_api import WindAPIQuery
 
 log = get_logger(__name__)
@@ -197,6 +198,17 @@ def resolve(
             reason = "disabled"
         elif not storage_read and readiness["health"] == "unavailable":
             reason = "probe_unavailable"
+        if (
+            reason is None
+            and query.required_semantics is not None
+            and source_id not in {"wind", "akshare", "baostock"}
+        ):
+            reason = "price_units_unverified"
+            log.info(
+                "datahub_required_semantics_skipped",
+                source=source_id,
+                contract=query.required_semantics,
+            )
         if reason is None and excluded_sources and not storage_read:
             # Matching qfq/hfq names do not prove matching factor anchors. Until
             # a canonical merge proof exists, runtime failover is raw daily stock
@@ -242,6 +254,17 @@ def resolve(
             except ProviderError:
                 reason = unsupported_code = "data_not_equivalent"
                 log.warning("datahub_wind_stock_identity_rejected")
+        if (
+            reason is None
+            and source_id == "wind"
+            and query.capability == "market_bars"
+            and query.parameters.get("asset_type", "stock") == "stock"
+        ):
+            try:
+                validate_wind_query(query)
+            except ProviderError as exc:
+                reason = unsupported_code = str(exc)
+                log.warning("datahub_query_semantics_rejected", source=source_id, reason=reason)
         if reason is None and source_id == "tinysoft" and query.capability == "factor_macro":
             try:
                 validate_adjustment_parameters(query.parameters)
@@ -266,7 +289,7 @@ def resolve(
             message = (
                 "天软因子请求口径不受支持"
                 if query.capability == "factor_macro"
-                else "AKShare 请求口径不受支持"
+                else f"{'Wind' if source_id == 'wind' else 'AKShare'} 请求口径不受支持"
             )
             raise StoreError(message, unsupported_code, 400)
         code = (

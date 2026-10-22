@@ -37,7 +37,7 @@ test('view activation loads exactly its blocks while preserving historical rows 
   c.cancel();
 });
 
-test('a new selected stock creates overview and starts recent qfq history without manual parameters', async () => {
+test('a new selected stock creates overview and starts recent unadjusted auto history without manual parameters', async () => {
   const created = []; const jobs = [];
   const c = createAssetWorkspaceController({ api: apiFor({
     assetObservations: async () => ({ items: [] }),
@@ -47,8 +47,8 @@ test('a new selected stock creates overview and starts recent qfq history withou
   }) });
   await c.activateView({ asset: '603986.SH', assetType: 'stock', assetView: 'overview' });
   await new Promise(resolve => setTimeout(resolve, 0));
-  assert.deepEqual(created[0].sections, ['overview']); assert.equal(created[0].source, 'tinysoft');
-  assert.deepEqual(jobs[0][1], { scope: 'recent', adjustment: 'qfq' });
+  assert.deepEqual(created[0].sections, ['overview']); assert.equal(created[0].source, 'auto');
+  assert.deepEqual(jobs[0][1], { scope: 'recent', adjustment: 'none', source: 'auto' });
   assert.equal(c.state.observation.asset, '603986.SH'); c.cancel();
 });
 
@@ -126,4 +126,25 @@ test('switching accounts on the same security drops prior rows and ignores late 
     finish(); await old;
     assert.equal(c.state.observation.id, 'observation-b'); assert.equal(c.state.rows.financials, undefined);
   } finally { c.cancel(); globalThis.__RWB_USER_ID__ = previous; }
+});
+
+test('explicit retry freezes source adjustment and cutoff despite current controls', async () => {
+  const jobs = []; const c = createAssetWorkspaceController({ api: apiFor({ startAssetHistory: async (_id, body) => { jobs.push(body); return { id: 'retried', status: 'completed' }; } }) });
+  await c.activateView({ asset: '603986.SH', assetType: 'stock', assetView: 'overview' });
+  c.state.historyJob = { id: 'failed', status: 'failed', scope: 'recent', source: 'baostock', adjustment: 'none', requested_as_of: '2026-10-20' };
+  c.state.rows.overview = [{ date: '2026-10-23' }];
+  await c.startHistory('all', 'hfq', 'failed', 'wind');
+  assert.deepEqual(jobs, [{ scope: 'recent', adjustment: 'none', source: 'baostock', as_of: '2026-10-20', retry_of: 'failed' }]);
+  c.cancel();
+});
+
+test('unbound raw2 snapshot never auto-advances with an invented fixed source', async () => {
+  const record = observed('603986.SH'); const jobs = [];
+  record.source = 'auto';
+  record.blocks.history.dataset.asset_history = { canonical_version: 'asset-history-raw-2', requested_as_of: '2026-10-20', adjustment: 'none' };
+  record.blocks.overview = { status: 'complete', dataset: { dataset_id: 'quote', row_count: 1 } };
+  const c = createAssetWorkspaceController({ api: apiFor({ assetObservations: async () => ({ items: [record] }), loadAssetBlock: async () => record, datasetRows: async (_sid, did) => ({ items: [did === 'quote' ? { date: '2026-10-22', close: 10 } : { date: '2026-10-20', close: 11 }], total: 1 }), startAssetHistory: async (_id, body) => { jobs.push(body); return { id: 'new', status: 'completed' }; } }) });
+  await c.activateView({ asset: record.asset, assetType: 'stock', assetView: 'overview' });
+  await new Promise(resolve => setTimeout(resolve, 0));
+  assert.deepEqual(jobs, []); assert.match(c.state.errors.historyJobs, /来源未知/); c.cancel();
 });

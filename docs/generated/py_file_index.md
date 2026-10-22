@@ -3080,6 +3080,8 @@ Functions:
 - `iso_date`
 - `normalize_rows`
 - `merge_rows`
+- `normalize_raw_rows`
+  - Require declared equivalent CNY/share units before projecting raw history.
 - `factor_map`
 - `adjust_rows`
 
@@ -3110,7 +3112,7 @@ Imports:
 
 Classes:
 - `HistoryJobs`
-  - methods: __init__, hub, _observation, _row, public, current, get, list, active, _canonical, _authorize, create, _save, _query, _factors, _gate, _raw_parameters, _cache_chunk, _reuse, _raw_inputs, _publish, _run, cancel, cancel_session, close
+  - methods: __init__, hub, _observation, _row, public, current, get, list, active, _canonical, _authorize, _authorize_inputs, create, _save, _query, _factors, _gate, _raw_parameters, _cache_chunk, _reuse, _raw_inputs, _publish, _run, cancel, cancel_session, close
 
 Functions:
 - `digest`
@@ -3949,6 +3951,7 @@ Imports:
 - `providers`
 - `providers_akshare`
 - `providers_baostock`
+- `providers_wind`
 - `providers_wind_api`
 - `store`
 
@@ -4576,7 +4579,8 @@ Functions:
 - `_asset`
 - `_day`
 - `_bounded_history_range`
-- `_preflight`
+- `validate_supported_query`
+  - Check local request bounds without opening an adapter or reading credentials.
 - `_schema_key`
 - `_text`
 - `_provider_date`

@@ -7,6 +7,24 @@ import pytest
 from app.research_web.datahub.contracts import BusinessQuery
 
 
+@pytest.fixture(autouse=True)
+def deny_external_credentials(monkeypatch):
+    from app.research_web import credential_backend
+
+    def deny(*_args, **_kwargs):
+        pytest.fail("Wind tests must not access system or private credentials")
+
+    for backend in (
+        credential_backend.SystemKeyringBackend,
+        credential_backend.PrivateFileCredentialBackend,
+    ):
+        monkeypatch.setattr(backend, "__init__", deny)
+    import keyring
+
+    for method in ("get_password", "set_password", "delete_password"):
+        monkeypatch.setattr(keyring, method, deny)
+
+
 class FakeWindAdapter:
     def __init__(self, *, available=True, rows=None):
         self.available = available

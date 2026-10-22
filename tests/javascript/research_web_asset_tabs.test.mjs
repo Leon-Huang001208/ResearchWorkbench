@@ -219,3 +219,71 @@ test('same-asset route executes only topic loaders and preserves the main scroll
   assert.equal(state.route.assetView, 'news');
   assert.deepEqual(calls, ['topic', 'topic-chart', 'view-load', 'news-load', 'summary']);
 });
+
+test('actual app metadata preserves history source and reconfigures source-only changes before chart events', async () => {
+  const { createAssetChartController } = await import('../../app/research_web/ui/asset-chart.mjs');
+  const app = await readFile(new URL('../../app/research_web/ui/app.mjs', import.meta.url), 'utf8');
+  const functions = app.slice(app.indexOf('function assetTerminalMetadata('), app.indexOf('function setAssetMetricsDrawer('));
+  const requests = []; let configurations = 0;
+  const chart = createAssetChartController({ onHistoryRequest: request => { requests.push(request); return false; } });
+  const assetState = { observation: { id: 'o', asset: '600519.SH', asset_type: 'stock', source: 'baostock', request_parameters: { source: 'akshare', adjustment: 'none' }, blocks: { history: { dataset: { dataset_id: 'h', asset_history: { canonical_version: 'asset-history-raw-2', source: 'auto', adjustment: 'none' } } } } }, rows: { history: [{ date: '2026-10-20', open: 10, high: 12, low: 9, close: 11 }] }, preferences: { panels: [] } };
+  const wrapped = { configure(...args) { configurations++; return chart.configure(...args); } };
+  const { metadata, configure } = new Function('assetState', 'state', 'assetChart', 'selectAssetObservation', 'projectAssetObservation', `const emptyAssetHistory = Object.freeze([]); let configuredAssetHistory = null; let configuredAssetSignature = ''; ${functions}; return { metadata: assetTerminalMetadata, configure: configureAssetTerminal };`)(assetState, { route: route('overview') }, wrapped, navigation.selectAssetObservation, () => ({ basic: {} }));
+  configure(); assert.equal(metadata().historySource, 'auto'); assert.equal(chart.getState().historySource, 'auto');
+  const click = action => ({ type: 'click', target: { closest: selector => selector === '[data-asset-chart-action]' ? { dataset: { assetChartAction: action } } : null } });
+  chart.handle(click('all')); assert.deepEqual(requests, []);
+  delete assetState.observation.blocks.history.dataset.asset_history.source;
+  delete assetState.observation.blocks.history.dataset.asset_history.canonical_version;
+  configure(); assert.equal(configurations, 2); assert.equal(metadata().historySource, 'akshare'); assert.equal(chart.getState().historySource, 'akshare');
+  chart.handle(click('all')); assert.deepEqual(requests, []);
+  delete assetState.observation.request_parameters.source;
+  configure(); assert.equal(configurations, 3); assert.equal(metadata().historySource, 'baostock');
+  delete assetState.observation.source;
+  configure(); assert.equal(configurations, 4); assert.equal(metadata().historySource, 'tinysoft'); assert.equal(chart.getState().historySource, 'tinysoft');
+  chart.handle(click('all')); assert.deepEqual(requests.at(-1), { action: 'load', scope: 'all', adjustment: 'none', source: 'tinysoft' });
+});
+
+test('actual app and workspace preserve fixed Tinysoft for legacy canonical and reject unbound raw2 source', async () => {
+  const { createAssetChartController } = await import('../../app/research_web/ui/asset-chart.mjs');
+  const app = await readFile(new URL('../../app/research_web/ui/app.mjs', import.meta.url), 'utf8');
+  const functions = app.slice(app.indexOf('function assetTerminalMetadata('), app.indexOf('function setAssetMetricsDrawer('));
+  const observation = { id: 'o', asset: '600519.SH', asset_type: 'stock', source: 'auto', request_parameters: { source: 'auto', section_sources: { history: 'tinysoft' }, adjustment: 'qfq' }, blocks: { history: { dataset: { dataset_id: 'old', asset_history: { canonical_version: 'asset-history-1', adjustment: 'qfq' } } } } };
+  const assetState = { observation, rows: { history: [{ date: '2026-10-20', open: 10, high: 12, low: 9, close: 11 }] }, preferences: { panels: [] } };
+  const requests = []; const chart = createAssetChartController({ onHistoryRequest: request => { requests.push(request); return false; } });
+  const { metadata, configure } = new Function('assetState', 'state', 'assetChart', 'selectAssetObservation', 'projectAssetObservation', `const emptyAssetHistory = Object.freeze([]); let configuredAssetHistory = null; let configuredAssetSignature = ''; ${functions}; return { metadata: assetTerminalMetadata, configure: configureAssetTerminal };`)(assetState, { route: route('overview') }, chart, navigation.selectAssetObservation, () => ({ basic: {} }));
+  configure(); assert.equal(metadata().historySource, 'tinysoft'); assert.equal(chart.getState().adjustment, 'qfq');
+  const html = workspace.renderAssetWorkspace({ ...props('overview'), observation, rows: assetState.rows });
+  assert.match(html, /option value="tinysoft" selected/);
+  const click = action => ({ type: 'click', target: { closest: selector => selector === '[data-asset-chart-action]' ? { dataset: { assetChartAction: action } } : null } });
+  chart.handle(click('all')); assert.deepEqual(requests, [{ action: 'load', scope: 'all', adjustment: 'qfq', source: 'tinysoft' }]);
+  observation.blocks.history.dataset = { dataset_id: 'incomplete-raw2', asset_history: { canonical_version: 'asset-history-raw-2', adjustment: 'none' } };
+  configure(); assert.equal(metadata().historySource, 'unknown'); assert.equal(metadata().canLoadHistory, false);
+  chart.handle(click('all')); assert.equal(requests.length, 1);
+  const broken = workspace.renderAssetWorkspace({ ...props('overview'), observation, rows: assetState.rows });
+  assert.match(broken, /来源未知/); assert.match(broken, /data-asset-history-source[^>]* disabled/);
+});
+
+test('actual app empty-history polling preserves requested source and pending until failure, then auto can be selected', async () => {
+  const { createAssetChartController } = await import('../../app/research_web/ui/asset-chart.mjs');
+  const app = await readFile(new URL('../../app/research_web/ui/app.mjs', import.meta.url), 'utf8');
+  const functions = app.slice(app.indexOf('function assetTerminalMetadata('), app.indexOf('function setAssetMetricsDrawer('));
+  const requests = []; let finish;
+  const chart = createAssetChartController({ onHistoryRequest: request => { requests.push(request); return requests.length === 1 ? new Promise(resolve => { finish = resolve; }) : false; } });
+  const assetState = { observation: { id: 'o', asset: '600519.SH', asset_type: 'stock', source: 'auto', request_parameters: { source: 'auto', adjustment: 'none' }, blocks: { history: { dataset: null } } }, rows: { history: [] }, preferences: { panels: [] } };
+  const state = { route: route('overview') };
+  const configure = new Function('assetState', 'state', 'assetChart', 'selectAssetObservation', 'projectAssetObservation', `const emptyAssetHistory = Object.freeze([]); let configuredAssetHistory = null; let configuredAssetSignature = ''; ${functions}; return configureAssetTerminal;`)(assetState, state, chart, navigation.selectAssetObservation, () => ({ basic: {} }));
+  const choose = value => chart.handle({ type: 'change', target: { value, matches: selector => selector === '[data-asset-history-source]' } });
+  configure(); choose('tinysoft'); assert.equal(chart.getState().historySource, 'tinysoft'); assert.equal(chart.getState().historyRequestPending, true);
+  assetState.historyJob = { status: 'queued', source: 'tinysoft', scope: 'recent', adjustment: 'none' }; configure();
+  assert.equal(chart.getState().historySource, 'tinysoft'); assert.equal(chart.getState().historyRequestPending, true);
+  assetState.historyJob = { ...assetState.historyJob, status: 'failed', failure_code: 'provider_error', retryable: true }; configure();
+  assert.equal(chart.getState().historySource, 'tinysoft'); assert.equal(chart.getState().historyRequestPending, false);
+  finish(false); await Promise.resolve(); choose('auto');
+  assert.deepEqual(requests.map(request => request.source), ['tinysoft', 'auto']);
+  assetState.rows.history = Array.from({ length: 160 }, (_, index) => ({ date: new Date(Date.UTC(2026, 0, index + 1)).toISOString().slice(0, 10), open: 10, high: 12, low: 9, close: 11 }));
+  assetState.observation.blocks.history.dataset = { dataset_id: 'first', asset_history: { canonical_version: 'asset-history-raw-2', source: 'auto', adjustment: 'none' } };
+  assetState.historyJob = { status: 'completed', source: 'auto' }; configure();
+  assert.equal(chart.getState().start, 40); assert.equal(chart.getState().end, 160); assert.equal(chart.getState().selectedDate, assetState.rows.history.at(-1).date);
+  state.route = { ...route('overview'), asset: '000001.SZ' }; assetState.observation = { id: 'new', asset: '000001.SZ', asset_type: 'stock', source: 'tinysoft', request_parameters: { adjustment: 'qfq' }, blocks: {} }; assetState.rows.history = []; configure();
+  assert.equal(chart.getState().historySource, 'tinysoft'); assert.equal(chart.getState().adjustment, 'qfq'); assert.equal(chart.getState().historyRequestPending, false);
+});
