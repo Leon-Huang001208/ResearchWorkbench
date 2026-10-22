@@ -385,3 +385,6 @@ Docker 构建与验收任务的完成检查必须包含资源收尾：临时资�
 
 
 资产观察安装验收复用既有 macOS Bootstrap 启动步骤：逐个读取新增／组合的资产静态模块、样式及固定本地图表库，并和 checkout 字节比较；保留 `asset-static-smoke.json` 路径／哈希摘要，不触发供应商、模型或新作业。最终候选的实际CI回执与本地wheel检查分别留证，不能由本机已有依赖代替干净安装。
+
+
+2026-10-22 插件与macOS离线Python MCP沿既有Checks步骤新增四个定点模块，保留原Mac本机真实SDK/Seatbelt与同候选Mac安装门。Ubuntu条件跳过不代替Mac原生证明；所有Host/SDK夹具显式内存凭据并对真实后端设置失败哨兵，禁止以只mock get隔离系统Keychain或文件后端。

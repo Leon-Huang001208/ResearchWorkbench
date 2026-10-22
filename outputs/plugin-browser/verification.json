@@ -1,0 +1,119 @@
+{
+  "schema_version": 1,
+  "scope": "macOS local implementation and isolated fixtures; not release acceptance",
+  "source_manifest": "outputs/plugin-browser/source-manifest.json",
+  "checks": {
+    "plugin_mcp_multiuser_pytest": {
+      "status": "PASS",
+      "passed": 146,
+      "log": "/tmp/plugin-final-chain-pytest.log"
+    },
+    "native_dsh_and_plugins_js": {
+      "status": "PASS",
+      "passed": 44,
+      "skipped": 0,
+      "log": "/tmp/plugin-final-js.log"
+    },
+    "router_contract_js": {
+      "status": "PASS",
+      "passed": 200,
+      "log": "/tmp/plugin-final-router-js.log"
+    },
+    "architecture_js": {
+      "status": "PASS",
+      "passed": 84,
+      "log": "/tmp/plugin-final-architecture-js.log"
+    },
+    "latest_ui_js": {
+      "status": "PASS",
+      "passed": 3,
+      "log": "/tmp/plugin-checkpoint-ui.log"
+    },
+    "target_mypy": {
+      "status": "PASS",
+      "files": 13,
+      "options": "--follow-imports=silent",
+      "log": "/tmp/plugin-final-mypy-target.log"
+    },
+    "full_import_mypy": {
+      "status": "FAILED_BASELINE",
+      "existing_errors": 14,
+      "log": "/tmp/plugin-final-mypy.log"
+    },
+    "ruff_black_isort": {
+      "status": "PASS",
+      "python_files": 22
+    },
+    "native_browser": {
+      "status": "PASS",
+      "log": "/tmp/plugin-final-source-browser.log"
+    },
+    "real_cookie_gateway_browser": {
+      "status": "PASS",
+      "log": "/tmp/plugin-final-source-gateway-browser.log"
+    },
+    "doc_sync_constraints_architecture": {
+      "status": "PASS",
+      "logs": [
+        "/tmp/plugin-check-final-0.log",
+        "/tmp/plugin-check-final-1.log",
+        "/tmp/plugin-check-final-2.log"
+      ]
+    },
+    "router_changed_set": {
+      "status": "GENERATED",
+      "risk": "full-delivery",
+      "log": "/tmp/plugin-check-final-3.log"
+    },
+    "existing_api_protocol_integrations_manager_pytest": {
+      "status": "PASS",
+      "log": "/tmp/plugin-final-router-pytest-rerun.log",
+      "passed": 737,
+      "skipped": 1,
+      "warning_count": 1
+    },
+    "initial_api_run": {
+      "status": "FAILED_FIXED",
+      "passed": 726,
+      "failed": 11,
+      "skipped": 1,
+      "log": "/tmp/plugin-final-router-pytest.log",
+      "fix_evidence": {
+        "passed": 23,
+        "log": "/tmp/plugin-api-regression.log"
+      }
+    },
+    "all_changed_source_mypy": {
+      "status": "FAILED_BASELINE",
+      "files": 16,
+      "existing_errors": 1,
+      "location": "service.py report_context indexed assignment (unchanged base bytes)",
+      "log": "/tmp/plugin-all-changed-source-mypy.log"
+    }
+  },
+  "not_run": [
+    "same-candidate GitHub macOS Bootstrap and generic Checks",
+    "Windows/Linux native installation and Hook",
+    "real vendor MCP and OAuth",
+    "real model and research quality",
+    "production full tenant startup browser"
+  ],
+  "unsupported": [
+    "arbitrary stdio plugin MCP commands",
+    "HTTP/prompt/agent Hooks",
+    "undocumented lifecycle events and host cloud/UI APIs",
+    "server OAuth callbacks"
+  ],
+  "fixture_cleanup": {
+    "status": "STOPPED",
+    "verified_owned_pids": [
+      75502,
+      75504
+    ],
+    "ports_without_listener": [
+      18991,
+      18992
+    ],
+    "private_roots_and_logs": "retained for review"
+  }
+}

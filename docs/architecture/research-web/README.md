@@ -10,6 +10,11 @@ DataHub研究仓基座在同一Host/DSH下提供可选授权查仓、缺口补�
 
 2026-10-22 资产交互与结构化数据沿既有Host／DataHub／CJPY增加单A股目录搜索、真实专题按需load、24小时账号目录和15分钟普通区块缓存。新增两条HTTP与幂等／来源范围／共享锁／活动witness合同，02模块图补账号缓存分支，04区分资产／DSH调用及原会话快照；无会话目录不进入研究资料发布链。封闭估值、报告期财务、股东名单／汇总、行业、两融与公告事件保留来源／版本／单位及partial，不开放任意repo／公式或新研究引擎。当前源码链接绑定PR185真实merge `9bc4e4cab91130647a5bc0dfa519e97f4773416a`，完整执行、浏览器、CI和部署状态见[本轮报告](../../../.ai/reports/test_report_asset_interaction_data_20261022.md)。
 
+
+2026-10-22 MCP隔离：仅macOS固定离线Python在新增权限、policy/runtime/安装树/schema复审后条件开放；逐次重验并在受管Seatbelt内执行。Node/npm、其他平台、凭据环境、网络和子进程需求保持受限或失败关闭。解析前字节/连接时限与真实进程回收分别核验，回收未知保留准入栅栏；固定远程及非受管Native维持各自合同。具体包就绪不由Doctor入口存在推断。
+
+2026-10-22 插件契约新增[固定包、权限、生命周期及支持状态](../../research-web-plugins.md)：现有能力中心/API/Host/MCP/唯一DSH节点内适配，不增加执行引擎或网络服务；API Atlas登记新增固定路由。本地真实Host与临时账号浏览器、固定DSH离线注册分别取证，外部OAuth/真实模型与其他平台仍NOT_RUN。
+
 2026-10-22 Wind资产工作区沿唯一Host/DataHub增加持久历史任务、固定锚点复权规范发布与账号副图偏好，6个API、Store兼容键及原始块/因子/规范快照已同步02模块图、04资料流图及API Atlas。取消/close/purge等待真实Future，resident与操作员空闲覆盖任务；原Automation唯一调度、DSH执行和网关身份保持。详见[文件](03-data-files.md#资产历史与图表偏好存储)、[接口](04-api.md#资产历史任务与图表偏好)及[批准计划](../../plans/2026-10-22-wind-asset-workspace.md)。有限预检、最终功能/浏览器/CI和常驻部署各自取证。
 
 全市场概览在Host内增加无会话采集与用户市场缓存，数据流独立于研究会话物化；见[模块图](../../../outputs/research-web-architecture/13-market-overview.html)、[接口](04-api.md#全市场概览接口)和[数据边界](03-data-files.md)。没有新增守护进程、第二研究引擎或Wind／Office权限。

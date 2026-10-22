@@ -7,6 +7,9 @@ Wind或Office真实运行，缺少来源不得由训练知识补成本周事实�
 
 DataHub的purpose/quality/as_of与稳定错误代码仅扩展既有原生数值工具桥，未改变Tabbit正文抓取、DNS/TLS、网页证据或报告质量授权。数据库命中和公开SDK取数不能代替网页正文或真实模型证明，Tabbit凭据不进入公开SDK最小环境。
 
+
+2026-10-22 插件浏览器只是管理与审核界面，不将Tabbit/Codex/Claude宿主API映射为通用执行权限；不存在的专有页面/云API明确unsupported。原Tabbit工具、来源、授权与会话范围保持，受控指令工具不能执行浏览器或Shell。详见[插件合同](research-web-plugins.md)。
+
 本次工具schema兼容修复不调用Tabbit或浏览器，供应商请求序列化回归使用本地fake fetch，不接真实凭据或网络。原正文取证、来源登记和授权边界不变。
 
 自由分析引用、精确计算与渲染复核不调用Tabbit或浏览器，不新增联网、凭据或目录权限。审计附件只来自当前任务实际观测和报告底稿；原服务器profile及来源授权继续适用。
