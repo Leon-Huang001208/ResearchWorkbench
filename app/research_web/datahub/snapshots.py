@@ -428,6 +428,7 @@ class Snapshots:
                 attempted_sources=original.get("attempted_sources", []),
                 metadata=original.get("provider_metadata", {}),
             )
+
             def parse_query(value):
                 if value.get("capability") == "report_weekly":
                     from .providers_wind_api import WindAPIQuery
