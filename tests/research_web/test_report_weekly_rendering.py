@@ -115,7 +115,7 @@ def projection(tmp_path):
             "sheet": "经济数据",
             "range": "A1:D2",
         },
-        "overseas": {"workbook": "workbooks/fresh.xlsx", "sheet": "海外", "range": "A1:C2"},
+        "overseas": {"workbook": "workbooks/fresh.xlsx", "sheet": "海外", "range": "A1:C2", "columns": ["name", "code", "return_fraction"]},
     }
     document = Document()
     document.add_paragraph("本期正文")
@@ -177,6 +177,42 @@ def test_changed_workbook_or_snapshot_is_never_bound(projection):
     (root / "workbooks" / "fresh.xlsx").write_bytes(b"changed")
     with pytest.raises(ValueError, match="weekly_"):
         apply_weekly_docx_projection(document, context, root)
+
+
+def test_cross_market_holiday_gap_is_blank_in_cache_and_embedded_workbook(projection):
+    from lxml import etree
+
+    document, context, root = projection
+    path = root / 'workbooks/fresh.xlsx'
+    book = load_workbook(path)
+    book['黄金']['B3'] = None
+    book.save(path)
+    context['workbook_projection']['workbooks'][0]['sha256'] = hashlib.sha256(path.read_bytes()).hexdigest()
+    apply_weekly_docx_projection(document, context, root)
+    stream = BytesIO()
+    document.save(stream)
+    with ZipFile(stream) as archive:
+        xml = etree.fromstring(archive.read('word/charts/chart2.xml'))
+        ns = {'c': 'http://schemas.openxmlformats.org/drawingml/2006/chart'}
+        assert xml.find('.//c:numCache/c:ptCount', ns).get('val') == '2'
+        assert len(xml.findall('.//c:numCache/c:pt', ns)) == 1
+        assert xml.find('.//c:dispBlanksAs', ns).get('val') == 'gap'
+        embedded = load_workbook(BytesIO(archive.read('word/embeddings/weekly-chart2.xlsx')), data_only=True)
+        assert embedded.active['B3'].value is None
+
+
+def test_overseas_real_workbook_code_name_order_is_mapped_explicitly(projection):
+    document, context, root = projection
+    path = root / 'workbooks/fresh.xlsx'
+    book = load_workbook(path)
+    book['海外']['A2'] = 'HSI'
+    book['海外']['B2'] = '恒生指数'
+    book.save(path)
+    context['workbook_projection']['workbooks'][0]['sha256'] = hashlib.sha256(path.read_bytes()).hexdigest()
+    context['workbook_projection']['overseas'].update(range='A2:C2', columns=['code', 'name', 'return_fraction'])
+    apply_weekly_docx_projection(document, context, root)
+    assert document.tables[1].cell(1, 0).text == '恒生指数'
+    assert document.tables[1].cell(1, 1).text == 'HSI'
 
 
 def test_missing_chart_mapping_is_never_bound(projection):

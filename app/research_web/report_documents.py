@@ -245,7 +245,9 @@ def _chart_cache(reference, values, numeric):
     etree.SubElement(cache, "{" + _C + "}ptCount", val=str(len(values)))
     for index, value in enumerate(values):
         if value is None:
-            raise ValueError("weekly_chart_value_missing")
+            if numeric:
+                continue  # Different market holidays remain genuine gaps, never fabricated zeroes.
+            raise ValueError("weekly_chart_category_missing")
         if numeric:
             numeric_value = float(value)
             if not math.isfinite(numeric_value):
@@ -308,6 +310,15 @@ def _chart_projection(part, specification, workbook, sheet):
                 raise ValueError("weekly_chart_reference_missing")
             formula.text = "'" + sheet.replace("'", "''") + "'!" + reference
             _chart_cache(node, column, numeric)
+    if any(value is None for column in values for value in column):
+        chart = xml.find("c:chart", _NS)
+        blank = chart.find("c:dispBlanksAs", _NS)
+        if blank is None:
+            blank = etree.Element("{" + _C + "}dispBlanksAs")
+            trailing = next((node for node in chart if node.tag in {
+                "{" + _C + "}showDLblsOverMax", "{" + _C + "}extLst"}), None)
+            chart.insert(list(chart).index(trailing), blank) if trailing is not None else chart.append(blank)
+        blank.set("val", "gap")
     stream = BytesIO()
     embedded.save(stream)
     embed = Part(
@@ -452,12 +463,16 @@ def apply_weekly_docx_projection(document, context, root):
         overseas_rows = _range_cells(
             workbooks[overseas["workbook"]][overseas["sheet"]], overseas["range"]
         )
-        if overseas_rows and overseas_rows[0] == ["指数名称", "指数代码", "周内涨跌幅"]:
+        columns = overseas.get("columns")
+        if columns not in (["code", "name", "return_fraction"], ["name", "code", "return_fraction"]):
+            raise ValueError("weekly_overseas_columns_invalid")
+        if overseas_rows and set(overseas_rows[0]) == {"指数名称", "指数代码", "周内涨跌幅"}:
             overseas_rows = overseas_rows[1:]
         _table_rows(
             document,
             ["指数名称", "指数代码", "周内涨跌幅"],
-            [[row[0], row[1], f"{float(row[2]) * 100:.2f}%"] for row in overseas_rows],
+            [[row[columns.index("name")], row[columns.index("code")],
+              f"{float(row[columns.index('return_fraction')]) * 100:.2f}%"] for row in overseas_rows],
         )
         if {row["id"] for row in bindings} != set(required.values()):
             raise ValueError("weekly_projection_blocks_incomplete")

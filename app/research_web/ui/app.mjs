@@ -729,6 +729,7 @@ function render() {
 }
 
 async function loadCatalog(names = defaultCatalogNames) {
+  names = names.filter(name => name !== 'reportWorkflows' || reportWorkflowsAllowed);
   const requests = names.map(name => ({ name, generation: startCatalogRequest(name) }));
   render();
   await Promise.all(requests.map(async ({ name, generation }) => {

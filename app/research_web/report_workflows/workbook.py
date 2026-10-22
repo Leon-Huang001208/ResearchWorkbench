@@ -271,17 +271,26 @@ def _sheet_paths(archive: zipfile.ZipFile) -> tuple[dict[str, str], bool]:
         for row in relationships.findall(f"{{{_PKG_REL_NS}}}Relationship")
         if "Id" in row.attrib and "Target" in row.attrib
     }
+    external = {
+        row.attrib.get("Id") for row in relationships.findall(f"{{{_PKG_REL_NS}}}Relationship")
+        if row.attrib.get("TargetMode", "").casefold() == "external"
+    }
     paths: dict[str, str] = {}
     for sheet in workbook.findall(f".//{{{_MAIN_NS}}}sheet"):
         relation = sheet.attrib.get(f"{{{_DOC_REL_NS}}}id")
         target = targets.get(relation or "")
         if not target:
             continue
-        target_path = PurePosixPath(target)
-        if target_path.is_absolute() or ".." in target_path.parts:
+        if relation in external or "\\" in target or ":" in target or "\x00" in target:
+            raise WorkflowError("工作簿内部路径无效", "invalid_workbook", 422)
+        # OPC root-relative members refer to this ZIP package, never the host filesystem.
+        if target.startswith("/") and not target.startswith("/xl/worksheets/"):
+            raise WorkflowError("工作簿内部路径无效", "invalid_workbook", 422)
+        target_path = PurePosixPath(target.lstrip("/"))
+        if ".." in target_path.parts:
             raise WorkflowError("工作簿内部路径无效", "invalid_workbook", 422)
         paths[sheet.attrib["name"]] = (
-            target if target.startswith("xl/") else f"xl/{target.lstrip('/')}"
+            target_path.as_posix() if target_path.parts[:1] == ("xl",) else f"xl/{target_path.as_posix()}"
         )
     return paths, date_1904
 

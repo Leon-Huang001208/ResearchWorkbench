@@ -11,6 +11,7 @@ const RUN_STATUS = {
   blocked_approval: '等待审批', running: 'Claw 执行中', validating: '校验交付',
   completed: '已完成', delivery_incomplete: '交付不完整', failed: '失败',
   cancelled: '已取消', skipped_overlap: '重叠跳过',
+  quality_incomplete: '内容核验未通过', needs_attention: '需要核对受理状态',
 };
 const roleName = (role) => ({ template: '模板', workbook: 'Excel 底稿', asset: '素材', mapping: '映射', validation: '校验', workflow: '流程' })[role] || role || '资源';
 const providerName = (provider) => ({ wind_excel: 'Wind Excel', ifind_excel: '同花顺 iFinD Excel' })[provider] || provider || '未知 Provider';
@@ -60,8 +61,8 @@ export function renderReportWorkflowDetail(detail, { busy = false } = {}) {
   const providerRows = providers.map(item => `<li><div><strong>${e(providerName(item.id))}</strong><small>${item.integration_state === 'ready' ? '依赖已就绪' : '依赖不可用'} · ${e(item.health || 'untested')}</small></div><button class="button small" type="button" data-probe-report-provider="${e(item.id)}" ${busy || item.integration_state !== 'ready' ? 'disabled' : ''}>检测 ${e(providerName(item.id))}</button></li>`).join('');
   const runRows = runs.slice(0, 12).map(item => {
     const active = ['queued', 'preparing_data', 'blocked_approval', 'running', 'validating'].includes(item.status);
-    const retryable = ['blocked_data', 'delivery_incomplete', 'failed', 'cancelled'].includes(item.status);
-    return `<li class="report-run-row"><div><strong>${e(item.id)}</strong><small>v${e(item.version)} · ${e(item.trigger)} · ${e(RUN_STATUS[item.status] || item.status)}</small></div><span class="badge ${item.status === 'completed' ? 'live' : active ? '' : 'danger'}">${e(item.delivery_status || 'pending')}</span>${active ? `<button class="button small" data-cancel-report-run="${e(item.id)}">取消运行</button>` : ''}${retryable ? `<button class="button small" data-retry-report-run="${e(item.id)}">失败重试</button>` : ''}${renderRunEvidence(item)}</li>`;
+    const retryable = ['blocked_data', 'delivery_incomplete', 'failed', 'cancelled', 'quality_incomplete', 'needs_attention'].includes(item.status);
+    return `<li class="report-run-row"><div><strong>${e(item.id)}</strong><small>v${e(item.version)} · ${e(item.trigger)} · ${e(RUN_STATUS[item.status] || item.status)}</small></div><span class="badge ${item.status === 'completed' ? 'live' : active ? '' : 'danger'}">${e(item.delivery_status || 'pending')}</span>${active ? `<button class="button small" data-cancel-report-run="${e(item.id)}">取消运行</button>` : ''}${retryable ? `<button class="button small" data-retry-report-run="${e(item.id)}">${item.status === 'needs_attention' ? '核对受理状态' : item.status === 'quality_incomplete' ? '继续核验' : '失败重试'}</button>` : ''}${renderRunEvidence(item)}</li>`;
   }).join('');
   const manualPassed = weeklyManualRunAccepted(detail);
   const schedule = detail.schedule?.kind === 'manual' && !detail.schedule?.enabled && detail.id === 'huaan-etf-weekly'
