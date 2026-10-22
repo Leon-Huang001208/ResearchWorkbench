@@ -1,5 +1,7 @@
 # Research Web 能力与平台证据
 
+2026-10-22 v4 profile是macOS Native操作员功能交付，固定旧5495与PR180产品`9b436613aad9136f4959c992c89dd72fc7354ed5`。产品schema3 validator为hostPASS/mergeReady=true，但aggregateNOT_READY；Ubuntu通用仓库门不表示Linux产品原生通过，Windows/Linux产品原生/实机保持NOT_RUN。v4最终本机/评审/原三CI/Mac安装和实际部署另取证，不复用产品CI或旧恢复；不派他平台产品任务、不触发Tauri/sidecar，也不增job/runner/依赖或改图。
+
 2026-10-22 Wind工作区v3部署工具是macOS Native操作员功能交付，固定previous5495/PAYLOADa0ff3ae2，原Mac本机回归/通用仓库门/同候选Mac Bootstrap、实际部署和账号保全分别验收。没有Windows/Linux产品适配、原生dispatch或实机操作，它们保持NOT_RUN；Mac不代行，亦不触发桌面Tauri/sidecar。无新依赖、workflow/job/runner/timeout或部署节点，现有平台图保持。
 
 2026-10-22 Wind工作区为Mac mini macOS宿主的Web功能开发：纯历史/Provider/UI回归、实际厂商复权预检、浏览器几何/全历史、同候选macos-14安装CI与常驻切换分层记录。当前有限两股票预检不能推导全历史或其他平台支持；Windows/Linux原生、对应产品CI与实机仍NOT_RUN，分别交接对应设备，不由Mac触发。新增Store键不是DB迁移，不涉及Tauri/sidecar或桌面交付；其他平台未验不阻断已独立完成的Mac本平台门。
