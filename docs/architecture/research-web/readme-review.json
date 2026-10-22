@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "unchanged",
-  "summary": "复核基金NAV原生快照有界捕获；根README既有可选研究仓与未部署说明保持准确。",
-  "reason": "已阅读根README。现有研究仓段落说明隔离实现、正式库/外盘/常驻尚未启用，并链接完整研究仓合同；此次只允许完整分页的最多31日东财NAV保留三项已声明缺口，无新入口、依赖、schema或部署。具体语义已同步原生快照及周报边界文档，根README无需重复供应商字段清单。"
+  "disposition": "updated",
+  "summary": "复核根README及架构入口，拒绝f853截断／缓存方案，改为fresh run-log二进制ZIP严格读取，最终v5 reader哈希待固定。",
+  "reason": "根README需撤回gh run view完整日志结论：官方2.67 Scanner的64KiB行限制会静默截断并缓存，f853方案已拒绝。新机制fresh取得当前run二进制ZIP并严格读取完整job成员，原120秒、资格预算及fresh workflow／job／PR／checkout-tree门不得放宽；最终源码与v5哈希由root独评后绑定。旧ec022 reader、旧profile、不可变controller及恢复包保持，PREVIOUS51f09和锁7c631d4不变。95项Web锁精确与11项legacy pip check FAIL分别记录，旧CI不认证新候选，当前未部署、不含筹码原型；本轮文档无依赖或服务操作。"
 }

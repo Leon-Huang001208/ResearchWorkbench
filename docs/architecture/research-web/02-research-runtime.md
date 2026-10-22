@@ -1,5 +1,7 @@
 # 研究协议、执行状态与恢复
 
+2026-10-23证据读取改为fresh run-log二进制ZIP严格解析，不改变DSH、研究回合、任务状态或恢复。gh run view因静默行截断／缓存已拒绝，最终ZIP reader须重新绑定；原120秒、资格预算和fresh workflow／job／PR／SHA／tree检查不得放宽。旧profile／恢复包保持，服务仍51f09、未停机无journal，原生命周期图准确。
+
 资产v5索引读取修复不改变DSH协议、研究回合、任务状态或恢复流程；只在原verify_primary的v5分支复用已有64 MiB业务读取，元数据及旧profile保持。原明确空闲、排空、BirthFence、全账号保全和version4 journal继续生效，真实失败停在停机前；没有新生命周期节点，01／12图仍准确，也不启动研究、周报或模型。
 
 资产交互v5固定部署不改变DSH协议、回合、历史、取消或恢复状态机，也不运行研究／周报／模型。固定旧51f09与产品9bc4沿原操作员锁、明确空闲及version4 journal；目录租约、区块／历史task和真实Future仍按产品既有witness判定，未知状态不据作可切换。原01／12图的部署及生命周期边界保持，profile版本不等于journal版本；正式recover只按验证后的v5 mode回51f09。

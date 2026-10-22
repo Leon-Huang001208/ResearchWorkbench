@@ -1,5 +1,7 @@
 # GitHub Actions 免费额度治理
 
+2026-10-23 v5完整日志改为fresh gh api actions/runs/RUN/logs二进制ZIP读取，属于现有证据传输，不运行或重试Actions。gh run view的64KiB行Scanner会截断并缓存，f853方案已拒绝；1.58秒旧探针不认证完整性。新ZIP下载2.76秒仅为真实传输检查点，不代替fresh PR／job／checkout／tree核验和新候选原三CI／Mac安装；不新增job、runner、timeout或依赖，发布前仍实时核对visibility／额度。
+
 主线PR188推进后，旧a114候选三CI全PASS保持原候选归属，不能作为新组合候选PASS。当前用户已批准组合验收后将已合并锁定baostock0.9.4／psycopg3.3.6一起部署到常驻，数据库不启用／不迁移、外盘不改；此前隔离授权记录不冒充这次授权。root沿原三CI／同候选Mac安装正常重绑，不手工rerun、不加job／runner或削减门；下述PUBLIC／耗时均为历史快照，远端动作前仍实时核对。
 
 PR187资产v5索引修复的Project Constraints run39794625674因模块文档覆盖和meaningful structure review缺失失败，原失败日志保留。补齐文档后沿同PR正常修补发布并等待原三CI／同候选Mac Bootstrap，不手工rerun、不新增job／runner／依赖或削减门。769＋112本机及173项独评属于各自源候选证据，不转写为新CI通过；当前visibility／额度仍由root在远端操作前实时核验，本次文档任务不触发Actions或部署。

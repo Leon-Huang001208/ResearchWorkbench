@@ -1,5 +1,7 @@
 # Research Workbench
 
+当前v5部署产品固定PR189 merge5d3927，旧版仍51f09、Web锁不变。日志传输改为fresh `gh api actions/runs/RUN/logs`二进制ZIP严格读取；`gh run view`因64KiB行扫描会静默截断并缓存，f853方案已拒绝，不作为完整性证据。原120秒及fresh PR／job／checkout／tree门保持，只有v5使用最终受审ZIP reader，旧profile／controller／恢复包不改。新候选仍待独评、原三CI及Mac安装，当前未部署；95项Web锁精确与11项legacy pip check FAIL分列，筹码原型不纳入本轮。见[部署说明](docs/research-web-gateway-upgrade.md)和[本轮记录](.ai/reports/test_report_asset_v5_transport_20261023.md)。
+
 资产v5部署前大索引预检修复只让v5使用已有64 MiB安全业务读取器；元数据仍为1 MB，旧profile和固定产品不变。原8.67 MB业务索引在停机前被拒绝，数据未裁剪；修复须继续原完整文档／评审／三CI及同候选Mac安装，PR187原Constraints失败不写成通过。当前仍待正式切换与全账号保全，见[部署合同](docs/research-web-gateway-upgrade.md)和[修复记录](.ai/reports/test_report_asset_v5_index_fix_20261022.md)。
 
 [固定版本部署](docs/research-web-gateway-upgrade.md#全市场缺口修复固定部署)继续保全原会话、数据及模型，并核对行情采集空闲。

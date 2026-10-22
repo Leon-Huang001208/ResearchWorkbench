@@ -1,5 +1,7 @@
 # Research Workbench 架构总览
 
+2026-10-23当前v5固定产品5d3927、PREVIOUS51f09与锁7c631d4不变。完整CI job日志须fresh下载当前run的二进制ZIP并严格校验／读取完整job成员；gh run view因64KiB行Scanner会静默截断并缓存，f853方案已拒绝。原120秒、资格预算及fresh workflow／job／PR／SHA／tree门不得放宽，只有v5接受最终受审ZIP reader。旧profile、不可变controller和恢复包不改，无新部署节点、HTTP或业务数据流，原图准确；本轮未部署且不夹带筹码原型。
+
 PR188合流后的当前v5组合产品固定88ef3817680ac822e2d7c819db845de4b7275173，包含资产9bc4及DataHub研究仓；PREVIOUS仍51f09，8f2cb39a的一行业务读取修复另保留源码身份。用户已批准组合验收后部署锁定baostock0.9.4／psycopg3.3.6，但不启用／迁移数据库、不改外盘。PR188已审新04数据流保持，以下“v5本身无新结构／依赖”只描述原封闭profile及一行修复，不覆盖组合产品的研究仓变化；旧a114三CI全PASS不认证新组合，最终仍须重验。
 
 2026-10-22资产v5大业务索引修复仅让原verify_primary的v5分支复用既有64 MiB安全业务读取器，元数据仍为1 MB；修复8.67 MB业务index在停机前被误拒绝的绑定错误。既有Host、账号数据根、部署节点、锁、version4事务、全账号保全与恢复不变，旧profile／controller／evidence／固定产品均不修改。无新HTTP、数据流、格式或依赖，现有图准确；PR187原Constraints失败及修补后的候选验收分别留证，不以本机通过冒充CI或部署成功。
