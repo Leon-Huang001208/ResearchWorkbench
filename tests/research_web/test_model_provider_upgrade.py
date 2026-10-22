@@ -1965,7 +1965,7 @@ def test_market_gap_profile_freezes_resident_and_reviewed_source_checkpoint():
     assert (
         upgrade.previous_for(upgrade.MARKET_GAPS_MODE) == "99d3ee34977c47189a5638207c109a555f52a687"
     )
-    assert upgrade.MARKET_GAPS_PAYLOAD == "b333c51c7508b7d346b3ca0f039e4e746b0fd8b8"
+    assert upgrade.MARKET_GAPS_PAYLOAD == "9faeeca3003a912ca75799fb27b635ba1bb87a1a"
 
 
 @pytest.mark.parametrize("real_operations", ["reviewed-market-gaps-v1"], indirect=True)

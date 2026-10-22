@@ -65,7 +65,7 @@ MARKET_GATEWAY_SHA256 = "a5ebfaee0211403fd12083c61b6eafd6a4e08915af1c3c9c95b34fb
 # Freeze a reviewed product checkpoint; final target still needs merged exact-tree CI.
 MARKET_GAPS_MODE = "reviewed-market-gaps-v1"
 MARKET_GAPS_PREVIOUS = "99d3ee34977c47189a5638207c109a555f52a687"
-MARKET_GAPS_PAYLOAD = "b333c51c7508b7d346b3ca0f039e4e746b0fd8b8"
+MARKET_GAPS_PAYLOAD = "9faeeca3003a912ca75799fb27b635ba1bb87a1a"
 # Historical family name: all these profiles require full business-index preservation.
 ASSET_MODES = frozenset(
     (ASSET_MODE, ASSET_V2_MODE, ASSET_V3_MODE, ASSET_V4_MODE, MARKET_MODE, MARKET_GAPS_MODE)

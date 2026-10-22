@@ -26,8 +26,12 @@ providers_market.py补f292状态、同身份同日的有界明细补取、f301/f
 
 已按独立复现修复普通股缺f169/f170与停牌f43的参考价标记，资金面板继承外层陈旧/错误但保留自己的行数/日期；若本轮板块正常而资金失败，MarketService按同用户/同key保留上次资金，并持久化stale/error，成功后清除。新增100只明细上限、详情阶段取消和资金缓存恢复回归。当前63项Python与32项JS通过；Provider有界mypy无新增错误，MarketService唯一[index]错误在99d3 shadow基线同样存在（490→492行），没有隐藏或取消检查。最终三CI、部署和认证页面仍待最终候选。
 
-## 固定部署入口
+## 初始固定部署入口（历史检查点）
 
 产品源码已冻结于b333c51c7508b7d346b3ca0f039e4e746b0fd8b8；后续profile只允许旧99d3和此精确产品祖先，最终同候选独立评审/三CI/最新master仍是前置。新入口apply-market-gaps额外拒绝活动或未知MarketService采集，旧profile和恢复保持。操作员回归先RED的新身份/CLI后，在673项完整矩阵通过/28.10秒；最终新增错误previous拒绝和格式化后的结果另记录。
 <!-- architecture-review {"group":"dual-runtime","structure":"unchanged","reason":"固定旧99d3与不可变产品检查点b333，复用原version4事务和全账号保全，仅补现有MarketService空闲证明；原部署与权限拓扑准确。","diagrams":[]} -->
 <!-- architecture-review {"group":"private-multiuser","structure":"unchanged","reason":"固定旧99d3与不可变产品检查点b333，复用原version4事务和全账号保全，仅补现有MarketService空闲证明；原部署与权限拓扑准确。","diagrams":[]} -->
+
+## 合并主线后的最终范围
+
+已保留PR183合并4dcc88950959102b041df8c441906125ca0de9dc的全部产品、原市场activity_witness/close排空及job类型修复。仅4份文档冲突合并保留双方内容，生产源码自动合并后定点复核。最终固定产品检查点改为9faeeca3003a912ca75799fb27b635ba1bb87a1a（合并已审主线与本市场修复）；b333为初始历史记录。固定旧常驻仍99d3，最终profile与三CI将重新绑定。MarketService原[index]类型错误已由新主线的job:dict修复，不再作为最终候选债务。只验收市场，不触发周报生产、日程、Wind或模型。
