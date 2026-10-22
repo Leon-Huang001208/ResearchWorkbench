@@ -1,5 +1,7 @@
 # Mac mini Docker 开发与独立部署
 
+2026-10-22 Wind工作区v3封闭部署profile仅服务现有macOS Native主实例/网关，固定旧5495和产品a0ff3ae2，复用原v4锁/恢复/保全；本轮不构建或更新Docker镜像、容器、业务卷、网络和缓存，不新增依赖/端口/节点。产品原证据与profile候选CI分别记录，Native实际切换不充当Docker产品验收，未执行层保持NOT_RUN；当前架构图无需修改。
+
 2026-10-22 Wind历史任务、固定复权和账号偏好位于既有Host与账号数据根，不增容器、端口、卷或数据库；原始块/因子使用当前实例私有控制目录。CJPY真实Future未退出及历史任务未终态时禁止把实例当空闲。Native预检和Mac安装证据不替代Docker内厂商授权、构建或健康检查；本轮未执行的Docker产品层保持NOT_RUN，资源归属与回收保护不变。
 
 资产观察 `apply-assets-v2` 仅为 macOS Native 显式联合升级增加固定旧版／产品身份，不操作 Docker 镜像、容器、业务卷、网络或构建缓存。原容量、归属及活动保护保持；Native 本地、CI 或实际切换不充当 Docker 产品验收，未执行项继续 NOT_RUN。

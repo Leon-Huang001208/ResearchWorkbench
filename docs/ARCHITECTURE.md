@@ -1,5 +1,7 @@
 # Research Workbench 架构总览
 
+2026-10-22 Wind工作区独立部署profile v3复用既有Native主实例/私网网关的v4事务，仅增加封闭旧版5495与产品a0ff3ae2身份及apply-assets-v3入口；不修改已合并产品、HTTP、数据流、控制器或证据读取器。旧v1/v2恢复保持。新增部署节点、研究引擎或持久格式均不存在，因此本轮不重画现有图、不改架构HTML/PNG；准确身份、授权/空闲与保全条件见[部署合同](research-web-gateway-upgrade.md#资产观察固定版本联合部署)。
+
 2026-10-22 Wind资产工作区沿现有Host增加持久历史任务和账号指标偏好：浏览器 → `asset_routes.py` → `AssetWorkspace/HistoryJobs` → DataHub Broker → CJPY → 不可变原始块/因子 → 同版本规范快照 → 研究交接。近期2年、续取4年和全部扫描共享固定复权锚点；取消仍等待真实Future，常驻空闲证明覆盖历史非终态与CJPY调用。`index.json`新增键，无新数据库、依赖或第二研究引擎。新增6项API及真实数据流已同步[接口](architecture/research-web/04-api.md#资产历史任务与图表偏好)、[文件](architecture/research-web/03-data-files.md#资产历史与图表偏好存储)和既有模块/数据流图，不沿用此前“无新HTTP/持久化”的旧迭代结论。批准计划、有限预检与未完成验收见[Wind计划](plans/2026-10-22-wind-asset-workspace.md)。
 
 资产观察 v2 部署 profile 只为既有显式联合升级器增加固定的旧版 `9bc12355`／PR175 产品 `93d62be6` 身份，复用原 v4 主实例与网关事务、不可变控制器、锁及冻结恢复包；旧 v1 与模型 profile 保留。没有新增部署节点、研究引擎、HTTP 或持久化格式，现有部署与数据流图仍准确；资产／DataHub 空闲与全索引保全适用于两种资产 profile，详细固定合同见[部署说明](research-web-gateway-upgrade.md#资产观察固定版本联合部署)。

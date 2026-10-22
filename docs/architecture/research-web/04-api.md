@@ -1,5 +1,7 @@
 # Research Web 接口清单
 
+2026-10-22 `model_provider_upgrade apply-assets-v3`是本机操作员CLI，封闭绑定旧5495和已合并产品a0ff3ae2；无新HTTP方法/路径/请求字段、DSH协议或API权限。原产品6项历史/偏好端点与现有Atlas保持，部署profile不重新生成架构HTML/PNG。最终工具三CI与实际切换/保全独立验收，旧v1/v2恢复、controller/evidence不变；见[部署合同](../../research-web-gateway-upgrade.md#资产观察固定版本联合部署)。
+
 ## 资产历史任务与图表偏好
 
 最后核对：2026-10-22。下列6个新增端点由 `asset_routes.py` 声明，经既有 `/api/research` 前缀挂载；认证身份及账号 Store 隔离保持。任务受理与规范数据发布是两个事实，`202` 不代表历史完整。
