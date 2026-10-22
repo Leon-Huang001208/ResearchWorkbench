@@ -26,6 +26,21 @@
 
 ## 资产观察固定版本联合部署
 
+### 资产交互与数据 v5 2026-10-22
+
+封闭profile为`reviewed-asset-observation-v5`，入口为`model_provider_upgrade apply-assets-v5`。PREVIOUS精确固定当前主实例与网关的`51f09fa783694aae5234905933948394ca167dcc`，PAYLOAD精确固定PR185真实merge `9bc4e4cab91130647a5bc0dfa519e97f4773416a`；旧4d2e、99d3及5495分别属于历史部署合同，不能作为v5当前恢复基线。产品candidate／preview／merge同tree及产品三CI由主任务另留证，不代替v5操作员最终提交的本机回归、独立评审和原三CI／同候选Mac安装。
+
+```bash
+/absolute/primary/.venv/bin/python -m research_workbench_entrypoint.resident.model_provider_upgrade apply-assets-v5 \
+  --home /absolute/private-home --source /absolute/qualified-clean-checkout
+```
+
+v5只增加原常量表、previous_for／review_assets及CLI封闭分支；仍逐项冻结固定产品祖先、完整差异路径并集、Git blob和文件模式，未知产品、依赖、workflow或额外字节拒绝。原操作员允许的文档／测试及架构阅读页例外保持，不把它扩成任意部署能力。使用生产venv，从与登记源码共享common directory的干净最终目标checkout执行，实际模块与`--source`一致；不移动开发文件、复制源码或处理凭据以绕过身份门。
+
+沿原version4 journal、维护锁、BirthFence、优雅排空、全账号业务索引冻结与内容寻址恢复；目录后台租约、资产区块／历史及真实Future的活动证明仍由既有产品边界提供，活动或未知时不切换。保留会话、模型配置、账号权限、市场缓存和原始快照，不触发研究、周报、供应商或模型调用。`recover`只按已验证journal的v5 mode返回固定51f09，旧资产v1–v4、两个market profile、模型恢复和不可变controller／evidence保持原合同。
+
+本profile没有新增节点、HTTP、数据流、持久格式或依赖；图源与API inventory不变，阅读源码链接只更新到已审产品。最终root按资格、明确空闲、冻结／健康／保全与真实认证页面逐项取证前，状态保持未部署。详见[本轮报告](../.ai/reports/test_report_asset_interaction_v5_deploy_20261022.md)。
+
 ### Wind工作区 v4（2026-10-22）
 
 封闭profile `reviewed-asset-observation-v4`，入口`model_provider_upgrade apply-assets-v4`。PREVIOUS精确固定`5495e64c0be08c9db58e336705db90584f8ba8b5`，PAYLOAD精确固定PR180真实merge `9b436613aad9136f4959c992c89dd72fc7354ed5`；不能以候选、preview或任意SHA替代。主任务fetch核定真实merge父为08aac/654fa、tree `1aff5360808c835a6096af751e942b6692497bfa`，与候选654fa及preview2e069相同。合并前草稿候选仅保留为历史检查点。
