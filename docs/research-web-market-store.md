@@ -124,3 +124,6 @@ python -m unittest discover -s tests/research_web -p 'test_market_store*.py'
 2026-10-23 Tinysoft原生股票日线新增经CJPY0.5.2字段字典证明的vol股、amount原生元声明，不提供OHLC单位或CNY证明。ResearchWarehouse._bridge的规范股票来源仍排除Tinysoft；原生快照可保留真实声明，不能凭成交量局部证明通过统一价格单位/PIT或正式回测门。此次不连接数据库、不读取行情、不改数据库/外盘配置。
 
 2026-10-23 `required_semantics=cn_stock_daily_cny_share_v1`是Host对候选价格/量额单位的显式收窄合同；原生快照不满足它，不能通过旧native缓存命中绕过OHLC单位门。当前Tinysoft缺OHLC/CNY证明，因此规范raw候选在Broker准入跳过；其通用原生响应和metadata仍可冻结。此变化不启用Tinysoft规范bridge、不新增SQL表/依赖/数据库配置，不改变历史PIT或正式回测合格状态。
+
+
+2026-10-23 Wind容量回归修复：供应商60自然日上限不再阻断已授权完整仓库长窗读取。对沪深股票daily/none、无as_of、refresh=false的长窗，Host可在同一查询预算内先取得一次Wind缺口计划；每个实际缺口仍须正常通过60日限制及当前权限/配置校验。计划与原查询指纹及来源配置绑定，未知/空库全窗、过大缺口、规划繁忙或失效不会自动拆成供应商可执行小块。固定Wind保留明确失败，auto保留实际skip原因后选择其他候选。取消必须等待规划事务的实际Future结束，不能提前释放容量。此修复没有启用跨来源部分覆盖拼接，Asset新历史job仍为refresh=true整段刷新；交易日历准备也可能联网，不能据此称所有查询均只读离线缓存。

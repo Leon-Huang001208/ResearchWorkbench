@@ -122,9 +122,9 @@ Root/SPEC确认CJPY实际默认markettable形状完全无identity列，封闭单
 
 独立review_asset_three_quality对c7beb冻结版未发现P1/P2，执行176项PASS并记录新增两项mypy dict-item错误：CJPY局部fields初值被推断为None-only。仅将局部变量显式注解为dict[str,dict[str,str|None]]，不改行为。CJPY50项再次PASS见logs/cjpy-annotation-only.log；该文件Ruff/Black/isort PASS。五源文件同范围mypy --follow-imports=skip由原6项变为4项（logs/asset-three-mypy-annotation-skip.log）：providers_cjpy:477 arg-type与broker:68/161/374 Resolution call-arg保持旧债，本任务不改、不写全mypy通过。无follow-imports筛选的诊断也保留logs/asset-three-mypy-annotation-fix.log，含跨模块旧错误，不隐藏。
 
-实际缓存边界：Asset新job refresh=True显式刷新整个请求区间，不先查仓补缺；DataHub普通refresh=False逐来源精确复用完整缓存，但Wind>60天缓存仍被当前fetch准入guard拒绝。跨来源部分覆盖不拼接，warehouse prepare交易日历可能联网；以上未完成能力不由本次成功降级/冻结/完整缓存测试推定完成。此处仅如实交接边界，不扩大本次修复。
+阶段性缓存核查：Asset新job refresh=True显式刷新整个请求区间，不先查仓补缺；DataHub普通refresh=False逐来源精确复用完整缓存。当时发现Wind>60天缓存被fetch准入guard拒绝；Root随后相对71ce核实这是本批新增guard引入的回归，不能作为既有债发布。修复及新证据见下方Wind回归章节。跨来源部分覆盖不拼接，warehouse prepare交易日历可能联网，这些边界仍保留。
 
-Root补充的普通仓只读核查：DataHub refresh=False已实现仓候选AK miss后Bao完整命中且0 fetch；这不改变History新job refresh=True显式整段强刷边界。Wind storage_read仍无条件经过validate_wind_query的>60自然日限制，导致该类完整缓存受挡，本轮只记录、不扩源码修复。
+Root补充的普通仓只读核查：DataHub refresh=False已实现仓候选AK miss后Bao完整命中且0 fetch；这不改变History新job refresh=True显式整段强刷边界。当时Wind storage_read无条件经过validate_wind_query的>60自然日限制，导致完整缓存及长窗小缺口规划受挡；这是待修回归，之后已按Root要求补专项RED与修复，不能把本段阶段性核查当作最终验收。
 
 Root已转交独立质量最终PASS，注解后0a6dc冻结九文件精确匹配；CJPY50及Ruff/Black通过，同范围mypy新增两项消失、原四项债保留。仅局部类型注解，无行为改动，176项此前行为闭包按源码差异映射保留，不伪称重跑。现按授权提交本feature源码/文档检查点并managedprepare最新master，未发布、未部署；组合实际Host/Bao验证和最终全门随后由Root协调。
 
@@ -145,3 +145,20 @@ Root在精确候选5cdaee4f06677cea948070dbe45675a265a1fba4运行完整Host和�
 独立Python最终review精确5cda PASS91、Ruff/Black且无P1/P2，logs/asset-combined-quality-review.json SHA256=94a97c1e0b69dc329c263f696f89423c0aba1b2ff9355ac0e4dc3dec7313c9b0。最终JS独评同5cda PASS99及Plugin UI8项，无P1/P2；logs/final-combined-js-review-20261023.log和final-combined-plugin-ui-review-20261023.log。ESLint不可用且未安装，保持未执行，不冒充PASS。受审四JS为组合app0ee7f9f42cda802f815fbcd72c9e16fce6240b591170fd7963768c91d4ced13a/chart eb5894165e19bf712d74624285da192c5d268a7745c7adbfdcbc62d7e66bab52/controller732aacc281e01bdfd9a83436f37e5e108cce5f906241214ac4966a467b88acdb/workspace8e4924cde907adc19dbdeab43c61c8bb7abeb01988da888484d89524f6df8b34。后续只改report/新64源ledger等文档，通过相同app tree映射沿用此产品证据，未再调用Vendor或模型。
 
 新的逐源证据快照为.ai/reports/2026-10-23-datahub-source-verification.json，保留2026-10-22旧快照；报告只引用路径，不与ledger互嵌hash以避免自指。准备回执已认证5cda；同base status=prepared不支持再次prepare刷新docs-only HEAD，受管规则禁止replace-prepared及手工改回执。按Root确认保留原prepared和新文档HEAD的产品tree映射，完整Router绑定实际最终HEAD，Root正常publish入口届时合法读取clean HEAD更新integrationCommit；本轮不写二次prepare成功、不push/部署。
+
+
+## Wind长窗仓库回归：RED与隔离修复
+
+Root相对71ce发现本批Broker新增的fetch范围guard错误施用于storage_read与缺口规划，887候选不能据此发布。旧887 API重跑已自然结束，213 PASS/276.76秒仅认证旧源码（logs/asset-final-api-retry/summary.json）；首次wrapper误设AUTOMATIONS=0导致210 PASS/3 FAIL的记录保留，环境修正没有改生产代码或CI超时。新源码在旧API结束后才编辑，旧门不冒充新HEAD通过。
+
+专项RED为logs/wind-storage-regression-red.log（8 FAIL/9 PASS），证明长窗完整缓存及仅缺2日仍被提前workload_too_large阻断。修复将供应商容量上限与读取语义分开：storage仍完整验证身份/频率/复权/日期，但不应用fetch跨度上限；实际fetch默认60自然日不变，market_activity不扩权。仅可信Host的warehouse+runner、refresh=false、无as_of、沪深股票daily/none长窗先做一次Wind有界缺口规划，冻结source/config/query fingerprint，每个实际gap照常准入；空库/无计划/繁忙/配置变化/越界计划不会把原长窗直接送SDK，也不盲拆全窗。预规划与执行共用原总预算，存储取消保留实际Future占用至drain。
+
+额外Wind预授权仅在auto且明确data_outside_declared_scope时按来源跳过；global冻结等错误直接传播，cached/fixed来源拒绝不切源。全部候选scope拒绝返回原scope错误；仓库已授权候选miss后，额外Wind scope拒绝不全局阻断后续实际候选。重复返回被拒provider的resolver仅调用一次admission，然后明确停止。没有更改TRANSIENT、可靠性执行器或公开查询参数来授予规划权限。
+
+新冻结闭包logs/wind-final-frozen-05.log：238 PASS/8.81秒；包含17个真实Hub/Broker长窗模式、9个validator边界及重复provider负例。完整长窗仓命中0fetch；小缺口仅执行2026-10-19..20一次；无计划/空库/超大gap/busy固定请求0SDK；auto真实skip后AK成功；scope/global/cached/fixed/全部拒绝、改配、伪造越界gap、剩余预算及实际StorageRunner取消drain均通过。均为Memory凭据与受控仓/供应商边界的离线测试，不认证真实Wind。相邻闭包首两轮236 PASS/1 FAIL保留（wind-final-closure-{01,02}.log）：内部总deadline drain最初误挡provider自身超时的可见draining；已限定仅共享总预算实际耗尽时由Hub排空，原provider超时与History状态合同恢复。第三轮237 PASS为增补重复resolver用例前的阶段记录，最终238闭包才作为本冻结证据。Ruff/Black通过，待SPEC/quality独立复核；未提交/发布，真实组合Host的新证据由Root另行执行，不沿用旧5cda供应商验收冒充此次代码已验。
+
+
+Wind增量SPEC独立复核限定PASS：Root已收到独立230项及Ruff/Black/isort通过，五个source/test SHA与本次冻结完全相同。此证据限受控仓库和真实StorageRunner的离线执行、授权与容量合同；没有真实Wind/PG/SDK验收。质量复审尚在进行，source/tests继续冻结；源码检查点及reading revision绑定须在质量PASS后顺序提交，不将当前未提交字节当作正式candidate，也不改写旧免费供应商记录。
+
+
+Wind增量独立质量限定PASS：logs/wind-cache-quality-review.json（SHA256 678453dacacf7e40439ffdbc573da417570de4fc2be81d4e5e9a1b7af23336e6）核对五个冻结SHA稳定，独立29项定点PASS及Ruff/Black通过；三源mypy仅保留原Broker三项Resolution调用旧债，没有将全mypy写为PASS。Root已授权正常integration源码修复检查点及随后reading绑定文档提交，不publish、不运行长门；新的实际Host/Bao第二轮是产品源码变化后的独立验收，旧887 API与首次Bao证据原样保留，不提前认证新candidate已通过供应商/CI/部署。

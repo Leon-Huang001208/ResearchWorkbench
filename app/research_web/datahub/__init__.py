@@ -7,7 +7,8 @@ import json
 import os
 import re
 import time
-from datetime import UTC, datetime, timedelta
+from dataclasses import replace
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 from uuid import uuid4
 
@@ -660,6 +661,7 @@ class DataHub:
         authorization_fingerprint=None,
         excluded_sources=frozenset(),
         storage_read=False,
+        defer_workload_limit=False,
     ):
         if not isinstance(query, BusinessQuery):
             return None
@@ -670,16 +672,79 @@ class DataHub:
             checked = query.model_copy(update={"source": provider, "allow_fallback": False})
             if authorization_fingerprint != self.source_configuration_digest(provider):
                 raise StoreError("缓存授权版本已变化", "data_cache_authorization_changed", 409)
-        resolution = resolve(
-            checked,
-            probes=self._latest_probes(),
-            connection_statuses=self.connections.statuses(),
-            excluded_sources=excluded_sources,
-            storage_read=storage_read,
-        )
-        if self.admission is not None:
-            self.admission(sid, checked, resolution)
-        return resolution
+        skipped = set(excluded_sources)
+        scope_denials = {}
+        first_scope_error = None
+        for _ in range(128):
+            try:
+                resolution = resolve(
+                    checked,
+                    probes=self._latest_probes(),
+                    connection_statuses=self.connections.statuses(),
+                    excluded_sources=frozenset(skipped),
+                    storage_read=storage_read,
+                    defer_workload_limit=defer_workload_limit or cached,
+                )
+            except StoreError as exc:
+                if (
+                    first_scope_error is not None
+                    and not excluded_sources
+                    and exc.code
+                    in {"data_capability_unavailable", "data_capability_not_integrated"}
+                ):
+                    raise first_scope_error
+                raise
+            if resolution.provider_id in scope_denials:
+                raise first_scope_error
+            try:
+                if self.admission is not None:
+                    self.admission(sid, checked, resolution)
+            except StoreError as exc:
+                if checked.source != "auto" or exc.code != "data_outside_declared_scope":
+                    raise
+                first_scope_error = first_scope_error or exc
+                skipped.add(resolution.provider_id)
+                scope_denials[resolution.provider_id] = exc.code
+                log.info("datahub_source_scope_skipped", source=resolution.provider_id)
+                continue
+            return replace(
+                resolution,
+                attempted_sources=[
+                    (
+                        {**item, "reason": scope_denials[item["source"]]}
+                        if item["status"] == "skipped" and item["source"] in scope_denials
+                        else item
+                    )
+                    for item in resolution.attempted_sources
+                ],
+            )
+        if first_scope_error is not None:
+            raise first_scope_error
+        raise StoreError("资料候选准入次数超界", "data_capability_unavailable", 503)
+
+    def _can_plan_wind_gaps(self, query):
+        """Only trusted warehouse raw-bar planning may defer the original span cap."""
+        if (
+            self.warehouse is None
+            or self.storage_runner is None
+            or not callable(getattr(self.warehouse, "missing_queries", None))
+            or query.refresh
+            or query.as_of is not None
+            or query.source not in {"auto", "wind"}
+            or query.capability != "market_bars"
+            or query.parameters.get("asset_type") != "stock"
+            or query.parameters.get("frequency") not in {"daily", "day", "1d"}
+            or query.parameters.get("adjustment") != "none"
+        ):
+            return False
+        from .providers_wind import validate_supported_query
+
+        try:
+            validate_supported_query(query, storage_read=True)
+            validate_supported_query(query)
+        except providers.ProviderError as exc:
+            return str(exc) == "workload_too_large"
+        return False
 
     async def _warehouse_read(self, sid, query, initial):
         if self.warehouse is None or self.storage_runner is None:
@@ -735,15 +800,116 @@ class DataHub:
     async def _execute_business(self, sid, call_id, query, initial):
         """Reauthorize each attempt; explicit fixed-source requests stay fixed."""
 
+        deadline = self.query_deadlines.get((sid, call_id), time.monotonic() + TOTAL_DEADLINE)
+        planning = self._can_plan_wind_gaps(query)
+        planning_rejections = {}
+        wind_plan = None
+        if planning:
+            subject = query.model_copy(update={"source": "wind", "allow_fallback": False})
+            try:
+                self._authorize_query(sid, subject, defer_workload_limit=True)
+                configuration = self.source_configuration_digest("wind")
+                if not self.runtime_health.available(("wind", query.capability, configuration)):
+                    raise StoreError("来源当前不可用", "data_capability_unavailable", 503)
+                fingerprint = query.fingerprint(include_refresh=True)
+                planned = await self._storage().run(
+                    self.warehouse.missing_queries, query, "wind", configuration
+                )
+                if configuration != self.source_configuration_digest(
+                    "wind"
+                ) or fingerprint != query.fingerprint(include_refresh=True):
+                    raise StoreError(
+                        "仓库规划期间授权或请求已变化", "data_source_authorization_changed", 409
+                    )
+                if not planned:
+                    self._authorize_query(sid, subject)  # Full fetch still has its normal cap.
+                    raise MarketStoreError("warehouse_plan_invalid")
+                gaps = []
+                for item in planned:
+                    if not isinstance(item, BusinessQuery):
+                        raise MarketStoreError("warehouse_plan_invalid")
+                    gap = BusinessQuery.model_validate(item.model_dump())
+                    expected = subject.model_copy(
+                        update={
+                            "parameters": {
+                                **subject.parameters,
+                                "start_date": gap.parameters.get("start_date"),
+                                "end_date": gap.parameters.get("end_date"),
+                            }
+                        }
+                    )
+                    if gap.fingerprint(include_refresh=True) != expected.fingerprint(
+                        include_refresh=True
+                    ):
+                        raise MarketStoreError("warehouse_plan_invalid")
+                    self._authorize_query(sid, gap)
+                    if not (
+                        date.fromisoformat(query.parameters["start_date"])
+                        <= date.fromisoformat(gap.parameters["start_date"])
+                        <= date.fromisoformat(gap.parameters["end_date"])
+                        <= date.fromisoformat(query.parameters["end_date"])
+                    ):
+                        raise MarketStoreError("warehouse_plan_invalid")
+                    gaps.append(gap.model_copy(deep=True))
+                wind_plan = (configuration, fingerprint, tuple(gaps))
+            except StoreError as exc:
+                if query.source != "auto" and not query.allow_fallback:
+                    raise
+                if exc.code not in {
+                    "workload_too_large",
+                    "data_capability_unavailable",
+                    "data_capability_not_integrated",
+                    "data_outside_declared_scope",
+                }:
+                    raise
+                planning_rejections["wind"] = exc.code
+            except MarketStoreError as exc:
+                if str(exc) not in {
+                    "warehouse_busy",
+                    "warehouse_database_unavailable",
+                    "warehouse_database_operation_failed",
+                }:
+                    raise
+                if query.source != "auto" and not query.allow_fallback:
+                    raise StoreError(
+                        "Wind完整窗口超出单次取数容量且仓库规划不可用", "workload_too_large", 400
+                    ) from None
+                planning_rejections["wind"] = str(exc)
+            if planning_rejections:
+                log.info(
+                    "datahub_warehouse_candidate_skipped",
+                    source="wind",
+                    reason=planning_rejections["wind"],
+                )
+
+        def planning_audit(resolution):
+            return replace(
+                resolution,
+                attempted_sources=[
+                    (
+                        {**item, "reason": planning_rejections[item["source"]]}
+                        if item["status"] == "skipped" and item["source"] in planning_rejections
+                        else item
+                    )
+                    for item in resolution.attempted_sources
+                ],
+            )
+
         def candidate(excluded):
-            if not excluded and self.runtime_health.available(health_key(initial)):
+            if (
+                not excluded
+                and initial.provider_id not in planning_rejections
+                and self.runtime_health.available(health_key(initial))
+            ):
                 return initial
             try:
-                skipped = excluded
+                skipped = excluded | frozenset(planning_rejections)
                 for _ in range(128):
-                    resolved = self._authorize_query(sid, query, excluded_sources=skipped)
+                    resolved = self._authorize_query(
+                        sid, query, excluded_sources=skipped, defer_workload_limit=planning
+                    )
                     if self.runtime_health.available(health_key(resolved)):
-                        return resolved
+                        return planning_audit(resolved)
                     skipped = skipped | {resolved.provider_id}
                 return None
             except StoreError as exc:
@@ -766,9 +932,20 @@ class DataHub:
                 query.model_copy(
                     update={"source": resolution.provider_id, "allow_fallback": False}
                 ),
+                defer_workload_limit=planning and resolution.provider_id == "wind",
             )
             planned = None
-            if self.warehouse is not None:
+            using_wind_plan = planning and resolution.provider_id == "wind"
+            if using_wind_plan:
+                if wind_plan is None or wind_plan[:2] != (
+                    before,
+                    query.fingerprint(include_refresh=True),
+                ):
+                    raise StoreError(
+                        "Wind仓库规划身份或授权已变化", "data_source_authorization_changed", 409
+                    )
+                planned = wind_plan[2]
+            elif self.warehouse is not None:
                 try:
                     planned = await self._storage().run(
                         self.warehouse.missing_queries, query, resolution.provider_id, before
@@ -786,6 +963,13 @@ class DataHub:
                 if planned:
                     result = None
                     for gap_query in planned:
+                        if using_wind_plan and wind_plan[:2] != (
+                            before,
+                            query.fingerprint(include_refresh=True),
+                        ):
+                            raise StoreError(
+                                "Wind仓库规划请求已变化", "data_source_authorization_changed", 409
+                            )
                         if self.source_configuration_digest(resolution.provider_id) != before:
                             raise StoreError(
                                 "取数期间来源授权已变化", "data_source_authorization_changed", 409
@@ -810,6 +994,13 @@ class DataHub:
                                 gap_version
                             )
                     if result is not None and result.status in {"complete", "snapshot"}:
+                        if using_wind_plan and wind_plan[:2] != (
+                            before,
+                            query.fingerprint(include_refresh=True),
+                        ):
+                            raise StoreError(
+                                "Wind仓库规划请求已变化", "data_source_authorization_changed", 409
+                            )
                         combined = await self._storage().run(
                             self.warehouse.read, query, resolution.provider_id, before
                         )
@@ -831,8 +1022,16 @@ class DataHub:
                 }:
                     raise
                 log.warning("datahub_warehouse_incremental_unavailable", code=str(exc))
-                result = None
+                if using_wind_plan and result is not None:
+                    result.status = "partial"
+                    result.limitations.append(str(exc))
+                else:
+                    result = None
             if result is None:
+                if using_wind_plan:
+                    self._authorize_query(
+                        sid, query.model_copy(update={"source": "wind", "allow_fallback": False})
+                    )
                 result = await self._fetch_with_execution_health(
                     sid,
                     resolution.query,
@@ -848,6 +1047,7 @@ class DataHub:
                 query.model_copy(
                     update={"source": resolution.provider_id, "allow_fallback": False}
                 ),
+                defer_workload_limit=using_wind_plan,
             )
             result.metadata = {**result.metadata, "execution_authorization_digest": before}
             self.runtime_health.record(
@@ -857,13 +1057,25 @@ class DataHub:
             )
             return result
 
-        return await execute(
+        remaining = min(TOTAL_DEADLINE, deadline - time.monotonic())
+        if remaining <= 0:
+            raise StoreError("资料查询预算已耗尽", "data_query_deadline", 504)
+        outcome = await execute(
             resolve=candidate,
             fetch=fetch,
             source_id=lambda value: value.provider_id,
             allow_fallback=query.source == "auto" or query.allow_fallback,
             accept_partial=query.purpose == "display" and query.quality == "allow_stale",
+            budget=remaining,
         )
+        if failure_code(outcome[0]) == "deadline" and time.monotonic() >= deadline:
+            from .worker_activity import drain_sources
+
+            await drain_sources(self.execution_sources.get((sid, call_id), set()))
+            owner = asyncio.current_task()
+            if owner is not None and owner.cancelling():
+                raise asyncio.CancelledError
+        return outcome
 
     async def query(self, sid, call_id, query: Query | BusinessQuery):
         self.store.session(sid)
@@ -1389,7 +1601,9 @@ class DataHub:
                 raise StoreError("该历史时点尚无已验证的数据仓库视图", "data_pit_unavailable", 409)
             if isinstance(query, BusinessQuery):
                 if warehouse_result is None:
-                    resolution = self._authorize_query(sid, query)
+                    resolution = self._authorize_query(
+                        sid, query, defer_workload_limit=self._can_plan_wind_gaps(query)
+                    )
                 provider_query = resolution.query
                 source_label = resolution.provider_id
             else:

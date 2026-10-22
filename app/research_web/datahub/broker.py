@@ -131,6 +131,7 @@ def resolve(
     connection_statuses=None,
     excluded_sources: frozenset[str] = frozenset(),
     storage_read: bool = False,
+    defer_workload_limit: bool = False,
 ) -> Resolution:
     catalog = build_catalog(
         probes=probes,
@@ -258,10 +259,16 @@ def resolve(
             reason is None
             and source_id == "wind"
             and query.capability == "market_bars"
-            and query.parameters.get("asset_type", "stock") == "stock"
+            and (
+                storage_read
+                or defer_workload_limit
+                or query.parameters.get("asset_type", "stock") == "stock"
+            )
         ):
             try:
-                validate_wind_query(query)
+                validate_wind_query(
+                    query, storage_read=storage_read, defer_workload_limit=defer_workload_limit
+                )
             except ProviderError as exc:
                 reason = unsupported_code = str(exc)
                 log.warning("datahub_query_semantics_rejected", source=source_id, reason=reason)

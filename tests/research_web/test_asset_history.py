@@ -1565,3 +1565,298 @@ async def test_http_policy_skips_unknown_prices_then_recovers_ak_failure_with_ba
         assert invalid_input.value.code == "history_cache_version_changed"
     finally:
         await hub.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "mode",
+    [
+        "full",
+        "gap",
+        "no_plan",
+        "empty_store",
+        "busy",
+        "revoked",
+        "large_gap_auto",
+        "busy_auto",
+        "scope_auto",
+        "scope_fixed",
+        "global_auto",
+        "config_changed",
+        "outside_gap",
+        "all_scope_auto",
+        "cached_scope_auto",
+        "budget",
+        "cancel_plan",
+    ],
+)
+async def test_real_broker_wind_long_window_storage_and_actual_gap_capacity(
+    tmp_path, monkeypatch, mode
+):
+    from app.research_web.datahub import providers, providers_wind
+    from app.research_web.datahub.storage_activity import StorageRunner
+    from app.research_web.market_store import MarketStoreError
+
+    ws, hub, oid, _calls, _sdk, _ = real_workspace(tmp_path, monkeypatch)
+    sid = ws.observation(oid)["session_id"]
+    statuses = {"wind": {"configured": True, "preferred_adapter": "excel"}}
+    monkeypatch.setattr(hub.connections, "statuses", lambda: statuses)
+    import time
+
+    import app.research_web.datahub as hub_module
+
+    entered, released = threading.Event(), threading.Event()
+    budgets = []
+    if mode == "budget":
+        original_execute = hub_module.execute
+        monkeypatch.setattr(hub_module, "TOTAL_DEADLINE", 1.0)
+
+        async def timed_execute(**kwargs):
+            budgets.append(kwargs["budget"])
+            return await original_execute(**kwargs)
+
+        monkeypatch.setattr(hub_module, "execute", timed_execute)
+    allowed = [True]
+    state = {"filled": False}
+    reads = []
+    plans = []
+    fetches = []
+
+    def admission(_sid, query, resolution):
+        if mode == "global_auto":
+            raise StoreError("global fence", "plugin_runtime_frozen", 409)
+        if mode == "all_scope_auto" or (
+            mode in {"scope_auto", "scope_fixed", "cached_scope_auto"}
+            and resolution.provider_id == "wind"
+            and (mode != "cached_scope_auto" or state["filled"])
+        ):
+            raise StoreError("source scope", "data_outside_declared_scope", 409)
+        if resolution.provider_id == "wind" and not allowed[0]:
+            raise StoreError("revoked", "data_source_authorization_changed", 403)
+
+    hub.admission = admission
+    fields = {
+        key: {"unit": "currency_per_share", "currency": "CNY"}
+        for key in ("open", "high", "low", "close")
+    }
+    fields.update(
+        volume={"unit": "share", "currency": None}, turnover={"unit": "currency", "currency": "CNY"}
+    )
+
+    def bars(query, source, cached):
+        rows = [
+            {
+                "asset": "600000.SH",
+                "date": query.parameters["end_date"],
+                "open": 10,
+                "high": 12,
+                "low": 9,
+                "close": 11,
+                "volume": 100,
+                "turnover": 1100,
+            }
+        ]
+        return Result(
+            rows=rows,
+            fields=fields,
+            raw=[json.dumps(rows).encode()],
+            status="complete",
+            pagination_complete=True,
+            provider_id=source,
+            metadata={"warehouse_hit": cached},
+        )
+
+    def read(query, source, _digest):
+        reads.append(source)
+        if source == "wind" and (
+            mode in {"full", "revoked", "cached_scope_auto"} or state["filled"]
+        ):
+            if mode == "revoked":
+                allowed[0] = False
+            if mode == "cached_scope_auto":
+                state["filled"] = True
+            return bars(query, source, True)
+        return None
+
+    def missing(query, source, _digest):
+        plans.append(source)
+        if mode == "budget" and source == "wind":
+            time.sleep(0.04)
+        if mode == "cancel_plan" and source == "wind":
+            entered.set()
+            assert released.wait(3), "test must release owned storage worker"
+        if source != "wind":
+            return None
+        if mode in {"busy", "busy_auto"}:
+            raise MarketStoreError("warehouse_busy")
+        if mode == "no_plan":
+            return None
+        if mode == "config_changed":
+            monkeypatch.setattr(hub.connections, "configuration_revision", lambda _: "changed")
+        if mode == "outside_gap":
+            return (
+                query.model_copy(
+                    update={
+                        "source": source,
+                        "allow_fallback": False,
+                        "parameters": {
+                            **query.parameters,
+                            "start_date": "2024-10-18",
+                            "end_date": "2024-10-19",
+                        },
+                    }
+                ),
+            )
+        if mode in {"empty_store", "large_gap_auto"}:
+            return (query.model_copy(update={"source": source}),)
+        return (
+            query.model_copy(
+                update={
+                    "source": source,
+                    "allow_fallback": False,
+                    "parameters": {
+                        **query.parameters,
+                        "start_date": "2026-10-19",
+                        "end_date": "2026-10-20",
+                    },
+                }
+            ),
+        )
+
+    def ingest(query, source, _digest, result):
+        if source == "wind":
+            state["filled"] = True
+        return "controlled-version"
+
+    hub.warehouse = SimpleNamespace(read=read, missing_queries=missing, ingest=ingest)
+    hub.storage_runner = StorageRunner()
+
+    async def fetch(query, **_kwargs):
+        fetches.append(query)
+        if query.source == "wind":
+            providers_wind.validate_supported_query(query)
+        return bars(query, query.source, False)
+
+    monkeypatch.setattr(providers, "fetch", fetch)
+    request = BusinessQuery(
+        capability="market_bars",
+        source="auto" if mode.endswith("auto") else "wind",
+        parameters={
+            "asset": "600000.SH",
+            "asset_type": "stock",
+            "frequency": "daily",
+            "adjustment": "none",
+            "start_date": "2024-10-20",
+            "end_date": "2026-10-20",
+        },
+    )
+    try:
+        if mode == "cancel_plan":
+            pending = asyncio.create_task(hub.query(sid, "long-wind-" + mode, request))
+            for _ in range(100):
+                if entered.is_set():
+                    break
+                await asyncio.sleep(0.005)
+            assert entered.is_set() and hub.storage_runner.active
+            cancellation = asyncio.create_task(hub.cancel(sid, "long-wind-" + mode))
+            await asyncio.sleep(0.02)
+            assert not cancellation.done() and hub.storage_runner.active
+            assert (sid, "long-wind-" + mode) in hub.tasks
+            released.set()
+            await cancellation
+            await asyncio.gather(pending, return_exceptions=True)
+            assert not hub.storage_runner.active and fetches == []
+            return
+        if mode in {
+            "no_plan",
+            "empty_store",
+            "busy",
+            "revoked",
+            "scope_fixed",
+            "global_auto",
+            "config_changed",
+            "outside_gap",
+            "all_scope_auto",
+            "cached_scope_auto",
+        }:
+            with pytest.raises(StoreError) as error:
+                await hub.query(sid, "long-wind-" + mode, request)
+            expected_error = {
+                "revoked": "data_source_authorization_changed",
+                "config_changed": "data_source_authorization_changed",
+                "scope_fixed": "data_outside_declared_scope",
+                "global_auto": "plugin_runtime_frozen",
+                "outside_gap": "warehouse_query_rejected",
+                "all_scope_auto": "data_outside_declared_scope",
+                "cached_scope_auto": "data_outside_declared_scope",
+            }.get(mode, "workload_too_large")
+            assert error.value.code == expected_error
+            assert fetches == []
+        else:
+            result = await hub.query(sid, "long-wind-" + mode, request)
+            assert result["status"] == "complete"
+            if mode == "full":
+                assert fetches == [] and plans == []
+                assert result["provider_metadata"]["warehouse_hit"] is True
+            elif mode in {"gap", "budget"}:
+                if mode == "budget":
+                    assert len(budgets) == 1 and 0 < budgets[0] < 0.98
+                assert len(fetches) == 1 and fetches[0].source == "wind"
+                assert fetches[0].parameters["start_date"] == "2026-10-19"
+                assert fetches[0].parameters["end_date"] == "2026-10-20"
+                assert plans == ["wind"]
+                assert result["provider_metadata"]["warehouse_incremental"] is True
+            else:
+                assert len(fetches) == 1 and fetches[0].source == "akshare"
+                assert any(
+                    attempt["source"] == "wind"
+                    and attempt["status"] == "skipped"
+                    and attempt["reason"]
+                    in {"workload_too_large", "warehouse_busy", "data_outside_declared_scope"}
+                    for attempt in result["attempted_sources"]
+                )
+                assert all(entry["source"] != "wind" for entry in hub.runtime_health.snapshot())
+    finally:
+        released.set()
+        await hub.close()
+
+
+@pytest.mark.asyncio
+async def test_scope_denial_stops_resolver_repeating_ignored_exclusion(tmp_path, monkeypatch):
+    import app.research_web.datahub as hub_module
+
+    ws, hub, oid, *_ = real_workspace(tmp_path, monkeypatch)
+    sid = ws.observation(oid)["session_id"]
+    request = BusinessQuery(
+        capability="market_bars",
+        source="auto",
+        parameters={
+            "asset": "600000.SH",
+            "asset_type": "stock",
+            "frequency": "daily",
+            "adjustment": "none",
+            "start_date": "2026-10-19",
+            "end_date": "2026-10-20",
+        },
+    )
+    resolution = hub._authorize_query(sid, request)
+    resolutions, admissions = [], []
+
+    def repeated(*args, **kwargs):
+        resolutions.append(kwargs["excluded_sources"])
+        return resolution
+
+    def denied(*args):
+        admissions.append(args[-1].provider_id)
+        raise StoreError("source scope", "data_outside_declared_scope", 409)
+
+    monkeypatch.setattr(hub_module, "resolve", repeated)
+    hub.admission = denied
+    try:
+        with pytest.raises(StoreError) as error:
+            hub._authorize_query(sid, request)
+        assert error.value.code == "data_outside_declared_scope"
+        assert len(resolutions) == 2 and admissions == [resolution.provider_id]
+        assert resolutions[1] == frozenset({resolution.provider_id})
+    finally:
+        await hub.close()

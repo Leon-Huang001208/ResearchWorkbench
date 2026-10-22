@@ -3887,6 +3887,7 @@ Imports:
 - `connections`
 - `contracts`
 - `core.observability`
+- `dataclasses`
 - `datetime`
 - `hashlib`
 - `hmac`
@@ -3907,7 +3908,7 @@ Imports:
 
 Classes:
 - `DataHub`
-  - methods: __init__, _storage, authenticate, _latest_probes, admission_catalog, catalog, _record_execution_health, _latest_execution_health, _fetch_with_execution_health, connection_center, directory_fingerprint, asset_directory, _asset_directory, source_configuration_digest, catalog_capability, catalog_source, start_probe, _probe, _mark_probe_terminal, _prune_probes, probe, run_probe, restore_probe_statuses, detail, summaries, copy_for_upgrade, copy_selected, list, rows, short, _authorize_query, _warehouse_read, _execute_business, query, _wait_query, collect_report_weekly, _report_weekly_run_context, register_report_weekly_inputs, _query, cancel, close
+  - methods: __init__, _storage, authenticate, _latest_probes, admission_catalog, catalog, _record_execution_health, _latest_execution_health, _fetch_with_execution_health, connection_center, directory_fingerprint, asset_directory, _asset_directory, source_configuration_digest, catalog_capability, catalog_source, start_probe, _probe, _mark_probe_terminal, _prune_probes, probe, run_probe, restore_probe_statuses, detail, summaries, copy_for_upgrade, copy_selected, list, rows, short, _authorize_query, _can_plan_wind_gaps, _warehouse_read, _execute_business, query, _wait_query, collect_report_weekly, _report_weekly_run_context, register_report_weekly_inputs, _query, cancel, close
 
 Functions:
 - `_trim_sample_strings`
@@ -4579,6 +4580,7 @@ Functions:
 - `_asset`
 - `_day`
 - `_bounded_history_range`
+- `_bar_semantics`
 - `validate_supported_query`
   - Check local request bounds without opening an adapter or reading credentials.
 - `_schema_key`
