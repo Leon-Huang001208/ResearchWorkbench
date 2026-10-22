@@ -98,7 +98,8 @@
       "documents": [
         "docs/research-web-ui.md",
         "docs/research-web-appearance.md",
-        "docs/architecture/research-web/08-research-frameworks.md"
+        "docs/architecture/research-web/08-research-frameworks.md",
+        "docs/research-web-etf-weekly-production.md"
       ],
       "diagrams": [
         "01-deployment",
@@ -142,7 +143,8 @@
         "tests/javascript/research_web_aihot_reading.test.mjs",
         "tests/javascript/research_web_asset_chart.test.mjs",
         "tests/javascript/research_web_asset_workspace.test.mjs",
-        "tests/e2e/research_web_asset_workspace.mjs"
+        "tests/e2e/research_web_asset_workspace.mjs",
+        "tests/javascript/research_web_weekly_production.test.mjs"
       ]
     },
     {
@@ -171,7 +173,8 @@
         "docs/architecture/research-web/01-system.md",
         "docs/architecture/research-web/02-research-runtime.md",
         "docs/architecture/research-web/04-api.md",
-        "docs/architecture/research-web/05-security-validation.md"
+        "docs/architecture/research-web/05-security-validation.md",
+        "docs/research-web-etf-weekly-production.md"
       ],
       "diagrams": [
         "01-deployment",
@@ -233,7 +236,9 @@
       "documents": [
         "docs/architecture/research-web/03-data-files.md",
         "docs/architecture/research-web/09-integration-coordinator.md",
-        "docs/research-web-datahub.md"
+        "docs/research-web-datahub.md",
+        "docs/research-web-etf-weekly-production.md",
+        "docs/research-web-etf-weekly-data.md"
       ],
       "diagrams": [
         "02-module-dependencies",
@@ -254,7 +259,9 @@
         "tests/research_web/test_hot_snapshot_publication.py",
         "tests/research_web/test_datahub_wind.py",
         "tests/research_web/test_datahub_broker.py",
-        "tests/research_web/test_datahub_cjpy.py"
+        "tests/research_web/test_datahub_cjpy.py",
+        "tests/research_web/test_datahub_wind_api.py",
+        "tests/research_web/test_report_weekly_data.py"
       ]
     },
     {
@@ -337,7 +344,8 @@
         "app/research_web/research_web_numeric.py"
       ],
       "documents": [
-        "docs/architecture/research-web/03-data-files.md"
+        "docs/architecture/research-web/03-data-files.md",
+        "docs/research-web-etf-weekly-production.md"
       ],
       "diagrams": [
         "01-deployment",
@@ -369,7 +377,11 @@
         "tests/research_web/test_fingpt_evidence_contract.py",
         "tests/research_web/test_report_calculations.py",
         "tests/research_web/test_report_formats.py",
-        "tests/research_web/test_report_system_flow.py"
+        "tests/research_web/test_report_system_flow.py",
+        "tests/research_web/test_report_weekly_owner.py",
+        "tests/research_web/test_report_weekly_evidence.py",
+        "tests/research_web/test_report_weekly_quality.py",
+        "tests/research_web/test_report_weekly_rendering.py"
       ]
     },
     {
@@ -452,13 +464,18 @@
         "app/research_web/report_routes.py",
         "app/research_web/report_studio.py",
         "app/research_web/ui/report-workflows.mjs",
-        "app/research_web/report_documents.py"
+        "app/research_web/report_documents.py",
+        "app/research_web/ui/weekly-production.mjs"
       ],
       "documents": [
         "docs/research-web-ui.md",
         "docs/architecture/research-web/03-data-files.md",
         "docs/architecture/research-web/04-api.md",
-        "docs/architecture/research-web/07-capabilities.md"
+        "docs/architecture/research-web/07-capabilities.md",
+        "docs/research-web-etf-weekly-production.md",
+        "docs/research-web-etf-weekly-data.md",
+        "docs/architecture/research-web/05-security-validation.md",
+        "docs/research-web-installation.md"
       ],
       "diagrams": [
         "02-module-dependencies",
@@ -471,7 +488,14 @@
         "tests/research_web/test_report_workflows.py",
         "tests/research_web/test_report_rendering.py",
         "tests/research_web/test_report_workflow_integration.py",
-        "tests/javascript/research_web_report_workflow_v0.test.mjs"
+        "tests/javascript/research_web_report_workflow_v0.test.mjs",
+        "tests/research_web/test_report_weekly_owner.py",
+        "tests/research_web/test_report_weekly_evidence.py",
+        "tests/research_web/test_report_weekly_quality.py",
+        "tests/research_web/test_report_weekly_rendering.py",
+        "tests/javascript/research_web_weekly_production.test.mjs",
+        "tests/research_web/test_report_weekly_data.py",
+        "tests/research_web/test_datahub_wind_api.py"
       ]
     },
     {
@@ -785,7 +809,8 @@
         "docs/architecture/research-web/02-research-runtime.md",
         "docs/architecture/research-web/03-data-files.md",
         "docs/architecture/research-web/04-api.md",
-        "docs/architecture/research-web/05-security-validation.md"
+        "docs/architecture/research-web/05-security-validation.md",
+        "docs/research-web-etf-weekly-production.md"
       ],
       "tests": [
         "tests/research_web/test_multiuser_accounts.py",
@@ -1645,10 +1670,41 @@
             "download"
           ],
           "source": "app/research_web/ui/report-workflows.mjs"
+        },
+        {
+          "subjects": [
+            "excelTool",
+            "excelRefresh",
+            "excelResult",
+            "blockedData"
+          ],
+          "source": "app/research_web/datahub/providers_wind_api.py"
+        },
+        {
+          "subjects": [
+            "materialize",
+            "refreshManifest"
+          ],
+          "source": "app/research_web/report_workflows/weekly_data.py"
+        },
+        {
+          "subjects": [
+            "project",
+            "deliveryState",
+            "runEvidence"
+          ],
+          "source": "app/research_web/report_workflows/weekly_quality.py"
+        },
+        {
+          "subjects": [
+            "assembleFiles",
+            "reopen"
+          ],
+          "source": "app/research_web/report_documents.py"
         }
       ],
       "level": "flows",
-      "summary": "Excel 刷新、Claw 执行、迟到 payload 与真实交付。"
+      "summary": "旧版合同与华安新策略的取数、规范正文、原版式投影及独立定稿。"
     },
     {
       "id": "10-excel-report-dataflow",
@@ -1702,10 +1758,53 @@
             "deliver"
           ],
           "source": "app/research_web/report_rendering.py"
+        },
+        {
+          "subjects": [
+            "providerPolicy",
+            "applyPolicy"
+          ],
+          "source": "app/research_web/report_workflows/weekly_sources.py"
+        },
+        {
+          "subjects": [
+            "excel",
+            "recordRefresh"
+          ],
+          "source": "app/research_web/datahub/providers_wind_api.py"
+        },
+        {
+          "subjects": [
+            "extract",
+            "publishSnapshot"
+          ],
+          "source": "app/research_web/report_workflows/weekly_data.py"
+        },
+        {
+          "subjects": [
+            "refreshManifest",
+            "authorizeSnapshot"
+          ],
+          "source": "app/research_web/report_workflows/weekly_workbooks.py"
+        },
+        {
+          "subjects": [
+            "payload",
+            "authorPayload"
+          ],
+          "source": "app/research_web/report_workflows/weekly_quality.py"
+        },
+        {
+          "subjects": [
+            "assembler",
+            "projectPayload",
+            "deliver"
+          ],
+          "source": "app/research_web/report_documents.py"
         }
       ],
       "level": "flows",
-      "summary": "底稿副本、快照、payload 与确定性组装。"
+      "summary": "锁定资源、同源API逐组迁移、冻结事实、规范正文与正式产物绑定。"
     },
     {
       "id": "07-delivery-state",
@@ -3472,6 +3571,13 @@
       "path": "/api/research/report-workflows/{workflow_id}",
       "source": "app/research_web/report_workflow_routes.py",
       "declaredPath": "/report-workflows/{workflow_id}",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/report-workflows/{workflow_id}/weekly-production/prepare",
+      "source": "app/research_web/report_workflow_routes.py",
+      "declaredPath": "/report-workflows/{workflow_id}/weekly-production/prepare",
       "prefix": "/api/research"
     },
     {

@@ -1,5 +1,13 @@
 # Research Web DataHub
 
+## 华安ETF周报私有同源取数
+
+`DataHub.collect_report_weekly`仅供受信Report Run使用，不新增`datahub_*`公开工具或放宽通用Wind
+参数。沿原连接准入、单调用容量、配置复查、原始响应/哈希、会话快照与幂等回执，由封闭WindPy适配
+取得周报映射数据。SDK可导入不认证具体字段或许可；日历/经济日历未核实、数据过期或无真实同源
+对照时明确阻断，未经证明的组不静默切源。原通用Wind仍经Excel；这两条路径不能按品牌混称已验证。
+完整来源、交易期、工作簿投影与未验证项见[数据合同](research-web-etf-weekly-data.md)和[生产合同](research-web-etf-weekly-production.md)。
+
 ## 资产历史任务与固定复权
 
 2026-10-22 启动保全热修复限定Store持久化边界：旧磁盘缺失且仍为精确默认的历史jobs/keys和图表偏好只在内存提供；启动或Automation无关save不将其写入旧index，首次真实变化才落盘。原有键（含空值）及写入后恢复默认的键继续保留，原子替换失败不误记已持久化。DataHub Provider、raw/factors/canonical、业务API与严格保全门不变，不追加厂商调用或放宽来源权限；同候选Mac安装与真实恢复/部署另证，详见[文件合同](architecture/research-web/03-data-files.md#资产历史与图表偏好存储)。

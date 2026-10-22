@@ -1,5 +1,11 @@
 # Agent 任务路由指南
 
+华安ETF周报自动生产沿既有Report Workflow/私有DataHub/DSH/Host质量链，不调用旧AlphaFoundry执行器。
+先冻结真实底稿指标与同源API口径，再验证周五15:30、一交易日滞后、短周、海外收盘、未知受理和撤权。
+规范正文、中文presentation、原版式图表及最终归档须同版本绑定；旧稿与母版保留。原质量门不能由
+模型自评、子Agent数量或文件完整替代。离线回归、候选Mac安装CI、真实取数/成稿、逐页视觉、三个周周期、
+常驻部署及收尾分别留证；未完成保持NOT_RUN/BLOCKED。详见[周报合同](research-web-etf-weekly-production.md)。
+
 2026-10-22 v3真实切换触发索引保全拒绝时，先保留原24业务键/12账号对账和recovery_required/fenced状态，由root走既有受管精确恢复；不得改摘要、忽略键或编辑immutable controller放行。启动默认键问题在独立热修复worktree内改Store序列化并补test_store回归：旧盘缺失且精确默认三键仅在内存，首次真实变更才持久化，既有空键保留。沿原Router/评审/三CI及同候选Mac安装门，不增job/依赖；本机通过不能替代恢复终态、实际版本/账号保全或后续部署证据，未执行保持真实状态。
 
 2026-10-22 Wind工作区按隔离Web功能任务执行，新增test_asset_history并把原datahub/catalog/cjpy/broker四模块加入现有Checks；无新增job/runner/timeout/依赖。固定复权与历史/偏好API属于公开合同变化，完整Router、文档图文、独立评审及同候选Mac安装门保留。Provider/历史/空闲/JS检查点、有限真实预检和浏览器几何/全历史分别绑定证据；合并不推定常驻已部署，Windows/Linux产品只交接对应设备。详见[批准计划](plans/2026-10-22-wind-asset-workspace.md)与[预算](actions-budget.md)。

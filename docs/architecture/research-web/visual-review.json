@@ -88,31 +88,31 @@
     },
     {
       "id": "09-report-workflow-sequence",
-      "artifactSha256": "af6724121a415da77b7095f02181269812de2d4a17775dae8542fab27dc89427",
-      "specificationSha256": "a25b612acc8b2b6b1b4d09a716cc4f17b8b55d36164d7f4036397b3807fa378a",
+      "artifactSha256": "fc5fa765e700dcfc87e47d904d314a6583aa607939c26aeb218377600149cc25",
+      "specificationSha256": "3b84504567d310a781f8b994353e7dcbdc703698866289766df4c4ce0cc660b8",
       "status": "reviewed",
-      "reviewer": "controller",
-      "date": "2026-09-07",
+      "reviewer": "codex-docs-agent",
+      "date": "2026-10-22",
       "captures": [
         "09-report-workflow-sequence.visual-check.1440x900.dark.png",
         "09-report-workflow-sequence.visual-check.2048x1320.light.png"
       ],
       "findings": [],
-      "notes": "已人工查看 1440 浅色/深色与 2048 浅色最终截图；从版本锁定、Excel 刷新、共享快照、Claw 双子 Agent、payload 到确定性组装和交付检查的顺序完整可读，异常返回路径没有与成功路径混淆。"
+      "notes": "已实际查看本次同哈希1440深色及2048浅色截图；旧版与新合同、同源API/Excel、规范正文、Host投影及独立定稿语义分别可读，未见穿线、标签遮挡或裁剪。密集时序保留原缩放交互。自动visual-check仍为pending，本记录仅是该图截图复核，不认证产品UI、Word版式或业务成稿。"
     },
     {
       "id": "10-excel-report-dataflow",
-      "artifactSha256": "3ec5148d6b85b6bb849449d4a94f7aab36a2d8bf48db57d99f5f9b628be13d61",
-      "specificationSha256": "dfc2820bd15d395029977cff84d3990995da0ca33331e4cb6fecb73188f2b642",
+      "artifactSha256": "bd5d767f820e278eb168cba99294773af73be23ad126efd467d625c1b1415e49",
+      "specificationSha256": "9139c20c4e4db9a5a77a16239e5946f17bdefea1629fef8be5491b94a79577e4",
       "status": "reviewed",
-      "reviewer": "controller",
-      "date": "2026-09-07",
+      "reviewer": "codex-docs-agent",
+      "date": "2026-10-22",
       "captures": [
         "10-excel-report-dataflow.visual-check.1440x900.dark.png",
         "10-excel-report-dataflow.visual-check.2048x1320.light.png"
       ],
       "findings": [],
-      "notes": "已人工查看 1440 浅色/深色与 2048 浅色最终截图；Workflow 母版只读、Run 副本刷新、Provider 校验、快照复用及产物发布边界清楚，主路径平衡且无明显空带、遮挡、穿线或裁剪。"
+      "notes": "已实际查看本次同哈希1440深色及2048浅色截图；旧版与新合同、同源API/Excel、规范正文、Host投影及独立定稿语义分别可读，未见穿线、标签遮挡或裁剪。密集时序保留原缩放交互。自动visual-check仍为pending，本记录仅是该图截图复核，不认证产品UI、Word版式或业务成稿。"
     },
     {
       "id": "00-system-overview",

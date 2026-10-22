@@ -1,5 +1,10 @@
 # 统一集成协调器
 
+华安ETF周报的私有Wind Client API适配读取既有连接配置/允许状态并经Broker准入，不由集成协调器
+自动安装SDK、登录或探测真实厂商。通用Wind Provider仍保留原Excel合同；私有周报的依赖可导入、
+精确指标覆盖、跨市场日历、经济日历和同源对照分别取证，不从既有callable或Office诊断推导成功。
+来源配置身份变化使等价证据失效，未知输入保持数据阻断，见[周报数据合同](../../research-web-etf-weekly-data.md)。
+
 2026-10-22 天软在既有factor_macro目录内增加封闭adjustment_metadata/listing_date/adjustment_factors绑定，仍经原依赖/配置/授权/健康/适配检查；≤500日期、单沪深股票及精确定义hash不等于开放通用因子库或宏观服务。历史任务复用Broker、真实单Future容量与取消排空，账号缓存复用也重新核验配置授权；已有预检只证明两股票范围。协调器不增加厂商登录、探测、秘密入口或第二研究引擎，详见[固定复权合同](../../research-web-datahub.md#资产历史任务与固定复权)。
 
 资产观察按原观察身份显式刷新一个区块，仍经现有 DataHub Broker 和来源准入；页面、SVG 图表、202 受理或旧快照都不提升来源的配置/依赖/授权/健康状态。Wind 财务只转换等价 `indicators` / `metrics` 名称，保留最新一期或明确单期，非等价报表/多期失败关闭。该路径不新增探测、连接、供应商登录或宿主集成操作；新闻/公告只读 Golddata 阅读与 DataHub 快照分别标明来源。

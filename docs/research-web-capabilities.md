@@ -1,5 +1,9 @@
 # Research Web 能力包与版本
 
+华安ETF周报在既有报告Workflow详情准备未发布的`huaan-etf-weekly-v1`继任版本，沿原版本API发布；
+不新增执行引擎或公开原生Tool。主管理员身份、同源取数、原质量门、文件交付及正式定稿分别核验，
+当前版本真实手动定稿后才可启用周五15:30日程。旧历史不继承新认证，见[周报生产合同](research-web-etf-weekly-production.md)。
+
 2026-10-22 Wind历史工作区复用现有market_bars与factor_macro Tool ID；天软factor_macro只开放metadata/上市日/逐日因子三种封闭series，不新增Skill、Workflow、模型或Automation触发权限。Host历史job与账号图表偏好属于资产数据/UI状态，不是研究引擎。交接规范/raw/factors/metadata仍受会话和来源归属约束；估算筹码、厂商目录单位和有限预检不能提升为研究事实或质量通过。
 
 原AF连续指标工作区只迁入确定性浏览器公式、字段投影及本地固定图表资源，未增加Skill／Tool／Workflow或第二Agent引擎；不迁移AF委员会、数据库、协调器或其能力注册。财务／行业／股东／宏观缺数据时显示未知，估算筹码不能作为真实持仓或通过研究质量门。
