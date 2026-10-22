@@ -17,7 +17,12 @@ from research_workbench_entrypoint.resident import model_provider_upgrade as upg
 from research_workbench_entrypoint.resident.admission import MaintenanceBusy
 from research_workbench_entrypoint.resident.gateway_fence import BirthFence
 
-ASSET_PROFILES = (upgrade.ASSET_MODE, upgrade.ASSET_V2_MODE, upgrade.ASSET_V3_MODE)
+ASSET_PROFILES = (
+    upgrade.ASSET_MODE,
+    upgrade.ASSET_V2_MODE,
+    upgrade.ASSET_V3_MODE,
+    upgrade.ASSET_V4_MODE,
+)
 
 
 def test_wind_v3_profile_is_bound_to_the_actual_resident_and_reviewed_product():
@@ -26,6 +31,14 @@ def test_wind_v3_profile_is_bound_to_the_actual_resident_and_reviewed_product():
         == "5495e64c0be08c9db58e336705db90584f8ba8b5"
     )
     assert upgrade.ASSET_V3_PAYLOAD == "a0ff3ae2e2ab92bad10ba8547e45027687ec7cc1"
+
+
+def test_wind_v4_profile_has_preserved_resident_and_exact_hotfix_identity():
+    assert (
+        upgrade.previous_for("reviewed-asset-observation-v4")
+        == "5495e64c0be08c9db58e336705db90584f8ba8b5"
+    )
+    assert upgrade.ASSET_V4_PAYLOAD == "9b436613aad9136f4959c992c89dd72fc7354ed5"
 
 
 def test_asset_profile_has_fixed_previous_and_rejects_unknown_mode():
@@ -91,6 +104,7 @@ def test_asset_review_uses_real_git_and_frozen_product(tmp_path, monkeypatch, ba
         upgrade.ASSET_MODE: "ASSET",
         upgrade.ASSET_V2_MODE: "ASSET_V2",
         upgrade.ASSET_V3_MODE: "ASSET_V3",
+        upgrade.ASSET_V4_MODE: "ASSET_V4",
     }[profile]
     monkeypatch.setattr(upgrade, prefix + "_PREVIOUS", base)
     monkeypatch.setattr(upgrade, prefix + "_PAYLOAD", payload)
@@ -133,6 +147,52 @@ def test_asset_review_uses_real_git_and_frozen_product(tmp_path, monkeypatch, ba
     else:
         with pytest.raises(upgrade.UpdateBlocked):
             upgrade.review(tmp_path, target, profile)
+
+
+def test_v4_accepts_exact_store_hotfix_while_v3_keeps_its_frozen_product(tmp_path, monkeypatch):
+    def git(*args):
+        return subprocess.check_output(
+            ["/usr/bin/git", "-C", str(tmp_path), *args], text=True
+        ).strip()
+
+    git("init", "-b", "master")
+    git("config", "user.name", "Fixture")
+    git("config", "user.email", "fixture@example.invalid")
+    store_name = "app/research_web/store.py"
+    files = {
+        upgrade.MODULE: "operator",
+        upgrade.TEST: "tests",
+        upgrade.ASSET_EVIDENCE: "reviewed evidence",
+        store_name: "legacy Store",
+    }
+    for name, value in files.items():
+        path = tmp_path / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(value)
+    git("add", ".")
+    git("commit", "-m", "resident baseline")
+    previous = git("rev-parse", "HEAD")
+    (tmp_path / store_name).write_text("reviewed v3 Store")
+    git("commit", "-am", "v3 product")
+    v3_payload = git("rev-parse", "HEAD")
+    (tmp_path / store_name).write_text("reviewed startup-preserving Store")
+    git("commit", "-am", "v4 product")
+    v4_payload = git("rev-parse", "HEAD")
+    (tmp_path / upgrade.MODULE).write_text("reviewed v4 operator")
+    git("commit", "-am", "v4 operator")
+    target = git("rev-parse", "HEAD")
+    monkeypatch.setattr(upgrade, "ASSET_V3_PREVIOUS", previous)
+    monkeypatch.setattr(upgrade, "ASSET_V4_PREVIOUS", previous)
+    monkeypatch.setattr(upgrade, "ASSET_V3_PAYLOAD", v3_payload)
+    monkeypatch.setattr(upgrade, "ASSET_V4_PAYLOAD", v4_payload)
+    monkeypatch.setattr(
+        upgrade, "ASSET_EVIDENCE_SHA256", hashlib.sha256(b"reviewed evidence").hexdigest()
+    )
+    assert upgrade.review(tmp_path, target, upgrade.ASSET_V4_MODE)[store_name] == git(
+        "rev-parse", f"{v4_payload}:{store_name}"
+    )
+    with pytest.raises(upgrade.UpdateBlocked, match="asset_upgrade_payload_changed"):
+        upgrade.review(tmp_path, target, upgrade.ASSET_V3_MODE)
 
 
 @pytest.mark.parametrize(
@@ -297,6 +357,7 @@ def test_asset_snapshot_rejects_fifo_without_blocking(tmp_path):
         ("apply-assets", upgrade.ASSET_MODE),
         ("apply-assets-v2", upgrade.ASSET_V2_MODE),
         ("apply-assets-v3", upgrade.ASSET_V3_MODE),
+        ("apply-assets-v4", upgrade.ASSET_V4_MODE),
         ("recover", upgrade.MODE),
     ],
 )
@@ -323,6 +384,11 @@ def test_cli_selects_only_the_closed_profile(tmp_path, monkeypatch, command, pro
         (upgrade.ASSET_V3_MODE, upgrade.ASSET_PREVIOUS),
         (upgrade.ASSET_V3_MODE, upgrade.ASSET_V2_PREVIOUS),
         (upgrade.ASSET_V3_MODE, upgrade.ASSET_V3_PAYLOAD),
+        (upgrade.ASSET_V4_MODE, upgrade.PREVIOUS),
+        (upgrade.ASSET_V4_MODE, upgrade.ASSET_PREVIOUS),
+        (upgrade.ASSET_V4_MODE, upgrade.ASSET_V2_PREVIOUS),
+        (upgrade.ASSET_V4_MODE, upgrade.ASSET_V3_PAYLOAD),
+        (upgrade.ASSET_V4_MODE, upgrade.ASSET_V4_PAYLOAD),
     ],
 )
 def test_asset_journal_cannot_select_the_legacy_previous(profile, previous):
@@ -1257,6 +1323,7 @@ def test_validate_state_accepts_real_independent_release_clones(tmp_path, monkey
         upgrade.ASSET_MODE: "ASSET_PREVIOUS",
         upgrade.ASSET_V2_MODE: "ASSET_V2_PREVIOUS",
         upgrade.ASSET_V3_MODE: "ASSET_V3_PREVIOUS",
+        upgrade.ASSET_V4_MODE: "ASSET_V4_PREVIOUS",
     }[profile]
     monkeypatch.setattr(upgrade, previous_name, target)
     upgrade.g.private_root(home / "resident")
