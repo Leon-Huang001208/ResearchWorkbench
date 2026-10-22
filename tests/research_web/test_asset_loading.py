@@ -23,14 +23,29 @@ async def test_new_lazy_time_series_blocks_have_explicit_sixty_day_ranges(tmp_pa
         calls.append(request)
         return {"status": "empty", "row_count": 0}
 
-    workspace = AssetWorkspace(SimpleNamespace(store=store, datahub=SimpleNamespace(query=query), notify=lambda: None))
-    created = await workspace.create_observation(ObservationRequest(session_id=sid, asset="603986.SH", asset_type="stock", source="tinysoft", sections=["overview"], end_date=end_date), "create-range-fixture")
+    workspace = AssetWorkspace(
+        SimpleNamespace(store=store, datahub=SimpleNamespace(query=query), notify=lambda: None)
+    )
+    created = await workspace.create_observation(
+        ObservationRequest(
+            session_id=sid,
+            asset="603986.SH",
+            asset_type="stock",
+            source="tinysoft",
+            sections=["overview"],
+            end_date=end_date,
+        ),
+        "create-range-fixture",
+    )
     await asyncio.gather(*workspace.tasks.values())
     for block in ["activity", "margin", "events"]:
         await workspace.load_block(created["id"], block, BlockLoadRequest(), f"load-range-{block}")
         await asyncio.gather(*workspace.tasks.values())
         parameters = calls[-1].parameters
-        assert (date.fromisoformat(parameters["end_date"]) - date.fromisoformat(parameters["start_date"])).days == 59
+        assert (
+            date.fromisoformat(parameters["end_date"])
+            - date.fromisoformat(parameters["start_date"])
+        ).days == 59
         if end_date:
             assert parameters["start_date"] == "2026-08-23" and parameters["end_date"] == end_date
         actual = workspace.observation(created["id"])["blocks"][block]["requested_range"]
@@ -39,30 +54,63 @@ async def test_new_lazy_time_series_blocks_have_explicit_sixty_day_ranges(tmp_pa
 
 
 @pytest.mark.asyncio
-async def test_recorded_event_request_range_does_not_change_when_the_clock_moves(tmp_path, monkeypatch):
+async def test_recorded_event_request_range_does_not_change_when_the_clock_moves(
+    tmp_path, monkeypatch
+):
     import app.research_web.asset_workspace as module
 
-    store = Store(tmp_path); sid = store.create("fingpt", "captured range fixture")["id"]
+    store = Store(tmp_path)
+    sid = store.create("fingpt", "captured range fixture")["id"]
+
     async def query(*args):
         return {"status": "empty", "row_count": 0}
-    workspace = AssetWorkspace(SimpleNamespace(store=store, datahub=SimpleNamespace(query=query), notify=lambda: None))
-    created = await workspace.create_observation(ObservationRequest(session_id=sid, asset="603986.SH", asset_type="stock", sections=["events"]), "create-event-range")
+
+    workspace = AssetWorkspace(
+        SimpleNamespace(store=store, datahub=SimpleNamespace(query=query), notify=lambda: None)
+    )
+    created = await workspace.create_observation(
+        ObservationRequest(
+            session_id=sid, asset="603986.SH", asset_type="stock", sections=["events"]
+        ),
+        "create-event-range",
+    )
     await asyncio.gather(*workspace.tasks.values())
     before = workspace.observation(created["id"])["blocks"]["events"]["requested_range"]
-    monkeypatch.setattr(module, "_recent_range", lambda *args: {"start_date": "2025-01-01", "end_date": "2025-03-01"})
+    monkeypatch.setattr(
+        module,
+        "_recent_range",
+        lambda *args: {"start_date": "2025-01-01", "end_date": "2025-03-01"},
+    )
     assert workspace.observation(created["id"])["blocks"]["events"]["requested_range"] == before
     await workspace.close()
 
 
 @pytest.mark.asyncio
 async def test_vendor_failure_reason_is_not_hidden_behind_human_limitations(tmp_path):
-    store = Store(tmp_path); sid = store.create("fingpt", "failure reason fixture")["id"]
+    store = Store(tmp_path)
+    sid = store.create("fingpt", "failure reason fixture")["id"]
+
     async def query(*args):
-        return {"status": "failed", "row_count": 0, "limitations": ["公开聚合库，单位按来源。", "vendor_unreachable"]}
-    workspace = AssetWorkspace(SimpleNamespace(store=store, datahub=SimpleNamespace(query=query), notify=lambda: None))
-    created = await workspace.create_observation(ObservationRequest(session_id=sid, asset="603986.SH", asset_type="stock", sections=["overview"]), "create-failure-reason")
+        return {
+            "status": "failed",
+            "row_count": 0,
+            "limitations": ["公开聚合库，单位按来源。", "vendor_unreachable"],
+        }
+
+    workspace = AssetWorkspace(
+        SimpleNamespace(store=store, datahub=SimpleNamespace(query=query), notify=lambda: None)
+    )
+    created = await workspace.create_observation(
+        ObservationRequest(
+            session_id=sid, asset="603986.SH", asset_type="stock", sections=["overview"]
+        ),
+        "create-failure-reason",
+    )
     await asyncio.gather(*workspace.tasks.values())
-    assert workspace.observation(created["id"])["blocks"]["overview"]["failure_code"] == "vendor_unreachable"
+    assert (
+        workspace.observation(created["id"])["blocks"]["overview"]["failure_code"]
+        == "vendor_unreachable"
+    )
     await workspace.close()
 
 
