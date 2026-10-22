@@ -66,3 +66,7 @@ Windows/Linux原生和Docker实机保持NOT_RUN交接，不能由Mac或Ubuntu通
 继续集成基线：`08aacb6d1723961a2846727627d569fd97a481f2`，保留主线Wind v3固定部署profile，README回执按两者合并。最终源码与验收脚本检查点为上述d130a294；架构阅读器链接更新至该不可变提交，不自指文档提交。后续固定路径、范围、菜单及竞态修复不改变图13的数据流拓扑。
 
 主线再次前进至 `9b436613aad9136f4959c992c89dd72fc7354ed5`（PR180 Store启动默认键保全），已原位合入且保留全部主线代码；市场与验收脚本字节保持。最新合并源码检查点 `fda1e0da3031fe4c882adc0cfbd718b7863de907` 独立Python复核通过，集成API／资产／市场／Store／历史344 PASS（292.64秒，同一既有弃用警告）、协议81 PASS、Web基础JS1019 PASS／2既有SKIP。该真实启动链再跑原15项与七图，15 PASS／0 FAIL（72.667秒），证据 `logs/market-authenticated/2026-10-22T06-13-04.014Z/result.json`，SHA-256 `88e5fae7a607297888bf5798ae71c84c28485762dad305c92522d89770e76a70`。全池／12分时／27成员／列控制／主题／七图／零会话／双账号与保全均通过，实际自动刷新30.264秒；本轮资金前五组合日线缺口、概念10日成功，继续标间歇可用。最后架构链接固定至fda1e0da，文档检查点与上述代码测试按不变Git blob映射，CI必须绑定最新文档候选，不沿用旧a7abc候选结果。
+
+fe7b573b候选三门实际通过：Constraints39734503485、Checks39734503410的真实preview为e3550dff，父提交为9b436／fe7；Mac39734601549真实checkout为fe7，三者tree均957655968934dcee0f60c19c8a1947f52f176674。Mac安装、固定DSH、3081／8088和Doctor通过，model_ready=false。合并前fresh检查又发现PR181推进主线至 `4d2e3c408663b64be9e58b03213f4ca8f1152733`，故未沿用这些旧CI直接合并。
+
+原位合入该部署CLI v4后源码检查点为 `b24b944454edee97eb3b9a24b44dac51b73ab172`；唯一冲突为README回执，已保留市场与v4说明。整个app/research_web、app/cli、runtimes、requirements、全JS和指定API／资产／Store／历史／协议／认证测试与已实测fda字节相同，按显式Git范围与九项SHA核验复用，不将旧日志改写为新SHA运行。独立Python评审确认v4为显式封闭部署CLI，Web／认证不导入调用；新增部署合同485 PASS（57.48秒），本任务没有执行部署。最后阅读器源码链接固定至b24，Router文档／JS／完整changed-set及三项CI仍在新文档候选重跑，旧fe7证据单独保留。
