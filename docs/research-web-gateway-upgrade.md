@@ -2,6 +2,23 @@
 
 ## 资产观察固定版本联合部署
 
+### Wind工作区 v3（2026-10-22）
+
+Wind工作区产品PR177已合并后，以新的封闭profile `reviewed-asset-observation-v3` 单独交付部署工具，入口为 `model_provider_upgrade apply-assets-v3`。旧主实例和网关精确固定为 `5495e64c0be08c9db58e336705db90584f8ba8b5`，产品精确固定为 `a0ff3ae2e2ab92bad10ba8547e45027687ec7cc1`；不得用任意前版、目标SHA或祖先替代该产品身份。最终工具候选仍须最新合并基线、独立评审及原三项CI合格；产品原验收不替代本profile工具的候选验收。
+
+```bash
+/absolute/primary/.venv/bin/python -m research_workbench_entrypoint.resident.model_provider_upgrade apply-assets-v3 \
+  --home /absolute/private-home --source /absolute/qualified-clean-checkout
+```
+
+产品范围以固定payload为真源，逐项比较产品/工具目标的完整差异路径并集、Git blob及模式；除本操作员、测试和文档外，不接受新的产品、依赖、workflow、图表HTML/PNG或其他生成物。保持原证据读取器和不可变控制器字节，不扩大任意部署能力或自动兼容白名单。干净checkout、实际模块/`--source`一致、生产venv、源码common directory及两发布角色仓库身份仍按原合同核验。
+
+本轮用户已明确授权常驻部署；只有主任务完成v3最终验收后，才由root持原锁复核研究、日程、私有池、观察、DataHub、历史任务及真实CJPY Future全部明确空闲，冻结主实例和全部账号业务索引，再执行原v4事务及内容寻址恢复。queued/running/cancelling/draining、未知状态或无法证明的witness继续阻止切换；不以HTTP取消代替真实Future结束。该文档任务不执行apply、厂商查询或秘密操作。
+
+`recover` 必须按已验证journal的封闭mode恢复v3固定旧版5495；旧v2仅回9bc12355、旧v1仅回c68814db，模型profile与历史恢复包保持原字节/语义。v3不新增journal版本、部署节点、数据库迁移、HTTP API或产品数据流，现有图与API Atlas无需重画。实际部署前常驻仍为5495；切换后须另核真实主实例/网关版本、全部账号数据保全和认证浏览器页面，不以产品CI或工具预览代替成功回执。
+
+### 既有资产观察 v2 与 v1 合同
+
 新版资产页使用独立的封闭 profile `reviewed-asset-observation-v2`，入口为 `model_provider_upgrade apply-assets-v2`：旧主实例与网关必须同为 `9bc12355c3b80e4e4459f4c250e13fc2634ed23d`，产品精确绑定已合并 PR175 的 `93d62be64084a5c92541a4a008216c0b3f56c2f1`。该产品包含完整指标区、交易／估值摘要、默认折叠的来源表及透明主题图表。最终工具目标仍须为最新已合并、独立评审且原三项 CI 合格的源码版本；产品祖先、完整差异路径并集、Git blob 和文件模式逐项核验，回退后从差异中消失或被删除的产品路径也不能漏检。除操作员自身、文档和测试外，额外产品、依赖或工作流变化继续拒绝。
 
 ```bash

@@ -1,5 +1,7 @@
 # 研究协议、执行状态与恢复
 
+2026-10-22 Wind部署profile v3复用原v4前进/恢复状态机，journal中的封闭mode只选择固定旧版5495，旧v1/v2恢复不变。原DSH、历史任务、取消排空、真实CJPY Future及研究质量协议均不修改；root切换前仍须持锁证明研究/日程/私有池/观察/DataHub/历史全部明确空闲。产品验收不替代profile候选CI与实际版本/保全，未知状态继续阻止；没有新运行状态或执行拓扑，因此不重画当前图。
+
 2026-10-22 历史任务属于Host数据工作，不创建DSH研究回合或Automation日程。queued/running/cancelling/draining为活动，completed/failed/cancelled/interrupted为终态；服务关闭/会话取消联动子DataHub call_id并等真实Future结束，无owner恢复为interrupted且不自动重试。固定复权规范/raw/因子/metadata通过原会话快照交给唯一DSH，旧冻结研究材料继续只读。resident活动同时反映任务与真实Future，异常witness为未知；操作员要求全部明确空闲，不能仅凭HTTP取消或浏览器关闭切换。[历史合同](../../research-web-datahub.md#资产历史任务与固定复权)不放宽DSH执行、质量门、模型及厂商授权。
 
 资产观察 `apply-assets-v2` 复用原 v4 前进／恢复状态机；已验证 journal 的 v2 mode 固定恢复 `9bc12355`，v1 和模型 mode 保留原旧版。两资产 mode 均要求观察和 DataHub 明确终态，活动／未知延后；DSH 协议、研究历史、质量门、取消语义及原恢复拓扑不改变，不调用模型或供应商。

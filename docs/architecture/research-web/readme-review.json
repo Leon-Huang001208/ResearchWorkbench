@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "disposition": "updated",
-  "summary": "Wind工作区、持久历史任务及账号指标偏好同步根入口",
-  "reason": "根README同步平面资产工作区、近期/更早/全部历史、三复权及动态副图；实际API和持久化新增，模块图/数据流图及Atlas相应更新。唯一DSH、旧观察和研究冻结材料继续保留，有限预检不替代同候选浏览器/CI/全历史与部署验收。"
+  "summary": "Wind工作区v3固定版本部署合同同步根入口",
+  "reason": "根README同步独立reviewed-asset-observation-v3与apply-assets-v3，固定旧5495和产品a0ff3ae2，保留旧v1/v2、controller/evidence及原v4事务。产品已验收与v3工具候选CI、实际切换和全账号保全分开，本轮已授权root验收后持锁部署；不改产品、HTTP或拓扑，不重画图或改生成HTML/PNG。"
 }
