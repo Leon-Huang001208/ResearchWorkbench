@@ -1,5 +1,7 @@
 # 安全边界与验证方法
 
+2026-10-22 全市场常驻部署使用封闭 `reviewed-market-overview-v1` / `apply-market`：旧版固定 `4d2e3c408663b64be9e58b03213f4ca8f1152733`，产品固定已合并 PR179 `5de7e5f2db95b8b501905af9cfdc30e8fe84db0b`。复用原 version4 事务、空闲准入、BirthFence、全部账号索引冻结和内容寻址恢复；旧 profile、控制器、证据读取器及自动兼容白名单保持。操作员候选须独立评审及原三项 CI／同候选 Mac 安装通过，再按用户授权切换并在真实认证页面验收。 无新服务、HTTP、持久格式或依赖；现有图及 API Atlas 准确，不重画 HTML/PNG。Windows/Linux 原生与 Docker 产品层保持各自未执行状态。
+
 2026-10-22 v4精确固定旧5495与PR180真实merge产品`9b436613aad9136f4959c992c89dd72fc7354ed5`，候选654fa6/preview2e069只作历史tree证据。完整路径并集/blob/模式/祖先、干净源码及角色仓库身份、原锁/真实空闲/全账号索引保全、controller/evidence字节和旧v1/v2/v3恢复全部保持；不开放任意SHA或新依赖/workflow/产品差异。旧v3恢复和产品三CI不代表v4最终资格或已部署，无新权限/协议/拓扑，不改生成图。
 
 2026-10-22 Wind部署v3只接受精确previous5495/PAYLOADa0ff3ae2，完整路径并集/blob/模式/祖先与干净源码身份仍强制；未知产品、依赖、workflow、图表HTML/PNG差异拒绝。controller/evidence字节、自动白名单及旧v1/v2恢复不变，不开放任意SHA部署。本轮已获常驻部署授权，执行仍限定root在候选CI/评审后持原锁证明任务/真实Future全部空闲并冻结全账号索引；不接收或迁移秘密，不修改认证和数据隔离。原安全/部署拓扑无需重画。

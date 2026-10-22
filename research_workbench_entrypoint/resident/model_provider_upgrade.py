@@ -56,7 +56,14 @@ ASSET_V3_PAYLOAD = "a0ff3ae2e2ab92bad10ba8547e45027687ec7cc1"
 ASSET_V4_MODE = "reviewed-asset-observation-v4"
 ASSET_V4_PREVIOUS = "5495e64c0be08c9db58e336705db90584f8ba8b5"
 ASSET_V4_PAYLOAD = "9b436613aad9136f4959c992c89dd72fc7354ed5"
-ASSET_MODES = frozenset((ASSET_MODE, ASSET_V2_MODE, ASSET_V3_MODE, ASSET_V4_MODE))
+# PR179's merged market product, starting at the completed v4 resident deployment.
+MARKET_MODE = "reviewed-market-overview-v1"
+MARKET_PREVIOUS = "4d2e3c408663b64be9e58b03213f4ca8f1152733"
+MARKET_PAYLOAD = "5de7e5f2db95b8b501905af9cfdc30e8fe84db0b"
+MARKET_GATEWAY = "research_workbench_entrypoint/resident/gateway_upgrade.py"
+MARKET_GATEWAY_SHA256 = "a5ebfaee0211403fd12083c61b6eafd6a4e08915af1c3c9c95b34fb4bed7c166"
+# Historical family name: all these profiles require full business-index preservation.
+ASSET_MODES = frozenset((ASSET_MODE, ASSET_V2_MODE, ASSET_V3_MODE, ASSET_V4_MODE, MARKET_MODE))
 ASSET_EVIDENCE = "research_workbench_entrypoint/resident/evidence.py"
 ASSET_EVIDENCE_SHA256 = "ec022e39a89a3dbd021fca26049342ce149077f5beb62a8df2aba7826d016d25"
 MAX_ASSET_INDEX_BYTES = 64 * 1024 * 1024
@@ -133,6 +140,8 @@ def previous_for(mode):
         return ASSET_V3_PREVIOUS
     if mode == ASSET_V4_MODE:
         return ASSET_V4_PREVIOUS
+    if mode == MARKET_MODE:
+        return MARKET_PREVIOUS
     raise UpdateBlocked("model_upgrade_profile_unknown")
 
 
@@ -168,27 +177,39 @@ def asset_queries_idle(index):
     )
 
 
+def read_business_index(path: Path):
+    """Read bounded business data without relaxing deployment metadata limits."""
+    try:
+        if path.resolve() != path.absolute():
+            raise ValueError("index_path_unsafe")
+        descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+        with os.fdopen(descriptor, "rb") as stream:
+            info = os.fstat(stream.fileno())
+            if not stat.S_ISREG(info.st_mode) or info.st_size > MAX_ASSET_INDEX_BYTES:
+                raise ValueError("index_file_invalid")
+            raw = stream.read(MAX_ASSET_INDEX_BYTES + 1)
+        if len(raw) > MAX_ASSET_INDEX_BYTES:
+            raise ValueError("index_size_invalid")
+        index = json.loads(raw)
+        if not isinstance(index, dict):
+            raise TypeError("index_object_required")
+    except (OSError, ValueError, TypeError) as exc:
+        log.error("asset_upgrade_index_read_failed", extra={"error_type": type(exc).__name__})
+        raise UpdateBlocked("asset_upgrade_index_invalid") from exc
+    return index
+
+
+def verify_primary(home, expected, mode):
+    if mode == MARKET_MODE:
+        return g.verify_primary(home, expected, index_reader=read_business_index)
+    return g.verify_primary(home, expected)
+
+
 def asset_index_snapshot(home: Path):
     """Hash every business-index value, preserving scope and missing/empty distinctions."""
 
     def snapshot(path):
-        try:
-            if path.resolve() != path.absolute():
-                raise ValueError("index_path_unsafe")
-            descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
-            with os.fdopen(descriptor, "rb") as stream:
-                info = os.fstat(stream.fileno())
-                if not stat.S_ISREG(info.st_mode) or info.st_size > MAX_ASSET_INDEX_BYTES:
-                    raise ValueError("index_file_invalid")
-                raw = stream.read(MAX_ASSET_INDEX_BYTES + 1)
-            if len(raw) > MAX_ASSET_INDEX_BYTES:
-                raise ValueError("index_size_invalid")
-            index = json.loads(raw)
-            if not isinstance(index, dict):
-                raise TypeError("index_object_required")
-        except (OSError, ValueError, TypeError) as exc:
-            log.error("asset_upgrade_index_read_failed", extra={"error_type": type(exc).__name__})
-            raise UpdateBlocked("asset_upgrade_index_invalid") from exc
+        index = read_business_index(path)
         return {
             key: hashlib.sha256(
                 json.dumps(
@@ -247,10 +268,13 @@ def review_assets(source: Path, target: str, mode=ASSET_MODE):
         ASSET_V2_MODE: ASSET_V2_PAYLOAD,
         ASSET_V3_MODE: ASSET_V3_PAYLOAD,
         ASSET_V4_MODE: ASSET_V4_PAYLOAD,
+        MARKET_MODE: MARKET_PAYLOAD,
     }[mode]
     c.clean(source, target)
     c.git(source, "merge-base", "--is-ancestor", payload, target)
     paths = {MODULE, TEST, ASSET_EVIDENCE}
+    if mode == MARKET_MODE:
+        paths.add(MARKET_GATEWAY)
     for revision in (payload, target):
         paths.update(
             c.git(source, "diff", "--no-renames", "--name-only", previous, revision).splitlines()
@@ -268,6 +292,13 @@ def review_assets(source: Path, target: str, mode=ASSET_MODE):
                 != ASSET_EVIDENCE_SHA256
             ):
                 raise UpdateBlocked("asset_upgrade_evidence_changed")
+        elif mode == MARKET_MODE and name == MARKET_GATEWAY:
+            if (
+                actual_mode != "100644"
+                or hashlib.sha256(g.git_bytes(source, target, "gateway_upgrade.py")).hexdigest()
+                != MARKET_GATEWAY_SHA256
+            ):
+                raise UpdateBlocked("market_upgrade_gateway_changed")
         elif name.startswith(("docs/", "tests/", ".ai/reports/")) or name in {
             MODULE,
             "README.md",
@@ -370,7 +401,7 @@ def model_metadata(config):
 
 
 def verify_retention(home):
-    index = read_json(home / "research-web/index.json")
+    index = read_business_index(home / "research-web/index.json")
     sessions = index.get("sessions")
     if not isinstance(sessions, dict):
         raise UpdateBlocked("model_upgrade_session_state_unknown")
@@ -787,7 +818,7 @@ class Operations:
                 not in (previous_for(self.state.get("mode", MODE)), self.state["target"])
             ):
                 return False
-        index = read_json(self.home / "research-web/index.json")
+        index = read_business_index(self.home / "research-web/index.json")
         if self.state.get("mode") in ASSET_MODES and not asset_queries_idle(index):
             log.info("asset_upgrade_queries_active_or_unknown")
             return False
@@ -915,7 +946,7 @@ class Operations:
 
     def verify(self, previous):
         sha = previous_for(self.state.get("mode", MODE)) if previous else self.state["target"]
-        g.verify_primary(self.home, sha)
+        verify_primary(self.home, sha, self.state.get("mode", MODE))
         g.health(read_json(self.server / "resident.json"), fenced=True)
         remote = request_json(self.state["config"]["private_origin"] + "/api/server/health")
         if remote.get("revision") != sha or remote.get("deployment_fenced") is not True:
@@ -1070,7 +1101,7 @@ def operate(home, source=None, *, recovering=False, mode=MODE):
                 or read_json(root / "accepted.json").get("target") != previous
             ):
                 raise UpdateBlocked("model_upgrade_previous_changed")
-            g.verify_primary(home, previous)
+            verify_primary(home, previous, state["mode"] if recovering else mode)
             g.no_private_processes(server)
             directory = root / "artifacts" / target
             g.private_root(directory)
@@ -1165,7 +1196,7 @@ def operate(home, source=None, *, recovering=False, mode=MODE):
         elif state["phase"] == "preparing":
             # No service/source effect is possible before checkpoint prepared.
             validate_configuration(home, state)
-            g.verify_primary(home, previous)
+            verify_primary(home, previous, state["mode"] if recovering else mode)
             g.preserved(home, state["before"])
             verify_asset_index(home, state)
             journal.unlink()
@@ -1196,6 +1227,7 @@ def main(argv=None):
             "apply-assets-v2",
             "apply-assets-v3",
             "apply-assets-v4",
+            "apply-market",
             "recover",
         ),
     )
@@ -1213,6 +1245,7 @@ def main(argv=None):
                 "apply-assets-v2": ASSET_V2_MODE,
                 "apply-assets-v3": ASSET_V3_MODE,
                 "apply-assets-v4": ASSET_V4_MODE,
+                "apply-market": MARKET_MODE,
             }.get(args.command, MODE),
         )
         print(json.dumps(result))

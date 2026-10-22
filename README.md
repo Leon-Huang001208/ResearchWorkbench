@@ -1,5 +1,7 @@
 # Research Workbench
 
+常驻全市场更新通过[固定版本部署事务](docs/research-web-gateway-upgrade.md#全市场概览固定版本部署)保全原会话、数据与模型配置，切换后另验真实认证页面。
+
 全市场概览提供沪深北A股总览、完整行情表、行业／概念及资金排行；使用东财当前官网股票池，显示实际来源、时间、待上市及覆盖缺口，行情浏览不创建研究会话。详见[市场页面](docs/research-web-ui.md#全市场概览)与[数据合同](docs/research-web-datahub.md#无会话全市场数据)。
 
 华安 ETF 周报可在原 Workflow 内显式准备自动生产版本，沿用 DataHub、DSH 和 Host 质量门；数据、文件、质量与正式定稿分别显示。日程为周五北京时间15:30开始，须先完成当前版本真实手动定稿才能启用。Wind API逐组校准、真实成稿与版式、三个周周期仍须实证，缺依赖或来源合同继续阻断。详见[周报生产合同](docs/research-web-etf-weekly-production.md)。
