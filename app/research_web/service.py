@@ -2156,7 +2156,7 @@ class ResearchService(ModelProfilesMixin):
         if not refs:
             return  # Non-AI product queries retain their existing DataHub authorization.
         records = self._effective_records(refs)
-        catalog = self.datahub.catalog()
+        catalog = self.datahub.admission_catalog()
         for ref in refs:
             scope = self.capabilities.data_readiness(ref["id"], catalog)
             if not scope["admitted"]:

@@ -3865,7 +3865,7 @@ Imports:
 
 Classes:
 - `DataHub`
-  - methods: __init__, _storage, authenticate, _latest_probes, catalog, _record_execution_health, _latest_execution_health, _fetch_with_execution_health, connection_center, source_configuration_digest, catalog_capability, catalog_source, start_probe, _probe, _mark_probe_terminal, _prune_probes, probe, run_probe, restore_probe_statuses, detail, summaries, copy_for_upgrade, copy_selected, list, rows, short, _authorize_query, _warehouse_read, _execute_business, query, _wait_query, collect_report_weekly, _report_weekly_run_context, register_report_weekly_inputs, _query, cancel, close
+  - methods: __init__, _storage, authenticate, _latest_probes, admission_catalog, catalog, _record_execution_health, _latest_execution_health, _fetch_with_execution_health, connection_center, source_configuration_digest, catalog_capability, catalog_source, start_probe, _probe, _mark_probe_terminal, _prune_probes, probe, run_probe, restore_probe_statuses, detail, summaries, copy_for_upgrade, copy_selected, list, rows, short, _authorize_query, _warehouse_read, _execute_business, query, _wait_query, collect_report_weekly, _report_weekly_run_context, register_report_weekly_inputs, _query, cancel, close
 
 Functions:
 - `_trim_sample_strings`

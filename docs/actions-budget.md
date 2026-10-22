@@ -1,5 +1,7 @@
 # GitHub Actions 免费额度治理
 
+研究仓整合发布前复查仍为PUBLIC/private=false。最近五个成功run39773521066/39770017740/39770017733/39770017811/39769201813创建至结束67/69/632/868/69秒，均值341秒；原已授权psycopg/BaoStock锁安装仍走既有Mac Bootstrap，无新job/runner/平台dispatch。整合专项582例本机53.53秒含真实临时PG；CI不启用真实厂商或PG门，不把条件跳过当真实库通过。新数值/健康/诊断/修订测试沿同一步骤，额外有界预算预留60秒，仍使用现有30分钟Checks上限。私有周报与市场链路旧门全部保留。
+
 PR183华安周报首轮head8e55a9d16：Constraints39753565870通过；Mac Bootstrap39753565874通过（job543秒，含排队run1147秒）；Checks39753565971在job647秒失败，原因为旧测试的宿主/系统钥匙串假设与缺失市场见证。修补仅三份测试，保留生产拒绝边界；本机报告84例、resident53例及受控headless集成24例通过。继续同PR正常修补发布并重新绑定同候选原三门，不手工rerun、不增加job/runner/timeout/依赖，不从Mac触发Windows/Linux产品dispatch。当前只读API仍PUBLIC；先前Mac通过仅认证旧候选，真实Wind/模型/成稿及试点运营保持独立未验状态。
 
 研究仓/DataHub基座扩展既有Checks定点测试，无新workflow/job/runner/timeout或真实模型调用。2026-10-22只读API确认PUBLIC/private=false；最近5个成功run39748915262/39748915221/39748915311/39747463670/39747463537创建至结束72/572/554/63/494秒，平均351秒。新增离线回归本机核心253例12.13秒，预留现有步骤30秒；真实临时PG仅本机显式开启，CI缺PG保留条件跳过，不冒充真实数据库验收。psycopg与BaoStock依赖已单独授权隔离安装，Mac Bootstrap继续验证干净锁安装及原健康/Doctor；不触发Windows/Linux产品dispatch。

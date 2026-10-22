@@ -38,6 +38,75 @@ class QueryPolicyTests(unittest.TestCase):
 
 
 class ExecutionTests(unittest.IsolatedAsyncioTestCase):
+    async def test_repeated_close_cancellation_waits_before_draining_other_owners(self):
+        from types import SimpleNamespace
+
+        from app.research_web.datahub import DataHub
+        from app.research_web.store import Store
+
+        entered, release = asyncio.Event(), asyncio.Event()
+        calls = []
+
+        async def sdk(_sources):
+            entered.set()
+            await release.wait()
+
+        async def wind():
+            calls.append("wind_api")
+
+        async def storage():
+            calls.append("storage")
+
+        with tempfile.TemporaryDirectory() as root:
+            hub = DataHub(Store(Path(root)))
+            hub.storage_runner = SimpleNamespace(close=storage)
+            with (
+                patch("app.research_web.datahub.worker_activity.drain_sources", sdk),
+                patch("app.research_web.datahub.providers_wind_api.wait_for_idle", wind),
+            ):
+                closing = asyncio.create_task(hub.close())
+                await entered.wait()
+                for _ in range(2):
+                    closing.cancel()
+                    await asyncio.sleep(0)
+                self.assertFalse(closing.done())
+                self.assertEqual(calls, [])
+                release.set()
+                with self.assertRaises(asyncio.CancelledError):
+                    await closing
+            self.assertEqual(calls, ["wind_api", "storage"])
+
+    async def test_close_drains_independent_resources_even_when_sdk_witness_fails(self):
+        from types import SimpleNamespace
+
+        from app.research_web.datahub import DataHub
+        from app.research_web.store import Store
+
+        calls = []
+
+        async def sdk(sources):
+            calls.append(("sdk", tuple(sources)))
+            raise ProviderError("provider_cleanup_unconfirmed")
+
+        async def wind():
+            calls.append(("wind_api",))
+
+        async def storage():
+            calls.append(("storage",))
+
+        with tempfile.TemporaryDirectory() as root:
+            hub = DataHub(Store(Path(root)))
+            hub.storage_runner = SimpleNamespace(close=storage)
+            with (
+                patch("app.research_web.datahub.worker_activity.drain_sources", sdk),
+                patch("app.research_web.datahub.providers_wind_api.wait_for_idle", wind),
+                self.assertRaisesRegex(ProviderError, "provider_cleanup_unconfirmed"),
+            ):
+                await hub.close()
+            self.assertEqual(len([call for call in calls if call[0] == "sdk"]), 4)
+            self.assertIn(("wind_api",), calls)
+            self.assertIn(("storage",), calls)
+
     async def test_deadline_drains_storage_without_turning_into_user_cancel(self):
         import time
 

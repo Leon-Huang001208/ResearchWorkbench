@@ -143,10 +143,14 @@ class DataHub:
                 latest[probe["source_id"]] = probe
         return latest
 
-    def catalog(self):
-        result = build_catalog(
+    def admission_catalog(self):
+        """Current authority facts without the execution projection being authorized."""
+        return build_catalog(
             probes=self._latest_probes(), connection_statuses=self.connections.statuses()
         )
+
+    def catalog(self):
+        result = self.admission_catalog()
         result["runtime_health"] = self.runtime_health.snapshot()
         execution = self._latest_execution_health()
         for source in result["sources"]:
@@ -1494,17 +1498,38 @@ class DataHub:
 
     async def close(self):
         self.closed = True
+        failures: list[BaseException] = []
+
+        async def finish_owned(awaitable):
+            pending = asyncio.ensure_future(awaitable)
+            while not pending.done():
+                try:
+                    await asyncio.shield(pending)
+                except asyncio.CancelledError as exc:
+                    if not pending.cancelled():
+                        failures.append(exc)
+                except Exception:  # noqa: BLE001 - inspect original outcome below.
+                    break  # Inspect the original outcome below, then drain other resources.
+            try:
+                pending.result()
+            except (Exception, asyncio.CancelledError) as exc:  # noqa: BLE001
+                failures.append(exc)
+                log.warning("datahub_close_drain_failed", error_type=type(exc).__name__)
+
         tasks = [*self.tasks.values(), *self.probe_tasks.values()]
         for task in tasks:
             task.cancel()
         if tasks:
-            await asyncio.gather(*tasks, return_exceptions=True)
+            await finish_owned(asyncio.gather(*tasks, return_exceptions=True))
         from .providers_wind_api import wait_for_idle
         from .worker_activity import SOURCES, drain_sources
 
-        await drain_sources(SOURCES)
-        await wait_for_idle()
+        for source in sorted(SOURCES):
+            await finish_owned(drain_sources(frozenset({source})))
+        await finish_owned(wait_for_idle())
         if self.storage_runner is not None:
-            await self.storage_runner.close()
+            await finish_owned(self.storage_runner.close())
         self.tasks.clear()
         self.probe_tasks.clear()
+        if failures:
+            raise failures[0]

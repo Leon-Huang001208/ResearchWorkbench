@@ -427,24 +427,33 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
                     for row in research.store.data.get("automation_runs", {}).values()
                 )
             )
-            try:
-                from .datahub.providers_wind_api import activity_witness
-                from .datahub.worker_activity import active_futures
 
+            def history_activity():
                 history_jobs = research.store.data.get("asset_history_jobs", {})
-                history_active = not isinstance(history_jobs, dict) or any(
+                return not isinstance(history_jobs, dict) or any(
                     not isinstance(row, dict)
                     or ("state" in row and "status" in row and row["state"] != row["status"])
                     or row.get("state", row.get("status"))
                     not in {"completed", "failed", "cancelled", "interrupted"}
                     for row in history_jobs.values()
                 )
-                wind_api = activity_witness()
-                if not isinstance(wind_api, dict) or type(wind_api.get("active")) is not bool:
-                    raise ValueError("wind_api_activity_unknown")
-                market = research.market.activity_witness()
-                if not isinstance(market, dict) or type(market.get("active")) is not bool:
-                    raise ValueError("market_activity_unknown")
+
+            def witness_flag(value):
+                if not isinstance(value, dict) or type(value.get("active")) is not bool:
+                    raise ValueError("activity_witness_unknown")
+                return value["active"]
+
+            def sdk_activity():
+                from .datahub.worker_activity import active_futures
+
+                return bool(active_futures())
+
+            def wind_api_activity():
+                from .datahub.providers_wind_api import activity_witness
+
+                return witness_flag(activity_witness())
+
+            def report_activity():
                 report_manager = getattr(research, "report_workflows", None)
                 report_runtime = getattr(report_manager, "runtime", None)
                 report_catalog = getattr(report_manager, "catalog", None)
@@ -458,27 +467,43 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
                     "quality_incomplete",
                     "skipped_overlap",
                 }
-                report_active = not isinstance(report_runs, dict) or any(
-                    not isinstance(row, dict) or row.get("status") not in terminal_reports
-                    for row in report_runs.values()
+                return (
+                    not isinstance(report_runs, dict)
+                    or any(
+                        not isinstance(row, dict) or row.get("status") not in terminal_reports
+                        for row in report_runs.values()
+                    )
+                    or bool(getattr(report_runtime, "tasks", {}))
                 )
-                datahub = research.datahub
-                storage_runner = getattr(datahub, "storage_runner", None)
-                active = bool(
-                    active
-                    or history_active
-                    or active_futures()
-                    or wind_api["active"]
-                    or market["active"]
-                    or report_active
-                    or getattr(report_runtime, "tasks", {})
-                    or any(not task.done() for task in datahub.tasks.values())
-                    or (storage_runner is not None and storage_runner.active)
-                )
-            except Exception as exc:  # noqa: BLE001 - unknown activity must fail closed
-                # Unknown worker activity must never certify a safe resident stop.
-                log.warning("resident_data_activity_unknown", error_type=type(exc).__name__)
-                active = True if active else None
+
+            def storage_activity():
+                storage_runner = research.datahub.storage_runner
+                if storage_runner is None:
+                    return False
+                value = storage_runner.active
+                if type(value) is not bool:
+                    raise ValueError("storage_activity_unknown")
+                return value
+
+            unknown = False
+            for check in (
+                history_activity,
+                sdk_activity,
+                wind_api_activity,
+                lambda: witness_flag(research.market.activity_witness()),
+                report_activity,
+                lambda: any(not task.done() for task in research.datahub.tasks.values()),
+                storage_activity,
+            ):
+                try:
+                    # Evaluate every witness, including after a known busy or
+                    # unknown result. Neither may erase another subsystem's fact.
+                    observed = check()
+                    active = bool(active or observed)
+                except Exception as exc:  # noqa: BLE001 - unknown activity must fail closed
+                    log.warning("resident_data_activity_unknown", error_type=type(exc).__name__)
+                    unknown = True
+            active = True if active else None if unknown else False
         return {
             "enabled": bool(setting),
             "revision": revision if re.fullmatch(r"[a-f0-9]{40}", revision) else None,

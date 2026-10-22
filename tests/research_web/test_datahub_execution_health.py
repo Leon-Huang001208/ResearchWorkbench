@@ -16,6 +16,41 @@ from app.research_web.store import Store, StoreError
 
 
 class ExecutionHealthTests(unittest.IsolatedAsyncioTestCase):
+    async def test_real_host_admission_does_not_reenter_execution_projection(self):
+        from app.research_web.service import ResearchService
+
+        calls = []
+
+        def readiness(_capability, catalog):
+            calls.append(catalog)
+            return {"admitted": True}
+
+        host = SimpleNamespace(
+            store=self.store,
+            _task_capabilities=lambda _sid: ({}, [{"id": "fixture-capability"}]),
+            _effective_records=lambda _refs: [{"metadata": {"data_requirements": []}}],
+            capabilities=SimpleNamespace(data_readiness=readiness),
+        )
+        hub = DataHub(
+            self.store, admission=lambda *args: ResearchService._data_query_admission(host, *args)
+        )
+        host.datahub = hub
+        try:
+            hub._record_execution_health(
+                self.sid,
+                self.query,
+                hub.source_configuration_digest("akshare"),
+                Result(status="complete", rows=[{"metric": 1}]),
+            )
+            catalog = hub.catalog()
+            evidence = next(row for row in catalog["sources"] if row["id"] == "akshare")[
+                "execution_evidence"
+            ]
+            self.assertEqual(len(evidence), 1)
+            self.assertEqual(len(calls), 1)
+        finally:
+            await hub.close()
+
     async def test_local_external_inventory_never_verifies_remote_source(self):
         for parameters in ({}, {"dataset": "catalog"}):
             query = BusinessQuery(
