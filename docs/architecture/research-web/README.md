@@ -1,10 +1,12 @@
 # Research Workbench Research Web 当前架构
 
+2026-10-22资产交互v5只在既有Native操作员增加固定部署身份（旧51f09、产品PR185真实merge9bc4），无新节点、HTTP或产品数据流；原图源、图形回执与API清单保持。阅读入口源码链接固定到已审产品9bc4，v5工具最终候选／CI／实际部署另证，见[部署合同](../../research-web-gateway-upgrade.md#资产交互与数据-v5-2026-10-22)。
+
 华安ETF周报沿现有Workflow、私有DataHub、唯一DSH与Host质量边界升级；新合同只对附接主管理员
 启用，规范正文、原版式图表与正式归档同版本绑定。09/10图标明旧版兼容和新合同路径；源码能力、
 真实取数/成稿、三周运行及部署分别留证，未核实来源保持阻断。入口见[周报生产合同](../../research-web-etf-weekly-production.md)。
 
-2026-10-22 资产交互与结构化数据沿既有Host／DataHub／CJPY增加单A股目录搜索、真实专题按需load、24小时账号目录和15分钟普通区块缓存。新增两条HTTP与幂等／来源范围／共享锁／活动witness合同，02模块图补账号缓存分支，04区分资产／DSH调用及原会话快照；无会话目录不进入研究资料发布链。封闭估值、报告期财务、股东名单／汇总、行业、两融与公告事件保留来源／版本／单位及partial，不开放任意repo／公式或新研究引擎。当前源码链接绑定产品提交`1794c5c2808a06d2e7e361179c888cb6850cf77e`，完整执行、浏览器、CI和部署状态见[本轮报告](../../../.ai/reports/test_report_asset_interaction_data_20261022.md)。
+2026-10-22 资产交互与结构化数据沿既有Host／DataHub／CJPY增加单A股目录搜索、真实专题按需load、24小时账号目录和15分钟普通区块缓存。新增两条HTTP与幂等／来源范围／共享锁／活动witness合同，02模块图补账号缓存分支，04区分资产／DSH调用及原会话快照；无会话目录不进入研究资料发布链。封闭估值、报告期财务、股东名单／汇总、行业、两融与公告事件保留来源／版本／单位及partial，不开放任意repo／公式或新研究引擎。当前源码链接绑定PR185真实merge `9bc4e4cab91130647a5bc0dfa519e97f4773416a`，完整执行、浏览器、CI和部署状态见[本轮报告](../../../.ai/reports/test_report_asset_interaction_data_20261022.md)。
 
 2026-10-22 Wind资产工作区沿唯一Host/DataHub增加持久历史任务、固定锚点复权规范发布与账号副图偏好，6个API、Store兼容键及原始块/因子/规范快照已同步02模块图、04资料流图及API Atlas。取消/close/purge等待真实Future，resident与操作员空闲覆盖任务；原Automation唯一调度、DSH执行和网关身份保持。详见[文件](03-data-files.md#资产历史与图表偏好存储)、[接口](04-api.md#资产历史任务与图表偏好)及[批准计划](../../plans/2026-10-22-wind-asset-workspace.md)。有限预检、最终功能/浏览器/CI和常驻部署各自取证。
 
