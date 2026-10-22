@@ -1,5 +1,7 @@
 # Research Workbench Development Map
 
+2026-10-22 Wind工作区部署工具独立于PR177产品：`resident/model_provider_upgrade.py`新增ASSET_V3_MODE/PREVIOUS/PAYLOAD、previous_for/review_assets及CLI封闭分支，固定旧5495与产品a0ff3ae2，`test_model_provider_upgrade.py`覆盖精确范围、拒绝额外变化、索引保全及v1/v2/v3恢复。controller/evidence、产品、依赖和workflow字节不变；原v4部署拓扑不变，无需改现有图或生成HTML/PNG。真源见[部署合同](research-web-gateway-upgrade.md#资产观察固定版本联合部署)，v3候选CI、真实切换/认证页面与保全另取证，产品通过不能复用成profile通过。
+
 最后核对：2026-10-22。Wind工作区：`asset_history.py` 负责日线规范化/重叠校验/固定锚点复权；`asset_history_jobs.py` 负责持久任务/分块缓存/显式重试/取消排空/规范快照CAS发布；`asset_routes.py` 声明6个历史任务与账号偏好API；`asset_workspace.py`、`store.py`、`service.py` 负责观察投影、旧索引缺省、任务清理和服务关闭。DataHub `adjustment_contract.py`、`contracts.py`、`catalog.py`、`providers_cjpy.py`、`broker.py`、`__init__.py`、`snapshots.py` 负责封闭三种复权查询、真实Future占用、metadata和自包含交接；`main.py`与`resident/model_provider_upgrade.py`合并任务/真实Future空闲证明。UI仍在`app.mjs`、`core.mjs`及`asset-controller/chart/workspace`模块，动态副图偏好、历史任务轮询及日线前缀筹码互相独立。权威文档为[UI](research-web-ui.md#资产观察工作台)、[DataHub](research-web-datahub.md#资产历史任务与固定复权)、架构03/04章和[批准计划](plans/2026-10-22-wind-asset-workspace.md)。定点回归新增`test_asset_history.py`，扩展原DataHub/catalog/CJPY/broker模块，保留原资产/Provider/空闲/JS/E2E测试；真实厂商、几何浏览器与同候选Mac安装CI分别取证，不能用预检替代最终验收。
 
 全市场概览由 `market_service.py` 管无会话缓存、合并刷新、取消和关闭，`market_routes.py` 管固定 HTTP 参数；`datahub/providers_market.py` 管沪深北分页、来源字段与完整性。前端 `ui/market.mjs`／`market.css` 负责三页签和可见页刷新。定点回归为 `test_market_provider.py`、`test_market_service.py` 和 `research_web_market*.test.mjs`；数据流见[市场概览](../outputs/research-web-architecture/13-market-overview.html)。

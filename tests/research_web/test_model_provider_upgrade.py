@@ -17,7 +17,15 @@ from research_workbench_entrypoint.resident import model_provider_upgrade as upg
 from research_workbench_entrypoint.resident.admission import MaintenanceBusy
 from research_workbench_entrypoint.resident.gateway_fence import BirthFence
 
-ASSET_PROFILES = (upgrade.ASSET_MODE, upgrade.ASSET_V2_MODE)
+ASSET_PROFILES = (upgrade.ASSET_MODE, upgrade.ASSET_V2_MODE, upgrade.ASSET_V3_MODE)
+
+
+def test_wind_v3_profile_is_bound_to_the_actual_resident_and_reviewed_product():
+    assert (
+        upgrade.previous_for("reviewed-asset-observation-v3")
+        == "5495e64c0be08c9db58e336705db90584f8ba8b5"
+    )
+    assert upgrade.ASSET_V3_PAYLOAD == "a0ff3ae2e2ab92bad10ba8547e45027687ec7cc1"
 
 
 def test_asset_profile_has_fixed_previous_and_rejects_unknown_mode():
@@ -79,7 +87,11 @@ def test_asset_review_uses_real_git_and_frozen_product(tmp_path, monkeypatch, ba
     git("add", ".")
     git("commit", "-m", "payload")
     payload = git("rev-parse", "HEAD")
-    prefix = "ASSET" if profile == upgrade.ASSET_MODE else "ASSET_V2"
+    prefix = {
+        upgrade.ASSET_MODE: "ASSET",
+        upgrade.ASSET_V2_MODE: "ASSET_V2",
+        upgrade.ASSET_V3_MODE: "ASSET_V3",
+    }[profile]
     monkeypatch.setattr(upgrade, prefix + "_PREVIOUS", base)
     monkeypatch.setattr(upgrade, prefix + "_PAYLOAD", payload)
     monkeypatch.setattr(
@@ -178,7 +190,9 @@ def test_terminal_history_jobs_allow_resident_switching(state):
     assert upgrade.asset_queries_idle({"asset_history_jobs": {"job": {"state": state}}})
 
 
-@pytest.mark.parametrize("jobs", [None, [], {"job": None}, {"job": {"state": "completed", "status": "running"}}])
+@pytest.mark.parametrize(
+    "jobs", [None, [], {"job": None}, {"job": {"state": "completed", "status": "running"}}]
+)
 def test_malformed_history_job_activity_fails_closed(jobs):
     assert not upgrade.asset_queries_idle({"asset_history_jobs": jobs})
 
@@ -282,6 +296,7 @@ def test_asset_snapshot_rejects_fifo_without_blocking(tmp_path):
         ("apply", upgrade.MODE),
         ("apply-assets", upgrade.ASSET_MODE),
         ("apply-assets-v2", upgrade.ASSET_V2_MODE),
+        ("apply-assets-v3", upgrade.ASSET_V3_MODE),
         ("recover", upgrade.MODE),
     ],
 )
@@ -304,6 +319,10 @@ def test_cli_selects_only_the_closed_profile(tmp_path, monkeypatch, command, pro
         (upgrade.ASSET_MODE, upgrade.PREVIOUS),
         (upgrade.ASSET_V2_MODE, upgrade.PREVIOUS),
         (upgrade.ASSET_V2_MODE, upgrade.ASSET_PREVIOUS),
+        (upgrade.ASSET_V3_MODE, upgrade.PREVIOUS),
+        (upgrade.ASSET_V3_MODE, upgrade.ASSET_PREVIOUS),
+        (upgrade.ASSET_V3_MODE, upgrade.ASSET_V2_PREVIOUS),
+        (upgrade.ASSET_V3_MODE, upgrade.ASSET_V3_PAYLOAD),
     ],
 )
 def test_asset_journal_cannot_select_the_legacy_previous(profile, previous):
@@ -1237,6 +1256,7 @@ def test_validate_state_accepts_real_independent_release_clones(tmp_path, monkey
         upgrade.MODE: "PREVIOUS",
         upgrade.ASSET_MODE: "ASSET_PREVIOUS",
         upgrade.ASSET_V2_MODE: "ASSET_V2_PREVIOUS",
+        upgrade.ASSET_V3_MODE: "ASSET_V3_PREVIOUS",
     }[profile]
     monkeypatch.setattr(upgrade, previous_name, target)
     upgrade.g.private_root(home / "resident")

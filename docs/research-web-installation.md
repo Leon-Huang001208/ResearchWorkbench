@@ -1,5 +1,7 @@
 # Research Web Native / Docker 安装与运行
 
+2026-10-22 Wind产品PR177已合并，常驻切换单独使用`reviewed-asset-observation-v3`/`apply-assets-v3`：旧主实例/网关必须精确5495，产品必须精确a0ff3ae2；最终操作员候选仍需原三CI及同候选macOS干净安装证据。公开安装三入口、锁定依赖、固定DSH和生产venv保持，不新增依赖、厂商权限或系统配置。用户已授权本轮常驻部署，root在验收后按原锁/空闲/全账号索引保全事务执行；文档或产品CI不等于已切换。旧v1/v2恢复、controller/evidence字节保持，见[部署合同](research-web-gateway-upgrade.md#资产观察固定版本联合部署)。
+
 2026-10-22 Wind工作区增加Host内历史任务、兼容Store键与账号图表偏好，继续使用现有CJPY 0.5.2、ECharts 5.5.0、Chart.js 4.4.7及唯一DSH；没有新依赖、安装参数或秘密接收面。公开三安装入口、`requirements/web.in`/`web.lock`、`scripts/setup_web.py`与Bootstrap均按现有合同核对；未修改这些文件的兼容性仍必须由同候选macos-14干净安装、固定DSH构建、3081/8088及doctor证明。历史取数/复权只在已授权来源可用后执行，旧观察与研究材料不迁移；常驻仍为5495基线，开发态测试不表示已部署。详见[批准计划](plans/2026-10-22-wind-asset-workspace.md)。
 
 全市场概览使用既有固定 `httpx`／AKShare 依赖与产品静态资源，不新增包、厂商配置或秘密。公开安装器必须包含 market Python模块、JS和CSS；三安装入口、requirements锁与固定DSH合同保持，仍须同候选macOS Bootstrap核验干净安装、3081/8088健康及Doctor。公开行情实际覆盖另作本地验证，CI夹具不证明当日源可用；常驻服务不由源码合并自动切换。
