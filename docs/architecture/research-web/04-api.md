@@ -1,5 +1,7 @@
 # Research Web 接口清单
 
+资产v5索引修复只改变Native操作员的内部verify_primary读取绑定，不新增HTTP、CLI参数、账号权限或请求格式；API inventory仍为318声明／315唯一接口。64 MiB业务读取与1 MB部署元数据明确分开，旧profile不变。阅读页说明源码固定到已提交修复8f2cb39a，固定产品仍PR185 merge9bc4；文档与本机结果不表示PR187原CI失败已通过或常驻已切换。
+
 资产交互v5（2026-10-22）增加的是操作员CLI封闭命令apply-assets-v5，不新增HTTP、请求参数或权限入口。原目录search、区块load、历史as_of及账号／会话归属合同保持，API inventory仍为318条源码声明／315个唯一接口；Atlas只将源码链接固定到PR185真实merge9bc4。最终部署资格与固定旧51f09的恢复见[操作合同](../../research-web-gateway-upgrade.md#资产交互与数据-v5-2026-10-22)，HTTP或产品CI成功不表示v5已切换。
 
 行情缺口部署使用封闭 `reviewed-market-gaps-v1` / `apply-market-gaps`：旧版固定 `99d3ee34977c47189a5638207c109a555f52a687`，产品源码检查点固定 `9faeeca3003a912ca75799fb27b635ba1bb87a1a`。检查点为本轮产品修复的不可变祖先，最终操作员/产品组合目标仍必须最新已合并 master、独立评审和原三项 exact-tree CI（含 Mac 干净安装）合格；不把检查点冒充合并版本。复用原 version4 保全/恢复，并在原维护锁内额外核对 MarketService 的 inflight 明确为空；未知或正在采集时不切换。旧 profile、controller/evidence/网关模块字节及模型/账号权限保持，无新部署节点、HTTP或依赖，原图准确。

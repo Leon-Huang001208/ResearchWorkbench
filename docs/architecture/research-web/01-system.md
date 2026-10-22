@@ -1,5 +1,7 @@
 # 部署与模块职责
 
+资产v5大索引修复只调整既有Native操作员预检读取绑定：v5业务index沿64 MiB安全读取器，部署元数据仍1 MB。主实例／网关、账号根、锁、BirthFence和version4事务没有新增节点或拓扑；旧profile与固定产品不变，01部署图仍准确。此前8.67 MB索引在停机前被拒绝，不能把随后本机修复或文档补齐当作实际切换成功。
+
 资产交互v5（2026-10-22）只新增原Native操作员的固定profile：旧51f09、产品PR185真实merge9bc4，入口apply-assets-v5。主实例／网关、维护锁、BirthFence、账号数据根和唯一DSH节点保持；没有新守护进程、容器、HTTP或部署拓扑，01部署图仍准确。旧资产／market／模型profile保留，v5最终资格及未部署状态见[操作合同](../../research-web-gateway-upgrade.md#资产交互与数据-v5-2026-10-22)。
 
 行情缺口部署使用封闭 `reviewed-market-gaps-v1` / `apply-market-gaps`：旧版固定 `99d3ee34977c47189a5638207c109a555f52a687`，产品源码检查点固定 `9faeeca3003a912ca75799fb27b635ba1bb87a1a`。检查点为本轮产品修复的不可变祖先，最终操作员/产品组合目标仍必须最新已合并 master、独立评审和原三项 exact-tree CI（含 Mac 干净安装）合格；不把检查点冒充合并版本。复用原 version4 保全/恢复，并在原维护锁内额外核对 MarketService 的 inflight 明确为空；未知或正在采集时不切换。旧 profile、controller/evidence/网关模块字节及模型/账号权限保持，无新部署节点、HTTP或依赖，原图准确。

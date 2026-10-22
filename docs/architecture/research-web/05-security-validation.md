@@ -1,5 +1,7 @@
 # 安全边界与验证方法
 
+资产v5大索引修复仅让该profile复用既有64 MiB read_business_index：路径／普通文件／NOFOLLOW／大小及JSON对象校验保持，错误仍日志并失败关闭；元数据保持1 MB，旧profile绑定、固定PREVIOUS／PAYLOAD、controller／evidence字节及保全／恢复门不变。没有新信任边界、权限或外部输入；不通过裁剪8.67 MB业务索引或放宽读取检查消除故障。PR187文档／结构门失败保留，补齐后仍须原完整约束、独评和同候选三CI。
+
 资产交互v5固定PREVIOUS=51f09、PAYLOAD=PR185真实merge9bc4；原review_assets继续核对产品祖先、完整路径并集、blob、模式、干净checkout及源码／发布仓库身份，运行时不接受任意旧版或产品SHA。旧profile、不可变controller／evidence、自动兼容白名单、账号与秘密namespace不变；原维护锁、BirthFence、明确空闲、全账号保全和正式recover仍为硬门。没有新信任边界或认证流程，01／12安全相关图保持，产品三CI不替代v5最终独评／CI／真实切换证据。
 
 行情缺口部署使用封闭 `reviewed-market-gaps-v1` / `apply-market-gaps`：旧版固定 `99d3ee34977c47189a5638207c109a555f52a687`，产品源码检查点固定 `9faeeca3003a912ca75799fb27b635ba1bb87a1a`。检查点为本轮产品修复的不可变祖先，最终操作员/产品组合目标仍必须最新已合并 master、独立评审和原三项 exact-tree CI（含 Mac 干净安装）合格；不把检查点冒充合并版本。复用原 version4 保全/恢复，并在原维护锁内额外核对 MarketService 的 inflight 明确为空；未知或正在采集时不切换。旧 profile、controller/evidence/网关模块字节及模型/账号权限保持，无新部署节点、HTTP或依赖，原图准确。

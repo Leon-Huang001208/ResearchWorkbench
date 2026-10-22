@@ -1,6 +1,6 @@
 # Research Workbench Research Web 当前架构
 
-2026-10-22资产交互v5只在既有Native操作员增加固定部署身份（旧51f09、产品PR185真实merge9bc4），无新节点、HTTP或产品数据流；原图源、图形回执与API清单保持。阅读入口源码链接固定到已审产品9bc4，v5工具最终候选／CI／实际部署另证，见[部署合同](../../research-web-gateway-upgrade.md#资产交互与数据-v5-2026-10-22)。
+2026-10-22资产交互v5只在既有Native操作员增加固定部署身份（旧51f09、产品PR185真实merge9bc4），无新节点、HTTP或产品数据流；原图源、图形回执与API清单保持。后续大索引修复只让v5复用既有64 MiB业务读取器，元数据仍1 MB；阅读入口说明源码固定到已提交修复8f2cb39a，固定产品9bc4不变。PR187原Constraints失败、修补候选CI和实际部署分别记录，见[部署合同](../../research-web-gateway-upgrade.md#资产交互与数据-v5-2026-10-22)和[修复报告](../../../.ai/reports/test_report_asset_v5_index_fix_20261022.md)。
 
 华安ETF周报沿现有Workflow、私有DataHub、唯一DSH与Host质量边界升级；新合同只对附接主管理员
 启用，规范正文、原版式图表与正式归档同版本绑定。09/10图标明旧版兼容和新合同路径；源码能力、

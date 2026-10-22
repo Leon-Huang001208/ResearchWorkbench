@@ -1,5 +1,7 @@
 # 研究协议、执行状态与恢复
 
+资产v5索引读取修复不改变DSH协议、研究回合、任务状态或恢复流程；只在原verify_primary的v5分支复用已有64 MiB业务读取，元数据及旧profile保持。原明确空闲、排空、BirthFence、全账号保全和version4 journal继续生效，真实失败停在停机前；没有新生命周期节点，01／12图仍准确，也不启动研究、周报或模型。
+
 资产交互v5固定部署不改变DSH协议、回合、历史、取消或恢复状态机，也不运行研究／周报／模型。固定旧51f09与产品9bc4沿原操作员锁、明确空闲及version4 journal；目录租约、区块／历史task和真实Future仍按产品既有witness判定，未知状态不据作可切换。原01／12图的部署及生命周期边界保持，profile版本不等于journal版本；正式recover只按验证后的v5 mode回51f09。
 
 行情缺口部署使用封闭 `reviewed-market-gaps-v1` / `apply-market-gaps`：旧版固定 `99d3ee34977c47189a5638207c109a555f52a687`，产品源码检查点固定 `9faeeca3003a912ca75799fb27b635ba1bb87a1a`。检查点为本轮产品修复的不可变祖先，最终操作员/产品组合目标仍必须最新已合并 master、独立评审和原三项 exact-tree CI（含 Mac 干净安装）合格；不把检查点冒充合并版本。复用原 version4 保全/恢复，并在原维护锁内额外核对 MarketService 的 inflight 明确为空；未知或正在采集时不切换。旧 profile、controller/evidence/网关模块字节及模型/账号权限保持，无新部署节点、HTTP或依赖，原图准确。

@@ -1,5 +1,7 @@
 # Research Workbench
 
+资产v5部署前大索引预检修复只让v5使用已有64 MiB安全业务读取器；元数据仍为1 MB，旧profile和固定产品不变。原8.67 MB业务索引在停机前被拒绝，数据未裁剪；修复须继续原完整文档／评审／三CI及同候选Mac安装，PR187原Constraints失败不写成通过。当前仍待正式切换与全账号保全，见[部署合同](docs/research-web-gateway-upgrade.md)和[修复记录](.ai/reports/test_report_asset_v5_index_fix_20261022.md)。
+
 [固定版本部署](docs/research-web-gateway-upgrade.md#全市场缺口修复固定部署)继续保全原会话、数据及模型，并核对行情采集空闲。
 
 全市场概览按来源明确停牌／未上市状态，补取真实零成交额与有标记的停牌参考价；沪深大盘日线资金展示独立的来源和交易日。详见[数据口径](docs/research-web-datahub.md#无会话全市场数据)。
