@@ -9,6 +9,14 @@ import pytest
 from app.research_web.asset_directory import AssetDirectory
 
 
+def test_polyphonic_combinations_keep_original_initial_alongside_alternatives():
+    from app.research_web.asset_directory import _pinyin_alias_score
+
+    assert _pinyin_alias_score("单行", "dh") == 270
+    assert _pinyin_alias_score("单行", "dx") == 270
+    assert _pinyin_alias_score("单行", "ch") == 270
+
+
 @pytest.mark.asyncio
 async def test_directory_timeout_keeps_resident_lease_until_actual_worker_finishes(
     tmp_path, monkeypatch

@@ -97,7 +97,7 @@ def _pinyin_alias_score(name: str, needle: str) -> int:
     ):
         return -1
     options = [
-        set(POLYPHONIC_INITIALS.get(char, initial))
+        set(initial + POLYPHONIC_INITIALS.get(char, ""))
         for char in name
         if (initial := pinyin_abbr(char))
     ]
