@@ -2840,14 +2840,20 @@ class ResearchService(ModelProfilesMixin):
             weekly_context = trusted_weekly_context(self, sid)
             if weekly_context:
                 prepare_weekly_evidence(self, sid)
-            if weekly_context or (row["mode"] == "fingpt" and row.get("purpose") in {None, "research"}):
+            if weekly_context or (
+                row["mode"] == "fingpt" and row.get("purpose") in {None, "research"}
+            ):
                 try:
                     contract = prepare_contract(
                         self,
                         sid,
                         prepared_receipt,
                         text,
-                        [item["text"] for item in weekly_context["requirements"]] if weekly_context else research_requirements,
+                        (
+                            [item["text"] for item in weekly_context["requirements"]]
+                            if weekly_context
+                            else research_requirements
+                        ),
                         weekly_context["as_of"] if weekly_context else research_as_of,
                         "deep" if weekly_context else chosen_mode,
                     )

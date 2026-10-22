@@ -3029,8 +3029,12 @@ class WebServiceManager:
             }
         except (ImportError, OSError, ValueError, RuntimeError) as exc:
             log.warning("report_weekly_doctor_failed", error_type=type(exc).__name__)
-            return {"status": "unavailable", "code": "weekly_diagnostic_failed",
-                    "live_acceptance": "NOT_RUN", "model_acceptance": "NOT_RUN"}
+            return {
+                "status": "unavailable",
+                "code": "weekly_diagnostic_failed",
+                "live_acceptance": "NOT_RUN",
+                "model_acceptance": "NOT_RUN",
+            }
 
     def _ai_news_diagnostic(self) -> dict:
         """Optional editorial readiness never grants model or collection acceptance."""

@@ -315,9 +315,19 @@ def _chart_projection(part, specification, workbook, sheet):
         blank = chart.find("c:dispBlanksAs", _NS)
         if blank is None:
             blank = etree.Element("{" + _C + "}dispBlanksAs")
-            trailing = next((node for node in chart if node.tag in {
-                "{" + _C + "}showDLblsOverMax", "{" + _C + "}extLst"}), None)
-            chart.insert(list(chart).index(trailing), blank) if trailing is not None else chart.append(blank)
+            trailing = next(
+                (
+                    node
+                    for node in chart
+                    if node.tag in {"{" + _C + "}showDLblsOverMax", "{" + _C + "}extLst"}
+                ),
+                None,
+            )
+            (
+                chart.insert(list(chart).index(trailing), blank)
+                if trailing is not None
+                else chart.append(blank)
+            )
         blank.set("val", "gap")
     stream = BytesIO()
     embedded.save(stream)
@@ -464,15 +474,24 @@ def apply_weekly_docx_projection(document, context, root):
             workbooks[overseas["workbook"]][overseas["sheet"]], overseas["range"]
         )
         columns = overseas.get("columns")
-        if columns not in (["code", "name", "return_fraction"], ["name", "code", "return_fraction"]):
+        if columns not in (
+            ["code", "name", "return_fraction"],
+            ["name", "code", "return_fraction"],
+        ):
             raise ValueError("weekly_overseas_columns_invalid")
         if overseas_rows and set(overseas_rows[0]) == {"指数名称", "指数代码", "周内涨跌幅"}:
             overseas_rows = overseas_rows[1:]
         _table_rows(
             document,
             ["指数名称", "指数代码", "周内涨跌幅"],
-            [[row[columns.index("name")], row[columns.index("code")],
-              f"{float(row[columns.index('return_fraction')]) * 100:.2f}%"] for row in overseas_rows],
+            [
+                [
+                    row[columns.index("name")],
+                    row[columns.index("code")],
+                    f"{float(row[columns.index('return_fraction')]) * 100:.2f}%",
+                ]
+                for row in overseas_rows
+            ],
         )
         if {row["id"] for row in bindings} != set(required.values()):
             raise ValueError("weekly_projection_blocks_incomplete")

@@ -104,17 +104,24 @@ def test_report_workflows_require_attached_primary_admin_not_browser_role(server
     browser, accounts, pool, (admin, _, _), forwarded = server
     pool.primary_user_id = admin.id
     assert login(browser).status_code == 200
-    assert browser.get('/api/research/report-workflows', headers={
-        'X-RWB-User-Role': 'admin', 'X-RWB-Primary-User': admin.id,
-    }).status_code == 403
+    assert (
+        browser.get(
+            "/api/research/report-workflows",
+            headers={
+                "X-RWB-User-Role": "admin",
+                "X-RWB-Primary-User": admin.id,
+            },
+        ).status_code
+        == 403
+    )
     assert not forwarded
     assert not pool.users
-    assert login(browser, 'admin', 'a safe admin password').status_code == 200
-    assert browser.get('/api/research/report-workflows').status_code == 200
-    secondary = accounts.create_user('otheradmin', 'a safe other admin password', 'admin')
+    assert login(browser, "admin", "a safe admin password").status_code == 200
+    assert browser.get("/api/research/report-workflows").status_code == 200
+    secondary = accounts.create_user("otheradmin", "a safe other admin password", "admin")
     assert secondary.id != admin.id
-    assert login(browser, 'otheradmin', 'a safe other admin password').status_code == 200
-    assert browser.get('/api/research/report-workflows').status_code == 403
+    assert login(browser, "otheradmin", "a safe other admin password").status_code == 200
+    assert browser.get("/api/research/report-workflows").status_code == 403
 
 
 def test_two_users_route_from_cookie_not_owner_or_headers(server):

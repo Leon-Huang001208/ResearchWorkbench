@@ -92,22 +92,31 @@ def _manifest(
     )
 
 
-@pytest.mark.parametrize("target,valid", [
-    ("/xl/worksheets/sheet1.xml", True), ("/etc/passwd", False),
-    ("/xl/worksheets/../../outside.xml", False), ("file:///etc/passwd", False),
-])
-def test_cached_workbook_accepts_only_safe_opc_package_absolute_sheet_paths(tmp_path, target, valid):
+@pytest.mark.parametrize(
+    "target,valid",
+    [
+        ("/xl/worksheets/sheet1.xml", True),
+        ("/etc/passwd", False),
+        ("/xl/worksheets/../../outside.xml", False),
+        ("file:///etc/passwd", False),
+    ],
+)
+def test_cached_workbook_accepts_only_safe_opc_package_absolute_sheet_paths(
+    tmp_path, target, valid
+):
     source = BytesIO(_xlsx({"A1": (None, 7)}))
     path = tmp_path / "opc.xlsx"
-    with zipfile.ZipFile(source) as old, zipfile.ZipFile(path, 'w') as new:
+    with zipfile.ZipFile(source) as old, zipfile.ZipFile(path, "w") as new:
         for name in old.namelist():
             data = old.read(name)
-            if name == 'xl/_rels/workbook.xml.rels':
-                data = data.replace(b'Target="worksheets/sheet1.xml"', f'Target="{target}"'.encode())
+            if name == "xl/_rels/workbook.xml.rels":
+                data = data.replace(
+                    b'Target="worksheets/sheet1.xml"', f'Target="{target}"'.encode()
+                )
             new.writestr(name, data)
     if valid:
         cells, errors, _ = workbook_module.read_cached_workbook(path)
-        assert cells['Sheet1!A1'] == 7 and not errors
+        assert cells["Sheet1!A1"] == 7 and not errors
     else:
         with pytest.raises(WorkflowError):
             workbook_module.read_cached_workbook(path)

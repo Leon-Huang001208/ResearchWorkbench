@@ -94,11 +94,14 @@ def _fact_text(row):
         return "原文摘录保存在同版本审计附件，尚须逐项核验分析结论。"
     if row.get("metric", "").startswith("weekly_"):
         label = {
-            "weekly_close": "收盘价", "weekly_return_pct": "区间涨跌幅",
+            "weekly_close": "收盘价",
+            "weekly_return_pct": "区间涨跌幅",
             "weekly_daily_mean_amount": "本期日均成交额",
             "weekly_previous_daily_mean_amount": "上期日均成交额",
-            "weekly_raw_daily_amount": "成交额", "weekly_trading_days": "本期交易日数",
-            "weekly_previous_trading_days": "上期交易日数", "weekly_history_count": "历史观测数",
+            "weekly_raw_daily_amount": "成交额",
+            "weekly_trading_days": "本期交易日数",
+            "weekly_previous_trading_days": "上期交易日数",
+            "weekly_history_count": "历史观测数",
         }.get(row["metric"], row["metric"])
         return f"{row.get('heading', row['metric'])}（数据日 {row['period']}）{label}为{row['value']} {row['unit']}"
     return (

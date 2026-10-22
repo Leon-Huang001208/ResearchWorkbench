@@ -272,7 +272,8 @@ def _sheet_paths(archive: zipfile.ZipFile) -> tuple[dict[str, str], bool]:
         if "Id" in row.attrib and "Target" in row.attrib
     }
     external = {
-        row.attrib.get("Id") for row in relationships.findall(f"{{{_PKG_REL_NS}}}Relationship")
+        row.attrib.get("Id")
+        for row in relationships.findall(f"{{{_PKG_REL_NS}}}Relationship")
         if row.attrib.get("TargetMode", "").casefold() == "external"
     }
     paths: dict[str, str] = {}
@@ -290,7 +291,9 @@ def _sheet_paths(archive: zipfile.ZipFile) -> tuple[dict[str, str], bool]:
         if ".." in target_path.parts:
             raise WorkflowError("工作簿内部路径无效", "invalid_workbook", 422)
         paths[sheet.attrib["name"]] = (
-            target_path.as_posix() if target_path.parts[:1] == ("xl",) else f"xl/{target_path.as_posix()}"
+            target_path.as_posix()
+            if target_path.parts[:1] == ("xl",)
+            else f"xl/{target_path.as_posix()}"
         )
     return paths, date_1904
 

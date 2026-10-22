@@ -211,10 +211,19 @@ def test_report_workflow_api_coexists_with_capability_workflows(api, tmp_path):
 def test_weekly_upgrade_is_explicit_unpublished_and_keeps_original_version(api, tmp_path):
     client, service, _ = api
     _create_version(client, tmp_path, "huaan-etf-weekly")
-    assert client.post("/api/research/report-workflows/huaan-etf-weekly/versions/1/publish").status_code == 200
+    assert (
+        client.post(
+            "/api/research/report-workflows/huaan-etf-weekly/versions/1/publish"
+        ).status_code
+        == 200
+    )
     endpoint = "/api/research/report-workflows/huaan-etf-weekly/weekly-production/prepare"
     assert client.post(endpoint).status_code == 409
-    service.report_owner_authorizer = lambda: {"id": "test-primary", "role": "admin", "enabled": True}
+    service.report_owner_authorizer = lambda: {
+        "id": "test-primary",
+        "role": "admin",
+        "enabled": True,
+    }
     response = client.post(endpoint)
     assert response.status_code == 200, response.text
     detail = response.json()
@@ -228,7 +237,10 @@ def test_weekly_upgrade_is_explicit_unpublished_and_keeps_original_version(api, 
     assert new.minimum_subagents == 0
     assert new.schedule.weekday == 4 and new.schedule.hour == 15 and new.schedule.minute == 30
     assert new.schedule.enabled is False
-    assert client.post("/api/research/report-workflows/another/weekly-production/prepare").status_code == 409
+    assert (
+        client.post("/api/research/report-workflows/another/weekly-production/prepare").status_code
+        == 409
+    )
 
 
 def test_provider_probe_is_safe_and_missing_xlwings_blocks_run(api, tmp_path, monkeypatch):

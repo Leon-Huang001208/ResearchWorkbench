@@ -444,15 +444,28 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
                 report_runtime = getattr(report_manager, "runtime", None)
                 report_catalog = getattr(report_manager, "catalog", None)
                 report_runs = getattr(report_catalog, "data", {}).get("runs", {})
-                terminal_reports = {"completed", "cancelled", "failed", "blocked_data",
-                                    "delivery_incomplete", "quality_incomplete", "skipped_overlap"}
+                terminal_reports = {
+                    "completed",
+                    "cancelled",
+                    "failed",
+                    "blocked_data",
+                    "delivery_incomplete",
+                    "quality_incomplete",
+                    "skipped_overlap",
+                }
                 report_active = not isinstance(report_runs, dict) or any(
                     not isinstance(row, dict) or row.get("status") not in terminal_reports
                     for row in report_runs.values()
                 )
-                active = bool(active or history_active or active_futures() or wind_api["active"]
-                              or report_active or getattr(report_runtime, "tasks", {})
-                              or getattr(getattr(research, "datahub", None), "tasks", {}))
+                active = bool(
+                    active
+                    or history_active
+                    or active_futures()
+                    or wind_api["active"]
+                    or report_active
+                    or getattr(report_runtime, "tasks", {})
+                    or getattr(getattr(research, "datahub", None), "tasks", {})
+                )
             except Exception as exc:  # noqa: BLE001 - unknown activity must fail closed
                 # Unknown worker activity must never certify a safe resident stop.
                 log.warning("resident_data_activity_unknown", error_type=type(exc).__name__)

@@ -132,8 +132,13 @@ def api(tmp_path):
         yield client, native, service
 
 
-@pytest.mark.parametrize("witness,expected", [({"active": True}, True), ({"active": False}, False), ({"active": 1}, None), ({}, None)])
-def test_resident_includes_real_wind_api_future_and_unknown_is_not_idle(api, monkeypatch, witness, expected):
+@pytest.mark.parametrize(
+    "witness,expected",
+    [({"active": True}, True), ({"active": False}, False), ({"active": 1}, None), ({}, None)],
+)
+def test_resident_includes_real_wind_api_future_and_unknown_is_not_idle(
+    api, monkeypatch, witness, expected
+):
     from app.research_web.datahub import providers_cjpy, providers_wind_api
 
     client, _, _ = api

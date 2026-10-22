@@ -430,11 +430,16 @@ def create_gateway(
         if path.startswith("api/research/internal/") or "//" in path or "\\" in path:
             return error("server_internal_route_denied", 403)
         user = request.state.user
-        report_admin = request.url.path.startswith((
-            "/api/research/report-workflows", "/api/research/report-runs",
-            "/api/research/report-projects", "/api/research/automations",
-            "/api/research/automation-runs", "/api/research/delivery-channels",
-        ))
+        report_admin = request.url.path.startswith(
+            (
+                "/api/research/report-workflows",
+                "/api/research/report-runs",
+                "/api/research/report-projects",
+                "/api/research/automations",
+                "/api/research/automation-runs",
+                "/api/research/delivery-channels",
+            )
+        )
         if report_admin and (
             user.role != "admin" or user.id != getattr(pool, "primary_user_id", None)
         ):

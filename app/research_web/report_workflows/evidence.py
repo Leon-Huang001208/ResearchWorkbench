@@ -100,8 +100,13 @@ def weekly_research_inputs(service, sid):
     """Template assets are hash-bound delivery inputs, not claimed research sources."""
     if _verified(service, sid) is None:
         return None
-    return {FACTS_PATH, *("inputs/report-workflow/" + _news_file_name(row)
-                          for row in _empty_news_records(service, sid))}
+    return {
+        FACTS_PATH,
+        *(
+            "inputs/report-workflow/" + _news_file_name(row)
+            for row in _empty_news_records(service, sid)
+        ),
+    }
 
 
 def _empty_news_records(service, sid):
