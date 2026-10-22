@@ -47,6 +47,209 @@ BJ = "m:0 t:81 s:262144 f:!2"
 
 
 @pytest.mark.asyncio
+async def test_details_have_a_separate_hundred_request_capacity():
+    count = 0
+
+    async def handle(request):
+        nonlocal count
+        if request.url.path.endswith("/stock/get"):
+            count += 1
+            return httpx.Response(200, json={"data": None})
+        scope = request.url.params["fs"]
+        rows = (
+            [quote(str(600000 + i), 1, f6=None) for i in range(105)]
+            if scope == SH
+            else [quote("000001")] if scope == SZ else [quote("920001")]
+        )
+        page = int(request.url.params["pn"])
+        return httpx.Response(
+            200, json={"data": {"total": len(rows), "diff": rows[(page - 1) * 100 : page * 100]}}
+        )
+
+    async with MarketProvider(transport=httpx.MockTransport(handle)) as provider:
+        result = await provider.fetch("quotes")
+    assert count == 100 and result["complete"] and len(result["rows"]) == 107
+    assert result["summary"]["amount_missing"] == 105
+
+
+@pytest.mark.asyncio
+async def test_cancellation_reaches_the_detail_transport():
+    entered, cancelled = asyncio.Event(), asyncio.Event()
+
+    async def handle(request):
+        if request.url.path.endswith("/stock/get"):
+            entered.set()
+            try:
+                await asyncio.Event().wait()
+            finally:
+                cancelled.set()
+        scope = request.url.params["fs"]
+        rows = (
+            [quote("601326", 1, f6=None)]
+            if scope == SH
+            else [quote("000001")] if scope == SZ else [quote("920001")]
+        )
+        return httpx.Response(200, json={"data": {"total": len(rows), "diff": rows}})
+
+    async with MarketProvider(transport=httpx.MockTransport(handle)) as provider:
+        task = asyncio.create_task(provider.fetch("quotes"))
+        await asyncio.wait_for(entered.wait(), 1)
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+    assert cancelled.is_set()
+
+
+@pytest.mark.parametrize("state,basis", [(5, "quote"), (6, "suspended_reference")])
+@pytest.mark.asyncio
+async def test_detail_repairs_normal_price_change_and_labels_suspended_f43(state, basis):
+    async def handle(request):
+        if request.url.path.endswith("/stock/get"):
+            return httpx.Response(
+                200,
+                json={
+                    "data": {
+                        "f57": "601326",
+                        "f58": "测试",
+                        "f43": 3.57,
+                        "f169": 0.2,
+                        "f170": 5.93,
+                        "f86": STAMP,
+                    }
+                },
+            )
+        scope = request.url.params["fs"]
+        rows = (
+            [quote("601326", 1, f292=state, f2=None, f3=None, f4=None)]
+            if scope == SH
+            else [quote("000001")] if scope == SZ else [quote("920001")]
+        )
+        return httpx.Response(200, json={"data": {"total": len(rows), "diff": rows}})
+
+    async with MarketProvider(transport=httpx.MockTransport(handle)) as provider:
+        result = await provider.fetch("quotes")
+    row = result["rows"][0]
+    assert row["price"] == 3.57 and row["price_basis"] == basis
+    if state == 5:
+        assert row["change_pct"] == 5.93 and row["change"] == 0.2
+        assert result["summary"]["up"] == 1 and result["summary"]["unknown"] == 0
+
+
+@pytest.mark.asyncio
+async def test_suspended_detail_recovers_real_zero_amount_and_scaled_reference():
+    async def handle(request):
+        if request.url.path.endswith("/stock/get"):
+            assert request.url.params["fltt"] == "2"
+            return httpx.Response(
+                200,
+                json={
+                    "data": {
+                        "f57": "601326",
+                        "f58": "测试",
+                        "f59": 2,
+                        "f43": 0,
+                        "f301": 357,
+                        "f60": 3.57,
+                        "f47": 0,
+                        "f48": 0,
+                        "f86": STAMP,
+                        "f292": 6,
+                    }
+                },
+            )
+        scope = request.url.params["fs"]
+        rows = (
+            [quote("601326", 1, f292=6, f2="-", f3="-", f6="-", f5="-")]
+            if scope == SH
+            else (
+                [quote("000001")]
+                if scope == SZ
+                else [quote("920285", f292=9, f26=20261023, f2="-", f3="-", f6=0)]
+            )
+        )
+        return httpx.Response(200, json={"data": {"total": len(rows), "diff": rows}})
+
+    async with MarketProvider(transport=httpx.MockTransport(handle)) as provider:
+        result = await provider.fetch("quotes")
+    row = result["rows"][0]
+    assert row["price"] == 3.57 and row["amount"] == 0 and row["volume"] == 0
+    assert row["trade_status"] == "suspended" and row["price_basis"] == "last_traded_reference"
+    assert result["summary"]["amount"] == 2000
+    assert result["summary"]["suspended"] == 1 and result["summary"]["unlisted"] == 1
+    assert result["summary"]["flat"] == 1 and result["summary"]["unknown"] == 0
+
+
+@pytest.mark.asyncio
+async def test_market_flow_uses_working_guest_and_owns_its_daily_metadata():
+    async def handle(request):
+        assert request.url.host == "82.push2.eastmoney.com"
+        assert request.url.path == "/webguest/api/qt/stock/fflow/daykline/get"
+        return httpx.Response(
+            200, json={"data": {"klines": ["2026-10-22,-10,1,9,-4,-6,0,0,0,0,0,3658,-1,11357,-2"]}}
+        )
+
+    async with MarketProvider(transport=httpx.MockTransport(handle)) as provider:
+        from app.research_web.datahub.providers_market import _Reader
+
+        result = await provider._market_flow(_Reader(provider._client, provider._semaphore))
+    assert result["row_count"] == 1 and result["trade_date"] == "2026-10-22"
+    assert result["rows"][0]["main_net"] == -10
+    assert result["source_url"].startswith("https://") and result["retrieved_at"]
+
+
+@pytest.mark.parametrize("bad", ["identity", "name", "old_date", "null", "negative"])
+@pytest.mark.asyncio
+async def test_quote_detail_never_repairs_wrong_identity_date_or_missing_value(bad):
+    async def handle(request):
+        if request.url.path.endswith("/stock/get"):
+            detail = {"f57": "601326", "f58": "测试", "f48": 0, "f86": STAMP}
+            if bad == "identity":
+                detail["f57"] = "600000"
+            if bad == "name":
+                detail["f58"] = "其他"
+            if bad == "old_date":
+                detail["f86"] -= 86400
+            if bad == "null":
+                detail["f48"] = None
+            if bad == "negative":
+                detail["f48"] = -1
+            return httpx.Response(200, json={"data": detail})
+        scope = request.url.params["fs"]
+        rows = (
+            [quote("601326", 1, f6=None)]
+            if scope == SH
+            else [quote("000001")] if scope == SZ else [quote("920001")]
+        )
+        return httpx.Response(200, json={"data": {"total": len(rows), "diff": rows}})
+
+    async with MarketProvider(transport=httpx.MockTransport(handle)) as provider:
+        result = await provider.fetch("quotes")
+    assert result["complete"] and result["rows"][0]["amount"] is None
+    assert result["summary"]["amount"] is None and result["missing"]["amount"] == 1
+
+
+@pytest.mark.parametrize(
+    "lines",
+    [
+        [],
+        ["2026-10-22,-,1,2,3,4,0,0,0,0,0,1,2,3,4"],
+        ["bad"],
+        ["2026-10-22,1,2,3,4,5,0,0,0,0,0,1,2,3,4"] * 2,
+    ],
+)
+@pytest.mark.asyncio
+async def test_market_flow_rejects_empty_null_malformed_and_duplicate_days(lines):
+    from app.research_web.datahub.providers_market import _Reader
+
+    async def handle(request):
+        return httpx.Response(200, json={"data": {"klines": lines}})
+
+    async with MarketProvider(transport=httpx.MockTransport(handle)) as provider:
+        with pytest.raises(MarketProviderError):
+            await provider._market_flow(_Reader(provider._client, provider._semaphore))
+
+
+@pytest.mark.asyncio
 async def test_current_site_universe_preserves_halts_without_legacy_instruments():
     current = {
         "m:1 t:2 f:!2,m:1 t:23 f:!2": [
@@ -58,6 +261,8 @@ async def test_current_site_universe_preserves_halts_without_legacy_instruments(
     }
 
     async def handle(request):
+        if request.url.path.endswith("/stock/get"):
+            return httpx.Response(200, json={"data": None})
         scope = request.url.params["fs"]
         rows = current.get(
             scope, [quote("600001", 1, f14="历史退市"), quote("810011", f14="非普通股")]
@@ -88,8 +293,10 @@ async def test_source_listing_dates_distinguish_upcoming_from_unknown_quotes():
         result = await provider.fetch("quotes")
     assert result["rows"][-1]["listing_date"] == "2026-10-23"
     assert result["summary"]["upcoming_count"] == 1
-    assert result["summary"]["breadth"]["unknown"] == 1
-    assert result["summary"]["amount"] is None
+    assert result["summary"]["breadth"]["unknown"] == 0
+    assert result["summary"]["breadth"]["unlisted"] == 1
+    assert result["summary"]["amount"] == 4000
+    assert result["summary"]["amount_scope_count"] == 2
     assert any("待上市" in text for text in result["limitations"])
 
 
@@ -142,7 +349,15 @@ async def test_previous_day_quote_never_enters_current_day_breadth_or_amount():
     async with MarketProvider(transport=transport_for(scopes)) as provider:
         result = await provider.fetch("quotes")
     assert result["pagination_complete"] is True
-    assert result["summary"]["breadth"] == {"up": 0, "down": 1, "flat": 1, "unknown": 1, "total": 3}
+    assert result["summary"]["breadth"] == {
+        "up": 0,
+        "down": 1,
+        "flat": 1,
+        "unknown": 1,
+        "total": 3,
+        "suspended": 0,
+        "unlisted": 0,
+    }
     assert result["summary"]["amount"] is None
     assert result["missing"]["quote_date"] == 1
     assert result["temporal_complete"] is False
@@ -239,7 +454,15 @@ async def test_missing_quote_is_not_flat_and_nonfinite_values_are_null():
     }
     async with MarketProvider(transport=transport_for(scopes)) as provider:
         result = await provider.fetch("quotes")
-    assert result["summary"]["breadth"] == {"up": 1, "down": 0, "flat": 1, "unknown": 1, "total": 3}
+    assert result["summary"]["breadth"] == {
+        "up": 1,
+        "down": 0,
+        "flat": 1,
+        "unknown": 1,
+        "total": 3,
+        "suspended": 0,
+        "unlisted": 0,
+    }
     assert result["rows"][1]["pe_dynamic"] is None
     assert result["rows"][0]["as_of"].endswith("+08:00")
     assert result["missing"]["quote"] == 1

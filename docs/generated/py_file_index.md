@@ -4339,11 +4339,12 @@ Classes:
   - methods: __init__, raw, json
 - `MarketProvider`
   - An owned HTTP client, bounded section reads, and exact cancellation.
-  - methods: __init__, __aenter__, __aexit__, close, fetch, _result, _paginate, _quote, _quotes, _statistics, _boards, _flows, _market_flow, _members, _indices, _index_series, _calendar, _decode_calendar
+  - methods: __init__, __aenter__, __aexit__, close, fetch, _result, _paginate, _quote, _quote_details, _quotes, _statistics, _boards, _flows, _market_flow, _members, _indices, _index_series, _calendar, _decode_calendar
 
 Functions:
 - `_now`
 - `_number`
+- `_trade_status`
 - `_text`
 - `_timestamp`
 - `_listing_date`
