@@ -15,6 +15,7 @@ from app.research_web.report_workflows.weekly_quality import (
     POLICY_ID,
     bind_weekly_projection,
     canonical_projection,
+    freeze_weekly_production,
     stage_weekly_projection,
     trusted_weekly_context,
     verify_weekly_rendered_artifact,
@@ -154,6 +155,130 @@ def test_projection_uses_canonical_chinese_presentation_and_preserves_audit_body
         canonical_projection(
             canonical, {"blocks": [{"id": "market", "required": True}]}, {"task_id": "a" * 24}
         )
+
+
+def test_projection_restores_only_the_host_frozen_section_title():
+    canonical = _canonical()
+    context = {"blocks": [{"id": "market", "title": "申万一级行业周涨跌幅", "required": True}]}
+    projected = canonical_projection(canonical, context, {"task_id": "a" * 24})
+    assert projected["sections"][0]["title"] == "申万一级行业周涨跌幅"
+    assert canonical["sections"][0]["heading"] == "市场"
+
+
+def test_only_frozen_date_metadata_is_inserted_without_model_prose():
+    value = _manifest()
+    value["blocks"].extend(
+        [
+            {"id": "start", "title": "开始日期", "kind": "workbook"},
+            {"id": "end", "title": "结束日期", "kind": "workbook"},
+        ]
+    )
+    manifest = ReportWorkflowManifest.model_validate(value)
+    frozen = freeze_weekly_production(
+        manifest,
+        {
+            "cutoff": "2026-10-23T15:30:00+08:00",
+            "period_start": "2026-10-19",
+            "period_end": "2026-10-23",
+        },
+    )
+    assert frozen["requirements"] == [{"id": "market", "text": "市场"}]
+    context = {"blocks": value["blocks"], "weekly_production": frozen}
+    projected = canonical_projection(_canonical(), context, {"task_id": "a" * 24})
+    assert projected["sections"][-2:] == [
+        {"id": "start", "title": "开始日期", "content": "2026-10-19"},
+        {"id": "end", "title": "结束日期", "content": "2026-10-23"},
+    ]
+    value["blocks"].append({"id": "other", "title": "其他底稿", "kind": "workbook"})
+    with pytest.raises(WorkflowError):
+        canonical_projection(
+            _canonical(),
+            {"blocks": value["blocks"], "weekly_production": frozen},
+            {"task_id": "a" * 24},
+        )
+
+
+@pytest.mark.parametrize("formal", [False, True])
+def test_refresh_uses_bound_frozen_run_only_for_explicit_weekly_policy(tmp_path, formal):
+    from io import BytesIO
+
+    from openpyxl import Workbook, load_workbook
+
+    from app.research_web.report_workflows.catalog import ReportWorkflowService
+
+    value = _manifest()
+    if not formal:
+        value.pop("weekly_production")
+    value["workbook_policies"] = [
+        {"workbook": "workbooks/source.xlsx", "required_cells": ["Sheet1!A1"]}
+    ]
+    catalog = ReportWorkflowService(tmp_path)
+    catalog.create_draft(ReportWorkflowManifest.model_validate(value))
+    book = Workbook()
+    book.active.title = "Sheet1"
+    book.active["A1"] = "mother"
+    stream = BytesIO()
+    book.save(stream)
+    catalog.upload_resource("huaan-etf-weekly", "workbooks/source.xlsx", stream.getvalue())
+    catalog.create_version("huaan-etf-weekly")
+    catalog.publish_version("huaan-etf-weekly", 1)
+    workspace = catalog.create_run_workspace("huaan-etf-weekly", 1)
+    rid = workspace["run_id"]
+    candidate = catalog.run_path(rid) / "workbooks" / "source.xlsx"
+    book.active["A1"] = "frozen"
+    book.save(candidate)
+    with catalog._exclusive():
+        catalog.data["runs"][rid].update(
+            weekly_excel_sources={"workbooks/source.xlsx": _digest(candidate.read_bytes())},
+            weekly_excel_cutoff="cutoff",
+            weekly_data_contract={"cutoff": "cutoff"},
+        )
+        catalog._save()
+    captured = {}
+
+    class CaptureRefresh:
+        def refresh(self, source, _root, _policy, **_kwargs):
+            captured["source"] = source
+            captured["value"] = load_workbook(source, data_only=True).active["A1"].value
+            return SimpleNamespace(status=SimpleNamespace(value="ready"))
+
+    refreshed = catalog.refresh_workbook(
+        rid, "workbooks/source.xlsx", refresh_service=CaptureRefresh()
+    )
+    assert refreshed.status.value == "ready"
+    assert captured["value"] == ("frozen" if formal else "mother")
+    mother = catalog.resource_path("huaan-etf-weekly", 1, "workbooks/source.xlsx")
+    assert captured["source"] == (candidate if formal else mother)
+    assert load_workbook(mother, data_only=True).active["A1"].value == "mother"
+
+
+def test_refresh_rejects_changed_run_source_before_provider_call(tmp_path):
+    from io import BytesIO
+
+    from openpyxl import Workbook
+
+    from app.research_web.report_workflows.catalog import ReportWorkflowService
+
+    value = _manifest()
+    value["workbook_policies"] = [{"workbook": "workbooks/source.xlsx"}]
+    catalog = ReportWorkflowService(tmp_path)
+    catalog.create_draft(ReportWorkflowManifest.model_validate(value))
+    stream = BytesIO()
+    Workbook().save(stream)
+    catalog.upload_resource("huaan-etf-weekly", "workbooks/source.xlsx", stream.getvalue())
+    catalog.create_version("huaan-etf-weekly")
+    catalog.publish_version("huaan-etf-weekly", 1)
+    rid = catalog.create_run_workspace("huaan-etf-weekly", 1)["run_id"]
+    with catalog._exclusive():
+        catalog.data["runs"][rid].update(
+            weekly_excel_sources={"workbooks/source.xlsx": "f" * 64},
+            weekly_excel_cutoff="cutoff",
+            weekly_data_contract={"cutoff": "cutoff"},
+        )
+        catalog._save()
+    with pytest.raises(WorkflowError) as error:
+        catalog.refresh_workbook(rid, "workbooks/source.xlsx")
+    assert error.value.code == "weekly_excel_source_changed"
 
 
 def test_trusted_context_does_not_accept_browser_or_model_metadata(tmp_path):
@@ -305,7 +430,14 @@ def test_failed_final_save_preserves_previous_final_pointer(tmp_path):
     assert run["status"] == "validating" and "finalization_status" not in run
 
 
-def _runtime_fixture(tmp_path, monkeypatch, *, revoke_during_collection=False, unknown_send=False):
+def _runtime_fixture(
+    tmp_path,
+    monkeypatch,
+    *,
+    revoke_during_collection=False,
+    unknown_send=False,
+    native_accept=False,
+):
     from app.research_web.report_workflows.catalog import ReportWorkflowService
     from app.research_web.report_workflows.runtime import ReportWorkflowRuntime
     from app.research_web.store import Store
@@ -343,30 +475,55 @@ def _runtime_fixture(tmp_path, monkeypatch, *, revoke_during_collection=False, u
     async def create(mode, title):
         return store.create(mode, title)
 
-    async def collect(_sid, _call_id, *, cutoff, run_root, manifest):
+    async def collect(_sid, _call_id, *, cutoff, run_root, manifest, prepare_excel):
         assert cutoff == contract["cutoff"]
         assert run_root.is_dir() and manifest.workflow_id == "huaan-etf-weekly"
+        assert callable(prepare_excel)
+        marker = store.session(_sid)["report_workflow"]
+        assert (
+            marker["workflow_id"] == manifest.workflow_id and marker["version"] == manifest.version
+        )
+        assert marker["run_id"] == run_root.name and "quality_policy" not in marker
         if revoke_during_collection:
             owner["enabled"] = False
         return {
             "contract": copy.deepcopy(contract),
             "snapshot": {"source": "test"},
             "assessment": {
-                "status": "passed" if revoke_during_collection or unknown_send else "blocked_data",
+                "status": (
+                    "passed"
+                    if revoke_during_collection or unknown_send or native_accept
+                    else "blocked_data"
+                ),
                 "issues": ["calendar_unverified"],
             },
         }
 
     async def send(*args, **kwargs):
         sent.append((args, kwargs))
+        sid, _text, key = args
+        task = hashlib.sha256(f"{sid}:{key}".encode()).hexdigest()[:24]
+        store.reserve(
+            sid,
+            key,
+            "synthetic",
+            {"task_id": task, "marker": f"[RESEARCH_TASK:{task}]", "required_formats": []},
+        )
+        if native_accept:
+            store.receipt(sid, key, "accepted")
         if unknown_send:
             raise ConnectionError("native response lost")
+
+    async def detail(_sid):
+        return {"status": "idle", "delivery": {"status": "admission_unknown"}}
 
     service = SimpleNamespace(
         store=store,
         create=create,
         send=send,
+        detail=detail,
         datahub=SimpleNamespace(collect_report_weekly=collect),
+        events={},
     )
     service.report_workflows = SimpleNamespace(require_weekly_owner=authorize)
     runtime = ReportWorkflowRuntime(service, catalog, None)
@@ -412,8 +569,8 @@ def test_unknown_model_submission_is_preserved_for_attention_without_retry(tmp_p
         row = runtime._run(created["id"])
         assert row["status"] == "needs_attention"
         assert row["research_submission_state"] == "unknown"
-        with pytest.raises(WorkflowError):
-            await runtime.retry(created["id"])
+        checked = await runtime.retry(created["id"])
+        assert checked["status"] == "needs_attention"
         duplicate = await runtime.start_run("huaan-etf-weekly")
         assert duplicate["id"] == created["id"]
 
@@ -434,4 +591,109 @@ def test_legacy_success_cannot_enable_formal_automation(tmp_path, monkeypatch):
     with pytest.raises(WorkflowError) as error:
         asyncio.run(runtime.start_run("huaan-etf-weekly", trigger="automation"))
     assert error.value.code == "manual_run_required"
+    assert sent == []
+
+
+def test_failed_admission_journal_never_calls_native_rpc(tmp_path, monkeypatch):
+    runtime, _owner, sent = _runtime_fixture(tmp_path, monkeypatch, unknown_send=True)
+    original_save = runtime.catalog._save
+    failed = []
+
+    def save():
+        if not failed and any(
+            row.get("research_admission_at") for row in runtime.catalog.data["runs"].values()
+        ):
+            failed.append(True)
+            raise OSError("journal fsync failed")
+        return original_save()
+
+    monkeypatch.setattr(runtime.catalog, "_save", save)
+
+    async def run():
+        created = await runtime.start_run("huaan-etf-weekly")
+        await runtime.tasks[created["id"]]
+        row = runtime._run(created["id"])
+        assert row["status"] == "failed"
+        assert "research_admission_at" not in row
+
+    asyncio.run(run())
+    assert failed and sent == []
+
+
+def test_startup_recovers_accepted_rpc_without_sending_again(tmp_path, monkeypatch):
+    from app.research_web.report_workflows.catalog import ReportWorkflowService
+    from app.research_web.report_workflows.runtime import ReportWorkflowRuntime
+
+    runtime, _owner, sent = _runtime_fixture(tmp_path, monkeypatch, native_accept=True)
+    original_save = runtime.catalog._save
+    failed = []
+
+    def save():
+        if not failed and any(
+            row.get("research_started_at") for row in runtime.catalog.data["runs"].values()
+        ):
+            failed.append(True)
+            raise OSError("crash after accepted RPC")
+        return original_save()
+
+    monkeypatch.setattr(runtime.catalog, "_save", save)
+    monitored = []
+
+    async def run():
+        created = await runtime.start_run("huaan-etf-weekly")
+        await runtime.tasks[created["id"]]
+        assert runtime._run(created["id"])["status"] == "needs_attention"
+        recovered = ReportWorkflowRuntime(
+            runtime.service, ReportWorkflowService(runtime.catalog.root.parent), None
+        )
+        runtime.service.report_workflows.runtime = recovered
+
+        async def monitor(run_id):
+            monitored.append(run_id)
+
+        monkeypatch.setattr(recovered, "_resume_delivery", monitor)
+        await recovered.start()
+        await asyncio.gather(*list(recovered.tasks.values()))
+        await recovered.close()
+        assert monitored == [created["id"]]
+
+    asyncio.run(run())
+    assert len(sent) == 1
+
+
+def test_startup_retains_unknown_rpc_without_model_or_vendor_replay(tmp_path, monkeypatch):
+    from app.research_web.report_workflows.runtime import ReportWorkflowRuntime
+
+    runtime, _owner, sent = _runtime_fixture(tmp_path, monkeypatch, unknown_send=True)
+
+    async def run():
+        created = await runtime.start_run("huaan-etf-weekly")
+        await runtime.tasks[created["id"]]
+        recovered = ReportWorkflowRuntime(runtime.service, runtime.catalog, None)
+        runtime.service.report_workflows.runtime = recovered
+        await recovered.start()
+        assert recovered.tasks == {}
+        assert recovered._run(created["id"])["status"] == "needs_attention"
+        await recovered.close()
+
+    asyncio.run(run())
+    assert len(sent) == 1
+
+
+def test_pending_data_receipt_is_only_inspected_not_replayed(tmp_path, monkeypatch):
+    runtime, _owner, sent = _runtime_fixture(tmp_path, monkeypatch)
+
+    async def run():
+        created = await runtime.start_run("huaan-etf-weekly")
+        await runtime.tasks[created["id"]]
+        runtime._update_run(created["id"], status="needs_attention")
+        runtime.service.datahub.snapshots = SimpleNamespace(
+            receipt=lambda *_args: {"status": "pending"}
+        )
+        checked = await runtime.retry(created["id"])
+        assert checked["status"] == "needs_attention"
+        assert checked["failure_code"] == "weekly_data_admission_unknown"
+        assert runtime.tasks == {}
+
+    asyncio.run(run())
     assert sent == []

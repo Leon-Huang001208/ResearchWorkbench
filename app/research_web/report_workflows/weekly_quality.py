@@ -14,6 +14,7 @@ import json
 import re
 import time
 import zipfile
+from datetime import date
 from io import BytesIO
 from pathlib import Path, PurePosixPath
 from xml.etree import ElementTree
@@ -33,6 +34,12 @@ _SNAPSHOT = "inputs/report-workflow/snapshots/report-data.json"
 _CONTEXT = "inputs/report-workflow/run-context.json"
 _CANONICAL = "outputs/research-report.json"
 _LIMIT = 16 * 1024 * 1024
+_DATE_FIELDS = {"开始日期": "period_start", "结束日期": "period_end"}
+
+
+def _date_field(block) -> str | None:
+    value = block.model_dump(mode="json") if hasattr(block, "model_dump") else block
+    return _DATE_FIELDS.get(value.get("title")) if value.get("kind") == "workbook" else None
 
 
 def _digest(raw: bytes) -> str:
@@ -93,7 +100,9 @@ def freeze_weekly_production(manifest, data_contract: dict) -> dict:
         "data_contract": data_contract,
         "news_block_ids": list(manifest.weekly_production.news_block_ids),
         "requirements": [
-            {"id": block.id, "text": block.title} for block in manifest.blocks if block.required
+            {"id": block.id, "text": block.title}
+            for block in manifest.blocks
+            if block.required and _date_field(block) is None
         ],
     }
 
@@ -177,6 +186,15 @@ def canonical_projection(value: dict, context: dict, binding: dict) -> dict:
     except (ValueError, KeyError, TypeError) as exc:
         raise WorkflowError("规范报告身份或结构无效", "weekly_canonical_invalid", 409) from exc
     declared = {block["id"]: block for block in context.get("blocks", [])}
+    metadata = (
+        {
+            key: _date_field(block)
+            for key, block in declared.items()
+            if _date_field(block) is not None
+        }
+        if (context.get("weekly_production") or {}).get("policy_id") == POLICY_ID
+        else {}
+    )
     presented = value.get("presentation", value["sections"])
     if (
         not isinstance(presented, list)
@@ -194,23 +212,42 @@ def canonical_projection(value: dict, context: dict, binding: dict) -> dict:
         section.get("id") for section in value["sections"]
     }:
         raise WorkflowError("规范报告的呈现区块不一致", "weekly_presentation_invalid", 409)
-    required = {key for key, block in declared.items() if block.get("required", True)}
+    required = {
+        key
+        for key, block in declared.items()
+        if block.get("required", True) and key not in metadata
+    }
     if (
         not required.issubset(sections)
         or None in sections
         or any(not sections[key]["text"].strip() for key in required)
-        or not set(sections).issubset(declared)
+        or not set(sections).issubset(set(declared) - set(metadata))
     ):
         raise WorkflowError("规范报告缺少必需区块或包含未知区块", "weekly_blocks_incomplete", 409)
+    projected = []
+    for key, block in declared.items():
+        if key in metadata:
+            try:
+                value_date = context["weekly_production"]["data_contract"][metadata[key]]
+                if not isinstance(value_date, str) or len(value_date) != 10:
+                    raise ValueError("invalid date")
+                date.fromisoformat(value_date)
+            except (KeyError, ValueError, TypeError) as exc:
+                raise WorkflowError("周报日期元数据不完整", "weekly_metadata_invalid", 409) from exc
+            projected.append({"id": key, "title": block["title"], "content": value_date})
+        elif key in sections:
+            projected.append(
+                {
+                    "id": key,
+                    "title": block.get("title") or sections[key]["heading"],
+                    "content": sections[key]["text"],
+                }
+            )
     return {
         "title": value["title"],
         "summary": value.get("summary", ""),
         "as_of": value.get("as_of", ""),
-        "sections": [
-            {"id": key, "title": sections[key]["heading"], "content": sections[key]["text"]}
-            for key in declared
-            if key in sections
-        ],
+        "sections": projected,
         "sources": value.get("sources", []),
         "missing": value.get("missing", []),
         "binding": dict(binding),

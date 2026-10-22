@@ -12,14 +12,16 @@ import shutil
 import threading
 import time
 from contextlib import suppress
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from uuid import uuid4
 from zoneinfo import ZoneInfo
 
 from core.observability import get_logger
 
+from ..client import RuntimeFailure
 from ..delivery import FINAL
+from ..projection import content_text
 from ..report_rendering import render_report_payload
 from ..store import StoreError
 from .models import RefreshStatus, WorkflowError, WorkflowSchedule
@@ -79,6 +81,7 @@ class ReportWorkflowRuntime:
         self.lock = asyncio.Lock()
 
     async def start(self) -> None:
+        await self._recover_weekly_runs()
         self.scheduler_task = asyncio.create_task(
             self._scheduler(), name="report-workflow-scheduler"
         )
@@ -108,9 +111,82 @@ class ReportWorkflowRuntime:
                 row = self.catalog.data["runs"][run_id]
             except KeyError as exc:
                 raise WorkflowError("报告运行不存在", "run_not_found", 404) from exc
+            before = copy.deepcopy(row)
             row.update(updates, updated_at=time.time())
-            self.catalog._save()
+            # A failed admission write cannot remain accepted in memory while
+            # the durable catalog still holds the earlier state.
+            try:
+                self.catalog._save()
+            except Exception:
+                row.clear()
+                row.update(before)
+                log.warning("report_workflow_run_save_failed")
+                raise
             return copy.deepcopy(row)
+
+    def _accepted_weekly_submission(self, run: dict) -> bool:
+        sid = run.get("session_id")
+        if not sid:
+            return False
+        expected_key = "report-workflow-" + run["id"]
+        try:
+            if self.service.store.session(sid).get("delivery_key") != expected_key:
+                return False
+            receipt = self.service.store.data["receipts"].get(f"{sid}:{expected_key}", {})
+            expected_task = hashlib.sha256(f"{sid}:{expected_key}".encode()).hexdigest()[:24]
+            return (
+                receipt.get("status") == "accepted"
+                and receipt.get("delivery", {}).get("task_id") == expected_task
+            )
+        except StoreError:
+            return False
+
+    async def _recover_weekly_runs(self) -> None:
+        """Resume only observation of accepted work; never replay a submission."""
+        with self.catalog._exclusive():
+            runs = [
+                copy.deepcopy(row)
+                for row in self.catalog.data["runs"].values()
+                if row.get("weekly_data_contract") and row.get("status") in ACTIVE
+            ]
+        for run in runs:
+            run_id = run.get("id")
+            if not run_id or run_id in self.tasks:
+                continue
+            try:
+                self._require_weekly_owner(run.get("owner_id"))
+                if self._accepted_weekly_submission(run):
+                    from .weekly_quality import trusted_weekly_context
+
+                    if trusted_weekly_context(self.service, run["session_id"]) is None:
+                        raise WorkflowError(
+                            "恢复上下文未知", "weekly_recovery_context_unknown", 409
+                        )
+                    self._update_run(
+                        run_id,
+                        status="validating",
+                        research_submission_state="accepted",
+                        recovered_at=time.time(),
+                    )
+                    self.tasks[run_id] = asyncio.create_task(
+                        self._resume_delivery(run_id), name=f"report-weekly-recover-{run_id}"
+                    )
+                else:
+                    self._update_run(
+                        run_id,
+                        status="needs_attention",
+                        finalization_status="blocked",
+                        failure_code="weekly_recovery_unknown",
+                        recovered_at=time.time(),
+                    )
+            except (StoreError, OSError, ValueError, KeyError, TypeError) as exc:
+                log.warning("report_weekly_recovery_blocked", error_type=type(exc).__name__)
+                self._update_run(
+                    run_id,
+                    status="needs_attention",
+                    finalization_status="blocked",
+                    failure_code=getattr(exc, "code", "weekly_recovery_context_unknown"),
+                )
 
     def _append_refresh_manifest(self, run_id: str, path: str | None) -> dict:
         run_root = self.catalog.run_path(run_id)
@@ -370,8 +446,22 @@ class ReportWorkflowRuntime:
             workbook_projection = None
             if formal:
                 self._require_weekly_owner(run.get("owner_id"))
-                session = await self.service.create("claw", f"{manifest.name} · 报告 Workflow")
-                sid = session["id"]
+                sid = run.get("session_id")
+                if sid is None:
+                    session = await self.service.create("claw", f"{manifest.name} · 报告 Workflow")
+                    sid = session["id"]
+                existing = self.service.store.session(sid).get("report_workflow")
+                minimal = {
+                    "workflow_id": run["workflow_id"],
+                    "version": run["version"],
+                    "run_id": run_id,
+                }
+                if existing and any(existing.get(key) != value for key, value in minimal.items()):
+                    raise WorkflowError(
+                        "恢复会话不属于本次周报", "weekly_recovery_context_unknown", 409
+                    )
+                self.service.store.session(sid)["report_workflow"] = minimal
+                self.service.store.save()
                 run = self._update_run(run_id, session_id=sid)
                 collector = getattr(self.service.datahub, "collect_report_weekly", None)
                 if not callable(collector):
@@ -388,6 +478,7 @@ class ReportWorkflowRuntime:
                     cutoff=run["weekly_data_contract"]["cutoff"],
                     run_root=self.run_path(run_id),
                     manifest=manifest,
+                    prepare_excel=lambda: self._prepare_weekly_excel(run_id, manifest),
                 )
                 assessment = collected.get("assessment") or {}
                 if (
@@ -520,6 +611,8 @@ class ReportWorkflowRuntime:
                     f"执行锁定的华安 ETF 周报 v{run['version']}。先读取 inputs/report-workflow/run-context.json、模板及共享数据快照。"
                     "本轮仅使用已核验事实、确定性比较和有原文出处的观点；数据、计算、截止和实际交易日期以 Host 冻结合同为准。"
                     "正文的唯一可修改真源为 outputs/research-report.json，必须使用原生 report_plan，sections.id 对应全部原报告区块，coverage 绑定本轮研究合同要求。"
+                    "区块 id 是绑定依据；report_plan 的 heading 使用不含数词的中性名称，交付原标题由 Host 按锁定区块元数据恢复，不手写数字标题绕过质量门。"
+                    "开始日期和结束日期是 Host 冻结的 workbook 元数据，不加入 report_plan 正文；其余区块 id 与研究合同要求必须完整覆盖。"
                     "不要另写 report_payload.json 或自行组装 Office；Host 将规范正文投影到原模板。"
                     f"仅 run-context 中 news_block_ids 允许声明：{INSUFFICIENT_NEWS} 必须保留真实取证记录，不能用训练知识补新闻。"
                     "调用 research_check_quality；只允许原回合一次有界补查，失败保留 incomplete，不新建研究或放宽要求。"
@@ -554,7 +647,16 @@ class ReportWorkflowRuntime:
             if run.get("session_id"):
                 with suppress(Exception):
                     await self.service.cancel(run["session_id"])
-            self._update_run(run_id, status="cancelled", delivery_status="incomplete")
+            current = self._run(run_id)
+            if current.get("weekly_data_contract") and current.get("research_admission_at"):
+                self._update_run(
+                    run_id,
+                    status="needs_attention",
+                    finalization_status="blocked",
+                    failure_code="weekly_monitor_interrupted",
+                )
+            else:
+                self._update_run(run_id, status="cancelled", delivery_status="incomplete")
             raise
         except Exception as exc:  # noqa: BLE001 - background boundary fails closed.
             log.error("report_workflow_run_failed", error_type=type(exc).__name__)
@@ -562,9 +664,12 @@ class ReportWorkflowRuntime:
             unknown = bool(
                 current.get("research_admission_at") and not current.get("research_started_at")
             )
+            admitted = bool(
+                current.get("weekly_data_contract") and current.get("research_admission_at")
+            )
             self._update_run(
                 run_id,
-                status="needs_attention" if unknown else "failed",
+                status="needs_attention" if admitted else "failed",
                 failure_code=(
                     "research_submission_unknown"
                     if unknown
@@ -587,7 +692,9 @@ class ReportWorkflowRuntime:
             self.tasks.pop(run_id, None)
             self.cancellations.pop(run_id, None)
 
-    async def _refresh_workbook(self, run_id: str, workbook: str):
+    async def _refresh_workbook(
+        self, run_id: str, workbook: str, *, refresh_date: date | None = None
+    ):
         """Keep the event loop responsive and wait for bounded worker cleanup on cancel."""
 
         cancellation = self.cancellations.setdefault(run_id, threading.Event())
@@ -597,6 +704,7 @@ class ReportWorkflowRuntime:
                 run_id,
                 workbook,
                 refresh_service=self.refresh,
+                refresh_date=refresh_date,
                 cancellation_event=cancellation,
             ),
             name=f"report-workbook-refresh-{run_id}",
@@ -610,6 +718,41 @@ class ReportWorkflowRuntime:
             with suppress(Exception):
                 await worker
             raise
+
+    async def _prepare_weekly_excel(self, run_id: str, manifest) -> dict:
+        """Only the admitted first-calibration path may refresh owned Run copies."""
+        from .weekly_sources import freeze_weekly_workbook_dates
+
+        current = self._run(run_id)
+        self._require_weekly_owner(current.get("owner_id"))
+        frozen = await asyncio.to_thread(
+            freeze_weekly_workbook_dates,
+            self.run_path(run_id),
+            manifest,
+            current["weekly_data_contract"],
+        )
+        self._update_run(
+            run_id,
+            weekly_excel_cutoff=frozen["cutoff"],
+            weekly_excel_sources={item["path"]: item["sha256"] for item in frozen["workbooks"]},
+        )
+        for policy in manifest.workbook_policies:
+            result = await self._refresh_workbook(
+                run_id,
+                policy.workbook,
+                refresh_date=date.fromisoformat(current["weekly_data_contract"]["period_end"]),
+            )
+            if result.status is not RefreshStatus.READY:
+                raise WorkflowError(
+                    "本期 Excel 校准底稿刷新未通过",
+                    result.code or "weekly_excel_refresh_failed",
+                    409,
+                )
+            self._append_refresh_manifest(run_id, result.manifest_path)
+        return {
+            "refresh_manifests": self._run(run_id)["refresh_manifests"],
+            "cutoff": current["weekly_data_contract"]["cutoff"],
+        }
 
     async def _wait_for_delivery(self, run_id: str) -> None:
         run = self._run(run_id)
@@ -767,7 +910,12 @@ class ReportWorkflowRuntime:
                     )
                 self._finish_run(run_id, updates)
                 return
-        self._update_run(run_id, status="failed", failure_code="report_timeout")
+        timed_out = self._run(run_id)
+        self._update_run(
+            run_id,
+            status="needs_attention" if timed_out.get("weekly_data_contract") else "failed",
+            failure_code="report_timeout",
+        )
 
     def _finish_run(self, run_id: str, updates: dict) -> None:
         """Publish the accepted run and latest-final pointer in one catalog write."""
@@ -807,11 +955,22 @@ class ReportWorkflowRuntime:
             task.cancel()
             with suppress(asyncio.CancelledError):
                 await task
-        run = self._update_run(run_id, status="cancelled", delivery_status="incomplete")
+        current = self._run(run_id)
+        run = self._update_run(
+            run_id,
+            status=(
+                "needs_attention"
+                if current.get("weekly_data_contract") and current.get("research_admission_at")
+                else "cancelled"
+            ),
+            delivery_status="incomplete",
+        )
         return self.public_run(run)
 
     async def retry(self, run_id: str) -> dict:
         run = self._run(run_id)
+        if run.get("weekly_data_contract") and run.get("status") == "needs_attention":
+            return await self._inspect_weekly_run(run_id)
         if run["status"] in ACTIVE:
             raise WorkflowError("报告运行仍在进行", "run_active", 409)
         if (
@@ -921,15 +1080,87 @@ class ReportWorkflowRuntime:
             return self.public_run(self._run(run_id))
         return await self.start_run(run["workflow_id"], trigger="retry", version=run["version"])
 
+    async def _inspect_weekly_run(self, run_id: str) -> dict:
+        """Explicit reconciliation reuses the original session and admission keys."""
+        run = self._run(run_id)
+        self._require_weekly_owner(run.get("owner_id"))
+        if run_id in self.tasks:
+            return self.public_run(run)
+        sid = run.get("session_id")
+        if run.get("research_admission_at") or run.get("research_started_at"):
+            if not sid:
+                raise WorkflowError("模型受理结果未知，不能重发", "weekly_research_unknown", 409)
+            try:
+                await self.service.detail(sid)
+                key = "report-workflow-" + run_id
+                receipt = self.service.store.data["receipts"].get(f"{sid}:{key}", {})
+                marker = receipt.get("delivery", {}).get("marker")
+                seen = isinstance(marker, str) and any(
+                    entry.get("event", {}).get("type") == "user/message"
+                    and marker in content_text(entry["event"].get("data", {}).get("content"))
+                    for entry in self.service.events.get(sid, {}).values()
+                )
+                if seen and self.service.store.session(sid).get("delivery_key") == key:
+                    self.service.store.receipt(sid, key, "accepted")
+                if not self._accepted_weekly_submission(run):
+                    self._update_run(run_id, failure_code="weekly_native_submission_unconfirmed")
+                    return self.public_run(self._run(run_id))
+            except (StoreError, RuntimeFailure, OSError, ValueError, KeyError, TypeError) as exc:
+                log.warning(
+                    "report_weekly_submission_recheck_failed", error_type=type(exc).__name__
+                )
+                self._update_run(run_id, failure_code="weekly_native_submission_unconfirmed")
+                return self.public_run(self._run(run_id))
+            self._update_run(
+                run_id,
+                status="validating",
+                research_submission_state="accepted",
+                research_observed_at=time.time(),
+                failure_code=None,
+            )
+            self.tasks[run_id] = asyncio.create_task(
+                self._resume_delivery(run_id), name=f"report-weekly-reconcile-{run_id}"
+            )
+        else:
+            if sid:
+                receipt = self.service.datahub.snapshots.receipt(
+                    sid, f"report-weekly-data-{run_id}"
+                )
+                if receipt and receipt.get("status") != "completed":
+                    self._update_run(run_id, failure_code="weekly_data_admission_unknown")
+                    return self.public_run(self._run(run_id))
+            # The durable journal is absent: no model RPC has been attempted.
+            # Completed data is consumed under the same sid/call_id; an unknown
+            # data receipt is never replayed above.
+            self._update_run(run_id, status="queued", failure_code=None)
+            self.tasks[run_id] = asyncio.create_task(
+                self._execute(run_id), name=f"report-weekly-continue-{run_id}"
+            )
+        return self.public_run(self._run(run_id))
+
     async def _resume_delivery(self, run_id: str) -> None:
         try:
             await self._wait_for_delivery(run_id)
         except asyncio.CancelledError:
-            self._update_run(run_id, status="cancelled", delivery_status="incomplete")
+            current = self._run(run_id)
+            if current.get("weekly_data_contract"):
+                self._update_run(
+                    run_id,
+                    status="needs_attention",
+                    finalization_status="blocked",
+                    failure_code="weekly_monitor_interrupted",
+                )
+            else:
+                self._update_run(run_id, status="cancelled", delivery_status="incomplete")
             raise
         except Exception as exc:  # noqa: BLE001 - resumed background boundary.
             log.error("report_delivery_retry_failed", error_type=type(exc).__name__)
-            self._update_run(run_id, status="failed", failure_code="delivery_retry_failed")
+            current = self._run(run_id)
+            self._update_run(
+                run_id,
+                status="needs_attention" if current.get("weekly_data_contract") else "failed",
+                failure_code="delivery_retry_failed",
+            )
         finally:
             self.tasks.pop(run_id, None)
 
