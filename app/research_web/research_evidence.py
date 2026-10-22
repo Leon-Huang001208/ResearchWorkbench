@@ -291,7 +291,20 @@ def report_projection(
                 if verified.get(artifact["name"]) != artifact.get("sha256"):
                     issues.append("report_artifact_delivery_unverified:" + artifact["name"])
                 if "system_plan" in payload:
-                    verify_rendered_artifact(payload, artifact["name"].rsplit(".", 1)[-1], body)
+                    # A private runtime receipt binds the reviewed weekly template
+                    # renderer. Before that projection, native SDK files retain
+                    # their original exact-render gate and cannot become final.
+                    from .report_workflows.weekly_quality import (
+                        has_weekly_policy,
+                        verify_weekly_rendered_artifact,
+                    )
+
+                    if has_weekly_policy(store, sid) and frozen_receipt.get("weekly_projection"):
+                        verify_weekly_rendered_artifact(
+                            store, sid, payload, artifact["name"].rsplit(".", 1)[-1], body
+                        )
+                    else:
+                        verify_rendered_artifact(payload, artifact["name"].rsplit(".", 1)[-1], body)
         if not payload.get("sources"):
             issues.append("sources_missing")
         issues.extend(

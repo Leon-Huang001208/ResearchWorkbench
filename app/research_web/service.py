@@ -2837,16 +2837,28 @@ class ResearchService(ModelProfilesMixin):
             method_trace_start = len(read_method_trace(self.store.directory(sid)))
             contract = None
             prepared_receipt = {"delivery": delivery}
-            if row["mode"] == "fingpt" and row.get("purpose") in {None, "research"}:
+            from .report_workflows.evidence import prepare_weekly_evidence
+            from .report_workflows.weekly_quality import trusted_weekly_context
+
+            weekly_context = trusted_weekly_context(self, sid)
+            if weekly_context:
+                prepare_weekly_evidence(self, sid)
+            if weekly_context or (
+                row["mode"] == "fingpt" and row.get("purpose") in {None, "research"}
+            ):
                 try:
                     contract = prepare_contract(
                         self,
                         sid,
                         prepared_receipt,
                         text,
-                        research_requirements,
-                        research_as_of,
-                        chosen_mode,
+                        (
+                            [item["text"] for item in weekly_context["requirements"]]
+                            if weekly_context
+                            else research_requirements
+                        ),
+                        weekly_context["as_of"] if weekly_context else research_as_of,
+                        "deep" if weekly_context else chosen_mode,
                     )
                 except (OSError, ValueError, StoreError) as exc:
                     log.warning(

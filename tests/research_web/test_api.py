@@ -132,6 +132,32 @@ def api(tmp_path):
         yield client, native, service
 
 
+@pytest.mark.parametrize(
+    "witness,expected",
+    [({"active": True}, True), ({"active": False}, False), ({"active": 1}, None), ({}, None)],
+)
+def test_resident_includes_real_wind_api_future_and_unknown_is_not_idle(
+    api, monkeypatch, witness, expected
+):
+    from app.research_web.datahub import providers_cjpy, providers_wind_api
+
+    client, _, _ = api
+    monkeypatch.setattr(providers_cjpy, "active_futures", lambda: 0)
+    monkeypatch.setattr(providers_wind_api, "activity_witness", lambda: witness)
+    assert client.get("/api/research/resident").json()["active"] is expected
+
+
+def test_resident_blocks_during_weekly_data_preparation(api, monkeypatch):
+    from app.research_web.datahub import providers_cjpy, providers_wind_api
+
+    client, _, service = api
+    monkeypatch.setattr(providers_cjpy, "active_futures", lambda: 0)
+    monkeypatch.setattr(providers_wind_api, "activity_witness", lambda: {"active": False})
+    service.report_workflows.catalog.data["runs"]["preparing"] = {"status": "preparing_data"}
+    assert client.get("/api/research/resident").json()["active"] is True
+    service.report_workflows.catalog.data["runs"].clear()
+
+
 def test_create_submit_duplicate_never_replays(api, monkeypatch):
     from datetime import UTC, datetime
 

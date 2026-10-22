@@ -5,10 +5,11 @@ import { safeLog } from '/static/core.mjs';
 const originalFetch = window.fetch.bind(window);
 const identity = await originalFetch('/api/server/me', { credentials: 'same-origin' });
 if (!identity.ok) { location.replace('/auth'); throw Error('login_required'); }
-const user = (await identity.json()).user;
+const identityData = await identity.json();
+const user = { ...identityData.user, primary: identityData.primary === true };
 globalThis.__RWB_USER_ID__ = user.id;
 globalThis.__RWB_USER_ROLE__ = user.role;
-globalThis.__RWB_ACCOUNT__ = Object.freeze({ username: user.username, role: user.role });
+globalThis.__RWB_ACCOUNT__ = Object.freeze({ username: user.username, role: user.role, primary: user.primary === true });
 const profileStyle = document.createElement('link');
 profileStyle.rel = 'stylesheet'; profileStyle.href = '/server-static/profile.css'; document.head.append(profileStyle);
 const accountStyle = document.createElement('link');

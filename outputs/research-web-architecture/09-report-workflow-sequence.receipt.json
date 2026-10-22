@@ -3,9 +3,22 @@
   "ok": true,
   "command": "deliver",
   "type": "sequence",
-  "input": "/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/web-consolidation/docs/architecture/research-web/diagrams/09-report-workflow-sequence.json",
-  "output": "/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/web-consolidation/outputs/research-web-architecture/09-report-workflow-sequence.html",
-  "specification": {"sha256": "a25b612acc8b2b6b1b4d09a716cc4f17b8b55d36164d7f4036397b3807fa378a", "bytes": 6136},
-  "artifact": {"sha256": "af6724121a415da77b7095f02181269812de2d4a17775dae8542fab27dc89427", "bytes": 649642},
-  "validation": {"checksPassed": 9, "checkCount": 9, "compositionProfile": "showcase", "compositionStatus": "pass", "errors": 0, "warnings": 0}
+  "input": "/Users/leon/.codex/worktrees/etf-weekly-docs/ResearchWorkbench/docs/architecture/research-web/diagrams/09-report-workflow-sequence.json",
+  "output": "/Users/leon/.codex/worktrees/etf-weekly-docs/ResearchWorkbench/outputs/research-web-architecture/09-report-workflow-sequence.html",
+  "specification": {
+    "sha256": "3b84504567d310a781f8b994353e7dcbdc703698866289766df4c4ce0cc660b8",
+    "bytes": 8218
+  },
+  "artifact": {
+    "sha256": "fc5fa765e700dcfc87e47d904d314a6583aa607939c26aeb218377600149cc25",
+    "bytes": 650131
+  },
+  "validation": {
+    "checksPassed": 9,
+    "checkCount": 9,
+    "compositionProfile": "showcase",
+    "compositionStatus": "pass",
+    "errors": 0,
+    "warnings": 0
+  }
 }

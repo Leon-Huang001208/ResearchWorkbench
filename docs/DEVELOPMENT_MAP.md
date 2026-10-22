@@ -2,6 +2,13 @@
 
 2026-10-22 v4 profile在`resident/model_provider_upgrade.py`的ASSET_V4_MODE/PREVIOUS/PAYLOAD、封闭previous_for/review_assets和CLI分派中维护，近处回归为test_model_provider_upgrade.py；操作员/测试由独立实现者负责。旧5495固定，产品固定PR180真实merge `9b436613aad9136f4959c992c89dd72fc7354ed5`；654fa6只保留在历史候选证据中。旧v1/v2/v3/controller/evidence/保全门及依赖/CI不变，既有图准确，不改HTML/PNG。产品三CI不替代v4最终本机/评审/CI/部署证据，见[部署合同](research-web-gateway-upgrade.md#资产观察固定版本联合部署)。
 
+华安ETF周报新合同由`report_workflows/weekly_data.py`、`weekly_sources.py`和`weekly_workbooks.py`
+负责封闭来源、期间复算及运行副本，`datahub/providers_wind_api.py`提供惰性SDK适配；`evidence.py`、
+`owner.py`和`weekly_quality.py`接既有研究质量、主管理员与同版本定稿。`ui/weekly-production.mjs`只投影
+四类状态和显式版本操作。近处测试为`test_report_weekly_*.py`、`test_datahub_wind_api.py`及
+`research_web_weekly_production.test.mjs`，仍须全量Router选择的闭包。合同见[周报生产](research-web-etf-weekly-production.md)；
+SDK可导入、离线合成通过与真实连续运行分别取证。
+
 2026-10-22 启动保全修复位于`app/research_web/store.py`：记录磁盘原有的三项可选资产键，save时只省略“原来缺失且仍精确默认”的键，成功原子替换后更新持久键集合；失败沿原日志/异常处理，不误记已持久化。相关回归在`tests/research_web/test_store.py`，覆盖旧索引启动/重复save、首次修改、原有空值及写失败。Automation仍可按原合同save，修复不绕过调用方、不修改保全比对、控制器、依赖或安装流程。存储真源见[文件合同](architecture/research-web/03-data-files.md#资产历史与图表偏好存储)；部署恢复、本机结果和同候选Mac安装CI由主任务分别取证。
 
 2026-10-22 Wind工作区部署工具独立于PR177产品：`resident/model_provider_upgrade.py`新增ASSET_V3_MODE/PREVIOUS/PAYLOAD、previous_for/review_assets及CLI封闭分支，固定旧5495与产品a0ff3ae2，`test_model_provider_upgrade.py`覆盖精确范围、拒绝额外变化、索引保全及v1/v2/v3恢复。controller/evidence、产品、依赖和workflow字节不变；原v4部署拓扑不变，无需改现有图或生成HTML/PNG。真源见[部署合同](research-web-gateway-upgrade.md#资产观察固定版本联合部署)，v3候选CI、真实切换/认证页面与保全另取证，产品通过不能复用成profile通过。

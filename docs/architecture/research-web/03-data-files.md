@@ -100,7 +100,7 @@ AI资讯自主化本轮在隔离实例接入原版API/worker与独立库，保�
 
 服务器目录权限为 0700、私有文件 0600，拒绝符号链接、硬链接及未知归属；凭据继续按用户 data home 命名空间进入既有系统凭据设施，不复制管理员密钥。账号密码重置或停用撤销所有登录态，停用账号不删除其历史和文件。只备份账号 SQLite 不能恢复聊天：完整服务备份须包括所有用户数据、DSH 历史及经独立授权的凭据恢复方案。首版不自动迁移原个人数据或清理用户历史；同 UID 后端本身仍受信任，文件目录分离不是 OS 隔离。
 
-报告 Workflow 在服务器 profile 禁用；FinGPT/Claw 的原会话文件和文件式文档继续按用户根校验。浏览器草稿用账号 UUID 命名空间的 sessionStorage，导航偏好用相同账号空间的 localStorage，避免恢复其他账号状态；Cookie 不进入这些存储。同一浏览器 profile 的本地存储仍由该 profile 持有，命名空间不是本地数据保密边界；浏览器下载副本由用户自行保管。
+报告 Workflow 在新建租户的服务器 profile 禁用；附接原Native Host的主管理员仅按显式周报合同开放，不能把该例外授予其他管理员。FinGPT/Claw 的原会话文件和文件式文档继续按用户根校验。浏览器草稿用账号 UUID 命名空间的 sessionStorage，导航偏好用相同账号空间的 localStorage，避免恢复其他账号状态；Cookie 不进入这些存储。同一浏览器 profile 的本地存储仍由该 profile 持有，命名空间不是本地数据保密边界；浏览器下载副本由用户自行保管。
 
 ## FinGPT 证据与报告版本
 
@@ -479,7 +479,7 @@ client 所有权并 poison Provider 至进程重启，不再实例化 Excel。�
 
 `integrations/` 内的协调器只保存不含秘密的状态证据：启动先恢复原子快照，再异步探测；数据源和本机设置页的“重新检测全部”会创建真实批次。配置或环境指纹变化使旧证据过期，但保留最近成功时间。账号、终端和可能计费来源必须先取得逐来源自动探测授权。
 
-`report_workflows/tooling.py` 只从刷新后的运行副本提取有界内容，并一次性生成 `report-data.json` 共享快照及 SHA-256。Claw 父任务和至少两个真实子 Agent 读取同一快照，不重复刷新。模型只负责生成会话自有的 `report_payload.json`；即使 Claw 提前创建了同名 Office 文件，Report Workflow 也必须经 `report_rendering.py` 与 `report_render_script.py` 做确定性模板组装，再由独立交付检查重开文件、检查 HTML 非空、占位符、数据日期和文件哈希。PPTX 占位符按段落合并 `<a:t>` 文本片段后替换和检查，跨文本片段的残留同样会被拒绝。Payload 可按 `*_blocks` 家族组织，但显式 `missing` 始终优先于解释文字：缺失区块可显示原因，不能因此通过完整交付门禁。Claw 回合结束只进入交付检查，缺 Payload、投影失败、必需区块或约定格式时保持 `delivery_incomplete`。
+旧版报告合同的`report_workflows/tooling.py`只从刷新后的运行副本提取有界内容，并一次性生成 `report-data.json` 共享快照及 SHA-256。Claw 父任务和至少两个真实子 Agent 读取同一快照，不重复刷新。模型只负责生成会话自有的 `report_payload.json`；即使 Claw 提前创建了同名 Office 文件，Report Workflow 也必须经 `report_rendering.py` 与 `report_render_script.py` 做确定性模板组装，再由独立交付检查重开文件、检查 HTML 非空、占位符、数据日期和文件哈希。PPTX 占位符按段落合并 `<a:t>` 文本片段后替换和检查，跨文本片段的残留同样会被拒绝。Payload 可按 `*_blocks` 家族组织，但显式 `missing` 始终优先于解释文字：缺失区块可显示原因，不能因此通过完整交付门禁。Claw 回合结束只进入交付检查，缺 Payload、投影失败、必需区块或约定格式时保持 `delivery_incomplete`。
 
 本机集成的 Wind 真实验证不读取报告 Workflow 母版，而是在独占空白工作簿中执行最小厂商公式；报告刷新由各 Workflow 按自身资源、校验和时限独立判断。iFinD HTTP 探测继续读取 DataHub 的非秘密配置与系统凭据库秘密，按登录、健康、最小只读查询、登出的顺序执行，响应和日志均不包含令牌。
 
@@ -498,6 +498,19 @@ client 所有权并 poison Provider 至进程重启，不再实例化 Excel。�
 资产观察通过 `ui/asset-workspace.mjs` 恢复为独立产品入口。概览、历史行情、财务、资金与交易事件、公告、新闻、研究资料、同类比较、主题暴露和来源口径逐块保留真实状态；历史行情有数据时显示 OHLC K 线、MA/BOLL、成交量、成交额、MACD、KDJ、RSI、换手率和细行情栏，技术指标仅在浏览器内由当前 DataHub 快照确定性派生，不写回或伪装为来源字段。DataHub 标准行的 `turnover` 是成交额，`turnover_rate_pct` 是换手率；UI 分别映射并对缺失值保持未知，不在两个口径间回填。AKShare 财务摘要的布尔缺失哨兵在 Provider 规范化时写为 JSON `null`；历史快照仍可读取，但财务表按缺失值显示 `—`，不会改写原不可变文件。自选、观察笔记和提醒仍存放在 Research Web 数据根，不依赖旧 PostgreSQL，也不恢复旧 Agent 委员会、信号、情景或回测链。
 
 ## 报告 Workflow 资源与迁移
+
+华安ETF周报的显式`weekly_production`策略是同一资源包内的继任合同。主管理员准备未发布版本，
+发布后仍须真实手动定稿才能启用日程；旧版本和旧记录不补写质量状态。原旧版的Excel/payload
+说明继续适用；新合同的数据、正文和定稿规则见[周报生产合同](../../research-web-etf-weekly-production.md)。
+
+新合同从已授权的私有DataHub取数，保存原始响应、报告期、交易日历、等价对照与哈希。
+`report-data.json`绑定本期数据；`weekly-facts.txt`及允许新闻缺口的Host记录由实际输入重建，
+不是模型声明。规范`research-report.json`及同版中文presentation是正文真源，Host只将它投影为
+`report_payload.json`供原版式渲染。Run副本更新三份工作簿、图表缓存、嵌入数据和日历，母版不变。
+
+`weekly_quality.py`将规范正文、任务合同、快照、模板、工作簿和实际产物共同绑定；执行、交付、
+质量和定稿独立。正文或文件改变后旧质量不适用于新字节；`last_finalized_run`与不可变正式归档
+保留上一份成功稿，新失败、重启或未知提交不覆盖它，也不自动重发付费研究。
 
 具体报告不再放入研究台的通用“报告页”。`report_workflows/` 管理每篇报告的不可变版本、资源、运行和日程，`report_workflow_routes.py` 提供产品 API，Claw/DSH 是唯一研究执行引擎。Word/PPT 模板、Excel 底稿、映射、素材和交付规则属于该 Workflow 版本；每次运行复制到独立 Run 目录，不能修改母版。
 

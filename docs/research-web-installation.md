@@ -900,6 +900,24 @@ Hot迁移15增加持久简报版本与请求审计；升级时先停止Hot并执
 
 ## 可选 Office 自动验证
 
+### 华安ETF周报的可选API生产合同
+
+公开安装入口仍安装同一Research Web，不自动安装WindPy、登录厂商、迁移报告或启用日程。
+主管理员在既有Workflow详情准备并发布`huaan-etf-weekly-v1`后，仍须完成SDK权限、同源Excel对照、
+跨市场交易日历／收盘定义和经济日历数据集验证。SDK及厂商许可是可选外部前提，安装和凭据配置须
+另行授权；不得从非官方同名包自动获取SDK。秘密不进入版本包、锁文件、日志或CI产物。
+
+`rwb web doctor --json`的`weekly_report`只做零厂商调用的依赖摘要：`dependency_ready`、`status`、
+`code`、`source_contract=not_checked`，以及`live_acceptance`／`model_acceptance=NOT_RUN`。
+可选SDK缺失不改变主体安装ready语义；Doctor不登录、刷新Office、查询厂商或发模型。
+Doctor的主体安装就绪、Office诊断和既有Wind通用状态不能认证该私有API链的真实取数。
+Workflow详情分别展示依赖、待配置／未核验和最近运行；未取得源覆盖及质量证据时保持阻断。
+缺少可选SDK不应伪报可调用，也不应把基础研究安装误判为厂商已登录。保留三份底稿和原母版，
+只在Run副本上投影本期数据；原生Office刷新与API逐组迁移的边界见[周报生产合同](research-web-etf-weekly-production.md)。
+
+本能力不扩展Docker宿主Office桥或其他平台支持；本机验证、同候选macOS干净安装CI、真实取数／
+成稿与三个周周期分别取证。常驻部署另行授权，源码安装成功不启用正式周报日程。
+
 安装/启动成功不代表 Office 可调用。默认不开启真实验证；在设置 → 本机集成一次开启所属实例的Word、Excel、PowerPoint自动验证，或逐项开启/关闭。会创建、保存、重开并清理登记的测试文稿，保留验证记录（沙箱文件经归档后精确删除，合成副本由私有run目录按原容量/期限保留），可能出现系统提示；提示只能人工处理。有效24小时证据复用，失败不自动重试，关闭后不再启动，冷启动不重放旧任务。Wind最多5分钟，厂商调用不在此开关内。
 
 `rwb web doctor --json`的office_auto_verification仅显示所属实例开关/未知状态、应用范围、人工提示与关闭位置，不发起真实操作，不影响主体安装就绪。未知、未发现、失效及不适用不会提升为可调用或一概归为系统故障。本轮不改安装依赖或一键启动逻辑。

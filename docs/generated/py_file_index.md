@@ -3850,6 +3850,7 @@ Imports:
 - `hashlib`
 - `hmac`
 - `json`
+- `os`
 - `probes`
 - `re`
 - `security`
@@ -3861,7 +3862,7 @@ Imports:
 
 Classes:
 - `DataHub`
-  - methods: __init__, authenticate, _latest_probes, catalog, connection_center, source_configuration_digest, catalog_capability, catalog_source, start_probe, _probe, _mark_probe_terminal, _prune_probes, probe, run_probe, restore_probe_statuses, detail, summaries, copy_for_upgrade, copy_selected, list, rows, short, _authorize_query, query, _query, cancel, close
+  - methods: __init__, authenticate, _latest_probes, catalog, connection_center, source_configuration_digest, catalog_capability, catalog_source, start_probe, _probe, _mark_probe_terminal, _prune_probes, probe, run_probe, restore_probe_statuses, detail, summaries, copy_for_upgrade, copy_selected, list, rows, short, _authorize_query, query, collect_report_weekly, _report_weekly_run_context, register_report_weekly_inputs, _query, cancel, close
 
 Functions:
 - `_trim_sample_strings`
@@ -3904,12 +3905,15 @@ Imports:
 - `datetime`
 - `providers`
 - `providers_akshare`
+- `providers_wind_api`
 - `store`
 
 Classes:
 - `Resolution`
 
 Functions:
+- `resolve_report_weekly`
+  - Authorize the private Client API path without broadening public Wind tools.
 - `_integer`
 - `_wind_financial_query`
   - Translate equivalent indicator naming without reducing requested periods.
@@ -4428,6 +4432,46 @@ Functions:
 - `_submit`
 - `_invoke`
 - `fetch`
+
+
+## `app/research_web/datahub/providers_wind_api.py`
+
+Module docstring:
+> Private, closed Wind Client API queries for the reviewed weekly report.
+
+Imports:
+- `__future__`
+- `asyncio`
+- `concurrent.futures`
+- `core.observability`
+- `datetime`
+- `hashlib`
+- `importlib`
+- `importlib.util`
+- `json`
+- `pathlib`
+- `providers`
+- `pydantic`
+- `report_workflows.weekly_data`
+- `threading`
+- `typing`
+- `zoneinfo`
+
+Classes:
+- `_SeriesRow`
+- `WindAPIQuery`
+  - A private Host request, deliberately absent from BUSINESS_TOOLS.
+  - methods: parameters, valid_scope, fingerprint
+- `WindClientAPIProvider`
+  - Lazy read-only adapter; readiness is not successful market-data proof.
+  - methods: __init__, readiness, _spec, _fetch_sync, fetch, collect
+
+Functions:
+- `activity_witness`
+- `wait_for_idle`
+  - Cancellation does not release a synchronous SDK invocation prematurely.
+- `_sdk_default`
+- `_json_vendor`
 
 
 ## `app/research_web/datahub/routes.py`
@@ -7240,10 +7284,29 @@ Module docstring:
 > Reviewed data-only DOCX projection, shared by report sandbox and Hot exports.
 
 Imports:
+- `copy`
+- `hashlib`
+- `io`
+- `json`
 - `logging`
+- `math`
+- `pathlib`
+- `re`
+- `zipfile`
 
 Functions:
+- `_office_archive`
+- `_set_text_node`
+- `_replace_paragraph_tokens`
 - `build_docx_document`
+- `_weekly_path`
+- `_weekly_workbook`
+- `_range_cells`
+- `_chart_cache`
+- `_chart_projection`
+- `_table_rows`
+- `apply_weekly_docx_projection`
+  - Bind native charts and data tables to owned, verified run-copy values.
 
 
 ## `app/research_web/report_render_script.py`
@@ -7409,6 +7472,7 @@ Functions:
 - `probe_excel_provider`
 - `migrate_report_workflows`
 - `report_workflow`
+- `prepare_weekly_production`
 - `update_report_workflow_draft`
 - `copy_report_workflow`
 - `upload_report_resource`
@@ -7461,6 +7525,7 @@ Imports:
 - `pydantic`
 - `re`
 - `shutil`
+- `stat`
 - `tempfile`
 - `threading`
 - `typing`
@@ -7487,6 +7552,37 @@ Functions:
 - `_role`
 
 
+## `app/research_web/report_workflows/evidence.py`
+
+Module docstring:
+> Host-rebuilt weekly facts for the existing report-plan and quality protocol.
+
+Imports:
+- `__future__`
+- `core.observability`
+- `datahub.security`
+- `decimal`
+- `hashlib`
+- `json`
+- `models`
+- `research_business_evidence`
+
+Functions:
+- `weekly_fact_rows`
+  - Only independently reassessed observations become calculation operands.
+- `_verified`
+- `weekly_research_inputs`
+  - Template assets are hash-bound delivery inputs, not claimed research sources.
+- `_empty_news_records`
+- `refresh_weekly_news_evidence`
+  - Only completed, exact-period, zero-result queries authorize a gap statement.
+- `_news_business_observations`
+- `_news_file_name`
+- `_content`
+- `prepare_weekly_evidence`
+- `weekly_business_observations`
+
+
 ## `app/research_web/report_workflows/manager.py`
 
 Module docstring:
@@ -7503,6 +7599,7 @@ Imports:
 - `migration`
 - `models`
 - `os`
+- `owner`
 - `pathlib`
 - `pydantic`
 - `runtime`
@@ -7514,7 +7611,7 @@ Imports:
 Classes:
 - `ReportWorkflowManager`
   - Expose stable product operations without weakening the package boundary.
-  - methods: __init__, start, close, _row, _public_artifact, summary, list, detail, create_draft, _atomic_yaml, update_draft, copy, versions, create_version, publish, rollback, disable, resource, upload_resource, provider_status, _dependency_readiness, probe, migrate_legacy, _managed_report_projects_available, _hardlink_tree, _migrate_managed_report_projects
+  - methods: __init__, start, close, _row, _public_artifact, summary, list, detail, require_weekly_owner, weekly_production_status, prepare_weekly_production, create_draft, _atomic_yaml, update_draft, copy, versions, create_version, publish, rollback, disable, resource, upload_resource, provider_status, _dependency_readiness, probe, migrate_legacy, _managed_report_projects_available, _hardlink_tree, _migrate_managed_report_projects
 
 
 ## `app/research_web/report_workflows/migration.py`
@@ -7563,6 +7660,7 @@ Imports:
 - `pathlib`
 - `pydantic`
 - `store`
+- `typing`
 
 Classes:
 - `WorkflowError`
@@ -7586,10 +7684,36 @@ Classes:
   - methods: formats_are_unique, primary_workbook_is_scoped
 - `WorkflowSchedule`
   - methods: validate_shape
+- `WeeklyProductionPolicy`
+  - Opt in a published Huaan version without upgrading historical runs.
+  - methods: news_blocks_are_unique
 - `ReportWorkflowManifest`
   - methods: excluded_workbooks_are_scoped, validate_unique_contracts
 - `WorkbookRefreshResult`
   - methods: manifest_path_is_a_logical_reference
+
+
+## `app/research_web/report_workflows/owner.py`
+
+Module docstring:
+> Read-only authorization of the attached administrator for weekly production.
+
+Imports:
+- `__future__`
+- `contextlib`
+- `core.observability`
+- `models`
+- `multiuser.resident_binding`
+- `multiuser.runtime`
+- `os`
+- `pathlib`
+- `sqlite3`
+- `stat`
+- `uuid`
+
+Functions:
+- `resolve_primary_owner`
+  - Never initialize a database, accept a browser role, or reuse cached roles.
 
 
 ## `app/research_web/report_workflows/runtime.py`
@@ -7600,15 +7724,18 @@ Module docstring:
 Imports:
 - `__future__`
 - `asyncio`
+- `client`
 - `contextlib`
 - `copy`
 - `core.observability`
 - `datetime`
 - `delivery`
+- `hashlib`
 - `inspect`
 - `json`
 - `models`
 - `pathlib`
+- `projection`
 - `re`
 - `report_rendering`
 - `shutil`
@@ -7617,11 +7744,12 @@ Imports:
 - `time`
 - `tooling`
 - `uuid`
+- `weekly_quality`
 - `zoneinfo`
 
 Classes:
 - `ReportWorkflowRuntime`
-  - methods: __init__, start, close, _run, _update_run, _append_refresh_manifest, run_path, _session_payload, _rearm_delivery_validation, assert_not_active, _new_run, public_run, runs, start_run, _execute, _refresh_workbook, _wait_for_delivery, cancel, retry, _resume_delivery, schedule, put_schedule, _next_run, _set_schedule_due_for_test, _record_schedule_failure, tick, _scheduler
+  - methods: __init__, start, close, _run, _update_run, _accepted_weekly_submission, _recover_weekly_runs, _append_refresh_manifest, run_path, _session_payload, _rearm_delivery_validation, assert_not_active, _new_run, public_run, runs, start_run, _require_weekly_owner, _manual_weekly_passed, _execute, _refresh_workbook, _prepare_weekly_excel, _wait_for_delivery, _finish_run, cancel, retry, _inspect_weekly_run, _resume_delivery, schedule, put_schedule, _next_run, _set_schedule_due_for_test, _record_schedule_failure, tick, _scheduler
 
 Functions:
 - `_public_metadata`
@@ -7650,6 +7778,178 @@ Functions:
 - `_json_value`
 - `materialize_report_snapshot`
   - Extract refreshed workbooks into one immutable, hash-addressed snapshot.
+
+
+## `app/research_web/report_workflows/weekly_data.py`
+
+Module docstring:
+> Closed Huaan weekly input contract and independently reproducible arithmetic.
+
+Imports:
+- `__future__`
+- `core.observability`
+- `datetime`
+- `decimal`
+- `hashlib`
+- `json`
+- `pathlib`
+- `re`
+- `zoneinfo`
+
+Functions:
+- `weekly_code_identity`
+  - Bind equivalence to the installed adapter and arithmetic implementation.
+- `weekly_snapshot_sha256`
+  - Bind every normalized input byte, refusing JSON non-finite extensions.
+- `load_weekly_mapping`
+  - Return the reviewed resource; changes require an explicit new identity.
+- `_aware`
+- `_day`
+- `_number`
+- `_mean`
+- `_percent_change`
+- `build_weekly_data_contract`
+  - Freeze the most recent scheduled period; never ask for future Friday data.
+- `_calendar`
+- `_series_rows`
+- `compare_weekly_sources`
+  - Recompute a comparison from both inputs; never trust a stored pass flag.
+- `_near`
+- `build_equivalence_proof`
+  - Create reusable evidence from real inputs; never create proof from a flag.
+- `_assess_equivalence_proof`
+- `merge_weekly_sources`
+  - Switch only independently matching whole groups, retaining the Excel input.
+- `adopt_verified_groups`
+  - Use verified API groups and only fresh, independently checkable Excel rows.
+- `assess_weekly_snapshot`
+  - Validate source evidence and independently derive the report's numbers.
+- `sample_snapshot`
+  - Return a schema example, explicitly empty and incapable of passing gates.
+- `materialize_weekly_workbooks`
+  - Project validated data into Run copies while preserving Office package parts.
+
+
+## `app/research_web/report_workflows/weekly_quality.py`
+
+Module docstring:
+> Host-owned canonical projection and exact-byte Huaan finalization bindings.
+
+Imports:
+- `__future__`
+- `core.observability`
+- `datahub.security`
+- `datetime`
+- `hashlib`
+- `html`
+- `io`
+- `json`
+- `models`
+- `pathlib`
+- `re`
+- `resources.research_report`
+- `store`
+- `time`
+- `xml.etree`
+- `zipfile`
+
+Functions:
+- `_date_field`
+- `_digest`
+- `_json_digest`
+- `_core_digest`
+- `_read`
+- `_write`
+- `weekly_enabled`
+- `freeze_weekly_production`
+  - Freeze original block obligations and explicitly permitted news gaps.
+- `trusted_weekly_context`
+  - Accept only the run and exact input bytes frozen by the Host runtime.
+- `weekly_verified_evidence`
+  - Rebuild observations from the same owned bytes on every quality check.
+- `canonical_projection`
+  - Map the only editable report body into the existing template renderer.
+- `stage_weekly_projection`
+- `_validate_artifact`
+- `_verify_narrative_projection`
+  - Every required prose block must actually appear in the delivered body.
+- `bind_weekly_projection`
+  - Record a Host-produced projection before the unchanged quality gate runs.
+- `has_weekly_policy`
+- `verify_weekly_rendered_artifact`
+  - The template-specific check requires a private Host receipt, never a flag.
+- `finalization_binding`
+  - Fail closed unless the Host checked these exact canonical and file bytes.
+
+
+## `app/research_web/report_workflows/weekly_sources.py`
+
+Module docstring:
+> Trusted Run resources for first-source comparison and reviewed API semantics.
+
+Imports:
+- `__future__`
+- `core.observability`
+- `datetime`
+- `decimal`
+- `hashlib`
+- `io`
+- `json`
+- `models`
+- `os`
+- `pathlib`
+- `re`
+- `tempfile`
+- `weekly_data`
+- `zipfile`
+- `zoneinfo`
+
+Functions:
+- `freeze_weekly_workbook_dates`
+  - Freeze only Run-copy date inputs before an explicit Office calibration.
+- `_resource`
+- `load_run_source_contract`
+  - Read only a published package's exact resource, never arbitrary JSON input.
+- `capture_excel_comparison`
+  - Read actual refreshed Run workbooks; callers cannot supply comparison values.
+
+
+## `app/research_web/report_workflows/weekly_workbooks.py`
+
+Module docstring:
+> Project verified weekly data into existing Run OOXML copies without reformatting.
+
+Imports:
+- `__future__`
+- `core.observability`
+- `datetime`
+- `decimal`
+- `hashlib`
+- `io`
+- `json`
+- `lxml`
+- `models`
+- `os`
+- `pathlib`
+- `re`
+- `tempfile`
+- `typing`
+- `weekly_data`
+- `zipfile`
+
+Functions:
+- `_xml`
+- `_serial`
+- `_column`
+- `_row_number`
+- `_set`
+- `_parts`
+- `_sheets`
+- `_cached`
+- `_chart_caches`
+- `_project`
+- `materialize_weekly_workbooks`
+  - Modify only safe, existing Run copies, with exact snapshot/output hashes.
 
 
 ## `app/research_web/report_workflows/workbook.py`
@@ -8171,6 +8471,8 @@ Functions:
 - `_resolve`
 - `_input_number`
   - Use extracted primitives; independently recount the two bounded record sets.
+- `_report_evidence_limit`
+  - The bounded weekly table has more operands; Host still rebuilds every row.
 - `_summary_calculation`
   - Independent bounded arithmetic from primitives, not the target derived value.
 - `build_business_report_plan`
@@ -8448,7 +8750,7 @@ Classes:
   - methods: __bool__
 - `WebServiceManager`
   - Start and stop only processes whose private state and command both match.
-  - methods: __init__, _lifecycle_lock, _processes, _prepare_private_directories, _state_path, _runtime_auth_path, _fingerprint, _write_state, _read_state, _probe_state, _probe_pid_and_ownership, _runtime_protocol_healthy, _protocol_health, _probe_service, _service_probes, _pid_exists, _command_line, _terminate_pid, _owned_state, _port_open, _text_request, _json_request, _read_runtime_auth, _runtime_launch_token, _exchange_runtime_cookie, _write_runtime_auth, _write_runtime_auth_record, _runtime_sessions_authenticated, _runtime_sessions, _runtime_healthy, _media_type, _web_ready, _web_healthy, _wait, _terminate_failed_spawn, _spawn, _spawn_owned_process, _ensure_startable, _require_installation_ready, _probe_refusal_code, _is_owned_alive, _is_safe_absent, _probe_action, _state_file_identity, _remove_exact_state, _quarantine_invalid_state, _normalize_absent_probe, _clear_runtime_auth, _spawned_process_pending, _wait_for_ready, _stop_transition_pending, _stop_owned_probe, _rollback_spawned, _spawn_and_wait, _record_attempt_spawn, _confirmed_bind_failure, _start_locked, start, _installation_start_scope, _installation_root_matches, _assert_installation_scope, _start_installed, _fresh_root_proven, _native_quiescent, _listener_recovery_fact, _capture_fresh_recovery, _fresh_recovery_proven, _absent_listener_safe, _assert_foreign_observation, _foreign_spawn_current, _other_runtime_quiescent, _start_with_endpoints, _start_endpoint_attempt, _active_research, _active_research_read_only, _stop_one, _stop_locked, _probe_stop_action, stop, restart, restart_runtime, status, _executable_version, _installed_package_versions, _node_diagnosis, _read_install_manifest, _runtime_build_lock_matches, _read_runtime_build_lock_matches, _dsh_build_status, _installation_diagnosis, _model_diagnosis, _web_access_diagnosis, doctor, _ai_news_diagnostic, _validate_log_ownership, logs, tabbit_status
+  - methods: __init__, _lifecycle_lock, _processes, _prepare_private_directories, _state_path, _runtime_auth_path, _fingerprint, _write_state, _read_state, _probe_state, _probe_pid_and_ownership, _runtime_protocol_healthy, _protocol_health, _probe_service, _service_probes, _pid_exists, _command_line, _terminate_pid, _owned_state, _port_open, _text_request, _json_request, _read_runtime_auth, _runtime_launch_token, _exchange_runtime_cookie, _write_runtime_auth, _write_runtime_auth_record, _runtime_sessions_authenticated, _runtime_sessions, _runtime_healthy, _media_type, _web_ready, _web_healthy, _wait, _terminate_failed_spawn, _spawn, _spawn_owned_process, _ensure_startable, _require_installation_ready, _probe_refusal_code, _is_owned_alive, _is_safe_absent, _probe_action, _state_file_identity, _remove_exact_state, _quarantine_invalid_state, _normalize_absent_probe, _clear_runtime_auth, _spawned_process_pending, _wait_for_ready, _stop_transition_pending, _stop_owned_probe, _rollback_spawned, _spawn_and_wait, _record_attempt_spawn, _confirmed_bind_failure, _start_locked, start, _installation_start_scope, _installation_root_matches, _assert_installation_scope, _start_installed, _fresh_root_proven, _native_quiescent, _listener_recovery_fact, _capture_fresh_recovery, _fresh_recovery_proven, _absent_listener_safe, _assert_foreign_observation, _foreign_spawn_current, _other_runtime_quiescent, _start_with_endpoints, _start_endpoint_attempt, _active_research, _active_research_read_only, _stop_one, _stop_locked, _probe_stop_action, stop, restart, restart_runtime, status, _executable_version, _installed_package_versions, _node_diagnosis, _read_install_manifest, _runtime_build_lock_matches, _read_runtime_build_lock_matches, _dsh_build_status, _installation_diagnosis, _model_diagnosis, _web_access_diagnosis, doctor, _weekly_report_diagnostic, _ai_news_diagnostic, _validate_log_ownership, logs, tabbit_status
 
 Functions:
 - `calculate_build_closure`

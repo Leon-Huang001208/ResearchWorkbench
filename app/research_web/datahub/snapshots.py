@@ -428,19 +428,23 @@ class Snapshots:
                 attempted_sources=original.get("attempted_sources", []),
                 metadata=original.get("provider_metadata", {}),
             )
+
+            def parse_query(value):
+                if value.get("capability") == "report_weekly":
+                    from .providers_wind_api import WindAPIQuery
+
+                    return WindAPIQuery.model_validate(value)
+                return (BusinessQuery if "capability" in value else Query).model_validate(value)
+
             request_query = (
-                BusinessQuery.model_validate(original["query"])
+                parse_query(original["query"])
                 if "capability" in original.get("query", {})
                 else None
             )
             copied.append(
                 self.publish(
                     new_sid,
-                    (
-                        BusinessQuery
-                        if "capability" in original.get("provider_query", original["query"])
-                        else Query
-                    ).model_validate(original.get("provider_query", original["query"])),
+                    parse_query(original.get("provider_query", original["query"])),
                     result,
                     origin=original,
                     request_query=request_query,

@@ -3008,8 +3008,33 @@ class WebServiceManager:
             "warnings": warnings,
             "services": {probe.role: probe.public() for probe in probes},
             "office_auto_verification": office_auto,
+            "weekly_report": self._weekly_report_diagnostic(),
             "ai_news": self._ai_news_diagnostic(),
         }
+
+    def _weekly_report_diagnostic(self) -> dict:
+        """Dependency discovery only; never start a vendor session or run a report."""
+        try:
+            from .datahub.providers_wind_api import WindClientAPIProvider
+
+            readiness = WindClientAPIProvider().readiness()
+            return {
+                "provider": "wind_client_api",
+                "dependency_ready": readiness["dependency_ready"],
+                "status": readiness["status"],
+                "code": readiness.get("code"),
+                "source_contract": "not_checked",
+                "live_acceptance": "NOT_RUN",
+                "model_acceptance": "NOT_RUN",
+            }
+        except (ImportError, OSError, ValueError, RuntimeError) as exc:
+            log.warning("report_weekly_doctor_failed", error_type=type(exc).__name__)
+            return {
+                "status": "unavailable",
+                "code": "weekly_diagnostic_failed",
+                "live_acceptance": "NOT_RUN",
+                "model_acceptance": "NOT_RUN",
+            }
 
     def _ai_news_diagnostic(self) -> dict:
         """Optional editorial readiness never grants model or collection acceptance."""
