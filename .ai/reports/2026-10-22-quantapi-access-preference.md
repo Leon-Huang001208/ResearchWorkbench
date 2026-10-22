@@ -139,3 +139,31 @@ numeric测试 `29eb5624973058deaea7f1c939b095b75f3fd196344689b7d893d64e19d898cb`
 148项日志SHA-256 `e3edf06206a8d397031f496c686483386e198596719f859b5f2736edb2d0c308`。
 同新字节的L4 JS112项、完整16路径Constraints、docs/index与black/isort/ruff/mypy再验均通过；
 最终候选与CI仍须在主线合流后重新绑定。
+
+## 冻结源码、独立复审与真实Host历史样本
+
+历史与规模修复源码已提交为 `025dc7f65c9cf2a0d14e41d40b0342672f804823`，
+直接父提交为原授权候选 `0e7e3911399566d0bd44e475202fd5f8ee851b42`；
+Provider仍为 `6d417ad7a16168dd379f63534879adc8f9cd089e331f33fa467462cb4dc32e90`。
+root交接确认该新冻结版本的独立SPEC与质量评审均PASS，各自四近处模块148项通过；
+旧137项和旧授权源码CI仍按原检查点保留，不作为本历史源码通过证据。
+
+root对上述已提交源码完成一次真实Host历史验收：HTTP200，既有
+`ext_ths/cmd_history_quotation` 产生且仅产生一次官方HTTPS POST `/api/v1/history_data`，
+结果 `snapshot`、1行、1份raw，`600000.SH / 2026-10-21 / close=9.66`。
+回执记录market_queries=1、access_exchanges=0、token_resets=0、model_prompts=0、
+real_credential_backend_calls=0；临时Host由root清理，fixture_secrets_on_disk=false。
+秘密只在内存fixture中使用，本实现者未读取真实配置或再次请求厂商。
+
+首次验收脚本在创建session阶段将正常201误断言为200而失败，尚未发出厂商请求；
+初次FAIL原样保留，root纠正脚本断言后才执行上述唯一市场样本。这是验收脚本错误，不是产品缺陷，
+也没有重发已受理市场查询。
+
+| ignored私有证据 | SHA-256 |
+| --- | --- |
+| `logs/quantapi-host-history-acceptance/result.json` | `e9f69ee43df86a975c7e211aa833ae5a61b7371efff16d105e69c8576b66d042` |
+| `logs/quantapi-host-history-acceptance/initial-session-201-result.json` | `14db529999bcd027b1d5239ef91afd3e23d2c1826bf9bd3102e03ad7c4d1e112` |
+
+这只证明该候选Host官方历史出口的单证券、单日、单指标样本；不认证币种／复权跨源等价、
+全历史覆盖、其他iFinD数据集、真实DSH研究质量或正式回测。接续集成将保留025源码及这些原件，
+最新master合流后的独立差异复审、本地门和同候选三CI另行绑定，未部署常驻实例。
