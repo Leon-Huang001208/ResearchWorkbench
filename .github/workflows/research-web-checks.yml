@@ -65,17 +65,19 @@ jobs:
         run: |
           python -m venv .venv
           .venv/bin/python -m pip install -e ".[dev]"
-          # The renderer is already a locked Web product dependency, not a new extra.
+          # These renderer/workbook packages are already locked Web dependencies.
           .venv/bin/python - <<'PY'
           import os
           from pathlib import Path
           lines = Path("requirements/web.lock").read_text().splitlines()
-          start = next(i for i, line in enumerate(lines) if line.startswith("reportlab=="))
-          block = [lines[start]]
-          for line in lines[start + 1:]:
-              if line and not line[0].isspace():
-                  break
-              block.append(line)
+          block = []
+          for package in ("reportlab", "openpyxl", "et-xmlfile"):
+              start = next(i for i, line in enumerate(lines) if line.startswith(package + "=="))
+              block.append(lines[start])
+              for line in lines[start + 1:]:
+                  if line and not line[0].isspace():
+                      break
+                  block.append(line)
           target = Path(os.environ["RUNNER_TEMP"]) / "rwb-reportlab.lock"
           target.write_text("\n".join(block) + "\n")
           PY
@@ -101,6 +103,15 @@ jobs:
             tests/research_web/test_report_calculations.py \
             tests/research_web/test_report_formats.py \
             tests/research_web/test_report_system_flow.py \
+            tests/research_web/test_report_workflows.py \
+            tests/research_web/test_report_workflow_integration.py \
+            tests/research_web/test_report_rendering.py \
+            tests/research_web/test_report_weekly_data.py \
+            tests/research_web/test_report_weekly_quality.py \
+            tests/research_web/test_report_weekly_owner.py \
+            tests/research_web/test_report_weekly_evidence.py \
+            tests/research_web/test_report_weekly_rendering.py \
+            tests/research_web/test_report_weekly_acceptance.py \
             tests/research_web/test_bound_analysis.py \
             tests/research_web/test_research_source_reading.py \
             tests/research_web/test_research_report_binding.py \
@@ -115,6 +126,8 @@ jobs:
             tests/research_web/test_market_provider.py \
             tests/research_web/test_market_service.py \
             tests/research_web/test_datahub_wind.py \
+            tests/research_web/test_datahub_wind_api.py \
+            tests/research_web/test_service_manager.py \
             tests/research_web/test_capabilities.py::test_builtin_dependency_inventory_is_scoped_to_initialization \
             tests/research_web/test_documentation.py \
             tests/research_web/test_doc_sync.py \

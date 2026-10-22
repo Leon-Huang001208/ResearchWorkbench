@@ -28,6 +28,13 @@ def resident(tmp_path, monkeypatch):
     return root
 
 
+@pytest.fixture
+def inactive_market():
+    # The older worker/history cases require a verified idle market as a
+    # precondition; production must still reject a missing or invalid witness.
+    return SimpleNamespace(activity_witness=lambda: {"active": False})
+
+
 def test_mutation_fence_is_cross_process_and_released_on_exit(resident):
     with file_lock(resident, "admission.lock", exclusive=True):
         command = (
@@ -103,7 +110,7 @@ def test_http_maintenance_retains_origin_guard_and_read_only_health(resident, mo
 
 
 @pytest.mark.parametrize("pending", [False, True])
-def test_resident_activity_includes_real_vendor_futures(monkeypatch, pending):
+def test_resident_activity_includes_real_vendor_futures(monkeypatch, pending, inactive_market):
     from fastapi.testclient import TestClient
 
     from app.research_web.datahub import providers_cjpy
@@ -111,14 +118,18 @@ def test_resident_activity_includes_real_vendor_futures(monkeypatch, pending):
 
     app = create_app()
     app.state.research = SimpleNamespace(
-        running={}, approvals={}, questions={}, store=SimpleNamespace(data={})
+        running={},
+        approvals={},
+        questions={},
+        store=SimpleNamespace(data={}),
+        market=inactive_market,
     )
     monkeypatch.setattr(providers_cjpy, "active_futures", lambda: (object(),) if pending else ())
     assert TestClient(app).get("/api/research/resident").json()["active"] is pending
 
 
 @pytest.mark.parametrize("state", ["queued", "running", "cancelling", "draining", "unknown"])
-def test_resident_activity_includes_nonterminal_history_jobs(monkeypatch, state):
+def test_resident_activity_includes_nonterminal_history_jobs(monkeypatch, state, inactive_market):
     from fastapi.testclient import TestClient
 
     from app.research_web.datahub import providers_cjpy
@@ -130,6 +141,7 @@ def test_resident_activity_includes_nonterminal_history_jobs(monkeypatch, state)
         approvals={},
         questions={},
         store=SimpleNamespace(data={"asset_history_jobs": {"job": {"state": state}}}),
+        market=inactive_market,
     )
     monkeypatch.setattr(providers_cjpy, "active_futures", lambda: ())
     assert TestClient(app).get("/api/research/resident").json()["active"] is True
@@ -139,7 +151,9 @@ def test_resident_activity_includes_nonterminal_history_jobs(monkeypatch, state)
     "jobs",
     [None, [], {"job": None}, {"job": {}}, {"job": {"state": "completed", "status": "running"}}],
 )
-def test_resident_activity_keeps_unknown_or_conflicting_history_busy(monkeypatch, jobs):
+def test_resident_activity_keeps_unknown_or_conflicting_history_busy(
+    monkeypatch, jobs, inactive_market
+):
     from fastapi.testclient import TestClient
 
     from app.research_web.datahub import providers_cjpy
@@ -151,12 +165,13 @@ def test_resident_activity_keeps_unknown_or_conflicting_history_busy(monkeypatch
         approvals={},
         questions={},
         store=SimpleNamespace(data={"asset_history_jobs": jobs}),
+        market=inactive_market,
     )
     monkeypatch.setattr(providers_cjpy, "active_futures", lambda: ())
     assert TestClient(app).get("/api/research/resident").json()["active"] is True
 
 
-def test_resident_activity_worker_witness_failure_remains_unknown(monkeypatch):
+def test_resident_activity_worker_witness_failure_remains_unknown(monkeypatch, inactive_market):
     from fastapi.testclient import TestClient
 
     from app.research_web.datahub import providers_cjpy
@@ -167,9 +182,32 @@ def test_resident_activity_worker_witness_failure_remains_unknown(monkeypatch):
 
     app = create_app()
     app.state.research = SimpleNamespace(
-        running={}, approvals={}, questions={}, store=SimpleNamespace(data={})
+        running={},
+        approvals={},
+        questions={},
+        store=SimpleNamespace(data={}),
+        market=inactive_market,
     )
     monkeypatch.setattr(providers_cjpy, "active_futures", unavailable)
+    assert TestClient(app).get("/api/research/resident").json()["active"] is None
+
+
+def test_resident_activity_missing_market_witness_remains_unknown(monkeypatch):
+    from fastapi.testclient import TestClient
+
+    from app.research_web.datahub import providers_cjpy, providers_wind_api
+    from app.research_web.main import create_app
+
+    app = create_app()
+    app.state.research = SimpleNamespace(
+        running={},
+        approvals={},
+        questions={},
+        store=SimpleNamespace(data={}),
+        market=SimpleNamespace(),
+    )
+    monkeypatch.setattr(providers_cjpy, "active_futures", lambda: ())
+    monkeypatch.setattr(providers_wind_api, "activity_witness", lambda: {"active": False})
     assert TestClient(app).get("/api/research/resident").json()["active"] is None
 
 

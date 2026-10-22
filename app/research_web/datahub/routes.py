@@ -229,6 +229,14 @@ async def business_query(body: InternalBusinessQuery, request: Request):
     await service.ensure_owned()
     try:
         result = await service.datahub.query(body.session_id, body.call_id, body.query)
+        if service.store.session(body.session_id).get("report_workflow", {}).get("quality_policy"):
+            from ..report_workflows.evidence import refresh_weekly_news_evidence
+            from ..research_quality_service import latest_receipt, write_business_snapshot
+
+            refresh_weekly_news_evidence(service, body.session_id)
+            contract = latest_receipt(service, body.session_id).get("research_contract")
+            if contract:
+                write_business_snapshot(service, body.session_id, contract)
         service.notify()
         return result
     except asyncio.CancelledError:

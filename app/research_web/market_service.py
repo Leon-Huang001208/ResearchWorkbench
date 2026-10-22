@@ -123,7 +123,35 @@ class MarketService:
         self._last_start: dict[str, float] = {}
         self._slots = asyncio.Semaphore(3)
         self._closed = False
+        self._closing = 0
+        self._close_failed = False
         self._load()
+
+    def activity_witness(self) -> dict[str, bool | None]:
+        """Bounded, synchronous proof for the resident's safe-stop check."""
+        if (
+            type(self._closed) is not bool
+            or type(self._closing) is not int
+            or not 0 <= self._closing <= 16
+            or type(self._close_failed) is not bool
+            or (self._closing and not self._closed)
+            or type(self._collectors) is not dict
+            or len(self._collectors) > 16
+        ):
+            return {"active": None}
+        for collector in self._collectors.values():
+            if (
+                type(collector) is not dict
+                or not isinstance(collector.get("task"), asyncio.Task)
+                or type(collector.get("readers")) is not set
+                or len(collector["readers"]) > MAX_REQUESTS
+                or type(collector.get("draining")) is not bool
+            ):
+                return {"active": None}
+        # Keep ownership until collector cleanup and provider close have both ended.
+        if self._collectors or self._closing:
+            return {"active": True}
+        return {"active": None if self._close_failed else False}
 
     @staticmethod
     def _interval(key: str) -> int:
@@ -470,7 +498,7 @@ class MarketService:
                 return self.request(old_id)
         self._trim_requests()
         request_id = str(uuid4())
-        job = {
+        job: dict = {
             "request_id": request_id,
             "status": "running",
             "sections": {},
@@ -890,19 +918,34 @@ class MarketService:
 
     async def close(self) -> None:
         self._closed = True
-        for job in self._requests.values():
-            if job["status"] in {"pending", "running"}:
-                job["status"] = "cancelled"
-                job["pending"].clear()
-        tasks = [value["task"] for value in self._collectors.values()]
-        for task in tasks:
-            task.cancel()
-        if tasks:
-            await asyncio.gather(*tasks, return_exceptions=True)
-        self._collectors.clear()
-        if self.provider is not None:
-            try:
-                await self.provider.close()
-            except Exception:  # noqa: BLE001 - shutdown must not expose vendor details.
-                log.warning("market_provider_close_failed", code="close_failed")
-        log.info("market_service_closed")
+        self._closing += 1
+        try:
+            for job in self._requests.values():
+                if job["status"] in {"pending", "running"}:
+                    job["status"] = "cancelled"
+                    job["pending"].clear()
+            tasks = [value["task"] for value in self._collectors.values()]
+            for task in tasks:
+                if not task.done() and not task.cancelling():
+                    task.cancel()
+            if tasks:
+                await asyncio.gather(*tasks, return_exceptions=True)
+            self._collectors.clear()
+            if self.provider is not None:
+                try:
+                    await self.provider.close()
+                except Exception:  # noqa: BLE001 - shutdown must not expose vendor details.
+                    self._close_failed = True
+                    log.warning("market_provider_close_failed", code="close_failed")
+        except asyncio.CancelledError:
+            self._close_failed = True
+            log.warning("market_service_close_interrupted", code="close_cancelled")
+            raise
+        except Exception as exc:
+            self._close_failed = True
+            log.warning("market_service_close_failed", error_type=type(exc).__name__)
+            raise
+        finally:
+            self._closing -= 1
+        if not self._close_failed and not self._closing:
+            log.info("market_service_closed")

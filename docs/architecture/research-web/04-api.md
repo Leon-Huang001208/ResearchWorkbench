@@ -502,6 +502,7 @@ MCP staging、安装 payload、清单与确认令牌目录的 Windows mode 修�
 | POST | `/api/research/report-workflows/providers/{provider_id}/probe` | `app/research_web/report_workflow_routes.py` |
 | POST | `/api/research/report-workflows/migrations` | `app/research_web/report_workflow_routes.py` |
 | GET | `/api/research/report-workflows/{workflow_id}` | `app/research_web/report_workflow_routes.py` |
+| POST | `/api/research/report-workflows/{workflow_id}/weekly-production/prepare` | `app/research_web/report_workflow_routes.py` |
 | PATCH | `/api/research/report-workflows/{workflow_id}/draft` | `app/research_web/report_workflow_routes.py` |
 | POST | `/api/research/report-workflows/{workflow_id}/copy` | `app/research_web/report_workflow_routes.py` |
 | POST | `/api/research/report-workflows/{workflow_id}/resources` | `app/research_web/report_workflow_routes.py` |
@@ -553,7 +554,7 @@ MCP staging、安装 payload、清单与确认令牌目录的 Windows mode 修�
 - 本机验证结果只有在上下文指纹一致且尚未到达 TTL 截止时才参与 `callable` 投影；TTL 为 `0` 时立即失效。
 - 研究取数只使用 `internal/data/business-query`，接受稳定业务能力、白名单来源 ID 和能力限定参数；旧产品前缀工具及其平行查询接口已经移除。浏览器不能直接调用 internal 入口。
 - 资产与主题查询和交接均使用 `Idempotency-Key` 并经过串行准入。前端业务入口重分组不改变这些 HTTP API、历史 section 值或持久化格式。交接在创建目标会话前验证请求中的数据集归属，并限制页面上下文为 64 KiB；查询受理或 DSH 回合结束均不等于报告交付完成。
-- 报告 Workflow API 管理具体报告版本包；运行只允许已启用且有当前版本的项目。`report-projects` 是迁移期后端兼容接口，没有独立产品导航或第二执行引擎，新页面只使用 `report-workflows`。
+- 报告 Workflow API 管理具体报告版本包；运行只允许已启用且有当前版本的项目。`weekly-production/prepare`仅为`huaan-etf-weekly`准备未发布的新合同版本，重验主管理员归属，不运行模型、不发布或启用日程；其他workflow返回明确拒绝。详情新增`weekly_production`安全摘要，包含策略、待发布版本、owner/Provider状态、最近运行及停用的默认周五15:30日程。Run分别保留执行、交付、质量、定稿与绑定状态；启用新合同日程须当前版本真实手动运行已定稿。来源配置、路径、厂商表达式和凭据不由该接口接收。`report-projects`是迁移期兼容接口，没有独立产品导航或第二引擎。完整合同见[华安周报](../../research-web-etf-weekly-production.md)。
 - operations 接口只返回安全化聚合。`summary` 是页面首选的一次性聚合，同一请求对每个会话的 DSH 历史只读取一次；服务进程状态还会核对状态指纹、项目/数据根与实际 PID 命令签名。分项接口保留给精确读取和测试。没有 usage 或价格时返回未知/未配置，不伪造零和费用。
 - 结构错误返回明确 4xx；DSH 协议/连接故障不回退演示。服务端日志不输出密钥。
 - MCP Registry 路由在 `RESEARCH_MCP_REGISTRY_ENABLED` 关闭时返回 404。同步固定官方 `/v0.1` 与不透明游标，失败只返回带 `stale` 的最后成功缓存；身份三元组不跨 Registry 合并。认证 Registry 必须使用 HTTPS，无认证 HTTP 仅限精确 loopback，OAuth 端点始终使用 HTTPS。服务器 API 返回有界 Unicode plain text；包记录分别返回 `package_type_supported` 与 `immutable_reference`，不返回 `supported/installable` 或 Stage 2A 可安装承诺。Publisher 两个接口只返回规范 JSON、摘要、完整 argv 和 `executed:false`，从不启动 CLI。

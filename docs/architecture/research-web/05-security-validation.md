@@ -98,6 +98,17 @@ AI资讯自主化本轮在隔离实例接入原版API/worker与独立库，保�
 
 ## 私网邀请制账号与执行边界
 
+华安ETF周报新合同的报告／自动化路由只向附接原Native Host的primary管理员开放；其他用户或
+管理员不能靠浏览器角色、owner、实例地址或伪造header使用该例外。转发前重验真实账号，后台运行、
+发模型和定稿前再核验既有服务器绑定、数据根身份、primary UUID、enabled及admin角色。
+账号库只读，未知绑定不创建替代账号库，撤权或路径身份变化保持`weekly_owner_unavailable`。
+不会给普通tenant解除Office、报告Workflow或日程禁令，也不把primary凭据复制给其他根。
+
+周报API取数仍经私有Broker准入和会话快照；厂商返回、配置身份及原始哈希独立核验，不接收模型
+自报的等价／质量通过。SDK、市场日历、经济日历和同源对照未证明时阻断。规范正文、中文交付、
+模板、本期工作簿和最终文件须同版本绑定；图片缓存、外链、错绑、未决提交和失败归档均不能获得
+`finalized`。安全与验收边界见[周报生产合同](../../research-web-etf-weekly-production.md)。
+
 服务器模式仅在 macOS Native 显式启用，固定一个 Tailscale HTTPS origin/Host；回环 HTTP 仅供本机开发。Tailscale 网络准入和产品账号登录分别验证，无公网注册或 CORS。账号库用 scrypt 密码摘要、随机 Cookie 令牌的哈希和到期时间；密码不进入参数、日志或浏览器持久存储。HTTPS Cookie 为 HttpOnly/Secure/SameSite=Strict，12 小时过期；未知账号与错误密码同样失败，登录失败有界限速。停用、密码重置和退出登录即时撤销对应登录态；最后一个活动管理员受保护。
 
 认证用户 UUID 由网关决定唯一 backend 和文件根，浏览器的 owner、目标地址、Cookie、Authorization、代理头或伪造内部密钥不能选择其他实例。研究提交所需的 `Idempotency-Key` 按原值透传到已认证用户的 backend；网关不生成缺失键，也不从键选择用户或扩大请求权限。逐实例私有令牌保护后端直连；DSH 的允许内部回调另验数据密钥，浏览器不能经网关访问 internal。下载、搜索、SSE、取消和审批复用该用户既有会话与文件校验；SSE 与流式下载在撤销后停止交付，换账号旧页由页面身份标记拒绝。代理请求体有界，同源响应使用 no-store；上游重定向拒绝。
