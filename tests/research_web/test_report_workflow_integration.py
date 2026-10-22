@@ -12,6 +12,11 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
+from app.research_web.credential_backend import (
+    CredentialBackendError,
+    SystemKeyringBackend,
+    default_credential_backend,
+)
 from app.research_web.main import create_app
 from app.research_web.report_workflows import migration as migration_module
 from app.research_web.report_workflows import runtime as runtime_module
@@ -21,6 +26,49 @@ from app.research_web.report_workflows.models import (
 )
 from app.research_web.service import ResearchService
 from app.research_web.store import Store
+
+
+@pytest.fixture(autouse=True)
+def isolated_keyring(monkeypatch):
+    """Own every synthetic secret in memory; never consult the host keyring."""
+    import keyring
+
+    values = {}
+    monkeypatch.delenv("RESEARCH_CREDENTIAL_HOME", raising=False)
+    monkeypatch.setattr(
+        keyring, "get_password", lambda service, account: values.get((service, account))
+    )
+    monkeypatch.setattr(
+        keyring,
+        "set_password",
+        lambda service, account, value: values.__setitem__((service, account), value),
+    )
+    monkeypatch.setattr(
+        keyring, "delete_password", lambda service, account: values.pop((service, account), None)
+    )
+    return values
+
+
+def test_report_fixture_credentials_are_memory_only(isolated_keyring):
+    backend = default_credential_backend()
+    assert isinstance(backend, SystemKeyringBackend)
+    assert backend.get_password("report-fixture", "account") is None
+    backend.set_password("report-fixture", "account", "fixture-only-value")
+    assert isolated_keyring == {("report-fixture", "account"): "fixture-only-value"}
+    assert backend.get_password("report-fixture", "account") == "fixture-only-value"
+    backend.delete_password("report-fixture", "account")
+    assert isolated_keyring == {}
+
+
+def test_unavailable_system_keyring_still_fails_closed(monkeypatch):
+    import keyring
+
+    def unavailable(*_args):
+        raise RuntimeError("fixture-unavailable-private-detail")
+
+    monkeypatch.setattr(keyring, "get_password", unavailable)
+    with pytest.raises(CredentialBackendError, match="^credential_store_unavailable$"):
+        default_credential_backend().get_password("report-fixture", "account")
 
 
 class NativeFixture:

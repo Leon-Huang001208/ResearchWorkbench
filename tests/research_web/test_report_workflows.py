@@ -485,16 +485,18 @@ def test_xlwings_missing_is_safe_and_does_not_expose_import_message(monkeypatch)
             raise ModuleNotFoundError("secret path and plugin details")
         return real_import(name, *args, **kwargs)
 
+    monkeypatch.setattr(workbook_module.sys, "platform", "darwin")
     monkeypatch.setattr(importlib, "import_module", missing)
     result = WindExcelProvider().readiness()
     assert result == {"ready": False, "code": "xlwings_missing"}
     assert "secret" not in json.dumps(result)
 
 
-def test_official_excel_provider_blocks_windows_without_starting_worker(
-    tmp_path: Path, monkeypatch
+@pytest.mark.parametrize("platform", ["win32", "linux"])
+def test_official_excel_provider_blocks_unsupported_platform_without_starting_worker(
+    tmp_path: Path, monkeypatch, platform
 ):
-    monkeypatch.setattr(workbook_module.sys, "platform", "win32")
+    monkeypatch.setattr(workbook_module.sys, "platform", platform)
 
     def unexpected_import(*args, **kwargs):
         pytest.fail("unsupported platforms must not import xlwings")
