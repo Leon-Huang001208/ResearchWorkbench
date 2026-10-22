@@ -62,8 +62,14 @@ MARKET_PREVIOUS = "4d2e3c408663b64be9e58b03213f4ca8f1152733"
 MARKET_PAYLOAD = "5de7e5f2db95b8b501905af9cfdc30e8fe84db0b"
 MARKET_GATEWAY = "research_workbench_entrypoint/resident/gateway_upgrade.py"
 MARKET_GATEWAY_SHA256 = "a5ebfaee0211403fd12083c61b6eafd6a4e08915af1c3c9c95b34fb4bed7c166"
+# Freeze a reviewed product checkpoint; final target still needs merged exact-tree CI.
+MARKET_GAPS_MODE = "reviewed-market-gaps-v1"
+MARKET_GAPS_PREVIOUS = "99d3ee34977c47189a5638207c109a555f52a687"
+MARKET_GAPS_PAYLOAD = "b333c51c7508b7d346b3ca0f039e4e746b0fd8b8"
 # Historical family name: all these profiles require full business-index preservation.
-ASSET_MODES = frozenset((ASSET_MODE, ASSET_V2_MODE, ASSET_V3_MODE, ASSET_V4_MODE, MARKET_MODE))
+ASSET_MODES = frozenset(
+    (ASSET_MODE, ASSET_V2_MODE, ASSET_V3_MODE, ASSET_V4_MODE, MARKET_MODE, MARKET_GAPS_MODE)
+)
 ASSET_EVIDENCE = "research_workbench_entrypoint/resident/evidence.py"
 ASSET_EVIDENCE_SHA256 = "ec022e39a89a3dbd021fca26049342ce149077f5beb62a8df2aba7826d016d25"
 MAX_ASSET_INDEX_BYTES = 64 * 1024 * 1024
@@ -142,6 +148,8 @@ def previous_for(mode):
         return ASSET_V4_PREVIOUS
     if mode == MARKET_MODE:
         return MARKET_PREVIOUS
+    if mode == MARKET_GAPS_MODE:
+        return MARKET_GAPS_PREVIOUS
     raise UpdateBlocked("model_upgrade_profile_unknown")
 
 
@@ -200,7 +208,7 @@ def read_business_index(path: Path):
 
 
 def verify_primary(home, expected, mode):
-    if mode == MARKET_MODE:
+    if mode in {MARKET_MODE, MARKET_GAPS_MODE}:
         return g.verify_primary(home, expected, index_reader=read_business_index)
     return g.verify_primary(home, expected)
 
@@ -269,6 +277,7 @@ def review_assets(source: Path, target: str, mode=ASSET_MODE):
         ASSET_V3_MODE: ASSET_V3_PAYLOAD,
         ASSET_V4_MODE: ASSET_V4_PAYLOAD,
         MARKET_MODE: MARKET_PAYLOAD,
+        MARKET_GAPS_MODE: MARKET_GAPS_PAYLOAD,
     }[mode]
     c.clean(source, target)
     c.git(source, "merge-base", "--is-ancestor", payload, target)
@@ -818,6 +827,17 @@ class Operations:
                 not in (previous_for(self.state.get("mode", MODE)), self.state["target"])
             ):
                 return False
+        if running["web"]["running"] and self.state.get("mode") == MARKET_GAPS_MODE:
+            market = request_json(
+                f"http://127.0.0.1:{self.state['config']['web_port']}/api/research/market"
+            )
+            if (
+                not isinstance(market, dict)
+                or not isinstance(market.get("inflight"), list)
+                or market["inflight"]
+            ):
+                log.info("market_upgrade_collectors_active_or_unknown")
+                return False
         index = read_business_index(self.home / "research-web/index.json")
         if self.state.get("mode") in ASSET_MODES and not asset_queries_idle(index):
             log.info("asset_upgrade_queries_active_or_unknown")
@@ -1228,6 +1248,7 @@ def main(argv=None):
             "apply-assets-v3",
             "apply-assets-v4",
             "apply-market",
+            "apply-market-gaps",
             "recover",
         ),
     )
@@ -1246,6 +1267,7 @@ def main(argv=None):
                 "apply-assets-v3": ASSET_V3_MODE,
                 "apply-assets-v4": ASSET_V4_MODE,
                 "apply-market": MARKET_MODE,
+                "apply-market-gaps": MARKET_GAPS_MODE,
             }.get(args.command, MODE),
         )
         print(json.dumps(result))
