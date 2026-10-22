@@ -191,6 +191,9 @@ class ReportWorkflowManager:
                     if item.get("kind") == "narrative" and item.get("title") in news_titles
                 ],
             }
+            for block in draft.get("blocks", []):
+                if block.get("title") in {"开始日期", "结束日期"}:
+                    block["kind"] = "workbook"
             draft["minimum_subagents"] = 0
             draft["schedule"] = {
                 "kind": "weekly",

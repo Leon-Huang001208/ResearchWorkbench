@@ -74,21 +74,6 @@ def weekly_fact_rows(bundle: dict) -> list[dict]:
                     "statement": "申万行业图使用本期已核验的全部行业序列。",
                 }
             )
-        for identity, title, value in (
-            ("report_start", "开始日期", contract["period_start"]),
-            ("report_end", "结束日期", contract["cutoff"][:10]),
-        ):
-            facts.append(
-                {
-                    "series_id": identity,
-                    "heading": title,
-                    "metric": "weekly_report_period",
-                    "period": value,
-                    "value": None,
-                    "unit": "date",
-                    "statement": f"{title}：{value}",
-                }
-            )
         calendar = bundle["snapshot"].get("economic_calendar", {})
         if calendar.get("coverage_verified") is True:
             facts.append(
@@ -99,9 +84,7 @@ def weekly_fact_rows(bundle: dict) -> list[dict]:
                     "period": contract["next_calendar_start"],
                     "value": None,
                     "unit": "events",
-                    "statement": json.dumps(
-                        calendar.get("events", []), ensure_ascii=False, sort_keys=True
-                    ),
+                    "statement": "下周投资日历使用已核验的冻结事件清单。",
                 }
             )
     return facts
@@ -209,7 +192,7 @@ def _news_business_observations(service, sid, scope):
                 None,
                 "status",
                 [_proof(source, [record["statement"]])],
-                method="huaan-weekly-news-status-v1",
+                method="Huaan weekly verified news availability",
                 text=record["statement"],
                 heading=record["title"],
             )
@@ -282,7 +265,11 @@ def weekly_business_observations(
                     Decimal(row["value"]) if row["value"] is not None else None,
                     row["unit"],
                     [proof],
-                    method="huaan-weekly-data-v1",
+                    method=(
+                        "huaan-weekly-data-v1"
+                        if row["value"] is not None
+                        else "Huaan weekly verified process"
+                    ),
                     text=row.get("statement"),
                     heading=row["heading"],
                 )
