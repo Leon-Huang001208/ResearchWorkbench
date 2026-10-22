@@ -47,3 +47,5 @@
 <!-- architecture-review {"group":"documentation","structure":"unchanged","reason":"文档阅读器仅新增固定市场图名称白名单，原安全读取、隔离CSP、HTTP端点和阅读流程保持。","diagrams":[]} -->
 
 源码检查点：`8043d028242fa4687be260ae151a8333ceaa6af6`；架构阅读器的源码链接固定至该真实提交，后续图文检查点不自指。
+
+集成主线基线：`a0ff3ae2e2ab92bad10ba8547e45027687ec7cc1`；合并源码检查点：`3b59f586b23b4dc8a5988c5443790b32ca396b5f`。保留PR177资产历史、目录／测试修复及原取消行为，市场路由仅取消自己的订阅。合并候选重新验收，不将旧日志直接认证为最终SHA结果。
