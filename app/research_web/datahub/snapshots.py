@@ -111,10 +111,17 @@ class Snapshots:
                 for item in manifest["files"]:
                     from .frozen_archive import OBJECT_FILE
                     archive_file = manifest.get("snapshot_kind") == "hot_evidence" and (item["name"] == "evidence-manifest.json" or OBJECT_FILE.fullmatch(item["name"]))
-                    if item["name"] not in {"rows.json", "rows.csv"} and not archive_file:
+                    if (
+                        item["name"] not in {"rows.json", "rows.csv", "asset-history.json"}
+                        and not archive_file
+                    ):
                         raise StoreError("资料文件引用非法")
                     if sha(read_file(fd, item["name"])) != item["sha256"]:
                         raise StoreError("资料文件hash校验失败")
+                if manifest.get("snapshot_kind") == "asset_history" and read_file(
+                    fd, "asset-history.json"
+                ) != json_bytes(manifest.get("asset_history")):
+                    raise StoreError("历史资料独立 manifest 与快照不一致")
             manifest["manifest_sha256"] = sha(raw)
             manifest["files"].append(
                 {
@@ -143,11 +150,23 @@ class Snapshots:
         return raw
 
     def publish(
-        self, sid, query, result, *, origin=None, request_query=None, authorization_fingerprint=None
+        self,
+        sid,
+        query,
+        result,
+        *,
+        origin=None,
+        request_query=None,
+        authorization_fingerprint=None,
+        asset_history=None,
     ):
         did = str(uuid4())
-        temporary = ".pending-" + did
         parsed = {"rows.json": json_bytes(result.rows), "rows.csv": csv_bytes(result.rows)}
+        if asset_history is not None:
+            # Subsequent chunks must not mutate an earlier published manifest's
+            # in-memory metadata through shared list/dict references.
+            asset_history = json.loads(json_bytes(asset_history))
+            parsed["asset-history.json"] = json_bytes(asset_history)
         dates = sorted(row["date"] for row in result.rows if "date" in row)
         label = SOURCES.get(query.source) or source_label(query.source) or query.source
         manifest = {
@@ -173,6 +192,7 @@ class Snapshots:
             "duplicates_removed": result.duplicates,
             "cache_hit": False,
             "fields": result.fields,
+            "provider_metadata": result.metadata,
             "requested_range": {
                 "start_date": getattr(query, "start_date", None)
                 or getattr(query, "parameters", {}).get("start_date"),
@@ -208,6 +228,15 @@ class Snapshots:
                 for index, raw in enumerate(result.raw, 1)
             ],
         }
+        if asset_history is not None:
+            manifest["asset_history"] = asset_history
+            manifest["snapshot_kind"] = "asset_history"
+            manifest["transformation"] = {
+                "owner": "research_web",
+                "version": asset_history["canonical_version"],
+                "input_count": len(asset_history.get("inputs", [])),
+                "provider_query_is_logical_aggregate": True,
+            }
         if authorization_fingerprint is not None:
             manifest["authorization_fingerprint"] = authorization_fingerprint
         if origin is not None:
@@ -397,6 +426,7 @@ class Snapshots:
                 as_of=original["as_of"],
                 provider_id=original.get("provider"),
                 attempted_sources=original.get("attempted_sources", []),
+                metadata=original.get("provider_metadata", {}),
             )
             request_query = (
                 BusinessQuery.model_validate(original["query"])
@@ -406,10 +436,16 @@ class Snapshots:
             copied.append(
                 self.publish(
                     new_sid,
-                    Query.model_validate(original.get("provider_query", original["query"])),
+                    (
+                        BusinessQuery
+                        if "capability" in original.get("provider_query", original["query"])
+                        else Query
+                    ).model_validate(original.get("provider_query", original["query"])),
                     result,
                     origin=original,
                     request_query=request_query,
+                    authorization_fingerprint=original.get("authorization_fingerprint"),
+                    asset_history=original.get("asset_history"),
                 )
             )
         return copied

@@ -44,6 +44,7 @@ class Result:
     raw_bytes: int = 0
     provider_id: str | None = None
     attempted_sources: list[dict] = field(default_factory=list)
+    metadata: dict = field(default_factory=dict)
 
 
 def numeric(value, *, required=False):

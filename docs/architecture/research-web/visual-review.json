@@ -46,17 +46,17 @@
     },
     {
       "id": "04-data-file-flow",
-      "artifactSha256": "a018697374b7bd2968dfede5b1575d7cc3677622be16747d32bdba89953842d5",
-      "specificationSha256": "e22d8ef6e49a8bee9f7176e0293a2657db53bd47ce20d536187d9cf433f1f205",
+      "artifactSha256": "aa52059b4e962f162931f1534eb93f8f920580f70b125fd260edcffd4bd2d35f",
+      "specificationSha256": "37cb3940a49ca24395af111625fe67b144c0370d28e135dc45e2bf2edb1fe939",
       "status": "reviewed",
-      "reviewer": "controller",
-      "date": "2026-09-08",
+      "reviewer": "Codex documentation implementer (image inspection)",
+      "date": "2026-10-22",
       "captures": [
-        "04-data-file-flow.visual-check.1440x900.light.png",
-        "04-data-file-flow.visual-check.1440x900.dark.png"
+        "04-data-file-flow.visual-check.1440x900.dark.png",
+        "04-data-file-flow.visual-check.2048x1320.light.png"
       ],
       "findings": [],
-      "notes": "已人工查看 1440 浅色与深色最终截图；五阶段数据流、22 个来源目录、用户 MySQL、enabledTools/Schema 自动查询边界、标准化快照、页面交接及父子 Agent 共用路径均可辨认，无穿线或裁剪。图不替代真实取数与会话隔离验收。"
+      "notes": "已实际查看本次最终1440深色和2048浅色截图；任务/偏好模块、固定复权原始行/因子与规范快照文字清晰，无穿过不相关节点、遮挡或裁剪。四视口自动包含性及深浅截图另由同HTML哈希visual-check绑定；不改自动visualReview pending，也不把架构图检查当产品浏览器验收。"
     },
     {
       "id": "06-run-state",
@@ -131,17 +131,17 @@
     },
     {
       "id": "02-module-dependencies",
-      "artifactSha256": "14312c6a90944b4efe0ce0a063df699a4c1229869d7a1cd668fba24ab5b21fef",
-      "specificationSha256": "0afdf59f36b6b45e2d0d9ac7a9c4c25ba625bc7f8142b524efc1b2690895ef3f",
+      "artifactSha256": "9f3145259444249bf33a721c8e64523cbf9dec30b58f1e2ec468d77ca9f1a311",
+      "specificationSha256": "4b881aa9fe18f81031773534b045a9138821697cd17e220f9ade9bf62f61ba03",
       "status": "reviewed",
-      "reviewer": "Codex image inspection",
-      "date": "2026-10-09",
+      "reviewer": "Codex documentation implementer (image inspection)",
+      "date": "2026-10-22",
       "captures": [
-        "02-module-dependencies.visual-check.1440x900.light.png",
-        "02-module-dependencies.visual-check.2048x1320.dark.png"
+        "02-module-dependencies.visual-check.1440x900.dark.png",
+        "02-module-dependencies.visual-check.2048x1320.light.png"
       ],
       "findings": [],
-      "notes": "实际查看当前哈希的1440浅色和2048深色截图：Hot简报/数据边界标签可读，无新增遮挡或裁剪。四视口包含检查与9项结构检查分别通过；本次仅图形视觉检查，不证明产品简报浏览器、模型、DOCX或研究验收。"
+      "notes": "已实际查看本次最终1440深色和2048浅色截图；任务/偏好模块、固定复权原始行/因子与规范快照文字清晰，无穿过不相关节点、遮挡或裁剪。四视口自动包含性及深浅截图另由同HTML哈希visual-check绑定；不改自动visualReview pending，也不把架构图检查当产品浏览器验收。"
     },
     {
       "id": "11-hot-events",

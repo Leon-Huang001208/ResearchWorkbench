@@ -252,7 +252,9 @@
         "tests/javascript/research_web_capabilities_ui.test.mjs",
         "tests/javascript/research_web_public_data.test.mjs",
         "tests/research_web/test_hot_snapshot_publication.py",
-        "tests/research_web/test_datahub_wind.py"
+        "tests/research_web/test_datahub_wind.py",
+        "tests/research_web/test_datahub_broker.py",
+        "tests/research_web/test_datahub_cjpy.py"
       ]
     },
     {
@@ -485,11 +487,14 @@
         "app/research_web/ui/asset-controller.mjs",
         "app/research_web/ui/asset-navigation.mjs",
         "app/research_web/ui/asset-news.mjs",
-        "app/research_web/portfolio_decisions/"
+        "app/research_web/portfolio_decisions/",
+        "app/research_web/asset_history.py",
+        "app/research_web/asset_history_jobs.py"
       ],
       "documents": [
         "docs/research-web-ui.md",
-        "docs/architecture/research-web/03-data-files.md"
+        "docs/architecture/research-web/03-data-files.md",
+        "docs/architecture/research-web/04-api.md"
       ],
       "diagrams": [
         "02-module-dependencies",
@@ -507,7 +512,9 @@
         "tests/javascript/research_web_asset_chart.test.mjs",
         "tests/javascript/research_web_asset_workspace.test.mjs",
         "tests/javascript/research_web_intel.test.mjs",
-        "tests/e2e/research_web_asset_workspace.mjs"
+        "tests/e2e/research_web_asset_workspace.mjs",
+        "tests/research_web/test_asset_history.py",
+        "tests/javascript/research_web_wind_workspace.test.mjs"
       ]
     },
     {
@@ -1077,10 +1084,30 @@
             "hotBridge"
           ],
           "source": "app/research_web/hot_service.py"
+        },
+        {
+          "subjects": [
+            "assetWorkspace",
+            "assetRoute",
+            "dataRoute"
+          ],
+          "source": "app/research_web/asset_history_jobs.py"
+        },
+        {
+          "subjects": [
+            "assetWorkspace"
+          ],
+          "source": "app/research_web/asset_routes.py"
+        },
+        {
+          "subjects": [
+            "assetWorkspace"
+          ],
+          "source": "app/research_web/asset_workspace.py"
         }
       ],
       "level": "subsystems",
-      "summary": "按既有专题聚焦 MCP、自动化、报告和资产观察。"
+      "summary": "MCP、自动化、报告和资产持久历史任务的既有Host依赖。"
     },
     {
       "id": "01-deployment",
@@ -1444,10 +1471,33 @@
             "snapshotHandoff"
           ],
           "source": "app/research_web/workbench.py"
+        },
+        {
+          "subjects": [
+            "normalize",
+            "parsedResult",
+            "snapshotPublish"
+          ],
+          "source": "app/research_web/asset_history.py"
+        },
+        {
+          "subjects": [
+            "normalize",
+            "snapshots",
+            "snapshotPublish"
+          ],
+          "source": "app/research_web/asset_history_jobs.py"
+        },
+        {
+          "subjects": [
+            "providers",
+            "parsedResult"
+          ],
+          "source": "app/research_web/datahub/adjustment_contract.py"
         }
       ],
       "level": "flows",
-      "summary": "DataHub 查询、会话隔离快照和父子 Agent 共享。"
+      "summary": "DataHub原始行、逐日因子、固定复权规范快照和自包含研究交接。"
     },
     {
       "id": "05-capability-flow",
@@ -4025,6 +4075,48 @@
       "source": "app/research_web/main.py",
       "declaredPath": "/api/research/model-profiles/{identity}",
       "prefix": ""
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/assets/observations/{observation_id}/history-jobs",
+      "source": "app/research_web/asset_routes.py",
+      "declaredPath": "/assets/observations/{observation_id}/history-jobs",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/assets/observations/{observation_id}/history-jobs",
+      "source": "app/research_web/asset_routes.py",
+      "declaredPath": "/assets/observations/{observation_id}/history-jobs",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/assets/observations/{observation_id}/history-jobs/{job_id}",
+      "source": "app/research_web/asset_routes.py",
+      "declaredPath": "/assets/observations/{observation_id}/history-jobs/{job_id}",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "POST",
+      "path": "/api/research/assets/observations/{observation_id}/history-jobs/{job_id}/cancel",
+      "source": "app/research_web/asset_routes.py",
+      "declaredPath": "/assets/observations/{observation_id}/history-jobs/{job_id}/cancel",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "GET",
+      "path": "/api/research/assets/chart-preferences",
+      "source": "app/research_web/asset_routes.py",
+      "declaredPath": "/assets/chart-preferences",
+      "prefix": "/api/research"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/research/assets/chart-preferences",
+      "source": "app/research_web/asset_routes.py",
+      "declaredPath": "/assets/chart-preferences",
+      "prefix": "/api/research"
     }
   ],
   "visualReview": "docs/architecture/research-web/visual-review.json",
@@ -4183,7 +4275,7 @@
         "id": "workbench",
         "group": "workbench",
         "title": "资产观察",
-        "summary": "区块查询、自选与笔记；不创建后台行情管线。",
+        "summary": "持久历史任务、固定复权与账号指标偏好；原始/因子/规范快照可复核。",
         "category": "资产观察"
       },
       {

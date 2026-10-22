@@ -3028,6 +3028,64 @@ Functions:
 - `group_reports`
 
 
+## `app/research_web/asset_history.py`
+
+Module docstring:
+> Deterministic daily history validation and fixed-anchor adjustment.
+
+Imports:
+- `__future__`
+- `calendar`
+- `datetime`
+- `math`
+- `re`
+- `store`
+
+Functions:
+- `fail`
+- `shift_years`
+- `chunks_near_first`
+  - At most four calendar years per request, sharing the boundary day.
+- `canonical_asset`
+- `iso_date`
+- `normalize_rows`
+- `merge_rows`
+- `factor_map`
+- `adjust_rows`
+
+
+## `app/research_web/asset_history_jobs.py`
+
+Module docstring:
+> Durable account-owned history jobs over the existing DataHub and snapshots.
+
+Imports:
+- `__future__`
+- `asset_history`
+- `asyncio`
+- `copy`
+- `core.observability`
+- `datahub.adjustment_contract`
+- `datahub.contracts`
+- `datahub.providers`
+- `datahub.security`
+- `datetime`
+- `hashlib`
+- `json`
+- `re`
+- `time`
+- `uuid`
+- `weakref`
+- `zoneinfo`
+
+Classes:
+- `HistoryJobs`
+  - methods: __init__, hub, _observation, _row, public, current, get, list, active, _canonical, _authorize, create, _save, _query, _factors, _gate, _raw_parameters, _cache_chunk, _reuse, _raw_inputs, _publish, _run, cancel, cancel_session, close
+
+Functions:
+- `digest`
+
+
 ## `app/research_web/asset_routes.py`
 
 Module docstring:
@@ -3045,6 +3103,9 @@ Classes:
   - An explicit, complete calendar interval; provider limits still apply.
   - methods: validate_interval
 - `ObservationRequest`
+- `HistoryJobRequest`
+- `ChartPreferencesRequest`
+  - methods: unique_panels
 - `WatchlistCreate`
 - `WatchlistItem`
 - `NoteCreate`
@@ -3057,6 +3118,12 @@ Functions:
 - `create_observation`
 - `list_observations`
 - `observation`
+- `create_history_job`
+- `list_history_jobs`
+- `get_history_job`
+- `cancel_history_job`
+- `get_chart_preferences`
+- `put_chart_preferences`
 - `refresh_observation_block`
 - `watchlists`
 - `create_watchlist`
@@ -3093,7 +3160,7 @@ Classes:
 - `AssetWorkspaceError`
   - methods: __init__
 - `AssetWorkspace`
-  - methods: __init__, _mark_cancelled, _track_task, public_observation, create_observation, refresh_block, _parameters, _source, _requested_range, _run_block, _run, observation, list_observations, create_watchlist, add_watchlist_item, create_note, patch_note, create_alert, patch_alert, evaluate_alerts, close
+  - methods: __init__, _mark_cancelled, _track_task, public_observation, chart_preferences, set_chart_preferences, create_observation, refresh_block, _parameters, _source, _requested_range, _run_block, _run, observation, list_observations, create_watchlist, add_watchlist_item, create_note, patch_note, create_alert, patch_alert, evaluate_alerts, close
 
 Functions:
 - `_uuid_record`
@@ -3802,6 +3869,26 @@ Functions:
   - Bound the model-facing sample; complete rows stay in rows.json.
 
 
+## `app/research_web/datahub/adjustment_contract.py`
+
+Module docstring:
+> Pure, closed Tinysoft adjustment policy; no SDK, credentials or runtime probes.
+
+Imports:
+- `__future__`
+- `datetime`
+- `hashlib`
+- `json`
+- `re`
+- `zoneinfo`
+
+Functions:
+- `contract_metadata`
+  - Return a fresh JSON policy declaration, independent of private log files.
+- `validate_adjustment_parameters`
+  - Reject requests outside the exact three-series single-Shanghai/Shenzhen scope.
+
+
 ## `app/research_web/datahub/broker.py`
 
 Module docstring:
@@ -3809,6 +3896,7 @@ Module docstring:
 
 Imports:
 - `__future__`
+- `adjustment_contract`
 - `catalog`
 - `contracts`
 - `core.observability`
@@ -3835,6 +3923,7 @@ Module docstring:
 
 Imports:
 - `__future__`
+- `adjustment_contract`
 - `contracts`
 - `datetime`
 - `external_sources`
@@ -3938,6 +4027,7 @@ Module docstring:
 > Business-only queries; no provider endpoints, paths, sessions or credentials.
 
 Imports:
+- `adjustment_contract`
 - `datetime`
 - `hashlib`
 - `json`
@@ -4136,6 +4226,7 @@ Module docstring:
 
 Imports:
 - `__future__`
+- `adjustment_contract`
 - `asyncio`
 - `concurrent.futures`
 - `contracts`
@@ -4150,6 +4241,12 @@ Imports:
 - `typing`
 
 Functions:
+- `active_futures`
+  - Read-only witness of SDK work still occupying the single provider worker.
+- `wait_for_idle`
+  - Wait for actual SDK completion; timeout/cancellation never cancels threads.
+- `_observe_async_future`
+  - Retrieve late SDK exceptions even after the caller timed out or cancelled.
 - `_release_capacity`
 - `_submit`
 - `_json_value`
@@ -4160,6 +4257,10 @@ Functions:
 - `_rows`
 - `_contains_secret`
 - `_client`
+- `_factor_date`
+- `_verify_factor_definitions`
+- `_normalized_factor_rows`
+- `_sync_adjustment_query`
 - `_sync_query`
 - `_failure_code`
 - `fetch`

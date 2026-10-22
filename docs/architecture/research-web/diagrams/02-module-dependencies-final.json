@@ -63,7 +63,7 @@
           "providers",
           "snapshots"
         ],
-        "note": "资产页按区块查询真实来源；资料固化为会话快照后再交给 FinGPT 或 Claw。"
+        "note": "资产页经Host持久历史任务串行调用DataHub，保留原始日线/因子并按固定锚点发布规范快照；账号指标偏好独立保存，交接仍给唯一DSH。"
       },
       {
         "id": "liveBrowser",
@@ -153,7 +153,7 @@
       "id": "snapshots",
       "type": "database",
       "label": "会话隔离快照",
-      "sublabel": "数据集 · 产物 · manifest",
+      "sublabel": "原始块 · 因子 · 规范行 · manifest",
       "pos": [
         1285,
         380
@@ -250,8 +250,8 @@
     {
       "id": "assetWorkspace",
       "type": "backend",
-      "label": "资产观察服务",
-      "sublabel": "区块状态 · 自选 · 笔记 · 提醒",
+      "label": "资产与历史任务",
+      "sublabel": "持久任务 · 取消排空 · 指标偏好",
       "pos": [
         500,
         565
@@ -265,7 +265,7 @@
       "id": "datahub",
       "type": "backend",
       "label": "DataHub",
-      "sublabel": "enabledTools · 自动查询 · 快照",
+      "sublabel": "白名单 · 日线/因子 · 单Future",
       "pos": [
         750,
         565
@@ -517,7 +517,7 @@
       "id": "assetRoute",
       "from": "api",
       "to": "assetWorkspace",
-      "label": "资产观察 API",
+      "label": "观察 / 历史 / 偏好 API",
       "fromSide": "bottom",
       "toSide": "left",
       "labelAt": [
@@ -529,7 +529,7 @@
       "id": "dataRoute",
       "from": "assetWorkspace",
       "to": "datahub",
-      "label": "分块业务查询",
+      "label": "串行原始行与因子",
       "labelAt": [
         720,
         657

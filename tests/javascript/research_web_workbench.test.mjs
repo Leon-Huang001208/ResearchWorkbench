@@ -220,10 +220,10 @@ test('asset workspace renders independent states, native chart and personal obse
     },
     watchlists: [{ id: 'w1', name: '核心观察', items: [] }], notes: [], alerts: [], notifications: [],
   });
-  for (const label of ['资产概览', '历史行情', '财务指标', '开盘', '最高', '成交量', '换手率', '区间最高', 'K 线与技术指标', 'MACD', 'KDJ', 'RSI', 'BOLL', '当前覆盖限制', '筹码分布', '股东名称', '行业PE', '宏观', '各区块日期范围', '自选与观察', '提醒规则', '交给 FinGPT', '交给 Claw']) assert.match(html, new RegExp(label));
+  for (const label of ['资产概览', '历史行情', '财务指标', '开盘', '最高', '成交量', '换手率', '区间最高', '行情与技术指标', 'MACD', 'KDJ', 'RSI', 'BOLL', '当前覆盖限制', '筹码分布', '股东名称', '行业PE', '宏观', '各区块日期范围', '自选与观察', '提醒规则', '交给 FinGPT', '交给 Claw']) assert.match(html, new RegExp(label));
   assert.match(html, /akshare/); assert.match(html, /2026-09-05/);
-  assert.match(html, /data-asset-echarts[^>]+aria-label="包含 K 线、成交量、MACD、KDJ 和 RSI 的联动行情图"/);
-  assert.match(html, /data-asset-chip-chart[^>]+aria-label="OHLCV估算筹码分布"/);
+  assert.match(html, /data-asset-echarts[^>]+aria-label="K线与自定义副图；方向键选择历史交易日"/);
+  assert.match(html, /data-asset-chip-chart[^>]+aria-label="日线累计至所选日的OHLCV估算筹码分布"/);
   assert.match(html, /换手率 <strong>0\.51%<\/strong>/);
   assert.match(html, /query_failed/);
   assert.doesNotMatch(html, /https?:\/\/[^" ]*(?:cdn|unpkg)|演示/);

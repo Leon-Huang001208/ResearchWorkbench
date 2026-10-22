@@ -70,8 +70,15 @@ def _public_dataset(result: dict) -> dict:
         "missing",
         "limitations",
         "files",
+        "asset_history",
     }
     public = {key: value for key, value in result.items() if key in keys}
+    if isinstance(public.get("asset_history"), dict):
+        public["asset_history"] = {
+            key: value
+            for key, value in public["asset_history"].items()
+            if key not in {"raw_rows", "factors", "inputs", "configuration_digest"}
+        }
     for name in ("query", "provider_query"):
         query = result.get(name)
         if not isinstance(query, dict):
@@ -126,6 +133,9 @@ class AssetWorkspace:
         self.service = service
         self.store = service.store
         self.tasks: dict[str, asyncio.Task] = {}
+        from .asset_history_jobs import HistoryJobs
+
+        self.history_jobs = HistoryJobs(self)
         interrupted = False
         for row in self.store.data["asset_observations"].values():
             owner = _ACTIVE_OBSERVATIONS.get((str(self.store.root), row["id"]))
@@ -167,7 +177,9 @@ class AssetWorkspace:
 
     def public_observation(self, row: dict) -> dict:
         result = {
-            key: value for key, value in row.items() if key not in {"request", "refresh_keys"}
+            key: value
+            for key, value in row.items()
+            if key not in {"request", "refresh_keys", "history_generation"}
         }
         result["request_parameters"] = {
             key: value
@@ -188,6 +200,11 @@ class AssetWorkspace:
         result["blocks"] = {
             name: {
                 **{key: value for key, value in block.items() if key != "sample"},
+                "dataset": (
+                    _public_dataset(block["dataset"])
+                    if isinstance(block.get("dataset"), dict)
+                    else None
+                ),
                 "requested_source": self._source(row, name),
                 "requested_range": self._requested_range(row, name),
             }
@@ -198,7 +215,34 @@ class AssetWorkspace:
             for block in row["blocks"].values()
             if isinstance(block.get("dataset"), dict) and block["dataset"].get("dataset_id")
         ]
+        result["history_job"] = self.history_jobs.current(row["id"])
         return result
+
+    def chart_preferences(self) -> dict:
+        value = self.store.data["chart_preferences"]
+        return {"panels": list(value["panels"]), "revision": value["revision"]}
+
+    def set_chart_preferences(self, panels: list[str]) -> dict:
+        if (
+            not isinstance(panels, list)
+            or len(panels) > 4
+            or len(set(panels)) != len(panels)
+            or any(p not in {"volume", "macd", "kdj", "rsi"} for p in panels)
+        ):
+            raise AssetWorkspaceError("图表副图必须是最多四个唯一的受支持面板")
+        previous = self.store.data["chart_preferences"]
+        self.store.data["chart_preferences"] = {
+            "panels": list(panels),
+            "revision": previous["revision"] + 1,
+        }
+        try:
+            self.store.save()
+        except Exception:
+            self.store.data["chart_preferences"] = previous
+            log.error("asset_chart_preferences_save_failed")
+            raise
+        log.info("asset_chart_preferences_updated", panels=len(panels))
+        return self.chart_preferences()
 
     async def create_observation(self, body, idempotency_key: str) -> dict:
         if not re.fullmatch(r"[A-Za-z0-9_.:-]{8,128}", idempotency_key):
@@ -241,6 +285,8 @@ class AssetWorkspace:
         row = _uuid_record(self.store.data["asset_observations"], observation_id, "资产观察")
         if block not in BLOCK_QUERIES or block not in row["blocks"]:
             raise AssetWorkspaceError("该观察没有此区块")
+        if block == "history" and self.history_jobs.active(observation_id):
+            raise AssetWorkspaceError("历史任务仍在读取或排空，请等待终态", 409)
         if not re.fullmatch(r"[A-Za-z0-9_.:-]{8,128}", idempotency_key):
             raise AssetWorkspaceError("Idempotency-Key 格式非法")
         digest = hashlib.sha256(idempotency_key.encode()).hexdigest()
@@ -552,6 +598,7 @@ class AssetWorkspace:
         return created
 
     async def close(self) -> None:
+        await self.history_jobs.close()
         tasks = list(self.tasks.values())
         for task in tasks:
             task.cancel()

@@ -10,6 +10,191 @@ const rows = (n, value = i => 100 + i) => Array.from({ length: n }, (_, i) => ({
 const near = (a, b, tolerance = 1e-8) => assert.ok(Math.abs(a - b) < tolerance, `${a} should equal ${b}`);
 const click = action => ({ type: 'click', target: { closest: selector => selector === '[data-asset-chart-action]' ? { dataset: { assetChartAction: action } } : null } });
 
+test('approved workspace defaults to two removable panels and a flat chart/chips surface', () => {
+  const html = renderMarketTerminal(rows(260));
+  assert.doesNotMatch(html, /MARKET TERMINAL|kline-indicator-rail|<h2>K 线/);
+  assert.match(html, /data-asset-chart-action="panel-remove-volume"/);
+  assert.match(html, /data-asset-chart-action="panel-remove-macd"/);
+  assert.doesNotMatch(html, /data-asset-chart-action="panel-remove-kdj"/);
+  assert.match(html, /data-asset-selected-date/);
+  assert.match(html, /data-asset-chart-adjustment/);
+  assert.match(html, /原始锚点未核验/);
+  const option = buildMarketChartOption(enrichMarketBars(rows(260)));
+  assert.equal(option.grid.length, 3);
+  assert.deepEqual(option.dataZoom[0].xAxisIndex, [0, 1, 2]);
+});
+
+test('panel preferences normalize, deduplicate, allow none and notify only user mutations', () => {
+  const changes = []; const c = createAssetChartController({ onPanelsChange: panels => changes.push(panels) });
+  c.configure(rows(100), 'one', {}, { panels: ['rsi', 'rsi', 'unknown', 'volume'] });
+  assert.deepEqual(c.getState().panels, ['rsi', 'volume']);
+  c.handle(click('panel-add-kdj')); c.handle(click('panel-add-kdj'));
+  assert.deepEqual(c.getState().panels, ['rsi', 'volume', 'kdj']); assert.equal(changes.length, 1);
+  c.setPreferences({ panels: [] }); assert.deepEqual(c.getState().panels, []); assert.equal(changes.length, 1);
+  const option = buildMarketChartOption(enrichMarketBars(rows(100)), c.getState());
+  assert.equal(option.grid.length, 1); assert.ok(option.series.every(series => series.yAxisIndex === 0));
+  assert.deepEqual(option.dataZoom[1].xAxisIndex, [0]);
+});
+
+test('selected actual date survives every viewport gesture, leave and same-asset version refresh', () => {
+  const c = createAssetChartController(); const metadata = { frequency: 'daily', assetIdentity: { code: '603986.SH', type: 'stock' } };
+  c.configure(rows(300), 'dataset-v1', metadata); c.select(180);
+  const selected = c.getState().selectedDate; c.pan(100); c.zoom(.5); c.handle({ type: 'mouseleave' }); c.cancel();
+  assert.equal(c.getState().selectedDate, selected); assert.equal(c.getState().activeIndex, 180);
+  assert.equal(c.getState().selectedOutsideView, true);
+  c.handle(click('period-week')); assert.equal(c.getState().selectedDate, selected);
+  c.handle(click('period-month')); assert.equal(c.getState().selectedDate, selected);
+  c.configure(rows(305), 'dataset-v2', metadata); assert.equal(c.getState().selectedDate, selected);
+  c.handle(click('locate')); assert.equal(c.getState().selectedOutsideView, false);
+  c.handle(click('latest')); assert.equal(c.getState().selectedDate, day(304));
+});
+
+test('daily cumulative chip statistics remain identical after zoom, overlays and period changes', () => {
+  const f = fakeDOM(); const c = createAssetChartController();
+  c.configure(rows(300), 'version-one', { assetIdentity: '603986.SH:stock', asset_history: { canonical_version: 'v1', factor_version: 'f1', adjustment: 'qfq' } });
+  c.mount(f.node); c.select(180); f.flush();
+  const points = f.instances[1].option.series[0].data; const stats = f.nodes.get('[data-asset-chip-stats]').innerHTML;
+  assert.equal(points.length, 180); assert.match(f.nodes.get('[data-asset-chip-window]').textContent, new RegExp(`${day(0)}.*${day(180)}`));
+  for (const action of ['zoom-in', 'pan-forward', 'overlay-boll', 'period-week', 'period-month', 'period-day']) {
+    c.handle(click(action)); f.flush();
+    assert.equal(c.getState().selectedDate, day(180));
+    assert.deepEqual(f.instances[1].option.series[0].data, points, action);
+    assert.equal(f.nodes.get('[data-asset-chip-stats]').innerHTML, stats, action);
+  }
+  c.dispose();
+});
+
+test('all-history requests are real jobs and reaching the loaded left edge requests older only once', () => {
+  const requests = []; const c = createAssetChartController({ onHistoryRequest: request => requests.push(request) });
+  const metadata = { assetIdentity: 'one', canLoadHistory: true, asset_history: { coverage: { complete: false }, canonical_version: 'v1', adjustment: 'qfq' } };
+  c.configure(rows(300), 'v1', metadata); assert.equal(requests.length, 0);
+  c.pan(-1000); c.pan(-1000); assert.deepEqual(requests, [{ action: 'load', scope: 'older', adjustment: 'qfq' }]);
+  c.configure(rows(301), 'v2', { ...metadata, historyJob: { status: 'completed' } });
+  c.handle(click('all')); assert.equal(requests.at(-1).scope, 'all');
+  c.handle(click('history-cancel')); assert.equal(requests.at(-1).action, 'cancel');
+});
+
+test('requested adjustment never renames the visible canonical dataset before atomic configure', () => {
+  const requests = []; const f = fakeDOM(); const c = createAssetChartController({ onHistoryRequest: request => requests.push(request) });
+  const metadata = { assetIdentity: 'one', canLoadHistory: true, adjustment: 'qfq', asset_history: { canonical_version: 'v1', factor_version: 'f1', adjustment: 'qfq', anchor_verified: true } };
+  c.configure(rows(200), 'v1', metadata); c.mount(f.node); f.flush();
+  const before = f.instances[1].option.series[0].data;
+  c.handle({ type: 'change', target: { value: 'hfq', matches: selector => selector === '[data-asset-chart-adjustment]' } }); f.flush();
+  assert.equal(c.getState().adjustment, 'qfq'); assert.equal(c.getState().requestedAdjustment, 'hfq');
+  assert.equal(requests[0].adjustment, 'hfq'); assert.deepEqual(f.instances[1].option.series[0].data, before);
+  assert.match(renderMarketTerminal(rows(200), c.getState(), metadata), /正在生成后复权，当前仍显示前复权原版本/);
+  c.configure(rows(200, i => 200 + i), 'v2', { ...metadata, asset_history: { ...metadata.asset_history, canonical_version: 'v2', adjustment: 'hfq' }, adjustment: 'hfq' }); f.flush();
+  assert.equal(c.getState().adjustment, 'hfq'); assert.equal(c.getState().requestedAdjustment, null);
+  assert.notDeepEqual(f.instances[1].option.series[0].data, before); c.dispose();
+});
+
+for (const failure of ['false', 'throw', 'reject', 'resolved-false']) {
+  test(`left-edge loading can be requested again after callback ${failure}`, async () => {
+    const requests = []; const errors = [];
+    const c = createAssetChartController({ logger: code => errors.push(code), onHistoryRequest: request => {
+      requests.push(request);
+      if (requests.length > 1) return true;
+      if (failure === 'throw') throw new Error('submission failed');
+      if (failure === 'reject') return Promise.reject(new Error('submission failed'));
+      return failure === 'resolved-false' ? Promise.resolve(false) : false;
+    } });
+    c.configure(rows(300), 'v1', { assetIdentity: 'one', canLoadHistory: true, asset_history: { canonical_version: 'v1', adjustment: 'qfq' } });
+    c.pan(-1000); await Promise.resolve();
+    assert.equal(c.getState().historyRequestPending, false);
+    c.pan(-1);
+    assert.equal(requests.length, 2);
+    assert.equal(requests[1].adjustment, 'qfq');
+    assert.equal(errors.length, ['throw', 'reject'].includes(failure) ? 1 : 0);
+  });
+}
+
+test('server-required rebuild hides and rejects retry without changing loaded data', () => {
+  const requests = []; const c = createAssetChartController({ onHistoryRequest: request => { requests.push(request); return true; } });
+  c.configure(rows(300), 'v1', { assetIdentity: 'one', canLoadHistory: true,
+    asset_history: { canonical_version: 'v1', adjustment: 'qfq' },
+    historyJob: { state: 'failed', retryable: false, failure_code: 'history_factor_version_changed' } });
+  assert.equal(c.handle(click('history-retry')), false);
+  assert.equal(requests.length, 0);
+  assert.equal(c.getState().adjustment, 'qfq');
+});
+
+test('a failed factor version can rebuild full history while the prior complete snapshot stays readable', () => {
+  const requests = []; const c = createAssetChartController({ onHistoryRequest: request => { requests.push(request); return true; } });
+  c.configure(rows(300), 'v1', { assetIdentity: 'one', canLoadHistory: true,
+    asset_history: { canonical_version: 'v1', adjustment: 'qfq', coverage: { full_history: true } },
+    historyJob: { state: 'failed', retryable: false, failure_code: 'history_factor_version_changed' } });
+  assert.equal(c.handle(click('all')), true);
+  assert.deepEqual(requests, [{ action: 'load', scope: 'all', adjustment: 'qfq' }]);
+  assert.equal(c.getState().adjustment, 'qfq');
+  assert.equal(c.getState().selectedDate, rows(300).at(-1).date);
+});
+
+test('cancelled adjustment does not change the basis of a new older request; explicit retry retains its target', () => {
+  const requests = []; const c = createAssetChartController({ onHistoryRequest: request => { requests.push(request); return true; } });
+  const input = rows(300); const metadata = { assetIdentity: 'one', canLoadHistory: true, asset_history: { canonical_version: 'v1', adjustment: 'qfq' } };
+  c.configure(input, 'v1', metadata);
+  c.handle({ type: 'change', target: { value: 'hfq', matches: selector => selector === '[data-asset-chart-adjustment]' } });
+  c.configure(input, 'v1', { ...metadata, historyJob: { state: 'running', scope: 'recent', adjustment: 'hfq' } });
+  c.handle(click('history-cancel'));
+  const cancelled = { ...metadata, historyJob: { state: 'cancelled', scope: 'recent', adjustment: 'hfq', retryable: true } };
+  c.configure(input, 'v1', cancelled);
+  assert.equal(c.getState().adjustment, 'qfq');
+  assert.equal(c.getState().requestedAdjustment, null);
+  c.handle(click('history-retry'));
+  assert.deepEqual(requests.at(-1), { action: 'retry', scope: 'recent', adjustment: 'hfq' });
+  c.configure(input, 'v1', { ...cancelled });
+  c.pan(-1000);
+  assert.deepEqual(requests.at(-1), { action: 'load', scope: 'older', adjustment: 'qfq' });
+});
+
+test('atomic canonical metadata updates the displayed basis while the history job is still running', () => {
+  const c = createAssetChartController({ onHistoryRequest: () => true });
+  const metadata = { assetIdentity: 'one', canLoadHistory: true, asset_history: { canonical_version: 'v1', adjustment: 'qfq' } };
+  c.configure(rows(200), 'v1', metadata);
+  c.handle({ type: 'change', target: { value: 'hfq', matches: selector => selector === '[data-asset-chart-adjustment]' } });
+  c.configure(rows(200, i => 200 + i), 'v2', { ...metadata, asset_history: { canonical_version: 'v2', adjustment: 'hfq' }, historyJob: { state: 'running', scope: 'recent', adjustment: 'hfq' } });
+  assert.equal(c.getState().adjustment, 'hfq');
+  assert.equal(c.getState().requestedAdjustment, null);
+});
+
+test('weekly/monthly bar selection uses its last actual trade day and prepend preserves viewport dates', () => {
+  const input = rows(300).filter((bar, index) => ![0, 6].includes(new Date(`${bar.date}T00:00:00Z`).getUTCDay()));
+  const c = createAssetChartController(); const metadata = { assetIdentity: 'same', frequency: 'daily' };
+  c.configure(input.slice(40), 'v1', metadata); c.select(80);
+  const previous = c.getState(); const startDate = input.slice(40)[previous.start].date; const endDate = input.slice(40)[previous.end - 1].date;
+  c.configure(input, 'v2', metadata); const after = c.getState();
+  assert.equal(after.selectedDate, previous.selectedDate); assert.equal(input[after.start].date, startDate); assert.equal(input[after.end - 1].date, endDate);
+  c.handle(click('period-week')); c.select(3); const weekly = aggregateMarketBars(enrichMarketBars(input), 'week');
+  assert.equal(c.getState().selectedDate, weekly[3].source_end_date);
+  c.handle(click('period-month')); c.select(1); const monthly = aggregateMarketBars(enrichMarketBars(input), 'month');
+  assert.equal(c.getState().selectedDate, monthly[1].source_end_date);
+});
+
+test('programmatic initialization never requests history; wheel/drag axis updates never select another date', () => {
+  const f = fakeDOM(); const requests = []; const c = createAssetChartController({ onHistoryRequest: request => requests.push(request) });
+  c.configure(rows(300), 'v1', { assetIdentity: 'same', canLoadHistory: true }); c.mount(f.node); f.flush();
+  assert.deepEqual(requests, []); c.select(180); f.flush(); const chart = f.instances[0];
+  chart.zrEvents.get('mousewheel')({});
+  chart.events.get('updateAxisPointer')({ axesInfo: [{ axisDim: 'x', axisIndex: 0, value: 200 }] });
+  chart.events.get('dataZoom')({ startValue: 200, endValue: 250 }); f.flush();
+  assert.equal(c.getState().selectedDate, day(180));
+  chart.zrEvents.get('mousedown')({}); chart.zrEvents.get('mousemove')({ event: { buttons: 1 } });
+  chart.events.get('updateAxisPointer')({ axesInfo: [{ axisDim: 'x', axisIndex: 2, value: 220 }] });
+  assert.equal(c.getState().selectedDate, day(180)); chart.zrEvents.get('mouseup')({}); chart.zrEvents.get('mousemove')({});
+  chart.events.get('updateAxisPointer')({ axesInfo: [{ axisDim: 'x', axisIndex: 2, value: 220 }] });
+  assert.equal(c.getState().selectedDate, day(220)); c.dispose();
+});
+
+test('canonical job metadata distinguishes completed recent coverage from full history and renders real chunk progress', () => {
+  const metadata = { canLoadHistory: true, adjustment: 'qfq', asset_history: { canonical_version: 'asset-history-1', factor_version: 'f1', anchor_date: day(299), adjustment: 'qfq', coverage: { complete: true, full_history: false, scope: 'recent', actual_range: { start_date: day(0), end_date: day(299) }, boundary_verified: false } }, historyJob: { status: 'running', progress: { chunks_completed: 2, chunks_total: 4, rows: 300 } } };
+  const html = renderMarketTerminal(rows(300), {}, metadata);
+  assert.match(html, /加载历史 50% · 300条/); assert.match(html, /固定复权锚点/); assert.match(html, /上市边界未核验/);
+  assert.doesNotMatch(html, /全部历史已加载|全部已加载/); assert.match(html, new RegExp(`${day(0)}–${day(299)}`));
+  const requests = []; const c = createAssetChartController({ onHistoryRequest: request => requests.push(request) });
+  c.configure(rows(300), 'v1', { ...metadata, historyJob: { status: 'cancelled', retryable: true, scope: 'older' } });
+  c.handle(click('history-retry')); assert.equal(requests[0].scope, 'older'); assert.equal(requests[0].action, 'retry');
+});
+
 test('normalizes, sorts and deduplicates real dates without null/boolean to zero coercion', () => {
   const bars = enrichMarketBars([{ date: '20250103', open: '12', high: '14', low: '11', close: '13', volume: '' }, { trade_date: day(0), open: 10, high: 12, low: 9, close: 11, volume: 0, amount: 0 }, { date: day(2), open: 12, high: 14, low: 11, close: 13, volume: null, turnover: 99, turnover_rate_pct: 4 }, { date: '2025-02-30', close: 22 }, { date: 'bad', close: 23 }, { date: day(1), close: true, open: null, high: 12, low: 9, volume: false }]);
   assert.deepEqual(bars.map(b => b.date), [day(0), day(1), day(2)]);
@@ -75,12 +260,12 @@ test('week/month aggregate OHLCV before recomputing every indicator and do not s
   const unknown = rows(8); unknown[1].volume = null; assert.equal(aggregateMarketBars(enrichMarketBars(unknown), 'week')[0].volume, null);
 });
 
-test('terminal reproduces ECharts five-grid rail, chips and complete controls without SVG fallback', () => {
+test('terminal retains full MA controls, dynamic panels and truthful history controls without SVG fallback', () => {
   const html = renderMarketTerminal(rows(150), {}, { currency: 'CNY', adjustment: '前复权', frequency: 'daily' });
   assert.match(html, /kline-terminal-layout/); assert.match(html, /data-asset-echarts/); assert.match(html, /data-asset-chip-chart/); assert.doesNotMatch(html, /<svg/);
   for (const n of [5, 10, 20, 60, 120, 250]) assert.match(html, new RegExp(`data-asset-chart-action="ma-${n}"`));
   for (const action of ['period-day', 'period-week', 'period-month', 'all', 'overlay-boll', 'overlay-none']) assert.ok(html.includes(`data-asset-chart-action="${action}"`));
-  assert.match(html, /分时<\/button>/); assert.match(html, /OHLCV估算/); assert.match(html, /不是实际持仓/); assert.match(html, /前复权/);
+  assert.doesNotMatch(html, /分时<\/button>/); assert.match(html, /OHLCV估算/); assert.match(html, /不是实际持仓/); assert.match(html, /前复权/);
 });
 
 test('historical change and amplitude use previous close and metadata is escaped', () => {
@@ -125,12 +310,12 @@ test('aggregated week/month turnover rate cannot reuse the final day percentage 
   assert.equal(aggregateMarketBars(enrichMarketBars(daily), 'week')[0].turnover_rate_pct, null);
   assert.equal(aggregateMarketBars(enrichMarketBars(daily), 'month')[0].turnover_rate_pct, null);
   const html = renderMarketTerminal(daily, { period: 'week' }, { frequency: 'daily' });
-  assert.match(html, /换手率 <strong>—<\/strong>/); assert.doesNotMatch(html, /换手率 <strong>1\.00%<\/strong>/);
+  assert.match(html, /换手率 <strong>1\.00%<\/strong>/, 'historical quote explicitly follows the selected actual daily record');
 });
 
 test('five ECharts grids, cross-panel pointer, two linked zooms, all six MA and no volume MA series', () => {
-  const bars = enrichMarketBars(rows(260)); const option = buildMarketChartOption(bars, { start: 140, end: 260, overlay: 'ma', enabledMA: [5, 10, 20, 60, 120, 250] });
-  assert.equal(option.grid.length, 5); assert.equal(option.grid[0].height, '44%'); assert.equal(option.grid[4].top, '89%');
+  const bars = enrichMarketBars(rows(260)); const option = buildMarketChartOption(bars, { start: 140, end: 260, panels: ['volume', 'macd', 'kdj', 'rsi'], overlay: 'ma', enabledMA: [5, 10, 20, 60, 120, 250] });
+  assert.equal(option.grid.length, 5); assert.equal(option.grid[0].height, 300); assert.equal(option.grid[4].top, 654);
   assert.equal(option.axisPointer.link[0].xAxisIndex, 'all'); assert.equal(option.dataZoom.length, 2);
   for (const zoom of option.dataZoom) { assert.deepEqual(zoom.xAxisIndex, [0, 1, 2, 3, 4]); assert.equal(zoom.startValue, 140); assert.equal(zoom.endValue, 259); }
   assert.equal(option.series.filter(s => /^MA\d+$/.test(s.name)).length, 6); assert.equal(option.series.some(s => /^VOLMA/.test(s.name)), false);
@@ -139,7 +324,7 @@ test('five ECharts grids, cross-panel pointer, two linked zooms, all six MA and 
 
 test('both terminal canvases are transparent and explicit themes keep neutral labels readable', () => {
   const bars = enrichMarketBars(rows(260)); const chip = estimateChipDistribution(bars, 140, 259);
-  const state = { start: 140, end: 260, overlay: 'ma' };
+  const state = { start: 140, end: 260, overlay: 'ma', panels: ['volume', 'macd', 'kdj', 'rsi'] };
   const fallback = buildMarketChartOption(bars, state);
   assert.equal(fallback.xAxis[0].axisLabel.color, '#9ca3af');
   for (const [theme, text, muted, grid] of [['light', '#242424', '#686860', '#e8e8e5'], ['dark', '#d1d5db', '#9ca3af', 'rgba(148,163,184,.18)']]) {
@@ -176,7 +361,7 @@ test('KDJ axis includes visible out-of-range J values while RSI alone stays fixe
   const bars = enrichMarketBars(rows(100, i => i < 25 ? 100 : i < 50 ? 200 : 100));
   const values = bars.flatMap(b => [b.k, b.d, b.j]).filter(v => v !== null);
   assert.ok(Math.min(...values) < 0); assert.ok(Math.max(...values) > 100);
-  const option = buildMarketChartOption(bars, { start: 0, end: 100 });
+  const option = buildMarketChartOption(bars, { start: 0, end: 100, panels: ['volume', 'macd', 'kdj', 'rsi'] });
   assert.ok(option.yAxis[3].min <= Math.min(...values)); assert.ok(option.yAxis[3].max >= Math.max(...values));
   assert.equal(option.yAxis[4].min, 0); assert.equal(option.yAxis[4].max, 100);
 });
@@ -231,7 +416,7 @@ test('chip FWHM interpolates half-height crossings rather than rounding whole bu
 });
 
 test('configure never triggers outer render and controls retain independent MA choices', () => {
-  let changes = 0; const c = createAssetChartController({ onChange: () => changes++ }); c.configure(rows(260), 'one');
+  let changes = 0; const c = createAssetChartController({ onChange: () => changes++ }); c.configure(rows(260), 'one', { asset_history: { coverage: { complete: true } } });
   assert.equal(changes, 0); assert.equal(c.getState().start, 140); assert.equal(c.getState().activeIndex, 259);
   c.handle(click('ma-60')); assert.equal(c.getState().enabledMA.includes(60), false); assert.equal(c.getState().enabledMA.includes(120), true);
   c.handle(click('overlay-boll')); assert.equal(c.getState().overlay, 'boll'); c.handle(click('overlay-ma')); assert.equal(c.getState().enabledMA.includes(60), false);
@@ -245,8 +430,8 @@ test('weekly/monthly controls recompute, legacy weekly inputs never masquerade a
   assert.match(renderMarketTerminal(rows(20), c.getState(), { frequency: 'weekly' }), /源数据频率：周/);
 });
 
-test('refresh follows latest only at latest and preserves historical date; empty/cancel/dispose safe', () => {
-  const c = createAssetChartController(); c.configure(rows(200), 'one'); c.configure(rows(202), 'one'); assert.equal(c.getState().end, 202);
+test('refresh preserves viewport dates and selected actual day; empty/cancel/dispose safe', () => {
+  const c = createAssetChartController(); c.configure(rows(200), 'one'); c.configure(rows(202), 'one'); assert.equal(c.getState().end, 200); assert.equal(c.getState().selectedDate, day(199));
   c.pan(-30); c.select(130); const before = c.getState(); c.configure(rows(204), 'one'); assert.equal(c.getState().start, before.start); assert.equal(c.getState().activeIndex, 130);
   c.configure([], 'one'); assert.equal(c.getState().activeIndex, -1); assert.equal(c.select(0), false); assert.equal(c.zoom(.5), false); c.cancel(); c.dispose(); c.dispose();
 });
@@ -259,7 +444,7 @@ test('errors log only stable codes and never private exception text', () => {
 function fakeDOM() {
   const nodes = new Map(); const handlers = new Map(); const doc = { defaultView: null };
   const node = { ownerDocument: doc, style: { setProperty() {} }, dataset: {}, clientHeight: 690, textContent: '', innerHTML: '', addEventListener: (n, f) => handlers.set(n, f), removeEventListener: n => handlers.delete(n), querySelector: selector => nodes.get(selector) || null, querySelectorAll: () => [], getBoundingClientRect: () => ({ left: 0, top: 0, right: 1000, bottom: 690, width: 1000, height: 690 }) };
-  for (const selector of ['[data-asset-echarts]', '[data-asset-chip-chart]', '[data-asset-history]', '[data-asset-overlay-label]', '[data-asset-chip-stats]', '[data-asset-chip-window]', '[data-asset-range-summary]', '[data-asset-chart-metadata]', '.kline-terminal-layout']) nodes.set(selector, { ...node, dataset: {} });
+  for (const selector of ['[data-asset-echarts]', '[data-asset-chip-chart]', '[data-asset-history]', '[data-asset-overlay-label]', '[data-asset-chip-stats]', '[data-asset-chip-window]', '[data-asset-range-summary]', '[data-asset-chart-metadata]', '.kline-terminal-layout', '.asset-chip-panel']) nodes.set(selector, { ...node, dataset: {} });
   const frames = new Map(); let frame = 0; const instances = []; const observers = [];
   doc.defaultView = { devicePixelRatio: 1, requestAnimationFrame: fn => { frames.set(++frame, fn); return frame; }, cancelAnimationFrame: id => frames.delete(id), ResizeObserver: class { constructor(fn) { this.fn = fn; observers.push(this); } observe() {} disconnect() { this.disconnected = true; } }, echarts: { init: () => { const events = new Map(); const zrEvents = new Map(); const c = { events, zrEvents, setOption: (option, replace) => { c.option = replace || !c.option ? option : { ...c.option, ...option }; }, on: (n, f) => events.set(n, f), off: n => events.delete(n), getZr: () => ({ on: (n, f) => zrEvents.set(n, f), off: n => zrEvents.delete(n) }), resize() { c.resizes = (c.resizes || 0) + 1; }, dispose() { c.disposed = true; } }; instances.push(c); return c; } } };
   return { node, nodes, handlers, instances, observers, frames, flush: () => { const work = [...frames.values()]; frames.clear(); work.forEach(fn => fn()); } };
@@ -304,7 +489,7 @@ test('mount keeps chart instances across pointer updates, coalesces frames and d
   main.events.get('updateAxisPointer')({ axesInfo: [{ axisDim: 'x', axisIndex: 0, value: 100 }] }); main.events.get('updateAxisPointer')({ axesInfo: [{ axisDim: 'x', axisIndex: 0, value: 120 }] });
   assert.equal(f.frames.size, 1); f.flush(); assert.equal(c.getState().activeIndex, 120); assert.equal(f.node.innerHTML, oldMarkup); assert.equal(f.instances.length, 2);
   main.events.get('dataZoom')({ startValue: 50, endValue: 100 }); f.flush(); assert.equal(c.getState().start, 50); assert.equal(c.getState().end, 101);
-  f.handlers.get('mouseleave')?.(); f.flush(); assert.equal(c.getState().activeIndex, 100);
+  f.handlers.get('mouseleave')?.(); f.flush(); assert.equal(c.getState().activeIndex, 120);
   const callsBefore = calls; c.configure(rows(202), 'one'); f.flush(); assert.equal(calls, callsBefore);
   c.dispose(); assert.ok(f.instances.every(i => i.disposed)); assert.ok(f.observers.every(o => o.disconnected)); assert.equal(f.frames.size, 0); assert.equal(f.handlers.size, 0); assert.equal(main.events.size, 0); assert.equal(main.zrEvents.size, 0);
 });
@@ -339,11 +524,11 @@ test('historical select then cancel then leave keeps state, readout, panel label
   const f = fakeDOM(); const c = createAssetChartController(); c.configure(rows(200), 'one'); c.mount(f.node); f.flush();
   c.select(100); f.flush(); assert.match(f.nodes.get('[data-asset-history]').innerHTML, new RegExp(day(100)));
   c.select(110); assert.equal(f.frames.size, 1); c.cancel(); assert.equal(f.frames.size, 0);
-  assert.equal(c.getState().activeIndex, 199); assert.match(f.nodes.get('[data-asset-history]').innerHTML, new RegExp(day(199)));
-  assert.match(f.nodes.get('[data-asset-chip-window]').textContent, new RegExp(day(199)));
-  assert.equal(f.instances[0].option.graphic[0].style.text.includes('1,199'), true);
-  f.handlers.get('mouseleave')(); f.flush(); assert.equal(c.getState().activeIndex, 199);
-  assert.match(f.nodes.get('[data-asset-history]').innerHTML, new RegExp(day(199))); c.dispose();
+  assert.equal(c.getState().activeIndex, 110); assert.match(f.nodes.get('[data-asset-history]').innerHTML, new RegExp(day(110)));
+  assert.match(f.nodes.get('[data-asset-chip-window]').textContent, new RegExp(day(110)));
+  assert.equal(f.instances[0].option.graphic[0].style.text.includes('1,110'), true);
+  f.handlers.get('mouseleave')(); f.flush(); assert.equal(c.getState().activeIndex, 110);
+  assert.match(f.nodes.get('[data-asset-history]').innerHTML, new RegExp(day(110))); c.dispose();
 });
 
 test('mount initialization failure disposes partial charts and observers without leaking error data', () => {
@@ -362,7 +547,7 @@ test('native zoom merges the visible price axis without resetting ECharts drag s
 
 test('native zoom also expands KDJ to historical visible J extremes', () => {
   const f = fakeDOM(); const c = createAssetChartController(); const input = rows(300, i => i < 25 ? 100 : i < 50 ? 200 : 100);
-  c.configure(input, 'one'); c.mount(f.node); f.flush(); const chart = f.instances[0];
+  c.configure(input, 'one', {}, { panels: ['volume', 'macd', 'kdj', 'rsi'] }); c.mount(f.node); f.flush(); const chart = f.instances[0];
   chart.events.get('dataZoom')({ startValue: 0, endValue: 99 }); f.flush();
   assert.ok(chart.option.yAxis[3].min < 0); assert.ok(chart.option.yAxis[3].max > 100); c.dispose();
 });
@@ -395,7 +580,7 @@ test('real pinned ECharts creates every series view and survives controls, keybo
   const viewsAreReady = () => {
     assert.deepEqual(errors, []);
     const series = charts.at(-2).getModel().getSeries();
-    assert.equal(series.length, 18);
+    assert.equal(series.length, 10 + c.getState().panels.reduce((sum, id) => sum + ({ volume: 1, macd: 3, kdj: 3, rsi: 1 })[id], 0));
     assert.ok(series.every(model => charts.at(-2).getViewOfSeriesModel(model)), 'every series must have an actual ECharts view');
   };
   try {
@@ -414,8 +599,36 @@ test('real pinned ECharts creates every series view and survives controls, keybo
       charts.at(-2).dispatchAction({ type: 'dataZoom', startValue: 200, endValue: 279 }); f.flush(); viewsAreReady();
       assert.equal(c.getState().start, 200); assert.equal(c.getState().end, 280);
       c.select(250); f.flush(); c.cancel(); viewsAreReady();
-      assert.equal(c.getState().activeIndex, 279);
-      assert.match(f.nodes.get('[data-asset-chip-window]').textContent, new RegExp(day(279)));
+      assert.equal(c.getState().activeIndex, 250);
+      assert.match(f.nodes.get('[data-asset-chip-window]').textContent, new RegExp(day(250)));
     }
   } finally { c.dispose(); for (const timer of timers) clearTimeout(timer); }
+});
+
+test('real ECharts price and chip coordinates align globally within one pixel at three prices and sizes', () => {
+  const timers = new Set();
+  const runtime = { console, clearTimeout, setTimeout: (callback, delay) => { const timer = setTimeout(callback, delay); timers.add(timer); return timer; } };
+  runInNewContext(readFileSync(new URL('../../app/research_web/ui/vendor/echarts-5.5.0.min.js', import.meta.url), 'utf8'), runtime);
+  try {
+    for (const [width, height, panels] of [[800, 480, []], [1200, 690, ['volume', 'macd']], [1600, 900, ['rsi', 'kdj', 'volume', 'macd']]]) {
+      const f = fakeDOM(); const charts = []; const errors = []; const variables = new Map(); const chartTop = 117;
+      f.nodes.get('[data-asset-echarts]').getBoundingClientRect = () => ({ top: chartTop, left: 0, width, height });
+      f.nodes.get('.asset-chip-panel').getBoundingClientRect = () => ({ top: 83, left: width + 12, width: 200, height });
+      f.nodes.get('.asset-chip-panel').style = { setProperty: (name, value) => variables.set(name, value) };
+      f.node.ownerDocument.defaultView.echarts = { ...runtime.echarts, init: node => {
+        const chart = runtime.echarts.init(null, null, { renderer: 'svg', ssr: true, width: node === f.nodes.get('[data-asset-echarts]') ? width : 200, height }); charts.push(chart); return chart;
+      } };
+      const c = createAssetChartController({ logger: code => errors.push(code) });
+      try {
+        c.configure(rows(300), 'one', {}, { panels }); c.mount(f.node); f.flush(); assert.deepEqual(errors, []);
+        const axis = charts[0].getOption().yAxis[0]; const chipTop = 83 + parseFloat(variables.get('--chip-plot-top'));
+        assert.equal(parseFloat(variables.get('--chip-plot-height')), 300);
+        for (const price of [axis.min, (axis.min + axis.max) / 2, axis.max]) {
+          const mainY = chartTop + charts[0].convertToPixel({ yAxisIndex: 0 }, price);
+          const chipY = chipTop + charts[1].convertToPixel({ yAxisIndex: 0 }, price);
+          assert.ok(Math.abs(mainY - chipY) <= 1, `${width}px ${panels.length} panels ${price}: ${mainY}/${chipY}`);
+        }
+      } finally { c.dispose(); }
+    }
+  } finally { for (const timer of timers) clearTimeout(timer); }
 });

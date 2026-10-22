@@ -10,6 +10,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from .adjustment_contract import SERIES
 from .contracts import BUSINESS_TOOLS, DataCapabilityId
 from .external_sources import catalog_entries
 
@@ -120,7 +121,7 @@ SOURCE_SPECS: tuple[SourceSpec, ...] = (
         ["cjpy"],
         ["A股", "基金目录"],
         "account",
-        "已接入证券目录、交易日历、历史行情和实时快照；其他登记能力不会被自动路由选中。",
+        "已接入证券目录、交易日历、历史行情、实时快照及封闭沪深A股复权定义/上市日/指定日因子；其他登记能力不会自动选中。",
     ),
     (
         "ifind",
@@ -450,7 +451,7 @@ CAPABILITY_SPECS: tuple[CapabilitySpec, ...] = (
         "因子与宏观",
         "因子宏观",
         "读取因子表、技术指标和宏观序列。",
-        ["series", "assets", "start_date", "end_date"],
+        ["series", "assets", "dates", "start_date", "end_date"],
         ["date", "series", "value", "unit"],
         ["A股", "宏观"],
         ["股票", "宏观"],
@@ -586,7 +587,7 @@ BINDING_SPECS = {
         ("akshare", ["fund_flow"]),
     ],
     "factor_macro": [
-        ("tinysoft", ["factor_data", "table_data"]),
+        ("tinysoft", list(SERIES)),
         ("ifind", ["macro", "technical"]),
         ("chinastock", ["macro", "technical"]),
         ("akshare", ["macro"]),
@@ -622,6 +623,7 @@ IMPLEMENTED_BINDINGS = {
     ("tinysoft", "trading_calendar"),
     ("tinysoft", "market_bars"),
     ("tinysoft", "market_snapshot"),
+    ("tinysoft", "factor_macro"),
     ("akshare", "search_assets"),
     ("akshare", "market_bars"),
     ("akshare", "market_snapshot"),
@@ -634,6 +636,7 @@ IMPLEMENTED_BINDINGS = {
     ("wind", "market_activity"),
 }
 BINDING_ASSETS = {
+    ("tinysoft", "factor_macro"): ["股票"],
     ("wind", "market_bars"): ["股票"],
     ("wind", "market_snapshot"): ["股票"],
 }
@@ -803,9 +806,17 @@ def build_catalog(
                     source_id=source_id,
                     datasets=datasets,
                     priority=priority,
-                    markets=source["markets"],
+                    markets=(
+                        ["沪深A股"]
+                        if (source_id, capability_id) == ("tinysoft", "factor_macro")
+                        else source["markets"]
+                    ),
                     assets=BINDING_ASSETS.get((source_id, capability_id), []),
-                    coverage=source["description"],
+                    coverage=(
+                        "仅复权定义、单只沪深A股上市日期及最多500个指定日的复权因子；两股有限实证，非全证券保证。"
+                        if (source_id, capability_id) == ("tinysoft", "factor_macro")
+                        else source["description"]
+                    ),
                     implemented=implemented,
                     semantics=BINDING_SEMANTICS.get((source_id, capability_id), {}),
                 ).model_dump(mode="json")
