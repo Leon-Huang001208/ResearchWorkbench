@@ -31,11 +31,13 @@ test('weekly status separates data, quality, delivery and finalization and escap
   const html = renderWeeklyProductionStatus({ id: 'huaan-etf-weekly', weekly_production: {
     enabled: true, provider: { status: 'blocked_dependency' },
     latest: { quality_status: 'incomplete', finalization_status: 'blocked', delivery_status: 'complete',
-      missing: ['<unsafe>'], cutoff: '2026-10-23T15:30:00+08:00' },
+      weekly_data_assessment: { status: 'passed' }, missing: ['<unsafe>'], weekly_cutoff: '2026-10-23T15:30:00+08:00' },
   } });
   for (const label of ['数据就绪', '内容质量', '文件交付', '正式定稿', '周五 15:30', 'incomplete', '&lt;unsafe&gt;']) {
     assert.ok(html.includes(label), label);
   }
   assert.ok(!html.includes('<unsafe>'));
+  assert.ok(html.includes('2026-10-23T15:30:00+08:00'));
+  assert.ok(html.includes('data-weekly-state="passed">已通过'));
   assert.equal(renderWeeklyProductionStatus({ id: 'other' }), '');
 });

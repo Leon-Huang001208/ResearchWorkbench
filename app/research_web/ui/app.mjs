@@ -446,7 +446,7 @@ function clawMainPage() {
   const view = state.route.clawView || 'sessions';
   if (view === 'projects') return renderClawProject(clawWorkspace);
   if (view === 'skills') return renderClawConnections(catalog.capabilities, catalog.tools);
-  if (view === 'plans') return renderClawSchedules(catalog.automations, catalog.automationRuns, automationBusy || catalog.pending.has('automations') || catalog.pending.has('automationRuns'), catalog.errors.automations || '');
+  if (view === 'plans') return renderClawSchedules(catalog.automations, catalog.automationRuns, automationBusy || catalog.pending.has('automations') || catalog.pending.has('automationRuns'), catalog.errors.automations || '') + (reportWorkflowsAllowed ? renderReportWorkflowShelf(catalog.reportWorkflows, { busy: reportWorkflowBusy, compact: true }) : '');
   return researchPage();
 }
 
@@ -506,7 +506,9 @@ function capabilityPage() {
     busy: cap.busy || reportWorkflowBusy || automationBusy,
     error: catalog.errors.capabilities || catalog.errors.tools || catalog.errors.automations || catalog.errors.automationRuns || catalog.errors.dataCatalog || catalog.errors.connections || '',
   });
-  return messages + workspace + renderCapabilityPreviewDialog({ detail: cap.detail, tool: cap.tool, dataDetail: cap.dataDetail, dataDetailKind: cap.dataDetailKind, capabilities: catalog.capabilities, busy: cap.busy }) + renderMCPServerDialog(mcpMarketplaceState.detail, { ...mcpMarketplaceState.installation, runtimeAvailable: mcpMarketplaceState.runtimeAvailable, currentSessionId: researchDraftRoute.sessionId });
+  const reports = reportWorkflowsAllowed && cap.kindFilter === 'workflow' && ['library', 'mine'].includes(cap.view)
+    ? renderReportWorkflowShelf(catalog.reportWorkflows, { busy: reportWorkflowBusy, compact: true }) : '';
+  return messages + reports + workspace + renderCapabilityPreviewDialog({ detail: cap.detail, tool: cap.tool, dataDetail: cap.dataDetail, dataDetailKind: cap.dataDetailKind, capabilities: catalog.capabilities, busy: cap.busy }) + renderMCPServerDialog(mcpMarketplaceState.detail, { ...mcpMarketplaceState.installation, runtimeAvailable: mcpMarketplaceState.runtimeAvailable, currentSessionId: researchDraftRoute.sessionId });
 }
 
 function sidebar() {
@@ -3498,11 +3500,14 @@ async function handleCapabilityClick(data) {
   if ('closeReportWorkflow' in data) { reportWorkflowDetail = null; render(); return true; }
   if ('prepareWeeklyProduction' in data) {
     if (reportWorkflowBusy) return true;
+    const ticket = pageGeneration; const workflowId = reportWorkflowDetail?.id;
     reportWorkflowBusy = true; state.error = ''; success = ''; render();
     try {
-      reportWorkflowDetail = await api.prepareWeeklyProduction(data.prepareWeeklyProduction);
+      const detail = await api.prepareWeeklyProduction(data.prepareWeeklyProduction);
+      if (ticket !== pageGeneration || reportWorkflowDetail?.id !== workflowId) return true;
+      reportWorkflowDetail = detail;
       success = '已准备新的生产版本；数据与质量验收通过后才能启用日程。';
-    } catch (error) { state.error = error.message; safeLog('weekly_production_prepare_failed', { code: error.code || 'request_failed' }); }
+    } catch (error) { if (ticket === pageGeneration && reportWorkflowDetail?.id === workflowId) state.error = error.message; safeLog('weekly_production_prepare_failed', { code: error.code || 'request_failed' }); }
     finally { reportWorkflowBusy = false; render(); }
     return true;
   }
@@ -3510,11 +3515,14 @@ async function handleCapabilityClick(data) {
     if (reportWorkflowBusy || reportWorkflowDetail?.id !== 'huaan-etf-weekly') return true;
     const version = Number(data.publishWeeklyProduction);
     if (!Number.isInteger(version) || version < 1) { state.error = '生产版本无效。'; render(); return true; }
+    const ticket = pageGeneration; const workflowId = reportWorkflowDetail.id;
     reportWorkflowBusy = true; state.error = ''; success = ''; render();
     try {
-      reportWorkflowDetail = await api.publishReportWorkflowVersion('huaan-etf-weekly', version);
+      const detail = await api.publishReportWorkflowVersion('huaan-etf-weekly', version);
+      if (ticket !== pageGeneration || reportWorkflowDetail?.id !== workflowId) return true;
+      reportWorkflowDetail = detail;
       success = '生产合同已发布；首次手动定稿通过后才能启用日程。';
-    } catch (error) { state.error = error.message; safeLog('weekly_production_publish_failed', { code: error.code || 'request_failed' }); }
+    } catch (error) { if (ticket === pageGeneration && reportWorkflowDetail?.id === workflowId) state.error = error.message; safeLog('weekly_production_publish_failed', { code: error.code || 'request_failed' }); }
     finally { reportWorkflowBusy = false; render(); }
     return true;
   }
