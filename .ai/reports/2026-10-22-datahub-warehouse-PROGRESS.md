@@ -24,6 +24,8 @@
 
 ## 正在完成
 
+Router剩余本机闭包已真实补跑：非API Python654通过/1个Windows条件跳过（18.61秒），API213通过（263.68秒）；缺少document事件方法的旧UI测试宿主经两行方法可选链兼容后，Node Router/能力UI/连接TTL228通过，独立JS复核24项通过。完整110路径project constraints、文档治理、Python索引均无违规。最终计划需在本检查点后重绑；远端CI、PR、合并及清理尚未执行，不能从这些本机结果推导已交付。
+
 已在受管integration worktree整合主线51f09fa783694aae5234905933948394ca167dcc，源码检查点a34c824489e3baee7da3b9c6ec6eb1266fa2e5b1。整合再发现并关闭两项P2：Host非空能力引用的健康复权递归改用完整但无execution投影的admission_catalog；所有SDK/WindAPI/storage清理分别shield排空，某源错误及重复取消不会跳过其他owner。resident逐项累计见证，已知busy保留True，只有全部已知空闲才False；真实API测试中的旧SDK计数假对象改成实际Future元组合同。
 
 整合专项582通过/2个LIVE_DATA未启用条件跳过；另显式开启真实免费来源+owned PG的两项11.15秒通过，覆盖股票补缺口/重启、财务/指数/宏观原生快照。固定DSH Git HEAD核对7ecf564f2e09b829240c5553687223bdd1e2df73，Node schema/仓UI/连接/治理179通过、零跳过；17个源模块mypy通过。整合独立四源评审41窄项通过并关闭P2，聚合hash8c21da7c827b779f880c406f199978c789c8aa87eca68828146837cb7d52291f。首次大Python747过/3个旧fixture失败，改为tuple后11个API定点通过；最终API整文件复验213通过/263.68秒，不把747+213拼成单轮PASS。

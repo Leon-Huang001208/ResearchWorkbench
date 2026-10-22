@@ -62,10 +62,10 @@ export function createExecutionEvidenceExpiry({ getSources = () => [], isActive 
     onExpire();
     sync();
   };
-  visibilityTarget?.addEventListener('visibilitychange', visibilityChanged);
+  visibilityTarget?.addEventListener?.('visibilitychange', visibilityChanged);
   return {
     sync, cancel,
-    dispose() { disposed = true; cancel(); visibilityTarget?.removeEventListener('visibilitychange', visibilityChanged); },
+    dispose() { disposed = true; cancel(); visibilityTarget?.removeEventListener?.('visibilitychange', visibilityChanged); },
   };
 }
 
