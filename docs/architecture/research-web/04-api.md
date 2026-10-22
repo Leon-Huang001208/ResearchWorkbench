@@ -1,10 +1,33 @@
 # Research Web 接口清单
 
+资产交互v5（2026-10-22）增加的是操作员CLI封闭命令apply-assets-v5，不新增HTTP、请求参数或权限入口。原目录search、区块load、历史as_of及账号／会话归属合同保持，API inventory仍为318条源码声明／315个唯一接口；Atlas只将源码链接固定到PR185真实merge9bc4。最终部署资格与固定旧51f09的恢复见[操作合同](../../research-web-gateway-upgrade.md#资产交互与数据-v5-2026-10-22)，HTTP或产品CI成功不表示v5已切换。
+
 行情缺口部署使用封闭 `reviewed-market-gaps-v1` / `apply-market-gaps`：旧版固定 `99d3ee34977c47189a5638207c109a555f52a687`，产品源码检查点固定 `9faeeca3003a912ca75799fb27b635ba1bb87a1a`。检查点为本轮产品修复的不可变祖先，最终操作员/产品组合目标仍必须最新已合并 master、独立评审和原三项 exact-tree CI（含 Mac 干净安装）合格；不把检查点冒充合并版本。复用原 version4 保全/恢复，并在原维护锁内额外核对 MarketService 的 inflight 明确为空；未知或正在采集时不切换。旧 profile、controller/evidence/网关模块字节及模型/账号权限保持，无新部署节点、HTTP或依赖，原图准确。
 
 全市场缺口修复（2026-10-22）：股票列表增加东财官网 f292 交易状态；同身份、同日单股接口有界补取空成交额与停牌参考价。停牌、未上市单列，不计平盘；已上市股票成交额全部覆盖后才合计。沪深大盘日线资金改用已实测访客端点，使用自己的来源、日期、采集时间与返回行数，不沿用板块元数据。无新依赖、来源权限或研究会话；原 Host/MarketService/DataHub/东财拓扑不变，现有图及 API Atlas 不重画。
 
-2026-10-22 全市场常驻部署使用封闭 `reviewed-market-overview-v1` / `apply-market`：旧版固定 `4d2e3c408663b64be9e58b03213f4ca8f1152733`，产品固定已合并 PR179 `5de7e5f2db95b8b501905af9cfdc30e8fe84db0b`。复用原 version4 事务、空闲准入、BirthFence、全部账号索引冻结和内容寻址恢复；旧 profile、控制器、证据读取器及自动兼容白名单保持。操作员候选须独立评审及原三项 CI／同候选 Mac 安装通过，再按用户授权切换并在真实认证页面验收。 无新服务、HTTP、持久格式或依赖；现有图及 API Atlas 准确，不重画 HTML/PNG。Windows/Linux 原生与 Docker 产品层保持各自未执行状态。
+2026-10-22 全市场常驻部署使用封闭 `reviewed-market-overview-v1` / `apply-market`：旧版固定 `4d2e3c408663b64be9e58b03213f4ca8f1152733`，产品固定已合并 PR179 `5de7e5f2db95b8b501905af9cfdc30e8fe84db0b`。复用原 version4 事务、空闲准入、BirthFence、全部账号索引冻结和内容寻址恢复；旧 profile、控制器、证据读取器及自动兼容白名单保持。操作员候选须独立评审及原三项 CI／同候选 Mac 安装通过，再按用户授权切换并在真实认证页面验收。 该封闭部署事务本身不新增服务、HTTP、持久格式或依赖；它沿用当时已审的图与 API Atlas，不要求重画 HTML/PNG。Windows/Linux 原生与 Docker 产品层保持各自未执行状态。
+
+## 资产目录搜索与区块按需加载
+
+2026-10-22新增两条既有认证Host端点；目录没有研究会话或模型副作用，区块沿原观察／会话的DataHub快照归属。
+
+| 方法 | 路径 | 合同 |
+| --- | --- | --- |
+| GET | `/api/research/assets/search?q=&limit=20` | q最多80字符，limit为1至50、默认20；200返回当前目录状态与最多limit个匹配项，冷启动合并后台加载 |
+| POST | `/api/research/assets/observations/{observation_id}/blocks/{block}/load` | 必需Idempotency-Key；受理202和原公开观察投影，支持旧观察缺块补建与缓存命中 |
+
+搜索响应保留items、status（loading／ready／stale／error／unavailable）、total_count、provider、limitations及安全failure_code；正常／缓存响应另含matched_count、as_of、retrieved_at，不可用时这些元数据可省略。total_count是完整目录数量，不是返回候选数。目录24小时内且账号／配置授权指纹相同才可复用；过期可返回stale并后台刷新，失败有重试节流，配置或授权变化禁止回传旧items。冷启动loading和202都不是数据完整／成功证明，HTTP请求取消也不使真实SDK Future变成空闲。
+
+load正文只允许`source`（可省略或auto／封闭来源ID）、`refresh`（默认false）、完整ISO日期对`start_date/end_date`。日期只接受history／activity／margin且开始不晚于结束，半对／非法日期／额外字段拒绝。允许区块为overview／history／valuation／financials／activity／margin／holders／research／industry／holder_details／events；news和announcements继续独立阅读，不由该入口重复查询。旧create和refresh端点不移除。
+
+新缺失activity／margin省略日期时，以上海时区当日或保存end_date为截止、向前59日生成完整60日范围并持久到section_ranges；已有显式范围不覆盖。events不接受新增RangeBlock参数，内部按保存截止日或当日派生60日业务区间，避免仅有end_date的无效Provider请求。旧create／refresh已存日期语义保持，财务使用报告期／公布日而非该行情窗口。
+
+缺失overview／history默认tinysoft，其余缺失业务块默认auto；已有观察沿保存的section_sources或原source，显式source变化作为新查询条件并保存，不能返回另一来源的缓存。普通区块同来源／范围15分钟内复用，refresh=true绕过缓存；auto按dataset真实实现选源，显式来源无隐式fallback。history已有规范版本时只能读取旧快照，更改来源／区间或refresh须走历史任务，不能覆盖冻结数据。
+
+初始观察、旧refresh和新load共用区块锁。同块同条件加载合并；加载中来源／区间冲突409，同一Idempotency-Key换区块、来源、范围或refresh条件也409，原有效任务继续。每次成功受理，包括缓存与合并，先持久键摘要和正文签名；保存失败503 `asset_observation_save_failed`，不启动新查询，并仅原位回滚本次修改，保留其他活动对象。公开响应隐藏内部键、原request和sample；失败保留旧dataset与本次失败，客户端不能把旧值当作新成功。
+
+新增industry／holder_details／events复用market_activity，valuation的固定字段为close／pe_ttm／pb／pb_mrq／ps_ttm／total_shares；天软财务按报告期／公布日读取，Wind既有60日行情等价门保持。GET resident的active覆盖目录后台任务、区块task、历史非终态及真实Future，未知witness不能作为可部署空闲证明。来源与文件细则见[DataHub](../../research-web-datahub.md#资产目录与结构化区块)和[存储](03-data-files.md#资产目录与按需区块缓存)。
 
 研究仓新增 `GET/POST /api/research/data/warehouse`：读取当前实例安全状态，以及显式保存、初始化、停用；保存不连接数据库，初始化只在已存在的独立数据库建表。服务器租户模式暂拒绝此配置路径，不能用浏览器 owner 自行取得共享仓权限。另增加 `POST /api/research/data/sources/{source_id}/configuration/verify`，当前仅支持 `ext_ths` 的既有 refresh_token 换取 access_token 授权检查，要求显式用户操作头；不查询行情、不轮换 token、不声称数据权限已通过。
 
@@ -15,6 +38,8 @@
 2026-10-22 `model_provider_upgrade apply-assets-v3`是本机操作员CLI，封闭绑定旧5495和已合并产品a0ff3ae2；无新HTTP方法/路径/请求字段、DSH协议或API权限。原产品6项历史/偏好端点与现有Atlas保持，部署profile不重新生成架构HTML/PNG。最终工具三CI与实际切换/保全独立验收，旧v1/v2恢复、controller/evidence不变；见[部署合同](../../research-web-gateway-upgrade.md#资产观察固定版本联合部署)。
 
 ## 资产历史任务与图表偏好
+
+历史任务正文兼容可选ISO日期`as_of`；省略／None沿原观察截止与旧请求行为，不能使旧任务／旧证据失效。同一任务键改变实际as_of仍属于参数冲突。报价的实际交易日晚于旧规范锚点时，可用新as_of创建独立历史版本；已完成全历史须重新生成完整版本，不以新证券recent两年窗口截掉原覆盖，旧版本和输入证据保持不可变。
 
 最后核对：2026-10-22。下列6个新增端点由 `asset_routes.py` 声明，经既有 `/api/research` 前缀挂载；认证身份及账号 Store 隔离保持。任务受理与规范数据发布是两个事实，`202` 不代表历史完整。
 
@@ -27,7 +52,7 @@
 | GET | `/api/research/assets/chart-preferences` | 当前账号的 `{panels,revision}`；默认 `volume,macd` |
 | PUT | `/api/research/assets/chart-preferences` | 正文 `{panels:[...]}`，保序、唯一、0至4项，枚举 `volume/macd/kdj/rsi` |
 
-历史任务正文严格为 `{scope:"recent"|"older"|"all", adjustment:"none"|"qfq"|"hfq", retry_of?:<UUID>}`，拒绝额外字段；键为8至128个字母、数字、`_.:-`字符。同观察同键同参数返回原任务，改参数返回409 `history_key_conflict`。已有活动任务或行情刷新时409 `history_busy`；`older` 要求现有规范历史且复权相同。重试只接受同口径、可重试的失败/取消/中断任务，新键显式提交；缓存或因子版本冲突要求重建。保存失败不启动任务。
+历史任务正文严格为 `{scope:"recent"|"older"|"all", adjustment:"none"|"qfq"|"hfq", retry_of?:<UUID>, as_of?:<ISO日期>}`，拒绝额外字段；键为8至128个字母、数字、`_.:-`字符。同观察同键同参数返回原任务，改参数返回409 `history_key_conflict`。已有活动任务或行情刷新时409 `history_busy`；`older` 要求现有规范历史且复权相同。重试只接受同口径、可重试的失败/取消/中断任务，新键显式提交；缓存或因子版本冲突要求重建。保存失败不启动任务。
 
 公开 job 含 `id/observation_id/state/status/scope/adjustment/created_at/updated_at/progress/coverage/current_dataset/failure_code/failure/retryable/retry_of/request_key`。`state` 与 `status` 相同，非终态为 `queued/running/cancelling/draining`，终态为 `completed/failed/cancelled/interrupted`；`progress` 包含 `chunks_completed/chunks_total/rows`，coverage 区分实际日期、扫描区间、上市日及完整历史边界证明。失败只有安全业务码，公开 dataset 不暴露内部原始行、因子、输入或路径。观察投影附最近 `history_job`。`request_key` 用于核对未知提交，不是认证秘密。
 
@@ -45,15 +70,15 @@
 
 `model_provider_upgrade apply-assets-v2` 属于显式本机操作员 CLI；新增封闭版本身份不增加或改变公开 HTTP 方法、路径、请求字段、认证边界和 Observation 响应。资产／DataHub 状态只读用于原空闲证明，业务 API 与研究执行链路保持，现有 API 图和索引继续准确。
 
-资产摘要新增的估值及八区来源明细是浏览器 DTO，字段从已取得快照和元数据投影；它们不进入 ObservationRequest 或公开 HTTP 响应 schema，不增加端点、参数、Provider 查询或持久化字段。展开选择／查询／来源详情和切换主题不取数，原显式创建及区块刷新合同保持。
+资产估值与来源摘要仍是浏览器DTO，按当前区块动态统计状态；纯折叠、主题切换只投影已取得数据，进入资产或专题按上述load合同按需取数。原手工create／refresh保留，不沿用此前纯静态迭代“无新端点／取数”的结论。
 
-原区块合同的Method／Path保留；ObservationRequest支持 `section_sources: dict[AssetBlock, SourceId] = {}` 和 `section_ranges: dict[history|activity|margin, SectionRange] = {}`，SectionRange严格为完整、真实ISO日期对且start_date≤end_date，未知键／半对拒绝。逐区来源覆盖原source，未覆盖沿原值；逐区范围覆盖全局日期，未覆盖沿原请求，holders.end_date仍为报告期。公开request_parameters缺字段按空映射兼容旧记录，区块回显有效来源与范围，刷新和恢复沿保存请求执行。AssetBlock新增valuation，内部复用market_snapshot并请求明确asset_type和close／pe_ttm／pb／total_shares；没有新路由。专业来源失败不隐式回退，Wind60天硬门不截断／拆分，61天仍拒绝；新UI历史使用独立任务，资金／两融60天分别传入。
+旧ObservationRequest保留section_sources及section_ranges，旧记录缺省为空映射。AssetBlock现在包括原十块及industry／holder_details／events，来源、实际范围和报告期分别回显；valuation固定请求close／pe_ttm／pb／pb_mrq／ps_ttm／total_shares。业务source／range有效条件、15分钟缓存与新增两条HTTP见本章“资产目录搜索与区块按需加载”；显式来源不隐式回退，Wind原60日等价门保持，财务按各Provider报告合同读取。
 
 本轮部署只调整已有GitHub CI日志读取的有界时限并固定工具摘要，没有增加或更改HTTP路由、方法、身份边界和请求字段；完整checkout/树及三CI条件保留。
 
 ## 资产观察区块刷新
 
-`POST /api/research/assets/observations/{observation_id}/blocks/{block}/refresh` 使用 `Idempotency-Key` 头，无请求正文，受理返回 `202` 和观察的公开投影。目标必须是该观察已有的封闭区块：`overview/history/valuation/financials/activity/margin/holders/announcements/news/research`；沿原会话、资产、来源及日期参数，仅目标区块以 `refresh=true` 重新调用 DataHub。GET 观察和列表始终只读。
+`POST /api/research/assets/observations/{observation_id}/blocks/{block}/refresh`保持原Idempotency-Key头和无正文语义，202返回公开观察。目标必须是观察已有的封闭区块（原十块及industry／holder_details／events）；沿保存会话、资产、来源与日期，只以refresh=true重取目标。补缺块用新增load，普通GET观察／列表始终只读，目录search GET的显式后台加载另见上节。
 
 同一观察、同一键和区块返回当前观察，不重复启动取数；同一键改区块、或观察仍有任一区块 `loading` 时返回 `409`。刷新保存失败返回 `503 asset_observation_save_failed` 且不启动查询。刷新中保留旧 dataset，失败/取消/中断同时保留旧快照与新失败码；客户端轮询状态，不把 `202` 或旧数据当作本次成功。键只保存 SHA-256 摘要，不向浏览器返回内部 request、refresh_keys 或 sample。旧 Golddata 新闻/公告 GET 接口保留，仅页面入口迁到资产观察，不新增采集或模型调用。
 

@@ -22,6 +22,7 @@ ASSET_PROFILES = (
     upgrade.ASSET_V2_MODE,
     upgrade.ASSET_V3_MODE,
     upgrade.ASSET_V4_MODE,
+    upgrade.ASSET_V5_MODE,
     "reviewed-market-overview-v1",
     "reviewed-market-gaps-v1",
 )
@@ -117,6 +118,7 @@ def test_asset_review_uses_real_git_and_frozen_product(tmp_path, monkeypatch, ba
         upgrade.ASSET_V2_MODE: "ASSET_V2",
         upgrade.ASSET_V3_MODE: "ASSET_V3",
         upgrade.ASSET_V4_MODE: "ASSET_V4",
+        upgrade.ASSET_V5_MODE: "ASSET_V5",
         "reviewed-market-overview-v1": "MARKET",
         "reviewed-market-gaps-v1": "MARKET_GAPS",
     }[profile]
@@ -382,6 +384,7 @@ def test_asset_snapshot_rejects_fifo_without_blocking(tmp_path):
         ("apply-assets-v2", upgrade.ASSET_V2_MODE),
         ("apply-assets-v3", upgrade.ASSET_V3_MODE),
         ("apply-assets-v4", upgrade.ASSET_V4_MODE),
+        ("apply-assets-v5", upgrade.ASSET_V5_MODE),
         ("apply-market", "reviewed-market-overview-v1"),
         ("apply-market-gaps", "reviewed-market-gaps-v1"),
         ("recover", upgrade.MODE),
@@ -415,6 +418,9 @@ def test_cli_selects_only_the_closed_profile(tmp_path, monkeypatch, command, pro
         (upgrade.ASSET_V4_MODE, upgrade.ASSET_V2_PREVIOUS),
         (upgrade.ASSET_V4_MODE, upgrade.ASSET_V3_PAYLOAD),
         (upgrade.ASSET_V4_MODE, upgrade.ASSET_V4_PAYLOAD),
+        (upgrade.ASSET_V5_MODE, upgrade.ASSET_V4_PREVIOUS),
+        (upgrade.ASSET_V5_MODE, upgrade.MARKET_GAPS_PREVIOUS),
+        (upgrade.ASSET_V5_MODE, "9bc4e4cab91130647a5bc0dfa519e97f4773416a"),
         ("reviewed-market-overview-v1", upgrade.ASSET_V4_PREVIOUS),
         ("reviewed-market-overview-v1", "5de7e5f2db95b8b501905af9cfdc30e8fe84db0b"),
         (upgrade.MARKET_GAPS_MODE, upgrade.MARKET_PREVIOUS),
@@ -1356,6 +1362,7 @@ def test_validate_state_accepts_real_independent_release_clones(tmp_path, monkey
         upgrade.ASSET_V2_MODE: "ASSET_V2_PREVIOUS",
         upgrade.ASSET_V3_MODE: "ASSET_V3_PREVIOUS",
         upgrade.ASSET_V4_MODE: "ASSET_V4_PREVIOUS",
+        upgrade.ASSET_V5_MODE: "ASSET_V5_PREVIOUS",
         "reviewed-market-overview-v1": "MARKET_PREVIOUS",
         "reviewed-market-gaps-v1": "MARKET_GAPS_PREVIOUS",
     }[profile]
@@ -1991,3 +1998,9 @@ def test_market_refresh_activity_blocks_the_fixed_upgrade(
     )
     with BirthFence(home / "server", uid, transaction=state["transaction"]) as fence:
         assert make(fence).idle() is expected
+
+
+def test_asset_v5_is_bound_to_actual_resident_and_merged_product():
+    assert upgrade.ASSET_V5_MODE == "reviewed-asset-observation-v5"
+    assert upgrade.previous_for(upgrade.ASSET_V5_MODE) == "51f09fa783694aae5234905933948394ca167dcc"
+    assert upgrade.ASSET_V5_PAYLOAD == "9bc4e4cab91130647a5bc0dfa519e97f4773416a"

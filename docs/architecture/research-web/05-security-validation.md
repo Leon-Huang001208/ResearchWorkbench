@@ -1,10 +1,18 @@
 # 安全边界与验证方法
 
+资产交互v5固定PREVIOUS=51f09、PAYLOAD=PR185真实merge9bc4；原review_assets继续核对产品祖先、完整路径并集、blob、模式、干净checkout及源码／发布仓库身份，运行时不接受任意旧版或产品SHA。旧profile、不可变controller／evidence、自动兼容白名单、账号与秘密namespace不变；原维护锁、BirthFence、明确空闲、全账号保全和正式recover仍为硬门。没有新信任边界或认证流程，01／12安全相关图保持，产品三CI不替代v5最终独评／CI／真实切换证据。
+
 行情缺口部署使用封闭 `reviewed-market-gaps-v1` / `apply-market-gaps`：旧版固定 `99d3ee34977c47189a5638207c109a555f52a687`，产品源码检查点固定 `9faeeca3003a912ca75799fb27b635ba1bb87a1a`。检查点为本轮产品修复的不可变祖先，最终操作员/产品组合目标仍必须最新已合并 master、独立评审和原三项 exact-tree CI（含 Mac 干净安装）合格；不把检查点冒充合并版本。复用原 version4 保全/恢复，并在原维护锁内额外核对 MarketService 的 inflight 明确为空；未知或正在采集时不切换。旧 profile、controller/evidence/网关模块字节及模型/账号权限保持，无新部署节点、HTTP或依赖，原图准确。
 
 全市场缺口修复（2026-10-22）：股票列表增加东财官网 f292 交易状态；同身份、同日单股接口有界补取空成交额与停牌参考价。停牌、未上市单列，不计平盘；已上市股票成交额全部覆盖后才合计。沪深大盘日线资金改用已实测访客端点，使用自己的来源、日期、采集时间与返回行数，不沿用板块元数据。无新依赖、来源权限或研究会话；原 Host/MarketService/DataHub/东财拓扑不变，现有图及 API Atlas 不重画。
 
-2026-10-22 全市场常驻部署使用封闭 `reviewed-market-overview-v1` / `apply-market`：旧版固定 `4d2e3c408663b64be9e58b03213f4ca8f1152733`，产品固定已合并 PR179 `5de7e5f2db95b8b501905af9cfdc30e8fe84db0b`。复用原 version4 事务、空闲准入、BirthFence、全部账号索引冻结和内容寻址恢复；旧 profile、控制器、证据读取器及自动兼容白名单保持。操作员候选须独立评审及原三项 CI／同候选 Mac 安装通过，再按用户授权切换并在真实认证页面验收。 无新服务、HTTP、持久格式或依赖；现有图及 API Atlas 准确，不重画 HTML/PNG。Windows/Linux 原生与 Docker 产品层保持各自未执行状态。
+2026-10-22 全市场常驻部署使用封闭 `reviewed-market-overview-v1` / `apply-market`：旧版固定 `4d2e3c408663b64be9e58b03213f4ca8f1152733`，产品固定已合并 PR179 `5de7e5f2db95b8b501905af9cfdc30e8fe84db0b`。复用原 version4 事务、空闲准入、BirthFence、全部账号索引冻结和内容寻址恢复；旧 profile、控制器、证据读取器及自动兼容白名单保持。操作员候选须独立评审及原三项 CI／同候选 Mac 安装通过，再按用户授权切换并在真实认证页面验收。 该封闭部署事务本身不新增服务、HTTP、持久格式或依赖；它沿用当时已审的图与 API Atlas，不要求重画 HTML/PNG。Windows/Linux 原生与 Docker 产品层保持各自未执行状态。
+
+2026-10-22 资产目录搜索沿认证账号Store与连接namespace隔离。DataHub显式resolve `search_assets/tinysoft`，读秘密前后及Provider返回后复核当前授权／配置指纹；目录缓存只在同指纹下返回，旧授权不可借stale复用。搜索q≤80、返回≤50、完整目录≤20000条／8MiB，冷启动只合并一个后台loader并节流失败重试；不接受会话ID、凭据、路径、表达式或任意供应商端点，不启动研究／模型。缓存使用NOFOLLOW／目录fd／普通文件检查，固定pending以本次创建fd身份认证，未知pending保留并失败关闭；真实Future和跨批次loader共同进入resident空闲／关闭边界。
+
+按需区块load复用原观察和会话归属；封闭AssetBlock、来源和完整合法日期对，成功缓存／合并也先持久幂等签名，同键换条件或加载中来源／范围冲突409。显式来源变更须实际保存并查询，不静默返回旧源。初始／旧refresh／load共用锁，持久化失败不启动查询，原位回滚仅本次字段，保留其他活动block及共享引用；旧快照可读但不能冒充本次更新成功。规范历史只能history-job发布，原复权因子白名单不扩展。
+
+天软结构化资产Provider只允许已审固定表／字段和预定义因子，读取前校验metadata，不开放任意repo／公式；财务按真实报告期／公布日，不以行情窗口截断或混报告版本。单位／币种缺口、未提供行业PE／PB、资金流出和构成均不补造。股票公告events只有标题／类型／日期，不授权模型分析。新闻／公告继续独立Golddata只读接口，60秒账号／证券／栏目缓存不转换为DataHub研究证据或Hot采集。宏观／ETF／指数能力、Windows／Linux验证和跨平台支持不从此次A股预检推导；来源、浏览器、安装CI和部署各自验收。
 
 库命中、收据重放及每段补数均重新验证当前来源配置与授权；撤权后不能继续发下一段SDK请求。公开SDK仅固定模块/最小环境/私有临时HOME自有子进程，不传厂商秘密；这不是插件OS沙箱。共享/个人商业许可不得根据同名指标推定可共享，生产权限与迁移不由测试授权。
 

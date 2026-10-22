@@ -22,7 +22,23 @@ BaoStock 0.9.4新增公开沪深股票原始日线、股票目录和交易日历
 
 真实免费验收：AKShare provider 新浪历史日线7行、2.04秒、结束后无活动Future；BaoStock首次provider请求12.01秒超时、零行、已回收。其他来源、认证页面及最终CI验收不能由这些样例推定通过。
 
+## 资产目录与结构化区块
+
+2026-10-22新增账号内无会话目录读取：`GET /api/research/assets/search`触发一个合并的后台目录任务，显式通过Broker核验`search_assets/tinysoft`，在同一凭据namespace读取秘密前后及Provider返回后复核配置／授权指纹。它不创建研究会话或启动模型。完整目录按代码／名称／GB2312简拼排序，并兼容常用多音字首字母候选（如银行、重庆、西藏）；不改证券名称、代码或旧缓存格式，不引入拼音依赖。搜索只返回最多50个匹配项（默认20），完整记录不在5000条截断。固定SDK调用保持每次≤5000行、15秒及一个真实Future；名称按≤500证券一批取得，不放宽底层上限。
+
+目录状态为loading／ready／stale／error／unavailable，当前账号`asset-directory/index.json`保留24小时同指纹缓存，最多20000条／8MiB。冷启动立即返回loading并轮询，旧缓存过期可读并后台刷新，失败有30秒重试间隔；配置或授权变化禁止复用旧目录。固定`.pending.json`只按本次创建的文件身份清理，未知遗留不删且明确刷新失败。后台任务跨SDK批次始终进入resident活动／关闭等待，真实Future未结束不放行空闲。目录实际读取持有既有resident共享准入租约；事务围栏期间不启动SDK，返回deployment_busy，取消时等待真实SDK退出后才释放租约。
+
+`POST .../blocks/{block}/load`为旧观察补齐区块并按相同来源／区间复用15分钟缓存，显式refresh绕过普通缓存。新缺失activity／margin无显式区间时，按上海时区和保存截止日（缺省当日）持久近60个日历日；events按同一截止规则固定派生60日业务范围，不开放events的RangeBlock参数。旧create／refresh已保存日期语义保留，财务报告期不套此窗口。所有成功受理（包括缓存和合并）先保存幂等签名；来源／区间冲突或同键换条件返回409，保存失败不启动新查询，也不替换其他活动区块共享引用。初始观察、旧refresh、新load共用区块锁；失败保留旧快照，规范历史只能由history-job发布。接口和文件见[API](architecture/research-web/04-api.md#资产目录搜索与区块按需加载)与[存储](architecture/research-web/03-data-files.md#资产目录与按需区块缓存)。
+
+天软结构化适配在`providers_cjpy_assets.py`封闭表、字段及预定义因子，读取前核验SDK metadata，不接受任意repo／表达式。market_snapshot提供PETTM、PBLF、独立PBMRQ、PSTTM、总股本和来源总市值；普通PB与PB-MRQ分开，源市值单位为万元。financials读取主要财务指标及同报告期的合并利润表，必要时使用金融利润表；以报告截止／公布日约束，不套用行情60日区间，不混不同报告版本。market_activity支持holder_data汇总、holder_details名单、industry分类、margin_trading和events公告标题／类型／日期；行业PE／PB没有提供，events不生成分析，fund_flow不选择未实现此dataset的天软。
+
+财务及两融源单位为元，币种未单列时不猜CNY；原字段、来源字段、日期、报告期与单位metadata随快照保留。AKShare保留中文原列并增加已证明等价的财务／净额标准字段，不构造流出或资金构成。auto按capability及dataset的真实实现选源，显式来源不能静默替换；未取到的新估值字段保持partial，不填伪值。CJPY宏观、ETF和指数不因本轮沪深北A股目录与固定表接入而获得支持声明，原复权factor_macro白名单保持。
+
+本机有限预检读取完整5577条目录及603986相关七类结构化区块，原始证据只留私有`logs/asset-data-preflight/`；这不是全证券、全历史、真实浏览器链路、同候选安装CI或部署验收。各级状态见[任务报告](../.ai/reports/test_report_asset_interaction_data_20261022.md)。
+
 ## 资产历史任务与固定复权
+
+历史任务可选as_of为新一版冻结的截止／锚点输入，省略时保持旧行为。重新进入个股时，若来源实际报价交易日超过旧全历史的截止锚点，按新日期独立重建完整历史版本，原全历史／因子／研究冻结材料不改写；新证券首次recent默认不变。不能按HTTP读取日冒充报价交易日，也不能用一次recent替换已完成全历史。新版本仍受全部因子／覆盖／代次与原子发布门约束，失败继续保留旧版本。
 
 2026-10-22 启动保全热修复限定Store持久化边界：旧磁盘缺失且仍为精确默认的历史jobs/keys和图表偏好只在内存提供；启动或Automation无关save不将其写入旧index，首次真实变化才落盘。原有键（含空值）及写入后恢复默认的键继续保留，原子替换失败不误记已持久化。DataHub Provider、raw/factors/canonical、业务API与严格保全门不变，不追加厂商调用或放宽来源权限；同候选Mac安装与真实恢复/部署另证，详见[文件合同](architecture/research-web/03-data-files.md#资产历史与图表偏好存储)。
 
@@ -50,17 +66,15 @@ BaoStock 0.9.4新增公开沪深股票原始日线、股票目录和交易日历
 
 腾讯、与新浪访客报价已做只读对照：腾讯明确停牌标记及参考价格与东财吻合；新浪对部分停牌返回零价/旧日，北交所样本为空。不将不同源状态/单位默混进本批；本轮现有东财接口已补齐目标缺口，不新增依赖或登录。实测、合同与保全部署记录见[任务报告](../.ai/reports/2026-10-22-market-gaps.md)。
 
-`MarketService` 使用当前用户 `market-cache/` 保存当前与上一完整快照，GET 仅消费缓存，POST 显式刷新；该路径不经过会话查询，不产生研究 receipt、dataset 或 DSH 工具调用。行业／概念使用东方财富分类，资金按供应商订单分类；沪深大盘资金流不包含北交所。Wind只作为版式参考，天软既有能力不变。公开源可达、字段可用、分页完整和真实验收分别记录。
+`MarketService`使用当前用户market-cache/保存当前及上一完整快照，GET消费缓存、POST显式刷新；不产生研究receipt、dataset或DSH调用。行业／概念按东方财富分类，沪深大盘资金不含北交所；该公开市场链路不改变天软权限，资产结构化能力见上节。公开源可达、字段可用、分页完整和真实验收分别记录。
 
-资产页紧凑摘要新增的 `valuation` 与 `coverageRows` 仅为 `asset-projection.mjs` 浏览器 DTO，消费当前已载入行与既有 dataset 元数据，不扩展 DataHub、ObservationRequest、持久化格式或 HTTP 合同。“N/8 有快照”按八个既有区块的真实载入行及 dataset 身份计数，complete 但未载入不计入；新闻／公告仍走独立阅读。来源明细分开显示请求来源／实际 Provider、行内数据日、`as_of`、北京时间 `retrieved_at`、报告期、请求／实际／载入区间、字段单位与限制，不能把这些不同时间和范围合并为一个“最新”。
+资产页估值与coverageRows仍是浏览器DTO，但本轮另增加上述目录／load HTTP和缓存合同。来源摘要按当前区块动态统计已取得／待加载／查询失败／未接入，成功空结果与未读取快照分开，新闻／公告不计入DataHub统计。数据日、as_of、retrieved_at、报告期、请求／实际／已载入区间保留，不能合并为一个“最新”。
 
-资产观察继续经 AssetWorkspace → Broker → 现有 Provider，页面打开不取数；显式创建或刷新单一区块才提交查询。请求新增 `section_sources={}`：区块显式来源覆盖原 `source`，未覆盖仍沿原来源，专业来源失败不能隐式回退。新增 `section_ranges={}`：只接受 history／activity／margin 的完整 ISO 日期对，开始不晚于结束；缺省沿原全局日期，旧记录恢复为两个空映射。刷新沿保存的有效来源与日期执行，公开请求参数及各区块显示来源／范围，不能以全局来源掩盖差异。holders 的 `end_date` 仍是报告期，不参与历史日期覆盖。
+AssetWorkspace保持旧create／refresh；新页面进入专题后按需调用load，旧观察可补缺块。section_sources覆盖原source，未指定时沿保存值；显式source变化必须保存并按该来源重新查询，显式专业来源失败不能隐式fallback。section_ranges仅允许history／activity／margin的完整ISO日期对；holders.end_date仍为报告期，不参与历史日期覆盖。
 
-已有 `valuation` 区块复用原 `market_snapshot`，请求明确 `asset_type` 及 Wind 的 `close/pe_ttm/pb/total_shares`，不新增 API 路径或 Provider。摘要 PS-TTM 只读取已取得的明确 `ps_ttm` 字段，不增加请求或用市值／单期营收补造。普通 PB 不升级为 PB-MRQ，TTM/MRQ 和未知单位继续显式保留；Wind 总股本原数显示但数量级未核验，即使来源声明 `share` 也不换算、不据此派生市值。其他来源仅在同源同日、股本与每股价格单位及币种均确认时可从 close × total_shares 派生；缺失显示 `—`，真实零值保留。财务仍使用 `statements=["indicators"]`、`periods=[]` 读取最新一期，Broker 只映射等价指标，报表、多期或非法期间继续 `data_not_equivalent`，不能称为多年财务历史。
+valuation沿market_snapshot请求close／pe_ttm／pb／pb_mrq／ps_ttm／total_shares；天软按上节的预定义因子取得新字段。普通PB不升级MRQ，PS-TTM不以市值／单期营收补造；Wind未提供的新字段保持partial，未核验股本数量级不派生市值。财务仍从业务financials进入，按所选Provider实际支持的报告期／报表合同读取，不能把本轮最新披露数据称为多年财务历史。
 
-页面显式行情 tinysoft、估值 wind、财务／资金／股东 auto；历史工作区使用上述近期/更早/全部任务，资金／两融近60个日历日（截止往前59天）分别传入。Wind已有60天硬门保持，61天拒绝，不截断、不拆分；不将其泛化为天软历史任务上限。派生图表只用真实行，缺口不补成52周。真实全历史加载、首次查询和逐区刷新分别留厂商证据，有限预检或离线测试不替代完整验收。
-
-单区块刷新入口及幂等/失败合同见[API](architecture/research-web/04-api.md#资产观察区块刷新)。刷新沿原会话、来源、参数和快照安全边界，Broker 的 `refresh=true` 只重取目标区块；其余区块不重取。新闻/公告在资产页按证券阅读既有 Golddata 只读 API，和 DataHub 的 `news` / `announcements` 快照区块保留来源区别；不新增 Provider 或真实调用授权。
+默认概览／历史tinysoft，其余缺块auto，Broker按dataset真实实现选源，fund_flow不选未实现该dataset的天软。Wind60日硬门保持，不截断或拆分、不泛化为天软财务与历史任务限制。真实全历史、首次自动加载和逐区刷新仍分别留厂商证据；有限预检或离线fixtures不替代完整验收。新闻／公告仍按证券读取既有Golddata接口，和旧DataHub news／announcements快照的来源身份分开。
 
 正文读取通过原实例私有数据桥按本会话已登记来源 ID 执行，不增加 Provider 凭据或修改已有取数合同。取消使用受信原生 call_id，有限请求的实际输入字节与来源身份保全，搜索摘要继续未核验；正文范围及网络保护见架构 03–05。
 

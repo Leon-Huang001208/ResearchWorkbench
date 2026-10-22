@@ -1,12 +1,18 @@
 # Research Workbench Development Map
 
+2026-10-22资产交互v5部署定位在`resident/model_provider_upgrade.py`的ASSET_V5_MODE／PREVIOUS／PAYLOAD、原ASSET_MODES、previous_for、review_assets和CLI分派；近处回归为`test_model_provider_upgrade.py`。固定旧51f09、产品PR185真实merge9bc4，禁止运行时任意版本；原controller／evidence、恢复、保全、产品源码、依赖及CI配置不改。无新架构节点或数据流，原图仍准确；完整验证及未部署状态见[任务报告](../.ai/reports/test_report_asset_interaction_v5_deploy_20261022.md)和[部署合同](research-web-gateway-upgrade.md#资产交互与数据-v5-2026-10-22)。
+
 行情缺口部署使用封闭 `reviewed-market-gaps-v1` / `apply-market-gaps`：旧版固定 `99d3ee34977c47189a5638207c109a555f52a687`，产品源码检查点固定 `9faeeca3003a912ca75799fb27b635ba1bb87a1a`。检查点为本轮产品修复的不可变祖先，最终操作员/产品组合目标仍必须最新已合并 master、独立评审和原三项 exact-tree CI（含 Mac 干净安装）合格；不把检查点冒充合并版本。复用原 version4 保全/恢复，并在原维护锁内额外核对 MarketService 的 inflight 明确为空；未知或正在采集时不切换。旧 profile、controller/evidence/网关模块字节及模型/账号权限保持，无新部署节点、HTTP或依赖，原图准确。
 
 全市场缺口修复（2026-10-22）：股票列表增加东财官网 f292 交易状态；同身份、同日单股接口有界补取空成交额与停牌参考价。停牌、未上市单列，不计平盘；已上市股票成交额全部覆盖后才合计。沪深大盘日线资金改用已实测访客端点，使用自己的来源、日期、采集时间与返回行数，不沿用板块元数据。无新依赖、来源权限或研究会话；原 Host/MarketService/DataHub/东财拓扑不变，现有图及 API Atlas 不重画。
 
 市场部署的 read_business_index 复用原64MiB业务上限；retention、idle及市场profile的verify_primary统一使用该读取器，gateway_upgrade.py仅增加默认仍为原元数据读取器的显式参数。市场profile单独固定该模块SHA-256，旧profiles不接受新增例外；大索引及网关额外字节/模式/删除拒绝由同一操作员测试覆盖。
 
-2026-10-22 全市场常驻部署使用封闭 `reviewed-market-overview-v1` / `apply-market`：旧版固定 `4d2e3c408663b64be9e58b03213f4ca8f1152733`，产品固定已合并 PR179 `5de7e5f2db95b8b501905af9cfdc30e8fe84db0b`。复用原 version4 事务、空闲准入、BirthFence、全部账号索引冻结和内容寻址恢复；旧 profile、控制器、证据读取器及自动兼容白名单保持。操作员候选须独立评审及原三项 CI／同候选 Mac 安装通过，再按用户授权切换并在真实认证页面验收。 无新服务、HTTP、持久格式或依赖；现有图及 API Atlas 准确，不重画 HTML/PNG。Windows/Linux 原生与 Docker 产品层保持各自未执行状态。
+2026-10-22 全市场常驻部署使用封闭 `reviewed-market-overview-v1` / `apply-market`：旧版固定 `4d2e3c408663b64be9e58b03213f4ca8f1152733`，产品固定已合并 PR179 `5de7e5f2db95b8b501905af9cfdc30e8fe84db0b`。复用原 version4 事务、空闲准入、BirthFence、全部账号索引冻结和内容寻址恢复；旧 profile、控制器、证据读取器及自动兼容白名单保持。操作员候选须独立评审及原三项 CI／同候选 Mac 安装通过，再按用户授权切换并在真实认证页面验收。 该封闭部署事务本身不新增服务、HTTP、持久格式或依赖；它沿用当时已审的图与 API Atlas，不要求重画 HTML/PNG。Windows/Linux 原生与 Docker 产品层保持各自未执行状态。
+
+2026-10-22 资产交互与数据定位：`asset_directory.py`负责账号目录索引、代码／名称／GB2312简拼排序、24小时缓存、授权指纹与有界原子文件；DataHub `directory_fingerprint/asset_directory`负责显式天软授权和同namespace凭据读取前后的复核，`providers_cjpy.fetch_directory`沿原SDK容量分批取得完整目录。`asset_routes.py`新增搜索与区块load端点，`asset_workspace.py`负责旧观察缺块补建、15分钟缓存、成功受理签名、来源／区间409、统一区块锁、失败原位回滚和旧快照保留；活动目录／区块任务进入原resident活动投影及关闭边界。
+
+`datahub/providers_cjpy_assets.py`保存固定表／字段／因子合同；`providers_cjpy.py`继续拥有真实SDK Future、容量与关闭，Broker按dataset选择实际支持的来源。AKShare标准字段与原中文列并存，不派生流出或资金构成。前端 `asset-search.mjs`提供单A股搜索与账号／代次取消，`asset-controller.mjs`按专题激活和初次overview→recent qfq加载，`asset-workspace.mjs/css`保留图表／指标并局部替换专题；`asset-projection.mjs`按真实估值、报告期、股东和行业字段投影，独立新闻／公告控制器保留60秒缓存。新回归为 `test_asset_directory.py`、`test_asset_loading.py`、`test_cjpy_asset_data.py`、`test_asset_provider_normalization.py`及资产搜索／专题JS和E2E；原资产、历史、Provider、安装门均保留。合同见[UI](research-web-ui.md#资产观察工作台)、[DataHub](research-web-datahub.md#资产目录与结构化区块)、架构03／04／05章；源码与本机夹具通过不代替同候选CI、真实浏览器或部署。
 
 研究仓代码定位 `app/research_web/market_store/{models,store,postgres,operation}.py`；DataHub 的 warehouse/storage_activity/reliability/worker_activity 分别负责可信绑定、数据库真实占用、多源执行与SDK排空。公开SDK固定子进程在 public_worker.py，BaoStock适配在 providers_baostock.py；对应 test_market_store* 和 test_datahub_* 定点离线回归。
 

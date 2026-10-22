@@ -126,6 +126,8 @@ def test_catalog_contains_all_declared_sources_without_constructing_connectors(
         "market_bars",
         "market_snapshot",
         "factor_macro",
+        "financials",
+        "market_activity",
     }
     assert tinysoft_bindings["fund_data"] is False
     akshare_bindings = {
@@ -437,6 +439,11 @@ async def test_akshare_financials_normalize_boolean_missing_sentinels(monkeypatc
             "净利润": "1.47亿",
             "净利润同比增长率": None,
             "扣非净利润": None,
+            "report_period": "1998-12-31",
+            "revenue": None,
+            "net_profit": 147000000.0,
+            "roe": None,
+            "gross_profit_margin": None,
         }
     ]
     assert (
@@ -465,7 +472,7 @@ async def test_akshare_provider_sanitizes_unexpected_transport_failure(monkeypat
         )
     )
     assert result.status == "failed"
-    assert result.limitations[-1] == "provider_error"
+    assert result.limitations[-1] == "vendor_unreachable"
     assert "secret" not in str(result.limitations)
 
 

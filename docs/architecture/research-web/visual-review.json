@@ -46,17 +46,19 @@
     },
     {
       "id": "04-data-file-flow",
-      "artifactSha256": "b37568b6524dc1cef607d0ae177fe07fb18ee4613acdbbfde90185ab623bfc9b",
-      "specificationSha256": "7d6700699529ba43e53f6cd6eccd1b9dfba812a982e46fb599e78fbccfcafed9",
+      "artifactSha256": "3bc3c0bf76de80f364320491ef42f5dc2620bd4c70670966747b2f75315dba5a",
+      "specificationSha256": "aceca92c2490e4b094779be308698f89fced4f1cfd352055407c3ba90d26e1b3",
       "status": "reviewed",
       "reviewer": "Codex implementation reviewer (actual image inspection)",
       "date": "2026-10-22",
       "captures": [
-        "04-data-file-flow.visual-check.1440x900.light.png",
-        "04-data-file-flow.visual-check.2048x1320.dark.png"
+        "04-data-file-flow.visual-check.1440x900.dark.png",
+        "04-data-file-flow.visual-check.2048x1320.light.png"
       ],
-      "findings": [],
-      "notes": "已实际查看最终1440浅色和2048深色截图；新增可选PG/修订/PIT/冻结、等价切换与前台超时/实际排空说明可见，无节点裁剪或关系线穿过节点。图仍保留原宽画布布局；自动visualReview pending不篡改，截图检查不能代替认证产品页面验收。"
+      "findings": [
+        "保留原图较大的右侧留白；root明确选择恢复已验证1900宽版面，不再扩几何优化。"
+      ],
+      "notes": "整合仓库与资产目录描述后重新deliver（9/9，0 warnings）及四视口visual-check；实际查看1440深色和2048浅色截图，未见新增裁剪、穿线或重叠。保留已确认的原宽画布右侧留白；截图不认证产品或厂商可用性。"
     },
     {
       "id": "06-run-state",
@@ -131,17 +133,17 @@
     },
     {
       "id": "02-module-dependencies",
-      "artifactSha256": "9f3145259444249bf33a721c8e64523cbf9dec30b58f1e2ec468d77ca9f1a311",
-      "specificationSha256": "4b881aa9fe18f81031773534b045a9138821697cd17e220f9ade9bf62f61ba03",
+      "artifactSha256": "901ff7080b070fc4dfed9bb21969841f536cb9359c27b3a545be6684164c6329",
+      "specificationSha256": "2c25ec1766306bdbf8c57dabd28ca41afcc2694a8a2df57be23886a2e5270ae9",
       "status": "reviewed",
-      "reviewer": "Codex documentation implementer (image inspection)",
+      "reviewer": "codex-docs-agent",
       "date": "2026-10-22",
       "captures": [
         "02-module-dependencies.visual-check.1440x900.dark.png",
         "02-module-dependencies.visual-check.2048x1320.light.png"
       ],
       "findings": [],
-      "notes": "已实际查看本次最终1440深色和2048浅色截图；任务/偏好模块、固定复权原始行/因子与规范快照文字清晰，无穿过不相关节点、遮挡或裁剪。四视口自动包含性及深浅截图另由同HTML哈希visual-check绑定；不改自动visualReview pending，也不把架构图检查当产品浏览器验收。"
+      "notes": "已实际用image reader查看本次1440深色和2048浅色最终截图：Host资产工作区／DataHub及账号目录缓存归属清楚，目录非会话标签与搜索按需API可读，没有新穿线、遮挡或裁剪。四桌面包含性另有当前HTML同hash自动回执；此图不证明产品浏览器或真实供应商链路。"
     },
     {
       "id": "11-hot-events",

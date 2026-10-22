@@ -494,6 +494,9 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
                 report_activity,
                 lambda: any(not task.done() for task in research.datahub.tasks.values()),
                 storage_activity,
+                lambda: research.asset_workspace.directory.active,
+                lambda: any(not task.done() for task in research.asset_workspace.tasks.values()),
+                lambda: bool(research.datahub.directory_tasks),
             ):
                 try:
                     # Evaluate every witness, including after a known busy or

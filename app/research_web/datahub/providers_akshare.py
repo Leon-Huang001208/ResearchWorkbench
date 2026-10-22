@@ -399,7 +399,8 @@ def _normalize_snapshot(rows: list[dict], query: BusinessQuery) -> list[dict]:
                 "volume": _number(_pick(row, "成交量", "volume")),
                 "turnover": _number(_pick(row, "成交额", "turnover")),
                 "market_cap": _number(_pick(row, "总市值", "market_cap")),
-                "pe_ttm": _number(_pick(row, "市盈率-动态", "pe_ttm")),
+                "pe_ttm": _number(_pick(row, "pe_ttm")),
+                "pe_dynamic": _number(_pick(row, "市盈率-动态", "pe_dynamic")),
                 "as_of": _pick(row, "as_of") or datetime.now(UTC).isoformat(),
             }
         )
@@ -428,7 +429,28 @@ def _normalize_activity(rows: list[dict], query: BusinessQuery) -> list[dict]:
         except ValueError:
             raise ProviderError("invalid_provider_date") from None
         row["date"] = day
+        for output, source in {
+            "main_net": "主力净流入-净额",
+            "super_net": "超大单净流入-净额",
+            "large_net": "大单净流入-净额",
+            "medium_net": "中单净流入-净额",
+            "small_net": "小单净流入-净额",
+        }.items():
+            value = row.get(source)
+            row[output] = None if isinstance(value, bool) else _number(value)
     return normalized
+
+
+def _explicit_money(value):
+    if isinstance(value, bool) or value is None or value in ("", "--", "-"):
+        return None
+    if value == 0 or value == "0":
+        return 0.0
+    text = str(value).strip().replace(",", "")
+    match = re.fullmatch(r"([+-]?(?:\d+(?:\.\d*)?|\.\d+))\s*(亿元|万元|元|亿|万)", text)
+    if not match:
+        return None  # A bare source amount does not establish its quantity scale.
+    return float(match[1]) * {"亿元": 1e8, "亿": 1e8, "万元": 1e4, "万": 1e4, "元": 1}[match[2]]
 
 
 def _normalize_financials(rows: list[dict], query: BusinessQuery) -> list[dict]:
@@ -455,13 +477,22 @@ def _normalize_financials(rows: list[dict], query: BusinessQuery) -> list[dict]:
                 selected.append(row)
         rows = selected
     normalized = _normalize_generic(rows, query)
-    return [
+    normalized = [
         {
             key: None if key != "asset" and isinstance(value, bool) else value
             for key, value in row.items()
         }
         for row in normalized
     ]
+    for row in normalized:
+        period = _pick(row, "报告期", "report_period", "报告日期", "截止日期")
+        if period is not None:
+            row["report_period"] = _date(period)
+        row["revenue"] = _explicit_money(_pick(row, "营业总收入", "营业收入", "营收"))
+        row["net_profit"] = _explicit_money(_pick(row, "净利润"))
+        row["roe"] = _number(_pick(row, "净资产收益率", "净资产收益率(%)"))
+        row["gross_profit_margin"] = _number(_pick(row, "销售毛利率", "毛利率", "销售毛利率(%)"))
+    return normalized
 
 
 def _invoke_sdk(query: BusinessQuery):
@@ -746,7 +777,30 @@ def _materialize(query, frame, normalizer):
                 if query.parameters.get("asset_type") in {"index", "etf"}
                 else "share"
             )
+        elif field in {"revenue", "net_profit"}:
+            unit = "元"
+        elif field in {"roe", "gross_profit_margin"}:
+            aliases = (
+                ["净资产收益率", "净资产收益率(%)"]
+                if field == "roe"
+                else ["销售毛利率", "毛利率", "销售毛利率(%)"]
+            )
+            present = [
+                (key, row[key])
+                for row in result.rows
+                for key in aliases
+                if row.get(key) is not None
+            ]
+            explicit = bool(present) and all(
+                isinstance(value, str) and "%" in value or key.endswith("(%)")
+                for key, value in present
+            )
+            unit = "percent" if explicit else None
         result.fields[field] = {"unit": unit, "currency": currency}
+    if query.capability == "market_activity" and result.rows:
+        result.limitations.append(
+            "资金字段保留来源净额；没有真实流入流出和完整构成时不生成饼图，未验证的净额单位保持未知。"
+        )
     result.metadata["provider_semantics_revision"] = SEMANTICS_REVISION
     if query.capability == "market_bars" and query.parameters.get("asset_type", "stock") == "stock":
         result.metadata["upstream_id"] = getattr(normalizer, "upstream_id", None) or (
@@ -797,7 +851,9 @@ async def fetch(query: BusinessQuery) -> Result:
         if isinstance(exc, asyncio.CancelledError):
             raise
         result.status = "partial" if result.rows else "failed"
-        reason = str(exc) if isinstance(exc, ProviderError) else "provider_error"
+        reason = _probe_failure_code(exc)
+        if reason == "probe_failed":
+            reason = "provider_error"
         result.limitations.append(reason)
         log.warning(
             "datahub_akshare_incomplete",

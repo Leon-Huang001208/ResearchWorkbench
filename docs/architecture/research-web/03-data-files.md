@@ -1,10 +1,24 @@
 # DataHub、研究资料与实际文件
 
+资产交互v5部署固定当前旧版51f09与PR185产品9bc4，沿原全账号业务索引冻结、严格有界读取、版本4事务及内容寻址恢复包；不增加Store键、目录格式、数据库或资料发布路径。原会话、模型配置、账号权限、市场缓存、不可变DataHub／历史快照均按原保全比对，不裁剪或重写旧证据。v5恢复指向51f09，历史各profile恢复包保留；03／04数据图无需改变。
+
 行情缺口部署使用封闭 `reviewed-market-gaps-v1` / `apply-market-gaps`：旧版固定 `99d3ee34977c47189a5638207c109a555f52a687`，产品源码检查点固定 `9faeeca3003a912ca75799fb27b635ba1bb87a1a`。检查点为本轮产品修复的不可变祖先，最终操作员/产品组合目标仍必须最新已合并 master、独立评审和原三项 exact-tree CI（含 Mac 干净安装）合格；不把检查点冒充合并版本。复用原 version4 保全/恢复，并在原维护锁内额外核对 MarketService 的 inflight 明确为空；未知或正在采集时不切换。旧 profile、controller/evidence/网关模块字节及模型/账号权限保持，无新部署节点、HTTP或依赖，原图准确。
 
 全市场缺口修复（2026-10-22）：股票列表增加东财官网 f292 交易状态；同身份、同日单股接口有界补取空成交额与停牌参考价。停牌、未上市单列，不计平盘；已上市股票成交额全部覆盖后才合计。沪深大盘日线资金改用已实测访客端点，使用自己的来源、日期、采集时间与返回行数，不沿用板块元数据。无新依赖、来源权限或研究会话；原 Host/MarketService/DataHub/东财拓扑不变，现有图及 API Atlas 不重画。
 
-2026-10-22 全市场常驻部署使用封闭 `reviewed-market-overview-v1` / `apply-market`：旧版固定 `4d2e3c408663b64be9e58b03213f4ca8f1152733`，产品固定已合并 PR179 `5de7e5f2db95b8b501905af9cfdc30e8fe84db0b`。复用原 version4 事务、空闲准入、BirthFence、全部账号索引冻结和内容寻址恢复；旧 profile、控制器、证据读取器及自动兼容白名单保持。操作员候选须独立评审及原三项 CI／同候选 Mac 安装通过，再按用户授权切换并在真实认证页面验收。 无新服务、HTTP、持久格式或依赖；现有图及 API Atlas 准确，不重画 HTML/PNG。Windows/Linux 原生与 Docker 产品层保持各自未执行状态。
+2026-10-22 全市场常驻部署使用封闭 `reviewed-market-overview-v1` / `apply-market`：旧版固定 `4d2e3c408663b64be9e58b03213f4ca8f1152733`，产品固定已合并 PR179 `5de7e5f2db95b8b501905af9cfdc30e8fe84db0b`。复用原 version4 事务、空闲准入、BirthFence、全部账号索引冻结和内容寻址恢复；旧 profile、控制器、证据读取器及自动兼容白名单保持。操作员候选须独立评审及原三项 CI／同候选 Mac 安装通过，再按用户授权切换并在真实认证页面验收。 该封闭部署事务本身不新增服务、HTTP、持久格式或依赖；它沿用当时已审的图与 API Atlas，不要求重画 HTML/PNG。Windows/Linux 原生与 Docker 产品层保持各自未执行状态。
+
+## 资产目录与按需区块缓存
+
+目录属于当前认证账号的`store.root/asset-directory/`，不进入研究会话、DSH历史或全局行情数据库。`index.json`仅保存固定股票身份／名称／简拼、来源、as_of／retrieved_at、限制、总数、loaded_at及配置授权指纹；不写秘密，最多20000条／8MiB。搜索结果最多50条不是目录容量上限，5577条目录及超过5000行快照仍完整保存和读取。24小时有效期仅适用于同账号且当前授权指纹一致的目录，失效时不能向新授权返回旧缓存。
+
+目录读写沿账号根的目录描述符、NOFOLLOW、普通文件／大小校验和原子replace；只有`index.json`与固定`.pending.json`事务文件。pending使用O_EXCL创建，发布及清理前核验本次fd的device／inode；未知／遗留pending不删除，旧index可继续只读并显示刷新失败。来源读取或持久化失败不覆盖上一有效目录；缓存状态、目录后台task和真实SDK Future分开记录，批次间不能误报空闲。
+
+按需load沿原`asset_observations`保存request中的section_sources／section_ranges、区块loaded_at及refresh_keys的键摘要／正文签名，未新增顶层Store键或数据库。相同来源和范围的普通区块15分钟内复用；显式来源变化保存到目标区块并重新查询，显式refresh绕过缓存。缓存、冻结历史和合并路径的成功受理也必须持久签名，同键换条件409。先保存再启动task，保存失败503，仅原位撤回本次目标block／request／key／状态字段，保持其他活动区块和共享字典身份；不把活跃查询的结果写入脱离Store的旧对象。
+
+新load补齐industry／holder_details／events，真实结果仍写所属会话的不可变DataHub manifest／raw／rows；部分或失败更新保留旧dataset及失败码。规范history指针只通过原history-job的版本／代次发布，不用普通load覆盖。目录关闭等待、初始／refresh／load共用区块锁，以及resident活动witness不改业务数据归属；旧观察、报告和原始历史证据不重写。
+
+无显式日期的新缺失activity／margin把上海时区、截至保存end_date或当日的60日区间写入section_ranges；之后沿已保存范围重试。events在封闭参数生成中按同样截止规则派生60日业务区间，不新增events的section_ranges入口。旧create／refresh已保存的日期语义和财务披露报告期保持，实际查询区间仍由DataHub manifest冻结。
 
 可选MarketStore将原件、逐次事实修订、覆盖证明与冻结快照分开，scope包含服务器owner/许可/source/config摘要，dataset包含单位/复权/因子和指标合同。未知缺口不能用最大日期或空响应消除；历史可得时间缺失不能冒充PIT。导出包含版本/原件哈希，正式根和外盘迁移尚未启用，详见研究仓合同。
 
@@ -13,6 +27,8 @@
 2026-10-22 Wind部署profile v3只在原v4 journal内记录封闭mode、旧5495与产品a0ff3ae2身份，不新增journal版本或业务schema。主实例与全部账号业务index顶层值仍冻结canonical SHA-256并区分缺失/空值，前进/回滚/恢复逐项复核；观察、历史块、规范快照、会话、报告、账号和凭据不覆盖。旧v1/v2恢复材料与controller/evidence保持，产品存储/交接图准确且本轮不改HTML/PNG。真实切换前后保全由root另留证，产品与profile候选验收分开。
 
 ## 资产历史与图表偏好存储
+
+可选历史as_of只影响新任务冻结的截止及其独立规范版本；None保留旧任务／旧请求兼容。已有完整历史在报价交易日超过旧锚点时重建完整覆盖，不把原数据或研究引用改成近期两年；旧dataset、raw、因子及manifest仍可复核。新旧as_of版本各自保留定义／因子／范围证据，失败不得覆盖旧指针，服务恢复和缓存复用仍复核归属与授权。
 
 最后核对：2026-10-22。Store在内存兼容提供`asset_history_jobs={}`、`asset_history_keys={}`及`chart_preferences={panels:[volume,macd],revision:0}`，无数据库/schema迁移。对于旧磁盘中未有且仍精确等于这些默认值（含JSON类型）的键，启动或无关服务save只序列化原有业务字段，不把三键物化到`index.json`；某键第一次真正改变后才写入，并在原子替换成功后登记为已持久化。原磁盘已存在的键，包括空对象、空列表或null，以及已持久化后恢复默认的键均不得删除；保存失败不提前登记。其他键、原子写入/错误处理及部署严格保全比对保持。指标偏好保留0至4个唯一有序副图及revision，默认VOL＋MACD，账号内所有证券共用；保存失败恢复原值。任务保存原始请求、观察/会话身份、代次、当前快照、扫描进度和安全失败码，公开投影隐藏内部字段。
 
@@ -32,9 +48,9 @@
 
 资产观察 v2 profile 在原 v4 journal 中记录固定 mode、旧版与目标，主实例及全部私有账号业务 index 仍按每个顶层值冻结 canonical SHA256，区分缺失与空值；v1 同样保留此检查。前进、回滚、完成和 preparing 恢复不覆盖观察、查询、会话、账号或凭据。固定身份增加不改变 journal 版本、数据根、HTTP 或业务存储，现有文件流图无需新增节点。
 
-资产摘要的 `valuation`／`coverageRows` 是浏览器内存投影，不写入 Observation、DataHub 快照或任何数据库。覆盖数要求 dataset 身份与当前实际载入行同时存在，保留失败／加载中的旧快照身份；数据日、`as_of`、`retrieved_at`、报告期及请求／实际／载入区间分别保留。PB与PB-MRQ、明确PS-TTM与单期财务、零与缺失各自区分；Wind股本数量级未核验，不换算或派生市值。折叠状态仅按当前资产恢复，主题切换不改变源数据、公式、快照或交接材料。
+valuation／coverageRows为浏览器内存投影，不直接写入数据集或数据库。来源状态按当前封闭区块动态统计，已读取空结果、未hydrate、更新中旧快照及本次失败分别保留，不能只凭dataset标识宣称取得；新闻／公告独立。目录与load的新增持久字段和文件见本章开头，不沿用此前纯静态摘要迭代的固定八区计数。
 
-AF连续指标迁移不增加数据库或迁移：`section_sources`／`section_ranges`随原 `asset_observations` 请求保存，旧记录缺省为空映射，公开request_parameters与区块状态回显有效来源／范围。valuation仍是所属会话的market_snapshot数据集；六MA／BOLL／MACD／KDJ／RSI和180桶筹码只在浏览器由快照派生，不写回来源。筹码明确估算，财务／股东／行业／事件／宏观缺字段保留空位，资金净额和北向持仓不冒充流入流出。来源、交易日、单位、复权、TTM／MRQ及报告期保留。
+资产图表沿原会话快照计算六MA／BOLL／MACD／KDJ／RSI及180桶前缀筹码，不写回来源。section_sources／section_ranges及本轮load签名、loaded_at随asset_observations保存，旧记录兼容。财务／股东／行业／事件缺字段保留未知；本轮移除宏观占位，资金净额和北向持仓不冒充流入／流出。来源、单位、币种、TTM／MRQ、复权及报告期各自保留。
 
 CI大日志读取预算30→120秒仅改变资格证明的网络等待，不写DataHub、会话或业务索引。资产专项仍核对主实例及私有账号完整索引摘要，读取器完整SHA256绑定入原恢复包，不覆盖业务数据。
 

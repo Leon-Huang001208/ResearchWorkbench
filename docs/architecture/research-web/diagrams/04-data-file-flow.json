@@ -2,7 +2,7 @@
   "schema_version": 1,
   "diagram_type": "dataflow",
   "meta": {
-    "title": "DataHub 与资产历史资料流",
+    "title": "DataHub 区块与资产历史快照流",
     "output": "04-data-file-flow.html",
     "quality_profile": "showcase",
     "viewBox": [
@@ -19,6 +19,20 @@
           "web"
         ],
         "note": "前端浏览全部登记来源，但只有满足五维就绪条件的来源可调用。"
+      },
+      {
+        "id": "assetLoad",
+        "label": "按需区块与历史任务",
+        "focus": [
+          "tool",
+          "policy",
+          "router",
+          "providers",
+          "normalize",
+          "snapshots",
+          "web"
+        ],
+        "note": "资产专题按需load与历史任务沿当前账号授权写原会话不可变快照；目录搜索无会话、不经此发布链，其24h缓存分支见02模块图。"
       },
       {
         "id": "materialize",
@@ -77,20 +91,20 @@
     {
       "id": "tool",
       "type": "external",
-      "label": "datahub_* Tool",
-      "sublabel": "稳定业务参数",
+      "label": "资料取数请求",
+      "sublabel": "DSH工具 / 资产专题",
       "stage": 0,
       "row": 3,
-      "tag": "DSH"
+      "tag": "既有两入口"
     },
     {
       "id": "policy",
       "type": "security",
-      "label": "工具与参数边界",
-      "sublabel": "enabledTools / Schema",
+      "label": "业务参数与授权",
+      "sublabel": "账号来源 / 范围 / Schema",
       "stage": 1,
       "row": 3,
-      "tag": "automatic"
+      "tag": "当前授权"
     },
     {
       "id": "catalog",
@@ -151,11 +165,11 @@
     {
       "id": "web",
       "type": "frontend",
-      "label": "研究台与数据目录",
-      "sublabel": "查询 / 详情 / 手动检测",
+      "label": "资产与研究页面",
+      "sublabel": "专题快照 / 资料交接",
       "stage": 4,
       "row": 0,
-      "tag": "显式操作"
+      "tag": "当前账号"
     },
     {
       "id": "handoff",

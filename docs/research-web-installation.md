@@ -1,8 +1,14 @@
 # Research Web Native / Docker 安装与运行
 
+2026-10-22资产交互v5使用既有macOS Native操作员，固定旧51f09与PR185产品9bc4，入口`apply-assets-v5`；不新增安装参数、依赖、凭据接收面或Doctor能力。已核对requirements/web.in、requirements/web.lock、scripts/setup_web.py、本页及research-web-bootstrap.yml，依赖／安装器／workflow字节均无需改动。原setup-web.sh、setup-web.cmd、python scripts/setup_web.py三入口及同候选macos-14干净安装、固定DSH、3081／8088和Doctor门保留；产品旧CI与本机installed环境不认证v5最终候选安装通过。实际切换及固定51f09恢复见[部署合同](research-web-gateway-upgrade.md#资产交互与数据-v5-2026-10-22)。
+
 行情缺口部署使用封闭 `reviewed-market-gaps-v1` / `apply-market-gaps`：旧版固定 `99d3ee34977c47189a5638207c109a555f52a687`，产品源码检查点固定 `9faeeca3003a912ca75799fb27b635ba1bb87a1a`。检查点为本轮产品修复的不可变祖先，最终操作员/产品组合目标仍必须最新已合并 master、独立评审和原三项 exact-tree CI（含 Mac 干净安装）合格；不把检查点冒充合并版本。复用原 version4 保全/恢复，并在原维护锁内额外核对 MarketService 的 inflight 明确为空；未知或正在采集时不切换。旧 profile、controller/evidence/网关模块字节及模型/账号权限保持，无新部署节点、HTTP或依赖，原图准确。
 
-2026-10-22 全市场常驻部署使用封闭 `reviewed-market-overview-v1` / `apply-market`：旧版固定 `4d2e3c408663b64be9e58b03213f4ca8f1152733`，产品固定已合并 PR179 `5de7e5f2db95b8b501905af9cfdc30e8fe84db0b`。复用原 version4 事务、空闲准入、BirthFence、全部账号索引冻结和内容寻址恢复；旧 profile、控制器、证据读取器及自动兼容白名单保持。操作员候选须独立评审及原三项 CI／同候选 Mac 安装通过，再按用户授权切换并在真实认证页面验收。 无新服务、HTTP、持久格式或依赖；现有图及 API Atlas 准确，不重画 HTML/PNG。Windows/Linux 原生与 Docker 产品层保持各自未执行状态。
+2026-10-22 全市场常驻部署使用封闭 `reviewed-market-overview-v1` / `apply-market`：旧版固定 `4d2e3c408663b64be9e58b03213f4ca8f1152733`，产品固定已合并 PR179 `5de7e5f2db95b8b501905af9cfdc30e8fe84db0b`。复用原 version4 事务、空闲准入、BirthFence、全部账号索引冻结和内容寻址恢复；旧 profile、控制器、证据读取器及自动兼容白名单保持。操作员候选须独立评审及原三项 CI／同候选 Mac 安装通过，再按用户授权切换并在真实认证页面验收。 该封闭部署事务本身不新增服务、HTTP、持久格式或依赖；它沿用当时已审的图与 API Atlas，不要求重画 HTML/PNG。Windows/Linux 原生与 Docker 产品层保持各自未执行状态。
+
+2026-10-22 资产交互与结构化数据迭代继续使用现有CJPY 0.5.2、Python锁、固定DSH及本地ECharts／Chart.js。`asset_directory.py`、`providers_cjpy_assets.py`与资产搜索静态模块随既有Web包安装，不新增Python／Node依赖、系统配置或秘密接收面。已核对 `requirements/web.in`、`requirements/web.lock`、`scripts/setup_web.py`、本安装文档和 `.github/workflows/research-web-bootstrap.yml`；requirements与安装器无须新增依赖；Bootstrap仅在原静态下载／逐字节比较两处名单追加asset-search.mjs，现覆盖16项资产，不加job／runner／条件。此结论的安装兼容性仍待最终同候选 `macos-14` 干净checkout、固定DSH构建、3081／8088健康和 `rwb web doctor --json` 证明；本机已有包不能算安装PASS。原 `./setup-web.sh`、`setup-web.cmd`、`python scripts/setup_web.py` 三入口与所有平台门保留。
+
+目录只读取当前账号已配置的天软连接，首次打开可能显示加载／未授权，24小时同授权旧缓存可继续显示并标过期；来源配置变化不复用旧目录。不复制开发账号凭据、不自动配置厂商或调用模型。新Provider只声明本轮封闭A股能力；Windows／Linux原生、Docker及常驻部署仍分别记录实际证据，源码和本机预检不自动更新原常驻服务。协议及文件见[资产目录合同](research-web-datahub.md#资产目录与结构化区块)。
 
 ## 可选研究仓与只读 Doctor
 
@@ -16,7 +22,7 @@
 
 2026-10-22 Wind产品PR177已合并，常驻切换单独使用`reviewed-asset-observation-v3`/`apply-assets-v3`：旧主实例/网关必须精确5495，产品必须精确a0ff3ae2；最终操作员候选仍需原三CI及同候选macOS干净安装证据。公开安装三入口、锁定依赖、固定DSH和生产venv保持，不新增依赖、厂商权限或系统配置。用户已授权本轮常驻部署，root在验收后按原锁/空闲/全账号索引保全事务执行；文档或产品CI不等于已切换。旧v1/v2恢复、controller/evidence字节保持，见[部署合同](research-web-gateway-upgrade.md#资产观察固定版本联合部署)。
 
-2026-10-22 Wind工作区增加Host内历史任务、兼容Store键与账号图表偏好，继续使用现有CJPY 0.5.2、ECharts 5.5.0、Chart.js 4.4.7及唯一DSH；没有新依赖、安装参数或秘密接收面。公开三安装入口、`requirements/web.in`/`web.lock`、`scripts/setup_web.py`与Bootstrap均按现有合同核对；未修改这些文件的兼容性仍必须由同候选macos-14干净安装、固定DSH构建、3081/8088及doctor证明。历史取数/复权只在已授权来源可用后执行，旧观察与研究材料不迁移；常驻仍为5495基线，开发态测试不表示已部署。详见[批准计划](plans/2026-10-22-wind-asset-workspace.md)。
+2026-10-22 Wind工作区增加Host内历史任务、兼容Store键与账号图表偏好，继续使用现有CJPY 0.5.2、ECharts 5.5.0、Chart.js 4.4.7及唯一DSH；没有新依赖、安装参数或秘密接收面。公开三安装入口、`requirements/web.in`/`web.lock`、`scripts/setup_web.py`与Bootstrap均按现有合同核对；未修改这些文件的兼容性仍必须由同候选macos-14干净安装、固定DSH构建、3081/8088及doctor证明。历史取数/复权只在已授权来源可用后执行，旧观察与研究材料不迁移；5495是该历史迭代记录的部署基线，本轮实际版本与切换以独立受管部署证据为准，开发态测试不表示已部署。详见[批准计划](plans/2026-10-22-wind-asset-workspace.md)。
 
 全市场概览使用既有固定 `httpx`／AKShare 依赖与产品静态资源，不新增包、厂商配置或秘密。公开安装器必须包含 market Python模块、JS和CSS；三安装入口、requirements锁与固定DSH合同保持，仍须同候选macOS Bootstrap核验干净安装、3081/8088健康及Doctor。公开行情实际覆盖另作本地验证，CI夹具不证明当日源可用；常驻服务不由源码合并自动切换。
 

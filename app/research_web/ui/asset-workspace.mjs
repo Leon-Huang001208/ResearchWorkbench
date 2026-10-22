@@ -10,16 +10,32 @@ export { enrichMarketBars, renderMarketTerminal } from './asset-chart.mjs';
 const LABELS = { overview: '资产概览', history: '历史行情', financials: '财务指标', activity: '资金流', margin: '融资融券', holders: '股东与机构持仓汇总', research: '研究资料' };
 const TYPE_LABELS = { stock: '股票', etf: 'ETF', index: '指数', fund: '基金', theme: '主题' };
 const TOPICS = ['概览', '财务', '资金与两融', '股东', '新闻', '公告', '资料'];
-const STATE_LABELS = { loading: '加载中', complete: '完整', partial: '部分', empty: '暂无数据', unavailable: '不可用', error: '失败' };
+const STATE_LABELS = { loading: '加载中', complete: '完整', partial: '部分', empty: '暂无数据', unavailable: '不可用', error: '失败', not_loaded: '未加载', not_connected: '未接入', refreshing: '更新中', stale: '缓存已过期', ready: '已取得' };
+const blockState = block => STATE_LABELS[block?.loadState] || (!block || !block.dataset && !block.failure_code && (!block.status || block.status === 'unavailable') ? '未加载' : STATE_LABELS[block.status] || block.status);
+function blockLoadButton(name, block, busy) {
+  const target = name === 'shareholders' ? 'holder_details' : name;
+  if (target === 'history') return '<span class="muted small">历史行情使用上方图表控件更新</span>';
+  return ['overview', 'valuation', 'financials', 'activity', 'margin', 'holders', 'holder_details', 'research', 'industry', 'events'].includes(target) ? `<button class="button small" data-asset-block-load="${e(target)}" ${busy || block?.status === 'loading' ? 'disabled' : ''}>${block?.status === 'loading' ? '读取中…' : block?.dataset ? '刷新' : '加载'}</button>` : '';
+}
+function workspaceNotices(errors = {}, loading = false) {
+  return `${loading ? '<p class="muted small" role="status">正在加载资产观察…</p>' : ''}${Object.entries(errors).filter(([key]) => ['observation', 'observations', 'watchlists', 'notes', 'alerts', 'notifications', 'historyJobs', 'preferences'].includes(key)).map(([, error]) => `<p class="notice warning" role="status">${e(error)}</p>`).join('')}`;
+}
 const readFailureState = count => count > 0 ? `部分记录已载入 · 读取未完成 · ${count} 条已载入` : '快照读取失败';
 const finite = value => value === null || value === undefined || value === '' || typeof value === 'string' && value.trim() === '' || typeof value === 'boolean' || !Number.isFinite(Number(value)) ? null : Number(value);
 const number = (value, digits = 2) => finite(value) === null ? '—' : finite(value).toLocaleString('zh-CN', { maximumFractionDigits: digits });
 const display = (value, booleanAsMissing = false) => value === null || value === undefined || value === '' || (booleanAsMissing && typeof value === 'boolean') ? '—' : typeof value === 'number' ? number(value) : typeof value === 'object' ? JSON.stringify(value) : String(value);
-const FIELD_LABELS = { asset: '证券代码', date: '日期', report_period: '报告期', revenue: '营业收入', net_profit: '净利润', eps: '每股收益', roe: '净资产收益率', total_assets: '总资产', operating_cost: '营业成本', gross_profit: '毛利润', gross_profit_ttm: '毛利润 TTM', gross_profit_margin: '毛利率', free_cf: '自由现金流', free_cf_per_share: '每股自由现金流', equity: '股东权益', main_force_inflow: '主力净流入', north_bound_shares: '北向持股数量', north_bound_pct: '北向持股比例', margin_balance: '融资余额', margin_buy: '融资买入', margin_repay: '融资偿还', short_balance: '融券余量', short_sell_vol: '融券卖出数量', short_repay_vol: '融券偿还数量', holder_count: '股东户数', average_holding: '户均持股', average_holding_pct: '户均持股比例', top10_pct: '前十大持股比例汇总', top10_quantity: '前十大持股数量汇总', institutional_holding: '机构持股数量', institutional_pct: '机构持股比例' };
+const FIELD_LABELS = { asset: '证券代码', date: '日期', report_period: '报告期', published_at: '公布日', report_type: '报告类型', total_shares: '总股本', net_profit_parent: '归母净利润', financing_balance: '融资余额', financing_buy: '融资买入', financing_repay: '融资偿还', securities_lending_volume: '融券余量', securities_lending_sell: '融券卖出量', securities_lending_repay: '融券偿还量', revenue: '营业收入', net_profit: '净利润', eps: '每股收益', roe: '净资产收益率', total_assets: '总资产', operating_cost: '营业成本', gross_profit: '毛利润', gross_profit_ttm: '毛利润 TTM', gross_profit_margin: '毛利率', free_cf: '自由现金流', free_cf_per_share: '每股自由现金流', equity: '股东权益', main_force_inflow: '主力净流入', north_bound_shares: '北向持股数量', north_bound_pct: '北向持股比例', margin_balance: '融资余额', margin_buy: '融资买入', margin_repay: '融资偿还', short_balance: '融券余量', short_sell_vol: '融券卖出数量', short_repay_vol: '融券偿还数量', holder_count: '股东户数', average_holding: '户均持股', average_holding_pct: '户均持股比例', top10_pct: '前十大持股比例汇总', top10_quantity: '前十大持股数量汇总', institutional_holding: '机构持股数量', institutional_pct: '机构持股比例' };
+const UNIT_LABELS = { currency: '元', currency_per_share: '元/股', percent: '%', ratio: '倍', share: '股', shares: '股' };
+const unitLabel = unit => UNIT_LABELS[unit] || unit;
 function fieldUnit(meta, key) {
   const fields = meta?.fields;
   const field = Array.isArray(fields) ? fields.find(item => item.name === key || item.field === key) : fields?.[key];
-  return [field?.unit, field?.currency].filter(Boolean).join(' · ');
+  return [unitLabel(field?.unit), field?.currency].filter(Boolean).join(' · ');
+}
+function fieldBasis(meta, key) {
+  const fields = meta?.fields;
+  const field = Array.isArray(fields) ? fields.find(item => item.name === key || item.field === key) : fields?.[key];
+  return [...new Set([field?.source_field, field?.basis].filter(Boolean))].join(' · ');
 }
 function previewTable(rows = [], meta = {}) {
   if (!rows.length) return '<p class="muted small">这个区块没有可显示的真实记录。</p>';
@@ -28,15 +44,20 @@ function previewTable(rows = [], meta = {}) {
 }
 function financialTable(rows, meta) {
   if (!rows.length) return previewTable(rows, meta);
-  const periods = rows.map(row => row.report_period || row['报告期'] || row['截止日期'] || row['报告日期'] || row.date || '报告期未提供');
-  const fields = [...new Set(rows.flatMap(row => Object.keys(row)))].filter(key => !['asset', 'code', 'report_period', '报告期', '截止日期', '报告日期', 'date'].includes(key));
-  return `<p class="muted small">财务摘要指标；报告期、单位和币种按来源返回显示，不代表完整三大报表。</p><div class="asset-table-wrap"><table class="asset-table asset-financial-table"><thead><tr><th>指标 / 单位</th>${periods.map(period => `<th>${e(period)}</th>`).join('')}</tr></thead><tbody>${fields.map(key => `<tr><th>${e(FIELD_LABELS[key] || key)}<small>${e(fieldUnit(meta, key) || '单位未提供')}</small></th>${rows.map(row => `<td>${e(display(row[key], true))}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+  const headings = rows.map(row => {
+    const period = row.report_period || row['报告期'] || row['截止日期'] || row['报告日期'] || row.date || '报告期未提供';
+    const publishedAt = row.published_at || row['公布日'] || row['公告日期'];
+    const reportType = row.report_type || row['报告类型'];
+    return `<th>${e(period)}${publishedAt ? `<small>公布日 ${e(publishedAt)}</small>` : ''}${reportType ? `<small>报告类型 ${e(reportType)}</small>` : ''}</th>`;
+  });
+  const fields = [...new Set(rows.flatMap(row => Object.keys(row)))].filter(key => !['asset', 'code', 'report_period', '报告期', '截止日期', '报告日期', 'date', 'published_at', '公布日', '公告日期', 'report_type', '报告类型', 'source_tables'].includes(key));
+  return `<p class="muted small">财务摘要指标；报告期、公布日、报告类型、单位和币种按来源返回显示，不代表完整三大报表。</p><div class="asset-table-wrap"><table class="asset-table asset-financial-table"><thead><tr><th>指标 / 单位</th>${headings.join('')}</tr></thead><tbody>${fields.map(key => `<tr><th>${e(FIELD_LABELS[key] || key)}<small>${e(fieldUnit(meta, key) || '单位未提供')}</small></th>${rows.map(row => `<td>${e(display(row[key], true))}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
 }
 function blockCard(name, blocks, rows, errors, busy) {
   const block = blocks[name] || { status: 'unavailable' }; const meta = block.dataset;
   const readFailed = block.failure_code === 'snapshot_read_failed'; const loadedCount = rows[name]?.length || 0;
   const retained = !readFailed && loadedCount > 0 && Boolean(meta?.dataset_id);
-  return `<article class="asset-block ${e(block.status)}"><header><h2>${e(LABELS[name] || name)}</h2><span class="badge">${e(readFailed ? readFailureState(loadedCount) : STATE_LABELS[block.status] || block.status)}</span></header>${meta ? `<p class="muted small">${e(meta.provider || meta.source || '未知来源')} · 截止 ${e(meta.as_of || meta.actual_range?.end_date || '来源未提供')}</p>` : ''}${block.failure_code || errors[name] ? `<p class="notice warning" role="status">${e(errors[name] || block.failure_code)}${retained ? ' · 下方保留上次快照，不表示刷新成功。' : ''}</p>` : ''}${meta?.limitations?.length ? `<p class="muted small">${e(meta.limitations.join('；'))}</p>` : ''}${block.status === 'loading' ? '<p role="status">正在查询这个区块…</p>' : ''}${rows[name]?.length ? name === 'financials' ? financialTable(rows[name], meta) : previewTable(rows[name], meta) : `<p class="muted small">${block.status === 'empty' ? '来源返回了空结果。' : blocks[name] ? '没有可显示的快照。' : '当前观察未采集本区块，可更新资产数据后查看。'}</p>`}</article>`;
+  return `<article class="asset-block ${e(block.status)}" data-asset-block="${e(name)}"><header><h2>${e(LABELS[name] || name)}</h2><span class="badge">${e(readFailed ? readFailureState(loadedCount) : blockState(block))}</span>${blockLoadButton(name, block, busy)}</header>${meta ? `<p class="muted small">${e(meta.provider || meta.source || '未知来源')} · 截止 ${e(meta.as_of || meta.actual_range?.end_date || '来源未提供')}</p>` : ''}${block.failure_code || errors[name] ? `<p class="notice warning" role="status">${e(errors[name] || block.failure_code)}${retained ? ' · 下方保留上次快照，不表示刷新成功。' : ''}</p>` : ''}${block.status === 'loading' ? '<p role="status">正在查询这个区块…</p>' : ''}${rows[name]?.length ? name === 'financials' ? financialTable(rows[name], meta) : previewTable(rows[name], meta) : `<p class="muted small">${block.status === 'empty' ? '来源返回了空结果。' : blocks[name] ? '没有可显示的快照。' : '当前观察未加载本区块，可点击加载查看。'}</p>`}</article>`;
 }
 function personalPanel({ observation, watchlists = [], notes = [], alerts = [], notifications = [] }) {
   const asset = observation?.asset || '';
@@ -89,7 +110,7 @@ function queryControls(selected, observation, busy) {
 }
 function cellText(cell, suffix = '') {
   const value = cell?.value; if (value === null || value === undefined || value === '') return '—';
-  const unit = ({ share: '股', percent: '%', ratio: '倍', currency: '', currency_per_share: '/股' })[cell?.unit] ?? cell?.unit;
+  const unit = unitLabel(cell?.unit);
   return `${display(value)}${suffix && suffix !== unit ? suffix : ''}${unit ? `${unit === suffix ? '' : ' '}${unit}` : ''}${cell?.currency ? ` ${cell.currency}` : ''}`;
 }
 function metric(label, cell, id = '', suffix = '') { return `<div class="metric-item"><dt>${e(label)}</dt><dd${id ? ` id="${e(id)}"` : ''}>${e(cellText(cell, suffix))}</dd></div>`; }
@@ -105,42 +126,66 @@ function identityControls(selected, observation, busy) {
 function coverage(name, p, errors = {}, busy = false) {
   const b = p.blocks[name] || {}; const m = b.dataset || {}; const range = m.actual_range || b.requested_range || {}; const dates = [range.start_date, range.end_date].filter(Boolean).join(' — ');
   const row = p.coverageRows?.find(item => item.id === name); const readFailed = b.failure_code === 'snapshot_read_failed';
-  return `<div class="asset-card-coverage"><span>${e(m.provider || m.source || b.requested_source || '来源未取得')} · ${e(readFailed ? readFailureState(row?.loadedRowCount || 0) : STATE_LABELS[b.status] || '未取得')} · ${e(m.as_of || dates || '时间未提供')}</span></div>${errors[name] || b.failure_code ? `<p class="notice warning" role="status">${e(errors[name] || b.failure_code)}${row?.retainedSnapshot ? ' · 下方保留上次快照，不表示刷新成功。' : ''}</p>` : ''}${m.limitations?.length ? `<p class="muted small">${e(m.limitations.join('；'))}</p>` : ''}`;
+  return `<div class="asset-card-coverage"><span>${e(m.provider || m.source || b.requested_source || '来源未取得')} · ${e(readFailed ? readFailureState(row?.loadedRowCount || 0) : STATE_LABELS[row?.loadState] || blockState(b))} · ${e(m.as_of || dates || '时间未提供')}</span>${blockLoadButton(name, b, busy)}</div>${errors[name] || b.failure_code ? `<p class="notice warning" role="status">${e(errors[name] || b.failure_code)}${row?.retainedSnapshot ? ' · 下方保留上次快照，不表示刷新成功。' : ''}</p>` : ''}`;
 }
 function basicCard(current, p, selected, observation, busy, lists) {
   const b = p.basic; const ids = current.dataset_ids || [];
   const direction = finite(b.changePct.value) === null ? 'muted' : finite(b.changePct.value) >= 0 ? 'positive' : 'negative';
   const meta = b.price.provider ? `${b.quoteKind} · ${b.price.provider}` : '来源未取得';
-  return `<section class="asset-basic-card asset-identity" data-asset-anchor="overview"><div class="asset-basic-header"><h1 id="asset-name">${e(b.name.value || current.asset || '资产观察')}</h1><span id="asset-code-display">${e(current.asset || '选择证券代码开始')}</span><div class="asset-basic-price ${direction}"><strong id="asset-price">${e(cellText(b.price))}</strong><div class="asset-quote-change"><span id="asset-change">${e(cellText(b.change))}</span><span id="asset-change-pct">${b.changePct.derived ? '较昨收计算 ' : ''}${e(cellText(b.changePct, b.changePct.value === null ? '' : '%'))}</span></div></div><span class="asset-quote-meta muted small" title="读取于 ${e(shanghaiTime(p.blocks[b.quoteKind === '历史收盘' ? 'history' : 'overview'].dataset.retrieved_at))}">${e(meta)} · 数据日 ${e(b.price.date || '日期未提供')}</span><div class="asset-header-actions">${assetList(lists, selected)}${identityControls(selected, observation, busy)}<details class="asset-research-menu"><summary>研究交接</summary><div class="button-row asset-summary-actions">${[['fingpt', '交给 FinGPT'], ['claw', '交给 Claw']].map(([mode, label]) => `<button class="button ${mode === 'claw' ? 'primary' : ''}" data-workbench-handoff="${mode}" data-source-session="${e(current.session_id || '')}" data-dataset-ids="${e(JSON.stringify(ids))}" ${current.session_id && ids.length ? '' : 'disabled'}>${label}</button>`).join('')}</div></details><button class="button small asset-metrics-trigger" data-asset-metrics-toggle aria-controls="asset-metrics-panel" aria-expanded="false">行情指标</button></div></div></section>`;
+  return `<section class="asset-basic-card asset-identity" data-asset-anchor="overview"><div class="asset-basic-header"><h1 id="asset-name">${e(b.name.value || current.asset || '资产观察')}</h1><span id="asset-code-display">${e(current.asset || '选择证券代码开始')}</span><div class="asset-basic-price ${direction}"><strong id="asset-price">${e(cellText(b.price))}</strong><div class="asset-quote-change"><span id="asset-change">${e(cellText(b.change))}</span><span id="asset-change-pct">${b.changePct.derived ? '较昨收计算 ' : ''}${e(cellText(b.changePct, b.changePct.value === null ? '' : '%'))}</span></div></div><span class="asset-quote-meta muted small" title="读取于 ${e(shanghaiTime(p.blocks[b.quoteKind === '历史收盘' ? 'history' : 'overview'].dataset.retrieved_at))}">${e(meta)} · 数据日 ${e(b.price.date || '日期未提供')}</span><div class="asset-header-actions"><div data-asset-search-slot></div><details class="asset-more-menu"><summary>更多</summary><div class="asset-more-content">${assetList(lists, selected)}<div class="asset-research-menu"><h2>研究交接</h2><div class="button-row asset-summary-actions">${[['fingpt', '交给 FinGPT'], ['claw', '交给 Claw']].map(([mode, label]) => `<button class="button ${mode === 'claw' ? 'primary' : ''}" data-workbench-handoff="${mode}" data-source-session="${e(current.session_id || '')}" data-dataset-ids="${e(JSON.stringify(ids))}" ${current.session_id && ids.length ? '' : 'disabled'}>${label}</button>`).join('')}</div></div><button class="button small" data-refresh>刷新本地状态</button></div></details><button class="button small asset-metrics-trigger" data-asset-metrics-toggle aria-controls="asset-metrics-panel" aria-expanded="false">行情指标</button></div></div></section>`;
 }
 function windMetrics(p) {
   const b = p.basic; const v = p.valuation || {};
+  const pbBasis = fieldBasis(p.blocks.valuation.dataset, 'pb');
   const valuationDates = [...new Set(Object.values(v).map(cell => cell?.date).filter(Boolean))];
   const reportPeriods = [...new Set(Object.values(v).map(cell => cell?.reportPeriod).filter(Boolean))];
   const shares = v.totalShares?.unitVerified === false ? { ...v.totalShares, unit: null, currency: null } : v.totalShares;
-  return `<aside class="asset-wind-metrics" id="asset-metrics-panel" aria-labelledby="asset-metrics-title" tabindex="-1"><header><h2 id="asset-metrics-title">行情指标</h2><button class="button small asset-metrics-close" data-asset-metrics-close aria-label="关闭行情指标">关闭</button></header><div class="asset-summary-metrics"><section class="asset-trading-group"><h2>交易数据</h2><dl class="asset-metrics-grid">${metric('开盘', b.open)}${metric('最高', b.high)}${metric('最低', b.low)}${metric('换手率', b.turnover, 'asset-turnover')}${metric('成交量', b.volume, 'asset-volume')}${metric('成交额', b.amount, 'asset-amount')}${metric(`${b.rangeLabel}最高`, b.rangeHigh, 'asset-high-52w')}${metric(`${b.rangeLabel}最低`, b.rangeLow, 'asset-low-52w')}</dl><p class="asset-group-note">交易数据日 ${e(b.tradingDate || '未提供')} · 高低覆盖 ${e(b.rangeStart || '未提供')} 至 ${e(b.rangeEnd || '未提供')}。未取得的数据以 — 表示，不跨时点补齐。</p></section><section class="asset-valuation-group"><h2>估值与股本</h2><dl class="asset-valuation-grid">${metric('PE-TTM', v.peTTM)}${metric('PB', v.pb)}${metric('PS-TTM', v.psTTM)}${metric('总股本', shares, 'asset-total-shares')}${metric('市值', v.marketCap || b.marketCap, 'asset-market-cap')}</dl><p class="asset-group-note">估值数据日 ${e(valuationDates.join('、') || '未提供')} · 报告期 ${e(reportPeriods.join('、') || '未提供')}。未取得的数据以 — 表示。${e(v.totalShares?.unitNote || '单位与币种按来源显示；未提供时不猜测。')}${v.totalShares?.unitVerified === false && v.totalShares?.unit ? ` 来源声明单位 ${e(v.totalShares.unit)}，未经核实，不作换算。` : ''}</p></section></div></aside>`;
+  return `<aside class="asset-wind-metrics" id="asset-metrics-panel" aria-labelledby="asset-metrics-title" tabindex="-1"><header><h2 id="asset-metrics-title">行情指标</h2><button class="button small asset-metrics-close" data-asset-metrics-close aria-label="关闭行情指标">关闭</button></header><div class="asset-summary-metrics"><section class="asset-trading-group"><h2>交易数据</h2><dl class="asset-metrics-grid">${metric('开盘', b.open)}${metric('最高', b.high)}${metric('最低', b.low)}${metric('换手率', b.turnover, 'asset-turnover')}${metric('成交量', b.volume, 'asset-volume')}${metric('成交额', b.amount, 'asset-amount')}${metric(`${b.rangeLabel}最高`, b.rangeHigh, 'asset-high-52w')}${metric(`${b.rangeLabel}最低`, b.rangeLow, 'asset-low-52w')}</dl><p class="asset-group-note">交易数据日 ${e(b.tradingDate || '未提供')} · 高低覆盖 ${e(b.rangeStart || '未提供')} 至 ${e(b.rangeEnd || '未提供')}。未取得的数据以 — 表示，不跨时点补齐。</p></section><section class="asset-valuation-group"><h2>估值与股本</h2><dl class="asset-valuation-grid">${metric('PE-TTM', v.peTTM)}${metric('PB', v.pb)}${metric('PS-TTM', v.psTTM)}${metric('总股本', shares, 'asset-total-shares')}${metric('市值', v.marketCap || b.marketCap, 'asset-market-cap')}</dl><p class="asset-group-note">估值数据日 ${e(valuationDates.join('、') || '未提供')} · 报告期 ${e(reportPeriods.join('、') || '未提供')}。${pbBasis ? `PB 来源口径 ${e(pbBasis)}。` : ''}未取得的数据以 — 表示。${e(v.totalShares?.unitNote || '单位与币种按来源显示；未提供时不猜测。')}${v.totalShares?.unitVerified === false && v.totalShares?.unit ? ` 来源声明单位 ${e(v.totalShares.unit)}，未经核实，不作换算。` : ''}</p></section></div></aside>`;
 }
 function rangeText(range) { return range ? [range.start_date || '起始未提供', range.end_date || '结束未提供'].join(' — ') : '未提供'; }
 function sourceState(row) {
   if (row.failureCode === 'snapshot_read_failed') return readFailureState(row.loadedRowCount);
-  const label = STATE_LABELS[row.status] || row.status || '不可用';
+  const state = row.loadState || 'not_loaded';
+  const label = STATE_LABELS[state] || '未加载';
   if (row.retainedSnapshot) return `${label} · 保留旧快照`;
-  if (row.status === 'loading') return `${label} · ${row.hasSnapshot ? '显示上次快照' : '尚无快照'}`;
+  if (['loading', 'refreshing'].includes(state)) return `${label} · ${row.hasSnapshot ? '显示上次快照' : '尚无快照'}`;
   if (row.hasSnapshot) return `${label} · ${row.loadedRowCount} 条已载入`;
   return `${label} · ${row.datasetId ? '快照尚未载入' : '尚无快照'}`;
 }
+export function summarizeAssetCoverage(rows = []) {
+  const counts = { acquired: 0, pending: 0, failed: 0, notConnected: 0, updating: 0, retained: 0, empty: 0 };
+  for (const row of rows) {
+    const state = row?.loadState || 'not_loaded';
+    if (['ready', 'empty', 'refreshing'].includes(state)) counts.acquired++;
+    else if (['error', 'stale'].includes(state)) counts.failed++;
+    else if (state === 'not_connected') counts.notConnected++;
+    else counts.pending++;
+    if (['loading', 'refreshing'].includes(state)) counts.updating++;
+    if (row?.retainedSnapshot) counts.retained++;
+    if (state === 'empty') counts.empty++;
+  }
+  return counts;
+}
 function sourceSummary(current, p, errors, busy) {
   const rows = p.coverageRows || [];
-  const count = rows.filter(row => row.hasSnapshot).length;
-  return `<details class="asset-source-summary"><summary>来源与口径 · ${count}/8 区块有快照 · 查看详情</summary><div class="asset-source-table-wrap"><table class="asset-source-table"><thead><tr><th>区块与状态</th><th>请求与实际来源</th><th>数据时间</th><th>区间与查询口径</th><th>字段、单位与口径</th><th>限制与操作</th></tr></thead><tbody>${rows.map(row => `<tr data-asset-source-row="${e(row.id)}"><th scope="row">${e(row.label)}<span class="asset-source-state ${e(row.status)}" role="status">${e(sourceState(row))}</span></th><td><span>请求来源 ${e(row.requestedSource || '未提供')}</span><span>实际来源 ${e(row.provider || '未取得')}</span></td><td><span>数据日 ${e(row.dataDate || '未提供')}</span><span>截至 ${e(row.asOf || '未提供')}</span><span>读取于 ${e(shanghaiTime(row.retrievedAt))}</span><span>报告期 ${e(row.reportPeriods.join('、') || '未提供')}</span></td><td><span>请求区间 ${e(rangeText(row.requestedRange))}</span><span>实际区间 ${e(rangeText(row.actualRange))}</span><span>已载入区间 ${e(rangeText(row.loadedRange))}</span><span>请求周期 ${e(row.requestedFrequency || '未提供')} · 复权 ${e(row.requestedAdjustment || '未提供')}</span>${row.id === 'history' && p.blocks.history.dataset?.asset_history ? `<span>实际复权 ${e(p.blocks.history.dataset.asset_history.adjustment || '未提供')} · 规范版本 ${e(p.blocks.history.dataset.asset_history.canonical_version || '未提供')} · 因子版本 ${e(p.blocks.history.dataset.asset_history.factor_version || '未提供')}</span>` : ''}</td><td>${row.fields.length ? `<ul>${row.fields.map(field => `<li>${e(field.name || field.field || '未命名字段')}${[field.unit, field.currency, field.basis, field.period].filter(value => value !== null && value !== undefined && value !== '').map(value => ` · ${e(display(value))}`).join('')}</li>`).join('')}</ul>` : '字段单位与口径未提供'}</td><td>${errors[row.id] || row.failureCode ? `<p class="notice warning" role="status">${e(errors[row.id] || row.failureCode)}${row.retainedSnapshot ? ' · 下方保留上次快照，不表示刷新成功。' : ''}</p>` : ''}${row.limitations.length ? `<p>${e(row.limitations.join('；'))}</p>` : '<p>来源未声明额外限制</p>'}${current.blocks?.[row.id] ? `<button class="button small" data-asset-block-refresh="${e(row.id)}" ${busy || row.status === 'loading' ? 'disabled' : ''}>重新取数</button>` : ''}</td></tr>`).join('')}</tbody></table></div><p class="asset-source-footnote">计数只包含已载入真实记录且有数据集身份的快照；加载中或失败时显示的旧快照不表示本次更新成功。报告期、截至时间和读取时间分别保留。新闻与公告独立查询，不计入这 8 个区块。</p></details>`;
+  const counts = summarizeAssetCoverage(rows);
+  const hints = [counts.updating ? `更新中 ${counts.updating}` : '', counts.retained ? `保留旧快照 ${counts.retained}` : '', counts.empty ? `空结果 ${counts.empty}` : ''].filter(Boolean);
+  const legacyLimitations = !current.blocks?.holder_details && current.blocks?.shareholders?.dataset?.limitations;
+  return `<details class="asset-source-summary"><summary>来源与口径 · 已取得 ${counts.acquired} · 待加载 ${counts.pending} · 查询失败 ${counts.failed} · 未接入 ${counts.notConnected}${hints.length ? ` · ${hints.join(' · ')}` : ''} · 查看详情</summary><div class="asset-source-table-wrap"><table class="asset-source-table"><thead><tr><th>区块与状态</th><th>请求与实际来源</th><th>数据时间</th><th>区间与查询口径</th><th>字段、单位与口径</th><th>限制与操作</th></tr></thead><tbody>${rows.map(row => `<tr data-asset-source-row="${e(row.id)}"><th scope="row">${e(row.label)}<span class="asset-source-state ${e(row.status)}" role="status">${e(sourceState(row))}</span></th><td><span>请求来源 ${e(row.requestedSource || '未提供')}</span><span>实际来源 ${e(row.provider || '未取得')}</span></td><td><span>数据日 ${e(row.dataDate || '未提供')}</span><span>截至 ${e(row.asOf || '未提供')}</span><span>读取于 ${e(shanghaiTime(row.retrievedAt))}</span><span>报告期 ${e(row.reportPeriods.join('、') || '未提供')}</span></td><td><span>请求区间 ${e(rangeText(row.requestedRange))}</span><span>实际区间 ${e(rangeText(row.actualRange))}</span><span>已载入区间 ${e(rangeText(row.loadedRange))}</span><span>请求周期 ${e(row.requestedFrequency || '未提供')} · 复权 ${e(row.requestedAdjustment || '未提供')}</span>${row.id === 'history' && p.blocks.history.dataset?.asset_history ? `<span>实际复权 ${e(p.blocks.history.dataset.asset_history.adjustment || '未提供')} · 规范版本 ${e(p.blocks.history.dataset.asset_history.canonical_version || '未提供')} · 因子版本 ${e(p.blocks.history.dataset.asset_history.factor_version || '未提供')}</span>` : ''}</td><td>${row.fields.length ? `<ul>${row.fields.map(field => `<li>${e(field.name || field.field || '未命名字段')}${[field.unit, field.currency, field.source_field, field.basis, field.period].filter(value => value !== null && value !== undefined && value !== '').map(value => ` · ${e(display(value))}`).join('')}</li>`).join('')}</ul>` : '字段单位与口径未提供'}</td><td>${errors[row.id] || row.failureCode ? `<p class="notice warning" role="status">${e(errors[row.id] || row.failureCode)}${row.retainedSnapshot ? ' · 下方保留上次快照，不表示刷新成功。' : ''}</p>` : ''}${row.limitations.length ? `<p>${e(row.limitations.join('；'))}</p>` : '<p>来源未声明额外限制</p>'}${blockLoadButton(row.id, current.blocks?.[row.id], busy)}</td></tr>`).join('')}</tbody></table></div><p class="asset-source-footnote">已取得包含成功读取的记录或空结果；待加载包含未读取及首次读取中的区块。查询失败与未接入分别统计；失败或更新中保留的旧快照不表示本次成功。报告期、截至时间和读取时间分别保留。新闻与公告独立查询，不计入这 ${rows.length} 个区块。当前覆盖限制：财务指标与原始记录不代表完整三大报表；股东名单、行业和事件没有独立来源时保持未取得，股东汇总不填造名单。资金净额不代表流入流出构成；普通筹码为行情估算，不代表真实持仓。${Array.isArray(legacyLimitations) && legacyLimitations.length ? ` 旧版股东明细限制：${e(legacyLimitations.join('；'))}` : ''}</p></details>`;
 }
 function capitalCard(p, rows, errors, busy) {
   const f = p.capitalFlow;
   return `<article class="asset-block capital-flow-card${f.pie ? '' : ' is-missing-pie'}" data-asset-anchor="capital"><h2>资金流向</h2><div class="capital-flow-layout"><div class="capital-flow-pie"><canvas id="chart-capital-flow" data-capital-flow-canvas aria-label="资金流向构成图" role="img" ${f.pie ? '' : 'hidden'}></canvas><p class="muted small" data-capital-flow-state>${f.pie ? '已取得同日同单位互斥资金构成。' : '资金构成图未取得：净额不能作为流入流出或饼图构成。'}</p></div><dl id="capital-flow-details" class="capital-flow-details">${[['主力流入', 'mainInflow'], ['主力流出', 'mainOutflow'], ['主力净流入', 'mainNet'], ['超大单净流入', 'superNet'], ['大单净流入', 'largeNet'], ['中单净流入', 'mediumNet'], ['小单净流入', 'smallNet'], ['北向资金', 'northbound']].map(([label, key]) => metric(label, f[key])).join('')}</dl></div>${f.northboundShares.value !== null ? `<p class="muted small">北向持股数量 ${e(cellText(f.northboundShares))}，持股数量不是现金流。</p>` : ''}${coverage('activity', p, errors, busy)}${rows.activity?.length ? `<details><summary>完整已返回资金记录</summary>${previewTable(rows.activity, p.blocks.activity.dataset)}</details>` : ''}</article>`;
 }
-function originalPanels(p, rows, errors, busy) {
+function originalPanels(p, rows, errors, busy, view) {
   const f = p.financial; const sh = p.shareholders; const events = p.events.length ? p.events : [{ summary: {}, type: {}, time: {} }];
-  return `<div class="asset-five-panels"><article class="asset-block panel-card" id="financial-panel" data-asset-anchor="financials"><h2>财务</h2><dl class="panel-grid">${metric('PE-TTM', f.peTTM, 'fin-pe')}${metric('PB-MRQ', f.pbMRQ, 'fin-pb')}${metric('ROE', f.roe, 'fin-roe')}${metric('营收', f.revenue, 'fin-revenue')}${metric('净利润', f.netProfit, 'fin-net-profit')}${metric('毛利率', f.grossMargin, 'fin-gross-margin')}</dl><p class="muted small">报告期 ${e(f.revenue.reportPeriod || f.roe.reportPeriod || '未提供')}；单位与币种按来源显示，未提供时不猜测。动态 PE 与未注明 MRQ 的 PB 不填入以上指标。</p>${coverage('valuation', p, errors, busy)}${coverage('financials', p, errors, busy)}${rows.financials?.length ? `<details><summary>完整已返回财务记录</summary>${financialTable(rows.financials, p.blocks.financials.dataset)}</details>` : ''}</article><article class="asset-block panel-card" id="shareholder-panel" data-asset-anchor="holders"><h2>前十大股东</h2><div class="asset-table-wrap"><table class="asset-table"><thead><tr><th>股东名称</th><th>持股比例</th><th>变动比例</th><th>国资属性</th></tr></thead><tbody>${sh.map(item => `<tr><td>${e(cellText(item.name))}</td><td>${e(cellText(item.ratio))}</td><td>${e(cellText(item.change))}</td><td>${item.stateOwned.value === true ? '是' : item.stateOwned.value === false ? '否' : e(cellText(item.stateOwned))}</td></tr>`).join('')}</tbody></table></div>${!p.shareholders.length ? '<p class="muted small">股东名单未取得；汇总比例不代表真实股东姓名与明细。</p>' : ''}${coverage('shareholders', p, errors, busy)}</article><article class="asset-block panel-card" id="industry-panel"><h2>行业</h2><dl class="panel-grid">${metric('申万一级', p.industry.sw1)}${metric('申万二级', p.industry.sw2)}${metric('行业PE', p.industry.pe)}${metric('行业PB', p.industry.pb)}</dl>${coverage('industry', p)}</article><article class="asset-block panel-card" id="events-panel"><h2>相关事件</h2><div class="event-list-panel">${events.map(item => `<dl class="asset-event-row">${metric('事件摘要', item.summary)}${metric('事件类型', item.type)}${metric('事件时间', item.time)}</dl>`).join('')}</div>${coverage('events', p)}</article><article class="asset-block panel-card" id="macro-panel"><h2>宏观</h2><table class="asset-table"><thead><tr><th>因子</th><th>方向</th><th>强度</th></tr></thead><tbody>${p.macro.map(item => `<tr><th>${e(item.label)}</th><td>${e(({ positive: '↑ 正向', negative: '↓ 负向', neutral: '中性' })[item.direction.value] || cellText(item.direction))}</td><td>${e(cellText(item.strength))}</td></tr>`).join('')}</tbody></table>${coverage('macro', p)}</article></div>`;
+  const details = p.blocks.holder_details; const legacy = p.blocks.shareholders;
+  let shareholderSource = 'holder_details';
+  if (!Object.hasOwn(rows, 'holder_details')) {
+    if (Object.hasOwn(rows, 'shareholders')) shareholderSource = 'shareholders';
+    else if (!(details.status || details.dataset?.dataset_id || errors.holder_details) && (legacy.status || legacy.dataset?.dataset_id || errors.shareholders)) shareholderSource = 'shareholders';
+  }
+  return `<div class="asset-five-panels">${view === 'financials' ? `<article class="asset-block panel-card" id="financial-panel" data-asset-anchor="financials"><h2>财务</h2><dl class="panel-grid">${metric('PE-TTM', f.peTTM, 'fin-pe')}${metric('PB-MRQ', f.pbMRQ, 'fin-pb')}${metric('ROE', f.roe, 'fin-roe')}${metric('营收', f.revenue, 'fin-revenue')}${metric('净利润', f.netProfit, 'fin-net-profit')}${metric('毛利率', f.grossMargin, 'fin-gross-margin')}</dl><p class="muted small">报告期 ${e(f.revenue.reportPeriod || f.roe.reportPeriod || '未提供')}；单位与币种按来源显示，未提供时不猜测。动态 PE 与未注明 MRQ 的 PB 不填入以上指标。</p>${coverage('valuation', p, errors, busy)}${coverage('financials', p, errors, busy)}${rows.financials?.length ? `<details><summary>完整已返回财务记录</summary>${financialTable(rows.financials, p.blocks.financials.dataset)}</details>` : ''}</article>` : ''}${view === 'holders' ? `<article class="asset-block panel-card" id="shareholder-panel" data-asset-anchor="holders"><h2>前十大股东</h2><div class="asset-table-wrap"><table class="asset-table"><thead><tr><th>股东名称</th><th>持股比例</th><th>变动比例</th><th>国资属性</th></tr></thead><tbody>${sh.map(item => `<tr><td>${e(cellText(item.name))}</td><td>${e(cellText(item.ratio))}</td><td>${e(cellText(item.change))}</td><td>${item.stateOwned.value === true ? '是' : item.stateOwned.value === false ? '否' : e(cellText(item.stateOwned))}</td></tr>`).join('')}</tbody></table></div>${!p.shareholders.length ? '<p class="muted small">股东名单未取得；汇总比例不代表真实股东姓名与明细。</p>' : ''}${coverage(shareholderSource, p, errors, busy)}</article>` : ''}${view === 'materials' ? `<article class="asset-block panel-card" id="industry-panel"><h2>行业</h2><dl class="panel-grid">${metric('一级行业', p.industry.sw1)}${metric('二级行业', p.industry.sw2)}${metric('行业PE', p.industry.pe)}${metric('行业PB', p.industry.pb)}</dl>${coverage('industry', p)}</article><article class="asset-block panel-card" id="events-panel"><h2>相关事件</h2><div class="event-list-panel">${events.map(item => `<dl class="asset-event-row">${metric('事件摘要', item.summary)}${metric('事件类型', item.type)}${metric('事件时间', item.time)}</dl>`).join('')}</div>${coverage('events', p)}</article>` : ''}</div>`;
 }
 
 function capitalFlowTheme(canvas) {
@@ -173,11 +218,106 @@ export function mountCapitalFlow(root, projection) {
   return { update, dispose() { update(null); disposed = true; } };
 }
 
-export function renderAssetWorkspace({ observation = null, rows = {}, observations = [], watchlists = [], notes = [], alerts = [], notifications = [], busy = false, route = {}, news = {}, chart = {}, errors = {}, preferences = {}, historyJob = null } = {}) {
+/** The topic slot can update independently of the persistent quote and market terminal. */
+export function renderAssetTopic({ observation = null, rows = {}, busy = false, route = {}, news = {}, errors = {} } = {}) {
+  const selected = { asset: route.asset || observation?.asset || '', assetType: route.assetType || observation?.asset_type || 'stock' };
+  const view = ASSET_VIEWS.includes(route.assetView) ? route.assetView : 'overview';
   if (observation && route.asset && !selectAssetObservation([observation], route)) { observation = null; rows = {}; }
+  const current = observation || { asset: selected.asset, asset_type: selected.assetType, blocks: {} };
+  const p = projectAssetObservation(rows, current);
+  let content;
+  if (view === 'overview') {
+    const loaded = p.coverageRows.filter(row => row.hasSnapshot);
+    content = `<div class="asset-topic-overview"><h2>资产概览</h2><p class="muted small">${loaded.length ? `已载入 ${loaded.length} 个区块的本地快照；按页签查看完整字段与记录。` : '当前资产尚无已载入的本地快照；可在来源详情或对应页签点击加载。'}</p></div>`;
+  } else if (view === 'capital') {
+    content = `${capitalCard(p, rows, errors, busy)}${blockCard('margin', current.blocks || {}, rows, errors, busy)}`;
+  } else if (view === 'holders') {
+    content = `${originalPanels(p, rows, errors, busy, view)}${blockCard('holders', current.blocks || {}, rows, errors, busy)}`;
+  } else if (view === 'financials') {
+    content = originalPanels(p, rows, errors, busy, view);
+  } else if (['news', 'announcements'].includes(view)) {
+    const matching = news.asset === selected.asset && news.assetType === selected.assetType && news.view === view;
+    content = `<div data-asset-news-slot>${renderAssetNews(matching ? news : { asset: selected.asset, assetType: selected.assetType, view, status: 'idle' })}</div>`;
+  } else {
+    content = `${blockCard('research', current.blocks || {}, rows, errors, busy)}${originalPanels(p, rows, errors, busy, view)}`;
+  }
+  return `<section class="asset-topic-content" id="asset-topic-panel" role="tabpanel" aria-labelledby="asset-tab-${e(view)}" tabindex="0" data-asset-topic="${e(view)}">${errors.topic ? `<p class="notice danger" role="alert">${e(errors.topic)}</p>` : ''}${content}</section>`;
+}
+
+export function updateAssetTopic(page, props = {}) {
+  const selected = { asset: props.route?.asset || props.observation?.asset || '', assetType: props.route?.assetType || props.observation?.asset_type || 'stock' };
+  if (page?.dataset?.assetIdentity !== `${selected.assetType}:${selected.asset}`) return false;
+  const slot = page.querySelector?.('[data-asset-topic-slot]');
+  if (!slot) return false;
+  try {
+    const view = ASSET_VIEWS.includes(props.route?.assetView) ? props.route.assetView : 'overview';
+    slot.innerHTML = renderAssetTopic(props);
+    for (const tab of page.querySelectorAll('[data-asset-tab]')) {
+      const active = tab.dataset.assetTab === view;
+      tab.setAttribute('aria-selected', String(active));
+      tab.setAttribute('tabindex', active ? '0' : '-1');
+      tab.classList.toggle('active', active);
+    }
+    page.dataset.assetView = view;
+    return true;
+  } catch (error) {
+    safeLog('asset_topic_update_failed', { status: 'error' });
+    return false;
+  }
+}
+
+/** Refresh quote text and supporting records without replacing the terminal or search. */
+export function updateAssetSummary(page, props = {}) {
+  const { observation = null, rows = {}, route = {}, busy = false, loading = false, observations = [], watchlists = [], notes = [], alerts = [], notifications = [], errors = {} } = props;
   const selected = { asset: route.asset || observation?.asset || '', assetType: route.assetType || observation?.asset_type || 'stock', assetView: route.assetView || 'overview' };
+  if (page?.dataset?.assetIdentity !== `${selected.assetType}:${selected.asset}` || !page.ownerDocument?.createElement) return false;
+  try {
+    const matching = !observation || !route.asset || selectAssetObservation([observation], route);
+    const current = matching && observation || { asset: selected.asset, asset_type: selected.assetType, blocks: {} };
+    const p = projectAssetObservation(matching ? rows : {}, current);
+    const active = page.ownerDocument.activeElement;
+    const fresh = page.ownerDocument.createElement('div');
+    fresh.innerHTML = `${basicCard(current, p, selected, observation, busy, { observations, watchlists })}${windMetrics(p)}${sourceSummary(current, p, errors, busy)}${personalPanel({ observation: current, watchlists, notes, alerts, notifications })}`;
+    for (const selector of ['#asset-name', '#asset-code-display', '#asset-price', '#asset-change', '#asset-change-pct', '.asset-quote-meta']) {
+      const old = page.querySelector(selector); const next = fresh.querySelector(selector);
+      if (old && next) { old.textContent = next.textContent; if (selector === '.asset-quote-meta') old.title = next.title; }
+    }
+    const price = page.querySelector('.asset-basic-price');
+    if (price) price.className = fresh.querySelector('.asset-basic-price').className;
+    const metrics = page.querySelector('.asset-summary-metrics');
+    if (metrics) metrics.innerHTML = fresh.querySelector('.asset-summary-metrics').innerHTML;
+    const source = page.querySelector('.asset-source-summary'); const nextSource = fresh.querySelector('.asset-source-summary');
+    if (source && nextSource) {
+      source.querySelector('summary').innerHTML = nextSource.querySelector('summary').innerHTML;
+      const table = source.querySelector('.asset-source-table-wrap'); const scrollLeft = table.scrollLeft;
+      table.innerHTML = nextSource.querySelector('.asset-source-table-wrap').innerHTML; table.scrollLeft = scrollLeft;
+      source.querySelector('.asset-source-footnote').innerHTML = nextSource.querySelector('.asset-source-footnote').innerHTML;
+    }
+    for (const selector of ['.asset-personal', '.asset-list-drawer', '.asset-summary-actions']) {
+      const old = page.querySelector(selector); const next = fresh.querySelector(selector);
+      if (!old || !next) continue;
+      if (selector === '.asset-list-drawer') next.open = old.open;
+      for (const form of old.querySelectorAll('form')) {
+        const attribute = form.getAttributeNames().find(name => name.startsWith('data-'));
+        if (attribute) next.querySelector(`[${attribute}]`)?.replaceWith(form);
+      }
+      old.replaceWith(next);
+    }
+    const notices = page.querySelector('[data-asset-workspace-notices]');
+    if (notices) notices.innerHTML = workspaceNotices(errors, loading);
+    page.dataset.observationId = matching && observation?.id || '';
+    if (active?.isConnected && page.ownerDocument.activeElement !== active) active.focus?.({ preventScroll: true });
+    return true;
+  } catch (error) {
+    safeLog('asset_summary_update_failed', { status: 'error' });
+    return false;
+  }
+}
+
+export function renderAssetWorkspace({ observation = null, rows = {}, observations = [], watchlists = [], notes = [], alerts = [], notifications = [], busy = false, loading = false, route = {}, news = {}, chart = {}, errors = {}, preferences = {}, historyJob = null } = {}) {
+  if (observation && route.asset && !selectAssetObservation([observation], route)) { observation = null; rows = {}; }
+  const selected = { asset: route.asset || observation?.asset || '', assetType: route.assetType || observation?.asset_type || 'stock', assetView: ASSET_VIEWS.includes(route.assetView) ? route.assetView : 'overview' };
   const current = observation || { asset: selected.asset, asset_type: selected.assetType, blocks: {} }; const p = projectAssetObservation(rows, current); const view = selected.assetView;
-  const newsView = view === 'announcements' ? 'announcements' : 'news'; const matchingNews = news.asset === selected.asset && news.assetType === selected.assetType && news.view === newsView;
   const metadata = { ...p.blocks.history.dataset, frequency: current.request_parameters?.frequency || 'daily', adjustment: p.blocks.history.dataset?.asset_history?.adjustment || current.request_parameters?.adjustment || 'none', assetIdentity: `${selected.assetType}:${selected.asset}`, historyJob, canLoadHistory: Boolean(observation?.id), preferences, asset: selected.asset, name: p.basic.name.value || selected.asset, currentQuote: p.basic };
-  return `<section class="asset-observation-page" data-asset-identity="${e(`${selected.assetType}:${selected.asset}`)}" data-asset-view="${e(view)}" data-observation-id="${e(observation?.id || '')}"><div class="asset-observation-main">${Object.entries(errors).filter(([key]) => ['observations', 'watchlists', 'notes', 'alerts', 'notifications'].includes(key)).map(([, error]) => `<p class="notice danger" role="alert">${e(error)}</p>`).join('')}${basicCard(current, p, selected, observation, busy, { observations, watchlists })}${[errors.historyJobs, errors.preferences].filter(Boolean).map(error => `<p class="notice warning" role="status">${e(error)}</p>`).join('')}<div class="asset-wind-grid"><section class="asset-market-full"><div data-asset-chart-slot>${renderMarketTerminal(rows.history || [], chart, metadata)}</div></section>${windMetrics(p)}</div>${sourceSummary(current, p, errors, busy)}<nav class="asset-topic-tabs" aria-label="资产研究专题">${ASSET_VIEWS.map((id, index) => `<a href="${e(assetHref(selected.asset, selected.assetType, id))}" ${view === id ? 'aria-current="page" class="active"' : ''}>${TOPICS[index]}</a>`).join('')}</nav>${capitalCard(p, rows, errors, busy)}${originalPanels(p, rows, errors, busy)}<section class="asset-secondary"><details class="asset-coverage-limitations"><summary>当前覆盖限制</summary><p class="muted small">财务指标与原始记录不代表完整三大报表；股东名单、行业、事件与宏观敏感性没有独立来源时保持未取得，股东汇总不填造名单。资金净额不代表流入流出构成；普通筹码为行情估算，不代表真实持仓。</p></details><article class="asset-block" data-asset-anchor="news"><span data-asset-anchor="announcements"></span><div class="section-heading"><h2>新闻与公告</h2><div class="button-row"><a class="button small" href="${e(assetHref(selected.asset, selected.assetType, 'news'))}">新闻</a><a class="button small" href="${e(assetHref(selected.asset, selected.assetType, 'announcements'))}">公告</a></div></div><div data-asset-news-slot>${renderAssetNews(matchingNews ? news : { asset: selected.asset, view: newsView, status: 'idle' })}</div></article><details class="asset-personal-details" data-asset-personal><summary>个人研究 · 自选、笔记与提醒</summary>${personalPanel({ observation: current, watchlists, notes, alerts, notifications })}<p class="muted small">交接仅包含已冻结的数据快照；阅读的新闻和公告不会自动加入研究证据。提醒只在新行情快照到达时评估。</p></details><section class="asset-supplemental">${blockCard('margin', current.blocks || {}, rows, errors, busy)}${blockCard('holders', current.blocks || {}, rows, errors, busy)}<div data-asset-anchor="materials">${blockCard('research', current.blocks || {}, rows, errors, busy)}</div></section></section></div></section>`;
+  return `<section class="asset-observation-page" data-asset-identity="${e(`${selected.assetType}:${selected.asset}`)}" data-asset-view="${e(view)}" data-observation-id="${e(observation?.id || '')}"><div class="asset-observation-main"><div data-asset-workspace-notices>${workspaceNotices(errors, loading)}</div>${basicCard(current, p, selected, observation, busy, { observations, watchlists })}<div class="asset-wind-grid"><section class="asset-market-full"><div data-asset-chart-slot>${renderMarketTerminal(rows.history || [], chart, metadata)}</div></section>${windMetrics(p)}</div>${sourceSummary(current, p, errors, busy)}<nav class="asset-topic-tabs" role="tablist" aria-label="资产研究专题">${ASSET_VIEWS.map((id, index) => `<a href="${e(assetHref(selected.asset, selected.assetType, id))}" id="asset-tab-${id}" role="tab" aria-controls="asset-topic-panel" aria-selected="${view === id}" tabindex="${view === id ? '0' : '-1'}" data-asset-tab="${id}" ${view === id ? 'class="active"' : ''}>${TOPICS[index]}</a>`).join('')}</nav><section class="asset-secondary" data-asset-topic-slot>${renderAssetTopic({ observation, rows, busy, route: { ...route, assetView: view }, news, errors })}</section><details class="asset-personal-details" data-asset-personal><summary>个人研究 · 自选、笔记与提醒</summary>${personalPanel({ observation: current, watchlists, notes, alerts, notifications })}<p class="muted small">交接仅包含已冻结的数据快照；阅读的新闻和公告不会自动加入研究证据。提醒只在新行情快照到达时评估。</p></details></div></section>`;
 }

@@ -123,3 +123,36 @@ def test_cached_wind_authorization_keeps_valid_explicit_stock_unchanged(
     )
     assert result.provider_id == result.query.source == "wind"
     assert result.query.parameters == parameters
+
+
+def test_auto_activity_filters_sources_by_the_requested_dataset(ready):
+    result = resolve(
+        BusinessQuery(
+            capability="market_activity",
+            parameters={"asset": "000001.SZ", "dataset": "holder_details"},
+        ),
+        environ={},
+        connection_statuses=ready,
+    )
+    assert result.provider_id == "tinysoft"
+    result = resolve(
+        BusinessQuery(
+            capability="market_activity", parameters={"asset": "000001.SZ", "dataset": "fund_flow"}
+        ),
+        environ={},
+        connection_statuses=ready,
+    )
+    assert result.provider_id != "tinysoft"
+
+
+def test_explicit_unsupported_activity_source_does_not_fallback(ready):
+    with pytest.raises(StoreError):
+        resolve(
+            BusinessQuery(
+                capability="market_activity",
+                source="tinysoft",
+                parameters={"asset": "000001.SZ", "dataset": "fund_flow"},
+            ),
+            environ={},
+            connection_statuses=ready,
+        )

@@ -5,9 +5,9 @@
   "status": "pass",
   "visualReview": "pending",
   "artifact": {
-    "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/datahub-warehouse-20261022/outputs/research-web-architecture/04-data-file-flow.html",
-    "sha256": "b37568b6524dc1cef607d0ae177fe07fb18ee4613acdbbfde90185ab623bfc9b",
-    "bytes": 649889
+    "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/datahub-warehouse-20261022-integration/outputs/research-web-architecture/04-data-file-flow.html",
+    "sha256": "3bc3c0bf76de80f364320491ef42f5dc2620bd4c70670966747b2f75315dba5a",
+    "bytes": 650316
   },
   "state": {
     "detail": "read",

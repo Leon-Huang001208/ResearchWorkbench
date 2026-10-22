@@ -4,12 +4,15 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import json
 import operator
 import re
 import time
+from datetime import date, datetime, timedelta
 from typing import Any
 from uuid import uuid4
 from weakref import WeakValueDictionary
+from zoneinfo import ZoneInfo
 
 from core.observability import get_logger
 
@@ -17,6 +20,20 @@ from .datahub.contracts import CAPABILITY_PARAMETERS, BusinessQuery
 from .store import StoreError
 
 log = get_logger(__name__)
+
+
+def _recent_range(end_date=None) -> dict[str, str]:
+    try:
+        end = (
+            date.fromisoformat(end_date)
+            if end_date
+            else datetime.now(ZoneInfo("Asia/Shanghai")).date()
+        )
+    except (TypeError, ValueError) as exc:
+        log.warning("asset_block_range_invalid")
+        raise AssetWorkspaceError("资产区块日期边界非法") from exc
+    return {"start_date": (end - timedelta(days=59)).isoformat(), "end_date": end.isoformat()}
+
 
 BLOCK_QUERIES = {
     "overview": "market_snapshot",
@@ -29,11 +46,16 @@ BLOCK_QUERIES = {
     "announcements": "search_announcements",
     "news": "search_news",
     "research": "search_research",
+    "industry": "market_activity",
+    "holder_details": "market_activity",
+    "events": "market_activity",
 }
 BLOCK_STATES = {"loading", "complete", "partial", "empty", "unavailable", "error"}
 # Store remains single-worker. This witness also protects repeated in-process
 # service construction from recovering an observation whose task is still alive.
-_ACTIVE_OBSERVATIONS: WeakValueDictionary[tuple[str, str], asyncio.Task] = WeakValueDictionary()
+_ACTIVE_OBSERVATIONS: WeakValueDictionary[tuple[str, str, str], asyncio.Task] = (
+    WeakValueDictionary()
+)
 
 
 class AssetWorkspaceError(StoreError):
@@ -133,13 +155,23 @@ class AssetWorkspace:
         self.service = service
         self.store = service.store
         self.tasks: dict[str, asyncio.Task] = {}
+        self.block_lock = asyncio.Lock()
+        self.closed = False
+        from .asset_directory import AssetDirectory
         from .asset_history_jobs import HistoryJobs
 
+        self.directory = AssetDirectory(
+            self.store.root,
+            loader=lambda: self.service.datahub.asset_directory(),
+            fingerprint=lambda: self.service.datahub.directory_fingerprint(),
+        )
         self.history_jobs = HistoryJobs(self)
         interrupted = False
         for row in self.store.data["asset_observations"].values():
-            owner = _ACTIVE_OBSERVATIONS.get((str(self.store.root), row["id"]))
-            if owner is not None and not owner.done():
+            if any(
+                key[:2] == (str(self.store.root), row["id"]) and not owner.done()
+                for key, owner in list(_ACTIVE_OBSERVATIONS.items())
+            ):
                 continue
             loading = [
                 block for block in row["blocks"].values() if block.get("status") == "loading"
@@ -163,7 +195,7 @@ class AssetWorkspace:
 
     def _track_task(self, row: dict, key: str, task: asyncio.Task) -> None:
         self.tasks[key] = task
-        _ACTIVE_OBSERVATIONS[(str(self.store.root), row["id"])] = task
+        _ACTIVE_OBSERVATIONS[(str(self.store.root), row["id"], key)] = task
 
         def completed(done: asyncio.Task) -> None:
             self.tasks.pop(key, None)
@@ -206,7 +238,11 @@ class AssetWorkspace:
                     else None
                 ),
                 "requested_source": self._source(row, name),
-                "requested_range": self._requested_range(row, name),
+                "requested_range": (
+                    block["requested_range"]
+                    if "requested_range" in block
+                    else self._requested_range(row, name)
+                ),
             }
             for name, block in row["blocks"].items()
         }
@@ -277,7 +313,12 @@ class AssetWorkspace:
         self.store.data["asset_observations"][observation_id] = row
         self.store.data["asset_observation_keys"][digest] = observation_id
         self.store.save()
-        task = asyncio.create_task(self._run(row), name=f"asset-observation-{observation_id}")
+
+        async def run_initial():
+            async with self.block_lock:
+                await self._run(row, sections)
+
+        task = asyncio.create_task(run_initial(), name=f"asset-observation-{observation_id}")
         self._track_task(row, observation_id, task)
         return self.public_observation(row)
 
@@ -319,11 +360,171 @@ class AssetWorkspace:
             raise StoreError(
                 "区块刷新受理保存失败，未启动取数", "asset_observation_save_failed", 503
             ) from exc
-        task = asyncio.create_task(
-            self._run(row, [block], refresh_call_id=call_id), name="asset-observation-refresh"
-        )
+
+        async def run_refresh():
+            async with self.block_lock:
+                await self._run(row, [block], refresh_call_id=call_id)
+
+        task = asyncio.create_task(run_refresh(), name="asset-observation-refresh")
         self._track_task(row, call_id, task)
         log.info("asset_observation_block_refresh_started", block=block)
+        return self.public_observation(row)
+
+    def _reserve_load_key(self, row: dict, block: str, digest: str, signature: str) -> None:
+        """Persist successful cache/coalescence admission without altering its snapshot/task."""
+        had_keys = "refresh_keys" in row
+        keys = row.setdefault("refresh_keys", {})
+        keys[digest] = {"block": block, "load_signature": signature}
+        try:
+            self.store.save()
+        except Exception as exc:
+            keys.pop(digest, None)
+            if not had_keys:
+                row.pop("refresh_keys", None)
+            log.error("asset_block_load_key_save_failed", error_type=type(exc).__name__)
+            raise StoreError(
+                "加载标识保存失败，原任务与快照保持不变", "asset_observation_save_failed", 503
+            ) from exc
+
+    async def load_block(self, observation_id: str, block: str, body, idempotency_key: str) -> dict:
+        """Admit a missing/stale block without mutating another frozen snapshot."""
+        if self.closed:
+            raise StoreError("资产区块加载已关闭", "asset_workspace_closed", 503)
+        row = _uuid_record(self.store.data["asset_observations"], observation_id, "资产观察")
+        if block not in BLOCK_QUERIES or block in {"news", "announcements"}:
+            raise AssetWorkspaceError("区块不支持按需读取")
+        if not re.fullmatch(r"[A-Za-z0-9_.:-]{8,128}", idempotency_key):
+            raise AssetWorkspaceError("Idempotency-Key 格式非法")
+        if body.start_date is not None and block not in {"history", "activity", "margin"}:
+            raise AssetWorkspaceError("该区块不支持日期区间")
+        state = row["blocks"].get(block)
+        digest = hashlib.sha256(idempotency_key.encode()).hexdigest()
+        signature = hashlib.sha256(
+            json.dumps({"block": block, **body.model_dump()}, sort_keys=True).encode()
+        ).hexdigest()
+        prior = row.get("refresh_keys", {}).get(digest)
+        if prior:
+            if prior.get("block") != block or prior.get("load_signature") != signature:
+                raise AssetWorkspaceError("同一加载标识不能改变参数", 409)
+            return self.public_observation(row)
+        if block == "history":
+            canonical = isinstance((state or {}).get("dataset"), dict) and state["dataset"].get(
+                "asset_history"
+            )
+            if (
+                self.history_jobs.active(observation_id)
+                or canonical
+                and (body.refresh or body.source is not None or body.start_date is not None)
+            ):
+                raise AssetWorkspaceError("规范历史请使用历史任务加载，不能覆盖冻结历史", 409)
+            if canonical:
+                self._reserve_load_key(row, block, digest, signature)
+                return self.public_observation(row)
+        if state and state.get("status") == "loading":
+            source_conflict = body.source is not None and body.source != self._source(row, block)
+            range_conflict = body.start_date is not None and self._requested_range(row, block) != {
+                "start_date": body.start_date,
+                "end_date": body.end_date,
+            }
+            if source_conflict or range_conflict:
+                log.warning("asset_block_load_conflict", block=block)
+                raise AssetWorkspaceError("同一区块正在以其他来源或区间读取，请等待原任务", 409)
+            self._reserve_load_key(row, block, digest, signature)
+            return self.public_observation(row)
+        same_range = body.start_date is None or row["request"].get("section_ranges", {}).get(
+            block
+        ) == {"start_date": body.start_date, "end_date": body.end_date}
+        same_source = body.source is None or body.source == self._source(row, block)
+        loaded_at = (state or {}).get("loaded_at", 0)
+        if (
+            state
+            and not body.refresh
+            and same_source
+            and same_range
+            and state.get("status") in {"complete", "partial", "empty"}
+            and type(loaded_at) in {int, float}
+            and 0 <= time.time() - loaded_at < 900
+        ):
+            self._reserve_load_key(row, block, digest, signature)
+            return self.public_observation(row)
+        missing = state is None
+        previous_block = dict(state) if state is not None else None
+        previous_status, previous_updated_at = row["status"], row["updated_at"]
+        request = row["request"]
+        absent = object()
+        had_sources = "section_sources" in request
+        sources = request.setdefault("section_sources", {})
+        previous_source = sources.get(block, absent)
+        had_ranges = "section_ranges" in request
+        ranges = request.get("section_ranges", {})
+        previous_range = ranges.get(block, absent)
+        had_keys = "refresh_keys" in row
+        keys = row.setdefault("refresh_keys", {})
+        if body.source is not None:
+            sources[block] = body.source
+        elif missing and block not in sources:
+            sources[block] = "tinysoft" if block in {"overview", "history"} else "auto"
+        if body.start_date is not None:
+            request["section_ranges"] = ranges
+            ranges[block] = {
+                "start_date": body.start_date,
+                "end_date": body.end_date,
+            }
+        elif (
+            block in {"activity", "margin"}
+            and block not in ranges
+            and (missing or not request.get("start_date") or not request.get("end_date"))
+        ):
+            request["section_ranges"] = ranges
+            ranges[block] = _recent_range(request.get("end_date"))
+        call_id = f"asset:{observation_id}:{block}:{uuid4()}"
+        keys[digest] = {
+            "block": block,
+            "call_id": call_id,
+            "load_signature": signature,
+        }
+        row["blocks"].setdefault(block, {"dataset": None}).update(
+            status="loading", failure_code=None
+        )
+        row.update(status="running", updated_at=time.time())
+        try:
+            self.store.save()
+        except Exception as exc:
+            # Another block may be awaiting its provider with a reference into
+            # this row. Undo only this admission, preserving all shared objects.
+            if missing:
+                row["blocks"].pop(block, None)
+            else:
+                state.clear()
+                state.update(previous_block)
+            if previous_source is absent:
+                sources.pop(block, None)
+            else:
+                sources[block] = previous_source
+            if not had_sources:
+                request.pop("section_sources", None)
+            if previous_range is absent:
+                ranges.pop(block, None)
+            else:
+                ranges[block] = previous_range
+            if not had_ranges:
+                request.pop("section_ranges", None)
+            keys.pop(digest, None)
+            if not had_keys:
+                row.pop("refresh_keys", None)
+            row.update(status=previous_status, updated_at=previous_updated_at)
+            log.error("asset_block_load_admission_failed", error_type=type(exc).__name__)
+            raise StoreError(
+                "区块加载受理保存失败，未启动取数", "asset_observation_save_failed", 503
+            ) from exc
+
+        async def run():
+            async with self.block_lock:
+                await self._run(row, [block], refresh_call_id=call_id)
+
+        task = asyncio.create_task(run(), name=f"asset-block-load-{block}")
+        self._track_task(row, call_id, task)
+        log.info("asset_block_load_started", block=block)
         return self.public_observation(row)
 
     def _parameters(self, row: dict, block: str) -> dict[str, Any]:
@@ -336,7 +537,7 @@ class AssetWorkspace:
             return {
                 "assets": [asset],
                 "asset_type": row["asset_type"],
-                "fields": ["close", "pe_ttm", "pb", "total_shares"],
+                "fields": ["close", "pe_ttm", "pb", "pb_mrq", "ps_ttm", "total_shares"],
             }
         if block == "history":
             return {
@@ -351,6 +552,10 @@ class AssetWorkspace:
             return {"asset": asset, "statements": ["indicators"], "periods": []}
         if block == "holders":
             return {"asset": asset, "dataset": "holder_data", "end_date": request.get("end_date")}
+        if block == "events":
+            return {"asset": asset, "dataset": "events", **_recent_range(request.get("end_date"))}
+        if block in {"industry", "holder_details"}:
+            return {"asset": asset, "dataset": block, "end_date": request.get("end_date")}
         if block in {"activity", "margin"}:
             return {
                 "asset": asset,
@@ -388,6 +593,9 @@ class AssetWorkspace:
                 for key, value in self._parameters(row, block).items()
                 if value is not None
             }
+            state["requested_range"] = {
+                key: value for key, value in parameters.items() if key in {"start_date", "end_date"}
+            }
             result = await self.service.datahub.query(
                 row["session_id"],
                 refresh_call_id or f"asset:{row['id']}:{block}",
@@ -416,7 +624,14 @@ class AssetWorkspace:
                     "data_unavailable" if status == "unavailable" else "unexpected_provider_status",
                 )
                 if limitations:
-                    failure = _failure_code(limitations[0], failure)
+                    failure = next(
+                        (
+                            _failure_code(value, "")
+                            for value in limitations
+                            if _failure_code(value, "")
+                        ),
+                        failure,
+                    )
             state.update(
                 status=status,
                 dataset=(
@@ -427,6 +642,8 @@ class AssetWorkspace:
                 sample=result.get("sample", []),
                 failure_code=failure,
             )
+            if status in {"complete", "partial", "empty"}:
+                state["loaded_at"] = time.time()
             if block == "overview" and status == "complete" and result.get("sample"):
                 observation = {
                     "status": provider_status,
@@ -598,6 +815,8 @@ class AssetWorkspace:
         return created
 
     async def close(self) -> None:
+        self.closed = True
+        await self.directory.close()
         await self.history_jobs.close()
         tasks = list(self.tasks.values())
         for task in tasks:

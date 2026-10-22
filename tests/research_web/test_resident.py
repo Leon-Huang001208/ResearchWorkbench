@@ -123,7 +123,8 @@ def test_resident_activity_includes_real_vendor_futures(monkeypatch, pending, in
         questions={},
         store=SimpleNamespace(data={}),
         market=inactive_market,
-        datahub=SimpleNamespace(tasks={}, storage_runner=None),
+        asset_workspace=SimpleNamespace(directory=SimpleNamespace(active=False), tasks={}),
+        datahub=SimpleNamespace(tasks={}, storage_runner=None, directory_tasks=set()),
     )
     monkeypatch.setattr(providers_cjpy, "active_futures", lambda: (object(),) if pending else ())
     assert TestClient(app).get("/api/research/resident").json()["active"] is pending
@@ -143,7 +144,8 @@ def test_resident_activity_includes_nonterminal_history_jobs(monkeypatch, state,
         questions={},
         store=SimpleNamespace(data={"asset_history_jobs": {"job": {"state": state}}}),
         market=inactive_market,
-        datahub=SimpleNamespace(tasks={}, storage_runner=None),
+        asset_workspace=SimpleNamespace(directory=SimpleNamespace(active=False), tasks={}),
+        datahub=SimpleNamespace(tasks={}, storage_runner=None, directory_tasks=set()),
     )
     monkeypatch.setattr(providers_cjpy, "active_futures", lambda: ())
     assert TestClient(app).get("/api/research/resident").json()["active"] is True
@@ -168,7 +170,8 @@ def test_resident_activity_keeps_unknown_or_conflicting_history_busy(
         questions={},
         store=SimpleNamespace(data={"asset_history_jobs": jobs}),
         market=inactive_market,
-        datahub=SimpleNamespace(tasks={}, storage_runner=None),
+        asset_workspace=SimpleNamespace(directory=SimpleNamespace(active=False), tasks={}),
+        datahub=SimpleNamespace(tasks={}, storage_runner=None, directory_tasks=set()),
     )
     monkeypatch.setattr(providers_cjpy, "active_futures", lambda: ())
     assert TestClient(app).get("/api/research/resident").json()["active"] is True
@@ -190,7 +193,8 @@ def test_resident_activity_worker_witness_failure_remains_unknown(monkeypatch, i
         questions={},
         store=SimpleNamespace(data={}),
         market=inactive_market,
-        datahub=SimpleNamespace(tasks={}, storage_runner=None),
+        asset_workspace=SimpleNamespace(directory=SimpleNamespace(active=False), tasks={}),
+        datahub=SimpleNamespace(tasks={}, storage_runner=None, directory_tasks=set()),
     )
     monkeypatch.setattr(providers_cjpy, "active_futures", unavailable)
     assert TestClient(app).get("/api/research/resident").json()["active"] is None
@@ -209,7 +213,8 @@ def test_resident_activity_missing_market_witness_remains_unknown(monkeypatch):
         questions={},
         store=SimpleNamespace(data={}),
         market=SimpleNamespace(),
-        datahub=SimpleNamespace(tasks={}, storage_runner=None),
+        asset_workspace=SimpleNamespace(directory=SimpleNamespace(active=False), tasks={}),
+        datahub=SimpleNamespace(tasks={}, storage_runner=None, directory_tasks=set()),
     )
     monkeypatch.setattr(providers_cjpy, "active_futures", lambda: ())
     monkeypatch.setattr(providers_wind_api, "activity_witness", lambda: {"active": False})
@@ -238,7 +243,8 @@ def test_resident_known_busy_survives_another_unknown_witness(monkeypatch, busy,
         questions={},
         store=SimpleNamespace(data={}),
         market=SimpleNamespace(activity_witness=market),
-        datahub=SimpleNamespace(tasks={}, storage_runner=None),
+        asset_workspace=SimpleNamespace(directory=SimpleNamespace(active=False), tasks={}),
+        datahub=SimpleNamespace(tasks={}, storage_runner=None, directory_tasks=set()),
     )
     assert TestClient(app).get("/api/research/resident").json()["active"] is (
         True if busy else None
@@ -290,10 +296,65 @@ def test_resident_accumulates_all_known_activity_without_skipping_witnesses(monk
         datahub=SimpleNamespace(
             tasks={"call": SimpleNamespace(done=lambda: False)} if busy_kind == "datahub" else {},
             storage_runner=SimpleNamespace(active=busy_kind == "storage"),
+            directory_tasks=set(),
         ),
     )
     assert TestClient(app).get("/api/research/resident").json()["active"] is True
     assert checked == {"sdk", "wind_api", "market"}
+
+
+@pytest.mark.parametrize(
+    "busy",
+    [
+        "idle",
+        "directory",
+        "block",
+        "directory_task",
+        "datahub",
+        "report",
+        "wind",
+        "market",
+        "missing_directory",
+        "missing_directory_tasks",
+    ],
+)
+def test_resident_preserves_all_activity_witnesses_and_rejects_unknown(monkeypatch, busy):
+    from fastapi.testclient import TestClient
+
+    from app.research_web.datahub import providers_cjpy, providers_wind_api
+    from app.research_web.main import create_app
+
+    workspace = SimpleNamespace(directory=SimpleNamespace(active=busy == "directory"), tasks={})
+    if busy == "block":
+        workspace.tasks["block"] = SimpleNamespace(done=lambda: False)
+    hub = SimpleNamespace(
+        tasks={"query": SimpleNamespace(done=lambda: False)} if busy == "datahub" else {},
+        storage_runner=None,
+        directory_tasks={object()} if busy == "directory_task" else set(),
+    )
+    if busy == "missing_directory":
+        del workspace.directory
+    if busy == "missing_directory_tasks":
+        del hub.directory_tasks
+    service = SimpleNamespace(
+        running={},
+        approvals={},
+        questions={},
+        store=SimpleNamespace(data={}),
+        asset_workspace=workspace,
+        datahub=hub,
+        market=SimpleNamespace(activity_witness=lambda: {"active": busy == "market"}),
+        report_workflows=SimpleNamespace(
+            runtime=SimpleNamespace(tasks={"report": object()} if busy == "report" else {}),
+            catalog=SimpleNamespace(data={"runs": {}}),
+        ),
+    )
+    monkeypatch.setattr(providers_cjpy, "active_futures", lambda: ())
+    monkeypatch.setattr(providers_wind_api, "activity_witness", lambda: {"active": busy == "wind"})
+    app = create_app()
+    app.state.research = service
+    result = TestClient(app).get("/api/research/resident").json()["active"]
+    assert result is (None if busy.startswith("missing_") else busy != "idle")
 
 
 def test_lock_symlink_and_hardlink_are_rejected(resident, tmp_path):
