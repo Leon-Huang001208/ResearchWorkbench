@@ -1945,7 +1945,12 @@ def test_preparing_intent_recovers_partial_birth_fence(real_operations, monkeypa
     assert system["events"] == []
 
 
-def test_large_business_index_keeps_metadata_limit_and_market_reader_binding(tmp_path, monkeypatch):
+@pytest.mark.parametrize(
+    "profile", [upgrade.MARKET_MODE, upgrade.MARKET_GAPS_MODE, upgrade.ASSET_V5_MODE]
+)
+def test_large_business_index_keeps_metadata_limit_and_profile_reader_binding(
+    tmp_path, monkeypatch, profile
+):
     root = tmp_path / "research-web"
     root.mkdir()
     path = root / "index.json"
@@ -1961,10 +1966,29 @@ def test_large_business_index_keeps_metadata_limit_and_market_reader_binding(tmp
         assert kwargs["index_reader"](path)["sessions"] == {}
 
     monkeypatch.setattr(upgrade.g, "verify_primary", verify)
-    upgrade.verify_primary(tmp_path, "a" * 40, upgrade.MARKET_MODE)
+    upgrade.verify_primary(tmp_path, "a" * 40, profile)
     assert calls == [{"index_reader": upgrade.read_business_index}]
     with pytest.raises(upgrade.UpdateBlocked, match="asset_upgrade_index_invalid"):
         upgrade.read_business_index(tmp_path / "missing.json")
+
+
+@pytest.mark.parametrize(
+    "profile",
+    [
+        upgrade.MODE,
+        upgrade.ASSET_MODE,
+        upgrade.ASSET_V2_MODE,
+        upgrade.ASSET_V3_MODE,
+        upgrade.ASSET_V4_MODE,
+    ],
+)
+def test_legacy_primary_reader_binding_is_unchanged(tmp_path, monkeypatch, profile):
+    calls = []
+    monkeypatch.setattr(
+        upgrade.g, "verify_primary", lambda *args, **kwargs: calls.append((args, kwargs))
+    )
+    upgrade.verify_primary(tmp_path, "a" * 40, profile)
+    assert calls == [((tmp_path, "a" * 40), {})]
 
 
 def test_market_gap_profile_freezes_resident_and_reviewed_source_checkpoint():
