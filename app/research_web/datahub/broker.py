@@ -198,6 +198,17 @@ def resolve(
             reason = "disabled"
         elif not storage_read and readiness["health"] == "unavailable":
             reason = "probe_unavailable"
+        if (
+            reason is None
+            and query.required_semantics is not None
+            and source_id not in {"wind", "akshare", "baostock"}
+        ):
+            reason = "price_units_unverified"
+            log.info(
+                "datahub_required_semantics_skipped",
+                source=source_id,
+                contract=query.required_semantics,
+            )
         if reason is None and excluded_sources and not storage_read:
             # Matching qfq/hfq names do not prove matching factor anchors. Until
             # a canonical merge proof exists, runtime failover is raw daily stock

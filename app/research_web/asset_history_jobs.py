@@ -32,7 +32,7 @@ from .asset_history import (
     shift_years,
 )
 from .datahub.adjustment_contract import CONTRACT_VERSION, DEFINITION_SHA256
-from .datahub.contracts import BusinessQuery
+from .datahub.contracts import RAW_STOCK_SEMANTICS, BusinessQuery
 from .datahub.providers import Result
 from .datahub.security import directory, json_bytes, read_file, write_new
 
@@ -103,6 +103,7 @@ class HistoryJobs:
             "adjustment": row.get("adjustment"),
             "source": row.get("source", "tinysoft"),
             "requested_as_of": row.get("requested_as_of"),
+            "required_semantics": row.get("required_semantics"),
             "created_at": row.get("created_at"),
             "updated_at": row.get("updated_at"),
             "progress": copy.deepcopy(row.get("progress", {})),
@@ -162,6 +163,7 @@ class HistoryJobs:
         query = BusinessQuery(
             capability="market_bars",
             source=row.get("source", "tinysoft"),
+            required_semantics=row.get("required_semantics"),
             parameters={
                 "asset": row["asset"],
                 "asset_type": "stock",
@@ -185,6 +187,18 @@ class HistoryJobs:
         for evidence in inputs:
             manifest = evidence["manifest"]
             provider = manifest.get("provider")
+            query = BusinessQuery.model_validate(evidence["query"])
+            semantics = row.get("required_semantics")
+            if any(
+                value != semantics
+                for value in (
+                    evidence.get("required_semantics"),
+                    query.required_semantics,
+                    manifest.get("query", {}).get("required_semantics"),
+                    manifest.get("provider_query", {}).get("required_semantics"),
+                )
+            ):
+                raise fail("history_cache_version_changed", "历史输入单位策略与冻结任务不一致")
             configurations = row.get("source_configuration_digests") or {
                 "tinysoft": row["configuration_digest"]
             }
@@ -195,7 +209,7 @@ class HistoryJobs:
                 raise fail("history_authorization_changed", "历史输入来源配置无法核验")
             self.hub._authorize_query(
                 row["session_id"],
-                BusinessQuery.model_validate(evidence["query"]),
+                query,
                 provider=provider,
                 cached=True,
                 authorization_fingerprint=evidence["configuration_digest"],
@@ -293,6 +307,11 @@ class HistoryJobs:
                 digest(configurations) if source == "auto" else configurations[source]
             ),
             "source_configuration_digests": configurations,
+            "required_semantics": (
+                previous.get("required_semantics")
+                if previous
+                else RAW_STOCK_SEMANTICS if source != "tinysoft" else None
+            ),
             "expected_dataset_id": current.get("dataset_id") if current else None,
             "current_dataset": copy.deepcopy(current),
             "base_dataset_id": canonical["dataset_id"] if canonical else None,
@@ -353,6 +372,7 @@ class HistoryJobs:
         query = BusinessQuery(
             capability=capability,
             source=row.get("source", "tinysoft"),
+            required_semantics=row.get("required_semantics"),
             parameters=parameters,
             refresh=True,
         )
@@ -429,6 +449,7 @@ class HistoryJobs:
             "manifest_sha256": result["manifest_sha256"],
             "manifest": json.loads(original_manifest),
             "query": query.model_dump(),
+            "required_semantics": query.required_semantics,
             "rows": rows,
             "rows_sha256": digest(rows),
             "raw_files": copy.deepcopy(result["raw_files"]),
@@ -503,6 +524,7 @@ class HistoryJobs:
             "observation_id": row["observation_id"],
             "interval": interval,
             "configuration_digest": row["configuration_digest"],
+            "required_semantics": row.get("required_semantics"),
             "definition_sha256": definition.get("definition_sha256"),
             "evidence": evidence,
             "normalized": normalized,
@@ -534,6 +556,7 @@ class HistoryJobs:
                 or value["session_id"] != row["session_id"]
                 or value["observation_id"] != row["observation_id"]
                 or value["configuration_digest"] != row["configuration_digest"]
+                or value.get("required_semantics") != row.get("required_semantics")
                 or value["definition_sha256"] != definition.get("definition_sha256")
             ):
                 raise fail("history_cache_version_changed", "冻结输入版本已变化，须重建完整历史")
@@ -630,6 +653,7 @@ class HistoryJobs:
                 else HISTORY_VERSION
             ),
             "source": row.get("source", "tinysoft"),
+            "required_semantics": row.get("required_semantics"),
             "source_configuration_digests": row.get(
                 "source_configuration_digests", {"tinysoft": row["configuration_digest"]}
             ),
@@ -684,6 +708,7 @@ class HistoryJobs:
         query = BusinessQuery(
             capability="market_bars",
             source=row.get("source", "tinysoft"),
+            required_semantics=row.get("required_semantics"),
             parameters={
                 "asset": row["asset"],
                 "asset_type": "stock",

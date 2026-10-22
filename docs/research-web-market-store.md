@@ -116,3 +116,7 @@ python -m unittest discover -s tests/research_web -p 'test_market_store*.py'
 2026-10-22 基金NAV入仓：Host原生快照层仅为完整分页、有界东财NAV开放三项已声明语义缺口，rows/fields/missing/raw逐字节保真；不改变MarketStore内核schema、历史可得性或冻结恢复合同。
 
 2026-10-23 资产历史任务可请求recent/daily/none/source:auto并通过现有Broker降级；其会话规范快照使用asset-history-raw-2，不能替代研究仓的独立交易日历、PIT、缺口或正式回测质量证明。未知单位响应在历史发布前失败，不伪称跨源质量已通过；没有启用正式数据库或移动数据根。
+
+2026-10-23 Tinysoft原生股票日线新增经CJPY0.5.2字段字典证明的vol股、amount原生元声明，不提供OHLC单位或CNY证明。ResearchWarehouse._bridge的规范股票来源仍排除Tinysoft；原生快照可保留真实声明，不能凭成交量局部证明通过统一价格单位/PIT或正式回测门。此次不连接数据库、不读取行情、不改数据库/外盘配置。
+
+2026-10-23 `required_semantics=cn_stock_daily_cny_share_v1`是Host对候选价格/量额单位的显式收窄合同；原生快照不满足它，不能通过旧native缓存命中绕过OHLC单位门。当前Tinysoft缺OHLC/CNY证明，因此规范raw候选在Broker准入跳过；其通用原生响应和metadata仍可冻结。此变化不启用Tinysoft规范bridge、不新增SQL表/依赖/数据库配置，不改变历史PIT或正式回测合格状态。

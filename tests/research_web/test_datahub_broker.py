@@ -255,3 +255,107 @@ def test_explicit_unsupported_activity_source_does_not_fallback(ready):
             environ={},
             connection_statuses=ready,
         )
+
+
+def test_raw_price_semantics_skips_unverified_tinysoft_without_changing_native(ready):
+    parameters = {
+        "asset": "600000.SH",
+        "asset_type": "stock",
+        "frequency": "daily",
+        "adjustment": "none",
+        "start_date": "2024-10-20",
+        "end_date": "2026-10-20",
+    }
+    native = BusinessQuery(capability="market_bars", parameters=parameters)
+    assert resolve(native, environ={}, connection_statuses=ready).provider_id == "tinysoft"
+    canonical = BusinessQuery(
+        capability="market_bars",
+        parameters=parameters,
+        required_semantics="cn_stock_daily_cny_share_v1",
+    )
+    selected = resolve(canonical, environ={}, connection_statuses=ready)
+    assert selected.provider_id == "akshare"
+    assert selected.attempted_sources[0] == {
+        "source": "tinysoft",
+        "status": "skipped",
+        "reason": "price_units_unverified",
+    }
+    assert selected.query.required_semantics == canonical.required_semantics
+    assert (
+        resolve(
+            native.model_copy(update={"source": "tinysoft"}), environ={}, connection_statuses=ready
+        ).provider_id
+        == "tinysoft"
+    )
+
+
+def test_required_semantics_has_distinct_identity_and_keeps_default_legacy_fingerprint():
+    import hashlib
+    import json
+
+    parameters = {
+        "asset": "600000.SH",
+        "asset_type": "stock",
+        "frequency": "daily",
+        "adjustment": "none",
+    }
+    native = BusinessQuery(capability="market_bars", parameters=parameters)
+    legacy = native.model_dump(
+        exclude={"refresh", "purpose", "quality", "as_of", "required_semantics"}
+    )
+    expected = hashlib.sha256(
+        json.dumps(["business-1.0.0", legacy], sort_keys=True, ensure_ascii=False).encode()
+    ).hexdigest()
+    assert native.fingerprint() == expected
+    canonical = BusinessQuery(
+        capability="market_bars",
+        parameters=parameters,
+        required_semantics="cn_stock_daily_cny_share_v1",
+    )
+    assert canonical.fingerprint() != native.fingerprint()
+    assert canonical.model_dump()["required_semantics"] == "cn_stock_daily_cny_share_v1"
+
+
+@pytest.mark.parametrize(
+    "updates",
+    [
+        {"asset": "000001.SH"},
+        {"asset_type": "etf"},
+        {"asset_type": None},
+        {"frequency": "weekly"},
+        {"frequency": None},
+        {"adjustment": "qfq"},
+        {"adjustment": None},
+    ],
+)
+def test_required_raw_semantics_rejects_non_equivalent_combinations_before_routing(updates):
+    from pydantic import ValidationError
+
+    parameters = {
+        "asset": "600000.SH",
+        "asset_type": "stock",
+        "frequency": "daily",
+        "adjustment": "none",
+        **updates,
+    }
+    with pytest.raises(ValidationError):
+        BusinessQuery(
+            capability="market_bars",
+            parameters=parameters,
+            required_semantics="cn_stock_daily_cny_share_v1",
+        )
+
+
+def test_required_semantics_is_typed_host_contract_not_vendor_parameter():
+    from pydantic import ValidationError
+
+    schema = BusinessQuery.model_json_schema()["properties"]["required_semantics"]
+    assert schema["default"] is None
+    assert {entry.get("const") for entry in schema["anyOf"] if "const" in entry} == {
+        "cn_stock_daily_cny_share_v1"
+    }
+    with pytest.raises(ValidationError):
+        BusinessQuery(
+            capability="market_bars",
+            parameters={"asset": "600000.SH", "required_semantics": "cn_stock_daily_cny_share_v1"},
+        )

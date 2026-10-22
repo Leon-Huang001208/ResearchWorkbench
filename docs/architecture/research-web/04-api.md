@@ -696,3 +696,5 @@ GET会话列表及父详情不因已验证活动的历史子mode=unknown整体�
 ### 模型连接管理 API
 
 GET /model-profiles 返回 items/active_id；每项只含 id/name/provider/model/base_url/protocol/credential_mode、active、credential_required/configured 及 uncertain，无 Key 或物理 credential_ref。POST/PUT 使用原 ModelConfig 字段加 name；Key 可省略保留，但新地址不能继承旧端点凭据。POST /{identity}/activate 从服务端已保存配置激活，禁止客户端携带新的连接参数。DELETE 只归档，无自动凭据删除；被会话/日程引用或当前协议路由拒绝归档。运行/未知活动拒绝修改，凭据写入回执未知保留 durable uncertain。旧 PUT /runtime/model 保持字段和返回契约，同步当前 profile。服务器邀请制仍只允许 DeepSeek 官方，不能通过新路径添加/激活任意兼容上游。
+
+2026-10-23 既有内部`POST /api/research/internal/data/business-query`的BusinessQuery新增可选typed `required_semantics: "cn_stock_daily_cny_share_v1" | null`，默认null保持旧请求指纹；仅market_bars/规范沪深stock/daily/none合法，其他组合输入422。它由Host规范历史设置，不成为Runtime/DSH普通数据工具的可传业务参数。新job公开投影及canonical metadata记录required_semantics，retry冻结原值，缺字段旧job保null；manifest和缓存指纹绑定合同，旧原生数据不能冒充已证明价格单位的规范数据。无新HTTP端点或SQL迁移。

@@ -14,6 +14,41 @@ from app.research_web.datahub import providers_cjpy as provider
 from app.research_web.store import Store, StoreError
 
 
+@pytest.fixture(autouse=True)
+def isolated_credentials(monkeypatch):
+    import keyring
+
+    from app.research_web import credential_backend
+    from app.research_web.datahub import connections
+
+    class MemoryCredentials:
+        def __init__(self):
+            self.values = {}
+
+        def get_password(self, service, account):
+            return self.values.get((service, account))
+
+        def set_password(self, service, account, value):
+            self.values[(service, account)] = value
+
+        def delete_password(self, service, account):
+            self.values.pop((service, account), None)
+
+    def deny(*_args, **_kwargs):
+        pytest.fail("CJPY tests must not access host credentials")
+
+    monkeypatch.setattr(connections, "default_credential_backend", MemoryCredentials)
+    for backend in (
+        credential_backend.SystemKeyringBackend,
+        credential_backend.PrivateFileCredentialBackend,
+    ):
+        monkeypatch.setattr(backend, "__init__", deny)
+        for method in ("get_password", "set_password", "delete_password"):
+            monkeypatch.setattr(backend, method, deny)
+    for method in ("get_password", "set_password", "delete_password"):
+        monkeypatch.setattr(keyring, method, deny)
+
+
 @pytest.fixture
 def sdk(monkeypatch):
     package = ModuleType("cjpy")
@@ -332,3 +367,178 @@ async def test_factor_real_datahub_snapshot_cache_copy_and_grant_recheck(
         assert len(calls) == 2
     finally:
         await hub.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "sdk_version,asset_type,frequency,applied",
+    [
+        ("0.5.2", "stock", "daily", True),
+        ("0.3.6", "stock", "daily", False),
+        (None, "stock", "daily", False),
+        ("0.5.2", "etf", "daily", False),
+        ("0.5.2", "index", "daily", False),
+        ("0.5.2", None, "daily", False),
+        ("0.5.2", "stock", "weekly", False),
+        ("0.5.2", "stock", None, False),
+    ],
+)
+async def test_market_dictionary_units_are_sdk_and_explicit_stock_daily_scoped(
+    sdk, sdk_version, asset_type, frequency, applied
+):
+    from app.research_web.asset_history import normalize_raw_rows
+
+    package, calls, _ = sdk
+    package.__version__ = sdk_version
+    rows = [
+        {
+            "asset": "600000.SH",
+            "date": "2026-10-20",
+            "open": 10,
+            "high": 12,
+            "low": 9,
+            "close": 11,
+            "vol": 100,
+            "volume": 100,
+            "amount": 1100,
+        }
+    ]
+
+    def market(**kwargs):
+        calls.append(("bars", kwargs))
+        return rows
+
+    package.get_market_data = market
+    parameters = {
+        "asset": "600000.SH",
+        "adjustment": "none",
+        "start_date": "2026-10-01",
+        "end_date": "2026-10-20",
+    }
+    if asset_type is not None:
+        parameters["asset_type"] = asset_type
+    if frequency is not None:
+        parameters["frequency"] = frequency
+    result = await provider.fetch(
+        BusinessQuery(capability="market_bars", source="tinysoft", parameters=parameters),
+        token="synthetic-token",
+    )
+    assert result.status == "complete"
+    assert result.rows == rows and json.loads(result.raw[0]) == rows
+    assert len(calls) == 1 and calls[0][0] == "bars"
+    assert result.fields["vol"] == {"unit": "share" if applied else None, "currency": None}
+    assert result.fields["volume"] == {"unit": None, "currency": None}
+    assert result.fields["amount"] == {"unit": "元" if applied else None, "currency": None}
+    assert all(
+        result.fields[name] == {"unit": None, "currency": None}
+        for name in ("open", "high", "low", "close")
+    )
+    evidence = result.metadata["field_dictionary_evidence"]
+    assert evidence["contract_version"] == "tinysoft-stock-daily-fields-v1"
+    assert evidence["observed_sdk_version"] == "0.5.2"
+    assert (
+        evidence["dictionary_sha256"]
+        == "27df9e431be417c522e65151179dcc476822f38e792f8ea497bd19733ac4d829"
+    )
+    assert evidence["method"] == "markettable_columns" and evidence["applied"] is applied
+    assert evidence["price_currency_verified"] is False
+    with pytest.raises(StoreError) as error:
+        normalize_raw_rows(
+            rows, "600000.SH", {"start_date": "2026-10-01", "end_date": "2026-10-20"}, result.fields
+        )
+    assert error.value.code == "history_unit_unverified"
+
+
+def test_volume_dictionary_does_not_restore_tinysoft_canonical_warehouse_bridge(
+    tmp_path, monkeypatch
+):
+    from app.research_web.datahub.research_warehouse import ResearchWarehouse
+
+    warehouse = ResearchWarehouse(tmp_path, keyring=object())
+    monkeypatch.setattr(warehouse, "_profile", lambda: {"enabled": True, "id": "memory"})
+    request = BusinessQuery(
+        capability="market_bars",
+        source="tinysoft",
+        parameters={
+            "asset": "600000.SH",
+            "asset_type": "stock",
+            "frequency": "daily",
+            "adjustment": "none",
+            "start_date": "2026-10-01",
+            "end_date": "2026-10-20",
+        },
+    )
+    assert warehouse._bridge(request, "tinysoft", "a" * 64) is None
+
+
+@pytest.mark.asyncio
+async def test_stock_label_cannot_apply_volume_units_to_index_identity(sdk):
+    package, _, _ = sdk
+    package.__version__ = "0.5.2"
+    package.get_market_data = lambda **_: [
+        {"date": "2026-10-20", "vol": 100, "amount": 1100, "close": 10}
+    ]
+    result = await provider.fetch(
+        BusinessQuery(
+            capability="market_bars",
+            source="tinysoft",
+            parameters={
+                "asset": "000001.SH",
+                "asset_type": "stock",
+                "frequency": "daily",
+                "adjustment": "none",
+                "start_date": "2026-10-01",
+                "end_date": "2026-10-20",
+            },
+        ),
+        token="synthetic-token",
+    )
+    assert result.fields["vol"] == {"unit": None, "currency": None}
+    assert result.metadata["field_dictionary_evidence"]["applied"] is False
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "identity,applied",
+    [
+        ({"代码": "SH510050"}, False),
+        ({"asset": "600000.SH", "code": "000001.SZ"}, False),
+        ({}, True),
+        ({"代码": None}, False),
+        ({"asset": "600000.SH", "代码": "SH600000"}, True),
+    ],
+)
+async def test_stock_units_require_every_returned_identity_to_match_request(sdk, identity, applied):
+    package, _, _ = sdk
+    package.__version__ = "0.5.2"
+    original = [{"date": "2026-10-20", "vol": 100, "amount": 1100, **identity}]
+    package.get_market_data = lambda **_: original
+    result = await provider.fetch(
+        BusinessQuery(
+            capability="market_bars",
+            source="tinysoft",
+            parameters={
+                "asset": "600000.SH",
+                "asset_type": "stock",
+                "frequency": "daily",
+                "adjustment": "none",
+                "start_date": "2026-10-01",
+                "end_date": "2026-10-20",
+            },
+        ),
+        token="synthetic-token",
+    )
+    assert result.rows == original and json.loads(result.raw[0]) == original
+    assert result.metadata["field_dictionary_evidence"]["applied"] is applied
+    if not identity:
+        assert (
+            result.metadata["field_dictionary_evidence"]["identity_basis"]
+            == "single_security_request"
+        )
+        assert result.metadata["field_dictionary_evidence"]["response_identity_observed"] is False
+        assert not any(
+            key in result.rows[0] for key in ("asset", "code", "stock_code", "证券代码", "代码")
+        )
+    elif applied:
+        assert result.metadata["field_dictionary_evidence"]["identity_basis"] == "row_aliases"
+    assert result.fields["vol"] == {"unit": "share" if applied else None, "currency": None}

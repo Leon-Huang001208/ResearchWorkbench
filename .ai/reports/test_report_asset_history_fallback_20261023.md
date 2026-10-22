@@ -87,3 +87,43 @@ Root在18997隔离完整Host页面完成PASS：显式Tinysoft请求失败后下�
 功能源码检查点已实际提交：`323da9ae60960dbe7f246f4686a54302bebbf819`（fix(assets): route recent raw history through equivalent fallback），包含34个本任务文件及真实AK/Host页面范围报告。reading.repository.revision固定到此源码提交，由官方build_research_web_api_atlas生成入口与API Atlas；生成物及本记录归第二文档提交，避免自指。检查点不代表已push、最终CI通过或常驻部署；实际平台与供应商范围仍按上文分别记录。
 
 阅读绑定实际检查：官方build_research_web_api_atlas生成及--check通过，reading/architecture/documentation JavaScript91项PASS（logs/asset-history-reading-architecture-tests.log）；专项architecture-check及完整changed-set doc-sync包含约束、生成索引、文档治理PASS（logs/asset-history-reading-architecture-check.log、reading-doc-sync.log）。本次第二提交仅绑定map/阅读README/两项生成HTML与报告，不改变功能检查点产品字节。
+
+## 合流前CJPY最小字段字典增量
+
+Root单独授权的旧CJ_KEY仅由独立CjClient完成一次markettable_columns；HTTP200、SDK0.5.2、53字段、0行情/财务/模型、0配置写和token持久化，临时HOME已删除。证据logs/cjpy-field-metadata/result.json和field-dictionary.json；字典600权限且凭据扫描false，字典SHA27df9e431be417c522e65151179dcc476822f38e792f8ea497bd19733ac4d829。vol规则明确股票为股，amount仅元；OHLC单位与币种没有声明，不能恢复规范研究仓桥。实现者本轮没有调用SDK或处理凭据。
+
+最小补齐只修改CJPY同步结果投影和既有测试：实际SDK.__version__精确0.5.2、显式market_bars/stock/daily并经cn_stock_identity时，实际返回vol标share、amount标原生元/currencyNone；OHLC仍None/None，volume别名保持未知。新Result增加field_dictionary_evidence合同tinysoft-stock-daily-fields-v1、字典方法/hash/版本及applied判定，不重取字典或行情，不改rows/raw或旧快照。其他SDK、缺类型/频率、weekly、ETF/index及stocklabel却index身份均无单位升级。
+
+TDD：logs/cjpy-dictionary-red.log（8失败、1既有bridge排除通过）→green.log；新增负向与凭据failclosed隔离后，test_datahub_cjpy+test_asset_history合计95项PASS，见logs/cjpy-dictionary-closure.log。所有新字段在SDK线程内只读本次已有响应与__version__，没有新的厂商调用；ResearchWarehouse._bridge仍拒绝Tinysoft，normalize_raw_rows仍因价格单位unknown拒绝。增量待独立Python复审，四JS源码保持既有最终受审hash，后续合流/Router/CI/组合UI另证。
+
+## CJPY增量集中SPEC修复与显式raw单位策略
+
+SPEC实证请求stock但行代码SH510050仍获股票单位。TDD新增5返回身份分支，冲突/missing/null所有别名无证明时保unknown，匹配SH600000才applied；保持rows/raw。SnapshotSeries明确静态field_dictionary_evidence键纳入白名单，离线freeze/export_restore证据对象/hash/fields/raw保持，外部metadata/token继续丢弃，质量/PIT仍false。RED5失败1既有匹配通过→GREEN6项见cjpy-identity-native-{red,green}.log。
+
+另SPEC确认CJPY成功731行但价格单位unknown，旧auto会后置失败而AK零调用。经Root同意，新增typed Host合同required_semantics=cn_stock_daily_cny_share_v1，仅market_bars/沪深stock/daily/none有效；默认None不入旧fingerprint，通用native/fixedTinysoft不变。Broker按现已声明单位候选收窄，Tinysoft以price_units_unverified跳过而非调SDK后改complete状态；HistoryJobs新非Tinysoft近期raw冻结合同，查询/manifest/块缓存/canonical皆绑定。retry保原策略，缺字段旧job保None，无隐式升级。原生SnapshotSeries不接受该合同，旧native缓存不能满足规范请求。证券/日期/数值冲突后置门仍拒绝，不盲retry；deadline/Future容量不变。
+
+TDD契约RED见raw-semantics-red.log、history-semantics-red.log、native-policy-red.log；GREEN对应日志。真实Hub/Broker/Provider离线案例先CJPY成功731行native+未知单位，再新合同AK成功且不复用旧native缓存，新合同第二请求命中其AK缓存；generic仍可读旧native缓存，通用执行失败仍Tinysoft→AK，fixedTinysoft失败零备用。新history策略完成规范AK快照，旧retry缺策略保持None。原HTTP受控OSError测试现在明确auto在准入price_units_unverified跳过，不再宣称执行了天软故障；通用执行失败fallback由同Hub案例保留。新增越界日期/证券/单位/冲突负例均只1候选且不发布。
+
+最新集中闭包174项PASS见logs/asset-three-fixes-closure.log（CJPY/native snapshot/Broker/history）；所有测试仅离线边界，无新Vendor/凭据/模型/DB/依赖操作。此前真实API/Host485行属于旧策略源码阶段，不可替代本新合同的最终组合实际UI；后续由Root在合流候选另验。Runtime普通工具白名单schema维持，不把Host内部required_semantics偷传厂商参数，Pydantic schema与API文档同步。
+
+三项修复收尾：9增量Python文件Ruff/Black/isort PASS，完整changed-set doc-sync包含constraints/index/governance PASS（logs/asset-three-fixes-doc-sync.log）；通用QueryPolicyTests/ExecutionTests10项PASS（logs/raw-policy-reliability.log）。产品源码冻结交SPEC集中复核，尚未commit/prepare/publish；真实组合UI、最终质量/集成/CI仍待后续。
+
+## Root/SPEC最终身份澄清与运行失败备用补证
+
+Root/SPEC确认CJPY实际默认markettable形状完全无identity列，封闭单一精确code+沪深stock/daily/exactSDK0.5.2请求本身可作局部vol/amount依据：metadata明确identity_basis=single_security_request、response_identity_observed=False，不向rows/raw补asset。这替代上一检查点“完全缺身份列一律unknown”的保守实现；存在任何空/ETF/指数/矛盾身份别名仍applied=False，全部匹配为row_aliases。请求身份澄清TDD见cjpy-request-identity-{red,green}.log；原生冻存/恢复用例同步保留身份依据对象。
+
+新增真实HTTP→HistoryJobs→Hub/Broker→执行器离线链：CJPY按已知价格单位缺口skip、Wind范围skip，AK受控vendor_unreachable执行失败，再FakeBao可信CNY/share原始日线成功。实际executions仅AK/Bao且call计数精确，双方executor路径仍保留原deadline/容量；所有输入策略字段随chunk/evidence/query/manifest冻结。缓存同策略_reuse成功，改顶层策略None拒绝，伪改evidence query策略也被_authorize_inputs拒绝（history_cache_version_changed），不复用不满足合同的缓存。RED→GREEN见http-ak-bao-policy-{red,green}.log。
+
+最终集中闭包175项PASS见logs/asset-three-fixes-closure-02.log，覆盖CJPY/nativeSnapshot/Broker/history。无Vendor、模型、生产凭据、数据库配置或依赖操作；本轮所有成功取数都为离线受控SDK/Provider边界，不能复用旧真实UI作为新政策验收。
+
+三项修复最终冻结：176项集中测试PASS（logs/asset-three-fixes-final.log），typed Host schema及厂商parameters不能携内部策略均覆盖；9 Python文件Ruff/Black/isort PASS，完整changed-set doc-sync/constraints/index/governance PASS（logs/asset-three-fixes-final-doc-sync.log）。产品源码与测试冻结交SPEC集中复核，未commit/prepare/publish，未追加供应商请求。
+
+## 独立质量复核与最小类型注解修复
+
+独立review_asset_three_quality对c7beb冻结版未发现P1/P2，执行176项PASS并记录新增两项mypy dict-item错误：CJPY局部fields初值被推断为None-only。仅将局部变量显式注解为dict[str,dict[str,str|None]]，不改行为。CJPY50项再次PASS见logs/cjpy-annotation-only.log；该文件Ruff/Black/isort PASS。五源文件同范围mypy --follow-imports=skip由原6项变为4项（logs/asset-three-mypy-annotation-skip.log）：providers_cjpy:477 arg-type与broker:68/161/374 Resolution call-arg保持旧债，本任务不改、不写全mypy通过。无follow-imports筛选的诊断也保留logs/asset-three-mypy-annotation-fix.log，含跨模块旧错误，不隐藏。
+
+实际缓存边界：Asset新job refresh=True显式刷新整个请求区间，不先查仓补缺；DataHub普通refresh=False逐来源精确复用完整缓存，但Wind>60天缓存仍被当前fetch准入guard拒绝。跨来源部分覆盖不拼接，warehouse prepare交易日历可能联网；以上未完成能力不由本次成功降级/冻结/完整缓存测试推定完成。此处仅如实交接边界，不扩大本次修复。
+
+Root补充的普通仓只读核查：DataHub refresh=False已实现仓候选AK miss后Bao完整命中且0 fetch；这不改变History新job refresh=True显式整段强刷边界。Wind storage_read仍无条件经过validate_wind_query的>60自然日限制，导致该类完整缓存受挡，本轮只记录、不扩源码修复。
+
+Root已转交独立质量最终PASS，注解后0a6dc冻结九文件精确匹配；CJPY50及Ruff/Black通过，同范围mypy新增两项消失、原四项债保留。仅局部类型注解，无行为改动，176项此前行为闭包按源码差异映射保留，不伪称重跑。现按授权提交本feature源码/文档检查点并managedprepare最新master，未发布、未部署；组合实际Host/Bao验证和最终全门随后由Root协调。

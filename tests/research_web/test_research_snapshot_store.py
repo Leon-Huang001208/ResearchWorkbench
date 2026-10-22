@@ -431,3 +431,89 @@ def test_export_and_restore_actions_are_independently_authorized(context):
     content = series.read(captured()).raw[0]
     with pytest.raises(MarketStoreError, match="warehouse_access_denied"):
         export_denied.export_restore("alice", series.scope, content)
+
+
+def test_field_dictionary_evidence_survives_native_freeze_export_restore():
+    evidence = {
+        "contract_version": "tinysoft-stock-daily-fields-v1",
+        "observed_sdk_version": "0.5.2",
+        "runtime_sdk_version": "0.5.2",
+        "method": "markettable_columns",
+        "dictionary_sha256": "27df9e431be417c522e65151179dcc476822f38e792f8ea497bd19733ac4d829",
+        "applied": True,
+        "scope": "explicit_stock_daily_native_vol_amount",
+        "price_currency_verified": False,
+        "identity_basis": "single_security_request",
+        "response_identity_observed": False,
+    }
+    scope = StoreScope("alice", "license", "tinysoft", "a" * 64)
+    service = MarketStoreService(InMemoryMarketStore(), lambda *_: True)
+    series = SnapshotSeries(service, "alice", scope)
+    series._now = lambda: OBSERVED
+    request = BusinessQuery(
+        capability="market_bars",
+        source="tinysoft",
+        parameters={
+            "asset": "600000.SH",
+            "asset_type": "stock",
+            "frequency": "daily",
+            "adjustment": "none",
+            "start_date": "2026-01-01",
+            "end_date": "2026-01-19",
+        },
+    )
+    result = response(
+        rows=[{"date": "2026-01-19", "vol": 100}],
+        fields={"vol": {"unit": "share", "currency": None}},
+        provider_id="tinysoft",
+        metadata={"field_dictionary_evidence": evidence, "token": "must-not-save"},
+    )
+    assert series.ingest(request, result)
+    evidence["dictionary_sha256"] = "mutated-after-ingestion"
+    read = series.read(request.model_copy(update={"as_of": OBSERVED}))
+    assert (
+        read.metadata["field_dictionary_evidence"]["dictionary_sha256"]
+        == "27df9e431be417c522e65151179dcc476822f38e792f8ea497bd19733ac4d829"
+    )
+    assert "token" not in read.metadata
+    frozen = FrozenSnapshot.load(read.raw[0])
+    replacement = MarketStoreService(InMemoryMarketStore(), lambda *_: True)
+    restored = replacement.export_restore("alice", scope, frozen.export())
+    assert restored.digest == frozen.digest
+    again = SnapshotSeries(replacement, "alice", scope)
+    again._now = lambda: OBSERVED
+    recovered = again.read(request.model_copy(update={"as_of": OBSERVED}))
+    assert (
+        recovered.metadata["field_dictionary_evidence"]
+        == read.metadata["field_dictionary_evidence"]
+    )
+    assert recovered.fields == read.fields and recovered.raw == read.raw
+    assert recovered.metadata["quality_accepted"] is False
+    assert recovered.metadata["formal_backtest_eligible"] is False
+    assert recovered.metadata["historical_point_in_time"] is False
+
+
+def test_unverified_native_series_cannot_satisfy_required_stock_price_semantics():
+    scope = StoreScope("alice", "license", "tinysoft", "a" * 64)
+    service = MarketStoreService(InMemoryMarketStore(), lambda *_: True)
+    series = SnapshotSeries(service, "alice", scope)
+    series._now = lambda: OBSERVED
+    request = BusinessQuery(
+        capability="market_bars",
+        source="tinysoft",
+        parameters={
+            "asset": "600000.SH",
+            "asset_type": "stock",
+            "frequency": "daily",
+            "adjustment": "none",
+            "start_date": "2026-01-01",
+            "end_date": "2026-01-19",
+        },
+    )
+    result = response(provider_id="tinysoft")
+    assert series.ingest(request, result)
+    required = BusinessQuery.model_validate(
+        {**request.model_dump(), "required_semantics": "cn_stock_daily_cny_share_v1"}
+    )
+    assert series.dataset(required) is None
+    assert series.read(required) is None

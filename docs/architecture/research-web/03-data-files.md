@@ -745,3 +745,5 @@ source_references允许纯规范ID列表，或精确的“规范ID · 准确Host
 
 
 2026-10-22 基金NAV入仓：东财基金NAV的有界完整分页响应允许保留三项语义缺口进入既有原生快照；原件、缺口与首次捕获时间不变，无新持久格式。
+
+2026-10-23 新raw历史job、不可变块和canonical metadata冻结required_semantics；块复用须相同合同，旧job无字段读取/重试保持null，不回填旧盘。BusinessQuery默认null保持原fingerprint，选定cn_stock_daily_cny_share_v1使用新指纹；原生SnapshotSeries不接此合同，不能用旧native结果替代规范行。field_dictionary_evidence由静态白名单随原生原件、冻结和export_restore完整保留；旧snapshot字节不改，质量/PIT仍未验证。

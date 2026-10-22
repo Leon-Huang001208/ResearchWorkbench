@@ -48,6 +48,7 @@ METADATA_KEYS = frozenset(
         "upstream_id",
         "provider_semantics_revision",
         "adjustment_contract",
+        "field_dictionary_evidence",
         "schema_version",
         "units",
         "currency",
@@ -136,6 +137,10 @@ class SnapshotSeries:
 
     def dataset(self, query: BusinessQuery) -> DatasetIdentity | None:
         """Construct identity from all business parameters and reviewed source contract."""
+        if query.required_semantics is not None:
+            # Native captures retain unverified fields and never satisfy the
+            # canonical raw-price contract, including historical cache reads.
+            return None
         if query.source not in {"auto", self.scope.source}:
             raise MarketStoreError("snapshot_source_mismatch")
         accepted = query.capability in CAPABILITIES and self.scope.source in SOURCES
