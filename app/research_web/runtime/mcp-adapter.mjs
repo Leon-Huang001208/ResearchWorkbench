@@ -381,6 +381,10 @@ export function apply(ctx, config = {}) {
       name: binding.name,
       description: binding.description,
       parameters: binding.inputSchema,
+      output: {
+        schema: { type: 'object', properties: { result_json: { type: 'string' } }, required: ['result_json'], additionalProperties: false },
+        render(_args, value) { return [{ type: 'text', text: value.result_json }]; },
+      },
       async execute(args, exec) {
         return await proxyCall(ctx, control, binding, args, exec, limits);
       },

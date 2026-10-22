@@ -129,8 +129,8 @@ test('capability workspace preserves legacy links and exposes five stable primar
   assert.equal(capabilityWorkspaceHash('tool', 'market'), '#/skills?kind=tool&view=market');
   assert.equal(capabilityWorkspaceHash('data'), '#/skills?kind=data');
   assert.deepEqual(capabilityWorkspaceKindKey('ArrowRight', 'skill'), { handled: true, kind: 'method' });
-  assert.deepEqual(capabilityWorkspaceKindKey('ArrowLeft', 'skill'), { handled: true, kind: 'data' });
-  assert.deepEqual(capabilityWorkspaceKindKey('End', 'skill'), { handled: true, kind: 'data' });
+  assert.deepEqual(capabilityWorkspaceKindKey('ArrowLeft', 'skill'), { handled: true, kind: 'plugin' });
+  assert.deepEqual(capabilityWorkspaceKindKey('End', 'skill'), { handled: true, kind: 'plugin' });
   assert.deepEqual(capabilityWorkspaceKindKey('Enter', 'tool'), { handled: false });
 });
 

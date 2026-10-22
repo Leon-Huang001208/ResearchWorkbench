@@ -6,6 +6,7 @@ import { createAPI, createController, prepareClawExampleDraft, parseRoute, legac
 import { escapeHTML as e } from './markdown.mjs';
 import { createDisclosureState } from './disclosures.mjs';
 import { createAccountMenu } from './server/account-menu.mjs';
+import { createPluginWorkspace } from './plugins-workspace.mjs';
 import { createAccountWorkspace, renderAccountProfile } from './server/account-workspace.mjs';
 import { canUploadToSession, createUploadHandler } from './uploads.mjs';
 import { createSessionSearch } from './session-search.mjs';
@@ -65,6 +66,7 @@ const root = document.querySelector('#app');
 root.setAttribute?.('data-account-workspace-native', '1');
 const accountWorkspace = createAccountWorkspace({root,user:globalThis.__RWB_ACCOUNT__?{...globalThis.__RWB_ACCOUNT__,id:globalThis.__RWB_USER_ID__}:null,logger:safeLog});
 const accountMenu = createAccountMenu({ root, user: globalThis.__RWB_ACCOUNT__, logger: safeLog });
+const pluginWorkspace = createPluginWorkspace({ root, user: globalThis.__RWB_ACCOUNT__ ? { ...globalThis.__RWB_ACCOUNT__, id: globalThis.__RWB_USER_ID__ } : null, logger: safeLog });
 const disclosureState = createDisclosureState({ logger: safeLog });
 const nativeSessionSearch = createSessionSearch({ search: (query, mode) => api.searchSessions(query, mode), notify: updateGlobalSearchResults, logger: safeLog });
 
@@ -704,6 +706,7 @@ function render() {
   disclosureState.restore(root);
   accountMenu.sync();
   accountWorkspace.sync();
+  pluginWorkspace.sync();
   if (focusId) {
     const replacement = document.getElementById(focusId);
     if (replacement && !replacement.disabled) { replacement.focus({ preventScroll: true }); if (selection && selection.start !== null) replacement.setSelectionRange?.(selection.start, selection.end); }
@@ -1466,7 +1469,7 @@ async function showRoute() {
     capabilityState.kindFilter = nextKind;
     capabilityState.dataView = nextKind === 'data' && capabilityState.view === 'connections' ? 'sources' : 'capabilities';
     if (['skill', 'workflow'].includes(nextKind)) capabilityState.kind = nextKind;
-    await loadCatalog(['capabilities', 'tools', 'reportWorkflows', 'dataCatalog', 'connections', 'sessions']);
+    if (nextKind !== 'plugin') await loadCatalog(['capabilities', 'tools', 'reportWorkflows', 'dataCatalog', 'connections', 'sessions']);
     if (nextKind === 'workflow' && capabilityState.view === 'plans') await loadCatalog(['automations', 'automationRuns', 'deliveryChannels']);
     if (nextKind === 'tool' && capabilityState.view === 'market') await loadMCPMarketplace({ reloadRegistries: !mcpMarketplaceState.registries.length });
     else if (previousView === 'market') mcpMarketplaceState = { ...mcpMarketplaceState, detail: null, returnIdentity: null, error: '', loading: false, syncing: false };

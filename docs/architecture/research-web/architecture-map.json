@@ -272,7 +272,9 @@
     {
       "id": "mcp-runtime",
       "sources": [
-        "app/research_web/mcp_runtime/"
+        "app/research_web/mcp_runtime/",
+        "app/research_web/plugins/",
+        "app/research_web/plugin_routes.py"
       ],
       "documents": [
         "docs/architecture/research-web/README.md",
@@ -281,7 +283,8 @@
         "docs/architecture/research-web/03-data-files.md",
         "docs/architecture/research-web/04-api.md",
         "docs/architecture/research-web/05-security-validation.md",
-        "docs/architecture/research-web/07-capabilities.md"
+        "docs/architecture/research-web/07-capabilities.md",
+        "docs/research-web-plugins.md"
       ],
       "diagrams": [
         "02-module-dependencies"
@@ -296,7 +299,11 @@
         "tests/javascript/research_web_auth_output.test.mjs",
         "tests/javascript/research_web_mcp_adapter.test.mjs",
         "tests/javascript/research_web_mcp_marketplace.test.mjs",
-        "tests/e2e/research_web_mcp_runtime.mjs"
+        "tests/e2e/research_web_mcp_runtime.mjs",
+        "tests/research_web/test_plugins.py",
+        "tests/research_web/test_plugins_mcp_security.py",
+        "tests/research_web/test_plugins_runtime_restart.py",
+        "tests/javascript/research_web_plugins.test.mjs"
       ]
     },
     {
@@ -4216,6 +4223,244 @@
       "source": "app/research_web/asset_routes.py",
       "declaredPath": "/assets/chart-preferences",
       "prefix": "/api/research"
+    },
+    {
+      "source": "app/research_web/plugin_routes.py",
+      "method": "GET",
+      "path": "/api/research/plugins",
+      "declaredPath": "",
+      "prefix": "/api/research/plugins"
+    },
+    {
+      "source": "app/research_web/plugin_routes.py",
+      "method": "GET",
+      "path": "/api/research/plugins/{digest}",
+      "declaredPath": "/{digest}",
+      "prefix": "/api/research/plugins"
+    },
+    {
+      "source": "app/research_web/plugin_routes.py",
+      "method": "GET",
+      "path": "/api/research/plugins/{digest}/files/{name:path}",
+      "declaredPath": "/{digest}/files/{name:path}",
+      "prefix": "/api/research/plugins"
+    },
+    {
+      "source": "app/research_web/plugin_routes.py",
+      "method": "POST",
+      "path": "/api/research/plugins/preview",
+      "declaredPath": "/preview",
+      "prefix": "/api/research/plugins"
+    },
+    {
+      "source": "app/research_web/plugin_routes.py",
+      "method": "POST",
+      "path": "/api/research/plugins/{digest}/review",
+      "declaredPath": "/{digest}/review",
+      "prefix": "/api/research/plugins"
+    },
+    {
+      "source": "app/research_web/plugin_routes.py",
+      "method": "POST",
+      "path": "/api/research/plugins/{digest}/enable",
+      "declaredPath": "/{digest}/enable",
+      "prefix": "/api/research/plugins"
+    },
+    {
+      "source": "app/research_web/plugin_routes.py",
+      "method": "POST",
+      "path": "/api/research/plugins/{digest}/disable",
+      "declaredPath": "/{digest}/disable",
+      "prefix": "/api/research/plugins"
+    },
+    {
+      "source": "app/research_web/plugin_routes.py",
+      "method": "DELETE",
+      "path": "/api/research/plugins/{digest}",
+      "declaredPath": "/{digest}",
+      "prefix": "/api/research/plugins"
+    },
+    {
+      "source": "app/research_web/plugin_routes.py",
+      "method": "POST",
+      "path": "/api/research/plugins/{digest}/mcp/{key}/preview",
+      "declaredPath": "/{digest}/mcp/{key}/preview",
+      "prefix": "/api/research/plugins"
+    },
+    {
+      "source": "app/research_web/plugin_routes.py",
+      "method": "POST",
+      "path": "/api/research/plugins/{digest}/mcp/{key}/install",
+      "declaredPath": "/{digest}/mcp/{key}/install",
+      "prefix": "/api/research/plugins"
+    },
+    {
+      "source": "app/research_web/plugin_routes.py",
+      "method": "POST",
+      "path": "/api/research/plugins/{digest}/mcp/{key}/probe",
+      "declaredPath": "/{digest}/mcp/{key}/probe",
+      "prefix": "/api/research/plugins"
+    },
+    {
+      "source": "app/research_web/plugin_routes.py",
+      "method": "POST",
+      "path": "/api/research/plugins/{digest}/mcp/{key}/review",
+      "declaredPath": "/{digest}/mcp/{key}/review",
+      "prefix": "/api/research/plugins"
+    },
+    {
+      "source": "app/research_web/plugin_routes.py",
+      "method": "POST",
+      "path": "/api/research/plugins/{digest}/mcp/{key}/status",
+      "declaredPath": "/{digest}/mcp/{key}/status",
+      "prefix": "/api/research/plugins"
+    },
+    {
+      "source": "app/research_web/plugin_routes.py",
+      "method": "POST",
+      "path": "/api/research/plugins/{digest}/mcp/{key}/enable",
+      "declaredPath": "/{digest}/mcp/{key}/enable",
+      "prefix": "/api/research/plugins"
+    },
+    {
+      "source": "app/research_web/plugin_routes.py",
+      "method": "POST",
+      "path": "/api/research/plugins/{digest}/mcp/{key}/disable",
+      "declaredPath": "/{digest}/mcp/{key}/disable",
+      "prefix": "/api/research/plugins"
+    },
+    {
+      "source": "app/research_web/plugin_routes.py",
+      "method": "POST",
+      "path": "/api/research/plugins/{digest}/mcp/{key}/classify",
+      "declaredPath": "/{digest}/mcp/{key}/classify",
+      "prefix": "/api/research/plugins"
+    },
+    {
+      "source": "app/research_web/plugin_routes.py",
+      "method": "POST",
+      "path": "/api/research/plugins/{digest}/mcp/{key}/authorize",
+      "declaredPath": "/{digest}/mcp/{key}/authorize",
+      "prefix": "/api/research/plugins"
+    },
+    {
+      "source": "app/research_web/plugin_routes.py",
+      "method": "POST",
+      "path": "/api/research/plugins/{digest}/mcp/{key}/approvals",
+      "declaredPath": "/{digest}/mcp/{key}/approvals",
+      "prefix": "/api/research/plugins"
+    },
+    {
+      "source": "app/research_web/plugin_routes.py",
+      "method": "POST",
+      "path": "/api/research/plugins/{digest}/mcp/{key}/decide",
+      "declaredPath": "/{digest}/mcp/{key}/decide",
+      "prefix": "/api/research/plugins"
+    },
+    {
+      "source": "app/research_web/multiuser/plugin_routes.py",
+      "method": "POST",
+      "path": "/api/server/plugins/mcp/{digest}/{key}/{action}",
+      "declaredPath": "/mcp/{digest}/{key}/{action}",
+      "prefix": "/api/server/plugins"
+    },
+    {
+      "source": "app/research_web/multiuser/plugin_routes.py",
+      "method": "POST",
+      "path": "/api/server/plugins/runtime/refresh",
+      "declaredPath": "/runtime/refresh",
+      "prefix": "/api/server/plugins"
+    },
+    {
+      "source": "app/research_web/multiuser/plugin_routes.py",
+      "method": "GET",
+      "path": "/api/server/plugins/reviews/pending",
+      "declaredPath": "/reviews/pending",
+      "prefix": "/api/server/plugins"
+    },
+    {
+      "source": "app/research_web/multiuser/plugin_routes.py",
+      "method": "POST",
+      "path": "/api/server/plugins/reviews/{review_id}/approve",
+      "declaredPath": "/reviews/{review_id}/approve",
+      "prefix": "/api/server/plugins"
+    },
+    {
+      "source": "app/research_web/multiuser/plugin_routes.py",
+      "method": "GET",
+      "path": "/api/server/plugins/{scope}",
+      "declaredPath": "/{scope}",
+      "prefix": "/api/server/plugins"
+    },
+    {
+      "source": "app/research_web/multiuser/plugin_routes.py",
+      "method": "GET",
+      "path": "/api/server/plugins/{scope}/{digest}/files/{name:path}",
+      "declaredPath": "/{scope}/{digest}/files/{name:path}",
+      "prefix": "/api/server/plugins"
+    },
+    {
+      "source": "app/research_web/multiuser/plugin_routes.py",
+      "method": "POST",
+      "path": "/api/server/plugins/{scope}/preview",
+      "declaredPath": "/{scope}/preview",
+      "prefix": "/api/server/plugins"
+    },
+    {
+      "source": "app/research_web/multiuser/plugin_routes.py",
+      "method": "POST",
+      "path": "/api/server/plugins/{scope}/{digest}/review",
+      "declaredPath": "/{scope}/{digest}/review",
+      "prefix": "/api/server/plugins"
+    },
+    {
+      "source": "app/research_web/multiuser/plugin_routes.py",
+      "method": "POST",
+      "path": "/api/server/plugins/{scope}/{digest}/enable",
+      "declaredPath": "/{scope}/{digest}/enable",
+      "prefix": "/api/server/plugins"
+    },
+    {
+      "source": "app/research_web/multiuser/plugin_routes.py",
+      "method": "POST",
+      "path": "/api/server/plugins/{scope}/{digest}/disable",
+      "declaredPath": "/{scope}/{digest}/disable",
+      "prefix": "/api/server/plugins"
+    },
+    {
+      "source": "app/research_web/multiuser/plugin_routes.py",
+      "method": "DELETE",
+      "path": "/api/server/plugins/{scope}/{digest}",
+      "declaredPath": "/{scope}/{digest}",
+      "prefix": "/api/server/plugins"
+    },
+    {
+      "source": "app/research_web/plugins/runtime_restart.py",
+      "method": "POST",
+      "path": "/api/research/internal/plugin-runtime/freeze",
+      "declaredPath": "/freeze",
+      "prefix": "/api/research/internal/plugin-runtime"
+    },
+    {
+      "source": "app/research_web/plugins/runtime_restart.py",
+      "method": "POST",
+      "path": "/api/research/internal/plugin-runtime/rollback",
+      "declaredPath": "/rollback",
+      "prefix": "/api/research/internal/plugin-runtime"
+    },
+    {
+      "source": "app/research_web/plugins/runtime_restart.py",
+      "method": "POST",
+      "path": "/api/research/internal/plugin-runtime/commit",
+      "declaredPath": "/commit",
+      "prefix": "/api/research/internal/plugin-runtime"
+    },
+    {
+      "source": "app/research_web/plugins/runtime_restart.py",
+      "method": "POST",
+      "path": "/api/research/internal/plugin-runtime/unfreeze",
+      "declaredPath": "/unfreeze",
+      "prefix": "/api/research/internal/plugin-runtime"
     }
   ],
   "visualReview": "docs/architecture/research-web/visual-review.json",

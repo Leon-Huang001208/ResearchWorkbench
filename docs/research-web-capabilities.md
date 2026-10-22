@@ -1,5 +1,7 @@
 # Research Web 能力包与版本
 
+2026-10-22 能力中心新增插件页：固定包导入/文件核对/精确权限审核、支持与就绪状态、启用/撤权/回滚/卸载、个人与共享分发以及 MCP 原生确认/审批链。Skill/Workflow 复用 CapabilityCatalog，Command 展开为现有消息，Agent 经当前 session grant 调用唯一 DSH 原生 subagent；Hook 仅受审事件子集。升级保留仍批准旧会话的原字节，MCP 无法并存时明确 deferred，不静默换版。状态和未支持范围见[插件合同](research-web-plugins.md)。
+
 2026-10-22 Wind历史工作区复用现有market_bars与factor_macro Tool ID；天软factor_macro只开放metadata/上市日/逐日因子三种封闭series，不新增Skill、Workflow、模型或Automation触发权限。Host历史job与账号图表偏好属于资产数据/UI状态，不是研究引擎。交接规范/raw/factors/metadata仍受会话和来源归属约束；估算筹码、厂商目录单位和有限预检不能提升为研究事实或质量通过。
 
 全市场概览属于固定行情浏览页面，不注册新的Skill／Tool／Workflow，不启动Automation或研究会话。30／60秒刷新只在页面可见且日历允许时运行，取消、公开来源与用户缓存由MarketService负责；能力权限、日程和唯一DSH执行边界保持。

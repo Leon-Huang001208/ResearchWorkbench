@@ -198,6 +198,14 @@ export function checkResearchArchitecture({projectRoot,changedFiles=[]}) {
     const alias=match[2] || 'router';
     if (new RegExp(`app\\.include_router\\(\\s*${alias}\\s*\\)`).test(mainCode)) mountedSources.add(`app/research_web/${match[1].replaceAll('.','/')}.py`);
   }
+  // Independently mounted private gateway routers use its package-relative imports.
+  if (mountedSources.has(gatewaySource)) {
+    const gatewayCode=read(gatewaySource)?.toString('utf8') || '';
+    for (const match of gatewayCode.matchAll(/^from\s+\.(\w+(?:\.\w+)*)\s+import\s+router(?:\s+as\s+(\w+))?\s*$/gm)) {
+      const alias=match[2] || 'router';
+      if (new RegExp(`app\\.include_router\\(\\s*${alias}\\s*\\)`).test(gatewayCode)) mountedSources.add(`app/research_web/multiuser/${match[1].replaceAll('.','/')}.py`);
+    }
+  }
   for (const source of researchFiles.filter(file=>file.endsWith('.py'))) {
     const content=read(source)?.toString('utf8');if (!content) continue;
     const prefixes=new Map([...content.matchAll(/^(\w+)\s*=\s*APIRouter\(\s*prefix\s*=\s*["']([^"']*)["']/gm)].map(match=>[match[1],match[2]]));
