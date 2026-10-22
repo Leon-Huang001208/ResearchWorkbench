@@ -56,6 +56,31 @@ async def test_directory_coalesces_cold_load_retains_over5000_and_ranks_pinyin(t
 
 
 @pytest.mark.asyncio
+async def test_directory_loader_cannot_start_during_resident_transaction(tmp_path, monkeypatch):
+    import json
+
+    from app.research_web.datahub import DataHub
+    from app.research_web.store import StoreError
+    from research_workbench_entrypoint.resident.admission import private_root
+
+    private_root(tmp_path)
+    (tmp_path / "transaction.json").write_text(json.dumps({"state": "switching"}))
+    monkeypatch.setenv("RESEARCH_RESIDENT_HOME", str(tmp_path))
+    hub = object.__new__(DataHub)
+    calls = []
+
+    async def loader():
+        calls.append("supplier")
+        return {}
+
+    hub._asset_directory = loader
+    with pytest.raises(StoreError) as error:
+        await hub.asset_directory()
+    assert error.value.code == "deployment_busy"
+    assert calls == []
+
+
+@pytest.mark.asyncio
 async def test_directory_stale_keeps_same_authorization_but_configuration_change_hides_old(
     tmp_path,
 ):

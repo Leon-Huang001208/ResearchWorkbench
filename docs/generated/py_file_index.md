@@ -3890,6 +3890,7 @@ Imports:
 - `os`
 - `probes`
 - `re`
+- `research_workbench_entrypoint.resident.admission`
 - `security`
 - `snapshots`
 - `store`
@@ -3899,7 +3900,7 @@ Imports:
 
 Classes:
 - `DataHub`
-  - methods: __init__, authenticate, _latest_probes, catalog, connection_center, directory_fingerprint, asset_directory, source_configuration_digest, catalog_capability, catalog_source, start_probe, _probe, _mark_probe_terminal, _prune_probes, probe, run_probe, restore_probe_statuses, detail, summaries, copy_for_upgrade, copy_selected, list, rows, short, _authorize_query, query, collect_report_weekly, _report_weekly_run_context, register_report_weekly_inputs, _query, cancel, close
+  - methods: __init__, authenticate, _latest_probes, catalog, connection_center, directory_fingerprint, asset_directory, _asset_directory, source_configuration_digest, catalog_capability, catalog_source, start_probe, _probe, _mark_probe_terminal, _prune_probes, probe, run_probe, restore_probe_statuses, detail, summaries, copy_for_upgrade, copy_selected, list, rows, short, _authorize_query, query, collect_report_weekly, _report_weekly_run_context, register_report_weekly_inputs, _query, cancel, close
 
 Functions:
 - `_trim_sample_strings`
