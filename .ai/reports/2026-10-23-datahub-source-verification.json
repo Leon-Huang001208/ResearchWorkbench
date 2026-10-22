@@ -25,9 +25,11 @@
       "Fund": "5d3927fae923d443a2c85431e4bc6ec33be7c9f6",
       "Foundation": "88ef3817680ac822e2d7c819db845de4b7275173",
       "Market_merge": "71ce8519ae3cf8542e21ff77373a861c873423c1",
-      "Asset_combined_validated_candidate": "5cdaee4f06677cea948070dbe45675a265a1fba4"
+      "Asset_combined_validated_candidate": "5cdaee4f06677cea948070dbe45675a265a1fba4",
+      "Asset_after_wind_cache_validated_candidate": "bc4562f45d714bf863314f8642ce852562513ba0",
+      "Wind_cache_source_checkpoint": "2a8585af3a6b3a8bbbb9618643e6da8a119c4cb0"
     },
-    "source_refs_precision": "六个完整Git commit对象核验；Market已合并，Asset5cda为真实组合UI已验候选，不冒充常驻revision或已发布",
+    "source_refs_precision": "八个完整Git commit对象；5cda首次Bao与bc456修复后第二轮分别认证原候选，非部署revision",
     "existing_services_modified": false,
     "dependencies_installed": false,
     "vendor_calls_this_audit": 0,
@@ -40,7 +42,7 @@
       "cjpy_metadata": 1,
       "cjpy_market_in_this_probe": 0,
       "akshare_api_and_page": 2,
-      "baostock_final_host_worker": 1,
+      "baostock_final_host_worker": 2,
       "final_bao_ak_failure": "controlled_only"
     }
   },
@@ -106,6 +108,12 @@
             "availability": "present",
             "sha256": "b2e7434ad4a9793387386171983ff3b40e0a39102bb06663e61817a0273a6dd4",
             "scope": "含9月11日真实Office/Wind验证和工作簿超时"
+          },
+          {
+            "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/asset-history-fallback-20261023-integration/logs/asset-after-cache-bao-host/final-assessment.json",
+            "availability": "present",
+            "sha256": "d0ab52ef2ec04c4d09778564ef7220ca064dc3471a6624d91957f3082a3cb458",
+            "scope": "bc456真实Host按范围跳过；仓库修复仅受控仓+真实StorageRunner，不认证WindSDK/PG"
           }
         ],
         "evidence_grade": "historical_summary_only",
@@ -114,7 +122,8 @@
           "Wind验证TTL为5分钟；会话/安全验证可能需要用户交互",
           "股票历史Provider60自然日限制；auto跳过两年请求不等于故障",
           "本轮受控Wind不是厂商调用",
-          "未部署"
+          "未部署",
+          "长窗完整缓存及小gap规划回归已修复并独立离线复核；实际fetch仍60日，未调用真实Wind/PG"
         ]
       }
     },
@@ -227,6 +236,12 @@
             "availability": "present",
             "sha256": "2b8525a237ada3da075738aecbea5b809b22f13a8d041d73b2b1ff960614073d",
             "scope": "新raw策略语义跳过Tinysoft；不是实际天软行情调用"
+          },
+          {
+            "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/asset-history-fallback-20261023-integration/logs/asset-after-cache-bao-host/final-assessment.json",
+            "availability": "present",
+            "sha256": "d0ab52ef2ec04c4d09778564ef7220ca064dc3471a6624d91957f3082a3cb458",
+            "scope": "bc456新raw语义跳过；固定Tinysoft仅受控失败，0新CJPY行情请求"
           }
         ],
         "evidence_grade": "native_sdk_metadata_only_plus_historical_market_summary",
@@ -446,6 +461,12 @@
             "availability": "present",
             "sha256": "2b8525a237ada3da075738aecbea5b809b22f13a8d041d73b2b1ff960614073d",
             "scope": "本最终组合AK为受控executor失败，不是第三次真实AK请求"
+          },
+          {
+            "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/asset-history-fallback-20261023-integration/logs/asset-after-cache-bao-host/final-assessment.json",
+            "availability": "present",
+            "sha256": "d0ab52ef2ec04c4d09778564ef7220ca064dc3471a6624d91957f3082a3cb458",
+            "scope": "bc456 AK仅受控executor vendor_unreachable；真实AK仍早期两轮"
           }
         ],
         "facts": {
@@ -459,7 +480,8 @@
             485
           ],
           "final_bao_chain_ak_public_requests": 0,
-          "final_bao_chain_ak_controlled_execution_failures": 1
+          "final_bao_chain_ak_controlled_execution_failures": 2,
+          "final_bao_rounds": 2
         },
         "limitations": [
           "此前真实API/页面合计两次AK公开worker调用，各485行；新策略最终组合链AK仅受控失败无真实上游",
@@ -526,7 +548,7 @@
       },
       "current_observation": {
         "status": "bounded_live_verified_actual_host_ui",
-        "scope": "精确5cda组合Host/UI；CJPY语义跳过/Wind范围跳过/AK受控执行失败→真实BaoStock单worker原始日线485行",
+        "scope": "5cda首次及bc456 Wind仓回归修复后第二轮实际Host/UI，各最多1次真实Bao public worker、485行",
         "evidence": [
           {
             "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/datahub-warehouse-20261022/.ai/reports/2026-10-22-datahub-warehouse-PROGRESS.md",
@@ -557,6 +579,24 @@
             "availability": "present",
             "sha256": "1fdae03463c2630ecaa100733380748f19af256b079858b27ac0e50f9a401436",
             "scope": "临时PID6678退出、root删除"
+          },
+          {
+            "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/asset-history-fallback-20261023-integration/logs/asset-after-cache-bao-host/final-assessment.json",
+            "availability": "present",
+            "sha256": "d0ab52ef2ec04c4d09778564ef7220ca064dc3471a6624d91957f3082a3cb458",
+            "scope": "bc456修复后真实Host/UI第二轮PASS，13checks、真实Bao2359ms485行"
+          },
+          {
+            "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/asset-history-fallback-20261023-integration/logs/asset-after-cache-bao-host/result.json",
+            "availability": "present",
+            "sha256": "548f98415e669083963a68cc89e588bb88aa0d136da9c3fd2016d100f584dcc5",
+            "scope": "第二轮bc456真实Bao一次、2359ms/485行"
+          },
+          {
+            "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/asset-history-fallback-20261023-integration/logs/asset-after-cache-bao-host/retired.json",
+            "availability": "present",
+            "sha256": "1a2788a16c7b443cca64f85e660047dfc28cca59935ba711da691a6075e95e23",
+            "scope": "第二轮Host exit0/PID60432absent/rootremoved/reuseaddrPASS/tab10关闭"
           }
         ],
         "evidence_grade": "actual_public_sdk_and_actual_host_ui",
@@ -566,9 +606,65 @@
           "固定Tinysoft和初始快照受控失败保留，不认证整页所有区块",
           "canonical顶层attempted_sources空，但输入manifest保留完整候选和两条执行记录",
           "历史首次12秒超时与旧2行摘要保留，不覆盖为本次成功",
-          "真实临时Host/Memory独立配置，未部署"
+          "真实临时Host/Memory独立配置，未部署",
+          "两轮Bao分别绑定5cda与bc456产品字节；第二轮因3源修复而重验，不覆盖首次证据，不证明真实Wind或完整仓PG"
         ],
         "facts": {
+          "source_git_head": "bc4562f45d714bf863314f8642ce852562513ba0",
+          "public_worker_requests": 2,
+          "provider": "baostock",
+          "rows": 485,
+          "worker_duration_seconds_approx": 2.359,
+          "requested_range": {
+            "start_date": "2024-10-20",
+            "end_date": "2026-10-20"
+          },
+          "actual_range": {
+            "start_date": "2024-10-21",
+            "end_date": "2026-10-20"
+          },
+          "last_close": 9.76,
+          "required_semantics": "cn_stock_daily_cny_share_v1",
+          "canonical_version": "asset-history-raw-2",
+          "listing_date": null,
+          "boundary_verified": false,
+          "full_history": false,
+          "price_currency": "CNY",
+          "price_unit": "currency_per_share",
+          "volume_unit": "share",
+          "model_calls": 0,
+          "database_calls": 0,
+          "production_credentials_used": false,
+          "canonical_top_level_attempted_sources": [],
+          "execution_audit_location": "asset_history.inputs[0].manifest.provider_metadata.execution_attempts",
+          "execution_attempts": [
+            "akshare:controlled_vendor_unreachable",
+            "baostock:actual_success"
+          ],
+          "temporary_host_exit": 0,
+          "pid_absent": true,
+          "temporary_root_removed": true,
+          "port_18997_reuseaddr": "PASS",
+          "browser_tab9_closed": true,
+          "public_worker_requests_this_round": 1,
+          "browser_tab10_closed": true,
+          "source_app_tree": "b7b7b779e5cfd7f09221d001c62a72b03d840f15",
+          "rounds": [
+            {
+              "source_git_head": "5cdaee4f06677cea948070dbe45675a265a1fba4",
+              "worker_requests": 1,
+              "rows": 485,
+              "duration_seconds": 1.409
+            },
+            {
+              "source_git_head": "bc4562f45d714bf863314f8642ce852562513ba0",
+              "worker_requests": 1,
+              "rows": 485,
+              "duration_seconds": 2.359
+            }
+          ]
+        },
+        "historical_first_round": {
           "source_git_head": "5cdaee4f06677cea948070dbe45675a265a1fba4",
           "public_worker_requests": 1,
           "provider": "baostock",
@@ -2801,14 +2897,14 @@
   "not_rechecked_count": 57,
   "overall_status": "partial_bounded_sources_verified_57_not_rechecked_not_deployed",
   "review": {
-    "evidence_files_hash_checked": 23,
-    "unique_evidence_files": 17,
+    "evidence_files_hash_checked": 30,
+    "unique_evidence_files": 20,
     "source_ids_unique": 64,
     "new_vendor_calls": 0,
     "secret_config_files_read": false,
     "all_sources_available": false,
     "prior_draft_reference_occurrences": 15,
-    "full_git_commit_refs_checked": 6,
+    "full_git_commit_refs_checked": 8,
     "not_rechecked_source_count": 57
   }
 }

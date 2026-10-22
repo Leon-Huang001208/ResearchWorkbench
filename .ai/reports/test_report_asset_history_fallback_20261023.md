@@ -165,3 +165,12 @@ Wind增量独立质量限定PASS：logs/wind-cache-quality-review.json（SHA256 
 
 
 Wind修复源码检查点已正常提交`2a8585af3a6b3a8bbbb9618643e6da8a119c4cb0`，父提交88710ece；本轮reading.repository.revision与架构入口绑定此已存在source，再由官方生成器重建index/API Atlas。后续docs commit与此source产品字节相同，供应商新验收及Router/CI仍由Root后续绑定，不将受审旧source证据替换为新候选已验。
+
+
+## Wind修复后实际Host/Bao第二轮与最终候选
+
+Root在精确bc4562f45d714bf863314f8642ce852562513ba0（app tree b7b7b779e5cfd7f09221d001c62a72b03d840f15）执行新一轮实际完整Host/UI与真实Bao，13项检查PASS。固定Tinysoft受控失败后仍回显tinysoft，切auto创建新job；CJPY语义/Wind范围跳过，AK受控executor失败2ms后，真实Bao单worker2359ms取得485行，实际2024-10-21..2026-10-20、最新9.76。required_semantics/raw2/CNY-share与输入attempt审计保持，上市日未知、boundary_verified=false/full_history=false。初始快照/固定天软受控失败不认证整页全部数据，模型0，无PG/生产凭据或常驻更新。
+
+证据logs/asset-after-cache-bao-host.log及logs/asset-after-cache-bao-host/{controller.json,result.json,final-assessment.json,retired.json,final-visible-state.txt,verify_visible_host.py}；assessment SHA256 d0ab52ef2ec04c4d09778564ef7220ca064dc3471a6624d91957f3082a3cb458，result SHA256 548f98415e669083963a68cc89e588bb88aa0d136da9c3fd2016d100f584dcc5。Host exit0、PID60432absent、任务root删除、18997 reuseaddrPASS、tab10关闭；截图/Users/leon/.codex/visualizations/2026/10/23/asset-history/final-cache-bao-fallback.jpg由Root检查并提供用户。累计真实Bao为两轮，各自最多1worker：首次5cda约1.409秒，第二次bc456约2.359秒；真实AK仍此前API/页面两轮，CJPY仍metadata1/本次market0，不能把受控失败说成实际厂商故障。真实Wind及正式PG未验。
+
+新的64源ledger追加bc456与Wind源码checkpoint完整refs，保留首次5cda及旧报告的精确git_blob引用避免自指；原22快照不改，57源未重查。本文与ledger更新为docs-only，产品源码保持bc456字节，最终Router将绑定实际新HEAD。旧887完整API213仅为其真实执行SHA的回归证据；受影响Python重跑、同字节JS及最终精确候选CI各自映射，不冒称旧API已在新候选执行。不再无理由重跑270秒API，不削减policy必需门，未发布/部署。
