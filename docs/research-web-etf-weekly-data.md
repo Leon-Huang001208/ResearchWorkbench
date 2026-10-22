@@ -103,3 +103,5 @@ collector 实际调用 `adopt_verified_groups`：已获证明的组采用 API；
 
 
 2026-10-22 基金NAV入仓：最多31日东财NAV原生快照仍带未知币种、基准和总回报缺口，不作为本周报Wind/Excel同源输入或正式回测数据。
+
+2026-10-22 iFinD凭据复用：同花顺权限策略验证属于来源认证，data_permission_verified仍为false，不能取代本周报Wind/Excel同源资料、覆盖或正式回测证据。

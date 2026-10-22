@@ -6,6 +6,7 @@ import hashlib
 import hmac
 import io
 import json
+import math
 import re
 import time
 from datetime import UTC, datetime
@@ -96,6 +97,94 @@ def endpoint_request(
     if endpoint["method"] == "GET" and args.get("body"):
         raise ProviderError("external_body_not_allowed")
     return endpoint, url
+
+
+def _quantapi_history_body(args: dict[str, Any]) -> dict[str, Any]:
+    """Wrap only the documented history contract, before reading credentials."""
+    reason = "quantapi_history_contract_invalid"
+    body = args.get("body", {})
+    if args.get("query") or ("reqBody" in body and set(body) != {"reqBody"}):
+        raise ProviderError(reason)
+    payload = body.get("reqBody") if "reqBody" in body else body
+    required = {"codes", "indicators", "startdate", "enddate"}
+    if (
+        not isinstance(payload, dict)
+        or not required <= payload.keys()
+        or payload.keys() - required - {"functionpara"}
+    ):
+        raise ProviderError(reason)
+    for key in required:
+        value = payload[key]
+        if (
+            not isinstance(value, str)
+            or not 1 <= len(value) <= (10 if key.endswith("date") else 4096)
+            or any(char.isspace() or ord(char) < 32 for char in value)
+            or any(not part for part in value.split(","))
+        ):
+            raise ProviderError(reason)
+        if key in {"codes", "indicators"}:
+            pattern = r"[A-Za-z0-9._-]+" if key == "codes" else r"[A-Za-z0-9_]+"
+            if any(re.fullmatch(pattern, part) is None for part in value.split(",")):
+                raise ProviderError(reason)
+    dates = []
+    for key in ("startdate", "enddate"):
+        value = payload[key]
+        pattern = "%Y-%m-%d" if "-" in value else "%Y/%m/%d" if "/" in value else "%Y%m%d"
+        try:
+            day = datetime.strptime(value, pattern)
+        except ValueError:
+            raise ProviderError(reason) from None
+        if day.strftime(pattern) != value:
+            raise ProviderError(reason)
+        dates.append(day)
+    if dates[0] > dates[1]:
+        raise ProviderError(reason)
+    options = payload.get("functionpara", {})
+    enums = {
+        "Interval": {"D", "W", "M", "Q", "S", "Y"},
+        "SampleInterval": {"D", "W", "M", "Q", "S", "Y"},
+        "CPS": {"1", "2"},
+        "PriceType": {"1", "2"},
+        "Currency": {"RMB", "MHB", "GHB", "YSHB"},
+    }
+    if (
+        not isinstance(options, dict)
+        or options.keys() - enums.keys() - {"Fill", "BaseDate"}
+        or {"Interval", "SampleInterval"} <= options.keys()
+    ):
+        raise ProviderError(reason)
+    for key, value in options.items():
+        if key in enums:
+            if not isinstance(value, str) or value not in enums[key]:
+                raise ProviderError(reason)
+        elif key == "BaseDate":
+            try:
+                if (
+                    not isinstance(value, str)
+                    or datetime.strptime(value, "%Y-%m-%d").strftime("%Y-%m-%d") != value
+                ):
+                    raise ValueError
+            except ValueError:
+                raise ProviderError(reason) from None
+        elif not isinstance(value, str) or value not in {"Previous", "Blank", "Omit"}:
+            try:
+                if (
+                    isinstance(value, bool)
+                    or not isinstance(value, (str, int, float))
+                    or not math.isfinite(float(value))
+                ):
+                    raise ValueError
+            except (ValueError, OverflowError):
+                raise ProviderError(reason) from None
+    # Host safety budget, not vendor/account quota or the returned-row limit.
+    cells = (
+        len(payload["codes"].split(","))
+        * len(payload["indicators"].split(","))
+        * ((dates[1] - dates[0]).days + 1)
+    )
+    if cells > MAX_ROWS:
+        raise ProviderError("quantapi_history_workload_limit")
+    return {"reqBody": payload}
 
 
 _NESTED_LIST_KEYS = (
@@ -327,9 +416,7 @@ async def bounded_response(
         )
 
 
-async def credentials(
-    client: httpx.AsyncClient, source_id: str, connections: Any
-) -> tuple[str, list[str]]:
+async def _source_secret(connections: Any, source_id: str) -> str:
     if connections is None:
         raise ProviderError("blocked_config")
     try:
@@ -338,63 +425,123 @@ async def credentials(
         raise ProviderError("blocked_config") from None
     if not isinstance(secret, str) or not secret:
         raise ProviderError("blocked_config")
-    if source_id != "ext_ths":
-        return secret, [secret]
-    # Access-token rotation stays inside the provider, never in dataset rows.
+    return secret
+
+
+def _quantapi_configuration(secret: str) -> tuple[str | None, str | None]:
+    """Accept bounded opaque tokens, without exposing configuration in errors."""
     try:
-        config = json.loads(secret) if secret.startswith("{") else {"access_token": secret}
+        if len(secret) > 16384:
+            raise ValueError
+        value = secret.strip()
+        config = json.loads(value) if value.startswith(("{", "[")) else {"access_token": value}
         if not isinstance(config, dict):
-            raise ProviderError("vendor_auth_failed")
-        refresh = config.get("refresh_token")
-        if refresh:
-            if not isinstance(refresh, str):
-                raise ProviderError("vendor_auth_failed")
-            raw, _, _ = await bounded_response(
-                client,
-                "POST",
-                "https://quantapi.51ifind.com/api/v1/get_access_token",
-                headers={"refresh_token": config["refresh_token"]},
-            )
-            body = json.loads(raw)
-            if not isinstance(body, dict) or not isinstance(body.get("data"), dict):
-                raise ProviderError("vendor_auth_failed")
-            token = body["data"].get("access_token")
-            if body.get("errorcode", 0) != 0 or not isinstance(token, str) or not token:
-                raise ProviderError("vendor_auth_failed")
-            return token, [secret, refresh, token]
-        token = config["access_token"]
-        if not isinstance(token, str) or not token:
-            raise ProviderError("vendor_auth_failed")
-        return token, [secret, token]
+            raise TypeError
+        tokens = []
+        for key in ("access_token", "refresh_token"):
+            token = config.get(key)
+            if token is not None and (
+                not isinstance(token, str)
+                or len(token) > 4096
+                or any(ord(char) < 33 or ord(char) > 126 for char in token)
+            ):
+                raise ValueError
+            tokens.append(token or None)
+        if not any(tokens):
+            raise ValueError
+        return tokens[0], tokens[1]
+    except (TypeError, ValueError):
+        raise ProviderError("vendor_auth_failed") from None
+
+
+async def _quantapi_credentials(client: httpx.AsyncClient, secret: str) -> tuple[str, list[str]]:
+    token, refresh = _quantapi_configuration(secret)
+    sensitive = [value for value in (secret, token, refresh) if value]
+    if token:
+        return token, sensitive
+    try:
+        raw, _, _ = await bounded_response(
+            client,
+            "POST",
+            "https://quantapi.51ifind.com/api/v1/get_access_token",
+            headers={"refresh_token": refresh},
+        )
+        body = json.loads(raw)
+        if not isinstance(body, dict) or not isinstance(body.get("data"), dict):
+            raise TypeError
+        token, _ = _quantapi_configuration(
+            json.dumps({"access_token": body["data"].get("access_token")})
+        )
+        if body.get("errorcode", 0) != 0 or not token:
+            raise ValueError
+        return token, [*sensitive, token]
     except (KeyError, TypeError, ValueError):
         raise ProviderError("vendor_auth_failed") from None
 
 
+async def credentials(
+    client: httpx.AsyncClient, source_id: str, connections: Any
+) -> tuple[str, list[str]]:
+    secret = await _source_secret(connections, source_id)
+    if source_id != "ext_ths":
+        return secret, [secret]
+    return await _quantapi_credentials(client, secret)
+
+
 async def verify_quantapi_authorization(connections, *, transport=None):
-    """Explicit refresh-token exchange only; never rotate tokens or read data."""
+    """Verify existing access via metadata, or exchange a refresh-only config."""
     try:
-        secret = await asyncio.to_thread(connections.read_source_secret, "ext_ths")
-        configuration = json.loads(secret)
-        if (
-            not isinstance(configuration, dict)
-            or not isinstance(configuration.get("refresh_token"), str)
-            or not configuration["refresh_token"]
-            or len(configuration["refresh_token"]) > 4096
+        async with (
+            asyncio.timeout(12),
+            httpx.AsyncClient(
+                transport=transport, timeout=8, follow_redirects=False, trust_env=False
+            ) as client,
         ):
-            raise ProviderError("refresh_token_required")
-    except ProviderError:
-        raise
-    except Exception:  # noqa: BLE001 - configuration and credential errors are never echoed.
-        raise ProviderError("refresh_token_required") from None
-    async with (
-        asyncio.timeout(12),
-        httpx.AsyncClient(
-            transport=transport, timeout=8, follow_redirects=False, trust_env=False
-        ) as client,
-    ):
-        token, _sensitive = await credentials(client, "ext_ths", connections)
-        if not token:
-            raise ProviderError("vendor_auth_failed")
+            secret = await _source_secret(connections, "ext_ths")
+            access, _refresh = _quantapi_configuration(secret)
+            token, sensitive = await _quantapi_credentials(client, secret)
+            if access:
+                raw, _, _ = await bounded_response(
+                    client,
+                    "GET",
+                    "https://quantapi.51ifind.com/ds_service_basic/api/v1/get_limit_policy",
+                    headers={"access_token": token},
+                )
+                policy = json.loads(raw)
+                fields = {
+                    "user_type",
+                    "user_type_cn",
+                    "qps_limit",
+                    "request_data_limit",
+                    "data_volume_limit",
+                    "data_range_limit",
+                }
+                if (
+                    not isinstance(policy, dict)
+                    or set(policy) != fields
+                    or any(
+                        not isinstance(policy[key], str) or not policy[key]
+                        for key in ("user_type", "user_type_cn")
+                    )
+                    or any(
+                        not isinstance(policy[key], dict)
+                        for key in fields - {"user_type", "user_type_cn"}
+                    )
+                    or _rows_reflect_credentials(policy, sensitive)
+                ):
+                    raise ProviderError("vendor_auth_failed")
+    except (ProviderError, httpx.HTTPError, TimeoutError, ValueError) as exc:
+        reason = (
+            str(exc)
+            if isinstance(exc, ProviderError)
+            and str(exc) in {"blocked_config", "redirect_denied", "response_size_limit"}
+            else "vendor_auth_failed"
+        )
+        log.warning("quantapi_authorization_failed", reason=reason)
+        raise ProviderError(reason) from None
+    log.info(
+        "quantapi_authorization_verified", method="limit_policy" if access else "refresh_exchange"
+    )
     return {
         "status": "authenticated",
         "data_permission_verified": False,
@@ -480,6 +627,8 @@ async def fetch(
             raise ProviderError("external_source_required")
         args = arguments(query.parameters.get("arguments_json"))
         endpoint, url = endpoint_request(source_id, dataset, args)
+        if (source_id, dataset) == ("ext_ths", "cmd_history_quotation"):
+            args["body"] = _quantapi_history_body(args)
         if credential_transport_blocked(endpoint):
             raise ProviderError("credential_transport_blocked")
         limit = query.parameters.get("limit", MAX_ROWS)
@@ -544,6 +693,18 @@ async def fetch(
             if len(rows) > limit or complete_page is False
             else "snapshot" if rows else "empty"
         )
+        if (
+            (source_id, dataset) == ("ext_ths", "cmd_history_quotation")
+            and result.rows
+            and all(
+                value is None
+                for row in result.rows
+                for key, value in row.items()
+                if key not in {"asset", "date"}
+            )
+        ):
+            result.status = "partial"
+            result.missing.append("history_values_missing")
         result.provider_total = provider_total
         result.pagination_complete = len(rows) <= limit and complete_page is True
         if complete_page is False:

@@ -114,3 +114,5 @@ python -m unittest discover -s tests/research_web -p 'test_market_store*.py'
 
 
 2026-10-22 基金NAV入仓：Host原生快照层仅为完整分页、有界东财NAV开放三项已声明语义缺口，rows/fields/missing/raw逐字节保真；不改变MarketStore内核schema、历史可得性或冻结恢复合同。
+
+2026-10-22 iFinD凭据复用：iFinD access优先及纯元数据授权验证只调整Provider凭据调用顺序，不改MarketStore schema、范围覆盖、PIT或冻结恢复。

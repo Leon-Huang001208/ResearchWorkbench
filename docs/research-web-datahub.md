@@ -354,7 +354,38 @@ ProviderBinding按dataset发布已审阅的语义；未知频率/单位/历史�
 出口固定为目录内注册的 URL 与方法，拒绝重定向；单响应 1MiB、行数上限 5000，超限保留 `row_limit` 说明。
 供应商 HTTP 200 但错误码非零、密钥反弹（凭据出现在响应正文）都失败关闭，不写入快照。四个凭据来源
 `ext_ths`、`ext_daole`、`ext_tikhub`、`ext_cicc` 只经 DataHub 凭据后端读取秘密；其中 `ext_ths` 支持用
-`refresh_token` 在 Provider 内换取 access token，换取与业务响应的密钥均不进入参数、结果或日志。
+`refresh_token` 在 Provider 内换取 access token。已保存非空、有界 `access_token` 时优先使用，
+只有 refresh-only 配置才交换；业务 401 不自动重试、轮换或回写凭据。换取与业务响应的密钥均不进入参数、结果或日志。
+
+显式 QuantAPI 授权验证对已有 access token（包括旧式纯字符串）只向固定 HTTPS
+`https://quantapi.51ifind.com/ds_service_basic/api/v1/get_limit_policy` 发一次 GET，
+不跟随重定向、不读取代理环境，总预算12秒，单响应沿用1MiB上限。只接受原生顶层六字段政策形状：
+`user_type`／`user_type_cn` 为非空字符串，`qps_limit`／`request_data_limit`／`data_volume_limit`／
+`data_range_limit` 为对象；失败、未知形状或秘密反射拒绝认证，不返回用户类型、限额、厂商错误正文或凭据。
+refresh-only 配置保持一次显式交换验证。两条路径始终返回 `data_queries=0`、
+`data_permission_verified=false`、`token_rotated=false`；元数据认证成功不证明任何市场数据权限。
+
+历史行情保留既有 `ext_ths/cmd_history_quotation` dataset ID 与原生快照白名单，实际固定出口修正为
+`POST https://quantapi.51ifind.com/api/v1/history_data`。按已审官方 Skill 1.1.0 的 THS_HQ 合同，
+`arguments_json.body` 可为旧式合法扁平对象或仅含 `reqBody` 的对象；Provider 只包装一次，
+不接受两种格式混合或 URL query 替代参数。`codes`／`indicators` 为非空、无空白、至多4096字符的
+逗号分隔字符串，`startdate`／`enddate` 为有序有效日期（`YYYYMMDD`、`YYYY-MM-DD`、`YYYY/MM/DD`）。
+可选 `functionpara` 仅接受官方对象格式及 `Interval`／`SampleInterval`（互斥）、`CPS`、`PriceType`、
+`Fill`、`BaseDate`、`Currency`；不猜测历史字符串语法、不丢弃未知字段或补币种／复权／填充默认值。
+未知或歧义参数在读取凭据前返回 `quantapi_history_contract_invalid`。
+
+证券列表仅接受显式字母数字、点、下划线、短横线代码；指标仅接受显式英文字母数字与下划线，
+均以逗号分隔，拒绝通配符／括号／表达式。Host单次保守预算为5000 cells：
+`证券项数 × 指标项数 × 首尾均计入的日历天数`，超限在取密前返回
+`quantapi_history_workload_limit`。这是产品安全上限，不是供应商或账户额度，也不是返回行数limit；
+周/月Interval及SampleInterval不放宽估算，不自动拆批、截断或添加默认值。
+
+例如旧式 `body={"codes":"600000.SH","indicators":"close","startdate":"2026-10-21",
+"enddate":"2026-10-21","functionpara":{"Interval":"D","Currency":"RMB","Fill":"Blank"}}`
+转换为 `{"reqBody":body}`。仍按 `tables[].thscode/time/table` 对齐展开并保存完整源字节，
+空数组返回 `empty`、坏结构和非零错误码失败；真实 null 不填零，全部指标无值时保留原件与行并返回
+`partial/history_values_missing`，不进入原生研究仓的完整快照。请求 RMB 或复权选项不构成单位或
+跨源等价的独立核验，未知单位仍为 `provider_defined`，正式回测／历史可得性边界不变。
 
 状态语义：`code_exists` 表示来源在清单中已登记；`integration_completed` 表示已有按需取数适配；
 `configured` 对公开来源为真、对凭据来源仅在秘密已保存时为真。外部来源的探测只报告配置与适配状态，不向上游发请求，

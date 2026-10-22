@@ -247,3 +247,7 @@ Hot固定原件发布复用DataHub私有会话快照目录与读取授权；它�
 
 
 2026-10-22 基金NAV入仓：基金NAV例外仅限eastmoney_fund、nav/fund_nav及最多31日完整分页；授权撤销、配置epoch和profile失效仍阻止查仓，不扩大跨源等价或令牌权限。
+
+2026-10-22 iFinD凭据复用：官方iFinD授权验证优先已有access，固定HTTPS权限策略检查不触发行情、不提升数据权限；坏access失败关闭，不自动以refresh重试或切账号。
+
+2026-10-23 iFinD历史行情修复：合法flat与reqBody按官方合同二选一，仅历史dataset固定出口改到history_data；未知参数在取密前失败。凭据仍来自当前Host connections，原账号/配置epoch/授权及原生快照白名单不变；不读取全局Skill配置，不新增EDB或正式回测权限。

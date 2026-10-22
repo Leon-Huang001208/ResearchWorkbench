@@ -19,3 +19,12 @@ dataset key 包含 capability、实际 source、全部 parameters 的规范摘�
 命中的 Result.raw 是 `FrozenSnapshot.export()` 可移植包，只含本次选定的一个版本及它引用的完整响应原件，不包含该 series 的全历史。旧捕获通过相应 as_of 分别冻结导出；`service.export_restore(actor, scope, content)` 在当前 restore 授权下恢复该版本后可重读。查询/冻结遵守既有每次操作的事实数和字节预算及 DataHub 16MiB响应限制，超限明确失败，不截断；这些是单次投影/单份原件的预算，不是全部历史累计容量上限。超过10,000次追加修订后查询仍只投影一条事实，后续修订可继续追加；实际长期容量、索引性能与生产备份仍待独立验收。模块没有安装新依赖，没有连接真实 PostgreSQL/厂商，也不代表 Host/UI、安装 CI、生产部署或其他平台已完成验收。
 
 离线验证入口：`.venv-tests/bin/python -m pytest --confcutdir=tests/research_web tests/research_web/test_research_snapshot_store.py -q`。
+
+
+2026-10-22 iFinD凭据复用：iFinD get_limit_policy仅用于显式授权验证，不进入external_data数值白名单或原生研究快照；不得把权限元数据当行情/财务数据保存。
+
+2026-10-23 iFinD历史行情：`ext_ths/cmd_history_quotation` 保留原dataset身份，固定请求改为官方
+`history_data`，合法旧flat body精确包一层`reqBody`，原生`reqBody`不重复包装；参数冲突或未知语法先于取密拒绝。
+time/table逐项对齐和raw字节保存保持；全null指标结果标记`partial/history_values_missing`，原生快照不接纳为完整数据。
+官方单证券单日收盘价样本、授权元数据、本机Mock和候选Host实际数据验收分别记录，不互相替代。
+未知币种／复权等价、历史时点及正式回测仍未认证，不新增EDB、日期序列或PIT接口。

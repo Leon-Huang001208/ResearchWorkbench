@@ -4418,6 +4418,7 @@ Imports:
 - `httpx`
 - `io`
 - `json`
+- `math`
 - `providers`
 - `re`
 - `time`
@@ -4432,6 +4433,8 @@ Classes:
 Functions:
 - `arguments`
 - `endpoint_request`
+- `_quantapi_history_body`
+  - Wrap only the documented history contract, before reading credentials.
 - `_list_payload`
   - Dict payloads with a primary list become real rows so samples stay small.
 - `response_rows`
@@ -4440,9 +4443,13 @@ Functions:
 - `_rows_reflect_credentials`
   - Inspect decoded strings before publishing; never log credential contents.
 - `bounded_response`
+- `_source_secret`
+- `_quantapi_configuration`
+  - Accept bounded opaque tokens, without exposing configuration in errors.
+- `_quantapi_credentials`
 - `credentials`
 - `verify_quantapi_authorization`
-  - Explicit refresh-token exchange only; never rotate tokens or read data.
+  - Verify existing access via metadata, or exchange a refresh-only config.
 - `cicc_request`
 - `fetch`
 
