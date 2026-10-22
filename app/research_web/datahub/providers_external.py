@@ -29,7 +29,7 @@ from .providers import DEADLINE, MAX_RESPONSE_BYTES, MAX_ROWS, ProviderError, Re
 
 log = get_logger(__name__)
 _PRIVATE_KEYS = re.compile(
-    r"(?:password|secret|token|api_?key|authorization|cookie|headers?|url|host|proxy|redirect|callback|path|module|sql)",
+    r"(?:password|secret|token|api_?key|registration_?key|authorization|cookie|headers?|url|host|proxy|redirect|callback|path|module|sql)",
     re.IGNORECASE,
 )
 

@@ -42,6 +42,7 @@ def test_inventory_preserves_all_sources_and_reference_boundary():
         "{",
         '{"url":"https://evil.test"}',
         '{"query":{"api_key":"x"}}',
+        '{"body":{"registrationkey":"synthetic-bls-secret"}}',
         '{"body":{"nested":{"callback":"x"}}}',
     ],
 )

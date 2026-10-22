@@ -18,7 +18,7 @@ import httpx
 from core.observability import get_logger
 
 from .contracts import BusinessQuery
-from .providers import MAX_ROWS, ProviderError, Result
+from .providers import MAX_ROWS, ProviderError, Result, cn_stock_identity
 
 log = get_logger(__name__)
 
@@ -169,6 +169,8 @@ def validate_supported_query(query: BusinessQuery) -> None:
     if query.capability == "market_bars":
         if parameters.get("asset_type", "stock") not in {"stock", "index", "etf"}:
             raise ProviderError("data_not_equivalent")
+        if parameters.get("asset_type", "stock") == "stock":
+            cn_stock_identity(parameters.get("asset"))
         _frequency(parameters)
         if parameters.get("adjustment", "qfq") not in {"none", "qfq", "hfq"}:
             raise ProviderError("invalid_adjustment")
@@ -191,6 +193,7 @@ def validate_supported_query(query: BusinessQuery) -> None:
         for asset in assets:
             if not isinstance(asset, str):
                 raise ProviderError("invalid_asset")
+            cn_stock_identity(asset)
             code = _symbol(asset)
             exchange = _exchange_symbol(asset)
             if code in identities and identities[code] != exchange:

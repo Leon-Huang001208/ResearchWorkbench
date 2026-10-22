@@ -38,6 +38,7 @@ from ..market_store.models import parse_batch
 from ..market_store.operation import checkpoint, record_committed
 from ..store import StoreError
 from .contracts import BusinessQuery
+from .providers import ProviderError, cn_stock_identity
 from .research_snapshot_store import SnapshotSeries
 from .security import atomic_json, directory, read_file
 from .warehouse import WarehouseBinding, WarehouseBridge
@@ -457,6 +458,11 @@ class ResearchWarehouse:
             or query.parameters.get("frequency") not in {"daily", "1d", "day"}
         ):
             return None
+        try:
+            cn_stock_identity(query.parameters.get("asset"))
+        except ProviderError:
+            log.warning("warehouse_stock_identity_unverified")
+            raise MarketStoreError("warehouse_security_identity_unverified") from None
         window = WarehouseBridge._window(query)
         if window is None:
             return None

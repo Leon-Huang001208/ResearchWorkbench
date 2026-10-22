@@ -10,6 +10,101 @@ from types import SimpleNamespace
 
 
 class WarehouseManagementTests(unittest.TestCase):
+    def test_canonical_stock_identity_is_checked_before_any_source_commit(self):
+        from app.research_web.datahub.contracts import BusinessQuery
+        from app.research_web.datahub.providers import Result
+        from app.research_web.datahub.research_warehouse import FIELDS, ResearchWarehouse
+        from app.research_web.market_store import InMemoryMarketStore, MarketStoreError
+
+        class Backend(InMemoryMarketStore):
+            commits = 0
+
+            def bootstrap(self):
+                pass
+
+            def commit_batch(self, *args):
+                self.commits += 1
+                return super().commit_batch(*args)
+
+        backend = Backend()
+        with TemporaryDirectory() as directory:
+            warehouse = ResearchWarehouse(
+                Path(directory),
+                keyring=SimpleNamespace(get_password=lambda *_: None),
+                backend_factory=lambda *_: backend,
+            )
+            status = warehouse.save(
+                {
+                    "host": "127.0.0.1",
+                    "database": "rwb_market_identity",
+                    "username": "research",
+                    "sslmode": "disable",
+                }
+            )
+            warehouse.initialize(status["profile_id"], "rwb_market_identity")
+            warehouse._calendars.append(
+                {
+                    "start": date(2025, 1, 2),
+                    "end": date(2025, 1, 2),
+                    "days": {date(2025, 1, 2): True},
+                    "hash": "b" * 64,
+                    "cutoff": None,
+                }
+            )
+
+            def request(asset, source, asset_type="stock"):
+                return BusinessQuery(
+                    capability="market_bars",
+                    source=source,
+                    parameters={
+                        "asset": asset,
+                        "asset_type": asset_type,
+                        "frequency": "daily",
+                        "adjustment": "none",
+                        "start_date": "2025-01-02",
+                        "end_date": "2025-01-02",
+                    },
+                )
+
+            def result(asset):
+                return Result(
+                    status="complete",
+                    rows=[
+                        {
+                            "asset": asset,
+                            "date": "2025-01-02",
+                            "open": 10.0,
+                            "high": 10.0,
+                            "low": 10.0,
+                            "close": 10.0,
+                            "volume": 100.0,
+                            "turnover": 1000.0,
+                        }
+                    ],
+                    fields=FIELDS,
+                    raw=[b"original"],
+                )
+
+            for source in ("akshare", "baostock", "wind"):
+                for asset in ("000001.SH", "510050.SH", "600000.SZ", "000001.BJ"):
+                    with (
+                        self.subTest(source=source, asset=asset),
+                        self.assertRaisesRegex(
+                            MarketStoreError, "^warehouse_security_identity_unverified$"
+                        ),
+                    ):
+                        warehouse.ingest(request(asset, source), source, "a" * 64, result(asset))
+            self.assertEqual(backend.commits, 0)
+            for asset in ("600000.SH", "000001.SZ", "600519"):
+                self.assertIsNotNone(
+                    warehouse.ingest(request(asset, "akshare"), "akshare", "a" * 64, result(asset))
+                )
+            self.assertEqual(backend.commits, 3)
+            for asset, kind in (("000001.SH", "index"), ("510050.SH", "etf")):
+                self.assertIsNone(
+                    warehouse._bridge(request(asset, "akshare", kind), "akshare", "a" * 64)
+                )
+
     def test_raw_binding_preserves_rows_and_repeated_fill_version(self):
         from app.research_web.datahub.contracts import BusinessQuery
         from app.research_web.datahub.providers import Result

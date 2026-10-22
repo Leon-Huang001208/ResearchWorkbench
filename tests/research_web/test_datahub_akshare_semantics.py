@@ -1,5 +1,6 @@
 """Stock feeds use different lot/rate conventions despite identical business fields."""
 
+import asyncio
 import sys
 import unittest
 from types import SimpleNamespace
@@ -9,10 +10,86 @@ import pandas as pd
 
 from app.research_web.datahub import providers_akshare as provider
 from app.research_web.datahub.contracts import BusinessQuery
-from app.research_web.datahub.providers import ProviderError
+from app.research_web.datahub.providers import ProviderError, cn_stock_identity
 
 
 class AKShareSemanticsTests(unittest.TestCase):
+    def test_wind_disguised_stock_rejected_before_submitting_adapter(self):
+        from app.research_web.datahub import providers_wind
+
+        for asset in ("000001.SH", "510050.SH", "600000.SZ", "000001.BJ"):
+            for capability, parameters in (
+                (
+                    "market_bars",
+                    {
+                        "asset": asset,
+                        "asset_type": "stock",
+                        "start_date": "2025-01-02",
+                        "end_date": "2025-01-03",
+                    },
+                ),
+                ("market_snapshot", {"assets": [asset], "asset_type": "stock"}),
+            ):
+                with (
+                    self.subTest(asset=asset, capability=capability),
+                    patch.object(
+                        providers_wind,
+                        "_submit",
+                        side_effect=AssertionError("adapter_must_not_run"),
+                    ) as submit,
+                ):
+                    result = asyncio.run(
+                        providers_wind.fetch(
+                            BusinessQuery(
+                                capability=capability, source="wind", parameters=parameters
+                            )
+                        )
+                    )
+                    self.assertEqual(result.status, "failed")
+                    self.assertEqual(result.limitations, ["data_not_equivalent"])
+                    submit.assert_not_called()
+
+    def test_shared_identity_allows_only_reviewed_stock_code_families(self):
+        for value, expected in (
+            ("600000.SH", "600000.SH"),
+            ("000001.SZ", "000001.SZ"),
+            ("600519", "600519.SH"),
+            ("300750", "300750.SZ"),
+        ):
+            self.assertEqual(cn_stock_identity(value), expected)
+        for value in ("510050", "399001.SZ", "900001.SH", "800001.BJ", None):
+            with self.assertRaisesRegex(ProviderError, "^data_not_equivalent$"):
+                cn_stock_identity(value)
+
+    def test_stock_identity_rejects_index_etf_and_wrong_exchange_before_sdk(self):
+        for asset in ("000001.SH", "510050.SH", "600000.SZ", "000001.BJ"):
+            for capability, parameters in (
+                ("market_bars", {"asset": asset, "asset_type": "stock"}),
+                ("market_snapshot", {"assets": [asset], "asset_type": "stock"}),
+            ):
+                with (
+                    self.subTest(asset=asset, capability=capability),
+                    self.assertRaisesRegex(ProviderError, "^data_not_equivalent$"),
+                ):
+                    provider.validate_supported_query(
+                        BusinessQuery(
+                            capability=capability, source="akshare", parameters=parameters
+                        )
+                    )
+
+    def test_valid_stock_and_explicit_native_index_etf_contracts_remain_valid(self):
+        for asset in ("600000.SH", "000001.SZ", "600519"):
+            provider.validate_supported_query(self.query(asset=asset))
+            provider.validate_supported_query(
+                BusinessQuery(
+                    capability="market_snapshot",
+                    source="akshare",
+                    parameters={"assets": [asset], "asset_type": "stock"},
+                )
+            )
+        for asset, asset_type in (("000001.SH", "index"), ("510050.SH", "etf")):
+            provider.validate_supported_query(self.query(asset=asset, asset_type=asset_type))
+
     def test_financial_summary_filters_period_and_rejects_full_statement_claim(self):
         query = BusinessQuery(
             capability="financials",

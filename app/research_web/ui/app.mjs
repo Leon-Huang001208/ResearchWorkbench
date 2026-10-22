@@ -679,7 +679,7 @@ function render() {
   const modelPanelMount = root.querySelector('[data-model-profiles-root]');
   const warehouseMount = root.querySelector('[data-research-warehouse-root]');
   if (warehouseMount) {
-    if (!warehousePanel) warehousePanel = createWarehousePanel({api,logger:safeLog});
+    if (!warehousePanel) warehousePanel = createWarehousePanel({api,logger:safeLog,onValidated:()=>loadCatalog(['connections','dataCatalog'])});
     warehouseMount.replaceWith(warehousePanel.element);
   } else if (warehousePanel) { warehousePanel.dispose(); warehousePanel = null; }
   if (modelPanelMount) {

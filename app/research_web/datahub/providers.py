@@ -27,6 +27,25 @@ class ProviderError(Exception):
     """Fixed non-sensitive reasons, safe for manifests and logs."""
 
 
+def cn_stock_identity(value: object) -> str:
+    """Reviewed SH6 / SZ00,30 A-share identity; no stock-master or vendor call.
+
+    Bare codes retain the existing stock-only convention. Explicit suffixes
+    must agree with the reviewed code family; BJ and other families are unknown.
+    This check cannot be applied to an explicitly native index/ETF contract.
+    """
+    match = (
+        re.fullmatch(r"([0-9]{6})(?:\.(SH|SZ))?", value.upper()) if isinstance(value, str) else None
+    )
+    if match is not None:
+        code, suffix = match.groups()
+        market = "SH" if code.startswith("6") else "SZ" if code.startswith(("00", "30")) else None
+        if market is not None and suffix in {None, market}:
+            return f"{code}.{market}"
+    log.warning("datahub_stock_identity_unverified")
+    raise ProviderError("data_not_equivalent")
+
+
 @dataclass
 class Result:
     rows: list[dict] = field(default_factory=list)

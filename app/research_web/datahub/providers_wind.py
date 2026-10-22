@@ -19,6 +19,7 @@ from .providers import (
     MAX_ROWS,
     ProviderError,
     Result,
+    cn_stock_identity,
     numeric,
     valid_date,
 )
@@ -279,7 +280,14 @@ def _preflight(query: BusinessQuery) -> None:
         if parameters.get("asset_type") != "stock":
             raise ProviderError("data_not_equivalent")
         if query.capability == "market_bars":
+            cn_stock_identity(parameters.get("asset"))
             _bounded_history_range(parameters)
+        else:
+            assets = parameters.get("assets")
+            if not isinstance(assets, list) or not 1 <= len(assets) <= 50:
+                raise ProviderError("data_not_equivalent")
+            for asset in assets:
+                cn_stock_identity(asset)
     elif query.capability == "market_activity" and parameters.get("dataset") in {
         "fund_flow",
         "margin_trading",

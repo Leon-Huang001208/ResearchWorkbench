@@ -11,7 +11,7 @@ from ..store import StoreError
 from .adjustment_contract import validate_adjustment_parameters
 from .catalog import build_catalog
 from .contracts import BusinessQuery, Query
-from .providers import ProviderError
+from .providers import ProviderError, cn_stock_identity
 from .providers_akshare import validate_supported_query
 from .providers_baostock import validate_supported_query as validate_baostock_query
 from .providers_wind_api import WindAPIQuery
@@ -209,6 +209,28 @@ def resolve(
                 reason = str(exc)
                 unsupported_code = reason
                 log.warning("datahub_query_semantics_rejected", source=source_id, reason=reason)
+        if (
+            reason is None
+            and source_id == "wind"
+            and query.capability
+            in {
+                "market_bars",
+                "market_snapshot",
+            }
+        ):
+            try:
+                assets = (
+                    [query.parameters.get("asset")]
+                    if query.capability == "market_bars"
+                    else query.parameters.get("assets")
+                )
+                if not isinstance(assets, list) or not assets:
+                    raise ProviderError("data_not_equivalent")
+                for asset in assets:
+                    cn_stock_identity(asset)
+            except ProviderError:
+                reason = unsupported_code = "data_not_equivalent"
+                log.warning("datahub_wind_stock_identity_rejected")
         if reason is None and source_id == "tinysoft" and query.capability == "factor_macro":
             try:
                 validate_adjustment_parameters(query.parameters)

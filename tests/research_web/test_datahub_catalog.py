@@ -1113,7 +1113,7 @@ def test_unavailable_business_source_has_stable_code(
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("asset,expected", [("000001.SH", "sh000001"), ("000001.SZ", "sz000001")])
+@pytest.mark.parametrize("asset,expected", [("600000.SH", "sh600000"), ("000001.SZ", "sz000001")])
 async def test_akshare_stock_snapshot_preserves_exchange_in_feed_and_result(
     monkeypatch, asset, expected
 ):

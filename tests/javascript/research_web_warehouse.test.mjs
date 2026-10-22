@@ -23,10 +23,13 @@ function fixture(persisted=true,hit=true){
 }
 
 test('bounded validation requires actual persistence and a second warehouse hit',async()=>{
-  const f=fixture(); const result=await verifyWarehouseReads(f.api,parameters);
+  let refreshed=0;
+  const f=fixture(); const result=await verifyWarehouseReads(f.api,parameters,{onVerified:async()=>{refreshed++;}});
+  assert.equal(refreshed,1);
   assert.equal(f.calls,2);assert.equal(result.rows,2);assert.equal(result.snapshot,'a'.repeat(64));
   const failed=fixture(false);
-  await assert.rejects(verifyWarehouseReads(failed.api,parameters),/没有持久化/);
+  await assert.rejects(verifyWarehouseReads(failed.api,parameters,{onVerified:async()=>{refreshed++;}}),/没有持久化/);
+  assert.equal(refreshed,1);
   assert.equal(failed.calls,1);
   await assert.rejects(verifyWarehouseReads(fixture(true,false).api,parameters),/第二次没有得到/);
 });

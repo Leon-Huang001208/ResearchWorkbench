@@ -24,6 +24,12 @@
 
 ## 正在完成
 
+最终接线复核增加股票代码族/交易所守卫，覆盖 Provider、Broker 缓存准入与规范入仓；指数/ETF 原生合同保持分离，不把代码族核验称为证券主数据核验。新增独立评审21项及28 subtests通过；最终扩大回归602通过、2个LIVE_DATA条件跳过、1个旧测试错误地使用上证指数作为股票而失败，修正夹具后目录/Broker/AK整组83通过及16 subtests，未把两轮拼为单轮通过。19个源文件mypy通过，外部参数秘密键回归44项通过。
+
+能力中心真实补库成功后现在主动刷新父级连接/数据目录元数据，不再等待再次进入页面才更新健康计数。266项Node回归通过且零跳过，独立UI复核27项通过。隔离页面真实AK两行→第二次数据库命中→父计数1→证据TTL到期自动0已见证；本次Bao实际返回vendor_unreachable，保留失败且未自动重试。该页面运行时固定4141源码，前端修补另存文件hash；运行期间编辑Python造成退出时旧内存模块/新文件ImportError，临时PG仍成功停止和清理，不将此热编辑夹具称为最终候选后端验收。浏览器证据位于任务logs/browser。
+
+插件独立安全评审发现受管本地MCP启动前缺少OS文件隔离，可在自有临时夹具跨目录读写；该插件分支保持NEEDS_WORK并独立修复，不把先前功能回归提升为安全通过。研究仓自动尾段/已知修订刷新、共享仓以及独立MarketService/周报接线仍为后续实现范围。
+
 Router剩余本机闭包已真实补跑：非API Python654通过/1个Windows条件跳过（18.61秒），API213通过（263.68秒）；缺少document事件方法的旧UI测试宿主经两行方法可选链兼容后，Node Router/能力UI/连接TTL228通过，独立JS复核24项通过。完整110路径project constraints、文档治理、Python索引均无违规。最终计划需在本检查点后重绑；远端CI、PR、合并及清理尚未执行，不能从这些本机结果推导已交付。
 
 已在受管integration worktree整合主线51f09fa783694aae5234905933948394ca167dcc，源码检查点a34c824489e3baee7da3b9c6ec6eb1266fa2e5b1。整合再发现并关闭两项P2：Host非空能力引用的健康复权递归改用完整但无execution投影的admission_catalog；所有SDK/WindAPI/storage清理分别shield排空，某源错误及重复取消不会跳过其他owner。resident逐项累计见证，已知busy保留True，只有全部已知空闲才False；真实API测试中的旧SDK计数假对象改成实际Future元组合同。

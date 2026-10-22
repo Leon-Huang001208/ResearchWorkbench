@@ -4155,6 +4155,8 @@ Classes:
 - `Result`
 
 Functions:
+- `cn_stock_identity`
+  - Reviewed SH6 / SZ00,30 A-share identity; no stock-master or vendor call.
 - `numeric`
 - `valid_date`
 - `response_bytes`
@@ -4625,6 +4627,7 @@ Imports:
 - `math`
 - `os`
 - `pathlib`
+- `providers`
 - `pydantic`
 - `re`
 - `research_snapshot_store`

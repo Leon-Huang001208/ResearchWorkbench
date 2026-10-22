@@ -1,6 +1,6 @@
 import { escapeHTML as e } from './markdown.mjs';
 
-export async function verifyWarehouseReads(api, parameters, {signal, pause = () => new Promise(resolve=>setTimeout(resolve,500))} = {}) {
+export async function verifyWarehouseReads(api, parameters, {signal, pause = () => new Promise(resolve=>setTimeout(resolve,500)), onVerified = async () => {}} = {}) {
   const asset = parameters.asset.toUpperCase();
   const start = new Date(parameters.start_date), end = new Date(parameters.end_date);
   if (!/^[0-9]{6}\.(SH|SZ)$/.test(asset) || !['akshare','baostock'].includes(parameters.source)
@@ -28,6 +28,7 @@ export async function verifyWarehouseReads(api, parameters, {signal, pause = () 
   const second = await read();
   if (second.provider_metadata?.warehouse_hit !== true || second.row_count !== first.row_count)
     throw Error('第二次没有得到相同覆盖的数据库命中，不能标记验证成功。');
+  await onVerified();
   return {source:second.provider || second.source,rows:second.row_count,
     initialCache:first.provider_metadata?.warehouse_hit === true,
     snapshot:second.provider_metadata.warehouse_snapshot_sha256};
@@ -40,7 +41,7 @@ export function warehousePanelHTML(status = {}, {busy = false, error = '', valid
   return `<section class="settings-card" aria-label="研究数据仓库"><div class="section-heading"><div><span class="eyebrow">RESEARCH WAREHOUSE</span><h2>研究数据仓库</h2></div><span class="badge ${status.enabled ? 'live' : ''}">${status.enabled ? '已启用' : status.configured ? '已保存，未启用' : '未配置'}</span></div><p>按覆盖查询已存数据，再补内部缺口与最新范围。原件、修订和冻结版本分别保留，未证明的历史时点不会用今日下载代替。</p><p class="muted small">当前为个人仓。共享仓尚未接入；正式数据库与外盘迁移需另行确认。保存不会连接；初始化只允许独立的 rwb_market_* 数据库，现有 5432 端口受保护。</p>${error ? `<p role="alert" class="notice warning">${e(error)}</p>` : ''}<form data-warehouse-profile class="automation-form-grid">${input('host','数据库主机','127.0.0.1')}${input('port','端口',55432,'number')}${input('database','专用数据库名','rwb_market_research')}${input('username','数据库用户名','research')}<label><span>TLS</span><select name="sslmode" ${busy ? 'disabled' : ''}>${[['verify-full','校验证书与主机名'],['require','本机 TLS'],['disable','仅本机连接']].map(([value,label])=>`<option value="${value}" ${configuration.sslmode === value ? 'selected' : ''}>${label}</option>`).join('')}</select></label><label><span>密码（仅存凭据后端）</span><input name="password" type="password" autocomplete="new-password" placeholder="${status.password_configured ? '已保存，留空保留' : '本机受信任 socket 可留空'}" ${busy ? 'disabled' : ''}></label><div class="button-row"><button type="submit" class="button" ${busy ? 'disabled' : ''}>保存配置，保持停用</button><button type="button" class="button" data-warehouse-action="refresh" ${busy ? 'disabled' : ''}>刷新状态</button></div></form>${status.configured ? `<form data-warehouse-initialize><p>初始化会在已存在的专用数据库中创建研究仓表，不创建数据库或服务，不迁移现有数据。</p><label><span>输入专用数据库名确认初始化</span><input name="database_confirmation" required autocomplete="off" placeholder="${e(configuration.database || '')}" ${busy ? 'disabled' : ''}></label><div class="button-row"><button type="submit" class="button primary" ${busy ? 'disabled' : ''}>初始化并启用研究仓</button><button type="button" class="button" data-warehouse-action="disable" ${busy || !status.enabled ? 'disabled' : ''}>停用后续入库</button></div></form>` : ''}<p class="muted small">${status.calendar_ready ? '交易日历已取得；历史时点仍按存档可得时间检查。' : '交易日历尚未取得；启用后仅按实际请求获取有界公开日历。'} 查询、数据覆盖与正式回测就绪分别验收。</p>${validationHTML}</section>`;
 }
 
-export function createWarehousePanel({api, logger = () => {}}) {
+export function createWarehousePanel({api, logger = () => {}, onValidated = async () => {}}) {
   const element = document.createElement('div');
   let status = {}, busy = false, error = '', disposed = false, validation = null;
   const lifetime = new AbortController();
@@ -58,7 +59,7 @@ export function createWarehousePanel({api, logger = () => {}}) {
     const values = new FormData(event.target);
     if (event.target.matches('[data-warehouse-validate]')) {
       const parameters = Object.fromEntries(['asset','source','start_date','end_date'].map(name=>[name,String(values.get(name) || '').trim()]));
-      void run(async()=>{validation=await verifyWarehouseReads(api,parameters,{signal:lifetime.signal});return api.warehouseStatus({signal:lifetime.signal});});
+      void run(async()=>{validation=await verifyWarehouseReads(api,parameters,{signal:lifetime.signal,onVerified:onValidated});return api.warehouseStatus({signal:lifetime.signal});});
     } else if (event.target.matches('[data-warehouse-profile]')) {
       validation = null;
       const configuration = Object.fromEntries(['host','database','username','sslmode'].map(name=>[name,String(values.get(name) || '').trim()]));
