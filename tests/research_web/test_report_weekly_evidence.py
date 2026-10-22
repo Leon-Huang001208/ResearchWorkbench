@@ -63,6 +63,9 @@ def test_fact_index_is_rebuilt_and_tampering_is_rejected(tmp_path, monkeypatch):
     )
     assert len(observed) == 3
     assert observed[0]["heading"] == "沪深300"
+    from app.research_web.resources.research_report_calculations import _primitive
+
+    assert _primitive(observed[0])["value"] == "101.25"
     source = root / evidence.FACTS_PATH
     source.write_text(source.read_text().replace("101.25", "199.25"))
     with pytest.raises(WorkflowError):

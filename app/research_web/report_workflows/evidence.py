@@ -283,8 +283,7 @@ def weekly_business_observations(
                     row["unit"],
                     [proof],
                     method="huaan-weekly-data-v1",
-                    text=row.get("statement")
-                    or f"{row['series_id']} {row['metric']} {row['period']} {row['value']} {row['unit']}",
+                    text=row.get("statement"),
                     heading=row["heading"],
                 )
             )
