@@ -1,5 +1,18 @@
 # Mac mini 空私有池网关升级
 
+## 全市场概览固定版本部署
+
+2026-10-22 全市场常驻部署使用封闭 `reviewed-market-overview-v1` / `apply-market`：旧版固定 `4d2e3c408663b64be9e58b03213f4ca8f1152733`，产品固定已合并 PR179 `5de7e5f2db95b8b501905af9cfdc30e8fe84db0b`。复用原 version4 事务、空闲准入、BirthFence、全部账号索引冻结和内容寻址恢复；旧 profile、控制器、证据读取器及自动兼容白名单保持。操作员候选须独立评审及原三项 CI／同候选 Mac 安装通过，再按用户授权切换并在真实认证页面验收。
+
+```bash
+/absolute/primary/.venv/bin/python -m research_workbench_entrypoint.resident.model_provider_upgrade apply-market \
+  --home /absolute/private-home --source /absolute/qualified-clean-checkout
+```
+
+市场 profile 另将 gateway_upgrade.py 的有界业务读取参数扩展绑定为完整 SHA-256；此文件的额外变化、删除或模式变化拒绝，旧 profile 不获得该例外。业务索引读取使用原64MiB上限，元数据仍为1MB。原现场索引8,673,739字节导致旧 verify_primary/retention/idle 读取失败，修复只复用严格普通文件、规范路径、拒绝链接和JSON对象校验，不裁剪业务数据。
+
+产品祖先、完整路径并集、Git blob 和文件模式逐项冻结；仅操作员自身、测试和文档可随最终工具候选变化。历史 ASSET_MODES 家族包含市场 profile，因而市场切换同样强制业务索引全量保全、资产/DataHub/历史任务及真实 Future 空闲。旧版尚无市场采集服务，切换完成前网关保持围栏；不迁移数据或触发市场/模型查询。recover 根据已验证 journal 的市场 mode 只回到固定 4d2e3c40。部署后以真实登录页核对三个页签、沪深北完整覆盖、来源时间、刷新和原会话/模型保留。
+
 ## 资产观察固定版本联合部署
 
 ### Wind工作区 v4（2026-10-22）
