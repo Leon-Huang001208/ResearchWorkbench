@@ -1,5 +1,7 @@
 # Research Workbench Development Map
 
+2026-10-22 启动保全修复位于`app/research_web/store.py`：记录磁盘原有的三项可选资产键，save时只省略“原来缺失且仍精确默认”的键，成功原子替换后更新持久键集合；失败沿原日志/异常处理，不误记已持久化。相关回归在`tests/research_web/test_store.py`，覆盖旧索引启动/重复save、首次修改、原有空值及写失败。Automation仍可按原合同save，修复不绕过调用方、不修改保全比对、控制器、依赖或安装流程。存储真源见[文件合同](architecture/research-web/03-data-files.md#资产历史与图表偏好存储)；部署恢复、本机结果和同候选Mac安装CI由主任务分别取证。
+
 2026-10-22 Wind工作区部署工具独立于PR177产品：`resident/model_provider_upgrade.py`新增ASSET_V3_MODE/PREVIOUS/PAYLOAD、previous_for/review_assets及CLI封闭分支，固定旧5495与产品a0ff3ae2，`test_model_provider_upgrade.py`覆盖精确范围、拒绝额外变化、索引保全及v1/v2/v3恢复。controller/evidence、产品、依赖和workflow字节不变；原v4部署拓扑不变，无需改现有图或生成HTML/PNG。真源见[部署合同](research-web-gateway-upgrade.md#资产观察固定版本联合部署)，v3候选CI、真实切换/认证页面与保全另取证，产品通过不能复用成profile通过。
 
 最后核对：2026-10-22。Wind工作区：`asset_history.py` 负责日线规范化/重叠校验/固定锚点复权；`asset_history_jobs.py` 负责持久任务/分块缓存/显式重试/取消排空/规范快照CAS发布；`asset_routes.py` 声明6个历史任务与账号偏好API；`asset_workspace.py`、`store.py`、`service.py` 负责观察投影、旧索引缺省、任务清理和服务关闭。DataHub `adjustment_contract.py`、`contracts.py`、`catalog.py`、`providers_cjpy.py`、`broker.py`、`__init__.py`、`snapshots.py` 负责封闭三种复权查询、真实Future占用、metadata和自包含交接；`main.py`与`resident/model_provider_upgrade.py`合并任务/真实Future空闲证明。UI仍在`app.mjs`、`core.mjs`及`asset-controller/chart/workspace`模块，动态副图偏好、历史任务轮询及日线前缀筹码互相独立。权威文档为[UI](research-web-ui.md#资产观察工作台)、[DataHub](research-web-datahub.md#资产历史任务与固定复权)、架构03/04章和[批准计划](plans/2026-10-22-wind-asset-workspace.md)。定点回归新增`test_asset_history.py`，扩展原DataHub/catalog/CJPY/broker模块，保留原资产/Provider/空闲/JS/E2E测试；真实厂商、几何浏览器与同候选Mac安装CI分别取证，不能用预检替代最终验收。

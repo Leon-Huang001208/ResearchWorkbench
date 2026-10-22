@@ -1,5 +1,6 @@
 """Atomic single-process product ownership index. DSH owns all transcripts."""
 
+import copy
 import hashlib
 import json
 import mimetypes
@@ -15,6 +16,11 @@ from uuid import uuid4
 from core.observability import get_logger
 
 log = get_logger(__name__)
+_OPTIONAL_ASSET_DEFAULTS = {
+    "asset_history_jobs": {},
+    "asset_history_keys": {},
+    "chart_preferences": {"panels": ["volume", "macd"], "revision": 0},
+}
 PUBLIC_EXTENSIONS = {
     ".pdf",
     ".png",
@@ -64,6 +70,7 @@ class Store:
         except (OSError, ValueError) as exc:
             log.error("research_index_unreadable", error_type=type(exc).__name__)
             raise StoreError("会话索引不可读取；未覆盖原索引") from exc
+        self._persisted_asset_keys = _OPTIONAL_ASSET_DEFAULTS.keys() & self.data.keys()
         # Additive local indexes keep earlier Research Web data readable.
         self.data.setdefault("sessions", {})
         self.data.setdefault("receipts", {})
@@ -74,9 +81,8 @@ class Store:
         self.data.setdefault("operation_audit", [])
         self.data.setdefault("asset_observations", {})
         self.data.setdefault("asset_observation_keys", {})
-        self.data.setdefault("asset_history_jobs", {})
-        self.data.setdefault("asset_history_keys", {})
-        self.data.setdefault("chart_preferences", {"panels": ["volume", "macd"], "revision": 0})
+        for key, value in _OPTIONAL_ASSET_DEFAULTS.items():
+            self.data.setdefault(key, copy.deepcopy(value))
         self.data.setdefault("watchlists", {})
         self.data.setdefault("asset_notes", {})
         self.data.setdefault("asset_alerts", {})
@@ -90,13 +96,26 @@ class Store:
         self.data.setdefault("delivery_channels", {})
 
     def save(self):
+        # Startup may save unrelated services. Keep unused extensions in memory
+        # until first use, preserving the old on-disk missing/empty distinction.
+        payload = {
+            key: value
+            for key, value in self.data.items()
+            if key not in _OPTIONAL_ASSET_DEFAULTS
+            or key in self._persisted_asset_keys
+            or value != _OPTIONAL_ASSET_DEFAULTS[key]
+            # JSON distinguishes booleans from numeric defaults where Python == does not.
+            or json.dumps(value, sort_keys=True)
+            != json.dumps(_OPTIONAL_ASSET_DEFAULTS[key], sort_keys=True)
+        }
         fd, name = tempfile.mkstemp(prefix="index-", dir=self.root)
         try:
             with os.fdopen(fd, "w", encoding="utf-8") as stream:
-                json.dump(self.data, stream, ensure_ascii=False)
+                json.dump(payload, stream, ensure_ascii=False)
                 stream.flush()
                 os.fsync(stream.fileno())
             os.replace(name, self.index)
+            self._persisted_asset_keys = _OPTIONAL_ASSET_DEFAULTS.keys() & payload.keys()
         except OSError as exc:
             log.error("research_index_write_failed", error_type=type(exc).__name__)
             raise StoreError("会话索引保存失败") from exc
@@ -127,11 +146,21 @@ class Store:
     def reserve_hot_session(self, sid: str, mode: str, origin: dict) -> dict:
         """Persist the preallocated identity before native creation; never adopt another row."""
         from .datahub.security import directory, make_directory
-        if (not isinstance(sid, str) or not re.fullmatch(r"[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}", sid)
-                or mode not in {"fingpt", "claw"} or not isinstance(origin, dict)
-                or set(origin) != {"runId", "instanceId", "manifestHash"}
-                or any(not isinstance(origin[k], str) or not re.fullmatch(r"[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}", origin[k]) for k in ["runId", "instanceId"])
-                or not isinstance(origin["manifestHash"], str) or not re.fullmatch(r"[a-f0-9]{64}", origin["manifestHash"])):
+
+        if (
+            not isinstance(sid, str)
+            or not re.fullmatch(r"[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}", sid)
+            or mode not in {"fingpt", "claw"}
+            or not isinstance(origin, dict)
+            or set(origin) != {"runId", "instanceId", "manifestHash"}
+            or any(
+                not isinstance(origin[k], str)
+                or not re.fullmatch(r"[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}", origin[k])
+                for k in ["runId", "instanceId"]
+            )
+            or not isinstance(origin["manifestHash"], str)
+            or not re.fullmatch(r"[a-f0-9]{64}", origin["manifestHash"])
+        ):
             raise StoreError("研究交接保留身份非法")
         if sid in self.data["sessions"]:
             row = self.session(sid)
@@ -141,9 +170,20 @@ class Store:
             with directory(self.root, ("sessions",), create=True) as parent:
                 if sid in os.listdir(parent):
                     raise StoreError("目标会话目录已存在但没有归属")
-            row = {"id": sid, "mode": mode, "title": "热点与事件研究", "workspace_id": "research",
-                   "status": "idle", "model": None, "updated_at": time.time(), "files": {}, "created": False,
-                   "purpose": "hot_research", "hot_origin": dict(origin), "hot_creation_state": "reserved"}
+            row = {
+                "id": sid,
+                "mode": mode,
+                "title": "热点与事件研究",
+                "workspace_id": "research",
+                "status": "idle",
+                "model": None,
+                "updated_at": time.time(),
+                "files": {},
+                "created": False,
+                "purpose": "hot_research",
+                "hot_origin": dict(origin),
+                "hot_creation_state": "reserved",
+            }
             self.data["sessions"][sid] = row
             self.save()
             log.info("hot_session_reserved", session_id=sid)
