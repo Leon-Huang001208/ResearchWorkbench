@@ -2,6 +2,8 @@
 
 ## 资产历史任务与固定复权
 
+2026-10-22 启动保全热修复限定Store持久化边界：旧磁盘缺失且仍为精确默认的历史jobs/keys和图表偏好只在内存提供；启动或Automation无关save不将其写入旧index，首次真实变化才落盘。原有键（含空值）及写入后恢复默认的键继续保留，原子替换失败不误记已持久化。DataHub Provider、raw/factors/canonical、业务API与严格保全门不变，不追加厂商调用或放宽来源权限；同候选Mac安装与真实恢复/部署另证，详见[文件合同](architecture/research-web/03-data-files.md#资产历史与图表偏好存储)。
+
 最后核对：2026-10-22。历史工作区沿用当前账号的 Host → DataHub Broker → 天软 CJPY → 会话快照链路，不建立另一研究引擎或全局行情数据库。`asset_history_jobs.py` 负责持久任务、分块、取消与发布，`asset_history.py` 负责日线校验、合并及复权。任务范围为近期2自然年、向前续取4年、全部至上市日；没有上市日证明时仅声明1990-01-01扫描下界。每块最多4自然年且边界日重叠，按从近到远顺序处理；同日同值去重，冲突失败，不任选一条。每次 Provider 调用仍≤5000行、15秒、每来源一个真实 Future；规范合并结果可以超过5000行，不能因此截断客户端读取。
 
 `factor_macro` 的天软绑定只开放封闭的 `series=adjustment_metadata|listing_date|adjustment_factors`；后两者只接受一个规范沪深A股证券，逐日因子每次1至500个唯一、非未来 ISO 日期。拒绝任意仓库、公式、宏观全集及额外参数；这不代表通用宏观或因子库已经接入。metadata版本为 `tinysoft-adjustment-v1`，定义 SHA-256 为 `76fb444109d027db7657b8baea96a4299b5d8ddb826aac7edc31dfb09df82fc5`。

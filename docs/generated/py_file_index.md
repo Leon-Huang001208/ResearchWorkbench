@@ -9171,6 +9171,7 @@ Module docstring:
 > Atomic single-process product ownership index. DSH owns all transcripts.
 
 Imports:
+- `copy`
 - `core.observability`
 - `hashlib`
 - `json`

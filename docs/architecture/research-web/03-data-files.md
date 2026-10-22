@@ -4,7 +4,9 @@
 
 ## 资产历史与图表偏好存储
 
-最后核对：2026-10-22。原账号 Store 的 `index.json` 增加 `asset_history_jobs`、`asset_history_keys`、`chart_preferences`，使用 `setdefault` 兼容旧索引，无数据库或schema迁移。指标偏好保留0至4个唯一有序副图及revision，默认VOL＋MACD，账号内所有证券共用；保存失败恢复原值。任务保存原始请求、观察/会话身份、代次、当前快照、扫描进度和安全失败码，公开投影隐藏内部字段。
+最后核对：2026-10-22。Store在内存兼容提供`asset_history_jobs={}`、`asset_history_keys={}`及`chart_preferences={panels:[volume,macd],revision:0}`，无数据库/schema迁移。对于旧磁盘中未有且仍精确等于这些默认值（含JSON类型）的键，启动或无关服务save只序列化原有业务字段，不把三键物化到`index.json`；某键第一次真正改变后才写入，并在原子替换成功后登记为已持久化。原磁盘已存在的键，包括空对象、空列表或null，以及已持久化后恢复默认的键均不得删除；保存失败不提前登记。其他键、原子写入/错误处理及部署严格保全比对保持。指标偏好保留0至4个唯一有序副图及revision，默认VOL＋MACD，账号内所有证券共用；保存失败恢复原值。任务保存原始请求、观察/会话身份、代次、当前快照、扫描进度和安全失败码，公开投影隐藏内部字段。
+
+该边界修复了旧24项业务键/12账号未变、却因启动新增3个默认键而被严格保全门拒绝的v3切换。故障回滚/恢复另留真实状态；不通过忽略新增键、清洗原索引、改控制器或伪造保全摘要解决。现有数据根、快照和交接图未变化，不重画图，也不改CI结构。
 
 不可变块位于当前账号 `.control/asset-history/chunks/<UUID>.json`，绑定证券、会话、观察、扫描区间、配置摘要、定义哈希、原始来源manifest、规范原始行及逐日因子；重试复用前复验归属、哈希、授权和因子版本。单次取数沿原 `.control/snapshots/<session>/<dataset>/` 保存行、raw和manifest。每块校验后创建包含全部累计日线的新规范snapshot，`asset_history` metadata 同时保存固定截止/锚点、定义、因子版本/摘要、实际与扫描coverage及全部输入；随后核对generation、原dataset指针和授权再原子保存Store。存储失败恢复原内存指针，已发表旧快照继续可读，不把部分成功说成全历史完成。
 
