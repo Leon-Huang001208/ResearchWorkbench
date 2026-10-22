@@ -6,7 +6,9 @@
 
 dataset key 包含 capability、实际 source、全部 parameters 的规范摘要、受审 schema_identity 与 units_identity；完整 source scope 另绑定 owner、entitlement 和脱敏配置摘要。Host 应为已审供应商接口传入稳定且有版本的 schema/单位合同身份。默认 `provider-native-v1` / `provider-defined-unknown` 只代表不做规范化的原生响应合同。fields 的完整实际定义与摘要另随每次捕获冻结，不推断缺失单位、币种或跨供应商等价。切换会计准则、母公司/合并、初值/终值、成分有效期或单位合同必须改变参数或受信 schema/units 身份。
 
-`ingest(query, result)` 仅接收 complete/snapshot/empty，拒绝 partial、failed、cancelled、missing 字段和缺原件；历史 as_of 请求不能新增当下快照冒充历史。供应商 rows、fields、状态、分页声明、限制和原始 as_of 原样保留；metadata 仅保留模块 `METADATA_KEYS` 的受审字段，账号、token、自定义 metadata 不写入该投影。全部 raw bytes 按原字节 base64 与 SHA-256 放入不可变响应原件，冻结可独立恢复，不依赖原宿主路径。来源适配器仍负责确保原始业务响应不含秘密；本层不把任意认证响应纳入白名单。
+`ingest(query, result)` 仅接收 complete/snapshot/empty，拒绝 partial、failed、cancelled、未知 missing 字段和缺原件；历史 as_of 请求不能新增当下快照冒充历史。唯一的语义缺口例外为实际来源和响应 provider_id 均为 eastmoney_fund、fund_data 的 nav/fund_nav、明确起止日期相差0至30天（最多31个日历日）、status=complete 且 pagination_complete=True。其 missing 只能是 adjusted_total_return、benchmark_timeseries、verified_currency 的子集；三者原样保留，不补造复权总回报、基准序列或币种。无日期、宽区间、snapshot/partial、其他来源或 dataset 不能借此例外入仓。默认 Host 仍通过既有 ResearchWarehouse → SnapshotSeries 入仓，无新路由、schema 或依赖。
+
+供应商 rows、fields、状态、分页声明、限制和原始 as_of 原样保留；metadata 仅保留模块 `METADATA_KEYS` 的受审字段，账号、token、自定义 metadata 不写入该投影。全部 raw bytes 按原字节 base64 与 SHA-256 放入不可变响应原件，冻结可独立恢复，不依赖原宿主路径。来源适配器仍负责确保原始业务响应不含秘密；本层不把任意认证响应纳入白名单。
 
 每个精确查询使用固定 business_date=1970-01-01、metric=snapshot、period=first-observed、空 dimensions 的单一逻辑键；该日期仅是内部存储槽位，不是报告期、公开日或观测日期，也不声称按观测日做数据库分区。available_at/ingested_at 和 value.observed_at 才是本系统实际捕获时间。供应商报告期/参考期仍留在 rows 内。每次变化生成独立 capture_id 作为 source_version，所有修订仍追加保留，因此同日及跨日 A→B→A 都保留三个捕获。read_range/freeze 沿既有修订投影只返回 cutoff 前最新版本，不遍历到 Host 或导出全历史。紧邻完全相同响应幂等，不增加版本，也不刷新首次捕获时间。相同/倒退系统时刻发生变化时明确拒绝，避免不确定排序。Host 必须序列化同一 series 的写入；实例内 RLock 不代替跨实例/跨进程调度锁。
 

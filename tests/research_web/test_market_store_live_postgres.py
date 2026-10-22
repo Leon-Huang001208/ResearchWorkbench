@@ -541,6 +541,204 @@ class LivePostgresTests(unittest.TestCase):
         os.environ.get("RWB_MARKET_STORE_LIVE_DATA") == "1",
         "explicit bounded free vendor acceptance not enabled",
     )
+    def test_default_host_bounded_eastmoney_nav_capture_and_restart(self):
+        from datetime import UTC, datetime
+        from types import SimpleNamespace
+
+        from fastapi.testclient import TestClient
+        from test_api import NativeFixture
+
+        from app.research_web.datahub import providers
+        from app.research_web.datahub.contracts import BusinessQuery
+        from app.research_web.datahub.research_warehouse import ResearchWarehouse
+        from app.research_web.main import create_app
+        from app.research_web.mcp_registry.service import MCPRegistryService
+        from app.research_web.service import ResearchService
+        from app.research_web.store import Store
+
+        async def offline():
+            return None
+
+        secrets = {}
+        memory_keyring = SimpleNamespace(
+            get_password=lambda service, account: secrets.get((service, account)),
+            set_password=lambda service, account, value: secrets.__setitem__(
+                (service, account), value
+            ),
+            delete_password=lambda service, account: secrets.pop((service, account), None),
+        )
+        with (
+            patch(
+                "app.research_web.datahub.connections.default_credential_backend",
+                return_value=memory_keyring,
+            ),
+            patch(
+                "app.research_web.credential_backend.SystemKeyringBackend.get_password",
+                side_effect=AssertionError("host_keychain_access_forbidden"),
+            ) as real_get,
+            patch(
+                "app.research_web.credential_backend.SystemKeyringBackend.set_password",
+                side_effect=AssertionError("host_keychain_access_forbidden"),
+            ) as real_set,
+            patch(
+                "app.research_web.credential_backend.SystemKeyringBackend.delete_password",
+                side_effect=AssertionError("host_keychain_access_forbidden"),
+            ) as real_delete,
+            patch(
+                "app.research_web.credential_backend.PrivateFileCredentialBackend.__init__",
+                side_effect=AssertionError("host_file_credentials_forbidden"),
+            ) as real_file_backend,
+            patch("keyring.get_password", lambda service, account: secrets.get((service, account))),
+            patch(
+                "keyring.set_password",
+                lambda service, account, value: secrets.__setitem__((service, account), value),
+            ),
+            patch(
+                "keyring.delete_password",
+                lambda service, account: secrets.pop((service, account), None),
+            ),
+        ):
+            native = NativeFixture()
+            host = ResearchService(
+                native,
+                Store(self.root / ("fund-nav-host-" + uuid4().hex)),
+                mcp_registry=MCPRegistryService(
+                    self.root / ("fund-nav-registry-" + uuid4().hex),
+                    keyring_backend=memory_keyring,
+                ),
+                mcp_keyring_backend=memory_keyring,
+                delivery_keyring_backend=memory_keyring,
+            )
+            host.frameworks.start = offline
+            host.mcp_registry.start = offline
+            host.report_workflows.start = offline
+            self.assertIsInstance(host.datahub.warehouse, ResearchWarehouse)
+            calls = []
+            original_fetch = providers.fetch
+
+            async def fetch(query, **kwargs):
+                calls.append(query)
+                if len(calls) > 1:
+                    raise AssertionError("NAV database hit must not contact vendor")
+                return await original_fetch(query, **kwargs)
+
+            with self.connect() as connection:
+                username = connection.execute("SELECT current_user").fetchone()[0]
+            with TestClient(create_app(host)) as client, patch.object(providers, "fetch", fetch):
+                host.connected = {"mux", "host"}
+                saved = client.post(
+                    "/api/research/data/warehouse",
+                    json={
+                        "operation": "save",
+                        "configuration": {
+                            "host": str(self.socket),
+                            "port": self.port,
+                            "database": self.database,
+                            "username": username,
+                            "sslmode": "disable",
+                        },
+                    },
+                )
+                self.assertEqual(saved.status_code, 200, saved.text)
+                initialized = client.post(
+                    "/api/research/data/warehouse",
+                    json={
+                        "operation": "initialize",
+                        "profile_id": saved.json()["profile_id"],
+                        "database_confirmation": self.database,
+                    },
+                )
+                self.assertEqual(initialized.status_code, 200, initialized.text)
+                sid = client.post("/api/research/sessions", json={"mode": "claw"}).json()["id"]
+                request = BusinessQuery(
+                    capability="fund_data",
+                    source="eastmoney_fund",
+                    purpose="display",
+                    quality="allow_stale",
+                    parameters={
+                        "dataset": "nav",
+                        "code": "510050",
+                        "start_date": "2025-01-02",
+                        "end_date": "2025-01-03",
+                    },
+                )
+
+                def query(call_id):
+                    response = client.post(
+                        "/api/research/internal/data/business-query",
+                        headers={"X-Research-Data-Key": host.datahub.control["token"]},
+                        json={
+                            "session_id": sid,
+                            "call_id": call_id,
+                            "query": request.model_dump(mode="json"),
+                        },
+                    )
+                    self.assertEqual(response.status_code, 200, response.text)
+                    return response.json()
+
+                first = query("bounded-fund-nav-first")
+                self.assertEqual(first["status"], "complete", first.get("limitations"))
+                self.assertEqual(first["row_count"], 2)
+                self.assertTrue(first["provider_metadata"]["warehouse_persisted"])
+                second = query("bounded-fund-nav-db-hit")
+                self.assertTrue(second["provider_metadata"]["warehouse_hit"])
+                self.assertEqual(len(calls), 1)
+                for key in (
+                    "quality_accepted",
+                    "formal_backtest_eligible",
+                    "historical_point_in_time",
+                ):
+                    self.assertFalse(second["provider_metadata"][key])
+                cutoff = datetime.now(UTC)
+                frozen_query = request.model_copy(update={"as_of": cutoff})
+                configuration = host.datahub.source_configuration_digest("eastmoney_fund")
+                before = host.datahub.warehouse.read(frozen_query, "eastmoney_fund", configuration)
+                self.assertEqual(
+                    before.missing,
+                    ["adjusted_total_return", "benchmark_timeseries", "verified_currency"],
+                )
+                self.run_pg([self.pg_ctl, "-D", str(self.data), "-m", "fast", "-w", "stop"])
+                type(self).started = False
+                self.start()
+                host.datahub.warehouse = ResearchWarehouse(
+                    host.store.root, keyring=host.datahub.connections.keyring
+                )
+                after = host.datahub.warehouse.read(frozen_query, "eastmoney_fund", configuration)
+                self.assertEqual(after.raw, before.raw)
+                self.assertEqual(after.rows, before.rows)
+                self.assertEqual(after.fields, before.fields)
+                self.assertEqual(after.missing, before.missing)
+                restarted = query("bounded-fund-nav-restarted")
+                self.assertTrue(restarted["provider_metadata"]["warehouse_hit"])
+                self.assertEqual(restarted["row_count"], 2)
+                self.assertEqual(len(calls), 1)
+                self.assertFalse(any(method == "session.prompt" for method, _ in native.calls))
+                real_get.assert_not_called()
+                real_set.assert_not_called()
+                real_delete.assert_not_called()
+                real_file_backend.assert_not_called()
+                print(
+                    json.dumps(
+                        {
+                            "acceptance": "default-host-bounded-eastmoney-nav-owned-pg",
+                            "code": "510050",
+                            "start": "2025-01-02",
+                            "end": "2025-01-03",
+                            "rows": 2,
+                            "vendor_calls": len(calls),
+                            "restart_database_hit": True,
+                            "frozen_original_identical": True,
+                            "quality_accepted": False,
+                            "formal_backtest_eligible": False,
+                            "model_calls": 0,
+                        }
+                    )
+                )
+
+    @unittest.skipUnless(
+        os.environ.get("RWB_MARKET_STORE_LIVE_DATA") == "1",
+        "explicit bounded free vendor acceptance not enabled",
+    )
     def test_native_financial_and_index_snapshots_survive_database_restart(self):
         import asyncio
         from datetime import UTC, datetime

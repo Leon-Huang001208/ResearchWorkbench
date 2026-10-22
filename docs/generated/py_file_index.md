@@ -4690,6 +4690,10 @@ Classes:
   - Trusted Host adapter; actor/scope/schema/units must never come from a browser.
   - methods: __init__, _now, dataset, _facts, ingest, read
 
+Functions:
+- `_bounded_nav_capture`
+  - Admit disclosed NAV semantics gaps only for a complete, narrow source response.
+
 
 ## `app/research_web/datahub/research_warehouse.py`
 

@@ -111,3 +111,6 @@ python -m unittest discover -s tests/research_web -p 'test_market_store*.py'
 真实实例的 `SHOW listen_addresses` 为 `''`、`SHOW fsync` 为 `on`；独立临时数据库和受限 NOLOGIN role 在本实例内验证，未向现有 5432 或外接盘发送命令。测试结束 `pg_ctl -D <本任务PGDATA> -m fast -w stop` 成功且临时目录不存在，输出清理回执 `owned_pgdata_removed=true owned_pg_stopped=true tcp_disabled=true fsync=on`。此结果证明隔离测试实例，不证明生产权限、备份或部署已完成。
 
 限定新模块及其测试的 Ruff、Black、isort 检查通过；`mypy --follow-imports=silent --check-untyped-defs app/research_web/market_store` 返回5个源文件无问题。现有全库回归、安装 CI、DataHub 接线、运行服务及其他平台验收由父任务单独记录。
+
+
+2026-10-22 基金NAV入仓：Host原生快照层仅为完整分页、有界东财NAV开放三项已声明语义缺口，rows/fields/missing/raw逐字节保真；不改变MarketStore内核schema、历史可得性或冻结恢复合同。
