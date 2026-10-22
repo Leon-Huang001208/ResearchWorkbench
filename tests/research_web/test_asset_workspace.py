@@ -19,21 +19,45 @@ from app.research_web.store import Store
 
 @pytest.fixture(autouse=True)
 def isolated_host_credentials(monkeypatch):
-    """Keep asset fixture startup away from the host credential store."""
+    """Use explicit memory storage and reject unexpected OS credential access."""
+    import sys
+
     import keyring
 
-    values = {}
-    monkeypatch.setattr(
-        keyring, "get_password", lambda service, account: values.get((service, account))
-    )
-    monkeypatch.setattr(
-        keyring,
-        "set_password",
-        lambda service, account, value: values.__setitem__((service, account), value),
-    )
-    monkeypatch.setattr(
-        keyring, "delete_password", lambda service, account: values.pop((service, account), None)
-    )
+    from app.research_web import credential_backend
+
+    class MemoryCredentials:
+        def __init__(self):
+            self.values = {}
+
+        def get_password(self, service, account):
+            return self.values.get((service, account))
+
+        def set_password(self, service, account, value):
+            self.values[(service, account)] = value
+
+        def delete_password(self, service, account):
+            self.values.pop((service, account), None)
+
+    def deny(*_args, **_kwargs):
+        pytest.fail("asset fixture must not access host credentials")
+
+    for module in list(sys.modules.values()):
+        if (
+            module
+            and getattr(module, "__name__", "").startswith("app.research_web")
+            and hasattr(module, "default_credential_backend")
+        ):
+            monkeypatch.setattr(module, "default_credential_backend", MemoryCredentials)
+    for backend in (
+        credential_backend.SystemKeyringBackend,
+        credential_backend.PrivateFileCredentialBackend,
+    ):
+        monkeypatch.setattr(backend, "__init__", deny)
+        for method in ("get_password", "set_password", "delete_password"):
+            monkeypatch.setattr(backend, method, deny)
+    for method in ("get_password", "set_password", "delete_password"):
+        monkeypatch.setattr(keyring, method, deny)
 
 
 def test_tinysoft_canonical_asset_query_translates_cycle_and_adjustment(monkeypatch):
@@ -538,9 +562,10 @@ async def test_observation_does_not_downgrade_or_chunk_wind_calendar_limit(wind_
     service, sid, adapter = wind_workspace
     item = await _observe_wind(service, sid, "history", start_date="2026-06-01")
     block = item["blocks"]["history"]
-    assert block["status"] == "unavailable"
+    assert block["status"] == "error"
     assert block["failure_code"] == "workload_too_large"
-    assert block["dataset"]["requested_range"] == {
+    assert block["dataset"] is None
+    assert block["requested_range"] == {
         "start_date": "2026-06-01",
         "end_date": "2026-09-11",
     }
@@ -862,15 +887,18 @@ async def test_section_range_hits_real_wind_provider_calendar_gate(wind_workspac
     block = item["blocks"][section]
     assert block["requested_range"] == requested_range
     assert block["requested_source"] == "wind"
-    assert block["dataset"]["query"]["parameters"]["start_date"] == start
-    assert block["dataset"]["query"]["parameters"]["end_date"] == end
+    if block["dataset"]:
+        assert block["dataset"]["query"]["parameters"]["start_date"] == start
+        assert block["dataset"]["query"]["parameters"]["end_date"] == end
     if days == 60:
         assert block["status"] == "complete", block
         assert len(adapter.calls) == 1
         assert adapter.calls[0][1]["start_date"] == start
         assert adapter.calls[0][1]["end_date"] == end
     else:
-        assert block["status"] == "unavailable", block
+        assert block["status"] == ("error" if section == "history" else "unavailable"), block
+        if section == "history":
+            assert block["dataset"] is None
         assert block["failure_code"] == "workload_too_large"
         assert adapter.calls == []
     await service.datahub.close()

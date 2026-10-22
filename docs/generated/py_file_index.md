@@ -3080,6 +3080,8 @@ Functions:
 - `iso_date`
 - `normalize_rows`
 - `merge_rows`
+- `normalize_raw_rows`
+  - Require declared equivalent CNY/share units before projecting raw history.
 - `factor_map`
 - `adjust_rows`
 
@@ -3110,7 +3112,7 @@ Imports:
 
 Classes:
 - `HistoryJobs`
-  - methods: __init__, hub, _observation, _row, public, current, get, list, active, _canonical, _authorize, create, _save, _query, _factors, _gate, _raw_parameters, _cache_chunk, _reuse, _raw_inputs, _publish, _run, cancel, cancel_session, close
+  - methods: __init__, hub, _observation, _row, public, current, get, list, active, _canonical, _authorize, _authorize_inputs, create, _save, _query, _factors, _gate, _raw_parameters, _cache_chunk, _reuse, _raw_inputs, _publish, _run, cancel, cancel_session, close
 
 Functions:
 - `digest`
@@ -3885,6 +3887,7 @@ Imports:
 - `connections`
 - `contracts`
 - `core.observability`
+- `dataclasses`
 - `datetime`
 - `hashlib`
 - `hmac`
@@ -3905,7 +3908,7 @@ Imports:
 
 Classes:
 - `DataHub`
-  - methods: __init__, _storage, authenticate, _latest_probes, admission_catalog, catalog, _record_execution_health, _latest_execution_health, _fetch_with_execution_health, connection_center, directory_fingerprint, asset_directory, _asset_directory, source_configuration_digest, catalog_capability, catalog_source, start_probe, _probe, _mark_probe_terminal, _prune_probes, probe, run_probe, restore_probe_statuses, detail, summaries, copy_for_upgrade, copy_selected, list, rows, short, _authorize_query, _warehouse_read, _execute_business, query, _wait_query, collect_report_weekly, _report_weekly_run_context, register_report_weekly_inputs, _query, cancel, close
+  - methods: __init__, _storage, authenticate, _latest_probes, admission_catalog, catalog, _record_execution_health, _latest_execution_health, _fetch_with_execution_health, connection_center, directory_fingerprint, asset_directory, _asset_directory, source_configuration_digest, catalog_capability, catalog_source, start_probe, _probe, _mark_probe_terminal, _prune_probes, probe, run_probe, restore_probe_statuses, detail, summaries, copy_for_upgrade, copy_selected, list, rows, short, _authorize_query, _can_plan_wind_gaps, _warehouse_read, _execute_business, query, _wait_query, collect_report_weekly, _report_weekly_run_context, register_report_weekly_inputs, _query, cancel, close
 
 Functions:
 - `_trim_sample_strings`
@@ -3949,6 +3952,7 @@ Imports:
 - `providers`
 - `providers_akshare`
 - `providers_baostock`
+- `providers_wind`
 - `providers_wind_api`
 - `store`
 
@@ -4576,7 +4580,9 @@ Functions:
 - `_asset`
 - `_day`
 - `_bounded_history_range`
-- `_preflight`
+- `_bar_semantics`
+- `validate_supported_query`
+  - Check local request bounds without opening an adapter or reading credentials.
 - `_schema_key`
 - `_text`
 - `_provider_date`

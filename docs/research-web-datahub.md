@@ -16,6 +16,10 @@
 
 本阶段新增可选的 `MarketStore` 与可信 `WarehouseBridge` 注入接口，原有会话快照继续读取；正式数据根/数据库配置与自动采集尚未启用。仓库按明确交易日历检查内部缺口，原始日线按缺失连续区间补数后重新检查整窗覆盖；未知空结果不会证明停牌或无交易。显式 refresh 重取请求区间以发现修订；源间自动切换仅开放经过审核的沪深股票原始日线口径，复权行情和财务/资金流不依据同名字段猜测等价性。内核及权限/恢复合同见[研究仓](research-web-market-store.md)。
 
+Wind 日线的60自然日限制只约束实际供应商取数。完整仓库读取仍检查沪深股票身份、频率、复权及日期语义，但不以总窗口长度拒绝已有数据；来源授权、配置摘要与仓库owner仍逐次复验。仅在可信Host的仓库启用、refresh=false、无as_of、沪深股票原始日线长窗时，先有界规划Wind缺口，再对每个实际缺口执行正常60日准入。规划绑定请求指纹和来源配置；空库、失效或过大的缺口不会被盲拆或整段送SDK。auto可按真实原因跳过该Wind候选，固定Wind明确拒绝；预规划及执行共用原总预算，取消继续等待实际存储Future排空。显式refresh=true不进入此路径。
+
+只有auto请求遇到明确的来源专属data_outside_declared_scope时才重新resolve并完整准入；固定来源、缓存来源和全局冻结/能力拒绝不借此切源。候选排除与真实skip原因保留，重复返回同一已拒来源立即停止，不重复调用admission。
+
 `BusinessQuery` 新增 `purpose=display|research|backtest`、`quality=strict|allow_stale`、有时区的 `as_of`；默认请求指纹保持兼容，正式回测必须提供历史时点。未证明的历史视图返回 `data_pit_unavailable`，不以当日下载补造过去版本。实际尝试在 `provider_metadata.execution_attempts`，数据成功在 `data_success`；调用完成不代表数据可用。前台总预算18秒，超时返回504及稳定代码；原call_id保留，已启动SDK/数据库在后台排空、真实结束前仍占容量，迟到结果不能发布。断连不取消owned计时器；重复call_id不重发。
 
 BaoStock 0.9.4新增公开沪深股票原始日线、股票目录和交易日历适配，其财务/新闻绑定仍未实现；无账号SDK不等于厂商数据再分发许可。BaoStock与AKShare由固定模块、最小环境和私有临时HOME的自有子进程执行，每次12秒上限；这仅是生命周期隔离，不是插件沙箱。AKShare新浪日线量为股、换手率比例转百分数且不当作成交额，东方财富手数转股；所有未知指数/ETF量单位仍明确标记。
@@ -37,6 +41,10 @@ BaoStock 0.9.4新增公开沪深股票原始日线、股票目录和交易日历
 本机有限预检读取完整5577条目录及603986相关七类结构化区块，原始证据只留私有`logs/asset-data-preflight/`；这不是全证券、全历史、真实浏览器链路、同候选安装CI或部署验收。各级状态见[任务报告](../.ai/reports/test_report_asset_interaction_data_20261022.md)。
 
 ## 资产历史任务与固定复权
+
+2026-10-23 来源合同：新页面观察使用auto，初次历史请求明确recent/daily/none/source:auto。未传source的旧客户端仍固定tinysoft；旧观察不批量改源，用户可显式切换历史来源。只有近期原始日线开放auto/Wind/AKShare/BaoStock；qfq/hfq、older/all保持原Tinysoft因子与固定锚点合同。Broker在执行前跳过超过Wind60自然日上限的auto候选，继续同证券、同daily/none口径的等价来源；显式Wind仍报参数错误。不会拆分换源，也不扩大transient集合。
+
+非Tinysoft请求的原始输入必须核验证券身份、请求日期、OHLC与量额声明单位：价格为CNY/share、量为share、金额为CNY；turnover只有声明CNY金额时才映射amount。每个有值OHLC/量额别名均须声明相同单位且数值一致，不能默选首字段；可选量额全为空仍保持缺失，不填零。未知单位、错证券、区间外日期或同日冲突停止规范发布，旧图保持；这种失败不声称已经质量降级。规范版本`asset-history-raw-2`逐输入绑定真实provider/URL/manifest/hash/配置摘要。最终发布及缓存命中复验实际来源授权，取消和partial按所有涉及来源的真实Future排空。无上市证据保持listing_date:null、boundary_verified:false、full_history:false。
 
 历史任务可选as_of为新一版冻结的截止／锚点输入，省略时保持旧行为。重新进入个股时，若来源实际报价交易日超过旧全历史的截止锚点，按新日期独立重建完整历史版本，原全历史／因子／研究冻结材料不改写；新证券首次recent默认不变。不能按HTTP读取日冒充报价交易日，也不能用一次recent替换已完成全历史。新版本仍受全部因子／覆盖／代次与原子发布门约束，失败继续保留旧版本。
 
@@ -76,7 +84,7 @@ AssetWorkspace保持旧create／refresh；新页面进入专题后按需调用lo
 
 valuation沿market_snapshot请求close／pe_ttm／pb／pb_mrq／ps_ttm／total_shares；天软按上节的预定义因子取得新字段。普通PB不升级MRQ，PS-TTM不以市值／单期营收补造；Wind未提供的新字段保持partial，未核验股本数量级不派生市值。财务仍从业务financials进入，按所选Provider实际支持的报告期／报表合同读取，不能把本轮最新披露数据称为多年财务历史。
 
-默认概览／历史tinysoft，其余缺块auto，Broker按dataset真实实现选源，fund_flow不选未实现该dataset的天软。Wind60日硬门保持，不截断或拆分、不泛化为天软财务与历史任务限制。真实全历史、首次自动加载和逐区刷新仍分别留厂商证据；有限预检或离线fixtures不替代完整验收。新闻／公告仍按证券读取既有Golddata接口，和旧DataHub news／announcements快照的来源身份分开。
+新观察默认概览auto、近期历史明确auto/none，旧观察固定源及其余缺块auto，Broker按dataset真实实现选源，fund_flow不选未实现该dataset的天软。Wind60日硬门保持，不截断或拆分、不泛化为天软财务与历史任务限制。真实全历史、首次自动加载和逐区刷新仍分别留厂商证据；有限预检或离线fixtures不替代完整验收。新闻／公告仍按证券读取既有Golddata接口，和旧DataHub news／announcements快照的来源身份分开。
 
 正文读取通过原实例私有数据桥按本会话已登记来源 ID 执行，不增加 Provider 凭据或修改已有取数合同。取消使用受信原生 call_id，有限请求的实际输入字节与来源身份保全，搜索摘要继续未核验；正文范围及网络保护见架构 03–05。
 
@@ -437,3 +445,19 @@ Hot原件导入属于frozen_evidence/hot_evidence会话快照，不宣称为新�
 
 
 2026-10-22 基金NAV入仓：基金NAV已接入原生研究仓：日期范围最多31日且分页完整时，保留adjusted_total_return、benchmark_timeseries、verified_currency三项已声明缺口；第二次展示查询可命中仓库，data_success与正式回测标记仍不提升。
+
+2026-10-23 前台data_query_deadline或其他异常若DataHub仍拥有同一call_id任务，历史job保留child_call_id及draining活动状态，复用DataHub.cancel同调用等待真实SDK Future排空后才失败/开放retry；排空期间新任务history_busy。取消排空期间仍等待原调用，不重发、放宽超时或发布晚结果。
+
+2026-10-23 本次独立CJPY 0.5.2专用CjClient只读markettable_columns一次，HTTP200、53字段，0行情/财务/模型、0配置写与凭据持久化；字典SHA-256为27df9e431be417c522e65151179dcc476822f38e792f8ea497bd19733ac4d829。股票vol明确为股，amount规则仅元，OHLC单位/币种仍未声明。Provider仅在实际SDK.__version__精确0.5.2、显式stock/daily及规范沪深股票身份时，新响应vol字段标share、amount标原生元/currency:null，原始rows/raw不变。证据合同tinysoft-stock-daily-fields-v1及字典hash随新provider_metadata.field_dictionary_evidence保存，不重复取字典。旧/未知SDK、缺类型/频率、ETF/index及未证明volume别名保持未知；不填CNY或OHLC单位，不恢复Tinysoft规范研究仓桥，原raw2价格门仍拒绝。旧快照不改写。
+
+2026-10-23 规范raw历史显式使用Host查询合同`required_semantics=cn_stock_daily_cny_share_v1`，仅market_bars、规范沪深stock、daily/none合法；非法组合在Pydantic输入层拒绝，不读凭据。当前单位合同候选只有Wind/AKShare/BaoStock；Tinysoft即使SDK成功也因OHLC单位/currency未知在候选准入记skipped/price_units_unverified，不先调行情再把complete改failed。通用native及显式Tinysoft旧无合同查询不变，qfq/hfq仍原完整门。该选项由Host历史任务设置，不加入DSH通用工具参数schema，不从call_id推断。
+
+合同进入BusinessQuery指纹、manifest query/provider_query、历史job和块缓存身份；默认None从fingerprint移除，旧receipt/缓存保持兼容。新任务冻结请求策略，显式retry保留原策略，旧job缺字段保None而不在重启或retry时悄悄升级。原生SnapshotSeries不满足该合同并拒绝其缓存读取；规范单位的历史后置证券/日期/OHLC/量额校验仍保留，坏响应不会因policy而变成可重试降级。共享deadline、Future容量与draining合同不变。
+
+CJPY局部成交量声明还必须逐行校验所有已存在asset/code/stock_code/证券代码/代码与请求同身份；任意已返回身份列出现显式冲突、ETF/指数或空值均保持unknown，原rows/raw不改，不凭stock标签覆盖冲突。完全没有身份列时，封闭的单一精确code请求、stock/daily及SDK0.5.2合同可作identity_basis=single_security_request，response_identity_observed=false；全匹配身份列为row_aliases，不向rows/raw补asset。field_dictionary_evidence现进入原生SnapshotSeries受审metadata白名单，冻结/导出/恢复保持完整静态证据对象；仍quality_accepted=false、formal_backtest_eligible=false、historical_point_in_time=false，不恢复天软规范研究仓桥。
+
+2026-10-23 单位策略还逐输入冻结到required_semantics证据字段、query及manifest/query/provider_query，_authorize_inputs复验与任务策略一致，_cache_chunk/_reuse检查块顶层策略；旧缺字段None按原合同处理。离线HTTP链覆盖AK执行失败再Bao可信raw成功，候选skip与实际execution_attempts分别保存，不以skip替代运行失败降级证明。
+
+2026-10-23 本次交付缓存边界：Asset新历史job固定refresh=True，显式重读所请求整段，不是先读取研究仓再只补缺失部分。DataHub普通refresh=False仅按精确策略/来源复用完整匹配缓存；Wind超过60自然日时缓存来源仍受当前fetch准入guard限制。跨来源部分覆盖不在本任务中拼接，研究仓prepare交易日历仍可能联网。这些是实际未完成能力，不能用本轮候选降级、原生冻结或单源完整缓存测试宣称全部缓存/缺口补数已覆盖。
+
+2026-10-23 最新逐源证据快照见[64源验证清单](../.ai/reports/2026-10-23-datahub-source-verification.json)：保留2026-10-22静态旧快照，区分CJPY Native SDK字段元数据、iFinD Windows SDK与ext_ths HTTP渠道、Market表面及逐源事实。真实AK此前API/页面两轮与最终组合真实Bao一次分别记录，57源未重查；局部元数据、单证券485行或页面图表不升级为全源可用、PIT、正式回测或部署。

@@ -19,6 +19,7 @@ from .asset_history import (
     ACTIVE,
     FLOOR,
     HISTORY_VERSION,
+    RAW_HISTORY_VERSION,
     adjust_rows,
     canonical_asset,
     chunks_near_first,
@@ -26,11 +27,12 @@ from .asset_history import (
     fail,
     iso_date,
     merge_rows,
+    normalize_raw_rows,
     normalize_rows,
     shift_years,
 )
 from .datahub.adjustment_contract import CONTRACT_VERSION, DEFINITION_SHA256
-from .datahub.contracts import BusinessQuery
+from .datahub.contracts import RAW_STOCK_SEMANTICS, BusinessQuery
 from .datahub.providers import Result
 from .datahub.security import directory, json_bytes, read_file, write_new
 
@@ -99,6 +101,9 @@ class HistoryJobs:
             "status": row["state"],
             "scope": row.get("scope"),
             "adjustment": row.get("adjustment"),
+            "source": row.get("source", "tinysoft"),
+            "requested_as_of": row.get("requested_as_of"),
+            "required_semantics": row.get("required_semantics"),
             "created_at": row.get("created_at"),
             "updated_at": row.get("updated_at"),
             "progress": copy.deepcopy(row.get("progress", {})),
@@ -147,14 +152,18 @@ class HistoryJobs:
             return None
         manifest = self.hub.detail(observation["session_id"], current["dataset_id"])
         history = manifest.get("asset_history")
-        if not isinstance(history, dict) or history.get("canonical_version") != HISTORY_VERSION:
+        if not isinstance(history, dict) or history.get("canonical_version") not in {
+            HISTORY_VERSION,
+            RAW_HISTORY_VERSION,
+        }:
             return None
         return manifest
 
     def _authorize(self, row: dict) -> None:
         query = BusinessQuery(
             capability="market_bars",
-            source="tinysoft",
+            source=row.get("source", "tinysoft"),
+            required_semantics=row.get("required_semantics"),
             parameters={
                 "asset": row["asset"],
                 "asset_type": "stock",
@@ -165,8 +174,46 @@ class HistoryJobs:
             },
         )
         self.hub._authorize_query(row["session_id"], query)
-        if row["configuration_digest"] != self.hub.source_configuration_digest("tinysoft"):
-            raise fail("history_authorization_changed", "天软授权或配置版本已变化，请重新构建历史")
+        configurations = row.get("source_configuration_digests") or {
+            "tinysoft": row["configuration_digest"]
+        }
+        if any(
+            value != self.hub.source_configuration_digest(source)
+            for source, value in configurations.items()
+        ):
+            raise fail("history_authorization_changed", "来源授权或配置版本已变化，请重新构建历史")
+
+    def _authorize_inputs(self, row, inputs):
+        for evidence in inputs:
+            manifest = evidence["manifest"]
+            provider = manifest.get("provider")
+            query = BusinessQuery.model_validate(evidence["query"])
+            semantics = row.get("required_semantics")
+            if any(
+                value != semantics
+                for value in (
+                    evidence.get("required_semantics"),
+                    query.required_semantics,
+                    manifest.get("query", {}).get("required_semantics"),
+                    manifest.get("provider_query", {}).get("required_semantics"),
+                )
+            ):
+                raise fail("history_cache_version_changed", "历史输入单位策略与冻结任务不一致")
+            configurations = row.get("source_configuration_digests") or {
+                "tinysoft": row["configuration_digest"]
+            }
+            if (
+                provider not in configurations
+                or evidence["configuration_digest"] != configurations[provider]
+            ):
+                raise fail("history_authorization_changed", "历史输入来源配置无法核验")
+            self.hub._authorize_query(
+                row["session_id"],
+                query,
+                provider=provider,
+                cached=True,
+                authorization_fingerprint=evidence["configuration_digest"],
+            )
 
     async def create(self, oid: str, body, key: str) -> dict:
         observation = self._observation(oid)
@@ -179,7 +226,7 @@ class HistoryJobs:
         existing = self.store.data["asset_history_keys"].get(key_hash)
         if existing:
             row = self._row(oid, existing)
-            if row["request"] != payload:
+            if {"source": "tinysoft", **row["request"]} != payload:
                 raise fail("history_key_conflict", "同一历史任务标识不能用于不同参数")
             return self.public(row)
         if self.closed:
@@ -198,7 +245,8 @@ class HistoryJobs:
         if body.retry_of:
             previous = self._row(oid, body.retry_of)
             if not self.public(previous)["retryable"] or any(
-                previous[k] != payload[k] for k in ("scope", "adjustment")
+                previous.get(k, "tinysoft" if k == "source" else None) != payload[k]
+                for k in ("scope", "adjustment", "source")
             ):
                 raise fail("history_retry_invalid", "仅可显式重试相同口径的失败或中断任务")
             if body.as_of is not None and body.as_of != previous["requested_as_of"]:
@@ -230,6 +278,13 @@ class HistoryJobs:
             end = previous["end_date"]
             canonical = self._canonical(observation) if body.scope == "older" else None
         jid = str(uuid4())
+        source = payload["source"]
+        configurations = {
+            name: self.hub.source_configuration_digest(name)
+            for name in (
+                ("tinysoft", "wind", "akshare", "baostock") if source == "auto" else (source,)
+            )
+        }
         row = {
             "id": jid,
             "observation_id": oid,
@@ -248,7 +303,15 @@ class HistoryJobs:
                 if canonical
                 else (previous["requested_as_of"] if previous else end)
             ),
-            "configuration_digest": self.hub.source_configuration_digest("tinysoft"),
+            "configuration_digest": (
+                digest(configurations) if source == "auto" else configurations[source]
+            ),
+            "source_configuration_digests": configurations,
+            "required_semantics": (
+                previous.get("required_semantics")
+                if previous
+                else RAW_STOCK_SEMANTICS if source != "tinysoft" else None
+            ),
             "expected_dataset_id": current.get("dataset_id") if current else None,
             "current_dataset": copy.deepcopy(current),
             "base_dataset_id": canonical["dataset_id"] if canonical else None,
@@ -307,7 +370,11 @@ class HistoryJobs:
         call_id = f"history:{row['id']}:{purpose}:{uuid4()}"
         row["child_call_id"] = call_id
         query = BusinessQuery(
-            capability=capability, source="tinysoft", parameters=parameters, refresh=True
+            capability=capability,
+            source=row.get("source", "tinysoft"),
+            required_semantics=row.get("required_semantics"),
+            parameters=parameters,
+            refresh=True,
         )
         child = asyncio.create_task(self.hub.query(row["session_id"], call_id, query))
         try:
@@ -318,6 +385,23 @@ class HistoryJobs:
             await self.hub.cancel(row["session_id"], call_id)
             await asyncio.gather(child, return_exceptions=True)
             raise
+        except Exception:
+            # A bounded foreground query may exit while DataHub still owns the
+            # real SDK Future. Keep this job and its exact call identity active
+            # until the existing cancellation API confirms that owned work left.
+            owned = getattr(self.hub, "tasks", {}).get((row["session_id"], call_id))
+            if owned is not None and not owned.done():
+                self._save(row, state="draining")
+                draining = asyncio.create_task(self.hub.cancel(row["session_id"], call_id))
+                while not draining.done():
+                    try:
+                        await asyncio.shield(draining)
+                    except asyncio.CancelledError:
+                        log.info("asset_history_child_still_draining", job_id=row["id"])
+                draining.result()
+                if row.get("cancel_requested"):
+                    raise asyncio.CancelledError
+            raise
         finally:
             row.pop("child_call_id", None)
         if row["state"] in {"cancelling", "draining"}:
@@ -326,11 +410,18 @@ class HistoryJobs:
             result["status"] not in {"complete", "empty"}
             or result.get("pagination_complete") is not True
         ):
-            from .datahub.providers_cjpy import active_futures, wait_for_idle
+            from .datahub.worker_activity import SOURCES, drain_sources
 
-            if active_futures():
-                self._save(row, state="draining")
-                await wait_for_idle()
+            touched = {
+                attempt.get("source")
+                for attempt in result.get("provider_metadata", {}).get("execution_attempts", [])
+                if attempt.get("stage") == "execution"
+            }
+            touched.add(result.get("provider") or query.source)
+            self._save(row, state="draining")
+            await drain_sources(
+                touched & SOURCES or (SOURCES if query.source == "auto" else {query.source})
+            )
             if row.get("cancel_requested"):
                 raise asyncio.CancelledError
             code = next(
@@ -358,11 +449,14 @@ class HistoryJobs:
             "manifest_sha256": result["manifest_sha256"],
             "manifest": json.loads(original_manifest),
             "query": query.model_dump(),
+            "required_semantics": query.required_semantics,
             "rows": rows,
             "rows_sha256": digest(rows),
             "raw_files": copy.deepcopy(result["raw_files"]),
             "provider_metadata": copy.deepcopy(result.get("provider_metadata", {})),
-            "configuration_digest": row["configuration_digest"],
+            "configuration_digest": (
+                row.get("source_configuration_digests") or {"tinysoft": row["configuration_digest"]}
+            ).get(json.loads(original_manifest).get("provider")),
         }
 
     async def _factors(self, row, days, listing, inputs):
@@ -430,6 +524,7 @@ class HistoryJobs:
             "observation_id": row["observation_id"],
             "interval": interval,
             "configuration_digest": row["configuration_digest"],
+            "required_semantics": row.get("required_semantics"),
             "definition_sha256": definition.get("definition_sha256"),
             "evidence": evidence,
             "normalized": normalized,
@@ -461,6 +556,7 @@ class HistoryJobs:
                 or value["session_id"] != row["session_id"]
                 or value["observation_id"] != row["observation_id"]
                 or value["configuration_digest"] != row["configuration_digest"]
+                or value.get("required_semantics") != row.get("required_semantics")
                 or value["definition_sha256"] != definition.get("definition_sha256")
             ):
                 raise fail("history_cache_version_changed", "冻结输入版本已变化，须重建完整历史")
@@ -472,6 +568,7 @@ class HistoryJobs:
                     or digest(evidence["rows"]) != evidence["rows_sha256"]
                 ):
                     raise fail("history_cache_hash_invalid", "冻结来源证据校验失败")
+            self._authorize_inputs(row, [value["evidence"], *value["factor_inputs"]])
             if value["factors"]:
                 validation_inputs: list[dict] = []
                 checked = await self._factors(
@@ -518,6 +615,7 @@ class HistoryJobs:
     def _publish(self, row, raw_rows, factors, inputs, scanned, definition, listing, anchor):
         observation = self._observation(row["observation_id"])
         self._authorize(row)
+        self._authorize_inputs(row, inputs)
         block = observation.setdefault("blocks", {}).setdefault(
             "history", {"status": "empty", "dataset": None}
         )
@@ -544,12 +642,21 @@ class HistoryJobs:
             "boundary_verified": bool(listing),
             "scanned_start": scanned_start,
             "scanned_end": scanned_end,
-            "full_history": scanned_start <= (listing or FLOOR.isoformat()),
+            "full_history": bool(listing) and scanned_start <= listing,
             "scope": row["scope"],
         }
         factor_hash = digest(factors) if row["adjustment"] != "none" else None
         history = {
-            "canonical_version": HISTORY_VERSION,
+            "canonical_version": (
+                RAW_HISTORY_VERSION
+                if row.get("source", "tinysoft") != "tinysoft"
+                else HISTORY_VERSION
+            ),
+            "source": row.get("source", "tinysoft"),
+            "required_semantics": row.get("required_semantics"),
+            "source_configuration_digests": row.get(
+                "source_configuration_digests", {"tinysoft": row["configuration_digest"]}
+            ),
             "factor_version": (
                 f"{definition['contract_version']}:{factor_hash}" if factor_hash else None
             ),
@@ -574,22 +681,34 @@ class HistoryJobs:
         result = Result(
             rows=adjusted,
             raw=self._raw_inputs(row, inputs),
-            source_url="https://www.chinajoin.com/",
+            source_url=inputs[-1]["manifest"].get("source_url", ""),
             status="complete" if adjusted else "empty",
             pagination_complete=True,
             provider_total=len(adjusted),
-            provider_id="tinysoft",
+            provider_id=inputs[-1]["manifest"]["provider"],
             metadata={"adjustment_contract": definition, "factor_snapshot_sha256": factor_hash},
             as_of=anchor,
-            fields={
-                key: {"type": "number"}
-                for key in ("open", "high", "low", "close", "volume", "amount")
-            },
+            fields=(
+                {
+                    **inputs[-1]["manifest"].get("fields", {}),
+                    **(
+                        {"amount": inputs[-1]["manifest"]["fields"]["turnover"]}
+                        if "turnover" in inputs[-1]["manifest"].get("fields", {})
+                        else {}
+                    ),
+                }
+                if row.get("source", "tinysoft") != "tinysoft"
+                else {
+                    key: {"type": "number"}
+                    for key in ("open", "high", "low", "close", "volume", "amount")
+                }
+            ),
             limitations=["复权仅按已核验定义与固定锚点计算；成交量和成交额保留供应商原值。"],
         )
         query = BusinessQuery(
             capability="market_bars",
-            source="tinysoft",
+            source=row.get("source", "tinysoft"),
+            required_semantics=row.get("required_semantics"),
             parameters={
                 "asset": row["asset"],
                 "asset_type": "stock",
@@ -604,7 +723,9 @@ class HistoryJobs:
             query,
             result,
             request_query=query,
-            authorization_fingerprint=row["configuration_digest"],
+            authorization_fingerprint=(
+                row.get("source_configuration_digests") or {"tinysoft": row["configuration_digest"]}
+            )[result.provider_id],
             asset_history=history,
         )
         # This commit has no await: generation, authorization and old-pointer CAS
@@ -702,7 +823,16 @@ class HistoryJobs:
                     evidence = await self._query(
                         row, "market_bars", self._raw_parameters(row, interval), "raw"
                     )
-                    normalized = normalize_rows(evidence["rows"], row["asset"], interval)
+                    normalized = (
+                        normalize_raw_rows(
+                            evidence["rows"],
+                            row["asset"],
+                            interval,
+                            evidence["manifest"].get("fields", {}),
+                        )
+                        if row.get("source", "tinysoft") != "tinysoft"
+                        else normalize_rows(evidence["rows"], row["asset"], interval)
+                    )
                     factor_inputs, chunk_factors = [], {}
                     if row["adjustment"] != "none" and normalized:
                         chunk_factors = await self._factors(

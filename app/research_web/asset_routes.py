@@ -76,6 +76,7 @@ class HistoryJobRequest(BaseModel):
 
     scope: Literal["recent", "older", "all"]
     adjustment: Literal["none", "qfq", "hfq"]
+    source: Literal["auto", "tinysoft", "wind", "akshare", "baostock"] = "tinysoft"
     as_of: str | None = Field(default=None, pattern=r"^[0-9]{4}-[0-9]{2}-[0-9]{2}$")
     retry_of: str | None = Field(
         default=None, pattern=r"^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$"
@@ -83,6 +84,8 @@ class HistoryJobRequest(BaseModel):
 
     @model_validator(mode="after")
     def valid_cutoff(self):
+        if self.source != "tinysoft" and (self.scope != "recent" or self.adjustment != "none"):
+            raise ValueError("non-Tinysoft history requires recent unadjusted daily bars")
         if self.as_of is not None:
             date.fromisoformat(self.as_of)
             if self.scope == "older":

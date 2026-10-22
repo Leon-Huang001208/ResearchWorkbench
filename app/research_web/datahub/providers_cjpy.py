@@ -21,10 +21,12 @@ from .adjustment_contract import (
     validate_adjustment_parameters,
 )
 from .contracts import BusinessQuery
-from .providers import ProviderError, Result
+from .providers import ProviderError, Result, cn_stock_identity
 
 log = get_logger(__name__)
 SOURCE_URL = "https://www.chinajoin.com/"
+FIELD_DICTIONARY_VERSION = "tinysoft-stock-daily-fields-v1"
+FIELD_DICTIONARY_SHA256 = "27df9e431be417c522e65151179dcc476822f38e792f8ea497bd19733ac4d829"
 DEADLINE = 15
 MAX_ROWS = 5000
 SHANGHAI_TZ = timezone(timedelta(hours=8), name="Asia/Shanghai")
@@ -491,6 +493,67 @@ def _sync_query_with_client(query: BusinessQuery, client, effective_token: str):
         raise ProviderError("tinysoft_capability_unsupported")
     if _contains_secret(rows, effective_token):
         raise ProviderError("credential_reflection")
+    if query.capability == "market_bars":
+        verified_sdk = getattr(cjpy, "__version__", None) == "0.5.2"
+        applied = (
+            verified_sdk
+            and parameters.get("asset_type") == "stock"
+            and parameters.get("frequency") == "daily"
+        )
+        identity_basis = "unverified"
+        identities = ("asset", "code", "stock_code", "证券代码", "代码")
+        response_identity_observed = any(any(name in row for name in identities) for row in rows)
+        if applied:
+            try:
+                expected = cn_stock_identity(parameters.get("asset"))
+                allowed = {expected, expected[:6], expected[-2:] + expected[:6]}
+                if not response_identity_observed:
+                    applied = bool(rows)
+                    identity_basis = "single_security_request" if applied else "unverified"
+                else:
+                    applied = bool(rows) and all(
+                        any(name in row for name in identities)
+                        and all(
+                            isinstance(row[name], str) and row[name].strip().upper() in allowed
+                            for name in identities
+                            if name in row
+                        )
+                        for row in rows
+                    )
+                    if applied:
+                        identity_basis = "row_aliases"
+            except ProviderError:
+                applied = False
+        fields: dict[str, dict[str, str | None]] = {
+            key: {"unit": None, "currency": None} for row in rows for key in row
+        }
+        if applied:
+            if "vol" in fields:
+                fields["vol"] = {"unit": "share", "currency": None}
+            if "amount" in fields:
+                fields["amount"] = {"unit": "元", "currency": None}
+        log.info("tinysoft_field_dictionary_projected", applied=applied, sdk_verified=verified_sdk)
+        return Result(
+            rows=rows,
+            raw=[json.dumps(rows, ensure_ascii=False).encode()],
+            source_url=SOURCE_URL,
+            provider_id="tinysoft",
+            fields=fields,
+            metadata={
+                "field_dictionary_evidence": {
+                    "contract_version": FIELD_DICTIONARY_VERSION,
+                    "observed_sdk_version": "0.5.2",
+                    "runtime_sdk_version": "0.5.2" if verified_sdk else "unverified",
+                    "method": "markettable_columns",
+                    "dictionary_sha256": FIELD_DICTIONARY_SHA256,
+                    "applied": applied,
+                    "scope": "explicit_stock_daily_native_vol_amount",
+                    "price_currency_verified": False,
+                    "identity_basis": identity_basis,
+                    "response_identity_observed": response_identity_observed,
+                }
+            },
+        )
     return rows
 
 

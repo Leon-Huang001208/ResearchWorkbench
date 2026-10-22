@@ -258,7 +258,9 @@ def _day(value: Any) -> str:
     return value
 
 
-def _bounded_history_range(parameters: dict[str, Any]) -> tuple[str, str]:
+def _bounded_history_range(
+    parameters: dict[str, Any], *, enforce_workload_limit: bool = True
+) -> tuple[str, str]:
     raw_start = parameters.get("start_date")
     raw_end = parameters.get("end_date")
     if not isinstance(raw_start, str) or not isinstance(raw_end, str):
@@ -269,19 +271,40 @@ def _bounded_history_range(parameters: dict[str, Any]) -> tuple[str, str]:
     end_day = date.fromisoformat(end)
     if start_day > end_day:
         raise ProviderError("data_not_equivalent")
-    if (end_day - start_day).days + 1 > MAX_HISTORY_CALENDAR_DAYS:
+    if enforce_workload_limit and (end_day - start_day).days + 1 > MAX_HISTORY_CALENDAR_DAYS:
         raise ProviderError("workload_too_large")
     return start, end
 
 
-def _preflight(query: BusinessQuery) -> None:
+def _bar_semantics(parameters: dict[str, Any]) -> tuple[str, str]:
+    frequency = parameters.get("frequency", "1d")
+    adjustment = parameters.get("adjustment", "none")
+    if (
+        parameters.get("asset_type") != "stock"
+        or not isinstance(frequency, str)
+        or frequency not in {"1d", "day", "daily"}
+        or not isinstance(adjustment, str)
+        or adjustment not in _ADJUSTMENTS
+    ):
+        raise ProviderError("data_not_equivalent")
+    return frequency, adjustment
+
+
+def validate_supported_query(
+    query: BusinessQuery, *, storage_read: bool = False, defer_workload_limit: bool = False
+) -> None:
+    """Check local request bounds without opening an adapter or reading credentials."""
     parameters = query.parameters
     if query.capability in {"market_bars", "market_snapshot"}:
         if parameters.get("asset_type") != "stock":
             raise ProviderError("data_not_equivalent")
         if query.capability == "market_bars":
             cn_stock_identity(parameters.get("asset"))
-            _bounded_history_range(parameters)
+            if storage_read or defer_workload_limit:
+                _bar_semantics(parameters)
+            _bounded_history_range(
+                parameters, enforce_workload_limit=not (storage_read or defer_workload_limit)
+            )
         else:
             assets = parameters.get("assets")
             if not isinstance(assets, list) or not 1 <= len(assets) <= 50:
@@ -542,16 +565,7 @@ def _submit(query: BusinessQuery, adapter: Any | None) -> concurrent.futures.Fut
 def _invoke(query: BusinessQuery, adapter: Any) -> Any:
     parameters = query.parameters
     if query.capability == "market_bars":
-        frequency = parameters.get("frequency", "1d")
-        adjustment = parameters.get("adjustment", "none")
-        if (
-            parameters.get("asset_type") != "stock"
-            or not isinstance(frequency, str)
-            or frequency not in {"1d", "day", "daily"}
-            or not isinstance(adjustment, str)
-            or adjustment not in _ADJUSTMENTS
-        ):
-            raise ProviderError("data_not_equivalent")
+        _frequency, adjustment = _bar_semantics(parameters)
         start_date, end_date = _bounded_history_range(parameters)
         return adapter.fetch_daily_quotes(
             codes=[_asset(parameters.get("asset"))],
@@ -630,7 +644,7 @@ def _invoke(query: BusinessQuery, adapter: Any) -> Any:
 async def fetch(query: BusinessQuery, *, adapter: Any | None = None) -> Result:
     result = Result(provider_id="wind", source_url="wind://local-session")
     try:
-        _preflight(query)
+        validate_supported_query(query)
         future = _submit(query, adapter)
         try:
             frame = await asyncio.wait_for(

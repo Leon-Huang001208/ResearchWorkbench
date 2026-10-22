@@ -18,6 +18,43 @@ from app.research_web.datahub.snapshots import Snapshots
 from app.research_web.store import Store, StoreError
 
 
+@pytest.fixture(autouse=True)
+def isolated_credentials(monkeypatch):
+    """Every host fixture uses memory; unexpected OS credential access fails closed."""
+    import keyring
+
+    from app.research_web import credential_backend
+    from app.research_web.datahub import connections
+
+    class MemoryCredentials:
+        def __init__(self):
+            self.values = {}
+
+        def get_password(self, service, account):
+            return self.values.get((service, account))
+
+        def set_password(self, service, account, value):
+            self.values[(service, account)] = value
+
+        def delete_password(self, service, account):
+            self.values.pop((service, account), None)
+
+    def deny(*_args, **_kwargs):
+        pytest.fail("history tests must not access host credentials")
+
+    monkeypatch.setattr(connections, "default_credential_backend", MemoryCredentials)
+    monkeypatch.setattr(credential_backend, "default_credential_backend", MemoryCredentials)
+    for backend in (
+        credential_backend.SystemKeyringBackend,
+        credential_backend.PrivateFileCredentialBackend,
+    ):
+        monkeypatch.setattr(backend, "__init__", deny)
+        for method in ("get_password", "set_password", "delete_password"):
+            monkeypatch.setattr(backend, method, deny)
+    for method in ("get_password", "set_password", "delete_password"):
+        monkeypatch.setattr(keyring, method, deny)
+
+
 class HistoryHub:
     """Deterministic supplier boundary; snapshot IO remains real."""
 
@@ -827,4 +864,999 @@ async def test_canonical_adjustment_is_not_a_generic_vendor_cache_entry(tmp_path
         assert conflict.value.code == "data_cache_not_equivalent"
     finally:
         await ws.close()
+        await hub.close()
+
+
+def test_history_source_is_explicit_and_old_clients_keep_tinysoft():
+    assert HistoryJobRequest(scope="recent", adjustment="none").source == "tinysoft"
+    assert HistoryJobRequest(scope="recent", adjustment="none", source="auto").source == "auto"
+    with pytest.raises(ValueError):
+        HistoryJobRequest(scope="recent", adjustment="qfq", source="auto")
+    with pytest.raises(ValueError):
+        HistoryJobRequest(scope="all", adjustment="none", source="auto")
+
+
+def test_raw_history_requires_identity_units_and_maps_declared_turnover():
+    from app.research_web.asset_history import normalize_raw_rows
+
+    interval = {"start_date": "2026-10-01", "end_date": "2026-10-20"}
+    rows = [
+        {
+            "asset": "600000.SH",
+            "date": "2026-10-20",
+            "open": 10,
+            "high": 12,
+            "low": 9,
+            "close": 11,
+            "volume": 100,
+            "turnover": 1100,
+        }
+    ]
+    fields = {
+        k: {"unit": "currency_per_share", "currency": "CNY"}
+        for k in ("open", "high", "low", "close")
+    }
+    fields.update(
+        volume={"unit": "share", "currency": None}, turnover={"unit": "currency", "currency": "CNY"}
+    )
+    assert normalize_raw_rows(rows, "600000.SH", interval, fields)[0]["amount"] == 1100
+    with pytest.raises(StoreError, match="单位"):
+        normalize_raw_rows(rows, "600000.SH", interval, {})
+    with pytest.raises(StoreError, match="身份"):
+        normalize_raw_rows(
+            [{k: v for k, v in rows[0].items() if k != "asset"}], "600000.SH", interval, fields
+        )
+
+
+@pytest.mark.asyncio
+async def test_recent_auto_freezes_requested_source_and_actual_configuration(tmp_path):
+    ws, hub, oid = workspace(tmp_path)
+    job = await ws.history_jobs.create(
+        oid, HistoryJobRequest(scope="recent", adjustment="none", source="auto"), "auto-recent-key"
+    )
+    await settle(ws)
+    record = ws.store.data["asset_history_jobs"][job["id"]]
+    assert record["source"] == "auto"
+    assert set(record["source_configuration_digests"]) == {
+        "tinysoft",
+        "wind",
+        "akshare",
+        "baostock",
+    }
+    assert all(query.source == "auto" for query in hub.calls)
+    # A supplier with no price-unit declaration cannot produce a canonical snapshot.
+    assert ws.history_jobs.get(oid, job["id"])["failure_code"] == "history_unit_unverified"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "source, fault",
+    [
+        ("auto", None),
+        ("tinysoft", None),
+        ("auto", "units"),
+        ("auto", "security"),
+        ("auto", "date"),
+        ("auto", "conflict"),
+        ("auto", "revoked"),
+    ],
+)
+async def test_http_history_real_broker_executor_fallback_chain(
+    tmp_path, monkeypatch, source, fault
+):
+    import httpx
+    from fastapi import FastAPI
+
+    from app.research_web.asset_routes import router
+    from app.research_web.datahub import providers_akshare
+
+    ws, hub, oid, calls, sdk, _ = real_workspace(tmp_path, monkeypatch)
+    statuses = {
+        "tinysoft": {"configured": True, "secret_configured": True},
+        "wind": {"configured": True, "preferred_adapter": "excel"},
+    }
+    monkeypatch.setattr(hub.connections, "statuses", lambda: statuses)
+
+    def failed_bars(**kwargs):
+        calls.append(("failed-bars", kwargs))
+        raise OSError("synthetic unavailability")
+
+    sdk.get_market_data = failed_bars
+    public_calls = []
+
+    def invoke(query):
+        public_calls.append(query)
+        rows = [
+            {
+                "date": query.parameters["end_date"],
+                "open": 10,
+                "high": 12,
+                "low": 9,
+                "close": 11,
+                "volume": 100,
+                "amount": 1100,
+            }
+        ]
+        if fault == "conflict":
+            rows.append({**rows[0], "close": 10.5})
+        import pandas as pd
+
+        result = providers_akshare._materialize(
+            query, pd.DataFrame(rows), providers_akshare._normalize_sina_stock_bars
+        )
+        if fault == "units":
+            result.fields["close"]["currency"] = None
+        if fault == "security":
+            result.rows[0]["asset"] = "000001.SZ"
+        if fault == "date":
+            result.rows[0]["date"] = "2026-10-21"
+        if fault == "revoked":
+            monkeypatch.setattr(hub.connections, "configuration_revision", lambda _: "revoked")
+        return result
+
+    monkeypatch.setattr(providers_akshare, "_invoke", invoke)
+    app = FastAPI()
+    app.include_router(router)
+    app.state.research = ws.service
+    ws.service.asset_workspace = ws
+    try:
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://fixture"
+        ) as client:
+            response = await client.post(
+                f"/api/research/assets/observations/{oid}/history-jobs",
+                json={"scope": "recent", "adjustment": "none", "source": source},
+                headers={"Idempotency-Key": "http-fallback-01"},
+            )
+            assert response.status_code == 202, response.text
+            job = response.json()
+            await settle(ws)
+            result = (
+                await client.get(
+                    f"/api/research/assets/observations/{oid}/history-jobs/{job['id']}"
+                )
+            ).json()
+        assert not any(call[0] == "factors" for call in calls)
+        if source == "tinysoft":
+            assert result["state"] == "failed"
+            assert public_calls == []
+        elif fault:
+            assert result["state"] == "failed", result
+            assert ws.observation(oid)["blocks"]["history"]["dataset"] is None
+            assert len(public_calls) == 1
+        else:
+            assert result["state"] == "completed", result
+            assert len(public_calls) == 1
+            dataset = ws.observation(oid)["blocks"]["history"]["dataset"]
+            assert dataset["provider"] == "akshare"
+            assert (
+                hub.detail(ws.observation(oid)["session_id"], dataset["dataset_id"])["source_url"]
+                == "https://akshare.akfamily.xyz/"
+            )
+            history = hub.detail(ws.observation(oid)["session_id"], dataset["dataset_id"])[
+                "asset_history"
+            ]
+            assert history["canonical_version"] == "asset-history-raw-2"
+            assert history["coverage"]["listing_date"] is None
+            assert history["coverage"]["boundary_verified"] is False
+            assert history["coverage"]["full_history"] is False
+            assert history["raw_rows"][0]["amount"] == 1100
+            attempts = history["inputs"][0]["manifest"]["attempted_sources"]
+            assert any(
+                a["source"] == "wind" and a["reason"] == "workload_too_large" for a in attempts
+            )
+            assert any(
+                a["source"] == "tinysoft" and a["reason"] == "price_units_unverified"
+                for a in attempts
+            )
+            assert not any(call[0] == "failed-bars" for call in calls)
+    finally:
+        await hub.close()
+
+
+@pytest.mark.asyncio
+async def test_auto_cancellation_drains_real_public_executor_and_retry_freezes_source(
+    tmp_path, monkeypatch
+):
+    from app.research_web.datahub import providers_akshare
+    from app.research_web.datahub.providers import Result
+
+    ws, hub, oid, _, _sdk, _ = real_workspace(tmp_path, monkeypatch)
+    statuses = {"tinysoft": {"configured": False}}
+    monkeypatch.setattr(hub.connections, "statuses", lambda: statuses)
+    entered, release = threading.Event(), threading.Event()
+
+    def invoke(query):
+        entered.set()
+        assert release.wait(3), "fixture did not release public executor"
+        return Result(
+            rows=[],
+            raw=[b"[]"],
+            status="empty",
+            pagination_complete=True,
+            provider_id="akshare",
+            fields={
+                k: {"unit": "currency_per_share", "currency": "CNY"}
+                for k in ("open", "high", "low", "close")
+            },
+        )
+
+    monkeypatch.setattr(providers_akshare, "_invoke", invoke)
+    job = await ws.history_jobs.create(
+        oid, HistoryJobRequest(scope="recent", adjustment="none", source="auto"), "auto-cancel-key"
+    )
+    try:
+        assert await asyncio.to_thread(entered.wait, 2)
+        cancelled = await ws.history_jobs.cancel(oid, job["id"])
+        await asyncio.sleep(0.01)
+        assert cancelled["state"] == "cancelling"
+        assert ws.history_jobs.active(oid)
+        assert providers_akshare.active_futures()
+        release.set()
+        await settle(ws)
+        assert ws.history_jobs.get(oid, job["id"])["state"] == "cancelled"
+        assert not providers_akshare.active_futures()
+        assert ws.observation(oid)["blocks"]["history"]["dataset"] is None
+        with pytest.raises(StoreError) as error:
+            await ws.history_jobs.create(
+                oid,
+                HistoryJobRequest(
+                    scope="recent", adjustment="none", source="baostock", retry_of=job["id"]
+                ),
+                "auto-retry-changed",
+            )
+        assert error.value.code == "history_retry_invalid"
+    finally:
+        release.set()
+        await settle(ws)
+        await hub.close()
+
+
+def test_reading_legacy_job_does_not_backfill_source_on_disk(tmp_path):
+    ws, _, oid = workspace(tmp_path)
+    row = {
+        "id": "legacy",
+        "observation_id": oid,
+        "state": "failed",
+        "scope": "recent",
+        "adjustment": "none",
+        "failure_code": "provider_error",
+    }
+    ws.store.data["asset_history_jobs"]["legacy"] = row
+    ws.store.save()
+    before = (tmp_path / "index.json").read_bytes()
+    assert ws.history_jobs.get(oid, "legacy")["source"] == "tinysoft"
+    assert "source" not in row
+    assert (tmp_path / "index.json").read_bytes() == before
+
+
+@pytest.mark.parametrize("extra", [{"code": "000001.SZ"}, {"日期": "2026-10-19"}])
+def test_raw_history_rejects_conflicting_identity_or_date_aliases(extra):
+    from app.research_web.asset_history import normalize_raw_rows
+
+    fields = {
+        key: {"unit": "currency_per_share", "currency": "CNY"}
+        for key in ("open", "high", "low", "close")
+    }
+    row = {
+        "asset": "600000.SH",
+        "date": "2026-10-20",
+        "open": 10,
+        "high": 12,
+        "low": 9,
+        "close": 11,
+        **extra,
+    }
+    with pytest.raises(StoreError):
+        normalize_raw_rows(
+            [row], "600000.SH", {"start_date": "2026-10-01", "end_date": "2026-10-20"}, fields
+        )
+
+
+@pytest.mark.parametrize(
+    "key, alias, value, alias_unit",
+    [
+        ("open", "开盘", 999, "valid"),
+        ("volume", "vol", 999, "valid"),
+        ("amount", "成交额", 999, "valid"),
+        ("amount", "turnover", 999, "valid"),
+        ("volume", "vol", 100, "unknown"),
+        ("amount", "成交额", 1100, "wrong"),
+        ("open", "开盘", 10, "unknown"),
+    ],
+)
+def test_raw_history_checks_every_numeric_alias_and_its_declared_unit(
+    key, alias, value, alias_unit
+):
+    from app.research_web.asset_history import normalize_raw_rows
+
+    fields = {
+        name: {"unit": "currency_per_share", "currency": "CNY"}
+        for name in ("open", "high", "low", "close")
+    }
+    fields.update(
+        volume={"unit": "share", "currency": None}, amount={"unit": "currency", "currency": "CNY"}
+    )
+    fields[alias] = (
+        dict(fields[key])
+        if alias_unit == "valid"
+        else ({"unit": "lot", "currency": None} if alias_unit == "wrong" else {})
+    )
+    row = {
+        "asset": "600000.SH",
+        "date": "2026-10-20",
+        "open": 10,
+        "high": 12,
+        "low": 9,
+        "close": 11,
+        "volume": 100,
+        "amount": 1100,
+        alias: value,
+    }
+    with pytest.raises(StoreError):
+        normalize_raw_rows(
+            [row], "600000.SH", {"start_date": "2026-10-01", "end_date": "2026-10-20"}, fields
+        )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("cancel_during_drain", [False, True])
+async def test_history_deadline_keeps_owned_call_draining_until_real_executor_exits(
+    tmp_path, monkeypatch, cancel_during_drain
+):
+    import app.research_web.datahub as datahub_module
+    from app.research_web.datahub import providers_akshare
+    from app.research_web.datahub.providers import Result
+
+    ws, hub, oid, _, _sdk, _ = real_workspace(tmp_path, monkeypatch)
+    monkeypatch.setattr(hub.connections, "statuses", lambda: {"tinysoft": {"configured": False}})
+    monkeypatch.setattr(datahub_module, "TOTAL_DEADLINE", 0.03)
+    entered, release = threading.Event(), threading.Event()
+
+    def invoke(_query):
+        entered.set()
+        assert release.wait(3)
+        return Result(
+            rows=[], raw=[b"[]"], status="empty", pagination_complete=True, provider_id="akshare"
+        )
+
+    monkeypatch.setattr(providers_akshare, "_invoke", invoke)
+    job = await ws.history_jobs.create(
+        oid,
+        HistoryJobRequest(scope="recent", adjustment="none", source="auto"),
+        "deadline-drain-key",
+    )
+    try:
+        assert await asyncio.to_thread(entered.wait, 2)
+        await asyncio.sleep(0.08)
+        current = ws.history_jobs.get(oid, job["id"])
+        record = ws.store.data["asset_history_jobs"][job["id"]]
+        assert current["state"] == "draining"
+        assert current["retryable"] is False and ws.history_jobs.active(oid)
+        assert record.get("child_call_id")
+        assert providers_akshare.active_futures() and len(hub.tasks) == 1
+        with pytest.raises(StoreError) as busy:
+            await ws.history_jobs.create(
+                oid,
+                HistoryJobRequest(scope="recent", adjustment="none", source="auto"),
+                "deadline-busy-key",
+            )
+        assert busy.value.code == "history_busy"
+        if cancel_during_drain:
+            await ws.history_jobs.cancel(oid, job["id"])
+            assert ws.history_jobs.active(oid)
+            assert record.get("child_call_id") and providers_akshare.active_futures()
+        release.set()
+        await settle(ws)
+        current = ws.history_jobs.get(oid, job["id"])
+        assert current["state"] == ("cancelled" if cancel_during_drain else "failed")
+        assert current["failure_code"] == (
+            "history_cancelled" if cancel_during_drain else "data_query_deadline"
+        )
+        assert current["retryable"] is True
+        assert (
+            not record.get("child_call_id")
+            and not providers_akshare.active_futures()
+            and not hub.tasks
+        )
+        assert ws.observation(oid)["blocks"]["history"]["dataset"] is None
+    finally:
+        release.set()
+        await settle(ws)
+        await hub.close()
+
+
+def test_raw_history_equal_declared_aliases_and_optional_none_do_not_fill_zero():
+    from app.research_web.asset_history import normalize_raw_rows
+
+    fields = {
+        name: {"unit": "currency_per_share", "currency": "CNY"}
+        for name in ("open", "high", "low", "close", "开盘")
+    }
+    fields.update(
+        volume={"unit": "share", "currency": None},
+        vol={"unit": "share", "currency": None},
+        amount={"unit": "currency", "currency": "CNY"},
+        turnover={"unit": "currency", "currency": "CNY"},
+    )
+    row = {
+        "asset": "600000.SH",
+        "date": "2026-10-20",
+        "open": 10,
+        "开盘": "10.0",
+        "high": 12,
+        "low": 9,
+        "close": 11,
+        "volume": 100,
+        "vol": "100",
+        "amount": 1100,
+        "turnover": "1100.0",
+    }
+    interval = {"start_date": "2026-10-01", "end_date": "2026-10-20"}
+    value = normalize_raw_rows([row], "600000.SH", interval, fields)[0]
+    assert value["open"] == 10 and value["volume"] == 100 and value["amount"] == 1100
+    optional = {**row, "volume": None, "vol": None, "amount": None, "turnover": None}
+    value = normalize_raw_rows([optional], "600000.SH", interval, fields)[0]
+    assert "volume" not in value and "amount" not in value
+    with pytest.raises(StoreError):
+        normalize_raw_rows(
+            [{**optional, "open": None, "开盘": None}], "600000.SH", interval, fields
+        )
+
+
+@pytest.mark.asyncio
+async def test_history_requests_frozen_raw_semantics_before_source_admission(tmp_path):
+    ws, hub, oid = workspace(tmp_path)
+    job = await ws.history_jobs.create(
+        oid, HistoryJobRequest(scope="recent", adjustment="none", source="auto"), "semantic-job-key"
+    )
+    await settle(ws)
+    row = ws.store.data["asset_history_jobs"][job["id"]]
+    assert row["required_semantics"] == "cn_stock_daily_cny_share_v1"
+    assert hub.calls[0].required_semantics == row["required_semantics"]
+
+
+@pytest.mark.asyncio
+async def test_native_cjpy_success_cannot_mask_canonical_auto_or_its_cache_identity(
+    tmp_path, monkeypatch
+):
+    import pandas as pd
+
+    from app.research_web.datahub import providers_akshare
+
+    ws, hub, oid, calls, sdk, _ = real_workspace(tmp_path, monkeypatch)
+    sdk.__version__ = "0.5.2"
+    sid = ws.observation(oid)["session_id"]
+    parameters = {
+        "asset": "600000.SH",
+        "asset_type": "stock",
+        "frequency": "daily",
+        "adjustment": "none",
+        "start_date": "2024-10-20",
+        "end_date": "2026-10-20",
+    }
+    native_query = BusinessQuery(capability="market_bars", parameters=parameters)
+    native = await hub.query(sid, "native-success-old", native_query)
+    assert native["status"] == "complete" and native["provider"] == "tinysoft"
+    assert native["row_count"] == 731
+    old = hub.detail(sid, native["dataset_id"])
+    assert old["fields"]["close"] == {"unit": None, "currency": None}
+    public = []
+
+    def invoke(query):
+        public.append(query)
+        frame = pd.DataFrame(
+            [
+                {
+                    "date": "2026-10-20",
+                    "open": 10,
+                    "high": 12,
+                    "low": 9,
+                    "close": 11,
+                    "volume": 100,
+                    "amount": 1100,
+                }
+            ]
+        )
+        return providers_akshare._materialize(
+            query, frame, providers_akshare._normalize_sina_stock_bars
+        )
+
+    monkeypatch.setattr(providers_akshare, "_invoke", invoke)
+    required = BusinessQuery(
+        capability="market_bars",
+        parameters=parameters,
+        required_semantics="cn_stock_daily_cny_share_v1",
+    )
+    try:
+        canonical = await hub.query(sid, "canonical-success-new", required)
+        assert canonical["provider"] == "akshare" and canonical["cache_hit"] is False
+        assert len(public) == 1 and len([call for call in calls if call[0] == "bars"]) == 1
+        detail = hub.detail(sid, canonical["dataset_id"])
+        assert detail["query"]["required_semantics"] == required.required_semantics
+        assert detail["query_fingerprint"] != old["query_fingerprint"]
+        assert any(
+            attempt["source"] == "tinysoft" and attempt["reason"] == "price_units_unverified"
+            for attempt in detail["attempted_sources"]
+        )
+        again = await hub.query(sid, "canonical-cache-new", required)
+        assert again["cache_hit"] is True and again["dataset_id"] == canonical["dataset_id"]
+        native_again = await hub.query(sid, "native-cache-old", native_query)
+        assert native_again["cache_hit"] is True and native_again["provider"] == "tinysoft"
+        assert len(public) == 1
+        job = await ws.history_jobs.create(
+            oid,
+            HistoryJobRequest(scope="recent", adjustment="none", source="auto"),
+            "native-history-policy",
+        )
+        await settle(ws)
+        assert ws.history_jobs.get(oid, job["id"])["state"] == "completed"
+        dataset = ws.observation(oid)["blocks"]["history"]["dataset"]
+        assert dataset["provider"] == "akshare" and len(public) == 2
+        assert len([call for call in calls if call[0] == "bars"]) == 1
+        history = hub.detail(sid, dataset["dataset_id"])["asset_history"]
+        assert history["required_semantics"] == required.required_semantics
+
+        def fail_native(**_kwargs):
+            raise OSError("synthetic-native-runtime-failure")
+
+        sdk.get_market_data = fail_native
+        fallback = await hub.query(
+            sid, "generic-runtime-fallback", native_query.model_copy(update={"refresh": True})
+        )
+        assert fallback["provider"] == "akshare" and len(public) == 3
+        assert fallback["provider_metadata"]["execution_attempts"][0]["source"] == "tinysoft"
+        assert fallback["provider_metadata"]["execution_attempts"][0]["status"] == "failed"
+        fixed = await hub.query(
+            sid,
+            "fixed-native-failure",
+            native_query.model_copy(update={"refresh": True, "source": "tinysoft"}),
+        )
+        assert fixed["status"] == "failed" and len(public) == 3
+    finally:
+        await hub.close()
+
+
+@pytest.mark.asyncio
+async def test_retry_keeps_legacy_missing_semantics_instead_of_adopting_new_policy(tmp_path):
+    ws, hub, oid = workspace(tmp_path)
+    job = await ws.history_jobs.create(
+        oid,
+        HistoryJobRequest(scope="recent", adjustment="none", source="auto"),
+        "legacy-policy-one",
+    )
+    await ws.history_jobs.cancel(oid, job["id"])
+    await settle(ws)
+    previous = ws.store.data["asset_history_jobs"][job["id"]]
+    previous.pop("required_semantics")
+    ws.store.save()
+    retry = await ws.history_jobs.create(
+        oid,
+        HistoryJobRequest(scope="recent", adjustment="none", source="auto", retry_of=job["id"]),
+        "legacy-policy-two",
+    )
+    await settle(ws)
+    assert ws.store.data["asset_history_jobs"][retry["id"]]["required_semantics"] is None
+    assert hub.calls[0].required_semantics is None
+    assert "required_semantics" not in previous
+
+
+@pytest.mark.asyncio
+async def test_http_policy_skips_unknown_prices_then_recovers_ak_failure_with_bao_and_binds_cache(
+    tmp_path, monkeypatch
+):
+    import copy
+
+    import httpx
+    from fastapi import FastAPI
+
+    from app.research_web.asset_routes import router
+    from app.research_web.datahub import providers_akshare, public_worker
+    from app.research_web.datahub.providers import ProviderError
+
+    ws, hub, oid, calls, _sdk, _ = real_workspace(tmp_path, monkeypatch)
+    monkeypatch.setattr(
+        hub.connections,
+        "statuses",
+        lambda: {
+            "tinysoft": {"configured": True, "secret_configured": True},
+            "wind": {"configured": True, "preferred_adapter": "excel"},
+        },
+    )
+    executions = []
+
+    def fail_ak(query):
+        executions.append("akshare")
+        raise ProviderError("vendor_unreachable")
+
+    def fake_bao(source, query):
+        assert source == "baostock"
+        executions.append(source)
+        rows = [
+            {
+                "asset": "600000.SH",
+                "date": "2026-10-20",
+                "open": 10,
+                "high": 12,
+                "low": 9,
+                "close": 11,
+                "volume": 100,
+                "turnover": 1100,
+            }
+        ]
+        fields = {
+            key: {"unit": "currency_per_share", "currency": "CNY"}
+            for key in ("open", "high", "low", "close")
+        }
+        fields.update(
+            volume={"unit": "share", "currency": None},
+            turnover={"unit": "currency", "currency": "CNY"},
+        )
+        return Result(
+            rows=rows,
+            raw=[json.dumps(rows).encode()],
+            fields=fields,
+            status="complete",
+            pagination_complete=True,
+            provider_id="baostock",
+            source_url="https://www.baostock.com/",
+        )
+
+    monkeypatch.setattr(providers_akshare, "_invoke", fail_ak)
+    monkeypatch.setattr(public_worker, "invoke_worker", fake_bao)
+    app = FastAPI()
+    app.include_router(router)
+    app.state.research = ws.service
+    ws.service.asset_workspace = ws
+    try:
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://fixture"
+        ) as client:
+            response = await client.post(
+                f"/api/research/assets/observations/{oid}/history-jobs",
+                json={"scope": "recent", "adjustment": "none", "source": "auto"},
+                headers={"Idempotency-Key": "http-ak-bao-policy"},
+            )
+            assert response.status_code == 202
+            job = response.json()
+            await settle(ws)
+        assert ws.history_jobs.get(oid, job["id"])["state"] == "completed"
+        assert calls == [] and executions == ["akshare", "baostock"]
+        dataset = ws.observation(oid)["blocks"]["history"]["dataset"]
+        history = hub.detail(ws.observation(oid)["session_id"], dataset["dataset_id"])[
+            "asset_history"
+        ]
+        assert dataset["provider"] == "baostock"
+        evidence = history["inputs"][0]
+        assert any(
+            a["source"] == "tinysoft" and a["reason"] == "price_units_unverified"
+            for a in evidence["manifest"]["attempted_sources"]
+        )
+        assert any(
+            a["source"] == "wind" and a["reason"] == "workload_too_large"
+            for a in evidence["manifest"]["attempted_sources"]
+        )
+        assert [
+            a["source"] for a in evidence["provider_metadata"]["execution_attempts"]
+        ] == executions
+        record = ws.store.data["asset_history_jobs"][job["id"]]
+        chunk = json.loads(
+            (
+                ws.store.root
+                / ".control"
+                / "asset-history"
+                / "chunks"
+                / record["chunks"][0]["name"]
+            ).read_text()
+        )
+        assert chunk["required_semantics"] == record["required_semantics"]
+        assert chunk["evidence"]["required_semantics"] == record["required_semantics"]
+        assert (await ws.history_jobs._reuse(record, record["chunks"][0]["interval"], {}, None))[
+            "normalized"
+        ]
+        changed = {**record, "required_semantics": None}
+        with pytest.raises(StoreError) as changed_policy:
+            await ws.history_jobs._reuse(changed, record["chunks"][0]["interval"], {}, None)
+        assert changed_policy.value.code == "history_cache_version_changed"
+        forged = copy.deepcopy(evidence)
+        forged["query"]["required_semantics"] = None
+        with pytest.raises(StoreError) as invalid_input:
+            ws.history_jobs._authorize_inputs(record, [forged])
+        assert invalid_input.value.code == "history_cache_version_changed"
+    finally:
+        await hub.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "mode",
+    [
+        "full",
+        "gap",
+        "no_plan",
+        "empty_store",
+        "busy",
+        "revoked",
+        "large_gap_auto",
+        "busy_auto",
+        "scope_auto",
+        "scope_fixed",
+        "global_auto",
+        "config_changed",
+        "outside_gap",
+        "all_scope_auto",
+        "cached_scope_auto",
+        "budget",
+        "cancel_plan",
+    ],
+)
+async def test_real_broker_wind_long_window_storage_and_actual_gap_capacity(
+    tmp_path, monkeypatch, mode
+):
+    from app.research_web.datahub import providers, providers_wind
+    from app.research_web.datahub.storage_activity import StorageRunner
+    from app.research_web.market_store import MarketStoreError
+
+    ws, hub, oid, _calls, _sdk, _ = real_workspace(tmp_path, monkeypatch)
+    sid = ws.observation(oid)["session_id"]
+    statuses = {"wind": {"configured": True, "preferred_adapter": "excel"}}
+    monkeypatch.setattr(hub.connections, "statuses", lambda: statuses)
+    import time
+
+    import app.research_web.datahub as hub_module
+
+    entered, released = threading.Event(), threading.Event()
+    budgets = []
+    if mode == "budget":
+        original_execute = hub_module.execute
+        monkeypatch.setattr(hub_module, "TOTAL_DEADLINE", 1.0)
+
+        async def timed_execute(**kwargs):
+            budgets.append(kwargs["budget"])
+            return await original_execute(**kwargs)
+
+        monkeypatch.setattr(hub_module, "execute", timed_execute)
+    allowed = [True]
+    state = {"filled": False}
+    reads = []
+    plans = []
+    fetches = []
+
+    def admission(_sid, query, resolution):
+        if mode == "global_auto":
+            raise StoreError("global fence", "plugin_runtime_frozen", 409)
+        if mode == "all_scope_auto" or (
+            mode in {"scope_auto", "scope_fixed", "cached_scope_auto"}
+            and resolution.provider_id == "wind"
+            and (mode != "cached_scope_auto" or state["filled"])
+        ):
+            raise StoreError("source scope", "data_outside_declared_scope", 409)
+        if resolution.provider_id == "wind" and not allowed[0]:
+            raise StoreError("revoked", "data_source_authorization_changed", 403)
+
+    hub.admission = admission
+    fields = {
+        key: {"unit": "currency_per_share", "currency": "CNY"}
+        for key in ("open", "high", "low", "close")
+    }
+    fields.update(
+        volume={"unit": "share", "currency": None}, turnover={"unit": "currency", "currency": "CNY"}
+    )
+
+    def bars(query, source, cached):
+        rows = [
+            {
+                "asset": "600000.SH",
+                "date": query.parameters["end_date"],
+                "open": 10,
+                "high": 12,
+                "low": 9,
+                "close": 11,
+                "volume": 100,
+                "turnover": 1100,
+            }
+        ]
+        return Result(
+            rows=rows,
+            fields=fields,
+            raw=[json.dumps(rows).encode()],
+            status="complete",
+            pagination_complete=True,
+            provider_id=source,
+            metadata={"warehouse_hit": cached},
+        )
+
+    def read(query, source, _digest):
+        reads.append(source)
+        if source == "wind" and (
+            mode in {"full", "revoked", "cached_scope_auto"} or state["filled"]
+        ):
+            if mode == "revoked":
+                allowed[0] = False
+            if mode == "cached_scope_auto":
+                state["filled"] = True
+            return bars(query, source, True)
+        return None
+
+    def missing(query, source, _digest):
+        plans.append(source)
+        if mode == "budget" and source == "wind":
+            time.sleep(0.04)
+        if mode == "cancel_plan" and source == "wind":
+            entered.set()
+            assert released.wait(3), "test must release owned storage worker"
+        if source != "wind":
+            return None
+        if mode in {"busy", "busy_auto"}:
+            raise MarketStoreError("warehouse_busy")
+        if mode == "no_plan":
+            return None
+        if mode == "config_changed":
+            monkeypatch.setattr(hub.connections, "configuration_revision", lambda _: "changed")
+        if mode == "outside_gap":
+            return (
+                query.model_copy(
+                    update={
+                        "source": source,
+                        "allow_fallback": False,
+                        "parameters": {
+                            **query.parameters,
+                            "start_date": "2024-10-18",
+                            "end_date": "2024-10-19",
+                        },
+                    }
+                ),
+            )
+        if mode in {"empty_store", "large_gap_auto"}:
+            return (query.model_copy(update={"source": source}),)
+        return (
+            query.model_copy(
+                update={
+                    "source": source,
+                    "allow_fallback": False,
+                    "parameters": {
+                        **query.parameters,
+                        "start_date": "2026-10-19",
+                        "end_date": "2026-10-20",
+                    },
+                }
+            ),
+        )
+
+    def ingest(query, source, _digest, result):
+        if source == "wind":
+            state["filled"] = True
+        return "controlled-version"
+
+    hub.warehouse = SimpleNamespace(read=read, missing_queries=missing, ingest=ingest)
+    hub.storage_runner = StorageRunner()
+
+    async def fetch(query, **_kwargs):
+        fetches.append(query)
+        if query.source == "wind":
+            providers_wind.validate_supported_query(query)
+        return bars(query, query.source, False)
+
+    monkeypatch.setattr(providers, "fetch", fetch)
+    request = BusinessQuery(
+        capability="market_bars",
+        source="auto" if mode.endswith("auto") else "wind",
+        parameters={
+            "asset": "600000.SH",
+            "asset_type": "stock",
+            "frequency": "daily",
+            "adjustment": "none",
+            "start_date": "2024-10-20",
+            "end_date": "2026-10-20",
+        },
+    )
+    try:
+        if mode == "cancel_plan":
+            pending = asyncio.create_task(hub.query(sid, "long-wind-" + mode, request))
+            for _ in range(100):
+                if entered.is_set():
+                    break
+                await asyncio.sleep(0.005)
+            assert entered.is_set() and hub.storage_runner.active
+            cancellation = asyncio.create_task(hub.cancel(sid, "long-wind-" + mode))
+            await asyncio.sleep(0.02)
+            assert not cancellation.done() and hub.storage_runner.active
+            assert (sid, "long-wind-" + mode) in hub.tasks
+            released.set()
+            await cancellation
+            await asyncio.gather(pending, return_exceptions=True)
+            assert not hub.storage_runner.active and fetches == []
+            return
+        if mode in {
+            "no_plan",
+            "empty_store",
+            "busy",
+            "revoked",
+            "scope_fixed",
+            "global_auto",
+            "config_changed",
+            "outside_gap",
+            "all_scope_auto",
+            "cached_scope_auto",
+        }:
+            with pytest.raises(StoreError) as error:
+                await hub.query(sid, "long-wind-" + mode, request)
+            expected_error = {
+                "revoked": "data_source_authorization_changed",
+                "config_changed": "data_source_authorization_changed",
+                "scope_fixed": "data_outside_declared_scope",
+                "global_auto": "plugin_runtime_frozen",
+                "outside_gap": "warehouse_query_rejected",
+                "all_scope_auto": "data_outside_declared_scope",
+                "cached_scope_auto": "data_outside_declared_scope",
+            }.get(mode, "workload_too_large")
+            assert error.value.code == expected_error
+            assert fetches == []
+        else:
+            result = await hub.query(sid, "long-wind-" + mode, request)
+            assert result["status"] == "complete"
+            if mode == "full":
+                assert fetches == [] and plans == []
+                assert result["provider_metadata"]["warehouse_hit"] is True
+            elif mode in {"gap", "budget"}:
+                if mode == "budget":
+                    assert len(budgets) == 1 and 0 < budgets[0] < 0.98
+                assert len(fetches) == 1 and fetches[0].source == "wind"
+                assert fetches[0].parameters["start_date"] == "2026-10-19"
+                assert fetches[0].parameters["end_date"] == "2026-10-20"
+                assert plans == ["wind"]
+                assert result["provider_metadata"]["warehouse_incremental"] is True
+            else:
+                assert len(fetches) == 1 and fetches[0].source == "akshare"
+                assert any(
+                    attempt["source"] == "wind"
+                    and attempt["status"] == "skipped"
+                    and attempt["reason"]
+                    in {"workload_too_large", "warehouse_busy", "data_outside_declared_scope"}
+                    for attempt in result["attempted_sources"]
+                )
+                assert all(entry["source"] != "wind" for entry in hub.runtime_health.snapshot())
+    finally:
+        released.set()
+        await hub.close()
+
+
+@pytest.mark.asyncio
+async def test_scope_denial_stops_resolver_repeating_ignored_exclusion(tmp_path, monkeypatch):
+    import app.research_web.datahub as hub_module
+
+    ws, hub, oid, *_ = real_workspace(tmp_path, monkeypatch)
+    sid = ws.observation(oid)["session_id"]
+    request = BusinessQuery(
+        capability="market_bars",
+        source="auto",
+        parameters={
+            "asset": "600000.SH",
+            "asset_type": "stock",
+            "frequency": "daily",
+            "adjustment": "none",
+            "start_date": "2026-10-19",
+            "end_date": "2026-10-20",
+        },
+    )
+    resolution = hub._authorize_query(sid, request)
+    resolutions, admissions = [], []
+
+    def repeated(*args, **kwargs):
+        resolutions.append(kwargs["excluded_sources"])
+        return resolution
+
+    def denied(*args):
+        admissions.append(args[-1].provider_id)
+        raise StoreError("source scope", "data_outside_declared_scope", 409)
+
+    monkeypatch.setattr(hub_module, "resolve", repeated)
+    hub.admission = denied
+    try:
+        with pytest.raises(StoreError) as error:
+            hub._authorize_query(sid, request)
+        assert error.value.code == "data_outside_declared_scope"
+        assert len(resolutions) == 2 and admissions == [resolution.provider_id]
+        assert resolutions[1] == frozenset({resolution.provider_id})
+    finally:
         await hub.close()

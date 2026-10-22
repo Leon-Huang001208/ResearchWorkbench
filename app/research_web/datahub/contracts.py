@@ -11,6 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from .adjustment_contract import validate_adjustment_parameters
 
 SCHEMA_VERSION = "1.0.0"
+RAW_STOCK_SEMANTICS = "cn_stock_daily_cny_share_v1"
 SOURCES = {
     "fund_nav": "基金净值",
     "cls_telegraph": "财联社电报",
@@ -212,9 +213,24 @@ class BusinessQuery(BaseModel):
     purpose: Literal["display", "research", "backtest"] = "research"
     quality: Literal["strict", "allow_stale"] = "strict"
     as_of: datetime | None = None
+    required_semantics: Literal["cn_stock_daily_cny_share_v1"] | None = None
 
     @model_validator(mode="after")
     def safe_parameters(self):
+        if self.required_semantics is not None:
+            from .providers import ProviderError, cn_stock_identity
+
+            if (
+                self.capability != "market_bars"
+                or self.parameters.get("asset_type") != "stock"
+                or self.parameters.get("frequency") != "daily"
+                or self.parameters.get("adjustment") != "none"
+            ):
+                raise ValueError("规范原始日线合同仅支持明确沪深股票daily/none")
+            try:
+                cn_stock_identity(self.parameters.get("asset"))
+            except ProviderError as exc:
+                raise ValueError("规范原始日线合同证券身份非法") from exc
         if self.quality == "allow_stale" and self.purpose != "display":
             raise ValueError("只有展示查询可以显式接受陈旧数据")
         if self.as_of is not None and self.as_of.tzinfo is None:
@@ -259,7 +275,12 @@ class BusinessQuery(BaseModel):
     def fingerprint(self, *, include_refresh=False):
         value = self.model_dump(exclude=set() if include_refresh else {"refresh"})
         # Existing receipts are immutable: default policy retains the v1 digest.
-        for key, default in (("purpose", "research"), ("quality", "strict"), ("as_of", None)):
+        for key, default in (
+            ("purpose", "research"),
+            ("quality", "strict"),
+            ("as_of", None),
+            ("required_semantics", None),
+        ):
             if value.get(key) == default:
                 value.pop(key, None)
         if self.as_of is not None:
