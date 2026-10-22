@@ -1,7 +1,7 @@
 const API_ROOT = '/api/research';
 import { ASSET_VIEWS, ASSET_TYPES, cleanAsset } from './asset-navigation.mjs';
 const segment = (value) => encodeURIComponent(value);
-const pages = new Set(['fingpt', 'claw', 'assets', 'simulation', 'workbench', 'frameworks', 'skills', 'history', 'operations', 'settings', 'account', 'intel', 'aihot']);
+const pages = new Set(['fingpt', 'claw', 'market', 'assets', 'simulation', 'workbench', 'frameworks', 'skills', 'history', 'operations', 'settings', 'account', 'intel', 'aihot']);
 const workbenchSections = new Set(['market', 'assets', 'funds', 'industry', 'documents', 'hot', 'etf-paper']);
 const searchSections = { news: 'market', research: 'industry', announcements: 'documents' };
 const settingsSections = new Set(['general', 'model', 'data', 'local', 'docs', 'hot', 'users']);
@@ -18,6 +18,10 @@ export function parseRoute(hash = '') {
     page,
     sessionId: ['fingpt', 'claw'].includes(page) ? params.get('session') : null,
   };
+  if (page === 'market') {
+    route.marketView = ['overview', 'quotes', 'sectors'].includes(params.get('view')) ? params.get('view') : 'overview';
+    route.marketBoardId = /^BK[0-9]{4,6}$/.test(params.get('board_id') || '') ? params.get('board_id') : null;
+  }
   if (page === 'aihot') {
     route.aihotTab = !extraSegments.length && ['hot', 'archive', 'weekly', 'monthly', 'manage'].includes(sectionSegment) ? sectionSegment : 'daily';
     route.aiNewsSection = params.get('section') || 'sources';
@@ -233,6 +237,7 @@ export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSo
     return query.size ? `?${query}` : '';
   };
   return {
+    request,
     hotStatus: () => request('/hot/status'), hotConfiguration: () => request('/hot/configuration'),
     hotConfigure: (body) => request('/hot/configuration', { method: 'PUT', body, userAction: true }),
     hotLifecycle: (action) => request('/hot/lifecycle', { method: 'POST', body: { action }, userAction: true }),

@@ -16,6 +16,16 @@
 
 取消将子 DataHub `call_id` 联动取消，但同步SDK的真实 Future 结束前仍为 `cancelling/draining`，不释放来源容量、不发布迟到结果。Host关闭、会话取消/清理及恢复都覆盖历史任务；遗留无owner任务恢复为 `interrupted`，不自动重试。常驻空闲证明同时检查 Store 非终态任务和真实 CJPY Future，未知 witness 保持未知并阻止切换。API、持久化及UI合同分别见[接口](architecture/research-web/04-api.md#资产历史任务与图表偏好)、[文件](architecture/research-web/03-data-files.md#资产历史与图表偏好存储)与[工作台](research-web-ui.md#资产观察工作台)。
 
+## 无会话全市场数据
+
+`datahub/providers_market.py` 在现有依赖内对东方财富固定端点进行有界异步读取，沪、深、北按独立范围完整分页；北交所身份不能仅由上游 `f13=0` 推为深圳。保留来源总数、页数、行情时间、日期分布与缺口，重复、漏页、总数变化和容量超界不能标为完整。市场采集使用独立容量边界，其他 Provider 的5000行限制保持。
+
+公开报价与指数分时固定使用 `82.push2.eastmoney.com/webguest/api/qt/`，沪深大盘日线资金仍单独请求 `push2his.eastmoney.com/api/qt/`，不可用时保留缺口。2026-10-22同主机、同参数及TLS设置的对照中，旧报价 `/api/qt/` 连接中断，访客路径完成全量读取；原分时主机也有间歇断连，访客路径完成12指数同日真实分时。此结果不推断为IPv6故障或厂商正式弃用公告，不更改代理、证书或重定向边界。股票池参数取自[东财当前官网生产脚本](https://quote.eastmoney.com/center/static/build/index.js)：沪 `m:1 t:2 f:!2,m:1 t:23 f:!2`、深 `m:0 t:6 f:!2,m:0 t:80 f:!2`、北 `m:0 t:81 s:262144 f:!2`。旧北交 `s:2048` 含非普通股，不能用价格是否缺失或名称过滤替代官方范围。
+
+上市日期来自原始 `f26`，保留为 `listing_date`；目录内未来上市证券保留身份并计入 `upcoming_count`，不进入有效涨跌、分布及排行。缺报价计入未知，不能解释为停牌／平盘。完整分页仍可含源字段缺口；任一证券成交额缺失、时点无效或待上市时，不发布全市场成交额合计，保留来源范围、时间和限制。2026-10-22实测官网分区总数2319／2908／354，合并5581；这是东财股票池完整性证明，独立交易所目录对账尚未完成。其他候选源的实探级别与口径见[数据源调查](../.ai/reports/2026-10-22-market-data-sources.md)。
+
+`MarketService` 使用当前用户 `market-cache/` 保存当前与上一完整快照，GET 仅消费缓存，POST 显式刷新；该路径不经过会话查询，不产生研究 receipt、dataset 或 DSH 工具调用。行业／概念使用东方财富分类，资金按供应商订单分类；沪深大盘资金流不包含北交所。Wind只作为版式参考，天软既有能力不变。公开源可达、字段可用、分页完整和真实验收分别记录。
+
 资产页紧凑摘要新增的 `valuation` 与 `coverageRows` 仅为 `asset-projection.mjs` 浏览器 DTO，消费当前已载入行与既有 dataset 元数据，不扩展 DataHub、ObservationRequest、持久化格式或 HTTP 合同。“N/8 有快照”按八个既有区块的真实载入行及 dataset 身份计数，complete 但未载入不计入；新闻／公告仍走独立阅读。来源明细分开显示请求来源／实际 Provider、行内数据日、`as_of`、北京时间 `retrieved_at`、报告期、请求／实际／载入区间、字段单位与限制，不能把这些不同时间和范围合并为一个“最新”。
 
 资产观察继续经 AssetWorkspace → Broker → 现有 Provider，页面打开不取数；显式创建或刷新单一区块才提交查询。请求新增 `section_sources={}`：区块显式来源覆盖原 `source`，未覆盖仍沿原来源，专业来源失败不能隐式回退。新增 `section_ranges={}`：只接受 history／activity／margin 的完整 ISO 日期对，开始不晚于结束；缺省沿原全局日期，旧记录恢复为两个空映射。刷新沿保存的有效来源与日期执行，公开请求参数及各区块显示来源／范围，不能以全局来源掩盖差异。holders 的 `end_date` 仍是报告期，不参与历史日期覆盖。

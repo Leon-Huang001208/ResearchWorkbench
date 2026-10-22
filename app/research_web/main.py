@@ -47,6 +47,7 @@ from .integrations.routes import router as integrations_router
 from .intel_routes import router as intel_router
 from .local_integrations import LocalIntegrationError
 from .local_integrations.routes import router as local_integrations_router
+from .market_routes import router as market_router
 from .mcp_registry import RegistryError
 from .mcp_registry.routes import router as mcp_registry_router
 from .mcp_runtime.routes import router as mcp_runtime_router
@@ -285,6 +286,7 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
     app.include_router(ai_news_router)
     app.include_router(datahub_router)
     app.include_router(asset_router)
+    app.include_router(market_router)
     app.include_router(intel_router)
     app.include_router(capabilities_router)
     app.include_router(documentation_router)

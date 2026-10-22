@@ -10,6 +10,8 @@ Wind资产工作区首轮PR177：Constraints39717416229通过（71秒），Mac B
 
 2026-10-22 Wind工作区实时只读GitHub API核验仓库PUBLIC、private=false。最近5个成功run为39648735990（Bootstrap，693秒）、39648736129（Checks，561秒）、39648735965（Constraints，67秒）、39646992391（Constraints，66秒）、39646992444（Bootstrap，423秒），创建至结束均值362秒；这是既有基线成功记录，不认证本次候选。证据留`logs/wind-docs/repository.json`与`recent-success-runs.json`。本次只给现存Checks加入test_asset_history及原datahub/catalog/cjpy/broker四模块，不增job/runner/超时/依赖；本机history＋DataHub86例12.68秒、空闲359例9.21秒为阶段计时，预留新增步骤60秒。保留同候选macos-14干净安装/固定DSH/3081/8088/doctor和通用仓库门，Mac不触发Windows/Linux产品dispatch；没有新增模型调用或厂商调用授权。
 
+2026-10-22全市场概览只在既有Research Web Checks Python步骤加入test_market_provider与test_market_service，JS沿原通配符；无新增job、runner、依赖或超时，CI不访问公开行情或模型。当前API实查visibility=public；最近五个成功run39717416229/39717416234/39648735990/39648736129/39648735965创建至更新约73/602/693/561/67秒，含排队，非job执行时长。新增定点43项本地约0.6秒，仍预留30秒。同候选Mac Bootstrap沿原安装流程，不从Mac派发Windows/Linux产品workflow；真实源与认证浏览器不由CI夹具替代。
+
 2026-10-22资产观察v2封闭部署profile只扩充原已注册的 `test_model_provider_upgrade.py`，沿现有Project Constraints、Research Web Checks和macOS Bootstrap，不新增workflow、job、runner、依赖或超时。当前API为PUBLIC；最近五个成功job119375810943/119370248735/119366403735/119366403997/119313810314，实际62/310/61/594/60秒。新增v2固定范围、保全和恢复参数化本机预算预留15秒；无模型或厂商请求进入CI，其他平台产品验收仍由对应真机交接，Mac不派Windows/Linux产品workflow。实际常驻切换与数据保全另留私有回执。
 
 2026-10-22资产摘要/来源汇总/透明主题沿既有Checks通配符和macOS Bootstrap，无新job、runner、依赖或超时。当前API为public；最近五个成功job为119313810314/119313811473/119313810997/119305921718/119305911865，分别60/490/570/52/506秒。本机新增投影与主题回归预留60秒，浏览器及已授权CJPY冻结读回仅本机执行；无模型/厂商调用进入CI。后续封闭联合升级profile以单独源码候选交付，仍保留原三门和平台归属，不从Mac派发Windows/Linux产品CI。

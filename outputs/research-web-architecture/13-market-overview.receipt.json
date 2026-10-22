@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "deliver",
+  "type": "dataflow",
+  "input": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/market-overview-20261022/docs/architecture/research-web/diagrams/13-market-overview.json",
+  "output": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/market-overview-20261022/outputs/research-web-architecture/13-market-overview.html",
+  "specification": {
+    "sha256": "f58afa25724117ddcb1be17368ca6f4e9c391fec9db98f030b4b22cde7625166",
+    "bytes": 2723
+  },
+  "artifact": {
+    "sha256": "9a1bbb6d07b747dcc15ef6c2eae6d5b0734c90f13206df2ece09cf604fdb513b",
+    "bytes": 635560
+  },
+  "validation": {
+    "checksPassed": 9,
+    "checkCount": 9,
+    "compositionProfile": "showcase",
+    "compositionStatus": "pass",
+    "errors": 0,
+    "warnings": 0
+  }
+}

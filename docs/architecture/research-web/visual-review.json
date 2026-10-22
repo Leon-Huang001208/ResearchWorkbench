@@ -183,6 +183,20 @@
         "12-ai-news.visual-check.1440x900.light.png",
         "12-ai-news.visual-check.1440x900.dark.png"
       ]
+    },
+    {
+      "id": "13-market-overview",
+      "artifactSha256": "9a1bbb6d07b747dcc15ef6c2eae6d5b0734c90f13206df2ece09cf604fdb513b",
+      "specificationSha256": "f58afa25724117ddcb1be17368ca6f4e9c391fec9db98f030b4b22cde7625166",
+      "status": "reviewed",
+      "reviewer": "codex-controller",
+      "date": "2026-10-22",
+      "captures": [
+        "13-market-overview.visual-check.1440x900.light.png",
+        "13-market-overview.visual-check.2048x1320.dark.png"
+      ],
+      "findings": [],
+      "notes": "已查看最终1440浅色与2048深色截图；五阶段市场读取、独立用户缓存及来源节点关系可读，无穿线、遮挡或裁剪。四视口自动包含性与源码完整性另证，不证明真实行情可用。"
     }
   ]
 }
