@@ -48,7 +48,11 @@ ASSET_PAYLOAD = "54d4c8f9421c568de853a2f93263a2bfcd53422c"
 ASSET_V2_MODE = "reviewed-asset-observation-v2"
 ASSET_V2_PREVIOUS = "9bc12355c3b80e4e4459f4c250e13fc2634ed23d"
 ASSET_V2_PAYLOAD = "93d62be64084a5c92541a4a008216c0b3f56c2f1"
-ASSET_MODES = frozenset((ASSET_MODE, ASSET_V2_MODE))
+# PR177's reviewed Wind workspace; resident identity is the completed v2 deployment.
+ASSET_V3_MODE = "reviewed-asset-observation-v3"
+ASSET_V3_PREVIOUS = "5495e64c0be08c9db58e336705db90584f8ba8b5"
+ASSET_V3_PAYLOAD = "a0ff3ae2e2ab92bad10ba8547e45027687ec7cc1"
+ASSET_MODES = frozenset((ASSET_MODE, ASSET_V2_MODE, ASSET_V3_MODE))
 ASSET_EVIDENCE = "research_workbench_entrypoint/resident/evidence.py"
 ASSET_EVIDENCE_SHA256 = "ec022e39a89a3dbd021fca26049342ce149077f5beb62a8df2aba7826d016d25"
 MAX_ASSET_INDEX_BYTES = 64 * 1024 * 1024
@@ -121,6 +125,8 @@ def previous_for(mode):
         return ASSET_PREVIOUS
     if mode == ASSET_V2_MODE:
         return ASSET_V2_PREVIOUS
+    if mode == ASSET_V3_MODE:
+        return ASSET_V3_PREVIOUS
     raise UpdateBlocked("model_upgrade_profile_unknown")
 
 
@@ -230,7 +236,11 @@ def review_assets(source: Path, target: str, mode=ASSET_MODE):
     if mode not in ASSET_MODES:
         raise UpdateBlocked("model_upgrade_profile_unknown")
     previous = previous_for(mode)
-    payload = ASSET_PAYLOAD if mode == ASSET_MODE else ASSET_V2_PAYLOAD
+    payload = {
+        ASSET_MODE: ASSET_PAYLOAD,
+        ASSET_V2_MODE: ASSET_V2_PAYLOAD,
+        ASSET_V3_MODE: ASSET_V3_PAYLOAD,
+    }[mode]
     c.clean(source, target)
     c.git(source, "merge-base", "--is-ancestor", payload, target)
     paths = {MODULE, TEST, ASSET_EVIDENCE}
@@ -1171,7 +1181,10 @@ def operate(home, source=None, *, recovering=False, mode=MODE):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=("apply", "apply-assets", "apply-assets-v2", "recover"))
+    parser.add_argument(
+        "command",
+        choices=("apply", "apply-assets", "apply-assets-v2", "apply-assets-v3", "recover"),
+    )
     parser.add_argument("--home", type=Path, default=Path.home() / ".research-workbench")
     parser.add_argument("--source", type=Path)
     args = parser.parse_args(argv)
@@ -1181,9 +1194,11 @@ def main(argv=None):
             args.home,
             args.source,
             recovering=args.command == "recover",
-            mode={"apply-assets": ASSET_MODE, "apply-assets-v2": ASSET_V2_MODE}.get(
-                args.command, MODE
-            ),
+            mode={
+                "apply-assets": ASSET_MODE,
+                "apply-assets-v2": ASSET_V2_MODE,
+                "apply-assets-v3": ASSET_V3_MODE,
+            }.get(args.command, MODE),
         )
         print(json.dumps(result))
         return 0 if result["status"] in {"deployed", "not_required"} else 2

@@ -1,5 +1,7 @@
 # DataHub、研究资料与实际文件
 
+2026-10-22 Wind部署profile v3只在原v4 journal内记录封闭mode、旧5495与产品a0ff3ae2身份，不新增journal版本或业务schema。主实例与全部账号业务index顶层值仍冻结canonical SHA-256并区分缺失/空值，前进/回滚/恢复逐项复核；观察、历史块、规范快照、会话、报告、账号和凭据不覆盖。旧v1/v2恢复材料与controller/evidence保持，产品存储/交接图准确且本轮不改HTML/PNG。真实切换前后保全由root另留证，产品与profile候选验收分开。
+
 ## 资产历史与图表偏好存储
 
 最后核对：2026-10-22。原账号 Store 的 `index.json` 增加 `asset_history_jobs`、`asset_history_keys`、`chart_preferences`，使用 `setdefault` 兼容旧索引，无数据库或schema迁移。指标偏好保留0至4个唯一有序副图及revision，默认VOL＋MACD，账号内所有证券共用；保存失败恢复原值。任务保存原始请求、观察/会话身份、代次、当前快照、扫描进度和安全失败码，公开投影隐藏内部字段。
