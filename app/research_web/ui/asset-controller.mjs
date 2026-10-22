@@ -6,6 +6,8 @@ const jobStatus = job => job?.state || job?.status;
 const identity = observation => `${observation?.asset_type || 'stock'}:${observation?.asset || ''}`;
 const cloneObservation = observation => ({ ...observation, blocks: Object.fromEntries(Object.entries(observation.blocks || {}).map(([key, block]) => [key, { ...block }])) });
 const validPanels = panels => Array.isArray(panels) && panels.length <= 4 && new Set(panels).size === panels.length && panels.every(panel => ['volume', 'macd', 'kdj', 'rsi'].includes(panel));
+const VIEW_BLOCKS = { overview: ['overview', 'valuation'], financials: ['financials', 'valuation'], capital: ['activity', 'margin'], holders: ['holders', 'holder_details'], materials: ['research', 'industry', 'events'], news: [], announcements: [] };
+const currentAccount = () => String(globalThis.__RWB_USER_ID__ || 'single-user');
 
 /** Read an immutable snapshot using actual returned progress, including short pages. */
 export async function readAssetDatasetRows(api, sessionId, dataset, { signal, isCurrent = () => true } = {}) {
@@ -30,9 +32,12 @@ export async function readAssetDatasetRows(api, sessionId, dataset, { signal, is
 }
 
 export function createAssetWorkspaceController({ api, onChange = () => {}, pollIntervalMs = 500 } = {}) {
-  const state = { observations: [], observation: null, rows: {}, watchlists: [], notes: [], alerts: [], notifications: [], errors: {}, loading: false, historyJob: null, preferences: { panels: ['volume', 'macd'] } };
+  const state = { observations: [], observation: null, rows: {}, watchlists: [], notes: [], alerts: [], notifications: [], errors: {}, loading: false, loadingBlocks: {}, historyJob: null, preferences: { panels: ['volume', 'macd'] } };
+  const blockReads = new Map();
+  const creationKeys = new Map();
+  let account = currentAccount();
   let generation = 0; let readAbort; let historyContext = null; let preferencesLoaded = false; let preferenceVersion = 0; let preferenceQueue = Promise.resolve(); let persistedPreferences = state.preferences;
-  const currentHistory = context => historyContext === context && !context.cancelled && state.observation?.id === context.observationId && identity(state.observation) === context.identity;
+  const currentHistory = context => account === currentAccount() && historyContext === context && !context.cancelled && state.observation?.id === context.observationId && identity(state.observation) === context.identity;
   const notify = () => onChange();
   async function cancelCaptured(context) {
     if (!context?.job?.id || !ACTIVE.has(jobStatus(context.job))) return;
@@ -41,10 +46,18 @@ export function createAssetWorkspaceController({ api, onChange = () => {}, pollI
   }
   function cancel({ stopHistory = true } = {}) {
     generation++; readAbort?.abort(); readAbort = null; state.loading = false;
+    for (const context of blockReads.values()) context.abort.abort();
+    blockReads.clear(); state.loadingBlocks = {};
     if (stopHistory && historyContext) {
       const previous = historyContext; previous.cancelled = true; previous.abort.abort(); historyContext = null;
       void cancelCaptured(previous);
     }
+  }
+  function checkAccount() {
+    if (account === currentAccount()) return;
+    cancel(); account = currentAccount(); creationKeys.clear(); preferencesLoaded = false; preferenceVersion++;
+    persistedPreferences = { panels: ['volume', 'macd'] };
+    Object.assign(state, { observations: [], observation: null, rows: {}, watchlists: [], notes: [], alerts: [], notifications: [], errors: {}, historyJob: null, preferences: persistedPreferences });
   }
   async function installHistory(context, job) {
     if (job.current_dataset?.dataset_id && job.current_dataset.dataset_id === state.observation?.blocks?.history?.dataset?.dataset_id) return;
@@ -144,6 +157,7 @@ export function createAssetWorkspaceController({ api, onChange = () => {}, pollI
     } catch (error) { if (ticket === generation) { state.errors.historyJobs = error.message; safeLog('asset_history_index_failed', { status: error.code || 'request_failed' }); if (!historyContext && observation.history_job?.id && ACTIVE.has(jobStatus(observation.history_job))) { state.historyJob = observation.history_job; follow(observation.history_job); } } }
   }
   async function load(route = {}) {
+    checkAccount();
     const sameAsset = Boolean(state.observation && selectAssetObservation([state.observation], route));
     cancel({ stopHistory: !sameAsset }); const ticket = generation; readAbort = new AbortController(); const options = { signal: readAbort.signal };
     if (!sameAsset) Object.assign(state, { observation: null, rows: {}, historyJob: null });
@@ -173,13 +187,80 @@ export function createAssetWorkspaceController({ api, onChange = () => {}, pollI
     }
     if (ticket === generation) { state.loading = false; notify(); }
   }
+  function loadBlock(block, { refresh = false } = {}) {
+    checkAccount();
+    const observation = state.observation;
+    if (!observation?.id || !api.loadAssetBlock || !Object.values(VIEW_BLOCKS).flat().includes(block)) return Promise.resolve();
+    const key = `${observation.id}:${block}`;
+    if (blockReads.has(key)) return blockReads.get(key).promise;
+    const context = { ticket: generation, observationId: observation.id, identity: identity(observation), abort: new AbortController() };
+    const current = () => account === currentAccount() && context.ticket === generation && !context.abort.signal.aborted && state.observation?.id === context.observationId && identity(state.observation) === context.identity;
+    const install = async result => {
+      if (!current()) return;
+      if (result?.id !== observation.id || identity(result) !== context.identity || result.session_id !== observation.session_id) throw new Error('区块响应资产身份异常');
+      const next = result.blocks?.[block]; if (!next) throw new Error('区块响应缺失');
+      let rows = state.rows[block];
+      if (next.dataset?.dataset_id && (next.dataset.dataset_id !== state.observation.blocks?.[block]?.dataset?.dataset_id || !Array.isArray(rows) || rows.length !== next.dataset.row_count)) rows = await readAssetDatasetRows(api, observation.session_id, next.dataset, { signal: context.abort.signal, isCurrent: current });
+      if (!current()) return;
+      const blocks = { ...state.observation.blocks, [block]: { ...next } };
+      state.observation = { ...state.observation, blocks, updated_at: result.updated_at, dataset_ids: Object.values(blocks).map(value => value?.dataset?.dataset_id).filter(Boolean) };
+      if (rows) state.rows = { ...state.rows, [block]: rows };
+      state.observations = state.observations.map(item => item.id === observation.id ? state.observation : item);
+      if (['error', 'unavailable'].includes(next.status)) state.errors[block] = next.failure_code || '区块读取失败，可重试'; else delete state.errors[block];
+      notify();
+    };
+    state.loadingBlocks = { ...state.loadingBlocks, [block]: true }; notify();
+    const run = async () => {
+      try {
+        let result = await api.loadAssetBlock(observation.id, block, { refresh }, globalThis.crypto.randomUUID(), { signal: context.abort.signal });
+        while (current()) {
+          await install(result); if (!current() || result.blocks?.[block]?.status !== 'loading') return;
+          await new Promise(resolve => setTimeout(resolve, pollIntervalMs)); if (!current()) return;
+          result = await api.assetObservation(observation.id, { signal: context.abort.signal });
+        }
+      } catch (error) { if (current()) { state.errors[block] = error.message; const prior = state.observation.blocks?.[block]; if (prior?.status === 'loading') state.observation = { ...state.observation, blocks: { ...state.observation.blocks, [block]: { ...prior, status: 'error', failure_code: 'snapshot_read_failed' } } }; safeLog('asset_block_load_failed', { status: error.code || 'request_failed' }); notify(); } }
+      finally { if (blockReads.get(key) === context) { blockReads.delete(key); if (current()) { delete state.loadingBlocks[block]; notify(); } } }
+    };
+    blockReads.set(key, context); context.promise = run(); return context.promise;
+  }
+  async function activateView(route = {}, { refresh = false } = {}) {
+    checkAccount();
+    const sameAsset = Boolean(state.observation && selectAssetObservation([state.observation], route));
+    if (!sameAsset) {
+      const expected = generation + 1;
+      await load(route);
+      if (generation !== expected) return;
+    }
+    const ticket = generation;
+    let needsInitialHistory = false;
+    if (!state.observation && route.asset && (route.assetType || 'stock') === 'stock' && api.createAssetObservation) {
+      state.loading = true; notify();
+      try {
+        const creationIdentity = `${route.assetType || 'stock'}:${route.asset.toUpperCase()}`;
+        if (!creationKeys.has(creationIdentity)) { creationKeys.set(creationIdentity, globalThis.crypto.randomUUID()); if (creationKeys.size > 64) creationKeys.delete(creationKeys.keys().next().value); }
+        const created = await api.createAssetObservation({ asset: route.asset, asset_type: 'stock', source: 'tinysoft', sections: ['overview'], frequency: 'daily', adjustment: 'qfq' }, creationKeys.get(creationIdentity));
+        if (ticket !== generation) return;
+        if (!selectAssetObservation([created], route)) throw new Error('新增观察资产身份异常');
+        state.observation = cloneObservation(created); state.rows = {}; state.observations = [state.observation, ...state.observations];
+        await loadBlock('overview');
+        if (ticket !== generation) return;
+        needsInitialHistory = true;
+      } catch (error) { if (ticket === generation) { state.errors.observation = error.message; safeLog('asset_observation_create_failed', { status: error.code || 'request_failed' }); } }
+      finally { if (ticket === generation) { state.loading = false; notify(); } }
+    }
+    if (ticket !== generation || !state.observation) return;
+    const blocks = [...new Set([...(sameAsset ? [] : ['overview', 'valuation']), ...(VIEW_BLOCKS[route.assetView] || VIEW_BLOCKS.overview)])];
+    await Promise.all(blocks.map(block => loadBlock(block, { refresh })));
+    if (needsInitialHistory && ticket === generation) void startHistory('recent', 'qfq').catch(() => { safeLog('asset_initial_history_failed', { status: 'history_failed' }); });
+  }
   function savePreferences(panels) {
     if (!validPanels(panels)) { state.errors.preferences = '副图选择无效'; notify(); return Promise.resolve(); }
-    const version = ++preferenceVersion; state.preferences = { panels: [...panels] }; notify();
+    const version = ++preferenceVersion; const owner = account; state.preferences = { panels: [...panels] }; notify();
     preferenceQueue = preferenceQueue.then(async () => {
-      try { const data = await api.saveAssetChartPreferences({ panels }); persistedPreferences = { panels: validPanels(data?.panels) ? [...data.panels] : [...panels] }; if (version === preferenceVersion) { state.preferences = persistedPreferences; preferencesLoaded = true; delete state.errors.preferences; notify(); } }
-      catch (error) { if (version === preferenceVersion) { state.preferences = persistedPreferences; state.errors.preferences = error.message; notify(); } safeLog('asset_chart_preferences_failed', { status: error.code || 'request_failed' }); }
+      if (owner !== account || owner !== currentAccount()) return;
+      try { const data = await api.saveAssetChartPreferences({ panels }); if (owner !== account || owner !== currentAccount()) return; persistedPreferences = { panels: validPanels(data?.panels) ? [...data.panels] : [...panels] }; if (version === preferenceVersion) { state.preferences = persistedPreferences; preferencesLoaded = true; delete state.errors.preferences; notify(); } }
+      catch (error) { if (owner === account && owner === currentAccount() && version === preferenceVersion) { state.preferences = persistedPreferences; state.errors.preferences = error.message; notify(); } safeLog('asset_chart_preferences_failed', { status: error.code || 'request_failed' }); }
     }); return preferenceQueue;
   }
-  return { state, load, cancel, startHistory, stopHistory, savePreferences };
+  return { state, load, activateView, loadBlock, cancel, startHistory, stopHistory, savePreferences };
 }

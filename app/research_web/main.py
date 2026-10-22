@@ -438,7 +438,15 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
                     not in {"completed", "failed", "cancelled", "interrupted"}
                     for row in history_jobs.values()
                 )
-                active = bool(active or history_active or active_futures())
+                workspace = research.asset_workspace
+                active = bool(
+                    active
+                    or history_active
+                    or active_futures()
+                    or workspace.directory.active
+                    or any(not task.done() for task in workspace.tasks.values())
+                    or research.datahub.directory_tasks
+                )
             except Exception as exc:  # noqa: BLE001 - unknown activity must fail closed
                 # Unknown worker activity must never certify a safe resident stop.
                 log.warning("resident_data_activity_unknown", error_type=type(exc).__name__)

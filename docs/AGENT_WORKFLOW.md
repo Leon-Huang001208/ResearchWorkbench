@@ -1,5 +1,7 @@
 # Agent 任务路由指南
 
+2026-10-22 资产交互与数据任务仅在原Research Web Checks的Python合同步骤追加目录、按需加载、封闭CJPY结构化数据及Provider规范化四模块，并在原Mac Bootstrap两处静态名单追加asset-search.mjs；不增job／runner／条件／依赖，原全部必需门保留。Mac本机fixtures、有限厂商预检、认证浏览器、同候选Mac安装CI、常驻部署分别认证；目录5577条和局部后端通过不代替其他层。Windows／Linux产品dispatch仍由对应真机执行，模型质量判据和费用授权不变。新目录／load API及cache／快照分支按架构map、02／04图和任务报告记录，不沿用纯静态结论。
+
 2026-10-22 Wind v4部署profile固定PREVIOUS=5495、PAYLOAD=`9b436613aad9136f4959c992c89dd72fc7354ed5`（PR180真实merge），产品三CI已通过且候选/preview/merge同tree。沿原操作员真实Git/固定范围/四profile恢复矩阵、完整changed-set Router、独立评审及v4同候选原三CI/Mac安装门，不增job/依赖或放宽保全。热修38/527、产品CI与旧v3正式恢复5495分别留证，不能转写为v4最终通过；实际切换仍由root在最终资格、锁、明确空闲和全账号保全后执行。
 
 2026-10-22 v3真实切换触发索引保全拒绝时，先保留原24业务键/12账号对账和recovery_required/fenced状态，由root走既有受管精确恢复；不得改摘要、忽略键或编辑immutable controller放行。启动默认键问题在独立热修复worktree内改Store序列化并补test_store回归：旧盘缺失且精确默认三键仅在内存，首次真实变更才持久化，既有空键保留。沿原Router/评审/三CI及同候选Mac安装门，不增job/依赖；本机通过不能替代恢复终态、实际版本/账号保全或后续部署证据，未执行保持真实状态。

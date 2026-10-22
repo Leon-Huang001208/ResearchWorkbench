@@ -121,7 +121,7 @@ SOURCE_SPECS: tuple[SourceSpec, ...] = (
         ["cjpy"],
         ["A股", "基金目录"],
         "account",
-        "已接入证券目录、交易日历、历史行情、实时快照及封闭沪深A股复权定义/上市日/指定日因子；其他登记能力不会自动选中。",
+        "已接入沪深北A股目录、行情快照、估值、财务摘要、股东、行业、两融及公告事件；复权仍限既有封闭定义。资金流构成、完整财报及其他登记能力不据此视为已实现。",
     ),
     (
         "ifind",
@@ -581,6 +581,7 @@ BINDING_SPECS = {
         ("chinastock", ["financials"]),
     ],
     "market_activity": [
+        ("tinysoft", ["margin_trading", "holder_data", "holder_details", "industry", "events"]),
         ("wind", ["fund_flow", "margin_trading", "holder_data"]),
         ("ifind", ["fund_flow", "industry"]),
         ("chinastock", ["fund_flow", "sentiment"]),
@@ -624,6 +625,8 @@ IMPLEMENTED_BINDINGS = {
     ("tinysoft", "market_bars"),
     ("tinysoft", "market_snapshot"),
     ("tinysoft", "factor_macro"),
+    ("tinysoft", "financials"),
+    ("tinysoft", "market_activity"),
     ("akshare", "search_assets"),
     ("akshare", "market_bars"),
     ("akshare", "market_snapshot"),
@@ -636,6 +639,8 @@ IMPLEMENTED_BINDINGS = {
     ("wind", "market_activity"),
 }
 BINDING_ASSETS = {
+    ("tinysoft", "financials"): ["股票"],
+    ("tinysoft", "market_activity"): ["股票"],
     ("tinysoft", "factor_macro"): ["股票"],
     ("wind", "market_bars"): ["股票"],
     ("wind", "market_snapshot"): ["股票"],

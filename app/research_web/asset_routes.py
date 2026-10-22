@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import date
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Header, Request
+from fastapi import APIRouter, Header, Query, Request
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 router = APIRouter(prefix="/api/research")
@@ -22,6 +22,9 @@ AssetBlock = Literal[
     "announcements",
     "news",
     "research",
+    "industry",
+    "holder_details",
+    "events",
 ]
 SourceId = Annotated[str, Field(pattern=r"^[a-z0-9_]+$")]
 RangeBlock = Literal["history", "activity", "margin"]
@@ -60,7 +63,7 @@ class ObservationRequest(BaseModel):
     sections: list[AssetBlock] = Field(
         default_factory=_default_sections,
         min_length=1,
-        max_length=10,
+        max_length=13,
     )
     start_date: str | None = Field(default=None, pattern=r"^[0-9]{4}-[0-9]{2}-[0-9]{2}$")
     end_date: str | None = Field(default=None, pattern=r"^[0-9]{4}-[0-9]{2}-[0-9]{2}$")
@@ -76,6 +79,23 @@ class HistoryJobRequest(BaseModel):
     retry_of: str | None = Field(
         default=None, pattern=r"^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$"
     )
+
+
+class BlockLoadRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    source: SourceId | None = None
+    refresh: bool = False
+    start_date: str | None = Field(default=None, pattern=r"^[0-9]{4}-[0-9]{2}-[0-9]{2}$")
+    end_date: str | None = Field(default=None, pattern=r"^[0-9]{4}-[0-9]{2}-[0-9]{2}$")
+
+    @model_validator(mode="after")
+    def complete_interval(self):
+        if self.start_date is not None or self.end_date is not None:
+            if self.start_date is None or self.end_date is None:
+                raise ValueError("区间必须同时提供开始和结束日期")
+            SectionRange(start_date=self.start_date, end_date=self.end_date)
+        return self
 
 
 class ChartPreferencesRequest(BaseModel):
@@ -133,6 +153,15 @@ async def create_observation(
     return await request.app.state.research.asset_workspace.create_observation(
         body, idempotency_key
     )
+
+
+@router.get("/assets/search")
+async def search_assets(
+    request: Request,
+    q: str = Query(default="", max_length=80),
+    limit: int = Query(default=20, ge=1, le=50),
+):
+    return request.app.state.research.asset_workspace.directory.search(q, limit)
 
 
 @router.get("/assets/observations")
@@ -193,6 +222,19 @@ async def refresh_observation_block(
 ):
     return await request.app.state.research.asset_workspace.refresh_block(
         observation_id, block, idempotency_key
+    )
+
+
+@router.post("/assets/observations/{observation_id}/blocks/{block}/load", status_code=202)
+async def load_observation_block(
+    observation_id: str,
+    block: AssetBlock,
+    body: BlockLoadRequest,
+    request: Request,
+    idempotency_key: str = Header(min_length=8, max_length=128),
+):
+    return await request.app.state.research.asset_workspace.load_block(
+        observation_id, block, body, idempotency_key
     )
 
 

@@ -1,5 +1,7 @@
 # GitHub Actions 免费额度治理
 
+2026-10-22 资产交互与数据给既有Checks Python步骤追加四个测试模块，并在原Mac Bootstrap静态名单补asset-search.mjs，不新增job／runner／条件／依赖或手动重试。最终候选仍须原Project Constraints、Research Web Checks与同候选Mac Bootstrap；是否可push／dispatch继续按操作前实时仓库visibility及额度规则核验，不沿用此页历史PUBLIC快照。局部fixtures／114项后端仅是本机阶段证据，不能回填CI通过；本次文档／清单操作没有触发远端Actions、模型或供应商调用。
+
 2026-10-22 Wind v4封闭部署profile只扩展原test_model_provider_upgrade定点，沿既有Project Constraints、Research Web Checks和macOS Bootstrap，不新增workflow/job/runner/timeout/依赖。先前只读API为PUBLIC/private=false，最近5成功run39730343750/39725433303/39725433385/39725433371/39724266491墙钟64/56/562/409/643秒，均值346.8秒，证据留logs/wind-v4-docs。现产品PR180已真实合并为`9b436613aad9136f4959c992c89dd72fc7354ed5`，产品三CI39730343750/39730343679/39730452006均PASS；其中Mac手动候选checkout654fa6、581秒，不冒充v4工具最终CI。新增局部本机预算预留15秒，v4最终资格仍由实际门证明；不手动rerun、派他平台产品任务或调用模型/厂商。
 
 2026-10-22 Wind启动保全热修复只扩充现有test_store回归，沿原Project Constraints、Research Web Checks及Mac Bootstrap，不增workflow/job/runner/timeout/依赖。只读API当前PUBLIC/private=false；最近5成功run39725433303（Constraints，56秒）、39725433385（Bootstrap，562秒）、39725433371（Checks，409秒）、39724266491（Bootstrap，643秒）、39724188738（Constraints，64秒），为创建至结束墙钟，均值346.8秒。证据留`logs/wind-startup-preservation-docs/repository.json`与`recent-success-runs.json`；旧profile/基线成功不认证此热修复。新增定点本机预留15秒，实际回归及同候选Mac安装门由本轮证据回填；不触发Windows/Linux产品dispatch，不执行新模型/厂商调用。真实恢复/fenced与部署状态另验，不能以CI成功替代。

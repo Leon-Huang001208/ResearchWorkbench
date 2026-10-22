@@ -84,6 +84,17 @@ def resolve(
     bindings = [
         binding for binding in catalog["bindings"] if binding["capability_id"] == query.capability
     ]
+    if query.capability == "market_activity" and query.parameters.get("dataset"):
+        bindings = [
+            binding
+            for binding in bindings
+            if query.parameters["dataset"] in binding["datasets"]
+            or (
+                query.source == "akshare"
+                and binding["source_id"] == "akshare"
+                and not query.allow_fallback
+            )
+        ]
     binding_by_source = {binding["source_id"]: binding for binding in bindings}
     sources = {source["id"]: source for source in catalog["sources"]}
     if query.capability == "external_data":
@@ -206,6 +217,8 @@ def resolve(
         "market_bars",
         "market_snapshot",
         "factor_macro",
+        "financials",
+        "market_activity",
     }:
         legacy = query.model_copy(update={"source": "tinysoft"})
     elif selected == "akshare" and query.capability in {

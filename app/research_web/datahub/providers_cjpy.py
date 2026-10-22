@@ -8,6 +8,7 @@ import math
 import os
 import re
 import threading
+import time
 from concurrent.futures import Future, ThreadPoolExecutor
 from datetime import UTC, date, datetime, timedelta, timezone
 from typing import Any
@@ -31,6 +32,34 @@ _EXECUTOR = ThreadPoolExecutor(max_workers=1, thread_name_prefix="datahub-tinyso
 _CAPACITY = threading.BoundedSemaphore(1)
 _FUTURES: set[Future] = set()
 _FUTURES_LOCK = threading.Lock()
+_WORK = threading.local()
+
+
+class _BoundedSDK:
+    """Stop admitting follow-up SDK calls after the owner's budget ends."""
+
+    def __init__(self, sdk):
+        self.sdk = sdk
+
+    def __getattr__(self, name):
+        value = getattr(self.sdk, name)
+        if not callable(value):
+            return value
+
+        def call(*args, **kwargs):
+            stop = getattr(_WORK, "stop", None)
+            if stop is not None and (stop.is_set() or time.monotonic() >= _WORK.deadline):
+                log.info("tinysoft_followup_stopped")
+                raise ProviderError("deadline")
+            return value(*args, **kwargs)
+
+        return call
+
+
+def _stop_work(future):
+    stop = getattr(future, "_tinysoft_stop", None)
+    if stop is not None:
+        stop.set()
 
 
 def active_futures() -> tuple[Future, ...]:
@@ -73,10 +102,26 @@ def _release_capacity(_future: Future) -> None:
 
 
 def _submit(query: BusinessQuery, token: str | None = None) -> Future | None:
+    return _submit_work(_sync_query, query, token)
+
+
+def _submit_work(operation, *arguments) -> Future | None:
     if not _CAPACITY.acquire(blocking=False):
         return None
+    stop = threading.Event()
+    deadline = time.monotonic() + DEADLINE
+
+    def run():
+        _WORK.stop, _WORK.deadline = stop, deadline
+        try:
+            return operation(*arguments)
+        finally:
+            del _WORK.stop
+            del _WORK.deadline
+
     try:
-        future = _EXECUTOR.submit(_sync_query, query, token)
+        future = _EXECUTOR.submit(run)
+        future._tinysoft_stop = stop
     except Exception:
         _CAPACITY.release()
         raise
@@ -320,26 +365,81 @@ def _sync_query(query: BusinessQuery, token: str | None = None):
     effective_token = _effective_token(token)
     client = _client(effective_token)
     try:
+        return _sync_query_with_client(query, client, effective_token)
+    finally:
+        close = getattr(client, "close", None)
+        if callable(close):
+            try:
+                close()
+            except Exception as exc:
+                log.warning("tinysoft_client_close_failed", error_type=type(exc).__name__)
+                raise ProviderError("provider_close_failed") from exc
+
+
+def _sync_query_with_client(query: BusinessQuery, client, effective_token: str):
+    try:
         import cjpy
     except ImportError as exc:
         raise ProviderError("blocked_dependency") from exc
+    cjpy = _BoundedSDK(cjpy)
     parameters = query.parameters
+    if query.capability in {"financials", "market_activity"} or (
+        query.capability == "market_snapshot"
+        and any(
+            field in {"pe_ttm", "pb", "pb_mrq", "ps_ttm", "total_shares"}
+            for field in parameters.get("fields", [])
+        )
+    ):
+        from .providers_cjpy_assets import structured_query
+
+        return structured_query(query, cjpy, client, effective_token)
     if query.capability == "factor_macro":
-        try:
-            return _sync_adjustment_query(query, cjpy, client, effective_token)
-        finally:
-            close = getattr(client, "close", None)
-            if callable(close):
-                try:
-                    close()
-                except Exception as exc:
-                    log.warning("tinysoft_client_close_failed", error_type=type(exc).__name__)
-                    raise ProviderError("provider_close_failed") from exc
+        return _sync_adjustment_query(query, cjpy, client, effective_token)
     elif query.capability == "search_assets":
-        rows = _rows(cjpy.get_stocks(client=client))
+        stocks = cjpy.get_stocks(client=client)
+        if _contains_secret(stocks, effective_token):
+            raise ProviderError("credential_reflection")
+        if (
+            not isinstance(stocks, list)
+            or len(stocks) > 20000
+            or any(
+                not isinstance(code, str) or re.fullmatch(r"(?:SH|SZ|BJ)[0-9]{6}", code) is None
+                for code in stocks
+            )
+        ):
+            raise ProviderError("tinysoft_directory_invalid")
         needle = str(parameters.get("query", "")).strip().casefold()
-        if needle:
-            rows = [row for row in rows if needle in json.dumps(row, ensure_ascii=False).casefold()]
+        if needle and re.fullmatch(r"[a-z0-9.]+", needle) is None:
+            raise ProviderError("data_not_equivalent")
+        selected = [
+            code
+            for code in stocks
+            if not needle
+            or needle in code.casefold()
+            or needle in f"{code[2:]}.{code[:2]}".casefold()
+        ]
+        rows = [
+            {
+                "asset": f"{code[2:]}.{code[:2]}",
+                "code": code[2:],
+                "exchange": code[:2],
+                "asset_type": "stock",
+            }
+            for code in selected[:50]
+        ]
+        result = Result(
+            rows=rows,
+            raw=[json.dumps(stocks, ensure_ascii=False).encode()],
+            source_url=SOURCE_URL,
+            provider_id="tinysoft",
+            provider_total=len(selected),
+            pagination_complete=len(selected) <= 50,
+        )
+        result.metadata["bounded_directory_sample"] = True
+        result.limitations.append(
+            "此业务查询仅返回最多50条代码目录样本；名称与简拼检索使用账号隔离的资产目录接口。"
+        )
+        return result
     elif query.capability == "trading_calendar":
         start, end = _required_date_range(parameters)
         rows = _rows(
@@ -453,21 +553,42 @@ async def fetch(query: BusinessQuery, *, token: str | None = None) -> Result:
             result.raw = [json.dumps(result.rows, ensure_ascii=False).encode()]
         result.raw_bytes = sum(len(part) for part in result.raw)
         result.pages_fetched = len(result.raw)
-        result.provider_total = len(result.rows)
-        result.pagination_complete = True
-        result.status = "complete" if result.rows else "empty"
-        result.as_of = datetime.now(UTC).isoformat()
+        if not result.metadata.get("bounded_directory_sample"):
+            result.provider_total = len(result.rows)
+            result.pagination_complete = True
+        result.status = (
+            "partial"
+            if result.rows
+            and (
+                result.metadata.get("quality_partial")
+                or result.provider_total is not None
+                and result.provider_total > len(result.rows)
+            )
+            else "complete" if result.rows else "empty"
+        )
+        if not result.as_of and query.capability == "market_snapshot":
+            days = [str(row.get("时间") or row.get("date") or "") for row in result.rows]
+            result.as_of = max(
+                (day for day in days if re.fullmatch(r"\d{4}-\d{2}-\d{2}", day)), default=None
+            )
+        result.as_of = result.as_of or datetime.now(UTC).isoformat()
         if not result.fields:
             result.fields = {
                 key: {"unit": None, "currency": None} for row in result.rows for key in row
             }
-        result.limitations = [
-            "天软返回字段保留供应商原值；未从元数据确认的单位不推断。",
-            "专业数据权限和覆盖范围以当前本机账户为准。",
-        ]
+        result.limitations.extend(
+            [
+                "天软返回字段保留供应商原值；未从元数据确认的单位不推断。",
+                "专业数据权限和覆盖范围以当前本机账户为准。",
+            ]
+        )
     except TimeoutError:
+        _stop_work(future)
         result.status = "failed"
         result.limitations = ["deadline"]
+    except asyncio.CancelledError:
+        _stop_work(future)
+        raise
     except ProviderError as exc:
         result.status = "failed"
         result.limitations = [str(exc)]
@@ -483,10 +604,108 @@ async def fetch(query: BusinessQuery, *, token: str | None = None) -> Result:
     return result
 
 
+def _directory_step(token: str, kind: str, codes=None, as_of=None):
+    import cjpy
+
+    cjpy = _BoundedSDK(cjpy)
+    client = _client(token)
+    try:
+        if kind == "codes":
+            _verify_factor_definitions(_rows(cjpy.list_factors(client=client)))
+            values = cjpy.get_stocks(client=client)
+            if _contains_secret(values, token):
+                raise ProviderError("credential_reflection")
+            if (
+                not isinstance(values, list)
+                or not 1 <= len(values) <= 20000
+                or any(
+                    not isinstance(value, str)
+                    or re.fullmatch(r"(?:SH|SZ|BJ)[0-9]{6}", value) is None
+                    for value in values
+                )
+                or len(set(values)) != len(values)
+            ):
+                raise ProviderError("tinysoft_directory_invalid")
+            return sorted(values)
+        rows = _rows(
+            cjpy.get_factor_data(code=codes, date=as_of, factors=["上市日期"], client=client)
+        )
+        if _contains_secret(rows, token):
+            raise ProviderError("credential_reflection")
+        found = {}
+        for row in rows:
+            code, name = row.get("代码"), row.get("名称")
+            if (
+                not isinstance(code, str)
+                or code not in codes
+                or code in found
+                or not isinstance(name, str)
+                or not name.strip()
+                or len(name) > 120
+                or _factor_date(row.get("截止日"), compact=True) != as_of
+            ):
+                raise ProviderError("tinysoft_directory_identity_invalid")
+            if _factor_date(row.get("上市日期")) > as_of:
+                raise ProviderError("tinysoft_directory_listing_invalid")
+            found[code] = {
+                "asset": f"{code[2:]}.{code[:2]}",
+                "code": code[2:],
+                "name": name.strip(),
+                "exchange": code[:2],
+                "asset_type": "stock",
+            }
+        if set(found) != set(codes):
+            raise ProviderError("tinysoft_directory_incomplete")
+        return [found[code] for code in codes]
+    finally:
+        client.close()
+
+
+async def fetch_directory(token: str | None = None) -> dict:
+    """Full code universe, then <=500 names per real, bounded SDK Future."""
+    effective_token = _effective_token(token)
+
+    async def step(kind, codes=None, as_of=None):
+        future = _submit_work(_directory_step, effective_token, kind, codes, as_of)
+        if future is None:
+            raise ProviderError("provider_busy")
+        wrapped = asyncio.wrap_future(future)
+        wrapped.add_done_callback(_observe_async_future)
+        try:
+            async with asyncio.timeout(DEADLINE):
+                return await asyncio.shield(wrapped)
+        except asyncio.CancelledError:
+            _stop_work(future)
+            await wait_for_idle()
+            raise
+        except TimeoutError as exc:
+            _stop_work(future)
+            raise ProviderError("deadline") from exc
+
+    try:
+        codes = await step("codes")
+        as_of = datetime.now(SHANGHAI_TZ).date().isoformat()
+        items = []
+        for offset in range(0, len(codes), 500):
+            items.extend(await step("names", codes[offset : offset + 500], as_of))
+        log.info("tinysoft_directory_completed", rows=len(items), batches=(len(codes) + 499) // 500)
+        return {
+            "items": items,
+            "provider": "tinysoft",
+            "as_of": as_of,
+            "retrieved_at": datetime.now(UTC).isoformat(),
+            "total_count": len(items),
+            "limitations": ["天软当日沪深北A股目录；名称为本次读取截面，不代表历史简称。"],
+        }
+    except Exception as exc:
+        log.warning("tinysoft_directory_failed", error_type=type(exc).__name__)
+        raise
+
+
 async def probe(*, token: str | None = None) -> dict:
     query = BusinessQuery(capability="search_assets", source="tinysoft", parameters={})
     result = await fetch(query, token=token)
     return {
-        "health": "healthy" if result.status in {"complete", "empty"} else "unavailable",
+        "health": "healthy" if result.status in {"complete", "partial", "empty"} else "unavailable",
         "failure_code": result.limitations[-1] if result.status == "failed" else None,
     }

@@ -1,5 +1,9 @@
 # Research Workbench Development Map
 
+2026-10-22 资产交互与数据定位：`asset_directory.py`负责账号目录索引、代码／名称／GB2312简拼排序、24小时缓存、授权指纹与有界原子文件；DataHub `directory_fingerprint/asset_directory`负责显式天软授权和同namespace凭据读取前后的复核，`providers_cjpy.fetch_directory`沿原SDK容量分批取得完整目录。`asset_routes.py`新增搜索与区块load端点，`asset_workspace.py`负责旧观察缺块补建、15分钟缓存、成功受理签名、来源／区间409、统一区块锁、失败原位回滚和旧快照保留；活动目录／区块任务进入原resident活动投影及关闭边界。
+
+`datahub/providers_cjpy_assets.py`保存固定表／字段／因子合同；`providers_cjpy.py`继续拥有真实SDK Future、容量与关闭，Broker按dataset选择实际支持的来源。AKShare标准字段与原中文列并存，不派生流出或资金构成。前端 `asset-search.mjs`提供单A股搜索与账号／代次取消，`asset-controller.mjs`按专题激活和初次overview→recent qfq加载，`asset-workspace.mjs/css`保留图表／指标并局部替换专题；`asset-projection.mjs`按真实估值、报告期、股东和行业字段投影，独立新闻／公告控制器保留60秒缓存。新回归为 `test_asset_directory.py`、`test_asset_loading.py`、`test_cjpy_asset_data.py`、`test_asset_provider_normalization.py`及资产搜索／专题JS和E2E；原资产、历史、Provider、安装门均保留。合同见[UI](research-web-ui.md#资产观察工作台)、[DataHub](research-web-datahub.md#资产目录与结构化区块)、架构03／04／05章；源码与本机夹具通过不代替同候选CI、真实浏览器或部署。
+
 2026-10-22 v4 profile在`resident/model_provider_upgrade.py`的ASSET_V4_MODE/PREVIOUS/PAYLOAD、封闭previous_for/review_assets和CLI分派中维护，近处回归为test_model_provider_upgrade.py；操作员/测试由独立实现者负责。旧5495固定，产品固定PR180真实merge `9b436613aad9136f4959c992c89dd72fc7354ed5`；654fa6只保留在历史候选证据中。旧v1/v2/v3/controller/evidence/保全门及依赖/CI不变，既有图准确，不改HTML/PNG。产品三CI不替代v4最终本机/评审/CI/部署证据，见[部署合同](research-web-gateway-upgrade.md#资产观察固定版本联合部署)。
 
 2026-10-22 启动保全修复位于`app/research_web/store.py`：记录磁盘原有的三项可选资产键，save时只省略“原来缺失且仍精确默认”的键，成功原子替换后更新持久键集合；失败沿原日志/异常处理，不误记已持久化。相关回归在`tests/research_web/test_store.py`，覆盖旧索引启动/重复save、首次修改、原有空值及写失败。Automation仍可按原合同save，修复不绕过调用方、不修改保全比对、控制器、依赖或安装流程。存储真源见[文件合同](architecture/research-web/03-data-files.md#资产历史与图表偏好存储)；部署恢复、本机结果和同候选Mac安装CI由主任务分别取证。

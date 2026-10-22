@@ -1,5 +1,7 @@
 # 部署与模块职责
 
+2026-10-22 Host资产工作区新增账号AssetDirectory和按需load，仍部署在原FastAPI进程，不创建第二研究引擎、守护进程或数据库。目录search GET可以合并后台天软读取，结果落账号24小时缓存；普通专题区块沿原会话DataHub快照，15分钟同条件缓存，规范历史继续history-job。02模块图补目录缓存分支，04区分资产／DSH取数和会话快照，API Atlas登记两新HTTP；这些真实变化不能沿用旧纯静态或封闭部署profile的“无新接口”描述。账号、凭据namespace及唯一DSH边界保持，实际安装与部署仍须独立证据。
+
 2026-10-22 v4沿既有Native主实例/私网网关和version4事务，只增加固定旧5495与PR180产品`9b436613aad9136f4959c992c89dd72fc7354ed5`身份。旧v1/v2/v3、controller/evidence及严格保全保持，无新运行节点/接口/引擎/依赖，原图及Atlas准确，不改HTML/PNG。产品候选654fa6、preview2e069与真实merge同tree；产品三CI和旧v3正式恢复5495不替代v4工具最终验收/部署。
 
 2026-10-22 v3仅为已合并Wind产品增加封闭部署身份：旧主实例/网关5495、产品a0ff3ae2，沿同一model_provider_upgrade协调原Native/网关v4事务。controller、evidence和旧v1/v2恢复保持字节及语义，无新运行节点、HTTP、产品模块或依赖；部署/模块图与Atlas不变，也不重新生成HTML/PNG。最终候选验收通过且root持锁证明全部任务/Future空闲并冻结全账号索引后，才执行本轮已授权切换；[部署合同](../../research-web-gateway-upgrade.md#资产观察固定版本联合部署)是本轮真源。

@@ -5,7 +5,7 @@ import path from 'node:path';
 import { readFile, writeFile, appendFile, mkdir } from 'node:fs/promises';
 import { createHash, randomUUID } from 'node:crypto';
 
-const sourceFiles = ['index.html', 'app.mjs', 'core.mjs', 'asset-workspace.mjs', 'asset-workspace.css', 'asset-controller.mjs', 'asset-chart.mjs', 'asset-chart.css', 'asset-indicators.mjs', 'asset-projection.mjs', 'styles.css', 'vendor/echarts-5.5.0.min.js', 'vendor/chart-4.4.7.umd.js'];
+const sourceFiles = ['index.html', 'app.mjs', 'core.mjs', 'asset-workspace.mjs', 'asset-workspace.css', 'asset-controller.mjs', 'asset-chart.mjs', 'asset-chart.css', 'asset-indicators.mjs', 'asset-projection.mjs', 'asset-search.mjs', 'asset-news.mjs', 'asset-navigation.mjs', 'styles.css', 'vendor/echarts-5.5.0.min.js', 'vendor/chart-4.4.7.umd.js'];
 const clone = value => structuredClone(value);
 const mime = { '.html': 'text/html', '.mjs': 'text/javascript', '.js': 'text/javascript', '.json': 'application/json', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.woff2': 'font/woff2' };
 // Preview-container restrictions only. Product files and their hashes stay intact.
@@ -61,12 +61,31 @@ export async function startWindFixture(project, output, { port = 0, proofPath = 
       if (url.pathname === '/favicon.ico') { response.writeHead(204); response.end(); return; }
       if (url.pathname.startsWith('/api/research/')) {
         const preferencesRoute = url.pathname === '/api/research/assets/chart-preferences';
+        const blockLoadMatch = url.pathname.match(/^\/api\/research\/assets\/observations\/([^/]+)\/blocks\/([^/]+)\/load$/);
+        const createObservation = request.method === 'POST' && url.pathname.endsWith('/assets/observations');
         const jobMatch = url.pathname.match(/^\/api\/research\/assets\/observations\/([^/]+)\/history-jobs(?:\/([^/]+))?(\/cancel)?$/);
-        const simulatedWrite = request.method === 'PUT' && preferencesRoute || request.method === 'POST' && jobMatch && (!jobMatch[2] || jobMatch[3]);
+        const simulatedWrite = request.method === 'PUT' && preferencesRoute || request.method === 'POST' && jobMatch && (!jobMatch[2] || jobMatch[3]) || request.method === 'POST' && blockLoadMatch || createObservation;
         if (request.method !== 'GET' && !simulatedWrite) return send({ code: 'isolated_preview_read_only', error: '隔离预览禁用研究提交、刷新供应商和持久业务写入。' }, 403);
         if (request.method === 'GET' && jobMatch?.[3]) return send({ code: 'method_not_allowed', error: '取消模拟任务须使用 POST。' }, 405);
         let body = '';
         if (['POST', 'PUT'].includes(request.method)) { for await (const chunk of request) body += chunk; body = body ? JSON.parse(body) : {}; }
+        if (url.pathname.endsWith('/assets/search')) {
+          const query = String(url.searchParams.get('q') || '').normalize('NFKC').trim().toLowerCase();
+          const limit = Math.max(1, Math.min(50, Number(url.searchParams.get('limit')) || 20));
+          const directory = proof.directory || [...current.values()].map(observation => ({ asset: observation.asset, code: observation.asset.split('.')[0], exchange: observation.asset.split('.')[1], asset_type: 'stock', name: (rows[observation.blocks.overview?.dataset?.dataset_id] || [])[0]?.name || observation.asset, pinyin_abbr: '' }));
+          const scored = directory.map(item => ({ item, rank: item.code === query || item.asset.toLowerCase() === query ? 0 : item.name.includes(query) ? 1 : item.code.startsWith(query) ? 2 : item.pinyin_abbr?.startsWith(query) ? 3 : item.asset.toLowerCase().includes(query) || item.pinyin_abbr?.includes(query) ? 4 : 9 })).filter(value => value.rank < 9).sort((a, b) => a.rank - b.rank || a.item.asset.localeCompare(b.item.asset));
+          return send({ status: 'ready', items: scored.slice(0, limit).map(value => value.item), total_count: directory.length, provider: 'frozen-directory', as_of: proof.directory_as_of, limitations: ['冻结目录；选择无快照证券时只提示缺口，不查询供应商。'] });
+        }
+        if (createObservation) {
+          const observation = current.get(String(body.asset || '').toUpperCase());
+          return observation ? send(publicObservation(observation), 202) : send({ detail: { code: 'preview_snapshot_missing', message: '隔离预览未保存该资产快照；不会查询供应商。' } }, 409);
+        }
+        if (blockLoadMatch) {
+          const observation = byId(blockLoadMatch[1]);
+          if (!observation) return send({ detail: { code: 'preview_snapshot_missing', message: '隔离预览没有这份观察快照。' } }, 404);
+          if (!observation.blocks[blockLoadMatch[2]]) observation.blocks[blockLoadMatch[2]] = { status: 'unavailable', failure_code: 'preview_snapshot_missing', dataset: null };
+          return send(publicObservation(observation), 202);
+        }
         if (preferencesRoute) {
           if (request.method === 'PUT') {
             if (!Array.isArray(body.panels) || body.panels.length > 4 || new Set(body.panels).size !== body.panels.length || body.panels.some(id => !['volume', 'macd', 'kdj', 'rsi'].includes(id))) return send({ code: 'preview_preferences_invalid' }, 400);
@@ -102,7 +121,12 @@ export async function startWindFixture(project, output, { port = 0, proofPath = 
           return send({ items: items.slice(offset, offset + limit), offset, limit, total: items.length });
         }
         if (url.pathname.endsWith('/watchlists')) return send({ items: [{ id: 'preview-watchlist', name: '隔离快照', items: [...current.keys()].map(asset => ({ asset, asset_type: 'stock' })) }] });
-        if (url.pathname.endsWith('/intel/news') || url.pathname.endsWith('/intel/announcements')) return send([]);
+        if (url.pathname.endsWith('/intel/news') || url.pathname.endsWith('/intel/announcements')) {
+          const kind = url.pathname.endsWith('/announcements') ? 'announcements' : 'news';
+          const frozen = proof.intel?.[url.searchParams.get('code')]?.[kind];
+          if (frozen?.error) return send({ detail: { message: frozen.error } }, 503);
+          return send(frozen?.items || []);
+        }
         if (url.pathname.endsWith('/runtime')) return send({ connected: true, credential_configured: false, provider: 'snapshot-preview', model: null, mode: 'native', version: 'isolated-snapshot' });
         if (url.pathname.endsWith('/models')) return send({ groups: [], failures: [] });
         if (url.pathname.endsWith('/events')) return send('event: connected\ndata: {}\n\n', 200, 'text/event-stream');

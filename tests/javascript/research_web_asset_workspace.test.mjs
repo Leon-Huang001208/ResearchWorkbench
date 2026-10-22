@@ -8,32 +8,28 @@ import { renderAssetWorkspace, readAssetObservation, mountCapitalFlow } from '..
 import { enrichMarketBars, renderMarketTerminal } from '../../app/research_web/ui/asset-chart.mjs';
 import { projectAssetObservation } from '../../app/research_web/ui/asset-projection.mjs';
 
-test('both asset input patterns compile under the browser Unicode v flag', () => {
+test('unified search replaces the legacy asset identity and source forms', () => {
   const html = renderAssetWorkspace();
-  const patterns = [...html.matchAll(/<input\b[^>]*\bname="asset"[^>]*\bpattern="([^"]+)"/g)].map(match => match[1]);
-  assert.equal(patterns.length, 2, 'selection and observation forms both validate asset codes');
-  for (const pattern of patterns) {
-    const validate = new RegExp(`^(?:${pattern})$`, 'v');
-    for (const code of ['600519.SH', 'SH603986', 'asset_code-1']) assert.equal(validate.test(code), true, code);
-    for (const code of ['', '600519 SH', '<script>', 'a/b']) assert.equal(validate.test(code), false, code);
-  }
+  assert.equal((html.match(/data-asset-search-slot/g) || []).length, 1);
+  assert.doesNotMatch(html, /<form[^>]*data-asset-select|<form[^>]*data-asset-observation|name="asset_type"/);
 });
 
-test('original continuous indicators keep every card and missing slot on every legacy route', () => {
-  for (const assetView of ['overview', 'financials', 'capital', 'holders', 'news', 'announcements', 'materials']) {
-    const html = renderAssetWorkspace({ route: { asset: '600519.SH', assetType: 'stock', assetView } });
-    const slots = ['asset-basic-card', 'data-asset-chart-slot', 'capital-flow-card', 'financial-panel', 'shareholder-panel', 'industry-panel', 'events-panel', 'macro-panel'];
-    let last = -1;
-    for (const slot of slots) { const index = html.indexOf(slot); assert.ok(index > last, slot); last = index; }
-    for (const field of ['PE-TTM', 'PB-MRQ', 'ROE', '营收', '净利润', '毛利率', '股东名称', '持股比例', '变动比例', '国资属性', '申万一级', '申万二级', '行业PE', '行业PB', '事件摘要', '事件类型', '事件时间', '利率', '通胀', '汇率', '大宗商品', '流动性', '主力流入', '主力流出', '主力净流入', '超大单', '大单', '中单', '小单', '北向资金']) assert.ok(html.includes(field), field);
+test('existing fields remain available in their topics while every route retains the terminal and personal research', () => {
+  const pages = ['overview', 'financials', 'capital', 'holders', 'news', 'announcements', 'materials'].map(assetView => renderAssetWorkspace({ route: { asset: '600519.SH', assetType: 'stock', assetView } }));
+  const all = pages.join('');
+  for (const slot of ['capital-flow-card', 'financial-panel', 'shareholder-panel', 'industry-panel', 'events-panel']) assert.ok(all.includes(slot), slot);
+  for (const field of ['PE-TTM', 'PB-MRQ', 'ROE', '营收', '净利润', '毛利率', '股东名称', '持股比例', '变动比例', '国资属性', '一级行业', '二级行业', '行业PE', '行业PB', '事件摘要', '事件类型', '事件时间', '主力流入', '主力流出', '主力净流入', '超大单', '大单', '中单', '小单', '北向资金']) assert.ok(all.includes(field), field);
+  for (const html of pages) {
     assert.doesNotMatch(html, /asset-quote-panel|asset-chart-details/);
-    for (const attribute of ['data-asset-select', 'data-asset-observation', 'data-asset-note', 'data-asset-alert', 'data-workbench-handoff', 'data-asset-news-slot']) assert.ok(html.includes(attribute), attribute);
+    assert.doesNotMatch(html, /macro-panel/);
+    for (const attribute of ['asset-basic-card', 'data-asset-chart-slot', 'data-asset-search-slot', 'data-asset-note', 'data-asset-alert', 'data-workbench-handoff']) assert.ok(html.includes(attribute), attribute);
   }
 });
 test('compact header keeps menus closed and original metrics sit beside the chart', () => {
   const html = renderAssetWorkspace({ route: { asset: '600519.SH', assetType: 'stock' }, rows: { overview: [{ name: '贵州茅台', price: 10, open: 0, high: 11, low: 9, volume: 0, amount: 0, turnover_rate_pct: 0, date: '2026-10-21' }] } });
   const hero = html.slice(html.indexOf('<section class="asset-basic-card'), html.indexOf('<section class="asset-market-full"'));
-  for (const className of ['asset-identity-switch', 'asset-query-controls']) assert.match(hero, new RegExp(`<details class="${className}">`));
+  assert.match(hero, /<details class="asset-more-menu">/);
+  assert.match(hero, /data-asset-search-slot/);
   const metrics = html.slice(html.indexOf('<aside class="asset-wind-metrics"'), html.indexOf('<details class="asset-source-summary"'));
   assert.ok(html.indexOf('data-asset-chart-slot') < html.indexOf('<aside class="asset-wind-metrics"'));
   assert.doesNotMatch(hero, /asset-summary-metrics/);
@@ -57,10 +53,11 @@ test('source summary counts hydrated snapshot rows and distinguishes stale and u
   const html = renderAssetWorkspace({ observation, rows: { overview: [{ price: 0, date: '2026-10-21' }], valuation: [{ pe_ttm: 0, date: '2026-10-20' }] } });
   const summary = html.slice(html.indexOf('<details class="asset-source-summary"'), html.indexOf('<article class="asset-block capital-flow-card'));
   assert.match(summary, /^<details class="asset-source-summary">/);
-  assert.match(summary, /来源与口径 · 2\/8 区块有快照 · 查看详情/);
-  assert.equal((summary.match(/data-asset-source-row=/g) || []).length, 8);
-  assert.match(summary, /失败 · 保留旧快照/); assert.match(summary, /加载中 · 显示上次快照/);
-  assert.match(summary, /完整 · 快照尚未载入/); assert.match(summary, /refresh_failed/);
+  assert.match(summary, /来源与口径 · 已取得 1 · 待加载 9 · 查询失败 1 · 未接入 0/);
+  assert.match(summary, /更新中 1 · 保留旧快照 1/);
+  assert.equal((summary.match(/data-asset-source-row=/g) || []).length, 11);
+  assert.match(summary, /缓存已过期 · 保留旧快照/); assert.match(summary, /更新中 · 显示上次快照/);
+  assert.match(summary, /未加载 · 快照尚未载入/); assert.match(summary, /refresh_failed/);
   assert.match(summary, /新闻与公告独立查询/);
 });
 test('source details preserve dates ranges field units and report periods separately', () => {
@@ -69,6 +66,33 @@ test('source details preserve dates ranges field units and report periods separa
   const source = html.slice(html.indexOf('data-asset-source-row="financials"'), html.indexOf('data-asset-source-row="activity"'));
   for (const value of ['请求来源', '实际来源', 'auto', 'wind', '数据日', '2026-10-20', '截至', '2026-10-21', '北京时间', '16:00:00', '报告期', '2026-06-30', '请求区间', '实际区间', '已载入区间', '2026-01-01', 'revenue', 'currency', 'CNY', 'reported', '摘要口径']) assert.ok(source.includes(value), value);
   assert.doesNotMatch(source, /报告期未提供/);
+});
+test('financial columns distinguish publication versions and translate user-facing metrics and units', () => {
+  const observation = { asset: '600519.SH', asset_type: 'stock', blocks: { financials: { status: 'complete', dataset: { provider: 'tinysoft', fields: [{ name: 'revenue', unit: 'currency', currency: 'CNY' }, { name: 'net_profit_parent', unit: 'currency', currency: 'CNY' }, { name: 'roe', unit: 'percent' }, { name: 'eps', unit: 'currency_per_share', currency: 'CNY' }, { name: 'total_shares', unit: 'share' }] } } } };
+  const rows = { financials: [{ report_period: '2026-06-30', published_at: '2026-08-01', report_type: '中报', revenue: 10, net_profit_parent: 0, roe: 3, eps: 1, total_shares: 100, source_tables: ['synthetic-source-a'] }, { report_period: '2026-06-30', published_at: '2026-08-20', report_type: '中报修订', revenue: 11, net_profit_parent: 1, roe: 4, eps: 2, total_shares: 100, source_tables: ['synthetic-source-b'] }] };
+  const html = renderAssetWorkspace({ observation, rows, route: { assetView: 'financials' } });
+  const table = html.slice(html.indexOf('<table class="asset-table asset-financial-table"'));
+  assert.match(table, /2026-06-30[^]*?公布日 2026-08-01[^]*?报告类型 中报/);
+  assert.match(table, /2026-06-30[^]*?公布日 2026-08-20[^]*?报告类型 中报修订/);
+  assert.match(table, /营业收入<small>元 · CNY<\/small>/);
+  assert.match(table, /归母净利润<small>元 · CNY<\/small>/);
+  assert.match(table, /净资产收益率<small>%<\/small>/);
+  assert.match(table, /每股收益<small>元\/股 · CNY<\/small>/);
+  assert.match(table, /总股本<small>股<\/small>/);
+  const body = table.slice(table.indexOf('<tbody>'), table.indexOf('</tbody>'));
+  assert.doesNotMatch(body, /source_tables|synthetic-source|公布日|报告类型|published_at|report_type/);
+});
+
+test('current financing and lending fields have Chinese labels and source units', () => {
+  const fields = [{ name: 'financing_balance', unit: 'currency', currency: 'CNY' }, { name: 'financing_buy', unit: 'currency', currency: 'CNY' }, { name: 'financing_repay', unit: 'currency', currency: 'CNY' }, { name: 'securities_lending_volume', unit: 'share' }, { name: 'securities_lending_sell', unit: 'share' }, { name: 'securities_lending_repay', unit: 'share' }];
+  const observation = { asset: '600519.SH', asset_type: 'stock', blocks: { margin: { status: 'complete', dataset: { provider: 'tinysoft', fields } } } };
+  const row = Object.fromEntries(fields.map((field, index) => [field.name, index]));
+  const html = renderAssetWorkspace({ observation, rows: { margin: [row] }, route: { assetView: 'capital' } });
+  const table = html.slice(html.indexOf('data-asset-block="margin"'));
+  for (const label of ['融资余额', '融资买入', '融资偿还', '融券余量', '融券卖出量', '融券偿还量']) assert.match(table, new RegExp(label));
+  assert.match(table, /融资余额<small>元 · CNY<\/small>/);
+  assert.match(table, /融券余量<small>股<\/small>/);
+  assert.doesNotMatch(table, /financing_|securities_lending_/);
 });
 test('partially read new snapshots never claim old snapshots in source rows or local cards', () => {
   const observation = { asset: '600519.SH', asset_type: 'stock', blocks: Object.fromEntries(['history', 'financials', 'margin', 'holders', 'research'].map(name => [name, { status: 'partial', failure_code: 'snapshot_read_failed', dataset: { dataset_id: `new-${name}`, provider: 'wind', row_count: 320 } }])) };
@@ -84,9 +108,11 @@ test('partially read new snapshots never claim old snapshots in source rows or l
 });
 test('actual provider refresh failures retain the old loaded snapshot notice in local cards', () => {
   const observation = { asset: '600519.SH', asset_type: 'stock', blocks: { margin: { status: 'error', failure_code: 'provider_timeout', dataset: { dataset_id: 'old-margin', provider: 'wind' } }, financials: { status: 'error', failure_code: 'provider_timeout', dataset: { dataset_id: 'old-finance', provider: 'wind' } } } };
-  const html = renderAssetWorkspace({ observation, rows: { margin: [{ date: '2026-10-10', margin_balance: 0 }], financials: [{ report_period: '2026-06-30', revenue: 0 }] } });
-  assert.match(html.slice(html.indexOf('id="financial-panel"'), html.indexOf('id="shareholder-panel"')), /下方保留上次快照，不表示刷新成功/);
-  assert.match(html.slice(html.indexOf('<h2>融资融券</h2>')), /下方保留上次快照，不表示刷新成功/);
+  const rows = { margin: [{ date: '2026-10-10', margin_balance: 0 }], financials: [{ report_period: '2026-06-30', revenue: 0 }] };
+  const financials = renderAssetWorkspace({ observation, rows, route: { assetView: 'financials' } });
+  const capital = renderAssetWorkspace({ observation, rows, route: { assetView: 'capital' } });
+  assert.match(financials.slice(financials.indexOf('id="financial-panel"')), /下方保留上次快照，不表示刷新成功/);
+  assert.match(capital.slice(capital.indexOf('<h2>融资融券</h2>')), /下方保留上次快照，不表示刷新成功/);
 });
 test('quote returns and dimensionless valuation metrics do not render price currency as their units', () => {
   const meta = { provider: 'wind', currency: 'CNY', fields: [{ name: 'price', unit: 'currency_per_share', currency: 'CNY' }, { name: 'pb', unit: 'ratio', currency: 'CNY' }, { name: 'ps_ttm', unit: 'ratio' }, { name: 'total_shares', unit: 'share' }] };
@@ -106,7 +132,7 @@ test('valuation preserves zero and raw Wind shares without guessing a share scal
   assert.match(valuation, /未经核实，不作换算/);
   assert.match(valuation, /id="asset-market-cap">—<\/dd>/);
   rows.valuation[0].market_cap = 0;
-  assert.match(renderAssetWorkspace({ observation, rows }), /id="asset-market-cap">0 CNY<\/dd>/);
+  assert.match(renderAssetWorkspace({ observation, rows }), /id="asset-market-cap">0 元 CNY<\/dd>/);
 });
 test('summary leaves market terminal DOM intact and empty shareholders have no synthetic row', () => {
   const rows = { history: [{ date: '2026-10-21', open: 10, high: 12, low: 9, close: 11, volume: 0 }] };
@@ -116,10 +142,11 @@ test('summary leaves market terminal DOM intact and empty shareholders have no s
   const html = renderAssetWorkspace({ observation, rows });
   assert.ok(html.includes(`<div data-asset-chart-slot>${terminal}</div></section>`));
   assert.ok(html.indexOf('<aside class="asset-wind-metrics"') < html.indexOf('<details class="asset-source-summary"'));
-  const shareholder = html.slice(html.indexOf('id="shareholder-panel"'), html.indexOf('id="industry-panel"'));
+  const holders = renderAssetWorkspace({ observation, rows, route: { assetView: 'holders' } });
+  const shareholder = holders.slice(holders.indexOf('id="shareholder-panel"'), holders.indexOf('data-asset-block="holders"'));
   assert.match(shareholder, /<tbody><\/tbody>/);
   assert.match(shareholder, /股东名单未取得/);
-  assert.match(html, /capital-flow-card is-missing-pie/);
+  assert.match(renderAssetWorkspace({ observation, rows, route: { assetView: 'capital' } }), /capital-flow-card is-missing-pie/);
 });
 test('projection preserves zero and metadata without upgrading valuation or inventing flow', () => {
   const rows = { overview: [{ price: 10, date: '2026-10-21', volume: 0 }], valuation: [{ close: 9, date: '2026-10-20', total_shares: 100, pe: 12, pb: 3 }], activity: [{ date: '2026-10-20', main_force_inflow: -5, north_bound_shares: 123 }], financials: [{ report_period: '2026-06-30', revenue: 0, net_profit: null }] };
@@ -203,14 +230,8 @@ test('year coverage, shareholder summaries and unknown dates cannot become verif
   const p = projectAssetObservation(rows, { blocks: { history: { status: 'complete', dataset: { pagination_complete: true, coverage: { full_year: true } } } } });
   assert.equal(p.basic.rangeLabel, '52周'); assert.equal(p.basic.rangeLow.value, 0); assert.equal(p.events[0].time.value, null); assert.deepEqual(p.shareholders, []);
   assert.equal(projectAssetObservation({ history: [{ date: '2020-10-21', high: 99, low: 1 }, ...rows.history] }, { blocks: { history: { status: 'complete', dataset: { pagination_complete: true, coverage: { full_year: true } } } } }).basic.rangeLabel, '区间');
-  const html = renderAssetWorkspace({ observation: { asset: '600519.SH', source: 'wind', request_parameters: { start_date: '2026-09-01', end_date: '2026-10-20' } } });
-  assert.match(html, /name="activity_start_date" value="2026-09-01"/);
 });
-test('source controls restore saved per-section mappings and ranges', () => {
-  const html = renderAssetWorkspace({ observation: { asset: '600519.SH', asset_type: 'stock', source: 'auto', request_parameters: { start_date: '2025-10-21', end_date: '2026-10-21', frequency: 'daily', adjustment: 'none', section_sources: { history: 'wind', overview: 'tinysoft', valuation: 'wind' }, section_ranges: { history: { start_date: '2025-10-21', end_date: '2026-10-21' }, activity: { start_date: '2026-09-01', end_date: '2026-10-20' } } } } });
-  assert.match(html, /name="section_source_history"[^]*?<option value="wind" selected/);
-  assert.match(html, /name="activity_start_date" value="2026-09-01"/);
-  assert.match(html, /name="adjustment"[^]*?<option value="none" selected/);
+test('legacy observation parser preserves per-section sources and ranges for compatibility', () => {
   const OriginalFormData = globalThis.FormData;
   globalThis.FormData = class { constructor(form) { this.values = new Map(Object.entries(form)); } get(key) { return this.values.get(key) ?? null; } has(key) { return this.values.has(key); } };
   try {
@@ -250,7 +271,7 @@ test('asset page uses research topics, source-aware metrics and complete financi
   const html = renderAssetWorkspace({ route: { asset: '600519.SH', assetType: 'stock', assetView: 'financials' }, observation: { asset: '600519.SH', asset_type: 'stock', blocks: { financials: { status: 'complete', dataset: { provider: 'wind', as_of: '2026-06-30', fields: [{ name: 'revenue', unit: 'currency', currency: 'CNY' }] } } } }, rows: { financials: [{ report_period: '2026-06-30', revenue: 0, net_profit: null }] } });
   for (const label of ['资金与两融', '股东', '新闻', '公告', '资料', '营业收入', '2026-06-30', 'CNY']) assert.match(html, new RegExp(label));
   assert.doesNotMatch(html, /52周高|十大股东明细|THEME EXPOSURE/);
-  assert.match(html, /data-asset-block-refresh="financials"/);
+  assert.match(html, /data-asset-block-load="financials"/);
   assert.match(html, /data-asset-personal/);
 });
 test('renderer refuses a previous asset snapshot and news during a route transition', () => {

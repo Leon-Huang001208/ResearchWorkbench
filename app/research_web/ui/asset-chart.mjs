@@ -175,7 +175,7 @@ export function buildMarketChartOption(bars, state = {}, metadata = {}, theme) {
   const range = rangeFor(bars.length, state); const domain = priceDomain(bars, state); const dates = bars.map(bar => bar.date);
   const line = (name, key, axis, color) => ({ name, type: 'line', xAxisIndex: axis, yAxisIndex: axis, data: bars.map((bar, index) => [index, bar[key]]), smooth: false, connectNulls: false, lineStyle: { width: 1, color }, itemStyle: { color }, symbol: 'none', showSymbol: false });
   const volume = axis => ({ name: '成交量', type: 'bar', xAxisIndex: axis, yAxisIndex: axis, data: bars.map((bar, index) => [index, bar.volume, bar.validOHLC ? (bar.close >= bar.open ? 1 : -1) : 0]), barWidth: '60%', itemStyle: { color: params => params.data[2] > 0 ? UP : params.data[2] < 0 ? DOWN : palette.muted } });
-  const series = [{ name: 'K线', type: 'candlestick', xAxisIndex: 0, yAxisIndex: 0, data: bars.map(bar => bar.validOHLC && !bar.gap ? [bar.open, bar.close, bar.low, bar.high] : [null, null, null, null]), itemStyle: { color: UP, color0: DOWN, borderColor: UP, borderColor0: DOWN } }, ...MA_PERIODS.map((period, index) => line(`MA${period}`, `ma${period}`, 0, COLORS[index])), ...BOLL.map(([key, name, color]) => line(name, key, 0, color))];
+  const series = [{ name: 'K线', type: 'candlestick', large: false, xAxisIndex: 0, yAxisIndex: 0, data: bars.map(bar => bar.validOHLC && !bar.gap ? [bar.open, bar.close, bar.low, bar.high] : [null, null, null, null]), itemStyle: { color: UP, color0: DOWN, borderColor: UP, borderColor0: DOWN } }, ...MA_PERIODS.map((period, index) => line(`MA${period}`, `ma${period}`, 0, COLORS[index])), ...BOLL.map(([key, name, color]) => line(name, key, 0, color))];
   panels.forEach((id, index) => {
     const axis = index + 1;
     if (id === 'volume') series.push(volume(axis));
@@ -438,7 +438,8 @@ export function createAssetChartController({ onChange = () => {}, onPanelsChange
     const start = clamp(Math.round((state.start + state.end) / 2 - count / 2), 0, bars.length - count); const end = start + count; const previousStart = state.start;
     const result = update({ start, end, showAll: count === bars.length }, 'zoom', true); reachedLeft(previousStart); return result;
   }
-  function reset() { hidePointer(); return update({ ...initialRange(bars.length), selectedDate: daily.at(-1)?.date || '', historyViewAllRequested: false, showAll: false, crosshairY: null, crosshairVisible: false }, 'reset', true); }
+  function reset() { hidePointer(); const { start, end } = initialRange(bars.length); return update({ start, end, historyViewAllRequested: false, showAll: false, crosshairY: null, crosshairVisible: false }, 'reset', true); }
+  function latest() { hidePointer(); return update({ ...initialRange(bars.length), selectedDate: daily.at(-1)?.date || '', historyViewAllRequested: false, showAll: false, crosshairY: null, crosshairVisible: false }, 'reset', true); }
   function locate() { if (!bars.length) return false; const count = state.end - state.start; const start = clamp(state.activeIndex - Math.floor(count / 2), 0, bars.length - count); return update({ start, end: start + count }, 'locate', true); }
   function cancel() {
     if (frame !== null) { guarded('cancel_frame', () => view?.cancelAnimationFrame?.(frame)); frame = null; }
@@ -481,7 +482,7 @@ export function createAssetChartController({ onChange = () => {}, onPanelsChange
         if (action === 'history-cancel') return requestHistory('cancel', jobFor(metadata).scope || lastHistoryScope);
         if (action === 'history-retry') return retryableHistory(metadata) && requestHistory('retry', jobFor(metadata).scope || lastHistoryScope);
         if (action === 'date-prev' || action === 'date-next') return selectDate(daily[clamp(selectedDailyIndex() + (action === 'date-prev' ? -1 : 1), 0, daily.length - 1)]?.date);
-        if (action === 'latest' || action === 'reset') return reset(); if (action === 'locate') return locate();
+        if (action === 'latest') return latest(); if (action === 'reset') return reset(); if (action === 'locate') return locate();
         if (action === 'zoom-in') return zoom(.75); if (action === 'zoom-out') return zoom(1.4);
         if (action === 'pan-back') return pan(-Math.max(1, Math.round((state.end - state.start) / 4))); if (action === 'pan-forward') return pan(Math.max(1, Math.round((state.end - state.start) / 4))); return false;
       }

@@ -61,9 +61,10 @@
           "assetWorkspace",
           "datahub",
           "providers",
-          "snapshots"
+          "snapshots",
+          "assetDirectoryCache"
         ],
-        "note": "资产页经Host持久历史任务串行调用DataHub，保留原始日线/因子并按固定锚点发布规范快照；账号指标偏好独立保存，交接仍给唯一DSH。"
+        "note": "目录搜索无研究会话；按需区块与历史任务经原DataHub授权及真实Future边界，目录缓存按账号和指纹隔离，区块与规范历史保留不可变会话快照。"
       },
       {
         "id": "liveBrowser",
@@ -250,8 +251,8 @@
     {
       "id": "assetWorkspace",
       "type": "backend",
-      "label": "资产与历史任务",
-      "sublabel": "持久任务 · 取消排空 · 指标偏好",
+      "label": "资产工作区与目录",
+      "sublabel": "按需区块 · 历史任务 · 账号偏好",
       "pos": [
         500,
         565
@@ -265,7 +266,7 @@
       "id": "datahub",
       "type": "backend",
       "label": "DataHub",
-      "sublabel": "白名单 · 日线/因子 · 单Future",
+      "sublabel": "配置授权 · 固定表 · 单Future",
       "pos": [
         750,
         565
@@ -343,6 +344,20 @@
       "size": [
         210,
         78
+      ]
+    },
+    {
+      "id": "assetDirectoryCache",
+      "type": "database",
+      "label": "账号目录缓存",
+      "sublabel": "24h · 指纹一致 · 非会话",
+      "pos": [
+        500,
+        670
+      ],
+      "size": [
+        190,
+        58
       ]
     }
   ],
@@ -517,7 +532,7 @@
       "id": "assetRoute",
       "from": "api",
       "to": "assetWorkspace",
-      "label": "观察 / 历史 / 偏好 API",
+      "label": "搜索 / 按需 / 历史 API",
       "fromSide": "bottom",
       "toSide": "left",
       "labelAt": [
@@ -529,7 +544,7 @@
       "id": "dataRoute",
       "from": "assetWorkspace",
       "to": "datahub",
-      "label": "串行原始行与因子",
+      "label": "目录 / 区块 / 日线因子",
       "labelAt": [
         720,
         657
@@ -676,6 +691,17 @@
       "from": "api",
       "to": "hotSubsystem",
       "label": "有界签名桥"
+    },
+    {
+      "id": "directoryCache",
+      "from": "assetWorkspace",
+      "to": "assetDirectoryCache",
+      "label": "读写",
+      "variant": "security",
+      "labelAt": [
+        475,
+        663
+      ]
     }
   ],
   "cards": [
