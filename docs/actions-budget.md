@@ -216,3 +216,6 @@ Host元数据专项升级测试复用Research Web Checks现有test_resident.py�
 
 
 资产静态闭包验收在既有 Mac Bootstrap 启动步骤增加七次固定本机 HTTP 读取及 checkout 字节比较，预计不足 1 秒、预留 5 秒；原 job/runner/超时不变，保留同候选哈希摘要。真实 CJPY 验收仅在用户明确授权的本机隔离目录执行，与 CI 零供应商/模型调用边界分开。
+
+
+2026-10-22 插件/MCP仅向既有Research Web Checks Python清单补test_plugins、test_plugins_mcp_security、test_plugins_runtime_restart、test_mcp_managed_sandbox四模块，不新增job/runner/timeout/依赖。Mac本机50项26秒、UI4项及独立33/50项分别通过；原生Seatbelt测试在Ubuntu条件跳过，不能记为Mac通过。额外离线预算预留45秒，最终仍绑定原三CI及macos-14干净安装；不触发Windows/Linux产品dispatch，不执行厂商、付费或模型调用。发布前实时核对PUBLIC/额度，历史状态不替代当前证据。

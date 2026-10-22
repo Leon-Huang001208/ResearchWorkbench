@@ -12,6 +12,7 @@ from typing import Any
 from core.observability import get_logger
 
 from .credentials import RuntimeCredentialError, RuntimeCredentialStore
+from .managed_sandbox import TrustedManagedStdioTarget, official_transport, validate_managed_target
 from .oauth import OAuthError
 from .transport import (
     RemoteTarget,
@@ -49,6 +50,7 @@ class SDKHost:
         self.max_result_bytes = max_result_bytes
         self.max_request_bytes = max_request_bytes
         self.max_remote_response_bytes = max_remote_response_bytes
+        self.managed_cleanup_blocked = False
 
     @staticmethod
     def _official_client(target: Any, **options: Any):
@@ -58,8 +60,9 @@ class SDKHost:
             raise MCPHostError("mcp_sdk_unavailable") from exc
         return Client(target, **options)
 
-    @staticmethod
-    def _official_target(target: Any):
+    def _official_target(self, target: Any):
+        if isinstance(target, TrustedManagedStdioTarget):
+            return official_transport(target, self._managed_cleanup_blocked)
         if isinstance(target, StdioTarget):
             try:
                 from mcp import StdioServerParameters
@@ -72,6 +75,10 @@ class SDKHost:
                 env=dict(target.env),
             )
         return target
+
+    def _managed_cleanup_blocked(self) -> None:
+        self.managed_cleanup_blocked = True
+        log.error("mcp_managed_cleanup_admission_retained")
 
     @asynccontextmanager
     async def _remote_transport(self, endpoint: str, bearer_token: str | None):
@@ -146,6 +153,12 @@ class SDKHost:
                 raise MCPHostError("mcp_target_invalid") from exc
             bearer_token = token if isinstance(token, str) else None
             resolved = self.remote_target_factory(endpoint, bearer_token)
+        elif isinstance(target, TrustedManagedStdioTarget):
+            try:
+                target = validate_managed_target(target)
+            except (TypeError, ValueError) as exc:
+                raise MCPHostError("mcp_target_invalid") from exc
+            resolved = self.target_factory(target)
         elif isinstance(target, StdioTarget):
             try:
                 target = validate_stdio_target(target)

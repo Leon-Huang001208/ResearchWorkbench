@@ -12,6 +12,9 @@
 
 Host ResearchService默认挂入可选ResearchWarehouse，也保留受信market_store_bridge注入，仍由现有DataHub和唯一DSH执行。MarketStore是独立业务库接口，不默认连接现有5432或更改服务；resident空闲证明同时纳入所有SDK真实Future、DataHub未终态任务和存储线程占用。
 
+
+2026-10-22 插件增加现有 Host 内版本/审批适配，现有 gateway → 每用户 Host → 唯一 DSH 的部署节点保持。共享与个人审批从真实 AccountStore 角色进入固定 HMAC 通道；Pool 双阶段冻结/重启只处理自有 DSH，未知不停止。无第二引擎或新的服务进程，详细流见[插件合同](../../research-web-plugins.md)。
+
 2026-10-22 v4沿既有Native主实例/私网网关和version4事务，只增加固定旧5495与PR180产品`9b436613aad9136f4959c992c89dd72fc7354ed5`身份。旧v1/v2/v3、controller/evidence及严格保全保持，无新运行节点/接口/引擎/依赖，原图及Atlas准确，不改HTML/PNG。产品候选654fa6、preview2e069与真实merge同tree；产品三CI和旧v3正式恢复5495不替代v4工具最终验收/部署。
 
 华安ETF周报新合同复用现有Native Host、附接主管理员网关、DataHub和唯一DSH；没有新增守护进程、

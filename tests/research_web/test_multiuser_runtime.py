@@ -209,7 +209,11 @@ async def test_two_users_isolate_processes_secrets_paths_capacity(
             assert "OPENAI_API_KEY" not in env and "RESEARCH_WEB_PRIVATE_ORIGIN" not in env
             assert env["RWB_TENANT_MODE"] == "1"
             assert env["RESEARCH_AUTOMATIONS_ENABLED"] == "0"
-            assert env["RESEARCH_MCP_RUNTIME_ENABLED"] == "0"
+            # The Host is enabled only behind the managed-package/schema gate;
+            # the public /mcp boundary remains closed to tenant consumers.
+            assert env["RESEARCH_MCP_RUNTIME_ENABLED"] == "1"
+            assert env["RWB_TENANT_USER"] in {first, second}
+            assert env["RWB_TENANT_GENERATION"]
             assert env["RESEARCH_RUN_MODE"] == "web-prod"
             assert env["HOME"].startswith(str(tmp_path / "server/users"))
             assert child.kwargs["stdout"] == runtime.subprocess.DEVNULL

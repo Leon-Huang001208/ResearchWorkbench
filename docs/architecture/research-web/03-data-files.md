@@ -22,6 +22,11 @@
 
 可选MarketStore将原件、逐次事实修订、覆盖证明与冻结快照分开，scope包含服务器owner/许可/source/config摘要，dataset包含单位/复权/因子和指标合同。未知缺口不能用最大日期或空响应消除；历史可得时间缺失不能冒充PIT。导出包含版本/原件哈希，正式根和外盘迁移尚未启用，详见研究仓合同。
 
+
+2026-10-22 MCP隔离：仅macOS固定离线Python在新增权限、policy/runtime/安装树/schema复审后条件开放；逐次重验并在受管Seatbelt内执行。Node/npm、其他平台、凭据环境、网络和子进程需求保持受限或失败关闭。解析前字节/连接时限与真实进程回收分别核验，回收未知保留准入栅栏；固定远程及非受管Native维持各自合同。具体包就绪不由Doctor入口存在推断。
+
+2026-10-22 插件私有目录保存 owned ZIP、immutable versions、index/review/session pins、source审批投影和MCP activation事务；私有文件 nofollow/原子写入，摘要与精确权限绑定，不复制外部宿主credential。共享审批目录不含用户秘密；卸载只删除自有副本且阻止删除被会话引用版本。原业务Store/会话文件保留。见[插件合同](../../research-web-plugins.md)。
+
 2026-10-22 v4仍使用原version4 journal和全账号index canonical SHA-256冻结/复核，不新增业务schema；固定旧5495与PR180产品`9b436613aad9136f4959c992c89dd72fc7354ed5`。旧v1/v2/v3、原始/因子/规范快照、账号/模型/凭据及controller/evidence保持。旧v3因默认键物化被门禁拒绝后已正式恢复5495/preserved=true；v4承接已合并启动修复，不清洗索引、不忽略键或改严格保全。现有图/HTML/PNG保持，v4最终资格和实际切换保全另证。
 
 2026-10-22 Wind部署profile v3只在原v4 journal内记录封闭mode、旧5495与产品a0ff3ae2身份，不新增journal版本或业务schema。主实例与全部账号业务index顶层值仍冻结canonical SHA-256并区分缺失/空值，前进/回滚/恢复逐项复核；观察、历史块、规范快照、会话、报告、账号和凭据不覆盖。旧v1/v2恢复材料与controller/evidence保持，产品存储/交接图准确且本轮不改HTML/PNG。真实切换前后保全由root另留证，产品与profile候选验收分开。

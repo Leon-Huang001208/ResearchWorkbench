@@ -1,4 +1,20 @@
 .native-todo-list { list-style: none; padding: 0; display: grid; gap: 10px; }
+.plugin-layout { display: grid; grid-template-columns: minmax(180px, 230px) minmax(0, 1fr); gap: 20px; margin-top: 18px; }
+.plugin-versions { display: flex; flex-direction: column; gap: 8px; }
+.plugin-version { display: flex; flex-direction: column; align-items: flex-start; gap: 5px; text-align: left; padding: 12px; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; overflow-wrap: anywhere; }
+.plugin-version.selected { border-color: var(--accent, #1768ac); background: var(--sidebar); }
+.plugin-version span, .plugin-version small { color: var(--muted); font-size: 12px; }
+.plugin-detail { min-width: 0; }
+.plugin-detail fieldset { border: 1px solid var(--line); padding: 14px; border-radius: 8px; margin: 16px 0; }
+.plugin-grant { display: flex; align-items: flex-start; gap: 8px; margin: 8px 0; overflow-wrap: anywhere; }
+.plugin-workspace pre { max-height: 360px; overflow: auto; padding: 12px; background: var(--sidebar); border: 1px solid var(--line); white-space: pre-wrap; overflow-wrap: anywhere; }
+.plugin-digest, .plugin-files { font-size: 12px; overflow-wrap: anywhere; }
+.plugin-components { width: 100%; border-collapse: collapse; margin: 16px 0; }
+.plugin-components th, .plugin-components td { padding: 10px 8px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--line); font-size: 12px; overflow-wrap: anywhere; }
+.plugin-import, .plugin-tool, .plugin-workspace form label { display: grid; gap: 10px; margin: 14px 0; }
+.plugin-tool { padding: 14px; border: 1px solid var(--line); border-radius: 8px; }
+.plugin-workspace input[type="password"], .plugin-workspace select { max-width: 100%; }
+@media (max-width: 760px) { .plugin-layout { grid-template-columns: 1fr; } .plugin-versions { flex-direction: row; overflow: auto; } .plugin-version { min-width: 180px; } }
 .native-todo-list li { display: grid; grid-template-columns: 5em minmax(0, 1fr); gap: 10px; overflow-wrap: anywhere; }
 .native-todo-status { color: var(--muted); font-size: .85em; }
 .research-plan .count { overflow-wrap: anywhere; }

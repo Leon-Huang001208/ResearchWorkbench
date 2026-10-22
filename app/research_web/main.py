@@ -52,6 +52,8 @@ from .mcp_registry import RegistryError
 from .mcp_registry.routes import router as mcp_registry_router
 from .mcp_runtime.routes import router as mcp_runtime_router
 from .operations import router as operations_router
+from .plugin_routes import router as plugin_router
+from .plugins.runtime_restart import router as plugin_runtime_router
 from .portfolio_decisions.routes import router as portfolio_decisions_router
 from .report_routes import router as report_router
 from .report_studio import ReportStudioError
@@ -289,6 +291,8 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
     app.include_router(market_router)
     app.include_router(intel_router)
     app.include_router(capabilities_router)
+    app.include_router(plugin_router)
+    app.include_router(plugin_runtime_router)
     app.include_router(documentation_router)
     app.include_router(frameworks_router)
     app.include_router(hot_router)
@@ -317,6 +321,11 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
         tenant_denial = await check_tenant_request(request)
         if tenant_denial is not None:
             return tenant_denial
+        plugin_control = request.url.path.startswith("/api/research/internal/plugin-runtime/")
+        if tenant_mode_enabled() and not plugin_control:
+            active = request.app.state.research
+            if active.plugin_runtime_frozen:
+                return JSONResponse({"error": {"code": "plugin_runtime_frozen"}}, status_code=409)
         if request.url.path.startswith(
             "/api/research/internal/data/"
         ) and not request.app.state.research.datahub.authenticate(
@@ -371,6 +380,26 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
             return JSONResponse(
                 {"error": {"code": "origin_denied", "message": "跨站请求被拒绝"}}, status_code=403
             )
+
+        async def dispatch():
+            ticket = (
+                tenant_mode_enabled()
+                and not plugin_control
+                and request.method not in {"GET", "HEAD"}
+            )
+            if ticket:
+                active = request.app.state.research
+                if active.plugin_runtime_frozen:
+                    return JSONResponse(
+                        {"error": {"code": "plugin_runtime_frozen"}}, status_code=409
+                    )
+                active.plugin_inflight += 1
+            try:
+                return await call_next(request)
+            finally:
+                if ticket:
+                    active.plugin_inflight -= 1
+
         try:
             # Internal plugin callbacks remain authenticated above and must not
             # deadlock startup while the updater holds the exclusive fence.
@@ -378,9 +407,9 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
                 "/api/research/internal/"
             ):
                 with admission():
-                    response = await call_next(request)
+                    response = await dispatch()
             else:
-                response = await call_next(request)
+                response = await dispatch()
         except MaintenanceBusy:
             log.info("research_web_resident_maintenance")
             return JSONResponse(

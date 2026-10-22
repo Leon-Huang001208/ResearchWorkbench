@@ -63,6 +63,7 @@ from .mcp_runtime.sdk_host import SDKHost
 from .mcp_runtime.service import MCPRuntimeService, runtime_feature_enabled
 from .model_profile_registry import LEGACY_IDS, LEGACY_REFS, PROFILE_PREFIX
 from .model_profiles import ModelProfilesMixin
+from .plugins import PluginService
 from .projection import (
     activity_detail,
     activity_value,
@@ -361,6 +362,14 @@ class ResearchService(ModelProfilesMixin):
         self.child_views: dict[str, tuple[float, dict]] = {}
         self.listeners: set[asyncio.Event] = set()
         self.lock = asyncio.Lock()
+        self.plugin_runtime_frozen = False
+        self.plugin_inflight = 0
+        self.plugins = PluginService(
+            store.root,
+            self.capabilities,
+            self.mcp_runtime,
+            idle_gate=self._plugin_idle_gate,
+        )
         # Product-level query and handoff admission must be serialized separately
         # from native DSH session mutations, which already use ``self.lock``.
         self.workbench_lock = asyncio.Lock()
@@ -1900,6 +1909,10 @@ class ResearchService(ModelProfilesMixin):
             row = self.capabilities.row(ref["id"])
             if row["status"] != "enabled" or row["version"] != ref["version"]:
                 raise CapabilityError("能力或绑定版本已失效", "linked_version_conflict", 409)
+            if self.plugins.manages_capability(
+                ref["id"]
+            ) and not self.plugins.capability_authorized(ref["id"]):
+                raise CapabilityError("此插件版本已被明确撤权", "plugin_approval_revoked", 409)
             record = row["versions"][str(ref["version"])]
             records.append({**record, "id": ref["id"]})
             pending.extend(record["bindings"])
@@ -1983,6 +1996,14 @@ class ResearchService(ModelProfilesMixin):
             )
             if cid is None:
                 raise CapabilityError("原生能力不可用", "native_package_unavailable", 409)
+            if self.plugins.manages_capability(cid) and not self.plugins.native_authorized(
+                native_name, sid
+            ):
+                raise CapabilityError(
+                    "此插件版本未包含在当前会话固定快照中，或已被明确撤权",
+                    "plugin_session_version_unavailable",
+                    409,
+                )
             selected = self.capabilities.selection(cid)
             refs.append(selected)
         records = self._effective_records(refs)
@@ -2151,6 +2172,8 @@ class ResearchService(ModelProfilesMixin):
         return scope
 
     def _data_query_admission(self, sid: str, query: BusinessQuery, resolution: Resolution) -> None:
+        if getattr(self, "plugin_runtime_frozen", False):
+            raise StoreError("插件运行时切换中", "plugin_runtime_frozen", 409)
         receipt, refs = self._task_capabilities(sid)
         refs = list(refs)
         if not refs:
@@ -2238,6 +2261,9 @@ class ResearchService(ModelProfilesMixin):
         if (record["metadata"].get("required_tools") or record["bindings"]) and not verified:
             scope.update(status="unverified", admitted=False)
             scope["missing"].append({"code": "model_tool_capability_unverified"})
+        if self.plugins.manages_capability(cid) and not self.plugins.capability_authorized(cid):
+            scope.update(status="unavailable", admitted=False)
+            scope["missing"].append({"code": "plugin_approval_revoked"})
         return scope
 
     async def detail(self, sid):
@@ -2575,6 +2601,8 @@ class ResearchService(ModelProfilesMixin):
         async with self.lock:
             # Display tolerance never becomes permission to continue a native
             # session whose child modes, ownership or activity are unverified.
+            if getattr(self, "plugin_runtime_frozen", False):
+                raise StoreError("插件运行时切换中", "plugin_runtime_frozen", 409)
             row = self.store.session(sid)
             chosen_mode = research_mode or row.get(
                 "research_mode", "deep" if row.get("research_depth") == "deep" else "quick"
@@ -2613,6 +2641,28 @@ class ResearchService(ModelProfilesMixin):
                 and (self.compatible_connection() or {}).get("credential_mode") == "none"
             ):
                 raise RuntimeFailure("模型凭据已清除，请重新配置", "model_credentials_missing")
+            approved = [
+                Path(value)
+                for name in ("RWB_SHARED_PLUGINS_ROOT", "RWB_PERSONAL_PLUGINS_ROOT")
+                if (value := os.environ.get(name))
+            ]
+            if approved:
+                await self.plugins.synchronize(approved)
+            if self.plugins.data["active"]:
+                native_plugins = await self.skill_catalog(sid)
+                self.plugins.confirm_native(skill["name"] for skill in native_plugins["skills"])
+            # Plugins supply reviewed instructions only; DSH remains the sole
+            # runner. Frozen snapshots precede invocation and never grant Tools.
+            hook_cancel = self.plugins.hook_cancellation(sid)
+            try:
+                await self.plugins.before_message_async(
+                    sid, text, self.store.directory(sid), hook_cancel
+                )
+            finally:
+                self.plugins.hook_cancellations.pop(sid, None)
+            plugin_command = self.plugins.command(sid, text)
+            if plugin_command:
+                text = plugin_command["text"]
             self.capabilities.assert_consistent()
             row = self.store.session(sid)
             self.assert_session_model_profile(row)
@@ -3223,6 +3273,11 @@ class ResearchService(ModelProfilesMixin):
             await self._capability_idle()
         return True
 
+    async def _plugin_idle_gate(self):
+        """Plugin routes already hold self.lock, like change_capability."""
+        await self._capability_idle()
+        return True
+
     async def _restart_mcp_runtime(self, _bindings):
         """Restart only the owned DSH process; Research Web remains online."""
 
@@ -3389,6 +3444,8 @@ class ResearchService(ModelProfilesMixin):
 
     async def cancel(self, sid):
         await self.ensure_owned()
+        self.store.session(sid)
+        self.plugins.cancel_hook(sid)
         async with self.lock:
             return await self._cancel(sid)
 

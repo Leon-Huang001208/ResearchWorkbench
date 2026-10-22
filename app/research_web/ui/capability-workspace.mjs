@@ -7,14 +7,15 @@ import { renderMCPMarketplace } from './mcp-marketplace.mjs';
 
 const list = (value) => Array.isArray(value) ? value : [];
 const views = ['library', 'mine', 'plans', 'connections', 'market'];
-const kinds = ['skill', 'method', 'tool', 'workflow', 'data'];
-const kindLabels = { skill: 'Skill', method: '方法', tool: 'Tool', workflow: 'Workflow', data: '数据' };
+const kinds = ['skill', 'method', 'tool', 'workflow', 'data', 'plugin'];
+const kindLabels = { skill: 'Skill', method: '方法', tool: 'Tool', workflow: 'Workflow', data: '数据', plugin: '插件' };
 const subviews = {
   skill: [['library', '能力库'], ['mine', '我的 Skill']],
   method: [['library', '方法库']],
   tool: [['library', '工具目录'], ['market', 'MCP 市场'], ['connections', '连接状态']],
   workflow: [['library', '能力库'], ['mine', '我的 Workflow'], ['plans', '运行计划']],
   data: [['library', '数据能力'], ['connections', '数据源与连接']],
+  plugin: [['library', '插件管理']],
 };
 const statusLabels = {
   enabled: '已启用', disabled: '已停用', draft: '草稿', invalid: '检查未通过', blocked_dependencies: '依赖不足',
@@ -211,7 +212,8 @@ export function renderCapabilityWorkspace({ capabilities = [], tools = [], repor
   const safeView = views.includes(view) && allowedViews.includes(view) ? view : 'library';
   const entries = collectCapabilityWorkspaceEntries({ capabilities, tools, dataCatalog });
   let body;
-  if (safeKind === 'workflow' && safeView === 'plans') body = plansView(automations, automationRuns, reportWorkflows, capabilities, deliveryChannels, busy, automationFormOpen);
+  if (safeKind === 'plugin') body = '<div data-plugin-workspace></div>';
+  else if (safeKind === 'workflow' && safeView === 'plans') body = plansView(automations, automationRuns, reportWorkflows, capabilities, deliveryChannels, busy, automationFormOpen);
   else if (safeKind === 'tool' && safeView === 'market') body = renderMCPMarketplace(mcpMarketplace);
   else if (safeKind === 'tool' && safeView === 'connections') body = toolConnectionsView(connections, tools);
   else if (safeKind === 'data') {
@@ -221,7 +223,7 @@ export function renderCapabilityWorkspace({ capabilities = [], tools = [], repor
       : ['数据能力', '按可解决的研究问题浏览数据能力，不与 Tool 声明混排。'];
     body = `<div class="capability-view-heading"><div><span class="eyebrow">DATA CATALOG</span><h2>${heading[0]}</h2><p class="muted">${heading[1]}</p></div>${dataView === 'sources' ? '<a class="button" href="#/settings/data">打开数据连接设置</a>' : ''}</div>${renderDataCatalog({ catalog: dataCatalog, view: dataView, query, category, market: dataMarket, status: dataStatus, auth: dataAuth, busy, error, probe, showViewSwitch: false })}`;
   } else body = catalogView(entries, { view: safeView, kind: safeKind, source, category, status, query }, busy, error);
-  return `<section class="capability-workspace"><header class="capability-workspace-header"><div><span class="eyebrow">CAPABILITY WORKSPACE · V0</span><h1>能力工作区</h1><p class="muted">Skill、方法、Tool、Workflow 与数据分区浏览；任何执行都需要你的明确确认。</p></div><button type="button" class="button" data-cap-refresh ${busy ? 'disabled' : ''}>刷新状态</button></header>${workspaceKindNav(safeKind)}${workspaceSubviewNav(safeKind, safeView)}<div id="capability-workspace-panel" role="tabpanel" aria-labelledby="capability-kind-${safeKind}" tabindex="0">${body}</div></section>`;
+  return `<section class="capability-workspace"><header class="capability-workspace-header"><div><span class="eyebrow">CAPABILITY WORKSPACE · V0</span><h1>能力工作区</h1><p class="muted">Skill、方法、Tool、Workflow、数据与插件分区浏览；按已授权范围执行，新增权限另行确认。</p></div><button type="button" class="button" data-cap-refresh ${busy ? 'disabled' : ''}>刷新状态</button></header>${workspaceKindNav(safeKind)}${workspaceSubviewNav(safeKind, safeView)}<div id="capability-workspace-panel" role="tabpanel" aria-labelledby="capability-kind-${safeKind}" tabindex="0">${body}</div></section>`;
 }
 
 function previewFromState({ detail, tool, dataDetail, dataDetailKind, capabilities }) {

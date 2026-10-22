@@ -12,6 +12,7 @@ from starlette.responses import JSONResponse
 
 from core.observability import get_logger
 
+from .mcp_registry.service import RegistryError
 from .store import StoreError
 
 log = get_logger(__name__)
@@ -109,6 +110,34 @@ async def check_request(request) -> JSONResponse | None:
         return None
     path = request.url.path
     if path.startswith("/api/research/internal/"):
+        if (
+            path
+            in {
+                "/api/research/internal/plugin-runtime/freeze",
+                "/api/research/internal/plugin-runtime/unfreeze",
+                "/api/research/internal/plugin-runtime/commit",
+                "/api/research/internal/plugin-runtime/rollback",
+            }
+            and request.method == "POST"
+        ):
+            try:
+                if not hmac.compare_digest(request.headers.get(GATEWAY_HEADER, ""), _gateway_key()):
+                    return _denied("tenant_backend_auth_denied")
+            except (OSError, ValueError, UnicodeError, TypeError):
+                return _denied("tenant_backend_auth_denied")
+            # Fixed router verifies one-use path/body/actor/generation proof.
+            return None
+        if path == "/api/research/internal/mcp/tools/call" and request.method == "POST":
+            try:
+                request.app.state.research.mcp_runtime.authenticate_internal(
+                    request.headers.get("X-Research-MCP-Key")
+                )
+            except StoreError:
+                return _denied("tenant_backend_auth_denied")
+            except (RegistryError, ValueError, RuntimeError, AttributeError, TypeError) as exc:
+                log.warning("tenant_mcp_callback_denied", error_type=type(exc).__name__)
+                return _denied("tenant_backend_auth_denied")
+            return None
         if path not in _CALLBACKS:
             return _denied()
         if not request.app.state.research.datahub.authenticate(
@@ -124,9 +153,13 @@ async def check_request(request) -> JSONResponse | None:
                         for row in request.app.state.research.capabilities.list()["items"]
                         if row["builtin"] and row["enabled"]
                     }
-                    if body["native_name"] not in names:
+                    if body[
+                        "native_name"
+                    ] not in names and not request.app.state.research.plugins.native_authorized(
+                        body["native_name"], body.get("session_id")
+                    ):
                         return _denied()
-            except (ValueError, TypeError, KeyError, AttributeError):
+            except (StoreError, ValueError, TypeError, KeyError, AttributeError):
                 return _denied()
         return None
     try:

@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import asyncio
 import copy
+import functools
 import inspect
 import json
 import os
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
 from app.research_web.datahub.security import atomic_json, directory, read_file
 from app.research_web.mcp_registry.service import RegistryError
@@ -23,6 +25,24 @@ from .package_planner import PackagePlanner
 from .sdk_host import SDKHost
 
 log = get_logger(__name__)
+
+
+def sdk_operation(function):
+    """Track pending SDK work so a tenant restart cannot race a process birth."""
+
+    @functools.wraps(function)
+    async def tracked(self, *args, **kwargs):
+        token = uuid4().hex
+        self.operations.add(token)
+        try:
+            return await function(self, *args, **kwargs)
+        finally:
+            if getattr(self.host, "managed_cleanup_blocked", False):
+                log.error("mcp_operation_retained_cleanup_blocked")
+            else:
+                self.operations.discard(token)
+
+    return tracked
 
 
 class MCPRuntimeError(RegistryError):
@@ -90,8 +110,12 @@ class MCPRuntimeService:
         oauth: Any = None,
         oauth_exchange: Callable[..., Any] | None = None,
         approval_timeout_seconds: float = 900,
+        managed_only: bool | None = None,
     ) -> None:
         self.enabled = runtime_feature_enabled() if enabled is None else enabled
+        self.managed_only = (
+            os.environ.get("RWB_TENANT_MODE") == "1" if managed_only is None else managed_only
+        )
         self.registry = registry
         self.resolver = resolver
         self.planner = planner if planner is not None else PackagePlanner()
@@ -118,11 +142,16 @@ class MCPRuntimeService:
         self._capabilities: dict[str, dict[str, Any]] = {}
         self._targets: dict[str, Any] = {}
         self._active: set[str] = set()
+        self.operations: set[str] = set()
         self._approval_waiters: dict[str, asyncio.Event] = {}
         self._approval_decisions: dict[str, str] = {}
         self._automation_locks: dict[str, dict[tuple[str, str], dict[str, str]]] = {}
         if self.enabled:
             self._load_runtime_state()
+            if self.managed_only:
+                pending = self._plugin_activation()
+                if pending and pending.get("state") == "staged":
+                    self._active = set(pending["previous"])
 
     async def start(self) -> None:
         """Rebuild active targets from immutable manifests without persisting secrets."""
@@ -132,6 +161,7 @@ class MCPRuntimeService:
             return
         for installation_id in sorted(self._active):
             manifest = self._manifest(installation_id)
+            await self._managed_guard(manifest, require_schema=False)
             self._targets[installation_id] = await self._resolve_target(manifest)
         log.info("mcp_runtime_service_started", enabled=True)
 
@@ -192,6 +222,8 @@ class MCPRuntimeService:
         plan = self._pending.get(confirmation_token)
         if plan is None:
             raise MCPRuntimeError("confirmation_token_invalid", 409)
+        if self.managed_only:
+            self._require_managed_process_isolation({"plan": plan})
         expected_names = set(_field(plan, "environment_names", []))
         if set(environment_values) != expected_names or any(
             not isinstance(value, str)
@@ -248,10 +280,12 @@ class MCPRuntimeService:
             raise MCPRuntimeError("mcp_capabilities_unavailable", 409)
         return self._capability_projection(installation_id, value)
 
+    @sdk_operation
     async def probe(self, installation_id: str) -> dict[str, Any]:
         self._ensure_enabled()
         self._require_components("host", "authorization", "installer")
         manifest = self._manifest(installation_id)
+        await self._managed_guard(manifest, require_schema=False)
         target = await self._target(manifest)
         try:
             capabilities = await _await(self.host.capabilities(target))
@@ -269,7 +303,7 @@ class MCPRuntimeService:
                     input_schema=tool.get("inputSchema", tool.get("input_schema")),
                     output_schema=tool.get("outputSchema", tool.get("output_schema")),
                     annotations=tool.get("annotations"),
-                    description=tool.get("description", ""),
+                    description="" if tool.get("description") is None else tool["description"],
                 )
         except Exception as exc:
             self._set_state(installation_id, "health_failed")
@@ -283,6 +317,9 @@ class MCPRuntimeService:
         self._ensure_enabled()
         self._require_components("authorization", "restart_callback", "idle_gate")
         await self.probe(installation_id)
+        await self._managed_guard(
+            self._manifest(installation_id), capabilities=self._capabilities.get(installation_id)
+        )
         await self._require_idle()
         previous = set(self._active)
         candidate = previous | {installation_id}
@@ -290,6 +327,112 @@ class MCPRuntimeService:
         self._active = candidate
         self._set_state(installation_id, "enabled")
         return self.status(installation_id)
+
+    def _plugin_activation(self):
+        if self._data_root is None:
+            return None
+        path = self._data_root / "mcp-runtime/plugin-activation.json"
+        if not path.exists() and not path.is_symlink():
+            return None
+        with directory(self._data_root, ("mcp-runtime",), private=True) as folder:
+            return json.loads(
+                read_file(folder, "plugin-activation.json", private=True, limit=65536)
+            )
+
+    def _save_plugin_activation(self, value):
+        if self._data_root is None:
+            raise MCPRuntimeError("mcp_managed_approval_unavailable", 403)
+        with directory(self._data_root, ("mcp-runtime",), private=True) as folder:
+            atomic_json(folder, "plugin-activation.json", value)
+
+    async def stage_managed_enable(self, installation_id, *, disable=False):
+        """Prepare next DSH bindings without claiming the current Host activated."""
+        if not self.managed_only:
+            return (
+                await self.disable(installation_id)
+                if disable
+                else await self.enable(installation_id)
+            )
+        self._ensure_enabled()
+        pending = self._plugin_activation()
+        if pending and pending.get("state") == "staged":
+            if (
+                pending["installation_id"] != installation_id
+                or pending.get("disable", False) != disable
+            ):
+                raise MCPRuntimeError("mcp_activation_pending", 409)
+            return {
+                "status": "restart_required",
+                "transaction_id": pending["id"],
+                "installation_id": installation_id,
+            }
+        self._manifest(installation_id)
+        if not disable:
+            await self.probe(installation_id)
+            await self._managed_guard(
+                self._manifest(installation_id), capabilities=self._capabilities[installation_id]
+            )
+        await self._require_idle()
+        previous = sorted(self._active)
+        candidate = sorted(
+            self._active - {installation_id} if disable else self._active | {installation_id}
+        )
+        if candidate == previous:
+            return {
+                "status": "ready",
+                "installation_id": installation_id,
+                "active": installation_id in self._active,
+            }
+        transaction = {
+            "id": uuid4().hex,
+            "installation_id": installation_id,
+            "previous": previous,
+            "candidate": candidate,
+            "state": "staged",
+            "disable": disable,
+        }
+        self._save_plugin_activation(transaction)
+        self._write_active(set(candidate))
+        return {
+            "status": "restart_required",
+            "transaction_id": transaction["id"],
+            "installation_id": installation_id,
+        }
+
+    async def commit_managed_activation(self, transaction_id):
+        transaction = self._plugin_activation()
+        if not transaction or transaction["id"] != transaction_id:
+            raise MCPRuntimeError("mcp_activation_transaction_changed", 409)
+        if transaction["state"] == "committed":
+            return {"status": "ready", "transaction_id": transaction_id}
+        if transaction["state"] != "staged":
+            raise MCPRuntimeError("mcp_activation_transaction_changed", 409)
+        for installation in transaction["candidate"]:
+            await self.probe(installation)
+            await self._managed_guard(
+                self._manifest(installation), capabilities=self._capabilities[installation]
+            )
+        self._active = set(transaction["candidate"])
+        self._set_state(
+            transaction["installation_id"], "disabled" if transaction.get("disable") else "enabled"
+        )
+        transaction["state"] = "committed"
+        self._save_plugin_activation(transaction)
+        return {"status": "ready", "transaction_id": transaction_id}
+
+    def rollback_managed_activation(self, transaction_id):
+        transaction = self._plugin_activation()
+        if not transaction or transaction["id"] != transaction_id:
+            raise MCPRuntimeError("mcp_activation_transaction_changed", 409)
+        if transaction["state"] == "rolled_back":
+            return {"status": "rolled_back", "transaction_id": transaction_id}
+        if transaction["state"] != "staged":
+            raise MCPRuntimeError("mcp_activation_already_committed", 409)
+        self._write_active(set(transaction["previous"]))
+        self._active = set(transaction["previous"])
+        transaction["state"] = "rolled_back"
+        self._save_plugin_activation(transaction)
+        return {"status": "rolled_back", "transaction_id": transaction_id}
 
     async def disable(self, installation_id: str) -> dict[str, Any]:
         self._ensure_enabled()
@@ -395,6 +538,7 @@ class MCPRuntimeService:
             }
         self._automation_locks[session_id] = exact
 
+    @sdk_operation
     async def read_resource(
         self, session_id: str, installation_id: str, uri: str
     ) -> dict[str, Any]:
@@ -406,6 +550,7 @@ class MCPRuntimeService:
         except Exception as exc:
             raise MCPRuntimeError("mcp_resource_read_failed", 502) from exc
 
+    @sdk_operation
     async def get_prompt(
         self,
         session_id: str,
@@ -421,6 +566,7 @@ class MCPRuntimeService:
         except Exception as exc:
             raise MCPRuntimeError("mcp_prompt_get_failed", 502) from exc
 
+    @sdk_operation
     async def call_tool(self, **request: Any) -> dict[str, Any]:
         self._ensure_enabled()
         installation_id = str(request["installation_id"])
@@ -622,22 +768,92 @@ class MCPRuntimeService:
         if installation_id not in self._active:
             raise MCPRuntimeError("mcp_installation_not_active", 409)
         manifest = self._manifest(installation_id)
-        return manifest, await self._target(manifest)
+        target = await self._target(manifest)
+        await self._managed_guard(manifest, target=target, fresh=True)
+        return manifest, target
 
     async def _target(self, manifest: Any) -> Any:
+        await self._managed_guard(manifest, require_schema=False)
         installation_id = str(_field(manifest, "id"))
         if installation_id in self._targets:
-            return self._targets[installation_id]
+            target = self._targets[installation_id]
+            await self._managed_guard(manifest, require_schema=False, target=target)
+            return target
         self._require_components("installer")
         target = await self._resolve_target(manifest)
         self._targets[installation_id] = target
         return target
 
+    async def _managed_guard(
+        self, manifest, *, require_schema=True, capabilities=None, target=None, fresh=False
+    ):
+        """Tenant Host never resolves an unmanaged target or trusts stale schemas."""
+        from ..plugins.mcp_policy import managed_binding, requires_managed
+
+        installation_id = str(_field(manifest, "id"))
+        if not self.managed_only and not requires_managed(self._data_root, installation_id):
+            return
+
+        self._require_managed_process_isolation(manifest)
+
+        if self._data_root is None:
+            raise MCPRuntimeError("mcp_managed_approval_unavailable", 403)
+        try:
+            managed_binding(self._data_root, manifest, require_schema=False)
+            if target is not None and not _field(_field(manifest, "plan"), "endpoint"):
+                from .managed_sandbox import validate_managed_target
+
+                validate_managed_target(target)
+                plan = _field(manifest, "plan")
+                if (
+                    target.package != self._data_root / "mcp-runtime/packages" / installation_id
+                    or target.argv != tuple(_field(plan, "argv"))
+                    or target.package_type != _field(plan, "package_type")
+                ):
+                    raise ValueError("mcp_managed_cached_target_mismatch")
+            if require_schema:
+                if fresh:
+                    capabilities = await _await(self.host.capabilities(target))
+                managed_binding(self._data_root, manifest, capabilities, require_schema=True)
+        except (StoreError, OSError, ValueError, KeyError, TypeError) as exc:
+            log.warning("mcp_managed_approval_denied", error_type=type(exc).__name__)
+            raise MCPRuntimeError("mcp_managed_approval_required", 403) from exc
+
     async def _resolve_target(self, manifest: Any) -> Any:
-        targeter = getattr(self.installer, "target", None)
+        # Called directly after plugin installation as well as by normal startup.
+        # Refuse before reading environment credentials or constructing a launcher.
+        self._require_managed_process_isolation(manifest)
+        from ..plugins.mcp_policy import requires_managed
+
+        managed_local = (
+            self.managed_only or requires_managed(self._data_root, str(_field(manifest, "id")))
+        ) and not _field(_field(manifest, "plan"), "endpoint")
+        targeter = getattr(self.installer, "managed_target" if managed_local else "target", None)
         if targeter is None:
             raise MCPRuntimeError("mcp_installer_target_unavailable", 503)
         return await _await(targeter(manifest))
+
+    def _require_managed_process_isolation(self, manifest: Any) -> None:
+        """Only the verified native offline Python contract may launch locally."""
+        from ..plugins.mcp_policy import requires_managed
+
+        if not self.managed_only and not requires_managed(
+            self._data_root, str(_field(manifest, "id"))
+        ):
+            return
+        plan = _field(manifest, "plan")
+        if _field(plan, "target_kind") == "local" or not _field(plan, "endpoint"):
+            from .managed_sandbox import validate_plan
+
+            try:
+                validate_plan(plan)
+            except ValueError as exc:
+                log.warning("mcp_managed_local_process_isolation_required")
+                raise MCPRuntimeError(
+                    "mcp_managed_local_process_isolation_required",
+                    403,
+                    "仅支持 macOS 离线 Python MCP；禁止网络、子进程与供应商凭据环境",
+                ) from exc
 
     async def _require_idle(self) -> None:
         idle_gate = self.idle_gate

@@ -6,6 +6,11 @@
 
 本轮DataHub仍使用既有datahub_*工具ID，新增purpose/quality/as_of约束和真实尝试元数据；工具注册不表示来源可用，BaoStock仅三个已实现业务绑定开放。Skill/Workflow/Automation不会因此取得数据库写权限、个人凭据或新增模型预算，仓库由可信Host绑定。
 
+
+2026-10-22 MCP隔离：仅macOS固定离线Python在新增权限、policy/runtime/安装树/schema复审后条件开放；逐次重验并在受管Seatbelt内执行。Node/npm、其他平台、凭据环境、网络和子进程需求保持受限或失败关闭。解析前字节/连接时限与真实进程回收分别核验，回收未知保留准入栅栏；固定远程及非受管Native维持各自合同。具体包就绪不由Doctor入口存在推断。
+
+2026-10-22 能力中心新增插件页：固定包导入/文件核对/精确权限审核、支持与就绪状态、启用/撤权/回滚/卸载、个人与共享分发以及 MCP 原生确认/审批链。Skill/Workflow 复用 CapabilityCatalog，Command 展开为现有消息，Agent 经当前 session grant 调用唯一 DSH 原生 subagent；Hook 仅受审事件子集。升级保留仍批准旧会话的原字节，MCP 无法并存时明确 deferred，不静默换版。状态和未支持范围见[插件合同](research-web-plugins.md)。
+
 2026-10-22 Wind历史工作区复用现有market_bars与factor_macro Tool ID；天软factor_macro只开放metadata/上市日/逐日因子三种封闭series，不新增Skill、Workflow、模型或Automation触发权限。Host历史job与账号图表偏好属于资产数据/UI状态，不是研究引擎。交接规范/raw/factors/metadata仍受会话和来源归属约束；估算筹码、厂商目录单位和有限预检不能提升为研究事实或质量通过。
 
 全市场概览属于固定行情浏览页面，不注册新的Skill／Tool／Workflow，不启动Automation或研究会话。30／60秒刷新只在页面可见且日历允许时运行，取消、公开来源与用户缓存由MarketService负责；能力权限、日程和唯一DSH执行边界保持。
