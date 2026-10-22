@@ -100,3 +100,6 @@ collector 实际调用 `adopt_verified_groups`：已获证明的组采用 API；
 日历、逐组替换、私有调用准入/幂等/快照交接、SDK 身份、超时容量及 Office 缓存。
 所有测试数据均为明确合成输入；通过不表示 Wind 已登录、日历映射已核实、业务口径
 已通过真实对照，也不表示已经连续三个周周期无人值守运行。
+
+
+2026-10-22 iFinD凭据复用：同花顺权限策略验证属于来源认证，data_permission_verified仍为false，不能取代本周报Wind/Excel同源资料、覆盖或正式回测证据。
