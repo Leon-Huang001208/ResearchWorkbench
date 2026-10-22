@@ -35,6 +35,7 @@ import { renderOperations } from './operations.mjs';
 import { createIntelController, renderIntel } from './intel.mjs';
 import { createAihotController, renderAihot } from './aihot.mjs';
 import { renderReportWorkflowDetail, renderReportWorkflowShelf } from './report-workflows.mjs';
+import { canUseReportWorkflows } from './weekly-production.mjs';
 import { buildConfigurationPayload, confirmAutoProbeConsent, createLocalIntegrationPollingGuard, createOfficeConsentQueue, invalidateLocalIntegrationSnapshot, nextLocalStatusExpiry, mergeIntegrationStatuses } from './connections.mjs';
 import { createModelSettings } from './model-settings.mjs';
 import { modelConfigurationPayload, syncModelForm, renderSettingsPage, resolveSettingsSection, settingsConnectionId, settingsRefreshCatalogs } from './settings.mjs';
@@ -75,8 +76,8 @@ function updateGlobalSearchResults() {
   if (focused) ([...results.querySelectorAll('[data-global-result-key]')].find(item => item.dataset.globalResultKey === focused) || document.getElementById('global-search'))?.focus({ preventScroll: true });
 }
 const defaultCatalogNames = ['runtime', 'models', 'workspaces', 'sessions', 'capabilities', 'tools', 'reportWorkflows'];
-// The private server profile does not execute host report Workflows.
-if (globalThis.__RWB_USER_ID__) defaultCatalogNames.splice(defaultCatalogNames.indexOf('reportWorkflows'), 1);
+const reportWorkflowsAllowed = canUseReportWorkflows(globalThis.__RWB_USER_ID__, globalThis.__RWB_ACCOUNT__);
+if (!reportWorkflowsAllowed) defaultCatalogNames.splice(defaultCatalogNames.indexOf('reportWorkflows'), 1);
 const catalog = { runtime: null, tabbit: null, integrations: { summary: {}, items: [], latest_batch: null }, localIntegrations: { categories: [], items: [], summary: {}, service: {} }, connections: { groups: [], sources: [], platform: {}, migration: {} }, models: [], sessions: [], deletedSessions: [], workspaces: [], capabilities: [], tools: [], reportWorkflows: [], automations: [], automationRuns: [], deliveryChannels: [], artifacts: [], dataCatalog: { summary: {}, capabilities: [], sources: [], bindings: [] }, errors: {}, modelFailures: [], pending: new Set(defaultCatalogNames) };
 const catalogPendingCounts = new Map();
 const catalogRequestGenerations = new Map();
@@ -1471,7 +1472,7 @@ async function showRoute() {
     try { const projects = await api.clawProjects(); if (ticket === pageGeneration) clawWorkspace.projects = projects.items || []; }
     catch (error) { if (ticket === pageGeneration) clawWorkspace.error = error.message; safeLog('claw_project_index_failed', { status: error.code || 'request_failed' }); }
   }
-  if (state.route.page === 'claw' && !state.route.sessionId && !globalThis.__RWB_USER_ID__) await loadCatalog(['reportWorkflows']);
+  if (state.route.page === 'claw' && !state.route.sessionId && reportWorkflowsAllowed) await loadCatalog(['reportWorkflows']);
   if (['claw', 'fingpt'].includes(state.route.page) && state.route.clawView === 'projects') await loadClawProjects();
   if (state.route.page === 'claw' && state.route.clawView === 'plans') await loadCatalog(['automations', 'automationRuns']);
   if (state.route.page === 'claw' && state.route.clawView === 'skills') await loadCatalog(['capabilities', 'tools']);
@@ -3494,6 +3495,28 @@ async function handleCapabilityClick(data) {
   }
   if ('capKind' in data) { cap.kind = data.capKind; cap.kindFilter = data.capKind; cap.category = ''; cap.query = ''; cap.dataDetail = null; cap.dataDetailKind = ''; reportWorkflowDetail = null; render(); return true; }
   if ('closeReportWorkflow' in data) { reportWorkflowDetail = null; render(); return true; }
+  if ('prepareWeeklyProduction' in data) {
+    if (reportWorkflowBusy) return true;
+    reportWorkflowBusy = true; state.error = ''; success = ''; render();
+    try {
+      reportWorkflowDetail = await api.prepareWeeklyProduction(data.prepareWeeklyProduction);
+      success = '已准备新的生产版本；数据与质量验收通过后才能启用日程。';
+    } catch (error) { state.error = error.message; safeLog('weekly_production_prepare_failed', { code: error.code || 'request_failed' }); }
+    finally { reportWorkflowBusy = false; render(); }
+    return true;
+  }
+  if ('publishWeeklyProduction' in data) {
+    if (reportWorkflowBusy || reportWorkflowDetail?.id !== 'huaan-etf-weekly') return true;
+    const version = Number(data.publishWeeklyProduction);
+    if (!Number.isInteger(version) || version < 1) { state.error = '生产版本无效。'; render(); return true; }
+    reportWorkflowBusy = true; state.error = ''; success = ''; render();
+    try {
+      reportWorkflowDetail = await api.publishReportWorkflowVersion('huaan-etf-weekly', version);
+      success = '生产合同已发布；首次手动定稿通过后才能启用日程。';
+    } catch (error) { state.error = error.message; safeLog('weekly_production_publish_failed', { code: error.code || 'request_failed' }); }
+    finally { reportWorkflowBusy = false; render(); }
+    return true;
+  }
   if ('reportWorkflowDetail' in data) {
     const ticket = pageGeneration;
     cap.detail = null; cap.tool = null; cap.dataDetail = null; cap.form = '';

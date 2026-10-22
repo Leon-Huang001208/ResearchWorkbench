@@ -74,6 +74,13 @@ async def report_workflow(workflow_id: str, request: Request):
     return request.app.state.research.report_workflows.detail(workflow_id)
 
 
+@router.post("/report-workflows/{workflow_id}/weekly-production/prepare")
+async def prepare_weekly_production(workflow_id: str, request: Request):
+    return await asyncio.to_thread(
+        request.app.state.research.report_workflows.prepare_weekly_production, workflow_id
+    )
+
+
 @router.patch("/report-workflows/{workflow_id}/draft")
 async def update_report_workflow_draft(
     workflow_id: str, body: DraftUpdate, request: Request

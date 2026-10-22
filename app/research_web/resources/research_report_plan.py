@@ -92,6 +92,15 @@ def _fact_text(row):
     }
     if row.get("kind") != "business_numeric":
         return "原文摘录保存在同版本审计附件，尚须逐项核验分析结论。"
+    if row.get("metric", "").startswith("weekly_"):
+        label = {
+            "weekly_close": "收盘价", "weekly_return_pct": "区间涨跌幅",
+            "weekly_daily_mean_amount": "本期日均成交额",
+            "weekly_previous_daily_mean_amount": "上期日均成交额",
+            "weekly_raw_daily_amount": "成交额", "weekly_trading_days": "本期交易日数",
+            "weekly_previous_trading_days": "上期交易日数", "weekly_history_count": "历史观测数",
+        }.get(row["metric"], row["metric"])
+        return f"{row['heading']}（数据日 {row['period']}）{label}为{row['value']} {row['unit']}"
     return (
         f"{row['period']}年{labels.get(row['metric'], row['metric'])}为{row['value']} {row['unit']}"
     )
@@ -209,6 +218,11 @@ EXTRACTED_METRICS = frozenset(
         "gdp_current_price_final",
         "gdp_real_growth_preliminary",
         "gdp_real_growth_final",
+        "weekly_close",
+        "weekly_raw_daily_amount",
+        "weekly_trading_days",
+        "weekly_previous_trading_days",
+        "weekly_history_count",
     }
     | {
         category + "_" + suffix
@@ -275,6 +289,17 @@ def _input_number(row, bundle):
     return number, row["unit"], set(row["source_ids"])
 
 
+def _report_evidence_limit(bundle):
+    """The bounded weekly table has more operands; Host still rebuilds every row."""
+    weekly = any(
+        isinstance(row, dict)
+        and row.get("metric") in {"weekly_close", "weekly_raw_daily_amount"}
+        and row.get("content", "").endswith("\nhuaan-weekly-data-v1")
+        for row in bundle.get("observations", [])
+    )
+    return 80 if weekly else 40
+
+
 def _summary_calculation(bundle, target, steps, budget, used):
     """Independent bounded arithmetic from primitives, not the target derived value."""
     if steps is None:
@@ -308,6 +333,7 @@ def _summary_calculation(bundle, target, steps, budget, used):
                 "identity",
                 "abs",
                 "sum",
+                "mean",
                 "difference",
                 "ratio",
                 "percent_change",
@@ -350,6 +376,8 @@ def _summary_calculation(bundle, target, steps, budget, used):
                 value = abs(numbers[0])
             elif operation == "sum":
                 value = sum(numbers)
+            elif operation == "mean":
+                value = sum(numbers) / len(numbers)
             elif operation == "difference":
                 value = numbers[0] - numbers[1]
                 unit = "percentage_points" if unit == "%" else unit
@@ -454,7 +482,7 @@ def build_business_report_plan(context, plan, bundle):
             ):
                 raise ValueError("research_report_plan_selection")
             total += len(refs)
-            if total > 40:
+            if total > _report_evidence_limit(bundle):
                 raise ValueError("research_report_plan_evidence_limit")
             blocks = (
                 select_business_evidence(
@@ -538,7 +566,7 @@ def build_business_report_plan(context, plan, bundle):
             metrics[key], places[key] = value, precision
             calculation_rows.extend([[key, *step, 96] for step in trace])
         facts = {**selected, **operands_used}
-        if len(facts) > 40:
+        if len(facts) > _report_evidence_limit(bundle):
             raise ValueError("research_report_plan_evidence_limit")
         sheets = {
             "Facts": [["metric", "period", "value", "unit", "source_ref"]],

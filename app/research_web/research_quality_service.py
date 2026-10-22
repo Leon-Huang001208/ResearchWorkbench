@@ -170,6 +170,8 @@ def source_context(service, sid, files, sources=()):
     identities = []
     total = 0
     files = upload_evidence_files(service.store, sid, files)
+    if service.store.session(sid).get("report_workflow", {}).get("quality_policy"):
+        files = sorted(files, key=lambda item: not item.get("name", "").startswith(("weekly-facts", "weekly-news-")))
     scope = service.store.session(sid).get("source_scope", ["uploads", "datahub", "web"])
     for item in files if "uploads" in scope else []:
         if item.get("kind") != "inputs":
@@ -307,6 +309,12 @@ def observations(service, sid, files, sources, *, task_id="", contract_sha=""):
             )
         except (OSError, ValueError, KeyError, StoreError):
             log.warning("research_quality_snapshot_unavailable", session_id=sid)
+    if task_id and contract_sha:
+        from .report_workflows.evidence import weekly_business_observations
+
+        result.extend(weekly_business_observations(
+            service, sid, task_id=task_id, contract_sha=contract_sha
+        ))
     return result
 
 

@@ -19,6 +19,7 @@ from core.observability import get_logger
 from .catalog import ReportWorkflowService
 from .migration import ReportWorkflowMigration
 from .models import ReportWorkflowManifest, WorkflowError
+from .owner import resolve_primary_owner
 from .runtime import ReportWorkflowRuntime, _public_metadata
 from .workbook import WorkbookRefreshService
 
@@ -100,7 +101,71 @@ class ReportWorkflowManager:
             ],
             "providers_status": self.provider_status(),
             "runs": self.runtime.runs(workflow_id),
+            "weekly_production": self.weekly_production_status(workflow_id),
         }
+
+    def require_weekly_owner(self, expected_owner_id: str | None = None) -> dict:
+        return resolve_primary_owner(self.service, expected_owner_id)
+
+    def weekly_production_status(self, workflow_id: str) -> dict | None:
+        if workflow_id != "huaan-etf-weekly":
+            return None
+        row = self._row(workflow_id)
+        versions = self.versions(workflow_id)
+        current = next((item for item in versions if item.get("current")), {})
+        policy = current.get("manifest", {}).get("weekly_production")
+        prepared = next((item["version"] for item in reversed(versions)
+                         if item.get("manifest", {}).get("weekly_production")), None)
+        try:
+            self.require_weekly_owner()
+            owner_status = "ready"
+        except WorkflowError:
+            owner_status = "weekly_owner_unavailable"
+        try:
+            from ..datahub.providers_wind_api import WindClientAPIProvider
+
+            readiness = WindClientAPIProvider().readiness()
+            provider = {
+                "status": "unverified" if readiness.get("dependency_ready") else "blocked_dependency",
+                "code": readiness.get("code"),
+            }
+        except ImportError:
+            provider = {"status": "blocked_dependency", "code": "wind_api_unavailable"}
+        runs = self.runtime.runs(workflow_id)
+        return {
+            "enabled": bool(policy), "policy_id": (policy or {}).get("policy_id"),
+            "prepared_version": prepared if prepared != row.get("current_version") else None,
+            "owner_status": owner_status, "provider": provider,
+            "latest": runs[0] if runs else None,
+            "schedule_defaults": {"kind": "weekly", "enabled": False,
+                                  "timezone": "Asia/Shanghai", "weekday": 4, "hour": 15, "minute": 30},
+        }
+
+    def prepare_weekly_production(self, workflow_id: str) -> dict:
+        """Create an explicit unpublished successor; never mutate a published package."""
+        if workflow_id != "huaan-etf-weekly":
+            raise WorkflowError("该生产合同仅适用于华安 ETF 周报", "weekly_policy_not_supported", 409)
+        self.require_weekly_owner()
+        with self.catalog._exclusive():
+            self.runtime.assert_not_active(workflow_id)
+            draft = copy.deepcopy(self._row(workflow_id)["draft_manifest"])
+            news_titles = {
+                "中国宏观", "人工智能", "电子", "航天", "电力设备新能源", "消费",
+                "金融地产", "医药生物", "海外市场", "港股科技", "港股央企红利",
+                "美国", "欧洲", "日本", "美国新闻", "欧洲新闻", "黄金", "原油",
+            }
+            draft["weekly_production"] = {
+                "policy_id": "huaan-etf-weekly-v1",
+                "news_block_ids": [item["id"] for item in draft.get("blocks", [])
+                                   if item.get("kind") == "narrative" and item.get("title") in news_titles],
+            }
+            draft["minimum_subagents"] = 0
+            draft["schedule"] = {"kind": "weekly", "enabled": False, "timezone": "Asia/Shanghai",
+                                 "weekday": 4, "hour": 15, "minute": 30}
+            self.update_draft(workflow_id, manifest=draft)
+            self.create_version(workflow_id)
+        log.info("report_weekly_production_version_prepared", workflow_id=workflow_id)
+        return self.detail(workflow_id)
 
     def create_draft(self, body: dict) -> dict:
         with self.catalog._exclusive():
@@ -231,6 +296,8 @@ class ReportWorkflowManager:
     def publish(self, workflow_id: str, version: int) -> dict:
         with self.catalog._exclusive():
             self.runtime.assert_not_active(workflow_id)
+            if self.catalog.manifest(workflow_id, version).weekly_production is not None:
+                self.require_weekly_owner()
             self.catalog.publish_version(workflow_id, version)
             row = self._row(workflow_id)
             row.update(status="enabled", updated_at=time.time())
