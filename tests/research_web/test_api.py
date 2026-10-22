@@ -255,8 +255,21 @@ def test_create_submit_duplicate_never_replays(api, monkeypatch):
     )
 
 
-def test_ordinary_task_receives_truthful_capability_and_data_readiness(api):
+def test_ordinary_task_receives_truthful_capability_and_data_readiness(api, monkeypatch):
     import json
+
+    from app.research_web.datahub import catalog
+
+    dependency_status = catalog._dependency_status
+    monkeypatch.setattr(
+        catalog,
+        "_dependency_status",
+        lambda source, dependencies: (
+            (False, "blocked_dependency")
+            if source in {"baostock", "akshare"}
+            else dependency_status(source, dependencies)
+        ),
+    )
 
     client, native, _ = api
     sid = client.post("/api/research/sessions", json={}).json()["id"]

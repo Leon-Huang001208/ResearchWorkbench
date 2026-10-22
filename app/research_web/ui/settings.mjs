@@ -115,7 +115,7 @@ function renderSettingsBody(options) {
     return `${renderLocalIntegrationConsole(localIntegrations, { busy, verificationTarget: localVerificationTarget, category: localCategory, officeConsentConfirmation, integrationSummary: localIntegrations?.integration_status?.summary })}${tabbitDetails}`;
   }
   if (section === 'data') {
-    return renderConnectionCenter({
+    return '<div data-research-warehouse-root></div>' + renderConnectionCenter({
       connections,
       selectedId: settingsConnectionId(hash, connections?.sources || [], section),
       configuration: selectedConfiguration,

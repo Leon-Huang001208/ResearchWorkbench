@@ -4,6 +4,14 @@
 
 2026-10-22 全市场常驻部署使用封闭 `reviewed-market-overview-v1` / `apply-market`：旧版固定 `4d2e3c408663b64be9e58b03213f4ca8f1152733`，产品固定已合并 PR179 `5de7e5f2db95b8b501905af9cfdc30e8fe84db0b`。复用原 version4 事务、空闲准入、BirthFence、全部账号索引冻结和内容寻址恢复；旧 profile、控制器、证据读取器及自动兼容白名单保持。操作员候选须独立评审及原三项 CI／同候选 Mac 安装通过，再按用户授权切换并在真实认证页面验收。 无新服务、HTTP、持久格式或依赖；现有图及 API Atlas 准确，不重画 HTML/PNG。Windows/Linux 原生与 Docker 产品层保持各自未执行状态。
 
+## 可选研究仓与只读 Doctor
+
+研究仓是显式配置的可选能力；安装驱动、保存配置及启用标记都不能证明数据库连通、schema权限或数据完整。`rwb web doctor --json` 的 `research_warehouse` 只检查当前实例的 `warehouse.json` 形状、私有目录/文件权限与 `psycopg` 模块可发现状态，不连接PostgreSQL、不读凭据、不调用厂商，也不创建或修改配置。该字段不输出host、数据库名、用户名、数据根、profile ID或owner。
+
+未配置显示 `state=unconfigured`，不阻断整体Doctor。有效配置显示 `state=configured` 和真实 `enabled` 标记；两者都保持 `connectivity=unknown`、`readiness=not_verified`。格式、权限、链接或内嵌秘密字段异常显示 `state=invalid`；驱动缺失单独显示 `driver=missing`。真实数据库可用性必须在UI中显式验证，Doctor不会把旧启用标记或配置存在当成已通过。Windows ACL和其他平台实机验证仍按各平台任务独立记录。
+
+研究仓基座新增锁定 `psycopg[binary]` 3.3.6 与 `baostock` 0.9.4，用户仅授权本任务隔离环境安装及有界免费验证。公开安装器仍从 `requirements/web.lock` 的哈希集合安装，`scripts/setup_web.py` 无额外全局依赖或服务安装步骤。驱动安装不创建业务库，不启用数据采集，不迁移原件；正式库配置/权限和部署另行确认。`setup-web.sh`、`setup-web.cmd`、`python scripts/setup_web.py` 与既有 macOS Bootstrap 干净安装/固定DSH/3081/8088/Doctor门保留，尚待本候选CI证明兼容。外盘ExFAT且无独立备份，不配置为活动数据库数据根。
+
 2026-10-22 v4部署只复用现有Native操作员及生产venv，固定旧5495和PR180产品`9b436613aad9136f4959c992c89dd72fc7354ed5`。公开三安装入口、requirements/web.in/web.lock、scripts/setup_web.py与原Mac Bootstrap合同保持，不增依赖/流程。产品Mac39730452006实际checkout654fa6、581秒，干净安装/固定DSH/3081/8088/doctor及15项静态资源通过；v4工具仍须自身最终同候选CI/安装与部署证据，不能复用产品通过代替。旧v3已正式恢复5495并保全，旧v1/v2/v3恢复及controller/evidence字节不变，见[部署合同](research-web-gateway-upgrade.md#资产观察固定版本联合部署)。
 
 2026-10-22 Wind产品PR177已合并，常驻切换单独使用`reviewed-asset-observation-v3`/`apply-assets-v3`：旧主实例/网关必须精确5495，产品必须精确a0ff3ae2；最终操作员候选仍需原三CI及同候选macOS干净安装证据。公开安装三入口、锁定依赖、固定DSH和生产venv保持，不新增依赖、厂商权限或系统配置。用户已授权本轮常驻部署，root在验收后按原锁/空闲/全账号索引保全事务执行；文档或产品CI不等于已切换。旧v1/v2恢复、controller/evidence字节保持，见[部署合同](research-web-gateway-upgrade.md#资产观察固定版本联合部署)。

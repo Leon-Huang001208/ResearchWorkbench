@@ -6,6 +6,8 @@
 
 2026-10-22 全市场常驻部署使用封闭 `reviewed-market-overview-v1` / `apply-market`：旧版固定 `4d2e3c408663b64be9e58b03213f4ca8f1152733`，产品固定已合并 PR179 `5de7e5f2db95b8b501905af9cfdc30e8fe84db0b`。复用原 version4 事务、空闲准入、BirthFence、全部账号索引冻结和内容寻址恢复；旧 profile、控制器、证据读取器及自动兼容白名单保持。操作员候选须独立评审及原三项 CI／同候选 Mac 安装通过，再按用户授权切换并在真实认证页面验收。 无新服务、HTTP、持久格式或依赖；现有图及 API Atlas 准确，不重画 HTML/PNG。Windows/Linux 原生与 Docker 产品层保持各自未执行状态。
 
+可选MarketStore将原件、逐次事实修订、覆盖证明与冻结快照分开，scope包含服务器owner/许可/source/config摘要，dataset包含单位/复权/因子和指标合同。未知缺口不能用最大日期或空响应消除；历史可得时间缺失不能冒充PIT。导出包含版本/原件哈希，正式根和外盘迁移尚未启用，详见研究仓合同。
+
 2026-10-22 v4仍使用原version4 journal和全账号index canonical SHA-256冻结/复核，不新增业务schema；固定旧5495与PR180产品`9b436613aad9136f4959c992c89dd72fc7354ed5`。旧v1/v2/v3、原始/因子/规范快照、账号/模型/凭据及controller/evidence保持。旧v3因默认键物化被门禁拒绝后已正式恢复5495/preserved=true；v4承接已合并启动修复，不清洗索引、不忽略键或改严格保全。现有图/HTML/PNG保持，v4最终资格和实际切换保全另证。
 
 2026-10-22 Wind部署profile v3只在原v4 journal内记录封闭mode、旧5495与产品a0ff3ae2身份，不新增journal版本或业务schema。主实例与全部账号业务index顶层值仍冻结canonical SHA-256并区分缺失/空值，前进/回滚/恢复逐项复核；观察、历史块、规范快照、会话、报告、账号和凭据不覆盖。旧v1/v2恢复材料与controller/evidence保持，产品存储/交接图准确且本轮不改HTML/PNG。真实切换前后保全由root另留证，产品与profile候选验收分开。

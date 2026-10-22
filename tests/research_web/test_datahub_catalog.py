@@ -135,6 +135,7 @@ def test_catalog_contains_all_declared_sources_without_constructing_connectors(
     }
     assert {key for key, implemented in akshare_bindings.items() if implemented} == {
         "search_assets",
+        "trading_calendar",
         "market_bars",
         "market_snapshot",
         "financials",
@@ -368,6 +369,7 @@ async def test_akshare_provider_normalizes_business_data_without_legacy_run(
         ]
     )
     monkeypatch.setitem(sys.modules, "akshare", package)
+    monkeypatch.setattr(provider, "_invoke", provider.invoke_public)
     result = await provider.fetch(
         BusinessQuery(
             capability="market_bars",
@@ -396,7 +398,7 @@ async def test_akshare_provider_normalizes_business_data_without_legacy_run(
             "turnover_rate_pct": 1.2,
         }
     ]
-    assert result.fields["close"] == {"unit": "CNY", "currency": "CNY"}
+    assert result.fields["close"] == {"unit": "currency_per_share", "currency": "CNY"}
 
 
 @pytest.mark.asyncio
@@ -417,6 +419,7 @@ async def test_akshare_financials_normalize_boolean_missing_sentinels(monkeypatc
         ]
     )
     monkeypatch.setitem(sys.modules, "akshare", package)
+    monkeypatch.setattr(provider, "_invoke", provider.invoke_public)
 
     result = await provider.fetch(
         BusinessQuery(
@@ -478,6 +481,7 @@ async def test_akshare_probe_uses_lightweight_remote_trade_calendar(monkeypatch)
         return b'var datelist="fixture";var KLC_TD_SH=datelist;'
 
     monkeypatch.setitem(sys.modules, "akshare", package)
+    monkeypatch.setattr(provider, "_invoke", provider.invoke_public)
     monkeypatch.setattr(provider, "_fetch_probe_payload", fetch_probe_payload)
 
     result = await provider.probe()
@@ -872,6 +876,7 @@ async def test_akshare_index_filters_full_history_before_cap_and_uses_points(mon
 
     package.stock_zh_index_daily = index
     monkeypatch.setitem(sys.modules, "akshare", package)
+    monkeypatch.setattr(provider, "_invoke", provider.invoke_public)
     result = await provider.fetch(
         BusinessQuery(
             capability="market_bars",
@@ -912,6 +917,7 @@ async def test_akshare_etf_uses_fund_feed_and_marks_native_volume(monkeypatch):
 
     package.fund_etf_hist_em = etf
     monkeypatch.setitem(sys.modules, "akshare", package)
+    monkeypatch.setattr(provider, "_invoke", provider.invoke_public)
     result = await provider.fetch(
         BusinessQuery(
             capability="market_bars",
@@ -946,6 +952,7 @@ async def test_akshare_index_rejects_unsupported_semantics_before_feed(
     import app.research_web.datahub.providers_akshare as provider
 
     monkeypatch.setitem(sys.modules, "akshare", ModuleType("akshare"))
+    monkeypatch.setattr(provider, "_invoke", provider.invoke_public)
     result = await provider.fetch(
         BusinessQuery(
             capability="market_bars",
@@ -977,6 +984,7 @@ async def test_akshare_index_fallback_is_bounded_and_retains_unknown_volume_unit
     package.stock_zh_index_daily = primary
     package.stock_zh_index_daily_em = alternate
     monkeypatch.setitem(sys.modules, "akshare", package)
+    monkeypatch.setattr(provider, "_invoke", provider.invoke_public)
     monkeypatch.setattr(provider.time, "sleep", lambda _delay: None)
     result = await provider.fetch(
         BusinessQuery(
@@ -1023,6 +1031,7 @@ async def test_akshare_nonequivalent_queries_fail_before_vendor(
     package.stock_individual_fund_flow = reply
     package.stock_zh_a_daily = reply
     monkeypatch.setitem(sys.modules, "akshare", package)
+    monkeypatch.setattr(provider, "_invoke", provider.invoke_public)
     result = await provider.fetch(
         BusinessQuery(capability=capability, source="akshare", parameters=parameters)
     )
@@ -1049,6 +1058,7 @@ async def test_akshare_fund_flow_slices_dates_before_row_limit(monkeypatch):
 
     package.stock_individual_fund_flow = reply
     monkeypatch.setitem(sys.modules, "akshare", package)
+    monkeypatch.setattr(provider, "_invoke", provider.invoke_public)
     result = await provider.fetch(
         BusinessQuery(
             capability="market_activity",
@@ -1119,6 +1129,7 @@ async def test_akshare_stock_snapshot_preserves_exchange_in_feed_and_result(
 
     package.stock_zh_a_daily = reply
     monkeypatch.setitem(sys.modules, "akshare", package)
+    monkeypatch.setattr(provider, "_invoke", provider.invoke_public)
     result = await provider.fetch(
         BusinessQuery(
             capability="market_snapshot",
@@ -1149,6 +1160,7 @@ async def test_akshare_fund_flow_unverifiable_or_excessive_rows_fail_closed(
     package = ModuleType("akshare")
     package.stock_individual_fund_flow = lambda **_kwargs: pd.DataFrame(payload)
     monkeypatch.setitem(sys.modules, "akshare", package)
+    monkeypatch.setattr(provider, "_invoke", provider.invoke_public)
     result = await provider.fetch(
         BusinessQuery(
             capability="market_activity",

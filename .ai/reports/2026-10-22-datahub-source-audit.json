@@ -1,0 +1,1728 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-22",
+  "sources": [
+    {
+      "id": "wind",
+      "name": "Wind",
+      "auth_kind": "terminal",
+      "implementation": "blocked_config",
+      "bindings": [
+        {
+          "capability": "market_bars",
+          "implemented": true,
+          "datasets": [
+            "daily_quotes"
+          ]
+        },
+        {
+          "capability": "market_snapshot",
+          "implemented": true,
+          "datasets": [
+            "realtime"
+          ]
+        },
+        {
+          "capability": "index_data",
+          "implemented": true,
+          "datasets": [
+            "quotes"
+          ]
+        },
+        {
+          "capability": "financials",
+          "implemented": true,
+          "datasets": [
+            "financial_statements"
+          ]
+        },
+        {
+          "capability": "market_activity",
+          "implemented": true,
+          "datasets": [
+            "fund_flow",
+            "margin_trading",
+            "holder_data"
+          ]
+        }
+      ],
+      "live_acceptance": {
+        "state": "not_run",
+        "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+      },
+      "static_readiness_is_live_proof": false
+    },
+    {
+      "id": "tinysoft",
+      "name": "天软",
+      "auth_kind": "terminal",
+      "implementation": "blocked_config",
+      "bindings": [
+        {
+          "capability": "search_assets",
+          "implemented": true,
+          "datasets": [
+            "stock_list",
+            "fund_list"
+          ]
+        },
+        {
+          "capability": "trading_calendar",
+          "implemented": true,
+          "datasets": [
+            "trading_days"
+          ]
+        },
+        {
+          "capability": "market_bars",
+          "implemented": true,
+          "datasets": [
+            "daily_quotes"
+          ]
+        },
+        {
+          "capability": "market_snapshot",
+          "implemented": true,
+          "datasets": [
+            "table_data"
+          ]
+        },
+        {
+          "capability": "index_data",
+          "implemented": false,
+          "datasets": [
+            "daily_quotes"
+          ]
+        },
+        {
+          "capability": "financials",
+          "implemented": false,
+          "datasets": [
+            "table_data"
+          ]
+        },
+        {
+          "capability": "factor_macro",
+          "implemented": true,
+          "datasets": [
+            "adjustment_metadata",
+            "listing_date",
+            "adjustment_factors"
+          ]
+        },
+        {
+          "capability": "fund_data",
+          "implemented": false,
+          "datasets": [
+            "fund_list"
+          ]
+        }
+      ],
+      "live_acceptance": {
+        "state": "not_run",
+        "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+      },
+      "static_readiness_is_live_proof": false
+    },
+    {
+      "id": "ifind",
+      "name": "iFinD",
+      "auth_kind": "terminal",
+      "implementation": "disabled",
+      "bindings": [
+        {
+          "capability": "market_bars",
+          "implemented": false,
+          "datasets": [
+            "quotes"
+          ]
+        },
+        {
+          "capability": "market_snapshot",
+          "implemented": false,
+          "datasets": [
+            "quotes"
+          ]
+        },
+        {
+          "capability": "financials",
+          "implemented": false,
+          "datasets": [
+            "financials"
+          ]
+        },
+        {
+          "capability": "market_activity",
+          "implemented": false,
+          "datasets": [
+            "fund_flow",
+            "industry"
+          ]
+        },
+        {
+          "capability": "factor_macro",
+          "implemented": false,
+          "datasets": [
+            "macro",
+            "technical"
+          ]
+        }
+      ],
+      "live_acceptance": {
+        "state": "not_run",
+        "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+      },
+      "static_readiness_is_live_proof": false
+    },
+    {
+      "id": "akshare",
+      "name": "AKShare",
+      "auth_kind": "none",
+      "implementation": "ready",
+      "bindings": [
+        {
+          "capability": "search_assets",
+          "implemented": true,
+          "datasets": [
+            "stock_master"
+          ]
+        },
+        {
+          "capability": "trading_calendar",
+          "implemented": true,
+          "datasets": [
+            "trading_calendar"
+          ]
+        },
+        {
+          "capability": "market_bars",
+          "implemented": true,
+          "datasets": [
+            "stock_daily",
+            "index_daily"
+          ]
+        },
+        {
+          "capability": "market_snapshot",
+          "implemented": true,
+          "datasets": [
+            "spot"
+          ]
+        },
+        {
+          "capability": "index_data",
+          "implemented": false,
+          "datasets": [
+            "index_daily"
+          ]
+        },
+        {
+          "capability": "financials",
+          "implemented": true,
+          "datasets": [
+            "financials"
+          ]
+        },
+        {
+          "capability": "market_activity",
+          "implemented": true,
+          "datasets": [
+            "fund_flow"
+          ]
+        },
+        {
+          "capability": "factor_macro",
+          "implemented": false,
+          "datasets": [
+            "macro"
+          ]
+        },
+        {
+          "capability": "search_news",
+          "implemented": false,
+          "datasets": [
+            "news"
+          ]
+        }
+      ],
+      "live_acceptance": {
+        "state": "bounded_live_verified",
+        "capabilities": [
+          "market_bars:stock/raw/daily",
+          "market_bars:index/native/daily",
+          "financials:metrics/native",
+          "trading_calendar:CN"
+        ],
+        "warehouse": "stock-incremental-and-restart;native-financial-index-restart"
+      },
+      "static_readiness_is_live_proof": false
+    },
+    {
+      "id": "baostock",
+      "name": "BaoStock",
+      "auth_kind": "none",
+      "implementation": "ready",
+      "bindings": [
+        {
+          "capability": "search_assets",
+          "implemented": true,
+          "datasets": [
+            "stock_master"
+          ]
+        },
+        {
+          "capability": "trading_calendar",
+          "implemented": true,
+          "datasets": [
+            "trade_dates"
+          ]
+        },
+        {
+          "capability": "market_bars",
+          "implemented": true,
+          "datasets": [
+            "stock_daily"
+          ]
+        },
+        {
+          "capability": "financials",
+          "implemented": false,
+          "datasets": [
+            "financials"
+          ]
+        },
+        {
+          "capability": "search_news",
+          "implemented": false,
+          "datasets": [
+            "news"
+          ]
+        }
+      ],
+      "live_acceptance": {
+        "state": "bounded_live_verified_after_repair",
+        "capabilities": [
+          "market_bars:stock/raw/daily"
+        ],
+        "warehouse": "browser-2-rows-second-db-hit",
+        "initial_failure": "12-second-deadline"
+      },
+      "static_readiness_is_live_proof": false
+    },
+    {
+      "id": "tushare",
+      "name": "Tushare",
+      "auth_kind": "api_key",
+      "implementation": "disabled",
+      "bindings": [
+        {
+          "capability": "search_assets",
+          "implemented": false,
+          "datasets": [
+            "stock_basic"
+          ]
+        },
+        {
+          "capability": "trading_calendar",
+          "implemented": false,
+          "datasets": [
+            "trade_cal"
+          ]
+        },
+        {
+          "capability": "market_bars",
+          "implemented": false,
+          "datasets": [
+            "daily"
+          ]
+        },
+        {
+          "capability": "financials",
+          "implemented": false,
+          "datasets": [
+            "fina_indicator"
+          ]
+        }
+      ],
+      "live_acceptance": {
+        "state": "not_run",
+        "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+      },
+      "static_readiness_is_live_proof": false
+    },
+    {
+      "id": "yahoo",
+      "name": "Yahoo Finance",
+      "auth_kind": "none",
+      "implementation": "disabled",
+      "bindings": [
+        {
+          "capability": "market_bars",
+          "implemented": false,
+          "datasets": [
+            "stock_daily"
+          ]
+        },
+        {
+          "capability": "market_snapshot",
+          "implemented": false,
+          "datasets": [
+            "stock_info"
+          ]
+        },
+        {
+          "capability": "index_data",
+          "implemented": false,
+          "datasets": [
+            "index_daily"
+          ]
+        },
+        {
+          "capability": "financials",
+          "implemented": false,
+          "datasets": [
+            "financials"
+          ]
+        },
+        {
+          "capability": "search_news",
+          "implemented": false,
+          "datasets": [
+            "news"
+          ]
+        }
+      ],
+      "live_acceptance": {
+        "state": "not_run",
+        "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+      },
+      "static_readiness_is_live_proof": false
+    },
+    {
+      "id": "chinastock",
+      "name": "ChinaStock",
+      "auth_kind": "none",
+      "implementation": "disabled",
+      "bindings": [
+        {
+          "capability": "search_assets",
+          "implemented": false,
+          "datasets": [
+            "asset_search"
+          ]
+        },
+        {
+          "capability": "market_bars",
+          "implemented": false,
+          "datasets": [
+            "quotes"
+          ]
+        },
+        {
+          "capability": "market_snapshot",
+          "implemented": false,
+          "datasets": [
+            "quotes"
+          ]
+        },
+        {
+          "capability": "financials",
+          "implemented": false,
+          "datasets": [
+            "financials"
+          ]
+        },
+        {
+          "capability": "market_activity",
+          "implemented": false,
+          "datasets": [
+            "fund_flow",
+            "sentiment"
+          ]
+        },
+        {
+          "capability": "factor_macro",
+          "implemented": false,
+          "datasets": [
+            "macro",
+            "technical"
+          ]
+        }
+      ],
+      "live_acceptance": {
+        "state": "not_run",
+        "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+      },
+      "static_readiness_is_live_proof": false
+    },
+    {
+      "id": "local_cache",
+      "name": "本地数据 / 缓存",
+      "auth_kind": "local",
+      "implementation": "disabled",
+      "bindings": [
+        {
+          "capability": "search_assets",
+          "implemented": false,
+          "datasets": [
+            "asset_cache"
+          ]
+        },
+        {
+          "capability": "market_bars",
+          "implemented": false,
+          "datasets": [
+            "price_cache"
+          ]
+        }
+      ],
+      "live_acceptance": {
+        "state": "not_run",
+        "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+      },
+      "static_readiness_is_live_proof": false
+    },
+    {
+      "id": "csindex",
+      "name": "中证指数",
+      "auth_kind": "none",
+      "implementation": "disabled",
+      "bindings": [
+        {
+          "capability": "index_data",
+          "implemented": false,
+          "datasets": [
+            "index_constituents",
+            "index_valuation"
+          ]
+        }
+      ],
+      "live_acceptance": {
+        "state": "not_run",
+        "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+      },
+      "static_readiness_is_live_proof": false
+    },
+    {
+      "id": "szse",
+      "name": "深交所",
+      "auth_kind": "none",
+      "implementation": "disabled",
+      "bindings": [
+        {
+          "capability": "search_assets",
+          "implemented": false,
+          "datasets": [
+            "listed_companies"
+          ]
+        },
+        {
+          "capability": "search_announcements",
+          "implemented": false,
+          "datasets": [
+            "company_info"
+          ]
+        }
+      ],
+      "live_acceptance": {
+        "state": "not_run",
+        "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+      },
+      "static_readiness_is_live_proof": false
+    },
+    {
+      "id": "cninfo",
+      "name": "巨潮资讯",
+      "auth_kind": "none",
+      "implementation": "disabled",
+      "bindings": [
+        {
+          "capability": "search_announcements",
+          "implemented": false,
+          "datasets": [
+            "announcements"
+          ]
+        }
+      ],
+      "live_acceptance": {
+        "state": "not_run",
+        "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+      },
+      "static_readiness_is_live_proof": false
+    },
+    {
+      "id": "cls",
+      "name": "财联社",
+      "auth_kind": "none",
+      "implementation": "ready",
+      "bindings": [
+        {
+          "capability": "search_news",
+          "implemented": true,
+          "datasets": [
+            "telegram"
+          ]
+        }
+      ],
+      "live_acceptance": {
+        "state": "bounded_live_verified",
+        "capabilities": [
+          "search_news:2-items"
+        ],
+        "warehouse": "news-excluded-from-numeric-snapshots"
+      },
+      "static_readiness_is_live_proof": false
+    },
+    {
+      "id": "cnstock_flash",
+      "name": "中国证券网快讯",
+      "auth_kind": "none",
+      "implementation": "disabled",
+      "bindings": [
+        {
+          "capability": "search_news",
+          "implemented": false,
+          "datasets": [
+            "flash"
+          ]
+        }
+      ],
+      "live_acceptance": {
+        "state": "not_run",
+        "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+      },
+      "static_readiness_is_live_proof": false
+    },
+    {
+      "id": "cnstock_news",
+      "name": "中国证券网新闻",
+      "auth_kind": "none",
+      "implementation": "disabled",
+      "bindings": [
+        {
+          "capability": "search_news",
+          "implemented": false,
+          "datasets": [
+            "news"
+          ]
+        }
+      ],
+      "live_acceptance": {
+        "state": "not_run",
+        "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+      },
+      "static_readiness_is_live_proof": false
+    },
+    {
+      "id": "zhiqiu_reports",
+      "name": "知丘研报",
+      "auth_kind": "account",
+      "implementation": "disabled",
+      "bindings": [
+        {
+          "capability": "search_research",
+          "implemented": false,
+          "datasets": [
+            "report"
+          ]
+        }
+      ],
+      "live_acceptance": {
+        "state": "not_run",
+        "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+      },
+      "static_readiness_is_live_proof": false
+    },
+    {
+      "id": "zhiqiu_wechat",
+      "name": "知丘公众号",
+      "auth_kind": "account",
+      "implementation": "disabled",
+      "bindings": [
+        {
+          "capability": "search_news",
+          "implemented": false,
+          "datasets": [
+            "news"
+          ]
+        },
+        {
+          "capability": "search_research",
+          "implemented": false,
+          "datasets": [
+            "news"
+          ]
+        }
+      ],
+      "live_acceptance": {
+        "state": "not_run",
+        "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+      },
+      "static_readiness_is_live_proof": false
+    },
+    {
+      "id": "zhiqiu_transcript",
+      "name": "知丘纪要",
+      "auth_kind": "account",
+      "implementation": "disabled",
+      "bindings": [
+        {
+          "capability": "search_research",
+          "implemented": false,
+          "datasets": [
+            "meeting"
+          ]
+        }
+      ],
+      "live_acceptance": {
+        "state": "not_run",
+        "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+      },
+      "static_readiness_is_live_proof": false
+    },
+    {
+      "id": "eastmoney_fund",
+      "name": "东方财富基金",
+      "auth_kind": "none",
+      "implementation": "ready",
+      "bindings": [
+        {
+          "capability": "fund_data",
+          "implemented": true,
+          "datasets": [
+            "fund_nav",
+            "fund_profile",
+            "fund_distributions",
+            "fund_holdings"
+          ]
+        }
+      ],
+      "live_acceptance": {
+        "state": "bounded_live_verified",
+        "capabilities": [
+          "fund_data:nav"
+        ],
+        "warehouse": "native-ingestion-incomplete-declared-missing-fields",
+        "limitations": [
+          "currency-unverified",
+          "not-adjusted-total-return"
+        ]
+      },
+      "static_readiness_is_live_proof": false
+    },
+    {
+      "id": "tavily",
+      "name": "Tavily",
+      "auth_kind": "api_key",
+      "implementation": "disabled",
+      "bindings": [
+        {
+          "capability": "search_web",
+          "implemented": false,
+          "datasets": [
+            "web_search"
+          ]
+        }
+      ],
+      "live_acceptance": {
+        "state": "not_run",
+        "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+      },
+      "static_readiness_is_live_proof": false
+    },
+    {
+      "id": "bing",
+      "name": "Bing Search",
+      "auth_kind": "api_key",
+      "implementation": "disabled",
+      "bindings": [
+        {
+          "capability": "search_web",
+          "implemented": false,
+          "datasets": [
+            "web_search"
+          ]
+        }
+      ],
+      "live_acceptance": {
+        "state": "not_run",
+        "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+      },
+      "static_readiness_is_live_proof": false
+    },
+    {
+      "id": "mysql",
+      "name": "用户 MySQL 数据库",
+      "auth_kind": "account",
+      "implementation": "blocked_config",
+      "bindings": [
+        {
+          "capability": "database_schema",
+          "implemented": true,
+          "datasets": [
+            "databases",
+            "tables",
+            "columns"
+          ]
+        },
+        {
+          "capability": "table_query",
+          "implemented": true,
+          "datasets": [
+            "single_table_select"
+          ]
+        }
+      ],
+      "live_acceptance": {
+        "state": "not_run",
+        "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+      },
+      "static_readiness_is_live_proof": false
+    },
+    {
+      "id": "ext_registry",
+      "name": "外部数据源总目录",
+      "auth_kind": "none",
+      "implementation": "ready",
+      "bindings": [
+        {
+          "capability": "external_data",
+          "implemented": true,
+          "datasets": [
+            "catalog"
+          ]
+        }
+      ],
+      "live_acceptance": {
+        "state": "not_run",
+        "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+      },
+      "static_readiness_is_live_proof": false
+    },
+    {
+      "id": "ext_morningstar",
+      "name": "Morningstar / Sustainalytics",
+      "auth_kind": "none",
+      "implementation": "disabled",
+      "bindings": [
+        {
+          "capability": "external_data",
+          "implemented": false,
+          "datasets": [
+            "catalog"
+          ]
+        }
+      ],
+      "live_acceptance": {
+        "state": "not_run",
+        "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+      },
+      "static_readiness_is_live_proof": false
+    },
+    {
+      "id": "ext_tradingview",
+      "name": "TradingView",
+      "auth_kind": "none",
+      "implementation": "disabled",
+      "bindings": [
+        {
+          "capability": "external_data",
+          "implemented": false,
+          "datasets": [
+            "catalog"
+          ]
+        }
+      ],
+      "live_acceptance": {
+        "state": "not_run",
+        "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+      },
+      "static_readiness_is_live_proof": false
+    },
+    {
+      "id": "ext_ths",
+      "name": "同花顺 / iFinD",
+      "auth_kind": "api_key",
+      "implementation": "ready",
+      "bindings": [
+        {
+          "capability": "external_data",
+          "implemented": true,
+          "datasets": [
+            "catalog",
+            "real_time_quotation",
+            "cmd_history_quotation",
+            "basic_data_service",
+            "smart_stock_picking",
+            "news",
+            "reports",
+            "futures-reports"
+          ]
+        }
+      ],
+      "live_acceptance": {
+        "state": "not_run",
+        "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+      },
+      "static_readiness_is_live_proof": false
+    },
+    {
+      "id": "ext_aihot",
+      "name": "AI HOT",
+      "auth_kind": "none",
+      "implementation": "ready",
+      "bindings": [
+        {
+          "capability": "external_data",
+          "implemented": true,
+          "datasets": [
+            "catalog",
+            "items",
+            "daily",
+            "daily-date",
+            "archive"
+          ]
+        }
+      ],
+      "live_acceptance": {
+        "state": "not_run",
+        "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+      },
+      "static_readiness_is_live_proof": false
+    },
+    {
+      "id": "ext_realfund",
+      "name": "realfund / real_fund",
+      "auth_kind": "none",
+      "implementation": "ready",
+      "bindings": [
+        {
+          "capability": "external_data",
+          "implemented": true,
+          "datasets": [
+            "catalog",
+            "related-sector",
+            "fund-secid"
+          ]
+        }
+      ],
+      "live_acceptance": {
+        "state": "not_run",
+        "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+      },
+      "static_readiness_is_live_proof": false
+    },
+    {
+      "id": "ext_daole",
+      "name": "道乐 / 乐数",
+      "auth_kind": "api_key",
+      "implementation": "credential_transport_blocked",
+      "bindings": [
+        {
+          "capability": "external_data",
+          "implemented": true,
+          "datasets": [
+            "catalog",
+            "summary",
+            "datasets",
+            "data",
+            "schema",
+            "batches"
+          ]
+        }
+      ],
+      "live_acceptance": {
+        "state": "not_run",
+        "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+      },
+      "static_readiness_is_live_proof": false
+    },
+    {
+      "id": "ext_eastmoney",
+      "name": "东方财富 / 天天基金",
+      "auth_kind": "none",
+      "implementation": "ready",
+      "bindings": [
+        {
+          "capability": "external_data",
+          "implemented": true,
+          "datasets": [
+            "catalog",
+            "legacy-0",
+            "legacy-1",
+            "legacy-2",
+            "legacy-3",
+            "legacy-4",
+            "legacy-5",
+            "legacy-6",
+            "fund-position",
+            "fund-history",
+            "datacenter",
+            "reports",
+            "news",
+            "boards",
+            "intraday",
+            "valuation-last",
+            "wealth-account"
+          ]
+        }
+      ],
+      "live_acceptance": {
+        "state": "not_run",
+        "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+      },
+      "static_readiness_is_live_proof": false
+    },
+    {
+      "id": "ext_tencent",
+      "name": "腾讯财经",
+      "auth_kind": "none",
+      "implementation": "ready",
+      "bindings": [
+        {
+          "capability": "external_data",
+          "implemented": true,
+          "datasets": [
+            "catalog",
+            "quote",
+            "minute",
+            "history"
+          ]
+        }
+      ],
+      "live_acceptance": {
+        "state": "not_run",
+        "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+      },
+      "static_readiness_is_live_proof": false
+    },
+    {
+      "id": "ext_sina",
+      "name": "新浪财经",
+      "auth_kind": "none",
+      "implementation": "ready",
+      "bindings": [
+        {
+          "capability": "external_data",
+          "implemented": true,
+          "datasets": [
+            "catalog",
+            "quote",
+            "gold-history",
+            "fund-estimate",
+            "news"
+          ]
+        }
+      ],
+      "live_acceptance": {
+        "state": "not_run",
+        "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+      },
+      "static_readiness_is_live_proof": false
+    },
+    {
+      "id": "ext_yahoo",
+      "name": "Yahoo Finance",
+      "auth_kind": "none",
+      "implementation": "ready",
+      "bindings": [
+        {
+          "capability": "external_data",
+          "implemented": true,
+          "datasets": [
+            "catalog",
+            "chart",
+            "chart-backup"
+          ]
+        }
+      ],
+      "live_acceptance": {
+        "state": "not_run",
+        "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+      },
+      "static_readiness_is_live_proof": false
+    },
+    {
+      "id": "ext_nasdaq",
+      "name": "Nasdaq",
+      "auth_kind": "none",
+      "implementation": "ready",
+      "bindings": [
+        {
+          "capability": "external_data",
+          "implemented": true,
+          "datasets": [
+            "catalog",
+            "history"
+          ]
+        }
+      ],
+      "live_acceptance": {
+        "state": "not_run",
+        "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+      },
+      "static_readiness_is_live_proof": false
+    },
+    {
+      "id": "ext_fred",
+      "name": "FRED / 圣路易斯联储",
+      "auth_kind": "none",
+      "implementation": "ready",
+      "bindings": [
+        {
+          "capability": "external_data",
+          "implemented": true,
+          "datasets": [
+            "catalog",
+            "series"
+          ]
+        }
+      ],
+      "live_acceptance": {
+        "state": "not_run",
+        "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+      },
+      "static_readiness_is_live_proof": false
+    },
+    {
+      "id": "ext_nyfed",
+      "name": "纽约联储",
+      "auth_kind": "none",
+      "implementation": "ready",
+      "bindings": [
+        {
+          "capability": "external_data",
+          "implemented": true,
+          "datasets": [
+            "catalog",
+            "rates",
+            "reverse-repo",
+            "repo",
+            "dealer"
+          ]
+        }
+      ],
+      "live_acceptance": {
+        "state": "not_run",
+        "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+      },
+      "static_readiness_is_live_proof": false
+    },
+    {
+      "id": "ext_fed",
+      "name": "美联储",
+      "auth_kind": "none",
+      "implementation": "ready",
+      "bindings": [
+        {
+          "capability": "external_data",
+          "implemented": true,
+          "datasets": [
+            "catalog",
+            "h41",
+            "calendar",
+            "sep",
+            "news"
+          ]
+        }
+      ],
+      "live_acceptance": {
+        "state": "not_run",
+        "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+      },
+      "static_readiness_is_live_proof": false
+    },
+    {
+      "id": "ext_atlantafed",
+      "name": "亚特兰大联储",
+      "auth_kind": "none",
+      "implementation": "ready",
+      "bindings": [
+        {
+          "capability": "external_data",
+          "implemented": true,
+          "datasets": [
+            "catalog",
+            "mpt"
+          ]
+        }
+      ],
+      "live_acceptance": {
+        "state": "not_run",
+        "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+      },
+      "static_readiness_is_live_proof": false
+    },
+    {
+      "id": "ext_treasury",
+      "name": "美国财政部 / TreasuryDirect",
+      "auth_kind": "none",
+      "implementation": "ready",
+      "bindings": [
+        {
+          "capability": "external_data",
+          "implemented": true,
+          "datasets": [
+            "catalog",
+            "cash",
+            "auction"
+          ]
+        }
+      ],
+      "live_acceptance": {
+        "state": "not_run",
+        "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+      },
+      "static_readiness_is_live_proof": false
+    },
+    {
+      "id": "ext_bls",
+      "name": "美国劳工统计局 BLS",
+      "auth_kind": "none",
+      "implementation": "ready",
+      "bindings": [
+        {
+          "capability": "external_data",
+          "implemented": true,
+          "datasets": [
+            "catalog",
+            "series",
+            "cpi-calendar",
+            "employment-calendar"
+          ]
+        }
+      ],
+      "live_acceptance": {
+        "state": "not_run",
+        "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+      },
+      "static_readiness_is_live_proof": false
+    },
+    {
+      "id": "ext_worldbank",
+      "name": "世界银行",
+      "auth_kind": "none",
+      "implementation": "ready",
+      "bindings": [
+        {
+          "capability": "external_data",
+          "implemented": true,
+          "datasets": [
+            "catalog",
+            "inflation"
+          ]
+        }
+      ],
+      "live_acceptance": {
+        "state": "bounded_live_verified",
+        "capabilities": [
+          "external_data:inflation:2023-2024"
+        ],
+        "warehouse": "native-2-observations-and-restart"
+      },
+      "static_readiness_is_live_proof": false
+    },
+    {
+      "id": "ext_wgc",
+      "name": "世界黄金协会 WGC / Goldhub",
+      "auth_kind": "none",
+      "implementation": "ready",
+      "bindings": [
+        {
+          "capability": "external_data",
+          "implemented": true,
+          "datasets": [
+            "catalog",
+            "supply",
+            "etf-flows",
+            "etf-holdings",
+            "aisc",
+            "open-interest",
+            "comex",
+            "premium",
+            "volumes",
+            "central-banks"
+          ]
+        }
+      ],
+      "live_acceptance": {
+        "state": "not_run",
+        "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+      },
+      "static_readiness_is_live_proof": false
+    },
+    {
+      "id": "ext_lbma",
+      "name": "LBMA",
+      "auth_kind": "none",
+      "implementation": "ready",
+      "bindings": [
+        {
+          "capability": "external_data",
+          "implemented": true,
+          "datasets": [
+            "catalog",
+            "gold-pm"
+          ]
+        }
+      ],
+      "live_acceptance": {
+        "state": "not_run",
+        "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+      },
+      "static_readiness_is_live_proof": false
+    },
+    {
+      "id": "ext_cftc",
+      "name": "美国 CFTC",
+      "auth_kind": "none",
+      "implementation": "ready",
+      "bindings": [
+        {
+          "capability": "external_data",
+          "implemented": true,
+          "datasets": [
+            "catalog",
+            "cot"
+          ]
+        }
+      ],
+      "live_acceptance": {
+        "state": "not_run",
+        "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+      },
+      "static_readiness_is_live_proof": false
+    },
+    {
+      "id": "ext_cboe",
+      "name": "Cboe",
+      "auth_kind": "none",
+      "implementation": "ready",
+      "bindings": [
+        {
+          "capability": "external_data",
+          "implemented": true,
+          "datasets": [
+            "catalog",
+            "gld-options"
+          ]
+        }
+      ],
+      "live_acceptance": {
+        "state": "not_run",
+        "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+      },
+      "static_readiness_is_live_proof": false
+    },
+    {
+      "id": "ext_spdr",
+      "name": "SPDR Gold Shares",
+      "auth_kind": "none",
+      "implementation": "ready",
+      "bindings": [
+        {
+          "capability": "external_data",
+          "implemented": true,
+          "datasets": [
+            "catalog",
+            "gld"
+          ]
+        }
+      ],
+      "live_acceptance": {
+        "state": "not_run",
+        "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+      },
+      "static_readiness_is_live_proof": false
+    },
+    {
+      "id": "ext_moex",
+      "name": "莫斯科交易所 MOEX",
+      "auth_kind": "none",
+      "implementation": "ready",
+      "bindings": [
+        {
+          "capability": "external_data",
+          "implemented": true,
+          "datasets": [
+            "catalog",
+            "index"
+          ]
+        }
+      ],
+      "live_acceptance": {
+        "state": "not_run",
+        "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+      },
+      "static_readiness_is_live_proof": false
+    },
+    {
+      "id": "ext_kapsarc",
+      "name": "KAPSARC / BGS 数据转发",
+      "auth_kind": "none",
+      "implementation": "ready",
+      "bindings": [
+        {
+          "capability": "external_data",
+          "implemented": true,
+          "datasets": [
+            "catalog",
+            "production"
+          ]
+        }
+      ],
+      "live_acceptance": {
+        "state": "not_run",
+        "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+      },
+      "static_readiness_is_live_proof": false
+    },
+    {
+      "id": "ext_cls",
+      "name": "财联社",
+      "auth_kind": "none",
+      "implementation": "ready",
+      "bindings": [
+        {
+          "capability": "external_data",
+          "implemented": true,
+          "datasets": [
+            "catalog",
+            "home",
+            "fed-subject",
+            "hot-list"
+          ]
+        }
+      ],
+      "live_acceptance": {
+        "state": "not_run",
+        "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+      },
+      "static_readiness_is_live_proof": false
+    },
+    {
+      "id": "ext_wallstreetcn",
+      "name": "华尔街见闻",
+      "auth_kind": "none",
+      "implementation": "ready",
+      "bindings": [
+        {
+          "capability": "external_data",
+          "implemented": true,
+          "datasets": [
+            "catalog",
+            "lives",
+            "articles",
+            "lives-alternate",
+            "popular"
+          ]
+        }
+      ],
+      "live_acceptance": {
+        "state": "not_run",
+        "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+      },
+      "static_readiness_is_live_proof": false
+    },
+    {
+      "id": "ext_jin10",
+      "name": "金十数据",
+      "auth_kind": "none",
+      "implementation": "ready",
+      "bindings": [
+        {
+          "capability": "external_data",
+          "implemented": true,
+          "datasets": [
+            "catalog",
+            "hot",
+            "priority-flash"
+          ]
+        }
+      ],
+      "live_acceptance": {
+        "state": "not_run",
+        "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+      },
+      "static_readiness_is_live_proof": false
+    },
+    {
+      "id": "ext_google_news",
+      "name": "Google News RSS",
+      "auth_kind": "none",
+      "implementation": "ready",
+      "bindings": [
+        {
+          "capability": "external_data",
+          "implemented": true,
+          "datasets": [
+            "catalog",
+            "search"
+          ]
+        }
+      ],
+      "live_acceptance": {
+        "state": "not_run",
+        "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+      },
+      "static_readiness_is_live_proof": false
+    },
+    {
+      "id": "ext_forexfactory",
+      "name": "Forex Factory / Fair Economy",
+      "auth_kind": "none",
+      "implementation": "ready",
+      "bindings": [
+        {
+          "capability": "external_data",
+          "implemented": true,
+          "datasets": [
+            "catalog",
+            "week-json",
+            "week-xml"
+          ]
+        }
+      ],
+      "live_acceptance": {
+        "state": "not_run",
+        "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+      },
+      "static_readiness_is_live_proof": false
+    },
+    {
+      "id": "ext_csindex",
+      "name": "中证指数",
+      "auth_kind": "none",
+      "implementation": "ready",
+      "bindings": [
+        {
+          "capability": "external_data",
+          "implemented": true,
+          "datasets": [
+            "catalog",
+            "valuation"
+          ]
+        }
+      ],
+      "live_acceptance": {
+        "state": "not_run",
+        "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+      },
+      "static_readiness_is_live_proof": false
+    },
+    {
+      "id": "ext_danjuan",
+      "name": "蛋卷基金 / 雪球",
+      "auth_kind": "none",
+      "implementation": "ready",
+      "bindings": [
+        {
+          "capability": "external_data",
+          "implemented": true,
+          "datasets": [
+            "catalog",
+            "history"
+          ]
+        }
+      ],
+      "live_acceptance": {
+        "state": "not_run",
+        "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+      },
+      "static_readiness_is_live_proof": false
+    },
+    {
+      "id": "ext_etfrun",
+      "name": "ETF.run",
+      "auth_kind": "none",
+      "implementation": "ready",
+      "bindings": [
+        {
+          "capability": "external_data",
+          "implemented": true,
+          "datasets": [
+            "catalog",
+            "index"
+          ]
+        }
+      ],
+      "live_acceptance": {
+        "state": "not_run",
+        "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+      },
+      "static_readiness_is_live_proof": false
+    },
+    {
+      "id": "ext_funddb",
+      "name": "韭圈儿 / FundDB",
+      "auth_kind": "none",
+      "implementation": "ready",
+      "bindings": [
+        {
+          "capability": "external_data",
+          "implemented": true,
+          "datasets": [
+            "catalog",
+            "valuation"
+          ]
+        }
+      ],
+      "live_acceptance": {
+        "state": "not_run",
+        "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+      },
+      "static_readiness_is_live_proof": false
+    },
+    {
+      "id": "ext_tikhub",
+      "name": "TikHub",
+      "auth_kind": "api_key",
+      "implementation": "blocked_config",
+      "bindings": [
+        {
+          "capability": "external_data",
+          "implemented": true,
+          "datasets": [
+            "catalog",
+            "xiaohongshu",
+            "douyin"
+          ]
+        }
+      ],
+      "live_acceptance": {
+        "state": "not_run",
+        "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+      },
+      "static_readiness_is_live_proof": false
+    },
+    {
+      "id": "ext_cicc",
+      "name": "中金点睛",
+      "auth_kind": "api_key",
+      "implementation": "blocked_config",
+      "bindings": [
+        {
+          "capability": "external_data",
+          "implemented": true,
+          "datasets": [
+            "catalog",
+            "search"
+          ]
+        }
+      ],
+      "live_acceptance": {
+        "state": "not_run",
+        "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+      },
+      "static_readiness_is_live_proof": false
+    },
+    {
+      "id": "ext_datahub_gold",
+      "name": "DataHub datasets/gold-prices",
+      "auth_kind": "none",
+      "implementation": "ready",
+      "bindings": [
+        {
+          "capability": "external_data",
+          "implemented": true,
+          "datasets": [
+            "catalog",
+            "monthly"
+          ]
+        }
+      ],
+      "live_acceptance": {
+        "state": "not_run",
+        "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+      },
+      "static_readiness_is_live_proof": false
+    },
+    {
+      "id": "ext_reddit",
+      "name": "Reddit",
+      "auth_kind": "none",
+      "implementation": "ready",
+      "bindings": [
+        {
+          "capability": "external_data",
+          "implemented": true,
+          "datasets": [
+            "catalog",
+            "search"
+          ]
+        }
+      ],
+      "live_acceptance": {
+        "state": "not_run",
+        "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+      },
+      "static_readiness_is_live_proof": false
+    },
+    {
+      "id": "ext_coindesk",
+      "name": "CoinDesk",
+      "auth_kind": "none",
+      "implementation": "ready",
+      "bindings": [
+        {
+          "capability": "external_data",
+          "implemented": true,
+          "datasets": [
+            "catalog",
+            "rss"
+          ]
+        }
+      ],
+      "live_acceptance": {
+        "state": "not_run",
+        "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+      },
+      "static_readiness_is_live_proof": false
+    },
+    {
+      "id": "ext_cointelegraph",
+      "name": "CoinTelegraph",
+      "auth_kind": "none",
+      "implementation": "ready",
+      "bindings": [
+        {
+          "capability": "external_data",
+          "implemented": true,
+          "datasets": [
+            "catalog",
+            "rss"
+          ]
+        }
+      ],
+      "live_acceptance": {
+        "state": "not_run",
+        "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+      },
+      "static_readiness_is_live_proof": false
+    },
+    {
+      "id": "ext_reuters_rss",
+      "name": "Reuters RSS",
+      "auth_kind": "none",
+      "implementation": "ready",
+      "bindings": [
+        {
+          "capability": "external_data",
+          "implemented": true,
+          "datasets": [
+            "catalog",
+            "business",
+            "company"
+          ]
+        }
+      ],
+      "live_acceptance": {
+        "state": "not_run",
+        "reason": "requires-configuration-permission-device-or-separate-bounded-sample"
+      },
+      "static_readiness_is_live_proof": false
+    }
+  ],
+  "production_modified": false,
+  "credentials_included": false
+}

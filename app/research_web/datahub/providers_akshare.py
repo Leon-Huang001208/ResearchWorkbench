@@ -9,6 +9,7 @@ import re
 import threading
 import time
 from concurrent.futures import Future, ThreadPoolExecutor
+from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
@@ -20,15 +21,37 @@ from .contracts import BusinessQuery
 from .providers import MAX_ROWS, ProviderError, Result
 
 log = get_logger(__name__)
+
+
+@dataclass(frozen=True)
+class _FeedNormalizer:
+    normalize: Any
+    upstream_id: str
+    attempts: tuple[dict, ...]
+
+    def __call__(self, rows, query):
+        return self.normalize(rows, query)
+
+
 DEADLINE = 15
 PROBE_DEADLINE = 10
 PROBE_URL = "https://finance.sina.com.cn/realstock/company/klc_td_sh.txt"
 PROBE_MAX_BYTES = 16 * 1024
 _EXECUTOR = ThreadPoolExecutor(max_workers=1, thread_name_prefix="datahub-akshare")
 _CAPACITY = threading.BoundedSemaphore(1)
+_FUTURES: set[Future] = set()
+_FUTURES_LOCK = threading.Lock()
+
+
+def active_futures() -> tuple[Future, ...]:
+    """Witness actual SDK work independently of cancelled coroutine waiters."""
+    with _FUTURES_LOCK:
+        return tuple(future for future in _FUTURES if not future.done())
 
 
 def _release_capacity(_future: Future) -> None:
+    with _FUTURES_LOCK:
+        _FUTURES.discard(_future)
     try:
         _CAPACITY.release()
     except ValueError:
@@ -43,12 +66,20 @@ def _submit_work(function, *args) -> Future | None:
     except Exception:
         _CAPACITY.release()
         raise
+    with _FUTURES_LOCK:
+        _FUTURES.add(future)
     future.add_done_callback(_release_capacity)
     return future
 
 
 def _submit(query: BusinessQuery) -> Future | None:
     return _submit_work(_invoke, query)
+
+
+def _invoke(query: BusinessQuery) -> Result:
+    from .public_worker import invoke_worker
+
+    return invoke_worker("akshare", query)
 
 
 def _symbol(value: str) -> str:
@@ -81,7 +112,25 @@ def _exchange_symbol(value: str) -> str:
     return f"{market}{code}"
 
 
-SEMANTICS_REVISION = "akshare-supported-query-v2"
+SEMANTICS_REVISION = "akshare-supported-query-v5"
+_FREQUENCIES = {
+    "daily": "daily",
+    "day": "daily",
+    "1d": "daily",
+    "weekly": "weekly",
+    "week": "weekly",
+    "1w": "weekly",
+    "monthly": "monthly",
+    "month": "monthly",
+    "1m": "monthly",
+}
+
+
+def _frequency(parameters: dict) -> str:
+    value = parameters.get("frequency", "daily")
+    if not isinstance(value, str) or value not in _FREQUENCIES:
+        raise ProviderError("invalid_frequency")
+    return _FREQUENCIES[value]
 
 
 def _activity_bounds(query: BusinessQuery) -> tuple[date | None, date | None]:
@@ -107,6 +156,22 @@ def _activity_bounds(query: BusinessQuery) -> tuple[date | None, date | None]:
 def validate_supported_query(query: BusinessQuery) -> None:
     """Pure semantics check shared by selection/cache admission and execution."""
     parameters = query.parameters
+    if query.capability == "trading_calendar":
+        start, end = _activity_bounds(query)
+        if (
+            parameters.get("market", "CN") != "CN"
+            or start is None
+            or end is None
+            or start < date(1990, 12, 19)
+            or (end - start).days > 1464
+        ):
+            raise ProviderError("invalid_date_range")
+    if query.capability == "market_bars":
+        if parameters.get("asset_type", "stock") not in {"stock", "index", "etf"}:
+            raise ProviderError("data_not_equivalent")
+        _frequency(parameters)
+        if parameters.get("adjustment", "qfq") not in {"none", "qfq", "hfq"}:
+            raise ProviderError("invalid_adjustment")
     if query.capability == "market_activity":
         if parameters.get("dataset") != "fund_flow":
             raise ProviderError("data_not_equivalent")
@@ -114,7 +179,7 @@ def validate_supported_query(query: BusinessQuery) -> None:
     if query.capability == "market_bars" and parameters.get("asset_type") == "index":
         if parameters.get("adjustment", "none") != "none":
             raise ProviderError("invalid_adjustment")
-        if parameters.get("frequency", "daily") != "daily":
+        if _frequency(parameters) != "daily":
             raise ProviderError("invalid_frequency")
     if query.capability == "market_snapshot":
         if parameters.get("asset_type", "stock") != "stock":
@@ -136,6 +201,22 @@ def validate_supported_query(query: BusinessQuery) -> None:
         if not isinstance(asset, str):
             raise ProviderError("invalid_asset")
         _symbol(asset)
+    if query.capability == "financials":
+        if parameters.get("statements", ["metrics"]) not in (["metrics"], ["indicators"]):
+            raise ProviderError("data_operation_unsupported")
+        periods = parameters.get("periods", [])
+        if type(periods) is int and 1 <= periods <= 100:
+            return
+        if not isinstance(periods, list) or len(periods) > 100:
+            raise ProviderError("invalid_date_range")
+        try:
+            if any(
+                not isinstance(value, str) or date.fromisoformat(value).isoformat() != value
+                for value in periods
+            ):
+                raise ValueError("invalid_period")
+        except (ValueError, TypeError):
+            raise ProviderError("invalid_date_range") from None
 
 
 def _slice_activity_frame(frame: Any, query: BusinessQuery) -> Any:
@@ -189,7 +270,8 @@ def _records(frame) -> list[dict]:
     rows = frame.to_dict(orient="records")
     if not isinstance(rows, list):
         raise ProviderError("invalid_dataframe")
-    return [{str(key): _clean(value) for key, value in row.items()} for row in rows[:MAX_ROWS]]
+    # Keep a sentinel row so a bounded response cannot claim full coverage.
+    return [{str(key): _clean(value) for key, value in row.items()} for row in rows[: MAX_ROWS + 1]]
 
 
 def _pick(row: dict, *names: str):
@@ -266,10 +348,29 @@ def _normalize_bars(rows: list[dict], query: BusinessQuery) -> list[dict]:
                 "high": _number(_pick(row, "最高", "high")),
                 "low": _number(_pick(row, "最低", "low")),
                 "volume": _number(_pick(row, "成交量", "volume")),
-                "turnover": _number(_pick(row, "成交额", "amount", "turnover")),
+                "turnover": _number(_pick(row, "成交额", "amount")),
                 "turnover_rate_pct": _number(_pick(row, "换手率", "turnover_rate")),
             }
         )
+    return normalized
+
+
+def _normalize_sina_stock_bars(rows: list[dict], query: BusinessQuery) -> list[dict]:
+    normalized = _normalize_bars(rows, query)
+    by_date = {_date(_pick(row, "日期", "date")): row for row in rows}
+    for row in normalized:
+        original = by_date[row["date"]]
+        if row["turnover_rate_pct"] is None and original.get("turnover") is not None:
+            ratio = _number(original["turnover"])
+            row["turnover_rate_pct"] = ratio * 100 if ratio is not None else None
+    return normalized
+
+
+def _normalize_em_stock_bars(rows: list[dict], query: BusinessQuery) -> list[dict]:
+    normalized = _normalize_bars(rows, query)
+    for row in normalized:
+        if row["volume"] is not None:
+            row["volume"] *= 100  # Official EM stock-history volume is lots, not shares.
     return normalized
 
 
@@ -328,6 +429,28 @@ def _normalize_activity(rows: list[dict], query: BusinessQuery) -> list[dict]:
 
 
 def _normalize_financials(rows: list[dict], query: BusinessQuery) -> list[dict]:
+    periods = query.parameters.get("periods", [])
+    if type(periods) is int:
+        dated = []
+        for row in rows:
+            period = _date(_pick(row, "报告期", "report_period"))
+            if period is None:
+                raise ProviderError("vendor_schema_invalid")
+            try:
+                parsed = date.fromisoformat(period)
+            except (ValueError, TypeError):
+                raise ProviderError("vendor_schema_invalid") from None
+            dated.append((parsed, row))
+        rows = [row for _period, row in sorted(dated, key=lambda item: item[0])[-periods:]]
+    elif periods:
+        selected = []
+        for row in rows:
+            period = _date(_pick(row, "报告期", "report_period"))
+            if period is None:
+                raise ProviderError("vendor_schema_invalid")
+            if period in periods:
+                selected.append(row)
+        rows = selected
     normalized = _normalize_generic(rows, query)
     return [
         {
@@ -338,15 +461,44 @@ def _normalize_financials(rows: list[dict], query: BusinessQuery) -> list[dict]:
     ]
 
 
-def _invoke(query: BusinessQuery):
+def _invoke_sdk(query: BusinessQuery):
     validate_supported_query(query)
     import akshare as ak
 
     capability = query.capability
     parameters = query.parameters
+    if capability == "trading_calendar":
+        from pandas import DataFrame
+
+        frame = ak.tool_trade_date_hist_sina()
+        records = frame.to_dict(orient="records") if hasattr(frame, "to_dict") else list(frame)
+        if not records or len(records) > 20000:
+            raise ProviderError("vendor_schema_invalid")
+        try:
+            days = set()
+            for row in records:
+                day = _date(row["trade_date"])
+                if day is None:
+                    raise ValueError("invalid_calendar_day")
+                days.add(date.fromisoformat(day))
+        except (ValueError, TypeError, KeyError):
+            raise ProviderError("vendor_schema_invalid") from None
+        start, end = _activity_bounds(query)
+        if start is None or end is None or min(days) > start or max(days) < end:
+            raise ProviderError("vendor_schema_invalid")
+        rows = [
+            {
+                "date": (start + timedelta(days=index)).isoformat(),
+                "market": "CN",
+                "is_trading_day": start + timedelta(days=index) in days,
+            }
+            for index in range((end - start).days + 1)
+        ]
+        return DataFrame(rows), lambda values, _query: values
     if capability == "search_assets":
         return ak.stock_info_a_code_name(), _normalize_assets
     if capability == "market_bars":
+        frequency = _frequency(parameters)
         adjustment = parameters.get("adjustment", "qfq")
         asset_type = str(parameters.get("asset_type", "stock"))
         start_date = str(parameters.get("start_date", "")).replace("-", "")
@@ -389,31 +541,55 @@ def _invoke(query: BusinessQuery):
         if asset_type == "etf":
             frame = ak.fund_etf_hist_em(
                 symbol=_symbol(str(parameters["asset"])),
-                period=parameters.get("frequency", "daily"),
+                period=frequency,
                 start_date=start_date,
                 end_date=end_date,
                 adjust="" if adjustment == "none" else adjustment,
             )
             return frame, _normalize_bars
-        if parameters.get("frequency", "daily") == "daily":
-            return (
-                ak.stock_zh_a_daily(
+        if frequency == "daily":
+            try:
+                frame = ak.stock_zh_a_daily(
                     symbol=_exchange_symbol(str(parameters["asset"])),
                     start_date=start_date,
                     end_date=end_date,
                     adjust="" if adjustment == "none" else adjustment,
-                ),
-                _normalize_bars,
-            )
+                )
+                return frame, _FeedNormalizer(
+                    _normalize_sina_stock_bars,
+                    "sina",
+                    ({"upstream": "sina", "status": "complete"},),
+                )
+            except Exception as exc:
+                if adjustment != "none":
+                    raise
+                log.warning("datahub_sina_raw_fallback", error_type=type(exc).__name__)
+                frame = ak.stock_zh_a_hist(
+                    symbol=_symbol(str(parameters["asset"])),
+                    period="daily",
+                    start_date=start_date,
+                    end_date=end_date,
+                    adjust="",
+                    timeout=4,
+                )
+                return frame, _FeedNormalizer(
+                    _normalize_em_stock_bars,
+                    "eastmoney",
+                    (
+                        {"upstream": "sina", "status": "failed"},
+                        {"upstream": "eastmoney", "status": "complete"},
+                    ),
+                )
         return (
             ak.stock_zh_a_hist(
                 symbol=_symbol(str(parameters["asset"])),
-                period=parameters.get("frequency", "daily"),
+                period=frequency,
                 start_date=start_date,
                 end_date=end_date,
                 adjust="" if adjustment == "none" else adjustment,
+                timeout=10,
             ),
-            _normalize_bars,
+            _normalize_em_stock_bars,
         )
     if capability == "market_snapshot":
         import pandas as pd
@@ -509,6 +685,79 @@ def _probe_failure_code(exc: Exception) -> str:
     return "probe_failed"
 
 
+def _materialize(query, frame, normalizer):
+    result = Result(provider_id="akshare")
+    result.source_url = "https://akshare.akfamily.xyz/"
+    result.limitations = [
+        "AKShare 是公开聚合库；上游字段与可用性可能变化。",
+        "当前快照不代表交易所级实时行情。",
+    ]
+    source_rows = _records(frame)
+    result.rows = normalizer(source_rows[:MAX_ROWS], query)
+    result.pages_fetched = 1
+    result.provider_total = len(source_rows)
+    result.pagination_complete = len(source_rows) <= MAX_ROWS
+    result.status = (
+        ("complete" if result.pagination_complete else "partial") if result.rows else "empty"
+    )
+    if not result.pagination_complete:
+        result.limitations.append("provider_response_row_limit")
+        result.missing.append("remaining_provider_rows")
+    result.as_of = max(
+        (
+            str(row.get("date") or row.get("as_of"))
+            for row in result.rows
+            if row.get("date") or row.get("as_of")
+        ),
+        default=None,
+    )
+    result.raw = [json.dumps(source_rows, ensure_ascii=False, default=str).encode()]
+    result.raw_bytes = len(result.raw[0])
+    if query.parameters.get("asset_type") in {"index", "etf"} and result.rows:
+        result.limitations.append("volume_unit_not_verified")
+    fields = {key for row in result.rows for key in row}
+    for field in fields:
+        unit = None
+        currency = None
+        if query.parameters.get("asset_type") == "index" and field in {
+            "open",
+            "close",
+            "high",
+            "low",
+        }:
+            unit = "points"
+        elif field in {"open", "close", "high", "low", "price", "turnover", "market_cap"}:
+            if (
+                query.capability == "market_bars"
+                and query.parameters.get("asset_type", "stock") == "stock"
+            ):
+                unit = "currency" if field == "turnover" else "currency_per_share"
+            else:
+                unit = "CNY"
+            currency = "CNY"
+        elif field.endswith("_pct"):
+            unit = "percent" if query.capability == "market_bars" else "%"
+        elif field == "volume":
+            unit = (
+                "provider_defined"
+                if query.parameters.get("asset_type") in {"index", "etf"}
+                else "share"
+            )
+        result.fields[field] = {"unit": unit, "currency": currency}
+    result.metadata["provider_semantics_revision"] = SEMANTICS_REVISION
+    if query.capability == "market_bars" and query.parameters.get("asset_type", "stock") == "stock":
+        result.metadata["upstream_id"] = getattr(normalizer, "upstream_id", None) or (
+            "sina" if _frequency(query.parameters) == "daily" else "eastmoney"
+        )
+        if isinstance(normalizer, _FeedNormalizer):
+            result.metadata["upstream_attempts"] = list(normalizer.attempts)
+    return result
+
+
+def invoke_public(query: BusinessQuery) -> Result:
+    return _materialize(query, *_invoke_sdk(query))
+
+
 async def fetch(query: BusinessQuery) -> Result:
     result = Result(provider_id="akshare")
     result.source_url = "https://akshare.akfamily.xyz/"
@@ -530,23 +779,11 @@ async def fetch(query: BusinessQuery) -> Result:
         return result
     try:
         async with asyncio.timeout(DEADLINE):
-            frame, normalizer = await asyncio.wrap_future(future)
-            source_rows = _records(frame)
-            result.rows = normalizer(source_rows, query)
-            result.pages_fetched = 1
-            result.provider_total = len(source_rows)
-            result.pagination_complete = len(source_rows) <= MAX_ROWS
-            result.status = "complete" if result.rows else "empty"
-            result.as_of = max(
-                (
-                    str(row.get("date") or row.get("as_of"))
-                    for row in result.rows
-                    if row.get("date") or row.get("as_of")
-                ),
-                default=None,
-            )
-            result.raw = [json.dumps(source_rows, ensure_ascii=False, default=str).encode()]
-            result.raw_bytes = len(result.raw[0])
+            payload = await asyncio.shield(asyncio.wrap_future(future))
+            if isinstance(payload, Result):
+                return payload
+            frame, normalizer = payload
+            return _materialize(query, frame, normalizer)
     except asyncio.CancelledError:
         log.info("datahub_akshare_cancelled", capability=query.capability)
         raise
@@ -564,31 +801,6 @@ async def fetch(query: BusinessQuery) -> Result:
             capability=query.capability,
             error_type=type(exc).__name__,
         )
-    if query.parameters.get("asset_type") in {"index", "etf"} and result.rows:
-        result.limitations.append("volume_unit_not_verified")
-    fields = {key for row in result.rows for key in row}
-    for field in fields:
-        unit = None
-        currency = None
-        if query.parameters.get("asset_type") == "index" and field in {
-            "open",
-            "close",
-            "high",
-            "low",
-        }:
-            unit = "points"
-        elif field in {"open", "close", "high", "low", "price", "turnover", "market_cap"}:
-            unit = "CNY"
-            currency = "CNY"
-        elif field.endswith("_pct"):
-            unit = "%"
-        elif field == "volume":
-            unit = (
-                "provider_defined"
-                if query.parameters.get("asset_type") in {"index", "etf"}
-                else "share"
-            )
-        result.fields[field] = {"unit": unit, "currency": currency}
     return result
 
 

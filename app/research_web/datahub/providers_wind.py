@@ -38,6 +38,15 @@ _WIND_LOCK = threading.Lock()
 _WIND_OUTSTANDING: concurrent.futures.Future[Any] | None = None
 _WIND_POISONED = False
 
+
+def active_futures() -> tuple[concurrent.futures.Future[Any], ...]:
+    """Read-only witness; a stopped waiter cannot release real Excel work."""
+    with _WIND_LOCK:
+        if _WIND_OUTSTANDING is None or _WIND_OUTSTANDING.done():
+            return ()
+        return (_WIND_OUTSTANDING,)
+
+
 # Each reviewed adapter result is projected through one immutable schema. The
 # first tuple is (output field, adapter field, type, unit, currency); allowed
 # adapter fields may include reviewed values intentionally omitted from output.

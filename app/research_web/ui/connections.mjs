@@ -22,6 +22,53 @@ const sourceFailureDefinitions = {
 const integrationLabels = { excel_automation: 'Excel 自动化', wind_excel: 'Wind 插件', ifind_excel: 'iFinD 插件', report_workflow: '报告工作流' };
 const localIntegrationKeys = Object.keys(integrationLabels);
 
+function currentExecutionEvidence(source) {
+  return (Array.isArray(source?.execution_evidence) ? source.execution_evidence : [])
+    .filter((item) => item.basis === 'actual_provider_call' && Date.parse(item.expires_at || '') > Date.now());
+}
+
+function executionAvailable(source) {
+  return source?.execution_verified === true && currentExecutionEvidence(source).some((item) => item.status === 'success');
+}
+
+export function createExecutionEvidenceExpiry({ getSources = () => [], isActive = () => true, onExpire = () => {}, visibilityTarget = globalThis.document, now = Date.now, setTimer = globalThis.setTimeout, clearTimer = globalThis.clearTimeout } = {}) {
+  let timer = null; let generation = 0; let disposed = false;
+  const cancel = () => {
+    generation += 1;
+    if (timer !== null) clearTimer(timer);
+    timer = null;
+  };
+  const sync = () => {
+    cancel();
+    if (disposed || visibilityTarget?.hidden || !isActive()) return;
+    const current = now();
+    const deadlines = getSources().flatMap((source) => Array.isArray(source?.execution_evidence) ? source.execution_evidence : [])
+      .filter((item) => item.basis === 'actual_provider_call')
+      .map((item) => Date.parse(item.expires_at || ''))
+      .filter((expiry) => Number.isFinite(expiry) && expiry > current);
+    if (!deadlines.length) return;
+    const deadline = Math.min(...deadlines); const ticket = generation;
+    timer = setTimer(() => {
+      if (disposed || ticket !== generation) return;
+      timer = null;
+      if (visibilityTarget?.hidden || !isActive()) return;
+      if (now() >= deadline) onExpire();
+      sync();
+    }, Math.min(Math.ceil(deadline - current) + 1, 2147483647));
+  };
+  const visibilityChanged = () => {
+    cancel();
+    if (disposed || visibilityTarget?.hidden || !isActive()) return;
+    onExpire();
+    sync();
+  };
+  visibilityTarget?.addEventListener('visibilitychange', visibilityChanged);
+  return {
+    sync, cancel,
+    dispose() { disposed = true; cancel(); visibilityTarget?.removeEventListener('visibilitychange', visibilityChanged); },
+  };
+}
+
 export function mergeIntegrationStatuses(connections = {}, integrations = {}) {
   const integrationById = new Map(
     (Array.isArray(integrations?.items) ? integrations.items : []).map((item) => [item.id, item]),
@@ -263,7 +310,14 @@ function stateBadge(label, active, kind = '') {
 
 function renderStateMatrix(source) {
   const state = sourceState(source);
-  return `<div class="connection-state-matrix" aria-label="连接状态">${stateBadge('登记', state.registered)}${stateBadge('授权', state.authorized)}${stateBadge('探测', state.probed)}${stateBadge('适配', state.integrated)}${stateBadge('可调用', state.callable, 'callable')}</div>`;
+  return `<div class="connection-state-matrix" aria-label="连接状态">${stateBadge('登记', state.registered)}${stateBadge('授权', state.authorized)}${stateBadge('探测', state.probed)}${stateBadge('适配', state.integrated)}${stateBadge('可调用', state.callable, 'callable')}${stateBadge('实际取数（限已列能力）', executionAvailable(source))}</div>`;
+}
+
+function renderExecutionEvidence(source) {
+  const evidence = currentExecutionEvidence(source);
+  const labels = { success: '成功', partial: '部分返回', failed: '失败', empty: '空返回' };
+  const rows = evidence.map((item) => `<li><strong>${e(item.capability)}</strong> · ${e(labels[item.status] || '未知')} · <time datetime="${e(item.completed_at)}">${e(item.completed_at)}</time>${item.failure_code ? ` · ${e(item.failure_code)}` : ''}</li>`).join('');
+  return `<section class="notice small" data-execution-evidence><strong>最近实际取数</strong>${rows ? `<ul>${rows}</ul>` : '<p>暂无当前授权配置下的有效实际调用证据。</p>'}<p>仅验证上列能力的一次实际请求，不表示该来源全部能力通过。探测状态单独保留；数据库或会话缓存命中不验证上游，也不会刷新此证据。</p></section>`;
 }
 
 function authLabel(source) {
@@ -271,6 +325,7 @@ function authLabel(source) {
 }
 
 function compactStatus(source) {
+  if (executionAvailable(source)) return ['部分能力已验证', 'live'];
   const bucket = source?.bucket;
   if (bucket === 'available') return ['可用', 'live'];
   if (bucket === 'checking') return ['检测中', 'warning'];
@@ -286,6 +341,7 @@ function compactStatus(source) {
 }
 
 function connectionStatusKey(source) {
+  if (executionAvailable(source)) return 'connected';
   if (source?.bucket === 'available') return 'connected';
   if (source?.bucket) return 'attention';
   const [label] = compactStatus(source);
@@ -343,7 +399,7 @@ function renderNavigation(connections, selectedId) {
 
 function renderConnectionSummary(sources) {
   const counts = sources.reduce((summary, source) => {
-    const bucket = source?.bucket || ({ connected: 'available', pending: 'user_action', attention: 'system_fault' })[connectionStatusKey(source)];
+    const bucket = executionAvailable(source) ? 'available' : source?.bucket || ({ connected: 'available', pending: 'user_action', attention: 'system_fault' })[connectionStatusKey(source)];
     summary[bucket] = (summary[bucket] || 0) + 1;
     return summary;
   }, { available: 0, checking: 0, user_action: 0, system_fault: 0, not_delivered: 0 });
@@ -411,6 +467,7 @@ function renderAccountPool(source, configuration, kind) {
 
 function renderToken(source, configuration) {
   const c = configuration || {};
+  if (source.id === 'ext_ths') return `<p>Mac 使用同花顺官方 HTTP 接口。已有 Windows SDK 账号可先在超级命令“工具 → refresh_token 查询”或<a href="https://quantapi.10jqka.com.cn/gwstatic/static/ds_web/super-command-web/index.html#/AccountDetails" target="_blank" rel="noopener noreferrer">官方账号详情</a>查看现有值。先不要更新 token，以免影响其他环境。</p><form class="connection-config-form" data-connection-config="ext_ths" autocomplete="off">${field('现有 refresh_token','refresh_token','',{type:'password',hint:c.secret_configured?'（已保存，留空保留）':'',placeholder:'只在本机提交，不进入聊天或日志'})}<details><summary>已有 access_token / 兼容配置</summary>${field('Access Token 或凭据 JSON','api_key','',{type:'password'})}</details>${formActions(source,c,{metered:true})}<button class="button" type="button" data-verify-source-auth="ext_ths">验证 HTTP 授权（不取数据）</button>${c.authorization_check?.status === 'authenticated' ? '<p role="status" class="notice success">HTTP 授权交换成功；尚未验证具体数据权限，未执行取数或更新 token。</p>' : ''}</form>`;
   const label = tokenLabels[source.id] || 'API Key';
   return `<form class="connection-config-form" data-connection-config="${e(source.id)}" autocomplete="off">${field(label, tokenFields[source.id], '', { type: 'password', hint: c.secret_configured ? '（已保存，留空保留）' : '（留空保留）', placeholder: '仅本次提交使用' })}${formActions(source, c, { metered: ['tushare', 'tavily', 'bing'].includes(source.id) })}</form>`;
 }
@@ -545,7 +602,7 @@ function renderDetail(source, configuration, connections, { drawer = false } = {
   else if (source.id === 'local_cache' || source.group === 'local') body = renderIntegration(connections?.platform);
   else body = renderUnavailable(source);
   const close = drawer ? '<button class="connection-detail-close" type="button" data-connection-detail-close aria-label="关闭数据源详情">×</button>' : '';
-  return `<section class="connection-detail ${drawer ? 'connection-drawer' : ''}" ${drawer ? 'id="connection-detail" data-connection-drawer' : ''} aria-labelledby="connection-title"><header class="connection-detail-header"><div><p class="eyebrow">${e(authLabel(source))}</p><h2 id="connection-title" tabindex="-1">${e(sourceName(source))}</h2><p class="muted">${e(source.description || '')}</p></div>${close}</header>${renderStateMatrix(source)}${renderSourceFailure(source)}${renderAutoProbeConsent(source)}${body}</section>`;
+  return `<section class="connection-detail ${drawer ? 'connection-drawer' : ''}" ${drawer ? 'id="connection-detail" data-connection-drawer' : ''} aria-labelledby="connection-title"><header class="connection-detail-header"><div><p class="eyebrow">${e(authLabel(source))}</p><h2 id="connection-title" tabindex="-1">${e(sourceName(source))}</h2><p class="muted">${e(source.description || '')}</p></div>${close}</header>${renderStateMatrix(source)}${renderExecutionEvidence(source)}${renderSourceFailure(source)}${renderAutoProbeConsent(source)}${body}</section>`;
 }
 
 function renderMigration(migration, open) {
@@ -575,6 +632,7 @@ export function buildConfigurationPayload(sourceId, values) {
   }
   if (sourceId === 'wind') return { preferred_adapter: trim(values, 'preferred_adapter') || 'auto' };
   if (tokenLabels[sourceId]) {
+    if (sourceId === 'ext_ths' && trim(values,'refresh_token')) return {api_key:JSON.stringify({refresh_token:trim(values,'refresh_token')})};
     const secretField = tokenFields[sourceId]; const token = trim(values, secretField);
     return token ? { [secretField]: token } : {};
   }

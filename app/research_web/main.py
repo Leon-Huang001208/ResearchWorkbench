@@ -428,8 +428,8 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
                 )
             )
             try:
-                from .datahub.providers_cjpy import active_futures
                 from .datahub.providers_wind_api import activity_witness
+                from .datahub.worker_activity import active_futures
 
                 history_jobs = research.store.data.get("asset_history_jobs", {})
                 history_active = not isinstance(history_jobs, dict) or any(
@@ -462,6 +462,8 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
                     not isinstance(row, dict) or row.get("status") not in terminal_reports
                     for row in report_runs.values()
                 )
+                datahub = research.datahub
+                storage_runner = getattr(datahub, "storage_runner", None)
                 active = bool(
                     active
                     or history_active
@@ -470,7 +472,8 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
                     or market["active"]
                     or report_active
                     or getattr(report_runtime, "tasks", {})
-                    or getattr(getattr(research, "datahub", None), "tasks", {})
+                    or any(not task.done() for task in datahub.tasks.values())
+                    or (storage_runner is not None and storage_runner.active)
                 )
             except Exception as exc:  # noqa: BLE001 - unknown activity must fail closed
                 # Unknown worker activity must never certify a safe resident stop.

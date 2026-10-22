@@ -46,17 +46,17 @@
     },
     {
       "id": "04-data-file-flow",
-      "artifactSha256": "aa52059b4e962f162931f1534eb93f8f920580f70b125fd260edcffd4bd2d35f",
-      "specificationSha256": "37cb3940a49ca24395af111625fe67b144c0370d28e135dc45e2bf2edb1fe939",
+      "artifactSha256": "b37568b6524dc1cef607d0ae177fe07fb18ee4613acdbbfde90185ab623bfc9b",
+      "specificationSha256": "7d6700699529ba43e53f6cd6eccd1b9dfba812a982e46fb599e78fbccfcafed9",
       "status": "reviewed",
-      "reviewer": "Codex documentation implementer (image inspection)",
+      "reviewer": "Codex implementation reviewer (actual image inspection)",
       "date": "2026-10-22",
       "captures": [
-        "04-data-file-flow.visual-check.1440x900.dark.png",
-        "04-data-file-flow.visual-check.2048x1320.light.png"
+        "04-data-file-flow.visual-check.1440x900.light.png",
+        "04-data-file-flow.visual-check.2048x1320.dark.png"
       ],
       "findings": [],
-      "notes": "已实际查看本次最终1440深色和2048浅色截图；任务/偏好模块、固定复权原始行/因子与规范快照文字清晰，无穿过不相关节点、遮挡或裁剪。四视口自动包含性及深浅截图另由同HTML哈希visual-check绑定；不改自动visualReview pending，也不把架构图检查当产品浏览器验收。"
+      "notes": "已实际查看最终1440浅色和2048深色截图；新增可选PG/修订/PIT/冻结、等价切换与前台超时/实际排空说明可见，无节点裁剪或关系线穿过节点。图仍保留原宽画布布局；自动visualReview pending不篡改，截图检查不能代替认证产品页面验收。"
     },
     {
       "id": "06-run-state",
