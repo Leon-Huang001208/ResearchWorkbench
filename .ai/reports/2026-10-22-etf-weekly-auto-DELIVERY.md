@@ -56,6 +56,18 @@ Client API。实际预检发现Wind.app 26.5.3已运行，但Python无WindPy；[
 `w.start/stop`或Office刷新。API权益仍为 **UNKNOWN**，API/Excel对照 **NOT_RUN**，不能写成
 账户已被拒绝授权。原始来源、哈希和本机证据保存在主任务`logs/etf-weekly/wind-precheck/`。
 
+PR183首轮候选`8e55a9d16`：Project Constraints通过；macOS Bootstrap通过（job543秒、
+含排队run1147秒）；Research Web Checks失败（13 failed、2510 passed、28 skipped、22 errors，
+job647秒）。三门实际checkout均为`93546a2ae850636b9b23ac664b224c148a4a2813`，父提交
+为基线`99d3ee349`和候选`8e55a9d16`。完整日志和元数据保存在`logs/etf-weekly/ci-evidence/`。
+
+已按实证只修三份测试：缺xlwings用例明确模拟受支持宿主，另测不支持平台的严格拒绝；报告
+集成测试使用独立内存钥匙串并保留真实系统后端不可用的拒绝回归；旧resident桩显式声明市场
+空闲前置条件并新增缺失见证仍未知的回归。生产源码和质量/权限/空闲硬门未改。实际本机报告
+两模块84通过、resident53通过、API边界11通过；Mac受控Linux/无钥匙串模拟下原22集成业务
+和新2凭据边界24通过，此模拟不认证Ubuntu。修补后的精确候选CI仍须重新运行并独立记录，
+不能继承首轮Mac通过为新候选通过。
+
 <!-- architecture-review {"group":"ui","structure":"unchanged","reason":"在既有能力中心和Claw详情投影周报状态与入口，保留原单页导航及Host请求链","diagrams":[]} -->
 <!-- architecture-review {"group":"research-api","structure":"unchanged","reason":"新增周报准备路由仍由原FastAPI和ResearchService处理，不增加独立API服务或执行引擎","diagrams":[]} -->
 <!-- architecture-review {"group":"datahub","structure":"unchanged","reason":"封闭Client API适配与取数仍通过原私有DataHub及快照交接，不新增跨租户通道或数据服务","diagrams":[]} -->
