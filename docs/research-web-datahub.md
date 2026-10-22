@@ -354,7 +354,16 @@ ProviderBinding按dataset发布已审阅的语义；未知频率/单位/历史�
 出口固定为目录内注册的 URL 与方法，拒绝重定向；单响应 1MiB、行数上限 5000，超限保留 `row_limit` 说明。
 供应商 HTTP 200 但错误码非零、密钥反弹（凭据出现在响应正文）都失败关闭，不写入快照。四个凭据来源
 `ext_ths`、`ext_daole`、`ext_tikhub`、`ext_cicc` 只经 DataHub 凭据后端读取秘密；其中 `ext_ths` 支持用
-`refresh_token` 在 Provider 内换取 access token，换取与业务响应的密钥均不进入参数、结果或日志。
+`refresh_token` 在 Provider 内换取 access token。已保存非空、有界 `access_token` 时优先使用，
+只有 refresh-only 配置才交换；业务 401 不自动重试、轮换或回写凭据。换取与业务响应的密钥均不进入参数、结果或日志。
+
+显式 QuantAPI 授权验证对已有 access token（包括旧式纯字符串）只向固定 HTTPS
+`https://quantapi.51ifind.com/ds_service_basic/api/v1/get_limit_policy` 发一次 GET，
+不跟随重定向、不读取代理环境，总预算12秒，单响应沿用1MiB上限。只接受原生顶层六字段政策形状：
+`user_type`／`user_type_cn` 为非空字符串，`qps_limit`／`request_data_limit`／`data_volume_limit`／
+`data_range_limit` 为对象；失败、未知形状或秘密反射拒绝认证，不返回用户类型、限额、厂商错误正文或凭据。
+refresh-only 配置保持一次显式交换验证。两条路径始终返回 `data_queries=0`、
+`data_permission_verified=false`、`token_rotated=false`；元数据认证成功不证明任何市场数据权限。
 
 状态语义：`code_exists` 表示来源在清单中已登记；`integration_completed` 表示已有按需取数适配；
 `configured` 对公开来源为真、对凭据来源仅在秘密已保存时为真。外部来源的探测只报告配置与适配状态，不向上游发请求，

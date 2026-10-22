@@ -327,9 +327,7 @@ async def bounded_response(
         )
 
 
-async def credentials(
-    client: httpx.AsyncClient, source_id: str, connections: Any
-) -> tuple[str, list[str]]:
+async def _source_secret(connections: Any, source_id: str) -> str:
     if connections is None:
         raise ProviderError("blocked_config")
     try:
@@ -338,63 +336,123 @@ async def credentials(
         raise ProviderError("blocked_config") from None
     if not isinstance(secret, str) or not secret:
         raise ProviderError("blocked_config")
-    if source_id != "ext_ths":
-        return secret, [secret]
-    # Access-token rotation stays inside the provider, never in dataset rows.
+    return secret
+
+
+def _quantapi_configuration(secret: str) -> tuple[str | None, str | None]:
+    """Accept bounded opaque tokens, without exposing configuration in errors."""
     try:
-        config = json.loads(secret) if secret.startswith("{") else {"access_token": secret}
+        if len(secret) > 16384:
+            raise ValueError
+        value = secret.strip()
+        config = json.loads(value) if value.startswith(("{", "[")) else {"access_token": value}
         if not isinstance(config, dict):
-            raise ProviderError("vendor_auth_failed")
-        refresh = config.get("refresh_token")
-        if refresh:
-            if not isinstance(refresh, str):
-                raise ProviderError("vendor_auth_failed")
-            raw, _, _ = await bounded_response(
-                client,
-                "POST",
-                "https://quantapi.51ifind.com/api/v1/get_access_token",
-                headers={"refresh_token": config["refresh_token"]},
-            )
-            body = json.loads(raw)
-            if not isinstance(body, dict) or not isinstance(body.get("data"), dict):
-                raise ProviderError("vendor_auth_failed")
-            token = body["data"].get("access_token")
-            if body.get("errorcode", 0) != 0 or not isinstance(token, str) or not token:
-                raise ProviderError("vendor_auth_failed")
-            return token, [secret, refresh, token]
-        token = config["access_token"]
-        if not isinstance(token, str) or not token:
-            raise ProviderError("vendor_auth_failed")
-        return token, [secret, token]
+            raise TypeError
+        tokens = []
+        for key in ("access_token", "refresh_token"):
+            token = config.get(key)
+            if token is not None and (
+                not isinstance(token, str)
+                or len(token) > 4096
+                or any(ord(char) < 33 or ord(char) > 126 for char in token)
+            ):
+                raise ValueError
+            tokens.append(token or None)
+        if not any(tokens):
+            raise ValueError
+        return tokens[0], tokens[1]
+    except (TypeError, ValueError):
+        raise ProviderError("vendor_auth_failed") from None
+
+
+async def _quantapi_credentials(client: httpx.AsyncClient, secret: str) -> tuple[str, list[str]]:
+    token, refresh = _quantapi_configuration(secret)
+    sensitive = [value for value in (secret, token, refresh) if value]
+    if token:
+        return token, sensitive
+    try:
+        raw, _, _ = await bounded_response(
+            client,
+            "POST",
+            "https://quantapi.51ifind.com/api/v1/get_access_token",
+            headers={"refresh_token": refresh},
+        )
+        body = json.loads(raw)
+        if not isinstance(body, dict) or not isinstance(body.get("data"), dict):
+            raise TypeError
+        token, _ = _quantapi_configuration(
+            json.dumps({"access_token": body["data"].get("access_token")})
+        )
+        if body.get("errorcode", 0) != 0 or not token:
+            raise ValueError
+        return token, [*sensitive, token]
     except (KeyError, TypeError, ValueError):
         raise ProviderError("vendor_auth_failed") from None
 
 
+async def credentials(
+    client: httpx.AsyncClient, source_id: str, connections: Any
+) -> tuple[str, list[str]]:
+    secret = await _source_secret(connections, source_id)
+    if source_id != "ext_ths":
+        return secret, [secret]
+    return await _quantapi_credentials(client, secret)
+
+
 async def verify_quantapi_authorization(connections, *, transport=None):
-    """Explicit refresh-token exchange only; never rotate tokens or read data."""
+    """Verify existing access via metadata, or exchange a refresh-only config."""
     try:
-        secret = await asyncio.to_thread(connections.read_source_secret, "ext_ths")
-        configuration = json.loads(secret)
-        if (
-            not isinstance(configuration, dict)
-            or not isinstance(configuration.get("refresh_token"), str)
-            or not configuration["refresh_token"]
-            or len(configuration["refresh_token"]) > 4096
+        async with (
+            asyncio.timeout(12),
+            httpx.AsyncClient(
+                transport=transport, timeout=8, follow_redirects=False, trust_env=False
+            ) as client,
         ):
-            raise ProviderError("refresh_token_required")
-    except ProviderError:
-        raise
-    except Exception:  # noqa: BLE001 - configuration and credential errors are never echoed.
-        raise ProviderError("refresh_token_required") from None
-    async with (
-        asyncio.timeout(12),
-        httpx.AsyncClient(
-            transport=transport, timeout=8, follow_redirects=False, trust_env=False
-        ) as client,
-    ):
-        token, _sensitive = await credentials(client, "ext_ths", connections)
-        if not token:
-            raise ProviderError("vendor_auth_failed")
+            secret = await _source_secret(connections, "ext_ths")
+            access, _refresh = _quantapi_configuration(secret)
+            token, sensitive = await _quantapi_credentials(client, secret)
+            if access:
+                raw, _, _ = await bounded_response(
+                    client,
+                    "GET",
+                    "https://quantapi.51ifind.com/ds_service_basic/api/v1/get_limit_policy",
+                    headers={"access_token": token},
+                )
+                policy = json.loads(raw)
+                fields = {
+                    "user_type",
+                    "user_type_cn",
+                    "qps_limit",
+                    "request_data_limit",
+                    "data_volume_limit",
+                    "data_range_limit",
+                }
+                if (
+                    not isinstance(policy, dict)
+                    or set(policy) != fields
+                    or any(
+                        not isinstance(policy[key], str) or not policy[key]
+                        for key in ("user_type", "user_type_cn")
+                    )
+                    or any(
+                        not isinstance(policy[key], dict)
+                        for key in fields - {"user_type", "user_type_cn"}
+                    )
+                    or _rows_reflect_credentials(policy, sensitive)
+                ):
+                    raise ProviderError("vendor_auth_failed")
+    except (ProviderError, httpx.HTTPError, TimeoutError, ValueError) as exc:
+        reason = (
+            str(exc)
+            if isinstance(exc, ProviderError)
+            and str(exc) in {"blocked_config", "redirect_denied", "response_size_limit"}
+            else "vendor_auth_failed"
+        )
+        log.warning("quantapi_authorization_failed", reason=reason)
+        raise ProviderError(reason) from None
+    log.info(
+        "quantapi_authorization_verified", method="limit_policy" if access else "refresh_exchange"
+    )
     return {
         "status": "authenticated",
         "data_permission_verified": False,
