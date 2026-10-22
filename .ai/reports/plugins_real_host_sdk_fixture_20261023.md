@@ -49,3 +49,11 @@ Root 在 macOS 以源码检查点 `7e156fb9c` 启动上述独立 18991 实例，
 独立质量复审在 `c88ecac3f3e2b0d363fe57dcac7abaea453b2f79` 用固定 DSH `7ecf564f2e09b829240c5553687223bdd1e2df73` 的真实 Context/SystemPrompt/ToolRuntime 执行原 MCP adapter，经自有18996 HTTP Host、逐次调用审批、官方 SDK 和 Seatbelt 返回 `RWB_REAL_SDK_CANARY_20261022:native-bridge`，11.71秒通过。仅一次adapter HTTP调用，模型为0；Python/Node/自有服务器及7个SDK子进程均退出，scratch回收，端口可重新绑定。私有回执 `/private/tmp/rwb-nativebridge-quality-_z64gg3t/bridge-evidence.json` SHA-256 `08a39828c09c37ed2c7e23ab8c2bae291e107cb2d9b2a4f51002baddca4bd0a3`。该结果证明固定ToolRuntime组件的真实工具桥，不等同完整DSH服务、浏览器触发调用或模型验收。
 
 PR191首轮Checks `39815289736` 在JavaScript合同失败：新增插件页签后，旧methods测试仍把End键末项断言为data（实际plugin）。本机单模块已重现失败，仅修正该断言并补Home返回skill，保留方法页原只读/十条/选择与重试用例；未改产品导航或削弱权限门。原失败日志保留于 `logs/plugins-final/methods-keyboard-before.log` 和 `/tmp/rwb-plugin-ci-checks-failed.log`，完整JavaScript合同及新候选原必需门仍须重验，不将旧CI改写为通过。
+
+## 最终页面审批复审修正
+
+`4ac8ba42` 的三CI均成功且同preview `c38c59428a039d84372c8939695eaa7d7bb1f35a`，但新增的独立JavaScript终审发现两项P2，合并因此停止：服务器普通MCP入口封闭，而插件页没有单次调用批准/拒绝；切换共享/个人范围保留旧mcpKey，页面所选和实际请求可不一致。原HTTP验收直接调用decide，不能覆盖缺失的页面入口。
+
+Root只补插件页专用待审队列、按当前插件/组件/用户会话的approvals与decide、上下文清理及异步回包复核，不放宽后端授权。事件级测试先出现两项RED，修正后approve/deny、陌生会话/过期行拒绝、scope/自动选择及成功import的新旧上下文清理共8项PASS；import残余由SPEC事件harness先证明旧preview/snapshot/queue残留，再补reset和回归。SPEC和独立TypeScript质量复审均PASS。
+
+冻结UI源码SHA-256 `f21bcb91a4c8c89143ed1584649848a4aa853b0c75c2ee69224365ba2ea24294`，UI测试 `3b31eaa744109995ddcf9f645cd7f5c91e1020084b17f147a218843860f9b77e`。待root在新源码提交上执行真实浏览器approve/deny及SDK结果；新候选完整本地门与CI另行取证，不能沿用4ac三CI声称最终通过。

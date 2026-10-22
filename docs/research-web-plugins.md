@@ -99,6 +99,12 @@ Python/runtime/精确链接库和安装树摘要；启动、探测、工具调�
 固定 manifest/config/artifact/schema 快照。工具 schema 漂移、安装字节变更、源审批撤销会
 使后续启动/探测/调用失败关闭。遗留非受管 active 清单不能因此自动获准启动。
 
+插件页提供单独的待审工具调用队列：选择当前用户会话后，通过当前插件/组件的
+`approvals` 与 `decide` 刷新、批准或拒绝，服务器不依赖已封闭的普通MCP管理接口。
+参数正文不在页面显示，批准仍绑定单次调用、会话、安装、版本、schema和输入摘要。
+切换范围、插件版本、组件、自动更换选中项或导入新包均清除旧确认/快照/调用队列；
+异步MCP回包还核对原上下文，不能把旧组件响应回填到新的选择。
+
 服务器启停采用 `stage → freeze → replace owned DSH → commit → unfreeze`：stage 保存候选
 active 清单，但当前 Host 的 `_active` 与 grants 不提前变成成功；回包并释放 gateway 请求
 出生租约后，Pool 才冻结此用户的新请求。后端先落原生 guard birth fence，再核实 HTTP

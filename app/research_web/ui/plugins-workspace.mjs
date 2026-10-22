@@ -6,6 +6,12 @@ const support = { supported: '支持', limited: '有限支持', unsupported: '�
 const reasons = {mcp_offline_python_sandbox_required:'仅支持 macOS 离线 Python MCP；禁网络、子进程与供应商凭据，需独立沙箱权限审核',mcp_managed_local_process_isolation_required:'受管本地 MCP 缺少操作系统进程隔离，保持停用；可使用固定远程端点',review_required:'等待本版本权限审核',native_discovery_pending:'等待 DSH 确认发现原生能力',native_preview_confirmation_required:'等待原生安装预览与确认',native_tool_session_authorization_required:'实际工具仍需当前会话授权',native_validation_failed:'未通过现有能力校验',component_path_missing:'声明的组件路径不存在',component_declaration_unsupported:'组件声明格式尚未适配',host_hook_scripts_require_os_sandbox_and_event_review:'当前宿主 Hook 尚未适配，保持停用',hook_semantics_unsupported:'此 Hook 事件或行为尚未适配',os_sandbox_unavailable:'当前平台缺少操作系统沙箱，保持停用',macos_seatbelt_shell_builtins_only:'macOS 沙箱 Shell 子集，禁网络与外部进程',host_specific_extension:'宿主专用扩展尚未适配',host_execution_or_configuration_unsupported:'宿主执行或配置变更尚未适配',native_registry_selection_required:'需要映射到原生固定版本 Registry 安装',plugin_instruction_semantics_unsupported:'指令含未适配的宿主权限或执行语法'};
 const button = (action, label, busy, extra = '') => `<button type="button" class="button${action === 'uninstall' ? ' danger-outline' : ''}" data-plugin-action="${action}" ${busy ? 'disabled' : ''} ${extra}>${label}</button>`;
 
+function renderCallApprovals(state) {
+  const session = state.approvalSessionId || '';
+  const pending = list(state.mcpApprovals).filter(item => item.status === 'pending' && item.session_id === session);
+  return `<section class="plugin-call-approvals"><h4>待审工具调用</h4><label>待审批会话 <select data-plugin-approval-session ${state.busy ? 'disabled' : ''}><option value="">选择当前用户的研究会话</option>${list(state.sessions).map(item => `<option value="${e(item.id)}" ${item.id === session ? 'selected' : ''}>${e(item.title || item.id)}</option>`).join('')}</select></label>${button('mcp-approvals', '刷新待审调用', state.busy || !session)}<p class="muted">批准仅适用于本次调用、所选会话及已锁定的工具和输入摘要；参数正文不会在此显示。</p>${pending.map(item => `<article class="plugin-tool"><strong>${e(item.tool_name)}</strong><small>v${e(item.version)}</small><div class="button-row">${button('mcp-call-deny', '拒绝本次调用', state.busy, `data-approval="${e(item.id)}"`)}${button('mcp-call-approve', '批准本次调用', state.busy, `data-approval="${e(item.id)}"`)}</div></article>`).join('') || (session ? '<p class="muted">当前会话没有待审调用。</p>' : '')}</section>`;
+}
+
 export function renderPluginWorkspace(state) {
   const item = state.items.find(row => row.digest === state.selected);
   const admin = !state.user || state.user.role === 'admin';
@@ -32,17 +38,20 @@ export function renderPluginWorkspace(state) {
       ${mcp.length ? `<hr><h3>此插件的 MCP</h3><label>组件 <select data-plugin-mcp ${busy ? 'disabled' : ''}>${mcp.map(component => `<option value="${e(component.key)}" ${component.key === selectedMCP?.key ? 'selected' : ''}>${e(component.key)}</option>`).join('')}</select></label><p class="muted">包审批、原生安装确认、实际字节/schema 审批、启用和会话授权各自保留。macOS 受管本地 MCP 仅开放离线 Python，安装包只读、独立临时目录可写，禁止网络、子进程与供应商凭据；其他本地运行方式保持停用。固定远程端点保留原审核流程。服务器 OAuth 回调尚未适配；需要 OAuth 的连接保持未就绪。</p><div class="button-row">${button('mcp-preview', '生成原生安装预览', busy || localMCPBlocked || !item.review)}${button('mcp-probe', '探测已安装组件', busy || localMCPBlocked)}${button('mcp-status', '查看当前工具与审批快照', busy)}${button('mcp-enable', '空闲时启用 MCP', busy || localMCPBlocked)}${button('mcp-disable', '停用 MCP', busy)}</div>
       ${state.mcpPreview && !localMCPBlocked ? `<form data-plugin-mcp-install><h4>确认此固定安装计划</h4><pre>${e(JSON.stringify(state.mcpPreview.plan, null, 2))}</pre>${list(state.mcpPreview.plan?.environment_names).map(name => `<label>${e(name)} <input type="password" name="${e(name)}" autocomplete="off" required ${busy ? 'disabled' : ''}></label>`).join('')}<button class="button primary" type="submit" ${busy ? 'disabled' : ''}>确认原生安装</button></form>` : ''}
       ${state.mcpSnapshot ? `<h4>实际安装与工具快照</h4><pre>${e(JSON.stringify(state.mcpSnapshot.fingerprint, null, 2))}</pre>${!state.user && admin ? button('mcp-review', '审核并锁定这份工具 schema', busy) : ''}${tools.map(tool => `<article class="plugin-tool"><strong>${e(tool.name)}</strong><p>${e(tool.description || '')}</p><code>${e(tool.schema_sha256 || 'schema 尚未登记')}</code>${admin ? `<label>人工风险分类 <select data-plugin-risk="${e(tool.name)}" ${busy ? 'disabled' : ''}>${['read_only', 'private_data', 'external_write_high_risk'].map(risk => `<option value="${risk}" ${tool.risk_tier === risk ? 'selected' : ''}>${risk}</option>`).join('')}</select></label>${button('mcp-classify', '保存此工具风险分类', busy, `data-tool="${e(tool.name)}"`)}` : ''}<form data-plugin-authorize data-tool="${e(tool.name)}"><label>授权到已有会话 <select name="session_id" required ${busy ? 'disabled' : ''}><option value="">选择当前用户的研究会话</option>${state.sessions.map(session => `<option value="${e(session.id)}">${e(session.title || session.id)}</option>`).join('')}</select></label><button class="button" type="submit" ${busy || !tool.schema_sha256 ? 'disabled' : ''}>授予这个会话的固定工具权限</button></form></article>`).join('')}` : ''}` : ''}
+      ${mcp.length ? renderCallApprovals(state) : ''}
     ` : ''}</div></div>
     ${state.user?.role === 'admin' ? `<section><h3>待审的个人 MCP 实际快照</h3>${state.pending.map(review => `<article class="plugin-tool"><p>用户 ${e(review.owner)} · 组件 ${e(review.component)}</p><pre>${e(JSON.stringify(review.snapshot, null, 2))}</pre>${button('approve-native', '批准这份固定快照', busy, `data-review="${e(review.id)}"`)}</article>`).join('') || '<p class="muted">暂无待审快照。用户探测组件后，由服务器生成锁定用户和安装的待审记录。</p>'}</section>` : ''}
   </section>`;
 }
 
 export function createPluginWorkspace({ root, user = null, fetcher = globalThis.fetch.bind(globalThis), logger = () => {} } = {}) {
-  const state = { user, scope: 'shared', items: [], runtimeItems: [], sessions: [], pending: [], selected: '', grants: new Set(), busy: false, error: '', message: '', mcpKey: '', mcpPreview: null, mcpSnapshot: null, sourcePrefix: '', file: null };
+  const state = { user, scope: 'shared', items: [], runtimeItems: [], sessions: [], pending: [], selected: '', grants: new Set(), busy: false, error: '', message: '', mcpKey: '', mcpPreview: null, mcpSnapshot: null, mcpApprovals: [], approvalSessionId: '', sourcePrefix: '', file: null };
   let panel = null, loaded = false, epoch = 0;
   const sourcePrefix = () => user ? `/api/server/plugins/${state.scope}` : '/api/research/plugins';
   const selected = () => state.items.find(item => item.digest === state.selected);
-  const mcpKey = () => state.mcpKey || list((state.runtimeItems.find(item => item.digest === state.selected) || selected())?.components).find(component => component.kind === 'mcp' && component.selection)?.key;
+  const mcpComponents = () => list((state.runtimeItems.find(item => item.digest === state.selected) || selected())?.components).filter(component => component.kind === 'mcp' && component.selection);
+  const mcpKey = () => mcpComponents().find(component => component.key === state.mcpKey)?.key || mcpComponents()[0]?.key;
+  function resetMCP() { state.mcpKey = ''; state.mcpPreview = null; state.mcpSnapshot = null; state.mcpApprovals = []; state.approvalSessionId = ''; }
   function paint() { if (panel?.isConnected) { state.sourcePrefix = sourcePrefix(); panel.innerHTML = renderPluginWorkspace(state); } }
   async function request(path, method = 'GET', body) {
     const abort = new AbortController();
@@ -69,7 +78,8 @@ export function createPluginWorkspace({ root, user = null, fetcher = globalThis.
     const problems = results.slice(1).filter(result => result.status === 'rejected');
     if (problems.length) state.message = '部分 Host/会话/审批状态读取失败，未标为就绪。';
     if (results[1].status === 'fulfilled' && Object.keys(results[1].value.deferred_updates || {}).length) state.message = '插件更新等待当前 MCP 安全停用与空闲激活；已有会话继续使用仍获批准的固定版本。';
-    if (!state.items.some(item => item.digest === state.selected)) state.selected = state.items[0]?.digest || '';
+    if (!state.items.some(item => item.digest === state.selected)) { state.selected = state.items[0]?.digest || ''; state.grants.clear(); resetMCP(); }
+    if (state.approvalSessionId && !state.sessions.some(item => item.id === state.approvalSessionId)) { state.approvalSessionId = ''; state.mcpApprovals = []; }
     loaded = true;
   }
   async function operation(run) {
@@ -80,30 +90,42 @@ export function createPluginWorkspace({ root, user = null, fetcher = globalThis.
     catch (error) { if (ticket === epoch) state.error = error.message; }
     finally { state.busy = false; if (ticket === epoch) paint(); }
   }
-  const mcp = (action, body = {}) => {
+  const mcp = async (action, body = {}) => {
     const key = mcpKey();
     if (!key) throw new Error('此版本没有可映射的 MCP 组件。');
-    const prefix = user ? `/api/server/plugins/mcp/${state.selected}/${key}` : `/api/research/plugins/${state.selected}/mcp/${key}`;
-    return request(`${prefix}/${action}`, 'POST', body);
+    const ticket = epoch, scope = state.scope, digest = state.selected;
+    const prefix = user ? `/api/server/plugins/mcp/${digest}/${encodeURIComponent(key)}` : `/api/research/plugins/${digest}/mcp/${encodeURIComponent(key)}`;
+    const value = await request(`${prefix}/${action}`, 'POST', body);
+    if (ticket !== epoch || scope !== state.scope || digest !== state.selected || key !== mcpKey()) throw new Error('插件上下文已改变，请重新读取状态。');
+    return value;
   };
+  async function loadApprovals() {
+    const session = state.approvalSessionId;
+    if (!session || !state.sessions.some(item => item.id === session)) throw new Error('请先选择当前用户的研究会话。');
+    const value = await mcp('approvals', {session_id: session});
+    if (!Array.isArray(value.items)) throw new Error('待审状态响应不完整，请刷新核实。');
+    if (state.approvalSessionId === session) state.mcpApprovals = list(value.items).filter(item => item.status === 'pending' && item.session_id === session);
+  }
   root.addEventListener('change', event => {
     if (!panel?.contains(event.target)) return;
     event.stopImmediatePropagation();
+    if (state.busy) return;
     if (event.target.matches('[data-plugin-import] input[type="file"]')) state.file = event.target.files?.[0] || null;
     if (event.target.matches('[data-plugin-grant]')) {
       const grant = selected()?.permissions[Number(event.target.dataset.pluginGrant)];
       if (grant) { if (event.target.checked) state.grants.add(grant); else state.grants.delete(grant); }
       paint();
     }
-    if (event.target.matches('[data-plugin-mcp]')) { state.mcpKey = event.target.value; state.mcpPreview = null; state.mcpSnapshot = null; paint(); }
-    if (event.target.matches('[data-plugin-scope]')) { state.scope = event.target.value === 'personal' ? 'personal' : 'shared'; state.selected = ''; state.grants.clear(); state.mcpPreview = null; state.mcpSnapshot = null; state.file = null; void operation(load); }
+    if (event.target.matches('[data-plugin-mcp]')) { resetMCP(); state.mcpKey = event.target.value; paint(); }
+    if (event.target.matches('[data-plugin-approval-session]')) { state.approvalSessionId = state.sessions.some(item => item.id === event.target.value) ? event.target.value : ''; state.mcpApprovals = []; paint(); }
+    if (event.target.matches('[data-plugin-scope]')) { state.scope = event.target.value === 'personal' ? 'personal' : 'shared'; state.selected = ''; state.grants.clear(); resetMCP(); state.file = null; void operation(load); }
   });
   root.addEventListener('input', event => { if (panel?.contains(event.target)) event.stopImmediatePropagation(); });
   root.addEventListener('click', event => {
     if (panel?.contains(event.target)) event.stopImmediatePropagation();
     const target = event.target.closest('[data-plugin-action], [data-plugin-select]');
     if (!target || !panel?.contains(target) || state.busy) return;
-    if (target.dataset.pluginSelect) { state.selected = target.dataset.pluginSelect; state.grants.clear(); state.mcpPreview = null; state.mcpSnapshot = null; state.mcpKey = ''; paint(); return; }
+    if (target.dataset.pluginSelect) { state.selected = target.dataset.pluginSelect; state.grants.clear(); resetMCP(); paint(); return; }
     const action = target.dataset.pluginAction;
     if (action === 'reload') { void operation(load); return; }
     if (action === 'select-grants') { state.grants = new Set(selected()?.permissions || []); paint(); return; }
@@ -117,6 +139,17 @@ export function createPluginWorkspace({ root, user = null, fetcher = globalThis.
       if (action === 'mcp-status') { state.mcpSnapshot = await mcp('status'); return; }
       if (action === 'mcp-review') { await mcp('review', { expected: state.mcpSnapshot.fingerprint }); state.message = '已锁定实际字节、配置与 schema。'; return; }
       if (action === 'mcp-classify') { await mcp('classify', {tool_name: target.dataset.tool, risk_tier: risk, allow_unattended: false}); state.mcpSnapshot = await mcp('status'); return; }
+      if (action === 'mcp-approvals') { await loadApprovals(); state.message = `待审调用：${state.mcpApprovals.length} 项`; return; }
+      if (['mcp-call-approve', 'mcp-call-deny'].includes(action)) {
+        const approval = state.mcpApprovals.find(item => item.id === target.dataset.approval && item.session_id === state.approvalSessionId && item.status === 'pending');
+        if (!approval) throw new Error('待审调用已变化，请先刷新状态。');
+        const approve = action === 'mcp-call-approve';
+        await mcp('decide', {session_id: state.approvalSessionId, approval_id: approval.id, approve});
+        state.mcpApprovals = [];
+        logger('plugin_mcp_call_approval_decided', {decision: approve ? 'approved' : 'denied'});
+        state.message = approve ? '已批准本次调用；执行结果由原会话继续显示。' : '已拒绝本次调用。';
+        await loadApprovals(); return;
+      }
       if (action?.startsWith('mcp-')) { const result = await mcp(action.slice(4)); state.message = result.admin_review_id ? `等待管理员审核：${result.admin_review_id}` : `MCP：${result.status || '操作已完成，请检查 Host 状态'}`; }
     });
   });
@@ -135,7 +168,7 @@ export function createPluginWorkspace({ root, user = null, fetcher = globalThis.
     // Remove secret DOM values before any rerender/await; never persist them.
     form.querySelectorAll('input[type="password"]').forEach(input => { input.value = ''; });
     void operation(async () => {
-      if (form.matches('[data-plugin-import]')) { const file = data.get('file'); if (!file?.size || file.size > 10 * 1024 * 1024) throw new Error('请选择不超过 10 MiB 的插件 ZIP。'); state.file = null; const value = await request(sourcePrefix() + '/preview', 'POST', data); state.selected = value.digest; state.grants.clear(); state.message = '已安全预览，未执行任何包内脚本。'; }
+      if (form.matches('[data-plugin-import]')) { const file = data.get('file'); if (!file?.size || file.size > 10 * 1024 * 1024) throw new Error('请选择不超过 10 MiB 的插件 ZIP。'); state.file = null; const value = await request(sourcePrefix() + '/preview', 'POST', data); state.selected = value.digest; state.grants.clear(); resetMCP(); state.message = '已安全预览，未执行任何包内脚本。'; }
       else if (form.matches('[data-plugin-mcp-install]')) { state.mcpPreview = null; await mcp('install', {confirmation_token: token, environment_values: environmentValues}); state.message = '原生安装已完成；探测和实际 schema 审核仍待执行。'; }
       else if (tool && session) { const component = list((state.runtimeItems.find(item => item.digest === state.selected) || selected())?.components).find(item => item.key === mcpKey() && item.kind === 'mcp'); await mcp('authorize', {session_id: session, version: component.selection.server_version, tool_name: tool.name, schema_sha256: tool.schema_sha256}); state.message = '已由原生 MCP 授予此会话的固定工具权限。'; }
     });
