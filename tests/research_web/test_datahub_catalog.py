@@ -125,6 +125,7 @@ def test_catalog_contains_all_declared_sources_without_constructing_connectors(
         "trading_calendar",
         "market_bars",
         "market_snapshot",
+        "factor_macro",
     }
     assert tinysoft_bindings["fund_data"] is False
     akshare_bindings = {
@@ -1072,7 +1073,7 @@ def test_akshare_stock_snapshot_keeps_explicit_exchange_identity():
     [
         ("trading_calendar", {"market": "CN"}, "data_capability_unavailable"),
         ("index_data", {"index": "000300.SH", "dataset": "quotes"}, "data_capability_unavailable"),
-        ("factor_macro", {"series": "synthetic"}, "data_capability_not_integrated"),
+        ("factor_macro", {"series": "adjustment_metadata"}, "data_capability_unavailable"),
     ],
 )
 def test_unavailable_business_source_has_stable_code(

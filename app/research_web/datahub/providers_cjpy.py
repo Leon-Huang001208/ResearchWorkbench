@@ -14,6 +14,11 @@ from typing import Any
 
 from core.observability import get_logger
 
+from .adjustment_contract import (
+    FACTOR_DEFINITIONS,
+    contract_metadata,
+    validate_adjustment_parameters,
+)
 from .contracts import BusinessQuery
 from .providers import ProviderError, Result
 
@@ -24,9 +29,43 @@ MAX_ROWS = 5000
 SHANGHAI_TZ = timezone(timedelta(hours=8), name="Asia/Shanghai")
 _EXECUTOR = ThreadPoolExecutor(max_workers=1, thread_name_prefix="datahub-tinysoft")
 _CAPACITY = threading.BoundedSemaphore(1)
+_FUTURES: set[Future] = set()
+_FUTURES_LOCK = threading.Lock()
+
+
+def active_futures() -> tuple[Future, ...]:
+    """Read-only witness of SDK work still occupying the single provider worker."""
+    with _FUTURES_LOCK:
+        return tuple(future for future in _FUTURES if not future.done())
+
+
+async def wait_for_idle(*, timeout: float | None = None) -> bool:
+    """Wait for actual SDK completion; timeout/cancellation never cancels threads."""
+    futures = active_futures()
+    if not futures:
+        return True
+    try:
+        async with asyncio.timeout(timeout):
+            await asyncio.shield(
+                asyncio.gather(
+                    *(asyncio.wrap_future(future) for future in futures),
+                    return_exceptions=True,
+                )
+            )
+    except TimeoutError:
+        return False
+    return not active_futures()
+
+
+def _observe_async_future(future: asyncio.Future) -> None:
+    """Retrieve late SDK exceptions even after the caller timed out or cancelled."""
+    if not future.cancelled():
+        future.exception()
 
 
 def _release_capacity(_future: Future) -> None:
+    with _FUTURES_LOCK:
+        _FUTURES.discard(_future)
     try:
         _CAPACITY.release()
     except ValueError:
@@ -41,6 +80,8 @@ def _submit(query: BusinessQuery, token: str | None = None) -> Future | None:
     except Exception:
         _CAPACITY.release()
         raise
+    with _FUTURES_LOCK:
+        _FUTURES.add(future)
     future.add_done_callback(_release_capacity)
     return future
 
@@ -145,6 +186,136 @@ def _client(token: str | None = None):
     return DirectClient(token=token, timeout=15, verify=True)
 
 
+def _factor_date(value: Any, *, compact: bool = False) -> str:
+    if not isinstance(value, str):
+        raise ProviderError("factor_result_invalid")
+    pattern = r"[0-9]{8}" if compact else r"[0-9]{4}-[0-9]{2}-[0-9]{2}"
+    if re.fullmatch(pattern, value) is None:
+        raise ProviderError("factor_result_invalid")
+    if compact:
+        value = f"{value[:4]}-{value[4:6]}-{value[6:]}"
+    try:
+        parsed = date.fromisoformat(value)
+    except ValueError as exc:
+        raise ProviderError("factor_result_invalid") from exc
+    if parsed > datetime.now(SHANGHAI_TZ).date():
+        raise ProviderError("factor_result_invalid")
+    return value
+
+
+def _verify_factor_definitions(rows: list[dict]) -> None:
+    selected = {}
+    for row in rows:
+        name = row.get("因子名称")
+        if not isinstance(name, str):
+            raise ProviderError("factor_contract_unverified")
+        if name not in FACTOR_DEFINITIONS:
+            continue
+        if (
+            name in selected
+            or row.get("公式") != FACTOR_DEFINITIONS[name]
+            or any(row.get(key, "") not in (None, "") for key in ("说明", "描述"))
+        ):
+            raise ProviderError("factor_contract_unverified")
+        selected[name] = row
+    if set(selected) != set(FACTOR_DEFINITIONS):
+        raise ProviderError("factor_contract_unverified")
+
+
+def _normalized_factor_rows(
+    rows: list[dict], parameters: dict, requested_dates: list[str]
+) -> list[dict]:
+    asset = parameters["assets"][0]
+    vendor_code = canonical_vendor_code(asset)
+    requested = set(requested_dates)
+    seen: set[str] = set()
+    normalized = []
+    listing_dates = set()
+    series = parameters["series"]
+    for row in rows:
+        if set(row).difference({"截止日", "代码", "名称", "复权因子", "上市日期"}):
+            raise ProviderError("factor_result_invalid")
+        if row.get("代码") != vendor_code:
+            raise ProviderError("factor_result_invalid")
+        cutoff = _factor_date(row.get("截止日"), compact=True)
+        listing = _factor_date(row.get("上市日期"))
+        if cutoff not in requested or cutoff in seen or cutoff < listing:
+            raise ProviderError("factor_result_invalid")
+        seen.add(cutoff)
+        listing_dates.add(listing)
+        record = {"asset": asset, "listing_date": listing}
+        if series == "adjustment_factors":
+            value = row.get("复权因子")
+            if isinstance(value, bool) or not isinstance(value, (int, float)):
+                raise ProviderError("factor_result_invalid")
+            factor = float(value)
+            if not math.isfinite(factor) or factor <= 0 or (cutoff == listing and factor != 1.0):
+                raise ProviderError("factor_result_invalid")
+            record.update(date=cutoff, factor=factor)
+        normalized.append(record)
+    if seen != requested or len(listing_dates) != 1:
+        raise ProviderError("factor_result_invalid")
+    return sorted(normalized, key=lambda row: row.get("date", ""))
+
+
+def _sync_adjustment_query(query: BusinessQuery, sdk: Any, client: Any, token: str) -> Result:
+    try:
+        validate_adjustment_parameters(query.parameters)
+    except ValueError as exc:
+        raise ProviderError(str(exc)) from exc
+    metadata_call = getattr(sdk, "list_factors", None)
+    if not callable(metadata_call):
+        raise ProviderError("factor_contract_unverified")
+    try:
+        definitions = _rows(metadata_call(client=client))
+    except ProviderError as exc:
+        if str(exc) == "tinysoft_result_schema":
+            raise ProviderError("factor_contract_unverified") from exc
+        raise
+    if _contains_secret(definitions, token):
+        raise ProviderError("credential_reflection")
+    _verify_factor_definitions(definitions)
+    policy = contract_metadata()
+    result = Result(
+        source_url=SOURCE_URL,
+        provider_id="tinysoft",
+        metadata={"adjustment_contract": policy},
+        raw=[json.dumps(definitions, ensure_ascii=False, allow_nan=False).encode()],
+    )
+    parameters = query.parameters
+    series = parameters["series"]
+    if series == "adjustment_metadata":
+        result.rows = [dict(policy)]
+        result.fields = {key: {"unit": None, "currency": None} for key in policy}
+    else:
+        dates = (
+            parameters["dates"]
+            if series == "adjustment_factors"
+            else [datetime.now(SHANGHAI_TZ).date().isoformat()]
+        )
+        raw_rows = _rows(
+            sdk.get_factor_data(
+                code=canonical_vendor_code(parameters["assets"][0]),
+                date=dates,
+                factors=(
+                    ["复权因子", "上市日期"] if series == "adjustment_factors" else ["上市日期"]
+                ),
+                client=client,
+            )
+        )
+        if _contains_secret(raw_rows, token):
+            raise ProviderError("credential_reflection")
+        result.rows = _normalized_factor_rows(raw_rows, parameters, dates)
+        result.raw.append(json.dumps(raw_rows, ensure_ascii=False, allow_nan=False).encode())
+        result.fields = {
+            key: {"unit": "dimensionless" if key == "factor" else None, "currency": None}
+            for row in result.rows
+            for key in row
+        }
+    log.info("tinysoft_adjustment_normalized", series=series, row_count=len(result.rows))
+    return result
+
+
 def _sync_query(query: BusinessQuery, token: str | None = None):
     effective_token = _effective_token(token)
     client = _client(effective_token)
@@ -153,7 +324,18 @@ def _sync_query(query: BusinessQuery, token: str | None = None):
     except ImportError as exc:
         raise ProviderError("blocked_dependency") from exc
     parameters = query.parameters
-    if query.capability == "search_assets":
+    if query.capability == "factor_macro":
+        try:
+            return _sync_adjustment_query(query, cjpy, client, effective_token)
+        finally:
+            close = getattr(client, "close", None)
+            if callable(close):
+                try:
+                    close()
+                except Exception as exc:
+                    log.warning("tinysoft_client_close_failed", error_type=type(exc).__name__)
+                    raise ProviderError("provider_close_failed") from exc
+    elif query.capability == "search_assets":
         rows = _rows(cjpy.get_stocks(client=client))
         needle = str(parameters.get("query", "")).strip().casefold()
         if needle:
@@ -260,18 +442,25 @@ async def fetch(query: BusinessQuery, *, token: str | None = None) -> Result:
         log.warning("tinysoft_provider_busy", capability=query.capability)
         return result
     try:
+        wrapped_future = asyncio.wrap_future(future)
+        wrapped_future.add_done_callback(_observe_async_future)
         async with asyncio.timeout(DEADLINE):
-            result.rows = await asyncio.wrap_future(future)
-        result.raw = [json.dumps(result.rows, ensure_ascii=False).encode()]
-        result.raw_bytes = len(result.raw[0])
-        result.pages_fetched = 1
+            payload = await asyncio.shield(wrapped_future)
+        if isinstance(payload, Result):
+            result = payload
+        else:
+            result.rows = payload
+            result.raw = [json.dumps(result.rows, ensure_ascii=False).encode()]
+        result.raw_bytes = sum(len(part) for part in result.raw)
+        result.pages_fetched = len(result.raw)
         result.provider_total = len(result.rows)
         result.pagination_complete = True
         result.status = "complete" if result.rows else "empty"
         result.as_of = datetime.now(UTC).isoformat()
-        result.fields = {
-            key: {"unit": None, "currency": None} for row in result.rows for key in row
-        }
+        if not result.fields:
+            result.fields = {
+                key: {"unit": None, "currency": None} for row in result.rows for key in row
+            }
         result.limitations = [
             "天软返回字段保留供应商原值；未从元数据确认的单位不推断。",
             "专业数据权限和覆盖范围以当前本机账户为准。",

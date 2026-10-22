@@ -3,15 +3,15 @@
   "ok": true,
   "command": "deliver",
   "type": "dataflow",
-  "input": "/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/mysql-datahub-platform/docs/architecture/research-web/diagrams/04-data-file-flow.json",
-  "output": "/Users/leon/Desktop/Projects/ResearchWorkbench/.worktrees/mysql-datahub-platform/outputs/research-web-architecture/04-data-file-flow.html",
+  "input": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/wind-asset-workspace-20261022/docs/architecture/research-web/diagrams/04-data-file-flow.json",
+  "output": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/wind-asset-workspace-20261022/outputs/research-web-architecture/04-data-file-flow.html",
   "specification": {
-    "sha256": "e22d8ef6e49a8bee9f7176e0293a2657db53bd47ce20d536187d9cf433f1f205",
-    "bytes": 6023
+    "sha256": "37cb3940a49ca24395af111625fe67b144c0370d28e135dc45e2bf2edb1fe939",
+    "bytes": 6036
   },
   "artifact": {
-    "sha256": "a018697374b7bd2968dfede5b1575d7cc3677622be16747d32bdba89953842d5",
-    "bytes": 649741
+    "sha256": "aa52059b4e962f162931f1534eb93f8f920580f70b125fd260edcffd4bd2d35f",
+    "bytes": 649804
   },
   "validation": {
     "checksPassed": 9,

@@ -8,6 +8,8 @@ from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from .adjustment_contract import validate_adjustment_parameters
+
 SCHEMA_VERSION = "1.0.0"
 SOURCES = {
     "fund_nav": "基金净值",
@@ -73,7 +75,7 @@ CAPABILITY_PARAMETERS = {
     "index_data": {"index", "dataset", "date"},
     "financials": {"asset", "statements", "periods"},
     "market_activity": {"asset", "dataset", "start_date", "end_date"},
-    "factor_macro": {"series", "assets", "start_date", "end_date"},
+    "factor_macro": {"series", "assets", "dates", "start_date", "end_date"},
     "fund_data": {"dataset", "code", "start_date", "end_date", "year", "limit"},
     "search_news": {"query", "limit", "start_date", "end_date"},
     "search_announcements": {"asset", "query", "start_date", "end_date"},
@@ -236,6 +238,11 @@ class BusinessQuery(BaseModel):
             TableQueryParameters.model_validate(self.parameters)
             if self.source not in {"auto", "mysql"}:
                 raise ValueError("表查询仅支持已配置的 MySQL 来源")
+        elif self.capability == "factor_macro":
+            if self.source == "tinysoft":
+                validate_adjustment_parameters(self.parameters)
+            elif "dates" in self.parameters and self.source != "auto":
+                raise ValueError("显式日期因子查询仅支持天软")
         return self
 
     def fingerprint(self, *, include_refresh=False):

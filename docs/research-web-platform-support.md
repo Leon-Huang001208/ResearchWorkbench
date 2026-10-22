@@ -1,5 +1,7 @@
 # Research Web 能力与平台证据
 
+2026-10-22 Wind工作区为Mac mini macOS宿主的Web功能开发：纯历史/Provider/UI回归、实际厂商复权预检、浏览器几何/全历史、同候选macos-14安装CI与常驻切换分层记录。当前有限两股票预检不能推导全历史或其他平台支持；Windows/Linux原生、对应产品CI与实机仍NOT_RUN，分别交接对应设备，不由Mac触发。新增Store键不是DB迁移，不涉及Tauri/sidecar或桌面交付；其他平台未验不阻断已独立完成的Mac本平台门。
+
 资产观察 v2 固定版本操作员属于 macOS Native 功能交付，本机真实 Git／恢复回归、原通用仓库门、同候选 Mac 干净安装、实际切换及保全分别绑定证据。没有 Windows／Linux 原生产品部署或实机验收，不从 Mac 派发其产品 CI；这些层级继续 NOT_RUN，由对应真机接手，也不触发桌面 Tauri／sidecar 交付。
 
 AF连续指标迁移是macOS宿主的Web功能开发；本地公式／后端／页面测试、浏览器对照、真实CJPY及同候选Mac干净安装分别取证，未取得者保留NOT_RUN。本地图表库需随wheel和Mac安装物逐字节核对；没有Windows／Linux原生产品验收证据，不从Mac触发其产品dispatch，也不触发Tauri／sidecar／桌面安装门。常驻部署另行授权。

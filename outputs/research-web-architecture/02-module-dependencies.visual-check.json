@@ -5,9 +5,9 @@
   "status": "pass",
   "visualReview": "pending",
   "artifact": {
-    "path": "/Users/leon/.codex/worktrees/hot-events-system/ResearchWorkbench/outputs/research-web-architecture/02-module-dependencies.html",
-    "sha256": "14312c6a90944b4efe0ce0a063df699a4c1229869d7a1cd668fba24ab5b21fef",
-    "bytes": 659289
+    "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/wind-asset-workspace-20261022/outputs/research-web-architecture/02-module-dependencies.html",
+    "sha256": "9f3145259444249bf33a721c8e64523cbf9dec30b58f1e2ec468d77ca9f1a311",
+    "bytes": 659500
   },
   "state": {
     "detail": "read",

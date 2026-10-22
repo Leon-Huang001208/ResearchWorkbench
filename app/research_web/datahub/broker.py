@@ -8,6 +8,7 @@ from datetime import date
 from core.observability import get_logger
 
 from ..store import StoreError
+from .adjustment_contract import validate_adjustment_parameters
 from .catalog import build_catalog
 from .contracts import BusinessQuery, Query
 from .providers import ProviderError
@@ -134,6 +135,13 @@ def resolve(
                 reason = str(exc)
                 unsupported_code = reason
                 log.warning("datahub_akshare_query_semantics_rejected", reason=reason)
+        if reason is None and source_id == "tinysoft" and query.capability == "factor_macro":
+            try:
+                validate_adjustment_parameters(query.parameters)
+            except ValueError as exc:
+                reason = str(exc)
+                unsupported_code = reason
+                log.warning("datahub_tinysoft_factor_semantics_rejected", reason=reason)
         attempts.append(
             {
                 "source": source_id,
@@ -148,7 +156,12 @@ def resolve(
             break
     if selected is None:
         if unsupported_code is not None:
-            raise StoreError("AKShare 请求口径不受支持", unsupported_code, 400)
+            message = (
+                "天软因子请求口径不受支持"
+                if query.capability == "factor_macro"
+                else "AKShare 请求口径不受支持"
+            )
+            raise StoreError(message, unsupported_code, 400)
         code = (
             "data_capability_unavailable"
             if any(binding_by_source[source_id]["implemented"] for source_id in ordered)
@@ -192,6 +205,7 @@ def resolve(
         "trading_calendar",
         "market_bars",
         "market_snapshot",
+        "factor_macro",
     }:
         legacy = query.model_copy(update={"source": "tinysoft"})
     elif selected == "akshare" and query.capability in {

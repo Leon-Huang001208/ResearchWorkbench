@@ -168,6 +168,21 @@ def test_asset_activity_is_not_confused_with_native_idle(state, expected):
     assert upgrade.asset_queries_idle(state) is expected
 
 
+@pytest.mark.parametrize("state", ["queued", "running", "cancelling", "draining", "unknown"])
+def test_history_jobs_block_resident_switching(state):
+    assert not upgrade.asset_queries_idle({"asset_history_jobs": {"job": {"state": state}}})
+
+
+@pytest.mark.parametrize("state", ["completed", "failed", "cancelled", "interrupted"])
+def test_terminal_history_jobs_allow_resident_switching(state):
+    assert upgrade.asset_queries_idle({"asset_history_jobs": {"job": {"state": state}}})
+
+
+@pytest.mark.parametrize("jobs", [None, [], {"job": None}, {"job": {"state": "completed", "status": "running"}}])
+def test_malformed_history_job_activity_fails_closed(jobs):
+    assert not upgrade.asset_queries_idle({"asset_history_jobs": jobs})
+
+
 @pytest.mark.parametrize("profile", ASSET_PROFILES)
 @pytest.mark.parametrize("scope", ["primary", "private"])
 @pytest.mark.parametrize("change", ["delete", "modify", "empty", "remove_file"])

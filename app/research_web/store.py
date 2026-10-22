@@ -74,6 +74,9 @@ class Store:
         self.data.setdefault("operation_audit", [])
         self.data.setdefault("asset_observations", {})
         self.data.setdefault("asset_observation_keys", {})
+        self.data.setdefault("asset_history_jobs", {})
+        self.data.setdefault("asset_history_keys", {})
+        self.data.setdefault("chart_preferences", {"panels": ["volume", "macd"], "revision": 0})
         self.data.setdefault("watchlists", {})
         self.data.setdefault("asset_notes", {})
         self.data.setdefault("asset_alerts", {})
@@ -258,6 +261,53 @@ class Store:
             raise StoreError("会话必须先移至已删除", "session_not_deleted", 409)
         if row.get("native_deleted_at") is None:
             raise StoreError("DSH 原生日志尚未删除", "native_session_not_deleted", 409)
+        if any(
+            job.get("session_id") == sid
+            and job.get("state") in {"queued", "running", "cancelling", "draining"}
+            for job in self.data["asset_history_jobs"].values()
+        ):
+            raise StoreError("历史任务仍在读取或排空，未删除会话数据", "history_jobs_active", 409)
+
+        chunks = {}
+        for job in self.data["asset_history_jobs"].values():
+            if job.get("session_id") != sid:
+                continue
+            for chunk in job.get("chunks", []):
+                if not re.fullmatch(
+                    r"[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}\.json", chunk.get("name", "")
+                ):
+                    raise StoreError(
+                        "历史缓存归属无法确认，未清理", "history_cache_ownership_unknown", 409
+                    )
+                chunks[chunk["name"]] = (chunk, job["observation_id"])
+        if chunks:
+            from .datahub.security import directory, read_file, unlink_file
+
+            with directory(self.root, (".control", "asset-history", "chunks"), private=True) as fd:
+                for name, (chunk, oid) in chunks.items():
+                    if name not in os.listdir(fd):
+                        continue
+                    raw = read_file(fd, name, private=True)
+                    try:
+                        value = json.loads(raw)
+                    except ValueError as exc:
+                        raise StoreError(
+                            "历史缓存无法读取，未清理", "history_cache_invalid", 409
+                        ) from exc
+                    if (
+                        hashlib.sha256(raw).hexdigest() != chunk.get("sha256")
+                        or value.get("session_id") != sid
+                        or value.get("observation_id") != oid
+                    ):
+                        raise StoreError(
+                            "历史缓存归属或哈希无法确认，未清理",
+                            "history_cache_ownership_unknown",
+                            409,
+                        )
+                for name in chunks:
+                    if name in os.listdir(fd):
+                        unlink_file(fd, name)
+            log.info("asset_history_session_cache_purged", session_id=sid, chunks=len(chunks))
 
         paths = [
             self.root / "sessions" / sid,
@@ -295,6 +345,11 @@ class Store:
                 for key, value in self.data["asset_observations"].items()
                 if value.get("session_id") == sid
             },
+            "asset_history_jobs": {
+                key
+                for key, value in self.data["asset_history_jobs"].items()
+                if value.get("session_id") == sid
+            },
             "report_runs": {
                 key
                 for key, value in self.data["report_runs"].items()
@@ -318,6 +373,9 @@ class Store:
         for key, value in list(self.data["asset_observation_keys"].items()):
             if value in removed["asset_observations"]:
                 self.data["asset_observation_keys"].pop(key, None)
+        for key, value in list(self.data["asset_history_keys"].items()):
+            if value in removed["asset_history_jobs"]:
+                self.data["asset_history_keys"].pop(key, None)
         for key in list(self.data["receipts"]):
             if key.startswith(f"{sid}:"):
                 self.data["receipts"].pop(key, None)

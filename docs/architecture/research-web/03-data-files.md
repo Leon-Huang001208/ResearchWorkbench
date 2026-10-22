@@ -1,5 +1,15 @@
 # DataHub、研究资料与实际文件
 
+## 资产历史与图表偏好存储
+
+最后核对：2026-10-22。原账号 Store 的 `index.json` 增加 `asset_history_jobs`、`asset_history_keys`、`chart_preferences`，使用 `setdefault` 兼容旧索引，无数据库或schema迁移。指标偏好保留0至4个唯一有序副图及revision，默认VOL＋MACD，账号内所有证券共用；保存失败恢复原值。任务保存原始请求、观察/会话身份、代次、当前快照、扫描进度和安全失败码，公开投影隐藏内部字段。
+
+不可变块位于当前账号 `.control/asset-history/chunks/<UUID>.json`，绑定证券、会话、观察、扫描区间、配置摘要、定义哈希、原始来源manifest、规范原始行及逐日因子；重试复用前复验归属、哈希、授权和因子版本。单次取数沿原 `.control/snapshots/<session>/<dataset>/` 保存行、raw和manifest。每块校验后创建包含全部累计日线的新规范snapshot，`asset_history` metadata 同时保存固定截止/锚点、定义、因子版本/摘要、实际与扫描coverage及全部输入；随后核对generation、原dataset指针和授权再原子保存Store。存储失败恢复原内存指针，已发表旧快照继续可读，不把部分成功说成全历史完成。
+
+前复权 `P(t)*A(t)/A(as_of)`，后复权 `P(t)*A(t)/A(listing_date)`；更早历史扩展保留既有截止锚点。同一规范快照的全行使用相同定义/因子版本，不能直接拼接不同锚点的复权块。原始行、因子和输入证据保留；缺失、冲突、未证明上市日/锚点或版本变化失败关闭，不补因子或回退原价。量额不随复权缩放，OHLC单位/币种未知保持未知。细则与有限厂商预检范围见[DataHub](../../research-web-datahub.md#资产历史任务与固定复权)。
+
+旧观察、原DataHub快照及旧研究冻结材料不重写。交接复制规范行和自包含的raw/因子/metadata，来源hash仍可复核。会话purge先取消并等待真实Future排空；Store拒绝清理非终态任务，缓存逐项核验归属与哈希，未知对象保留并报错。进程恢复将无存活owner的任务标为interrupted，显式重试后才继续取数；服务关闭与会话取消共用排空边界。常驻活动投影和操作员空闲证明覆盖非终态任务及真实Future，不因浏览器关闭或HTTP取消而提前放行。
+
 资产观察 v2 profile 在原 v4 journal 中记录固定 mode、旧版与目标，主实例及全部私有账号业务 index 仍按每个顶层值冻结 canonical SHA256，区分缺失与空值；v1 同样保留此检查。前进、回滚、完成和 preparing 恢复不覆盖观察、查询、会话、账号或凭据。固定身份增加不改变 journal 版本、数据根、HTTP 或业务存储，现有文件流图无需新增节点。
 
 资产摘要的 `valuation`／`coverageRows` 是浏览器内存投影，不写入 Observation、DataHub 快照或任何数据库。覆盖数要求 dataset 身份与当前实际载入行同时存在，保留失败／加载中的旧快照身份；数据日、`as_of`、`retrieved_at`、报告期及请求／实际／载入区间分别保留。PB与PB-MRQ、明确PS-TTM与单期财务、零与缺失各自区分；Wind股本数量级未核验，不换算或派生市值。折叠状态仅按当前资产恢复，主题切换不改变源数据、公式、快照或交接材料。
@@ -12,7 +22,7 @@ CI大日志读取预算30→120秒仅改变资格证明的网络等待，不写D
 
 资产观察继续保存于既有 Store 的 `asset_observations`，行情/财务等实际数据仍是所属研究会话的 DataHub 快照，没有新增数据库或迁移。单区块刷新在观察记录内保存 `refresh_keys` 的 SHA-256 键、目标区块及 `call_id`，公开响应隐藏原请求、刷新键和内部 sample，只给受限请求参数、区块状态与 dataset 标识。受理先持久化再创建取数任务，保存失败回退内存状态且不启动查询。
 
-刷新保持原 dataset 直到新结果可用；失败、取消或重启中断保留原 dataset 身份，同时标明新的 `failure_code`，不得把旧快照冒充本次刷新成功。已有加载区块没有存活 owner 时恢复为 `unavailable/interrupted`，取消为 `unavailable/cancelled`；不自动重试厂商取数。财务最新一期和行情 60 天范围按 DataHub 原参数记录；图表仅从这些快照行计算，Golddata 新闻/公告阅读不写成 DataHub 快照或 Hot 证据。
+刷新保持原 dataset 直到新结果可用；失败、取消或重启中断保留原 dataset 身份，同时标明新的 `failure_code`，不得把旧快照冒充本次刷新成功。已有加载区块没有存活 owner 时恢复为 `unavailable/interrupted`，取消为 `unavailable/cancelled`；不自动重试厂商取数。财务最新一期、Wind资金／两融60天及旧观察行情按原参数记录；新历史任务按上述独立coverage保存；图表仅从这些快照行计算，Golddata 新闻/公告阅读不写成 DataHub 快照或 Hot 证据。
 
 联合升级 journal 增加各发布角色的 common directory/inode 元数据；原 source_common、业务数据、凭据及会话不改写。冻结源码从权威源码仓库创建，发布 clone 原地保留。
 

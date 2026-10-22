@@ -220,7 +220,7 @@ export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSo
     }
     if (!response.ok) {
       const error = new Error(data?.error?.message || `请求失败（HTTP ${response.status}）`);
-      error.code = data?.error?.code || 'request_failed'; throw error;
+      error.code = data?.error?.code || 'request_failed'; error.status = response.status; throw error;
     }
     if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('服务响应格式异常，请检查后端日志。');
     return data;
@@ -356,6 +356,12 @@ export function createAPI({ fetcher = globalThis.fetch.bind(globalThis), EventSo
     assetObservation: (id, options = {}) => request(`/assets/observations/${segment(id)}`, options),
     createAssetObservation: (body, key) => request('/assets/observations', { method: 'POST', body, key }),
     refreshAssetBlock: (id, block, key) => request(`/assets/observations/${segment(id)}/blocks/${segment(block)}/refresh`, { method: 'POST', body: {}, key }),
+    startAssetHistory: (id, body, key, options = {}) => request(`/assets/observations/${segment(id)}/history-jobs`, { ...options, method: 'POST', body, key }),
+    assetHistoryJobs: (id, options = {}) => request(`/assets/observations/${segment(id)}/history-jobs`, options),
+    assetHistoryJob: (id, jobId, options = {}) => request(`/assets/observations/${segment(id)}/history-jobs/${segment(jobId)}`, options),
+    cancelAssetHistory: (id, jobId) => request(`/assets/observations/${segment(id)}/history-jobs/${segment(jobId)}/cancel`, { method: 'POST', body: {} }),
+    assetChartPreferences: (options = {}) => request('/assets/chart-preferences', options),
+    saveAssetChartPreferences: body => request('/assets/chart-preferences', { method: 'PUT', body }),
     watchlists: (options = {}) => request('/watchlists', options),
     createWatchlist: (body) => request('/watchlists', { method: 'POST', body }),
     addWatchlistItem: (id, body) => request(`/watchlists/${segment(id)}/items`, { method: 'POST', body }),

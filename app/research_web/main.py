@@ -425,6 +425,22 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
                     for row in research.store.data.get("automation_runs", {}).values()
                 )
             )
+            try:
+                from .datahub.providers_cjpy import active_futures
+
+                history_jobs = research.store.data.get("asset_history_jobs", {})
+                history_active = not isinstance(history_jobs, dict) or any(
+                    not isinstance(row, dict)
+                    or ("state" in row and "status" in row and row["state"] != row["status"])
+                    or row.get("state", row.get("status"))
+                    not in {"completed", "failed", "cancelled", "interrupted"}
+                    for row in history_jobs.values()
+                )
+                active = bool(active or history_active or active_futures())
+            except Exception as exc:  # noqa: BLE001 - unknown activity must fail closed
+                # Unknown worker activity must never certify a safe resident stop.
+                log.warning("resident_data_activity_unknown", error_type=type(exc).__name__)
+                active = True if active else None
         return {
             "enabled": bool(setting),
             "revision": revision if re.fullmatch(r"[a-f0-9]{40}", revision) else None,

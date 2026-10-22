@@ -140,6 +140,13 @@ class DataHub:
             from .providers_akshare import SEMANTICS_REVISION
 
             semantics["provider_semantics_revision"] = SEMANTICS_REVISION
+        elif source_id == "tinysoft":
+            from .adjustment_contract import CONTRACT_VERSION, DEFINITION_SHA256
+
+            semantics.update(
+                adjustment_contract_version=CONTRACT_VERSION,
+                adjustment_definition_sha256=DEFINITION_SHA256,
+            )
         payload = json.dumps(
             {
                 "status": (
@@ -400,10 +407,20 @@ class DataHub:
             "provider_total",
             "as_of",
             "files",
+            "asset_history",
         }
-        return [
-            {key: value for key, value in item.items() if key in keys} for item in self.list(sid)
-        ]
+        summaries = []
+        for item in self.list(sid):
+            summary = {key: value for key, value in item.items() if key in keys}
+            history = summary.get("asset_history")
+            if isinstance(history, dict):
+                summary["asset_history"] = {
+                    key: value
+                    for key, value in history.items()
+                    if key not in {"raw_rows", "factors", "inputs", "configuration_digest"}
+                }
+            summaries.append(summary)
+        return summaries
 
     def copy_for_upgrade(self, old_sid, new_sid):
         return self.snapshots.copy_for_upgrade(old_sid, new_sid)
@@ -473,6 +490,10 @@ class DataHub:
                 raise StoreError("同一资料调用标识不能用于不同参数")
             if receipt["status"] == "completed":
                 manifest = self.detail(sid, receipt["dataset_id"])
+                if manifest.get("snapshot_kind") == "asset_history":
+                    raise StoreError(
+                        "规范历史不能替代普通供应商查询缓存", "data_cache_not_equivalent", 409
+                    )
                 if isinstance(query, BusinessQuery):
                     self._authorize_query(
                         sid,
@@ -505,6 +526,7 @@ class DataHub:
                     ).total_seconds()
                     if (
                         candidate["query_fingerprint"] == query.fingerprint()
+                        and candidate.get("snapshot_kind") != "asset_history"
                         and candidate["status"] in {"complete", "snapshot", "empty"}
                         and 0
                         <= age
@@ -593,6 +615,12 @@ class DataHub:
             )
             return self.short(sid, manifest)
         except asyncio.CancelledError:
+            # The task cancellation is only a request. A synchronous vendor call
+            # keeps capacity until its real Future has completed.
+            if getattr(query, "source", None) == "tinysoft":
+                from .providers_cjpy import wait_for_idle
+
+                await wait_for_idle()
             self.snapshots.receipt(
                 sid, call_id, {"status": "cancelled", "fingerprint": fingerprint}
             )
