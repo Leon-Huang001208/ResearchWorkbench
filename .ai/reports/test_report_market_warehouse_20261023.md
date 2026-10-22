@@ -12,7 +12,7 @@ TDD实际RED：新Reader不存在；默认Host HTTP POST后缺warehouse元数据
 
 ruff、black、isort、三个修改仓库源码的mypy、生成pyindex、documentation治理、完整changed set的Project Constraints、架构门和doc-sync均PASS。完整changed set Router生成L4计划（`logs/market-warehouse-20261023/plan.log`）。所有命令返回码与实测秒数在`logs/market-warehouse-20261023/check-summary.json`；不把本机成功写成同候选CI已通过。
 
-代码与文档未提交，独立spec/quality评审、同候选CI/Mac干净安装、常驻部署、Windows/Linux/Docker产品验收仍NOT_RUN。仅向既有Checks同一步骤追加两个新测试文件，真实PG缺显式环境保持skip。已核对requirements/web.in/web.lock、setup_web.py、安装文档与Bootstrap，本轮无新增依赖/参数；现有安装门保持，不能用批准venv冒充干净安装。
+源码检查点已提交为14b1396f2e3984abf543f077176012076dc939f1，架构阅读入口绑定该源码检查点；独立SPEC复核31例及原反例拒绝/旧原件保持已PASS，quality评审仍由root继续。同候选CI/Mac干净安装、常驻部署、Windows/Linux/Docker产品验收仍NOT_RUN。仅向既有Checks同一步骤追加两个新测试文件，真实PG缺显式环境保持skip。已核对requirements/web.in/web.lock、setup_web.py、安装文档与Bootstrap，本轮无新增依赖/参数；现有安装门保持，不能用批准venv冒充干净安装。
 
 13市场图新增MarketReader/optionalWarehouse条件分支，纯静态Archify deliver真实9/9、0错误/0警告。首轮1300x900图由root实测1440x900纵向溢出1209，保留失败后修为1100x650三行；最终artifact为635bba7379adac04b70c187917727ee2d79f0d4958e41f9312313794b4bbb0c5。root通过cua_repl对四个desktop尺寸测得无溢出并实际查看1440/2048各深浅四张JPEG，已写同哈希visual-check及visual-review；未执行CLI visual-check。新图/root视觉证据由root负责，旧PNG不作为当前图证据。
 
