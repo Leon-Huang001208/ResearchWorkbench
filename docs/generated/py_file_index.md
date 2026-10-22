@@ -3905,6 +3905,7 @@ Imports:
 - `datetime`
 - `providers`
 - `providers_akshare`
+- `providers_wind_api`
 - `store`
 
 Classes:
