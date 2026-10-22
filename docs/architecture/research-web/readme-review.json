@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "disposition": "updated",
-  "summary": "Wind工作区v3固定版本部署合同同步根入口",
-  "reason": "根README同步独立reviewed-asset-observation-v3与apply-assets-v3，固定旧5495和产品a0ff3ae2，保留旧v1/v2、controller/evidence及原v4事务。产品已验收与v3工具候选CI、实际切换和全账号保全分开，本轮已授权root验收后持锁部署；不改产品、HTTP或拓扑，不重画图或改生成HTML/PNG。"
+  "disposition": "unchanged",
+  "summary": "启动保全热修复已复核根README，产品与安装说明保持准确",
+  "reason": "已核对README的Web入口、三安装入口、可选厂商能力、账号数据保全及固定版本部署说明。本修复只让旧磁盘缺失且仍精确默认的三可选资产键留在内存，首次真实变化才持久化；不新增产品能力、命令、依赖、安装或部署流程，不改严格保全门和控制器，根说明无需修改。故障、正式恢复及本机验证写入本次报告，候选CI和热修复部署仍另取证。"
 }

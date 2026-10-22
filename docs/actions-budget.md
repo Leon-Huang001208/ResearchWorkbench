@@ -1,5 +1,7 @@
 # GitHub Actions 免费额度治理
 
+2026-10-22 Wind启动保全热修复只扩充现有test_store回归，沿原Project Constraints、Research Web Checks及Mac Bootstrap，不增workflow/job/runner/timeout/依赖。只读API当前PUBLIC/private=false；最近5成功run39725433303（Constraints，56秒）、39725433385（Bootstrap，562秒）、39725433371（Checks，409秒）、39724266491（Bootstrap，643秒）、39724188738（Constraints，64秒），为创建至结束墙钟，均值346.8秒。证据留`logs/wind-startup-preservation-docs/repository.json`与`recent-success-runs.json`；旧profile/基线成功不认证此热修复。新增定点本机预留15秒，实际回归及同候选Mac安装门由本轮证据回填；不触发Windows/Linux产品dispatch，不执行新模型/厂商调用。真实恢复/fenced与部署状态另验，不能以CI成功替代。
+
 2026-10-22 Wind工作区v3部署profile只扩展原`test_model_provider_upgrade.py`定点回归，沿Project Constraints、Research Web Checks及macOS Bootstrap原三门；本轮不改workflow/job/runner/timeout/依赖，不执行手动rerun或他平台产品dispatch。只读API当前PUBLIC、private=false，最近5个成功run为39721709695（Constraints，50秒）、39720391774（Bootstrap，509秒）、39720391600（Constraints，63秒）、39720391522（Checks，419秒）、39717416229（Constraints，73秒），均为创建至结束墙钟，均值222.8秒。证据留`logs/wind-workspace-deploy-docs/repository.json`与`recent-success-runs.json`；这些是先前产品/基线成功run，不冒充本profile候选CI。新profile参数化回归预留本机15秒并由实际测试回填，同候选Mac干净安装/固定DSH/3081/8088/doctor保持。没有新增模型或厂商调用，Windows/Linux产品验收仍由对应真机承担。
 
 Wind资产工作区首轮PR177：Constraints39717416229通过（71秒），Mac Bootstrap39717416234通过（599秒）；Checks39717416265在454秒失败，1716通过、11条件跳过，唯一失败为新纳入的目录测试默认依赖Ubuntu不存在的系统钥匙串。只给该测试注入现有内存后端并保留拒绝系统后端的回归，同时修正旧10条快照首次向左加载的前端接线。沿原PR正常补丁发布，不手动rerun、不加job/runner/依赖或超时；新候选重新绑定原三门，不复用旧Mac通过为新SHA。当前API仍为PUBLIC。
