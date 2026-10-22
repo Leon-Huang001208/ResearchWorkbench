@@ -69,7 +69,14 @@ async function waitMarket(page, predicate = value => value.sections.quotes.snaps
   }
   throw new Error('real_market_refresh_timeout');
 }
+async function waitRenderedMarket(page) {
+  await page.waitForFunction(() => {
+    const content = document.querySelector('.market-page-body'), refresh = document.querySelector('[data-market-action=refresh]');
+    return content && content.getAttribute('aria-busy') !== 'true' && refresh && !refresh.disabled && !document.querySelector('.market-pagination')?.textContent.includes('读取中');
+  }, null, { timeout: 150000 });
+}
 async function screen(page, name) {
+  await waitRenderedMarket(page);
   const file = path.join(output, `${name}.png`); await page.screenshot({ path: file, animations: 'disabled' }); screens.push(file); return file;
 }
 async function waitReadableTheme(page, mode) {
@@ -231,8 +238,13 @@ try {
       assert.equal(r.status, 200); assert.ok(r.body.total > 0); assert.equal(r.body.snapshot_id, snapshot.sections.quotes.snapshot_id);
       const membership = r.body.meta.membership;
       assert.equal(membership.summary.quotes_snapshot_id, snapshot.sections.quotes.snapshot_id);
+      await page.waitForFunction(({ boardID, total }) => {
+        const footer = document.querySelector('.market-pagination > span')?.textContent;
+        const count = footer?.match(/共\s*([\d,]+)\s*只/);
+        return document.location.hash.includes(`board_id=${boardID}`) && document.querySelector('.market-board-filter') && count && Number(count[1].replaceAll(',', '')) === total && !footer.includes('读取中');
+      }, { boardID, total: r.body.total });
       await screen(page, 'real-authenticated-board-members');
-      return { board_id: boardID, rows: r.body.total, snapshot_id: r.body.snapshot_id, membership: membership.summary, funds: { rows: flows.rows.length, complete: flows.complete, as_of: flows.as_of, missing: flows.missing, limitations: flows.limitations, market_flow_rows: flows.summary?.market_flow?.rows?.length } };
+      return { board_id: boardID, rows: r.body.total, rendered_total: r.body.total, snapshot_id: r.body.snapshot_id, membership: membership.summary, funds: { rows: flows.rows.length, complete: flows.complete, as_of: flows.as_of, missing: flows.missing, limitations: flows.limitations, market_flow_rows: flows.summary?.market_flow?.rows?.length } };
     });
     await check('industry concept funds support today five day and ten day source periods', async () => {
       await page.locator('.market-tabs').getByRole('link', { name: '板块与资金', exact: true }).click();
@@ -274,10 +286,18 @@ try {
       await page.emulateMedia({ colorScheme: 'light' }); const light = await waitReadableTheme(page, 'light');
       await page.setViewportSize({ width: 390, height: 844 }); await screen(page, 'real-authenticated-narrow-overview');
       await page.locator('.market-tabs').getByRole('link', { name: '沪深北行情', exact: true }).click(); await page.locator('.market-table').waitFor();
+      await waitRenderedMarket(page);
       const dimensions = await page.locator('.market-table-wrap').evaluate(element => ({ client: element.clientWidth, scroll: element.scrollWidth, overflow: getComputedStyle(element).overflowX }));
-      assert.ok(dimensions.scroll > dimensions.client); assert.ok(['auto', 'scroll'].includes(dimensions.overflow)); await screen(page, 'real-authenticated-narrow-quotes');
+      assert.ok(dimensions.scroll > dimensions.client); assert.ok(['auto', 'scroll'].includes(dimensions.overflow));
+      if (await page.locator('.market-column-menu').evaluate(element => element.open)) await page.locator('[data-market-action=columns]').click();
+      await page.locator('[data-market-action=columns]').click();
+      const menu = await page.locator('.market-column-menu fieldset').boundingBox();
+      assert.ok(menu); assert.ok(menu.x >= 0); assert.ok(menu.x + menu.width <= page.viewportSize().width);
+      await page.locator('[data-market-column-toggle=pb]').uncheck(); assert.equal(await page.locator('th.market-col-pb').count(), 0);
+      await page.locator('[data-market-column-toggle=pb]').check(); assert.equal(await page.locator('th.market-col-pb').count(), 1);
+      await screen(page, 'real-authenticated-narrow-quotes');
       await page.setViewportSize({ width: 1440, height: 1000 });
-      return { themes: [light, dark], viewport: { width: 390, height: 844 }, table: dimensions };
+      return { themes: [light, dark], viewport: { width: 390, height: 844 }, table: dimensions, column_menu: menu, mobile_PB_hidden_restored: true };
     });
     await check('stock and index links enter existing asset observation without sessions', async () => {
       const stock = page.locator('.market-table tbody a').first(); const stockHref = await stock.getAttribute('href'); assert.ok(stockHref.startsWith('#/assets?'));
