@@ -4,6 +4,8 @@
 
 2026-10-23市场限价/昨日/历史任务沿原全市场Checks定点清单、完整changed-set Router、独立评审及原三CI/同候选macOS安装。封闭apply-market-history固定旧51f09、产品4f0a248f，原version4事务和全账号保全/恢复保持，采集inflight活动或未知拒绝；只同步固定目标锁清单，不安装包/启用数据库。实际部署、交易时段真实源、认证页面和保全分别留证；历史来源不足明确缺口，不以离线或一次访客返回冒充连续30日。
 
+2026-10-23资产精炼与筹码使用同一隔离产品任务：原Checks步骤增加chip_inputs定点回归，原Mac安装步骤逐字节验证四个本地新资源，无新增job/runner/依赖。完整changed-set Router、独立评审、真实CJPY冷启动和宽屏单行读数/绘图区对齐分别留证；固定部署profile须绑定最终已审产品SHA，持锁以实际驻留版本为恢复基线，不采用旧51f假设。其他平台产品验收仍交对应真机，Mac不dispatch Windows/Linux。
+
 2026-10-23公开indices仓库桥复用现有Checks Python步骤，追加MarketReader及opt-in临时PG测试，不新增job/runner/timeout/依赖或平台dispatch。macOS本机只用已有批准venv及既有socket-only临时PG helper；PG5432、生产配置、外盘、真实凭据与模型保持无操作。缺显式PG环境的CI保留skip；本机PG成功不替代同候选Mac干净安装和通用仓库门，评审/发布由root统一绑定。
 
 PR188合流后，当前用户已明确批准“组合验收后一起部署”，包括已合并锁中的baostock0.9.4／psycopg3.3.6；不启用或迁移数据库，不改外盘。尚未成功切换的v5将PAYLOAD固定到完整产品88ef3817（含资产9bc4与DataHub研究仓），PREVIOUS仍51f09；旧profile不变。旧a114候选三CI全PASS只属于旧树，新组合必须重新完成本机兼容／独评／原三CI和同候选Mac安装后才由root部署，本次文档不安装包或切换。

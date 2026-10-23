@@ -15,6 +15,7 @@ from zoneinfo import ZoneInfo
 
 from core.observability import get_logger
 
+from .asset_chip_inputs import CHIP_INPUT_VERSION, chip_rows
 from .asset_history import (
     ACTIVE,
     FLOOR,
@@ -102,6 +103,7 @@ class HistoryJobs:
             "scope": row.get("scope"),
             "adjustment": row.get("adjustment"),
             "source": row.get("source", "tinysoft"),
+            **({"include_chip_inputs": True} if row.get("include_chip_inputs") else {}),
             "requested_as_of": row.get("requested_as_of"),
             "required_semantics": row.get("required_semantics"),
             "created_at": row.get("created_at"),
@@ -220,6 +222,8 @@ class HistoryJobs:
         if not re.fullmatch(r"[A-Za-z0-9_.:-]{8,128}", key):
             raise fail("history_key_invalid", "Idempotency-Key 格式非法", 400)
         payload = body.model_dump()
+        if not body.include_chip_inputs:
+            payload.pop("include_chip_inputs")
         if body.as_of is None:
             payload.pop("as_of")
         key_hash = digest([oid, key])
@@ -244,6 +248,8 @@ class HistoryJobs:
         previous = None
         if body.retry_of:
             previous = self._row(oid, body.retry_of)
+            if bool(previous.get("include_chip_inputs")) != body.include_chip_inputs:
+                raise fail("history_retry_invalid", "重试必须保留原筹码输入范围")
             if not self.public(previous)["retryable"] or any(
                 previous.get(k, "tinysoft" if k == "source" else None) != payload[k]
                 for k in ("scope", "adjustment", "source")
@@ -317,6 +323,7 @@ class HistoryJobs:
             "base_dataset_id": canonical["dataset_id"] if canonical else None,
             "chunks": copy.deepcopy(previous.get("chunks", [])) if previous else [],
             "progress": {"chunks_completed": 0, "chunks_total": 0, "rows": 0},
+            **({"include_chip_inputs": True} if body.include_chip_inputs else {}),
             "coverage": {},
             "failure_code": None,
             "created_at": time.time(),
@@ -473,6 +480,52 @@ class HistoryJobs:
             inputs.append(evidence)
         return output
 
+    async def _chip_turnover(self, row, raw_rows, inputs):
+        days = [r["date"] for r in raw_rows]
+        rates = []
+        total = (len(days) + 31) // 32
+        for offset in range(0, len(days), 32):
+            self._save(
+                row,
+                progress={
+                    **row["progress"],
+                    "phase": "chip_inputs",
+                    "chip_batches_total": total,
+                    "chip_batches_completed": offset // 32,
+                },
+            )
+            evidence = await self._query(
+                row,
+                "market_activity",
+                {
+                    "asset": row["asset"],
+                    "dataset": "chip_turnover",
+                    "dates": days[offset : offset + 32],
+                },
+                "chip-turnover",
+            )
+            metadata = evidence["manifest"].get("provider_metadata", {})
+            contract = metadata.get("chip_turnover_contract", {})
+            if (
+                contract.get("version") != CHIP_INPUT_VERSION
+                or contract.get("unit") != "percent"
+                or evidence["manifest"].get("fields", {}).get("turnover_rate_pct", {}).get("unit")
+                != "percent"
+            ):
+                raise fail("chip_turnover_contract_unverified", "换手率单位或预定义因子版本未核验")
+            rates.extend(evidence["rows"])
+            inputs.append(evidence)
+        self._save(
+            row,
+            progress={
+                **row["progress"],
+                "phase": "chip_inputs",
+                "chip_batches_total": total,
+                "chip_batches_completed": total,
+            },
+        )
+        return rates
+
     async def _gate(self, row, inputs):
         metadata = await self._query(
             row, "factor_macro", {"series": "adjustment_metadata"}, "definition"
@@ -612,7 +665,9 @@ class HistoryJobs:
             evidence["frozen_raw_files"] = frozen_raw
         return output
 
-    def _publish(self, row, raw_rows, factors, inputs, scanned, definition, listing, anchor):
+    def _publish(
+        self, row, raw_rows, factors, inputs, scanned, definition, listing, anchor, *, turnover=None
+    ):
         observation = self._observation(row["observation_id"])
         self._authorize(row)
         self._authorize_inputs(row, inputs)
@@ -627,6 +682,20 @@ class HistoryJobs:
         ):
             raise fail("history_generation_changed", "历史代次或当前快照已变化，未替换原数据")
         adjusted = adjust_rows(raw_rows, factors, row["adjustment"], anchor, listing)
+        chip_metadata = None
+        if turnover is not None:
+            quotes = [e for e in inputs if e["query"]["capability"] == "market_bars" and e["rows"]]
+            units_verified = bool(quotes) and all(
+                any(
+                    e["manifest"].get("fields", {}).get(k, {}).get("unit") == "share"
+                    for k in ("volume", "vol")
+                )
+                and e["manifest"].get("fields", {}).get("amount", {}).get("unit") in {"元", "CNY"}
+                for e in quotes
+            )
+            adjusted, chip_metadata = chip_rows(
+                raw_rows, adjusted, turnover, units_verified=units_verified
+            )
         dates = [r["date"] for r in raw_rows]
         actual = {
             "start_date": min(dates) if dates else None,
@@ -678,6 +747,8 @@ class HistoryJobs:
             "factors": factors,
             "inputs": inputs,
         }
+        if chip_metadata is not None:
+            history["chip_inputs"] = chip_metadata
         result = Result(
             rows=adjusted,
             raw=self._raw_inputs(row, inputs),
@@ -705,6 +776,20 @@ class HistoryJobs:
             ),
             limitations=["复权仅按已核验定义与固定锚点计算；成交量和成交额保留供应商原值。"],
         )
+        if chip_metadata is not None:
+            result.fields.update(
+                {
+                    "turnover_rate_pct": {"type": "number", "unit": "percent"},
+                    "vwap": {
+                        "type": "number",
+                        "unit": chip_metadata["vwap_unit"],
+                        "derivation": chip_metadata["vwap_basis"],
+                    },
+                }
+            )
+        if chip_metadata is not None and chip_metadata["vwap_unit"] == "元/股":
+            result.fields["volume"] = {"type": "number", "unit": "share"}
+            result.fields["amount"] = {"type": "number", "unit": "元"}
         query = BusinessQuery(
             capability="market_bars",
             source=row.get("source", "tinysoft"),
@@ -745,6 +830,7 @@ class HistoryJobs:
             current_dataset=manifest,
             coverage=coverage,
             progress={
+                **row["progress"],
                 "chunks_completed": len(scanned),
                 "chunks_total": row["progress"]["chunks_total"],
                 "rows": len(adjusted),
@@ -860,9 +946,44 @@ class HistoryJobs:
                 if anchor is None and raw_rows:
                     anchor = max(r["date"] for r in raw_rows)
                 scanned.append(interval)
-                self._publish(row, raw_rows, factors, inputs, scanned, definition, listing, anchor)
+                if row.get("include_chip_inputs"):
+                    # Keep the prior canonical price/chip version together until
+                    # every requested turnover batch is frozen and verified.
+                    self._save(
+                        row,
+                        progress={
+                            **row["progress"],
+                            "chunks_completed": len(scanned),
+                            "rows": len(raw_rows),
+                        },
+                    )
+                else:
+                    self._publish(
+                        row, raw_rows, factors, inputs, scanned, definition, listing, anchor
+                    )
                 await asyncio.sleep(0)
-            self._save(row, state="completed")
+            if row.get("include_chip_inputs"):
+                rates = await self._chip_turnover(row, raw_rows, inputs)
+                self._publish(
+                    row,
+                    raw_rows,
+                    factors,
+                    inputs,
+                    scanned,
+                    definition,
+                    listing,
+                    anchor,
+                    turnover=rates,
+                )
+            self._save(
+                row,
+                state="completed",
+                **(
+                    {"progress": {**row["progress"], "phase": "complete"}}
+                    if row.get("include_chip_inputs")
+                    else {}
+                ),
+            )
         except asyncio.CancelledError:
             self._save(row, state="cancelled", failure_code="history_cancelled")
             log.info("asset_history_cancelled", job_id=row["id"])

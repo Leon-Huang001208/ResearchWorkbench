@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import copy
 import hashlib
 import json
 import operator
@@ -256,9 +257,17 @@ class AssetWorkspace:
 
     def chart_preferences(self) -> dict:
         value = self.store.data["chart_preferences"]
-        return {"panels": list(value["panels"]), "revision": value["revision"]}
+        return {
+            "panels": list(value["panels"]),
+            "revision": value["revision"],
+            **(
+                {"chip_settings": copy.deepcopy(value["chip_settings"])}
+                if "chip_settings" in value
+                else {}
+            ),
+        }
 
-    def set_chart_preferences(self, panels: list[str]) -> dict:
+    def set_chart_preferences(self, panels: list[str], chip_settings: dict | None = None) -> dict:
         if (
             not isinstance(panels, list)
             or len(panels) > 4
@@ -267,9 +276,19 @@ class AssetWorkspace:
         ):
             raise AssetWorkspaceError("图表副图必须是最多四个唯一的受支持面板")
         previous = self.store.data["chart_preferences"]
+        if chip_settings is not None:
+            from .asset_chip_inputs import normalize_chip_settings
+
+            try:
+                chip_settings = normalize_chip_settings(chip_settings)
+            except ValueError as exc:
+                log.warning("asset_chip_settings_rejected")
+                raise AssetWorkspaceError(str(exc)) from exc
         self.store.data["chart_preferences"] = {
+            **previous,
             "panels": list(panels),
             "revision": previous["revision"] + 1,
+            **({"chip_settings": chip_settings} if chip_settings is not None else {}),
         }
         try:
             self.store.save()

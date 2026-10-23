@@ -3028,6 +3028,26 @@ Functions:
 - `group_reports`
 
 
+## `app/research_web/asset_chip_inputs.py`
+
+Module docstring:
+> Join frozen date-bound turnover and same-version prices without mutating evidence.
+
+Imports:
+- `__future__`
+- `asset_history`
+- `core.observability`
+- `hashlib`
+- `json`
+- `math`
+- `typing`
+
+Functions:
+- `normalize_chip_settings`
+- `_finite`
+- `chip_rows`
+
+
 ## `app/research_web/asset_directory.py`
 
 Module docstring:
@@ -3093,6 +3113,7 @@ Module docstring:
 
 Imports:
 - `__future__`
+- `asset_chip_inputs`
 - `asset_history`
 - `asyncio`
 - `copy`
@@ -3112,7 +3133,7 @@ Imports:
 
 Classes:
 - `HistoryJobs`
-  - methods: __init__, hub, _observation, _row, public, current, get, list, active, _canonical, _authorize, _authorize_inputs, create, _save, _query, _factors, _gate, _raw_parameters, _cache_chunk, _reuse, _raw_inputs, _publish, _run, cancel, cancel_session, close
+  - methods: __init__, hub, _observation, _row, public, current, get, list, active, _canonical, _authorize, _authorize_inputs, create, _save, _query, _factors, _chip_turnover, _gate, _raw_parameters, _cache_chunk, _reuse, _raw_inputs, _publish, _run, cancel, cancel_session, close
 
 Functions:
 - `digest`
@@ -3182,6 +3203,7 @@ Module docstring:
 Imports:
 - `__future__`
 - `asyncio`
+- `copy`
 - `core.observability`
 - `datahub.contracts`
 - `datetime`
@@ -4431,6 +4453,8 @@ Functions:
 - `_financials`
 - `_holder_details`
 - `_snapshot`
+- `_chip_turnover`
+  - Only one metadata-verified vendor factor, at at most 32 exact trading dates.
 - `structured_query`
 
 
