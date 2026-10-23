@@ -738,3 +738,6 @@ Host 非秘密 model_profiles 索引记录 items、active_id 和各协议当前�
 Skill/Workflow/Report Workflow 自动化原本没有批准的服务商身份字段，继续保留其既有执行时默认模型语义；本次不补造历史模型审批。profile 身份固定专用于已声明 provider/model 的 research_task。
 
 2026-10-23 资产v6封闭部署配置绑定常驻c1a260fa与已合并PR197产品eac68068；仅此配置使用固定ZIP日志读取器，旧恢复合同和严格全账号保全不变。详见[部署合同](../../research-web-gateway-upgrade.md#资产筹码与精炼布局固定部署v6)。
+
+
+2026-10-23：v7沿原运行时、会话和模型配置；来源查询/市场inflight活动或未知延后切换，不调用模型或启动第二研究引擎。

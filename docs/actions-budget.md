@@ -251,3 +251,6 @@ PIT候选的Mac真实启动发现BEA漏登连接中心分组，修复后在原Ch
 并在原catalog/coordinator模块覆盖完整目录和持久状态恢复。该文件本机约28秒，新增预算合计预留45秒；
 仍无新job/runner/依赖/时限或他平台dispatch。临时Mac诊断workflow已恢复原字节；三次历史启动失败保留，
 正常修补后的同候选Mac仍须重新证明，不用本机通过替代。追加公开资金流失败只在本机执行，不进入CI。
+
+
+2026-10-23资产副图固定v7部署：封闭apply-assets-v7 / reviewed-asset-observation-v7，PREVIOUS=c4e953c4386c615cde89ad2d014d60c6e2959303，PAYLOAD=abdc2a5883cfc86daf181062dc6ab8602e33128c（PR204实际合并）。沿原version4事务、维护锁、BirthFence、64MiB严格业务索引/全账号保全及恢复；额外复用现有市场inflight空闲检查。旧v1–v6、market、模型身份和controller/evidence字节保持。锁文件7c631d4f、严格reader5c3077固定，无新依赖、HTTP、schema或权限；仍须新操作员同候选独评/完整Router/三CI/Mac安装及实际部署证明。
