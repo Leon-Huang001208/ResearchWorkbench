@@ -15,7 +15,7 @@ test('overview separates confirmed limits, unknown coverage and previous amount 
 test('fund history shows all five amounts and distinguishes vendor from accumulated rows', () => {
   const flow = { provider: 'eastmoney', row_count: 1, provider_total: 1, history_requested: 30, history_count: 2, history_rows: [{date:'2026-10-21',main_net:0,super_net:-1,large_net:1,medium_net:2,small_net:-2},{date:'2026-10-22',main_net:-3,super_net:-1,large_net:-2,medium_net:2,small_net:1}] };
   const html = renderMarketPage({ snapshot: data({ sections: { 'flows:industry:today': section([], { summary: { market_flow: flow } }) } }) }, {marketView:'sectors'});
-  assert.match(html, /本次来源 1 日/); assert.match(html, /已留存 2 日/); assert.match(html, /未补齐/);
+  assert.match(html, /快照来源 1 日/); assert.match(html, /已留存 2 日/); assert.match(html, /未补齐/);
   assert.match(html, /2026-10-21/); assert.match(html, /超大单/); assert.match(html, /小单/);
 });
 
