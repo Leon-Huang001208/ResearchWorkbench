@@ -2,6 +2,11 @@
 
 今日发现定位：`app/research_web/discovery/models.py/sources.py/handoff.py/service.py/tracking.py/routes.py`分别负责严格选择、真实来源、原生身份/上下文、单次研究、独立跟踪与HTTP；`ui/discovery.mjs/css`由原app/core/intel/index接线。Store预留身份、Snapshots归档/复制、Automation伴随原子保存及gateway/runtime容量恢复沿现有模块。测试为test_discovery、test_discovery_tracking、test_discovery_routes、research_web_discovery及既有多用户回归；权威合同见[今日发现](research-web-discovery.md)，机器索引与API Atlas同步。
 
+SPDR `providers_external.py` 的 `spdr_projection/spdr_fields` 是四项原生数值和字段定义的共同入口；
+`research_snapshot_store.py` 写入前重新解析原件，`research_warehouse.py` 绑定专用版本/单位身份，
+DataHub `__init__.py` 拒绝新查询复用旧未解析缓存。近处回归为 `test_datahub_spdr.py` 和
+`test_spdr_warehouse_integration.py`，覆盖源格式、提前拒绝、原件绑定、授权、冻结恢复及旧回执可读；
+真实 HTTP/Host/PostgreSQL 和同候选 CI 证据由任务报告分别记录，不能以合成样例代替。
 
 2026-10-23：终端Native部署入口仍为`research_workbench_entrypoint/resident/model_provider_upgrade.py`，新增封闭terminal profile并复用原version4事务／严格保全，不开放任意PAYLOAD。完整操作员回归覆盖旧profiles与terminal，产品后端130例单独记录；PR201产品合并后由主任务固定最终PAYLOAD，再完成组合候选独评、完整Router及原三CI。对应身份与未执行部署状态见[部署合同](research-web-gateway-upgrade.md#全市场终端固定部署2026-10-23)。
 

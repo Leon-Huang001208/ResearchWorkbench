@@ -2,6 +2,9 @@
 
 今日发现实现先完成只读预览与显式冻结/单次提交合同、跟踪独立启用/去重/日限及账号容量恢复负例，再执行完整Router、独评和同候选原三CI。Checks只在原Python步骤追加三模块，JS保留原通配符；Mac安装同一步核对discovery静态资源，无新job/runner/timeout/平台dispatch。真实模型、生产计划与部署保持独立NOT_RUN，细则见[今日发现](research-web-discovery.md)。
 
+SPDR 原生快照迭代在 Mac 隔离 worktree 开发，先验证四项闭合投影和原件绑定，再用单次公开取数、独立 socket-only
+PostgreSQL、跨会话/Host 与 PG 重启及第二空库恢复验收；CI 不访问厂商、模型或正式数据库。
+两新测试模块沿原 Checks 同一步，原三 CI 与同候选 macos-14 安装门保持。未更新常驻服务或外盘，其他平台原生保持 NOT_RUN。
 
 2026-10-23：终端profile闭包先运行后端130例与完整操作员／网关／resident回归，不安装依赖、不改秘密或常驻服务。`apply-market-terminal`仅复用原封闭Native部署通道；PR201合入后主任务固定最终产品身份，完整changed-set Router、独立评审、Project Constraints／Research Web Checks及同候选macos-14干净安装均须重新绑定。实际切换、认证页面及全账号保全另取证；产品CI或本地通过不能认证这些层级。
 

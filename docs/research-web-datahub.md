@@ -4,6 +4,20 @@
 
 `Snapshots.publish_discovery`复用原会话隔离/NOFOLLOW/Hash/原子发布，来源与Provider明确golddata_intel，kind为discovery_evidence，coverage为explicit_frozen_selection。rows.json/csv含冻结时取得的事件与报道，私有raw保留已解析detail与选择包的规范化JSON字节（不是HTTP传输原字节）；上下文绑定dataset manifest及选材Hash。它不经伪造CLS Provider Query，不注册新供应商、不写研究仓、不冒充Host网页全文或PIT。GET selection的完整详情核对仅在当前用户有界内存缓存生成独立scope feed，freeze/save前再次核验；它本身不发布DataHub快照或改变首页。显式跨会话复制重验原件并保留origin映射，但不取得旧交接执行权；见[今日发现](research-web-discovery.md)。
 
+## SPDR GLD 四项原生快照（2026-10-23）
+
+既有 `external_data` 的 `source=ext_spdr`、`dataset=gld` 现在按
+`spdr-gld-trust-snapshot-v1` 投影 `total_nav_usd`、`total_tonnes`、`total_ounces`、
+`shares_outstanding` 四项。参数 `arguments_json` 省略或为 `{}`；非空对象（含空的 query/params/body 容器）拒绝。
+四项各有数值、精确 `value_decimal`、原始格式文本、自己的参考日期、原日期文本和原单位标签。
+`USD/tonnes/ounces/shares` 沿用源口径，不换算盎司标准、重量、币种或份额；参考日期不作为公布时刻。
+完整响应体保留，四项投影完整不表示整源或全部历史完整。`limit<4` 返回 partial，不能入仓。
+
+可选研究仓按独立来源、完整查询、版本和单位身份保存完整四项响应；写入时重新解析原件并核对行与字段。
+display+allow_stale 可在既有有界 TTL 内读库；最新 strict 研究的仓库读取保持 miss，沿原 Provider 获取。
+旧未解析会话缓存不复用，旧显式回执继续可读。原生捕获保留 first_observed，历史发布时间和修订链未认证；
+供应商历史/as_of 与正式 backtest 取数拒绝，仓库已有捕获仅能按其实际观测时间回放。
+SPDR 与其他黄金来源分别保存。本轮不增加来源 ID、配置或正式数据库连接，不更新常驻服务和外盘。
 
 终端指数目录保留core-v1固定12并新增terminal-v2共24：含中证2000（逻辑932000.SH，东财secid2.932000）、国企红利、国证2000、中证红利及399370—399377风格系列。东财报价与分时沿原有界httpx；新浪CN_MarketData.getKLineData最多400日、独立8秒总预算，仅保留报价日前完整日，最后收盘价须与东财真实昨收一致。不通过则保留报价与历史缺口，不能混为可靠回测历史。无付费源或新依赖。
 
