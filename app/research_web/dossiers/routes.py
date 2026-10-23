@@ -78,6 +78,11 @@ async def link(did: str, body: models.Link, request: Request):
     )
 
 
+@router.get("/{did}/links/{lid}")
+async def read_link(did: str, lid: str, request: Request):
+    return request.app.state.research.dossiers.read_link(did, lid)
+
+
 @router.post("/{did}/handoff")
 async def handoff(did: str, body: models.Handoff, request: Request):
     return request.app.state.research.dossiers.handoff(did, body.model_dump(mode="json"))
