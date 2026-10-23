@@ -503,9 +503,21 @@ Hot研究结果读取/原回合核对为hot_results.py与hot_routes，测试test
 
 2026-10-23 资产v6封闭部署配置绑定常驻c1a260fa与已合并PR197产品eac68068；仅此配置使用固定ZIP日志读取器，旧恢复合同和严格全账号保全不变。详见[部署合同](research-web-gateway-upgrade.md#资产筹码与精炼布局固定部署v6)。
 
+2026-10-23：资产行情数值采用A股红涨绿跌，开高低收各自对真实前收比较；涨跌额/幅按正负着色，零、无效及缺失基准保持中性。沿原主题红/绿变量，只给数值上色；历史十字线、日周月与局部报价刷新同步，计算和冻结数据不变。
+
+
+2026-10-23：资产副图：ui/asset-indicator-library.mjs拥有15类纯计算及封闭schema；asset-panel-manager.mjs渲染目录/常用/参数；asset-chart.mjs管理原ECharts实例与模态生命周期；asset_indicator_preferences.py与asset_routes/asset_workspace验证、账号存储和回滚。正式回归为test_asset_indicator_preferences.py与research_web_asset_indicator_library.test.mjs，原指标与交互门保持。
+
 ## 2026-10-23：披露及历史发布定位
 
 `datahub/providers_akshare.py`的income_statement封闭新浪请求、日期精度和资金流同源标记，`providers_bea_archive.py`解析已审核BEA档案，`bea_archive_store.py`绑定公开发布修订。`broker.py`按明确selector和截止范围准入，`research_warehouse.py`按当前profile鉴权并分派原桥；股票日历仅用于bars。`test_datahub_financial_time_contract.py`与`test_datahub_bea_archive.py`覆盖未知单位/日期、旧版冲突、截止边界、并发幂等和恢复。现有三安装入口/依赖锁不变，最终Mac干净安装与实际Host/PG分别验收。
 
 `connection_center.py`的公开分组必须与Catalog同步；`test_datahub_catalog.py`遍历真实全目录投影，
 `test_integration_coordinator.py`用真实DataHub恢复已持久集成状态，防止新增源漏登记造成启动KeyError。
+
+
+2026-10-23资产副图固定v7部署：封闭apply-assets-v7 / reviewed-asset-observation-v7，PREVIOUS=c4e953c4386c615cde89ad2d014d60c6e2959303，PAYLOAD=3a62ca1a3bff0927db681322a1ff028f08cf03cd（含PR204资产及PR203财务补齐的组合产品）。沿原version4事务、维护锁、BirthFence、64MiB严格业务索引/全账号保全及恢复；额外复用现有市场inflight空闲检查。旧v1–v6、market、模型身份和controller/evidence字节保持。锁文件7c631d4f、严格reader5c3077固定，无新依赖、HTTP、schema或权限；仍须新操作员同候选独评/完整Router/三CI/Mac安装及实际部署证明。
+
+## 2026-10-23：BaoStock盈利能力来源
+
+providers_baostock.py的profitability分支调用固定query_profit_data，Broker只把明确statements=[profitability]映射quarterly_profitability。research_warehouse/research_snapshot_store按独立财务schema保存首次观测，DataHub会话缓存拒旧财务schema。test_datahub_baostock与test_baostock_financial_integration覆盖日期/单位/路由/冻结/恢复；原bars身份不变。

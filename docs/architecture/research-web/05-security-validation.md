@@ -774,3 +774,6 @@ AES 专用模型后端在构造器的既有文件锁内核验全部现有 JSON�
 命名模型 profile 只扩展产品固定命名域 RESEARCH_MODEL_PROFILE_<32hex>；私有 bridge 还必须匹配该用户 Store 注册项。两个 legacy 账号和原 namespace 不迁移或回填。旧 DSH ref 按服务端路由解析，端点/协议不会由浏览器任意控制执行。Docker 新 profile AES envelope 携带公开 account，启动逐项校验 filename、account 与 AAD；旧 envelope 原样兼容，未知文件/损坏/错误绑定仍拒绝。HTTP 不提供读 Key API，日志仅事件/错误码；未知凭据状态阻断生成，清除仍显式确认。
 
 2026-10-23 资产v6封闭部署配置绑定常驻c1a260fa与已合并PR197产品eac68068；仅此配置使用固定ZIP日志读取器，旧恢复合同和严格全账号保全不变。详见[部署合同](../../research-web-gateway-upgrade.md#资产筹码与精炼布局固定部署v6)。
+
+
+2026-10-23：v7继续固定前版c4e/产品3a62/reader5c3077及锁7c631d4f；完整来源范围、CI实际checkout、维护锁、BirthFence与保全门不放宽。旧profiles/controller/evidence字节保持；先同候选验收，再持锁空闲切换。

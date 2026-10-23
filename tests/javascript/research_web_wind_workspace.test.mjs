@@ -257,3 +257,34 @@ test('unknown submission recovered after refresh installs its completed immutabl
   await controller.load({ asset: '603986.SH', assetType: 'stock' }); await completed;
   assert.equal(controller.state.rows.history[0].close, 50); assert.equal(controller.state.historyJob.id, 'job');
 });
+
+test('indicator preferences survive legacy saves and failed extended writes restore all keys', async()=>{
+ let fail=false;const writes=[];
+ const controller=createAssetWorkspaceController({api:apiFor({
+  assetChartPreferences:async()=>({panels:['cci'],favorites:['cci','atr'],indicator_settings:{cci:{period:20}}}),
+  saveAssetChartPreferences:async body=>{writes.push(body);if(fail)throw new Error('offline');return body;},
+ })});
+ await controller.load({asset:'603986.SH',assetType:'stock'});
+ await controller.savePreferences(['atr']);assert.deepEqual(writes[0].favorites,['cci','atr']);assert.equal(writes[0].indicator_settings.cci.period,20);
+ fail=true;await controller.savePreferences(['rsi'],undefined,{favorites:[],indicator_settings:{rsi:{period:7}}});
+ assert.deepEqual(controller.state.preferences.panels,['atr']);assert.deepEqual(controller.state.preferences.favorites,['cci','atr']);assert.equal(controller.state.preferences.indicator_settings.cci.period,20);
+});
+
+test('account ABA cannot revive stale preference responses or queued writes', async()=>{
+ const previous=globalThis.__RWB_USER_ID__;let release;let sends=0;let fail=false;
+ globalThis.__RWB_USER_ID__='indicator-account-a';
+ try {
+  const pending=new Promise(resolve=>{release=resolve;});
+  const controller=createAssetWorkspaceController({api:apiFor({
+   assetChartPreferences:async()=>({panels:['atr'],favorites:['atr']}),
+   saveAssetChartPreferences:async body=>{sends++;if(sends===1)return pending;if(fail)throw new Error('new account failure');return body;},
+  })});
+  const first=controller.savePreferences(['rsi'],undefined,{favorites:['rsi']});
+  await Promise.resolve();const queued=controller.savePreferences(['cci']);
+  globalThis.__RWB_USER_ID__='indicator-account-b';await controller.load({asset:'603986.SH',assetType:'stock'});
+  globalThis.__RWB_USER_ID__='indicator-account-a';await controller.load({asset:'603986.SH',assetType:'stock'});
+  release({panels:['rsi'],favorites:['rsi']});await first;await queued;
+  assert.equal(sends,1);assert.deepEqual(controller.state.preferences.panels,['atr']);
+  fail=true;await controller.savePreferences(['obv']);assert.deepEqual(controller.state.preferences.panels,['atr']);assert.deepEqual(controller.state.preferences.favorites,['atr']);
+ } finally {if(previous===undefined)delete globalThis.__RWB_USER_ID__;else globalThis.__RWB_USER_ID__=previous;}
+});

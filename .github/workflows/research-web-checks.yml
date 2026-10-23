@@ -123,6 +123,7 @@ jobs:
             tests/research_web/test_asset_workspace.py \
             tests/research_web/test_asset_history.py \
             tests/research_web/test_asset_chip_inputs.py \
+            tests/research_web/test_asset_indicator_preferences.py \
             tests/research_web/test_asset_directory.py \
             tests/research_web/test_asset_loading.py \
             tests/research_web/test_asset_provider_normalization.py \
@@ -152,6 +153,7 @@ jobs:
             tests/research_web/test_datahub_warehouse.py \
             tests/research_web/test_datahub_akshare_semantics.py \
             tests/research_web/test_datahub_baostock.py \
+            tests/research_web/test_baostock_financial_integration.py \
             tests/research_web/test_datahub_public_worker.py \
             tests/research_web/test_research_warehouse_management.py \
             tests/research_web/test_research_snapshot_store.py \

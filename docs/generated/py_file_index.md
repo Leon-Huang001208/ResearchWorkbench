@@ -3139,6 +3139,22 @@ Functions:
 - `digest`
 
 
+## `app/research_web/asset_indicator_preferences.py`
+
+Module docstring:
+> Closed, account-scoped display preferences; never vendor formulas or queries.
+
+Imports:
+- `__future__`
+- `copy`
+- `core.observability`
+- `math`
+
+Functions:
+- `validate_indicator_ids`
+- `normalize_indicator_settings`
+
+
 ## `app/research_web/asset_routes.py`
 
 Module docstring:
@@ -3918,6 +3934,7 @@ Imports:
 - `os`
 - `probes`
 - `providers_akshare`
+- `providers_baostock`
 - `providers_bea_archive`
 - `providers_external`
 - `re`
@@ -4376,7 +4393,7 @@ Functions:
 ## `app/research_web/datahub/providers_baostock.py`
 
 Module docstring:
-> Closed anonymous BaoStock adapter; raw SH/SZ daily bars only.
+> Closed anonymous BaoStock adapter; SH/SZ bars and quarterly profitability.
 
 Imports:
 - `__future__`
@@ -4389,13 +4406,18 @@ Imports:
 - `providers`
 - `re`
 - `threading`
+- `zoneinfo`
 
 Functions:
 - `active_futures`
 - `_asset`
 - `_bounds`
 - `validate_supported_query`
+- `_financial_date`
+  - Financial dates follow the supplier's Shanghai natural-day precision.
+- `_financial_period`
 - `_records`
+- `_profitability`
 - `invoke`
 - `fetch`
 
@@ -4875,6 +4897,7 @@ Imports:
 - `math`
 - `providers`
 - `providers_akshare`
+- `providers_baostock`
 - `providers_external`
 - `providers_market`
 - `threading`
@@ -4917,6 +4940,7 @@ Imports:
 - `pathlib`
 - `providers`
 - `providers_akshare`
+- `providers_baostock`
 - `providers_external`
 - `pydantic`
 - `re`
