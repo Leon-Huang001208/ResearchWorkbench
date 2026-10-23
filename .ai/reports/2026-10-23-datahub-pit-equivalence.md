@@ -4,7 +4,7 @@
 
 <!-- architecture-review {"group":"datahub","structure":"unchanged","reason":"复核02模块及04数据流：新官方档案Parser与Sina利润表仍处于既有Provider节点，历史修订复用原WarehouseBinding和MarketStore可用/入库双时间、原件与冻结表；无新HTTP、服务、存储根或表。股票日历分支仅限bars，不新增宏观日历服务，原图准确。","diagrams":[]} -->
 
-<!-- architecture-review {"group":"verification-workflow","structure":"unchanged","reason":"只在原Research Web Checks同一Python步骤增加两个离线合同模块；完整Router、独立评审、原三CI与同候选Mac安装继续保留，未改变job、runner、门、超时、依赖或平台责任，08流程图准确。","diagrams":[]} -->
+<!-- architecture-review {"group":"verification-workflow","structure":"unchanged","reason":"原Checks增加两个离线合同模块；Mac Bootstrap在失败分支增加有界脱敏子进程栈结构采集，仍为原安装/启动/停止/回执链，不新增job、runner、门、超时或依赖，08流程图准确。原失败门及平台责任保留。","diagrams":[]} -->
 
 ## 本批范围
 
@@ -39,3 +39,7 @@ review-red保存1项P1及2项P2的失败复现：部分恢复错选旧版、上�
 PR197使master从bb531a0推进eac6806，本任务同一集成分支保留全部上游资产/筹码/日期合同；只有readme-review.json文本冲突，保留上游复核并追加本任务说明，根README相对新基线仍无改动。catalog/contracts的上游变化使原11源码证明不能冒充当前树；旧b1ade04的CI只保留历史归属。
 
 在干净集成提交f611f98b6da090cdf828b9c0f16a32816ed25561执行真实attempt5，6.151秒PASS、2直连BEA＋1财务worker。新源码11hash前后不变；初值/第二版/截止边界、Host与PG重启、独立完整恢复和仅初值恢复后的缺版拒绝重新通过，PG/HOME均回收，模型0。财报仍日期精度且非历史PIT，资金流本轮没有真实取数或等价认证。此后仅本报告与来源清单更新，运行时代码不变；对应最终文档候选仍须精确CI/评审绑定。
+
+## Mac安装门失败诊断
+
+9b280候选Constraints/Checks通过，Mac run39901744306在安装成功后启动阶段失败，web_process_exited；旧b1候选run39899542217同类失败保留历史归属。现有artifact仅setup日志，不能归因为数据源代码或系统故障。本机临时HOME/内存钥匙串、禁采集和无DSH连接的真实应用lifespan通过；它不替代干净Mac完整双服务检查。补充同一Bootstrap失败分支的脱敏栈结构采集，读取上限与符号链接/秘密反例实跑19项JS通过；不上传原始子进程日志，不改失败条件、不盲目rerun、不安装新依赖或操作常驻服务。

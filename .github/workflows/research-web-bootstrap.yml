@@ -185,6 +185,43 @@ jobs:
           curl --noproxy '*' --fail --silent --show-error --max-time 45 -H 'Origin: http://127.0.0.1:8088' -H 'Content-Type: application/json' --data '{"query":"bootstrap-search-smoke","mode":"claw"}' http://127.0.0.1:8088/api/research/sessions/search > native-search-smoke.json
           .venv/bin/python -c "import json; data=json.load(open('native-search-smoke.json', encoding='utf-8')); assert data['source'] == 'native_dsh' and data['items'] == [] and data['has_more'] is False and data['unavailable_count'] == 0, data"
 
+      - name: Collect sanitized startup failure structure
+        if: failure()
+        shell: bash
+        run: |
+          .venv/bin/python - <<'PY'
+          import json, os, re, stat
+          from pathlib import Path
+          records = {}
+          for role in ("web", "runtime"):
+              path = Path.home() / ".research-workbench" / "logs" / f"{role}.log"
+              record = {"state": "missing", "frames": [], "exceptions": []}
+              try:
+                  descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+                  with os.fdopen(descriptor, "rb") as stream:
+                      info = os.fstat(stream.fileno())
+                      if not stat.S_ISREG(info.st_mode):
+                          raise ValueError("unsafe_log")
+                      stream.seek(max(0, info.st_size - 262144))
+                      text = stream.read(262144).decode("utf-8", errors="replace")
+                  record["state"] = "read"
+                  record["frames"] = [
+                      {"module": module, "line": int(line)}
+                      for module, line in re.findall(
+                          r'File "[^"\n]*/((?:app/research_web|research_workbench_entrypoint)/[a-zA-Z0-9_/]+\.py)", line (\d+)', text
+                      )[-40:]
+                  ]
+                  record["exceptions"] = re.findall(
+                      r"^([A-Z][A-Za-z0-9]*(?:Error|Failure|Exception)):", text, re.MULTILINE
+                  )[-10:]
+              except FileNotFoundError:
+                  pass
+              except (OSError, ValueError) as exc:
+                  record.update(state="diagnostic_failed", error_type=type(exc).__name__)
+              records[role] = record
+          Path("startup-failure-structure.json").write_text(json.dumps(records, indent=2))
+          PY
+
       - name: Stop macOS services
         if: always()
         shell: bash
@@ -217,5 +254,6 @@ jobs:
             connections.json
             native-search-smoke.json
             logs/setup-web.log
+            startup-failure-structure.json
           if-no-files-found: ignore
           retention-days: 3
