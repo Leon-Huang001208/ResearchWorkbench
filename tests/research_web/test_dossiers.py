@@ -299,7 +299,9 @@ def test_consistent_backup_restore_validates_originals_and_owner(tmp_path):
     assert research.dossiers.metadata.retained_by(row["id"]) == [dossier["id"]]
 
 
-def test_failed_first_write_can_be_retried_without_new_database_identity(tmp_path, monkeypatch):
+def test_failed_first_write_requires_explicit_recovery_without_automatic_reinitialization(
+    tmp_path, monkeypatch
+):
     research = service(tmp_path)
     with monkeypatch.context() as patch:
         patch.setattr(
@@ -309,8 +311,61 @@ def test_failed_first_write_can_be_retried_without_new_database_identity(tmp_pat
         )
         with pytest.raises(StoreError):
             create(research)
-    assert research.dossiers.list()["items"] == []
-    assert create(research)["revision"] == 1
+    path = research.dossiers.metadata.path
+    assert path.exists() and path.stat().st_size == 0
+    for operation in (research.dossiers.list, lambda: create(research)):
+        with pytest.raises(StoreError) as error:
+            operation()
+        assert error.value.code == "dossier_storage_uninitialized"
+    assert path.exists() and path.stat().st_size == 0
+
+
+@pytest.mark.parametrize("damage", ["missing", "empty"])
+def test_existing_database_loss_blocks_reads_writes_purge_backup_until_verified_restore(
+    tmp_path, damage
+):
+    research = service(tmp_path)
+    dossier = create(research)
+    row, original = upload(research)
+    bind(research, dossier, row["id"])
+    backup = tmp_path / "before-db-loss.sqlite3"
+    receipt = research.dossiers.backup_to(backup)
+    assert research.dossiers.metadata.retained_by(row["id"]) == [dossier["id"]]
+    database = research.dossiers.metadata.path
+    if damage == "missing":
+        database.unlink()
+    else:
+        database.write_bytes(b"")
+    research.store.soft_delete(row["id"])
+    for operation in (
+        research.dossiers.list,
+        lambda: research.dossiers.metadata.retained_by(row["id"]),
+        lambda: create(research, "create-after-loss-0001"),
+        lambda: research.dossiers.patch(
+            dossier["id"],
+            {
+                "expected_revision": 2,
+                "idempotency_key": "patch-after-loss-0001",
+                "title": "must not rebuild",
+            },
+        ),
+        lambda: research.store.purge(row["id"]),
+        lambda: research.dossiers.backup_to(tmp_path / "must-not-create.sqlite3"),
+    ):
+        with pytest.raises(StoreError) as error:
+            operation()
+        assert error.value.code == "dossier_storage_uninitialized"
+        assert error.value.status == 503
+        assert original.is_file()
+        assert (not database.exists()) if damage == "missing" else database.stat().st_size == 0
+    assert not (tmp_path / "must-not-create.sqlite3").exists()
+    research.dossiers.restore_from(backup, expected_sha256=receipt["sha256"])
+    assert research.dossiers.get(dossier["id"])["revision"] == 2
+    assert research.dossiers.metadata.retained_by(row["id"]) == [dossier["id"]]
+    with pytest.raises(StoreError) as error:
+        research.store.purge(row["id"])
+    assert error.value.code == "dossier_evidence_retained"
+    assert original.is_file()
 
 
 def test_reference_and_retention_rollback_together(tmp_path, monkeypatch):
