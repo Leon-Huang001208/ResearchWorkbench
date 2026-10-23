@@ -168,6 +168,7 @@ class DossierSignals:
                     eligible=evaluation["coverage"]["eligible"],
                     reason=None if evaluation["coverage"]["eligible"] else "evidence_not_qualified",
                     manual_checked_at=cutoff,
+                    manual_rules_sha256=RULES_SHA256,
                 )
             aux["tracking"] = tracking
             for item in evaluation["items"]:
@@ -258,11 +259,19 @@ class DossierSignals:
 
     def tracking(self, did, request):
         enabled = request["enabled"]
-        definition = self.definition(did)
         detail = self.dossiers.get(did)
+        definition = (
+            self.definition(did)
+            if enabled
+            else {"sha256": detail.get("tracking", {}).get("definition_sha256", "disabled")}
+        )
         if enabled:
             tracking = detail.get("tracking", {})
-            if not tracking.get("eligible") or tracking.get("manual_checked_at") != self._today():
+            if (
+                not tracking.get("eligible")
+                or tracking.get("manual_checked_at") != self._today()
+                or tracking.get("manual_rules_sha256") != RULES_SHA256
+            ):
                 raise StoreError(
                     "请先完成当前日期的合格手动扫描", "dossier_tracking_manual_required", 409
                 )
@@ -290,6 +299,7 @@ class DossierSignals:
                 reason="activation_pending" if enabled else "disabled_by_user",
                 rule_version=RULE_VERSION,
                 rules_sha256=RULES_SHA256,
+                definition_sha256=definition["sha256"],
             )
             aux["tracking"] = value
             self._save(connection, identifier, aux)
@@ -300,8 +310,22 @@ class DossierSignals:
         if current["tracking"].get("request_key") != request["idempotency_key"]:
             # Replaying an old authorization must never undo a later disable.
             return {"dossier": result, "tracking": result["tracking"]}
+        intent = current["tracking"]
+        if enabled and (
+            intent.get("definition_sha256") != definition["sha256"]
+            or intent.get("rules_sha256") != RULES_SHA256
+            or intent.get("automation_id") != automation_id
+            or intent.get("schedule") != schedule.model_dump(mode="json")
+        ):
+            raise StoreError(
+                "跟踪授权定义已变化，请重新手动扫描并确认",
+                "dossier_tracking_definition_changed",
+                409,
+            )
         if enabled and current["tracking"].get("enabled"):
             return {"dossier": current, "tracking": current["tracking"]}
+        if enabled and current["revision"] != result["revision"]:
+            raise StoreError("档案版本已变化，请重新确认跟踪", "dossier_revision_conflict", 409)
         for old in list(self.research.store.data.get("automations", {}).values()):
             target = old.get("target", {})
             if (
@@ -339,6 +363,16 @@ class DossierSignals:
                 def activate(connection, identifier, revision):
                     self._table(connection)
                     aux = self._aux(connection, identifier)
+                    intent = aux.get("tracking", {})
+                    if (
+                        intent.get("request_key") != request["idempotency_key"]
+                        or intent.get("automation_id") != automation_id
+                        or intent.get("definition_sha256") != definition["sha256"]
+                        or intent.get("rules_sha256") != RULES_SHA256
+                    ):
+                        raise StoreError(
+                            "跟踪授权定义已变化", "dossier_tracking_definition_changed", 409
+                        )
                     aux["tracking"].update(enabled=True, requested_enabled=True, reason=None)
                     self._save(connection, identifier, aux)
                     return None, {"tracking": aux["tracking"]}

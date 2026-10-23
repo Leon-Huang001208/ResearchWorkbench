@@ -247,6 +247,68 @@ def test_scan_input_budget_and_non_model_automation_contract(tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_pending_old_authorization_cannot_adopt_upgraded_rules(tmp_path, monkeypatch):
+    from app.research_web.dossiers import scans as module
+
+    research, scans, dossier, _sid = prepared(tmp_path)
+    scanned = await scans.scan(
+        dossier["id"], {"expected_revision": dossier["revision"], "idempotency_key": "scan-0001"}
+    )
+    request = {
+        "expected_revision": scanned["dossier"]["revision"],
+        "idempotency_key": "tracking-0001",
+        "enabled": True,
+    }
+    original = research.automations.enable
+    monkeypatch.setattr(
+        research.automations,
+        "enable",
+        lambda *_args: (_ for _ in ()).throw(RuntimeError("injected")),
+    )
+    with pytest.raises(RuntimeError, match="injected"):
+        scans.tracking(dossier["id"], request)
+    monkeypatch.setattr(research.automations, "enable", original)
+    monkeypatch.setattr(module, "RULES_SHA256", "f" * 64)
+    with pytest.raises(StoreError) as error:
+        scans.tracking(dossier["id"], request)
+    assert error.value.code == "dossier_tracking_manual_required"
+    current = research.dossiers.get(dossier["id"])
+    await scans.scan(
+        dossier["id"],
+        {"expected_revision": current["revision"], "idempotency_key": "scan-upgraded-0001"},
+    )
+    with pytest.raises(StoreError) as error:
+        scans.tracking(dossier["id"], request)
+    assert error.value.code == "dossier_tracking_definition_changed"
+    assert not any(row["enabled"] for row in research.store.data["automations"].values())
+
+
+@pytest.mark.asyncio
+async def test_signal_disposition_filter_uses_current_transactional_state(tmp_path):
+    research, scans, dossier, _sid = prepared(tmp_path)
+    result = await scans.scan(
+        dossier["id"], {"expected_revision": dossier["revision"], "idempotency_key": "scan-0001"}
+    )
+    signal = result["signals"][0]
+    research.dossiers.add_record(
+        dossier["id"],
+        {
+            "expected_revision": result["dossier"]["revision"],
+            "idempotency_key": "dismiss-0001",
+            "record_id": signal["id"],
+            "kind": "signal",
+            "title": signal["title"],
+            "body": signal["body"],
+            "reason": "研究者已处理",
+            "state": "dismissed",
+            "evidence_ids": signal["evidence_ids"],
+        },
+    )
+    assert scans.list(state="open")["items"] == []
+    assert scans.list(state="dismissed")["items"][0]["id"] == signal["id"]
+
+
+@pytest.mark.asyncio
 async def test_backup_restore_includes_scan_tracking_and_pins(tmp_path):
     research, scans, dossier, sid = prepared(tmp_path)
     result = await scans.scan(

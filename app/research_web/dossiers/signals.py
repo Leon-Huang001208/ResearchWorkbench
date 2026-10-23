@@ -50,7 +50,10 @@ def evaluate_signals(dossier: dict, materials: dict[str, dict], cutoff: str) -> 
     valid_asset = subject.get("kind") == "company" and bool(
         re.fullmatch(r"[0-9]{6}\.(SH|SZ|BJ)", asset)
     )
-    missing, items, available, accepted = [], {}, set(), 0
+    missing: list[dict] = []
+    items: dict[str, dict] = {}
+    available: set[str] = set()
+    accepted = 0
     covered = set()
 
     def gap(code, eid=None, capability=None):
@@ -252,7 +255,8 @@ def evaluate_signals(dossier: dict, materials: dict[str, dict], cutoff: str) -> 
         gap("capability_not_covered", capability=capability)
     result = sorted(items.values(), key=lambda item: item["id"])
     for item in result:
-        item["fingerprint"] = _digest(item)
+        # A new scan day is observation metadata, not a changed investment fact.
+        item["fingerprint"] = _digest({key: value for key, value in item.items() if key != "as_of"})
     eligible = bool(accepted) and not any(
         item["code"] != "capability_not_covered" for item in missing
     )
