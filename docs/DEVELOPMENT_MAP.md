@@ -502,3 +502,8 @@ Hot研究结果读取/原回合核对为hot_results.py与hot_routes，测试test
 
 `connection_center.py`的公开分组必须与Catalog同步；`test_datahub_catalog.py`遍历真实全目录投影，
 `test_integration_coordinator.py`用真实DataHub恢复已持久集成状态，防止新增源漏登记造成启动KeyError。
+
+
+## 2026-10-23：BaoStock盈利能力来源
+
+providers_baostock.py的profitability分支调用固定query_profit_data，Broker只把明确statements=[profitability]映射quarterly_profitability。research_warehouse/research_snapshot_store按独立财务schema保存首次观测，DataHub会话缓存拒旧财务schema。test_datahub_baostock与test_baostock_financial_integration覆盖日期/单位/路由/冻结/恢复；原bars身份不变。

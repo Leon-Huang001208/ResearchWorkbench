@@ -994,3 +994,8 @@ AES 载入进一步认证全部既有模型记录；错误密文树/实例绑定
 2026-10-23 资产v6封闭部署配置绑定常驻c1a260fa与已合并PR197产品eac68068；仅此配置使用固定ZIP日志读取器，旧恢复合同和严格全账号保全不变。详见[部署合同](research-web-gateway-upgrade.md#资产筹码与精炼布局固定部署v6)。
 
 2026-10-23副图扩展不新增依赖、配置或Doctor能力；requirements/web.in、web.lock、setup_web.py和三个公开安装入口保持。asset-indicator-library.mjs与asset-panel-manager.mjs随原UI包安装，原Mac Bootstrap下载比对追加两模块；固定图表库、许可证、CJPY无凭据待配置、同候选DSH构建/健康检查/Doctor门均保持。
+
+
+## 2026-10-23：BaoStock盈利能力来源
+
+BaoStock财务扩展复用已批准并锁定baostock0.9.4；没有新增或安装依赖、账号、端口或数据库服务。已核对requirements/web.in、requirements/web.lock、scripts/setup_web.py、三安装入口和Mac Bootstrap；这些文件无需为该适配更改。最终候选仍须同SHA干净Mac安装、固定DSH、3081/8088及Doctor证明兼容，现有服务、正式数据根和外盘不操作。

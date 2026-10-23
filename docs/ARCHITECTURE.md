@@ -212,3 +212,8 @@ ETF工程模拟由Host内 `portfolio_decisions/` 完成确定性信号、组合�
 ## 2026-10-23：发布版本研究仓
 
 BEA 2024Q2官方档案的有限PIT绑定与新浪利润表日期字段沿用原Host→DataHub→MarketStore，复用既有available_at/ingested_at修订、原件与冻结表；只新增Provider内部解析与受信WarehouseBinding，未新增服务、HTTP、数据根或数据库schema。通用native仍是首次观测；东财SDK/游客资金流同源且单位未知，不授予跨源等价。模块与时点范围见[研究仓](research-web-market-store.md)。
+
+
+## 2026-10-23：BaoStock盈利能力来源
+
+BaoStock单报告期盈利能力沿Host/DataHub/Broker/既有公开worker进入现有SnapshotSeries和可选MarketStore；不增加服务、HTTP、表或引擎。该来源原生财务数据不是新浪利润表的自动替代，公布日为日期精度，历史修订和报告期间累计口径未核验。原02/04图包含这些节点和可选仓路径，无新增拓扑。

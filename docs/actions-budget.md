@@ -251,3 +251,8 @@ PIT候选的Mac真实启动发现BEA漏登连接中心分组，修复后在原Ch
 并在原catalog/coordinator模块覆盖完整目录和持久状态恢复。该文件本机约28秒，新增预算合计预留45秒；
 仍无新job/runner/依赖/时限或他平台dispatch。临时Mac诊断workflow已恢复原字节；三次历史启动失败保留，
 正常修补后的同候选Mac仍须重新证明，不用本机通过替代。追加公开资金流失败只在本机执行，不进入CI。
+
+
+## 2026-10-23：BaoStock盈利能力来源
+
+BaoStock财务只向原Research Web Checks同一步增加test_baostock_financial_integration，原BaoStock测试增加合成季度合同；无新workflow/job/runner/依赖/timeout。当前本机该闭包约3秒，新增预算预留15秒；真实免费SDK与独立临时PG只本机有界执行，CI不连接财务厂商。最终原三CI及同候选Mac安装门保持；Mac不发Windows/Linux产品dispatch，远端动作前实时复查visibility/额度。
