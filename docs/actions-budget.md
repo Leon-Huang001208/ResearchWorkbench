@@ -1,6 +1,6 @@
 # GitHub Actions 免费额度治理
 
-2026-10-23档案候选仅扩充原Checks Python清单的8个档案/MCP模块和Mac Bootstrap的4个静态资源同源字节核对，不增job、runner、依赖或其他平台dispatch。实时API确认PUBLIC，近期成功run为39935144625、39934720506、39934720479、39934720463、39933236627（创建至结束约53/322/64/684/527秒）。新增组合266例本机41.33秒，既有JS1075通过/3原skip为6.54秒；定点新增预算预留90秒，Mac静态核对预留15秒。保留原通用CI与同候选Mac干净安装，免费目录估价不授权真实MCP或模型调用。
+2026-10-23档案候选仅扩充原Checks Python清单的9个档案/MCP模块和Mac Bootstrap的4个静态资源同源字节核对，不增job、runner、依赖或其他平台dispatch。实时API确认PUBLIC，近期成功run为39935144625、39934720506、39934720479、39934720463、39933236627（创建至结束约53/322/64/684/527秒）。新增组合266例本机41.33秒，既有JS1075通过/3原skip为6.54秒；定点新增预算预留90秒，Mac静态核对预留15秒。保留原通用CI与同候选Mac干净安装，免费目录估价不授权真实MCP或模型调用。
 
 SPDR 四项快照只向原 Research Web Checks 的同一 Python 步骤添加 test_datahub_spdr 和 test_spdr_warehouse_integration，
 没有新 job、runner、timeout 或依赖；99+19 项定点合成检查本机不足1秒，预留原步骤15秒。

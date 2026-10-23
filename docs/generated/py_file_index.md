@@ -5394,6 +5394,7 @@ Module docstring:
 Imports:
 - `contextlib`
 - `core.observability`
+- `datahub.security`
 - `datetime`
 - `hashlib`
 - `json`
@@ -5409,7 +5410,7 @@ Imports:
 
 Classes:
 - `DossierStore`
-  - methods: __init__, _safe, connection, _validate_database, _row, _detail, get, list, timeline, _append_event, mutate, backup_to, restore_from, retained_by, assert_deletable
+  - methods: __init__, _marker_info, _marked, _ensure_marker, _uninitialized, _safe, connection, _validate_database, _row, _detail, get, list, timeline, _append_event, mutate, backup_to, restore_from, retained_by, assert_deletable
 
 Functions:
 - `canonical`

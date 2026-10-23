@@ -11,6 +11,8 @@
 
 ## 已观察验证
 
+末轮更新：Python候选8c0432767最终Approve，15个关键文件blob与各已审版本核对；JS最终af61a1389 Approve。补齐整个档案目录丢失的根级初始化标记与升级保全后，47项Core／扫描／保全通过。更新组合272 passed（67.47秒）、租户／DataHub／插件121 passed（34.60秒）、Node1081 passed／3原skip（26.58秒）。当前源码重新运行真实HTTP＋Chrome1440浅色／390深色均通过，回执含实际storage等12个文件SHA；积极asyncio网络拒绝回归证明底层连接调用0。仅NativeFixture四次Prompt，无真实模型／供应商访问。源码最终提交、CI和发布身份由正式交付回执绑定。
+
 - 原Router Python：749 passed、1原skip，610.33秒。
 - 档案／MCP／Automation组合：266 passed、1依赖弃用warning，41.33秒；后续信号分类26 passed、profile guard10 passed。
 - Node Research Web：1075 passed、3原skip，6.54秒；后续UI目标210 passed。L4四组113 passed，9.55秒；新增Router策略组117 passed，4.86秒。
