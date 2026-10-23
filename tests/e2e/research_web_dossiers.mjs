@@ -133,6 +133,7 @@ try {
     const submitted = page.waitForResponse(response => response.url().endsWith(`/sessions/${targetSessionID}/messages`) && response.request().method() === 'POST');
     await page.locator('#prompt').press('Enter'); await submitted;
     await page.waitForFunction(() => document.querySelector('#prompt')?.value === '');
+    await page.waitForFunction(() => Object.keys(sessionStorage).filter(key => key.startsWith('research-web:') && key.includes('explicit-draft:')).every(key => !JSON.parse(sessionStorage.getItem(key)).dossierHandoff));
     assert.equal(requests.filter(item => item.method === 'POST' && /\/sessions(?:$|\/[^/]+\/messages)/.test(item.path)).length, priorSubmissions + 2);
     await page.evaluate(() => { location.hash = '#/intel/signals'; });
     await page.getByRole('heading', { name: '离线风险信号', exact: true }).waitFor();
