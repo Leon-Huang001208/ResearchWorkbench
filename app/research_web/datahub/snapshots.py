@@ -422,6 +422,92 @@ class Snapshots:
             return found
         return self._publish_files(sid, did, manifest, public, private, recover=True)
 
+    def publish_discovery(self, sid, handoff_id, bundle):
+        """Freeze an explicit Intel selection; never fabricate a provider query or web fetch."""
+        from uuid import UUID as Identity
+        from uuid import uuid5
+
+        from ..discovery.sources import SOURCE_POLICY, selected_rows
+
+        row = self.store.session(sid)
+        origin = {"handoff_id": handoff_id, "selection_sha256": bundle.get("selection_sha256")}
+        if row.get("purpose") != "discovery_research" or row.get("discovery_origin") != origin:
+            raise StoreError("资料不属于当前发现研究", "discovery_session_foreign", 409)
+        evidence = bundle.get("evidence")
+        if not isinstance(evidence, list) or not 1 <= len(evidence) <= 20:
+            raise StoreError("冻结资料范围非法", "discovery_materials_invalid", 409)
+        raw = json_bytes(bundle)
+        if len(raw) > 16 * 1024 * 1024:
+            raise StoreError("冻结资料超过上限", "discovery_snapshot_limit", 409)
+        did = str(uuid5(Identity(handoff_id), "discovery:" + sid + ":" + sha(raw)))
+        rows = selected_rows(evidence)
+        files = {"rows.json": json_bytes(rows), "rows.csv": csv_bytes(rows)}
+        if any(len(content) > 16 * 1024 * 1024 for content in files.values()):
+            raise StoreError("冻结资料超过上限", "discovery_snapshot_limit", 409)
+        manifest = {
+            "id": did,
+            "dataset_id": did,
+            "name": "今日发现冻结事件资料",
+            "source": "golddata_intel",
+            "provider": "golddata_intel",
+            "capability": "frozen_evidence",
+            "snapshot_kind": "discovery_evidence",
+            "schema_version": SCHEMA_VERSION,
+            "query": {"kind": "explicit_discovery_selection", "handoff_id": handoff_id},
+            "query_fingerprint": bundle["selection_sha256"],
+            "source_url": "",
+            "attempted_sources": [],
+            "retrieved_at": bundle["retrieved_at"],
+            "as_of": bundle["cutoff"],
+            "snapshot_prepared_at": bundle["retrieved_at"],
+            "source_as_of": bundle.get("source_as_of"),
+            "source_stale": bool(bundle.get("stale")),
+            "status": "success",
+            "row_count": len(rows),
+            "provider_total": None,
+            "pages_fetched": len(evidence),
+            "pagination_complete": False,
+            "duplicates_removed": 0,
+            "cache_hit": False,
+            "fields": {},
+            "requested_range": {},
+            "actual_range": {},
+            "coverage": "explicit_frozen_selection",
+            "missing": [],
+            "limitations": [
+                SOURCE_POLICY,
+                "仅冻结本次选中事件；预览未读取的报道正文只在冻结时取得。",
+            ],
+            "discovery": {**origin, "bundle_sha256": sha(raw)},
+            "files": [
+                {
+                    "name": name,
+                    "path": f"inputs/datasets/{did}/{name}",
+                    "sha256": sha(content),
+                    "size": len(content),
+                }
+                for name, content in files.items()
+            ],
+            "raw_files": [
+                {
+                    "name": "raw-0001.bin",
+                    "path": f".control/snapshots/{sid}/{did}/raw-0001.bin",
+                    "sha256": sha(raw),
+                    "size": len(raw),
+                }
+            ],
+        }
+        public = {**files, "manifest.json": json_bytes(manifest)}
+        private = {"manifest.json": public["manifest.json"], "raw-0001.bin": raw}
+        with directory(self.store.root, (".control",), create=True, private=True):
+            pass
+        if did in self.ids(sid):
+            found = self.detail(sid, did)
+            if found.get("discovery") != manifest["discovery"]:
+                raise StoreError("已有发现资料与本次选材不一致", "discovery_snapshot_changed", 409)
+            return found
+        return self._publish_files(sid, did, manifest, public, private, recover=True)
+
     def copy_for_upgrade(self, old_sid, new_sid):
         """User-triggered copy only, never cross-session caching or file links."""
         return self.copy_selected(old_sid, new_sid, self.ids(old_sid))
@@ -439,6 +525,51 @@ class Snapshots:
         copied = []
         for did in requested:
             original = self.detail(old_sid, did)
+            if original.get("snapshot_kind") == "discovery_evidence":
+                new_id = str(uuid4())
+                files = {name: self.read(old_sid, did, name) for name in ("rows.json", "rows.csv")}
+                private = {}
+                with directory(self.store.root, (*self._private(old_sid), did), private=True) as fd:
+                    for item in original["raw_files"]:
+                        content = read_file(fd, item["name"], private=True)
+                        if sha(content) != item["sha256"]:
+                            raise StoreError("原始发现资料hash校验失败，未复制")
+                        private[item["name"]] = content
+                manifest = {
+                    key: value
+                    for key, value in original.items()
+                    if key not in {"manifest_sha256", "files"}
+                }
+                manifest.update(
+                    id=new_id,
+                    dataset_id=new_id,
+                    origin_dataset_id=did,
+                    origin_manifest_sha256=original["manifest_sha256"],
+                )
+                manifest["files"] = [
+                    {
+                        "name": name,
+                        "path": f"inputs/datasets/{new_id}/{name}",
+                        "sha256": sha(raw),
+                        "size": len(raw),
+                    }
+                    for name, raw in files.items()
+                ]
+                manifest["raw_files"] = [
+                    {**item, "path": f".control/snapshots/{new_sid}/{new_id}/{item['name']}"}
+                    for item in original["raw_files"]
+                ]
+                public = {**files, "manifest.json": json_bytes(manifest)}
+                copied.append(
+                    self._publish_files(
+                        new_sid,
+                        new_id,
+                        manifest,
+                        public,
+                        {**private, "manifest.json": public["manifest.json"]},
+                    )
+                )
+                continue
             if original.get("snapshot_kind") == "hot_evidence":
                 canonical = self.read(old_sid, did, "evidence-manifest.json")
                 frozen = json.loads(canonical)

@@ -36,6 +36,7 @@ import { mountCapitalFlow } from './asset-workspace.mjs';
 import { projectAssetObservation } from './asset-projection.mjs';
 import { renderOperations } from './operations.mjs';
 import { createIntelController, renderIntel } from './intel.mjs';
+import { createDiscoveryController, renderDiscovery } from './discovery.mjs';
 import { createMarketController, renderMarketPage } from './market.mjs';
 import { createAihotController, renderAihot } from './aihot.mjs';
 import { renderReportWorkflowDetail, renderReportWorkflowShelf } from './report-workflows.mjs';
@@ -160,6 +161,7 @@ window.matchMedia('(max-width: 1050px)').addEventListener?.('change', event => {
 });
 const hotController = createHotController({api,onChange:()=>render(),isActive:()=>state.route.page==='intel'&&state.route.intelTab==='hot'||state.route.page==='settings'&&state.route.settingsSection==='hot'});
 const intelController = createIntelController({ onChange: () => { if (state.route.page === 'intel') render(); } });
+const discoveryController = createDiscoveryController({ api, onChange: () => { if (state.route.page === 'intel' && state.route.intelTab === 'discovery') render(); }, onNavigate: (mode, sessionId) => { if (sessionId && ['fingpt', 'claw'].includes(mode)) location.hash = `#/${mode}?session=${encodeURIComponent(sessionId)}`; } });
 const marketController = createMarketController({ api, onChange: () => { if (state.route.page === 'market') render(); } });
 const isAssetPage = () => ['assets', 'workbench'].includes(state.route.page) && state.route.section === 'assets';
 const assetChart = createAssetChartController({
@@ -461,7 +463,7 @@ function mainPage() {
   if (isDataWorkspaceRoute(state.route)) return workbenchPage();
   if (state.route.page === 'frameworks') return renderFrameworks({ slug: state.route.frameworkSlug, anchor: state.route.frameworkTab, catalog: frameworkState.catalog, data: frameworkState.data, status: frameworkState.status, error: frameworkState.error, bot: { ...frameworkBot, bridgeReady: frameworkEmbedBridge.ready(state.route.frameworkSlug, frameworkState.data?.snapshot?.revision) } });
   if (state.route.page === 'operations') return operationsPage();
-  if (state.route.page === 'intel') return state.route.intelTab === 'hot' ? renderHotWorkspace(hotController.state) : renderIntel(intelController.state);
+  if (state.route.page === 'intel') return state.route.intelTab === 'discovery' ? renderDiscovery(discoveryController.state) : state.route.intelTab === 'hot' ? renderHotWorkspace(hotController.state) : renderIntel(intelController.state);
   if (state.route.page === 'aihot') return renderAihot(aihotController.state);
   if (state.route.page === 'history') {
     const mode = state.route.historyMode;
@@ -770,6 +772,11 @@ function render() {
   if (projectDialog) {
     for (const sibling of root.children) if (!sibling.contains(projectDialog)) sibling.inert = true;
     if (!projectDialog.contains(document.activeElement) || document.activeElement?.disabled) (projectDialog.querySelector('input:not(:disabled)') || projectDialog).focus({ preventScroll: true });
+  }
+  const discoveryDialog = root.querySelector('.discovery-page .d-drawer');
+  if (discoveryDialog) {
+    for (const background of root.querySelectorAll('.discovery-page > :not(.d-drawer-backdrop), .navigation-column, .topbar')) background.inert = true;
+    if (!discoveryDialog.contains(document.activeElement) || document.activeElement?.disabled) root.querySelector('#discovery-drawer-title')?.focus({ preventScroll: true });
   }
   mountAssetIndicators(Boolean(persistentAssetTerminal));
   const assetSearchSlot = root.querySelector('[data-asset-search-slot]');
@@ -1475,6 +1482,7 @@ async function showRoute() {
   }
   assetTopicNavigation = 0;
   intelController.cancel();
+  discoveryController.deactivate();
   marketController.cancel();
   assetNews.cancel(); assetChart.cancel();
   aihotController.cancel();
@@ -1557,7 +1565,8 @@ async function showRoute() {
   if (state.route.page === 'market') await marketController.activate(state.route);
   if (state.route.page === 'aihot') await aihotController.activate(state.route);
   if (state.route.page === 'intel') {
-    if (state.route.intelTab === 'hot') await hotController.activate(state.route);
+    if (state.route.intelTab === 'discovery') await discoveryController.activate();
+    else if (state.route.intelTab === 'hot') await hotController.activate(state.route);
     else if (state.route.intelTab !== 'search') await intelController.activate(state.route.intelTab);
   }
   if (ticket === pageGeneration && pendingMCPMarketTabFocus) {
@@ -1628,6 +1637,7 @@ function selectTabbit(tabId) {
 }
 
 function handleInput(event) {
+  if (event.target.closest?.('.discovery-page')) { void discoveryController.handle(event); return; }
   if (state.route.page === 'market' && marketController.handleInput(event)) return;
   if (event.target.matches?.('[data-asset-list-query]')) { const query = event.target.value.trim().toUpperCase(); for (const row of root.querySelectorAll('[data-asset-list-code]')) row.hidden = !row.dataset.assetListCode.includes(query); return; }
   const hotForm=event.target.closest?.('[data-hot-form]');
@@ -1720,6 +1730,21 @@ root.addEventListener('compositionend', event => {
 });
 
 root.addEventListener('keydown', (event) => {
+  if (event.target.closest?.('.discovery-page')) {
+    if (event.isComposing || event.keyCode === 229) return;
+    const drawerKind = discoveryController.state.drawer?.kind;
+    if (event.key === 'Tab' && discoveryController.state.drawer) {
+      const dialog = root.querySelector('.d-drawer');
+      const items = [...(dialog?.querySelectorAll('button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled)') || [])];
+      if (items.length && (!items.includes(document.activeElement) || event.shiftKey && document.activeElement === items[0] || !event.shiftKey && document.activeElement === items.at(-1))) { event.preventDefault(); (event.shiftKey ? items.at(-1) : items[0]).focus({ preventScroll: true }); }
+      return;
+    }
+    void discoveryController.handle(event).then(handled => {
+      if (handled && ['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) root.querySelector(`#discovery-tab-${discoveryController.state.tab}`)?.focus({ preventScroll: true });
+      if (handled && event.key === 'Escape' && drawerKind) root.querySelector(`[data-discovery-action="${drawerKind === 'tracking' ? 'tracking' : 'research'}"]`)?.focus({ preventScroll: true });
+    });
+    return;
+  }
   if (state.route.page === 'claw' && composerMenu.entry && (event.target.id === 'prompt' || event.target.closest?.('#claw-composer-menu'))) {
     if (event.isComposing || event.keyCode === 229) return;
     if (event.key === 'Enter' && event.target.closest?.('[data-cm-back], [data-cm-done]')) return;
@@ -1958,6 +1983,7 @@ async function configureComposerModel(value) {
 }
 
 root.addEventListener('change', async (event) => {
+  if (event.target.closest?.('.discovery-page') && await discoveryController.handle(event)) return;
   if (state.route.page === 'market' && await marketController.handleChange(event)) return;
   if (event.target.matches?.('[data-etf-run]')) {
     if (!event.target.value || workbenchBusy) return;
@@ -2123,6 +2149,7 @@ root.addEventListener('paste', (event) => {
 });
 
 root.addEventListener('submit', async (event) => {
+  if (event.target.closest?.('.discovery-page') && await discoveryController.handle(event)) return;
   if (state.route.page === 'market' && await marketController.handleSubmit(event)) return;
   if (event.target.matches?.('[data-asset-select]')) {
     event.preventDefault(); const data = new FormData(event.target);
@@ -2719,6 +2746,14 @@ root.addEventListener('click', async (event) => {
     if (event.target.closest?.('[data-aihot-outline-close]')) { document.querySelector('.aihot-outline-dialog')?.close(); return; }
     const month = event.target.closest?.('[data-aihot-month-retry]')?.dataset.aihotMonthRetry;
     if (month) { await aihotController.loadMonth(month); return; }
+  }
+  if (event.target.closest?.('.discovery-page')) {
+    const action = event.target.closest?.('[data-discovery-action]')?.dataset.discoveryAction;
+    if (await discoveryController.handle(event)) {
+      if (['research', 'tracking', 'source', 'tracking-new', 'research-new', 'history-status'].includes(action)) root.querySelector('#discovery-drawer-title')?.focus({ preventScroll: true });
+      if (action === 'close') root.querySelector('[data-discovery-action="research"]')?.focus({ preventScroll: true });
+      return;
+    }
   }
   if (event.target.closest?.('.intel-page')) {
     const action = event.target.closest?.('[data-intel-action]')?.dataset.intelAction;

@@ -1,5 +1,10 @@
 # Research Web 接口清单
 
+## 今日发现接口（2026-10-23）
+
+新增统一前缀/api/research/discovery：GET feed、handoffs、requests/{request_id}、handoffs/{handoff_id}、tracks；POST prepare、handoffs/{handoff_id}/execute、tracks、tracks/{track_id}/enable与disable。11条声明由真实routes.py和API Atlas逐项登记，新增GET /selection（feed_id/theme_id/horizon）只从当前用户owned预览选择读取完整详情、返回独立scope feed，不写Store/创建会话/调用模型、不污染首页；网关另有GET /api/server/discovery-tracking-status只读当前认证账号恢复状态，不返回其他用户或启动后端。写操作要求原同源认证及X-Research-User-Action:?1；选择只用Host登记ID，不接收客户端正文/URL/归属。GET恢复不创建/配置/发送DSH；启停验证定义版本，泛用Automation接口仍受tenant拒绝。请求/响应及失败状态见[完整合同](../../research-web-discovery.md)。
+
+
 2026-10-23：`apply-market-terminal`是封闭本机操作员命令，不新增HTTP或租户权限。主实例与网关仍通过原认证／租户／维护门，GET市场空闲见证不采集上游；组合预览／确认和现有研究、资讯、周报接口合同保持。固定候选、原三CI和实际切换另证，见[部署合同](../../research-web-gateway-upgrade.md#全市场终端固定部署2026-10-23)。
 
 ## 筹码输入与偏好可选字段（2026-10-23）

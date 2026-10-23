@@ -93,6 +93,38 @@ def login(browser, username="alice", password="a safe alice password"):
     return response
 
 
+def test_discovery_restart_uses_only_registered_enabled_owners_and_status_is_private(tmp_path):
+    store = AccountStore(tmp_path / "server")
+    alice = store.create_user("alice", "a safe alice password", role="admin")
+    bob = store.create_user("bobby", "a safe bobby password")
+    disabled = store.create_user("disabled", "a safe disabled password")
+    store.set_enabled(disabled.id, False)
+
+    class RestoringPool(Pool):
+        def __init__(self):
+            super().__init__()
+            self.restored = []
+            self.discovery_restoration = {
+                alice.id: {"status": "deferred_capacity", "code": "runtime_capacity_exceeded"},
+                bob.id: {"status": "restored"},
+            }
+
+        async def restore_discovery_tracks(self, user_ids):
+            self.restored.extend(user_ids)
+
+    pool = RestoringPool()
+    upstream = httpx.AsyncClient(transport=httpx.MockTransport(lambda _: httpx.Response(200)))
+    app = create_gateway(store, pool, origin="http://localhost", upstream=upstream)
+    with TestClient(app, base_url="http://localhost") as browser:
+        assert set(pool.restored) == {alice.id, bob.id}
+        assert browser.get("/api/server/discovery-tracking-status").status_code == 401
+        assert login(browser).status_code == 200
+        result = browser.get("/api/server/discovery-tracking-status")
+        assert result.json() == {"status": "deferred_capacity", "code": "runtime_capacity_exceeded"}
+        assert bob.id not in result.text
+        assert pool.users == []
+
+
 def test_anonymous_cannot_read_user_data_or_start_runtime(server):
     browser, _, pool, _, _ = server
     assert browser.get("/api/research/sessions").status_code == 401

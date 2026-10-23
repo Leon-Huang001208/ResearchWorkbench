@@ -1,5 +1,10 @@
 # 安全边界与验证方法
 
+## 今日发现安全与验收（2026-10-23）
+
+固定公开Intel GET不传本地凭据/任意URL；第三方判断与归档不提升为Host已抓取全文。GET selection只接受owned feed_id/horizon/theme及已登记event_ids，返回独立scope feed；不开放任意URL、跨主题或客户端正文，也不污染首页。事件revision/完整详情Hash、当前用户会话/cwd、dataset原件/manifest/context逐项重验，内容不是工具指令或授权；未知创建/受理不重发模型。服务器泛用Automation保持0，仅宿主RWB_DISCOVERY_TRACKING_ENABLED=1允许固定来源/只读工具/无外发的已同意计划，RuntimePool恢复仍经身份与容量门。16项初版手动合同及原110项闭包日志为阶段证据，最终Router/独评/同候选CI另记；真实模型质量、生产计划、常驻与其他平台保持NOT_RUN，见[合同](../../research-web-discovery.md)。
+
+
 2026-10-23：terminal profile只允许源码冻结的前版和产品检查点祖先，不开放浏览器／CLI任意SHA或自动兼容白名单；原controller／严格evidence读取器、账号／秘密namespace和恢复权限保持。最终工具／产品组合仍需独评、完整Router及原三CI，CI每成功job的真实checkout／合并tree／完整日志须绑定；实际认证页面及全账号保全单独核验。当前本地检查不读取秘密、不切换服务，详见[部署合同](../../research-web-gateway-upgrade.md#全市场终端固定部署2026-10-23)。
 
 新增市场分析GET与组合预览／确认POST继续由现有身份、租户及维护门保护。确认令牌只属于当前账号已规范化预览，输入变化／离页／隐藏／账号变化使前端票据失效；服务端验证大小、证券、数量、现金、币种、上海日期及风险字段，不接收券商凭据。估值逐行核验aware行情与快照时点、真实缓存状态；过期／未来／无效／停牌参考价保留来源但不合计成当前总值。

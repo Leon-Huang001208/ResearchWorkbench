@@ -1,5 +1,7 @@
 # Research Workbench Development Map
 
+今日发现定位：`app/research_web/discovery/models.py/sources.py/handoff.py/service.py/tracking.py/routes.py`分别负责严格选择、真实来源、原生身份/上下文、单次研究、独立跟踪与HTTP；`ui/discovery.mjs/css`由原app/core/intel/index接线。Store预留身份、Snapshots归档/复制、Automation伴随原子保存及gateway/runtime容量恢复沿现有模块。测试为test_discovery、test_discovery_tracking、test_discovery_routes、research_web_discovery及既有多用户回归；权威合同见[今日发现](research-web-discovery.md)，机器索引与API Atlas同步。
+
 华安经济底稿字段由 Excel Provider 保留，`weekly_sources.verify_weekly_economic_export` 从同版本原件独立重放，`weekly_data` 在数据门接入。时间原文及有限数值不推测单位或时区；八列底稿完整保全，Word 原三列不扩。仍沿既有 Host／DataHub／DSH／确定性排版链，无新执行节点。
 
 SPDR `providers_external.py` 的 `spdr_projection/spdr_fields` 是四项原生数值和字段定义的共同入口；

@@ -1,5 +1,8 @@
 # AI 资讯自主引擎与本机桥接
 
+今日发现默认只读现有固定Intel GET，与AIHOT/AI资讯/Hot采集与数据库分开；服务器仍禁用这些共享桥和泛用Automation。账号RuntimePool只恢复已启用用户的持久同意跟踪，经过现有容量准入，失败/容量不足保留blocked/deferred_capacity，不挤掉活动研究，也不新增跨账号内容缓存或第二调度器。它不改变本页AI资讯编辑质量、频道、PG、预算或凭据，合同见[今日发现](research-web-discovery.md)。
+
+
 2026-10-23：terminal Native固定部署复用原version4维护准入、私有网关租户隔离、全账号索引／会话／模型保全和恢复，不修改AI资讯PG、频道、日程、预算、凭据或桥接，也不启动资讯采集／模型。资讯活动或未知继续拒绝切换；候选冻结及真实部署另证，见[部署合同](research-web-gateway-upgrade.md#全市场终端固定部署2026-10-23)。
 
 2026-10-23：apply-market-history沿原version4准入、全账号索引/会话/模型保全和恢复，不修改资讯PG、频道、日程、预算、凭据或桥接，不启动资讯采集/模型；AI资讯活动或未知仍按原门拒绝切换。 见[部署合同](research-web-gateway-upgrade.md#市场限价与历史固定部署2026-10-23)。

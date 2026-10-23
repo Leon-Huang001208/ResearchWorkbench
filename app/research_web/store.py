@@ -196,6 +196,64 @@ class Store:
                     pass
         return row
 
+    def reserve_discovery_session(self, sid: str, mode: str, origin: dict, title: str) -> dict:
+        """Reserve only a caller-preallocated discovery identity before native RPC."""
+        from .datahub.security import directory, make_directory
+
+        identity = r"[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}"
+        if (
+            not isinstance(sid, str)
+            or not re.fullmatch(identity, sid)
+            or mode not in {"fingpt", "claw"}
+            or not isinstance(origin, dict)
+            or set(origin) != {"handoff_id", "selection_sha256"}
+            or not re.fullmatch(identity, str(origin.get("handoff_id", "")))
+            or not re.fullmatch(r"[a-f0-9]{64}", str(origin.get("selection_sha256", "")))
+            or not isinstance(title, str)
+            or not 1 <= len(title) <= 120
+        ):
+            raise StoreError("今日发现研究身份非法", "discovery_identity_invalid", 409)
+        if sid in self.data["sessions"]:
+            row = self.session(sid)
+            if row.get("discovery_origin") != origin or row["mode"] != mode:
+                raise StoreError("目标会话属于其他研究", "discovery_session_foreign", 409)
+        else:
+            with directory(self.root, ("sessions",), create=True) as parent:
+                if sid in os.listdir(parent):
+                    raise StoreError("目标会话目录归属未知", "discovery_session_foreign", 409)
+            row = {
+                "id": sid,
+                "mode": mode,
+                "title": title,
+                "workspace_id": "research",
+                "status": "idle",
+                "model": None,
+                "updated_at": time.time(),
+                "files": {},
+                "created": False,
+                "purpose": "discovery_research",
+                "discovery_origin": dict(origin),
+                "discovery_creation_state": "reserved",
+                "research_depth": "instant",
+                "source_scope": ["datahub", "web", "uploads"],
+            }
+            if mode == "fingpt":
+                row["research_mode"] = "quick"
+            self.data["sessions"][sid] = row
+            try:
+                self.save()
+            except StoreError:
+                self.data["sessions"].pop(sid, None)
+                raise
+            log.info("discovery_session_reserved", session_id=sid)
+        with directory(self.root, ("sessions", sid), create=True) as parent:
+            for name in ("inputs", "outputs"):
+                if name not in os.listdir(parent):
+                    make_directory(parent, name)
+                with directory(self.root, ("sessions", sid, name)):
+                    pass
+        return row
+
     def audit(self, kind: str, outcome: str, **safe_metadata) -> None:
         """Persist a bounded, content-free operational event."""
         allowed = {

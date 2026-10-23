@@ -36,6 +36,7 @@ from .claw_routes import router as claw_router
 from .client import DSHClient, RuntimeFailure
 from .credential_backend import default_credential_backend
 from .datahub.routes import router as datahub_router
+from .discovery.routes import router as discovery_router
 from .documentation import DOCUMENT_NAMES
 from .documentation import router as documentation_router
 from .frameworks.base import FrameworkError
@@ -290,6 +291,7 @@ def create_app(service: ResearchService | None = None) -> FastAPI:
     app.include_router(asset_router)
     app.include_router(market_router)
     app.include_router(intel_router)
+    app.include_router(discovery_router)
     app.include_router(capabilities_router)
     app.include_router(plugin_router)
     app.include_router(plugin_runtime_router)

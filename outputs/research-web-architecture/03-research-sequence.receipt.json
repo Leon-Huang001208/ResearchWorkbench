@@ -3,15 +3,15 @@
   "ok": true,
   "command": "deliver",
   "type": "sequence",
-  "input": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/mac-local-integrations-live-integration-r1/docs/architecture/research-web/diagrams/03-research-sequence.json",
-  "output": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/mac-local-integrations-live-integration-r1/outputs/research-web-architecture/03-research-sequence.html",
+  "input": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/intel-discovery-production-20261023/docs/architecture/research-web/diagrams/03-research-sequence.json",
+  "output": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/intel-discovery-production-20261023/outputs/research-web-architecture/03-research-sequence.html",
   "specification": {
-    "sha256": "3435e854ab1c8a3619c96493968b6d427b7271a747c74bddb8921df1efbf3a72",
-    "bytes": 10464
+    "sha256": "195b40b4f2c1ad807a83f2ee0315162604a293da07015d1da6628ba8605f2566",
+    "bytes": 15712
   },
   "artifact": {
-    "sha256": "fba864aad78ed725ea0f5dee90b37ac3626a73cf22bc1c3e1d347f023fa40a91",
-    "bytes": 670449
+    "sha256": "4cc50c569006cd2341df725119aef7f13ab89a51b2edd6c0dd5bb374f05e6682",
+    "bytes": 677686
   },
   "validation": {
     "checksPassed": 9,

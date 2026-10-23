@@ -1,5 +1,9 @@
 # Research Web DataHub
 
+## 今日发现事件归档（2026-10-23）
+
+`Snapshots.publish_discovery`复用原会话隔离/NOFOLLOW/Hash/原子发布，来源与Provider明确golddata_intel，kind为discovery_evidence，coverage为explicit_frozen_selection。rows.json/csv含冻结时取得的事件与报道，私有raw保留已解析detail与选择包的规范化JSON字节（不是HTTP传输原字节）；上下文绑定dataset manifest及选材Hash。它不经伪造CLS Provider Query，不注册新供应商、不写研究仓、不冒充Host网页全文或PIT。GET selection的完整详情核对仅在当前用户有界内存缓存生成独立scope feed，freeze/save前再次核验；它本身不发布DataHub快照或改变首页。显式跨会话复制重验原件并保留origin映射，但不取得旧交接执行权；见[今日发现](research-web-discovery.md)。
+
 ## SPDR GLD 四项原生快照（2026-10-23）
 
 既有 `external_data` 的 `source=ext_spdr`、`dataset=gld` 现在按

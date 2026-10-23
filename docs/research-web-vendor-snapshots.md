@@ -1,5 +1,7 @@
 # 供应商原生研究快照
 
+今日发现golddata_intel使用专用discovery_evidence文件归档，不扩展本页vendor-native来源/数据集白名单。事件revision与预览投影Hash核对后才取报道正文；冻结raw和manifest可复核，但第三方已有判断、二手内容、未知时间/原始披露缺口均保留，不以外层HTTP成功声明厂商数据、PIT或完整网页已核验。细则见[今日发现](research-web-discovery.md)。
+
 ## SPDR 完整四指标捕获
 
 `ext_spdr/gld` 仅接受 `spdr-gld-trust-snapshot-v1` 的四项投影。`SnapshotSeries` 将当前单位、
