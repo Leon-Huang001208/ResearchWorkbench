@@ -1,6 +1,7 @@
 import { escapeHTML as e } from './markdown.mjs';
 import { safeLog } from './core.mjs';
 import { assetHref } from './asset-navigation.mjs';
+import { terminalIndices, decisionStrip, indexCollection, evidencePanels, portfolioPanel, createTerminalController } from './market-terminal.mjs';
 
 const VIEWS = { overview: '总览', quotes: '沪深北行情', sectors: '板块与资金' };
 const MARKET_STATES = { preopen: '盘前', auction: '集合竞价', open: '交易中', lunch: '午间休市', closed: '已收盘', non_trading: '非交易日', unknown: '交易状态待确认' };
@@ -15,6 +16,7 @@ export const MARKET_COLUMNS = [
   ['volume_ratio', '量比', '倍'], ['pe_dynamic', 'PE（动态）', '倍'], ['pb', 'PB', '倍'], ['total_market_cap', '总市值', '元'], ['float_market_cap', '流通市值', '元'],
 ];
 const DEFAULT_COLUMNS = MARKET_COLUMNS.map(([key]) => key);
+const DEFAULT_INDEX_COMPARISON = ['000001.SH', '000300.SH', '399006.SZ'];
 const finite = value => value === null || value === undefined || value === '' || typeof value === 'boolean' || typeof value === 'string' && !value.trim() || !Number.isFinite(Number(value)) ? null : Number(value);
 const array = value => Array.isArray(value) ? value : [];
 const boardID = value => /^BK\d{4,6}$/.test(String(value || '')) ? String(value) : '';
@@ -56,16 +58,6 @@ function panel(title, content, section = {}, extra = '') {
   return `<section class="market-panel ${extra}"><header><h2>${e(title)}</h2>${section.complete === false ? '<span class="market-state-pill warning">部分覆盖</span>' : ''}</header>${content}${metadata(section)}</section>`;
 }
 
-function indicesPanel(section = {}, selected = []) {
-  const rows = array(section.rows);
-  const latestDay = tradingDate(section.as_of);
-  const cards = rows.map(row => {
-    const day = tradingDate(row.as_of), older = day && latestDay && day !== latestDay;
-    return `<a class="market-index-card" href="${e(assetHref(row.asset, 'index'))}" title="行情 ${e(stamp(row.as_of))}"><span>${e(row.name || row.asset)}</span><strong>${e(marketNumber(row.price))}</strong><span class="market-index-change">${signed(row.change_pct)}<small>${e(marketNumber(row.change))}</small></span><small class="market-index-date ${older ? 'market-date-old' : ''}">${e(day || '行情日期未提供')}${older ? ' · 旧日' : ''}</small></a>`;
-  }).join('');
-  return panel('主要指数', cards ? `<div class="market-index-grid">${cards}</div>` : empty('12个主要指数等待采集；不可用项将保留缺口。'), section, 'market-indices') + panel('指数分时对比', indexChart(rows, selected), section, 'market-index-comparison');
-}
-
 const COLORS = ['#69a8ff', '#e8b348', '#d07ef3', '#48c0b0', '#ec8da4', '#a5b66b', '#7ec5e8', '#b68e6b', '#a9a9e5', '#e7b6d0', '#9cc3a9', '#e4c994'];
 function tradingMinute(value) {
   const text = String(value || '');
@@ -82,10 +74,10 @@ function tradingMinute(value) {
   return total <= 690 ? total - 570 : total - 660;
 }
 
-function indexChart(rows, selected) {
+function indexChart(rows, selected = DEFAULT_INDEX_COMPARISON) {
   const eligible = rows.filter(row => array(row.series).some(item => finite(item.change_pct) !== null));
-  const legend = `<div class="market-chart-legend">${eligible.map((row, index) => `<label><input type="checkbox" data-market-index="${e(row.asset)}" ${!selected.length || selected.includes(row.asset) ? 'checked' : ''}><i style="background:${COLORS[index % COLORS.length]}"></i>${e(row.name)}</label>`).join('')}</div>`;
-  const visible = eligible.filter(row => !selected.length || selected.includes(row.asset));
+  const legend = `<div class="market-chart-legend">${eligible.map((row, index) => `<label><input type="checkbox" data-market-index="${e(row.asset)}" ${selected.includes(row.asset) ? 'checked' : ''}><i style="background:${COLORS[index % COLORS.length]}"></i>${e(row.name)}</label>`).join('')}</div>`;
+  const visible = eligible.filter(row => selected.includes(row.asset));
   const series = visible.map(row => ({ ...row, points: array(row.series).map(point => ({ ...point, x: tradingMinute(point.time), y: finite(point.change_pct) })).filter(point => point.x !== null && point.y !== null) }));
   const points = series.flatMap(row => row.points);
   if (!points.length) return eligible.length ? `${legend}${empty('当前指数曲线已隐藏或缺少可绘制时点，可勾选指数查看。')}` : empty('分时对比需要真实分时数据及昨收基准；当前尚未取得，不补造曲线。');
@@ -130,7 +122,7 @@ function movers(section = {}) {
 
 function overview(state) {
   const sections = state.snapshot?.sections || {};
-  return `${indicesPanel(sections.indices, state.selectedIndices || [])}<div class="market-grid">${breadthPanels(sections.quotes)}${panel('行业热力图', boardHeatmap(sections.industry, 'industry'), sections.industry)}${panel('概念热力图', boardHeatmap(sections.concept, 'concept'), sections.concept)}</div>${movers(sections.quotes)}`;
+  return `${decisionStrip(state)}${indexCollection(state, metadata(terminalIndices(state)))}${evidencePanels(state)}${panel('指数分时对比', indexChart(array(terminalIndices(state).rows), state.selectedIndices ?? DEFAULT_INDEX_COMPARISON), terminalIndices(state), 'market-index-comparison')}<div class="market-grid">${breadthPanels(sections.quotes)}${panel('行业热力图', boardHeatmap(sections.industry, 'industry'), sections.industry)}${panel('概念热力图', boardHeatmap(sections.concept, 'concept'), sections.concept)}</div>${movers(sections.quotes)}${portfolioPanel(state)}`;
 }
 
 function fieldValue(row, key) {
@@ -184,13 +176,14 @@ export function renderMarketPage(input = {}, route = {}) {
 
 export function createMarketController({ api, onChange = () => {}, onNavigate = hash => { globalThis.location.hash = hash; }, documentRef = globalThis.document, storage, setTimer = globalThis.setTimeout.bind(globalThis), clearTimer = globalThis.clearTimeout.bind(globalThis) } = {}) {
   if (!api?.request) throw new TypeError('market API request is required');
-  const state = { view: 'overview', snapshot: null, quotes: { items: [], total: 0 }, filters: { ...DEFAULT_FILTERS }, draftSearch: '', columns: [...DEFAULT_COLUMNS], kind: 'industry', period: 'today', selectedIndices: [], loading: false, tableLoading: false, refreshing: false, paused: false, error: '', notice: '', boardName: '' };
+  const state = { view: 'overview', snapshot: null, quotes: { items: [], total: 0 }, filters: { ...DEFAULT_FILTERS }, draftSearch: '', columns: [...DEFAULT_COLUMNS], kind: 'industry', period: 'today', selectedIndices: [...DEFAULT_INDEX_COMPARISON], loading: false, tableLoading: false, refreshing: false, paused: false, error: '', notice: '', boardName: '' };
   const preferenceKey = `rwb:${globalThis.__RWB_USER_ID__ || 'local'}:market-columns-v1`;
   if (storage === undefined) { try { storage = globalThis.localStorage; } catch { safeLog('market_preferences_unavailable', { status: 'failed' }); } }
   try { const saved = JSON.parse(storage?.getItem(preferenceKey) || 'null'); if (Array.isArray(saved)) state.columns = DEFAULT_COLUMNS.filter(key => ['code', 'name'].includes(key) || saved.includes(key)); } catch { safeLog('market_preferences_read_failed', { status: 'failed' }); }
-  let generation = 0, tableGeneration = 0, boardSelectionGeneration = 0, boardAbort, active = false, disposed = false, route = {}, abort = new AbortController();
+  let generation = 0, tableGeneration = 0, boardSelectionGeneration = 0, initialIndexAttempted = false, boardAbort, active = false, disposed = false, route = {}, abort = new AbortController();
   const timers = new Set(), readers = new Set(), refreshes = new Map();
   const controller = { state, api, document: documentRef };
+  const terminalController = createTerminalController({ state, api, changed: () => changed(), storage, visible: () => visible() });
   const visible = () => active && !disposed && !documentRef?.hidden;
   const trading = () => ['open', 'auction'].includes(state.snapshot?.market_state?.state);
   const changed = () => { if (!disposed) onChange(); };
@@ -199,7 +192,7 @@ export function createMarketController({ api, onChange = () => {}, onNavigate = 
     for (const id of readers) void api.request(`/market/refresh/${encodeURIComponent(id)}`, { method: 'DELETE' }).catch(() => safeLog('market_reader_release_failed', { status: 'failed', method: 'DELETE' }));
     readers.clear();
   }
-  function cancel(leave = true) { generation++; tableGeneration++; boardSelectionGeneration++; boardAbort?.abort(); boardAbort = null; stopTimers(); abort.abort(); abort = new AbortController(); release(); refreshes.clear(); state.loading = false; state.refreshing = false; state.tableLoading = false; if (leave) active = false; }
+  function cancel(leave = true) { terminalController.cancel(leave); generation++; tableGeneration++; boardSelectionGeneration++; boardAbort?.abort(); boardAbort = null; stopTimers(); abort.abort(); abort = new AbortController(); release(); refreshes.clear(); state.loading = false; state.refreshing = false; state.tableLoading = false; if (leave) active = false; }
   function later(fn, ms) { let timer; timer = setTimer(() => { timers.delete(timer); void fn(); }, ms); timers.add(timer); }
   async function delay(ms, signal) {
     if (signal.aborted) throw new DOMException('读取已取消', 'AbortError');
@@ -210,6 +203,15 @@ export function createMarketController({ api, onChange = () => {}, onNavigate = 
     });
   }
   function sectionsForView() { return state.view === 'sectors' ? [state.kind, 'flows', 'calendar'] : state.view === 'quotes' ? ['quotes', 'calendar'] : BASE_SECTIONS; }
+  function upgradeInitialIndices(ticket = generation) {
+    if (ticket !== generation || !visible() || state.paused || state.loading || state.view !== 'overview' || state.catalog?.default_set !== 'terminal-v2' || initialIndexAttempted) return;
+    const sections = state.snapshot?.sections;
+    if (!sections?.indices?.snapshot_id || sections['indices:terminal-v2']?.snapshot_id) return;
+    // A single POST owns the upgrade. Local GET readers never fetch upstream;
+    // failed/partial attempts retain their visible gap until an explicit refresh.
+    safeLog('market_terminal_initial_upgrade', { status: 'started', method: 'POST' });
+    void refresh(['indices']).then(schedule);
+  }
   function schedule() {
     stopTimers(); if (!visible() || state.paused || !state.snapshot?.market_state?.state || state.snapshot.market_state.state === 'unknown') return;
     const ticket = generation;
@@ -256,6 +258,7 @@ export function createMarketController({ api, onChange = () => {}, onNavigate = 
   }
   async function refresh(sections = sectionsForView(), extra = {}, context = {}) {
     if (!visible()) return;
+    if (sections.includes('indices')) initialIndexAttempted = true;
     const key = `${sections.join(',')}:${state.kind}:${state.period}:${extra.board_id || ''}:${context.selection || ''}`;
     if (refreshes.has(key)) return refreshes.get(key);
     const ticket = generation, signal = context.signal ? AbortSignal.any([abort.signal, context.signal]) : abort.signal;
@@ -264,7 +267,7 @@ export function createMarketController({ api, onChange = () => {}, onNavigate = 
       state.refreshing = true; state.error = ''; state.notice = ''; changed();
       let id, terminal = false;
       try {
-        let result = await api.request('/market/refresh', { method: 'POST', body: { sections, kind: state.kind, period: state.period, ...extra }, signal });
+        let result = await api.request('/market/refresh', { method: 'POST', body: { sections, kind: state.kind, period: state.period, index_set: 'terminal-v2', ...extra }, signal });
         id = result.request_id;
         if (!isCurrent()) { if (id) void api.request(`/market/refresh/${encodeURIComponent(id)}`, { method: 'DELETE' }).catch(() => safeLog('market_reader_release_failed', { status: 'failed' })); return false; }
         if (!id) throw new Error('刷新任务缺少编号，请核对服务状态。');
@@ -278,7 +281,7 @@ export function createMarketController({ api, onChange = () => {}, onNavigate = 
         if (result.status === 'failed') state.error = result.error?.message || (typeof result.error === 'string' ? result.error : '') || '部分市场采集失败，请查看区块来源与缺口。';
         if (result.status === 'cancelled') state.notice = '本次采集已取消。';
         terminal = true;
-        if (await loadSnapshot(ticket, signal, isCurrent)) await loadQuotes();
+        if (await loadSnapshot(ticket, signal, isCurrent)) { await loadQuotes(); if (isCurrent()) void terminalController.analysis(); }
         safeLog('market_refresh_finished', { status: result.status, method: 'POST' });
         return isCurrent() && result.status === 'completed';
       } catch (error) {
@@ -294,24 +297,25 @@ export function createMarketController({ api, onChange = () => {}, onNavigate = 
   }
   async function activate(nextRoute = {}) {
     if (disposed) return;
-    cancel(); active = true; route = { ...nextRoute }; const ticket = generation;
+    cancel(); active = true; initialIndexAttempted = false; route = { ...nextRoute }; const ticket = generation;
     const nextView = route.marketView || route.view || route.params?.get?.('view') || 'overview';
     state.view = Object.hasOwn(VIEWS, nextView) ? nextView : 'overview';
     state.filters.board_id = boardID(route.marketBoardId || route.marketBoard || route.params?.get?.('board_id'));
     state.filters.offset = 0; state.loading = true; state.error = ''; changed();
+    void terminalController.activate().then(() => upgradeInitialIndices(ticket));
     try {
       if (!await loadSnapshot(ticket, abort.signal)) return;
       await loadQuotes();
       if (ticket !== generation) return;
-      const missing = sectionsForView().some(key => !state.snapshot?.sections?.[key === 'flows' ? `flows:${state.kind}:${state.period}` : key]?.snapshot_id);
+      const missing = sectionsForView().some(key => !(key === 'indices' ? terminalIndices(state) : state.snapshot?.sections?.[key === 'flows' ? `flows:${state.kind}:${state.period}` : key])?.snapshot_id);
       if (missing) await refresh();
       if (ticket === generation && state.filters.board_id && !state.snapshot?.sections?.[`members:${state.filters.board_id}`]?.snapshot_id) await refresh(['members'], { board_id: state.filters.board_id });
     } catch (error) {
       if (ticket !== generation || error.name === 'AbortError') return;
       state.error = error.message || '市场快照读取失败。'; safeLog('market_load_failed', { status: 'failed', method: 'GET' });
-    } finally { if (ticket === generation) { state.loading = false; changed(); schedule(); } }
+    } finally { if (ticket === generation) { state.loading = false; changed(); upgradeInitialIndices(ticket); schedule(); } }
   }
-  function setPaused(value) { state.paused = Boolean(value); if (state.paused) { cancel(false); state.notice = '自动刷新已暂停，仍可手动刷新。'; } else { state.notice = ''; schedule(); } changed(); }
+  function setPaused(value) { state.paused = Boolean(value); if (state.paused) { cancel(false); state.notice = '自动刷新已暂停，仍可手动刷新。'; } else { state.notice = ''; upgradeInitialIndices(); schedule(); } changed(); }
   async function openBoard(id, name, kind) {
     if (!boardID(id)) return;
     const ticket = generation, selection = ++boardSelectionGeneration;
@@ -328,6 +332,7 @@ export function createMarketController({ api, onChange = () => {}, onNavigate = 
     const disabled = event.target?.closest?.('[data-market-disabled]'); if (disabled) { event.preventDefault(); return true; }
     const target = event.target?.closest?.('[data-market-action]'); if (!target) return false;
     event.preventDefault(); const data = target.dataset;
+    if (terminalController.click(data)) return true;
     if (data.marketAction === 'refresh') void refresh().then(schedule);
     else if (data.marketAction === 'pause') setPaused(!state.paused);
     else if (data.marketAction === 'columns') { state.columnMenuOpen = !state.columnMenuOpen; changed(); }
@@ -341,6 +346,8 @@ export function createMarketController({ api, onChange = () => {}, onNavigate = 
   }
   function handleChange(event) {
     const target = event.target, data = target?.dataset || {};
+    if ('marketCsvFile' in data) { void terminalController.file(target); return true; }
+    if (terminalController.input(target)) return true;
     if (data.marketFilter) {
       const key = data.marketFilter;
       if (key === 'exchange' && Object.hasOwn(EXCHANGES, target.value) || key === 'board' && Object.hasOwn(BOARDS, target.value)) state.filters[key] = target.value;
@@ -355,18 +362,21 @@ export function createMarketController({ api, onChange = () => {}, onNavigate = 
       changed(); return true;
     }
     if (data.marketIndex) {
-      const all = array(state.snapshot?.sections?.indices?.rows).map(row => row.asset);
-      const current = state.selectedIndices.length ? new Set(state.selectedIndices) : new Set(all);
+      const current = new Set(state.selectedIndices ?? DEFAULT_INDEX_COMPARISON);
+      current.delete('__none__');
       if (target.checked) current.add(data.marketIndex); else current.delete(data.marketIndex);
       state.selectedIndices = current.size ? [...current] : ['__none__']; changed(); return true;
     }
     return false;
   }
   function handleSubmit(event) {
-    const form = event.target; if (!form?.matches?.('[data-market-search]')) return false;
+    const form = event.target;
+    if (form?.matches?.('[data-market-portfolio-form]')) { event.preventDefault(); void terminalController.preview(); return true; }
+    if (form?.matches?.('[data-market-index-search]')) { event.preventDefault(); state.indexSearch = state.indexSearchDraft || ''; changed(); return true; }
+    if (!form?.matches?.('[data-market-search]')) return false;
     event.preventDefault(); state.filters.search = String(form.elements?.namedItem?.('search')?.value ?? form.elements?.search?.value ?? state.draftSearch).trim().slice(0, 80); state.draftSearch = state.filters.search; state.filters.offset = 0; void loadQuotes(); return true;
   }
-  function handleInput(event) { const target = event.target; if (!target?.dataset || !('marketSearchDraft' in target.dataset)) return false; state.draftSearch = String(target.value || '').slice(0, 80); return true; }
+  function handleInput(event) { const target = event.target; if (terminalController.input(target)) return true; if (!target?.dataset || !('marketSearchDraft' in target.dataset)) return false; state.draftSearch = String(target.value || '').slice(0, 80); return true; }
   function visibilityChanged() { if (documentRef?.hidden) { cancel(false); changed(); } else if (active && !disposed) void activate(route); }
   documentRef?.addEventListener?.('visibilitychange', visibilityChanged);
   function dispose() { cancel(); disposed = true; documentRef?.removeEventListener?.('visibilitychange', visibilityChanged); }

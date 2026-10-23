@@ -1,5 +1,7 @@
 # Mac mini Docker 开发与独立部署
 
+2026-10-23：终端`reviewed-market-terminal-v1`是Mac Native封闭部署profile，Docker镜像、Compose、业务卷、容量锁及双运行时选择不变。原version4保全／恢复复用，不操作构建器或生产数据库；本机操作员和同候选Mac安装不构成Docker产品证据，本轮Docker产品层保持NOT_RUN。固定候选及待验证状态见[部署合同](research-web-gateway-upgrade.md#全市场终端固定部署2026-10-23)。
+
 2026-10-23：市场限价/昨日/历史仅新增Mac Native固定apply-market-history身份，原Docker镜像、Compose、卷、资源锁和双运行时选择不变；不将Mac源码/安装/认证页面作为Docker产品验收，本轮Docker层NOT_RUN。 见[部署合同](research-web-gateway-upgrade.md#市场限价与历史固定部署2026-10-23)。
 
 资产v5大索引修复仅影响Native操作员verify_primary的v5业务读取绑定，不改Docker镜像、Compose、卷、资源治理或双运行时选择。64 MiB是既有业务索引边界，元数据保持1 MB；没有Docker容量或持久格式扩展。Native停机前拒绝、本机回归和PR187文档门修补均不认证Docker产品验收，本轮Docker／Linux执行保持未运行状态。

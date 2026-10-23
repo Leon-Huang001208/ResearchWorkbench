@@ -3,15 +3,15 @@
   "ok": true,
   "command": "deliver",
   "type": "dataflow",
-  "input": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/market-warehouse-20261023/docs/architecture/research-web/diagrams/13-market-overview.json",
-  "output": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/market-warehouse-20261023/outputs/research-web-architecture/13-market-overview.html",
+  "input": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/market-terminal-20261023/docs/architecture/research-web/diagrams/13-market-overview.json",
+  "output": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/market-terminal-20261023/outputs/research-web-architecture/13-market-overview.html",
   "specification": {
-    "sha256": "44fcc9edb7475a53309f721e299a33570c440e1c9255eb2fcf219863296f4ebf",
-    "bytes": 5097
+    "sha256": "f9e54cc0dbc4d7909eec828fa171bbaa49a8db40b1360c1ee0ce62d2add1b65c",
+    "bytes": 5101
   },
   "artifact": {
-    "sha256": "635bba7379adac04b70c187917727ee2d79f0d4958e41f9312313794b4bbb0c5",
-    "bytes": 640848
+    "sha256": "4ecd0e404a2e87af02cfa7bffd572e4705551d65e89a9bef8c2fa2bf1e9fdac3",
+    "bytes": 640903
   },
   "validation": {
     "checksPassed": 9,

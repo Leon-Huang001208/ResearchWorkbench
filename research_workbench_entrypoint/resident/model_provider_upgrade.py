@@ -81,6 +81,12 @@ MARKET_HISTORY_MODE = "reviewed-market-history-v1"
 MARKET_HISTORY_PREVIOUS = "51f09fa783694aae5234905933948394ca167dcc"
 MARKET_HISTORY_PAYLOAD = "4f0a248fc87249d41e1c3f75f700c17c8351ad95"
 MARKET_HISTORY_WEB_LOCK_SHA256 = "7c631d4fa5354170c622225be129a09f7f5890457aa0521bd5f46cecb6bb7102"
+# Full terminal and current asset/DataHub checkpoint; no automatic-policy expansion.
+MARKET_TERMINAL_MODE = "reviewed-market-terminal-v1"
+MARKET_TERMINAL_PREVIOUS = "0e0022ac792eba88fba0f233524f5c8d66024569"
+MARKET_TERMINAL_PAYLOAD = "ca20293b8244bb0644bf2039ddd96ee452a27b0b"
+MARKET_TERMINAL_WEB_LOCK_SHA256 = "7c631d4fa5354170c622225be129a09f7f5890457aa0521bd5f46cecb6bb7102"
+MARKET_TERMINAL_EVIDENCE_SHA256 = "5c3077b7fac26f6836384f678514136802bcf2ed03a0a589aaac10e80111eebb"
 # Historical family name: all these profiles require full business-index preservation.
 ASSET_MODES = frozenset(
     (
@@ -93,6 +99,7 @@ ASSET_MODES = frozenset(
         MARKET_MODE,
         MARKET_GAPS_MODE,
         MARKET_HISTORY_MODE,
+        MARKET_TERMINAL_MODE,
     )
 )
 ASSET_EVIDENCE = "research_workbench_entrypoint/resident/evidence.py"
@@ -181,6 +188,8 @@ def previous_for(mode):
         return MARKET_GAPS_PREVIOUS
     if mode == MARKET_HISTORY_MODE:
         return MARKET_HISTORY_PREVIOUS
+    if mode == MARKET_TERMINAL_MODE:
+        return MARKET_TERMINAL_PREVIOUS
     raise UpdateBlocked("model_upgrade_profile_unknown")
 
 
@@ -239,7 +248,14 @@ def read_business_index(path: Path):
 
 
 def verify_primary(home, expected, mode):
-    if mode in {MARKET_MODE, MARKET_GAPS_MODE, MARKET_HISTORY_MODE, ASSET_V5_MODE, ASSET_V6_MODE}:
+    if mode in {
+        MARKET_MODE,
+        MARKET_GAPS_MODE,
+        MARKET_HISTORY_MODE,
+        MARKET_TERMINAL_MODE,
+        ASSET_V5_MODE,
+        ASSET_V6_MODE,
+    }:
         return g.verify_primary(home, expected, index_reader=read_business_index)
     return g.verify_primary(home, expected)
 
@@ -312,6 +328,7 @@ def review_assets(source: Path, target: str, mode=ASSET_MODE):
         MARKET_MODE: MARKET_PAYLOAD,
         MARKET_GAPS_MODE: MARKET_GAPS_PAYLOAD,
         MARKET_HISTORY_MODE: MARKET_HISTORY_PAYLOAD,
+        MARKET_TERMINAL_MODE: MARKET_TERMINAL_PAYLOAD,
     }[mode]
     c.clean(source, target)
     c.git(source, "merge-base", "--is-ancestor", payload, target)
@@ -332,7 +349,9 @@ def review_assets(source: Path, target: str, mode=ASSET_MODE):
             if actual_mode != "100644" or hashlib.sha256(
                 g.git_bytes(source, target, "evidence.py")
             ).hexdigest() != (
-                ASSET_V6_EVIDENCE_SHA256 if mode == ASSET_V6_MODE else ASSET_EVIDENCE_SHA256
+                MARKET_TERMINAL_EVIDENCE_SHA256
+                if mode == MARKET_TERMINAL_MODE
+                else ASSET_V6_EVIDENCE_SHA256 if mode == ASSET_V6_MODE else ASSET_EVIDENCE_SHA256
             ):
                 raise UpdateBlocked("asset_upgrade_evidence_changed")
         elif mode == MARKET_MODE and name == MARKET_GATEWAY:
@@ -787,6 +806,8 @@ def target_manifest(state):
         manifest["web_lock_sha256"] = ASSET_V6_WEB_LOCK_SHA256
     elif state.get("mode") == MARKET_HISTORY_MODE:
         manifest["web_lock_sha256"] = MARKET_HISTORY_WEB_LOCK_SHA256
+    elif state.get("mode") == MARKET_TERMINAL_MODE:
+        manifest["web_lock_sha256"] = MARKET_TERMINAL_WEB_LOCK_SHA256
     return manifest
 
 
@@ -875,6 +896,7 @@ class Operations:
         if running["web"]["running"] and self.state.get("mode") in {
             MARKET_GAPS_MODE,
             MARKET_HISTORY_MODE,
+            MARKET_TERMINAL_MODE,
         }:
             market = request_json(
                 f"http://127.0.0.1:{self.state['config']['web_port']}/api/research/market"
@@ -1305,6 +1327,7 @@ def main(argv=None):
             "apply-market",
             "apply-market-gaps",
             "apply-market-history",
+            "apply-market-terminal",
             "recover",
         ),
     )
@@ -1327,6 +1350,7 @@ def main(argv=None):
                 "apply-market": MARKET_MODE,
                 "apply-market-gaps": MARKET_GAPS_MODE,
                 "apply-market-history": MARKET_HISTORY_MODE,
+                "apply-market-terminal": MARKET_TERMINAL_MODE,
             }.get(args.command, MODE),
         )
         print(json.dumps(result))
