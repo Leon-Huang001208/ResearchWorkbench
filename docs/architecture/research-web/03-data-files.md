@@ -1,5 +1,10 @@
 # DataHub、研究资料与实际文件
 
+2026-10-23：终端Native固定部署不迁移业务index或研究仓，不把账号market-cache、持仓／预览、会话、报告、模型配置和恢复归档复制成新源。原version4全账号索引哈希、缺失／空值区别、凭据存储元数据和内容寻址恢复继续逐项校验；安装清单只按冻结目标锁同步并可精确恢复。源码来自已核验common directory下的干净目标checkout，原业务数据原位保留；当前文档补齐不是实际保全回执，见[部署合同](../../research-web-gateway-upgrade.md#全市场终端固定部署2026-10-23)。
+
+终端v2仍采用market-cache原schema1分区文件，indices:terminal-v2拥有独立键、目录版本与24身份；indices保留旧12。市场目录下analysis-observations/daily.json最多260日／2MiB，保存首次实际闭市观察，不用当前成分回填历史；portfolios/state.json最多20份已确认快照、8份15分钟预览，4MiB上限。持仓输入256KiB／500行，原子私有文件，GET不初始化。新浪日线400条按请求代码、前日及东财真实昨收交叉核验，first_observed不等于历史PIT。
+构建器对账归档保存在原私有Docker管理根的`builder-reconcile/<fingerprint>/`，保存脱敏绑定、旧builder.id、buildkitd.toml和恢复journal。它不是业务快照，不读写research-web会话／模型／账号索引；失败保留现场，不声称已回滚或清理。
+
 ## 同版本筹码输入与偏好补充（2026-10-23）
 
 `asset_history.chip_inputs` 冻结 `contract_version=chip-turnover-1`、完整状态、换手百分数单位/摘要/条数以及VWAP口径。现有输入manifest保留逐批真实来源与授权指纹；raw_rows不修改。`include_chip_inputs` 缺省false且不写入旧请求；true只在全部价格/因子/换手验证后更新规范指针，失败/取消不发布部分新行情。旧快照照常读取，不将缺换手的旧OHLCV合计冒充新版筹码。
