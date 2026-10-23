@@ -562,3 +562,10 @@ financials source=baostock只支持statements=["profitability"]、periods恰好�
 ## 2026-10-23：长期研究档案与机会预警
 
 档案通过 dataset 身份引用现有 Snapshots，原文和私有 raw 不复制进个人 SQLite；归档、正文／文件读取、研究重放均验证 manifest、hash 与当前来源权限，pin 阻止仍被引用的源永久清理。扫描仅消费来源准入、时点、精确证券身份与完整覆盖合格的冻结行；未准入 MCP 结果保持 clue，普通文件和跨会话复制不能绕过其 grant。自动跟踪不拉取新数据，不提升 first_observed 或报告期为历史 PIT；详见[档案证据](research-web-dossiers.md#证据与成果)、[扫描](research-web-dossier-scans.md)与[候选快照](research-web-seek-alpha.md#原始结果与撤权)。
+
+
+## WGC 月度吨数与研究时点（2026-10-23）
+
+现有 ext_wgc/etf-holdings 与 etf-flows 只开放固定 Monthly/tonnes 四地区投影，分别保存持仓存量和吨数流量；不推导二者差分，不混入价格、美元或其他频率。完整切片与原件、字段、地区身份、月份连续性和单位绑定后才入既有可选研究仓；截断、错列、错日期、全无数值或合同不符拒绝入仓。来源 asOfDate 与参考月不当作公布日期，首次观察与历史 vintage 分开；旧合同缓存跳过，旧回执保留。WGC 聚合区域不同于单只 SPDR GLD，更不同于 A 股个股资金流；未经证明不归并，也不按包装库重复计独立上游。
+
+AKShare 个股资金流 SDK/guest 同一上游，在执行 SDK 前统一拒绝 as_of 与正式 backtest，不以随后元数据的非 PIT 声明替代守卫。宏观、财务、资金流及 WGC 的首次观测修订可按捕获时点重现，不能据今天下载制造过去可得版本。实际验收使用隔离 Host/PG 与独立 Python 子进程重启读回、空库恢复；当前任务报告区分已执行和待执行，不启用正式库、服务、外盘或周报日程。

@@ -283,3 +283,6 @@ BaoStock财务只向原Research Web Checks同一步增加test_baostock_financial
 
 2026-10-23华安历史补查只在原Checks同一Python清单追加test_report_weekly_gold_supplement.py，原job、runner、timeout及依赖不变；初次模块约5秒，预算及未收盘边界补齐后33项27.38秒，预留45秒。九文件本机初次269项72.42秒，解压预算修复后271项71.85秒，未收盘门修复后284项92.86秒。实时仓库PUBLIC；最近五个成功Checks为39918409265/39916809525/39914718255/39912838401/39911774250，创建至更新701/687/1028/955/897秒（墙钟观测，不是计费分钟）。不向CI带入Wind数据、厂商网络或模型；新候选另绑原三门及同候选Mac安装，其他平台交接真机，正式Run与交付仍独立核验。
 
+
+
+2026-10-23 WGC 两种月度吨数捕获与资金流时点守卫只向原 Checks 同一 pytest 步骤加入 test_datahub_wgc/test_wgc_warehouse_integration，旧财务与原生快照矩阵扩展现存模块；无新 job/runner/timeout/依赖。离线新增约秒级，预留原步骤30秒。真实各一次有界公开取数及三子进程 owned PG 验收仅本机，CI不访问厂商/模型/正式数据库。操作前重新核验 PUBLIC，原三 CI 与 exact macos-14 安装保持，Mac不发送Windows/Linux产品dispatch、不手工rerun。
