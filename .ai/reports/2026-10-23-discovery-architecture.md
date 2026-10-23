@@ -13,7 +13,7 @@
 
 ## 源码身份与证据
 
-审阅基线 `3a62ca1a3bff0927db681322a1ff028f08cf03cd`。工作区源码文件哈希清单保存在 `logs/discovery-architecture-source-identity.json`；它只绑定此时源码快照，不冒充最终SHA、已提交源码或CI checkout。图源/HTML由各自deliver receipt逐字节绑定，源码reading pin暂沿旧真实提交，待root生成源码checkpoint后另绑定并重建Atlas。
+审阅基线 `3a62ca1a3bff0927db681322a1ff028f08cf03cd`。工作区源码文件哈希清单保存在 `logs/discovery-architecture-source-identity.json`；它只绑定此时源码快照，不冒充最终SHA、已提交源码或CI checkout。图源/HTML由各自deliver receipt逐字节绑定，该阶段源码reading pin暂沿旧真实提交；真实源码checkpoint绑定在本报告后续记录，未用旧pin伪指新模块。
 
 ## 已执行与限制
 
@@ -31,4 +31,8 @@ CI只修改既有两处名单，无新增workflow/job/runner/timeout/依赖或�
 
 ## 选择详情预览补齐
 
-新增GET /api/research/discovery/selection已按真实routes.py登记；只从owned预览的event_ids读取完整详情，独立scope feed不污染首页，GET不写Store/创建会话/调用模型。新研究/跟踪抽屉先核对，再freeze/save；未知与已prepared沿原身份。原03序列的准备步骤补充此只读详情核对，不新增运行节点或第二模型边。源码reading revision仍待root真实checkpoint，不在此阶段伪指新模块。
+新增GET /api/research/discovery/selection已按真实routes.py登记；只从owned预览的event_ids读取完整详情，独立scope feed不污染首页，GET不写Store/创建会话/调用模型。新研究/跟踪抽屉先核对，再freeze/save；未知与已prepared沿原身份。原03序列的准备步骤补充此只读详情核对，不新增运行节点或第二模型边。此阶段尚待root真实checkpoint，后续绑定记录如下，不将早期阅读pin冒充新模块源码。
+
+## 真实源码阅读绑定
+
+源码checkpoint为`e4d33c76ce9453d73c7286f796ac44c1b753c208`，已从Git对象逐一读取13份发现模块/UI/测试文件并与当前文件逐字节相等核对，包含真实GET /selection。architecture reading.repository.revision现固定该已提交完整源码，API Atlas/index重新生成；绑定证明保存logs/discovery-reading-source-pin.json。图源/HTML未因阅读链接改变，无需重新伪造图交付或截图回执。此绑定不认证远端CI、部署、生产计划或真实模型质量；最终交付提交仍由root独立回执认证。

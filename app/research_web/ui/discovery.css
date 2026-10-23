@@ -25,14 +25,14 @@
 .discovery-page .d-column-title { display:flex; align-items:baseline; justify-content:space-between; margin:0 0 13px; }
 .discovery-page .d-column-title strong { font-size:13px; font-weight:550; }
 .discovery-page .d-column-title > span { font-size:10px; color:var(--reader-subtle); }
-.discovery-page .d-theme-list { display:grid; gap:8px; }
+.discovery-page .d-theme-list { display:grid; gap:8px; max-height:min(640px,65vh); overflow-x:hidden; overflow-y:auto; overscroll-behavior:contain; padding:3px; }
 .discovery-page .d-theme { display:grid; grid-template-columns:20px minmax(0,1fr) 13px; gap:8px; width:100%; text-align:left; padding:16px 12px; border:1px solid transparent; border-radius:9px; background:transparent; color:var(--reader-ink); cursor:pointer; }
 .discovery-page .d-theme:hover { background:var(--reader-day); }
 .discovery-page .d-theme.selected { background:var(--reader-surface); border-color:var(--reader-line); }
 .discovery-page .d-theme-number { font-size:10px; color:var(--reader-subtle); margin-top:2px; font-variant-numeric:tabular-nums; }
 .discovery-page .d-theme > span:nth-child(2) { display:grid; gap:6px; }
 .discovery-page .d-theme small { color:var(--reader-subtle); font-size:10px; }
-.discovery-page .d-theme strong { font-size:13px; font-weight:600; line-height:1.5; }
+.discovery-page .d-theme strong { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:3; overflow:hidden; overflow-wrap:anywhere; font-size:13px; font-weight:600; line-height:1.5; }
 .discovery-page .d-theme.selected strong { color:var(--reader-accent); }
 .discovery-page .d-theme-question { font-size:11px; line-height:1.8; color:var(--reader-secondary); text-wrap:pretty; overflow-wrap:anywhere; }
 .discovery-page .d-theme-meta { color:var(--reader-subtle); font-size:10px; margin-top:5px; line-height:1.7; }
@@ -155,7 +155,7 @@
 @media (max-width:760px) {
   .discovery-page .d-workspace { display:block; }
   .discovery-page .d-theme-column { position:static; margin-bottom:18px; }
-  .discovery-page .d-theme-list { display:flex; overflow-x:auto; gap:8px; padding:3px; }
+  .discovery-page .d-theme-list { display:flex; max-height:none; overflow-x:auto; overflow-y:hidden; overscroll-behavior-x:contain; overscroll-behavior-y:auto; gap:8px; padding:3px; }
   .discovery-page .d-theme { flex:0 0 230px; border-color:var(--reader-line); }
   .discovery-page .d-list-foot { display:none; }
   .discovery-page .d-time-grid,.discovery-page .d-counter-grid,.discovery-page .d-follow-content { grid-template-columns:1fr; gap:14px; }
