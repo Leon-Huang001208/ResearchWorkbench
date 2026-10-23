@@ -773,3 +773,7 @@ AES 专用模型后端在构造器的既有文件锁内核验全部现有 JSON�
 命名模型 profile 只扩展产品固定命名域 RESEARCH_MODEL_PROFILE_<32hex>；私有 bridge 还必须匹配该用户 Store 注册项。两个 legacy 账号和原 namespace 不迁移或回填。旧 DSH ref 按服务端路由解析，端点/协议不会由浏览器任意控制执行。Docker 新 profile AES envelope 携带公开 account，启动逐项校验 filename、account 与 AAD；旧 envelope 原样兼容，未知文件/损坏/错误绑定仍拒绝。HTTP 不提供读 Key API，日志仅事件/错误码；未知凭据状态阻断生成，清除仍显式确认。
 
 2026-10-23 资产v6封闭部署配置绑定常驻c1a260fa与已合并PR197产品eac68068；仅此配置使用固定ZIP日志读取器，旧恢复合同和严格全账号保全不变。详见[部署合同](../../research-web-gateway-upgrade.md#资产筹码与精炼布局固定部署v6)。
+
+## 2026-10-23：长期研究档案与机会预警
+
+新增边界为个人 SQLite 引用／pin、Prompt-only receipt 与冻结原件的逐次授权；浏览器不能自报 hash、公开时点或 passed，源撤权／损坏显示缺口，不重新取数替换历史。MCP 在真实 transport 绑定当次 token，并检查解析 JSON 键／叶子及有界文本 JSON；候选禁止 resource/prompt，未知受理继续占预算。小创 Registry 身份未核验，导入后 unsupported，真实报价／凭据／收费／部署未执行；54 仅估算。独评、离线回归、同候选 CI 与真实研究质量分开绑定，见[档案安全](../../research-web-dossiers.md)与[候选安全](../../research-web-seek-alpha.md)。

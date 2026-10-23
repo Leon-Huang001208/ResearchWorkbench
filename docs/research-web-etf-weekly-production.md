@@ -125,3 +125,7 @@ Host从真实快照重建端点、日金额和交易日计数，按原质量协�
 ## 2026-10-23：BaoStock季度财务边界
 
 BaoStock季度财务的通用DataHub接线与研究仓恢复不授予本周报数据或定稿资格；不运行模型、日程或周报，不修改Wind输入合同。
+
+## 2026-10-23：长期研究档案与机会预警
+
+周报可作为既有成果关联进长期档案，保留原会话、task、hash 与 quality，正文不搬入档案数据库；incomplete／invalid 不因归档、扫描或关联提升为 passed／finalized。档案继续研究只准备原 DSH 草稿，实际 Prompt 才绑定 receipt；档案跟踪默认关闭且当前只重查冻结材料，不启动本周报、Wind、模型或自动生产。原模板／质量／定稿与日程准入保持，个人 SQLite／pin 纳入保全，详见[成果与保全](research-web-dossiers.md)及[扫描合同](research-web-dossier-scans.md)。

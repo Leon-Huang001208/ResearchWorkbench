@@ -153,3 +153,7 @@ BaoStock盈利能力进入独立baostock-quarterly-profitability-v1的provider-n
 
 
 600000.SH/2026-06-30实际双源与发行人半年报核对仅确认两格金额对应集团半年累计，不能当作Q2单季或归母净利。两源公告日8月28日与issuer列表8月27日保留不同来源，不回填精确时刻。两个provider-native版本独立冻结和恢复；样本核对不升级通用跨源等价或财务PIT。详见任务报告。
+
+## 2026-10-23：长期研究档案与机会预警
+
+长期档案的个人 SQLite 是观点、原件引用、pin 与扫描／跟踪元数据索引，区别于本章可选 MarketStore／PostgreSQL 研究仓；不启用或迁移研究仓，也不复制供应商正文、规范序列或历史版本。档案读取原 manifest 与当前来源权限，扫描只认合格冻结材料；first_observed、报告期及小创产业链当前关系均不获得历史 PIT／回测资格。备份必须连同原快照保全，详见[档案存储](research-web-dossiers.md)、[扫描](research-web-dossier-scans.md)与[候选限制](research-web-seek-alpha.md)。
