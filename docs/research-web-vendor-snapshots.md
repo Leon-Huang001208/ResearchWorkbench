@@ -1,5 +1,17 @@
 # 供应商原生研究快照
 
+## SPDR 完整四指标捕获
+
+`ext_spdr/gld` 仅接受 `spdr-gld-trust-snapshot-v1` 的四项投影。`SnapshotSeries` 将当前单位、
+first_observed、非历史 PIT 声明和四项数量与原件重解析结果、字段定义逐项绑定；未知版本、伪造值、
+布尔冒充数值、改写单位、缺原件、partial 或分页不完整均拒绝入仓。只开放空 arguments 的固定 GLD/NYSE/en 请求。
+scope、完整参数、schema 和单位身份分别参加版本索引；权限撤销后已有库命中仍拒绝。
+
+每项保留独立 reference_date、原日期字符串、原单位、value_decimal 和 source_value；
+原始 JSON 响应体也保留。吨、ounces、shares 和 USD 沿用供应商标签，不归并其他来源或换算标准。
+原件是标准 HTTP 解压后的响应体，不表示网络帧。GLD 网站持仓为交易日口径，金条清单为结算日口径，分别处理。
+冻结和恢复只证明同一已捕获版本可重现；formal_backtest_eligible 与 historical_point_in_time 保持 False。
+
 终端v2日线来源单列sina、source_url、请求symbol、retrieved_at及price_index收益口径，报价保留eastmoney及真实行情时间。400条日线严格排除当日报价日，最后前日收盘与东财昨收交叉核验；错码、错配、重复日期、超界或网络失败不给合成替代。
 
 2026-10-23 四个外部端点的 `external-envelope-v1` 只修响应判定，不扩本页native白名单。
@@ -55,7 +67,7 @@ CJPY个股筹码输入继续冻结原始换手响应、完整证券/日期和供
 
 `datahub/research_snapshot_store.py` 的 `SnapshotSeries(service, actor, scope)` 是既有 `MarketStoreService` 的受信 Host 适配器，不创建连接或 schema。actor、StoreScope、schema_identity、units_identity 必须由 Host 提供，不能从浏览器接受 owner。每次读取、归档、冻结仍经过 service 的当前 read/write/export 授权；权限撤销后缓存也不能读。
 
-支持 financials、market_activity、factor_macro、fund_data、index_data 及 asset_type 为 etf/index 的 market_bars。原生快照与股票规范行情不同。天软股票在单位尚未审核时也只走此原生合同，不提升为规范行情。已登记厂商限 akshare、baostock、wind、tinysoft 和既有 eastmoney_fund 基金来源。external_data 仅允许显式清单 `ext_fred/series`、`ext_bls/series`、`ext_worldbank/inflation`，以及当前账户的官方 `ext_ths/cmd_history_quotation`、`basic_data_service`、`real_time_quotation` 数值接口；目录、新闻、日历网页、凭据入口、用户数据库和其他自定义接口均排除。来源权限仍由 Host policy 决定，白名单本身不授予许可。
+支持 financials、market_activity、factor_macro、fund_data、index_data 及 asset_type 为 etf/index 的 market_bars。原生快照与股票规范行情不同。天软股票在单位尚未审核时也只走此原生合同，不提升为规范行情。已登记厂商限 akshare、baostock、wind、tinysoft 和既有 eastmoney_fund 基金来源。external_data 仅允许显式清单 `ext_fred/series`、`ext_bls/series`、`ext_worldbank/inflation`、`ext_nyfed/rates`、`ext_treasury/cash`、`ext_spdr/gld`，以及当前账户的官方 `ext_ths/cmd_history_quotation`、`basic_data_service`、`real_time_quotation` 数值接口；目录、新闻、日历网页、凭据入口、用户数据库和其他自定义接口均排除。来源权限仍由 Host policy 决定，白名单本身不授予许可。
 
 dataset key 包含 capability、实际 source、全部 parameters 的规范摘要、受审 schema_identity 与 units_identity；完整 source scope 另绑定 owner、entitlement 和脱敏配置摘要。Host 应为已审供应商接口传入稳定且有版本的 schema/单位合同身份。默认 `provider-native-v1` / `provider-defined-unknown` 只代表不做规范化的原生响应合同。fields 的完整实际定义与摘要另随每次捕获冻结，不推断缺失单位、币种或跨供应商等价。切换会计准则、母公司/合并、初值/终值、成分有效期或单位合同必须改变参数或受信 schema/units 身份。
 
