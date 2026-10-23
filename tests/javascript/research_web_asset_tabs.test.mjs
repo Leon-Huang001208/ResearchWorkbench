@@ -10,11 +10,11 @@ const props = assetView => ({ route: route(assetView), observation: { id: 'o', a
 const topic = html => html.slice(html.indexOf('data-asset-topic-slot'));
 
 test('asset tabs expose one labelled panel and only the selected topic content', () => {
-  const expected = { overview: ['asset-topic-overview'], financials: ['financial-panel'], capital: ['capital-flow-card', 'data-asset-block="margin"'], holders: ['shareholder-panel', 'data-asset-block="holders"'], news: ['data-asset-news-slot'], announcements: ['data-asset-news-slot'], materials: ['data-asset-block="research"', 'industry-panel', 'events-panel'] };
-  for (const assetView of navigation.ASSET_VIEWS) {
+  const expected = { financials: ['financial-panel'], capital: ['capital-flow-card', 'data-asset-block="margin"'], holders: ['shareholder-panel', 'data-asset-block="holders"'], news: ['data-asset-news-slot'], announcements: ['data-asset-news-slot'], materials: ['data-asset-block="research"', 'industry-panel', 'events-panel'] };
+  for (const assetView of navigation.ASSET_TOPICS) {
     const html = workspace.renderAssetWorkspace(props(assetView));
     assert.match(html, /role="tablist"/);
-    assert.equal((html.match(/role="tab"/g) || []).length, 7);
+    assert.equal((html.match(/role="tab"/g) || []).length, 6);
     assert.equal((html.match(/role="tabpanel"/g) || []).length, 1);
     assert.match(html, new RegExp(`id="asset-tab-${assetView}"[^>]*aria-selected="true"[^>]*tabindex="0"`));
     assert.match(html, new RegExp(`aria-labelledby="asset-tab-${assetView}"`));
@@ -37,7 +37,8 @@ test('one global source disclosure keeps full limitations out of the topic cards
   for (const assetView of navigation.ASSET_VIEWS) {
     const html = workspace.renderAssetWorkspace({ observation, route: route(assetView), errors: { financials: '合成当前财务失败提示' } });
     const sourceIndex = html.indexOf('<details class="asset-source-summary">');
-    assert.ok(sourceIndex > html.indexOf('data-asset-chart-slot'));
+    assert.ok(sourceIndex > html.indexOf('class="asset-data-info"'));
+    assert.ok(sourceIndex < html.indexOf('data-asset-chart-slot'));
     assert.ok(sourceIndex < html.indexOf('<nav class="asset-topic-tabs"'));
     for (const note of Object.values(limitations)) {
       assert.equal(html.split(note).length - 1, 1, `${assetView}: ${note}`);
@@ -77,8 +78,8 @@ test('updating an asset topic only mutates its slot and tab semantics', () => {
 test('asset tab navigation wraps horizontally and preserves URL asset identity', () => {
   assert.equal(typeof navigation.assetTopicKey, 'function');
   assert.equal(navigation.assetTopicKey('ArrowLeft', 'overview'), 'materials');
-  assert.equal(navigation.assetTopicKey('ArrowRight', 'materials'), 'overview');
-  assert.equal(navigation.assetTopicKey('Home', 'news'), 'overview');
+  assert.equal(navigation.assetTopicKey('ArrowRight', 'materials'), 'financials');
+  assert.equal(navigation.assetTopicKey('Home', 'news'), 'financials');
   assert.equal(navigation.assetTopicKey('End', 'news'), 'materials');
   assert.equal(navigation.assetTopicKey('ArrowDown', 'news'), null);
   assert.equal(navigation.assetHref('600519.SH', 'stock', 'capital'), '#/assets?view=capital&asset=600519.SH&asset_type=stock');
@@ -141,7 +142,7 @@ test('holder detail cards show the same actual block provenance and failure stat
   assert.equal(projection.shareholders[0].name.provider, 'tinysoft');
   const card = html => html.match(/<article[^>]*id="shareholder-panel"[^>]*>[^]*?<\/article>/)?.[0] || '';
   const complete = card(workspace.renderAssetWorkspace({ observation, rows, route: route('holders') }));
-  assert.match(complete, /合成股东甲/); assert.match(complete, /tinysoft · 已取得 · 2026-10-21/);
+  assert.match(complete, /合成股东甲/); assert.match(complete, /已取得/);
   assert.doesNotMatch(complete, /合成股东明细，仅用于渲染测试/);
   assert.match(workspace.renderAssetWorkspace({ observation, rows, route: route('holders') }), /合成股东明细，仅用于渲染测试/);
   assert.doesNotMatch(complete, /来源未取得/);
@@ -152,7 +153,7 @@ test('holder detail cards show the same actual block provenance and failure stat
   assert.match(retained, /缓存已过期/);
   const legacy = { ...observation, blocks: { shareholders: observation.blocks.holder_details } };
   const legacyCard = card(workspace.renderAssetWorkspace({ observation: legacy, rows: { shareholders: rows.holder_details }, route: route('holders') }));
-  assert.match(legacyCard, /tinysoft · 完整 · 2026-10-21/);
+  assert.match(legacyCard, /完整/);
   assert.match(workspace.renderAssetWorkspace({ observation: legacy, rows: { shareholders: rows.holder_details }, route: route('holders') }), /旧版股东明细限制：合成股东明细，仅用于渲染测试/);
 });
 
@@ -240,7 +241,7 @@ test('actual app metadata preserves history source and reconfigures source-only 
   configure(); assert.equal(configurations, 3); assert.equal(metadata().historySource, 'baostock');
   delete assetState.observation.source;
   configure(); assert.equal(configurations, 4); assert.equal(metadata().historySource, 'tinysoft'); assert.equal(chart.getState().historySource, 'tinysoft');
-  chart.handle(click('all')); assert.deepEqual(requests.at(-1), { action: 'load', scope: 'all', adjustment: 'none', source: 'tinysoft' });
+  chart.handle(click('all')); assert.deepEqual(requests.at(-1), { action: 'load', scope: 'all', adjustment: 'none', source: 'tinysoft', includeChipInputs: true });
 });
 
 test('actual app and workspace preserve fixed Tinysoft for legacy canonical and reject unbound raw2 source', async () => {
@@ -253,14 +254,14 @@ test('actual app and workspace preserve fixed Tinysoft for legacy canonical and 
   const { metadata, configure } = new Function('assetState', 'state', 'assetChart', 'selectAssetObservation', 'projectAssetObservation', `const emptyAssetHistory = Object.freeze([]); let configuredAssetHistory = null; let configuredAssetSignature = ''; ${functions}; return { metadata: assetTerminalMetadata, configure: configureAssetTerminal };`)(assetState, { route: route('overview') }, chart, navigation.selectAssetObservation, () => ({ basic: {} }));
   configure(); assert.equal(metadata().historySource, 'tinysoft'); assert.equal(chart.getState().adjustment, 'qfq');
   const html = workspace.renderAssetWorkspace({ ...props('overview'), observation, rows: assetState.rows });
-  assert.match(html, /option value="tinysoft" selected/);
+  assert.doesNotMatch(html, /data-asset-history-source/);
   const click = action => ({ type: 'click', target: { closest: selector => selector === '[data-asset-chart-action]' ? { dataset: { assetChartAction: action } } : null } });
-  chart.handle(click('all')); assert.deepEqual(requests, [{ action: 'load', scope: 'all', adjustment: 'qfq', source: 'tinysoft' }]);
+  chart.handle(click('all')); assert.deepEqual(requests, [{ action: 'load', scope: 'all', adjustment: 'qfq', source: 'tinysoft', includeChipInputs: true }]);
   observation.blocks.history.dataset = { dataset_id: 'incomplete-raw2', asset_history: { canonical_version: 'asset-history-raw-2', adjustment: 'none' } };
   configure(); assert.equal(metadata().historySource, 'unknown'); assert.equal(metadata().canLoadHistory, false);
   chart.handle(click('all')); assert.equal(requests.length, 1);
   const broken = workspace.renderAssetWorkspace({ ...props('overview'), observation, rows: assetState.rows });
-  assert.match(broken, /来源未知/); assert.match(broken, /data-asset-history-source[^>]* disabled/);
+  assert.match(broken, /来源未知/); assert.doesNotMatch(broken, /data-asset-history-source/);
 });
 
 test('actual app empty-history polling preserves requested source and pending until failure, then auto can be selected', async () => {
@@ -286,4 +287,26 @@ test('actual app empty-history polling preserves requested source and pending un
   assert.equal(chart.getState().start, 40); assert.equal(chart.getState().end, 160); assert.equal(chart.getState().selectedDate, assetState.rows.history.at(-1).date);
   state.route = { ...route('overview'), asset: '000001.SZ' }; assetState.observation = { id: 'new', asset: '000001.SZ', asset_type: 'stock', source: 'tinysoft', request_parameters: { adjustment: 'qfq' }, blocks: {} }; assetState.rows.history = []; configure();
   assert.equal(chart.getState().historySource, 'tinysoft'); assert.equal(chart.getState().adjustment, 'qfq'); assert.equal(chart.getState().historyRequestPending, false);
+});
+
+ test('old overview URLs render the real financial topic without an empty overview tab', () => {
+  const html = workspace.renderAssetWorkspace(props('overview'));
+  assert.doesNotMatch(html, /asset-tab-overview|asset-topic-overview/);
+  assert.match(html, /asset-tab-financials[^>]*aria-selected="true"/);
+  assert.match(topic(html), /financial-panel/);
+});
+
+test('actual app applies settings-only preference loads and rollbacks without resetting chart state', async () => {
+  const { createAssetChartController } = await import('../../app/research_web/ui/asset-chart.mjs');
+  const app = await readFile(new URL('../../app/research_web/ui/app.mjs', import.meta.url), 'utf8');
+  const functions = app.slice(app.indexOf('function assetTerminalMetadata('), app.indexOf('function setAssetMetricsDrawer('));
+  const assetState = { observation: { id: 'o', asset: '600519.SH', asset_type: 'stock', blocks: { history: { dataset: { dataset_id: 'h' } } } }, rows: { history: [{ asset:'600519.SH', date:'2026-10-20', open:10, high:12, low:9, close:11 }] }, preferences: { panels: ['volume','macd'] } };
+  const chart = createAssetChartController(); let calls = 0;
+  const configure = new Function('assetState','state','assetChart','selectAssetObservation','projectAssetObservation', `const emptyAssetHistory=Object.freeze([]);let configuredAssetHistory=null;let configuredAssetSignature='';${functions};return configureAssetTerminal;`)(assetState,{route:route('financials')},{configure(...args){calls++;return chart.configure(...args)}},navigation.selectAssetObservation,()=>({basic:{}}));
+  configure(); const before = chart.getState();
+  assetState.preferences.chip_settings = { algorithm:'uniform', decay:.8 }; configure();
+  assert.equal(chart.getState().chipSettings.decay,.8); assert.equal(chart.getState().chipSettings.algorithm,'uniform');
+  assetState.preferences.chip_settings = { algorithm:'triangle', decay:1 }; configure();
+  assert.equal(chart.getState().chipSettings.decay,1); assert.equal(chart.getState().selectedDate,before.selectedDate); assert.equal(chart.getState().start,before.start);
+  configure(); assert.equal(calls,3); chart.dispose();
 });

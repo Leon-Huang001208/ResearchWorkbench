@@ -2,6 +2,11 @@
 
 2026-10-23市场限价/昨日/历史：`datahub/providers_market.py`负责同批f350/f351、有效限价状态/覆盖与收盘见证；`market_service.py`负责精确日历/逐股昨日金额重算、同用户同key真实资金日线留存及原子恢复；`ui/market.mjs`展示确认涨跌停/未知、昨日来源或缺口和五类日线资金历史表。定点回归沿原test_market_provider/service与research_web_market清单，无新依赖、HTTP路径或第二研究引擎；[口径](research-web-datahub.md#无会话全市场数据)与缓存/API文档同步，真实源/认证部署另留证。
 
+## 资产筹码与行情精炼（2026-10-23）
+
+`asset_chip_inputs.py` 校验逐日换手身份/覆盖/单位，并连接同复权价格与原始量额；`asset_history_jobs.py` 按32个日期串行查询现有 Broker/Provider，带筹码任务只在全部验证后发布。`providers_cjpy_assets.py` 校验固定厂商因子定义；不使用旧全局凭据。`asset-chips.mjs` 为概率守恒的换手衰减/三角或平均分布模型；`asset-chip-panel.mjs` 提供统计、龄分层、历史叠加和设置。`asset-layout.css` 实现已批准的连续工作区，`asset-format.mjs` 只做万/亿显示。测试分别为 `test_asset_chip_inputs.py`、原历史/CJPY合同及 `research_web_chip_distribution`、资产 chart/loading/tabs/format 回归。三项独立评审问题（原子桶重复、重试丢旗标、设置签名遗漏）均有定点回归。
+
+
 iFinD历史行情仍由 `datahub/providers_external.py` 的原 `fetch/numeric_envelope` 链处理；
 `_quantapi_history_body` 在取密前验证旧flat或官方reqBody参数并精确包装一次，目录保留
 `cmd_history_quotation` 身份、固定出口改为官方 `history_data`。近处

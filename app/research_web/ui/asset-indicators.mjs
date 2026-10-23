@@ -1,3 +1,4 @@
+import { estimateChips } from './asset-chips.mjs';
 // Deterministic AlphaFoundry calculations. No browser globals or supplier calls.
 export const MA_PERIODS = [5, 10, 20, 60, 120, 250];
 export const finite = value => {
@@ -68,7 +69,7 @@ export function enrichMarketBars(rows = []) {
     if (!row || typeof row !== 'object' || Array.isArray(row)) { diagnostics.invalidRows++; continue; }
     const date = parseDate([row.date, row.trade_date, row.datetime, row.time, row['时间']].find(v => v !== null && v !== undefined && String(v).trim()));
     if (!date) { diagnostics.invalidDates++; continue; }
-    const bar = { ...date, open: read(row, ['open', '开盘'], true), high: read(row, ['high', '最高'], true), low: read(row, ['low', '最低'], true), close: read(row, ['close', '收盘', 'price', 'last'], true), volume: read(row, ['volume', 'vol', '成交量']), amount: read(row, ['amount', 'turnover', '成交额']), turnover_rate_pct: read(row, ['turnover_rate_pct', 'turnover_rate', '换手率']), vwap: read(row, ['vwap', 'avg_price', 'average_price'], true), gap: row.gap === true || row.missing === true };
+    const bar = { ...date, asset: row.asset, open: read(row, ['open', '开盘'], true), high: read(row, ['high', '最高'], true), low: read(row, ['low', '最低'], true), close: read(row, ['close', '收盘', 'price', 'last'], true), volume: read(row, ['volume', 'vol', '成交量']), amount: read(row, ['amount', 'turnover', '成交额']), turnover_rate_pct: read(row, ['turnover_rate_pct', 'turnover_rate', '换手率']), vwap: read(row, ['vwap', 'avg_price', 'average_price'], true), gap: row.gap === true || row.missing === true };
     bar.validOHLC = validOHLC(bar);
     if (dated.has(bar.date)) diagnostics.duplicates++;
     dated.set(bar.date, bar);
@@ -104,60 +105,7 @@ export function aggregateMarketBars(bars, period = 'day') {
   const result = calculateIndicators(aggregated); Object.defineProperty(result, 'diagnostics', { value: bars.diagnostics || {} }); return result;
 }
 
-/** Uniform per-bar low/high OHLCV estimate. No holdings or turnover decay model. */
-export function estimateChipDistribution(source, start = 0, end = source.length - 1, _renderDomain = null, buckets = 180) {
-  const first = Math.max(0, Math.floor(start)); const last = Math.min(source.length - 1, Math.floor(end));
-  const eligible = source.slice(first, last + 1).filter(b => parseDate(b.date) && validOHLC(b) && !b.gap && finite(b.volume) !== null && b.volume > 0);
-  const empty = { points: [], averageCost: null, peak: null, lower: null, upper: null, profitFraction: null, lockedFraction: null, referenceClose: source[last]?.close ?? null, validBars: eligible.length, startDate: source[first]?.date, endDate: source[last]?.date };
-  if (eligible.length < 5) return empty;
-  // AF bins are built only from the selected OHLCV window. Main-chart overlays
-  // affect rendering axes, never this raw price range or any chip statistic.
-  const low = Math.min(...eligible.map(b => b.low)); const high = Math.max(...eligible.map(b => b.high));
-  if (!(high > low) || !Number.isInteger(buckets) || buckets < 2 || !Number.isFinite(low) || !Number.isFinite(high)) return empty;
-  const width = (high - low) / buckets; const volumes = Array(buckets).fill(0);
-  for (const bar of eligible) {
-    if (bar.high === bar.low) { const i = Math.min(buckets - 1, Math.max(0, Math.floor((bar.close - low) / width))); volumes[i] += bar.volume; continue; }
-    const weights = Array(buckets).fill(0);
-    for (let i = Math.max(0, Math.floor((bar.low - low) / width)); i <= Math.min(buckets - 1, Math.floor((bar.high - low) / width)); i++) {
-      const bucketLow = low + i * width; const bucketHigh = bucketLow + width;
-      const overlapLow = Math.max(bar.low, bucketLow); const overlapHigh = Math.min(bar.high, bucketHigh);
-      if (overlapHigh > overlapLow) weights[i] = overlapHigh - overlapLow;
-    }
-    const weightTotal = weights.reduce((sum, value) => sum + value, 0);
-    if (weightTotal <= 0) { const i = Math.min(buckets - 1, Math.max(0, Math.floor((bar.close - low) / width))); volumes[i] += bar.volume; }
-    else weights.forEach((weight, i) => { volumes[i] += weight / weightTotal * bar.volume; });
-  }
-  const total = volumes.reduce((s, v) => s + v, 0); if (!(total > 0)) return empty;
-  const round = value => Number(value.toFixed(2));
-  // The original AF two-decimal quantization precedes FWHM/cost/profit, so it
-  // is part of the formula rather than a display-only formatter.
-  const points = volumes.map((volume, i) => ({ price: round(low + (i + .5) * width), volume: round(volume), concentration_pct: round(volume / total * 100) }));
-  const peak = points.reduce((best, point) => point.concentration_pct > best.concentration_pct ? point : best, points[0]);
-  const peakIndex = points.findIndex(point => point.price === peak.price); const half = peak.concentration_pct / 2;
-  let lower = null; let upper = null;
-  if (half > 0) {
-    for (let i = peakIndex; i < buckets - 1; i++) {
-      const current = points[i]; const next = points[i + 1];
-      if (current.concentration_pct >= half && next.concentration_pct <= half) {
-        const span = current.concentration_pct - next.concentration_pct; const ratio = Math.abs(span) > 1e-10 ? (half - next.concentration_pct) / span : 0;
-        upper = round(next.price + ratio * (current.price - next.price)); break;
-      }
-    }
-    for (let i = peakIndex; i > 0; i--) {
-      const current = points[i]; const previous = points[i - 1];
-      if (current.concentration_pct >= half && previous.concentration_pct <= half) {
-        const span = current.concentration_pct - previous.concentration_pct; const ratio = Math.abs(span) > 1e-10 ? (half - previous.concentration_pct) / span : 0;
-        lower = round(previous.price + ratio * (current.price - previous.price)); break;
-      }
-    }
-    upper ??= points.at(-1).price; lower ??= points[0].price;
-  }
-  const reference = empty.referenceClose;
-  const roundedTotal = points.reduce((sum, point) => sum + point.volume, 0);
-  const weightedSum = points.reduce((sum, point) => sum + point.price * point.volume, 0);
-  const profitVolume = points.reduce((sum, point) => sum + (point.price < reference ? point.volume : 0), 0);
-  const lockedVolume = points.reduce((sum, point) => sum + (point.price >= reference ? point.volume : 0), 0);
-  const profit = finite(reference) === null ? null : roundedTotal > 0 ? profitVolume / roundedTotal : 0;
-  const locked = finite(reference) === null ? null : roundedTotal > 0 ? lockedVolume / roundedTotal : 0;
-  return { ...empty, points, averageCost: roundedTotal > 0 ? round(weightedSum / roundedTotal) : null, peak: peak.price, lower, upper, profitFraction: profit, lockedFraction: locked, domain: [low, high], bucketWidth: width };
+/** Compatibility surface; new turnover model never fabricates missing holdings inputs. */
+export function estimateChipDistribution(source, start = 0, end = source.length - 1, _renderDomain = null, buckets = 180, settings = {}) {
+  return estimateChips(source.slice(Math.max(0, start), Math.min(source.length, end + 1)), settings, buckets);
 }
