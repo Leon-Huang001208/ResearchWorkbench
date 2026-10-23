@@ -286,4 +286,8 @@ BaoStock财务只向原Research Web Checks同一步增加test_baostock_financial
 
 今日发现组合操作员复用原Checks中的test_model_provider_upgrade.py及原三CI/同候选Mac安装；不新增workflow/job/runner/超时/平台dispatch/依赖。公开标准runner资格在publish前实时复核，真实模型和生产计划保持零调用/未开启。
 
+2026-10-23研究档案固定部署仅扩充原test_model_provider_upgrade近处封闭profile矩阵，不增加workflow/job/runner/timeout/依赖。现有操作员完整1367项本机105.05秒；新增约95项预留原步骤60秒，原通用检查与同候选macos-14干净安装仍必需。远端操作前实时核对visibility／额度，不从Mac派发Windows/Linux产品CI；真实常驻切换与登录后验收独立取证，供应商与模型收费调用保持关闭。
+
+发布前API实测PUBLIC；最近五个成功run39962045254/39962045074/39962045167/39957945617/39957945679创建至更新72/489/1239/505/58秒，仅为墙钟参考，不推定计费额度或新候选通过。
+
 2026-10-23 WGC 两种月度吨数捕获与资金流时点守卫只向原 Checks 同一 pytest 步骤加入 test_datahub_wgc/test_wgc_warehouse_integration，旧财务与原生快照矩阵扩展现存模块；无新 job/runner/timeout/依赖。离线新增约秒级，预留原步骤30秒。真实各一次有界公开取数及三子进程 owned PG 验收仅本机，CI不访问厂商/模型/正式数据库。操作前重新核验 PUBLIC，原三 CI 与 exact macos-14 安装保持，Mac不发送Windows/Linux产品dispatch、不手工rerun。

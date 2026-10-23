@@ -107,6 +107,10 @@ ETF_WEEKLY_V2_MODE = "reviewed-etf-weekly-v2"
 ETF_WEEKLY_V2_PREVIOUS = "5343e18d9f203a87f2d958218e4288afa527711f"
 ETF_WEEKLY_V2_PAYLOAD = "56709a8dbb6e01d2ab17b64533319e199ebef86f"
 # Historical family name: all these profiles require full business-index preservation.
+# Fixed merged dossiers product; retain the registered resident recovery identity.
+DOSSIERS_MODE = "reviewed-research-dossiers-v1"
+DOSSIERS_PREVIOUS = "5343e18d9f203a87f2d958218e4288afa527711f"
+DOSSIERS_PAYLOAD = "1780064b712afb61ff18f2f1811650fc31fd3038"
 ASSET_MODES = frozenset(
     (
         ASSET_MODE,
@@ -121,6 +125,7 @@ ASSET_MODES = frozenset(
         MARKET_HISTORY_MODE,
         MARKET_TERMINAL_MODE,
         ETF_WEEKLY_MODE,
+        DOSSIERS_MODE,
         DISCOVERY_MODE,
         ETF_WEEKLY_V2_MODE,
     )
@@ -215,6 +220,8 @@ def previous_for(mode):
         return MARKET_HISTORY_PREVIOUS
     if mode == MARKET_TERMINAL_MODE:
         return MARKET_TERMINAL_PREVIOUS
+    if mode == DOSSIERS_MODE:
+        return DOSSIERS_PREVIOUS
     if mode == ETF_WEEKLY_MODE:
         return ETF_WEEKLY_PREVIOUS
     if mode == DISCOVERY_MODE:
@@ -378,6 +385,7 @@ def verify_primary(home, expected, mode):
         ASSET_V6_MODE,
         ASSET_V7_MODE,
         ETF_WEEKLY_MODE,
+        DOSSIERS_MODE,
         DISCOVERY_MODE,
         ETF_WEEKLY_V2_MODE,
     }:
@@ -466,6 +474,7 @@ def review_assets(source: Path, target: str, mode=ASSET_MODE):
         MARKET_HISTORY_MODE: MARKET_HISTORY_PAYLOAD,
         MARKET_TERMINAL_MODE: MARKET_TERMINAL_PAYLOAD,
         ETF_WEEKLY_MODE: ETF_WEEKLY_PAYLOAD,
+        DOSSIERS_MODE: DOSSIERS_PAYLOAD,
         DISCOVERY_MODE: DISCOVERY_PAYLOAD,
         ETF_WEEKLY_V2_MODE: ETF_WEEKLY_V2_PAYLOAD,
     }[mode]
@@ -496,7 +505,13 @@ def review_assets(source: Path, target: str, mode=ASSET_MODE):
                     else (
                         ASSET_V6_EVIDENCE_SHA256
                         if mode
-                        in {ASSET_V6_MODE, ETF_WEEKLY_MODE, DISCOVERY_MODE, ETF_WEEKLY_V2_MODE}
+                        in {
+                            ASSET_V6_MODE,
+                            ETF_WEEKLY_MODE,
+                            DOSSIERS_MODE,
+                            DISCOVERY_MODE,
+                            ETF_WEEKLY_V2_MODE,
+                        }
                         else ASSET_EVIDENCE_SHA256
                     )
                 )
@@ -750,6 +765,49 @@ def private_artifact(path):
         raise UpdateBlocked("model_upgrade_artifact_unsafe")
 
 
+def activate_recovery_source(home: Path) -> None:
+    """Bind app dependencies to the preserved Git source, never the replaced wheel."""
+    if ".pyz/" not in str(__file__):
+        return
+    journal = home / "server/run/gateway-upgrade.json"
+    if not journal.exists() and not journal.is_symlink():
+        return
+    try:
+        state = g.read_upgrade_journal(journal)
+        artifact = Path(sys.argv[0]).absolute()
+        private_artifact(artifact)
+        if (
+            state.get("version") != 4
+            or state.get("mode") not in {MODE, *ASSET_MODES}
+            or str(artifact) != state["recovery"]["artifact"]
+            or c.digest(artifact) != state["recovery"]["sha256"]
+            or not re.fullmatch(r"[a-f0-9]{40}", state["target"])
+        ):
+            raise ValueError("recovery identity")
+        with zipfile.ZipFile(artifact) as archive:
+            if archive.getinfo("manifest.json").file_size > 65536:
+                raise ValueError("manifest budget")
+            manifest = json.loads(archive.read("manifest.json"))
+        source = home / "resident/artifacts" / state["target"] / "source"
+        if (
+            not isinstance(manifest, dict)
+            or set(manifest) != {"target", "modules", "source"}
+            or manifest.get("target") != state["target"]
+            or manifest.get("source") != str(source)
+            or state["source"] != str(source)
+            or source.resolve(strict=True) != source
+            or source.stat().st_uid != os.getuid()
+        ):
+            raise ValueError("source identity")
+        c.clean(source, state["target"])
+        # Parent-only import path: child services must still load their installed wheel.
+        sys.path.insert(0, str(source))
+        log.info("model_recovery_source_verified target=%s", state["target"])
+    except Exception as error:
+        log.error("model_recovery_source_unavailable error_type=%s", type(error).__name__)
+        raise UpdateBlocked("model_upgrade_recovery_source_unavailable") from error
+
+
 def install_recovery(home, source, target, python):
     """Freeze all operator modules from Git, before either journal or service mutation."""
     g.run(["/usr/bin/env", "PATH=" + g.RECOVERY_PATH, "/usr/bin/git", "lfs", "version"])
@@ -760,7 +818,10 @@ def install_recovery(home, source, target, python):
             z.writestr("resident/" + name, g.git_bytes(source, target, name))
         z.writestr("__main__.py", ENTRY)
         z.writestr(
-            "manifest.json", json.dumps({"target": target, "modules": modules}, sort_keys=True)
+            "manifest.json",
+            json.dumps(
+                {"target": target, "modules": modules, "source": str(source)}, sort_keys=True
+            ),
         )
     raw = buffer.getvalue()
     checksum = hashlib.sha256(raw).hexdigest()
@@ -872,10 +933,14 @@ def validate_state(home, state, *, executor_source=None):
         raise UpdateBlocked("model_upgrade_artifact_changed")
     with zipfile.ZipFile(artifact) as z:
         manifest = json.loads(z.read("manifest.json"))
-        if (
-            manifest != {"target": state["target"], "modules": recovery["modules"]}
-            or z.read("__main__.py").decode() != ENTRY
-        ):
+        expected_manifest = {"target": state["target"], "modules": recovery["modules"]}
+        if "source" in manifest or state["mode"] in {
+            DOSSIERS_MODE,
+            DISCOVERY_MODE,
+            ETF_WEEKLY_V2_MODE,
+        }:
+            expected_manifest["source"] = state["source"]
+        if manifest != expected_manifest or z.read("__main__.py").decode() != ENTRY:
             raise UpdateBlocked("model_upgrade_artifact_changed")
         if recovery["modules"] != g.module_blobs(source, state["target"]):
             raise UpdateBlocked("model_upgrade_artifact_changed")
@@ -1052,6 +1117,7 @@ class Operations:
             MARKET_TERMINAL_MODE,
             ASSET_V7_MODE,
             ETF_WEEKLY_MODE,
+            DOSSIERS_MODE,
             DISCOVERY_MODE,
             ETF_WEEKLY_V2_MODE,
         }:
@@ -1422,7 +1488,7 @@ def operate(home, source=None, *, recovering=False, mode=MODE):
                 state[role + "_identity"] = [info.st_dev, info.st_ino]
                 state[role + "_repository"] = repository_identity(project, config["repository"])
                 c.git(project, "cat-file", "-e", f"{target}^{{commit}}")
-            state["recovery"] = install_recovery(home, source, target, python)
+            state["recovery"] = install_recovery(home, artifact_source, target, python)
             # Exercise the exact recovery identity contract before any fence
             # publication or stop; an apply-only proof cannot protect rollback.
             validate_state(home, state, executor_source=source)
@@ -1487,6 +1553,7 @@ def main(argv=None):
             "apply-market-history",
             "apply-market-terminal",
             "apply-etf-weekly",
+            "apply-dossiers",
             "apply-discovery",
             "apply-etf-weekly-v2",
             "recover",
@@ -1497,6 +1564,8 @@ def main(argv=None):
     args = parser.parse_args(argv)
     logging.basicConfig(filename=args.home / "logs/model-upgrade.log", level=logging.INFO)
     try:
+        if args.command == "recover":
+            activate_recovery_source(args.home)
         result = operate(
             args.home,
             args.source,
@@ -1514,6 +1583,7 @@ def main(argv=None):
                 "apply-market-history": MARKET_HISTORY_MODE,
                 "apply-market-terminal": MARKET_TERMINAL_MODE,
                 "apply-etf-weekly": ETF_WEEKLY_MODE,
+                "apply-dossiers": DOSSIERS_MODE,
                 "apply-discovery": DISCOVERY_MODE,
                 "apply-etf-weekly-v2": ETF_WEEKLY_V2_MODE,
             }.get(args.command, MODE),

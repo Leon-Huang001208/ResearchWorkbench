@@ -30,6 +30,7 @@ ASSET_PROFILES = (
     "reviewed-market-history-v1",
     "reviewed-market-terminal-v1",
     "reviewed-etf-weekly-v1",
+    "reviewed-research-dossiers-v1",
     "reviewed-discovery-v1",
     "reviewed-etf-weekly-v2",
 )
@@ -200,6 +201,7 @@ def test_asset_review_uses_real_git_and_frozen_product(tmp_path, monkeypatch, ba
         "reviewed-market-gaps-v1": "MARKET_GAPS",
         "reviewed-market-history-v1": "MARKET_HISTORY",
         "reviewed-etf-weekly-v1": "ETF_WEEKLY",
+        "reviewed-research-dossiers-v1": "DOSSIERS",
         "reviewed-discovery-v1": "DISCOVERY",
         "reviewed-etf-weekly-v2": "ETF_WEEKLY_V2",
         "reviewed-market-terminal-v1": "MARKET_TERMINAL",
@@ -218,6 +220,7 @@ def test_asset_review_uses_real_git_and_frozen_product(tmp_path, monkeypatch, ba
                 in {
                     upgrade.ASSET_V6_MODE,
                     "reviewed-etf-weekly-v1",
+                    "reviewed-research-dossiers-v1",
                     "reviewed-discovery-v1",
                     "reviewed-etf-weekly-v2",
                 }
@@ -492,6 +495,7 @@ def test_asset_snapshot_rejects_fifo_without_blocking(tmp_path):
         ("apply-assets-v6", upgrade.ASSET_V6_MODE),
         ("apply-assets-v7", upgrade.ASSET_V7_MODE),
         ("apply-etf-weekly", "reviewed-etf-weekly-v1"),
+        ("apply-dossiers", "reviewed-research-dossiers-v1"),
         ("apply-discovery", "reviewed-discovery-v1"),
         ("apply-etf-weekly-v2", "reviewed-etf-weekly-v2"),
         ("apply-market-history", upgrade.MARKET_HISTORY_MODE),
@@ -1507,6 +1511,7 @@ def test_validate_state_accepts_real_independent_release_clones(tmp_path, monkey
         "reviewed-market-history-v1": "MARKET_HISTORY_PREVIOUS",
         "reviewed-market-terminal-v1": "MARKET_TERMINAL_PREVIOUS",
         "reviewed-etf-weekly-v1": "ETF_WEEKLY_PREVIOUS",
+        "reviewed-research-dossiers-v1": "DOSSIERS_PREVIOUS",
         "reviewed-discovery-v1": "DISCOVERY_PREVIOUS",
         "reviewed-etf-weekly-v2": "ETF_WEEKLY_V2_PREVIOUS",
     }[profile]
@@ -1586,7 +1591,14 @@ def test_validate_state_accepts_real_independent_release_clones(tmp_path, monkey
     artifact = home / "server/run/recovery.pyz"
     artifact.parent.mkdir(parents=True)
     with zipfile.ZipFile(artifact, "w") as archive:
-        archive.writestr("manifest.json", json.dumps({"target": target, "modules": {}}))
+        manifest = {"target": target, "modules": {}}
+        if profile in {
+            "reviewed-research-dossiers-v1",
+            "reviewed-discovery-v1",
+            "reviewed-etf-weekly-v2",
+        }:
+            manifest["source"] = str(source)
+        archive.writestr("manifest.json", json.dumps(manifest))
         archive.writestr("__main__.py", upgrade.ENTRY)
     artifact.chmod(0o600)
     plist = home / "recovery.plist"
@@ -1607,6 +1619,21 @@ def test_validate_state_accepts_real_independent_release_clones(tmp_path, monkey
         "sha256": upgrade.c.digest(wheel),
     }
     upgrade.validate_state(home, state)
+    if profile in {
+        "reviewed-research-dossiers-v1",
+        "reviewed-discovery-v1",
+        "reviewed-etf-weekly-v2",
+    }:
+        original_archive = artifact.read_bytes()
+        with zipfile.ZipFile(artifact, "w") as archive:
+            archive.writestr("manifest.json", json.dumps({"target": target, "modules": {}}))
+            archive.writestr("__main__.py", upgrade.ENTRY)
+        state["recovery"]["sha256"] = upgrade.c.digest(artifact)
+        with pytest.raises(upgrade.UpdateBlocked, match="artifact_changed"):
+            upgrade.validate_state(home, state)
+        artifact.write_bytes(original_archive)
+        state["recovery"]["sha256"] = upgrade.c.digest(artifact)
+        upgrade.validate_state(home, state)
     # Preserve path and origin but replace the real Git directory inode.
     import shutil
 
@@ -2100,6 +2127,7 @@ def test_preparing_intent_recovers_partial_birth_fence(real_operations, monkeypa
         upgrade.ASSET_V6_MODE,
         upgrade.ASSET_V7_MODE,
         "reviewed-etf-weekly-v1",
+        "reviewed-research-dossiers-v1",
         "reviewed-discovery-v1",
         "reviewed-etf-weekly-v2",
     ],
@@ -2163,6 +2191,7 @@ def test_market_gap_profile_freezes_resident_and_reviewed_source_checkpoint():
         "reviewed-market-terminal-v1",
         upgrade.ASSET_V7_MODE,
         "reviewed-etf-weekly-v1",
+        "reviewed-research-dossiers-v1",
         "reviewed-discovery-v1",
         "reviewed-etf-weekly-v2",
     ],
@@ -2318,7 +2347,12 @@ def test_etf_weekly_profile_freezes_registered_resident_and_merged_product():
 
 @pytest.mark.parametrize(
     "real_operations",
-    ["reviewed-etf-weekly-v1", "reviewed-discovery-v1", "reviewed-etf-weekly-v2"],
+    [
+        "reviewed-etf-weekly-v1",
+        "reviewed-research-dossiers-v1",
+        "reviewed-discovery-v1",
+        "reviewed-etf-weekly-v2",
+    ],
     indirect=True,
 )
 @pytest.mark.parametrize("active", [True, None, "false", 0])
@@ -2342,7 +2376,12 @@ def test_etf_weekly_host_activity_requires_explicit_false(real_operations, monke
 
 @pytest.mark.parametrize(
     "real_operations",
-    ["reviewed-etf-weekly-v1", "reviewed-discovery-v1", "reviewed-etf-weekly-v2"],
+    [
+        "reviewed-etf-weekly-v1",
+        "reviewed-research-dossiers-v1",
+        "reviewed-discovery-v1",
+        "reviewed-etf-weekly-v2",
+    ],
     indirect=True,
 )
 @pytest.mark.parametrize("guard", ["runtime", "runtime-unknown", "pool", "pool-unknown"])
@@ -2376,6 +2415,16 @@ def test_etf_weekly_preserves_install_lock_without_dependency_exception(profile)
     state = {"mode": profile, "manifest": old, "target": "b" * 40}
     assert upgrade.target_manifest(state) == {**old, "code_commit": "b" * 40}
     assert old == state["manifest"]
+
+
+def test_dossiers_profile_binds_verified_resident_and_merged_product():
+    assert upgrade.DOSSIERS_MODE == "reviewed-research-dossiers-v1"
+    assert upgrade.previous_for(upgrade.DOSSIERS_MODE) == "5343e18d9f203a87f2d958218e4288afa527711f"
+    assert upgrade.DOSSIERS_PAYLOAD == "1780064b712afb61ff18f2f1811650fc31fd3038"
+    assert upgrade.DOSSIERS_MODE in upgrade.ASSET_MODES
+    assert upgrade.target_manifest(
+        {"mode": upgrade.DOSSIERS_MODE, "manifest": {"web_lock_sha256": "old"}, "target": "b" * 40}
+    ) == {"web_lock_sha256": "old", "code_commit": "b" * 40}
 
 
 def test_etf_weekly_v2_profile_freezes_combined_product_without_rewriting_v1():
@@ -2465,3 +2514,161 @@ def test_weekly_v2_changed_dossiers_keep_recovery_fenced(real_operations, scope,
     assert result.get("preserved") is not True
     assert (home / "server/run/gateway-upgrade.json").exists()
     assert not (home / "server/run/model-upgrade-result.json").exists()
+
+
+@pytest.mark.parametrize(
+    "damage",
+    [None, "missing", "dirty", "source-mismatch", "target-mismatch", "checksum", "mode", "alias"],
+)
+def test_real_recovery_zip_preserves_dossiers_with_old_wheel(tmp_path, monkeypatch, damage):
+    """Run the actual zip entry with no dossier module in the installed old app."""
+    import os
+    import shutil
+    import zipfile
+
+    from app.research_web.dossiers.storage import DossierStore
+
+    project = Path(upgrade.__file__).parents[2]
+    authority = tmp_path / "authority"
+    authority.mkdir()
+
+    def only_python_and_contracts(folder, names):
+        return [
+            name
+            for name in names
+            if name == "__pycache__"
+            or (Path(folder, name).is_file() and Path(name).suffix not in {".py", ".json"})
+        ]
+
+    for name in ("app", "core", "research_workbench_entrypoint", "runtimes"):
+        shutil.copytree(project / name, authority / name, ignore=only_python_and_contracts)
+
+    def git(where, *args):
+        return subprocess.check_output(
+            ["/usr/bin/git", "-C", str(where), *args], text=True, stderr=subprocess.PIPE
+        ).strip()
+
+    git(authority, "init")
+    git(authority, "config", "user.email", "fixture@example.invalid")
+    git(authority, "config", "user.name", "Fixture")
+    git(authority, "add", ".")
+    git(authority, "commit", "-m", "frozen recovery fixture")
+    target = git(authority, "rev-parse", "HEAD")
+    home = tmp_path / "private-home"
+    source = home / "resident/artifacts" / target / "source"
+    source.parent.mkdir(parents=True)
+    subprocess.run(
+        ["/usr/bin/git", "clone", "--no-hardlinks", str(authority), str(source)],
+        check=True,
+        capture_output=True,
+    )
+    (home / "server/run").mkdir(parents=True)
+    (home / "server/users").mkdir()
+    (home / "logs").mkdir()
+    data = home / "research-web"
+    data.mkdir()
+    (data / "index.json").write_text(json.dumps({"notes": {"fixture": "preserved"}}))
+    with DossierStore(data).connection(write=True):
+        pass
+    fake_user = tmp_path / "fake-user"
+    (fake_user / "Library/LaunchAgents").mkdir(parents=True)
+    monkeypatch.setattr(Path, "home", classmethod(lambda cls: fake_user))
+    real_run = upgrade.g.run
+
+    def local_system_only(argv, *args, **kwargs):
+        if argv[0] == "/bin/launchctl" or argv[:2] == [
+            "/usr/bin/env",
+            "PATH=" + upgrade.g.RECOVERY_PATH,
+        ]:
+            return "fixture system command"
+        return real_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(upgrade.g, "run", local_system_only)
+    python = os.environ.get("RWB_RECOVERY_OLD_PYTHON", sys.executable)
+    recovery = upgrade.install_recovery(home, source, target, python)
+    artifact = Path(recovery["artifact"])
+    with zipfile.ZipFile(artifact) as archive:
+        assert json.loads(archive.read("manifest.json"))["source"] == str(source)
+    state = {
+        "version": 4,
+        "mode": "reviewed-research-dossiers-v1",
+        "target": target,
+        "source": str(source),
+        "recovery": recovery,
+    }
+    if damage == "source-mismatch":
+        state["source"] = str(home / "other-source")
+    elif damage == "target-mismatch":
+        state["target"] = "b" * 40
+    elif damage == "mode":
+        state["mode"] = "unreviewed"
+    elif damage == "checksum":
+        state["recovery"] = {**recovery, "sha256": "0" * 64}
+    journal = home / "server/run/gateway-upgrade.json"
+    journal.write_text(json.dumps(state))
+    journal.chmod(0o600)
+    env = {**os.environ, "PYTHONDONTWRITEBYTECODE": "1"}
+    env.pop("PYTHONPATH", None)
+    if "RWB_RECOVERY_OLD_PYTHON" not in os.environ:
+        old_site = tmp_path / "old-wheel"
+        (old_site / "app/research_web").mkdir(parents=True)
+        (old_site / "app/__init__.py").write_text("")
+        (old_site / "app/research_web/__init__.py").write_text("")
+        env["PYTHONPATH"] = str(old_site)
+    old_check = "import importlib.util; assert importlib.util.find_spec('app.research_web.dossier_preservation') is None"
+    baseline = subprocess.run(
+        [python, "-P", "-c", old_check],
+        cwd=home,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert baseline.returncode == 0, baseline.stderr
+    if damage == "missing":
+        source.rename(source.with_name("retained-source"))
+    elif damage == "alias":
+        retained = source.with_name("retained-source")
+        source.rename(retained)
+        source.symlink_to(retained, target_is_directory=True)
+    elif damage == "dirty":
+        with (source / "app/research_web/dossier_preservation.py").open("a") as stream:
+            stream.write("\n# changed frozen source\n")
+    script = r"""
+import json, os, runpy, subprocess, sys
+from pathlib import Path
+archive, home, python, old_check = sys.argv[1:]
+sys.path.insert(0, archive)
+from resident import model_provider_upgrade as u
+original_path = os.environ.get("PYTHONPATH")
+def probe(*args, **kwargs):
+    home_path = Path(home)
+    (home_path / "probe-called").write_text("fixture probe")
+    snapshot = u.asset_index_snapshot(home_path)
+    assert "@dossiers" in snapshot["primary"]
+    u.verify_asset_index(home_path, {"mode": u.DOSSIERS_MODE, "asset_index_before": snapshot})
+    assert os.environ.get("PYTHONPATH") == original_path
+    child = subprocess.run([python, "-P", "-c", old_check], cwd=home, capture_output=True, text=True)
+    assert child.returncode == 0, child.stderr
+    return {"status": "not_required", "frozen_dossiers_verified": True, "old_child_unchanged": True}
+u.operate = probe
+sys.argv = [archive, "recover", "--home", home]
+runpy.run_path(archive, run_name="__main__")
+"""
+    completed = subprocess.run(
+        [python, "-P", "-c", script, str(artifact), str(home), python, old_check],
+        check=False,
+        cwd=home,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    result = json.loads(completed.stdout.strip().splitlines()[-1])
+    if damage is None:
+        assert completed.returncode == 0, completed.stderr
+        assert result["frozen_dossiers_verified"] and result["old_child_unchanged"]
+    else:
+        assert completed.returncode == 1
+        assert not (home / "probe-called").exists()
+        assert result["reason"] == "model_upgrade_recovery_source_unavailable"
