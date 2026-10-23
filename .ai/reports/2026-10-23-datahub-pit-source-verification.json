@@ -11,14 +11,14 @@
   "runtime_source_count": 65,
   "new_source_not_counted_as_original_repair": "bea_archive",
   "proof": {
-    "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/datahub-pit-equivalence-20261023/logs/real-pit-attempt4/receipt.json",
-    "sha256": "3f9d3614d465089dc51448ad6deb8fe39faa4b96fca929f301db7205b05c74ad"
+    "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/datahub-pit-equivalence-20261023-integration/logs/real-pit-attempt5/receipt.json",
+    "sha256": "e31d89b8414df10ca1ed28446777a6318cfe499e30635b718a1a126964037014"
   },
-  "execution_base_head": "bb531a0db7a567c99018a4239e4f29932ecd44aa",
+  "execution_base_head": "eac6806822294d75da990c751d88ec156a417f62",
   "source_sha256": {
     "app/research_web/datahub/__init__.py": "38e0bcf9c2cb95acd841c02b6e131335da7752b817ca437d9cf62fff7a4efe79",
     "app/research_web/datahub/broker.py": "aff1c7f5204037356801e386a1e437e302902f6fd830233fa983d7c1da41087d",
-    "app/research_web/datahub/catalog.py": "14459f03b09d31c4653fab9677f0a62f656ba18013bdf78eec153ac381f7dcda",
+    "app/research_web/datahub/catalog.py": "dd88024414e472ddefe91d447eb1c17bb44974806055862f053bb83987af26fd",
     "app/research_web/datahub/research_warehouse.py": "c45640f0dc6d670bfa09e1e686acbe3e3809b15bd64fef03eaa1275c990cb15c",
     "app/research_web/datahub/research_snapshot_store.py": "db01268f2f9bb2486b686649bd6810a58c08d57974b32d437d706c37d2a6c430",
     "app/research_web/datahub/providers_akshare.py": "fd57367c317ce660a1fab747cff6dfb2786ce89de0653b491c21e1547785ded8",
@@ -26,7 +26,7 @@
     "app/research_web/datahub/providers_bea_archive.py": "9374bc3de350cb69d29a0281e7a19520733df517f3e8e88bfcb2dfcd418c431a",
     "app/research_web/datahub/bea_archive_store.py": "23c3673828c7080ca57a2ef77c9f9558d6e08f56222e198232d24bc8ad6c6a8e",
     "app/research_web/service.py": "fb832e578e02bbb67bab855ee6514d1a101b86b395e0514352eb8977e2b44c9d",
-    "app/research_web/datahub/contracts.py": "2f93630960b3e161e2389f0bf424efe08b83bef0a09dbd9996fd3f41dd57d693"
+    "app/research_web/datahub/contracts.py": "b6fa687732752dc8906a7966a904c0c9987c4234ab40cf0eedd8029c55deb944"
   },
   "observations": [
     {
@@ -110,5 +110,11 @@
     "No FRED/ALFRED or Tushare account/key; no new registration or paid service.",
     "No deployment, production database changes, external disk operation, model calls or vendor credential reading.",
     "Windows/Linux native NOT_RUN."
-  ]
+  ],
+  "prior_proof": {
+    "path": "/Users/leon/Desktop/Projects/ResearchWorkbench-worktrees/datahub-pit-equivalence-20261023/logs/real-pit-attempt4/receipt.json",
+    "sha256": "3f9d3614d465089dc51448ad6deb8fe39faa4b96fca929f301db7205b05c74ad"
+  },
+  "execution_candidate_head": "f611f98b6da090cdf828b9c0f16a32816ed25561",
+  "base_refresh": "PR197 shared catalog/contracts integrated; all earlier proof and CI retain original candidate scope"
 }
