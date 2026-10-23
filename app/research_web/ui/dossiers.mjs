@@ -8,6 +8,43 @@ const list = value => Array.isArray(value) ? value : [];
 const text = value => value == null ? '' : typeof value === 'object' ? JSON.stringify(value) : String(value);
 const kindNames = { opinion: '观点', catalyst: '催化剂', risk: '风险', note: '研究笔记', signal: '信号' };
 const stateNames = { open: '待验证', supported: '已获支持', refuted: '已被反证', resolved: '已解除', dismissed: '已排除' };
+function coverageLabel(value) {
+  if (value === 'evidence_only') return '仅本档案冻结证据';
+  if (value?.status === 'frozen_evidence' && value.scope === 'personal') return '当前账户已归档材料';
+  if (value === 'not_scanned' || value?.status === 'not_scanned') return '尚未扫描';
+  if (Number.isSafeInteger(value?.accepted) && Number.isSafeInteger(value?.evidence_total) && value.accepted >= 0 && value.evidence_total >= value.accepted) {
+    const cutoff = typeof value.as_of === 'string' ? `截止时点：${value.as_of}` : '截止时点未确认';
+    const eligible = value.eligible === true ? '扫描资格已满足' : value.eligible === false ? '扫描资格不足' : '扫描资格未确认';
+    return `已核验 ${value.accepted}/${value.evidence_total} · ${cutoff} · ${eligible}`;
+  }
+  return typeof value === 'string' && /[\u3400-\u9fff]/.test(value) && !/^[\s]*[\[{]/.test(value) ? value : '覆盖未确认';
+}
+function sourceLabel(value) {
+  return list(Array.isArray(value) ? value : [value]).map(item => {
+    if (typeof item === 'string' || typeof item === 'number') return String(item);
+    const label = item?.label || item?.name;
+    const id = item?.id || item?.source_id;
+    return typeof label === 'string' ? `${label}${typeof id === 'string' && id !== label ? `（${id}）` : ''}` : typeof id === 'string' ? id : '';
+  }).filter(Boolean).join('、') || '来源待核验';
+}
+const gapLabels = {
+  manual_scan_required: '需先手动扫描', no_frozen_evidence: '尚无已归档证据', capability_not_covered: '本次未覆盖该类数据',
+  evidence_unavailable: '证据当前不可用', coverage_incomplete: '数据覆盖不足', source_not_admitted: '来源尚未通过准入',
+  rule_not_covered: '暂无适用扫描规则', subject_not_covered: '当前对象暂不适用', structured_data_unavailable: '结构化资料不可用',
+  data_time_unknown: '数据时点未确认', publication_time_unknown: '首次公开时间未确认', report_period_unknown: '报告期未确认',
+  future_evidence: '资料晚于扫描截止时点', stale_evidence: '资料已过期', security_identity_mismatch: '证券身份不匹配',
+  event_provenance_missing: '事件缺少原始出处', announcement_title_missing: '公告标题缺失', watch_evidence_unavailable: '观察项证据不可用',
+  watch_window_unknown: '观察窗口未确认', watch_window_invalid: '观察窗口无效', dossier_source_revoked: '来源授权已撤销',
+  dossier_evidence_changed: '原件已变化', dossier_evidence_missing: '原件缺失', evidence_projection_incomplete: '证据正文不完整',
+  structured_data_invalid: '结构化资料格式异常',
+};
+function gapLabel(value) {
+  const code = typeof value === 'string' && /^[a-z][a-z0-9_]+$/.test(value) ? value : typeof value?.code === 'string' ? value.code : '';
+  if (!code) return typeof value === 'string' && !/^[\s]*[\[{]/.test(value) ? value : '资料缺口待核验';
+  const capability = typeof value?.capability === 'string' ? value.capability : '';
+  const capabilityName = ({ earnings_revision: '盈利预测调整', profit_notice_surprise: '业绩预告预期差', risk_alerts: '风险事件', financials: '财务披露', announcements: '公告' })[capability] || capability;
+  return `${gapLabels[code] || '资料缺口待核验'}${capabilityName ? `：${capabilityName}` : ''}（代码：${code}）`;
+}
 export const dossierDateInput = value => /^\d{4}-\d{2}-\d{2}(?:T.*)?$/.test(value || '') ? value.slice(0, 10) : '';
 export function dossierWatchDate(value, original, counterpart) {
   if (!value) return null;
@@ -251,7 +288,7 @@ function renderDetail(s) {
   return `<header class="dossier-detail-heading"><div><span class="eyebrow">${e(d.subject?.label || '')} · ${e(d.subject?.key || '')}</span><h1>${e(d.title)}</h1><p class="muted small">档案版本 ${e(d.revision)} · ${e(d.updated_at || '更新时间未知')} ${d.archived ? '· 已归档' : ''}</p></div>${button(d.archived ? '恢复档案' : '归档', 'archive', '', Boolean(s.busy))}</header>
   <div class="button-row">${button('新增研究记录', 'form', 'data-form="record"', busy)}${button('归入证据', 'form', 'data-form="evidence"', busy)}${button('关联成果', 'form', 'data-form="link"', busy)}${button('手动扫描', 'scan', '', busy)}${button(d.tracking?.enabled === true ? '关闭持续跟踪' : '开启持续跟踪', 'tracking', '', busy || d.tracking?.eligible !== true && d.tracking?.enabled !== true)}</div>
   <p class="muted small">${e(trackingReason(d.tracking?.reason) || '持续跟踪默认关闭，单次闭环通过后才可开启。浏览和准备草稿不会启动模型。')}</p>
-  ${s.scanCoverage ? paragraph(`本次扫描覆盖：${text(s.scanCoverage)}`) : ''}${s.scanMissing.length ? `<p class="notice warning">本次扫描缺失：${e(s.scanMissing.map(text).join('、'))}</p>` : ''}
+  ${s.scanCoverage ? paragraph(`本次扫描覆盖：${coverageLabel(s.scanCoverage)}`) : ''}${s.scanMissing.length ? `<p class="notice warning">本次扫描缺失：${e(s.scanMissing.map(gapLabel).join('、'))}</p>` : ''}
   ${editForm(s)}<nav class="dossier-anchor-nav" aria-label="档案内容">${[['current', '当前判断'], ['timeline', '观点时间线'], ['evidence', '证据'], ['risks', '催化剂与风险'], ['results', '研究成果']].map(([id, title]) => button(title, 'section', `data-section="${id}"`)).join('')}</nav>
   ${section('current', '当前判断', recordRows(records.filter(item => ['opinion', 'note'].includes(item.kind)), busy) || empty('尚未记录观点。新增判断时请关联证据和下一项验证。'))}
   ${section('timeline', '观点时间线', (s.timelineError ? `<p class="notice warning">${e(s.timelineError)}</p>` : list(s.timeline).map(item => `<article class="dossier-timeline-item"><p class="muted small">${e(item.created_at || item.updated_at || '')} · 版本 ${e(item.revision || item.version || '')}</p><strong>${e(item.title || item.kind || '档案更新')}</strong>${paragraph(item.body || item.reason || item.action || '')}</article>`).join('') || empty('尚无历史修订。')) + (s.timelineCursor ? button('加载更早版本', 'timeline-more', '', Boolean(s.busy)) : ''))}
@@ -266,7 +303,7 @@ export function filterDossierSignals(items, query = '', kind = 'all') {
 }
 function renderSignals(s) {
   const items = filterDossierSignals(s.signals, s.query, s.signalKind);
-  return `${renderIntelligenceNavigation('signals')}<header class="page-header"><div><span class="eyebrow">RESEARCH INTELLIGENCE</span><h1>机会与风险</h1><p class="muted">关注对象的证据变化与待验证信号；扫描不会自动改写观点。</p></div></header><div class="dossier-signal-filters"><label>关键词<input id="dossier-signal-query" type="search" data-dossier-filter="query" value="${e(s.query)}"></label><label>信号类型<select id="dossier-signal-kind" data-dossier-filter="signalKind">${options([['all', '全部'], ['review', '待研究'], ['signal', '研究线索'], ['opportunity', '机会'], ['risk', '风险'], ['catalyst', '催化剂']], s.signalKind)}</select></label><a class="button" href="${dossierHref()}">管理研究档案与手动扫描</a></div>${s.coverage ? paragraph(`数据覆盖：${text(s.coverage)}`) : '<p class="notice warning">当前未提供完整数据覆盖，不能把没有信号解释为没有机会或风险。</p>'}${s.missing.length ? `<p class="notice warning">缺失：${e(s.missing.map(text).join('、'))}</p>` : ''}${items.map(item => `<article class="dossier-record"><header><h2>${e(item.title || '待核验信号')}</h2>${badge(item.kind, ({ review: '待研究', signal: '研究线索', opportunity: '机会', risk: '风险', catalyst: '催化剂' })[item.signal_type || item.kind])}${badge(item.state, stateNames[item.state])}</header>${paragraph(item.body || item.reason)}<p class="small muted">时点：${e(item.as_of || item.created_at || '未知')} · 来源：${e(text(item.source) || '待核验')} · 覆盖：${e(text(item.coverage) || '未知')}</p>${item.stale ? '<p class="notice warning">数据已过期，请更新并核对后使用。</p>' : ''}${list(item.missing).length ? paragraph(`待核验：${item.missing.map(text).join('、')}`) : ''}<p class="small">证据引用：${e(list(item.evidence_ids).join('、') || '暂无可核验证据')}</p><a class="button" href="${dossierHref(item.dossier_id)}">查看证据与原观点</a></article>`).join('') || empty(s.loading ? '正在读取信号…' : '当前筛选下没有已记录信号。请先核对扫描是否完成以及数据覆盖。')}`;
+  return `${renderIntelligenceNavigation('signals')}<header class="page-header"><div><span class="eyebrow">RESEARCH INTELLIGENCE</span><h1>机会与风险</h1><p class="muted">关注对象的证据变化与待验证信号；扫描不会自动改写观点。</p></div></header><div class="dossier-signal-filters"><label>关键词<input id="dossier-signal-query" type="search" data-dossier-filter="query" value="${e(s.query)}"></label><label>信号类型<select id="dossier-signal-kind" data-dossier-filter="signalKind">${options([['all', '全部'], ['review', '待研究'], ['signal', '研究线索'], ['opportunity', '机会'], ['risk', '风险'], ['catalyst', '催化剂']], s.signalKind)}</select></label><a class="button" href="${dossierHref()}">管理研究档案与手动扫描</a></div>${s.coverage ? paragraph(`数据覆盖：${coverageLabel(s.coverage)}`) : '<p class="notice warning">当前未提供完整数据覆盖，不能把没有信号解释为没有机会或风险。</p>'}${s.missing.length ? `<p class="notice warning">缺失：${e(s.missing.map(gapLabel).join('、'))}</p>` : ''}${items.map(item => `<article class="dossier-record"><header><h2>${e(item.title || '待核验信号')}</h2>${badge(item.kind, ({ review: '待研究', signal: '研究线索', opportunity: '机会', risk: '风险', catalyst: '催化剂' })[item.signal_type || item.kind])}${badge(item.state, stateNames[item.state])}</header>${paragraph(item.body || item.reason)}<p class="small muted">时点：${e(item.as_of || item.created_at || '未知')} · 来源：${e(sourceLabel(item.source))} · 覆盖：${e(coverageLabel(item.coverage))}</p>${item.stale ? '<p class="notice warning">数据已过期，请更新并核对后使用。</p>' : ''}${list(item.missing).length ? paragraph(`待核验：${item.missing.map(gapLabel).join('、')}`) : ''}<p class="small">证据引用：${e(list(item.evidence_ids).join('、') || '暂无可核验证据')}</p><a class="button" href="${dossierHref(item.dossier_id)}">查看证据与原观点</a></article>`).join('') || empty(s.loading ? '正在读取信号…' : '当前筛选下没有已记录信号。请先核对扫描是否完成以及数据覆盖。')}`;
 }
 function renderDossierPreview(s) {
   if (s.forbidden || !s.active || (!s.preview && !s.previewError)) return '';

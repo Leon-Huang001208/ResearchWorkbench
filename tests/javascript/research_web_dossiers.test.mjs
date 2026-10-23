@@ -171,6 +171,39 @@ test('signal_type drives review and risk filters while legacy kind remains compa
   assert.match(renderDossiers(controller.state), /待研究/);
 });
 
+test('signal coverage and source metadata render readable labels without changing dates or evidence identities', async () => {
+  const asOf = '2026-10-23T08:00:00+08:00';
+  const controller = setup({ dossierSignals: async () => ({ coverage: { status: 'frozen_evidence', scope: 'personal' }, items: [{ dossier_id: id, title: '财披线索', kind: 'signal', signal_type: 'review', state: 'open', as_of: asOf, source: ['akshare', { id: 'wind', label: 'Wind终端' }], coverage: 'evidence_only', evidence_ids: [evidenceID] }] }) });
+  await controller.activate(parseRoute('#/intel/signals')); const html = renderDossiers(controller.state);
+  assert.match(html, /数据覆盖：当前账户已归档材料/);
+  assert.match(html, /来源：akshare、Wind终端（wind）/); assert.match(html, /覆盖：仅本档案冻结证据/);
+  assert.ok(html.includes(asOf)); assert.ok(html.includes(evidenceID));
+  assert.doesNotMatch(html, /\{"status"|\[&quot;akshare|evidence_only/);
+});
+
+test('count coverage preserves verification, cutoff and qualification while unknown coverage stays unconfirmed', async () => {
+  const controller = setup(); await controller.activate(parseRoute('#/intel/signals'));
+  controller.state.coverage = { accepted: 2, evidence_total: 3, as_of: '2026-10-23', eligible: false };
+  assert.match(renderDossiers(controller.state), /已核验 2\/3 · 截止时点：2026-10-23 · 扫描资格不足/);
+  controller.state.coverage = { accepted: 3, evidence_total: 3, as_of: '2026-10-23', eligible: true };
+  assert.match(renderDossiers(controller.state), /已核验 3\/3 · 截止时点：2026-10-23 · 扫描资格已满足/);
+  controller.state.coverage = { status: 'not_scanned' }; assert.match(renderDossiers(controller.state), /数据覆盖：尚未扫描/);
+  for (const unknown of [{ status: 'new_contract', complete: true }, { accepted: 4, evidence_total: 3, eligible: true }, '{}']) {
+    controller.state.coverage = unknown; const html = renderDossiers(controller.state);
+    assert.match(html, /数据覆盖：覆盖未确认/); assert.doesNotMatch(html, /覆盖完整|完整覆盖|&quot;complete&quot;/);
+  }
+});
+
+test('missing reasons translate common codes and preserve unknown lookup codes without rendering raw objects', async () => {
+  const controller = setup({ dossierSignals: async () => ({ coverage: { status: 'not_scanned' }, missing: [{ code: 'no_frozen_evidence' }, { code: 'capability_not_covered', capability: 'risk_alerts' }, { code: 'new_gap_code', debug: 'internal-only' }, '盈利预测缺失'], items: [{ dossier_id: id, kind: 'signal', signal_type: 'review', title: '待核验', missing: ['evidence_unavailable'], source: { label: '<img src=x>', source_id: 'source-01' }, evidence_ids: [] }] }) });
+  await controller.activate(parseRoute('#/intel/signals')); const html = renderDossiers(controller.state);
+  assert.match(html, /尚无已归档证据（代码：no_frozen_evidence）/);
+  assert.match(html, /本次未覆盖该类数据：风险事件（代码：capability_not_covered）/);
+  assert.match(html, /资料缺口待核验（代码：new_gap_code）/); assert.match(html, /证据当前不可用（代码：evidence_unavailable）/);
+  assert.match(html, /盈利预测缺失/); assert.match(html, /&lt;img src=x&gt;（source-01）/);
+  assert.doesNotMatch(html, /<img|internal-only|\{&quot;code&quot;/);
+});
+
 test('editing a generated signal fixes its kind while permitting a reviewed dismissal', async () => {
   let saved;
   const doc = detail(); doc.records = [{ id: recordID, kind: 'signal', title: '财披待研究', body: '原始披露', state: 'open', evidence_ids: [] }];
