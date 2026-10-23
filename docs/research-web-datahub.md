@@ -534,3 +534,7 @@ financials source=baostock只支持statements=["profitability"]、periods恰好�
 
 
 600000.SH/2026-06-30实际双源与发行人半年报核对仅确认两格金额对应集团半年累计，不能当作Q2单季或归母净利。两源公告日8月28日与issuer列表8月27日保留不同来源，不回填精确时刻。两个provider-native版本独立冻结和恢复；样本核对不升级通用跨源等价或财务PIT。详见任务报告。
+
+## 2026-10-23：长期研究档案与机会预警
+
+档案通过 dataset 身份引用现有 Snapshots，原文和私有 raw 不复制进个人 SQLite；归档、正文／文件读取、研究重放均验证 manifest、hash 与当前来源权限，pin 阻止仍被引用的源永久清理。扫描仅消费来源准入、时点、精确证券身份与完整覆盖合格的冻结行；未准入 MCP 结果保持 clue，普通文件和跨会话复制不能绕过其 grant。自动跟踪不拉取新数据，不提升 first_observed 或报告期为历史 PIT；详见[档案证据](research-web-dossiers.md#证据与成果)、[扫描](research-web-dossier-scans.md)与[候选快照](research-web-seek-alpha.md#原始结果与撤权)。

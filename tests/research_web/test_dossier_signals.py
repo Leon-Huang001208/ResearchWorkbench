@@ -42,6 +42,7 @@ def test_native_announcement_is_an_evidence_linked_review_signal():
     assert signal["evidence_ids"] == ["e1"]
     assert signal["state"] == "open"
     assert signal["kind"] == "signal"
+    assert signal["signal_type"] == "review"
     assert signal["dossier_id"] == dossier()["id"]
     assert result["coverage"]["eligible"] is True
     assert "待核验" in signal["body"]
@@ -148,6 +149,29 @@ def test_missing_forecast_data_is_explicit_and_not_synthetic_expectations():
     assert not result["items"]
     assert result["missing"]
     assert result["coverage"]["eligible"] is False
+
+
+def test_unchanged_watch_window_does_not_notify_each_scan_day():
+    d = dossier()
+    d["records"] = [
+        {
+            "id": "r1",
+            "kind": "risk",
+            "title": "同一风险",
+            "state": "open",
+            "watch_from": "2026-10-24",
+            "watch_until": "2026-10-30",
+            "evidence_ids": ["e1"],
+        }
+    ]
+    first = evaluate_signals(d, {"e1": material()}, "2026-10-23")
+    second = evaluate_signals(d, {"e1": material()}, "2026-10-24")
+    window = lambda result: next(row for row in result["items"] if row["rule"] == "watch_window")
+    assert window(first)["as_of"] != window(second)["as_of"]
+    assert window(first)["signal_type"] == "risk"
+    assert window(first)["fingerprint"] == window(second)["fingerprint"]
+    ended = evaluate_signals(d, {"e1": material()}, "2026-10-31")
+    assert window(ended)["fingerprint"] != window(first)["fingerprint"]
 
 
 def test_invalid_cutoff_and_oversized_rows_are_rejected():

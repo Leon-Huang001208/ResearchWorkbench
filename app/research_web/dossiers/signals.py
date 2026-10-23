@@ -50,7 +50,10 @@ def evaluate_signals(dossier: dict, materials: dict[str, dict], cutoff: str) -> 
     valid_asset = subject.get("kind") == "company" and bool(
         re.fullmatch(r"[0-9]{6}\.(SH|SZ|BJ)", asset)
     )
-    missing, items, available, accepted = [], {}, set(), 0
+    missing: list[dict] = []
+    items: dict[str, dict] = {}
+    available: set[str] = set()
+    accepted = 0
     covered = set()
 
     def gap(code, eid=None, capability=None):
@@ -69,6 +72,7 @@ def evaluate_signals(dossier: dict, materials: dict[str, dict], cutoff: str) -> 
         source=None,
         state="open",
         source_record_id=None,
+        signal_type="review",
     ):
         identity = _digest([RULE_VERSION, dossier["id"], rule, key])
         current = items.get(identity)
@@ -80,6 +84,7 @@ def evaluate_signals(dossier: dict, materials: dict[str, dict], cutoff: str) -> 
             "id": uuid5(NAMESPACE_URL, identity).hex,
             "dossier_id": dossier["id"],
             "kind": "signal",
+            "signal_type": signal_type,
             "rule": rule,
             "rule_version": RULE_VERSION,
             "title": title[:240],
@@ -217,6 +222,7 @@ def evaluate_signals(dossier: dict, materials: dict[str, dict], cutoff: str) -> 
                     [eid],
                     published=published.isoformat(),
                     source=manifest.get("source"),
+                    signal_type="risk" if capability == "risk_alerts" else "review",
                 )
 
     for record in dossier.get("records", []):
@@ -244,6 +250,7 @@ def evaluate_signals(dossier: dict, materials: dict[str, dict], cutoff: str) -> 
                 ids,
                 state="open",
                 source_record_id=record["id"],
+                signal_type=record["kind"],
             )
 
     if not evidence:
@@ -252,7 +259,8 @@ def evaluate_signals(dossier: dict, materials: dict[str, dict], cutoff: str) -> 
         gap("capability_not_covered", capability=capability)
     result = sorted(items.values(), key=lambda item: item["id"])
     for item in result:
-        item["fingerprint"] = _digest(item)
+        # A new scan day is observation metadata, not a changed investment fact.
+        item["fingerprint"] = _digest({key: value for key, value in item.items() if key != "as_of"})
     eligible = bool(accepted) and not any(
         item["code"] != "capability_not_covered" for item in missing
     )

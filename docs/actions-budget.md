@@ -256,3 +256,7 @@ PIT候选的Mac真实启动发现BEA漏登连接中心分组，修复后在原Ch
 ## 2026-10-23：BaoStock盈利能力来源
 
 BaoStock财务只向原Research Web Checks同一步增加test_baostock_financial_integration，原BaoStock测试增加合成季度合同；无新workflow/job/runner/依赖/timeout。当前本机该闭包约3秒，新增预算预留15秒；真实免费SDK与独立临时PG只本机有界执行，CI不连接财务厂商。最终原三CI及同候选Mac安装门保持；Mac不发Windows/Linux产品dispatch，远端动作前实时复查visibility/额度。
+
+## 2026-10-23：长期研究档案与机会预警
+
+档案／扫描／受管 MCP 的本轮验收沿既有 Research Web Checks、Project Constraints 与 macOS Bootstrap，追加定点 Python、现有 JS 通配符和新增静态资源／候选包检查，不新增 workflow、job、runner 或模型／付费数据步骤。主任务按最终候选绑定实际时长和回执；本段不更新仓库 visibility 或当前额度结论，所有远端动作仍须实时核对原状态门。Windows／Linux 产品 dispatch 留给对应真机。小创 18 次／54 子弹属于另行授权的供应商估算，不纳入 Actions 通过证明，见[接入与费用边界](research-web-seek-alpha.md)。

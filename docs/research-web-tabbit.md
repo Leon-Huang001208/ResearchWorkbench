@@ -335,3 +335,7 @@ Hot冻结FinGPT使用仅本地脚本/文档工具的research-hot-frozen组合，
 FinGPT 的 web 检索范围同时约束 tabbit_tabs 附加与 tabbit_browser 调用；未选择 web 时拒绝受理。保留 Tabbit 的原 claim、一次性 token、审批与只读限制；FinGPT 原生 Todo/报告投影不会将 Codex 内置浏览器连接证据用作 Tabbit 可调用性证明。
 
 模型服务商配置只调整模型连接索引与Key解析，不更改Tabbit CLI/实例选择、浏览器审批或MCP工具范围。本次浏览器测试只访问回环隔离UI夹具，不调用Tabbit、真实供应商或生产研究。
+
+## 2026-10-23：长期研究档案与机会预警
+
+档案 source 引用只能读取已保存网页字节，并在归档／重读／Prompt 交接时复核原来源权限与 hash；准备继续研究不会重新抓取、认领 Tabbit 页面或自动调用浏览器。实际 Prompt 绑定的 receipt 不扩张用户已选 web 范围，仍沿原 claim、一次性 token、审批和只读规则；截图／浏览器夹具也不认证 Tabbit 或供应商可调用。唯一 DSH 与既有浏览器拓扑保持，详见[档案研究交接](research-web-dossiers.md#http-与研究交接)和[界面发送合同](research-web-dossiers-ui.md)。
