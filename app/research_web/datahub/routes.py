@@ -90,6 +90,11 @@ class SkillAdmissionRequest(BaseModel):
         default=None, min_length=1, max_length=160, pattern=r"^[a-z0-9][a-z0-9_-]*$"
     )
     loaded: bool = False
+    source_operation: Literal["list", "read"] | None = None
+    source_id: str | None = Field(
+        default=None,
+        pattern=r"^(?:(?:web|file|dataset):[a-f0-9]{24}|dossier:[a-f0-9]{32}:[a-f0-9]{32}:[1-9][0-9]{0,9})$",
+    )
     tool_name: str | None = Field(
         default=None, min_length=1, max_length=300, pattern=r"^[A-Za-z][A-Za-z0-9_.:-]*$"
     )
@@ -114,7 +119,10 @@ class SourceReadRequest(BaseModel):
     session_id: str = Field(pattern=r"^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$")
     call_id: str = Field(pattern=r"^[a-zA-Z0-9_.:-]{1,241}$")
     operation: Literal["list", "read"]
-    source_id: str | None = Field(default=None, pattern=r"^web:[a-f0-9]{24}$")
+    source_id: str | None = Field(
+        default=None,
+        pattern=r"^(?:(?:web|file|dataset):[a-f0-9]{24}|dossier:[a-f0-9]{32}:[a-f0-9]{32}:[1-9][0-9]{0,9})$",
+    )
     search_activities: list[NativeSearchActivity] = Field(default_factory=list, max_length=16)
 
 
@@ -279,7 +287,11 @@ async def datasets(sid: str, request: Request):
 
 @router.get("/sessions/{sid}/datasets/{did}")
 async def detail(sid: str, did: str, request: Request):
-    return request.app.state.research.datahub.detail(sid, did)
+    service = request.app.state.research
+    metadata = service.datahub.detail(sid, did)
+    if metadata.get("snapshot_kind") == "mcp_evidence":
+        service.mcp_runtime.assert_frozen_result_authorized(sid, did)
+    return metadata
 
 
 @router.get("/sessions/{sid}/datasets/{did}/rows")
@@ -290,14 +302,22 @@ async def rows(
     offset: int = Query(default=0, ge=0),
     limit: int = Query(default=100, ge=1, le=500),
 ):
-    return request.app.state.research.datahub.rows(sid, did, offset, limit)
+    service = request.app.state.research
+    metadata = service.datahub.detail(sid, did)
+    if metadata.get("snapshot_kind") == "mcp_evidence":
+        service.mcp_runtime.assert_frozen_result_authorized(sid, did)
+    return service.datahub.rows(sid, did, offset, limit)
 
 
 @router.get("/sessions/{sid}/datasets/{did}/files/{name}")
 async def download(
     sid: str, did: str, name: Literal["rows.csv", "rows.json", "manifest.json"], request: Request
 ):
-    content = request.app.state.research.datahub.snapshots.read(sid, did, name)
+    service = request.app.state.research
+    metadata = service.datahub.detail(sid, did)
+    if metadata.get("snapshot_kind") == "mcp_evidence":
+        service.mcp_runtime.assert_frozen_result_authorized(sid, did)
+    content = service.datahub.snapshots.read(sid, did, name)
     return Response(
         content,
         media_type="text/csv" if name.endswith(".csv") else "application/json",
@@ -331,7 +351,12 @@ async def skill_preflight(body: SkillAdmissionRequest, request: Request):
     await service.ensure_owned()
     async with service.lock:
         return service.native_admission(
-            body.session_id, body.native_name, body.tool_name, loaded=body.loaded
+            body.session_id,
+            body.native_name,
+            body.tool_name,
+            loaded=body.loaded,
+            source_operation=body.source_operation,
+            source_id=body.source_id,
         )
 
 

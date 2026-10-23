@@ -72,7 +72,7 @@ DECLARATIONS = {
         "runtime/research-tools.mjs",
         {"operation": "string", "source_id": "string"},
         ["operation"],
-        "仅本会话真实检索登记的公开HTTPS来源；拒绝私网、凭据、任意URL及伪造正文",
+        "本会话登记的公开HTTPS来源，或用户通过冻结交接显式绑定的档案证据；逐次鉴权，拒绝私网、凭据、任意路径与伪造正文",
     ),
     "research_document_operation": (
         "Office 文档操作",

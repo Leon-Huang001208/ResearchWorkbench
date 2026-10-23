@@ -391,6 +391,37 @@ async def execute_source(service, sid, call_id, operation, source_id=None, searc
 async def read_source(service, sid, operation, source_id=None, search_activities=()):
     if operation not in {"list", "read"} or (operation == "list") != (source_id is None):
         raise rejected("research_source_arguments_invalid")
+    dossiers = getattr(service, "dossiers", None)
+    if (
+        dossiers is not None
+        and operation == "list"
+        and "web"
+        not in service.store.session(sid).get("source_scope", ["uploads", "datahub", "web"])
+        and not search_activities
+    ):
+        return {"sources": dossiers.registered_sources(sid)}
+    if dossiers is not None and operation == "read":
+        handle = (
+            source_id
+            if isinstance(source_id, str) and source_id.startswith("dossier:")
+            else next(
+                (
+                    item["dossier_handle"]
+                    for item in dossiers.registered_sources(sid)
+                    if item["id"] == source_id
+                ),
+                None,
+            )
+        )
+        if handle:
+            async with service.lock:
+                result = dossiers.read_handle(sid, handle)
+                from .research_quality_service import latest_receipt, write_business_snapshot
+
+                contract = latest_receipt(service, sid).get("research_contract")
+                if contract:
+                    write_business_snapshot(service, sid, contract)
+                return result
     async with service.lock:
         row = service.store.session(sid)
         if "web" not in row.get("source_scope", ["web", "uploads", "datahub"]):
@@ -411,7 +442,12 @@ async def read_source(service, sid, operation, source_id=None, search_activities
             if source["id"].startswith("web:")
         }
         if operation == "list":
-            return {"sources": list(sources.values())[:40]}
+            return {
+                "sources": [
+                    *list(sources.values())[:40],
+                    *(dossiers.registered_sources(sid) if dossiers is not None else []),
+                ]
+            }
         if source_id not in sources:
             raise rejected("research_source_identity_unknown")
         selected = dict(sources[source_id])

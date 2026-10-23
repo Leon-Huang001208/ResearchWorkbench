@@ -296,6 +296,15 @@ class Store:
 
     def purge(self, sid: str) -> None:
         """Permanently remove one deleted Workbench session and its owned records."""
+        from .dossiers.lock import retention_lock
+        from .dossiers.storage import DossierStore
+
+        with retention_lock(self.root):
+            DossierStore(self.root).assert_deletable(sid)
+            self._purge_retention_checked(sid)
+
+    def _purge_retention_checked(self, sid: str) -> None:
+        """Only called with the shared archive/native-deletion fence held."""
         row = self.session(sid, include_deleted=True)
         if row.get("deleted_at") is None:
             raise StoreError("会话必须先移至已删除", "session_not_deleted", 409)
@@ -509,6 +518,10 @@ class Store:
             raise StoreError("文件不存在")
         root = self.directory(sid)
         relative = Path(row["files"][fid])
+        if relative.parts[:2] == ("inputs", "datasets"):
+            raise StoreError(
+                "数据集须通过来源鉴权入口读取", "dataset_file_requires_datahub_authorization", 403
+            )
         if relative.is_absolute() or ".." in relative.parts:
             raise StoreError("文件访问被拒绝")
         path = root / relative
@@ -529,6 +542,10 @@ class Store:
         if not re.fullmatch(r"[a-f0-9]{24}", fid) or fid not in row["files"]:
             raise StoreError("文件不存在")
         relative = Path(row["files"][fid])
+        if relative.parts[:2] == ("inputs", "datasets"):
+            raise StoreError(
+                "数据集须通过来源鉴权入口读取", "dataset_file_requires_datahub_authorization", 403
+            )
         if (
             relative.is_absolute()
             or ".." in relative.parts
