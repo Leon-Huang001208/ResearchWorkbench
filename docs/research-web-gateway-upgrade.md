@@ -25,6 +25,30 @@ evidence读取器绑定现有v6的`5c3077b7…eebb`，不能用缓存片段替�
 现有01／12图保持准确，产品终端的数据流仍以已更新13图为准。
 
 
+## 华安ETF周报固定部署v2（新目标待授权）
+
+`reviewed-etf-weekly-v2` / `apply-etf-weekly-v2` 固定旧版
+`5343e18d9f203a87f2d958218e4288afa527711f`，产品检查点固定 PR209 合并版本
+`56709a8dbb6e01d2ab17b64533319e199ebef86f`。v1 的模式、命令与
+`988046d23f9951f889a3b9d02e355ed59fd6aa65` 产品身份保留。
+用户此前批准的部署目标为 PR208 合并版本 `2e1ba701`；尚未执行 apply 时 master 已前进，
+旧操作员的固定产品与 latest master 门不能同时满足，故增加封闭后继，不能跳过 latest 门或沿用旧授权。
+**此新组合目标尚待单独明确部署确认；本轮只准备源码与离线证据。**
+
+v2 只增加常量与原分派，沿原 version4 事务、维护锁、BirthFence、主实例和网关、Host/Native/
+RuntimePool/市场 inflight 空闲检查、64MiB 全账号业务索引保全及逐阶段恢复。
+PR209 已有 `snapshot_dossiers` 将账号档案元数据和引用摘要纳入 `@dossiers` 摘要；
+v2 复用该保全路径，不改变 controller、evidence、白名单、权限或保全门。
+固定完整日志读取器仍为 `5c3077b7fac26f6836384f678514136802bcf2ed03a0a589aaac10e80111eebb`，
+原安装锁 `7c631d4fa5354170c622225be129a09f7f5890457aa0521bd5f46cecb6bb7102` 保持，
+不安装依赖，不启用周报日程，不产生 Office、厂商或模型调用。
+
+原真实 Git 矩阵验证差异并集、blob、mode、祖先及未知文件拒绝；原全账号索引、活动未知、
+阶段中断/回滚矩阵纳入 v2，并补主实例与私有账号真实 dossier 修改后的保全及恢复拒绝。
+本机离线成功和旧 PR209 CI 都不能替代 v2 最终候选的独立评审、完整 Router、原三 CI
+及同候选 macos-14 干净安装。源码/CI、实际切换、认证页面和正式报告质量分别验收，
+未部署状态不得标为常驻已升级或正式周报已通过。
+
 ## 华安ETF周报固定部署profile（仅离线准备）
 
 `reviewed-etf-weekly-v1` / `apply-etf-weekly` 固定登记旧版
