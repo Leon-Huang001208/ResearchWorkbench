@@ -234,6 +234,8 @@ Host元数据专项升级测试复用Research Web Checks现有test_resident.py�
 
 2026-10-22 插件/MCP仅向既有Research Web Checks Python清单补test_plugins、test_plugins_mcp_security、test_plugins_runtime_restart、test_mcp_managed_sandbox四模块，不新增job/runner/timeout/依赖。Mac本机50项26秒、UI4项及独立33/50项分别通过；原生Seatbelt测试在Ubuntu条件跳过，不能记为Mac通过。额外离线预算预留45秒，最终仍绑定原三CI及macos-14干净安装；不触发Windows/Linux产品dispatch，不执行厂商、付费或模型调用。发布前实时核对PUBLIC/额度，历史状态不替代当前证据。
 
+2026-10-23 资产v6配置复用原三CI及原macOS安装步骤；实时仓库PUBLIC、PR197三标准runner均成功。新增配置回归沿原test_model_provider_upgrade/test_resident，1183项部署/网关合同本机73.64秒，预留90秒；无新job、runner、依赖、时限或Windows/Linux dispatch。真实常驻事务与认证页面独立取证。
+
 ## 2026-10-23：有限历史发布与财务日期合同
 
 只在既有Research Web Checks同一Python步骤补test_datahub_bea_archive/test_datahub_financial_time_contract，无新job/runner/超时/依赖。离线合同不访问BEA/新浪/账户或模型，真实有界Host/临时PG另在本机验证；额外定点预算预留15秒。最近已完成候选088c的Checks39892327293与Mac39892343945只证明该旧树，后续最终候选须重绑原三CI；远端动作前重新核对visibility/额度，禁止手动rerun及Mac发Windows/Linux产品dispatch。
