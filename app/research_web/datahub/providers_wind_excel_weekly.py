@@ -161,6 +161,18 @@ def _economic_rows(book, name, *, primary=False):
     return rows
 
 
+def _economic_value(row, index):
+    """Preserve native JSON scalars; do not infer units or time semantics."""
+    value = row[index] if index < len(row) else None
+    if value is None:
+        return None
+    if type(value) is str:
+        return value if value != "" else None
+    if type(value) is int or (type(value) is float and math.isfinite(value)):
+        return value
+    raise ProviderError("weekly_excel_economic_value_invalid")
+
+
 def _day(value):
     if isinstance(value, (datetime, date)):
         return value.date().isoformat() if isinstance(value, datetime) else value.isoformat()
@@ -759,11 +771,15 @@ class WindExcelWeeklyProvider:
                     {
                         "date": day,
                         "source_sheet": source_sheet,
+                        "time": _economic_value(row, 1),
                         "country": row[2],
                         "indicator": row[3],
                         "importance": self.source_contract["economic_calendar"][
                             "importance_values"
                         ][row[4]],
+                        "previous": _economic_value(row, 5),
+                        "forecast": _economic_value(row, 6),
+                        "actual": _economic_value(row, 7),
                     }
                 )
             snapshot["economic_calendar"] = {

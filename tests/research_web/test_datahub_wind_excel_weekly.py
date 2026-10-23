@@ -767,8 +767,9 @@ def test_native_worksheet_fixture_rejects_combined_option_argument(combined):
 
 
 def test_native_worksheet_calendar_argument_controls_synthetic_japan_axis(tmp_path):
-    contract, source, manifest, _ = package(tmp_path)
+    contract, source, manifest, save = package(tmp_path)
     source["calendars"]["JP"]["wind_calendar"] = "TSE"
+    replace_resource(manifest, save, SOURCE_CONTRACT, json.dumps(source).encode())
 
     class JapanCalendarClient(Client):
         def _execute_wsd_once(self, formula, timeout, *, expected_columns, max_rows):
@@ -1344,6 +1345,7 @@ def test_native_wrong_dimension_still_reads_all_edb_observations(tmp_path):
     source["excel_exports"]["edb"]["sha256"] = replace_resource(
         manifest, save, "inputs/edb.xlsx", stream.getvalue()
     )
+    replace_resource(manifest, save, SOURCE_CONTRACT, json.dumps(source).encode())
     result = asyncio.run(
         WindExcelWeeklyProvider(
             run_root=tmp_path, manifest=manifest, source_contract=source, client_factory=Client
@@ -1363,6 +1365,7 @@ def test_native_edb_footer_does_not_hide_original_observations(tmp_path):
     source["excel_exports"]["edb"]["sha256"] = replace_resource(
         manifest, save, "inputs/edb.xlsx", stream.getvalue()
     )
+    replace_resource(manifest, save, SOURCE_CONTRACT, json.dumps(source).encode())
     result = asyncio.run(
         WindExcelWeeklyProvider(
             run_root=tmp_path, manifest=manifest, source_contract=source, client_factory=Client
@@ -1391,6 +1394,9 @@ def test_both_native_economic_sheets_preserve_events_and_original_level(
                 sheet.title,
                 importance,
             ]
+            + ([0, 49.97, None] if sheet is book.active else [118, None, "待公布"])[
+                : 3 if sheet is book.active else financial_columns - 5
+            ]
         )
         sheet.append(["数据来源: Wind"])
     stream = BytesIO()
@@ -1411,6 +1417,7 @@ def test_both_native_economic_sheets_preserve_events_and_original_level(
     source["excel_exports"]["economic_calendar"]["coverage_evidence_sha256"] = replace_resource(
         manifest, save, "inputs/coverage.json", json.dumps(proof).encode()
     )
+    replace_resource(manifest, save, SOURCE_CONTRACT, json.dumps(source).encode())
     result = asyncio.run(
         WindExcelWeeklyProvider(
             run_root=tmp_path, manifest=manifest, source_contract=source, client_factory=Client
@@ -1421,6 +1428,70 @@ def test_both_native_economic_sheets_preserve_events_and_original_level(
         (item["source_sheet"], item["importance"])
         for item in result["snapshot"]["economic_calendar"]["events"]
     ] == [("经济数据", "较重要"), ("财经大事", "一般")]
+    economic, financial = result["snapshot"]["economic_calendar"]["events"]
+    assert [economic[key] for key in ("time", "previous", "forecast", "actual")] == [
+        "09:00",
+        0,
+        49.97,
+        None,
+    ]
+    assert type(economic["previous"]) is int
+    assert type(economic["forecast"]) is float
+    assert [financial[key] for key in ("time", "previous", "forecast", "actual")] == [
+        "09:00",
+        *([118, None, "待公布"] if financial_columns == 8 else [None, None, None]),
+    ]
+
+
+@pytest.mark.parametrize("index", [1, 5, 6, 7])
+@pytest.mark.parametrize(
+    "value",
+    [True, False, float("nan"), float("inf"), -float("inf"), [], {}, datetime(2026, 1, 1).time()],
+)
+def test_economic_projection_rejects_unsupported_scalar(tmp_path, monkeypatch, index, value):
+    contract, source, manifest, _ = package(tmp_path)
+    exports = read_exports(tmp_path, manifest, source, contract)
+    row = exports["economic_calendar"][0][1]
+    row.extend([None] * (8 - len(row)))
+    row[index] = value
+    monkeypatch.setattr(excel_provider, "read_exports", lambda *args: exports)
+    result = WindExcelWeeklyProvider(
+        run_root=tmp_path, manifest=manifest, source_contract=source, client_factory=Client
+    )._run_owned(contract)
+    assert result["assessment"]["status"] == "blocked_data"
+    assert "weekly_excel_economic_value_invalid" in result["snapshot"]["limitations"]
+
+
+@pytest.mark.parametrize("value", [None, "", " 09:00 ", 0, 0.0, -49.97, 118])
+def test_economic_projection_preserves_native_scalar_and_empty(tmp_path, value):
+    contract, source, manifest, save = package(tmp_path)
+    rows = read_exports(tmp_path, manifest, source, contract)["economic_calendar"][0]
+    row = rows[1]
+    row.extend([None] * (8 - len(row)))
+    for index in (1, 5, 6, 7):
+        row[index] = value
+    export = source["excel_exports"]["economic_calendar"]
+    export["sha256"] = replace_resource(manifest, save, export["path"], workbook_bytes(rows))
+    save_observation(
+        tmp_path, source, manifest, save, native_export_observation(export["sha256"], contract)
+    )
+    proof = json.loads((tmp_path / "inputs/coverage.json").read_bytes())
+    proof["windows"][0]["sha256"] = export["sha256"]
+    export["coverage_evidence_sha256"] = replace_resource(
+        manifest, save, "inputs/coverage.json", json.dumps(proof).encode()
+    )
+    replace_resource(manifest, save, SOURCE_CONTRACT, json.dumps(source).encode())
+    original = read_exports(tmp_path, manifest, source, contract)["economic_calendar"][0][1]
+    result = WindExcelWeeklyProvider(
+        run_root=tmp_path, manifest=manifest, source_contract=source, client_factory=Client
+    )._run_owned(contract)
+    assert result["assessment"]["status"] == "passed", result["assessment"]["issues"]
+    event = result["snapshot"]["economic_calendar"]["events"][0]
+    expected = None if value is None or value == "" else value
+    for key, index in (("time", 1), ("previous", 5), ("forecast", 6), ("actual", 7)):
+        assert event[key] == expected
+        # XLSX encodes integral floats as integers; preserve the decoded native type.
+        assert type(event[key]) is type(original[index] if index < len(original) else None)
 
 
 def test_cleanup_failure_poison_blocks_shared_worker_without_replay(tmp_path, monkeypatch):
@@ -1537,6 +1608,7 @@ def test_native_calendar_window_can_overlap_previous_sunday_without_including_it
     source["excel_exports"]["economic_calendar"]["coverage_evidence_sha256"] = replace_resource(
         manifest, save, "inputs/coverage.json", json.dumps(proof).encode()
     )
+    replace_resource(manifest, save, SOURCE_CONTRACT, json.dumps(source).encode())
     result = asyncio.run(
         WindExcelWeeklyProvider(
             run_root=tmp_path, manifest=manifest, source_contract=source, client_factory=Client

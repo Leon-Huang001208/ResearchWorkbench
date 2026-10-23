@@ -515,8 +515,18 @@ def assess_weekly_snapshot(
         ):
             raise ValueError("weekly_snapshot_schema_invalid")
         cutoff = _aware(contract["cutoff"])
-        from .weekly_sources import verify_weekly_history_supplement
+        from .weekly_sources import (
+            verify_weekly_economic_export,
+            verify_weekly_history_supplement,
+        )
 
+        verify_weekly_economic_export(
+            snapshot,
+            contract,
+            run_root=run_root,
+            manifest=manifest,
+            required=require_excel_acquisition,
+        )
         verify_weekly_history_supplement(snapshot, contract, run_root=run_root, manifest=manifest)
         if require_excel_acquisition and snapshot["source"] != "wind_excel":
             raise ValueError("weekly_excel_acquisition_source_invalid")

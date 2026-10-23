@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import io
 import json
+import math
 import os
 import re
 import tempfile
@@ -833,6 +834,100 @@ def read_gold_history_supplement(run_root, manifest, source, contract, completed
         raise WorkflowError(
             "黄金历史补查证据未核实", "weekly_gold_supplement_unverified", 409
         ) from exc
+
+
+def verify_weekly_economic_export(
+    snapshot, contract, *, run_root=None, manifest=None, required=False
+):
+    """Independently replay native events from this Run's immutable source package."""
+    if snapshot.get("source") != "wind_excel" or not (
+        required or snapshot.get("collection_policy") == "wind-excel-weekly-v1"
+    ):
+        return
+    try:
+        if run_root is None or manifest is None:
+            raise ValueError("economic_run_context_missing")
+        source, _ = load_run_source_contract(run_root, manifest)
+        if source.get("data_source") != "wind_excel":
+            raise ValueError("economic_source_not_excel")
+        # Runtime import avoids the existing weekly_data/source/provider import cycle.
+        # This reader opens frozen bytes and receipts only; it never creates a client.
+        from ..datahub.providers_wind_excel_weekly import read_exports
+
+        exports = read_exports(run_root, manifest, source, contract)
+        rows, raw_sha = exports["economic_calendar"]
+        binding = source["excel_exports"]["economic_calendar"]
+        sheet = binding["sheet"]
+        events = []
+        optional = {"time": 1, "previous": 5, "forecast": 6, "actual": 7}
+
+        def native_value(value):
+            if value is None or type(value) is str and value == "":
+                return None
+            if type(value) in (str, int) or type(value) is float and math.isfinite(value):
+                return value
+            raise ValueError("economic_native_scalar_invalid")
+
+        for row in rows[1:]:
+            if row and row[0] == "_rwb_source_sheet":
+                sheet = row[1]
+                continue
+            if not row or row[0] in (None, "", "日期") or str(row[0]).startswith("数据来源"):
+                continue
+            value = row[0]
+            day = (
+                value.date().isoformat()
+                if isinstance(value, datetime)
+                else (
+                    value.isoformat()
+                    if isinstance(value, date)
+                    else date.fromisoformat(str(value)[:10]).isoformat()
+                )
+            )
+            if (
+                day not in exports["economic_export_dates"]
+                or len(row) < 5
+                or not all(type(row[index]) is str and row[index].strip() for index in (2, 3, 4))
+                or row[4] not in source["economic_calendar"]["importance_values"]
+            ):
+                raise ValueError("economic_native_event_invalid")
+            if not contract["next_calendar_start"] <= day <= contract["next_calendar_end"]:
+                continue
+            events.append(
+                {
+                    "date": day,
+                    "source_sheet": sheet,
+                    "country": row[2],
+                    "indicator": row[3],
+                    "importance": source["economic_calendar"]["importance_values"][row[4]],
+                    **{
+                        key: native_value(row[index] if index < len(row) else None)
+                        for key, index in optional.items()
+                    },
+                }
+            )
+        calendar = snapshot["economic_calendar"]
+        for event in calendar["events"]:
+            for key in optional:
+                native_value(event[key])
+        expected = {
+            "source": "wind_excel",
+            "coverage_start": contract["next_calendar_start"],
+            "coverage_end": contract["next_calendar_end"],
+            "coverage_verified": True,
+            "events": events,
+            "raw_sha256": raw_sha,
+            "raw_payload": binding,
+        }
+        # JSON preserves numeric scalar types and refuses nonfinite values; Python
+        # equality alone would incorrectly consider False == 0 or 0 == 0.0.
+        actual_json = json.dumps(calendar, sort_keys=True, ensure_ascii=False, allow_nan=False)
+        expected_json = json.dumps(expected, sort_keys=True, ensure_ascii=False, allow_nan=False)
+        if actual_json != expected_json:
+            raise ValueError("economic_snapshot_changed")
+    except Exception as exc:
+        log.warning("weekly_economic_export_replay_rejected", error_type=type(exc).__name__)
+        raise ValueError("weekly_excel_economic_replay_unverified") from exc
 
 
 def verify_weekly_history_supplement(snapshot, contract, *, run_root=None, manifest=None):

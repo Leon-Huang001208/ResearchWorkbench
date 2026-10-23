@@ -108,6 +108,7 @@ jobs:
             tests/research_web/test_report_rendering.py \
             tests/research_web/test_report_weekly_data.py \
             tests/research_web/test_report_weekly_gold_supplement.py \
+            tests/research_web/test_report_weekly_economic_fields.py \
             tests/research_web/test_report_weekly_quality.py \
             tests/research_web/test_report_weekly_owner.py \
             tests/research_web/test_report_weekly_evidence.py \

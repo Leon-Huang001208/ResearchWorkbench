@@ -1,5 +1,7 @@
 # Agent 任务路由指南
 
+华安真实底稿投影发现经济可选字段丢失后，先以冻结 XLSX 反例补齐 Provider，再由 Host 独立重放九字段；原件、原失败、旧预检通过均保留版本归属。沿完整 changed-set Router、原通用检查与同候选 Mac 安装，原 Checks 同一步增加近处经济字段测试，无新 job／runner。真实 Word 与认证下载仍单独验收，日程保持关闭。
+
 SPDR 原生快照迭代在 Mac 隔离 worktree 开发，先验证四项闭合投影和原件绑定，再用单次公开取数、独立 socket-only
 PostgreSQL、跨会话/Host 与 PG 重启及第二空库恢复验收；CI 不访问厂商、模型或正式数据库。
 两新测试模块沿原 Checks 同一步，原三 CI 与同候选 macos-14 安装门保持。未更新常驻服务或外盘，其他平台原生保持 NOT_RUN。

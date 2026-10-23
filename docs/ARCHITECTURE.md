@@ -1,5 +1,7 @@
 # Research Workbench 架构总览
 
+华安经济日历的时间、前值、预测值和今值沿原 Excel 快照保留，Host 从锁定原件独立重建全部事件字段，类型、顺序、来源不符即阻断。此为原资源重放与底稿投影边界的补齐，不新增引擎、HTTP、依赖或持久格式，原架构图仍准确；Word 经济表维持原三列。
+
 2026-10-23 SPDR 四项快照扩展现有外部 Provider 和原生研究仓白名单；单次原件、四项行/字段及单位通过同一解析器绑定。
 仅增加现有 gld 的数据合同版本，Host → DataHub → Provider/可选 MarketStore 的节点与边保持，现有图准确。
 无新 HTTP 路由、数据库表、服务或引擎；首次观测快照、每次授权和正式 PIT 限制见[原生快照](research-web-vendor-snapshots.md)。

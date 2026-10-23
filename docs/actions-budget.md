@@ -1,5 +1,7 @@
 # GitHub Actions 免费额度治理
 
+2026-10-23华安经济字段只向原 Checks Python 步骤追加 `test_report_weekly_economic_fields.py`，Provider 原模块补原件字段保全反例；无新 job、runner、依赖、timeout 或供应商调用。独立32例加 Provider180例联合212项28.97秒，预留额外30秒；原历史／API／质量门与同候选 Mac 安装均保留。当前 PUBLIC，最近五个成功 Checks 39935144499/39934720463/39933193220/39932880510/39926802740，创建至更新954/684/968/970/985秒，仅墙钟观察。原 a489 三门成功、新 f58 三门结果分别归属各自旧树；经济字段新修复必须重新绑定最终候选，不以原件重放或旧 CI 认证正式稿。
+
 SPDR 四项快照只向原 Research Web Checks 的同一 Python 步骤添加 test_datahub_spdr 和 test_spdr_warehouse_integration，
 没有新 job、runner、timeout 或依赖；99+19 项定点合成检查本机不足1秒，预留原步骤15秒。
 真实公开 HTTP 和临时 PostgreSQL 仅本机有界执行，不调用模型。保留原三 CI、同候选 macos-14 安装及完整 Router；

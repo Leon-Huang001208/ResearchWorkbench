@@ -1,5 +1,7 @@
 # Research Workbench Development Map
 
+华安经济底稿字段由 Excel Provider 保留，`weekly_sources.verify_weekly_economic_export` 从同版本原件独立重放，`weekly_data` 在数据门接入。时间原文及有限数值不推测单位或时区；八列底稿完整保全，Word 原三列不扩。仍沿既有 Host／DataHub／DSH／确定性排版链，无新执行节点。
+
 SPDR `providers_external.py` 的 `spdr_projection/spdr_fields` 是四项原生数值和字段定义的共同入口；
 `research_snapshot_store.py` 写入前重新解析原件，`research_warehouse.py` 绑定专用版本/单位身份，
 DataHub `__init__.py` 拒绝新查询复用旧未解析缓存。近处回归为 `test_datahub_spdr.py` 和

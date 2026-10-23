@@ -4818,6 +4818,8 @@ Functions:
 - `_export_observation`
   - Consume only operator-captured, reviewed, immutable native UI evidence.
 - `_economic_rows`
+- `_economic_value`
+  - Preserve native JSON scalars; do not infer units or time semantics.
 - `_day`
 - `_raw`
 - `_workbook`
@@ -9017,6 +9019,7 @@ Imports:
 - `hashlib`
 - `io`
 - `json`
+- `math`
 - `models`
 - `os`
 - `pathlib`
@@ -9044,6 +9047,8 @@ Functions:
 - `_gold_day`
 - `read_gold_history_supplement`
   - Replay frozen native responses; repair exactly one empty EDB cell, read-only.
+- `verify_weekly_economic_export`
+  - Independently replay native events from this Run's immutable source package.
 - `verify_weekly_history_supplement`
   - Host replays version resources even if a forged snapshot drops its lineage.
 - `capture_excel_comparison`
