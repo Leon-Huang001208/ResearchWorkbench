@@ -90,7 +90,7 @@ export function parseRoute(hash = '') {
     route.asset = cleanAsset(params.get('asset'));
     route.assetType = ASSET_TYPES.includes(params.get('asset_type')) ? params.get('asset_type') : 'stock';
     route.assetView = params.get('view') === 'dossiers' && page === 'assets' ? 'dossiers' : ASSET_VIEWS.includes(params.get('view')) ? params.get('view') : 'overview';
-    if (route.assetView === 'dossiers') route.dossierId = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(params.get('dossier') || '') ? params.get('dossier') : null;
+    if (route.assetView === 'dossiers') route.dossierId = /^[a-f0-9]{32}$/.test(params.get('dossier') || '') ? params.get('dossier') : null;
   }
   if (page === 'simulation') route.section = 'etf-paper';
   if (page === 'frameworks') {
@@ -485,7 +485,7 @@ export function createController({ api, draftStorage, logger = safeLog, makeID =
   const draftState = () => ({ draft: state.draft, dossierHandoff: state.dossierHandoff, attachments: state.attachments, tabbitTabs: state.tabbitTabs, skillId: state.skillId, capability: state.capability, toolIds: state.toolIds, methodIds: state.methodIds, sourceScope: state.sourceScope, researchDepth: state.researchDepth, researchMode: state.researchMode, researchAsOf: state.researchAsOf, expectedFormats: state.expectedFormats });
   const controllerAccount = String(getAccount());
   let dossierScopeID = null;
-  const validDossierHandoff = value => value == null || typeof value === 'object' && /^[a-f0-9]{32}$/.test(value.id || '') && /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(value.dossierID || '') && Object.keys(value).every(key => ['id', 'dossierID'].includes(key));
+  const validDossierHandoff = value => value == null || typeof value === 'object' && /^[a-f0-9]{32}$/.test(value.id || '') && /^[a-f0-9]{32}$/.test(value.dossierID || '') && Object.keys(value).every(key => ['id', 'dossierID'].includes(key));
   const accountCurrent = () => {
     if (controllerAccount === String(getAccount())) return true;
     state.dossierHandoff = null; state.draft = ''; state.attachments = []; drafts.clear(); pending.clear();
@@ -752,10 +752,10 @@ export function createController({ api, draftStorage, logger = safeLog, makeID =
       const ticket = generation;
       const previousDraft = { ...draftState(), attachments: [] };
       const origin = !state.route.sessionId ? {key:draftKey(),draft:previousDraft.draft} : null;
-      const result = await action(() => api.create({ mode, research_depth: state.researchDepth, ...(mode === 'fingpt' ? { research_mode: state.researchMode } : {}), source_scope: state.sourceScope, ...(state.dossierHandoff ? { dossier_handoff_id: state.dossierHandoff.id } : {}), ...(workspaceId ? { workspace_id: workspaceId } : {}), ...(projectId ? { project_id: projectId } : {}) }), { refreshAfter: false });
+      const result = await action(() => api.create({ mode, research_depth: state.researchDepth, ...(mode === 'fingpt' ? { research_mode: state.researchMode } : {}), source_scope: state.sourceScope, ...(workspaceId ? { workspace_id: workspaceId } : {}), ...(projectId ? { project_id: projectId } : {}) }), { refreshAfter: false });
       if (!accountCurrent()) return null;
       if (ticket !== generation) return null;
-      if (result?.id) { putDraft(result.id, previousDraft); if (origin) { createdDraftOrigins.set(result.id,origin); putDraft(origin.key, { ...previousDraft, dossierHandoff: null }); state.dossierHandoff = null; } onNavigate(sessionHash(result)); }
+      if (result?.id) { putDraft(result.id, previousDraft); if (origin) { createdDraftOrigins.set(result.id,origin); putDraft(origin.key, previousDraft); } onNavigate(sessionHash(result)); }
       return result;
     },
     createCapabilitySession: async (kind, goal) => {

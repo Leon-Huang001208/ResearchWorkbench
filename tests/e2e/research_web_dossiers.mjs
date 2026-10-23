@@ -8,11 +8,18 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const project = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const output = path.join(project, 'outputs/research-web-dossiers');
 const log = path.join(project, 'logs/research-web-dossiers-ui.jsonl');
-const id = '11111111-1111-4111-8111-111111111111';
-const evidenceID = 'evidence-fixture';
+const contract = JSON.parse(await readFile(path.join(project, 'tests/fixtures/research_web_dossier_contract.json'), 'utf8'));
+const id = contract.dossier.id;
+const evidenceID = contract.dossier.evidence[0].id;
 const targetSessionID = '22222222-2222-4222-8222-222222222222';
-let fixtureSession = null;
-const base = () => ({ id, title: '离线夹具 · 公司长期研究档案', revision: 3, archived: false, updated_at: '2026-10-23T08:00:00+08:00', subject: { kind: 'company', key: '600519.SH', label: '离线公司 · 非真实研究' }, tracking: { enabled: false, eligible: false, reason: '尚未完成手动闭环' }, records: [{ id: 'view', record_id: 'view', kind: 'opinion', title: '离线初始判断', body: '核心假设待验证。' + '长文本内容用于换行检查'.repeat(24), reason: '离线测试原始记录', state: 'open', evidence_ids: [evidenceID] }], evidence: [{ id: evidenceID, title: '离线证据快照', source: 'offline-fixture', sha256: 'a'.repeat(64), retrieved_at: '2026-10-23T08:00:00+08:00', published_at: null, locator: '表格第一行' }], links: [{ id: 'result', title: '离线报告', quality_status: 'incomplete', source_session_id: id, type: 'report' }] });
+let fixtureSession = null, fixtureBindings = 0;
+const base = () => {
+  const value = structuredClone(contract.dossier);
+  value.title = '离线夹具 · 公司长期研究档案';
+  value.subject.label = '离线公司 · 非真实研究';
+  value.records[0].body += '长文本内容用于换行检查'.repeat(24);
+  return value;
+};
 let dossier = base(), conflict = false, revoked = false;
 const requests = [], unexpected = [], expectedHTTPFailures = [], results = [];
 const types = { '.mjs': 'text/javascript', '.js': 'text/javascript', '.json': 'application/json', '.css': 'text/css', '.html': 'text/html', '.png': 'image/png', '.svg': 'image/svg+xml' };
@@ -26,21 +33,23 @@ const server = http.createServer(async (request, response) => {
       let data = { items: [] }, status = 200;
       const prefix = `/api/research/dossiers/${id}`;
       if (url.pathname === '/api/research/runtime') data = { connected: true, credential_configured: true, provider: 'offline-fixture', model: 'offline-fixture', version: 'fixture', mode: 'native' };
-      else if (url.pathname === '/api/research/sessions' && request.method === 'POST') { assert.equal(body.dossier_handoff_id, 'c'.repeat(32)); fixtureSession = { id: targetSessionID, mode: body.mode, title: '离线研究会话', status: 'ready', messages: [] }; data = fixtureSession; }
+      else if (url.pathname === '/api/research/sessions' && request.method === 'POST') { assert.equal(body.dossier_handoff_id, undefined); fixtureSession = { id: targetSessionID, mode: body.mode, title: '离线研究会话', status: 'ready', messages: [] }; data = fixtureSession; }
       else if (url.pathname === `/api/research/sessions/${targetSessionID}`) data = fixtureSession;
-      else if (url.pathname === `/api/research/sessions/${targetSessionID}/messages`) { assert.equal(body.dossier_handoff_id, 'c'.repeat(32)); data = { accepted: true }; }
+      else if (url.pathname === `/api/research/sessions/${targetSessionID}/messages`) { assert.equal(body.dossier_handoff_id, 'c'.repeat(32)); fixtureBindings++; data = { accepted: true }; }
       else if (url.pathname.endsWith('/models')) data = { groups: [], failures: [] };
       else if (url.pathname.endsWith('/navigation')) data = { mode: 'claw', revision: 1, pinned: [], project_order: [] };
       else if (url.pathname === '/api/research/dossiers') data = { items: [dossier], next_cursor: null };
       else if (url.pathname === '/api/research/dossiers/signals') data = { items: [{ id: 'signal', dossier_id: id, title: '离线风险信号', body: '<img src=x onerror=window.fixtureXss=true> 标签作为文本显示', kind: 'risk', state: 'open', evidence_ids: [evidenceID], source: 'offline-fixture', as_of: '2026-10-23', coverage: '仅离线样本', missing: ['盈利预测缺失'], stale: true }], coverage: '仅离线样本', missing: ['无真实供应商数据'] };
+      else if (url.pathname.endsWith('/tabbit-access')) data = { accepted: true };
+      else if (url.pathname.endsWith('/tabbit-tabs')) data = { items: [] };
       else if (url.pathname === prefix && request.method === 'GET') data = dossier;
-      else if (url.pathname === `${prefix}/timeline`) data = { items: dossier.records, next_cursor: null };
+      else if (url.pathname === `${prefix}/timeline`) data = { items: dossier.records.map(record => ({ dossier_id: id, revision: record.revision, kind: 'record', payload: record, created_at: record.created_at })), next_cursor: null };
       else if (url.pathname === `${prefix}/records`) {
         if (conflict) { status = 409; data = { error: { code: 'revision_conflict', message: '版本已变化' } }; }
-        else { assert.equal(body.expected_revision, dossier.revision); assert.ok(body.idempotency_key); dossier.revision++; dossier.records.push({ ...body, id: `record-${dossier.revision}`, revision: dossier.revision }); data = dossier; }
+        else { assert.equal(body.expected_revision, dossier.revision); assert.ok(body.idempotency_key); dossier.revision++; const { expected_revision, idempotency_key, ...record } = body; dossier.records.push({ ...record, id: String(dossier.revision).padStart(32, '0'), revision: dossier.revision, created_at: '2026-10-23T08:00:00+08:00' }); data = dossier; }
       } else if (url.pathname === `${prefix}/evidence/${evidenceID}`) {
         if (revoked) { status = 403; data = { error: { code: 'evidence_permission_revoked', message: '证据来源已撤权' } }; }
-        else data = { content: '离线原始证据\n<script>window.fixtureXss=true</script>', sha256: 'a'.repeat(64) };
+        else data = { ...structuredClone(contract.preview), content: '<script>window.fixtureXss=true</script>' + contract.preview.content.slice(40) };
       } else if (url.pathname === `${prefix}/scan`) { dossier.revision++; data = { dossier, signals: [], coverage: '仅离线样本', missing: ['盈利预测缺失'] }; }
       else if (url.pathname === `${prefix}/handoff`) {
         assert.equal(body.expected_revision, dossier.revision); const revision = dossier.revision++;
@@ -65,6 +74,7 @@ try {
     dossier = base(); conflict = false; revoked = false; fixtureSession = null;
     const context = await browser.newContext({ viewport: { width, height } });
     const page = await context.newPage(); activePage = page; const errors = [];
+    page.on('dialog', dialog => dialog.accept());
     await page.addInitScript(() => { globalThis.EventSource = class { addEventListener() {} close() {} }; });
     page.on('pageerror', error => { errors.push(error.message); unexpected.push(error.message); });
     page.on('console', message => {
@@ -100,7 +110,10 @@ try {
     await page.getByRole('button', { name: '关闭证据', exact: true }).click();
     revoked = true; await page.getByRole('button', { name: '重新鉴权并读取', exact: true }).click();
     await page.getByRole('alert').filter({ hasText: '证据来源已撤权' }).waitFor();
-    await page.getByRole('button', { name: '关闭证据', exact: true }).click(); revoked = false;
+    assert.equal(await page.getByRole('complementary', { name: '证据读取结果', exact: true }).count(), 0);
+    assert.equal(await page.getByRole('heading', { name: dossier.title, exact: true }).count(), 0);
+    revoked = false; await page.getByRole('button', { name: '刷新档案与状态', exact: true }).click();
+    await page.getByRole('heading', { name: dossier.title, exact: true }).waitFor();
     await page.getByRole('button', { name: '手动扫描', exact: true }).click();
     await page.getByText('本次扫描缺失：盈利预测缺失', { exact: true }).waitFor();
     await page.screenshot({ path: path.join(output, `dossier-${width}-${theme}.png`), fullPage: true });
@@ -109,6 +122,14 @@ try {
     await page.waitForFunction(() => document.querySelector('#prompt')?.value.includes('离线冻结档案'));
     assert.match(await page.locator('#prompt').inputValue(), /离线冻结档案/);
     assert.equal(requests.filter(item => item.method === 'POST' && /\/sessions(?:$|\/[^/]+\/messages)/.test(item.path)).length, priorSubmissions);
+    const frozenDraft = await page.locator('#prompt').inputValue(), priorBindings = fixtureBindings;
+    await page.locator('#prompt').fill(`${frozenDraft} @`);
+    await page.locator('#tabbit-options').waitFor();
+    assert.equal(fixtureBindings, priorBindings, '@ candidate inspection cannot bind the research receipt');
+    const precreated = requests.filter(item => item.path === '/api/research/sessions' && item.method === 'POST').at(-1);
+    assert.equal(precreated.body.dossier_handoff_id, undefined);
+    assert.equal(requests.filter(item => item.method === 'POST' && item.path.endsWith('/messages')).length, priorBindings);
+    await page.locator('#prompt').fill(frozenDraft);
     const submitted = page.waitForResponse(response => response.url().endsWith(`/sessions/${targetSessionID}/messages`) && response.request().method() === 'POST');
     await page.locator('#prompt').press('Enter'); await submitted;
     await page.waitForFunction(() => document.querySelector('#prompt')?.value === '');
@@ -126,7 +147,7 @@ try {
   assert.deepEqual(unexpected, []);
   assert.equal(expectedHTTPFailures.filter(message => message.includes('409')).length, 3);
   assert.equal(expectedHTTPFailures.filter(message => message.includes('403')).length, 3);
-  await writeFile(path.join(output, 'receipt.json'), JSON.stringify({ status: 'passed', origin, fixture: true, results, requestCount: requests.length, realModelSubmissions: 0, fixturePromptSubmissions: 3, expectedHTTPFailures }, null, 2));
+  await writeFile(path.join(output, 'receipt.json'), JSON.stringify({ status: 'passed', origin, fixture: true, results, requestCount: requests.length, realModelSubmissions: 0, fixturePromptSubmissions: 3, fixtureReceiptBindings: fixtureBindings, atCandidateBindings: 0, contractProducer: contract.producer_sha256, expectedHTTPFailures }, null, 2));
   await appendFile(log, `${JSON.stringify({ event: 'dossier_ui_browser_acceptance', status: 'passed', results, requestCount: requests.length })}\n`);
   console.log(JSON.stringify({ status: 'passed', results, output }));
 } catch (error) {

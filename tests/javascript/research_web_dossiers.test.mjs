@@ -2,16 +2,21 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFile } from 'node:fs/promises';
 import { createAPI, createController, parseRoute } from '../../app/research_web/ui/core.mjs';
-import { createDossierController, dossierHref, dossierSessionHref, isDossierRoute, renderDossiers, filterDossierSignals } from '../../app/research_web/ui/dossiers.mjs';
+import { createDossierController, dossierHref, dossierSessionHref, isDossierRoute, renderDossiers, filterDossierSignals, dossierDateInput, dossierWatchDate, dossierQuality } from '../../app/research_web/ui/dossiers.mjs';
 import { renderWorkbench } from '../../app/research_web/ui/workbench.mjs';
 import { renderIntelligenceNavigation } from '../../app/research_web/ui/intel.mjs';
 import { renderCapabilityDetail } from '../../app/research_web/ui/capabilities.mjs';
 import { dossierMethods } from '../../app/research_web/ui/dossier-methods.mjs';
 
-const id = '11111111-1111-4111-8111-111111111111';
-const other = '22222222-2222-4222-8222-222222222222';
+const contract = JSON.parse(await readFile(new URL('../fixtures/research_web_dossier_contract.json', import.meta.url), 'utf8'));
+const id = contract.dossier.id;
+const other = '2'.repeat(32);
+const sourceSessionID = contract.source_session_id;
+const otherSessionID = '22222222-2222-4222-8222-222222222222';
+const evidenceID = contract.dossier.evidence[0].id;
+const recordID = contract.dossier.records[0].id;
 const route = key => parseRoute(dossierHref(key));
-const detail = (key = id, revision = 3) => ({ id: key, title: '公司长期判断', subject: { kind: 'company', key: '600519.SH', label: '贵州茅台' }, revision, archived: false, records: [], evidence: [], links: [], tracking: { enabled: false, eligible: false, reason: '尚未完成手动闭环' } });
+const detail = (key = id, revision = 3) => ({ ...structuredClone(contract.dossier), id: key, title: '公司长期判断', subject: { kind: 'company', key: '600519.SH', label: '贵州茅台' }, revision, archived: false, records: [], evidence: [], links: [], tracking: { enabled: false, eligible: false, reason: '尚未完成手动闭环' } });
 function setup(overrides = {}, extras = {}) {
   let counter = 0;
   return createDossierController({ logger: () => {}, makeID: () => `attempt-${++counter}`, api: {
@@ -30,8 +35,8 @@ test('dossier and signal routes preserve the old asset views and primary navigat
   assert.ok(isDossierRoute(route(id))); assert.ok(isDossierRoute(parseRoute('#/intel/signals')));
   assert.match(renderWorkbench(), /href="#\/assets\?view=dossiers"/);
   assert.match(renderIntelligenceNavigation('signals'), /href="#\/intel\/signals" class="active"/);
-  assert.equal(dossierSessionHref({ source_mode: 'claw', source_session_id: id }), `#/claw?session=${id}`);
-  assert.equal(dossierSessionHref({ source_mode: 'javascript:alert(1)', source_session_id: id }), '#/history');
+  assert.equal(dossierSessionHref({ source_mode: 'claw', source_session_id: sourceSessionID }), `#/claw?session=${sourceSessionID}`);
+  assert.equal(dossierSessionHref({ source_mode: 'javascript:alert(1)', source_session_id: sourceSessionID }), '#/history');
 });
 
 test('API uses the dossier domain, cancellation, expected revision body and encoded identities', async () => {
@@ -76,7 +81,7 @@ test('conflict retains all edited text, never overwrites old state or retries it
   let writes = 0;
   const controller = setup({ addDossierRecord: async () => { writes++; throw Object.assign(new Error('conflict'), { status: 409 }); } });
   await controller.activate(route(id));
-  const values = { kind: 'opinion', title: '修订标题', body: '新的观点', reason: '反证', state: 'refuted', record_id: 'record' };
+  const values = { kind: 'opinion', title: '修订标题', body: '新的观点', reason: '反证', state: 'refuted', record_id: recordID };
   await controller.submit('record', values);
   assert.equal(writes, 1); assert.equal(controller.state.detail.revision, 3);
   assert.equal(controller.state.forms.record.body, '新的观点'); assert.match(controller.state.error, /输入已保留/);
@@ -123,15 +128,15 @@ test('invalid frozen identity or auto_send response cannot become a research dra
 test('evidence rechecks every time, exposes missing or revoked source, and never refetches it', async () => {
   let calls = 0;
   const controller = setup({ dossierEvidence: async () => { calls++; throw Object.assign(new Error('来源已撤权'), { status: 403 }); } });
-  await controller.activate(route(id)); await controller.evidence('evidence'); await controller.evidence('evidence');
-  assert.equal(calls, 2); assert.match(controller.state.previewError, /撤权/); assert.equal(controller.state.preview, null);
+  await controller.activate(route(id)); await controller.evidence(evidenceID); await controller.evidence(evidenceID);
+  assert.equal(calls, 2); assert.match(controller.state.error, /撤权/); assert.equal(controller.state.preview, null);
 });
 
 test('five sections and supplier text are escaped; quality, unknown PIT, stale and coverage gaps remain visible', async () => {
   const malicious = '<img src=x onerror=alert(1)>';
-  const value = detail(); value.records = [{ id: 'r', kind: 'opinion', title: malicious, body: malicious, state: 'open', evidence_ids: [] }];
-  value.evidence = [{ id: 'e', title: malicious, sha256: 'abc', published_at: null }];
-  value.links = [{ title: '报告', status: 'incomplete' }];
+  const value = detail(); value.records = [{ id: recordID, kind: 'opinion', title: malicious, body: malicious, state: 'open', evidence_ids: [] }];
+  value.evidence = [{ id: evidenceID, title: malicious, sha256: 'abc', published_at: null }];
+  value.links = [{ title: '报告', type: 'report', quality: { status: 'incomplete' } }];
   const controller = setup({ dossier: async () => value }); await controller.activate(route(id));
   const html = renderDossiers(controller.state);
   for (const section of ['当前判断', '观点时间线', '证据', '催化剂与风险', '研究成果']) assert.ok(html.includes(section));
@@ -169,17 +174,17 @@ test('link references use the Host contract and do not accept client quality ass
   let saved;
   const controller = setup({ addDossierLink: async (_key, body) => { saved = body; return detail(id, 4); }, dossier: async () => detail(id, saved ? 4 : 3) });
   await controller.activate(route(id));
-  await controller.submit('link', { source_session_id: 'original-session', type: 'report', reference_id: '', quality_status: 'passed' });
-  assert.equal(saved.type, 'report'); assert.equal(saved.source_session_id, 'original-session');
+  await controller.submit('link', { source_session_id: sourceSessionID, type: 'report', reference_id: '', quality_status: 'passed' });
+  assert.equal(saved.type, 'report'); assert.equal(saved.source_session_id, sourceSessionID);
   assert.equal(saved.reference, undefined); assert.equal(saved.quality_status, undefined);
   assert.equal(controller.state.items[0].revision, 4);
 });
 
 const receiptContext = (dossierID = id) => ({ dossier_id: dossierID, handoff_id: 'c'.repeat(32) });
 const memoryStorage = () => { const entries = new Map(); return { getItem: key => entries.get(key) ?? null, setItem: (key, value) => entries.set(key, value) }; };
-test('real create and prompt request bodies carry only the explicit Host receipt after the user sends', async () => {
+test('create never carries a receipt; only the user-triggered prompt carries the explicit Host receipt', async () => {
   const calls = [];
-  const session = { id: 'receiver', mode: 'claw', messages: [], status: 'ready' };
+  const session = { id: sourceSessionID, mode: 'claw', messages: [], status: 'ready' };
   const api = createAPI({ logger: () => {}, fetcher: async (path, options) => {
     calls.push({ path, method: options.method, body: options.body ? JSON.parse(options.body) : null });
     return { ok: true, status: 200, json: async () => path.endsWith('/messages') ? { accepted: true } : session };
@@ -190,10 +195,13 @@ test('real create and prompt request bodies carry only the explicit Host receipt
   controller.setDossierDraft('原始研究问题', receiptContext());
   assert.equal(calls.length, 0, 'preparing a draft cannot create a session');
   await controller.create('claw');
-  assert.equal(calls[0].body.dossier_handoff_id, 'c'.repeat(32));
-  assert.equal(controller.state.dossierHandoff, null, 'receipt cannot remain on the new-session homepage after binding');
-  await controller.open({ page: 'claw', sessionId: 'receiver' });
+  assert.equal(calls[0].body.dossier_handoff_id, undefined);
+  assert.equal(controller.state.dossierHandoff.id, 'c'.repeat(32), 'pre-creating a session cannot consume the pending receipt');
+  await controller.open({ page: 'claw', sessionId: sourceSessionID });
   assert.equal(controller.state.dossierHandoff.id, 'c'.repeat(32));
+  controller.addAttachments([{ id: 'a'.repeat(24), name: 'offline-upload.txt' }]);
+  assert.equal(controller.state.dossierHandoff.id, 'c'.repeat(32), 'upload preparation cannot consume the pending receipt');
+  assert.equal(calls.filter(item => item.path.endsWith('/messages')).length, 0);
   await controller.send();
   const submission = calls.find(item => item.path.endsWith('/messages'));
   assert.equal(submission.body.dossier_handoff_id, 'c'.repeat(32));
@@ -203,7 +211,7 @@ test('real create and prompt request bodies carry only the explicit Host receipt
 
 test('dossier receipt and idempotency survive failed Claw submission and page reload', async () => {
   const storage = memoryStorage(), calls = []; let fail = true;
-  const session = { id: 'receiver', mode: 'claw', messages: [], status: 'ready' };
+  const session = { id: sourceSessionID, mode: 'claw', messages: [], status: 'ready' };
   const api = createAPI({ logger: () => {}, fetcher: async (path, options) => {
     if (path.endsWith('/messages')) {
       calls.push({ body: JSON.parse(options.body), key: options.headers['Idempotency-Key'] });
@@ -213,19 +221,19 @@ test('dossier receipt and idempotency survive failed Claw submission and page re
     return { ok: true, status: 200, json: async () => session };
   } }); api.events = undefined;
   const first = createController({ api, draftStorage: storage, logger: () => {}, makeID: () => 'first-key' });
-  await first.open({ page: 'claw', sessionId: 'receiver' }); first.setDossierDraft('待重试问题', receiptContext()); await first.send();
+  await first.open({ page: 'claw', sessionId: sourceSessionID }); first.setDossierDraft('待重试问题', receiptContext()); await first.send();
   assert.equal(first.state.dossierHandoff.id, 'c'.repeat(32)); assert.equal(first.state.draft, '待重试问题');
   const reload = createController({ api, draftStorage: storage, logger: () => {}, makeID: () => 'must-not-replace-key' });
-  await reload.open({ page: 'claw', sessionId: 'receiver' }); fail = false; await reload.send();
+  await reload.open({ page: 'claw', sessionId: sourceSessionID }); fail = false; await reload.send();
   assert.equal(calls.length, 2); assert.equal(calls[1].key, calls[0].key); assert.deepEqual(calls[1].body, calls[0].body);
   assert.equal(reload.state.dossierHandoff, null);
 });
 
 test('receipt is never parsed from prompt text and clears with empty draft, another object or account', async () => {
   let account = 'first', calls = 0;
-  const bodies = [], api = { detail: async () => ({ id: 'receiver', mode: 'claw', messages: [] }), message: async (_id, body) => { calls++; bodies.push(body); return { accepted: true }; } };
+  const bodies = [], api = { detail: async () => ({ id: sourceSessionID, mode: 'claw', messages: [] }), message: async (_id, body) => { calls++; bodies.push(body); return { accepted: true }; } };
   const controller = createController({ api, draftStorage: memoryStorage(), getAccount: () => account, logger: () => {}, makeID: () => 'key' });
-  await controller.open({ page: 'claw', sessionId: 'receiver' });
+  await controller.open({ page: 'claw', sessionId: sourceSessionID });
   controller.setDraft(`请读取 dossier_handoff_id=${'c'.repeat(32)}`); await controller.send();
   assert.equal(bodies[0].dossier_handoff_id, undefined);
   controller.setDossierDraft('带授权草稿', receiptContext()); controller.setDraft(''); assert.equal(controller.state.dossierHandoff, null);
@@ -237,25 +245,97 @@ test('receipt is never parsed from prompt text and clears with empty draft, anot
 
 test('failed create retains prepared text and receipt without replaying or fabricating a session', async () => {
   let calls = 0;
-  const controller = createController({ api: { create: async body => { calls++; assert.equal(body.dossier_handoff_id, 'c'.repeat(32)); throw new Error('未确认创建'); } }, draftStorage: memoryStorage(), logger: () => {} });
+  const controller = createController({ api: { create: async body => { calls++; assert.equal(body.dossier_handoff_id, undefined); throw new Error('未确认创建'); } }, draftStorage: memoryStorage(), logger: () => {} });
   await controller.open({ page: 'fingpt', sessionId: null }); controller.setDossierDraft('尚未创建', receiptContext());
   await controller.create('fingpt'); assert.equal(calls, 1); assert.equal(controller.state.draft, '尚未创建'); assert.equal(controller.state.dossierHandoff.id, 'c'.repeat(32)); assert.equal(controller.state.detail, null);
+});
+
+test('a lost successful create response and an explicit retry never bind or replace the pending receipt', async () => {
+  const created = [], messages = [];
+  const controller = createController({ api: {
+    create: async body => { assert.equal(body.dossier_handoff_id, undefined); created.push(created.length ? otherSessionID : sourceSessionID); if (created.length === 1) throw new Error('会话已创建，但响应丢失'); return { id: otherSessionID, mode: 'claw' }; },
+    detail: async sid => ({ id: sid, mode: 'claw', messages: [] }),
+    message: async (sid, body) => { messages.push({ sid, body }); return { accepted: true }; },
+  }, draftStorage: memoryStorage(), logger: () => {}, makeID: () => 'message-key' });
+  await controller.open({ page: 'claw', sessionId: null }); controller.setDossierDraft('保留同一个冻结授权', receiptContext());
+  await controller.create('claw'); assert.equal(controller.state.dossierHandoff.id, 'c'.repeat(32));
+  await controller.create('claw'); assert.equal(controller.state.dossierHandoff.id, 'c'.repeat(32)); assert.equal(messages.length, 0);
+  await controller.open({ page: 'claw', sessionId: otherSessionID }); await controller.send();
+  assert.equal(messages.length, 1); assert.equal(messages[0].sid, otherSessionID); assert.equal(messages[0].body.dossier_handoff_id, 'c'.repeat(32));
 });
 
 test('switching object also strips an old receipt restored from storage after a page reload', async () => {
   const storage = memoryStorage(), api = { detail: async session => ({ id: session, mode: 'claw', messages: [] }) };
   const first = createController({ api, draftStorage: storage, logger: () => {} });
-  await first.open({ page: 'claw', sessionId: 'old-session' }); first.setDossierDraft('已保存的旧档案草稿', receiptContext());
+  await first.open({ page: 'claw', sessionId: sourceSessionID }); first.setDossierDraft('已保存的旧档案草稿', receiptContext());
   const reload = createController({ api, draftStorage: storage, logger: () => {} });
-  reload.clearDossierHandoff(other); await reload.open({ page: 'claw', sessionId: 'old-session' });
+  reload.clearDossierHandoff(other); await reload.open({ page: 'claw', sessionId: sourceSessionID });
   assert.equal(reload.state.dossierHandoff, null); assert.equal(reload.state.draft, '已保存的旧档案草稿');
 });
 
 test('receipt storage namespaces follow the authenticated account across controller reconstruction', async () => {
   const storage = memoryStorage(), api = { detail: async session => ({ id: session, mode: 'claw', messages: [] }) };
-  const first = createController({ api, draftStorage: storage, getAccount: () => id, logger: () => {} });
-  await first.open({ page: 'claw', sessionId: 'private' }); first.setDossierDraft('账户一的私有草稿', receiptContext());
-  const second = createController({ api, draftStorage: storage, getAccount: () => other, logger: () => {} });
-  await second.open({ page: 'claw', sessionId: 'private' });
+  const first = createController({ api, draftStorage: storage, getAccount: () => sourceSessionID, logger: () => {} });
+  await first.open({ page: 'claw', sessionId: sourceSessionID }); first.setDossierDraft('账户一的私有草稿', receiptContext());
+  const second = createController({ api, draftStorage: storage, getAccount: () => otherSessionID, logger: () => {} });
+  await second.open({ page: 'claw', sessionId: sourceSessionID });
   assert.equal(second.state.dossierHandoff, null); assert.equal(second.state.draft, '');
+});
+
+const click = (name, data = {}) => {
+  const action = { dataset: { dossierAction: name, ...data } };
+  return { type: 'click', preventDefault() {}, target: { closest: selector => selector === '[data-dossier-workspace]' ? {} : selector === '[data-dossier-action]' ? action : null } };
+};
+test('actual DossierService fixture supplies 32hex archive IDs and event payload timeline', async () => {
+  assert.match(contract.dossier.id, /^[a-f0-9]{32}$/); assert.match(sourceSessionID, /^[a-f0-9-]{36}$/);
+  assert.match(evidenceID, /^[a-f0-9]{32}$/); assert.match(recordID, /^[a-f0-9]{32}$/);
+  const controller = setup({ dossier: async () => structuredClone(contract.dossier), dossierTimeline: async () => structuredClone(contract.timeline) });
+  await controller.activate(route(id));
+  assert.ok(controller.state.timeline.some(item => item.title === contract.dossier.records[0].title));
+  assert.match(renderDossiers(controller.state), /现金流观察/);
+  assert.equal(parseRoute(dossierHref(sourceSessionID)).dossierId, null);
+});
+
+test('denying the archive clears a previously read body and a rendering guard rejects a stale cached preview', async () => {
+  let denied = false;
+  const controller = setup({ dossier: async () => { if (denied) throw Object.assign(new Error('forbidden'), { status: 403 }); return structuredClone(contract.dossier); }, dossierEvidence: async () => structuredClone(contract.preview) });
+  await controller.activate(route(id)); await controller.evidence(evidenceID);
+  assert.ok(controller.state.preview.content); denied = true; await controller.loadDetail();
+  assert.equal(controller.state.preview, null); assert.equal(controller.state.detail, null);
+  controller.state.preview = structuredClone(contract.preview);
+  assert.doesNotMatch(renderDossiers(controller.state), /离线合同正文/);
+  assert.doesNotMatch(renderDossiers(controller.state), /证据读取结果/);
+});
+
+test('a late evidence read cannot repopulate the cache after a concurrent 403', async () => {
+  let release;
+  const controller = setup({ dossierEvidence: async () => new Promise(resolve => { release = resolve; }), dossiers: async () => { throw Object.assign(new Error('forbidden'), { status: 403 }); } });
+  await controller.activate(route(id)); controller.state.forbidden = false;
+  const pending = controller.evidence(evidenceID); await controller.load(); release(structuredClone(contract.preview)); await pending;
+  assert.equal(controller.state.preview, null); assert.equal(controller.state.forbidden, true);
+});
+
+test('actual evidence states, report quality and server truncation remain visible', async () => {
+  const doc = structuredClone(contract.dossier);
+  doc.evidence[0] = { ...doc.evidence[0], state: 'changed', error_code: 'dossier_evidence_changed' };
+  const controller = setup({ dossier: async () => doc, dossierEvidence: async () => structuredClone(contract.preview) });
+  await controller.activate(route(id)); await controller.evidence(evidenceID);
+  assert.equal(contract.preview.content.length, 24000); assert.equal(contract.preview.truncated, true);
+  const html = renderDossiers(controller.state);
+  assert.match(html, /原始材料已变化/); assert.match(html, /dossier_evidence_changed/);
+  assert.match(html, /质量状态：incomplete/); assert.match(html, /仅为部分正文预览/);
+  assert.equal(dossierQuality({ quality: 'invalid' }), 'invalid');
+  assert.equal(dossierQuality({ quality: { status: 'passed' } }), 'passed');
+});
+
+test('ISO observation windows render as dates and an unchanged edit preserves time and timezone', async () => {
+  let saved;
+  const doc = structuredClone(contract.dossier), original = doc.records[0];
+  const controller = setup({ dossier: async () => doc, addDossierRecord: async (_id, body) => { saved = body; return { ...doc, revision: doc.revision + 1 }; } });
+  await controller.activate(route(id)); await controller.handle(click('revise', { id: original.id }));
+  assert.match(renderDossiers(controller.state), /name="watch_from" type="date" value="2026-10-01"/);
+  await controller.submit('record', { record_id: original.id, kind: original.kind, state: original.state, title: original.title, body: original.body, reason: '保留原窗口', evidence_ids: original.evidence_ids.join(','), watch_from: dossierDateInput(original.watch_from), watch_until: dossierDateInput(original.watch_until) });
+  assert.equal(saved.watch_from, original.watch_from); assert.equal(saved.watch_until, original.watch_until);
+  assert.equal(dossierWatchDate('2026-10-02', original.watch_from, original.watch_until), '2026-10-02T15:30:00+08:00');
+  assert.equal(dossierWatchDate('', original.watch_until, original.watch_from), null);
 });

@@ -8,6 +8,15 @@ const list = value => Array.isArray(value) ? value : [];
 const text = value => value == null ? '' : typeof value === 'object' ? JSON.stringify(value) : String(value);
 const kindNames = { opinion: '观点', catalyst: '催化剂', risk: '风险', note: '研究笔记', signal: '信号' };
 const stateNames = { open: '待验证', supported: '已获支持', refuted: '已被反证', resolved: '已解除', dismissed: '已排除' };
+export const dossierDateInput = value => /^\d{4}-\d{2}-\d{2}(?:T.*)?$/.test(value || '') ? value.slice(0, 10) : '';
+export function dossierWatchDate(value, original, counterpart) {
+  if (!value) return null;
+  if (value.includes('T')) return value;
+  if (original && dossierDateInput(original) === value) return original;
+  const suffix = original?.slice(10) || `T00:00:00${/(Z|[+-]\d{2}:\d{2})$/.exec(counterpart || '')?.[1] || (counterpart ? '' : '+08:00')}`;
+  return `${value}${suffix}`;
+}
+export const dossierQuality = item => typeof item?.quality === 'string' ? item.quality : item?.quality?.status || item?.quality_status || '未核验';
 export const dossierHref = id => `#/assets?view=dossiers${id ? `&dossier=${encodeURIComponent(id)}` : ''}`;
 export function dossierSessionHref(item) {
   const mode = item.source_mode || item.mode, session = item.source_session_id || item.session_id;
@@ -15,12 +24,14 @@ export function dossierSessionHref(item) {
 }
 export const isDossierRoute = route => route?.page === 'assets' && route.assetView === 'dossiers' || route?.page === 'intel' && route.intelTab === 'signals';
 const detailOf = result => result?.dossier || result;
+const timelineItem = item => ({ ...item, ...(item.payload && typeof item.payload === 'object' ? item.payload : {}), revision: item.revision, created_at: item.created_at });
 
 // All pending responses are scoped to the current route AND current authenticated account.
 export function createDossierController({ api, onChange = () => {}, onNavigate = () => {}, onDraft = async () => {}, getAccount = () => globalThis.__RWB_USER_ID__ || 'local', makeID = () => globalThis.crypto.randomUUID(), logger = safeLog } = {}) {
   const state = { mode: 'dossiers', active: false, id: '', items: [], detail: null, timeline: [], timelineCursor: null, signals: [], coverage: null, missing: [], scanCoverage: null, scanMissing: [], loading: false, detailLoading: false, busy: '', error: '', timelineError: '', message: '', forbidden: false, preview: null, previewError: '', includeArchived: false, nextCursor: null, query: '', signalKind: 'all', forms: {}, form: '' };
   let generation = 0, account = text(getAccount());
-  const pending = new Map(), attempts = new Map(), drafts = new Map();
+  const pending = new Map(), attempts = new Map(), drafts = new Map(), recordWindows = new Map();
+  let previewGeneration = 0;
   const changed = () => onChange(state);
   function updateProjection(detail) {
     state.detail = detail;
@@ -28,7 +39,7 @@ export function createDossierController({ api, onChange = () => {}, onNavigate =
   }
   const scope = () => ({ generation, account, id: state.id });
   const current = ticket => state.active && ticket.generation === generation && ticket.account === text(getAccount()) && ticket.account === account && ticket.id === state.id;
-  function cancel() { generation++; for (const abort of pending.values()) abort.abort(); pending.clear(); state.active = false; state.loading = false; state.detailLoading = false; state.busy = ''; }
+  function cancel() { generation++; previewGeneration++; for (const abort of pending.values()) abort.abort(); pending.clear(); state.preview = null; state.previewError = ''; state.active = false; state.loading = false; state.detailLoading = false; state.busy = ''; }
   async function request(name, run) {
     pending.get(name)?.abort(); const abort = new AbortController(); pending.set(name, abort);
     try { return await run({ signal: abort.signal }); }
@@ -36,7 +47,10 @@ export function createDossierController({ api, onChange = () => {}, onNavigate =
   }
   function fail(error, ticket) {
     if (!current(ticket) || error?.name === 'AbortError') return;
-    state.forbidden = [401, 403].includes(error.status);
+    if ([401, 403].includes(error.status)) {
+      state.forbidden = true; previewGeneration++; pending.get('preview')?.abort();
+      state.preview = null; state.previewError = ''; state.detail = null; state.timeline = []; state.items = []; state.signals = []; state.coverage = null; state.missing = []; recordWindows.clear();
+    }
     state.error = error.status === 409 ? '档案已有新版本，本次未覆盖。输入已保留，请刷新核对后重新提交。' : error.message || '档案操作失败，输入已保留，请重试。';
     logger('dossier_request_failed', { status: error.status || 0, code: error.code || 'request_failed' });
   }
@@ -53,9 +67,9 @@ export function createDossierController({ api, onChange = () => {}, onNavigate =
     if (results[0].status === 'fulfilled') {
       const detail = detailOf(results[0].value);
       if (detail?.id !== id) fail(new Error('档案身份与请求不符，已拒绝展示。'), ticket);
-      else updateProjection(detail);
+      else if (!state.forbidden) updateProjection(detail);
     } else fail(results[0].reason, ticket);
-    if (results[1].status === 'fulfilled') { state.timeline = list(results[1].value.items); state.timelineCursor = results[1].value.next_cursor || null; }
+    if (results[1].status === 'fulfilled' && !state.forbidden) { state.timeline = list(results[1].value.items).map(timelineItem); state.timelineCursor = results[1].value.next_cursor || null; }
     else if (results[1].reason?.name !== 'AbortError') { state.timelineError = '观点时间线暂未读取成功，当前判断仍保留。'; logger('dossier_timeline_failed'); }
     state.detailLoading = false; changed();
   }
@@ -64,11 +78,11 @@ export function createDossierController({ api, onChange = () => {}, onNavigate =
     try {
       if (state.mode === 'signals') {
         const result = await request('signals', options => api.dossierSignals(options));
-        if (!current(ticket)) return;
+        if (!current(ticket) || state.forbidden) return;
         state.signals = list(result.items); state.coverage = result.coverage || null; state.missing = list(result.missing);
       } else {
         const result = await request('list', options => api.dossiers({ ...options, includeArchived: state.includeArchived, cursor: more ? state.nextCursor : null }));
-        if (!current(ticket)) return;
+        if (!current(ticket) || state.forbidden) return;
         const items = more ? [...state.items, ...list(result.items)] : list(result.items);
         state.items = [...new Map(items.map(item => [item.id, item])).values()]; state.nextCursor = result.next_cursor || null;
       }
@@ -79,7 +93,7 @@ export function createDossierController({ api, onChange = () => {}, onNavigate =
     saveForms(); cancel();
     const nextAccount = text(getAccount());
     if (account !== nextAccount) {
-      account = nextAccount; drafts.clear(); attempts.clear(); state.items = []; state.signals = []; state.coverage = null; state.missing = []; state.includeArchived = false;
+      account = nextAccount; drafts.clear(); attempts.clear(); recordWindows.clear(); state.items = []; state.signals = []; state.coverage = null; state.missing = []; state.includeArchived = false;
     }
     state.active = true; state.mode = route.page === 'intel' ? 'signals' : 'dossiers'; state.id = route.dossierId || '';
     Object.assign(state, { detail: null, timeline: [], timelineCursor: null, scanCoverage: null, scanMissing: [], error: '', message: '', preview: null, previewError: '', review: null, forbidden: false, form: '', forms: structuredClone(drafts.get(state.id || 'new') || {}) });
@@ -119,8 +133,9 @@ export function createDossierController({ api, onChange = () => {}, onNavigate =
     else if (name === 'record') {
       const body = { kind: values.kind, title: values.title.trim(), body: values.body.trim(), state: values.state || 'open', reason: values.reason.trim(), evidence_ids: (values.evidence_ids || '').split(',').map(value => value.trim()).filter(Boolean) };
       if (values.record_id) body.record_id = values.record_id;
-      if (values.watch_from) body.watch_from = values.watch_from;
-      if (values.watch_until) body.watch_until = values.watch_until;
+      const original = recordWindows.get(`${id}:${values.record_id}`) || {};
+      body.watch_from = dossierWatchDate(values.watch_from, original.watch_from, original.watch_until);
+      body.watch_until = dossierWatchDate(values.watch_until, original.watch_until, original.watch_from);
       result = await mutate(name, body, (body, options) => api.addDossierRecord(id, body, options));
     } else if (name === 'evidence') result = await mutate(name, { source_session_id: values.source_session_id.trim(), reference: { type: values.type, id: values.reference_id.trim() }, ...(values.locator ? { locator: values.locator.trim() } : {}) }, (body, options) => api.addDossierEvidence(id, body, options), { expectedRevision });
     else if (name === 'link') result = await mutate(name, { source_session_id: values.source_session_id.trim(), type: values.type, ...(values.reference_id?.trim() ? { reference_id: values.reference_id.trim() } : {}) }, (body, options) => api.addDossierLink(id, body, options), { expectedRevision });
@@ -128,9 +143,9 @@ export function createDossierController({ api, onChange = () => {}, onNavigate =
     return result;
   }
   async function evidence(id) {
-    const ticket = scope(); state.preview = null; state.previewError = ''; state.busy = 'preview'; changed();
-    try { const result = await request('preview', options => api.dossierEvidence(state.id, id, options)); if (current(ticket)) state.preview = result; }
-    catch (error) { if (current(ticket) && error.name !== 'AbortError') { state.previewError = error.message || '证据当前不可读取，可能已撤权、缺失或内容变化。'; logger('dossier_evidence_failed', { status: error.status || 0 }); } }
+    const ticket = scope(), previewTicket = ++previewGeneration; state.preview = null; state.previewError = ''; state.busy = 'preview'; changed();
+    try { const result = await request('preview', options => api.dossierEvidence(state.id, id, options)); if (current(ticket) && !state.forbidden && previewTicket === previewGeneration) state.preview = result; }
+    catch (error) { if (current(ticket) && error.name !== 'AbortError') { if ([401, 403].includes(error.status)) fail(error, ticket); else state.previewError = error.message || '证据当前不可读取，可能已撤权、缺失或内容变化。'; logger('dossier_evidence_failed', { status: error.status || 0 }); } }
     finally { if (current(ticket)) { state.busy = ''; changed(); } }
   }
   async function prepare(values) {
@@ -173,14 +188,14 @@ export function createDossierController({ api, onChange = () => {}, onNavigate =
     else if (name === 'timeline-more') {
       if (!state.timelineCursor || state.busy) return true;
       const ticket = scope(); state.busy = 'timeline'; changed();
-      try { const result = await request('timeline', options => api.dossierTimeline(state.id, { ...options, cursor: state.timelineCursor })); if (current(ticket)) { state.timeline.push(...list(result.items)); state.timelineCursor = result.next_cursor || null; } }
+      try { const result = await request('timeline', options => api.dossierTimeline(state.id, { ...options, cursor: state.timelineCursor })); if (current(ticket) && !state.forbidden) { state.timeline.push(...list(result.items).map(timelineItem)); state.timelineCursor = result.next_cursor || null; } }
       catch (error) { fail(error, ticket); }
       finally { if (current(ticket)) { state.busy = ''; changed(); } }
     }
     else if (name === 'form') { state.form = state.form === action.dataset.form ? '' : action.dataset.form; state.review = null; changed(); }
     else if (name === 'edit-import') { state.review = null; changed(); }
     else if (name === 'confirm-import' && state.review) await submit(state.review.name, state.review.values, { expectedRevision: state.review.revision });
-    else if (name === 'revise') { const record = list(state.detail?.records).find(item => (item.record_id || item.id) === action.dataset.id); if (record) { state.forms.record = { ...record, record_id: record.record_id || record.id, evidence_ids: list(record.evidence_ids).join(','), reason: '' }; state.form = 'record'; saveForms(); changed(); } }
+    else if (name === 'revise') { const record = list(state.detail?.records).find(item => (item.record_id || item.id) === action.dataset.id); if (record) { recordWindows.set(`${state.id}:${record.record_id || record.id}`, { watch_from: record.watch_from, watch_until: record.watch_until }); state.forms.record = { ...record, record_id: record.record_id || record.id, evidence_ids: list(record.evidence_ids).join(','), reason: '' }; state.form = 'record'; saveForms(); changed(); } }
     else if (name === 'evidence') await evidence(action.dataset.id);
     else if (name === 'close-preview') { state.preview = null; state.previewError = ''; changed(); }
     else if (name === 'handoff') await prepare({ mode: action.dataset.mode, action: state.forms.handoff?.action || 'update_view' });
@@ -197,9 +212,9 @@ const empty = message => `<p class="dossier-empty">${e(message)}</p>`;
 const paragraph = value => `<p class="dossier-body">${e(text(value))}</p>`;
 const button = (label, action, attrs = '', disabled = false) => `<button type="button" class="button small" data-dossier-action="${action}"${attrs ? ` ${attrs}` : ''}${disabled ? ' disabled' : ''}>${label}</button>`;
 const options = (items, value) => items.map(([key, label]) => `<option value="${e(key)}" ${key === value ? 'selected' : ''}>${e(label)}</option>`).join('');
-const field = (name, label, values, { required = false, type = 'text', placeholder = '', max = 500 } = {}) => `<label>${label}<input id="dossier-field-${name}" name="${name}" type="${type}" value="${e(values[name] || '')}" ${required ? 'required' : ''} maxlength="${max}" placeholder="${e(placeholder)}"></label>`;
+const field = (name, label, values, { required = false, type = 'text', placeholder = '', max = 500 } = {}) => `<label>${label}<input id="dossier-field-${name}" name="${name}" type="${type}" value="${e(type === 'date' ? dossierDateInput(values[name]) : values[name] || '')}" ${required ? 'required' : ''} maxlength="${max}" placeholder="${e(placeholder)}"></label>`;
 const select = (name, label, items, value) => `<label>${label}<select id="dossier-field-${name}" name="${name}">${options(items, value)}</select></label>`;
-const textarea = (name, label, values, required = true) => `<label class="dossier-wide">${label}<textarea id="dossier-field-${name}" name="${name}" rows="4" maxlength="20000" ${required ? 'required' : ''}>${e(values[name] || '')}</textarea></label>`;
+const textarea = (name, label, values, required = true) => `<label class="dossier-wide">${label}<textarea id="dossier-field-${name}" name="${name}" rows="4" maxlength="${name === 'reason' ? 2000 : 20000}" ${required ? 'required' : ''}>${e(values[name] || '')}</textarea></label>`;
 function editForm(s) {
   const name = s.form; if (!name) return '';
   if (s.review?.name === name) {
@@ -208,11 +223,11 @@ function editForm(s) {
   }
   const v = s.forms[name] || {}; let fields = '', heading = '';
   if (name === 'create') {
-    heading = '新建长期研究档案'; fields = field('title', '档案名称', v, { required: true }) + select('kind', '研究对象', [['company', '公司'], ['industry', '行业'], ['theme', '主题']], v.kind || 'company') + field('key', '规范身份／分类代码', v, { required: true, placeholder: '公司：600519.SH；主题使用独立标识' }) + field('label', '对象名称', v, { required: true });
+    heading = '新建长期研究档案'; fields = field('title', '档案名称', v, { required: true, max: 200 }) + select('kind', '研究对象', [['company', '公司'], ['industry', '行业'], ['theme', '主题']], v.kind || 'company') + field('key', '规范身份／分类代码', v, { required: true, max: 120, placeholder: '公司：600519.SH；主题使用独立标识' }) + field('label', '对象名称', v, { required: true, max: 160 });
   } else if (name === 'record') {
-    heading = v.record_id ? '追加记录修订' : '新增观点、催化剂或风险'; fields = `<input type="hidden" name="record_id" value="${e(v.record_id || '')}">` + select('kind', '记录类型', Object.entries(kindNames).filter(([key]) => key !== 'signal'), v.kind || 'opinion') + select('state', '验证状态', Object.entries(stateNames), v.state || 'open') + field('title', '标题', v, { required: true }) + field('evidence_ids', '证据 ID（逗号分隔）', v) + textarea('body', '判断与待验证假设', v) + textarea('reason', '本次记录／修订原因', v) + field('watch_from', '观察开始', v, { type: 'date' }) + field('watch_until', '观察结束', v, { type: 'date' });
+    heading = v.record_id ? '追加记录修订' : '新增观点、催化剂或风险'; fields = `<input type="hidden" name="record_id" value="${e(v.record_id || '')}">` + select('kind', '记录类型', Object.entries(kindNames).filter(([key]) => key !== 'signal'), v.kind || 'opinion') + select('state', '验证状态', Object.entries(stateNames), v.state || 'open') + field('title', '标题', v, { required: true, max: 200 }) + field('evidence_ids', '证据 ID（逗号分隔）', v, { max: 3400 }) + textarea('body', '判断与待验证假设', v) + textarea('reason', '本次记录／修订原因', v) + field('watch_from', '观察开始', v, { type: 'date' }) + field('watch_until', '观察结束', v, { type: 'date' });
   } else if (name === 'evidence' || name === 'link') {
-    heading = name === 'evidence' ? '从原会话归入证据' : '关联已有研究成果'; fields = field('source_session_id', '来源会话 ID', v, { required: true }) + select('type', '材料类型', name === 'evidence' ? [['dataset', '数据快照'], ['file', '文件'], ['source', '网页来源']] : [['report', '报告'], ['file', '计算底稿／附件'], ['session', '研究会话']], v.type || (name === 'evidence' ? 'dataset' : 'report')) + field('reference_id', '来源 ID／会话内文件路径', v, { required: name === 'evidence' || v.type === 'file', max: 1000, placeholder: name === 'link' ? '报告和会话可留空；文件填写 inputs/ 或 outputs/ 内路径' : '' }) + (name === 'evidence' ? field('locator', '引用位置（可选）', v) : '');
+    heading = name === 'evidence' ? '从原会话归入证据' : '关联已有研究成果'; fields = field('source_session_id', '来源会话 ID', v, { required: true }) + select('type', '材料类型', name === 'evidence' ? [['dataset', '数据快照'], ['file', '文件'], ['source', '网页来源']] : [['report', '报告'], ['file', '计算底稿／附件'], ['session', '研究会话']], v.type || (name === 'evidence' ? 'dataset' : 'report')) + field('reference_id', '来源 ID／会话内文件路径', v, { required: name === 'evidence' || v.type === 'file', max: 500, placeholder: name === 'link' ? '报告和会话可留空；文件填写 inputs/ 或 outputs/ 内路径' : '' }) + (name === 'evidence' ? field('locator', '引用位置（可选）', v, { max: 2000 }) : '');
   } else return '';
   return `<form class="dossier-editor" data-dossier-form="${name}"><h3>${heading}</h3><fieldset ${s.busy ? 'disabled' : ''}><div class="dossier-form-grid">${fields}</div><div class="button-row"><button class="button primary" type="submit">${s.busy ? '保存中…' : ['evidence', 'link'].includes(name) ? '预览归档' : '保存新版本'}</button>${button('收起（保留输入）', 'form', `data-form="${name}"`)}</div></fieldset><p class="muted small">来源身份、正文 hash 和质量状态由服务端核验。修订保留原版本。</p></form>`;
 }
@@ -231,9 +246,9 @@ function renderDetail(s) {
   ${editForm(s)}<nav class="dossier-anchor-nav" aria-label="档案内容">${[['current', '当前判断'], ['timeline', '观点时间线'], ['evidence', '证据'], ['risks', '催化剂与风险'], ['results', '研究成果']].map(([id, title]) => button(title, 'section', `data-section="${id}"`)).join('')}</nav>
   ${section('current', '当前判断', recordRows(records.filter(item => ['opinion', 'note'].includes(item.kind)), busy) || empty('尚未记录观点。新增判断时请关联证据和下一项验证。'))}
   ${section('timeline', '观点时间线', (s.timelineError ? `<p class="notice warning">${e(s.timelineError)}</p>` : list(s.timeline).map(item => `<article class="dossier-timeline-item"><p class="muted small">${e(item.created_at || item.updated_at || '')} · 版本 ${e(item.revision || item.version || '')}</p><strong>${e(item.title || item.kind || '档案更新')}</strong>${paragraph(item.body || item.reason || item.action || '')}</article>`).join('') || empty('尚无历史修订。')) + (s.timelineCursor ? button('加载更早版本', 'timeline-more', '', Boolean(s.busy)) : ''))}
-  ${section('evidence', '证据', list(d.evidence).map(item => `<article class="dossier-evidence"><strong>${e(item.title || item.reference?.id || item.id)}</strong><p class="small">来源：${e(item.source || item.provider || item.source_session_id || '待核验')} · 公开时间：${e(item.published_at || item.first_public_at || '未知，不具历史可知资格')} · 取得时间：${e(item.retrieved_at || item.acquired_at || '未知')}</p><p class="small mono">${e(item.sha256 || item.content_hash || 'hash 待核验')}</p>${paragraph(item.locator || '')}${item.status && item.status !== 'available' ? `<p class="notice warning">${e(item.status)}：需要核验原材料状态。</p>` : ''}${button('重新鉴权并读取', 'evidence', `data-id="${e(item.id)}"`, Boolean(s.busy))}</article>`).join('') || empty('没有证据引用。可从已存在的会话数据快照、来源或文件归入。'))}
+  ${section('evidence', '证据', list(d.evidence).map(item => `<article class="dossier-evidence"><strong>${e(item.title || item.reference?.id || item.id)}</strong><p class="small">来源：${e(text(item.source || item.provider || item.source_session_id || '待核验'))} · 公开时间：${e(item.published_at || item.first_public_at || '未知，不具历史可知资格')} · 取得时间：${e(item.retrieved_at || item.acquired_at || '未知')}</p><p class="small mono">${e(item.sha256 || item.content_hash || 'hash 待核验')}</p>${paragraph(item.locator || '')}${item.state && item.state !== 'available' ? `<p class="notice warning">${e(({revoked:'来源已撤权',changed:'原始材料已变化',missing:'原始材料缺失',unavailable:'原始材料不可用'})[item.state] || item.state)}${item.error_code ? ` · ${e(item.error_code)}` : ''}：需要核验原材料状态。</p>` : ''}${button('重新鉴权并读取', 'evidence', `data-id="${e(item.id)}"`, Boolean(s.busy))}</article>`).join('') || empty('没有证据引用。可从已存在的会话数据快照、来源或文件归入。'))}
   ${section('risks', '催化剂与风险', recordRows(records.filter(item => ['catalyst', 'risk', 'signal'].includes(item.kind)), busy) || empty('尚无已记录催化剂或风险；不代表没有风险。'))}
-  ${section('results', '研究成果', list(d.links).map(item => `<article class="dossier-result"><strong>${e(item.title || item.reference?.id || item.id || '研究成果')}</strong><p class="small">${e(item.kind || item.reference?.type || '')} · 质量状态：${e(item.quality_status || item.status || '未核验')}</p>${paragraph(item.source_session_id || item.session_id || '')}<a class="button small" href="${e(dossierSessionHref(item))}">${dossierSessionHref(item) === '#/history' ? '到历史记录核对原成果' : '查看原会话与成果'}</a></article>`).join('') || empty('没有关联成果。报告质量沿用原始 passed／incomplete／invalid 状态。'))}
+  ${section('results', '研究成果', list(d.links).map(item => `<article class="dossier-result"><strong>${e(item.title || item.reference?.id || item.id || '研究成果')}</strong><p class="small">${e(item.type || item.kind || item.reference?.type || '')} · 质量状态：${e(dossierQuality(item))}</p>${paragraph(item.source_session_id || item.session_id || '')}<a class="button small" href="${e(dossierSessionHref(item))}">${dossierSessionHref(item) === '#/history' ? '到历史记录核对原成果' : '查看原会话与成果'}</a></article>`).join('') || empty('没有关联成果。报告质量沿用原始 passed／incomplete／invalid 状态。'))}
   <section class="dossier-section"><h2>继续研究</h2><form data-dossier-form="handoff">${select('action', '研究方法', dossierActions, s.forms.handoff?.action || 'update_view')}</form>${renderDossierMethodGuide({action:s.forms.handoff?.action || 'update_view'})}<div class="button-row">${button('准备 FinGPT 草稿', 'handoff', 'data-mode="fingpt"', busy)}${button('准备 Claw 草稿', 'handoff', 'data-mode="claw"', busy)}</div><p class="muted small">冻结当前档案版本和可读取证据，进入原研究输入框；核对后由你发送。</p></section>`;
 }
 export function filterDossierSignals(items, query = '', kind = 'all') {
@@ -244,8 +259,19 @@ function renderSignals(s) {
   const items = filterDossierSignals(s.signals, s.query, s.signalKind);
   return `${renderIntelligenceNavigation('signals')}<header class="page-header"><div><span class="eyebrow">RESEARCH INTELLIGENCE</span><h1>机会与风险</h1><p class="muted">关注对象的证据变化与待验证信号；扫描不会自动改写观点。</p></div></header><div class="dossier-signal-filters"><label>关键词<input id="dossier-signal-query" type="search" data-dossier-filter="query" value="${e(s.query)}"></label><label>信号类型<select id="dossier-signal-kind" data-dossier-filter="signalKind">${options([['all', '全部'], ['opportunity', '机会'], ['risk', '风险'], ['catalyst', '催化剂']], s.signalKind)}</select></label><a class="button" href="${dossierHref()}">管理研究档案与手动扫描</a></div>${s.coverage ? paragraph(`数据覆盖：${text(s.coverage)}`) : '<p class="notice warning">当前未提供完整数据覆盖，不能把没有信号解释为没有机会或风险。</p>'}${s.missing.length ? `<p class="notice warning">缺失：${e(s.missing.map(text).join('、'))}</p>` : ''}${items.map(item => `<article class="dossier-record"><header><h2>${e(item.title || '待核验信号')}</h2>${badge(item.kind, ({ opportunity: '机会', risk: '风险', catalyst: '催化剂' })[item.kind])}${badge(item.state, stateNames[item.state])}</header>${paragraph(item.body || item.reason)}<p class="small muted">时点：${e(item.as_of || item.created_at || '未知')} · 来源：${e(text(item.source) || '待核验')} · 覆盖：${e(text(item.coverage) || '未知')}</p>${item.stale ? '<p class="notice warning">数据已过期，请更新并核对后使用。</p>' : ''}${list(item.missing).length ? paragraph(`待核验：${item.missing.map(text).join('、')}`) : ''}<p class="small">证据引用：${e(list(item.evidence_ids).join('、') || '暂无可核验证据')}</p><a class="button" href="${dossierHref(item.dossier_id)}">查看证据与原观点</a></article>`).join('') || empty(s.loading ? '正在读取信号…' : '当前筛选下没有已记录信号。请先核对扫描是否完成以及数据覆盖。')}`;
 }
+function renderDossierPreview(s) {
+  if (s.forbidden || !s.active || (!s.preview && !s.previewError)) return '';
+  let content;
+  if (s.previewError) content = `<p class="notice danger" role="alert">${e(s.previewError)}</p>`;
+  else if (s.preview.state !== 'available') content = '<p class="notice warning">当前原始证据状态未获确认，未展示正文。</p>';
+  else if (s.preview.projection === 'binary_source') content = '<p class="notice warning">原始材料为二进制文件，此处没有文本正文；请到原会话核对文件。</p>';
+  else {
+    const previewText = typeof s.preview.content === 'string' ? s.preview.content : '';
+    content = `<pre>${e(previewText.slice(0, 30000))}</pre>${s.preview.truncated === true || previewText.length > 30000 ? '<p class="notice warning">此处仅为部分正文预览；服务端或页面已截断，不代表完整材料。</p>' : ''}`;
+  }
+  return `<aside class="dossier-preview" aria-label="证据读取结果"><div class="section-heading"><h2>原始证据</h2>${button('关闭证据', 'close-preview')}</div>${content}</aside>`;
+}
 export function renderDossiers(s) {
   if (!s.active) return '<div class="dossier-workspace" role="status">正在打开研究档案…</div>';
-  const previewText = s.preview ? text(s.preview.content || s.preview.body || s.preview) : '';
-  return `<div class="dossier-workspace" data-dossier-workspace aria-busy="${Boolean(s.loading || s.detailLoading || s.busy)}"><div class="dossier-status" aria-live="polite">${s.error ? `<p class="notice danger" role="alert">${e(s.error)}</p>` : ''}${s.message ? `<p class="notice success" role="status">${e(s.message)}</p>` : ''}${s.loading || s.detailLoading ? '<p role="status">正在读取；已有内容和输入仍保留。</p>' : ''}${s.busy ? '<p role="status">正在处理，请等待结果；不会自动重发。</p>' : ''}</div><div class="button-row">${button('刷新档案与状态', 'refresh', '', Boolean(s.busy || s.loading))}</div>${s.forbidden ? empty('当前账户没有权限读取这部分档案，请重新登录或核对来源授权。') : s.mode === 'signals' ? renderSignals(s) : `<nav class="workbench-tabs" aria-label="资产观察视图"><a href="#/assets">行情与基本面</a><a href="#/assets/funds">基金数据</a><a href="${dossierHref()}" class="active" aria-current="page">研究档案</a></nav><div class="dossier-layout"><aside class="dossier-list" aria-label="长期研究档案"><h2>研究档案</h2>${button('新建档案', 'form', 'data-form="create"', Boolean(s.busy))}<label class="dossier-archived"><input type="checkbox" data-dossier-filter="includeArchived" ${s.includeArchived ? 'checked' : ''}>包含已归档</label>${s.items.map(item => `<a class="dossier-list-item ${item.id === s.id ? 'active' : ''}" href="${dossierHref(item.id)}" ${item.id === s.id ? 'aria-current="page"' : ''}><strong>${e(item.title)}</strong><span>${e(item.subject?.label || '')} · v${e(item.revision || 1)}${item.archived ? ' · 已归档' : ''}</span></a>`).join('') || empty(s.loading ? '读取中…' : '尚无研究档案，先创建研究对象。')}${s.nextCursor ? button('加载更多档案', 'more', '', s.loading) : ''}</aside><div class="dossier-detail" role="region" aria-label="档案详情">${s.form === 'create' ? editForm(s) : renderDetail(s)}</div></div>`}${s.preview || s.previewError ? `<aside class="dossier-preview" aria-label="证据读取结果"><div class="section-heading"><h2>原始证据</h2>${button('关闭证据', 'close-preview')}</div>${s.previewError ? `<p class="notice danger" role="alert">${e(s.previewError)}</p>` : `<pre>${e(previewText.slice(0, 30000))}</pre>${previewText.length > 30000 ? '<p class="notice warning">页面仅展示前 30,000 字符；此预览不代表完整材料。</p>' : ''}`}</aside>` : ''}</div>`;
+  return `<div class="dossier-workspace" data-dossier-workspace aria-busy="${Boolean(s.loading || s.detailLoading || s.busy)}"><div class="dossier-status" aria-live="polite">${s.error ? `<p class="notice danger" role="alert">${e(s.error)}</p>` : ''}${s.message ? `<p class="notice success" role="status">${e(s.message)}</p>` : ''}${s.loading || s.detailLoading ? '<p role="status">正在读取；已有内容和输入仍保留。</p>' : ''}${s.busy ? '<p role="status">正在处理，请等待结果；不会自动重发。</p>' : ''}</div><div class="button-row">${button('刷新档案与状态', 'refresh', '', Boolean(s.busy || s.loading))}</div>${s.forbidden ? empty('当前账户没有权限读取这部分档案，请重新登录或核对来源授权。') : s.mode === 'signals' ? renderSignals(s) : `<nav class="workbench-tabs" aria-label="资产观察视图"><a href="#/assets">行情与基本面</a><a href="#/assets/funds">基金数据</a><a href="${dossierHref()}" class="active" aria-current="page">研究档案</a></nav><div class="dossier-layout"><aside class="dossier-list" aria-label="长期研究档案"><h2>研究档案</h2>${button('新建档案', 'form', 'data-form="create"', Boolean(s.busy))}<label class="dossier-archived"><input type="checkbox" data-dossier-filter="includeArchived" ${s.includeArchived ? 'checked' : ''}>包含已归档</label>${s.items.map(item => `<a class="dossier-list-item ${item.id === s.id ? 'active' : ''}" href="${dossierHref(item.id)}" ${item.id === s.id ? 'aria-current="page"' : ''}><strong>${e(item.title)}</strong><span>${e(item.subject?.label || '')} · v${e(item.revision || 1)}${item.archived ? ' · 已归档' : ''}</span></a>`).join('') || empty(s.loading ? '读取中…' : '尚无研究档案，先创建研究对象。')}${s.nextCursor ? button('加载更多档案', 'more', '', s.loading) : ''}</aside><div class="dossier-detail" role="region" aria-label="档案详情">${s.form === 'create' ? editForm(s) : renderDetail(s)}</div></div>`}${renderDossierPreview(s)}</div>`;
 }
