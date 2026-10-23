@@ -117,6 +117,7 @@ jobs:
             tests/research_web/test_research_report_binding.py \
             tests/research_web/test_session_search.py \
             tests/research_web/test_integration_coordinator.py \
+            tests/research_web/test_connection_center.py \
             tests/research_web/test_asset_workspace.py \
             tests/research_web/test_asset_history.py \
             tests/research_web/test_asset_chip_inputs.py \
@@ -150,6 +151,8 @@ jobs:
             tests/research_web/test_quantapi_authorization.py \
             tests/research_web/test_datahub_numeric_sources.py \
             tests/research_web/test_datahub_official_numeric.py \
+            tests/research_web/test_datahub_bea_archive.py \
+            tests/research_web/test_datahub_financial_time_contract.py \
             tests/research_web/test_datahub_execution_health.py \
             tests/research_web/test_warehouse_diagnostics.py \
             tests/research_web/test_market_store.py \
