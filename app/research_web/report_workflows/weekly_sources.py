@@ -12,6 +12,7 @@ from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path, PurePosixPath
 from urllib.parse import urlsplit
+from xml.etree import ElementTree
 from zipfile import ZipFile
 from zoneinfo import ZoneInfo
 
@@ -403,7 +404,7 @@ def load_run_source_contract(run_root, manifest) -> tuple[dict, str]:
     try:
         value = json.loads(raw)
         excel_mode = (
-            value.get("schema_version") in (2, 3) and value.get("data_source") == "wind_excel"
+            value.get("schema_version") in (2, 3, 4) and value.get("data_source") == "wind_excel"
         )
         expected = {
             "schema_version",
@@ -414,10 +415,12 @@ def load_run_source_contract(run_root, manifest) -> tuple[dict, str]:
         }
         if excel_mode:
             expected |= {"data_source", "excel_exports"}
+        if value.get("schema_version") == 4:
+            expected.add("history_supplement")
         if set(value) != expected:
             raise ValueError("contract_fields")
         if (
-            value.get("schema_version") not in ((2, 3) if excel_mode else (1,))
+            value.get("schema_version") not in ((2, 3, 4) if excel_mode else (1,))
             or value.get("mapping_sha256") != MAPPING_SHA256
         ):
             raise ValueError("identity")
@@ -430,13 +433,13 @@ def load_run_source_contract(run_root, manifest) -> tuple[dict, str]:
         if set(value.get("calendars", {})) != set(markets):
             raise ValueError("calendar_coverage")
         if (
-            value["schema_version"] == 3
+            value["schema_version"] in (3, 4)
             and value["calendars"]["IN"].get("calendar_source") != "exchange_calendar"
         ):
             raise ValueError("india_calendar_missing")
         for market, calendar in value["calendars"].items():
             if calendar.get("calendar_source") == "exchange_calendar":
-                if value["schema_version"] != 3 or not excel_mode:
+                if value["schema_version"] not in (3, 4) or not excel_mode:
                     raise ValueError("india_calendar_schema")
                 _india_calendar_identity(calendar, market)
                 evidence = _resource(run_root, manifest, calendar["evidence_path"], immutable=True)
@@ -469,6 +472,18 @@ def load_run_source_contract(run_root, manifest) -> tuple[dict, str]:
                 if not re.fullmatch(r"(?:[01][0-9]|2[0-3]):[0-5][0-9]", close):
                     raise ValueError("calendar_override")
         if excel_mode:
+            if value["schema_version"] == 4:
+                supplement = value["history_supplement"]
+                if set(supplement) != {"path", "sha256"} or not _HASH.fullmatch(
+                    str(supplement["sha256"])
+                ):
+                    raise ValueError("gold_supplement_identity")
+                payload = _resource(run_root, manifest, supplement["path"], immutable=True)
+                if (
+                    len(payload) > 2 * 1024 * 1024
+                    or hashlib.sha256(payload).hexdigest() != supplement["sha256"]
+                ):
+                    raise ValueError("gold_supplement_hash")
             reviewed = _resource(run_root, manifest, proof["evidence_path"], immutable=True)
             if hashlib.sha256(reviewed).hexdigest() != proof["evidence_sha256"]:
                 raise ValueError("review_resource_hash")
@@ -579,6 +594,299 @@ def load_run_source_contract(run_root, manifest) -> tuple[dict, str]:
             "周报数据源合同未核实", "weekly_source_contract_unverified", 409
         ) from exc
     return value, hashlib.sha256(raw).hexdigest()
+
+
+def _gold_formula(start, end):
+    return f'=wsd("SPTAUUSDOZ.IDC","close","{start}","{end}","Period=D","PriceAdj=U","Days=Trading","Fill=Blank","TradingCalendar=IDC")'
+
+
+def _gold_number(value):
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise TypeError("gold_number_type")
+    number = Decimal(str(value))
+    if not number.is_finite() or number <= 0:
+        raise ValueError("gold_number_invalid")
+    return number
+
+
+def _gold_day(value):
+    if isinstance(value, datetime):
+        if value.time() != datetime.min.time() or value.tzinfo is not None:
+            raise ValueError("gold_date_time")
+        return value.date().isoformat()
+    if isinstance(value, date):
+        return value.isoformat()
+    if not isinstance(value, str) or not re.fullmatch(
+        r"20[0-9]{2}-[0-9]{2}-[0-9]{2}(?: 00:00:00)?", value
+    ):
+        raise ValueError("gold_date_invalid")
+    return date.fromisoformat(value[:10]).isoformat()
+
+
+def read_gold_history_supplement(run_root, manifest, source, contract, completed):
+    """Replay frozen native responses; repair exactly one empty EDB cell, read-only."""
+    from ..datahub.providers_wind_excel_weekly import _sheet_rows, _workbook
+
+    try:
+        if source.get("schema_version") != 4 or source.get("data_source") != "wind_excel":
+            raise ValueError("gold_schema")
+        binding = source["history_supplement"]
+        raw = _resource(run_root, manifest, binding["path"], immutable=True)
+        if len(raw) > 2 * 1024 * 1024 or hashlib.sha256(raw).hexdigest() != binding["sha256"]:
+            raise ValueError("gold_resource_hash")
+        proof = json.loads(raw)
+        identity = {
+            "schema_version": 1,
+            "source": "wind_excel",
+            "series_id": "history_gold_london",
+            "unit": "USD/ounce",
+            "currency": "USD",
+            "period_end": "2026-10-23",
+            "coverage_start": "2017-01-01",
+            "coverage_end": "2026-10-22",
+        }
+        if set(proof) != set(identity) | {
+            "original_edb_sha256",
+            "observed_at",
+            "history_requests",
+            "calendar_requests",
+            "recheck",
+        } or any(proof[key] != item for key, item in identity.items()):
+            raise ValueError("gold_identity")
+        observed = datetime.fromisoformat(proof["observed_at"])
+        if (
+            contract["period_end"] != proof["period_end"]
+            or observed.tzinfo is None
+            or observed > datetime.now(UTC)
+        ):
+            raise ValueError("gold_period_or_time")
+        calendar = source["calendars"]["LONDON_GOLD"]
+        if calendar.get("wind_calendar") != "IDC" or calendar.get("semantics_verified") is not True:
+            raise ValueError("gold_calendar_identity")
+        native_dates, prices = [], {}
+        for kind, end in (("calendar", proof["coverage_end"]), ("history", proof["coverage_end"])):
+            requests = proof[kind + "_requests"]
+            if not isinstance(requests, list) or len(requests) != 10:
+                raise ValueError("gold_request_count")
+            cursor, last = date(2017, 1, 1), date.fromisoformat(end)
+            for request in requests:
+                finish = min(cursor + timedelta(days=365), last)
+                start, stop = cursor.isoformat(), finish.isoformat()
+                field = "raw_rows"
+                formula = (
+                    f'=tdays("{start}","{stop}","TradingCalendar=IDC")'
+                    if kind == "calendar"
+                    else _gold_formula(start, stop)
+                )
+                if set(request) != {"formula", field} or request["formula"] != formula:
+                    raise ValueError("gold_request_identity")
+                rows = request[field]
+                if not isinstance(rows, list) or not rows or len(rows) > 1000:
+                    raise ValueError("gold_response_shape")
+                chunk = []
+                for row in rows:
+                    if not isinstance(row, list) or len(row) != (1 if kind == "calendar" else 2):
+                        raise ValueError("gold_response_shape")
+                    day = _gold_day(row[0])
+                    if not start <= day <= stop:
+                        raise ValueError("gold_response_range")
+                    chunk.append(day)
+                    if kind == "history":
+                        if day in prices:
+                            raise ValueError("gold_duplicate_date")
+                        prices[day] = _gold_number(row[1])
+                if chunk != sorted(set(chunk)):
+                    raise ValueError("gold_response_order")
+                if kind == "calendar":
+                    native_dates.extend(chunk)
+                cursor = finish + timedelta(days=1)
+            if cursor != last + timedelta(days=1):
+                raise ValueError("gold_request_coverage")
+        cutoff = datetime.fromisoformat(contract["cutoff"])
+        native_completed = []
+        for day in native_dates:
+            supplied = calendar.get("session_closes", {}).get(day)
+            if supplied is None:
+                close_time = calendar.get("session_overrides", {}).get(day, calendar["close_time"])
+                supplied = datetime.combine(
+                    date.fromisoformat(day) + timedelta(days=calendar.get("close_day_offset", 0)),
+                    datetime.strptime(close_time, "%H:%M").time(),
+                    ZoneInfo(calendar["timezone"]),
+                ).isoformat()
+            close = datetime.fromisoformat(supplied)
+            if close.tzinfo is None:
+                raise ValueError("gold_close_unknown")
+            if close <= cutoff:
+                native_completed.append(day)
+        if (
+            native_completed != completed
+            or not completed
+            or completed[-1] != "2026-10-22"
+            or list(prices) != completed
+        ):
+            raise ValueError("gold_calendar_coverage")
+        recheck = proof["recheck"]
+        if (
+            set(recheck) != {"formula", "rows"}
+            or recheck["formula"] != _gold_formula("2017-01-30", "2017-01-30")
+            or not isinstance(recheck["rows"], list)
+            or len(recheck["rows"]) != 1
+        ):
+            raise ValueError("gold_recheck_identity")
+        row = recheck["rows"][0]
+        if (
+            not isinstance(row, list)
+            or len(row) != 2
+            or _gold_day(row[0]) != "2017-01-30"
+            or _gold_number(row[1]) != prices["2017-01-30"]
+        ):
+            raise ValueError("gold_recheck_value")
+        export = source["excel_exports"]["edb"]
+        edb = _resource(run_root, manifest, export["path"], immutable=True)
+        if (
+            hashlib.sha256(edb).hexdigest() != export["sha256"]
+            or export["sha256"] != proof["original_edb_sha256"]
+        ):
+            raise ValueError("gold_edb_hash")
+        book = _workbook(edb)
+        try:
+            with ZipFile(io.BytesIO(edb)) as package:
+                for name in package.namelist():
+                    if (
+                        name.startswith("xl/worksheets/")
+                        and name.endswith(".xml")
+                        and any(
+                            node.tag.rsplit("}", 1)[-1] == "f"
+                            for node in ElementTree.fromstring(package.read(name)).iter()
+                        )
+                    ):
+                        raise ValueError("gold_edb_formula")
+            rows = _sheet_rows(book, export["sheet"])
+        finally:
+            book.close()
+        if len(rows) < 9 or rows[4][0] != "指标ID" or rows[3][0] != "单位":
+            raise ValueError("gold_edb_metadata")
+        columns = [index for index, value in enumerate(rows[4]) if value == "S0270980"]
+        if len(columns) != 1 or rows[3][columns[0]] not in {"USD/盎司", "美元/盎司"}:
+            raise ValueError("gold_edb_identity")
+        values, missing, seen = {}, [], set()
+        for row_index, row in enumerate(rows[8:], start=8):
+            if not row or row[0] is None:
+                continue
+            if (
+                row[0] == "数据来源：Wind"
+                and row_index == len(rows) - 1
+                and all(cell is None for cell in row[1:])
+            ):
+                continue
+            day = _gold_day(row[0])
+            if not "2017-01-01" <= day <= contract["period_end"]:
+                continue
+            if day in seen:
+                raise ValueError("gold_edb_duplicate")
+            seen.add(day)
+            value = row[columns[0]] if columns[0] < len(row) else None
+            if isinstance(value, bool):
+                raise TypeError("gold_edb_bool")
+            if day > completed[-1]:
+                if value not in (None, "", 0):
+                    raise ValueError("gold_edb_unclosed_observation")
+                continue
+            if value in (None, "", 0):
+                if day in prices:
+                    missing.append(day)
+                continue
+            values[day] = _gold_number(value)
+        if (
+            missing != ["2017-01-30"]
+            or any(day not in values for day in completed if day != "2017-01-30")
+            or any(values[day] != prices[day] for day in values.keys() & prices.keys())
+        ):
+            raise ValueError("gold_edb_overlap_or_missing")
+        values["2017-01-30"] = prices["2017-01-30"]
+        lineage = {
+            "series_id": "history_gold_london",
+            "date": "2017-01-30",
+            "original_edb_sha256": export["sha256"],
+            "supplement_path": binding["path"],
+            "supplement_sha256": binding["sha256"],
+            "overlap_count": len(prices) - 1,
+            "value": format(prices["2017-01-30"], "f"),
+        }
+        log.info(
+            "weekly_gold_history_supplement_verified",
+            overlap_count=lineage["overlap_count"],
+            supplement_sha256=binding["sha256"],
+        )
+        return [(day, float(value)) for day, value in sorted(values.items())], lineage
+    except Exception as exc:  # Native workbook/JSON parser failures cannot authorize a repair.
+        log.warning(
+            "weekly_gold_history_supplement_rejected",
+            error_type=type(exc).__name__,
+            reason=(
+                str(exc)
+                if isinstance(exc, (ValueError, TypeError))
+                and re.fullmatch(r"gold_[a-z_]+", str(exc))
+                else "native_resource_invalid"
+            ),
+        )
+        raise WorkflowError(
+            "黄金历史补查证据未核实", "weekly_gold_supplement_unverified", 409
+        ) from exc
+
+
+def verify_weekly_history_supplement(snapshot, contract, *, run_root=None, manifest=None):
+    """Host replays version resources even if a forged snapshot drops its lineage."""
+    declared = any("history_supplement" in item for item in snapshot.get("series", {}).values())
+    if run_root is None or manifest is None:
+        if declared:
+            raise ValueError("weekly_gold_supplement_unverified")
+        return
+    manifest_value = (
+        manifest.model_dump(mode="json") if hasattr(manifest, "model_dump") else manifest
+    )
+    if not any(item.get("path") == SOURCE_CONTRACT for item in manifest_value.get("resources", [])):
+        if declared:
+            raise ValueError("weekly_gold_supplement_unverified")
+        return
+    try:
+        raw = _resource(run_root, manifest, SOURCE_CONTRACT, immutable=True)
+        version = json.loads(raw).get("schema_version")
+        if version != 4:
+            if declared:
+                raise ValueError("gold_lineage_without_schema4")
+            return
+        source, _ = load_run_source_contract(run_root, manifest)
+    except (WorkflowError, ValueError, TypeError, AttributeError) as exc:
+        log.warning("weekly_gold_source_replay_rejected", error_type=type(exc).__name__)
+        raise ValueError("weekly_gold_supplement_unverified") from exc
+    try:
+        rows, lineage = read_gold_history_supplement(
+            run_root,
+            manifest,
+            source,
+            contract,
+            snapshot["calendars"]["LONDON_GOLD"]["completed_dates"],
+        )
+        item = snapshot["series"]["history_gold_london"]
+        expected = [{"date": day, "value": value, "published_at": None} for day, value in rows]
+        if (
+            snapshot.get("source") != "wind_excel"
+            or item.get("source") != "wind_excel"
+            or item.get("rows") != expected
+            or item.get("history_supplement") != lineage
+            or item.get("raw_sha256") != lineage["original_edb_sha256"]
+            or item.get("raw_payload") != {"export": source["excel_exports"]["edb"], "column": 1}
+            or any(
+                "history_supplement" in other
+                for key, other in snapshot["series"].items()
+                if key != "history_gold_london"
+            )
+        ):
+            raise ValueError("gold_snapshot_changed")
+    except (WorkflowError, ValueError, TypeError, KeyError) as exc:
+        log.warning("weekly_gold_snapshot_replay_rejected", error_type=type(exc).__name__)
+        raise ValueError("weekly_gold_supplement_unverified") from exc
 
 
 def capture_excel_comparison(run_root, manifest, contract) -> dict:

@@ -8893,6 +8893,10 @@ Functions:
 - `_aware`
 - `_day`
 - `_number`
+- `_edb_history_date_allowed`
+  - EDB observation dates are not an exchange-session declaration.
+- `_negative_history_settlement_allowed`
+  - Only the fixed native crude-settlement histories may be negative.
 - `_mean`
 - `_percent_change`
 - `build_weekly_data_contract`
@@ -8989,6 +8993,7 @@ Imports:
 - `tempfile`
 - `urllib.parse`
 - `weekly_data`
+- `xml.etree`
 - `zipfile`
 - `zoneinfo`
 
@@ -9003,6 +9008,13 @@ Functions:
 - `_resource`
 - `load_run_source_contract`
   - Read only a published package's exact resource, never arbitrary JSON input.
+- `_gold_formula`
+- `_gold_number`
+- `_gold_day`
+- `read_gold_history_supplement`
+  - Replay frozen native responses; repair exactly one empty EDB cell, read-only.
+- `verify_weekly_history_supplement`
+  - Host replays version resources even if a forged snapshot drops its lineage.
 - `capture_excel_comparison`
   - Read actual refreshed Run workbooks; callers cannot supply comparison values.
 
@@ -13528,7 +13540,9 @@ Imports:
 - `data_layer.adapters.wind.excel_instances`
 - `data_layer.adapters.wind.exceptions`
 - `datetime`
+- `hashlib`
 - `math`
+- `sys`
 - `threading`
 - `time`
 - `typing`
@@ -13547,6 +13561,8 @@ Functions:
   - Serialize worksheet options as individual function arguments.
 - `_trim_wsd_matrix`
   - Trim a rectangular Excel spill range to its populated rows and columns.
+- `_clear_spill_range`
+  - Clear owned cells without the Mac wrapper's global UI setting changes.
 
 
 ## `data_layer/adapters/wind/excel_instances.py`

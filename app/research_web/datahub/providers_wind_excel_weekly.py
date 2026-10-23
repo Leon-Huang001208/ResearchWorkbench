@@ -22,11 +22,17 @@ from zoneinfo import ZoneInfo
 from core.observability import get_logger
 
 from ..report_workflows.weekly_data import (
+    _edb_history_date_allowed,
+    _negative_history_settlement_allowed,
     assess_weekly_snapshot,
     load_weekly_mapping,
     sample_snapshot,
 )
-from ..report_workflows.weekly_sources import _resource, read_india_exchange_calendar
+from ..report_workflows.weekly_sources import (
+    _resource,
+    read_gold_history_supplement,
+    read_india_exchange_calendar,
+)
 from . import providers_wind as shared
 from .providers import ProviderError
 
@@ -373,7 +379,7 @@ class WindExcelWeeklyProvider:
 
         spec = self.source_contract["calendars"][market]
         if spec.get("calendar_source") == "exchange_calendar":
-            if market != "IN" or self.source_contract.get("schema_version") != 3:
+            if market != "IN" or self.source_contract.get("schema_version") not in (3, 4):
                 raise ProviderError("weekly_exchange_calendar_identity_invalid")
             evidence = read_india_exchange_calendar(
                 self.run_root, self.manifest, spec, contract, acquired_at=_host_now()
@@ -411,9 +417,12 @@ class WindExcelWeeklyProvider:
         while cursor <= last:
             end = min(last, cursor + timedelta(days=365))
             formula = f'=tdays("{cursor.isoformat()}","{end.isoformat()}","TradingCalendar={spec["wind_calendar"]}")'
+            window_rows = (end - cursor).days + 1
             with _EXCEL_OPERATION_LOCK:
                 client._ensure_session()
-                matrix = client._execute_wsd_once(formula, 30, expected_columns=1)
+                matrix = client._execute_wsd_once(
+                    formula, 30, expected_columns=1, max_rows=window_rows
+                )
             if (
                 not isinstance(matrix, list)
                 or len(matrix) > 1000
@@ -464,26 +473,40 @@ class WindExcelWeeklyProvider:
     def _series(self, spec, rows, raw, completed):
         normalized = []
         seen = set()
+        completed_set = set(completed)
         for day, value in rows:
             day = _day(day)
             if day in seen:
                 raise ProviderError("weekly_excel_duplicate_date")
             seen.add(day)
-            if day not in completed:
-                # A reviewed holiday is not a trading observation.
+            if isinstance(value, bool):
+                raise ProviderError("weekly_excel_invalid_price")
+            if day not in completed_set and not _edb_history_date_allowed(spec, day, completed):
+                # Market observations still require a completed session; EDB
+                # history may retain native non-session dates only below the
+                # final completed-date upper bound.
                 if value not in (None, "", 0):
                     raise ProviderError("weekly_excel_unclosed_observation")
                 continue
             if value in (None, "") or value == 0:
                 continue
             if (
-                isinstance(value, bool)
-                or not isinstance(value, (int, float))
+                not isinstance(value, (int, float))
                 or not math.isfinite(value)
                 or value < 0
+                and not _negative_history_settlement_allowed(spec)
             ):
                 raise ProviderError("weekly_excel_invalid_price")
             normalized.append({"date": day, "value": value, "published_at": None})
+        if spec.get("kind") == "edb":
+            log.info(
+                "weekly_excel_history_observations_retained",
+                series_id=spec["id"],
+                native_non_session_count=sum(
+                    row["date"] not in completed_set for row in normalized
+                ),
+                negative_settlement_count=sum(row["value"] < 0 for row in normalized),
+            )
         return {
             **{key: spec[key] for key in ("asset", "field", "unit", "currency", "market")},
             "source": "wind_excel",
@@ -542,6 +565,11 @@ class WindExcelWeeklyProvider:
             edb_rows, edb_sha = exports["edb"]
             if len(edb_rows) < 9 or edb_rows[4][0] != "指标ID" or edb_rows[3][0] != "单位":
                 raise ProviderError("weekly_excel_edb_metadata_missing")
+            edb_observations = edb_rows[8:]
+            if edb_observations[-1][0] == "数据来源：Wind" and all(
+                cell is None for cell in edb_observations[-1][1:]
+            ):
+                edb_observations = edb_observations[:-1]
             for spec in mapping["series"]:
                 rows: list[tuple[Any, Any] | list[Any]]
                 completed = snapshot["calendars"][spec["market"]]["completed_dates"]
@@ -562,7 +590,7 @@ class WindExcelWeeklyProvider:
                         raise ProviderError("weekly_excel_edb_unit_mismatch")
                     rows = [
                         (row[0], row[column] if column < len(row) else None)
-                        for row in edb_rows[8:]
+                        for row in edb_observations
                         if row
                         and row[0] is not None
                         and start <= _day(row[0]) <= contract["period_end"]
@@ -614,11 +642,23 @@ class WindExcelWeeklyProvider:
                             end.isoformat(),
                             options,
                         )
+                        expected_dates = (
+                            [
+                                day
+                                for day in completed
+                                if cursor.isoformat() <= day <= end.isoformat()
+                            ]
+                            if exchange
+                            else []
+                        )
+                        window_rows = len(expected_dates) if exchange else (end - cursor).days + 1
                         # One accepted vendor invocation only: a timeout is unknown,
                         # and cannot silently resend the same worksheet request.
                         with _EXCEL_OPERATION_LOCK:
                             client._ensure_session()
-                            matrix = client._execute_wsd_once(formula, 30, expected_columns=2)
+                            matrix = client._execute_wsd_once(
+                                formula, 30, expected_columns=2, max_rows=window_rows
+                            )
                         if not isinstance(matrix, list) or len(matrix) > 1000:
                             raise ProviderError("weekly_excel_wsd_shape_invalid")
                         chunk = []
@@ -631,15 +671,6 @@ class WindExcelWeeklyProvider:
                                 raise ProviderError("weekly_excel_wsd_shape_invalid")
                             chunk.append([_day(row[0]), row[1]])
                         rows.extend(chunk)
-                        expected_dates = (
-                            [
-                                day
-                                for day in completed
-                                if cursor.isoformat() <= day <= end.isoformat()
-                            ]
-                            if exchange
-                            else []
-                        )
                         requests.append(
                             {
                                 "asset": spec["asset"],
@@ -679,7 +710,17 @@ class WindExcelWeeklyProvider:
                             snapshot["series"][spec["id"]] = failed
                             raise ProviderError("weekly_excel_wsd_calendar_mismatch")
                     raw = _raw(requests)
+                supplement = None
+                if (
+                    spec["id"] == "history_gold_london"
+                    and self.source_contract.get("schema_version") == 4
+                ):
+                    rows, supplement = read_gold_history_supplement(
+                        self.run_root, self.manifest, self.source_contract, contract, completed
+                    )
                 snapshot["series"][spec["id"]] = self._series(spec, rows, raw, completed)
+                if supplement is not None:
+                    snapshot["series"][spec["id"]]["history_supplement"] = supplement
                 if (
                     self.source_contract["calendars"][spec["market"]].get("calendar_source")
                     == "exchange_calendar"
@@ -752,7 +793,13 @@ class WindExcelWeeklyProvider:
                         shared._WIND_POISONED = True
                     log.error("weekly_excel_cleanup_unconfirmed", error_type=type(exc).__name__)
                     raise ProviderError("wind_cleanup_failed") from exc
-        assessment = assess_weekly_snapshot(snapshot, contract, require_excel_acquisition=True)
+        assessment = assess_weekly_snapshot(
+            snapshot,
+            contract,
+            require_excel_acquisition=True,
+            run_root=self.run_root,
+            manifest=self.manifest,
+        )
         if snapshot["limitations"]:
             assessment["status"] = "blocked_data"
             assessment["issues"] = sorted({*assessment["issues"], *snapshot["limitations"]})

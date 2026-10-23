@@ -1,6 +1,8 @@
 """Wind Excel 客户端 —— 通过 xlwings 操控 Excel Wind 插件"""
 
+import hashlib
 import math
+import sys
 import threading
 import time
 from collections.abc import Callable
@@ -104,6 +106,15 @@ def _trim_wsd_matrix(raw_data: Any) -> list[list[Any]]:
     return [row[:width] for row in populated]
 
 
+def _clear_spill_range(sheet: Any, address: str) -> None:
+    """Clear owned cells without the Mac wrapper's global UI setting changes."""
+    spill = sheet.range(address)
+    if sys.platform == "darwin":
+        spill.api.clear_contents()
+    else:
+        spill.clear_contents()
+
+
 class WindExcelClient:
     """通过 xlwings 操控 Excel 中的 Wind 插件执行公式"""
 
@@ -136,6 +147,8 @@ class WindExcelClient:
         self._heartbeat_ttl: float = 30.0  # 30s 内复用 heartbeat 结果
         self._helper_row = 1000
         self._helper_lock = threading.Lock()
+        self._spill_cleanup_unknown = False
+        self._last_spill_context: dict[str, str] = {}
 
     def _connect(self):
         """连接 Excel；验证任务可强制使用独立且由客户端持有的实例。"""
@@ -301,6 +314,8 @@ class WindExcelClient:
 
     def _ensure_connected(self):
         """确保已连接到 Excel"""
+        if self._spill_cleanup_unknown:
+            raise WindCleanupError()
         if self._app is None:
             self._connect()
 
@@ -429,20 +444,51 @@ class WindExcelClient:
     WSD_MAX_COLS = 20
 
     def _execute_wsd_once(
-        self, formula: str, timeout: float, *, expected_columns: int = 2
+        self,
+        formula: str,
+        timeout: float,
+        *,
+        expected_columns: int = 2,
+        max_rows: int | None = None,
     ) -> list[list[Any]]:
         """Write one WSD formula, wait for it, and read its complete spill range."""
-        if not 1 <= expected_columns <= self.WSD_MAX_COLS:
+        if (
+            isinstance(expected_columns, bool)
+            or not isinstance(expected_columns, int)
+            or not 1 <= expected_columns <= self.WSD_MAX_COLS
+        ):
             raise ValueError("wind_spill_column_count_invalid")
-        start_row = self._allocate_helper_rows(self.WSD_MAX_ROWS)
-        end_row = start_row + self.WSD_MAX_ROWS - 1
+        bounded = max_rows is not None
+        if bounded and (
+            isinstance(max_rows, bool)
+            or not isinstance(max_rows, int)
+            or not 1 <= max_rows <= self.WSD_MAX_ROWS
+        ):
+            raise ValueError("wind_spill_row_count_invalid")
+        if bounded and expected_columns >= self.WSD_MAX_COLS:
+            raise ValueError("wind_spill_guard_column_unavailable")
+        if self._spill_cleanup_unknown:
+            raise WindCleanupError()
+        rows = max_rows + 1 if max_rows is not None else self.WSD_MAX_ROWS
+        cols = expected_columns + 1 if bounded else self.WSD_MAX_COLS
+        start_row = self._allocate_helper_rows(rows)
+        end_row = start_row + rows - 1
         start_col = self._col
-        end_col = _offset_excel_column(start_col, self.WSD_MAX_COLS - 1)
+        end_col = _offset_excel_column(start_col, cols - 1)
         address = f"{start_col}{start_row}:{end_col}{end_row}"
-        anchor = self._sheet.range(f"{start_col}{start_row}")
+        context = {
+            "request_sha256": hashlib.sha256(formula.encode("utf-8")).hexdigest(),
+            "range": address,
+        }
+        self._last_spill_context = context
+        stage = "preclear"
+        primary_error: Exception | None = None
         try:
-            self._sheet.range(address).value = None
+            _clear_spill_range(self._sheet, address)
+            stage = "anchor"
+            anchor = self._sheet.range(f"{start_col}{start_row}")
             anchor.value = formula
+            stage = "read"
             elapsed = 0.0
             interval = 0.5
             previous = None
@@ -455,7 +501,23 @@ class WindExcelClient:
                 if isinstance(value, str) and value.strip().upper() in EXCEL_ERRORS:
                     raise WindFormulaError(formula, value.strip())
                 if value is not None and not _is_error_value(value):
-                    matrix = _trim_wsd_matrix(self._sheet.range(address).raw_value)
+                    raw = self._sheet.range(address).raw_value
+                    if bounded:
+                        raw_rows = raw if isinstance(raw, list) else [[raw]]
+                        if raw_rows and not isinstance(raw_rows[0], list):
+                            raw_rows = [[cell] for cell in raw_rows]
+                        if len(raw_rows) >= rows and any(
+                            cell is not None and cell != "" for cell in raw_rows[rows - 1]
+                        ):
+                            raise WindFormulaError(formula, "wind_spill_overflow")
+                        if any(
+                            len(row) > expected_columns
+                            and row[expected_columns] is not None
+                            and row[expected_columns] != ""
+                            for row in raw_rows
+                        ):
+                            raise WindFormulaError(formula, "wind_spill_overflow")
+                    matrix = _trim_wsd_matrix(raw)
                     # Wind may spill dates before numeric columns. A date-only
                     # first observation is not a completed historical response.
                     ready = bool(matrix) and all(
@@ -470,11 +532,37 @@ class WindExcelClient:
                         return matrix
                     previous = matrix if ready else None
             raise WindTimeoutError(formula, timeout)
+        except Exception as exc:
+            primary_error = exc
+            excel_error = (
+                {"excel_error": exc.excel_error}
+                if isinstance(exc, WindFormulaError)
+                and isinstance(exc.excel_error, str)
+                and exc.excel_error in EXCEL_ERRORS | {"wind_spill_overflow"}
+                else {}
+            )
+            logger.error(
+                "wind_excel_spill_operation_failed",
+                stage=stage,
+                error_type=type(exc).__name__,
+                **excel_error,
+                **context,
+            )
+            raise
         finally:
             try:
-                self._sheet.range(address).value = None
-            except Exception as exc:  # noqa: BLE001
-                logger.debug("Unable to clear Wind WSD helper range: %s", exc)
+                _clear_spill_range(self._sheet, address)
+            except Exception as exc:
+                logger.error(
+                    "wind_excel_spill_operation_failed",
+                    stage="cleanup",
+                    error_type=type(exc).__name__,
+                    **context,
+                )
+                if bounded:
+                    self._spill_cleanup_unknown = True
+                    if primary_error is None:
+                        raise WindCleanupError() from exc
 
     def execute_batch(self, formulas: list[str], timeout: float | None = None) -> list[Any]:
         """批量执行 Wind 公式 —— 列式写入，一次 recalc
@@ -700,6 +788,9 @@ class WindExcelClient:
     def close(self) -> None:
         """关闭持有资源；无法确认退出时保留所有权状态并失败关闭。"""
         self.stop_keepalive()
+        if self._spill_cleanup_unknown:
+            logger.error("wind_excel_close_failed", stage="close", **self._last_spill_context)
+            raise WindCleanupError()
         if self._creation_unknown:
             logger.warning("wind_excel_creation_cleanup_unconfirmed")
             raise WindCleanupError()
@@ -709,7 +800,13 @@ class WindExcelClient:
                 self._wb.close()
             except Exception as exc:  # noqa: BLE001 - xlwings error types vary.
                 workbook_close_failed = True
-                logger.warning("关闭 Wind 工作簿失败", error_type=type(exc).__name__)
+                logger.error(
+                    "wind_excel_close_failed",
+                    stage="close",
+                    resource="workbook",
+                    error_type=type(exc).__name__,
+                    **self._last_spill_context,
+                )
             else:
                 self._wb = None
                 self._sheet = None
@@ -719,7 +816,13 @@ class WindExcelClient:
                 self._app.quit()
                 logger.info("Wind Excel 客户端已关闭")
             except Exception as exc:
-                logger.error("关闭 Wind Excel 应用失败", error_type=type(exc).__name__)
+                logger.error(
+                    "wind_excel_close_failed",
+                    stage="close",
+                    resource="application",
+                    error_type=type(exc).__name__,
+                    **self._last_spill_context,
+                )
                 raise WindCleanupError() from exc
             self._app = None
             self._wb = None

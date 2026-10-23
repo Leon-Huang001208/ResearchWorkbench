@@ -1269,6 +1269,8 @@ class DataHub:
                         snapshot,
                         contract,
                         require_excel_acquisition=selected_source == "wind_excel",
+                        run_root=run_root,
+                        manifest=workflow_manifest,
                     ),
                     "datasets": [manifest],
                 }
@@ -1356,6 +1358,8 @@ class DataHub:
                             snapshot,
                             contract,
                             require_excel_acquisition=selected_source == "wind_excel",
+                            run_root=run_root,
+                            manifest=workflow_manifest,
                         ),
                     }
                     collected["assessment"]["issues"].append(code)
@@ -1432,7 +1436,11 @@ class DataHub:
                     snapshot = adopt_verified_groups(snapshot, baseline, proof)
                     collected["snapshot"] = snapshot
                 collected["assessment"] = assess_weekly_snapshot(
-                    snapshot, contract, require_excel_acquisition=selected_source == "wind_excel"
+                    snapshot,
+                    contract,
+                    require_excel_acquisition=selected_source == "wind_excel",
+                    run_root=run_root,
+                    manifest=workflow_manifest,
                 )
                 if authorize() != configuration:
                     raise StoreError(

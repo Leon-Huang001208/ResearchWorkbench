@@ -9,6 +9,9 @@
 
 2026-10-23市场补齐沿既有浏览器→Host MarketService→DataHub公开东财→当前用户缓存拓扑，新增同批限价状态、同池昨日逐股金额重算及最多30日真实资金留存；不增服务、HTTP路径、业务index、依赖、模型调用或跨账号流。原13市场图拓扑不变，缓存可选字段和公开投影分别见[缓存](architecture/research-web/03-data-files.md#全市场概览缓存)、[API](architecture/research-web/04-api.md#全市场概览接口)与[口径](research-web-datahub.md#无会话全市场数据)。
 华安周报新增既有 DataHub 私有 wind_excel 来源分支，复用 Report Workflow、唯一 DSH、Host 独立复算与原版式投影。EDB/日历绑定同版本原生导出证据；市场截止15:30与实际冻结分别记录，历史重查不认证当时快照。09/10图同步来源分支，无新服务、HTTP或依赖；本轮定时关闭。
+本期 schema4 只为已证实的伦敦金历史单点缺口附加同版本原生 WSD／TDAYS 资源；Host 重读原 EDB
+并重算重叠、覆盖及补点，不覆盖原始导出。它仍是09/10图中的来源证据与 Host 核验节点，未新增执行路径；
+封包审查、实采预检、正式 Run 与交付认证分别记录。
 
 ## 2026-10-23 资产筹码与精炼行情布局
 

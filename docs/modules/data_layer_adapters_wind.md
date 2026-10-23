@@ -38,6 +38,21 @@ Mac spill ranges contain empty strings as well as `None`; both are trimmed at
 the boundaries while numeric zero is preserved. Source dates, numeric identity,
 market calendars and report quality still require the Host's independent checks.
 
+The private weekly TDAYS and single-field WSD caller now supplies a validated
+row budget for each request. The client reads one extra row and column to detect
+contiguous spill overflow; `0` and `False` in those guard cells count as occupied.
+TDAYS and ordinary WSD use at most 366 natural days per segment, while the
+reviewed India segments use their expected exchange dates. Other callers keep
+the legacy 1000-by-20 range when they omit the budget. Owned-range clearing uses
+the native `range.api.clear_contents()` command on Mac without a range-shape
+query or a global `screen_updating` change; other platforms use xlwings
+`clear_contents()`. A native workbook check found that
+`raw_value=None` left numeric cells unchanged, so it is not a valid clear.
+Preclear, anchor, read, cleanup and close failures carry a formula hash
+and range in logs; an unconfirmed bounded cleanup blocks reuse and preserves
+the owned workbook for explicit recovery. This reduces Excel bridge traffic but
+does not certify that a busy Wind plugin will complete a real request.
+
 `build_wsd_formula` emits each worksheet option as a separate quoted argument.
 The Mac add-in silently returned the SSE date axis when given a combined
 semicolon options argument; splitting `Days`, `Fill` and `TradingCalendar`

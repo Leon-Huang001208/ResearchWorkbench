@@ -27,6 +27,9 @@ PR188合流后，当前用户已明确批准“组合验收后一起部署”，
 2026-10-22 Wind v4部署profile固定PREVIOUS=5495、PAYLOAD=`9b436613aad9136f4959c992c89dd72fc7354ed5`（PR180真实merge），产品三CI已通过且候选/preview/merge同tree。沿原操作员真实Git/固定范围/四profile恢复矩阵、完整changed-set Router、独立评审及v4同候选原三CI/Mac安装门，不增job/依赖或放宽保全。热修38/527、产品CI与旧v3正式恢复5495分别留证，不能转写为v4最终通过；实际切换仍由root在最终资格、锁、明确空闲和全账号保全后执行。
 
 华安ETF周报自动生产沿既有Report Workflow/私有DataHub/DSH/Host质量链，不调用旧AlphaFoundry执行器。
+本期黄金历史的显式单点补查复用原 Checks Python 步骤，追加 `test_report_weekly_gold_supplement.py`，
+不增加 job、runner、依赖或平台 dispatch。补查资源与原 EDB 均由 Host 重读复算，旧来源合同保持；
+离线、原生预检、正式 Run、Word 逐页交付、同候选 CI 及常驻切换分别留证，定时继续关闭。
 先冻结真实底稿指标与同源API口径，再验证周五15:30、一交易日滞后、短周、海外收盘、未知受理和撤权。
 规范正文、中文presentation、原版式图表及最终归档须同版本绑定；旧稿与母版保留。原质量门不能由
 模型自评、子Agent数量或文件完整替代。离线回归、候选Mac安装CI、真实取数/成稿、逐页视觉、三个周周期、

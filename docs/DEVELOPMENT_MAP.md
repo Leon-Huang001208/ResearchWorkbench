@@ -18,6 +18,10 @@ NYFed/Treasury 固定入口。定点离线回归 `test_datahub_official_numeric.
 
 2026-10-23市场限价/昨日/历史：`datahub/providers_market.py`负责同批f350/f351、有效限价状态/覆盖与收盘见证；`market_service.py`负责精确日历/逐股昨日金额重算、同用户同key真实资金日线留存及原子恢复；`ui/market.mjs`展示确认涨跌停/未知、昨日来源或缺口和五类日线资金历史表。定点回归沿原test_market_provider/service与research_web_market清单，无新依赖、HTTP路径或第二研究引擎；[口径](research-web-datahub.md#无会话全市场数据)与缓存/API文档同步，真实源/认证部署另留证。
 华安 Excel 主源为 datahub/providers_wind_excel_weekly.py，weekly_sources.py 校验锁定合同，weekly_data.py 独立复算日历、端点及采集时间，evidence.py 输出冻结事实。runtime.py/weekly-production.mjs 禁止本轮 Excel 日程并区分历史验收。近测试 test_datahub_wind_excel_weekly.py、test_report_weekly_acceptance.py 和 JS weekly production；连接兼容修复自身无新拓扑，完整来源分支已更新09/10图。
+schema4 的黄金单点资源重放在 weekly_sources.py；weekly_data.py、DataHub、weekly_quality.py 与
+weekly_workbooks.py 传原 Run 资源上下文，补查快照不得脱离原证据取得通过。定点回归为
+test_report_weekly_gold_supplement.py；schema1–3 与 API 合同保持。原始 EDB、原生补查、封包、质量及
+文件各保留自己的哈希，不以预检布尔值代替正式生产。
 
 2026-10-23 华安周报 Excel 预检发现 macOS `lsappinfo` PID 输出与 xlwings 解析不兼容。
 `data_layer/adapters/wind/excel_instances.py` 只在已复现的 Mac 整数解析失败后规范化该私有模块的

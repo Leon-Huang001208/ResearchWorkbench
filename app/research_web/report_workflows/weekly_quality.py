@@ -158,10 +158,15 @@ def weekly_verified_evidence(service, sid: str) -> dict | None:
     raw = _read(service.store.directory(sid), _SNAPSHOT)
     try:
         snapshot = json.loads(raw)
+        runtime = service.report_workflows.runtime
+        run = runtime._run(frozen["run_id"])
+        manifest = runtime.catalog.manifest(run["workflow_id"], run["version"])
         assessment = assess_weekly_snapshot(
             snapshot,
             frozen["data_contract"],
             require_excel_acquisition=frozen.get("data_source") == "wind_excel",
+            run_root=runtime.run_path(frozen["run_id"]),
+            manifest=manifest,
         )
         if frozen.get("data_source") == "wind_excel" and snapshot.get("source") != "wind_excel":
             raise ValueError("weekly source no longer matches frozen production policy")

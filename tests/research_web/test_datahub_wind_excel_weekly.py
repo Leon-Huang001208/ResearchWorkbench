@@ -13,7 +13,7 @@ from unittest.mock import MagicMock, patch
 from zipfile import ZipFile
 
 import pytest
-from openpyxl import Workbook
+from openpyxl import Workbook, load_workbook
 
 from app.research_web.datahub import providers_wind as shared
 from app.research_web.datahub import providers_wind_excel_weekly as excel_provider
@@ -219,7 +219,7 @@ class Client:
     def _ensure_session(self):
         pass
 
-    def _execute_wsd_once(self, formula, timeout, expected_columns):
+    def _execute_wsd_once(self, formula, timeout, *, expected_columns, max_rows):
         if expected_columns == 2:
             assert formula.startswith("=wsd(") and formula.endswith(")")
             arguments = next(csv.reader([formula[5:-1]], strict=True))
@@ -229,9 +229,18 @@ class Client:
                 ";" not in option and "," not in option for option in options
             ), "worksheet options must be separate string arguments"
             self.worksheet_options.append(tuple(options))
+            natural_days = (
+                date.fromisoformat(arguments[3]) - date.fromisoformat(arguments[2])
+            ).days + 1
+            assert 1 <= max_rows <= natural_days <= 366
+            if "Days=Alldays" not in options:
+                assert max_rows == natural_days
+            else:
+                assert max_rows == len(list(days(arguments[2], arguments[3])))
             return self.execute_wsd(*arguments)
         assert expected_columns == 1
         start, end = re.findall(r'"([0-9-]+)"', formula)
+        assert max_rows == (date.fromisoformat(end) - date.fromisoformat(start)).days + 1
         self.calls.append(("calendar", start, end))
         return [[date.fromisoformat(day)] for day in days(start, end)]
 
@@ -754,7 +763,7 @@ def test_weekly_wsd_options_are_independent_native_worksheet_arguments(tmp_path)
 def test_native_worksheet_fixture_rejects_combined_option_argument(combined):
     formula = f'=wsd("SENSEX.BO","close","2026-10-01","2026-10-09","{combined}")'
     with pytest.raises(AssertionError, match="separate string arguments"):
-        Client()._execute_wsd_once(formula, 30, 2)
+        Client()._execute_wsd_once(formula, 30, expected_columns=2, max_rows=9)
 
 
 def test_native_worksheet_calendar_argument_controls_synthetic_japan_axis(tmp_path):
@@ -762,7 +771,7 @@ def test_native_worksheet_calendar_argument_controls_synthetic_japan_axis(tmp_pa
     source["calendars"]["JP"]["wind_calendar"] = "TSE"
 
     class JapanCalendarClient(Client):
-        def _execute_wsd_once(self, formula, timeout, expected_columns):
+        def _execute_wsd_once(self, formula, timeout, *, expected_columns, max_rows):
             if expected_columns == 1:
                 args = next(csv.reader([formula[len("=tdays(") : -1]], strict=True))
                 if args[-1] == "TradingCalendar=TSE":
@@ -771,7 +780,9 @@ def test_native_worksheet_calendar_argument_controls_synthetic_japan_axis(tmp_pa
                     return [
                         [date.fromisoformat(day)] for day in days(start, end) if day != "2026-10-12"
                     ]
-            return super()._execute_wsd_once(formula, timeout, expected_columns)
+            return super()._execute_wsd_once(
+                formula, timeout, expected_columns=expected_columns, max_rows=max_rows
+            )
 
         def execute_wsd(self, asset, field, start, end, *options):
             if asset == "N225.GI":
@@ -1342,6 +1353,25 @@ def test_native_wrong_dimension_still_reads_all_edb_observations(tmp_path):
     assert max(len(item["rows"]) for item in result["snapshot"]["series"].values()) > 4000
 
 
+def test_native_edb_footer_does_not_hide_original_observations(tmp_path):
+    contract, source, manifest, save = package(tmp_path)
+    book = load_workbook(tmp_path / "inputs/edb.xlsx")
+    book.active.append(["数据来源：Wind"])
+    stream = BytesIO()
+    book.save(stream)
+    book.close()
+    source["excel_exports"]["edb"]["sha256"] = replace_resource(
+        manifest, save, "inputs/edb.xlsx", stream.getvalue()
+    )
+    result = asyncio.run(
+        WindExcelWeeklyProvider(
+            run_root=tmp_path, manifest=manifest, source_contract=source, client_factory=Client
+        ).collect(contract)
+    )
+    assert result["assessment"]["status"] == "passed", result["assessment"]["issues"]
+    assert max(len(item["rows"]) for item in result["snapshot"]["series"].values()) > 4000
+
+
 @pytest.mark.parametrize("financial_columns", [5, 8])
 def test_both_native_economic_sheets_preserve_events_and_original_level(
     tmp_path, financial_columns
@@ -1417,6 +1447,28 @@ def test_cleanup_failure_poison_blocks_shared_worker_without_replay(tmp_path, mo
         assert len(client.calls) == count
 
     asyncio.run(scenario())
+
+
+def test_vendor_type_error_does_not_replay_issued_calendar_request(tmp_path):
+    contract, source, manifest, _ = package(tmp_path)
+
+    class FailedAfterIssue(Client):
+        def _execute_wsd_once(self, formula, timeout, *, expected_columns, max_rows):
+            self.calls.append((formula, timeout, expected_columns, max_rows))
+            raise TypeError("synthetic vendor bridge failure after issue")
+
+    client = FailedAfterIssue()
+    result = asyncio.run(
+        WindExcelWeeklyProvider(
+            run_root=tmp_path,
+            manifest=manifest,
+            source_contract=source,
+            client_factory=lambda: client,
+        ).collect(contract)
+    )
+    assert result["assessment"]["status"] == "blocked_data"
+    assert len(client.calls) == 1
+    assert client.closed
 
 
 def test_real_client_unknown_book_creation_poison_survives_finally_and_new_call_id(
@@ -1501,10 +1553,12 @@ def test_vendor_matrix_over_one_thousand_rows_is_rejected(tmp_path, kind):
     contract, source, manifest, _ = package(tmp_path)
 
     class Oversized(Client):
-        def _execute_wsd_once(self, formula, timeout, expected_columns):
+        def _execute_wsd_once(self, formula, timeout, *, expected_columns, max_rows):
             if (kind == "calendar") == (expected_columns == 1):
                 return [[date(2026, 10, 16), *([100] if expected_columns == 2 else [])]] * 1001
-            return super()._execute_wsd_once(formula, timeout, expected_columns)
+            return super()._execute_wsd_once(
+                formula, timeout, expected_columns=expected_columns, max_rows=max_rows
+            )
 
     client = Oversized()
     result = asyncio.run(
@@ -1539,3 +1593,81 @@ def test_holiday_zeros_do_not_become_prices_and_unclosed_values_are_blocked():
     assert value["rows"] == [{"date": "2026-10-16", "value": 100, "published_at": None}]
     with pytest.raises(ProviderError, match="unclosed_observation"):
         provider._series(spec, [["2026-10-17", 100]], {}, ["2026-10-16"])
+
+
+@pytest.mark.parametrize(
+    "series_id",
+    ["history_gold_london", "history_gold_shanghai", "history_oil_brent", "history_oil_wti"],
+)
+def test_edb_native_non_session_observations_are_preserved_without_changing_sessions(series_id):
+    spec = next(spec for spec in load_weekly_mapping()["series"] if spec["id"] == series_id)
+    completed = ["2017-01-27", "2017-01-30", "2017-01-31"]
+    raw = {"raw_sha256": "a" * 64, "raw_payload": {"synthetic": True}}
+    rows = [["2017-01-27", 100], ["2017-01-29", 101], ["2017-01-30", 102], ["2017-01-31", 103]]
+    result = WindExcelWeeklyProvider()._series(spec, rows, raw, completed)
+    assert result["rows"] == [
+        {"date": day, "value": value, "published_at": None} for day, value in rows
+    ]
+    assert result["raw_sha256"] == raw["raw_sha256"]
+    assert result["raw_payload"] == raw["raw_payload"]
+    assert completed == ["2017-01-27", "2017-01-30", "2017-01-31"]
+
+
+@pytest.mark.parametrize(
+    "series_id,negative", [("history_oil_wti", -37.63), ("history_oil_brent", -1.25)]
+)
+def test_only_native_crude_continuous_settlement_history_accepts_finite_negative(
+    series_id, negative
+):
+    spec = next(spec for spec in load_weekly_mapping()["series"] if spec["id"] == series_id)
+    result = WindExcelWeeklyProvider()._series(
+        spec, [["2020-04-20", negative]], {"raw_sha256": "a" * 64}, ["2020-04-20"]
+    )
+    assert result["rows"] == [{"date": "2020-04-20", "value": negative, "published_at": None}]
+
+
+@pytest.mark.parametrize(
+    "series_id", ["history_gold_london", "history_gold_shanghai", "domestic_000300", "oil_wti"]
+)
+@pytest.mark.parametrize("invalid", [-1, float("nan"), float("inf"), True, False])
+def test_native_gold_and_market_invalid_values_remain_rejected(series_id, invalid):
+    spec = next(spec for spec in load_weekly_mapping()["series"] if spec["id"] == series_id)
+    with pytest.raises(ProviderError, match="invalid_price"):
+        WindExcelWeeklyProvider()._series(spec, [["2020-04-20", invalid]], {}, ["2020-04-20"])
+
+
+@pytest.mark.parametrize("series_id", ["history_gold_london", "history_oil_wti", "domestic_000300"])
+@pytest.mark.parametrize("day", ["2026-10-16", "2026-10-17", "2027-01-01"])
+def test_native_history_and_market_future_or_unclosed_dates_stay_rejected(series_id, day):
+    spec = next(spec for spec in load_weekly_mapping()["series"] if spec["id"] == series_id)
+    with pytest.raises(ProviderError, match="unclosed_observation"):
+        WindExcelWeeklyProvider()._series(spec, [[day, 100]], {}, ["2026-10-15"])
+
+
+def test_native_market_non_session_history_date_still_rejected():
+    spec = next(spec for spec in load_weekly_mapping()["series"] if spec["id"] == "gold_london")
+    with pytest.raises(ProviderError, match="unclosed_observation"):
+        WindExcelWeeklyProvider()._series(
+            spec, [["2017-01-29", 100]], {}, ["2017-01-27", "2017-01-30"]
+        )
+
+
+@pytest.mark.parametrize("series_id", ["history_gold_london", "history_oil_wti", "domestic_000300"])
+def test_zero_or_empty_native_rows_do_not_become_observations(series_id):
+    spec = next(spec for spec in load_weekly_mapping()["series"] if spec["id"] == series_id)
+    assert (
+        WindExcelWeeklyProvider()._series(
+            spec,
+            [["2026-10-14", 0], ["2026-10-15", None], ["2026-10-16", ""]],
+            {},
+            ["2026-10-14", "2026-10-15", "2026-10-16"],
+        )["rows"]
+        == []
+    )
+
+
+@pytest.mark.parametrize("invalid", [float("nan"), float("inf"), True, False])
+def test_negative_settlement_exception_never_admits_nonfinite_or_boolean(invalid):
+    spec = next(spec for spec in load_weekly_mapping()["series"] if spec["id"] == "history_oil_wti")
+    with pytest.raises(ProviderError, match="invalid_price"):
+        WindExcelWeeklyProvider()._series(spec, [["2020-04-20", invalid]], {}, ["2020-04-20"])
